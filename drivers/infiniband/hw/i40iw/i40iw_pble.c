@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -384,7 +384,7 @@ static enum i40iw_status_code add_pble_pool(struct i40iw_sc_dev *dev,
 
 	if (gen_pool_add_virt(pble_rsrc->pinfo.pool, (unsigned long)chunk->vaddr,
 			      (phys_addr_t)chunk->fpm_addr, chunk->size, -1)) {
-		i40iw_pr_err("could not allocate memory by gen_pool_addr_virt()\n");
+		i40iw_pr_err("could yest allocate memory by gen_pool_addr_virt()\n");
 		ret_code = I40IW_ERR_NO_MEMORY;
 		goto error;
 	}

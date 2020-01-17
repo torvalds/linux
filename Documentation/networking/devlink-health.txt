@@ -1,4 +1,4 @@
-The health mechanism is targeted for Real Time Alerting, in order to know when
+The health mechanism is targeted for Real Time Alerting, in order to kyesw when
 something bad had happened to a PCI device
 - Provide alert debug information
 - Self healing
@@ -11,13 +11,13 @@ attributes of the health reporting and recovery procedures.
 
 The devlink health reporter:
 Device driver creates a "health reporter" per each error/health type.
-Error/Health type can be a known/generic (eg pci error, fw error, rx/tx error)
-or unknown (driver specific).
+Error/Health type can be a kyeswn/generic (eg pci error, fw error, rx/tx error)
+or unkyeswn (driver specific).
 For each registered health reporter a driver can issue error/health reports
-asynchronously. All health reports handling is done by devlink.
+asynchroyesusly. All health reports handling is done by devlink.
 Device driver can provide specific callbacks for each "health reporter", e.g.
  - Recovery procedures
- - Diagnostics and object dump procedures
+ - Diagyesstics and object dump procedures
  - OOB initial parameters
 Different parts of the driver can register different types of health reporters
 with different handlers.
@@ -26,7 +26,7 @@ Once an error is reported, devlink health will do the following actions:
   * A log is being send to the kernel trace events buffer
   * Health status and statistics are being updated for the reporter instance
   * Object dump is being taken and saved at the reporter instance (as long as
-    there is no other dump which is already stored)
+    there is yes other dump which is already stored)
   * Auto recovery attempt is being done. Depends on:
     - Auto-recovery configuration
     - Grace period vs. time passed since last recover
@@ -36,7 +36,7 @@ User can access/change each reporter's parameters and driver specific callbacks
 via devlink, e.g per error type (per health reporter)
  - Configure reporter's generic parameters (like: disable/enable auto recovery)
  - Invoke recovery procedure
- - Run diagnostics
+ - Run diagyesstics
  - Object dump
 
 The devlink health interface (via netlink):
@@ -47,10 +47,10 @@ DEVLINK_CMD_HEALTH_REPORTER_SET
 DEVLINK_CMD_HEALTH_REPORTER_RECOVER
   Triggers a reporter's recovery procedure.
 DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE
-  Retrieves diagnostics data from a reporter on a device.
+  Retrieves diagyesstics data from a reporter on a device.
 DEVLINK_CMD_HEALTH_REPORTER_DUMP_GET
   Retrieves the last stored dump. Devlink health
-  saves a single dump. If an dump is not already stored by the devlink
+  saves a single dump. If an dump is yest already stored by the devlink
   for this reporter, devlink generates a new dump.
   dump output is defined by the reporter.
 DEVLINK_CMD_HEALTH_REPORTER_DUMP_CLEAR
@@ -64,7 +64,7 @@ DEVLINK_CMD_HEALTH_REPORTER_DUMP_CLEAR
                                       |            |             |
                                       +--------------------------+
                                                    |request for ops
-                                                   |(diagnose,
+                                                   |(diagyesse,
  mlx5_core                             devlink     |recover,
                                                    |dump)
 +--------+                            +--------------------------+

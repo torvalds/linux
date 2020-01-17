@@ -6,7 +6,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -85,7 +85,7 @@ static int vivid_fb_ioctl(struct fb_info *info, unsigned cmd, unsigned long arg)
 	}
 
 	default:
-		dprintk(dev, 1, "Unknown ioctl %08x\n", cmd);
+		dprintk(dev, 1, "Unkyeswn ioctl %08x\n", cmd);
 		return -EINVAL;
 	}
 	return 0;
@@ -152,7 +152,7 @@ static int _vivid_fb_check_var(struct fb_var_screeninfo *var, struct vivid_dev *
 	}
 	var->xoffset = var->yoffset = 0;
 	var->left_margin = var->upper_margin = 0;
-	var->nonstd = 0;
+	var->yesnstd = 0;
 
 	var->vmode &= ~FB_VMODE_MASK;
 	var->vmode |= FB_VMODE_NONINTERLACED;
@@ -191,18 +191,18 @@ static int vivid_fb_set_par(struct fb_info *info)
 	return rc;
 }
 
-static int vivid_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int vivid_fb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 				unsigned blue, unsigned transp,
 				struct fb_info *info)
 {
 	u32 color, *palette;
 
-	if (regno >= info->cmap.len)
+	if (regyes >= info->cmap.len)
 		return -EINVAL;
 
 	color = ((transp & 0xFF00) << 16) | ((red & 0xFF00) << 8) |
 		 (green & 0xFF00) | ((blue & 0xFF00) >> 8);
-	if (regno >= 16)
+	if (regyes >= 16)
 		return -EINVAL;
 
 	palette = info->pseudo_palette;
@@ -221,7 +221,7 @@ static int vivid_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			break;
 		}
 	}
-	palette[regno] = color;
+	palette[regyes] = color;
 	return 0;
 }
 
@@ -295,7 +295,7 @@ static int vivid_fb_init_vidmode(struct vivid_dev *dev)
 	dev->fb_defined.left_margin = start_window.left + 1;
 	dev->fb_defined.upper_margin = start_window.top + 1;
 	dev->fb_defined.accel_flags = FB_ACCEL_NONE;
-	dev->fb_defined.nonstd = 0;
+	dev->fb_defined.yesnstd = 0;
 	/* set default to 1:5:5:5 */
 	dev->fb_defined.green.length = 5;
 
@@ -309,7 +309,7 @@ static int vivid_fb_init_vidmode(struct vivid_dev *dev)
 
 	/* Generate valid fb_info */
 
-	dev->fb_info.node = -1;
+	dev->fb_info.yesde = -1;
 	dev->fb_info.flags = FBINFO_FLAG_DEFAULT;
 	dev->fb_info.fbops = &vivid_fb_ops;
 	dev->fb_info.par = dev;
@@ -318,7 +318,7 @@ static int vivid_fb_init_vidmode(struct vivid_dev *dev)
 	dev->fb_info.screen_base = (u8 __iomem *)dev->video_vbase;
 	dev->fb_info.fbops = &vivid_fb_ops;
 
-	/* Supply some monitor specs. Bogus values will do for now */
+	/* Supply some monitor specs. Bogus values will do for yesw */
 	dev->fb_info.monspecs.hfmin = 8000;
 	dev->fb_info.monspecs.hfmax = 70000;
 	dev->fb_info.monspecs.vfmin = 10;

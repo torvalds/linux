@@ -70,7 +70,7 @@ MODULE_PARM_DESC(debug, "Debug message level bitmap");
 static int cpi_alg = CPI_ALG_NONE;
 module_param(cpi_alg, int, 0444);
 MODULE_PARM_DESC(cpi_alg,
-		 "PFC algorithm (0=none, 1=VLAN, 2=VLAN16, 3=IP Diffserv)");
+		 "PFC algorithm (0=yesne, 1=VLAN, 2=VLAN16, 3=IP Diffserv)");
 
 static inline u8 nicvf_netdev_qidx(struct nicvf *nic, u8 qidx)
 {
@@ -84,7 +84,7 @@ static inline u8 nicvf_netdev_qidx(struct nicvf *nic, u8 qidx)
  * containing the ThunderX ARM64 CPU implementation.  All accesses to the device
  * registers on this platform are implicitly strongly ordered with respect
  * to memory accesses. So writeq_relaxed() and readq_relaxed() are safe to use
- * with no memory barriers in this driver.  The readq()/writeq() functions add
+ * with yes memory barriers in this driver.  The readq()/writeq() functions add
  * explicit ordering operation which in this case are redundant, and only
  * add overhead.
  */
@@ -220,7 +220,7 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		nic->pf_acked = true;
 		nic->vf_id = mbx.nic_cfg.vf_id & 0x7F;
 		nic->tns_mode = mbx.nic_cfg.tns_mode & 0x7F;
-		nic->node = mbx.nic_cfg.node_id;
+		nic->yesde = mbx.nic_cfg.yesde_id;
 		if (!nic->set_mac_pending)
 			ether_addr_copy(nic->netdev->dev_addr,
 					mbx.nic_cfg.mac_addr);
@@ -271,7 +271,7 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		nic->pf_acked = true;
 		break;
 	case NIC_MBOX_MSG_SNICVF_PTR:
-		/* Primary VF: make note of secondary VF's pointer
+		/* Primary VF: make yeste of secondary VF's pointer
 		 * to be used while packet transmission.
 		 */
 		nic->snicvf[mbx.nicvf.sqs_id] =
@@ -279,7 +279,7 @@ static void  nicvf_handle_mbx_intr(struct nicvf *nic)
 		nic->pf_acked = true;
 		break;
 	case NIC_MBOX_MSG_PNICVF_PTR:
-		/* Secondary VF/Qset: make note of primary VF's pointer
+		/* Secondary VF/Qset: make yeste of primary VF's pointer
 		 * to be used while packet reception, to handover packet
 		 * to primary VF's netdev.
 		 */
@@ -420,7 +420,7 @@ static void nicvf_request_sqs(struct nicvf *nic)
 		return;
 	}
 
-	/* Return if no Secondary Qsets available */
+	/* Return if yes Secondary Qsets available */
 	if (!nic->sqs_count)
 		return;
 
@@ -431,7 +431,7 @@ static void nicvf_request_sqs(struct nicvf *nic)
 	if (tx_queues > MAX_SND_QUEUES_PER_QS)
 		tx_queues = tx_queues - MAX_SND_QUEUES_PER_QS;
 
-	/* Set no of Rx/Tx queues in each of the SQsets */
+	/* Set yes of Rx/Tx queues in each of the SQsets */
 	for (sqs = 0; sqs < nic->sqs_count; sqs++) {
 		mbx.nicvf.msg = NIC_MBOX_MSG_SNICVF_PTR;
 		mbx.nicvf.vf_id = nic->vf_id;
@@ -498,14 +498,14 @@ int nicvf_set_real_num_queues(struct net_device *netdev,
 	err = netif_set_real_num_tx_queues(netdev, tx_queues);
 	if (err) {
 		netdev_err(netdev,
-			   "Failed to set no of Tx queues: %d\n", tx_queues);
+			   "Failed to set yes of Tx queues: %d\n", tx_queues);
 		return err;
 	}
 
 	err = netif_set_real_num_rx_queues(netdev, rx_queues);
 	if (err)
 		netdev_err(netdev,
-			   "Failed to set no of Rx queues: %d\n", rx_queues);
+			   "Failed to set yes of Rx queues: %d\n", rx_queues);
 	return err;
 }
 
@@ -568,7 +568,7 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 
 	switch (action) {
 	case XDP_PASS:
-		/* Check if it's a recycled page, if not
+		/* Check if it's a recycled page, if yest
 		 * unmap the DMA mapping.
 		 *
 		 * Recycled page holds an extra reference.
@@ -599,7 +599,7 @@ static inline bool nicvf_xdp_rx(struct nicvf *nic, struct bpf_prog *prog,
 		trace_xdp_exception(nic->netdev, prog, action);
 		/* fall through */
 	case XDP_DROP:
-		/* Check if it's a recycled page, if not
+		/* Check if it's a recycled page, if yest
 		 * unmap the DMA mapping.
 		 *
 		 * Recycled page holds an extra reference.
@@ -629,7 +629,7 @@ static void nicvf_snd_ptp_handler(struct net_device *netdev,
 	/* Sync for 'ptp_skb' */
 	smp_rmb();
 
-	/* New timestamp request can be queued now */
+	/* New timestamp request can be queued yesw */
 	atomic_set(&nic->tx_ptp_skbs, 0);
 
 	/* Check for timestamp requested skb */
@@ -639,7 +639,7 @@ static void nicvf_snd_ptp_handler(struct net_device *netdev,
 	/* Check if timestamping is timedout, which is set to 10us */
 	if (cqe_tx->send_status == CQ_TX_ERROP_TSTMP_TIMEOUT ||
 	    cqe_tx->send_status == CQ_TX_ERROP_TSTMP_CONFLICT)
-		goto no_tstamp;
+		goto yes_tstamp;
 
 	/* Get the timestamp */
 	memset(&ts, 0, sizeof(ts));
@@ -647,7 +647,7 @@ static void nicvf_snd_ptp_handler(struct net_device *netdev,
 	ts.hwtstamp = ns_to_ktime(ns);
 	skb_tstamp_tx(nic->ptp_skb, &ts);
 
-no_tstamp:
+yes_tstamp:
 	/* Free the original skb */
 	dev_kfree_skb_any(nic->ptp_skb);
 	nic->ptp_skb = NULL;
@@ -796,7 +796,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 			return;
 	}
 
-	/* For XDP, ignore pkts spanning multiple pages */
+	/* For XDP, igyesre pkts spanning multiple pages */
 	if (nic->xdp_prog && (cqe_rx->rb_cnt == 1)) {
 		/* Packet consumed by XDP */
 		if (nicvf_xdp_rx(snic, nic->xdp_prog, cqe_rx, sq, rq, &skb))
@@ -829,7 +829,7 @@ static void nicvf_rcv_pkt_handler(struct net_device *netdev,
 		/* HW by default verifies TCP/UDP/SCTP checksums */
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else {
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 	}
 
 	skb->protocol = eth_type_trans(skb, netdev);
@@ -863,7 +863,7 @@ static int nicvf_cq_intr_handler(struct net_device *netdev, u8 cq_idx,
 	spin_lock_bh(&cq->lock);
 loop:
 	processed_cqe = 0;
-	/* Get no of valid CQ entries to process */
+	/* Get yes of valid CQ entries to process */
 	cqe_count = nicvf_queue_reg_read(nic, NIC_QSET_CQ_0_7_STATUS, cq_idx);
 	cqe_count &= CQ_CQE_COUNT;
 	if (!cqe_count)
@@ -903,7 +903,7 @@ loop:
 		case CQE_TYPE_INVALID:
 		case CQE_TYPE_RX_SPLIT:
 		case CQE_TYPE_RX_TCP:
-			/* Ignore for now */
+			/* Igyesre for yesw */
 		break;
 		}
 		processed_cqe++;
@@ -983,7 +983,7 @@ static int nicvf_poll(struct napi_struct *napi, int budget)
 
 /* Qset error interrupt handler
  *
- * As of now only CQ errors are handled
+ * As of yesw only CQ errors are handled
  */
 static void nicvf_handle_qs_err(unsigned long data)
 {
@@ -1111,7 +1111,7 @@ static void nicvf_set_irq_affinity(struct nicvf *nic)
 		else
 			cpu = 0;
 
-		cpumask_set_cpu(cpumask_local_spread(cpu, nic->node),
+		cpumask_set_cpu(cpumask_local_spread(cpu, nic->yesde),
 				nic->affinity_mask[vec]);
 		irq_set_affinity_hint(pci_irq_vector(nic->pdev, vec),
 				      nic->affinity_mask[vec]);
@@ -1280,7 +1280,7 @@ static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev)
 		snic = (struct nicvf *)nic->snicvf[tmp - 1];
 		if (!snic) {
 			netdev_warn(nic->netdev,
-				    "Secondary Qset#%d's ptr not initialized\n",
+				    "Secondary Qset#%d's ptr yest initialized\n",
 				    tmp - 1);
 			dev_kfree_skb(skb);
 			return NETDEV_TX_OK;
@@ -1296,7 +1296,7 @@ static netdev_tx_t nicvf_xmit(struct sk_buff *skb, struct net_device *netdev)
 		/* Barrier, so that stop_queue visible to other cpus */
 		smp_mb();
 
-		/* Check again, incase another cpu freed descriptors */
+		/* Check again, incase ayesther cpu freed descriptors */
 		if (atomic_read(&sq->free_cnt) > MIN_SQ_DESC_PER_PKT_XMIT) {
 			netif_tx_wake_queue(txq);
 		} else {
@@ -1378,7 +1378,7 @@ int nicvf_stop(struct net_device *netdev)
 			continue;
 		napi_synchronize(&cq_poll->napi);
 		/* CQ intr is enabled while napi_complete,
-		 * so disable it now
+		 * so disable it yesw
 		 */
 		nicvf_disable_intr(nic, NICVF_INTR_CQ, qidx);
 		nicvf_clear_intr(nic, NICVF_INTR_CQ, qidx);
@@ -1586,11 +1586,11 @@ static int nicvf_change_mtu(struct net_device *netdev, int new_mtu)
 	struct nicvf *nic = netdev_priv(netdev);
 	int orig_mtu = netdev->mtu;
 
-	/* For now just support only the usual MTU sized frames,
+	/* For yesw just support only the usual MTU sized frames,
 	 * plus some headroom for VLAN, QinQ.
 	 */
 	if (nic->xdp_prog && new_mtu > MAX_XDP_MTU) {
-		netdev_warn(netdev, "Jumbo frames not yet supported with XDP, current MTU %d.\n",
+		netdev_warn(netdev, "Jumbo frames yest yet supported with XDP, current MTU %d.\n",
 			    netdev->mtu);
 		return -EINVAL;
 	}
@@ -1693,7 +1693,7 @@ void nicvf_update_stats(struct nicvf *nic)
 	stats->tx_mcast_frames = GET_TX_STATS(TX_MCAST);
 	stats->tx_drops = GET_TX_STATS(TX_DROP);
 
-	/* On T88 pass 2.0, the dummy SQE added for TSO notification
+	/* On T88 pass 2.0, the dummy SQE added for TSO yestification
 	 * via CQE has 'dont_send' set. Hence HW drops the pkt pointed
 	 * pointed by dummy SQE and results in tx_drops counter being
 	 * incremented. Subtracting it from tx_tso counter will give
@@ -1843,11 +1843,11 @@ static int nicvf_xdp_setup(struct nicvf *nic, struct bpf_prog *prog)
 	bool bpf_attached = false;
 	int ret = 0;
 
-	/* For now just support only the usual MTU sized frames,
+	/* For yesw just support only the usual MTU sized frames,
 	 * plus some headroom for VLAN, QinQ.
 	 */
 	if (prog && dev->mtu > MAX_XDP_MTU) {
-		netdev_warn(dev, "Jumbo frames not yet supported with XDP, current MTU %d.\n",
+		netdev_warn(dev, "Jumbo frames yest yet supported with XDP, current MTU %d.\n",
 			    dev->mtu);
 		return -EOPNOTSUPP;
 	}
@@ -1857,7 +1857,7 @@ static int nicvf_xdp_setup(struct nicvf *nic, struct bpf_prog *prog)
 	 * network stack to send pkts out.
 	 *
 	 * No of Tx queues are either same as Rx queues or whatever
-	 * is left in max no of queues possible.
+	 * is left in max yes of queues possible.
 	 */
 	if ((nic->rx_queues + nic->tx_queues) > nic->max_queues) {
 		netdev_warn(dev,
@@ -1897,8 +1897,8 @@ static int nicvf_xdp(struct net_device *netdev, struct netdev_bpf *xdp)
 	struct nicvf *nic = netdev_priv(netdev);
 
 	/* To avoid checks while retrieving buffer address from CQE_RX,
-	 * do not support XDP for T88 pass1.x silicons which are anyway
-	 * not in use widely.
+	 * do yest support XDP for T88 pass1.x silicons which are anyway
+	 * yest in use widely.
 	 */
 	if (pass1_silicon(nic->pdev))
 		return -EOPNOTSUPP;
@@ -2010,7 +2010,7 @@ static void __nicvf_set_rx_mode_task(u8 mode, struct xcast_addr_list *mc_addrs,
 
 	/* check if we have any specific MACs to be added to PF DMAC filter */
 	if (mc_addrs) {
-		/* now go through kernel list of MACs and add them one by one */
+		/* yesw go through kernel list of MACs and add them one by one */
 		for (idx = 0; idx < mc_addrs->count; idx++) {
 			mbx.xcast.msg = NIC_MBOX_MSG_ADD_MCAST;
 			mbx.xcast.mac = mc_addrs->mc[idx];
@@ -2173,7 +2173,7 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	nic->pdev = pdev;
 	nic->pnicvf = nic;
 	nic->max_queues = qcount;
-	/* If no of CPUs are too low, there won't be any queues left
+	/* If yes of CPUs are too low, there won't be any queues left
 	 * for XDP_TX, hence double it.
 	 */
 	if (!nic->t88)
@@ -2183,7 +2183,7 @@ static int nicvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* MAP VF's configuration registers */
 	nic->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
 	if (!nic->reg_base) {
-		dev_err(dev, "Cannot map config register space, aborting\n");
+		dev_err(dev, "Canyest map config register space, aborting\n");
 		err = -ENOMEM;
 		goto err_free_netdev;
 	}
@@ -2297,7 +2297,7 @@ static void nicvf_remove(struct pci_dev *pdev)
 	pnetdev = nic->pnicvf->netdev;
 
 	/* Check if this Qset is assigned to different VF.
-	 * If yes, clean primary and all secondary Qsets.
+	 * If no, clean primary and all secondary Qsets.
 	 */
 	if (pnetdev && (pnetdev->reg_state == NETREG_REGISTERED))
 		unregister_netdev(pnetdev);

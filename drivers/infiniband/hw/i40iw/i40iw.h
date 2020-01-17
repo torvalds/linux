@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -539,7 +539,7 @@ enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 					  struct i40iw_cm_info *cminfo,
 					  enum i40iw_quad_entry_type etype,
 					  enum i40iw_quad_hash_manage_type mtype,
-					  void *cmnode,
+					  void *cmyesde,
 					  bool wait);
 void i40iw_receive_ilq(struct i40iw_sc_vsi *vsi, struct i40iw_puda_buf *rbuf);
 void i40iw_free_sqbuf(struct i40iw_sc_vsi *vsi, void *bufp);
@@ -559,9 +559,9 @@ void i40iw_process_aeq(struct i40iw_device *);
 void i40iw_next_iw_state(struct i40iw_qp *iwqp,
 			 u8 state, u8 del_hash,
 			 u8 term, u8 term_len);
-int i40iw_send_syn(struct i40iw_cm_node *cm_node, u32 sendack);
-int i40iw_send_reset(struct i40iw_cm_node *cm_node);
-struct i40iw_cm_node *i40iw_find_node(struct i40iw_cm_core *cm_core,
+int i40iw_send_syn(struct i40iw_cm_yesde *cm_yesde, u32 sendack);
+int i40iw_send_reset(struct i40iw_cm_yesde *cm_yesde);
+struct i40iw_cm_yesde *i40iw_find_yesde(struct i40iw_cm_core *cm_core,
 				      u16 rem_port,
 				      u32 *rem_addr,
 				      u16 loc_port,
@@ -586,16 +586,16 @@ struct ib_mr *i40iw_reg_phys_mr(struct ib_pd *ib_pd,
 				int acc,
 				u64 *iova_start);
 
-int i40iw_inetaddr_event(struct notifier_block *notifier,
+int i40iw_inetaddr_event(struct yestifier_block *yestifier,
 			 unsigned long event,
 			 void *ptr);
-int i40iw_inet6addr_event(struct notifier_block *notifier,
+int i40iw_inet6addr_event(struct yestifier_block *yestifier,
 			  unsigned long event,
 			  void *ptr);
-int i40iw_net_event(struct notifier_block *notifier,
+int i40iw_net_event(struct yestifier_block *yestifier,
 		    unsigned long event,
 		    void *ptr);
-int i40iw_netdevice_event(struct notifier_block *notifier,
+int i40iw_netdevice_event(struct yestifier_block *yestifier,
 			  unsigned long event,
 			  void *ptr);
 

@@ -40,5 +40,5 @@ Description:
 
 		Note that the first 16 bytes of the received MBOX[] will be
 		printed, even if some of the data is junk, and skipping bytes
-		17 to 32. It is up to you to know how many of the first bytes of
+		17 to 32. It is up to you to kyesw how many of the first bytes of
 		data are the actual response.

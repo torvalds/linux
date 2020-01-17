@@ -103,7 +103,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			 struct pt_regs *regs)
 {
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		/* We don't support guest os callchain now */
+		/* We don't support guest os callchain yesw */
 		return;
 	}
 
@@ -150,7 +150,7 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 	struct stackframe frame;
 
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		/* We don't support guest os callchain now */
+		/* We don't support guest os callchain yesw */
 		return;
 	}
 

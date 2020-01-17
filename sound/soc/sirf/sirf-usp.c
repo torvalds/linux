@@ -121,7 +121,7 @@ static void sirf_usp_i2s_init(struct sirf_usp *usp)
 
 	/*
 	 * Configure DMA IO Length register
-	 * Set no limit, USP can receive data continuously until it is diabled
+	 * Set yes limit, USP can receive data continuously until it is diabled
 	 */
 	regmap_write(usp->regmap, USP_TX_DMA_IO_LEN, 0);
 	regmap_write(usp->regmap, USP_RX_DMA_IO_LEN, 0);

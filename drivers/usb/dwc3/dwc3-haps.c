@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /**
- * dwc3-haps.c - Synopsys HAPS PCI Specific glue layer
+ * dwc3-haps.c - Syyespsys HAPS PCI Specific glue layer
  *
- * Copyright (C) 2018 Synopsys, Inc.
+ * Copyright (C) 2018 Syyespsys, Inc.
  *
- * Authors: Thinh Nguyen <thinhn@synopsys.com>,
- *          John Youn <johnyoun@synopsys.com>
+ * Authors: Thinh Nguyen <thinhn@syyespsys.com>,
+ *          John Youn <johnyoun@syyespsys.com>
  */
 
 #include <linux/kernel.h>
@@ -135,8 +135,8 @@ static struct pci_driver dwc3_haps_driver = {
 	.remove		= dwc3_haps_remove,
 };
 
-MODULE_AUTHOR("Thinh Nguyen <thinhn@synopsys.com>");
+MODULE_AUTHOR("Thinh Nguyen <thinhn@syyespsys.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys HAPS PCI Glue Layer");
+MODULE_DESCRIPTION("Syyespsys HAPS PCI Glue Layer");
 
 module_pci_driver(dwc3_haps_driver);

@@ -205,7 +205,7 @@ static __always_inline void dapm_widget_invalidate_paths(
 	struct snd_soc_dapm_widget *w, enum snd_soc_dapm_direction dir)
 {
 	enum snd_soc_dapm_direction rdir = SND_SOC_DAPM_DIR_REVERSE(dir);
-	struct snd_soc_dapm_widget *node;
+	struct snd_soc_dapm_widget *yesde;
 	struct snd_soc_dapm_path *p;
 	LIST_HEAD(list);
 
@@ -221,10 +221,10 @@ static __always_inline void dapm_widget_invalidate_paths(
 		snd_soc_dapm_widget_for_each_path(w, dir, p) {
 			if (p->is_supply || p->weak || !p->connect)
 				continue;
-			node = p->node[rdir];
-			if (node->endpoints[dir] != -1) {
-				node->endpoints[dir] = -1;
-				list_add_tail(&node->work_list, &list);
+			yesde = p->yesde[rdir];
+			if (yesde->endpoints[dir] != -1) {
+				yesde->endpoints[dir] = -1;
+				list_add_tail(&yesde->work_list, &list);
 			}
 		}
 	}
@@ -278,7 +278,7 @@ static void dapm_widget_invalidate_output_paths(struct snd_soc_dapm_widget *w)
 static void dapm_path_invalidate(struct snd_soc_dapm_path *p)
 {
 	/*
-	 * Weak paths or supply paths do not influence the number of input or
+	 * Weak paths or supply paths do yest influence the number of input or
 	 * output paths of their neighbors.
 	 */
 	if (p->weak || p->is_supply)
@@ -286,9 +286,9 @@ static void dapm_path_invalidate(struct snd_soc_dapm_path *p)
 
 	/*
 	 * The number of connected endpoints is the sum of the number of
-	 * connected endpoints of all neighbors. If a node with 0 connected
+	 * connected endpoints of all neighbors. If a yesde with 0 connected
 	 * endpoints is either connected or disconnected that sum won't change,
-	 * so there is no need to re-check the path.
+	 * so there is yes need to re-check the path.
 	 */
 	if (p->source->endpoints[SND_SOC_DAPM_DIR_IN] != 0)
 		dapm_widget_invalidate_input_paths(p->sink);
@@ -571,7 +571,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_kcontrol_widget);
  *  kcontrol
  * @kcontrol: The kcontrol
  *
- * Note: This function must only be used on kcontrols that are known to have
+ * Note: This function must only be used on kcontrols that are kyeswn to have
  * been registered for a CODEC. Otherwise the behaviour is undefined.
  */
 struct snd_soc_dapm_context *snd_soc_dapm_kcontrol_dapm(
@@ -669,9 +669,9 @@ static inline void dapm_wcache_update(struct snd_soc_dapm_wcache *wcache,
  *
  * Forces the DAPM bias level to a specific state. It will call the bias level
  * callback of DAPM context with the specified level. This will even happen if
- * the context is already at the same level. Furthermore it will not go through
- * the normal bias level sequencing, meaning any intermediate states between the
- * current and the target state will not be entered.
+ * the context is already at the same level. Furthermore it will yest go through
+ * the yesrmal bias level sequencing, meaning any intermediate states between the
+ * current and the target state will yest be entered.
  *
  * Note that the change in bias level is only temporary and the next time
  * snd_soc_dapm_sync() is called the state will be set to the level as
@@ -745,7 +745,7 @@ static int dapm_connect_mux(struct snd_soc_dapm_context *dapm,
 		val = (val >> e->shift_l) & e->mask;
 		item = snd_soc_enum_val_to_item(e, val);
 	} else {
-		/* since a virtual mux has no backing registers to
+		/* since a virtual mux has yes backing registers to
 		 * decide which path to connect, it will try to match
 		 * with the first enumeration.  This is to ensure
 		 * that the default mux choice (the first) will be
@@ -780,11 +780,11 @@ static void dapm_set_mixer_path_status(struct snd_soc_dapm_path *p, int i,
 	if (reg != SND_SOC_NOPM) {
 		soc_dapm_read(p->sink->dapm, reg, &val);
 		/*
-		 * The nth_path argument allows this function to know
+		 * The nth_path argument allows this function to kyesw
 		 * which path of a kcontrol it is setting the initial
 		 * status for. Ideally this would support any number
 		 * of paths and channels. But since kcontrols only come
-		 * in mono and stereo variants, we are limited to 2
+		 * in moyes and stereo variants, we are limited to 2
 		 * channels.
 		 *
 		 * The following code assumes for stereo controls the
@@ -1024,7 +1024,7 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 	}
 
 	if (list_empty(&w->edges[dir])) {
-		dev_err(dapm->dev, "ASoC: %s %s has no paths\n", type, w->name);
+		dev_err(dapm->dev, "ASoC: %s %s has yes paths\n", type, w->name);
 		return -EINVAL;
 	}
 
@@ -1096,10 +1096,10 @@ static int snd_soc_dapm_suspend_check(struct snd_soc_dapm_widget *widget)
 	switch (level) {
 	case SNDRV_CTL_POWER_D3hot:
 	case SNDRV_CTL_POWER_D3cold:
-		if (widget->ignore_suspend)
-			dev_dbg(widget->dapm->dev, "ASoC: %s ignoring suspend\n",
+		if (widget->igyesre_suspend)
+			dev_dbg(widget->dapm->dev, "ASoC: %s igyesring suspend\n",
 				widget->name);
-		return widget->ignore_suspend;
+		return widget->igyesre_suspend;
 	default:
 		return 1;
 	}
@@ -1150,7 +1150,7 @@ static void invalidate_paths_ep(struct snd_soc_dapm_widget *widget,
 
 		if (path->connect) {
 			path->walking = 1;
-			invalidate_paths_ep(path->node[dir], dir);
+			invalidate_paths_ep(path->yesde[dir], dir);
 			path->walking = 0;
 		}
 	}
@@ -1207,7 +1207,7 @@ static __always_inline int is_connected_ep(struct snd_soc_dapm_widget *widget,
 
 		if (path->connect) {
 			path->walking = 1;
-			con += fn(path->node[dir], list, custom_stop_condition);
+			con += fn(path->yesde[dir], list, custom_stop_condition);
 			path->walking = 0;
 		}
 	}
@@ -1224,7 +1224,7 @@ static __always_inline int is_connected_ep(struct snd_soc_dapm_widget *widget,
  * Optionally, can be supplied with a function acting as a stopping condition.
  * This function takes the dapm widget currently being examined and the walk
  * direction as an arguments, it should return true if widgets from that point
- * in the graph onwards should not be added to the widget list.
+ * in the graph onwards should yest be added to the widget list.
  */
 static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 	struct list_head *list,
@@ -1462,8 +1462,8 @@ static int dapm_seq_compare(struct snd_soc_dapm_widget *a,
 	else
 		sort = dapm_down_seq;
 
-	WARN_ONCE(sort[a->id] == 0, "offset a->id %d not initialized\n", a->id);
-	WARN_ONCE(sort[b->id] == 0, "offset b->id %d not initialized\n", b->id);
+	WARN_ONCE(sort[a->id] == 0, "offset a->id %d yest initialized\n", a->id);
+	WARN_ONCE(sort[b->id] == 0, "offset b->id %d yest initialized\n", b->id);
 
 	if (sort[a->id] != sort[b->id])
 		return sort[a->id] - sort[b->id];
@@ -1529,7 +1529,7 @@ static void dapm_seq_check_event(struct snd_soc_card *card,
 		power = 0;
 		break;
 	default:
-		WARN(1, "Unknown event %d\n", event);
+		WARN(1, "Unkyeswn event %d\n", event);
 		return;
 	}
 
@@ -1605,7 +1605,7 @@ static void dapm_seq_run_coalesced(struct snd_soc_card *card,
  * We walk over a pre-sorted list of widgets to apply power to.  In
  * order to minimise the number of writes to the device required
  * multiple widgets will be updated in a single write where possible.
- * Currently anything that requires more than a single write is not
+ * Currently anything that requires more than a single write is yest
  * handled.
  */
 static void dapm_seq_run(struct snd_soc_card *card,
@@ -1638,7 +1638,7 @@ static void dapm_seq_run(struct snd_soc_card *card,
 			if (cur_dapm && cur_dapm->component) {
 				for (i = 0; i < ARRAY_SIZE(dapm_up_seq); i++)
 					if (sort[i] == cur_sort)
-						snd_soc_component_seq_notifier(
+						snd_soc_component_seq_yestifier(
 							cur_dapm->component,
 							i, cur_subseq);
 			}
@@ -1701,7 +1701,7 @@ static void dapm_seq_run(struct snd_soc_card *card,
 	if (cur_dapm && cur_dapm->component) {
 		for (i = 0; i < ARRAY_SIZE(dapm_up_seq); i++)
 			if (sort[i] == cur_sort)
-				snd_soc_component_seq_notifier(
+				snd_soc_component_seq_yestifier(
 					cur_dapm->component,
 					i, cur_subseq);
 	}
@@ -1773,7 +1773,7 @@ static void dapm_pre_sequence_async(void *data, async_cookie_t cookie)
 	struct snd_soc_dapm_context *d = data;
 	int ret;
 
-	/* If we're off and we're not supposed to go into STANDBY */
+	/* If we're off and we're yest supposed to go into STANDBY */
 	if (d->bias_level == SND_SOC_BIAS_OFF &&
 	    d->target_bias_level != SND_SOC_BIAS_OFF) {
 		if (d->dev)
@@ -1842,7 +1842,7 @@ static void dapm_widget_set_peer_power(struct snd_soc_dapm_widget *peer,
 {
 	/* If a connection is being made or broken then that update
 	 * will have marked the peer dirty, otherwise the widgets are
-	 * not connected and this update has no impact. */
+	 * yest connected and this update has yes impact. */
 	if (!connect)
 		return;
 
@@ -1954,7 +1954,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 
 	/* Check which widgets we need to power and store them in
 	 * lists indicating if they should be powered up or down.  We
-	 * only check widgets that have been flagged as dirty but note
+	 * only check widgets that have been flagged as dirty but yeste
 	 * that new widgets may be added to the dirty list while we
 	 * iterate.
 	 */
@@ -1980,7 +1980,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 			 * context up to STANDBY as unless something
 			 * else is active and passing audio they
 			 * generally don't require full power.  Signal
-			 * generators are virtual pins and have no
+			 * generators are virtual pins and have yes
 			 * power impact themselves.
 			 */
 			switch (w->id) {
@@ -2004,7 +2004,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	}
 
 	/* Force all contexts in the card to the same bias state if
-	 * they're not ground referenced.
+	 * they're yest ground referenced.
 	 */
 	bias = SND_SOC_BIAS_OFF;
 	list_for_each_entry(d, &card->dapm_list, list)
@@ -2052,7 +2052,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	/* Run card bias changes at last */
 	dapm_post_sequence_async(&card->dapm, 0);
 
-	/* do we need to notify any clients that DAPM event is complete */
+	/* do we need to yestify any clients that DAPM event is complete */
 	list_for_each_entry(d, &card->dapm_list, list) {
 		if (!d->component)
 			continue;
@@ -2090,7 +2090,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 
 	mutex_lock(&card->dapm_mutex);
 
-	/* Supply widgets are not handled by is_connected_{input,output}_ep() */
+	/* Supply widgets are yest handled by is_connected_{input,output}_ep() */
 	if (w->is_supply) {
 		in = 0;
 		out = 0;
@@ -2128,7 +2128,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 					" %s  \"%s\" \"%s\"\n",
 					(rdir == SND_SOC_DAPM_DIR_IN) ? "in" : "out",
 					p->name ? p->name : "static",
-					p->node[rdir]->name);
+					p->yesde[rdir]->name);
 		}
 	}
 
@@ -2166,8 +2166,8 @@ static ssize_t dapm_bias_read_file(struct file *file, char __user *user_buf,
 		level = "Off\n";
 		break;
 	default:
-		WARN(1, "Unknown bias_level %d\n", dapm->bias_level);
-		level = "Unknown\n";
+		WARN(1, "Unkyeswn bias_level %d\n", dapm->bias_level);
+		level = "Unkyeswn\n";
 		break;
 	}
 
@@ -2258,7 +2258,7 @@ static int soc_dapm_mux_update_power(struct snd_soc_card *card,
 	/* find dapm widget path assoc with kcontrol */
 	dapm_kcontrol_for_each_path(path, kcontrol) {
 		found = 1;
-		/* we now need to match the string in the enum to the path */
+		/* we yesw need to match the string in the enum to the path */
 		if (e && !(strcmp(path->name, e->texts[mux])))
 			connect = true;
 		else
@@ -2306,7 +2306,7 @@ static int soc_dapm_mixer_update_power(struct snd_soc_card *card,
 		/*
 		 * Ideally this function should support any number of
 		 * paths and channels. But since kcontrols only come
-		 * in mono and stereo variants, we are limited to 2
+		 * in moyes and stereo variants, we are limited to 2
 		 * channels.
 		 *
 		 * The following code assumes for stereo controls the
@@ -2362,7 +2362,7 @@ static ssize_t dapm_widget_show_component(struct snd_soc_component *cmpnt,
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
 	struct snd_soc_dapm_widget *w;
 	int count = 0;
-	char *state = "not set";
+	char *state = "yest set";
 
 	/* card won't be set for the dummy component, as a spot fix
 	 * we're checking for that case specifically here but in future
@@ -2451,8 +2451,8 @@ struct attribute *soc_dapm_dev_attrs[] = {
 
 static void dapm_free_path(struct snd_soc_dapm_path *path)
 {
-	list_del(&path->list_node[SND_SOC_DAPM_DIR_IN]);
-	list_del(&path->list_node[SND_SOC_DAPM_DIR_OUT]);
+	list_del(&path->list_yesde[SND_SOC_DAPM_DIR_IN]);
+	list_del(&path->list_yesde[SND_SOC_DAPM_DIR_OUT]);
 	list_del(&path->list_kcontrol);
 	list_del(&path->list);
 	kfree(path);
@@ -2529,7 +2529,7 @@ static int snd_soc_dapm_set_pin(struct snd_soc_dapm_context *dapm,
 	dapm_assert_locked(dapm);
 
 	if (!w) {
-		dev_err(dapm->dev, "ASoC: DAPM unknown pin %s\n", pin);
+		dev_err(dapm->dev, "ASoC: DAPM unkyeswn pin %s\n", pin);
 		return -EINVAL;
 	}
 
@@ -2756,12 +2756,12 @@ static int snd_soc_dapm_check_dynamic_path(struct snd_soc_dapm_context *dapm,
 
 	if (dynamic_source && dynamic_sink) {
 		dev_err(dapm->dev,
-			"Direct connection between demux and mixer/mux not supported for path %s -> [%s] -> %s\n",
+			"Direct connection between demux and mixer/mux yest supported for path %s -> [%s] -> %s\n",
 			source->name, control, sink->name);
 		return -EINVAL;
 	} else if (!dynamic_source && !dynamic_sink) {
 		dev_err(dapm->dev,
-			"Control not supported for path %s -> [%s] -> %s\n",
+			"Control yest supported for path %s -> [%s] -> %s\n",
 			source->name, control, sink->name);
 		return -EINVAL;
 	}
@@ -2782,7 +2782,7 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 
 	if (wsink->is_supply && !wsource->is_supply) {
 		dev_err(dapm->dev,
-			"Connecting non-supply widget to supply widget is not supported (%s -> %s)\n",
+			"Connecting yesn-supply widget to supply widget is yest supported (%s -> %s)\n",
 			wsource->name, wsink->name);
 		return -EINVAL;
 	}
@@ -2796,7 +2796,7 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 
 	if (wsource->is_supply && control) {
 		dev_err(dapm->dev,
-			"Conditional paths are not supported for supply widgets (%s -> [%s] -> %s)\n",
+			"Conditional paths are yest supported for supply widgets (%s -> [%s] -> %s)\n",
 			wsource->name, control, wsink->name);
 		return -EINVAL;
 	}
@@ -2809,8 +2809,8 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 	if (!path)
 		return -ENOMEM;
 
-	path->node[SND_SOC_DAPM_DIR_IN] = wsource;
-	path->node[SND_SOC_DAPM_DIR_OUT] = wsink;
+	path->yesde[SND_SOC_DAPM_DIR_IN] = wsource;
+	path->yesde[SND_SOC_DAPM_DIR_OUT] = wsink;
 	widgets[SND_SOC_DAPM_DIR_IN] = wsource;
 	widgets[SND_SOC_DAPM_DIR_OUT] = wsink;
 
@@ -2855,7 +2855,7 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 
 	list_add(&path->list, &dapm->card->paths);
 	snd_soc_dapm_for_each_direction(dir)
-		list_add(&path->list_node[dir], &widgets[dir]->edges[dir]);
+		list_add(&path->list_yesde[dir], &widgets[dir]->edges[dir]);
 
 	snd_soc_dapm_for_each_direction(dir) {
 		dapm_update_widget_flags(widgets[dir]);
@@ -2937,19 +2937,19 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 					w->name);
 		}
 	}
-	/* use widget from another DAPM context if not found from this */
+	/* use widget from ayesther DAPM context if yest found from this */
 	if (!wsink)
 		wsink = wtsink;
 	if (!wsource)
 		wsource = wtsource;
 
 	if (wsource == NULL) {
-		dev_err(dapm->dev, "ASoC: no source widget found for %s\n",
+		dev_err(dapm->dev, "ASoC: yes source widget found for %s\n",
 			route->source);
 		return -ENODEV;
 	}
 	if (wsink == NULL) {
-		dev_err(dapm->dev, "ASoC: no sink widget found for %s\n",
+		dev_err(dapm->dev, "ASoC: yes sink widget found for %s\n",
 			route->sink);
 		return -ENODEV;
 	}
@@ -2965,7 +2965,7 @@ skip_search:
 
 	return 0;
 err:
-	dev_warn(dapm->dev, "ASoC: no dapm match for %s --> %s --> %s\n",
+	dev_warn(dapm->dev, "ASoC: yes dapm match for %s --> %s --> %s\n",
 		 source, route->control, sink);
 	return ret;
 }
@@ -2983,7 +2983,7 @@ static int snd_soc_dapm_del_route(struct snd_soc_dapm_context *dapm,
 
 	if (route->control) {
 		dev_err(dapm->dev,
-			"ASoC: Removal of routes with controls not supported\n");
+			"ASoC: Removal of routes with controls yest supported\n");
 		return -EINVAL;
 	}
 
@@ -3025,7 +3025,7 @@ static int snd_soc_dapm_del_route(struct snd_soc_dapm_context *dapm,
 		dapm_update_widget_flags(wsource);
 		dapm_update_widget_flags(wsink);
 	} else {
-		dev_warn(dapm->dev, "ASoC: Route %s->%s does not exist\n",
+		dev_warn(dapm->dev, "ASoC: Route %s->%s does yest exist\n",
 			 source, sink);
 	}
 
@@ -3117,7 +3117,7 @@ static int snd_soc_dapm_weak_route(struct snd_soc_dapm_context *dapm,
 	}
 
 	if (route->control || route->connected)
-		dev_warn(dapm->dev, "ASoC: Ignoring control for weak route %s->%s\n",
+		dev_warn(dapm->dev, "ASoC: Igyesring control for weak route %s->%s\n",
 			 route->source, route->sink);
 
 	snd_soc_dapm_widget_for_each_sink_path(source, path) {
@@ -3144,13 +3144,13 @@ static int snd_soc_dapm_weak_route(struct snd_soc_dapm_context *dapm,
  * @num: number of routes
  *
  * Mark existing routes matching those specified in the passed array
- * as being weak, meaning that they are ignored for the purpose of
+ * as being weak, meaning that they are igyesred for the purpose of
  * power decisions.  The main intended use case is for sidetone paths
  * which couple audio between other independent paths if they are both
  * active in order to make the combination work better at the user
  * level but which aren't intended to be "used".
  *
- * Note that CODEC drivers should not use this as sidetone type paths
+ * Note that CODEC drivers should yest use this as sidetone type paths
  * can frequently also be used as bypass paths.
  */
 int snd_soc_dapm_weak_routes(struct snd_soc_dapm_context *dapm,
@@ -3972,7 +3972,7 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	default:
-		WARN(1, "Unknown event %d\n", event);
+		WARN(1, "Unkyeswn event %d\n", event);
 		ret = -EINVAL;
 	}
 
@@ -4054,11 +4054,11 @@ snd_soc_dapm_alloc_kcontrol(struct snd_soc_card *card,
 	for (count = 0 ; count < num_params; count++) {
 		if (!config->stream_name) {
 			dev_warn(card->dapm.dev,
-				"ASoC: anonymous config %d for dai link %s\n",
+				"ASoC: ayesnymous config %d for dai link %s\n",
 				count, link_name);
 			w_param_text[count] =
 				devm_kasprintf(card->dev, GFP_KERNEL,
-					       "Anonymous Configuration %d",
+					       "Ayesnymous Configuration %d",
 					       count);
 		} else {
 			w_param_text[count] = devm_kmemdup(card->dev,
@@ -4234,9 +4234,9 @@ int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card)
 			continue;
 		}
 
-		/* let users know there is no DAI to link */
+		/* let users kyesw there is yes DAI to link */
 		if (!dai_w->priv) {
-			dev_dbg(card->dev, "dai widget %s has no DAI\n",
+			dev_dbg(card->dev, "dai widget %s has yes DAI\n",
 				dai_w->name);
 			continue;
 		}
@@ -4403,8 +4403,8 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 	/* for each BE DAI link... */
 	for_each_card_rtds(card, rtd)  {
 		/*
-		 * dynamic FE links have no fixed DAI mapping.
-		 * CODEC<->CODEC links have no direct connection.
+		 * dynamic FE links have yes fixed DAI mapping.
+		 * CODEC<->CODEC links have yes direct connection.
 		 */
 		if (rtd->dai_link->dynamic)
 			continue;
@@ -4512,14 +4512,14 @@ int snd_soc_dapm_force_enable_pin_unlocked(struct snd_soc_dapm_context *dapm,
 	struct snd_soc_dapm_widget *w = dapm_find_widget(dapm, pin, true);
 
 	if (!w) {
-		dev_err(dapm->dev, "ASoC: unknown pin %s\n", pin);
+		dev_err(dapm->dev, "ASoC: unkyeswn pin %s\n", pin);
 		return -EINVAL;
 	}
 
 	dev_dbg(w->dapm->dev, "ASoC: force enable pin %s\n", pin);
 	if (!w->connected) {
 		/*
-		 * w->force does not affect the number of input or output paths,
+		 * w->force does yest affect the number of input or output paths,
 		 * so we only have to recheck if w->connected is changed
 		 */
 		dapm_widget_invalidate_input_paths(w);
@@ -4609,7 +4609,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_disable_pin);
  * @dapm: DAPM context
  * @pin: pin name
  *
- * Marks the specified pin as being not connected, disabling it along
+ * Marks the specified pin as being yest connected, disabling it along
  * any parent or child widgets.  At present this is identical to
  * snd_soc_dapm_disable_pin() but in future it will be extended to do
  * additional things such as disabling controls which only affect
@@ -4632,7 +4632,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_nc_pin_unlocked);
  * @dapm: DAPM context
  * @pin: pin name
  *
- * Marks the specified pin as being not connected, disabling it along
+ * Marks the specified pin as being yest connected, disabling it along
  * any parent or child widgets.  At present this is identical to
  * snd_soc_dapm_disable_pin() but in future it will be extended to do
  * additional things such as disabling controls which only affect
@@ -4677,31 +4677,31 @@ int snd_soc_dapm_get_pin_status(struct snd_soc_dapm_context *dapm,
 EXPORT_SYMBOL_GPL(snd_soc_dapm_get_pin_status);
 
 /**
- * snd_soc_dapm_ignore_suspend - ignore suspend status for DAPM endpoint
+ * snd_soc_dapm_igyesre_suspend - igyesre suspend status for DAPM endpoint
  * @dapm: DAPM context
  * @pin: audio signal pin endpoint (or start point)
  *
- * Mark the given endpoint or pin as ignoring suspend.  When the
- * system is disabled a path between two endpoints flagged as ignoring
- * suspend will not be disabled.  The path must already be enabled via
- * normal means at suspend time, it will not be turned on if it was not
+ * Mark the given endpoint or pin as igyesring suspend.  When the
+ * system is disabled a path between two endpoints flagged as igyesring
+ * suspend will yest be disabled.  The path must already be enabled via
+ * yesrmal means at suspend time, it will yest be turned on if it was yest
  * already enabled.
  */
-int snd_soc_dapm_ignore_suspend(struct snd_soc_dapm_context *dapm,
+int snd_soc_dapm_igyesre_suspend(struct snd_soc_dapm_context *dapm,
 				const char *pin)
 {
 	struct snd_soc_dapm_widget *w = dapm_find_widget(dapm, pin, false);
 
 	if (!w) {
-		dev_err(dapm->dev, "ASoC: unknown pin %s\n", pin);
+		dev_err(dapm->dev, "ASoC: unkyeswn pin %s\n", pin);
 		return -EINVAL;
 	}
 
-	w->ignore_suspend = 1;
+	w->igyesre_suspend = 1;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_ignore_suspend);
+EXPORT_SYMBOL_GPL(snd_soc_dapm_igyesre_suspend);
 
 /**
  * snd_soc_dapm_free - free dapm resources
@@ -4757,7 +4757,7 @@ static void soc_dapm_shutdown_dapm(struct snd_soc_dapm_context *dapm)
 		}
 	}
 
-	/* If there were no widgets to power down we're already in
+	/* If there were yes widgets to power down we're already in
 	 * standby.
 	 */
 	if (powerdown) {

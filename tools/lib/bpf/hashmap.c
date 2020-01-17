@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 
 /*
- * Generic non-thread safe hash map implementation.
+ * Generic yesn-thread safe hash map implementation.
  *
  * Copyright (c) 2019 Facebook
  */
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/err.h>
 #include "hashmap.h"
 

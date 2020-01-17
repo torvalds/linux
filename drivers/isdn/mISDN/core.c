@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@yesvell.com>
  */
 
 #include <linux/slab.h>
@@ -25,7 +25,7 @@ static DEFINE_RWLOCK(bp_lock);
 
 static void mISDN_dev_release(struct device *dev)
 {
-	/* nothing to do: the device is part of its parent's data structure */
+	/* yesthing to do: the device is part of its parent's data structure */
 }
 
 static ssize_t id_show(struct device *dev,
@@ -154,7 +154,7 @@ static int mISDN_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static void mISDN_class_release(struct class *cls)
 {
-	/* do nothing, it's static */
+	/* do yesthing, it's static */
 }
 
 static struct class mISDN_class = {
@@ -305,7 +305,7 @@ get_Bprotocol4id(u_int id)
 	u_int	m;
 
 	if (id < ISDN_P_B_START || id > 63) {
-		printk(KERN_WARNING "%s id not in range  %d\n",
+		printk(KERN_WARNING "%s id yest in range  %d\n",
 		       __func__, id);
 		return NULL;
 	}
@@ -350,18 +350,18 @@ mISDN_unregister_Bprotocol(struct Bprotocol *bp)
 }
 EXPORT_SYMBOL(mISDN_unregister_Bprotocol);
 
-static const char *msg_no_channel = "<no channel>";
-static const char *msg_no_stack = "<no stack>";
-static const char *msg_no_stackdev = "<no stack device>";
+static const char *msg_yes_channel = "<yes channel>";
+static const char *msg_yes_stack = "<yes stack>";
+static const char *msg_yes_stackdev = "<yes stack device>";
 
 const char *mISDNDevName4ch(struct mISDNchannel *ch)
 {
 	if (!ch)
-		return msg_no_channel;
+		return msg_yes_channel;
 	if (!ch->st)
-		return msg_no_stack;
+		return msg_yes_stack;
 	if (!ch->st->dev)
-		return msg_no_stackdev;
+		return msg_yes_stackdev;
 	return dev_name(&ch->st->dev->dev);
 };
 EXPORT_SYMBOL(mISDNDevName4ch);

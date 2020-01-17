@@ -20,7 +20,7 @@ int enter_vmx_usercopy(void)
 	/*
 	 * We need to disable page faults as they can call schedule and
 	 * thus make us lose the VMX context. So on page faults, we just
-	 * fail which will cause a fallback to the normal non-vmx copy.
+	 * fail which will cause a fallback to the yesrmal yesn-vmx copy.
 	 */
 	pagefault_disable();
 

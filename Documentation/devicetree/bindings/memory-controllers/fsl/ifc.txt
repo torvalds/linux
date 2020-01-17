@@ -24,7 +24,7 @@ Properties:
 - ranges : Each range corresponds to a single chipselect, and covers
            the entire access window as configured.
 
-Child device nodes describe the devices connected to IFC such as NOR (e.g.
+Child device yesdes describe the devices connected to IFC such as NOR (e.g.
 cfi-flash) and NAND (fsl,ifc-nand). There might be board specific devices
 like FPGAs, CPLDs, etc.
 
@@ -65,7 +65,7 @@ Example:
 			reg = <0x1 0x0 0x10000>;
 
 			partition@0 {
-				/* This location must not be altered  */
+				/* This location must yest be altered  */
 				/* 1MB for u-boot Bootloader Image */
 				reg = <0x0 0x00100000>;
 				label = "NAND U-Boot Image";

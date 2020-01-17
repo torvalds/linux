@@ -42,7 +42,7 @@ MODULE_LICENSE("GPL");
 
 static int acpi_ac_add(struct acpi_device *device);
 static int acpi_ac_remove(struct acpi_device *device);
-static void acpi_ac_notify(struct acpi_device *device, u32 event);
+static void acpi_ac_yestify(struct acpi_device *device, u32 event);
 
 struct acpi_ac_bl {
 	const char *hid;
@@ -83,7 +83,7 @@ static struct acpi_driver acpi_ac_driver = {
 	.ops = {
 		.add = acpi_ac_add,
 		.remove = acpi_ac_remove,
-		.notify = acpi_ac_notify,
+		.yestify = acpi_ac_yestify,
 		},
 	.drv.pm = &acpi_ac_pm,
 };
@@ -93,7 +93,7 @@ struct acpi_ac {
 	struct power_supply_desc charger_desc;
 	struct acpi_device * device;
 	unsigned long long state;
-	struct notifier_block battery_nb;
+	struct yestifier_block battery_nb;
 };
 
 #define to_acpi_ac(x) power_supply_get_drvdata(x)
@@ -179,7 +179,7 @@ static int acpi_ac_seq_show(struct seq_file *seq, void *offset)
 		seq_puts(seq, "on-line\n");
 		break;
 	default:
-		seq_puts(seq, "unknown\n");
+		seq_puts(seq, "unkyeswn\n");
 		break;
 	}
 
@@ -225,7 +225,7 @@ static int acpi_ac_remove_fs(struct acpi_ac *ac)
                                    Driver Model
    -------------------------------------------------------------------------- */
 
-static void acpi_ac_notify(struct acpi_device *device, u32 event)
+static void acpi_ac_yestify(struct acpi_device *device, u32 event)
 {
 	struct acpi_ac *ac = acpi_driver_data(device);
 
@@ -241,7 +241,7 @@ static void acpi_ac_notify(struct acpi_device *device, u32 event)
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		/*
-		 * A buggy BIOS may notify AC first and then sleep for
+		 * A buggy BIOS may yestify AC first and then sleep for
 		 * a specific time before doing actual operations in the
 		 * EC event handler (_Qxx). This will cause the AC state
 		 * reported by the ACPI event to be incorrect, so wait for a
@@ -254,24 +254,24 @@ static void acpi_ac_notify(struct acpi_device *device, u32 event)
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
 						  dev_name(&device->dev), event,
 						  (u32) ac->state);
-		acpi_notifier_call_chain(device, event, (u32) ac->state);
+		acpi_yestifier_call_chain(device, event, (u32) ac->state);
 		kobject_uevent(&ac->charger->dev.kobj, KOBJ_CHANGE);
 	}
 
 	return;
 }
 
-static int acpi_ac_battery_notify(struct notifier_block *nb,
+static int acpi_ac_battery_yestify(struct yestifier_block *nb,
 				  unsigned long action, void *data)
 {
 	struct acpi_ac *ac = container_of(nb, struct acpi_ac, battery_nb);
 	struct acpi_bus_event *event = (struct acpi_bus_event *)data;
 
 	/*
-	 * On HP Pavilion dv6-6179er AC status notifications aren't triggered
+	 * On HP Pavilion dv6-6179er AC status yestifications aren't triggered
 	 * when adapter is plugged/unplugged. However, battery status
-	 * notifcations are triggered when battery starts charging or
-	 * discharging. Re-reading AC status triggers lost AC notifications,
+	 * yestifcations are triggered when battery starts charging or
+	 * discharging. Re-reading AC status triggers lost AC yestifications,
 	 * if AC status has changed.
 	 */
 	if (strcmp(event->device_class, ACPI_BATTERY_CLASS) == 0 &&
@@ -287,7 +287,7 @@ static int __init thinkpad_e530_quirk(const struct dmi_system_id *d)
 	return 0;
 }
 
-static int __init ac_do_not_check_pmic_quirk(const struct dmi_system_id *d)
+static int __init ac_do_yest_check_pmic_quirk(const struct dmi_system_id *d)
 {
 	ac_check_pmic = 0;
 	return 0;
@@ -304,18 +304,18 @@ static const struct dmi_system_id ac_dmi_table[]  __initconst = {
 	},
 	{
 		/* ECS EF20EA */
-		.callback = ac_do_not_check_pmic_quirk,
+		.callback = ac_do_yest_check_pmic_quirk,
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
 		},
 	},
 	{
-		/* Lenovo Ideapad Miix 320 */
-		.callback = ac_do_not_check_pmic_quirk,
+		/* Leyesvo Ideapad Miix 320 */
+		.callback = ac_do_yest_check_pmic_quirk,
 		.matches = {
 		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "80XF"),
-		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Leyesvo MIIX 320-10ICR"),
 		},
 	},
 	{},
@@ -367,8 +367,8 @@ static int acpi_ac_add(struct acpi_device *device)
 	       acpi_device_name(device), acpi_device_bid(device),
 	       ac->state ? "on-line" : "off-line");
 
-	ac->battery_nb.notifier_call = acpi_ac_battery_notify;
-	register_acpi_notifier(&ac->battery_nb);
+	ac->battery_nb.yestifier_call = acpi_ac_battery_yestify;
+	register_acpi_yestifier(&ac->battery_nb);
 end:
 	if (result) {
 #ifdef CONFIG_ACPI_PROCFS_POWER
@@ -415,7 +415,7 @@ static int acpi_ac_remove(struct acpi_device *device)
 	ac = acpi_driver_data(device);
 
 	power_supply_unregister(ac->charger);
-	unregister_acpi_notifier(&ac->battery_nb);
+	unregister_acpi_yestifier(&ac->battery_nb);
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_ac_remove_fs(ac);
@@ -440,7 +440,7 @@ static int __init acpi_ac_init(void)
 		for (i = 0; i < ARRAY_SIZE(acpi_ac_blacklist); i++)
 			if (acpi_dev_present(acpi_ac_blacklist[i].hid, "1",
 					     acpi_ac_blacklist[i].hrv)) {
-				pr_info(PREFIX "AC: found native %s PMIC, not loading\n",
+				pr_info(PREFIX "AC: found native %s PMIC, yest loading\n",
 					acpi_ac_blacklist[i].hid);
 				return -ENODEV;
 			}

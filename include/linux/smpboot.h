@@ -12,7 +12,7 @@ struct smpboot_thread_data;
  * struct smp_hotplug_thread - CPU hotplug related thread descriptor
  * @store:		Pointer to per cpu storage for the task pointers
  * @list:		List head for core management
- * @thread_should_run:	Check whether the thread should run or not. Called with
+ * @thread_should_run:	Check whether the thread should run or yest. Called with
  *			preemption disabled.
  * @thread_fn:		The associated thread function
  * @create:		Optional setup function, called when the thread gets
@@ -25,7 +25,7 @@ struct smpboot_thread_data;
  *			parked (cpu offline)
  * @unpark:		Optional unpark function, called when the thread is
  *			unparked (cpu online)
- * @selfparking:	Thread is not parked by the park function.
+ * @selfparking:	Thread is yest parked by the park function.
  * @thread_comm:	The base name of the thread
  */
 struct smp_hotplug_thread {

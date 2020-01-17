@@ -54,7 +54,7 @@
 #include <linux/bitops.h>
 #include <linux/dmi.h>
 #include <linux/io.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include "lm75.h"
 
 #define USE_ALTERNATE
@@ -1534,8 +1534,8 @@ static void nct6775_init_fan_div(struct nct6775_data *data)
 	nct6775_update_fan_div_common(data);
 	/*
 	 * For all fans, start with highest divider value if the divider
-	 * register is not initialized. This ensures that we get a
-	 * reading from the fan count register, even if it is not optimal.
+	 * register is yest initialized. This ensures that we get a
+	 * reading from the fan count register, even if it is yest optimal.
 	 * We'll compute a better divider later on.
 	 */
 	for (i = 0; i < ARRAY_SIZE(data->fan_div); i++) {
@@ -1558,7 +1558,7 @@ static void nct6775_init_fan_common(struct device *dev,
 		nct6775_init_fan_div(data);
 
 	/*
-	 * If fan_min is not set (0), set it to 0xff to disable it. This
+	 * If fan_min is yest set (0), set it to 0xff to disable it. This
 	 * prevents the unnecessary warning when fanX_min is reported as 0.
 	 */
 	for (i = 0; i < ARRAY_SIZE(data->fan_min); i++) {
@@ -1582,7 +1582,7 @@ static void nct6775_select_fan_div(struct device *dev,
 		return;
 
 	/*
-	 * If we failed to measure the fan speed, or the reported value is not
+	 * If we failed to measure the fan speed, or the reported value is yest
 	 * in the optimal range, and the clock divider can be modified,
 	 * let's try that for next time.
 	 */
@@ -1936,7 +1936,7 @@ show_temp_alarm(struct device *dev, struct device_attribute *attr, char *buf)
 	int nr;
 
 	/*
-	 * For temperatures, there is no fixed mapping from registers to alarm
+	 * For temperatures, there is yes fixed mapping from registers to alarm
 	 * bits. Alarm bits are determined by the temperature source mapping.
 	 */
 	nr = find_temp_source(data, sattr->index, data->num_temp_alarms);
@@ -1996,7 +1996,7 @@ show_temp_beep(struct device *dev, struct device_attribute *attr, char *buf)
 	int nr;
 
 	/*
-	 * For temperatures, there is no fixed mapping from registers to beep
+	 * For temperatures, there is yes fixed mapping from registers to beep
 	 * enable bits. Beep enable bits are determined by the temperature
 	 * source mapping.
 	 */
@@ -2068,7 +2068,7 @@ SENSOR_TEMPLATE_2(in_max, "in%d_max", S_IWUSR | S_IRUGO, show_in_reg,
 
 /*
  * nct6775_in_is_visible uses the index into the following array
- * to determine if attributes should be created or not.
+ * to determine if attributes should be created or yest.
  * Any change in order or content must be matched.
  */
 static struct sensor_device_template *nct6775_attributes_in_template[] = {
@@ -2135,7 +2135,7 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&data->update_lock);
 	if (!data->has_fan_div) {
-		/* NCT6776F or NCT6779D; we know this is a 13 bit register */
+		/* NCT6776F or NCT6779D; we kyesw this is a 13 bit register */
 		if (!val) {
 			val = 0xff1f;
 		} else {
@@ -2157,7 +2157,7 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 	reg = 1350000U / val;
 	if (reg >= 128 * 255) {
 		/*
-		 * Speed below this value cannot possibly be represented,
+		 * Speed below this value canyest possibly be represented,
 		 * even with the highest divider (128)
 		 */
 		data->fan_min[nr] = 254;
@@ -2167,7 +2167,7 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 			 nr + 1, val, data->fan_from_reg_min(254, 7));
 	} else if (!reg) {
 		/*
-		 * Speed above this value cannot possibly be represented,
+		 * Speed above this value canyest possibly be represented,
 		 * even with the lowest divider (1)
 		 */
 		data->fan_min[nr] = 1;
@@ -2288,7 +2288,7 @@ SENSOR_TEMPLATE(fan_div, "fan%d_div", S_IRUGO, show_fan_div, NULL, 0);
 
 /*
  * nct6775_fan_is_visible uses the index into the following array
- * to determine if attributes should be created or not.
+ * to determine if attributes should be created or yest.
  * Any change in order or content must be matched.
  */
 static struct sensor_device_template *nct6775_attributes_fan_template[] = {
@@ -2496,7 +2496,7 @@ SENSOR_TEMPLATE(temp_beep, "temp%d_beep", S_IRUGO | S_IWUSR, show_temp_beep,
 
 /*
  * nct6775_temp_is_visible uses the index into the following array
- * to determine if attributes should be created or not.
+ * to determine if attributes should be created or yest.
  * Any change in order or content must be matched.
  */
 static struct sensor_device_template *nct6775_attributes_temp_template[] = {
@@ -2546,7 +2546,7 @@ store_pwm_mode(struct device *dev, struct device_attribute *attr,
 	if (val > 1)
 		return -EINVAL;
 
-	/* Setting DC mode (0) is not supported for all chips/channels */
+	/* Setting DC mode (0) is yest supported for all chips/channels */
 	if (data->REG_PWM_MODE[nr] == 0) {
 		if (!val)
 			return -EINVAL;
@@ -2710,7 +2710,7 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	if (val == sf4 && check_trip_points(data, nr)) {
-		dev_err(dev, "Inconsistent trip points, not switching to SmartFan IV mode\n");
+		dev_err(dev, "Inconsistent trip points, yest switching to SmartFan IV mode\n");
 		dev_err(dev, "Adjust trip points and try again\n");
 		return -EINVAL;
 	}
@@ -2817,7 +2817,7 @@ store_pwm_weight_temp_sel(struct device *dev, struct device_attribute *attr,
 		return err;
 	if (val > NUM_TEMP)
 		return -EINVAL;
-	val = array_index_nospec(val, NUM_TEMP + 1);
+	val = array_index_yesspec(val, NUM_TEMP + 1);
 	if (val && (!(data->have_temp & BIT(val - 1)) ||
 		    !data->temp_src[val - 1]))
 		return -EINVAL;
@@ -3179,7 +3179,7 @@ store_auto_pwm(struct device *dev, struct device_attribute *attr,
 					    reg);
 			break;
 		case nct6776:
-			break; /* always enabled, nothing to do */
+			break; /* always enabled, yesthing to do */
 		case nct6106:
 		case nct6116:
 		case nct6779:
@@ -3217,7 +3217,7 @@ show_auto_temp(struct device *dev, struct device_attribute *attr, char *buf)
 	int point = sattr->index;
 
 	/*
-	 * We don't know for sure if the temperature is signed or unsigned.
+	 * We don't kyesw for sure if the temperature is signed or unsigned.
 	 * Assume it is unsigned.
 	 */
 	return sprintf(buf, "%d\n", data->auto_temp[nr][point] * 1000);
@@ -3343,7 +3343,7 @@ SENSOR_TEMPLATE_2(pwm_auto_point7_temp, "pwm%d_auto_point7_temp",
 
 /*
  * nct6775_pwm_is_visible uses the index into the following array
- * to determine if attributes should be created or not.
+ * to determine if attributes should be created or yest.
  * Any change in order or content must be matched.
  */
 static struct sensor_device_template *nct6775_attributes_pwm_template[] = {
@@ -3422,7 +3422,7 @@ clear_caseopen(struct device *dev, struct device_attribute *attr,
 
 	/*
 	 * Use CR registers to clear caseopen status.
-	 * The CR registers are the same for all chips, and not all chips
+	 * The CR registers are the same for all chips, and yest all chips
 	 * support clearing the caseopen status through "regular" registers.
 	 */
 	ret = superio_enter(data->sioreg);
@@ -3480,7 +3480,7 @@ static umode_t nct6775_other_is_visible(struct kobject *kobj,
 
 /*
  * nct6775_other_is_visible uses the index into the following array
- * to determine if attributes should be created or not.
+ * to determine if attributes should be created or yest.
  * Any change in order or content must be matched.
  */
 static struct attribute *nct6775_attributes_other[] = {
@@ -3573,7 +3573,7 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 		if (board_name && board_vendor &&
 		    !strcmp(board_vendor, "ASRock")) {
 			/*
-			 * Auxiliary fan monitoring is not enabled on ASRock
+			 * Auxiliary fan monitoring is yest enabled on ASRock
 			 * Z77 Pro4-M if booted in UEFI Ultra-FastBoot mode.
 			 * Observed with BIOS version 2.00.
 			 */
@@ -4324,7 +4324,7 @@ static int nct6775_probe(struct platform_device *pdev)
 	data->have_temp = 0;
 
 	/*
-	 * On some boards, not all available temperature sources are monitored,
+	 * On some boards, yest all available temperature sources are monitored,
 	 * even though some of the monitoring registers are unused.
 	 * Get list of unused monitoring registers, then detect if any fan
 	 * controls are configured to use unmonitored temperature sources.
@@ -4411,7 +4411,7 @@ static int nct6775_probe(struct platform_device *pdev)
 
 	/*
 	 * Repeat with temperatures used for fan control.
-	 * This set of registers does not support limits.
+	 * This set of registers does yest support limits.
 	 */
 	for (i = 0; i < num_reg_temp_mon; i++) {
 		if (reg_temp_mon[i] == 0)
@@ -4432,7 +4432,7 @@ static int nct6775_probe(struct platform_device *pdev)
 		/*
 		 * For virtual temperature sources, the 'virtual' temperature
 		 * for each fan reflects a different temperature, and there
-		 * are no duplicates.
+		 * are yes duplicates.
 		 */
 		if (!(data->virt_temp_mask & BIT(src))) {
 			if (mask & BIT(src))
@@ -4489,7 +4489,7 @@ static int nct6775_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		if (s >= NUM_TEMP)	/* Abort if no more space */
+		if (s >= NUM_TEMP)	/* Abort if yes more space */
 			break;
 
 		data->have_temp |= BIT(s);
@@ -4781,7 +4781,7 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 		return -ENODEV;
 	}
 
-	/* We have a known chip, find the HWM I/O address */
+	/* We have a kyeswn chip, find the HWM I/O address */
 	superio_select(sioaddr, NCT6775_LD_HWM);
 	val = (superio_inb(sioaddr, SIO_REG_ADDR) << 8)
 	    | superio_inb(sioaddr, SIO_REG_ADDR + 1);

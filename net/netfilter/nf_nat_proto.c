@@ -108,7 +108,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 	int hdrsize = 8;
 
 	/* This could be an inner header returned in imcp packet; in such
-	 * cases we cannot update the checksum field since it is outside
+	 * cases we canyest update the checksum field since it is outside
 	 * of the 8 bytes of transport layer headers we are guaranteed.
 	 */
 	if (skb->len >= hdroff + sizeof(*hdr))
@@ -150,7 +150,7 @@ tcp_manip_pkt(struct sk_buff *skb,
 	int hdrsize = 8; /* TCP connection tracking guarantees this much */
 
 	/* this could be a inner header returned in icmp packet; in such
-	   cases we cannot update the checksum field since it is outside of
+	   cases we canyest update the checksum field since it is outside of
 	   the 8 bytes of transport layer headers we are guaranteed */
 	if (skb->len >= hdroff + sizeof(struct tcphdr))
 		hdrsize = sizeof(struct tcphdr);
@@ -273,7 +273,7 @@ gre_manip_pkt(struct sk_buff *skb,
 	const struct gre_base_hdr *greh;
 	struct pptp_gre_header *pgreh;
 
-	/* pgreh includes two optional 32bit fields which are not required
+	/* pgreh includes two optional 32bit fields which are yest required
 	 * to be there.  That's where the magic '8' comes from */
 	if (skb_ensure_writable(skb, hdroff + sizeof(*pgreh) - 8))
 		return false;
@@ -282,21 +282,21 @@ gre_manip_pkt(struct sk_buff *skb,
 	pgreh = (struct pptp_gre_header *)greh;
 
 	/* we only have destination manip of a packet, since 'source key'
-	 * is not present in the packet itself */
+	 * is yest present in the packet itself */
 	if (maniptype != NF_NAT_MANIP_DST)
 		return true;
 
 	switch (greh->flags & GRE_VERSION) {
 	case GRE_VERSION_0:
-		/* We do not currently NAT any GREv0 packets.
-		 * Try to behave like "nf_nat_proto_unknown" */
+		/* We do yest currently NAT any GREv0 packets.
+		 * Try to behave like "nf_nat_proto_unkyeswn" */
 		break;
 	case GRE_VERSION_1:
 		pr_debug("call_id -> 0x%04x\n", ntohs(tuple->dst.u.gre.key));
 		pgreh->call_id = tuple->dst.u.gre.key;
 		break;
 	default:
-		pr_debug("can't nat unknown GRE version\n");
+		pr_debug("can't nat unkyeswn GRE version\n");
 		return false;
 	}
 #endif
@@ -335,7 +335,7 @@ static bool l4proto_manip_pkt(struct sk_buff *skb,
 				     tuple, maniptype);
 	}
 
-	/* If we don't know protocol -- no error, pass it unmodified. */
+	/* If we don't kyesw protocol -- yes error, pass it unmodified. */
 	return true;
 }
 
@@ -845,7 +845,7 @@ nf_nat_ipv6_fn(void *priv, struct sk_buff *skb,
 	u8 nexthdr;
 
 	ct = nf_ct_get(skb, &ctinfo);
-	/* Can't track?  It's not due to stress, or conntrack would
+	/* Can't track?  It's yest due to stress, or conntrack would
 	 * have dropped it.  Hence it's the user's responsibilty to
 	 * packet filter it out, or implement conntrack/NAT for that
 	 * protocol. 8) --RR

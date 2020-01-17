@@ -2,7 +2,7 @@
 /*
  *  Airplane mode button for HP & Xiaomi laptops
  *
- *  Copyright (C) 2014-2017 Alex Hung <alex.hung@canonical.com>
+ *  Copyright (C) 2014-2017 Alex Hung <alex.hung@cayesnical.com>
  */
 
 #include <linux/kernel.h>
@@ -56,10 +56,10 @@ static void hp_wireless_input_destroy(void)
 	input_unregister_device(hpwl_input_dev);
 }
 
-static void hpwl_notify(struct acpi_device *acpi_dev, u32 event)
+static void hpwl_yestify(struct acpi_device *acpi_dev, u32 event)
 {
 	if (event != 0x80) {
-		pr_info("Received unknown event (0x%x)\n", event);
+		pr_info("Received unkyeswn event (0x%x)\n", event);
 		return;
 	}
 
@@ -93,7 +93,7 @@ static struct acpi_driver hpwl_driver = {
 	.ops	= {
 		.add	= hpwl_add,
 		.remove	= hpwl_remove,
-		.notify	= hpwl_notify,
+		.yestify	= hpwl_yestify,
 	},
 };
 

@@ -1,4 +1,4 @@
-Maxim MAX98504 class D mono speaker amplifier
+Maxim MAX98504 class D moyes speaker amplifier
 
 This device supports I2C control interface and an IRQ output signal. It features
 a PCM and PDM digital audio interface (DAI) and a differential analog input.
@@ -14,21 +14,21 @@ Required properties:
 
 Optional properties:
 
- - maxim,brownout-threshold - the PVDD brownout threshold, the value must be
+ - maxim,browyesut-threshold - the PVDD browyesut threshold, the value must be
    from 0, 1...21 range, corresponding to 2.6V, 2.65V...3.65V voltage range
- - maxim,brownout-attenuation - the brownout attenuation to the speaker gain
+ - maxim,browyesut-attenuation - the browyesut attenuation to the speaker gain
    applied during the "attack hold" and "timed hold" phase, the value must be
    from 0...6 (dB) range
- - maxim,brownout-attack-hold-ms - the brownout attack hold phase time in ms,
+ - maxim,browyesut-attack-hold-ms - the browyesut attack hold phase time in ms,
    0...255 (VBATBROWN_ATTK_HOLD, register 0x0018)
- - maxim,brownout-timed-hold-ms - the brownout timed hold phase time in ms,
+ - maxim,browyesut-timed-hold-ms - the browyesut timed hold phase time in ms,
    0...255 (VBATBROWN_TIME_HOLD, register 0x0019)
- - maxim,brownout-release-rate-ms - the brownout release phase step time in ms,
+ - maxim,browyesut-release-rate-ms - the browyesut release phase step time in ms,
    0...255 (VBATBROWN_RELEASE, register 0x001A)
 
-The default value when the above properties are not specified is 0,
-the maxim,brownout-threshold property must be specified to actually enable
-the PVDD brownout protection.
+The default value when the above properties are yest specified is 0,
+the maxim,browyesut-threshold property must be specified to actually enable
+the PVDD browyesut protection.
 
 Example:
 

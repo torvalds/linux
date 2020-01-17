@@ -10,7 +10,7 @@
 #include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/scmi_protocol.h>
 #include <linux/types.h>
@@ -34,16 +34,16 @@ enum scmi_common_cmd {
  * struct scmi_msg_resp_prot_version - Response for a message
  *
  * @major_version: Major version of the ABI that firmware supports
- * @minor_version: Minor version of the ABI that firmware supports
+ * @miyesr_version: Miyesr version of the ABI that firmware supports
  *
- * In general, ABI version changes follow the rule that minor version increments
- * are backward compatible. Major revision changes in ABI may not be
+ * In general, ABI version changes follow the rule that miyesr version increments
+ * are backward compatible. Major revision changes in ABI may yest be
  * backward compatible.
  *
  * Response to a generic message with message type SCMI_MSG_VERSION
  */
 struct scmi_msg_resp_prot_version {
-	__le16 minor_version;
+	__le16 miyesr_version;
 	__le16 major_version;
 };
 

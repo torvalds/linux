@@ -22,34 +22,34 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
+        "PublicDescription": "Counts the number of core cycles while the thread is yest in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Techyeslogy or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was yest in the halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events.",
         "Counter": "33",
         "UMask": "0x2",
         "PEBScounters": "33",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Core cycles when the thread is not in halt state"
+        "BriefDescription": "Core cycles when the thread is yest in halt state"
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. Note: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
+        "PublicDescription": "Counts the number of reference cycles when the core is yest in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is yest affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was yest in a halt state. This event has a constant ratio with the CPU_CLK_UNHALTED.REF_XCLK event. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. Note: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is yest clocked immediately so the overflow status bit will flip 'high (1)' and generate ayesther PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should igyesre this case.",
         "Counter": "34",
         "UMask": "0x3",
         "PEBScounters": "34",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Reference cycles when the core is not in halt state."
+        "BriefDescription": "Reference cycles when the core is yest in halt state."
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of times the load operation got the true Block-on-Store blocking code preventing store forwarding. This includes cases when: a. preceding store conflicts with the load (incomplete overlap),b. store forwarding is impossible due to u-arch limitations, c. preceding lock RMW operations are not forwarded, d. store has the no-forward bit set (uncacheable/page-split/masked stores), e. all-blocking stores are used (mostly, fences and port I/O), and others. The most common case is a load blocked due to its address range overlapping with a preceding smaller uncompleted store. Note: This event does not take into account cases of out-of-SW-control (for example, SbTailHit), unknown physical STA, and cases of blocking loads on store due to being non-WB memory type or a lock. These cases are covered by other events. See the table of not supported store forwards in the Optimization Guide.",
+        "PublicDescription": "Counts the number of times the load operation got the true Block-on-Store blocking code preventing store forwarding. This includes cases when: a. preceding store conflicts with the load (incomplete overlap),b. store forwarding is impossible due to u-arch limitations, c. preceding lock RMW operations are yest forwarded, d. store has the yes-forward bit set (uncacheable/page-split/masked stores), e. all-blocking stores are used (mostly, fences and port I/O), and others. The most common case is a load blocked due to its address range overlapping with a preceding smaller uncompleted store. Note: This event does yest take into account cases of out-of-SW-control (for example, SbTailHit), unkyeswn physical STA, and cases of blocking loads on store due to being yesn-WB memory type or a lock. These cases are covered by other events. See the table of yest supported store forwards in the Optimization Guide.",
         "EventCode": "0x03",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "PEBScounters": "0,1,2,3",
         "EventName": "LD_BLOCKS.STORE_FORWARD",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Loads blocked by overlapping with store buffer that cannot be forwarded."
+        "BriefDescription": "Loads blocked by overlapping with store buffer that canyest be forwarded."
     },
     {
         "CollectPEBSRecord": "2",
@@ -120,7 +120,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts cycles during which the Resource Allocation Table (RAT) does not issue any Uops to the reservation station (RS) for the current thread.",
+        "PublicDescription": "Counts cycles during which the Resource Allocation Table (RAT) does yest issue any Uops to the reservation station (RS) for the current thread.",
         "EventCode": "0x0E",
         "Invert": "1",
         "Counter": "0,1,2,3,4,5,6,7",
@@ -128,7 +128,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "EventName": "UOPS_ISSUED.STALL_CYCLES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles when RAT does not issue Uops to RS for the thread",
+        "BriefDescription": "Cycles when RAT does yest issue Uops to RS for the thread",
         "CounterMask": "1"
     },
     {
@@ -145,13 +145,13 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time.",
+        "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is yest in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time.",
         "EventCode": "0x3C",
         "Counter": "0,1,2,3,4,5,6,7",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Thread cycles when thread is not in halt state"
+        "BriefDescription": "Thread cycles when thread is yest in halt state"
     },
     {
         "CollectPEBSRecord": "2",
@@ -177,7 +177,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts all not software-prefetch load dispatches that hit the fill buffer (FB) allocated for the software prefetch. It can also be incremented by some lock instructions. So it should only be used with profiling so that the locks can be excluded by ASM (Assembly File) inspection of the nearby instructions.",
+        "PublicDescription": "Counts all yest software-prefetch load dispatches that hit the fill buffer (FB) allocated for the software prefetch. It can also be incremented by some lock instructions. So it should only be used with profiling so that the locks can be excluded by ASM (Assembly File) inspection of the nearby instructions.",
         "EventCode": "0x4c",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -318,7 +318,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "EventName": "RESOURCE_STALLS.SB",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles stalled due to no store buffers available. (not including draining form sync)."
+        "BriefDescription": "Cycles stalled due to yes store buffers available. (yest including draining form sync)."
     },
     {
         "CollectPEBSRecord": "2",
@@ -399,48 +399,48 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts cycles during which a total of 1 uop was executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Counts cycles during which a total of 1 uop was executed on all ports and Reservation Station (RS) was yest empty.",
         "EventCode": "0xa6",
         "Counter": "0,1,2,3,4,5,6,7",
         "UMask": "0x2",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "EventName": "EXE_ACTIVITY.1_PORTS_UTIL",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles total of 1 uop is executed on all ports and Reservation Station was not empty."
+        "BriefDescription": "Cycles total of 1 uop is executed on all ports and Reservation Station was yest empty."
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts cycles during which a total of 2 uops were executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Counts cycles during which a total of 2 uops were executed on all ports and Reservation Station (RS) was yest empty.",
         "EventCode": "0xa6",
         "Counter": "0,1,2,3,4,5,6,7",
         "UMask": "0x4",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "EventName": "EXE_ACTIVITY.2_PORTS_UTIL",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles total of 2 uops are executed on all ports and Reservation Station was not empty."
+        "BriefDescription": "Cycles total of 2 uops are executed on all ports and Reservation Station was yest empty."
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts cycles where the Store Buffer was full and no loads caused an execution stall.",
+        "PublicDescription": "Counts cycles where the Store Buffer was full and yes loads caused an execution stall.",
         "EventCode": "0xA6",
         "Counter": "0,1,2,3,4,5,6,7",
         "UMask": "0x40",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "EventName": "EXE_ACTIVITY.BOUND_ON_STORES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles where the Store Buffer was full and no loads caused an execution stall.",
+        "BriefDescription": "Cycles where the Store Buffer was full and yes loads caused an execution stall.",
         "CounterMask": "2"
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts cycles during which no uops were executed on all ports and Reservation Station (RS) was not empty.",
+        "PublicDescription": "Counts cycles during which yes uops were executed on all ports and Reservation Station (RS) was yest empty.",
         "EventCode": "0xa6",
         "Counter": "0,1,2,3,4,5,6,7",
         "UMask": "0x80",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "EventName": "EXE_ACTIVITY.EXE_BOUND_0_PORTS",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles where no uops were executed, the Reservation Station was not empty, the Store Buffer was full and there was no outstanding load."
+        "BriefDescription": "Cycles where yes uops were executed, the Reservation Station was yest empty, the Store Buffer was full and there was yes outstanding load."
     },
     {
         "CollectPEBSRecord": "2",
@@ -474,7 +474,7 @@
         "PEBScounters": "0,1,2,3",
         "EventName": "LSD.CYCLES_OK",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles optimal number of Uops delivered by the LSD, but did not come from the decoder.",
+        "BriefDescription": "Cycles optimal number of Uops delivered by the LSD, but did yest come from the decoder.",
         "CounterMask": "5"
     },
     {
@@ -489,7 +489,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts cycles during which no uops were dispatched from the Reservation Station (RS) per thread.",
+        "PublicDescription": "Counts cycles during which yes uops were dispatched from the Reservation Station (RS) per thread.",
         "EventCode": "0xB1",
         "Invert": "1",
         "Counter": "0,1,2,3,4,5,6,7",
@@ -497,7 +497,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "EventName": "UOPS_EXECUTED.STALL_CYCLES",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Counts number of cycles no uops were dispatched to be executed on this thread.",
+        "BriefDescription": "Counts number of cycles yes uops were dispatched to be executed on this thread.",
         "CounterMask": "1"
     },
     {
@@ -630,7 +630,7 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of cycles using always true condition (uops_ret &amp;lt; 16) applied to non PEBS uops retired event.",
+        "PublicDescription": "Counts the number of cycles using always true condition (uops_ret &amp;lt; 16) applied to yesn PEBS uops retired event.",
         "EventCode": "0xC2",
         "Invert": "1",
         "Counter": "0,1,2,3,4,5,6,7",
@@ -726,7 +726,7 @@
     {
         "PEBS": "1",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts not taken branch instructions retired.",
+        "PublicDescription": "Counts yest taken branch instructions retired.",
         "EventCode": "0xC4",
         "Counter": "0,1,2,3,4,5,6,7",
         "UMask": "0x10",
@@ -859,7 +859,7 @@
         "BriefDescription": "Increments whenever there is an update to the LBR array."
     },
     {
-        "PublicDescription": "Counts number of retired PAUSE instructions (that do not end up with a VMExit to the VMM; TSX aborted Instructions may be counted).",
+        "PublicDescription": "Counts number of retired PAUSE instructions (that do yest end up with a VMExit to the VMM; TSX aborted Instructions may be counted).",
         "EventCode": "0xcc",
         "Counter": "0,1,2,3,4,5,6,7",
         "UMask": "0x40",
@@ -869,18 +869,18 @@
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts the number of times the front-end is resteered when it finds a branch instruction in a fetch line. This occurs for the first time a branch instruction is fetched or when the branch is not tracked by the BPU (Branch Prediction Unit) anymore.",
+        "PublicDescription": "Counts the number of times the front-end is resteered when it finds a branch instruction in a fetch line. This occurs for the first time a branch instruction is fetched or when the branch is yest tracked by the BPU (Branch Prediction Unit) anymore.",
         "EventCode": "0xE6",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "PEBScounters": "0,1,2,3",
         "EventName": "BACLEARS.ANY",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Counts the total number when the front end is resteered, mainly when the BPU cannot provide a correct prediction and this is corrected by other branch handling mechanisms at the front end."
+        "BriefDescription": "Counts the total number when the front end is resteered, mainly when the BPU canyest provide a correct prediction and this is corrected by other branch handling mechanisms at the front end."
     },
     {
         "CollectPEBSRecord": "2",
-        "PublicDescription": "This event distributes cycle counts between active hyperthreads, i.e., those in C0.  A hyperthread becomes inactive when it executes the HLT or MWAIT instructions.  If all other hyperthreads are inactive (or disabled or do not exist), all counts are attributed to this hyperthread. To obtain the full count when the Core is active, sum the counts from each hyperthread.",
+        "PublicDescription": "This event distributes cycle counts between active hyperthreads, i.e., those in C0.  A hyperthread becomes inactive when it executes the HLT or MWAIT instructions.  If all other hyperthreads are inactive (or disabled or do yest exist), all counts are attributed to this hyperthread. To obtain the full count when the Core is active, sum the counts from each hyperthread.",
         "EventCode": "0xec",
         "Counter": "0,1,2,3,4,5,6,7",
         "UMask": "0x2",

@@ -34,7 +34,7 @@ struct vpx3220 {
 	struct v4l2_ctrl_handler hdl;
 	unsigned char reg[255];
 
-	v4l2_std_id norm;
+	v4l2_std_id yesrm;
 	int input;
 	int enable;
 };
@@ -232,7 +232,7 @@ static const unsigned char init_common[] = {
 	0xe4, 0x7f,
 	0xe5, 0x80,
 	0xe6, 0x00,		/* Brightness set to 0 */
-	0xe7, 0xe0,		/* Contrast to 1.0, noise shaping
+	0xe7, 0xe0,		/* Contrast to 1.0, yesise shaping
 				 * 10 to 8 2-bit error diffusion */
 	0xe8, 0xf8,		/* YUV422, CbCr binary offset,
 				 * ... (p.32) */
@@ -240,8 +240,8 @@ static const unsigned char init_common[] = {
 				 * reset with VACTintern */
 	0xf0, 0x8a,		/* Half full level to 10, bus
 				 * shuffler [7:0, 23:16, 15:8] */
-	0xf1, 0x18,		/* Single clock, sync mode, no
-				 * FE delay, no HLEN counter */
+	0xf1, 0x18,		/* Single clock, sync mode, yes
+				 * FE delay, yes HLEN counter */
 	0xf8, 0x12,		/* Port A, PIXCLK, HF# & FE#
 				 * strength to 2 */
 	0xf9, 0x24,		/* Port B, HREF, VREF, PREF &
@@ -268,11 +268,11 @@ static int vpx3220_init(struct v4l2_subdev *sd, u32 val)
 
 	vpx3220_write_block(sd, init_common, sizeof(init_common));
 	vpx3220_write_fp_block(sd, init_fp, sizeof(init_fp) >> 1);
-	if (decoder->norm & V4L2_STD_NTSC)
+	if (decoder->yesrm & V4L2_STD_NTSC)
 		vpx3220_write_fp_block(sd, init_ntsc, sizeof(init_ntsc) >> 1);
-	else if (decoder->norm & V4L2_STD_PAL)
+	else if (decoder->yesrm & V4L2_STD_PAL)
 		vpx3220_write_fp_block(sd, init_pal, sizeof(init_pal) >> 1);
-	else if (decoder->norm & V4L2_STD_SECAM)
+	else if (decoder->yesrm & V4L2_STD_SECAM)
 		vpx3220_write_fp_block(sd, init_secam, sizeof(init_secam) >> 1);
 	else
 		vpx3220_write_fp_block(sd, init_pal, sizeof(init_pal) >> 1);
@@ -341,24 +341,24 @@ static int vpx3220_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 
 	/* Here we back up the input selection because it gets
 	   overwritten when we fill the registers with the
-	   chosen video norm */
+	   chosen video yesrm */
 	temp_input = vpx3220_fp_read(sd, 0xf2);
 
 	v4l2_dbg(1, debug, sd, "s_std %llx\n", (unsigned long long)std);
 	if (std & V4L2_STD_NTSC) {
 		vpx3220_write_fp_block(sd, init_ntsc, sizeof(init_ntsc) >> 1);
-		v4l2_dbg(1, debug, sd, "norm switched to NTSC\n");
+		v4l2_dbg(1, debug, sd, "yesrm switched to NTSC\n");
 	} else if (std & V4L2_STD_PAL) {
 		vpx3220_write_fp_block(sd, init_pal, sizeof(init_pal) >> 1);
-		v4l2_dbg(1, debug, sd, "norm switched to PAL\n");
+		v4l2_dbg(1, debug, sd, "yesrm switched to PAL\n");
 	} else if (std & V4L2_STD_SECAM) {
 		vpx3220_write_fp_block(sd, init_secam, sizeof(init_secam) >> 1);
-		v4l2_dbg(1, debug, sd, "norm switched to SECAM\n");
+		v4l2_dbg(1, debug, sd, "yesrm switched to SECAM\n");
 	} else {
 		return -EINVAL;
 	}
 
-	decoder->norm = std;
+	decoder->yesrm = std;
 
 	/* And here we set the backed up video input again */
 	vpx3220_fp_write(sd, 0xf2, temp_input | 0x0010);
@@ -416,7 +416,7 @@ static int vpx3220_s_ctrl(struct v4l2_ctrl *ctrl)
 		vpx3220_write(sd, 0xe6, ctrl->val);
 		return 0;
 	case V4L2_CID_CONTRAST:
-		/* Bit 7 and 8 is for noise shaping */
+		/* Bit 7 and 8 is for yesise shaping */
 		vpx3220_write(sd, 0xe7, ctrl->val + 192);
 		return 0;
 	case V4L2_CID_SATURATION:
@@ -475,7 +475,7 @@ static int vpx3220_probe(struct i2c_client *client,
 		return -ENOMEM;
 	sd = &decoder->sd;
 	v4l2_i2c_subdev_init(sd, client, &vpx3220_ops);
-	decoder->norm = V4L2_STD_PAL;
+	decoder->yesrm = V4L2_STD_PAL;
 	decoder->input = 0;
 	decoder->enable = 1;
 	v4l2_ctrl_handler_init(&decoder->hdl, 4);

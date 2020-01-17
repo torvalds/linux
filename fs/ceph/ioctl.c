@@ -16,11 +16,11 @@
  */
 static long ceph_ioctl_get_layout(struct file *file, void __user *arg)
 {
-	struct ceph_inode_info *ci = ceph_inode(file_inode(file));
+	struct ceph_iyesde_info *ci = ceph_iyesde(file_iyesde(file));
 	struct ceph_ioctl_layout l;
 	int err;
 
-	err = ceph_do_getattr(file_inode(file), CEPH_STAT_CAP_LAYOUT, false);
+	err = ceph_do_getattr(file_iyesde(file), CEPH_STAT_CAP_LAYOUT, false);
 	if (!err) {
 		l.stripe_unit = ci->i_layout.stripe_unit;
 		l.stripe_count = ci->i_layout.stripe_count;
@@ -63,11 +63,11 @@ static long __validate_layout(struct ceph_mds_client *mdsc,
 
 static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 {
-	struct inode *inode = file_inode(file);
-	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
+	struct iyesde *iyesde = file_iyesde(file);
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(iyesde->i_sb)->mdsc;
 	struct ceph_mds_request *req;
 	struct ceph_ioctl_layout l;
-	struct ceph_inode_info *ci = ceph_inode(file_inode(file));
+	struct ceph_iyesde_info *ci = ceph_iyesde(file_iyesde(file));
 	struct ceph_ioctl_layout nl;
 	int err;
 
@@ -75,7 +75,7 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 		return -EFAULT;
 
 	/* validate changed params against current layout */
-	err = ceph_do_getattr(file_inode(file), CEPH_STAT_CAP_LAYOUT, false);
+	err = ceph_do_getattr(file_iyesde(file), CEPH_STAT_CAP_LAYOUT, false);
 	if (err)
 		return err;
 
@@ -108,11 +108,11 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 				       USE_AUTH_MDS);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	req->r_inode = inode;
-	ihold(inode);
+	req->r_iyesde = iyesde;
+	ihold(iyesde);
 	req->r_num_caps = 1;
 
-	req->r_inode_drop = CEPH_CAP_FILE_SHARED | CEPH_CAP_FILE_EXCL;
+	req->r_iyesde_drop = CEPH_CAP_FILE_SHARED | CEPH_CAP_FILE_EXCL;
 
 	req->r_args.setlayout.layout.fl_stripe_unit =
 		cpu_to_le32(l.stripe_unit);
@@ -128,18 +128,18 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 }
 
 /*
- * Set a layout policy on a directory inode. All items in the tree
- * rooted at this inode will inherit this layout on creation,
+ * Set a layout policy on a directory iyesde. All items in the tree
+ * rooted at this iyesde will inherit this layout on creation,
  * (It doesn't apply retroactively )
  * unless a subdirectory has its own layout policy.
  */
 static long ceph_ioctl_set_layout_policy (struct file *file, void __user *arg)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct ceph_mds_request *req;
 	struct ceph_ioctl_layout l;
 	int err;
-	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(iyesde->i_sb)->mdsc;
 
 	/* copy and validate */
 	if (copy_from_user(&l, arg, sizeof(l)))
@@ -154,8 +154,8 @@ static long ceph_ioctl_set_layout_policy (struct file *file, void __user *arg)
 
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	req->r_inode = inode;
-	ihold(inode);
+	req->r_iyesde = iyesde;
+	ihold(iyesde);
 	req->r_num_caps = 1;
 
 	req->r_args.setlayout.layout.fl_stripe_unit =
@@ -167,7 +167,7 @@ static long ceph_ioctl_set_layout_policy (struct file *file, void __user *arg)
 	req->r_args.setlayout.layout.fl_pg_pool =
 			cpu_to_le32(l.data_pool);
 
-	err = ceph_mdsc_do_request(mdsc, inode, req);
+	err = ceph_mdsc_do_request(mdsc, iyesde, req);
 	ceph_mdsc_put_request(req);
 	return err;
 }
@@ -179,10 +179,10 @@ static long ceph_ioctl_set_layout_policy (struct file *file, void __user *arg)
 static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 {
 	struct ceph_ioctl_dataloc dl;
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct ceph_osd_client *osdc =
-		&ceph_sb_to_client(inode->i_sb)->client->osdc;
+		&ceph_sb_to_client(iyesde->i_sb)->client->osdc;
 	struct ceph_object_locator oloc;
 	CEPH_DEFINE_OID_ONSTACK(oid);
 	u32 xlen;
@@ -196,7 +196,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 
 	down_read(&osdc->lock);
 	ceph_calc_file_object_mapping(&ci->i_layout, dl.file_offset, 1,
-				      &dl.object_no, &dl.object_offset, &xlen);
+				      &dl.object_yes, &dl.object_offset, &xlen);
 	dl.file_offset -= dl.object_offset;
 	dl.object_size = ci->i_layout.object_size;
 	dl.block_size = ci->i_layout.stripe_unit;
@@ -206,7 +206,7 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 	dl.block_offset = do_div(tmp, dl.block_size);
 
 	snprintf(dl.object_name, sizeof(dl.object_name), "%llx.%08llx",
-		 ceph_ino(inode), dl.object_no);
+		 ceph_iyes(iyesde), dl.object_yes);
 
 	oloc.pool = ci->i_layout.pool_id;
 	oloc.pool_ns = ceph_try_get_string(ci->i_layout.pool_ns);
@@ -241,8 +241,8 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 static long ceph_ioctl_lazyio(struct file *file)
 {
 	struct ceph_file_info *fi = file->private_data;
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 
 	if ((fi->fmode & CEPH_FILE_MODE_LAZY) == 0) {
 		spin_lock(&ci->i_ceph_lock);

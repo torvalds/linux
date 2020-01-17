@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* thread_info.h: h8300 low-level thread information
- * adapted from the i386 and PPC versions by Yoshinori Sato <ysato@users.sourceforge.jp>
+ * adapted from the i386 and PPC versions by Yoshiyesri Sato <ysato@users.sourceforge.jp>
  *
  * Copyright (C) 2002  David Howells (dhowells@redhat.com)
  * - Incorporating suggestions made by Linus Torvalds and Dave Miller

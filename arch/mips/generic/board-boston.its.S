@@ -5,7 +5,7 @@
 			data = /incbin/("boot/dts/img/boston.dtb");
 			type = "flat_dt";
 			arch = "mips";
-			compression = "none";
+			compression = "yesne";
 			hash@0 {
 				algo = "sha1";
 			};

@@ -4,11 +4,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -73,7 +73,7 @@ typedef u8 enet_addr_t[ETH_ALEN];
 
 /* HASH defines */
 #define ETH_HASH_ENTRY_OBJ(ptr)	\
-	hlist_entry_safe(ptr, struct eth_hash_entry, node)
+	hlist_entry_safe(ptr, struct eth_hash_entry, yesde)
 
 /* Enumeration (bit flags) of communication modes (Transmit,
  * receive or both).
@@ -157,7 +157,7 @@ enum fman_mac_exceptions {
 	/* dTSEC MIB counter overflow */
 	, FM_MAC_EX_TS_FIFO_ECC_ERR
 	/* mEMAC Time-stamp FIFO ECC error interrupt;
-	 * not supported on T4240/B4860 rev1 chips
+	 * yest supported on T4240/B4860 rev1 chips
 	 */
 	, FM_MAC_EX_MAGIC_PACKET_INDICATION = FM_MAC_EX_1G_MAG_PCKT
 	/* mEMAC Magic Packet Indication Interrupt */
@@ -165,7 +165,7 @@ enum fman_mac_exceptions {
 
 struct eth_hash_entry {
 	u64 addr;		/* Ethernet Address  */
-	struct list_head node;
+	struct list_head yesde;
 };
 
 typedef void (fman_mac_exception_cb)(void *dev_id,
@@ -200,8 +200,8 @@ struct fman_mac_params {
 	 * synchronize with far-end phy at 10Mbps, 100Mbps or 1000Mbps
 	*/
 	bool basex_if;
-	/* Pointer to TBI/PCS PHY node, used for TBI/PCS PHY access */
-	struct device_node *internal_phy_node;
+	/* Pointer to TBI/PCS PHY yesde, used for TBI/PCS PHY access */
+	struct device_yesde *internal_phy_yesde;
 };
 
 struct eth_hash_t {
@@ -216,7 +216,7 @@ static inline struct eth_hash_entry
 
 	if (!list_empty(addr_lst)) {
 		hash_entry = ETH_HASH_ENTRY_OBJ(addr_lst->next);
-		list_del_init(&hash_entry->node);
+		list_del_init(&hash_entry->yesde);
 	}
 	return hash_entry;
 }

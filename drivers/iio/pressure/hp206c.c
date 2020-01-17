@@ -154,7 +154,7 @@ static int hp206c_soft_reset(struct iio_dev *indio_dev)
 
 	ret = hp206c_wait_dev_rdy(indio_dev);
 	if (ret) {
-		dev_err(&client->dev, "Device not ready after soft reset: %d\n", ret);
+		dev_err(&client->dev, "Device yest ready after soft reset: %d\n", ret);
 		return ret;
 	}
 
@@ -174,7 +174,7 @@ static int hp206c_conv_and_read(struct iio_dev *indio_dev,
 
 	ret = hp206c_wait_dev_rdy(indio_dev);
 	if (ret < 0) {
-		dev_err(&indio_dev->dev, "Device not ready: %d\n", ret);
+		dev_err(&indio_dev->dev, "Device yest ready: %d\n", ret);
 		return ret;
 	}
 
@@ -188,7 +188,7 @@ static int hp206c_conv_and_read(struct iio_dev *indio_dev,
 
 	ret = hp206c_wait_dev_rdy(indio_dev);
 	if (ret < 0) {
-		dev_err(&indio_dev->dev, "Device not ready: %d\n", ret);
+		dev_err(&indio_dev->dev, "Device yest ready: %d\n", ret);
 		return ret;
 	}
 
@@ -361,7 +361,7 @@ static int hp206c_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_BYTE |
 				     I2C_FUNC_SMBUS_BYTE_DATA |
 				     I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
-		dev_err(&client->dev, "Adapter does not support "
+		dev_err(&client->dev, "Adapter does yest support "
 				"all required i2c functionality\n");
 		return -ENODEV;
 	}

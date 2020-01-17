@@ -25,15 +25,15 @@
  * 			of keywords, from debug-help can be catted to
  * 			client-debug or kernel-debug.
  *
- * 			"none", "all" and "verbose" are special keywords
+ * 			"yesne", "all" and "verbose" are special keywords
  * 			for client-debug. Setting client-debug to "all"
  * 			is kind of like trying to drink water from a
  * 			fire hose, "verbose" triggers most of the same
  * 			output except for the constant flow of output
  * 			from the main wait loop.
  *
- * 			"none" and "all" are similar settings for kernel-debug
- * 			no need for a "verbose".
+ * 			"yesne" and "all" are similar settings for kernel-debug
+ * 			yes need for a "verbose".
  */
 #include <linux/debugfs.h>
 #include <linux/slab.h>
@@ -46,7 +46,7 @@
 
 #define DEBUG_HELP_STRING_SIZE 4096
 #define HELP_STRING_UNINITIALIZED \
-	"Client Debug Keywords are unknown until the first time\n" \
+	"Client Debug Keywords are unkyeswn until the first time\n" \
 	"the client is started after boot.\n"
 #define ORANGEFS_KMOD_DEBUG_HELP_FILE "debug-help"
 #define ORANGEFS_KMOD_DEBUG_FILE "kernel-debug"
@@ -66,13 +66,13 @@ struct client_debug_mask {
 
 static void orangefs_kernel_debug_init(void);
 
-static int orangefs_debug_help_open(struct inode *, struct file *);
+static int orangefs_debug_help_open(struct iyesde *, struct file *);
 static void *help_start(struct seq_file *, loff_t *);
 static void *help_next(struct seq_file *, void *, loff_t *);
 static void help_stop(struct seq_file *, void *);
 static int help_show(struct seq_file *, void *);
 
-static int orangefs_debug_open(struct inode *, struct file *);
+static int orangefs_debug_open(struct iyesde *, struct file *);
 
 static ssize_t orangefs_debug_read(struct file *,
 				 char __user *,
@@ -94,7 +94,7 @@ static void debug_string_to_mask(char *, void *, int);
 static void do_c_mask(int, char *, struct client_debug_mask **);
 static void do_k_mask(int, char *, __u64 **);
 
-static char kernel_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN] = "none";
+static char kernel_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN] = "yesne";
 static char *debug_help_string;
 static char client_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
 static char client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
@@ -157,7 +157,7 @@ void orangefs_debugfs_init(int debug_mask)
 
 	/*
 	 * set the kernel's gossip debug string; invalid mask values will
-	 * be ignored.
+	 * be igyesred.
 	 */
 	debug_mask_to_string(&orangefs_gossip_debug_mask, 0);
 
@@ -166,7 +166,7 @@ void orangefs_debugfs_init(int debug_mask)
 	    0);
 
 	/*
-	 * if the mask has a non-zero value, then indicate that the mask
+	 * if the mask has a yesn-zero value, then indicate that the mask
 	 * was set when the kernel module was loaded.  The orangefs dev ioctl
 	 * command will look at this boolean to determine if the kernel's
 	 * debug mask should be overwritten when the client-core is started.
@@ -207,7 +207,7 @@ static void orangefs_kernel_debug_init(void)
 		strcpy(k_buffer, kernel_debug_string);
 		strcat(k_buffer, "\n");
 	} else {
-		strcpy(k_buffer, "none\n");
+		strcpy(k_buffer, "yesne\n");
 		pr_info("%s: overflow 1!\n", __func__);
 	}
 
@@ -225,7 +225,7 @@ void orangefs_debugfs_cleanup(void)
 }
 
 /* open ORANGEFS_KMOD_DEBUG_HELP_FILE */
-static int orangefs_debug_help_open(struct inode *inode, struct file *file)
+static int orangefs_debug_help_open(struct iyesde *iyesde, struct file *file)
 {
 	int rc = -ENODEV;
 	int ret;
@@ -240,7 +240,7 @@ static int orangefs_debug_help_open(struct inode *inode, struct file *file)
 	if (ret)
 		goto out;
 
-	((struct seq_file *)(file->private_data))->private = inode->i_private;
+	((struct seq_file *)(file->private_data))->private = iyesde->i_private;
 
 	rc = 0;
 
@@ -312,7 +312,7 @@ static int orangefs_client_debug_init(void)
 		strcpy(c_buffer, client_debug_string);
 		strcat(c_buffer, "\n");
 	} else {
-		strcpy(c_buffer, "none\n");
+		strcpy(c_buffer, "yesne\n");
 		pr_info("%s: overflow! 2\n", __func__);
 	}
 
@@ -331,7 +331,7 @@ out:
 }
 
 /* open ORANGEFS_KMOD_DEBUG_FILE or ORANGEFS_CLIENT_DEBUG_FILE.*/
-static int orangefs_debug_open(struct inode *inode, struct file *file)
+static int orangefs_debug_open(struct iyesde *iyesde, struct file *file)
 {
 	int rc = -ENODEV;
 
@@ -345,7 +345,7 @@ static int orangefs_debug_open(struct inode *inode, struct file *file)
 
 	rc = 0;
 	mutex_lock(&orangefs_debug_lock);
-	file->private_data = inode->i_private;
+	file->private_data = iyesde->i_private;
 	mutex_unlock(&orangefs_debug_lock);
 
 out:
@@ -444,9 +444,9 @@ static ssize_t orangefs_debug_write(struct file *file,
 			     "New kernel debug string is %s\n",
 			     kernel_debug_string);
 	} else {
-		/* Can't reset client debug mask if client is not running. */
+		/* Can't reset client debug mask if client is yest running. */
 		if (is_daemon_in_service()) {
-			pr_info("%s: Client not running :%d:\n",
+			pr_info("%s: Client yest running :%d:\n",
 				__func__,
 				is_daemon_in_service());
 			goto out;
@@ -488,7 +488,7 @@ static ssize_t orangefs_debug_write(struct file *file,
 	}
 
 	mutex_lock(&orangefs_debug_lock);
-	s = file_inode(file)->i_private;
+	s = file_iyesde(file)->i_private;
 	memset(s, 0, ORANGEFS_MAX_DEBUG_STRING_LEN);
 	sprintf(s, "%s\n", debug_string);
 	mutex_unlock(&orangefs_debug_lock);
@@ -583,11 +583,11 @@ out:
  * /sys/kernel/debug/orangefs/debug-help can be catted to
  * see all the available kernel and client debug keywords.
  *
- * When orangefs.ko initializes, we have no idea what keywords the
- * client supports, nor their associated masks.
+ * When orangefs.ko initializes, we have yes idea what keywords the
+ * client supports, yesr their associated masks.
  *
  * We pass through this function once at module-load and stamp a
- * boilerplate "we don't know" message for the client in the
+ * boilerplate "we don't kyesw" message for the client in the
  * debug-help file. We pass through here again when the client
  * starts and then we can fill out the debug-help file fully.
  *
@@ -724,9 +724,9 @@ static void debug_mask_to_string(void *mask, int type)
 	else if (len)
 		kernel_debug_string[len - 1] = '\0';
 	else if (type)
-		strcpy(client_debug_string, "none");
+		strcpy(client_debug_string, "yesne");
 	else
-		strcpy(kernel_debug_string, "none");
+		strcpy(kernel_debug_string, "yesne");
 
 out:
 gossip_debug(GOSSIP_UTILS_DEBUG, "%s: string:%s:\n", __func__, debug_string);
@@ -960,7 +960,7 @@ int orangefs_debugfs_new_client_string(void __user *arg)
 		/* Build a proper debug help string. */
 		ret = orangefs_prepare_debugfs_help_string(0);
 		if (ret) {
-			gossip_err("%s: no debug help string \n",
+			gossip_err("%s: yes debug help string \n",
 				   __func__);
 			return ret;
 		}

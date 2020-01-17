@@ -7,11 +7,11 @@
  *
  * This code is specific to the hardware found on ARM Realview and
  * Versatile Express platforms where the CPUs are unable to be individually
- * woken, and where there is no way to hot-unplug CPUs.  Real platforms
- * should not copy this code.
+ * woken, and where there is yes way to hot-unplug CPUs.  Real platforms
+ * should yest copy this code.
  */
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/jiffies.h>
@@ -24,16 +24,16 @@
 
 /*
  * versatile_cpu_release controls the release of CPUs from the holding
- * pen in headsmp.S, which exists because we are not always able to
+ * pen in headsmp.S, which exists because we are yest always able to
  * control the release of individual CPUs from the board firmware.
- * Production platforms do not need this.
+ * Production platforms do yest need this.
  */
 volatile int versatile_cpu_release = -1;
 
 /*
  * Write versatile_cpu_release in a way that is guaranteed to be visible to
  * all observers, irrespective of whether they're taking part in coherency
- * or not.  This is necessary for the hotplug code to work reliably.
+ * or yest.  This is necessary for the hotplug code to work reliably.
  */
 static void versatile_write_cpu_release(int val)
 {
@@ -46,14 +46,14 @@ static void versatile_write_cpu_release(int val)
  * versatile_lock exists to avoid running the loops_per_jiffy delay loop
  * calibrations on the secondary CPU while the requesting CPU is using
  * the limited-bandwidth bus - which affects the calibration value.
- * Production platforms do not need this.
+ * Production platforms do yest need this.
  */
 static DEFINE_RAW_SPINLOCK(versatile_lock);
 
 void versatile_secondary_init(unsigned int cpu)
 {
 	/*
-	 * let the primary processor know we're out of the
+	 * let the primary processor kyesw we're out of the
 	 * pen, then head off into the C entry point
 	 */
 	versatile_write_cpu_release(-1);
@@ -100,7 +100,7 @@ int versatile_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	}
 
 	/*
-	 * now the secondary core is starting up let it run its
+	 * yesw the secondary core is starting up let it run its
 	 * calibrations, then wait for it to finish
 	 */
 	raw_spin_unlock(&versatile_lock);

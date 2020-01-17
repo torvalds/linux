@@ -124,14 +124,14 @@ static int parse_config_arg(char *arg, char **var, char **value)
 
 	/*
 	 * Since "var" actually contains the section name and the real
-	 * config variable name separated by a dot, we have to know where the dot is.
+	 * config variable name separated by a dot, we have to kyesw where the dot is.
 	 */
 	if (last_dot == NULL || last_dot == arg) {
-		pr_err("The config variable does not contain a section name: %s\n", arg);
+		pr_err("The config variable does yest contain a section name: %s\n", arg);
 		return -1;
 	}
 	if (!last_dot[1]) {
-		pr_err("The config variable does not contain a variable name: %s\n", arg);
+		pr_err("The config variable does yest contain a variable name: %s\n", arg);
 		return -1;
 	}
 
@@ -139,7 +139,7 @@ static int parse_config_arg(char *arg, char **var, char **value)
 	if (*value == NULL)
 		*var = arg;
 	else if (!strcmp(*value, "=")) {
-		pr_err("The config variable does not contain a value: %s\n", arg);
+		pr_err("The config variable does yest contain a value: %s\n", arg);
 		return -1;
 	} else {
 		*value = *value + 1; /* excluding a first character '=' */
@@ -192,7 +192,7 @@ int cmd_config(int argc, const char **argv)
 	switch (actions) {
 	case ACTION_LIST:
 		if (argc) {
-			pr_err("Error: takes no arguments\n");
+			pr_err("Error: takes yes arguments\n");
 			parse_options_usage(config_usage, config_options, "l", 1);
 		} else {
 do_action_list:
@@ -223,7 +223,7 @@ do_action_list:
 
 			if (value == NULL) {
 				if (show_spec_config(set, var) < 0) {
-					pr_err("%s is not configured: %s\n",
+					pr_err("%s is yest configured: %s\n",
 					       var, config_filename);
 					free(arg);
 					goto out_err;

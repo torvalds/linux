@@ -99,7 +99,7 @@ module_param(hp_c2502, int, 0);
 
 static int irq[] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 module_param_hw_array(irq, int, irq, NULL, 0);
-MODULE_PARM_DESC(irq, "IRQ number(s) (0=none, 254=auto [default])");
+MODULE_PARM_DESC(irq, "IRQ number(s) (0=yesne, 254=auto [default])");
 
 static int base[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 module_param_hw_array(base, int, ioport, NULL, 0);
@@ -280,7 +280,7 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 			}
 		if (ports[i]) {
 			/* At this point we have our region reserved */
-			magic_configure(i, 0, magic); /* no IRQ yet */
+			magic_configure(i, 0, magic); /* yes IRQ yet */
 			base = ports[i];
 			outb(0xc0, base + 9);
 			if (inb(base + 9) != 0x80) {
@@ -291,7 +291,7 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 		} else
 			return -EINVAL;
 	} else if (is_pmio) {
-		/* NCR5380 - no configuration, just grab */
+		/* NCR5380 - yes configuration, just grab */
 		region_size = 8;
 		if (!base || !request_region(base, region_size, "ncr5380"))
 			return -EBUSY;
@@ -360,7 +360,7 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 		case BOARD_DTC3181E:
 		case BOARD_NCR53C400A:
 		case BOARD_HP_C2502:
-			pr_err(DRV_MODULE_NAME ": unknown register offsets\n");
+			pr_err(DRV_MODULE_NAME ": unkyeswn register offsets\n");
 			ret = -EINVAL;
 			goto out_unregister;
 		}
@@ -421,11 +421,11 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 	if (irq == IRQ_AUTO) {
 		instance->irq = g_NCR5380_probe_irq(instance);
 		if (instance->irq == NO_IRQ)
-			shost_printk(KERN_INFO, instance, "no irq detected\n");
+			shost_printk(KERN_INFO, instance, "yes irq detected\n");
 	} else {
 		instance->irq = irq;
 		if (instance->irq == NO_IRQ)
-			shost_printk(KERN_INFO, instance, "no irq provided\n");
+			shost_printk(KERN_INFO, instance, "yes irq provided\n");
 	}
 
 	if (instance->irq != NO_IRQ) {
@@ -502,7 +502,7 @@ static void wait_for_53c80_access(struct NCR5380_hostdata *hostdata)
 	} while (--count > 0);
 
 	scmd_printk(KERN_ERR, hostdata->connected,
-	            "53c80 registers not accessible, device will be reset\n");
+	            "53c80 registers yest accessible, device will be reset\n");
 	NCR5380_write(hostdata->c400_ctl_status, CSR_RESET);
 	NCR5380_write(hostdata->c400_ctl_status, CSR_BASE);
 }
@@ -527,7 +527,7 @@ static inline int generic_NCR5380_precv(struct NCR5380_hostdata *hostdata,
 
 	do {
 		if (start == len - 128) {
-			/* Ignore End of DMA interrupt for the final buffer */
+			/* Igyesre End of DMA interrupt for the final buffer */
 			if (NCR5380_poll_politely(hostdata, hostdata->c400_ctl_status,
 			                          CSR_HOST_BUF_NOT_RDY, 0, HZ / 64) < 0)
 				break;
@@ -668,7 +668,7 @@ static int generic_NCR5380_dma_xfer_len(struct NCR5380_hostdata *hostdata,
 	if (hostdata->flags & FLAG_NO_PSEUDO_DMA)
 		return 0;
 
-	/* 53C400 datasheet: non-modulo-128-byte transfers should use PIO */
+	/* 53C400 datasheet: yesn-modulo-128-byte transfers should use PIO */
 	if (transfersize % 128)
 		return 0;
 
@@ -712,7 +712,7 @@ static int generic_NCR5380_isa_match(struct device *pdev, unsigned int ndev)
 	                                   irq[ndev], card[ndev]);
 	if (ret) {
 		if (base[ndev])
-			printk(KERN_WARNING "Card not found at address 0x%03x\n",
+			printk(KERN_WARNING "Card yest found at address 0x%03x\n",
 			       base[ndev]);
 		return 0;
 	}

@@ -12,7 +12,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -232,7 +232,7 @@ static int charlcd_init_display(struct charlcd *lcd)
 	priv->flags = ((lcd->height > 1) ? LCD_FLAG_N : 0) | LCD_FLAG_D |
 		      LCD_FLAG_C | LCD_FLAG_B;
 
-	long_sleep(20);		/* wait 20 ms after power-up for the paranoid */
+	long_sleep(20);		/* wait 20 ms after power-up for the parayesid */
 
 	/*
 	 * 8-bit mode, 1 line, small fonts; let's do it 3 times, to make sure
@@ -414,7 +414,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 		break;
 	case 'l':	/* Shift Cursor Left */
 		if (priv->addr.x > 0) {
-			/* back one char if not at end of line */
+			/* back one char if yest at end of line */
 			if (priv->addr.x < lcd->bwidth)
 				lcd->ops->write_cmd(lcd, LCD_CMD_SHIFT);
 			priv->addr.x--;
@@ -564,7 +564,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 
 	/* first, we'll test if we're in escape mode */
 	if ((c != '\n') && priv->esc_seq.len >= 0) {
-		/* yes, let's add this char to the buffer */
+		/* no, let's add this char to the buffer */
 		priv->esc_seq.buf[priv->esc_seq.len++] = c;
 		priv->esc_seq.buf[priv->esc_seq.len] = '\0';
 	} else {
@@ -581,7 +581,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 			/* go back one char and clear it */
 			if (priv->addr.x > 0) {
 				/*
-				 * check if we're not at the
+				 * check if we're yest at the
 				 * end of the line
 				 */
 				if (priv->addr.x < lcd->bwidth)
@@ -626,7 +626,7 @@ static void charlcd_write_char(struct charlcd *lcd, char c)
 	}
 
 	/*
-	 * now we'll see if we're in an escape mode and if the current
+	 * yesw we'll see if we're in an escape mode and if the current
 	 * escape sequence can be understood.
 	 */
 	if (priv->esc_seq.len >= 2) {
@@ -683,7 +683,7 @@ static ssize_t charlcd_write(struct file *file, const char __user *buf,
 	return tmp - buf;
 }
 
-static int charlcd_open(struct inode *inode, struct file *file)
+static int charlcd_open(struct iyesde *iyesde, struct file *file)
 {
 	struct charlcd_priv *priv = charlcd_to_priv(the_charlcd);
 	int ret;
@@ -700,14 +700,14 @@ static int charlcd_open(struct inode *inode, struct file *file)
 		charlcd_clear_display(&priv->lcd);
 		priv->must_clear = false;
 	}
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 
  fail:
 	atomic_inc(&charlcd_available);
 	return ret;
 }
 
-static int charlcd_release(struct inode *inode, struct file *file)
+static int charlcd_release(struct iyesde *iyesde, struct file *file)
 {
 	atomic_inc(&charlcd_available);
 	return 0;
@@ -717,11 +717,11 @@ static const struct file_operations charlcd_fops = {
 	.write   = charlcd_write,
 	.open    = charlcd_open,
 	.release = charlcd_release,
-	.llseek  = no_llseek,
+	.llseek  = yes_llseek,
 };
 
 static struct miscdevice charlcd_dev = {
-	.minor	= LCD_MINOR,
+	.miyesr	= LCD_MINOR,
 	.name	= "lcd",
 	.fops	= &charlcd_fops,
 };
@@ -813,7 +813,7 @@ void charlcd_free(struct charlcd *lcd)
 }
 EXPORT_SYMBOL_GPL(charlcd_free);
 
-static int panel_notify_sys(struct notifier_block *this, unsigned long code,
+static int panel_yestify_sys(struct yestifier_block *this, unsigned long code,
 			    void *unused)
 {
 	struct charlcd *lcd = the_charlcd;
@@ -835,8 +835,8 @@ static int panel_notify_sys(struct notifier_block *this, unsigned long code,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block panel_notifier = {
-	panel_notify_sys,
+static struct yestifier_block panel_yestifier = {
+	panel_yestify_sys,
 	NULL,
 	0
 };
@@ -854,7 +854,7 @@ int charlcd_register(struct charlcd *lcd)
 		return ret;
 
 	the_charlcd = lcd;
-	register_reboot_notifier(&panel_notifier);
+	register_reboot_yestifier(&panel_yestifier);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(charlcd_register);
@@ -863,7 +863,7 @@ int charlcd_unregister(struct charlcd *lcd)
 {
 	struct charlcd_priv *priv = charlcd_to_priv(lcd);
 
-	unregister_reboot_notifier(&panel_notifier);
+	unregister_reboot_yestifier(&panel_yestifier);
 	charlcd_puts(lcd, "\x0cLCD driver unloaded.\x1b[Lc\x1b[Lb\x1b[L-");
 	misc_deregister(&charlcd_dev);
 	the_charlcd = NULL;

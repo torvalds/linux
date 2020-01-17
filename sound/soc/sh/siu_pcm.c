@@ -3,7 +3,7 @@
 // siu_pcm.c - ALSA driver for Renesas SH7343, SH7722 SIU peripheral.
 //
 // Copyright (C) 2009-2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
-// Copyright (C) 2006 Carlos Munoz <carlos@kenati.com>
+// Copyright (C) 2006 Carlos Muyesz <carlos@kenati.com>
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -416,7 +416,7 @@ static int siu_pcm_prepare(struct snd_soc_component *component,
 
 	/* We only support buffers that are multiples of the period */
 	if (siu_stream->buf_bytes % siu_stream->period_bytes) {
-		dev_err(dev, "%s() - buffer=%d not multiple of period=%d\n",
+		dev_err(dev, "%s() - buffer=%d yest multiple of period=%d\n",
 		       __func__, siu_stream->buf_bytes,
 		       siu_stream->period_bytes);
 		return -EINVAL;

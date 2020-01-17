@@ -211,7 +211,7 @@ static void owl_mmc_send_cmd(struct owl_mmc_host *owl_host,
 		break;
 
 	default:
-		dev_warn(owl_host->dev, "Unknown MMC command\n");
+		dev_warn(owl_host->dev, "Unkyeswn MMC command\n");
 		cmd->error = -EINVAL;
 		return;
 	}
@@ -408,7 +408,7 @@ static int owl_mmc_set_clk_rate(struct owl_mmc_host *owl_host,
 		       OWL_SD_CTL_WDELAY(OWL_SD_WDELAY_DDR50),
 		       owl_host->base + OWL_REG_SD_CTL);
 	} else {
-		dev_err(owl_host->dev, "SD clock rate not supported\n");
+		dev_err(owl_host->dev, "SD clock rate yest supported\n");
 		return -EINVAL;
 	}
 
@@ -505,7 +505,7 @@ static void owl_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		return;
 
 	default:
-		dev_dbg(owl_host->dev, "Ignoring unknown card power state\n");
+		dev_dbg(owl_host->dev, "Igyesring unkyeswn card power state\n");
 		break;
 	}
 
@@ -529,7 +529,7 @@ static int owl_mmc_start_signal_voltage_switch(struct mmc_host *mmc,
 {
 	struct owl_mmc_host *owl_host = mmc_priv(mmc);
 
-	/* It is enough to change the pad ctrl bit for voltage switch */
+	/* It is eyesugh to change the pad ctrl bit for voltage switch */
 	switch (ios->signal_voltage) {
 	case MMC_SIGNAL_VOLTAGE_330:
 		owl_mmc_update_reg(owl_host->base + OWL_REG_SD_EN,
@@ -590,7 +590,7 @@ static int owl_mmc_probe(struct platform_device *pdev)
 
 	owl_host->reset = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(owl_host->reset)) {
-		dev_err(&pdev->dev, "Could not get reset control\n");
+		dev_err(&pdev->dev, "Could yest get reset control\n");
 		ret = PTR_ERR(owl_host->reset);
 		goto err_free_host;
 	}

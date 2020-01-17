@@ -766,7 +766,7 @@
 		};
 
 		qspi: spi@ff705000 {
-			compatible = "cdns,qspi-nor";
+			compatible = "cdns,qspi-yesr";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xff705000 0x1000>,
@@ -787,7 +787,7 @@
 			altr,modrst-offset = <0x10>;
 		};
 
-		scu: snoop-control-unit@fffec000 {
+		scu: syesop-control-unit@fffec000 {
 			compatible = "arm,cortex-a9-scu";
 			reg = <0xfffec000 0x100>;
 		};
@@ -909,7 +909,7 @@
 
 		usbphy0: usbphy {
 			#phy-cells = <0>;
-			compatible = "usb-nop-xceiv";
+			compatible = "usb-yesp-xceiv";
 			status = "okay";
 		};
 

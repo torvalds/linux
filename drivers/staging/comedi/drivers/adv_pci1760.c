@@ -18,7 +18,7 @@
  * Updated: Fri, 13 Nov 2015 12:34:00 -0700
  * Status: untested
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: yest applicable, uses PCI auto config
  */
 
 #include <linux/module.h>

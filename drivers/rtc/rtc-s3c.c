@@ -223,7 +223,7 @@ static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
 
 	dev_dbg(dev, "set time %ptR\n", tm);
 
-	/* we get around y2k by simply not supporting it */
+	/* we get around y2k by simply yest supporting it */
 
 	if (year < 0 || year >= 100) {
 		dev_err(dev, "rtc only supports 100 years\n");
@@ -535,23 +535,23 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	info->rtc = devm_rtc_device_register(&pdev->dev, "s3c", &s3c_rtcops,
 					     THIS_MODULE);
 	if (IS_ERR(info->rtc)) {
-		dev_err(&pdev->dev, "cannot attach rtc\n");
+		dev_err(&pdev->dev, "canyest attach rtc\n");
 		ret = PTR_ERR(info->rtc);
-		goto err_nortc;
+		goto err_yesrtc;
 	}
 
 	ret = devm_request_irq(&pdev->dev, info->irq_alarm, s3c_rtc_alarmirq,
 			       0, "s3c2410-rtc alarm", info);
 	if (ret) {
 		dev_err(&pdev->dev, "IRQ%d error %d\n", info->irq_alarm, ret);
-		goto err_nortc;
+		goto err_yesrtc;
 	}
 
 	ret = devm_request_irq(&pdev->dev, info->irq_tick, s3c_rtc_tickirq,
 			       0, "s3c2410-rtc tick", info);
 	if (ret) {
 		dev_err(&pdev->dev, "IRQ%d error %d\n", info->irq_tick, ret);
-		goto err_nortc;
+		goto err_yesrtc;
 	}
 
 	if (info->data->select_tick_clk)
@@ -563,7 +563,7 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_nortc:
+err_yesrtc:
 	if (info->data->disable)
 		info->data->disable(info);
 
@@ -699,7 +699,7 @@ static void s3c24xx_rtc_enable_tick(struct s3c_rtc *info, struct seq_file *seq)
 	ticnt = readb(info->base + S3C2410_TICNT);
 	ticnt &= S3C2410_TICNT_ENABLE;
 
-	seq_printf(seq, "periodic_IRQ\t: %s\n", ticnt  ? "yes" : "no");
+	seq_printf(seq, "periodic_IRQ\t: %s\n", ticnt  ? "no" : "yes");
 }
 
 static void s3c2416_rtc_select_tick_clk(struct s3c_rtc *info)
@@ -718,7 +718,7 @@ static void s3c6410_rtc_enable_tick(struct s3c_rtc *info, struct seq_file *seq)
 	ticnt = readw(info->base + S3C2410_RTCCON);
 	ticnt &= S3C64XX_RTCCON_TICEN;
 
-	seq_printf(seq, "periodic_IRQ\t: %s\n", ticnt  ? "yes" : "no");
+	seq_printf(seq, "periodic_IRQ\t: %s\n", ticnt  ? "no" : "yes");
 }
 
 static void s3c24xx_rtc_save_tick_cnt(struct s3c_rtc *info)
@@ -810,7 +810,7 @@ static const struct of_device_id s3c_rtc_dt_match[] = {
 		.compatible = "samsung,s3c6410-rtc",
 		.data = &s3c6410_rtc_data,
 	}, {
-		.compatible = "samsung,exynos3250-rtc",
+		.compatible = "samsung,exyyess3250-rtc",
 		.data = &s3c6410_rtc_data,
 	},
 	{ /* sentinel */ },

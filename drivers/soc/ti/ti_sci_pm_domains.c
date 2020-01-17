@@ -112,7 +112,7 @@ static int ti_sci_dev_stop(struct device *dev)
 static int ti_sci_pd_attach_dev(struct generic_pm_domain *domain,
 				struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct of_phandle_args pd_args;
 	struct ti_sci_pm_domain *ti_sci_genpd = genpd_to_ti_sci_pd(domain);
 	const struct ti_sci_handle *ti_sci = ti_sci_genpd->ti_sci;
@@ -131,8 +131,8 @@ static int ti_sci_pd_attach_dev(struct generic_pm_domain *domain,
 	idx = pd_args.args[0];
 
 	/*
-	 * Check the validity of the requested idx, if the index is not valid
-	 * the PMMC will return a NAK here and we will not allocate it.
+	 * Check the validity of the requested idx, if the index is yest valid
+	 * the PMMC will return a NAK here and we will yest allocate it.
 	 */
 	ret = ti_sci->ops.dev_ops.is_valid(ti_sci, idx);
 	if (ret)
@@ -173,7 +173,7 @@ MODULE_DEVICE_TABLE(of, ti_sci_pm_domain_matches);
 static int ti_sci_pm_domain_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct ti_sci_pm_domain *ti_sci_pd;
 	int ret;
 

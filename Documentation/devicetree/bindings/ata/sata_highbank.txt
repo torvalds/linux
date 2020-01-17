@@ -1,9 +1,9 @@
 * Calxeda AHCI SATA Controller
 
-SATA nodes are defined to describe on-chip Serial ATA controllers.
+SATA yesdes are defined to describe on-chip Serial ATA controllers.
 The Calxeda SATA controller mostly conforms to the AHCI interface
 with some special extensions to add functionality.
-Each SATA controller should have its own node.
+Each SATA controller should have its own yesde.
 
 Required properties:
 - compatible        : compatible list, contains "calxeda,hb-ahci"
@@ -22,7 +22,7 @@ Optional properties:
 			SGPIO bitstream.
 - calxeda,tx-atten  : a u32 array that contains TX attenuation override
 			codes, one per port. The upper 3 bytes are always
-			0 and thus ignored.
+			0 and thus igyesred.
 - calxeda,pre-clocks : a u32 that indicates the number of additional clock
 			cycles to transmit before sending an SGPIO pattern
 - calxeda,post-clocks: a u32 that indicates the number of additional clock

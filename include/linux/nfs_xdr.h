@@ -22,7 +22,7 @@ struct nfs4_string {
 
 struct nfs_fsid {
 	uint64_t		major;
-	uint64_t		minor;
+	uint64_t		miyesr;
 };
 
 /*
@@ -30,7 +30,7 @@ struct nfs_fsid {
  */
 static inline int nfs_fsid_equal(const struct nfs_fsid *a, const struct nfs_fsid *b)
 {
-	return a->major == b->major && a->minor == b->minor;
+	return a->major == b->major && a->miyesr == b->miyesr;
 }
 
 struct nfs4_threshold {
@@ -251,7 +251,7 @@ struct nfs4_layoutget_args {
 	struct pnfs_layout_range range;
 	__u64 minlength;
 	__u32 maxcount;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct nfs_open_context *ctx;
 	nfs4_stateid stateid;
 	struct nfs4_layoutdriver_data layout;
@@ -277,20 +277,20 @@ struct nfs4_layoutget {
 struct nfs4_getdeviceinfo_args {
 	struct nfs4_sequence_args seq_args;
 	struct pnfs_device *pdev;
-	__u32 notify_types;
+	__u32 yestify_types;
 };
 
 struct nfs4_getdeviceinfo_res {
 	struct nfs4_sequence_res seq_res;
 	struct pnfs_device *pdev;
-	__u32 notification;
+	__u32 yestification;
 };
 
 struct nfs4_layoutcommit_args {
 	struct nfs4_sequence_args seq_args;
 	nfs4_stateid stateid;
 	__u64 lastbytewritten;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	const u32 *bitmask;
 	size_t layoutupdate_len;
 	struct page *layoutupdate_page;
@@ -310,7 +310,7 @@ struct nfs4_layoutcommit_data {
 	struct nfs_fattr fattr;
 	struct list_head lseg_list;
 	const struct cred *cred;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct nfs4_layoutcommit_args args;
 	struct nfs4_layoutcommit_res res;
 };
@@ -318,7 +318,7 @@ struct nfs4_layoutcommit_data {
 struct nfs4_layoutreturn_args {
 	struct nfs4_sequence_args seq_args;
 	struct pnfs_layout_hdr *layout;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct pnfs_layout_range range;
 	nfs4_stateid stateid;
 	__u32   layout_type;
@@ -336,7 +336,7 @@ struct nfs4_layoutreturn {
 	struct nfs4_layoutreturn_res res;
 	const struct cred *cred;
 	struct nfs_client *clp;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int rpc_status;
 	struct nfs4_xdr_opaque_data ld_private;
 };
@@ -365,7 +365,7 @@ struct nfs42_layoutstat_devinfo {
 struct nfs42_layoutstat_args {
 	struct nfs4_sequence_args seq_args;
 	struct nfs_fh *fh;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	nfs4_stateid stateid;
 	int num_dev;
 	struct nfs42_layoutstat_devinfo *devinfo;
@@ -378,7 +378,7 @@ struct nfs42_layoutstat_res {
 };
 
 struct nfs42_layoutstat_data {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct nfs42_layoutstat_args args;
 	struct nfs42_layoutstat_res res;
 };
@@ -400,7 +400,7 @@ struct nfs42_layout_error {
 
 struct nfs42_layouterror_args {
 	struct nfs4_sequence_args seq_args;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	unsigned int num_errors;
 	struct nfs42_layout_error errors[NFS42_LAYOUTERROR_MAX];
 };
@@ -414,7 +414,7 @@ struct nfs42_layouterror_res {
 struct nfs42_layouterror_data {
 	struct nfs42_layouterror_args args;
 	struct nfs42_layouterror_res res;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct pnfs_layout_segment *lseg;
 };
 
@@ -735,7 +735,7 @@ struct nfs_auth_info {
  * Argument struct for decode_entry function
  */
 struct nfs_entry {
-	__u64			ino;
+	__u64			iyes;
 	__u64			cookie,
 				prev_cookie;
 	const char *		name;
@@ -844,7 +844,7 @@ struct nfs3_getaclargs {
 };
 
 struct nfs3_setaclargs {
-	struct inode *		inode;
+	struct iyesde *		iyesde;
 	int			mask;
 	struct posix_acl *	acl_access;
 	struct posix_acl *	acl_default;
@@ -908,7 +908,7 @@ struct nfs3_symlinkargs {
 	struct iattr *		sattr;
 };
 
-struct nfs3_mknodargs {
+struct nfs3_mkyesdargs {
 	struct nfs_fh *		fh;
 	const char *		name;
 	unsigned int		len;
@@ -1291,7 +1291,7 @@ struct nfs41_exchange_id_args {
 };
 
 struct nfs41_server_owner {
-	uint64_t			minor_id;
+	uint64_t			miyesr_id;
 	uint32_t			major_id_sz;
 	char				major_id[NFS4_OPAQUE_LIMIT];
 };
@@ -1360,7 +1360,7 @@ struct nfs41_reclaim_complete_res {
 
 #define SECINFO_STYLE_CURRENT_FH 0
 #define SECINFO_STYLE_PARENT 1
-struct nfs41_secinfo_no_name_args {
+struct nfs41_secinfo_yes_name_args {
 	struct nfs4_sequence_args	seq_args;
 	int				style;
 };
@@ -1448,7 +1448,7 @@ struct nfs42_copy_res {
 	struct nfs4_sequence_res	seq_res;
 	struct nfs42_write_res		write_res;
 	bool				consecutive;
-	bool				synchronous;
+	bool				synchroyesus;
 	struct nfs_commitres		commit_res;
 };
 
@@ -1464,7 +1464,7 @@ struct nfs42_offload_status_res {
 	int				osr_status;
 };
 
-struct nfs42_copy_notify_args {
+struct nfs42_copy_yestify_args {
 	struct nfs4_sequence_args	cna_seq_args;
 
 	struct nfs_fh		*cna_src_fh;
@@ -1472,7 +1472,7 @@ struct nfs42_copy_notify_args {
 	struct nl4_server	cna_dst;
 };
 
-struct nfs42_copy_notify_res {
+struct nfs42_copy_yestify_res {
 	struct nfs4_sequence_res	cnr_seq_res;
 
 	struct nfstime4		cnr_lease_time;
@@ -1520,7 +1520,7 @@ enum {
 
 struct nfs_io_completion;
 struct nfs_pgio_header {
-	struct inode		*inode;
+	struct iyesde		*iyesde;
 	const struct cred		*cred;
 	struct list_head	pages;
 	struct nfs_page		*req;
@@ -1564,14 +1564,14 @@ struct nfs_mds_commit_info {
 
 struct nfs_commit_info;
 struct nfs_commit_data;
-struct nfs_inode;
+struct nfs_iyesde;
 struct nfs_commit_completion_ops {
 	void (*completion) (struct nfs_commit_data *data);
 	void (*resched_write) (struct nfs_commit_info *, struct nfs_page *);
 };
 
 struct nfs_commit_info {
-	struct inode 			*inode;	/* Needed for inode->i_lock */
+	struct iyesde 			*iyesde;	/* Needed for iyesde->i_lock */
 	struct nfs_mds_commit_info	*mds;
 	struct pnfs_ds_commit_info	*ds;
 	struct nfs_direct_req		*dreq;	/* O_DIRECT request */
@@ -1580,7 +1580,7 @@ struct nfs_commit_info {
 
 struct nfs_commit_data {
 	struct rpc_task		task;
-	struct inode		*inode;
+	struct iyesde		*iyesde;
 	const struct cred		*cred;
 	struct nfs_fattr	fattr;
 	struct nfs_writeverf	verf;
@@ -1621,10 +1621,10 @@ struct nfs_renamedata {
 	struct nfs_renameargs	args;
 	struct nfs_renameres	res;
 	const struct cred	*cred;
-	struct inode		*old_dir;
+	struct iyesde		*old_dir;
 	struct dentry		*old_dentry;
 	struct nfs_fattr	old_fattr;
-	struct inode		*new_dir;
+	struct iyesde		*new_dir;
 	struct dentry		*new_dentry;
 	struct nfs_fattr	new_fattr;
 	void (*complete)(struct rpc_task *, struct nfs_renamedata *);
@@ -1646,8 +1646,8 @@ struct nfs_pageio_descriptor;
 struct nfs_rpc_ops {
 	u32	version;		/* Protocol version */
 	const struct dentry_operations *dentry_ops;
-	const struct inode_operations *dir_inode_ops;
-	const struct inode_operations *file_inode_ops;
+	const struct iyesde_operations *dir_iyesde_ops;
+	const struct iyesde_operations *file_iyesde_ops;
 	const struct file_operations *file_ops;
 	const struct nlmclnt_operations *nlmclnt_ops;
 
@@ -1659,36 +1659,36 @@ struct nfs_rpc_ops {
 				     struct nfs_subversion *);
 	int	(*getattr) (struct nfs_server *, struct nfs_fh *,
 			    struct nfs_fattr *, struct nfs4_label *,
-			    struct inode *);
+			    struct iyesde *);
 	int	(*setattr) (struct dentry *, struct nfs_fattr *,
 			    struct iattr *);
-	int	(*lookup)  (struct inode *, const struct qstr *,
+	int	(*lookup)  (struct iyesde *, const struct qstr *,
 			    struct nfs_fh *, struct nfs_fattr *,
 			    struct nfs4_label *);
-	int	(*lookupp) (struct inode *, struct nfs_fh *,
+	int	(*lookupp) (struct iyesde *, struct nfs_fh *,
 			    struct nfs_fattr *, struct nfs4_label *);
-	int	(*access)  (struct inode *, struct nfs_access_entry *);
-	int	(*readlink)(struct inode *, struct page *, unsigned int,
+	int	(*access)  (struct iyesde *, struct nfs_access_entry *);
+	int	(*readlink)(struct iyesde *, struct page *, unsigned int,
 			    unsigned int);
-	int	(*create)  (struct inode *, struct dentry *,
+	int	(*create)  (struct iyesde *, struct dentry *,
 			    struct iattr *, int);
-	int	(*remove)  (struct inode *, struct dentry *);
-	void	(*unlink_setup)  (struct rpc_message *, struct dentry *, struct inode *);
+	int	(*remove)  (struct iyesde *, struct dentry *);
+	void	(*unlink_setup)  (struct rpc_message *, struct dentry *, struct iyesde *);
 	void	(*unlink_rpc_prepare) (struct rpc_task *, struct nfs_unlinkdata *);
-	int	(*unlink_done) (struct rpc_task *, struct inode *);
+	int	(*unlink_done) (struct rpc_task *, struct iyesde *);
 	void	(*rename_setup)  (struct rpc_message *msg,
 			struct dentry *old_dentry,
 			struct dentry *new_dentry);
 	void	(*rename_rpc_prepare)(struct rpc_task *task, struct nfs_renamedata *);
-	int	(*rename_done) (struct rpc_task *task, struct inode *old_dir, struct inode *new_dir);
-	int	(*link)    (struct inode *, struct inode *, const struct qstr *);
-	int	(*symlink) (struct inode *, struct dentry *, struct page *,
+	int	(*rename_done) (struct rpc_task *task, struct iyesde *old_dir, struct iyesde *new_dir);
+	int	(*link)    (struct iyesde *, struct iyesde *, const struct qstr *);
+	int	(*symlink) (struct iyesde *, struct dentry *, struct page *,
 			    unsigned int, struct iattr *);
-	int	(*mkdir)   (struct inode *, struct dentry *, struct iattr *);
-	int	(*rmdir)   (struct inode *, const struct qstr *);
+	int	(*mkdir)   (struct iyesde *, struct dentry *, struct iattr *);
+	int	(*rmdir)   (struct iyesde *, const struct qstr *);
 	int	(*readdir) (struct dentry *, const struct cred *,
 			    u64, struct page **, unsigned int, bool);
-	int	(*mknod)   (struct inode *, struct dentry *, struct iattr *,
+	int	(*mkyesd)   (struct iyesde *, struct dentry *, struct iattr *,
 			    dev_t);
 	int	(*statfs)  (struct nfs_server *, struct nfs_fh *,
 			    struct nfs_fsstat *);
@@ -1711,14 +1711,14 @@ struct nfs_rpc_ops {
 	int	(*commit_done) (struct rpc_task *, struct nfs_commit_data *);
 	int	(*lock)(struct file *, int, struct file_lock *);
 	int	(*lock_check_bounds)(const struct file_lock *);
-	void	(*clear_acl_cache)(struct inode *);
+	void	(*clear_acl_cache)(struct iyesde *);
 	void	(*close_context)(struct nfs_open_context *ctx, int);
-	struct inode * (*open_context) (struct inode *dir,
+	struct iyesde * (*open_context) (struct iyesde *dir,
 				struct nfs_open_context *ctx,
 				int open_flags,
 				struct iattr *iattr,
 				int *);
-	int (*have_delegation)(struct inode *, fmode_t);
+	int (*have_delegation)(struct iyesde *, fmode_t);
 	struct nfs_client *(*alloc_client) (const struct nfs_client_initdata *);
 	struct nfs_client *(*init_client) (struct nfs_client *,
 				const struct nfs_client_initdata *);
@@ -1729,11 +1729,11 @@ struct nfs_rpc_ops {
 };
 
 /*
- * 	NFS_CALL(getattr, inode, (fattr));
+ * 	NFS_CALL(getattr, iyesde, (fattr));
  * into
- *	NFS_PROTO(inode)->getattr(fattr);
+ *	NFS_PROTO(iyesde)->getattr(fattr);
  */
-#define NFS_CALL(op, inode, args)	NFS_PROTO(inode)->op args
+#define NFS_CALL(op, iyesde, args)	NFS_PROTO(iyesde)->op args
 
 /*
  * Function vectors etc. for the NFS client

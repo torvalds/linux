@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/net.h>
 #include <linux/init.h>

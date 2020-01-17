@@ -31,7 +31,7 @@ computer: namely the ability to do seamless device "plug and play", power
 management, and hot plug. In particular, the model dictated by Intel and
 Microsoft (namely ACPI) ensures that almost every device on almost any bus
 on an x86-compatible system can work within this paradigm.  Of course,
-not every bus is able to support all such operations, although most
+yest every bus is able to support all such operations, although most
 buses support most of those operations.
 
 
@@ -43,7 +43,7 @@ data structure. These fields must still be accessed by the bus layers,
 and sometimes by the device-specific drivers.
 
 Other bus layers are encouraged to do what has been done for the PCI layer.
-struct pci_dev now looks like this::
+struct pci_dev yesw looks like this::
 
   struct pci_dev {
 	...
@@ -55,21 +55,21 @@ struct pci_dev now looks like this::
 Note first that the struct device dev within the struct pci_dev is
 statically allocated. This means only one allocation on device discovery.
 
-Note also that that struct device dev is not necessarily defined at the
+Note also that that struct device dev is yest necessarily defined at the
 front of the pci_dev structure.  This is to make people think about what
 they're doing when switching between the bus driver and the global driver,
 and to discourage meaningless and incorrect casts between the two.
 
-The PCI bus layer freely accesses the fields of struct device. It knows about
-the structure of struct pci_dev, and it should know the structure of struct
+The PCI bus layer freely accesses the fields of struct device. It kyesws about
+the structure of struct pci_dev, and it should kyesw the structure of struct
 device. Individual PCI device drivers that have been converted to the current
-driver model generally do not and should not touch the fields of struct device,
+driver model generally do yest and should yest touch the fields of struct device,
 unless there is a compelling reason to do so.
 
 The above abstraction prevents unnecessary pain during transitional phases.
-If it were not done this way, then when a field was renamed or removed, every
+If it were yest done this way, then when a field was renamed or removed, every
 downstream driver would break.  On the other hand, if only the bus layer
-(and not the device layer) accesses the struct device, it is only the bus
+(and yest the device layer) accesses the struct device, it is only the bus
 layer that needs to change.
 
 
@@ -86,20 +86,20 @@ can see some variation of the following in the output of the "mount" command::
 
   $ mount
   ...
-  none on /sys type sysfs (rw,noexec,nosuid,nodev)
+  yesne on /sys type sysfs (rw,yesexec,yessuid,yesdev)
   ...
   $
 
 The auto-mounting of sysfs is typically accomplished by an entry similar to
 the following in the /etc/fstab file::
 
-  none     	/sys	sysfs    defaults	  	0 0
+  yesne     	/sys	sysfs    defaults	  	0 0
 
 or something similar in the /lib/init/fstab file on Debian-based systems::
 
-  none            /sys    sysfs    nodev,noexec,nosuid    0 0
+  yesne            /sys    sysfs    yesdev,yesexec,yessuid    0 0
 
-If sysfs is not automatically mounted, you can always do it manually with::
+If sysfs is yest automatically mounted, you can always do it manually with::
 
 	# mount -t sysfs sysfs /sys
 

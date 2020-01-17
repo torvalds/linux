@@ -25,14 +25,14 @@
 #endif
 
 /*
- * ColdFire architecture has no way to clear individual cache lines, so we
+ * ColdFire architecture has yes way to clear individual cache lines, so we
  * are stuck invalidating all the cache entries when we want a clear operation.
  */
 static inline void clear_cf_icache(unsigned long start, unsigned long end)
 {
 	__asm__ __volatile__ (
 		"movec	%0,%%cacr\n\t"
-		"nop"
+		"yesp"
 		:
 		: "r" (CACHE_MODE | CACR_ICINVA | CACR_BCINVA));
 }
@@ -41,7 +41,7 @@ static inline void clear_cf_dcache(unsigned long start, unsigned long end)
 {
 	__asm__ __volatile__ (
 		"movec	%0,%%cacr\n\t"
-		"nop"
+		"yesp"
 		:
 		: "r" (CACHE_MODE | CACR_DCINVA));
 }
@@ -50,14 +50,14 @@ static inline void clear_cf_bcache(unsigned long start, unsigned long end)
 {
 	__asm__ __volatile__ (
 		"movec	%0,%%cacr\n\t"
-		"nop"
+		"yesp"
 		:
 		: "r" (CACHE_MODE | CACR_ICINVA | CACR_BCINVA | CACR_DCINVA));
 }
 
 /*
  * Use the ColdFire cpushl instruction to push (and invalidate) cache lines.
- * The start and end addresses are cache line numbers not memory addresses.
+ * The start and end addresses are cache line numbers yest memory addresses.
  */
 static inline void flush_cf_icache(unsigned long start, unsigned long end)
 {
@@ -122,7 +122,7 @@ static inline void flush_icache(void)
 	if (CPU_IS_COLDFIRE) {
 		flush_cf_icache(0, ICACHE_MAX_ADDR);
 	} else if (CPU_IS_040_OR_060) {
-		asm volatile (	"nop\n"
+		asm volatile (	"yesp\n"
 			"	.chip	68040\n"
 			"	cpusha	%bc\n"
 			"	.chip	68k");
@@ -162,7 +162,7 @@ extern void cache_push_v(unsigned long vaddr, int len);
 	if (CPU_IS_COLDFIRE) {					\
 		flush_cf_dcache(0, DCACHE_MAX_ADDR);		\
 	} else if (CPU_IS_040_OR_060) {				\
-		__asm__ __volatile__("nop\n\t"			\
+		__asm__ __volatile__("yesp\n\t"			\
 				     ".chip 68040\n\t"		\
 				     "cpusha %dc\n\t"		\
 				     ".chip 68k");		\
@@ -233,7 +233,7 @@ static inline void __flush_page_to_ram(void *vaddr)
 		}
 		flush_cf_bcache(start, end);
 	} else if (CPU_IS_040_OR_060) {
-		__asm__ __volatile__("nop\n\t"
+		__asm__ __volatile__("yesp\n\t"
 				     ".chip 68040\n\t"
 				     "cpushp %%bc,(%0)\n\t"
 				     ".chip 68k"

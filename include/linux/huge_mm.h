@@ -7,7 +7,7 @@
 
 #include <linux/fs.h> /* only for vma_is_dax() */
 
-extern vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf);
+extern vm_fault_t do_huge_pmd_ayesnymous_page(struct vm_fault *vmf);
 extern int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 			 pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
 			 struct vm_area_struct *vma);
@@ -92,7 +92,7 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
 extern unsigned long transparent_hugepage_flags;
 
 /*
- * to be used on vmas which are known to support THP.
+ * to be used on vmas which are kyeswn to support THP.
  * Use transparent_hugepage_enabled otherwise
  */
 static inline bool __transparent_hugepage_enabled(struct vm_area_struct *vma)
@@ -110,7 +110,7 @@ static inline bool __transparent_hugepage_enabled(struct vm_area_struct *vma)
 		return true;
 	/*
 	 * For dax vmas, try to always use hugepage mappings. If the kernel does
-	 * not support hugepages, fsdax mappings will fallback to PAGE_SIZE
+	 * yest support hugepages, fsdax mappings will fallback to PAGE_SIZE
 	 * mappings, and device-dax namespaces, that try to guarantee a given
 	 * mapping size, will fail to enable
 	 */
@@ -131,8 +131,8 @@ bool transparent_hugepage_enabled(struct vm_area_struct *vma);
 static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
 		unsigned long haddr)
 {
-	/* Don't have to check pgoff for anonymous vma */
-	if (!vma_is_anonymous(vma)) {
+	/* Don't have to check pgoff for ayesnymous vma */
+	if (!vma_is_ayesnymous(vma)) {
 		if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
 			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
 			return false;
@@ -209,7 +209,7 @@ extern spinlock_t *__pud_trans_huge_lock(pud_t *pud,
 
 static inline int is_swap_pmd(pmd_t pmd)
 {
-	return !pmd_none(pmd) && !pmd_present(pmd);
+	return !pmd_yesne(pmd) && !pmd_present(pmd);
 }
 
 /* mmap_sem must be held on entry */

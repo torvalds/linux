@@ -44,7 +44,7 @@ void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
 	trace_cfg80211_send_rx_assoc(dev, bss);
 
 	/*
-	 * This is a bit of a hack, we don't notify userspace of
+	 * This is a bit of a hack, we don't yestify userspace of
 	 * a (re-)association reply if we tried to send a reassoc
 	 * and got a reject -- we only try again with an assoc
 	 * frame instead of reassoc.
@@ -816,7 +816,7 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 				cfg80211_chandef_create(&chandef, c,
 							NL80211_CHAN_NO_HT);
 
-				nl80211_radar_notify(rdev, &chandef,
+				nl80211_radar_yestify(rdev, &chandef,
 						     radar_event, NULL,
 						     GFP_ATOMIC);
 
@@ -858,7 +858,7 @@ void cfg80211_radar_event(struct wiphy *wiphy,
 
 	cfg80211_sched_dfs_chan_update(rdev);
 
-	nl80211_radar_notify(rdev, chandef, NL80211_RADAR_DETECTED, NULL, gfp);
+	nl80211_radar_yestify(rdev, chandef, NL80211_RADAR_DETECTED, NULL, gfp);
 
 	memcpy(&rdev->radar_chandef, chandef, sizeof(struct cfg80211_chan_def));
 	queue_work(cfg80211_wq, &rdev->propagate_radar_detect_wk);
@@ -904,6 +904,6 @@ void cfg80211_cac_event(struct net_device *netdev,
 		return;
 	}
 
-	nl80211_radar_notify(rdev, chandef, event, netdev, gfp);
+	nl80211_radar_yestify(rdev, chandef, event, netdev, gfp);
 }
 EXPORT_SYMBOL(cfg80211_cac_event);

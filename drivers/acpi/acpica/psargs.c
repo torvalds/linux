@@ -202,7 +202,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	char *path;
 	union acpi_parse_object *name_op;
 	union acpi_operand_object *method_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	u8 *start = parser_state->aml;
 
 	ACPI_FUNCTION_TRACE(ps_get_next_namepath);
@@ -228,14 +228,14 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	status = acpi_ns_lookup(walk_state->scope_info, path,
 				ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
 				ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
-				NULL, &node);
+				NULL, &yesde);
 
 	/*
 	 * If this name is a control method invocation, we must
 	 * setup the method call
 	 */
 	if (ACPI_SUCCESS(status) &&
-	    possible_method_call && (node->type == ACPI_TYPE_METHOD)) {
+	    possible_method_call && (yesde->type == ACPI_TYPE_METHOD)) {
 		if ((GET_CURRENT_ARG_TYPE(walk_state->arg_types) ==
 		     ARGP_SUPERNAME)
 		    || (GET_CURRENT_ARG_TYPE(walk_state->arg_types) ==
@@ -253,10 +253,10 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 
 		/* This name is actually a control method invocation */
 
-		method_desc = acpi_ns_get_attached_object(node);
+		method_desc = acpi_ns_get_attached_object(yesde);
 		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
 				  "Control Method invocation %4.4s - %p Desc %p Path=%p\n",
-				  node->name.ascii, node, method_desc, path));
+				  yesde->name.ascii, yesde, method_desc, path));
 
 		name_op = acpi_ps_alloc_op(AML_INT_NAMEPATH_OP, start);
 		if (!name_op) {
@@ -270,19 +270,19 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 
 		/* Point METHODCALL/NAME to the METHOD Node */
 
-		name_op->common.node = node;
+		name_op->common.yesde = yesde;
 		acpi_ps_append_arg(arg, name_op);
 
 		if (!method_desc) {
 			ACPI_ERROR((AE_INFO,
-				    "Control Method %p has no attached object",
-				    node));
+				    "Control Method %p has yes attached object",
+				    yesde));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 
 		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
 				  "Control Method - %p Args %X\n",
-				  node, method_desc->method.param_count));
+				  yesde, method_desc->method.param_count));
 
 		/* Get the number of arguments to expect */
 
@@ -291,19 +291,19 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	}
 
 	/*
-	 * Special handling if the name was not found during the lookup -
-	 * some not_found cases are allowed
+	 * Special handling if the name was yest found during the lookup -
+	 * some yest_found cases are allowed
 	 */
 	if (status == AE_NOT_FOUND) {
 
-		/* 1) not_found is ok during load pass 1/2 (allow forward references) */
+		/* 1) yest_found is ok during load pass 1/2 (allow forward references) */
 
 		if ((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) !=
 		    ACPI_PARSE_EXECUTE) {
 			status = AE_OK;
 		}
 
-		/* 2) not_found during a cond_ref_of(x) is ok by definition */
+		/* 2) yest_found during a cond_ref_of(x) is ok by definition */
 
 		else if (walk_state->op->common.aml_opcode ==
 			 AML_CONDITIONAL_REF_OF_OP) {
@@ -311,8 +311,8 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 		}
 
 		/*
-		 * 3) not_found while building a Package is ok at this point, we
-		 * may flag as an error later if slack mode is not enabled.
+		 * 3) yest_found while building a Package is ok at this point, we
+		 * may flag as an error later if slack mode is yest enabled.
 		 * (Some ASL code depends on allowing this behavior)
 		 */
 		else if ((arg->common.parent) &&
@@ -530,7 +530,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 		/*
 		 * Because the package length isn't represented as a parse tree object,
 		 * take comments surrounding this and add to the previously created
-		 * parse node.
+		 * parse yesde.
 		 */
 		if (field->common.inline_comment) {
 			field->common.name_comment =
@@ -560,7 +560,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 		/*
 		 * Get access_type and access_attrib and merge into the field Op
 		 * access_type is first operand, access_attribute is second. stuff
-		 * these bytes into the node integer value for convenience.
+		 * these bytes into the yesde integer value for convenience.
 		 */
 
 		/* Get the two bytes (Type/Attribute) */
@@ -736,7 +736,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 	case ARGP_PKGLENGTH:
 
-		/* Package length, nothing returned */
+		/* Package length, yesthing returned */
 
 		parser_state->pkg_end =
 		    acpi_ps_get_next_package_end(parser_state);
@@ -821,7 +821,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 						      arg,
 						      ACPI_NOT_METHOD_CALL);
 		} else {
-			/* Single complex argument, nothing returned */
+			/* Single complex argument, yesthing returned */
 
 			walk_state->arg_count = 1;
 		}
@@ -865,7 +865,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 				walk_state->arg_count = 1;
 			}
 		} else {
-			/* Single complex argument, nothing returned */
+			/* Single complex argument, yesthing returned */
 
 			walk_state->arg_count = 1;
 		}
@@ -879,7 +879,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 				  acpi_ut_get_argument_type_name(arg_type),
 				  arg_type));
 
-		/* Single complex argument, nothing returned */
+		/* Single complex argument, yesthing returned */
 
 		walk_state->arg_count = 1;
 		break;
@@ -890,7 +890,7 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 
 		if (parser_state->aml < parser_state->pkg_end) {
 
-			/* Non-empty list of variable arguments, nothing returned */
+			/* Non-empty list of variable arguments, yesthing returned */
 
 			walk_state->arg_count = ACPI_VAR_ARGS;
 		}

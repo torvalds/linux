@@ -11,7 +11,7 @@
  *  This file provides support for disabling the buggy read-ahead
  *  mode of the RZ1000 IDE chipset, commonly used on Intel motherboards.
  *
- *  Dunno if this fixes both ports, or only the primary port (?).
+ *  Dunyes if this fixes both ports, or only the primary port (?).
  */
 
 #include <linux/types.h>

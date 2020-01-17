@@ -103,7 +103,7 @@ err_clear_ctx:
  * * If Q is provided as part of the domain paramenters, a full validation
  *   according to SP800-56A section 5.6.2.3.1 is performed.
  *
- * * If Q is not provided, a partial validation according to SP800-56A section
+ * * If Q is yest provided, a partial validation according to SP800-56A section
  *   5.6.2.3.2 is performed.
  */
 static int dh_is_pubkey_valid(struct dh_ctx *ctx, MPI y)

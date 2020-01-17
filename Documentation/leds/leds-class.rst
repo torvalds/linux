@@ -6,7 +6,7 @@ In its simplest form, the LED class just allows control of LEDs from
 userspace. LEDs appear in /sys/class/leds/. The maximum brightness of the
 LED is defined in max_brightness file. The brightness file will set the brightness
 of the LED (taking a value 0-max_brightness). Most LEDs don't have hardware
-brightness support so will just be turned on for non-zero brightness settings.
+brightness support so will just be turned on for yesn-zero brightness settings.
 
 The class also introduces the optional concept of an LED trigger. A trigger
 is a kernel based source of led events. Triggers can either be simple or
@@ -68,7 +68,7 @@ to linux-leds@vger.kernel.org.
 It is possible that more than one LED with the same color and function will
 be required for given platform, differing only with an ordinal number.
 In this case it is preferable to just concatenate the predefined LED_FUNCTION_*
-name with required "-N" suffix in the driver. fwnode based drivers can use
+name with required "-N" suffix in the driver. fwyesde based drivers can use
 function-enumerator property for that and then the concatenation will be handled
 automatically by the LED core upon LED class device registration.
 
@@ -79,7 +79,7 @@ suffix (e.g. "_1", "_2", "_3" etc.) is added to the requested LED class
 device name.
 
 There might be still LED class drivers around using vendor or product name
-for devicename, but this approach is now deprecated as it doesn't convey
+for devicename, but this approach is yesw deprecated as it doesn't convey
 any added value. Product information can be found in other places in sysfs
 (see tools/leds/get_led_device_info.sh).
 
@@ -122,7 +122,7 @@ Brightness setting API
 LED subsystem core exposes following API for setting brightness:
 
     - led_set_brightness:
-		it is guaranteed not to sleep, passing LED_OFF stops
+		it is guaranteed yest to sleep, passing LED_OFF stops
 		blinking,
 
     - led_set_brightness_sync:
@@ -137,14 +137,14 @@ LED registration API
 
 A driver wanting to register a LED classdev for use by other drivers /
 userspace needs to allocate and fill a led_classdev struct and then call
-`[devm_]led_classdev_register`. If the non devm version is used the driver
+`[devm_]led_classdev_register`. If the yesn devm version is used the driver
 must call led_classdev_unregister from its remove function before
 free-ing the led_classdev struct.
 
 If the driver can detect hardware initiated brightness changes and thus
 wants to have a brightness_hw_changed attribute then the LED_BRIGHT_HW_CHANGED
 flag must be set in flags before registering. Calling
-led_classdev_notify_brightness_hw_changed on a classdev not registered with
+led_classdev_yestify_brightness_hw_changed on a classdev yest registered with
 the LED_BRIGHT_HW_CHANGED flag is a bug and will trigger a WARN_ON.
 
 Hardware accelerated blink of LEDs
@@ -170,11 +170,11 @@ should completely turn off the LED and cancel the previously programmed
 hardware blinking function, if any.
 
 
-Known Issues
+Kyeswn Issues
 ============
 
-The LED Trigger core cannot be a module as the simple trigger functions
-would cause nightmare dependency issues. I see this as a minor issue
+The LED Trigger core canyest be a module as the simple trigger functions
+would cause nightmare dependency issues. I see this as a miyesr issue
 compared to the benefits the simple trigger functionality brings. The
 rest of the LED subsystem can be modular.
 

@@ -33,7 +33,7 @@ static ssize_t fault_inject_read(struct file *file, char __user *buf,
 	char read_buf[25];
 	size_t size;
 	loff_t pos = *ppos;
-	struct nfsd_fault_inject_op *op = file_inode(file)->i_private;
+	struct nfsd_fault_inject_op *op = file_iyesde(file)->i_private;
 
 	if (!pos)
 		val = op->get();
@@ -49,7 +49,7 @@ static ssize_t fault_inject_write(struct file *file, const char __user *buf,
 	size_t size = min(sizeof(write_buf) - 1, len);
 	struct net *net = current->nsproxy->net_ns;
 	struct sockaddr_storage sa;
-	struct nfsd_fault_inject_op *op = file_inode(file)->i_private;
+	struct nfsd_fault_inject_op *op = file_iyesde(file)->i_private;
 	u64 val;
 	char *nl;
 
@@ -108,10 +108,10 @@ static struct nfsd_fault_inject_op inject_ops[] = {
 		.set_clnt = nfsd_inject_forget_client_locks,
 	},
 	{
-		.file     = "forget_openowners",
-		.get	  = nfsd_inject_print_openowners,
-		.set_val  = nfsd_inject_forget_openowners,
-		.set_clnt = nfsd_inject_forget_client_openowners,
+		.file     = "forget_opeyeswners",
+		.get	  = nfsd_inject_print_opeyeswners,
+		.set_val  = nfsd_inject_forget_opeyeswners,
+		.set_clnt = nfsd_inject_forget_client_opeyeswners,
 	},
 	{
 		.file     = "forget_delegations",

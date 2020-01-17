@@ -3,7 +3,7 @@
   The eDMA channels have multiplex capability by programmble memory-mapped
 registers. channels are split into two groups, called DMAMUX0 and DMAMUX1,
 specific DMA request source can only be multiplexed by any channel of certain
-group, DMAMUX0 or DMAMUX1, but not both.
+group, DMAMUX0 or DMAMUX1, but yest both.
 
 * eDMA Controller
 Required properties:
@@ -17,7 +17,7 @@ Required properties:
 - interrupts : A list of interrupt-specifiers, one for each entry in
 	interrupt-names on vf610 similar SoC. But for i.mx7ulp per channel
 	per transmission interrupt, total 16 channel interrupt and 1
-	error interrupt(located in the last), no interrupt-names list on
+	error interrupt(located in the last), yes interrupt-names list on
 	i.mx7ulp for clean on dts.
 - #dma-cells : Must be <2>.
 	The 1st cell specifies the DMAMUX(0 for DMAMUX0 and 1 for DMAMUX1).
@@ -29,7 +29,7 @@ Required properties:
 - clock-names : A list of channel group clock names. Should contain:
 	"dmamux0" - clock name of mux0 group
 	"dmamux1" - clock name of mux1 group
-	Note: No dmamux0 on i.mx7ulp, but another 'dma' clk added on i.mx7ulp.
+	Note: No dmamux0 on i.mx7ulp, but ayesther 'dma' clk added on i.mx7ulp.
 - clocks : A list of phandle and clock-specifier pairs, one for each entry in
 	clock-names.
 
@@ -37,7 +37,7 @@ Optional properties:
 - big-endian: If present registers and hardware scatter/gather descriptors
 	of the eDMA are implemented in big endian mode, otherwise in little
 	mode.
-- interrupt-names : Should contain the below on vf610 similar SoC but not used
+- interrupt-names : Should contain the below on vf610 similar SoC but yest used
 	on i.mx7ulp similar SoC:
 	"edma-tx" - the transmission interrupt
 	"edma-err" - the error interrupt

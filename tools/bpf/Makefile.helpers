@@ -11,7 +11,7 @@ endif
 
 INSTALL ?= install
 RM ?= rm -f
-RMDIR ?= rmdir --ignore-fail-on-non-empty
+RMDIR ?= rmdir --igyesre-fail-on-yesn-empty
 
 ifeq ($(V),1)
   Q =
@@ -39,7 +39,7 @@ $(OUTPUT)$(HELPERS_RST): $(UP2DIR)../../include/uapi/linux/bpf.h
 
 $(OUTPUT)%.7: $(OUTPUT)%.rst
 ifndef RST2MAN_DEP
-	$(error "rst2man not found, but required to generate man pages")
+	$(error "rst2man yest found, but required to generate man pages")
 endif
 	$(QUIET_GEN)rst2man $< > $@
 

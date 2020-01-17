@@ -14,7 +14,7 @@ struct bpf_load_map_def {
 	unsigned int max_entries;
 	unsigned int map_flags;
 	unsigned int inner_map_idx;
-	unsigned int numa_node;
+	unsigned int numa_yesde;
 };
 
 struct bpf_map_data {

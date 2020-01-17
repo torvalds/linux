@@ -22,51 +22,51 @@
 
 static int flags = 0;		/* for testing */
 
-static void update_resources(struct bus_node *bus_cur, int type, int rangeno);
+static void update_resources(struct bus_yesde *bus_cur, int type, int rangeyes);
 static int once_over(void);
-static int remove_ranges(struct bus_node *, struct bus_node *);
-static int update_bridge_ranges(struct bus_node **);
-static int add_bus_range(int type, struct range_node *, struct bus_node *);
-static void fix_resources(struct bus_node *);
-static struct bus_node *find_bus_wprev(u8, struct bus_node **, u8);
+static int remove_ranges(struct bus_yesde *, struct bus_yesde *);
+static int update_bridge_ranges(struct bus_yesde **);
+static int add_bus_range(int type, struct range_yesde *, struct bus_yesde *);
+static void fix_resources(struct bus_yesde *);
+static struct bus_yesde *find_bus_wprev(u8, struct bus_yesde **, u8);
 
 static LIST_HEAD(gbuses);
 
-static struct bus_node * __init alloc_error_bus(struct ebda_pci_rsrc *curr, u8 busno, int flag)
+static struct bus_yesde * __init alloc_error_bus(struct ebda_pci_rsrc *curr, u8 busyes, int flag)
 {
-	struct bus_node *newbus;
+	struct bus_yesde *newbus;
 
 	if (!(curr) && !(flag)) {
 		err("NULL pointer passed\n");
 		return NULL;
 	}
 
-	newbus = kzalloc(sizeof(struct bus_node), GFP_KERNEL);
+	newbus = kzalloc(sizeof(struct bus_yesde), GFP_KERNEL);
 	if (!newbus)
 		return NULL;
 
 	if (flag)
-		newbus->busno = busno;
+		newbus->busyes = busyes;
 	else
-		newbus->busno = curr->bus_num;
+		newbus->busyes = curr->bus_num;
 	list_add_tail(&newbus->bus_list, &gbuses);
 	return newbus;
 }
 
-static struct resource_node * __init alloc_resources(struct ebda_pci_rsrc *curr)
+static struct resource_yesde * __init alloc_resources(struct ebda_pci_rsrc *curr)
 {
-	struct resource_node *rs;
+	struct resource_yesde *rs;
 
 	if (!curr) {
 		err("NULL passed to allocate\n");
 		return NULL;
 	}
 
-	rs = kzalloc(sizeof(struct resource_node), GFP_KERNEL);
+	rs = kzalloc(sizeof(struct resource_yesde), GFP_KERNEL);
 	if (!rs)
 		return NULL;
 
-	rs->busno = curr->bus_num;
+	rs->busyes = curr->bus_num;
 	rs->devfunc = curr->dev_fun;
 	rs->start = curr->start_addr;
 	rs->end = curr->end_addr;
@@ -74,34 +74,34 @@ static struct resource_node * __init alloc_resources(struct ebda_pci_rsrc *curr)
 	return rs;
 }
 
-static int __init alloc_bus_range(struct bus_node **new_bus, struct range_node **new_range, struct ebda_pci_rsrc *curr, int flag, u8 first_bus)
+static int __init alloc_bus_range(struct bus_yesde **new_bus, struct range_yesde **new_range, struct ebda_pci_rsrc *curr, int flag, u8 first_bus)
 {
-	struct bus_node *newbus;
-	struct range_node *newrange;
+	struct bus_yesde *newbus;
+	struct range_yesde *newrange;
 	u8 num_ranges = 0;
 
 	if (first_bus) {
-		newbus = kzalloc(sizeof(struct bus_node), GFP_KERNEL);
+		newbus = kzalloc(sizeof(struct bus_yesde), GFP_KERNEL);
 		if (!newbus)
 			return -ENOMEM;
 
-		newbus->busno = curr->bus_num;
+		newbus->busyes = curr->bus_num;
 	} else {
 		newbus = *new_bus;
 		switch (flag) {
 			case MEM:
-				num_ranges = newbus->noMemRanges;
+				num_ranges = newbus->yesMemRanges;
 				break;
 			case PFMEM:
-				num_ranges = newbus->noPFMemRanges;
+				num_ranges = newbus->yesPFMemRanges;
 				break;
 			case IO:
-				num_ranges = newbus->noIORanges;
+				num_ranges = newbus->yesIORanges;
 				break;
 		}
 	}
 
-	newrange = kzalloc(sizeof(struct range_node), GFP_KERNEL);
+	newrange = kzalloc(sizeof(struct range_yesde), GFP_KERNEL);
 	if (!newrange) {
 		if (first_bus)
 			kfree(newbus);
@@ -111,41 +111,41 @@ static int __init alloc_bus_range(struct bus_node **new_bus, struct range_node *
 	newrange->end = curr->end_addr;
 
 	if (first_bus || (!num_ranges))
-		newrange->rangeno = 1;
+		newrange->rangeyes = 1;
 	else {
 		/* need to insert our range */
 		add_bus_range(flag, newrange, newbus);
-		debug("%d resource Primary Bus inserted on bus %x [%x - %x]\n", flag, newbus->busno, newrange->start, newrange->end);
+		debug("%d resource Primary Bus inserted on bus %x [%x - %x]\n", flag, newbus->busyes, newrange->start, newrange->end);
 	}
 
 	switch (flag) {
 		case MEM:
 			newbus->rangeMem = newrange;
 			if (first_bus)
-				newbus->noMemRanges = 1;
+				newbus->yesMemRanges = 1;
 			else {
-				debug("First Memory Primary on bus %x, [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
-				++newbus->noMemRanges;
+				debug("First Memory Primary on bus %x, [%x - %x]\n", newbus->busyes, newrange->start, newrange->end);
+				++newbus->yesMemRanges;
 				fix_resources(newbus);
 			}
 			break;
 		case IO:
 			newbus->rangeIO = newrange;
 			if (first_bus)
-				newbus->noIORanges = 1;
+				newbus->yesIORanges = 1;
 			else {
-				debug("First IO Primary on bus %x, [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
-				++newbus->noIORanges;
+				debug("First IO Primary on bus %x, [%x - %x]\n", newbus->busyes, newrange->start, newrange->end);
+				++newbus->yesIORanges;
 				fix_resources(newbus);
 			}
 			break;
 		case PFMEM:
 			newbus->rangePFMem = newrange;
 			if (first_bus)
-				newbus->noPFMemRanges = 1;
+				newbus->yesPFMemRanges = 1;
 			else {
-				debug("1st PFMemory Primary on Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
-				++newbus->noPFMemRanges;
+				debug("1st PFMemory Primary on Bus %x [%x - %x]\n", newbus->busyes, newrange->start, newrange->end);
+				++newbus->yesPFMemRanges;
 				fix_resources(newbus);
 			}
 
@@ -159,11 +159,11 @@ static int __init alloc_bus_range(struct bus_node **new_bus, struct range_node *
 
 
 /* Notes:
- * 1. The ranges are ordered.  The buses are not ordered.  (First come)
+ * 1. The ranges are ordered.  The buses are yest ordered.  (First come)
  *
- * 2. If cannot allocate out of PFMem range, allocate from Mem ranges.  PFmemFromMem
- * are not sorted. (no need since use mem node). To not change the entire code, we
- * also add mem node whenever this case happens so as not to change
+ * 2. If canyest allocate out of PFMem range, allocate from Mem ranges.  PFmemFromMem
+ * are yest sorted. (yes need since use mem yesde). To yest change the entire code, we
+ * also add mem yesde whenever this case happens so as yest to change
  * ibmphp_check_mem_resource etc(and since it really is taking Mem resource)
  */
 
@@ -180,20 +180,20 @@ static int __init alloc_bus_range(struct bus_node **new_bus, struct range_node *
 int __init ibmphp_rsrc_init(void)
 {
 	struct ebda_pci_rsrc *curr;
-	struct range_node *newrange = NULL;
-	struct bus_node *newbus = NULL;
-	struct bus_node *bus_cur;
-	struct bus_node *bus_prev;
-	struct resource_node *new_io = NULL;
-	struct resource_node *new_mem = NULL;
-	struct resource_node *new_pfmem = NULL;
+	struct range_yesde *newrange = NULL;
+	struct bus_yesde *newbus = NULL;
+	struct bus_yesde *bus_cur;
+	struct bus_yesde *bus_prev;
+	struct resource_yesde *new_io = NULL;
+	struct resource_yesde *new_mem = NULL;
+	struct resource_yesde *new_pfmem = NULL;
 	int rc;
 
 	list_for_each_entry(curr, &ibmphp_ebda_pci_rsrc_head,
 			    ebda_pci_rsrc_list) {
 		if (!(curr->rsrc_type & PCIDEVMASK)) {
-			/* EBDA still lists non PCI devices, so ignore... */
-			debug("this is not a PCI DEVICE in rsrc_init, please take care\n");
+			/* EBDA still lists yesn PCI devices, so igyesre... */
+			debug("this is yest a PCI DEVICE in rsrc_init, please take care\n");
 			// continue;
 		}
 
@@ -201,13 +201,13 @@ int __init ibmphp_rsrc_init(void)
 		if (curr->rsrc_type & PRIMARYBUSMASK) {
 			/* memory */
 			if ((curr->rsrc_type & RESTYPE) == MMASK) {
-				/* no bus structure exists in place yet */
+				/* yes bus structure exists in place yet */
 				if (list_empty(&gbuses)) {
 					rc = alloc_bus_range(&newbus, &newrange, curr, MEM, 1);
 					if (rc)
 						return rc;
 					list_add_tail(&newbus->bus_list, &gbuses);
-					debug("gbuses = NULL, Memory Primary Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
+					debug("gbuses = NULL, Memory Primary Bus %x [%x - %x]\n", newbus->busyes, newrange->start, newrange->end);
 				} else {
 					bus_cur = find_bus_wprev(curr->bus_num, &bus_prev, 1);
 					/* found our bus */
@@ -216,24 +216,24 @@ int __init ibmphp_rsrc_init(void)
 						if (rc)
 							return rc;
 					} else {
-						/* went through all the buses and didn't find ours, need to create a new bus node */
+						/* went through all the buses and didn't find ours, need to create a new bus yesde */
 						rc = alloc_bus_range(&newbus, &newrange, curr, MEM, 1);
 						if (rc)
 							return rc;
 
 						list_add_tail(&newbus->bus_list, &gbuses);
-						debug("New Bus, Memory Primary Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
+						debug("New Bus, Memory Primary Bus %x [%x - %x]\n", newbus->busyes, newrange->start, newrange->end);
 					}
 				}
 			} else if ((curr->rsrc_type & RESTYPE) == PFMASK) {
 				/* prefetchable memory */
 				if (list_empty(&gbuses)) {
-					/* no bus structure exists in place yet */
+					/* yes bus structure exists in place yet */
 					rc = alloc_bus_range(&newbus, &newrange, curr, PFMEM, 1);
 					if (rc)
 						return rc;
 					list_add_tail(&newbus->bus_list, &gbuses);
-					debug("gbuses = NULL, PFMemory Primary Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
+					debug("gbuses = NULL, PFMemory Primary Bus %x [%x - %x]\n", newbus->busyes, newrange->start, newrange->end);
 				} else {
 					bus_cur = find_bus_wprev(curr->bus_num, &bus_prev, 1);
 					if (bus_cur) {
@@ -242,23 +242,23 @@ int __init ibmphp_rsrc_init(void)
 						if (rc)
 							return rc;
 					} else {
-						/* went through all the buses and didn't find ours, need to create a new bus node */
+						/* went through all the buses and didn't find ours, need to create a new bus yesde */
 						rc = alloc_bus_range(&newbus, &newrange, curr, PFMEM, 1);
 						if (rc)
 							return rc;
 						list_add_tail(&newbus->bus_list, &gbuses);
-						debug("1st Bus, PFMemory Primary Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
+						debug("1st Bus, PFMemory Primary Bus %x [%x - %x]\n", newbus->busyes, newrange->start, newrange->end);
 					}
 				}
 			} else if ((curr->rsrc_type & RESTYPE) == IOMASK) {
 				/* IO */
 				if (list_empty(&gbuses)) {
-					/* no bus structure exists in place yet */
+					/* yes bus structure exists in place yet */
 					rc = alloc_bus_range(&newbus, &newrange, curr, IO, 1);
 					if (rc)
 						return rc;
 					list_add_tail(&newbus->bus_list, &gbuses);
-					debug("gbuses = NULL, IO Primary Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
+					debug("gbuses = NULL, IO Primary Bus %x [%x - %x]\n", newbus->busyes, newrange->start, newrange->end);
 				} else {
 					bus_cur = find_bus_wprev(curr->bus_num, &bus_prev, 1);
 					if (bus_cur) {
@@ -266,12 +266,12 @@ int __init ibmphp_rsrc_init(void)
 						if (rc)
 							return rc;
 					} else {
-						/* went through all the buses and didn't find ours, need to create a new bus node */
+						/* went through all the buses and didn't find ours, need to create a new bus yesde */
 						rc = alloc_bus_range(&newbus, &newrange, curr, IO, 1);
 						if (rc)
 							return rc;
 						list_add_tail(&newbus->bus_list, &gbuses);
-						debug("1st Bus, IO Primary Bus %x [%x - %x]\n", newbus->busno, newrange->start, newrange->end);
+						debug("1st Bus, IO Primary Bus %x [%x - %x]\n", newbus->busyes, newrange->start, newrange->end);
 					}
 				}
 
@@ -290,7 +290,7 @@ int __init ibmphp_rsrc_init(void)
 				/*
 				 * if it didn't find the bus, means PCI dev
 				 * came b4 the Primary Bus info, so need to
-				 * create a bus rangeno becomes a problem...
+				 * create a bus rangeyes becomes a problem...
 				 * assign a -1 and then update once the range
 				 * actually appears...
 				 */
@@ -300,9 +300,9 @@ int __init ibmphp_rsrc_init(void)
 						return -ENOMEM;
 					newbus->firstMem = new_mem;
 					++newbus->needMemUpdate;
-					new_mem->rangeno = -1;
+					new_mem->rangeyes = -1;
 				}
-				debug("Memory resource for device %x, bus %x, [%x - %x]\n", new_mem->devfunc, new_mem->busno, new_mem->start, new_mem->end);
+				debug("Memory resource for device %x, bus %x, [%x - %x]\n", new_mem->devfunc, new_mem->busyes, new_mem->start, new_mem->end);
 
 			} else if ((curr->rsrc_type & RESTYPE) == PFMASK) {
 				/* PFMemory resource */
@@ -317,10 +317,10 @@ int __init ibmphp_rsrc_init(void)
 						return -ENOMEM;
 					newbus->firstPFMem = new_pfmem;
 					++newbus->needPFMemUpdate;
-					new_pfmem->rangeno = -1;
+					new_pfmem->rangeyes = -1;
 				}
 
-				debug("PFMemory resource for device %x, bus %x, [%x - %x]\n", new_pfmem->devfunc, new_pfmem->busno, new_pfmem->start, new_pfmem->end);
+				debug("PFMemory resource for device %x, bus %x, [%x - %x]\n", new_pfmem->devfunc, new_pfmem->busyes, new_pfmem->start, new_pfmem->end);
 			} else if ((curr->rsrc_type & RESTYPE) == IOMASK) {
 				/* IO resource */
 				new_io = alloc_resources(curr);
@@ -331,7 +331,7 @@ int __init ibmphp_rsrc_init(void)
 				/*
 				 * if it didn't find the bus, means PCI dev
 				 * came b4 the Primary Bus info, so need to
-				 * create a bus rangeno becomes a problem...
+				 * create a bus rangeyes becomes a problem...
 				 * Can assign a -1 and then update once the
 				 * range actually appears...
 				 */
@@ -341,9 +341,9 @@ int __init ibmphp_rsrc_init(void)
 						return -ENOMEM;
 					newbus->firstIO = new_io;
 					++newbus->needIOUpdate;
-					new_io->rangeno = -1;
+					new_io->rangeyes = -1;
 				}
-				debug("IO resource for device %x, bus %x, [%x - %x]\n", new_io->devfunc, new_io->busno, new_io->start, new_io->end);
+				debug("IO resource for device %x, bus %x, [%x - %x]\n", new_io->devfunc, new_io->busyes, new_io->start, new_io->end);
 			}
 		}
 	}
@@ -354,36 +354,36 @@ int __init ibmphp_rsrc_init(void)
 		if (rc)
 			return rc;
 	}
-	return once_over();	/* This is to align ranges (so no -1) */
+	return once_over();	/* This is to align ranges (so yes -1) */
 }
 
 /********************************************************************************
  * This function adds a range into a sorted list of ranges per bus for a particular
- * range type, it then calls another routine to update the range numbers on the
+ * range type, it then calls ayesther routine to update the range numbers on the
  * pci devices' resources for the appropriate resource
  *
  * Input: type of the resource, range to add, current bus
  * Output: 0 or -1, bus and range ptrs
  ********************************************************************************/
-static int add_bus_range(int type, struct range_node *range, struct bus_node *bus_cur)
+static int add_bus_range(int type, struct range_yesde *range, struct bus_yesde *bus_cur)
 {
-	struct range_node *range_cur = NULL;
-	struct range_node *range_prev;
+	struct range_yesde *range_cur = NULL;
+	struct range_yesde *range_prev;
 	int count = 0, i_init;
-	int noRanges = 0;
+	int yesRanges = 0;
 
 	switch (type) {
 		case MEM:
 			range_cur = bus_cur->rangeMem;
-			noRanges = bus_cur->noMemRanges;
+			yesRanges = bus_cur->yesMemRanges;
 			break;
 		case PFMEM:
 			range_cur = bus_cur->rangePFMem;
-			noRanges = bus_cur->noPFMemRanges;
+			yesRanges = bus_cur->yesPFMemRanges;
 			break;
 		case IO:
 			range_cur = bus_cur->rangeIO;
-			noRanges = bus_cur->noIORanges;
+			yesRanges = bus_cur->yesIORanges;
 			break;
 	}
 
@@ -409,24 +409,24 @@ static int add_bus_range(int type, struct range_node *range, struct bus_node *bu
 				break;
 		}
 		range->next = range_cur;
-		range->rangeno = 1;
+		range->rangeyes = 1;
 		i_init = 0;
 	} else if (!range_cur) {
 		/* our range will go at the end of the list */
 		range->next = NULL;
 		range_prev->next = range;
-		range->rangeno = range_prev->rangeno + 1;
+		range->rangeyes = range_prev->rangeyes + 1;
 		return 0;
 	} else {
 		/* the range is in the middle */
 		range_prev->next = range;
 		range->next = range_cur;
-		range->rangeno = range_cur->rangeno;
-		i_init = range_prev->rangeno;
+		range->rangeyes = range_cur->rangeyes;
+		i_init = range_prev->rangeyes;
 	}
 
-	for (count = i_init; count < noRanges; ++count) {
-		++range_cur->rangeno;
+	for (count = i_init; count < yesRanges; ++count) {
+		++range_cur->rangeyes;
 		range_cur = range_cur->next;
 	}
 
@@ -438,11 +438,11 @@ static int add_bus_range(int type, struct range_node *range, struct bus_node *bu
  * This routine goes through the list of resources of type 'type' and updates
  * the range numbers that they correspond to.  It was called from add_bus_range fnc
  *
- * Input: bus, type of the resource, the rangeno starting from which to update
+ * Input: bus, type of the resource, the rangeyes starting from which to update
  ******************************************************************************/
-static void update_resources(struct bus_node *bus_cur, int type, int rangeno)
+static void update_resources(struct bus_yesde *bus_cur, int type, int rangeyes)
 {
-	struct resource_node *res = NULL;
+	struct resource_yesde *res = NULL;
 	u8 eol = 0;	/* end of list indicator */
 
 	switch (type) {
@@ -462,7 +462,7 @@ static void update_resources(struct bus_node *bus_cur, int type, int rangeno)
 
 	if (res) {
 		while (res) {
-			if (res->rangeno == rangeno)
+			if (res->rangeyes == rangeyes)
 				break;
 			if (res->next)
 				res = res->next;
@@ -477,14 +477,14 @@ static void update_resources(struct bus_node *bus_cur, int type, int rangeno)
 		if (!eol) {
 			/* found the range */
 			while (res) {
-				++res->rangeno;
+				++res->rangeyes;
 				res = res->next;
 			}
 		}
 	}
 }
 
-static void fix_me(struct resource_node *res, struct bus_node *bus_cur, struct range_node *range)
+static void fix_me(struct resource_yesde *res, struct bus_yesde *bus_cur, struct range_yesde *range)
 {
 	char *str = "";
 	switch (res->type) {
@@ -500,11 +500,11 @@ static void fix_me(struct resource_node *res, struct bus_node *bus_cur, struct r
 	}
 
 	while (res) {
-		if (res->rangeno == -1) {
+		if (res->rangeyes == -1) {
 			while (range) {
 				if ((res->start >= range->start) && (res->end <= range->end)) {
-					res->rangeno = range->rangeno;
-					debug("%s->rangeno in fix_resources is %d\n", str, res->rangeno);
+					res->rangeyes = range->rangeyes;
+					debug("%s->rangeyes in fix_resources is %d\n", str, res->rangeyes);
 					switch (res->type) {
 						case IO:
 							--bus_cur->needIOUpdate;
@@ -533,18 +533,18 @@ static void fix_me(struct resource_node *res, struct bus_node *bus_cur, struct r
  * This routine reassigns the range numbers to the resources that had a -1
  * This case can happen only if upon initialization, resources taken by pci dev
  * appear in EBDA before the resources allocated for that bus, since we don't
- * know the range, we assign -1, and this routine is called after a new range
- * is assigned to see the resources with unknown range belong to the added range
+ * kyesw the range, we assign -1, and this routine is called after a new range
+ * is assigned to see the resources with unkyeswn range belong to the added range
  *
  * Input: current bus
- * Output: none, list of resources for that bus are fixed if can be
+ * Output: yesne, list of resources for that bus are fixed if can be
  *******************************************************************************/
-static void fix_resources(struct bus_node *bus_cur)
+static void fix_resources(struct bus_yesde *bus_cur)
 {
-	struct range_node *range;
-	struct resource_node *res;
+	struct range_yesde *range;
+	struct resource_yesde *res;
 
-	debug("%s - bus_cur->busno = %d\n", __func__, bus_cur->busno);
+	debug("%s - bus_cur->busyes = %d\n", __func__, bus_cur->busyes);
 
 	if (bus_cur->needIOUpdate) {
 		res = bus_cur->firstIO;
@@ -569,16 +569,16 @@ static void fix_resources(struct bus_node *bus_cur)
  * the ptrs to next and nextRange if needed.
  *
  * Input: resource ptr
- * Output: ptrs assigned (to the node)
+ * Output: ptrs assigned (to the yesde)
  * 0 or -1
  *******************************************************************************/
-int ibmphp_add_resource(struct resource_node *res)
+int ibmphp_add_resource(struct resource_yesde *res)
 {
-	struct resource_node *res_cur;
-	struct resource_node *res_prev;
-	struct bus_node *bus_cur;
-	struct range_node *range_cur = NULL;
-	struct resource_node *res_start = NULL;
+	struct resource_yesde *res_cur;
+	struct resource_yesde *res_prev;
+	struct bus_yesde *bus_cur;
+	struct range_yesde *range_cur = NULL;
+	struct resource_yesde *res_start = NULL;
 
 	debug("%s - enter\n", __func__);
 
@@ -587,11 +587,11 @@ int ibmphp_add_resource(struct resource_node *res)
 		return -ENODEV;
 	}
 
-	bus_cur = find_bus_wprev(res->busno, NULL, 0);
+	bus_cur = find_bus_wprev(res->busyes, NULL, 0);
 
 	if (!bus_cur) {
 		/* didn't find a bus, something's wrong!!! */
-		debug("no bus in the system, either pci_dev's wrong or allocation failed\n");
+		debug("yes bus in the system, either pci_dev's wrong or allocation failed\n");
 		return -ENODEV;
 	}
 
@@ -610,19 +610,19 @@ int ibmphp_add_resource(struct resource_node *res)
 			res_start = bus_cur->firstPFMem;
 			break;
 		default:
-			err("cannot read the type of the resource to add... problem\n");
+			err("canyest read the type of the resource to add... problem\n");
 			return -EINVAL;
 	}
 	while (range_cur) {
 		if ((res->start >= range_cur->start) && (res->end <= range_cur->end)) {
-			res->rangeno = range_cur->rangeno;
+			res->rangeyes = range_cur->rangeyes;
 			break;
 		}
 		range_cur = range_cur->next;
 	}
 
 	/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	 * this is again the case of rangeno = -1
+	 * this is again the case of rangeyes = -1
 	 * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	 */
 
@@ -638,12 +638,12 @@ int ibmphp_add_resource(struct resource_node *res)
 				++bus_cur->needPFMemUpdate;
 				break;
 		}
-		res->rangeno = -1;
+		res->rangeyes = -1;
 	}
 
-	debug("The range is %d\n", res->rangeno);
+	debug("The range is %d\n", res->rangeyes);
 	if (!res_start) {
-		/* no first{IO,Mem,Pfmem} on the bus, 1st IO/Mem/Pfmem resource ever */
+		/* yes first{IO,Mem,Pfmem} on the bus, 1st IO/Mem/Pfmem resource ever */
 		switch (res->type) {
 			case IO:
 				bus_cur->firstIO = res;
@@ -661,10 +661,10 @@ int ibmphp_add_resource(struct resource_node *res)
 		res_cur = res_start;
 		res_prev = NULL;
 
-		debug("res_cur->rangeno is %d\n", res_cur->rangeno);
+		debug("res_cur->rangeyes is %d\n", res_cur->rangeyes);
 
 		while (res_cur) {
-			if (res_cur->rangeno >= res->rangeno)
+			if (res_cur->rangeyes >= res->rangeyes)
 				break;
 			res_prev = res_cur;
 			if (res_cur->next)
@@ -679,7 +679,7 @@ int ibmphp_add_resource(struct resource_node *res)
 			res_prev->nextRange = res;
 			res->next = NULL;
 			res->nextRange = NULL;
-		} else if (res_cur->rangeno == res->rangeno) {
+		} else if (res_cur->rangeyes == res->rangeyes) {
 			/* in the same range */
 			while (res_cur) {
 				if (res->start < res_cur->start)
@@ -707,7 +707,7 @@ int ibmphp_add_resource(struct resource_node *res)
 							bus_cur->firstPFMem = res;
 							break;
 					}
-				} else if (res_prev->rangeno == res_cur->rangeno)
+				} else if (res_prev->rangeyes == res_cur->rangeyes)
 					res_prev->next = res;
 				else
 					res_prev->nextRange = res;
@@ -734,7 +734,7 @@ int ibmphp_add_resource(struct resource_node *res)
 						bus_cur->firstPFMem = res;
 						break;
 				}
-			} else if (res_cur->rangeno > res->rangeno) {
+			} else if (res_cur->rangeyes > res->rangeyes) {
 				/* in the middle of the resource list */
 				res_prev->nextRange = res;
 				res->next = NULL;
@@ -754,12 +754,12 @@ int ibmphp_add_resource(struct resource_node *res)
  * Output: modified resource list
  *        0 or error code
  ****************************************************************************/
-int ibmphp_remove_resource(struct resource_node *res)
+int ibmphp_remove_resource(struct resource_yesde *res)
 {
-	struct bus_node *bus_cur;
-	struct resource_node *res_cur = NULL;
-	struct resource_node *res_prev;
-	struct resource_node *mem_cur;
+	struct bus_yesde *bus_cur;
+	struct resource_yesde *res_cur = NULL;
+	struct resource_yesde *res_prev;
+	struct resource_yesde *mem_cur;
 	char *type = "";
 
 	if (!res)  {
@@ -767,10 +767,10 @@ int ibmphp_remove_resource(struct resource_node *res)
 		return -ENODEV;
 	}
 
-	bus_cur = find_bus_wprev(res->busno, NULL, 0);
+	bus_cur = find_bus_wprev(res->busyes, NULL, 0);
 
 	if (!bus_cur) {
-		err("cannot find corresponding bus of the io resource to remove  bailing out...\n");
+		err("canyest find corresponding bus of the io resource to remove  bailing out...\n");
 		return -ENODEV;
 	}
 
@@ -788,7 +788,7 @@ int ibmphp_remove_resource(struct resource_node *res)
 			type = "pfmem";
 			break;
 		default:
-			err("unknown type for resource to remove\n");
+			err("unkyeswn type for resource to remove\n");
 			return -EINVAL;
 	}
 	res_prev = NULL;
@@ -826,7 +826,7 @@ int ibmphp_remove_resource(struct resource_node *res)
 							mem_cur = mem_cur->nextRange;
 					}
 					if (!mem_cur) {
-						err("cannot find corresponding mem node for pfmem...\n");
+						err("canyest find corresponding mem yesde for pfmem...\n");
 						return -EINVAL;
 					}
 
@@ -845,11 +845,11 @@ int ibmphp_remove_resource(struct resource_node *res)
 					res_cur = res_cur->nextRange;
 			}
 			if (!res_cur) {
-				err("cannot find pfmem to delete...\n");
+				err("canyest find pfmem to delete...\n");
 				return -EINVAL;
 			}
 		} else {
-			err("the %s resource is not in the list to be deleted...\n", type);
+			err("the %s resource is yest in the list to be deleted...\n", type);
 			return -EINVAL;
 		}
 	}
@@ -896,7 +896,7 @@ int ibmphp_remove_resource(struct resource_node *res)
 		return 0;
 	} else {
 		if (res_cur->next) {
-			if (res_prev->rangeno == res_cur->rangeno)
+			if (res_prev->rangeyes == res_cur->rangeyes)
 				res_prev->next = res_cur->next;
 			else
 				res_prev->nextRange = res_cur->next;
@@ -914,9 +914,9 @@ int ibmphp_remove_resource(struct resource_node *res)
 	return 0;
 }
 
-static struct range_node *find_range(struct bus_node *bus_cur, struct resource_node *res)
+static struct range_yesde *find_range(struct bus_yesde *bus_cur, struct resource_yesde *res)
 {
-	struct range_node *range = NULL;
+	struct range_yesde *range = NULL;
 
 	switch (res->type) {
 		case IO:
@@ -929,11 +929,11 @@ static struct range_node *find_range(struct bus_node *bus_cur, struct resource_n
 			range = bus_cur->rangePFMem;
 			break;
 		default:
-			err("cannot read resource type in find_range\n");
+			err("canyest read resource type in find_range\n");
 	}
 
 	while (range) {
-		if (res->rangeno == range->rangeno)
+		if (res->rangeyes == range->rangeyes)
 			break;
 		range = range->next;
 	}
@@ -942,21 +942,21 @@ static struct range_node *find_range(struct bus_node *bus_cur, struct resource_n
 
 /*****************************************************************************
  * This routine will check to make sure the io/mem/pfmem->len that the device asked for
- * can fit w/i our list of available IO/MEM/PFMEM resources.  If cannot, returns -EINVAL,
+ * can fit w/i our list of available IO/MEM/PFMEM resources.  If canyest, returns -EINVAL,
  * otherwise, returns 0
  *
  * Input: resource
- * Output: the correct start and end address are inputted into the resource node,
+ * Output: the correct start and end address are inputted into the resource yesde,
  *        0 or -EINVAL
  *****************************************************************************/
-int ibmphp_check_resource(struct resource_node *res, u8 bridge)
+int ibmphp_check_resource(struct resource_yesde *res, u8 bridge)
 {
-	struct bus_node *bus_cur;
-	struct range_node *range = NULL;
-	struct resource_node *res_prev;
-	struct resource_node *res_cur = NULL;
+	struct bus_yesde *bus_cur;
+	struct range_yesde *range = NULL;
+	struct resource_yesde *res_prev;
+	struct resource_yesde *res_cur = NULL;
 	u32 len_cur = 0, start_cur = 0, len_tmp = 0;
-	int noranges = 0;
+	int yesranges = 0;
 	u32 tmp_start;		/* this is to make sure start address is divisible by the length needed */
 	u32 tmp_divide;
 	u8 flag = 0;
@@ -973,33 +973,33 @@ int ibmphp_check_resource(struct resource_node *res, u8 bridge)
 	} else
 		tmp_divide = res->len;
 
-	bus_cur = find_bus_wprev(res->busno, NULL, 0);
+	bus_cur = find_bus_wprev(res->busyes, NULL, 0);
 
 	if (!bus_cur) {
 		/* didn't find a bus, something's wrong!!! */
-		debug("no bus in the system, either pci_dev's wrong or allocation failed\n");
+		debug("yes bus in the system, either pci_dev's wrong or allocation failed\n");
 		return -EINVAL;
 	}
 
 	debug("%s - enter\n", __func__);
-	debug("bus_cur->busno is %d\n", bus_cur->busno);
+	debug("bus_cur->busyes is %d\n", bus_cur->busyes);
 
-	/* This is a quick fix to not mess up with the code very much.  i.e.,
+	/* This is a quick fix to yest mess up with the code very much.  i.e.,
 	 * 2000-2fff, len = 1000, but when we compare, we need it to be fff */
 	res->len -= 1;
 
 	switch (res->type) {
 		case IO:
 			res_cur = bus_cur->firstIO;
-			noranges = bus_cur->noIORanges;
+			yesranges = bus_cur->yesIORanges;
 			break;
 		case MEM:
 			res_cur = bus_cur->firstMem;
-			noranges = bus_cur->noMemRanges;
+			yesranges = bus_cur->yesMemRanges;
 			break;
 		case PFMEM:
 			res_cur = bus_cur->firstPFMem;
-			noranges = bus_cur->noPFMemRanges;
+			yesranges = bus_cur->yesPFMemRanges;
 			break;
 		default:
 			err("wrong type of resource to check\n");
@@ -1009,10 +1009,10 @@ int ibmphp_check_resource(struct resource_node *res, u8 bridge)
 
 	while (res_cur) {
 		range = find_range(bus_cur, res_cur);
-		debug("%s - rangeno = %d\n", __func__, res_cur->rangeno);
+		debug("%s - rangeyes = %d\n", __func__, res_cur->rangeyes);
 
 		if (!range) {
-			err("no range for the device exists... bailing out...\n");
+			err("yes range for the device exists... bailing out...\n");
 			return -EINVAL;
 		}
 
@@ -1050,7 +1050,7 @@ int ibmphp_check_resource(struct resource_node *res, u8 bridge)
 					}
 
 					if (flag && len_cur == res->len) {
-						debug("but we are not here, right?\n");
+						debug("but we are yest here, right?\n");
 						res->start = start_cur;
 						res->len += 1; /* To restore the balance */
 						res->end = res->start + res->len - 1;
@@ -1100,7 +1100,7 @@ int ibmphp_check_resource(struct resource_node *res, u8 bridge)
 		}
 
 		if (res_prev) {
-			if (res_prev->rangeno != res_cur->rangeno) {
+			if (res_prev->rangeyes != res_cur->rangeyes) {
 				/* 1st device on this range */
 				len_tmp = res_cur->start - 1 - range->start;
 
@@ -1240,7 +1240,7 @@ int ibmphp_check_resource(struct resource_node *res, u8 bridge)
 
 		if ((!range) && (len_cur == 0)) {
 			/* have gone through the list of devices and ranges and haven't found n.e.thing */
-			err("no appropriate range.. bailing out...\n");
+			err("yes appropriate range.. bailing out...\n");
 			return -EINVAL;
 		} else if (len_cur) {
 			res->start = start_cur;
@@ -1251,8 +1251,8 @@ int ibmphp_check_resource(struct resource_node *res, u8 bridge)
 	}
 
 	if (!res_cur) {
-		debug("prev->rangeno = %d, noranges = %d\n", res_prev->rangeno, noranges);
-		if (res_prev->rangeno < noranges) {
+		debug("prev->rangeyes = %d, yesranges = %d\n", res_prev->rangeyes, yesranges);
+		if (res_prev->rangeyes < yesranges) {
 			/* if there're more ranges out there to check */
 			switch (res->type) {
 				case IO:
@@ -1306,7 +1306,7 @@ int ibmphp_check_resource(struct resource_node *res, u8 bridge)
 
 			if ((!range) && (len_cur == 0)) {
 				/* have gone through the list of devices and ranges and haven't found n.e.thing */
-				err("no appropriate range.. bailing out...\n");
+				err("yes appropriate range.. bailing out...\n");
 				return -EINVAL;
 			} else if (len_cur) {
 				res->start = start_cur;
@@ -1315,7 +1315,7 @@ int ibmphp_check_resource(struct resource_node *res, u8 bridge)
 				return 0;
 			}
 		} else {
-			/* no more ranges to check on */
+			/* yes more ranges to check on */
 			if (len_cur) {
 				res->start = start_cur;
 				res->len += 1; /* To restore the balance */
@@ -1323,7 +1323,7 @@ int ibmphp_check_resource(struct resource_node *res, u8 bridge)
 				return 0;
 			} else {
 				/* have gone through the list of devices and haven't found n.e.thing */
-				err("no appropriate range.. bailing out...\n");
+				err("yes appropriate range.. bailing out...\n");
 				return -EINVAL;
 			}
 		}
@@ -1337,21 +1337,21 @@ int ibmphp_check_resource(struct resource_node *res, u8 bridge)
  * Input: Bus
  * Output: 0, -ENODEV
  ********************************************************************************/
-int ibmphp_remove_bus(struct bus_node *bus, u8 parent_busno)
+int ibmphp_remove_bus(struct bus_yesde *bus, u8 parent_busyes)
 {
-	struct resource_node *res_cur;
-	struct resource_node *res_tmp;
-	struct bus_node *prev_bus;
+	struct resource_yesde *res_cur;
+	struct resource_yesde *res_tmp;
+	struct bus_yesde *prev_bus;
 	int rc;
 
-	prev_bus = find_bus_wprev(parent_busno, NULL, 0);
+	prev_bus = find_bus_wprev(parent_busyes, NULL, 0);
 
 	if (!prev_bus) {
-		debug("something terribly wrong. Cannot find parent bus to the one to remove\n");
+		debug("something terribly wrong. Canyest find parent bus to the one to remove\n");
 		return -ENODEV;
 	}
 
-	debug("In ibmphp_remove_bus... prev_bus->busno is %x\n", prev_bus->busno);
+	debug("In ibmphp_remove_bus... prev_bus->busyes is %x\n", prev_bus->busyes);
 
 	rc = remove_ranges(bus, prev_bus);
 	if (rc)
@@ -1420,16 +1420,16 @@ int ibmphp_remove_bus(struct bus_node *bus, u8 parent_busno)
  * Input: current bus, previous bus
  * Output: 0, -EINVAL
  ******************************************************************************/
-static int remove_ranges(struct bus_node *bus_cur, struct bus_node *bus_prev)
+static int remove_ranges(struct bus_yesde *bus_cur, struct bus_yesde *bus_prev)
 {
-	struct range_node *range_cur;
-	struct range_node *range_tmp;
+	struct range_yesde *range_cur;
+	struct range_yesde *range_tmp;
 	int i;
-	struct resource_node *res = NULL;
+	struct resource_yesde *res = NULL;
 
-	if (bus_cur->noIORanges) {
+	if (bus_cur->yesIORanges) {
 		range_cur = bus_cur->rangeIO;
-		for (i = 0; i < bus_cur->noIORanges; i++) {
+		for (i = 0; i < bus_cur->yesIORanges; i++) {
 			if (ibmphp_find_resource(bus_prev, range_cur->start, &res, IO) < 0)
 				return -EINVAL;
 			ibmphp_remove_resource(res);
@@ -1441,9 +1441,9 @@ static int remove_ranges(struct bus_node *bus_cur, struct bus_node *bus_prev)
 		}
 		bus_cur->rangeIO = NULL;
 	}
-	if (bus_cur->noMemRanges) {
+	if (bus_cur->yesMemRanges) {
 		range_cur = bus_cur->rangeMem;
-		for (i = 0; i < bus_cur->noMemRanges; i++) {
+		for (i = 0; i < bus_cur->yesMemRanges; i++) {
 			if (ibmphp_find_resource(bus_prev, range_cur->start, &res, MEM) < 0)
 				return -EINVAL;
 
@@ -1455,9 +1455,9 @@ static int remove_ranges(struct bus_node *bus_cur, struct bus_node *bus_prev)
 		}
 		bus_cur->rangeMem = NULL;
 	}
-	if (bus_cur->noPFMemRanges) {
+	if (bus_cur->yesPFMemRanges) {
 		range_cur = bus_cur->rangePFMem;
-		for (i = 0; i < bus_cur->noPFMemRanges; i++) {
+		for (i = 0; i < bus_cur->yesPFMemRanges; i++) {
 			if (ibmphp_find_resource(bus_prev, range_cur->start, &res, PFMEM) < 0)
 				return -EINVAL;
 
@@ -1473,12 +1473,12 @@ static int remove_ranges(struct bus_node *bus_cur, struct bus_node *bus_prev)
 }
 
 /*
- * find the resource node in the bus
+ * find the resource yesde in the bus
  * Input: Resource needed, start address of the resource, type of resource
  */
-int ibmphp_find_resource(struct bus_node *bus, u32 start_address, struct resource_node **res, int flag)
+int ibmphp_find_resource(struct bus_yesde *bus, u32 start_address, struct resource_yesde **res, int flag)
 {
-	struct resource_node *res_cur = NULL;
+	struct resource_yesde *res_cur = NULL;
 	char *type = "";
 
 	if (!bus) {
@@ -1526,11 +1526,11 @@ int ibmphp_find_resource(struct bus_node *bus, u32 start_address, struct resourc
 				res_cur = res_cur->next;
 			}
 			if (!res_cur) {
-				debug("SOS...cannot find %s resource in the bus.\n", type);
+				debug("SOS...canyest find %s resource in the bus.\n", type);
 				return -EINVAL;
 			}
 		} else {
-			debug("SOS... cannot find %s resource in the bus.\n", type);
+			debug("SOS... canyest find %s resource in the bus.\n", type);
 			return -EINVAL;
 		}
 	}
@@ -1544,24 +1544,24 @@ int ibmphp_find_resource(struct bus_node *bus, u32 start_address, struct resourc
 /***********************************************************************
  * This routine will free the resource structures used by the
  * system.  It is called from cleanup routine for the module
- * Parameters: none
- * Returns: none
+ * Parameters: yesne
+ * Returns: yesne
  ***********************************************************************/
 void ibmphp_free_resources(void)
 {
-	struct bus_node *bus_cur = NULL, *next;
-	struct bus_node *bus_tmp;
-	struct range_node *range_cur;
-	struct range_node *range_tmp;
-	struct resource_node *res_cur;
-	struct resource_node *res_tmp;
+	struct bus_yesde *bus_cur = NULL, *next;
+	struct bus_yesde *bus_tmp;
+	struct range_yesde *range_cur;
+	struct range_yesde *range_tmp;
+	struct resource_yesde *res_cur;
+	struct resource_yesde *res_tmp;
 	int i = 0;
 	flags = 1;
 
 	list_for_each_entry_safe(bus_cur, next, &gbuses, bus_list) {
-		if (bus_cur->noIORanges) {
+		if (bus_cur->yesIORanges) {
 			range_cur = bus_cur->rangeIO;
-			for (i = 0; i < bus_cur->noIORanges; i++) {
+			for (i = 0; i < bus_cur->yesIORanges; i++) {
 				if (!range_cur)
 					break;
 				range_tmp = range_cur;
@@ -1570,9 +1570,9 @@ void ibmphp_free_resources(void)
 				range_tmp = NULL;
 			}
 		}
-		if (bus_cur->noMemRanges) {
+		if (bus_cur->yesMemRanges) {
 			range_cur = bus_cur->rangeMem;
-			for (i = 0; i < bus_cur->noMemRanges; i++) {
+			for (i = 0; i < bus_cur->yesMemRanges; i++) {
 				if (!range_cur)
 					break;
 				range_tmp = range_cur;
@@ -1581,9 +1581,9 @@ void ibmphp_free_resources(void)
 				range_tmp = NULL;
 			}
 		}
-		if (bus_cur->noPFMemRanges) {
+		if (bus_cur->yesPFMemRanges) {
 			range_cur = bus_cur->rangePFMem;
-			for (i = 0; i < bus_cur->noPFMemRanges; i++) {
+			for (i = 0; i < bus_cur->yesPFMemRanges; i++) {
 				if (!range_cur)
 					break;
 				range_tmp = range_cur;
@@ -1657,15 +1657,15 @@ void ibmphp_free_resources(void)
  * pfmem out of memory buckets of the bus.  If so, it will change the range numbers
  * and a flag to indicate that this resource is out of memory. It will also move the
  * Pfmem out of the pfmem resource list to the PFMemFromMem list, and will create
- * a new Mem node
+ * a new Mem yesde
  * This routine is called right after initialization
  *******************************************************************************/
 static int __init once_over(void)
 {
-	struct resource_node *pfmem_cur;
-	struct resource_node *pfmem_prev;
-	struct resource_node *mem;
-	struct bus_node *bus_cur;
+	struct resource_yesde *pfmem_cur;
+	struct resource_yesde *pfmem_prev;
+	struct resource_yesde *mem;
+	struct bus_yesde *bus_cur;
 
 	list_for_each_entry(bus_cur, &gbuses, bus_list) {
 		if ((!bus_cur->rangePFMem) && (bus_cur->firstPFMem)) {
@@ -1679,7 +1679,7 @@ static int __init once_over(void)
 				if (!bus_cur->firstPFMemFromMem)
 					pfmem_cur->next = NULL;
 				else
-					/* we don't need to sort PFMemFromMem since we're using mem node for
+					/* we don't need to sort PFMemFromMem since we're using mem yesde for
 					   all the real work anyways, so just insert at the beginning of the
 					   list
 					 */
@@ -1687,31 +1687,31 @@ static int __init once_over(void)
 
 				bus_cur->firstPFMemFromMem = pfmem_cur;
 
-				mem = kzalloc(sizeof(struct resource_node), GFP_KERNEL);
+				mem = kzalloc(sizeof(struct resource_yesde), GFP_KERNEL);
 				if (!mem)
 					return -ENOMEM;
 
 				mem->type = MEM;
-				mem->busno = pfmem_cur->busno;
+				mem->busyes = pfmem_cur->busyes;
 				mem->devfunc = pfmem_cur->devfunc;
 				mem->start = pfmem_cur->start;
 				mem->end = pfmem_cur->end;
 				mem->len = pfmem_cur->len;
 				if (ibmphp_add_resource(mem) < 0)
-					err("Trouble...trouble... EBDA allocated pfmem from mem, but system doesn't display it has this space... unless not PCI device...\n");
-				pfmem_cur->rangeno = mem->rangeno;
+					err("Trouble...trouble... EBDA allocated pfmem from mem, but system doesn't display it has this space... unless yest PCI device...\n");
+				pfmem_cur->rangeyes = mem->rangeyes;
 			}	/* end for pfmem */
 		}	/* end if */
 	}	/* end list_for_each bus */
 	return 0;
 }
 
-int ibmphp_add_pfmem_from_mem(struct resource_node *pfmem)
+int ibmphp_add_pfmem_from_mem(struct resource_yesde *pfmem)
 {
-	struct bus_node *bus_cur = find_bus_wprev(pfmem->busno, NULL, 0);
+	struct bus_yesde *bus_cur = find_bus_wprev(pfmem->busyes, NULL, 0);
 
 	if (!bus_cur) {
-		err("cannot find bus of pfmem to add...\n");
+		err("canyest find bus of pfmem to add...\n");
 		return -ENODEV;
 	}
 
@@ -1731,19 +1731,19 @@ int ibmphp_add_pfmem_from_mem(struct resource_node *pfmem)
  * Parameters: bus_number
  * Returns: Bus pointer or NULL
  */
-struct bus_node *ibmphp_find_res_bus(u8 bus_number)
+struct bus_yesde *ibmphp_find_res_bus(u8 bus_number)
 {
 	return find_bus_wprev(bus_number, NULL, 0);
 }
 
-static struct bus_node *find_bus_wprev(u8 bus_number, struct bus_node **prev, u8 flag)
+static struct bus_yesde *find_bus_wprev(u8 bus_number, struct bus_yesde **prev, u8 flag)
 {
-	struct bus_node *bus_cur;
+	struct bus_yesde *bus_cur;
 
 	list_for_each_entry(bus_cur, &gbuses, bus_list) {
 		if (flag)
 			*prev = list_prev_entry(bus_cur, bus_list);
-		if (bus_cur->busno == bus_number)
+		if (bus_cur->busyes == bus_number)
 			return bus_cur;
 	}
 
@@ -1753,27 +1753,27 @@ static struct bus_node *find_bus_wprev(u8 bus_number, struct bus_node **prev, u8
 void ibmphp_print_test(void)
 {
 	int i = 0;
-	struct bus_node *bus_cur = NULL;
-	struct range_node *range;
-	struct resource_node *res;
+	struct bus_yesde *bus_cur = NULL;
+	struct range_yesde *range;
+	struct resource_yesde *res;
 
 	debug_pci("*****************START**********************\n");
 
 	if ((!list_empty(&gbuses)) && flags) {
-		err("The GBUSES is not NULL?!?!?!?!?\n");
+		err("The GBUSES is yest NULL?!?!?!?!?\n");
 		return;
 	}
 
 	list_for_each_entry(bus_cur, &gbuses, bus_list) {
-		debug_pci ("This is bus # %d.  There are\n", bus_cur->busno);
-		debug_pci ("IORanges = %d\t", bus_cur->noIORanges);
-		debug_pci ("MemRanges = %d\t", bus_cur->noMemRanges);
-		debug_pci ("PFMemRanges = %d\n", bus_cur->noPFMemRanges);
+		debug_pci ("This is bus # %d.  There are\n", bus_cur->busyes);
+		debug_pci ("IORanges = %d\t", bus_cur->yesIORanges);
+		debug_pci ("MemRanges = %d\t", bus_cur->yesMemRanges);
+		debug_pci ("PFMemRanges = %d\n", bus_cur->yesPFMemRanges);
 		debug_pci ("The IO Ranges are as follows:\n");
 		if (bus_cur->rangeIO) {
 			range = bus_cur->rangeIO;
-			for (i = 0; i < bus_cur->noIORanges; i++) {
-				debug_pci("rangeno is %d\n", range->rangeno);
+			for (i = 0; i < bus_cur->yesIORanges; i++) {
+				debug_pci("rangeyes is %d\n", range->rangeyes);
 				debug_pci("[%x - %x]\n", range->start, range->end);
 				range = range->next;
 			}
@@ -1782,8 +1782,8 @@ void ibmphp_print_test(void)
 		debug_pci("The Mem Ranges are as follows:\n");
 		if (bus_cur->rangeMem) {
 			range = bus_cur->rangeMem;
-			for (i = 0; i < bus_cur->noMemRanges; i++) {
-				debug_pci("rangeno is %d\n", range->rangeno);
+			for (i = 0; i < bus_cur->yesMemRanges; i++) {
+				debug_pci("rangeyes is %d\n", range->rangeyes);
 				debug_pci("[%x - %x]\n", range->start, range->end);
 				range = range->next;
 			}
@@ -1793,8 +1793,8 @@ void ibmphp_print_test(void)
 
 		if (bus_cur->rangePFMem) {
 			range = bus_cur->rangePFMem;
-			for (i = 0; i < bus_cur->noPFMemRanges; i++) {
-				debug_pci("rangeno is %d\n", range->rangeno);
+			for (i = 0; i < bus_cur->yesPFMemRanges; i++) {
+				debug_pci("rangeyes is %d\n", range->rangeyes);
 				debug_pci("[%x - %x]\n", range->start, range->end);
 				range = range->next;
 			}
@@ -1806,8 +1806,8 @@ void ibmphp_print_test(void)
 		if (bus_cur->firstIO) {
 			res = bus_cur->firstIO;
 			while (res) {
-				debug_pci("The range # is %d\n", res->rangeno);
-				debug_pci("The bus, devfnc is %d, %x\n", res->busno, res->devfunc);
+				debug_pci("The range # is %d\n", res->rangeyes);
+				debug_pci("The bus, devfnc is %d, %x\n", res->busyes, res->devfunc);
 				debug_pci("[%x - %x], len=%x\n", res->start, res->end, res->len);
 				if (res->next)
 					res = res->next;
@@ -1821,8 +1821,8 @@ void ibmphp_print_test(void)
 		if (bus_cur->firstMem) {
 			res = bus_cur->firstMem;
 			while (res) {
-				debug_pci("The range # is %d\n", res->rangeno);
-				debug_pci("The bus, devfnc is %d, %x\n", res->busno, res->devfunc);
+				debug_pci("The range # is %d\n", res->rangeyes);
+				debug_pci("The bus, devfnc is %d, %x\n", res->busyes, res->devfunc);
 				debug_pci("[%x - %x], len=%x\n", res->start, res->end, res->len);
 				if (res->next)
 					res = res->next;
@@ -1836,8 +1836,8 @@ void ibmphp_print_test(void)
 		if (bus_cur->firstPFMem) {
 			res = bus_cur->firstPFMem;
 			while (res) {
-				debug_pci("The range # is %d\n", res->rangeno);
-				debug_pci("The bus, devfnc is %d, %x\n", res->busno, res->devfunc);
+				debug_pci("The range # is %d\n", res->rangeyes);
+				debug_pci("The bus, devfnc is %d, %x\n", res->busyes, res->devfunc);
 				debug_pci("[%x - %x], len=%x\n", res->start, res->end, res->len);
 				if (res->next)
 					res = res->next;
@@ -1852,8 +1852,8 @@ void ibmphp_print_test(void)
 		if (bus_cur->firstPFMemFromMem) {
 			res = bus_cur->firstPFMemFromMem;
 			while (res) {
-				debug_pci("The range # is %d\n", res->rangeno);
-				debug_pci("The bus, devfnc is %d, %x\n", res->busno, res->devfunc);
+				debug_pci("The range # is %d\n", res->rangeyes);
+				debug_pci("The bus, devfnc is %d, %x\n", res->busyes, res->devfunc);
 				debug_pci("[%x - %x], len=%x\n", res->start, res->end, res->len);
 				res = res->next;
 			}
@@ -1862,9 +1862,9 @@ void ibmphp_print_test(void)
 	debug_pci("***********************END***********************\n");
 }
 
-static int range_exists_already(struct range_node *range, struct bus_node *bus_cur, u8 type)
+static int range_exists_already(struct range_yesde *range, struct bus_yesde *bus_cur, u8 type)
 {
-	struct range_node *range_cur = NULL;
+	struct range_yesde *range_cur = NULL;
 	switch (type) {
 		case IO:
 			range_cur = bus_cur->rangeIO;
@@ -1895,34 +1895,34 @@ static int range_exists_already(struct range_node *range, struct bus_node *bus_c
  * on bootup.  For bridged cards that were added during previous load of the
  * driver, only the ranges and the bus structure are added, the devices are
  * added from NVRAM
- * Input: primary busno
- * Returns: none
+ * Input: primary busyes
+ * Returns: yesne
  * Note: this function doesn't take into account IO restrictions etc,
- *	 so will only work for bridges with no video/ISA devices behind them It
- *	 also will not work for onboard PPBs that can have more than 1 *bus
+ *	 so will only work for bridges with yes video/ISA devices behind them It
+ *	 also will yest work for onboard PPBs that can have more than 1 *bus
  *	 behind them All these are TO DO.
  *	 Also need to add more error checkings... (from fnc returns etc)
  */
-static int __init update_bridge_ranges(struct bus_node **bus)
+static int __init update_bridge_ranges(struct bus_yesde **bus)
 {
-	u8 sec_busno, device, function, hdr_type, start_io_address, end_io_address;
+	u8 sec_busyes, device, function, hdr_type, start_io_address, end_io_address;
 	u16 vendor_id, upper_io_start, upper_io_end, start_mem_address, end_mem_address;
 	u32 start_address, end_address, upper_start, upper_end;
-	struct bus_node *bus_sec;
-	struct bus_node *bus_cur;
-	struct resource_node *io;
-	struct resource_node *mem;
-	struct resource_node *pfmem;
-	struct range_node *range;
+	struct bus_yesde *bus_sec;
+	struct bus_yesde *bus_cur;
+	struct resource_yesde *io;
+	struct resource_yesde *mem;
+	struct resource_yesde *pfmem;
+	struct range_yesde *range;
 	unsigned int devfn;
 
 	bus_cur = *bus;
 	if (!bus_cur)
 		return -ENODEV;
-	ibmphp_pci_bus->number = bus_cur->busno;
+	ibmphp_pci_bus->number = bus_cur->busyes;
 
 	debug("inside %s\n", __func__);
-	debug("bus_cur->busno = %x\n", bus_cur->busno);
+	debug("bus_cur->busyes = %x\n", bus_cur->busyes);
 
 	for (device = 0; device < 32; device++) {
 		for (function = 0x00; function < 0x08; function++) {
@@ -1951,11 +1951,11 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 						   temp++;
 						   }
 						 */
-						pci_bus_read_config_byte(ibmphp_pci_bus, devfn, PCI_SECONDARY_BUS, &sec_busno);
-						bus_sec = find_bus_wprev(sec_busno, NULL, 0);
+						pci_bus_read_config_byte(ibmphp_pci_bus, devfn, PCI_SECONDARY_BUS, &sec_busyes);
+						bus_sec = find_bus_wprev(sec_busyes, NULL, 0);
 						/* this bus structure doesn't exist yet, PPB was configured during previous loading of ibmphp */
 						if (!bus_sec) {
-							bus_sec = alloc_error_bus(NULL, sec_busno, 1);
+							bus_sec = alloc_error_bus(NULL, sec_busyes, 1);
 							/* the rest will be populated during NVRAM call */
 							return 0;
 						}
@@ -1969,37 +1969,37 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 						end_address |= (upper_io_end << 16);
 
 						if ((start_address) && (start_address <= end_address)) {
-							range = kzalloc(sizeof(struct range_node), GFP_KERNEL);
+							range = kzalloc(sizeof(struct range_yesde), GFP_KERNEL);
 							if (!range)
 								return -ENOMEM;
 
 							range->start = start_address;
 							range->end = end_address + 0xfff;
 
-							if (bus_sec->noIORanges > 0) {
+							if (bus_sec->yesIORanges > 0) {
 								if (!range_exists_already(range, bus_sec, IO)) {
 									add_bus_range(IO, range, bus_sec);
-									++bus_sec->noIORanges;
+									++bus_sec->yesIORanges;
 								} else {
 									kfree(range);
 									range = NULL;
 								}
 							} else {
 								/* 1st IO Range on the bus */
-								range->rangeno = 1;
+								range->rangeyes = 1;
 								bus_sec->rangeIO = range;
-								++bus_sec->noIORanges;
+								++bus_sec->yesIORanges;
 							}
 							fix_resources(bus_sec);
 
 							if (ibmphp_find_resource(bus_cur, start_address, &io, IO)) {
-								io = kzalloc(sizeof(struct resource_node), GFP_KERNEL);
+								io = kzalloc(sizeof(struct resource_yesde), GFP_KERNEL);
 								if (!io) {
 									kfree(range);
 									return -ENOMEM;
 								}
 								io->type = IO;
-								io->busno = bus_cur->busno;
+								io->busyes = bus_cur->busyes;
 								io->devfunc = ((device << 3) | (function & 0x7));
 								io->start = start_address;
 								io->end = end_address + 0xfff;
@@ -2016,38 +2016,38 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 
 						if ((start_address) && (start_address <= end_address)) {
 
-							range = kzalloc(sizeof(struct range_node), GFP_KERNEL);
+							range = kzalloc(sizeof(struct range_yesde), GFP_KERNEL);
 							if (!range)
 								return -ENOMEM;
 
 							range->start = start_address;
 							range->end = end_address + 0xfffff;
 
-							if (bus_sec->noMemRanges > 0) {
+							if (bus_sec->yesMemRanges > 0) {
 								if (!range_exists_already(range, bus_sec, MEM)) {
 									add_bus_range(MEM, range, bus_sec);
-									++bus_sec->noMemRanges;
+									++bus_sec->yesMemRanges;
 								} else {
 									kfree(range);
 									range = NULL;
 								}
 							} else {
 								/* 1st Mem Range on the bus */
-								range->rangeno = 1;
+								range->rangeyes = 1;
 								bus_sec->rangeMem = range;
-								++bus_sec->noMemRanges;
+								++bus_sec->yesMemRanges;
 							}
 
 							fix_resources(bus_sec);
 
 							if (ibmphp_find_resource(bus_cur, start_address, &mem, MEM)) {
-								mem = kzalloc(sizeof(struct resource_node), GFP_KERNEL);
+								mem = kzalloc(sizeof(struct resource_yesde), GFP_KERNEL);
 								if (!mem) {
 									kfree(range);
 									return -ENOMEM;
 								}
 								mem->type = MEM;
-								mem->busno = bus_cur->busno;
+								mem->busyes = bus_cur->busyes;
 								mem->devfunc = ((device << 3) | (function & 0x7));
 								mem->start = start_address;
 								mem->end = end_address + 0xfffff;
@@ -2068,37 +2068,37 @@ static int __init update_bridge_ranges(struct bus_node **bus)
 
 						if ((start_address) && (start_address <= end_address)) {
 
-							range = kzalloc(sizeof(struct range_node), GFP_KERNEL);
+							range = kzalloc(sizeof(struct range_yesde), GFP_KERNEL);
 							if (!range)
 								return -ENOMEM;
 
 							range->start = start_address;
 							range->end = end_address + 0xfffff;
 
-							if (bus_sec->noPFMemRanges > 0) {
+							if (bus_sec->yesPFMemRanges > 0) {
 								if (!range_exists_already(range, bus_sec, PFMEM)) {
 									add_bus_range(PFMEM, range, bus_sec);
-									++bus_sec->noPFMemRanges;
+									++bus_sec->yesPFMemRanges;
 								} else {
 									kfree(range);
 									range = NULL;
 								}
 							} else {
 								/* 1st PFMem Range on the bus */
-								range->rangeno = 1;
+								range->rangeyes = 1;
 								bus_sec->rangePFMem = range;
-								++bus_sec->noPFMemRanges;
+								++bus_sec->yesPFMemRanges;
 							}
 
 							fix_resources(bus_sec);
 							if (ibmphp_find_resource(bus_cur, start_address, &pfmem, PFMEM)) {
-								pfmem = kzalloc(sizeof(struct resource_node), GFP_KERNEL);
+								pfmem = kzalloc(sizeof(struct resource_yesde), GFP_KERNEL);
 								if (!pfmem) {
 									kfree(range);
 									return -ENOMEM;
 								}
 								pfmem->type = PFMEM;
-								pfmem->busno = bus_cur->busno;
+								pfmem->busyes = bus_cur->busyes;
 								pfmem->devfunc = ((device << 3) | (function & 0x7));
 								pfmem->start = start_address;
 								pfmem->end = end_address + 0xfffff;

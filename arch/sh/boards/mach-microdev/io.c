@@ -17,11 +17,11 @@
 
 	/*
 	 *	we need to have a 'safe' address to re-direct all I/O requests
-	 *	that we do not explicitly wish to handle. This safe address
+	 *	that we do yest explicitly wish to handle. This safe address
 	 *	must have the following properies:
 	 *
-	 *		* writes are ignored (no exception)
-	 *		* reads are benign (no side-effects)
+	 *		* writes are igyesred (yes exception)
+	 *		* reads are benign (yes side-effects)
 	 *		* accesses of width 1, 2 and 4-bytes are all valid.
 	 *
 	 *	The Processor Version Register (PVR) has these properties.

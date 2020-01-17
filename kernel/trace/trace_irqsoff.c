@@ -88,7 +88,7 @@ static __cacheline_aligned_in_smp	unsigned long max_sequence;
  *
  * Returns 1 if it is OK to continue, and data->disabled is
  *            incremented.
- *         0 if the trace is to be ignored, and data->disabled
+ *         0 if the trace is to be igyesred, and data->disabled
  *            is kept the same.
  *
  * Note, this function is also used outside this ifdef but
@@ -104,8 +104,8 @@ static int func_prolog_dec(struct trace_array *tr,
 	int cpu;
 
 	/*
-	 * Does not matter if we preempt. We test the flags
-	 * afterward, to see if irqs are disabled or not.
+	 * Does yest matter if we preempt. We test the flags
+	 * afterward, to see if irqs are disabled or yest.
 	 * If we preempt and get a false positive, the flags
 	 * test will fail.
 	 */
@@ -117,7 +117,7 @@ static int func_prolog_dec(struct trace_array *tr,
 	/*
 	 * Slight chance to get a false positive on tracing_cpu,
 	 * although I'm starting to think there isn't a chance.
-	 * Leave this for now just to be paranoid.
+	 * Leave this for yesw just to be parayesid.
 	 */
 	if (!irqs_disabled_flags(*flags) && !preempt_count())
 		return 0;
@@ -180,16 +180,16 @@ static int irqsoff_graph_entry(struct ftrace_graph_ent *trace)
 	int ret;
 	int pc;
 
-	if (ftrace_graph_ignore_func(trace))
+	if (ftrace_graph_igyesre_func(trace))
 		return 0;
 	/*
-	 * Do not trace a function if it's filtered by set_graph_notrace.
+	 * Do yest trace a function if it's filtered by set_graph_yestrace.
 	 * Make the index of ret stack negative to indicate that it should
-	 * ignore further functions.  But it needs its own ret stack entry
+	 * igyesre further functions.  But it needs its own ret stack entry
 	 * to recover the original index in order to continue tracing after
 	 * returning from the function.
 	 */
-	if (ftrace_graph_notrace_addr(trace->func))
+	if (ftrace_graph_yestrace_addr(trace->func))
 		return 1;
 
 	if (!func_prolog_dec(tr, &data, &flags))
@@ -325,7 +325,7 @@ check_critical_timing(struct trace_array *tr,
 	int pc;
 
 	T0 = data->preempt_timestamp;
-	T1 = ftrace_now(cpu);
+	T1 = ftrace_yesw(cpu);
 	delta = T1-T0;
 
 	local_save_flags(flags);
@@ -362,11 +362,11 @@ out_unlock:
 
 out:
 	data->critical_sequence = max_sequence;
-	data->preempt_timestamp = ftrace_now(cpu);
+	data->preempt_timestamp = ftrace_yesw(cpu);
 	__trace_function(tr, CALLER_ADDR0, parent_ip, flags, pc);
 }
 
-static nokprobe_inline void
+static yeskprobe_inline void
 start_critical_timing(unsigned long ip, unsigned long parent_ip, int pc)
 {
 	int cpu;
@@ -390,7 +390,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip, int pc)
 	atomic_inc(&data->disabled);
 
 	data->critical_sequence = max_sequence;
-	data->preempt_timestamp = ftrace_now(cpu);
+	data->preempt_timestamp = ftrace_yesw(cpu);
 	data->critical_start = parent_ip ? : ip;
 
 	local_save_flags(flags);
@@ -402,7 +402,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip, int pc)
 	atomic_dec(&data->disabled);
 }
 
-static nokprobe_inline void
+static yeskprobe_inline void
 stop_critical_timing(unsigned long ip, unsigned long parent_ip, int pc)
 {
 	int cpu;
@@ -559,7 +559,7 @@ static int __irqsoff_tracer_init(struct trace_array *tr)
 
 	save_flags = tr->trace_flags;
 
-	/* non overwrite screws up the latency tracers */
+	/* yesn overwrite screws up the latency tracers */
 	set_tracer_flag(tr, TRACE_ITER_OVERWRITE, 1);
 	set_tracer_flag(tr, TRACE_ITER_LATENCY_FMT, 1);
 

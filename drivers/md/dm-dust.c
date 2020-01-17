@@ -15,7 +15,7 @@
 #define DM_MSG_PREFIX "dust"
 
 struct badblock {
-	struct rb_node node;
+	struct rb_yesde yesde;
 	sector_t bb;
 	unsigned char wr_fail_cnt;
 };
@@ -35,15 +35,15 @@ struct dust_device {
 
 static struct badblock *dust_rb_search(struct rb_root *root, sector_t blk)
 {
-	struct rb_node *node = root->rb_node;
+	struct rb_yesde *yesde = root->rb_yesde;
 
-	while (node) {
-		struct badblock *bblk = rb_entry(node, struct badblock, node);
+	while (yesde) {
+		struct badblock *bblk = rb_entry(yesde, struct badblock, yesde);
 
 		if (bblk->bb > blk)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (bblk->bb < blk)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return bblk;
 	}
@@ -54,12 +54,12 @@ static struct badblock *dust_rb_search(struct rb_root *root, sector_t blk)
 static bool dust_rb_insert(struct rb_root *root, struct badblock *new)
 {
 	struct badblock *bblk;
-	struct rb_node **link = &root->rb_node, *parent = NULL;
+	struct rb_yesde **link = &root->rb_yesde, *parent = NULL;
 	sector_t value = new->bb;
 
 	while (*link) {
 		parent = *link;
-		bblk = rb_entry(parent, struct badblock, node);
+		bblk = rb_entry(parent, struct badblock, yesde);
 
 		if (bblk->bb > value)
 			link = &(*link)->rb_left;
@@ -69,8 +69,8 @@ static bool dust_rb_insert(struct rb_root *root, struct badblock *new)
 			return false;
 	}
 
-	rb_link_node(&new->node, parent, link);
-	rb_insert_color(&new->node, root);
+	rb_link_yesde(&new->yesde, parent, link);
+	rb_insert_color(&new->yesde, root);
 
 	return true;
 }
@@ -85,14 +85,14 @@ static int dust_remove_block(struct dust_device *dd, unsigned long long block)
 
 	if (bblock == NULL) {
 		if (!dd->quiet_mode) {
-			DMERR("%s: block %llu not found in badblocklist",
+			DMERR("%s: block %llu yest found in badblocklist",
 			      __func__, block);
 		}
 		spin_unlock_irqrestore(&dd->dust_lock, flags);
 		return -EINVAL;
 	}
 
-	rb_erase(&bblock->node, &dd->badblocklist);
+	rb_erase(&bblock->yesde, &dd->badblocklist);
 	dd->badblock_count--;
 	if (!dd->quiet_mode)
 		DMINFO("%s: badblock removed at block %llu", __func__, block);
@@ -148,7 +148,7 @@ static int dust_query_block(struct dust_device *dd, unsigned long long block)
 	if (bblock != NULL)
 		DMINFO("%s: block %llu found in badblocklist", __func__, block);
 	else
-		DMINFO("%s: block %llu not found in badblocklist", __func__, block);
+		DMINFO("%s: block %llu yest found in badblocklist", __func__, block);
 	spin_unlock_irqrestore(&dd->dust_lock, flags);
 
 	return 0;
@@ -190,7 +190,7 @@ static int __dust_map_write(struct dust_device *dd, sector_t thisblock)
 	}
 
 	if (bblk) {
-		rb_erase(&bblk->node, &dd->badblocklist);
+		rb_erase(&bblk->yesde, &dd->badblocklist);
 		dd->badblock_count--;
 		kfree(bblk);
 		if (!dd->quiet_mode) {
@@ -238,23 +238,23 @@ static int dust_map(struct dm_target *ti, struct bio *bio)
 static bool __dust_clear_badblocks(struct rb_root *tree,
 				   unsigned long long count)
 {
-	struct rb_node *node = NULL, *nnode = NULL;
+	struct rb_yesde *yesde = NULL, *nyesde = NULL;
 
-	nnode = rb_first(tree);
-	if (nnode == NULL) {
+	nyesde = rb_first(tree);
+	if (nyesde == NULL) {
 		BUG_ON(count != 0);
 		return false;
 	}
 
-	while (nnode) {
-		node = nnode;
-		nnode = rb_next(node);
-		rb_erase(node, tree);
+	while (nyesde) {
+		yesde = nyesde;
+		nyesde = rb_next(yesde);
+		rb_erase(yesde, tree);
 		count--;
-		kfree(node);
+		kfree(yesde);
 	}
 	BUG_ON(count != 0);
-	BUG_ON(tree->rb_node != NULL);
+	BUG_ON(tree->rb_yesde != NULL);
 
 	return true;
 }
@@ -273,7 +273,7 @@ static int dust_clear_badblocks(struct dust_device *dd)
 	spin_unlock_irqrestore(&dd->dust_lock, flags);
 
 	if (!__dust_clear_badblocks(&badblocklist, badblock_count))
-		DMINFO("%s: no badblocks found", __func__);
+		DMINFO("%s: yes badblocks found", __func__);
 	else
 		DMINFO("%s: badblocks cleared", __func__);
 
@@ -333,7 +333,7 @@ static int dust_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	dd = kzalloc(sizeof(struct dust_device), GFP_KERNEL);
 	if (dd == NULL) {
-		ti->error = "Cannot allocate context";
+		ti->error = "Canyest allocate context";
 		return -ENOMEM;
 	}
 
@@ -386,7 +386,7 @@ static int dust_message(struct dm_target *ti, unsigned int argc, char **argv,
 			char *result_buf, unsigned int maxlen)
 {
 	struct dust_device *dd = ti->private;
-	sector_t size = i_size_read(dd->dev->bdev->bd_inode) >> SECTOR_SHIFT;
+	sector_t size = i_size_read(dd->dev->bdev->bd_iyesde) >> SECTOR_SHIFT;
 	bool invalid_msg = false;
 	int r = -EINVAL;
 	unsigned long long tmp, block;
@@ -509,7 +509,7 @@ static int dust_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
 	if (dd->start ||
-	    ti->len != i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT)
+	    ti->len != i_size_read(dev->bdev->bd_iyesde) >> SECTOR_SHIFT)
 		return 1;
 
 	return 0;

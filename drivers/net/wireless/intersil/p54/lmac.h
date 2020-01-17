@@ -7,7 +7,7 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Note <jbyeste@gmail.com>, et al.
  *
  * - LMAC API interface header file for STLC4560 (lmac_longbow.h)
  *   Copyright (C) 2007 Conexant Systems, Inc.
@@ -264,7 +264,7 @@ struct p54_tx_data {
 			u8 output_power;
 			u8 cts_rate;
 			u8 unalloc;
-		} __packed normal;
+		} __packed yesrmal;
 	} __packed;
 	u8 unalloc2[2];
 	u8 align[0];
@@ -381,7 +381,7 @@ struct p54_scan_body_longbow {
 } __packed;
 
 union p54_scan_body_union {
-	struct p54_scan_body normal;
+	struct p54_scan_body yesrmal;
 	struct p54_scan_body_longbow longbow;
 } __packed;
 
@@ -416,8 +416,8 @@ struct p54_statistics {
 	__le32 rts_fail;
 	__le32 tsf32;
 	__le32 airtime;
-	__le32 noise;
-	__le32 sample_noise[8];
+	__le32 yesise;
+	__le32 sample_yesise[8];
 	__le32 sample_cca;
 	__le32 sample_tx;
 } __packed;

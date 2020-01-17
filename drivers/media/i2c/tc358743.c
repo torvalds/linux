@@ -31,7 +31,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/i2c/tc358743.h>
 
 #include "tc358743_regs.h"
@@ -58,7 +58,7 @@ static const struct v4l2_dv_timings_cap tc358743_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
 	/* keep this initialization for compatibility with GCC < 4.4.6 */
 	.reserved = { 0 },
-	/* Pixel clock from REF_01 p. 20. Min/max height/width are unknown */
+	/* Pixel clock from REF_01 p. 20. Min/max height/width are unkyeswn */
 	V4L2_INIT_BT_TIMINGS(640, 1920, 350, 1200, 13000000, 165000000,
 			V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
 			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
@@ -69,7 +69,7 @@ static const struct v4l2_dv_timings_cap tc358743_timings_cap = {
 
 struct tc358743_state {
 	struct tc358743_platform_data pdata;
-	struct v4l2_fwnode_bus_mipi_csi2 bus;
+	struct v4l2_fwyesde_bus_mipi_csi2 bus;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
@@ -192,7 +192,7 @@ static void i2c_wr(struct v4l2_subdev *sd, u16 reg, u8 *values, u32 n)
 	}
 }
 
-static noinline u32 i2c_rdreg(struct v4l2_subdev *sd, u16 reg, u32 n)
+static yesinline u32 i2c_rdreg(struct v4l2_subdev *sd, u16 reg, u32 n)
 {
 	__le32 val = 0;
 
@@ -201,7 +201,7 @@ static noinline u32 i2c_rdreg(struct v4l2_subdev *sd, u16 reg, u32 n)
 	return le32_to_cpu(val);
 }
 
-static noinline void i2c_wrreg(struct v4l2_subdev *sd, u16 reg, u32 val, u32 n)
+static yesinline void i2c_wrreg(struct v4l2_subdev *sd, u16 reg, u32 val, u32 n)
 {
 	__le32 raw = cpu_to_le32(val);
 
@@ -261,12 +261,12 @@ static inline bool tx_5v_power_present(struct v4l2_subdev *sd)
 	return i2c_rd8(sd, SYS_STATUS) & MASK_S_DDC5V;
 }
 
-static inline bool no_signal(struct v4l2_subdev *sd)
+static inline bool yes_signal(struct v4l2_subdev *sd)
 {
 	return !(i2c_rd8(sd, SYS_STATUS) & MASK_S_TMDS);
 }
 
-static inline bool no_sync(struct v4l2_subdev *sd)
+static inline bool yes_sync(struct v4l2_subdev *sd)
 {
 	return !(i2c_rd8(sd, SYS_STATUS) & MASK_S_SYNC);
 }
@@ -283,8 +283,8 @@ static int get_audio_sampling_rate(struct v4l2_subdev *sd)
 		88200, 768000, 96000, 705600, 176400, 0, 192000, 0
 	};
 
-	/* Register FS_SET is not cleared when the cable is disconnected */
-	if (no_signal(sd))
+	/* Register FS_SET is yest cleared when the cable is disconnected */
+	if (yes_signal(sd))
 		return 0;
 
 	return code_to_rate[i2c_rd8(sd, FS_SET) & MASK_FS];
@@ -309,12 +309,12 @@ static int tc358743_get_detected_timings(struct v4l2_subdev *sd,
 
 	memset(timings, 0, sizeof(struct v4l2_dv_timings));
 
-	if (no_signal(sd)) {
-		v4l2_dbg(1, debug, sd, "%s: no valid signal\n", __func__);
+	if (yes_signal(sd)) {
+		v4l2_dbg(1, debug, sd, "%s: yes valid signal\n", __func__);
 		return -ENOLINK;
 	}
-	if (no_sync(sd)) {
-		v4l2_dbg(1, debug, sd, "%s: no sync on signal\n", __func__);
+	if (yes_sync(sd)) {
+		v4l2_dbg(1, debug, sd, "%s: yes sync on signal\n", __func__);
 		return -ENOLCK;
 	}
 
@@ -405,7 +405,7 @@ static void tc358743_enable_edid(struct v4l2_subdev *sd)
 	struct tc358743_state *state = to_state(sd);
 
 	if (state->edid_blocks_written == 0) {
-		v4l2_dbg(2, debug, sd, "%s: no EDID -> no hotplug\n", __func__);
+		v4l2_dbg(2, debug, sd, "%s: yes EDID -> yes hotplug\n", __func__);
 		tc358743_s_ctrl_detect_tx_5v(sd);
 		return;
 	}
@@ -438,7 +438,7 @@ static void print_avi_infoframe(struct v4l2_subdev *sd)
 	u8 buffer[HDMI_INFOFRAME_SIZE(AVI)];
 
 	if (!is_hdmi(sd)) {
-		v4l2_info(sd, "DVI-D signal - AVI infoframe not supported\n");
+		v4l2_info(sd, "DVI-D signal - AVI infoframe yest supported\n");
 		return;
 	}
 
@@ -522,7 +522,7 @@ static inline void enable_stream(struct v4l2_subdev *sd, bool enable)
 
 	if (enable) {
 		/* It is critical for CSI receiver to see lane transition
-		 * LP11->HS. Set to non-continuous mode to enable clock lane
+		 * LP11->HS. Set to yesn-continuous mode to enable clock lane
 		 * LP11 state. */
 		i2c_wr32(sd, TXOPTIONCNTRL, 0);
 		/* Set to continuous mode to trigger LP11->HS transition */
@@ -554,7 +554,7 @@ static void tc358743_set_pll(struct v4l2_subdev *sd)
 	v4l2_dbg(2, debug, sd, "%s:\n", __func__);
 
 	/* Only rewrite when needed (new value or disabled), since rewriting
-	 * triggers another format change event. */
+	 * triggers ayesther format change event. */
 	if ((pllctl0 != pllctl0_new) || ((pllctl1 & MASK_PLL_EN) == 0)) {
 		u16 pll_frs;
 
@@ -816,7 +816,7 @@ static void tc358743_initial_setup(struct v4l2_subdev *sd)
 	struct tc358743_platform_data *pdata = &state->pdata;
 
 	/*
-	 * IR is not supported by this driver.
+	 * IR is yest supported by this driver.
 	 * CEC is only enabled if needed.
 	 */
 	i2c_wr16_and_or(sd, SYSCTL, ~(MASK_IRRST | MASK_CECRST),
@@ -948,7 +948,7 @@ static void tc358743_cec_isr(struct v4l2_subdev *sd, u16 intstatus,
 		else if (cec_txint & MASK_CECTIUR) {
 			/*
 			 * Not sure when this bit is set. Treat
-			 * it as an error for now.
+			 * it as an error for yesw.
 			 */
 			cec_transmit_attempt_done(state->cec_adap,
 						  CEC_TX_STATUS_ERROR);
@@ -1002,8 +1002,8 @@ static void tc358743_format_change(struct v4l2_subdev *sd)
 					&timings, false);
 	}
 
-	if (sd->devnode)
-		v4l2_subdev_notify_event(sd, &tc358743_ev_fmt);
+	if (sd->devyesde)
+		v4l2_subdev_yestify_event(sd, &tc358743_ev_fmt);
 }
 
 static void tc358743_init_interrupts(struct v4l2_subdev *sd)
@@ -1075,7 +1075,7 @@ static void tc358743_hdmi_misc_int_handler(struct v4l2_subdev *sd,
 		/* Reset the HDMI PHY to try to trigger proper lock on the
 		 * incoming video format. Erase BKSV to prevent that old keys
 		 * are used when a new source is connected. */
-		if (no_sync(sd) || no_signal(sd)) {
+		if (yes_sync(sd) || yes_signal(sd)) {
 			tc358743_reset_phy(sd);
 			tc358743_erase_bksv(sd);
 		}
@@ -1148,11 +1148,11 @@ static void tc358743_hdmi_clk_int_handler(struct v4l2_subdev *sd, bool *handled)
 
 		/* If the source switch to a new resolution with the same pixel
 		 * frequency as the existing (e.g. 1080p25 -> 720p50), the
-		 * I_SYNC_CHG interrupt is not always triggered, while the
+		 * I_SYNC_CHG interrupt is yest always triggered, while the
 		 * I_IN_DE_CHG interrupt seems to work fine. Format change
-		 * notifications are only sent when the signal is stable to
-		 * reduce the number of notifications. */
-		if (!no_signal(sd) && !no_sync(sd))
+		 * yestifications are only sent when the signal is stable to
+		 * reduce the number of yestifications. */
+		if (!yes_signal(sd) && !yes_sync(sd))
 			tc358743_format_change(sd);
 
 		clk_int &= ~(MASK_I_IN_DE_CHG);
@@ -1180,7 +1180,7 @@ static void tc358743_hdmi_sys_int_handler(struct v4l2_subdev *sd, bool *handled)
 		bool tx_5v = tx_5v_power_present(sd);
 
 		v4l2_dbg(1, debug, sd, "%s: Tx 5V power present: %s\n",
-				__func__, tx_5v ?  "yes" : "no");
+				__func__, tx_5v ?  "no" : "yes");
 
 		if (tx_5v) {
 			tc358743_enable_edid(sd);
@@ -1204,7 +1204,7 @@ static void tc358743_hdmi_sys_int_handler(struct v4l2_subdev *sd, bool *handled)
 		/* Reset the HDMI PHY to try to trigger proper lock on the
 		 * incoming video format. Erase BKSV to prevent that old keys
 		 * are used when a new source is connected. */
-		if (no_sync(sd) || no_signal(sd)) {
+		if (yes_sync(sd) || yes_signal(sd)) {
 			tc358743_reset_phy(sd);
 			tc358743_erase_bksv(sd);
 		}
@@ -1259,24 +1259,24 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 			!!(sysctl & MASK_HDMIRST));
 	v4l2_info(sd, "Sleep mode: %s\n", sysctl & MASK_SLEEP ? "on" : "off");
 	v4l2_info(sd, "Cable detected (+5V power): %s\n",
-			hdmi_sys_status & MASK_S_DDC5V ? "yes" : "no");
+			hdmi_sys_status & MASK_S_DDC5V ? "no" : "yes");
 	v4l2_info(sd, "DDC lines enabled: %s\n",
 			(i2c_rd8(sd, EDID_MODE) & MASK_EDID_MODE_E_DDC) ?
-			"yes" : "no");
+			"no" : "yes");
 	v4l2_info(sd, "Hotplug enabled: %s\n",
 			(i2c_rd8(sd, HPD_CTL) & MASK_HPD_OUT0) ?
-			"yes" : "no");
+			"no" : "yes");
 	v4l2_info(sd, "CEC enabled: %s\n",
-			(i2c_rd16(sd, CECEN) & MASK_CECEN) ?  "yes" : "no");
+			(i2c_rd16(sd, CECEN) & MASK_CECEN) ?  "no" : "yes");
 	v4l2_info(sd, "-----Signal status-----\n");
 	v4l2_info(sd, "TMDS signal detected: %s\n",
-			hdmi_sys_status & MASK_S_TMDS ? "yes" : "no");
+			hdmi_sys_status & MASK_S_TMDS ? "no" : "yes");
 	v4l2_info(sd, "Stable sync signal: %s\n",
-			hdmi_sys_status & MASK_S_SYNC ? "yes" : "no");
+			hdmi_sys_status & MASK_S_SYNC ? "no" : "yes");
 	v4l2_info(sd, "PHY PLL locked: %s\n",
-			hdmi_sys_status & MASK_S_PHY_PLL ? "yes" : "no");
+			hdmi_sys_status & MASK_S_PHY_PLL ? "no" : "yes");
 	v4l2_info(sd, "PHY DE detected: %s\n",
-			hdmi_sys_status & MASK_S_PHY_SCDT ? "yes" : "no");
+			hdmi_sys_status & MASK_S_PHY_SCDT ? "no" : "yes");
 
 	if (tc358743_get_detected_timings(sd, &timings)) {
 		v4l2_info(sd, "No video detected\n");
@@ -1294,16 +1294,16 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 			state->csi_lanes_in_use);
 	v4l2_info(sd, "Waiting for particular sync signal: %s\n",
 			(i2c_rd16(sd, CSI_STATUS) & MASK_S_WSYNC) ?
-			"yes" : "no");
+			"no" : "yes");
 	v4l2_info(sd, "Transmit mode: %s\n",
 			(i2c_rd16(sd, CSI_STATUS) & MASK_S_TXACT) ?
-			"yes" : "no");
+			"no" : "yes");
 	v4l2_info(sd, "Receive mode: %s\n",
 			(i2c_rd16(sd, CSI_STATUS) & MASK_S_RXACT) ?
-			"yes" : "no");
+			"no" : "yes");
 	v4l2_info(sd, "Stopped: %s\n",
 			(i2c_rd16(sd, CSI_STATUS) & MASK_S_HLT) ?
-			"yes" : "no");
+			"no" : "yes");
 	v4l2_info(sd, "Color space: %s\n",
 			state->mbus_fmt_code == MEDIA_BUS_FMT_UYVY8_1X16 ?
 			"YCbCr 422 16-bit" :
@@ -1312,7 +1312,7 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 
 	v4l2_info(sd, "-----%s status-----\n", is_hdmi(sd) ? "HDMI" : "DVI-D");
 	v4l2_info(sd, "HDCP encrypted content: %s\n",
-			hdmi_sys_status & MASK_S_HDCP ? "yes" : "no");
+			hdmi_sys_status & MASK_S_HDCP ? "no" : "yes");
 	v4l2_info(sd, "Input color space: %s %s range\n",
 			input_color_space[(vi_status3 & MASK_S_V_COLOR) >> 1],
 			(vi_status3 & MASK_LIMITED) ? "limited" : "full");
@@ -1385,7 +1385,7 @@ static int tc358743_s_register(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	/* It should not be possible for the user to enable HDCP with a simple
+	/* It should yest be possible for the user to enable HDCP with a simple
 	 * v4l2-dbg command.
 	 *
 	 * DO NOT REMOVE THIS unless all other issues with HDCP have been
@@ -1509,8 +1509,8 @@ static int tc358743_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 static int tc358743_g_input_status(struct v4l2_subdev *sd, u32 *status)
 {
 	*status = 0;
-	*status |= no_signal(sd) ? V4L2_IN_ST_NO_SIGNAL : 0;
-	*status |= no_sync(sd) ? V4L2_IN_ST_NO_SYNC : 0;
+	*status |= yes_signal(sd) ? V4L2_IN_ST_NO_SIGNAL : 0;
+	*status |= yes_sync(sd) ? V4L2_IN_ST_NO_SYNC : 0;
 
 	v4l2_dbg(1, debug, sd, "%s: status = 0x%x\n", __func__, *status);
 
@@ -1530,7 +1530,7 @@ static int tc358743_s_dv_timings(struct v4l2_subdev *sd,
 				timings, false);
 
 	if (v4l2_match_dv_timings(&state->timings, timings, 0, false)) {
-		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
+		v4l2_dbg(1, debug, sd, "%s: yes change\n", __func__);
 		return 0;
 	}
 
@@ -1609,7 +1609,7 @@ static int tc358743_g_mbus_config(struct v4l2_subdev *sd,
 
 	cfg->type = V4L2_MBUS_CSI2_DPHY;
 
-	/* Support for non-continuous CSI-2 clock is missing in the driver */
+	/* Support for yesn-continuous CSI-2 clock is missing in the driver */
 	cfg->flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
 	switch (state->csi_lanes_in_use) {
@@ -1895,8 +1895,8 @@ static void tc358743_gpio_reset(struct tc358743_state *state)
 static int tc358743_probe_of(struct tc358743_state *state)
 {
 	struct device *dev = &state->i2c_client->dev;
-	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
-	struct device_node *ep;
+	struct v4l2_fwyesde_endpoint endpoint = { .bus_type = 0 };
+	struct device_yesde *ep;
 	struct clk *refclk;
 	u32 bps_pr_lane;
 	int ret;
@@ -1909,16 +1909,16 @@ static int tc358743_probe_of(struct tc358743_state *state)
 		return PTR_ERR(refclk);
 	}
 
-	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
+	ep = of_graph_get_next_endpoint(dev->of_yesde, NULL);
 	if (!ep) {
-		dev_err(dev, "missing endpoint node\n");
+		dev_err(dev, "missing endpoint yesde\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep), &endpoint);
+	ret = v4l2_fwyesde_endpoint_alloc_parse(of_fwyesde_handle(ep), &endpoint);
 	if (ret) {
 		dev_err(dev, "failed to parse endpoint\n");
-		goto put_node;
+		goto put_yesde;
 	}
 
 	if (endpoint.bus_type != V4L2_MBUS_CSI2_DPHY ||
@@ -1946,7 +1946,7 @@ static int tc358743_probe_of(struct tc358743_state *state)
 	state->pdata.refclk_hz = clk_get_rate(refclk);
 	state->pdata.ddc5v_delay = DDC5V_DELAY_100_MS;
 	state->pdata.enable_hdcp = false;
-	/* A FIFO level of 16 should be enough for 2-lane 720p60 at 594 MHz. */
+	/* A FIFO level of 16 should be eyesugh for 2-lane 720p60 at 594 MHz. */
 	state->pdata.fifo_level = 16;
 	/*
 	 * The PLL input clock is obtained by dividing refclk by pll_prd.
@@ -2014,9 +2014,9 @@ static int tc358743_probe_of(struct tc358743_state *state)
 disable_clk:
 	clk_disable_unprepare(refclk);
 free_endpoint:
-	v4l2_fwnode_endpoint_free(&endpoint);
-put_node:
-	of_node_put(ep);
+	v4l2_fwyesde_endpoint_free(&endpoint);
+put_yesde:
+	of_yesde_put(ep);
 	return ret;
 }
 #else
@@ -2066,7 +2066,7 @@ static int tc358743_probe(struct i2c_client *client)
 
 	/* i2c access */
 	if ((i2c_rd16(sd, CHIPID) & MASK_CHIPID) != 0) {
-		v4l2_info(sd, "not a TC358743 on address 0x%x\n",
+		v4l2_info(sd, "yest a TC358743 on address 0x%x\n",
 			  client->addr << 1);
 		return -ENODEV;
 	}

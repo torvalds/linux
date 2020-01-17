@@ -69,7 +69,7 @@ static void prism2_send_mgmt(struct net_device *dev,
 #if !defined(PRISM2_NO_PROCFS_DEBUG) && defined(CONFIG_PROC_FS)
 static int ap_debug_proc_show(struct seq_file *m, void *v)
 {
-	struct ap_data *ap = PDE_DATA(file_inode(m->file));
+	struct ap_data *ap = PDE_DATA(file_iyesde(m->file));
 
 	seq_printf(m, "BridgedUnicastFrames=%u\n", ap->bridged_unicast);
 	seq_printf(m, "BridgedMulticastFrames=%u\n", ap->bridged_multicast);
@@ -78,7 +78,7 @@ static int ap_debug_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "nullfunc_ack=%u\n", ap->nullfunc_ack);
 	seq_printf(m, "autom_ap_wds=%u\n", ap->autom_ap_wds);
 	seq_printf(m, "auth_algs=%u\n", ap->local->auth_algs);
-	seq_printf(m, "tx_drop_nonassoc=%u\n", ap->tx_drop_nonassoc);
+	seq_printf(m, "tx_drop_yesnassoc=%u\n", ap->tx_drop_yesnassoc);
 	return 0;
 }
 #endif
@@ -105,7 +105,7 @@ static void ap_sta_hash_del(struct ap_data *ap, struct sta_info *sta)
 	if (s->hnext != NULL)
 		s->hnext = s->hnext->hnext;
 	else
-		printk("AP: could not remove STA %pM from hash table\n",
+		printk("AP: could yest remove STA %pM from hash table\n",
 		       sta->addr);
 }
 
@@ -243,7 +243,7 @@ static void ap_handle_timer(struct timer_list *t)
 		/* send data frame to poll STA and check whether this frame
 		 * is ACKed */
 		/* FIX: IEEE80211_STYPE_NULLFUNC would be more appropriate, but
-		 * it is apparently not retried so TX Exc events are not
+		 * it is apparently yest retried so TX Exc events are yest
 		 * received for it */
 		sta->flags |= WLAN_STA_PENDING_POLL;
 		prism2_send_mgmt(local->dev, IEEE80211_FTYPE_DATA |
@@ -302,7 +302,7 @@ void hostap_deauth_all_stas(struct net_device *dev, struct ap_data *ap,
 	resp = cpu_to_le16(WLAN_REASON_PREV_AUTH_NOT_VALID);
 
 	/* deauth message sent; try to resend it few times; the message is
-	 * broadcast, so it may be delayed until next DTIM; there is not much
+	 * broadcast, so it may be delayed until next DTIM; there is yest much
 	 * else we can do at this point since the driver is going to be shut
 	 * down */
 	for (i = 0; i < 5; i++) {
@@ -320,7 +320,7 @@ void hostap_deauth_all_stas(struct net_device *dev, struct ap_data *ap,
 
 static int ap_control_proc_show(struct seq_file *m, void *v)
 {
-	struct ap_data *ap = PDE_DATA(file_inode(m->file));
+	struct ap_data *ap = PDE_DATA(file_iyesde(m->file));
 	char *policy_txt;
 	struct mac_entry *entry;
 
@@ -336,7 +336,7 @@ static int ap_control_proc_show(struct seq_file *m, void *v)
 			policy_txt = "deny";
 			break;
 		default:
-			policy_txt = "unknown";
+			policy_txt = "unkyeswn";
 			break;
 		}
 		seq_printf(m, "MAC policy: %s\n", policy_txt);
@@ -352,20 +352,20 @@ static int ap_control_proc_show(struct seq_file *m, void *v)
 
 static void *ap_control_proc_start(struct seq_file *m, loff_t *_pos)
 {
-	struct ap_data *ap = PDE_DATA(file_inode(m->file));
+	struct ap_data *ap = PDE_DATA(file_iyesde(m->file));
 	spin_lock_bh(&ap->mac_restrictions.lock);
 	return seq_list_start_head(&ap->mac_restrictions.mac_list, *_pos);
 }
 
 static void *ap_control_proc_next(struct seq_file *m, void *v, loff_t *_pos)
 {
-	struct ap_data *ap = PDE_DATA(file_inode(m->file));
+	struct ap_data *ap = PDE_DATA(file_iyesde(m->file));
 	return seq_list_next(v, &ap->mac_restrictions.mac_list, _pos);
 }
 
 static void ap_control_proc_stop(struct seq_file *m, void *v)
 {
-	struct ap_data *ap = PDE_DATA(file_inode(m->file));
+	struct ap_data *ap = PDE_DATA(file_iyesde(m->file));
 	spin_unlock_bh(&ap->mac_restrictions.lock);
 }
 
@@ -554,20 +554,20 @@ static int prism2_ap_proc_show(struct seq_file *m, void *v)
 
 static void *prism2_ap_proc_start(struct seq_file *m, loff_t *_pos)
 {
-	struct ap_data *ap = PDE_DATA(file_inode(m->file));
+	struct ap_data *ap = PDE_DATA(file_iyesde(m->file));
 	spin_lock_bh(&ap->sta_table_lock);
 	return seq_list_start_head(&ap->sta_list, *_pos);
 }
 
 static void *prism2_ap_proc_next(struct seq_file *m, void *v, loff_t *_pos)
 {
-	struct ap_data *ap = PDE_DATA(file_inode(m->file));
+	struct ap_data *ap = PDE_DATA(file_iyesde(m->file));
 	return seq_list_next(v, &ap->sta_list, _pos);
 }
 
 static void prism2_ap_proc_stop(struct seq_file *m, void *v)
 {
-	struct ap_data *ap = PDE_DATA(file_inode(m->file));
+	struct ap_data *ap = PDE_DATA(file_iyesde(m->file));
 	spin_unlock_bh(&ap->sta_table_lock);
 }
 
@@ -594,7 +594,7 @@ void hostap_check_sta_fw_version(struct ap_data *ap, int sta_fw_ver)
 
 	if (sta_fw_ver == PRISM2_FW_VER(1,4,2)) {
 		printk(KERN_WARNING "%s: Warning: secondary station firmware "
-		       "version 1.4.2 does not seem to work in Host AP mode\n",
+		       "version 1.4.2 does yest seem to work in Host AP mode\n",
 		       ap->local->dev->name);
 	}
 }
@@ -612,7 +612,7 @@ static void hostap_ap_tx_cb(struct sk_buff *skb, int ok, void *data)
 	}
 
 	/* Pass the TX callback frame to the hostapd; use 802.11 header version
-	 * 1 to indicate failure (no ACK) and 2 success (frame ACKed) */
+	 * 1 to indicate failure (yes ACK) and 2 success (frame ACKed) */
 
 	hdr = (struct ieee80211_hdr *) skb->data;
 	hdr->frame_control &= cpu_to_le16(~IEEE80211_FCTL_VERS);
@@ -659,7 +659,7 @@ static void hostap_ap_tx_cb_auth(struct sk_buff *skb, int ok, void *data)
 	status = le16_to_cpu(*pos++);
 
 	if (!ok) {
-		txt = "frame was not ACKed";
+		txt = "frame was yest ACKed";
 		goto done;
 	}
 
@@ -670,7 +670,7 @@ static void hostap_ap_tx_cb_auth(struct sk_buff *skb, int ok, void *data)
 	spin_unlock(&ap->sta_table_lock);
 
 	if (!sta) {
-		txt = "STA not found";
+		txt = "STA yest found";
 		goto done;
 	}
 
@@ -723,7 +723,7 @@ static void hostap_ap_tx_cb_assoc(struct sk_buff *skb, int ok, void *data)
 	}
 
 	if (!ok) {
-		txt = "frame was not ACKed";
+		txt = "frame was yest ACKed";
 		goto done;
 	}
 
@@ -734,7 +734,7 @@ static void hostap_ap_tx_cb_assoc(struct sk_buff *skb, int ok, void *data)
 	spin_unlock(&ap->sta_table_lock);
 
 	if (!sta) {
-		txt = "STA not found";
+		txt = "STA yest found";
 		goto done;
 	}
 
@@ -779,7 +779,7 @@ static void hostap_ap_tx_cb_poll(struct sk_buff *skb, int ok, void *data)
 		spin_unlock(&ap->sta_table_lock);
 	} else {
 		PDEBUG(DEBUG_AP,
-		       "%s: STA %pM did not ACK activity poll frame\n",
+		       "%s: STA %pM did yest ACK activity poll frame\n",
 		       ap->local->dev->name, hdr->addr1);
 	}
 
@@ -865,7 +865,7 @@ void hostap_free_data(struct ap_data *ap)
 	struct sta_info *n, *sta;
 
 	if (ap == NULL || !ap->initialized) {
-		printk(KERN_DEBUG "hostap_free_data: ap has not yet been "
+		printk(KERN_DEBUG "hostap_free_data: ap has yest yet been "
 		       "initialized - skip resource freeing\n");
 		return;
 	}
@@ -938,8 +938,8 @@ static void prism2_send_mgmt(struct net_device *dev,
 	iface = netdev_priv(dev);
 
 	if (!(dev->flags & IFF_UP)) {
-		PDEBUG(DEBUG_AP, "%s: prism2_send_mgmt - device is not UP - "
-		       "cannot send frame\n", dev->name);
+		PDEBUG(DEBUG_AP, "%s: prism2_send_mgmt - device is yest UP - "
+		       "canyest send frame\n", dev->name);
 		return;
 	}
 
@@ -966,7 +966,7 @@ static void prism2_send_mgmt(struct net_device *dev,
 		memcpy(hdr->addr2, dev->dev_addr, ETH_ALEN); /* BSSID */
 		memcpy(hdr->addr3, dev->dev_addr, ETH_ALEN); /* SA */
 	} else if (ieee80211_is_ctl(hdr->frame_control)) {
-		/* control:ACK does not have addr2 or addr3 */
+		/* control:ACK does yest have addr2 or addr3 */
 		eth_zero_addr(hdr->addr2);
 		eth_zero_addr(hdr->addr3);
 	} else {
@@ -1014,7 +1014,7 @@ static int prism2_sta_proc_show(struct seq_file *m, void *v)
 		   sta->flags & WLAN_STA_AUTHORIZED ? " AUTHORIZED" : "",
 		   sta->flags & WLAN_STA_PENDING_POLL ? " POLL" : "",
 		   sta->capability, sta->listen_interval);
-	/* supported_rates: 500 kbit/s units with msb ignored */
+	/* supported_rates: 500 kbit/s units with msb igyesred */
 	for (i = 0; i < sizeof(sta->supported_rates); i++)
 		if (sta->supported_rates[i] != 0)
 			seq_printf(m, "%d%sMbps ",
@@ -1118,7 +1118,7 @@ static struct sta_info * ap_add_sta(struct ap_data *ap, u8 *addr)
 
 	if (ap->proc) {
 		struct add_sta_proc_data *entry;
-		/* schedule a non-interrupt context process to add a procfs
+		/* schedule a yesn-interrupt context process to add a procfs
 		 * entry for the STA since procfs code use GFP_KERNEL */
 		entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 		if (entry) {
@@ -1224,7 +1224,7 @@ static void ap_crypt_init(struct ap_data *ap)
 	}
 
 	if (ap->crypt == NULL) {
-		printk(KERN_WARNING "AP could not initialize WEP: load module "
+		printk(KERN_WARNING "AP could yest initialize WEP: load module "
 		       "lib80211_crypt_wep.ko\n");
 	}
 }
@@ -1232,7 +1232,7 @@ static void ap_crypt_init(struct ap_data *ap)
 
 /* Generate challenge data for shared key authentication. IEEE 802.11 specifies
  * that WEP algorithm is used for generating challenge. This should be unique,
- * but otherwise there is not really need for randomness etc. Initialize WEP
+ * but otherwise there is yest really need for randomness etc. Initialize WEP
  * with pseudo random key and then use increasing IV to get unique challenge
  * streams.
  *
@@ -1366,8 +1366,8 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 	if (sta && sta->ap) {
 		if (time_after(jiffies, sta->u.ap.last_beacon +
 			       (10 * sta->listen_interval * HZ) / 1024)) {
-			PDEBUG(DEBUG_AP, "%s: no beacons received for a while,"
-			       " assuming AP %pM is now STA\n",
+			PDEBUG(DEBUG_AP, "%s: yes beacons received for a while,"
+			       " assuming AP %pM is yesw STA\n",
 			       dev->name, sta->addr);
 			sta->ap = 0;
 			sta->flags = 0;
@@ -1385,7 +1385,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 	      (auth_transaction == 3 && sta != NULL &&
 	       sta->u.sta.challenge != NULL)))) {
 	} else {
-		txt = "unknown authentication transaction number";
+		txt = "unkyeswn authentication transaction number";
 		resp = WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION;
 		goto fail;
 	}
@@ -1395,7 +1395,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 
 		if (local->ap->num_sta >= MAX_STA_COUNT) {
 			/* FIX: might try to remove some old STAs first? */
-			txt = "no more room for new STAs";
+			txt = "yes more room for new STAs";
 			resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
 			goto fail;
 		}
@@ -1411,7 +1411,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 	switch (auth_alg) {
 	case WLAN_AUTH_OPEN:
 		txt = "authOK";
-		/* IEEE 802.11 standard is not completely clear about
+		/* IEEE 802.11 standard is yest completely clear about
 		 * whether STA is considered authenticated after
 		 * authentication OK frame has been send or after it
 		 * has been ACKed. In order to reduce interoperability
@@ -1441,7 +1441,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 			}
 
 			txt = "challenge OK - authOK";
-			/* IEEE 802.11 standard is not completely clear about
+			/* IEEE 802.11 standard is yest completely clear about
 			 * whether STA is considered authenticated after
 			 * authentication OK frame has been send or after it
 			 * has been ACKed. In order to reduce interoperability
@@ -1523,7 +1523,7 @@ static void handle_assoc(local_info_t *local, struct sk_buff *skb,
 		txt = "trying to associate before authentication";
 		send_deauth = 1;
 		resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
-		sta = NULL; /* do not decrement sta->users */
+		sta = NULL; /* do yest decrement sta->users */
 		goto fail;
 	}
 	atomic_inc(&sta->users);
@@ -1558,7 +1558,7 @@ static void handle_assoc(local_info_t *local, struct sk_buff *skb,
 
 			if (ileft != strlen(local->essid) ||
 			    memcmp(local->essid, u, ileft) != 0) {
-				txt = "not our SSID";
+				txt = "yest our SSID";
 				resp = WLAN_STATUS_ASSOC_DENIED_UNSPEC;
 				goto fail;
 			}
@@ -1616,7 +1616,7 @@ static void handle_assoc(local_info_t *local, struct sk_buff *skb,
 			sta->aid = 0;
 			spin_unlock_bh(&local->ap->sta_table_lock);
 			resp = WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA;
-			txt = "no room for more AIDs";
+			txt = "yes room for more AIDs";
 		} else {
 			local->ap->sta_aid[sta->aid - 1] = sta;
 			spin_unlock_bh(&local->ap->sta_table_lock);
@@ -1737,7 +1737,7 @@ static void handle_deauth(local_info_t *local, struct sk_buff *skb,
 	spin_unlock_bh(&local->ap->sta_table_lock);
 	if (sta == NULL) {
 		printk("%s: deauthentication from %pM, "
-	       "reason_code=%d, but STA not authenticated\n", dev->name,
+	       "reason_code=%d, but STA yest authenticated\n", dev->name,
 		       hdr->addr2, reason_code);
 	}
 }
@@ -1779,7 +1779,7 @@ static void handle_disassoc(local_info_t *local, struct sk_buff *skb,
 	spin_unlock_bh(&local->ap->sta_table_lock);
 	if (sta == NULL) {
 		printk("%s: disassociation from %pM, "
-		       "reason_code=%d, but STA not authenticated\n",
+		       "reason_code=%d, but STA yest authenticated\n",
 		       dev->name, hdr->addr2, reason_code);
 	}
 }
@@ -1793,7 +1793,7 @@ static void ap_handle_data_nullfunc(local_info_t *local,
 
 	/* some STA f/w's seem to require control::ACK frame for
 	 * data::nullfunc, but at least Prism2 station f/w version 0.8.0 does
-	 * not send this..
+	 * yest send this..
 	 * send control::ACK for the data::nullfunc */
 
 	printk(KERN_DEBUG "Sending control::ACK for data::nullfunc\n");
@@ -1817,7 +1817,7 @@ static void ap_handle_dropped_data(local_info_t *local,
 	spin_unlock_bh(&local->ap->sta_table_lock);
 
 	if (sta != NULL && (sta->flags & WLAN_STA_ASSOC)) {
-		PDEBUG(DEBUG_AP, "ap_handle_dropped_data: STA is now okay?\n");
+		PDEBUG(DEBUG_AP, "ap_handle_dropped_data: STA is yesw okay?\n");
 		atomic_dec(&sta->users);
 		return;
 	}
@@ -1842,13 +1842,13 @@ static void pspoll_send_buffered(local_info_t *local, struct sta_info *sta,
 	struct hostap_skb_tx_data *meta;
 
 	if (!(sta->flags & WLAN_STA_PS)) {
-		/* Station has moved to non-PS mode, so send all buffered
-		 * frames using normal device queue. */
+		/* Station has moved to yesn-PS mode, so send all buffered
+		 * frames using yesrmal device queue. */
 		dev_queue_xmit(skb);
 		return;
 	}
 
-	/* add a flag for hostap_handle_sta_tx() to know that this skb should
+	/* add a flag for hostap_handle_sta_tx() to kyesw that this skb should
 	 * be passed through even though STA is using PS */
 	meta = (struct hostap_skb_tx_data *) skb->cb;
 	meta->flags |= HOSTAP_TX_FLAGS_BUFFERED_FRAME;
@@ -1875,14 +1875,14 @@ static void handle_pspoll(local_info_t *local,
 
 	if (!ether_addr_equal(hdr->addr1, dev->dev_addr)) {
 		PDEBUG(DEBUG_AP,
-		       "handle_pspoll - addr1(BSSID)=%pM not own MAC\n",
+		       "handle_pspoll - addr1(BSSID)=%pM yest own MAC\n",
 		       hdr->addr1);
 		return;
 	}
 
 	aid = le16_to_cpu(hdr->duration_id);
 	if ((aid & (BIT(15) | BIT(14))) != (BIT(15) | BIT(14))) {
-		PDEBUG(DEBUG_PS, "   PSPOLL and AID[15:14] not set\n");
+		PDEBUG(DEBUG_PS, "   PSPOLL and AID[15:14] yest set\n");
 		return;
 	}
 	aid &= ~(BIT(15) | BIT(14));
@@ -1899,11 +1899,11 @@ static void handle_pspoll(local_info_t *local,
 	spin_unlock_bh(&local->ap->sta_table_lock);
 
 	if (sta == NULL) {
-		PDEBUG(DEBUG_PS, "   STA not found\n");
+		PDEBUG(DEBUG_PS, "   STA yest found\n");
 		return;
 	}
 	if (sta->aid != aid) {
-		PDEBUG(DEBUG_PS, "   received aid=%i does not match with "
+		PDEBUG(DEBUG_PS, "   received aid=%i does yest match with "
 		       "assoc.aid=%d\n", aid, sta->aid);
 		return;
 	}
@@ -1912,7 +1912,7 @@ static void handle_pspoll(local_info_t *local,
 	 * - add timeout for buffering (clear aid in TIM vector if buffer timed
 	 *   out (expiry time must be longer than ListenInterval for
 	 *   the corresponding STA; "8802-11: 11.2.1.9 AP aging function"
-	 * - what to do, if buffered, pspolled, and sent frame is not ACKed by
+	 * - what to do, if buffered, pspolled, and sent frame is yest ACKed by
 	 *   sta; store buffer for later use and leave TIM aid bit set? use
 	 *   TX event to check whether frame was ACKed?
 	 */
@@ -1926,8 +1926,8 @@ static void handle_pspoll(local_info_t *local,
 
 		if (sta->flags & WLAN_STA_PS) {
 			/* send only one buffered packet per PS Poll */
-			/* FIX: should ignore further PS Polls until the
-			 * buffered packet that was just sent is acknowledged
+			/* FIX: should igyesre further PS Polls until the
+			 * buffered packet that was just sent is ackyeswledged
 			 * (Tx or TxExc event) */
 			break;
 		}
@@ -2034,7 +2034,7 @@ static void handle_beacon(local_info_t *local, struct sk_buff *skb,
 			if (local->ap->ap_policy == AP_OTHER_AP_SAME_SSID &&
 			    (ileft != strlen(local->essid) ||
 			     memcmp(local->essid, u, ileft) != 0)) {
-				/* not our SSID */
+				/* yest our SSID */
 				return;
 			}
 
@@ -2144,7 +2144,7 @@ static void handle_ap_item(local_info_t *local, struct sk_buff *skb,
 	struct ieee80211_hdr *hdr;
 
 	/* FIX: should give skb->len to handler functions and check that the
-	 * buffer is long enough */
+	 * buffer is long eyesugh */
 	hdr = (struct ieee80211_hdr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_control);
 	type = fc & IEEE80211_FCTL_FTYPE;
@@ -2157,20 +2157,20 @@ static void handle_ap_item(local_info_t *local, struct sk_buff *skb,
 		if (!(fc & IEEE80211_FCTL_TODS) ||
 		    (fc & IEEE80211_FCTL_FROMDS)) {
 			if (stype == IEEE80211_STYPE_NULLFUNC) {
-				/* no ToDS nullfunc seems to be used to check
+				/* yes ToDS nullfunc seems to be used to check
 				 * AP association; so send reject message to
 				 * speed up re-association */
 				ap_handle_dropped_data(local, hdr);
 				goto done;
 			}
-			PDEBUG(DEBUG_AP, "   not ToDS frame (fc=0x%04x)\n",
+			PDEBUG(DEBUG_AP, "   yest ToDS frame (fc=0x%04x)\n",
 			       fc);
 			goto done;
 		}
 
 		if (!ether_addr_equal(hdr->addr1, dev->dev_addr)) {
 			PDEBUG(DEBUG_AP, "handle_ap_item - addr1(BSSID)=%pM"
-			       " not own MAC\n", hdr->addr1);
+			       " yest own MAC\n", hdr->addr1);
 			goto done;
 		}
 
@@ -2194,26 +2194,26 @@ static void handle_ap_item(local_info_t *local, struct sk_buff *skb,
 	}
 
 	if (local->hostapd) {
-		PDEBUG(DEBUG_AP, "Unknown frame in AP queue: type=0x%02x "
+		PDEBUG(DEBUG_AP, "Unkyeswn frame in AP queue: type=0x%02x "
 		       "subtype=0x%02x\n", type, stype);
 		goto done;
 	}
 
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
 	if (type != IEEE80211_FTYPE_MGMT) {
-		PDEBUG(DEBUG_AP, "handle_ap_item - not a management frame?\n");
+		PDEBUG(DEBUG_AP, "handle_ap_item - yest a management frame?\n");
 		goto done;
 	}
 
 	if (!ether_addr_equal(hdr->addr1, dev->dev_addr)) {
 		PDEBUG(DEBUG_AP, "handle_ap_item - addr1(DA)=%pM"
-		       " not own MAC\n", hdr->addr1);
+		       " yest own MAC\n", hdr->addr1);
 		goto done;
 	}
 
 	if (!ether_addr_equal(hdr->addr3, dev->dev_addr)) {
 		PDEBUG(DEBUG_AP, "handle_ap_item - addr3(BSSID)=%pM"
-		       " not own MAC\n", hdr->addr3);
+		       " yest own MAC\n", hdr->addr3);
 		goto done;
 	}
 
@@ -2222,16 +2222,16 @@ static void handle_ap_item(local_info_t *local, struct sk_buff *skb,
 		handle_assoc(local, skb, rx_stats, 0);
 		break;
 	case IEEE80211_STYPE_ASSOC_RESP:
-		PDEBUG(DEBUG_AP, "==> ASSOC RESP (ignored)\n");
+		PDEBUG(DEBUG_AP, "==> ASSOC RESP (igyesred)\n");
 		break;
 	case IEEE80211_STYPE_REASSOC_REQ:
 		handle_assoc(local, skb, rx_stats, 1);
 		break;
 	case IEEE80211_STYPE_REASSOC_RESP:
-		PDEBUG(DEBUG_AP, "==> REASSOC RESP (ignored)\n");
+		PDEBUG(DEBUG_AP, "==> REASSOC RESP (igyesred)\n");
 		break;
 	case IEEE80211_STYPE_ATIM:
-		PDEBUG(DEBUG_AP, "==> ATIM (ignored)\n");
+		PDEBUG(DEBUG_AP, "==> ATIM (igyesred)\n");
 		break;
 	case IEEE80211_STYPE_DISASSOC:
 		handle_disassoc(local, skb, rx_stats);
@@ -2243,7 +2243,7 @@ static void handle_ap_item(local_info_t *local, struct sk_buff *skb,
 		handle_deauth(local, skb, rx_stats);
 		break;
 	default:
-		PDEBUG(DEBUG_AP, "Unknown mgmt frame subtype 0x%02x\n",
+		PDEBUG(DEBUG_AP, "Unkyeswn mgmt frame subtype 0x%02x\n",
 		       stype >> 4);
 		break;
 	}
@@ -2347,7 +2347,7 @@ int prism2_ap_get_sta_qual(local_info_t *local, struct sockaddr addr[],
 			qual[count].qual = sta->last_rx_signal -
 				sta->last_rx_silence - 35;
 		qual[count].level = HFA384X_LEVEL_TO_dBm(sta->last_rx_signal);
-		qual[count].noise = HFA384X_LEVEL_TO_dBm(sta->last_rx_silence);
+		qual[count].yesise = HFA384X_LEVEL_TO_dBm(sta->last_rx_silence);
 		qual[count].updated = sta->last_rx_updated;
 
 		sta->last_rx_updated = IW_QUAL_DBM;
@@ -2419,7 +2419,7 @@ int prism2_ap_translate_scan(struct net_device *dev,
 			iwe.u.qual.qual = sta->last_rx_signal -
 				sta->last_rx_silence - 35;
 		iwe.u.qual.level = HFA384X_LEVEL_TO_dBm(sta->last_rx_signal);
-		iwe.u.qual.noise = HFA384X_LEVEL_TO_dBm(sta->last_rx_silence);
+		iwe.u.qual.yesise = HFA384X_LEVEL_TO_dBm(sta->last_rx_silence);
 		iwe.u.qual.updated = sta->last_rx_updated;
 		iwe.len = IW_EV_QUAL_LEN;
 		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
@@ -2626,7 +2626,7 @@ int prism2_hostapd(struct ap_data *ap, struct prism2_hostapd_param *param)
 	case PRISM2_HOSTAPD_STA_CLEAR_STATS:
 		return prism2_hostapd_sta_clear_stats(ap, param);
 	default:
-		printk(KERN_WARNING "prism2_hostapd: unknown cmd=%d\n",
+		printk(KERN_WARNING "prism2_hostapd: unkyeswn cmd=%d\n",
 		       param->cmd);
 		return -EOPNOTSUPP;
 	}
@@ -2696,7 +2696,7 @@ ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx)
 	hdr = (struct ieee80211_hdr *) skb->data;
 
 	if (hdr->addr1[0] & 0x01) {
-		/* broadcast/multicast frame - no AP related processing */
+		/* broadcast/multicast frame - yes AP related processing */
 		if (local->ap->num_sta <= 0)
 			ret = AP_TX_DROP;
 		goto out;
@@ -2715,16 +2715,16 @@ ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx)
 	    meta->iface->type != HOSTAP_INTERFACE_AP) {
 #if 0
 		/* This can happen, e.g., when wlan0 is added to a bridge and
-		 * bridging code does not know which port is the correct target
+		 * bridging code does yest kyesw which port is the correct target
 		 * for a unicast frame. In this case, the packet is send to all
-		 * ports of the bridge. Since this is a valid scenario, do not
+		 * ports of the bridge. Since this is a valid scenario, do yest
 		 * print out any errors here. */
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "AP: drop packet to non-associated "
+			printk(KERN_DEBUG "AP: drop packet to yesn-associated "
 			       "STA %pM\n", hdr->addr1);
 		}
 #endif
-		local->ap->tx_drop_nonassoc++;
+		local->ap->tx_drop_yesnassoc++;
 		ret = AP_TX_DROP;
 		goto out;
 	}
@@ -2753,8 +2753,8 @@ ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx)
 	}
 
 	if (meta->flags & HOSTAP_TX_FLAGS_BUFFERED_FRAME) {
-		/* packet was already buffered and now send due to
-		 * PS poll, so do not rebuffer it */
+		/* packet was already buffered and yesw send due to
+		 * PS poll, so do yest rebuffer it */
 		goto out;
 	}
 
@@ -2762,7 +2762,7 @@ ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx)
 		PDEBUG(DEBUG_PS, "%s: No more space in STA (%pM)'s"
 		       "PS mode buffer\n",
 		       local->dev->name, sta->addr);
-		/* Make sure that TIM is set for the station (it might not be
+		/* Make sure that TIM is set for the station (it might yest be
 		 * after AP wlan hw reset). */
 		/* FIX: should fix hw reset to restore bits based on STA
 		 * buffer state.. */
@@ -2776,7 +2776,7 @@ ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx)
 	set_tim = skb_queue_empty(&sta->tx_buf);
 	skb_queue_tail(&sta->tx_buf, skb);
 	/* FIX: could save RX time to skb and expire buffered frames after
-	 * some time if STA does not poll for them */
+	 * some time if STA does yest poll for them */
 
 	if (set_tim) {
 		if (sta->flags & WLAN_STA_TIM)
@@ -2833,7 +2833,7 @@ void hostap_handle_sta_tx_exc(local_info_t *local, struct sk_buff *skb)
 	sta = ap_get_sta(local->ap, hdr->addr1);
 	if (!sta) {
 		spin_unlock(&local->ap->sta_table_lock);
-		PDEBUG(DEBUG_AP, "%s: Could not find STA %pM"
+		PDEBUG(DEBUG_AP, "%s: Could yest find STA %pM"
 		       " for this TX error (@%lu)\n",
 		       local->dev->name, hdr->addr1, jiffies);
 		return;
@@ -2882,7 +2882,7 @@ static void hostap_update_sta_ps2(local_info_t *local, struct sta_info *sta,
 		       sta->addr, type >> 2, stype >> 4);
 	} else if (!pwrmgt && (sta->flags & WLAN_STA_PS)) {
 		sta->flags &= ~WLAN_STA_PS;
-		PDEBUG(DEBUG_PS2, "STA %pM changed to not use "
+		PDEBUG(DEBUG_PS2, "STA %pM changed to yest use "
 		       "PS mode (type=0x%02X, stype=0x%02X)\n",
 		       sta->addr, type >> 2, stype >> 4);
 		if (type != IEEE80211_FTYPE_CTL ||
@@ -2959,7 +2959,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
 			} else {
 				printk(KERN_DEBUG "%s: dropped received packet"
-				       " from non-associated STA %pM"
+				       " from yesn-associated STA %pM"
 				       " (type=0x%02x, subtype=0x%02x)\n",
 				       dev->name, hdr->addr2,
 				       type >> 2, stype >> 4);
@@ -2971,8 +2971,8 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 		}
 	} else if (fc & IEEE80211_FCTL_FROMDS) {
 		if (!wds) {
-			/* FromDS frame - not for us; probably
-			 * broadcast/multicast in another BSS - drop */
+			/* FromDS frame - yest for us; probably
+			 * broadcast/multicast in ayesther BSS - drop */
 			if (ether_addr_equal(hdr->addr1, dev->dev_addr)) {
 				printk(KERN_DEBUG "Odd.. FromDS packet "
 				       "received with own BSSID\n");
@@ -2990,12 +2990,12 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
 		} else {
 			/* At least Lucent f/w seems to send data::nullfunc
-			 * frames with no ToDS flag when the current AP returns
+			 * frames with yes ToDS flag when the current AP returns
 			 * after being unavailable for some time. Speed up
-			 * re-association by informing the station about it not
+			 * re-association by informing the station about it yest
 			 * being associated. */
 			printk(KERN_DEBUG "%s: rejected received nullfunc frame"
-			       " without ToDS from not associated STA %pM\n",
+			       " without ToDS from yest associated STA %pM\n",
 			       dev->name, hdr->addr2);
 			hostap_rx(dev, skb, rx_stats);
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
@@ -3005,15 +3005,15 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 	} else if (stype == IEEE80211_STYPE_NULLFUNC) {
 		/* At least Lucent cards seem to send periodic nullfunc
 		 * frames with ToDS. Let these through to update SQ
-		 * stats and PS state. Nullfunc frames do not contain
+		 * stats and PS state. Nullfunc frames do yest contain
 		 * any data and they will be dropped below. */
 	} else {
-		/* If BSSID (Addr3) is foreign, this frame is a normal
+		/* If BSSID (Addr3) is foreign, this frame is a yesrmal
 		 * broadcast frame from an IBSS network. Drop it silently.
 		 * If BSSID is own, report the dropping of this frame. */
 		if (ether_addr_equal(hdr->addr3, dev->dev_addr)) {
 			printk(KERN_DEBUG "%s: dropped received packet from %pM"
-			       " with no ToDS flag "
+			       " with yes ToDS flag "
 			       "(type=0x%02x, subtype=0x%02x)\n", dev->name,
 			       hdr->addr2, type >> 2, stype >> 4);
 			hostap_dump_rx_80211(dev->name, skb, rx_stats);
@@ -3040,7 +3040,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 		} else {
 			/* some STA f/w's seem to require control::ACK frame
 			 * for data::nullfunc, but Prism2 f/w 0.8.0 (at least
-			 * from Compaq) does not send this.. Try to generate
+			 * from Compaq) does yest send this.. Try to generate
 			 * ACK for these frames from the host driver to make
 			 * power saving work with, e.g., Lucent WaveLAN f/w */
 			hostap_rx(dev, skb, rx_stats);
@@ -3143,7 +3143,7 @@ int hostap_add_sta(struct ap_data *ap, u8 *sta_addr)
 		sta->flags = WLAN_STA_AUTH | WLAN_STA_ASSOC;
 		sta->ap = 1;
 		memset(sta->supported_rates, 0, sizeof(sta->supported_rates));
-		/* No way of knowing which rates are supported since we did not
+		/* No way of kyeswing which rates are supported since we did yest
 		 * get supported rates element from beacon/assoc req. Assume
 		 * that remote end supports all 802.11b rates. */
 		sta->supported_rates[0] = 0x82;
@@ -3173,7 +3173,7 @@ int hostap_update_rx_stats(struct ap_data *ap,
 	spin_lock(&ap->sta_table_lock);
 	sta = ap_get_sta(ap, hdr->addr2);
 	if (sta) {
-		sta->last_rx_silence = rx_stats->noise;
+		sta->last_rx_silence = rx_stats->yesise;
 		sta->last_rx_signal = rx_stats->signal;
 		sta->last_rx_rate = rx_stats->rate;
 		sta->last_rx_updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;

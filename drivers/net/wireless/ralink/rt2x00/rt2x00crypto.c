@@ -72,8 +72,8 @@ unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Extend frame length to include IV/EIV/ICV/MMIC,
-	 * note that these lengths should only be added when
-	 * mac80211 does not generate it.
+	 * yeste that these lengths should only be added when
+	 * mac80211 does yest generate it.
 	 */
 	overhead += key->icv_len;
 
@@ -215,7 +215,7 @@ void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
 
 	/*
 	 * Move payload for alignment purposes. Note that
-	 * this is only needed when no l2 padding is present.
+	 * this is only needed when yes l2 padding is present.
 	 */
 	if (!(rxdesc->dev_flags & RXDONE_L2PAD)) {
 		memmove(skb->data + transfer,

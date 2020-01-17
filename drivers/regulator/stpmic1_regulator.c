@@ -507,8 +507,8 @@ static irqreturn_t stpmic1_curlim_irq_handler(int irq, void *data)
 
 	regulator_lock(rdev);
 
-	/* Send an overcurrent notification */
-	regulator_notifier_call_chain(rdev,
+	/* Send an overcurrent yestification */
+	regulator_yestifier_call_chain(rdev,
 				      REGULATOR_EVENT_OVER_CURRENT,
 				      NULL);
 
@@ -552,7 +552,7 @@ static int stpmic1_regulator_register(struct platform_device *pdev, int id,
 
 	config.dev = &pdev->dev;
 	config.init_data = match->init_data;
-	config.of_node = match->of_node;
+	config.of_yesde = match->of_yesde;
 	config.regmap = pmic_dev->regmap;
 	config.driver_data = (void *)cfg;
 
@@ -564,7 +564,7 @@ static int stpmic1_regulator_register(struct platform_device *pdev, int id,
 	}
 
 	/* set mask reset */
-	if (of_get_property(config.of_node, "st,mask-reset", NULL) &&
+	if (of_get_property(config.of_yesde, "st,mask-reset", NULL) &&
 	    cfg->mask_reset_reg != 0) {
 		ret = regmap_update_bits(pmic_dev->regmap,
 					 cfg->mask_reset_reg,
@@ -577,7 +577,7 @@ static int stpmic1_regulator_register(struct platform_device *pdev, int id,
 	}
 
 	/* setup an irq handler for over-current detection */
-	irq = of_irq_get(config.of_node, 0);
+	irq = of_irq_get(config.of_yesde, 0);
 	if (irq > 0) {
 		ret = devm_request_threaded_irq(&pdev->dev,
 						irq, NULL,
@@ -596,11 +596,11 @@ static int stpmic1_regulator_probe(struct platform_device *pdev)
 {
 	int i, ret;
 
-	ret = of_regulator_match(&pdev->dev, pdev->dev.of_node, stpmic1_matches,
+	ret = of_regulator_match(&pdev->dev, pdev->dev.of_yesde, stpmic1_matches,
 				 ARRAY_SIZE(stpmic1_matches));
 	if (ret < 0) {
 		dev_err(&pdev->dev,
-			"Error in PMIC regulator device tree node");
+			"Error in PMIC regulator device tree yesde");
 		return ret;
 	}
 

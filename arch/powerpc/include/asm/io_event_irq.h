@@ -7,7 +7,7 @@
 #define _ASM_POWERPC_IO_EVENT_IRQ_H
 
 #include <linux/types.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #define PSERIES_IOEI_RPC_MAX_LEN 216
 
@@ -45,6 +45,6 @@ struct pseries_io_event {
 					/* padded to 4 bytes alignment)	*/
 };
 
-extern struct atomic_notifier_head pseries_ioei_notifier_list;
+extern struct atomic_yestifier_head pseries_ioei_yestifier_list;
 
 #endif /* _ASM_POWERPC_IO_EVENT_IRQ_H */

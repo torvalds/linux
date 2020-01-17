@@ -76,7 +76,7 @@ static int sun4i_tmds_determine_rate(struct clk_hw *hw,
 	/*
 	 * We only consider PLL3, since the TCON is very likely to be
 	 * clocked from it, and to have the same rate than our HDMI
-	 * clock, so we should not need to do anything.
+	 * clock, so we should yest need to do anything.
 	 */
 
 	for (p = 0; p < clk_hw_get_num_parents(hw); p++) {

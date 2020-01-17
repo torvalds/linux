@@ -20,7 +20,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -51,7 +51,7 @@
 # include <asm/agp.h>
 #else
 # ifdef __powerpc__
-#  define PAGE_AGP	pgprot_noncached_wc(PAGE_KERNEL)
+#  define PAGE_AGP	pgprot_yesncached_wc(PAGE_KERNEL)
 # else
 #  define PAGE_AGP	PAGE_KERNEL
 # endif
@@ -83,10 +83,10 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 
 	/*
 	 * OK, we're mapping AGP space on a chipset/platform on which memory accesses by
-	 * the CPU do not get remapped by the GART.  We fix this by using the kernel's
+	 * the CPU do yest get remapped by the GART.  We fix this by using the kernel's
 	 * page-table instead (that's probably faster anyhow...).
 	 */
-	/* note: use vmalloc() because num_pages could be large... */
+	/* yeste: use vmalloc() because num_pages could be large... */
 	page_map = vmalloc(array_size(num_pages, sizeof(struct page *)));
 	if (!page_map)
 		return NULL;

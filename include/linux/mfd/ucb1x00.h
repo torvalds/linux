@@ -133,7 +133,7 @@ struct ucb1x00 {
 	u16			irq_mask;
 	u16			irq_wake;
 	struct device		dev;
-	struct list_head	node;
+	struct list_head	yesde;
 	struct list_head	devs;
 	struct gpio_chip 	gpio;
 };
@@ -141,15 +141,15 @@ struct ucb1x00 {
 struct ucb1x00_driver;
 
 struct ucb1x00_dev {
-	struct list_head	dev_node;
-	struct list_head	drv_node;
+	struct list_head	dev_yesde;
+	struct list_head	drv_yesde;
 	struct ucb1x00		*ucb;
 	struct ucb1x00_driver	*drv;
 	void			*priv;
 };
 
 struct ucb1x00_driver {
-	struct list_head	node;
+	struct list_head	yesde;
 	struct list_head	devs;
 	int	(*add)(struct ucb1x00_dev *dev);
 	void	(*remove)(struct ucb1x00_dev *dev);

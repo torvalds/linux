@@ -2,7 +2,7 @@
 #include "qcom-ipq8064-v1.0.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. IPQ8064/AP-148";
+	model = "Qualcomm Techyeslogies, Inc. IPQ8064/AP-148";
 	compatible = "qcom,ipq8064-ap148";
 
 	soc {

@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -94,7 +94,7 @@ static void sdma_finalput(struct qib_sdma_state *ss)
  * order, and with appropriate processing.   Called when cleaning up
  * after sdma shutdown, and when new sdma requests are submitted for
  * a link that is down.   This matches what is done for requests
- * that complete normally, it's just the full list.
+ * that complete yesrmally, it's just the full list.
  *
  * Must be called with sdma_lock held
  */
@@ -128,8 +128,8 @@ static void sdma_sw_clean_up_task(unsigned long opaque)
 
 	/*
 	 * At this point, the following should always be true:
-	 * - We are halted, so no more descriptors are getting retired.
-	 * - We are not running, so no one is submitting new work.
+	 * - We are halted, so yes more descriptors are getting retired.
+	 * - We are yest running, so yes one is submitting new work.
 	 * - Only we can send the e40_sw_cleaned, so we can't start
 	 *   running again until we say so.  So, the active list and
 	 *   descq are ours to play with.
@@ -147,7 +147,7 @@ static void sdma_sw_clean_up_task(unsigned long opaque)
 	ppd->sdma_descq_removed = ppd->sdma_descq_added;
 
 	/*
-	 * Reset our notion of head and tail.
+	 * Reset our yestion of head and tail.
 	 * Note that the HW registers will be reset when switching states
 	 * due to calling __qib_sdma_process_event() below.
 	 */
@@ -169,10 +169,10 @@ static void sdma_sw_clean_up_task(unsigned long opaque)
 static void sdma_hw_start_up(struct qib_pportdata *ppd)
 {
 	struct qib_sdma_state *ss = &ppd->sdma_state;
-	unsigned bufno;
+	unsigned bufyes;
 
-	for (bufno = ss->first_sendbuf; bufno < ss->last_sendbuf; ++bufno)
-		ppd->dd->f_sendctrl(ppd, QIB_SENDCTRL_DISARM_BUF(bufno));
+	for (bufyes = ss->first_sendbuf; bufyes < ss->last_sendbuf; ++bufyes)
+		ppd->dd->f_sendctrl(ppd, QIB_SENDCTRL_DISARM_BUF(bufyes));
 
 	ppd->dd->f_sdma_hw_start_up(ppd);
 }
@@ -333,7 +333,7 @@ int qib_sdma_make_progress(struct qib_pportdata *ppd)
 	hwhead = dd->f_sdma_gethead(ppd);
 
 	/* The reason for some of the complexity of this code is that
-	 * not all descriptors have corresponding txps.  So, we have to
+	 * yest all descriptors have corresponding txps.  So, we have to
 	 * be able to skip over descs until we wander into the range of
 	 * the next txp on the list.
 	 */
@@ -360,13 +360,13 @@ int qib_sdma_make_progress(struct qib_pportdata *ppd)
 		if (++ppd->sdma_descq_head == ppd->sdma_descq_cnt)
 			ppd->sdma_descq_head = 0;
 
-		/* if now past this txp's descs, do the callback */
+		/* if yesw past this txp's descs, do the callback */
 		if (txp && txp->next_descq_idx == ppd->sdma_descq_head) {
 			/* remove from active list */
 			list_del_init(&txp->list);
 			if (txp->callback)
 				(*txp->callback)(txp, QIB_SDMA_TXREQ_S_OK);
-			/* see if there is another txp */
+			/* see if there is ayesther txp */
 			if (list_empty(&ppd->sdma_activelist))
 				txp = NULL;
 			else {
@@ -458,9 +458,9 @@ void qib_teardown_sdma(struct qib_pportdata *ppd)
 	qib_sdma_process_event(ppd, qib_sdma_event_e00_go_hw_down);
 
 	/*
-	 * This waits for the state machine to exit so it is not
+	 * This waits for the state machine to exit so it is yest
 	 * necessary to kill the sdma_sw_clean_up_task to make sure
-	 * it is not running.
+	 * it is yest running.
 	 */
 	sdma_finalput(&ppd->sdma_state);
 
@@ -480,7 +480,7 @@ int qib_sdma_running(struct qib_pportdata *ppd)
 }
 
 /*
- * Complete a request when sdma not running; likely only request
+ * Complete a request when sdma yest running; likely only request
  * but to simplify the code, always queue it, then process the full
  * activelist.  We process the entire list to ensure that this particular
  * request does get it's callback, but in the correct order.
@@ -492,7 +492,7 @@ static void complete_sdma_err_req(struct qib_pportdata *ppd,
 	struct qib_qp_priv *priv = tx->qp->priv;
 
 	atomic_inc(&priv->s_dma_busy);
-	/* no sdma descriptors, so no unmap_desc */
+	/* yes sdma descriptors, so yes unmap_desc */
 	tx->txreq.start_idx = 0;
 	tx->txreq.next_descq_idx = 0;
 	list_add_tail(&tx->txreq.list, &ppd->sdma_activelist);

@@ -80,7 +80,7 @@ static const struct fm10k_stats fm10k_gstrings_pf_stats[] = {
 	FM10K_STAT("xec", stats.xec.count),
 	FM10K_STAT("vlan_drop", stats.vlan_drop.count),
 	FM10K_STAT("loopback_drop", stats.loopback_drop.count),
-	FM10K_STAT("nodesc_drop", stats.nodesc_drop.count),
+	FM10K_STAT("yesdesc_drop", stats.yesdesc_drop.count),
 };
 
 /* mailbox statistics */
@@ -224,7 +224,7 @@ static void __fm10k_add_ethtool_stats(u64 **data, void *pointer,
 	unsigned int i;
 
 	if (!pointer) {
-		/* memory is not zero allocated so we have to clear it */
+		/* memory is yest zero allocated so we have to clear it */
 		for (i = 0; i < size; i++)
 			*((*data)++) = 0;
 		return;
@@ -538,7 +538,7 @@ static int fm10k_set_ringparam(struct net_device *netdev,
 
 	if ((new_tx_count == interface->tx_ring_count) &&
 	    (new_rx_count == interface->rx_ring_count)) {
-		/* nothing to do */
+		/* yesthing to do */
 		return 0;
 	}
 
@@ -754,7 +754,7 @@ static int fm10k_set_rss_hash_opt(struct fm10k_intfc *interface,
 	int rss_ipv6_udp = test_bit(FM10K_FLAG_RSS_FIELD_IPV6_UDP,
 				    interface->flags);
 
-	/* RSS does not support anything other than hashing
+	/* RSS does yest support anything other than hashing
 	 * to queues on src and dst IPs and ports
 	 */
 	if (nfc->data & ~(RXH_IP_SRC | RXH_IP_DST |
@@ -888,7 +888,7 @@ static int fm10k_mbx_test(struct fm10k_intfc *interface, u64 *data)
 	unsigned long timeout;
 	int err = -EINVAL;
 
-	/* For now this is a VF only feature */
+	/* For yesw this is a VF only feature */
 	if (hw->mac.type != fm10k_mac_vf)
 		return 0;
 
@@ -1076,7 +1076,7 @@ static int fm10k_set_rssh(struct net_device *netdev, const u32 *indir,
 	struct fm10k_hw *hw = &interface->hw;
 	int i, err;
 
-	/* We do not allow change in unsupported parameters */
+	/* We do yest allow change in unsupported parameters */
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
@@ -1132,15 +1132,15 @@ static int fm10k_set_channels(struct net_device *dev,
 	struct fm10k_intfc *interface = netdev_priv(dev);
 	unsigned int count = ch->combined_count;
 
-	/* verify they are not requesting separate vectors */
+	/* verify they are yest requesting separate vectors */
 	if (!count || ch->rx_count || ch->tx_count)
 		return -EINVAL;
 
-	/* verify other_count has not changed */
+	/* verify other_count has yest changed */
 	if (ch->other_count != NON_Q_VECTORS)
 		return -EINVAL;
 
-	/* verify the number of channels does not exceed hardware limits */
+	/* verify the number of channels does yest exceed hardware limits */
 	if (count > fm10k_max_channels(dev))
 		return -EINVAL;
 

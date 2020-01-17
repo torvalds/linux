@@ -46,7 +46,7 @@ struct clk_zx_pll {
 }
 
 /*
- * The pd_bit is not available on ZX296718, so let's pass something
+ * The pd_bit is yest available on ZX296718, so let's pass something
  * bigger than 31, e.g. 0xff, to indicate that.
  */
 #define ZX296718_PLL(_name, _parent, _reg, _table)			\

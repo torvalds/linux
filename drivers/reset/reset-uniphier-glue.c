@@ -80,7 +80,7 @@ static int uniphier_glue_reset_probe(struct platform_device *pdev)
 	priv->rdata.rcdev.owner = THIS_MODULE;
 	priv->rdata.rcdev.nr_resets = size * BITS_PER_BYTE;
 	priv->rdata.rcdev.ops = &reset_simple_ops;
-	priv->rdata.rcdev.of_node = dev->of_node;
+	priv->rdata.rcdev.of_yesde = dev->of_yesde;
 	priv->rdata.active_low = true;
 
 	platform_set_drvdata(pdev, priv);

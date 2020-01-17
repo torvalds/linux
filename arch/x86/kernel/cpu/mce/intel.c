@@ -45,7 +45,7 @@ static DEFINE_PER_CPU(mce_banks_t, mce_banks_owned);
  * CMCI storm detection backoff counter
  *
  * During storm, we reset this counter to INITIAL_CHECK_INTERVAL in case we've
- * encountered an error. If not, we decrement it by one. We signal the end of
+ * encountered an error. If yest, we decrement it by one. We signal the end of
  * the CMCI storm when it reaches 0.
  */
 static DEFINE_PER_CPU(int, cmci_backoff_cnt);
@@ -77,13 +77,13 @@ static int cmci_supported(int *banks)
 {
 	u64 cap;
 
-	if (mca_cfg.cmci_disabled || mca_cfg.ignore_ce)
+	if (mca_cfg.cmci_disabled || mca_cfg.igyesre_ce)
 		return 0;
 
 	/*
-	 * Vendor check is not strictly needed, but the initial
+	 * Vendor check is yest strictly needed, but the initial
 	 * initialization is vendor keyed and this
-	 * makes sure none of the backdoors are entered otherwise.
+	 * makes sure yesne of the backdoors are entered otherwise.
 	 */
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL &&
 	    boot_cpu_data.x86_vendor != X86_VENDOR_ZHAOXIN)
@@ -176,7 +176,7 @@ unsigned long cmci_intel_adjust_timer(unsigned long interval)
 {
 	if ((this_cpu_read(cmci_backoff_cnt) > 0) &&
 	    (__this_cpu_read(cmci_storm_state) == CMCI_STORM_ACTIVE)) {
-		mce_notify_irq();
+		mce_yestify_irq();
 		return CMCI_STORM_INTERVAL;
 	}
 
@@ -185,12 +185,12 @@ unsigned long cmci_intel_adjust_timer(unsigned long interval)
 
 		/*
 		 * We switch back to interrupt mode once the poll timer has
-		 * silenced itself. That means no events recorded and the timer
+		 * silenced itself. That means yes events recorded and the timer
 		 * interval is back to our poll interval.
 		 */
 		__this_cpu_write(cmci_storm_state, CMCI_STORM_SUBSIDED);
 		if (!atomic_sub_return(1, &cmci_storm_on_cpus))
-			pr_notice("CMCI storm subsided: switching to interrupt mode\n");
+			pr_yestice("CMCI storm subsided: switching to interrupt mode\n");
 
 		/* FALLTHROUGH */
 
@@ -216,17 +216,17 @@ static bool cmci_storm_detect(void)
 {
 	unsigned int cnt = __this_cpu_read(cmci_storm_cnt);
 	unsigned long ts = __this_cpu_read(cmci_time_stamp);
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	int r;
 
 	if (__this_cpu_read(cmci_storm_state) != CMCI_STORM_NONE)
 		return true;
 
-	if (time_before_eq(now, ts + CMCI_STORM_INTERVAL)) {
+	if (time_before_eq(yesw, ts + CMCI_STORM_INTERVAL)) {
 		cnt++;
 	} else {
 		cnt = 1;
-		__this_cpu_write(cmci_time_stamp, now);
+		__this_cpu_write(cmci_time_stamp, yesw);
 	}
 	__this_cpu_write(cmci_storm_cnt, cnt);
 
@@ -240,7 +240,7 @@ static bool cmci_storm_detect(void)
 	this_cpu_write(cmci_backoff_cnt, INITIAL_CHECK_INTERVAL);
 
 	if (r == 1)
-		pr_notice("CMCI storm detected: switching to poll mode\n");
+		pr_yestice("CMCI storm detected: switching to poll mode\n");
 	return true;
 }
 
@@ -248,7 +248,7 @@ static bool cmci_storm_detect(void)
  * The interrupt handler. This is called on every event.
  * Just call the poller directly to log any events.
  * This could in theory increase the threshold under high load,
- * but doesn't for now.
+ * but doesn't for yesw.
  */
 static void intel_threshold_interrupt(void)
 {
@@ -314,9 +314,9 @@ static void cmci_discover(int banks)
 			__clear_bit(i, this_cpu_ptr(mce_poll_banks));
 			/*
 			 * We are able to set thresholds for some banks that
-			 * had a threshold of 0. This means the BIOS has not
-			 * set the thresholds properly or does not work with
-			 * this boot option. Note down now and report later.
+			 * had a threshold of 0. This means the BIOS has yest
+			 * set the thresholds properly or does yest work with
+			 * this boot option. Note down yesw and report later.
 			 */
 			if (mca_cfg.bios_cmci_threshold && bios_zero_thresh &&
 					(val & MCI_CTL2_CMCI_THRESHOLD_MASK))
@@ -328,7 +328,7 @@ static void cmci_discover(int banks)
 	raw_spin_unlock_irqrestore(&cmci_discover_lock, flags);
 	if (mca_cfg.bios_cmci_threshold && bios_wrong_thresh) {
 		pr_info_once(
-			"bios_cmci_threshold: Some banks do not have valid thresholds set\n");
+			"bios_cmci_threshold: Some banks do yest have valid thresholds set\n");
 		pr_info_once(
 			"bios_cmci_threshold: Make sure your BIOS supports this boot option\n");
 	}
@@ -436,9 +436,9 @@ void intel_init_cmci(void)
 	cmci_discover(banks);
 	/*
 	 * For CPU #0 this runs with still disabled APIC, but that's
-	 * ok because only the vector is set up. We still do another
+	 * ok because only the vector is set up. We still do ayesther
 	 * check for the banks later for CPU #0 just to make sure
-	 * to not miss any events.
+	 * to yest miss any events.
 	 */
 	apic_write(APIC_LVTCMCI, THRESHOLD_APIC_VECTOR|APIC_DM_FIXED);
 	cmci_recheck();
@@ -474,7 +474,7 @@ static void intel_ppin_init(struct cpuinfo_x86 *c)
 	unsigned long long val;
 
 	/*
-	 * Even if testing the presence of the MSR would be enough, we don't
+	 * Even if testing the presence of the MSR would be eyesugh, we don't
 	 * want to risk the situation where other models reuse this MSR for
 	 * other purposes.
 	 */
@@ -496,7 +496,7 @@ static void intel_ppin_init(struct cpuinfo_x86 *c)
 			return;
 		}
 
-		/* If PPIN is disabled, but not locked, try to enable: */
+		/* If PPIN is disabled, but yest locked, try to enable: */
 		if (!(val & 3UL)) {
 			wrmsrl_safe(MSR_PPIN_CTL,  val | 2UL);
 			rdmsrl_safe(MSR_PPIN_CTL, &val);

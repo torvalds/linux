@@ -186,7 +186,7 @@
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vcc3v3_dcin_reg>; /* VCC3V3_EMMC is connected to VCC3V3_DCIN */
 	vqmmc-supply = <&vcc1v8_ldo1_reg>;
-	ti,non-removable;
+	ti,yesn-removable;
 	status = "okay";
 };
 
@@ -243,10 +243,10 @@
 	pinctrl-0 = <&spi1_pins>;
 	status = "okay";
 
-	spi_nor: flash@0 {
+	spi_yesr: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		spi-max-frequency = <5000000>;
 		m25p,fast-read;
 		reg = <0>;
@@ -271,7 +271,7 @@
 	cdns,rclk-en;
 
 	flash0: m25p80@0 {
-		compatible = "s25fl512s", "jedec,spi-nor";
+		compatible = "s25fl512s", "jedec,spi-yesr";
 		reg = <0>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <4>;

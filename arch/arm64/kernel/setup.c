@@ -115,7 +115,7 @@ static void __init smp_build_mpidr_hash(void)
 	u64 mask = 0;
 	/*
 	 * Pre-scan the list of MPIDRS and filter out bits that do
-	 * not contribute to affinity levels, ie they never toggle.
+	 * yest contribute to affinity levels, ie they never toggle.
 	 */
 	for_each_possible_cpu(i)
 		mask |= (cpu_logical_map(i) ^ cpu_logical_map(0));
@@ -141,8 +141,8 @@ static void __init smp_build_mpidr_hash(void)
 	 * them in order to compress the 32 bits values space to a
 	 * compressed set of values. This is equivalent to hashing
 	 * the MPIDR_EL1 through shifting and ORing. It is a collision free
-	 * hash though not minimal since some levels might contain a number
-	 * of CPUs that is not an exact power of 2 and their bit
+	 * hash though yest minimal since some levels might contain a number
+	 * of CPUs that is yest an exact power of 2 and their bit
 	 * representation might contain holes, eg MPIDR_EL1[7:0] = {0x2, 0x80}.
 	 */
 	mpidr_hash.shift_aff[0] = MPIDR_LEVEL_SHIFT(0) + fs[0];
@@ -180,7 +180,7 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 	if (!dt_virt || !early_init_dt_scan(dt_virt)) {
 		pr_crit("\n"
 			"Error: invalid device tree blob at physical address %pa (virtual address 0x%p)\n"
-			"The dtb must be 8-byte aligned and must not exceed 2 MB in size\n"
+			"The dtb must be 8-byte aligned and must yest exceed 2 MB in size\n"
 			"\nPlease check your bootloader.",
 			&dt_phys, dt_virt);
 
@@ -188,7 +188,7 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 			cpu_relax();
 	}
 
-	/* Early fixups are done, map the FDT as read-only now */
+	/* Early fixups are done, map the FDT as read-only yesw */
 	fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL_RO);
 
 	name = of_flat_dt_get_machine_name();
@@ -219,7 +219,7 @@ static void __init request_standard_resources(void)
 
 	for_each_memblock(memory, region) {
 		res = &standard_resources[i++];
-		if (memblock_is_nomap(region)) {
+		if (memblock_is_yesmap(region)) {
 			res->name  = "reserved";
 			res->flags = IORESOURCE_MEM;
 		} else {
@@ -298,7 +298,7 @@ void __init setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	/*
-	 * Unmask asynchronous aborts and fiq after bringing up possible
+	 * Unmask asynchroyesus aborts and fiq after bringing up possible
 	 * earlycon. (Report possible System Errors once we can report this
 	 * occurred).
 	 */
@@ -357,7 +357,7 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 	if (boot_args[1] || boot_args[2] || boot_args[3]) {
-		pr_err("WARNING: x1-x3 nonzero in violation of boot protocol:\n"
+		pr_err("WARNING: x1-x3 yesnzero in violation of boot protocol:\n"
 			"\tx1: %016llx\n\tx2: %016llx\n\tx3: %016llx\n"
 			"This indicates a broken bootloader or old kernel\n",
 			boot_args[1], boot_args[2], boot_args[3]);
@@ -377,8 +377,8 @@ static int __init topology_init(void)
 {
 	int i;
 
-	for_each_online_node(i)
-		register_one_node(i);
+	for_each_online_yesde(i)
+		register_one_yesde(i);
 
 	for_each_possible_cpu(i) {
 		struct cpu *cpu = &per_cpu(cpu_data.cpu, i);
@@ -393,7 +393,7 @@ subsys_initcall(topology_init);
 /*
  * Dump out kernel offset information on panic.
  */
-static int dump_kernel_offset(struct notifier_block *self, unsigned long v,
+static int dump_kernel_offset(struct yestifier_block *self, unsigned long v,
 			      void *p)
 {
 	const unsigned long offset = kaslr_offset();
@@ -408,14 +408,14 @@ static int dump_kernel_offset(struct notifier_block *self, unsigned long v,
 	return 0;
 }
 
-static struct notifier_block kernel_offset_notifier = {
-	.notifier_call = dump_kernel_offset
+static struct yestifier_block kernel_offset_yestifier = {
+	.yestifier_call = dump_kernel_offset
 };
 
 static int __init register_kernel_offset_dumper(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &kernel_offset_notifier);
+	atomic_yestifier_chain_register(&panic_yestifier_list,
+				       &kernel_offset_yestifier);
 	return 0;
 }
 __initcall(register_kernel_offset_dumper);

@@ -63,7 +63,7 @@ Required properties:
   "st,flexgen-audio", "st,flexgen" (enable clock propagation on parent for
   audio use case)
   "st,flexgen-video", "st,flexgen" (enable clock propagation on parent
-					and activate synchronous mode)
+					and activate synchroyesus mode)
 
 - #clock-cells : from common clock binding; shall be set to 1 (multiple clock
   outputs).

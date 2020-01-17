@@ -10,9 +10,9 @@
  * Emulation of a SCSI host adapter for Virtual I/O devices
  *
  * This driver supports the SCSI adapter implemented by the IBM
- * Power5 firmware.  That SCSI adapter is not a physical adapter,
+ * Power5 firmware.  That SCSI adapter is yest a physical adapter,
  * but allows Linux SCSI peripheral drivers to directly
- * access devices in another logical partition on the physical system.
+ * access devices in ayesther logical partition on the physical system.
  *
  * The virtual adapter(s) are present in the open firmware device
  * tree just like real adapters.
@@ -24,7 +24,7 @@
  *
  * Messages are sent between partitions on a "Command/Response Queue" 
  * (CRQ), which is just a buffer of 16 byte entries in the receiver's 
- * Senders cannot access the buffer directly, but send messages by
+ * Senders canyest access the buffer directly, but send messages by
  * making a hypervisor call and passing in the 16 bytes.  The hypervisor
  * puts the message in the next 16 byte space in round-robin fashion,
  * turns on the high order bit of the message (the valid bit), and 
@@ -114,7 +114,7 @@ static void ibmvscsi_handle_crq(struct viosrp_crq *crq,
  */
 /**
  * ibmvscsi_handle_event: - Interrupt handler for crq events
- * @irq:	number of irq to handle, not used
+ * @irq:	number of irq to handle, yest used
  * @dev_instance: ibmvscsi_host_data of host that received interrupt
  *
  * Disables interrupts and schedules srp_task
@@ -148,7 +148,7 @@ static void ibmvscsi_release_crq_queue(struct crq_queue *queue,
 	do {
 		if (rc)
 			msleep(100);
-		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
+		rc = plpar_hcall_yesrets(H_FREE_CRQ, vdev->unit_address);
 	} while ((rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
 	dma_unmap_single(hostdata->dev,
 			 queue->msg_token,
@@ -160,7 +160,7 @@ static void ibmvscsi_release_crq_queue(struct crq_queue *queue,
  * crq_queue_next_crq: - Returns the next entry in message queue
  * @queue:	crq_queue to use
  *
- * Returns pointer to next entry in queue, or NULL if there are no new
+ * Returns pointer to next entry in queue, or NULL if there are yes new
  * entried in the CRQ.
  */
 static struct viosrp_crq *crq_queue_next_crq(struct crq_queue *queue)
@@ -201,11 +201,11 @@ static int ibmvscsi_send_crq(struct ibmvscsi_host_data *hostdata,
 	 * over to the VIOS to prevent it from fetching any stale data.
 	 */
 	mb();
-	return plpar_hcall_norets(H_SEND_CRQ, vdev->unit_address, word1, word2);
+	return plpar_hcall_yesrets(H_SEND_CRQ, vdev->unit_address, word1, word2);
 }
 
 /**
- * ibmvscsi_task: - Process srps asynchronously
+ * ibmvscsi_task: - Process srps asynchroyesusly
  * @data:	ibmvscsi_host_data of host
  */
 static void ibmvscsi_task(void *data)
@@ -245,16 +245,16 @@ static void gather_partition_info(void)
 	if (!of_root)
 		return;
 
-	of_node_get(of_root);
+	of_yesde_get(of_root);
 
 	ppartition_name = of_get_property(of_root, "ibm,partition-name", NULL);
 	if (ppartition_name)
 		strlcpy(partition_name, ppartition_name,
 				sizeof(partition_name));
-	p_number_ptr = of_get_property(of_root, "ibm,partition-no", NULL);
+	p_number_ptr = of_get_property(of_root, "ibm,partition-yes", NULL);
 	if (p_number_ptr)
 		partition_number = of_read_number(p_number_ptr, 1);
-	of_node_put(of_root);
+	of_yesde_put(of_root);
 }
 
 static void set_adapter_info(struct ibmvscsi_host_data *hostdata)
@@ -291,7 +291,7 @@ static int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
 	do {
 		if (rc)
 			msleep(100);
-		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
+		rc = plpar_hcall_yesrets(H_FREE_CRQ, vdev->unit_address);
 	} while ((rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
 
 	/* Clean out the queue */
@@ -301,12 +301,12 @@ static int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
 	set_adapter_info(hostdata);
 
 	/* And re-open it again */
-	rc = plpar_hcall_norets(H_REG_CRQ,
+	rc = plpar_hcall_yesrets(H_REG_CRQ,
 				vdev->unit_address,
 				queue->msg_token, PAGE_SIZE);
 	if (rc == H_CLOSED) {
-		/* Adapter is good, but other end is not ready */
-		dev_warn(hostdata->dev, "Partner adapter not ready\n");
+		/* Adapter is good, but other end is yest ready */
+		dev_warn(hostdata->dev, "Partner adapter yest ready\n");
 	} else if (rc != 0) {
 		dev_warn(hostdata->dev, "couldn't register crq--rc 0x%x\n", rc);
 	}
@@ -346,7 +346,7 @@ static int ibmvscsi_init_crq_queue(struct crq_queue *queue,
 	gather_partition_info();
 	set_adapter_info(hostdata);
 
-	retrc = rc = plpar_hcall_norets(H_REG_CRQ,
+	retrc = rc = plpar_hcall_yesrets(H_REG_CRQ,
 				vdev->unit_address,
 				queue->msg_token, PAGE_SIZE);
 	if (rc == H_RESOURCE)
@@ -355,8 +355,8 @@ static int ibmvscsi_init_crq_queue(struct crq_queue *queue,
 					      hostdata);
 
 	if (rc == H_CLOSED) {
-		/* Adapter is good, but other end is not ready */
-		dev_warn(hostdata->dev, "Partner adapter not ready\n");
+		/* Adapter is good, but other end is yest ready */
+		dev_warn(hostdata->dev, "Partner adapter yest ready\n");
 		retrc = 0;
 	} else if (rc != 0) {
 		dev_warn(hostdata->dev, "Error %d opening adapter\n", rc);
@@ -391,7 +391,7 @@ static int ibmvscsi_init_crq_queue(struct crq_queue *queue,
 	do {
 		if (rc)
 			msleep(100);
-		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
+		rc = plpar_hcall_yesrets(H_FREE_CRQ, vdev->unit_address);
 	} while ((rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
       reg_crq_failed:
 	dma_unmap_single(hostdata->dev,
@@ -419,7 +419,7 @@ static int ibmvscsi_reenable_crq_queue(struct crq_queue *queue,
 	do {
 		if (rc)
 			msleep(100);
-		rc = plpar_hcall_norets(H_ENABLE_CRQ, vdev->unit_address);
+		rc = plpar_hcall_yesrets(H_ENABLE_CRQ, vdev->unit_address);
 	} while ((rc == H_IN_PROGRESS) || (rc == H_BUSY) || (H_IS_LONG_BUSY(rc)));
 
 	if (rc)
@@ -534,12 +534,12 @@ static void free_event_struct(struct event_pool *pool,
 {
 	if (!valid_event_struct(pool, evt)) {
 		dev_err(evt->hostdata->dev, "Freeing invalid event_struct %p "
-			"(not in pool %p)\n", evt, pool->events);
+			"(yest in pool %p)\n", evt, pool->events);
 		return;
 	}
 	if (atomic_inc_return(&evt->free) != 1) {
 		dev_err(evt->hostdata->dev, "Freeing event_struct %p "
-			"which is not in use!\n", evt);
+			"which is yest in use!\n", evt);
 		return;
 	}
 }
@@ -548,8 +548,8 @@ static void free_event_struct(struct event_pool *pool,
  * get_evt_struct: - Gets the next free event in pool
  * @pool:	event_pool that contains the events to be searched
  *
- * Returns the next event in "free" state, and NULL if none are free.
- * Note that no synchronization is done here, we assume the host_lock
+ * Returns the next event in "free" state, and NULL if yesne are free.
+ * Note that yes synchronization is done here, we assume the host_lock
  * will syncrhonze things.
 */
 static struct srp_event_struct *get_event_struct(struct event_pool *pool)
@@ -566,7 +566,7 @@ static struct srp_event_struct *get_event_struct(struct event_pool *pool)
 		}
 	}
 
-	printk(KERN_ERR "ibmvscsi: found no event struct in pool!\n");
+	printk(KERN_ERR "ibmvscsi: found yes event struct in pool!\n");
 	return NULL;
 }
 
@@ -765,7 +765,7 @@ static int map_data_for_srp_cmd(struct scsi_cmnd *cmd,
 		return 0;
 	default:
 		sdev_printk(KERN_ERR, cmd->device,
-			    "Unknown data direction 0x%02x; can't map!\n",
+			    "Unkyeswn data direction 0x%02x; can't map!\n",
 			    cmd->sc_data_direction);
 		return 0;
 	}
@@ -843,7 +843,7 @@ static void ibmvscsi_timeout(struct timer_list *t)
  * ibmvscsi_send_srp_event: - Transforms event to u64 array and calls send_crq()
  * @evt_struct:	evt_struct to be sent
  * @hostdata:	ibmvscsi_host_data of host
- * @timeout:	timeout in seconds - 0 means do not time command
+ * @timeout:	timeout in seconds - 0 means do yest time command
  *
  * Returns the value returned from ibmvscsi_send_crq(). (Zero for success)
  * Note that this routine assumes that host_lock is held for synchronization
@@ -867,7 +867,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 		srp_req = 1;
 		request_status =
 			atomic_dec_if_positive(&hostdata->request_limit);
-		/* If request limit was -1 when we started, it is now even
+		/* If request limit was -1 when we started, it is yesw even
 		 * less than that
 		 */
 		if (request_status < -1)
@@ -1157,7 +1157,7 @@ static void login_rsp(struct srp_event_struct *evt_struct)
 	dev_info(hostdata->dev, "SRP_LOGIN succeeded\n");
 	hostdata->client_migrated = 0;
 
-	/* Now we know what the real request-limit is.
+	/* Now we kyesw what the real request-limit is.
 	 * This value is set rather than added to request_limit because
 	 * request_limit could have been set to -1 by this client.
 	 */
@@ -1222,14 +1222,14 @@ static void capabilities_rsp(struct srp_event_struct *evt_struct)
 	} else {
 		if (hostdata->caps.migration.common.server_support !=
 		    cpu_to_be16(SERVER_SUPPORTS_CAP))
-			dev_info(hostdata->dev, "Partition migration not supported\n");
+			dev_info(hostdata->dev, "Partition migration yest supported\n");
 
 		if (client_reserve) {
 			if (hostdata->caps.reserve.common.server_support ==
 			    cpu_to_be16(SERVER_SUPPORTS_CAP))
 				dev_info(hostdata->dev, "Client reserve enabled\n");
 			else
-				dev_info(hostdata->dev, "Client reserve not supported\n");
+				dev_info(hostdata->dev, "Client reserve yest supported\n");
 		}
 	}
 
@@ -1246,7 +1246,7 @@ static void send_mad_capabilities(struct ibmvscsi_host_data *hostdata)
 	struct viosrp_capabilities *req;
 	struct srp_event_struct *evt_struct;
 	unsigned long flags;
-	struct device_node *of_node = hostdata->dev->of_node;
+	struct device_yesde *of_yesde = hostdata->dev->of_yesde;
 	const char *location;
 
 	evt_struct = get_event_struct(&hostdata->pool);
@@ -1265,7 +1265,7 @@ static void send_mad_capabilities(struct ibmvscsi_host_data *hostdata)
 	strlcpy(hostdata->caps.name, dev_name(&hostdata->host->shost_gendev),
 		sizeof(hostdata->caps.name));
 
-	location = of_get_property(of_node, "ibm,loc-code", NULL);
+	location = of_get_property(of_yesde, "ibm,loc-code", NULL);
 	location = location ? location : dev_name(hostdata->dev);
 	strlcpy(hostdata->caps.loc, location, sizeof(hostdata->caps.loc));
 
@@ -1314,7 +1314,7 @@ static void fast_fail_rsp(struct srp_event_struct *evt_struct)
 	u16 status = be16_to_cpu(evt_struct->xfer_iu->mad.fast_fail.common.status);
 
 	if (status == VIOSRP_MAD_NOT_SUPPORTED)
-		dev_err(hostdata->dev, "fast_fail not supported in server\n");
+		dev_err(hostdata->dev, "fast_fail yest supported in server\n");
 	else if (status == VIOSRP_MAD_FAILED)
 		dev_err(hostdata->dev, "fast_fail request failed\n");
 	else if (status != VIOSRP_MAD_SUCCESS)
@@ -1448,7 +1448,7 @@ static void init_adapter(struct ibmvscsi_host_data *hostdata)
 }
 
 /**
- * sync_completion: Signal that a synchronous command has completed
+ * sync_completion: Signal that a synchroyesus command has completed
  * Note that after returning from this call, the evt_struct is freed.
  * the caller waiting on this completion shouldn't touch the evt_struct
  * again.
@@ -1464,7 +1464,7 @@ static void sync_completion(struct srp_event_struct *evt_struct)
 
 /**
  * ibmvscsi_abort: Abort a command...from scsi host template
- * send this over to the server and wait synchronously for the response
+ * send this over to the server and wait synchroyesusly for the response
  */
 static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 {
@@ -1568,7 +1568,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 	}
 
 	/* Because we dropped the spinlock above, it's possible
-	 * The event is no longer in our list.  Make sure it didn't
+	 * The event is yes longer in our list.  Make sure it didn't
 	 * complete while we were aborting
 	 */
 	spin_lock_irqsave(hostdata->host->host_lock, flags);
@@ -1602,7 +1602,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 
 /**
  * ibmvscsi_eh_device_reset_handler: Reset a single LUN...from scsi host 
- * template send this over to the server and wait synchronously for the 
+ * template send this over to the server and wait synchroyesusly for the 
  * response
  */
 static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
@@ -1688,7 +1688,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
-	/* We need to find all commands for this LUN that have not yet been
+	/* We need to find all commands for this LUN that have yest yet been
 	 * responded to, and fail them with DID_RESET
 	 */
 	spin_lock_irqsave(hostdata->host->host_lock, flags);
@@ -1749,7 +1749,7 @@ static void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 {
 	long rc;
 	unsigned long flags;
-	/* The hypervisor copies our tag value here so no byteswapping */
+	/* The hypervisor copies our tag value here so yes byteswapping */
 	struct srp_event_struct *evt_struct =
 			(__force struct srp_event_struct *)crq->IU_data_ptr;
 	switch (crq->valid) {
@@ -1774,7 +1774,7 @@ static void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 			init_adapter(hostdata);
 			break;
 		default:
-			dev_err(hostdata->dev, "unknown crq message type: %d\n", crq->format);
+			dev_err(hostdata->dev, "unkyeswn crq message type: %d\n", crq->format);
 		}
 		return;
 	case VIOSRP_CRQ_XPORT_EVENT:	/* Hypervisor telling us the connection is closed */
@@ -1828,7 +1828,7 @@ static void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 	if (evt_struct->done)
 		evt_struct->done(evt_struct);
 	else
-		dev_err(hostdata->dev, "returned done() is NULL; not running it!\n");
+		dev_err(hostdata->dev, "returned done() is NULL; yest running it!\n");
 
 	/*
 	 * Lock the host_lock before messing with these structures, since we
@@ -2233,7 +2233,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	}
 
 	hostdata->work_thread = kthread_run(ibmvscsi_work, hostdata, "%s_%d",
-					    "ibmvscsi", host->host_no);
+					    "ibmvscsi", host->host_yes);
 
 	if (IS_ERR(hostdata->work_thread)) {
 		dev_err(&vdev->dev, "couldn't initialize kthread. rc=%ld\n",
@@ -2272,7 +2272,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 		goto add_srp_port_failed;
 
 	/* Try to send an initialization message.  Note that this is allowed
-	 * to fail if the other end is not acive.  In that case we don't
+	 * to fail if the other end is yest acive.  In that case we don't
 	 * want to scan
 	 */
 	if (ibmvscsi_send_crq(hostdata, 0xC001000000000000LL, 0) == 0
@@ -2290,7 +2290,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 			msleep(10);
 		}
 
-		/* if we now have a valid request_limit, initiate a scan */
+		/* if we yesw have a valid request_limit, initiate a scan */
 		if (atomic_read(&hostdata->request_limit) > 0)
 			scsi_scan_host(host);
 	}

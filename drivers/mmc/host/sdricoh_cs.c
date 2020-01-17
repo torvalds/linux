@@ -141,7 +141,7 @@ static int sdricoh_query_status(struct sdricoh_host *host, unsigned int wanted,
 		return -ETIMEDOUT;
 	}
 
-	/* do not do this check in the loop as some commands fail otherwise */
+	/* do yest do this check in the loop as some commands fail otherwise */
 	if (status & 0x7F0000) {
 		dev_err(dev, "waiting for status bit %x failed\n", wanted);
 		return -EINVAL;
@@ -169,7 +169,7 @@ static int sdricoh_mmc_cmd(struct sdricoh_host *host, unsigned char opcode,
 			if (status  & STATUS_CMD_FINISHED)
 				break;
 		}
-		/* don't check for timeout in the loop it is not always
+		/* don't check for timeout in the loop it is yest always
 		   reset correctly
 		*/
 		if (loop == CMD_TIMEOUT || status & STATUS_CMD_TIMEOUT)
@@ -364,7 +364,7 @@ static int sdricoh_get_ro(struct mmc_host *mmc)
 	status = sdricoh_readl(host, R21C_STATUS);
 	sdricoh_writel(host, R2E4_STATUS_RESP, status);
 
-	/* some notebooks seem to have the locked flag switched */
+	/* some yestebooks seem to have the locked flag switched */
 	if (switchlocked)
 		return !(status & STATUS_CARD_LOCKED);
 
@@ -400,7 +400,7 @@ static int sdricoh_init_mmc(struct pci_dev *pci_dev,
 	}
 	/* check version? */
 	if (readl(iobase + R104_VERSION) != 0x4000) {
-		dev_dbg(dev, "no supported mmc controller found\n");
+		dev_dbg(dev, "yes supported mmc controller found\n");
 		result = -ENODEV;
 		goto unmap_io;
 	}
@@ -432,7 +432,7 @@ static int sdricoh_init_mmc(struct pci_dev *pci_dev,
 
 	/* reset the controller */
 	if (sdricoh_reset(host)) {
-		dev_dbg(dev, "could not reset\n");
+		dev_dbg(dev, "could yest reset\n");
 		result = -EIO;
 		goto free_host;
 	}

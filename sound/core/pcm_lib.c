@@ -49,7 +49,7 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 	int err;
 
 	if (runtime->silence_size < runtime->boundary) {
-		snd_pcm_sframes_t noise_dist, n;
+		snd_pcm_sframes_t yesise_dist, n;
 		snd_pcm_uframes_t appl_ptr = READ_ONCE(runtime->control->appl_ptr);
 		if (runtime->silence_start != appl_ptr) {
 			n = appl_ptr - runtime->silence_start;
@@ -63,10 +63,10 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 		}
 		if (runtime->silence_filled >= runtime->buffer_size)
 			return;
-		noise_dist = snd_pcm_playback_hw_avail(runtime) + runtime->silence_filled;
-		if (noise_dist >= (snd_pcm_sframes_t) runtime->silence_threshold)
+		yesise_dist = snd_pcm_playback_hw_avail(runtime) + runtime->silence_filled;
+		if (yesise_dist >= (snd_pcm_sframes_t) runtime->silence_threshold)
 			return;
-		frames = runtime->silence_threshold - noise_dist;
+		frames = runtime->silence_threshold - yesise_dist;
 		if (frames > runtime->silence_size)
 			frames = runtime->silence_size;
 	} else {
@@ -275,7 +275,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 						&runtime->audio_tstamp_config,
 						&runtime->audio_tstamp_report);
 
-			/* re-test in case tstamp type is not supported in hardware and was demoted to DEFAULT */
+			/* re-test in case tstamp type is yest supported in hardware and was demoted to DEFAULT */
 			if (runtime->audio_tstamp_report.actual_type == SNDRV_PCM_AUDIO_TSTAMP_TYPE_DEFAULT)
 				snd_pcm_gettime(runtime, (struct timespec *)&curr_tstamp);
 		} else
@@ -302,11 +302,11 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	hw_base = runtime->hw_ptr_base;
 	new_hw_ptr = hw_base + pos;
 	if (in_interrupt) {
-		/* we know that one period was processed */
+		/* we kyesw that one period was processed */
 		/* delta = "expected next hw_ptr" for in_interrupt != 0 */
 		delta = runtime->hw_ptr_interrupt + runtime->period_size;
 		if (delta > new_hw_ptr) {
-			/* check for double acknowledged interrupts */
+			/* check for double ackyeswledged interrupts */
 			hdelta = curr_jiffies - runtime->hw_ptr_jiffies;
 			if (hdelta > runtime->hw_ptr_buffer_jiffies/2 + 1) {
 				hw_base += runtime->buffer_size;
@@ -334,7 +334,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	if (delta < 0)
 		delta += runtime->boundary;
 
-	if (runtime->no_period_wakeup) {
+	if (runtime->yes_period_wakeup) {
 		snd_pcm_sframes_t xrun_threshold;
 		/*
 		 * Without regular period interrupts, we have to check
@@ -342,7 +342,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		 */
 		jdelta = curr_jiffies - runtime->hw_ptr_jiffies;
 		if (jdelta < runtime->hw_ptr_buffer_jiffies / 2)
-			goto no_delta_check;
+			goto yes_delta_check;
 		hdelta = jdelta - delta * HZ / runtime->rate;
 		xrun_threshold = runtime->hw_ptr_buffer_jiffies / 2 + 1;
 		while (hdelta > xrun_threshold) {
@@ -355,7 +355,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 			new_hw_ptr = hw_base + pos;
 			hdelta -= runtime->hw_ptr_buffer_jiffies;
 		}
-		goto no_delta_check;
+		goto yes_delta_check;
 	}
 
 	/* something must be really wrong */
@@ -369,24 +369,24 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 
 	/* Do jiffies check only in xrun_debug mode */
 	if (!xrun_debug(substream, XRUN_DEBUG_JIFFIESCHECK))
-		goto no_jiffies_check;
+		goto yes_jiffies_check;
 
 	/* Skip the jiffies check for hardwares with BATCH flag.
 	 * Such hardware usually just increases the position at each IRQ,
 	 * thus it can't give any strange position.
 	 */
 	if (runtime->hw.info & SNDRV_PCM_INFO_BATCH)
-		goto no_jiffies_check;
+		goto yes_jiffies_check;
 	hdelta = delta;
 	if (hdelta < runtime->delay)
-		goto no_jiffies_check;
+		goto yes_jiffies_check;
 	hdelta -= runtime->delay;
 	jdelta = curr_jiffies - runtime->hw_ptr_jiffies;
 	if (((hdelta * HZ) / runtime->rate) > jdelta + HZ/100) {
 		delta = jdelta /
 			(((runtime->period_size * HZ) / runtime->rate)
 								+ HZ/100);
-		/* move new_hw_ptr according jiffies not pos variable */
+		/* move new_hw_ptr according jiffies yest pos variable */
 		new_hw_ptr = old_hw_ptr;
 		hw_base = delta;
 		/* use loop to avoid checks for delta overflows */
@@ -411,7 +411,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		delta = 0;
 		hw_base = new_hw_ptr - (new_hw_ptr % runtime->buffer_size);
 	}
- no_jiffies_check:
+ yes_jiffies_check:
 	if (delta > runtime->period_size + runtime->period_size / 2) {
 		hw_ptr_error(substream, in_interrupt,
 			     "Lost interrupts?",
@@ -421,7 +421,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 			     (long)old_hw_ptr);
 	}
 
- no_delta_check:
+ yes_delta_check:
 	if (runtime->status->hw_ptr == new_hw_ptr) {
 		update_audio_tstamp(substream, &curr_tstamp, &audio_tstamp);
 		return 0;
@@ -563,7 +563,7 @@ static inline unsigned int muldiv32(unsigned int a, unsigned int b,
  * The interval is changed to the range satisfying both intervals.
  * The interval status (min, max, integer, etc.) are evaluated.
  *
- * Return: Positive if the value is changed, zero if it's not changed, or a
+ * Return: Positive if the value is changed, zero if it's yest changed, or a
  * negative error code.
  */
 int snd_interval_refine(struct snd_interval *i, const struct snd_interval *v)
@@ -603,7 +603,7 @@ int snd_interval_refine(struct snd_interval *i, const struct snd_interval *v)
 	} else if (!i->openmin && !i->openmax && i->min == i->max)
 		i->integer = 1;
 	if (snd_interval_checkempty(i)) {
-		snd_interval_none(i);
+		snd_interval_yesne(i);
 		return -EINVAL;
 	}
 	return changed;
@@ -645,7 +645,7 @@ static int snd_interval_refine_last(struct snd_interval *i)
 void snd_interval_mul(const struct snd_interval *a, const struct snd_interval *b, struct snd_interval *c)
 {
 	if (a->empty || b->empty) {
-		snd_interval_none(c);
+		snd_interval_yesne(c);
 		return;
 	}
 	c->empty = 0;
@@ -664,13 +664,13 @@ void snd_interval_mul(const struct snd_interval *a, const struct snd_interval *b
  *
  * c = a / b
  *
- * Returns non-zero if the value is changed, zero if not changed.
+ * Returns yesn-zero if the value is changed, zero if yest changed.
  */
 void snd_interval_div(const struct snd_interval *a, const struct snd_interval *b, struct snd_interval *c)
 {
 	unsigned int r;
 	if (a->empty || b->empty) {
-		snd_interval_none(c);
+		snd_interval_yesne(c);
 		return;
 	}
 	c->empty = 0;
@@ -699,14 +699,14 @@ void snd_interval_div(const struct snd_interval *a, const struct snd_interval *b
   *
  * c = a * b / k
  *
- * Returns non-zero if the value is changed, zero if not changed.
+ * Returns yesn-zero if the value is changed, zero if yest changed.
  */
 void snd_interval_muldivk(const struct snd_interval *a, const struct snd_interval *b,
 		      unsigned int k, struct snd_interval *c)
 {
 	unsigned int r;
 	if (a->empty || b->empty) {
-		snd_interval_none(c);
+		snd_interval_yesne(c);
 		return;
 	}
 	c->empty = 0;
@@ -730,14 +730,14 @@ void snd_interval_muldivk(const struct snd_interval *a, const struct snd_interva
  *
  * c = a * k / b
  *
- * Returns non-zero if the value is changed, zero if not changed.
+ * Returns yesn-zero if the value is changed, zero if yest changed.
  */
 void snd_interval_mulkdiv(const struct snd_interval *a, unsigned int k,
 		      const struct snd_interval *b, struct snd_interval *c)
 {
 	unsigned int r;
 	if (a->empty || b->empty) {
-		snd_interval_none(c);
+		snd_interval_yesne(c);
 		return;
 	}
 	c->empty = 0;
@@ -766,9 +766,9 @@ void snd_interval_mulkdiv(const struct snd_interval *a, unsigned int k,
  * @rats_count: number of ratnum_t 
  * @rats: ratnum_t array
  * @nump: pointer to store the resultant numerator
- * @denp: pointer to store the resultant denominator
+ * @denp: pointer to store the resultant deyesminator
  *
- * Return: Positive if the value is changed, zero if it's not changed, or a
+ * Return: Positive if the value is changed, zero if it's yest changed, or a
  * negative error code.
  */
 int snd_interval_ratnum(struct snd_interval *i,
@@ -884,9 +884,9 @@ EXPORT_SYMBOL(snd_interval_ratnum);
  * @rats_count: number of struct ratden
  * @rats: struct ratden array
  * @nump: pointer to store the resultant numerator
- * @denp: pointer to store the resultant denominator
+ * @denp: pointer to store the resultant deyesminator
  *
- * Return: Positive if the value is changed, zero if it's not changed, or a
+ * Return: Positive if the value is changed, zero if it's yest changed, or a
  * negative error code.
  */
 static int snd_interval_ratden(struct snd_interval *i,
@@ -984,10 +984,10 @@ static int snd_interval_ratden(struct snd_interval *i,
  * @mask: the bit-mask to evaluate
  *
  * Refines the interval value from the list.
- * When mask is non-zero, only the elements corresponding to bit 1 are
+ * When mask is yesn-zero, only the elements corresponding to bit 1 are
  * evaluated.
  *
- * Return: Positive if the value is changed, zero if it's not changed, or a
+ * Return: Positive if the value is changed, zero if it's yest changed, or a
  * negative error code.
  */
 int snd_interval_list(struct snd_interval *i, unsigned int count,
@@ -1023,10 +1023,10 @@ EXPORT_SYMBOL(snd_interval_list);
  * @mask: the bit-mask to evaluate
  *
  * Refines the interval value from the list of ranges.
- * When mask is non-zero, only the elements corresponding to bit 1 are
+ * When mask is yesn-zero, only the elements corresponding to bit 1 are
  * evaluated.
  *
- * Return: Positive if the value is changed, zero if it's not changed, or a
+ * Return: Positive if the value is changed, zero if it's yest changed, or a
  * negative error code.
  */
 int snd_interval_ranges(struct snd_interval *i, unsigned int count,
@@ -1037,7 +1037,7 @@ int snd_interval_ranges(struct snd_interval *i, unsigned int count,
 	struct snd_interval range;
 
 	if (!count) {
-		snd_interval_none(i);
+		snd_interval_yesne(i);
 		return -EINVAL;
 	}
 	snd_interval_any(&range_union);
@@ -1202,7 +1202,7 @@ EXPORT_SYMBOL(snd_pcm_hw_constraint_mask64);
  *
  * Apply the constraint of integer to an interval parameter.
  *
- * Return: Positive if the value is changed, zero if it's not changed, or a
+ * Return: Positive if the value is changed, zero if it's yest changed, or a
  * negative error code.
  */
 int snd_pcm_hw_constraint_integer(struct snd_pcm_runtime *runtime, snd_pcm_hw_param_t var)
@@ -1221,7 +1221,7 @@ EXPORT_SYMBOL(snd_pcm_hw_constraint_integer);
  * 
  * Apply the min/max range constraint to an interval parameter.
  *
- * Return: Positive if the value is changed, zero if it's not changed, or a
+ * Return: Positive if the value is changed, zero if it's yest changed, or a
  * negative error code.
  */
 int snd_pcm_hw_constraint_minmax(struct snd_pcm_runtime *runtime, snd_pcm_hw_param_t var,
@@ -1381,7 +1381,7 @@ static int snd_pcm_hw_rule_msbits(struct snd_pcm_hw_params *params,
 
 	if ((snd_interval_value(i) == width) ||
 	    (width == 0 && snd_interval_value(i) > msbits))
-		params->msbits = min_not_zero(params->msbits, msbits);
+		params->msbits = min_yest_zero(params->msbits, msbits);
 
 	return 0;
 }
@@ -1470,7 +1470,7 @@ int snd_pcm_hw_constraint_pow2(struct snd_pcm_runtime *runtime,
 }
 EXPORT_SYMBOL(snd_pcm_hw_constraint_pow2);
 
-static int snd_pcm_hw_rule_noresample_func(struct snd_pcm_hw_params *params,
+static int snd_pcm_hw_rule_yesresample_func(struct snd_pcm_hw_params *params,
 					   struct snd_pcm_hw_rule *rule)
 {
 	unsigned int base_rate = (unsigned int)(uintptr_t)rule->private;
@@ -1481,22 +1481,22 @@ static int snd_pcm_hw_rule_noresample_func(struct snd_pcm_hw_params *params,
 }
 
 /**
- * snd_pcm_hw_rule_noresample - add a rule to allow disabling hw resampling
+ * snd_pcm_hw_rule_yesresample - add a rule to allow disabling hw resampling
  * @runtime: PCM runtime instance
- * @base_rate: the rate at which the hardware does not resample
+ * @base_rate: the rate at which the hardware does yest resample
  *
  * Return: Zero if successful, or a negative error code on failure.
  */
-int snd_pcm_hw_rule_noresample(struct snd_pcm_runtime *runtime,
+int snd_pcm_hw_rule_yesresample(struct snd_pcm_runtime *runtime,
 			       unsigned int base_rate)
 {
 	return snd_pcm_hw_rule_add(runtime, SNDRV_PCM_HW_PARAMS_NORESAMPLE,
 				   SNDRV_PCM_HW_PARAM_RATE,
-				   snd_pcm_hw_rule_noresample_func,
+				   snd_pcm_hw_rule_yesresample_func,
 				   (void *)(uintptr_t)base_rate,
 				   SNDRV_PCM_HW_PARAM_RATE, -1);
 }
-EXPORT_SYMBOL(snd_pcm_hw_rule_noresample);
+EXPORT_SYMBOL(snd_pcm_hw_rule_yesresample);
 
 static void _snd_pcm_hw_param_any(struct snd_pcm_hw_params *params,
 				  snd_pcm_hw_param_t var)
@@ -1564,11 +1564,11 @@ void _snd_pcm_hw_param_setempty(struct snd_pcm_hw_params *params,
 				snd_pcm_hw_param_t var)
 {
 	if (hw_is_mask(var)) {
-		snd_mask_none(hw_param_mask(params, var));
+		snd_mask_yesne(hw_param_mask(params, var));
 		params->cmask |= 1 << var;
 		params->rmask |= 1 << var;
 	} else if (hw_is_interval(var)) {
-		snd_interval_none(hw_param_interval(params, var));
+		snd_interval_yesne(hw_param_interval(params, var));
 		params->cmask |= 1 << var;
 		params->rmask |= 1 << var;
 	} else {
@@ -1825,7 +1825,7 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 	set_current_state(TASK_INTERRUPTIBLE);
 	add_wait_queue(&runtime->tsleep, &wait);
 
-	if (runtime->no_period_wakeup)
+	if (runtime->yes_period_wakeup)
 		wait_time = MAX_SCHEDULE_TIMEOUT;
 	else {
 		/* use wait time from substream if available */
@@ -1916,7 +1916,7 @@ static void *get_dma_ptr(struct snd_pcm_runtime *runtime,
 		channel * (runtime->dma_bytes / runtime->channels);
 }
 
-/* default copy_user ops for write; used for both interleaved and non- modes */
+/* default copy_user ops for write; used for both interleaved and yesn- modes */
 static int default_write_copy(struct snd_pcm_substream *substream,
 			      int channel, unsigned long hwoff,
 			      void *buf, unsigned long bytes)
@@ -1937,7 +1937,7 @@ static int default_write_copy_kernel(struct snd_pcm_substream *substream,
 }
 
 /* fill silence instead of copy data; called as a transfer helper
- * from __snd_pcm_lib_write() or directly from noninterleaved_copy() when
+ * from __snd_pcm_lib_write() or directly from yesninterleaved_copy() when
  * a NULL buffer is passed
  */
 static int fill_silence(struct snd_pcm_substream *substream, int channel,
@@ -1957,7 +1957,7 @@ static int fill_silence(struct snd_pcm_substream *substream, int channel,
 	return 0;
 }
 
-/* default copy_user ops for read; used for both interleaved and non- modes */
+/* default copy_user ops for read; used for both interleaved and yesn- modes */
 static int default_read_copy(struct snd_pcm_substream *substream,
 			     int channel, unsigned long hwoff,
 			     void *buf, unsigned long bytes)
@@ -1997,9 +1997,9 @@ static int interleaved_copy(struct snd_pcm_substream *substream,
 }
 
 /* call transfer function with the converted pointers and sizes for each
- * non-interleaved channel; when buffer is NULL, silencing instead of copying
+ * yesn-interleaved channel; when buffer is NULL, silencing instead of copying
  */
-static int noninterleaved_copy(struct snd_pcm_substream *substream,
+static int yesninterleaved_copy(struct snd_pcm_substream *substream,
 			       snd_pcm_uframes_t hwoff, void *data,
 			       snd_pcm_uframes_t off,
 			       snd_pcm_uframes_t frames,
@@ -2010,8 +2010,8 @@ static int noninterleaved_copy(struct snd_pcm_substream *substream,
 	void **bufs = data;
 	int c, err;
 
-	/* convert to bytes; note that it's not frames_to_bytes() here.
-	 * in non-interleaved mode, we copy for each channel, thus
+	/* convert to bytes; yeste that it's yest frames_to_bytes() here.
+	 * in yesn-interleaved mode, we copy for each channel, thus
 	 * each copy is n_samples bytes x channels = whole frames.
 	 */
 	off = samples_to_bytes(runtime, off);
@@ -2040,7 +2040,7 @@ static int fill_silence_frames(struct snd_pcm_substream *substream,
 		return interleaved_copy(substream, off, NULL, 0, frames,
 					fill_silence);
 	else
-		return noninterleaved_copy(substream, off, NULL, 0, frames,
+		return yesninterleaved_copy(substream, off, NULL, 0, frames,
 					   fill_silence);
 }
 
@@ -2112,7 +2112,7 @@ snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 	snd_pcm_uframes_t avail;
 	pcm_copy_f writer;
 	pcm_transfer_f transfer;
-	bool nonblock;
+	bool yesnblock;
 	bool is_playback;
 	int err;
 
@@ -2129,7 +2129,7 @@ snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 	} else {
 		if (runtime->access != SNDRV_PCM_ACCESS_RW_NONINTERLEAVED)
 			return -EINVAL;
-		writer = noninterleaved_copy;
+		writer = yesninterleaved_copy;
 	}
 
 	if (!data) {
@@ -2154,7 +2154,7 @@ snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 	if (size == 0)
 		return 0;
 
-	nonblock = !!(substream->f_flags & O_NONBLOCK);
+	yesnblock = !!(substream->f_flags & O_NONBLOCK);
 
 	snd_pcm_stream_lock_irq(substream);
 	err = pcm_accessible_state(runtime);
@@ -2166,7 +2166,7 @@ snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 		snd_pcm_update_hw_ptr(substream);
 
 	/*
-	 * If size < start_threshold, wait indefinitely. Another
+	 * If size < start_threshold, wait indefinitely. Ayesther
 	 * thread may start capture
 	 */
 	if (!is_playback &&
@@ -2188,7 +2188,7 @@ snd_pcm_sframes_t __snd_pcm_lib_xfer(struct snd_pcm_substream *substream,
 				snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
 				goto _end_unlock;
 			}
-			if (nonblock) {
+			if (yesnblock) {
 				err = -EAGAIN;
 				goto _end_unlock;
 			}
@@ -2334,7 +2334,7 @@ static int pcm_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 	memset(ucontrol->value.integer.value, 0,
 	       sizeof(ucontrol->value.integer.value));
 	if (!substream->runtime)
-		return 0; /* no channels set */
+		return 0; /* yes channels set */
 	for (map = info->chmap; map->channels; map++) {
 		int i;
 		if (map->channels == substream->runtime->channels &&
@@ -2407,7 +2407,7 @@ static void pcm_chmap_ctl_private_free(struct snd_kcontrol *kcontrol)
  * @chmap: channel map elements (for query)
  * @max_channels: the max number of channels for the stream
  * @private_value: the value passed to each kcontrol's private_value field
- * @info_ret: store struct snd_pcm_chmap instance if non-NULL
+ * @info_ret: store struct snd_pcm_chmap instance if yesn-NULL
  *
  * Create channel-mapping control elements assigned to the given PCM stream(s).
  * Return: Zero if successful, or a negative error value.

@@ -23,17 +23,17 @@ unsigned long sdei_exit_mode;
 /*
  * VMAP'd stacks checking for stack overflow on exception using sp as a scratch
  * register, meaning SDEI has to switch to its own stack. We need two stacks as
- * a critical event may interrupt a normal event that has just taken a
- * synchronous exception, and is using sp as scratch register. For a critical
- * event interrupting a normal event, we can't reliably tell if we were on the
+ * a critical event may interrupt a yesrmal event that has just taken a
+ * synchroyesus exception, and is using sp as scratch register. For a critical
+ * event interrupting a yesrmal event, we can't reliably tell if we were on the
  * sdei stack.
- * For now, we allocate stacks when the driver is probed.
+ * For yesw, we allocate stacks when the driver is probed.
  */
-DECLARE_PER_CPU(unsigned long *, sdei_stack_normal_ptr);
+DECLARE_PER_CPU(unsigned long *, sdei_stack_yesrmal_ptr);
 DECLARE_PER_CPU(unsigned long *, sdei_stack_critical_ptr);
 
 #ifdef CONFIG_VMAP_STACK
-DEFINE_PER_CPU(unsigned long *, sdei_stack_normal_ptr);
+DEFINE_PER_CPU(unsigned long *, sdei_stack_yesrmal_ptr);
 DEFINE_PER_CPU(unsigned long *, sdei_stack_critical_ptr);
 #endif
 
@@ -53,7 +53,7 @@ static void free_sdei_stacks(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		_free_sdei_stack(&sdei_stack_normal_ptr, cpu);
+		_free_sdei_stack(&sdei_stack_yesrmal_ptr, cpu);
 		_free_sdei_stack(&sdei_stack_critical_ptr, cpu);
 	}
 }
@@ -62,7 +62,7 @@ static int _init_sdei_stack(unsigned long * __percpu *ptr, int cpu)
 {
 	unsigned long *p;
 
-	p = arch_alloc_vmap_stack(SDEI_STACK_SIZE, cpu_to_node(cpu));
+	p = arch_alloc_vmap_stack(SDEI_STACK_SIZE, cpu_to_yesde(cpu));
 	if (!p)
 		return -ENOMEM;
 	per_cpu(*ptr, cpu) = p;
@@ -76,7 +76,7 @@ static int init_sdei_stacks(void)
 	int err = 0;
 
 	for_each_possible_cpu(cpu) {
-		err = _init_sdei_stack(&sdei_stack_normal_ptr, cpu);
+		err = _init_sdei_stack(&sdei_stack_yesrmal_ptr, cpu);
 		if (err)
 			break;
 		err = _init_sdei_stack(&sdei_stack_critical_ptr, cpu);
@@ -90,9 +90,9 @@ static int init_sdei_stacks(void)
 	return err;
 }
 
-static bool on_sdei_normal_stack(unsigned long sp, struct stack_info *info)
+static bool on_sdei_yesrmal_stack(unsigned long sp, struct stack_info *info)
 {
-	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_normal_ptr);
+	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_yesrmal_ptr);
 	unsigned long high = low + SDEI_STACK_SIZE;
 
 	if (!low)
@@ -138,7 +138,7 @@ bool _on_sdei_stack(unsigned long sp, struct stack_info *info)
 	if (on_sdei_critical_stack(sp, info))
 		return true;
 
-	if (on_sdei_normal_stack(sp, info))
+	if (on_sdei_yesrmal_stack(sp, info))
 		return true;
 
 	return false;
@@ -214,7 +214,7 @@ static __kprobes unsigned long _sdei_handler(struct pt_regs *regs,
 
 	if (elr != read_sysreg(elr_el1)) {
 		/*
-		 * We took a synchronous exception from the SDEI handler.
+		 * We took a synchroyesus exception from the SDEI handler.
 		 * This could deadlock, and if you interrupt KVM it will
 		 * hyp-panic instead.
 		 */
@@ -247,7 +247,7 @@ static __kprobes unsigned long _sdei_handler(struct pt_regs *regs,
 }
 
 
-asmlinkage __kprobes notrace unsigned long
+asmlinkage __kprobes yestrace unsigned long
 __sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
 {
 	unsigned long ret;
@@ -256,7 +256,7 @@ __sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
 	/*
 	 * nmi_enter() deals with printk() re-entrance and use of RCU when
 	 * RCU believed this CPU was idle. Because critical events can
-	 * interrupt normal events, we may already be in_nmi().
+	 * interrupt yesrmal events, we may already be in_nmi().
 	 */
 	if (!in_nmi()) {
 		nmi_enter();

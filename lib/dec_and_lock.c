@@ -4,10 +4,10 @@
 #include <linux/atomic.h>
 
 /*
- * This is an implementation of the notion of "decrement a
+ * This is an implementation of the yestion of "decrement a
  * reference count, and return locked if it decremented to zero".
  *
- * NOTE NOTE NOTE! This is _not_ equivalent to
+ * NOTE NOTE NOTE! This is _yest_ equivalent to
  *
  *	if (atomic_dec_and_test(&atomic)) {
  *		spin_lock(&lock);

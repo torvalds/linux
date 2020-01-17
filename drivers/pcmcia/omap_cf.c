@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -92,9 +92,9 @@ static void omap_cf_timer(struct timer_list *t)
 		mod_timer(&cf->timer, jiffies + POLL_INTERVAL);
 }
 
-/* This irq handler prevents "irqNNN: nobody cared" messages as drivers
+/* This irq handler prevents "irqNNN: yesbody cared" messages as drivers
  * claim the card's IRQ.  It may also detect some card insertions, but
- * not removals; it can't always eliminate timer irqs.
+ * yest removals; it can't always eliminate timer irqs.
  */
 static irqreturn_t omap_cf_irq(int irq, void *_cf)
 {
@@ -127,7 +127,7 @@ omap_cf_set_socket(struct pcmcia_socket *sock, struct socket_state_t *s)
 {
 	u16		control;
 
-	/* REVISIT some non-OSK boards may support power switching */
+	/* REVISIT some yesn-OSK boards may support power switching */
 	switch (s->Vcc) {
 	case 0:
 	case 33:
@@ -195,7 +195,7 @@ static struct pccard_operations omap_cf_ops = {
 /*--------------------------------------------------------------------------*/
 
 /*
- * NOTE:  right now the only board-specific platform_data is
+ * NOTE:  right yesw the only board-specific platform_data is
  * "what chipselect is used".  Boards could want more.
  */
 
@@ -223,7 +223,7 @@ static int __init omap_cf_probe(struct platform_device *pdev)
 	cf->pdev = pdev;
 	platform_set_drvdata(pdev, cf);
 
-	/* this primarily just shuts up irq handling noise */
+	/* this primarily just shuts up irq handling yesise */
 	status = request_irq(irq, omap_cf_irq, IRQF_SHARED,
 			driver_name, cf);
 	if (status < 0)
@@ -270,7 +270,7 @@ static int __init omap_cf_probe(struct platform_device *pdev)
 	pr_info("%s: cs%d on irq %d\n", driver_name, seg, irq);
 
 	/* NOTE:  better EMIFS setup might support more cards; but the
-	 * TRM only shows how to affect regular flash signals, not their
+	 * TRM only shows how to affect regular flash signals, yest their
 	 * CF/PCMCIA variants...
 	 */
 	pr_debug("%s: cs%d, previous ccs %08x acs %08x\n", driver_name,
@@ -283,7 +283,7 @@ static int __init omap_cf_probe(struct platform_device *pdev)
 	pr_debug("%s: sts %04x cfg %04x control %04x %s\n", driver_name,
 		omap_readw(CF_STATUS), omap_readw(CF_CFG),
 		omap_readw(CF_CONTROL),
-		omap_cf_present() ? "present" : "(not present)");
+		omap_cf_present() ? "present" : "(yest present)");
 
 	cf->socket.owner = THIS_MODULE;
 	cf->socket.dev.parent = &pdev->dev;

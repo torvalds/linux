@@ -68,7 +68,7 @@ config KPROBES
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes
 	  a probepoint and specifies the callback.  Kprobes is useful
-	  for kernel debugging, non-intrusive instrumentation and testing.
+	  for kernel debugging, yesn-intrusive instrumentation and testing.
 	  If in doubt, say "N".
 
 config JUMP_LABEL
@@ -85,9 +85,9 @@ config JUMP_LABEL
 	 branches and include support for this optimization technique.
 
 	 If it is detected that the compiler has support for "asm goto",
-	 the kernel will compile such branches with just a nop
+	 the kernel will compile such branches with just a yesp
 	 instruction. When the condition flag is toggled to true, the
-	 nop will be converted to a jump instruction to execute the
+	 yesp will be converted to a jump instruction to execute the
 	 conditional block of instructions.
 
 	 This technique lowers overhead and stress on the branch prediction
@@ -143,8 +143,8 @@ config HAVE_EFFICIENT_UNALIGNED_ACCESS
 	  This symbol should be selected by an architecture if it can
 	  perform unaligned accesses efficiently to allow different
 	  code paths to be selected for these cases. Some network
-	  drivers, for example, could opt to not fix up alignment
-	  problems with received packets if doing so would not help
+	  drivers, for example, could opt to yest fix up alignment
+	  problems with received packets if doing so would yest help
 	  much.
 
 	  See Documentation/unaligned-memory-access.txt for more
@@ -177,7 +177,7 @@ config USER_RETURN_NOTIFIER
 	bool
 	depends on HAVE_USER_RETURN_NOTIFIER
 	help
-	  Provide a kernel-internal notification when a cpu is about to
+	  Provide a kernel-internal yestification when a cpu is about to
 	  switch to user mode.
 
 config HAVE_IOREMAP_PROT
@@ -211,7 +211,7 @@ config HAVE_NMI
 #	linux/regset.h		user_regset interfaces
 #	CORE_DUMP_USE_REGSET	#define'd in linux/elf.h
 #	TIF_SYSCALL_TRACE	calls tracehook_report_syscall_{entry,exit}
-#	TIF_NOTIFY_RESUME	calls tracehook_notify_resume()
+#	TIF_NOTIFY_RESUME	calls tracehook_yestify_resume()
 #	signal delivery		calls tracehook_signal_handler()
 #
 config HAVE_ARCH_TRACEHOOK
@@ -268,7 +268,7 @@ config HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	depends on !ARCH_TASK_STRUCT_ALLOCATOR
 	help
 	  An architecture should select this to provide hardened usercopy
-	  knowledge about what region of the thread_struct should be
+	  kyeswledge about what region of the thread_struct should be
 	  whitelisted for copying to userspace. Normally this is only the
 	  FPU registers. Specifically, arch_thread_struct_whitelist()
 	  should be implemented. Without this, the entire thread_struct
@@ -384,7 +384,7 @@ config HAVE_PERF_USER_STACK_DUMP
 	bool
 	help
 	  Support user stack dumps for perf event samples. This needs
-	  access to the user stack pointer which is not unified across
+	  access to the user stack pointer which is yest unified across
 	  architectures.
 
 config HAVE_ARCH_JUMP_LABEL
@@ -473,7 +473,7 @@ config HAVE_STACKPROTECTOR
 	  - it has implemented a stack canary (e.g. __stack_chk_guard)
 
 config CC_HAS_STACKPROTECTOR_NONE
-	def_bool $(cc-option,-fno-stack-protector)
+	def_bool $(cc-option,-fyes-stack-protector)
 
 config STACKPROTECTOR
 	bool "Stack Protector buffer overflow detection"
@@ -485,7 +485,7 @@ config STACKPROTECTOR
 	  feature puts, at the beginning of functions, a canary value on
 	  the stack just before the return address, and validates
 	  the value just before actually returning.  Stack based buffer
-	  overflows (that need to overwrite this return address) now also
+	  overflows (that need to overwrite this return address) yesw also
 	  overwrite the canary, which gets detected and the attack is then
 	  neutralized via a kernel panic.
 
@@ -553,7 +553,7 @@ config HAVE_VIRT_CPU_ACCOUNTING_GEN
 	help
 	  With VIRT_CPU_ACCOUNTING_GEN, cputime_t becomes 64-bit.
 	  Before enabling this option, arch code must be audited
-	  to ensure there are no races in concurrent read/write of
+	  to ensure there are yes races in concurrent read/write of
 	  cputime_t. For example, reading/writing 64-bit cputime_t on
 	  some 32-bit arches may require multiple accesses, so proper
 	  locking is needed to protect against concurrent accesses.
@@ -562,7 +562,7 @@ config HAVE_VIRT_CPU_ACCOUNTING_GEN
 config HAVE_IRQ_TIME_ACCOUNTING
 	bool
 	help
-	  Archs need to ensure they use a high enough resolution clock to
+	  Archs need to ensure they use a high eyesugh resolution clock to
 	  support irq time accounting and then call enable_sched_clock_irqtime().
 
 config HAVE_MOVE_PMD
@@ -590,7 +590,7 @@ config HAVE_MOD_ARCH_SPECIFIC
 	help
 	  The arch uses struct mod_arch_specific to store data.  Many arches
 	  just need a simple module loader without arch specific data - those
-	  should not enable this.
+	  should yest enable this.
 
 config MODULES_USE_ELF_RELA
 	bool
@@ -708,7 +708,7 @@ config HAVE_ARCH_COMPAT_MMAP_BASES
 
 # This allows to use a set of generic functions to determine mmap base
 # address by giving priority to top-down scheme only if the process
-# is not in legacy mode (compat task, unlimited stack size or
+# is yest in legacy mode (compat task, unlimited stack size or
 # sysctl_legacy_va_layout).
 # Architecture that selects this option can provide its own version of:
 # - STACK_RND_MASK
@@ -721,7 +721,7 @@ config HAVE_COPY_THREAD_TLS
 	bool
 	help
 	  Architecture provides copy_thread_tls to accept tls argument via
-	  normal C parameter passing, rather than extracting the syscall
+	  yesrmal C parameter passing, rather than extracting the syscall
 	  argument from pt_regs.
 
 config HAVE_STACK_VALIDATION
@@ -757,7 +757,7 @@ config CLONE_BACKWARDS
 	bool
 	help
 	  Architecture has tls passed as the 4th argument of clone(2),
-	  not the 5th one.
+	  yest the 5th one.
 
 config CLONE_BACKWARDS2
 	bool
@@ -768,7 +768,7 @@ config CLONE_BACKWARDS3
 	bool
 	help
 	  Architecture has tls passed as the 3rd argument of clone(2),
-	  not the 5th one.
+	  yest the 5th one.
 
 config ODD_RT_SIGACTION
 	bool
@@ -788,7 +788,7 @@ config OLD_SIGSUSPEND3
 config OLD_SIGACTION
 	bool
 	help
-	  Architecture has old sigaction(2) syscall.  Nope, not the same
+	  Architecture has old sigaction(2) syscall.  Nope, yest the same
 	  as OLD_SIGSUSPEND | OLD_SIGSUSPEND3 - alpha has sigsuspend(2),
 	  but fairly different variant of sigaction(2), thanks to OSF/1
 	  compatibility...
@@ -819,7 +819,7 @@ config HAVE_ARCH_VMAP_STACK
 	  An arch should select this symbol if it can support kernel stacks
 	  in vmalloc space.  This means:
 
-	  - vmalloc space must be large enough to hold many kernel stacks.
+	  - vmalloc space must be large eyesugh to hold many kernel stacks.
 	    This may rule out many 32-bit architectures.
 
 	  - Stacks in vmalloc space need to work reliably.  For example, if
@@ -841,7 +841,7 @@ config VMAP_STACK
 	---help---
 	  Enable this if you want the use virtually-mapped kernel stacks
 	  with guard pages.  This causes kernel stack overflows to be
-	  caught immediately rather than causing difficult-to-diagnose
+	  caught immediately rather than causing difficult-to-diagyesse
 	  corruption.
 
 	  To use this with KASAN, the architecture must support backing
@@ -863,7 +863,7 @@ config STRICT_KERNEL_RWX
 	default !ARCH_OPTIONAL_KERNEL_RWX || ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
 	help
 	  If this is set, kernel text and rodata memory will be made read-only,
-	  and non-text memory will be made non-executable. This provides
+	  and yesn-text memory will be made yesn-executable. This provides
 	  protection against certain security exploits (e.g. executing the heap
 	  or modifying text)
 
@@ -879,7 +879,7 @@ config STRICT_MODULE_RWX
 	default !ARCH_OPTIONAL_KERNEL_RWX || ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
 	help
 	  If this is set, module text and rodata memory will be made read-only,
-	  and non-text memory will be made non-executable. This provides
+	  and yesn-text memory will be made yesn-executable. This provides
 	  protection against certain security exploits (e.g. writing to text)
 
 # select if the architecture provides an asm/dma-direct.h header

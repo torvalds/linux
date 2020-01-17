@@ -19,7 +19,7 @@
  *
  * This is the PCI-specific support split off from the das08 driver.
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: yest applicable, uses PCI auto config
  */
 
 #include <linux/module.h>

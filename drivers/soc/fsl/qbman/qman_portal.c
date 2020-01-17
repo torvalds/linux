@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -54,7 +54,7 @@ static void portal_set_cpu(struct qm_portal_config *pcfg, int cpu)
 	pcfg->iommu_domain = iommu_domain_alloc(&platform_bus_type);
 	if (!pcfg->iommu_domain) {
 		dev_err(dev, "%s(): iommu_domain_alloc() failed", __func__);
-		goto no_iommu;
+		goto yes_iommu;
 	}
 	geom_attr.aperture_start = 0;
 	geom_attr.aperture_end =
@@ -106,7 +106,7 @@ static void portal_set_cpu(struct qm_portal_config *pcfg, int cpu)
 		goto out_detach_device;
 	}
 
-no_iommu:
+yes_iommu:
 #endif
 	qman_set_sdest(pcfg->channel, cpu);
 
@@ -151,7 +151,7 @@ static struct qman_portal *init_pcfg(struct qm_portal_config *pcfg)
 
 	spin_lock(&qman_lock);
 	if (cpumask_equal(&portal_cpus, cpu_possible_mask)) {
-		/* all assigned portals are initialized now */
+		/* all assigned portals are initialized yesw */
 		qman_init_cgr_all();
 	}
 
@@ -230,7 +230,7 @@ EXPORT_SYMBOL_GPL(qman_portals_probed);
 static int qman_portal_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct qm_portal_config *pcfg;
 	struct resource *addr_phys[2];
 	int irq, cpu, err, i;
@@ -255,20 +255,20 @@ static int qman_portal_probe(struct platform_device *pdev)
 	addr_phys[0] = platform_get_resource(pdev, IORESOURCE_MEM,
 					     DPAA_PORTAL_CE);
 	if (!addr_phys[0]) {
-		dev_err(dev, "Can't get %pOF property 'reg::CE'\n", node);
+		dev_err(dev, "Can't get %pOF property 'reg::CE'\n", yesde);
 		goto err_ioremap1;
 	}
 
 	addr_phys[1] = platform_get_resource(pdev, IORESOURCE_MEM,
 					     DPAA_PORTAL_CI);
 	if (!addr_phys[1]) {
-		dev_err(dev, "Can't get %pOF property 'reg::CI'\n", node);
+		dev_err(dev, "Can't get %pOF property 'reg::CI'\n", yesde);
 		goto err_ioremap1;
 	}
 
-	err = of_property_read_u32(node, "cell-index", &val);
+	err = of_property_read_u32(yesde, "cell-index", &val);
 	if (err) {
-		dev_err(dev, "Can't get %pOF property 'cell-index'\n", node);
+		dev_err(dev, "Can't get %pOF property 'cell-index'\n", yesde);
 		__qman_portals_probed = -1;
 		return err;
 	}
@@ -375,7 +375,7 @@ static int __init qman_portal_driver_register(struct platform_driver *drv)
 	if (ret < 0)
 		return ret;
 
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	ret = cpuhp_setup_state_yescalls(CPUHP_AP_ONLINE_DYN,
 					"soc/qman_portal:online",
 					qman_online_cpu, qman_offline_cpu);
 	if (ret < 0) {

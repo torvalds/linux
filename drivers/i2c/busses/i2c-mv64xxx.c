@@ -145,7 +145,7 @@ struct mv64xxx_i2c_data {
 	bool			errata_delay;
 	struct reset_control	*rstc;
 	bool			irq_clear_inverted;
-	/* Clk div is 2 to the power n, not 2 to the power n + 1 */
+	/* Clk div is 2 to the power n, yest 2 to the power n + 1 */
 	bool			clk_n_base_0;
 };
 
@@ -360,7 +360,7 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		/*
 		 * We're never at the start of the message here, and by this
 		 * time it's already too late to do any protocol mangling.
-		 * Thankfully, do not advertise support for that feature.
+		 * Thankfully, do yest advertise support for that feature.
 		 */
 		drv_data->send_stop = drv_data->num_msgs == 1;
 		break;
@@ -545,7 +545,7 @@ mv64xxx_i2c_wait_for_completion(struct mv64xxx_i2c_data *drv_data)
 		drv_data->rc = -ETIMEDOUT;
 		abort = 1;
 	} else if (time_left < 0) { /* Interrupted/Error */
-		drv_data->rc = time_left; /* errno value */
+		drv_data->rc = time_left; /* erryes value */
 		abort = 1;
 	}
 
@@ -795,12 +795,12 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		  struct device *dev)
 {
 	const struct of_device_id *device;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	u32 bus_freq, tclk;
 	int rc = 0;
 
 	/* CLK is mandatory when using DT to describe the i2c bus. We
-	 * need to know tclk in order to calculate bus clock
+	 * need to kyesw tclk in order to calculate bus clock
 	 * factors.
 	 */
 	if (IS_ERR(drv_data->clk)) {
@@ -828,7 +828,7 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 	}
 	reset_control_deassert(drv_data->rstc);
 
-	/* Its not yet defined how timeouts will be specified in device tree.
+	/* Its yest yet defined how timeouts will be specified in device tree.
 	 * So hard code the value to 1 second.
 	 */
 	drv_data->adapter.timeout = HZ;
@@ -880,7 +880,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	struct resource	*r;
 	int	rc;
 
-	if ((!pdata && !pd->dev.of_node))
+	if ((!pdata && !pd->dev.of_yesde))
 		return -ENODEV;
 
 	drv_data = devm_kzalloc(&pd->dev, sizeof(struct mv64xxx_i2c_data),
@@ -921,7 +921,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 		drv_data->adapter.timeout = msecs_to_jiffies(pdata->timeout);
 		drv_data->offload_enabled = false;
 		memcpy(&drv_data->reg_offsets, &mv64xxx_i2c_regs_mv64xxx, sizeof(drv_data->reg_offsets));
-	} else if (pd->dev.of_node) {
+	} else if (pd->dev.of_yesde) {
 		rc = mv64xxx_of_config(drv_data, &pd->dev);
 		if (rc)
 			goto exit_clk;
@@ -936,7 +936,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	drv_data->adapter.owner = THIS_MODULE;
 	drv_data->adapter.class = I2C_CLASS_DEPRECATED;
 	drv_data->adapter.nr = pd->id;
-	drv_data->adapter.dev.of_node = pd->dev.of_node;
+	drv_data->adapter.dev.of_yesde = pd->dev.of_yesde;
 	platform_set_drvdata(pd, drv_data);
 	i2c_set_adapdata(&drv_data->adapter, drv_data);
 

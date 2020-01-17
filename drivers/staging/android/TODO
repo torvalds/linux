@@ -1,12 +1,12 @@
 TODO:
 	- sparse fixes
-	- rename files to be not so "generic"
+	- rename files to be yest so "generic"
 	- add proper arch dependencies as needed
 	- audit userspace interfaces to make sure they are sane
 
 
 ion/
- - Split /dev/ion up into multiple nodes (e.g. /dev/ion/heap0)
+ - Split /dev/ion up into multiple yesdes (e.g. /dev/ion/heap0)
  - Better test framework (integration with VGEM was suggested)
 
 vsoc.c, uapi/vsoc_shm.h

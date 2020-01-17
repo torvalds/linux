@@ -18,15 +18,15 @@
 #include <asm/eeh.h>
 
 static struct pci_bus *find_bus_among_children(struct pci_bus *bus,
-					       struct device_node *dn)
+					       struct device_yesde *dn)
 {
 	struct pci_bus *child = NULL;
 	struct pci_bus *tmp;
 
-	if (pci_bus_to_OF_node(bus) == dn)
+	if (pci_bus_to_OF_yesde(bus) == dn)
 		return bus;
 
-	list_for_each_entry(tmp, &bus->children, node) {
+	list_for_each_entry(tmp, &bus->children, yesde) {
 		child = find_bus_among_children(tmp, dn);
 		if (child)
 			break;
@@ -35,7 +35,7 @@ static struct pci_bus *find_bus_among_children(struct pci_bus *bus,
 	return child;
 }
 
-struct pci_bus *pci_find_bus_by_node(struct device_node *dn)
+struct pci_bus *pci_find_bus_by_yesde(struct device_yesde *dn)
 {
 	struct pci_dn *pdn = PCI_DN(dn);
 
@@ -44,7 +44,7 @@ struct pci_bus *pci_find_bus_by_node(struct device_node *dn)
 
 	return find_bus_among_children(pdn->phb->bus, dn);
 }
-EXPORT_SYMBOL_GPL(pci_find_bus_by_node);
+EXPORT_SYMBOL_GPL(pci_find_bus_by_yesde);
 
 /**
  * pcibios_release_device - release PCI device
@@ -62,7 +62,7 @@ void pcibios_release_device(struct pci_dev *dev)
 	if (phb->controller_ops.release_device)
 		phb->controller_ops.release_device(dev);
 
-	/* free()ing the pci_dn has been deferred to us, do it now */
+	/* free()ing the pci_dn has been deferred to us, do it yesw */
 	if (pdn && (pdn->flags & PCI_DN_FLAG_DEAD)) {
 		pci_dbg(dev, "freeing dead pdn\n");
 		kfree(pdn);
@@ -82,7 +82,7 @@ void pci_hp_remove_devices(struct pci_bus *bus)
 	struct pci_bus *child_bus;
 
 	/* First go down child busses */
-	list_for_each_entry(child_bus, &bus->children, node)
+	list_for_each_entry(child_bus, &bus->children, yesde)
 		pci_hp_remove_devices(child_bus);
 
 	pr_debug("PCI: Removing devices on bus %04x:%02x\n",
@@ -107,10 +107,10 @@ EXPORT_SYMBOL_GPL(pci_hp_remove_devices);
  */
 void pci_hp_add_devices(struct pci_bus *bus)
 {
-	int slotno, mode, max;
+	int slotyes, mode, max;
 	struct pci_dev *dev;
 	struct pci_controller *phb;
-	struct device_node *dn = pci_bus_to_OF_node(bus);
+	struct device_yesde *dn = pci_bus_to_OF_yesde(bus);
 
 	eeh_add_device_tree_early(PCI_DN(dn));
 
@@ -132,8 +132,8 @@ void pci_hp_add_devices(struct pci_bus *bus)
 		 * order for fully rescan all the way down to pick them up.
 		 * They can have been removed during partial hotplug.
 		 */
-		slotno = PCI_SLOT(PCI_DN(dn->child)->devfn);
-		pci_scan_slot(bus, PCI_DEVFN(slotno, 0));
+		slotyes = PCI_SLOT(PCI_DN(dn->child)->devfn);
+		pci_scan_slot(bus, PCI_DEVFN(slotyes, 0));
 		pcibios_setup_bus_devices(bus);
 		max = bus->busn_res.start;
 		/*

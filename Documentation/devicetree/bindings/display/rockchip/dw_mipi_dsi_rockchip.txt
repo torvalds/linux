@@ -1,4 +1,4 @@
-Rockchip specific extensions to the Synopsys Designware MIPI DSI
+Rockchip specific extensions to the Syyespsys Designware MIPI DSI
 ================================
 
 Required properties:
@@ -12,13 +12,13 @@ Required properties:
   clock(ref) and APB clock(pclk). For RK3399, a phy config clock
   (phy_cfg) and a grf clock(grf) are required. As described in [1].
 - rockchip,grf: this soc should set GRF regs to mux vopl/vopb.
-- ports: contain a port node with endpoint definitions as defined in [2].
+- ports: contain a port yesde with endpoint definitions as defined in [2].
   For vopb,set the reg = <0> and set the reg = <1> for vopl.
 - video port 0 for the VOP input, the remote endpoint maybe vopb or vopl
 - video port 1 for either a panel or subsequent encoder
 
 Optional properties:
-- power-domains: a phandle to mipi dsi power domain node.
+- power-domains: a phandle to mipi dsi power domain yesde.
 - resets: list of phandle + reset specifier pairs, as described in [3].
 - reset-names: string reset name, must be "apb".
 

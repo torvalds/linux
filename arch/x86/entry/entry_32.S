@@ -33,7 +33,7 @@
 #include <linux/err.h>
 #include <asm/thread_info.h>
 #include <asm/irqflags.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/segment.h>
 #include <asm/smp.h>
 #include <asm/percpu.h>
@@ -44,7 +44,7 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 #include <asm/frame.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 #include "calling.h"
 
@@ -60,7 +60,7 @@
  * For DISABLE_INTERRUPTS/ENABLE_INTERRUPTS (aka "cli"/"sti"), you must
  * specify what registers can be overwritten (CLBR_NONE, CLBR_EAX/EDX/ECX/ANY).
  * Allowing a register to be clobbered can shrink the paravirt replacement
- * enough to patch inline, increasing performance.
+ * eyesugh to patch inline, increasing performance.
  */
 
 #ifdef CONFIG_PREEMPTION
@@ -91,7 +91,7 @@
  */
 #ifdef CONFIG_X86_32_LAZY_GS
 
- /* unfortunately push/pop can't be no-op */
+ /* unfortunately push/pop can't be yes-op */
 .macro PUSH_GS
 	pushl	$0
 .endm
@@ -101,7 +101,7 @@
 .macro POP_GS_EX
 .endm
 
- /* all the rest are no-op */
+ /* all the rest are yes-op */
 .macro PTGS_TO_GS
 .endm
 .macro PTGS_TO_GS_EX
@@ -167,10 +167,10 @@
 .Lend_\@:
 .endm
 
-.macro BUG_IF_WRONG_CR3 no_user_check=0
+.macro BUG_IF_WRONG_CR3 yes_user_check=0
 #ifdef CONFIG_DEBUG_ENTRY
 	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
-	.if \no_user_check == 0
+	.if \yes_user_check == 0
 	/* coming from usermode? */
 	testl	$USER_SEGMENT_RPL_MASK, PT_CS(%esp)
 	jz	.Lend_\@
@@ -186,7 +186,7 @@
 .endm
 
 /*
- * Switch to kernel cr3 if not already loaded and return current cr3 in
+ * Switch to kernel cr3 if yest already loaded and return current cr3 in
  * \scratch_reg
  */
 .macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
@@ -216,10 +216,10 @@
 
 #ifdef CONFIG_VM86
 	testl	$X86_EFLAGS_VM, 5*4(%esp)
-	jnz	.Lfrom_usermode_no_fixup_\@
+	jnz	.Lfrom_usermode_yes_fixup_\@
 #endif
 	testl	$USER_SEGMENT_RPL_MASK, 4*4(%esp)
-	jnz	.Lfrom_usermode_no_fixup_\@
+	jnz	.Lfrom_usermode_yes_fixup_\@
 
 	orl	$CS_FROM_KERNEL, 4*4(%esp)
 
@@ -264,14 +264,14 @@
 	pushl	7*4(%esp)	# orig_eax
 	pushl	7*4(%esp)	# gs / function
 	pushl	7*4(%esp)	# fs
-.Lfrom_usermode_no_fixup_\@:
+.Lfrom_usermode_yes_fixup_\@:
 .endm
 
 .macro IRET_FRAME
 	/*
 	 * We're called with %ds, %es, %fs, and %gs from the interrupted
 	 * frame, so we shouldn't use them.  Also, we may be in ESPFIX
-	 * mode and therefore have a nonzero SS base and an offset ESP,
+	 * mode and therefore have a yesnzero SS base and an offset ESP,
 	 * so any attempt to access the stack needs to use SS.  (except for
 	 * accesses through %esp, which automatically use SS.)
 	 */
@@ -435,7 +435,7 @@
 	/*
 	 * Setup and switch to ESPFIX stack
 	 *
-	 * We're returning to userspace with a 16 bit stack. The CPU will not
+	 * We're returning to userspace with a 16 bit stack. The CPU will yest
 	 * restore the high word of ESP for us on executing iret... This is an
 	 * "official" bug of all the x86-compatible CPUs, which we can work
 	 * around to make dosemu and wine happy. We do this by preloading the
@@ -453,7 +453,7 @@
 	pushl	$__ESPFIX_SS
 	pushl	%eax				/* new kernel esp */
 	/*
-	 * Disable interrupts, but do not irqtrace this section: we
+	 * Disable interrupts, but do yest irqtrace this section: we
 	 * will soon execute iret and the tracer was already set to
 	 * the irqstate after the IRET:
 	 */
@@ -483,11 +483,11 @@
 	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
 
 	/*
-	 * %eax now contains the entry cr3 and we carry it forward in
+	 * %eax yesw contains the entry cr3 and we carry it forward in
 	 * that register for the time this macro runs
 	 */
 
-	/* Are we on the entry stack? Bail out if not! */
+	/* Are we on the entry stack? Bail out if yest! */
 	movl	PER_CPU_VAR(cpu_entry_area), %ecx
 	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
 	subl	%esp, %ecx	/* ecx = (end of entry_stack) - esp */
@@ -540,7 +540,7 @@
 	movl	%edi, %esp
 
 	/*
-	 * We are now on the task-stack and can safely copy over the
+	 * We are yesw on the task-stack and can safely copy over the
 	 * stack-frame
 	 */
 	shrl	$2, %ecx
@@ -563,7 +563,7 @@
 	 *
 	 * When we switch to the task-stack here, we can't trust the
 	 * contents of the entry-stack anymore, as the exception handler
-	 * might be scheduled out or moved to another CPU. Therefore we
+	 * might be scheduled out or moved to ayesther CPU. Therefore we
 	 * copy the complete entry-stack to the task-stack and set a
 	 * marker in the iret-frame (bit 31 of the CS dword) to detect
 	 * what we've done on the iret path.
@@ -615,7 +615,7 @@
  *
  * The %esp register must point to pt_regs on the task stack. It will
  * first calculate the size of the stack-frame to copy, depending on
- * whether we return to VM86 mode or not. With that it uses 'rep movsl'
+ * whether we return to VM86 mode or yest. With that it uses 'rep movsl'
  * to copy the contents of the stack over to the entry stack.
  *
  * We must be very careful here, as we can't trust the contents of the
@@ -675,7 +675,7 @@
 
 	/*
 	 * Test if we entered the kernel with the entry-stack. Most
-	 * likely we did not, because this code only runs on the
+	 * likely we did yest, because this code only runs on the
 	 * return-to-kernel path.
 	 */
 	testl	$CS_FROM_ENTRY_STACK, PT_CS(%esp)
@@ -698,7 +698,7 @@
 	subl	%ecx, %edi
 
 	/*
-	 * Save future stack-pointer, we must not switch until the
+	 * Save future stack-pointer, we must yest switch until the
 	 * copy is done, otherwise the NMI handler could destroy the
 	 * contents of the task-stack we are about to copy.
 	 */
@@ -709,7 +709,7 @@
 	cld
 	rep movsl
 
-	/* Safe to switch to entry-stack now */
+	/* Safe to switch to entry-stack yesw */
 	movl	%ebx, %esp
 
 	/*
@@ -827,7 +827,7 @@ SYM_CODE_START(ret_from_fork)
 SYM_CODE_END(ret_from_fork)
 
 /*
- * Return to user mode is not as complex as all this looks,
+ * Return to user mode is yest as complex as all this looks,
  * but we want the default path for a system call return to
  * go as quickly as possible which is why some of this is
  * less clear than it otherwise should be.
@@ -849,7 +849,7 @@ ret_from_intr:
 	andl	$SEGMENT_RPL_MASK, %eax
 #endif
 	cmpl	$USER_RPL, %eax
-	jb	restore_all_kernel		# not returning to v8086 or userspace
+	jb	restore_all_kernel		# yest returning to v8086 or userspace
 
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
@@ -862,16 +862,16 @@ SYM_ENTRY(__begin_SYSENTER_singlestep_region, SYM_L_GLOBAL, SYM_A_NONE)
 /*
  * All code from here through __end_SYSENTER_singlestep_region is subject
  * to being single-stepped if a user program sets TF and executes SYSENTER.
- * There is absolutely nothing that we can do to prevent this from happening
+ * There is absolutely yesthing that we can do to prevent this from happening
  * (thanks Intel!).  To keep our handling of this situation as simple as
  * possible, we handle TF just like AC and NT, except that our #DB handler
- * will ignore all of the single-step traps generated in this range.
+ * will igyesre all of the single-step traps generated in this range.
  */
 
 #ifdef CONFIG_XEN_PV
 /*
- * Xen doesn't set %esp to be precisely what the normal SYSENTER
- * entry point expects, so fix it up before using the normal path.
+ * Xen doesn't set %esp to be precisely what the yesrmal SYSENTER
+ * entry point expects, so fix it up before using the yesrmal path.
  */
 SYM_CODE_START(xen_sysenter_target)
 	addl	$5*4, %esp			/* remove xen-provided frame */
@@ -894,8 +894,8 @@ SYM_CODE_END(xen_sysenter_target)
  *
  * SYSENTER loads SS, ESP, CS, and EIP from previously programmed MSRs.
  * IF and VM in RFLAGS are cleared (IOW: interrupts are off).
- * SYSENTER does not save anything on the stack,
- * and does not save old EIP (!!!), ESP, or EFLAGS.
+ * SYSENTER does yest save anything on the stack,
+ * and does yest save old EIP (!!!), ESP, or EFLAGS.
  *
  * To avoid losing track of EFLAGS.VM (and thus potentially corrupting
  * user and/or vm86 state), we explicitly disable the SYSENTER
@@ -919,7 +919,7 @@ SYM_FUNC_START(entry_SYSENTER_32)
 	 */
 	pushfl
 	pushl	%eax
-	BUG_IF_WRONG_CR3 no_user_check=1
+	BUG_IF_WRONG_CR3 yes_user_check=1
 	SWITCH_TO_KERNEL_CR3 scratch_reg=%eax
 	popl	%eax
 	popfl
@@ -945,7 +945,7 @@ SYM_FUNC_START(entry_SYSENTER_32)
 	 * we don't get preempted with NT set.
 	 *
 	 * If TF is set, we will single-step all the way to here -- do_debug
-	 * will ignore all the traps.  (Yes, this is slow, but so is
+	 * will igyesre all the traps.  (Yes, this is slow, but so is
 	 * single-stepping in general.  This allows us to avoid having
 	 * a more complicated code to handle the case where a user program
 	 * forces us to single-step through the SYSENTER entry code.)
@@ -954,7 +954,7 @@ SYM_FUNC_START(entry_SYSENTER_32)
 	 * out-of-line as an optimization: NT is unlikely to be set in the
 	 * majority of the cases and instead of polluting the I$ unnecessarily,
 	 * we're keeping that code behind a branch which will predict as
-	 * not-taken and therefore its instructions won't be fetched.
+	 * yest-taken and therefore its instructions won't be fetched.
 	 */
 	testl	$X86_EFLAGS_NT|X86_EFLAGS_AC|X86_EFLAGS_TF, PT_EFLAGS(%esp)
 	jnz	.Lsysenter_fix_flags
@@ -1013,10 +1013,10 @@ SYM_FUNC_START(entry_SYSENTER_32)
 	/*
 	 * Restore all flags except IF. (We restore IF separately because
 	 * STI gives a one-instruction window in which we won't be interrupted,
-	 * whereas POPF does not.)
+	 * whereas POPF does yest.)
 	 */
 	btrl	$X86_EFLAGS_IF_BIT, (%esp)
-	BUG_IF_WRONG_CR3 no_user_check=1
+	BUG_IF_WRONG_CR3 yes_user_check=1
 	popfl
 	popl	%eax
 
@@ -1057,7 +1057,7 @@ SYM_FUNC_END(entry_SYSENTER_32)
  * only run on 64-bit kernels and therefore land in
  * entry_INT80_compat.)
  *
- * This is considered a slow path.  It is not used by most libc
+ * This is considered a slow path.  It is yest used by most libc
  * implementations on modern hardware except during process startup.
  *
  * Arguments:
@@ -1091,7 +1091,7 @@ restore_all:
 	TRACE_IRQS_IRET
 	SWITCH_TO_ENTRY_STACK
 	CHECK_AND_APPLY_ESPFIX
-.Lrestore_nocheck:
+.Lrestore_yescheck:
 	/* Switch back to user CR3 */
 	SWITCH_TO_USER_CR3 scratch_reg=%eax
 
@@ -1111,11 +1111,11 @@ restore_all_kernel:
 #ifdef CONFIG_PREEMPTION
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	cmpl	$0, PER_CPU_VAR(__preempt_count)
-	jnz	.Lno_preempt
+	jnz	.Lyes_preempt
 	testl	$X86_EFLAGS_IF, PT_EFLAGS(%esp)	# interrupts off (exception path) ?
-	jz	.Lno_preempt
+	jz	.Lyes_preempt
 	call	preempt_schedule_irq
-.Lno_preempt:
+.Lyes_preempt:
 #endif
 	TRACE_IRQS_IRET
 	PARANOID_EXIT_TO_KERNEL_MODE
@@ -1125,7 +1125,7 @@ restore_all_kernel:
 
 .section .fixup, "ax"
 SYM_CODE_START(iret_exc)
-	pushl	$0				# no error code
+	pushl	$0				# yes error code
 	pushl	$do_iret_error
 
 #ifdef CONFIG_DEBUG_ENTRY
@@ -1148,13 +1148,13 @@ SYM_FUNC_END(entry_INT80_32)
 
 .macro FIXUP_ESPFIX_STACK
 /*
- * Switch back for ESPFIX stack to the normal zerobased stack
+ * Switch back for ESPFIX stack to the yesrmal zerobased stack
  *
  * We can't call C functions using the ESPFIX stack. This code reads
  * the high word of the segment base from the GDT and swiches to the
- * normal stack and adjusts ESP with the matching offset.
+ * yesrmal stack and adjusts ESP with the matching offset.
  *
- * We might be on user CR3 here, so percpu data is not mapped and we can't
+ * We might be on user CR3 here, so percpu data is yest mapped and we can't
  * access the GDT through the percpu segment.  Instead, use SGDT to find
  * the cpu_entry_area alias of the GDT.
  */
@@ -1166,7 +1166,7 @@ SYM_FUNC_END(entry_INT80_32)
 	movl	2(%esp), %ecx				/* GDT address */
 	/*
 	 * Careful: ECX is a linear pointer, so we need to force base
-	 * zero.  %cs is the only known-linear segment we have right now.
+	 * zero.  %cs is the only kyeswn-linear segment we have right yesw.
 	 */
 	mov	%cs:GDT_ESPFIX_OFFSET + 4(%ecx), %al	/* bits 16..23 */
 	mov	%cs:GDT_ESPFIX_OFFSET + 7(%ecx), %ah	/* bits 24..31 */
@@ -1176,7 +1176,7 @@ SYM_FUNC_END(entry_INT80_32)
 	addl	%esp, %eax			/* the adjusted stack pointer */
 	pushl	$__KERNEL_DS
 	pushl	%eax
-	lss	(%esp), %esp			/* switch to the normal stack segment */
+	lss	(%esp), %esp			/* switch to the yesrmal stack segment */
 #endif
 .endm
 
@@ -1186,10 +1186,10 @@ SYM_FUNC_END(entry_INT80_32)
 	movl	%ss, %eax
 	/* see if on espfix stack */
 	cmpw	$__ESPFIX_SS, %ax
-	jne	.Lno_fixup_\@
-	/* switch to normal stack */
+	jne	.Lyes_fixup_\@
+	/* switch to yesrmal stack */
 	FIXUP_ESPFIX_STACK
-.Lno_fixup_\@:
+.Lyes_fixup_\@:
 #endif
 .endm
 
@@ -1288,12 +1288,12 @@ SYM_CODE_START(simd_coprocessor_error)
 	jmp	common_exception
 SYM_CODE_END(simd_coprocessor_error)
 
-SYM_CODE_START(device_not_available)
+SYM_CODE_START(device_yest_available)
 	ASM_CLAC
 	pushl	$-1				# mark this as an int
-	pushl	$do_device_not_available
+	pushl	$do_device_yest_available
 	jmp	common_exception
-SYM_CODE_END(device_not_available)
+SYM_CODE_END(device_yest_available)
 
 #ifdef CONFIG_PARAVIRT
 SYM_CODE_START(native_iret)
@@ -1336,11 +1336,11 @@ SYM_CODE_START(invalid_TSS)
 	jmp	common_exception
 SYM_CODE_END(invalid_TSS)
 
-SYM_CODE_START(segment_not_present)
+SYM_CODE_START(segment_yest_present)
 	ASM_CLAC
-	pushl	$do_segment_not_present
+	pushl	$do_segment_yest_present
 	jmp	common_exception
-SYM_CODE_END(segment_not_present)
+SYM_CODE_END(segment_yest_present)
 
 SYM_CODE_START(stack_segment)
 	ASM_CLAC
@@ -1356,7 +1356,7 @@ SYM_CODE_END(alignment_check)
 
 SYM_CODE_START(divide_error)
 	ASM_CLAC
-	pushl	$0				# no error code
+	pushl	$0				# yes error code
 	pushl	$do_divide_error
 	jmp	common_exception
 SYM_CODE_END(divide_error)
@@ -1392,7 +1392,7 @@ SYM_FUNC_START(xen_hypervisor_callback)
 	jae	1f
 	call	xen_iret_crit_fixup
 1:
-	pushl	$-1				/* orig_ax = -1 => not a system call */
+	pushl	$-1				/* orig_ax = -1 => yest a system call */
 	SAVE_ALL
 	ENCODE_FRAME_POINTER
 	TRACE_IRQS_OFF
@@ -1411,8 +1411,8 @@ SYM_FUNC_END(xen_hypervisor_callback)
  *  2. Fault while executing IRET
  * Category 1 we fix up by reattempting the load, and zeroing the segment
  * register if the load fails.
- * Category 2 we fix up by jumping to do_iret_error. We cannot use the
- * normal Linux return path in this case because if we use the IRET hypercall
+ * Category 2 we fix up by jumping to do_iret_error. We canyest use the
+ * yesrmal Linux return path in this case because if we use the IRET hypercall
  * to pop the stack frame we end up in an infinite loop of failsafe callbacks.
  * We distinguish between categories by maintaining a status value in EAX.
  */
@@ -1430,7 +1430,7 @@ SYM_FUNC_START(xen_failsafe_callback)
 	lea	16(%esp), %esp
 	jz	5f
 	jmp	iret_exc
-5:	pushl	$-1				/* orig_ax = -1 => not a system call */
+5:	pushl	$-1				/* orig_ax = -1 => yest a system call */
 	SAVE_ALL
 	ENCODE_FRAME_POINTER
 	jmp	ret_from_exception
@@ -1497,7 +1497,7 @@ SYM_CODE_START_LOCAL_NOALIGN(common_exception_read_cr2)
 
 	/* fixup orig %eax */
 	movl	PT_ORIG_EAX(%esp), %edx		# get the error code
-	movl	$-1, PT_ORIG_EAX(%esp)		# no syscall to restart
+	movl	$-1, PT_ORIG_EAX(%esp)		# yes syscall to restart
 
 	TRACE_IRQS_OFF
 	movl	%esp, %eax			# pt_regs pointer
@@ -1518,7 +1518,7 @@ SYM_CODE_START_LOCAL_NOALIGN(common_exception)
 
 	/* fixup orig %eax */
 	movl	PT_ORIG_EAX(%esp), %edx		# get the error code
-	movl	$-1, PT_ORIG_EAX(%esp)		# no syscall to restart
+	movl	$-1, PT_ORIG_EAX(%esp)		# yes syscall to restart
 
 	TRACE_IRQS_OFF
 	movl	%esp, %eax			# pt_regs pointer
@@ -1528,7 +1528,7 @@ SYM_CODE_END(common_exception)
 
 SYM_CODE_START(debug)
 	/*
-	 * Entry from sysenter is now handled in common_exception
+	 * Entry from sysenter is yesw handled in common_exception
 	 */
 	ASM_CLAC
 	pushl	$-1				# mark this as an int
@@ -1540,7 +1540,7 @@ SYM_CODE_END(debug)
 SYM_CODE_START(double_fault)
 1:
 	/*
-	 * This is a task gate handler, not an interrupt gate handler.
+	 * This is a task gate handler, yest an interrupt gate handler.
 	 * The error code is on the stack, but the stack is otherwise
 	 * empty.  Interrupts are off.  Our state is sane with the following
 	 * exceptions:
@@ -1548,8 +1548,8 @@ SYM_CODE_START(double_fault)
 	 *  - CR0.TS is set.  "TS" literally means "task switched".
 	 *  - EFLAGS.NT is set because we're a "nested task".
 	 *  - The doublefault TSS has back_link set and has been marked busy.
-	 *  - TR points to the doublefault TSS and the normal TSS is busy.
-	 *  - CR3 is the normal kernel PGD.  This would be delightful, except
+	 *  - TR points to the doublefault TSS and the yesrmal TSS is busy.
+	 *  - CR3 is the yesrmal kernel PGD.  This would be delightful, except
 	 *    that the CPU didn't bother to save the old CR3 anywhere.  This
 	 *    would make it very awkward to return back to the context we came
 	 *    from.
@@ -1558,7 +1558,7 @@ SYM_CODE_START(double_fault)
 	 * worry about AC or DF.
 	 *
 	 * Don't even bother popping the error code.  It's always zero,
-	 * and ignoring it makes us a bit more robust against buggy
+	 * and igyesring it makes us a bit more robust against buggy
 	 * hypervisor task gate implementations.
 	 *
 	 * We will manually undo the task switch instead of doing a
@@ -1571,7 +1571,7 @@ SYM_CODE_START(double_fault)
 
 	call	doublefault_shim
 
-	/* We don't support returning, so we have no IRET here. */
+	/* We don't support returning, so we have yes IRET here. */
 1:
 	hlt
 	jmp 1b
@@ -1619,8 +1619,8 @@ SYM_CODE_START(nmi)
 
 .Lnmi_from_sysenter_stack:
 	/*
-	 * We're on the SYSENTER stack.  Switch off.  No one (not even debug)
-	 * is using the thread stack right now, so it's safe for us to use it.
+	 * We're on the SYSENTER stack.  Switch off.  No one (yest even debug)
+	 * is using the thread stack right yesw, so it's safe for us to use it.
 	 */
 	movl	%esp, %ebx
 	movl	PER_CPU_VAR(cpu_current_top_of_stack), %esp

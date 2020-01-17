@@ -68,7 +68,7 @@ void __init paging_init(void)
 		pgd_val(*pg_dir) = (unsigned long) pg_table;
 		pg_dir++;
 
-		/* now change pg_table to kernel virtual addresses */
+		/* yesw change pg_table to kernel virtual addresses */
 		for (i = 0; i < PTRS_PER_PTE; ++i, ++pg_table) {
 			pte_t pte = pfn_pte(virt_to_pfn(address), PAGE_INIT);
 			if (address >= (unsigned long) high_memory)
@@ -110,32 +110,32 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 	}
 
 	pgd = pgd_offset(mm, mmuar);
-	if (pgd_none(*pgd))  {
+	if (pgd_yesne(*pgd))  {
 		local_irq_restore(flags);
 		return -1;
 	}
 
 	p4d = p4d_offset(pgd, mmuar);
-	if (p4d_none(*p4d)) {
+	if (p4d_yesne(*p4d)) {
 		local_irq_restore(flags);
 		return -1;
 	}
 
 	pud = pud_offset(p4d, mmuar);
-	if (pud_none(*pud)) {
+	if (pud_yesne(*pud)) {
 		local_irq_restore(flags);
 		return -1;
 	}
 
 	pmd = pmd_offset(pud, mmuar);
-	if (pmd_none(*pmd)) {
+	if (pmd_yesne(*pmd)) {
 		local_irq_restore(flags);
 		return -1;
 	}
 
 	pte = (KMAPAREA(mmuar)) ? pte_offset_kernel(pmd, mmuar)
 				: pte_offset_map(pmd, mmuar);
-	if (pte_none(*pte) || !pte_present(*pte)) {
+	if (pte_yesne(*pte) || !pte_present(*pte)) {
 		local_irq_restore(flags);
 		return -1;
 	}
@@ -192,11 +192,11 @@ void __init cf_bootmem_alloc(void)
 	/* Reserve kernel text/data/bss */
 	memblock_reserve(_rambase, memstart - _rambase);
 
-	m68k_virt_to_node_shift = fls(_ramend - 1) - 6;
+	m68k_virt_to_yesde_shift = fls(_ramend - 1) - 6;
 	module_fixup(NULL, __start_fixup, __stop_fixup);
 
-	/* setup node data */
-	m68k_setup_node(0);
+	/* setup yesde data */
+	m68k_setup_yesde(0);
 }
 
 /*
@@ -207,7 +207,7 @@ void __init cf_mmu_context_init(void)
 {
 	/*
 	 * Some processors have too few contexts to reserve one for
-	 * init_mm, and require using context 0 for a normal task.
+	 * init_mm, and require using context 0 for a yesrmal task.
 	 * Other processors reserve the use of context zero for the kernel.
 	 * This code assumes FIRST_CONTEXT < 32.
 	 */

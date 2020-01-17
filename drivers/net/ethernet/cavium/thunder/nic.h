@@ -28,7 +28,7 @@
 #define PCI_SUBSYS_DEVID_83XX_NIC_VF		0xA334
 
 
-/* PCI BAR nos */
+/* PCI BAR yess */
 #define	PCI_CFG_REG_BAR_NUM		0
 #define	PCI_MSIX_REG_BAR_NUM		4
 
@@ -95,7 +95,7 @@
 /* Minimum FIFO level before all packets for the CQ are dropped
  *
  * This value ensures that once a packet has been "accepted"
- * for reception it will not get dropped due to non-availability
+ * for reception it will yest get dropped due to yesn-availability
  * of CQ descriptor. An errata in HW mandates this value to be
  * atleast 0x100.
  */
@@ -111,7 +111,7 @@
 
 /* Time to wait before we decide that a SQ is stuck.
  *
- * Since both pkt rx and tx notifications are done with same CQ,
+ * Since both pkt rx and tx yestifications are done with same CQ,
  * when packets are being received at very high rate (eg: L2 forwarding)
  * then freeing transmitted skbs will be delayed and watchdog
  * will kick in, resetting interface. Hence keeping this value high.
@@ -309,7 +309,7 @@ struct nicvf {
 	u8			xdp_tx_queues;
 	u8			max_queues;
 
-	u8			node;
+	u8			yesde;
 	u8			cpi_alg;
 	bool			link_up;
 	u8			mac_type;
@@ -346,7 +346,7 @@ struct nicvf {
 	 */
 	struct sk_buff		*ptp_skb;
 	/* `tx_ptp_skbs` is set when the hardware is sending a packet that
-	 * requires timestamping.  Cavium hardware can not process more than one
+	 * requires timestamping.  Cavium hardware can yest process more than one
 	 * such packet at once so this is set each time the driver submits
 	 * a packet that requires timestamping to the send queue and clears
 	 * each time it receives the entry on the completion queue saying
@@ -425,7 +425,7 @@ struct nicvf {
 struct nic_cfg_msg {
 	u8    msg;
 	u8    vf_id;
-	u8    node_id;
+	u8    yesde_id;
 	u8    tns_mode:1;
 	u8    sqs_mode:1;
 	u8    loopback_supported:1;
@@ -606,7 +606,7 @@ union nic_mbx {
 #define NIC_NODE_ID_MASK	0x03
 #define NIC_NODE_ID_SHIFT	44
 
-static inline int nic_get_node_id(struct pci_dev *pdev)
+static inline int nic_get_yesde_id(struct pci_dev *pdev)
 {
 	u64 addr = pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM);
 	return ((addr >> NIC_NODE_ID_SHIFT) & NIC_NODE_ID_MASK);

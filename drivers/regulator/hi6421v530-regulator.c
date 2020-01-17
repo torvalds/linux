@@ -2,7 +2,7 @@
 //
 // Device driver for regulators in Hi6421V530 IC
 //
-// Copyright (c) <2017> HiSilicon Technologies Co., Ltd.
+// Copyright (c) <2017> HiSilicon Techyeslogies Co., Ltd.
 //              http://www.hisilicon.com
 // Copyright (c) <2017> Linaro Ltd.
 //              http://www.linaro.org
@@ -75,7 +75,7 @@ static const struct regulator_ops hi6421v530_ldo_ops;
 	.rdesc = {							\
 		.name		 = #_ID,				\
 		.of_match        = of_match_ptr(#_ID),			\
-		.regulators_node = of_match_ptr("regulators"),		\
+		.regulators_yesde = of_match_ptr("regulators"),		\
 		.ops		 = &hi6421v530_ldo_ops,			\
 		.type		 = REGULATOR_VOLTAGE,			\
 		.id		 = HI6421V530_##_ID,			\
@@ -169,7 +169,7 @@ static int hi6421v530_regulator_probe(struct platform_device *pdev)
 
 	pmic = dev_get_drvdata(pdev->dev.parent);
 	if (!pmic) {
-		dev_err(&pdev->dev, "no pmic in the regulator parent node\n");
+		dev_err(&pdev->dev, "yes pmic in the regulator parent yesde\n");
 		return -ENODEV;
 	}
 

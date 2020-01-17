@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Technologic Systems TS-5500 Single Board Computer support
+ * Techyeslogic Systems TS-5500 Single Board Computer support
  *
  * Copyright (C) 2013-2014 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
- * This driver registers the Technologic Systems TS-5500 Single Board Computer
+ * This driver registers the Techyeslogic Systems TS-5500 Single Board Computer
  * (SBC) and its devices, and exposes information to userspace such as jumpers'
  * state or available options. For further information about sysfs entries, see
  * Documentation/ABI/testing/sysfs-platform-ts5500.
@@ -125,7 +125,7 @@ static int __init ts5500_detect_config(struct ts5500_sbc *sbc)
 	} else if (sbc->id == TS5400_PRODUCT_CODE) {
 		sbc->name = "TS-5400";
 	} else {
-		pr_err("ts5500: unknown product code 0x%x\n", sbc->id);
+		pr_err("ts5500: unkyeswn product code 0x%x\n", sbc->id);
 		ret = -ENODEV;
 		goto cleanup;
 	}
@@ -287,7 +287,7 @@ static int __init ts5500_init(void)
 	int err;
 
 	/*
-	 * There is no DMI available or PCI bridge subvendor info,
+	 * There is yes DMI available or PCI bridge subvendor info,
 	 * only the BIOS provides a 16-bit identification call.
 	 * It is safer to find a signature in the BIOS shadow RAM.
 	 */

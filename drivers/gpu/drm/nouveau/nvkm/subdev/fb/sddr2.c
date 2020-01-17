@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -44,7 +44,7 @@ ramxlat(const struct ramxlat *xlat, int id)
 static const struct ramxlat
 ramddr2_cl[] = {
 	{ 2, 2 }, { 3, 3 }, { 4, 4 }, { 5, 5 }, { 6, 6 },
-	/* The following are available in some, but not all DDR2 docs */
+	/* The following are available in some, but yest all DDR2 docs */
 	{ 7, 7 },
 	{ -1 }
 };
@@ -52,7 +52,7 @@ ramddr2_cl[] = {
 static const struct ramxlat
 ramddr2_wr[] = {
 	{ 2, 1 }, { 3, 2 }, { 4, 3 }, { 5, 4 }, { 6, 5 },
-	/* The following are available in some, but not all DDR2 docs */
+	/* The following are available in some, but yest all DDR2 docs */
 	{ 7, 6 },
 	{ -1 }
 };

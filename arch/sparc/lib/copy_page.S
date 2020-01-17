@@ -19,9 +19,9 @@
 	 * disturbing the TLB as little as possible, but it meant
 	 * we had to keep interrupts disabled for a long time.
 	 *
-	 * Now, we simply use the normal TLB loading mechanism,
+	 * Now, we simply use the yesrmal TLB loading mechanism,
 	 * and this makes the cpu choose a slot all by itself.
-	 * Then we do a normal TLB flush on exit.  We need only
+	 * Then we do a yesrmal TLB flush on exit.  We need only
 	 * disable preemption during the clear.
 	 */
 
@@ -89,7 +89,7 @@ copy_user_page:		/* %o0=dest, %o1=src, %o2=vaddr */
 
 cheetah_copy_page_insn:
 	ba,pt		%xcc, 9f
-	 nop
+	 yesp
 
 1:
 	VISEntryHalf
@@ -165,7 +165,7 @@ cheetah_copy_page_insn:
 	membar		#Sync
 	VISExitHalf
 	ba,pt		%xcc, 5f
-	 nop
+	 yesp
 
 9:
 	VISEntry
@@ -250,4 +250,4 @@ cheetah_patch_copy_page:
 	membar		#StoreStore
 	flush		%o0
 	retl
-	 nop
+	 yesp

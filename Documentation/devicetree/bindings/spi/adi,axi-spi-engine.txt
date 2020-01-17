@@ -11,8 +11,8 @@ Required properties:
 - #address-cells	: Must be <1>
 - #size-cells		: Must be <0>
 
-Optional subnodes:
-	Subnodes are use to represent the SPI slave devices connected to the SPI
+Optional subyesdes:
+	Subyesdes are use to represent the SPI slave devices connected to the SPI
 	master. They follow the generic SPI bindings as outlined in spi-bus.txt.
 
 Example:

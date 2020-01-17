@@ -128,7 +128,7 @@ static int ti_sci_intr_alloc_gic_irq(struct irq_domain *domain,
 	if (dst_irq == TI_SCI_RESOURCE_NULL)
 		return -EINVAL;
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwyesde = domain->parent->fwyesde;
 	fwspec.param_count = 3;
 	fwspec.param[0] = 0;	/* SPI */
 	fwspec.param[1] = dst_irq - 32; /* SPI offset */
@@ -194,17 +194,17 @@ static int ti_sci_intr_irq_domain_probe(struct platform_device *pdev)
 {
 	struct irq_domain *parent_domain, *domain;
 	struct ti_sci_intr_irq_domain *intr;
-	struct device_node *parent_node;
+	struct device_yesde *parent_yesde;
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	parent_node = of_irq_find_parent(dev_of_node(dev));
-	if (!parent_node) {
-		dev_err(dev, "Failed to get IRQ parent node\n");
+	parent_yesde = of_irq_find_parent(dev_of_yesde(dev));
+	if (!parent_yesde) {
+		dev_err(dev, "Failed to get IRQ parent yesde\n");
 		return -ENODEV;
 	}
 
-	parent_domain = irq_find_host(parent_node);
+	parent_domain = irq_find_host(parent_yesde);
 	if (!parent_domain) {
 		dev_err(dev, "Failed to find IRQ parent domain\n");
 		return -ENODEV;
@@ -214,7 +214,7 @@ static int ti_sci_intr_irq_domain_probe(struct platform_device *pdev)
 	if (!intr)
 		return -ENOMEM;
 
-	ret = of_property_read_u32(dev_of_node(dev), "ti,intr-trigger-type",
+	ret = of_property_read_u32(dev_of_yesde(dev), "ti,intr-trigger-type",
 				   &intr->type);
 	if (ret) {
 		dev_err(dev, "missing ti,intr-trigger-type property\n");
@@ -230,7 +230,7 @@ static int ti_sci_intr_irq_domain_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_property_read_u32(dev_of_node(dev), "ti,sci-dst-id",
+	ret = of_property_read_u32(dev_of_yesde(dev), "ti,sci-dst-id",
 				   &intr->dst_id);
 	if (ret) {
 		dev_err(dev, "missing 'ti,sci-dst-id' property\n");
@@ -245,7 +245,7 @@ static int ti_sci_intr_irq_domain_probe(struct platform_device *pdev)
 		return PTR_ERR(intr->dst_irq);
 	}
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, 0, dev_of_node(dev),
+	domain = irq_domain_add_hierarchy(parent_domain, 0, 0, dev_of_yesde(dev),
 					  &ti_sci_intr_irq_domain_ops, intr);
 	if (!domain) {
 		dev_err(dev, "Failed to allocate IRQ domain\n");

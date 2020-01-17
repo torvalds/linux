@@ -8,7 +8,7 @@
  * Copyright (c) 2018 Linaro Ltd.
  * Author: Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
  *
- * Copyright (c) 2018 LSI-TEC - Caninos Loucos
+ * Copyright (c) 2018 LSI-TEC - Caniyess Loucos
  * Author: Edgar Bernardi Righi <edgar.righi@lsitec.org.br>
  */
 

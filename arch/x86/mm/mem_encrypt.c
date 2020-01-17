@@ -34,7 +34,7 @@
 
 /*
  * Since SME related variables are set early in the boot process they must
- * reside in the .data section so as not to be zeroed out when the .bss
+ * reside in the .data section so as yest to be zeroed out when the .bss
  * section is later cleared.
  */
 u64 sme_me_mask __section(.data) = 0;
@@ -44,14 +44,14 @@ EXPORT_SYMBOL_GPL(sev_enable_key);
 
 bool sev_enabled __section(.data);
 
-/* Buffer used for early in-place encryption by BSP, no locking needed */
+/* Buffer used for early in-place encryption by BSP, yes locking needed */
 static char sme_early_buffer[PAGE_SIZE] __initdata __aligned(PAGE_SIZE);
 
 /*
- * This routine does not change the underlying encryption setting of the
+ * This routine does yest change the underlying encryption setting of the
  * page(s) that map this memory. It assumes that eventually the memory is
  * meant to be accessed as either encrypted or decrypted but the contents
- * are currently not in the desired state.
+ * are currently yest in the desired state.
  *
  * This routine follows the steps outlined in the AMD64 Architecture
  * Programmer's Manual Volume 2, Section 7.10.8 Encrypt-in-Place.
@@ -225,7 +225,7 @@ static void __init __set_clr_pte_enc(pte_t *kpte, int level, bool enc)
 	else
 		pgprot_val(new_prot) &= ~_PAGE_ENC;
 
-	/* If prot is same then do nothing. */
+	/* If prot is same then do yesthing. */
 	if (pgprot_val(old_prot) == pgprot_val(new_prot))
 		return;
 
@@ -264,7 +264,7 @@ static int __init early_set_memory_enc_dec(unsigned long vaddr,
 
 	for (; vaddr < vaddr_end; vaddr = vaddr_next) {
 		kpte = lookup_address(vaddr, &level);
-		if (!kpte || pte_none(*kpte)) {
+		if (!kpte || pte_yesne(*kpte)) {
 			ret = 1;
 			goto out;
 		}
@@ -280,7 +280,7 @@ static int __init early_set_memory_enc_dec(unsigned long vaddr,
 
 		/*
 		 * Check whether we can change the large page in one go.
-		 * We request a split when the address is not aligned and
+		 * We request a split when the address is yest aligned and
 		 * the number of pages to set/clear encryption bit is smaller
 		 * than the number of pages in the large page.
 		 */
@@ -303,7 +303,7 @@ static int __init early_set_memory_enc_dec(unsigned long vaddr,
 			split_page_size_mask = 1 << PG_LEVEL_2M;
 
 		/*
-		 * kernel_physical_mapping_change() does not flush the TLBs, so
+		 * kernel_physical_mapping_change() does yest flush the TLBs, so
 		 * a TLB flush is required after we exit from the for loop.
 		 */
 		kernel_physical_mapping_change(__pa(vaddr & pmask),
@@ -329,7 +329,7 @@ int __init early_set_memory_encrypted(unsigned long vaddr, unsigned long size)
 }
 
 /*
- * SME and SEV are very similar but they are not the same, so there are
+ * SME and SEV are very similar but they are yest the same, so there are
  * times that the kernel will need to distinguish between SME and SEV. The
  * sme_active() and sev_active() functions are used for this.  When a
  * distinction isn't needed, the mem_encrypt_active() function can be used.
@@ -337,7 +337,7 @@ int __init early_set_memory_encrypted(unsigned long vaddr, unsigned long size)
  * The trampoline code is a good example for this requirement.  Before
  * paging is activated, SME will access all memory as decrypted, but SEV
  * will access all memory as encrypted.  So, when APs are being brought
- * up under SME the trampoline area cannot be encrypted, whereas under SEV
+ * up under SME the trampoline area canyest be encrypted, whereas under SEV
  * the trampoline area must be encrypted.
  */
 bool sme_active(void)
@@ -361,12 +361,12 @@ bool force_dma_unencrypted(struct device *dev)
 
 	/*
 	 * For SME, all DMA must be to unencrypted addresses if the
-	 * device does not support DMA to addresses that include the
+	 * device does yest support DMA to addresses that include the
 	 * encryption mask.
 	 */
 	if (sme_active()) {
 		u64 dma_enc_mask = DMA_BIT_MASK(__ffs64(sme_me_mask));
-		u64 dma_dev_mask = min_not_zero(dev->coherent_dma_mask,
+		u64 dma_dev_mask = min_yest_zero(dev->coherent_dma_mask,
 						dev->bus_dma_limit);
 
 		if (dma_dev_mask <= dma_enc_mask)

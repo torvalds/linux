@@ -37,7 +37,7 @@
         "UMask": "0x8",
         "EventName": "L1D.M_SNOOP_EVICT",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "L1D snoop eviction of cache lines in M state"
+        "BriefDescription": "L1D syesop eviction of cache lines in M state"
     },
     {
         "EventCode": "0x51",

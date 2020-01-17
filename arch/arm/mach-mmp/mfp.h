@@ -6,7 +6,7 @@
 
 /*
  * NOTE: the MFPR register bit definitions on PXA168 processor lines are a
- * bit different from those on PXA3xx.  Bit [7:10] are now reserved, which
+ * bit different from those on PXA3xx.  Bit [7:10] are yesw reserved, which
  * were SLEEP_OE_N, SLEEP_DATA, SLEEP_SEL and the LSB of DRIVE bits.
  *
  * To cope with this difference and re-use the pxa3xx mfp code as much as

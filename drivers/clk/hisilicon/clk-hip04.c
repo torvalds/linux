@@ -27,7 +27,7 @@ static struct hisi_fixed_rate_clock hip04_fixed_rate_clks[] __initdata = {
 	{ HIP04_CLK_168M, "clk168m",  NULL, 0, 168750000, },
 };
 
-static void __init hip04_clk_init(struct device_node *np)
+static void __init hip04_clk_init(struct device_yesde *np)
 {
 	struct hisi_clock_data *clk_data;
 

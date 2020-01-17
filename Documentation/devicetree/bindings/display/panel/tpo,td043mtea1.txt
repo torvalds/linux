@@ -8,7 +8,7 @@ Required properties:
 Optional properties:
 - label: a symbolic name for the panel
 
-Required nodes:
+Required yesdes:
 - Video port for DPI input
 
 Example

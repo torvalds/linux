@@ -140,7 +140,7 @@ __cfg802154_rdev_from_attrs(struct net *netns, struct nlattr **attrs)
 			else
 				tmp = NULL;
 
-			/* not wireless device -- return error */
+			/* yest wireless device -- return error */
 			if (!tmp)
 				return ERR_PTR(-EINVAL);
 
@@ -294,14 +294,14 @@ nl802154_finish_wpan_dev_dump(struct cfg802154_registered_device *rdev)
 static inline void *nl802154hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
 				    int flags, u8 cmd)
 {
-	/* since there is no private header just add the generic one */
+	/* since there is yes private header just add the generic one */
 	return genlmsg_put(skb, portid, seq, &nl802154_fam, flags, cmd);
 }
 
 static int
 nl802154_put_flags(struct sk_buff *msg, int attr, u32 mask)
 {
-	struct nlattr *nl_flags = nla_nest_start_noflag(msg, attr);
+	struct nlattr *nl_flags = nla_nest_start_yesflag(msg, attr);
 	int i;
 
 	if (!nl_flags)
@@ -327,7 +327,7 @@ nl802154_send_wpan_phy_channels(struct cfg802154_registered_device *rdev,
 	struct nlattr *nl_page;
 	unsigned long page;
 
-	nl_page = nla_nest_start_noflag(msg, NL802154_ATTR_CHANNELS_SUPPORTED);
+	nl_page = nla_nest_start_yesflag(msg, NL802154_ATTR_CHANNELS_SUPPORTED);
 	if (!nl_page)
 		return -ENOBUFS;
 
@@ -349,11 +349,11 @@ nl802154_put_capabilities(struct sk_buff *msg,
 	struct nlattr *nl_caps, *nl_channels;
 	int i;
 
-	nl_caps = nla_nest_start_noflag(msg, NL802154_ATTR_WPAN_PHY_CAPS);
+	nl_caps = nla_nest_start_yesflag(msg, NL802154_ATTR_WPAN_PHY_CAPS);
 	if (!nl_caps)
 		return -ENOBUFS;
 
-	nl_channels = nla_nest_start_noflag(msg, NL802154_CAP_ATTR_CHANNELS);
+	nl_channels = nla_nest_start_yesflag(msg, NL802154_CAP_ATTR_CHANNELS);
 	if (!nl_channels)
 		return -ENOBUFS;
 
@@ -369,7 +369,7 @@ nl802154_put_capabilities(struct sk_buff *msg,
 	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_ED_LEVEL) {
 		struct nlattr *nl_ed_lvls;
 
-		nl_ed_lvls = nla_nest_start_noflag(msg,
+		nl_ed_lvls = nla_nest_start_yesflag(msg,
 						   NL802154_CAP_ATTR_CCA_ED_LEVELS);
 		if (!nl_ed_lvls)
 			return -ENOBUFS;
@@ -385,7 +385,7 @@ nl802154_put_capabilities(struct sk_buff *msg,
 	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_TXPOWER) {
 		struct nlattr *nl_tx_pwrs;
 
-		nl_tx_pwrs = nla_nest_start_noflag(msg,
+		nl_tx_pwrs = nla_nest_start_yesflag(msg,
 						   NL802154_CAP_ATTR_TX_POWERS);
 		if (!nl_tx_pwrs)
 			return -ENOBUFS;
@@ -494,7 +494,7 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 	if (nl802154_put_capabilities(msg, rdev))
 		goto nla_put_failure;
 
-	nl_cmds = nla_nest_start_noflag(msg, NL802154_ATTR_SUPPORTED_COMMANDS);
+	nl_cmds = nla_nest_start_yesflag(msg, NL802154_ATTR_SUPPORTED_COMMANDS);
 	if (!nl_cmds)
 		goto nla_put_failure;
 
@@ -676,7 +676,7 @@ ieee802154_llsec_send_key_id(struct sk_buff *msg,
 
 	switch (desc->mode) {
 	case NL802154_KEY_ID_MODE_IMPLICIT:
-		nl_dev_addr = nla_nest_start_noflag(msg,
+		nl_dev_addr = nla_nest_start_yesflag(msg,
 						    NL802154_KEY_ID_ATTR_IMPLICIT);
 		if (!nl_dev_addr)
 			return -ENOBUFS;
@@ -700,7 +700,7 @@ ieee802154_llsec_send_key_id(struct sk_buff *msg,
 				return -ENOBUFS;
 			break;
 		default:
-			/* userspace should handle unknown */
+			/* userspace should handle unkyeswn */
 			break;
 		}
 
@@ -721,7 +721,7 @@ ieee802154_llsec_send_key_id(struct sk_buff *msg,
 			return -ENOBUFS;
 		break;
 	default:
-		/* userspace should handle unknown */
+		/* userspace should handle unkyeswn */
 		break;
 	}
 
@@ -752,7 +752,7 @@ static int nl802154_get_llsec_params(struct sk_buff *msg,
 			 params.frame_counter))
 		return -ENOBUFS;
 
-	nl_key_id = nla_nest_start_noflag(msg, NL802154_ATTR_SEC_OUT_KEY_ID);
+	nl_key_id = nla_nest_start_yesflag(msg, NL802154_ATTR_SEC_OUT_KEY_ID);
 	if (!nl_key_id)
 		return -ENOBUFS;
 
@@ -1065,9 +1065,9 @@ static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 	pan_id = nla_get_le16(info->attrs[NL802154_ATTR_PAN_ID]);
 
 	/* TODO
-	 * I am not sure about to check here on broadcast pan_id.
+	 * I am yest sure about to check here on broadcast pan_id.
 	 * Broadcast is a valid setting, comment from 802.15.4:
-	 * If this value is 0xffff, the device is not associated.
+	 * If this value is 0xffff, the device is yest associated.
 	 *
 	 * This could useful to simple deassociate an device.
 	 */
@@ -1101,11 +1101,11 @@ static int nl802154_set_short_addr(struct sk_buff *skb, struct genl_info *info)
 	short_addr = nla_get_le16(info->attrs[NL802154_ATTR_SHORT_ADDR]);
 
 	/* TODO
-	 * I am not sure about to check here on broadcast short_addr.
+	 * I am yest sure about to check here on broadcast short_addr.
 	 * Broadcast is a valid setting, comment from 802.15.4:
 	 * A value of 0xfffe indicates that the device has
-	 * associated but has not been allocated an address. A
-	 * value of 0xffff indicates that the device does not
+	 * associated but has yest been allocated an address. A
+	 * value of 0xffff indicates that the device does yest
 	 * have a short address.
 	 *
 	 * I think we should allow to set these settings but
@@ -1437,11 +1437,11 @@ static int nl802154_send_key(struct sk_buff *msg, u32 cmd, u32 portid,
 	if (nla_put_u32(msg, NL802154_ATTR_IFINDEX, dev->ifindex))
 		goto nla_put_failure;
 
-	nl_key = nla_nest_start_noflag(msg, NL802154_ATTR_SEC_KEY);
+	nl_key = nla_nest_start_yesflag(msg, NL802154_ATTR_SEC_KEY);
 	if (!nl_key)
 		goto nla_put_failure;
 
-	nl_key_id = nla_nest_start_noflag(msg, NL802154_KEY_ATTR_ID);
+	nl_key_id = nla_nest_start_yesflag(msg, NL802154_KEY_ATTR_ID);
 	if (!nl_key_id)
 		goto nla_put_failure;
 
@@ -1529,7 +1529,7 @@ static const struct nla_policy nl802154_key_policy[NL802154_KEY_ATTR_MAX + 1] = 
 	[NL802154_KEY_ATTR_ID] = { NLA_NESTED },
 	/* TODO handle it as for_each_nested and NLA_FLAG? */
 	[NL802154_KEY_ATTR_USAGE_FRAMES] = { NLA_U8 },
-	/* TODO handle it as for_each_nested, not static array? */
+	/* TODO handle it as for_each_nested, yest static array? */
 	[NL802154_KEY_ATTR_USAGE_CMDS] = { .len = NL802154_CMD_FRAME_NR_IDS / 8 },
 	[NL802154_KEY_ATTR_BYTES] = { .len = NL802154_KEY_SIZE },
 };
@@ -1617,7 +1617,7 @@ static int nl802154_send_device(struct sk_buff *msg, u32 cmd, u32 portid,
 	if (nla_put_u32(msg, NL802154_ATTR_IFINDEX, dev->ifindex))
 		goto nla_put_failure;
 
-	nl_device = nla_nest_start_noflag(msg, NL802154_ATTR_SEC_DEVICE);
+	nl_device = nla_nest_start_yesflag(msg, NL802154_ATTR_SEC_DEVICE);
 	if (!nl_device)
 		goto nla_put_failure;
 
@@ -1783,7 +1783,7 @@ static int nl802154_send_devkey(struct sk_buff *msg, u32 cmd, u32 portid,
 	if (nla_put_u32(msg, NL802154_ATTR_IFINDEX, dev->ifindex))
 		goto nla_put_failure;
 
-	nl_devkey = nla_nest_start_noflag(msg, NL802154_ATTR_SEC_DEVKEY);
+	nl_devkey = nla_nest_start_yesflag(msg, NL802154_ATTR_SEC_DEVKEY);
 	if (!nl_devkey)
 		goto nla_put_failure;
 
@@ -1793,7 +1793,7 @@ static int nl802154_send_devkey(struct sk_buff *msg, u32 cmd, u32 portid,
 			devkey->frame_counter))
 		goto nla_put_failure;
 
-	nl_key_id = nla_nest_start_noflag(msg, NL802154_DEVKEY_ATTR_ID);
+	nl_key_id = nla_nest_start_yesflag(msg, NL802154_DEVKEY_ATTR_ID);
 	if (!nl_key_id)
 		goto nla_put_failure;
 
@@ -1947,7 +1947,7 @@ static int nl802154_send_seclevel(struct sk_buff *msg, u32 cmd, u32 portid,
 	if (nla_put_u32(msg, NL802154_ATTR_IFINDEX, dev->ifindex))
 		goto nla_put_failure;
 
-	nl_seclevel = nla_nest_start_noflag(msg, NL802154_ATTR_SEC_LEVEL);
+	nl_seclevel = nla_nest_start_yesflag(msg, NL802154_ATTR_SEC_LEVEL);
 	if (!nl_seclevel)
 		goto nla_put_failure;
 
@@ -2438,8 +2438,8 @@ static const struct genl_ops nl802154_ops[] = {
 
 static struct genl_family nl802154_fam __ro_after_init = {
 	.name = NL802154_GENL_NAME,	/* have users key off the name instead */
-	.hdrsize = 0,			/* no private header */
-	.version = 1,			/* no particular meaning now */
+	.hdrsize = 0,			/* yes private header */
+	.version = 1,			/* yes particular meaning yesw */
 	.maxattr = NL802154_ATTR_MAX,
 	.policy = nl802154_policy,
 	.netnsok = true,

@@ -567,7 +567,7 @@ enum vm_instruction_error_number {
 /*
  * VM-instruction errors that can be encountered on VM-Enter, used to trace
  * nested VM-Enter failures reported by hardware.  Errors unique to VM-Enter
- * from a SMI Transfer Monitor are not included as things have gone seriously
+ * from a SMI Transfer Monitor are yest included as things have gone seriously
  * sideways if we get one of those...
  */
 #define VMX_VMENTER_INSTRUCTION_ERRORS \

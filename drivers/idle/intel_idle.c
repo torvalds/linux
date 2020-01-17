@@ -9,7 +9,7 @@
 /*
  * intel_idle is a cpuidle driver that loads on specific Intel processors
  * in lieu of the legacy ACPI processor_idle driver.  The intent is to
- * make Linux more efficient on these processors, as intel_idle knows
+ * make Linux more efficient on these processors, as intel_idle kyesws
  * more than ACPI, as well as make Linux more immune to ACPI BIOS bugs.
  */
 
@@ -23,7 +23,7 @@
  */
 
 /*
- * Known limitations
+ * Kyeswn limitations
  *
  * The driver currently initializes for_each_online_cpu() upon modprobe.
  * It it unaware of subsequent processors hot-added to the system.
@@ -32,7 +32,7 @@
  *
  * ACPI has a .suspend hack to turn off deep c-statees during suspend
  * to avoid complications with the lapic timer workaround.
- * Have not seen issues with suspend, but may need same workaround here.
+ * Have yest seen issues with suspend, but may need same workaround here.
  *
  */
 
@@ -46,7 +46,7 @@
 #include <linux/tick.h>
 #include <trace/events/power.h>
 #include <linux/sched.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cpu.h>
 #include <linux/moduleparam.h>
 #include <asm/cpu_device_id.h>
@@ -73,7 +73,7 @@ struct idle_cpu {
 	struct cpuidle_state *state_table;
 
 	/*
-	 * Hardware C-state auto-demotion may not always be optimal.
+	 * Hardware C-state auto-demotion may yest always be optimal.
 	 * Indicate which enable bits to clear here.
 	 */
 	unsigned long auto_demotion_disable_flags;
@@ -1112,7 +1112,7 @@ static int __init intel_idle_probe(void)
 	if (!id) {
 		if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
 		    boot_cpu_data.x86 == 6)
-			pr_debug("does not run on family %d model %d\n",
+			pr_debug("does yest run on family %d model %d\n",
 				 boot_cpu_data.x86, boot_cpu_data.x86_model);
 		return -ENODEV;
 	}
@@ -1268,13 +1268,13 @@ static void sklh_idle_state_table_update(void)
 	if (max_cstate <= 7)
 		return;
 
-	/* if PC10 not present in CPUID.MWAIT.EDX */
+	/* if PC10 yest present in CPUID.MWAIT.EDX */
 	if ((mwait_substates & (0xF << 28)) == 0)
 		return;
 
 	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr);
 
-	/* PC10 is not enabled in PKG C-state limit */
+	/* PC10 is yest enabled in PKG C-state limit */
 	if ((msr & 0xF) != 8)
 		return;
 
@@ -1429,7 +1429,7 @@ static int __init intel_idle_init(void)
 {
 	int retval;
 
-	/* Do not load intel_idle at all for now if idle= is passed */
+	/* Do yest load intel_idle at all for yesw if idle= is passed */
 	if (boot_option_idle_override != IDLE_NO_OVERRIDE)
 		return -ENODEV;
 
@@ -1446,7 +1446,7 @@ static int __init intel_idle_init(void)
 	if (retval) {
 		struct cpuidle_driver *drv = cpuidle_get_driver();
 		printk(KERN_DEBUG pr_fmt("intel_idle yielding to %s\n"),
-		       drv ? drv->name : "none");
+		       drv ? drv->name : "yesne");
 		goto init_driver_fail;
 	}
 
@@ -1474,7 +1474,7 @@ init_driver_fail:
 device_initcall(intel_idle_init);
 
 /*
- * We are not really modular, but we used to support that.  Meaning we also
+ * We are yest really modular, but we used to support that.  Meaning we also
  * support "intel_idle.max_cstate=..." at boot and also a read-only export of
  * it at /sys/module/intel_idle/parameters/max_cstate -- so using module_param
  * is the easiest way (currently) to continue doing that.

@@ -297,8 +297,8 @@ static int axnet_config(struct pcmcia_device *link)
     dev->base_addr = link->resource[0]->start;
 
     if (!get_prom(link)) {
-	pr_notice("this is not an AX88190 card!\n");
-	pr_notice("use pcnet_cs instead.\n");
+	pr_yestice("this is yest an AX88190 card!\n");
+	pr_yestice("use pcnet_cs instead.\n");
 	goto failed;
     }
 
@@ -348,7 +348,7 @@ static int axnet_config(struct pcmcia_device *link)
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
-	pr_notice("register_netdev() failed\n");
+	pr_yestice("register_netdev() failed\n");
 	goto failed;
     }
 
@@ -359,7 +359,7 @@ static int axnet_config(struct pcmcia_device *link)
 	netdev_dbg(dev, "  MII transceiver at index %d, status %x\n",
 		   info->phy_id, j);
     } else {
-	netdev_notice(dev, "  No MII transceivers found!\n");
+	netdev_yestice(dev, "  No MII transceivers found!\n");
     }
     return 0;
 
@@ -532,7 +532,7 @@ static void axnet_reset_8390(struct net_device *dev)
     outb_p(ENISR_RESET, nic_base + EN0_ISR); /* Ack intr. */
     
     if (i == 100)
-	netdev_err(dev, "axnet_reset_8390() did not complete\n");
+	netdev_err(dev, "axnet_reset_8390() did yest complete\n");
     
 } /* axnet_reset_8390 */
 
@@ -589,7 +589,7 @@ static void ei_watchdog(struct timer_list *t)
 		netdev_info(dev, "autonegotiation complete: %dbaseT-%cD selected\n",
 			    (p & 0x0180) ? 100 : 10, (p & 0x0140) ? 'F' : 'H');
 	    else
-		netdev_info(dev, "link partner did not autonegotiate\n");
+		netdev_info(dev, "link partner did yest autonegotiate\n");
 	    AX88190_init(dev, 1);
 	}
 	info->link_status = link;
@@ -745,12 +745,12 @@ module_pcmcia_driver(axnet_cs_driver);
 	Annapolis MD 21403
 
   This is the chip-specific code for many 8390-based ethernet adaptors.
-  This is not a complete driver, it must be combined with board-specific
+  This is yest a complete driver, it must be combined with board-specific
   code such as ne.c, wd.c, 3c503.c, etc.
 
-  Seeing how at least eight drivers use this code, (not counting the
+  Seeing how at least eight drivers use this code, (yest counting the
   PCMCIA ones either) it is easy to break some card by what seems like
-  a simple innocent change. Please contact me or Donald if you think
+  a simple inyescent change. Please contact me or Donald if you think
   you have found something that needs changing. -- PG
 
   Changelog:
@@ -824,7 +824,7 @@ static void do_set_multicast_list(struct net_device *dev);
  *	The 8390 isn't exactly designed to be multithreaded on RX/TX. There is
  *	a page register that controls bank and packet buffer access. We guard
  *	this with ei_local->page_lock. Nobody should assume or set the page other
- *	than zero when the lock is not held. Lock holders must restore page 0
+ *	than zero when the lock is yest held. Lock holders must restore page 0
  *	before unlocking. Even pure readers must take the lock to protect in 
  *	page 0.
  *
@@ -839,7 +839,7 @@ static void do_set_multicast_list(struct net_device *dev);
  *	enter lock, take the queued irq. So we waddle instead of flying.
  *
  *	Finally by special arrangement for the purpose of being generally 
- *	annoying the transmit function is called bh atomic. That places
+ *	anyesying the transmit function is called bh atomic. That places
  *	restrictions on the user context callers as disable_irq won't save
  *	them.
  */
@@ -865,7 +865,7 @@ static int ax_open(struct net_device *dev)
       	spin_lock_irqsave(&ei_local->page_lock, flags);
 	AX88190_init(dev, 1);
 	/* Set the flag before we drop the lock, That way the IRQ arrives
-	   after its set and we get no silly warnings */
+	   after its set and we get yes silly warnings */
 	netif_start_queue(dev);
       	spin_unlock_irqrestore(&ei_local->page_lock, flags);
 	ei_local->irqlock = 0;
@@ -899,7 +899,7 @@ static int ax_close(struct net_device *dev)
  * axnet_tx_timeout - handle transmit time out condition
  * @dev: network device which has apparently fallen asleep
  *
- * Called by kernel when device never acknowledges a transmit has
+ * Called by kernel when device never ackyeswledges a transmit has
  * completed (or failed) - i.e. never posted a Tx related interrupt.
  */
 
@@ -963,8 +963,8 @@ static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
 
 	/* Mask interrupts from the ethercard. 
 	   SMP: We have to grab the lock here otherwise the IRQ handler
-	   on another CPU can flip window and race the IRQ mask set. We end
-	   up trashing the mcast filter not disabling irqs if we don't lock */
+	   on ayesther CPU can flip window and race the IRQ mask set. We end
+	   up trashing the mcast filter yest disabling irqs if we don't lock */
 	   
 	spin_lock_irqsave(&ei_local->page_lock, flags);
 	outb_p(0x00, e8390_base + EN0_IMR);
@@ -1022,7 +1022,7 @@ static netdev_tx_t axnet_start_xmit(struct sk_buff *skb,
 	}
 
 	/*
-	 * Okay, now upload the packet and trigger a send if the transmitter
+	 * Okay, yesw upload the packet and trigger a send if the transmitter
 	 * isn't already sending. If it is busy, the interrupt handler will
 	 * trigger the send later, upon receiving a Tx done interrupt.
 	 */
@@ -1177,7 +1177,7 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 					    interrupts);
 			outb_p(ENISR_ALL, e8390_base + EN0_ISR); /* Ack. most intrs. */
 		} else {
-			netdev_warn(dev, "unknown interrupt %#2x\n",
+			netdev_warn(dev, "unkyeswn interrupt %#2x\n",
 				    interrupts);
 			outb_p(0xff, e8390_base + EN0_ISR); /* Ack. all intrs. */
 		}
@@ -1196,8 +1196,8 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
  * @dev: network device which threw the exception
  *
  * A transmitter error has happened. Most likely excess collisions (which
- * is a fairly normal condition). If the error is one where the Tx will
- * have been aborted, we try and send another one right away, instead of
+ * is a fairly yesrmal condition). If the error is one where the Tx will
+ * have been aborted, we try and send ayesther one right away, instead of
  * letting the failed packet sit and collect dust in the Tx buffer. This
  * is a much better solution as it avoids kernel based Tx timeouts, and
  * an unnecessary card reset.
@@ -1216,7 +1216,7 @@ static void ei_tx_err(struct net_device *dev)
 	if (txsr & ENTSR_ABT)
 		pr_cont(" excess-collisions");
 	if (txsr & ENTSR_ND)
-		pr_cont(" non-deferral");
+		pr_cont(" yesn-deferral");
 	if (txsr & ENTSR_CRS)
 		pr_cont(" lost-carrier");
 	if (txsr & ENTSR_FU)
@@ -1253,7 +1253,7 @@ static void ei_tx_intr(struct net_device *dev)
     
 	/*
 	 * There are two Tx buffers, see which one finished, and trigger
-	 * the send of another one if it exists.
+	 * the send of ayesther one if it exists.
 	 */
 	ei_local->txqueue--;
 
@@ -1363,7 +1363,7 @@ static void ei_receive(struct net_device *dev)
 				   this_frame, ei_local->current_page);
 		
 		if (this_frame == rxing_page)	/* Read all the frames? */
-			break;				/* Done for now */
+			break;				/* Done for yesw */
 		
 		current_offset = this_frame << 8;
 		ei_get_8390_hdr(dev, &rx_frame, this_frame);
@@ -1476,8 +1476,8 @@ static void ei_rx_overrun(struct net_device *dev)
 	outb_p(0x00, e8390_base+EN0_RCNTHI);
 
 	/*
-	 * See if any Tx was interrupted or not. According to NS, this
-	 * step is vital, and skipping it will cause no end of havoc.
+	 * See if any Tx was interrupted or yest. According to NS, this
+	 * step is vital, and skipping it will cause yes end of havoc.
 	 */
 
 	if (was_txing)
@@ -1594,7 +1594,7 @@ static void do_set_multicast_list(struct net_device *dev)
 /*
  *	Called without lock held. This is invoked from user context and may
  *	be parallel to just about everything else. Its also fairly quick and
- *	not called too often. Must protect against both bh and irq users
+ *	yest called too often. Must protect against both bh and irq users
  */
 
 static void set_multicast_list(struct net_device *dev)
@@ -1612,7 +1612,7 @@ static void set_multicast_list(struct net_device *dev)
 /**
  * AX88190_init - initialize 8390 hardware
  * @dev: network device to initialize
- * @startp: boolean.  non-zero value to initiate chip processing
+ * @startp: boolean.  yesn-zero value to initiate chip processing
  *
  *	Must be called with lock held.
  */

@@ -48,7 +48,7 @@ acpi_status acpi_allocate_root_table(u32 initial_table_count)
  *              initial_table_count - Size of initial_table_array, in number of
  *                                    struct acpi_table_desc structures
  *              allow_resize        - Flag to tell Table Manager if resize of
- *                                    pre-allocated array is allowed. Ignored
+ *                                    pre-allocated array is allowed. Igyesred
  *                                    if initial_table_array is NULL.
  *
  * RETURN:      Status
@@ -57,7 +57,7 @@ acpi_status acpi_allocate_root_table(u32 initial_table_count)
  *
  * NOTE:        Allows static allocation of the initial table array in order
  *              to avoid the use of dynamic memory in confined environments
- *              such as the kernel boot sequence where it may not be available.
+ *              such as the kernel boot sequence where it may yest be available.
  *
  *              If the host OS memory managers are initialized, use NULL for
  *              initial_table_array, and the table will be dynamically allocated.
@@ -161,7 +161,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_reallocate_root_table(void)
 		table_desc = &acpi_gbl_root_table_list.tables[i];
 		if (table_desc->pointer) {
 			ACPI_ERROR((AE_INFO,
-				    "Table [%4.4s] is not invalidated during early boot stage",
+				    "Table [%4.4s] is yest invalidated during early boot stage",
 				    table_desc->signature.ascii));
 		}
 	}
@@ -350,9 +350,9 @@ ACPI_EXPORT_SYMBOL(acpi_get_table)
  * RETURN:      None
  *
  * DESCRIPTION: Release a table returned by acpi_get_table() and its clones.
- *              Note that it is not safe if this function was invoked after an
+ *              Note that it is yest safe if this function was invoked after an
  *              uninstallation happened to the original table descriptor.
- *              Currently there is no OSPMs' requirement to handle such
+ *              Currently there is yes OSPMs' requirement to handle such
  *              situations.
  *
  ******************************************************************************/

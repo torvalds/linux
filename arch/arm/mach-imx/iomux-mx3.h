@@ -19,7 +19,7 @@
 #define	IOMUX_OCONFIG_ALT4 (5 << 4)	/* used as alternate function 4 */
 #define	IOMUX_OCONFIG_ALT5 (6 << 4)	/* used as alternate function 5 */
 #define	IOMUX_OCONFIG_ALT6 (7 << 4)	/* used as alternate function 6 */
-#define	IOMUX_ICONFIG_NONE  0		/* not configured for input */
+#define	IOMUX_ICONFIG_NONE  0		/* yest configured for input */
 #define	IOMUX_ICONFIG_GPIO  1		/* used as GPIO */
 #define	IOMUX_ICONFIG_FUNC  2		/* used as function */
 #define	IOMUX_ICONFIG_ALT1  4		/* used as alternate function 1 */
@@ -95,7 +95,7 @@ enum iomux_gp_func {
 
 /*
  * setups a single pin:
- * 	- reserves the pin so that it is not claimed by another driver
+ * 	- reserves the pin so that it is yest claimed by ayesther driver
  * 	- setups the iomux according to the configuration
  * 	- if the pin is configured as a GPIO, we claim it through kernel gpiolib
  */
@@ -109,7 +109,7 @@ int mxc_iomux_setup_multiple_pins(const unsigned int *pin_list, unsigned count,
 
 /*
  * releases a single pin:
- * 	- make it available for a future use by another driver
+ * 	- make it available for a future use by ayesther driver
  * 	- frees the GPIO if the pin was configured as GPIO
  * 	- DOES NOT reconfigure the IOMUX in its reset state
  */
@@ -128,7 +128,7 @@ void mxc_iomux_set_gpr(enum iomux_gp_func, bool en);
 
 /*
  * This function only configures the iomux hardware.
- * It is called by the setup functions and should not be called directly anymore.
+ * It is called by the setup functions and should yest be called directly anymore.
  * It is here visible for backward compatibility
  */
 void mxc_iomux_mode(unsigned int pin_mode);

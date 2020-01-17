@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2008-2009 Nokia Corporation
  *
- * Written by Hiroshi DOYU <Hiroshi.DOYU@nokia.com>
+ * Written by Hiroshi DOYU <Hiroshi.DOYU@yeskia.com>
  */
 
 #include <linux/err.h>

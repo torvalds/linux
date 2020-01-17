@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -95,7 +95,7 @@ int qxl_gem_object_create_with_handle(struct qxl_device *qdev,
 	r = drm_gem_handle_create(file_priv, gobj, handle);
 	if (r)
 		return r;
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it yesw */
 	*qobj = gem_to_qxl_bo(gobj);
 	drm_gem_object_put_unlocked(gobj);
 	return 0;

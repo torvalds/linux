@@ -25,7 +25,7 @@ pal_entry_point:
 /*
  * Set the PAL entry point address.  This could be written in C code, but we
  * do it here to keep it all in one module (besides, it's so trivial that it's
- * not a big deal).
+ * yest a big deal).
  *
  * in0		Address of the PAL entry point (text address, NOT a function
  *		descriptor).
@@ -40,8 +40,8 @@ END(ia64_pal_handler_init)
 
 /*
  * Default PAL call handler.  This needs to be coded in assembly because it
- * uses the static calling convention, i.e., the RSE may not be used and
- * calls are done via "br.cond" (not "br.call").
+ * uses the static calling convention, i.e., the RSE may yest be used and
+ * calls are done via "br.cond" (yest "br.call").
  */
 GLOBAL_ENTRY(ia64_pal_default_handler)
 	mov r8=-1
@@ -117,7 +117,7 @@ GLOBAL_ENTRY(ia64_pal_call_stacked)
 	rsm psr.i
 	mov b7 = loc2
 	;;
-	br.call.sptk.many rp=b7		// now make the call
+	br.call.sptk.many rp=b7		// yesw make the call
 .ret0:	mov psr.l  = loc3
 	mov ar.pfs = loc1
 	mov rp = loc0
@@ -239,7 +239,7 @@ GLOBAL_ENTRY(ia64_pal_call_phys_stacked)
 	mov loc5 = r19
 	mov loc6 = r20
 
-	br.call.sptk.many rp=b7		// now make the call
+	br.call.sptk.many rp=b7		// yesw make the call
 
 	mov ar.rsc=0			// put RSE in enforced lazy, LE mode
 	mov r16=loc3			// r16= original psr

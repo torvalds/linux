@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -22,17 +22,17 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_usif.h"
-#include "nouveau_abi16.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_usif.h"
+#include "yesuveau_abi16.h"
 
-#include <nvif/notify.h>
+#include <nvif/yestify.h>
 #include <nvif/unpack.h>
 #include <nvif/client.h>
 #include <nvif/event.h>
 #include <nvif/ioctl.h>
 
-struct usif_notify_p {
+struct usif_yestify_p {
 	struct drm_pending_event base;
 	struct {
 		struct drm_event base;
@@ -40,22 +40,22 @@ struct usif_notify_p {
 	} e;
 };
 
-struct usif_notify {
+struct usif_yestify {
 	struct list_head head;
 	atomic_t enabled;
 	u32 handle;
 	u16 reply;
 	u8  route;
 	u64 token;
-	struct usif_notify_p *p;
+	struct usif_yestify_p *p;
 };
 
-static inline struct usif_notify *
-usif_notify_find(struct drm_file *filp, u32 handle)
+static inline struct usif_yestify *
+usif_yestify_find(struct drm_file *filp, u32 handle)
 {
-	struct nouveau_cli *cli = nouveau_cli(filp);
-	struct usif_notify *ntfy;
-	list_for_each_entry(ntfy, &cli->notifys, head) {
+	struct yesuveau_cli *cli = yesuveau_cli(filp);
+	struct usif_yestify *ntfy;
+	list_for_each_entry(ntfy, &cli->yestifys, head) {
 		if (ntfy->handle == handle)
 			return ntfy;
 	}
@@ -63,18 +63,18 @@ usif_notify_find(struct drm_file *filp, u32 handle)
 }
 
 static inline void
-usif_notify_dtor(struct usif_notify *ntfy)
+usif_yestify_dtor(struct usif_yestify *ntfy)
 {
 	list_del(&ntfy->head);
 	kfree(ntfy);
 }
 
 int
-usif_notify(const void *header, u32 length, const void *data, u32 size)
+usif_yestify(const void *header, u32 length, const void *data, u32 size)
 {
-	struct usif_notify *ntfy = NULL;
+	struct usif_yestify *ntfy = NULL;
 	const union {
-		struct nvif_notify_rep_v0 v0;
+		struct nvif_yestify_rep_v0 v0;
 	} *rep = header;
 	struct drm_device *dev;
 	struct drm_file *filp;
@@ -91,13 +91,13 @@ usif_notify(const void *header, u32 length, const void *data, u32 size)
 	if (WARN_ON(!ntfy->p || ntfy->reply != (length + size)))
 		return NVIF_NOTIFY_DROP;
 	filp = ntfy->p->base.file_priv;
-	dev = filp->minor->dev;
+	dev = filp->miyesr->dev;
 
 	memcpy(&ntfy->p->e.data[0], header, length);
 	memcpy(&ntfy->p->e.data[length], data, size);
 	switch (rep->v0.version) {
 	case 0: {
-		struct nvif_notify_rep_v0 *rep = (void *)ntfy->p->e.data;
+		struct nvif_yestify_rep_v0 *rep = (void *)ntfy->p->e.data;
 		rep->route = ntfy->route;
 		rep->token = ntfy->token;
 	}
@@ -119,21 +119,21 @@ usif_notify(const void *header, u32 length, const void *data, u32 size)
 }
 
 static int
-usif_notify_new(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
+usif_yestify_new(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
 {
-	struct nouveau_cli *cli = nouveau_cli(f);
+	struct yesuveau_cli *cli = yesuveau_cli(f);
 	struct nvif_client *client = &cli->base;
 	union {
 		struct nvif_ioctl_ntfy_new_v0 v0;
 	} *args = data;
 	union {
-		struct nvif_notify_req_v0 v0;
+		struct nvif_yestify_req_v0 v0;
 	} *req;
-	struct usif_notify *ntfy;
+	struct usif_yestify *ntfy;
 	int ret = -ENOSYS;
 
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
-		if (usif_notify_find(f, args->v0.index))
+		if (usif_yestify_find(f, args->v0.index))
 			return -EEXIST;
 	} else
 		return ret;
@@ -145,7 +145,7 @@ usif_notify_new(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
 	atomic_set(&ntfy->enabled, 0);
 
 	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, true))) {
-		ntfy->reply = sizeof(struct nvif_notify_rep_v0) + req->v0.reply;
+		ntfy->reply = sizeof(struct nvif_yestify_rep_v0) + req->v0.reply;
 		ntfy->route = req->v0.route;
 		ntfy->token = req->v0.token;
 		req->v0.route = NVDRM_NOTIFY_USIF;
@@ -157,48 +157,48 @@ usif_notify_new(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
 	}
 
 	if (ret == 0)
-		list_add(&ntfy->head, &cli->notifys);
+		list_add(&ntfy->head, &cli->yestifys);
 	if (ret)
 		kfree(ntfy);
 	return ret;
 }
 
 static int
-usif_notify_del(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
+usif_yestify_del(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
 {
-	struct nouveau_cli *cli = nouveau_cli(f);
+	struct yesuveau_cli *cli = yesuveau_cli(f);
 	struct nvif_client *client = &cli->base;
 	union {
 		struct nvif_ioctl_ntfy_del_v0 v0;
 	} *args = data;
-	struct usif_notify *ntfy;
+	struct usif_yestify *ntfy;
 	int ret = -ENOSYS;
 
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
-		if (!(ntfy = usif_notify_find(f, args->v0.index)))
+		if (!(ntfy = usif_yestify_find(f, args->v0.index)))
 			return -ENOENT;
 	} else
 		return ret;
 
 	ret = nvif_client_ioctl(client, argv, argc);
 	if (ret == 0)
-		usif_notify_dtor(ntfy);
+		usif_yestify_dtor(ntfy);
 	return ret;
 }
 
 static int
-usif_notify_get(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
+usif_yestify_get(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
 {
-	struct nouveau_cli *cli = nouveau_cli(f);
+	struct yesuveau_cli *cli = yesuveau_cli(f);
 	struct nvif_client *client = &cli->base;
 	union {
 		struct nvif_ioctl_ntfy_del_v0 v0;
 	} *args = data;
-	struct usif_notify *ntfy;
+	struct usif_yestify *ntfy;
 	int ret = -ENOSYS;
 
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
-		if (!(ntfy = usif_notify_find(f, args->v0.index)))
+		if (!(ntfy = usif_yestify_find(f, args->v0.index)))
 			return -ENOENT;
 	} else
 		return ret;
@@ -224,18 +224,18 @@ done:
 }
 
 static int
-usif_notify_put(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
+usif_yestify_put(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
 {
-	struct nouveau_cli *cli = nouveau_cli(f);
+	struct yesuveau_cli *cli = yesuveau_cli(f);
 	struct nvif_client *client = &cli->base;
 	union {
 		struct nvif_ioctl_ntfy_put_v0 v0;
 	} *args = data;
-	struct usif_notify *ntfy;
+	struct usif_yestify *ntfy;
 	int ret = -ENOSYS;
 
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, true))) {
-		if (!(ntfy = usif_notify_find(f, args->v0.index)))
+		if (!(ntfy = usif_yestify_find(f, args->v0.index)))
 			return -ENOENT;
 	} else
 		return ret;
@@ -263,7 +263,7 @@ usif_object_dtor(struct usif_object *object)
 static int
 usif_object_new(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
 {
-	struct nouveau_cli *cli = nouveau_cli(f);
+	struct yesuveau_cli *cli = yesuveau_cli(f);
 	struct nvif_client *client = &cli->base;
 	union {
 		struct nvif_ioctl_new_v0 v0;
@@ -293,7 +293,7 @@ usif_object_new(struct drm_file *f, void *data, u32 size, void *argv, u32 argc)
 int
 usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 {
-	struct nouveau_cli *cli = nouveau_cli(filp);
+	struct yesuveau_cli *cli = yesuveau_cli(filp);
 	struct nvif_client *client = &cli->base;
 	void *data = kmalloc(argc, GFP_KERNEL);
 	u32   size = argc;
@@ -310,7 +310,7 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 		goto done;
 
 	if (!(ret = nvif_unpack(-ENOSYS, &data, &size, argv->v0, 0, 0, true))) {
-		/* block access to objects not created via this interface */
+		/* block access to objects yest created via this interface */
 		owner = argv->v0.owner;
 		if (argv->v0.object == 0ULL &&
 		    argv->v0.type != NVIF_IOCTL_V0_DEL)
@@ -326,7 +326,7 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 	mutex_lock(&cli->mutex);
 	if (argv->v0.route) {
 		if (ret = -EINVAL, argv->v0.route == 0xff)
-			ret = nouveau_abi16_usif(filp, argv, argc);
+			ret = yesuveau_abi16_usif(filp, argv, argc);
 		if (ret) {
 			mutex_unlock(&cli->mutex);
 			goto done;
@@ -338,16 +338,16 @@ usif_ioctl(struct drm_file *filp, void __user *user, u32 argc)
 		ret = usif_object_new(filp, data, size, argv, argc);
 		break;
 	case NVIF_IOCTL_V0_NTFY_NEW:
-		ret = usif_notify_new(filp, data, size, argv, argc);
+		ret = usif_yestify_new(filp, data, size, argv, argc);
 		break;
 	case NVIF_IOCTL_V0_NTFY_DEL:
-		ret = usif_notify_del(filp, data, size, argv, argc);
+		ret = usif_yestify_del(filp, data, size, argv, argc);
 		break;
 	case NVIF_IOCTL_V0_NTFY_GET:
-		ret = usif_notify_get(filp, data, size, argv, argc);
+		ret = usif_yestify_get(filp, data, size, argv, argc);
 		break;
 	case NVIF_IOCTL_V0_NTFY_PUT:
-		ret = usif_notify_put(filp, data, size, argv, argc);
+		ret = usif_yestify_put(filp, data, size, argv, argc);
 		break;
 	default:
 		ret = nvif_client_ioctl(client, argv, argc);
@@ -376,13 +376,13 @@ done:
 }
 
 void
-usif_client_fini(struct nouveau_cli *cli)
+usif_client_fini(struct yesuveau_cli *cli)
 {
 	struct usif_object *object, *otemp;
-	struct usif_notify *notify, *ntemp;
+	struct usif_yestify *yestify, *ntemp;
 
-	list_for_each_entry_safe(notify, ntemp, &cli->notifys, head) {
-		usif_notify_dtor(notify);
+	list_for_each_entry_safe(yestify, ntemp, &cli->yestifys, head) {
+		usif_yestify_dtor(yestify);
 	}
 
 	list_for_each_entry_safe(object, otemp, &cli->objects, head) {
@@ -391,8 +391,8 @@ usif_client_fini(struct nouveau_cli *cli)
 }
 
 void
-usif_client_init(struct nouveau_cli *cli)
+usif_client_init(struct yesuveau_cli *cli)
 {
 	INIT_LIST_HEAD(&cli->objects);
-	INIT_LIST_HEAD(&cli->notifys);
+	INIT_LIST_HEAD(&cli->yestifys);
 }

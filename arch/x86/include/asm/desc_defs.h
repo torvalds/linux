@@ -127,7 +127,7 @@ struct desc_ptr {
 #define AR_A			(1 << 8)   /* "Accessed" */
 #define AR_S			(1 << 12)  /* If clear, "System" segment */
 #define AR_P			(1 << 15)  /* "Present" */
-#define AR_AVL			(1 << 20)  /* "AVaiLable" (no HW effect) */
+#define AR_AVL			(1 << 20)  /* "AVaiLable" (yes HW effect) */
 #define AR_L			(1 << 21)  /* "Long mode" for code segments */
 #define AR_DB			(1 << 22)  /* D/B, effect depends on type */
 #define AR_G			(1 << 23)  /* "Granularity" (limit in pages) */

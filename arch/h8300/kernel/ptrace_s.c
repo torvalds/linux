@@ -2,7 +2,7 @@
  *  linux/arch/h8300/kernel/ptrace_h8s.c
  *    ptrace cpu depend helper functions
  *
- *  Yoshinori Sato <ysato@users.sourceforge.jp>
+ *  Yoshiyesri Sato <ysato@users.sourceforge.jp>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of
@@ -11,7 +11,7 @@
 
 #include <linux/linkage.h>
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/ptrace.h>
 
 #define CCR_MASK  0x6f

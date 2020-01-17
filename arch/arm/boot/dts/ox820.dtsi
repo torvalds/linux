@@ -208,7 +208,7 @@
 			       fifo-size = <16>;
 			       reg-io-width = <1>;
 			       current-speed = <115200>;
-			       no-loopback-test;
+			       yes-loopback-test;
 			       status = "disabled";
 			       clocks = <&sysclk>;
 			       resets = <&reset RESET_UART1>;
@@ -222,7 +222,7 @@
 			       fifo-size = <16>;
 			       reg-io-width = <1>;
 			       current-speed = <115200>;
-			       no-loopback-test;
+			       yes-loopback-test;
 			       status = "disabled";
 			       clocks = <&sysclk>;
 			       resets = <&reset RESET_UART2>;

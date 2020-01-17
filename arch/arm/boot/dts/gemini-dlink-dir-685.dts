@@ -60,7 +60,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		/* Collides with IDE pins, that's cool (we do not use them) */
+		/* Collides with IDE pins, that's cool (we do yest use them) */
 		gpio-sck = <&gpio1 5 GPIO_ACTIVE_HIGH>;
 		gpio-miso = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		gpio-mosi = <&gpio1 7 GPIO_ACTIVE_HIGH>;
@@ -95,7 +95,7 @@
 		};
 		/*
 		 * These two LEDs are on the side of the device.
-		 * For electrical reasons, both LEDs cannot be active
+		 * For electrical reasons, both LEDs canyest be active
 		 * at the same time so only blue or orange can be on at
 		 * one time. Enabling both makes the LED go dark.
 		 * The LEDs both sit inside the unmount button and the
@@ -118,8 +118,8 @@
 	};
 
 	/*
-	 * This is a Sunon Maglev GM0502PFV2-8 cooling fan @10000 RPM.
-	 * Since the platform has no temperature sensor, this is controlled
+	 * This is a Suyesn Maglev GM0502PFV2-8 cooling fan @10000 RPM.
+	 * Since the platform has yes temperature sensor, this is controlled
 	 * from userspace by using the hard disks S.M.A.R.T. temperature
 	 * sensor. It is turned on when the temperature exceeds 46 degrees
 	 * and turned off when the temperatures goes below 41 degrees
@@ -350,7 +350,7 @@
 				};
 				/*
 				 * These GPIO groups will be mapped in over some
-				 * of the flash pins when the flash is not in
+				 * of the flash pins when the flash is yest in
 				 * active use.
 				 */
 				pflash_disabled_pins: pinctrl-pflash-disabled {

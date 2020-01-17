@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -260,7 +260,7 @@ void cypress_enable_mclk_control(struct radeon_device *rdev,
 		WREG32_P(MCLK_PWRMGT_CNTL, MPLL_PWRMGT_OFF, ~MPLL_PWRMGT_OFF);
 }
 
-int cypress_notify_smc_display_change(struct radeon_device *rdev,
+int cypress_yestify_smc_display_change(struct radeon_device *rdev,
 				      bool has_display)
 {
 	PPSMC_Msg msg = has_display ?
@@ -332,7 +332,7 @@ void cypress_advertise_gen2_capability(struct radeon_device *rdev)
 	u32 tmp;
 
 #if defined(CONFIG_ACPI)
-	radeon_acpi_pcie_notify_device_ready(rdev);
+	radeon_acpi_pcie_yestify_device_ready(rdev);
 #endif
 
 	tmp = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
@@ -357,7 +357,7 @@ static enum radeon_pcie_gen cypress_get_maximum_link_speed(struct radeon_ps *rad
 	return 0;
 }
 
-void cypress_notify_link_speed_change_after_state_change(struct radeon_device *rdev,
+void cypress_yestify_link_speed_change_after_state_change(struct radeon_device *rdev,
 							 struct radeon_ps *radeon_new_state,
 							 struct radeon_ps *radeon_current_state)
 {
@@ -379,7 +379,7 @@ void cypress_notify_link_speed_change_after_state_change(struct radeon_device *r
 	}
 }
 
-void cypress_notify_link_speed_change_before_state_change(struct radeon_device *rdev,
+void cypress_yestify_link_speed_change_before_state_change(struct radeon_device *rdev,
 							  struct radeon_ps *radeon_new_state,
 							  struct radeon_ps *radeon_current_state)
 {
@@ -1778,7 +1778,7 @@ static void cypress_program_display_gap(struct radeon_device *rdev)
 		WREG32(DCCG_DISP_SLOW_SELECT_REG, tmp);
 	}
 
-	cypress_notify_smc_display_change(rdev, rdev->pm.dpm.new_active_crtc_count > 0);
+	cypress_yestify_smc_display_change(rdev, rdev->pm.dpm.new_active_crtc_count > 0);
 }
 
 void cypress_dpm_setup_asic(struct radeon_device *rdev)
@@ -1889,9 +1889,9 @@ int cypress_dpm_enable(struct radeon_device *rdev)
 
 	r7xx_start_smc(rdev);
 
-	ret = cypress_notify_smc_display_change(rdev, false);
+	ret = cypress_yestify_smc_display_change(rdev, false);
 	if (ret) {
-		DRM_ERROR("cypress_notify_smc_display_change failed\n");
+		DRM_ERROR("cypress_yestify_smc_display_change failed\n");
 		return ret;
 	}
 	cypress_enable_sclk_control(rdev, true);
@@ -1965,7 +1965,7 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 		return ret;
 	}
 	if (eg_pi->pcie_performance_request)
-		cypress_notify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
+		cypress_yestify_link_speed_change_before_state_change(rdev, new_ps, old_ps);
 
 	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	ret = rv770_halt_smc(rdev);
@@ -2001,7 +2001,7 @@ int cypress_dpm_set_power_state(struct radeon_device *rdev)
 	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
 	if (eg_pi->pcie_performance_request)
-		cypress_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
+		cypress_yestify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 
 	return 0;
 }
@@ -2155,7 +2155,7 @@ bool cypress_dpm_vblank_too_short(struct radeon_device *rdev)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
-	/* we never hit the non-gddr5 limit so disable it */
+	/* we never hit the yesn-gddr5 limit so disable it */
 	u32 switch_limit = pi->mem_gddr5 ? 450 : 0;
 
 	if (vblank_time < switch_limit)

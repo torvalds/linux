@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/major.h>
@@ -69,7 +69,7 @@ struct serial_uart_config {
  * Here we define the default xmit fifo size used for each type of UART.
  */
 static const struct serial_uart_config uart_config[] = {
-	{ "unknown",	1,	0 },
+	{ "unkyeswn",	1,	0 },
 	{ "8250",	1,	0 },
 	{ "16450",	1,	0 },
 	{ "16550",	1,	0 },
@@ -129,7 +129,7 @@ static void serial_out(struct uart_sunsu_port *up, int offset, int value)
 	 * MrCoffee has weird schematics: IRQ4 & P10(?) pins of SuperIO are
 	 * connected with a gate then go to SlavIO. When IRQ4 goes tristated
 	 * gate outputs a logical one. Since we use level triggered interrupts
-	 * we have lockup and watchdog reset. We cannot mask IRQ because
+	 * we have lockup and watchdog reset. We canyest mask IRQ because
 	 * keyboard shares IRQ with us (Word has it as Bob Smelik's design).
 	 * This problem is similar to what Alpha people suffer, see serial.c.
 	 */
@@ -226,7 +226,7 @@ static void enable_rsa(struct uart_sunsu_port *up)
 
 /*
  * Attempts to turn off the RSA FIFO.  Returns zero on failure.
- * It is unknown why interrupts were disabled in here.  However,
+ * It is unkyeswn why interrupts were disabled in here.  However,
  * the caller is expected to preserve this behaviour by grabbing
  * the spinlock before calling this function.
  */
@@ -347,11 +347,11 @@ receive_chars(struct uart_sunsu_port *up, unsigned char *status)
 				/*
 				 * We do the SysRQ and SAK checking
 				 * here because otherwise the break
-				 * may get masked by ignore_status_mask
+				 * may get masked by igyesre_status_mask
 				 * or read_status_mask.
 				 */
 				if (uart_handle_break(&up->port))
-					goto ignore_char;
+					goto igyesre_char;
 			} else if (*status & UART_LSR_PE)
 				up->port.icount.parity++;
 			else if (*status & UART_LSR_FE)
@@ -379,8 +379,8 @@ receive_chars(struct uart_sunsu_port *up, unsigned char *status)
 				flag = TTY_FRAME;
 		}
 		if (uart_handle_sysrq_char(&up->port, ch))
-			goto ignore_char;
-		if ((*status & up->port.ignore_status_mask) == 0)
+			goto igyesre_char;
+		if ((*status & up->port.igyesre_status_mask) == 0)
 			tty_insert_flip_char(port, ch, flag);
 		if (*status & UART_LSR_OE)
 			/*
@@ -389,7 +389,7 @@ receive_chars(struct uart_sunsu_port *up, unsigned char *status)
 			 * character.
 			 */
 			 tty_insert_flip_char(port, 0, TTY_OVERRUN);
-	ignore_char:
+	igyesre_char:
 		*status = serial_inp(up, UART_LSR);
 	} while ((*status & UART_LSR_DR) && (max_count-- > 0));
 
@@ -507,7 +507,7 @@ static void receive_kbd_ms_chars(struct uart_sunsu_port *up, int is_break)
 	do {
 		unsigned char ch = serial_inp(up, UART_RX);
 
-		/* Stop-A is handled by drivers/char/keyboard.c now. */
+		/* Stop-A is handled by drivers/char/keyboard.c yesw. */
 		if (up->su_type == SU_PORT_KBD) {
 #ifdef CONFIG_SERIO
 			serio_interrupt(&up->serio, ch, 0);
@@ -664,8 +664,8 @@ static int sunsu_startup(struct uart_port *port)
 	(void) serial_inp(up, UART_MSR);
 
 	/*
-	 * At this point, there's no way the LSR could still be 0xff;
-	 * if it is, then bail out, because there's likely no UART
+	 * At this point, there's yes way the LSR could still be 0xff;
+	 * if it is, then bail out, because there's likely yes UART
 	 * here.
 	 */
 	if (!(up->port.flags & UPF_BUGGY_UART) &&
@@ -682,7 +682,7 @@ static int sunsu_startup(struct uart_port *port)
 				     IRQF_SHARED, su_typev[up->su_type], up);
 	}
 	if (retval) {
-		printk("su: Cannot register IRQ %d\n", up->port.irq);
+		printk("su: Canyest register IRQ %d\n", up->port.irq);
 		return retval;
 	}
 
@@ -833,7 +833,7 @@ sunsu_change_speed(struct uart_port *port, unsigned int cflag,
 		fcr |= UART_FCR7_64BYTE;
 
 	/*
-	 * Ok, we're now changing the port state.  Do it with
+	 * Ok, we're yesw changing the port state.  Do it with
 	 * interrupts disabled.
 	 */
 	spin_lock_irqsave(&up->port.lock, flags);
@@ -850,26 +850,26 @@ sunsu_change_speed(struct uart_port *port, unsigned int cflag,
 		up->port.read_status_mask |= UART_LSR_BI;
 
 	/*
-	 * Characteres to ignore
+	 * Characteres to igyesre
 	 */
-	up->port.ignore_status_mask = 0;
+	up->port.igyesre_status_mask = 0;
 	if (iflag & IGNPAR)
-		up->port.ignore_status_mask |= UART_LSR_PE | UART_LSR_FE;
+		up->port.igyesre_status_mask |= UART_LSR_PE | UART_LSR_FE;
 	if (iflag & IGNBRK) {
-		up->port.ignore_status_mask |= UART_LSR_BI;
+		up->port.igyesre_status_mask |= UART_LSR_BI;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (iflag & IGNPAR)
-			up->port.ignore_status_mask |= UART_LSR_OE;
+			up->port.igyesre_status_mask |= UART_LSR_OE;
 	}
 
 	/*
-	 * ignore all characters if CREAD is not set
+	 * igyesre all characters if CREAD is yest set
 	 */
 	if ((cflag & CREAD) == 0)
-		up->port.ignore_status_mask |= UART_LSR_DR;
+		up->port.igyesre_status_mask |= UART_LSR_DR;
 
 	/*
 	 * CTS flow control flag and modem status interrupts
@@ -1053,11 +1053,11 @@ static void sunsu_autoconfig(struct uart_sunsu_port *up)
 	if (!(up->port.flags & UPF_BUGGY_UART)) {
 		/*
 		 * Do a simple existence test first; if we fail this, there's
-		 * no point trying anything else.
+		 * yes point trying anything else.
 		 *
-		 * 0x80 is used as a nonsense port to prevent against false
+		 * 0x80 is used as a yesnsense port to prevent against false
 		 * positives due to ISA bus float.  The assumption is that
-		 * 0x80 is a non-existent port; which should be safe since
+		 * 0x80 is a yesn-existent port; which should be safe since
 		 * include/asm/io.h also makes this assumption.
 		 */
 		scratch = serial_inp(up, UART_IER);
@@ -1073,7 +1073,7 @@ static void sunsu_autoconfig(struct uart_sunsu_port *up)
 		scratch3 = serial_inp(up, UART_IER);
 		serial_outp(up, UART_IER, scratch);
 		if (scratch2 != 0 || scratch3 != 0x0F)
-			goto out;	/* We failed; there's nothing here */
+			goto out;	/* We failed; there's yesthing here */
 	}
 
 	save_mcr = serial_in(up, UART_MCR);
@@ -1084,8 +1084,8 @@ static void sunsu_autoconfig(struct uart_sunsu_port *up)
 	 * internal modems based on the Rockwell chipset fail this
 	 * test, because they apparently don't implement the loopback
 	 * test mode.  So this test is skipped on the COM 1 through
-	 * COM 4 ports.  This *should* be safe, since no board
-	 * manufacturer would be stupid enough to design a board
+	 * COM 4 ports.  This *should* be safe, since yes board
+	 * manufacturer would be stupid eyesugh to design a board
 	 * that conflicts with COM 1-4 --- we hope!
 	 */
 	if (!(up->port.flags & UPF_SKIP_TEST)) {
@@ -1133,7 +1133,7 @@ static void sunsu_autoconfig(struct uart_sunsu_port *up)
 		scratch = serial_in(up, UART_IIR) >> 5;
 		if (scratch == 7) {
 			/*
-			 * If this is a 16750, and not a cheap UART
+			 * If this is a 16750, and yest a cheap UART
 			 * clone, then it should only go into 64 byte
 			 * mode if the UART_FCR7_64BYTE bit was set
 			 * while UART_LCR_DLAB was latched.
@@ -1214,7 +1214,7 @@ static int sunsu_kbd_ms_init(struct uart_sunsu_port *up)
 		return -ENODEV;
 
 	printk("%pOF: %s port at %llx, irq %u\n",
-	       up->port.dev->of_node,
+	       up->port.dev->of_yesde,
 	       (up->su_type == SU_PORT_KBD) ? "Keyboard" : "Mouse",
 	       (unsigned long long) up->port.mapbase,
 	       up->port.irq);
@@ -1298,7 +1298,7 @@ static void sunsu_console_putchar(struct uart_port *port, int ch)
 }
 
 /*
- *	Print a string to the serial port trying not to disturb
+ *	Print a string to the serial port trying yest to disturb
  *	any possible real use of the port...
  */
 static void sunsu_console_write(struct console *co, const char *s,
@@ -1337,7 +1337,7 @@ static void sunsu_console_write(struct console *co, const char *s,
  *	Setup initial baud/bits/parity. We do two things here:
  *	- construct a cflag setting for the first su_open()
  *	- initialize the serial port
- *	Return non-zero if we didn't find a serial port.
+ *	Return yesn-zero if we didn't find a serial port.
  */
 static int __init sunsu_console_setup(struct console *co, char *options)
 {
@@ -1346,7 +1346,7 @@ static int __init sunsu_console_setup(struct console *co, char *options)
 	struct uart_port *port;
 
 	printk("Console: ttyS%d (SU)\n",
-	       (sunsu_reg.minor - 64) + co->index);
+	       (sunsu_reg.miyesr - 64) + co->index);
 
 	if (co->index > nr_inst)
 		return -ENODEV;
@@ -1358,7 +1358,7 @@ static int __init sunsu_console_setup(struct console *co, char *options)
 	spin_lock_init(&port->lock);
 
 	/* Get firmware console settings.  */
-	sunserial_console_termios(co, port->dev->of_node);
+	sunserial_console_termios(co, port->dev->of_yesde);
 
 	memset(&termios, 0, sizeof(struct ktermios));
 	termios.c_cflag = co->cflag;
@@ -1391,25 +1391,25 @@ static inline struct console *SUNSU_CONSOLE(void)
 #define sunsu_serial_console_init()	do { } while (0)
 #endif
 
-static enum su_type su_get_type(struct device_node *dp)
+static enum su_type su_get_type(struct device_yesde *dp)
 {
-	struct device_node *ap = of_find_node_by_path("/aliases");
+	struct device_yesde *ap = of_find_yesde_by_path("/aliases");
 	enum su_type rc = SU_PORT_PORT;
 
 	if (ap) {
 		const char *keyb = of_get_property(ap, "keyboard", NULL);
 		const char *ms = of_get_property(ap, "mouse", NULL);
-		struct device_node *match;
+		struct device_yesde *match;
 
 		if (keyb) {
-			match = of_find_node_by_path(keyb);
+			match = of_find_yesde_by_path(keyb);
 
 			/*
-			 * The pointer is used as an identifier not
+			 * The pointer is used as an identifier yest
 			 * as a pointer, we can drop the refcount on
-			 * the of__node immediately after getting it.
+			 * the of__yesde immediately after getting it.
 			 */
-			of_node_put(match);
+			of_yesde_put(match);
 
 			if (dp == match) {
 				rc = SU_PORT_KBD;
@@ -1417,9 +1417,9 @@ static enum su_type su_get_type(struct device_node *dp)
 			}
 		}
 		if (ms) {
-			match = of_find_node_by_path(ms);
+			match = of_find_yesde_by_path(ms);
 
-			of_node_put(match);
+			of_yesde_put(match);
 
 			if (dp == match) {
 				rc = SU_PORT_MS;
@@ -1429,17 +1429,17 @@ static enum su_type su_get_type(struct device_node *dp)
 	}
 
 out:
-	of_node_put(ap);
+	of_yesde_put(ap);
 	return rc;
 }
 
 static int su_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	struct uart_sunsu_port *up;
 	struct resource *rp;
 	enum su_type type;
-	bool ignore_line;
+	bool igyesre_line;
 	int err;
 
 	type = su_get_type(dp);
@@ -1502,14 +1502,14 @@ static int su_probe(struct platform_device *op)
 
 	up->port.ops = &sunsu_pops;
 
-	ignore_line = false;
-	if (of_node_name_eq(dp, "rsc-console") ||
-	    of_node_name_eq(dp, "lom-console"))
-		ignore_line = true;
+	igyesre_line = false;
+	if (of_yesde_name_eq(dp, "rsc-console") ||
+	    of_yesde_name_eq(dp, "lom-console"))
+		igyesre_line = true;
 
 	sunserial_console_match(SUNSU_CONSOLE(), dp,
 				&sunsu_reg, up->port.line,
-				ignore_line);
+				igyesre_line);
 	err = uart_add_one_port(&sunsu_reg, &up->port);
 	if (err)
 		goto out_unmap;
@@ -1581,25 +1581,25 @@ static struct platform_driver su_driver = {
 
 static int __init sunsu_init(void)
 {
-	struct device_node *dp;
+	struct device_yesde *dp;
 	int err;
 	int num_uart = 0;
 
-	for_each_node_by_name(dp, "su") {
+	for_each_yesde_by_name(dp, "su") {
 		if (su_get_type(dp) == SU_PORT_PORT)
 			num_uart++;
 	}
-	for_each_node_by_name(dp, "su_pnp") {
+	for_each_yesde_by_name(dp, "su_pnp") {
 		if (su_get_type(dp) == SU_PORT_PORT)
 			num_uart++;
 	}
-	for_each_node_by_name(dp, "serial") {
+	for_each_yesde_by_name(dp, "serial") {
 		if (of_device_is_compatible(dp, "su")) {
 			if (su_get_type(dp) == SU_PORT_PORT)
 				num_uart++;
 		}
 	}
-	for_each_node_by_type(dp, "serial") {
+	for_each_yesde_by_type(dp, "serial") {
 		if (of_device_is_compatible(dp, "su")) {
 			if (su_get_type(dp) == SU_PORT_PORT)
 				num_uart++;
@@ -1607,14 +1607,14 @@ static int __init sunsu_init(void)
 	}
 
 	if (num_uart) {
-		err = sunserial_register_minors(&sunsu_reg, num_uart);
+		err = sunserial_register_miyesrs(&sunsu_reg, num_uart);
 		if (err)
 			return err;
 	}
 
 	err = platform_driver_register(&su_driver);
 	if (err && num_uart)
-		sunserial_unregister_minors(&sunsu_reg, num_uart);
+		sunserial_unregister_miyesrs(&sunsu_reg, num_uart);
 
 	return err;
 }
@@ -1623,7 +1623,7 @@ static void __exit sunsu_exit(void)
 {
 	platform_driver_unregister(&su_driver);
 	if (sunsu_reg.nr)
-		sunserial_unregister_minors(&sunsu_reg, sunsu_reg.nr);
+		sunserial_unregister_miyesrs(&sunsu_reg, sunsu_reg.nr);
 }
 
 module_init(sunsu_init);

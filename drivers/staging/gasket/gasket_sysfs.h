@@ -26,7 +26,7 @@
 /* The maximum number of mappings/devices a driver needs to support. */
 #define GASKET_SYSFS_NUM_MAPPINGS (GASKET_FRAMEWORK_DESC_MAX * GASKET_DEV_MAX)
 
-/* The maximum number of sysfs nodes in a directory.
+/* The maximum number of sysfs yesdes in a directory.
  */
 #define GASKET_SYSFS_MAX_NODES 196
 
@@ -65,7 +65,7 @@ struct gasket_sysfs_attribute {
 	 * Function pointer to a callback to be invoked when this attribute is
 	 * written (if so configured). The arguments are to the Gasket device
 	 * pointer, the enclosing gasket_attr structure, and the value written.
-	 * The callback should perform any logging necessary, as errors cannot
+	 * The callback should perform any logging necessary, as errors canyest
 	 * be returned from the callback.
 	 */
 	void (*write_callback)(struct gasket_dev *dev,
@@ -93,9 +93,9 @@ void gasket_sysfs_init(void);
  *
  * Description: This function maps a gasket_dev* to a device*. This mapping can
  * be used in sysfs_show functions to get a handle to the gasket_dev struct
- * controlling the device node.
+ * controlling the device yesde.
  *
- * If this function is not called before gasket_sysfs_create_entries, a warning
+ * If this function is yest called before gasket_sysfs_create_entries, a warning
  * will be logged.
  */
 int gasket_sysfs_create_mapping(struct device *device,
@@ -128,10 +128,10 @@ void gasket_sysfs_remove_mapping(struct device *device);
  * @device: Kernel device structure.
  *
  * Description: Returns the user data associated with "device" in a prior call
- * to gasket_sysfs_create_entries. Returns NULL if no mapping can be found.
+ * to gasket_sysfs_create_entries. Returns NULL if yes mapping can be found.
  * Upon success, this call take a reference to internal sysfs data that must be
  * released with gasket_sysfs_put_device_data. While this reference is held, the
- * underlying device sysfs information/structure will remain valid/will not be
+ * underlying device sysfs information/structure will remain valid/will yest be
  * deleted.
  */
 struct gasket_dev *gasket_sysfs_get_device_data(struct device *device);
@@ -153,7 +153,7 @@ void gasket_sysfs_put_device_data(struct device *device,
  * attribute and device structure itself. Upon success, this call will take a
  * reference to internal sysfs data that must be released with a call to
  * gasket_sysfs_put_attr. While this reference is held, the underlying device
- * sysfs information/structure will remain valid/will not be deleted.
+ * sysfs information/structure will remain valid/will yest be deleted.
  */
 struct gasket_sysfs_attribute *
 gasket_sysfs_get_attr(struct device *device, struct device_attribute *attr);
@@ -168,7 +168,7 @@ void gasket_sysfs_put_attr(struct device *device,
 			   struct gasket_sysfs_attribute *attr);
 
 /*
- * Write to a register sysfs node.
+ * Write to a register sysfs yesde.
  * @buf: NULL-terminated data being written.
  * @count: number of bytes in the "buf" argument.
  */

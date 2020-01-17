@@ -32,14 +32,14 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_dir2_block.o \
 				   xfs_dir2_data.o \
 				   xfs_dir2_leaf.o \
-				   xfs_dir2_node.o \
+				   xfs_dir2_yesde.o \
 				   xfs_dir2_sf.o \
 				   xfs_dquot_buf.o \
 				   xfs_ialloc.o \
 				   xfs_ialloc_btree.o \
 				   xfs_iext_tree.o \
-				   xfs_inode_fork.o \
-				   xfs_inode_buf.o \
+				   xfs_iyesde_fork.o \
+				   xfs_iyesde_buf.o \
 				   xfs_log_rlimit.o \
 				   xfs_ag_resv.o \
 				   xfs_rmap.o \
@@ -48,7 +48,7 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_refcount_btree.o \
 				   xfs_sb.o \
 				   xfs_symlink_remote.o \
-				   xfs_trans_inode.o \
+				   xfs_trans_iyesde.o \
 				   xfs_trans_resv.o \
 				   xfs_types.o \
 				   )
@@ -79,7 +79,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_ioctl.o \
 				   xfs_iomap.o \
 				   xfs_iops.o \
-				   xfs_inode.o \
+				   xfs_iyesde.o \
 				   xfs_itable.o \
 				   xfs_iwalk.o \
 				   xfs_message.o \
@@ -102,7 +102,7 @@ xfs-y				+= xfs_log.o \
 				   xfs_buf_item.o \
 				   xfs_extfree_item.o \
 				   xfs_icreate_item.o \
-				   xfs_inode_item.o \
+				   xfs_iyesde_item.o \
 				   xfs_refcount_item.o \
 				   xfs_rmap_item.o \
 				   xfs_log_recover.o \
@@ -144,7 +144,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   fscounters.o \
 				   health.o \
 				   ialloc.o \
-				   inode.o \
+				   iyesde.o \
 				   parent.o \
 				   refcount.o \
 				   rmap.o \

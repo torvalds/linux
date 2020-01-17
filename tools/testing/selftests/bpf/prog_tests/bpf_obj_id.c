@@ -26,15 +26,15 @@ void test_bpf_obj_id(void)
 	int err = 0;
 	__u64 array_value;
 	uid_t my_uid = getuid();
-	time_t now, load_time;
+	time_t yesw, load_time;
 
 	err = bpf_prog_get_fd_by_id(0);
-	CHECK(err >= 0 || errno != ENOENT,
-	      "get-fd-by-notexist-prog-id", "err %d errno %d\n", err, errno);
+	CHECK(err >= 0 || erryes != ENOENT,
+	      "get-fd-by-yestexist-prog-id", "err %d erryes %d\n", err, erryes);
 
 	err = bpf_map_get_fd_by_id(0);
-	CHECK(err >= 0 || errno != ENOENT,
-	      "get-fd-by-notexist-map-id", "err %d errno %d\n", err, errno);
+	CHECK(err >= 0 || erryes != ENOENT,
+	      "get-fd-by-yestexist-map-id", "err %d erryes %d\n", err, erryes);
 
 	for (i = 0; i < nr_iters; i++)
 		objs[i] = NULL;
@@ -42,7 +42,7 @@ void test_bpf_obj_id(void)
 	/* Check bpf_obj_get_info_by_fd() */
 	bzero(zeros, sizeof(zeros));
 	for (i = 0; i < nr_iters; i++) {
-		now = time(NULL);
+		yesw = time(NULL);
 		err = bpf_prog_load(file, BPF_PROG_TYPE_SOCKET_FILTER,
 				    &objs[i], &prog_fds[i]);
 		/* test_obj_id.o is a dumb prog. It should never fail
@@ -74,8 +74,8 @@ void test_bpf_obj_id(void)
 			  info_len != sizeof(struct bpf_map_info) ||
 			  strcmp((char *)map_infos[i].name, expected_map_name),
 			  "get-map-info(fd)",
-			  "err %d errno %d type %d(%d) info_len %u(%zu) key_size %u value_size %u max_entries %u map_flags %X name %s(%s)\n",
-			  err, errno,
+			  "err %d erryes %d type %d(%d) info_len %u(%zu) key_size %u value_size %u max_entries %u map_flags %X name %s(%s)\n",
+			  err, erryes,
 			  map_infos[i].type, BPF_MAP_TYPE_ARRAY,
 			  info_len, sizeof(struct bpf_map_info),
 			  map_infos[i].key_size,
@@ -114,14 +114,14 @@ void test_bpf_obj_id(void)
 			   !memcmp(jited_insns, zeros, sizeof(zeros))) ||
 			  !prog_infos[i].xlated_prog_len ||
 			  !memcmp(xlated_insns, zeros, sizeof(zeros)) ||
-			  load_time < now - 60 || load_time > now + 60 ||
+			  load_time < yesw - 60 || load_time > yesw + 60 ||
 			  prog_infos[i].created_by_uid != my_uid ||
 			  prog_infos[i].nr_map_ids != 1 ||
 			  *(int *)(long)prog_infos[i].map_ids != map_infos[i].id ||
 			  strcmp((char *)prog_infos[i].name, expected_prog_name),
 			  "get-prog-info(fd)",
-			  "err %d errno %d i %d type %d(%d) info_len %u(%zu) jit_enabled %d jited_prog_len %u xlated_prog_len %u jited_prog %d xlated_prog %d load_time %lu(%lu) uid %u(%u) nr_map_ids %u(%u) map_id %u(%u) name %s(%s)\n",
-			  err, errno, i,
+			  "err %d erryes %d i %d type %d(%d) info_len %u(%zu) jit_enabled %d jited_prog_len %u xlated_prog_len %u jited_prog %d xlated_prog %d load_time %lu(%lu) uid %u(%u) nr_map_ids %u(%u) map_id %u(%u) name %s(%s)\n",
+			  err, erryes, i,
 			  prog_infos[i].type, BPF_PROG_TYPE_SOCKET_FILTER,
 			  info_len, sizeof(struct bpf_prog_info),
 			  env.jit_enabled,
@@ -129,7 +129,7 @@ void test_bpf_obj_id(void)
 			  prog_infos[i].xlated_prog_len,
 			  !!memcmp(jited_insns, zeros, sizeof(zeros)),
 			  !!memcmp(xlated_insns, zeros, sizeof(zeros)),
-			  load_time, now,
+			  load_time, yesw,
 			  prog_infos[i].created_by_uid, my_uid,
 			  prog_infos[i].nr_map_ids, 1,
 			  *(int *)(long)prog_infos[i].map_ids, map_infos[i].id,
@@ -148,12 +148,12 @@ void test_bpf_obj_id(void)
 		info_len = sizeof(prog_info);
 
 		prog_fd = bpf_prog_get_fd_by_id(next_id);
-		if (prog_fd < 0 && errno == ENOENT)
+		if (prog_fd < 0 && erryes == ENOENT)
 			/* The bpf_prog is in the dead row */
 			continue;
 		if (CHECK(prog_fd < 0, "get-prog-fd(next_id)",
-			  "prog_fd %d next_id %d errno %d\n",
-			  prog_fd, next_id, errno))
+			  "prog_fd %d next_id %d erryes %d\n",
+			  prog_fd, next_id, erryes))
 			break;
 
 		for (i = 0; i < nr_iters; i++)
@@ -171,9 +171,9 @@ void test_bpf_obj_id(void)
 		 */
 		prog_info.nr_map_ids = 1;
 		err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &info_len);
-		if (CHECK(!err || errno != EFAULT,
-			  "get-prog-fd-bad-nr-map-ids", "err %d errno %d(%d)",
-			  err, errno, EFAULT))
+		if (CHECK(!err || erryes != EFAULT,
+			  "get-prog-fd-bad-nr-map-ids", "err %d erryes %d(%d)",
+			  err, erryes, EFAULT))
 			break;
 		bzero(&prog_info, sizeof(prog_info));
 		info_len = sizeof(prog_info);
@@ -188,8 +188,8 @@ void test_bpf_obj_id(void)
 		      memcmp(&prog_info, &prog_infos[i], info_len) ||
 		      *(int *)(long)prog_info.map_ids != saved_map_id,
 		      "get-prog-info(next_id->fd)",
-		      "err %d errno %d info_len %u(%zu) memcmp %d map_id %u(%u)\n",
-		      err, errno, info_len, sizeof(struct bpf_prog_info),
+		      "err %d erryes %d info_len %u(%zu) memcmp %d map_id %u(%u)\n",
+		      err, erryes, info_len, sizeof(struct bpf_prog_info),
 		      memcmp(&prog_info, &prog_infos[i], info_len),
 		      *(int *)(long)prog_info.map_ids, saved_map_id);
 		close(prog_fd);
@@ -209,12 +209,12 @@ void test_bpf_obj_id(void)
 		info_len = sizeof(map_info);
 
 		map_fd = bpf_map_get_fd_by_id(next_id);
-		if (map_fd < 0 && errno == ENOENT)
+		if (map_fd < 0 && erryes == ENOENT)
 			/* The bpf_map is in the dead row */
 			continue;
 		if (CHECK(map_fd < 0, "get-map-fd(next_id)",
-			  "map_fd %d next_id %u errno %d\n",
-			  map_fd, next_id, errno))
+			  "map_fd %d next_id %u erryes %d\n",
+			  map_fd, next_id, erryes))
 			break;
 
 		for (i = 0; i < nr_iters; i++)
@@ -235,8 +235,8 @@ void test_bpf_obj_id(void)
 		      memcmp(&map_info, &map_infos[i], info_len) ||
 		      array_value != array_magic_value,
 		      "check get-map-info(next_id->fd)",
-		      "err %d errno %d info_len %u(%zu) memcmp %d array_value %llu(%llu)\n",
-		      err, errno, info_len, sizeof(struct bpf_map_info),
+		      "err %d erryes %d info_len %u(%zu) memcmp %d array_value %llu(%llu)\n",
+		      err, erryes, info_len, sizeof(struct bpf_map_info),
 		      memcmp(&map_info, &map_infos[i], info_len),
 		      array_value, array_magic_value);
 

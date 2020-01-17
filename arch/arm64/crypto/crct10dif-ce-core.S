@@ -17,7 +17,7 @@
 //
 // Authors:
 //     Erdinc Ozturk <erdinc.ozturk@intel.com>
-//     Vinodh Gopal <vinodh.gopal@intel.com>
+//     Viyesdh Gopal <viyesdh.gopal@intel.com>
 //     James Guilford <james.guilford@intel.com>
 //     Tim Chen <tim.c.chen@linux.intel.com>
 //
@@ -32,14 +32,14 @@
 // met:
 //
 // * Redistributions of source code must retain the above copyright
-//   notice, this list of conditions and the following disclaimer.
+//   yestice, this list of conditions and the following disclaimer.
 //
 // * Redistributions in binary form must reproduce the above copyright
-//   notice, this list of conditions and the following disclaimer in the
+//   yestice, this list of conditions and the following disclaimer in the
 //   documentation and/or other materials provided with the
 //   distribution.
 //
-// * Neither the name of the Intel Corporation nor the names of its
+// * Neither the name of the Intel Corporation yesr the names of its
 //   contributors may be used to endorse or promote products derived from
 //   this software without specific prior written permission.
 //
@@ -57,9 +57,9 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //       Reference paper titled "Fast CRC Computation for Generic
-//	Polynomials Using PCLMULQDQ Instruction"
+//	Polyyesmials Using PCLMULQDQ Instruction"
 //       URL: http://www.intel.com/content/dam/www/public/us/en/documents
-//  /white-papers/fast-crc-computation-generic-polynomials-pclmulqdq-paper.pdf
+//  /white-papers/fast-crc-computation-generic-polyyesmials-pclmulqdq-paper.pdf
 //
 
 #include <linux/linkage.h>
@@ -272,7 +272,7 @@ CPU_LE(	ext		v12.16b, v12.16b, v12.16b, #8	)
 	adr_l		fold_consts_ptr, .Lfold_across_128_bytes_consts
 
 	// Load the first 128 data bytes.  Byte swapping is necessary to make
-	// the bit order match the polynomial coefficient order.
+	// the bit order match the polyyesmial coefficient order.
 	ldp		q0, q1, [buf]
 	ldp		q2, q3, [buf, #0x20]
 	ldp		q4, q5, [buf, #0x40]
@@ -304,11 +304,11 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 	ld1		{fold_consts.2d}, [fold_consts_ptr]
 	__pmull_pre_\p	fold_consts
 
-	// Subtract 128 for the 128 data bytes just consumed.  Subtract another
+	// Subtract 128 for the 128 data bytes just consumed.  Subtract ayesther
 	// 128 to simplify the termination condition of the following loop.
 	sub		len, len, #256
 
-	// While >= 128 data bytes remain (not counting v0-v7), fold the 128
+	// While >= 128 data bytes remain (yest counting v0-v7), fold the 128
 	// bytes v0-v7 into them, storing the result back into v0-v7.
 .Lfold_128_bytes_loop_\@:
 	fold_32_bytes	\p, v0, v1
@@ -355,12 +355,12 @@ CPU_LE(	ext		v7.16b, v7.16b, v7.16b, #8	)
 	fold_16_bytes	\p, v6, v7
 
 	// Add 128 to get the correct number of data bytes remaining in 0...127
-	// (not counting v7), following the previous extra subtraction by 128.
+	// (yest counting v7), following the previous extra subtraction by 128.
 	// Then subtract 16 to simplify the termination condition of the
 	// following loop.
 	adds		len, len, #(128-16)
 
-	// While >= 16 data bytes remain (not counting v7), fold the 16 bytes v7
+	// While >= 16 data bytes remain (yest counting v7), fold the 16 bytes v7
 	// into them, storing the result back into v7.
 	b.lt		.Lfold_16_bytes_loop_done_\@
 .Lfold_16_bytes_loop_\@:
@@ -376,7 +376,7 @@ CPU_LE(	ext		v0.16b, v0.16b, v0.16b, #8	)
 
 .Lfold_16_bytes_loop_done_\@:
 	// Add 16 to get the correct number of data bytes remaining in 0...15
-	// (not counting v7), following the previous extra subtraction by 16.
+	// (yest counting v7), following the previous extra subtraction by 16.
 	adds		len, len, #16
 	b.eq		.Lreduce_final_16_bytes_\@
 
@@ -449,7 +449,7 @@ CPU_LE(	ext		v0.16b, v0.16b, v0.16b, #8	)
 	ushr		v1.2d, v1.2d, #32	// /= x^32
 	__pmull_\p	v1, v1, fold_consts	// *= G(x)
 	ushr		v0.2d, v0.2d, #48
-	eor		v0.16b, v0.16b, v1.16b	// + low 16 nonzero bits
+	eor		v0.16b, v0.16b, v1.16b	// + low 16 yesnzero bits
 	// Final CRC value (x^16 * M(x)) mod G(x) is in low 16 bits of v0.
 
 	umov		w0, v0.h[0]
@@ -505,7 +505,7 @@ ENDPROC(crc_t10dif_pmull_p64)
 	.section	".rodata", "a"
 	.align		4
 
-// Fold constants precomputed from the polynomial 0x18bb7
+// Fold constants precomputed from the polyyesmial 0x18bb7
 // G(x) = x^16 + x^15 + x^11 + x^9 + x^8 + x^7 + x^5 + x^4 + x^2 + x^1 + x^0
 .Lfold_across_128_bytes_consts:
 	.quad		0x0000000000006123	// x^(8*128)	mod G(x)

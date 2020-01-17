@@ -84,7 +84,7 @@ static int entry_count;
 
 /*
  * Check if we support the binfmt
- * if we do, return the node, else NULL
+ * if we do, return the yesde, else NULL
  * locking is done in load_misc_binary
  */
 static Node *check_file(struct linux_binprm *bprm)
@@ -173,7 +173,7 @@ static int load_misc_binary(struct linux_binprm *bprm)
 		}
 		fd_install(fd_binary, bprm->file);
 
-		/* if the binary is not readable than enforce mm->dumpable=0
+		/* if the binary is yest readable than enforce mm->dumpable=0
 		   regardless of the interpreter's permissions */
 		would_dump(bprm, bprm->file);
 
@@ -301,7 +301,7 @@ static char *check_special_flags(char *sfs, Node *e)
 					MISC_FMT_OPEN_BINARY);
 			break;
 		case 'F':
-			pr_debug("register: flag: F: open interpreter file now\n");
+			pr_debug("register: flag: F: open interpreter file yesw\n");
 			p++;
 			e->flags |= MISC_FMT_OPEN_FILE;
 			break;
@@ -419,7 +419,7 @@ static Node *create_entry(const char __user *buffer, size_t count)
 			goto einval;
 		if (!e->mask[0]) {
 			e->mask = NULL;
-			pr_debug("register:  mask[raw]: none\n");
+			pr_debug("register:  mask[raw]: yesne\n");
 		} else if (USE_DEBUG)
 			print_hex_dump_bytes(
 				KBUILD_MODNAME ": register:  mask[raw]: ",
@@ -587,31 +587,31 @@ static void entry_status(Node *e, char *page)
 	}
 }
 
-static struct inode *bm_get_inode(struct super_block *sb, int mode)
+static struct iyesde *bm_get_iyesde(struct super_block *sb, int mode)
 {
-	struct inode *inode = new_inode(sb);
+	struct iyesde *iyesde = new_iyesde(sb);
 
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		inode->i_mode = mode;
-		inode->i_atime = inode->i_mtime = inode->i_ctime =
-			current_time(inode);
+	if (iyesde) {
+		iyesde->i_iyes = get_next_iyes();
+		iyesde->i_mode = mode;
+		iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime =
+			current_time(iyesde);
 	}
-	return inode;
+	return iyesde;
 }
 
-static void bm_evict_inode(struct inode *inode)
+static void bm_evict_iyesde(struct iyesde *iyesde)
 {
-	Node *e = inode->i_private;
+	Node *e = iyesde->i_private;
 
 	if (e && e->flags & MISC_FMT_OPEN_FILE)
 		filp_close(e->interp_file, NULL);
 
-	clear_inode(inode);
+	clear_iyesde(iyesde);
 	kfree(e);
 }
 
-static void kill_node(Node *e)
+static void kill_yesde(Node *e)
 {
 	struct dentry *dentry;
 
@@ -620,7 +620,7 @@ static void kill_node(Node *e)
 	write_unlock(&entries_lock);
 
 	dentry = e->dentry;
-	drop_nlink(d_inode(dentry));
+	drop_nlink(d_iyesde(dentry));
 	d_drop(dentry);
 	dput(dentry);
 	simple_release_fs(&bm_mnt, &entry_count);
@@ -631,7 +631,7 @@ static void kill_node(Node *e)
 static ssize_t
 bm_entry_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 {
-	Node *e = file_inode(file)->i_private;
+	Node *e = file_iyesde(file)->i_private;
 	ssize_t res;
 	char *page;
 
@@ -651,7 +651,7 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
 	struct dentry *root;
-	Node *e = file_inode(file)->i_private;
+	Node *e = file_iyesde(file)->i_private;
 	int res = parse_command(buffer, count);
 
 	switch (res) {
@@ -665,13 +665,13 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 		break;
 	case 3:
 		/* Delete this handler. */
-		root = file_inode(file)->i_sb->s_root;
-		inode_lock(d_inode(root));
+		root = file_iyesde(file)->i_sb->s_root;
+		iyesde_lock(d_iyesde(root));
 
 		if (!list_empty(&e->list))
-			kill_node(e);
+			kill_yesde(e);
 
-		inode_unlock(d_inode(root));
+		iyesde_unlock(d_iyesde(root));
 		break;
 	default:
 		return res;
@@ -692,8 +692,8 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 			       size_t count, loff_t *ppos)
 {
 	Node *e;
-	struct inode *inode;
-	struct super_block *sb = file_inode(file)->i_sb;
+	struct iyesde *iyesde;
+	struct super_block *sb = file_iyesde(file)->i_sb;
 	struct dentry *root = sb->s_root, *dentry;
 	int err = 0;
 
@@ -702,7 +702,7 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 	if (IS_ERR(e))
 		return PTR_ERR(e);
 
-	inode_lock(d_inode(root));
+	iyesde_lock(d_iyesde(root));
 	dentry = lookup_one_len(e->name, root, strlen(e->name));
 	err = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
@@ -712,16 +712,16 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 	if (d_really_is_positive(dentry))
 		goto out2;
 
-	inode = bm_get_inode(sb, S_IFREG | 0644);
+	iyesde = bm_get_iyesde(sb, S_IFREG | 0644);
 
 	err = -ENOMEM;
-	if (!inode)
+	if (!iyesde)
 		goto out2;
 
 	err = simple_pin_fs(&bm_fs_type, &bm_mnt, &entry_count);
 	if (err) {
-		iput(inode);
-		inode = NULL;
+		iput(iyesde);
+		iyesde = NULL;
 		goto out2;
 	}
 
@@ -731,20 +731,20 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 		f = open_exec(e->interpreter);
 		if (IS_ERR(f)) {
 			err = PTR_ERR(f);
-			pr_notice("register: failed to install interpreter file %s\n", e->interpreter);
+			pr_yestice("register: failed to install interpreter file %s\n", e->interpreter);
 			simple_release_fs(&bm_mnt, &entry_count);
-			iput(inode);
-			inode = NULL;
+			iput(iyesde);
+			iyesde = NULL;
 			goto out2;
 		}
 		e->interp_file = f;
 	}
 
 	e->dentry = dget(dentry);
-	inode->i_private = e;
-	inode->i_fop = &bm_entry_operations;
+	iyesde->i_private = e;
+	iyesde->i_fop = &bm_entry_operations;
 
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 	write_lock(&entries_lock);
 	list_add(&e->list, &entries);
 	write_unlock(&entries_lock);
@@ -753,7 +753,7 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 out2:
 	dput(dentry);
 out:
-	inode_unlock(d_inode(root));
+	iyesde_unlock(d_iyesde(root));
 
 	if (err) {
 		kfree(e);
@@ -764,7 +764,7 @@ out:
 
 static const struct file_operations bm_register_operations = {
 	.write		= bm_register_write,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 /* /status */
@@ -794,13 +794,13 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 		break;
 	case 3:
 		/* Delete all handlers. */
-		root = file_inode(file)->i_sb->s_root;
-		inode_lock(d_inode(root));
+		root = file_iyesde(file)->i_sb->s_root;
+		iyesde_lock(d_iyesde(root));
 
 		while (!list_empty(&entries))
-			kill_node(list_first_entry(&entries, Node, list));
+			kill_yesde(list_first_entry(&entries, Node, list));
 
-		inode_unlock(d_inode(root));
+		iyesde_unlock(d_iyesde(root));
 		break;
 	default:
 		return res;
@@ -819,7 +819,7 @@ static const struct file_operations bm_status_operations = {
 
 static const struct super_operations s_ops = {
 	.statfs		= simple_statfs,
-	.evict_inode	= bm_evict_inode,
+	.evict_iyesde	= bm_evict_iyesde,
 };
 
 static int bm_fill_super(struct super_block *sb, struct fs_context *fc)

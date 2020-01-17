@@ -2,7 +2,7 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -239,7 +239,7 @@ static int qed_mfw_get_tlv_group(u8 tlv_type, u8 *tlv_group)
 	return 0;
 }
 
-/* Returns size of the data buffer or, -1 in case TLV data is not available. */
+/* Returns size of the data buffer or, -1 in case TLV data is yest available. */
 static int
 qed_mfw_get_gen_tlv_value(struct qed_drv_tlv_hdr *p_tlv,
 			  struct qed_mfw_tlv_generic *p_drv_buf,
@@ -935,15 +935,15 @@ qed_mfw_get_fcoe_tlv_value(struct qed_drv_tlv_hdr *p_tlv,
 		}
 		break;
 	case DRV_TLV_NOS_SENT_COUNT:
-		if (p_drv_buf->tx_nos_set) {
-			p_buf->p_val = &p_drv_buf->tx_nos;
-			return sizeof(p_drv_buf->tx_nos);
+		if (p_drv_buf->tx_yess_set) {
+			p_buf->p_val = &p_drv_buf->tx_yess;
+			return sizeof(p_drv_buf->tx_yess);
 		}
 		break;
 	case DRV_TLV_NOS_RECEIVED_COUNT:
-		if (p_drv_buf->rx_nos_set) {
-			p_buf->p_val = &p_drv_buf->rx_nos;
-			return sizeof(p_drv_buf->rx_nos);
+		if (p_drv_buf->rx_yess_set) {
+			p_buf->p_val = &p_drv_buf->rx_yess;
+			return sizeof(p_drv_buf->rx_yess);
 		}
 		break;
 	case DRV_TLV_OLS_COUNT:
@@ -1292,21 +1292,21 @@ int qed_mfw_process_tlv_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	/* Sanitize the TLV groups according to personality */
 	if ((tlv_group & QED_MFW_TLV_ETH) && !QED_IS_L2_PERSONALITY(p_hwfn)) {
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
-			   "Skipping L2 TLVs for non-L2 function\n");
+			   "Skipping L2 TLVs for yesn-L2 function\n");
 		tlv_group &= ~QED_MFW_TLV_ETH;
 	}
 
 	if ((tlv_group & QED_MFW_TLV_FCOE) &&
 	    p_hwfn->hw_info.personality != QED_PCI_FCOE) {
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
-			   "Skipping FCoE TLVs for non-FCoE function\n");
+			   "Skipping FCoE TLVs for yesn-FCoE function\n");
 		tlv_group &= ~QED_MFW_TLV_FCOE;
 	}
 
 	if ((tlv_group & QED_MFW_TLV_ISCSI) &&
 	    p_hwfn->hw_info.personality != QED_PCI_ISCSI) {
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
-			   "Skipping iSCSI TLVs for non-iSCSI function\n");
+			   "Skipping iSCSI TLVs for yesn-iSCSI function\n");
 		tlv_group &= ~QED_MFW_TLV_ISCSI;
 	}
 

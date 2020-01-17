@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2017, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -35,7 +35,7 @@
 #include "mlx5_ib.h"
 #include "cmd.h"
 
-enum mlx5_ib_cong_node_type {
+enum mlx5_ib_cong_yesde_type {
 	MLX5_IB_RROCE_ECN_RP = 1,
 	MLX5_IB_RROCE_ECN_NP = 2,
 };
@@ -80,8 +80,8 @@ static const char * const mlx5_ib_dbg_cc_name[] = {
 #define MLX5_IB_NP_CNP_DSCP_ATTR			BIT(3)
 #define MLX5_IB_NP_CNP_PRIO_MODE_ATTR			BIT(4)
 
-static enum mlx5_ib_cong_node_type
-mlx5_ib_param_to_node(enum mlx5_ib_dbg_cc_types param_offset)
+static enum mlx5_ib_cong_yesde_type
+mlx5_ib_param_to_yesde(enum mlx5_ib_dbg_cc_types param_offset)
 {
 	if (param_offset >= MLX5_IB_DBG_CC_RP_CLAMP_TGT_RATE &&
 	    param_offset <= MLX5_IB_DBG_CC_RP_GD)
@@ -254,7 +254,7 @@ static int mlx5_ib_get_cc_params(struct mlx5_ib_dev *dev, u8 port_num,
 	void *out;
 	void *field;
 	int err;
-	enum mlx5_ib_cong_node_type node;
+	enum mlx5_ib_cong_yesde_type yesde;
 	struct mlx5_core_dev *mdev;
 
 	/* Takes a 1-based port number */
@@ -268,9 +268,9 @@ static int mlx5_ib_get_cc_params(struct mlx5_ib_dev *dev, u8 port_num,
 		goto alloc_err;
 	}
 
-	node = mlx5_ib_param_to_node(offset);
+	yesde = mlx5_ib_param_to_yesde(offset);
 
-	err = mlx5_cmd_query_cong_params(mdev, node, out, outlen);
+	err = mlx5_cmd_query_cong_params(mdev, yesde, out, outlen);
 	if (err)
 		goto free;
 
@@ -290,7 +290,7 @@ static int mlx5_ib_set_cc_params(struct mlx5_ib_dev *dev, u8 port_num,
 	int inlen = MLX5_ST_SZ_BYTES(modify_cong_params_in);
 	void *in;
 	void *field;
-	enum mlx5_ib_cong_node_type node;
+	enum mlx5_ib_cong_yesde_type yesde;
 	struct mlx5_core_dev *mdev;
 	u32 attr_mask = 0;
 	int err;
@@ -309,8 +309,8 @@ static int mlx5_ib_set_cc_params(struct mlx5_ib_dev *dev, u8 port_num,
 	MLX5_SET(modify_cong_params_in, in, opcode,
 		 MLX5_CMD_OP_MODIFY_CONG_PARAMS);
 
-	node = mlx5_ib_param_to_node(offset);
-	MLX5_SET(modify_cong_params_in, in, cong_protocol, node);
+	yesde = mlx5_ib_param_to_yesde(offset);
+	MLX5_SET(modify_cong_params_in, in, cong_protocol, yesde);
 
 	field = MLX5_ADDR_OF(modify_cong_params_in, in, congestion_parameters);
 	mlx5_ib_set_cc_param_mask_val(field, offset, var, &attr_mask);
@@ -438,7 +438,7 @@ err:
 
 	/*
 	 * We don't want to fail driver if debugfs failed to initialize,
-	 * so we are not forwarding error to the user.
+	 * so we are yest forwarding error to the user.
 	 */
 	return;
 }

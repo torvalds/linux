@@ -123,8 +123,8 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 
 	if (obj_desc->common.type == ACPI_TYPE_BUFFER_FIELD) {
 		/*
-		 * If the buffer_field arguments have not been previously evaluated,
-		 * evaluate them now and save the results.
+		 * If the buffer_field arguments have yest been previously evaluated,
+		 * evaluate them yesw and save the results.
 		 */
 		if (!(obj_desc->common.flags & AOPOBJ_DATA_VALID)) {
 			status = acpi_ds_get_buffer_field_arguments(obj_desc);
@@ -169,7 +169,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 		}
 		buffer = buffer_desc->buffer.pointer;
 	} else {
-		/* Field will fit within an Integer (normal case) */
+		/* Field will fit within an Integer (yesrmal case) */
 
 		buffer_desc = acpi_ut_create_integer_object((u64) 0);
 		if (!buffer_desc) {
@@ -192,7 +192,7 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 		   (obj_desc->field.region_obj->region.space_id ==
 		    ACPI_ADR_SPACE_PLATFORM_COMM)) {
 		/*
-		 * Reading from a PCC field unit does not require the handler because
+		 * Reading from a PCC field unit does yest require the handler because
 		 * it only requires reading from the internal_pcc_buffer.
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
@@ -272,8 +272,8 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 
 	if (obj_desc->common.type == ACPI_TYPE_BUFFER_FIELD) {
 		/*
-		 * If the buffer_field arguments have not been previously evaluated,
-		 * evaluate them now and save the results.
+		 * If the buffer_field arguments have yest been previously evaluated,
+		 * evaluate them yesw and save the results.
 		 */
 		if (!(obj_desc->common.flags & AOPOBJ_DATA_VALID)) {
 			status = acpi_ds_get_buffer_field_arguments(obj_desc);
@@ -311,7 +311,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 		 * region handler. Otherwise, write to the pcc_internal buffer. This
 		 * implementation will use the offsets specified rather than the name
 		 * of the field. This is considered safer because some firmware tools
-		 * are known to obfiscate named objects.
+		 * are kyeswn to obfiscate named objects.
 		 */
 		data_length =
 		    (acpi_size)ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->field.
@@ -330,7 +330,7 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 			/* Perform the write */
 
 			ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
-					  "PCC COMD field has been written. Invoking PCC handler now.\n"));
+					  "PCC COMD field has been written. Invoking PCC handler yesw.\n"));
 
 			status =
 			    acpi_ex_access_region(obj_desc, 0,

@@ -10,7 +10,7 @@
  * and NOR flash hooks (which were last appropriate in rev B boards).
  *
  * Note that the firmware supports a flavor of write posting ... to be
- * sure a write completes, issue another read or write.
+ * sure a write completes, issue ayesther read or write.
  */
 
 /* utilities to access "registers" emulated by msp430 firmware */
@@ -59,7 +59,7 @@ extern int dm355evm_msp_read(u8 reg);
 #	define MSP_SDMMC_0_CD		BIT(2)	/* active low */
 #	define MSP_SDMMC_1_WP		BIT(3)
 #	define MSP_SDMMC_1_CD		BIT(4)	/* active low */
-#define DM355EVM_MSP_FIRMREV		0x07	/* not a GPIO (out of order) */
+#define DM355EVM_MSP_FIRMREV		0x07	/* yest a GPIO (out of order) */
 #define DM355EVM_MSP_VIDEO_IN		0x08	/* (MSP P3, masked) */
 #	define MSP_VIDEO_IMAGER		BIT(7)	/* low == tvp5146 */
 

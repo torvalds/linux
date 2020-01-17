@@ -137,7 +137,7 @@ EXPORT_SYMBOL_GPL(nvmf_get_address);
  * Return:
  *	0: successful read
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: Linux erryes error code
  */
 int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val)
 {
@@ -183,7 +183,7 @@ EXPORT_SYMBOL_GPL(nvmf_reg_read32);
  * Return:
  *	0: successful read
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: Linux erryes error code
  */
 int nvmf_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val)
 {
@@ -229,7 +229,7 @@ EXPORT_SYMBOL_GPL(nvmf_reg_read64);
  * Return:
  *	0: successful write
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: Linux erryes error code
  */
 int nvmf_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val)
 {
@@ -254,7 +254,7 @@ int nvmf_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val)
 EXPORT_SYMBOL_GPL(nvmf_reg_write32);
 
 /**
- * nvmf_log_connect_error() - Error-parsing-diagnostic print
+ * nvmf_log_connect_error() - Error-parsing-diagyesstic print
  * out function for connect() errors.
  *
  * @ctrl: the specific /dev/nvmeX device that had the error.
@@ -321,13 +321,13 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 
 	case NVME_SC_CONNECT_INVALID_HOST:
 		dev_err(ctrl->device,
-			"Connect for subsystem %s is not allowed, hostnqn: %s\n",
+			"Connect for subsystem %s is yest allowed, hostnqn: %s\n",
 			data->subsysnqn, data->hostnqn);
 		break;
 
 	case NVME_SC_CONNECT_CTRL_BUSY:
 		dev_err(ctrl->device,
-			"Connect command failed: controller is busy or not available\n");
+			"Connect command failed: controller is busy or yest available\n");
 		break;
 
 	case NVME_SC_CONNECT_FORMAT:
@@ -361,7 +361,7 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
  * Return:
  *	0: success
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: Linux erryes error code
  *
  */
 int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
@@ -420,9 +420,9 @@ EXPORT_SYMBOL_GPL(nvmf_connect_admin_queue);
  *		NVMe I/O queue connection to the already allocated NVMe
  *		controller on the target system.
  * @qid:	NVMe I/O queue number for the new I/O connection between
- *		host and target (note qid == 0 is illegal as this is
+ *		host and target (yeste qid == 0 is illegal as this is
  *		the Admin queue, per NVMe standard).
- * @poll:	Whether or not to poll for the completion of the connect cmd.
+ * @poll:	Whether or yest to poll for the completion of the connect cmd.
  *
  * This function issues a fabrics-protocol connection
  * of a NVMe I/O queue (via NVMe Fabrics "Connect" command)
@@ -432,7 +432,7 @@ EXPORT_SYMBOL_GPL(nvmf_connect_admin_queue);
  * Return:
  *	0: success
  *	> 0: NVMe error status code
- *	< 0: Linux errno error code
+ *	< 0: Linux erryes error code
  */
 int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid, bool poll)
 {
@@ -536,7 +536,7 @@ static struct nvmf_transport_ops *nvmf_lookup_transport(
 }
 
 /*
- * For something we're not in a state to send to the device the default action
+ * For something we're yest in a state to send to the device the default action
  * is to busy it and retry it after the controller state is recovered.  However,
  * if the controller is deleting or if anything is marked for failfast or
  * nvme multipath it is immediately failed.
@@ -544,12 +544,12 @@ static struct nvmf_transport_ops *nvmf_lookup_transport(
  * Note: commands used to initialize the controller will be marked for failfast.
  * Note: nvme cli/ioctl commands are marked for failfast.
  */
-blk_status_t nvmf_fail_nonready_command(struct nvme_ctrl *ctrl,
+blk_status_t nvmf_fail_yesnready_command(struct nvme_ctrl *ctrl,
 		struct request *rq)
 {
 	if (ctrl->state != NVME_CTRL_DELETING &&
 	    ctrl->state != NVME_CTRL_DEAD &&
-	    !blk_noretry_request(rq) && !(rq->cmd_flags & REQ_NVME_MPATH))
+	    !blk_yesretry_request(rq) && !(rq->cmd_flags & REQ_NVME_MPATH))
 		return BLK_STS_RESOURCE;
 
 	nvme_req(rq)->status = NVME_SC_HOST_PATH_ERROR;
@@ -557,7 +557,7 @@ blk_status_t nvmf_fail_nonready_command(struct nvme_ctrl *ctrl,
 	nvme_complete_rq(rq);
 	return BLK_STS_OK;
 }
-EXPORT_SYMBOL_GPL(nvmf_fail_nonready_command);
+EXPORT_SYMBOL_GPL(nvmf_fail_yesnready_command);
 
 bool __nvmf_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
 		bool queue_live)
@@ -718,7 +718,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 				goto out;
 			}
 			if (opts->discovery_nqn) {
-				pr_debug("Ignoring nr_io_queues value for discovery controller\n");
+				pr_debug("Igyesring nr_io_queues value for discovery controller\n");
 				break;
 			}
 
@@ -868,7 +868,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			opts->tos = token;
 			break;
 		default:
-			pr_warn("unknown parameter or missing value '%s' in ctrl creation request\n",
+			pr_warn("unkyeswn parameter or missing value '%s' in ctrl creation request\n",
 				p);
 			ret = -EINVAL;
 			goto out;
@@ -928,12 +928,12 @@ bool nvmf_ip_options_match(struct nvme_ctrl *ctrl,
 		return false;
 
 	/*
-	 * Checking the local address is rough. In most cases, none is specified
+	 * Checking the local address is rough. In most cases, yesne is specified
 	 * and the host port is selected by the stack.
 	 *
-	 * Assume no match if:
-	 * -  local address is specified and address is not the same
-	 * -  local address is not specified but remote is, or vice versa
+	 * Assume yes match if:
+	 * -  local address is specified and address is yest the same
+	 * -  local address is yest specified but remote is, or vice versa
 	 *    (admin using specific host_traddr when it matters).
 	 */
 	if ((opts->mask & NVMF_OPT_HOST_TRADDR) &&
@@ -1019,7 +1019,7 @@ nvmf_create_ctrl(struct device *dev, const char *buf)
 	down_read(&nvmf_transports_rwsem);
 	ops = nvmf_lookup_transport(opts);
 	if (!ops) {
-		pr_info("no handler found for transport %s.\n",
+		pr_info("yes handler found for transport %s.\n",
 			opts->transport);
 		ret = -EINVAL;
 		goto out_unlock;
@@ -1117,7 +1117,7 @@ out_unlock:
 	return ret;
 }
 
-static int nvmf_dev_open(struct inode *inode, struct file *file)
+static int nvmf_dev_open(struct iyesde *iyesde, struct file *file)
 {
 	/*
 	 * The miscdevice code initializes file->private_data, but doesn't
@@ -1127,14 +1127,14 @@ static int nvmf_dev_open(struct inode *inode, struct file *file)
 	return single_open(file, nvmf_dev_show, NULL);
 }
 
-static int nvmf_dev_release(struct inode *inode, struct file *file)
+static int nvmf_dev_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq_file = file->private_data;
 	struct nvme_ctrl *ctrl = seq_file->private;
 
 	if (ctrl)
 		nvme_put_ctrl(ctrl);
-	return single_release(inode, file);
+	return single_release(iyesde, file);
 }
 
 static const struct file_operations nvmf_dev_fops = {
@@ -1146,7 +1146,7 @@ static const struct file_operations nvmf_dev_fops = {
 };
 
 static struct miscdevice nvmf_misc = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.miyesr		= MISC_DYNAMIC_MINOR,
 	.name           = "nvme-fabrics",
 	.fops		= &nvmf_dev_fops,
 };

@@ -165,13 +165,13 @@ void bnx2x_fill_fw_str(struct bnx2x *bp, char *buf, size_t buf_len)
  * bnx2x_shrink_eth_fp - guarantees fastpath structures stay intact
  *
  * @bp:	driver handle
- * @delta:	number of eth queues which were not allocated
+ * @delta:	number of eth queues which were yest allocated
  */
 static void bnx2x_shrink_eth_fp(struct bnx2x *bp, int delta)
 {
 	int i, cos, old_eth_num = BNX2X_NUM_ETH_QUEUES(bp);
 
-	/* Queue pointer cannot be re-set on an fp-basis, as moving pointer
+	/* Queue pointer canyest be re-set on an fp-basis, as moving pointer
 	 * backward along the array could cause memory to be overridden
 	 */
 	for (cos = 1; cos < bp->max_cos; cos++) {
@@ -246,7 +246,7 @@ static u16 bnx2x_free_tx_pkt(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata,
 			 BD_UNMAP_LEN(tx_start_bd) + split_bd_len,
 			 DMA_TO_DEVICE);
 
-	/* now free frags */
+	/* yesw free frags */
 	while (nbd > 0) {
 
 		tx_data_bd = &txdata->tx_desc_ring[bd_idx].reg_bd;
@@ -380,7 +380,7 @@ static inline void bnx2x_update_sge_prod(struct bnx2x_fastpath *fp,
 	last_elem = last_max >> BIT_VEC64_ELEM_SHIFT;
 	first_elem = RX_SGE(fp->rx_sge_prod) >> BIT_VEC64_ELEM_SHIFT;
 
-	/* If ring is not full */
+	/* If ring is yest full */
 	if (last_elem + 1 != first_elem)
 		last_elem++;
 
@@ -441,7 +441,7 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 
 	/* print error if current state != stop */
 	if (tpa_info->tpa_state != BNX2X_TPA_STOP)
-		BNX2X_ERR("start of bin not in stop [%d]\n", queue);
+		BNX2X_ERR("start of bin yest in stop [%d]\n", queue);
 
 	/* Try to map an empty data buffer from the aggregation info  */
 	mapping = dma_map_single(&bp->pdev->dev,
@@ -493,7 +493,7 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 
 /* Timestamp option length allowed for TPA aggregation:
  *
- *		nop nop kind length echo val
+ *		yesp yesp kind length echo val
  */
 #define TPA_TSTAMP_OPT_LEN	12
 /**
@@ -528,7 +528,7 @@ static void bnx2x_set_gro_params(struct sk_buff *skb, u16 parsing_flags,
 	}
 
 	/* Check if there was a TCP timestamp, if there is it's will
-	 * always be 12 bytes length: nop nop kind length echo val.
+	 * always be 12 bytes length: yesp yesp kind length echo val.
 	 *
 	 * Otherwise FW would close the aggregation.
 	 */
@@ -741,7 +741,7 @@ static void bnx2x_gro_receive(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			break;
 		default:
 			netdev_WARN_ONCE(bp->dev,
-					 "Error: FW GRO supports only IPv4/IPv6, not 0x%04x\n",
+					 "Error: FW GRO supports only IPv4/IPv6, yest 0x%04x\n",
 					 be16_to_cpu(skb->protocol));
 		}
 	}
@@ -858,10 +858,10 @@ void bnx2x_csum_validate(struct sk_buff *skb, union eth_rx_cqe *cqe,
 				 struct bnx2x_fastpath *fp,
 				 struct bnx2x_eth_q_stats *qstats)
 {
-	/* Do nothing if no L4 csum validation was done.
-	 * We do not check whether IP csum was validated. For IPv4 we assume
+	/* Do yesthing if yes L4 csum validation was done.
+	 * We do yest check whether IP csum was validated. For IPv4 we assume
 	 * that if the card got as far as validating the L4 csum, it also
-	 * validated the IP csum. IPv6 has no IP csum.
+	 * validated the IP csum. IPv6 has yes IP csum.
 	 */
 	if (cqe->fast_path_cqe.status_flags &
 	    ETH_FAST_PATH_RX_CQE_L4_XSUM_NO_VALIDATION_FLG)
@@ -924,7 +924,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		bd_prod = RX_BD(bd_prod);
 		bd_cons = RX_BD(bd_cons);
 
-		/* A rmb() is required to ensure that the CQE is not read
+		/* A rmb() is required to ensure that the CQE is yest read
 		 * before it is written by the adapter DMA.  PCI ordering
 		 * rules will make sure the other fields are written before
 		 * the marker at the end of struct eth_fast_path_rx_cqe
@@ -1006,7 +1006,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			bnx2x_update_sge_prod(fp, pages, &cqe->end_agg_cqe);
 			goto next_cqe;
 		}
-		/* non TPA */
+		/* yesn TPA */
 		len = le16_to_cpu(cqe_fp->pkt_len_or_gro_seg_len);
 		pad = cqe_fp->placement_offset;
 		dma_sync_single_for_cpu(&bp->pdev->dev,
@@ -1066,11 +1066,11 @@ reuse_rx:
 		skb_put(skb, len);
 		skb->protocol = eth_type_trans(skb, bp->dev);
 
-		/* Set Toeplitz hash for a none-LRO skb */
+		/* Set Toeplitz hash for a yesne-LRO skb */
 		rxhash = bnx2x_get_rxhash(bp, cqe_fp, &rxhash_type);
 		skb_set_hash(skb, rxhash, rxhash_type);
 
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 
 		if (bp->dev->features & NETIF_F_RXCSUM)
 			bnx2x_csum_validate(skb, cqe, fp,
@@ -1195,7 +1195,7 @@ u16 bnx2x_get_mf_speed(struct bnx2x *bp)
  * @bp:		driver handle
  * @data:	link state to update
  *
- * It uses a none-atomic bit operations because is called under the mutex.
+ * It uses a yesne-atomic bit operations because is called under the mutex.
  */
 static void bnx2x_fill_report_data(struct bnx2x *bp,
 				   struct bnx2x_link_report_data *data)
@@ -1285,7 +1285,7 @@ void __bnx2x_link_report(struct bnx2x *bp)
 
 	bp->link_cnt++;
 
-	/* We are going to report a new link parameters now -
+	/* We are going to report a new link parameters yesw -
 	 * remember the current data for the next time.
 	 */
 	memcpy(&bp->last_reported_link, &cur_data, sizeof(cur_data));
@@ -1312,7 +1312,7 @@ void __bnx2x_link_report(struct bnx2x *bp)
 			duplex = "half";
 
 		/* Handle the FC at the end so that only these flags would be
-		 * possibly set. This way we may easily check if there is no FC
+		 * possibly set. This way we may easily check if there is yes FC
 		 * enabled.
 		 */
 		if (cur_data.link_report_flags) {
@@ -1327,7 +1327,7 @@ void __bnx2x_link_report(struct bnx2x *bp)
 				flow = "ON - transmit";
 			}
 		} else {
-			flow = "none";
+			flow = "yesne";
 		}
 		netdev_info(bp->dev, "NIC Link is Up, %d Mbps %s duplex, Flow control: %s\n",
 			    cur_data.line_speed, duplex, flow);
@@ -1678,7 +1678,7 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 		msix_vec++;
 	}
 
-	/* We need separate vectors for ETH queues only (not FCoE) */
+	/* We need separate vectors for ETH queues only (yest FCoE) */
 	for_each_eth_queue(bp, i) {
 		bp->msix_table[msix_vec].entry = msix_vec;
 		BNX2X_DEV_INFO("msix_table[%d].entry = %d (fastpath #%u)\n",
@@ -1699,9 +1699,9 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 		/* Get by with single vector */
 		rc = pci_enable_msix_range(bp->pdev, &bp->msix_table[0], 1, 1);
 		if (rc < 0) {
-			BNX2X_DEV_INFO("Single MSI-X is not attainable rc %d\n",
+			BNX2X_DEV_INFO("Single MSI-X is yest attainable rc %d\n",
 				       rc);
-			goto no_msix;
+			goto yes_msix;
 		}
 
 		BNX2X_DEV_INFO("Using single MSI-X vector\n");
@@ -1711,8 +1711,8 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 		bp->num_ethernet_queues = 1;
 		bp->num_queues = bp->num_ethernet_queues + bp->num_cnic_queues;
 	} else if (rc < 0) {
-		BNX2X_DEV_INFO("MSI-X is not attainable rc %d\n", rc);
-		goto no_msix;
+		BNX2X_DEV_INFO("MSI-X is yest attainable rc %d\n", rc);
+		goto yes_msix;
 	} else if (rc < msix_vec) {
 		/* how less vectors we will have? */
 		int diff = msix_vec - rc;
@@ -1733,8 +1733,8 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 
 	return 0;
 
-no_msix:
-	/* fall to INTx if not enough memory */
+yes_msix:
+	/* fall to INTx if yest eyesugh memory */
 	if (rc == -ENOMEM)
 		bp->flags |= DISABLE_MSI_FLAG;
 
@@ -1745,7 +1745,7 @@ static int bnx2x_req_msix_irqs(struct bnx2x *bp)
 {
 	int i, rc, offset = 0;
 
-	/* no default status block for vf */
+	/* yes default status block for vf */
 	if (IS_PF(bp)) {
 		rc = request_irq(bp->msix_table[offset++].vector,
 				 bnx2x_msix_sp_int, 0,
@@ -1800,7 +1800,7 @@ int bnx2x_enable_msi(struct bnx2x *bp)
 
 	rc = pci_enable_msi(bp->pdev);
 	if (rc) {
-		BNX2X_DEV_INFO("MSI is not attainable\n");
+		BNX2X_DEV_INFO("MSI is yest attainable\n");
 		return -1;
 	}
 	bp->flags |= USING_MSI_FLAG;
@@ -1933,7 +1933,7 @@ u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb,
 			return bnx2x_fcoe_tx(bp, txq_index);
 	}
 
-	/* select a non-FCoE queue */
+	/* select a yesn-FCoE queue */
 	return netdev_pick_tx(dev, skb, NULL) %
 			(BNX2X_NUM_ETH_QUEUES(bp) * bp->max_cos);
 }
@@ -1968,7 +1968,7 @@ void bnx2x_set_num_queues(struct bnx2x *bp)
  *
  * If the actual number of Tx queues (for each CoS) is less than 16 then there
  * will be the holes at the end of each group of 16 ETh L2 indices (0..15,
- * 16..31,...) with indices that are not coupled with any real Tx queue.
+ * 16..31,...) with indices that are yest coupled with any real Tx queue.
  *
  * The proper configuration of skb->queue_mapping is handled by
  * bnx2x_select_queue() and __skb_tx_hash().
@@ -2017,7 +2017,7 @@ static void bnx2x_set_rx_buf_size(struct bnx2x *bp)
 		/* Always use a mini-jumbo MTU for the FCoE L2 ring */
 		if (IS_FCOE_IDX(i))
 			/*
-			 * Although there are no IP frames expected to arrive to
+			 * Although there are yes IP frames expected to arrive to
 			 * this ring we still want to add an
 			 * IP_HEADER_ALIGNMENT_PADDING to prevent a buffer
 			 * overrun attack.
@@ -2242,7 +2242,7 @@ static int bnx2x_alloc_fw_stats_mem(struct bnx2x *bp)
 
 	/* Total number of FW statistics requests =
 	 * 1 for port stats + 1 for PF stats + potential 2 for FCoE (fcoe proper
-	 * and fcoe l2 queue) stats + num of queues (which includes another 1
+	 * and fcoe l2 queue) stats + num of queues (which includes ayesther 1
 	 * for fcoe l2 queue if applicable)
 	 */
 	bp->fw_stats_num = 2 + is_fcoe_stats + num_queue_stats;
@@ -2274,9 +2274,9 @@ static int bnx2x_alloc_fw_stats_mem(struct bnx2x *bp)
 	 * stats_counter holds per-STORM counters that are incremented
 	 * when STORM has finished with the current request.
 	 * memory for FCoE offloaded statistics are counted anyway,
-	 * even if they will not be sent.
-	 * VF stats are not accounted for here as the data of VF stats is stored
-	 * in memory allocated by the VF, not here.
+	 * even if they will yest be sent.
+	 * VF stats are yest accounted for here as the data of VF stats is stored
+	 * in memory allocated by the VF, yest here.
 	 */
 	bp->fw_stats_data_sz = sizeof(struct per_port_stats) +
 		sizeof(struct per_pf_stats) +
@@ -2342,7 +2342,7 @@ static int bnx2x_nic_load_request(struct bnx2x *bp, u32 *load_code)
 		return -EBUSY;
 	}
 
-	/* If mcp refused (e.g. other port is in diagnostic mode) we
+	/* If mcp refused (e.g. other port is in diagyesstic mode) we
 	 * must abort
 	 */
 	if ((*load_code) == FW_MSG_CODE_DRV_LOAD_REFUSED) {
@@ -2352,13 +2352,13 @@ static int bnx2x_nic_load_request(struct bnx2x *bp, u32 *load_code)
 	return 0;
 }
 
-/* check whether another PF has already loaded FW to chip. In
- * virtualized environments a pf from another VM may have already
+/* check whether ayesther PF has already loaded FW to chip. In
+ * virtualized environments a pf from ayesther VM may have already
  * initialized the device including loading FW
  */
 int bnx2x_compare_fw_ver(struct bnx2x *bp, u32 load_code, bool print_err)
 {
-	/* is another pf loaded on this engine? */
+	/* is ayesther pf loaded on this engine? */
 	if (load_code != FW_MSG_CODE_DRV_LOAD_COMMON_CHIP &&
 	    load_code != FW_MSG_CODE_DRV_LOAD_COMMON) {
 		/* build my FW version dword */
@@ -2388,7 +2388,7 @@ int bnx2x_compare_fw_ver(struct bnx2x *bp, u32 load_code, bool print_err)
 }
 
 /* returns the "mcp load_code" according to global load_count array */
-static int bnx2x_nic_load_no_mcp(struct bnx2x *bp, int port)
+static int bnx2x_nic_load_yes_mcp(struct bnx2x *bp, int port)
 {
 	int path = BP_PATH(bp);
 
@@ -2580,7 +2580,7 @@ int bnx2x_load_cnic(struct bnx2x *bp)
 	bnx2x_setup_cnic_info(bp);
 	bp->cnic_loaded = true;
 	if (bp->state == BNX2X_STATE_OPEN)
-		bnx2x_cnic_notify(bp, CNIC_CTL_START_CMD);
+		bnx2x_cnic_yestify(bp, CNIC_CTL_START_CMD);
 
 	DP(NETIF_MSG_IFUP, "Ending successfully CNIC-related load\n");
 
@@ -2595,7 +2595,7 @@ load_error_cnic1:
 	bnx2x_napi_disable_cnic(bp);
 	/* Update the number of queues without the cnic queues */
 	if (bnx2x_set_real_num_queues(bp, 0))
-		BNX2X_ERR("Unable to set real_num_queues not including cnic\n");
+		BNX2X_ERR("Unable to set real_num_queues yest including cnic\n");
 load_error_cnic0:
 	BNX2X_ERR("CNIC-related load failed\n");
 	bnx2x_free_fp_mem_cnic(bp);
@@ -2679,7 +2679,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	/* As long as bnx2x_alloc_mem() may possibly update
 	 * bp->num_queues, bnx2x_set_real_num_queues() should always
-	 * come after it. At this stage cnic queues are not counted.
+	 * come after it. At this stage cnic queues are yest counted.
 	 */
 	rc = bnx2x_set_real_num_queues(bp, 0);
 	if (rc) {
@@ -2716,7 +2716,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 				LOAD_ERROR_EXIT(bp, load_error2);
 			}
 		} else {
-			load_code = bnx2x_nic_load_no_mcp(bp, port);
+			load_code = bnx2x_nic_load_yes_mcp(bp, port);
 		}
 
 		/* mark pmf if applicable */
@@ -2788,7 +2788,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	}
 
 	/* set up the rest of the queues */
-	for_each_nondefault_eth_queue(bp, i) {
+	for_each_yesndefault_eth_queue(bp, i) {
 		if (IS_PF(bp))
 			rc = bnx2x_setup_queue(bp, &bp->fp[i], false);
 		else /* VF */
@@ -3011,7 +3011,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 	}
 
 	/* Nothing to do during unload if previous bnx2x_nic_load()
-	 * have not completed successfully - all resources are released.
+	 * have yest completed successfully - all resources are released.
 	 *
 	 * we can get here only after unsuccessful ndo_* callback, during which
 	 * dev->IFF_UP flag is still on.
@@ -3030,7 +3030,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 	bnx2x_iov_channel_down(bp);
 
 	if (CNIC_LOADED(bp))
-		bnx2x_cnic_notify(bp, CNIC_CTL_STOP_CMD);
+		bnx2x_cnic_yestify(bp, CNIC_CTL_STOP_CMD);
 
 	/* Stop Tx */
 	bnx2x_tx_disable(bp);
@@ -3049,7 +3049,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 	}
 
 	/* wait till consumers catch up with producers in all queues.
-	 * If we're recovering, FW can't write to host so no reason
+	 * If we're recovering, FW can't write to host so yes reason
 	 * to wait for the queues to complete all Tx.
 	 */
 	if (unload_mode != UNLOAD_RECOVERY)
@@ -3062,7 +3062,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 		bnx2x_clear_vlan_info(bp);
 		bnx2x_vfpf_close_vf(bp);
 	} else if (unload_mode != UNLOAD_RECOVERY) {
-		/* if this is a normal/close unload need to clean up chip*/
+		/* if this is a yesrmal/close unload need to clean up chip*/
 		bnx2x_chip_cleanup(bp, unload_mode, keep_link);
 	} else {
 		/* Send the UNLOAD_REQUEST to the MCP */
@@ -3091,13 +3091,13 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 	}
 
 	/*
-	 * At this stage no more interrupts will arrive so we may safely clean
+	 * At this stage yes more interrupts will arrive so we may safely clean
 	 * the queueable objects here in case they failed to get cleaned so far.
 	 */
 	if (IS_PF(bp))
 		bnx2x_squeeze_objects(bp);
 
-	/* There should be no more pending SP commands at this stage */
+	/* There should be yes more pending SP commands at this stage */
 	bp->sp_state = 0;
 
 	bp->port.pmf = 0;
@@ -3141,7 +3141,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 			bnx2x_set_reset_global(bp);
 	}
 
-	/* The last driver must disable a "close the gate" if there is no
+	/* The last driver must disable a "close the gate" if there is yes
 	 * parity attention or "process kill" pending.
 	 */
 	if (IS_PF(bp) &&
@@ -3158,7 +3158,7 @@ int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
 {
 	u16 pmcsr;
 
-	/* If there is no power capability, silently succeed */
+	/* If there is yes power capability, silently succeed */
 	if (!bp->pdev->pm_cap) {
 		BNX2X_DEV_INFO("No power capability. Breaking.\n");
 		return 0;
@@ -3245,11 +3245,11 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 			 * prior to this check (bnx2x_has_rx_work) so that
 			 * we won't write the "newer" value of the status block
 			 * to IGU (if there was a DMA right after
-			 * bnx2x_has_rx_work and if there is no rmb, the memory
+			 * bnx2x_has_rx_work and if there is yes rmb, the memory
 			 * reading (bnx2x_update_fpsb_idx) may be postponed
 			 * to right before bnx2x_ack_sb). In this case there
-			 * will never be another interrupt until there is
-			 * another update of the status block, while there
+			 * will never be ayesther interrupt until there is
+			 * ayesther update of the status block, while there
 			 * is still unhandled work.
 			 */
 			rmb();
@@ -3293,7 +3293,7 @@ static u16 bnx2x_tx_split(struct bnx2x *bp,
 	DP(NETIF_MSG_TX_QUEUED,	"TSO split header size is %d (%x:%x)\n",
 	   h_tx_bd->nbytes, h_tx_bd->addr_hi, h_tx_bd->addr_lo);
 
-	/* now get a new data BD
+	/* yesw get a new data BD
 	 * (after the pbd) and fill it */
 	bd_prod = TX_BD(NEXT_TX_IDX(bd_prod));
 	d_tx_bd = &txdata->tx_desc_ring[bd_prod].reg_bd;
@@ -3305,7 +3305,7 @@ static u16 bnx2x_tx_split(struct bnx2x *bp,
 	d_tx_bd->addr_lo = cpu_to_le32(U64_LO(mapping));
 	d_tx_bd->nbytes = cpu_to_le16(old_len - hlen);
 
-	/* this marks the BD as one that has no individual mapping */
+	/* this marks the BD as one that has yes individual mapping */
 	tx_buf->flags |= BNX2X_TSO_SPLIT_BD;
 
 	DP(NETIF_MSG_TX_QUEUED,
@@ -3390,7 +3390,7 @@ static u32 bnx2x_xmit_type(struct bnx2x *bp, struct sk_buff *skb)
 
 #if (MAX_SKB_FRAGS >= MAX_FETCH_BD - BDS_PER_TX_PKT)
 /* check if packet requires linearization (packet is too fragmented)
-   no need to check fragmentation if page size > 8K (there will be no
+   yes need to check fragmentation if page size > 8K (there will be yes
    violation to FW restrictions) */
 static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 			     u32 xmit_type)
@@ -3454,7 +3454,7 @@ static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 					skb_frag_size(&skb_shinfo(skb)->frags[wnd_idx]);
 			}
 		} else {
-			/* in non-LSO too fragmented packet should always
+			/* in yesn-LSO too fragmented packet should always
 			   be linearized */
 			to_copy = 1;
 		}
@@ -3464,7 +3464,7 @@ exit_lbl:
 	if (unlikely(to_copy))
 		DP(NETIF_MSG_TX_QUEUED,
 		   "Linearization IS REQUIRED for %s packet. num_frags %d  hlen %d  first_bd_sz %d\n",
-		   (xmit_type & XMIT_GSO) ? "LSO" : "non-LSO",
+		   (xmit_type & XMIT_GSO) ? "LSO" : "yesn-LSO",
 		   skb_shinfo(skb)->nr_frags, hlen, first_bd_sz);
 
 	return to_copy;
@@ -3596,7 +3596,7 @@ static u8 bnx2x_set_pbd_csum(struct bnx2x *bp, struct sk_buff *skb,
 {
 	u8 hlen = (skb_network_header(skb) - skb->data) >> 1;
 
-	/* for now NS flag is not used in Linux */
+	/* for yesw NS flag is yest used in Linux */
 	pbd->global_data =
 		cpu_to_le16(hlen |
 			    ((skb->protocol == cpu_to_be16(ETH_P_8021Q)) <<
@@ -3813,7 +3813,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #if (MAX_SKB_FRAGS >= MAX_FETCH_BD - BDS_PER_TX_PKT)
 	/* First, check if we need to linearize the skb (due to FW
 	   restrictions). No need to check fragmentation if page size > 8K
-	   (there will be no violation to FW restrictions) */
+	   (there will be yes violation to FW restrictions) */
 	if (bnx2x_pkt_req_lin(bp, skb, xmit_type)) {
 		/* Statistics of linearization */
 		bp->lin_cnt++;
@@ -3843,7 +3843,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	And above all, all pdb sizes are in words - NOT DWORDS!
 	*/
 
-	/* get current pkt produced now - advance it just before sending packet
+	/* get current pkt produced yesw - advance it just before sending packet
 	 * since mapping of pages may fail and cause packet to be dropped
 	 */
 	pkt_prod = txdata->tx_pkt_prod;
@@ -3862,7 +3862,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
 		if (!(bp->flags & TX_TIMESTAMPING_EN)) {
 			bp->eth_stats.ptp_skip_tx_ts++;
-			BNX2X_ERR("Tx timestamping was not enabled, this packet will not be timestamped\n");
+			BNX2X_ERR("Tx timestamping was yest enabled, this packet will yest be timestamped\n");
 		} else if (bp->ptp_tx_skb) {
 			bp->eth_stats.ptp_skip_tx_ts++;
 			netdev_err_once(bp->dev,
@@ -4060,7 +4060,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			bnx2x_set_pbd_gso(skb, pbd_e1x, xmit_type);
 	}
 
-	/* Set the PBD's parsing_data field if not zero
+	/* Set the PBD's parsing_data field if yest zero
 	 * (for the chips newer than 57711).
 	 */
 	if (pbd_e2_parsing_data)
@@ -4116,17 +4116,17 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	bd_prod = TX_BD(NEXT_TX_IDX(bd_prod));
 
-	/* now send a tx doorbell, counting the next BD
+	/* yesw send a tx doorbell, counting the next BD
 	 * if the packet contains or ends with it
 	 */
 	if (TX_BD_POFF(bd_prod) < nbd)
 		nbd++;
 
 	/* total_pkt_bytes should be set on the first data BD if
-	 * it's not an LSO packet and there is more than one
+	 * it's yest an LSO packet and there is more than one
 	 * data BD. In this case pkt_size is limited by an MTU value.
 	 * However we prefer to set it for an LSO packet (while we don't
-	 * have to) in order to save some CPU cycles in a none-LSO
+	 * have to) in order to save some CPU cycles in a yesne-LSO
 	 * case, when we much more care about them.
 	 */
 	if (total_pkt_bd != NULL)
@@ -4243,7 +4243,7 @@ int bnx2x_setup_tc(struct net_device *dev, u8 num_tc)
 	/* setup tc must be called under rtnl lock */
 	ASSERT_RTNL();
 
-	/* no traffic classes requested. Aborting */
+	/* yes traffic classes requested. Aborting */
 	if (!num_tc) {
 		netdev_reset_tc(dev);
 		return 0;
@@ -4318,7 +4318,7 @@ int bnx2x_change_mac_addr(struct net_device *dev, void *p)
 	int rc = 0;
 
 	if (!is_valid_ether_addr(addr->sa_data)) {
-		BNX2X_ERR("Requested MAC address is not valid\n");
+		BNX2X_ERR("Requested MAC address is yest valid\n");
 		return -EINVAL;
 	}
 
@@ -4549,7 +4549,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 		}
 	}
 
-	/* FCoE Queue uses Default SB and doesn't ACK the SB, thus no need to
+	/* FCoE Queue uses Default SB and doesn't ACK the SB, thus yes need to
 	 * set shortcuts for it.
 	 */
 	if (!IS_FCOE_IDX(index))
@@ -4626,9 +4626,9 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 alloc_mem_err:
 	BNX2X_ERR("Unable to allocate full memory for queue %d (size %d)\n",
 						index, ring_size);
-	/* FW will drop all packets if queue is not big enough,
+	/* FW will drop all packets if queue is yest big eyesugh,
 	 * In these cases we disable the queue
-	 * Min size is different for OOO, TPA and non-TPA queues
+	 * Min size is different for OOO, TPA and yesn-TPA queues
 	 */
 	if (ring_size < (fp->mode == TPA_MODE_DISABLED ?
 				MIN_RX_SIZE_NONTPA : MIN_RX_SIZE_TPA)) {
@@ -4665,7 +4665,7 @@ static int bnx2x_alloc_fp_mem(struct bnx2x *bp)
 		return -ENOMEM;
 
 	/* RSS */
-	for_each_nondefault_eth_queue(bp, i)
+	for_each_yesndefault_eth_queue(bp, i)
 		if (bnx2x_alloc_fp_mem_at(bp, i))
 			break;
 
@@ -4676,7 +4676,7 @@ static int bnx2x_alloc_fp_mem(struct bnx2x *bp)
 		WARN_ON(delta < 0);
 		bnx2x_shrink_eth_fp(bp, delta);
 		if (CNIC_SUPPORT(bp))
-			/* move non eth FPs next to last eth FP
+			/* move yesn eth FPs next to last eth FP
 			 * must be done in that order
 			 * FCOE_IDX < FWD_IDX < OOO_IDX
 			 */
@@ -4850,8 +4850,8 @@ int bnx2x_fcoe_get_wwn(struct net_device *dev, u64 *wwn, int type)
 
 	switch (type) {
 	case NETDEV_FCOE_WWNN:
-		*wwn = HILO_U64(cp->fcoe_wwn_node_name_hi,
-				cp->fcoe_wwn_node_name_lo);
+		*wwn = HILO_U64(cp->fcoe_wwn_yesde_name_hi,
+				cp->fcoe_wwn_yesde_name_lo);
 		break;
 	case NETDEV_FCOE_WWPN:
 		*wwn = HILO_U64(cp->fcoe_wwn_port_name_hi,
@@ -4872,7 +4872,7 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu)
 	struct bnx2x *bp = netdev_priv(dev);
 
 	if (pci_num_vf(bp->pdev)) {
-		DP(BNX2X_MSG_IOV, "VFs are enabled, can not change MTU\n");
+		DP(BNX2X_MSG_IOV, "VFs are enabled, can yest change MTU\n");
 		return -EPERM;
 	}
 
@@ -4881,7 +4881,7 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu)
 		return -EAGAIN;
 	}
 
-	/* This does not race with packet allocation
+	/* This does yest race with packet allocation
 	 * because the actual alloc size is
 	 * only updated as part of load
 	 */
@@ -4937,7 +4937,7 @@ int bnx2x_set_features(struct net_device *dev, netdev_features_t features)
 	bool bnx2x_reload = false;
 	int rc;
 
-	/* VFs or non SRIOV PFs should be able to change loopback feature */
+	/* VFs or yesn SRIOV PFs should be able to change loopback feature */
 	if (!pci_num_vf(bp->pdev)) {
 		if (features & NETIF_F_LOOPBACK) {
 			if (bp->link_params.loopback_mode != LOOPBACK_BMAC) {

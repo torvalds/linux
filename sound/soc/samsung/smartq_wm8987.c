@@ -132,7 +132,7 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = &rtd->card->dapm;
 	int err = 0;
 
-	/* set endpoints to not connected */
+	/* set endpoints to yest connected */
 	snd_soc_dapm_nc_pin(dapm, "LINPUT1");
 	snd_soc_dapm_nc_pin(dapm, "RINPUT1");
 	snd_soc_dapm_nc_pin(dapm, "OUT3");

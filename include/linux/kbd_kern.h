@@ -25,7 +25,7 @@ extern int funcbufsize, funcbufleft;
 struct kbd_struct {
 
 	unsigned char lockstate;
-/* 8 modifiers - the names do not have any meaning at all;
+/* 8 modifiers - the names do yest have any meaning at all;
    they can be associated to arbitrarily chosen keys */
 #define VC_SHIFTLOCK	KG_SHIFT	/* shift lock mode */
 #define VC_ALTGRLOCK	KG_ALTGR	/* altgr lock mode */
@@ -41,7 +41,7 @@ struct kbd_struct {
 #define LED_SHOW_FLAGS 0        /* traditional state */
 #define LED_SHOW_IOCTL 1        /* only change leds upon ioctl */
 
-	unsigned char ledflagstate:4;	/* flags, not lights */
+	unsigned char ledflagstate:4;	/* flags, yest lights */
 	unsigned char default_ledflagstate:4;
 #define VC_SCROLLOCK	0	/* scroll-lock mode */
 #define VC_NUMLOCK	1	/* numeric lock mode */

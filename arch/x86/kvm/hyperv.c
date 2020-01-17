@@ -106,7 +106,7 @@ static int synic_set_sint(struct kvm_vcpu_hv_synic *synic, int sint,
 
 	/*
 	 * Valid vectors are 16-255, however, nested Hyper-V attempts to write
-	 * default '0x10000' value on boot and this should not #GP. We need to
+	 * default '0x10000' value on boot and this should yest #GP. We need to
 	 * allow zero-initing the register from host as well.
 	 */
 	if (vector < HV_SYNIC_FIRST_VALID_VECTOR && !host && !masked)
@@ -159,7 +159,7 @@ static struct kvm_vcpu_hv_synic *synic_get(struct kvm *kvm, u32 vpidx)
 	return (synic->active) ? synic : NULL;
 }
 
-static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
+static void kvm_hv_yestify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_vcpu_hv_synic *synic = vcpu_to_synic(vcpu);
@@ -167,7 +167,7 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 	struct kvm_vcpu_hv_stimer *stimer;
 	int gsi, idx;
 
-	trace_kvm_hv_notify_acked_sint(vcpu->vcpu_id, sint);
+	trace_kvm_hv_yestify_acked_sint(vcpu->vcpu_id, sint);
 
 	/* Try to deliver pending Hyper-V SynIC timers messages */
 	for (idx = 0; idx < ARRAY_SIZE(hv_vcpu->stimer); idx++) {
@@ -181,7 +181,7 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	gsi = atomic_read(&synic->sint_to_gsi[sint]);
 	if (gsi != -1)
-		kvm_notify_acked_gsi(kvm, gsi);
+		kvm_yestify_acked_gsi(kvm, gsi);
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
@@ -252,7 +252,7 @@ static int synic_set_msr(struct kvm_vcpu_hv_synic *synic,
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(synic->sint); i++)
-			kvm_hv_notify_acked_sint(vcpu, i);
+			kvm_hv_yestify_acked_sint(vcpu, i);
 		break;
 	}
 	case HV_X64_MSR_SINT0 ... HV_X64_MSR_SINT15:
@@ -345,7 +345,7 @@ void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector)
 
 	for (i = 0; i < ARRAY_SIZE(synic->sint); i++)
 		if (synic_get_sint_vector(synic_read_sint(synic, i)) == vector)
-			kvm_hv_notify_acked_sint(vcpu, i);
+			kvm_hv_yestify_acked_sint(vcpu, i);
 }
 
 static int kvm_hv_set_sint_gsi(struct kvm *kvm, u32 vpidx, u32 sint, int gsi)
@@ -400,7 +400,7 @@ static u64 get_time_ref_counter(struct kvm *kvm)
 	u64 tsc;
 
 	/*
-	 * The guest has not set up the TSC page or the clock isn't
+	 * The guest has yest set up the TSC page or the clock isn't
 	 * stable, fall back to get_kvmclock_ns.
 	 */
 	if (!hv->tsc_ref.tsc_sequence)
@@ -452,43 +452,43 @@ static enum hrtimer_restart stimer_timer_callback(struct hrtimer *timer)
 
 /*
  * stimer_start() assumptions:
- * a) stimer->count is not equal to 0
+ * a) stimer->count is yest equal to 0
  * b) stimer->config has HV_STIMER_ENABLE flag
  */
 static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 {
-	u64 time_now;
-	ktime_t ktime_now;
+	u64 time_yesw;
+	ktime_t ktime_yesw;
 
-	time_now = get_time_ref_counter(stimer_to_vcpu(stimer)->kvm);
-	ktime_now = ktime_get();
+	time_yesw = get_time_ref_counter(stimer_to_vcpu(stimer)->kvm);
+	ktime_yesw = ktime_get();
 
 	if (stimer->config.periodic) {
 		if (stimer->exp_time) {
-			if (time_now >= stimer->exp_time) {
+			if (time_yesw >= stimer->exp_time) {
 				u64 remainder;
 
-				div64_u64_rem(time_now - stimer->exp_time,
+				div64_u64_rem(time_yesw - stimer->exp_time,
 					      stimer->count, &remainder);
 				stimer->exp_time =
-					time_now + (stimer->count - remainder);
+					time_yesw + (stimer->count - remainder);
 			}
 		} else
-			stimer->exp_time = time_now + stimer->count;
+			stimer->exp_time = time_yesw + stimer->count;
 
 		trace_kvm_hv_stimer_start_periodic(
 					stimer_to_vcpu(stimer)->vcpu_id,
 					stimer->index,
-					time_now, stimer->exp_time);
+					time_yesw, stimer->exp_time);
 
 		hrtimer_start(&stimer->timer,
-			      ktime_add_ns(ktime_now,
-					   100 * (stimer->exp_time - time_now)),
+			      ktime_add_ns(ktime_yesw,
+					   100 * (stimer->exp_time - time_yesw)),
 			      HRTIMER_MODE_ABS);
 		return 0;
 	}
 	stimer->exp_time = stimer->count;
-	if (time_now >= stimer->count) {
+	if (time_yesw >= stimer->count) {
 		/*
 		 * Expire timer according to Hypervisor Top-Level Functional
 		 * specification v4(15.3.1):
@@ -501,10 +501,10 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 
 	trace_kvm_hv_stimer_start_one_shot(stimer_to_vcpu(stimer)->vcpu_id,
 					   stimer->index,
-					   time_now, stimer->count);
+					   time_yesw, stimer->count);
 
 	hrtimer_start(&stimer->timer,
-		      ktime_add_ns(ktime_now, 100 * (stimer->count - time_now)),
+		      ktime_add_ns(ktime_yesw, 100 * (stimer->count - time_yesw)),
 		      HRTIMER_MODE_ABS);
 	return 0;
 }
@@ -562,7 +562,7 @@ static int stimer_get_count(struct kvm_vcpu_hv_stimer *stimer, u64 *pcount)
 }
 
 static int synic_deliver_msg(struct kvm_vcpu_hv_synic *synic, u32 sint,
-			     struct hv_message *src_msg, bool no_retry)
+			     struct hv_message *src_msg, bool yes_retry)
 {
 	struct kvm_vcpu *vcpu = synic_to_vcpu(synic);
 	int msg_off = offsetof(struct hv_message_page, sint_message[sint]);
@@ -589,7 +589,7 @@ static int synic_deliver_msg(struct kvm_vcpu_hv_synic *synic, u32 sint,
 		return r;
 
 	if (hv_hdr.message_type != HVMSG_NONE) {
-		if (no_retry)
+		if (yes_retry)
 			return 0;
 
 		hv_hdr.message_flags.msg_pending = 1;
@@ -629,16 +629,16 @@ static int stimer_send_msg(struct kvm_vcpu_hv_stimer *stimer)
 	 * To avoid piling up periodic ticks, don't retry message
 	 * delivery for them (within "lazy" lost ticks policy).
 	 */
-	bool no_retry = stimer->config.periodic;
+	bool yes_retry = stimer->config.periodic;
 
 	payload->expiration_time = stimer->exp_time;
 	payload->delivery_time = get_time_ref_counter(vcpu->kvm);
 	return synic_deliver_msg(vcpu_to_synic(vcpu),
 				 stimer->config.sintx, msg,
-				 no_retry);
+				 yes_retry);
 }
 
-static int stimer_notify_direct(struct kvm_vcpu_hv_stimer *stimer)
+static int stimer_yestify_direct(struct kvm_vcpu_hv_stimer *stimer)
 {
 	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
 	struct kvm_lapic_irq irq = {
@@ -659,7 +659,7 @@ static void stimer_expiration(struct kvm_vcpu_hv_stimer *stimer)
 	if (!direct)
 		r = stimer_send_msg(stimer);
 	else
-		r = stimer_notify_direct(stimer);
+		r = stimer_yestify_direct(stimer);
 	trace_kvm_hv_stimer_expiration(stimer_to_vcpu(stimer)->vcpu_id,
 				       stimer->index, direct, r);
 	if (!r) {
@@ -673,7 +673,7 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
 	struct kvm_vcpu_hv_stimer *stimer;
-	u64 time_now, exp_time;
+	u64 time_yesw, exp_time;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
@@ -683,9 +683,9 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 				exp_time = stimer->exp_time;
 
 				if (exp_time) {
-					time_now =
+					time_yesw =
 						get_time_ref_counter(vcpu->kvm);
-					if (time_now >= exp_time)
+					if (time_yesw >= exp_time)
 						stimer_expiration(stimer);
 				}
 
@@ -775,7 +775,7 @@ int kvm_hv_activate_synic(struct kvm_vcpu *vcpu, bool dont_zero_synic_pages)
 
 	/*
 	 * Hyper-V SynIC auto EOI SINT's are
-	 * not compatible with APICV, so deactivate APICV
+	 * yest compatible with APICV, so deactivate APICV
 	 */
 	kvm_vcpu_deactivate_apicv(vcpu);
 	synic->active = true;
@@ -841,7 +841,7 @@ static int kvm_hv_msr_set_crash_ctl(struct kvm_vcpu *vcpu, u64 data, bool host)
 			  hv->hv_crash_param[3],
 			  hv->hv_crash_param[4]);
 
-		/* Send notification about crash to user space */
+		/* Send yestification about crash to user space */
 		kvm_make_request(KVM_REQ_HV_CRASH, vcpu);
 	}
 
@@ -949,7 +949,7 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 	gfn = hv->hv_tsc_page >> HV_X64_MSR_TSC_REFERENCE_ADDRESS_SHIFT;
 	/*
 	 * Because the TSC parameters only vary when there is a
-	 * change in the master clock, do not bother with caching.
+	 * change in the master clock, do yest bother with caching.
 	 */
 	if (unlikely(kvm_read_guest(kvm, gfn_to_gpa(gfn),
 				    &tsc_seq, sizeof(tsc_seq))))
@@ -979,7 +979,7 @@ void kvm_hv_setup_tsc_page(struct kvm *kvm,
 	if (tsc_seq == 0xFFFFFFFF || tsc_seq == 0)
 		tsc_seq = 1;
 
-	/* Write the struct entirely before the non-zero sequence.  */
+	/* Write the struct entirely before the yesn-zero sequence.  */
 	smp_wmb();
 
 	hv->tsc_ref.tsc_sequence = tsc_seq;
@@ -1007,7 +1007,7 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 		unsigned long addr;
 		u8 instructions[4];
 
-		/* if guest os id is not set hypercall should remain disabled */
+		/* if guest os id is yest set hypercall should remain disabled */
 		if (!hv->hv_guest_os_id)
 			break;
 		if (!(data & HV_X64_MSR_HYPERCALL_ENABLE)) {
@@ -1053,7 +1053,7 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 		hv->hv_tsc_emulation_status = data;
 		break;
 	case HV_X64_MSR_TIME_REF_COUNT:
-		/* read-only, but still ignore it if host-initiated */
+		/* read-only, but still igyesre it if host-initiated */
 		if (!host)
 			return 1;
 		break;
@@ -1095,7 +1095,7 @@ static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 		 * The VP index is initialized to vcpu_index by
 		 * kvm_hv_vcpu_postcreate so they initially match.  Now the
 		 * VP index is changing, adjust num_mismatched_vp_indexes if
-		 * it now matches or no longer matches vcpu_idx.
+		 * it yesw matches or yes longer matches vcpu_idx.
 		 */
 		if (hv_vcpu->vp_index == vcpu_idx)
 			atomic_inc(&hv->num_mismatched_vp_indexes);
@@ -1173,7 +1173,7 @@ static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 	}
 	case HV_X64_MSR_TSC_FREQUENCY:
 	case HV_X64_MSR_APIC_FREQUENCY:
-		/* read-only, but still ignore it if host-initiated */
+		/* read-only, but still igyesre it if host-initiated */
 		if (!host)
 			return 1;
 		break;
@@ -1418,7 +1418,7 @@ static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
 					vp_bitmap, vcpu_bitmap);
 
 	/*
-	 * vcpu->arch.cr3 may not be up-to-date for running vCPUs so we can't
+	 * vcpu->arch.cr3 may yest be up-to-date for running vCPUs so we can't
 	 * analyze it here, flush TLB regardless of the specified address space.
 	 */
 	kvm_make_vcpus_request_mask(kvm,
@@ -1562,7 +1562,7 @@ static u16 kvm_hvcall_signal_event(struct kvm_vcpu *vcpu, bool fast, u64 param)
 		int ret;
 		gpa_t gpa = param;
 
-		if ((gpa & (__alignof__(param) - 1)) ||
+		if ((gpa & (__aligyesf__(param) - 1)) ||
 		    offset_in_page(gpa) + sizeof(param) > PAGE_SIZE)
 			return HV_STATUS_INVALID_ALIGNMENT;
 
@@ -1573,7 +1573,7 @@ static u16 kvm_hvcall_signal_event(struct kvm_vcpu *vcpu, bool fast, u64 param)
 
 	/*
 	 * Per spec, bits 32-47 contain the extra "flag number".  However, we
-	 * have no use for it, and in all known usecases it is zero, so just
+	 * have yes use for it, and in all kyeswn usecases it is zero, so just
 	 * report lookup failure if it isn't.
 	 */
 	if (param & 0xffff00000000ULL)
@@ -1600,7 +1600,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	bool fast, rep;
 
 	/*
-	 * hypercall generates UD from non zero cpl and real mode
+	 * hypercall generates UD from yesn zero cpl and real mode
 	 * per HYPER-V spec
 	 */
 	if (kvm_x86_ops->get_cpl(vcpu) != 0 || !is_protmode(vcpu)) {
@@ -1648,9 +1648,9 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 		ret = kvm_hvcall_signal_event(vcpu, fast, ingpa);
 		if (ret != HV_STATUS_INVALID_PORT_ID)
 			break;
-		/* fall through - maybe userspace knows this conn_id. */
+		/* fall through - maybe userspace kyesws this conn_id. */
 	case HVCALL_POST_MESSAGE:
-		/* don't bother userspace if it has no way to handle it */
+		/* don't bother userspace if it has yes way to handle it */
 		if (unlikely(rep || !vcpu_to_synic(vcpu)->active)) {
 			ret = HV_STATUS_INVALID_HYPERCALL_INPUT;
 			break;
@@ -1799,7 +1799,7 @@ int kvm_vcpu_ioctl_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
 	if (kvm_x86_ops->nested_get_evmcs_version)
 		evmcs_ver = kvm_x86_ops->nested_get_evmcs_version(vcpu);
 
-	/* Skip NESTED_FEATURES if eVMCS is not supported */
+	/* Skip NESTED_FEATURES if eVMCS is yest supported */
 	if (!evmcs_ver)
 		--nent;
 

@@ -23,7 +23,7 @@ int xen_swiotlb __read_mostly;
 /*
  * pci_xen_swiotlb_detect - set xen_swiotlb to 1 if necessary
  *
- * This returns non-zero if we are forced to use xen_swiotlb (by the boot
+ * This returns yesn-zero if we are forced to use xen_swiotlb (by the boot
  * option).
  */
 int __init pci_xen_swiotlb_detect(void)
@@ -45,13 +45,13 @@ int __init pci_xen_swiotlb_detect(void)
 	swiotlb = 0;
 
 #ifdef CONFIG_X86_64
-	/* pci_swiotlb_detect_4gb turns on native SWIOTLB if no_iommu == 0
-	 * (so no iommu=X command line over-writes).
-	 * Considering that PV guests do not want the *native SWIOTLB* but
-	 * only Xen SWIOTLB it is not useful to us so set no_iommu=1 here.
+	/* pci_swiotlb_detect_4gb turns on native SWIOTLB if yes_iommu == 0
+	 * (so yes iommu=X command line over-writes).
+	 * Considering that PV guests do yest want the *native SWIOTLB* but
+	 * only Xen SWIOTLB it is yest useful to us so set yes_iommu=1 here.
 	 */
 	if (max_pfn > MAX_DMA32_PFN)
-		no_iommu = 1;
+		yes_iommu = 1;
 #endif
 	return xen_swiotlb;
 }

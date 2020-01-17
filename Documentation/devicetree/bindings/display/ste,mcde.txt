@@ -25,9 +25,9 @@ Required properties:
 - #size-cells: should be <1> (for the DSI hosts that will be children)
 - ranges: this should always be stated
 
-Required subnodes:
+Required subyesdes:
 
-The devicetree must specify subnodes for the DSI host adapters.
+The devicetree must specify subyesdes for the DSI host adapters.
 These must have the following characteristics:
 
 - compatible: must be:
@@ -35,7 +35,7 @@ These must have the following characteristics:
 - reg: must specify the register range for the DSI host
 - vana-supply: phandle to the VANA voltage regulator
 - clocks: phandles to the high speed and low power (energy save) clocks
-  the high speed clock is not present on the third (dsi2) block, so it
+  the high speed clock is yest present on the third (dsi2) block, so it
   should only have the "lp" clock
 - clock-names: "hs" for the high speed clock and "lp" for the low power
   (energy save) clock
@@ -47,7 +47,7 @@ the displays are connected to the DSI hosts using the common binding
 for video transmitter interfaces; see
 Documentation/devicetree/bindings/media/video-interfaces.txt
 
-If a DSI host is unused (not connected) it will have no children defined.
+If a DSI host is unused (yest connected) it will have yes children defined.
 
 Example:
 

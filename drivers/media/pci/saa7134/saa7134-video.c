@@ -4,7 +4,7 @@
  * device driver for philips saa7134 based TV cards
  * video4linux video interface
  *
- * (c) 2001-03 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2001-03 Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #include "saa7134.h"
@@ -25,7 +25,7 @@
 
 unsigned int video_debug;
 static unsigned int gbuffers      = 8;
-static unsigned int noninterlaced; /* 0 */
+static unsigned int yesninterlaced; /* 0 */
 static unsigned int gbufsize      = 720*576*4;
 static unsigned int gbufsize_max  = 720*576*4;
 static char secam[] = "--";
@@ -33,8 +33,8 @@ module_param(video_debug, int, 0644);
 MODULE_PARM_DESC(video_debug,"enable debug messages [video]");
 module_param(gbuffers, int, 0444);
 MODULE_PARM_DESC(gbuffers,"number of capture buffers, range 2-32");
-module_param(noninterlaced, int, 0644);
-MODULE_PARM_DESC(noninterlaced,"capture non interlaced video");
+module_param(yesninterlaced, int, 0644);
+MODULE_PARM_DESC(yesninterlaced,"capture yesn interlaced video");
 module_param_string(secam, secam, sizeof(secam), 0644);
 MODULE_PARM_DESC(secam, "force SECAM variant, either DK,L or Lc");
 
@@ -190,7 +190,7 @@ static struct saa7134_format formats[] = {
 		.vbi_v_start_1 = 273,	\
 		.src_timing    = 7
 
-static struct saa7134_tvnorm tvnorms[] = {
+static struct saa7134_tvyesrm tvyesrms[] = {
 	{
 		.name          = "PAL", /* autodetect */
 		.id            = V4L2_STD_PAL,
@@ -344,7 +344,7 @@ static struct saa7134_tvnorm tvnorms[] = {
 		.vgate_misc    = 0x1c,
 	}
 };
-#define TVNORMS ARRAY_SIZE(tvnorms)
+#define TVNORMS ARRAY_SIZE(tvyesrms)
 
 static struct saa7134_format* format_by_fourcc(unsigned int fourcc)
 {
@@ -358,26 +358,26 @@ static struct saa7134_format* format_by_fourcc(unsigned int fourcc)
 
 /* ------------------------------------------------------------------ */
 
-static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
+static void set_tvyesrm(struct saa7134_dev *dev, struct saa7134_tvyesrm *yesrm)
 {
-	video_dbg("set tv norm = %s\n", norm->name);
-	dev->tvnorm = norm;
+	video_dbg("set tv yesrm = %s\n", yesrm->name);
+	dev->tvyesrm = yesrm;
 
 	/* setup cropping */
-	dev->crop_bounds.left    = norm->h_start;
-	dev->crop_defrect.left   = norm->h_start;
-	dev->crop_bounds.width   = norm->h_stop - norm->h_start +1;
-	dev->crop_defrect.width  = norm->h_stop - norm->h_start +1;
+	dev->crop_bounds.left    = yesrm->h_start;
+	dev->crop_defrect.left   = yesrm->h_start;
+	dev->crop_bounds.width   = yesrm->h_stop - yesrm->h_start +1;
+	dev->crop_defrect.width  = yesrm->h_stop - yesrm->h_start +1;
 
-	dev->crop_bounds.top     = (norm->vbi_v_stop_0+1)*2;
-	dev->crop_defrect.top    = norm->video_v_start*2;
-	dev->crop_bounds.height  = ((norm->id & V4L2_STD_525_60) ? 524 : 624)
+	dev->crop_bounds.top     = (yesrm->vbi_v_stop_0+1)*2;
+	dev->crop_defrect.top    = yesrm->video_v_start*2;
+	dev->crop_bounds.height  = ((yesrm->id & V4L2_STD_525_60) ? 524 : 624)
 		- dev->crop_bounds.top;
-	dev->crop_defrect.height = (norm->video_v_stop - norm->video_v_start +1)*2;
+	dev->crop_defrect.height = (yesrm->video_v_stop - yesrm->video_v_start +1)*2;
 
 	dev->crop_current = dev->crop_defrect;
 
-	saa7134_set_tvnorm_hw(dev);
+	saa7134_set_tvyesrm_hw(dev);
 }
 
 static void video_mux(struct saa7134_dev *dev, int input)
@@ -385,7 +385,7 @@ static void video_mux(struct saa7134_dev *dev, int input)
 	video_dbg("video input = %d [%s]\n",
 		  input, saa7134_input_name[card_in(dev, input).type]);
 	dev->ctl_input = input;
-	set_tvnorm(dev, dev->tvnorm);
+	set_tvyesrm(dev, dev->tvyesrm);
 	saa7134_tvaudio_setinput(dev, &card_in(dev, input));
 }
 
@@ -394,16 +394,16 @@ static void saa7134_set_decoder(struct saa7134_dev *dev)
 {
 	int luma_control, sync_control, chroma_ctrl1, mux;
 
-	struct saa7134_tvnorm *norm = dev->tvnorm;
+	struct saa7134_tvyesrm *yesrm = dev->tvyesrm;
 	mux = card_in(dev, dev->ctl_input).vmux;
 
-	luma_control = norm->luma_control;
-	sync_control = norm->sync_control;
-	chroma_ctrl1 = norm->chroma_ctrl1;
+	luma_control = yesrm->luma_control;
+	sync_control = yesrm->sync_control;
+	chroma_ctrl1 = yesrm->chroma_ctrl1;
 
 	if (mux > 5)
 		luma_control |= 0x80; /* svideo */
-	if (noninterlaced || dev->nosignal)
+	if (yesninterlaced || dev->yessignal)
 		sync_control |= 0x20;
 
 	/* switch on auto standard detection */
@@ -421,7 +421,7 @@ static void saa7134_set_decoder(struct saa7134_dev *dev)
 	saa_writeb(SAA7134_ANALOG_IN_CTRL4,       0x90);
 	saa_writeb(SAA7134_HSYNC_START,           0xeb);
 	saa_writeb(SAA7134_HSYNC_STOP,            0xe0);
-	saa_writeb(SAA7134_SOURCE_TIMING1,        norm->src_timing);
+	saa_writeb(SAA7134_SOURCE_TIMING1,        yesrm->src_timing);
 
 	saa_writeb(SAA7134_SYNC_CTRL,             sync_control);
 	saa_writeb(SAA7134_LUMA_CTRL,             luma_control);
@@ -435,27 +435,27 @@ static void saa7134_set_decoder(struct saa7134_dev *dev)
 
 	saa_writeb(SAA7134_DEC_CHROMA_HUE,        dev->ctl_hue);
 	saa_writeb(SAA7134_CHROMA_CTRL1,          chroma_ctrl1);
-	saa_writeb(SAA7134_CHROMA_GAIN,           norm->chroma_gain);
+	saa_writeb(SAA7134_CHROMA_GAIN,           yesrm->chroma_gain);
 
-	saa_writeb(SAA7134_CHROMA_CTRL2,          norm->chroma_ctrl2);
+	saa_writeb(SAA7134_CHROMA_CTRL2,          yesrm->chroma_ctrl2);
 	saa_writeb(SAA7134_MODE_DELAY_CTRL,       0x00);
 
 	saa_writeb(SAA7134_ANALOG_ADC,            0x01);
 	saa_writeb(SAA7134_VGATE_START,           0x11);
 	saa_writeb(SAA7134_VGATE_STOP,            0xfe);
-	saa_writeb(SAA7134_MISC_VGATE_MSB,        norm->vgate_misc);
+	saa_writeb(SAA7134_MISC_VGATE_MSB,        yesrm->vgate_misc);
 	saa_writeb(SAA7134_RAW_DATA_GAIN,         0x40);
 	saa_writeb(SAA7134_RAW_DATA_OFFSET,       0x80);
 }
 
-void saa7134_set_tvnorm_hw(struct saa7134_dev *dev)
+void saa7134_set_tvyesrm_hw(struct saa7134_dev *dev)
 {
 	saa7134_set_decoder(dev);
 
-	saa_call_all(dev, video, s_std, dev->tvnorm->id);
-	/* Set the correct norm for the saa6752hs. This function
-	   does nothing if there is no saa6752hs. */
-	saa_call_empress(dev, video, s_std, dev->tvnorm->id);
+	saa_call_all(dev, video, s_std, dev->tvyesrm->id);
+	/* Set the correct yesrm for the saa6752hs. This function
+	   does yesthing if there is yes saa6752hs. */
+	saa_call_empress(dev, video, s_std, dev->tvyesrm->id);
 }
 
 static void set_h_prescale(struct saa7134_dev *dev, int task, int prescale)
@@ -775,10 +775,10 @@ static int saa7134_enable_analog_tuner(struct saa7134_dev *dev)
 
 	/*
 	 * This will find the tuner that is connected into the decoder.
-	 * Technically, this is not 100% correct, as the device may be
+	 * Technically, this is yest 100% correct, as the device may be
 	 * using an analog input instead of the tuner. However, as we can't
 	 * do DVB streaming while the DMA engine is being used for V4L2,
-	 * this should be enough for the actual needs.
+	 * this should be eyesugh for the actual needs.
 	 */
 	list_for_each_entry(link, &dev->decoder->links, list) {
 		if (link->sink->entity == dev->decoder) {
@@ -855,7 +855,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 		saa_writel(SAA7134_RS_BA2(0),base+bpl);
 		saa_writel(SAA7134_RS_PITCH(0),bpl*2);
 	} else {
-		/* non-interlaced */
+		/* yesn-interlaced */
 		saa_writel(SAA7134_RS_BA1(0),base);
 		saa_writel(SAA7134_RS_BA2(0),base);
 		saa_writel(SAA7134_RS_PITCH(0),bpl);
@@ -881,7 +881,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 			saa_writel(SAA7134_RS_BA2(5),base3+bpl_uv);
 			saa_writel(SAA7134_RS_PITCH(5),bpl_uv*2);
 		} else {
-			/* non-interlaced */
+			/* yesn-interlaced */
 			saa_writel(SAA7134_RS_BA1(4),base2);
 			saa_writel(SAA7134_RS_BA2(4),base2);
 			saa_writel(SAA7134_RS_PITCH(4),bpl_uv);
@@ -920,7 +920,7 @@ static int buffer_prepare(struct vb2_buffer *vb2)
 	unsigned int size;
 
 	if (dma->sgl->offset) {
-		pr_err("The buffer is not page-aligned\n");
+		pr_err("The buffer is yest page-aligned\n");
 		return -EINVAL;
 	}
 	size = (dev->width * dev->height * dev->fmt->depth) >> 3;
@@ -1171,7 +1171,7 @@ static int video_release(struct file *file)
 	else
 		_vb2_fop_release(file, NULL);
 
-	/* ts-capture will not work in planar mode, so turn it off Hac: 04.05*/
+	/* ts-capture will yest work in planar mode, so turn it off Hac: 04.05*/
 	saa_andorb(SAA7134_OFMT_VIDEO_A, 0x1f, 0);
 	saa_andorb(SAA7134_OFMT_VIDEO_B, 0x1f, 0);
 	saa_andorb(SAA7134_OFMT_DATA_A, 0x1f, 0);
@@ -1192,7 +1192,7 @@ static ssize_t radio_read(struct file *file, char __user *data,
 	struct saa6588_command cmd;
 
 	cmd.block_count = count/3;
-	cmd.nonblocking = file->f_flags & O_NONBLOCK;
+	cmd.yesnblocking = file->f_flags & O_NONBLOCK;
 	cmd.buffer = data;
 	cmd.instance = file;
 	cmd.result = -ENODEV;
@@ -1226,16 +1226,16 @@ static int saa7134_try_get_set_fmt_vbi_cap(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct saa7134_dev *dev = video_drvdata(file);
-	struct saa7134_tvnorm *norm = dev->tvnorm;
+	struct saa7134_tvyesrm *yesrm = dev->tvyesrm;
 
 	memset(&f->fmt.vbi.reserved, 0, sizeof(f->fmt.vbi.reserved));
 	f->fmt.vbi.sampling_rate = 6750000 * 4;
 	f->fmt.vbi.samples_per_line = 2048 /* VBI_LINE_LENGTH */;
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
 	f->fmt.vbi.offset = 64 * 4;
-	f->fmt.vbi.start[0] = norm->vbi_v_start_0;
-	f->fmt.vbi.count[0] = norm->vbi_v_stop_0 - norm->vbi_v_start_0 +1;
-	f->fmt.vbi.start[1] = norm->vbi_v_start_1;
+	f->fmt.vbi.start[0] = yesrm->vbi_v_start_0;
+	f->fmt.vbi.count[0] = yesrm->vbi_v_stop_0 - yesrm->vbi_v_start_0 +1;
+	f->fmt.vbi.start[1] = yesrm->vbi_v_start_1;
 	f->fmt.vbi.count[1] = f->fmt.vbi.count[0];
 	f->fmt.vbi.flags = 0; /* VBI_UNSYNC VBI_INTERLACED */
 
@@ -1271,8 +1271,8 @@ static int saa7134_g_fmt_vid_overlay(struct file *file, void *priv,
 	int err = 0;
 	int i;
 
-	if (saa7134_no_overlay > 0) {
-		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+	if (saa7134_yes_overlay > 0) {
+		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: yes_overlay\n");
 		return -EINVAL;
 	}
 	f->fmt.win = dev->win;
@@ -1350,8 +1350,8 @@ static int saa7134_try_fmt_vid_overlay(struct file *file, void *priv,
 {
 	struct saa7134_dev *dev = video_drvdata(file);
 
-	if (saa7134_no_overlay > 0) {
-		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+	if (saa7134_yes_overlay > 0) {
+		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: yes_overlay\n");
 		return -EINVAL;
 	}
 
@@ -1384,8 +1384,8 @@ static int saa7134_s_fmt_vid_overlay(struct file *file, void *priv,
 	int err;
 	unsigned long flags;
 
-	if (saa7134_no_overlay > 0) {
-		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+	if (saa7134_yes_overlay > 0) {
+		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: yes_overlay\n");
 		return -EINVAL;
 	}
 	if (f->fmt.win.clips == NULL)
@@ -1487,7 +1487,7 @@ int saa7134_querycap(struct file *file, void *priv,
 		cap->capabilities |= V4L2_CAP_TUNER;
 	if (dev->has_rds)
 		cap->capabilities |= V4L2_CAP_RDS_CAPTURE;
-	if (saa7134_no_overlay <= 0)
+	if (saa7134_yes_overlay <= 0)
 		cap->capabilities |= V4L2_CAP_VIDEO_OVERLAY;
 
 	return 0;
@@ -1509,12 +1509,12 @@ int saa7134_s_std(struct file *file, void *priv, v4l2_std_id id)
 	}
 
 	for (i = 0; i < TVNORMS; i++)
-		if (id == tvnorms[i].id)
+		if (id == tvyesrms[i].id)
 			break;
 
 	if (i == TVNORMS)
 		for (i = 0; i < TVNORMS; i++)
-			if (id & tvnorms[i].id)
+			if (id & tvyesrms[i].id)
 				break;
 	if (i == TVNORMS)
 		return -EINVAL;
@@ -1532,27 +1532,27 @@ int saa7134_s_std(struct file *file, void *priv, v4l2_std_id id)
 				fixup = V4L2_STD_SECAM;
 		}
 		for (i = 0; i < TVNORMS; i++) {
-			if (fixup == tvnorms[i].id)
+			if (fixup == tvyesrms[i].id)
 				break;
 		}
 		if (i == TVNORMS)
 			return -EINVAL;
 	}
 
-	id = tvnorms[i].id;
+	id = tvyesrms[i].id;
 
 	if (!is_empress(file) && fh == dev->overlay_owner) {
 		spin_lock_irqsave(&dev->slock, flags);
 		stop_preview(dev);
 		spin_unlock_irqrestore(&dev->slock, flags);
 
-		set_tvnorm(dev, &tvnorms[i]);
+		set_tvyesrm(dev, &tvyesrms[i]);
 
 		spin_lock_irqsave(&dev->slock, flags);
 		start_preview(dev);
 		spin_unlock_irqrestore(&dev->slock, flags);
 	} else
-		set_tvnorm(dev, &tvnorms[i]);
+		set_tvyesrm(dev, &tvyesrms[i]);
 
 	saa7134_tvaudio_do_scan(dev);
 	return 0;
@@ -1563,7 +1563,7 @@ int saa7134_g_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct saa7134_dev *dev = video_drvdata(file);
 
-	*id = dev->tvnorm->id;
+	*id = dev->tvyesrm->id;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(saa7134_g_std);
@@ -1606,13 +1606,13 @@ static int saa7134_g_pixelaspect(struct file *file, void *priv,
 	    type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
 		return -EINVAL;
 
-	if (dev->tvnorm->id & V4L2_STD_525_60) {
+	if (dev->tvyesrm->id & V4L2_STD_525_60) {
 		f->numerator   = 11;
-		f->denominator = 10;
+		f->deyesminator = 10;
 	}
-	if (dev->tvnorm->id & V4L2_STD_625_50) {
+	if (dev->tvyesrm->id & V4L2_STD_625_50) {
 		f->numerator   = 54;
-		f->denominator = 59;
+		f->deyesminator = 59;
 	}
 	return 0;
 }
@@ -1774,8 +1774,8 @@ static int saa7134_enum_fmt_vid_cap(struct file *file, void  *priv,
 static int saa7134_enum_fmt_vid_overlay(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
-	if (saa7134_no_overlay > 0) {
-		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+	if (saa7134_yes_overlay > 0) {
+		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: yes_overlay\n");
 		return -EINVAL;
 	}
 
@@ -1828,8 +1828,8 @@ static int saa7134_overlay(struct file *file, void *priv, unsigned int on)
 	unsigned long flags;
 
 	if (on) {
-		if (saa7134_no_overlay > 0) {
-			video_dbg("no_overlay\n");
+		if (saa7134_yes_overlay > 0) {
+			video_dbg("yes_overlay\n");
 			return -EINVAL;
 		}
 
@@ -1985,7 +1985,7 @@ struct video_device saa7134_video_template = {
 	.name				= "saa7134-video",
 	.fops				= &video_fops,
 	.ioctl_ops			= &video_ioctl_ops,
-	.tvnorms			= SAA7134_NORMS,
+	.tvyesrms			= SAA7134_NORMS,
 };
 
 struct video_device saa7134_radio_template = {
@@ -2108,10 +2108,10 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	q = &dev->video_vbq;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	/*
-	 * Do not add VB2_USERPTR unless explicitly requested: the saa7134 DMA
-	 * engine cannot handle transfers that do not start at the beginning
+	 * Do yest add VB2_USERPTR unless explicitly requested: the saa7134 DMA
+	 * engine canyest handle transfers that do yest start at the beginning
 	 * of a page. A user-provided pointer can start anywhere in a page, so
-	 * USERPTR support is a no-go unless the application knows about these
+	 * USERPTR support is a yes-go unless the application kyesws about these
 	 * limitations and has special support for this.
 	 */
 	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
@@ -2203,7 +2203,7 @@ int saa7134_videoport_init(struct saa7134_dev *dev)
 int saa7134_video_init2(struct saa7134_dev *dev)
 {
 	/* init video hw */
-	set_tvnorm(dev,&tvnorms[0]);
+	set_tvyesrm(dev,&tvyesrms[0]);
 	video_mux(dev,0);
 	v4l2_ctrl_handler_setup(&dev->ctrl_handler);
 	saa7134_tvaudio_setmute(dev);
@@ -2214,19 +2214,19 @@ int saa7134_video_init2(struct saa7134_dev *dev)
 void saa7134_irq_video_signalchange(struct saa7134_dev *dev)
 {
 	static const char *st[] = {
-		"(no signal)", "NTSC", "PAL", "SECAM" };
+		"(yes signal)", "NTSC", "PAL", "SECAM" };
 	u32 st1,st2;
 
 	st1 = saa_readb(SAA7134_STATUS_VIDEO1);
 	st2 = saa_readb(SAA7134_STATUS_VIDEO2);
-	video_dbg("DCSDT: pll: %s, sync: %s, norm: %s\n",
-		(st1 & 0x40) ? "not locked" : "locked",
-		(st2 & 0x40) ? "no"         : "yes",
+	video_dbg("DCSDT: pll: %s, sync: %s, yesrm: %s\n",
+		(st1 & 0x40) ? "yest locked" : "locked",
+		(st2 & 0x40) ? "yes"         : "no",
 		st[st1 & 0x03]);
-	dev->nosignal = (st1 & 0x40) || (st2 & 0x40)  || !(st2 & 0x1);
+	dev->yessignal = (st1 & 0x40) || (st2 & 0x40)  || !(st2 & 0x1);
 
-	if (dev->nosignal) {
-		/* no video signal -> mute audio */
+	if (dev->yessignal) {
+		/* yes video signal -> mute audio */
 		if (dev->ctl_automute)
 			dev->automute = 1;
 		saa7134_tvaudio_setmute(dev);
@@ -2235,7 +2235,7 @@ void saa7134_irq_video_signalchange(struct saa7134_dev *dev)
 		saa7134_tvaudio_do_scan(dev);
 	}
 
-	if ((st2 & 0x80) && !noninterlaced && !dev->nosignal)
+	if ((st2 & 0x80) && !yesninterlaced && !dev->yessignal)
 		saa_clearb(SAA7134_SYNC_CTRL, 0x20);
 	else
 		saa_setb(SAA7134_SYNC_CTRL, 0x20);

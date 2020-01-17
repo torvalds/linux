@@ -10,7 +10,7 @@
  *                     Anton Vorontsov <avorontsov@ru.mvista.com>
  *
  * Note: it appears that you can only actually ENABLE or DISABLE the thing
- * once after POR. Once enabled, you cannot disable, and vice versa.
+ * once after POR. Once enabled, you canyest disable, and vice versa.
  */
 
 #include <linux/fs.h>
@@ -64,9 +64,9 @@ module_param(reset, bool, 0);
 MODULE_PARM_DESC(reset,
 	"Watchdog Interrupt/Reset Mode. 0 = interrupt, 1 = reset");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started "
 		 "(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static void mpc8xxx_wdt_keepalive(struct mpc8xxx_wdt_ddata *ddata)
@@ -151,7 +151,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 
 	enabled = in_be32(&ddata->base->swcrr) & SWCRR_SWEN;
 	if (!enabled && wdt_type->hw_enabled) {
-		dev_info(dev, "could not be enabled in software\n");
+		dev_info(dev, "could yest be enabled in software\n");
 		return -ENODEV;
 	}
 
@@ -170,7 +170,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 		iounmap(rsr);
 
 		dev_info(dev, "Last boot was %scaused by watchdog\n",
-			 status ? "" : "not ");
+			 status ? "" : "yest ");
 	}
 
 	spin_lock_init(&ddata->lock);
@@ -181,7 +181,7 @@ static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 	ddata->wdd.timeout = WATCHDOG_TIMEOUT;
 	watchdog_init_timeout(&ddata->wdd, timeout, dev);
 
-	watchdog_set_nowayout(&ddata->wdd, nowayout);
+	watchdog_set_yeswayout(&ddata->wdd, yeswayout);
 
 	ddata->swtc = min(ddata->wdd.timeout * freq / wdt_type->prescaler,
 			  0xffffU);

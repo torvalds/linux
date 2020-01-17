@@ -381,7 +381,7 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 
 		} else if (op2 == 0x0d || op2 == 0x1f) {
 
-			/* nopl/nopw */
+			/* yespl/yespw */
 			*type = INSN_NOP;
 
 		} else if (op2 == 0xa0 || op2 == 0xa8) {

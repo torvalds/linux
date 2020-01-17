@@ -412,7 +412,7 @@ int ngene_command_gpio_set(struct ngene *dev, u8 select, u8 level)
 /*
  02000640 is sample on rising edge.
  02000740 is sample on falling edge.
- 02000040 is ignore "valid" signal
+ 02000040 is igyesre "valid" signal
 
  0: FD_CTL1 Bit 7,6 must be 0,1
     7   disable(fw controlled)
@@ -420,7 +420,7 @@ int ngene_command_gpio_set(struct ngene *dev, u8 select, u8 level)
     5   0-par,1-ser
     4   0-lsb/1-msb
     3,2 reserved
-    1,0 0-no sync, 1-use ext. start, 2-use 0x47, 3-both
+    1,0 0-yes sync, 1-use ext. start, 2-use 0x47, 3-both
  1: FD_CTL2 has 3-valid must be hi, 2-use valid, 1-edge
  2: FD_STA is read-only. 0-sync
  3: FD_INSYNC is number of 47s to trigger "in sync".
@@ -1237,7 +1237,7 @@ static int ngene_load_firm(struct ngene *dev)
 	}
 
 	if (request_firmware(&fw, fw_name, &dev->pci_dev->dev) < 0) {
-		dev_err(pdev, "Could not load firmware file %s.\n", fw_name);
+		dev_err(pdev, "Could yest load firmware file %s.\n", fw_name);
 		dev_info(pdev, "Copy %s to your hotplug directory!\n",
 			 fw_name);
 		return -1;
@@ -1348,7 +1348,7 @@ static int ngene_start(struct ngene *dev)
 		free_irq(dev->pci_dev->irq, dev);
 		stat = pci_enable_msi(dev->pci_dev);
 		if (stat) {
-			dev_info(pdev, "MSI not available\n");
+			dev_info(pdev, "MSI yest available\n");
 			flags = IRQF_SHARED;
 		} else {
 			flags = 0;
@@ -1448,7 +1448,7 @@ static int init_channel(struct ngene_channel *chan)
 	tasklet_init(&chan->demux_tasklet, demux_tasklet, (unsigned long)chan);
 	chan->users = 0;
 	chan->type = io;
-	chan->mode = chan->type;	/* for now only one mode */
+	chan->mode = chan->type;	/* for yesw only one mode */
 	chan->i2c_client_fe = 0;	/* be sure this is set to zero */
 
 	if (io & NGENE_IO_TSIN) {

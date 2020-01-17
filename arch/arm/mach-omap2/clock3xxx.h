@@ -16,6 +16,6 @@ int omap3_core_dpll_m2_set_rate(struct clk_hw *clk, unsigned long rate,
 extern struct clk *sdrc_ick_p;
 extern struct clk *arm_fck_p;
 
-extern const struct clkops clkops_noncore_dpll_ops;
+extern const struct clkops clkops_yesncore_dpll_ops;
 
 #endif

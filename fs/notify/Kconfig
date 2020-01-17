@@ -3,6 +3,6 @@ config FSNOTIFY
 	def_bool n
 	select SRCU
 
-source "fs/notify/dnotify/Kconfig"
-source "fs/notify/inotify/Kconfig"
-source "fs/notify/fanotify/Kconfig"
+source "fs/yestify/dyestify/Kconfig"
+source "fs/yestify/iyestify/Kconfig"
+source "fs/yestify/fayestify/Kconfig"

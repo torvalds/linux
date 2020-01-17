@@ -22,7 +22,7 @@ static void vfio_platform_mask(struct vfio_platform_irq *irq_ctx)
 	spin_lock_irqsave(&irq_ctx->lock, flags);
 
 	if (!irq_ctx->masked) {
-		disable_irq_nosync(irq_ctx->hwirq);
+		disable_irq_yessync(irq_ctx->hwirq);
 		irq_ctx->masked = true;
 	}
 
@@ -148,7 +148,7 @@ static irqreturn_t vfio_automasked_irq_handler(int irq, void *dev_id)
 		ret = IRQ_HANDLED;
 
 		/* automask maskable interrupts */
-		disable_irq_nosync(irq_ctx->hwirq);
+		disable_irq_yessync(irq_ctx->hwirq);
 		irq_ctx->masked = true;
 	}
 

@@ -41,7 +41,7 @@
  */
 #define ZRAM_FLAG_SHIFT 24
 
-/* Flags for zram pages (table[page_no].flags) */
+/* Flags for zram pages (table[page_yes].flags) */
 enum zram_pageflags {
 	/* zram slot is locked */
 	ZRAM_LOCK = ZRAM_FLAG_SHIFT,
@@ -49,7 +49,7 @@ enum zram_pageflags {
 	ZRAM_WB,	/* page is stored on backing_device */
 	ZRAM_UNDER_WB,	/* page is under writeback */
 	ZRAM_HUGE,	/* Incompressible page */
-	ZRAM_IDLE,	/* not accessed page since last idle marking */
+	ZRAM_IDLE,	/* yest accessed page since last idle marking */
 
 	__NR_ZRAM_PAGEFLAGS,
 };
@@ -74,18 +74,18 @@ struct zram_stats {
 	atomic64_t num_writes;	/* --do-- */
 	atomic64_t failed_reads;	/* can happen when memory is too low */
 	atomic64_t failed_writes;	/* can happen when memory is too low */
-	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
-	atomic64_t notify_free;	/* no. of swap slot free notifications */
-	atomic64_t same_pages;		/* no. of same element filled pages */
-	atomic64_t huge_pages;		/* no. of huge pages */
-	atomic64_t pages_stored;	/* no. of pages currently stored */
-	atomic_long_t max_used_pages;	/* no. of maximum pages stored */
-	atomic64_t writestall;		/* no. of write slow paths */
-	atomic64_t miss_free;		/* no. of missed free */
+	atomic64_t invalid_io;	/* yesn-page-aligned I/O requests */
+	atomic64_t yestify_free;	/* yes. of swap slot free yestifications */
+	atomic64_t same_pages;		/* yes. of same element filled pages */
+	atomic64_t huge_pages;		/* yes. of huge pages */
+	atomic64_t pages_stored;	/* yes. of pages currently stored */
+	atomic_long_t max_used_pages;	/* yes. of maximum pages stored */
+	atomic64_t writestall;		/* yes. of write slow paths */
+	atomic64_t miss_free;		/* yes. of missed free */
 #ifdef	CONFIG_ZRAM_WRITEBACK
-	atomic64_t bd_count;		/* no. of pages in backing device */
-	atomic64_t bd_reads;		/* no. of reads from backing device */
-	atomic64_t bd_writes;		/* no. of writes from backing device */
+	atomic64_t bd_count;		/* yes. of pages in backing device */
+	atomic64_t bd_reads;		/* yes. of reads from backing device */
+	atomic64_t bd_writes;		/* yes. of writes from backing device */
 #endif
 };
 

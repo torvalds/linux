@@ -77,7 +77,7 @@ static inline unsigned int seq_buf_used(struct seq_buf *s)
  * @bufp: the beginning of the buffer is stored here
  *
  * Return the number of bytes available in the buffer, or zero if
- * there's no space.
+ * there's yes space.
  */
 static inline size_t seq_buf_get_buf(struct seq_buf *s, char **bufp)
 {

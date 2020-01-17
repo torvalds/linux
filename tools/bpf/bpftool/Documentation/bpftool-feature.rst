@@ -32,7 +32,7 @@ DESCRIPTION
 		  JIT status, eBPF program types availability, eBPF helper
 		  functions availability, and more.
 
-		  If the **macros** keyword (but not the **-j** option) is
+		  If the **macros** keyword (but yest the **-j** option) is
 		  passed, a subset of the output is dumped as a list of
 		  **#define** macros that are ready to be included in a C
 		  header file, for example. If, additionally, **prefix** is
@@ -41,7 +41,7 @@ DESCRIPTION
 		  avoid conflicts on macro names when including the output of
 		  this command as a header file.
 
-		  Keyword **kernel** can be omitted. If no probe target is
+		  Keyword **kernel** can be omitted. If yes probe target is
 		  specified, probing the kernel is the default behaviour.
 
 		  Note that when probed, some eBPF helpers (e.g.
@@ -67,8 +67,8 @@ OPTIONS
 		  Print version number (similar to **bpftool version**).
 
 	-j, --json
-		  Generate JSON output. For commands that cannot produce JSON, this
-		  option has no effect.
+		  Generate JSON output. For commands that canyest produce JSON, this
+		  option has yes effect.
 
 	-p, --pretty
 		  Generate human-readable JSON output. Implies **-j**.

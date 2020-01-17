@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -55,7 +55,7 @@ struct qed_dcbx_app_data {
 	u8 update;		/* Update indication */
 	u8 priority;		/* Priority */
 	u8 tc;			/* Traffic Class */
-	bool dont_add_vlan0;	/* Do not insert a vlan tag with id 0 */
+	bool dont_add_vlan0;	/* Do yest insert a vlan tag with id 0 */
 };
 
 #define QED_DCBX_VERSION_DISABLED       0

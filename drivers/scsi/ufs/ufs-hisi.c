@@ -3,7 +3,7 @@
  * HiSilicon Hixxxx UFS Driver
  *
  * Copyright (c) 2016-2017 Linaro Ltd.
- * Copyright (c) 2016-2017 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016-2017 HiSilicon Techyeslogies Co., Ltd.
  */
 
 #include <linux/time.h>
@@ -89,7 +89,7 @@ static void ufs_hisi_soc_init(struct ufs_hba *hba)
 	/* HC_PSW powerup */
 	ufs_sys_ctrl_set_bits(host, BIT_UFS_PSW_MTCMOS_EN, PSW_POWER_CTRL);
 	udelay(10);
-	/* notify PWR ready */
+	/* yestify PWR ready */
 	ufs_sys_ctrl_set_bits(host, BIT_SYSCTRL_PWR_READY, HC_LP_CTRL);
 	ufs_sys_ctrl_writel(host, MASK_UFS_DEVICE_RESET | 0,
 		UFS_DEVICE_RESET_CTRL);
@@ -111,7 +111,7 @@ static void ufs_hisi_soc_init(struct ufs_hba *hba)
 	ufs_sys_ctrl_clr_bits(host, BIT_UFS_PSW_ISO_CTRL, PSW_POWER_CTRL);
 	/* disable phy iso */
 	ufs_sys_ctrl_clr_bits(host, BIT_UFS_PHY_ISO_CTRL, PHY_ISO_EN);
-	/* notice iso disable */
+	/* yestice iso disable */
 	ufs_sys_ctrl_clr_bits(host, BIT_SYSCTRL_LP_ISOL_EN, HC_LP_CTRL);
 
 	/* disable lp_reset_n */
@@ -258,7 +258,7 @@ static int ufs_hisi_link_startup_post_change(struct ufs_hba *hba)
 	/* Unipro DL_TC0TXFCThreshold */
 	ufshcd_dme_set(hba, UIC_ARG_MIB(0x2040), 0x9);
 
-	/* not bypass ufs clk gate */
+	/* yest bypass ufs clk gate */
 	ufs_sys_ctrl_clr_bits(host, MASK_UFS_CLK_GATE_BYPASS,
 						CLOCK_GATE_BYPASS);
 	ufs_sys_ctrl_clr_bits(host, MASK_UFS_SYSCRTL_BYPASS,
@@ -272,8 +272,8 @@ static int ufs_hisi_link_startup_post_change(struct ufs_hba *hba)
 	return 0;
 }
 
-static int ufs_hisi_link_startup_notify(struct ufs_hba *hba,
-					  enum ufs_notify_change_status status)
+static int ufs_hisi_link_startup_yestify(struct ufs_hba *hba,
+					  enum ufs_yestify_change_status status)
 {
 	int err = 0;
 
@@ -369,8 +369,8 @@ static void ufs_hisi_pwr_change_pre_change(struct ufs_hba *hba)
 	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd046), 32767);
 }
 
-static int ufs_hisi_pwr_change_notify(struct ufs_hba *hba,
-				       enum ufs_notify_change_status status,
+static int ufs_hisi_pwr_change_yestify(struct ufs_hba *hba,
+				       enum ufs_yestify_change_status status,
 				       struct ufs_pa_layer_attr *dev_max_params,
 				       struct ufs_pa_layer_attr *dev_req_params)
 {
@@ -539,8 +539,8 @@ static int ufs_hi3670_init(struct ufs_hba *hba)
 static const struct ufs_hba_variant_ops ufs_hba_hi3660_vops = {
 	.name = "hi3660",
 	.init = ufs_hi3660_init,
-	.link_startup_notify = ufs_hisi_link_startup_notify,
-	.pwr_change_notify = ufs_hisi_pwr_change_notify,
+	.link_startup_yestify = ufs_hisi_link_startup_yestify,
+	.pwr_change_yestify = ufs_hisi_pwr_change_yestify,
 	.suspend = ufs_hisi_suspend,
 	.resume = ufs_hisi_resume,
 };
@@ -548,8 +548,8 @@ static const struct ufs_hba_variant_ops ufs_hba_hi3660_vops = {
 static const struct ufs_hba_variant_ops ufs_hba_hi3670_vops = {
 	.name = "hi3670",
 	.init = ufs_hi3670_init,
-	.link_startup_notify = ufs_hisi_link_startup_notify,
-	.pwr_change_notify = ufs_hisi_pwr_change_notify,
+	.link_startup_yestify = ufs_hisi_link_startup_yestify,
+	.pwr_change_yestify = ufs_hisi_pwr_change_yestify,
 	.suspend = ufs_hisi_suspend,
 	.resume = ufs_hisi_resume,
 };
@@ -566,7 +566,7 @@ static int ufs_hisi_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(ufs_hisi_of_match, pdev->dev.of_node);
+	of_id = of_match_yesde(ufs_hisi_of_match, pdev->dev.of_yesde);
 
 	return ufshcd_pltfrm_init(pdev, of_id->data);
 }

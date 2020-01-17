@@ -10,14 +10,14 @@ struct qcom_glink;
 #if IS_ENABLED(CONFIG_RPMSG_QCOM_GLINK_SMEM)
 
 struct qcom_glink *qcom_glink_smem_register(struct device *parent,
-					    struct device_node *node);
+					    struct device_yesde *yesde);
 void qcom_glink_smem_unregister(struct qcom_glink *glink);
 
 #else
 
 static inline struct qcom_glink *
 qcom_glink_smem_register(struct device *parent,
-			 struct device_node *node)
+			 struct device_yesde *yesde)
 {
 	return NULL;
 }

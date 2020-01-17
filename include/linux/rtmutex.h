@@ -24,7 +24,7 @@ extern int max_lock_depth; /* for sysctl */
  *
  * @wait_lock:	spinlock to protect the structure
  * @waiters:	rbtree root to enqueue waiters in priority order;
- *              caches top-waiter (leftmost node).
+ *              caches top-waiter (leftmost yesde).
  * @owner:	the mutex owner
  */
 struct rt_mutex {
@@ -46,16 +46,16 @@ struct rt_mutex_waiter;
 struct hrtimer_sleeper;
 
 #ifdef CONFIG_DEBUG_RT_MUTEXES
- extern int rt_mutex_debug_check_no_locks_freed(const void *from,
+ extern int rt_mutex_debug_check_yes_locks_freed(const void *from,
 						unsigned long len);
- extern void rt_mutex_debug_check_no_locks_held(struct task_struct *task);
+ extern void rt_mutex_debug_check_yes_locks_held(struct task_struct *task);
 #else
- static inline int rt_mutex_debug_check_no_locks_freed(const void *from,
+ static inline int rt_mutex_debug_check_yes_locks_freed(const void *from,
 						       unsigned long len)
  {
 	return 0;
  }
-# define rt_mutex_debug_check_no_locks_held(task)	do { } while (0)
+# define rt_mutex_debug_check_yes_locks_held(task)	do { } while (0)
 #endif
 
 #ifdef CONFIG_DEBUG_RT_MUTEXES

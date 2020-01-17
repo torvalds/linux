@@ -15,7 +15,7 @@
 #include <linux/if_link.h>
 #include <linux/limits.h>
 #include <net/if.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -108,15 +108,15 @@ int main(int argc, char **argv)
 
 		if (access(filename, O_RDONLY) < 0) {
 			printf("error accessing file %s: %s\n",
-				filename, strerror(errno));
+				filename, strerror(erryes));
 			return 1;
 		}
 
 		err = bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd);
 		if (err) {
 			printf("Does kernel support devmap lookup?\n");
-			/* If not, the error message will be:
-			 *  "cannot pass map_type 14 into func bpf_map_lookup_elem#1"
+			/* If yest, the error message will be:
+			 *  "canyest pass map_type 14 into func bpf_map_lookup_elem#1"
 			 */
 			return 1;
 		}
@@ -124,13 +124,13 @@ int main(int argc, char **argv)
 		prog = bpf_object__find_program_by_title(obj, prog_name);
 		prog_fd = bpf_program__fd(prog);
 		if (prog_fd < 0) {
-			printf("program not found: %s\n", strerror(prog_fd));
+			printf("program yest found: %s\n", strerror(prog_fd));
 			return 1;
 		}
 		map_fd = bpf_map__fd(bpf_object__find_map_by_name(obj,
 							"xdp_tx_ports"));
 		if (map_fd < 0) {
-			printf("map not found: %s\n", strerror(map_fd));
+			printf("map yest found: %s\n", strerror(map_fd));
 			return 1;
 		}
 	}

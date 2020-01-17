@@ -86,7 +86,7 @@ static int a37xx_mbox_send_data(struct mbox_chan *chan, void *data)
 
 	reg = readl(mbox->base + RWTM_MBOX_FIFO_STATUS);
 	if (!(reg & FIFO_STS_RDY))
-		dev_warn(mbox->dev, "Secure processor not ready\n");
+		dev_warn(mbox->dev, "Secure processor yest ready\n");
 
 	if ((reg & FIFO_STS_CNTR_MASK) >= FIFO_STS_CNTR_MAX) {
 		dev_err(mbox->dev, "Secure processor command queue full\n");
@@ -109,7 +109,7 @@ static int a37xx_mbox_startup(struct mbox_chan *chan)
 	ret = devm_request_irq(mbox->dev, mbox->irq, a37xx_mbox_irq_handler, 0,
 			       DRIVER_NAME, chan);
 	if (ret < 0) {
-		dev_err(mbox->dev, "Cannot request irq\n");
+		dev_err(mbox->dev, "Canyest request irq\n");
 		return ret;
 	}
 
@@ -166,7 +166,7 @@ static int armada_37xx_mbox_probe(struct platform_device *pdev)
 
 	mbox->irq = platform_get_irq(pdev, 0);
 	if (mbox->irq < 0) {
-		dev_err(&pdev->dev, "Cannot get irq\n");
+		dev_err(&pdev->dev, "Canyest get irq\n");
 		return mbox->irq;
 	}
 
@@ -182,7 +182,7 @@ static int armada_37xx_mbox_probe(struct platform_device *pdev)
 
 	ret = devm_mbox_controller_register(mbox->dev, &mbox->controller);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register mailbox controller\n");
+		dev_err(&pdev->dev, "Could yest register mailbox controller\n");
 		return ret;
 	}
 

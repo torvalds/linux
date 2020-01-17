@@ -39,7 +39,7 @@ static void asd_propagate_sas_addr(struct asd_ha_struct *asd_ha)
 	for (i = 0; i < ASD_MAX_PHYS; i++) {
 		if (asd_ha->hw_prof.phy_desc[i].sas_addr[0] == 0)
 			continue;
-		/* Set a phy's address only if it has none.
+		/* Set a phy's address only if it has yesne.
 		 */
 		ASD_DPRINTK("setting phy%d addr to %llx\n", i,
 			    SAS_ADDR(asd_ha->hw_prof.sas_addr));
@@ -84,7 +84,7 @@ static int asd_init_phy(struct asd_phy *phy)
 					     sizeof(*phy->identify_frame),
 					     GFP_KERNEL);
 	if (!phy->id_frm_tok) {
-		asd_printk("no mem for IDENTIFY for phy%d\n", sas_phy->id);
+		asd_printk("yes mem for IDENTIFY for phy%d\n", sas_phy->id);
 		return -ENOMEM;
 	} else
 		asd_init_phy_identify(phy);
@@ -318,7 +318,7 @@ static int asd_alloc_escbs(struct asd_ha_struct *asd_ha,
 		asd_printk("couldn't allocate list of escbs\n");
 		goto Err;
 	}
-	seq->num_escbs -= escbs;  /* subtract what was not allocated */
+	seq->num_escbs -= escbs;  /* subtract what was yest allocated */
 	ASD_DPRINTK("num_escbs:%d\n", seq->num_escbs);
 
 	for (i = 0; i < seq->num_escbs; i++, escb = list_entry(escb->list.next,
@@ -391,8 +391,8 @@ static int asd_init_escbs(struct asd_ha_struct *asd_ha)
 	}
 
 	asd_assign_edbs2escbs(asd_ha);
-	/* In order to insure that normal SCBs do not overfill sequencer
-	 * memory and leave no space for escbs (halting condition),
+	/* In order to insure that yesrmal SCBs do yest overfill sequencer
+	 * memory and leave yes space for escbs (halting condition),
 	 * we increment pending here by the number of escbs.  However,
 	 * escbs are never pending.
 	 */
@@ -408,8 +408,8 @@ static int asd_init_escbs(struct asd_ha_struct *asd_ha)
  * asd_chip_hardrst -- hard reset the chip
  * @asd_ha: pointer to host adapter structure
  *
- * This takes 16 cycles and is synchronous to CFCLK, which runs
- * at 200 MHz, so this should take at most 80 nanoseconds.
+ * This takes 16 cycles and is synchroyesus to CFCLK, which runs
+ * at 200 MHz, so this should take at most 80 nayesseconds.
  */
 int asd_chip_hardrst(struct asd_ha_struct *asd_ha)
 {
@@ -477,7 +477,7 @@ out:
 static int max_devs = 0;
 module_param_named(max_devs, max_devs, int, S_IRUGO);
 MODULE_PARM_DESC(max_devs, "\n"
-	"\tMaximum number of SAS devices to support (not LUs).\n"
+	"\tMaximum number of SAS devices to support (yest LUs).\n"
 	"\tDefault: 2176, Maximum: 65663.\n");
 
 static int max_cmnds = 0;
@@ -578,7 +578,7 @@ static int asd_extend_cmdctx(struct asd_ha_struct *asd_ha)
  * asd_ha: pointer to host adapter structure
  *
  * This function sets the maximum number of SCBs and
- * DDBs which can be used by the sequencer.  This is normally
+ * DDBs which can be used by the sequencer.  This is yesrmally
  * 512 and 128 respectively.  If support for more SCBs or more DDBs
  * is required then CMDCTXBASE, DEVCTXBASE and CTXDOMAIN are
  * initialized here to extend context memory to point to host memory,
@@ -630,14 +630,14 @@ int asd_init_hw(struct asd_ha_struct *asd_ha)
 	err = asd_read_ocm(asd_ha);
 	if (err) {
 		asd_printk("couldn't read ocm(%d)\n", err);
-		/* While suspicios, it is not an error that we
+		/* While suspicios, it is yest an error that we
 		 * couldn't read the OCM. */
 	}
 
 	err = asd_read_flash(asd_ha);
 	if (err) {
 		asd_printk("couldn't read flash(%d)\n", err);
-		/* While suspicios, it is not an error that we
+		/* While suspicios, it is yest an error that we
 		 * couldn't read FLASH memory.
 		 */
 	}
@@ -698,7 +698,7 @@ Out:
  * @asd_ha: pointer to host adapter structure of interest
  *
  * Called from the ISR.  Hard reset the chip.  Let everything
- * timeout.  This should be no different than hot-unplugging the
+ * timeout.  This should be yes different than hot-unplugging the
  * host adapter.  Once everything times out we'll init the chip with
  * a call to asd_init_chip() and enable interrupts with asd_enable_ints().
  * XXX finish.
@@ -729,7 +729,7 @@ static void asd_dl_tasklet_handler(unsigned long data)
 		ascb = asd_tc_index_find(seq, (int)le16_to_cpu(dl->index));
 		spin_unlock_irqrestore(&seq->tc_index_lock, flags);
 		if (unlikely(!ascb)) {
-			ASD_DPRINTK("BUG:sequencer:dl:no ascb?!\n");
+			ASD_DPRINTK("BUG:sequencer:dl:yes ascb?!\n");
 			goto next_1;
 		} else if (ascb->scb->header.opcode == EMPTY_SCB) {
 			goto out;
@@ -818,7 +818,7 @@ static void asd_arp2_err(struct asd_ha_struct *asd_ha, u32 dchstatus)
 		"UNEXPECTED_INTERRUPT8",
 		"UNEXPECTED_INTERRUPT9",
 		"UNEXPECTED_INTERRUPT10",
-		[11 ... 19] = "unknown[11,19]",
+		[11 ... 19] = "unkyeswn[11,19]",
 		"NO_FREE_SCB_AVAILABLE",
 		"INVALID_SCB_OPCODE",
 		"INVALID_MBX_OPCODE",
@@ -829,11 +829,11 @@ static void asd_arp2_err(struct asd_ha_struct *asd_ha, u32 dchstatus)
 		"BAD_LINK_QUEUE_STATE",
 		"DMA2CHIM_QUEUE_ERROR",
 		"EMPTY_SCB_LIST_FULL",
-		"unknown[30]",
+		"unkyeswn[30]",
 		"IN_USE_SCB_ON_FREE_LIST",
 		"BAD_OPEN_WAIT_STATE",
 		"INVALID_STP_AFFILIATION",
-		"unknown[34]",
+		"unkyeswn[34]",
 		"EXEC_QUEUE_ERROR",
 		"TOO_MANY_EMPTIES_NEEDED",
 		"EMPTY_REQ_QUEUE_ERROR",
@@ -842,7 +842,7 @@ static void asd_arp2_err(struct asd_ha_struct *asd_ha, u32 dchstatus)
 		"DEVICE_QUEUE_NOT_FOUND",
 		"START_IRTT_TIMER_ERROR",
 		"ABORT_TASK_ILLEGAL_REQ",
-		[43 ... 255] = "unknown[43,255]"
+		[43 ... 255] = "unkyeswn[43,255]"
 	};
 
 	if (dchstatus & CSEQINT) {
@@ -911,7 +911,7 @@ static void asd_rbi_exsi_isr(struct asd_ha_struct *asd_ha)
 	u32 stat0r = asd_read_reg_dword(asd_ha, ASISTAT0R);
 
 	if (!(stat0r & ASIERR)) {
-		asd_printk("hmm, EXSI interrupted but no error?\n");
+		asd_printk("hmm, EXSI interrupted but yes error?\n");
 		return;
 	}
 
@@ -982,7 +982,7 @@ static void asd_hst_pcix_isr(struct asd_ha_struct *asd_ha)
 		asd_printk("unexpected split completion for %s\n",
 			   pci_name(asd_ha->pcidev));
 		pci_write_config_dword(asd_ha->pcidev,PCIX_STATUS,pcix_status);
-		/* ignore */
+		/* igyesre */
 		return;
 	} else if (pcix_status & SC_DISCARD)
 		asd_printk("split completion discarded for %s\n",
@@ -995,7 +995,7 @@ static void asd_hst_pcix_isr(struct asd_ha_struct *asd_ha)
 
 /**
  * asd_hw_isr -- host adapter interrupt service routine
- * @irq: ignored
+ * @irq: igyesred
  * @dev_id: pointer to host adapter structure
  *
  * The ISR processes done list entries and level 3 error handling.
@@ -1062,7 +1062,7 @@ undo:
 	dma_pool_free(asd_ha->scb_pool, ascb->dma_scb.vaddr,
 		      ascb->dma_scb.dma_handle);
 	kmem_cache_free(asd_ascb_cache, ascb);
-	ASD_DPRINTK("no index for ascb\n");
+	ASD_DPRINTK("yes index for ascb\n");
 	return NULL;
 }
 
@@ -1077,9 +1077,9 @@ undo:
  * a linked list in two ways: by their list field of the ascb struct
  * and by the next_scb field of the scb_header.
  *
- * Returns NULL if no memory was available, else pointer to a list
+ * Returns NULL if yes memory was available, else pointer to a list
  * of ascbs.  When this function returns, @num would be the number
- * of SCBs which were not able to be allocated, 0 if all requested
+ * of SCBs which were yest able to be allocated, 0 if all requested
  * were able to be allocated.
  */
 struct asd_ascb *asd_ascb_alloc_list(struct asd_ha_struct
@@ -1113,12 +1113,12 @@ struct asd_ascb *asd_ascb_alloc_list(struct asd_ha_struct
  * @asd_ha: pointer to host adapter structure
  * @ascb: pointer to the head of an ascb list
  *
- * The sequencer knows the DMA address of the next SCB to be DMAed to
+ * The sequencer kyesws the DMA address of the next SCB to be DMAed to
  * the host adapter, from initialization or from the last list DMAed.
  * seq->next_scb keeps the address of this SCB.  The sequencer will
  * DMA to the host adapter this list of SCBs.  But the head (first
- * element) of this list is not known to the sequencer.  Here we swap
- * the head of the list with the known SCB (memcpy()).
+ * element) of this list is yest kyeswn to the sequencer.  Here we swap
+ * the head of the list with the kyeswn SCB (memcpy()).
  * Only one memcpy() is required per list so it is in our interest
  * to keep the list of SCB as long as possible so that the ratio
  * of number of memcpy calls to the number of SCB DMA-ed is as small
@@ -1148,7 +1148,7 @@ static void asd_swap_head_scb(struct asd_ha_struct *asd_ha,
  * @list: pointer to struct list_head of the scbs
  * @to: timeout in jiffies
  *
- * If an SCB in the @list has no timer function, assign the default
+ * If an SCB in the @list has yes timer function, assign the default
  * one,  then start the timer of the SCB.  This function is
  * intended to be called from asd_post_ascb_list(), just prior to
  * posting the SCBs to the sequencer.
@@ -1173,7 +1173,7 @@ static void asd_start_scb_timers(struct list_head *list)
  *
  * See queueing comment in asd_post_escb_list().
  *
- * Additional note on queuing: In order to minimize the ratio of memcpy()
+ * Additional yeste on queuing: In order to minimize the ratio of memcpy()
  * to the number of ascbs sent, we try to batch-send as many ascbs as possible
  * in one go.
  * Two cases are possible:
@@ -1224,7 +1224,7 @@ int asd_post_ascb_list(struct asd_ha_struct *asd_ha, struct asd_ascb *ascb,
  * @ascb: pointer to the first empty SCB in the list
  * @num: number of aSCBs in the list (to be posted)
  *
- * This is essentially the same as asd_post_ascb_list, but we do not
+ * This is essentially the same as asd_post_ascb_list, but we do yest
  * increment pending, add those to the pending list or get indexes.
  * See asd_init_escbs() and asd_init_post_escbs().
  *
@@ -1353,7 +1353,7 @@ int asd_enable_phys(struct asd_ha_struct *asd_ha, const u8 phy_mask)
 	k = num;
 	ascb_list = asd_ascb_alloc_list(asd_ha, &k, GFP_KERNEL);
 	if (!ascb_list) {
-		asd_printk("no memory for control phy ascb list\n");
+		asd_printk("yes memory for control phy ascb list\n");
 		return -ENOMEM;
 	}
 	num -= k;

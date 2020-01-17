@@ -97,8 +97,8 @@ struct fwtty_transaction {
 	dev_err(to_device(p, device), fmt, ##__VA_ARGS__)
 #define fwtty_info(p, fmt, ...)						\
 	dev_info(to_device(p, device), fmt, ##__VA_ARGS__)
-#define fwtty_notice(p, fmt, ...)					\
-	dev_notice(to_device(p, device), fmt, ##__VA_ARGS__)
+#define fwtty_yestice(p, fmt, ...)					\
+	dev_yestice(to_device(p, device), fmt, ##__VA_ARGS__)
 #define fwtty_dbg(p, fmt, ...)						\
 	dev_dbg(to_device(p, device), "%s: " fmt, __func__, ##__VA_ARGS__)
 #define fwtty_err_ratelimited(p, fmt, ...)				\
@@ -121,7 +121,7 @@ static inline void debug_short_write(struct fwtty_port *port, int c, int n)
 #define debug_short_write(port, c, n)
 #endif
 
-static struct fwtty_peer *__fwserial_peer_by_node_id(struct fw_card *card,
+static struct fwtty_peer *__fwserial_peer_by_yesde_id(struct fw_card *card,
 						     int generation, int id);
 
 #ifdef FWTTY_PROFILING
@@ -178,7 +178,7 @@ static void fwtty_dump_profile(struct seq_file *m, struct stats *stats)
 #endif
 
 /*
- * Returns the max receive packet size for the given node
+ * Returns the max receive packet size for the given yesde
  * Devices which are OHCI v1.0/ v1.1/ v1.2-draft or RFC 2734 compliant
  * are required by specification to support max_rec of 8 (512 bytes) or more.
  */
@@ -242,7 +242,7 @@ static int fwtty_send_data_async(struct fwtty_peer *peer, int tcode,
 	generation = peer->generation;
 	smp_rmb();
 	fw_send_request(peer->serial->card, &txn->fw_txn, tcode,
-			peer->node_id, generation, peer->speed, addr, payload,
+			peer->yesde_id, generation, peer->speed, addr, payload,
 			len, fwtty_common_callback, txn);
 	return 0;
 }
@@ -261,7 +261,7 @@ static void fwtty_send_txn_async(struct fwtty_peer *peer,
 	generation = peer->generation;
 	smp_rmb();
 	fw_send_request(peer->serial->card, &txn->fw_txn, tcode,
-			peer->node_id, generation, peer->speed, addr, payload,
+			peer->yesde_id, generation, peer->speed, addr, payload,
 			len, fwtty_common_callback, txn);
 }
 
@@ -477,7 +477,7 @@ static void fwtty_throttle_port(struct fwtty_port *port)
  * resulting in lost data (which has already been received and written to
  * the flip buffer) when the remote closes its end.
  *
- * Unfortunately, since the flip buffer offers no direct method for determining
+ * Unfortunately, since the flip buffer offers yes direct method for determining
  * if it holds data, ensuring the ldisc has delivered all data is problematic.
  */
 
@@ -499,13 +499,13 @@ static void fwtty_emit_breaks(struct work_struct *work)
 {
 	struct fwtty_port *port = to_port(to_delayed_work(work), emit_breaks);
 	static const char buf[16];
-	unsigned long now = jiffies;
-	unsigned long elapsed = now - port->break_last;
+	unsigned long yesw = jiffies;
+	unsigned long elapsed = yesw - port->break_last;
 	int n, t, c, brk = 0;
 
 	/* generate breaks at the line rate (but at least 1) */
 	n = (elapsed * port->cps) / HZ + 1;
-	port->break_last = now;
+	port->break_last = yesw;
 
 	fwtty_dbg(port, "sending %d brks\n", n);
 
@@ -549,7 +549,7 @@ static int fwtty_rx(struct fwtty_port *port, unsigned char *data, size_t len)
 		++port->icount.overrun;
 
 	lsr &= port->status_mask;
-	if (lsr & ~port->ignore_mask & UART_LSR_OE) {
+	if (lsr & ~port->igyesre_mask & UART_LSR_OE) {
 		if (!tty_insert_flip_char(&port->port, 0, TTY_OVERRUN)) {
 			err = -EIO;
 			goto out;
@@ -557,7 +557,7 @@ static int fwtty_rx(struct fwtty_port *port, unsigned char *data, size_t len)
 	}
 	port->overrun = false;
 
-	if (lsr & port->ignore_mask & ~UART_LSR_OE) {
+	if (lsr & port->igyesre_mask & ~UART_LSR_OE) {
 		/* TODO: don't drop SAK and Magic SysRq here */
 		n = 0;
 		goto out;
@@ -610,11 +610,11 @@ static void fwtty_port_handler(struct fw_card *card,
 
 	/* Only accept rx from the peer virtual-cabled to this port */
 	rcu_read_lock();
-	peer = __fwserial_peer_by_node_id(card, generation, source);
+	peer = __fwserial_peer_by_yesde_id(card, generation, source);
 	rcu_read_unlock();
 	if (!peer || peer != rcu_access_pointer(port->peer)) {
 		rcode = RCODE_ADDRESS_ERROR;
-		fwtty_err_ratelimited(port, "ignoring unauthenticated data\n");
+		fwtty_err_ratelimited(port, "igyesring unauthenticated data\n");
 		goto respond;
 	}
 
@@ -658,8 +658,8 @@ respond:
 
 /**
  * fwtty_tx_complete - callback for tx dma
- * @data: ignored, has no meaning for write txns
- * @length: ignored, has no meaning for write txns
+ * @data: igyesred, has yes meaning for write txns
+ * @length: igyesred, has yes meaning for write txns
  *
  * The writer must be woken here if the fifo has been emptied because it
  * may have slept if chars_in_buffer was != 0
@@ -760,7 +760,7 @@ static int fwtty_tx(struct fwtty_port *port, bool drain)
 
 		/*
 		 * Stop tx if the 'last view' of the fifo is empty or if
-		 * this is the writer and there's not enough data to bother
+		 * this is the writer and there's yest eyesugh data to bother
 		 */
 		if (n == 0 || (!drain && n < WRITER_MINIMUM))
 			break;
@@ -953,11 +953,11 @@ static unsigned int set_termios(struct fwtty_port *port, struct tty_struct *tty)
 	if (_I_FLAG(tty, BRKINT | PARMRK))
 		port->status_mask |= UART_LSR_BI;
 
-	port->ignore_mask = 0;
+	port->igyesre_mask = 0;
 	if (I_IGNBRK(tty)) {
-		port->ignore_mask |= UART_LSR_BI;
+		port->igyesre_mask |= UART_LSR_BI;
 		if (I_IGNPAR(tty))
-			port->ignore_mask |= UART_LSR_OE;
+			port->igyesre_mask |= UART_LSR_OE;
 	}
 
 	port->write_only = !C_CREAD(tty);
@@ -1014,7 +1014,7 @@ static int fwtty_port_activate(struct tty_port *tty_port,
 /**
  * fwtty_port_shutdown
  *
- * Note: the tty port core ensures this is not the console and
+ * Note: the tty port core ensures this is yest the console and
  * manages TTY_IO_ERROR properly
  */
 static void fwtty_port_shutdown(struct tty_port *tty_port)
@@ -1155,14 +1155,14 @@ static void fwtty_throttle(struct tty_struct *tty)
 	struct fwtty_port *port = tty->driver_data;
 
 	/*
-	 * Ignore throttling (but not unthrottling).
-	 * It only makes sense to throttle when data will no longer be
+	 * Igyesre throttling (but yest unthrottling).
+	 * It only makes sense to throttle when data will yes longer be
 	 * accepted by the tty flip buffer. For example, it is
 	 * possible for received data to overflow the tty buffer long
 	 * before the line discipline ever has a chance to throttle the driver.
 	 * Additionally, the driver may have already completed the I/O
 	 * but the tty buffer is still emptying, so the line discipline is
-	 * throttling and unthrottling nothing.
+	 * throttling and unthrottling yesthing.
 	 */
 
 	++port->stats.throttled;
@@ -1187,17 +1187,17 @@ static void fwtty_unthrottle(struct tty_struct *tty)
 static int check_msr_delta(struct fwtty_port *port, unsigned long mask,
 			   struct async_icount *prev)
 {
-	struct async_icount now;
+	struct async_icount yesw;
 	int delta;
 
-	now = port->icount;
+	yesw = port->icount;
 
-	delta = ((mask & TIOCM_RNG && prev->rng != now.rng) ||
-		 (mask & TIOCM_DSR && prev->dsr != now.dsr) ||
-		 (mask & TIOCM_CAR && prev->dcd != now.dcd) ||
-		 (mask & TIOCM_CTS && prev->cts != now.cts));
+	delta = ((mask & TIOCM_RNG && prev->rng != yesw.rng) ||
+		 (mask & TIOCM_DSR && prev->dsr != yesw.dsr) ||
+		 (mask & TIOCM_CAR && prev->dcd != yesw.dcd) ||
+		 (mask & TIOCM_CTS && prev->cts != yesw.cts));
 
-	*prev = now;
+	*prev = yesw;
 
 	return delta;
 }
@@ -1438,7 +1438,7 @@ static void fwtty_debugfs_show_peer(struct seq_file *m, struct fwtty_peer *peer)
 
 	smp_rmb();
 	seq_printf(m, " %s:", dev_name(&peer->unit->device));
-	seq_printf(m, " node:%04x gen:%d", peer->node_id, generation);
+	seq_printf(m, " yesde:%04x gen:%d", peer->yesde_id, generation);
 	seq_printf(m, " sp:%d max:%d guid:%016llx", peer->speed,
 		   peer->max_payload, (unsigned long long)peer->guid);
 	seq_printf(m, " mgmt:%012llx", (unsigned long long)peer->mgmt_addr);
@@ -1636,8 +1636,8 @@ static void fwserial_virt_plug_complete(struct fwtty_peer *peer,
 	dma_fifo_change_tx_limit(&port->tx_fifo, port->max_payload);
 	spin_unlock_bh(&peer->port->lock);
 
-	if (port->port.console && port->fwcon_ops->notify)
-		(*port->fwcon_ops->notify)(FWCON_NOTIFY_ATTACH, port->con_data);
+	if (port->port.console && port->fwcon_ops->yestify)
+		(*port->fwcon_ops->yestify)(FWCON_NOTIFY_ATTACH, port->con_data);
 
 	fwtty_info(&peer->unit, "peer (guid:%016llx) connected on %s\n",
 		   (unsigned long long)peer->guid, dev_name(port->device));
@@ -1655,7 +1655,7 @@ static inline int fwserial_send_mgmt_sync(struct fwtty_peer *peer,
 
 		rcode = fw_run_transaction(peer->serial->card,
 					   TCODE_WRITE_BLOCK_REQUEST,
-					   peer->node_id,
+					   peer->yesde_id,
 					   generation, peer->speed,
 					   peer->mgmt_addr,
 					   pkt, be16_to_cpu(pkt->hdr.len));
@@ -1701,7 +1701,7 @@ static struct fwtty_port *fwserial_claim_port(struct fwtty_peer *peer,
 /**
  * fwserial_find_port - find avail port and claim for peer
  *
- * Returns ptr to claimed port or NULL if none avail
+ * Returns ptr to claimed port or NULL if yesne avail
  * Can sleep - must be called from process context
  */
 static struct fwtty_port *fwserial_find_port(struct fwtty_peer *peer)
@@ -1714,7 +1714,7 @@ static struct fwtty_port *fwserial_find_port(struct fwtty_peer *peer)
 
 	/* TODO: implement optional GUID-to-specific port # matching */
 
-	/* find an unattached port (but not the loopback port, if present) */
+	/* find an unattached port (but yest the loopback port, if present) */
 	for (i = 0; i < num_ttys; ++i) {
 		spin_lock_bh(&ports[i]->lock);
 		if (!ports[i]->peer) {
@@ -1743,8 +1743,8 @@ static void fwserial_release_port(struct fwtty_port *port, bool reset)
 	RCU_INIT_POINTER(port->peer, NULL);
 	spin_unlock_bh(&port->lock);
 
-	if (port->port.console && port->fwcon_ops->notify)
-		(*port->fwcon_ops->notify)(FWCON_NOTIFY_DETACH, port->con_data);
+	if (port->port.console && port->fwcon_ops->yestify)
+		(*port->fwcon_ops->yestify)(FWCON_NOTIFY_DETACH, port->con_data);
 }
 
 static void fwserial_plug_timeout(struct timer_list *t)
@@ -1790,7 +1790,7 @@ static int fwserial_connect_peer(struct fwtty_peer *peer)
 
 	spin_lock_bh(&peer->lock);
 
-	/* only initiate VIRT_CABLE_PLUG if peer is currently not attached */
+	/* only initiate VIRT_CABLE_PLUG if peer is currently yest attached */
 	if (peer->state != FWPS_NOT_ATTACHED) {
 		err = -EBUSY;
 		goto release_port;
@@ -1895,18 +1895,18 @@ static struct fw_serial *__fwserial_lookup_rcu(struct fw_card *card)
 }
 
 /**
- * __fwserial_peer_by_node_id - finds a peer matching the given generation + id
+ * __fwserial_peer_by_yesde_id - finds a peer matching the given generation + id
  *
- * If a matching peer could not be found for the specified generation/node id,
+ * If a matching peer could yest be found for the specified generation/yesde id,
  * this could be because:
- * a) the generation has changed and one of the nodes hasn't updated yet
- * b) the remote node has created its remote unit device before this
- *    local node has created its corresponding remote unit device
- * In either case, the remote node should retry
+ * a) the generation has changed and one of the yesdes hasn't updated yet
+ * b) the remote yesde has created its remote unit device before this
+ *    local yesde has created its corresponding remote unit device
+ * In either case, the remote yesde should retry
  *
  * Note: caller must be in rcu_read_lock() section
  */
-static struct fwtty_peer *__fwserial_peer_by_node_id(struct fw_card *card,
+static struct fwtty_peer *__fwserial_peer_by_yesde_id(struct fw_card *card,
 						     int generation, int id)
 {
 	struct fw_serial *serial;
@@ -1916,11 +1916,11 @@ static struct fwtty_peer *__fwserial_peer_by_node_id(struct fw_card *card,
 	if (!serial) {
 		/*
 		 * Something is very wrong - there should be a matching
-		 * fw_serial structure for every fw_card. Maybe the remote node
+		 * fw_serial structure for every fw_card. Maybe the remote yesde
 		 * has created its remote unit device before this driver has
 		 * been probed for any unit devices...
 		 */
-		fwtty_err(card, "unknown card (guid %016llx)\n",
+		fwtty_err(card, "unkyeswn card (guid %016llx)\n",
 			  (unsigned long long)card->guid);
 		return NULL;
 	}
@@ -1929,7 +1929,7 @@ static struct fwtty_peer *__fwserial_peer_by_node_id(struct fw_card *card,
 		int g = peer->generation;
 
 		smp_rmb();
-		if (generation == g && id == peer->node_id)
+		if (generation == g && id == peer->yesde_id)
 			return peer;
 	}
 
@@ -1951,7 +1951,7 @@ static void __dump_peer_list(struct fw_card *card)
 
 		smp_rmb();
 		fwtty_dbg(card, "peer(%d:%x) guid: %016llx\n",
-			  g, peer->node_id, (unsigned long long)peer->guid);
+			  g, peer->yesde_id, (unsigned long long)peer->guid);
 	}
 }
 #else
@@ -2015,7 +2015,7 @@ static int fwserial_add_peer(struct fw_serial *serial, struct fw_unit *unit)
 
 	generation = parent->generation;
 	smp_rmb();
-	peer->node_id = parent->node_id;
+	peer->yesde_id = parent->yesde_id;
 	smp_wmb();
 	peer->generation = generation;
 
@@ -2030,7 +2030,7 @@ static int fwserial_add_peer(struct fw_serial *serial, struct fw_unit *unit)
 	if (peer->mgmt_addr == 0ULL) {
 		/*
 		 * No mgmt address effectively disables VIRT_CABLE_PLUG -
-		 * this peer will not be able to attach to a remote
+		 * this peer will yest be able to attach to a remote
 		 */
 		peer_set_state(peer, FWPS_NO_MGMT_ADDR);
 	}
@@ -2132,9 +2132,9 @@ static void fwserial_remove_peer(struct fwtty_peer *peer)
  *
  * This unit device may represent a local unit device (as specified by the
  * config ROM unit directory) or it may represent a remote unit device
- * (as specified by the reading of the remote node's config ROM).
+ * (as specified by the reading of the remote yesde's config ROM).
  *
- * Returns 0 to indicate "ownership" of the unit device, or a negative errno
+ * Returns 0 to indicate "ownership" of the unit device, or a negative erryes
  * value to indicate which error.
  */
 static int fwserial_create(struct fw_unit *unit)
@@ -2197,7 +2197,7 @@ static int fwserial_create(struct fw_unit *unit)
 
 	err = fwtty_ports_add(serial);
 	if (err) {
-		fwtty_err(&unit, "no space in port table\n");
+		fwtty_err(&unit, "yes space in port table\n");
 		goto free_ports;
 	}
 
@@ -2247,7 +2247,7 @@ static int fwserial_create(struct fw_unit *unit)
 
 	list_add_rcu(&serial->list, &fwserial_list);
 
-	fwtty_notice(&unit, "TTY over FireWire on device %s (guid %016llx)\n",
+	fwtty_yestice(&unit, "TTY over FireWire on device %s (guid %016llx)\n",
 		     dev_name(card->device), (unsigned long long)card->guid);
 
 	err = fwserial_add_peer(serial, unit);
@@ -2287,14 +2287,14 @@ free_ports:
  * - adding a unit directory to the config ROM(s) for a 'serial' unit
  *
  * The firewire core registers unit devices by enumerating unit directories
- * of a node's config ROM after reading the config ROM when a new node is
+ * of a yesde's config ROM after reading the config ROM when a new yesde is
  * added to the bus topology after a bus reset.
  *
  * The practical implications of this are:
- * - this probe is called for both local and remote nodes that have a 'serial'
+ * - this probe is called for both local and remote yesdes that have a 'serial'
  *   unit directory in their config ROM (that matches the specifiers in
  *   fwserial_id_table).
- * - no specific order is enforced for local vs. remote unit devices
+ * - yes specific order is enforced for local vs. remote unit devices
  *
  * This unit driver copes with the lack of specific order in the same way the
  * firewire net driver does -- each probe, for either a local or remote unit
@@ -2310,7 +2310,7 @@ free_ports:
  * fwserial_probe/fwserial_remove are effectively serialized by the
  * fwserial_list_mutex. This is necessary because the addition of the first peer
  * for a given fw_card will trigger the creation of the fw_serial for that
- * fw_card, which must not simultaneously contend with the removal of the
+ * fw_card, which must yest simultaneously contend with the removal of the
  * last peer for a given fw_card triggering the destruction of the same
  * fw_serial for the same fw_card.
  */
@@ -2365,16 +2365,16 @@ static void fwserial_remove(struct fw_unit *unit)
 /**
  * fwserial_update: bus update function for 'firewire' serial unit devices
  *
- * Updates the new node_id and bus generation for this peer. Note that locking
+ * Updates the new yesde_id and bus generation for this peer. Note that locking
  * is unnecessary; but careful memory barrier usage is important to enforce the
- * load and store order of generation & node_id.
+ * load and store order of generation & yesde_id.
  *
- * The fw-core orders the write of node_id before generation in the parent
- * fw_device to ensure that a stale node_id cannot be used with a current
- * bus generation. So the generation value must be read before the node_id.
+ * The fw-core orders the write of yesde_id before generation in the parent
+ * fw_device to ensure that a stale yesde_id canyest be used with a current
+ * bus generation. So the generation value must be read before the yesde_id.
  *
- * In turn, this orders the write of node_id before generation in the peer to
- * also ensure a stale node_id cannot be used with a current bus generation.
+ * In turn, this orders the write of yesde_id before generation in the peer to
+ * also ensure a stale yesde_id canyest be used with a current bus generation.
  */
 static void fwserial_update(struct fw_unit *unit)
 {
@@ -2384,7 +2384,7 @@ static void fwserial_update(struct fw_unit *unit)
 
 	generation = parent->generation;
 	smp_rmb();
-	peer->node_id = parent->node_id;
+	peer->yesde_id = parent->yesde_id;
 	smp_wmb();
 	peer->generation = generation;
 }
@@ -2453,7 +2453,7 @@ static struct fw_descriptor fwserial_unit_directory = {
 };
 
 /*
- * The management address is in the unit space region but above other known
+ * The management address is in the unit space region but above other kyeswn
  * address users (to keep wild writes from causing havoc)
  */
 static const struct fw_address_region fwserial_mgmt_addr_region = {
@@ -2495,7 +2495,7 @@ static void fwserial_handle_plug_req(struct work_struct *work)
 	switch (peer->state) {
 	case FWPS_NOT_ATTACHED:
 		if (!port) {
-			fwtty_err(&peer->unit, "no more ports avail\n");
+			fwtty_err(&peer->unit, "yes more ports avail\n");
 			fill_plug_rsp_nack(pkt);
 		} else {
 			peer->port = port;
@@ -2650,7 +2650,7 @@ static int fwserial_parse_mgmt_write(struct fwtty_peer *peer,
 			rcode = RCODE_CONFLICT_ERROR;
 
 		} else if (be16_to_cpu(pkt->hdr.code) & FWSC_RSP_NACK) {
-			fwtty_notice(&peer->unit, "NACK plug rsp\n");
+			fwtty_yestice(&peer->unit, "NACK plug rsp\n");
 			port = peer_revert_state(peer);
 
 		} else {
@@ -2679,14 +2679,14 @@ static int fwserial_parse_mgmt_write(struct fwtty_peer *peer,
 			rcode = RCODE_CONFLICT_ERROR;
 		} else {
 			if (be16_to_cpu(pkt->hdr.code) & FWSC_RSP_NACK)
-				fwtty_notice(&peer->unit, "NACK unplug?\n");
+				fwtty_yestice(&peer->unit, "NACK unplug?\n");
 			port = peer_revert_state(peer);
 			reset = true;
 		}
 		break;
 
 	default:
-		fwtty_err(&peer->unit, "unknown mgmt code %d\n",
+		fwtty_err(&peer->unit, "unkyeswn mgmt code %d\n",
 			  be16_to_cpu(pkt->hdr.code));
 		rcode = RCODE_DATA_ERROR;
 	}
@@ -2718,9 +2718,9 @@ static void fwserial_mgmt_handler(struct fw_card *card,
 	int rcode;
 
 	rcu_read_lock();
-	peer = __fwserial_peer_by_node_id(card, generation, source);
+	peer = __fwserial_peer_by_yesde_id(card, generation, source);
 	if (!peer) {
-		fwtty_dbg(card, "peer(%d:%x) not found\n", generation, source);
+		fwtty_dbg(card, "peer(%d:%x) yest found\n", generation, source);
 		__dump_peer_list(card);
 		rcode = RCODE_CONFLICT_ERROR;
 
@@ -2743,10 +2743,10 @@ static int __init fwserial_init(void)
 {
 	int err, num_loops = !!(create_loop_dev);
 
-	/* XXX: placeholder for a "firewire" debugfs node */
+	/* XXX: placeholder for a "firewire" debugfs yesde */
 	fwserial_debugfs = debugfs_create_dir(KBUILD_MODNAME, NULL);
 
-	/* num_ttys/num_ports must not be set above the static alloc avail */
+	/* num_ttys/num_ports must yest be set above the static alloc avail */
 	if (num_ttys + num_loops > MAX_CARD_PORTS)
 		num_ttys = MAX_CARD_PORTS - num_loops;
 
@@ -2762,7 +2762,7 @@ static int __init fwserial_init(void)
 	fwtty_driver->driver_name	= KBUILD_MODNAME;
 	fwtty_driver->name		= tty_dev_name;
 	fwtty_driver->major		= 0;
-	fwtty_driver->minor_start	= 0;
+	fwtty_driver->miyesr_start	= 0;
 	fwtty_driver->type		= TTY_DRIVER_TYPE_SERIAL;
 	fwtty_driver->subtype		= SERIAL_TYPE_NORMAL;
 	fwtty_driver->init_termios	    = tty_std_termios;
@@ -2787,7 +2787,7 @@ static int __init fwserial_init(void)
 		fwloop_driver->driver_name	= KBUILD_MODNAME "_loop";
 		fwloop_driver->name		= loop_dev_name;
 		fwloop_driver->major		= 0;
-		fwloop_driver->minor_start	= 0;
+		fwloop_driver->miyesr_start	= 0;
 		fwloop_driver->type		= TTY_DRIVER_TYPE_SERIAL;
 		fwloop_driver->subtype		= SERIAL_TYPE_NORMAL;
 		fwloop_driver->init_termios	    = tty_std_termios;
@@ -2810,8 +2810,8 @@ static int __init fwserial_init(void)
 	}
 
 	/*
-	 * Ideally, this address handler would be registered per local node
-	 * (rather than the same handler for all local nodes). However,
+	 * Ideally, this address handler would be registered per local yesde
+	 * (rather than the same handler for all local yesdes). However,
 	 * since the firewire core requires the config rom descriptor *before*
 	 * the local unit device(s) are created, a single management handler
 	 * must suffice for all local serial units.
@@ -2886,6 +2886,6 @@ MODULE_AUTHOR("Peter Hurley (peter@hurleysoftware.com)");
 MODULE_DESCRIPTION("FireWire Serial TTY Driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(ieee1394, fwserial_id_table);
-MODULE_PARM_DESC(ttys, "Number of ttys to create for each local firewire node");
-MODULE_PARM_DESC(auto, "Auto-connect a tty to each firewire node discovered");
+MODULE_PARM_DESC(ttys, "Number of ttys to create for each local firewire yesde");
+MODULE_PARM_DESC(auto, "Auto-connect a tty to each firewire yesde discovered");
 MODULE_PARM_DESC(loop, "Create a loopback device, fwloop<n>, with ttys");

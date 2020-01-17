@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Intel Multimedia Timer device interface
  *
@@ -10,7 +10,7 @@
  *
  * This file should define an interface compatible with the IA-PC Multimedia
  * Timers Draft Specification (rev. 0.97) from Intel.  Note that some
- * hardware may not be able to safely export its registers to userspace,
+ * hardware may yest be able to safely export its registers to userspace,
  * so the ioctl interface should support all necessary functionality.
  *
  * 11/01/01 - jbarnes - initial revision
@@ -40,7 +40,7 @@
  *   Number of bits in the clock's counter
  *
  * MMTIMER_MMAPAVAIL - required
- *   Returns nonzero if the registers can be mmap'd into userspace, 0 otherwise
+ *   Returns yesnzero if the registers can be mmap'd into userspace, 0 otherwise
  *
  * MMTIMER_GETCOUNTER - required
  *   Gets the current value in the counter

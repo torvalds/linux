@@ -53,7 +53,7 @@ typedef struct ErgDpram_tag {
 	/*1FF8 */ unsigned char bRes1FF8[0x1FFB - 0x1FF8];
 	/* low part of reset vetor */
 	/*1FFB */ unsigned char ToPcIntMetro;
-	/* notes:
+	/* yestes:
 	 * - metro has 32-bit boot ram - accessing
 	 *   ToPcInt and ToHyInt would be the same;
 	 *   so we moved ToPcInt to 1FFB.
@@ -66,8 +66,8 @@ typedef struct ErgDpram_tag {
 	 *   when writing!
 	 */
 	/*1FFC */ unsigned char volatile ToHyNoDpramErrLog;
-	/* note: ToHyNoDpramErrLog is used to inform
-	 *       boot loader, not to use DPRAM based
+	/* yeste: ToHyNoDpramErrLog is used to inform
+	 *       boot loader, yest to use DPRAM based
 	 *       ErrLog; when DOS driver is rewritten
 	 *       this becomes obsolete
 	 */
@@ -88,7 +88,7 @@ typedef struct ErgDpram_tag {
 /* bitmask for PCI9050_INTR_REG: */
 #define PCI9050_INTR_REG_EN1    0x01	/* 1= enable (def.), 0= disable */
 #define PCI9050_INTR_REG_POL1   0x02	/* 1= active high (def.), 0= active low */
-#define PCI9050_INTR_REG_STAT1  0x04	/* 1= intr. active, 0= intr. not active (def.) */
+#define PCI9050_INTR_REG_STAT1  0x04	/* 1= intr. active, 0= intr. yest active (def.) */
 #define PCI9050_INTR_REG_ENPCI  0x40	/* 1= PCI interrupts enable (def.) */
 
 /* bitmask for PCI9050_USER_IO: */

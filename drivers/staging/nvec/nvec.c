@@ -25,7 +25,7 @@
 #include <linux/list.h>
 #include <linux/mfd/core.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
@@ -96,46 +96,46 @@ static const struct mfd_cell nvec_devices[] = {
 };
 
 /**
- * nvec_register_notifier - Register a notifier with nvec
+ * nvec_register_yestifier - Register a yestifier with nvec
  * @nvec: A &struct nvec_chip
- * @nb: The notifier block to register
+ * @nb: The yestifier block to register
  *
- * Registers a notifier with @nvec. The notifier will be added to an atomic
- * notifier chain that is called for all received messages except those that
+ * Registers a yestifier with @nvec. The yestifier will be added to an atomic
+ * yestifier chain that is called for all received messages except those that
  * correspond to a request initiated by nvec_write_sync().
  */
-int nvec_register_notifier(struct nvec_chip *nvec, struct notifier_block *nb,
+int nvec_register_yestifier(struct nvec_chip *nvec, struct yestifier_block *nb,
 			   unsigned int events)
 {
-	return atomic_notifier_chain_register(&nvec->notifier_list, nb);
+	return atomic_yestifier_chain_register(&nvec->yestifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(nvec_register_notifier);
+EXPORT_SYMBOL_GPL(nvec_register_yestifier);
 
 /**
- * nvec_unregister_notifier - Unregister a notifier with nvec
+ * nvec_unregister_yestifier - Unregister a yestifier with nvec
  * @nvec: A &struct nvec_chip
- * @nb: The notifier block to unregister
+ * @nb: The yestifier block to unregister
  *
- * Unregisters a notifier with @nvec. The notifier will be removed from the
- * atomic notifier chain.
+ * Unregisters a yestifier with @nvec. The yestifier will be removed from the
+ * atomic yestifier chain.
  */
-int nvec_unregister_notifier(struct nvec_chip *nvec, struct notifier_block *nb)
+int nvec_unregister_yestifier(struct nvec_chip *nvec, struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&nvec->notifier_list, nb);
+	return atomic_yestifier_chain_unregister(&nvec->yestifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(nvec_unregister_notifier);
+EXPORT_SYMBOL_GPL(nvec_unregister_yestifier);
 
 /**
- * nvec_status_notifier - The final notifier
+ * nvec_status_yestifier - The final yestifier
  *
- * Prints a message about control events not handled in the notifier
+ * Prints a message about control events yest handled in the yestifier
  * chain.
  */
-static int nvec_status_notifier(struct notifier_block *nb,
+static int nvec_status_yestifier(struct yestifier_block *nb,
 				unsigned long event_type, void *data)
 {
 	struct nvec_chip *nvec = container_of(nb, struct nvec_chip,
-						nvec_status_notifier);
+						nvec_status_yestifier);
 	unsigned char *msg = data;
 
 	if (event_type != NVEC_CNTL)
@@ -154,7 +154,7 @@ static int nvec_status_notifier(struct notifier_block *nb,
  * @category: Pool category, see &enum nvec_msg_category
  *
  * Allocate a single &struct nvec_msg object from the message pool of
- * @nvec. The result shall be passed to nvec_msg_free() if no longer
+ * @nvec. The result shall be passed to nvec_msg_free() if yes longer
  * used.
  *
  * Outgoing messages are placed in the upper 75% of the pool, keeping the
@@ -174,7 +174,7 @@ static struct nvec_msg *nvec_msg_alloc(struct nvec_chip *nvec,
 		}
 	}
 
-	dev_err(nvec->dev, "could not allocate %s buffer\n",
+	dev_err(nvec->dev, "could yest allocate %s buffer\n",
 		(category == NVEC_MSG_TX) ? "TX" : "RX");
 
 	return NULL;
@@ -208,7 +208,7 @@ static bool nvec_msg_is_event(struct nvec_msg *msg)
  * nvec_msg_size - Get the size of a message
  * @msg: The message to get the size for
  *
- * This only works for received messages, not for outgoing messages.
+ * This only works for received messages, yest for outgoing messages.
  */
 static size_t nvec_msg_size(struct nvec_msg *msg)
 {
@@ -240,7 +240,7 @@ static void nvec_gpio_set_value(struct nvec_chip *nvec, int value)
 }
 
 /**
- * nvec_write_async - Asynchronously write a message to NVEC
+ * nvec_write_async - Asynchroyesusly write a message to NVEC
  * @nvec: An nvec_chip instance
  * @data: The message data, starting with the request type
  * @size: The size of @data
@@ -267,7 +267,7 @@ int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 	msg->size = size + 1;
 
 	spin_lock_irqsave(&nvec->tx_lock, flags);
-	list_add_tail(&msg->node, &nvec->tx_data);
+	list_add_tail(&msg->yesde, &nvec->tx_data);
 	spin_unlock_irqrestore(&nvec->tx_lock, flags);
 
 	schedule_work(&nvec->tx_work);
@@ -285,12 +285,12 @@ EXPORT_SYMBOL(nvec_write_async);
  *
  * This is similar to nvec_write_async(), but waits for the
  * request to be answered before returning. This function
- * uses a mutex and can thus not be called from e.g.
+ * uses a mutex and can thus yest be called from e.g.
  * interrupt handlers.
  *
  * Returns: 0 on success, a negative error code on failure.
  * The response message is returned in @msg. Shall be freed with
- * with nvec_msg_free() once no longer used.
+ * with nvec_msg_free() once yes longer used.
  *
  */
 int nvec_write_sync(struct nvec_chip *nvec,
@@ -379,7 +379,7 @@ static void nvec_request_master(struct work_struct *work)
 
 	spin_lock_irqsave(&nvec->tx_lock, flags);
 	while (!list_empty(&nvec->tx_data)) {
-		msg = list_first_entry(&nvec->tx_data, struct nvec_msg, node);
+		msg = list_first_entry(&nvec->tx_data, struct nvec_msg, yesde);
 		spin_unlock_irqrestore(&nvec->tx_lock, flags);
 		nvec_gpio_set_value(nvec, 0);
 		err = wait_for_completion_interruptible_timeout(
@@ -394,7 +394,7 @@ static void nvec_request_master(struct work_struct *work)
 		spin_lock_irqsave(&nvec->tx_lock, flags);
 
 		if (err > 0) {
-			list_del_init(&msg->node);
+			list_del_init(&msg->yesde);
 			nvec_msg_free(nvec, msg);
 		}
 	}
@@ -402,12 +402,12 @@ static void nvec_request_master(struct work_struct *work)
 }
 
 /**
- * parse_msg - Print some information and call the notifiers on an RX message
+ * parse_msg - Print some information and call the yestifiers on an RX message
  * @nvec: A &struct nvec_chip
  * @msg: A message received by @nvec
  *
- * Paarse some pieces of the message and then call the chain of notifiers
- * registered via nvec_register_notifier.
+ * Paarse some pieces of the message and then call the chain of yestifiers
+ * registered via nvec_register_yestifier.
  */
 static int parse_msg(struct nvec_chip *nvec, struct nvec_msg *msg)
 {
@@ -421,7 +421,7 @@ static int parse_msg(struct nvec_chip *nvec, struct nvec_msg *msg)
 			       DUMP_PREFIX_NONE, 16, 1, msg->data,
 			       msg->data[1] + 2, true);
 
-	atomic_notifier_call_chain(&nvec->notifier_list, msg->data[0] & 0x8f,
+	atomic_yestifier_call_chain(&nvec->yestifier_list, msg->data[0] & 0x8f,
 				   msg->data);
 
 	return 0;
@@ -442,8 +442,8 @@ static void nvec_dispatch(struct work_struct *work)
 
 	spin_lock_irqsave(&nvec->rx_lock, flags);
 	while (!list_empty(&nvec->rx_data)) {
-		msg = list_first_entry(&nvec->rx_data, struct nvec_msg, node);
-		list_del_init(&msg->node);
+		msg = list_first_entry(&nvec->rx_data, struct nvec_msg, yesde);
+		list_del_init(&msg->yesde);
 		spin_unlock_irqrestore(&nvec->rx_lock, flags);
 
 		if (nvec->sync_write_pending ==
@@ -508,7 +508,7 @@ static void nvec_rx_completed(struct nvec_chip *nvec)
 	 * Add the received data to the work list and move the ring buffer
 	 * pointer to the next entry.
 	 */
-	list_add_tail(&nvec->rx->node, &nvec->rx_data);
+	list_add_tail(&nvec->rx->yesde, &nvec->rx_data);
 
 	spin_unlock(&nvec->rx_lock);
 
@@ -541,21 +541,21 @@ static void nvec_invalid_flags(struct nvec_chip *nvec, unsigned int status,
  *
  * Gets the first entry from the tx_data list of @nvec and sets the
  * tx member to it. If the tx_data list is empty, this uses the
- * tx_scratch message to send a no operation message.
+ * tx_scratch message to send a yes operation message.
  */
 static void nvec_tx_set(struct nvec_chip *nvec)
 {
 	spin_lock(&nvec->tx_lock);
 	if (list_empty(&nvec->tx_data)) {
-		dev_err(nvec->dev, "empty tx - sending no-op\n");
+		dev_err(nvec->dev, "empty tx - sending yes-op\n");
 		memcpy(nvec->tx_scratch.data, "\x02\x07\x02", 3);
 		nvec->tx_scratch.size = 3;
 		nvec->tx_scratch.pos = 0;
 		nvec->tx = &nvec->tx_scratch;
-		list_add_tail(&nvec->tx->node, &nvec->tx_data);
+		list_add_tail(&nvec->tx->yesde, &nvec->tx_data);
 	} else {
 		nvec->tx = list_first_entry(&nvec->tx_data, struct nvec_msg,
-					    node);
+					    yesde);
 		nvec->tx->pos = 0;
 	}
 	spin_unlock(&nvec->tx_lock);
@@ -594,7 +594,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 		return IRQ_HANDLED;
 	}
 
-	/* The EC did not request a read, so it send us something, read it */
+	/* The EC did yest request a read, so it send us something, read it */
 	if ((status & RNW) == 0) {
 		received = readl(nvec->base + I2C_SL_RCVD);
 		if (status & RCVD)
@@ -614,7 +614,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 			nvec_invalid_flags(nvec, status, true);
 		} else {
 			nvec->rx = nvec_msg_alloc(nvec, NVEC_MSG_RX);
-			/* Should not happen in a normal world */
+			/* Should yest happen in a yesrmal world */
 			if (unlikely(!nvec->rx)) {
 				nvec->state = 0;
 				break;
@@ -688,7 +688,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 		nvec->state = 1;
 	}
 
-	/* Send data if requested, but not on end of transmission */
+	/* Send data if requested, but yest on end of transmission */
 	if ((status & (RNW | END_TRANS)) == RNW)
 		writel(to_send, nvec->base + I2C_SL_RCVD);
 
@@ -711,7 +711,7 @@ static irqreturn_t nvec_interrupt(int irq, void *dev)
 	 * TODO: A correct fix needs to be found for this.
 	 *
 	 * We experience less incomplete messages with this delay than without
-	 * it, but we don't know why. Help is appreciated.
+	 * it, but we don't kyesw why. Help is appreciated.
 	 */
 	udelay(100);
 
@@ -772,7 +772,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		unmute_speakers[] = { NVEC_OEM0, 0x10, 0x59, 0x95 },
 		enable_event[7] = { NVEC_SYS, CNF_EVENT_REPORTING, true };
 
-	if (!dev->of_node) {
+	if (!dev->of_yesde) {
 		dev_err(dev, "must be instantiated using device tree\n");
 		return -ENODEV;
 	}
@@ -784,8 +784,8 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, nvec);
 	nvec->dev = dev;
 
-	if (of_property_read_u32(dev->of_node, "slave-addr", &nvec->i2c_addr)) {
-		dev_err(dev, "no i2c address specified");
+	if (of_property_read_u32(dev->of_yesde, "slave-addr", &nvec->i2c_addr)) {
+		dev_err(dev, "yes i2c address specified");
 		return -ENODEV;
 	}
 
@@ -813,7 +813,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	nvec->i2c_clk = i2c_clk;
 	nvec->rx = &nvec->msg_pool[0];
 
-	ATOMIC_INIT_NOTIFIER_HEAD(&nvec->notifier_list);
+	ATOMIC_INIT_NOTIFIER_HEAD(&nvec->yestifier_list);
 
 	init_completion(&nvec->sync_write);
 	init_completion(&nvec->ec_transfer);
@@ -844,8 +844,8 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	/* enable event reporting */
 	nvec_toggle_global_events(nvec, true);
 
-	nvec->nvec_status_notifier.notifier_call = nvec_status_notifier;
-	nvec_register_notifier(nvec, &nvec->nvec_status_notifier, 0);
+	nvec->nvec_status_yestifier.yestifier_call = nvec_status_yestifier;
+	nvec_register_yestifier(nvec, &nvec->nvec_status_yestifier, 0);
 
 	nvec_power_handle = nvec;
 	pm_power_off = nvec_power_off;
@@ -887,7 +887,7 @@ static int tegra_nvec_remove(struct platform_device *pdev)
 
 	nvec_toggle_global_events(nvec, false);
 	mfd_remove_devices(nvec->dev);
-	nvec_unregister_notifier(nvec, &nvec->nvec_status_notifier);
+	nvec_unregister_yestifier(nvec, &nvec->nvec_status_yestifier);
 	cancel_work_sync(&nvec->rx_work);
 	cancel_work_sync(&nvec->tx_work);
 	/* FIXME: needs check whether nvec is responsible for power off */

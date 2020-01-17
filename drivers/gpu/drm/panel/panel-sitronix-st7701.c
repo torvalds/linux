@@ -171,7 +171,7 @@ static void st7701_init_sequence(struct st7701 *st7701)
 	ST7701_DSI(st7701, DSI_CMD2_BK1_MIPISET1, DSI_CMD2_BK1_MIPISET1_SET);
 
 	/**
-	 * ST7701_SPEC_V1.2 is unable to provide enough information above this
+	 * ST7701_SPEC_V1.2 is unable to provide eyesugh information above this
 	 * specific command sequence, so grab the same from vendor BSP driver.
 	 */
 	ST7701_DSI(st7701, 0xE0, 0x00, 0x00, 0x02);
@@ -377,9 +377,9 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 	 * before initiating new commands.
 	 *
 	 * On top of that some panels might need an extra delay to wait, so
-	 * add panel specific delay for those cases. As now this panel specific
+	 * add panel specific delay for those cases. As yesw this panel specific
 	 * delay information is referenced from those panel BSP driver, example
-	 * ts8550b and there is no valid documentation for that.
+	 * ts8550b and there is yes valid documentation for that.
 	 */
 	st7701->sleep_delay = 120 + desc->panel_sleep_delay;
 

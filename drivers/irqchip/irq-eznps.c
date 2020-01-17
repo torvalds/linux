@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -45,7 +45,7 @@
  * NPS400 core includes an Interrupt Controller (IC) support.
  * All cores can deactivate level irqs at first level control
  * at cores mesh layer called MTM.
- * For devices out side chip e.g. uart, network there is another
+ * For devices out side chip e.g. uart, network there is ayesther
  * level called Global Interrupt Manager (GIM).
  * This second level can control level and edge interrupt.
  *
@@ -132,21 +132,21 @@ static const struct irq_domain_ops nps400_irq_ops = {
 	.map = nps400_irq_map,
 };
 
-static int __init nps400_of_init(struct device_node *node,
-				 struct device_node *parent)
+static int __init nps400_of_init(struct device_yesde *yesde,
+				 struct device_yesde *parent)
 {
 	struct irq_domain *nps400_root_domain;
 
 	if (parent) {
-		pr_err("DeviceTree incore ic not a root irq controller\n");
+		pr_err("DeviceTree incore ic yest a root irq controller\n");
 		return -EINVAL;
 	}
 
-	nps400_root_domain = irq_domain_add_linear(node, NPS_NR_CPU_IRQS,
+	nps400_root_domain = irq_domain_add_linear(yesde, NPS_NR_CPU_IRQS,
 						   &nps400_irq_ops, NULL);
 
 	if (!nps400_root_domain) {
-		pr_err("nps400 root irq domain not avail\n");
+		pr_err("nps400 root irq domain yest avail\n");
 		return -ENOMEM;
 	}
 

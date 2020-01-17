@@ -14,13 +14,13 @@
 #include <crypto/hash.h>
 #include <crypto/algapi.h>
 #include <linux/static_key.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 static struct crypto_shash __rcu *crct10dif_tfm;
 static struct static_key crct10dif_fallback __read_mostly;
 static DEFINE_MUTEX(crc_t10dif_mutex);
 
-static int crc_t10dif_rehash(struct notifier_block *self, unsigned long val, void *data)
+static int crc_t10dif_rehash(struct yestifier_block *self, unsigned long val, void *data)
 {
 	struct crypto_alg *alg = data;
 	struct crypto_shash *new, *old;
@@ -50,8 +50,8 @@ static int crc_t10dif_rehash(struct notifier_block *self, unsigned long val, voi
 	return 0;
 }
 
-static struct notifier_block crc_t10dif_nb = {
-	.notifier_call = crc_t10dif_rehash,
+static struct yestifier_block crc_t10dif_nb = {
+	.yestifier_call = crc_t10dif_rehash,
 };
 
 __u16 crc_t10dif_update(__u16 crc, const unsigned char *buffer, size_t len)
@@ -86,7 +86,7 @@ EXPORT_SYMBOL(crc_t10dif);
 
 static int __init crc_t10dif_mod_init(void)
 {
-	crypto_register_notifier(&crc_t10dif_nb);
+	crypto_register_yestifier(&crc_t10dif_nb);
 	crct10dif_tfm = crypto_alloc_shash("crct10dif", 0, 0);
 	if (IS_ERR(crct10dif_tfm)) {
 		static_key_slow_inc(&crct10dif_fallback);
@@ -97,7 +97,7 @@ static int __init crc_t10dif_mod_init(void)
 
 static void __exit crc_t10dif_mod_fini(void)
 {
-	crypto_unregister_notifier(&crc_t10dif_nb);
+	crypto_unregister_yestifier(&crc_t10dif_nb);
 	crypto_free_shash(crct10dif_tfm);
 }
 

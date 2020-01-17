@@ -12,7 +12,7 @@
 #include "feat.h"
 
 #ifndef CONFIG_SYSCTL
-#error This file should not be compiled without CONFIG_SYSCTL defined
+#error This file should yest be compiled without CONFIG_SYSCTL defined
 #endif
 
 /* Boundary values */

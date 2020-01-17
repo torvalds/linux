@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __ASM_SH_UNISTD_64_H
 #define __ASM_SH_UNISTD_64_H
 
@@ -29,7 +29,7 @@
 #define __NR_execve		 11
 #define __NR_chdir		 12
 #define __NR_time		 13
-#define __NR_mknod		 14
+#define __NR_mkyesd		 14
 #define __NR_chmod		 15
 #define __NR_lchown		 16
 				 /* 17 was sys_break */
@@ -177,7 +177,7 @@
 #define __NR_sched_get_priority_max	159
 #define __NR_sched_get_priority_min	160
 #define __NR_sched_rr_get_interval	161
-#define __NR_nanosleep		162
+#define __NR_nayessleep		162
 #define __NR_mremap		163
 #define __NR_setresuid		164
 #define __NR_getresuid		165
@@ -316,7 +316,7 @@
 #define __NR_clock_settime	(__NR_timer_create+5)
 #define __NR_clock_gettime	(__NR_timer_create+6)
 #define __NR_clock_getres	(__NR_timer_create+7)
-#define __NR_clock_nanosleep	(__NR_timer_create+8)
+#define __NR_clock_nayessleep	(__NR_timer_create+8)
 #define __NR_statfs64		296
 #define __NR_fstatfs64		297
 #define __NR_tgkill		298
@@ -330,7 +330,7 @@
 #define __NR_mq_unlink          (__NR_mq_open+1)
 #define __NR_mq_timedsend       (__NR_mq_open+2)
 #define __NR_mq_timedreceive    (__NR_mq_open+3)
-#define __NR_mq_notify          (__NR_mq_open+4)
+#define __NR_mq_yestify          (__NR_mq_open+4)
 #define __NR_mq_getsetattr      (__NR_mq_open+5)
 				/* 311 is reserved for kexec */
 #define __NR_waitid		312
@@ -339,14 +339,14 @@
 #define __NR_keyctl		315
 #define __NR_ioprio_set		316
 #define __NR_ioprio_get		317
-#define __NR_inotify_init	318
-#define __NR_inotify_add_watch	319
-#define __NR_inotify_rm_watch	320
+#define __NR_iyestify_init	318
+#define __NR_iyestify_add_watch	319
+#define __NR_iyestify_rm_watch	320
 				/* 321 is unused */
 #define __NR_migrate_pages	322
 #define __NR_openat		323
 #define __NR_mkdirat		324
-#define __NR_mknodat		325
+#define __NR_mkyesdat		325
 #define __NR_fchownat		326
 #define __NR_futimesat		327
 #define __NR_fstatat64		328
@@ -381,15 +381,15 @@
 #define __NR_epoll_create1	357
 #define __NR_dup3		358
 #define __NR_pipe2		359
-#define __NR_inotify_init1	360
+#define __NR_iyestify_init1	360
 #define __NR_preadv		361
 #define __NR_pwritev		362
 #define __NR_rt_tgsigqueueinfo	363
 #define __NR_perf_event_open	364
 #define __NR_recvmmsg		365
 #define __NR_accept4		366
-#define __NR_fanotify_init	367
-#define __NR_fanotify_mark	368
+#define __NR_fayestify_init	367
+#define __NR_fayestify_mark	368
 #define __NR_prlimit64		369
 #define __NR_name_to_handle_at	370
 #define __NR_open_by_handle_at	371

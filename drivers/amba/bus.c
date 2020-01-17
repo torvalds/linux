@@ -33,7 +33,7 @@ amba_cs_uci_id_match(const struct amba_id *table, struct amba_device *dev)
 
 	uci = table->data;
 
-	/* no table data or zero mask - return match on periphid */
+	/* yes table data or zero mask - return match on periphid */
 	if (!uci || (uci->devarch_mask == 0))
 		return 1;
 
@@ -156,7 +156,7 @@ ATTRIBUTE_GROUPS(amba_dev);
 /*
  * Hooks to provide runtime PM of the pclk (bus clock).  It is safe to
  * enable/disable the bus clock at runtime PM suspend/resume as this
- * does not result in loss of context.
+ * does yest result in loss of context.
  */
 static int amba_pm_runtime_suspend(struct device *dev)
 {
@@ -262,7 +262,7 @@ static int amba_probe(struct device *dev)
 	int ret;
 
 	do {
-		ret = of_clk_set_defaults(dev->of_node, false);
+		ret = of_clk_set_defaults(dev->of_yesde, false);
 		if (ret < 0)
 			break;
 
@@ -276,7 +276,7 @@ static int amba_probe(struct device *dev)
 			break;
 		}
 
-		pm_runtime_get_noresume(dev);
+		pm_runtime_get_yesresume(dev);
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
 
@@ -286,7 +286,7 @@ static int amba_probe(struct device *dev)
 
 		pm_runtime_disable(dev);
 		pm_runtime_set_suspended(dev);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 
 		amba_put_disable_pclk(pcdev);
 		dev_pm_domain_detach(dev, true);
@@ -303,12 +303,12 @@ static int amba_remove(struct device *dev)
 
 	pm_runtime_get_sync(dev);
 	ret = drv->remove(pcdev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 
 	/* Undo the runtime PM settings in amba_probe() */
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 
 	amba_put_disable_pclk(pcdev);
 	dev_pm_domain_detach(dev, true);
@@ -407,7 +407,7 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 		/*
 		 * Find reset control(s) of the amba bus and de-assert them.
 		 */
-		rstc = of_reset_control_array_get_optional_shared(dev->dev.of_node);
+		rstc = of_reset_control_array_get_optional_shared(dev->dev.of_yesde);
 		if (IS_ERR(rstc)) {
 			ret = PTR_ERR(rstc);
 			if (ret != -EPROBE_DEFER)
@@ -485,8 +485,8 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 /*
  * Registration of AMBA device require reading its pid and cid registers.
  * To do this, the device must be turned on (if it is a part of power domain)
- * and have clocks enabled. However in some cases those resources might not be
- * yet available. Returning EPROBE_DEFER is not a solution in such case,
+ * and have clocks enabled. However in some cases those resources might yest be
+ * yet available. Returning EPROBE_DEFER is yest a solution in such case,
  * because callers don't handle this special error code. Instead such devices
  * are added to the special list and their registration is retried from
  * periodic worker, until all resources are available and registration succeeds.
@@ -494,7 +494,7 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 struct deferred_device {
 	struct amba_device *dev;
 	struct resource *parent;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static LIST_HEAD(deferred_devices);
@@ -511,13 +511,13 @@ static void amba_deferred_retry_func(struct work_struct *dummy)
 
 	mutex_lock(&deferred_devices_lock);
 
-	list_for_each_entry_safe(ddev, tmp, &deferred_devices, node) {
+	list_for_each_entry_safe(ddev, tmp, &deferred_devices, yesde) {
 		int ret = amba_device_try_add(ddev->dev, ddev->parent);
 
 		if (ret == -EPROBE_DEFER)
 			continue;
 
-		list_del_init(&ddev->node);
+		list_del_init(&ddev->yesde);
 		kfree(ddev);
 	}
 
@@ -533,7 +533,7 @@ static void amba_deferred_retry_func(struct work_struct *dummy)
  *	@dev: AMBA device allocated by amba_device_alloc
  *	@parent: resource parent for this devices resources
  *
- *	Claim the resource, and read the device cell ID if not already
+ *	Claim the resource, and read the device cell ID if yest already
  *	initialized.  Register the AMBA device with the Linux device
  *	manager.
  */
@@ -557,7 +557,7 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 		if (list_empty(&deferred_devices))
 			schedule_delayed_work(&deferred_retry_work,
 					      DEFERRED_DEVICE_TIMEOUT);
-		list_add_tail(&ddev->node, &deferred_devices);
+		list_add_tail(&ddev->yesde, &deferred_devices);
 
 		mutex_unlock(&deferred_devices_lock);
 	}
@@ -707,7 +707,7 @@ EXPORT_SYMBOL_GPL(amba_device_put);
  *
  *	Remove the specified AMBA device from the Linux device
  *	manager.  All files associated with this object will be
- *	destroyed, and device drivers notified that the device has
+ *	destroyed, and device drivers yestified that the device has
  *	been removed.  The AMBA device's resources including
  *	the amba_device structure will be freed once all
  *	references to it have been dropped.
@@ -754,7 +754,7 @@ static int amba_find_match(struct device *dev, void *data)
  *	@mask: peripheral ID mask (or 0)
  *
  *	Return the AMBA device corresponding to the supplied parameters.
- *	If no device matches, returns NULL.
+ *	If yes device matches, returns NULL.
  *
  *	NOTE: When a valid device is found, its refcount is
  *	incremented, and must be decremented before the returned

@@ -230,7 +230,7 @@ static const struct regulator_ops s2mpa01_buck_ops = {
 #define regulator_desc_ldo(num, step) {			\
 	.name		= "LDO"#num,			\
 	.of_match	= of_match_ptr("LDO"#num),	\
-	.regulators_node = of_match_ptr("regulators"),	\
+	.regulators_yesde = of_match_ptr("regulators"),	\
 	.id		= S2MPA01_LDO##num,		\
 	.ops		= &s2mpa01_ldo_ops,		\
 	.type		= REGULATOR_VOLTAGE,		\
@@ -247,7 +247,7 @@ static const struct regulator_ops s2mpa01_buck_ops = {
 #define regulator_desc_buck1_4(num)	{			\
 	.name		= "BUCK"#num,				\
 	.of_match	= of_match_ptr("BUCK"#num),		\
-	.regulators_node = of_match_ptr("regulators"),		\
+	.regulators_yesde = of_match_ptr("regulators"),		\
 	.id		= S2MPA01_BUCK##num,			\
 	.ops		= &s2mpa01_buck_ops,			\
 	.type		= REGULATOR_VOLTAGE,			\
@@ -265,7 +265,7 @@ static const struct regulator_ops s2mpa01_buck_ops = {
 #define regulator_desc_buck5	{				\
 	.name		= "BUCK5",				\
 	.of_match	= of_match_ptr("BUCK5"),		\
-	.regulators_node = of_match_ptr("regulators"),		\
+	.regulators_yesde = of_match_ptr("regulators"),		\
 	.id		= S2MPA01_BUCK5,			\
 	.ops		= &s2mpa01_buck_ops,			\
 	.type		= REGULATOR_VOLTAGE,			\
@@ -283,7 +283,7 @@ static const struct regulator_ops s2mpa01_buck_ops = {
 #define regulator_desc_buck6_10(num, min, step) {			\
 	.name		= "BUCK"#num,				\
 	.of_match	= of_match_ptr("BUCK"#num),		\
-	.regulators_node = of_match_ptr("regulators"),		\
+	.regulators_yesde = of_match_ptr("regulators"),		\
 	.id		= S2MPA01_BUCK##num,			\
 	.ops		= &s2mpa01_buck_ops,			\
 	.type		= REGULATOR_VOLTAGE,			\

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *  Universal TUN/TAP device driver.
  *  Copyright (C) 1999-2000 Maxim Krasnyansky <max_mk@yahoo.com>
@@ -68,7 +68,7 @@
 #define IFF_NAPI	0x0010
 #define IFF_NAPI_FRAGS	0x0020
 #define IFF_NO_PI	0x1000
-/* This flag has no real effect */
+/* This flag has yes real effect */
 #define IFF_ONE_QUEUE	0x2000
 #define IFF_VNET_HDR	0x4000
 #define IFF_TUN_EXCL	0x8000
@@ -89,7 +89,7 @@
 #define TUN_F_TSO_ECN	0x08	/* I can handle TSO with ECN bits. */
 #define TUN_F_UFO	0x10	/* I can handle UFO packets */
 
-/* Protocol info prepended to the packets (when IFF_NO_PI is not set) */
+/* Protocol info prepended to the packets (when IFF_NO_PI is yest set) */
 #define TUN_PKT_STRIP	0x0001
 struct tun_pi {
 	__u16  flags;

@@ -97,7 +97,7 @@ static __always_inline void *bpf_flow_dissect_get_header(struct __sk_buff *skb,
 	__u16 thoff = skb->flow_keys->thoff;
 	__u8 *hdr;
 
-	/* Verifies this variable offset does not overflow */
+	/* Verifies this variable offset does yest overflow */
 	if (thoff > (USHRT_MAX - hdr_size))
 		return NULL;
 
@@ -132,7 +132,7 @@ static __always_inline int parse_eth_proto(struct __sk_buff *skb, __be16 proto)
 		bpf_tail_call(skb, &jmp_table, VLAN);
 		break;
 	default:
-		/* Protocol not supported */
+		/* Protocol yest supported */
 		return export_flow_keys(keys, BPF_DROP);
 	}
 
@@ -270,7 +270,7 @@ PROG(IP)(struct __sk_buff *skb)
 	if (!iph)
 		return export_flow_keys(keys, BPF_DROP);
 
-	/* IP header cannot be smaller than 20 bytes */
+	/* IP header canyest be smaller than 20 bytes */
 	if (iph->ihl < 5)
 		return export_flow_keys(keys, BPF_DROP);
 
@@ -286,7 +286,7 @@ PROG(IP)(struct __sk_buff *skb)
 	if (iph->frag_off & bpf_htons(IP_MF | IP_OFFSET)) {
 		keys->is_frag = true;
 		if (iph->frag_off & bpf_htons(IP_OFFSET)) {
-			/* From second fragment on, packets do not have headers
+			/* From second fragment on, packets do yest have headers
 			 * we can parse.
 			 */
 			done = true;
@@ -338,7 +338,7 @@ PROG(IPV6OP)(struct __sk_buff *skb)
 	if (!ip6h)
 		return export_flow_keys(keys, BPF_DROP);
 
-	/* hlen is in 8-octets and does not include the first 8 bytes
+	/* hlen is in 8-octets and does yest include the first 8 bytes
 	 * of the header
 	 */
 	keys->thoff += (1 + ip6h->hdrlen) << 3;
@@ -409,7 +409,7 @@ PROG(VLAN)(struct __sk_buff *skb)
 
 	keys->nhoff += sizeof(*vlan);
 	keys->thoff += sizeof(*vlan);
-	/* Only allow 8021AD + 8021Q double tagging and no triple tagging.*/
+	/* Only allow 8021AD + 8021Q double tagging and yes triple tagging.*/
 	if (vlan->h_vlan_encapsulated_proto == bpf_htons(ETH_P_8021AD) ||
 	    vlan->h_vlan_encapsulated_proto == bpf_htons(ETH_P_8021Q))
 		return export_flow_keys(keys, BPF_DROP);

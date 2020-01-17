@@ -25,7 +25,7 @@
  * @i1480:	Device descriptor
  * @data:	Data array to write
  * @size:	Size of the data array
- * @returns:	0 if ok, < 0 errno code on error.
+ * @returns:	0 if ok, < 0 erryes code on error.
  *
  * The data array is organized into pairs:
  *
@@ -69,7 +69,7 @@ out:
  * @data:	where to place the read array
  * @srcaddr:	Where to read from
  * @size:	Size of the data read array
- * @returns:	0 if ok, < 0 errno code on error.
+ * @returns:	0 if ok, < 0 erryes code on error.
  *
  * The command data array is organized into pairs ADDR0 ADDR1..., and
  * the returned data in ADDR0 VALUE0 ADDR1 VALUE1...
@@ -174,7 +174,7 @@ int i1480_phy_fw_upload(struct i1480 *i1480)
 	}
 	if (phy_stat != 0) {
 		result = -ENODEV;
-		dev_info(i1480->dev, "error, PHY not ready: %u\n", phy_stat);
+		dev_info(i1480->dev, "error, PHY yest ready: %u\n", phy_stat);
 		goto error_phy_status;
 	}
 	dev_info(i1480->dev, "PHY fw '%s': uploaded\n", i1480->phy_fw_name);

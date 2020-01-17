@@ -116,7 +116,7 @@ static const struct key_entry topstar_keymap[] = {
 	{ KE_KEY, 0x8b, { KEY_MAIL } },
 	{ KE_KEY, 0x8c, { KEY_MEDIA } },
 
-	/* Known non hotkey events don't handled or that we don't care yet */
+	/* Kyeswn yesn hotkey events don't handled or that we don't care yet */
 	{ KE_IGNORE, 0x82, }, /* backlight event */
 	{ KE_IGNORE, 0x8e, },
 	{ KE_IGNORE, 0x8f, },
@@ -124,7 +124,7 @@ static const struct key_entry topstar_keymap[] = {
 
 	/*
 	 * 'G key' generate two event codes, convert to only
-	 * one event/key code for now, consider replacing by
+	 * one event/key code for yesw, consider replacing by
 	 * a switch (3G switch - SW_3G?)
 	 */
 	{ KE_KEY, 0x96, { KEY_F14 } },
@@ -133,10 +133,10 @@ static const struct key_entry topstar_keymap[] = {
 	{ KE_END, 0 }
 };
 
-static void topstar_input_notify(struct topstar_laptop *topstar, int event)
+static void topstar_input_yestify(struct topstar_laptop *topstar, int event)
 {
 	if (!sparse_keymap_report_event(topstar->input, event, 1, true))
-		pr_info("unknown event = 0x%02x\n", event);
+		pr_info("unkyeswn event = 0x%02x\n", event);
 }
 
 static int topstar_input_init(struct topstar_laptop *topstar)
@@ -225,14 +225,14 @@ static int topstar_acpi_fncx_switch(struct acpi_device *device, bool state)
 
 	status = acpi_execute_simple_method(device->handle, "FNCX", arg);
 	if (ACPI_FAILURE(status)) {
-		pr_err("Unable to switch FNCX notifications\n");
+		pr_err("Unable to switch FNCX yestifications\n");
 		return -ENODEV;
 	}
 
 	return 0;
 }
 
-static void topstar_acpi_notify(struct acpi_device *device, u32 event)
+static void topstar_acpi_yestify(struct acpi_device *device, u32 event)
 {
 	struct topstar_laptop *topstar = acpi_driver_data(device);
 	static bool dup_evnt[2];
@@ -248,7 +248,7 @@ static void topstar_acpi_notify(struct acpi_device *device, u32 event)
 		*dup = true;
 	}
 
-	topstar_input_notify(topstar, event);
+	topstar_input_yestify(topstar, event);
 }
 
 static int topstar_acpi_init(struct topstar_laptop *topstar)
@@ -361,7 +361,7 @@ static struct acpi_driver topstar_acpi_driver = {
 	.ops = {
 		.add = topstar_acpi_add,
 		.remove = topstar_acpi_remove,
-		.notify = topstar_acpi_notify,
+		.yestify = topstar_acpi_yestify,
 	},
 };
 

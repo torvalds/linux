@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2002-2003  David McCullough <davidm@snapgear.com>
- * Copyright (C) 1998       Kenneth Albanowski <kjahds@kjahds.com>
+ * Copyright (C) 1998       Kenneth Albayeswski <kjahds@kjahds.com>
  *                          The Silver Hammer Group, Ltd.
  *
  * This file provides the definitions and structures needed to
@@ -71,7 +71,7 @@ typedef union {
 		u32	type : 2;
 		s32	offset : 30;
 # else
-#   	error "Unknown bitfield order for flat files."
+#   	error "Unkyeswn bitfield order for flat files."
 # endif
 	} reloc;
 } flat_v2_reloc_t;

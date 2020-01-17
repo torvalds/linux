@@ -36,7 +36,7 @@
 /*
  * NOR Flash
  */
-static struct mtd_partition cns3420_nor_partitions[] = {
+static struct mtd_partition cns3420_yesr_partitions[] = {
 	{
 		.name		= "uboot",
 		.size		= 0x00040000,
@@ -61,25 +61,25 @@ static struct mtd_partition cns3420_nor_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data cns3420_nor_pdata = {
+static struct physmap_flash_data cns3420_yesr_pdata = {
 	.width = 2,
-	.parts = cns3420_nor_partitions,
-	.nr_parts = ARRAY_SIZE(cns3420_nor_partitions),
+	.parts = cns3420_yesr_partitions,
+	.nr_parts = ARRAY_SIZE(cns3420_yesr_partitions),
 };
 
-static struct resource cns3420_nor_res = {
+static struct resource cns3420_yesr_res = {
 	.start = CNS3XXX_FLASH_BASE,
 	.end = CNS3XXX_FLASH_BASE + SZ_128M - 1,
 	.flags = IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 };
 
-static struct platform_device cns3420_nor_pdev = {
+static struct platform_device cns3420_yesr_pdev = {
 	.name = "physmap-flash",
 	.id = 0,
-	.resource = &cns3420_nor_res,
+	.resource = &cns3420_yesr_res,
 	.num_resources = 1,
 	.dev = {
-		.platform_data = &cns3420_nor_pdata,
+		.platform_data = &cns3420_yesr_pdata,
 	},
 };
 
@@ -207,7 +207,7 @@ static struct platform_device cns3xxx_usb_ohci_device = {
  * Initialization
  */
 static struct platform_device *cns3420_pdevs[] __initdata = {
-	&cns3420_nor_pdev,
+	&cns3420_yesr_pdev,
 	&cns3xxx_usb_ehci_device,
 	&cns3xxx_usb_ohci_device,
 };

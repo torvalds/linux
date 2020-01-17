@@ -65,11 +65,11 @@ typedef void (rq_end_io_fn)(struct request *, blk_status_t);
  * request flags */
 typedef __u32 __bitwise req_flags_t;
 
-/* elevator knows about this request */
+/* elevator kyesws about this request */
 #define RQF_SORTED		((__force req_flags_t)(1 << 0))
 /* drive already may have started this one */
 #define RQF_STARTED		((__force req_flags_t)(1 << 1))
-/* may not be passed by ioscheduler */
+/* may yest be passed by ioscheduler */
 #define RQF_SOFTBARRIER		((__force req_flags_t)(1 << 3))
 /* request for flush sequence */
 #define RQF_FLUSH_SEQ		((__force req_flags_t)(1 << 4))
@@ -80,11 +80,11 @@ typedef __u32 __bitwise req_flags_t;
 /* don't call prep for this one */
 #define RQF_DONTPREP		((__force req_flags_t)(1 << 7))
 /* set for "ide_preempt" requests and also for requests for which the SCSI
-   "quiesce" state must be ignored. */
+   "quiesce" state must be igyesred. */
 #define RQF_PREEMPT		((__force req_flags_t)(1 << 8))
 /* contains copies of user pages */
 #define RQF_COPY_USER		((__force req_flags_t)(1 << 9))
-/* vaguely specified driver internal error.  Ignored by the block layer */
+/* vaguely specified driver internal error.  Igyesred by the block layer */
 #define RQF_FAILED		((__force req_flags_t)(1 << 10))
 /* don't warn about errors */
 #define RQF_QUIET		((__force req_flags_t)(1 << 11))
@@ -157,17 +157,17 @@ struct request {
 	 * the dispatch list).
 	 */
 	union {
-		struct hlist_node hash;	/* merge hash */
+		struct hlist_yesde hash;	/* merge hash */
 		struct list_head ipi_list;
 	};
 
 	/*
-	 * The rb_node is only used inside the io scheduler, requests
+	 * The rb_yesde is only used inside the io scheduler, requests
 	 * are pruned when moved to the dispatch queue. So let the
-	 * completion_data share space with the rb_node.
+	 * completion_data share space with the rb_yesde.
 	 */
 	union {
-		struct rb_node rb_node;	/* sort/lookup */
+		struct rb_yesde rb_yesde;	/* sort/lookup */
 		struct bio_vec special_vec;
 		void *completion_data;
 		int error_count; /* for legacy drivers, don't use */
@@ -504,12 +504,12 @@ struct request_queue {
 	 * bits which indicates if a zone is write locked, that is, if a write
 	 * request targeting the zone was dispatched. All three fields are
 	 * initialized by the low level device driver (e.g. scsi/sd.c).
-	 * Stacking drivers (device mappers) may or may not initialize
+	 * Stacking drivers (device mappers) may or may yest initialize
 	 * these fields.
 	 *
 	 * Reads of this information must be protected with blk_queue_enter() /
 	 * blk_queue_exit(). Modifying this information is only allowed while
-	 * no requests are being processed. See also blk_mq_freeze_queue() and
+	 * yes requests are being processed. See also blk_mq_freeze_queue() and
 	 * blk_mq_unfreeze_queue().
 	 */
 	unsigned int		nr_zones;
@@ -522,7 +522,7 @@ struct request_queue {
 	 */
 	unsigned int		sg_timeout;
 	unsigned int		sg_reserved_size;
-	int			node;
+	int			yesde;
 #ifdef CONFIG_BLK_DEV_IO_TRACE
 	struct blk_trace	*blk_trace;
 	struct mutex		blk_trace_mutex;
@@ -590,7 +590,7 @@ struct request_queue {
 #define QUEUE_FLAG_NOMERGES     3	/* disable merge attempts */
 #define QUEUE_FLAG_SAME_COMP	4	/* complete on same CPU-group */
 #define QUEUE_FLAG_FAIL_IO	5	/* fake timeout */
-#define QUEUE_FLAG_NONROT	6	/* non-rotational device (SSD) */
+#define QUEUE_FLAG_NONROT	6	/* yesn-rotational device (SSD) */
 #define QUEUE_FLAG_VIRT		QUEUE_FLAG_NONROT /* paravirt device */
 #define QUEUE_FLAG_IO_STAT	7	/* do disk/partitions IO accounting */
 #define QUEUE_FLAG_DISCARD	8	/* supports DISCARD */
@@ -624,10 +624,10 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
 #define blk_queue_dying(q)	test_bit(QUEUE_FLAG_DYING, &(q)->queue_flags)
 #define blk_queue_dead(q)	test_bit(QUEUE_FLAG_DEAD, &(q)->queue_flags)
 #define blk_queue_init_done(q)	test_bit(QUEUE_FLAG_INIT_DONE, &(q)->queue_flags)
-#define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
-#define blk_queue_noxmerges(q)	\
+#define blk_queue_yesmerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
+#define blk_queue_yesxmerges(q)	\
 	test_bit(QUEUE_FLAG_NOXMERGES, &(q)->queue_flags)
-#define blk_queue_nonrot(q)	test_bit(QUEUE_FLAG_NONROT, &(q)->queue_flags)
+#define blk_queue_yesnrot(q)	test_bit(QUEUE_FLAG_NONROT, &(q)->queue_flags)
 #define blk_queue_io_stat(q)	test_bit(QUEUE_FLAG_IO_STAT, &(q)->queue_flags)
 #define blk_queue_add_random(q)	test_bit(QUEUE_FLAG_ADD_RANDOM, &(q)->queue_flags)
 #define blk_queue_discard(q)	test_bit(QUEUE_FLAG_DISCARD, &(q)->queue_flags)
@@ -647,7 +647,7 @@ bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
 #define blk_queue_rq_alloc_time(q)	false
 #endif
 
-#define blk_noretry_request(rq) \
+#define blk_yesretry_request(rq) \
 	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
 			     REQ_FAILFAST_DRIVER))
 #define blk_queue_quiesced(q)	test_bit(QUEUE_FLAG_QUIESCED, &(q)->queue_flags)
@@ -707,7 +707,7 @@ static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
 	return blk_queue_is_zoned(q) ? q->nr_zones : 0;
 }
 
-static inline unsigned int blk_queue_zone_no(struct request_queue *q,
+static inline unsigned int blk_queue_zone_yes(struct request_queue *q,
 					     sector_t sector)
 {
 	if (!blk_queue_is_zoned(q))
@@ -722,7 +722,7 @@ static inline bool blk_queue_zone_is_seq(struct request_queue *q,
 		return false;
 	if (!q->conv_zones_bitmap)
 		return true;
-	return !test_bit(blk_queue_zone_no(q, sector), q->conv_zones_bitmap);
+	return !test_bit(blk_queue_zone_yes(q, sector), q->conv_zones_bitmap);
 }
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
@@ -791,7 +791,7 @@ extern unsigned long blk_max_low_pfn, blk_max_pfn;
 #define BLK_BOUNCE_ISA		(DMA_BIT_MASK(24))
 
 /*
- * default timeout for SG_IO if none specified
+ * default timeout for SG_IO if yesne specified
  */
 #define BLK_DEFAULT_SG_TIMEOUT	(60 * HZ)
 #define BLK_MIN_SG_TIMEOUT	(7 * HZ)
@@ -810,7 +810,7 @@ struct req_iterator {
 	struct bio *bio;
 };
 
-/* This should not be used directly - use rq_for_each_segment */
+/* This should yest be used directly - use rq_for_each_segment */
 #define for_each_bio(_bio)		\
 	for (; _bio; _bio = _bio->bi_next)
 #define __rq_for_each_bio(_bio, rq)	\
@@ -881,14 +881,14 @@ extern int blk_rq_map_user_iov(struct request_queue *, struct request *,
 			       gfp_t);
 extern void blk_execute_rq(struct request_queue *, struct gendisk *,
 			  struct request *, int);
-extern void blk_execute_rq_nowait(struct request_queue *, struct gendisk *,
+extern void blk_execute_rq_yeswait(struct request_queue *, struct gendisk *,
 				  struct request *, int, rq_end_io_fn *);
 
 /* Helper to convert REQ_OP_XXX to its string format XXX */
 extern const char *blk_op_str(unsigned int op);
 
-int blk_status_to_errno(blk_status_t status);
-blk_status_t errno_to_blk_status(int errno);
+int blk_status_to_erryes(blk_status_t status);
+blk_status_t erryes_to_blk_status(int erryes);
 
 int blk_poll(struct request_queue *q, blk_qc_t cookie, bool spin);
 
@@ -952,9 +952,9 @@ static inline unsigned int blk_rq_stats_sectors(const struct request *rq)
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
-static inline unsigned int blk_rq_zone_no(struct request *rq)
+static inline unsigned int blk_rq_zone_yes(struct request *rq)
 {
-	return blk_queue_zone_no(rq->q, blk_rq_pos(rq));
+	return blk_queue_zone_yes(rq->q, blk_rq_pos(rq));
 }
 
 static inline unsigned int blk_rq_zone_is_seq(struct request *rq)
@@ -1114,7 +1114,7 @@ extern bool blk_queue_can_use_dma_map_merging(struct request_queue *q,
  * Number of physical segments as sent to the device.
  *
  * Normally this is the number of discontiguous data segments sent by the
- * submitter.  But for data-less command like discard we might have no
+ * submitter.  But for data-less command like discard we might have yes
  * actual data segments submitted, but the driver might have to add it's
  * own special payload.  In that case we still return 1 here so that this
  * special payload will be mapped.
@@ -1141,7 +1141,7 @@ extern long nr_blockdev_pages(void);
 
 bool __must_check blk_get_queue(struct request_queue *);
 struct request_queue *blk_alloc_queue(gfp_t);
-struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id);
+struct request_queue *blk_alloc_queue_yesde(gfp_t gfp_mask, int yesde_id);
 extern void blk_put_queue(struct request_queue *);
 extern void blk_set_queue_dying(struct request_queue *);
 
@@ -1152,7 +1152,7 @@ extern void blk_set_queue_dying(struct request_queue *);
  * the device's request_queue in a batch, this results in improved scalability
  * as the lock contention for request_queue lock is reduced.
  *
- * It is ok not to disable preemption when adding the request to the plug list
+ * It is ok yest to disable preemption when adding the request to the plug list
  * or when attempting a merge, because blk_schedule_flush_list() will only flush
  * the plug list when the task sleeps by itself. For details, please see
  * schedule() where blk_schedule_flush_plug() is called.
@@ -1216,7 +1216,7 @@ extern int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, int flags,
 		struct bio **biop);
 
-#define BLKDEV_ZERO_NOUNMAP	(1 << 0)  /* do not free blocks */
+#define BLKDEV_ZERO_NOUNMAP	(1 << 0)  /* do yest free blocks */
 #define BLKDEV_ZERO_NOFALLBACK	(1 << 1)  /* don't write explicit zeroes */
 
 extern int __blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
@@ -1381,7 +1381,7 @@ static inline int queue_limit_discard_alignment(struct queue_limits *lim, sector
 	if (!lim->max_discard_sectors)
 		return 0;
 
-	/* Why are these in bytes, not sectors? */
+	/* Why are these in bytes, yest sectors? */
 	alignment = lim->discard_alignment >> SECTOR_SHIFT;
 	granularity = lim->discard_granularity >> SECTOR_SHIFT;
 	if (!granularity)
@@ -1497,8 +1497,8 @@ int kblockd_schedule_work(struct work_struct *work);
 int kblockd_schedule_work_on(int cpu, struct work_struct *work);
 int kblockd_mod_delayed_work_on(int cpu, struct delayed_work *dwork, unsigned long delay);
 
-#define MODULE_ALIAS_BLOCKDEV(major,minor) \
-	MODULE_ALIAS("block-major-" __stringify(major) "-" __stringify(minor))
+#define MODULE_ALIAS_BLOCKDEV(major,miyesr) \
+	MODULE_ALIAS("block-major-" __stringify(major) "-" __stringify(miyesr))
 #define MODULE_ALIAS_BLOCKDEV_MAJOR(major) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-*")
 
@@ -1704,7 +1704,7 @@ struct block_device_operations {
 	int (*revalidate_disk) (struct gendisk *);
 	int (*getgeo)(struct block_device *, struct hd_geometry *);
 	/* this callback is with swap_lock and sometimes page table lock held */
-	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
+	void (*swap_slot_free_yestify) (struct block_device *, unsigned long);
 	int (*report_zones)(struct gendisk *, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data);
 	struct module *owner;
@@ -1737,7 +1737,7 @@ static inline void blk_req_zone_write_unlock(struct request *rq)
 static inline bool blk_req_zone_is_write_locked(struct request *rq)
 {
 	return rq->q->seq_zones_wlock &&
-		test_bit(blk_rq_zone_no(rq), rq->q->seq_zones_wlock);
+		test_bit(blk_rq_zone_yes(rq), rq->q->seq_zones_wlock);
 }
 
 static inline bool blk_req_can_dispatch_to_zone(struct request *rq)
@@ -1821,7 +1821,7 @@ static inline void blk_wake_io_task(struct task_struct *waiter)
 {
 	/*
 	 * If we're polling, the task itself is doing the completions. For
-	 * that case, we don't need to signal a wakeup, it's enough to just
+	 * that case, we don't need to signal a wakeup, it's eyesugh to just
 	 * mark us as RUNNING.
 	 */
 	if (waiter == current)

@@ -196,12 +196,12 @@ static int lima_pp_hard_reset(struct lima_ip *ip)
 
 static void lima_pp_print_version(struct lima_ip *ip)
 {
-	u32 version, major, minor;
+	u32 version, major, miyesr;
 	char *name;
 
 	version = pp_read(LIMA_PP_VERSION);
 	major = (version >> 8) & 0xFF;
-	minor = version & 0xFF;
+	miyesr = version & 0xFF;
 	switch (version >> 16) {
 	case 0xC807:
 	    name = "mali200";
@@ -216,11 +216,11 @@ static void lima_pp_print_version(struct lima_ip *ip)
 		name = "mali450";
 		break;
 	default:
-		name = "unknown";
+		name = "unkyeswn";
 		break;
 	}
-	dev_info(ip->dev->dev, "%s - %s version major %d minor %d\n",
-		 lima_ip_name(ip), name, major, minor);
+	dev_info(ip->dev->dev, "%s - %s version major %d miyesr %d\n",
+		 lima_ip_name(ip), name, major, miyesr);
 }
 
 int lima_pp_init(struct lima_ip *ip)

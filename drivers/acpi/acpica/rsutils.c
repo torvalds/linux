@@ -86,9 +86,9 @@ u16 acpi_rs_encode_bitmask(u8 * list, u8 count)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Move multiple data items from one descriptor to another. Handles
+ * DESCRIPTION: Move multiple data items from one descriptor to ayesther. Handles
  *              alignment issues and endian issues if necessary, as configured
- *              via the ACPI_MOVE_* macros. (This is why a memcpy is not used)
+ *              via the ACPI_MOVE_* macros. (This is why a memcpy is yest used)
  *
  ******************************************************************************/
 
@@ -105,7 +105,7 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 		switch (move_type) {
 			/*
 			 * For the 8-bit case, we can perform the move all at once
-			 * since there are no alignment or endian issues
+			 * since there are yes alignment or endian issues
 			 */
 		case ACPI_RSC_MOVE8:
 		case ACPI_RSC_MOVE_GPIO_RES:
@@ -117,7 +117,7 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 
 			/*
 			 * 16-, 32-, and 64-bit cases must use the move macros that perform
-			 * endian conversion and/or accommodate hardware that cannot perform
+			 * endian conversion and/or accommodate hardware that canyest perform
 			 * misaligned memory transfers
 			 */
 		case ACPI_RSC_MOVE16:
@@ -311,7 +311,7 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 		resource_source->string_ptr = string_ptr;
 		if (!string_ptr) {
 			/*
-			 * String destination pointer is not specified; Set the String
+			 * String destination pointer is yest specified; Set the String
 			 * pointer to the end of the current resource_source structure.
 			 */
 			resource_source->string_ptr =
@@ -344,7 +344,7 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 		return ((acpi_rs_length)total_length);
 	}
 
-	/* resource_source is not present */
+	/* resource_source is yest present */
 
 	resource_source->index = 0;
 	resource_source->string_length = 0;
@@ -415,7 +415,7 @@ acpi_rs_set_resource_source(union aml_resource *aml,
  *
  * FUNCTION:    acpi_rs_get_prt_method_data
  *
- * PARAMETERS:  node            - Device node
+ * PARAMETERS:  yesde            - Device yesde
  *              ret_buffer      - Pointer to a buffer structure for the
  *                                results
  *
@@ -430,7 +430,7 @@ acpi_rs_set_resource_source(union aml_resource *aml,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_get_prt_method_data(struct acpi_namespace_node *node,
+acpi_rs_get_prt_method_data(struct acpi_namespace_yesde *yesde,
 			    struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
@@ -440,10 +440,10 @@ acpi_rs_get_prt_method_data(struct acpi_namespace_node *node,
 
 	/* Parameters guaranteed valid by caller */
 
-	/* Execute the method, no parameters */
+	/* Execute the method, yes parameters */
 
 	status =
-	    acpi_ut_evaluate_object(node, METHOD_NAME__PRT, ACPI_BTYPE_PACKAGE,
+	    acpi_ut_evaluate_object(yesde, METHOD_NAME__PRT, ACPI_BTYPE_PACKAGE,
 				    &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -465,7 +465,7 @@ acpi_rs_get_prt_method_data(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_rs_get_crs_method_data
  *
- * PARAMETERS:  node            - Device node
+ * PARAMETERS:  yesde            - Device yesde
  *              ret_buffer      - Pointer to a buffer structure for the
  *                                results
  *
@@ -480,7 +480,7 @@ acpi_rs_get_prt_method_data(struct acpi_namespace_node *node,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
+acpi_rs_get_crs_method_data(struct acpi_namespace_yesde *yesde,
 			    struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
@@ -490,10 +490,10 @@ acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
 
 	/* Parameters guaranteed valid by caller */
 
-	/* Execute the method, no parameters */
+	/* Execute the method, yes parameters */
 
 	status =
-	    acpi_ut_evaluate_object(node, METHOD_NAME__CRS, ACPI_BTYPE_BUFFER,
+	    acpi_ut_evaluate_object(yesde, METHOD_NAME__CRS, ACPI_BTYPE_BUFFER,
 				    &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -516,7 +516,7 @@ acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_rs_get_prs_method_data
  *
- * PARAMETERS:  node            - Device node
+ * PARAMETERS:  yesde            - Device yesde
  *              ret_buffer      - Pointer to a buffer structure for the
  *                                results
  *
@@ -531,7 +531,7 @@ acpi_rs_get_crs_method_data(struct acpi_namespace_node *node,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
+acpi_rs_get_prs_method_data(struct acpi_namespace_yesde *yesde,
 			    struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
@@ -541,10 +541,10 @@ acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
 
 	/* Parameters guaranteed valid by caller */
 
-	/* Execute the method, no parameters */
+	/* Execute the method, yes parameters */
 
 	status =
-	    acpi_ut_evaluate_object(node, METHOD_NAME__PRS, ACPI_BTYPE_BUFFER,
+	    acpi_ut_evaluate_object(yesde, METHOD_NAME__PRS, ACPI_BTYPE_BUFFER,
 				    &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -567,7 +567,7 @@ acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_rs_get_aei_method_data
  *
- * PARAMETERS:  node            - Device node
+ * PARAMETERS:  yesde            - Device yesde
  *              ret_buffer      - Pointer to a buffer structure for the
  *                                results
  *
@@ -582,7 +582,7 @@ acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_get_aei_method_data(struct acpi_namespace_node *node,
+acpi_rs_get_aei_method_data(struct acpi_namespace_yesde *yesde,
 			    struct acpi_buffer *ret_buffer)
 {
 	union acpi_operand_object *obj_desc;
@@ -592,10 +592,10 @@ acpi_rs_get_aei_method_data(struct acpi_namespace_node *node,
 
 	/* Parameters guaranteed valid by caller */
 
-	/* Execute the method, no parameters */
+	/* Execute the method, yes parameters */
 
 	status =
-	    acpi_ut_evaluate_object(node, METHOD_NAME__AEI, ACPI_BTYPE_BUFFER,
+	    acpi_ut_evaluate_object(yesde, METHOD_NAME__AEI, ACPI_BTYPE_BUFFER,
 				    &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -644,11 +644,11 @@ acpi_rs_get_method_data(acpi_handle handle,
 
 	/* Parameters guaranteed valid by caller */
 
-	/* Execute the method, no parameters */
+	/* Execute the method, yes parameters */
 
 	status =
 	    acpi_ut_evaluate_object(ACPI_CAST_PTR
-				    (struct acpi_namespace_node, handle), path,
+				    (struct acpi_namespace_yesde, handle), path,
 				    ACPI_BTYPE_BUFFER, &obj_desc);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
@@ -671,7 +671,7 @@ acpi_rs_get_method_data(acpi_handle handle,
  *
  * FUNCTION:    acpi_rs_set_srs_method_data
  *
- * PARAMETERS:  node            - Device node
+ * PARAMETERS:  yesde            - Device yesde
  *              in_buffer       - Pointer to a buffer structure of the
  *                                parameter
  *
@@ -688,7 +688,7 @@ acpi_rs_get_method_data(acpi_handle handle,
  ******************************************************************************/
 
 acpi_status
-acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
+acpi_rs_set_srs_method_data(struct acpi_namespace_yesde *yesde,
 			    struct acpi_buffer *in_buffer)
 {
 	struct acpi_evaluate_info *info;
@@ -705,7 +705,7 @@ acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	info->prefix_node = node;
+	info->prefix_yesde = yesde;
 	info->relative_pathname = METHOD_NAME__SRS;
 	info->parameters = args;
 	info->flags = ACPI_IGNORE_RETURN_VALUE;
@@ -741,7 +741,7 @@ acpi_rs_set_srs_method_data(struct acpi_namespace_node *node,
 	args[0]->common.flags = AOPOBJ_DATA_VALID;
 	args[1] = NULL;
 
-	/* Execute the method, no return value is expected */
+	/* Execute the method, yes return value is expected */
 
 	status = acpi_ns_evaluate(info);
 

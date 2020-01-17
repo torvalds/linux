@@ -372,7 +372,7 @@ static void microread_im_transceive_cb(void *context, struct sk_buff *skb,
 			}
 
 			if (skb->data[skb->len - 1] != 0) {
-				err = nfc_hci_result_to_errno(
+				err = nfc_hci_result_to_erryes(
 						       skb->data[skb->len - 1]);
 				kfree_skb(skb);
 				info->async_cb(info->async_cb_context, NULL,
@@ -683,7 +683,7 @@ int microread_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 					     MICROREAD_CMD_TAILROOM,
 					     phy_payload);
 	if (!info->hdev) {
-		pr_err("Cannot allocate nfc hdev\n");
+		pr_err("Canyest allocate nfc hdev\n");
 		r = -ENOMEM;
 		goto err_alloc_hdev;
 	}

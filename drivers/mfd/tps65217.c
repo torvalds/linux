@@ -146,7 +146,7 @@ static int tps65217_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip_and_handler(virq, &tps65217_irq_chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
 	irq_set_parent(virq, tps->irq);
-	irq_set_noprobe(virq);
+	irq_set_yesprobe(virq);
 
 	return 0;
 }
@@ -167,10 +167,10 @@ static int tps65217_irq_init(struct tps65217 *tps, int irq)
 	tps65217_set_bits(tps, TPS65217_REG_INT, TPS65217_INT_MASK,
 			  TPS65217_INT_MASK, TPS65217_PROTECT_NONE);
 
-	tps->irq_domain = irq_domain_add_linear(tps->dev->of_node,
+	tps->irq_domain = irq_domain_add_linear(tps->dev->of_yesde,
 		TPS65217_NUM_IRQ, &tps65217_irq_domain_ops, tps);
 	if (!tps->irq_domain) {
-		dev_err(tps->dev, "Could not create IRQ domain\n");
+		dev_err(tps->dev, "Could yest create IRQ domain\n");
 		return -ENOMEM;
 	}
 
@@ -323,7 +323,7 @@ static int tps65217_probe(struct i2c_client *client)
 	bool status_off = false;
 	int ret;
 
-	status_off = of_property_read_bool(client->dev.of_node,
+	status_off = of_property_read_bool(client->dev.of_yesde,
 					   "ti,pmic-shutdown-controller");
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);

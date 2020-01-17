@@ -693,7 +693,7 @@ static int rt286_hw_params(struct snd_pcm_substream *substream,
 	case 12288000:
 	case 24576000:
 		if (params_rate(params) != 48000) {
-			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is yest matched (%d %d)\n",
 					params_rate(params), rt286->sys_clk);
 			return -EINVAL;
 		}
@@ -701,7 +701,7 @@ static int rt286_hw_params(struct snd_pcm_substream *substream,
 	case 11289600:
 	case 22579200:
 		if (params_rate(params) != 44100) {
-			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is yest matched (%d %d)\n",
 					params_rate(params), rt286->sys_clk);
 			return -EINVAL;
 		}
@@ -822,7 +822,7 @@ static int rt286_set_dai_sysclk(struct snd_soc_dai *dai,
 	switch (freq) {
 	case 19200000:
 		if (RT286_SCLK_S_MCLK == clk_id) {
-			dev_err(component->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should yest use MCLK\n");
 			return -EINVAL;
 		}
 		snd_soc_component_update_bits(component,
@@ -830,7 +830,7 @@ static int rt286_set_dai_sysclk(struct snd_soc_dai *dai,
 		break;
 	case 24000000:
 		if (RT286_SCLK_S_MCLK == clk_id) {
-			dev_err(component->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should yest use MCLK\n");
 			return -EINVAL;
 		}
 		snd_soc_component_update_bits(component,
@@ -1056,7 +1056,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt286 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt286_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt286_regmap = {
@@ -1115,9 +1115,9 @@ static const struct dmi_system_id force_combo_jack_table[] = {
 	{ }
 };
 
-static const struct dmi_system_id dmi_dell_dino[] = {
+static const struct dmi_system_id dmi_dell_diyes[] = {
 	{
-		.ident = "Dell Dino",
+		.ident = "Dell Diyes",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "XPS 13 9343")
@@ -1154,7 +1154,7 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 	}
 	if (val != RT286_VENDOR_ID && val != RT288_VENDOR_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt286\n", val);
+			"Device with ID register %#x is yest rt286\n", val);
 		return -ENODEV;
 	}
 
@@ -1179,7 +1179,7 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 		rt286->pdata = *pdata;
 
 	if (dmi_check_system(force_combo_jack_table) ||
-		dmi_check_system(dmi_dell_dino))
+		dmi_check_system(dmi_dell_diyes))
 		rt286->pdata.cbj_en = true;
 
 	regmap_write(rt286->regmap, RT286_SET_AUDIO_POWER, AC_PWRST_D3);
@@ -1218,7 +1218,7 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 	regmap_update_bits(rt286->regmap, RT286_DEPOP_CTRL3, 0xf777, 0x4737);
 	regmap_update_bits(rt286->regmap, RT286_DEPOP_CTRL4, 0x00ff, 0x003f);
 
-	if (dmi_check_system(dmi_dell_dino)) {
+	if (dmi_check_system(dmi_dell_diyes)) {
 		regmap_update_bits(rt286->regmap,
 			RT286_SET_GPIO_MASK, 0x40, 0x40);
 		regmap_update_bits(rt286->regmap,

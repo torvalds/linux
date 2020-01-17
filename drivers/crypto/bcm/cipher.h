@@ -49,9 +49,9 @@
 #define MAX_HASH_BLOCK_SIZE SHA512_BLOCK_SIZE
 
 /*
- * Maximum number of bytes from a non-final hash request that can be deferred
+ * Maximum number of bytes from a yesn-final hash request that can be deferred
  * until more data is available. With new crypto API framework, this
- * can be no more than one block of data.
+ * can be yes more than one block of data.
  */
 #define HASH_CARRY_MAX  MAX_HASH_BLOCK_SIZE
 
@@ -202,7 +202,7 @@ struct iproc_ctx_s {
 	 * The maximum length in bytes of the payload in a SPU message for this
 	 * context. For SPU-M, the payload is the combination of AAD and data.
 	 * For SPU2, the payload is just data. A value of SPU_MAX_PAYLOAD_INF
-	 * indicates that there is no limit to the length of the SPU message
+	 * indicates that there is yes limit to the length of the SPU message
 	 * payload.
 	 */
 	unsigned int max_payload;
@@ -217,7 +217,7 @@ struct iproc_ctx_s {
 	/*
 	 * Buffer to hold SPU message header template. Template is created at
 	 * setkey time for skcipher requests, since most of the fields in the
-	 * header are known at that time. At request time, just fill in a few
+	 * header are kyeswn at that time. At request time, just fill in a few
 	 * missing pieces related to length of data in the request and IVs, etc.
 	 */
 	u8 bcm_spu_req_hdr[ALIGN(SPU2_HEADER_ALLOC_LEN, SPU_MSG_ALIGN)];
@@ -264,7 +264,7 @@ struct iproc_reqctx_s {
 	/*
 	 * num bytes sent to hw from the src sg in this request. This can differ
 	 * from total_sent for incremental hashing. total_sent includes previous
-	 * init() and update() data. src_sent does not.
+	 * init() and update() data. src_sent does yest.
 	 */
 	unsigned int src_sent;
 
@@ -313,9 +313,9 @@ struct iproc_reqctx_s {
 
 	/*
 	 * Hash requests can be of any size, whether initial, update, or final.
-	 * A non-final request must be submitted to the SPU as an integral
+	 * A yesn-final request must be submitted to the SPU as an integral
 	 * number of blocks. This may leave data at the end of the request
-	 * that is not a full block. Since the request is non-final, it cannot
+	 * that is yest a full block. Since the request is yesn-final, it canyest
 	 * be padded. So, we write the remainder to this hash_carry buffer and
 	 * hold it until the next request arrives. The carry data is then
 	 * submitted at the beginning of the data in the next SPU msg.
@@ -328,10 +328,10 @@ struct iproc_reqctx_s {
 
 	/*
 	 * Digest from incremental hash is saved here to include in next hash
-	 * operation. Cannot be stored in req->result for truncated hashes,
-	 * since result may be sized for final digest. Cannot be saved in
+	 * operation. Canyest be stored in req->result for truncated hashes,
+	 * since result may be sized for final digest. Canyest be saved in
 	 * msg_buf because that gets deleted between incremental hash ops
-	 * and is not saved as part of export().
+	 * and is yest saved as part of export().
 	 */
 	u8 incr_hash[MAX_DIGEST_SIZE];
 
@@ -426,9 +426,9 @@ struct device_private {
 	struct spu_hw spu;
 
 	atomic_t session_count;	/* number of streams active */
-	atomic_t stream_count;	/* monotonic counter for streamID's */
+	atomic_t stream_count;	/* moyestonic counter for streamID's */
 
-	/* Length of BCM header. Set to 0 when hw does not expect BCM HEADER. */
+	/* Length of BCM header. Set to 0 when hw does yest expect BCM HEADER. */
 	u8 bcm_hdr_len;
 
 	/* The index of the channel to use for the next crypto request */
@@ -453,7 +453,7 @@ struct device_private {
 	atomic_t setkey_cnt[SPU_OP_NUM];
 
 	/* Number of times request was resubmitted because mb was full */
-	atomic_t mb_no_spc;
+	atomic_t mb_yes_spc;
 
 	/* Number of mailbox send failures */
 	atomic_t mb_send_fail;

@@ -6,7 +6,7 @@
  *  David Lebrun <david.lebrun@uclouvain.be>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -65,7 +65,7 @@ static void seg6_free_hi(void *ptr, void *arg)
 }
 
 static const struct rhashtable_params rht_params = {
-	.head_offset		= offsetof(struct seg6_hmac_info, node),
+	.head_offset		= offsetof(struct seg6_hmac_info, yesde),
 	.key_offset		= offsetof(struct seg6_hmac_info, hmackeyid),
 	.key_len		= sizeof(u32),
 	.automatic_shrinking	= true,
@@ -167,7 +167,7 @@ int seg6_hmac_compute(struct seg6_hmac_info *hinfo, struct ipv6_sr_hdr *hdr,
 	int plen, i, dgsize, wrsize;
 	char *ring, *off;
 
-	/* a 160-byte buffer for digest output allows to store highest known
+	/* a 160-byte buffer for digest output allows to store highest kyeswn
 	 * hash function (RadioGatun) with up to 1216 bits
 	 */
 
@@ -250,11 +250,11 @@ bool seg6_hmac_validate_skb(struct sk_buff *skb)
 
 	tlv = seg6_get_tlv_hmac(srh);
 
-	/* mandatory check but no tlv */
+	/* mandatory check but yes tlv */
 	if (idev->cnf.seg6_require_hmac > 0 && !tlv)
 		return false;
 
-	/* no check */
+	/* yes check */
 	if (idev->cnf.seg6_require_hmac < 0)
 		return true;
 
@@ -262,7 +262,7 @@ bool seg6_hmac_validate_skb(struct sk_buff *skb)
 	if (idev->cnf.seg6_require_hmac == 0 && !tlv)
 		return true;
 
-	/* now, seg6_require_hmac >= 0 && tlv */
+	/* yesw, seg6_require_hmac >= 0 && tlv */
 
 	hinfo = seg6_hmac_info_lookup(net, be32_to_cpu(tlv->hmackeyid));
 	if (!hinfo)
@@ -295,7 +295,7 @@ int seg6_hmac_info_add(struct net *net, u32 key, struct seg6_hmac_info *hinfo)
 	struct seg6_pernet_data *sdata = seg6_pernet(net);
 	int err;
 
-	err = rhashtable_lookup_insert_fast(&sdata->hmac_infos, &hinfo->node,
+	err = rhashtable_lookup_insert_fast(&sdata->hmac_infos, &hinfo->yesde,
 					    rht_params);
 
 	return err;
@@ -312,7 +312,7 @@ int seg6_hmac_info_del(struct net *net, u32 key)
 	if (!hinfo)
 		goto out;
 
-	err = rhashtable_remove_fast(&sdata->hmac_infos, &hinfo->node,
+	err = rhashtable_remove_fast(&sdata->hmac_infos, &hinfo->yesde,
 				     rht_params);
 	if (err)
 		goto out;
@@ -386,8 +386,8 @@ static int seg6_hmac_init_algo(void)
 			return -ENOMEM;
 
 		for_each_possible_cpu(cpu) {
-			shash = kzalloc_node(shsize, GFP_KERNEL,
-					     cpu_to_node(cpu));
+			shash = kzalloc_yesde(shsize, GFP_KERNEL,
+					     cpu_to_yesde(cpu));
 			if (!shash)
 				return -ENOMEM;
 			*per_cpu_ptr(algo->shashs, cpu) = shash;

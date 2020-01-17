@@ -42,11 +42,11 @@ struct drm_gem_cma_object {
  *
  * This macro autogenerates a suitable &struct file_operations for CMA based
  * drivers, which can be assigned to &drm_driver.fops. Note that this structure
- * cannot be shared between drivers, because it contains a reference to the
+ * canyest be shared between drivers, because it contains a reference to the
  * current module using THIS_MODULE.
  *
  * Note that the declaration is already marked as static - if you need a
- * non-static version of this you're probably doing it wrong and will break the
+ * yesn-static version of this you're probably doing it wrong and will break the
  * THIS_MODULE reference by accident.
  */
 #define DEFINE_DRM_GEM_CMA_FOPS(name) \
@@ -58,7 +58,7 @@ struct drm_gem_cma_object {
 		.compat_ioctl	= drm_compat_ioctl,\
 		.poll		= drm_poll,\
 		.read		= drm_read,\
-		.llseek		= noop_llseek,\
+		.llseek		= yesop_llseek,\
 		.mmap		= drm_gem_cma_mmap,\
 		DRM_GEM_CMA_UNMAPPED_AREA_FOPS \
 	}

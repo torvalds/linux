@@ -82,7 +82,7 @@ static int xfer_write(struct i2c_adapter *adap, unsigned char *buf, int length)
 {
 	int i2c_reg = *buf;
 
-	/* Do nothing but storing the reg_num to a static variable */
+	/* Do yesthing but storing the reg_num to a static variable */
 	if (i2c_reg == -1) {
 		printk(KERN_WARNING "Error i2c reg\n");
 		return -ETIMEDOUT;
@@ -197,7 +197,7 @@ static int puv3_i2c_probe(struct platform_device *pdev)
 	if (adapter == NULL) {
 		dev_err(&pdev->dev, "can't allocate interface!\n");
 		rc = -ENOMEM;
-		goto fail_nomem;
+		goto fail_yesmem;
 	}
 	snprintf(adapter->name, sizeof(adapter->name), "PUV3-I2C at 0x%08x",
 			mem->start);
@@ -217,7 +217,7 @@ static int puv3_i2c_probe(struct platform_device *pdev)
 
 fail_add_adapter:
 	kfree(adapter);
-fail_nomem:
+fail_yesmem:
 	release_mem_region(mem->start, resource_size(mem));
 
 	return rc;

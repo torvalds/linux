@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -36,7 +36,7 @@
 #include "en/xsk/rx.h"
 #include "en/xsk/tx.h"
 
-static inline bool mlx5e_channel_no_affinity_change(struct mlx5e_channel *c)
+static inline bool mlx5e_channel_yes_affinity_change(struct mlx5e_channel *c)
 {
 	int current_cpu = smp_processor_id();
 	const struct cpumask *aff;
@@ -74,12 +74,12 @@ static void mlx5e_handle_rx_dim(struct mlx5e_rq *rq)
 void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
-	struct mlx5e_tx_wqe *nopwqe;
+	struct mlx5e_tx_wqe *yespwqe;
 	u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
 
 	sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_NOP;
-	nopwqe = mlx5e_post_nop(wq, sq->sqn, &sq->pc);
-	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &nopwqe->ctrl);
+	yespwqe = mlx5e_post_yesp(wq, sq->sqn, &sq->pc);
+	mlx5e_yestify_hw(wq, sq->pc, sq->uar_map, &yespwqe->ctrl);
 }
 
 static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskrq)
@@ -89,7 +89,7 @@ static bool mlx5e_napi_xsk_post(struct mlx5e_xdpsq *xsksq, struct mlx5e_rq *xskr
 	/* Handle the race between the application querying need_wakeup and the
 	 * driver setting it:
 	 * 1. Update need_wakeup both before and after the TX. If it goes to
-	 * "yes", it can only happen with the first update.
+	 * "no", it can only happen with the first update.
 	 * 2. If the application queried need_wakeup before we set it, the
 	 * packets will be transmitted anyway, even w/o a wakeup.
 	 * 3. Give a chance to clear need_wakeup after new packets were queued
@@ -152,7 +152,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	busy |= busy_xsk;
 
 	if (busy) {
-		if (likely(mlx5e_channel_no_affinity_change(c)))
+		if (likely(mlx5e_channel_yes_affinity_change(c)))
 			return budget;
 		ch_stats->aff_change++;
 		aff_change = true;

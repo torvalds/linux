@@ -7,7 +7,7 @@ Supported chips:
 
     LPC47M15x and LPC47M192
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Prefix: 'smsc47m1'
 
@@ -23,7 +23,7 @@ Supported chips:
 
   * SMSC LPC47M292
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Prefix: 'smsc47m2'
 
@@ -31,11 +31,11 @@ Supported chips:
 
   * SMSC LPC47M997
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Prefix: 'smsc47m1'
 
-    Datasheet: none
+    Datasheet: yesne
 
 
 
@@ -58,7 +58,7 @@ contain monitoring and PWM control circuitry for two fans.
 
 The LPC47M15x, LPC47M192 and LPC47M292 chips contain a full 'hardware
 monitoring block' in addition to the fan monitoring and control. The
-hardware monitoring block is not supported by this driver, use the
+hardware monitoring block is yest supported by this driver, use the
 smsc47m192 driver for that.
 
 No documentation is available for the 47M997, but it has the same device
@@ -82,5 +82,5 @@ miss once-only alarms.
 
 ------------------------------------------------------------------
 
-The lm_sensors project gratefully acknowledges the support of
+The lm_sensors project gratefully ackyeswledges the support of
 Intel in the development of this driver.

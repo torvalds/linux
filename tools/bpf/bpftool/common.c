@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <fts.h>
 #include <libgen.h>
@@ -82,18 +82,18 @@ mnt_fs(const char *target, const char *type, char *buff, size_t bufflen)
 {
 	bool bind_done = false;
 
-	while (mount("", target, "none", MS_PRIVATE | MS_REC, NULL)) {
-		if (errno != EINVAL || bind_done) {
+	while (mount("", target, "yesne", MS_PRIVATE | MS_REC, NULL)) {
+		if (erryes != EINVAL || bind_done) {
 			snprintf(buff, bufflen,
 				 "mount --make-private %s failed: %s",
-				 target, strerror(errno));
+				 target, strerror(erryes));
 			return -1;
 		}
 
-		if (mount(target, target, "none", MS_BIND, NULL)) {
+		if (mount(target, target, "yesne", MS_BIND, NULL)) {
 			snprintf(buff, bufflen,
 				 "mount --bind %s %s failed: %s",
-				 target, target, strerror(errno));
+				 target, target, strerror(erryes));
 			return -1;
 		}
 
@@ -102,7 +102,7 @@ mnt_fs(const char *target, const char *type, char *buff, size_t bufflen)
 
 	if (mount(type, target, type, 0, "mode=0700")) {
 		snprintf(buff, bufflen, "mount -t %s %s %s failed: %s",
-			 type, type, target, strerror(errno));
+			 type, type, target, strerror(erryes));
 		return -1;
 	}
 
@@ -131,9 +131,9 @@ int open_obj_pinned(char *path, bool quiet)
 	if (fd < 0) {
 		if (!quiet)
 			p_err("bpf obj get (%s): %s", path,
-			      errno == EACCES && !is_bpffs(dirname(path)) ?
-			    "directory not in bpf file system (bpffs)" :
-			    strerror(errno));
+			      erryes == EACCES && !is_bpffs(dirname(path)) ?
+			    "directory yest in bpf file system (bpffs)" :
+			    strerror(erryes));
 		return -1;
 	}
 
@@ -175,11 +175,11 @@ int mount_bpffs_for_pin(const char *name)
 	dir = dirname(file);
 
 	if (is_bpffs(dir))
-		/* nothing to do if already mounted */
+		/* yesthing to do if already mounted */
 		goto out_free;
 
 	if (block_mount) {
-		p_err("no BPF file system found, not mounting it due to --nomount option");
+		p_err("yes BPF file system found, yest mounting it due to --yesmount option");
 		err = -1;
 		goto out_free;
 	}
@@ -206,7 +206,7 @@ int do_pin_fd(int fd, const char *name)
 
 	err = bpf_obj_pin(fd, name);
 	if (err)
-		p_err("can't pin the object (%s): %s", name, strerror(errno));
+		p_err("can't pin the object (%s): %s", name, strerror(erryes));
 
 	return err;
 }
@@ -241,7 +241,7 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 
 	fd = get_fd_by_id(id);
 	if (fd < 0) {
-		p_err("can't open object by id (%u): %s", id, strerror(errno));
+		p_err("can't open object by id (%u): %s", id, strerror(erryes));
 		return -1;
 	}
 
@@ -254,7 +254,7 @@ int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32))
 const char *get_fd_type_name(enum bpf_obj_type type)
 {
 	static const char * const names[] = {
-		[BPF_OBJ_UNKNOWN]	= "unknown",
+		[BPF_OBJ_UNKNOWN]	= "unkyeswn",
 		[BPF_OBJ_PROG]		= "prog",
 		[BPF_OBJ_MAP]		= "map",
 	};
@@ -275,7 +275,7 @@ int get_fd_type(int fd)
 
 	n = readlink(path, buf, sizeof(buf));
 	if (n < 0) {
-		p_err("can't read link type: %s", strerror(errno));
+		p_err("can't read link type: %s", strerror(erryes));
 		return -1;
 	}
 	if (n == sizeof(path)) {
@@ -357,7 +357,7 @@ int build_pinned_obj_table(struct pinned_obj_table *tab,
 			   enum bpf_obj_type type)
 {
 	struct bpf_prog_info pinned_info = {};
-	struct pinned_obj *obj_node = NULL;
+	struct pinned_obj *obj_yesde = NULL;
 	__u32 len = sizeof(pinned_info);
 	struct mntent *mntent = NULL;
 	enum bpf_obj_type objtype;
@@ -399,18 +399,18 @@ int build_pinned_obj_table(struct pinned_obj_table *tab,
 				continue;
 			}
 
-			obj_node = malloc(sizeof(*obj_node));
-			if (!obj_node) {
+			obj_yesde = malloc(sizeof(*obj_yesde));
+			if (!obj_yesde) {
 				close(fd);
 				fts_close(fts);
 				fclose(mntfile);
 				return -1;
 			}
 
-			memset(obj_node, 0, sizeof(*obj_node));
-			obj_node->id = pinned_info.id;
-			obj_node->path = strdup(ftse->fts_path);
-			hash_add(tab->table, &obj_node->hash, obj_node->id);
+			memset(obj_yesde, 0, sizeof(*obj_yesde));
+			obj_yesde->id = pinned_info.id;
+			obj_yesde->path = strdup(ftse->fts_path);
+			hash_add(tab->table, &obj_yesde->hash, obj_yesde->id);
 
 			close(fd);
 		}
@@ -423,7 +423,7 @@ int build_pinned_obj_table(struct pinned_obj_table *tab,
 void delete_pinned_obj_table(struct pinned_obj_table *tab)
 {
 	struct pinned_obj *obj;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned int bkt;
 
 	hash_for_each_safe(tab->table, bkt, tmp, obj, hash) {
@@ -454,18 +454,18 @@ unsigned int get_possible_cpus(void)
 }
 
 static char *
-ifindex_to_name_ns(__u32 ifindex, __u32 ns_dev, __u32 ns_ino, char *buf)
+ifindex_to_name_ns(__u32 ifindex, __u32 ns_dev, __u32 ns_iyes, char *buf)
 {
 	struct stat st;
 	int err;
 
 	err = stat("/proc/self/ns/net", &st);
 	if (err) {
-		p_err("Can't stat /proc/self: %s", strerror(errno));
+		p_err("Can't stat /proc/self: %s", strerror(erryes));
 		return NULL;
 	}
 
-	if (st.st_dev != ns_dev || st.st_ino != ns_ino)
+	if (st.st_dev != ns_dev || st.st_iyes != ns_iyes)
 		return NULL;
 
 	return if_indextoname(ifindex, buf);
@@ -479,14 +479,14 @@ static int read_sysfs_hex_int(char *path)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		p_err("Can't open %s: %s", path, strerror(errno));
+		p_err("Can't open %s: %s", path, strerror(erryes));
 		return -1;
 	}
 
 	len = read(fd, vendor_id_buf, sizeof(vendor_id_buf));
 	close(fd);
 	if (len < 0) {
-		p_err("Can't read %s: %s", path, strerror(errno));
+		p_err("Can't read %s: %s", path, strerror(erryes));
 		return -1;
 	}
 	if (len >= (int)sizeof(vendor_id_buf)) {
@@ -510,16 +510,16 @@ static int read_sysfs_netdev_hex_int(char *devname, const char *entry_name)
 }
 
 const char *
-ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
+ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_iyes,
 		      const char **opt)
 {
 	char devname[IF_NAMESIZE];
 	int vendor_id;
 	int device_id;
 
-	if (!ifindex_to_name_ns(ifindex, ns_dev, ns_ino, devname)) {
+	if (!ifindex_to_name_ns(ifindex, ns_dev, ns_iyes, devname)) {
 		p_err("Can't get net device name for ifindex %d: %s", ifindex,
-		      strerror(errno));
+		      strerror(erryes));
 		return NULL;
 	}
 
@@ -535,7 +535,7 @@ ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
 		if (device_id != 0x4000 &&
 		    device_id != 0x6000 &&
 		    device_id != 0x6003)
-			p_info("Unknown NFP device ID, assuming it is NFP-6xxx arch");
+			p_info("Unkyeswn NFP device ID, assuming it is NFP-6xxx arch");
 		*opt = "ctx4";
 		return "NFP-6xxx";
 	default:
@@ -545,7 +545,7 @@ ifindex_to_bfd_params(__u32 ifindex, __u64 ns_dev, __u64 ns_ino,
 	}
 }
 
-void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
+void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_iyesde)
 {
 	char name[IF_NAMESIZE];
 
@@ -553,14 +553,14 @@ void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
 		return;
 
 	printf("  offloaded_to ");
-	if (ifindex_to_name_ns(ifindex, ns_dev, ns_inode, name))
+	if (ifindex_to_name_ns(ifindex, ns_dev, ns_iyesde, name))
 		printf("%s", name);
 	else
-		printf("ifindex %u ns_dev %llu ns_ino %llu",
-		       ifindex, ns_dev, ns_inode);
+		printf("ifindex %u ns_dev %llu ns_iyes %llu",
+		       ifindex, ns_dev, ns_iyesde);
 }
 
-void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
+void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_iyesde)
 {
 	char name[IF_NAMESIZE];
 
@@ -571,8 +571,8 @@ void print_dev_json(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
 	jsonw_start_object(json_wtr);
 	jsonw_uint_field(json_wtr, "ifindex", ifindex);
 	jsonw_uint_field(json_wtr, "ns_dev", ns_dev);
-	jsonw_uint_field(json_wtr, "ns_inode", ns_inode);
-	if (ifindex_to_name_ns(ifindex, ns_dev, ns_inode, name))
+	jsonw_uint_field(json_wtr, "ns_iyesde", ns_iyesde);
+	if (ifindex_to_name_ns(ifindex, ns_dev, ns_iyesde, name))
 		jsonw_string_field(json_wtr, "ifname", name);
 	jsonw_end_object(json_wtr);
 }

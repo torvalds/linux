@@ -75,7 +75,7 @@ parse_field(char *str, struct trace_event_call *call,
 		char *num, c;
 		int ret;
 
-		/* Make sure the field is not a string */
+		/* Make sure the field is yest a string */
 		if (is_string_field(field))
 			return -EINVAL;
 

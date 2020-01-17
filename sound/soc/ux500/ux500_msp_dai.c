@@ -258,7 +258,7 @@ static int setup_pcm_protdesc(struct snd_soc_dai *dai,
 	prot_desc->tx_half_word_swap = MSP_SWAP_NONE;
 	prot_desc->compression_mode = MSP_COMPRESS_MODE_LINEAR;
 	prot_desc->expansion_mode = MSP_EXPAND_MODE_LINEAR;
-	prot_desc->frame_sync_ignore = MSP_FSYNC_IGNORE;
+	prot_desc->frame_sync_igyesre = MSP_FSYNC_IGNORE;
 
 	return 0;
 }
@@ -293,7 +293,7 @@ static int setup_i2s_protdesc(struct msp_protdesc *prot_desc)
 	prot_desc->rx_half_word_swap = MSP_SWAP_NONE;
 	prot_desc->compression_mode = MSP_COMPRESS_MODE_LINEAR;
 	prot_desc->expansion_mode = MSP_EXPAND_MODE_LINEAR;
-	prot_desc->frame_sync_ignore = MSP_FSYNC_IGNORE;
+	prot_desc->frame_sync_igyesre = MSP_FSYNC_IGNORE;
 
 	return 0;
 }
@@ -741,7 +741,7 @@ static int ux500_msp_drv_probe(struct platform_device *pdev)
 {
 	struct ux500_msp_i2s_drvdata *drvdata;
 	struct msp_i2s_platform_data *pdata = pdev->dev.platform_data;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret = 0;
 
 	if (!pdata && !np) {

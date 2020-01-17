@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -39,18 +39,18 @@
  */
 static void __init mpc85xx_rdb_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	if (ppc_md.progress)
 		ppc_md.progress("p1023_rdb_setup_arch()", 0);
 
 	/* Map BCSR area */
-	np = of_find_node_by_name(NULL, "bcsr");
+	np = of_find_yesde_by_name(NULL, "bcsr");
 	if (np != NULL) {
 		static u8 __iomem *bcsr_regs;
 
 		bcsr_regs = of_iomap(np, 0);
-		of_node_put(np);
+		of_yesde_put(np);
 
 		if (!bcsr_regs) {
 			printk(KERN_ERR

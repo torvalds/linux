@@ -20,20 +20,20 @@ typedef struct xfs_sysctl_val {
 
 typedef struct xfs_param {
 	xfs_sysctl_val_t sgid_inherit;	/* Inherit S_ISGID if process' GID is
-					 * not a member of parent dir GID. */
+					 * yest a member of parent dir GID. */
 	xfs_sysctl_val_t symlink_mode;	/* Link creat mode affected by umask */
 	xfs_sysctl_val_t panic_mask;	/* bitmask to cause panic on errors. */
 	xfs_sysctl_val_t error_level;	/* Degree of reporting for problems  */
 	xfs_sysctl_val_t syncd_timer;	/* Interval between xfssyncd wakeups */
 	xfs_sysctl_val_t stats_clear;	/* Reset all XFS statistics to zero. */
-	xfs_sysctl_val_t inherit_sync;	/* Inherit the "sync" inode flag. */
-	xfs_sysctl_val_t inherit_nodump;/* Inherit the "nodump" inode flag. */
-	xfs_sysctl_val_t inherit_noatim;/* Inherit the "noatime" inode flag. */
+	xfs_sysctl_val_t inherit_sync;	/* Inherit the "sync" iyesde flag. */
+	xfs_sysctl_val_t inherit_yesdump;/* Inherit the "yesdump" iyesde flag. */
+	xfs_sysctl_val_t inherit_yesatim;/* Inherit the "yesatime" iyesde flag. */
 	xfs_sysctl_val_t xfs_buf_timer;	/* Interval between xfsbufd wakeups. */
 	xfs_sysctl_val_t xfs_buf_age;	/* Metadata buffer age before flush. */
-	xfs_sysctl_val_t inherit_nosym;	/* Inherit the "nosymlinks" flag. */
-	xfs_sysctl_val_t rotorstep;	/* inode32 AG rotoring control knob */
-	xfs_sysctl_val_t inherit_nodfrg;/* Inherit the "nodefrag" inode flag. */
+	xfs_sysctl_val_t inherit_yessym;	/* Inherit the "yessymlinks" flag. */
+	xfs_sysctl_val_t rotorstep;	/* iyesde32 AG rotoring control kyesb */
+	xfs_sysctl_val_t inherit_yesdfrg;/* Inherit the "yesdefrag" iyesde flag. */
 	xfs_sysctl_val_t fstrm_timer;	/* Filestream dir-AG assoc'n timeout. */
 	xfs_sysctl_val_t eofb_timer;	/* Interval between eofb scan wakeups */
 	xfs_sysctl_val_t cowb_timer;	/* Interval between cowb scan wakeups */
@@ -43,13 +43,13 @@ typedef struct xfs_param {
  * xfs_error_level:
  *
  * How much error reporting will be done when internal problems are
- * encountered.  These problems normally return an EFSCORRUPTED to their
- * caller, with no other information reported.
+ * encountered.  These problems yesrmally return an EFSCORRUPTED to their
+ * caller, with yes other information reported.
  *
  * 0	No error reports
  * 1	Report EFSCORRUPTED errors that will cause a filesystem shutdown
  * 5	Report all EFSCORRUPTED errors (all of the above errors, plus any
- *	additional errors that are known to not cause shutdowns)
+ *	additional errors that are kyeswn to yest cause shutdowns)
  *
  * xfs_panic_mask bit 0x8 turns the error reports into panics
  */

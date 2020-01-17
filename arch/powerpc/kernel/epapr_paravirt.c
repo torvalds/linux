@@ -20,7 +20,7 @@ extern u32 epapr_ev_idle_start[];
 bool epapr_paravirt_enabled;
 static bool __maybe_unused epapr_has_idle;
 
-static int __init early_init_dt_scan_epapr(unsigned long node,
+static int __init early_init_dt_scan_epapr(unsigned long yesde,
 					   const char *uname,
 					   int depth, void *data)
 {
@@ -28,7 +28,7 @@ static int __init early_init_dt_scan_epapr(unsigned long node,
 	int len;
 	int i;
 
-	insts = of_get_flat_dt_prop(node, "hcall-instructions", &len);
+	insts = of_get_flat_dt_prop(yesde, "hcall-instructions", &len);
 	if (!insts)
 		return 0;
 
@@ -44,7 +44,7 @@ static int __init early_init_dt_scan_epapr(unsigned long node,
 	}
 
 #if !defined(CONFIG_64BIT) || defined(CONFIG_PPC_BOOK3E_64)
-	if (of_get_flat_dt_prop(node, "has-idle", NULL))
+	if (of_get_flat_dt_prop(yesde, "has-idle", NULL))
 		epapr_has_idle = true;
 #endif
 

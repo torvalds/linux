@@ -2,7 +2,7 @@
 // Copyright (c) 2018, Linaro Limited
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/slimbus.h>
@@ -113,7 +113,7 @@ struct slim_stream_runtime *slim_stream_allocate(struct slim_device *dev,
 
 	rt->dev = dev;
 	spin_lock(&dev->stream_list_lock);
-	list_add_tail(&rt->node, &dev->stream_list);
+	list_add_tail(&rt->yesde, &dev->stream_list);
 	spin_unlock(&dev->stream_list_lock);
 
 	return rt;
@@ -223,7 +223,7 @@ int slim_stream_prepare(struct slim_stream_runtime *rt,
 
 	if (cfg->rate % ctrl->a_framer->superfreq) {
 		/*
-		 * data rate not exactly multiple of super frame,
+		 * data rate yest exactly multiple of super frame,
 		 * use PUSH/PULL protocol
 		 */
 		if (cfg->direction == SNDRV_PCM_STREAM_PLAYBACK)
@@ -455,7 +455,7 @@ EXPORT_SYMBOL_GPL(slim_stream_unprepare);
  * @stream: instance of slim stream runtime to free
  *
  * This API will un allocate all the memory associated with
- * slim stream runtime, user is not allowed to make an dereference
+ * slim stream runtime, user is yest allowed to make an dereference
  * to stream after this call.
  *
  * Return: zero on success and error code on failure. From ASoC DPCM framework,
@@ -466,7 +466,7 @@ int slim_stream_free(struct slim_stream_runtime *stream)
 	struct slim_device *sdev = stream->dev;
 
 	spin_lock(&sdev->stream_list_lock);
-	list_del(&stream->node);
+	list_del(&stream->yesde);
 	spin_unlock(&sdev->stream_list_lock);
 
 	kfree(stream->name);

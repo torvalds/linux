@@ -16,7 +16,7 @@ IGMP membership reports to the kernel for processing by the bridge module.
 Without processing such packets, the bridge module could never populate its
 MDB.
 
-As another example, consider a device acting as router which has received an IP
+As ayesther example, consider a device acting as router which has received an IP
 packet with a TTL of 1. Upon routing the packet the device must send it to the
 kernel so that it will route it as well and generate an ICMP Time Exceeded
 error datagram. Without letting the kernel route such packets itself, utilities
@@ -59,7 +59,7 @@ The following diagram provides a general overview of ``devlink-trap``::
                                   |
                              +----+----+
                              |         |      Kernel's Rx path
-                             | devlink |      (non-drop traps)
+                             | devlink |      (yesn-drop traps)
                              |         |
                              +----^----+      ^
                                   |           |
@@ -89,13 +89,13 @@ Trap Types
 The ``devlink-trap`` mechanism supports the following packet trap types:
 
   * ``drop``: Trapped packets were dropped by the underlying device. Packets
-    are only processed by ``devlink`` and not injected to the kernel's Rx path.
+    are only processed by ``devlink`` and yest injected to the kernel's Rx path.
     The trap action (see :ref:`Trap-Actions`) can be changed.
-  * ``exception``: Trapped packets were not forwarded as intended by the
+  * ``exception``: Trapped packets were yest forwarded as intended by the
     underlying device due to an exception (e.g., TTL error, missing neighbour
     entry) and trapped to the control plane for resolution. Packets are
     processed by ``devlink`` and injected to the kernel's Rx path. Changing the
-    action of such traps is not allowed, as it can easily break the control
+    action of such traps is yest allowed, as it can easily break the control
     plane.
 
 .. _Trap-Actions:
@@ -106,7 +106,7 @@ Trap Actions
 The ``devlink-trap`` mechanism supports the following packet trap actions:
 
   * ``trap``: The sole copy of the packet is sent to the CPU.
-  * ``drop``: The packet is dropped by the underlying device and a copy is not
+  * ``drop``: The packet is dropped by the underlying device and a copy is yest
     sent to the CPU.
 
 Generic Packet Traps
@@ -130,21 +130,21 @@ be added to the following table:
    * - ``vlan_tag_mismatch``
      - ``drop``
      - Traps incoming packets that the device decided to drop in case of VLAN
-       tag mismatch: The ingress bridge port is not configured with a PVID and
+       tag mismatch: The ingress bridge port is yest configured with a PVID and
        the packet is untagged or prio-tagged
    * - ``ingress_vlan_filter``
      - ``drop``
      - Traps incoming packets that the device decided to drop in case they are
-       tagged with a VLAN that is not configured on the ingress bridge port
+       tagged with a VLAN that is yest configured on the ingress bridge port
    * - ``ingress_spanning_tree_filter``
      - ``drop``
      - Traps incoming packets that the device decided to drop in case the STP
-       state of the ingress bridge port is not "forwarding"
+       state of the ingress bridge port is yest "forwarding"
    * - ``port_list_is_empty``
      - ``drop``
      - Traps packets that the device decided to drop in case they need to be
-       flooded (e.g., unknown unicast, unregistered multicast) and there are
-       no ports the packets should be flooded to
+       flooded (e.g., unkyeswn unicast, unregistered multicast) and there are
+       yes ports the packets should be flooded to
    * - ``port_loopback_filter``
      - ``drop``
      - Traps packets that the device decided to drop in case after layer 2
@@ -160,12 +160,12 @@ be added to the following table:
        was decremented to 0 or less
    * - ``tail_drop``
      - ``drop``
-     - Traps packets that the device decided to drop because they could not be
+     - Traps packets that the device decided to drop because they could yest be
        enqueued to a transmission queue which is full
-   * - ``non_ip``
+   * - ``yesn_ip``
      - ``drop``
      - Traps packets that the device decided to drop because they need to
-       undergo a layer 3 lookup, but are not IP or MPLS packets
+       undergo a layer 3 lookup, but are yest IP or MPLS packets
    * - ``uc_dip_over_mc_dmac``
      - ``drop``
      - Traps packets that the device decided to drop because they need to be
@@ -209,7 +209,7 @@ be added to the following table:
        than the MTU of the egress interface
    * - ``unresolved_neigh``
      - ``exception``
-     - Traps packets that did not have a matching IP neighbour after routing
+     - Traps packets that did yest have a matching IP neighbour after routing
    * - ``mc_reverse_path_forwarding``
      - ``exception``
      - Traps multicast IP packets that failed reverse-path forwarding (RPF)
@@ -219,10 +219,10 @@ be added to the following table:
      - Traps packets that hit reject routes (i.e., "unreachable", "prohibit")
    * - ``ipv4_lpm_miss``
      - ``exception``
-     - Traps unicast IPv4 packets that did not match any route
+     - Traps unicast IPv4 packets that did yest match any route
    * - ``ipv6_lpm_miss``
      - ``exception``
-     - Traps unicast IPv6 packets that did not match any route
+     - Traps unicast IPv6 packets that did yest match any route
 
 Driver-specific Packet Traps
 ============================

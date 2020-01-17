@@ -57,7 +57,7 @@ int ssb_watchdog_register(struct ssb_bus *bus)
 					     bus->busnumber, &wdt,
 					     sizeof(wdt));
 	if (IS_ERR(pdev)) {
-		pr_debug("can not register watchdog device, err: %li\n",
+		pr_debug("can yest register watchdog device, err: %li\n",
 			 PTR_ERR(pdev));
 		return PTR_ERR(pdev);
 	}
@@ -207,7 +207,7 @@ int ssb_pcibios_plat_dev_init(struct pci_dev *dev)
 	if (err >= 0)
 		return err;
 #endif
-	/* This is not a PCI device on any SSB device. */
+	/* This is yest a PCI device on any SSB device. */
 
 	return -ENODEV;
 }
@@ -252,7 +252,7 @@ int ssb_pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	if (res >= 0)
 		return res;
 #endif
-	/* This is not a PCI device on any SSB device. */
+	/* This is yest a PCI device on any SSB device. */
 
 	return -ENODEV;
 }

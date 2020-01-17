@@ -254,7 +254,7 @@ static int synquacer_spi_config(struct spi_master *master,
 	speed = xfer->speed_hz;
 	bpw = xfer->bits_per_word;
 
-	/* return if nothing to change */
+	/* return if yesthing to change */
 	if (speed == sspi->speed &&
 		bus_width == sspi->bus_width && bpw == sspi->bpw &&
 		mode == sspi->mode && cs == sspi->cs &&
@@ -597,7 +597,7 @@ static irqreturn_t sq_spi_tx_handler(int irq, void *priv)
 
 static int synquacer_spi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct spi_master *master;
 	struct synquacer_spi *sspi;
 	int ret;
@@ -624,7 +624,7 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 	device_property_read_u32(&pdev->dev, "socionext,ihclk-rate",
 				 &master->max_speed_hz); /* for ACPI */
 
-	if (dev_of_node(&pdev->dev)) {
+	if (dev_of_yesde(&pdev->dev)) {
 		if (device_property_match_string(&pdev->dev,
 					 "clock-names", "iHCLK") >= 0) {
 			sspi->clk_src_type = SYNQUACER_HSSPI_CLOCK_SRC_IHCLK;
@@ -641,7 +641,7 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 
 		if (IS_ERR(sspi->clk)) {
 			if (!(PTR_ERR(sspi->clk) == -EPROBE_DEFER))
-				dev_err(&pdev->dev, "clock not found\n");
+				dev_err(&pdev->dev, "clock yest found\n");
 			ret = PTR_ERR(sspi->clk);
 			goto put_spi;
 		}
@@ -696,8 +696,8 @@ static int synquacer_spi_probe(struct platform_device *pdev)
 		goto put_spi;
 	}
 
-	master->dev.of_node = np;
-	master->dev.fwnode = pdev->dev.fwnode;
+	master->dev.of_yesde = np;
+	master->dev.fwyesde = pdev->dev.fwyesde;
 	master->auto_runtime_pm = true;
 	master->bus_num = pdev->id;
 

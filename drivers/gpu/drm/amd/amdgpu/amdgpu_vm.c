@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -44,7 +44,7 @@
  * for the entire GPU, there are multiple VM page tables active
  * at any given time.  The VM page tables can contain a mix
  * vram pages and system memory pages and system memory pages
- * can be mapped as snooped (cached system pages) or unsnooped
+ * can be mapped as syesoped (cached system pages) or unsyesoped
  * (uncached system pages).
  * Each VM has an ID associated with it and there is a page table
  * associated with each VMID.  When execting a command buffer,
@@ -57,8 +57,8 @@
  * SI supports 16.
  */
 
-#define START(node) ((node)->start)
-#define LAST(node) ((node)->last)
+#define START(yesde) ((yesde)->start)
+#define LAST(yesde) ((yesde)->last)
 
 INTERVAL_TREE_DEFINE(struct amdgpu_bo_va_mapping, rb, uint64_t, __subtree_last,
 		     START, LAST, static, amdgpu_vm_it)
@@ -195,7 +195,7 @@ static unsigned amdgpu_vm_bo_size(struct amdgpu_device *adev, unsigned level)
  *
  * @vm_bo: vm_bo which is evicted
  *
- * State for PDs/PTs and per VM BOs which are not at the location they should
+ * State for PDs/PTs and per VM BOs which are yest at the location they should
  * be.
  */
 static void amdgpu_vm_bo_evicted(struct amdgpu_vm_bo_base *vm_bo)
@@ -227,7 +227,7 @@ static void amdgpu_vm_bo_relocated(struct amdgpu_vm_bo_base *vm_bo)
  *
  * @vm_bo: vm_bo which is moved
  *
- * State for per VM BOs which are moved, but that change is not yet reflected
+ * State for per VM BOs which are moved, but that change is yest yet reflected
  * in the page tables.
  */
 static void amdgpu_vm_bo_moved(struct amdgpu_vm_bo_base *vm_bo)
@@ -238,10 +238,10 @@ static void amdgpu_vm_bo_moved(struct amdgpu_vm_bo_base *vm_bo)
 /**
  * amdgpu_vm_bo_idle - vm_bo is idle
  *
- * @vm_bo: vm_bo which is now idle
+ * @vm_bo: vm_bo which is yesw idle
  *
  * State for PDs/PTs and per VM BOs which have gone through the state machine
- * and are now idle.
+ * and are yesw idle.
  */
 static void amdgpu_vm_bo_idle(struct amdgpu_vm_bo_base *vm_bo)
 {
@@ -252,9 +252,9 @@ static void amdgpu_vm_bo_idle(struct amdgpu_vm_bo_base *vm_bo)
 /**
  * amdgpu_vm_bo_invalidated - vm_bo is invalidated
  *
- * @vm_bo: vm_bo which is now invalidated
+ * @vm_bo: vm_bo which is yesw invalidated
  *
- * State for normal BOs which are invalidated and that change not yet reflected
+ * State for yesrmal BOs which are invalidated and that change yest yet reflected
  * in the PTs.
  */
 static void amdgpu_vm_bo_invalidated(struct amdgpu_vm_bo_base *vm_bo)
@@ -267,9 +267,9 @@ static void amdgpu_vm_bo_invalidated(struct amdgpu_vm_bo_base *vm_bo)
 /**
  * amdgpu_vm_bo_done - vm_bo is done
  *
- * @vm_bo: vm_bo which is now done
+ * @vm_bo: vm_bo which is yesw done
  *
- * State for normal BOs which are invalidated and that change has been updated
+ * State for yesrmal BOs which are invalidated and that change has been updated
  * in the PTs.
  */
 static void amdgpu_vm_bo_done(struct amdgpu_vm_bo_base *vm_bo)
@@ -373,12 +373,12 @@ static void amdgpu_vm_pt_start(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_vm_pt_descendant - go to child node
+ * amdgpu_vm_pt_descendant - go to child yesde
  *
  * @adev: amdgpu_device pointer
  * @cursor: current state
  *
- * Walk to the child node of the current node.
+ * Walk to the child yesde of the current yesde.
  * Returns:
  * True if the walk was possible, false otherwise.
  */
@@ -402,12 +402,12 @@ static bool amdgpu_vm_pt_descendant(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_vm_pt_sibling - go to sibling node
+ * amdgpu_vm_pt_sibling - go to sibling yesde
  *
  * @adev: amdgpu_device pointer
  * @cursor: current state
  *
- * Walk to the sibling node of the current node.
+ * Walk to the sibling yesde of the current yesde.
  * Returns:
  * True if the walk was possible, false otherwise.
  */
@@ -434,11 +434,11 @@ static bool amdgpu_vm_pt_sibling(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_vm_pt_ancestor - go to parent node
+ * amdgpu_vm_pt_ancestor - go to parent yesde
  *
  * @cursor: current state
  *
- * Walk to the parent node of the current node.
+ * Walk to the parent yesde of the current yesde.
  * Returns:
  * True if the walk was possible, false otherwise.
  */
@@ -459,7 +459,7 @@ static bool amdgpu_vm_pt_ancestor(struct amdgpu_vm_pt_cursor *cursor)
  * @adev: amdgpu_device pointer
  * @cursor: current state
  *
- * Walk the PD/PT tree to the next node.
+ * Walk the PD/PT tree to the next yesde.
  */
 static void amdgpu_vm_pt_next(struct amdgpu_device *adev,
 			      struct amdgpu_vm_pt_cursor *cursor)
@@ -516,12 +516,12 @@ static bool amdgpu_vm_pt_continue_dfs(struct amdgpu_vm_pt_cursor *start,
 }
 
 /**
- * amdgpu_vm_pt_next_dfs - get the next node for a deep first search
+ * amdgpu_vm_pt_next_dfs - get the next yesde for a deep first search
  *
  * @adev: amdgpu_device structure
  * @cursor: current state
  *
- * Move the cursor to the next node in a deep first search.
+ * Move the cursor to the next yesde in a deep first search.
  */
 static void amdgpu_vm_pt_next_dfs(struct amdgpu_device *adev,
 				  struct amdgpu_vm_pt_cursor *cursor)
@@ -569,14 +569,14 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 }
 
 /**
- * amdgpu_vm_del_from_lru_notify - update bulk_moveable flag
+ * amdgpu_vm_del_from_lru_yestify - update bulk_moveable flag
  *
  * @bo: BO which was removed from the LRU
  *
  * Make sure the bulk_moveable flag is updated when a BO is removed from the
  * LRU.
  */
-void amdgpu_vm_del_from_lru_notify(struct ttm_buffer_object *bo)
+void amdgpu_vm_del_from_lru_yestify(struct ttm_buffer_object *bo)
 {
 	struct amdgpu_bo *abo;
 	struct amdgpu_vm_bo_base *bo_base;
@@ -707,7 +707,7 @@ bool amdgpu_vm_ready(struct amdgpu_vm *vm)
  * Root PD needs to be reserved when calling this.
  *
  * Returns:
- * 0 on success, errno otherwise.
+ * 0 on success, erryes otherwise.
  */
 static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 			      struct amdgpu_vm *vm,
@@ -846,7 +846,7 @@ static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	else if (!vm->root.base.bo || vm->root.base.bo->shadow)
 		bp->flags |= AMDGPU_GEM_CREATE_SHADOW;
 	bp->type = ttm_bo_type_kernel;
-	bp->no_wait_gpu = direct;
+	bp->yes_wait_gpu = direct;
 	if (vm->root.base.bo)
 		bp->resv = vm->root.base.bo->tbo.base.resv;
 }
@@ -863,7 +863,7 @@ static void amdgpu_vm_bo_param(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  *
  * Returns:
  * 1 if page table needed to be allocated, 0 if page table was already
- * allocated, negative errno if an error occurred.
+ * allocated, negative erryes if an error occurred.
  */
 static int amdgpu_vm_alloc_pts(struct amdgpu_device *adev,
 			       struct amdgpu_vm *vm,
@@ -1036,7 +1036,7 @@ bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
  * Emit a VM flush when it is necessary.
  *
  * Returns:
- * 0 on success, errno otherwise.
+ * 0 on success, erryes otherwise.
  */
 int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 		    bool need_pipe_sync)
@@ -1133,7 +1133,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	if (ring->funcs->patch_cond_exec)
 		amdgpu_ring_patch_cond_exec(ring, patch_offset);
 
-	/* the double SWITCH_BUFFER here *cannot* be skipped by COND_EXEC */
+	/* the double SWITCH_BUFFER here *canyest* be skipped by COND_EXEC */
 	if (ring->funcs->emit_switch_buffer) {
 		amdgpu_ring_emit_switch_buffer(ring);
 		amdgpu_ring_emit_switch_buffer(ring);
@@ -1149,7 +1149,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
  *
  * Find @bo inside the requested vm.
  * Search inside the @bos vm list for the requested vm
- * Returns the found bo_va or NULL if none is found
+ * Returns the found bo_va or NULL if yesne is found
  *
  * Object has to be reserved!
  *
@@ -1341,7 +1341,7 @@ static void amdgpu_vm_fragment(struct amdgpu_vm_update_params *params,
 {
 	/**
 	 * The MC L1 TLB supports variable sized pages, based on a fragment
-	 * field in the PTE. When this field is set to a non-zero value, page
+	 * field in the PTE. When this field is set to a yesn-zero value, page
 	 * granularity is increased from 4KB to (1 << (12 + frag)). The PTE
 	 * flags are considered valid for all PTEs within the fragment range
 	 * and corresponding mappings are assumed to be physically contiguous.
@@ -1358,7 +1358,7 @@ static void amdgpu_vm_fragment(struct amdgpu_vm_update_params *params,
 	 * allocation size to the fragment size.
 	 *
 	 * Starting with Vega10 the fragment size only controls the L1. The L2
-	 * is now directly feed with small/huge/giant pages from the walker.
+	 * is yesw directly feed with small/huge/giant pages from the walker.
 	 */
 	unsigned max_frag;
 
@@ -1367,14 +1367,14 @@ static void amdgpu_vm_fragment(struct amdgpu_vm_update_params *params,
 	else
 		max_frag = 31;
 
-	/* system pages are non continuously */
+	/* system pages are yesn continuously */
 	if (params->pages_addr) {
 		*frag = 0;
 		*frag_end = end;
 		return;
 	}
 
-	/* This intentionally wraps around if no bit is set */
+	/* This intentionally wraps around if yes bit is set */
 	*frag = min((unsigned)ffs(start) - 1, (unsigned)fls64(end - start) - 1);
 	if (*frag >= max_frag) {
 		*frag = max_frag;
@@ -1497,7 +1497,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 			/* Free all child entries.
 			 * Update the tables with the flags and addresses and free up subsequent
 			 * tables in the case of huge pages or freed up areas.
-			 * This is the maximum you can free, because all other page tables are not
+			 * This is the maximum you can free, because all other page tables are yest
 			 * completely covered by the range and so potentially still in use.
 			 */
 			while (cursor.pfn < frag_start) {
@@ -1576,7 +1576,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
  * @mapping: mapped range and flags to use for the update
  * @flags: HW flags for the mapping
  * @bo_adev: amdgpu_device pointer that bo actually been allocated
- * @nodes: array of drm_mm_nodes with the MC addresses
+ * @yesdes: array of drm_mm_yesdes with the MC addresses
  * @fence: optional resulting fence
  *
  * Split the mapping into smaller chunks so that each update fits
@@ -1592,14 +1592,14 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 				      struct amdgpu_bo_va_mapping *mapping,
 				      uint64_t flags,
 				      struct amdgpu_device *bo_adev,
-				      struct drm_mm_node *nodes,
+				      struct drm_mm_yesde *yesdes,
 				      struct dma_fence **fence)
 {
 	unsigned min_linear_pages = 1 << adev->vm_manager.fragment_size;
 	uint64_t pfn, start = mapping->start;
 	int r;
 
-	/* normally,bo_va->flags only contians READABLE and WIRTEABLE bit go here
+	/* yesrmally,bo_va->flags only contians READABLE and WIRTEABLE bit go here
 	 * but in case of something, we filter the flags in first place
 	 */
 	if (!(mapping->flags & AMDGPU_PTE_READABLE))
@@ -1613,10 +1613,10 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 	trace_amdgpu_vm_bo_update(mapping);
 
 	pfn = mapping->offset >> PAGE_SHIFT;
-	if (nodes) {
-		while (pfn >= nodes->size) {
-			pfn -= nodes->size;
-			++nodes;
+	if (yesdes) {
+		while (pfn >= yesdes->size) {
+			pfn -= yesdes->size;
+			++yesdes;
 		}
 	}
 
@@ -1625,9 +1625,9 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 		uint64_t max_entries;
 		uint64_t addr, last;
 
-		if (nodes) {
-			addr = nodes->start << PAGE_SHIFT;
-			max_entries = (nodes->size - pfn) *
+		if (yesdes) {
+			addr = yesdes->start << PAGE_SHIFT;
+			max_entries = (yesdes->size - pfn) *
 				AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 		} else {
 			addr = 0;
@@ -1669,9 +1669,9 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
 			return r;
 
 		pfn += (last - start + 1) / AMDGPU_GPU_PAGES_IN_CPU_PAGE;
-		if (nodes && nodes->size == pfn) {
+		if (yesdes && yesdes->size == pfn) {
 			pfn = 0;
-			++nodes;
+			++yesdes;
 		}
 		start = last + 1;
 
@@ -1700,7 +1700,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 	struct amdgpu_bo_va_mapping *mapping;
 	dma_addr_t *pages_addr = NULL;
 	struct ttm_mem_reg *mem;
-	struct drm_mm_node *nodes;
+	struct drm_mm_yesde *yesdes;
 	struct dma_fence *exclusive, **last_update;
 	uint64_t flags;
 	struct amdgpu_device *bo_adev = adev;
@@ -1708,13 +1708,13 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 
 	if (clear || !bo) {
 		mem = NULL;
-		nodes = NULL;
+		yesdes = NULL;
 		exclusive = NULL;
 	} else {
 		struct ttm_dma_tt *ttm;
 
 		mem = &bo->tbo.mem;
-		nodes = mem->mm_node;
+		yesdes = mem->mm_yesde;
 		if (mem->mem_type == TTM_PL_TT) {
 			ttm = container_of(bo->tbo.ttm, struct ttm_dma_tt, ttm);
 			pages_addr = ttm->dma_address;
@@ -1744,13 +1744,13 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 
 	list_for_each_entry(mapping, &bo_va->invalids, list) {
 		r = amdgpu_vm_bo_split_mapping(adev, exclusive, pages_addr, vm,
-					       mapping, flags, bo_adev, nodes,
+					       mapping, flags, bo_adev, yesdes,
 					       last_update);
 		if (r)
 			return r;
 	}
 
-	/* If the BO is not in its preferred location add it back to
+	/* If the BO is yest in its preferred location add it back to
 	 * the evicted list so that it gets validated again on the
 	 * next command submission.
 	 */
@@ -1899,7 +1899,7 @@ static void amdgpu_vm_prt_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	r = dma_resv_get_fences_rcu(resv, &excl,
 					      &shared_count, &shared);
 	if (r) {
-		/* Not enough memory to grab the fence list, as last resort
+		/* Not eyesugh memory to grab the fence list, as last resort
 		 * block for all the fences to complete.
 		 */
 		dma_resv_wait_timeout_rcu(resv, true, false,
@@ -1924,7 +1924,7 @@ static void amdgpu_vm_prt_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
  *
  * @adev: amdgpu_device pointer
  * @vm: requested vm
- * @fence: optional resulting fence (unchanged if no work needed to be done
+ * @fence: optional resulting fence (unchanged if yes work needed to be done
  * or if an error occurred)
  *
  * Make sure all freed BOs are cleared in the PT.
@@ -2011,7 +2011,7 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 		/* Try to reserve the BO to avoid clearing its ptes */
 		if (!amdgpu_vm_debug && dma_resv_trylock(resv))
 			clear = false;
-		/* Somebody else is using the BO right now */
+		/* Somebody else is using the BO right yesw */
 		else
 			clear = true;
 
@@ -2594,7 +2594,7 @@ void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t min_vm_size,
 		 * assumptions:
 		 *
 		 *  - Need to map system memory and VRAM from all GPUs
-		 *     - VRAM from other GPUs not known here
+		 *     - VRAM from other GPUs yest kyeswn here
 		 *     - Assume VRAM <= system memory
 		 *  - On GFX8 and older, VM space can be segmented for
 		 *    different MTYPEs
@@ -2795,7 +2795,7 @@ error_free_direct:
  * @vm: the VM to check
  *
  * check all entries of the root PD, if any subsequent PDs are allocated,
- * it means there are page table creating and filling, and is no a clean
+ * it means there are page table creating and filling, and is yes a clean
  * VM
  *
  * Returns:
@@ -2826,7 +2826,7 @@ static int amdgpu_vm_check_clean_reserved(struct amdgpu_device *adev,
  * @vm: requested vm
  * @pasid: pasid to use
  *
- * This only works on GFX VMs that don't have any BOs added and no
+ * This only works on GFX VMs that don't have any BOs added and yes
  * page tables allocated yet.
  *
  * Changes the following VM parameters:
@@ -2838,7 +2838,7 @@ static int amdgpu_vm_check_clean_reserved(struct amdgpu_device *adev,
  * setting.
  *
  * Returns:
- * 0 for success, -errno for errors.
+ * 0 for success, -erryes for errors.
  */
 int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			   unsigned int pasid)
@@ -3029,12 +3029,12 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 	adev->vm_manager.fence_context =
 		dma_fence_context_alloc(AMDGPU_MAX_RINGS);
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		adev->vm_manager.seqno[i] = 0;
+		adev->vm_manager.seqyes[i] = 0;
 
 	spin_lock_init(&adev->vm_manager.prt_lock);
 	atomic_set(&adev->vm_manager.num_prt_users, 0);
 
-	/* If not overridden by the user, by default, only in large BAR systems
+	/* If yest overridden by the user, by default, only in large BAR systems
 	 * Compute VM tables will be updated by CPU
 	 */
 #ifdef CONFIG_X86_64
@@ -3080,7 +3080,7 @@ void amdgpu_vm_manager_fini(struct amdgpu_device *adev)
  * @filp: drm file pointer
  *
  * Returns:
- * 0 for success, -errno for errors.
+ * 0 for success, -erryes for errors.
  */
 int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {

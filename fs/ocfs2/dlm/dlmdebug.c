@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * dlmdebug.c
  *
@@ -18,7 +18,7 @@
 #include <linux/export.h>
 
 #include "cluster/heartbeat.h"
-#include "cluster/nodemanager.h"
+#include "cluster/yesdemanager.h"
 #include "cluster/tcp.h"
 
 #include "dlmapi.h"
@@ -44,7 +44,7 @@ static void dlm_print_lockres_refmap(struct dlm_lock_resource *res)
 	int bit;
 	assert_spin_locked(&res->spinlock);
 
-	printk("  refmap nodes: [ ");
+	printk("  refmap yesdes: [ ");
 	bit = 0;
 	while (1) {
 		bit = find_next_bit(res->refmap, O2NM_MAX_NODES, bit);
@@ -60,11 +60,11 @@ static void __dlm_print_lock(struct dlm_lock *lock)
 {
 	spin_lock(&lock->spinlock);
 
-	printk("    type=%d, conv=%d, node=%u, cookie=%u:%llu, "
+	printk("    type=%d, conv=%d, yesde=%u, cookie=%u:%llu, "
 	       "ref=%u, ast=(empty=%c,pend=%c), bast=(empty=%c,pend=%c), "
 	       "pending=(conv=%c,lock=%c,cancel=%c,unlock=%c)\n",
-	       lock->ml.type, lock->ml.convert_type, lock->ml.node,
-	       dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+	       lock->ml.type, lock->ml.convert_type, lock->ml.yesde,
+	       dlm_get_lock_cookie_yesde(be64_to_cpu(lock->ml.cookie)),
 	       dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 	       kref_read(&lock->lock_refs),
 	       (list_empty(&lock->ast_list) ? 'y' : 'n'),
@@ -92,12 +92,12 @@ void __dlm_print_one_lock_resource(struct dlm_lock_resource *res)
 	       buf, res->owner, res->state);
 	printk("  last used: %lu, refcnt: %u, on purge list: %s\n",
 	       res->last_used, kref_read(&res->refs),
-	       list_empty(&res->purge) ? "no" : "yes");
+	       list_empty(&res->purge) ? "yes" : "no");
 	printk("  on dirty list: %s, on reco list: %s, "
 	       "migrating pending: %s\n",
-	       list_empty(&res->dirty) ? "no" : "yes",
-	       list_empty(&res->recovering) ? "no" : "yes",
-	       res->migration_pending ? "yes" : "no");
+	       list_empty(&res->dirty) ? "yes" : "no",
+	       list_empty(&res->recovering) ? "yes" : "no",
+	       res->migration_pending ? "no" : "yes");
 	printk("  inflight locks: %d, asts reserved: %d\n",
 	       res->inflight_locks, atomic_read(&res->asts_reserved));
 	dlm_print_lockres_refmap(res);
@@ -179,15 +179,15 @@ static const char *dlm_errmsgs[] = {
 	[DLM_NOSUPPORT] = 		"unsupported",
 	[DLM_CANCELGRANT] = 		"can't cancel convert: already granted",
 	[DLM_IVLOCKID] = 		"bad lockid",
-	[DLM_SYNC] = 			"synchronous request granted",
+	[DLM_SYNC] = 			"synchroyesus request granted",
 	[DLM_BADTYPE] = 		"bad resource type",
 	[DLM_BADRESOURCE] = 		"bad resource handle",
-	[DLM_MAXHANDLES] = 		"no more resource handles",
+	[DLM_MAXHANDLES] = 		"yes more resource handles",
 	[DLM_NOCLINFO] = 		"can't contact cluster manager",
 	[DLM_NOLOCKMGR] = 		"can't contact lock manager",
 	[DLM_NOPURGED] = 		"can't contact purge daemon",
 	[DLM_BADARGS] = 		"bad api args",
-	[DLM_VOID] = 			"no status",
+	[DLM_VOID] = 			"yes status",
 	[DLM_NOTQUEUED] = 		"NOQUEUE was specified and request failed",
 	[DLM_IVBUFLEN] = 		"invalid resource name length",
 	[DLM_CVTUNGRANT] = 		"attempted to convert ungranted lock",
@@ -203,9 +203,9 @@ static const char *dlm_errmsgs[] = {
 	[DLM_TIMEOUT] = 		"timeout value for lock has expired",
 	[DLM_IVGROUPID] = 		"invalid group specification",
 	[DLM_VERS_CONFLICT] = 		"version conflicts prevent request handling",
-	[DLM_BAD_DEVICE_PATH] = 	"Locks device does not exist or path wrong",
+	[DLM_BAD_DEVICE_PATH] = 	"Locks device does yest exist or path wrong",
 	[DLM_NO_DEVICE_PERMISSION] = 	"Client has insufficient perms for device",
-	[DLM_NO_CONTROL_DEVICE] = 	"Cannot set options on opened device ",
+	[DLM_NO_CONTROL_DEVICE] = 	"Canyest set options on opened device ",
 	[DLM_RECOVERING] = 		"lock resource being recovered",
 	[DLM_MIGRATING] = 		"lock resource being migrated",
 	[DLM_MAXSTATS] = 		"invalid error number",
@@ -227,7 +227,7 @@ const char *dlm_errname(enum dlm_status err)
 }
 EXPORT_SYMBOL_GPL(dlm_errname);
 
-/* NOTE: This function converts a lockname into a string. It uses knowledge
+/* NOTE: This function converts a lockname into a string. It uses kyeswledge
  * of the format of the lockname that should be outside the purview of the dlm.
  * We are adding only to make dlm debugging slightly easier.
  *
@@ -237,29 +237,29 @@ static int stringify_lockname(const char *lockname, int locklen, char *buf,
 			      int len)
 {
 	int out = 0;
-	__be64 inode_blkno_be;
+	__be64 iyesde_blkyes_be;
 
 #define OCFS2_DENTRY_LOCK_INO_START	18
 	if (*lockname == 'N') {
-		memcpy((__be64 *)&inode_blkno_be,
+		memcpy((__be64 *)&iyesde_blkyes_be,
 		       (char *)&lockname[OCFS2_DENTRY_LOCK_INO_START],
 		       sizeof(__be64));
 		out += snprintf(buf + out, len - out, "%.*s%08x",
 				OCFS2_DENTRY_LOCK_INO_START - 1, lockname,
-				(unsigned int)be64_to_cpu(inode_blkno_be));
+				(unsigned int)be64_to_cpu(iyesde_blkyes_be));
 	} else
 		out += snprintf(buf + out, len - out, "%.*s",
 				locklen, lockname);
 	return out;
 }
 
-static int stringify_nodemap(unsigned long *nodemap, int maxnodes,
+static int stringify_yesdemap(unsigned long *yesdemap, int maxyesdes,
 			     char *buf, int len)
 {
 	int out = 0;
 	int i = -1;
 
-	while ((i = find_next_bit(nodemap, maxnodes, i + 1)) < maxnodes)
+	while ((i = find_next_bit(yesdemap, maxyesdes, i + 1)) < maxyesdes)
 		out += snprintf(buf + out, len - out, "%d ", i);
 
 	return out;
@@ -286,22 +286,22 @@ static int dump_mle(struct dlm_master_list_entry *mle, char *buf, int len)
 			kref_read(&mle->mle_refs));
 
 	out += snprintf(buf + out, len - out, "Maybe=");
-	out += stringify_nodemap(mle->maybe_map, O2NM_MAX_NODES,
+	out += stringify_yesdemap(mle->maybe_map, O2NM_MAX_NODES,
 				 buf + out, len - out);
 	out += snprintf(buf + out, len - out, "\n");
 
 	out += snprintf(buf + out, len - out, "Vote=");
-	out += stringify_nodemap(mle->vote_map, O2NM_MAX_NODES,
+	out += stringify_yesdemap(mle->vote_map, O2NM_MAX_NODES,
 				 buf + out, len - out);
 	out += snprintf(buf + out, len - out, "\n");
 
 	out += snprintf(buf + out, len - out, "Response=");
-	out += stringify_nodemap(mle->response_map, O2NM_MAX_NODES,
+	out += stringify_yesdemap(mle->response_map, O2NM_MAX_NODES,
 				 buf + out, len - out);
 	out += snprintf(buf + out, len - out, "\n");
 
 	out += snprintf(buf + out, len - out, "Node=");
-	out += stringify_nodemap(mle->node_map, O2NM_MAX_NODES,
+	out += stringify_yesdemap(mle->yesde_map, O2NM_MAX_NODES,
 				 buf + out, len - out);
 	out += snprintf(buf + out, len - out, "\n");
 
@@ -332,7 +332,7 @@ static struct dentry *dlm_debugfs_root;
 #define DLM_DEBUGFS_PURGE_LIST			"purge_list"
 
 /* begin - utils funcs */
-static int debug_release(struct inode *inode, struct file *file)
+static int debug_release(struct iyesde *iyesde, struct file *file)
 {
 	free_page((unsigned long)file->private_data);
 	return 0;
@@ -376,16 +376,16 @@ static int debug_purgelist_print(struct dlm_ctxt *dlm, char *buf, int len)
 	return out;
 }
 
-static int debug_purgelist_open(struct inode *inode, struct file *file)
+static int debug_purgelist_open(struct iyesde *iyesde, struct file *file)
 {
-	struct dlm_ctxt *dlm = inode->i_private;
+	struct dlm_ctxt *dlm = iyesde->i_private;
 	char *buf = NULL;
 
 	buf = (char *) get_zeroed_page(GFP_NOFS);
 	if (!buf)
 		goto bail;
 
-	i_size_write(inode, debug_purgelist_print(dlm, buf, PAGE_SIZE - 1));
+	i_size_write(iyesde, debug_purgelist_print(dlm, buf, PAGE_SIZE - 1));
 
 	file->private_data = buf;
 
@@ -416,7 +416,7 @@ static int debug_mle_print(struct dlm_ctxt *dlm, char *buf, int len)
 	spin_lock(&dlm->master_lock);
 	for (i = 0; i < DLM_HASH_BUCKETS; i++) {
 		bucket = dlm_master_hash(dlm, i);
-		hlist_for_each_entry(mle, bucket, master_hash_node) {
+		hlist_for_each_entry(mle, bucket, master_hash_yesde) {
 			++total;
 			++bucket_count;
 			if (len - out < 200)
@@ -433,16 +433,16 @@ static int debug_mle_print(struct dlm_ctxt *dlm, char *buf, int len)
 	return out;
 }
 
-static int debug_mle_open(struct inode *inode, struct file *file)
+static int debug_mle_open(struct iyesde *iyesde, struct file *file)
 {
-	struct dlm_ctxt *dlm = inode->i_private;
+	struct dlm_ctxt *dlm = iyesde->i_private;
 	char *buf = NULL;
 
 	buf = (char *) get_zeroed_page(GFP_NOFS);
 	if (!buf)
 		goto bail;
 
-	i_size_write(inode, debug_mle_print(dlm, buf, PAGE_SIZE - 1));
+	i_size_write(iyesde, debug_mle_print(dlm, buf, PAGE_SIZE - 1));
 
 	file->private_data = buf;
 
@@ -471,8 +471,8 @@ static int dump_lock(struct dlm_lock *lock, int list_type, char *buf, int len)
 		       "%d,%d,%d,%d\n",
 		       DEBUG_LOCK_VERSION,
 		       list_type, lock->ml.type, lock->ml.convert_type,
-		       lock->ml.node,
-		       dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		       lock->ml.yesde,
+		       dlm_get_lock_cookie_yesde(be64_to_cpu(lock->ml.cookie)),
 		       dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		       !list_empty(&lock->ast_list),
 		       !list_empty(&lock->bast_list),
@@ -510,7 +510,7 @@ static int dump_lockres(struct dlm_lock_resource *res, char *buf, int len)
 
 	/* refmap */
 	out += snprintf(buf + out, len - out, "RMAP:");
-	out += stringify_nodemap(res->refmap, O2NM_MAX_NODES,
+	out += stringify_yesdemap(res->refmap, O2NM_MAX_NODES,
 				 buf + out, len - out);
 	out += snprintf(buf + out, len - out, "\n");
 
@@ -609,9 +609,9 @@ static const struct seq_operations debug_lockres_ops = {
 	.show =		lockres_seq_show,
 };
 
-static int debug_lockres_open(struct inode *inode, struct file *file)
+static int debug_lockres_open(struct iyesde *iyesde, struct file *file)
 {
-	struct dlm_ctxt *dlm = inode->i_private;
+	struct dlm_ctxt *dlm = iyesde->i_private;
 	struct debug_lockres *dl;
 	void *buf;
 
@@ -634,11 +634,11 @@ static int debug_lockres_open(struct inode *inode, struct file *file)
 bailfree:
 	kfree(buf);
 bail:
-	mlog_errno(-ENOMEM);
+	mlog_erryes(-ENOMEM);
 	return -ENOMEM;
 }
 
-static int debug_lockres_release(struct inode *inode, struct file *file)
+static int debug_lockres_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 	struct debug_lockres *dl = (struct debug_lockres *)seq->private;
@@ -647,7 +647,7 @@ static int debug_lockres_release(struct inode *inode, struct file *file)
 		dlm_lockres_put(dl->dl_res);
 	dlm_put(dl->dl_ctxt);
 	kfree(dl->dl_buf);
-	return seq_release_private(inode, file);
+	return seq_release_private(iyesde, file);
 }
 
 static const struct file_operations debug_lockres_fops = {
@@ -662,7 +662,7 @@ static const struct file_operations debug_lockres_fops = {
 static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 {
 	int out = 0;
-	struct dlm_reco_node_data *node;
+	struct dlm_reco_yesde_data *yesde;
 	char *state;
 	int cur_mles = 0, tot_mles = 0;
 	int i;
@@ -686,33 +686,33 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 	out += snprintf(buf + out, len - out,
 			"Domain: %s  Key: 0x%08x  Protocol: %d.%d\n",
 			dlm->name, dlm->key, dlm->dlm_locking_proto.pv_major,
-			dlm->dlm_locking_proto.pv_minor);
+			dlm->dlm_locking_proto.pv_miyesr);
 
 	/* Thread Pid: xxx  Node: xxx  State: xxxxx */
 	out += snprintf(buf + out, len - out,
 			"Thread Pid: %d  Node: %d  State: %s\n",
-			task_pid_nr(dlm->dlm_thread_task), dlm->node_num, state);
+			task_pid_nr(dlm->dlm_thread_task), dlm->yesde_num, state);
 
 	/* Number of Joins: xxx  Joining Node: xxx */
 	out += snprintf(buf + out, len - out,
 			"Number of Joins: %d  Joining Node: %d\n",
-			dlm->num_joins, dlm->joining_node);
+			dlm->num_joins, dlm->joining_yesde);
 
 	/* Domain Map: xx xx xx */
 	out += snprintf(buf + out, len - out, "Domain Map: ");
-	out += stringify_nodemap(dlm->domain_map, O2NM_MAX_NODES,
+	out += stringify_yesdemap(dlm->domain_map, O2NM_MAX_NODES,
 				 buf + out, len - out);
 	out += snprintf(buf + out, len - out, "\n");
 
 	/* Exit Domain Map: xx xx xx */
 	out += snprintf(buf + out, len - out, "Exit Domain Map: ");
-	out += stringify_nodemap(dlm->exit_domain_map, O2NM_MAX_NODES,
+	out += stringify_yesdemap(dlm->exit_domain_map, O2NM_MAX_NODES,
 				 buf + out, len - out);
 	out += snprintf(buf + out, len - out, "\n");
 
 	/* Live Map: xx xx xx */
 	out += snprintf(buf + out, len - out, "Live Map: ");
-	out += stringify_nodemap(dlm->live_nodes_map, O2NM_MAX_NODES,
+	out += stringify_yesdemap(dlm->live_yesdes_map, O2NM_MAX_NODES,
 				 buf + out, len - out);
 	out += snprintf(buf + out, len - out, "\n");
 
@@ -766,7 +766,7 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 
 	/* Dead Node: xxx */
 	out += snprintf(buf + out, len - out,
-			"Dead Node: %d\n", dlm->reco.dead_node);
+			"Dead Node: %d\n", dlm->reco.dead_yesde);
 
 	/* What about DLM_RECO_STATE_FINALIZE? */
 	if (dlm->reco.state == DLM_RECO_STATE_ACTIVE)
@@ -782,14 +782,14 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 
 	/* Recovery Map: xx xx */
 	out += snprintf(buf + out, len - out, "Recovery Map: ");
-	out += stringify_nodemap(dlm->recovery_map, O2NM_MAX_NODES,
+	out += stringify_yesdemap(dlm->recovery_map, O2NM_MAX_NODES,
 				 buf + out, len - out);
 	out += snprintf(buf + out, len - out, "\n");
 
 	/* Recovery Node State: */
 	out += snprintf(buf + out, len - out, "Recovery Node State:\n");
-	list_for_each_entry(node, &dlm->reco.node_data, list) {
-		switch (node->state) {
+	list_for_each_entry(yesde, &dlm->reco.yesde_data, list) {
+		switch (yesde->state) {
 		case DLM_RECO_NODE_DATA_INIT:
 			state = "INIT";
 			break;
@@ -816,7 +816,7 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 			break;
 		}
 		out += snprintf(buf + out, len - out, "\t%u - %s\n",
-				node->node_num, state);
+				yesde->yesde_num, state);
 	}
 
 	spin_unlock(&dlm->spinlock);
@@ -824,16 +824,16 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 	return out;
 }
 
-static int debug_state_open(struct inode *inode, struct file *file)
+static int debug_state_open(struct iyesde *iyesde, struct file *file)
 {
-	struct dlm_ctxt *dlm = inode->i_private;
+	struct dlm_ctxt *dlm = iyesde->i_private;
 	char *buf = NULL;
 
 	buf = (char *) get_zeroed_page(GFP_NOFS);
 	if (!buf)
 		goto bail;
 
-	i_size_write(inode, debug_state_print(dlm, buf, PAGE_SIZE - 1));
+	i_size_write(iyesde, debug_state_print(dlm, buf, PAGE_SIZE - 1));
 
 	file->private_data = buf;
 

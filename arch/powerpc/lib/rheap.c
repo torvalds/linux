@@ -1,7 +1,7 @@
 /*
  * A Remote Heap.  Remote means that we don't touch the memory that the
  * heap points to. Normal heap implementations use the memory they manage
- * to place their list. We cannot do that because the memory we manage may
+ * to place their list. We canyest do that because the memory we manage may
  * have special properties, for example it is uncachable or of different
  * endianess.
  *
@@ -13,7 +13,7 @@
  * or implied.
  */
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/mm.h>
@@ -104,11 +104,11 @@ static int assure_empty(rh_info_t * info, int slots)
 {
 	int max_blocks;
 
-	/* This function is not meant to be used to grow uncontrollably */
+	/* This function is yest meant to be used to grow uncontrollably */
 	if (slots >= 4)
 		return -EINVAL;
 
-	/* Enough space */
+	/* Eyesugh space */
 	if (info->empty_slots >= slots)
 		return 0;
 
@@ -122,7 +122,7 @@ static rh_block_t *get_slot(rh_info_t * info)
 {
 	rh_block_t *blk;
 
-	/* If no more free slots, and failure to extend. */
+	/* If yes more free slots, and failure to extend. */
 	/* XXX: You should have called assure_empty before */
 	if (info->empty_slots == 0) {
 		printk(KERN_ERR "rh: out of slots; crash is imminent.\n");
@@ -184,7 +184,7 @@ static void attach_free_block(rh_info_t * info, rh_block_t * blkn)
 		if (e == bs)
 			after = blk;
 
-		/* If both are not null, break now */
+		/* If both are yest null, break yesw */
 		if (before != NULL && after != NULL)
 			break;
 	}
@@ -247,7 +247,7 @@ static void attach_taken_block(rh_info_t * info, rh_block_t * blkn)
 }
 
 /*
- * Create a remote heap dynamically.  Note that no memory for the blocks
+ * Create a remote heap dynamically.  Note that yes memory for the blocks
  * are allocated.  It will upon the first allocation
  */
 rh_info_t *rh_create(unsigned int alignment)
@@ -280,7 +280,7 @@ EXPORT_SYMBOL_GPL(rh_create);
 
 /*
  * Destroy a dynamically created remote heap.  Deallocate only if the areas
- * are not static
+ * are yest static
  */
 void rh_destroy(rh_info_t * info)
 {
@@ -294,7 +294,7 @@ EXPORT_SYMBOL_GPL(rh_destroy);
 
 /*
  * Initialize in place a remote heap info block.  This is needed to support
- * operation very early in the startup of the kernel, when it is not yet safe
+ * operation very early in the startup of the kernel, when it is yest yet safe
  * to call kmalloc.
  */
 void rh_init(rh_info_t * info, unsigned int alignment, int max_blocks,

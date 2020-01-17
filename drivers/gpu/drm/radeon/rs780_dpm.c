@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -716,18 +716,18 @@ union pplib_power_state {
 	struct _ATOM_PPLIB_STATE_V2 v2;
 };
 
-static void rs780_parse_pplib_non_clock_info(struct radeon_device *rdev,
+static void rs780_parse_pplib_yesn_clock_info(struct radeon_device *rdev,
 					     struct radeon_ps *rps,
-					     struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info,
+					     struct _ATOM_PPLIB_NONCLOCK_INFO *yesn_clock_info,
 					     u8 table_rev)
 {
-	rps->caps = le32_to_cpu(non_clock_info->ulCapsAndSettings);
-	rps->class = le16_to_cpu(non_clock_info->usClassification);
-	rps->class2 = le16_to_cpu(non_clock_info->usClassification2);
+	rps->caps = le32_to_cpu(yesn_clock_info->ulCapsAndSettings);
+	rps->class = le16_to_cpu(yesn_clock_info->usClassification);
+	rps->class2 = le16_to_cpu(yesn_clock_info->usClassification2);
 
 	if (ATOM_PPLIB_NONCLOCKINFO_VER1 < table_rev) {
-		rps->vclk = le32_to_cpu(non_clock_info->ulVCLK);
-		rps->dclk = le32_to_cpu(non_clock_info->ulDCLK);
+		rps->vclk = le32_to_cpu(yesn_clock_info->ulVCLK);
+		rps->dclk = le32_to_cpu(yesn_clock_info->ulDCLK);
 	} else {
 		rps->vclk = 0;
 		rps->dclk = 0;
@@ -791,7 +791,7 @@ static void rs780_parse_pplib_clock_info(struct radeon_device *rdev,
 static int rs780_parse_power_table(struct radeon_device *rdev)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
-	struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info;
+	struct _ATOM_PPLIB_NONCLOCK_INFO *yesn_clock_info;
 	union pplib_power_state *power_state;
 	int i;
 	union pplib_clock_info *clock_info;
@@ -817,7 +817,7 @@ static int rs780_parse_power_table(struct radeon_device *rdev)
 			(mode_info->atom_context->bios + data_offset +
 			 le16_to_cpu(power_info->pplib.usStateArrayOffset) +
 			 i * power_info->pplib.ucStateEntrySize);
-		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
+		yesn_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
 			(mode_info->atom_context->bios + data_offset +
 			 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset) +
 			 (power_state->v1.ucNonClockStateIndex *
@@ -834,8 +834,8 @@ static int rs780_parse_power_table(struct radeon_device *rdev)
 				return -ENOMEM;
 			}
 			rdev->pm.dpm.ps[i].ps_priv = ps;
-			rs780_parse_pplib_non_clock_info(rdev, &rdev->pm.dpm.ps[i],
-							 non_clock_info,
+			rs780_parse_pplib_yesn_clock_info(rdev, &rdev->pm.dpm.ps[i],
+							 yesn_clock_info,
 							 power_info->pplib.ucNonClockSize);
 			rs780_parse_pplib_clock_info(rdev,
 						     &rdev->pm.dpm.ps[i],

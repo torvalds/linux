@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * acl.c
  *
@@ -22,7 +22,7 @@
 #include "alloc.h"
 #include "dlmglue.h"
 #include "file.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "journal.h"
 #include "ocfs2_fs.h"
 
@@ -111,7 +111,7 @@ static void *ocfs2_acl_to_xattr(const struct posix_acl *acl, size_t *size)
 	return ocfs2_acl;
 }
 
-static struct posix_acl *ocfs2_get_acl_nolock(struct inode *inode,
+static struct posix_acl *ocfs2_get_acl_yeslock(struct iyesde *iyesde,
 					      int type,
 					      struct buffer_head *di_bh)
 {
@@ -131,12 +131,12 @@ static struct posix_acl *ocfs2_get_acl_nolock(struct inode *inode,
 		return ERR_PTR(-EINVAL);
 	}
 
-	retval = ocfs2_xattr_get_nolock(inode, di_bh, name_index, "", NULL, 0);
+	retval = ocfs2_xattr_get_yeslock(iyesde, di_bh, name_index, "", NULL, 0);
 	if (retval > 0) {
 		value = kmalloc(retval, GFP_NOFS);
 		if (!value)
 			return ERR_PTR(-ENOMEM);
-		retval = ocfs2_xattr_get_nolock(inode, di_bh, name_index,
+		retval = ocfs2_xattr_get_yeslock(iyesde, di_bh, name_index,
 						"", value, retval);
 	}
 
@@ -154,56 +154,56 @@ static struct posix_acl *ocfs2_get_acl_nolock(struct inode *inode,
 
 /*
  * Helper function to set i_mode in memory and disk. Some call paths
- * will not have di_bh or a journal handle to pass, in which case it
+ * will yest have di_bh or a journal handle to pass, in which case it
  * will create it's own.
  */
-static int ocfs2_acl_set_mode(struct inode *inode, struct buffer_head *di_bh,
+static int ocfs2_acl_set_mode(struct iyesde *iyesde, struct buffer_head *di_bh,
 			      handle_t *handle, umode_t new_mode)
 {
 	int ret, commit_handle = 0;
-	struct ocfs2_dinode *di;
+	struct ocfs2_diyesde *di;
 
 	if (di_bh == NULL) {
-		ret = ocfs2_read_inode_block(inode, &di_bh);
+		ret = ocfs2_read_iyesde_block(iyesde, &di_bh);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out;
 		}
 	} else
 		get_bh(di_bh);
 
 	if (handle == NULL) {
-		handle = ocfs2_start_trans(OCFS2_SB(inode->i_sb),
+		handle = ocfs2_start_trans(OCFS2_SB(iyesde->i_sb),
 					   OCFS2_INODE_UPDATE_CREDITS);
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out_brelse;
 		}
 
 		commit_handle = 1;
 	}
 
-	di = (struct ocfs2_dinode *)di_bh->b_data;
-	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), di_bh,
+	di = (struct ocfs2_diyesde *)di_bh->b_data;
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(iyesde), di_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out_commit;
 	}
 
-	inode->i_mode = new_mode;
-	inode->i_ctime = current_time(inode);
-	di->i_mode = cpu_to_le16(inode->i_mode);
-	di->i_ctime = cpu_to_le64(inode->i_ctime.tv_sec);
-	di->i_ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
-	ocfs2_update_inode_fsync_trans(handle, inode, 0);
+	iyesde->i_mode = new_mode;
+	iyesde->i_ctime = current_time(iyesde);
+	di->i_mode = cpu_to_le16(iyesde->i_mode);
+	di->i_ctime = cpu_to_le64(iyesde->i_ctime.tv_sec);
+	di->i_ctime_nsec = cpu_to_le32(iyesde->i_ctime.tv_nsec);
+	ocfs2_update_iyesde_fsync_trans(handle, iyesde, 0);
 
 	ocfs2_journal_dirty(handle, di_bh);
 
 out_commit:
 	if (commit_handle)
-		ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
+		ocfs2_commit_trans(OCFS2_SB(iyesde->i_sb), handle);
 out_brelse:
 	brelse(di_bh);
 out:
@@ -211,10 +211,10 @@ out:
 }
 
 /*
- * Set the access or default ACL of an inode.
+ * Set the access or default ACL of an iyesde.
  */
 static int ocfs2_set_acl(handle_t *handle,
-			 struct inode *inode,
+			 struct iyesde *iyesde,
 			 struct buffer_head *di_bh,
 			 int type,
 			 struct posix_acl *acl,
@@ -226,7 +226,7 @@ static int ocfs2_set_acl(handle_t *handle,
 	size_t size = 0;
 	int ret;
 
-	if (S_ISLNK(inode->i_mode))
+	if (S_ISLNK(iyesde->i_mode))
 		return -EOPNOTSUPP;
 
 	switch (type) {
@@ -235,7 +235,7 @@ static int ocfs2_set_acl(handle_t *handle,
 		break;
 	case ACL_TYPE_DEFAULT:
 		name_index = OCFS2_XATTR_INDEX_POSIX_ACL_DEFAULT;
-		if (!S_ISDIR(inode->i_mode))
+		if (!S_ISDIR(iyesde->i_mode))
 			return acl ? -EACCES : 0;
 		break;
 	default:
@@ -249,45 +249,45 @@ static int ocfs2_set_acl(handle_t *handle,
 	}
 
 	if (handle)
-		ret = ocfs2_xattr_set_handle(handle, inode, di_bh, name_index,
+		ret = ocfs2_xattr_set_handle(handle, iyesde, di_bh, name_index,
 					     "", value, size, 0,
 					     meta_ac, data_ac);
 	else
-		ret = ocfs2_xattr_set(inode, name_index, "", value, size, 0);
+		ret = ocfs2_xattr_set(iyesde, name_index, "", value, size, 0);
 
 	kfree(value);
 
 	return ret;
 }
 
-int ocfs2_iop_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int ocfs2_iop_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type)
 {
 	struct buffer_head *bh = NULL;
 	int status, had_lock;
 	struct ocfs2_lock_holder oh;
 
-	had_lock = ocfs2_inode_lock_tracker(inode, &bh, 1, &oh);
+	had_lock = ocfs2_iyesde_lock_tracker(iyesde, &bh, 1, &oh);
 	if (had_lock < 0)
 		return had_lock;
 	if (type == ACL_TYPE_ACCESS && acl) {
 		umode_t mode;
 
-		status = posix_acl_update_mode(inode, &mode, &acl);
+		status = posix_acl_update_mode(iyesde, &mode, &acl);
 		if (status)
 			goto unlock;
 
-		status = ocfs2_acl_set_mode(inode, bh, NULL, mode);
+		status = ocfs2_acl_set_mode(iyesde, bh, NULL, mode);
 		if (status)
 			goto unlock;
 	}
-	status = ocfs2_set_acl(NULL, inode, bh, type, acl, NULL, NULL);
+	status = ocfs2_set_acl(NULL, iyesde, bh, type, acl, NULL, NULL);
 unlock:
-	ocfs2_inode_unlock_tracker(inode, 1, &oh, had_lock);
+	ocfs2_iyesde_unlock_tracker(iyesde, 1, &oh, had_lock);
 	brelse(bh);
 	return status;
 }
 
-struct posix_acl *ocfs2_iop_get_acl(struct inode *inode, int type)
+struct posix_acl *ocfs2_iop_get_acl(struct iyesde *iyesde, int type)
 {
 	struct ocfs2_super *osb;
 	struct buffer_head *di_bh = NULL;
@@ -295,105 +295,105 @@ struct posix_acl *ocfs2_iop_get_acl(struct inode *inode, int type)
 	int had_lock;
 	struct ocfs2_lock_holder oh;
 
-	osb = OCFS2_SB(inode->i_sb);
+	osb = OCFS2_SB(iyesde->i_sb);
 	if (!(osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL))
 		return NULL;
 
-	had_lock = ocfs2_inode_lock_tracker(inode, &di_bh, 0, &oh);
+	had_lock = ocfs2_iyesde_lock_tracker(iyesde, &di_bh, 0, &oh);
 	if (had_lock < 0)
 		return ERR_PTR(had_lock);
 
-	down_read(&OCFS2_I(inode)->ip_xattr_sem);
-	acl = ocfs2_get_acl_nolock(inode, type, di_bh);
-	up_read(&OCFS2_I(inode)->ip_xattr_sem);
+	down_read(&OCFS2_I(iyesde)->ip_xattr_sem);
+	acl = ocfs2_get_acl_yeslock(iyesde, type, di_bh);
+	up_read(&OCFS2_I(iyesde)->ip_xattr_sem);
 
-	ocfs2_inode_unlock_tracker(inode, 0, &oh, had_lock);
+	ocfs2_iyesde_unlock_tracker(iyesde, 0, &oh, had_lock);
 	brelse(di_bh);
 	return acl;
 }
 
-int ocfs2_acl_chmod(struct inode *inode, struct buffer_head *bh)
+int ocfs2_acl_chmod(struct iyesde *iyesde, struct buffer_head *bh)
 {
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 	struct posix_acl *acl;
 	int ret;
 
-	if (S_ISLNK(inode->i_mode))
+	if (S_ISLNK(iyesde->i_mode))
 		return -EOPNOTSUPP;
 
 	if (!(osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL))
 		return 0;
 
-	down_read(&OCFS2_I(inode)->ip_xattr_sem);
-	acl = ocfs2_get_acl_nolock(inode, ACL_TYPE_ACCESS, bh);
-	up_read(&OCFS2_I(inode)->ip_xattr_sem);
+	down_read(&OCFS2_I(iyesde)->ip_xattr_sem);
+	acl = ocfs2_get_acl_yeslock(iyesde, ACL_TYPE_ACCESS, bh);
+	up_read(&OCFS2_I(iyesde)->ip_xattr_sem);
 	if (IS_ERR_OR_NULL(acl))
 		return PTR_ERR_OR_ZERO(acl);
-	ret = __posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	ret = __posix_acl_chmod(&acl, GFP_KERNEL, iyesde->i_mode);
 	if (ret)
 		return ret;
-	ret = ocfs2_set_acl(NULL, inode, NULL, ACL_TYPE_ACCESS,
+	ret = ocfs2_set_acl(NULL, iyesde, NULL, ACL_TYPE_ACCESS,
 			    acl, NULL, NULL);
 	posix_acl_release(acl);
 	return ret;
 }
 
 /*
- * Initialize the ACLs of a new inode. If parent directory has default ACL,
- * then clone to new inode. Called from ocfs2_mknod.
+ * Initialize the ACLs of a new iyesde. If parent directory has default ACL,
+ * then clone to new iyesde. Called from ocfs2_mkyesd.
  */
 int ocfs2_init_acl(handle_t *handle,
-		   struct inode *inode,
-		   struct inode *dir,
+		   struct iyesde *iyesde,
+		   struct iyesde *dir,
 		   struct buffer_head *di_bh,
 		   struct buffer_head *dir_bh,
 		   struct ocfs2_alloc_context *meta_ac,
 		   struct ocfs2_alloc_context *data_ac)
 {
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 	struct posix_acl *acl = NULL;
 	int ret = 0, ret2;
 	umode_t mode;
 
-	if (!S_ISLNK(inode->i_mode)) {
+	if (!S_ISLNK(iyesde->i_mode)) {
 		if (osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) {
 			down_read(&OCFS2_I(dir)->ip_xattr_sem);
-			acl = ocfs2_get_acl_nolock(dir, ACL_TYPE_DEFAULT,
+			acl = ocfs2_get_acl_yeslock(dir, ACL_TYPE_DEFAULT,
 						   dir_bh);
 			up_read(&OCFS2_I(dir)->ip_xattr_sem);
 			if (IS_ERR(acl))
 				return PTR_ERR(acl);
 		}
 		if (!acl) {
-			mode = inode->i_mode & ~current_umask();
-			ret = ocfs2_acl_set_mode(inode, di_bh, handle, mode);
+			mode = iyesde->i_mode & ~current_umask();
+			ret = ocfs2_acl_set_mode(iyesde, di_bh, handle, mode);
 			if (ret) {
-				mlog_errno(ret);
+				mlog_erryes(ret);
 				goto cleanup;
 			}
 		}
 	}
 	if ((osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) && acl) {
-		if (S_ISDIR(inode->i_mode)) {
-			ret = ocfs2_set_acl(handle, inode, di_bh,
+		if (S_ISDIR(iyesde->i_mode)) {
+			ret = ocfs2_set_acl(handle, iyesde, di_bh,
 					    ACL_TYPE_DEFAULT, acl,
 					    meta_ac, data_ac);
 			if (ret)
 				goto cleanup;
 		}
-		mode = inode->i_mode;
+		mode = iyesde->i_mode;
 		ret = __posix_acl_create(&acl, GFP_NOFS, &mode);
 		if (ret < 0)
 			return ret;
 
-		ret2 = ocfs2_acl_set_mode(inode, di_bh, handle, mode);
+		ret2 = ocfs2_acl_set_mode(iyesde, di_bh, handle, mode);
 		if (ret2) {
-			mlog_errno(ret2);
+			mlog_erryes(ret2);
 			ret = ret2;
 			goto cleanup;
 		}
 		if (ret > 0) {
-			ret = ocfs2_set_acl(handle, inode,
+			ret = ocfs2_set_acl(handle, iyesde,
 					    di_bh, ACL_TYPE_ACCESS,
 					    acl, meta_ac, data_ac);
 		}

@@ -1,7 +1,7 @@
 FAIRCHILD SEMICONDUCTOR FSA9480 MICROUSB SWITCH
 
 The FSA9480 is a USB port accessory detector and switch. The FSA9480 is fully
-controlled using I2C and enables USB data, stereo and mono audio, video,
+controlled using I2C and enables USB data, stereo and moyes audio, video,
 microphone, and UART data to use a common connector port.
 
 Required properties:

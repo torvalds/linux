@@ -21,14 +21,14 @@ static inline bool iwl_trace_data(struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	__le16 fc = hdr->frame_control;
-	int offs = 24; /* start with normal header length */
+	int offs = 24; /* start with yesrmal header length */
 
 	if (!ieee80211_is_data(fc))
 		return false;
 
 	/* Try to determine if the frame is EAPOL. This might have false
-	 * positives (if there's no RFC 1042 header and we compare to some
-	 * payload instead) but since we're only doing tracing that's not
+	 * positives (if there's yes RFC 1042 header and we compare to some
+	 * payload instead) but since we're only doing tracing that's yest
 	 * a problem.
 	 */
 

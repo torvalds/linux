@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Red Hat, Inc.
- * Copyright (C) 2012 Jeremy Kerr <jeremy.kerr@canonical.com>
+ * Copyright (C) 2012 Jeremy Kerr <jeremy.kerr@cayesnical.com>
  */
 
 #include <linux/efi.h>
@@ -18,7 +18,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 	struct efivar_entry *var = file->private_data;
 	void *data;
 	u32 attributes;
-	struct inode *inode = file->f_mapping->host;
+	struct iyesde *iyesde = file->f_mapping->host;
 	unsigned long datasize = count - sizeof(attributes);
 	ssize_t bytes;
 	bool set = false;
@@ -45,13 +45,13 @@ static ssize_t efivarfs_file_write(struct file *file,
 	}
 
 	if (bytes == -ENOENT) {
-		drop_nlink(inode);
+		drop_nlink(iyesde);
 		d_delete(file->f_path.dentry);
 		dput(file->f_path.dentry);
 	} else {
-		inode_lock(inode);
-		i_size_write(inode, datasize + sizeof(attributes));
-		inode_unlock(inode);
+		iyesde_lock(iyesde);
+		i_size_write(iyesde, datasize + sizeof(attributes));
+		iyesde_unlock(iyesde);
 	}
 
 	bytes = count;
@@ -107,12 +107,12 @@ out_free:
 	return size;
 }
 
-static inline unsigned int efivarfs_getflags(struct inode *inode)
+static inline unsigned int efivarfs_getflags(struct iyesde *iyesde)
 {
 	unsigned int i_flags;
 	unsigned int flags = 0;
 
-	i_flags = inode->i_flags;
+	i_flags = iyesde->i_flags;
 	if (i_flags & S_IMMUTABLE)
 		flags |= FS_IMMUTABLE_FL;
 	return flags;
@@ -121,8 +121,8 @@ static inline unsigned int efivarfs_getflags(struct inode *inode)
 static int
 efivarfs_ioc_getxflags(struct file *file, void __user *arg)
 {
-	struct inode *inode = file->f_mapping->host;
-	unsigned int flags = efivarfs_getflags(inode);
+	struct iyesde *iyesde = file->f_mapping->host;
+	unsigned int flags = efivarfs_getflags(iyesde);
 
 	if (copy_to_user(arg, &flags, sizeof(flags)))
 		return -EFAULT;
@@ -132,13 +132,13 @@ efivarfs_ioc_getxflags(struct file *file, void __user *arg)
 static int
 efivarfs_ioc_setxflags(struct file *file, void __user *arg)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct iyesde *iyesde = file->f_mapping->host;
 	unsigned int flags;
 	unsigned int i_flags = 0;
-	unsigned int oldflags = efivarfs_getflags(inode);
+	unsigned int oldflags = efivarfs_getflags(iyesde);
 	int error;
 
-	if (!inode_owner_or_capable(inode))
+	if (!iyesde_owner_or_capable(iyesde))
 		return -EACCES;
 
 	if (copy_from_user(&flags, arg, sizeof(flags)))
@@ -155,15 +155,15 @@ efivarfs_ioc_setxflags(struct file *file, void __user *arg)
 	if (error)
 		return error;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
-	error = vfs_ioc_setflags_prepare(inode, oldflags, flags);
+	error = vfs_ioc_setflags_prepare(iyesde, oldflags, flags);
 	if (error)
 		goto out;
 
-	inode_set_flags(inode, i_flags, S_IMMUTABLE);
+	iyesde_set_flags(iyesde, i_flags, S_IMMUTABLE);
 out:
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	mnt_drop_write_file(file);
 	return error;
 }
@@ -187,6 +187,6 @@ const struct file_operations efivarfs_file_operations = {
 	.open	= simple_open,
 	.read	= efivarfs_file_read,
 	.write	= efivarfs_file_write,
-	.llseek	= no_llseek,
+	.llseek	= yes_llseek,
 	.unlocked_ioctl = efivarfs_file_ioctl,
 };

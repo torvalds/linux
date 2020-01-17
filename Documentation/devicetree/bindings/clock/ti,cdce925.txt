@@ -24,10 +24,10 @@ Required properties:
 Optional properties:
  - xtal-load-pf: Crystal load-capacitor value to fine-tune performance on a
                  board, or to compensate for external influences.
-- vdd-supply: A regulator node for Vdd
-- vddout-supply: A regulator node for Vddout
+- vdd-supply: A regulator yesde for Vdd
+- vddout-supply: A regulator yesde for Vddout
 
-For all PLL1, PLL2, ... an optional child node can be used to specify spread
+For all PLL1, PLL2, ... an optional child yesde can be used to specify spread
 spectrum clocking parameters for a board.
   - spread-spectrum: SSC mode as defined in the data sheet.
   - spread-spectrum-center: Use "centered" mode instead of "max" mode. When

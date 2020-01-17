@@ -25,7 +25,7 @@ _GLOBAL_TOC(ftrace_caller)
 .globl ftrace_call
 ftrace_call:
 	bl	ftrace_stub
-	nop
+	yesp
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 .globl ftrace_graph_call
 ftrace_graph_call:
@@ -51,7 +51,7 @@ _GLOBAL(ftrace_graph_caller)
 	ld	r3, 16(r11)
 
 	bl	prepare_ftrace_return
-	nop
+	yesp
 
 	/*
 	 * prepare_ftrace_return gives us the address we divert to.

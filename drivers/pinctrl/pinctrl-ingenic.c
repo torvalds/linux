@@ -165,7 +165,7 @@ static const struct group_desc jz4740_groups[] = {
 	INGENIC_PIN_GROUP("lcd-16bit", jz4740_lcd_16bit),
 	INGENIC_PIN_GROUP("lcd-18bit", jz4740_lcd_18bit),
 	INGENIC_PIN_GROUP("lcd-18bit-tft", jz4740_lcd_18bit_tft),
-	{ "lcd-no-pins", },
+	{ "lcd-yes-pins", },
 	INGENIC_PIN_GROUP("nand-cs1", jz4740_nand_cs1),
 	INGENIC_PIN_GROUP("nand-cs2", jz4740_nand_cs2),
 	INGENIC_PIN_GROUP("nand-cs3", jz4740_nand_cs3),
@@ -184,7 +184,7 @@ static const char *jz4740_mmc_groups[] = { "mmc-1bit", "mmc-4bit", };
 static const char *jz4740_uart0_groups[] = { "uart0-data", "uart0-hwflow", };
 static const char *jz4740_uart1_groups[] = { "uart1-data", };
 static const char *jz4740_lcd_groups[] = {
-	"lcd-8bit", "lcd-16bit", "lcd-18bit", "lcd-18bit-tft", "lcd-no-pins",
+	"lcd-8bit", "lcd-16bit", "lcd-18bit", "lcd-18bit-tft", "lcd-yes-pins",
 };
 static const char *jz4740_nand_groups[] = {
 	"nand-cs1", "nand-cs2", "nand-cs3", "nand-cs4",
@@ -511,7 +511,7 @@ static const struct group_desc jz4760_groups[] = {
 	INGENIC_PIN_GROUP("i2c1-data", jz4760_i2c1),
 	INGENIC_PIN_GROUP("cim-data", jz4760_cim),
 	INGENIC_PIN_GROUP("lcd-24bit", jz4760_lcd_24bit),
-	{ "lcd-no-pins", },
+	{ "lcd-yes-pins", },
 	INGENIC_PIN_GROUP("pwm0", jz4760_pwm_pwm0),
 	INGENIC_PIN_GROUP("pwm1", jz4760_pwm_pwm1),
 	INGENIC_PIN_GROUP("pwm2", jz4760_pwm_pwm2),
@@ -551,7 +551,7 @@ static const char *jz4760_cs6_groups[] = { "nemc-cs6", };
 static const char *jz4760_i2c0_groups[] = { "i2c0-data", };
 static const char *jz4760_i2c1_groups[] = { "i2c1-data", };
 static const char *jz4760_cim_groups[] = { "cim-data", };
-static const char *jz4760_lcd_groups[] = { "lcd-24bit", "lcd-no-pins", };
+static const char *jz4760_lcd_groups[] = { "lcd-24bit", "lcd-yes-pins", };
 static const char *jz4760_pwm0_groups[] = { "pwm0", };
 static const char *jz4760_pwm1_groups[] = { "pwm1", };
 static const char *jz4760_pwm2_groups[] = { "pwm2", };
@@ -790,7 +790,7 @@ static const struct group_desc jz4770_groups[] = {
 	INGENIC_PIN_GROUP("cim-data-8bit", jz4770_cim_8bit),
 	INGENIC_PIN_GROUP("cim-data-12bit", jz4770_cim_12bit),
 	INGENIC_PIN_GROUP("lcd-24bit", jz4770_lcd_24bit),
-	{ "lcd-no-pins", },
+	{ "lcd-yes-pins", },
 	INGENIC_PIN_GROUP("pwm0", jz4770_pwm_pwm0),
 	INGENIC_PIN_GROUP("pwm1", jz4770_pwm_pwm1),
 	INGENIC_PIN_GROUP("pwm2", jz4770_pwm_pwm2),
@@ -834,7 +834,7 @@ static const char *jz4770_i2c0_groups[] = { "i2c0-data", };
 static const char *jz4770_i2c1_groups[] = { "i2c1-data", };
 static const char *jz4770_i2c2_groups[] = { "i2c2-data", };
 static const char *jz4770_cim_groups[] = { "cim-data-8bit", "cim-data-12bit", };
-static const char *jz4770_lcd_groups[] = { "lcd-24bit", "lcd-no-pins", };
+static const char *jz4770_lcd_groups[] = { "lcd-24bit", "lcd-yes-pins", };
 static const char *jz4770_pwm0_groups[] = { "pwm0", };
 static const char *jz4770_pwm1_groups[] = { "pwm1", };
 static const char *jz4770_pwm2_groups[] = { "pwm2", };
@@ -947,7 +947,7 @@ static const struct group_desc jz4780_groups[] = {
 	INGENIC_PIN_GROUP("i2c4-data-f", jz4780_i2c4_f),
 	INGENIC_PIN_GROUP("cim-data", jz4770_cim_8bit),
 	INGENIC_PIN_GROUP("lcd-24bit", jz4770_lcd_24bit),
-	{ "lcd-no-pins", },
+	{ "lcd-yes-pins", },
 	INGENIC_PIN_GROUP("pwm0", jz4770_pwm_pwm0),
 	INGENIC_PIN_GROUP("pwm1", jz4770_pwm_pwm1),
 	INGENIC_PIN_GROUP("pwm2", jz4770_pwm_pwm2),
@@ -1143,7 +1143,7 @@ static const struct group_desc x1000_groups[] = {
 	INGENIC_PIN_GROUP("cim-data", x1000_cim),
 	INGENIC_PIN_GROUP("lcd-8bit", x1000_lcd_8bit),
 	INGENIC_PIN_GROUP("lcd-16bit", x1000_lcd_16bit),
-	{ "lcd-no-pins", },
+	{ "lcd-yes-pins", },
 	INGENIC_PIN_GROUP("pwm0", x1000_pwm_pwm0),
 	INGENIC_PIN_GROUP("pwm1", x1000_pwm_pwm1),
 	INGENIC_PIN_GROUP("pwm2", x1000_pwm_pwm2),
@@ -1174,7 +1174,7 @@ static const char *x1000_i2c1_groups[] = { "i2c1-data-a", "i2c1-data-c", };
 static const char *x1000_i2c2_groups[] = { "i2c2-data", };
 static const char *x1000_cim_groups[] = { "cim-data", };
 static const char *x1000_lcd_groups[] = {
-	"lcd-8bit", "lcd-16bit", "lcd-no-pins",
+	"lcd-8bit", "lcd-16bit", "lcd-yes-pins",
 };
 static const char *x1000_pwm0_groups[] = { "pwm0", };
 static const char *x1000_pwm1_groups[] = { "pwm1", };
@@ -1283,7 +1283,7 @@ static const struct group_desc x1500_groups[] = {
 	INGENIC_PIN_GROUP("i2c1-data-c", x1500_i2c1_c),
 	INGENIC_PIN_GROUP("i2c2-data", x1500_i2c2),
 	INGENIC_PIN_GROUP("cim-data", x1500_cim),
-	{ "lcd-no-pins", },
+	{ "lcd-yes-pins", },
 	INGENIC_PIN_GROUP("pwm0", x1500_pwm_pwm0),
 	INGENIC_PIN_GROUP("pwm1", x1500_pwm_pwm1),
 	INGENIC_PIN_GROUP("pwm2", x1500_pwm_pwm2),
@@ -1301,7 +1301,7 @@ static const char *x1500_i2c0_groups[] = { "i2c0-data", };
 static const char *x1500_i2c1_groups[] = { "i2c1-data-a", "i2c1-data-c", };
 static const char *x1500_i2c2_groups[] = { "i2c2-data", };
 static const char *x1500_cim_groups[] = { "cim-data", };
-static const char *x1500_lcd_groups[] = { "lcd-no-pins", };
+static const char *x1500_lcd_groups[] = { "lcd-yes-pins", };
 static const char *x1500_pwm0_groups[] = { "pwm0", };
 static const char *x1500_pwm1_groups[] = { "pwm1", };
 static const char *x1500_pwm2_groups[] = { "pwm2", };
@@ -1537,7 +1537,7 @@ static int ingenic_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 
 	if (type == IRQ_TYPE_EDGE_BOTH) {
 		/*
-		 * The hardware does not support interrupts on both edges. The
+		 * The hardware does yest support interrupts on both edges. The
 		 * best we can do is to set up a single-edge interrupt and then
 		 * switch to the opposing edge when ACKing the interrupt.
 		 */
@@ -1661,7 +1661,7 @@ static const struct pinctrl_ops ingenic_pctlops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -1893,7 +1893,7 @@ static int ingenic_pinconf_group_get(struct pinctrl_dev *pctldev,
 		if (ingenic_pinconf_get(pctldev, pins[i], config))
 			return -ENOTSUPP;
 
-		/* configs do not match between two pins */
+		/* configs do yest match between two pins */
 		if (i && (old != *config))
 			return -ENOTSUPP;
 
@@ -1962,7 +1962,7 @@ static const struct of_device_id ingenic_gpio_of_match[] __initconst = {
 };
 
 static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
-				     struct device_node *node)
+				     struct device_yesde *yesde)
 {
 	struct ingenic_gpio_chip *jzgc;
 	struct device *dev = jzpc->dev;
@@ -1970,9 +1970,9 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	unsigned int bank;
 	int err;
 
-	err = of_property_read_u32(node, "reg", &bank);
+	err = of_property_read_u32(yesde, "reg", &bank);
 	if (err) {
-		dev_err(dev, "Cannot read \"reg\" property: %i\n", err);
+		dev_err(dev, "Canyest read \"reg\" property: %i\n", err);
 		return err;
 	}
 
@@ -1995,7 +1995,7 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 
 	jzgc->gc.ngpio = 32;
 	jzgc->gc.parent = dev;
-	jzgc->gc.of_node = node;
+	jzgc->gc.of_yesde = yesde;
 	jzgc->gc.owner = THIS_MODULE;
 
 	jzgc->gc.set = ingenic_gpio_set;
@@ -2004,12 +2004,12 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	jzgc->gc.direction_output = ingenic_gpio_direction_output;
 	jzgc->gc.get_direction = ingenic_gpio_get_direction;
 
-	if (of_property_read_bool(node, "gpio-ranges")) {
+	if (of_property_read_bool(yesde, "gpio-ranges")) {
 		jzgc->gc.request = gpiochip_generic_request;
 		jzgc->gc.free = gpiochip_generic_free;
 	}
 
-	jzgc->irq = irq_of_parse_and_map(node, 0);
+	jzgc->irq = irq_of_parse_and_map(yesde, 0);
 	if (!jzgc->irq)
 		return -EINVAL;
 
@@ -2052,7 +2052,7 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id = of_match_device(
 			ingenic_pinctrl_of_match, dev);
 	const struct ingenic_chip_info *chip_info;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	unsigned int i;
 	int err;
 
@@ -2155,9 +2155,9 @@ static int __init ingenic_pinctrl_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, jzpc->map);
 
-	for_each_child_of_node(dev->of_node, node) {
-		if (of_match_node(ingenic_gpio_of_match, node)) {
-			err = ingenic_gpio_probe(jzpc, node);
+	for_each_child_of_yesde(dev->of_yesde, yesde) {
+		if (of_match_yesde(ingenic_gpio_of_match, yesde)) {
+			err = ingenic_gpio_probe(jzpc, yesde);
 			if (err)
 				return err;
 		}

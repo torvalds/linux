@@ -31,7 +31,7 @@
 #include <linux/atmdev.h>
 #include <linux/atmlec.h>
 
-/* Proxy LEC knows about bridging */
+/* Proxy LEC kyesws about bridging */
 #if IS_ENABLED(CONFIG_BRIDGE)
 #include "../bridge/br_private.h"
 
@@ -43,7 +43,7 @@ static unsigned char bridge_ula_lec[] = { 0x01, 0x80, 0xc2, 0x00, 0x00 };
 #include <linux/init.h>
 
 /* Hardening for Spectre-v1 */
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "lec.h"
 #include "lec_arpc.h"
@@ -149,7 +149,7 @@ static void lec_handle_bridge(struct sk_buff *skb, struct net_device *dev)
 		mesg = (struct atmlec_msg *)skb2->data;
 		mesg->type = l_topology_change;
 		buff += 4;
-		mesg->content.normal.flag = *buff & 0x01;
+		mesg->content.yesrmal.flag = *buff & 0x01;
 					/* 0x01 is topology change */
 
 		priv = netdev_priv(dev);
@@ -167,7 +167,7 @@ static void lec_handle_bridge(struct sk_buff *skb, struct net_device *dev)
  *
  * This routine should set everything up anew at each open, even
  * registers that "should" only need to be set once at boot, so that
- * there is non-reboot way to recover if something goes wrong.
+ * there is yesn-reboot way to recover if something goes wrong.
  */
 
 static int lec_open(struct net_device *dev)
@@ -289,7 +289,7 @@ static netdev_tx_t lec_start_xmit(struct sk_buff *skb,
 				 dev->name, lec_h->h_dest);
 			skb_queue_tail(&entry->tx_wait, skb);
 		} else {
-			pr_debug("%s:tx queue full or no arp entry, dropping, MAC address: %pM\n",
+			pr_debug("%s:tx queue full or yes arp entry, dropping, MAC address: %pM\n",
 				 dev->name, lec_h->h_dest);
 			dev->stats.tx_dropped++;
 			dev_kfree_skb(skb);
@@ -356,49 +356,49 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	switch (mesg->type) {
 	case l_set_mac_addr:
 		for (i = 0; i < 6; i++)
-			dev->dev_addr[i] = mesg->content.normal.mac_addr[i];
+			dev->dev_addr[i] = mesg->content.yesrmal.mac_addr[i];
 		break;
 	case l_del_mac_addr:
 		for (i = 0; i < 6; i++)
 			dev->dev_addr[i] = 0;
 		break;
 	case l_addr_delete:
-		lec_addr_delete(priv, mesg->content.normal.atm_addr,
-				mesg->content.normal.flag);
+		lec_addr_delete(priv, mesg->content.yesrmal.atm_addr,
+				mesg->content.yesrmal.flag);
 		break;
 	case l_topology_change:
-		priv->topology_change = mesg->content.normal.flag;
+		priv->topology_change = mesg->content.yesrmal.flag;
 		break;
 	case l_flush_complete:
-		lec_flush_complete(priv, mesg->content.normal.flag);
+		lec_flush_complete(priv, mesg->content.yesrmal.flag);
 		break;
 	case l_narp_req:	/* LANE2: see 7.1.35 in the lane2 spec */
 		spin_lock_irqsave(&priv->lec_arp_lock, flags);
-		entry = lec_arp_find(priv, mesg->content.normal.mac_addr);
+		entry = lec_arp_find(priv, mesg->content.yesrmal.mac_addr);
 		lec_arp_remove(priv, entry);
 		spin_unlock_irqrestore(&priv->lec_arp_lock, flags);
 
-		if (mesg->content.normal.no_source_le_narp)
+		if (mesg->content.yesrmal.yes_source_le_narp)
 			break;
 		/* FALL THROUGH */
 	case l_arp_update:
-		lec_arp_update(priv, mesg->content.normal.mac_addr,
-			       mesg->content.normal.atm_addr,
-			       mesg->content.normal.flag,
-			       mesg->content.normal.targetless_le_arp);
+		lec_arp_update(priv, mesg->content.yesrmal.mac_addr,
+			       mesg->content.yesrmal.atm_addr,
+			       mesg->content.yesrmal.flag,
+			       mesg->content.yesrmal.targetless_le_arp);
 		pr_debug("in l_arp_update\n");
 		if (mesg->sizeoftlvs != 0) {	/* LANE2 3.1.5 */
 			pr_debug("LANE2 3.1.5, got tlvs, size %d\n",
 				 mesg->sizeoftlvs);
-			lane2_associate_ind(dev, mesg->content.normal.mac_addr,
+			lane2_associate_ind(dev, mesg->content.yesrmal.mac_addr,
 					    tmp, mesg->sizeoftlvs);
 		}
 		break;
 	case l_config:
-		priv->maximum_unknown_frame_count =
-		    mesg->content.config.maximum_unknown_frame_count;
-		priv->max_unknown_frame_time =
-		    (mesg->content.config.max_unknown_frame_time * HZ);
+		priv->maximum_unkyeswn_frame_count =
+		    mesg->content.config.maximum_unkyeswn_frame_count;
+		priv->max_unkyeswn_frame_time =
+		    (mesg->content.config.max_unkyeswn_frame_time * HZ);
 		priv->max_retry_count = mesg->content.config.max_retry_count;
 		priv->aging_time = (mesg->content.config.aging_time * HZ);
 		priv->forward_delay_time =
@@ -421,12 +421,12 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 		priv->is_proxy = mesg->content.config.is_proxy;
 		break;
 	case l_flush_tran_id:
-		lec_set_flush_tran_id(priv, mesg->content.normal.atm_addr,
-				      mesg->content.normal.flag);
+		lec_set_flush_tran_id(priv, mesg->content.yesrmal.atm_addr,
+				      mesg->content.yesrmal.flag);
 		break;
 	case l_set_lecid:
 		priv->lecid =
-		    (unsigned short)(0xffff & mesg->content.normal.flag);
+		    (unsigned short)(0xffff & mesg->content.yesrmal.flag);
 		break;
 	case l_should_bridge:
 #if IS_ENABLED(CONFIG_BRIDGE)
@@ -458,7 +458,7 @@ static int lec_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 #endif /* IS_ENABLED(CONFIG_BRIDGE) */
 		break;
 	default:
-		pr_info("%s: Unknown message type %d\n", dev->name, mesg->type);
+		pr_info("%s: Unkyeswn message type %d\n", dev->name, mesg->type);
 		dev_kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -526,11 +526,11 @@ send_to_lecd(struct lec_priv *priv, atmlec_msg_type type,
 	if (data != NULL)
 		mesg->sizeoftlvs = data->len;
 	if (mac_addr)
-		ether_addr_copy(mesg->content.normal.mac_addr, mac_addr);
+		ether_addr_copy(mesg->content.yesrmal.mac_addr, mac_addr);
 	else
-		mesg->content.normal.targetless_le_arp = 1;
+		mesg->content.yesrmal.targetless_le_arp = 1;
 	if (atm_addr)
-		memcpy(&mesg->content.normal.atm_addr, atm_addr, ATM_ESA_LEN);
+		memcpy(&mesg->content.yesrmal.atm_addr, atm_addr, ATM_ESA_LEN);
 
 	atm_force_charge(priv->lecd, skb->truesize);
 	sk = sk_atm(priv->lecd);
@@ -623,14 +623,14 @@ static void lec_push(struct atm_vcc *vcc, struct sk_buff *skb)
 			 * Probably looping back, or if lecd is missing,
 			 * lecd has gone down
 			 */
-			pr_debug("Ignoring frame...\n");
+			pr_debug("Igyesring frame...\n");
 			dev_kfree_skb(skb);
 			return;
 		}
 		dst = ((struct lecdatahdr_8023 *)skb->data)->h_dest;
 
 		/*
-		 * If this is a Data Direct VCC, and the VCC does not match
+		 * If this is a Data Direct VCC, and the VCC does yest match
 		 * the LE_ARP cache entry, delete the LE_ARP cache entry.
 		 */
 		spin_lock_irqsave(&priv->lec_arp_lock, flags);
@@ -692,7 +692,7 @@ static int lec_vcc_attach(struct atm_vcc *vcc, void __user *arg)
 		pr_info("copy from user failed for %d bytes\n", bytes_left);
 	if (ioc_data.dev_num < 0 || ioc_data.dev_num >= MAX_LEC_ITF)
 		return -EINVAL;
-	ioc_data.dev_num = array_index_nospec(ioc_data.dev_num, MAX_LEC_ITF);
+	ioc_data.dev_num = array_index_yesspec(ioc_data.dev_num, MAX_LEC_ITF);
 	if (!dev_lec[ioc_data.dev_num])
 		return -EINVAL;
 	vpriv = kmalloc(sizeof(struct lec_vcc_priv), GFP_KERNEL);
@@ -713,7 +713,7 @@ static int lec_mcast_attach(struct atm_vcc *vcc, int arg)
 {
 	if (arg < 0 || arg >= MAX_LEC_ITF)
 		return -EINVAL;
-	arg = array_index_nospec(arg, MAX_LEC_ITF);
+	arg = array_index_yesspec(arg, MAX_LEC_ITF);
 	if (!dev_lec[arg])
 		return -EINVAL;
 	vcc->proto_data = dev_lec[arg];
@@ -730,7 +730,7 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 		arg = 0;
 	if (arg >= MAX_LEC_ITF)
 		return -EINVAL;
-	i = array_index_nospec(arg, MAX_LEC_ITF);
+	i = array_index_yesspec(arg, MAX_LEC_ITF);
 	if (!dev_lec[i]) {
 		int size;
 
@@ -763,8 +763,8 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 	set_bit(ATM_VF_READY, &vcc->flags);
 
 	/* Set default values to these variables */
-	priv->maximum_unknown_frame_count = 1;
-	priv->max_unknown_frame_time = (1 * HZ);
+	priv->maximum_unkyeswn_frame_count = 1;
+	priv->max_unkyeswn_frame_time = (1 * HZ);
 	priv->vcc_timeout_period = (1200 * HZ);
 	priv->max_retry_count = 1;
 	priv->aging_time = (300 * HZ);
@@ -822,7 +822,7 @@ static void lec_info(struct seq_file *seq, struct lec_arp_table *entry)
 struct lec_state {
 	unsigned long flags;
 	struct lec_priv *locked;
-	struct hlist_node *node;
+	struct hlist_yesde *yesde;
 	struct net_device *dev;
 	int itf;
 	int arp_table;
@@ -832,7 +832,7 @@ struct lec_state {
 static void *lec_tbl_walk(struct lec_state *state, struct hlist_head *tbl,
 			  loff_t *l)
 {
-	struct hlist_node *e = state->node;
+	struct hlist_yesde *e = state->yesde;
 
 	if (!e)
 		e = tbl->first;
@@ -845,7 +845,7 @@ static void *lec_tbl_walk(struct lec_state *state, struct hlist_head *tbl,
 		if (--*l < 0)
 			break;
 	}
-	state->node = e;
+	state->yesde = e;
 
 	return (*l < 0) ? state : NULL;
 }
@@ -870,7 +870,7 @@ static void *lec_misc_walk(struct lec_state *state, loff_t *l,
 {
 	struct hlist_head *lec_misc_tables[] = {
 		&priv->lec_arp_empty_ones,
-		&priv->lec_no_forward,
+		&priv->lec_yes_forward,
 		&priv->mcast_fwds
 	};
 	void *v = NULL;
@@ -939,7 +939,7 @@ static void *lec_seq_start(struct seq_file *seq, loff_t *pos)
 	state->locked = NULL;
 	state->arp_table = 0;
 	state->misc_table = 0;
-	state->node = SEQ_START_TOKEN;
+	state->yesde = SEQ_START_TOKEN;
 
 	return *pos ? lec_get_idx(state, *pos) : SEQ_START_TOKEN;
 }
@@ -976,7 +976,7 @@ static int lec_seq_show(struct seq_file *seq, void *v)
 	else {
 		struct lec_state *state = seq->private;
 		struct net_device *dev = state->dev;
-		struct lec_arp_table *entry = hlist_entry(state->node,
+		struct lec_arp_table *entry = hlist_entry(state->yesde,
 							  struct lec_arp_table,
 							  next);
 
@@ -1133,9 +1133,9 @@ static int lane2_associate_req(struct net_device *dev, const u8 *lan_dst,
 	struct lec_priv *priv = netdev_priv(dev);
 
 	if (!ether_addr_equal(lan_dst, dev->dev_addr))
-		return 0;	/* not our mac address */
+		return 0;	/* yest our mac address */
 
-	kfree(priv->tlvs);	/* NULL if there was no previous association */
+	kfree(priv->tlvs);	/* NULL if there was yes previous association */
 
 	priv->tlvs = kmemdup(tlvs, sizeoftlvs, GFP_KERNEL);
 	if (priv->tlvs == NULL)
@@ -1152,7 +1152,7 @@ static int lane2_associate_req(struct net_device *dev, const u8 *lan_dst,
 		pr_info("lec.c: lane2_associate_req() failed\n");
 	/*
 	 * If the previous association has changed we must
-	 * somehow notify other LANE entities about the change
+	 * somehow yestify other LANE entities about the change
 	 */
 	return 1;
 }
@@ -1170,14 +1170,14 @@ static void lane2_associate_ind(struct net_device *dev, const u8 *mac_addr,
 	struct lec_priv *priv = netdev_priv(dev);
 #if 0				/*
 				 * Why have the TLVs in LE_ARP entries
-				 * since we do not use them? When you
+				 * since we do yest use them? When you
 				 * uncomment this code, make sure the
 				 * TLVs get freed when entry is killed
 				 */
 	struct lec_arp_table *entry = lec_arp_find(priv, mac_addr);
 
 	if (entry == NULL)
-		return;		/* should not happen */
+		return;		/* should yest happen */
 
 	kfree(entry->tlvs);
 
@@ -1245,7 +1245,7 @@ static void lec_arp_init(struct lec_priv *priv)
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++)
 		INIT_HLIST_HEAD(&priv->lec_arp_tables[i]);
 	INIT_HLIST_HEAD(&priv->lec_arp_empty_ones);
-	INIT_HLIST_HEAD(&priv->lec_no_forward);
+	INIT_HLIST_HEAD(&priv->lec_yes_forward);
 	INIT_HLIST_HEAD(&priv->mcast_fwds);
 	spin_lock_init(&priv->lec_arp_lock);
 	INIT_DELAYED_WORK(&priv->lec_arp_work, lec_arp_check_expire);
@@ -1378,7 +1378,7 @@ static void dump_arp_table(struct lec_priv *priv)
 					  vpi : 0,
 					  rulla->recv_vcc ? rulla->recv_vcc->
 					  vci : 0, rulla->last_used,
-					  rulla->timestamp, rulla->no_tries);
+					  rulla->timestamp, rulla->yes_tries);
 			offset +=
 			    sprintf(buf + offset,
 				    "Flags:%x, Packets_flooded:%x, Status: %s ",
@@ -1388,9 +1388,9 @@ static void dump_arp_table(struct lec_priv *priv)
 		}
 	}
 
-	if (!hlist_empty(&priv->lec_no_forward))
+	if (!hlist_empty(&priv->lec_yes_forward))
 		pr_info("No forward\n");
-	hlist_for_each_entry(rulla, &priv->lec_no_forward, next) {
+	hlist_for_each_entry(rulla, &priv->lec_yes_forward, next) {
 		offset = 0;
 		offset += sprintf(buf + offset, "Mac: %pM", rulla->mac_addr);
 		offset += sprintf(buf + offset, " Atm:");
@@ -1405,7 +1405,7 @@ static void dump_arp_table(struct lec_priv *priv)
 				  rulla->recv_vcc ? rulla->recv_vcc->vpi : 0,
 				  rulla->recv_vcc ? rulla->recv_vcc->vci : 0,
 				  rulla->last_used,
-				  rulla->timestamp, rulla->no_tries);
+				  rulla->timestamp, rulla->yes_tries);
 		offset += sprintf(buf + offset,
 				  "Flags:%x, Packets_flooded:%x, Status: %s ",
 				  rulla->flags, rulla->packets_flooded,
@@ -1430,7 +1430,7 @@ static void dump_arp_table(struct lec_priv *priv)
 				  rulla->recv_vcc ? rulla->recv_vcc->vpi : 0,
 				  rulla->recv_vcc ? rulla->recv_vcc->vci : 0,
 				  rulla->last_used,
-				  rulla->timestamp, rulla->no_tries);
+				  rulla->timestamp, rulla->yes_tries);
 		offset += sprintf(buf + offset,
 				  "Flags:%x, Packets_flooded:%x, Status: %s ",
 				  rulla->flags, rulla->packets_flooded,
@@ -1455,7 +1455,7 @@ static void dump_arp_table(struct lec_priv *priv)
 				  rulla->recv_vcc ? rulla->recv_vcc->vpi : 0,
 				  rulla->recv_vcc ? rulla->recv_vcc->vci : 0,
 				  rulla->last_used,
-				  rulla->timestamp, rulla->no_tries);
+				  rulla->timestamp, rulla->yes_tries);
 		offset += sprintf(buf + offset,
 				  "Flags:%x, Packets_flooded:%x, Status: %s ",
 				  rulla->flags, rulla->packets_flooded,
@@ -1474,7 +1474,7 @@ static void dump_arp_table(struct lec_priv *priv)
 static void lec_arp_destroy(struct lec_priv *priv)
 {
 	unsigned long flags;
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 	struct lec_arp_table *entry;
 	int i;
 
@@ -1504,13 +1504,13 @@ static void lec_arp_destroy(struct lec_priv *priv)
 	INIT_HLIST_HEAD(&priv->lec_arp_empty_ones);
 
 	hlist_for_each_entry_safe(entry, next,
-				  &priv->lec_no_forward, next) {
+				  &priv->lec_yes_forward, next) {
 		del_timer_sync(&entry->timer);
 		lec_arp_clear_vccs(entry);
 		hlist_del(&entry->next);
 		lec_arp_put(entry);
 	}
-	INIT_HLIST_HEAD(&priv->lec_no_forward);
+	INIT_HLIST_HEAD(&priv->lec_yes_forward);
 
 	hlist_for_each_entry_safe(entry, next, &priv->mcast_fwds, next) {
 		/* No timer, LANEv2 7.1.20 and 2.3.5.3 */
@@ -1571,20 +1571,20 @@ static void lec_arp_expire_arp(struct timer_list *t)
 
 	pr_debug("\n");
 	if (entry->status == ESI_ARP_PENDING) {
-		if (entry->no_tries <= entry->priv->max_retry_count) {
+		if (entry->yes_tries <= entry->priv->max_retry_count) {
 			if (entry->is_rdesc)
 				send_to_lecd(entry->priv, l_rdesc_arp_xmt,
 					     entry->mac_addr, NULL, NULL);
 			else
 				send_to_lecd(entry->priv, l_arp_xmt,
 					     entry->mac_addr, NULL, NULL);
-			entry->no_tries++;
+			entry->yes_tries++;
 		}
 		mod_timer(&entry->timer, jiffies + (1 * HZ));
 	}
 }
 
-/* Unknown/unused vcc expire, remove associated entry */
+/* Unkyeswn/unused vcc expire, remove associated entry */
 static void lec_arp_expire_vcc(struct timer_list *t)
 {
 	unsigned long flags;
@@ -1607,7 +1607,7 @@ static void lec_arp_expire_vcc(struct timer_list *t)
 }
 
 static bool __lec_arp_check_expire(struct lec_arp_table *entry,
-				   unsigned long now,
+				   unsigned long yesw,
 				   struct lec_priv *priv)
 {
 	unsigned long time_to_check;
@@ -1618,8 +1618,8 @@ static bool __lec_arp_check_expire(struct lec_arp_table *entry,
 		time_to_check = priv->aging_time;
 
 	pr_debug("About to expire: %lx - %lx > %lx\n",
-		 now, entry->last_used, time_to_check);
-	if (time_after(now, entry->last_used + time_to_check) &&
+		 yesw, entry->last_used, time_to_check);
+	if (time_after(yesw, entry->last_used + time_to_check) &&
 	    !(entry->flags & LEC_PERMANENT_FLAG) &&
 	    !(entry->mac_addr[0] & 0x01)) {	/* LANE2: 7.1.20 */
 		/* Remove entry */
@@ -1630,8 +1630,8 @@ static bool __lec_arp_check_expire(struct lec_arp_table *entry,
 		/* Something else */
 		if ((entry->status == ESI_VC_PENDING ||
 		     entry->status == ESI_ARP_PENDING) &&
-		    time_after_eq(now, entry->timestamp +
-				       priv->max_unknown_frame_time)) {
+		    time_after_eq(yesw, entry->timestamp +
+				       priv->max_unkyeswn_frame_time)) {
 			entry->timestamp = jiffies;
 			entry->packets_flooded = 0;
 			if (entry->status == ESI_VC_PENDING)
@@ -1641,7 +1641,7 @@ static bool __lec_arp_check_expire(struct lec_arp_table *entry,
 					     NULL);
 		}
 		if (entry->status == ESI_FLUSH_PENDING &&
-		    time_after_eq(now, entry->timestamp +
+		    time_after_eq(yesw, entry->timestamp +
 				       priv->path_switching_delay)) {
 			lec_arp_hold(entry);
 			return true;
@@ -1657,10 +1657,10 @@ static bool __lec_arp_check_expire(struct lec_arp_table *entry,
  * 3. For each entry, depending on the status of the entry, perform
  *    the following maintenance.
  *    a. If status is ESI_VC_PENDING or ESI_ARP_PENDING then if the
- *       tick_count is above the max_unknown_frame_time, clear
+ *       tick_count is above the max_unkyeswn_frame_time, clear
  *       the tick_count to zero and clear the packets_flooded counter
  *       to zero. This supports the packet rate limit per address
- *       while flooding unknowns.
+ *       while flooding unkyeswns.
  *    b. If the status is ESI_FLUSH_PENDING and the tick_count is greater
  *       than or equal to the path_switching_delay, change the status
  *       to ESI_FORWARD_DIRECT. This causes the flush period to end
@@ -1671,19 +1671,19 @@ static void lec_arp_check_expire(struct work_struct *work)
 	unsigned long flags;
 	struct lec_priv *priv =
 		container_of(work, struct lec_priv, lec_arp_work.work);
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 	struct lec_arp_table *entry;
-	unsigned long now;
+	unsigned long yesw;
 	int i;
 
 	pr_debug("%p\n", priv);
-	now = jiffies;
+	yesw = jiffies;
 restart:
 	spin_lock_irqsave(&priv->lec_arp_lock, flags);
 	for (i = 0; i < LEC_ARP_TABLE_SIZE; i++) {
 		hlist_for_each_entry_safe(entry, next,
 					  &priv->lec_arp_tables[i], next) {
-			if (__lec_arp_check_expire(entry, now, priv)) {
+			if (__lec_arp_check_expire(entry, yesw, priv)) {
 				struct sk_buff *skb;
 				struct atm_vcc *vcc = entry->vcc;
 
@@ -1744,19 +1744,19 @@ static struct atm_vcc *lec_arp_resolve(struct lec_priv *priv,
 		}
 		/*
 		 * If the LE_ARP cache entry is still pending, reset count to 0
-		 * so another LE_ARP request can be made for this frame.
+		 * so ayesther LE_ARP request can be made for this frame.
 		 */
 		if (entry->status == ESI_ARP_PENDING)
-			entry->no_tries = 0;
+			entry->yes_tries = 0;
 		/*
-		 * Data direct VC not yet set up, check to see if the unknown
+		 * Data direct VC yest yet set up, check to see if the unkyeswn
 		 * frame count is greater than the limit. If the limit has
-		 * not been reached, allow the caller to send packet to
+		 * yest been reached, allow the caller to send packet to
 		 * BUS.
 		 */
 		if (entry->status != ESI_FLUSH_PENDING &&
 		    entry->packets_flooded <
-		    priv->maximum_unknown_frame_count) {
+		    priv->maximum_unkyeswn_frame_count) {
 			entry->packets_flooded++;
 			pr_debug("Flooding..\n");
 			found = priv->mcast_vcc;
@@ -1784,7 +1784,7 @@ static struct atm_vcc *lec_arp_resolve(struct lec_priv *priv,
 		/* We want arp-request(s) to be sent */
 		entry->packets_flooded = 1;
 		entry->status = ESI_ARP_PENDING;
-		entry->no_tries = 1;
+		entry->yes_tries = 1;
 		entry->last_used = entry->timestamp = jiffies;
 		entry->is_rdesc = is_rdesc;
 		if (entry->is_rdesc)
@@ -1808,7 +1808,7 @@ lec_addr_delete(struct lec_priv *priv, const unsigned char *atm_addr,
 		unsigned long permanent)
 {
 	unsigned long flags;
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 	struct lec_arp_table *entry;
 	int i;
 
@@ -1840,7 +1840,7 @@ lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
 	       unsigned int targetless_le_arp)
 {
 	unsigned long flags;
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 	struct lec_arp_table *entry, *tmp;
 	int i;
 
@@ -1851,8 +1851,8 @@ lec_arp_update(struct lec_priv *priv, const unsigned char *mac_addr,
 	entry = lec_arp_find(priv, mac_addr);
 	if (entry == NULL && targetless_le_arp)
 		goto out;	/*
-				 * LANE2: ignore targetless LE_ARPs for which
-				 * we have no entry in the cache. 7.1.30
+				 * LANE2: igyesre targetless LE_ARPs for which
+				 * we have yes entry in the cache. 7.1.30
 				 */
 	if (!hlist_empty(&priv->lec_arp_empty_ones)) {
 		hlist_for_each_entry_safe(entry, next,
@@ -1952,7 +1952,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 #if 0
 		entry = lec_arp_find(priv, bus_mac);
 		if (!entry) {
-			pr_info("LEC_ARP: Multicast entry not found!\n");
+			pr_info("LEC_ARP: Multicast entry yest found!\n");
 			goto out;
 		}
 		memcpy(entry->atm_addr, ioc_data->atm_addr, ATM_ESA_LEN);
@@ -1973,7 +1973,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 		 * Vcc which we don't want to make default vcc,
 		 * attach it anyway.
 		 */
-		pr_debug("LEC_ARP:Attaching data direct, not default: %2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x\n",
+		pr_debug("LEC_ARP:Attaching data direct, yest default: %2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x%2.2x\n",
 			 ioc_data->atm_addr[0], ioc_data->atm_addr[1],
 			 ioc_data->atm_addr[2], ioc_data->atm_addr[3],
 			 ioc_data->atm_addr[4], ioc_data->atm_addr[5],
@@ -1994,7 +1994,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 		entry->status = ESI_UNKNOWN;
 		entry->timer.expires = jiffies + priv->vcc_timeout_period;
 		entry->timer.function = lec_arp_expire_vcc;
-		hlist_add_head(&entry->next, &priv->lec_no_forward);
+		hlist_add_head(&entry->next, &priv->lec_yes_forward);
 		add_timer(&entry->timer);
 		dump_arp_table(priv);
 		goto out;
@@ -2026,7 +2026,7 @@ lec_vcc_added(struct lec_priv *priv, const struct atmlec_ioc *ioc_data,
 				entry->vcc = vcc;
 				entry->old_push = old_push;
 				if (entry->status == ESI_VC_PENDING) {
-					if (priv->maximum_unknown_frame_count
+					if (priv->maximum_unkyeswn_frame_count
 					    == 0)
 						entry->status =
 						    ESI_FORWARD_DIRECT;
@@ -2181,7 +2181,7 @@ out:
 static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc)
 {
 	unsigned long flags;
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 	struct lec_arp_table *entry;
 	int i;
 
@@ -2213,7 +2213,7 @@ static void lec_vcc_close(struct lec_priv *priv, struct atm_vcc *vcc)
 	}
 
 	hlist_for_each_entry_safe(entry, next,
-				  &priv->lec_no_forward, next) {
+				  &priv->lec_yes_forward, next) {
 		if (entry->recv_vcc == vcc) {
 			lec_arp_clear_vccs(entry);
 			del_timer(&entry->timer);
@@ -2240,7 +2240,7 @@ lec_arp_check_empties(struct lec_priv *priv,
 		      struct atm_vcc *vcc, struct sk_buff *skb)
 {
 	unsigned long flags;
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 	struct lec_arp_table *entry, *tmp;
 	struct lecdatahdr_8023 *hdr = (struct lecdatahdr_8023 *)skb->data;
 	unsigned char *src = hdr->h_source;
@@ -2264,7 +2264,7 @@ lec_arp_check_empties(struct lec_priv *priv,
 			goto out;
 		}
 	}
-	pr_debug("LEC_ARP: Arp_check_empties: entry not found!\n");
+	pr_debug("LEC_ARP: Arp_check_empties: entry yest found!\n");
 out:
 	spin_unlock_irqrestore(&priv->lec_arp_lock, flags);
 }

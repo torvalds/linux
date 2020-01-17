@@ -98,8 +98,8 @@ struct ice_cee_tlv_hdr {
 
 struct ice_cee_ctrl_tlv {
 	struct ice_cee_tlv_hdr hdr;
-	__be32 seqno;
-	__be32 ackno;
+	__be32 seqyes;
+	__be32 ackyes;
 };
 
 struct ice_cee_feat_tlv {

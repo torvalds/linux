@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _dv-timings:
 
@@ -18,7 +18,7 @@ and the corresponding video timings. Today there are many more different
 hardware interfaces such as High Definition TV interfaces (HDMI), VGA,
 DVI connectors etc., that carry video signals and there is a need to
 extend the API to select the video timings for these interfaces. Since
-it is not possible to extend the :ref:`v4l2_std_id <v4l2-std-id>`
+it is yest possible to extend the :ref:`v4l2_std_id <v4l2-std-id>`
 due to the limited bits available, a new set of ioctls was added to
 set/get video timings at the input and output.
 

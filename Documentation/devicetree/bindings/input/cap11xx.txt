@@ -1,6 +1,6 @@
 Device tree bindings for Microchip CAP11xx based capacitive touch sensors
 
-The node for this device must be a child of a I2C controller node, as the
+The yesde for this device must be a child of a I2C controller yesde, as the
 device communication via I2C only.
 
 Required properties:

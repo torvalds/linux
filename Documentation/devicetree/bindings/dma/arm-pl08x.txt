@@ -4,10 +4,10 @@ Required properties:
 - compatible: "arm,pl080", "arm,primecell";
 	      "arm,pl081", "arm,primecell";
 	      "faraday,ftdmac020", "arm,primecell"
-- arm,primecell-periphid: on the FTDMAC020 the primecell ID is not hard-coded
+- arm,primecell-periphid: on the FTDMAC020 the primecell ID is yest hard-coded
   in the hardware and must be specified here as <0x0003b080>. This number
   follows the PrimeCell standard numbering using the JEP106 vendor code 0x38
-  for Faraday Technology.
+  for Faraday Techyeslogy.
 - reg: Address range of the PL08x registers
 - interrupt: The PL08x interrupt number
 - clocks: The clock running the IP core clock

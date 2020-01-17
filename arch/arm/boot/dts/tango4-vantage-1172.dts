@@ -38,5 +38,5 @@
 };
 
 &mmc1 {
-	non-removable; /* eMMC */
+	yesn-removable; /* eMMC */
 };

@@ -102,8 +102,8 @@ struct alpha_machine_vector
 	/* NUMA information */
 	int (*pa_to_nid)(unsigned long);
 	int (*cpuid_to_nid)(int);
-	unsigned long (*node_mem_start)(int);
-	unsigned long (*node_mem_size)(int);
+	unsigned long (*yesde_mem_start)(int);
+	unsigned long (*yesde_mem_size)(int);
 
 	/* System specific parameters.  */
 	union {

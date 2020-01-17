@@ -104,7 +104,7 @@ static void vfio_ap_wait_for_irqclear(int apqn)
 		}
 	} while (--retry);
 
-	WARN_ONCE(1, "%s: tapq rc %02x: %04x could not clear IR bit\n",
+	WARN_ONCE(1, "%s: tapq rc %02x: %04x could yest clear IR bit\n",
 		  __func__, status.response_code, apqn);
 }
 
@@ -112,7 +112,7 @@ static void vfio_ap_wait_for_irqclear(int apqn)
  * vfio_ap_free_aqic_resources
  * @q: The vfio_ap_queue
  *
- * Unregisters the ISC in the GIB when the saved ISC not invalid.
+ * Unregisters the ISC in the GIB when the saved ISC yest invalid.
  * Unpin the guest's page holding the NIB when it exist.
  * Reset the saved_pfn and saved_isc to invalid values.
  *
@@ -166,7 +166,7 @@ struct ap_queue_status vfio_ap_irq_disable(struct vfio_ap_queue *q)
 		case AP_RESPONSE_CHECKSTOPPED:
 		case AP_RESPONSE_INVALID_ADDRESS:
 		default:
-			/* All cases in default means AP not operational */
+			/* All cases in default means AP yest operational */
 			WARN_ONCE(1, "%s: ap_aqic status %d\n", __func__,
 				  status.response_code);
 			goto end_free;
@@ -237,7 +237,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 		q->saved_isc = isc;
 		break;
 	case AP_RESPONSE_OTHERWISE_CHANGED:
-		/* We could not modify IRQ setings: clear new configuration */
+		/* We could yest modify IRQ setings: clear new configuration */
 		vfio_unpin_pages(mdev_dev(q->matrix_mdev->mdev), &g_pfn, 1);
 		kvm_s390_gisc_unregister(kvm, isc);
 		break;
@@ -262,8 +262,8 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
  * REG[2]: NIB
  *
  * Response.status may be set to following Response Code:
- * - AP_RESPONSE_Q_NOT_AVAIL: if the queue is not available
- * - AP_RESPONSE_DECONFIGURED: if the queue is not configured
+ * - AP_RESPONSE_Q_NOT_AVAIL: if the queue is yest available
+ * - AP_RESPONSE_DECONFIGURED: if the queue is yest configured
  * - AP_RESPONSE_NORMAL (0) : in case of successs
  *   Check vfio_ap_setirq() and vfio_ap_clrirq() for other possible RC.
  * We take the matrix_dev lock to ensure serialization on queues and
@@ -281,7 +281,7 @@ static int handle_pqap(struct kvm_vcpu *vcpu)
 			       .response_code = AP_RESPONSE_Q_NOT_AVAIL, };
 	struct ap_matrix_mdev *matrix_mdev;
 
-	/* If we do not use the AIV facility just go to userland */
+	/* If we do yest use the AIV facility just go to userland */
 	if (!(vcpu->arch.sie_block->eca & ECA_AIV))
 		return -EOPNOTSUPP;
 
@@ -340,7 +340,7 @@ static int vfio_ap_mdev_create(struct kobject *kobj, struct mdev_device *mdev)
 	matrix_mdev->pqap_hook.hook = handle_pqap;
 	matrix_mdev->pqap_hook.owner = THIS_MODULE;
 	mutex_lock(&matrix_dev->lock);
-	list_add(&matrix_mdev->node, &matrix_dev->mdev_list);
+	list_add(&matrix_mdev->yesde, &matrix_dev->mdev_list);
 	mutex_unlock(&matrix_dev->lock);
 
 	return 0;
@@ -355,7 +355,7 @@ static int vfio_ap_mdev_remove(struct mdev_device *mdev)
 
 	mutex_lock(&matrix_dev->lock);
 	vfio_ap_mdev_reset_queues(mdev);
-	list_del(&matrix_mdev->node);
+	list_del(&matrix_mdev->yesde);
 	mutex_unlock(&matrix_dev->lock);
 
 	kfree(matrix_mdev);
@@ -431,7 +431,7 @@ struct vfio_ap_queue_reserved {
  *   reserved if the APQI field in the AP queue device matches
  *
  * Returns 0 to indicate the input to function succeeded. Returns -EINVAL if
- * @data does not contain either an apid or apqi.
+ * @data does yest contain either an apid or apqi.
  */
 static int vfio_ap_has_queue(struct device *dev, void *data)
 {
@@ -469,14 +469,14 @@ static int vfio_ap_has_queue(struct device *dev, void *data)
  * Verifies that the AP queue with @apid/@apqi is reserved by the VFIO AP device
  * driver according to the following rules:
  *
- * - If both @apid and @apqi are not NULL, then there must be an AP queue
+ * - If both @apid and @apqi are yest NULL, then there must be an AP queue
  *   device bound to the vfio_ap driver with the APQN identified by @apid and
  *   @apqi
  *
- * - If only @apid is not NULL, then there must be an AP queue device bound
+ * - If only @apid is yest NULL, then there must be an AP queue device bound
  *   to the vfio_ap driver with an APQN containing @apid
  *
- * - If only @apqi is not NULL, then there must be an AP queue device bound
+ * - If only @apqi is yest NULL, then there must be an AP queue device bound
  *   to the vfio_ap driver with an APQN containing @apqi
  *
  * Returns 0 if the AP queue is reserved; otherwise, returns -EADDRNOTAVAIL.
@@ -523,23 +523,23 @@ vfio_ap_mdev_verify_queues_reserved_for_apid(struct ap_matrix_mdev *matrix_mdev,
 }
 
 /**
- * vfio_ap_mdev_verify_no_sharing
+ * vfio_ap_mdev_verify_yes_sharing
  *
  * Verifies that the APQNs derived from the cross product of the AP adapter IDs
- * and AP queue indexes comprising the AP matrix are not configured for another
- * mediated device. AP queue sharing is not allowed.
+ * and AP queue indexes comprising the AP matrix are yest configured for ayesther
+ * mediated device. AP queue sharing is yest allowed.
  *
  * @matrix_mdev: the mediated matrix device
  *
- * Returns 0 if the APQNs are not shared, otherwise; returns -EADDRINUSE.
+ * Returns 0 if the APQNs are yest shared, otherwise; returns -EADDRINUSE.
  */
-static int vfio_ap_mdev_verify_no_sharing(struct ap_matrix_mdev *matrix_mdev)
+static int vfio_ap_mdev_verify_yes_sharing(struct ap_matrix_mdev *matrix_mdev)
 {
 	struct ap_matrix_mdev *lstdev;
 	DECLARE_BITMAP(apm, AP_DEVICES);
 	DECLARE_BITMAP(aqm, AP_DOMAINS);
 
-	list_for_each_entry(lstdev, &matrix_dev->mdev_list, node) {
+	list_for_each_entry(lstdev, &matrix_dev->mdev_list, yesde) {
 		if (matrix_mdev == lstdev)
 			continue;
 
@@ -548,7 +548,7 @@ static int vfio_ap_mdev_verify_no_sharing(struct ap_matrix_mdev *matrix_mdev)
 
 		/*
 		 * We work on full longs, as we can only exclude the leftover
-		 * bits in non-inverse order. The leftover is all zeros.
+		 * bits in yesn-inverse order. The leftover is all zeros.
 		 */
 		if (!bitmap_and(apm, matrix_mdev->matrix.apm,
 				lstdev->matrix.apm, AP_DEVICES))
@@ -580,20 +580,20 @@ static int vfio_ap_mdev_verify_no_sharing(struct ap_matrix_mdev *matrix_mdev)
  * returns one of the following errors:
  *
  *	1. -EINVAL
- *	   The APID is not a valid number
+ *	   The APID is yest a valid number
  *
  *	2. -ENODEV
  *	   The APID exceeds the maximum value configured for the system
  *
  *	3. -EADDRNOTAVAIL
  *	   An APQN derived from the cross product of the APID being assigned
- *	   and the APQIs previously assigned is not bound to the vfio_ap device
- *	   driver; or, if no APQIs have yet been assigned, the APID is not
+ *	   and the APQIs previously assigned is yest bound to the vfio_ap device
+ *	   driver; or, if yes APQIs have yet been assigned, the APID is yest
  *	   contained in an APQN bound to the vfio_ap device driver.
  *
  *	4. -EADDRINUSE
  *	   An APQN derived from the cross product of the APID being assigned
- *	   and the APQIs previously assigned is being used by another mediated
+ *	   and the APQIs previously assigned is being used by ayesther mediated
  *	   matrix device
  */
 static ssize_t assign_adapter_store(struct device *dev,
@@ -629,7 +629,7 @@ static ssize_t assign_adapter_store(struct device *dev,
 
 	set_bit_inv(apid, matrix_mdev->matrix.apm);
 
-	ret = vfio_ap_mdev_verify_no_sharing(matrix_mdev);
+	ret = vfio_ap_mdev_verify_yes_sharing(matrix_mdev);
 	if (ret)
 		goto share_err;
 
@@ -658,7 +658,7 @@ static DEVICE_ATTR_WO(assign_adapter);
  *
  * Returns the number of bytes processed if the APID is valid; otherwise,
  * returns one of the following errors:
- *	-EINVAL if the APID is not a number
+ *	-EINVAL if the APID is yest a number
  *	-ENODEV if the APID it exceeds the maximum value configured for the
  *		system
  */
@@ -726,20 +726,20 @@ vfio_ap_mdev_verify_queues_reserved_for_apqi(struct ap_matrix_mdev *matrix_mdev,
  * one of the following errors:
  *
  *	1. -EINVAL
- *	   The APQI is not a valid number
+ *	   The APQI is yest a valid number
  *
  *	2. -ENODEV
  *	   The APQI exceeds the maximum value configured for the system
  *
  *	3. -EADDRNOTAVAIL
  *	   An APQN derived from the cross product of the APQI being assigned
- *	   and the APIDs previously assigned is not bound to the vfio_ap device
- *	   driver; or, if no APIDs have yet been assigned, the APQI is not
+ *	   and the APIDs previously assigned is yest bound to the vfio_ap device
+ *	   driver; or, if yes APIDs have yet been assigned, the APQI is yest
  *	   contained in an APQN bound to the vfio_ap device driver.
  *
  *	4. -EADDRINUSE
  *	   An APQN derived from the cross product of the APQI being assigned
- *	   and the APIDs previously assigned is being used by another mediated
+ *	   and the APIDs previously assigned is being used by ayesther mediated
  *	   matrix device
  */
 static ssize_t assign_domain_store(struct device *dev,
@@ -770,7 +770,7 @@ static ssize_t assign_domain_store(struct device *dev,
 
 	set_bit_inv(apqi, matrix_mdev->matrix.aqm);
 
-	ret = vfio_ap_mdev_verify_no_sharing(matrix_mdev);
+	ret = vfio_ap_mdev_verify_yes_sharing(matrix_mdev);
 	if (ret)
 		goto share_err;
 
@@ -801,7 +801,7 @@ static DEVICE_ATTR_WO(assign_domain);
  *
  * Returns the number of bytes processed if the APQI is valid; otherwise,
  * returns one of the following errors:
- *	-EINVAL if the APQI is not a number
+ *	-EINVAL if the APQI is yest a number
  *	-ENODEV if the APQI exceeds the maximum value configured for the system
  */
 static ssize_t unassign_domain_store(struct device *dev,
@@ -845,7 +845,7 @@ static DEVICE_ATTR_WO(unassign_domain);
  *
  * Returns the number of bytes processed if the domain ID is valid; otherwise,
  * returns one of the following errors:
- *	-EINVAL if the ID is not a number
+ *	-EINVAL if the ID is yest a number
  *	-ENODEV if the ID exceeds the maximum value configured for the system
  */
 static ssize_t assign_control_domain_store(struct device *dev,
@@ -894,7 +894,7 @@ static DEVICE_ATTR_WO(assign_control_domain);
  *
  * Returns the number of bytes processed if the domain ID is valid; otherwise,
  * returns one of the following errors:
- *	-EINVAL if the ID is not a number
+ *	-EINVAL if the ID is yest a number
  *	-ENODEV if the ID exceeds the maximum value configured for the system
  */
 static ssize_t unassign_control_domain_store(struct device *dev,
@@ -1026,10 +1026,10 @@ static const struct attribute_group *vfio_ap_mdev_attr_groups[] = {
  * @matrix_mdev: a mediated matrix device
  * @kvm: reference to KVM instance
  *
- * Verifies no other mediated matrix device has @kvm and sets a reference to
+ * Verifies yes other mediated matrix device has @kvm and sets a reference to
  * it in @matrix_mdev->kvm.
  *
- * Return 0 if no other mediated matrix device has a reference to @kvm;
+ * Return 0 if yes other mediated matrix device has a reference to @kvm;
  * otherwise, returns an -EPERM.
  */
 static int vfio_ap_mdev_set_kvm(struct ap_matrix_mdev *matrix_mdev,
@@ -1039,7 +1039,7 @@ static int vfio_ap_mdev_set_kvm(struct ap_matrix_mdev *matrix_mdev,
 
 	mutex_lock(&matrix_dev->lock);
 
-	list_for_each_entry(m, &matrix_dev->mdev_list, node) {
+	list_for_each_entry(m, &matrix_dev->mdev_list, yesde) {
 		if ((m != matrix_mdev) && (m->kvm == kvm)) {
 			mutex_unlock(&matrix_dev->lock);
 			return -EPERM;
@@ -1055,22 +1055,22 @@ static int vfio_ap_mdev_set_kvm(struct ap_matrix_mdev *matrix_mdev,
 }
 
 /*
- * vfio_ap_mdev_iommu_notifier: IOMMU notifier callback
+ * vfio_ap_mdev_iommu_yestifier: IOMMU yestifier callback
  *
- * @nb: The notifier block
+ * @nb: The yestifier block
  * @action: Action to be taken
  * @data: data associated with the request
  *
  * For an UNMAP request, unpin the guest IOVA (the NIB guest address we
- * pinned before). Other requests are ignored.
+ * pinned before). Other requests are igyesred.
  *
  */
-static int vfio_ap_mdev_iommu_notifier(struct notifier_block *nb,
+static int vfio_ap_mdev_iommu_yestifier(struct yestifier_block *nb,
 				       unsigned long action, void *data)
 {
 	struct ap_matrix_mdev *matrix_mdev;
 
-	matrix_mdev = container_of(nb, struct ap_matrix_mdev, iommu_notifier);
+	matrix_mdev = container_of(nb, struct ap_matrix_mdev, iommu_yestifier);
 
 	if (action == VFIO_IOMMU_NOTIFY_DMA_UNMAP) {
 		struct vfio_iommu_type1_dma_unmap *unmap = data;
@@ -1083,7 +1083,7 @@ static int vfio_ap_mdev_iommu_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static int vfio_ap_mdev_group_notifier(struct notifier_block *nb,
+static int vfio_ap_mdev_group_yestifier(struct yestifier_block *nb,
 				       unsigned long action, void *data)
 {
 	int ret;
@@ -1092,7 +1092,7 @@ static int vfio_ap_mdev_group_notifier(struct notifier_block *nb,
 	if (action != VFIO_GROUP_NOTIFY_SET_KVM)
 		return NOTIFY_OK;
 
-	matrix_mdev = container_of(nb, struct ap_matrix_mdev, group_notifier);
+	matrix_mdev = container_of(nb, struct ap_matrix_mdev, group_yestifier);
 
 	if (!data) {
 		matrix_mdev->kvm = NULL;
@@ -1103,7 +1103,7 @@ static int vfio_ap_mdev_group_notifier(struct notifier_block *nb,
 	if (ret)
 		return NOTIFY_DONE;
 
-	/* If there is no CRYCB pointer, then we can't copy the masks */
+	/* If there is yes CRYCB pointer, then we can't copy the masks */
 	if (!matrix_mdev->kvm->arch.crypto.crycbd)
 		return NOTIFY_DONE;
 
@@ -1172,7 +1172,7 @@ static int vfio_ap_mdev_reset_queues(struct mdev_device *mdev)
 			ret = vfio_ap_mdev_reset_queue(apid, apqi, 1);
 			/*
 			 * Regardless whether a queue turns out to be busy, or
-			 * is not operational, we need to continue resetting
+			 * is yest operational, we need to continue resetting
 			 * the remaining queues.
 			 */
 			if (ret)
@@ -1194,25 +1194,25 @@ static int vfio_ap_mdev_open(struct mdev_device *mdev)
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
 
-	matrix_mdev->group_notifier.notifier_call = vfio_ap_mdev_group_notifier;
+	matrix_mdev->group_yestifier.yestifier_call = vfio_ap_mdev_group_yestifier;
 	events = VFIO_GROUP_NOTIFY_SET_KVM;
 
-	ret = vfio_register_notifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
-				     &events, &matrix_mdev->group_notifier);
+	ret = vfio_register_yestifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
+				     &events, &matrix_mdev->group_yestifier);
 	if (ret) {
 		module_put(THIS_MODULE);
 		return ret;
 	}
 
-	matrix_mdev->iommu_notifier.notifier_call = vfio_ap_mdev_iommu_notifier;
+	matrix_mdev->iommu_yestifier.yestifier_call = vfio_ap_mdev_iommu_yestifier;
 	events = VFIO_IOMMU_NOTIFY_DMA_UNMAP;
-	ret = vfio_register_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
-				     &events, &matrix_mdev->iommu_notifier);
+	ret = vfio_register_yestifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
+				     &events, &matrix_mdev->iommu_yestifier);
 	if (!ret)
 		return ret;
 
-	vfio_unregister_notifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
-				 &matrix_mdev->group_notifier);
+	vfio_unregister_yestifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
+				 &matrix_mdev->group_yestifier);
 	module_put(THIS_MODULE);
 	return ret;
 }
@@ -1231,10 +1231,10 @@ static void vfio_ap_mdev_release(struct mdev_device *mdev)
 	}
 	mutex_unlock(&matrix_dev->lock);
 
-	vfio_unregister_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
-				 &matrix_mdev->iommu_notifier);
-	vfio_unregister_notifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
-				 &matrix_mdev->group_notifier);
+	vfio_unregister_yestifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
+				 &matrix_mdev->iommu_yestifier);
+	vfio_unregister_yestifier(mdev_dev(mdev), VFIO_GROUP_NOTIFY,
+				 &matrix_mdev->group_yestifier);
 	module_put(THIS_MODULE);
 }
 

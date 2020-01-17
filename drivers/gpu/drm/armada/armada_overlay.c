@@ -287,7 +287,7 @@ armada_overlay_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	plane_state->src_h = src_h;
 	plane_state->src_w = src_w;
 
-	ret = drm_atomic_nonblocking_commit(state);
+	ret = drm_atomic_yesnblocking_commit(state);
 fail:
 	drm_atomic_state_put(state);
 	return ret;

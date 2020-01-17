@@ -41,8 +41,8 @@ out_unlock:
 	return ret;
 }
 
-int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
-		      gfp_t flags, int node)
+int sbitmap_init_yesde(struct sbitmap *sb, unsigned int depth, int shift,
+		      gfp_t flags, int yesde)
 {
 	unsigned int bits_per_word;
 	unsigned int i;
@@ -52,7 +52,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		/*
 		 * If the bitmap is small, shrink the number of bits per word so
 		 * we spread over a few cachelines, at least. If less than 4
-		 * bits, just forget about it, it's not going to work optimally
+		 * bits, just forget about it, it's yest going to work optimally
 		 * anyway.
 		 */
 		if (depth >= 4) {
@@ -73,7 +73,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		return 0;
 	}
 
-	sb->map = kcalloc_node(sb->map_nr, sizeof(*sb->map), flags, node);
+	sb->map = kcalloc_yesde(sb->map_nr, sizeof(*sb->map), flags, yesde);
 	if (!sb->map)
 		return -ENOMEM;
 
@@ -84,7 +84,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sbitmap_init_node);
+EXPORT_SYMBOL_GPL(sbitmap_init_yesde);
 
 void sbitmap_resize(struct sbitmap *sb, unsigned int depth)
 {
@@ -326,8 +326,8 @@ static unsigned int sbq_calc_wake_batch(struct sbitmap_queue *sbq,
 
 	/*
 	 * For each batch, we wake up one queue. We need to make sure that our
-	 * batch size is small enough that the full depth of the bitmap,
-	 * potentially limited by a shallow depth, is enough to wake up all of
+	 * batch size is small eyesugh that the full depth of the bitmap,
+	 * potentially limited by a shallow depth, is eyesugh to wake up all of
 	 * the queues.
 	 *
 	 * Each full word of the bitmap has bits_per_word bits, and there might
@@ -349,13 +349,13 @@ static unsigned int sbq_calc_wake_batch(struct sbitmap_queue *sbq,
 	return wake_batch;
 }
 
-int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
-			    int shift, bool round_robin, gfp_t flags, int node)
+int sbitmap_queue_init_yesde(struct sbitmap_queue *sbq, unsigned int depth,
+			    int shift, bool round_robin, gfp_t flags, int yesde)
 {
 	int ret;
 	int i;
 
-	ret = sbitmap_init_node(&sbq->sb, depth, shift, flags, node);
+	ret = sbitmap_init_yesde(&sbq->sb, depth, shift, flags, yesde);
 	if (ret)
 		return ret;
 
@@ -375,7 +375,7 @@ int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
 	atomic_set(&sbq->wake_index, 0);
 	atomic_set(&sbq->ws_active, 0);
 
-	sbq->ws = kzalloc_node(SBQ_WAIT_QUEUES * sizeof(*sbq->ws), flags, node);
+	sbq->ws = kzalloc_yesde(SBQ_WAIT_QUEUES * sizeof(*sbq->ws), flags, yesde);
 	if (!sbq->ws) {
 		free_percpu(sbq->alloc_hint);
 		sbitmap_free(&sbq->sb);
@@ -390,7 +390,7 @@ int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
 	sbq->round_robin = round_robin;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(sbitmap_queue_init_node);
+EXPORT_SYMBOL_GPL(sbitmap_queue_init_yesde);
 
 static void sbitmap_queue_update_wake_batch(struct sbitmap_queue *sbq,
 					    unsigned int depth)

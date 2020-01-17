@@ -112,14 +112,14 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 			return_ACPI_STATUS(AE_AML_BUFFER_LIMIT);
 		}
 
-		/* Transfer no more than an integer's worth of data */
+		/* Transfer yes more than an integer's worth of data */
 
 		if (count > acpi_gbl_integer_byte_width) {
 			count = acpi_gbl_integer_byte_width;
 		}
 
 		/*
-		 * Convert buffer to an integer - we simply grab enough raw data
+		 * Convert buffer to an integer - we simply grab eyesugh raw data
 		 * from the buffer to fill an integer
 		 */
 		for (i = 0; i < count; i++) {
@@ -190,7 +190,7 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
 	case ACPI_TYPE_INTEGER:
 		/*
 		 * Create a new Buffer object.
-		 * Need enough space for one integer
+		 * Need eyesugh space for one integer
 		 */
 		return_desc =
 		    acpi_ut_create_buffer_object(acpi_gbl_integer_byte_width);
@@ -413,7 +413,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 
 		/*
 		 * Create a new String
-		 * Need enough space for one ASCII integer (plus null terminator)
+		 * Need eyesugh space for one ASCII integer (plus null terminator)
 		 */
 		return_desc =
 		    acpi_ut_create_string_object((acpi_size)string_length);
@@ -670,7 +670,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 	default:
 
 		ACPI_ERROR((AE_INFO,
-			    "Unknown Target type ID 0x%X AmlOpcode 0x%X DestType %s",
+			    "Unkyeswn Target type ID 0x%X AmlOpcode 0x%X DestType %s",
 			    GET_CURRENT_ARG_TYPE(walk_state->op_info->
 						 runtime_args),
 			    walk_state->opcode,
@@ -681,7 +681,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 	/*
 	 * Source-to-Target conversion semantics:
 	 *
-	 * If conversion to the target type cannot be performed, then simply
+	 * If conversion to the target type canyest be performed, then simply
 	 * overwrite the target with the new object and type.
 	 */
 	if (status == AE_TYPE) {

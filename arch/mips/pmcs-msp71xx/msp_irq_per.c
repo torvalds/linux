@@ -75,7 +75,7 @@ static inline void msp_per_irq_ack(struct irq_data *d)
 	/*
 	 * In the PER interrupt controller, only bits 11 and 10
 	 * are write-to-clear, (SPI TX complete, SPI RX complete).
-	 * It does nothing for any others.
+	 * It does yesthing for any others.
 	 */
 	*PER_INT_STS_REG = (1 << (d->irq - MSP_PER_INTBASE));
 }

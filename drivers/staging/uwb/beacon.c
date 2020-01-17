@@ -112,13 +112,13 @@ int uwb_rc_beacon(struct uwb_rc *rc, int channel, unsigned bpst_offset)
 		/* channel >= 0...dah */
 		result = uwb_rc_start_beacon(rc, bpst_offset, channel);
 		if (result < 0) {
-			dev_err(dev, "Cannot start beaconing: %d\n", result);
+			dev_err(dev, "Canyest start beaconing: %d\n", result);
 			return result;
 		}
 		if (le16_to_cpu(rc->ies->wIELength) > 0) {
 			result = uwb_rc_set_ie(rc, rc->ies);
 			if (result < 0) {
-				dev_err(dev, "Cannot set new IE on device: "
+				dev_err(dev, "Canyest set new IE on device: "
 					"%d\n", result);
 				result = uwb_rc_stop_beacon(rc);
 				channel = -1;
@@ -137,7 +137,7 @@ int uwb_rc_beacon(struct uwb_rc *rc, int channel, unsigned bpst_offset)
  *
  * The purpose of this is to speed up the lookup of becon information
  * when a new beacon arrives. The UWB Daemon uses it also to keep a
- * tab of which devices are in radio distance and which not. When a
+ * tab of which devices are in radio distance and which yest. When a
  * device's beacon stays present for more than a certain amount of
  * time, it is considered a new, usable device. When a beacon ceases
  * to be received for a certain amount of time, it is considered that
@@ -162,7 +162,7 @@ struct uwb_beca_e *__uwb_beca_find_bydev(struct uwb_rc *rc,
 					 const struct uwb_dev_addr *dev_addr)
 {
 	struct uwb_beca_e *bce, *next;
-	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, node) {
+	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, yesde) {
 		if (!memcmp(&bce->dev_addr, dev_addr, sizeof(bce->dev_addr)))
 			goto out;
 	}
@@ -177,7 +177,7 @@ struct uwb_beca_e *__uwb_beca_find_bymac(struct uwb_rc *rc,
 					 const struct uwb_mac_addr *mac_addr)
 {
 	struct uwb_beca_e *bce, *next;
-	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, node) {
+	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, yesde) {
 		if (!memcmp(bce->mac_addr, mac_addr->data,
 			    sizeof(struct uwb_mac_addr)))
 			goto out;
@@ -260,7 +260,7 @@ struct uwb_beca_e *__uwb_beca_add(struct uwb_rc *rc,
 	uwb_beca_e_init(bce);
 	bce->ts_jiffies = ts_jiffies;
 	bce->uwb_dev = NULL;
-	list_add(&bce->node, &rc->uwb_beca.list);
+	list_add(&bce->yesde, &rc->uwb_beca.list);
 	return bce;
 }
 
@@ -275,7 +275,7 @@ void uwb_beca_purge(struct uwb_rc *rc)
 	unsigned long expires;
 
 	mutex_lock(&rc->uwb_beca.mutex);
-	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, node) {
+	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, yesde) {
 		expires = bce->ts_jiffies + msecs_to_jiffies(beacon_timeout_ms);
 		if (time_after(jiffies, expires)) {
 			uwbd_dev_offair(bce);
@@ -290,8 +290,8 @@ void uwb_beca_release(struct uwb_rc *rc)
 	struct uwb_beca_e *bce, *next;
 
 	mutex_lock(&rc->uwb_beca.mutex);
-	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, node) {
-		list_del(&bce->node);
+	list_for_each_entry_safe(bce, next, &rc->uwb_beca.list, yesde) {
+		list_del(&bce->yesde);
 		uwb_bce_put(bce);
 	}
 	mutex_unlock(&rc->uwb_beca.mutex);
@@ -351,10 +351,10 @@ static int uwb_verify_beacon(struct uwb_rc *rc, struct uwb_event *evt,
 	struct uwb_beacon_frame *bf;
 	struct device *dev = &rc->uwb_dev.dev;
 
-	/* Is there enough data to decode a beacon frame? */
-	if (evt->notif.size < sizeof(*be) + sizeof(*bf)) {
-		dev_err(dev, "BEACON event: Not enough data to decode "
-			"(%zu vs %zu bytes needed)\n", evt->notif.size,
+	/* Is there eyesugh data to decode a beacon frame? */
+	if (evt->yestif.size < sizeof(*be) + sizeof(*bf)) {
+		dev_err(dev, "BEACON event: Not eyesugh data to decode "
+			"(%zu vs %zu bytes needed)\n", evt->yestif.size,
 			sizeof(*be) + sizeof(*bf));
 		goto error;
 	}
@@ -369,11 +369,11 @@ error:
  * Handle UWB_RC_EVT_BEACON events
  *
  * We check the beacon cache to see how the received beacon fares. If
- * is there already we refresh the timestamp. If not we create a new
+ * is there already we refresh the timestamp. If yest we create a new
  * entry.
  *
  * According to the WHCI and WUSB specs, only one beacon frame is
- * allowed per notification block, so we don't bother about scanning
+ * allowed per yestification block, so we don't bother about scanning
  * for more.
  */
 int uwbd_evt_handle_rc_beacon(struct uwb_event *evt)
@@ -385,7 +385,7 @@ int uwbd_evt_handle_rc_beacon(struct uwb_event *evt)
 	struct uwb_beca_e *bce;
 
 	rc = evt->rc;
-	be = container_of(evt->notif.rceb, struct uwb_rc_evt_beacon, rceb);
+	be = container_of(evt->yestif.rceb, struct uwb_rc_evt_beacon, rceb);
 	result = uwb_verify_beacon(rc, evt, be);
 	if (result < 0)
 		return result;
@@ -399,11 +399,11 @@ int uwbd_evt_handle_rc_beacon(struct uwb_event *evt)
 	bf = (struct uwb_beacon_frame *) be->BeaconInfo;
 
 	/*
-	 * Drop beacons from devices with a NULL EUI-48 -- they cannot
+	 * Drop beacons from devices with a NULL EUI-48 -- they canyest
 	 * be uniquely identified.
 	 *
 	 * It's expected that these will all be WUSB devices and they
-	 * have a WUSB specific connection method so ignoring them
+	 * have a WUSB specific connection method so igyesring them
 	 * here shouldn't be a problem.
 	 */
 	if (uwb_mac_addr_bcast(&bf->Device_Identifier))
@@ -458,14 +458,14 @@ int uwbd_evt_handle_rc_beacon_size(struct uwb_event *evt)
 	struct device *dev = &evt->rc->uwb_dev.dev;
 	struct uwb_rc_evt_beacon_size *bs;
 
-	/* Is there enough data to decode the event? */
-	if (evt->notif.size < sizeof(*bs)) {
-		dev_err(dev, "BEACON SIZE notification: Not enough data to "
+	/* Is there eyesugh data to decode the event? */
+	if (evt->yestif.size < sizeof(*bs)) {
+		dev_err(dev, "BEACON SIZE yestification: Not eyesugh data to "
 			"decode (%zu vs %zu bytes needed)\n",
-			evt->notif.size, sizeof(*bs));
+			evt->yestif.size, sizeof(*bs));
 		goto error;
 	}
-	bs = container_of(evt->notif.rceb, struct uwb_rc_evt_beacon_size, rceb);
+	bs = container_of(evt->yestif.rceb, struct uwb_rc_evt_beacon_size, rceb);
 	if (0)
 		dev_info(dev, "Beacon size changed to %u bytes "
 			"(FIXME: action?)\n", le16_to_cpu(bs->wNewBeaconSize));
@@ -483,10 +483,10 @@ error:
 
 /**
  * uwbd_evt_handle_rc_bp_slot_change - handle a BP_SLOT_CHANGE event
- * @evt: the BP_SLOT_CHANGE notification from the radio controller
+ * @evt: the BP_SLOT_CHANGE yestification from the radio controller
  *
- * If the event indicates that no beacon period slots were available
- * then radio controller has transitioned to a non-beaconing state.
+ * If the event indicates that yes beacon period slots were available
+ * then radio controller has transitioned to a yesn-beaconing state.
  * Otherwise, simply save the current beacon slot.
  */
 int uwbd_evt_handle_rc_bp_slot_change(struct uwb_event *evt)
@@ -495,13 +495,13 @@ int uwbd_evt_handle_rc_bp_slot_change(struct uwb_event *evt)
 	struct device *dev = &rc->uwb_dev.dev;
 	struct uwb_rc_evt_bp_slot_change *bpsc;
 
-	if (evt->notif.size < sizeof(*bpsc)) {
-		dev_err(dev, "BP SLOT CHANGE event: Not enough data\n");
+	if (evt->yestif.size < sizeof(*bpsc)) {
+		dev_err(dev, "BP SLOT CHANGE event: Not eyesugh data\n");
 		return -EINVAL;
 	}
-	bpsc = container_of(evt->notif.rceb, struct uwb_rc_evt_bp_slot_change, rceb);
+	bpsc = container_of(evt->yestif.rceb, struct uwb_rc_evt_bp_slot_change, rceb);
 
-	if (uwb_rc_evt_bp_slot_change_no_slot(bpsc)) {
+	if (uwb_rc_evt_bp_slot_change_yes_slot(bpsc)) {
 		dev_err(dev, "stopped beaconing: No free slots in BP\n");
 		mutex_lock(&rc->uwb_dev.mutex);
 		rc->beaconing = -1;
@@ -532,17 +532,17 @@ int uwbd_evt_handle_rc_bpoie_change(struct uwb_event *evt)
 	static unsigned count;	/* FIXME: this is a temp hack */
 	size_t iesize;
 
-	/* Is there enough data to decode it? */
-	if (evt->notif.size < sizeof(*bpoiec)) {
-		dev_err(dev, "BPOIEC notification: Not enough data to "
+	/* Is there eyesugh data to decode it? */
+	if (evt->yestif.size < sizeof(*bpoiec)) {
+		dev_err(dev, "BPOIEC yestification: Not eyesugh data to "
 			"decode (%zu vs %zu bytes needed)\n",
-			evt->notif.size, sizeof(*bpoiec));
+			evt->yestif.size, sizeof(*bpoiec));
 		goto error;
 	}
-	bpoiec = container_of(evt->notif.rceb, struct uwb_rc_evt_bpoie_change, rceb);
+	bpoiec = container_of(evt->yestif.rceb, struct uwb_rc_evt_bpoie_change, rceb);
 	iesize = le16_to_cpu(bpoiec->wBPOIELength);
 	if (iesize < sizeof(*bpoie)) {
-		dev_err(dev, "BPOIEC notification: Not enough IE data to "
+		dev_err(dev, "BPOIEC yestification: Not eyesugh IE data to "
 			"decode (%zu vs %zu bytes needed)\n",
 			iesize, sizeof(*bpoie));
 		goto error;

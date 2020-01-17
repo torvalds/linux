@@ -51,7 +51,7 @@ static phys_addr_t limit_cmdline __initdata;
 static int __init early_cma(char *p)
 {
 	if (!p) {
-		pr_err("Config string not provided\n");
+		pr_err("Config string yest provided\n");
 		return -EINVAL;
 	}
 
@@ -77,8 +77,8 @@ static phys_addr_t __init __maybe_unused cma_early_percent_memory(void)
 	unsigned long total_pages = 0;
 
 	/*
-	 * We cannot use memblock_phys_mem_size() here, because
-	 * memblock_analyze() has not been called yet.
+	 * We canyest use memblock_phys_mem_size() here, because
+	 * memblock_analyze() has yest been called yet.
 	 */
 	for_each_memblock(memory, reg)
 		total_pages += memblock_region_memory_end_pfn(reg) -
@@ -117,7 +117,7 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 	if (size_cmdline != -1) {
 		selected_size = size_cmdline;
 		selected_base = base_cmdline;
-		selected_limit = min_not_zero(limit_cmdline, limit);
+		selected_limit = min_yest_zero(limit_cmdline, limit);
 		if (base_cmdline + size_cmdline == limit_cmdline)
 			fixed = true;
 	} else {
@@ -183,7 +183,7 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
  * @dev:   Pointer to device for which the allocation is performed.
  * @count: Requested number of pages.
  * @align: Requested alignment of pages (in PAGE_SIZE order).
- * @no_warn: Avoid printing message about failed allocation.
+ * @yes_warn: Avoid printing message about failed allocation.
  *
  * This function allocates memory buffer for specified device. It uses
  * device specific contiguous memory area if available or the default
@@ -191,12 +191,12 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
  * function.
  */
 struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
-				       unsigned int align, bool no_warn)
+				       unsigned int align, bool yes_warn)
 {
 	if (align > CONFIG_CMA_ALIGNMENT)
 		align = CONFIG_CMA_ALIGNMENT;
 
-	return cma_alloc(dev_get_cma_area(dev), count, align, no_warn);
+	return cma_alloc(dev_get_cma_area(dev), count, align, yes_warn);
 }
 
 /**
@@ -206,7 +206,7 @@ struct page *dma_alloc_from_contiguous(struct device *dev, size_t count,
  * @count: Number of allocated pages.
  *
  * This function releases memory allocated by dma_alloc_from_contiguous().
- * It returns false when provided pages do not belong to contiguous area and
+ * It returns false when provided pages do yest belong to contiguous area and
  * true otherwise.
  */
 bool dma_release_from_contiguous(struct device *dev, struct page *pages,
@@ -223,10 +223,10 @@ bool dma_release_from_contiguous(struct device *dev, struct page *pages,
  *
  * This function allocates contiguous memory buffer for specified device. It
  * first tries to use device specific contiguous memory area if available or
- * the default global one, then tries a fallback allocation of normal pages.
+ * the default global one, then tries a fallback allocation of yesrmal pages.
  *
  * Note that it byapss one-page size of allocations from the global area as
- * the addresses within one page are always contiguous, so there is no need
+ * the addresses within one page are always contiguous, so there is yes need
  * to waste CMA pages for that kind; it also helps reduce fragmentations.
  */
 struct page *dma_alloc_contiguous(struct device *dev, size_t size, gfp_t gfp)
@@ -258,7 +258,7 @@ struct page *dma_alloc_contiguous(struct device *dev, size_t size, gfp_t gfp)
  * @size:  Size of allocated pages.
  *
  * This function releases memory allocated by dma_alloc_contiguous(). As the
- * cma_release returns false when provided pages do not belong to contiguous
+ * cma_release returns false when provided pages do yest belong to contiguous
  * area and true otherwise, this function then does a fallback __free_pages()
  * upon a false-return.
  */
@@ -301,12 +301,12 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 {
 	phys_addr_t align = PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
 	phys_addr_t mask = align - 1;
-	unsigned long node = rmem->fdt_node;
+	unsigned long yesde = rmem->fdt_yesde;
 	struct cma *cma;
 	int err;
 
-	if (!of_get_flat_dt_prop(node, "reusable", NULL) ||
-	    of_get_flat_dt_prop(node, "no-map", NULL))
+	if (!of_get_flat_dt_prop(yesde, "reusable", NULL) ||
+	    of_get_flat_dt_prop(yesde, "yes-map", NULL))
 		return -EINVAL;
 
 	if ((rmem->base & mask) || (rmem->size & mask)) {
@@ -322,7 +322,7 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 	/* Architecture specific contiguous memory fixup. */
 	dma_contiguous_early_fixup(rmem->base, rmem->size);
 
-	if (of_get_flat_dt_prop(node, "linux,cma-default", NULL))
+	if (of_get_flat_dt_prop(yesde, "linux,cma-default", NULL))
 		dma_contiguous_set_default(cma);
 
 	rmem->ops = &rmem_cma_ops;

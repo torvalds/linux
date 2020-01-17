@@ -176,7 +176,7 @@ static void mvebu_uart_set_mctrl(struct uart_port *port,
 				 unsigned int mctrl)
 {
 /*
- * Even if we do not support configuring the modem control lines, this
+ * Even if we do yest support configuring the modem control lines, this
  * function must be proided to the serial core
  */
 }
@@ -254,7 +254,7 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 			port->icount.brk++;
 			status &= ~(STAT_FRM_ERR | STAT_PAR_ERR);
 			if (uart_handle_break(port))
-				goto ignore_char;
+				goto igyesre_char;
 		}
 
 		if (status & STAT_OVR_ERR)
@@ -264,9 +264,9 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 			port->icount.frame++;
 
 		if (uart_handle_sysrq_char(port, ch))
-			goto ignore_char;
+			goto igyesre_char;
 
-		if (status & port->ignore_status_mask & STAT_PAR_ERR)
+		if (status & port->igyesre_status_mask & STAT_PAR_ERR)
 			status &= ~STAT_RX_RDY(port);
 
 		status &= port->read_status_mask;
@@ -274,7 +274,7 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 		if (status & STAT_PAR_ERR)
 			flag = TTY_PARITY;
 
-		status &= ~port->ignore_status_mask;
+		status &= ~port->igyesre_status_mask;
 
 		if (status & STAT_RX_RDY(port))
 			tty_insert_flip_char(tport, ch, flag);
@@ -288,7 +288,7 @@ static void mvebu_uart_rx_chars(struct uart_port *port, unsigned int status)
 		if (status & STAT_OVR_ERR)
 			tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 
-ignore_char:
+igyesre_char:
 		status = readl(port->membase + UART_STAT);
 	} while (status & (STAT_RX_RDY(port) | STAT_BRK_DET));
 
@@ -492,13 +492,13 @@ static void mvebu_uart_set_termios(struct uart_port *port,
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= STAT_FRM_ERR | STAT_PAR_ERR;
 
-	port->ignore_status_mask = 0;
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |=
+		port->igyesre_status_mask |=
 			STAT_FRM_ERR | STAT_PAR_ERR | STAT_OVR_ERR;
 
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= STAT_RX_RDY(port) | STAT_BRK_ERR;
+		port->igyesre_status_mask |= STAT_RX_RDY(port) | STAT_BRK_ERR;
 
 	/*
 	 * Maximum achievable frequency with simple baudrate divisor is 230400.
@@ -508,7 +508,7 @@ static void mvebu_uart_set_termios(struct uart_port *port,
 	 */
 	baud = uart_get_baud_rate(port, termios, old, 0, 230400);
 	if (mvebu_uart_baud_rate_set(port, baud)) {
-		/* No clock available, baudrate cannot be changed */
+		/* No clock available, baudrate canyest be changed */
 		if (old)
 			baud = uart_get_baud_rate(port, old, NULL, 0, 230400);
 	} else {
@@ -605,7 +605,7 @@ static void mvebu_uart_putc(struct uart_port *port, int c)
 			break;
 	}
 
-	/* At early stage, DT is not parsed yet, only use UART0 */
+	/* At early stage, DT is yest parsed yet, only use UART0 */
 	writel(c, port->membase + UART_STD_TSH);
 
 	for (;;) {
@@ -703,7 +703,7 @@ static int mvebu_uart_console_setup(struct console *co, char *options)
 	port = &mvebu_uart_ports[co->index];
 
 	if (!port->mapbase || !port->membase) {
-		pr_debug("console on ttyMV%i not present\n", co->index);
+		pr_debug("console on ttyMV%i yest present\n", co->index);
 		return -ENODEV;
 	}
 
@@ -793,7 +793,7 @@ static const struct dev_pm_ops mvebu_uart_pm_ops = {
 
 static const struct of_device_id mvebu_uart_of_match[];
 
-/* Counter to keep track of each UART port id when not using CONFIG_OF */
+/* Counter to keep track of each UART port id when yest using CONFIG_OF */
 static int uart_num_counter;
 
 static int mvebu_uart_probe(struct platform_device *pdev)
@@ -806,22 +806,22 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	int ret, id, irq;
 
 	if (!reg) {
-		dev_err(&pdev->dev, "no registers defined\n");
+		dev_err(&pdev->dev, "yes registers defined\n");
 		return -EINVAL;
 	}
 
 	if (!match)
 		return -ENODEV;
 
-	/* Assume that all UART ports have a DT alias or none has */
-	id = of_alias_get_id(pdev->dev.of_node, "serial");
-	if (!pdev->dev.of_node || id < 0)
+	/* Assume that all UART ports have a DT alias or yesne has */
+	id = of_alias_get_id(pdev->dev.of_yesde, "serial");
+	if (!pdev->dev.of_yesde || id < 0)
 		pdev->id = uart_num_counter++;
 	else
 		pdev->id = id;
 
 	if (pdev->id >= MVEBU_NR_UARTS) {
-		dev_err(&pdev->dev, "cannot have more than %d UART ports\n",
+		dev_err(&pdev->dev, "canyest have more than %d UART ports\n",
 			MVEBU_NR_UARTS);
 		return -EINVAL;
 	}
@@ -841,7 +841,7 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	port->line       = pdev->id;
 
 	/*
-	 * IRQ number is not stored in this structure because we may have two of
+	 * IRQ number is yest stored in this structure because we may have two of
 	 * them per port (RX and TX). Instead, use the driver UART structure
 	 * array so called ->irq[].
 	 */
@@ -882,7 +882,7 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 
 	/* Manage interrupts */
 	if (platform_irq_count(pdev) == 1) {
-		/* Old bindings: no name on the single unamed UART0 IRQ */
+		/* Old bindings: yes name on the single unamed UART0 IRQ */
 		irq = platform_get_irq(pdev, 0);
 		if (irq < 0)
 			return irq;
@@ -891,7 +891,7 @@ static int mvebu_uart_probe(struct platform_device *pdev)
 	} else {
 		/*
 		 * New bindings: named interrupts (RX, TX) for both UARTS,
-		 * only make use of uart-rx and uart-tx interrupts, do not use
+		 * only make use of uart-rx and uart-tx interrupts, do yest use
 		 * uart-sum of UART0 port.
 		 */
 		irq = platform_get_irq_byname(pdev, "uart-rx");

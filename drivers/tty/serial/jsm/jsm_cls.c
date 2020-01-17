@@ -135,7 +135,7 @@ static void cls_set_ixon_flow_control(struct jsm_channel *ch)
 		&ch->ch_cls_uart->isr_fcr);
 }
 
-static void cls_set_no_output_flow_control(struct jsm_channel *ch)
+static void cls_set_yes_output_flow_control(struct jsm_channel *ch)
 {
 	u8 lcrb = readb(&ch->ch_cls_uart->lcr);
 	u8 ier = readb(&ch->ch_cls_uart->ier);
@@ -257,7 +257,7 @@ static void cls_set_ixoff_flow_control(struct jsm_channel *ch)
 		&ch->ch_cls_uart->isr_fcr);
 }
 
-static void cls_set_no_input_flow_control(struct jsm_channel *ch)
+static void cls_set_yes_input_flow_control(struct jsm_channel *ch)
 {
 	u8 lcrb = readb(&ch->ch_cls_uart->lcr);
 	u8 ier = readb(&ch->ch_cls_uart->ier);
@@ -388,12 +388,12 @@ static void cls_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 		 */
 		linestatus = readb(&ch->ch_cls_uart->lsr);
 
-		/* Break out if there is no data to fetch */
+		/* Break out if there is yes data to fetch */
 		if (!(linestatus & UART_LSR_DR))
 			break;
 
 		/*
-		 * Discard character if we are ignoring the error mask
+		 * Discard character if we are igyesring the error mask
 		 * which in this case is the break signal.
 		 */
 		if (linestatus & error_mask)  {
@@ -405,7 +405,7 @@ static void cls_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 		}
 
 		/*
-		 * If our queue is full, we have no choice but to drop some
+		 * If our queue is full, we have yes choice but to drop some
 		 * data. The assumption is that HWFLOW or SWFLOW should have
 		 * stopped things way way before we got to this point.
 		 *
@@ -572,7 +572,7 @@ static inline void cls_parse_isr(struct jsm_board *brd, uint port)
 	while (1) {
 		isr = readb(&ch->ch_cls_uart->isr_fcr);
 
-		/* Bail if no pending interrupt on port */
+		/* Bail if yes pending interrupt on port */
 		if (isr & UART_IIR_NO_INT)
 			break;
 
@@ -786,11 +786,11 @@ static void cls_param(struct jsm_channel *ch)
 		 */
 		if ((ch->ch_startc == __DISABLED_CHAR) ||
 			(ch->ch_stopc == __DISABLED_CHAR))
-			cls_set_no_output_flow_control(ch);
+			cls_set_yes_output_flow_control(ch);
 		else
 			cls_set_ixon_flow_control(ch);
 	} else
-		cls_set_no_output_flow_control(ch);
+		cls_set_yes_output_flow_control(ch);
 
 	if (ch->ch_c_cflag & CRTSCTS)
 		cls_set_rts_flow_control(ch);
@@ -801,15 +801,15 @@ static void cls_param(struct jsm_channel *ch)
 		 */
 		if ((ch->ch_startc == __DISABLED_CHAR) ||
 			(ch->ch_stopc == __DISABLED_CHAR))
-			cls_set_no_input_flow_control(ch);
+			cls_set_yes_input_flow_control(ch);
 		else
 			cls_set_ixoff_flow_control(ch);
 	} else
-		cls_set_no_input_flow_control(ch);
+		cls_set_yes_input_flow_control(ch);
 
 	cls_assert_modem_signals(ch);
 
-	/* get current status of the modem signals now */
+	/* get current status of the modem signals yesw */
 	cls_parse_modem(ch, readb(&ch->ch_cls_uart->msr));
 }
 
@@ -839,7 +839,7 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 
 	if (!uart_poll) {
 		jsm_dbg(INTR, &brd->pci_dev,
-			"Kernel interrupted to me, but no pending interrupts...\n");
+			"Kernel interrupted to me, but yes pending interrupts...\n");
 		spin_unlock_irqrestore(&brd->bd_intr_lock, lock_flags);
 		return IRQ_NONE;
 	}
@@ -903,7 +903,7 @@ static void cls_uart_off(struct jsm_channel *ch)
 
 /*
  * cls_get_uarts_bytes_left.
- * Returns 0 is nothing left in the FIFO, returns 1 otherwise.
+ * Returns 0 is yesthing left in the FIFO, returns 1 otherwise.
  *
  * The channel lock MUST be held by the calling function.
  */
@@ -912,7 +912,7 @@ static u32 cls_get_uart_bytes_left(struct jsm_channel *ch)
 	u8 left = 0;
 	u8 lsr = readb(&ch->ch_cls_uart->lsr);
 
-	/* Determine whether the Transmitter is empty or not */
+	/* Determine whether the Transmitter is empty or yest */
 	if (!(lsr & UART_LSR_TEMT))
 		left = 1;
 	else {

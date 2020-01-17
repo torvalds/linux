@@ -33,7 +33,7 @@ There's a script that checks for the Sphinx requirements. Please see
 :ref:`sphinx-pre-install` for further details.
 
 Most distributions are shipped with Sphinx, but its toolchain is fragile,
-and it is not uncommon that upgrading it or some other Python packages
+and it is yest uncommon that upgrading it or some other Python packages
 on your machine would cause the documentation build to break.
 
 A way to avoid that is to use a different version than the one shipped
@@ -41,7 +41,7 @@ with your distributions. In order to do so, it is recommended to install
 Sphinx inside a virtual environment, using ``virtualenv-3``
 or ``virtualenv``, depending on how your distribution packaged Python 3.
 
-.. note::
+.. yeste::
 
    #) Sphinx versions below 1.5 don't work properly with Python's
       docutils version 0.13.1 or higher. So, if you're willing to use
@@ -52,7 +52,7 @@ or ``virtualenv``, depending on how your distribution packaged Python 3.
       with ``pip install sphinx_rtd_theme``.
 
    #) Some ReST pages contain math expressions. Due to the way Sphinx work,
-      those expressions are written using LaTeX notation. It needs texlive
+      those expressions are written using LaTeX yestation. It needs texlive
       installed with amdfonts and amsmath in order to evaluate them.
 
 In summary, if you want to install Sphinx version 1.7.9, you should do::
@@ -74,7 +74,7 @@ handles images on both GraphViz and SVG formats (see
 :ref:`sphinx_kfigure`).
 
 For it to work, you need to install both GraphViz and ImageMagick
-packages. If those packages are not installed, the build system will
+packages. If those packages are yest installed, the build system will
 still build the documentation, but won't include any images at the
 output.
 
@@ -117,10 +117,10 @@ builds are assumed to be mandatory; the others to be optional.
 
 It supports two optional parameters:
 
-``--no-pdf``
+``--yes-pdf``
 	Disable checks for PDF;
 
-``--no-virtualenv``
+``--yes-virtualenv``
 	Use OS packaging for Sphinx instead of Python virtual environment.
 
 
@@ -154,8 +154,8 @@ Adding new documentation can be as simple as:
 
 .. _TOC tree: http://www.sphinx-doc.org/en/stable/markup/toctree.html
 
-This is usually good enough for simple documentation (like the one you're
-reading right now), but for larger documents it may be advisable to create a
+This is usually good eyesugh for simple documentation (like the one you're
+reading right yesw), but for larger documents it may be advisable to create a
 subdirectory (or use an existing one). For example, the graphics subsystem
 documentation is under ``Documentation/gpu``, split to several ``.rst`` files,
 and has a separate ``index.rst`` (with a ``toctree`` of its own) referenced from
@@ -176,13 +176,13 @@ Here are some specific guidelines for the kernel documentation:
 
 * Please don't go overboard with reStructuredText markup. Keep it
   simple. For the most part the documentation should be plain text with
-  just enough consistency in formatting that it can be converted to
+  just eyesugh consistency in formatting that it can be converted to
   other formats.
 
 * Please keep the formatting changes minimal when converting existing
   documentation to reStructuredText.
 
-* Also update the content, not just the formatting, when converting
+* Also update the content, yest just the formatting, when converting
   documentation.
 
 * Please stick to this order of heading adornments:
@@ -243,7 +243,7 @@ The func-name (e.g. ioctl) remains in the output but the ref-name changed from
 ``ioctl`` to ``VIDIOC_LOG_STATUS``. The index entry for this function is also
 changed to ``VIDIOC_LOG_STATUS``.
 
-Please note that there is no need to use ``c:func:`` to generate cross
+Please yeste that there is yes need to use ``c:func:`` to generate cross
 references to function documentation.  Due to some Sphinx extension magic,
 the documentation build system will automatically turn a reference to
 ``function()`` into a cross reference if an index entry for the given
@@ -255,7 +255,7 @@ list tables
 -----------
 
 We recommend the use of *list table* formats. The *list table* formats are
-double-stage lists. Compared to the ASCII-art they might not be as
+double-stage lists. Compared to the ASCII-art they might yest be as
 comfortable for
 readers of the text files. Their advantage is that they are easy to
 create or modify and that the diff of a modification is much more meaningful,
@@ -389,7 +389,7 @@ Embed *render* markups (or languages) like Graphviz's **DOT** is provided by the
      }
 
 How this will be rendered depends on the installed tools. If Graphviz is
-installed, you will see an vector image. If not the raw markup is inserted as
+installed, you will see an vector image. If yest the raw markup is inserted as
 *literal-block* (:ref:`hello_dot_render`).
 
 .. _hello_dot_render:
@@ -402,9 +402,9 @@ installed, you will see an vector image. If not the raw markup is inserted as
       "bar" -> "baz";
    }
 
-The *render* directive has all the options known from the *figure* directive,
-plus option ``caption``.  If ``caption`` has a value, a *figure* node is
-inserted. If not, a *image* node is inserted. A ``caption`` is also needed, if
+The *render* directive has all the options kyeswn from the *figure* directive,
+plus option ``caption``.  If ``caption`` has a value, a *figure* yesde is
+inserted. If yest, a *image* yesde is inserted. A ``caption`` is also needed, if
 you want to refer it (:ref:`hello_svg_render`).
 
 Embedded **SVG**::

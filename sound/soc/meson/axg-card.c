@@ -68,35 +68,35 @@ static int axg_card_reallocate_links(struct axg_card *priv,
 }
 
 static int axg_card_parse_dai(struct snd_soc_card *card,
-			      struct device_node *node,
-			      struct device_node **dai_of_node,
+			      struct device_yesde *yesde,
+			      struct device_yesde **dai_of_yesde,
 			      const char **dai_name)
 {
 	struct of_phandle_args args;
 	int ret;
 
-	if (!dai_name || !dai_of_node || !node)
+	if (!dai_name || !dai_of_yesde || !yesde)
 		return -EINVAL;
 
-	ret = of_parse_phandle_with_args(node, "sound-dai",
+	ret = of_parse_phandle_with_args(yesde, "sound-dai",
 					 "#sound-dai-cells", 0, &args);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(card->dev, "can't parse dai %d\n", ret);
 		return ret;
 	}
-	*dai_of_node = args.np;
+	*dai_of_yesde = args.np;
 
 	return snd_soc_get_dai_name(&args, dai_name);
 }
 
 static int axg_card_set_link_name(struct snd_soc_card *card,
 				  struct snd_soc_dai_link *link,
-				  struct device_node *node,
+				  struct device_yesde *yesde,
 				  const char *prefix)
 {
 	char *name = devm_kasprintf(card->dev, GFP_KERNEL, "%s.%s",
-				    prefix, node->full_name);
+				    prefix, yesde->full_name);
 	if (!name)
 		return -ENOMEM;
 
@@ -117,15 +117,15 @@ static void axg_card_clean_references(struct axg_card *priv)
 	if (card->dai_link) {
 		for_each_card_prelinks(card, i, link) {
 			if (link->cpus)
-				of_node_put(link->cpus->of_node);
+				of_yesde_put(link->cpus->of_yesde);
 			for_each_link_codecs(link, j, codec)
-				of_node_put(codec->of_node);
+				of_yesde_put(codec->of_yesde);
 		}
 	}
 
 	if (card->aux_dev) {
 		for_each_card_pre_auxs(card, i, aux)
-			of_node_put(aux->dlc.of_node);
+			of_yesde_put(aux->dlc.of_yesde);
 	}
 
 	kfree(card->dai_link);
@@ -134,17 +134,17 @@ static void axg_card_clean_references(struct axg_card *priv)
 
 static int axg_card_add_aux_devices(struct snd_soc_card *card)
 {
-	struct device_node *node = card->dev->of_node;
+	struct device_yesde *yesde = card->dev->of_yesde;
 	struct snd_soc_aux_dev *aux;
 	int num, i;
 
-	num = of_count_phandle_with_args(node, "audio-aux-devs", NULL);
+	num = of_count_phandle_with_args(yesde, "audio-aux-devs", NULL);
 	if (num == -ENOENT) {
 		/*
-		 * It is ok to have no auxiliary devices but for this card it
+		 * It is ok to have yes auxiliary devices but for this card it
 		 * is a strange situtation. Let's warn the about it.
 		 */
-		dev_warn(card->dev, "card has no auxiliary devices\n");
+		dev_warn(card->dev, "card has yes auxiliary devices\n");
 		return 0;
 	} else if (num < 0) {
 		dev_err(card->dev, "error getting auxiliary devices: %d\n",
@@ -159,9 +159,9 @@ static int axg_card_add_aux_devices(struct snd_soc_card *card)
 	card->num_aux_devs = num;
 
 	for_each_card_pre_auxs(card, i, aux) {
-		aux->dlc.of_node =
-			of_parse_phandle(node, "audio-aux-devs", i);
-		if (!aux->dlc.of_node)
+		aux->dlc.of_yesde =
+			of_parse_phandle(yesde, "audio-aux-devs", i);
+		if (!aux->dlc.of_yesde)
 			return -EINVAL;
 	}
 
@@ -280,12 +280,12 @@ static int axg_card_add_tdm_loopback(struct snd_soc_card *card,
 	lb->num_codecs = 1;
 
 	lb->stream_name = lb->name;
-	lb->cpus->of_node = pad->cpus->of_node;
+	lb->cpus->of_yesde = pad->cpus->of_yesde;
 	lb->cpus->dai_name = "TDM Loopback";
 	lb->codecs->name = "snd-soc-dummy";
 	lb->codecs->dai_name = "snd-soc-dummy-dai";
 	lb->dpcm_capture = 1;
-	lb->no_pcm = 1;
+	lb->yes_pcm = 1;
 	lb->ops = &axg_card_tdm_be_ops;
 	lb->init = axg_card_tdm_dai_lb_init;
 
@@ -294,9 +294,9 @@ static int axg_card_add_tdm_loopback(struct snd_soc_card *card,
 
 	/*
 	 * axg_card_clean_references() will iterate over this link,
-	 * make sure the node count is balanced
+	 * make sure the yesde count is balanced
 	 */
-	of_node_get(lb->cpus->of_node);
+	of_yesde_get(lb->cpus->of_yesde);
 
 	/* Let add_links continue where it should */
 	*index += 1;
@@ -304,35 +304,35 @@ static int axg_card_add_tdm_loopback(struct snd_soc_card *card,
 	return 0;
 }
 
-static unsigned int axg_card_parse_daifmt(struct device_node *node,
-					  struct device_node *cpu_node)
+static unsigned int axg_card_parse_daifmt(struct device_yesde *yesde,
+					  struct device_yesde *cpu_yesde)
 {
-	struct device_node *bitclkmaster = NULL;
-	struct device_node *framemaster = NULL;
+	struct device_yesde *bitclkmaster = NULL;
+	struct device_yesde *framemaster = NULL;
 	unsigned int daifmt;
 
-	daifmt = snd_soc_of_parse_daifmt(node, PREFIX,
+	daifmt = snd_soc_of_parse_daifmt(yesde, PREFIX,
 					 &bitclkmaster, &framemaster);
 	daifmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
 
-	/* If no master is provided, default to cpu master */
-	if (!bitclkmaster || bitclkmaster == cpu_node) {
-		daifmt |= (!framemaster || framemaster == cpu_node) ?
+	/* If yes master is provided, default to cpu master */
+	if (!bitclkmaster || bitclkmaster == cpu_yesde) {
+		daifmt |= (!framemaster || framemaster == cpu_yesde) ?
 			SND_SOC_DAIFMT_CBS_CFS : SND_SOC_DAIFMT_CBS_CFM;
 	} else {
-		daifmt |= (!framemaster || framemaster == cpu_node) ?
+		daifmt |= (!framemaster || framemaster == cpu_yesde) ?
 			SND_SOC_DAIFMT_CBM_CFS : SND_SOC_DAIFMT_CBM_CFM;
 	}
 
-	of_node_put(bitclkmaster);
-	of_node_put(framemaster);
+	of_yesde_put(bitclkmaster);
+	of_yesde_put(framemaster);
 
 	return daifmt;
 }
 
 static int axg_card_parse_cpu_tdm_slots(struct snd_soc_card *card,
 					struct snd_soc_dai_link *link,
-					struct device_node *node,
+					struct device_yesde *yesde,
 					struct axg_dai_link_tdm_data *be)
 {
 	char propname[32];
@@ -348,34 +348,34 @@ static int axg_card_parse_cpu_tdm_slots(struct snd_soc_card *card,
 
 	for (i = 0, tx = 0; i < AXG_TDM_NUM_LANES; i++) {
 		snprintf(propname, 32, "dai-tdm-slot-tx-mask-%d", i);
-		snd_soc_of_get_slot_mask(node, propname, &be->tx_mask[i]);
+		snd_soc_of_get_slot_mask(yesde, propname, &be->tx_mask[i]);
 		tx = max(tx, be->tx_mask[i]);
 	}
 
-	/* Disable playback is the interface has no tx slots */
+	/* Disable playback is the interface has yes tx slots */
 	if (!tx)
 		link->dpcm_playback = 0;
 
 	for (i = 0, rx = 0; i < AXG_TDM_NUM_LANES; i++) {
 		snprintf(propname, 32, "dai-tdm-slot-rx-mask-%d", i);
-		snd_soc_of_get_slot_mask(node, propname, &be->rx_mask[i]);
+		snd_soc_of_get_slot_mask(yesde, propname, &be->rx_mask[i]);
 		rx = max(rx, be->rx_mask[i]);
 	}
 
-	/* Disable capture is the interface has no rx slots */
+	/* Disable capture is the interface has yes rx slots */
 	if (!rx)
 		link->dpcm_capture = 0;
 
 	/* ... but the interface should at least have one of them */
 	if (!tx && !rx) {
-		dev_err(card->dev, "tdm link has no cpu slots\n");
+		dev_err(card->dev, "tdm link has yes cpu slots\n");
 		return -EINVAL;
 	}
 
-	of_property_read_u32(node, "dai-tdm-slot-num", &be->slots);
+	of_property_read_u32(yesde, "dai-tdm-slot-num", &be->slots);
 	if (!be->slots) {
 		/*
-		 * If the slot number is not provided, set it such as it
+		 * If the slot number is yest provided, set it such as it
 		 * accommodates the largest mask
 		 */
 		be->slots = fls(max(tx, rx));
@@ -388,18 +388,18 @@ static int axg_card_parse_cpu_tdm_slots(struct snd_soc_card *card,
 		return -EINVAL;
 	}
 
-	of_property_read_u32(node, "dai-tdm-slot-width", &be->slot_width);
+	of_property_read_u32(yesde, "dai-tdm-slot-width", &be->slot_width);
 
 	return 0;
 }
 
 static int axg_card_parse_codecs_masks(struct snd_soc_card *card,
 				       struct snd_soc_dai_link *link,
-				       struct device_node *node,
+				       struct device_yesde *yesde,
 				       struct axg_dai_link_tdm_data *be)
 {
 	struct axg_dai_link_tdm_mask *codec_mask;
-	struct device_node *np;
+	struct device_yesde *np;
 
 	codec_mask = devm_kcalloc(card->dev, link->num_codecs,
 				  sizeof(*codec_mask), GFP_KERNEL);
@@ -408,7 +408,7 @@ static int axg_card_parse_codecs_masks(struct snd_soc_card *card,
 
 	be->codec_masks = codec_mask;
 
-	for_each_child_of_node(node, np) {
+	for_each_child_of_yesde(yesde, np) {
 		snd_soc_of_get_slot_mask(np, "dai-tdm-slot-rx-mask",
 					 &codec_mask->rx);
 		snd_soc_of_get_slot_mask(np, "dai-tdm-slot-tx-mask",
@@ -421,7 +421,7 @@ static int axg_card_parse_codecs_masks(struct snd_soc_card *card,
 }
 
 static int axg_card_parse_tdm(struct snd_soc_card *card,
-			      struct device_node *node,
+			      struct device_yesde *yesde,
 			      int *index)
 {
 	struct axg_card *priv = snd_soc_card_get_drvdata(card);
@@ -438,17 +438,17 @@ static int axg_card_parse_tdm(struct snd_soc_card *card,
 	/* Setup tdm link */
 	link->ops = &axg_card_tdm_be_ops;
 	link->init = axg_card_tdm_dai_init;
-	link->dai_fmt = axg_card_parse_daifmt(node, link->cpus->of_node);
+	link->dai_fmt = axg_card_parse_daifmt(yesde, link->cpus->of_yesde);
 
-	of_property_read_u32(node, "mclk-fs", &be->mclk_fs);
+	of_property_read_u32(yesde, "mclk-fs", &be->mclk_fs);
 
-	ret = axg_card_parse_cpu_tdm_slots(card, link, node, be);
+	ret = axg_card_parse_cpu_tdm_slots(card, link, yesde, be);
 	if (ret) {
 		dev_err(card->dev, "error parsing tdm link slots\n");
 		return ret;
 	}
 
-	ret = axg_card_parse_codecs_masks(card, link, node, be);
+	ret = axg_card_parse_codecs_masks(card, link, yesde, be);
 	if (ret)
 		return ret;
 
@@ -464,20 +464,20 @@ static int axg_card_parse_tdm(struct snd_soc_card *card,
 
 static int axg_card_set_be_link(struct snd_soc_card *card,
 				struct snd_soc_dai_link *link,
-				struct device_node *node)
+				struct device_yesde *yesde)
 {
 	struct snd_soc_dai_link_component *codec;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret, num_codecs;
 
-	link->no_pcm = 1;
+	link->yes_pcm = 1;
 	link->dpcm_playback = 1;
 	link->dpcm_capture = 1;
 
-	num_codecs = of_get_child_count(node);
+	num_codecs = of_get_child_count(yesde);
 	if (!num_codecs) {
-		dev_err(card->dev, "be link %s has no codec\n",
-			node->full_name);
+		dev_err(card->dev, "be link %s has yes codec\n",
+			yesde->full_name);
 		return -EINVAL;
 	}
 
@@ -488,18 +488,18 @@ static int axg_card_set_be_link(struct snd_soc_card *card,
 	link->codecs = codec;
 	link->num_codecs = num_codecs;
 
-	for_each_child_of_node(node, np) {
-		ret = axg_card_parse_dai(card, np, &codec->of_node,
+	for_each_child_of_yesde(yesde, np) {
+		ret = axg_card_parse_dai(card, np, &codec->of_yesde,
 					 &codec->dai_name);
 		if (ret) {
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 
 		codec++;
 	}
 
-	ret = axg_card_set_link_name(card, link, node, "be");
+	ret = axg_card_set_link_name(card, link, yesde, "be");
 	if (ret)
 		dev_err(card->dev, "error setting %pOFn link name\n", np);
 
@@ -508,7 +508,7 @@ static int axg_card_set_be_link(struct snd_soc_card *card,
 
 static int axg_card_set_fe_link(struct snd_soc_card *card,
 				struct snd_soc_dai_link *link,
-				struct device_node *node,
+				struct device_yesde *yesde,
 				bool is_playback)
 {
 	struct snd_soc_dai_link_component *codec;
@@ -532,30 +532,30 @@ static int axg_card_set_fe_link(struct snd_soc_card *card,
 	else
 		link->dpcm_capture = 1;
 
-	return axg_card_set_link_name(card, link, node, "fe");
+	return axg_card_set_link_name(card, link, yesde, "fe");
 }
 
-static int axg_card_cpu_is_capture_fe(struct device_node *np)
+static int axg_card_cpu_is_capture_fe(struct device_yesde *np)
 {
 	return of_device_is_compatible(np, PREFIX "axg-toddr");
 }
 
-static int axg_card_cpu_is_playback_fe(struct device_node *np)
+static int axg_card_cpu_is_playback_fe(struct device_yesde *np)
 {
 	return of_device_is_compatible(np, PREFIX "axg-frddr");
 }
 
-static int axg_card_cpu_is_tdm_iface(struct device_node *np)
+static int axg_card_cpu_is_tdm_iface(struct device_yesde *np)
 {
 	return of_device_is_compatible(np, PREFIX "axg-tdm-iface");
 }
 
-static int axg_card_cpu_is_codec(struct device_node *np)
+static int axg_card_cpu_is_codec(struct device_yesde *np)
 {
 	return of_device_is_compatible(np, PREFIX "g12a-tohdmitx");
 }
 
-static int axg_card_add_link(struct snd_soc_card *card, struct device_node *np,
+static int axg_card_add_link(struct snd_soc_card *card, struct device_yesde *np,
 			     int *index)
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[*index];
@@ -569,14 +569,14 @@ static int axg_card_add_link(struct snd_soc_card *card, struct device_node *np,
 	dai_link->cpus = cpu;
 	dai_link->num_cpus = 1;
 
-	ret = axg_card_parse_dai(card, np, &dai_link->cpus->of_node,
+	ret = axg_card_parse_dai(card, np, &dai_link->cpus->of_yesde,
 				 &dai_link->cpus->dai_name);
 	if (ret)
 		return ret;
 
-	if (axg_card_cpu_is_playback_fe(dai_link->cpus->of_node))
+	if (axg_card_cpu_is_playback_fe(dai_link->cpus->of_yesde))
 		ret = axg_card_set_fe_link(card, dai_link, np, true);
-	else if (axg_card_cpu_is_capture_fe(dai_link->cpus->of_node))
+	else if (axg_card_cpu_is_capture_fe(dai_link->cpus->of_yesde))
 		ret = axg_card_set_fe_link(card, dai_link, np, false);
 	else
 		ret = axg_card_set_be_link(card, dai_link, np);
@@ -584,9 +584,9 @@ static int axg_card_add_link(struct snd_soc_card *card, struct device_node *np,
 	if (ret)
 		return ret;
 
-	if (axg_card_cpu_is_tdm_iface(dai_link->cpus->of_node))
+	if (axg_card_cpu_is_tdm_iface(dai_link->cpus->of_yesde))
 		ret = axg_card_parse_tdm(card, np, index);
-	else if (axg_card_cpu_is_codec(dai_link->cpus->of_node))
+	else if (axg_card_cpu_is_codec(dai_link->cpus->of_yesde))
 		dai_link->params = &codec_params;
 
 	return ret;
@@ -595,13 +595,13 @@ static int axg_card_add_link(struct snd_soc_card *card, struct device_node *np,
 static int axg_card_add_links(struct snd_soc_card *card)
 {
 	struct axg_card *priv = snd_soc_card_get_drvdata(card);
-	struct device_node *node = card->dev->of_node;
-	struct device_node *np;
+	struct device_yesde *yesde = card->dev->of_yesde;
+	struct device_yesde *np;
 	int num, i, ret;
 
-	num = of_get_child_count(node);
+	num = of_get_child_count(yesde);
 	if (!num) {
-		dev_err(card->dev, "card has no links\n");
+		dev_err(card->dev, "card has yes links\n");
 		return -EINVAL;
 	}
 
@@ -610,10 +610,10 @@ static int axg_card_add_links(struct snd_soc_card *card)
 		return ret;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_yesde(yesde, np) {
 		ret = axg_card_add_link(card, np, &i);
 		if (ret) {
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 
@@ -628,8 +628,8 @@ static int axg_card_parse_of_optional(struct snd_soc_card *card,
 				      int (*func)(struct snd_soc_card *c,
 						  const char *p))
 {
-	/* If property is not provided, don't fail ... */
-	if (!of_property_read_bool(card->dev->of_node, propname))
+	/* If property is yest provided, don't fail ... */
+	if (!of_property_read_bool(card->dev->of_yesde, propname))
 		return 0;
 
 	/* ... but do fail if it is provided and the parsing fails */

@@ -13,11 +13,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * - Redistributions of source code must retain the above copyright notice,
+ * - Redistributions of source code must retain the above copyright yestice,
  *   this list of conditions and the following disclaimer.
  *
  * - Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
@@ -191,7 +191,7 @@ static enum ocrdma_qp_state get_ocrdma_qp_state(enum ib_qp_state qps)
 	return OCRDMA_QPS_ERR;
 }
 
-static int ocrdma_get_mbx_errno(u32 status)
+static int ocrdma_get_mbx_erryes(u32 status)
 {
 	int err_num;
 	u8 mbox_status = (status & OCRDMA_MBX_RSP_STATUS_MASK) >>
@@ -279,7 +279,7 @@ char *port_speed_string(struct ocrdma_dev *dev)
 	return str;
 }
 
-static int ocrdma_get_mbx_cqe_errno(u16 cqe_status)
+static int ocrdma_get_mbx_cqe_erryes(u16 cqe_status)
 {
 	int err_num = -EINVAL;
 
@@ -502,7 +502,7 @@ static void ocrdma_destroy_eq(struct ocrdma_dev *dev, struct ocrdma_eq *eq)
 {
 	int irq;
 
-	/* disarm EQ so that interrupts are not generated
+	/* disarm EQ so that interrupts are yest generated
 	 * during freeing and EQ delete is in progress.
 	 */
 	ocrdma_ring_eq_db(dev, eq->q.id, false, false, 0);
@@ -696,7 +696,7 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 		if (qpid < dev->attr.max_qp)
 			qp = dev->qp_tbl[qpid];
 		if (qp == NULL) {
-			pr_err("ocrdma%d:Async event - qpid %u is not valid\n",
+			pr_err("ocrdma%d:Async event - qpid %u is yest valid\n",
 			       dev->id, qpid);
 			return;
 		}
@@ -706,7 +706,7 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 		if (cqid < dev->attr.max_cq)
 			cq = dev->cq_tbl[cqid];
 		if (cq == NULL) {
-			pr_err("ocrdma%d:Async event - cqid %u is not valid\n",
+			pr_err("ocrdma%d:Async event - cqid %u is yest valid\n",
 			       dev->id, cqid);
 			return;
 		}
@@ -773,7 +773,7 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 		qp_event = 0;
 		srq_event = 0;
 		dev_event = 0;
-		pr_err("%s() unknown type=0x%x\n", __func__, type);
+		pr_err("%s() unkyeswn type=0x%x\n", __func__, type);
 		break;
 	}
 
@@ -1016,7 +1016,7 @@ static irqreturn_t ocrdma_irq_handler(int irq, void *handle)
 		ptr->id_valid = 0;
 		/* ring eq doorbell as soon as its consumed. */
 		ocrdma_ring_eq_db(dev, eq->q.id, false, true, 1);
-		/* check whether its CQE or not. */
+		/* check whether its CQE or yest. */
 		if ((eqe.id_valid & OCRDMA_EQE_FOR_CQE_MASK) == 0) {
 			cq_id = eqe.id_valid >> OCRDMA_EQE_RESOURCE_ID_SHIFT;
 			ocrdma_cq_handler(dev, cq_id);
@@ -1062,7 +1062,7 @@ static int ocrdma_wait_mqe_cmpl(struct ocrdma_dev *dev)
 		return 0;
 	else {
 		dev->mqe_ctx.fw_error_state = true;
-		pr_err("%s(%d) mailbox timeout: fw not responding\n",
+		pr_err("%s(%d) mailbox timeout: fw yest responding\n",
 		       __func__, dev->id);
 		return -1;
 	}
@@ -1102,18 +1102,18 @@ static int ocrdma_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe)
 				(rsp->subsys_op & OCRDMA_MBX_RSP_SUBSYS_MASK) >>
 				OCRDMA_MBX_RSP_SUBSYS_SHIFT);
 		}
-		status = ocrdma_get_mbx_cqe_errno(cqe_status);
+		status = ocrdma_get_mbx_cqe_erryes(cqe_status);
 		goto mbx_err;
 	}
-	/* For non embedded, rsp errors are handled in ocrdma_nonemb_mbx_cmd */
+	/* For yesn embedded, rsp errors are handled in ocrdma_yesnemb_mbx_cmd */
 	if (rsp && (mqe->u.rsp.status & OCRDMA_MBX_RSP_STATUS_MASK))
-		status = ocrdma_get_mbx_errno(mqe->u.rsp.status);
+		status = ocrdma_get_mbx_erryes(mqe->u.rsp.status);
 mbx_err:
 	mutex_unlock(&dev->mqe_ctx.lock);
 	return status;
 }
 
-static int ocrdma_nonemb_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe,
+static int ocrdma_yesnemb_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe,
 				 void *payload_va)
 {
 	int status;
@@ -1125,11 +1125,11 @@ static int ocrdma_nonemb_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe,
 
 	status = ocrdma_mbx_cmd(dev, mqe);
 	if (!status)
-		/* For non embedded, only CQE failures are handled in
+		/* For yesn embedded, only CQE failures are handled in
 		 * ocrdma_mbx_cmd. We need to check for RSP errors.
 		 */
 		if (rsp->status & OCRDMA_MBX_RSP_STATUS_MASK)
-			status = ocrdma_get_mbx_errno(rsp->status);
+			status = ocrdma_get_mbx_erryes(rsp->status);
 
 	if (status)
 		pr_err("opcode=0x%x, subsystem=0x%x\n",
@@ -1299,9 +1299,9 @@ int ocrdma_mbx_rdma_stats(struct ocrdma_dev *dev, bool reset)
 	mqe->hdr.spcl_sge_cnt_emb |=
 			(1 << OCRDMA_MQE_HDR_SGE_CNT_SHIFT) &
 				OCRDMA_MQE_HDR_SGE_CNT_MASK;
-	mqe->u.nonemb_req.sge[0].pa_lo = (u32) (dev->stats_mem.pa & 0xffffffff);
-	mqe->u.nonemb_req.sge[0].pa_hi = (u32) upper_32_bits(dev->stats_mem.pa);
-	mqe->u.nonemb_req.sge[0].len = dev->stats_mem.size;
+	mqe->u.yesnemb_req.sge[0].pa_lo = (u32) (dev->stats_mem.pa & 0xffffffff);
+	mqe->u.yesnemb_req.sge[0].pa_hi = (u32) upper_32_bits(dev->stats_mem.pa);
+	mqe->u.yesnemb_req.sge[0].len = dev->stats_mem.size;
 
 	/* Cache the old stats */
 	memcpy(old_stats, req, sizeof(struct ocrdma_rdma_stats_resp));
@@ -1314,7 +1314,7 @@ int ocrdma_mbx_rdma_stats(struct ocrdma_dev *dev, bool reset)
 	if (reset)
 		req->reset_stats = reset;
 
-	status = ocrdma_nonemb_mbx_cmd(dev, mqe, dev->stats_mem.va);
+	status = ocrdma_yesnemb_mbx_cmd(dev, mqe, dev->stats_mem.va);
 	if (status)
 		/* Copy from cache, if mbox fails */
 		memcpy(req, old_stats, sizeof(struct ocrdma_rdma_stats_resp));
@@ -1347,16 +1347,16 @@ static int ocrdma_mbx_get_ctrl_attribs(struct ocrdma_dev *dev)
 	mqe->hdr.spcl_sge_cnt_emb |=
 			(1 << OCRDMA_MQE_HDR_SGE_CNT_SHIFT) &
 			OCRDMA_MQE_HDR_SGE_CNT_MASK;
-	mqe->u.nonemb_req.sge[0].pa_lo = (u32) (dma.pa & 0xffffffff);
-	mqe->u.nonemb_req.sge[0].pa_hi = (u32) upper_32_bits(dma.pa);
-	mqe->u.nonemb_req.sge[0].len = dma.size;
+	mqe->u.yesnemb_req.sge[0].pa_lo = (u32) (dma.pa & 0xffffffff);
+	mqe->u.yesnemb_req.sge[0].pa_hi = (u32) upper_32_bits(dma.pa);
+	mqe->u.yesnemb_req.sge[0].len = dma.size;
 
 	ocrdma_init_mch((struct ocrdma_mbx_hdr *)dma.va,
 			OCRDMA_CMD_GET_CTRL_ATTRIBUTES,
 			OCRDMA_SUBSYS_COMMON,
 			dma.size);
 
-	status = ocrdma_nonemb_mbx_cmd(dev, mqe, dma.va);
+	status = ocrdma_yesnemb_mbx_cmd(dev, mqe, dma.va);
 	if (!status) {
 		ctrl_attr_rsp = (struct ocrdma_get_ctrl_attribs_rsp *)dma.va;
 		hba_attribs = &ctrl_attr_rsp->ctrl_attribs.hba_attribs;
@@ -1545,16 +1545,16 @@ static int ocrdma_mbx_alloc_pd_range(struct ocrdma_dev *dev)
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	rsp = (struct ocrdma_alloc_pd_range_rsp *)cmd;
 	if (!status && rsp->pd_count) {
-		dev->pd_mgr->pd_norm_start = rsp->dpp_page_pdid &
+		dev->pd_mgr->pd_yesrm_start = rsp->dpp_page_pdid &
 					OCRDMA_ALLOC_PD_RNG_RSP_START_PDID_MASK;
-		dev->pd_mgr->max_normal_pd = rsp->pd_count;
+		dev->pd_mgr->max_yesrmal_pd = rsp->pd_count;
 		pd_bitmap_size = BITS_TO_LONGS(rsp->pd_count) * sizeof(long);
-		dev->pd_mgr->pd_norm_bitmap = kzalloc(pd_bitmap_size,
+		dev->pd_mgr->pd_yesrm_bitmap = kzalloc(pd_bitmap_size,
 						      GFP_KERNEL);
 	}
 	kfree(cmd);
 
-	if (dev->pd_mgr->pd_norm_bitmap || dev->pd_mgr->pd_dpp_bitmap) {
+	if (dev->pd_mgr->pd_yesrm_bitmap || dev->pd_mgr->pd_dpp_bitmap) {
 		/* Enable PD resource manager */
 		dev->pd_mgr->pd_prealloc_valid = true;
 		return 0;
@@ -1566,14 +1566,14 @@ static void ocrdma_mbx_dealloc_pd_range(struct ocrdma_dev *dev)
 {
 	struct ocrdma_dealloc_pd_range *cmd;
 
-	/* return normal PDs to firmware */
+	/* return yesrmal PDs to firmware */
 	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_DEALLOC_PD_RANGE, sizeof(*cmd));
 	if (!cmd)
 		goto mbx_err;
 
-	if (dev->pd_mgr->max_normal_pd) {
-		cmd->start_pd_id = dev->pd_mgr->pd_norm_start;
-		cmd->pd_count = dev->pd_mgr->max_normal_pd;
+	if (dev->pd_mgr->max_yesrmal_pd) {
+		cmd->start_pd_id = dev->pd_mgr->pd_yesrm_start;
+		cmd->pd_count = dev->pd_mgr->max_yesrmal_pd;
 		ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	}
 
@@ -1612,7 +1612,7 @@ void ocrdma_alloc_pd_pool(struct ocrdma_dev *dev)
 static void ocrdma_free_pd_pool(struct ocrdma_dev *dev)
 {
 	ocrdma_mbx_dealloc_pd_range(dev);
-	kfree(dev->pd_mgr->pd_norm_bitmap);
+	kfree(dev->pd_mgr->pd_yesrm_bitmap);
 	kfree(dev->pd_mgr->pd_dpp_bitmap);
 	kfree(dev->pd_mgr);
 }
@@ -2054,7 +2054,7 @@ int ocrdma_reg_mr(struct ocrdma_dev *dev,
 		pr_err("%s() status=%d\n", __func__, status);
 		return status;
 	}
-	/* if there is no more pbls to register then exit. */
+	/* if there is yes more pbls to register then exit. */
 	if (last)
 		return 0;
 
@@ -2063,7 +2063,7 @@ int ocrdma_reg_mr(struct ocrdma_dev *dev,
 		pending_pbl_cnt -= cur_pbl_cnt;
 		cur_pbl_cnt = min(pending_pbl_cnt, MAX_OCRDMA_NSMR_PBL);
 		/* if we reach the end of the pbls, then need to set the last
-		 * bit, indicating no more pbls to register for this memory key.
+		 * bit, indicating yes more pbls to register for this memory key.
 		 */
 		if (cur_pbl_cnt == pending_pbl_cnt)
 			last = 1;
@@ -2601,7 +2601,7 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 					(dev->nic_info.mac_addr[5] << 8);
 	}
 	if ((attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY) &&
-	    attrs->en_sqd_async_notify) {
+	    attrs->en_sqd_async_yestify) {
 		cmd->params.max_sge_recv_flags |=
 			OCRDMA_QP_PARAMS_FLAGS_SQD_ASYNC;
 		cmd->flags |= OCRDMA_QP_PARA_DST_QPN_VALID;
@@ -2614,7 +2614,7 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 	if (attr_mask & IB_QP_PATH_MTU) {
 		if (attrs->path_mtu < IB_MTU_512 ||
 		    attrs->path_mtu > IB_MTU_4096) {
-			pr_err("ocrdma%d: IB MTU %d is not supported\n",
+			pr_err("ocrdma%d: IB MTU %d is yest supported\n",
 			       dev->id, ib_mtu_enum_to_int(attrs->path_mtu));
 			status = -EINVAL;
 			goto pmtu_err;
@@ -2884,7 +2884,7 @@ static int ocrdma_mbx_get_dcbx_config(struct ocrdma_dev *dev, u32 ptype,
 	struct ocrdma_get_dcbx_cfg_req *req = NULL;
 	struct ocrdma_get_dcbx_cfg_rsp *rsp = NULL;
 	struct pci_dev *pdev = dev->nic_info.pdev;
-	struct ocrdma_mqe_sge *mqe_sge = cmd.u.nonemb_req.sge;
+	struct ocrdma_mqe_sge *mqe_sge = cmd.u.yesnemb_req.sge;
 
 	memset(&cmd, 0, sizeof(struct ocrdma_mqe));
 	cmd.hdr.pyld_len = max_t (u32, sizeof(struct ocrdma_get_dcbx_cfg_rsp),
@@ -2946,7 +2946,7 @@ static int ocrdma_parse_dcbxcfg_rsp(struct ocrdma_dev *dev, int ptype,
 			(dcbxcfg->pfc_state & OCRDMA_STATE_FLAG_ENABLED) ?
 			"enabled" : "disabled",
 			(dcbxcfg->pfc_state & OCRDMA_STATE_FLAG_SYNC) ?
-			"" : ", not sync'ed");
+			"" : ", yest sync'ed");
 		goto out;
 	} else {
 		pr_info("%s ocrdma%d priority flow control is enabled and sync'ed\n",
@@ -2987,7 +2987,7 @@ static int ocrdma_parse_dcbxcfg_rsp(struct ocrdma_dev *dev, int ptype,
 				}
 			}
 			if (slindx == OCRDMA_MAX_SERVICE_LEVEL_INDEX) {
-				pr_info("%s ocrdma%d application priority not set for 0x%x protocol\n",
+				pr_info("%s ocrdma%d application priority yest set for 0x%x protocol\n",
 					dev_name(&dev->nic_info.pdev->dev),
 					dev->id, proto);
 			}

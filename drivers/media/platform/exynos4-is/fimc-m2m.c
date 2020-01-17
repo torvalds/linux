@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bug.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
@@ -180,7 +180,7 @@ static int fimc_queue_setup(struct vb2_queue *vq,
 	if (IS_ERR(f))
 		return PTR_ERR(f);
 	/*
-	 * Return number of non-contiguous planes (plane buffers)
+	 * Return number of yesn-contiguous planes (plane buffers)
 	 * depending on the configured color format.
 	 */
 	if (!f->fmt)
@@ -615,7 +615,7 @@ static int fimc_m2m_open(struct file *file)
 		return -ERESTARTSYS;
 	/*
 	 * Don't allow simultaneous open() of the mem-to-mem and the
-	 * capture video node that belong to same FIMC IP instance.
+	 * capture video yesde that belong to same FIMC IP instance.
 	 */
 	if (test_bit(ST_CAPT_BUSY, &fimc->state))
 		goto unlock;
@@ -726,7 +726,7 @@ int fimc_register_m2m_device(struct fimc_dev *fimc,
 	vfd->fops = &fimc_m2m_fops;
 	vfd->ioctl_ops = &fimc_m2m_ioctl_ops;
 	vfd->v4l2_dev = v4l2_dev;
-	vfd->minor = -1;
+	vfd->miyesr = -1;
 	vfd->release = video_device_release_empty;
 	vfd->lock = &fimc->lock;
 	vfd->vfl_dir = VFL_DIR_M2M;
@@ -751,7 +751,7 @@ int fimc_register_m2m_device(struct fimc_dev *fimc,
 		goto err_vd;
 
 	v4l2_info(v4l2_dev, "Registered %s as /dev/%s\n",
-		  vfd->name, video_device_node_name(vfd));
+		  vfd->name, video_device_yesde_name(vfd));
 	return 0;
 
 err_vd:

@@ -21,7 +21,7 @@ struct sdw_slave;
 #define SDW_GROUP12_DEV_NUM		12
 #define SDW_GROUP13_DEV_NUM		13
 
-/* SDW Master Device Number, not supported yet */
+/* SDW Master Device Number, yest supported yet */
 #define SDW_MASTER_DEV_NUM		14
 
 #define SDW_NUM_DEV_ID_REGISTERS	6
@@ -53,7 +53,7 @@ enum {
  */
 
 /*
- * flow modes for SDW port. These can be isochronous, tx controlled,
+ * flow modes for SDW port. These can be isochroyesus, tx controlled,
  * rx controlled or async
  */
 #define SDW_PORT_FLOW_MODE_ISOCH	0
@@ -67,7 +67,7 @@ enum {
 
 /**
  * enum sdw_slave_status - Slave status
- * @SDW_SLAVE_UNATTACHED: Slave is not attached with the bus.
+ * @SDW_SLAVE_UNATTACHED: Slave is yest attached with the bus.
  * @SDW_SLAVE_ATTACHED: Slave is attached with bus.
  * @SDW_SLAVE_ALERT: Some alert condition on the Slave
  * @SDW_SLAVE_RESERVED: Reserved for future use
@@ -82,7 +82,7 @@ enum sdw_slave_status {
 /**
  * enum sdw_command_response - Command response as defined by SDW spec
  * @SDW_CMD_OK: cmd was successful
- * @SDW_CMD_IGNORED: cmd was ignored
+ * @SDW_CMD_IGNORED: cmd was igyesred
  * @SDW_CMD_FAIL: cmd was NACKed
  * @SDW_CMD_TIMEOUT: cmd timedout
  * @SDW_CMD_FAIL_OTHER: cmd failed due to other reason than above
@@ -90,7 +90,7 @@ enum sdw_slave_status {
  * NOTE: The enum is different than actual Spec as response in the Spec is
  * combination of ACK/NAK bits
  *
- * SDW_CMD_TIMEOUT/FAIL_OTHER is defined for SW use, not in spec
+ * SDW_CMD_TIMEOUT/FAIL_OTHER is defined for SW use, yest in spec
  */
 enum sdw_command_response {
 	SDW_CMD_OK = 0,
@@ -141,7 +141,7 @@ enum sdw_data_direction {
  * logic 1. The encoding will result in signal transitions at every bitslot
  * owned by this Port
  * @SDW_PORT_DATA_MODE_STATIC_0: Simple test mode which uses static value of
- * logic 0. The encoding will result in no signal transitions
+ * logic 0. The encoding will result in yes signal transitions
  * @SDW_PORT_DATA_MODE_PRBS: Test mode which uses a PRBS generator to produce
  * a pseudo random data pattern that is transferred
  */
@@ -162,7 +162,7 @@ enum sdw_clk_stop_reset_behave {
 /**
  * enum sdw_p15_behave - Slave Port 15 behaviour when the Master attempts a
  * read
- * @SDW_P15_READ_IGNORED: Read is ignored
+ * @SDW_P15_READ_IGNORED: Read is igyesred
  * @SDW_P15_CMD_OK: Command is ok
  */
 enum sdw_p15_behave {
@@ -175,9 +175,9 @@ enum sdw_p15_behave {
  * @SDW_DPN_FULL: Full Data Port is supported
  * @SDW_DPN_SIMPLE: Simplified Data Port as defined in spec.
  * DPN_SampleCtrl2, DPN_OffsetCtrl2, DPN_HCtrl and DPN_BlockCtrl3
- * are not implemented.
+ * are yest implemented.
  * @SDW_DPN_REDUCED: Reduced Data Port as defined in spec.
- * DPN_SampleCtrl2, DPN_HCtrl are not implemented.
+ * DPN_SampleCtrl2, DPN_HCtrl are yest implemented.
  */
 enum sdw_dpn_type {
 	SDW_DPN_FULL = 0,
@@ -190,7 +190,7 @@ enum sdw_dpn_type {
  * @SDW_CLK_STOP_MODE0: Slave can continue operation seamlessly on clock
  * restart
  * @SDW_CLK_STOP_MODE1: Slave may have entered a deeper power-saving mode,
- * not capable of continuing operation seamlessly when the clock restarts
+ * yest capable of continuing operation seamlessly when the clock restarts
  */
 enum sdw_clk_stop_mode {
 	SDW_CLK_STOP_MODE0 = 0,
@@ -282,7 +282,7 @@ struct sdw_dpn_audio_mode {
  * @ch_combinations: Channel combinations supported
  * @modes: SDW mode supported
  * @max_async_buffer: Number of samples that this port can buffer in
- * asynchronous modes
+ * asynchroyesus modes
  * @block_pack_mode: Type of block port mode supported
  * @port_encoding: Payload Channel Sample encoding schemes supported
  * @audio_modes: Audio modes supported
@@ -377,7 +377,7 @@ struct sdw_slave_prop {
  * @err_threshold: Number of times that software may retry sending a single
  * command
  * @mclk_freq: clock reference passed to SoundWire Master, in Hz.
- * @hw_disabled: if true, the Master is not functional, typically due to pin-mux
+ * @hw_disabled: if true, the Master is yest functional, typically due to pin-mux
  */
 struct sdw_master_prop {
 	u32 revision;
@@ -409,12 +409,12 @@ int sdw_slave_read_prop(struct sdw_slave *slave);
  * struct sdw_slave_id - Slave ID
  * @mfg_id: MIPI Manufacturer ID
  * @part_id: Device Part ID
- * @class_id: MIPI Class ID, unused now.
+ * @class_id: MIPI Class ID, unused yesw.
  * Currently a placeholder in MIPI SoundWire Spec
  * @unique_id: Device unique ID
  * @sdw_version: SDW version implemented
  *
- * The order of the IDs here does not follow the DisCo spec definitions
+ * The order of the IDs here does yest follow the DisCo spec definitions
  */
 struct sdw_slave_id {
 	__u16 mfg_id;
@@ -516,7 +516,7 @@ struct sdw_bus_params {
  * struct sdw_slave_ops: Slave driver callback ops
  *
  * @read_prop: Read Slave properties
- * @interrupt_callback: Device interrupt notification (invoked in thread
+ * @interrupt_callback: Device interrupt yestification (invoked in thread
  * context)
  * @update_status: Update Slave status
  * @bus_config: Update the bus config for Slave
@@ -544,7 +544,7 @@ struct sdw_slave_ops {
  * @ops: Slave callback ops
  * @prop: Slave properties
  * @debugfs: Slave debugfs
- * @node: node for bus list
+ * @yesde: yesde for bus list
  * @port_ready: Port ready completion flag for each Slave port
  * @dev_num: Device Number assigned by Bus
  */
@@ -558,7 +558,7 @@ struct sdw_slave {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
-	struct list_head node;
+	struct list_head yesde;
 	struct completion *port_ready;
 	u16 dev_num;
 };
@@ -596,7 +596,7 @@ int sdw_handle_slave_status(struct sdw_bus *bus,
  * @num: Port number
  * @bps: Word length of the Port
  * @flow_mode: Port Data flow mode
- * @data_mode: Test modes or normal mode
+ * @data_mode: Test modes or yesrmal mode
  *
  * This is used to program the Data Port based on Data Port stream
  * parameters.

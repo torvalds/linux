@@ -72,7 +72,7 @@ void *module_alloc(unsigned long size)
 	if (PAGE_ALIGN(size) > MODULES_LEN)
 		return NULL;
 
-	p = __vmalloc_node_range(size, MODULE_ALIGN,
+	p = __vmalloc_yesde_range(size, MODULE_ALIGN,
 				    MODULES_VADDR + get_module_load_offset(),
 				    MODULES_END, GFP_KERNEL,
 				    PAGE_KERNEL, 0, NUMA_NO_NODE,
@@ -118,7 +118,7 @@ int apply_relocate(Elf32_Shdr *sechdrs,
 			*location += sym->st_value - (uint32_t)location;
 			break;
 		default:
-			pr_err("%s: Unknown relocation: %u\n",
+			pr_err("%s: Unkyeswn relocation: %u\n",
 			       me->name, ELF32_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}
@@ -196,7 +196,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			*(u64 *)loc = val;
 			break;
 		default:
-			pr_err("%s: Unknown rela relocation: %llu\n",
+			pr_err("%s: Unkyeswn rela relocation: %llu\n",
 			       me->name, ELF64_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}
@@ -204,14 +204,14 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 	return 0;
 
 invalid_relocation:
-	pr_err("x86/modules: Skipping invalid relocation target, existing value is nonzero for type %d, loc %p, val %Lx\n",
+	pr_err("x86/modules: Skipping invalid relocation target, existing value is yesnzero for type %d, loc %p, val %Lx\n",
 	       (int)ELF64_R_TYPE(rel[i].r_info), loc, val);
 	return -ENOEXEC;
 
 overflow:
 	pr_err("overflow in relocation type %d val %Lx\n",
 	       (int)ELF64_R_TYPE(rel[i].r_info), val);
-	pr_err("`%s' likely not compiled with -mcmodel=kernel\n",
+	pr_err("`%s' likely yest compiled with -mcmodel=kernel\n",
 	       me->name);
 	return -ENOEXEC;
 }
@@ -258,8 +258,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 		apply_paravirt(pseg, pseg + para->sh_size);
 	}
 
-	/* make jump label nops */
-	jump_label_apply_nops(me);
+	/* make jump label yesps */
+	jump_label_apply_yesps(me);
 
 	if (orc && orc_ip)
 		unwind_module_init(me, (void *)orc_ip->sh_addr, orc_ip->sh_size,

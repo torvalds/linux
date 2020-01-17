@@ -41,7 +41,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define dprintk	if (debug) printk
 
-#define DRIVER_NAME		"TechnoTrend/Hauppauge DEC USB"
+#define DRIVER_NAME		"TechyesTrend/Hauppauge DEC USB"
 
 #define COMMAND_PIPE		0x03
 #define RESULT_PIPE		0x04
@@ -263,7 +263,7 @@ static void ttusb_dec_handle_irq( struct urb *urb)
 					__func__, urb->status);
 			return;
 		default:
-			dprintk("%s:nonzero status received: %d\n",
+			dprintk("%s:yesnzero status received: %d\n",
 					__func__,urb->status);
 			goto exit;
 	}
@@ -276,10 +276,10 @@ static void ttusb_dec_handle_irq( struct urb *urb)
 		 * the box also reports a keyrepeat signal
 		 * (with buffer[3] == 0x40) in an interval of ~100ms.
 		 * But to handle this correctly we had to imlemenent some
-		 * kind of timer which signals a 'key up' event if no
+		 * kind of timer which signals a 'key up' event if yes
 		 * keyrepeat signal is received for lets say 200ms.
 		 * this should/could be added later ...
-		 * for now lets report each signal as a key down and up
+		 * for yesw lets report each signal as a key down and up
 		 */
 		if (buffer[4] - 1 < ARRAY_SIZE(rc_keys)) {
 			dprintk("%s:rc signal:%d\n", __func__, buffer[4]);
@@ -550,7 +550,7 @@ static void ttusb_dec_process_pva(struct ttusb_dec *dec, u8 *pva, int length)
 		break;
 
 	default:
-		printk("%s: unknown PVA type: %02x.\n", __func__,
+		printk("%s: unkyeswn PVA type: %02x.\n", __func__,
 		       pva[2]);
 		break;
 	}
@@ -689,7 +689,7 @@ static void ttusb_dec_process_urb_frame(struct ttusb_dec *dec, u8 *b,
 					dec->packet_payload_length = 2;
 					dec->packet_state = 7;
 				} else {
-					printk("%s: unknown packet type: %02x%02x\n",
+					printk("%s: unkyeswn packet type: %02x%02x\n",
 					       __func__,
 					       dec->packet[0], dec->packet[1]);
 					dec->packet_state = 0;
@@ -888,7 +888,7 @@ static void ttusb_dec_stop_iso_xfer(struct ttusb_dec *dec)
 }
 
 /* Setting the interface of the DEC tends to take down the USB communications
- * for a short period, so it's important not to call this function just before
+ * for a short period, so it's important yest to call this function just before
  * trying to talk to it.
  */
 static int ttusb_dec_set_interface(struct ttusb_dec *dec,
@@ -1004,7 +1004,7 @@ static int ttusb_dec_start_ts_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	case DMX_PES_TELETEXT:
 		dec->pid[DMX_PES_TELETEXT] = dvbdmxfeed->pid;
-		dprintk("  pes_type: DMX_PES_TELETEXT(not supported)\n");
+		dprintk("  pes_type: DMX_PES_TELETEXT(yest supported)\n");
 		return -ENOSYS;
 
 	case DMX_PES_PCR:
@@ -1014,11 +1014,11 @@ static int ttusb_dec_start_ts_feed(struct dvb_demux_feed *dvbdmxfeed)
 		break;
 
 	case DMX_PES_OTHER:
-		dprintk("  pes_type: DMX_PES_OTHER(not supported)\n");
+		dprintk("  pes_type: DMX_PES_OTHER(yest supported)\n");
 		return -ENOSYS;
 
 	default:
-		dprintk("  pes_type: unknown (%d)\n", dvbdmxfeed->pes_type);
+		dprintk("  pes_type: unkyeswn (%d)\n", dvbdmxfeed->pes_type);
 		return -EINVAL;
 
 	}
@@ -1108,7 +1108,7 @@ static int ttusb_dec_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 		break;
 
 	default:
-		dprintk("  type: unknown (%d)\n", dvbdmxfeed->type);
+		dprintk("  type: unkyeswn (%d)\n", dvbdmxfeed->type);
 		return -EINVAL;
 
 	}
@@ -1424,7 +1424,7 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 
 	if (!mode) {
 		if (version == 0xABCDEFAB)
-			printk(KERN_INFO "ttusb_dec: no version info in Firmware\n");
+			printk(KERN_INFO "ttusb_dec: yes version info in Firmware\n");
 		else
 			printk(KERN_INFO "ttusb_dec: Firmware %x.%02x%c%c\n",
 			       version >> 24, (version >> 16) & 0xff,
@@ -1450,7 +1450,7 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 			ttusb_dec_set_model(dec, TTUSB_DEC2540T);
 			break;
 		default:
-			printk(KERN_ERR "%s: unknown model returned by firmware (%08x) - please report\n",
+			printk(KERN_ERR "%s: unkyeswn model returned by firmware (%08x) - please report\n",
 			       __func__, model);
 			return -ENOENT;
 		}
@@ -1697,7 +1697,7 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 	}
 
 	if (dec->fe == NULL) {
-		printk("dvb-ttusb-dec: A frontend driver was not found for device [%04x:%04x]\n",
+		printk("dvb-ttusb-dec: A frontend driver was yest found for device [%04x:%04x]\n",
 		       le16_to_cpu(dec->udev->descriptor.idVendor),
 		       le16_to_cpu(dec->udev->descriptor.idProduct));
 	} else {

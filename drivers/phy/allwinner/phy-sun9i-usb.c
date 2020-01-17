@@ -8,7 +8,7 @@
  * Hans de Goede <hdegoede@redhat.com>
  *
  * and code from
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * Allwinner Techyeslogy Co., Ltd. <www.allwinnertech.com>
  */
 
 #include <linux/clk.h>
@@ -115,7 +115,7 @@ static int sun9i_usb_phy_probe(struct platform_device *pdev)
 {
 	struct sun9i_usb_phy *phy;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct phy_provider *phy_provider;
 	struct resource *res;
 

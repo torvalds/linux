@@ -14,7 +14,7 @@
 #include "key.h"
 #include "aes_gmac.h"
 
-int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
+int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *yesnce,
 		       const u8 *data, size_t data_len, u8 *mic)
 {
 	struct scatterlist sg[4];
@@ -39,7 +39,7 @@ int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
 	sg_set_buf(&sg[2], zero, GMAC_MIC_LEN);
 	sg_set_buf(&sg[3], mic, GMAC_MIC_LEN);
 
-	memcpy(iv, nonce, GMAC_NONCE_LEN);
+	memcpy(iv, yesnce, GMAC_NONCE_LEN);
 	memset(iv + GMAC_NONCE_LEN, 0, sizeof(iv) - GMAC_NONCE_LEN);
 	iv[AES_BLOCK_SIZE - 1] = 0x01;
 

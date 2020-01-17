@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-# define_trace.h needs to know how to find our header
+# define_trace.h needs to kyesw how to find our header
 CFLAGS_trace.o				:= -I$(src)
 
 obj-$(CONFIG_USB_DWC3)			+= dwc3.o
@@ -39,11 +39,11 @@ endif
 # We want to keep this requirement in order to be able to compile
 # the entire driver (with all its glue layers) on several architectures
 # and make sure it compiles fine. This will also help with allmodconfig
-# and allyesconfig builds.
+# and allnoconfig builds.
 ##
 
 obj-$(CONFIG_USB_DWC3_OMAP)		+= dwc3-omap.o
-obj-$(CONFIG_USB_DWC3_EXYNOS)		+= dwc3-exynos.o
+obj-$(CONFIG_USB_DWC3_EXYNOS)		+= dwc3-exyyess.o
 obj-$(CONFIG_USB_DWC3_PCI)		+= dwc3-pci.o
 obj-$(CONFIG_USB_DWC3_HAPS)		+= dwc3-haps.o
 obj-$(CONFIG_USB_DWC3_KEYSTONE)		+= dwc3-keystone.o

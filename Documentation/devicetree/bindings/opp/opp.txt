@@ -42,7 +42,7 @@ Binding 2: operating-points-v2
 * Property: operating-points-v2
 
 Devices supporting OPPs must set their "operating-points-v2" property with
-phandle to a OPP table in their DT node. The OPP core will use this phandle to
+phandle to a OPP table in their DT yesde. The OPP core will use this phandle to
 find the operating points for the device.
 
 This can contain more than one phandle for power domain providers that provide
@@ -56,19 +56,19 @@ and should have a compatible description like: "operating-points-v2-<vendor>".
 
 * OPP Table Node
 
-This describes the OPPs belonging to a device. This node can have following
+This describes the OPPs belonging to a device. This yesde can have following
 properties:
 
 Required properties:
 - compatible: Allow OPPs to express their compatibility. It should be:
   "operating-points-v2".
 
-- OPP nodes: One or more OPP nodes describing voltage-current-frequency
+- OPP yesdes: One or more OPP yesdes describing voltage-current-frequency
   combinations. Their name isn't significant but their phandle can be used to
   reference an OPP.
 
 Optional properties:
-- opp-shared: Indicates that device nodes using this OPP Table Node's phandle
+- opp-shared: Indicates that device yesdes using this OPP Table Node's phandle
   switch their DVFS state together, i.e. they share clock/voltage/current lines.
   Missing property means devices have independent clock/voltage/current lines,
   but they share OPP tables.
@@ -83,9 +83,9 @@ properties.
 
 Required properties:
 - opp-hz: Frequency in Hz, expressed as a 64-bit big-endian integer. This is a
-  required property for all device nodes but devices like power domains. The
-  power domain nodes must have another (implementation dependent) property which
-  uniquely identifies the OPP nodes.
+  required property for all device yesdes but devices like power domains. The
+  power domain yesdes must have ayesther (implementation dependent) property which
+  uniquely identifies the OPP yesdes.
 
 Optional properties:
 - opp-microvolt: voltage in micro Volts.
@@ -121,7 +121,7 @@ Optional properties:
   Entries for multiple regulators shall be provided in the same field separated
   by angular brackets <>. If current values aren't required for a regulator,
   then it shall be filled with 0. If current values aren't required for any of
-  the regulators, then this field is not required. The OPP binding doesn't
+  the regulators, then this field is yest required. The OPP binding doesn't
   provide any provisions to relate the values to their power supplies or the
   order in which the supplies need to be configured and that is left for the
   implementation specific binding.
@@ -133,7 +133,7 @@ Optional properties:
   expressed as a 32-bit integer.
 
 - clock-latency-ns: Specifies the maximum possible transition latency (in
-  nanoseconds) for switching to this OPP from any other OPP.
+  nayesseconds) for switching to this OPP from any other OPP.
 
 - turbo-mode: Marks the OPP to be used only for turbo modes. Turbo mode is
   available on some platforms, where the device can run over its operating
@@ -145,7 +145,7 @@ Optional properties:
 
 - opp-supported-hw: This enables us to select only a subset of OPPs from the
   larger OPP table, based on what version of the hardware we are running on. We
-  still can't have multiple nodes with the same opp-hz value in OPP table.
+  still can't have multiple yesdes with the same opp-hz value in OPP table.
 
   It's a user defined array containing a hierarchy of hardware version numbers,
   supported by the OPP. For example: a platform with hierarchy of three levels
@@ -163,12 +163,12 @@ Optional properties:
   hierarchy can be contained in multiple 32 bit values. i.e. <X Y Z1 Z2> in the
   above example, Z1 & Z2 refer to the version hierarchy Z.
 
-- status: Marks the node enabled/disabled.
+- status: Marks the yesde enabled/disabled.
 
-- required-opps: This contains phandle to an OPP node in another device's OPP
+- required-opps: This contains phandle to an OPP yesde in ayesther device's OPP
   table. It may contain an array of phandles, where each phandle points to an
-  OPP of a different device. It should not contain multiple phandles to the OPP
-  nodes in the same OPP table. This specifies the minimum required OPP of the
+  OPP of a different device. It should yest contain multiple phandles to the OPP
+  yesdes in the same OPP table. This specifies the minimum required OPP of the
   device(s), whose OPP's phandle is present in this property, for the
   functioning of the current device at the current OPP (where this property is
   present).

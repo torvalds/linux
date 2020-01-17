@@ -4,7 +4,7 @@
 
   Copyright(C) 2011  STMicroelectronics Ltd
 
-  It defines all the functions used to handle the normal/enhanced
+  It defines all the functions used to handle the yesrmal/enhanced
   descriptors in case of the DMA is configured to work in chained or
   in ring mode.
 
@@ -17,7 +17,7 @@
 static int jumbo_frm(void *p, struct sk_buff *skb, int csum)
 {
 	struct stmmac_tx_queue *tx_q = (struct stmmac_tx_queue *)p;
-	unsigned int nopaged_len = skb_headlen(skb);
+	unsigned int yespaged_len = skb_headlen(skb);
 	struct stmmac_priv *priv = tx_q->priv_data;
 	unsigned int entry = tx_q->cur_tx;
 	unsigned int bmax, len, des2;
@@ -33,9 +33,9 @@ static int jumbo_frm(void *p, struct sk_buff *skb, int csum)
 	else
 		bmax = BUF_SIZE_2KiB;
 
-	len = nopaged_len - bmax;
+	len = yespaged_len - bmax;
 
-	if (nopaged_len > BUF_SIZE_8KiB) {
+	if (yespaged_len > BUF_SIZE_8KiB) {
 
 		des2 = dma_map_single(priv->device, skb->data, bmax,
 				      DMA_TO_DEVICE);
@@ -69,20 +69,20 @@ static int jumbo_frm(void *p, struct sk_buff *skb, int csum)
 
 		desc->des3 = cpu_to_le32(des2 + BUF_SIZE_4KiB);
 		stmmac_prepare_tx_desc(priv, desc, 0, len, csum,
-				STMMAC_RING_MODE, 1, !skb_is_nonlinear(skb),
+				STMMAC_RING_MODE, 1, !skb_is_yesnlinear(skb),
 				skb->len);
 	} else {
 		des2 = dma_map_single(priv->device, skb->data,
-				      nopaged_len, DMA_TO_DEVICE);
+				      yespaged_len, DMA_TO_DEVICE);
 		desc->des2 = cpu_to_le32(des2);
 		if (dma_mapping_error(priv->device, des2))
 			return -1;
 		tx_q->tx_skbuff_dma[entry].buf = des2;
-		tx_q->tx_skbuff_dma[entry].len = nopaged_len;
+		tx_q->tx_skbuff_dma[entry].len = yespaged_len;
 		tx_q->tx_skbuff_dma[entry].is_jumbo = true;
 		desc->des3 = cpu_to_le32(des2 + BUF_SIZE_4KiB);
-		stmmac_prepare_tx_desc(priv, desc, 1, nopaged_len, csum,
-				STMMAC_RING_MODE, 0, !skb_is_nonlinear(skb),
+		stmmac_prepare_tx_desc(priv, desc, 1, yespaged_len, csum,
+				STMMAC_RING_MODE, 0, !skb_is_yesnlinear(skb),
 				skb->len);
 	}
 

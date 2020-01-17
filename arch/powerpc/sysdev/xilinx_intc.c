@@ -1,7 +1,7 @@
 /*
  * Interrupt controller driver for Xilinx Virtex FPGAs
  *
- * Copyright (C) 2007 Secret Lab Technologies Ltd.
+ * Copyright (C) 2007 Secret Lab Techyeslogies Ltd.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -14,8 +14,8 @@
  * Xilinx Virtex FPGA designs.
  *
  * The interrupt sense levels are hard coded into the FPGA design with
- * typically a 1:1 relationship between irq lines and devices (no shared
- * irq lines).  Therefore, this driver does not attempt to handle edge
+ * typically a 1:1 relationship between irq lines and devices (yes shared
+ * irq lines).  Therefore, this driver does yest attempt to handle edge
  * and level interrupts differently.
  */
 #undef DEBUG
@@ -49,21 +49,21 @@ static void xilinx_i8259_cascade(struct irq_desc *desc)
 
 static void __init xilinx_i8259_setup_cascade(void)
 {
-	struct device_node *cascade_node;
+	struct device_yesde *cascade_yesde;
 	int cascade_irq;
 
 	/* Initialize i8259 controller */
-	cascade_node = of_find_compatible_node(NULL, NULL, "chrp,iic");
-	if (!cascade_node)
+	cascade_yesde = of_find_compatible_yesde(NULL, NULL, "chrp,iic");
+	if (!cascade_yesde)
 		return;
 
-	cascade_irq = irq_of_parse_and_map(cascade_node, 0);
+	cascade_irq = irq_of_parse_and_map(cascade_yesde, 0);
 	if (!cascade_irq) {
 		pr_err("virtex_ml510: Failed to map cascade interrupt\n");
 		goto out;
 	}
 
-	i8259_init(cascade_node, 0);
+	i8259_init(cascade_yesde, 0);
 	irq_set_chained_handler(cascade_irq, xilinx_i8259_cascade);
 
 	/* Program irq 7 (usb/audio), 14/15 (ide) to level sensitive */
@@ -72,7 +72,7 @@ static void __init xilinx_i8259_setup_cascade(void)
 	outb(0xc0, 0x4d1);
 
  out:
-	of_node_put(cascade_node);
+	of_yesde_put(cascade_yesde);
 }
 #else
 static inline void xilinx_i8259_setup_cascade(void) { return; }

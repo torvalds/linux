@@ -99,10 +99,10 @@ bool mcde_dsi_irq(struct mipi_dsi_device *mdsi)
 	if (val)
 		dev_dbg(d->dev, "DSI_CMD_MODE_STS_FLAG = %08x\n", val);
 	if (val & DSI_CMD_MODE_STS_ERR_NO_TE)
-		/* This happens all the time (safe to ignore) */
-		dev_dbg(d->dev, "CMD mode no TE\n");
+		/* This happens all the time (safe to igyesre) */
+		dev_dbg(d->dev, "CMD mode yes TE\n");
 	if (val & DSI_CMD_MODE_STS_ERR_TE_MISS)
-		/* This happens all the time (safe to ignore) */
+		/* This happens all the time (safe to igyesre) */
 		dev_dbg(d->dev, "CMD mode TE miss\n");
 	if (val & DSI_CMD_MODE_STS_ERR_SDI1_UNDERRUN)
 		dev_err(d->dev, "CMD mode SD1 underrun\n");
@@ -186,12 +186,12 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 
 	if (txlen > 16) {
 		dev_err(d->dev,
-			"dunno how to write more than 16 bytes yet\n");
+			"dunyes how to write more than 16 bytes yet\n");
 		return -EIO;
 	}
 	if (rxlen > 4) {
 		dev_err(d->dev,
-			"dunno how to read more than 4 bytes yet\n");
+			"dunyes how to read more than 4 bytes yet\n");
 		return -EIO;
 	}
 
@@ -206,8 +206,8 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 	else
 		val = DSI_DIRECT_CMD_MAIN_SETTINGS_CMD_NAT_WRITE;
 	/*
-	 * More than 2 bytes will not fit in a single packet, so it's
-	 * time to set the "long not short" bit. One byte is used by
+	 * More than 2 bytes will yest fit in a single packet, so it's
+	 * time to set the "long yest short" bit. One byte is used by
 	 * the MIPI DCS command leaving just one byte for the payload
 	 * in a short package.
 	 */
@@ -349,7 +349,7 @@ void mcde_dsi_te_request(struct mipi_dsi_device *mdsi)
 	val |= DSI_DIRECT_CMD_STS_CTL_ACKNOWLEDGE_WITH_ERR_EN;
 	writel(val, d->regs + DSI_DIRECT_CMD_STS_CTL);
 
-	/* Clear and enable no TE or TE missing status */
+	/* Clear and enable yes TE or TE missing status */
 	writel(DSI_CMD_MODE_STS_CLR_ERR_NO_TE_CLR |
 	       DSI_CMD_MODE_STS_CLR_ERR_TE_MISS_CLR,
 	       d->regs + DSI_CMD_MODE_STS_CLR);
@@ -404,7 +404,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 		val |= DSI_VID_MAIN_CTL_VID_PIXEL_MODE_24BITS;
 		break;
 	default:
-		dev_err(d->dev, "unknown pixel mode\n");
+		dev_err(d->dev, "unkyeswn pixel mode\n");
 		return;
 	}
 
@@ -460,7 +460,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 		 * 4 is RGB header + checksum
 		 */
 		hbp = (mode->htotal - mode->hsync_start) * bpp - 4 - 4 - 6;
-		/* HSA is not considered in this mode and set to 0 */
+		/* HSA is yest considered in this mode and set to 0 */
 		hsa = 0;
 	}
 	dev_dbg(d->dev, "hfp: %u, hbp: %u, hsa: %u\n",
@@ -511,7 +511,7 @@ static void mcde_dsi_setup_video_mode(struct mcde_dsi *d,
 	val = line_duration << DSI_VID_DPHY_TIME_REG_LINE_DURATION_SHIFT;
 	/*
 	 * This is the time to perform LP->HS on D-PHY
-	 * FIXME: nowhere to get this from: DT property on the DSI?
+	 * FIXME: yeswhere to get this from: DT property on the DSI?
 	 */
 	val |= 0 << DSI_VID_DPHY_TIME_REG_WAKEUP_TIME_SHIFT;
 	writel(val, d->regs + DSI_VID_DPHY_TIME);
@@ -644,7 +644,7 @@ static void mcde_dsi_start(struct mcde_dsi *d)
 		/* Sleep for a millisecond */
 		usleep_range(1000, 1500);
 		if (i++ == 100) {
-			dev_warn(d->dev, "DSI lanes did not start up\n");
+			dev_warn(d->dev, "DSI lanes did yest start up\n");
 			return;
 		}
 	}
@@ -685,7 +685,7 @@ static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
 	int ret;
 
 	if (!d->mdsi) {
-		dev_err(d->dev, "no DSI device attached to encoder!\n");
+		dev_err(d->dev, "yes DSI device attached to encoder!\n");
 		return;
 	}
 
@@ -762,7 +762,7 @@ static void mcde_dsi_wait_for_command_mode_stop(struct mcde_dsi *d)
 		usleep_range(1000, 2000);
 		if (i++ == 100) {
 			dev_warn(d->dev,
-				 "could not get out of command mode\n");
+				 "could yest get out of command mode\n");
 			return;
 		}
 	}
@@ -781,7 +781,7 @@ static void mcde_dsi_wait_for_video_mode_stop(struct mcde_dsi *d)
 		usleep_range(1000, 2000);
 		if (i++ == 100) {
 			dev_warn(d->dev,
-				 "could not get out of video mode\n");
+				 "could yest get out of video mode\n");
 			return;
 		}
 	}
@@ -812,7 +812,7 @@ static void mcde_dsi_bridge_disable(struct drm_bridge *bridge)
 }
 
 /*
- * This connector needs no special handling, just use the default
+ * This connector needs yes special handling, just use the default
  * helpers for everything. It's pretty dummy.
  */
 static const struct drm_connector_funcs mcde_dsi_connector_funcs = {
@@ -889,11 +889,11 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 	struct drm_device *drm = data;
 	struct mcde *mcde = drm->dev_private;
 	struct mcde_dsi *d = dev_get_drvdata(dev);
-	struct device_node *child;
+	struct device_yesde *child;
 	struct drm_panel *panel = NULL;
 	struct drm_bridge *bridge = NULL;
 
-	if (!of_get_available_child_count(dev->of_node)) {
+	if (!of_get_available_child_count(dev->of_yesde)) {
 		dev_info(dev, "unused DSI interface\n");
 		d->unused = true;
 		return 0;
@@ -931,8 +931,8 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 	/* Start up the hardware */
 	mcde_dsi_start(d);
 
-	/* Look for a panel as a child to this node */
-	for_each_available_child_of_node(dev->of_node, child) {
+	/* Look for a panel as a child to this yesde */
+	for_each_available_child_of_yesde(dev->of_yesde, child) {
 		panel = of_drm_find_panel(child);
 		if (IS_ERR(panel)) {
 			dev_err(dev, "failed to find panel try bridge (%ld)\n",
@@ -958,10 +958,10 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 		d->panel = panel;
 	} else if (bridge) {
 		/* TODO: AV8100 HDMI encoder goes here for example */
-		dev_info(dev, "connected to non-panel bridge (unsupported)\n");
+		dev_info(dev, "connected to yesn-panel bridge (unsupported)\n");
 		return -ENODEV;
 	} else {
-		dev_err(dev, "no panel or bridge\n");
+		dev_err(dev, "yes panel or bridge\n");
 		return -ENODEV;
 	}
 
@@ -969,7 +969,7 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 
 	/* Create a bridge for this DSI channel */
 	d->bridge.funcs = &mcde_dsi_bridge_funcs;
-	d->bridge.of_node = dev->of_node;
+	d->bridge.of_yesde = dev->of_yesde;
 	drm_bridge_add(&d->bridge);
 
 	/* TODO: first come first serve, use a list */
@@ -1015,14 +1015,14 @@ static int mcde_dsi_probe(struct platform_device *pdev)
 	d->prcmu =
 		syscon_regmap_lookup_by_compatible("stericsson,db8500-prcmu");
 	if (IS_ERR(d->prcmu)) {
-		dev_err(dev, "no PRCMU regmap\n");
+		dev_err(dev, "yes PRCMU regmap\n");
 		return PTR_ERR(d->prcmu);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	d->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(d->regs)) {
-		dev_err(dev, "no DSI regs\n");
+		dev_err(dev, "yes DSI regs\n");
 		return PTR_ERR(d->regs);
 	}
 

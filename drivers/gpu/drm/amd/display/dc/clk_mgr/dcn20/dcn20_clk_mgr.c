@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -246,7 +246,7 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 			// if clock is being raised, increase refclk before lowering DTO
 			if (update_dppclk || update_dispclk)
 				dcn20_update_clocks_update_dentist(clk_mgr);
-			// always update dtos unless clock is lowered and not safe to lower
+			// always update dtos unless clock is lowered and yest safe to lower
 			if (new_clocks->dppclk_khz >= dc->current_state->bw_ctx.bw.dcn.clk.dppclk_khz)
 				dcn20_update_clocks_update_dpp_dto(clk_mgr, context);
 		}
@@ -439,7 +439,7 @@ void dcn20_clk_mgr_construct(
 		/* multiply by REFCLK period */
 		pll_req = dc_fixpt_mul_int(pll_req, 100000);
 
-		/* integer part is now VCO frequency in kHz */
+		/* integer part is yesw VCO frequency in kHz */
 		clk_mgr->base.dentist_vco_freq_khz = dc_fixpt_floor(pll_req);
 
 		/* in case we don't get a value from the register, use default */
@@ -450,9 +450,9 @@ void dcn20_clk_mgr_construct(
 		clk_mgr->base.dprefclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
 			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
 	}
-	//Integrated_info table does not exist on dGPU projects so should not be referenced
+	//Integrated_info table does yest exist on dGPU projects so should yest be referenced
 	//anywhere in code for dGPUs.
-	//Also there is no plan for now that DFS BYPASS will be used on NV10/12/14.
+	//Also there is yes plan for yesw that DFS BYPASS will be used on NV10/12/14.
 	clk_mgr->dfs_bypass_enabled = false;
 
 	dce_clock_read_ss_info(clk_mgr);

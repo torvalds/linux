@@ -53,7 +53,7 @@ static inline u8 HT_CONFIG(ide_drive_t *drive)
 /*
  * FIFO + PREFETCH (both a/b-model)
  */
-#define HT_CONFIG_DEFAULT 0x1c /* no prefetch */
+#define HT_CONFIG_DEFAULT 0x1c /* yes prefetch */
 /* #define HT_CONFIG_DEFAULT 0x3c */ /* with prefetch */
 #define HT_SECONDARY_IF	  0x01
 #define HT_PREFETCH_MODE  0x20
@@ -359,13 +359,13 @@ static int __init ht6560b_init(void)
 		return -ENODEV;
 
 	if (!request_region(HT_CONFIG_PORT, 1, DRV_NAME)) {
-		printk(KERN_NOTICE "%s: HT_CONFIG_PORT not found\n",
+		printk(KERN_NOTICE "%s: HT_CONFIG_PORT yest found\n",
 			__func__);
 		return -ENODEV;
 	}
 
 	if (!try_to_init_ht6560b()) {
-		printk(KERN_NOTICE "%s: HBA not found\n", __func__);
+		printk(KERN_NOTICE "%s: HBA yest found\n", __func__);
 		goto release_region;
 	}
 

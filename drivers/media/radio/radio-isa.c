@@ -209,7 +209,7 @@ static int radio_isa_common_probe(struct radio_isa_card *isa,
 
 	res = v4l2_device_register(pdev, v4l2_dev);
 	if (res < 0) {
-		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
+		v4l2_err(v4l2_dev, "Could yest register v4l2_device\n");
 		goto err_dev_reg;
 	}
 
@@ -223,7 +223,7 @@ static int radio_isa_common_probe(struct radio_isa_card *isa,
 	v4l2_dev->ctrl_handler = &isa->hdl;
 	if (isa->hdl.error) {
 		res = isa->hdl.error;
-		v4l2_err(v4l2_dev, "Could not register controls\n");
+		v4l2_err(v4l2_dev, "Could yest register controls\n");
 		goto err_hdl;
 	}
 	if (drv->max_volume)
@@ -251,13 +251,13 @@ static int radio_isa_common_probe(struct radio_isa_card *isa,
 	if (!res && ops->s_stereo)
 		res = ops->s_stereo(isa, isa->stereo);
 	if (res < 0) {
-		v4l2_err(v4l2_dev, "Could not setup card\n");
+		v4l2_err(v4l2_dev, "Could yest setup card\n");
 		goto err_hdl;
 	}
 	res = video_register_device(&isa->vdev, VFL_TYPE_RADIO, radio_nr);
 
 	if (res < 0) {
-		v4l2_err(v4l2_dev, "Could not register device node\n");
+		v4l2_err(v4l2_dev, "Could yest register device yesde\n");
 		goto err_hdl;
 	}
 

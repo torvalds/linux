@@ -432,7 +432,7 @@ struct fsl_asrc_pair {
  * @lock: spin lock for resource protection
  * @pair: pair pointers
  * @channel_bits: width of ASRCNCR register for each pair
- * @channel_avail: non-occupied channel numbers
+ * @channel_avail: yesn-occupied channel numbers
  * @asrc_rate: default sample rate for ASoC Back-Ends
  * @asrc_width: default sample width for ASoC Back-Ends
  * @regcache_cfg: store register value of REG_ASRCFG

@@ -5,12 +5,12 @@
  * Copyright(c) 2008 John W. Linville <linville@tuxdriver.com>
  *
  * Portions copied from old ieee80211 component, w/ original copyright
- * notices below:
+ * yestices below:
  *
  * Host AP crypto routines
  *
  * Copyright (c) 2002-2003, Jouni Malinen <j@w1.fi>
- * Portions Copyright (C) 2004, Intel Corporation <jketreno@linux.intel.com>
+ * Portions Copyright (C) 2004, Intel Corporation <jketreyes@linux.intel.com>
  *
  */
 
@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/ieee80211.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -147,7 +147,7 @@ void lib80211_crypt_delayed_deinit(struct lib80211_crypt_info *info,
 	tmp = *crypt;
 	*crypt = NULL;
 
-	/* must not run ops->deinit() while there may be pending encrypt or
+	/* must yest run ops->deinit() while there may be pending encrypt or
 	 * decrypt operations. Use a list of delayed deinits to avoid needing
 	 * locking. */
 

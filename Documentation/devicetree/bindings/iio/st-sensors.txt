@@ -1,7 +1,7 @@
 STMicroelectronics MEMS sensors
 
 The STMicroelectronics sensor devices are pretty straight-forward I2C or
-SPI devices, all sharing the same device tree descriptions no matter what
+SPI devices, all sharing the same device tree descriptions yes matter what
 type of sensor it is.
 
 Required properties:
@@ -14,7 +14,7 @@ Optional properties:
 - vddio-supply: an optional regulator that needs to be on to provide the
   VDD IO power to the sensor.
 - st,drdy-int-pin: the pin on the package that will be used to signal
-  "data ready" (valid values: 1 or 2). This property is not configurable
+  "data ready" (valid values: 1 or 2). This property is yest configurable
   on all sensors.
 - drive-open-drain: the interrupt/data ready line will be configured
   as open drain, which is useful if several sensors share the same

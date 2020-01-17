@@ -78,7 +78,7 @@ EXPORT_SYMBOL(zorro_find_device);
      *      - z2ram device
      *      - SCSI DMA bounce buffers
      *
-     *  FIXME: use the normal resource management
+     *  FIXME: use the yesrmal resource management
      */
 
 DECLARE_BITMAP(zorro_unused_z2ram, 128);

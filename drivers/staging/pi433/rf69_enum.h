@@ -94,7 +94,7 @@ enum flag {
 	automode,
 	sync_address_match,
 	fifo_full,
-//	fifo_not_empty, collision with next enum; replaced by following enum...
+//	fifo_yest_empty, collision with next enum; replaced by following enum...
 	fifo_empty,
 	fifo_level_below_threshold,
 	fifo_overrun,
@@ -116,17 +116,17 @@ enum packet_format {
 
 enum tx_start_condition {
 	fifo_level,
-	fifo_not_empty
+	fifo_yest_empty
 };
 
 enum address_filtering {
 	filtering_off,
-	node_address,
-	node_or_broadcast_address
+	yesde_address,
+	yesde_or_broadcast_address
 };
 
 enum dagc {
-	normal_mode,
+	yesrmal_mode,
 	improve,
 	improve_for_low_modulation_index
 };

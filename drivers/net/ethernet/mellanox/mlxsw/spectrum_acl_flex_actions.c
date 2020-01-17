@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include "spectrum_acl_flex_actions.h"
 #include "core_acl_flex_actions.h"
@@ -14,7 +14,7 @@ static int mlxsw_sp_act_kvdl_set_add(void *priv, u32 *p_kvdl_index,
 	int err;
 
 	/* The first action set of a TCAM entry is stored directly in TCAM,
-	 * not KVD linear area.
+	 * yest KVD linear area.
 	 */
 	if (is_first)
 		return 0;

@@ -28,23 +28,23 @@
 /*
  * TRACE_SYSTEM is expected to be a C valid variable (alpha-numeric
  * and underscore), although it may start with numbers. If for some
- * reason it is not, you need to add the following lines:
+ * reason it is yest, you need to add the following lines:
  */
 #undef TRACE_SYSTEM_VAR
 #define TRACE_SYSTEM_VAR sample_trace
 /*
- * But the above is only needed if TRACE_SYSTEM is not alpha-numeric
+ * But the above is only needed if TRACE_SYSTEM is yest alpha-numeric
  * and underscored. By default, TRACE_SYSTEM_VAR will be equal to
  * TRACE_SYSTEM. As TRACE_SYSTEM_VAR must be alpha-numeric, if
- * TRACE_SYSTEM is not, then TRACE_SYSTEM_VAR must be defined with
+ * TRACE_SYSTEM is yest, then TRACE_SYSTEM_VAR must be defined with
  * only alpha-numeric and underscores.
  *
- * The TRACE_SYSTEM_VAR is only used internally and not visible to
+ * The TRACE_SYSTEM_VAR is only used internally and yest visible to
  * user space.
  */
 
 /*
- * Notice that this file is not protected like a normal header.
+ * Notice that this file is yest protected like a yesrmal header.
  * We also must allow for rereading of this file. The
  *
  *  || defined(TRACE_HEADER_MULTI_READ)
@@ -87,7 +87,7 @@
  *        __entry->foo = 5;
  *
  *   __field_struct : This can be any static complex data type (struct, union
- *         but not an array). Be careful using complex types, as each
+ *         but yest an array). Be careful using complex types, as each
  *         event is limited in size, and copying large amounts of data
  *         into the ring buffer can slow things down.
  *
@@ -97,7 +97,7 @@
 
  *   __array: There are three fields (type, name, size). The type is the
  *         type of elements in the array, the name is the name of the array.
- *         size is the number of items in the array (not the total size).
+ *         size is the number of items in the array (yest the total size).
  *
  *         __array( char, foo, 10) is the same as saying: char foo[10];
  *
@@ -111,10 +111,10 @@
  *         instance to instance of the tracepoint being called.
  *         Like __array, this too has three elements (type, name, size);
  *         type is the type of the element, name is the name of the array.
- *         The size is different than __array. It is not a static number,
+ *         The size is different than __array. It is yest a static number,
  *         but the algorithm to figure out the length of the array for the
  *         specific instance of tracepoint. Again, size is the number of
- *         items in the array, not the total length in bytes.
+ *         items in the array, yest the total length in bytes.
  *
  *         __dynamic_array( int, foo, bar) is similar to: int foo[bar];
  *
@@ -123,7 +123,7 @@
  *
  *         memcpy(__get_dynamic_array(foo), bar, 10);
  *
- *         Notice, that "__entry" is not needed here.
+ *         Notice, that "__entry" is yest needed here.
  *
  *   __string: This is a special kind of __dynamic_array. It expects to
  *         have a null terminated character array passed to it (it allows
@@ -141,7 +141,7 @@
  *         In most cases, the __assign_str() macro will take the same
  *         parameters as the __string() macro had to declare the string.
  *
- *   __bitmask: This is another kind of __dynamic_array, but it expects
+ *   __bitmask: This is ayesther kind of __dynamic_array, but it expects
  *         an array of longs, and the number of bits to parse. It takes
  *         two parameters (name, nr_bits), where name is the name of the
  *         bitmask to save, and the nr_bits is the number of bits to record.
@@ -212,8 +212,8 @@ enum {
 
 /*
  * If enums are used in the TP_printk(), their names will be shown in
- * format files and not their values. This can cause problems with user
- * space programs that parse the format files to know how to translate
+ * format files and yest their values. This can cause problems with user
+ * space programs that parse the format files to kyesw how to translate
  * the raw binary trace output into human readable text.
  *
  * To help out user space programs, any enum that is used in the TP_printk()
@@ -259,7 +259,7 @@ TRACE_EVENT(foo_bar,
  *
  *    The variable is tested against each value of the { } pair. If
  *    the variable matches one of the values, then it will print the
- *    string in that pair. If non are matched, it returns a string
+ *    string in that pair. If yesn are matched, it returns a string
  *    version of the number (if __entry->bar == 7 then "7" is returned).
  */
 		  __print_symbolic(__entry->bar,
@@ -277,7 +277,7 @@ TRACE_EVENT(foo_bar,
  *    of the value. If ((FLAG & variable) == FLAG) then the string is
  *    printed. If more than one flag matches, then each one that does is
  *    also printed with delim in between them.
- *    If not all bits are accounted for, then the not found bits will be
+ *    If yest all bits are accounted for, then the yest found bits will be
  *    added in hex format: 0x506 will show BIT2|BIT4|0x500
  */
 		  __print_flags(__entry->bar, "|",
@@ -299,22 +299,22 @@ TRACE_EVENT(foo_bar,
 
 /*
  * There may be a case where a tracepoint should only be called if
- * some condition is set. Otherwise the tracepoint should not be called.
+ * some condition is set. Otherwise the tracepoint should yest be called.
  * But to do something like:
  *
  *  if (cond)
  *     trace_foo();
  *
- * Would cause a little overhead when tracing is not enabled, and that
- * overhead, even if small, is not something we want. As tracepoints
- * use static branch (aka jump_labels), where no branch is taken to
- * skip the tracepoint when not enabled, and a jmp is placed to jump
+ * Would cause a little overhead when tracing is yest enabled, and that
+ * overhead, even if small, is yest something we want. As tracepoints
+ * use static branch (aka jump_labels), where yes branch is taken to
+ * skip the tracepoint when yest enabled, and a jmp is placed to jump
  * to the tracepoint code when it is enabled, having a if statement
  * nullifies that optimization. It would be nice to place that
  * condition within the static branch. This is where TRACE_EVENT_CONDITION
  * comes in.
  *
- * TRACE_EVENT_CONDITION() is just like TRACE_EVENT, except it adds another
+ * TRACE_EVENT_CONDITION() is just like TRACE_EVENT, except it adds ayesther
  * parameter just after args. Where TRACE_EVENT has:
  *
  * TRACE_EVENT(name, proto, args, struct, assign, printk)
@@ -330,9 +330,9 @@ TRACE_EVENT(foo_bar,
  *      trace_foo_bar_with_cond();
  *
  * Except that the logic for the if branch is placed after the static branch.
- * That is, the if statement that processes the condition will not be
+ * That is, the if statement that processes the condition will yest be
  * executed unless that traecpoint is enabled. Otherwise it still remains
- * a nop.
+ * a yesp.
  */
 TRACE_EVENT_CONDITION(foo_bar_with_cond,
 
@@ -445,7 +445,7 @@ DECLARE_EVENT_CLASS(foo_template,
 
 /*
  * Here's a better way for the previous samples (except, the first
- * example had more fields and could not be used here).
+ * example had more fields and could yest be used here).
  */
 DEFINE_EVENT(foo_template, foo_with_template_simple,
 	TP_PROTO(const char *foo, int bar),
@@ -518,7 +518,7 @@ DEFINE_EVENT_PRINT(foo_template, foo_with_template_print,
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_PATH .
 /*
- * TRACE_INCLUDE_FILE is not needed if the filename and TRACE_SYSTEM are equal
+ * TRACE_INCLUDE_FILE is yest needed if the filename and TRACE_SYSTEM are equal
  */
 #define TRACE_INCLUDE_FILE trace-events-sample
 #include <trace/define_trace.h>

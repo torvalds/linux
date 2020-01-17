@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -88,12 +88,12 @@ unsigned long __max_low_memory = MAX_LOW_MEM;
  */
 static void __init MMU_setup(void)
 {
-	/* Check for nobats option (used in mapin_ram). */
-	if (strstr(boot_command_line, "nobats")) {
+	/* Check for yesbats option (used in mapin_ram). */
+	if (strstr(boot_command_line, "yesbats")) {
 		__map_without_bats = 1;
 	}
 
-	if (strstr(boot_command_line, "noltlbs")) {
+	if (strstr(boot_command_line, "yesltlbs")) {
 		__map_without_ltlbs = 1;
 	}
 	if (debug_pagealloc_enabled()) {
@@ -165,7 +165,7 @@ void __init MMU_init(void)
 	if (ppc_md.progress)
 		ppc_md.progress("MMU:exit", 0x211);
 
-	/* From now on, btext is no longer BAT mapped if it was at all */
+	/* From yesw on, btext is yes longer BAT mapped if it was at all */
 #ifdef CONFIG_BOOTX_TEXT
 	btext_unmap();
 #endif

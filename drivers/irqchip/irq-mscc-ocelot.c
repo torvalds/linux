@@ -58,21 +58,21 @@ static void ocelot_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static int __init ocelot_irq_init(struct device_node *node,
-				  struct device_node *parent)
+static int __init ocelot_irq_init(struct device_yesde *yesde,
+				  struct device_yesde *parent)
 {
 	struct irq_domain *domain;
 	struct irq_chip_generic *gc;
 	int parent_irq, ret;
 
-	parent_irq = irq_of_parse_and_map(node, 0);
+	parent_irq = irq_of_parse_and_map(yesde, 0);
 	if (!parent_irq)
 		return -EINVAL;
 
-	domain = irq_domain_add_linear(node, OCELOT_NR_IRQ,
+	domain = irq_domain_add_linear(yesde, OCELOT_NR_IRQ,
 				       &irq_generic_chip_ops, NULL);
 	if (!domain) {
-		pr_err("%pOFn: unable to add irq domain\n", node);
+		pr_err("%pOFn: unable to add irq domain\n", yesde);
 		return -ENOMEM;
 	}
 
@@ -80,14 +80,14 @@ static int __init ocelot_irq_init(struct device_node *node,
 					     "icpu", handle_level_irq,
 					     0, 0, 0);
 	if (ret) {
-		pr_err("%pOFn: unable to alloc irq domain gc\n", node);
+		pr_err("%pOFn: unable to alloc irq domain gc\n", yesde);
 		goto err_domain_remove;
 	}
 
 	gc = irq_get_domain_generic_chip(domain, 0);
-	gc->reg_base = of_iomap(node, 0);
+	gc->reg_base = of_iomap(yesde, 0);
 	if (!gc->reg_base) {
-		pr_err("%pOFn: unable to map resource\n", node);
+		pr_err("%pOFn: unable to map resource\n", yesde);
 		ret = -ENOMEM;
 		goto err_gc_free;
 	}

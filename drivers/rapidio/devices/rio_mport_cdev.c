@@ -2,11 +2,11 @@
 /*
  * RapidIO mport character device
  *
- * Copyright 2014-2015 Integrated Device Technology, Inc.
+ * Copyright 2014-2015 Integrated Device Techyeslogy, Inc.
  *    Alexandre Bounine <alexandre.bounine@idt.com>
- * Copyright 2014-2015 Prodrive Technologies
- *    Andre van Herk <andre.van.herk@prodrive-technologies.com>
- *    Jerry Jacobs <jerry.jacobs@prodrive-technologies.com>
+ * Copyright 2014-2015 Prodrive Techyeslogies
+ *    Andre van Herk <andre.van.herk@prodrive-techyeslogies.com>
+ *    Jerry Jacobs <jerry.jacobs@prodrive-techyeslogies.com>
  * Copyright (C) 2014 Texas Instruments Incorporated
  *    Aurelien Jacquiot <a-jacquiot@ti.com>
  */
@@ -70,7 +70,7 @@ enum {
 	} while (0)
 #else
 #define rmcd_debug(level, fmt, arg...) \
-		no_printk(KERN_DEBUG pr_fmt(DRV_PREFIX fmt "\n"), ##arg)
+		yes_printk(KERN_DEBUG pr_fmt(DRV_PREFIX fmt "\n"), ##arg)
 #endif
 
 #define rmcd_warn(fmt, arg...) \
@@ -79,10 +79,10 @@ enum {
 #define rmcd_error(fmt, arg...) \
 	pr_err(DRV_PREFIX "%s ERROR " fmt "\n", __func__, ##arg)
 
-MODULE_AUTHOR("Jerry Jacobs <jerry.jacobs@prodrive-technologies.com>");
+MODULE_AUTHOR("Jerry Jacobs <jerry.jacobs@prodrive-techyeslogies.com>");
 MODULE_AUTHOR("Aurelien Jacquiot <a-jacquiot@ti.com>");
 MODULE_AUTHOR("Alexandre Bounine <alexandre.bounine@idt.com>");
-MODULE_AUTHOR("Andre van Herk <andre.van.herk@prodrive-technologies.com>");
+MODULE_AUTHOR("Andre van Herk <andre.van.herk@prodrive-techyeslogies.com>");
 MODULE_DESCRIPTION("RapidIO mport character device driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
@@ -94,7 +94,7 @@ MODULE_PARM_DESC(dma_timeout, "DMA Transfer Timeout in msec (default: 3000)");
 #ifdef DEBUG
 static u32 dbg_level = DBG_NONE;
 module_param(dbg_level, uint, S_IWUSR | S_IWGRP | S_IRUGO);
-MODULE_PARM_DESC(dbg_level, "Debugging output level (default 0 = none)");
+MODULE_PARM_DESC(dbg_level, "Debugging output level (default 0 = yesne)");
 #endif
 
 /*
@@ -119,7 +119,7 @@ enum rio_mport_map_dir {
 };
 
 struct rio_mport_mapping {
-	struct list_head node;
+	struct list_head yesde;
 	struct mport_dev *md;
 	enum rio_mport_map_dir dir;
 	u16 rioid;
@@ -144,7 +144,7 @@ struct rio_mport_dma_map {
 /*
  * mport_dev  driver-specific structure that represents mport device
  * @active    mport device status flag
- * @node      list node to maintain list of registered mports
+ * @yesde      list yesde to maintain list of registered mports
  * @cdev      character device
  * @dev       associated device object
  * @mport     associated subsystem's master port device object
@@ -161,7 +161,7 @@ struct rio_mport_dma_map {
  */
 struct mport_dev {
 	atomic_t		active;
-	struct list_head	node;
+	struct list_head	yesde;
 	struct cdev		cdev;
 	struct device		dev;
 	struct rio_mport	*mport;
@@ -185,7 +185,7 @@ struct mport_dev {
  * mport_cdev_priv - data structure specific to individual file object
  *                   associated with an open device
  * @md    master port character device object
- * @async_queue - asynchronous notification queue
+ * @async_queue - asynchroyesus yestification queue
  * @list - file objects tracking list
  * @db_filters    inbound doorbell filters for this descriptor
  * @pw_filters    portwrite filters for this descriptor
@@ -217,28 +217,28 @@ struct mport_cdev_priv {
 
 /*
  * rio_mport_pw_filter - structure to describe a portwrite filter
- * md_node   node in mport device's list
- * priv_node node in private file object's list
+ * md_yesde   yesde in mport device's list
+ * priv_yesde yesde in private file object's list
  * priv      reference to private data
  * filter    actual portwrite filter
  */
 struct rio_mport_pw_filter {
-	struct list_head md_node;
-	struct list_head priv_node;
+	struct list_head md_yesde;
+	struct list_head priv_yesde;
 	struct mport_cdev_priv *priv;
 	struct rio_pw_filter filter;
 };
 
 /*
  * rio_mport_db_filter - structure to describe a doorbell filter
- * @data_node reference to device node
- * @priv_node node in private data
+ * @data_yesde reference to device yesde
+ * @priv_yesde yesde in private data
  * @priv      reference to private data
  * @filter    actual doorbell filter
  */
 struct rio_mport_db_filter {
-	struct list_head data_node;
-	struct list_head priv_node;
+	struct list_head data_yesde;
+	struct list_head priv_yesde;
 	struct mport_cdev_priv *priv;
 	struct rio_doorbell_filter filter;
 };
@@ -382,7 +382,7 @@ rio_mport_create_outbound_mapping(struct mport_dev *md, struct file *filp,
 	map->filp = filp;
 	map->md = md;
 	kref_init(&map->ref);
-	list_add_tail(&map->node, &md->mappings);
+	list_add_tail(&map->yesde, &md->mappings);
 	return 0;
 err_map_outb:
 	kfree(map);
@@ -398,7 +398,7 @@ rio_mport_get_outbound_mapping(struct mport_dev *md, struct file *filp,
 	int err = -ENOMEM;
 
 	mutex_lock(&md->buf_mutex);
-	list_for_each_entry(map, &md->mappings, node) {
+	list_for_each_entry(map, &md->mappings, yesde) {
 		if (map->dir != MAP_OUTBOUND)
 			continue;
 		if (rioid == map->rioid &&
@@ -414,7 +414,7 @@ rio_mport_get_outbound_mapping(struct mport_dev *md, struct file *filp,
 		}
 	}
 
-	/* If not found, create new */
+	/* If yest found, create new */
 	if (err == -ENOMEM)
 		err = rio_mport_create_outbound_mapping(md, filp, rioid, raddr,
 						size, paddr);
@@ -472,7 +472,7 @@ static int rio_mport_obw_free(struct file *filp, void __user *arg)
 	rmcd_debug(OBW, "h=0x%llx", handle);
 
 	mutex_lock(&md->buf_mutex);
-	list_for_each_entry_safe(map, _map, &md->mappings, node) {
+	list_for_each_entry_safe(map, _map, &md->mappings, yesde) {
 		if (map->dir == MAP_OUTBOUND && map->phys_addr == handle) {
 			if (map->filp == filp) {
 				rmcd_debug(OBW, "kref_put h=0x%llx", handle);
@@ -533,7 +533,7 @@ static int maint_comptag_set(struct mport_cdev_priv *priv, void __user *arg)
 
 struct mport_dma_req {
 	struct kref refcount;
-	struct list_head node;
+	struct list_head yesde;
 	struct file *filp;
 	struct mport_cdev_priv *priv;
 	enum rio_transfer_sync sync;
@@ -610,7 +610,7 @@ static void dma_xfer_callback(void *param)
  *                   transfer object.
  * Returns pointer to DMA transaction descriptor allocated by DMA driver on
  * success or ERR_PTR (and/or NULL) if failed. Caller must check returned
- * non-NULL pointer using IS_ERR macro.
+ * yesn-NULL pointer using IS_ERR macro.
  */
 static struct dma_async_tx_descriptor
 *prep_dma_xfer(struct dma_chan *chan, struct rio_transfer_io *transfer,
@@ -647,7 +647,7 @@ static struct dma_async_tx_descriptor
 
 /* Request DMA channel associated with this mport device.
  * Try to request DMA channel for every new process that opened given
- * mport. If a new DMA channel is not available use default channel
+ * mport. If a new DMA channel is yest available use default channel
  * which is the first DMA channel opened on mport device.
  */
 static int get_dma_channel(struct mport_cdev_priv *priv)
@@ -666,7 +666,7 @@ static int get_dma_channel(struct mport_cdev_priv *priv)
 				return -ENODEV;
 			}
 		} else if (!priv->md->dma_chan) {
-			/* Register default DMA channel if we do not have one */
+			/* Register default DMA channel if we do yest have one */
 			priv->md->dma_chan = priv->dmach;
 			kref_init(&priv->md->dma_ref);
 			rmcd_debug(DMA, "Register DMA_chan %d as default",
@@ -757,7 +757,7 @@ static int do_dma_request(struct mport_dma_req *req,
 
 	if (sync == RIO_TRANSFER_ASYNC) {
 		spin_lock(&priv->req_lock);
-		list_add_tail(&req->node, &priv->async_list);
+		list_add_tail(&req->yesde, &priv->async_list);
 		spin_unlock(&priv->req_lock);
 		return cookie;
 	} else if (sync == RIO_TRANSFER_FAF)
@@ -896,7 +896,7 @@ rio_dma_transfer(struct file *filp, u32 transfer_mode,
 		baddr = (dma_addr_t)xfer->handle;
 
 		mutex_lock(&md->buf_mutex);
-		list_for_each_entry(map, &md->mappings, node) {
+		list_for_each_entry(map, &md->mappings, yesde) {
 			if (baddr >= map->phys_addr &&
 			    baddr < (map->phys_addr + map->size)) {
 				kref_get(&map->ref);
@@ -966,7 +966,7 @@ static int rio_mport_transfer_ioctl(struct file *filp, void __user *arg)
 	if (unlikely(copy_from_user(&transaction, arg, sizeof(transaction))))
 		return -EFAULT;
 
-	if (transaction.count != 1) /* only single transfer for now */
+	if (transaction.count != 1) /* only single transfer for yesw */
 		return -EINVAL;
 
 	if ((transaction.transfer_mode &
@@ -1024,9 +1024,9 @@ static int rio_mport_wait_for_async_dma(struct file *filp, void __user *arg)
 		tmo = msecs_to_jiffies(dma_timeout);
 
 	spin_lock(&priv->req_lock);
-	list_for_each_entry(req, &priv->async_list, node) {
+	list_for_each_entry(req, &priv->async_list, yesde) {
 		if (req->cookie == cookie) {
-			list_del(&req->node);
+			list_del(&req->yesde);
 			found = 1;
 			break;
 		}
@@ -1074,7 +1074,7 @@ static int rio_mport_wait_for_async_dma(struct file *filp, void __user *arg)
 err_tmo:
 	/* Return request back into async queue */
 	spin_lock(&priv->req_lock);
-	list_add_tail(&req->node, &priv->async_list);
+	list_add_tail(&req->yesde, &priv->async_list);
 	spin_unlock(&priv->req_lock);
 	return ret;
 }
@@ -1101,7 +1101,7 @@ static int rio_mport_create_dma_mapping(struct mport_dev *md, struct file *filp,
 	map->md = md;
 	kref_init(&map->ref);
 	mutex_lock(&md->buf_mutex);
-	list_add_tail(&map->node, &md->mappings);
+	list_add_tail(&map->yesde, &md->mappings);
 	mutex_unlock(&md->buf_mutex);
 	*mapping = map;
 
@@ -1148,7 +1148,7 @@ static int rio_mport_free_dma(struct file *filp, void __user *arg)
 	rmcd_debug(EXIT, "filp=%p", filp);
 
 	mutex_lock(&md->buf_mutex);
-	list_for_each_entry_safe(map, _map, &md->mappings, node) {
+	list_for_each_entry_safe(map, _map, &md->mappings, yesde) {
 		if (map->dir == MAP_DMA && map->phys_addr == handle &&
 		    map->filp == filp) {
 			kref_put(&map->ref, mport_release_mapping);
@@ -1159,7 +1159,7 @@ static int rio_mport_free_dma(struct file *filp, void __user *arg)
 	mutex_unlock(&md->buf_mutex);
 
 	if (ret == -EFAULT) {
-		rmcd_debug(DMA, "ERR no matching mapping");
+		rmcd_debug(DMA, "ERR yes matching mapping");
 		return ret;
 	}
 
@@ -1228,7 +1228,7 @@ rio_mport_create_inbound_mapping(struct mport_dev *md, struct file *filp,
 	map->md = md;
 	kref_init(&map->ref);
 	mutex_lock(&md->buf_mutex);
-	list_add_tail(&map->node, &md->mappings);
+	list_add_tail(&map->yesde, &md->mappings);
 	mutex_unlock(&md->buf_mutex);
 	*mapping = map;
 	return 0;
@@ -1253,7 +1253,7 @@ rio_mport_get_inbound_mapping(struct mport_dev *md, struct file *filp,
 		goto get_new;
 
 	mutex_lock(&md->buf_mutex);
-	list_for_each_entry(map, &md->mappings, node) {
+	list_for_each_entry(map, &md->mappings, yesde) {
 		if (map->dir != MAP_INBOUND)
 			continue;
 		if (raddr == map->rio_addr && size == map->size) {
@@ -1272,7 +1272,7 @@ rio_mport_get_inbound_mapping(struct mport_dev *md, struct file *filp,
 	if (err != -ENOMEM)
 		return err;
 get_new:
-	/* not found, create new */
+	/* yest found, create new */
 	return rio_mport_create_inbound_mapping(md, filp, raddr, size, mapping);
 }
 
@@ -1334,7 +1334,7 @@ static int rio_mport_inbound_free(struct file *filp, void __user *arg)
 		return -EFAULT;
 
 	mutex_lock(&md->buf_mutex);
-	list_for_each_entry_safe(map, _map, &md->mappings, node) {
+	list_for_each_entry_safe(map, _map, &md->mappings, yesde) {
 		if (map->dir == MAP_INBOUND && map->phys_addr == handle) {
 			if (map->filp == filp) {
 				map->filp = NULL;
@@ -1405,7 +1405,7 @@ static void rio_mport_doorbell_handler(struct rio_mport *mport, void *dev_id,
 
 	handled = 0;
 	spin_lock(&data->db_lock);
-	list_for_each_entry(db_filter, &data->doorbells, data_node) {
+	list_for_each_entry(db_filter, &data->doorbells, data_yesde) {
 		if (((db_filter->filter.rioid == RIO_INVALID_DESTID ||
 		      db_filter->filter.rioid == src)) &&
 		      info >= db_filter->filter.low &&
@@ -1455,8 +1455,8 @@ static int rio_mport_add_db_filter(struct mport_cdev_priv *priv,
 	db_filter->filter = filter;
 	db_filter->priv = priv;
 	spin_lock_irqsave(&md->db_lock, flags);
-	list_add_tail(&db_filter->priv_node, &priv->db_filters);
-	list_add_tail(&db_filter->data_node, &md->doorbells);
+	list_add_tail(&db_filter->priv_yesde, &priv->db_filters);
+	list_add_tail(&db_filter->data_yesde, &md->doorbells);
 	spin_unlock_irqrestore(&md->db_lock, flags);
 
 	return 0;
@@ -1464,8 +1464,8 @@ static int rio_mport_add_db_filter(struct mport_cdev_priv *priv,
 
 static void rio_mport_delete_db_filter(struct rio_mport_db_filter *db_filter)
 {
-	list_del(&db_filter->data_node);
-	list_del(&db_filter->priv_node);
+	list_del(&db_filter->data_yesde);
+	list_del(&db_filter->priv_yesde);
 	kfree(db_filter);
 }
 
@@ -1484,7 +1484,7 @@ static int rio_mport_remove_db_filter(struct mport_cdev_priv *priv,
 		return -EINVAL;
 
 	spin_lock_irqsave(&priv->md->db_lock, flags);
-	list_for_each_entry(db_filter, &priv->db_filters, priv_node) {
+	list_for_each_entry(db_filter, &priv->db_filters, priv_yesde) {
 		if (db_filter->filter.rioid == filter.rioid &&
 		    db_filter->filter.low == filter.low &&
 		    db_filter->filter.high == filter.high) {
@@ -1524,7 +1524,7 @@ static int rio_mport_pw_handler(struct rio_mport *mport, void *context,
 
 	handled = 0;
 	spin_lock(&md->pw_lock);
-	list_for_each_entry(pw_filter, &md->portwrites, md_node) {
+	list_for_each_entry(pw_filter, &md->portwrites, md_yesde) {
 		if (rio_mport_match_pw(msg, &pw_filter->filter)) {
 			priv = pw_filter->priv;
 			rio_mport_add_event(priv, &event);
@@ -1563,8 +1563,8 @@ static int rio_mport_add_pw_filter(struct mport_cdev_priv *priv,
 	spin_lock_irqsave(&md->pw_lock, flags);
 	if (list_empty(&md->portwrites))
 		hadd = 1;
-	list_add_tail(&pw_filter->priv_node, &priv->pw_filters);
-	list_add_tail(&pw_filter->md_node, &md->portwrites);
+	list_add_tail(&pw_filter->priv_yesde, &priv->pw_filters);
+	list_add_tail(&pw_filter->md_yesde, &md->portwrites);
 	spin_unlock_irqrestore(&md->pw_lock, flags);
 
 	if (hadd) {
@@ -1586,8 +1586,8 @@ static int rio_mport_add_pw_filter(struct mport_cdev_priv *priv,
 
 static void rio_mport_delete_pw_filter(struct rio_mport_pw_filter *pw_filter)
 {
-	list_del(&pw_filter->md_node);
-	list_del(&pw_filter->priv_node);
+	list_del(&pw_filter->md_yesde);
+	list_del(&pw_filter->priv_yesde);
 	kfree(pw_filter);
 }
 
@@ -1613,7 +1613,7 @@ static int rio_mport_remove_pw_filter(struct mport_cdev_priv *priv,
 		return -EFAULT;
 
 	spin_lock_irqsave(&md->pw_lock, flags);
-	list_for_each_entry(pw_filter, &priv->pw_filters, priv_node) {
+	list_for_each_entry(pw_filter, &priv->pw_filters, priv_yesde) {
 		if (rio_mport_match_pw_filter(&pw_filter->filter, &filter)) {
 			rio_mport_delete_pw_filter(pw_filter);
 			ret = 0;
@@ -1840,7 +1840,7 @@ static int rio_mport_del_riodev(struct mport_cdev_priv *priv, void __user *arg)
 
 	if (!rdev) {
 		rmcd_debug(RDEV,
-			"device name:%s ct:0x%x did:0x%x hc:0x%x not found",
+			"device name:%s ct:0x%x did:0x%x hc:0x%x yest found",
 			dev_info.name, dev_info.comptag, dev_info.destid,
 			dev_info.hopcount);
 		return -ENODEV;
@@ -1865,20 +1865,20 @@ static int rio_mport_del_riodev(struct mport_cdev_priv *priv, void __user *arg)
 /*
  * mport_cdev_open() - Open character device (mport)
  */
-static int mport_cdev_open(struct inode *inode, struct file *filp)
+static int mport_cdev_open(struct iyesde *iyesde, struct file *filp)
 {
 	int ret;
-	int minor = iminor(inode);
+	int miyesr = imiyesr(iyesde);
 	struct mport_dev *chdev;
 	struct mport_cdev_priv *priv;
 
 	/* Test for valid device */
-	if (minor >= RIO_MAX_MPORTS) {
-		rmcd_error("Invalid minor device number");
+	if (miyesr >= RIO_MAX_MPORTS) {
+		rmcd_error("Invalid miyesr device number");
 		return -EINVAL;
 	}
 
-	chdev = container_of(inode->i_cdev, struct mport_dev, cdev);
+	chdev = container_of(iyesde->i_cdev, struct mport_dev, cdev);
 
 	rmcd_debug(INIT, "%s filp=%p", dev_name(&chdev->dev), filp);
 
@@ -1955,19 +1955,19 @@ static void mport_cdev_release_dma(struct file *filp)
 
 	spin_lock(&priv->req_lock);
 	if (!list_empty(&priv->async_list)) {
-		rmcd_debug(EXIT, "async list not empty filp=%p %s(%d)",
+		rmcd_debug(EXIT, "async list yest empty filp=%p %s(%d)",
 			   filp, current->comm, task_pid_nr(current));
 		list_splice_init(&priv->async_list, &list);
 	}
 	spin_unlock(&priv->req_lock);
 
 	if (!list_empty(&list)) {
-		rmcd_debug(EXIT, "temp list not empty");
-		list_for_each_entry_safe(req, req_next, &list, node) {
+		rmcd_debug(EXIT, "temp list yest empty");
+		list_for_each_entry_safe(req, req_next, &list, yesde) {
 			rmcd_debug(EXIT, "free req->filp=%p cookie=%d compl=%s",
 				   req->filp, req->cookie,
-				   completion_done(&req->req_comp)?"yes":"no");
-			list_del(&req->node);
+				   completion_done(&req->req_comp)?"no":"yes");
+			list_del(&req->yesde);
 			kref_put(&req->refcount, dma_req_free);
 		}
 	}
@@ -1998,7 +1998,7 @@ static void mport_cdev_release_dma(struct file *filp)
 /*
  * mport_cdev_release() - Release character device
  */
-static int mport_cdev_release(struct inode *inode, struct file *filp)
+static int mport_cdev_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct mport_cdev_priv *priv = filp->private_data;
 	struct mport_dev *chdev;
@@ -2017,14 +2017,14 @@ static int mport_cdev_release(struct inode *inode, struct file *filp)
 	spin_lock_irqsave(&chdev->pw_lock, flags);
 	if (!list_empty(&priv->pw_filters)) {
 		list_for_each_entry_safe(pw_filter, pw_filter_next,
-					 &priv->pw_filters, priv_node)
+					 &priv->pw_filters, priv_yesde)
 			rio_mport_delete_pw_filter(pw_filter);
 	}
 	spin_unlock_irqrestore(&chdev->pw_lock, flags);
 
 	spin_lock_irqsave(&chdev->db_lock, flags);
 	list_for_each_entry_safe(db_filter, db_filter_next,
-				 &priv->db_filters, priv_node) {
+				 &priv->db_filters, priv_yesde) {
 		rio_mport_delete_db_filter(db_filter);
 	}
 	spin_unlock_irqrestore(&chdev->db_lock, flags);
@@ -2032,7 +2032,7 @@ static int mport_cdev_release(struct inode *inode, struct file *filp)
 	kfifo_free(&priv->event_fifo);
 
 	mutex_lock(&chdev->buf_mutex);
-	list_for_each_entry_safe(map, _map, &chdev->mappings, node) {
+	list_for_each_entry_safe(map, _map, &chdev->mappings, yesde) {
 		if (map->filp == filp) {
 			rmcd_debug(EXIT, "release mapping %p filp=%p",
 				   map->virt_addr, filp);
@@ -2144,7 +2144,7 @@ static void mport_release_mapping(struct kref *ref)
 		   map->dir, map->virt_addr,
 		   &map->phys_addr, mport->name);
 
-	list_del(&map->node);
+	list_del(&map->yesde);
 
 	switch (map->dir) {
 	case MAP_INBOUND:
@@ -2201,7 +2201,7 @@ static int mport_cdev_mmap(struct file *filp, struct vm_area_struct *vma)
 	baddr = ((dma_addr_t)vma->vm_pgoff << PAGE_SHIFT);
 
 	mutex_lock(&md->buf_mutex);
-	list_for_each_entry(map, &md->mappings, node) {
+	list_for_each_entry(map, &md->mappings, yesde) {
 		if (baddr >= map->phys_addr &&
 		    baddr < (map->phys_addr + map->size)) {
 			found = 1;
@@ -2225,7 +2225,7 @@ static int mport_cdev_mmap(struct file *filp, struct vm_area_struct *vma)
 		ret = dma_mmap_coherent(md->mport->dev.parent, vma,
 				map->virt_addr, map->phys_addr, map->size);
 	else if (map->dir == MAP_OUTBOUND) {
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 		ret = vm_iomap_memory(vma, map->phys_addr, map->size);
 	} else {
 		rmcd_error("Attempt to mmap unsupported mapping type");
@@ -2400,7 +2400,7 @@ static struct mport_dev *mport_cdev_add(struct rio_mport *mport)
 	/* The transfer_mode property will be returned through mport query
 	 * interface
 	 */
-#ifdef CONFIG_FSL_RIO /* for now: only on Freescale's SoCs */
+#ifdef CONFIG_FSL_RIO /* for yesw: only on Freescale's SoCs */
 	md->properties.transfer_mode |= RIO_TRANSFER_MODE_MAPPED;
 #else
 	md->properties.transfer_mode |= RIO_TRANSFER_MODE_TRANSFER;
@@ -2421,7 +2421,7 @@ static struct mport_dev *mport_cdev_add(struct rio_mport *mport)
 			mport->name, MAJOR(dev_number), mport->id);
 
 	mutex_lock(&mport_devs_lock);
-	list_add_tail(&md->node, &mport_devs);
+	list_add_tail(&md->yesde, &mport_devs);
 	mutex_unlock(&mport_devs_lock);
 
 	pr_info(DRV_PREFIX "Added %s cdev(%d:%d)\n",
@@ -2506,7 +2506,7 @@ static void mport_cdev_remove(struct mport_dev *md)
 	 * Disable associated inbound Rapidio requests mapping if applicable.
 	 */
 	mutex_lock(&md->buf_mutex);
-	list_for_each_entry_safe(map, _map, &md->mappings, node) {
+	list_for_each_entry_safe(map, _map, &md->mappings, yesde) {
 		kref_put(&map->ref, mport_release_mapping);
 	}
 	mutex_unlock(&md->buf_mutex);
@@ -2561,10 +2561,10 @@ static void mport_remove_mport(struct device *dev,
 	rmcd_debug(EXIT, "Remove %s", mport->name);
 
 	mutex_lock(&mport_devs_lock);
-	list_for_each_entry(chdev, &mport_devs, node) {
+	list_for_each_entry(chdev, &mport_devs, yesde) {
 		if (chdev->mport->id == mport->id) {
 			atomic_set(&chdev->active, 0);
-			list_del(&chdev->node);
+			list_del(&chdev->yesde);
 			found = 1;
 			break;
 		}

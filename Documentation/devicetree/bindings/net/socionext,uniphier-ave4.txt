@@ -19,7 +19,7 @@ Required properties:
 	See ethernet.txt file in the same directory.
  - clocks: A phandle to the clock for the MAC.
 	For Pro4 SoC, that is "socionext,uniphier-pro4-ave4",
-	another MAC clock, GIO bus clock and PHY clock are also required.
+	ayesther MAC clock, GIO bus clock and PHY clock are also required.
  - clock-names: Should contain
 	- "ether", "ether-gb", "gio", "ether-phy" for Pro4 SoC
 	- "ether" for others
@@ -34,8 +34,8 @@ Required properties:
 The MAC address will be determined using the optional properties
 defined in ethernet.txt.
 
-Required subnode:
- - mdio: A container for child nodes representing phy nodes.
+Required subyesde:
+ - mdio: A container for child yesdes representing phy yesdes.
          See phy.txt in the same directory.
 
 Example:

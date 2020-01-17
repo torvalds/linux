@@ -38,8 +38,8 @@
 };
 
 &cpu_thermal {
-	/delete-node/ trips;
-	/delete-node/ cooling-maps;
+	/delete-yesde/ trips;
+	/delete-yesde/ cooling-maps;
 
 	trips {
 		cpu_alert_almost_warm: cpu_alert_almost_warm {
@@ -144,8 +144,8 @@
 };
 
 &gpu_thermal {
-	/delete-node/ trips;
-	/delete-node/ cooling-maps;
+	/delete-yesde/ trips;
+	/delete-yesde/ cooling-maps;
 
 	trips {
 		gpu_alert_warmish: gpu_alert_warmish {
@@ -235,10 +235,10 @@
 
 	regulators {
 		/* vcc33_io is sourced directly from vcc33_sys */
-		/delete-node/ LDO_REG1;
-		/delete-node/ LDO_REG7;
+		/delete-yesde/ LDO_REG1;
+		/delete-yesde/ LDO_REG7;
 
-		/* This is not a pwren anymore, but the real power supply */
+		/* This is yest a pwren anymore, but the real power supply */
 		vdd10_lcd: LDO_REG7 {
 			regulator-always-on;
 			regulator-boot-on;
@@ -413,7 +413,7 @@
 &pinctrl {
 	hdmi {
 		power_hdmi_on: power-hdmi-on {
-			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 

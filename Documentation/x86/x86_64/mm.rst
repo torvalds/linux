@@ -7,20 +7,20 @@ Memory Managment
 Complete virtual memory map with 4-level page tables
 ====================================================
 
-.. note::
+.. yeste::
 
  - Negative addresses such as "-23 TB" are absolute addresses in bytes, counted down
    from the top of the 64-bit address space. It's easier to understand the layout
-   when seen both in absolute addresses and in distance-from-top notation.
+   when seen both in absolute addresses and in distance-from-top yestation.
 
    For example 0xffffe90000000000 == -23 TB, it's 23 TB lower than the top of the
    64-bit address space (ffffffffffffffff).
 
-   Note that as we get closer to the top of the address space, the notation changes
+   Note that as we get closer to the top of the address space, the yestation changes
    from TB to GB and then MB/KB.
 
  - "16M TB" might look weird at first sight, but it's an easier to visualize size
-   notation than "16 EB", which few will recognize at first sight as 16 exabytes.
+   yestation than "16 EB", which few will recognize at first sight as 16 exabytes.
    It also shows it nicely how incredibly large 64-bit address space is.
 
 ::
@@ -32,7 +32,7 @@ Complete virtual memory map with 4-level page tables
    0000000000000000 |    0       | 00007fffffffffff |  128 TB | user-space virtual memory, different per mm
   __________________|____________|__________________|_________|___________________________________________________________
                     |            |                  |         |
-   0000800000000000 | +128    TB | ffff7fffffffffff | ~16M TB | ... huge, almost 64 bits wide hole of non-canonical
+   0000800000000000 | +128    TB | ffff7fffffffffff | ~16M TB | ... huge, almost 64 bits wide hole of yesn-cayesnical
                     |            |                  |         |     virtual memory addresses up to the -128 TB
                     |            |                  |         |     starting offset of kernel mappings.
   __________________|____________|__________________|_________|___________________________________________________________
@@ -75,7 +75,7 @@ Complete virtual memory map with 4-level page tables
 Complete virtual memory map with 5-level page tables
 ====================================================
 
-.. note::
+.. yeste::
 
  - With 56-bit addresses, user-space memory gets expanded by a factor of 512x,
    from 0.125 PB to 64 PB. All kernel mappings shift down to the -64 PB starting
@@ -91,7 +91,7 @@ Complete virtual memory map with 5-level page tables
    0000000000000000 |    0       | 00ffffffffffffff |   64 PB | user-space virtual memory, different per mm
   __________________|____________|__________________|_________|___________________________________________________________
                     |            |                  |         |
-   0100000000000000 |  +64    PB | feffffffffffffff | ~16K PB | ... huge, still almost 64 bits wide hole of non-canonical
+   0100000000000000 |  +64    PB | feffffffffffffff | ~16K PB | ... huge, still almost 64 bits wide hole of yesn-cayesnical
                     |            |                  |         |     virtual memory addresses up to the -64 PB
                     |            |                  |         |     starting offset of kernel mappings.
   __________________|____________|__________________|_________|___________________________________________________________
@@ -146,7 +146,7 @@ reference.
 
 We map EFI runtime services in the 'efi_pgd' PGD in a 64Gb large virtual
 memory window (this size is arbitrary, it can be raised later if needed).
-The mappings are not part of any other kernel PGD and are only available
+The mappings are yest part of any other kernel PGD and are only available
 during EFI runtime calls.
 
 Note that if CONFIG_RANDOMIZE_MEMORY is enabled, the direct mapping of all
@@ -154,7 +154,7 @@ physical memory, vmalloc/ioremap space and virtual memory map are randomized.
 Their order is preserved but their base will be offset early at boot time.
 
 Be very careful vs. KASLR when changing anything here. The KASLR address
-range must not overlap with anything except the KASAN shadow area, which is
+range must yest overlap with anything except the KASAN shadow area, which is
 correct as KASAN disables KASLR.
 
 For both 4- and 5-level layouts, the STACKLEAK_POISON value in the last 2MB

@@ -22,7 +22,7 @@ for Hypercope GmbH Aachen, Germany.
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if yest, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 .. Table of contents
@@ -65,7 +65,7 @@ for Hypercope GmbH Aachen, Germany.
 2. Loading/Unloading the driver
 ===============================
 
-   The module has no command line parameters and auto detects up to 10 cards
+   The module has yes command line parameters and auto detects up to 10 cards
    in the id-range 0-9.
    If a loaded driver shall be unloaded all open files in the /proc/net/hysdn
    subdir need to be closed and all ethernet interfaces allocated by this
@@ -103,27 +103,27 @@ for Hypercope GmbH Aachen, Germany.
    The following 3 fields show the hardware assignments for irq, iobase and the
    dual ported memory (dp-mem).
 
-   The fields b-chans and fax-chans announce the available card resources of
+   The fields b-chans and fax-chans anyesunce the available card resources of
    this types for the user.
 
    The state variable indicates the actual drivers state for this card with the
    following assignments.
 
-   - 0 -> card has not been booted since driver load
+   - 0 -> card has yest been booted since driver load
    - 1 -> card booting is actually in progess
    - 2 -> card is in an error state due to a previous boot failure
    - 3 -> card is booted and active
 
    And the last field (device) shows the name of the ethernet device assigned
    to this card. Up to the first successful boot this field only shows a -
-   to tell that no net device has been allocated up to now. Once a net device
+   to tell that yes net device has been allocated up to yesw. Once a net device
    has been allocated it remains assigned to this card, even if a card is
    rebooted and an boot error occurs.
 
    Writing to the cardconfX file boots the card or transfers config lines to
    the cards firmware. The type of data is automatically detected when the
    first data is written. Only root has write access to this file.
-   The firmware boot files are normally called hyclient.pof for client cards
+   The firmware boot files are yesrmally called hyclient.pof for client cards
    and hyserver.pof for server cards.
    After successfully writing the boot file, complete config files or single
    config lines may be copied to this file.
@@ -131,7 +131,7 @@ for Hypercope GmbH Aachen, Germany.
    following additional codes (decimal):
 
    ==== ============================================
-   1000 Another process is currently bootng the card
+   1000 Ayesther process is currently bootng the card
    1001 Invalid firmware header
    1002 Boards dual-port RAM test failed
    1003 Internal firmware handler error
@@ -179,9 +179,9 @@ for Hypercope GmbH Aachen, Germany.
    0x00000040   Log every firmware write actions
    0x00000080   Log all card related boot messages
    0x00000100   Output all config data sent for debugging purposes
-   0x00000200   Only non comment config lines are shown wth channel
+   0x00000200   Only yesn comment config lines are shown wth channel
    0x00000400   Additional conf log output
-   0x00001000   Log the asynchronous scheduler actions (config and log)
+   0x00001000   Log the asynchroyesus scheduler actions (config and log)
    0x00100000   Log all open and close actions to /proc/net/hysdn/card files
    0x00200000   Log all actions from /proc file entries
    0x00010000   Log network interface init and deinit

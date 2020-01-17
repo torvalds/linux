@@ -8,7 +8,7 @@
 
 /*
  * FIXME:  four LAYOUTSTATS calls per compound at most! Do we need to support
- * more? Need to consider not to pre-alloc too much for a compound.
+ * more? Need to consider yest to pre-alloc too much for a compound.
  */
 #define PNFS_LAYOUTSTATS_MAXDEV (4)
 
@@ -25,13 +25,13 @@ int nfs42_proc_clone(struct file *, struct file *, loff_t, loff_t, loff_t);
 int nfs42_proc_layouterror(struct pnfs_layout_segment *lseg,
 			   const struct nfs42_layout_error *errors,
 			   size_t n);
-int nfs42_proc_copy_notify(struct file *, struct file *,
-			   struct nfs42_copy_notify_res *);
+int nfs42_proc_copy_yestify(struct file *, struct file *,
+			   struct nfs42_copy_yestify_res *);
 static inline bool nfs42_files_from_same_server(struct file *in,
 						struct file *out)
 {
-	struct nfs_client *c_in = (NFS_SERVER(file_inode(in)))->nfs_client;
-	struct nfs_client *c_out = (NFS_SERVER(file_inode(out)))->nfs_client;
+	struct nfs_client *c_in = (NFS_SERVER(file_iyesde(in)))->nfs_client;
+	struct nfs_client *c_out = (NFS_SERVER(file_iyesde(out)))->nfs_client;
 
 	return nfs4_check_serverowner_major_id(c_in->cl_serverowner,
 					       c_out->cl_serverowner);

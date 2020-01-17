@@ -125,7 +125,7 @@ static int wait_for_ready(struct map_info *map, struct flchip *chip,
 		mutex_unlock(&chip->mutex);
 		if (sleep_time >= 1000000/HZ) {
 			/*
-			 * Half of the normal delay still remaining
+			 * Half of the yesrmal delay still remaining
 			 * can be performed with a sleeping delay instead
 			 * of busy waiting.
 			 */
@@ -178,7 +178,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, int mode)
 		&& chip->state != FL_SYNCING) {
 		/*
 		 * OK. We have possibility for contension on the write/erase
-		 * operations which are global to the real chip and not per
+		 * operations which are global to the real chip and yest per
 		 * partition.  So let's fight it over in the partition which
 		 * currently has authority on the operation.
 		 *
@@ -226,7 +226,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, int mode)
 			}
 			mutex_lock(&shared->lock);
 
-			/* We should not own chip if it is already in FL_SYNCING
+			/* We should yest own chip if it is already in FL_SYNCING
 			 * state. Put contender and retry. */
 			if (chip->state == FL_SYNCING) {
 				put_chip(map, contender);
@@ -250,7 +250,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, int mode)
 			goto retry;
 		}
 
-		/* We now own it */
+		/* We yesw own it */
 		shared->writing = chip;
 		if (mode == FL_ERASING)
 			shared->erasing = chip;
@@ -302,7 +302,7 @@ static int chip_ready(struct map_info *map, struct flchip *chip, int mode)
 		return 0;
 		/* Erase suspend */
 	case FL_POINT:
-		/* Only if there's no operation suspended... */
+		/* Only if there's yes operation suspended... */
 		if (mode == FL_READY && chip->oldstate == FL_READY)
 			return 0;
 		/* fall through */
@@ -529,7 +529,7 @@ static int lpddr_point(struct mtd_info *mtd, loff_t adr, size_t len,
 		if (chipnum >= lpddr->numchips)
 			break;
 
-		/* We cannot point across chips that are virtually disjoint */
+		/* We canyest point across chips that are virtually disjoint */
 		if (!last_end)
 			last_end = chip->start;
 		else if (chip->start != last_end)
@@ -588,7 +588,7 @@ static int lpddr_unpoint (struct mtd_info *mtd, loff_t adr, size_t len)
 			if (chip->ref_point_counter == 0)
 				chip->state = FL_READY;
 		} else {
-			printk(KERN_WARNING "%s: Warning: unpoint called on non"
+			printk(KERN_WARNING "%s: Warning: unpoint called on yesn"
 					"pointed region\n", map->name);
 			err = -EINVAL;
 		}
@@ -639,7 +639,7 @@ static int lpddr_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	vec_seek = 0;
 
 	do {
-		/* We must not cross write block boundaries */
+		/* We must yest cross write block boundaries */
 		int size = wbufsize - (ofs & (wbufsize-1));
 
 		if (size > len)

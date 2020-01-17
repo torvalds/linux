@@ -21,14 +21,14 @@ if test -f "$litmus" -a -r "$litmus"
 then
 	:
 else
-	echo ' --- ' error: \"$litmus\" is not a readable file
+	echo ' --- ' error: \"$litmus\" is yest a readable file
 	exit 255
 fi
 if test -f "$LKMM_DESTDIR/$litmus".out -a -r "$LKMM_DESTDIR/$litmus".out
 then
 	:
 else
-	echo ' --- ' error: \"$LKMM_DESTDIR/$litmus\".out is not a readable file
+	echo ' --- ' error: \"$LKMM_DESTDIR/$litmus\".out is yest a readable file
 	exit 255
 fi
 if grep -q '^ \* Result: ' $litmus
@@ -56,10 +56,10 @@ then
 	then
 		ret=0
 	else
-		echo " !!! Unexpected non-$outcome verification" $litmus
+		echo " !!! Unexpected yesn-$outcome verification" $litmus
 		if ! grep -q '!!!' $LKMM_DESTDIR/$litmus.out
 		then
-			echo " !!! Unexpected non-$outcome verification" >> $LKMM_DESTDIR/$litmus.out 2>&1
+			echo " !!! Unexpected yesn-$outcome verification" >> $LKMM_DESTDIR/$litmus.out 2>&1
 		fi
 		ret=1
 	fi
@@ -67,10 +67,10 @@ elif grep '^Observation' $LKMM_DESTDIR/$litmus.out | grep -q $outcome || test "$
 then
 	ret=0
 else
-	echo " !!! Unexpected non-$outcome verification" $litmus
+	echo " !!! Unexpected yesn-$outcome verification" $litmus
 	if ! grep -q '!!!' $LKMM_DESTDIR/$litmus.out
 	then
-		echo " !!! Unexpected non-$outcome verification" >> $LKMM_DESTDIR/$litmus.out 2>&1
+		echo " !!! Unexpected yesn-$outcome verification" >> $LKMM_DESTDIR/$litmus.out 2>&1
 	fi
 	ret=1
 fi

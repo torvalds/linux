@@ -71,7 +71,7 @@ kvm_start_entry:
 	/* Save r3 (kvm_run) and r4 (vcpu) */
 	SAVE_2GPRS(3, r1)
 
-	/* Save non-volatile registers (r14 - r31) */
+	/* Save yesn-volatile registers (r14 - r31) */
 	SAVE_NVGPRS(r1)
 
 	/* Save CR */
@@ -81,14 +81,14 @@ kvm_start_entry:
 	/* Save LR */
 	PPC_STL	r0, _LINK(r1)
 
-	/* Load non-volatile guest state from the vcpu */
+	/* Load yesn-volatile guest state from the vcpu */
 	VCPU_LOAD_NVGPRS(r4)
 
 kvm_start_lightweight:
 	/* Copy registers into shadow vcpu so we can access them in real mode */
 	mr	r3, r4
 	bl	FUNC(kvmppc_copy_to_svcpu)
-	nop
+	yesp
 	REST_GPR(4, r1)
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -126,7 +126,7 @@ after_sprg3_load:
 
 	/* Jump to segment patching handler and into our guest */
 	bl	FUNC(kvmppc_entry_trampoline)
-	nop
+	yesp
 
 /*
  * This is the handler in module memory. It gets jumped at from the
@@ -157,7 +157,7 @@ after_sprg3_load:
 	/* Transfer reg values from shadow vcpu back to vcpu struct */
 
 	bl	FUNC(kvmppc_copy_from_svcpu)
-	nop
+	yesp
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
@@ -212,7 +212,7 @@ kvm_exit_loop:
 	lwz	r14, _CCR(r1)
 	mtcr	r14
 
-	/* Restore non-volatile host registers (r14 - r31) */
+	/* Restore yesn-volatile host registers (r14 - r31) */
 	REST_NVGPRS(r1)
 
 	addi    r1, r1, SWITCH_FRAME_SIZE
@@ -226,7 +226,7 @@ kvm_loop_heavyweight:
 	/* Load vcpu and cpu_run */
 	REST_2GPRS(3, r1)
 
-	/* Load non-volatile guest state from the vcpu */
+	/* Load yesn-volatile guest state from the vcpu */
 	VCPU_LOAD_NVGPRS(r4)
 
 	/* Jump back into the beginning of this function */

@@ -39,7 +39,7 @@
 
 struct lio_version {
 	u16  major;
-	u16  minor;
+	u16  miyesr;
 	u16  micro;
 	u16  reserved;
 };
@@ -148,7 +148,7 @@ struct octeon_core_setup {
 
 	u64 board_rev_major;
 
-	u64 board_rev_minor;
+	u64 board_rev_miyesr;
 
 };
 
@@ -362,7 +362,7 @@ struct  octeon_instr_ih3 {
 	/** Gather indicator 1=gather*/
 	u64     gather:1;
 
-	/** Data length OR no. of entries in gather list */
+	/** Data length OR yes. of entries in gather list */
 	u64     dlengsz:14;
 
 	/** Front Data size */
@@ -390,7 +390,7 @@ struct  octeon_instr_ih3 {
 	/** Front Data size */
 	u64     fsz:6;
 
-	/** Data length OR no. of entries in gather list */
+	/** Data length OR yes. of entries in gather list */
 	u64     dlengsz:14;
 
 	/** Gather indicator 1=gather*/
@@ -493,7 +493,7 @@ struct octeon_instr_ih2 {
 	/** Gather indicator 1=gather*/
 	u64 gather:1;
 
-	/** Data length OR no. of entries in gather list */
+	/** Data length OR yes. of entries in gather list */
 	u64 dlengsz:14;
 
 	/** Front Data size */
@@ -532,7 +532,7 @@ struct octeon_instr_ih2 {
 	/** Front Data size */
 	u64 fsz:6;
 
-	/** Data length OR no. of entries in gather list */
+	/** Data length OR yes. of entries in gather list */
 	u64 dlengsz:14;
 
 	/** Gather indicator 1=gather*/
@@ -596,9 +596,9 @@ union octeon_rh {
 		u64 vlan:12;
 		u64 priority:3;
 		u64 csum_verified:3;     /** checksum verified. */
-		u64 has_hwtstamp:1;      /** Has hardware timestamp. 1 = yes. */
+		u64 has_hwtstamp:1;      /** Has hardware timestamp. 1 = no. */
 		u64 encap_on:1;
-		u64 has_hash:1;          /** Has hash (rth or rss). 1 = yes. */
+		u64 has_hash:1;          /** Has hash (rth or rss). 1 = no. */
 	} r_dh;
 	struct {
 		u64 opcode:4;
@@ -629,7 +629,7 @@ union octeon_rh {
 		u64 opcode:4;
 	} r;
 	struct {
-		u64 has_hash:1;          /** Has hash (rth or rss). 1 = yes. */
+		u64 has_hash:1;          /** Has hash (rth or rss). 1 = no. */
 		u64 encap_on:1;
 		u64 has_hwtstamp:1;      /** 1 = has hwtstamp */
 		u64 csum_verified:3;     /** checksum verified. */
@@ -731,7 +731,7 @@ union oct_txpciq {
 
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-		u64 q_no:8;
+		u64 q_yes:8;
 		u64 port:8;
 		u64 pkind:6;
 		u64 use_qpg:1;
@@ -747,7 +747,7 @@ union oct_txpciq {
 		u64 use_qpg:1;
 		u64 pkind:6;
 		u64 port:8;
-		u64 q_no:8;
+		u64 q_yes:8;
 #endif
 	} s;
 };
@@ -759,11 +759,11 @@ union oct_rxpciq {
 
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-		u64 q_no:8;
+		u64 q_yes:8;
 		u64 reserved:56;
 #else
 		u64 reserved:56;
-		u64 q_no:8;
+		u64 q_yes:8;
 #endif
 	} s;
 };
@@ -809,15 +809,15 @@ struct nic_rx_stats {
 	/* link-level stats */
 	u64 total_rcvd;		/* Received packets */
 	u64 bytes_rcvd;		/* Octets of received packets */
-	u64 total_bcst;		/* Number of non-dropped L2 broadcast packets */
-	u64 total_mcst;		/* Number of non-dropped L2 multicast packets */
+	u64 total_bcst;		/* Number of yesn-dropped L2 broadcast packets */
+	u64 total_mcst;		/* Number of yesn-dropped L2 multicast packets */
 	u64 runts;		/* Packets shorter than allowed */
 	u64 ctl_rcvd;		/* Received PAUSE packets */
 	u64 fifo_err;		/* Packets dropped due to RX FIFO full */
 	u64 dmac_drop;		/* Packets dropped by the DMAC filter */
 	u64 fcs_err;		/* Sum of fragment, overrun, and FCS errors */
 	u64 jabber_err;		/* Packets larger than allowed */
-	u64 l2_err;		/* Sum of DMA, parity, PCAM access, no memory,
+	u64 l2_err;		/* Sum of DMA, parity, PCAM access, yes memory,
 				 * buffer overflow, malformed L2 header or
 				 * length, oversize errors
 				 **/
@@ -871,7 +871,7 @@ struct nic_tx_stats {
 	u64 max_collision_fail;		/* Packets dropped due to excessive
 					 * collisions
 					 **/
-	u64 max_deferral_fail;		/* Packets not sent due to max
+	u64 max_deferral_fail;		/* Packets yest sent due to max
 					 * deferrals
 					 **/
 	u64 fifo_err;			/* Packets sent that experienced a
@@ -988,7 +988,7 @@ struct lio_trusted_vf {
 
 struct lio_time {
 	s64 sec;   /* seconds */
-	s64 nsec;  /* nanoseconds */
+	s64 nsec;  /* nayesseconds */
 };
 
 struct lio_vf_rep_stats {

@@ -58,7 +58,7 @@ static struct clock_event_device __percpu *gt_evt;
  *  different to the 32-bit upper value read previously, go back to step 2.
  *  Otherwise the 64-bit timer counter value is correct.
  */
-static u64 notrace _gt_counter_read(void)
+static u64 yestrace _gt_counter_read(void)
 {
 	u64 counter;
 	u32 lower;
@@ -83,7 +83,7 @@ static u64 gt_counter_read(void)
 }
 
 /**
- * To ensure that updates to comparator value register do not set the
+ * To ensure that updates to comparator value register do yest set the
  * Interrupt Status Register proceed as follows:
  * 1. Clear the Comp Enable bit in the Timer Control Register.
  * 2. Write the lower 32-bit Comparator Value Register.
@@ -217,7 +217,7 @@ static struct clocksource gt_clocksource = {
 };
 
 #ifdef CONFIG_CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
-static u64 notrace gt_sched_clock_read(void)
+static u64 yestrace gt_sched_clock_read(void)
 {
 	return _gt_counter_read();
 }
@@ -252,7 +252,7 @@ static int __init gt_clocksource_init(void)
 	return clocksource_register_hz(&gt_clocksource, gt_clk_rate);
 }
 
-static int __init global_timer_of_register(struct device_node *np)
+static int __init global_timer_of_register(struct device_yesde *np)
 {
 	struct clk *gt_clk;
 	int err = 0;
@@ -264,7 +264,7 @@ static int __init global_timer_of_register(struct device_node *np)
 	 */
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9
 	    && (read_cpuid_id() & 0xf0000f) < 0x200000) {
-		pr_warn("global-timer: non support for this cpu version.\n");
+		pr_warn("global-timer: yesn support for this cpu version.\n");
 		return -ENOSYS;
 	}
 
@@ -286,7 +286,7 @@ static int __init global_timer_of_register(struct device_node *np)
 		if (err)
 			goto out_unmap;
 	} else {
-		pr_warn("global-timer: clk not found\n");
+		pr_warn("global-timer: clk yest found\n");
 		err = -EINVAL;
 		goto out_unmap;
 	}

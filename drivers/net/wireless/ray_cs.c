@@ -142,11 +142,11 @@ static int bc;
  * address is required.  Since IEEE 802.11 addresses are 48 bits
  * like ethernet, an int can't be used, so a string is used. To
  * allow use of addresses starting with a decimal digit, the first
- * character must be a letter and will be ignored. This letter is
+ * character must be a letter and will be igyesred. This letter is
  * followed by up to 12 hex digits which are the address.  If less
  * than 12 digits are used, the address will be left filled with 0's.
  * Note that bit 0 of the first byte is the broadcast bit, and evil
- * things will happen if it is not 0 in a card address.
+ * things will happen if it is yest 0 in a card address.
  */
 static char *phy_addr = NULL;
 
@@ -358,7 +358,7 @@ static int ray_config(struct pcmcia_device *link)
 	       link->prod_id[2] ? link->prod_id[2] : " ",
 	       link->prod_id[3] ? link->prod_id[3] : " ");
 
-	/* Now allocate an interrupt line.  Note that this does not
+	/* Now allocate an interrupt line.  Note that this does yest
 	   actually assign a handler to the interrupt.
 	 */
 	ret = pcmcia_request_irq(link, ray_interrupt);
@@ -445,7 +445,7 @@ static inline struct ccs __iomem *ccs_base(ray_dev_t *dev)
 static inline struct rcs __iomem *rcs_base(ray_dev_t *dev)
 {
 	/*
-	 * This looks nonsensical, since there is a separate
+	 * This looks yesnsensical, since there is a separate
 	 * RCS_BASE. But the difference between a "struct rcs"
 	 * and a "struct ccs" ends up being in the _index_ off
 	 * the base, so the base pointer is the same for both
@@ -463,7 +463,7 @@ static int ray_init(struct net_device *dev)
 	struct pcmcia_device *link = local->finder;
 	dev_dbg(&link->dev, "ray_init(0x%p)\n", dev);
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_init - device not present\n");
+		dev_dbg(&link->dev, "ray_init - device yest present\n");
 		return -1;
 	}
 
@@ -522,7 +522,7 @@ static int dl_startup_params(struct net_device *dev)
 
 	dev_dbg(&link->dev, "dl_startup_params entered\n");
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_cs dl_startup_params - device not present\n");
+		dev_dbg(&link->dev, "ray_cs dl_startup_params - device yest present\n");
 		return -1;
 	}
 
@@ -545,7 +545,7 @@ static int dl_startup_params(struct net_device *dev)
 	/* Interrupt the firmware to process the command */
 	if (interrupt_ecf(local, ccsindex)) {
 		printk(KERN_INFO "ray dl_startup_params failed - "
-		       "ECF not ready for intr\n");
+		       "ECF yest ready for intr\n");
 		local->card_status = CARD_DL_PARAM_ERROR;
 		writeb(CCS_BUFFER_FREE, &(pccs++)->buffer_status);
 		return -2;
@@ -631,7 +631,7 @@ static void verify_dl_startup(struct timer_list *t)
 	struct pcmcia_device *link = local->finder;
 
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_cs verify_dl_startup - device not present\n");
+		dev_dbg(&link->dev, "ray_cs verify_dl_startup - device yest present\n");
 		return;
 	}
 #if 0
@@ -672,7 +672,7 @@ static void start_net(struct timer_list *t)
 	int ccsindex;
 	struct pcmcia_device *link = local->finder;
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_cs start_net - device not present\n");
+		dev_dbg(&link->dev, "ray_cs start_net - device yest present\n");
 		return;
 	}
 	/* Fill in the CCS fields for the ECF */
@@ -683,7 +683,7 @@ static void start_net(struct timer_list *t)
 	writeb(0, &pccs->var.start_network.update_param);
 	/* Interrupt the firmware to process the command */
 	if (interrupt_ecf(local, ccsindex)) {
-		dev_dbg(&link->dev, "ray start net failed - card not ready for intr\n");
+		dev_dbg(&link->dev, "ray start net failed - card yest ready for intr\n");
 		writeb(CCS_BUFFER_FREE, &(pccs++)->buffer_status);
 		return;
 	}
@@ -701,7 +701,7 @@ static void join_net(struct timer_list *t)
 	struct pcmcia_device *link = local->finder;
 
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_cs join_net - device not present\n");
+		dev_dbg(&link->dev, "ray_cs join_net - device yest present\n");
 		return;
 	}
 	/* Fill in the CCS fields for the ECF */
@@ -713,7 +713,7 @@ static void join_net(struct timer_list *t)
 	writeb(0, &pccs->var.join_network.net_initiated);
 	/* Interrupt the firmware to process the command */
 	if (interrupt_ecf(local, ccsindex)) {
-		dev_dbg(&link->dev, "ray join net failed - card not ready for intr\n");
+		dev_dbg(&link->dev, "ray join net failed - card yest ready for intr\n");
 		writeb(CCS_BUFFER_FREE, &(pccs++)->buffer_status);
 		return;
 	}
@@ -771,7 +771,7 @@ static int ray_dev_init(struct net_device *dev)
 
 	dev_dbg(&link->dev, "ray_dev_init(dev=%p)\n", dev);
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_dev_init - device not present\n");
+		dev_dbg(&link->dev, "ray_dev_init - device yest present\n");
 		return -1;
 	}
 #ifdef RAY_IMMEDIATE_INIT
@@ -806,7 +806,7 @@ static int ray_dev_config(struct net_device *dev, struct ifmap *map)
 	/* Dummy routine to satisfy device structure */
 	dev_dbg(&link->dev, "ray_dev_config(dev=%p,ifmap=%p)\n", dev, map);
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_dev_config - device not present\n");
+		dev_dbg(&link->dev, "ray_dev_config - device yest present\n");
 		return -1;
 	}
 
@@ -822,7 +822,7 @@ static netdev_tx_t ray_dev_start_xmit(struct sk_buff *skb,
 	short length = skb->len;
 
 	if (!pcmcia_dev_present(link)) {
-		dev_dbg(&link->dev, "ray_dev_start_xmit - device not present\n");
+		dev_dbg(&link->dev, "ray_dev_start_xmit - device yest present\n");
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -922,8 +922,8 @@ static int ray_hw_xmit(unsigned char *data, int len, struct net_device *dev,
 
 	/* Interrupt the firmware to process the command */
 	if (interrupt_ecf(local, ccsindex)) {
-		pr_debug("ray_hw_xmit failed - ECF not ready for intr\n");
-/* TBD very inefficient to copy packet to buffer, and then not
+		pr_debug("ray_hw_xmit failed - ECF yest ready for intr\n");
+/* TBD very inefficient to copy packet to buffer, and then yest
    send it, but the alternative is to queue the messages and that
    won't be done for a while.  Maybe set tbusy until a CCS is free?
 */
@@ -1324,7 +1324,7 @@ static int ray_get_range(struct net_device *dev, struct iw_request_info *info,
 	range->num_frequency = 0;
 	range->max_qual.qual = 0;
 	range->max_qual.level = 255;	/* What's the correct value ? */
-	range->max_qual.noise = 255;	/* Idem */
+	range->max_qual.yesise = 255;	/* Idem */
 	range->num_bitrates = 2;
 	range->bitrate[0] = 1000000;	/* 1 Mb/s */
 	range->bitrate[1] = 2000000;	/* 2 Mb/s */
@@ -1391,17 +1391,17 @@ static iw_stats *ray_get_wireless_stats(struct net_device *dev)
 #ifdef WIRELESS_SPY
 	if ((local->spy_data.spy_number > 0)
 	    && (local->sparm.b5.a_network_type == 0)) {
-		/* Get it from the first node in spy list */
+		/* Get it from the first yesde in spy list */
 		local->wstats.qual.qual = local->spy_data.spy_stat[0].qual;
 		local->wstats.qual.level = local->spy_data.spy_stat[0].level;
-		local->wstats.qual.noise = local->spy_data.spy_stat[0].noise;
+		local->wstats.qual.yesise = local->spy_data.spy_stat[0].yesise;
 		local->wstats.qual.updated =
 		    local->spy_data.spy_stat[0].updated;
 	}
 #endif /* WIRELESS_SPY */
 
 	if (pcmcia_dev_present(link)) {
-		local->wstats.qual.noise = readb(&p->rxnoise);
+		local->wstats.qual.yesise = readb(&p->rxyesise);
 		local->wstats.qual.updated |= 4;
 	}
 
@@ -1481,11 +1481,11 @@ static int ray_open(struct net_device *dev)
 		local->num_multi = 0;
 	link->open++;
 
-	/* If the card is not started, time to start it ! - Jean II */
+	/* If the card is yest started, time to start it ! - Jean II */
 	if (local->card_status == CARD_AWAITING_PARAM) {
 		int i;
 
-		dev_dbg(&link->dev, "ray_open: doing init now !\n");
+		dev_dbg(&link->dev, "ray_open: doing init yesw !\n");
 
 		/* Download startup parameters */
 		if ((i = dl_startup_params(dev)) < 0) {
@@ -1533,14 +1533,14 @@ static void ray_reset(struct net_device *dev)
 
 /*===========================================================================*/
 /* Cause a firmware interrupt if it is ready for one                         */
-/* Return nonzero if not ready                                               */
+/* Return yesnzero if yest ready                                               */
 static int interrupt_ecf(ray_dev_t *local, int ccs)
 {
 	int i = 50;
 	struct pcmcia_device *link = local->finder;
 
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_cs interrupt_ecf - device not present\n");
+		dev_dbg(&link->dev, "ray_cs interrupt_ecf - device yest present\n");
 		return -1;
 	}
 	dev_dbg(&link->dev, "interrupt_ecf(local=%p, ccs = 0x%x\n", local, ccs);
@@ -1550,7 +1550,7 @@ static int interrupt_ecf(ray_dev_t *local, int ccs)
 		ECF_INTR_SET))
 		i--;
 	if (i == 0) {
-		dev_dbg(&link->dev, "ray_cs interrupt_ecf card not ready for interrupt\n");
+		dev_dbg(&link->dev, "ray_cs interrupt_ecf card yest ready for interrupt\n");
 		return -1;
 	}
 	/* Fill the mailbox, then kick the card */
@@ -1569,7 +1569,7 @@ static int get_free_tx_ccs(ray_dev_t *local)
 	struct pcmcia_device *link = local->finder;
 
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_cs get_free_tx_ccs - device not present\n");
+		dev_dbg(&link->dev, "ray_cs get_free_tx_ccs - device yest present\n");
 		return ECARDGONE;
 	}
 
@@ -1587,7 +1587,7 @@ static int get_free_tx_ccs(ray_dev_t *local)
 		}
 	}
 	local->tx_ccs_lock = 0;
-	dev_dbg(&link->dev, "ray_cs ERROR no free tx CCS for raylink card\n");
+	dev_dbg(&link->dev, "ray_cs ERROR yes free tx CCS for raylink card\n");
 	return ECCSFULL;
 } /* get_free_tx_ccs */
 
@@ -1601,7 +1601,7 @@ static int get_free_ccs(ray_dev_t *local)
 	struct pcmcia_device *link = local->finder;
 
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_cs get_free_ccs - device not present\n");
+		dev_dbg(&link->dev, "ray_cs get_free_ccs - device yest present\n");
 		return ECARDGONE;
 	}
 	if (test_and_set_bit(0, &local->ccs_lock)) {
@@ -1618,7 +1618,7 @@ static int get_free_ccs(ray_dev_t *local)
 		}
 	}
 	local->ccs_lock = 0;
-	dev_dbg(&link->dev, "ray_cs ERROR no free CCS for raylink card\n");
+	dev_dbg(&link->dev, "ray_cs ERROR yes free CCS for raylink card\n");
 	return ECCSFULL;
 } /* get_free_ccs */
 
@@ -1676,7 +1676,7 @@ static struct net_device_stats *ray_get_stats(struct net_device *dev)
 	struct pcmcia_device *link = local->finder;
 	struct status __iomem *p = local->sram + STATUS_BASE;
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_cs net_device_stats - device not present\n");
+		dev_dbg(&link->dev, "ray_cs net_device_stats - device yest present\n");
 		return &local->stats;
 	}
 	if (readb(&p->mrx_overflow_for_host)) {
@@ -1709,7 +1709,7 @@ static void ray_update_parm(struct net_device *dev, UCHAR objid, UCHAR *value,
 	struct ccs __iomem *pccs;
 
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_update_parm - device not present\n");
+		dev_dbg(&link->dev, "ray_update_parm - device yest present\n");
 		return;
 	}
 
@@ -1727,7 +1727,7 @@ static void ray_update_parm(struct net_device *dev, UCHAR objid, UCHAR *value,
 	}
 	/* Interrupt the firmware to process the command */
 	if (interrupt_ecf(local, ccsindex)) {
-		dev_dbg(&link->dev, "ray_cs associate failed - ECF not ready for intr\n");
+		dev_dbg(&link->dev, "ray_cs associate failed - ECF yest ready for intr\n");
 		writeb(CCS_BUFFER_FREE, &(pccs++)->buffer_status);
 	}
 }
@@ -1742,7 +1742,7 @@ static void ray_update_multi_list(struct net_device *dev, int all)
 	void __iomem *p = local->sram + HOST_TO_ECF_BASE;
 
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_update_multi_list - device not present\n");
+		dev_dbg(&link->dev, "ray_update_multi_list - device yest present\n");
 		return;
 	} else
 		dev_dbg(&link->dev, "ray_update_multi_list(%p)\n", dev);
@@ -1777,7 +1777,7 @@ static void ray_update_multi_list(struct net_device *dev, int all)
 	}
 	if (interrupt_ecf(local, ccsindex)) {
 		dev_dbg(&link->dev,
-		      "ray_cs update_multi failed - ECF not ready for intr\n");
+		      "ray_cs update_multi failed - ECF yest ready for intr\n");
 		writeb(CCS_BUFFER_FREE, &(pccs++)->buffer_status);
 	}
 } /* end ray_update_multi_list */
@@ -1842,7 +1842,7 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 	link = local->finder;
 	if (!pcmcia_dev_present(link)) {
 		pr_debug(
-			"ray_cs interrupt from device not present or suspended.\n");
+			"ray_cs interrupt from device yest present or suspended.\n");
 		return IRQ_NONE;
 	}
 	rcsindex = readb(&((struct scb __iomem *)(local->sram))->rcs_index);
@@ -2085,7 +2085,7 @@ static void ray_rx(struct net_device *dev, ray_dev_t *local,
 		ray_get_stats(dev);
 		break;
 	default:
-		pr_debug("ray_cs unknown pkt type %2x\n",
+		pr_debug("ray_cs unkyeswn pkt type %2x\n",
 		      (unsigned int)readb(pmsg));
 		break;
 	}
@@ -2165,7 +2165,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 
 	skb = dev_alloc_skb(total_len + 5);
 	if (skb == NULL) {
-		pr_debug("ray_cs rx_data could not allocate skb\n");
+		pr_debug("ray_cs rx_data could yest allocate skb\n");
 		local->stats.rx_dropped++;
 		if (readb(&prcs->var.rx_packet.next_frag_rcs_index) != 0xFF)
 			release_frag_chain(local, prcs);
@@ -2177,7 +2177,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 	      rx_len);
 
 /************************/
-	/* Reserve enough room for the whole damn packet. */
+	/* Reserve eyesugh room for the whole damn packet. */
 	rx_ptr = skb_put(skb, total_len);
 	/* Copy the whole packet to sk_buff */
 	rx_ptr +=
@@ -2239,22 +2239,22 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 
 	/* Gather signal strength per address */
 #ifdef WIRELESS_SPY
-	/* For the Access Point or the node having started the ad-hoc net
-	 * note : ad-hoc work only in some specific configurations, but we
+	/* For the Access Point or the yesde having started the ad-hoc net
+	 * yeste : ad-hoc work only in some specific configurations, but we
 	 * kludge in ray_get_wireless_stats... */
 	if (!memcmp(linksrcaddr, local->bss_id, ETH_ALEN)) {
 		/* Update statistics */
-		/*local->wstats.qual.qual = none ? */
+		/*local->wstats.qual.qual = yesne ? */
 		local->wstats.qual.level = siglev;
-		/*local->wstats.qual.noise = none ? */
+		/*local->wstats.qual.yesise = yesne ? */
 		local->wstats.qual.updated = 0x2;
 	}
 	/* Now, update the spy stuff */
 	{
 		struct iw_quality wstats;
 		wstats.level = siglev;
-		/* wstats.noise = none ? */
-		/* wstats.qual = none ? */
+		/* wstats.yesise = yesne ? */
+		/* wstats.qual = yesne ? */
 		wstats.updated = 0x2;
 		/* Update spy records */
 		wireless_spy_update(dev, linksrcaddr, &wstats);
@@ -2292,7 +2292,7 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
 #endif
 
 	if (psnap->dsap != 0xaa || psnap->ssap != 0xaa || psnap->ctrl != 3) {
-		/* not a snap type so leave it alone */
+		/* yest a snap type so leave it alone */
 		pr_debug("ray_cs untranslate NOT SNAP %02x %02x %02x\n",
 		      psnap->dsap, psnap->ssap, psnap->ctrl);
 
@@ -2397,7 +2397,7 @@ static void authenticate(ray_dev_t *local)
 	struct pcmcia_device *link = local->finder;
 	dev_dbg(&link->dev, "ray_cs Starting authentication.\n");
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_cs authenticate - device not present\n");
+		dev_dbg(&link->dev, "ray_cs authenticate - device yest present\n");
 		return;
 	}
 
@@ -2468,10 +2468,10 @@ static void associate(ray_dev_t *local)
 	struct net_device *dev = link->priv;
 	int ccsindex;
 	if (!(pcmcia_dev_present(link))) {
-		dev_dbg(&link->dev, "ray_cs associate - device not present\n");
+		dev_dbg(&link->dev, "ray_cs associate - device yest present\n");
 		return;
 	}
-	/* If no tx buffers available, return */
+	/* If yes tx buffers available, return */
 	if ((ccsindex = get_free_ccs(local)) < 0) {
 /* TBD should never be here but... what if we are? */
 		dev_dbg(&link->dev, "ray_cs associate - No free ccs\n");
@@ -2483,7 +2483,7 @@ static void associate(ray_dev_t *local)
 	writeb(CCS_START_ASSOCIATION, &pccs->cmd);
 	/* Interrupt the firmware to process the command */
 	if (interrupt_ecf(local, ccsindex)) {
-		dev_dbg(&link->dev, "ray_cs associate failed - ECF not ready for intr\n");
+		dev_dbg(&link->dev, "ray_cs associate failed - ECF yest ready for intr\n");
 		writeb(CCS_BUFFER_FREE, &(pccs++)->buffer_status);
 
 		del_timer(&local->timer);
@@ -2524,7 +2524,7 @@ static void clear_interrupt(ray_dev_t *local)
 
 static const char *card_status[] = {
 	"Card inserted - uninitialized",	/* 0 */
-	"Card not downloaded",			/* 1 */
+	"Card yest downloaded",			/* 1 */
 	"Waiting for download parameters",	/* 2 */
 	"Card doing acquisition",		/* 3 */
 	"Acquisition complete",			/* 4 */
@@ -2546,7 +2546,7 @@ static const char *framing[] = { "Encapsulation", "Translation" }
 /*===========================================================================*/
 static int ray_cs_proc_show(struct seq_file *m, void *v)
 {
-/* Print current values which are not available via other means
+/* Print current values which are yest available via other means
  * eg ifconfig
  */
 	int i;
@@ -2569,7 +2569,7 @@ static int ray_cs_proc_show(struct seq_file *m, void *v)
 
 	seq_puts(m, "Raylink Wireless LAN driver status\n");
 	seq_printf(m, "%s\n", rcsid);
-	/* build 4 does not report version, and field is 0x55 after memtest */
+	/* build 4 does yest report version, and field is 0x55 after memtest */
 	seq_puts(m, "Firmware version     = ");
 	if (local->fw_ver == 0x55)
 		seq_puts(m, "4 - Use dump_cis for more details\n");
@@ -2658,7 +2658,7 @@ static int build_auth_frame(ray_dev_t *local, UCHAR *dest, int auth_type)
 	struct tx_msg __iomem *ptx;
 	int ccsindex;
 
-	/* If no tx buffers available, return */
+	/* If yes tx buffers available, return */
 	if ((ccsindex = get_free_tx_ccs(local)) < 0) {
 		pr_debug("ray_cs send authenticate - No free tx ccs\n");
 		return -1;
@@ -2693,7 +2693,7 @@ static int build_auth_frame(ray_dev_t *local, UCHAR *dest, int auth_type)
 	/* Interrupt the firmware to process the command */
 	if (interrupt_ecf(local, ccsindex)) {
 		pr_debug(
-		      "ray_cs send authentication request failed - ECF not ready for intr\n");
+		      "ray_cs send authentication request failed - ECF yest ready for intr\n");
 		writeb(CCS_BUFFER_FREE, &(pccs++)->buffer_status);
 		return -1;
 	}
@@ -2720,7 +2720,7 @@ static ssize_t ray_cs_essid_proc_write(struct file *file,
 static const struct file_operations ray_cs_essid_proc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= ray_cs_essid_proc_write,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static ssize_t int_proc_write(struct file *file, const char __user *buffer,
@@ -2747,14 +2747,14 @@ static ssize_t int_proc_write(struct file *file, const char __user *buffer,
 		nr = nr * 10 + c;
 		p++;
 	} while (--len);
-	*(int *)PDE_DATA(file_inode(file)) = nr;
+	*(int *)PDE_DATA(file_iyesde(file)) = nr;
 	return count;
 }
 
 static const struct file_operations int_proc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= int_proc_write,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 #endif
 

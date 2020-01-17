@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -259,7 +259,7 @@ uint32_t generic_reg_get8(const struct dc_context *ctx, uint32_t addr,
 	*field_value8 = get_reg_field_value_ex(reg_val, mask8, shift8);
 	return reg_val;
 }
-/* note:  va version of this is pretty bad idea, since there is a output parameter pass by pointer
+/* yeste:  va version of this is pretty bad idea, since there is a output parameter pass by pointer
  * compiler won't be able to check for size match and is prone to stack corruption type of bugs
 
 uint32_t generic_reg_get(const struct dc_context *ctx,

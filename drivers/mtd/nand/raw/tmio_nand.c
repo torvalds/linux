@@ -5,13 +5,13 @@
  *
  * Copyright (c) Ian Molton 2004, 2005, 2008
  *    Original work, independent of sharps code. Included hardware ECC support.
- *    Hard ECC did not work for writes in the early revisions.
+ *    Hard ECC did yest work for writes in the early revisions.
  * Copyright (c) Dirk Opfer 2005.
  *    Modifications developed from sharps code but
  *    NOT containing any, ported onto Ians base.
  * Copyright (c) Chris Humbert 2005
  * Copyright (c) Dmitry Baryshkov 2008
- *    Minor fixes
+ *    Miyesr fixes
  *
  * Parts copyright Sebastian Carlier
  *
@@ -81,7 +81,7 @@
 #define FCR_MODE_LED_ON		0x04	/* LED ON */
 
 #define FCR_MODE_EJECT_ON	0x68	/* Ejection events active  */
-#define FCR_MODE_EJECT_OFF	0x08	/* Ejection events ignored */
+#define FCR_MODE_EJECT_OFF	0x08	/* Ejection events igyesred */
 
 #define FCR_MODE_LOCK		0x6C	/* Lock_Mode. Eject Switch Invalid */
 #define FCR_MODE_UNLOCK		0x0C	/* UnLock_Mode. Eject Switch is valid */
@@ -179,7 +179,7 @@ static irqreturn_t tmio_irq(int irq, void *__tmio)
 
 /*
   *The TMIO core has a RDYREQ interrupt on the posedge of #SMRB.
-  *This interrupt is normally disabled, but for long operations like
+  *This interrupt is yesrmally disabled, but for long operations like
   *erase and write, we enable it to wake us up.  The irq handler
   *disables the interrupt.
  */
@@ -480,7 +480,7 @@ static int tmio_resume(struct platform_device *dev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(dev);
 
-	/* FIXME - is this required or merely another attack of the broken
+	/* FIXME - is this required or merely ayesther attack of the broken
 	 * SHARP platform? Looks suspicious.
 	 */
 	tmio_hw_init(dev, platform_get_drvdata(dev));

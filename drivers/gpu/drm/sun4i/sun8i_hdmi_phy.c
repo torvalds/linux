@@ -301,7 +301,7 @@ static int sun8i_hdmi_phy_config_h3(struct dw_hdmi *hdmi,
 			   SUN8I_HDMI_PHY_ANA_CFG1_TXEN_MASK, 0);
 
 	/*
-	 * NOTE: We have to be careful not to overwrite PHY parent
+	 * NOTE: We have to be careful yest to overwrite PHY parent
 	 * clock selection bit and clock divider.
 	 */
 	regmap_update_bits(phy->regs, SUN8I_HDMI_PHY_PLL_CFG1_REG,
@@ -604,7 +604,7 @@ static const struct of_device_id sun8i_hdmi_phy_of_table[] = {
 	{ /* sentinel */ }
 };
 
-int sun8i_hdmi_phy_probe(struct sun8i_dw_hdmi *hdmi, struct device_node *node)
+int sun8i_hdmi_phy_probe(struct sun8i_dw_hdmi *hdmi, struct device_yesde *yesde)
 {
 	const struct of_device_id *match;
 	struct device *dev = hdmi->dev;
@@ -613,7 +613,7 @@ int sun8i_hdmi_phy_probe(struct sun8i_dw_hdmi *hdmi, struct device_node *node)
 	void __iomem *regs;
 	int ret;
 
-	match = of_match_node(sun8i_hdmi_phy_of_table, node);
+	match = of_match_yesde(sun8i_hdmi_phy_of_table, yesde);
 	if (!match) {
 		dev_err(dev, "Incompatible HDMI PHY\n");
 		return -EINVAL;
@@ -625,7 +625,7 @@ int sun8i_hdmi_phy_probe(struct sun8i_dw_hdmi *hdmi, struct device_node *node)
 
 	phy->variant = (struct sun8i_hdmi_phy_variant *)match->data;
 
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(yesde, 0, &res);
 	if (ret) {
 		dev_err(dev, "phy: Couldn't get our resources\n");
 		return ret;
@@ -644,59 +644,59 @@ int sun8i_hdmi_phy_probe(struct sun8i_dw_hdmi *hdmi, struct device_node *node)
 		return PTR_ERR(phy->regs);
 	}
 
-	phy->clk_bus = of_clk_get_by_name(node, "bus");
+	phy->clk_bus = of_clk_get_by_name(yesde, "bus");
 	if (IS_ERR(phy->clk_bus)) {
-		dev_err(dev, "Could not get bus clock\n");
+		dev_err(dev, "Could yest get bus clock\n");
 		return PTR_ERR(phy->clk_bus);
 	}
 
-	phy->clk_mod = of_clk_get_by_name(node, "mod");
+	phy->clk_mod = of_clk_get_by_name(yesde, "mod");
 	if (IS_ERR(phy->clk_mod)) {
-		dev_err(dev, "Could not get mod clock\n");
+		dev_err(dev, "Could yest get mod clock\n");
 		ret = PTR_ERR(phy->clk_mod);
 		goto err_put_clk_bus;
 	}
 
 	if (phy->variant->has_phy_clk) {
-		phy->clk_pll0 = of_clk_get_by_name(node, "pll-0");
+		phy->clk_pll0 = of_clk_get_by_name(yesde, "pll-0");
 		if (IS_ERR(phy->clk_pll0)) {
-			dev_err(dev, "Could not get pll-0 clock\n");
+			dev_err(dev, "Could yest get pll-0 clock\n");
 			ret = PTR_ERR(phy->clk_pll0);
 			goto err_put_clk_mod;
 		}
 
 		if (phy->variant->has_second_pll) {
-			phy->clk_pll1 = of_clk_get_by_name(node, "pll-1");
+			phy->clk_pll1 = of_clk_get_by_name(yesde, "pll-1");
 			if (IS_ERR(phy->clk_pll1)) {
-				dev_err(dev, "Could not get pll-1 clock\n");
+				dev_err(dev, "Could yest get pll-1 clock\n");
 				ret = PTR_ERR(phy->clk_pll1);
 				goto err_put_clk_pll0;
 			}
 		}
 	}
 
-	phy->rst_phy = of_reset_control_get_shared(node, "phy");
+	phy->rst_phy = of_reset_control_get_shared(yesde, "phy");
 	if (IS_ERR(phy->rst_phy)) {
-		dev_err(dev, "Could not get phy reset control\n");
+		dev_err(dev, "Could yest get phy reset control\n");
 		ret = PTR_ERR(phy->rst_phy);
 		goto err_put_clk_pll1;
 	}
 
 	ret = reset_control_deassert(phy->rst_phy);
 	if (ret) {
-		dev_err(dev, "Cannot deassert phy reset control: %d\n", ret);
+		dev_err(dev, "Canyest deassert phy reset control: %d\n", ret);
 		goto err_put_rst_phy;
 	}
 
 	ret = clk_prepare_enable(phy->clk_bus);
 	if (ret) {
-		dev_err(dev, "Cannot enable bus clock: %d\n", ret);
+		dev_err(dev, "Canyest enable bus clock: %d\n", ret);
 		goto err_deassert_rst_phy;
 	}
 
 	ret = clk_prepare_enable(phy->clk_mod);
 	if (ret) {
-		dev_err(dev, "Cannot enable mod clock: %d\n", ret);
+		dev_err(dev, "Canyest enable mod clock: %d\n", ret);
 		goto err_disable_clk_bus;
 	}
 

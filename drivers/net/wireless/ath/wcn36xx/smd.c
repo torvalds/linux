@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -85,7 +85,7 @@ static int put_cfg_tlv_u32(struct wcn36xx *wcn, size_t *len, u32 id, u32 value)
 	u32 *val;
 
 	if (*len + sizeof(*entry) + sizeof(u32) >= WCN36XX_HAL_BUF_SIZE) {
-		wcn36xx_err("Not enough room for TLV entry\n");
+		wcn36xx_err("Not eyesugh room for TLV entry\n");
 		return -ENOMEM;
 	}
 
@@ -135,7 +135,7 @@ static void wcn36xx_smd_set_bss_ht_params(struct ieee80211_vif *vif,
 					 IEEE80211_HT_CAP_LSIG_TXOP_PROT);
 
 		bss_params->ht_oper_mode = vif->bss_conf.ht_operation_mode;
-		bss_params->lln_non_gf_coexist =
+		bss_params->lln_yesn_gf_coexist =
 			!!(vif->bss_conf.ht_operation_mode &
 			   IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 		/* IEEE80211_HT_STBC_PARAM_DUAL_CTS_PROT */
@@ -370,7 +370,7 @@ int wcn36xx_smd_load_nv(struct wcn36xx *wcn)
 			msg_body.last_fragment = 1;
 			msg_body.nv_img_buffer_size = fw_bytes_left;
 
-			/* Do not forget update general message len */
+			/* Do yest forget update general message len */
 			msg_body.header.len = sizeof(msg_body) + fw_bytes_left;
 
 		}
@@ -426,7 +426,7 @@ static int wcn36xx_smd_start_rsp(struct wcn36xx *wcn, void *buf, size_t len)
 
 	wcn->fw_revision = rsp->start_rsp_params.version.revision;
 	wcn->fw_version = rsp->start_rsp_params.version.version;
-	wcn->fw_minor = rsp->start_rsp_params.version.minor;
+	wcn->fw_miyesr = rsp->start_rsp_params.version.miyesr;
 	wcn->fw_major = rsp->start_rsp_params.version.major;
 
 	if (wcn->first_boot) {
@@ -435,7 +435,7 @@ static int wcn36xx_smd_start_rsp(struct wcn36xx *wcn, void *buf, size_t len)
 			     wcn->wlan_version, wcn->crm_version);
 
 		wcn36xx_info("firmware API %u.%u.%u.%u, %u stations, %u bssids\n",
-			     wcn->fw_major, wcn->fw_minor,
+			     wcn->fw_major, wcn->fw_miyesr,
 			     wcn->fw_version, wcn->fw_revision,
 			     rsp->start_rsp_params.stations,
 			     rsp->start_rsp_params.bssids);
@@ -690,7 +690,7 @@ int wcn36xx_smd_start_hw_scan(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 	wcn36xx_dbg(WCN36XX_DBG_HAL,
 		    "hal start hw-scan (channels: %u; ssids: %u; p2p: %s)\n",
 		    msg_body->num_channel, msg_body->num_ssid,
-		    msg_body->p2p_search ? "yes" : "no");
+		    msg_body->p2p_search ? "no" : "yes");
 
 	ret = wcn36xx_smd_send_and_wait(wcn, msg_body->header.len);
 	if (ret) {
@@ -820,7 +820,7 @@ int wcn36xx_smd_process_ptt_msg(struct wcn36xx *wcn,
 		GFP_ATOMIC);
 	if (!p_msg_body) {
 		ret = -ENOMEM;
-		goto out_nomem;
+		goto out_yesmem;
 	}
 	INIT_HAL_PTT_MSG(p_msg_body, len);
 
@@ -841,7 +841,7 @@ int wcn36xx_smd_process_ptt_msg(struct wcn36xx *wcn,
 	}
 out:
 	kfree(p_msg_body);
-out_nomem:
+out_yesmem:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
 }
@@ -1294,8 +1294,8 @@ static int wcn36xx_smd_config_bss_v1(struct wcn36xx *wcn,
 	msg_body->bss_params.llb_coexist = orig->bss_params.llb_coexist;
 	msg_body->bss_params.llg_coexist = orig->bss_params.llg_coexist;
 	msg_body->bss_params.ht20_coexist = orig->bss_params.ht20_coexist;
-	msg_body->bss_params.lln_non_gf_coexist =
-		orig->bss_params.lln_non_gf_coexist;
+	msg_body->bss_params.lln_yesn_gf_coexist =
+		orig->bss_params.lln_yesn_gf_coexist;
 
 	msg_body->bss_params.lsig_tx_op_protection_full_support =
 		orig->bss_params.lsig_tx_op_protection_full_support;
@@ -1470,7 +1470,7 @@ int wcn36xx_smd_config_bss(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 		/* STA */
 		bss->oper_mode = 1;
 	} else {
-		wcn36xx_warn("Unknown type for bss config: %d\n", vif->type);
+		wcn36xx_warn("Unkyeswn type for bss config: %d\n", vif->type);
 	}
 
 	if (vif->type == NL80211_IFTYPE_STATION)
@@ -1924,7 +1924,7 @@ out:
 	mutex_unlock(&wcn->hal_mutex);
 	return ret;
 }
-int wcn36xx_smd_set_power_params(struct wcn36xx *wcn, bool ignore_dtim)
+int wcn36xx_smd_set_power_params(struct wcn36xx *wcn, bool igyesre_dtim)
 {
 	struct wcn36xx_hal_set_power_params_req_msg msg_body;
 	int ret;
@@ -1933,10 +1933,10 @@ int wcn36xx_smd_set_power_params(struct wcn36xx *wcn, bool ignore_dtim)
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_SET_POWER_PARAMS_REQ);
 
 	/*
-	 * When host is down ignore every second dtim
+	 * When host is down igyesre every second dtim
 	 */
-	if (ignore_dtim) {
-		msg_body.ignore_dtim = 1;
+	if (igyesre_dtim) {
+		msg_body.igyesre_dtim = 1;
 		msg_body.dtim_period = 2;
 	}
 	msg_body.listen_interval = WCN36XX_LISTEN_INTERVAL(wcn);
@@ -1974,7 +1974,7 @@ int wcn36xx_smd_keep_alive_req(struct wcn36xx *wcn,
 	} else if (packet_type == WCN36XX_HAL_KEEP_ALIVE_UNSOLICIT_ARP_RSP) {
 		/* TODO: it also support ARP response type */
 	} else {
-		wcn36xx_warn("unknown keep alive packet type %d\n", packet_type);
+		wcn36xx_warn("unkyeswn keep alive packet type %d\n", packet_type);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2120,7 +2120,7 @@ int wcn36xx_smd_add_ba_session(struct wcn36xx *wcn,
 	msg_body.dialog_token = 0x10;
 	msg_body.tid = tid;
 
-	/* Immediate BA because Delayed BA is not supported */
+	/* Immediate BA because Delayed BA is yest supported */
 	msg_body.policy = 1;
 	msg_body.buffer_size = WCN36XX_AGGR_BUFFER_SIZE;
 	msg_body.timeout = 0;
@@ -2291,7 +2291,7 @@ static int wcn36xx_smd_hw_scan_ind(struct wcn36xx *wcn, void *buf, size_t len)
 	case WCN36XX_HAL_SCAN_IND_RESTARTED:
 		break;
 	default:
-		wcn36xx_warn("Unknown scan indication type %x\n", rsp->type);
+		wcn36xx_warn("Unkyeswn scan indication type %x\n", rsp->type);
 	}
 
 	return 0;
@@ -2305,7 +2305,7 @@ static int wcn36xx_smd_missed_beacon_ind(struct wcn36xx *wcn,
 	struct ieee80211_vif *vif = NULL;
 	struct wcn36xx_vif *tmp;
 
-	/* Old FW does not have bss index */
+	/* Old FW does yest have bss index */
 	if (wcn36xx_is_fw_version(wcn, 1, 2, 2, 24)) {
 		list_for_each_entry(tmp, &wcn->vif_list, list) {
 			wcn36xx_dbg(WCN36XX_DBG_HAL, "beacon missed bss_index %d\n",
@@ -2331,7 +2331,7 @@ static int wcn36xx_smd_missed_beacon_ind(struct wcn36xx *wcn,
 		}
 	}
 
-	wcn36xx_warn("BSS index %d not found\n", rsp->bss_index);
+	wcn36xx_warn("BSS index %d yest found\n", rsp->bss_index);
 	return -ENOENT;
 }
 
@@ -2361,7 +2361,7 @@ static int wcn36xx_smd_delete_sta_context_ind(struct wcn36xx *wcn,
 			return 0;
 	}
 
-	wcn36xx_warn("STA with addr %pM and index %d not found\n",
+	wcn36xx_warn("STA with addr %pM and index %d yest found\n",
 		     rsp->addr2,
 		     rsp->sta_id);
 	return -ENOENT;
@@ -2541,7 +2541,7 @@ int wcn36xx_smd_rsp_process(struct rpmsg_device *rpdev,
 		wcn36xx_dbg(WCN36XX_DBG_HAL, "indication arrived\n");
 		break;
 	default:
-		wcn36xx_err("SMD_EVENT (%d) not supported\n",
+		wcn36xx_err("SMD_EVENT (%d) yest supported\n",
 			      msg_header->msg_type);
 	}
 
@@ -2603,7 +2603,7 @@ static void wcn36xx_ind_smd_work(struct work_struct *work)
 						hal_ind_msg->msg_len);
 			break;
 		default:
-			wcn36xx_err("SMD_EVENT (%d) not supported\n",
+			wcn36xx_err("SMD_EVENT (%d) yest supported\n",
 				    msg_header->msg_type);
 		}
 

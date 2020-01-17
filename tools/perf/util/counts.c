@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include "evsel.h"
 #include "counts.h"

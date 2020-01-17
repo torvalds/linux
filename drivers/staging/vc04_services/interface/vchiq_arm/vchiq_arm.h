@@ -18,7 +18,7 @@ enum vc_suspend_status {
 	VC_SUSPEND_FORCE_CANCELED = -3, /* Force suspend canceled, too busy */
 	VC_SUSPEND_REJECTED = -2,  /* Videocore rejected suspend request */
 	VC_SUSPEND_FAILED = -1,    /* Videocore suspend failed */
-	VC_SUSPEND_IDLE = 0,       /* VC active, no suspend actions */
+	VC_SUSPEND_IDLE = 0,       /* VC active, yes suspend actions */
 	VC_SUSPEND_REQUESTED,      /* User has requested suspend */
 	VC_SUSPEND_IN_PROGRESS,    /* Slot handler has recvd suspend request */
 	VC_SUSPEND_SUSPENDED       /* Videocore suspend succeeded */
@@ -26,7 +26,7 @@ enum vc_suspend_status {
 
 enum vc_resume_status {
 	VC_RESUME_FAILED = -1, /* Videocore resume failed */
-	VC_RESUME_IDLE = 0,    /* VC suspended, no resume actions */
+	VC_RESUME_IDLE = 0,    /* VC suspended, yes resume actions */
 	VC_RESUME_REQUESTED,   /* User has requested resume */
 	VC_RESUME_IN_PROGRESS, /* Slot handler has received resume request */
 	VC_RESUME_RESUMED      /* Videocore resumed successfully (active) */
@@ -67,7 +67,7 @@ struct vchiq_arm_state {
 	int videocore_use_count;
 
 	/* Use count to track requests from videocore peer.
-	** This use count is not associated with a service, so needs to be
+	** This use count is yest associated with a service, so needs to be
 	** tracked separately with the state.
 	*/
 	int peer_use_count;
@@ -161,8 +161,8 @@ extern enum vchiq_status
 vchiq_release_internal(struct vchiq_state *state,
 		       struct vchiq_service *service);
 
-extern struct vchiq_debugfs_node *
-vchiq_instance_get_debugfs_node(struct vchiq_instance *instance);
+extern struct vchiq_debugfs_yesde *
+vchiq_instance_get_debugfs_yesde(struct vchiq_instance *instance);
 
 extern int
 vchiq_instance_get_use_count(struct vchiq_instance *instance);

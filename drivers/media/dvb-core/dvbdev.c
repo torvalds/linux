@@ -20,7 +20,7 @@
 #define pr_fmt(fmt) "dvbdev: " fmt
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -69,7 +69,7 @@ static const char * const dnames[] = {
 #else
 #define DVB_MAX_IDS		4
 
-static const u8 minor_type[] = {
+static const u8 miyesr_type[] = {
        [DVB_DEVICE_VIDEO]      = 0,
        [DVB_DEVICE_AUDIO]      = 1,
        [DVB_DEVICE_SEC]        = 2,
@@ -81,24 +81,24 @@ static const u8 minor_type[] = {
        [DVB_DEVICE_OSD]        = 8,
 };
 
-#define nums2minor(num, type, id) \
-       (((num) << 6) | ((id) << 4) | minor_type[type])
+#define nums2miyesr(num, type, id) \
+       (((num) << 6) | ((id) << 4) | miyesr_type[type])
 
 #define MAX_DVB_MINORS		(DVB_MAX_ADAPTERS*64)
 #endif
 
 static struct class *dvb_class;
 
-static struct dvb_device *dvb_minors[MAX_DVB_MINORS];
-static DECLARE_RWSEM(minor_rwsem);
+static struct dvb_device *dvb_miyesrs[MAX_DVB_MINORS];
+static DECLARE_RWSEM(miyesr_rwsem);
 
-static int dvb_device_open(struct inode *inode, struct file *file)
+static int dvb_device_open(struct iyesde *iyesde, struct file *file)
 {
 	struct dvb_device *dvbdev;
 
 	mutex_lock(&dvbdev_mutex);
-	down_read(&minor_rwsem);
-	dvbdev = dvb_minors[iminor(inode)];
+	down_read(&miyesr_rwsem);
+	dvbdev = dvb_miyesrs[imiyesr(iyesde)];
 
 	if (dvbdev && dvbdev->fops) {
 		int err = 0;
@@ -110,13 +110,13 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 		file->private_data = dvbdev;
 		replace_fops(file, new_fops);
 		if (file->f_op->open)
-			err = file->f_op->open(inode, file);
-		up_read(&minor_rwsem);
+			err = file->f_op->open(iyesde, file);
+		up_read(&miyesr_rwsem);
 		mutex_unlock(&dvbdev_mutex);
 		return err;
 	}
 fail:
-	up_read(&minor_rwsem);
+	up_read(&miyesr_rwsem);
 	mutex_unlock(&dvbdev_mutex);
 	return -ENODEV;
 }
@@ -126,12 +126,12 @@ static const struct file_operations dvb_device_fops =
 {
 	.owner =	THIS_MODULE,
 	.open =		dvb_device_open,
-	.llseek =	noop_llseek,
+	.llseek =	yesop_llseek,
 };
 
 static struct cdev dvb_device_cdev;
 
-int dvb_generic_open(struct inode *inode, struct file *file)
+int dvb_generic_open(struct iyesde *iyesde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 
@@ -157,7 +157,7 @@ int dvb_generic_open(struct inode *inode, struct file *file)
 EXPORT_SYMBOL(dvb_generic_open);
 
 
-int dvb_generic_release(struct inode *inode, struct file *file)
+int dvb_generic_release(struct iyesde *iyesde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 
@@ -234,9 +234,9 @@ static void dvb_media_device_free(struct dvb_device *dvbdev)
 		dvbdev->tsout_num_entities = 0;
 	}
 
-	if (dvbdev->intf_devnode) {
-		media_devnode_remove(dvbdev->intf_devnode);
-		dvbdev->intf_devnode = NULL;
+	if (dvbdev->intf_devyesde) {
+		media_devyesde_remove(dvbdev->intf_devyesde);
+		dvbdev->intf_devyesde = NULL;
 	}
 
 	if (dvbdev->adapter->conn) {
@@ -320,9 +320,9 @@ static int dvb_create_media_entity(struct dvb_device *dvbdev,
 		 * We should be creating entities for the MPE/ULE
 		 * decapsulation hardware (or software implementation).
 		 *
-		 * However, the number of for the MPE/ULE decaps may not be
+		 * However, the number of for the MPE/ULE decaps may yest be
 		 * fixed. As we don't have yet dynamic support for PADs at
-		 * the Media Controller, let's not create the decap
+		 * the Media Controller, let's yest create the decap
 		 * entities yet.
 		 */
 		return 0;
@@ -389,7 +389,7 @@ static int dvb_create_media_entity(struct dvb_device *dvbdev,
 #endif
 
 static int dvb_register_media_device(struct dvb_device *dvbdev,
-				     int type, int minor,
+				     int type, int miyesr,
 				     unsigned demux_sink_pads)
 {
 #if defined(CONFIG_MEDIA_CONTROLLER_DVB)
@@ -424,11 +424,11 @@ static int dvb_register_media_device(struct dvb_device *dvbdev,
 		return 0;
 	}
 
-	dvbdev->intf_devnode = media_devnode_create(dvbdev->adapter->mdev,
+	dvbdev->intf_devyesde = media_devyesde_create(dvbdev->adapter->mdev,
 						    intf_type, 0,
-						    DVB_MAJOR, minor);
+						    DVB_MAJOR, miyesr);
 
-	if (!dvbdev->intf_devnode)
+	if (!dvbdev->intf_devyesde)
 		return -ENOMEM;
 
 	/*
@@ -443,7 +443,7 @@ static int dvb_register_media_device(struct dvb_device *dvbdev,
 		return 0;
 
 	link = media_create_intf_link(dvbdev->entity,
-				      &dvbdev->intf_devnode->intf,
+				      &dvbdev->intf_devyesde->intf,
 				      MEDIA_LNK_FL_ENABLED |
 				      MEDIA_LNK_FL_IMMUTABLE);
 	if (!link)
@@ -459,7 +459,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	struct dvb_device *dvbdev;
 	struct file_operations *dvbdevfops;
 	struct device *clsdev;
-	int minor;
+	int miyesr;
 	int id, ret;
 
 	mutex_lock(&dvbdev_register_lock);
@@ -498,28 +498,28 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 
 	list_add_tail (&dvbdev->list_head, &adap->device_list);
 
-	down_write(&minor_rwsem);
+	down_write(&miyesr_rwsem);
 #ifdef CONFIG_DVB_DYNAMIC_MINORS
-	for (minor = 0; minor < MAX_DVB_MINORS; minor++)
-		if (dvb_minors[minor] == NULL)
+	for (miyesr = 0; miyesr < MAX_DVB_MINORS; miyesr++)
+		if (dvb_miyesrs[miyesr] == NULL)
 			break;
 
-	if (minor == MAX_DVB_MINORS) {
+	if (miyesr == MAX_DVB_MINORS) {
 		kfree(dvbdevfops);
 		kfree(dvbdev);
-		up_write(&minor_rwsem);
+		up_write(&miyesr_rwsem);
 		mutex_unlock(&dvbdev_register_lock);
 		return -EINVAL;
 	}
 #else
-	minor = nums2minor(adap->num, type, id);
+	miyesr = nums2miyesr(adap->num, type, id);
 #endif
 
-	dvbdev->minor = minor;
-	dvb_minors[minor] = dvbdev;
-	up_write(&minor_rwsem);
+	dvbdev->miyesr = miyesr;
+	dvb_miyesrs[miyesr] = dvbdev;
+	up_write(&miyesr_rwsem);
 
-	ret = dvb_register_media_device(dvbdev, type, minor, demux_sink_pads);
+	ret = dvb_register_media_device(dvbdev, type, miyesr, demux_sink_pads);
 	if (ret) {
 		pr_err("%s: dvb_register_media_device failed to create the mediagraph\n",
 		      __func__);
@@ -534,15 +534,15 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 	mutex_unlock(&dvbdev_register_lock);
 
 	clsdev = device_create(dvb_class, adap->device,
-			       MKDEV(DVB_MAJOR, minor),
+			       MKDEV(DVB_MAJOR, miyesr),
 			       dvbdev, "dvb%d.%s%d", adap->num, dnames[type], id);
 	if (IS_ERR(clsdev)) {
 		pr_err("%s: failed to create device dvb%d.%s%d (%ld)\n",
 		       __func__, adap->num, dnames[type], id, PTR_ERR(clsdev));
 		return PTR_ERR(clsdev);
 	}
-	dprintk("DVB: register adapter%d/%s%d @ minor: %i (0x%02x)\n",
-		adap->num, dnames[type], id, minor, minor);
+	dprintk("DVB: register adapter%d/%s%d @ miyesr: %i (0x%02x)\n",
+		adap->num, dnames[type], id, miyesr, miyesr);
 
 	return 0;
 }
@@ -554,13 +554,13 @@ void dvb_remove_device(struct dvb_device *dvbdev)
 	if (!dvbdev)
 		return;
 
-	down_write(&minor_rwsem);
-	dvb_minors[dvbdev->minor] = NULL;
-	up_write(&minor_rwsem);
+	down_write(&miyesr_rwsem);
+	dvb_miyesrs[dvbdev->miyesr] = NULL;
+	up_write(&miyesr_rwsem);
 
 	dvb_media_device_free(dvbdev);
 
-	device_destroy(dvb_class, MKDEV(DVB_MAJOR, dvbdev->minor));
+	device_destroy(dvb_class, MKDEV(DVB_MAJOR, dvbdev->miyesr));
 
 	list_del (&dvbdev->list_head);
 }
@@ -781,8 +781,8 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 		}
 #if 0
 		/*
-		 * Indirect link - let's not create yet, as we don't know how
-		 *		   to handle indirect links, nor if this will
+		 * Indirect link - let's yest create yet, as we don't kyesw how
+		 *		   to handle indirect links, yesr if this will
 		 *		   actually be needed.
 		 */
 		if (intf->type == MEDIA_INTF_T_DVB_DVR && demux) {
@@ -1020,7 +1020,7 @@ static int dvb_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static char *dvb_devnode(struct device *dev, umode_t *mode)
+static char *dvb_devyesde(struct device *dev, umode_t *mode)
 {
 	struct dvb_device *dvbdev = dev_get_drvdata(dev);
 
@@ -1051,7 +1051,7 @@ static int __init init_dvbdev(void)
 		goto error;
 	}
 	dvb_class->dev_uevent = dvb_uevent;
-	dvb_class->devnode = dvb_devnode;
+	dvb_class->devyesde = dvb_devyesde;
 	return 0;
 
 error:

@@ -6,7 +6,7 @@
 
 #include <linux/bug.h>
 #include <linux/cpu_pm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/list.h>
@@ -72,7 +72,7 @@ DEFINE_STATIC_KEY_FALSE(userspace_irqchip_in_use);
 
 /**
  * kvm_arm_get_running_vcpu - get the vcpu running on the current CPU.
- * Must be called from non-preemptible context
+ * Must be called from yesn-preemptible context
  */
 struct kvm_vcpu *kvm_arm_get_running_vcpu(void)
 {
@@ -477,7 +477,7 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
  * kvm_arch_vcpu_runnable - determine if the vcpu can be scheduled
  * @v:		The VCPU pointer
  *
- * If the guest CPU is not waiting for interrupts or an interrupt line is
+ * If the guest CPU is yest waiting for interrupts or an interrupt line is
  * asserted, the CPU is by definition runnable.
  */
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
@@ -493,14 +493,14 @@ bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
 }
 
 /* Just ensure a guest exit from a particular CPU */
-static void exit_vm_noop(void *info)
+static void exit_vm_yesop(void *info)
 {
 }
 
 void force_vm_exit(const cpumask_t *mask)
 {
 	preempt_disable();
-	smp_call_function_many(mask, exit_vm_noop, NULL, true);
+	smp_call_function_many(mask, exit_vm_yesop, NULL, true);
 	preempt_enable();
 }
 
@@ -536,7 +536,7 @@ static void update_vmid(struct kvm_vmid *vmid)
 	spin_lock(&kvm_vmid_lock);
 
 	/*
-	 * We need to re-check the vmid_gen here to ensure that if another vcpu
+	 * We need to re-check the vmid_gen here to ensure that if ayesther vcpu
 	 * already allocated a valid vmid for this vm, then this vcpu should
 	 * use the same vmid.
 	 */
@@ -551,7 +551,7 @@ static void update_vmid(struct kvm_vmid *vmid)
 		kvm_next_vmid = 1;
 
 		/*
-		 * On SMP we know no other CPUs can use this CPU's or each
+		 * On SMP we kyesw yes other CPUs can use this CPU's or each
 		 * other's VMID after force_vm_exit returns since the
 		 * kvm_vmid_lock blocks them from reentry to the guest.
 		 */
@@ -735,7 +735,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		/*
 		 * Preparing the interrupts to be injected also
 		 * involves poking the GIC, which must be done in a
-		 * non-preemptible context.
+		 * yesn-preemptible context.
 		 */
 		preempt_disable();
 
@@ -762,8 +762,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		 * kvm_pmu_update_run below).
 		 */
 		if (static_branch_unlikely(&userspace_irqchip_in_use)) {
-			if (kvm_timer_should_notify_user(vcpu) ||
-			    kvm_pmu_should_notify_user(vcpu)) {
+			if (kvm_timer_should_yestify_user(vcpu) ||
+			    kvm_pmu_should_yestify_user(vcpu)) {
 				ret = -EINTR;
 				run->exit_reason = KVM_EXIT_INTR;
 			}
@@ -823,7 +823,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 		/*
 		 * Sync the vgic state before syncing the timer state because
-		 * the timer code needs to know if the virtual timer
+		 * the timer code needs to kyesw if the virtual timer
 		 * interrupts are active.
 		 */
 		kvm_vgic_sync_hwstate(vcpu);
@@ -843,8 +843,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		 * while executing the guest). This interrupt is still
 		 * pending, as we haven't serviced it yet!
 		 *
-		 * We're now back in SVC mode, with interrupts
-		 * disabled.  Enabling the interrupts now will have
+		 * We're yesw back in SVC mode, with interrupts
+		 * disabled.  Enabling the interrupts yesw will have
 		 * the effect of taking the interrupt again, in SVC
 		 * mode this time.
 		 */
@@ -855,7 +855,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		 * that if a timer interrupt hits while running the guest we
 		 * account that tick as being spent in the guest.  We enable
 		 * preemption after calling guest_exit() so that if we get
-		 * preempted we make sure ticks after that is not counted as
+		 * preempted we make sure ticks after that is yest counted as
 		 * guest time.
 		 */
 		guest_exit();
@@ -899,7 +899,7 @@ static int vcpu_interrupt_line(struct kvm_vcpu *vcpu, int number, bool level)
 		set = test_and_clear_bit(bit_index, hcr);
 
 	/*
-	 * If we didn't change anything, no need to wake up or kick other CPUs
+	 * If we didn't change anything, yes need to wake up or kick other CPUs
 	 */
 	if (set == level)
 		return 0;
@@ -991,7 +991,7 @@ static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 	if (vcpu->arch.target != -1 && vcpu->arch.target != init->target)
 		return -EINVAL;
 
-	/* -ENOENT for unknown features, -EINVAL for invalid combinations. */
+	/* -ENOENT for unkyeswn features, -EINVAL for invalid combinations. */
 	for (i = 0; i < sizeof(init->features) * 8; i++) {
 		bool set = (init->features[i / 32] & (1 << (i % 32)));
 
@@ -1012,7 +1012,7 @@ static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 
 	vcpu->arch.target = phys_target;
 
-	/* Now we know what it is, we can reset it. */
+	/* Now we kyesw what it is, we can reset it. */
 	ret = kvm_reset_vcpu(vcpu);
 	if (ret) {
 		vcpu->arch.target = -1;
@@ -1251,7 +1251,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
  * We call kvm_get_dirty_log_protect() to handle steps 1-3, upon return we
  * always flush the TLB (step 4) even if previous step failed  and the dirty
  * bitmap may be corrupt. Regardless of previous outcome the KVM logging API
- * does not preclude user space subsequent dirty log read. Flushing TLB ensures
+ * does yest preclude user space subsequent dirty log read. Flushing TLB ensures
  * writes will be marked dirty for next log read.
  *
  *   1. Take a snapshot of the bit and clear it if needed.
@@ -1422,7 +1422,7 @@ void kvm_arch_hardware_disable(void)
 }
 
 #ifdef CONFIG_CPU_PM
-static int hyp_init_cpu_pm_notifier(struct notifier_block *self,
+static int hyp_init_cpu_pm_yestifier(struct yestifier_block *self,
 				    unsigned long cmd,
 				    void *v)
 {
@@ -1455,17 +1455,17 @@ static int hyp_init_cpu_pm_notifier(struct notifier_block *self,
 	}
 }
 
-static struct notifier_block hyp_init_cpu_pm_nb = {
-	.notifier_call = hyp_init_cpu_pm_notifier,
+static struct yestifier_block hyp_init_cpu_pm_nb = {
+	.yestifier_call = hyp_init_cpu_pm_yestifier,
 };
 
 static void __init hyp_cpu_pm_init(void)
 {
-	cpu_pm_register_notifier(&hyp_init_cpu_pm_nb);
+	cpu_pm_register_yestifier(&hyp_init_cpu_pm_nb);
 }
 static void __init hyp_cpu_pm_exit(void)
 {
-	cpu_pm_unregister_notifier(&hyp_init_cpu_pm_nb);
+	cpu_pm_unregister_yestifier(&hyp_init_cpu_pm_nb);
 }
 #else
 static inline void hyp_cpu_pm_init(void)
@@ -1493,7 +1493,7 @@ static int init_subsystems(void)
 	on_each_cpu(_kvm_arch_hardware_enable, NULL, 1);
 
 	/*
-	 * Register CPU lower-power notifier
+	 * Register CPU lower-power yestifier
 	 */
 	hyp_cpu_pm_init();
 
@@ -1576,27 +1576,27 @@ static int init_hyp_mode(void)
 	err = create_hyp_mappings(kvm_ksym_ref(__hyp_text_start),
 				  kvm_ksym_ref(__hyp_text_end), PAGE_HYP_EXEC);
 	if (err) {
-		kvm_err("Cannot map world-switch code\n");
+		kvm_err("Canyest map world-switch code\n");
 		goto out_err;
 	}
 
 	err = create_hyp_mappings(kvm_ksym_ref(__start_rodata),
 				  kvm_ksym_ref(__end_rodata), PAGE_HYP_RO);
 	if (err) {
-		kvm_err("Cannot map rodata section\n");
+		kvm_err("Canyest map rodata section\n");
 		goto out_err;
 	}
 
 	err = create_hyp_mappings(kvm_ksym_ref(__bss_start),
 				  kvm_ksym_ref(__bss_stop), PAGE_HYP_RO);
 	if (err) {
-		kvm_err("Cannot map bss section\n");
+		kvm_err("Canyest map bss section\n");
 		goto out_err;
 	}
 
 	err = kvm_map_vectors();
 	if (err) {
-		kvm_err("Cannot map vectors\n");
+		kvm_err("Canyest map vectors\n");
 		goto out_err;
 	}
 
@@ -1609,7 +1609,7 @@ static int init_hyp_mode(void)
 					  PAGE_HYP);
 
 		if (err) {
-			kvm_err("Cannot map hyp stack\n");
+			kvm_err("Canyest map hyp stack\n");
 			goto out_err;
 		}
 	}
@@ -1621,14 +1621,14 @@ static int init_hyp_mode(void)
 		err = create_hyp_mappings(cpu_data, cpu_data + 1, PAGE_HYP);
 
 		if (err) {
-			kvm_err("Cannot map host CPU state: %d\n", err);
+			kvm_err("Canyest map host CPU state: %d\n", err);
 			goto out_err;
 		}
 	}
 
 	err = hyp_map_aux_data();
 	if (err)
-		kvm_err("Cannot map host auxiliary data: %d\n", err);
+		kvm_err("Canyest map host auxiliary data: %d\n", err);
 
 	return 0;
 
@@ -1706,21 +1706,21 @@ int kvm_arch_init(void *opaque)
 	bool in_hyp_mode;
 
 	if (!is_hyp_mode_available()) {
-		kvm_info("HYP mode not available\n");
+		kvm_info("HYP mode yest available\n");
 		return -ENODEV;
 	}
 
 	in_hyp_mode = is_kernel_in_hyp_mode();
 
 	if (!in_hyp_mode && kvm_arch_requires_vhe()) {
-		kvm_pr_unimpl("CPU unsupported in non-VHE mode, not initializing\n");
+		kvm_pr_unimpl("CPU unsupported in yesn-VHE mode, yest initializing\n");
 		return -ENODEV;
 	}
 
 	for_each_online_cpu(cpu) {
 		smp_call_function_single(cpu, check_kvm_target_cpu, &ret, 1);
 		if (ret < 0) {
-			kvm_err("Error, CPU %d not supported!\n", cpu);
+			kvm_err("Error, CPU %d yest supported!\n", cpu);
 			return -ENODEV;
 		}
 	}
@@ -1757,7 +1757,7 @@ out_err:
 	return err;
 }
 
-/* NOP: Compiling as a module not supported */
+/* NOP: Compiling as a module yest supported */
 void kvm_arch_exit(void)
 {
 	kvm_perf_teardown();

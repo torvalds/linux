@@ -39,14 +39,14 @@ static u8 skb2q(struct sk_buff *skb)
 /* Note: TX retry reporting is a bit broken.
  *	 Retries are reported only once per AMPDU and often come a frame early
  *	 i.e. they are reported in the last status preceding the AMPDU. Apart
- *	 from the fact that it's hard to know the length of the AMPDU (which is
- *	 required to know to how many consecutive frames retries should be
+ *	 from the fact that it's hard to kyesw the length of the AMPDU (which is
+ *	 required to kyesw to how many consecutive frames retries should be
  *	 applied), if status comes early on full FIFO it gets lost and retries
  *	 of the whole AMPDU become invisible.
  *	 As a work-around encode the desired rate in PKT_ID of TX descriptor
  *	 and based on that guess the retries (every rate is tried once).
  *	 Only downside here is that for MCS0 we have to rely solely on
- *	 transmission failures as no retries can ever be reported.
+ *	 transmission failures as yes retries can ever be reported.
  *	 Not having to read EXT_FIFO has a nice effect of doubling the number
  *	 of reports which can be fetched.
  *	 Also the vendor driver never uses the EXT_FIFO register so it may be
@@ -283,7 +283,7 @@ int mt7601u_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	      FIELD_PREP(MT_EDCA_CFG_CWMAX, cw_max);
 	/* TODO: based on user-controlled EnableTxBurst var vendor drv sets
 	 *	 a really long txop on AC0 (see connect.c:2009) but only on
-	 *	 connect? When not connected should be 0.
+	 *	 connect? When yest connected should be 0.
 	 */
 	if (!hw_q)
 		val |= 0x60;

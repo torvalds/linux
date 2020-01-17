@@ -18,7 +18,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -48,7 +48,7 @@
 /**
  * Get AGP information.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a (output) drm_agp_info structure.
@@ -66,7 +66,7 @@ int drm_agp_info(struct drm_device *dev, struct drm_agp_info *info)
 
 	kern = &dev->agp->agp_info;
 	info->agp_version_major = kern->version.major;
-	info->agp_version_minor = kern->version.minor;
+	info->agp_version_miyesr = kern->version.miyesr;
 	info->mode = kern->mode;
 	info->aperture_base = kern->aper_base;
 	info->aperture_size = kern->aper_size * 1024 * 1024;
@@ -118,7 +118,7 @@ EXPORT_SYMBOL(drm_agp_acquire);
 /**
  * Acquire the AGP device (ioctl).
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument.
@@ -130,7 +130,7 @@ EXPORT_SYMBOL(drm_agp_acquire);
 int drm_agp_acquire_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
-	return drm_agp_acquire((struct drm_device *) file_priv->minor->dev);
+	return drm_agp_acquire((struct drm_device *) file_priv->miyesr->dev);
 }
 
 /**
@@ -164,7 +164,7 @@ int drm_agp_release_ioctl(struct drm_device *dev, void *data,
  * \param mode Requested AGP mode.
  * \return zero on success or a negative number on failure.
  *
- * Verifies the AGP device has been acquired but not enabled, and calls
+ * Verifies the AGP device has been acquired but yest enabled, and calls
  * \c agp_enable.
  */
 int drm_agp_enable(struct drm_device *dev, struct drm_agp_mode mode)
@@ -190,7 +190,7 @@ int drm_agp_enable_ioctl(struct drm_device *dev, void *data,
 /**
  * Allocate AGP memory.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv file private pointer.
  * \param cmd command.
  * \param arg pointer to a drm_agp_buffer structure.
@@ -266,7 +266,7 @@ static struct drm_agp_mem *drm_agp_lookup_entry(struct drm_device *dev,
 /**
  * Unbind AGP memory from the GATT (ioctl).
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a drm_agp_binding structure.
@@ -304,13 +304,13 @@ int drm_agp_unbind_ioctl(struct drm_device *dev, void *data,
 /**
  * Bind AGP memory into the GATT (ioctl)
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a drm_agp_binding structure.
  * \return zero on success or a negative number on failure.
  *
- * Verifies the AGP device is present and has been acquired and that no memory
+ * Verifies the AGP device is present and has been acquired and that yes memory
  * is currently bound into the GATT. Looks-up the AGP memory entry and passes
  * it to bind_agp() function.
  */
@@ -348,7 +348,7 @@ int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
 /**
  * Free AGP memory (ioctl).
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a drm_agp_buffer structure.

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2005-2018 Andes Technology Corporation */
+/* Copyright (C) 2005-2018 Andes Techyeslogy Corporation */
 
 #ifndef __ASM_NDS32_FPU_H
 #define __ASM_NDS32_FPU_H
@@ -21,7 +21,7 @@ extern int do_fpuemu(struct pt_regs *regs, struct fpu_struct *fpu);
 
 /*
  * Initially load the FPU with signalling NANS.  This bit pattern
- * has the property that no matter whether considered as single or as
+ * has the property that yes matter whether considered as single or as
  * double precision, it still represents a signalling NAN.
  */
 
@@ -30,8 +30,8 @@ extern int do_fpuemu(struct pt_regs *regs, struct fpu_struct *fpu);
 
 #if IS_ENABLED(CONFIG_SUPPORT_DENORMAL_ARITHMETIC)
 /*
- * Denormalized number is unsupported by nds32 FPU. Hence the operation
- * is treated as underflow cases when the final result is a denormalized
+ * Deyesrmalized number is unsupported by nds32 FPU. Hence the operation
+ * is treated as underflow cases when the final result is a deyesrmalized
  * number. To enhance precision, underflow exception trap should be
  * enabled by default and kerenl will re-execute it by fpu emulator
  * when getting underflow exception.

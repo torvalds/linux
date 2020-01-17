@@ -35,7 +35,7 @@
  *		0x50 Values >= this switch the camera to a lower compression,
  *		     using the same table for both luminance and chrominance.
  *		     This gives a sharper picture. Only usable when running
- *		     at < 15 fps! Note currently the driver does not use this
+ *		     at < 15 fps! Note currently the driver does yest use this
  *		     as the quality gain is small and the generated JPG-s are
  *		     only understood by v4l-utils >= 0.8.9
  *
@@ -45,17 +45,17 @@
  * 0x02		Clock divider 3-63, fps = 90 / val. Must be a multiple of 3 on
  *		the 7302, so one of 3, 6, 9, ..., except when between 6 and 12?
  * 0x03		Variable framerate ctrl reg2==3: 0 -> ~30 fps, 255 -> ~22fps
- * 0x04		Another var framerate ctrl reg2==3, reg3==0: 0 -> ~30 fps,
+ * 0x04		Ayesther var framerate ctrl reg2==3, reg3==0: 0 -> ~30 fps,
  *		63 -> ~27 fps, the 2 msb's must always be 1 !!
- * 0x05		Another var framerate ctrl reg2==3, reg3==0, reg4==0xc0:
+ * 0x05		Ayesther var framerate ctrl reg2==3, reg3==0, reg4==0xc0:
  *		1 -> ~30 fps, 2 -> ~20 fps
  * 0x0e		Exposure bits 0-7, 0-448, 0 = use full frame time
- * 0x0f		Exposure bit 8, 0-448, 448 = no exposure at all
+ * 0x0f		Exposure bit 8, 0-448, 448 = yes exposure at all
  * 0x10		Gain 0-31
- * 0x12		Another gain 0-31, unlike 0x10 this one seems to start with an
+ * 0x12		Ayesther gain 0-31, unlike 0x10 this one seems to start with an
  *		amplification value of 1 rather then 0 at its lowest setting
- * 0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unknown, 6-7 unused
- * 0x80		Another framerate control, best left at 1, moving it from 1 to
+ * 0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unkyeswn, 6-7 unused
+ * 0x80		Ayesther framerate control, best left at 1, moving it from 1 to
  *		2 causes the framerate to become 3/4th of what it was, and
  *		also seems to cause pixel averaging, resulting in an effective
  *		resolution of 320x240 and thus a much blockier image
@@ -117,7 +117,7 @@ struct sd {
 #define FL_VFLIP 0x02		/* vertical flipped by default */
 
 	u8 sof_read;
-	s8 autogain_ignore_frames;
+	s8 autogain_igyesre_frames;
 
 	atomic_t avg_lum;
 };
@@ -347,7 +347,7 @@ static void reg_w_var(struct gspca_dev *gspca_dev,
 			}
 		}
 	}
-	/* not reached */
+	/* yest reached */
 }
 
 /* this function is called at probe time for pac7302 */
@@ -426,19 +426,19 @@ static void setwhitebalance(struct gspca_dev *gspca_dev)
 static u8 rgbbalance_ctrl_to_reg_value(s32 rgb_ctrl_val)
 {
 	const unsigned int k = 1000;	/* precision factor */
-	unsigned int norm;
+	unsigned int yesrm;
 
 	/* Normed value [0...k] */
-	norm = k * (rgb_ctrl_val - PAC7302_RGB_BALANCE_MIN)
+	yesrm = k * (rgb_ctrl_val - PAC7302_RGB_BALANCE_MIN)
 		    / (PAC7302_RGB_BALANCE_MAX - PAC7302_RGB_BALANCE_MIN);
 	/* Qudratic apporach improves control at small (register) values: */
-	return 64 * norm * norm / (k*k)  +  32 * norm / k  +  32;
+	return 64 * yesrm * yesrm / (k*k)  +  32 * yesrm / k  +  32;
 	/* Y = 64*X*X + 32*X + 32
 	 * => register values 0x20-0x80; Windows driver uses these limits */
 
 	/* NOTE: for full value range (0x00-0xff) use
 	 *         Y = 254*X*X + X
-	 *         => 254 * norm * norm / (k*k)  +  1 * norm / k	*/
+	 *         => 254 * yesrm * yesrm / (k*k)  +  1 * yesrm / k	*/
 }
 
 static void setredbalance(struct gspca_dev *gspca_dev)
@@ -490,15 +490,15 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 	/*
 	 * Register 2 of frame 3 contains the clock divider configuring the
-	 * no fps according to the formula: 90 / reg. sd->exposure is the
+	 * yes fps according to the formula: 90 / reg. sd->exposure is the
 	 * desired exposure time in 0.5 ms.
 	 */
 	clockdiv = (90 * gspca_dev->exposure->val + 1999) / 2000;
 
 	/*
 	 * Note clockdiv = 3 also works, but when running at 30 fps, depending
-	 * on the scene being recorded, the camera switches to another
-	 * quantization table for certain JPEG blocks, and we don't know how
+	 * on the scene being recorded, the camera switches to ayesther
+	 * quantization table for certain JPEG blocks, and we don't kyesw how
 	 * to decompress these blocks. So we cap the framerate at 15 fps.
 	 */
 	if (clockdiv < 6)
@@ -508,7 +508,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 	/*
 	 * Register 2 MUST be a multiple of 3, except when between 6 and 12?
-	 * Always round up, otherwise we cannot get the desired frametime
+	 * Always round up, otherwise we canyest get the desired frametime
 	 * using the partial frame time exposure control.
 	 */
 	if (clockdiv < 6 || clockdiv > 12)
@@ -519,7 +519,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	 * exposure = (sd->exposure / 2) * 448 / (1000 * clockdiv / 90)
 	 */
 	exposure = (gspca_dev->exposure->val * 45 * 448) / (1000 * clockdiv);
-	/* 0 = use full frametime, 448 = no exposure, reverse it */
+	/* 0 = use full frametime, 448 = yes exposure, reverse it */
 	exposure = 448 - exposure;
 
 	reg_w(gspca_dev, 0xff, 0x03);			/* page 3 */
@@ -583,7 +583,7 @@ static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 		   take effect before doing autogain. */
 		gspca_dev->exposure->val    = PAC7302_EXPOSURE_DEFAULT;
 		gspca_dev->gain->val        = PAC7302_GAIN_DEFAULT;
-		sd->autogain_ignore_frames  = PAC_AUTOGAIN_IGNORE_FRAMES;
+		sd->autogain_igyesre_frames  = PAC_AUTOGAIN_IGNORE_FRAMES;
 	}
 
 	if (!gspca_dev->streaming)
@@ -675,7 +675,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 					V4L2_CID_SHARPNESS, 0, 15, 1, 8);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 
@@ -694,7 +694,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		page3_7302, sizeof(page3_7302));
 
 	sd->sof_read = 0;
-	sd->autogain_ignore_frames = 0;
+	sd->autogain_igyesre_frames = 0;
 	atomic_set(&sd->avg_lum, 270 + sd->brightness->val);
 
 	/* start stream */
@@ -728,18 +728,18 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	int desired_lum;
 	const int deadzone = 30;
 
-	if (sd->autogain_ignore_frames < 0)
+	if (sd->autogain_igyesre_frames < 0)
 		return;
 
-	if (sd->autogain_ignore_frames > 0) {
-		sd->autogain_ignore_frames--;
+	if (sd->autogain_igyesre_frames > 0) {
+		sd->autogain_igyesre_frames--;
 	} else {
 		desired_lum = 270 + sd->brightness->val;
 
 		if (gspca_expo_autogain(gspca_dev, avg_lum, desired_lum,
 					deadzone, PAC7302_GAIN_KNEE,
 					PAC7302_EXPOSURE_KNEE))
-			sd->autogain_ignore_frames =
+			sd->autogain_igyesre_frames =
 						PAC_AUTOGAIN_IGNORE_FRAMES;
 	}
 }
@@ -844,7 +844,7 @@ static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 		value = reg->val;
 
 		/*
-		 * Note that there shall be no access to other page
+		 * Note that there shall be yes access to other page
 		 * by any other function between the page switch and
 		 * the actual register write.
 		 */

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -88,7 +88,7 @@ enum kgd_memory_pool {
 /**
  * enum kfd_sched_policy
  *
- * @KFD_SCHED_POLICY_HWS: H/W scheduling policy known as command processor (cp)
+ * @KFD_SCHED_POLICY_HWS: H/W scheduling policy kyeswn as command processor (cp)
  * scheduling. In this scheduling mode we're using the firmware code to
  * schedule the user mode queues and kernel queues such as HIQ and DIQ.
  * the HIQ queue is used as a special queue that dispatches the configuration
@@ -101,7 +101,7 @@ enum kgd_memory_pool {
  * @KFD_SCHED_POLICY_HWS_NO_OVERSUBSCRIPTION: The same as above but the over
  * subscription feature disabled.
  *
- * @KFD_SCHED_POLICY_NO_HWS: no H/W scheduling policy is a mode which directly
+ * @KFD_SCHED_POLICY_NO_HWS: yes H/W scheduling policy is a mode which directly
  * set the command processor registers and sets the queues "manually". This
  * mode is used *ONLY* for debugging proposes.
  *
@@ -127,15 +127,15 @@ struct kgd2kfd_shared_resources {
 
 	/* SDMA doorbell assignments (SOC15 and later chips only). Only
 	 * specific doorbells are routed to each SDMA engine. Others
-	 * are routed to IH and VCN. They are not usable by the CP.
+	 * are routed to IH and VCN. They are yest usable by the CP.
 	 */
 	uint32_t *sdma_doorbell_idx;
 
-	/* From SOC15 onward, the doorbell index range not usable for CP
+	/* From SOC15 onward, the doorbell index range yest usable for CP
 	 * queues.
 	 */
-	uint32_t non_cp_doorbells_start;
-	uint32_t non_cp_doorbells_end;
+	uint32_t yesn_cp_doorbells_start;
+	uint32_t yesn_cp_doorbells_end;
 
 	/* Base address of doorbell aperture. */
 	phys_addr_t doorbell_physical_address;
@@ -149,8 +149,8 @@ struct kgd2kfd_shared_resources {
 	/* GPUVM address space size in bytes */
 	uint64_t gpuvm_size;
 
-	/* Minor device number of the render node */
-	int drm_render_minor;
+	/* Miyesr device number of the render yesde */
+	int drm_render_miyesr;
 };
 
 struct tile_config {
@@ -191,18 +191,18 @@ struct tile_config {
  * struct kfd2kgd_calls
  *
  * @program_sh_mem_settings: A function that should initiate the memory
- * properties such as main aperture memory type (cache / non cached) and
+ * properties such as main aperture memory type (cache / yesn cached) and
  * secondary aperture base address, size and memory type.
- * This function is used only for no cp scheduling mode.
+ * This function is used only for yes cp scheduling mode.
  *
- * @set_pasid_vmid_mapping: Exposes pasid/vmid pair to the H/W for no cp
- * scheduling mode. Only used for no cp scheduling mode.
+ * @set_pasid_vmid_mapping: Exposes pasid/vmid pair to the H/W for yes cp
+ * scheduling mode. Only used for yes cp scheduling mode.
  *
- * @hqd_load: Loads the mqd structure to a H/W hqd slot. used only for no cp
+ * @hqd_load: Loads the mqd structure to a H/W hqd slot. used only for yes cp
  * sceduling mode.
  *
  * @hqd_sdma_load: Loads the SDMA mqd structure to a H/W SDMA hqd slot.
- * used only for no HWS mode.
+ * used only for yes HWS mode.
  *
  * @hqd_dump: Dumps CPC HQD registers to an array of address-value pairs.
  * Array is allocated with kmalloc, needs to be freed with kfree by caller.
@@ -220,7 +220,7 @@ struct tile_config {
  * SDMA hqd slot.
  *
  * @set_scratch_backing_va: Sets VA for scratch backing memory of a VMID.
- * Only used for no cp scheduling mode
+ * Only used for yes cp scheduling mode
  *
  * @get_tile_config: Returns GPU-specific tiling mode information
  *
@@ -230,11 +230,11 @@ struct tile_config {
  *
  * @invalidate_tlbs_vmid: Invalidate TLBs for a specific VMID
  *
- * @read_vmid_from_vmfault_reg: On Hawaii the VMID is not set in the
+ * @read_vmid_from_vmfault_reg: On Hawaii the VMID is yest set in the
  * IH ring entry. This function allows the KFD ISR to get the VMID
  * from the fault status register as early as possible.
  *
- * @get_hive_id: Returns hive id of current  device,  0 if xgmi is not enabled
+ * @get_hive_id: Returns hive id of current  device,  0 if xgmi is yest enabled
  *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.

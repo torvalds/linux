@@ -56,7 +56,7 @@
 /*
  * regmap is used as a cache of chip's register space,
  * to avoid reading back brightness values from chip,
- * which is known to hang.
+ * which is kyeswn to hang.
  */
 struct is31fl319x_chip {
 	const struct is31fl319x_chipdef *cdef;
@@ -130,7 +130,7 @@ static int is31fl319x_brightness_set(struct led_classdev *cdev,
 		bool on;
 
 		/*
-		 * since neither cdev nor the chip can provide
+		 * since neither cdev yesr the chip can provide
 		 * the current setting, we read from the regmap cache
 		 */
 
@@ -158,7 +158,7 @@ static int is31fl319x_brightness_set(struct led_classdev *cdev,
 		ret = regmap_write(is31->regmap, IS31FL319X_SHUTDOWN, 0x01);
 	} else {
 		dev_dbg(&is31->client->dev, "power down\n");
-		/* shut down (no need to clear CTRL1/2) */
+		/* shut down (yes need to clear CTRL1/2) */
 		ret = regmap_write(is31->regmap, IS31FL319X_SHUTDOWN, 0x00);
 	}
 
@@ -169,7 +169,7 @@ out:
 }
 
 static int is31fl319x_parse_child_dt(const struct device *dev,
-				     const struct device_node *child,
+				     const struct device_yesde *child,
 				     struct is31fl319x_led *led)
 {
 	struct led_classdev *cdev = &led->cdev;
@@ -188,7 +188,7 @@ static int is31fl319x_parse_child_dt(const struct device *dev,
 				   &led->max_microamp);
 	if (!ret) {
 		if (led->max_microamp < IS31FL319X_CURRENT_MIN)
-			return -EINVAL;	/* not supported */
+			return -EINVAL;	/* yest supported */
 		led->max_microamp = min(led->max_microamp,
 					  IS31FL319X_CURRENT_MAX);
 	}
@@ -199,7 +199,7 @@ static int is31fl319x_parse_child_dt(const struct device *dev,
 static int is31fl319x_parse_dt(struct device *dev,
 			       struct is31fl319x_chip *is31)
 {
-	struct device_node *np = dev->of_node, *child;
+	struct device_yesde *np = dev->of_yesde, *child;
 	const struct of_device_id *of_dev_id;
 	int count;
 	int ret;
@@ -226,20 +226,20 @@ static int is31fl319x_parse_dt(struct device *dev,
 		return -ENODEV;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		struct is31fl319x_led *led;
 		u32 reg;
 
 		ret = of_property_read_u32(child, "reg", &reg);
 		if (ret) {
 			dev_err(dev, "Failed to read led 'reg' property\n");
-			goto put_child_node;
+			goto put_child_yesde;
 		}
 
 		if (reg < 1 || reg > is31->cdef->num_leds) {
 			dev_err(dev, "invalid led reg %u\n", reg);
 			ret = -EINVAL;
-			goto put_child_node;
+			goto put_child_yesde;
 		}
 
 		led = &is31->leds[reg - 1];
@@ -247,13 +247,13 @@ static int is31fl319x_parse_dt(struct device *dev,
 		if (led->configured) {
 			dev_err(dev, "led %u is already configured\n", reg);
 			ret = -EINVAL;
-			goto put_child_node;
+			goto put_child_yesde;
 		}
 
 		ret = is31fl319x_parse_child_dt(dev, child, led);
 		if (ret) {
 			dev_err(dev, "led %u DT parsing failed\n", reg);
-			goto put_child_node;
+			goto put_child_yesde;
 		}
 
 		led->configured = true;
@@ -267,18 +267,18 @@ static int is31fl319x_parse_dt(struct device *dev,
 
 	return 0;
 
-put_child_node:
-	of_node_put(child);
+put_child_yesde:
+	of_yesde_put(child);
 	return ret;
 }
 
 static bool is31fl319x_readable_reg(struct device *dev, unsigned int reg)
-{ /* we have no readable registers */
+{ /* we have yes readable registers */
 	return false;
 }
 
 static bool is31fl319x_volatile_reg(struct device *dev, unsigned int reg)
-{ /* volatile registers are not cached */
+{ /* volatile registers are yest cached */
 	switch (reg) {
 	case IS31FL319X_DATA_UPDATE:
 	case IS31FL319X_TIME_UPDATE:
@@ -363,16 +363,16 @@ static int is31fl319x_probe(struct i2c_client *client,
 	/* check for write-reply from chip (we can't read any registers) */
 	err = regmap_write(is31->regmap, IS31FL319X_RESET, 0x00);
 	if (err < 0) {
-		dev_err(&client->dev, "no response from chip write: err = %d\n",
+		dev_err(&client->dev, "yes response from chip write: err = %d\n",
 			err);
-		err = -EIO; /* does not answer */
+		err = -EIO; /* does yest answer */
 		goto free_mutex;
 	}
 
 	/*
 	 * Kernel conventions require per-LED led-max-microamp property.
-	 * But the chip does not allow to limit individual LEDs.
-	 * So we take minimum from all subnodes for safety of hardware.
+	 * But the chip does yest allow to limit individual LEDs.
+	 * So we take minimum from all subyesdes for safety of hardware.
 	 */
 	for (i = 0; i < is31->cdef->num_leds; i++)
 		if (is31->leds[i].configured &&
@@ -414,7 +414,7 @@ static int is31fl319x_remove(struct i2c_client *client)
 
 /*
  * i2c-core (and modalias) requires that id_table be properly filled,
- * even though it is not used for DeviceTree based instantiation.
+ * even though it is yest used for DeviceTree based instantiation.
  */
 static const struct i2c_device_id is31fl319x_id[] = {
 	{ "is31fl3190" },

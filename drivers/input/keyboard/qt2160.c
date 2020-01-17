@@ -172,7 +172,7 @@ static int qt2160_get_key_matrix(struct qt2160_data *qt2160)
 	ret = qt2160_read_block(client, QT2160_CMD_GSTAT, regs, 6);
 	if (ret) {
 		dev_err(&client->dev,
-			"could not perform chip read.\n");
+			"could yest perform chip read.\n");
 		return ret;
 	}
 
@@ -314,21 +314,21 @@ static bool qt2160_identify(struct i2c_client *client)
 	/* Read Chid ID to check if chip is valid */
 	id = qt2160_read(client, QT2160_CMD_CHIPID);
 	if (id != QT2160_VALID_CHIPID) {
-		dev_err(&client->dev, "ID %d not supported\n", id);
+		dev_err(&client->dev, "ID %d yest supported\n", id);
 		return false;
 	}
 
 	/* Read chip firmware version */
 	ver = qt2160_read(client, QT2160_CMD_CODEVER);
 	if (ver < 0) {
-		dev_err(&client->dev, "could not get firmware version\n");
+		dev_err(&client->dev, "could yest get firmware version\n");
 		return false;
 	}
 
 	/* Read chip firmware revision */
 	rev = qt2160_read(client, QT2160_CMD_SUBVER);
 	if (rev < 0) {
-		dev_err(&client->dev, "could not get firmware revision\n");
+		dev_err(&client->dev, "could yest get firmware revision\n");
 		return false;
 	}
 
@@ -350,7 +350,7 @@ static int qt2160_probe(struct i2c_client *client,
 	error = i2c_check_functionality(client->adapter,
 			I2C_FUNC_SMBUS_BYTE);
 	if (!error) {
-		dev_err(&client->dev, "%s adapter not supported\n",
+		dev_err(&client->dev, "%s adapter yest supported\n",
 				dev_driver_string(&client->adapter->dev));
 		return -ENODEV;
 	}
@@ -438,7 +438,7 @@ static int qt2160_remove(struct i2c_client *client)
 
 	qt2160_unregister_leds(qt2160);
 
-	/* Release IRQ so no queue will be scheduled */
+	/* Release IRQ so yes queue will be scheduled */
 	if (client->irq)
 		free_irq(client->irq, qt2160);
 

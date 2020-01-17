@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -188,7 +188,7 @@ enum i40iw_completion_status {
 	I40IW_COMPL_STATUS_INVALID_TOTAL_LENGTH
 };
 
-enum i40iw_completion_notify {
+enum i40iw_completion_yestify {
 	IW_CQ_COMPL_EVENT = 0,
 	IW_CQ_COMPL_SOLICITED = 1
 };
@@ -269,7 +269,7 @@ struct i40iw_cq_poll_info {
 	i40iw_stag inv_stag;
 	enum i40iw_completion_status comp_status;
 	u16 major_err;
-	u16 minor_err;
+	u16 miyesr_err;
 	u8 op_type;
 	bool stag_invalid_set;
 	bool push_dropped;
@@ -297,12 +297,12 @@ struct i40iw_qp_uk_ops {
 					     struct i40iw_post_sq_info *, bool);
 	enum i40iw_status_code (*iw_post_receive)(struct i40iw_qp_uk *,
 						  struct i40iw_post_rq_info *);
-	enum i40iw_status_code (*iw_post_nop)(struct i40iw_qp_uk *, u64, bool, bool);
+	enum i40iw_status_code (*iw_post_yesp)(struct i40iw_qp_uk *, u64, bool, bool);
 };
 
 struct i40iw_cq_ops {
-	void (*iw_cq_request_notification)(struct i40iw_cq_uk *,
-					   enum i40iw_completion_notify);
+	void (*iw_cq_request_yestification)(struct i40iw_cq_uk *,
+					   enum i40iw_completion_yestify);
 	enum i40iw_status_code (*iw_cq_poll_completion)(struct i40iw_cq_uk *,
 							struct i40iw_cq_poll_info *);
 	enum i40iw_status_code (*iw_cq_post_entries)(struct i40iw_cq_uk *, u8 count);
@@ -418,7 +418,7 @@ enum i40iw_status_code i40iw_qp_uk_init(struct i40iw_qp_uk *qp,
 					struct i40iw_qp_uk_init_info *info);
 
 void i40iw_clean_cq(void *queue, struct i40iw_cq_uk *cq);
-enum i40iw_status_code i40iw_nop(struct i40iw_qp_uk *qp, u64 wr_id,
+enum i40iw_status_code i40iw_yesp(struct i40iw_qp_uk *qp, u64 wr_id,
 				 bool signaled, bool post_sq);
 enum i40iw_status_code i40iw_fragcnt_to_wqesize_sq(u32 frag_cnt, u8 *wqe_size);
 enum i40iw_status_code i40iw_fragcnt_to_wqesize_rq(u32 frag_cnt, u8 *wqe_size);

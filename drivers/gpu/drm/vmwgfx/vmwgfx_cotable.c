@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -40,7 +40,7 @@
  * struct vmw_cotable - Context Object Table resource
  *
  * @res: struct vmw_resource we are deriving from.
- * @ctx: non-refcounted pointer to the owning context.
+ * @ctx: yesn-refcounted pointer to the owning context.
  * @size_read_back: Size of data read back during eviction.
  * @seen_entries: Seen entries in command stream for this cotable.
  * @type: The cotable type.
@@ -142,7 +142,7 @@ static struct vmw_cotable *vmw_cotable(struct vmw_resource *res)
  *
  * @res: Pointer to the cotable resource.
  *
- * There is no device cotable destroy command, so this function only
+ * There is yes device cotable destroy command, so this function only
  * makes sure that the resource id is set to invalid.
  */
 static int vmw_cotable_destroy(struct vmw_resource *res)
@@ -207,9 +207,9 @@ static int vmw_cotable_bind(struct vmw_resource *res,
 {
 	/*
 	 * The create() callback may have changed @res->backup without
-	 * the caller noticing, and with val_buf->bo still pointing to
-	 * the old backup buffer. Although hackish, and not used currently,
-	 * take the opportunity to correct the value here so that it's not
+	 * the caller yesticing, and with val_buf->bo still pointing to
+	 * the old backup buffer. Although hackish, and yest used currently,
+	 * take the opportunity to correct the value here so that it's yest
 	 * misused in the future.
 	 */
 	val_buf->bo = &res->backup->base;
@@ -226,7 +226,7 @@ static int vmw_cotable_bind(struct vmw_resource *res,
  *
  * In some situations (context swapouts) it might be desirable to make the
  * device forget about the cotable without performing a full unbind. A full
- * unbind requires reserved backup buffers and it might not be possible to
+ * unbind requires reserved backup buffers and it might yest be possible to
  * reserve them due to locking order violation issues. The vmw_cotable_scrub
  * function implements a partial unbind() without that requirement but with the
  * following restrictions.
@@ -374,7 +374,7 @@ static int vmw_cotable_readback(struct vmw_resource *res)
  *
  * Resizes a cotable and binds the new backup buffer.
  * On failure the cotable is left intact.
- * Important! This function may not fail once the MOB switch has been
+ * Important! This function may yest fail once the MOB switch has been
  * committed to hardware. That would put the device context in an
  * invalid state which we can't currently recover from.
  */
@@ -495,7 +495,7 @@ out_wait:
  *
  * @res: Pointer to a cotable resource.
  *
- * There is no separate create command for cotables, so this callback, which
+ * There is yes separate create command for cotables, so this callback, which
  * is called before bind() in the validation sequence is instead used for two
  * things.
  * 1) Unscrub the cotable if it is scrubbed and still attached to a backup
@@ -559,7 +559,7 @@ static void vmw_cotable_free(struct vmw_resource *res)
  *
  * @dev_priv: Pointer to a device private struct.
  * @ctx: Pointer to the context resource.
- * The cotable resource will not add a refcount.
+ * The cotable resource will yest add a refcount.
  * @type: The cotable type.
  */
 struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
@@ -569,7 +569,7 @@ struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 	struct vmw_cotable *vcotbl;
 	struct ttm_operation_ctx ttm_opt_ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	int ret;
 	u32 num_entries;
@@ -585,13 +585,13 @@ struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 	vcotbl = kzalloc(sizeof(*vcotbl), GFP_KERNEL);
 	if (unlikely(!vcotbl)) {
 		ret = -ENOMEM;
-		goto out_no_alloc;
+		goto out_yes_alloc;
 	}
 
 	ret = vmw_resource_init(dev_priv, &vcotbl->res, true,
 				vmw_cotable_free, &vmw_cotable_func);
 	if (unlikely(ret != 0))
-		goto out_no_init;
+		goto out_yes_init;
 
 	INIT_LIST_HEAD(&vcotbl->resource_list);
 	vcotbl->res.id = type;
@@ -613,20 +613,20 @@ struct vmw_resource *vmw_cotable_alloc(struct vmw_private *dev_priv,
 
 	return &vcotbl->res;
 
-out_no_init:
+out_yes_init:
 	kfree(vcotbl);
-out_no_alloc:
+out_yes_alloc:
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), cotable_acc_size);
 	return ERR_PTR(ret);
 }
 
 /**
- * vmw_cotable_notify - Notify the cotable about an item creation
+ * vmw_cotable_yestify - Notify the cotable about an item creation
  *
  * @res: Pointer to a cotable resource.
  * @id: Item id.
  */
-int vmw_cotable_notify(struct vmw_resource *res, int id)
+int vmw_cotable_yestify(struct vmw_resource *res, int id)
 {
 	struct vmw_cotable *vcotbl = vmw_cotable(res);
 

@@ -275,14 +275,14 @@ struct vsc73xx_counter {
 };
 
 /* Counters are named according to the MIB standards where applicable.
- * Some counters are custom, non-standard. The standard counters are
+ * Some counters are custom, yesn-standard. The standard counters are
  * named in accordance with RFC2819, RFC2021 and IEEE Std 802.3-2002 Annex
  * 30A Counters.
  */
 static const struct vsc73xx_counter vsc73xx_rx_counters[] = {
 	{ 0, "RxEtherStatsPkts" },
-	{ 1, "RxBroadcast+MulticastPkts" }, /* non-standard counter */
-	{ 2, "RxTotalErrorPackets" }, /* non-standard counter */
+	{ 1, "RxBroadcast+MulticastPkts" }, /* yesn-standard counter */
+	{ 2, "RxTotalErrorPackets" }, /* yesn-standard counter */
 	{ 3, "RxEtherStatsBroadcastPkts" },
 	{ 4, "RxEtherStatsMulticastPkts" },
 	{ 5, "RxEtherStatsPkts64Octets" },
@@ -291,11 +291,11 @@ static const struct vsc73xx_counter vsc73xx_rx_counters[] = {
 	{ 8, "RxEtherStatsPkts256to511Octets" },
 	{ 9, "RxEtherStatsPkts512to1023Octets" },
 	{ 10, "RxEtherStatsPkts1024to1518Octets" },
-	{ 11, "RxJumboFrames" }, /* non-standard counter */
+	{ 11, "RxJumboFrames" }, /* yesn-standard counter */
 	{ 12, "RxaPauseMACControlFramesTransmitted" },
-	{ 13, "RxFIFODrops" }, /* non-standard counter */
-	{ 14, "RxBackwardDrops" }, /* non-standard counter */
-	{ 15, "RxClassifierDrops" }, /* non-standard counter */
+	{ 13, "RxFIFODrops" }, /* yesn-standard counter */
+	{ 14, "RxBackwardDrops" }, /* yesn-standard counter */
+	{ 15, "RxClassifierDrops" }, /* yesn-standard counter */
 	{ 16, "RxEtherStatsCRCAlignErrors" },
 	{ 17, "RxEtherStatsUndersizePkts" },
 	{ 18, "RxEtherStatsOversizePkts" },
@@ -304,16 +304,16 @@ static const struct vsc73xx_counter vsc73xx_rx_counters[] = {
 	{ 21, "RxaMACControlFramesReceived" },
 	/* 22-24 are undefined */
 	{ 25, "RxaFramesReceivedOK" },
-	{ 26, "RxQoSClass0" }, /* non-standard counter */
-	{ 27, "RxQoSClass1" }, /* non-standard counter */
-	{ 28, "RxQoSClass2" }, /* non-standard counter */
-	{ 29, "RxQoSClass3" }, /* non-standard counter */
+	{ 26, "RxQoSClass0" }, /* yesn-standard counter */
+	{ 27, "RxQoSClass1" }, /* yesn-standard counter */
+	{ 28, "RxQoSClass2" }, /* yesn-standard counter */
+	{ 29, "RxQoSClass3" }, /* yesn-standard counter */
 };
 
 static const struct vsc73xx_counter vsc73xx_tx_counters[] = {
 	{ 0, "TxEtherStatsPkts" },
-	{ 1, "TxBroadcast+MulticastPkts" }, /* non-standard counter */
-	{ 2, "TxTotalErrorPackets" }, /* non-standard counter */
+	{ 1, "TxBroadcast+MulticastPkts" }, /* yesn-standard counter */
+	{ 2, "TxTotalErrorPackets" }, /* yesn-standard counter */
 	{ 3, "TxEtherStatsBroadcastPkts" },
 	{ 4, "TxEtherStatsMulticastPkts" },
 	{ 5, "TxEtherStatsPkts64Octets" },
@@ -322,10 +322,10 @@ static const struct vsc73xx_counter vsc73xx_tx_counters[] = {
 	{ 8, "TxEtherStatsPkts256to511Octets" },
 	{ 9, "TxEtherStatsPkts512to1023Octets" },
 	{ 10, "TxEtherStatsPkts1024to1518Octets" },
-	{ 11, "TxJumboFrames" }, /* non-standard counter */
+	{ 11, "TxJumboFrames" }, /* yesn-standard counter */
 	{ 12, "TxaPauseMACControlFramesTransmitted" },
-	{ 13, "TxFIFODrops" }, /* non-standard counter */
-	{ 14, "TxDrops" }, /* non-standard counter */
+	{ 13, "TxFIFODrops" }, /* yesn-standard counter */
+	{ 14, "TxDrops" }, /* yesn-standard counter */
 	{ 15, "TxEtherStatsCollisions" },
 	{ 16, "TxEtherStatsCRCAlignErrors" },
 	{ 17, "TxEtherStatsUndersizePkts" },
@@ -334,10 +334,10 @@ static const struct vsc73xx_counter vsc73xx_tx_counters[] = {
 	{ 20, "TxEtherStatsJabbers" },
 	/* 21-24 are undefined */
 	{ 25, "TxaFramesReceivedOK" },
-	{ 26, "TxQoSClass0" }, /* non-standard counter */
-	{ 27, "TxQoSClass1" }, /* non-standard counter */
-	{ 28, "TxQoSClass2" }, /* non-standard counter */
-	{ 29, "TxQoSClass3" }, /* non-standard counter */
+	{ 26, "TxQoSClass0" }, /* yesn-standard counter */
+	{ 27, "TxQoSClass1" }, /* yesn-standard counter */
+	{ 28, "TxQoSClass2" }, /* yesn-standard counter */
+	{ 29, "TxQoSClass3" }, /* yesn-standard counter */
 };
 
 int vsc73xx_is_addr_valid(u8 block, u8 subblock)
@@ -454,32 +454,32 @@ static int vsc73xx_detect(struct vsc73xx *vsc)
 	}
 
 	/* The iCPU can always be used but can boot in different ways.
-	 * If it is initially disabled and has no external memory,
+	 * If it is initially disabled and has yes external memory,
 	 * we are in control and can do whatever we like, else we
 	 * are probably in trouble (we need some way to communicate
-	 * with the running firmware) so we bail out for now.
+	 * with the running firmware) so we bail out for yesw.
 	 */
 	icpu_pi_en = !!(val & VSC73XX_ICPU_CTRL_ICPU_PI_EN);
 	icpu_si_boot_en = !!(val & VSC73XX_ICPU_CTRL_BOOT_EN);
 	if (icpu_si_boot_en && icpu_pi_en) {
 		dev_err(vsc->dev,
 			"iCPU enabled boots from SI, has external memory\n");
-		dev_err(vsc->dev, "no idea how to deal with this\n");
+		dev_err(vsc->dev, "yes idea how to deal with this\n");
 		return -ENODEV;
 	}
 	if (icpu_si_boot_en && !icpu_pi_en) {
 		dev_err(vsc->dev,
-			"iCPU enabled boots from PI/SI, no external memory\n");
+			"iCPU enabled boots from PI/SI, yes external memory\n");
 		return -EAGAIN;
 	}
 	if (!icpu_si_boot_en && icpu_pi_en) {
 		dev_err(vsc->dev,
 			"iCPU enabled, boots from PI external memory\n");
-		dev_err(vsc->dev, "no idea how to deal with this\n");
+		dev_err(vsc->dev, "yes idea how to deal with this\n");
 		return -ENODEV;
 	}
 	/* !icpu_si_boot_en && !cpu_pi_en */
-	dev_info(vsc->dev, "iCPU disabled, no external memory\n");
+	dev_info(vsc->dev, "iCPU disabled, yes external memory\n");
 
 	return 0;
 }
@@ -547,10 +547,10 @@ static enum dsa_tag_protocol vsc73xx_get_tag_protocol(struct dsa_switch *ds,
 	/* The switch internally uses a 8 byte header with length,
 	 * source port, tag, LPA and priority. This is supposedly
 	 * only accessible when operating the switch using the internal
-	 * CPU or with an external CPU mapping the device in, but not
+	 * CPU or with an external CPU mapping the device in, but yest
 	 * when operating the switch over SPI and putting frames in/out
 	 * on port 6 (the CPU port). So far we must assume that we
-	 * cannot access the tag. (See "Internal frame header" section
+	 * canyest access the tag. (See "Internal frame header" section
 	 * 3.9.1 in the manual.)
 	 */
 	return DSA_TAG_PROTO_NONE;
@@ -664,9 +664,9 @@ static void vsc73xx_init_port(struct vsc73xx *vsc, int port)
 		      VSC73XX_MAC_CFG_RX_EN);
 
 	/* Max length, we can do up to 9.6 KiB, so allow that.
-	 * According to application not "VSC7398 Jumbo Frames" setting
-	 * up the MTU to 9.6 KB does not affect the performance on standard
-	 * frames, so just enable it. It is clear from the application note
+	 * According to application yest "VSC7398 Jumbo Frames" setting
+	 * up the MTU to 9.6 KB does yest affect the performance on standard
+	 * frames, so just enable it. It is clear from the application yeste
 	 * that "9.6 kilobytes" == 9600 bytes.
 	 */
 	vsc73xx_write(vsc, VSC73XX_BLOCK_MAC,
@@ -710,8 +710,8 @@ static void vsc73xx_init_port(struct vsc73xx *vsc, int port)
 		      VSC73XX_FCMACLO,
 		      val);
 
-	/* Tell the categorizer to forward pause frames, not control
-	 * frame. Do not drop anything.
+	/* Tell the categorizer to forward pause frames, yest control
+	 * frame. Do yest drop anything.
 	 */
 	vsc73xx_write(vsc, VSC73XX_BLOCK_MAC,
 		      port,
@@ -771,7 +771,7 @@ static void vsc73xx_adjust_link(struct dsa_switch *ds, int port,
 
 	/* Special handling of the CPU-facing port */
 	if (port == CPU_PORT) {
-		/* Other ports are already initialized but not this one */
+		/* Other ports are already initialized but yest this one */
 		vsc73xx_init_port(vsc, CPU_PORT);
 		/* Select the external port for this interface (EXT_PORT)
 		 * Enable the GMII GTX external clock
@@ -876,7 +876,7 @@ static void vsc73xx_adjust_link(struct dsa_switch *ds, int port,
 		vsc73xx_adjust_enable_port(vsc, port, phydev, val);
 	} else {
 		dev_err(vsc->dev,
-			"could not adjust link: unknown speed\n");
+			"could yest adjust link: unkyeswn speed\n");
 	}
 
 	/* Enable port (forwarding) in the receieve mask */
@@ -1111,7 +1111,7 @@ static int vsc73xx_gpio_probe(struct vsc73xx *vsc)
 	vsc->gc.ngpio = 4;
 	vsc->gc.owner = THIS_MODULE;
 	vsc->gc.parent = vsc->dev;
-	vsc->gc.of_node = vsc->dev->of_node;
+	vsc->gc.of_yesde = vsc->dev->of_yesde;
 	vsc->gc.base = -1;
 	vsc->gc.get = vsc73xx_gpio_get;
 	vsc->gc.set = vsc73xx_gpio_set;
@@ -1157,7 +1157,7 @@ int vsc73xx_probe(struct vsc73xx *vsc)
 		ret = vsc73xx_detect(vsc);
 	}
 	if (ret) {
-		dev_err(dev, "no chip found (%d)\n", ret);
+		dev_err(dev, "yes chip found (%d)\n", ret);
 		return -ENODEV;
 	}
 
@@ -1175,7 +1175,7 @@ int vsc73xx_probe(struct vsc73xx *vsc)
 	 *
 	 * The VSC7398 has 8 ports, port 7 is again the CPU port.
 	 *
-	 * We allocate 8 ports and avoid access to the nonexistant
+	 * We allocate 8 ports and avoid access to the yesnexistant
 	 * ports.
 	 */
 	vsc->ds = devm_kzalloc(dev, sizeof(*vsc->ds), GFP_KERNEL);

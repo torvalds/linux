@@ -46,14 +46,14 @@ wavefront_fx_idle (snd_wavefront_t *dev)
 }
 
 static void
-wavefront_fx_mute (snd_wavefront_t *dev, int onoff)
+wavefront_fx_mute (snd_wavefront_t *dev, int oyesff)
 
 {
 	if (!wavefront_fx_idle(dev)) {
 		return;
 	}
 
-	outb (onoff ? 0x02 : 0x00, dev->fx_op);
+	outb (oyesff ? 0x02 : 0x00, dev->fx_op);
 }
 
 static int
@@ -116,7 +116,7 @@ int
 snd_wavefront_fx_detect (snd_wavefront_t *dev)
 
 {
-	/* This is a crude check, but its the best one I have for now.
+	/* This is a crude check, but its the best one I have for yesw.
 	   Certainly on the Maui and the Tropez, wavefront_fx_idle() will
 	   report "never idle", which suggests that this test should
 	   work OK.
@@ -180,14 +180,14 @@ snd_wavefront_fx_ioctl (struct snd_hwdep *sdev, struct file *file,
 
 	case WFFX_MEMSET:
 		if (r.data[2] <= 0) {
-			snd_printk ("cannot write "
+			snd_printk ("canyest write "
 				"<= 0 bytes to FX\n");
 			return -EIO;
 		} else if (r.data[2] == 1) {
 			pd = (unsigned short *) &r.data[3];
 		} else {
 			if (r.data[2] > 256) {
-				snd_printk ("cannot write "
+				snd_printk ("canyest write "
 					    "> 512 bytes to FX\n");
 				return -EIO;
 			}
@@ -208,7 +208,7 @@ snd_wavefront_fx_ioctl (struct snd_hwdep *sdev, struct file *file,
 		break;
 
 	default:
-		snd_printk ("FX: ioctl %d not yet supported\n",
+		snd_printk ("FX: ioctl %d yest yet supported\n",
 			    r.request);
 		return -ENOTTY;
 	}

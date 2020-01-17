@@ -37,12 +37,12 @@
 
 		nanddisk_reserved: nanddisk@46000000 {
 			reg = <0x46000000 0x200000>;
-			no-map;
+			yes-map;
 		};
 	};
 
 
-	noc {
+	yesc {
 		mediam {
 			nand@17050000 {
 				memory-region = <&nanddisk_reserved>;

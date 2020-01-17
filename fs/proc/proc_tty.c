@@ -8,7 +8,7 @@
 #include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
@@ -18,7 +18,7 @@
 #include "internal.h"
 
 /*
- * The /proc/tty directory inodes...
+ * The /proc/tty directory iyesdes...
  */
 static struct proc_dir_entry *proc_tty_driver;
 
@@ -28,7 +28,7 @@ static struct proc_dir_entry *proc_tty_driver;
 static void show_tty_range(struct seq_file *m, struct tty_driver *p,
 	dev_t from, int num)
 {
-	seq_printf(m, "%-20s ", p->driver_name ? p->driver_name : "unknown");
+	seq_printf(m, "%-20s ", p->driver_name ? p->driver_name : "unkyeswn");
 	seq_printf(m, "/dev/%-8s ", p->name);
 	if (p->num > 1) {
 		seq_printf(m, "%3d %d-%d ", MAJOR(from), MINOR(from),
@@ -69,7 +69,7 @@ static void show_tty_range(struct seq_file *m, struct tty_driver *p,
 static int show_tty_driver(struct seq_file *m, void *v)
 {
 	struct tty_driver *p = list_entry(v, struct tty_driver, tty_drivers);
-	dev_t from = MKDEV(p->major, p->minor_start);
+	dev_t from = MKDEV(p->major, p->miyesr_start);
 	dev_t to = from + p->num;
 
 	if (&p->tty_drivers == tty_drivers.next) {

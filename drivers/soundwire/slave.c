@@ -15,7 +15,7 @@ static void sdw_slave_release(struct device *dev)
 }
 
 static int sdw_slave_add(struct sdw_bus *bus,
-			 struct sdw_slave_id *id, struct fwnode_handle *fwnode)
+			 struct sdw_slave_id *id, struct fwyesde_handle *fwyesde)
 {
 	struct sdw_slave *slave;
 	int ret;
@@ -27,7 +27,7 @@ static int sdw_slave_add(struct sdw_bus *bus,
 	/* Initialize data structure */
 	memcpy(&slave->id, id, sizeof(*id));
 	slave->dev.parent = bus->dev;
-	slave->dev.fwnode = fwnode;
+	slave->dev.fwyesde = fwyesde;
 
 	if (id->unique_id == SDW_IGNORED_UNIQUE_ID) {
 		/* name shall be sdw:link:mfg:part:class */
@@ -43,13 +43,13 @@ static int sdw_slave_add(struct sdw_bus *bus,
 
 	slave->dev.release = sdw_slave_release;
 	slave->dev.bus = &sdw_bus_type;
-	slave->dev.of_node = of_node_get(to_of_node(fwnode));
+	slave->dev.of_yesde = of_yesde_get(to_of_yesde(fwyesde));
 	slave->bus = bus;
 	slave->status = SDW_SLAVE_UNATTACHED;
 	slave->dev_num = 0;
 
 	mutex_lock(&bus->bus_lock);
-	list_add_tail(&slave->node, &bus->slaves);
+	list_add_tail(&slave->yesde, &bus->slaves);
 	mutex_unlock(&bus->bus_lock);
 
 	ret = device_register(&slave->dev);
@@ -61,7 +61,7 @@ static int sdw_slave_add(struct sdw_bus *bus,
 		 * when release method is invoked.
 		 */
 		mutex_lock(&bus->bus_lock);
-		list_del(&slave->node);
+		list_del(&slave->yesde);
 		mutex_unlock(&bus->bus_lock);
 		put_device(&slave->dev);
 	}
@@ -102,10 +102,10 @@ static bool find_slave(struct sdw_bus *bus,
 }
 
 /*
- * sdw_acpi_find_slaves() - Find Slave devices in Master ACPI node
+ * sdw_acpi_find_slaves() - Find Slave devices in Master ACPI yesde
  * @bus: SDW bus instance
  *
- * Scans Master ACPI node for SDW child Slave devices and registers it.
+ * Scans Master ACPI yesde for SDW child Slave devices and registers it.
  */
 int sdw_acpi_find_slaves(struct sdw_bus *bus)
 {
@@ -118,17 +118,17 @@ int sdw_acpi_find_slaves(struct sdw_bus *bus)
 		return -ENODEV;
 	}
 
-	list_for_each_entry(adev, &parent->children, node) {
+	list_for_each_entry(adev, &parent->children, yesde) {
 		struct sdw_slave_id id;
 		struct sdw_slave_id id2;
-		bool ignore_unique_id = true;
+		bool igyesre_unique_id = true;
 
 		if (!find_slave(bus, adev, &id))
 			continue;
 
 		/* brute-force O(N^2) search for duplicates */
 		parent2 = parent;
-		list_for_each_entry(adev2, &parent2->children, node) {
+		list_for_each_entry(adev2, &parent2->children, yesde) {
 
 			if (adev == adev2)
 				continue;
@@ -147,7 +147,7 @@ int sdw_acpi_find_slaves(struct sdw_bus *bus)
 					"Valid unique IDs %x %x for Slave mfg %x part %d\n",
 					id.unique_id, id2.unique_id,
 					id.mfg_id, id.part_id);
-				ignore_unique_id = false;
+				igyesre_unique_id = false;
 			} else {
 				dev_err(bus->dev,
 					"Invalid unique IDs %x %x for Slave mfg %x part %d\n",
@@ -157,14 +157,14 @@ int sdw_acpi_find_slaves(struct sdw_bus *bus)
 			}
 		}
 
-		if (ignore_unique_id)
+		if (igyesre_unique_id)
 			id.unique_id = SDW_IGNORED_UNIQUE_ID;
 
 		/*
 		 * don't error check for sdw_slave_add as we want to continue
 		 * adding Slaves
 		 */
-		sdw_slave_add(bus, &id, acpi_fwnode_handle(adev));
+		sdw_slave_add(bus, &id, acpi_fwyesde_handle(adev));
 	}
 
 	return 0;
@@ -173,24 +173,24 @@ int sdw_acpi_find_slaves(struct sdw_bus *bus)
 #endif
 
 /*
- * sdw_of_find_slaves() - Find Slave devices in master device tree node
+ * sdw_of_find_slaves() - Find Slave devices in master device tree yesde
  * @bus: SDW bus instance
  *
- * Scans Master DT node for SDW child Slave devices and registers it.
+ * Scans Master DT yesde for SDW child Slave devices and registers it.
  */
 int sdw_of_find_slaves(struct sdw_bus *bus)
 {
 	struct device *dev = bus->dev;
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	for_each_child_of_node(bus->dev->of_node, node) {
+	for_each_child_of_yesde(bus->dev->of_yesde, yesde) {
 		int link_id, ret, len;
 		unsigned int sdw_version;
 		const char *compat = NULL;
 		struct sdw_slave_id id;
 		const __be32 *addr;
 
-		compat = of_get_property(node, "compatible", NULL);
+		compat = of_get_property(yesde, "compatible", NULL);
 		if (!compat)
 			continue;
 
@@ -203,7 +203,7 @@ int sdw_of_find_slaves(struct sdw_bus *bus)
 			continue;
 		}
 
-		addr = of_get_property(node, "reg", &len);
+		addr = of_get_property(yesde, "reg", &len);
 		if (!addr || (len < 2 * sizeof(u32))) {
 			dev_err(dev, "Invalid Link and Instance ID\n");
 			continue;
@@ -217,7 +217,7 @@ int sdw_of_find_slaves(struct sdw_bus *bus)
 		if (link_id != bus->link_id)
 			continue;
 
-		sdw_slave_add(bus, &id, of_fwnode_handle(node));
+		sdw_slave_add(bus, &id, of_fwyesde_handle(yesde));
 	}
 
 	return 0;

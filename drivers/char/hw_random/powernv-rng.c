@@ -39,7 +39,7 @@ static int powernv_rng_probe(struct platform_device *pdev)
 
 	rc = devm_hwrng_register(&pdev->dev, &powernv_hwrng);
 	if (rc) {
-		/* We only register one device, ignore any others */
+		/* We only register one device, igyesre any others */
 		if (rc == -EEXIST)
 			rc = -ENODEV;
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /****************************************************************
 
-Siano Mobile Silicon, Inc.
+Siayes Mobile Silicon, Inc.
 MDTV receiver kernel modules.
 Copyright (C) 2005-2009, Uri Shkolnik, Anatoly Greenblat
 
@@ -79,7 +79,7 @@ static void do_submit_urb(struct work_struct *work)
  * Completing URB's callback handler - top half (interrupt context)
  * adds completing sms urb to the global surbs list and activtes the worker
  * thread the surb
- * IMPORTANT - blocking functions must not be called from here !!!
+ * IMPORTANT - blocking functions must yest be called from here !!!
 
  * @param urb pointer to a completing urb object
  */
@@ -210,7 +210,7 @@ static int smsusb_sendrequest(void *context, void *buffer, size_t size)
 	int dummy, ret;
 
 	if (dev->state != SMSUSB_ACTIVE) {
-		pr_debug("Device not active yet\n");
+		pr_debug("Device yest active yet\n");
 		return -ENOENT;
 	}
 
@@ -235,7 +235,7 @@ static char *smsusb1_fw_lkup[] = {
 	"dvbt_stellar_usb.inp",
 	"dvbh_stellar_usb.inp",
 	"tdmb_stellar_usb.inp",
-	"none",
+	"yesne",
 	"dvbt_bda_stellar_usb.inp",
 };
 
@@ -306,8 +306,8 @@ static void smsusb1_detectmode(void *context, int *mode)
 	*mode = DEVICE_MODE_NONE;
 
 	if (!product_string) {
-		product_string = "none";
-		pr_err("product string not found\n");
+		product_string = "yesne";
+		pr_err("product string yest found\n");
 	} else if (strstr(product_string, "DVBH"))
 		*mode = 1;
 	else if (strstr(product_string, "BDA"))
@@ -353,7 +353,7 @@ static void smsusb_term_device(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 }
 
-static void *siano_media_device_register(struct smsusb_device_t *dev,
+static void *siayes_media_device_register(struct smsusb_device_t *dev,
 					int board_id)
 {
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
@@ -447,7 +447,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	params.context = dev;
 	usb_make_path(dev->udev, params.devpath, sizeof(params.devpath));
 
-	mdev = siano_media_device_register(dev, board_id);
+	mdev = siayes_media_device_register(dev, board_id);
 
 	/* register in smscore */
 	rc = smscore_register_device(&params, &dev->coredev, 0, mdev);
@@ -539,12 +539,12 @@ static int smsusb_probe(struct usb_interface *intf,
 	}
 	if ((udev->actconfig->desc.bNumInterfaces == 2) &&
 	    (intf->cur_altsetting->desc.bInterfaceNumber == 0)) {
-		pr_debug("rom interface 0 is not used\n");
+		pr_debug("rom interface 0 is yest used\n");
 		return -ENODEV;
 	}
 
 	if (id->driver_info == SMS1XXX_BOARD_SIANO_STELLAR_ROM) {
-		/* Detected a Siano Stellar uninitialized */
+		/* Detected a Siayes Stellar uninitialized */
 
 		snprintf(devpath, sizeof(devpath), "usb\\%d-%s",
 			 udev->bus->busnum, udev->devpath);
@@ -554,9 +554,9 @@ static int smsusb_probe(struct usb_interface *intf,
 				udev, smscore_registry_getmode(devpath),
 				id->driver_info);
 
-		/* This device will reset and gain another USB ID */
+		/* This device will reset and gain ayesther USB ID */
 		if (!rc)
-			pr_info("stellar device now in warm state\n");
+			pr_info("stellar device yesw in warm state\n");
 		else
 			pr_err("Failed to put stellar in warm state. Error: %d\n",
 			       rc);
@@ -726,6 +726,6 @@ static struct usb_driver smsusb_driver = {
 
 module_usb_driver(smsusb_driver);
 
-MODULE_DESCRIPTION("Driver for the Siano SMS1xxx USB dongle");
-MODULE_AUTHOR("Siano Mobile Silicon, INC. (uris@siano-ms.com)");
+MODULE_DESCRIPTION("Driver for the Siayes SMS1xxx USB dongle");
+MODULE_AUTHOR("Siayes Mobile Silicon, INC. (uris@siayes-ms.com)");
 MODULE_LICENSE("GPL");

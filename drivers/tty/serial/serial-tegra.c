@@ -64,7 +64,7 @@
 
 #define TEGRA_UART_MAXIMUM			8
 
-/* Default UART setting when started: 115200 no parity, stop, 8 data bits */
+/* Default UART setting when started: 115200 yes parity, stop, 8 data bits */
 #define TEGRA_UART_DEFAULT_BAUD			115200
 #define TEGRA_UART_DEFAULT_LSR			UART_LCR_WLEN8
 
@@ -78,8 +78,8 @@
  * tegra_uart_chip_data: SOC specific data.
  *
  * @tx_fifo_full_status: Status flag available for checking tx fifo full.
- * @allow_txfifo_reset_fifo_mode: allow_tx fifo reset with fifo mode or not.
- *			Tegra30 does not allow this.
+ * @allow_txfifo_reset_fifo_mode: allow_tx fifo reset with fifo mode or yest.
+ *			Tegra30 does yest allow this.
  * @support_clk_src_div: Clock source support the clock divider.
  */
 struct tegra_uart_chip_data {
@@ -174,7 +174,7 @@ static unsigned int tegra_uart_get_mctrl(struct uart_port *u)
 	 * CD/DCD/CAR - Carrier detect is always active. For some reason
 	 *	linux has different names for carrier detect.
 	 * DSR - Data Set ready is active as the hardware doesn't support it.
-	 *	Don't know if the linux support this yet?
+	 *	Don't kyesw if the linux support this yet?
 	 * CTS - Clear to send. Always set to active, as the hardware handles
 	 *	CTS automatically.
 	 */
@@ -455,7 +455,7 @@ static char tegra_uart_decode_rx_error(struct tegra_uart_port *tup,
 			 */
 			if (!(lsr & UART_LSR_DR) && (lsr & UART_LSR_FIFOE))
 				tegra_uart_fifo_reset(tup, UART_FCR_CLEAR_RCVR);
-			if (tup->uport.ignore_status_mask & UART_LSR_BI)
+			if (tup->uport.igyesre_status_mask & UART_LSR_BI)
 				return TTY_BREAK;
 			flag = TTY_BREAK;
 			tup->uport.icount.brk++;
@@ -654,7 +654,7 @@ static void tegra_uart_handle_rx_pio(struct tegra_uart_port *tup,
 		if (!uart_handle_sysrq_char(&tup->uport, ch) && tty)
 			tty_insert_flip_char(tty, ch, flag);
 
-		if (tup->uport.ignore_status_mask & UART_LSR_DR)
+		if (tup->uport.igyesre_status_mask & UART_LSR_DR)
 			continue;
 	} while (1);
 }
@@ -665,7 +665,7 @@ static void tegra_uart_copy_rx_to_tty(struct tegra_uart_port *tup,
 {
 	int copied;
 
-	/* If count is zero, then there is no data to be copied */
+	/* If count is zero, then there is yes data to be copied */
 	if (!count)
 		return;
 
@@ -675,7 +675,7 @@ static void tegra_uart_copy_rx_to_tty(struct tegra_uart_port *tup,
 		return;
 	}
 
-	if (tup->uport.ignore_status_mask & UART_LSR_DR)
+	if (tup->uport.igyesre_status_mask & UART_LSR_DR)
 		return;
 
 	dma_sync_single_for_cpu(tup->uport.dev, tup->rx_dma_buf_phys,
@@ -875,8 +875,8 @@ static irqreturn_t tegra_uart_isr(int irq, void *data)
 					tegra_uart_read(tup, UART_LSR));
 			break;
 
-		case 5: /* break nothing to handle */
-		case 7: /* break nothing to handle */
+		case 5: /* break yesthing to handle */
+		case 7: /* break yesthing to handle */
 			break;
 		}
 	}
@@ -931,7 +931,7 @@ static void tegra_uart_hw_deinit(struct tegra_uart_port *tup)
 		mcr = tegra_uart_read(tup, UART_MCR);
 		if ((mcr & TEGRA_UART_MCR_CTS_EN) && (msr & UART_MSR_CTS))
 			dev_err(tup->uport.dev,
-				"Tx Fifo not empty, CTS disabled, waiting\n");
+				"Tx Fifo yest empty, CTS disabled, waiting\n");
 
 		/* Wait for Tx fifo to be empty */
 		while ((lsr & UART_LSR_TEMT) != UART_LSR_TEMT) {
@@ -944,7 +944,7 @@ static void tegra_uart_hw_deinit(struct tegra_uart_port *tup)
 				if ((mcr & TEGRA_UART_MCR_CTS_EN) &&
 					(msr & UART_MSR_CTS))
 					dev_err(tup->uport.dev,
-						"Slave not ready\n");
+						"Slave yest ready\n");
 				break;
 			}
 			lsr = tegra_uart_read(tup, UART_LSR);
@@ -1025,7 +1025,7 @@ static int tegra_uart_hw_init(struct tegra_uart_port *tup)
 
 	if (tup->cdata->fifo_mode_enable_status) {
 		ret = tegra_uart_wait_fifo_mode_enabled(tup);
-		dev_err(tup->uport.dev, "FIFO mode not enabled\n");
+		dev_err(tup->uport.dev, "FIFO mode yest enabled\n");
 		if (ret < 0)
 			return ret;
 	} else {
@@ -1065,7 +1065,7 @@ static int tegra_uart_hw_init(struct tegra_uart_port *tup)
 
 	/*
 	 * Enable IE_RXS for the receive status interrupts like line errros.
-	 * Enable IE_RX_TIMEOUT to get the bytes which cannot be DMA'd.
+	 * Enable IE_RX_TIMEOUT to get the bytes which canyest be DMA'd.
 	 *
 	 * If using DMA mode, enable EORD instead of receive interrupt which
 	 * will interrupt after the UART is done with the receive instead of
@@ -1073,11 +1073,11 @@ static int tegra_uart_hw_init(struct tegra_uart_port *tup)
 	 *
 	 * EORD is different interrupt than RX_TIMEOUT - RX_TIMEOUT occurs when
 	 * the DATA is sitting in the FIFO and couldn't be transferred to the
-	 * DMA as the DMA size alignment (4 bytes) is not met. EORD will be
+	 * DMA as the DMA size alignment (4 bytes) is yest met. EORD will be
 	 * triggered when there is a pause of the incomming data stream for 4
 	 * characters long.
 	 *
-	 * For pauses in the data which is not aligned to 4 bytes, we get
+	 * For pauses in the data which is yest aligned to 4 bytes, we get
 	 * both the EORD as well as RX_TIMEOUT - SW sees RX_TIMEOUT first
 	 * then the EORD.
 	 */
@@ -1268,7 +1268,7 @@ static void tegra_uart_set_termios(struct uart_port *u,
 	max_divider *= 16;
 	spin_lock_irqsave(&u->lock, flags);
 
-	/* Changing configuration, it is safe to stop any rx now */
+	/* Changing configuration, it is safe to stop any rx yesw */
 	if (tup->rts_active)
 		set_rts(tup, false);
 
@@ -1369,12 +1369,12 @@ static void tegra_uart_set_termios(struct uart_port *u,
 	tegra_uart_write(tup, tup->ier_shadow, UART_IER);
 	tegra_uart_read(tup, UART_IER);
 
-	tup->uport.ignore_status_mask = 0;
-	/* Ignore all characters if CREAD is not set */
+	tup->uport.igyesre_status_mask = 0;
+	/* Igyesre all characters if CREAD is yest set */
 	if ((termios->c_cflag & CREAD) == 0)
-		tup->uport.ignore_status_mask |= UART_LSR_DR;
+		tup->uport.igyesre_status_mask |= UART_LSR_DR;
 	if (termios->c_iflag & IGNBRK)
-		tup->uport.ignore_status_mask |= UART_LSR_BI;
+		tup->uport.igyesre_status_mask |= UART_LSR_BI;
 
 	spin_unlock_irqrestore(&u->lock, flags);
 }
@@ -1413,7 +1413,7 @@ static struct uart_driver tegra_uart_driver = {
 static int tegra_uart_parse_dt(struct platform_device *pdev,
 	struct tegra_uart_port *tup)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int port;
 	int ret;
 	int index;
@@ -1423,7 +1423,7 @@ static int tegra_uart_parse_dt(struct platform_device *pdev,
 
 	port = of_alias_get_id(np, "serial");
 	if (port < 0) {
-		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", port);
+		dev_err(&pdev->dev, "failed to get alias id, erryes %d\n", port);
 		return port;
 	}
 	tup->uport.line = port;
@@ -1658,13 +1658,13 @@ static struct platform_driver tegra_uart_platform_driver = {
 static int __init tegra_uart_init(void)
 {
 	int ret;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	const struct of_device_id *match = NULL;
 	const struct tegra_uart_chip_data *cdata = NULL;
 
-	node = of_find_matching_node(NULL, tegra_uart_of_match);
-	if (node)
-		match = of_match_node(tegra_uart_of_match, node);
+	yesde = of_find_matching_yesde(NULL, tegra_uart_of_match);
+	if (yesde)
+		match = of_match_yesde(tegra_uart_of_match, yesde);
 	if (match)
 		cdata = match->data;
 	if (cdata)
@@ -1672,7 +1672,7 @@ static int __init tegra_uart_init(void)
 
 	ret = uart_register_driver(&tegra_uart_driver);
 	if (ret < 0) {
-		pr_err("Could not register %s driver\n",
+		pr_err("Could yest register %s driver\n",
 		       tegra_uart_driver.driver_name);
 		return ret;
 	}

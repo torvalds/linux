@@ -4,7 +4,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 #ifndef CONFIG_SMP
 /*
@@ -16,7 +16,7 @@
 /**
  * arch_futex_atomic_op_inuser() - Atomic arithmetic operation with constant
  *			  argument and comparison of the previous
- *			  futex value with another constant.
+ *			  futex value with ayesther constant.
  *
  * @encoded_op:	encoded operation to execute
  * @uaddr:	pointer to user space address
@@ -25,7 +25,7 @@
  * 0 - On success
  * -EFAULT - User access resulted in a page fault
  * -EAGAIN - Atomic operation was unable to complete due to contention
- * -ENOSYS - Operation not supported
+ * -ENOSYS - Operation yest supported
  */
 static inline int
 arch_futex_atomic_op_inuser(int op, u32 oparg, int *oval, u32 __user *uaddr)
@@ -89,7 +89,7 @@ out_pagefault_enable:
  * 0 - On success
  * -EFAULT - User access resulted in a page fault
  * -EAGAIN - Atomic operation was unable to complete due to contention
- * -ENOSYS - Function not implemented (only if !HAVE_FUTEX_CMPXCHG)
+ * -ENOSYS - Function yest implemented (only if !HAVE_FUTEX_CMPXCHG)
  */
 static inline int
 futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,

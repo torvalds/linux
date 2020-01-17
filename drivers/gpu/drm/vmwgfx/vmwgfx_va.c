@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -141,7 +141,7 @@ int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
  * vmw_user_stream_lookup - Look up a struct vmw_user_stream from a handle.
  * @dev_priv: Pointer to a struct vmw_private.
  * @tfile: struct ttm_object_file identifying the caller.
- * @inout_id: In: The user-space handle. Out: The stream id.
+ * @iyesut_id: In: The user-space handle. Out: The stream id.
  * @out: On output contains a refcounted pointer to the embedded
  * struct vmw_resource.
  *
@@ -151,17 +151,17 @@ int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
  */
 int vmw_user_stream_lookup(struct vmw_private *dev_priv,
 			   struct ttm_object_file *tfile,
-			   uint32_t *inout_id, struct vmw_resource **out)
+			   uint32_t *iyesut_id, struct vmw_resource **out)
 {
 	struct vmw_stream *stream;
 	struct vmw_resource *res =
-		vmw_simple_resource_lookup(tfile, *inout_id, &va_stream_func);
+		vmw_simple_resource_lookup(tfile, *iyesut_id, &va_stream_func);
 
 	if (IS_ERR(res))
 		return PTR_ERR(res);
 
 	stream = vmw_stream(res);
-	*inout_id = stream->stream_id;
+	*iyesut_id = stream->stream_id;
 	*out = res;
 
 	return 0;

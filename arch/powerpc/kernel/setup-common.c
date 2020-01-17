@@ -22,7 +22,7 @@
 #include <linux/console.h>
 #include <linux/screen_info.h>
 #include <linux/root_dev.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cpu.h>
 #include <linux/unistd.h>
 #include <linux/serial.h>
@@ -118,8 +118,8 @@ EXPORT_SYMBOL_GPL(of_i8042_aux_irq);
 
 #ifdef __DO_IRQ_CANON
 /* XXX should go elsewhere eventually */
-int ppc_do_canonicalize_irqs;
-EXPORT_SYMBOL(ppc_do_canonicalize_irqs);
+int ppc_do_cayesnicalize_irqs;
+EXPORT_SYMBOL(ppc_do_cayesnicalize_irqs);
 #endif
 
 #ifdef CONFIG_CRASH_CORE
@@ -193,7 +193,7 @@ DEFINE_PER_CPU(unsigned int, cpu_pvr);
 
 static void show_cpuinfo_summary(struct seq_file *m)
 {
-	struct device_node *root;
+	struct device_yesde *root;
 	const char *model = NULL;
 	unsigned long bogosum = 0;
 	int i;
@@ -207,12 +207,12 @@ static void show_cpuinfo_summary(struct seq_file *m)
 	seq_printf(m, "timebase\t: %lu\n", ppc_tb_freq);
 	if (ppc_md.name)
 		seq_printf(m, "platform\t: %s\n", ppc_md.name);
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (root)
 		model = of_get_property(root, "model", NULL);
 	if (model)
 		seq_printf(m, "model\t\t: %s\n", model);
-	of_node_put(root);
+	of_yesde_put(root);
 
 	if (ppc_md.show_cpuinfo != NULL)
 		ppc_md.show_cpuinfo(m);
@@ -245,7 +245,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cur_cpu_spec->pvr_mask && cur_cpu_spec->cpu_name)
 		seq_printf(m, "%s", cur_cpu_spec->cpu_name);
 	else
-		seq_printf(m, "unknown (%08x)", pvr);
+		seq_printf(m, "unkyeswn (%08x)", pvr);
 
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		seq_printf(m, ", altivec supported");
@@ -343,7 +343,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	if (*pos == 0)	/* just in case, cpu 0 is not the first */
+	if (*pos == 0)	/* just in case, cpu 0 is yest the first */
 		*pos = cpumask_first(cpu_online_mask);
 	else
 		*pos = cpumask_next(*pos - 1, cpu_online_mask);
@@ -376,7 +376,7 @@ void __init check_for_initrd(void)
 	    initrd_start, initrd_end);
 
 	/* If we were passed an initrd, set the ROOT_DEV properly if the values
-	 * look sensible. If not, clear initrd reference.
+	 * look sensible. If yest, clear initrd reference.
 	 */
 	if (is_kernel_addr(initrd_start) && is_kernel_addr(initrd_end) &&
 	    initrd_end > initrd_start)
@@ -433,7 +433,7 @@ u32 *cpu_to_phys_id = NULL;
  * Having the possible map set up early allows us to restrict allocations
  * of things like irqstacks to nr_cpu_ids rather than NR_CPUS.
  *
- * We do not initialize the online map here; cpus set their own bits in
+ * We do yest initialize the online map here; cpus set their own bits in
  * cpu_online_mask as they come up.
  *
  * This function is valid only for Open Firmware systems.  finish_device_tree
@@ -445,19 +445,19 @@ u32 *cpu_to_phys_id = NULL;
  */
 void __init smp_setup_cpu_maps(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int cpu = 0;
 	int nthreads = 1;
 
 	DBG("smp_setup_cpu_maps()\n");
 
 	cpu_to_phys_id = memblock_alloc(nr_cpu_ids * sizeof(u32),
-					__alignof__(u32));
+					__aligyesf__(u32));
 	if (!cpu_to_phys_id)
 		panic("%s: Failed to allocate %zu bytes align=0x%zx\n",
-		      __func__, nr_cpu_ids * sizeof(u32), __alignof__(u32));
+		      __func__, nr_cpu_ids * sizeof(u32), __aligyesf__(u32));
 
-	for_each_node_by_type(dn, "cpu") {
+	for_each_yesde_by_type(dn, "cpu") {
 		const __be32 *intserv;
 		__be32 cpu_be;
 		int j, len;
@@ -470,7 +470,7 @@ void __init smp_setup_cpu_maps(void)
 			DBG("    ibm,ppc-interrupt-server#s -> %d threads\n",
 			    nthreads);
 		} else {
-			DBG("    no ibm,ppc-interrupt-server#s -> 1 thread\n");
+			DBG("    yes ibm,ppc-interrupt-server#s -> 1 thread\n");
 			intserv = of_get_property(dn, "reg", &len);
 			if (!intserv) {
 				cpu_be = cpu_to_be32(cpu);
@@ -500,12 +500,12 @@ void __init smp_setup_cpu_maps(void)
 		}
 
 		if (cpu >= nr_cpu_ids) {
-			of_node_put(dn);
+			of_yesde_put(dn);
 			break;
 		}
 	}
 
-	/* If no SMT supported, nthreads is forced to 1 */
+	/* If yes SMT supported, nthreads is forced to 1 */
 	if (!cpu_has_feature(CPU_FTR_SMT)) {
 		DBG("  SMT disabled ! nthreads forced to 1\n");
 		nthreads = 1;
@@ -513,11 +513,11 @@ void __init smp_setup_cpu_maps(void)
 
 #ifdef CONFIG_PPC64
 	/*
-	 * On pSeries LPAR, we need to know how many cpus
+	 * On pSeries LPAR, we need to kyesw how many cpus
 	 * could possibly be added to this partition.
 	 */
 	if (firmware_has_feature(FW_FEATURE_LPAR) &&
-	    (dn = of_find_node_by_path("/rtas"))) {
+	    (dn = of_find_yesde_by_path("/rtas"))) {
 		int num_addr_cell, num_size_cell, maxcpus;
 		const __be32 *ireg;
 
@@ -548,7 +548,7 @@ void __init smp_setup_cpu_maps(void)
 		for (cpu = 0; cpu < maxcpus; cpu++)
 			set_cpu_possible(cpu, true);
 	out:
-		of_node_put(dn);
+		of_yesde_put(dn);
 	}
 	vdso_data->processorCount = num_present_cpus();
 #endif /* CONFIG_PPC64 */
@@ -556,7 +556,7 @@ void __init smp_setup_cpu_maps(void)
         /* Initialize CPU <=> thread mapping/
 	 *
 	 * WARNING: We assume that the number of threads is the same for
-	 * every CPU in the system. If that is not the case, then some code
+	 * every CPU in the system. If that is yest the case, then some code
 	 * here will have to be reworked
 	 */
 	cpu_init_thread_core_maps(nthreads);
@@ -571,12 +571,12 @@ void __init smp_setup_cpu_maps(void)
 #ifdef CONFIG_PCSPKR_PLATFORM
 static __init int add_pcspkr(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct platform_device *pd;
 	int ret;
 
-	np = of_find_compatible_node(NULL, NULL, "pnpPNP,100");
-	of_node_put(np);
+	np = of_find_compatible_yesde(NULL, NULL, "pnpPNP,100");
+	of_yesde_put(np);
 	if (!np)
 		return -ENODEV;
 
@@ -606,12 +606,12 @@ void probe_machine(void)
 	DBG("Probing machine type ...\n");
 
 	/*
-	 * Check ppc_md is empty, if not we have a bug, ie, we setup an
+	 * Check ppc_md is empty, if yest we have a bug, ie, we setup an
 	 * entry before probe_machine() which will be overwritten
 	 */
 	for (i = 0; i < (sizeof(ppc_md) / sizeof(void *)); i++) {
 		if (((void **)&ppc_md)[i]) {
-			printk(KERN_ERR "Entry %d in ppc_md non empty before"
+			printk(KERN_ERR "Entry %d in ppc_md yesn empty before"
 			       " machine probe !\n", i);
 		}
 	}
@@ -636,16 +636,16 @@ void probe_machine(void)
 	printk(KERN_INFO "Using %s machine description\n", ppc_md.name);
 }
 
-/* Match a class of boards, not a specific device configuration. */
+/* Match a class of boards, yest a specific device configuration. */
 int check_legacy_ioport(unsigned long base_port)
 {
-	struct device_node *parent, *np = NULL;
+	struct device_yesde *parent, *np = NULL;
 	int ret = -ENODEV;
 
 	switch(base_port) {
 	case I8042_DATA_REG:
-		if (!(np = of_find_compatible_node(NULL, NULL, "pnpPNP,303")))
-			np = of_find_compatible_node(NULL, NULL, "pnpPNP,f03");
+		if (!(np = of_find_compatible_yesde(NULL, NULL, "pnpPNP,303")))
+			np = of_find_compatible_yesde(NULL, NULL, "pnpPNP,f03");
 		if (np) {
 			parent = of_get_parent(np);
 
@@ -657,22 +657,22 @@ int check_legacy_ioport(unsigned long base_port)
 			if (!of_i8042_aux_irq)
 				of_i8042_aux_irq = 12;
 
-			of_node_put(np);
+			of_yesde_put(np);
 			np = parent;
 			break;
 		}
-		np = of_find_node_by_type(NULL, "8042");
-		/* Pegasos has no device_type on its 8042 node, look for the
+		np = of_find_yesde_by_type(NULL, "8042");
+		/* Pegasos has yes device_type on its 8042 yesde, look for the
 		 * name instead */
 		if (!np)
-			np = of_find_node_by_name(NULL, "8042");
+			np = of_find_yesde_by_name(NULL, "8042");
 		if (np) {
 			of_i8042_kbd_irq = 1;
 			of_i8042_aux_irq = 12;
 		}
 		break;
 	case FDC_BASE: /* FDC1 */
-		np = of_find_node_by_type(NULL, "fdc");
+		np = of_find_yesde_by_type(NULL, "fdc");
 		break;
 	default:
 		/* ipmi is supposed to fail here */
@@ -682,16 +682,16 @@ int check_legacy_ioport(unsigned long base_port)
 		return ret;
 	parent = of_get_parent(np);
 	if (parent) {
-		if (of_node_is_type(parent, "isa"))
+		if (of_yesde_is_type(parent, "isa"))
 			ret = 0;
-		of_node_put(parent);
+		of_yesde_put(parent);
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 	return ret;
 }
 EXPORT_SYMBOL(check_legacy_ioport);
 
-static int ppc_panic_event(struct notifier_block *this,
+static int ppc_panic_event(struct yestifier_block *this,
                              unsigned long event, void *ptr)
 {
 	/*
@@ -706,19 +706,19 @@ static int ppc_panic_event(struct notifier_block *this,
 	 */
 	crash_fadump(NULL, ptr);
 	if (ppc_md.panic)
-		ppc_md.panic(ptr);  /* May not return */
+		ppc_md.panic(ptr);  /* May yest return */
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block ppc_panic_block = {
-	.notifier_call = ppc_panic_event,
-	.priority = INT_MIN /* may not return; must be done last */
+static struct yestifier_block ppc_panic_block = {
+	.yestifier_call = ppc_panic_event,
+	.priority = INT_MIN /* may yest return; must be done last */
 };
 
 /*
  * Dump out kernel offset information on panic.
  */
-static int dump_kernel_offset(struct notifier_block *self, unsigned long v,
+static int dump_kernel_offset(struct yestifier_block *self, unsigned long v,
 			      void *p)
 {
 	pr_emerg("Kernel Offset: 0x%lx from 0x%lx\n",
@@ -727,20 +727,20 @@ static int dump_kernel_offset(struct notifier_block *self, unsigned long v,
 	return 0;
 }
 
-static struct notifier_block kernel_offset_notifier = {
-	.notifier_call = dump_kernel_offset
+static struct yestifier_block kernel_offset_yestifier = {
+	.yestifier_call = dump_kernel_offset
 };
 
 void __init setup_panic(void)
 {
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && kaslr_offset() > 0)
-		atomic_notifier_chain_register(&panic_notifier_list,
-					       &kernel_offset_notifier);
+		atomic_yestifier_chain_register(&panic_yestifier_list,
+					       &kernel_offset_yestifier);
 
 	/* PPC64 always does a hard irq disable in its panic handler */
 	if (!IS_ENABLED(CONFIG_PPC64) && !ppc_md.panic)
 		return;
-	atomic_notifier_chain_register(&panic_notifier_list, &ppc_panic_block);
+	atomic_yestifier_chain_register(&panic_yestifier_list, &ppc_panic_block);
 }
 
 #ifdef CONFIG_CHECK_CACHE_COHERENCY
@@ -756,13 +756,13 @@ void __init setup_panic(void)
 
 static int __init check_cache_coherency(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const void *prop;
 	bool devtree_coherency;
 
-	np = of_find_node_by_path("/");
+	np = of_find_yesde_by_path("/");
 	prop = of_get_property(np, "coherency-off", NULL);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	devtree_coherency = prop ? false : true;
 
@@ -884,7 +884,7 @@ void __init setup_arch(char **cmdline_p)
 	/* Probe the machine type, establish ppc_md. */
 	probe_machine();
 
-	/* Setup panic notifier if requested by the platform. */
+	/* Setup panic yestifier if requested by the platform. */
 	setup_panic();
 
 	/*
@@ -912,11 +912,11 @@ void __init setup_arch(char **cmdline_p)
 	mem_topology_setup();
 
 	/*
-	 * Release secondary cpus out of their spinloops at 0x60 now that
+	 * Release secondary cpus out of their spinloops at 0x60 yesw that
 	 * we can map physical -> logical CPU ids.
 	 *
 	 * Freescale Book3e parts spin in a loop provided by firmware,
-	 * so smp_release_cpus() does nothing for them.
+	 * so smp_release_cpus() does yesthing for them.
 	 */
 #ifdef CONFIG_SMP
 	smp_setup_pacas();
@@ -955,7 +955,7 @@ void __init setup_arch(char **cmdline_p)
 	if (ppc_md.setup_arch)
 		ppc_md.setup_arch();
 
-	setup_barrier_nospec();
+	setup_barrier_yesspec();
 	setup_spectre_v2();
 
 	paging_init();
@@ -965,6 +965,6 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Interrupt code needs to be 64K-aligned. */
 	if (IS_ENABLED(CONFIG_PPC64) && (unsigned long)_stext & 0xffff)
-		panic("Kernelbase not 64K-aligned (0x%lx)!\n",
+		panic("Kernelbase yest 64K-aligned (0x%lx)!\n",
 		      (unsigned long)_stext);
 }

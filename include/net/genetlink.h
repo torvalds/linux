@@ -38,7 +38,7 @@ struct genl_info;
  * @mcast_bind: a socket bound to the given multicast group (which
  *	is given as the offset into the groups array)
  * @mcast_unbind: a socket was unbound from the given multicast group.
- *	Note that unbind() will not be called symmetrically if the
+ *	Note that unbind() will yest be called symmetrically if the
  *	generic netlink family is removed while there are still open
  *	sockets.
  * @attrbuf: buffer to store parsed attributes (private)
@@ -168,7 +168,7 @@ struct genl_ops {
 
 int genl_register_family(struct genl_family *family);
 int genl_unregister_family(const struct genl_family *family);
-void genl_notify(const struct genl_family *family, struct sk_buff *skb,
+void genl_yestify(const struct genl_family *family, struct sk_buff *skb,
 		 struct genl_info *info, u32 group, gfp_t flags);
 
 void *genlmsg_put(struct sk_buff *skb, u32 portid, u32 seq,
@@ -226,7 +226,7 @@ static inline int genlmsg_parse(const struct nlmsghdr *nlh,
 }
 
 /**
- * genl_dump_check_consistent - check if sequence is consistent and advertise if not
+ * genl_dump_check_consistent - check if sequence is consistent and advertise if yest
  * @cb: netlink callback structure that stores the sequence number
  * @user_hdr: user header as returned from genlmsg_put()
  *
@@ -369,7 +369,7 @@ static inline int genlmsg_len(const struct genlmsghdr *gnlh)
 }
 
 /**
- * genlmsg_msg_size - length of genetlink message not including padding
+ * genlmsg_msg_size - length of genetlink message yest including padding
  * @payload: length of message payload
  */
 static inline int genlmsg_msg_size(int payload)
@@ -401,7 +401,7 @@ static inline struct sk_buff *genlmsg_new(size_t payload, gfp_t flags)
  * @family: the generic netlink family
  * @net: the network namespace to report the error to
  * @portid: the PORTID of a process that we want to skip (if any)
- * @group: the broadcast group that will notice the error
+ * @group: the broadcast group that will yestice the error
  * 	(this is the offset of the multicast group in the groups array)
  * @code: error code, must be negative (as usual in kernelspace)
  *

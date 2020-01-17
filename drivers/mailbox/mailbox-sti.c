@@ -110,7 +110,7 @@ struct mbox_chan *sti_mbox_to_channel(struct mbox_controller *mbox,
 	}
 
 	dev_err(mbox->dev,
-		"Channel not registered: instance: %d channel: %d\n",
+		"Channel yest registered: instance: %d channel: %d\n",
 		instance, channel);
 
 	return NULL;
@@ -232,7 +232,7 @@ static irqreturn_t sti_mbox_irq_handler(int irq, void *data)
 				 mdev->name, chan_info->instance,
 				 chan_info->channel, mdev->enabled[instance]);
 
-			/* Only handle IRQ if no other valid IRQs were found */
+			/* Only handle IRQ if yes other valid IRQs were found */
 			if (ret == IRQ_NONE)
 				ret = IRQ_HANDLED;
 			continue;
@@ -263,7 +263,7 @@ static bool sti_mbox_tx_is_ready(struct mbox_chan *chan)
 	}
 
 	if (readl_relaxed(base + STI_IRQ_VAL_OFFSET) & BIT(channel)) {
-		dev_dbg(mdev->dev, "Mbox: %s: inst: %d, chan: %d not ready\n",
+		dev_dbg(mdev->dev, "Mbox: %s: inst: %d, chan: %d yest ready\n",
 			mdev->name, instance, channel);
 		return false;
 	}
@@ -308,7 +308,7 @@ static void sti_mbox_shutdown_chan(struct mbox_chan *chan)
 			break;
 
 	if (mbox->num_chans == i) {
-		dev_warn(mbox->dev, "Request to free non-existent channel\n");
+		dev_warn(mbox->dev, "Request to free yesn-existent channel\n");
 		return;
 	}
 
@@ -406,7 +406,7 @@ static int sti_mbox_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct mbox_controller *mbox;
 	struct sti_mbox_device *mdev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct mbox_chan *chans;
 	struct resource *res;
 	int irq;
@@ -448,7 +448,7 @@ static int sti_mbox_probe(struct platform_device *pdev)
 
 	spin_lock_init(&mdev->lock);
 
-	/* STi Mailbox does not have a Tx-Done or Tx-Ready IRQ */
+	/* STi Mailbox does yest have a Tx-Done or Tx-Ready IRQ */
 	mbox->txdone_irq	= false;
 	mbox->txdone_poll	= true;
 	mbox->txpoll_period	= 100;
@@ -462,7 +462,7 @@ static int sti_mbox_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* It's okay for Tx Mailboxes to not supply IRQs */
+	/* It's okay for Tx Mailboxes to yest supply IRQs */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_info(&pdev->dev,

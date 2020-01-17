@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
-# When ARCH not overridden for crosscompiling, lookup machine
-ARCH ?= $(shell uname -m 2>/dev/null || echo not)
+# When ARCH yest overridden for crosscompiling, lookup machine
+ARCH ?= $(shell uname -m 2>/dev/null || echo yest)
 
 ifneq (,$(filter $(ARCH),aarch64 arm64))
 ARM64_SUBTARGETS ?= tags signal
@@ -50,7 +50,7 @@ run_tests: all
 		make OUTPUT=$$BUILD_TARGET -C $$DIR $@;		\
 	done
 
-# Avoid any output on non arm64 on emit_tests
+# Avoid any output on yesn arm64 on emit_tests
 emit_tests: all
 	@for DIR in $(ARM64_SUBTARGETS); do				\
 		BUILD_TARGET=$(OUTPUT)/$$DIR;			\

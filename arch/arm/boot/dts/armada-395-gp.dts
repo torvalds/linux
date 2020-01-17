@@ -64,7 +64,7 @@
 				wp-inverted;
 				bus-width = <8>;
 				status = "okay";
-				no-1-8-v;
+				yes-1-8-v;
 			};
 
 			/* CON4 */

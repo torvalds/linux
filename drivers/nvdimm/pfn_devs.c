@@ -46,7 +46,7 @@ static ssize_t mode_show(struct device *dev,
 	case PFN_MODE_PMEM:
 		return sprintf(buf, "pmem\n");
 	default:
-		return sprintf(buf, "none\n");
+		return sprintf(buf, "yesne\n");
 	}
 }
 
@@ -69,8 +69,8 @@ static ssize_t mode_store(struct device *dev,
 		} else if (strncmp(buf, "ram\n", n) == 0
 				|| strncmp(buf, "ram", n) == 0)
 			nd_pfn->mode = PFN_MODE_RAM;
-		else if (strncmp(buf, "none\n", n) == 0
-				|| strncmp(buf, "none", n) == 0)
+		else if (strncmp(buf, "yesne\n", n) == 0
+				|| strncmp(buf, "yesne", n) == 0)
 			nd_pfn->mode = PFN_MODE_NONE;
 		else
 			rc = -EINVAL;
@@ -211,7 +211,7 @@ static ssize_t resource_show(struct device *dev,
 		rc = sprintf(buf, "%#llx\n", (unsigned long long) nsio->res.start
 				+ start_pad + offset);
 	} else {
-		/* no address to convey if the pfn instance is disabled */
+		/* yes address to convey if the pfn instance is disabled */
 		rc = -ENXIO;
 	}
 	nd_device_unlock(dev);
@@ -239,7 +239,7 @@ static ssize_t size_show(struct device *dev,
 				resource_size(&nsio->res) - start_pad
 				- end_trunc - offset);
 	} else {
-		/* no size to convey if the pfn instance is disabled */
+		/* yes size to convey if the pfn instance is disabled */
 		rc = -ENXIO;
 	}
 	nd_device_unlock(dev);
@@ -354,7 +354,7 @@ struct device *nd_pfn_create(struct nd_region *nd_region)
 /*
  * nd_pfn_clear_memmap_errors() clears any errors in the volatile memmap
  * space associated with the namespace. If the memmap is set to DRAM, then
- * this is a no-op. Since the memmap area is freshly initialized during
+ * this is a yes-op. Since the memmap area is freshly initialized during
  * probe, we have an opportunity to clear any badblocks in this area.
  */
 static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
@@ -474,15 +474,15 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 	if (memcmp(pfn_sb->parent_uuid, parent_uuid, 16) != 0)
 		return -ENODEV;
 
-	if (__le16_to_cpu(pfn_sb->version_minor) < 1) {
+	if (__le16_to_cpu(pfn_sb->version_miyesr) < 1) {
 		pfn_sb->start_pad = 0;
 		pfn_sb->end_trunc = 0;
 	}
 
-	if (__le16_to_cpu(pfn_sb->version_minor) < 2)
+	if (__le16_to_cpu(pfn_sb->version_miyesr) < 2)
 		pfn_sb->align = 0;
 
-	if (__le16_to_cpu(pfn_sb->version_minor) < 4) {
+	if (__le16_to_cpu(pfn_sb->version_miyesr) < 4) {
 		pfn_sb->page_struct_size = cpu_to_le16(64);
 		pfn_sb->page_size = cpu_to_le32(PAGE_SIZE);
 	}
@@ -520,7 +520,7 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
 
 	/*
 	 * Check whether the we support the alignment. For Dax if the
-	 * superblock alignment is not matching, we won't initialize
+	 * superblock alignment is yest matching, we won't initialize
 	 * the device.
 	 */
 	if (!nd_supported_alignment(align) &&
@@ -625,7 +625,7 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 	nd_pfn = to_nd_pfn(pfn_dev);
 	nd_pfn->pfn_sb = pfn_sb;
 	rc = nd_pfn_validate(nd_pfn, PFN_SIG);
-	dev_dbg(dev, "pfn: %s\n", rc == 0 ? dev_name(pfn_dev) : "<none>");
+	dev_dbg(dev, "pfn: %s\n", rc == 0 ? dev_name(pfn_dev) : "<yesne>");
 	if (rc < 0) {
 		nd_detach_ndns(pfn_dev, &nd_pfn->ndns);
 		put_device(pfn_dev);
@@ -730,7 +730,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	if (rc != -ENODEV)
 		return rc;
 
-	/* no info block, do init */;
+	/* yes info block, do init */;
 	memset(pfn_sb, 0, sizeof(*pfn_sb));
 
 	nd_region = to_nd_region(nd_pfn->dev.parent);
@@ -759,9 +759,9 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 		 * PMD_SIZE for most architectures.
 		 *
 		 * Also make sure size of struct page is less than 64. We
-		 * want to make sure we use large enough size here so that
+		 * want to make sure we use large eyesugh size here so that
 		 * we don't have a dynamic reserve space depending on
-		 * struct page size. But we also want to make sure we notice
+		 * struct page size. But we also want to make sure we yestice
 		 * when we end up adding new elements to struct page.
 		 */
 		BUILD_BUG_ON(sizeof(struct page) > MAX_STRUCT_PAGE_SIZE);
@@ -786,7 +786,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
 	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
 	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
 	pfn_sb->version_major = cpu_to_le16(1);
-	pfn_sb->version_minor = cpu_to_le16(4);
+	pfn_sb->version_miyesr = cpu_to_le16(4);
 	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
 	pfn_sb->align = cpu_to_le32(nd_pfn->align);
 	pfn_sb->page_struct_size = cpu_to_le16(MAX_STRUCT_PAGE_SIZE);

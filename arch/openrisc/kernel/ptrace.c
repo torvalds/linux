@@ -8,7 +8,7 @@
  *
  * Modifications for the OpenRISC architecture:
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
- * Copyright (C) 2005 Gyorgy Jeney <nog@bsemi.com>
+ * Copyright (C) 2005 Gyorgy Jeney <yesg@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  */
 
@@ -18,7 +18,7 @@
 #include <linux/string.h>
 
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/audit.h>
 #include <linux/regset.h>
@@ -81,8 +81,8 @@ static int genregs_set(struct task_struct *target,
 	struct pt_regs *regs = task_pt_regs(target);
 	int ret;
 
-	/* ignore r0 */
-	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, 4);
+	/* igyesre r0 */
+	ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf, 0, 4);
 	/* r1 - r31 */
 	if (!ret)
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
@@ -96,7 +96,7 @@ static int genregs_set(struct task_struct *target,
 	 * the Supervision register
 	 */
 	if (!ret)
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 						4*33, -1);
 
 	return ret;
@@ -111,7 +111,7 @@ enum or1k_regset {
 
 static const struct user_regset or1k_regsets[] = {
 	[REGSET_GENERAL] = {
-			    .core_note_type = NT_PRSTATUS,
+			    .core_yeste_type = NT_PRSTATUS,
 			    .n = ELF_NGREG,
 			    .size = sizeof(long),
 			    .align = sizeof(long),
@@ -133,7 +133,7 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 }
 
 /*
- * does not yet catch signals sent when the child dies.
+ * does yest yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
@@ -141,7 +141,7 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure the single step bit is not set.
+ * Make sure the single step bit is yest set.
  */
 void ptrace_disable(struct task_struct *child)
 {
@@ -176,7 +176,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(regs))
 		/*
-		 * Tracing decided this syscall should not happen.
+		 * Tracing decided this syscall should yest happen.
 		 * We'll return a bogus call number to get an ENOSYS
 		 * error, but leave the original number in <something>.
 		 */

@@ -122,7 +122,7 @@ static int ipmi_powernv_recv(struct ipmi_smi_powernv *smi)
 
 	if (!smi->cur_msg) {
 		spin_unlock_irqrestore(&smi->msg_lock, flags);
-		pr_warn("no current message?\n");
+		pr_warn("yes current message?\n");
 		return 0;
 	}
 
@@ -138,7 +138,7 @@ static int ipmi_powernv_recv(struct ipmi_smi_powernv *smi)
 	pr_devel("%s:   -> %d (size %lld)\n", __func__,
 			rc, rc == 0 ? size : 0);
 	if (rc) {
-		/* If came via the poll, and response was not yet ready */
+		/* If came via the poll, and response was yest yet ready */
 		if (rc == OPAL_EMPTY) {
 			spin_unlock_irqrestore(&smi->msg_lock, flags);
 			return 0;
@@ -215,7 +215,7 @@ static int ipmi_powernv_probe(struct platform_device *pdev)
 	u32 prop;
 	int rc;
 
-	if (!pdev || !pdev->dev.of_node)
+	if (!pdev || !pdev->dev.of_yesde)
 		return -ENODEV;
 
 	dev = &pdev->dev;
@@ -226,7 +226,7 @@ static int ipmi_powernv_probe(struct platform_device *pdev)
 
 	spin_lock_init(&ipmi->msg_lock);
 
-	rc = of_property_read_u32(dev->of_node, "ibm,ipmi-interface-id",
+	rc = of_property_read_u32(dev->of_yesde, "ibm,ipmi-interface-id",
 			&prop);
 	if (rc) {
 		dev_warn(dev, "No interface ID property\n");
@@ -234,13 +234,13 @@ static int ipmi_powernv_probe(struct platform_device *pdev)
 	}
 	ipmi->interface_id = prop;
 
-	rc = of_property_read_u32(dev->of_node, "interrupts", &prop);
+	rc = of_property_read_u32(dev->of_yesde, "interrupts", &prop);
 	if (rc) {
 		dev_warn(dev, "No interrupts property\n");
 		goto err_free;
 	}
 
-	ipmi->irq = irq_of_parse_and_map(dev->of_node, 0);
+	ipmi->irq = irq_of_parse_and_map(dev->of_yesde, 0);
 	if (!ipmi->irq) {
 		dev_info(dev, "Unable to map irq from device tree\n");
 		ipmi->irq = opal_event_request(prop);

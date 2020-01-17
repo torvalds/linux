@@ -276,7 +276,7 @@ static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs)
 		struct rx_sa rsa;
 
 		if (xs->calg) {
-			netdev_err(dev, "Compression offload not supported\n");
+			netdev_err(dev, "Compression offload yest supported\n");
 			return -EINVAL;
 		}
 
@@ -419,11 +419,11 @@ static void ixgbevf_ipsec_del_sa(struct xfrm_state *xs)
 static bool ixgbevf_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *xs)
 {
 	if (xs->props.family == AF_INET) {
-		/* Offload with IPv4 options is not supported yet */
+		/* Offload with IPv4 options is yest supported yet */
 		if (ip_hdr(skb)->ihl != 5)
 			return false;
 	} else {
-		/* Offload with IPv6 extension headers is not support yet */
+		/* Offload with IPv6 extension headers is yest support yet */
 		if (ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr))
 			return false;
 	}
@@ -456,14 +456,14 @@ int ixgbevf_ipsec_tx(struct ixgbevf_ring *tx_ring,
 
 	sp = skb_sec_path(first->skb);
 	if (unlikely(!sp->len)) {
-		netdev_err(tx_ring->netdev, "%s: no xfrm state len = %d\n",
+		netdev_err(tx_ring->netdev, "%s: yes xfrm state len = %d\n",
 			   __func__, sp->len);
 		return 0;
 	}
 
 	xs = xfrm_input_state(first->skb);
 	if (unlikely(!xs)) {
-		netdev_err(tx_ring->netdev, "%s: no xfrm_input_state() xs = %p\n",
+		netdev_err(tx_ring->netdev, "%s: yes xfrm_input_state() xs = %p\n",
 			   __func__, xs);
 		return 0;
 	}
@@ -494,7 +494,7 @@ int ixgbevf_ipsec_tx(struct ixgbevf_ring *tx_ring,
 
 		/* The actual trailer length is authlen (16 bytes) plus
 		 * 2 bytes for the proto and the padlen values, plus
-		 * padlen bytes of padding.  This ends up not the same
+		 * padlen bytes of padding.  This ends up yest the same
 		 * as the static value found in xs->props.trailer_len (21).
 		 *
 		 * ... but if we're doing GSO, don't bother as the stack
@@ -504,7 +504,7 @@ int ixgbevf_ipsec_tx(struct ixgbevf_ring *tx_ring,
 			/* The "correct" way to get the auth length would be
 			 * to use
 			 *    authlen = crypto_aead_authsize(xs->data);
-			 * but since we know we only have one size to worry
+			 * but since we kyesw we only have one size to worry
 			 * about * we can let the compiler use the constant
 			 * and save us a few CPU cycles.
 			 */
@@ -532,7 +532,7 @@ int ixgbevf_ipsec_tx(struct ixgbevf_ring *tx_ring,
  * @rx_desc: receive data descriptor
  * @skb: current data packet
  *
- * Determine if there was an IPsec encapsulation noticed, and if so set up
+ * Determine if there was an IPsec encapsulation yesticed, and if so set up
  * the resulting status for later in the receive stack.
  **/
 void ixgbevf_ipsec_rx(struct ixgbevf_ring *rx_ring,
@@ -555,7 +555,7 @@ void ixgbevf_ipsec_rx(struct ixgbevf_ring *rx_ring,
 	u8 proto;
 
 	/* Find the IP and crypto headers in the data.
-	 * We can assume no VLAN header in the way, b/c the
+	 * We can assume yes VLAN header in the way, b/c the
 	 * hw won't recognize the IPsec packet and anyway the
 	 * currently VLAN device doesn't support xfrm offload.
 	 */

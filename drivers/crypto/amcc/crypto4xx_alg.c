@@ -85,7 +85,7 @@ static inline int crypto4xx_crypt(struct skcipher_request *req,
 		ctx->sa_len, 0, NULL);
 }
 
-int crypto4xx_encrypt_noiv_block(struct skcipher_request *req)
+int crypto4xx_encrypt_yesiv_block(struct skcipher_request *req)
 {
 	return crypto4xx_crypt(req, 0, false, true);
 }
@@ -95,7 +95,7 @@ int crypto4xx_encrypt_iv_stream(struct skcipher_request *req)
 	return crypto4xx_crypt(req, AES_IV_SIZE, false, false);
 }
 
-int crypto4xx_decrypt_noiv_block(struct skcipher_request *req)
+int crypto4xx_decrypt_yesiv_block(struct skcipher_request *req)
 {
 	return crypto4xx_crypt(req, 0, true, true);
 }
@@ -216,7 +216,7 @@ int crypto4xx_setkey_rfc3686(struct crypto_skcipher *cipher,
 	if (rc)
 		return rc;
 
-	ctx->iv_nonce = cpu_to_le32p((u32 *)&key[keylen -
+	ctx->iv_yesnce = cpu_to_le32p((u32 *)&key[keylen -
 						 CTR_RFC3686_NONCE_SIZE]);
 
 	return 0;
@@ -227,7 +227,7 @@ int crypto4xx_rfc3686_encrypt(struct skcipher_request *req)
 	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
 	struct crypto4xx_ctx *ctx = crypto_skcipher_ctx(cipher);
 	__le32 iv[AES_IV_SIZE / 4] = {
-		ctx->iv_nonce,
+		ctx->iv_yesnce,
 		cpu_to_le32p((u32 *) req->iv),
 		cpu_to_le32p((u32 *) (req->iv + 4)),
 		cpu_to_le32(1) };
@@ -242,7 +242,7 @@ int crypto4xx_rfc3686_decrypt(struct skcipher_request *req)
 	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
 	struct crypto4xx_ctx *ctx = crypto_skcipher_ctx(cipher);
 	__le32 iv[AES_IV_SIZE / 4] = {
-		ctx->iv_nonce,
+		ctx->iv_yesnce,
 		cpu_to_le32p((u32 *) req->iv),
 		cpu_to_le32p((u32 *) (req->iv + 4)),
 		cpu_to_le32(1) };
@@ -342,7 +342,7 @@ static inline bool crypto4xx_aead_need_fallback(struct aead_request *req,
 		return true;
 
 	/*
-	 * hardware does not handle cases where plaintext
+	 * hardware does yest handle cases where plaintext
 	 * is less than a block.
 	 */
 	if (len < AES_BLOCK_SIZE)

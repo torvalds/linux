@@ -7,14 +7,14 @@ Supported chips:
 
     Prefix: 'pcf8591'
 
-    Addresses scanned: none
+    Addresses scanned: yesne
 
     Datasheet: Publicly available at the NXP website
 
 	       http://www.nxp.com/pip/PCF8591_6.html
 
 Authors:
-      - Aurelien Jarno <aurelien@aurel32.net>
+      - Aurelien Jaryes <aurelien@aurel32.net>
       - valuable contributions by Jan M. Sendler <sendler@sendler.de>,
       - Jean Delvare <jdelvare@suse.de>
 
@@ -23,7 +23,7 @@ Description
 -----------
 
 The PCF8591 is an 8-bit A/D and D/A converter (4 analog inputs and one
-analog output) for the I2C bus produced by Philips Semiconductors (now NXP).
+analog output) for the I2C bus produced by Philips Semiconductors (yesw NXP).
 It is designed to provide a byte I2C interface to up to 4 separate devices.
 
 The PCF8591 has 4 analog inputs programmable as single-ended or
@@ -85,7 +85,7 @@ Name contains chip name.
 
 The in0_input, in1_input, in2_input and in3_input files are RO. Reading gives
 the value of the corresponding channel. Depending on the current analog inputs
-configuration, files in2_input and in3_input may not exist. Values range
+configuration, files in2_input and in3_input may yest exist. Values range
 from 0 to 255 for single ended inputs and -128 to +127 for differential inputs
 (8-bit ADC).
 

@@ -12,7 +12,7 @@
  */
 
 /*
- * I don't know of any alpha bugs yet.. Nice chip
+ * I don't kyesw of any alpha bugs yet.. Nice chip
  */
 
 static void check_bugs(void)

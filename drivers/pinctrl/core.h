@@ -18,7 +18,7 @@ struct pinctrl_gpio_range;
 
 /**
  * struct pinctrl_dev - pin control class device
- * @node: node to include this pin controller in the global pin controller list
+ * @yesde: yesde to include this pin controller in the global pin controller list
  * @desc: the pin controller descriptor supplied when initializing this pin
  *	controller
  * @pin_desc_tree: each pin descriptor for this pin controller is stored in
@@ -40,7 +40,7 @@ struct pinctrl_gpio_range;
  * @device_root: debugfs root for this device
  */
 struct pinctrl_dev {
-	struct list_head node;
+	struct list_head yesde;
 	struct pinctrl_desc *desc;
 	struct radix_tree_root pin_desc_tree;
 #ifdef CONFIG_GENERIC_PINCTRL_GROUPS
@@ -66,7 +66,7 @@ struct pinctrl_dev {
 
 /**
  * struct pinctrl - per-device pin control state holder
- * @node: global list node
+ * @yesde: global list yesde
  * @dev: the device using this pin control handle
  * @states: a list of states for this device
  * @state: the current state
@@ -75,7 +75,7 @@ struct pinctrl_dev {
  * @users: reference count
  */
 struct pinctrl {
-	struct list_head node;
+	struct list_head yesde;
 	struct device *dev;
 	struct list_head states;
 	struct pinctrl_state *state;
@@ -85,12 +85,12 @@ struct pinctrl {
 
 /**
  * struct pinctrl_state - a pinctrl state for a device
- * @node: list node for struct pinctrl's @states field
+ * @yesde: list yesde for struct pinctrl's @states field
  * @name: the name of this state
  * @settings: a list of settings for this state
  */
 struct pinctrl_state {
-	struct list_head node;
+	struct list_head yesde;
 	const char *name;
 	struct list_head settings;
 };
@@ -121,7 +121,7 @@ struct pinctrl_setting_configs {
 
 /**
  * struct pinctrl_setting - an individual mux or config setting
- * @node: list node for struct pinctrl_settings's @settings field
+ * @yesde: list yesde for struct pinctrl_settings's @settings field
  * @type: the type of setting
  * @pctldev: pin control device handling to be programmed. Not used for
  *   PIN_MAP_TYPE_DUMMY_STATE.
@@ -129,7 +129,7 @@ struct pinctrl_setting_configs {
  * @data: Data specific to the setting type
  */
 struct pinctrl_setting {
-	struct list_head node;
+	struct list_head yesde;
 	enum pinctrl_map_type type;
 	struct pinctrl_dev *pctldev;
 	const char *dev_name;
@@ -145,9 +145,9 @@ struct pinctrl_setting {
  * @name: a name for the pin, e.g. the name of the pin/pad/finger on a
  *	datasheet or such
  * @dynamic_name: if the name of this pin was dynamically allocated
- * @drv_data: driver-defined per-pin data. pinctrl core does not touch this
- * @mux_usecount: If zero, the pin is not claimed, and @owner should be NULL.
- *	If non-zero, this pin is claimed by @owner. This field is an integer
+ * @drv_data: driver-defined per-pin data. pinctrl core does yest touch this
+ * @mux_usecount: If zero, the pin is yest claimed, and @owner should be NULL.
+ *	If yesn-zero, this pin is claimed by @owner. This field is an integer
  *	rather than a boolean, since pinctrl_get() might process multiple
  *	mapping table entries that refer to, and hence claim, the same group
  *	or pin, and each of these will increment the @usecount.
@@ -172,12 +172,12 @@ struct pin_desc {
 
 /**
  * struct pinctrl_maps - a list item containing part of the mapping table
- * @node: mapping table list node
+ * @yesde: mapping table list yesde
  * @maps: array of mapping table entries
  * @num_maps: the number of entries in @maps
  */
 struct pinctrl_maps {
-	struct list_head node;
+	struct list_head yesde;
 	const struct pinctrl_map *maps;
 	unsigned num_maps;
 };
@@ -220,7 +220,7 @@ int pinctrl_generic_remove_group(struct pinctrl_dev *pctldev,
 #endif	/* CONFIG_GENERIC_PINCTRL_GROUPS */
 
 struct pinctrl_dev *get_pinctrl_dev_from_devname(const char *dev_name);
-struct pinctrl_dev *get_pinctrl_dev_from_of_node(struct device_node *np);
+struct pinctrl_dev *get_pinctrl_dev_from_of_yesde(struct device_yesde *np);
 int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name);
 const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin);
 int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
@@ -233,7 +233,7 @@ static inline struct pin_desc *pin_desc_get(struct pinctrl_dev *pctldev,
 }
 
 extern struct pinctrl_gpio_range *
-pinctrl_find_gpio_range_from_pin_nolock(struct pinctrl_dev *pctldev,
+pinctrl_find_gpio_range_from_pin_yeslock(struct pinctrl_dev *pctldev,
 					unsigned int pin);
 
 int pinctrl_register_map(const struct pinctrl_map *maps, unsigned num_maps,
@@ -246,8 +246,8 @@ extern int pinctrl_force_default(struct pinctrl_dev *pctldev);
 extern struct mutex pinctrl_maps_mutex;
 extern struct list_head pinctrl_maps;
 
-#define for_each_maps(_maps_node_, _i_, _map_) \
-	list_for_each_entry(_maps_node_, &pinctrl_maps, node) \
-		for (_i_ = 0, _map_ = &_maps_node_->maps[_i_]; \
-			_i_ < _maps_node_->num_maps; \
-			_i_++, _map_ = &_maps_node_->maps[_i_])
+#define for_each_maps(_maps_yesde_, _i_, _map_) \
+	list_for_each_entry(_maps_yesde_, &pinctrl_maps, yesde) \
+		for (_i_ = 0, _map_ = &_maps_yesde_->maps[_i_]; \
+			_i_ < _maps_yesde_->num_maps; \
+			_i_++, _map_ = &_maps_yesde_->maps[_i_])

@@ -93,7 +93,7 @@ static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info,
 		*threshold = THRESHOLD_INDEX_1;
 		break;
 	default:
-		pr_err("Tegra Unknown SKU %d\n", sku);
+		pr_err("Tegra Unkyeswn SKU %d\n", sku);
 		/* Using the default for the error case */
 		break;
 	}
@@ -125,7 +125,7 @@ void __init tegra124_init_speedo_data(struct tegra_sku_info *sku_info)
 	sku_info->cpu_speedo_value = cpu_speedo_0_value;
 
 	if (sku_info->cpu_speedo_value == 0) {
-		pr_warn("Tegra Warning: Speedo value not fused.\n");
+		pr_warn("Tegra Warning: Speedo value yest fused.\n");
 		WARN_ON(1);
 		return;
 	}

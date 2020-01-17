@@ -35,7 +35,7 @@ MODULE_PARM_DESC(eco_mode, "Turn on Eco mode (less bright, more silent)");
 #define DRIVER_MINOR		0
 
 /*
- * The DLP has an actual width of 854 pixels, but that is not a multiple
+ * The DLP has an actual width of 854 pixels, but that is yest a multiple
  * of 8, breaking things left and right, so we export a width of 848.
  */
 #define GM12U320_USER_WIDTH		848
@@ -235,7 +235,7 @@ static int gm12u320_misc_request(struct gm12u320_device *gm12u320,
 		GM12U320_ERR("Misc. value error %d\n", ret);
 		return -EIO;
 	}
-	/* cmd_buf[0] now contains the read value, which we don't use */
+	/* cmd_buf[0] yesw contains the read value, which we don't use */
 
 	/* Read status */
 	ret = usb_bulk_msg(gm12u320->udev,
@@ -421,7 +421,7 @@ static void gm12u320_fb_update_work(struct work_struct *work)
 	}
 	return;
 err:
-	/* Do not log errors caused by module unload or device unplug */
+	/* Do yest log errors caused by module unload or device unplug */
 	if (ret != -ENODEV && ret != -ECONNRESET && ret != -ESHUTDOWN)
 		GM12U320_ERR("Frame update error: %d\n", ret);
 }
@@ -496,8 +496,8 @@ static int gm12u320_set_ecomode(struct gm12u320_device *gm12u320)
 /* gm12u320 connector						      */
 
 /*
- * We use fake EDID info so that userspace know that it is dealing with
- * an Acer projector, rather then listing this as an "unknown" monitor.
+ * We use fake EDID info so that userspace kyesw that it is dealing with
+ * an Acer projector, rather then listing this as an "unkyeswn" monitor.
  * Note this assumes this driver is only ever used with the Acer C120, if we
  * add support for other devices the vendor and model should be parameterized.
  */
@@ -658,7 +658,7 @@ static struct drm_driver gm12u320_drm_driver = {
 	.desc		 = DRIVER_DESC,
 	.date		 = DRIVER_DATE,
 	.major		 = DRIVER_MAJOR,
-	.minor		 = DRIVER_MINOR,
+	.miyesr		 = DRIVER_MINOR,
 
 	.release	 = gm12u320_driver_release,
 	.fops		 = &gm12u320_fops,

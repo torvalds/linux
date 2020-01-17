@@ -46,7 +46,7 @@ int item_insert(struct radix_tree_root *root, unsigned long index)
 void item_sanity(struct item *item, unsigned long index)
 {
 	unsigned long mask;
-	assert(!radix_tree_is_internal_node(item));
+	assert(!radix_tree_is_internal_yesde(item));
 	assert(item->order < BITS_PER_LONG);
 	mask = (1UL << item->order) - 1;
 	assert((item->index | mask) == (index | mask));
@@ -196,14 +196,14 @@ int tag_tagged_items(struct xarray *xa, unsigned long start, unsigned long end,
 	return tagged;
 }
 
-static int verify_node(struct radix_tree_node *slot, unsigned int tag,
+static int verify_yesde(struct radix_tree_yesde *slot, unsigned int tag,
 			int tagged)
 {
 	int anyset = 0;
 	int i;
 	int j;
 
-	slot = entry_to_node(slot);
+	slot = entry_to_yesde(slot);
 
 	/* Verify consistency at this level */
 	for (i = 0; i < RADIX_TREE_TAG_LONGS; i++) {
@@ -229,7 +229,7 @@ static int verify_node(struct radix_tree_node *slot, unsigned int tag,
 	if (slot->shift > 0) {
 		for (i = 0; i < RADIX_TREE_MAP_SIZE; i++)
 			if (slot->slots[i])
-				if (verify_node(slot->slots[i], tag,
+				if (verify_yesde(slot->slots[i], tag,
 					    !!test_bit(i, slot->tags[tag]))) {
 					printf("Failure at off %d\n", i);
 					for (j = 0; j < RADIX_TREE_MAX_TAGS; j++) {
@@ -246,10 +246,10 @@ static int verify_node(struct radix_tree_node *slot, unsigned int tag,
 
 void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag)
 {
-	struct radix_tree_node *node = root->xa_head;
-	if (!radix_tree_is_internal_node(node))
+	struct radix_tree_yesde *yesde = root->xa_head;
+	if (!radix_tree_is_internal_yesde(yesde))
 		return;
-	verify_node(node, tag, !!root_tag_get(root, tag));
+	verify_yesde(yesde, tag, !!root_tag_get(root, tag));
 }
 
 void item_kill_tree(struct xarray *xa)
@@ -270,16 +270,16 @@ void item_kill_tree(struct xarray *xa)
 void tree_verify_min_height(struct radix_tree_root *root, int maxindex)
 {
 	unsigned shift;
-	struct radix_tree_node *node = root->xa_head;
-	if (!radix_tree_is_internal_node(node)) {
+	struct radix_tree_yesde *yesde = root->xa_head;
+	if (!radix_tree_is_internal_yesde(yesde)) {
 		assert(maxindex == 0);
 		return;
 	}
 
-	node = entry_to_node(node);
-	assert(maxindex <= node_maxindex(node));
+	yesde = entry_to_yesde(yesde);
+	assert(maxindex <= yesde_maxindex(yesde));
 
-	shift = node->shift;
+	shift = yesde->shift;
 	if (shift > 0)
 		assert(maxindex > shift_maxindex(shift - RADIX_TREE_MAP_SHIFT));
 	else

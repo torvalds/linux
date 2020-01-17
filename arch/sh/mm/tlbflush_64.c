@@ -2,7 +2,7 @@
  * arch/sh/mm/tlb-flush_64.c
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
- * Copyright (C) 2003  Richard Curnow (/proc/tlb, bug fixes)
+ * Copyright (C) 2003  Richard Curyesw (/proc/tlb, bug fixes)
  * Copyright (C) 2003 - 2012 Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -13,7 +13,7 @@
 #include <linux/rwsem.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>

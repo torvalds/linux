@@ -237,8 +237,8 @@ static void skl_cldma_fill_buffer(struct sst_dsp *ctx, unsigned int size,
  *    register to identify the transfer status.
  * 3. if wait flag is set, waits for DBL interrupt to copy the next chunk till
  *    bytes_left is 0.
- *    if wait flag is not set, doesn't wait for BDL interrupt. after ccopying
- *    the first chunk return the no of bytes_left to be copied.
+ *    if wait flag is yest set, doesn't wait for BDL interrupt. after ccopying
+ *    the first chunk return the yes of bytes_left to be copied.
  */
 static int
 skl_cldma_copy_to_buf(struct sst_dsp *ctx, const void *bin,

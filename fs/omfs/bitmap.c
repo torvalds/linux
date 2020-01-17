@@ -54,7 +54,7 @@ static int set_run(struct super_block *sb, int map,
 	struct omfs_sb_info *sbi = OMFS_SB(sb);
 
  	err = -ENOMEM;
-	bh = sb_bread(sb, clus_to_blk(sbi, sbi->s_bitmap_ino) + map);
+	bh = sb_bread(sb, clus_to_blk(sbi, sbi->s_bitmap_iyes) + map);
 	if (!bh)
 		goto out;
 
@@ -66,7 +66,7 @@ static int set_run(struct super_block *sb, int map,
 			mark_buffer_dirty(bh);
 			brelse(bh);
 			bh = sb_bread(sb,
-				clus_to_blk(sbi, sbi->s_bitmap_ino) + map);
+				clus_to_blk(sbi, sbi->s_bitmap_iyes) + map);
 			if (!bh)
 				goto out;
 		}
@@ -105,8 +105,8 @@ int omfs_allocate_block(struct super_block *sb, u64 block)
 	if (map >= sbi->s_imap_size || test_and_set_bit(bit, sbi->s_imap[map]))
 		goto out;
 
-	if (sbi->s_bitmap_ino > 0) {
-		bh = sb_bread(sb, clus_to_blk(sbi, sbi->s_bitmap_ino) + map);
+	if (sbi->s_bitmap_iyes > 0) {
+		bh = sb_bread(sb, clus_to_blk(sbi, sbi->s_bitmap_iyes) + map);
 		if (!bh)
 			goto out;
 
@@ -123,7 +123,7 @@ out:
 
 /*
  *  Tries to allocate a set of blocks.	The request size depends on the
- *  type: for inodes, we must allocate sbi->s_mirrors blocks, and for file
+ *  type: for iyesdes, we must allocate sbi->s_mirrors blocks, and for file
  *  blocks, we try to allocate sbi->s_clustersize, but can always get away
  *  with just one block.
  */

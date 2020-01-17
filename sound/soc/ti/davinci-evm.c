@@ -2,7 +2,7 @@
 /*
  * ASoC driver for TI DAVINCI EVM platform
  *
- * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
+ * Author:      Vladimir Bariyesv, <vbariyesv@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  */
 
@@ -114,7 +114,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int evm_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
-	struct device_node *np = card->dev->of_node;
+	struct device_yesde *np = card->dev->of_yesde;
 	int ret;
 
 	/* Add davinci-evm specific widgets */
@@ -131,7 +131,7 @@ static int evm_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 					ARRAY_SIZE(audio_map));
 	}
 
-	/* not connected */
+	/* yest connected */
 	snd_soc_dapm_nc_pin(&card->dapm, "MONO_LOUT");
 	snd_soc_dapm_nc_pin(&card->dapm, "HPLCOM");
 	snd_soc_dapm_nc_pin(&card->dapm, "HPRCOM");
@@ -267,7 +267,7 @@ static struct snd_soc_dai_link da850_evm_dai = {
 /*
  * ASP0 in DM6446 EVM is clocked by U55, as configured by
  * board-dm644x-evm.c using GPIOs from U18.  There are six
- * options; here we "know" we use a 48 KHz sample rate.
+ * options; here we "kyesw" we use a 48 KHz sample rate.
  */
 static struct snd_soc_card_drvdata_davinci dm6446_snd_soc_card_drvdata = {
 	.sysclk = 12288000,
@@ -349,7 +349,7 @@ static struct snd_soc_card da850_snd_soc_card = {
 
 /*
  * The struct is used as place holder. It will be completely
- * filled with data from dt node.
+ * filled with data from dt yesde.
  */
 SND_SOC_DAILINK_DEFS(evm,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
@@ -383,7 +383,7 @@ static struct snd_soc_card evm_soc_card = {
 
 static int davinci_evm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *match;
 	struct snd_soc_dai_link *dai;
 	struct snd_soc_card_drvdata_davinci *drvdata = NULL;
@@ -400,15 +400,15 @@ static int davinci_evm_probe(struct platform_device *pdev)
 
 	evm_soc_card.dai_link = dai;
 
-	dai->codecs->of_node = of_parse_phandle(np, "ti,audio-codec", 0);
-	if (!dai->codecs->of_node)
+	dai->codecs->of_yesde = of_parse_phandle(np, "ti,audio-codec", 0);
+	if (!dai->codecs->of_yesde)
 		return -EINVAL;
 
-	dai->cpus->of_node = of_parse_phandle(np, "ti,mcasp-controller", 0);
-	if (!dai->cpus->of_node)
+	dai->cpus->of_yesde = of_parse_phandle(np, "ti,mcasp-controller", 0);
+	if (!dai->cpus->of_yesde)
 		return -EINVAL;
 
-	dai->platforms->of_node = dai->cpus->of_node;
+	dai->platforms->of_yesde = dai->cpus->of_yesde;
 
 	evm_soc_card.dev = &pdev->dev;
 	ret = snd_soc_of_parse_card_name(&evm_soc_card, "ti,model");
@@ -419,7 +419,7 @@ static int davinci_evm_probe(struct platform_device *pdev)
 	if (PTR_ERR(mclk) == -EPROBE_DEFER) {
 		return -EPROBE_DEFER;
 	} else if (IS_ERR(mclk)) {
-		dev_dbg(&pdev->dev, "mclk not found.\n");
+		dev_dbg(&pdev->dev, "mclk yest found.\n");
 		mclk = NULL;
 	}
 
@@ -444,7 +444,7 @@ static int davinci_evm_probe(struct platform_device *pdev)
 		drvdata->sysclk = clk_get_rate(drvdata->mclk);
 		if (drvdata->sysclk != requestd_rate)
 			dev_warn(&pdev->dev,
-				 "Could not get requested rate %u using %u.\n",
+				 "Could yest get requested rate %u using %u.\n",
 				 requestd_rate, drvdata->sysclk);
 	}
 
@@ -532,6 +532,6 @@ static void __exit evm_exit(void)
 module_init(evm_init);
 module_exit(evm_exit);
 
-MODULE_AUTHOR("Vladimir Barinov");
+MODULE_AUTHOR("Vladimir Bariyesv");
 MODULE_DESCRIPTION("TI DAVINCI EVM ASoC driver");
 MODULE_LICENSE("GPL");

@@ -8,7 +8,7 @@
 #include <media/rc-map.h>
 #include <linux/module.h>
 
-/* for the Technotrend 1500 bundled remotes (grey and black): */
+/* for the Techyestrend 1500 bundled remotes (grey and black): */
 
 static struct rc_map_table tt_1500[] = {
 	{ 0x1501, KEY_POWER },

@@ -320,7 +320,7 @@ void rtl92ee_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_DMESG,
-			 "switch case %#x not processed\n", variable);
+			 "switch case %#x yest processed\n", variable);
 		break;
 	}
 }
@@ -346,7 +346,7 @@ static void _rtl92ee_download_rsvd_page(struct ieee80211_hw *hw)
 	_rtl92ee_set_bcn_ctrl_reg(hw, BIT(4), 0);
 
 	/* Set FWHW_TXQ_CTRL 0x422[6]=0 to
-	 * tell Hw the packet is not a real beacon frame.
+	 * tell Hw the packet is yest a real beacon frame.
 	 */
 	tmp_reg422 = rtl_read_byte(rtlpriv, REG_FWHW_TXQ_CTRL + 2);
 	rtl_write_byte(rtlpriv, REG_FWHW_TXQ_CTRL + 2, tmp_reg422 & (~BIT(6)));
@@ -472,12 +472,12 @@ void rtl92ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtl_write_byte(rtlpriv, REG_SECCFG, *((u8 *)val));
 		break;
 	case HW_VAR_AMPDU_FACTOR:{
-		u8 regtoset_normal[4] = { 0x41, 0xa8, 0x72, 0xb9 };
+		u8 regtoset_yesrmal[4] = { 0x41, 0xa8, 0x72, 0xb9 };
 		u8 fac;
 		u8 *reg = NULL;
 		u8 i = 0;
 
-		reg = regtoset_normal;
+		reg = regtoset_yesrmal;
 
 		fac = *((u8 *)val);
 		if (fac <= 3) {
@@ -546,7 +546,7 @@ void rtl92ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				break;
 			default:
 				RT_TRACE(rtlpriv, COMP_ERR, DBG_DMESG,
-					 "switch case %#x not processed\n",
+					 "switch case %#x yest processed\n",
 					 e_aci);
 				break;
 			}
@@ -666,7 +666,7 @@ void rtl92ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_DMESG,
-			 "switch case %#x not processed\n", variable);
+			 "switch case %#x yest processed\n", variable);
 		break;
 	}
 }
@@ -875,7 +875,7 @@ dma64_end:
 			DMA_BIT_MASK(32));
 
 	/* if we want to support 64 bit DMA, we should set it here,
-	 * but now we do not support 64 bit DMA
+	 * but yesw we do yest support 64 bit DMA
 	 */
 
 	rtl_write_dword(rtlpriv, REG_TSFTIMER_HCI, 0x3fffffff);
@@ -972,7 +972,7 @@ static void _rtl92ee_hw_configure(struct ieee80211_hw *hw)
 	/* Marked out by Bruce, 2010-09-09.
 	 * This register is configured for the 2nd Beacon (multiple BSSID).
 	 * We shall disable this register if we only support 1 BSSID.
-	 * vivi guess 92d also need this, also 92d now doesnot set this reg
+	 * vivi guess 92d also need this, also 92d yesw doesyest set this reg
 	 */
 	rtl_write_byte(rtlpriv, REG_BCN_CTRL_1, 0);
 
@@ -1114,7 +1114,7 @@ void rtl92ee_enable_hw_security_config(struct ieee80211_hw *hw)
 
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-			 "not open hw encryption\n");
+			 "yest open hw encryption\n");
 		return;
 	}
 
@@ -1191,7 +1191,7 @@ static void _rtl8192ee_reset_pcie_interface_dma(struct rtl_priv *rtlpriv,
 	 */
 	tmp = rtl_read_byte(rtlpriv, REG_RXDMA_CONTROL);
 	if (tmp & BIT(2)) {
-		/* Already pause before the function for another reason. */
+		/* Already pause before the function for ayesther reason. */
 		release_mac_rx_pause = false;
 	} else {
 		rtl_write_byte(rtlpriv, REG_RXDMA_CONTROL, (tmp | BIT(2)));
@@ -1325,7 +1325,7 @@ int rtl92ee_hw_init(struct ieee80211_hw *hw)
 	err = rtl92ee_download_fw(hw, false);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "Failed to download FW. Init HW without FW now..\n");
+			 "Failed to download FW. Init HW without FW yesw..\n");
 		err = 1;
 		rtlhal->fw_ready = false;
 		return err;
@@ -1481,7 +1481,7 @@ static int _rtl92ee_set_media_status(struct ieee80211_hw *hw,
 			 "Set Network type to AP!\n");
 		break;
 	default:
-		pr_err("Network type %d not support!\n", type);
+		pr_err("Network type %d yest support!\n", type);
 		return 1;
 	}
 
@@ -1489,7 +1489,7 @@ static int _rtl92ee_set_media_status(struct ieee80211_hw *hw,
 	 * MSR_ADHOC == Link in ad hoc network;
 	 * Therefore, check link state is necessary.
 	 *
-	 * MSR_AP == AP mode; link state is not cared here.
+	 * MSR_AP == AP mode; link state is yest cared here.
 	 */
 	if (mode != MSR_AP && rtlpriv->mac80211.link_state < MAC80211_LINKED) {
 		mode = MSR_NOLINK;
@@ -2072,7 +2072,7 @@ static void _rtl92ee_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 		efu->eeprom_thermalmeter = EEPROM_DEFAULT_THERMALMETER;
 
 	if (efu->eeprom_thermalmeter == 0xff || autoload_fail) {
-		efu->apk_thermalmeterignore = true;
+		efu->apk_thermalmeterigyesre = true;
 		efu->eeprom_thermalmeter = EEPROM_DEFAULT_THERMALMETER;
 	}
 
@@ -2467,7 +2467,7 @@ void rtl92ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_DMESG,
-				 "switch case %#x not processed\n", enc_algo);
+				 "switch case %#x yest processed\n", enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
 		}
@@ -2485,7 +2485,7 @@ void rtl92ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id = rtl_cam_get_free_entry(hw,
 								     p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("Can not find free hw security cam entry\n");
+						pr_err("Can yest find free hw security cam entry\n");
 						return;
 					}
 				} else {

@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _SPARC_IOCTL_H
 #define _SPARC_IOCTL_H
 
 /*
  * Our DIR and SIZE overlap in order to simulteneously provide
- * a non-zero _IOC_NONE (for binary compatibility) and
+ * a yesn-zero _IOC_NONE (for binary compatibility) and
  * 14 bits of size as on i386. Here's the layout:
  *
  *   0xE0000000   DIR

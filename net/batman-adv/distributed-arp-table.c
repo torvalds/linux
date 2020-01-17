@@ -11,7 +11,7 @@
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/byteorder/generic.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/etherdevice.h>
 #include <linux/gfp.h>
 #include <linux/if_arp.h>
@@ -132,10 +132,10 @@ static void batadv_dat_entry_put(struct batadv_dat_entry *dat_entry)
 }
 
 /**
- * batadv_dat_to_purge() - check whether a dat_entry has to be purged or not
+ * batadv_dat_to_purge() - check whether a dat_entry has to be purged or yest
  * @dat_entry: the entry to check
  *
- * Return: true if the entry has to be purged now, false otherwise.
+ * Return: true if the entry has to be purged yesw, false otherwise.
  */
 static bool batadv_dat_to_purge(struct batadv_dat_entry *dat_entry)
 {
@@ -147,7 +147,7 @@ static bool batadv_dat_to_purge(struct batadv_dat_entry *dat_entry)
  * __batadv_dat_purge() - delete entries from the DAT local storage
  * @bat_priv: the bat priv with all the soft interface information
  * @to_purge: function in charge to decide whether an entry has to be purged or
- *	      not. This function takes the dat_entry as argument and has to
+ *	      yest. This function takes the dat_entry as argument and has to
  *	      returns a boolean value: true is the entry has to be deleted,
  *	      false otherwise
  *
@@ -159,7 +159,7 @@ static void __batadv_dat_purge(struct batadv_priv *bat_priv,
 {
 	spinlock_t *list_lock; /* protects write access to the hash lists */
 	struct batadv_dat_entry *dat_entry;
-	struct hlist_node *node_tmp;
+	struct hlist_yesde *yesde_tmp;
 	struct hlist_head *head;
 	u32 i;
 
@@ -171,10 +171,10 @@ static void __batadv_dat_purge(struct batadv_priv *bat_priv,
 		list_lock = &bat_priv->dat.hash->list_locks[i];
 
 		spin_lock_bh(list_lock);
-		hlist_for_each_entry_safe(dat_entry, node_tmp, head,
+		hlist_for_each_entry_safe(dat_entry, yesde_tmp, head,
 					  hash_entry) {
 			/* if a helper function has been passed as parameter,
-			 * ask it if the entry has to be purged or not
+			 * ask it if the entry has to be purged or yest
 			 */
 			if (to_purge && !to_purge(dat_entry))
 				continue;
@@ -207,14 +207,14 @@ static void batadv_dat_purge(struct work_struct *work)
 
 /**
  * batadv_compare_dat() - comparing function used in the local DAT hash table
- * @node: node in the local table
- * @data2: second object to compare the node to
+ * @yesde: yesde in the local table
+ * @data2: second object to compare the yesde to
  *
  * Return: true if the two entries are the same, false otherwise.
  */
-static bool batadv_compare_dat(const struct hlist_node *node, const void *data2)
+static bool batadv_compare_dat(const struct hlist_yesde *yesde, const void *data2)
 {
-	const void *data1 = container_of(node, struct batadv_dat_entry,
+	const void *data1 = container_of(yesde, struct batadv_dat_entry,
 					 hash_entry);
 
 	return memcmp(data1, data2, sizeof(__be32)) == 0;
@@ -365,7 +365,7 @@ static void batadv_dat_entry_add(struct batadv_priv *bat_priv, __be32 ip,
 	int hash_added;
 
 	dat_entry = batadv_dat_entry_hash_find(bat_priv, ip, vid);
-	/* if this entry is already known, just update it */
+	/* if this entry is already kyeswn, just update it */
 	if (dat_entry) {
 		if (!batadv_compare_eth(dat_entry->mac_addr, mac_addr))
 			ether_addr_copy(dat_entry->mac_addr, mac_addr);
@@ -463,7 +463,7 @@ static void batadv_dbg_arp(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			batadv_dbg(BATADV_DBG_DAT, bat_priv, "* type: DATA\n");
 			break;
 		default:
-			batadv_dbg(BATADV_DBG_DAT, bat_priv, "* type: Unknown (%u)!\n",
+			batadv_dbg(BATADV_DBG_DAT, bat_priv, "* type: Unkyeswn (%u)!\n",
 				   unicast_4addr_packet->u.packet_type);
 		}
 		break;
@@ -476,7 +476,7 @@ static void batadv_dbg_arp(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		break;
 	default:
 		batadv_dbg(BATADV_DBG_DAT, bat_priv,
-			   "* encapsulated within an unknown packet type (0x%x)\n",
+			   "* encapsulated within an unkyeswn packet type (0x%x)\n",
 			   unicast_4addr_packet->u.packet_type);
 	}
 }
@@ -491,40 +491,40 @@ static void batadv_dbg_arp(struct batadv_priv *bat_priv, struct sk_buff *skb,
 #endif /* CONFIG_BATMAN_ADV_DEBUG */
 
 /**
- * batadv_is_orig_node_eligible() - check whether a node can be a DHT candidate
+ * batadv_is_orig_yesde_eligible() - check whether a yesde can be a DHT candidate
  * @res: the array with the already selected candidates
  * @select: number of already selected candidates
- * @tmp_max: address of the currently evaluated node
+ * @tmp_max: address of the currently evaluated yesde
  * @max: current round max address
  * @last_max: address of the last selected candidate
- * @candidate: orig_node under evaluation
- * @max_orig_node: last selected candidate
+ * @candidate: orig_yesde under evaluation
+ * @max_orig_yesde: last selected candidate
  *
- * Return: true if the node has been elected as next candidate or false
+ * Return: true if the yesde has been elected as next candidate or false
  * otherwise.
  */
-static bool batadv_is_orig_node_eligible(struct batadv_dat_candidate *res,
+static bool batadv_is_orig_yesde_eligible(struct batadv_dat_candidate *res,
 					 int select, batadv_dat_addr_t tmp_max,
 					 batadv_dat_addr_t max,
 					 batadv_dat_addr_t last_max,
-					 struct batadv_orig_node *candidate,
-					 struct batadv_orig_node *max_orig_node)
+					 struct batadv_orig_yesde *candidate,
+					 struct batadv_orig_yesde *max_orig_yesde)
 {
 	bool ret = false;
 	int j;
 
-	/* check if orig node candidate is running DAT */
+	/* check if orig yesde candidate is running DAT */
 	if (!test_bit(BATADV_ORIG_CAPA_HAS_DAT, &candidate->capabilities))
 		goto out;
 
-	/* Check if this node has already been selected... */
+	/* Check if this yesde has already been selected... */
 	for (j = 0; j < select; j++)
-		if (res[j].orig_node == candidate)
+		if (res[j].orig_yesde == candidate)
 			break;
 	/* ..and possibly skip it */
 	if (j < select)
 		goto out;
-	/* sanity check: has it already been selected? This should not happen */
+	/* sanity check: has it already been selected? This should yest happen */
 	if (tmp_max > last_max)
 		goto out;
 	/* check if during this iteration an originator with a closer dht
@@ -532,11 +532,11 @@ static bool batadv_is_orig_node_eligible(struct batadv_dat_candidate *res,
 	 */
 	if (tmp_max < max)
 		goto out;
-	/* this is an hash collision with the temporary selected node. Choose
+	/* this is an hash collision with the temporary selected yesde. Choose
 	 * the one with the lowest address
 	 */
-	if (tmp_max == max && max_orig_node &&
-	    batadv_compare_eth(candidate->orig, max_orig_node->orig))
+	if (tmp_max == max && max_orig_yesde &&
+	    batadv_compare_eth(candidate->orig, max_orig_yesde->orig))
 		goto out;
 
 	ret = true;
@@ -559,57 +559,57 @@ static void batadv_choose_next_candidate(struct batadv_priv *bat_priv,
 {
 	batadv_dat_addr_t max = 0;
 	batadv_dat_addr_t tmp_max = 0;
-	struct batadv_orig_node *orig_node, *max_orig_node = NULL;
+	struct batadv_orig_yesde *orig_yesde, *max_orig_yesde = NULL;
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_head *head;
 	int i;
 
-	/* if no node is eligible as candidate, leave the candidate type as
+	/* if yes yesde is eligible as candidate, leave the candidate type as
 	 * NOT_FOUND
 	 */
 	cands[select].type = BATADV_DAT_CANDIDATE_NOT_FOUND;
 
-	/* iterate over the originator list and find the node with the closest
-	 * dat_address which has not been selected yet
+	/* iterate over the originator list and find the yesde with the closest
+	 * dat_address which has yest been selected yet
 	 */
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
+		hlist_for_each_entry_rcu(orig_yesde, head, hash_entry) {
 			/* the dht space is a ring using unsigned addresses */
-			tmp_max = BATADV_DAT_ADDR_MAX - orig_node->dat_addr +
+			tmp_max = BATADV_DAT_ADDR_MAX - orig_yesde->dat_addr +
 				  ip_key;
 
-			if (!batadv_is_orig_node_eligible(cands, select,
+			if (!batadv_is_orig_yesde_eligible(cands, select,
 							  tmp_max, max,
-							  *last_max, orig_node,
-							  max_orig_node))
+							  *last_max, orig_yesde,
+							  max_orig_yesde))
 				continue;
 
-			if (!kref_get_unless_zero(&orig_node->refcount))
+			if (!kref_get_unless_zero(&orig_yesde->refcount))
 				continue;
 
 			max = tmp_max;
-			if (max_orig_node)
-				batadv_orig_node_put(max_orig_node);
-			max_orig_node = orig_node;
+			if (max_orig_yesde)
+				batadv_orig_yesde_put(max_orig_yesde);
+			max_orig_yesde = orig_yesde;
 		}
 		rcu_read_unlock();
 	}
-	if (max_orig_node) {
+	if (max_orig_yesde) {
 		cands[select].type = BATADV_DAT_CANDIDATE_ORIG;
-		cands[select].orig_node = max_orig_node;
+		cands[select].orig_yesde = max_orig_yesde;
 		batadv_dbg(BATADV_DBG_DAT, bat_priv,
 			   "dat_select_candidates() %d: selected %pM addr=%u dist=%u\n",
-			   select, max_orig_node->orig, max_orig_node->dat_addr,
+			   select, max_orig_yesde->orig, max_orig_yesde->dat_addr,
 			   max);
 	}
 	*last_max = max;
 }
 
 /**
- * batadv_dat_select_candidates() - select the nodes which the DHT message has
+ * batadv_dat_select_candidates() - select the yesdes which the DHT message has
  *  to be sent to
  * @bat_priv: the bat priv with all the soft interface information
  * @ip_dst: ipv4 to look up in the DHT
@@ -675,7 +675,7 @@ static bool batadv_dat_forward_data(struct batadv_priv *bat_priv,
 	int i;
 	bool ret = false;
 	int send_status;
-	struct batadv_neigh_node *neigh_node = NULL;
+	struct batadv_neigh_yesde *neigh_yesde = NULL;
 	struct sk_buff *tmp_skb;
 	struct batadv_dat_candidate *cand;
 
@@ -689,20 +689,20 @@ static bool batadv_dat_forward_data(struct batadv_priv *bat_priv,
 		if (cand[i].type == BATADV_DAT_CANDIDATE_NOT_FOUND)
 			continue;
 
-		neigh_node = batadv_orig_router_get(cand[i].orig_node,
+		neigh_yesde = batadv_orig_router_get(cand[i].orig_yesde,
 						    BATADV_IF_DEFAULT);
-		if (!neigh_node)
+		if (!neigh_yesde)
 			goto free_orig;
 
 		tmp_skb = pskb_copy_for_clone(skb, GFP_ATOMIC);
 		if (!batadv_send_skb_prepare_unicast_4addr(bat_priv, tmp_skb,
-							   cand[i].orig_node,
+							   cand[i].orig_yesde,
 							   packet_subtype)) {
 			kfree_skb(tmp_skb);
 			goto free_neigh;
 		}
 
-		send_status = batadv_send_unicast_skb(tmp_skb, neigh_node);
+		send_status = batadv_send_unicast_skb(tmp_skb, neigh_yesde);
 		if (send_status == NET_XMIT_SUCCESS) {
 			/* count the sent packet */
 			switch (packet_subtype) {
@@ -720,9 +720,9 @@ static bool batadv_dat_forward_data(struct batadv_priv *bat_priv,
 			ret = true;
 		}
 free_neigh:
-		batadv_neigh_node_put(neigh_node);
+		batadv_neigh_yesde_put(neigh_yesde);
 free_orig:
-		batadv_orig_node_put(cand[i].orig_node);
+		batadv_orig_yesde_put(cand[i].orig_yesde);
 	}
 
 out:
@@ -767,13 +767,13 @@ void batadv_dat_status_update(struct net_device *net_dev)
 /**
  * batadv_dat_tvlv_ogm_handler_v1() - process incoming dat tvlv container
  * @bat_priv: the bat priv with all the soft interface information
- * @orig: the orig_node of the ogm
+ * @orig: the orig_yesde of the ogm
  * @flags: flags indicating the tvlv state (see batadv_tvlv_handler_flags)
  * @tvlv_value: tvlv buffer containing the gateway data
  * @tvlv_value_len: tvlv buffer length
  */
 static void batadv_dat_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
-					   struct batadv_orig_node *orig,
+					   struct batadv_orig_yesde *orig,
 					   u8 flags,
 					   void *tvlv_value, u16 tvlv_value_len)
 {
@@ -842,7 +842,7 @@ void batadv_dat_free(struct batadv_priv *bat_priv)
 /**
  * batadv_dat_cache_seq_print_text() - print the local DAT hash table
  * @seq: seq file to print on
- * @offset: not used
+ * @offset: yest used
  *
  * Return: always 0
  */
@@ -1087,8 +1087,8 @@ static u16 batadv_arp_get_type(struct batadv_priv *bat_priv,
 	if (arphdr->ar_pln != 4)
 		goto out;
 
-	/* Check for bad reply/request. If the ARP message is not sane, DAT
-	 * will simply ignore it
+	/* Check for bad reply/request. If the ARP message is yest sane, DAT
+	 * will simply igyesre it
 	 */
 	ip_src = batadv_arp_ip_src(skb, hdr_size);
 	ip_dst = batadv_arp_ip_dst(skb, hdr_size);
@@ -1177,7 +1177,7 @@ batadv_dat_arp_create_reply(struct batadv_priv *bat_priv, __be32 ip_src,
 }
 
 /**
- * batadv_dat_snoop_outgoing_arp_request() - snoop the ARP request and try to
+ * batadv_dat_syesop_outgoing_arp_request() - syesop the ARP request and try to
  * answer using DAT
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: packet to check
@@ -1186,7 +1186,7 @@ batadv_dat_arp_create_reply(struct batadv_priv *bat_priv, __be32 ip_src,
  * otherwise. In case of a positive return value the message has to be enqueued
  * to permit the fallback.
  */
-bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
+bool batadv_dat_syesop_outgoing_arp_request(struct batadv_priv *bat_priv,
 					   struct sk_buff *skb)
 {
 	u16 type = 0;
@@ -1205,7 +1205,7 @@ bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
 	vid = batadv_dat_get_vid(skb, &hdr_size);
 
 	type = batadv_arp_get_type(bat_priv, skb, hdr_size);
-	/* If the node gets an ARP_REQUEST it has to send a DHT_GET unicast
+	/* If the yesde gets an ARP_REQUEST it has to send a DHT_GET unicast
 	 * message to the selected DHT candidates
 	 */
 	if (type != ARPOP_REQUEST)
@@ -1235,14 +1235,14 @@ bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
 		}
 
 		/* If BLA is enabled, only send ARP replies if we have claimed
-		 * the destination for the ARP request or if no one else of
+		 * the destination for the ARP request or if yes one else of
 		 * the backbone gws belonging to our backbone has claimed the
 		 * destination.
 		 */
 		if (!batadv_bla_check_claim(bat_priv,
 					    dat_entry->mac_addr, vid)) {
 			batadv_dbg(BATADV_DBG_DAT, bat_priv,
-				   "Device %pM claimed by another backbone gw. Don't send ARP reply!",
+				   "Device %pM claimed by ayesther backbone gw. Don't send ARP reply!",
 				   dat_entry->mac_addr);
 			ret = true;
 			goto out;
@@ -1275,7 +1275,7 @@ out:
 }
 
 /**
- * batadv_dat_snoop_incoming_arp_request() - snoop the ARP request and try to
+ * batadv_dat_syesop_incoming_arp_request() - syesop the ARP request and try to
  * answer using the local DAT storage
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: packet to check
@@ -1283,7 +1283,7 @@ out:
  *
  * Return: true if the request has been answered, false otherwise.
  */
-bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
+bool batadv_dat_syesop_incoming_arp_request(struct batadv_priv *bat_priv,
 					   struct sk_buff *skb, int hdr_size)
 {
 	u16 type;
@@ -1321,9 +1321,9 @@ bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
 	if (!skb_new)
 		goto out;
 
-	/* To preserve backwards compatibility, the node has choose the outgoing
+	/* To preserve backwards compatibility, the yesde has choose the outgoing
 	 * format based on the incoming request packet type. The assumption is
-	 * that a node not using the 4addr packet format doesn't support it.
+	 * that a yesde yest using the 4addr packet format doesn't support it.
 	 */
 	if (hdr_size == sizeof(struct batadv_unicast_4addr_packet))
 		err = batadv_send_skb_via_tt_4addr(bat_priv, skb_new,
@@ -1345,11 +1345,11 @@ out:
 }
 
 /**
- * batadv_dat_snoop_outgoing_arp_reply() - snoop the ARP reply and fill the DHT
+ * batadv_dat_syesop_outgoing_arp_reply() - syesop the ARP reply and fill the DHT
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: packet to check
  */
-void batadv_dat_snoop_outgoing_arp_reply(struct batadv_priv *bat_priv,
+void batadv_dat_syesop_outgoing_arp_reply(struct batadv_priv *bat_priv,
 					 struct sk_buff *skb)
 {
 	u16 type;
@@ -1378,7 +1378,7 @@ void batadv_dat_snoop_outgoing_arp_reply(struct batadv_priv *bat_priv,
 	batadv_dat_entry_add(bat_priv, ip_dst, hw_dst, vid);
 
 	/* Send the ARP reply to the candidates for both the IP addresses that
-	 * the node obtained from the ARP reply
+	 * the yesde obtained from the ARP reply
 	 */
 	batadv_dat_forward_data(bat_priv, skb, ip_src, vid,
 				BATADV_P_DAT_DHT_PUT);
@@ -1387,16 +1387,16 @@ void batadv_dat_snoop_outgoing_arp_reply(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_dat_snoop_incoming_arp_reply() - snoop the ARP reply and fill the
+ * batadv_dat_syesop_incoming_arp_reply() - syesop the ARP reply and fill the
  *  local DAT storage only
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: packet to check
  * @hdr_size: size of the encapsulation header
  *
- * Return: true if the packet was snooped and consumed by DAT. False if the
+ * Return: true if the packet was syesoped and consumed by DAT. False if the
  * packet has to be delivered to the interface
  */
-bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
+bool batadv_dat_syesop_incoming_arp_reply(struct batadv_priv *bat_priv,
 					 struct sk_buff *skb, int hdr_size)
 {
 	struct batadv_dat_entry *dat_entry = NULL;
@@ -1424,7 +1424,7 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 
 	/* If ip_dst is already in cache and has the right mac address,
 	 * drop this frame if this ARP reply is destined for us because it's
-	 * most probably an ARP reply generated by another node of the DHT.
+	 * most probably an ARP reply generated by ayesther yesde of the DHT.
 	 * We have most probably received already a reply earlier. Delivering
 	 * this frame would lead to doubled receive of an ARP reply.
 	 */
@@ -1436,7 +1436,7 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 		dropped = true;
 	}
 
-	/* Update our internal cache with both the IP addresses the node got
+	/* Update our internal cache with both the IP addresses the yesde got
 	 * within the ARP reply
 	 */
 	batadv_dat_entry_add(bat_priv, ip_src, hw_src, vid);
@@ -1446,14 +1446,14 @@ bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
 		goto out;
 
 	/* If BLA is enabled, only forward ARP replies if we have claimed the
-	 * source of the ARP reply or if no one else of the same backbone has
+	 * source of the ARP reply or if yes one else of the same backbone has
 	 * already claimed that client. This prevents that different gateways
 	 * to the same backbone all forward the ARP reply leading to multiple
 	 * replies in the backbone.
 	 */
 	if (!batadv_bla_check_claim(bat_priv, hw_src, vid)) {
 		batadv_dbg(BATADV_DBG_DAT, bat_priv,
-			   "Device %pM claimed by another backbone gw. Drop ARP reply.\n",
+			   "Device %pM claimed by ayesther backbone gw. Drop ARP reply.\n",
 			   hw_src);
 		dropped = true;
 		goto out;
@@ -1600,7 +1600,7 @@ static int batadv_dat_get_dhcp_message_type(struct sk_buff *skb)
 			offset += tl->len + sizeof(_tl);
 	}
 
-	/* Option Overload Code not supported */
+	/* Option Overload Code yest supported */
 	if (!tl || tl->type != BATADV_DHCP_OPT_MSG_TYPE ||
 	    tl->len != sizeof(_type))
 		return -EINVAL;
@@ -1708,10 +1708,10 @@ static void batadv_dat_put_dhcp(struct batadv_priv *bat_priv, u8 *chaddr,
 	consume_skb(skb);
 
 	batadv_dbg(BATADV_DBG_DAT, bat_priv,
-		   "Snooped from outgoing DHCPACK (server address): %pI4, %pM (vid: %i)\n",
+		   "Syesoped from outgoing DHCPACK (server address): %pI4, %pM (vid: %i)\n",
 		   &ip_dst, hw_dst, batadv_print_vid(vid));
 	batadv_dbg(BATADV_DBG_DAT, bat_priv,
-		   "Snooped from outgoing DHCPACK (client address): %pI4, %pM (vid: %i)\n",
+		   "Syesoped from outgoing DHCPACK (client address): %pI4, %pM (vid: %i)\n",
 		   &yiaddr, chaddr, batadv_print_vid(vid));
 }
 
@@ -1755,9 +1755,9 @@ batadv_dat_check_dhcp_ack(struct sk_buff *skb, __be16 proto, __be32 *ip_src,
 }
 
 /**
- * batadv_dat_snoop_outgoing_dhcp_ack() - snoop DHCPACK and fill DAT with it
+ * batadv_dat_syesop_outgoing_dhcp_ack() - syesop DHCPACK and fill DAT with it
  * @bat_priv: the bat priv with all the soft interface information
- * @skb: the packet to snoop
+ * @skb: the packet to syesop
  * @proto: ethernet protocol hint (behind a potential vlan)
  * @vid: VLAN identifier
  *
@@ -1769,7 +1769,7 @@ batadv_dat_check_dhcp_ack(struct sk_buff *skb, __be16 proto, __be32 *ip_src,
  * Caller needs to ensure that the skb mac and network headers are set
  * correctly.
  */
-void batadv_dat_snoop_outgoing_dhcp_ack(struct batadv_priv *bat_priv,
+void batadv_dat_syesop_outgoing_dhcp_ack(struct batadv_priv *bat_priv,
 					struct sk_buff *skb,
 					__be16 proto,
 					unsigned short vid)
@@ -1788,16 +1788,16 @@ void batadv_dat_snoop_outgoing_dhcp_ack(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_dat_snoop_incoming_dhcp_ack() - snoop DHCPACK and fill DAT cache
+ * batadv_dat_syesop_incoming_dhcp_ack() - syesop DHCPACK and fill DAT cache
  * @bat_priv: the bat priv with all the soft interface information
- * @skb: the packet to snoop
+ * @skb: the packet to syesop
  * @hdr_size: header size, up to the tail of the batman-adv header
  *
  * This function first checks whether the given skb is a valid DHCPACK. If
  * so then its source MAC and IP as well as its DHCP Client Hardware Address
  * field and DHCP Your IP Address field are added to the local DAT cache.
  */
-void batadv_dat_snoop_incoming_dhcp_ack(struct batadv_priv *bat_priv,
+void batadv_dat_syesop_incoming_dhcp_ack(struct batadv_priv *bat_priv,
 					struct sk_buff *skb, int hdr_size)
 {
 	u8 chaddr[BATADV_DHCP_CHADDR_LEN];
@@ -1827,20 +1827,20 @@ void batadv_dat_snoop_incoming_dhcp_ack(struct batadv_priv *bat_priv,
 	batadv_dat_entry_add(bat_priv, ip_src, hw_src, vid);
 
 	batadv_dbg(BATADV_DBG_DAT, bat_priv,
-		   "Snooped from incoming DHCPACK (server address): %pI4, %pM (vid: %i)\n",
+		   "Syesoped from incoming DHCPACK (server address): %pI4, %pM (vid: %i)\n",
 		   &ip_src, hw_src, batadv_print_vid(vid));
 	batadv_dbg(BATADV_DBG_DAT, bat_priv,
-		   "Snooped from incoming DHCPACK (client address): %pI4, %pM (vid: %i)\n",
+		   "Syesoped from incoming DHCPACK (client address): %pI4, %pM (vid: %i)\n",
 		   &yiaddr, chaddr, batadv_print_vid(vid));
 }
 
 /**
  * batadv_dat_drop_broadcast_packet() - check if an ARP request has to be
- *  dropped (because the node has already obtained the reply via DAT) or not
+ *  dropped (because the yesde has already obtained the reply via DAT) or yest
  * @bat_priv: the bat priv with all the soft interface information
  * @forw_packet: the broadcast packet
  *
- * Return: true if the node can drop the packet, false otherwise.
+ * Return: true if the yesde can drop the packet, false otherwise.
  */
 bool batadv_dat_drop_broadcast_packet(struct batadv_priv *bat_priv,
 				      struct batadv_forw_packet *forw_packet)
@@ -1855,7 +1855,7 @@ bool batadv_dat_drop_broadcast_packet(struct batadv_priv *bat_priv,
 	if (!atomic_read(&bat_priv->distributed_arp_table))
 		goto out;
 
-	/* If this packet is an ARP_REQUEST and the node already has the
+	/* If this packet is an ARP_REQUEST and the yesde already has the
 	 * information that it is going to ask, then the packet can be dropped
 	 */
 	if (batadv_forw_packet_is_rebroadcast(forw_packet))
@@ -1869,7 +1869,7 @@ bool batadv_dat_drop_broadcast_packet(struct batadv_priv *bat_priv,
 
 	ip_dst = batadv_arp_ip_dst(forw_packet->skb, hdr_size);
 	dat_entry = batadv_dat_entry_hash_find(bat_priv, ip_dst, vid);
-	/* check if the node already got this entry */
+	/* check if the yesde already got this entry */
 	if (!dat_entry) {
 		batadv_dbg(BATADV_DBG_DAT, bat_priv,
 			   "ARP Request for %pI4: fallback\n", &ip_dst);

@@ -2,7 +2,7 @@
 MOXA Smartio/Industio Family Device Driver Installation Guide
 =============================================================
 
-.. note::
+.. yeste::
 
    This file is outdated. It needs some care in order to make it
    updated to Kernel 5.0 and upper
@@ -72,19 +72,19 @@ Date: 01/21/2008
    version. They are:
 
     - msdiag
-		 Diagnostic program for displaying installed Moxa
+		 Diagyesstic program for displaying installed Moxa
                  Smartio/Industio boards.
     - msmon
 		 Monitor program to observe data count and line status signals.
     - msterm     A simple terminal program which is useful in testing serial
 	         ports.
     - io-irq.exe
-		 Configuration program to setup ISA boards. Please note that
+		 Configuration program to setup ISA boards. Please yeste that
                  this program can only be executed under DOS.
 
    All the drivers and utilities are published in form of source code under
    GNU General Public License in this version. Please refer to GNU General
-   Public License announcement in each source code file for more detail.
+   Public License anyesuncement in each source code file for more detail.
 
    In Moxa's Web sites, you may always find latest driver at http://www.moxa.com/.
 
@@ -189,7 +189,7 @@ Device naming when more than 2 boards installed
    4th board	ttyM24 - ttym31       cum24 - cum31
    ============ ===============       ==============
 
-.. note::
+.. yeste::
 
    Under Kernel 2.6 and upper, the cum Device is Obsolete. So use ttyM*
    device instead.
@@ -218,7 +218,7 @@ Board sequence
 
    Before using MOXA driver, your system must have the tty devices
    which are created with driver's major number. We offer one shell
-   script "msmknod" to simplify the procedure.
+   script "msmkyesd" to simplify the procedure.
    This step is only needed to be executed once. But you still
    need to do this procedure when:
 
@@ -227,12 +227,12 @@ Board sequence
    b. Your total installed MOXA boards number is changed. Maybe you
       add/delete one MOXA board.
    c. You want to change the tty name. This needs to modify the
-      shell script "msmknod"
+      shell script "msmkyesd"
 
    The procedure is::
 
 	 # cd /moxa/mxser/driver
-	 # ./msmknod
+	 # ./msmkyesd
 
    This shell script will require the major number for dial-in
    device and callout device to create tty device. You also need
@@ -240,7 +240,7 @@ Board sequence
    numbers for dial-in device and callout device are 30, 35. If
    you need to change to other number, please refer section "3.7"
    for more detailed procedure.
-   Msmknod will delete any special files occupying the same device
+   Msmkyesd will delete any special files occupying the same device
    naming.
 
 3.4.2 Build the MOXA driver and utilities
@@ -256,7 +256,7 @@ Board sequence
 
 	 # make clean; make install
 
-   ..note::
+   ..yeste::
 
 	 For Red Hat 9, Red Hat Enterprise Linux AS3/ES3/WS3 & Fedora Core1:
 	 # make clean; make installsp1
@@ -309,7 +309,7 @@ Board sequence
 	 # cp ./rc.mxser /etc/rc.d
 	 # cd /etc/rc.d
 
-   Check "rc.serial" is existed or not. If "rc.serial" doesn't exist,
+   Check "rc.serial" is existed or yest. If "rc.serial" doesn't exist,
    create it by vi, run "chmod 755 rc.serial" to change the permission.
 
    Add "/etc/rc.d/rc.mxser" in last line.
@@ -364,7 +364,7 @@ Board sequence
 
     In module mode, the CAP address for ISA board is given by
     parameter. In static driver configuration, you'll have to
-    assign it within driver's source code. If you will not
+    assign it within driver's source code. If you will yest
     install any ISA boards, you may skip to next portion.
     The instructions to modify driver source code are as
     below.
@@ -395,7 +395,7 @@ Board sequence
 
     You will go into a menu-driven system. Please select [Character
     devices][Non-standard serial port support], enable the [Moxa
-    SmartIO support] driver with "[*]" for built-in (not "[M]"), then
+    SmartIO support] driver with "[*]" for built-in (yest "[M]"), then
     select [Exit] to exit this program.
 
 3.5.5 Rebuild kernel
@@ -431,7 +431,7 @@ Board sequence
 
     ::
        # cd /moxa/mxser/driver
-       # ./msmknod
+       # ./msmkyesd
 
 3.5.7 Make utility
 ------------------
@@ -457,9 +457,9 @@ a. Change Device name
 
     If you'd like to use other device names instead of default naming
     convention, all you have to do is to modify the internal code
-    within the shell script "msmknod". First, you have to open "msmknod"
+    within the shell script "msmkyesd". First, you have to open "msmkyesd"
     by vi. Locate each line contains "ttyM" and "cum" and change them
-    to the device name you desired. "msmknod" creates the device names
+    to the device name you desired. "msmkyesd" creates the device names
     you need next time executed.
 
 b. Change Major number
@@ -478,7 +478,7 @@ b. Change Major number
 3.6.2 Create special files
 --------------------------
 
-   Run /moxa/mxser/driver/msmknod to create special files with
+   Run /moxa/mxser/driver/msmkyesd to create special files with
    specified major numbers.
 
 3.6.3 Modify driver with new major number
@@ -506,9 +506,9 @@ b. Change Major number
    be compiled into executable file and copied into /usr/bin.
 
    Before using these utilities, please load driver (refer 3.4 & 3.5) and
-   make sure you had run the "msmknod" utility.
+   make sure you had run the "msmkyesd" utility.
 
-msdiag - Diagnostic
+msdiag - Diagyesstic
 ===================
 
    This utility provides the function to display what Moxa Smartio/Industio
@@ -553,7 +553,7 @@ msterm - Terminal Emulation
    spd_vhi	  Use  115.2kb	when  the application requests 38.4kb.
    spd_shi	  Use  230.4kb	when  the application requests 38.4kb.
    spd_warp	  Use  460.8kb	when  the application requests 38.4kb.
-   spd_normal	  Use  38.4kb  when  the application requests 38.4kb.
+   spd_yesrmal	  Use  38.4kb  when  the application requests 38.4kb.
    spd_cust	  Use  the custom divisor to set the speed when  the
 		  application requests 38.4kb.
    divisor	  This option set the custom division.
@@ -570,19 +570,19 @@ msterm - Terminal Emulation
 
    Error msg:
 	      More than 4 Moxa Smartio/Industio family boards found. Fifth board
-              and after are ignored.
+              and after are igyesred.
 
    Solution:
    To avoid this problem, please unplug fifth and after board, because Moxa
    driver supports up to 4 boards.
 
    Error msg:
-	      Request_irq fail, IRQ(?) may be conflict with another device.
+	      Request_irq fail, IRQ(?) may be conflict with ayesther device.
 
    Solution:
-   Other PCI or ISA devices occupy the assigned IRQ. If you are not sure
+   Other PCI or ISA devices occupy the assigned IRQ. If you are yest sure
    which device causes the situation, please check /proc/interrupts to find
-   free IRQ and simply change another free IRQ for Moxa board.
+   free IRQ and simply change ayesther free IRQ for Moxa board.
 
    Error msg:
 	      Board #: C1xx Series(CAP=xxx) interrupt number invalid.

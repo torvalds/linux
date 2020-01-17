@@ -1,13 +1,13 @@
 /*
  * Copyright (c) 2006 Damien Bergamini <damien.bergamini@free.fr>
- * Copyright (c) 2006 Sam Leffler, Errno Consulting
+ * Copyright (c) 2006 Sam Leffler, Erryes Consulting
  * Copyright (c) 2007 Christoph Hellwig <hch@lst.de>
  * Copyright (c) 2008-2009 Weongyo Jeong <weongyo@freebsd.org>
  * Copyright (c) 2012 Pontus Fuchs <pontus.fuchs@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -108,7 +108,7 @@ struct ar5523_cmd_hdr {
 
 struct ar5523_cmd_host_available {
 	__be32	sw_ver_major;
-	__be32	sw_ver_minor;
+	__be32	sw_ver_miyesr;
 	__be32	sw_ver_patch;
 	__be32	sw_ver_build;
 } __packed;
@@ -169,7 +169,7 @@ struct ar5523_tx_desc {
 #define	UATH_TXQID_FF		0x20	/* content is fast frame */
 	__be32	connid;		/* tx connection id */
 #define UATH_ID_INVALID	0xffffffff	/* for sending prior to connection */
-	__be32	flags;		/* non-zero if response desired */
+	__be32	flags;		/* yesn-zero if response desired */
 #define UATH_TX_NOTIFY	(1 << 24)	/* f/w will send a UATH_NOTIF_TX */
 	__be32	buflen;		/* payload length */
 } __packed;
@@ -307,10 +307,10 @@ struct ar5523_cmd_rx_filter {		/* WDCMSG_RX_FILTER */
 } __packed;
 
 enum {
-	CFG_NONE,			/* Sentinal to indicate "no config" */
+	CFG_NONE,			/* Sentinal to indicate "yes config" */
 	CFG_REG_DOMAIN,			/* Regulatory Domain */
 	CFG_RATE_CONTROL_ENABLE,
-	CFG_DEF_XMIT_DATA_RATE,		/* NB: if rate control is not enabled */
+	CFG_DEF_XMIT_DATA_RATE,		/* NB: if rate control is yest enabled */
 	CFG_HW_TX_RETRIES,
 	CFG_SW_TX_RETRIES,
 	CFG_SLOW_CLOCK_ENABLE,
@@ -346,7 +346,7 @@ enum {
 };
 
 enum {
-	/* Sentinal to indicate "no capability" */
+	/* Sentinal to indicate "yes capability" */
 	CAP_NONE,
 	CAP_ALL,			/* ALL capabilities */
 	CAP_TARGET_VERSION,
@@ -396,7 +396,7 @@ enum {
 };
 
 enum {
-	ST_NONE,                    /* Sentinal to indicate "no status" */
+	ST_NONE,                    /* Sentinal to indicate "yes status" */
 	ST_ALL,
 	ST_SERVICE_TYPE,
 	ST_WLAN_MODE,

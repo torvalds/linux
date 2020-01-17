@@ -19,7 +19,7 @@
 
 static inline int xt_ct_target(struct sk_buff *skb, struct nf_conn *ct)
 {
-	/* Previously seen (loopback)? Ignore. */
+	/* Previously seen (loopback)? Igyesre. */
 	if (skb->_nfct != 0)
 		return XT_CONTINUE;
 
@@ -79,7 +79,7 @@ xt_ct_set_helper(struct nf_conn *ct, const char *helper_name,
 
 	proto = xt_ct_find_proto(par);
 	if (!proto) {
-		pr_info_ratelimited("You must specify a L4 protocol and not use inversions on it\n");
+		pr_info_ratelimited("You must specify a L4 protocol and yest use inversions on it\n");
 		return -ENOENT;
 	}
 
@@ -110,7 +110,7 @@ xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 
 	proto = xt_ct_find_proto(par);
 	if (!proto) {
-		pr_info_ratelimited("You must specify a L4 protocol and not "
+		pr_info_ratelimited("You must specify a L4 protocol and yest "
 				    "use inversions on it");
 		return -EINVAL;
 	}
@@ -341,9 +341,9 @@ static struct xt_target xt_ct_tg_reg[] __read_mostly = {
 };
 
 static unsigned int
-notrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
+yestrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	/* Previously seen (loopback)? Ignore. */
+	/* Previously seen (loopback)? Igyesre. */
 	if (skb->_nfct != 0)
 		return XT_CONTINUE;
 
@@ -352,22 +352,22 @@ notrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	return XT_CONTINUE;
 }
 
-static int notrack_chk(const struct xt_tgchk_param *par)
+static int yestrack_chk(const struct xt_tgchk_param *par)
 {
-	if (!par->net->xt.notrack_deprecated_warning) {
+	if (!par->net->xt.yestrack_deprecated_warning) {
 		pr_info("netfilter: NOTRACK target is deprecated, "
 			"use CT instead or upgrade iptables\n");
-		par->net->xt.notrack_deprecated_warning = true;
+		par->net->xt.yestrack_deprecated_warning = true;
 	}
 	return 0;
 }
 
-static struct xt_target notrack_tg_reg __read_mostly = {
+static struct xt_target yestrack_tg_reg __read_mostly = {
 	.name		= "NOTRACK",
 	.revision	= 0,
 	.family		= NFPROTO_UNSPEC,
-	.checkentry	= notrack_chk,
-	.target		= notrack_tg,
+	.checkentry	= yestrack_chk,
+	.target		= yestrack_tg,
 	.table		= "raw",
 	.me		= THIS_MODULE,
 };
@@ -376,13 +376,13 @@ static int __init xt_ct_tg_init(void)
 {
 	int ret;
 
-	ret = xt_register_target(&notrack_tg_reg);
+	ret = xt_register_target(&yestrack_tg_reg);
 	if (ret < 0)
 		return ret;
 
 	ret = xt_register_targets(xt_ct_tg_reg, ARRAY_SIZE(xt_ct_tg_reg));
 	if (ret < 0) {
-		xt_unregister_target(&notrack_tg_reg);
+		xt_unregister_target(&yestrack_tg_reg);
 		return ret;
 	}
 	return 0;
@@ -391,7 +391,7 @@ static int __init xt_ct_tg_init(void)
 static void __exit xt_ct_tg_exit(void)
 {
 	xt_unregister_targets(xt_ct_tg_reg, ARRAY_SIZE(xt_ct_tg_reg));
-	xt_unregister_target(&notrack_tg_reg);
+	xt_unregister_target(&yestrack_tg_reg);
 }
 
 module_init(xt_ct_tg_init);

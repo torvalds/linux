@@ -16,7 +16,7 @@ struct xfs_mount;
 /*
  * Record, key, and pointer address macros for btree blocks.
  *
- * (note that some of these may appear unused, but they are used in userspace)
+ * (yeste that some of these may appear unused, but they are used in userspace)
  */
 #define XFS_RMAP_REC_ADDR(block, index) \
 	((struct xfs_rmap_rec *) \
@@ -42,7 +42,7 @@ struct xfs_mount;
 
 struct xfs_btree_cur *xfs_rmapbt_init_cursor(struct xfs_mount *mp,
 				struct xfs_trans *tp, struct xfs_buf *bp,
-				xfs_agnumber_t agno);
+				xfs_agnumber_t agyes);
 int xfs_rmapbt_maxrecs(int blocklen, int leaf);
 extern void xfs_rmapbt_compute_maxlevels(struct xfs_mount *mp);
 
@@ -52,6 +52,6 @@ extern xfs_extlen_t xfs_rmapbt_max_size(struct xfs_mount *mp,
 		xfs_agblock_t agblocks);
 
 extern int xfs_rmapbt_calc_reserves(struct xfs_mount *mp, struct xfs_trans *tp,
-		xfs_agnumber_t agno, xfs_extlen_t *ask, xfs_extlen_t *used);
+		xfs_agnumber_t agyes, xfs_extlen_t *ask, xfs_extlen_t *used);
 
 #endif	/* __XFS_RMAP_BTREE_H__ */

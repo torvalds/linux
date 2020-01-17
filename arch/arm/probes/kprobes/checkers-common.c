@@ -10,7 +10,7 @@
 #include "../decode-arm.h"
 #include "checkers.h"
 
-enum probes_insn checker_stack_use_none(probes_opcode_t insn,
+enum probes_insn checker_stack_use_yesne(probes_opcode_t insn,
 		struct arch_probes_insn *asi,
 		const struct decode_header *h)
 {
@@ -18,7 +18,7 @@ enum probes_insn checker_stack_use_none(probes_opcode_t insn,
 	return INSN_GOOD_NO_SLOT;
 }
 
-enum probes_insn checker_stack_use_unknown(probes_opcode_t insn,
+enum probes_insn checker_stack_use_unkyeswn(probes_opcode_t insn,
 		struct arch_probes_insn *asi,
 		const struct decode_header *h)
 {
@@ -80,8 +80,8 @@ enum probes_insn checker_stack_use_stmdx(probes_opcode_t insn,
 }
 
 const union decode_action stack_check_actions[] = {
-	[STACK_USE_NONE] = {.decoder = checker_stack_use_none},
-	[STACK_USE_UNKNOWN] = {.decoder = checker_stack_use_unknown},
+	[STACK_USE_NONE] = {.decoder = checker_stack_use_yesne},
+	[STACK_USE_UNKNOWN] = {.decoder = checker_stack_use_unkyeswn},
 #ifdef CONFIG_THUMB2_KERNEL
 	[STACK_USE_FIXED_0XX] = {.decoder = checker_stack_use_imm_0xx},
 	[STACK_USE_T32STRD] = {.decoder = checker_stack_use_t32strd},

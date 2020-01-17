@@ -18,9 +18,9 @@
 #define DRIVER_NAME "tifm_sd"
 #define DRIVER_VERSION "0.8"
 
-static bool no_dma = 0;
+static bool yes_dma = 0;
 static bool fixed_timeout = 0;
-module_param(no_dma, bool, 0644);
+module_param(yes_dma, bool, 0644);
 module_param(fixed_timeout, bool, 0644);
 
 /* Constants here are mostly from OMAP5912 datasheet */
@@ -88,7 +88,7 @@ struct tifm_sd {
 
 	unsigned short        eject:1,
 			      open_drain:1,
-			      no_dma:1;
+			      yes_dma:1;
 	unsigned short        cmd_flags;
 
 	unsigned int          clk_freq;
@@ -420,7 +420,7 @@ static void tifm_sd_check_status(struct tifm_sd *host)
 		if (!(host->cmd_flags & BRS_READY))
 			return;
 
-		if (!(host->no_dma || (host->cmd_flags & FIFO_READY)))
+		if (!(host->yes_dma || (host->cmd_flags & FIFO_READY)))
 			return;
 
 		if (cmd->data->flags & MMC_DATA_WRITE) {
@@ -561,7 +561,7 @@ static void tifm_sd_card_event(struct tifm_dev *sock)
 				host->cmd_flags |= BRS_READY;
 		}
 
-		if (host->no_dma && cmd->data) {
+		if (host->yes_dma && cmd->data) {
 			if (host_status & TIFM_MMCSD_AE)
 				writel(host_status & TIFM_MMCSD_AE,
 				       sock->addr + SOCK_MMCSD_STATUS);
@@ -640,9 +640,9 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->sg_pos = 0;
 
 	if (mrq->data && !is_power_of_2(mrq->data->blksz))
-		host->no_dma = 1;
+		host->yes_dma = 1;
 	else
-		host->no_dma = no_dma ? 1 : 0;
+		host->yes_dma = yes_dma ? 1 : 0;
 
 	if (r_data) {
 		tifm_sd_set_data_timeout(host, r_data);
@@ -652,7 +652,7 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 				| readl(sock->addr + SOCK_MMCSD_INT_ENABLE),
 				sock->addr + SOCK_MMCSD_INT_ENABLE);
 
-		if (host->no_dma) {
+		if (host->yes_dma) {
 			writel(TIFM_MMCSD_BUFINT
 			       | readl(sock->addr + SOCK_MMCSD_INT_ENABLE),
 			       sock->addr + SOCK_MMCSD_INT_ENABLE);
@@ -745,7 +745,7 @@ static void tifm_sd_end_cmd(unsigned long data)
 	host->req = NULL;
 
 	if (!mrq) {
-		pr_err(" %s : no request to complete?\n",
+		pr_err(" %s : yes request to complete?\n",
 		       dev_name(&sock->dev));
 		spin_unlock_irqrestore(&sock->lock, flags);
 		return;
@@ -753,7 +753,7 @@ static void tifm_sd_end_cmd(unsigned long data)
 
 	r_data = mrq->cmd->data;
 	if (r_data) {
-		if (host->no_dma) {
+		if (host->yes_dma) {
 			writel((~TIFM_MMCSD_BUFINT)
 			       & readl(sock->addr + SOCK_MMCSD_INT_ENABLE),
 			       sock->addr + SOCK_MMCSD_INT_ENABLE);
@@ -911,7 +911,7 @@ static int tifm_sd_initialize_host(struct tifm_sd *host)
 	       sock->addr + SOCK_MMCSD_CONFIG);
 	writel(TIFM_MMCSD_RXDE, sock->addr + SOCK_MMCSD_BUFFER_CONFIG);
 
-	// command timeout fixed to 64 clocks for now
+	// command timeout fixed to 64 clocks for yesw
 	writel(64, sock->addr + SOCK_MMCSD_COMMAND_TO);
 	writel(TIFM_MMCSD_INAB, sock->addr + SOCK_MMCSD_COMMAND);
 
@@ -927,7 +927,7 @@ static int tifm_sd_initialize_host(struct tifm_sd *host)
 	}
 
 	if (rc) {
-		pr_err("%s : card not ready - probe failed on initialization\n",
+		pr_err("%s : card yest ready - probe failed on initialization\n",
 		       dev_name(&sock->dev));
 		return -ENODEV;
 	}

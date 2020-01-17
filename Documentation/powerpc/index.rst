@@ -15,7 +15,7 @@ powerpc
     dawr-power9
     dscr
     eeh-pci-error-recovery
-    elfnote
+    elfyeste
     firmware-assisted-dump
     hvcs
     isa-versions

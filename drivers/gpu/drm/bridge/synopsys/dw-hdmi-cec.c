@@ -14,7 +14,7 @@
 #include <drm/drm_edid.h>
 
 #include <media/cec.h>
-#include <media/cec-notifier.h>
+#include <media/cec-yestifier.h>
 
 #include "dw-hdmi-cec.h"
 
@@ -60,7 +60,7 @@ struct dw_hdmi_cec {
 	unsigned int tx_status;
 	bool tx_done;
 	bool rx_done;
-	struct cec_notifier *notify;
+	struct cec_yestifier *yestify;
 	int irq;
 };
 
@@ -278,19 +278,19 @@ static int dw_hdmi_cec_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	cec->notify = cec_notifier_cec_adap_register(pdev->dev.parent,
+	cec->yestify = cec_yestifier_cec_adap_register(pdev->dev.parent,
 						     NULL, cec->adap);
-	if (!cec->notify)
+	if (!cec->yestify)
 		return -ENOMEM;
 
 	ret = cec_register_adapter(cec->adap, pdev->dev.parent);
 	if (ret < 0) {
-		cec_notifier_cec_adap_unregister(cec->notify, cec->adap);
+		cec_yestifier_cec_adap_unregister(cec->yestify, cec->adap);
 		return ret;
 	}
 
 	/*
-	 * CEC documentation says we must not call cec_delete_adapter
+	 * CEC documentation says we must yest call cec_delete_adapter
 	 * after a successful call to cec_register_adapter().
 	 */
 	devm_remove_action(&pdev->dev, dw_hdmi_cec_del, cec);
@@ -302,7 +302,7 @@ static int dw_hdmi_cec_remove(struct platform_device *pdev)
 {
 	struct dw_hdmi_cec *cec = platform_get_drvdata(pdev);
 
-	cec_notifier_cec_adap_unregister(cec->notify, cec->adap);
+	cec_yestifier_cec_adap_unregister(cec->yestify, cec->adap);
 	cec_unregister_adapter(cec->adap);
 
 	return 0;
@@ -318,6 +318,6 @@ static struct platform_driver dw_hdmi_cec_driver = {
 module_platform_driver(dw_hdmi_cec_driver);
 
 MODULE_AUTHOR("Russell King <rmk+kernel@armlinux.org.uk>");
-MODULE_DESCRIPTION("Synopsys Designware HDMI CEC driver for i.MX");
+MODULE_DESCRIPTION("Syyespsys Designware HDMI CEC driver for i.MX");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS(PLATFORM_MODULE_PREFIX "dw-hdmi-cec");

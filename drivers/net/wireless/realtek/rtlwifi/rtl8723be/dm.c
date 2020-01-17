@@ -421,7 +421,7 @@ static void rtl8723be_dm_dig(struct ieee80211_hw *hw)
 	} else {
 		dm_digtable->rx_gain_max = dm_dig_max;
 		dig_min_0 = dm_dig_min;
-		RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "no link\n");
+		RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "yes link\n");
 	}
 
 	if (rtlpriv->falsealm_cnt.cnt_all > 10000) {
@@ -592,7 +592,7 @@ static void rtl8723be_dm_false_alarm_counter_statistics(
 
 static void rtl8723be_dm_dynamic_txpower(struct ieee80211_hw *hw)
 {
-	/* 8723BE does not support ODM_BB_DYNAMIC_TXPWR*/
+	/* 8723BE does yest support ODM_BB_DYNAMIC_TXPWR*/
 	return;
 }
 
@@ -921,7 +921,7 @@ static void rtl8723be_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 
 	if (!rtlpriv->dm.useramask) {
 		RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
-			 "driver does not control rate adaptive mask\n");
+			 "driver does yest control rate adaptive mask\n");
 		return;
 	}
 
@@ -991,7 +991,7 @@ static void rtl8723be_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	u64 cur_txok_cnt = 0;
 	u64 cur_rxok_cnt = 0;
 	u32 edca_be_ul = 0x6ea42b;
-	u32 edca_be_dl = 0x6ea42b;/*not sure*/
+	u32 edca_be_dl = 0x6ea42b;/*yest sure*/
 	u32 edca_be = 0x5ea42b;
 	u32 iot_peer = 0;
 	bool b_is_cur_rdlstate;
@@ -1004,7 +1004,7 @@ static void rtl8723be_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	iot_peer = rtlpriv->mac80211.vendor;
 	b_bias_on_rx = (iot_peer == PEER_RAL || iot_peer == PEER_ATH) ?
 		       true : false;
-	b_edca_turbo_on = ((!rtlpriv->dm.is_any_nonbepkts) &&
+	b_edca_turbo_on = ((!rtlpriv->dm.is_any_yesnbepkts) &&
 			   (!rtlpriv->dm.disable_framebursting)) ?
 			   true : false;
 
@@ -1038,7 +1038,7 @@ static void rtl8723be_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	}
 
 exit:
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_yesnbepkts = false;
 	last_txok_cnt = rtlpriv->stats.txbytesunicast;
 	last_rxok_cnt = rtlpriv->stats.rxbytesunicast;
 }

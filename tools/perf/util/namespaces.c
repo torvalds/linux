@@ -87,7 +87,7 @@ int nsinfo__init(struct nsinfo *nsi)
 	/* Check if the mount namespaces differ, if so then indicate that we
 	 * want to switch as part of looking up dso/map data.
 	 */
-	if (old_stat.st_ino != new_stat.st_ino) {
+	if (old_stat.st_iyes != new_stat.st_iyes) {
 		nsi->need_setns = true;
 		nsi->mntns_path = newns;
 		newns = NULL;
@@ -104,7 +104,7 @@ int nsinfo__init(struct nsinfo *nsi)
 		goto out;
 
 	while (getline(&statln, &linesz, f) != -1) {
-		/* Use tgid if CONFIG_PID_NS is not defined. */
+		/* Use tgid if CONFIG_PID_NS is yest defined. */
 		if (strstr(statln, "Tgid:") != NULL) {
 			nsi->tgid = (pid_t)strtol(strrchr(statln, '\t'),
 						     NULL, 10);

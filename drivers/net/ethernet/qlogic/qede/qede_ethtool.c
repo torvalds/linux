@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -59,7 +59,7 @@ static const struct {
 	QEDE_RQSTAT(rx_hw_errors),
 	QEDE_RQSTAT(rx_alloc_errors),
 	QEDE_RQSTAT(rx_ip_frags),
-	QEDE_RQSTAT(xdp_no_pass),
+	QEDE_RQSTAT(xdp_yes_pass),
 };
 
 #define QEDE_NUM_RQSTATS ARRAY_SIZE(qede_rqstats_arr)
@@ -161,7 +161,7 @@ static const struct {
 	QEDE_PF_BB_STAT(tx_total_collisions),
 	QEDE_PF_STAT(brb_truncates),
 	QEDE_PF_STAT(brb_discards),
-	QEDE_STAT(no_buff_discards),
+	QEDE_STAT(yes_buff_discards),
 	QEDE_PF_STAT(mftag_filter_discards),
 	QEDE_PF_STAT(mac_filter_discards),
 	QEDE_PF_STAT(gft_filter_drop),
@@ -172,7 +172,7 @@ static const struct {
 	QEDE_STAT(coalesced_pkts),
 	QEDE_STAT(coalesced_events),
 	QEDE_STAT(coalesced_aborts_num),
-	QEDE_STAT(non_coalesced_pkts),
+	QEDE_STAT(yesn_coalesced_pkts),
 	QEDE_STAT(coalesced_bytes),
 
 	QEDE_STAT(link_change_count),
@@ -277,7 +277,7 @@ static void qede_get_strings_stats(struct qede_dev *edev, u8 *buf)
 		}
 	}
 
-	/* Account for non-queue statistics */
+	/* Account for yesn-queue statistics */
 	for (i = 0; i < QEDE_NUM_STATS; i++) {
 		if (qede_is_irrelevant_stat(edev, i))
 			continue;
@@ -535,7 +535,7 @@ static int qede_set_link_ksettings(struct net_device *dev,
 	u32 sup_caps;
 
 	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
-		DP_INFO(edev, "Link settings are not allowed to be changed\n");
+		DP_INFO(edev, "Link settings are yest allowed to be changed\n");
 		return -EOPNOTSUPP;
 	}
 	memset(&current_link, 0, sizeof(current_link));
@@ -546,7 +546,7 @@ static int qede_set_link_ksettings(struct net_device *dev,
 	params.override_flags |= QED_LINK_OVERRIDE_SPEED_AUTONEG;
 	if (base->autoneg == AUTONEG_ENABLE) {
 		if (!(current_link.supported_caps & QED_LM_Autoneg_BIT)) {
-			DP_INFO(edev, "Auto negotiation is not supported\n");
+			DP_INFO(edev, "Auto negotiation is yest supported\n");
 			return -EOPNOTSUPP;
 		}
 
@@ -563,7 +563,7 @@ static int qede_set_link_ksettings(struct net_device *dev,
 					QED_LM_1000baseKX_Full_BIT |
 					QED_LM_1000baseX_Full_BIT;
 			if (!(current_link.supported_caps & sup_caps)) {
-				DP_INFO(edev, "1G speed not supported\n");
+				DP_INFO(edev, "1G speed yest supported\n");
 				return -EINVAL;
 			}
 			params.adv_speeds = current_link.supported_caps &
@@ -579,7 +579,7 @@ static int qede_set_link_ksettings(struct net_device *dev,
 					QED_LM_10000baseLR_Full_BIT |
 					QED_LM_10000baseLRM_Full_BIT;
 			if (!(current_link.supported_caps & sup_caps)) {
-				DP_INFO(edev, "10G speed not supported\n");
+				DP_INFO(edev, "10G speed yest supported\n");
 				return -EINVAL;
 			}
 			params.adv_speeds = current_link.supported_caps &
@@ -588,7 +588,7 @@ static int qede_set_link_ksettings(struct net_device *dev,
 		case SPEED_20000:
 			if (!(current_link.supported_caps &
 			    QED_LM_20000baseKR2_Full_BIT)) {
-				DP_INFO(edev, "20G speed not supported\n");
+				DP_INFO(edev, "20G speed yest supported\n");
 				return -EINVAL;
 			}
 			params.adv_speeds = QED_LM_20000baseKR2_Full_BIT;
@@ -598,7 +598,7 @@ static int qede_set_link_ksettings(struct net_device *dev,
 					QED_LM_25000baseCR_Full_BIT |
 					QED_LM_25000baseSR_Full_BIT;
 			if (!(current_link.supported_caps & sup_caps)) {
-				DP_INFO(edev, "25G speed not supported\n");
+				DP_INFO(edev, "25G speed yest supported\n");
 				return -EINVAL;
 			}
 			params.adv_speeds = current_link.supported_caps &
@@ -610,7 +610,7 @@ static int qede_set_link_ksettings(struct net_device *dev,
 					QED_LM_40000baseCR4_Full_BIT |
 					QED_LM_40000baseSR4_Full_BIT;
 			if (!(current_link.supported_caps & sup_caps)) {
-				DP_INFO(edev, "40G speed not supported\n");
+				DP_INFO(edev, "40G speed yest supported\n");
 				return -EINVAL;
 			}
 			params.adv_speeds = current_link.supported_caps &
@@ -621,7 +621,7 @@ static int qede_set_link_ksettings(struct net_device *dev,
 					QED_LM_50000baseCR2_Full_BIT |
 					QED_LM_50000baseSR2_Full_BIT;
 			if (!(current_link.supported_caps & sup_caps)) {
-				DP_INFO(edev, "50G speed not supported\n");
+				DP_INFO(edev, "50G speed yest supported\n");
 				return -EINVAL;
 			}
 			params.adv_speeds = current_link.supported_caps &
@@ -633,7 +633,7 @@ static int qede_set_link_ksettings(struct net_device *dev,
 					QED_LM_100000baseCR4_Full_BIT |
 					QED_LM_100000baseLR4_ER4_Full_BIT;
 			if (!(current_link.supported_caps & sup_caps)) {
-				DP_INFO(edev, "100G speed not supported\n");
+				DP_INFO(edev, "100G speed yest supported\n");
 				return -EINVAL;
 			}
 			params.adv_speeds = current_link.supported_caps &
@@ -662,7 +662,7 @@ static void qede_get_drvinfo(struct net_device *ndev,
 
 	snprintf(storm, ETHTOOL_FWVERS_LEN, "%d.%d.%d.%d",
 		 edev->dev_info.common.fw_major,
-		 edev->dev_info.common.fw_minor,
+		 edev->dev_info.common.fw_miyesr,
 		 edev->dev_info.common.fw_rev,
 		 edev->dev_info.common.fw_eng);
 
@@ -765,7 +765,7 @@ static int qede_nway_reset(struct net_device *dev)
 	struct qed_link_params link_params;
 
 	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
-		DP_INFO(edev, "Link settings are not allowed to be changed\n");
+		DP_INFO(edev, "Link settings are yest allowed to be changed\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -842,7 +842,7 @@ static int qede_get_coalesce(struct net_device *dev,
 			fp = &edev->fp_array[i];
 
 			/* All TX queues of given fastpath uses same
-			 * coalescing value, so no need to iterate over
+			 * coalescing value, so yes need to iterate over
 			 * all TCs, TC0 txq should suffice.
 			 */
 			if (fp->type & QEDE_FASTPATH_TX) {
@@ -908,7 +908,7 @@ static int qede_set_coalesce(struct net_device *dev,
 			struct qede_tx_queue *txq;
 
 			/* All TX queues of given fastpath uses same
-			 * coalescing value, so no need to iterate over
+			 * coalescing value, so yes need to iterate over
 			 * all TCs, TC0 txq should suffice.
 			 */
 			txq = QEDE_FP_TC0_TXQ(fp);
@@ -999,7 +999,7 @@ static int qede_set_pauseparam(struct net_device *dev,
 
 	if (!edev->ops || !edev->ops->common->can_link_change(edev->cdev)) {
 		DP_INFO(edev,
-			"Pause settings are not allowed to be changed\n");
+			"Pause settings are yest allowed to be changed\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1010,7 +1010,7 @@ static int qede_set_pauseparam(struct net_device *dev,
 	params.override_flags |= QED_LINK_OVERRIDE_PAUSE_CONFIG;
 	if (epause->autoneg) {
 		if (!(current_link.supported_caps & QED_LM_Autoneg_BIT)) {
-			DP_INFO(edev, "autoneg not supported\n");
+			DP_INFO(edev, "autoneg yest supported\n");
 			return -EINVAL;
 		}
 		params.pause_config |= QED_LINK_PAUSE_AUTONEG_ENABLE;
@@ -1107,7 +1107,7 @@ static int qede_set_channels(struct net_device *dev,
 	/* We don't support `other' channels */
 	if (channels->other_count) {
 		DP_VERBOSE(edev, (NETIF_MSG_IFUP | NETIF_MSG_IFDOWN),
-			   "command parameters not supported\n");
+			   "command parameters yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1247,7 +1247,7 @@ static int qede_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		rc = qede_get_cls_rule_all(edev, info, rule_locs);
 		break;
 	default:
-		DP_ERR(edev, "Command parameters not supported\n");
+		DP_ERR(edev, "Command parameters yest supported\n");
 		rc = -EOPNOTSUPP;
 	}
 
@@ -1270,7 +1270,7 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 		/* For TCP only 4-tuple hash is supported */
 		if (info->data ^ (RXH_IP_SRC | RXH_IP_DST |
 				  RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
-			DP_INFO(edev, "Command parameters not supported\n");
+			DP_INFO(edev, "Command parameters yest supported\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -1308,7 +1308,7 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 	case IPV6_FLOW:
 		/* For IP only 2-tuple hash is supported */
 		if (info->data ^ (RXH_IP_SRC | RXH_IP_DST)) {
-			DP_INFO(edev, "Command parameters not supported\n");
+			DP_INFO(edev, "Command parameters yest supported\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -1322,9 +1322,9 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 	case ESP_V6_FLOW:
 	case IP_USER_FLOW:
 	case ETHER_FLOW:
-		/* RSS is not supported for these protocols */
+		/* RSS is yest supported for these protocols */
 		if (info->data) {
-			DP_INFO(edev, "Command parameters not supported\n");
+			DP_INFO(edev, "Command parameters yest supported\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -1332,7 +1332,7 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 		return -EINVAL;
 	}
 
-	/* No action is needed if there is no change in the rss capability */
+	/* No action is needed if there is yes change in the rss capability */
 	if (edev->rss_caps == ((edev->rss_caps & ~clr_caps) | set_caps))
 		return 0;
 
@@ -1374,7 +1374,7 @@ static int qede_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
 		rc = qede_delete_flow_filter(edev, info->fs.location);
 		break;
 	default:
-		DP_INFO(edev, "Command parameters not supported\n");
+		DP_INFO(edev, "Command parameters yest supported\n");
 		rc = -EOPNOTSUPP;
 	}
 
@@ -1422,7 +1422,7 @@ static int qede_set_rxfh(struct net_device *dev, const u32 *indir,
 
 	if (edev->dev_info.common.num_hwfns > 1) {
 		DP_INFO(edev,
-			"RSS configuration is not supported for 100G devices\n");
+			"RSS configuration is yest supported for 100G devices\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1506,7 +1506,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	}
 
 	if (!txq) {
-		DP_NOTICE(edev, "Tx path is not available\n");
+		DP_NOTICE(edev, "Tx path is yest available\n");
 		return -1;
 	}
 
@@ -1582,13 +1582,13 @@ static int qede_selftest_receive_traffic(struct qede_dev *edev)
 	}
 
 	if (!rxq) {
-		DP_NOTICE(edev, "Rx path is not available\n");
+		DP_NOTICE(edev, "Rx path is yest available\n");
 		return -1;
 	}
 
 	/* The packet is expected to receive on rx-queue 0 even though RSS is
 	 * enabled. This is because the queue 0 is configured as the default
-	 * queue and that the loopback traffic is not IP.
+	 * queue and that the loopback traffic is yest IP.
 	 */
 	for (iter = 0; iter < QEDE_SELFTEST_POLL_COUNT; iter++) {
 		if (!qede_has_rx_work(rxq)) {
@@ -1817,7 +1817,7 @@ static int qede_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 	edev->ops->common->get_link(edev->cdev, &current_link);
 
 	if (!current_link.eee_supported) {
-		DP_INFO(edev, "EEE is not supported\n");
+		DP_INFO(edev, "EEE is yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1849,7 +1849,7 @@ static int qede_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	struct qed_link_params params;
 
 	if (!edev->ops->common->can_link_change(edev->cdev)) {
-		DP_INFO(edev, "Link settings are not allowed to be changed\n");
+		DP_INFO(edev, "Link settings are yest allowed to be changed\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1857,7 +1857,7 @@ static int qede_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	edev->ops->common->get_link(edev->cdev, &current_link);
 
 	if (!current_link.eee_supported) {
-		DP_INFO(edev, "EEE is not supported\n");
+		DP_INFO(edev, "EEE is yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1919,7 +1919,7 @@ static int qede_get_module_info(struct net_device *dev,
 		modinfo->eeprom_len = ETH_MODULE_SFF_8636_LEN;
 		break;
 	default:
-		DP_ERR(edev, "Unknown transceiver type 0x%x\n", buf[0]);
+		DP_ERR(edev, "Unkyeswn transceiver type 0x%x\n", buf[0]);
 		return -EINVAL;
 	}
 
@@ -2017,7 +2017,7 @@ static int qede_get_dump_flag(struct net_device *dev,
 	struct qede_dev *edev = netdev_priv(dev);
 
 	if (!edev->ops || !edev->ops->common) {
-		DP_ERR(edev, "Edev ops not populated\n");
+		DP_ERR(edev, "Edev ops yest populated\n");
 		return -EINVAL;
 	}
 
@@ -2050,7 +2050,7 @@ static int qede_get_dump_data(struct net_device *dev,
 	int rc = 0;
 
 	if (!edev->ops || !edev->ops->common) {
-		DP_ERR(edev, "Edev ops not populated\n");
+		DP_ERR(edev, "Edev ops yest populated\n");
 		rc = -EINVAL;
 		goto err;
 	}

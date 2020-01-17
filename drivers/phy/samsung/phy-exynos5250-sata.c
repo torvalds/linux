@@ -45,7 +45,7 @@
 
 #define PHY_PLL_TIMEOUT (usecs_to_jiffies(1000))
 
-struct exynos_sata_phy {
+struct exyyess_sata_phy {
 	struct phy *phy;
 	struct clk *phyclk;
 	void __iomem *regs;
@@ -66,30 +66,30 @@ static int wait_for_reg_status(void __iomem *base, u32 reg, u32 checkbit,
 	return -EFAULT;
 }
 
-static int exynos_sata_phy_power_on(struct phy *phy)
+static int exyyess_sata_phy_power_on(struct phy *phy)
 {
-	struct exynos_sata_phy *sata_phy = phy_get_drvdata(phy);
+	struct exyyess_sata_phy *sata_phy = phy_get_drvdata(phy);
 
 	return regmap_update_bits(sata_phy->pmureg, SATAPHY_CONTROL_OFFSET,
 			EXYNOS5_SATAPHY_PMU_ENABLE, true);
 
 }
 
-static int exynos_sata_phy_power_off(struct phy *phy)
+static int exyyess_sata_phy_power_off(struct phy *phy)
 {
-	struct exynos_sata_phy *sata_phy = phy_get_drvdata(phy);
+	struct exyyess_sata_phy *sata_phy = phy_get_drvdata(phy);
 
 	return regmap_update_bits(sata_phy->pmureg, SATAPHY_CONTROL_OFFSET,
 			EXYNOS5_SATAPHY_PMU_ENABLE, false);
 
 }
 
-static int exynos_sata_phy_init(struct phy *phy)
+static int exyyess_sata_phy_init(struct phy *phy)
 {
 	u32 val = 0;
 	int ret = 0;
 	u8 buf[] = { 0x3a, 0x0b };
-	struct exynos_sata_phy *sata_phy = phy_get_drvdata(phy);
+	struct exyyess_sata_phy *sata_phy = phy_get_drvdata(phy);
 
 	ret = regmap_update_bits(sata_phy->pmureg, SATAPHY_CONTROL_OFFSET,
 			EXYNOS5_SATAPHY_PMU_ENABLE, true);
@@ -151,20 +151,20 @@ static int exynos_sata_phy_init(struct phy *phy)
 	return ret;
 }
 
-static const struct phy_ops exynos_sata_phy_ops = {
-	.init		= exynos_sata_phy_init,
-	.power_on	= exynos_sata_phy_power_on,
-	.power_off	= exynos_sata_phy_power_off,
+static const struct phy_ops exyyess_sata_phy_ops = {
+	.init		= exyyess_sata_phy_init,
+	.power_on	= exyyess_sata_phy_power_on,
+	.power_off	= exyyess_sata_phy_power_off,
 	.owner		= THIS_MODULE,
 };
 
-static int exynos_sata_phy_probe(struct platform_device *pdev)
+static int exyyess_sata_phy_probe(struct platform_device *pdev)
 {
-	struct exynos_sata_phy *sata_phy;
+	struct exyyess_sata_phy *sata_phy;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct phy_provider *phy_provider;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int ret = 0;
 
 	sata_phy = devm_kzalloc(dev, sizeof(*sata_phy), GFP_KERNEL);
@@ -177,19 +177,19 @@ static int exynos_sata_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(sata_phy->regs))
 		return PTR_ERR(sata_phy->regs);
 
-	sata_phy->pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
+	sata_phy->pmureg = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 					"samsung,syscon-phandle");
 	if (IS_ERR(sata_phy->pmureg)) {
 		dev_err(dev, "syscon regmap lookup failed.\n");
 		return PTR_ERR(sata_phy->pmureg);
 	}
 
-	node = of_parse_phandle(dev->of_node,
-			"samsung,exynos-sataphy-i2c-phandle", 0);
-	if (!node)
+	yesde = of_parse_phandle(dev->of_yesde,
+			"samsung,exyyess-sataphy-i2c-phandle", 0);
+	if (!yesde)
 		return -EINVAL;
 
-	sata_phy->client = of_find_i2c_device_by_node(node);
+	sata_phy->client = of_find_i2c_device_by_yesde(yesde);
 	if (!sata_phy->client)
 		return -EPROBE_DEFER;
 
@@ -207,7 +207,7 @@ static int exynos_sata_phy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	sata_phy->phy = devm_phy_create(dev, NULL, &exynos_sata_phy_ops);
+	sata_phy->phy = devm_phy_create(dev, NULL, &exyyess_sata_phy_ops);
 	if (IS_ERR(sata_phy->phy)) {
 		clk_disable_unprepare(sata_phy->phyclk);
 		dev_err(dev, "failed to create PHY\n");
@@ -226,21 +226,21 @@ static int exynos_sata_phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id exynos_sata_phy_of_match[] = {
-	{ .compatible = "samsung,exynos5250-sata-phy" },
+static const struct of_device_id exyyess_sata_phy_of_match[] = {
+	{ .compatible = "samsung,exyyess5250-sata-phy" },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, exynos_sata_phy_of_match);
+MODULE_DEVICE_TABLE(of, exyyess_sata_phy_of_match);
 
-static struct platform_driver exynos_sata_phy_driver = {
-	.probe	= exynos_sata_phy_probe,
+static struct platform_driver exyyess_sata_phy_driver = {
+	.probe	= exyyess_sata_phy_probe,
 	.driver = {
-		.of_match_table	= exynos_sata_phy_of_match,
+		.of_match_table	= exyyess_sata_phy_of_match,
 		.name  = "samsung,sata-phy",
 		.suppress_bind_attrs = true,
 	}
 };
-module_platform_driver(exynos_sata_phy_driver);
+module_platform_driver(exyyess_sata_phy_driver);
 
 MODULE_DESCRIPTION("Samsung SerDes PHY driver");
 MODULE_LICENSE("GPL v2");

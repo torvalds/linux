@@ -113,8 +113,8 @@ static int clk_cpu_on_set_rate(struct clk_hw *hwclk, unsigned long rate,
 	struct cpu_clk *cpuclk = to_cpu_clk(hwclk);
 
 	/*
-	 * PMU DFS registers are not mapped, Device Tree does not
-	 * describes them. We cannot change the frequency dynamically.
+	 * PMU DFS registers are yest mapped, Device Tree does yest
+	 * describes them. We canyest change the frequency dynamically.
 	 */
 	if (!cpuclk->pmu_dfs)
 		return -ENODEV;
@@ -163,25 +163,25 @@ static const struct clk_ops cpu_ops = {
 	.set_rate = clk_cpu_set_rate,
 };
 
-static void __init of_cpu_clk_setup(struct device_node *node)
+static void __init of_cpu_clk_setup(struct device_yesde *yesde)
 {
 	struct cpu_clk *cpuclk;
-	void __iomem *clock_complex_base = of_iomap(node, 0);
-	void __iomem *pmu_dfs_base = of_iomap(node, 1);
+	void __iomem *clock_complex_base = of_iomap(yesde, 0);
+	void __iomem *pmu_dfs_base = of_iomap(yesde, 1);
 	int ncpus = 0;
-	struct device_node *dn;
+	struct device_yesde *dn;
 
 	if (clock_complex_base == NULL) {
-		pr_err("%s: clock-complex base register not set\n",
+		pr_err("%s: clock-complex base register yest set\n",
 			__func__);
 		return;
 	}
 
 	if (pmu_dfs_base == NULL)
-		pr_warn("%s: pmu-dfs base register not set, dynamic frequency scaling not available\n",
+		pr_warn("%s: pmu-dfs base register yest set, dynamic frequency scaling yest available\n",
 			__func__);
 
-	for_each_of_cpu_node(dn)
+	for_each_of_cpu_yesde(dn)
 		ncpus++;
 
 	cpuclk = kcalloc(ncpus, sizeof(*cpuclk), GFP_KERNEL);
@@ -192,7 +192,7 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 	if (WARN_ON(!clks))
 		goto clks_out;
 
-	for_each_of_cpu_node(dn) {
+	for_each_of_cpu_yesde(dn) {
 		struct clk_init_data init;
 		struct clk *clk;
 		char *clk_name = kzalloc(5, GFP_KERNEL);
@@ -207,7 +207,7 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 
 		sprintf(clk_name, "cpu%d", cpu);
 
-		cpuclk[cpu].parent_name = of_clk_get_parent_name(node, 0);
+		cpuclk[cpu].parent_name = of_clk_get_parent_name(yesde, 0);
 		cpuclk[cpu].clk_name = clk_name;
 		cpuclk[cpu].cpu = cpu;
 		cpuclk[cpu].reg_base = clock_complex_base;
@@ -228,7 +228,7 @@ static void __init of_cpu_clk_setup(struct device_node *node)
 	}
 	clk_data.clk_num = MAX_CPU;
 	clk_data.clks = clks;
-	of_clk_add_provider(node, of_clk_src_onecell_get, &clk_data);
+	of_clk_add_provider(yesde, of_clk_src_onecell_get, &clk_data);
 
 	return;
 bail_out:
@@ -244,9 +244,9 @@ cpuclk_out:
 CLK_OF_DECLARE(armada_xp_cpu_clock, "marvell,armada-xp-cpu-clock",
 					 of_cpu_clk_setup);
 
-static void __init of_mv98dx3236_cpu_clk_setup(struct device_node *node)
+static void __init of_mv98dx3236_cpu_clk_setup(struct device_yesde *yesde)
 {
-	of_clk_add_provider(node, of_clk_src_simple_get, NULL);
+	of_clk_add_provider(yesde, of_clk_src_simple_get, NULL);
 }
 
 CLK_OF_DECLARE(mv98dx3236_cpu_clock, "marvell,mv98dx3236-cpu-clock",

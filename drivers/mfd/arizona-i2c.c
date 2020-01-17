@@ -28,7 +28,7 @@ static int arizona_i2c_probe(struct i2c_client *i2c,
 	unsigned long type;
 	int ret;
 
-	if (i2c->dev.of_node)
+	if (i2c->dev.of_yesde)
 		type = arizona_of_get_type(&i2c->dev);
 	else
 		type = id->driver_data;
@@ -53,7 +53,7 @@ static int arizona_i2c_probe(struct i2c_client *i2c,
 			regmap_config = &wm8998_i2c_regmap;
 		break;
 	default:
-		dev_err(&i2c->dev, "Unknown device type %ld\n", type);
+		dev_err(&i2c->dev, "Unkyeswn device type %ld\n", type);
 		return -EINVAL;
 	}
 

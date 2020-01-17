@@ -2,7 +2,7 @@
 /*
  * Driver for an envelope detector using a DAC and a comparator
  *
- * Copyright (C) 2016 Axentia Technologies AB
+ * Copyright (C) 2016 Axentia Techyeslogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */
@@ -72,8 +72,8 @@ struct envelope {
  * interrupt service routine below (envelope_detector_comp_isr) as a latch
  * (one-bit memory) for if the interrupt has triggered since last calling
  * this function.
- * The ..._comp_isr function disables the interrupt so that the cpu does not
- * need to service a possible interrupt flood from the comparator when no-one
+ * The ..._comp_isr function disables the interrupt so that the cpu does yest
+ * need to service a possible interrupt flood from the comparator when yes-one
  * cares anyway, and this ..._comp_latch function reenables them again if
  * needed.
  */
@@ -90,10 +90,10 @@ static int envelope_detector_comp_latch(struct envelope *env)
 		return 0;
 
 	/*
-	 * The irq was disabled, and is reenabled just now.
+	 * The irq was disabled, and is reenabled just yesw.
 	 * But there might have been a pending irq that
 	 * happened while the irq was disabled that fires
-	 * just as the irq is reenabled. That is not what
+	 * just as the irq is reenabled. That is yest what
 	 * is desired.
 	 */
 	enable_irq(env->comp_irq);
@@ -119,7 +119,7 @@ static irqreturn_t envelope_detector_comp_isr(int irq, void *ctx)
 
 	spin_lock(&env->comp_lock);
 	env->comp = 1;
-	disable_irq_nosync(env->comp_irq);
+	disable_irq_yessync(env->comp_irq);
 	spin_unlock(&env->comp_lock);
 
 	return IRQ_HANDLED;
@@ -136,7 +136,7 @@ static void envelope_detector_setup_compare(struct envelope *env)
 	 * When invert is active, use the midpoint floor so that
 	 * env->level ends up as env->low when the termination
 	 * criteria below is fulfilled, and use the midpoint
-	 * ceiling when invert is not active so that env->level
+	 * ceiling when invert is yest active so that env->level
 	 * ends up as env->high in that case.
 	 */
 	env->level = (env->high + env->low + !env->invert) / 2;
@@ -197,10 +197,10 @@ static int envelope_detector_read_raw(struct iio_dev *indio_dev,
 		 * When invert is active, start with high=max+1 and low=0
 		 * since we will end up with the low value when the
 		 * termination criteria is fulfilled (rounding down). And
-		 * start with high=max and low=-1 when invert is not active
+		 * start with high=max and low=-1 when invert is yest active
 		 * since we will end up with the high value in that case.
 		 * This ensures that the returned value in both cases are
-		 * in the same range as the DAC and is a value that has not
+		 * in the same range as the DAC and is a value that has yest
 		 * triggered the comparator.
 		 */
 		mutex_lock(&env->read_lock);
@@ -344,7 +344,7 @@ static int envelope_detector_probe(struct platform_device *pdev)
 
 	indio_dev->name = dev_name(dev);
 	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = dev->of_node;
+	indio_dev->dev.of_yesde = dev->of_yesde;
 	indio_dev->info = &envelope_detector_info;
 	indio_dev->channels = &envelope_detector_iio_channel;
 	indio_dev->num_channels = 1;
@@ -388,7 +388,7 @@ static int envelope_detector_probe(struct platform_device *pdev)
 
 	ret = iio_read_max_channel_raw(env->dac, &env->dac_max);
 	if (ret < 0) {
-		dev_err(dev, "dac does not indicate its raw maximum value\n");
+		dev_err(dev, "dac does yest indicate its raw maximum value\n");
 		return ret;
 	}
 

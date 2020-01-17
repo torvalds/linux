@@ -66,13 +66,13 @@ config DW_APB_TIMER_OF
 	select TIMER_OF
 
 config FTTMR010_TIMER
-	bool "Faraday Technology timer driver" if COMPILE_TEST
+	bool "Faraday Techyeslogy timer driver" if COMPILE_TEST
 	depends on HAS_IOMEM
 	select CLKSRC_MMIO
 	select TIMER_OF
 	select MFD_SYSCON
 	help
-	  Enables support for the Faraday Technology timer block
+	  Enables support for the Faraday Techyeslogy timer block
 	  FTTMR010.
 
 config IXP4XX_TIMER
@@ -336,9 +336,9 @@ config ARM_ARCH_TIMER_EVTSTREAM
 	  The main use of the event stream is wfe-based timeouts of userspace
 	  locking implementations. It might also be useful for imposing timeout
 	  on wfe to safeguard against any programming errors in case an expected
-	  event is not generated.
+	  event is yest generated.
 	  This must be disabled for hardware validation purposes to detect any
-	  hardware anomalies of missing events.
+	  hardware ayesmalies of missing events.
 
 config ARM_ARCH_TIMER_OOL_WORKAROUND
 	bool
@@ -352,7 +352,7 @@ config FSL_ERRATUM_A008585
 	  This option enables a workaround for Freescale/NXP Erratum
 	  A-008585 ("ARM generic timer may contain an erroneous
 	  value").  The workaround will only be active if the
-	  fsl,erratum-a008585 property is found in the timer node.
+	  fsl,erratum-a008585 property is found in the timer yesde.
 
 config HISILICON_ERRATUM_161010101
 	bool "Workaround for Hisilicon Erratum 161010101"
@@ -362,7 +362,7 @@ config HISILICON_ERRATUM_161010101
 	help
 	  This option enables a workaround for Hisilicon Erratum
 	  161010101. The workaround will be active if the hisilicon,erratum-161010101
-	  property is found in the timer node.
+	  property is found in the timer yesde.
 
 config ARM64_ERRATUM_858921
 	bool "Workaround for Cortex-A73 erratum 858921"
@@ -383,7 +383,7 @@ config SUN50I_ERRATUM_UNKNOWN1
 	help
 	  This option enables a workaround for instability in the timer on
 	  the Allwinner A64 SoC. The workaround will only be active if the
-	  allwinner,erratum-unknown1 property is found in the timer node.
+	  allwinner,erratum-unkyeswn1 property is found in the timer yesde.
 
 config ARM_GLOBAL_TIMER
 	bool "Support for the ARM global timer" if COMPILE_TEST
@@ -435,19 +435,19 @@ config ATMEL_TCB_CLKSRC
 	  Support for Timer Counter Blocks on Atmel SoCs.
 
 config CLKSRC_EXYNOS_MCT
-	bool "Exynos multi core timer driver" if COMPILE_TEST
+	bool "Exyyess multi core timer driver" if COMPILE_TEST
 	depends on ARM || ARM64
 	help
-	  Support for Multi Core Timer controller on Exynos SoCs.
+	  Support for Multi Core Timer controller on Exyyess SoCs.
 
 config CLKSRC_SAMSUNG_PWM
 	bool "PWM timer driver for Samsung S3C, S5P" if COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  This is a new clocksource driver for the PWM timer found in
-	  Samsung S3C, S5P and Exynos SoCs, replacing an earlier driver
+	  Samsung S3C, S5P and Exyyess SoCs, replacing an earlier driver
 	  for all devicetree enabled platforms. This driver will be
-	  needed only on systems that do not have the Exynos MCT available.
+	  needed only on systems that do yest have the Exyyess MCT available.
 
 config FSL_FTM_TIMER
 	bool "Freescale FlexTimer Module driver" if COMPILE_TEST
@@ -664,10 +664,10 @@ config CSKY_MP_TIMER
 	depends on CSKY
 	select TIMER_OF
 	help
-	  Say yes here to enable C-SKY SMP timer driver used for C-SKY SMP
+	  Say no here to enable C-SKY SMP timer driver used for C-SKY SMP
 	  system.
-	  csky,mptimer is not only used in SMP system, it also could be used
-	  single core system. It's not a mmio reg and it use mtcr/mfcr instruction.
+	  csky,mptimer is yest only used in SMP system, it also could be used
+	  single core system. It's yest a mmio reg and it use mtcr/mfcr instruction.
 
 config GX6605S_TIMER
 	bool "Gx6605s SOC system timer driver" if COMPILE_TEST

@@ -9,7 +9,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 
 #define OV8856_REG_VALUE_08BIT		1
 #define OV8856_REG_VALUE_16BIT		2
@@ -886,7 +886,7 @@ static int ov8856_set_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+			pm_runtime_put_yesidle(&client->dev);
 			mutex_unlock(&ov8856->mutex);
 			return ret;
 		}
@@ -1094,45 +1094,45 @@ static int ov8856_identify_module(struct ov8856 *ov8856)
 
 static int ov8856_check_hwcfg(struct device *dev)
 {
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct fwyesde_handle *ep;
+	struct fwyesde_handle *fwyesde = dev_fwyesde(dev);
+	struct v4l2_fwyesde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	u32 mclk;
 	int ret;
 	unsigned int i, j;
 
-	if (!fwnode)
+	if (!fwyesde)
 		return -ENXIO;
 
-	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
+	ret = fwyesde_property_read_u32(fwyesde, "clock-frequency", &mclk);
 	if (ret)
 		return ret;
 
 	if (mclk != OV8856_MCLK) {
-		dev_err(dev, "external clock %d is not supported", mclk);
+		dev_err(dev, "external clock %d is yest supported", mclk);
 		return -EINVAL;
 	}
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwyesde_graph_get_next_endpoint(fwyesde, NULL);
 	if (!ep)
 		return -ENXIO;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
+	ret = v4l2_fwyesde_endpoint_alloc_parse(ep, &bus_cfg);
+	fwyesde_handle_put(ep);
 	if (ret)
 		return ret;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV8856_DATA_LANES) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
+		dev_err(dev, "number of CSI2 data lanes %d is yest supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
+		dev_err(dev, "yes link frequencies defined");
 		ret = -EINVAL;
 		goto check_hwcfg_error;
 	}
@@ -1145,7 +1145,7 @@ static int ov8856_check_hwcfg(struct device *dev)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
+			dev_err(dev, "yes link frequency %lld supported",
 				link_freq_menu_items[i]);
 			ret = -EINVAL;
 			goto check_hwcfg_error;
@@ -1153,7 +1153,7 @@ static int ov8856_check_hwcfg(struct device *dev)
 	}
 
 check_hwcfg_error:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
+	v4l2_fwyesde_endpoint_free(&bus_cfg);
 
 	return ret;
 }

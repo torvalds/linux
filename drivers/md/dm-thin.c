@@ -32,7 +32,7 @@
 #define COMMIT_PERIOD HZ
 #define NO_SPACE_TIMEOUT_SECS 60
 
-static unsigned no_space_timeout_secs = NO_SPACE_TIMEOUT_SECS;
+static unsigned yes_space_timeout_secs = NO_SPACE_TIMEOUT_SECS;
 
 DECLARE_DM_KCOPYD_THROTTLE_WITH_MODULE_PARM(snapshot_copy_throttle,
 		"A percentage of time allocated for copy on write");
@@ -54,9 +54,9 @@ DECLARE_DM_KCOPYD_THROTTLE_WITH_MODULE_PARM(snapshot_copy_throttle,
  * =================================================
  *
  * We use a standard copy-on-write btree to store the mappings for the
- * devices (note I'm talking about copy-on-write of the metadata here, not
- * the data).  When you take an internal snapshot you clone the root node
- * of the origin btree.  After this there is no concept of an origin or a
+ * devices (yeste I'm talking about copy-on-write of the metadata here, yest
+ * the data).  When you take an internal snapshot you clone the root yesde
+ * of the origin btree.  After this there is yes concept of an origin or a
  * snapshot.  They are just two device trees that happen to point to the
  * same data blocks.
  *
@@ -76,7 +76,7 @@ DECLARE_DM_KCOPYD_THROTTLE_WITH_MODULE_PARM(snapshot_copy_throttle,
  *
  * iv) insert the new mapping into the origin's btree
  * (process_prepared_mapping).  This act of inserting breaks some
- * sharing of btree nodes between the two devices.  Breaking sharing only
+ * sharing of btree yesdes between the two devices.  Breaking sharing only
  * effects the btree of that specific device.  Btrees for the other
  * devices that share the block never change.  The btree for the origin
  * device as it was after the last commit is untouched, ie. we're using
@@ -199,13 +199,13 @@ struct dm_thin_new_mapping;
  */
 enum pool_mode {
 	PM_WRITE,		/* metadata may be changed */
-	PM_OUT_OF_DATA_SPACE,	/* metadata may be changed, though data may not be allocated */
+	PM_OUT_OF_DATA_SPACE,	/* metadata may be changed, though data may yest be allocated */
 
 	/*
 	 * Like READ_ONLY, except may switch back to WRITE on metadata resize. Reported as READ_ONLY.
 	 */
 	PM_OUT_OF_METADATA_SPACE,
-	PM_READ_ONLY,		/* metadata may not be changed */
+	PM_READ_ONLY,		/* metadata may yest be changed */
 
 	PM_FAIL,		/* all I/O fails */
 };
@@ -216,7 +216,7 @@ struct pool_features {
 	bool zero_new_blocks:1;
 	bool discard_enabled:1;
 	bool discard_passdown:1;
-	bool error_if_no_space:1;
+	bool error_if_yes_space:1;
 };
 
 struct thin_c;
@@ -250,7 +250,7 @@ struct pool {
 	struct workqueue_struct *wq;
 	struct throttle throttle;
 	struct delayed_work waker;
-	struct delayed_work no_space_timeout;
+	struct delayed_work yes_space_timeout;
 
 	unsigned long last_commit_jiffies;
 	unsigned ref_count;
@@ -290,7 +290,7 @@ static enum pool_mode get_pool_mode(struct pool *pool)
 	return pool->pf.mode;
 }
 
-static void notify_of_pool_mode_change(struct pool *pool)
+static void yestify_of_pool_mode_change(struct pool *pool)
 {
 	const char *descs[] = {
 		"write",
@@ -303,7 +303,7 @@ static void notify_of_pool_mode_change(struct pool *pool)
 	enum pool_mode mode = get_pool_mode(pool);
 
 	if (mode == PM_OUT_OF_DATA_SPACE) {
-		if (!pool->pf.error_if_no_space)
+		if (!pool->pf.error_if_yes_space)
 			extra_desc = " (queue IO)";
 		else
 			extra_desc = " (error IO)";
@@ -353,7 +353,7 @@ struct thin_c {
 	struct rb_root sort_bio_list; /* sorted list of deferred bios */
 
 	/*
-	 * Ensures the thin is not destroyed until the worker has finished
+	 * Ensures the thin is yest destroyed until the worker has finished
 	 * iterating the active_thins list.
 	 */
 	refcount_t refcount;
@@ -422,7 +422,7 @@ static void end_discard(struct discard_op *op, int r)
 	 * need to wait for.
 	 */
 	if (r && !op->parent_bio->bi_status)
-		op->parent_bio->bi_status = errno_to_blk_status(r);
+		op->parent_bio->bi_status = erryes_to_blk_status(r);
 	bio_endio(op->parent_bio);
 }
 
@@ -479,11 +479,11 @@ static void cell_visit_release(struct pool *pool,
 	dm_bio_prison_free_cell(pool->prison, cell);
 }
 
-static void cell_release_no_holder(struct pool *pool,
+static void cell_release_yes_holder(struct pool *pool,
 				   struct dm_bio_prison_cell *cell,
 				   struct bio_list *bios)
 {
-	dm_cell_release_no_holder(pool->prison, cell, bios);
+	dm_cell_release_yes_holder(pool->prison, cell, bios);
 	dm_bio_prison_free_cell(pool->prison, cell);
 }
 
@@ -586,7 +586,7 @@ struct dm_thin_endio_hook {
 	struct dm_deferred_entry *shared_read_entry;
 	struct dm_deferred_entry *all_io_entry;
 	struct dm_thin_new_mapping *overwrite_mapping;
-	struct rb_node rb_node;
+	struct rb_yesde rb_yesde;
 	struct dm_bio_prison_cell *cell;
 };
 
@@ -879,14 +879,14 @@ static void overwrite_endio(struct bio *bio)
  * This sends the bios in the cell, except the original holder, back
  * to the deferred_bios list.
  */
-static void cell_defer_no_holder(struct thin_c *tc, struct dm_bio_prison_cell *cell)
+static void cell_defer_yes_holder(struct thin_c *tc, struct dm_bio_prison_cell *cell)
 {
 	struct pool *pool = tc->pool;
 	unsigned long flags;
 	int has_work;
 
 	spin_lock_irqsave(&tc->lock, flags);
-	cell_release_no_holder(pool, cell, &tc->deferred_bio_list);
+	cell_release_yes_holder(pool, cell, &tc->deferred_bio_list);
 	has_work = !bio_list_empty(&tc->deferred_bio_list);
 	spin_unlock_irqrestore(&tc->lock, flags);
 
@@ -1016,7 +1016,7 @@ static void process_prepared_mapping(struct dm_thin_new_mapping *m)
 	/*
 	 * Release any bios held while the block was being provisioned.
 	 * If we are processing a write bio that completely covers the block,
-	 * we already processed it so can ignore it now when processing
+	 * we already processed it so can igyesre it yesw when processing
 	 * the bios in the cell.
 	 */
 	if (bio) {
@@ -1039,7 +1039,7 @@ static void free_discard_mapping(struct dm_thin_new_mapping *m)
 {
 	struct thin_c *tc = m->tc;
 	if (m->cell)
-		cell_defer_no_holder(tc, m->cell);
+		cell_defer_yes_holder(tc, m->cell);
 	mempool_free(m, &tc->pool->mapping_pool);
 }
 
@@ -1055,7 +1055,7 @@ static void process_prepared_discard_success(struct dm_thin_new_mapping *m)
 	free_discard_mapping(m);
 }
 
-static void process_prepared_discard_no_passdown(struct dm_thin_new_mapping *m)
+static void process_prepared_discard_yes_passdown(struct dm_thin_new_mapping *m)
 {
 	int r;
 	struct thin_c *tc = m->tc;
@@ -1067,7 +1067,7 @@ static void process_prepared_discard_no_passdown(struct dm_thin_new_mapping *m)
 	} else
 		bio_endio(m->bio);
 
-	cell_defer_no_holder(tc, m->cell);
+	cell_defer_yes_holder(tc, m->cell);
 	mempool_free(m, &tc->pool->mapping_pool);
 }
 
@@ -1078,7 +1078,7 @@ static void passdown_double_checking_shared_status(struct dm_thin_new_mapping *m
 {
 	/*
 	 * We've already unmapped this range of blocks, but before we
-	 * passdown we have to check that these blocks are now unused.
+	 * passdown we have to check that these blocks are yesw unused.
 	 */
 	int r = 0;
 	bool shared = true;
@@ -1137,7 +1137,7 @@ static void passdown_endio(struct bio *bio)
 {
 	/*
 	 * It doesn't matter if the passdown discard failed, we still want
-	 * to unmap (we ignore err).
+	 * to unmap (we igyesre err).
 	 */
 	queue_passdown_pt2(bio->bi_private);
 	bio_put(bio);
@@ -1153,14 +1153,14 @@ static void process_prepared_discard_passdown_pt1(struct dm_thin_new_mapping *m)
 
 	/*
 	 * Only this thread allocates blocks, so we can be sure that the
-	 * newly unmapped blocks will not be allocated before the end of
+	 * newly unmapped blocks will yest be allocated before the end of
 	 * the function.
 	 */
 	r = dm_thin_remove_range(tc->td, m->virt_begin, m->virt_end);
 	if (r) {
 		metadata_operation_failed(pool, "dm_thin_remove_range", r);
 		bio_io_error(m->bio);
-		cell_defer_no_holder(tc, m->cell);
+		cell_defer_yes_holder(tc, m->cell);
 		mempool_free(m, &pool->mapping_pool);
 		return;
 	}
@@ -1173,7 +1173,7 @@ static void process_prepared_discard_passdown_pt1(struct dm_thin_new_mapping *m)
 	if (r) {
 		metadata_operation_failed(pool, "dm_pool_inc_data_range", r);
 		bio_io_error(m->bio);
-		cell_defer_no_holder(tc, m->cell);
+		cell_defer_yes_holder(tc, m->cell);
 		mempool_free(m, &pool->mapping_pool);
 		return;
 	}
@@ -1207,7 +1207,7 @@ static void process_prepared_discard_passdown_pt2(struct dm_thin_new_mapping *m)
 	struct pool *pool = tc->pool;
 
 	/*
-	 * The passdown has completed, so now we can decrement all those
+	 * The passdown has completed, so yesw we can decrement all those
 	 * unmapped blocks.
 	 */
 	r = dm_pool_dec_data_range(pool->pmd, m->data_block,
@@ -1218,7 +1218,7 @@ static void process_prepared_discard_passdown_pt2(struct dm_thin_new_mapping *m)
 	} else
 		bio_endio(m->bio);
 
-	cell_defer_no_holder(tc, m->cell);
+	cell_defer_yes_holder(tc, m->cell);
 	mempool_free(m, &pool->mapping_pool);
 }
 
@@ -1390,7 +1390,7 @@ static void schedule_zero(struct thin_c *tc, dm_block_t virt_block,
 	struct pool *pool = tc->pool;
 	struct dm_thin_new_mapping *m = get_next_mapping(pool);
 
-	atomic_set(&m->prepare_actions, 1); /* no need to quiesce */
+	atomic_set(&m->prepare_actions, 1); /* yes need to quiesce */
 	m->tc = tc;
 	m->virt_begin = virt_block;
 	m->virt_end = virt_block + 1u;
@@ -1398,7 +1398,7 @@ static void schedule_zero(struct thin_c *tc, dm_block_t virt_block,
 	m->cell = cell;
 
 	/*
-	 * If the whole block of data is being overwritten or we are not
+	 * If the whole block of data is being overwritten or we are yest
 	 * zeroing pre-existing data, we can issue the bio immediately.
 	 * Otherwise we use kcopyd to zero the data first.
 	 */
@@ -1456,7 +1456,7 @@ static void check_for_metadata_space(struct pool *pool)
 
 	r = dm_pool_get_free_metadata_block_count(pool->pmd, &nr_free);
 	if (r)
-		ooms_reason = "Could not get free metadata blocks";
+		ooms_reason = "Could yest get free metadata blocks";
 	else if (!nr_free)
 		ooms_reason = "No free metadata blocks";
 
@@ -1485,7 +1485,7 @@ static void check_for_data_space(struct pool *pool)
 }
 
 /*
- * A non-zero return indicates read_only or fail_io mode.
+ * A yesn-zero return indicates read_only or fail_io mode.
  * Many callers don't care about the return value.
  */
 static int commit(struct pool *pool)
@@ -1606,7 +1606,7 @@ static blk_status_t should_error_unserviceable_bio(struct pool *pool)
 		return BLK_STS_IOERR;
 
 	case PM_OUT_OF_DATA_SPACE:
-		return pool->pf.error_if_no_space ? BLK_STS_NOSPC : 0;
+		return pool->pf.error_if_yes_space ? BLK_STS_NOSPC : 0;
 
 	case PM_OUT_OF_METADATA_SPACE:
 	case PM_READ_ONLY:
@@ -1614,7 +1614,7 @@ static blk_status_t should_error_unserviceable_bio(struct pool *pool)
 		return BLK_STS_IOERR;
 	default:
 		/* Shouldn't get here */
-		DMERR_LIMIT("bio unserviceable, yet pool has an unknown mode");
+		DMERR_LIMIT("bio unserviceable, yet pool has an unkyeswn mode");
 		return BLK_STS_IOERR;
 	}
 }
@@ -1649,14 +1649,14 @@ static void retry_bios_on_resume(struct pool *pool, struct dm_bio_prison_cell *c
 		retry_on_resume(bio);
 }
 
-static void process_discard_cell_no_passdown(struct thin_c *tc,
+static void process_discard_cell_yes_passdown(struct thin_c *tc,
 					     struct dm_bio_prison_cell *virt_cell)
 {
 	struct pool *pool = tc->pool;
 	struct dm_thin_new_mapping *m = get_next_mapping(pool);
 
 	/*
-	 * We don't need to lock the data blocks, since there's no
+	 * We don't need to lock the data blocks, since there's yes
 	 * passdown.  We only lock data blocks for allocation and breaking sharing.
 	 */
 	m->tc = tc;
@@ -1717,7 +1717,7 @@ static void break_up_discard_bio(struct thin_c *tc, dm_block_t begin, dm_block_t
 		m->bio = bio;
 
 		/*
-		 * The parent bio must not complete before sub discard bios are
+		 * The parent bio must yest complete before sub discard bios are
 		 * chained to it (see end_discard's bio_chain)!
 		 *
 		 * This per-mapping bi_remaining increment is paired with
@@ -1746,7 +1746,7 @@ static void process_discard_cell_passdown(struct thin_c *tc, struct dm_bio_priso
 	break_up_discard_bio(tc, virt_cell->key.block_begin, virt_cell->key.block_end, bio);
 
 	/*
-	 * We complete the bio now, knowing that the bi_remaining field
+	 * We complete the bio yesw, kyeswing that the bi_remaining field
 	 * will prevent completion until the sub range discards have
 	 * completed.
 	 */
@@ -1772,7 +1772,7 @@ static void process_discard_bio(struct thin_c *tc, struct bio *bio)
 	if (bio_detain(tc->pool, &virt_key, bio, &virt_cell))
 		/*
 		 * Potential starvation issue: We're relying on the
-		 * fs/application being well behaved, and not trying to
+		 * fs/application being well behaved, and yest trying to
 		 * send IO to a region at the same time as discarding it.
 		 * If they do this persistently then it's possible this
 		 * cell will never be granted.
@@ -1862,17 +1862,17 @@ static void process_shared_bio(struct thin_c *tc, struct bio *bio,
 
 	/*
 	 * If cell is already occupied, then sharing is already in the process
-	 * of being broken so we have nothing further to do here.
+	 * of being broken so we have yesthing further to do here.
 	 */
 	build_data_key(tc->td, lookup_result->block, &key);
 	if (bio_detain(pool, &key, bio, &data_cell)) {
-		cell_defer_no_holder(tc, virt_cell);
+		cell_defer_yes_holder(tc, virt_cell);
 		return;
 	}
 
 	if (bio_data_dir(bio) == WRITE && bio->bi_iter.bi_size) {
 		break_sharing(tc, bio, block, &key, lookup_result, data_cell);
-		cell_defer_no_holder(tc, virt_cell);
+		cell_defer_yes_holder(tc, virt_cell);
 	} else {
 		struct dm_thin_endio_hook *h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
 
@@ -1897,7 +1897,7 @@ static void provision_block(struct thin_c *tc, struct bio *bio, dm_block_t block
 	 */
 	if (!bio->bi_iter.bi_size) {
 		inc_all_io_entry(pool, bio);
-		cell_defer_no_holder(tc, cell);
+		cell_defer_yes_holder(tc, cell);
 
 		remap_and_issue(tc, bio, 0);
 		return;
@@ -1908,7 +1908,7 @@ static void provision_block(struct thin_c *tc, struct bio *bio, dm_block_t block
 	 */
 	if (bio_data_dir(bio) == READ) {
 		zero_fill_bio(bio);
-		cell_defer_no_holder(tc, cell);
+		cell_defer_yes_holder(tc, cell);
 		bio_endio(bio);
 		return;
 	}
@@ -1962,7 +1962,7 @@ static void process_cell(struct thin_c *tc, struct dm_bio_prison_cell *cell)
 	case -ENODATA:
 		if (bio_data_dir(bio) == READ && tc->origin_dev) {
 			inc_all_io_entry(pool, bio);
-			cell_defer_no_holder(tc, cell);
+			cell_defer_yes_holder(tc, cell);
 
 			if (bio_end_sector(bio) <= tc->origin_size)
 				remap_to_origin_and_issue(tc, bio);
@@ -1983,7 +1983,7 @@ static void process_cell(struct thin_c *tc, struct dm_bio_prison_cell *cell)
 	default:
 		DMERR_LIMIT("%s: dm_thin_find_block() failed: error = %d",
 			    __func__, r);
-		cell_defer_no_holder(tc, cell);
+		cell_defer_yes_holder(tc, cell);
 		bio_io_error(bio);
 		break;
 	}
@@ -1998,7 +1998,7 @@ static void process_bio(struct thin_c *tc, struct bio *bio)
 
 	/*
 	 * If cell is already occupied, then the block is already
-	 * being provisioned so we have nothing further to do here.
+	 * being provisioned so we have yesthing further to do here.
 	 */
 	build_virtual_key(tc->td, block, &key);
 	if (bio_detain(pool, &key, bio, &cell))
@@ -2021,7 +2021,7 @@ static void __process_bio_read_only(struct thin_c *tc, struct bio *bio,
 		if (lookup_result.shared && (rw == WRITE) && bio->bi_iter.bi_size) {
 			handle_unserviceable_bio(tc->pool, bio);
 			if (cell)
-				cell_defer_no_holder(tc, cell);
+				cell_defer_yes_holder(tc, cell);
 		} else {
 			inc_all_io_entry(tc->pool, bio);
 			remap_and_issue(tc, bio, lookup_result.block);
@@ -2032,7 +2032,7 @@ static void __process_bio_read_only(struct thin_c *tc, struct bio *bio,
 
 	case -ENODATA:
 		if (cell)
-			cell_defer_no_holder(tc, cell);
+			cell_defer_yes_holder(tc, cell);
 		if (rw != READ) {
 			handle_unserviceable_bio(tc->pool, bio);
 			break;
@@ -2052,7 +2052,7 @@ static void __process_bio_read_only(struct thin_c *tc, struct bio *bio,
 		DMERR_LIMIT("%s: dm_thin_find_block() failed: error = %d",
 			    __func__, r);
 		if (cell)
-			cell_defer_no_holder(tc, cell);
+			cell_defer_yes_holder(tc, cell);
 		bio_io_error(bio);
 		break;
 	}
@@ -2098,16 +2098,16 @@ static int need_commit_due_to_time(struct pool *pool)
 			      pool->last_commit_jiffies + COMMIT_PERIOD);
 }
 
-#define thin_pbd(node) rb_entry((node), struct dm_thin_endio_hook, rb_node)
+#define thin_pbd(yesde) rb_entry((yesde), struct dm_thin_endio_hook, rb_yesde)
 #define thin_bio(pbd) dm_bio_from_per_bio_data((pbd), sizeof(struct dm_thin_endio_hook))
 
 static void __thin_bio_rb_add(struct thin_c *tc, struct bio *bio)
 {
-	struct rb_node **rbp, *parent;
+	struct rb_yesde **rbp, *parent;
 	struct dm_thin_endio_hook *pbd;
 	sector_t bi_sector = bio->bi_iter.bi_sector;
 
-	rbp = &tc->sort_bio_list.rb_node;
+	rbp = &tc->sort_bio_list.rb_yesde;
 	parent = NULL;
 	while (*rbp) {
 		parent = *rbp;
@@ -2120,22 +2120,22 @@ static void __thin_bio_rb_add(struct thin_c *tc, struct bio *bio)
 	}
 
 	pbd = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
-	rb_link_node(&pbd->rb_node, parent, rbp);
-	rb_insert_color(&pbd->rb_node, &tc->sort_bio_list);
+	rb_link_yesde(&pbd->rb_yesde, parent, rbp);
+	rb_insert_color(&pbd->rb_yesde, &tc->sort_bio_list);
 }
 
 static void __extract_sorted_bios(struct thin_c *tc)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct dm_thin_endio_hook *pbd;
 	struct bio *bio;
 
-	for (node = rb_first(&tc->sort_bio_list); node; node = rb_next(node)) {
-		pbd = thin_pbd(node);
+	for (yesde = rb_first(&tc->sort_bio_list); yesde; yesde = rb_next(yesde)) {
+		pbd = thin_pbd(yesde);
 		bio = thin_bio(pbd);
 
 		bio_list_add(&tc->deferred_bio_list, bio);
-		rb_erase(&pbd->rb_node, &tc->sort_bio_list);
+		rb_erase(&pbd->rb_yesde, &tc->sort_bio_list);
 	}
 
 	WARN_ON(!RB_EMPTY_ROOT(&tc->sort_bio_list));
@@ -2195,7 +2195,7 @@ static void process_thin_deferred_bios(struct thin_c *tc)
 	blk_start_plug(&plug);
 	while ((bio = bio_list_pop(&bios))) {
 		/*
-		 * If we've got no free new_mapping structs, and processing
+		 * If we've got yes free new_mapping structs, and processing
 		 * this bio might require one, we pause until there are some
 		 * prepared mappings to process.
 		 */
@@ -2279,7 +2279,7 @@ static void process_thin_deferred_cells(struct thin_c *tc)
 			BUG_ON(!cell->holder);
 
 			/*
-			 * If we've got no free new_mapping structs, and processing
+			 * If we've got yes free new_mapping structs, and processing
 			 * this bio might require one, we pause until there are some
 			 * prepared mappings to process.
 			 */
@@ -2414,7 +2414,7 @@ static void do_worker(struct work_struct *ws)
 }
 
 /*
- * We want to commit periodically so that not too much
+ * We want to commit periodically so that yest too much
  * unwritten data builds up.
  */
 static void do_waker(struct work_struct *ws)
@@ -2427,16 +2427,16 @@ static void do_waker(struct work_struct *ws)
 /*
  * We're holding onto IO to allow userland time to react.  After the
  * timeout either the pool will have been resized (and thus back in
- * PM_WRITE mode), or we degrade to PM_OUT_OF_DATA_SPACE w/ error_if_no_space.
+ * PM_WRITE mode), or we degrade to PM_OUT_OF_DATA_SPACE w/ error_if_yes_space.
  */
-static void do_no_space_timeout(struct work_struct *ws)
+static void do_yes_space_timeout(struct work_struct *ws)
 {
 	struct pool *pool = container_of(to_delayed_work(ws), struct pool,
-					 no_space_timeout);
+					 yes_space_timeout);
 
-	if (get_pool_mode(pool) == PM_OUT_OF_DATA_SPACE && !pool->pf.error_if_no_space) {
-		pool->pf.error_if_no_space = true;
-		notify_of_pool_mode_change(pool);
+	if (get_pool_mode(pool) == PM_OUT_OF_DATA_SPACE && !pool->pf.error_if_yes_space) {
+		pool->pf.error_if_yes_space = true;
+		yestify_of_pool_mode_change(pool);
 		error_retry_list_with_code(pool, BLK_STS_NOSPC);
 	}
 }
@@ -2469,34 +2469,34 @@ static void pool_work_wait(struct pool_work *pw, struct pool *pool,
 
 /*----------------------------------------------------------------*/
 
-struct noflush_work {
+struct yesflush_work {
 	struct pool_work pw;
 	struct thin_c *tc;
 };
 
-static struct noflush_work *to_noflush(struct work_struct *ws)
+static struct yesflush_work *to_yesflush(struct work_struct *ws)
 {
-	return container_of(to_pool_work(ws), struct noflush_work, pw);
+	return container_of(to_pool_work(ws), struct yesflush_work, pw);
 }
 
-static void do_noflush_start(struct work_struct *ws)
+static void do_yesflush_start(struct work_struct *ws)
 {
-	struct noflush_work *w = to_noflush(ws);
+	struct yesflush_work *w = to_yesflush(ws);
 	w->tc->requeue_mode = true;
 	requeue_io(w->tc);
 	pool_work_complete(&w->pw);
 }
 
-static void do_noflush_stop(struct work_struct *ws)
+static void do_yesflush_stop(struct work_struct *ws)
 {
-	struct noflush_work *w = to_noflush(ws);
+	struct yesflush_work *w = to_yesflush(ws);
 	w->tc->requeue_mode = false;
 	pool_work_complete(&w->pw);
 }
 
-static void noflush_work(struct thin_c *tc, void (*fn)(struct work_struct *))
+static void yesflush_work(struct thin_c *tc, void (*fn)(struct work_struct *))
 {
-	struct noflush_work w;
+	struct yesflush_work w;
 
 	w.tc = tc;
 	pool_work_wait(&w.pw, tc->pool, fn);
@@ -2518,8 +2518,8 @@ static void set_discard_callbacks(struct pool *pool)
 		pool->process_prepared_discard = process_prepared_discard_passdown_pt1;
 		pool->process_prepared_discard_pt2 = process_prepared_discard_passdown_pt2;
 	} else {
-		pool->process_discard_cell = process_discard_cell_no_passdown;
-		pool->process_prepared_discard = process_prepared_discard_no_passdown;
+		pool->process_discard_cell = process_discard_cell_yes_passdown;
+		pool->process_prepared_discard = process_prepared_discard_yes_passdown;
 	}
 }
 
@@ -2528,7 +2528,7 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 	struct pool_c *pt = pool->ti->private;
 	bool needs_check = dm_pool_metadata_needs_check(pool->pmd);
 	enum pool_mode old_mode = get_pool_mode(pool);
-	unsigned long no_space_timeout = READ_ONCE(no_space_timeout_secs) * HZ;
+	unsigned long yes_space_timeout = READ_ONCE(yes_space_timeout_secs) * HZ;
 
 	/*
 	 * Never allow the pool to transition to PM_WRITE mode if user
@@ -2544,7 +2544,7 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 	}
 	/*
 	 * If we were in PM_FAIL mode, rollback of metadata failed.  We're
-	 * not going to recover without a thin_repair.	So we never let the
+	 * yest going to recover without a thin_repair.	So we never let the
 	 * pool move out of the old mode.
 	 */
 	if (old_mode == PM_FAIL)
@@ -2592,15 +2592,15 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 		pool->process_prepared_mapping = process_prepared_mapping;
 		set_discard_callbacks(pool);
 
-		if (!pool->pf.error_if_no_space && no_space_timeout)
-			queue_delayed_work(pool->wq, &pool->no_space_timeout, no_space_timeout);
+		if (!pool->pf.error_if_yes_space && yes_space_timeout)
+			queue_delayed_work(pool->wq, &pool->yes_space_timeout, yes_space_timeout);
 		break;
 
 	case PM_WRITE:
 		if (old_mode == PM_OUT_OF_DATA_SPACE)
-			cancel_delayed_work_sync(&pool->no_space_timeout);
+			cancel_delayed_work_sync(&pool->yes_space_timeout);
 		pool->out_of_data_space = false;
-		pool->pf.error_if_no_space = pt->requested_pf.error_if_no_space;
+		pool->pf.error_if_yes_space = pt->requested_pf.error_if_yes_space;
 		dm_pool_metadata_read_write(pool->pmd);
 		pool->process_bio = process_bio;
 		pool->process_discard = process_discard_bio;
@@ -2618,7 +2618,7 @@ static void set_pool_mode(struct pool *pool, enum pool_mode new_mode)
 	pt->adjusted_pf.mode = new_mode;
 
 	if (old_mode != new_mode)
-		notify_of_pool_mode_change(pool);
+		yestify_of_pool_mode_change(pool);
 }
 
 static void abort_transaction(struct pool *pool)
@@ -2766,13 +2766,13 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 
 		build_data_key(tc->td, result.block, &key);
 		if (bio_detain(tc->pool, &key, bio, &data_cell)) {
-			cell_defer_no_holder(tc, virt_cell);
+			cell_defer_yes_holder(tc, virt_cell);
 			return DM_MAPIO_SUBMITTED;
 		}
 
 		inc_all_io_entry(tc->pool, bio);
-		cell_defer_no_holder(tc, data_cell);
-		cell_defer_no_holder(tc, virt_cell);
+		cell_defer_yes_holder(tc, data_cell);
+		cell_defer_yes_holder(tc, virt_cell);
 
 		remap(tc, bio, result.block);
 		return DM_MAPIO_REMAPPED;
@@ -2789,7 +2789,7 @@ static int thin_bio_map(struct dm_target *ti, struct bio *bio)
 		 * pool is switched to fail-io mode.
 		 */
 		bio_io_error(bio);
-		cell_defer_no_holder(tc, virt_cell);
+		cell_defer_yes_holder(tc, virt_cell);
 		return DM_MAPIO_SUBMITTED;
 	}
 }
@@ -2837,9 +2837,9 @@ static bool is_factor(sector_t block_size, uint32_t n)
 
 /*
  * If discard_passdown was enabled verify that the data device
- * supports discards.  Disable discard_passdown if not.
+ * supports discards.  Disable discard_passdown if yest.
  */
-static void disable_passdown_if_not_supported(struct pool_c *pt)
+static void disable_passdown_if_yest_supported(struct pool_c *pt)
 {
 	struct pool *pool = pt->pool;
 	struct block_device *data_bdev = pt->data_dev->bdev;
@@ -2875,7 +2875,7 @@ static int bind_control_target(struct pool *pool, struct dm_target *ti)
 	/*
 	 * Don't change the pool's mode until set_pool_mode() below.
 	 * Otherwise the pool's process_* function pointers may
-	 * not match the desired pool mode.
+	 * yest match the desired pool mode.
 	 */
 	pt->adjusted_pf.mode = old_mode;
 
@@ -2904,7 +2904,7 @@ static void pool_features_init(struct pool_features *pf)
 	pf->zero_new_blocks = true;
 	pf->discard_enabled = true;
 	pf->discard_passdown = true;
-	pf->error_if_no_space = false;
+	pf->error_if_yes_space = false;
 }
 
 static void __pool_destroy(struct pool *pool)
@@ -2992,7 +2992,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	throttle_init(&pool->throttle);
 	INIT_WORK(&pool->worker, do_worker);
 	INIT_DELAYED_WORK(&pool->waker, do_waker);
-	INIT_DELAYED_WORK(&pool->no_space_timeout, do_no_space_timeout);
+	INIT_DELAYED_WORK(&pool->yes_space_timeout, do_yes_space_timeout);
 	spin_lock_init(&pool->lock);
 	bio_list_init(&pool->deferred_flush_bios);
 	bio_list_init(&pool->deferred_flush_completions);
@@ -3097,7 +3097,7 @@ static struct pool *__pool_find(struct mapped_device *pool_md,
 		pool = __pool_table_lookup(pool_md);
 		if (pool) {
 			if (pool->md_dev != metadata_dev) {
-				*error = "different pool cannot replace a pool";
+				*error = "different pool canyest replace a pool";
 				return ERR_PTR(-EINVAL);
 			}
 			__pool_inc(pool);
@@ -3158,17 +3158,17 @@ static int parse_pool_features(struct dm_arg_set *as, struct pool_features *pf,
 		if (!strcasecmp(arg_name, "skip_block_zeroing"))
 			pf->zero_new_blocks = false;
 
-		else if (!strcasecmp(arg_name, "ignore_discard"))
+		else if (!strcasecmp(arg_name, "igyesre_discard"))
 			pf->discard_enabled = false;
 
-		else if (!strcasecmp(arg_name, "no_discard_passdown"))
+		else if (!strcasecmp(arg_name, "yes_discard_passdown"))
 			pf->discard_passdown = false;
 
 		else if (!strcasecmp(arg_name, "read_only"))
 			pf->mode = PM_READ_ONLY;
 
-		else if (!strcasecmp(arg_name, "error_if_no_space"))
-			pf->error_if_no_space = true;
+		else if (!strcasecmp(arg_name, "error_if_yes_space"))
+			pf->error_if_yes_space = true;
 
 		else {
 			ti->error = "Unrecognised pool feature requested";
@@ -3194,7 +3194,7 @@ static void metadata_low_callback(void *context)
  * We need to flush the data device **before** committing the metadata.
  *
  * This ensures that the data blocks of any newly inserted mappings are
- * properly written to non-volatile storage and won't be lost in case of a
+ * properly written to yesn-volatile storage and won't be lost in case of a
  * crash.
  *
  * Failure to do so can result in data corruption in the case of internal or
@@ -3215,7 +3215,7 @@ static int metadata_pre_commit_callback(void *context)
 
 static sector_t get_dev_size(struct block_device *bdev)
 {
-	return i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
+	return i_size_read(bdev->bd_iyesde) >> SECTOR_SHIFT;
 }
 
 static void warn_if_metadata_device_too_big(struct block_device *bdev)
@@ -3224,7 +3224,7 @@ static void warn_if_metadata_device_too_big(struct block_device *bdev)
 	char buffer[BDEVNAME_SIZE];
 
 	if (metadata_dev_size > THIN_METADATA_MAX_SECTORS_WARNING)
-		DMWARN("Metadata device %s is larger than %u sectors: excess space will not be used.",
+		DMWARN("Metadata device %s is larger than %u sectors: excess space will yest be used.",
 		       bdevname(bdev, buffer), THIN_METADATA_MAX_SECTORS);
 }
 
@@ -3251,7 +3251,7 @@ static dm_block_t get_metadata_dev_size_in_blocks(struct block_device *bdev)
  * When a metadata threshold is crossed a dm event is triggered, and
  * userland should respond by growing the metadata device.  We could let
  * userland set the threshold, like we do with the data threshold, but I'm
- * not sure they know enough to do this well.
+ * yest sure they kyesw eyesugh to do this well.
  */
 static dm_block_t calc_metadata_threshold(struct pool_c *pt)
 {
@@ -3272,10 +3272,10 @@ static dm_block_t calc_metadata_threshold(struct pool_c *pt)
  *
  * Optional feature arguments are:
  *	     skip_block_zeroing: skips the zeroing of newly-provisioned blocks.
- *	     ignore_discard: disable discard
- *	     no_discard_passdown: don't pass discards down to the data device
+ *	     igyesre_discard: disable discard
+ *	     yes_discard_passdown: don't pass discards down to the data device
  *	     read_only: Don't allow any changes to be made to the pool metadata.
- *	     error_if_no_space: error IOs, instead of queueing, if no space.
+ *	     error_if_yes_space: error IOs, instead of queueing, if yes space.
  */
 static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
@@ -3365,12 +3365,12 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	/*
 	 * 'pool_created' reflects whether this is the first table load.
-	 * Top level discard support is not allowed to be changed after
+	 * Top level discard support is yest allowed to be changed after
 	 * initial load.  This would require a pool reload to trigger thin
 	 * device changes.
 	 */
 	if (!pool_created && pf.discard_enabled != pool->pf.discard_enabled) {
-		ti->error = "Discard support cannot be disabled once enabled";
+		ti->error = "Discard support canyest be disabled once enabled";
 		r = -EINVAL;
 		goto out_flags_changed;
 	}
@@ -3393,7 +3393,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		ti->num_discard_bios = 1;
 
 		/*
-		 * Setting 'discards_supported' circumvents the normal
+		 * Setting 'discards_supported' circumvents the yesrmal
 		 * stacking of discard limits (this keeps the pool and
 		 * thin devices' discard limits consistent).
 		 */
@@ -3595,7 +3595,7 @@ static void pool_suspend_active_thins(struct pool *pool)
 	/* Suspend all active thin devices */
 	tc = get_first_thin(pool);
 	while (tc) {
-		dm_internal_suspend_noflush(tc->thin_md);
+		dm_internal_suspend_yesflush(tc->thin_md);
 		tc = get_next_thin(pool, tc);
 	}
 }
@@ -3662,7 +3662,7 @@ static void pool_postsuspend(struct dm_target *ti)
 	struct pool *pool = pt->pool;
 
 	cancel_delayed_work_sync(&pool->waker);
-	cancel_delayed_work_sync(&pool->no_space_timeout);
+	cancel_delayed_work_sync(&pool->yes_space_timeout);
 	flush_workqueue(pool->wq);
 	(void) commit(pool);
 }
@@ -3876,30 +3876,30 @@ static void emit_flags(struct pool_features *pf, char *result,
 {
 	unsigned count = !pf->zero_new_blocks + !pf->discard_enabled +
 		!pf->discard_passdown + (pf->mode == PM_READ_ONLY) +
-		pf->error_if_no_space;
+		pf->error_if_yes_space;
 	DMEMIT("%u ", count);
 
 	if (!pf->zero_new_blocks)
 		DMEMIT("skip_block_zeroing ");
 
 	if (!pf->discard_enabled)
-		DMEMIT("ignore_discard ");
+		DMEMIT("igyesre_discard ");
 
 	if (!pf->discard_passdown)
-		DMEMIT("no_discard_passdown ");
+		DMEMIT("yes_discard_passdown ");
 
 	if (pf->mode == PM_READ_ONLY)
 		DMEMIT("read_only ");
 
-	if (pf->error_if_no_space)
-		DMEMIT("error_if_no_space ");
+	if (pf->error_if_yes_space)
+		DMEMIT("error_if_yes_space ");
 }
 
 /*
  * Status line is:
  *    <transaction id> <used metadata sectors>/<total metadata sectors>
  *    <used data sectors>/<total data sectors> <held metadata root>
- *    <pool mode> <discard config> <no space config> <needs_check>
+ *    <pool mode> <discard config> <yes space config> <needs_check>
  */
 static void pool_status(struct dm_target *ti, status_type_t type,
 			unsigned status_flags, char *result, unsigned maxlen)
@@ -3992,16 +3992,16 @@ static void pool_status(struct dm_target *ti, status_type_t type,
 			DMEMIT("rw ");
 
 		if (!pool->pf.discard_enabled)
-			DMEMIT("ignore_discard ");
+			DMEMIT("igyesre_discard ");
 		else if (pool->pf.discard_passdown)
 			DMEMIT("discard_passdown ");
 		else
-			DMEMIT("no_discard_passdown ");
+			DMEMIT("yes_discard_passdown ");
 
-		if (pool->pf.error_if_no_space)
-			DMEMIT("error_if_no_space ");
+		if (pool->pf.error_if_yes_space)
+			DMEMIT("error_if_yes_space ");
 		else
-			DMEMIT("queue_if_no_space ");
+			DMEMIT("queue_if_yes_space ");
 
 		if (dm_pool_metadata_needs_check(pool->pmd))
 			DMEMIT("needs_check ");
@@ -4060,7 +4060,7 @@ static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 	/*
 	 * If the system-determined stacked limits are compatible with the
-	 * pool's blocksize (io_opt is a factor) do not override them.
+	 * pool's blocksize (io_opt is a factor) do yest override them.
 	 */
 	if (io_opt_sectors < pool->sectors_per_block ||
 	    !is_factor(io_opt_sectors, pool->sectors_per_block)) {
@@ -4080,14 +4080,14 @@ static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 		/*
 		 * Must explicitly disallow stacking discard limits otherwise the
 		 * block layer will stack them if pool's data device has support.
-		 * QUEUE_FLAG_DISCARD wouldn't be set but there is no way for the
+		 * QUEUE_FLAG_DISCARD wouldn't be set but there is yes way for the
 		 * user to see that, so make sure to set all discard limits to 0.
 		 */
 		limits->discard_granularity = 0;
 		return;
 	}
 
-	disable_passdown_if_not_supported(pt);
+	disable_passdown_if_yest_supported(pt);
 
 	/*
 	 * The pool uses the same discard limits as the underlying data
@@ -4278,7 +4278,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	spin_unlock_irq(&tc->pool->lock);
 	/*
 	 * This synchronize_rcu() call is needed here otherwise we risk a
-	 * wake_worker() call finding no bios to process (because the newly
+	 * wake_worker() call finding yes bios to process (because the newly
 	 * added tc isn't yet visible).  So this reduces latency since we
 	 * aren't then dependent on the periodic commit to wake_worker().
 	 */
@@ -4348,7 +4348,7 @@ static int thin_endio(struct dm_target *ti, struct bio *bio,
 	}
 
 	if (h->cell)
-		cell_defer_no_holder(h->tc, h->cell);
+		cell_defer_yes_holder(h->tc, h->cell);
 
 	return DM_ENDIO_DONE;
 }
@@ -4357,8 +4357,8 @@ static void thin_presuspend(struct dm_target *ti)
 {
 	struct thin_c *tc = ti->private;
 
-	if (dm_noflush_suspending(ti))
-		noflush_work(tc, do_noflush_start);
+	if (dm_yesflush_suspending(ti))
+		yesflush_work(tc, do_yesflush_start);
 }
 
 static void thin_postsuspend(struct dm_target *ti)
@@ -4366,10 +4366,10 @@ static void thin_postsuspend(struct dm_target *ti)
 	struct thin_c *tc = ti->private;
 
 	/*
-	 * The dm_noflush_suspending flag has been cleared by now, so
+	 * The dm_yesflush_suspending flag has been cleared by yesw, so
 	 * unfortunately we must always run this.
 	 */
-	noflush_work(tc, do_noflush_stop);
+	yesflush_work(tc, do_yesflush_stop);
 }
 
 static int thin_preresume(struct dm_target *ti)
@@ -4452,7 +4452,7 @@ static int thin_iterate_devices(struct dm_target *ti,
 	 * we follow a more convoluted path through to the pool's target.
 	 */
 	if (!pool->ti)
-		return 0;	/* nothing is bound */
+		return 0;	/* yesthing is bound */
 
 	blocks = pool->ti->len;
 	(void) sector_div(blocks, pool->sectors_per_block);
@@ -4533,8 +4533,8 @@ static void dm_thin_exit(void)
 module_init(dm_thin_init);
 module_exit(dm_thin_exit);
 
-module_param_named(no_space_timeout, no_space_timeout_secs, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(no_space_timeout, "Out of data space queue IO timeout in seconds");
+module_param_named(yes_space_timeout, yes_space_timeout_secs, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(yes_space_timeout, "Out of data space queue IO timeout in seconds");
 
 MODULE_DESCRIPTION(DM_NAME " thin provisioning target");
 MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");

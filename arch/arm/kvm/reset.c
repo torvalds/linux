@@ -4,7 +4,7 @@
  * Author: Christoffer Dall <c.dall@virtualopensystems.com>
  */
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>

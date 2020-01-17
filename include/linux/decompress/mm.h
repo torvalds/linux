@@ -16,7 +16,7 @@
 /* Code active when included from pre-boot environment: */
 
 /*
- * Some architectures want to ensure there is no local data in their
+ * Some architectures want to ensure there is yes local data in their
  * pre-boot environment, so that data can arbitrarily relocated (via
  * GOT references).  This is achieved by defining STATIC_RW_DATA to
  * be null.
@@ -75,7 +75,7 @@ static void free(void *where)
 #include <linux/vmalloc.h>
 
 /* Use defines rather than static inline in order to avoid spurious
- * warnings when not needed (indeed large_malloc / large_free are not
+ * warnings when yest needed (indeed large_malloc / large_free are yest
  * needed by inflate */
 
 #define malloc(a) kmalloc(a, GFP_KERNEL)

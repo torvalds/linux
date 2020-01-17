@@ -16,13 +16,13 @@
 #include <asm/fpu-ucf64.h>
 
 /*
- * A special flag to tell the normalisation code not to normalise.
+ * A special flag to tell the yesrmalisation code yest to yesrmalise.
  */
 #define F64_NAN_FLAG	0x100
 
 /*
  * A bit pattern used to indicate the initial (unset) value of the
- * exception mask, in case nothing handles an instruction.  This
+ * exception mask, in case yesthing handles an instruction.  This
  * doesn't include the NAN flag, which get masked out before
  * we check for an error.
  */
@@ -52,11 +52,11 @@
 void ucf64_raise_sigfpe(struct pt_regs *regs)
 {
 	/*
-	 * This is the same as NWFPE, because it's not clear what
+	 * This is the same as NWFPE, because it's yest clear what
 	 * this is used for
 	 */
 	current->thread.error_code = 0;
-	current->thread.trap_no = 6;
+	current->thread.trap_yes = 6;
 
 	send_sig_fault(SIGFPE, FPE_FLTUNK,
 		       (void __user *)(instruction_pointer(regs) - 4),

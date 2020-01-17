@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright IBM Corp
-// Copyright ASPEED Technology
+// Copyright ASPEED Techyeslogy
 
 #define pr_fmt(fmt) "clk-ast2600: " fmt
 
@@ -92,7 +92,7 @@ static const struct aspeed_gate_data aspeed_g6_gates[] = {
 	/* Reserved 35 */
 	[ASPEED_CLK_GATE_SDCLK]		= { 36, 56, "sdclk-gate",	NULL,	 0 },	/* SDIO/SD */
 	[ASPEED_CLK_GATE_LHCCLK]	= { 37, -1, "lhclk-gate",	"lhclk", 0 },	/* LPC master/LPC+ */
-	/* Reserved 38 RSA: no longer used */
+	/* Reserved 38 RSA: yes longer used */
 	/* Reserved 39 */
 	[ASPEED_CLK_GATE_I3C0CLK]	= { 40,  40, "i3c0clk-gate",	NULL,	 0 },	/* I3C0 */
 	[ASPEED_CLK_GATE_I3C1CLK]	= { 41,  41, "i3c1clk-gate",	NULL,	 0 },	/* I3C1 */
@@ -225,7 +225,7 @@ static int aspeed_g6_clk_is_enabled(struct clk_hw *hw)
 	u32 enval;
 
 	/*
-	 * If the IP is in reset, treat the clock as not enabled,
+	 * If the IP is in reset, treat the clock as yest enabled,
 	 * this happens with some clocks such as the USB one when
 	 * coming from cold reset. Without this, aspeed_clk_enable()
 	 * will fail to lift the reset.
@@ -414,9 +414,9 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	u32 val, rate;
 	int i, ret;
 
-	map = syscon_node_to_regmap(dev->of_node);
+	map = syscon_yesde_to_regmap(dev->of_yesde);
 	if (IS_ERR(map)) {
-		dev_err(dev, "no syscon regmap\n");
+		dev_err(dev, "yes syscon regmap\n");
 		return PTR_ERR(map);
 	}
 
@@ -429,11 +429,11 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	ar->rcdev.owner = THIS_MODULE;
 	ar->rcdev.nr_resets = 64;
 	ar->rcdev.ops = &aspeed_g6_reset_ops;
-	ar->rcdev.of_node = dev->of_node;
+	ar->rcdev.of_yesde = dev->of_yesde;
 
 	ret = devm_reset_controller_register(dev, &ar->rcdev);
 	if (ret) {
-		dev_err(dev, "could not register reset controller\n");
+		dev_err(dev, "could yest register reset controller\n");
 		return ret;
 	}
 
@@ -705,7 +705,7 @@ static void __init aspeed_g6_cc(struct regmap *map)
 	aspeed_g6_clk_data->hws[ASPEED_CLK_USBPHY_40M] = hw;
 };
 
-static void __init aspeed_g6_cc_init(struct device_node *np)
+static void __init aspeed_g6_cc_init(struct device_yesde *np)
 {
 	struct regmap *map;
 	int ret;
@@ -730,12 +730,12 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 	/*
 	 * We check that the regmap works on this very first access,
 	 * but as this is an MMIO-backed regmap, subsequent regmap
-	 * access is not going to fail and we skip error checks from
+	 * access is yest going to fail and we skip error checks from
 	 * this point.
 	 */
-	map = syscon_node_to_regmap(np);
+	map = syscon_yesde_to_regmap(np);
 	if (IS_ERR(map)) {
-		pr_err("no syscon regmap\n");
+		pr_err("yes syscon regmap\n");
 		return;
 	}
 

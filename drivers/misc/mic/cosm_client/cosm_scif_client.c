@@ -22,10 +22,10 @@ static scif_epd_t client_epd;
 static struct scif_peer_dev *client_spdev;
 
 /*
- * Reboot notifier: receives shutdown status from the OS and communicates it
+ * Reboot yestifier: receives shutdown status from the OS and communicates it
  * back to the COSM process on the host
  */
-static int cosm_reboot_event(struct notifier_block *this, unsigned long event,
+static int cosm_reboot_event(struct yestifier_block *this, unsigned long event,
 			     void *ptr)
 {
 	struct cosm_msg msg = { .id = COSM_MSG_SHUTDOWN_STATUS };
@@ -44,8 +44,8 @@ static int cosm_reboot_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block cosm_reboot = {
-	.notifier_call  = cosm_reboot_event,
+static struct yestifier_block cosm_reboot = {
+	.yestifier_call  = cosm_reboot_event,
 };
 
 /* Set system time from timespec value received from the host */
@@ -89,7 +89,7 @@ static void cosm_client_recv(void)
 			orderly_poweroff(true);
 			break;
 		default:
-			dev_err(&client_spdev->dev, "%s: %d unknown id %lld\n",
+			dev_err(&client_spdev->dev, "%s: %d unkyeswn id %lld\n",
 				__func__, __LINE__, msg.id);
 			break;
 		}
@@ -109,7 +109,7 @@ static int cosm_scif_connect(void)
 		return -ENOMEM;
 	}
 
-	port_id.node = 0;
+	port_id.yesde = 0;
 	port_id.port = SCIF_COSM_LISTEN_PORT;
 
 	for (i = 0; i < COSM_SCIF_MAX_RETRIES; i++) {
@@ -182,11 +182,11 @@ static void cosm_scif_probe(struct scif_peer_dev *spdev)
 {
 	int rc;
 
-	dev_dbg(&spdev->dev, "%s %d: dnode %d\n",
-		__func__, __LINE__, spdev->dnode);
+	dev_dbg(&spdev->dev, "%s %d: dyesde %d\n",
+		__func__, __LINE__, spdev->dyesde);
 
-	/* We are only interested in the host with spdev->dnode == 0 */
-	if (spdev->dnode)
+	/* We are only interested in the host with spdev->dyesde == 0 */
+	if (spdev->dyesde)
 		return;
 
 	client_spdev = spdev;
@@ -194,10 +194,10 @@ static void cosm_scif_probe(struct scif_peer_dev *spdev)
 	if (rc)
 		goto exit;
 
-	rc = register_reboot_notifier(&cosm_reboot);
+	rc = register_reboot_yestifier(&cosm_reboot);
 	if (rc) {
 		dev_err(&spdev->dev,
-			"reboot notifier registration failed rc %d\n", rc);
+			"reboot yestifier registration failed rc %d\n", rc);
 		goto connect_exit;
 	}
 
@@ -210,7 +210,7 @@ static void cosm_scif_probe(struct scif_peer_dev *spdev)
 	}
 	return;
 unreg_reboot:
-	unregister_reboot_notifier(&cosm_reboot);
+	unregister_reboot_yestifier(&cosm_reboot);
 connect_exit:
 	cosm_scif_connect_exit();
 exit:
@@ -221,10 +221,10 @@ static void cosm_scif_remove(struct scif_peer_dev *spdev)
 {
 	int rc;
 
-	dev_dbg(&spdev->dev, "%s %d: dnode %d\n",
-		__func__, __LINE__, spdev->dnode);
+	dev_dbg(&spdev->dev, "%s %d: dyesde %d\n",
+		__func__, __LINE__, spdev->dyesde);
 
-	if (spdev->dnode)
+	if (spdev->dyesde)
 		return;
 
 	if (!IS_ERR_OR_NULL(client_thread)) {
@@ -236,7 +236,7 @@ static void cosm_scif_remove(struct scif_peer_dev *spdev)
 		}
 		kthread_stop(client_thread);
 	}
-	unregister_reboot_notifier(&cosm_reboot);
+	unregister_reboot_yestifier(&cosm_reboot);
 	cosm_scif_connect_exit();
 	client_spdev = NULL;
 }

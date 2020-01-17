@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_ERRQUEUE_H
 #define _UAPI_LINUX_ERRQUEUE_H
 
@@ -6,7 +6,7 @@
 #include <linux/time_types.h>
 
 struct sock_extended_err {
-	__u32	ee_errno;	
+	__u32	ee_erryes;	
 	__u8	ee_origin;
 	__u8	ee_type;
 	__u8	ee_code;
@@ -60,7 +60,7 @@ struct scm_timestamping64 {
 enum {
 	SCM_TSTAMP_SND,		/* driver passed skb to NIC, or HW */
 	SCM_TSTAMP_SCHED,	/* data entered the packet scheduler */
-	SCM_TSTAMP_ACK,		/* data acknowledged by peer */
+	SCM_TSTAMP_ACK,		/* data ackyeswledged by peer */
 };
 
 #endif /* _UAPI_LINUX_ERRQUEUE_H */

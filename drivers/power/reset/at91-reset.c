@@ -57,7 +57,7 @@ static struct clk *sclk;
 * reset register it can be left driving the data bus and
 * killing the chance of a subsequent boot from NAND
 */
-static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
+static int at91sam9260_restart(struct yestifier_block *this, unsigned long mode,
 			       void *cmd)
 {
 	asm volatile(
@@ -84,7 +84,7 @@ static int at91sam9260_restart(struct notifier_block *this, unsigned long mode,
 	return NOTIFY_DONE;
 }
 
-static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
+static int at91sam9g45_restart(struct yestifier_block *this, unsigned long mode,
 			       void *cmd)
 {
 	asm volatile(
@@ -128,7 +128,7 @@ static int at91sam9g45_restart(struct notifier_block *this, unsigned long mode,
 	return NOTIFY_DONE;
 }
 
-static int sama5d3_restart(struct notifier_block *this, unsigned long mode,
+static int sama5d3_restart(struct yestifier_block *this, unsigned long mode,
 			   void *cmd)
 {
 	writel(AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST,
@@ -137,7 +137,7 @@ static int sama5d3_restart(struct notifier_block *this, unsigned long mode,
 	return NOTIFY_DONE;
 }
 
-static int samx7_restart(struct notifier_block *this, unsigned long mode,
+static int samx7_restart(struct yestifier_block *this, unsigned long mode,
 			 void *cmd)
 {
 	writel(AT91_RSTC_KEY | AT91_RSTC_PROCRST, at91_rstc_base);
@@ -175,7 +175,7 @@ static void __init at91_reset_status(struct platform_device *pdev)
 		reason = "ULP2 reset";
 		break;
 	default:
-		reason = "unknown reset";
+		reason = "unkyeswn reset";
 		break;
 	}
 
@@ -198,37 +198,37 @@ static const struct of_device_id at91_reset_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, at91_reset_of_match);
 
-static struct notifier_block at91_restart_nb = {
+static struct yestifier_block at91_restart_nb = {
 	.priority = 192,
 };
 
 static int __init at91_reset_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret, idx = 0;
 
-	at91_rstc_base = of_iomap(pdev->dev.of_node, 0);
+	at91_rstc_base = of_iomap(pdev->dev.of_yesde, 0);
 	if (!at91_rstc_base) {
-		dev_err(&pdev->dev, "Could not map reset controller address\n");
+		dev_err(&pdev->dev, "Could yest map reset controller address\n");
 		return -ENODEV;
 	}
 
-	if (!of_device_is_compatible(pdev->dev.of_node, "atmel,sama5d3-rstc")) {
+	if (!of_device_is_compatible(pdev->dev.of_yesde, "atmel,sama5d3-rstc")) {
 		/* we need to shutdown the ddr controller, so get ramc base */
-		for_each_matching_node(np, at91_ramc_of_match) {
+		for_each_matching_yesde(np, at91_ramc_of_match) {
 			at91_ramc_base[idx] = of_iomap(np, 0);
 			if (!at91_ramc_base[idx]) {
-				dev_err(&pdev->dev, "Could not map ram controller address\n");
-				of_node_put(np);
+				dev_err(&pdev->dev, "Could yest map ram controller address\n");
+				of_yesde_put(np);
 				return -ENODEV;
 			}
 			idx++;
 		}
 	}
 
-	match = of_match_node(at91_reset_of_match, pdev->dev.of_node);
-	at91_restart_nb.notifier_call = match->data;
+	match = of_match_yesde(at91_reset_of_match, pdev->dev.of_yesde);
+	at91_restart_nb.yestifier_call = match->data;
 
 	sclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sclk))
@@ -236,7 +236,7 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(sclk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		dev_err(&pdev->dev, "Could yest enable slow clock\n");
 		return ret;
 	}
 

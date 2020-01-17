@@ -24,20 +24,20 @@ MODULE_DEVICE_TABLE(of, fpga_region_of_match);
 
 /**
  * of_fpga_region_find - find FPGA region
- * @np: device node of FPGA Region
+ * @np: device yesde of FPGA Region
  *
  * Caller will need to put_device(&region->dev) when done.
  *
  * Returns FPGA Region struct or NULL
  */
-static struct fpga_region *of_fpga_region_find(struct device_node *np)
+static struct fpga_region *of_fpga_region_find(struct device_yesde *np)
 {
-	return fpga_region_class_find(NULL, np, device_match_of_node);
+	return fpga_region_class_find(NULL, np, device_match_of_yesde);
 }
 
 /**
  * of_fpga_region_get_mgr - get reference for FPGA manager
- * @np: device node of FPGA region
+ * @np: device yesde of FPGA region
  *
  * Get FPGA Manager from "fpga-mgr" property or from ancestor region.
  *
@@ -45,25 +45,25 @@ static struct fpga_region *of_fpga_region_find(struct device_node *np)
  *
  * Return: fpga manager struct or IS_ERR() condition containing error code.
  */
-static struct fpga_manager *of_fpga_region_get_mgr(struct device_node *np)
+static struct fpga_manager *of_fpga_region_get_mgr(struct device_yesde *np)
 {
-	struct device_node  *mgr_node;
+	struct device_yesde  *mgr_yesde;
 	struct fpga_manager *mgr;
 
-	of_node_get(np);
+	of_yesde_get(np);
 	while (np) {
 		if (of_device_is_compatible(np, "fpga-region")) {
-			mgr_node = of_parse_phandle(np, "fpga-mgr", 0);
-			if (mgr_node) {
-				mgr = of_fpga_mgr_get(mgr_node);
-				of_node_put(mgr_node);
-				of_node_put(np);
+			mgr_yesde = of_parse_phandle(np, "fpga-mgr", 0);
+			if (mgr_yesde) {
+				mgr = of_fpga_mgr_get(mgr_yesde);
+				of_yesde_put(mgr_yesde);
+				of_yesde_put(np);
 				return mgr;
 			}
 		}
 		np = of_get_next_parent(np);
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return ERR_PTR(-EINVAL);
 }
@@ -80,15 +80,15 @@ static struct fpga_manager *of_fpga_region_get_mgr(struct device_node *np)
  * Caller should call fpga_bridges_put(&region->bridge_list) when
  * done with the bridges.
  *
- * Return 0 for success (even if there are no bridges specified)
+ * Return 0 for success (even if there are yes bridges specified)
  * or -EBUSY if any of the bridges are in use.
  */
 static int of_fpga_region_get_bridges(struct fpga_region *region)
 {
 	struct device *dev = &region->dev;
-	struct device_node *region_np = dev->of_node;
+	struct device_yesde *region_np = dev->of_yesde;
 	struct fpga_image_info *info = region->info;
-	struct device_node *br, *np, *parent_br = NULL;
+	struct device_yesde *br, *np, *parent_br = NULL;
 	int i, ret;
 
 	/* If parent is a bridge, add to list */
@@ -106,7 +106,7 @@ static int of_fpga_region_get_bridges(struct fpga_region *region)
 	/* If overlay has a list of bridges, use it. */
 	br = of_parse_phandle(info->overlay, "fpga-bridges", 0);
 	if (br) {
-		of_node_put(br);
+		of_yesde_put(br);
 		np = info->overlay;
 	} else {
 		np = region_np;
@@ -119,14 +119,14 @@ static int of_fpga_region_get_bridges(struct fpga_region *region)
 
 		/* If parent bridge is in list, skip it. */
 		if (br == parent_br) {
-			of_node_put(br);
+			of_yesde_put(br);
 			continue;
 		}
 
-		/* If node is a bridge, get it and add to list */
+		/* If yesde is a bridge, get it and add to list */
 		ret = of_fpga_bridge_get_to_list(br, info,
 						 &region->bridge_list);
-		of_node_put(br);
+		of_yesde_put(br);
 
 		/* If any of the bridges are in use, give up */
 		if (ret == -EBUSY) {
@@ -140,36 +140,36 @@ static int of_fpga_region_get_bridges(struct fpga_region *region)
 
 /**
  * child_regions_with_firmware
- * @overlay: device node of the overlay
+ * @overlay: device yesde of the overlay
  *
- * If the overlay adds child FPGA regions, they are not allowed to have
+ * If the overlay adds child FPGA regions, they are yest allowed to have
  * firmware-name property.
  *
  * Return 0 for OK or -EINVAL if child FPGA region adds firmware-name.
  */
-static int child_regions_with_firmware(struct device_node *overlay)
+static int child_regions_with_firmware(struct device_yesde *overlay)
 {
-	struct device_node *child_region;
+	struct device_yesde *child_region;
 	const char *child_firmware_name;
 	int ret = 0;
 
-	of_node_get(overlay);
+	of_yesde_get(overlay);
 
-	child_region = of_find_matching_node(overlay, fpga_region_of_match);
+	child_region = of_find_matching_yesde(overlay, fpga_region_of_match);
 	while (child_region) {
 		if (!of_property_read_string(child_region, "firmware-name",
 					     &child_firmware_name)) {
 			ret = -EINVAL;
 			break;
 		}
-		child_region = of_find_matching_node(child_region,
+		child_region = of_find_matching_yesde(child_region,
 						     fpga_region_of_match);
 	}
 
-	of_node_put(child_region);
+	of_yesde_put(child_region);
 
 	if (ret)
-		pr_err("firmware-name not allowed in child FPGA region: %pOF",
+		pr_err("firmware-name yest allowed in child FPGA region: %pOF",
 		       child_region);
 
 	return ret;
@@ -191,7 +191,7 @@ static int child_regions_with_firmware(struct device_node *overlay)
  */
 static struct fpga_image_info *of_fpga_region_parse_ov(
 						struct fpga_region *region,
-						struct device_node *overlay)
+						struct device_yesde *overlay)
 {
 	struct device *dev = &region->dev;
 	struct fpga_image_info *info;
@@ -206,7 +206,7 @@ static struct fpga_image_info *of_fpga_region_parse_ov(
 	/*
 	 * Reject overlay if child FPGA Regions added in the overlay have
 	 * firmware-name property (would mean that an FPGA region that has
-	 * not been added to the live tree yet is doing FPGA programming).
+	 * yest been added to the live tree yet is doing FPGA programming).
 	 */
 	ret = child_regions_with_firmware(overlay);
 	if (ret)
@@ -245,10 +245,10 @@ static struct fpga_image_info *of_fpga_region_parse_ov(
 	of_property_read_u32(overlay, "config-complete-timeout-us",
 			     &info->config_complete_timeout_us);
 
-	/* If overlay is not programming the FPGA, don't need FPGA image info */
+	/* If overlay is yest programming the FPGA, don't need FPGA image info */
 	if (!info->firmware_name) {
 		ret = 0;
-		goto ret_no_info;
+		goto ret_yes_info;
 	}
 
 	/*
@@ -258,31 +258,31 @@ static struct fpga_image_info *of_fpga_region_parse_ov(
 	if (info->flags & FPGA_MGR_EXTERNAL_CONFIG) {
 		dev_err(dev, "error: specified firmware and external-fpga-config");
 		ret = -EINVAL;
-		goto ret_no_info;
+		goto ret_yes_info;
 	}
 
 	return info;
-ret_no_info:
+ret_yes_info:
 	fpga_image_info_free(info);
 	return ERR_PTR(ret);
 }
 
 /**
- * of_fpga_region_notify_pre_apply - pre-apply overlay notification
+ * of_fpga_region_yestify_pre_apply - pre-apply overlay yestification
  *
  * @region: FPGA region that the overlay was applied to
- * @nd: overlay notification data
+ * @nd: overlay yestification data
  *
  * Called when an overlay targeted to a FPGA Region is about to be applied.
  * Parses the overlay for properties that influence how the FPGA will be
  * programmed and does some checking. If the checks pass, programs the FPGA.
- * If the checks fail, overlay is rejected and does not get added to the
+ * If the checks fail, overlay is rejected and does yest get added to the
  * live tree.
  *
  * Returns 0 for success or negative error code for failure.
  */
-static int of_fpga_region_notify_pre_apply(struct fpga_region *region,
-					   struct of_overlay_notify_data *nd)
+static int of_fpga_region_yestify_pre_apply(struct fpga_region *region,
+					   struct of_overlay_yestify_data *nd)
 {
 	struct device *dev = &region->dev;
 	struct fpga_image_info *info;
@@ -313,16 +313,16 @@ static int of_fpga_region_notify_pre_apply(struct fpga_region *region,
 }
 
 /**
- * of_fpga_region_notify_post_remove - post-remove overlay notification
+ * of_fpga_region_yestify_post_remove - post-remove overlay yestification
  *
  * @region: FPGA region that was targeted by the overlay that was removed
- * @nd: overlay notification data
+ * @nd: overlay yestification data
  *
  * Called after an overlay has been removed if the overlay's target was a
  * FPGA region.
  */
-static void of_fpga_region_notify_post_remove(struct fpga_region *region,
-					      struct of_overlay_notify_data *nd)
+static void of_fpga_region_yestify_post_remove(struct fpga_region *region,
+					      struct of_overlay_yestify_data *nd)
 {
 	fpga_bridges_disable(&region->bridge_list);
 	fpga_bridges_put(&region->bridge_list);
@@ -331,20 +331,20 @@ static void of_fpga_region_notify_post_remove(struct fpga_region *region,
 }
 
 /**
- * of_fpga_region_notify - reconfig notifier for dynamic DT changes
- * @nb:		notifier block
- * @action:	notifier action
+ * of_fpga_region_yestify - reconfig yestifier for dynamic DT changes
+ * @nb:		yestifier block
+ * @action:	yestifier action
  * @arg:	reconfig data
  *
- * This notifier handles programming a FPGA when a "firmware-name" property is
+ * This yestifier handles programming a FPGA when a "firmware-name" property is
  * added to a fpga-region.
  *
  * Returns NOTIFY_OK or error if FPGA programming fails.
  */
-static int of_fpga_region_notify(struct notifier_block *nb,
+static int of_fpga_region_yestify(struct yestifier_block *nb,
 				 unsigned long action, void *arg)
 {
-	struct of_overlay_notify_data *nd = arg;
+	struct of_overlay_yestify_data *nd = arg;
 	struct fpga_region *region;
 	int ret;
 
@@ -354,14 +354,14 @@ static int of_fpga_region_notify(struct notifier_block *nb,
 		break;
 	case OF_OVERLAY_POST_APPLY:
 		pr_debug("%s OF_OVERLAY_POST_APPLY\n", __func__);
-		return NOTIFY_OK;       /* not for us */
+		return NOTIFY_OK;       /* yest for us */
 	case OF_OVERLAY_PRE_REMOVE:
 		pr_debug("%s OF_OVERLAY_PRE_REMOVE\n", __func__);
-		return NOTIFY_OK;       /* not for us */
+		return NOTIFY_OK;       /* yest for us */
 	case OF_OVERLAY_POST_REMOVE:
 		pr_debug("%s OF_OVERLAY_POST_REMOVE\n", __func__);
 		break;
-	default:			/* should not happen */
+	default:			/* should yest happen */
 		return NOTIFY_OK;
 	}
 
@@ -372,30 +372,30 @@ static int of_fpga_region_notify(struct notifier_block *nb,
 	ret = 0;
 	switch (action) {
 	case OF_OVERLAY_PRE_APPLY:
-		ret = of_fpga_region_notify_pre_apply(region, nd);
+		ret = of_fpga_region_yestify_pre_apply(region, nd);
 		break;
 
 	case OF_OVERLAY_POST_REMOVE:
-		of_fpga_region_notify_post_remove(region, nd);
+		of_fpga_region_yestify_post_remove(region, nd);
 		break;
 	}
 
 	put_device(&region->dev);
 
 	if (ret)
-		return notifier_from_errno(ret);
+		return yestifier_from_erryes(ret);
 
 	return NOTIFY_OK;
 }
 
-static struct notifier_block fpga_region_of_nb = {
-	.notifier_call = of_fpga_region_notify,
+static struct yestifier_block fpga_region_of_nb = {
+	.yestifier_call = of_fpga_region_yestify,
 };
 
 static int of_fpga_region_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct fpga_region *region;
 	struct fpga_manager *mgr;
 	int ret;
@@ -449,13 +449,13 @@ static struct platform_driver of_fpga_region_driver = {
 
 /**
  * fpga_region_init - init function for fpga_region class
- * Creates the fpga_region class and registers a reconfig notifier.
+ * Creates the fpga_region class and registers a reconfig yestifier.
  */
 static int __init of_fpga_region_init(void)
 {
 	int ret;
 
-	ret = of_overlay_notifier_register(&fpga_region_of_nb);
+	ret = of_overlay_yestifier_register(&fpga_region_of_nb);
 	if (ret)
 		return ret;
 
@@ -466,14 +466,14 @@ static int __init of_fpga_region_init(void)
 	return 0;
 
 err_plat:
-	of_overlay_notifier_unregister(&fpga_region_of_nb);
+	of_overlay_yestifier_unregister(&fpga_region_of_nb);
 	return ret;
 }
 
 static void __exit of_fpga_region_exit(void)
 {
 	platform_driver_unregister(&of_fpga_region_driver);
-	of_overlay_notifier_unregister(&fpga_region_of_nb);
+	of_overlay_yestifier_unregister(&fpga_region_of_nb);
 }
 
 subsys_initcall(of_fpga_region_init);

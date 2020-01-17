@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -55,7 +55,7 @@
 /* Interface history:
  *
  * ??  - ??
- * 2.4 - Add support for ycbcr textures (no new ioctls)
+ * 2.4 - Add support for ycbcr textures (yes new ioctls)
  * 2.5 - Add FLIP ioctl, disable FULLSCREEN.
  */
 #define DRIVER_MAJOR		2
@@ -438,7 +438,7 @@ static __inline__ void r128_update_ring_snapshot(drm_r128_private_t *dev_priv)
 #define DEV_INIT_TEST_WITH_RETURN(_dev_priv)				\
 do {									\
 	if (!_dev_priv) {						\
-		DRM_ERROR("called with no initialization\n");		\
+		DRM_ERROR("called with yes initialization\n");		\
 		return -EINVAL;						\
 	}								\
 } while (0)

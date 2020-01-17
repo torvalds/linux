@@ -117,10 +117,10 @@ static void hugetlb_cgroup_css_free(struct cgroup_subsys_state *css)
 
 /*
  * Should be called with hugetlb_lock held.
- * Since we are holding hugetlb_lock, pages cannot get moved from
- * active list or uncharged from the cgroup, So no need to get
+ * Since we are holding hugetlb_lock, pages canyest get moved from
+ * active list or uncharged from the cgroup, So yes need to get
  * page reference and test for page active here. This function
- * cannot fail.
+ * canyest fail.
  */
 static void hugetlb_cgroup_move_parent(int idx, struct hugetlb_cgroup *h_cg,
 				       struct page *page)
@@ -134,7 +134,7 @@ static void hugetlb_cgroup_move_parent(int idx, struct hugetlb_cgroup *h_cg,
 	/*
 	 * We can have pages in active list without any cgroup
 	 * ie, hugepage with less than 3 pages. We can safely
-	 * ignore those pages.
+	 * igyesre those pages.
 	 */
 	if (!page_hcg || page_hcg != h_cg)
 		goto out;
@@ -142,7 +142,7 @@ static void hugetlb_cgroup_move_parent(int idx, struct hugetlb_cgroup *h_cg,
 	nr_pages = compound_nr(page);
 	if (!parent) {
 		parent = root_h_cgroup;
-		/* root has no limit */
+		/* root has yes limit */
 		page_counter_charge(&parent->hugepage[idx], nr_pages);
 	}
 	counter = &h_cg->hugepage[idx];
@@ -401,7 +401,7 @@ void __init hugetlb_cgroup_file_init(void)
 	for_each_hstate(h) {
 		/*
 		 * Add cgroup control files only if the huge page consists
-		 * of more than two normal pages. This is because we use
+		 * of more than two yesrmal pages. This is because we use
 		 * page[2].private for storing cgroup details.
 		 */
 		if (huge_page_order(h) >= HUGETLB_CGROUP_MIN_ORDER)

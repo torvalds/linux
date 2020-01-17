@@ -32,7 +32,7 @@ Kernel headers
 --------------
 
 There are usually dependencies to header files of the current kernel.
-To avoid installing devel kernel headers system wide, as a normal
+To avoid installing devel kernel headers system wide, as a yesrmal
 user, simply call::
 
  make headers_install
@@ -57,7 +57,7 @@ Manually compiling LLVM with 'bpf' support
 Since version 3.7.0, LLVM adds a proper LLVM backend target for the
 BPF bytecode architecture.
 
-By default llvm will build all non-experimental backends including bpf.
+By default llvm will build all yesn-experimental backends including bpf.
 To generate a smaller llc binary one can use::
 
  -DLLVM_TARGETS_TO_BUILD="BPF"
@@ -88,11 +88,11 @@ build samples for the cross target::
  export CROSS_COMPILE="aarch64-linux-gnu-"
 
 Headers can be also installed on RFS of target board if need to keep them in
-sync (not necessarily and it creates a local "usr/include" directory also)::
+sync (yest necessarily and it creates a local "usr/include" directory also)::
 
  make INSTALL_HDR_PATH=~/some_sysroot/usr headers_install
 
-Pointing LLC and CLANG is not necessarily if it's installed on HOST and have
+Pointing LLC and CLANG is yest necessarily if it's installed on HOST and have
 in its targets appropriate arm64 arch (usually it has several arches).
 Build samples::
 

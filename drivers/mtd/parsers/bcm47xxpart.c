@@ -23,7 +23,7 @@
 
 /*
  * Amount of bytes we read when analyzing each block of flash memory.
- * Set it big enough to allow detecting partition and reading important data.
+ * Set it big eyesugh to allow detecting partition and reading important data.
  */
 #define BCM47XXPART_BYTES_TO_READ	0x4e8
 
@@ -63,7 +63,7 @@ static void bcm47xxpart_add_part(struct mtd_partition *part, const char *name,
  * bcm47xxpart_bootpartition - gets index of TRX partition used by bootloader
  *
  * Some devices may have more than one TRX partition. In such case one of them
- * is the main one and another a failsafe one. Bootloader may fallback to the
+ * is the main one and ayesther a failsafe one. Bootloader may fallback to the
  * failsafe firmware if it detects corruption of the main image.
  *
  * This function provides info about currently used TRX partition. It's the one
@@ -186,7 +186,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			uint32_t trx_size;
 
 			if (trx_num >= ARRAY_SIZE(trx_parts))
-				pr_warn("No enough space to store another TRX found at 0x%X\n",
+				pr_warn("No eyesugh space to store ayesther TRX found at 0x%X\n",
 					offset);
 			else
 				trx_parts[trx_num++] = curr_part;
@@ -213,7 +213,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			continue;
 		}
 
-		/* Squashfs on devices not using TRX */
+		/* Squashfs on devices yest using TRX */
 		if (le32_to_cpu(buf[0x000 / 4]) == SQUASHFS_MAGIC ||
 		    buf[0x000 / 4] == SHSQ_MAGIC) {
 			bcm47xxpart_add_part(&parts[curr_part++], "rootfs",
@@ -286,7 +286,7 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		parts[i].size = next_part_offset - parts[i].offset;
 	}
 
-	/* If there was TRX parse it now */
+	/* If there was TRX parse it yesw */
 	for (i = 0; i < trx_num; i++) {
 		struct mtd_partition *trx = &parts[trx_parts[i]];
 

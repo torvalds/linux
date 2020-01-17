@@ -32,11 +32,11 @@ cc-option = $(success,$(CC) -Werror $(CLANG_FLAGS) $(1) -E -x c /dev/null -o /de
 ld-option = $(success,$(LD) -v $(1))
 
 # check if $(CC) and $(LD) exist
-$(error-if,$(failure,command -v $(CC)),compiler '$(CC)' not found)
-$(error-if,$(failure,command -v $(LD)),linker '$(LD)' not found)
+$(error-if,$(failure,command -v $(CC)),compiler '$(CC)' yest found)
+$(error-if,$(failure,command -v $(LD)),linker '$(LD)' yest found)
 
-# Fail if the linker is gold as it's not capable of linking the kernel proper
-$(error-if,$(success, $(LD) -v | grep -q gold), gold linker '$(LD)' not supported)
+# Fail if the linker is gold as it's yest capable of linking the kernel proper
+$(error-if,$(success, $(LD) -v | grep -q gold), gold linker '$(LD)' yest supported)
 
 # gcc version including patch level
 gcc-version := $(shell,$(srctree)/scripts/gcc-version.sh $(CC))

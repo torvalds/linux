@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * kernel/ksysfs.c - sysfs attributes in /sys/kernel, which
- * 		     are not related to any other subsystem
+ * 		     are yest related to any other subsystem
  *
  * Copyright (C) 2004 Kay Sievers <kay.sievers@vrfy.org>
  */
@@ -18,7 +18,7 @@
 #include <linux/capability.h>
 #include <linux/compiler.h>
 
-#include <linux/rcupdate.h>	/* rcu_expedited and rcu_normal */
+#include <linux/rcupdate.h>	/* rcu_expedited and rcu_yesrmal */
 
 #define KERNEL_ATTR_RO(_name) \
 static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
@@ -73,7 +73,7 @@ static ssize_t profiling_store(struct kobject *kobj,
 		return -EEXIST;
 	/*
 	 * This eventually calls into get_option() which
-	 * has a ton of callers and is not const.  It is
+	 * has a ton of callers and is yest const.  It is
 	 * easiest to cast it away here.
 	 */
 	profile_setup((char *)buf);
@@ -130,7 +130,7 @@ KERNEL_ATTR_RW(kexec_crash_size);
 static ssize_t vmcoreinfo_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buf)
 {
-	phys_addr_t vmcore_base = paddr_vmcoreinfo_note();
+	phys_addr_t vmcore_base = paddr_vmcoreinfo_yeste();
 	return sprintf(buf, "%pa %x\n", &vmcore_base,
 			(unsigned int)VMCOREINFO_NOTE_SIZE);
 }
@@ -164,45 +164,45 @@ static ssize_t rcu_expedited_store(struct kobject *kobj,
 }
 KERNEL_ATTR_RW(rcu_expedited);
 
-int rcu_normal;
-static ssize_t rcu_normal_show(struct kobject *kobj,
+int rcu_yesrmal;
+static ssize_t rcu_yesrmal_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", READ_ONCE(rcu_normal));
+	return sprintf(buf, "%d\n", READ_ONCE(rcu_yesrmal));
 }
-static ssize_t rcu_normal_store(struct kobject *kobj,
+static ssize_t rcu_yesrmal_store(struct kobject *kobj,
 				struct kobj_attribute *attr,
 				const char *buf, size_t count)
 {
-	if (kstrtoint(buf, 0, &rcu_normal))
+	if (kstrtoint(buf, 0, &rcu_yesrmal))
 		return -EINVAL;
 
 	return count;
 }
-KERNEL_ATTR_RW(rcu_normal);
+KERNEL_ATTR_RW(rcu_yesrmal);
 #endif /* #ifndef CONFIG_TINY_RCU */
 
 /*
- * Make /sys/kernel/notes give the raw contents of our kernel .notes section.
+ * Make /sys/kernel/yestes give the raw contents of our kernel .yestes section.
  */
-extern const void __start_notes __weak;
-extern const void __stop_notes __weak;
-#define	notes_size (&__stop_notes - &__start_notes)
+extern const void __start_yestes __weak;
+extern const void __stop_yestes __weak;
+#define	yestes_size (&__stop_yestes - &__start_yestes)
 
-static ssize_t notes_read(struct file *filp, struct kobject *kobj,
+static ssize_t yestes_read(struct file *filp, struct kobject *kobj,
 			  struct bin_attribute *bin_attr,
 			  char *buf, loff_t off, size_t count)
 {
-	memcpy(buf, &__start_notes + off, count);
+	memcpy(buf, &__start_yestes + off, count);
 	return count;
 }
 
-static struct bin_attribute notes_attr __ro_after_init  = {
+static struct bin_attribute yestes_attr __ro_after_init  = {
 	.attr = {
-		.name = "notes",
+		.name = "yestes",
 		.mode = S_IRUGO,
 	},
-	.read = &notes_read,
+	.read = &yestes_read,
 };
 
 struct kobject *kernel_kobj;
@@ -227,7 +227,7 @@ static struct attribute * kernel_attrs[] = {
 #endif
 #ifndef CONFIG_TINY_RCU
 	&rcu_expedited_attr.attr,
-	&rcu_normal_attr.attr,
+	&rcu_yesrmal_attr.attr,
 #endif
 	NULL
 };
@@ -249,9 +249,9 @@ static int __init ksysfs_init(void)
 	if (error)
 		goto kset_exit;
 
-	if (notes_size > 0) {
-		notes_attr.size = notes_size;
-		error = sysfs_create_bin_file(kernel_kobj, &notes_attr);
+	if (yestes_size > 0) {
+		yestes_attr.size = yestes_size;
+		error = sysfs_create_bin_file(kernel_kobj, &yestes_attr);
 		if (error)
 			goto group_exit;
 	}

@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -72,7 +72,7 @@ int qib_map_page(struct pci_dev *hwdev, struct page *page, dma_addr_t *daddr)
 			return -ENOMEM;
 		/*
 		 * FIXME: If we get 0 again, we should keep this page,
-		 * map another, then free the 0 page.
+		 * map ayesther, then free the 0 page.
 		 */
 	}
 	*daddr = phys;
@@ -87,7 +87,7 @@ int qib_map_page(struct pci_dev *hwdev, struct page *page, dma_addr_t *daddr)
  *
  * This function takes a given start page (page aligned user virtual
  * address) and pins it and the following specified number of pages.  For
- * now, num_pages is always 1, but that will probably change at some point
+ * yesw, num_pages is always 1, but that will probably change at some point
  * (because caller is doing expected sends on a single virtually contiguous
  * buffer, so we can do all pages at once).
  */

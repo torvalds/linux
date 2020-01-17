@@ -46,7 +46,7 @@
  * Error encountered during remote system update.
  *
  * SVC_STATUS_RSU_NO_SUPPORT:
- * Secure firmware doesn't support RSU retry or notify feature.
+ * Secure firmware doesn't support RSU retry or yestify feature.
  */
 #define SVC_STATUS_RECONFIG_REQUEST_OK		0
 #define SVC_STATUS_RECONFIG_BUFFER_SUBMITTED	1
@@ -128,7 +128,7 @@ enum stratix10_svc_command_code {
  * @payload: starting address of data need be processed
  * @payload_length: data size in bytes
  * @command: service command
- * @arg: args to be passed via registers and not physically mapped buffers
+ * @arg: args to be passed via registers and yest physically mapped buffers
  */
 struct stratix10_svc_client_msg {
 	void *payload;

@@ -74,7 +74,7 @@ int nand_bch_correct_data(struct nand_chip *chip, unsigned char *buf,
 			if (errloc[i] < (chip->ecc.size*8))
 				/* error is located in data, correct it */
 				buf[errloc[i] >> 3] ^= (1 << (errloc[i] & 7));
-			/* else error in ecc, no action needed */
+			/* else error in ecc, yes action needed */
 
 			pr_debug("%s: corrected bitflip %u\n", __func__,
 					errloc[i]);
@@ -119,7 +119,7 @@ struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
 	}
 
 	if (!eccsize || !eccbytes) {
-		pr_warn("ecc parameters not supplied\n");
+		pr_warn("ecc parameters yest supplied\n");
 		goto fail;
 	}
 

@@ -163,7 +163,7 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 					 &addr, &port) > 0 &&
 		    !map_addr(skb, protoff, dataoff, dptr, datalen,
 			      matchoff, matchlen, &addr, port)) {
-			nf_ct_helper_log(skb, ct, "cannot mangle SIP message");
+			nf_ct_helper_log(skb, ct, "canyest mangle SIP message");
 			return NF_DROP;
 		}
 		request = 1;
@@ -199,7 +199,7 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 		olen = *datalen;
 		if (!map_addr(skb, protoff, dataoff, dptr, datalen,
 			      matchoff, matchlen, &addr, port)) {
-			nf_ct_helper_log(skb, ct, "cannot mangle Via header");
+			nf_ct_helper_log(skb, ct, "canyest mangle Via header");
 			return NF_DROP;
 		}
 
@@ -217,7 +217,7 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 					true);
 			if (!mangle_packet(skb, protoff, dataoff, dptr, datalen,
 					   poff, plen, buffer, buflen)) {
-				nf_ct_helper_log(skb, ct, "cannot mangle maddr");
+				nf_ct_helper_log(skb, ct, "canyest mangle maddr");
 				return NF_DROP;
 			}
 		}
@@ -234,7 +234,7 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 					false);
 			if (!mangle_packet(skb, protoff, dataoff, dptr, datalen,
 					   poff, plen, buffer, buflen)) {
-				nf_ct_helper_log(skb, ct, "cannot mangle received");
+				nf_ct_helper_log(skb, ct, "canyest mangle received");
 				return NF_DROP;
 			}
 		}
@@ -250,7 +250,7 @@ static unsigned int nf_nat_sip(struct sk_buff *skb, unsigned int protoff,
 			buflen = sprintf(buffer, "%u", ntohs(p));
 			if (!mangle_packet(skb, protoff, dataoff, dptr, datalen,
 					   poff, plen, buffer, buflen)) {
-				nf_ct_helper_log(skb, ct, "cannot mangle rport");
+				nf_ct_helper_log(skb, ct, "canyest mangle rport");
 				return NF_DROP;
 			}
 		}
@@ -267,14 +267,14 @@ next:
 		if (!map_addr(skb, protoff, dataoff, dptr, datalen,
 			      matchoff, matchlen,
 			      &addr, port)) {
-			nf_ct_helper_log(skb, ct, "cannot mangle contact");
+			nf_ct_helper_log(skb, ct, "canyest mangle contact");
 			return NF_DROP;
 		}
 	}
 
 	if (!map_sip_addr(skb, protoff, dataoff, dptr, datalen, SIP_HDR_FROM) ||
 	    !map_sip_addr(skb, protoff, dataoff, dptr, datalen, SIP_HDR_TO)) {
-		nf_ct_helper_log(skb, ct, "cannot mangle SIP from/to");
+		nf_ct_helper_log(skb, ct, "canyest mangle SIP from/to");
 		return NF_DROP;
 	}
 
@@ -283,7 +283,7 @@ next:
 		struct udphdr *uh;
 
 		if (skb_ensure_writable(skb, skb->len)) {
-			nf_ct_helper_log(skb, ct, "cannot mangle packet");
+			nf_ct_helper_log(skb, ct, "canyest mangle packet");
 			return NF_DROP;
 		}
 
@@ -292,7 +292,7 @@ next:
 
 		if (!nf_nat_mangle_udp_packet(skb, ct, ctinfo, protoff,
 					      0, 0, NULL, 0)) {
-			nf_ct_helper_log(skb, ct, "cannot mangle packet");
+			nf_ct_helper_log(skb, ct, "canyest mangle packet");
 			return NF_DROP;
 		}
 	}
@@ -337,7 +337,7 @@ static void nf_nat_sip_expected(struct nf_conn *ct,
 	 */
 	if (exp->class != SIP_EXPECT_SIGNALLING) {
 		spin_lock_bh(&nf_conntrack_expect_lock);
-		hlist_for_each_entry(pair_exp, &help->expectations, lnode) {
+		hlist_for_each_entry(pair_exp, &help->expectations, lyesde) {
 			if (pair_exp->tuple.src.l3num == nf_ct_l3num(ct) &&
 			    pair_exp->tuple.dst.protonum == ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum &&
 			    nf_inet_addr_cmp(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3, &pair_exp->saved_addr) &&
@@ -352,7 +352,7 @@ static void nf_nat_sip_expected(struct nf_conn *ct,
 		spin_unlock_bh(&nf_conntrack_expect_lock);
 	}
 
-	/* When no paired expectation has been found, change src to
+	/* When yes paired expectation has been found, change src to
 	 * where master sends to, but only if the connection actually came
 	 * from the same source.
 	 */
@@ -433,7 +433,7 @@ static unsigned int nf_nat_sip_expect(struct sk_buff *skb, unsigned int protoff,
 		buflen = sip_sprintf_addr_port(ct, buffer, &newaddr, port);
 		if (!mangle_packet(skb, protoff, dataoff, dptr, datalen,
 				   matchoff, matchlen, buffer, buflen)) {
-			nf_ct_helper_log(skb, ct, "cannot mangle packet");
+			nf_ct_helper_log(skb, ct, "canyest mangle packet");
 			goto err;
 		}
 	}
@@ -555,7 +555,7 @@ static unsigned int nf_nat_sdp_session(struct sk_buff *skb, unsigned int protoff
 	 *
 	 * Session description
 	 *
-	 * c=* (connection information - not required if included in all media)
+	 * c=* (connection information - yest required if included in all media)
 	 */
 	case -ENOENT:
 		break;
@@ -601,7 +601,7 @@ static unsigned int nf_nat_sdp_media(struct sk_buff *skb, unsigned int protoff,
 	rtcp_exp->dir = !dir;
 	rtcp_exp->expectfn = nf_nat_sip_expected;
 
-	/* Try to get same pair of ports: if not, try to change them. */
+	/* Try to get same pair of ports: if yest, try to change them. */
 	for (port = ntohs(rtp_exp->tuple.dst.u.udp.port);
 	     port != 0; port += 2) {
 		int ret;
@@ -639,7 +639,7 @@ static unsigned int nf_nat_sdp_media(struct sk_buff *skb, unsigned int protoff,
 	if (rtp_exp->tuple.dst.u.udp.port != rtp_exp->saved_proto.udp.port &&
 	    !nf_nat_sdp_port(skb, protoff, dataoff, dptr, datalen,
 			     mediaoff, medialen, port)) {
-		nf_ct_helper_log(skb, ct, "cannot mangle SDP message");
+		nf_ct_helper_log(skb, ct, "canyest mangle SDP message");
 		goto err2;
 	}
 

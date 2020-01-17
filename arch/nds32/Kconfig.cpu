@@ -16,7 +16,7 @@ config FPU
           enable required support in kernel such as fpu context switch and
           fpu exception handler.
 
-	  If no FPU ISA is used in user space, say N.
+	  If yes FPU ISA is used in user space, say N.
 
 config LAZY_FPU
 	bool "lazy FPU support"
@@ -27,19 +27,19 @@ config LAZY_FPU
           enhance system performance by reducing the context switch
 	  frequency of the FPU register.
 
-	  For normal case, say Y.
+	  For yesrmal case, say Y.
 
 config SUPPORT_DENORMAL_ARITHMETIC
-	bool "Denormal arithmetic support"
+	bool "Deyesrmal arithmetic support"
 	depends on FPU
 	default n
 	help
-	  Say Y here to enable arithmetic of denormalized number. Enabling
+	  Say Y here to enable arithmetic of deyesrmalized number. Enabling
 	  this feature can enhance the precision for tininess number.
 	  However, performance loss in float point calculations is
 	  possibly significant due to additional FPU exception.
 
-	  If the calculated tolerance for tininess number is not critical,
+	  If the calculated tolerance for tininess number is yest critical,
 	  say N to prevent performance loss.
 
 config HWZOL
@@ -69,7 +69,7 @@ choice
 	prompt "minimum CPU type"
 	default CPU_V3
 	help
-	  The data cache of N15/D15 is implemented as PIPT and it will not cause
+	  The data cache of N15/D15 is implemented as PIPT and it will yest cause
 	  the cache aliasing issue. The rest cpus(N13, N10 and D10) are
 	  implemented as VIPT data cache. It may cause the cache aliasing issue
 	  if its cache way size is larger than page size. You can specify the
@@ -111,13 +111,13 @@ config CPU_ICACHE_DISABLE
 	bool "Disable I-Cache"
 	help
 	  Say Y here to disable the processor instruction cache. Unless
-	  you have a reason not to or are unsure, say N.
+	  you have a reason yest to or are unsure, say N.
 
 config CPU_DCACHE_DISABLE
 	bool "Disable D-Cache"
 	help
 	  Say Y here to disable the processor data cache. Unless
-	  you have a reason not to or are unsure, say N.
+	  you have a reason yest to or are unsure, say N.
 
 config CPU_DCACHE_WRITETHROUGH
 	bool "Force write through D-cache"
@@ -130,16 +130,16 @@ config WBNA
 	bool "WBNA"
 	default n
 	help
-	  Say Y here to enable write-back memory with no-write-allocation policy.
+	  Say Y here to enable write-back memory with yes-write-allocation policy.
 
 config ALIGNMENT_TRAP
 	bool "Kernel support unaligned access handling by sw"
 	depends on PROC_FS
 	default n
 	help
-	  Andes processors cannot load/store information which is not
+	  Andes processors canyest load/store information which is yest
 	  naturally aligned on the bus, i.e., a 4 byte load must start at an
-	  address divisible by 4. On 32-bit Andes processors, these non-aligned
+	  address divisible by 4. On 32-bit Andes processors, these yesn-aligned
 	  load/store instructions will be emulated in software if you say Y
 	  here, which has a severe performance impact. With an IP-only
 	  configuration it is safe to say N, otherwise say Y.
@@ -161,12 +161,12 @@ config HIGHMEM
 	  The address space of Andes processors is only 4 Gigabytes large
 	  and it has to accommodate user address space, kernel address
 	  space as well as some memory mapped IO. That means that, if you
-	  have a large amount of physical memory and/or IO, not all of the
+	  have a large amount of physical memory and/or IO, yest all of the
 	  memory can be "permanently mapped" by the kernel. The physical
-	  memory that is not permanently mapped is called "high memory".
+	  memory that is yest permanently mapped is called "high memory".
 
 	  Depending on the selected kernel/user memory split, minimum
-	  vmalloc space and actual amount of RAM, you may not need this
+	  vmalloc space and actual amount of RAM, you may yest need this
 	  option which should result in a slightly faster kernel.
 
 	  If unsure, say N.
@@ -194,7 +194,7 @@ choice
 	help
 	  Select the desired split between kernel and user memory.
 
-	  If you are not absolutely sure what you are doing, leave this
+	  If you are yest absolutely sure what you are doing, leave this
 	  option alone!
 
 	config VMSPLIT_3G

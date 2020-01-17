@@ -361,7 +361,7 @@ static unsigned long lpc18xx_pll0_recalc_rate(struct clk_hw *hw,
 		return parent_rate;
 
 	if (npdiv != LPC18XX_PLL0_NP_DIVS_1) {
-		pr_warn("%s: pre/post dividers not supported\n", __func__);
+		pr_warn("%s: pre/post dividers yest supported\n", __func__);
 		return 0;
 	}
 
@@ -380,7 +380,7 @@ static long lpc18xx_pll0_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long m;
 
 	if (*prate < rate) {
-		pr_warn("%s: pll dividers not supported\n", __func__);
+		pr_warn("%s: pll dividers yest supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -401,7 +401,7 @@ static int lpc18xx_pll0_set_rate(struct clk_hw *hw, unsigned long rate,
 	int retry = 3;
 
 	if (parent_rate < rate) {
-		pr_warn("%s: pll dividers not supported\n", __func__);
+		pr_warn("%s: pll dividers yest supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -496,7 +496,7 @@ static int lpc18xx_cgu_gate_is_enabled(struct clk_hw *hw)
 	const struct clk_hw *parent;
 
 	/*
-	 * The consumer of base clocks needs know if the
+	 * The consumer of base clocks needs kyesw if the
 	 * base clock is really enabled before it can be
 	 * accessed. It is therefore necessary to verify
 	 * this all the way up.
@@ -566,7 +566,7 @@ static struct clk *lpc18xx_register_base_clk(struct lpc18xx_cgu_base_clk *clk,
 
 	lpc18xx_fill_parent_names(parents, clk->mux.table, clk->n_parents);
 
-	/* SAFE_CLK can not be turned off */
+	/* SAFE_CLK can yest be turned off */
 	if (n == BASE_SAFE_CLK)
 		return clk_register_composite(NULL, name, parents, clk->n_parents,
 					      &clk->mux.hw, &clk_mux_ops,
@@ -597,7 +597,7 @@ static struct clk *lpc18xx_cgu_register_pll(struct lpc18xx_cgu_pll_clk *clk,
 				      &clk->gate.hw, &lpc18xx_gate_ops, 0);
 }
 
-static void __init lpc18xx_cgu_register_source_clks(struct device_node *np,
+static void __init lpc18xx_cgu_register_source_clks(struct device_yesde *np,
 						    void __iomem *base)
 {
 	const char *parents[CLK_SRC_MAX];
@@ -653,7 +653,7 @@ static void __init lpc18xx_cgu_register_base_clks(void __iomem *reg_base)
 	}
 }
 
-static void __init lpc18xx_cgu_init(struct device_node *np)
+static void __init lpc18xx_cgu_init(struct device_yesde *np)
 {
 	void __iomem *reg_base;
 

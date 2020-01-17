@@ -290,7 +290,7 @@ struct adv7511_link_config {
 
 /**
  * enum adv7511_csc_scaling - Scaling factor for the ADV7511 CSC
- * @ADV7511_CSC_SCALING_1: CSC results are not scaled
+ * @ADV7511_CSC_SCALING_1: CSC results are yest scaled
  * @ADV7511_CSC_SCALING_2: CSC results are scaled by a factor of two
  * @ADV7511_CSC_SCALING_4: CSC results are scalled by a factor of four
  */
@@ -362,7 +362,7 @@ struct adv7511 {
 	unsigned int num_supplies;
 
 	/* ADV7533 DSI RX related params */
-	struct device_node *host_node;
+	struct device_yesde *host_yesde;
 	struct mipi_dsi_device *dsi;
 	u8 num_dsi_lanes;
 	bool use_timing_gen;
@@ -401,7 +401,7 @@ int adv7533_patch_registers(struct adv7511 *adv);
 int adv7533_patch_cec_registers(struct adv7511 *adv);
 int adv7533_attach_dsi(struct adv7511 *adv);
 void adv7533_detach_dsi(struct adv7511 *adv);
-int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv);
+int adv7533_parse_dt(struct device_yesde *np, struct adv7511 *adv);
 #else
 static inline void adv7533_dsi_power_on(struct adv7511 *adv)
 {
@@ -435,7 +435,7 @@ static inline void adv7533_detach_dsi(struct adv7511 *adv)
 {
 }
 
-static inline int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv)
+static inline int adv7533_parse_dt(struct device_yesde *np, struct adv7511 *adv)
 {
 	return -ENODEV;
 }

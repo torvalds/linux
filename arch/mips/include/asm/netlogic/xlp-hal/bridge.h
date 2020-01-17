@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -177,10 +177,10 @@
 
 #define nlm_read_bridge_reg(b, r)	nlm_read_reg(b, r)
 #define nlm_write_bridge_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define nlm_get_bridge_pcibase(node)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
-		XLP9XX_IO_BRIDGE_OFFSET(node) : XLP_IO_BRIDGE_OFFSET(node))
-#define nlm_get_bridge_regbase(node)	\
-			(nlm_get_bridge_pcibase(node) + XLP_IO_PCI_HDRSZ)
+#define nlm_get_bridge_pcibase(yesde)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
+		XLP9XX_IO_BRIDGE_OFFSET(yesde) : XLP_IO_BRIDGE_OFFSET(yesde))
+#define nlm_get_bridge_regbase(yesde)	\
+			(nlm_get_bridge_pcibase(yesde) + XLP_IO_PCI_HDRSZ)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __NLM_HAL_BRIDGE_H__ */

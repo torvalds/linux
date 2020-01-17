@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: baseband.c
@@ -1758,7 +1758,7 @@ unsigned int BBuGetFrameTime(unsigned char byPreambleType,
  *		- pointer to Phy Service field
  *		- pointer to Phy Signal field
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
@@ -1944,7 +1944,7 @@ bool BBbReadEmbedded(struct vnt_private *priv,
  *      byBBAddr    - address of register in Baseband
  *      byData      - data to write
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -1986,7 +1986,7 @@ bool BBbWriteEmbedded(struct vnt_private *priv,
  *      byRevId     - Revision ID
  *      byRFType    - RF type
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -2171,7 +2171,7 @@ bool BBbVT3253Init(struct vnt_private *priv)
 		priv->ldBmThreshold[3] = 0;
 		/* }} RobertYu */
 	} else {
-		/* No VGA Table now */
+		/* No VGA Table yesw */
 		priv->bUpdateBBVGA = false;
 		priv->abyBBVGA[0] = 0x1C;
 	}
@@ -2191,9 +2191,9 @@ bool BBbVT3253Init(struct vnt_private *priv)
  *  In:
  *      priv     - Device Structure
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void
@@ -2242,9 +2242,9 @@ void BBvSetVGAGainOffset(struct vnt_private *priv, unsigned char byData)
  *  In:
  *      iobase      - I/O base address
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void
@@ -2263,9 +2263,9 @@ BBvSoftwareReset(struct vnt_private *priv)
  *  In:
  *      iobase      - I/O base address
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void
@@ -2285,9 +2285,9 @@ BBvPowerSaveModeON(struct vnt_private *priv)
  *  In:
  *      iobase      - I/O base address
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void
@@ -2308,9 +2308,9 @@ BBvPowerSaveModeOFF(struct vnt_private *priv)
  *      priv          - Device Structure
  *      byAntennaMode    - Antenna Mode
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 
@@ -2341,9 +2341,9 @@ BBvSetTxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode)
  *      priv          - Device Structure
  *      byAntennaMode    - Antenna Mode
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 
@@ -2372,9 +2372,9 @@ BBvSetRxAntennaMode(struct vnt_private *priv, unsigned char byAntennaMode)
  *  In:
  *      priv          - Device Structure
  *  Out:
- *      none
+ *      yesne
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void

@@ -21,7 +21,7 @@ static void wl18xx_adjust_channels(struct wl18xx_cmd_scan_params *cmd,
 	       sizeof(cmd->channels_2));
 	memcpy(cmd->channels_5, cmd_channels->channels_5,
 	       sizeof(cmd->channels_5));
-	/* channels_4 are not supported, so no need to copy them */
+	/* channels_4 are yest supported, so yes need to copy them */
 }
 
 static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
@@ -37,7 +37,7 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		goto out;
 	}
 
-	/* scan on the dev role if the regular one is not started */
+	/* scan on the dev role if the regular one is yest started */
 	if (wlcore_is_p2p_mgmt(wlvif))
 		cmd->role_id = wlvif->dev_role_id;
 	else
@@ -80,11 +80,11 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	/*
 	 * all the cycles params (except total cycles) should
-	 * remain 0 for normal scan
+	 * remain 0 for yesrmal scan
 	 */
 	cmd->total_cycles = 1;
 
-	if (req->no_cck)
+	if (req->yes_cck)
 		cmd->rate = WL18XX_SCAN_RATE_6;
 
 	cmd->tag = WL1271_SCAN_DEFAULT_TAG;

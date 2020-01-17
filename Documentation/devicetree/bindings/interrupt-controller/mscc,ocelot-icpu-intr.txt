@@ -4,7 +4,7 @@ Required properties:
 
 - compatible : should be "mscc,ocelot-icpu-intr"
 - reg : Specifies base physical address and size of the registers.
-- interrupt-controller : Identifies the node as an interrupt controller
+- interrupt-controller : Identifies the yesde as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode an
   interrupt source. The value shall be 1.
 - interrupts : Specifies the CPU interrupt the controller is connected to.

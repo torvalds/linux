@@ -25,11 +25,11 @@ unsigned int pci_probe = PCI_PROBE_BIOS | PCI_PROBE_CONF1 | PCI_PROBE_CONF2 |
 
 static int pci_bf_sort;
 int pci_routeirq;
-int noioapicquirk;
+int yesioapicquirk;
 #ifdef CONFIG_X86_REROUTE_FOR_BROKEN_BOOT_IRQS
-int noioapicreroute = 0;
+int yesioapicreroute = 0;
 #else
-int noioapicreroute = 1;
+int yesioapicreroute = 1;
 #endif
 int pcibios_last_bus = -1;
 unsigned long pirq_table_addr;
@@ -89,7 +89,7 @@ static int __init can_skip_ioresource_align(const struct dmi_system_id *d)
 static const struct dmi_system_id can_skip_pciprobe_dmi_table[] __initconst = {
 /*
  * Systems where PCI IO resource ISA alignment can be skipped
- * when the ISA enable bit in the bridge control is not set
+ * when the ISA enable bit in the bridge control is yest set
  */
 	{
 		.callback = can_skip_ioresource_align,
@@ -131,7 +131,7 @@ static void pcibios_fixup_device_resources(struct pci_dev *dev)
 
 	if (pci_probe & PCI_NOASSIGN_BARS) {
 		/*
-		* If the BIOS did not assign the BAR, zero out the
+		* If the BIOS did yest assign the BAR, zero out the
 		* resource so the kernel doesn't attempt to assign
 		* it later on in pci_assign_unassigned_resources
 		*/
@@ -180,7 +180,7 @@ void pcibios_remove_bus(struct pci_bus *bus)
 }
 
 /*
- * Only use DMI information to set this if nothing was passed
+ * Only use DMI information to set this if yesthing was passed
  * on the kernel command line (which was parsed earlier).
  */
 
@@ -465,7 +465,7 @@ void pcibios_scan_root(int busnum)
 		printk(KERN_ERR "PCI: OOM, skipping PCI bus %02x\n", busnum);
 		return;
 	}
-	sd->node = x86_pci_root_bus_node(busnum);
+	sd->yesde = x86_pci_root_bus_yesde(busnum);
 	x86_pci_root_bus_resources(busnum, &resources);
 	printk(KERN_DEBUG "PCI: Probing PCI hardware (bus %02x)\n", busnum);
 	bus = pci_scan_root_bus(NULL, busnum, &pci_root_ops, sd, &resources);
@@ -485,7 +485,7 @@ void __init pcibios_set_cache_line_size(void)
 	 * Set PCI cacheline size to that of the CPU if the CPU has reported it.
 	 * (For older CPUs that don't support cpuid, we se it to 32 bytes
 	 * It's also good for 386/486s (which actually have 16)
-	 * as quite a few PCI devices do not support smaller values.
+	 * as quite a few PCI devices do yest support smaller values.
 	 */
 	if (c->x86_clflush_size > 0) {
 		pci_dfl_cache_line_size = c->x86_clflush_size >> 2;
@@ -493,14 +493,14 @@ void __init pcibios_set_cache_line_size(void)
 			pci_dfl_cache_line_size << 2);
 	} else {
  		pci_dfl_cache_line_size = 32 >> 2;
-		printk(KERN_DEBUG "PCI: Unknown cacheline size. Setting to 32 bytes\n");
+		printk(KERN_DEBUG "PCI: Unkyeswn cacheline size. Setting to 32 bytes\n");
 	}
 }
 
 int __init pcibios_init(void)
 {
 	if (!raw_pci_ops && !raw_pci_ext_ops) {
-		printk(KERN_WARNING "PCI: System does not support PCI\n");
+		printk(KERN_WARNING "PCI: System does yest support PCI\n");
 		return 0;
 	}
 
@@ -520,15 +520,15 @@ char *__init pcibios_setup(char *str)
 	} else if (!strcmp(str, "bfsort")) {
 		pci_bf_sort = pci_force_bf;
 		return NULL;
-	} else if (!strcmp(str, "nobfsort")) {
-		pci_bf_sort = pci_force_nobf;
+	} else if (!strcmp(str, "yesbfsort")) {
+		pci_bf_sort = pci_force_yesbf;
 		return NULL;
 	}
 #ifdef CONFIG_PCI_BIOS
 	else if (!strcmp(str, "bios")) {
 		pci_probe = PCI_PROBE_BIOS;
 		return NULL;
-	} else if (!strcmp(str, "nobios")) {
+	} else if (!strcmp(str, "yesbios")) {
 		pci_probe &= ~PCI_PROBE_BIOS;
 		return NULL;
 	} else if (!strcmp(str, "biosirq")) {
@@ -550,7 +550,7 @@ char *__init pcibios_setup(char *str)
 	}
 #endif
 #ifdef CONFIG_PCI_MMCONFIG
-	else if (!strcmp(str, "nommconf")) {
+	else if (!strcmp(str, "yesmmconf")) {
 		pci_probe &= ~PCI_PROBE_MMCONF;
 		return NULL;
 	}
@@ -559,11 +559,11 @@ char *__init pcibios_setup(char *str)
 		return NULL;
 	}
 #endif
-	else if (!strcmp(str, "noacpi")) {
-		acpi_noirq_set();
+	else if (!strcmp(str, "yesacpi")) {
+		acpi_yesirq_set();
 		return NULL;
 	}
-	else if (!strcmp(str, "noearly")) {
+	else if (!strcmp(str, "yesearly")) {
 		pci_probe |= PCI_PROBE_NOEARLY;
 		return NULL;
 	}
@@ -579,10 +579,10 @@ char *__init pcibios_setup(char *str)
 	} else if (!strcmp(str, "rom")) {
 		pci_probe |= PCI_ASSIGN_ROMS;
 		return NULL;
-	} else if (!strcmp(str, "norom")) {
+	} else if (!strcmp(str, "yesrom")) {
 		pci_probe |= PCI_NOASSIGN_ROMS;
 		return NULL;
-	} else if (!strcmp(str, "nobar")) {
+	} else if (!strcmp(str, "yesbar")) {
 		pci_probe |= PCI_NOASSIGN_BARS;
 		return NULL;
 	} else if (!strcmp(str, "assign-busses")) {
@@ -591,7 +591,7 @@ char *__init pcibios_setup(char *str)
 	} else if (!strcmp(str, "use_crs")) {
 		pci_probe |= PCI_USE__CRS;
 		return NULL;
-	} else if (!strcmp(str, "nocrs")) {
+	} else if (!strcmp(str, "yescrs")) {
 		pci_probe |= PCI_ROOT_NO_CRS;
 		return NULL;
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
@@ -605,16 +605,16 @@ char *__init pcibios_setup(char *str)
 	} else if (!strcmp(str, "skip_isa_align")) {
 		pci_probe |= PCI_CAN_SKIP_ISA_ALIGN;
 		return NULL;
-	} else if (!strcmp(str, "noioapicquirk")) {
-		noioapicquirk = 1;
+	} else if (!strcmp(str, "yesioapicquirk")) {
+		yesioapicquirk = 1;
 		return NULL;
 	} else if (!strcmp(str, "ioapicreroute")) {
-		if (noioapicreroute != -1)
-			noioapicreroute = 0;
+		if (yesioapicreroute != -1)
+			yesioapicreroute = 0;
 		return NULL;
-	} else if (!strcmp(str, "noioapicreroute")) {
-		if (noioapicreroute != -1)
-			noioapicreroute = 1;
+	} else if (!strcmp(str, "yesioapicreroute")) {
+		if (yesioapicreroute != -1)
+			yesioapicreroute = 1;
 		return NULL;
 	}
 	return str;
@@ -632,7 +632,7 @@ static DEFINE_SPINLOCK(dma_domain_list_lock);
 void add_dma_domain(struct dma_domain *domain)
 {
 	spin_lock(&dma_domain_list_lock);
-	list_add(&domain->node, &dma_domain_list);
+	list_add(&domain->yesde, &dma_domain_list);
 	spin_unlock(&dma_domain_list_lock);
 }
 EXPORT_SYMBOL_GPL(add_dma_domain);
@@ -640,7 +640,7 @@ EXPORT_SYMBOL_GPL(add_dma_domain);
 void del_dma_domain(struct dma_domain *domain)
 {
 	spin_lock(&dma_domain_list_lock);
-	list_del(&domain->node);
+	list_del(&domain->yesde);
 	spin_unlock(&dma_domain_list_lock);
 }
 EXPORT_SYMBOL_GPL(del_dma_domain);
@@ -650,7 +650,7 @@ static void set_dma_domain_ops(struct pci_dev *pdev)
 	struct dma_domain *domain;
 
 	spin_lock(&dma_domain_list_lock);
-	list_for_each_entry(domain, &dma_domain_list, node) {
+	list_for_each_entry(domain, &dma_domain_list, yesde) {
 		if (pci_domain_nr(pdev->bus) == domain->domain_nr) {
 			pdev->dev.dma_ops = domain->dma_ops;
 			break;

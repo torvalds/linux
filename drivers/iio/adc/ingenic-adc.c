@@ -185,7 +185,7 @@ static int jz4725b_adc_init_clk_div(struct device *dev, struct ingenic_adc *adc)
 
 	parent_clk = clk_get_parent(adc->clk);
 	if (!parent_clk) {
-		dev_err(dev, "ADC clock has no parent\n");
+		dev_err(dev, "ADC clock has yes parent\n");
 		return -ENODEV;
 	}
 	parent_rate = clk_get_rate(parent_clk);
@@ -221,7 +221,7 @@ static int jz4770_adc_init_clk_div(struct device *dev, struct ingenic_adc *adc)
 
 	parent_clk = clk_get_parent(adc->clk);
 	if (!parent_clk) {
-		dev_err(dev, "ADC clock has no parent\n");
+		dev_err(dev, "ADC clock has yes parent\n");
 		return -ENODEV;
 	}
 	parent_rate = clk_get_rate(parent_clk);
@@ -240,7 +240,7 @@ static int jz4770_adc_init_clk_div(struct device *dev, struct ingenic_adc *adc)
 
 	/* We also need a divider that produces a 10us clock. */
 	div_10us = DIV_ROUND_UP(rate, 10000);
-	/* And another, which produces a 1ms clock. */
+	/* And ayesther, which produces a 1ms clock. */
 	div_ms = DIV_ROUND_UP(rate, 1000);
 
 	writel(((div_ms - 1) << JZ4770_ADC_REG_ADCLK_CLKDIVMS_LSB) |
@@ -272,7 +272,7 @@ static const struct ingenic_adc_soc_data jz4740_adc_soc_data = {
 	.battery_scale_avail_size = ARRAY_SIZE(jz4740_adc_battery_scale_avail),
 	.battery_vref_mode = true,
 	.has_aux2 = false,
-	.init_clk_div = NULL, /* no ADCLK register on JZ4740 */
+	.init_clk_div = NULL, /* yes ADCLK register on JZ4740 */
 };
 
 static const struct ingenic_adc_soc_data jz4770_adc_soc_data = {
@@ -318,7 +318,7 @@ static int ingenic_adc_read_chan_info_raw(struct ingenic_adc *adc,
 {
 	int bit, ret, engine = (chan->channel == INGENIC_ADC_BATTERY);
 
-	/* We cannot sample AUX/AUX2 in parallel. */
+	/* We canyest sample AUX/AUX2 in parallel. */
 	mutex_lock(&adc->aux_lock);
 	if (adc->soc_data->has_aux2 && engine == 0) {
 		bit = BIT(chan->channel == INGENIC_ADC_AUX2);
@@ -469,7 +469,7 @@ static int ingenic_adc_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Put hardware in a known passive state. */
+	/* Put hardware in a kyeswn passive state. */
 	writeb(0x00, adc->base + JZ_ADC_REG_ENABLE);
 	writeb(0xff, adc->base + JZ_ADC_REG_CTRL);
 	usleep_range(2000, 3000); /* Must wait at least 2ms. */

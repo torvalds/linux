@@ -91,7 +91,7 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			ranges = <0x81000000 0 0	 0x80020000 0 0x00010000   /* downstream I/O */
-				0x82000000 0 0x80030000 0xc0030000 0 0x0ffd0000>; /* non-prefetchable memory */
+				0x82000000 0 0x80030000 0xc0030000 0 0x0ffd0000>; /* yesn-prefetchable memory */
 			bus-range = <0x00 0xff>;
 			status = "disabled";
 		};
@@ -110,7 +110,7 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			ranges = <0x81000000 0 0  0x90020000 0 0x00010000   /* downstream I/O */
-				0x82000000 0 0x90030000 0x90030000 0 0x0ffd0000>; /* non-prefetchable memory */
+				0x82000000 0 0x90030000 0x90030000 0 0x0ffd0000>; /* yesn-prefetchable memory */
 			bus-range = <0x00 0xff>;
 			status = "disabled";
 		};
@@ -129,7 +129,7 @@
 			#size-cells = <2>;
 			device_type = "pci";
 			ranges = <0x81000000 0 0	 0xc0020000 0 0x00010000   /* downstream I/O */
-				0x82000000 0 0xc0030000 0xc0030000 0 0x0ffd0000>; /* non-prefetchable memory */
+				0x82000000 0 0xc0030000 0xc0030000 0 0x0ffd0000>; /* yesn-prefetchable memory */
 			bus-range = <0x00 0xff>;
 			status = "disabled";
 		};

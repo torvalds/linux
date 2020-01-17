@@ -33,8 +33,8 @@ enum regnames {
 	GDB_BP,			/* 5 */
 	GDB_SI,			/* 6 */
 	GDB_DI,			/* 7 */
-	GDB_PC,			/* 8 also known as eip */
-	GDB_PS,			/* 9 also known as eflags */
+	GDB_PC,			/* 8 also kyeswn as eip */
+	GDB_PS,			/* 9 also kyeswn as eflags */
 	GDB_CS,			/* 10 */
 	GDB_SS,			/* 11 */
 	GDB_DS,			/* 12 */

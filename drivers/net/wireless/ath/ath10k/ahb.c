@@ -75,7 +75,7 @@ static int ath10k_ahb_get_num_banks(struct ath10k *ar)
 	if (ar->hw_rev == ATH10K_HW_QCA4019)
 		return 1;
 
-	ath10k_warn(ar, "unknown number of banks, assuming 1\n");
+	ath10k_warn(ar, "unkyeswn number of banks, assuming 1\n");
 	return 1;
 }
 
@@ -127,7 +127,7 @@ static int ath10k_ahb_clock_enable(struct ath10k *ar)
 	if (IS_ERR_OR_NULL(ar_ahb->cmd_clk) ||
 	    IS_ERR_OR_NULL(ar_ahb->ref_clk) ||
 	    IS_ERR_OR_NULL(ar_ahb->rtc_clk)) {
-		ath10k_err(ar, "clock(s) is/are not initialized\n");
+		ath10k_err(ar, "clock(s) is/are yest initialized\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -243,7 +243,7 @@ static int ath10k_ahb_release_reset(struct ath10k *ar)
 	    IS_ERR_OR_NULL(ar_ahb->radio_warm_rst) ||
 	    IS_ERR_OR_NULL(ar_ahb->radio_srif_rst) ||
 	    IS_ERR_OR_NULL(ar_ahb->cpu_init_rst)) {
-		ath10k_err(ar, "rst ctrl(s) is/are not initialized\n");
+		ath10k_err(ar, "rst ctrl(s) is/are yest initialized\n");
 		return -EINVAL;
 	}
 
@@ -315,7 +315,7 @@ static void ath10k_ahb_halt_chip(struct ath10k *ar)
 	    IS_ERR_OR_NULL(ar_ahb->radio_warm_rst) ||
 	    IS_ERR_OR_NULL(ar_ahb->radio_srif_rst) ||
 	    IS_ERR_OR_NULL(ar_ahb->cpu_init_rst)) {
-		ath10k_err(ar, "rst ctrl(s) is/are not initialized\n");
+		ath10k_err(ar, "rst ctrl(s) is/are yest initialized\n");
 		return;
 	}
 
@@ -458,7 +458,7 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 
 	ar_ahb->mem_len = resource_size(res);
 
-	ar_ahb->gcc_mem = ioremap_nocache(ATH10K_GCC_REG_BASE,
+	ar_ahb->gcc_mem = ioremap_yescache(ATH10K_GCC_REG_BASE,
 					  ATH10K_GCC_REG_SIZE);
 	if (!ar_ahb->gcc_mem) {
 		ath10k_err(ar, "gcc mem ioremap error\n");
@@ -466,7 +466,7 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 		goto err_mem_unmap;
 	}
 
-	ar_ahb->tcsr_mem = ioremap_nocache(ATH10K_TCSR_REG_BASE,
+	ar_ahb->tcsr_mem = ioremap_yescache(ATH10K_TCSR_REG_BASE,
 					   ATH10K_TCSR_REG_SIZE);
 	if (!ar_ahb->tcsr_mem) {
 		ath10k_err(ar, "tcsr mem ioremap error\n");
@@ -565,7 +565,7 @@ static int ath10k_ahb_prepare_device(struct ath10k *ar)
 
 	/* Clock for the target is supplied from outside of target (ie,
 	 * external clock module controlled by the host). Target needs
-	 * to know what frequency target cpu is configured which is needed
+	 * to kyesw what frequency target cpu is configured which is needed
 	 * for target internal use. Read target cpu frequency info from
 	 * gcc register and write into target's scratch register where
 	 * target expects this information.
@@ -677,7 +677,7 @@ static int ath10k_ahb_hif_power_up(struct ath10k *ar,
 
 	ret = ath10k_ahb_wake_target_cpu(ar);
 	if (ret) {
-		ath10k_err(ar, "could not wake up target CPU: %d\n", ret);
+		ath10k_err(ar, "could yest wake up target CPU: %d\n", ret);
 		goto err_ce_deinit;
 	}
 
@@ -698,7 +698,7 @@ static u32 ath10k_ahb_qca4019_targ_cpu_to_ce_addr(struct ath10k *ar, u32 addr)
 	if (region >= QCA4019_SRAM_ADDR && region <=
 	    (QCA4019_SRAM_ADDR + QCA4019_SRAM_LEN)) {
 		/* SRAM contents for QCA4019 can be directly accessed and
-		 * no conversions are required
+		 * yes conversions are required
 		 */
 		val |= region;
 	} else {

@@ -61,7 +61,7 @@ The following ioctl are supported:
 ^^^^^^^^^^^^^^^^^^
 
 This ioctl command registers a new reservation if the new_key argument
-is non-null.  If no existing reservation exists old_key must be zero,
+is yesn-null.  If yes existing reservation exists old_key must be zero,
 if an existing reservation should be replaced old_key must contain
 the old reservation key.
 
@@ -112,8 +112,8 @@ Flags
 All the ioctls have a flag field.  Currently only one flag is supported:
 
  - PR_FL_IGNORE_KEY
-	Ignore the existing reservation key.  This is commonly supported for
+	Igyesre the existing reservation key.  This is commonly supported for
 	IOC_PR_REGISTER, and some implementation may support the flag for
 	IOC_PR_RESERVE.
 
-For all unknown flags the kernel will return -EOPNOTSUPP.
+For all unkyeswn flags the kernel will return -EOPNOTSUPP.

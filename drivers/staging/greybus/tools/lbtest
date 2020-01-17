@@ -7,12 +7,12 @@
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 1. Redistributions of source code must retain the above copyright notice,
+# 1. Redistributions of source code must retain the above copyright yestice,
 # this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
+# 2. Redistributions in binary form must reproduce the above copyright yestice,
 # this list of conditions and the following disclaimer in the documentation
 # and/or other materials provided with the distribution.
-# 3. Neither the name of the copyright holder nor the names of its
+# 3. Neither the name of the copyright holder yesr the names of its
 # contributors may be used to endorse or promote products derived from this
 # software without specific prior written permission.
 #
@@ -47,7 +47,7 @@ def usage():
 	'  SIZE indicates the size of transfer <= greybus max payload bytes\n'
 	'  ITERATIONS indicates the number of times to execute TEST at SIZE bytes\n'
 	'             Note if ITERATIONS is set to zero then this utility will\n'
-	'             initiate an infinite (non terminating) test and exit\n'
+	'             initiate an infinite (yesn terminating) test and exit\n'
 	'             without logging any metrics data\n'
 	'  PATH indicates the sysfs path for the loopback greybus entries e.g.\n'
 	'             /sys/bus/greybus/devices/endo0:1:1:1:1/\n'
@@ -66,7 +66,7 @@ def read_sysfs_int(path):
 		f.close()
 		return int(val)
 	except IOError as e:
-		print("I/O error({0}): {1}".format(e.errno, e.strerror))
+		print("I/O error({0}): {1}".format(e.erryes, e.strerror))
 		print("Invalid path %s" % path)
 
 def write_sysfs_val(path, val):
@@ -75,7 +75,7 @@ def write_sysfs_val(path, val):
 		f.write(val)
 		f.close()
 	except IOError as e:
-		print("I/O error({0}): {1}".format(e.errno, e.strerror))
+		print("I/O error({0}): {1}".format(e.erryes, e.strerror))
 		print("Invalid path %s" % path)
 
 def log_csv(test_name, size, iteration_max, sys_pfx):
@@ -86,7 +86,7 @@ def log_csv(test_name, size, iteration_max, sys_pfx):
 
 	try:
 		# gather data set
-		date = str(datetime.datetime.now())
+		date = str(datetime.datetime.yesw())
 		error = read_sysfs_int(sys_pfx + 'error')
 		request_min = read_sysfs_int(sys_pfx + 'requests_per_second_min')
 		request_max = read_sysfs_int(sys_pfx + 'requests_per_second_max')
@@ -112,14 +112,14 @@ def log_csv(test_name, size, iteration_max, sys_pfx):
 					latency_min, latency_max, latency_avg, latency_jitter,
 					throughput_min, throughput_max, throughput_avg, throughput_jitter])
 	except IOError as e:
-		print("I/O error({0}): {1}".format(e.errno, e.strerror))
+		print("I/O error({0}): {1}".format(e.erryes, e.strerror))
 
 def loopback_run(test_name, size, iteration_max, sys_pfx):
 	test_id = dict[test_name]
 	try:
 		# Terminate any currently running test
 		write_sysfs_val(sys_pfx + 'type', '0')
-		# Set parameter for no wait between messages
+		# Set parameter for yes wait between messages
 		write_sysfs_val(sys_pfx + 'ms_wait', '0')
 		# Set operation size
 		write_sysfs_val(sys_pfx + 'size', size)

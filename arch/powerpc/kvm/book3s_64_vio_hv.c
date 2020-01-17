@@ -97,7 +97,7 @@ static long kvmppc_rm_tce_to_ua(struct kvm *kvm, unsigned long tce,
 /*
  * Validates TCE address.
  * At the moment flags and page mask are validated.
- * As the host kernel does not access those addresses (just puts them
+ * As the host kernel does yest access those addresses (just puts them
  * to the table and user space is supposed to process them), we can skip
  * checking other things (such as TCE is a guest RAM address or the page
  * was actually allocated).
@@ -141,7 +141,7 @@ static long kvmppc_rm_tce_validate(struct kvmppc_spapr_tce_table *stt,
  * It is safe to use page_address() in real mode on ppc64 because
  * page_address() is always defined as lowmem_page_address()
  * which returns __va(PFN_PHYS(page_to_pfn(page))) which is arithmetic
- * operation and does not access page struct.
+ * operation and does yest access page struct.
  *
  * Theoretically page_address() could be defined different
  * but either WANT_PAGE_VIRTUAL or HASHED_PAGE_VIRTUAL
@@ -149,7 +149,7 @@ static long kvmppc_rm_tce_validate(struct kvmppc_spapr_tce_table *stt,
  * WANT_PAGE_VIRTUAL is never enabled on ppc32/ppc64,
  * HASHED_PAGE_VIRTUAL could be enabled for ppc32 only and only
  * if CONFIG_HIGHMEM is defined. As CONFIG_SPARSEMEM_VMEMMAP
- * is not expected to be enabled on ppc32, page_address()
+ * is yest expected to be enabled on ppc32, page_address()
  * is safe for ppc32 as well.
  *
  * WARNING: This will be called in real-mode on HV KVM and virtual
@@ -166,7 +166,7 @@ static u64 *kvmppc_page_address(struct page *page)
 /*
  * Handles TCE requests for emulated devices.
  * Puts guest TCE values to the table and expects user space to convert them.
- * Cannot fail so kvmppc_rm_tce_validate must be called before it.
+ * Canyest fail so kvmppc_rm_tce_validate must be called before it.
  */
 static void kvmppc_rm_tce_put(struct kvmppc_spapr_tce_table *stt,
 		unsigned long idx, unsigned long tce)
@@ -177,7 +177,7 @@ static void kvmppc_rm_tce_put(struct kvmppc_spapr_tce_table *stt,
 	idx -= stt->offset;
 	page = stt->pages[idx / TCES_PER_PAGE];
 	/*
-	 * page must not be NULL in real mode,
+	 * page must yest be NULL in real mode,
 	 * kvmppc_rm_ioba_validate() must have taken care of this.
 	 */
 	WARN_ON_ONCE_RM(!page);
@@ -190,7 +190,7 @@ static void kvmppc_rm_tce_put(struct kvmppc_spapr_tce_table *stt,
  * TCEs pages are allocated in kvmppc_rm_tce_put() which won't be able to do so
  * in real mode.
  * Check if kvmppc_rm_tce_put() can succeed in real mode, i.e. a TCEs page is
- * allocated or not required (when clearing a tce entry).
+ * allocated or yest required (when clearing a tce entry).
  */
 static long kvmppc_rm_ioba_validate(struct kvmppc_spapr_tce_table *stt,
 		unsigned long ioba, unsigned long npages, bool clearing)
@@ -218,14 +218,14 @@ static long kvmppc_rm_ioba_validate(struct kvmppc_spapr_tce_table *stt,
 	return H_SUCCESS;
 }
 
-static long iommu_tce_xchg_no_kill_rm(struct mm_struct *mm,
+static long iommu_tce_xchg_yes_kill_rm(struct mm_struct *mm,
 		struct iommu_table *tbl,
 		unsigned long entry, unsigned long *hpa,
 		enum dma_data_direction *direction)
 {
 	long ret;
 
-	ret = tbl->it_ops->xchg_no_kill(tbl, entry, hpa, direction, true);
+	ret = tbl->it_ops->xchg_yes_kill(tbl, entry, hpa, direction, true);
 
 	if (!ret && ((*direction == DMA_FROM_DEVICE) ||
 				(*direction == DMA_BIDIRECTIONAL))) {
@@ -254,7 +254,7 @@ static void kvmppc_rm_clear_tce(struct kvm *kvm, struct iommu_table *tbl,
 	unsigned long hpa = 0;
 	enum dma_data_direction dir = DMA_NONE;
 
-	iommu_tce_xchg_no_kill_rm(kvm->mm, tbl, entry, &hpa, &dir);
+	iommu_tce_xchg_yes_kill_rm(kvm->mm, tbl, entry, &hpa, &dir);
 }
 
 static long kvmppc_rm_tce_iommu_mapped_dec(struct kvm *kvm,
@@ -286,7 +286,7 @@ static long kvmppc_rm_tce_iommu_do_unmap(struct kvm *kvm,
 	unsigned long hpa = 0;
 	long ret;
 
-	if (iommu_tce_xchg_no_kill_rm(kvm->mm, tbl, entry, &hpa, &dir))
+	if (iommu_tce_xchg_yes_kill_rm(kvm->mm, tbl, entry, &hpa, &dir))
 		/*
 		 * real mode xchg can fail if struct page crosses
 		 * a page boundary
@@ -298,7 +298,7 @@ static long kvmppc_rm_tce_iommu_do_unmap(struct kvm *kvm,
 
 	ret = kvmppc_rm_tce_iommu_mapped_dec(kvm, tbl, entry);
 	if (ret)
-		iommu_tce_xchg_no_kill_rm(kvm->mm, tbl, entry, &hpa, &dir);
+		iommu_tce_xchg_yes_kill_rm(kvm->mm, tbl, entry, &hpa, &dir);
 
 	return ret;
 }
@@ -344,7 +344,7 @@ static long kvmppc_rm_tce_iommu_do_map(struct kvm *kvm, struct iommu_table *tbl,
 	if (WARN_ON_ONCE_RM(mm_iommu_mapped_inc(mem)))
 		return H_TOO_HARD;
 
-	ret = iommu_tce_xchg_no_kill_rm(kvm->mm, tbl, entry, &hpa, &dir);
+	ret = iommu_tce_xchg_yes_kill_rm(kvm->mm, tbl, entry, &hpa, &dir);
 	if (ret) {
 		mm_iommu_mapped_dec(mem);
 		/*
@@ -448,7 +448,7 @@ static long kvmppc_rm_ua_to_hpa(struct kvm_vcpu *vcpu,
 	 * Called in real mode with MSR_EE = 0. We are safe here.
 	 * It is ok to do the lookup with arch.pgdir here, because
 	 * we are doing this on secondary cpus and current task there
-	 * is not the hypervisor. Also this is safe against THP in the
+	 * is yest the hypervisor. Also this is safe against THP in the
 	 * host, because an IPI to primary thread will wait for the secondary
 	 * to exit which will agains result in the below page table walk
 	 * to finish.
@@ -511,7 +511,7 @@ long kvmppc_rm_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 	if (mm_iommu_preregistered(vcpu->kvm->mm)) {
 		/*
 		 * We get here if guest memory was pre-registered which
-		 * is normally VFIO case and gpa->hpa translation does not
+		 * is yesrmally VFIO case and gpa->hpa translation does yest
 		 * depend on hpt.
 		 */
 		struct mm_iommu_table_group_mem_t *mem;
@@ -528,8 +528,8 @@ long kvmppc_rm_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 	if (!prereg) {
 		/*
 		 * This is usually a case of a guest with emulated devices only
-		 * when TCE list is not in preregistered memory.
-		 * We do not require memory to be preregistered in this case
+		 * when TCE list is yest in preregistered memory.
+		 * We do yest require memory to be preregistered in this case
 		 * so lock rmap and do __find_linux_pte_or_hugepte().
 		 */
 		if (kvmppc_rm_tce_to_ua(vcpu->kvm, tce_list, &ua, &rmap))
@@ -540,10 +540,10 @@ long kvmppc_rm_h_put_tce_indirect(struct kvm_vcpu *vcpu,
 			return H_TOO_HARD;
 
 		/*
-		 * Synchronize with the MMU notifier callbacks in
+		 * Synchronize with the MMU yestifier callbacks in
 		 * book3s_64_mmu_hv.c (kvm_unmap_hva_range_hv etc.).
 		 * While we have the rmap lock, code running on other CPUs
-		 * cannot finish unmapping the host real page that backs
+		 * canyest finish unmapping the host real page that backs
 		 * this guest real page, so we are OK to access the host
 		 * real page.
 		 */

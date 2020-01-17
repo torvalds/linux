@@ -37,17 +37,17 @@ struct s3c2410_nand_set {
 	char			*name;
 	int			*nr_map;
 	struct mtd_partition	*partitions;
-	struct device_node	*of_node;
+	struct device_yesde	*of_yesde;
 };
 
 struct s3c2410_platform_nand {
-	/* timing information for controller, all times in nanoseconds */
+	/* timing information for controller, all times in nayesseconds */
 
 	int	tacls;	/* time for active CLE/ALE to nWE/nOE */
 	int	twrph0;	/* active time for nWE/nOE */
 	int	twrph1;	/* time for release CLE/ALE from nWE/nOE inactive */
 
-	unsigned int	ignore_unset_ecc:1;
+	unsigned int	igyesre_unset_ecc:1;
 
 	nand_ecc_modes_t	ecc_mode;
 

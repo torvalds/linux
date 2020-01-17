@@ -83,10 +83,10 @@ static void nicvf_free_q_desc_mem(struct nicvf *nic, struct q_desc_mem *dmem)
 
 /* Allocate a new page or recycle one if possible
  *
- * We cannot optimize dma mapping here, since
+ * We canyest optimize dma mapping here, since
  * 1. It's only one RBDR ring for 8 Rx queues.
  * 2. CQE_RX gives address of the buffer where pkt has been DMA'ed
- *    and not idx into RBDR ring, so can't refer to saved info.
+ *    and yest idx into RBDR ring, so can't refer to saved info.
  * 3. There are multiple receive buffers per page
  */
 static inline struct pgcache *nicvf_alloc_page(struct nicvf *nic,
@@ -104,7 +104,7 @@ static inline struct pgcache *nicvf_alloc_page(struct nicvf *nic,
 		ref_count = page_ref_count(page);
 		/* This page can be recycled if internal ref_count and page's
 		 * ref_count are equal, indicating that the page has been used
-		 * once for packet transmission. For non-XDP mode, internal
+		 * once for packet transmission. For yesn-XDP mode, internal
 		 * ref_count is always '1'.
 		 */
 		if (rbdr->is_xdp) {
@@ -152,7 +152,7 @@ static inline struct pgcache *nicvf_alloc_page(struct nicvf *nic,
 			page_ref_add(page, XDP_PAGE_REFCNT_REFILL);
 		}
 	} else {
-		/* In non-XDP case, single 64K page is divided across multiple
+		/* In yesn-XDP case, single 64K page is divided across multiple
 		 * receive buffers, so cost of recycling is less anyway.
 		 * So we can do with just one extra reference.
 		 */
@@ -209,7 +209,7 @@ ret:
 	if (rbdr->is_xdp && pgcache && pgcache->dma_addr) {
 		*rbuf = pgcache->dma_addr;
 	} else {
-		/* HW will ensure data coherency, CPU sync not required */
+		/* HW will ensure data coherency, CPU sync yest required */
 		*rbuf = (u64)dma_map_page_attrs(&nic->pdev->dev, nic->rb_page,
 						nic->rb_page_offset, buf_len,
 						DMA_FROM_DEVICE,
@@ -396,7 +396,7 @@ refill:
 	if (!rbdr->enable)
 		goto next_rbdr;
 
-	/* Get no of desc's to be refilled */
+	/* Get yes of desc's to be refilled */
 	qcount = nicvf_queue_reg_read(nic, NIC_QSET_RBDR_0_1_STATUS0, rbdr_idx);
 	qcount &= 0x7FFFF;
 	/* Doorbell can be ringed with a max of ring size minus 1 */
@@ -447,7 +447,7 @@ next_rbdr:
 		goto refill;
 }
 
-/* Alloc rcv buffers in non-atomic mode for better success */
+/* Alloc rcv buffers in yesn-atomic mode for better success */
 void nicvf_rbdr_work(struct work_struct *work)
 {
 	struct nicvf *nic = container_of(work, struct nicvf, rbdr_work.work);
@@ -561,7 +561,7 @@ void nicvf_unmap_sndq_buffers(struct nicvf *nic, struct snd_queue *sq,
 		hdr_sqe++;
 		hdr_sqe &= (sq->dmem.q_len - 1);
 		gather = (struct sq_gather_subdesc *)GET_SQ_DESC(sq, hdr_sqe);
-		/* HW will ensure data coherency, CPU sync not required */
+		/* HW will ensure data coherency, CPU sync yest required */
 		dma_unmap_page_attrs(&nic->pdev->dev, gather->addr,
 				     gather->size, DMA_TO_DEVICE,
 				     DMA_ATTR_SKIP_CPU_SYNC);
@@ -769,7 +769,7 @@ static void nicvf_rcv_queue_config(struct nicvf *nic, struct queue_set *qs,
 	/* all writes of RBDR data to be loaded into L2 Cache as well*/
 	rq->caching = 1;
 
-	/* Driver have no proper error path for failed XDP RX-queue info reg */
+	/* Driver have yes proper error path for failed XDP RX-queue info reg */
 	WARN_ON(xdp_rxq_info_reg(&rq->xdp_rxq, nic->netdev, qidx) < 0);
 
 	/* Send a mailbox msg to PF to config RQ */
@@ -896,7 +896,7 @@ static void nicvf_snd_queue_config(struct nicvf *nic, struct queue_set *qs,
 	sq_cfg.qsize = ilog2(qs->sq_len >> 10);
 	sq_cfg.tstmp_bgx_intf = 0;
 	/* CQ's level at which HW will stop processing SQEs to avoid
-	 * transmitting a pkt with no space in CQ to post CQE_TX.
+	 * transmitting a pkt with yes space in CQ to post CQE_TX.
 	 */
 	sq_cfg.cq_limit = (CMP_QUEUE_PIPELINE_RSVD * 256) / qs->cq_len;
 	nicvf_queue_reg_write(nic, NIC_QSET_SQ_0_7_CFG, qidx, *(u64 *)&sq_cfg);
@@ -958,7 +958,7 @@ void nicvf_qset_config(struct nicvf *nic, bool enable)
 
 	if (!qs) {
 		netdev_warn(nic->netdev,
-			    "Qset is still not allocated, don't init queues\n");
+			    "Qset is still yest allocated, don't init queues\n");
 		return;
 	}
 
@@ -1130,7 +1130,7 @@ static inline int nicvf_get_sq_desc(struct snd_queue *sq, int desc_cnt)
 	return qentry;
 }
 
-/* Rollback to previous tail pointer when descriptors not used */
+/* Rollback to previous tail pointer when descriptors yest used */
 static inline void nicvf_rollback_sq_desc(struct snd_queue *sq,
 					  int qentry, int desc_cnt)
 {
@@ -1254,9 +1254,9 @@ int nicvf_xdp_sq_append_pkt(struct nicvf *nic, struct snd_queue *sq,
 	return 1;
 }
 
-/* Calculate no of SQ subdescriptors needed to transmit all
+/* Calculate yes of SQ subdescriptors needed to transmit all
  * segments of this TSO packet.
- * Taken from 'Tilera network driver' with a minor modification.
+ * Taken from 'Tilera network driver' with a miyesr modification.
  */
 static int nicvf_tso_count_subdescs(struct sk_buff *skb)
 {
@@ -1313,7 +1313,7 @@ static int nicvf_sq_subdesc_required(struct nicvf *nic, struct sk_buff *skb)
 		return subdesc_cnt;
 	}
 
-	/* Dummy descriptors to get TSO pkt completion notification */
+	/* Dummy descriptors to get TSO pkt completion yestification */
 	if (nic->t88 && nic->hw_tso && skb_shinfo(skb)->gso_size)
 		subdesc_cnt += POST_CQE_DESC_COUNT;
 
@@ -1350,7 +1350,7 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 		hdr->subdesc_cnt = subdesc_cnt - POST_CQE_DESC_COUNT;
 	} else {
 		sq->skbuff[qentry] = (u64)skb;
-		/* Enable notification via CQE after processing SQE */
+		/* Enable yestification via CQE after processing SQE */
 		hdr->post_cqe = 1;
 		/* No of subdescriptors following this */
 		hdr->subdesc_cnt = subdesc_cnt;
@@ -1384,7 +1384,7 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 		hdr->tso = 1;
 		hdr->tso_start = skb_transport_offset(skb) + tcp_hdrlen(skb);
 		hdr->tso_max_paysize = skb_shinfo(skb)->gso_size;
-		/* For non-tunneled pkts, point this to L2 ethertype */
+		/* For yesn-tunneled pkts, point this to L2 ethertype */
 		hdr->inner_l3_offset = skb_network_offset(skb) - 2;
 		this_cpu_inc(nic->pnicvf->drv_stats->tx_tso);
 	}
@@ -1395,7 +1395,7 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 		return;
 	}
 
-	/* Tx timestamping not supported along with TSO, so ignore request */
+	/* Tx timestamping yest supported along with TSO, so igyesre request */
 	if (skb_shinfo(skb)->gso_size)
 		return;
 
@@ -1432,7 +1432,7 @@ static inline void nicvf_sq_add_gather_subdesc(struct snd_queue *sq, int qentry,
 }
 
 /* Add HDR + IMMEDIATE subdescriptors right after descriptors of a TSO
- * packet so that a CQE is posted as a notifation for transmission of
+ * packet so that a CQE is posted as a yestifation for transmission of
  * TSO packet.
  */
 static inline void nicvf_sq_add_cqe_subdesc(struct snd_queue *sq, int qentry,
@@ -1446,9 +1446,9 @@ static inline void nicvf_sq_add_cqe_subdesc(struct snd_queue *sq, int qentry,
 	hdr = (struct sq_hdr_subdesc *)GET_SQ_DESC(sq, qentry);
 	memset(hdr, 0, SND_QUEUE_DESC_SIZE);
 	hdr->subdesc_type = SQ_DESC_TYPE_HEADER;
-	/* Enable notification via CQE after processing SQE */
+	/* Enable yestification via CQE after processing SQE */
 	hdr->post_cqe = 1;
-	/* There is no packet to transmit here */
+	/* There is yes packet to transmit here */
 	hdr->dont_send = 1;
 	hdr->subdesc_cnt = POST_CQE_DESC_COUNT - 1;
 	hdr->tot_len = 1;
@@ -1571,8 +1571,8 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
 
 	/* Add SQ gather subdescs */
 	qentry = nicvf_get_nxt_sqentry(sq, qentry);
-	size = skb_is_nonlinear(skb) ? skb_headlen(skb) : skb->len;
-	/* HW will ensure data coherency, CPU sync not required */
+	size = skb_is_yesnlinear(skb) ? skb_headlen(skb) : skb->len;
+	/* HW will ensure data coherency, CPU sync yest required */
 	dma_addr = dma_map_page_attrs(&nic->pdev->dev, virt_to_page(skb->data),
 				      offset_in_page(skb->data), size,
 				      DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
@@ -1584,7 +1584,7 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
 	nicvf_sq_add_gather_subdesc(sq, qentry, size, dma_addr);
 
 	/* Check for scattered buffer */
-	if (!skb_is_nonlinear(skb))
+	if (!skb_is_yesnlinear(skb))
 		goto doorbell;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
@@ -1621,7 +1621,7 @@ doorbell:
 append_fail:
 	/* Use original PCI dev for debug log */
 	nic = nic->pnicvf;
-	netdev_dbg(nic->netdev, "Not enough SQ descriptors to xmit pkt\n");
+	netdev_dbg(nic->netdev, "Not eyesugh SQ descriptors to xmit pkt\n");
 	return 0;
 }
 
@@ -1642,7 +1642,7 @@ static void nicvf_unmap_rcv_buffer(struct nicvf *nic, u64 dma_addr,
 
 	if (xdp) {
 		page = virt_to_page(phys_to_virt(buf_addr));
-		/* Check if it's a recycled page, if not
+		/* Check if it's a recycled page, if yest
 		 * unmap the DMA mapping.
 		 *
 		 * Recycled page holds an extra reference.
@@ -1759,7 +1759,7 @@ void nicvf_enable_intr(struct nicvf *nic, int int_type, int q_idx)
 
 	if (!mask) {
 		netdev_dbg(nic->netdev,
-			   "Failed to enable interrupt: unknown type\n");
+			   "Failed to enable interrupt: unkyeswn type\n");
 		return;
 	}
 	nicvf_reg_write(nic, NIC_VF_ENA_W1S,
@@ -1773,7 +1773,7 @@ void nicvf_disable_intr(struct nicvf *nic, int int_type, int q_idx)
 
 	if (!mask) {
 		netdev_dbg(nic->netdev,
-			   "Failed to disable interrupt: unknown type\n");
+			   "Failed to disable interrupt: unkyeswn type\n");
 		return;
 	}
 
@@ -1787,7 +1787,7 @@ void nicvf_clear_intr(struct nicvf *nic, int int_type, int q_idx)
 
 	if (!mask) {
 		netdev_dbg(nic->netdev,
-			   "Failed to clear interrupt: unknown type\n");
+			   "Failed to clear interrupt: unkyeswn type\n");
 		return;
 	}
 
@@ -1798,10 +1798,10 @@ void nicvf_clear_intr(struct nicvf *nic, int int_type, int q_idx)
 int nicvf_is_intr_enabled(struct nicvf *nic, int int_type, int q_idx)
 {
 	u64 mask = nicvf_int_type_to_mask(int_type, q_idx);
-	/* If interrupt type is unknown, we treat it disabled. */
+	/* If interrupt type is unkyeswn, we treat it disabled. */
 	if (!mask) {
 		netdev_dbg(nic->netdev,
-			   "Failed to check interrupt enable: unknown type\n");
+			   "Failed to check interrupt enable: unkyeswn type\n");
 		return 0;
 	}
 

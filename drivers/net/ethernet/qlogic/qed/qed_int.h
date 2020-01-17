@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -261,7 +261,7 @@ u16 qed_get_igu_sb_id(struct qed_hwfn *p_hwfn, u16 sb_id);
  * @param p_hwfn
  * @param b_is_pf - true iff we want a SB belonging to a PF
  *
- * @return point to an igu_block, NULL if none is available
+ * @return point to an igu_block, NULL if yesne is available
  */
 struct qed_igu_block *qed_get_igu_free_sb(struct qed_hwfn *p_hwfn,
 					  bool b_is_pf);
@@ -276,7 +276,7 @@ void qed_int_igu_init_rt(struct qed_hwfn *p_hwfn);
 /**
  * @brief qed_int_igu_read_cam - Reads the IGU CAM.
  *	This function needs to be called during hardware
- *	prepare. It reads the info from igu cam to know which
+ *	prepare. It reads the info from igu cam to kyesw which
  *	status block is the default / base status block etc.
  *
  * @param p_hwfn
@@ -319,7 +319,7 @@ int qed_int_register_cb(struct qed_hwfn *p_hwfn,
  * @brief qed_int_unregister_cb - Unregisters callback
  *      function from sp sb.
  *      Partner of qed_int_register_cb -> should be called
- *      when no longer required.
+ *      when yes longer required.
  *
  * @param p_hwfn
  * @param pi

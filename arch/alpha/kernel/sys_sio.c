@@ -162,7 +162,7 @@ sio_fixup_irq_levels(unsigned int level_bits)
 }
 
 static inline int
-noname_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+yesname_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	/*
 	 * The Noname board has 5 PCI slots with each of the 4
@@ -172,7 +172,7 @@ noname_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	 *
 	 *   http://ftp.digital.com/pub/DEC/axppci/ref_interrupts.txt
 	 *
-	 * I have no information on the Avanti interrupt routing, but
+	 * I have yes information on the Avanti interrupt routing, but
 	 * the routing seems to be identical to the Noname except
 	 * that the Avanti has an additional slot whose routing I'm
 	 * unsure of.
@@ -227,7 +227,7 @@ p2k_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static inline void __init
-noname_init_pci(void)
+yesname_init_pci(void)
 {
 	common_init_pci();
 	sio_pci_route();
@@ -294,7 +294,7 @@ alphabook1_init_pci(void)
                 }
 	}
 
-	/* Do not set *ANY* level triggers for AlphaBook1. */
+	/* Do yest set *ANY* level triggers for AlphaBook1. */
 	sio_fixup_irq_levels(0);
 
 	/* Make sure that register PR1 indicates 1Mb mem */
@@ -313,11 +313,11 @@ void
 sio_kill_arch(int mode)
 {
 #if defined(ALPHA_RESTORE_SRM_SETUP)
-	/* Since we cannot read the PCI DMA Window CSRs, we
-	 * cannot restore them here.
+	/* Since we canyest read the PCI DMA Window CSRs, we
+	 * canyest restore them here.
 	 *
 	 * However, we CAN read the PIRQ route register, so restore it
-	 * now...
+	 * yesw...
 	 */
  	pci_bus_write_config_dword(pci_isa_hose->bus, PCI_DEVFN(7, 0), 0x60,
 				   saved_config.orig_route_tab);
@@ -348,7 +348,7 @@ struct alpha_machine_vector alphabook1_mv __initmv = {
 	.init_rtc		= common_init_rtc,
 	.init_pci		= alphabook1_init_pci,
 	.kill_arch		= sio_kill_arch,
-	.pci_map_irq		= noname_map_irq,
+	.pci_map_irq		= yesname_map_irq,
 	.pci_swizzle		= common_swizzle,
 
 	.sys = { .sio = {
@@ -376,9 +376,9 @@ struct alpha_machine_vector avanti_mv __initmv = {
 	.init_arch		= apecs_init_arch,
 	.init_irq		= sio_init_irq,
 	.init_rtc		= common_init_rtc,
-	.init_pci		= noname_init_pci,
+	.init_pci		= yesname_init_pci,
 	.kill_arch		= sio_kill_arch,
-	.pci_map_irq		= noname_map_irq,
+	.pci_map_irq		= yesname_map_irq,
 	.pci_swizzle		= common_swizzle,
 
 	.sys = { .sio = {
@@ -389,7 +389,7 @@ ALIAS_MV(avanti)
 #endif
 
 #if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_NONAME)
-struct alpha_machine_vector noname_mv __initmv = {
+struct alpha_machine_vector yesname_mv __initmv = {
 	.vector_name		= "Noname",
 	DO_EV4_MMU,
 	DO_DEFAULT_RTC,
@@ -405,13 +405,13 @@ struct alpha_machine_vector noname_mv __initmv = {
 	.init_arch		= lca_init_arch,
 	.init_irq		= sio_init_irq,
 	.init_rtc		= common_init_rtc,
-	.init_pci		= noname_init_pci,
+	.init_pci		= yesname_init_pci,
 	.kill_arch		= sio_kill_arch,
-	.pci_map_irq		= noname_map_irq,
+	.pci_map_irq		= yesname_map_irq,
 	.pci_swizzle		= common_swizzle,
 
 	.sys = { .sio = {
-		/* For UDB, the only available PCI slot must not map to IRQ 9,
+		/* For UDB, the only available PCI slot must yest map to IRQ 9,
 		   since that's the builtin MSS sound chip. That PCI slot
 		   will map to PIRQ1 (for INTA at least), so we give it IRQ 15
 		   instead.
@@ -423,7 +423,7 @@ struct alpha_machine_vector noname_mv __initmv = {
 		.route_tab	= 0x0b0a0f0d,
 	}}
 };
-ALIAS_MV(noname)
+ALIAS_MV(yesname)
 #endif
 
 #if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_P2K)
@@ -443,7 +443,7 @@ struct alpha_machine_vector p2k_mv __initmv = {
 	.init_arch		= lca_init_arch,
 	.init_irq		= sio_init_irq,
 	.init_rtc		= common_init_rtc,
-	.init_pci		= noname_init_pci,
+	.init_pci		= yesname_init_pci,
 	.kill_arch		= sio_kill_arch,
 	.pci_map_irq		= p2k_map_irq,
 	.pci_swizzle		= common_swizzle,
@@ -472,9 +472,9 @@ struct alpha_machine_vector xl_mv __initmv = {
 	.init_arch		= apecs_init_arch,
 	.init_irq		= sio_init_irq,
 	.init_rtc		= common_init_rtc,
-	.init_pci		= noname_init_pci,
+	.init_pci		= yesname_init_pci,
 	.kill_arch		= sio_kill_arch,
-	.pci_map_irq		= noname_map_irq,
+	.pci_map_irq		= yesname_map_irq,
 	.pci_swizzle		= common_swizzle,
 
 	.sys = { .sio = {

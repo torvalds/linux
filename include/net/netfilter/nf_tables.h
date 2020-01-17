@@ -84,7 +84,7 @@ struct nft_data {
 		u32			data[4];
 		struct nft_verdict	verdict;
 	};
-} __attribute__((aligned(__alignof__(u64))));
+} __attribute__((aligned(__aligyesf__(u64))));
 
 /**
  *	struct nft_regs - nf_tables register set
@@ -164,7 +164,7 @@ static inline void nft_data_debug(const struct nft_data *data)
  *	@seq: netlink sequence number
  *	@family: protocol family
  *	@level: depth of the chains
- *	@report: notify via unicast netlink message
+ *	@report: yestify via unicast netlink message
  */
 struct nft_ctx {
 	struct net			*net;
@@ -394,13 +394,13 @@ void nft_unregister_set(struct nft_set_type *type);
 /**
  * 	struct nft_set - nf_tables set instance
  *
- *	@list: table set list node
+ *	@list: table set list yesde
  *	@bindings: list of set bindings
  *	@table: table this set belongs to
  *	@net: netnamespace this set belongs to
  * 	@name: name of the set
  *	@handle: unique handle of the set
- * 	@ktype: key type (numeric type defined by userspace, not used in the kernel)
+ * 	@ktype: key type (numeric type defined by userspace, yest used in the kernel)
  * 	@dtype: data type (verdict or numeric type defined by userspace)
  * 	@objtype: object type (see NFT_OBJECT_* definitions)
  * 	@size: maximum set size
@@ -445,10 +445,10 @@ struct nft_set {
 	u8				klen;
 	u8				dlen;
 	unsigned char			data[]
-		__attribute__((aligned(__alignof__(u64))));
+		__attribute__((aligned(__aligyesf__(u64))));
 };
 
-static inline bool nft_set_is_anonymous(const struct nft_set *set)
+static inline bool nft_set_is_ayesnymous(const struct nft_set *set)
 {
 	return set->flags & NFT_SET_ANONYMOUS;
 }
@@ -477,7 +477,7 @@ static inline unsigned long nft_set_gc_interval(const struct nft_set *set)
 /**
  *	struct nft_set_binding - nf_tables set binding
  *
- *	@list: set bindings list node
+ *	@list: set bindings list yesde
  *	@chain: chain containing the rule bound to the set
  *	@flags: set action flags
  *
@@ -722,7 +722,7 @@ struct nft_expr_ops;
  *
  *	@select_ops: function to select nft_expr_ops
  *	@release_ops: release nft_expr_ops
- *	@ops: default ops, used when no select_ops functions is present
+ *	@ops: default ops, used when yes select_ops functions is present
  *	@list: used internally
  *	@name: Identifier
  *	@owner: module reference
@@ -810,7 +810,7 @@ struct nft_expr_ops {
 
 #define NFT_EXPR_MAXATTR		16
 #define NFT_EXPR_SIZE(size)		(sizeof(struct nft_expr) + \
-					 ALIGN(size, __alignof__(struct nft_expr)))
+					 ALIGN(size, __aligyesf__(struct nft_expr)))
 
 /**
  *	struct nft_expr - nf_tables expression
@@ -821,7 +821,7 @@ struct nft_expr_ops {
 struct nft_expr {
 	const struct nft_expr_ops	*ops;
 	unsigned char			data[]
-		__attribute__((aligned(__alignof__(u64))));
+		__attribute__((aligned(__aligyesf__(u64))));
 };
 
 static inline void *nft_expr_priv(const struct nft_expr *expr)
@@ -852,7 +852,7 @@ struct nft_rule {
 					dlen:12,
 					udata:1;
 	unsigned char			data[]
-		__attribute__((aligned(__alignof__(struct nft_expr))));
+		__attribute__((aligned(__aligyesf__(struct nft_expr))));
 };
 
 static inline struct nft_expr *nft_expr_first(const struct nft_rule *rule)
@@ -1062,9 +1062,9 @@ struct nft_object_hash_key {
 /**
  *	struct nft_object - nf_tables stateful object
  *
- *	@list: table stateful object list node
+ *	@list: table stateful object list yesde
  *	@key:  keys that identify this object
- *	@rhlhead: nft_objname_ht node
+ *	@rhlhead: nft_objname_ht yesde
  *	@genmask: generation mask
  *	@use: number of references to this stateful object
  *	@handle: unique object handle
@@ -1081,7 +1081,7 @@ struct nft_object {
 	/* runtime data below here */
 	const struct nft_object_ops	*ops ____cacheline_aligned;
 	unsigned char			data[]
-		__attribute__((aligned(__alignof__(u64))));
+		__attribute__((aligned(__aligyesf__(u64))));
 };
 
 static inline void *nft_obj_data(const struct nft_object *obj)
@@ -1096,7 +1096,7 @@ struct nft_object *nft_obj_lookup(const struct net *net,
 				  const struct nlattr *nla, u32 objtype,
 				  u8 genmask);
 
-void nft_obj_notify(struct net *net, const struct nft_table *table,
+void nft_obj_yestify(struct net *net, const struct nft_table *table,
 		    struct nft_object *obj, u32 portid, u32 seq,
 		    int event, int family, int report, gfp_t gfp);
 
@@ -1104,8 +1104,8 @@ void nft_obj_notify(struct net *net, const struct nft_table *table,
  *	struct nft_object_type - stateful object type
  *
  *	@select_ops: function to select nft_object_ops
- *	@ops: default ops, used when no select_ops functions is present
- *	@list: list node in list of object types
+ *	@ops: default ops, used when yes select_ops functions is present
+ *	@list: list yesde in list of object types
  *	@type: stateful object numeric type
  *	@owner: module owner
  *	@maxattr: maximum netlink attribute
@@ -1158,7 +1158,7 @@ void nft_unregister_obj(struct nft_object_type *obj_type);
 /**
  *	struct nft_flowtable - nf_tables flow table
  *
- *	@list: flow table list node in table list
+ *	@list: flow table list yesde in table list
  * 	@table: the table the flow table is contained in
  *	@name: name of this flow table
  *	@hooknum: hook number
@@ -1222,7 +1222,7 @@ void nft_trace_init(struct nft_traceinfo *info, const struct nft_pktinfo *pkt,
 		    const struct nft_verdict *verdict,
 		    const struct nft_chain *basechain);
 
-void nft_trace_notify(struct nft_traceinfo *info);
+void nft_trace_yestify(struct nft_traceinfo *info);
 
 #define MODULE_ALIAS_NFT_CHAIN(family, name) \
 	MODULE_ALIAS("nft-chain-" __stringify(family) "-" name)
@@ -1323,7 +1323,7 @@ static inline void nft_set_elem_change_active(const struct net *net,
  *
  * Even though the genmask is only a single byte wide, this works
  * because the extension structure if fully constant once initialized,
- * so there are no non-atomic write accesses unless it is already
+ * so there are yes yesn-atomic write accesses unless it is already
  * marked busy.
  */
 #define NFT_SET_ELEM_BUSY_MASK	(1 << 2)

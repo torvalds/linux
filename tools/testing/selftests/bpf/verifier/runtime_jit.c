@@ -25,7 +25,7 @@
 	.retval = 41,
 },
 {
-	"runtime/jit: tail_call within bounds, no prog",
+	"runtime/jit: tail_call within bounds, yes prog",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_3, 3),
 	BPF_LD_MAP_FD(BPF_REG_2, 0),

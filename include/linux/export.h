@@ -7,7 +7,7 @@
  * to reduce the amount of pointless cruft we feed to gcc when only
  * exporting a simple symbol or two.
  *
- * Try not to add #includes here.  It slows compilation and makes kernel
+ * Try yest to add #includes here.  It slows compilation and makes kernel
  * hackers place grumpy comments in header files.
  */
 
@@ -20,7 +20,7 @@ extern struct module __this_module;
 #endif
 
 #ifdef CONFIG_MODVERSIONS
-/* Mark the CRC weak since genksyms apparently decides not to
+/* Mark the CRC weak since genksyms apparently decides yest to
  * generate a checksums for some symbols */
 #if defined(CONFIG_MODULE_REL_CRCS)
 #define __CRC_SYMBOL(sym, sec)						\
@@ -111,7 +111,7 @@ struct kernel_symbol {
 
 /*
  * For fine grained build dependencies, we want to tell the build system
- * about each possible exported symbol even if they're not actually exported.
+ * about each possible exported symbol even if they're yest actually exported.
  * We use a symbol pattern __ksym_marker_<symbol> that the build system filters
  * from the $(NM) output (see scripts/gen_ksymdeps.sh). These symbols are
  * discarded in the final link stage.
@@ -127,7 +127,7 @@ struct kernel_symbol {
 #define ___cond_export_sym(sym, sec, ns, enabled)			\
 	__cond_export_sym_##enabled(sym, sec, ns)
 #define __cond_export_sym_1(sym, sec, ns) ___EXPORT_SYMBOL(sym, sec, ns)
-#define __cond_export_sym_0(sym, sec, ns) /* nothing */
+#define __cond_export_sym_0(sym, sec, ns) /* yesthing */
 
 #else
 

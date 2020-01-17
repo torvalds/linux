@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos4412 based Galaxy S3 board device tree source
+ * Samsung's Exyyess4412 based Galaxy S3 board device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  */
 
 /dts-v1/;
-#include "exynos4412-midas.dtsi"
+#include "exyyess4412-midas.dtsi"
 
 / {
 	aliases {

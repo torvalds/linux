@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _lirc-read:
 
@@ -19,7 +19,7 @@ Name
 lirc-read - Read from a LIRC device
 
 
-Synopsis
+Syyespsis
 ========
 
 .. code-block:: c
@@ -48,7 +48,7 @@ Description
 
 :ref:`read() <lirc-read>` attempts to read up to ``count`` bytes from file
 descriptor ``fd`` into the buffer starting at ``buf``.  If ``count`` is zero,
-:ref:`read() <lirc-read>` returns zero and has no other results. If ``count``
+:ref:`read() <lirc-read>` returns zero and has yes other results. If ``count``
 is greater than ``SSIZE_MAX``, the result is unspecified.
 
 The exact format of the data depends on what :ref:`lirc_modes` a driver
@@ -70,7 +70,7 @@ and the ``keycode`` set to the keycode or ``KEY_RESERVED``.
 Return Value
 ============
 
-On success, the number of bytes read is returned. It is not an error if
+On success, the number of bytes read is returned. It is yest an error if
 this number is smaller than the number of bytes requested, or the amount
-of data required for one frame.  On error, -1 is returned, and the ``errno``
+of data required for one frame.  On error, -1 is returned, and the ``erryes``
 variable is set appropriately.

@@ -7,7 +7,7 @@
  */
 #include <linux/compiler.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/file.h>
 #include <linux/highuid.h>
 #include <linux/resource.h>
@@ -26,7 +26,7 @@
 #include <linux/utime.h>
 #include <linux/utsname.h>
 #include <linux/personality.h>
-#include <linux/dnotify.h>
+#include <linux/dyestify.h>
 #include <linux/binfmts.h>
 #include <linux/security.h>
 #include <linux/compat.h>
@@ -71,7 +71,7 @@ SYSCALL_DEFINE5(32_llseek, unsigned int, fd, unsigned int, offset_high,
 
 /* From the Single Unix Spec: pread & pwrite act like lseek to pos + op +
    lseek back to original location.  They fail just like lseek does on
-   non-seekable files.	*/
+   yesn-seekable files.	*/
 
 SYSCALL_DEFINE6(32_pread, unsigned long, fd, char __user *, buf, size_t, count,
 	unsigned long, unused, unsigned long, a4, unsigned long, a5)

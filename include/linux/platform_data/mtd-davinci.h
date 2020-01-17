@@ -44,11 +44,11 @@ struct davinci_nand_pdata {		/* platform_data */
 	uint32_t		mask_cle;
 
 	/*
-	 * 0-indexed chip-select number of the asynchronous
+	 * 0-indexed chip-select number of the asynchroyesus
 	 * interface to which the NAND device has been connected.
 	 *
 	 * So, if you have NAND connected to CS3 of DA850, you
-	 * will pass '1' here. Since the asynchronous interface
+	 * will pass '1' here. Since the asynchroyesus interface
 	 * on DA850 starts from CS2.
 	 */
 	uint32_t		core_chipsel;
@@ -60,7 +60,7 @@ struct davinci_nand_pdata {		/* platform_data */
 	struct mtd_partition	*parts;
 	unsigned		nr_parts;
 
-	/* none  == NAND_ECC_NONE (strongly *not* advised!!)
+	/* yesne  == NAND_ECC_NONE (strongly *yest* advised!!)
 	 * soft  == NAND_ECC_SOFT
 	 * else  == NAND_ECC_HW, according to ecc_bits
 	 *

@@ -691,7 +691,7 @@ enum bq27xxx_dm_reg_id {
 #define bq2751x_dm_regs 0
 #define bq2752x_dm_regs 0
 
-#if 0 /* not yet tested */
+#if 0 /* yest yet tested */
 static struct bq27xxx_dm_reg bq27500_dm_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 48, 10, 2,    0, 65535 },
 	[BQ27XXX_DM_DESIGN_ENERGY]     = { }, /* missing on chip */
@@ -717,7 +717,7 @@ static struct bq27xxx_dm_reg bq27500_dm_regs[] = {
 #define bq27546_dm_regs 0
 #define bq27742_dm_regs 0
 
-#if 0 /* not yet tested */
+#if 0 /* yest yet tested */
 static struct bq27xxx_dm_reg bq27545_dm_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 48, 23, 2,    0, 32767 },
 	[BQ27XXX_DM_DESIGN_ENERGY]     = { 48, 25, 2,    0, 32767 },
@@ -751,13 +751,13 @@ static struct bq27xxx_dm_reg bq27426_dm_regs[] = {
 	[BQ27XXX_DM_TERMINATE_VOLTAGE] = { 82, 10, 2, 2500,  3700 },
 };
 
-#if 0 /* not yet tested */
+#if 0 /* yest yet tested */
 #define bq27441_dm_regs bq27421_dm_regs
 #else
 #define bq27441_dm_regs 0
 #endif
 
-#if 0 /* not yet tested */
+#if 0 /* yest yet tested */
 static struct bq27xxx_dm_reg bq27621_dm_regs[] = {
 	[BQ27XXX_DM_DESIGN_CAPACITY]   = { 82, 3, 2,    0,  8000 },
 	[BQ27XXX_DM_DESIGN_ENERGY]     = { 82, 5, 2,    0, 32767 },
@@ -871,7 +871,7 @@ MODULE_PARM_DESC(dt_monitored_battery_updates_nvm,
 	"Users must set this =0 when installing a different type of battery!\n"
 	"Default is =1."
 #ifndef CONFIG_BATTERY_BQ27XXX_DT_UPDATES_NVM
-	"\nSetting this affects future kernel updates, not the current configuration."
+	"\nSetting this affects future kernel updates, yest the current configuration."
 #endif
 );
 
@@ -1081,7 +1081,7 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 	u16 *prev = bq27xxx_dm_reg_ptr(buf, reg);
 
 	if (prev == NULL) {
-		dev_warn(di->dev, "buffer does not match %s dm spec\n", str);
+		dev_warn(di->dev, "buffer does yest match %s dm spec\n", str);
 		return;
 	}
 
@@ -1270,7 +1270,7 @@ static void bq27xxx_battery_set_config(struct bq27xxx_device_info *di,
 
 	if (updated && !(di->opts & BQ27XXX_O_CFGUP)) {
 		bq27xxx_write(di, BQ27XXX_REG_CTRL, BQ27XXX_RESET, false);
-		BQ27XXX_MSLEEP(300); /* reset time is not documented */
+		BQ27XXX_MSLEEP(300); /* reset time is yest documented */
 	}
 	/* assume bq27xxx_battery_update() is called hereafter */
 }
@@ -1284,7 +1284,7 @@ static void bq27xxx_battery_settings(struct bq27xxx_device_info *di)
 		return;
 
 	if (!di->dm_regs) {
-		dev_warn(di->dev, "data memory update not supported for chip\n");
+		dev_warn(di->dev, "data memory update yest supported for chip\n");
 		return;
 	}
 
@@ -1580,7 +1580,7 @@ void bq27xxx_battery_update(struct bq27xxx_device_info *di)
 	if (cache.flags >= 0) {
 		cache.temperature = bq27xxx_battery_read_temperature(di);
 		if (has_ci_flag && (cache.flags & BQ27000_FLAG_CI)) {
-			dev_info_once(di->dev, "battery is not calibrated! ignoring capacity values\n");
+			dev_info_once(di->dev, "battery is yest calibrated! igyesring capacity values\n");
 			cache.capacity = -ENODATA;
 			cache.energy = -ENODATA;
 			cache.time_to_empty = -ENODATA;
@@ -1860,7 +1860,7 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 {
 	struct power_supply_desc *psy_desc;
 	struct power_supply_config psy_cfg = {
-		.of_node = di->dev->of_node,
+		.of_yesde = di->dev->of_yesde,
 		.drv_data = di,
 	};
 
@@ -1883,7 +1883,7 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 	psy_desc->get_property = bq27xxx_battery_get_property;
 	psy_desc->external_power_changed = bq27xxx_external_power_changed;
 
-	di->bat = power_supply_register_no_ws(di->dev, psy_desc, &psy_cfg);
+	di->bat = power_supply_register_yes_ws(di->dev, psy_desc, &psy_cfg);
 	if (IS_ERR(di->bat)) {
 		dev_err(di->dev, "failed to register battery\n");
 		return PTR_ERR(di->bat);
@@ -1905,7 +1905,7 @@ void bq27xxx_battery_teardown(struct bq27xxx_device_info *di)
 	/*
 	 * power_supply_unregister call bq27xxx_battery_get_property which
 	 * call bq27xxx_battery_poll.
-	 * Make sure that bq27xxx_battery_poll will not call
+	 * Make sure that bq27xxx_battery_poll will yest call
 	 * schedule_delayed_work again after unregister (which cause OOPS).
 	 */
 	poll_interval = 0;

@@ -160,13 +160,13 @@ static int stm32_crc_update(struct shash_desc *desc, const u8 *d8,
 	pm_runtime_mark_last_busy(crc->dev);
 	pm_runtime_put_autosuspend(crc->dev);
 
-	/* Check for pending data (non 32 bits) */
+	/* Check for pending data (yesn 32 bits) */
 	length &= 3;
 	if (likely(!length))
 		return 0;
 
 	if ((crc->nb_pending_bytes + length) >= sizeof(u32)) {
-		/* Shall not happen */
+		/* Shall yest happen */
 		dev_err(crc->dev, "Pending data overflow\n");
 		return -EINVAL;
 	}
@@ -227,7 +227,7 @@ static struct shash_alg algs[] = {
 			.cra_init               = stm32_crc32_cra_init,
 		}
 	},
-	/* CRC-32Castagnoli */
+	/* CRC-32Castagyesli */
 	{
 		.setkey         = stm32_crc_setkey,
 		.init           = stm32_crc_init,
@@ -265,13 +265,13 @@ static int stm32_crc_probe(struct platform_device *pdev)
 
 	crc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(crc->regs)) {
-		dev_err(dev, "Cannot map CRC IO\n");
+		dev_err(dev, "Canyest map CRC IO\n");
 		return PTR_ERR(crc->regs);
 	}
 
 	crc->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(crc->clk)) {
-		dev_err(dev, "Could not get clock\n");
+		dev_err(dev, "Could yest get clock\n");
 		return PTR_ERR(crc->clk);
 	}
 
@@ -284,7 +284,7 @@ static int stm32_crc_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(dev, CRC_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -323,7 +323,7 @@ static int stm32_crc_remove(struct platform_device *pdev)
 	crypto_unregister_shashes(algs, ARRAY_SIZE(algs));
 
 	pm_runtime_disable(crc->dev);
-	pm_runtime_put_noidle(crc->dev);
+	pm_runtime_put_yesidle(crc->dev);
 
 	clk_disable_unprepare(crc->clk);
 

@@ -19,9 +19,9 @@ quiet_cmd_modules_install = INSTALL $@
       cmd_modules_install = \
     mkdir -p $(2) ; \
     cp $@ $(2) ; \
-    $(mod_strip_cmd) $(2)/$(notdir $@) ; \
-    $(mod_sign_cmd) $(2)/$(notdir $@) $(patsubst %,|| true,$(KBUILD_EXTMOD)) ; \
-    $(mod_compress_cmd) $(2)/$(notdir $@)
+    $(mod_strip_cmd) $(2)/$(yestdir $@) ; \
+    $(mod_sign_cmd) $(2)/$(yestdir $@) $(patsubst %,|| true,$(KBUILD_EXTMOD)) ; \
+    $(mod_compress_cmd) $(2)/$(yestdir $@)
 
 # Modules built outside the kernel source tree go into extra by default
 INSTALL_MOD_DIR ?= extra

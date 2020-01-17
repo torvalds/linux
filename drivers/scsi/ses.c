@@ -98,11 +98,11 @@ static int ses_recv_diag(struct scsi_device *sdev, int page_code,
 	if (likely(recv_page_code == page_code))
 		return ret;
 
-	/* successful diagnostic but wrong page code.  This happens to some
+	/* successful diagyesstic but wrong page code.  This happens to some
 	 * USB devices, just print a message and pretend there was an error */
 
 	sdev_printk(KERN_ERR, sdev,
-		    "Wrong diagnostic page; asked for %d got %u\n",
+		    "Wrong diagyesstic page; asked for %d got %u\n",
 		    page_code, recv_page_code);
 
 	return -EINVAL;
@@ -635,7 +635,7 @@ static int ses_intf_add(struct device *cdev,
 	struct ses_component *scomp = NULL;
 
 	if (!scsi_device_enclosure(sdev)) {
-		/* not an enclosure, but might be in one */
+		/* yest an enclosure, but might be in one */
 		struct enclosure_device *prev = NULL;
 
 		while ((edev = enclosure_find(&sdev->host->shost_gendev, prev)) != NULL) {
@@ -697,7 +697,7 @@ static int ses_intf_add(struct device *cdev,
 	page = 2;
 	result = ses_recv_diag(sdev, page, hdr_buf, INIT_ALLOC_SIZE);
 	if (result)
-		goto page2_not_supported;
+		goto page2_yest_supported;
 
 	len = (hdr_buf[2] << 8) + hdr_buf[3] + 4;
 	buf = kzalloc(len, GFP_KERNEL);
@@ -730,7 +730,7 @@ static int ses_intf_add(struct device *cdev,
 		ses_dev->page10_len = len;
 		buf = NULL;
 	}
-page2_not_supported:
+page2_yest_supported:
 	scomp = kcalloc(components, sizeof(struct ses_component), GFP_KERNEL);
 	if (!scomp)
 		goto err_free;
@@ -761,7 +761,7 @@ page2_not_supported:
 	return 0;
 
  recv_failed:
-	sdev_printk(KERN_ERR, sdev, "Failed to get diagnostic page 0x%x\n",
+	sdev_printk(KERN_ERR, sdev, "Failed to get diagyesstic page 0x%x\n",
 		    page);
 	err = -ENODEV;
  err_free:

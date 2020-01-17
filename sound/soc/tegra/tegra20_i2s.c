@@ -379,14 +379,14 @@ static int tegra20_i2s_platform_probe(struct platform_device *pdev)
 	ret = snd_soc_register_component(&pdev->dev, &tegra20_i2s_component,
 					 &i2s->dai, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
+		dev_err(&pdev->dev, "Could yest register DAI: %d\n", ret);
 		ret = -ENOMEM;
 		goto err_suspend;
 	}
 
 	ret = tegra_pcm_platform_register(&pdev->dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
+		dev_err(&pdev->dev, "Could yest register PCM: %d\n", ret);
 		goto err_unregister_component;
 	}
 

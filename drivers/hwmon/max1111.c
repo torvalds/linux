@@ -30,7 +30,7 @@ enum chips { max1110, max1111, max1112, max1113 };
 #define MAX1111_CTRL_SGL      (1u << 2)
 #define MAX1111_CTRL_UNI      (1u << 3)
 #define MAX1110_CTRL_SEL_SH   (4)
-#define MAX1111_CTRL_SEL_SH   (5)	/* NOTE: bit 4 is ignored */
+#define MAX1111_CTRL_SEL_SH   (5)	/* NOTE: bit 4 is igyesred */
 #define MAX1111_CTRL_STR      (1u << 7)
 
 struct max1111_data {
@@ -52,7 +52,7 @@ static int max1111_read(struct device *dev, int channel)
 	uint8_t v1, v2;
 	int err;
 
-	/* writing to drvdata struct is not thread safe, wait on mutex */
+	/* writing to drvdata struct is yest thread safe, wait on mutex */
 	mutex_lock(&data->drvdata_lock);
 
 	data->tx_buf[0] = (channel << data->sel_sh) |
@@ -91,7 +91,7 @@ EXPORT_SYMBOL(max1111_read_channel);
 #endif
 
 /*
- * NOTE: SPI devices do not have a default 'name' attribute, which is
+ * NOTE: SPI devices do yest have a default 'name' attribute, which is
  * likely to be used by hwmon applications to distinguish between
  * different devices, explicitly add a name attribute here.
  */

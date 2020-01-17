@@ -281,7 +281,7 @@ static inline int shpc_wait_cmd(struct controller *ctrl)
 						!is_ctrl_busy(ctrl), timeout);
 	if (!rc && is_ctrl_busy(ctrl)) {
 		retval = -EIO;
-		ctrl_err(ctrl, "Command not completed in 1000 msec\n");
+		ctrl_err(ctrl, "Command yest completed in 1000 msec\n");
 	} else if (rc < 0) {
 		retval = -EINTR;
 		ctrl_info(ctrl, "Command was interrupted by a signal\n");
@@ -785,7 +785,7 @@ static irqreturn_t shpc_isr(int irq, void *dev_id)
 	if (!shpchp_poll_mode) {
 		/*
 		 * Mask Global Interrupt Mask - see implementation
-		 * note on p. 139 of SHPC spec rev 1.0
+		 * yeste on p. 139 of SHPC spec rev 1.0
 		 */
 		serr_int = shpc_readl(ctrl, SERR_INTR_ENABLE);
 		serr_int |= GLOBAL_INTR_MASK;
@@ -935,20 +935,20 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 	} else {
 		ctrl->cap_offset = pci_find_capability(pdev, PCI_CAP_ID_SHPC);
 		if (!ctrl->cap_offset) {
-			ctrl_err(ctrl, "Cannot find PCI capability\n");
+			ctrl_err(ctrl, "Canyest find PCI capability\n");
 			goto abort;
 		}
 		ctrl_dbg(ctrl, " cap_offset = %x\n", ctrl->cap_offset);
 
 		rc = shpc_indirect_read(ctrl, 0, &shpc_base_offset);
 		if (rc) {
-			ctrl_err(ctrl, "Cannot read base_offset\n");
+			ctrl_err(ctrl, "Canyest read base_offset\n");
 			goto abort;
 		}
 
 		rc = shpc_indirect_read(ctrl, 3, &tempdword);
 		if (rc) {
-			ctrl_err(ctrl, "Cannot read slot config\n");
+			ctrl_err(ctrl, "Canyest read slot config\n");
 			goto abort;
 		}
 		num_slots = tempdword & SLOT_NUM;
@@ -957,7 +957,7 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 		for (i = 0; i < 9 + num_slots; i++) {
 			rc = shpc_indirect_read(ctrl, i, &tempdword);
 			if (rc) {
-				ctrl_err(ctrl, "Cannot read creg (index = %d)\n",
+				ctrl_err(ctrl, "Canyest read creg (index = %d)\n",
 					 i);
 				goto abort;
 			}
@@ -980,14 +980,14 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 	}
 
 	if (!request_mem_region(ctrl->mmio_base, ctrl->mmio_size, MY_NAME)) {
-		ctrl_err(ctrl, "Cannot reserve MMIO region\n");
+		ctrl_err(ctrl, "Canyest reserve MMIO region\n");
 		rc = -1;
 		goto abort;
 	}
 
 	ctrl->creg = ioremap(ctrl->mmio_base, ctrl->mmio_size);
 	if (!ctrl->creg) {
-		ctrl_err(ctrl, "Cannot remap MMIO region %lx @ %lx\n",
+		ctrl_err(ctrl, "Canyest remap MMIO region %lx @ %lx\n",
 			 ctrl->mmio_size, ctrl->mmio_base);
 		release_mem_region(ctrl->mmio_base, ctrl->mmio_size);
 		rc = -1;

@@ -14,7 +14,7 @@ static const struct dmi_system_id chromeos_pstore_dmi_table[] __initconst = {
 		/*
 		 * Today all Chromebooks/boxes ship with Google_* as version and
 		 * coreboot as bios vendor. No other systems with this
-		 * combination are known to date.
+		 * combination are kyeswn to date.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_BIOS_VENDOR, "coreboot"),
@@ -116,7 +116,7 @@ static int __init chromeos_pstore_init(void)
 {
 	bool acpi_dev_found;
 
-	/* First check ACPI for non-hardcoded values from firmware. */
+	/* First check ACPI for yesn-hardcoded values from firmware. */
 	acpi_dev_found = chromeos_check_acpi();
 
 	if (acpi_dev_found || dmi_check_system(chromeos_pstore_dmi_table))

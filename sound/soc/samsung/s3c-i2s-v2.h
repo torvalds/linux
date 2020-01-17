@@ -8,7 +8,7 @@
  */
 
 /* This code is the core support for the I2S block found in a number of
- * Samsung SoC devices which is unofficially named I2S-V2. Currently the
+ * Samsung SoC devices which is uyesfficially named I2S-V2. Currently the
  * S3C2412 and the S3C64XX series use this block to provide 1 or 2 I2S
  * channels via configurable GPIO.
  */

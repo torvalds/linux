@@ -301,7 +301,7 @@ struct ab8500_fg;
 
 /**
  * struct ab8500_fg_parameters - Fuel gauge algorithm parameters, in seconds
- * if not specified
+ * if yest specified
  * @recovery_sleep_timer:	Time between measurements while recovering
  * @recovery_total_time:	Total recovery time
  * @init_timer:			Measurement interval during startup
@@ -367,14 +367,14 @@ struct ab8500_maxim_parameters {
  * struct ab8500_bm_capacity_levels - ab8500 capacity level data
  * @critical:		critical capacity level in percent
  * @low:		low capacity level in percent
- * @normal:		normal capacity level in percent
+ * @yesrmal:		yesrmal capacity level in percent
  * @high:		high capacity level in percent
  * @full:		full capacity level in percent
  */
 struct ab8500_bm_capacity_levels {
 	int critical;
 	int low;
-	int normal;
+	int yesrmal;
 	int high;
 	int full;
 };
@@ -400,21 +400,21 @@ struct ab8500_bm_charger_parameters {
  * @temp_high		between this temp and temp_over charging is reduced
  * @temp_over		over this temp, charging is stopped
  * @temp_interval_chg	temperature measurement interval in s when charging
- * @temp_interval_nochg	temperature measurement interval in s when not charging
+ * @temp_interval_yeschg	temperature measurement interval in s when yest charging
  * @main_safety_tmr_h	safety timer for main charger
  * @usb_safety_tmr_h	safety timer for usb charger
  * @bkup_bat_v		voltage which we charge the backup battery with
  * @bkup_bat_i		current which we charge the backup battery with
- * @no_maintenance	indicates that maintenance charging is disabled
+ * @yes_maintenance	indicates that maintenance charging is disabled
  * @capacity_scaling    indicates whether capacity scaling is to be used
  * @adc_therm		placement of thermistor, batctrl or battemp adc
- * @chg_unknown_bat	flag to enable charging of unknown batteries
+ * @chg_unkyeswn_bat	flag to enable charging of unkyeswn batteries
  * @enable_overshoot	flag to enable VBAT overshoot control
  * @fg_res		resistance of FG resistor in 0.1mOhm
  * @n_btypes		number of elements in array bat_type
  * @batt_id		index of the identified battery in array bat_type
  * @interval_charging	charge alg cycle period time when charging (sec)
- * @interval_not_charging charge alg cycle period time when not charging (sec)
+ * @interval_yest_charging charge alg cycle period time when yest charging (sec)
  * @temp_hysteresis	temperature hysteresis
  * @gnd_lift_resistance	Battery ground to phone ground resistance (mOhm)
  * @maxi:		maximization parameters
@@ -429,21 +429,21 @@ struct ab8500_bm_data {
 	int temp_high;
 	int temp_over;
 	int temp_interval_chg;
-	int temp_interval_nochg;
+	int temp_interval_yeschg;
 	int main_safety_tmr_h;
 	int usb_safety_tmr_h;
 	int bkup_bat_v;
 	int bkup_bat_i;
-	bool no_maintenance;
+	bool yes_maintenance;
 	bool capacity_scaling;
-	bool chg_unknown_bat;
+	bool chg_unkyeswn_bat;
 	bool enable_overshoot;
 	enum abx500_adc_therm adc_therm;
 	int fg_res;
 	int n_btypes;
 	int batt_id;
 	int interval_charging;
-	int interval_not_charging;
+	int interval_yest_charging;
 	int temp_hysteresis;
 	int gnd_lift_resistance;
 	const struct ab8500_maxim_parameters *maxi;

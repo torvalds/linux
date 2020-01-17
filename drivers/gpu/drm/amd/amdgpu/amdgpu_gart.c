@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -45,12 +45,12 @@
  *
  * Radeon GPUs support both an internal GART, as described above,
  * and AGP.  AGP works similarly, but the GART table is configured
- * and maintained by the northbridge rather than the driver.
+ * and maintained by the yesrthbridge rather than the driver.
  * Radeon hw has a separate AGP aperture that is programmed to
- * point to the AGP aperture provided by the northbridge and the
- * requests are passed through to the northbridge aperture.
+ * point to the AGP aperture provided by the yesrthbridge and the
+ * requests are passed through to the yesrthbridge aperture.
  * Both AGP and internal GART can be used at the same time, however
- * that is not currently supported by the driver.
+ * that is yest currently supported by the driver.
  *
  * This file handles the common internal GART management.
  */
@@ -139,7 +139,7 @@ int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  *
- * Pin the GART page table in vram so it will not be moved
+ * Pin the GART page table in vram so it will yest be moved
  * by the memory manager (pcie r4xx, r5xx+).  These asics require the
  * gart table to be in video memory.
  * Returns 0 for success, error for failure.

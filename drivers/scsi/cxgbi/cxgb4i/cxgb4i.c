@@ -162,10 +162,10 @@ static struct iscsi_transport cxgb4i_iscsi_transport = {
 
 #ifdef CONFIG_CHELSIO_T4_DCB
 static int
-cxgb4_dcb_change_notify(struct notifier_block *, unsigned long, void *);
+cxgb4_dcb_change_yestify(struct yestifier_block *, unsigned long, void *);
 
-static struct notifier_block cxgb4_dcb_change = {
-	.notifier_call = cxgb4_dcb_change_notify,
+static struct yestifier_block cxgb4_dcb_change = {
+	.yestifier_call = cxgb4_dcb_change_yestify,
 };
 #endif
 
@@ -566,7 +566,7 @@ static inline unsigned int sgl_len(unsigned int n)
  * @skb: the packet
  *
  * Returns the number of flits needed for the given offload packet.
- * These packets are already fully constructed and no additional headers
+ * These packets are already fully constructed and yes additional headers
  * will be added.
  */
 static inline unsigned int calc_tx_flits_ofld(const struct sk_buff *skb)
@@ -742,7 +742,7 @@ static int push_tx_frames(struct cxgbi_sock *csk, int req_completion)
 					16);
 
 		/*
-		 * Assumes the initial credits is large enough to support
+		 * Assumes the initial credits is large eyesugh to support
 		 * fw_flowc_wr plus largest possible first payload
 		 */
 		if (!cxgbi_sock_flag(csk, CTPF_TX_DATA_SENT)) {
@@ -885,7 +885,7 @@ rel_skb:
 	__kfree_skb(skb);
 }
 
-static int act_open_rpl_status_to_errno(int status)
+static int act_open_rpl_status_to_erryes(int status)
 {
 	switch (status) {
 	case CPL_ERR_CONN_RESET:
@@ -999,7 +999,7 @@ static void do_act_open_rpl(struct cxgbi_device *cdev, struct sk_buff *skb)
 		mod_timer(&csk->retry_timer, jiffies + HZ / 2);
 	} else
 		cxgbi_sock_fail_act_open(csk,
-					act_open_rpl_status_to_errno(status));
+					act_open_rpl_status_to_erryes(status));
 
 	spin_unlock_bh(&csk->lock);
 	cxgbi_sock_put(csk);
@@ -1049,7 +1049,7 @@ rel_skb:
 	__kfree_skb(skb);
 }
 
-static int abort_status_to_errno(struct cxgbi_sock *csk, int abort_reason,
+static int abort_status_to_erryes(struct cxgbi_sock *csk, int abort_reason,
 								int *need_rst)
 {
 	switch (abort_reason) {
@@ -1105,7 +1105,7 @@ static void do_abort_req_rss(struct cxgbi_device *cdev, struct sk_buff *skb)
 	send_abort_rpl(csk, rst_status);
 
 	if (!cxgbi_sock_flag(csk, CTPF_ABORT_RPL_PENDING)) {
-		csk->err = abort_status_to_errno(csk, req->status, &rst_status);
+		csk->err = abort_status_to_erryes(csk, req->status, &rst_status);
 		cxgbi_sock_closed(csk);
 	}
 
@@ -1152,7 +1152,7 @@ static void do_rx_data(struct cxgbi_device *cdev, struct sk_buff *skb)
 	if (!csk) {
 		pr_err("can't find connection for tid %u.\n", tid);
 	} else {
-		/* not expecting this, reset the connection. */
+		/* yest expecting this, reset the connection. */
 		pr_err("csk 0x%p, tid %u, rcv cpl_rx_data.\n", csk, tid);
 		spin_lock_bh(&csk->lock);
 		send_abort_req(csk);
@@ -1479,7 +1479,7 @@ do_rx_iscsi_cmp(struct cxgbi_device *cdev, struct sk_buff *skb)
 		data_skb = skb_peek(&csk->receive_queue);
 		if (!data_skb ||
 		    !cxgbi_skcb_test_flag(data_skb, SKCBF_RX_DATA)) {
-			pr_err("Error! freelist data not found 0x%p, tid %u\n",
+			pr_err("Error! freelist data yest found 0x%p, tid %u\n",
 			       data_skb, tid);
 
 			goto abort_conn;
@@ -1709,7 +1709,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 		daddr = &csk->daddr6.sin6_addr;
 #endif
 	else {
-		pr_err("address family 0x%x not supported\n", csk->csk_family);
+		pr_err("address family 0x%x yest supported\n", csk->csk_family);
 		goto rel_resource;
 	}
 
@@ -1741,7 +1741,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 	csk->l2t = cxgb4_l2t_get(lldi->l2t, n, ndev, 0);
 #endif
 	if (!csk->l2t) {
-		pr_err("%s, cannot alloc l2t.\n", ndev->name);
+		pr_err("%s, canyest alloc l2t.\n", ndev->name);
 		goto rel_resource_without_clip;
 	}
 	cxgbi_sock_get(csk);
@@ -2191,7 +2191,7 @@ static int t4_uld_rx_handler(void *handle, const __be64 *rsp,
 
 		skb = alloc_wr(len, 0, GFP_ATOMIC);
 		if (!skb)
-			goto nomem;
+			goto yesmem;
 		skb_copy_to_linear_data(skb, &rsp[1], len);
 	} else {
 		if (unlikely(*(u8 *)rsp != *(u8 *)pgl->va)) {
@@ -2203,7 +2203,7 @@ static int t4_uld_rx_handler(void *handle, const __be64 *rsp,
 		}
 		skb = cxgb4_pktgl_to_skb(pgl, RX_PULL_LEN, RX_PULL_LEN);
 		if (unlikely(!skb))
-			goto nomem;
+			goto yesmem;
 	}
 
 	rpl = (struct cpl_act_establish *)skb->data;
@@ -2218,7 +2218,7 @@ static int t4_uld_rx_handler(void *handle, const __be64 *rsp,
 		cxgb4i_cplhandlers[opc](cdev, skb);
 
 	return 0;
-nomem:
+yesmem:
 	log_debug(1 << CXGBI_DBG_TOE, "OOM bailing out.\n");
 	return 1;
 }
@@ -2243,7 +2243,7 @@ static int t4_uld_state_change(void *handle, enum cxgb4_state state)
 		cxgbi_device_unregister(cdev);
 		break;
 	default:
-		pr_info("cdev 0x%p, unknown state %d.\n", cdev, state);
+		pr_info("cdev 0x%p, unkyeswn state %d.\n", cdev, state);
 		break;
 	}
 	return 0;
@@ -2251,7 +2251,7 @@ static int t4_uld_state_change(void *handle, enum cxgb4_state state)
 
 #ifdef CONFIG_CHELSIO_T4_DCB
 static int
-cxgb4_dcb_change_notify(struct notifier_block *self, unsigned long val,
+cxgb4_dcb_change_yestify(struct yestifier_block *self, unsigned long val,
 			void *data)
 {
 	int i, port = 0xFF;
@@ -2327,7 +2327,7 @@ static int __init cxgb4i_init_module(void)
 
 #ifdef CONFIG_CHELSIO_T4_DCB
 	pr_info("%s dcb enabled.\n", DRV_MODULE_NAME);
-	register_dcbevent_notifier(&cxgb4_dcb_change);
+	register_dcbevent_yestifier(&cxgb4_dcb_change);
 #endif
 	return 0;
 }
@@ -2335,7 +2335,7 @@ static int __init cxgb4i_init_module(void)
 static void __exit cxgb4i_exit_module(void)
 {
 #ifdef CONFIG_CHELSIO_T4_DCB
-	unregister_dcbevent_notifier(&cxgb4_dcb_change);
+	unregister_dcbevent_yestifier(&cxgb4_dcb_change);
 #endif
 	cxgb4_unregister_uld(CXGB4_ULD_ISCSI);
 	cxgbi_device_unregister_all(CXGBI_FLAG_DEV_T4);

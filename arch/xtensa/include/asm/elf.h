@@ -123,7 +123,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 /*
  * This yields a mask that user programs can use to figure out what
  * instruction set this CPU supports.  This could be done in user space,
- * but it's not easy, and we've already done it here.
+ * but it's yest easy, and we've already done it here.
  */
 
 #define ELF_HWCAP	(0)
@@ -145,7 +145,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  * DT_FINI functions for shared libraries that have been loaded before
  * the code runs.
  *
- * A value of 0 tells we have no such handler.
+ * A value of 0 tells we have yes such handler.
  *
  * We might as well make sure everything else is cleared too (except
  * for the stack pointer in a1), just to make things more

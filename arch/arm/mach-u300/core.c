@@ -202,7 +202,7 @@ static unsigned long pin_highz_conf[] = {
 
 /* Pin control settings */
 static struct pinctrl_map __initdata u300_pinmux_map[] = {
-	/* anonymous maps for chip power and EMIFs */
+	/* ayesnymous maps for chip power and EMIFs */
 	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-u300", NULL, "power"),
 	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-u300", NULL, "emif0"),
 	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-u300", NULL, "emif1"),
@@ -271,14 +271,14 @@ static void __init u300_init_check_chip(void)
 	u16 val;
 	struct db_chip *chip;
 	const char *chipname;
-	const char unknown[] = "UNKNOWN";
+	const char unkyeswn[] = "UNKNOWN";
 
 	/* Read out and print chip ID */
 	val = readw(syscon_base + U300_SYSCON_CIDR);
 	/* This is in funky bigendian order... */
 	val = (val & 0xFFU) << 8 | (val >> 8);
 	chip = db_chips;
-	chipname = unknown;
+	chipname = unkyeswn;
 
 	for ( ; chip->chipid; chip++) {
 		if (chip->chipid == (val & 0xFF00U)) {
@@ -309,7 +309,7 @@ static void u300_restart(enum reboot_mode mode, const char *cmd)
 #endif
 		break;
 	default:
-		/* Do nothing */
+		/* Do yesthing */
 		break;
 	}
 	/* Wait for system do die/reset. */
@@ -347,17 +347,17 @@ static struct of_dev_auxdata u300_auxdata_lookup[] __initdata = {
 
 static void __init u300_init_irq_dt(void)
 {
-	struct device_node *syscon;
+	struct device_yesde *syscon;
 	struct clk *clk;
 
-	syscon = of_find_node_by_path("/syscon@c0011000");
+	syscon = of_find_yesde_by_path("/syscon@c0011000");
 	if (!syscon) {
-		pr_crit("could not find syscon node\n");
+		pr_crit("could yest find syscon yesde\n");
 		return;
 	}
 	syscon_base = of_iomap(syscon, 0);
 	if (!syscon_base) {
-		pr_crit("could not remap syscon\n");
+		pr_crit("could yest remap syscon\n");
 		return;
 	}
 	/* initialize clocking early, we want to clock the INTCON */

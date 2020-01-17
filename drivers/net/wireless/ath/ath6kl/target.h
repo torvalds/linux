@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -127,7 +127,7 @@
 #define MBOX_BASE_ADDRESS		0x00018000
 #define ANALOG_INTF_BASE_ADDRESS	0x0001c000
 
-/* real name of the register is unknown */
+/* real name of the register is unkyeswn */
 #define ATH6KL_ANALOG_PLL_REGISTER	(ANALOG_INTF_BASE_ADDRESS + 0x284)
 
 #define SM(f, v)	(((v) << f##_S) & f)
@@ -146,13 +146,13 @@
 
 /*
  * These are items that the Host may need to access
- * via BMI or via the Diagnostic Window. The position
+ * via BMI or via the Diagyesstic Window. The position
  * of items in this structure must remain constant.
  * across firmware revisions!
  *
  * Types for each item must be fixed size across target and host platforms.
  * The structure is used only to calculate offset for each register with
- * HI_ITEM() macro, no values are stored to it.
+ * HI_ITEM() macro, yes values are stored to it.
  *
  * More items may be added at the end.
  */
@@ -178,7 +178,7 @@ struct host_interest {
 	u32 hi_option_flag;                            /* 0x10 */
 
 	/*
-	 * Boolean that determines whether or not to
+	 * Boolean that determines whether or yest to
 	 * display messages on the serial port.
 	 */
 	u32 hi_serial_enable;                          /* 0x14 */
@@ -202,7 +202,7 @@ struct host_interest {
 
 	/*
 	 * Flash configuration overrides, used only
-	 * when firmware is not executing from flash.
+	 * when firmware is yest executing from flash.
 	 * (When using flash, modify the global variables
 	 * with equivalent names.)
 	 */
@@ -278,7 +278,7 @@ struct host_interest {
 	u32 hi_nvram_state;                            /* 0xc8 */
 	u32 hi_option_flag2;                           /* 0xcc */
 
-	/* If non-zero, override values sent to Host in WMI_READY event. */
+	/* If yesn-zero, override values sent to Host in WMI_READY event. */
 	u32 hi_sw_version_override;                    /* 0xd0 */
 	u32 hi_abi_version_override;                   /* 0xd4 */
 

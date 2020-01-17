@@ -132,7 +132,7 @@ struct clocksource hub_rt_clocksource = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static u64 notrace hub_rt_read_sched_clock(void)
+static u64 yestrace hub_rt_read_sched_clock(void)
 {
 	return REMOTE_HUB_L(cputonasid(0), PI_RT_COUNT);
 }
@@ -176,9 +176,9 @@ void hub_rtc_init(nasid_t nasid)
 {
 
 	/*
-	 * We only need to initialize the current node.
-	 * If this is not the current node then it is a cpuless
-	 * node and timeouts will not happen there.
+	 * We only need to initialize the current yesde.
+	 * If this is yest the current yesde then it is a cpuless
+	 * yesde and timeouts will yest happen there.
 	 */
 	if (get_nasid() == nasid) {
 		LOCAL_HUB_S(PI_RT_EN_A, 1);

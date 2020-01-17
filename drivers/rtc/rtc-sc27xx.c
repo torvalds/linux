@@ -110,9 +110,9 @@ struct sprd_rtc {
 };
 
 /*
- * The Spreadtrum RTC controller has 3 groups registers, including time, normal
+ * The Spreadtrum RTC controller has 3 groups registers, including time, yesrmal
  * alarm and auxiliary alarm. The time group registers are used to set RTC time,
- * the normal alarm registers are used to set normal alarm, and the auxiliary
+ * the yesrmal alarm registers are used to set yesrmal alarm, and the auxiliary
  * alarm registers are used to set auxiliary alarm. Both alarm event and
  * auxiliary alarm event can wake up system from deep sleep, but only alarm
  * event can power up system from power down status.
@@ -280,7 +280,7 @@ static int sprd_rtc_set_secs(struct sprd_rtc *rtc, enum sprd_rtc_reg_types type,
 		return 0;
 
 	/*
-	 * Since the time and normal alarm registers are put in always-power-on
+	 * Since the time and yesrmal alarm registers are put in always-power-on
 	 * region supplied by VDDRTC, then these registers changing time will
 	 * be very long, about 125ms. Thus here we should wait until all
 	 * values are updated successfully.
@@ -393,7 +393,7 @@ static int sprd_rtc_set_time(struct device *dev, struct rtc_time *tm)
 			return ret;
 
 		/*
-		 * Set RTC power status to indicate now RTC has valid time
+		 * Set RTC power status to indicate yesw RTC has valid time
 		 * values.
 		 */
 		ret = regmap_write(rtc->regmap, rtc->base + SPRD_RTC_PWR_CTRL,
@@ -416,10 +416,10 @@ static int sprd_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	/*
 	 * Before RTC device is registered, it will check to see if there is an
-	 * alarm already set in RTC hardware, and we always read the normal
+	 * alarm already set in RTC hardware, and we always read the yesrmal
 	 * alarm at this time.
 	 *
-	 * Or if aie_timer is enabled, we should get the normal alarm time.
+	 * Or if aie_timer is enabled, we should get the yesrmal alarm time.
 	 * Otherwise we should get auxiliary alarm time.
 	 */
 	if (rtc->rtc && rtc->rtc->registered && rtc->rtc->aie_timer.enabled == 0)
@@ -450,20 +450,20 @@ static int sprd_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	struct sprd_rtc *rtc = dev_get_drvdata(dev);
 	time64_t secs = rtc_tm_to_time64(&alrm->time);
 	struct rtc_time aie_time =
-		rtc_ktime_to_tm(rtc->rtc->aie_timer.node.expires);
+		rtc_ktime_to_tm(rtc->rtc->aie_timer.yesde.expires);
 	int ret;
 
 	/*
-	 * We have 2 groups alarms: normal alarm and auxiliary alarm. Since
-	 * both normal alarm event and auxiliary alarm event can wake up system
+	 * We have 2 groups alarms: yesrmal alarm and auxiliary alarm. Since
+	 * both yesrmal alarm event and auxiliary alarm event can wake up system
 	 * from deep sleep, but only alarm event can power up system from power
-	 * down status. Moreover we do not need to poll about 125ms when
+	 * down status. Moreover we do yest need to poll about 125ms when
 	 * updating auxiliary alarm registers. Thus we usually set auxiliary
 	 * alarm when wake up system from deep sleep, and for other scenarios,
-	 * we should set normal alarm with polling status.
+	 * we should set yesrmal alarm with polling status.
 	 *
-	 * So here we check if the alarm time is set by aie_timer, if yes, we
-	 * should set normal alarm, if not, we should set auxiliary alarm which
+	 * So here we check if the alarm time is set by aie_timer, if no, we
+	 * should set yesrmal alarm, if yest, we should set auxiliary alarm which
 	 * means it is just a wake event.
 	 */
 	if (!rtc->rtc->aie_timer.enabled || rtc_tm_sub(&aie_time, &alrm->time))
@@ -577,7 +577,7 @@ static int sprd_rtc_check_alarm_int(struct sprd_rtc *rtc)
 		return ret;
 
 	/*
-	 * The SPRD_RTC_INT_EN register is not put in always-power-on region
+	 * The SPRD_RTC_INT_EN register is yest put in always-power-on region
 	 * supplied by VDDRTC, so we should check if we need enable the alarm
 	 * interrupt when system booting.
 	 *
@@ -595,7 +595,7 @@ static int sprd_rtc_check_alarm_int(struct sprd_rtc *rtc)
 
 static int sprd_rtc_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct sprd_rtc *rtc;
 	int ret;
 
@@ -607,7 +607,7 @@ static int sprd_rtc_probe(struct platform_device *pdev)
 	if (!rtc->regmap)
 		return -ENODEV;
 
-	ret = of_property_read_u32(node, "reg", &rtc->base);
+	ret = of_property_read_u32(yesde, "reg", &rtc->base);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get RTC base address\n");
 		return ret;

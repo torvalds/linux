@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * SDL Inc. RISCom/N2 synchronous serial card driver for Linux
+ * SDL Inc. RISCom/N2 synchroyesus serial card driver for Linux
  *
  * Copyright (C) 1998-2003 Krzysztof Halasa <khc@pm.waw.pl>
  *
  * For information see <http://www.kernel.org/pub/linux/utils/net/hdlc/>
  *
- * Note: integrated CSU/DSU/DDS are not supported by this driver
+ * Note: integrated CSU/DSU/DDS are yest supported by this driver
  *
  * Sources of information:
  *    Hitachi HD64570 SCA User's Manual
@@ -23,7 +23,7 @@
 #include <linux/fcntl.h>
 #include <linux/in.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/moduleparam.h>
@@ -104,8 +104,8 @@ typedef struct port_s {
 	u16 txin;		/* tx ring buffer 'in' and 'last' pointers */
 	u16 txlast;
 	u8 rxs, txs, tmc;	/* SCA registers */
-	u8 phy_node;		/* physical port # - 0 or 1 */
-	u8 log_node;		/* logical port # */
+	u8 phy_yesde;		/* physical port # - 0 or 1 */
+	u8 log_yesde;		/* logical port # */
 }port_t;
 
 
@@ -137,8 +137,8 @@ static card_t **new_card = &first_card;
 #define sca_outw(value, reg, card)	outw(value, sca_reg(reg, card))
 
 #define port_to_card(port)		((port)->card)
-#define log_node(port)			((port)->log_node)
-#define phy_node(port)			((port)->phy_node)
+#define log_yesde(port)			((port)->log_yesde)
+#define phy_yesde(port)			((port)->phy_yesde)
 #define winsize(card)			(USE_WINDOWSIZE)
 #define winbase(card)      	     	((card)->winbase)
 #define get_port(card, port)		((card)->ports[port].valid ? \
@@ -172,25 +172,25 @@ static void n2_set_iface(port_t *port)
 
 	switch(port->settings.clock_type) {
 	case CLOCK_INT:
-		mcr |= port->phy_node ? CLOCK_OUT_PORT1 : CLOCK_OUT_PORT0;
+		mcr |= port->phy_yesde ? CLOCK_OUT_PORT1 : CLOCK_OUT_PORT0;
 		rxs |= CLK_BRG_RX; /* BRG output */
 		txs |= CLK_RXCLK_TX; /* RX clock */
 		break;
 
 	case CLOCK_TXINT:
-		mcr |= port->phy_node ? CLOCK_OUT_PORT1 : CLOCK_OUT_PORT0;
+		mcr |= port->phy_yesde ? CLOCK_OUT_PORT1 : CLOCK_OUT_PORT0;
 		rxs |= CLK_LINE_RX; /* RXC input */
 		txs |= CLK_BRG_TX; /* BRG output */
 		break;
 
 	case CLOCK_TXFROMRX:
-		mcr |= port->phy_node ? CLOCK_OUT_PORT1 : CLOCK_OUT_PORT0;
+		mcr |= port->phy_yesde ? CLOCK_OUT_PORT1 : CLOCK_OUT_PORT0;
 		rxs |= CLK_LINE_RX; /* RXC input */
 		txs |= CLK_RXCLK_TX; /* RX clock */
 		break;
 
 	default:		/* Clock EXTernal */
-		mcr &= port->phy_node ? ~CLOCK_OUT_PORT1 : ~CLOCK_OUT_PORT0;
+		mcr &= port->phy_yesde ? ~CLOCK_OUT_PORT1 : ~CLOCK_OUT_PORT0;
 		rxs |= CLK_LINE_RX; /* RXC input */
 		txs |= CLK_LINE_TX; /* TXC input */
 	}
@@ -209,14 +209,14 @@ static int n2_open(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
 	int io = port->card->io;
-	u8 mcr = inb(io + N2_MCR) | (port->phy_node ? TX422_PORT1:TX422_PORT0);
+	u8 mcr = inb(io + N2_MCR) | (port->phy_yesde ? TX422_PORT1:TX422_PORT0);
 	int result;
 
 	result = hdlc_open(dev);
 	if (result)
 		return result;
 
-	mcr &= port->phy_node ? ~DTR_PORT1 : ~DTR_PORT0; /* set DTR ON */
+	mcr &= port->phy_yesde ? ~DTR_PORT1 : ~DTR_PORT0; /* set DTR ON */
 	outb(mcr, io + N2_MCR);
 
 	outb(inb(io + N2_PCR) | PCR_ENWIN, io + N2_PCR); /* open window */
@@ -232,10 +232,10 @@ static int n2_close(struct net_device *dev)
 {
 	port_t *port = dev_to_port(dev);
 	int io = port->card->io;
-	u8 mcr = inb(io+N2_MCR) | (port->phy_node ? TX422_PORT1 : TX422_PORT0);
+	u8 mcr = inb(io+N2_MCR) | (port->phy_yesde ? TX422_PORT1 : TX422_PORT0);
 
 	sca_close(dev);
-	mcr |= port->phy_node ? DTR_PORT1 : DTR_PORT0; /* set DTR OFF */
+	mcr |= port->phy_yesde ? DTR_PORT1 : DTR_PORT0; /* set DTR OFF */
 	outb(mcr, io + N2_MCR);
 	hdlc_close(dev);
 	return 0;
@@ -373,14 +373,14 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 	card->io = io;
 
 	if (request_irq(irq, sca_intr, 0, devname, card)) {
-		pr_err("could not allocate IRQ\n");
+		pr_err("could yest allocate IRQ\n");
 		n2_destroy_card(card);
 		return -EBUSY;
 	}
 	card->irq = irq;
 
 	if (!request_mem_region(winbase, USE_WINDOWSIZE, devname)) {
-		pr_err("could not request RAM window\n");
+		pr_err("could yest request RAM window\n");
 		n2_destroy_card(card);
 		return -EBUSY;
 	}
@@ -452,11 +452,11 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 		if ((cnt == 0 && !valid0) || (cnt == 1 && !valid1))
 			continue;
 
-		port->phy_node = cnt;
+		port->phy_yesde = cnt;
 		port->valid = 1;
 
 		if ((cnt == 1) && valid0)
-			port->log_node = 1;
+			port->log_yesde = 1;
 
 		spin_lock_init(&port->lock);
 		dev->irq = irq;
@@ -477,7 +477,7 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 		}
 		sca_init_port(port); /* Set up SCA memory */
 
-		netdev_info(dev, "RISCom/N2 node %d\n", port->phy_node);
+		netdev_info(dev, "RISCom/N2 yesde %d\n", port->phy_yesde);
 	}
 
 	*new_card = card;
@@ -492,9 +492,9 @@ static int __init n2_init(void)
 {
 	if (hw==NULL) {
 #ifdef MODULE
-		pr_info("no card initialized\n");
+		pr_info("yes card initialized\n");
 #endif
-		return -EINVAL;	/* no parameters specified, abort */
+		return -EINVAL;	/* yes parameters specified, abort */
 	}
 
 	pr_info("%s\n", version);

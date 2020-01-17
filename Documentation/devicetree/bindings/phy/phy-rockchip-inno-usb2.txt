@@ -1,6 +1,6 @@
 ROCKCHIP USB2.0 PHY WITH INNO IP BLOCK
 
-Required properties (phy (parent) node):
+Required properties (phy (parent) yesde):
  - compatible : should be one of the listed compatibles:
 	* "rockchip,px30-usb2phy"
 	* "rockchip,rk3228-usb2phy"
@@ -27,13 +27,13 @@ Optional properties:
  - extcon : phandle to the extcon device providing the cable state for
 		 the otg phy.
 
-Required nodes : a sub-node is required for each port the phy provides.
-		 The sub-node name is used to identify host or otg port,
+Required yesdes : a sub-yesde is required for each port the phy provides.
+		 The sub-yesde name is used to identify host or otg port,
 		 and shall be the following entries:
 	* "otg-port" : the name of otg port.
 	* "host-port" : the name of host port.
 
-Required properties (port (child) node):
+Required properties (port (child) yesde):
  - #phy-cells : must be 0. See ./phy-bindings.txt for details.
  - interrupts : specify an interrupt for each entry in interrupt-names.
  - interrupt-names : a list which should be one of the following cases:

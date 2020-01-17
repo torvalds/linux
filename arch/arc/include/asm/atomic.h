@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef _ASM_ARC_ATOMIC_H
@@ -184,8 +184,8 @@ static inline int atomic_fetch_##op(int i, atomic_t *v)			\
 ATOMIC_OPS(add, +=, add)
 ATOMIC_OPS(sub, -=, sub)
 
-#define atomic_andnot		atomic_andnot
-#define atomic_fetch_andnot	atomic_fetch_andnot
+#define atomic_andyest		atomic_andyest
+#define atomic_fetch_andyest	atomic_fetch_andyest
 
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op, c_op, asm_op)					\
@@ -193,7 +193,7 @@ ATOMIC_OPS(sub, -=, sub)
 	ATOMIC_FETCH_OP(op, c_op, asm_op)
 
 ATOMIC_OPS(and, &=, and)
-ATOMIC_OPS(andnot, &= ~, bic)
+ATOMIC_OPS(andyest, &= ~, bic)
 ATOMIC_OPS(or, |=, or)
 ATOMIC_OPS(xor, ^=, xor)
 
@@ -314,7 +314,7 @@ ATOMIC_OPS(xor, ^=, CTOP_INST_AXOR_DI_R2_R2_R3)
  * ARCv2 supports 64-bit exclusive load (LLOCKD) / store (SCONDD)
  *  - The address HAS to be 64-bit aligned
  *  - There are 2 semantics involved here:
- *    = exclusive implies no interim update between load/store to same addr
+ *    = exclusive implies yes interim update between load/store to same addr
  *    = both words are observed/updated together: this is guaranteed even
  *      for regular 64-bit load (LDD) / store (STD). Thus atomic64_set()
  *      is NOT required to use LLOCKD+SCONDD, STD suffices
@@ -347,9 +347,9 @@ static inline void atomic64_set(atomic64_t *v, s64 a)
 	 * In the inline asm version, memory clobber needed for exact same
 	 * reason, to tell gcc about the store.
 	 *
-	 * This however is not needed for sibling atomic64_add() etc since both
+	 * This however is yest needed for sibling atomic64_add() etc since both
 	 * load/store are explicitly done in inline asm. As long as API is used
-	 * for each access, gcc has no way to optimize away any load/store
+	 * for each access, gcc has yes way to optimize away any load/store
 	 */
 	__asm__ __volatile__(
 	"	std   %0, [%1]	\n"
@@ -426,13 +426,13 @@ static inline s64 atomic64_fetch_##op(s64 a, atomic64_t *v)		\
 	ATOMIC64_OP_RETURN(op, op1, op2)				\
 	ATOMIC64_FETCH_OP(op, op1, op2)
 
-#define atomic64_andnot		atomic64_andnot
-#define atomic64_fetch_andnot	atomic64_fetch_andnot
+#define atomic64_andyest		atomic64_andyest
+#define atomic64_fetch_andyest	atomic64_fetch_andyest
 
 ATOMIC64_OPS(add, add.f, adc)
 ATOMIC64_OPS(sub, sub.f, sbc)
 ATOMIC64_OPS(and, and, and)
-ATOMIC64_OPS(andnot, bic, bic)
+ATOMIC64_OPS(andyest, bic, bic)
 ATOMIC64_OPS(or, or, or)
 ATOMIC64_OPS(xor, xor, xor)
 
@@ -489,7 +489,7 @@ static inline s64 atomic64_xchg(atomic64_t *ptr, s64 new)
  * @v: pointer of type atomic64_t
  *
  * The function returns the old value of *v minus 1, even if
- * the atomic variable, v, was not decremented.
+ * the atomic variable, v, was yest decremented.
  */
 
 static inline s64 atomic64_dec_if_positive(atomic64_t *v)
@@ -522,7 +522,7 @@ static inline s64 atomic64_dec_if_positive(atomic64_t *v)
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, if it was not @u.
+ * Atomically adds @a to @v, if it was yest @u.
  * Returns the old value of @v
  */
 static inline s64 atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)

@@ -121,7 +121,7 @@
 &mmc2 {
 	vmmc-supply = <&reg_cldo1>;
 	vqmmc-supply = <&reg_bldo2>;
-	non-removable;
+	yesn-removable;
 	cap-mmc-hw-reset;
 	bus-width = <8>;
 	status = "okay";

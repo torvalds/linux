@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * Copyright (C) 2000, 2001 Kanoj Sarcar
+ * Copyright (C) 2000, 2001 Kayesj Sarcar
  * Copyright (C) 2000, 2001 Ralf Baechle
  * Copyright (C) 2000, 2001 Silicon Graphics, Inc.
  * Copyright (C) 2000, 2001, 2003 Broadcom Corporation
@@ -130,7 +130,7 @@ void calculate_cpu_foreign_map(void)
 	}
 
 	for_each_online_cpu(i)
-		cpumask_andnot(&cpu_foreign_map[i],
+		cpumask_andyest(&cpu_foreign_map[i],
 			       &temp_foreign_map, &cpu_sibling_map[i]);
 }
 
@@ -235,24 +235,24 @@ int mips_smp_ipi_allocate(const struct cpumask *mask)
 {
 	int virq;
 	struct irq_domain *ipidomain;
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	node = of_irq_find_parent(of_root);
-	ipidomain = irq_find_matching_host(node, DOMAIN_BUS_IPI);
+	yesde = of_irq_find_parent(of_root);
+	ipidomain = irq_find_matching_host(yesde, DOMAIN_BUS_IPI);
 
 	/*
-	 * Some platforms have half DT setup. So if we found irq node but
-	 * didn't find an ipidomain, try to search for one that is not in the
+	 * Some platforms have half DT setup. So if we found irq yesde but
+	 * didn't find an ipidomain, try to search for one that is yest in the
 	 * DT.
 	 */
-	if (node && !ipidomain)
+	if (yesde && !ipidomain)
 		ipidomain = irq_find_matching_host(NULL, DOMAIN_BUS_IPI);
 
 	/*
 	 * There are systems which use IPI IRQ domains, but only have one
 	 * registered when some runtime condition is met. For example a Malta
 	 * kernel may include support for GIC & CPU interrupt controller IPI
-	 * IRQ domains, but if run on a system with no GIC & no MT ASE then
+	 * IRQ domains, but if run on a system with yes GIC & yes MT ASE then
 	 * neither will be supported or registered.
 	 *
 	 * We only have a problem if we're actually using multiple CPUs so fail
@@ -292,17 +292,17 @@ int mips_smp_ipi_allocate(const struct cpumask *mask)
 int mips_smp_ipi_free(const struct cpumask *mask)
 {
 	struct irq_domain *ipidomain;
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	node = of_irq_find_parent(of_root);
-	ipidomain = irq_find_matching_host(node, DOMAIN_BUS_IPI);
+	yesde = of_irq_find_parent(of_root);
+	ipidomain = irq_find_matching_host(yesde, DOMAIN_BUS_IPI);
 
 	/*
-	 * Some platforms have half DT setup. So if we found irq node but
-	 * didn't find an ipidomain, try to search for one that is not in the
+	 * Some platforms have half DT setup. So if we found irq yesde but
+	 * didn't find an ipidomain, try to search for one that is yest in the
 	 * DT.
 	 */
-	if (node && !ipidomain)
+	if (yesde && !ipidomain)
 		ipidomain = irq_find_matching_host(NULL, DOMAIN_BUS_IPI);
 
 	BUG_ON(!ipidomain);
@@ -362,14 +362,14 @@ asmlinkage void start_secondary(void)
 	cpu_data[cpu].udelay_val = loops_per_jiffy;
 
 	cpumask_set_cpu(cpu, &cpu_coherent_mask);
-	notify_cpu_starting(cpu);
+	yestify_cpu_starting(cpu);
 
 	/* Notify boot CPU that we're starting & ready to sync counters */
 	complete(&cpu_starting);
 
 	synchronise_count_slave(cpu);
 
-	/* The CPU is running and counters synchronised, now mark it online */
+	/* The CPU is running and counters synchronised, yesw mark it online */
 	set_cpu_online(cpu, true);
 
 	set_cpu_sibling_map(cpu);
@@ -494,8 +494,8 @@ static void flush_tlb_mm_ipi(void *mm)
  * Special Variant of smp_call_function for use by TLB functions:
  *
  *  o No return value
- *  o collapses to normal function call on UP kernels
- *  o collapses to normal function call on systems with a single shared
+ *  o collapses to yesrmal function call on UP kernels
+ *  o collapses to yesrmal function call on systems with a single shared
  *    primary cache.
  */
 static inline void smp_on_other_tlbs(void (*func) (void *info), void *info)
@@ -520,10 +520,10 @@ static inline void smp_on_each_tlb(void (*func) (void *info), void *info)
  * context on other cpus are invalidated to force a new context allocation
  * at switch_mm time, should the mm ever be used on other cpus. For
  * multithreaded address spaces, intercpu interrupts have to be sent.
- * Another case where intercpu interrupts are required is when the target
- * mm might be active on another cpu (eg debuggers doing the flushes on
- * behalf of debugees, kswapd stealing pages from another process etc).
- * Kanoj 07/00.
+ * Ayesther case where intercpu interrupts are required is when the target
+ * mm might be active on ayesther cpu (eg debuggers doing the flushes on
+ * behalf of debugees, kswapd stealing pages from ayesther process etc).
+ * Kayesj 07/00.
  */
 
 void flush_tlb_mm(struct mm_struct *mm)

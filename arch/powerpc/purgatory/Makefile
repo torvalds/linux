@@ -4,7 +4,7 @@ KASAN_SANITIZE := n
 
 targets += trampoline.o purgatory.ro kexec-purgatory.c
 
-LDFLAGS_purgatory.ro := -e purgatory_start -r --no-undefined
+LDFLAGS_purgatory.ro := -e purgatory_start -r --yes-undefined
 
 $(obj)/purgatory.ro: $(obj)/trampoline.o FORCE
 		$(call if_changed,ld)

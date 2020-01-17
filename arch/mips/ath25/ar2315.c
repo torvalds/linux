@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2003 Atheros Communications, Inc.,  All Rights Reserved.
- * Copyright (C) 2006 FON Technology, SL.
+ * Copyright (C) 2006 FON Techyeslogy, SL.
  * Copyright (C) 2006 Imre Kaloz <kaloz@openwrt.org>
  * Copyright (C) 2006 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2012 Alexandros C. Couloumbis <alex@ozo.com>
@@ -184,7 +184,7 @@ static void ar2315_restart(char *command)
 	/* try reset the system via reset control */
 	ar2315_rst_reg_write(AR2315_COLD_RESET, AR2317_RESET_SYSTEM);
 
-	/* Cold reset does not work on the AR2315/6, use the GPIO reset bits
+	/* Cold reset does yest work on the AR2315/6, use the GPIO reset bits
 	 * a workaround. Give it some time to attempt a gpio based hardware
 	 * reset (atheros reference design workaround) */
 
@@ -262,7 +262,7 @@ void __init ar2315_plat_mem_setup(void)
 	u32 config;
 
 	/* Detect memory size */
-	sdram_base = ioremap_nocache(AR2315_SDRAMCTL_BASE,
+	sdram_base = ioremap_yescache(AR2315_SDRAMCTL_BASE,
 				     AR2315_SDRAMCTL_SIZE);
 	memcfg = __raw_readl(sdram_base + AR2315_MEM_CFG);
 	memsize   = 1 + ATH25_REG_MS(memcfg, AR2315_MEM_CFG_DATA_WIDTH);
@@ -272,7 +272,7 @@ void __init ar2315_plat_mem_setup(void)
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
 	iounmap(sdram_base);
 
-	ar2315_rst_base = ioremap_nocache(AR2315_RST_BASE, AR2315_RST_SIZE);
+	ar2315_rst_base = ioremap_yescache(AR2315_RST_BASE, AR2315_RST_SIZE);
 
 	/* Detect the hardware based on the device ID */
 	devid = ar2315_rst_reg_read(AR2315_SREV) & AR2315_REV_CHIP;

@@ -18,7 +18,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, see http://www.gnu.org/licenses/gpl.html
+ * with this program; if yest, see http://www.gnu.org/licenses/gpl.html
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -42,7 +42,7 @@
 #include <linux/bitops.h>
 #include <linux/string.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
@@ -109,14 +109,14 @@ static struct net_device **slcan_devs;
  * frame format) a data length code (can_dlc) which can be from 0 to 8
  * and up to <can_dlc> data bytes as payload.
  * Additionally a CAN frame may become a remote transmission frame if the
- * RTR-bit is set. This causes another ECU to send a CAN frame with the
+ * RTR-bit is set. This causes ayesther ECU to send a CAN frame with the
  * given can_id.
  *
  * The SLCAN ASCII representation of these different frame types is:
  * <type> <id> <dlc> <data>*
  *
  * Extended frames (29 bit) are defined by capital characters in the type.
- * RTR frames are defined as 'r' types - normal frames have 't' type:
+ * RTR frames are defined as 'r' types - yesrmal frames have 't' type:
  * t => 11 bit data frame
  * r => 11 bit RTR frame
  * T => 29 bit data frame
@@ -128,10 +128,10 @@ static struct net_device **slcan_devs;
  *
  * Examples:
  *
- * t1230 : can_id 0x123, can_dlc 0, no data
+ * t1230 : can_id 0x123, can_dlc 0, yes data
  * t4563112233 : can_id 0x456, can_dlc 3, data 0x11 0x22 0x33
  * T12ABCDEF2AA55 : extended can_id 0x12ABCDEF, can_dlc 2, data 0xAA 0x55
- * r1230 : can_id 0x123, can_dlc 0, no data, remote transmission request
+ * r1230 : can_id 0x123, can_dlc 0, yes data, remote transmission request
  *
  */
 
@@ -299,7 +299,7 @@ static void slc_encaps(struct slcan *sl, struct can_frame *cf)
 	 * the transfer may be completed inside the ops->write()
 	 * routine, because it's running with interrupts enabled.
 	 * In this case we *never* got WRITE_WAKEUP event,
-	 * if we did not request it before write operation.
+	 * if we did yest request it before write operation.
 	 *       14 Oct 1994  Dmitry Gorodchanin.
 	 */
 	set_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
@@ -324,7 +324,7 @@ static void slcan_transmit(struct work_struct *work)
 
 	if (sl->xleft <= 0)  {
 		/* Now serial buffer is almost free & we can start
-		 * transmission of another packet */
+		 * transmission of ayesther packet */
 		sl->dev->stats.tx_packets++;
 		clear_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
 		spin_unlock_bh(&sl->lock);
@@ -458,8 +458,8 @@ static void slc_setup(struct net_device *dev)
 /*
  * Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
- * a block of SLCAN data has been received, which can now be decapsulated
- * and sent on to some IP layer for further processing. This will not
+ * a block of SLCAN data has been received, which can yesw be decapsulated
+ * and sent on to some IP layer for further processing. This will yest
  * be re-entered while running but other ldisc functions may be called
  * in parallel
  */
@@ -581,7 +581,7 @@ static int slcan_open(struct tty_struct *tty)
 	sl = tty->disc_data;
 
 	err = -EEXIST;
-	/* First make sure we're not already connected. */
+	/* First make sure we're yest already connected. */
 	if (sl && sl->magic == SLCAN_MAGIC)
 		goto err_exit;
 

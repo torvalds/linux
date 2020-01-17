@@ -12,7 +12,7 @@
  * IA32_TSC_ADJUST MSR.
  *
  * Note that when L1 doesn't intercept writes to IA32_TSC, a
- * WRMSR(IA32_TSC) from L2 sets L1's TSC value, not L2's perceived TSC
+ * WRMSR(IA32_TSC) from L2 sets L1's TSC value, yest L2's perceived TSC
  * value.
  *
  * This test verifies that this unusual case is handled correctly.
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
 		case UCALL_DONE:
 			goto done;
 		default:
-			TEST_ASSERT(false, "Unknown ucall 0x%x.", uc.cmd);
+			TEST_ASSERT(false, "Unkyeswn ucall 0x%x.", uc.cmd);
 		}
 	}
 

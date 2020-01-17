@@ -115,11 +115,11 @@ enum afs_edit_dir_op {
 	afs_edit_dir_create,
 	afs_edit_dir_create_error,
 	afs_edit_dir_create_inval,
-	afs_edit_dir_create_nospc,
+	afs_edit_dir_create_yesspc,
 	afs_edit_dir_delete,
 	afs_edit_dir_delete_error,
 	afs_edit_dir_delete_inval,
-	afs_edit_dir_delete_noent,
+	afs_edit_dir_delete_yesent,
 };
 
 enum afs_edit_dir_reason {
@@ -181,7 +181,7 @@ enum afs_flock_event {
 	afs_flock_extend_fail,
 	afs_flock_fail_other,
 	afs_flock_fail_perm,
-	afs_flock_no_lockers,
+	afs_flock_yes_lockers,
 	afs_flock_release_fail,
 	afs_flock_silly_delete,
 	afs_flock_timestamp,
@@ -212,7 +212,7 @@ enum afs_flock_operation {
 };
 
 enum afs_cb_break_reason {
-	afs_cb_break_no_break,
+	afs_cb_break_yes_break,
 	afs_cb_break_for_callback,
 	afs_cb_break_for_deleted,
 	afs_cb_break_for_lapsed,
@@ -316,11 +316,11 @@ enum afs_cb_break_reason {
 	EM(afs_edit_dir_create,			"create") \
 	EM(afs_edit_dir_create_error,		"c_fail") \
 	EM(afs_edit_dir_create_inval,		"c_invl") \
-	EM(afs_edit_dir_create_nospc,		"c_nspc") \
+	EM(afs_edit_dir_create_yesspc,		"c_nspc") \
 	EM(afs_edit_dir_delete,			"delete") \
 	EM(afs_edit_dir_delete_error,		"d_err ") \
 	EM(afs_edit_dir_delete_inval,		"d_invl") \
-	E_(afs_edit_dir_delete_noent,		"d_nent")
+	E_(afs_edit_dir_delete_yesent,		"d_nent")
 
 #define afs_edit_dir_reasons				  \
 	EM(afs_edit_dir_for_create,		"Create") \
@@ -392,7 +392,7 @@ enum afs_cb_break_reason {
 	EM(afs_flock_extend_fail,		"Ext_Fail")		\
 	EM(afs_flock_fail_other,		"ErrOther")		\
 	EM(afs_flock_fail_perm,			"ErrPerm ")		\
-	EM(afs_flock_no_lockers,		"NoLocker")		\
+	EM(afs_flock_yes_lockers,		"NoLocker")		\
 	EM(afs_flock_release_fail,		"Rel_Fail")		\
 	EM(afs_flock_silly_delete,		"SillyDel")		\
 	EM(afs_flock_timestamp,			"Timestmp")		\
@@ -421,7 +421,7 @@ enum afs_cb_break_reason {
 	E_(afs_flock_op_wake,			"WAKE    ")
 
 #define afs_cb_break_reasons						\
-	EM(afs_cb_break_no_break,		"no-break")		\
+	EM(afs_cb_break_yes_break,		"yes-break")		\
 	EM(afs_cb_break_for_callback,		"break-cb")		\
 	EM(afs_cb_break_for_deleted,		"break-del")		\
 	EM(afs_cb_break_for_lapsed,		"break-lapsed")		\
@@ -493,7 +493,7 @@ TRACE_EVENT(afs_receive_data,
 		      __entry->ret)
 	    );
 
-TRACE_EVENT(afs_notify_call,
+TRACE_EVENT(afs_yestify_call,
 	    TP_PROTO(struct rxrpc_call *rxcall, struct afs_call *call),
 
 	    TP_ARGS(rxcall, call),
@@ -586,7 +586,7 @@ TRACE_EVENT(afs_make_fs_call,
 			    __entry->fid = *fid;
 		    } else {
 			    __entry->fid.vid = 0;
-			    __entry->fid.vnode = 0;
+			    __entry->fid.vyesde = 0;
 			    __entry->fid.unique = 0;
 		    }
 			   ),
@@ -594,7 +594,7 @@ TRACE_EVENT(afs_make_fs_call,
 	    TP_printk("c=%08x %06llx:%06llx:%06x %s",
 		      __entry->call,
 		      __entry->fid.vid,
-		      __entry->fid.vnode,
+		      __entry->fid.vyesde,
 		      __entry->fid.unique,
 		      __print_symbolic(__entry->op, afs_fs_operations))
 	    );
@@ -620,7 +620,7 @@ TRACE_EVENT(afs_make_fs_calli,
 			    __entry->fid = *fid;
 		    } else {
 			    __entry->fid.vid = 0;
-			    __entry->fid.vnode = 0;
+			    __entry->fid.vyesde = 0;
 			    __entry->fid.unique = 0;
 		    }
 			   ),
@@ -628,7 +628,7 @@ TRACE_EVENT(afs_make_fs_calli,
 	    TP_printk("c=%08x %06llx:%06llx:%06x %s i=%u",
 		      __entry->call,
 		      __entry->fid.vid,
-		      __entry->fid.vnode,
+		      __entry->fid.vyesde,
 		      __entry->fid.unique,
 		      __print_symbolic(__entry->op, afs_fs_operations),
 		      __entry->i)
@@ -656,7 +656,7 @@ TRACE_EVENT(afs_make_fs_call1,
 			    __entry->fid = *fid;
 		    } else {
 			    __entry->fid.vid = 0;
-			    __entry->fid.vnode = 0;
+			    __entry->fid.vyesde = 0;
 			    __entry->fid.unique = 0;
 		    }
 		    memcpy(__entry->name, name, __len);
@@ -666,7 +666,7 @@ TRACE_EVENT(afs_make_fs_call1,
 	    TP_printk("c=%08x %06llx:%06llx:%06x %s \"%s\"",
 		      __entry->call,
 		      __entry->fid.vid,
-		      __entry->fid.vnode,
+		      __entry->fid.vyesde,
 		      __entry->fid.unique,
 		      __print_symbolic(__entry->op, afs_fs_operations),
 		      __entry->name)
@@ -697,7 +697,7 @@ TRACE_EVENT(afs_make_fs_call2,
 			    __entry->fid = *fid;
 		    } else {
 			    __entry->fid.vid = 0;
-			    __entry->fid.vnode = 0;
+			    __entry->fid.vyesde = 0;
 			    __entry->fid.unique = 0;
 		    }
 		    memcpy(__entry->name, name, __len);
@@ -709,7 +709,7 @@ TRACE_EVENT(afs_make_fs_call2,
 	    TP_printk("c=%08x %06llx:%06llx:%06x %s \"%s\" \"%s\"",
 		      __entry->call,
 		      __entry->fid.vid,
-		      __entry->fid.vnode,
+		      __entry->fid.vyesde,
 		      __entry->fid.unique,
 		      __print_symbolic(__entry->op, afs_fs_operations),
 		      __entry->name,
@@ -824,24 +824,24 @@ TRACE_EVENT(afs_sent_pages,
 	    );
 
 TRACE_EVENT(afs_dir_check_failed,
-	    TP_PROTO(struct afs_vnode *vnode, loff_t off, loff_t i_size),
+	    TP_PROTO(struct afs_vyesde *vyesde, loff_t off, loff_t i_size),
 
-	    TP_ARGS(vnode, off, i_size),
+	    TP_ARGS(vyesde, off, i_size),
 
 	    TP_STRUCT__entry(
-		    __field(struct afs_vnode *,		vnode		)
+		    __field(struct afs_vyesde *,		vyesde		)
 		    __field(loff_t,			off		)
 		    __field(loff_t,			i_size		)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->vnode = vnode;
+		    __entry->vyesde = vyesde;
 		    __entry->off = off;
 		    __entry->i_size = i_size;
 			   ),
 
 	    TP_printk("vn=%p %llx/%llx",
-		      __entry->vnode, __entry->off, __entry->i_size)
+		      __entry->vyesde, __entry->off, __entry->i_size)
 	    );
 
 /*
@@ -858,27 +858,27 @@ TRACE_EVENT(afs_dir_check_failed,
 #endif
 
 TRACE_EVENT(afs_page_dirty,
-	    TP_PROTO(struct afs_vnode *vnode, const char *where,
+	    TP_PROTO(struct afs_vyesde *vyesde, const char *where,
 		     pgoff_t page, unsigned long priv),
 
-	    TP_ARGS(vnode, where, page, priv),
+	    TP_ARGS(vyesde, where, page, priv),
 
 	    TP_STRUCT__entry(
-		    __field(struct afs_vnode *,		vnode		)
+		    __field(struct afs_vyesde *,		vyesde		)
 		    __field(const char *,		where		)
 		    __field(pgoff_t,			page		)
 		    __field(unsigned long,		priv		)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->vnode = vnode;
+		    __entry->vyesde = vyesde;
 		    __entry->where = where;
 		    __entry->page = page;
 		    __entry->priv = priv;
 			   ),
 
 	    TP_printk("vn=%p %lx %s %lu-%lu",
-		      __entry->vnode, __entry->page, __entry->where,
+		      __entry->vyesde, __entry->page, __entry->where,
 		      __entry->priv & AFS_PRIV_MAX,
 		      __entry->priv >> AFS_PRIV_SHIFT)
 	    );
@@ -914,10 +914,10 @@ TRACE_EVENT(afs_call_state,
 	    );
 
 TRACE_EVENT(afs_lookup,
-	    TP_PROTO(struct afs_vnode *dvnode, const struct qstr *name,
+	    TP_PROTO(struct afs_vyesde *dvyesde, const struct qstr *name,
 		     struct afs_fid *fid),
 
-	    TP_ARGS(dvnode, name, fid),
+	    TP_ARGS(dvyesde, name, fid),
 
 	    TP_STRUCT__entry(
 		    __field_struct(struct afs_fid,	dfid		)
@@ -927,38 +927,38 @@ TRACE_EVENT(afs_lookup,
 
 	    TP_fast_assign(
 		    int __len = min_t(int, name->len, 23);
-		    __entry->dfid = dvnode->fid;
+		    __entry->dfid = dvyesde->fid;
 		    __entry->fid = *fid;
 		    memcpy(__entry->name, name->name, __len);
 		    __entry->name[__len] = 0;
 			   ),
 
 	    TP_printk("d=%llx:%llx:%x \"%s\" f=%llx:%x",
-		      __entry->dfid.vid, __entry->dfid.vnode, __entry->dfid.unique,
+		      __entry->dfid.vid, __entry->dfid.vyesde, __entry->dfid.unique,
 		      __entry->name,
-		      __entry->fid.vnode, __entry->fid.unique)
+		      __entry->fid.vyesde, __entry->fid.unique)
 	    );
 
 TRACE_EVENT(afs_edit_dir,
-	    TP_PROTO(struct afs_vnode *dvnode,
+	    TP_PROTO(struct afs_vyesde *dvyesde,
 		     enum afs_edit_dir_reason why,
 		     enum afs_edit_dir_op op,
 		     unsigned int block,
 		     unsigned int slot,
-		     unsigned int f_vnode,
+		     unsigned int f_vyesde,
 		     unsigned int f_unique,
 		     const char *name),
 
-	    TP_ARGS(dvnode, why, op, block, slot, f_vnode, f_unique, name),
+	    TP_ARGS(dvyesde, why, op, block, slot, f_vyesde, f_unique, name),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned int,		vnode		)
+		    __field(unsigned int,		vyesde		)
 		    __field(unsigned int,		unique		)
 		    __field(enum afs_edit_dir_reason,	why		)
 		    __field(enum afs_edit_dir_op,	op		)
 		    __field(unsigned int,		block		)
 		    __field(unsigned short,		slot		)
-		    __field(unsigned int,		f_vnode		)
+		    __field(unsigned int,		f_vyesde		)
 		    __field(unsigned int,		f_unique	)
 		    __array(char,			name, 24	)
 			     ),
@@ -966,24 +966,24 @@ TRACE_EVENT(afs_edit_dir,
 	    TP_fast_assign(
 		    int __len = strlen(name);
 		    __len = min(__len, 23);
-		    __entry->vnode	= dvnode->fid.vnode;
-		    __entry->unique	= dvnode->fid.unique;
+		    __entry->vyesde	= dvyesde->fid.vyesde;
+		    __entry->unique	= dvyesde->fid.unique;
 		    __entry->why	= why;
 		    __entry->op		= op;
 		    __entry->block	= block;
 		    __entry->slot	= slot;
-		    __entry->f_vnode	= f_vnode;
+		    __entry->f_vyesde	= f_vyesde;
 		    __entry->f_unique	= f_unique;
 		    memcpy(__entry->name, name, __len);
 		    __entry->name[__len] = 0;
 			   ),
 
 	    TP_printk("d=%x:%x %s %s %u[%u] f=%x:%x \"%s\"",
-		      __entry->vnode, __entry->unique,
+		      __entry->vyesde, __entry->unique,
 		      __print_symbolic(__entry->why, afs_edit_dir_reasons),
 		      __print_symbolic(__entry->op, afs_edit_dir_ops),
 		      __entry->block, __entry->slot,
-		      __entry->f_vnode, __entry->f_unique,
+		      __entry->f_vyesde, __entry->f_unique,
 		      __entry->name)
 	    );
 
@@ -1032,9 +1032,9 @@ TRACE_EVENT(afs_io_error,
 	    );
 
 TRACE_EVENT(afs_file_error,
-	    TP_PROTO(struct afs_vnode *vnode, int error, enum afs_file_error where),
+	    TP_PROTO(struct afs_vyesde *vyesde, int error, enum afs_file_error where),
 
-	    TP_ARGS(vnode, error, where),
+	    TP_ARGS(vyesde, error, where),
 
 	    TP_STRUCT__entry(
 		    __field_struct(struct afs_fid,	fid		)
@@ -1043,18 +1043,18 @@ TRACE_EVENT(afs_file_error,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->fid = vnode->fid;
+		    __entry->fid = vyesde->fid;
 		    __entry->error = error;
 		    __entry->where = where;
 			   ),
 
 	    TP_printk("%llx:%llx:%x r=%d %s",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vyesde, __entry->fid.unique,
 		      __entry->error,
 		      __print_symbolic(__entry->where, afs_file_errors))
 	    );
 
-TRACE_EVENT(afs_cm_no_server,
+TRACE_EVENT(afs_cm_yes_server,
 	    TP_PROTO(struct afs_call *call, struct sockaddr_rxrpc *srx),
 
 	    TP_ARGS(call, srx),
@@ -1075,7 +1075,7 @@ TRACE_EVENT(afs_cm_no_server,
 		      __entry->call, __entry->op_id, &__entry->srx.transport)
 	    );
 
-TRACE_EVENT(afs_cm_no_server_u,
+TRACE_EVENT(afs_cm_yes_server_u,
 	    TP_PROTO(struct afs_call *call, const uuid_t *uuid),
 
 	    TP_ARGS(call, uuid),
@@ -1097,10 +1097,10 @@ TRACE_EVENT(afs_cm_no_server_u,
 	    );
 
 TRACE_EVENT(afs_flock_ev,
-	    TP_PROTO(struct afs_vnode *vnode, struct file_lock *fl,
+	    TP_PROTO(struct afs_vyesde *vyesde, struct file_lock *fl,
 		     enum afs_flock_event event, int error),
 
-	    TP_ARGS(vnode, fl, event, error),
+	    TP_ARGS(vyesde, fl, event, error),
 
 	    TP_STRUCT__entry(
 		    __field_struct(struct afs_fid,	fid		)
@@ -1111,15 +1111,15 @@ TRACE_EVENT(afs_flock_ev,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->fid = vnode->fid;
+		    __entry->fid = vyesde->fid;
 		    __entry->event = event;
-		    __entry->state = vnode->lock_state;
+		    __entry->state = vyesde->lock_state;
 		    __entry->error = error;
 		    __entry->debug_id = fl ? fl->fl_u.afs.debug_id : 0;
 			   ),
 
 	    TP_printk("%llx:%llx:%x %04x %s s=%s e=%d",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vyesde, __entry->fid.unique,
 		      __entry->debug_id,
 		      __print_symbolic(__entry->event, afs_flock_events),
 		      __print_symbolic(__entry->state, afs_flock_states),
@@ -1127,10 +1127,10 @@ TRACE_EVENT(afs_flock_ev,
 	    );
 
 TRACE_EVENT(afs_flock_op,
-	    TP_PROTO(struct afs_vnode *vnode, struct file_lock *fl,
+	    TP_PROTO(struct afs_vyesde *vyesde, struct file_lock *fl,
 		     enum afs_flock_operation op),
 
-	    TP_ARGS(vnode, fl, op),
+	    TP_ARGS(vyesde, fl, op),
 
 	    TP_STRUCT__entry(
 		    __field_struct(struct afs_fid,	fid		)
@@ -1143,7 +1143,7 @@ TRACE_EVENT(afs_flock_op,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->fid = vnode->fid;
+		    __entry->fid = vyesde->fid;
 		    __entry->from = fl->fl_start;
 		    __entry->len = fl->fl_end - fl->fl_start + 1;
 		    __entry->op = op;
@@ -1153,7 +1153,7 @@ TRACE_EVENT(afs_flock_op,
 			   ),
 
 	    TP_printk("%llx:%llx:%x %04x %s t=%s R=%llx/%llx f=%x",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vyesde, __entry->fid.unique,
 		      __entry->debug_id,
 		      __print_symbolic(__entry->op, afs_flock_operations),
 		      __print_symbolic(__entry->type, afs_flock_types),
@@ -1161,26 +1161,26 @@ TRACE_EVENT(afs_flock_op,
 	    );
 
 TRACE_EVENT(afs_reload_dir,
-	    TP_PROTO(struct afs_vnode *vnode),
+	    TP_PROTO(struct afs_vyesde *vyesde),
 
-	    TP_ARGS(vnode),
+	    TP_ARGS(vyesde),
 
 	    TP_STRUCT__entry(
 		    __field_struct(struct afs_fid,	fid		)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->fid = vnode->fid;
+		    __entry->fid = vyesde->fid;
 			   ),
 
 	    TP_printk("%llx:%llx:%x",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique)
+		      __entry->fid.vid, __entry->fid.vyesde, __entry->fid.unique)
 	    );
 
 TRACE_EVENT(afs_silly_rename,
-	    TP_PROTO(struct afs_vnode *vnode, bool done),
+	    TP_PROTO(struct afs_vyesde *vyesde, bool done),
 
-	    TP_ARGS(vnode, done),
+	    TP_ARGS(vyesde, done),
 
 	    TP_STRUCT__entry(
 		    __field_struct(struct afs_fid,	fid		)
@@ -1188,12 +1188,12 @@ TRACE_EVENT(afs_silly_rename,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->fid = vnode->fid;
+		    __entry->fid = vyesde->fid;
 		    __entry->done = done;
 			   ),
 
 	    TP_printk("%llx:%llx:%x done=%u",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vyesde, __entry->fid.unique,
 		      __entry->done)
 	    );
 
@@ -1244,7 +1244,7 @@ TRACE_EVENT(afs_cb_break,
 			   ),
 
 	    TP_printk("%llx:%llx:%x b=%x s=%u %s",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vyesde, __entry->fid.unique,
 		      __entry->cb_break,
 		      __entry->skipped,
 		      __print_symbolic(__entry->reason, afs_cb_break_reasons))
@@ -1266,7 +1266,7 @@ TRACE_EVENT(afs_cb_miss,
 			   ),
 
 	    TP_printk(" %llx:%llx:%x %s",
-		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->fid.vid, __entry->fid.vyesde, __entry->fid.unique,
 		      __print_symbolic(__entry->reason, afs_cb_break_reasons))
 	    );
 

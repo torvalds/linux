@@ -17,7 +17,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -92,15 +92,15 @@ static int do_pd_setup(struct fs_enet_private *fep)
 {
 	struct platform_device *ofdev = to_platform_device(fep->dev);
 
-	fep->interrupt = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	fep->interrupt = irq_of_parse_and_map(ofdev->dev.of_yesde, 0);
 	if (!fep->interrupt)
 		return -EINVAL;
 
-	fep->scc.sccp = of_iomap(ofdev->dev.of_node, 0);
+	fep->scc.sccp = of_iomap(ofdev->dev.of_yesde, 0);
 	if (!fep->scc.sccp)
 		return -EINVAL;
 
-	fep->scc.ep = of_iomap(ofdev->dev.of_node, 1);
+	fep->scc.ep = of_iomap(ofdev->dev.of_yesde, 1);
 	if (!fep->scc.ep) {
 		iounmap(fep->scc.sccp);
 		return -EINVAL;
@@ -155,7 +155,7 @@ static void free_bd(struct net_device *dev)
 
 static void cleanup_data(struct net_device *dev)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 static void set_promiscuous_mode(struct net_device *dev)
@@ -263,7 +263,7 @@ static void restart(struct net_device *dev)
 #endif
 
 	/* Set maximum bytes per receive buffer.
-	 * This appears to be an Ethernet frame size, not the buffer
+	 * This appears to be an Ethernet frame size, yest the buffer
 	 * fragment size.  It must be a multiple of four.
 	 */
 	W16(ep, sen_genscc.scc_mrblr, 0x5f0);
@@ -324,7 +324,7 @@ static void restart(struct net_device *dev)
 	 */
 	W16(sccp, scc_sccm, SCCE_ENET_TXE | SCCE_ENET_RXF | SCCE_ENET_TXB);
 
-	/* Set GSMR_H to enable all normal operating modes.
+	/* Set GSMR_H to enable all yesrmal operating modes.
 	 * Set GSMR_L to enable Ethernet to MC68160.
 	 */
 	W32(sccp, scc_gsmrh, 0);
@@ -395,12 +395,12 @@ static void napi_disable_fs(struct net_device *dev)
 
 static void rx_bd_done(struct net_device *dev)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 static void tx_kickstart(struct net_device *dev)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 static u32 get_int_events(struct net_device *dev)

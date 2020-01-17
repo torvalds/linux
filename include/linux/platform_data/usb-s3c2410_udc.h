@@ -6,7 +6,7 @@
  *  Changelog:
  *	14-Mar-2005	RTP	Created file
  *	02-Aug-2005	RTP	File rename
- *	07-Sep-2005	BJD	Minor cleanups, changed cmd to enum
+ *	07-Sep-2005	BJD	Miyesr cleanups, changed cmd to enum
  *	18-Jan-2007	HMW	Add per-platform vbus_draw function
 */
 

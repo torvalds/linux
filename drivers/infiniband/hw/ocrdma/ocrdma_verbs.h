@@ -13,11 +13,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * - Redistributions of source code must retain the above copyright notice,
+ * - Redistributions of source code must retain the above copyright yestice,
  *   this list of conditions and the following disclaimer.
  *
  * - Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
@@ -49,7 +49,7 @@ int ocrdma_post_recv(struct ib_qp *, const struct ib_recv_wr *,
 		     const struct ib_recv_wr **bad_wr);
 
 int ocrdma_poll_cq(struct ib_cq *, int num_entries, struct ib_wc *wc);
-int ocrdma_arm_cq(struct ib_cq *, enum ib_cq_notify_flags flags);
+int ocrdma_arm_cq(struct ib_cq *, enum ib_cq_yestify_flags flags);
 
 int ocrdma_query_device(struct ib_device *, struct ib_device_attr *props,
 			struct ib_udata *uhw);

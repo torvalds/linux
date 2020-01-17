@@ -271,7 +271,7 @@ static void stm32_spdifrx_dma_complete(void *data)
 	}
 
 	if (ptr > p_end) {
-		dev_err(&pdev->dev, "Start of S/PDIF block not found\n");
+		dev_err(&pdev->dev, "Start of S/PDIF block yest found\n");
 		return;
 	}
 
@@ -346,7 +346,7 @@ static int stm32_spdifrx_start_sync(struct stm32_spdifrx_data *spdifrx)
 		 * SPDIFRX configuration:
 		 * Wait for activity before starting sync process. This avoid
 		 * to issue sync errors when spdif signal is missing on input.
-		 * Preamble, CS, user, validity and parity error bits not copied
+		 * Preamble, CS, user, validity and parity error bits yest copied
 		 * to DR register.
 		 */
 		cr = SPDIFRX_CR_WFA | SPDIFRX_CR_PMSK | SPDIFRX_CR_VMSK |
@@ -906,7 +906,7 @@ static const struct of_device_id stm32_spdifrx_ids[] = {
 static int stm32_spdifrx_parse_of(struct platform_device *pdev,
 				  struct stm32_spdifrx_data *spdifrx)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *of_id;
 	struct resource *res;
 
@@ -929,7 +929,7 @@ static int stm32_spdifrx_parse_of(struct platform_device *pdev,
 
 	spdifrx->kclk = devm_clk_get(&pdev->dev, "kclk");
 	if (IS_ERR(spdifrx->kclk)) {
-		dev_err(&pdev->dev, "Could not get kclk\n");
+		dev_err(&pdev->dev, "Could yest get kclk\n");
 		return PTR_ERR(spdifrx->kclk);
 	}
 

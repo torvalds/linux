@@ -17,13 +17,13 @@
 
 struct gpio_restart {
 	struct gpio_desc *reset_gpio;
-	struct notifier_block restart_handler;
+	struct yestifier_block restart_handler;
 	u32 active_delay_ms;
 	u32 inactive_delay_ms;
 	u32 wait_delay_ms;
 };
 
-static int gpio_restart_notify(struct notifier_block *this,
+static int gpio_restart_yestify(struct yestifier_block *this,
 				unsigned long mode, void *cmd)
 {
 	struct gpio_restart *gpio_restart =
@@ -60,22 +60,22 @@ static int gpio_restart_probe(struct platform_device *pdev)
 	if (!gpio_restart)
 		return -ENOMEM;
 
-	open_source = of_property_read_bool(pdev->dev.of_node, "open-source");
+	open_source = of_property_read_bool(pdev->dev.of_yesde, "open-source");
 
 	gpio_restart->reset_gpio = devm_gpiod_get(&pdev->dev, NULL,
 			open_source ? GPIOD_IN : GPIOD_OUT_LOW);
 	if (IS_ERR(gpio_restart->reset_gpio)) {
-		dev_err(&pdev->dev, "Could not get reset GPIO\n");
+		dev_err(&pdev->dev, "Could yest get reset GPIO\n");
 		return PTR_ERR(gpio_restart->reset_gpio);
 	}
 
-	gpio_restart->restart_handler.notifier_call = gpio_restart_notify;
+	gpio_restart->restart_handler.yestifier_call = gpio_restart_yestify;
 	gpio_restart->restart_handler.priority = 129;
 	gpio_restart->active_delay_ms = 100;
 	gpio_restart->inactive_delay_ms = 100;
 	gpio_restart->wait_delay_ms = 3000;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "priority", &property);
+	ret = of_property_read_u32(pdev->dev.of_yesde, "priority", &property);
 	if (!ret) {
 		if (property > 255)
 			dev_err(&pdev->dev, "Invalid priority property: %u\n",
@@ -84,18 +84,18 @@ static int gpio_restart_probe(struct platform_device *pdev)
 			gpio_restart->restart_handler.priority = property;
 	}
 
-	of_property_read_u32(pdev->dev.of_node, "active-delay",
+	of_property_read_u32(pdev->dev.of_yesde, "active-delay",
 			&gpio_restart->active_delay_ms);
-	of_property_read_u32(pdev->dev.of_node, "inactive-delay",
+	of_property_read_u32(pdev->dev.of_yesde, "inactive-delay",
 			&gpio_restart->inactive_delay_ms);
-	of_property_read_u32(pdev->dev.of_node, "wait-delay",
+	of_property_read_u32(pdev->dev.of_yesde, "wait-delay",
 			&gpio_restart->wait_delay_ms);
 
 	platform_set_drvdata(pdev, gpio_restart);
 
 	ret = register_restart_handler(&gpio_restart->restart_handler);
 	if (ret) {
-		dev_err(&pdev->dev, "%s: cannot register restart handler, %d\n",
+		dev_err(&pdev->dev, "%s: canyest register restart handler, %d\n",
 				__func__, ret);
 		return -ENODEV;
 	}
@@ -111,7 +111,7 @@ static int gpio_restart_remove(struct platform_device *pdev)
 	ret = unregister_restart_handler(&gpio_restart->restart_handler);
 	if (ret) {
 		dev_err(&pdev->dev,
-				"%s: cannot unregister restart handler, %d\n",
+				"%s: canyest unregister restart handler, %d\n",
 				__func__, ret);
 		return -ENODEV;
 	}

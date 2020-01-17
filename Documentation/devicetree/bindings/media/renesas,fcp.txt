@@ -23,7 +23,7 @@ Optional properties:
 		   to respective power domain.
 
 
-Device node example
+Device yesde example
 -------------------
 
 	fcpvd1: fcp@fea2f000 {

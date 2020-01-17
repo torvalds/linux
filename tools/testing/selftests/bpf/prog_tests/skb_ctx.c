@@ -26,52 +26,52 @@ void test_skb_ctx(void)
 
 	err = bpf_prog_load("./test_skb_ctx.o", BPF_PROG_TYPE_SCHED_CLS, &obj,
 			    &tattr.prog_fd);
-	if (CHECK_ATTR(err, "load", "err %d errno %d\n", err, errno))
+	if (CHECK_ATTR(err, "load", "err %d erryes %d\n", err, erryes))
 		return;
 
 	/* ctx_in != NULL, ctx_size_in == 0 */
 
 	tattr.ctx_size_in = 0;
 	err = bpf_prog_test_run_xattr(&tattr);
-	CHECK_ATTR(err == 0, "ctx_size_in", "err %d errno %d\n", err, errno);
+	CHECK_ATTR(err == 0, "ctx_size_in", "err %d erryes %d\n", err, erryes);
 	tattr.ctx_size_in = sizeof(skb);
 
 	/* ctx_out != NULL, ctx_size_out == 0 */
 
 	tattr.ctx_size_out = 0;
 	err = bpf_prog_test_run_xattr(&tattr);
-	CHECK_ATTR(err == 0, "ctx_size_out", "err %d errno %d\n", err, errno);
+	CHECK_ATTR(err == 0, "ctx_size_out", "err %d erryes %d\n", err, erryes);
 	tattr.ctx_size_out = sizeof(skb);
 
-	/* non-zero [len, tc_index] fields should be rejected*/
+	/* yesn-zero [len, tc_index] fields should be rejected*/
 
 	skb.len = 1;
 	err = bpf_prog_test_run_xattr(&tattr);
-	CHECK_ATTR(err == 0, "len", "err %d errno %d\n", err, errno);
+	CHECK_ATTR(err == 0, "len", "err %d erryes %d\n", err, erryes);
 	skb.len = 0;
 
 	skb.tc_index = 1;
 	err = bpf_prog_test_run_xattr(&tattr);
-	CHECK_ATTR(err == 0, "tc_index", "err %d errno %d\n", err, errno);
+	CHECK_ATTR(err == 0, "tc_index", "err %d erryes %d\n", err, erryes);
 	skb.tc_index = 0;
 
-	/* non-zero [hash, sk] fields should be rejected */
+	/* yesn-zero [hash, sk] fields should be rejected */
 
 	skb.hash = 1;
 	err = bpf_prog_test_run_xattr(&tattr);
-	CHECK_ATTR(err == 0, "hash", "err %d errno %d\n", err, errno);
+	CHECK_ATTR(err == 0, "hash", "err %d erryes %d\n", err, erryes);
 	skb.hash = 0;
 
 	skb.sk = (struct bpf_sock *)1;
 	err = bpf_prog_test_run_xattr(&tattr);
-	CHECK_ATTR(err == 0, "sk", "err %d errno %d\n", err, errno);
+	CHECK_ATTR(err == 0, "sk", "err %d erryes %d\n", err, erryes);
 	skb.sk = 0;
 
 	err = bpf_prog_test_run_xattr(&tattr);
 	CHECK_ATTR(err != 0 || tattr.retval,
 		   "run",
-		   "err %d errno %d retval %d\n",
-		   err, errno, tattr.retval);
+		   "err %d erryes %d retval %d\n",
+		   err, erryes, tattr.retval);
 
 	CHECK_ATTR(tattr.ctx_size_out != sizeof(skb),
 		   "ctx_size_out",

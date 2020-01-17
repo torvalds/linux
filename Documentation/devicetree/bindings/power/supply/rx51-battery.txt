@@ -4,7 +4,7 @@ The Nokia N900 battery status can be read via the TWL4030's A/D converter.
 
 Required properties:
 - compatible: Should contain one of the following:
- * "nokia,n900-battery"
+ * "yeskia,n900-battery"
 - io-channels: Should contain IIO channel specifiers
                for each element in io-channel-names.
 - io-channel-names: Should contain the following values:
@@ -15,7 +15,7 @@ Required properties:
 Example from Nokia N900:
 
 battery: n900-battery {
-	compatible = "nokia,n900-battery";
+	compatible = "yeskia,n900-battery";
 	io-channels = <&twl4030_madc 0>,
 		      <&twl4030_madc 4>,
 		      <&twl4030_madc 12>;

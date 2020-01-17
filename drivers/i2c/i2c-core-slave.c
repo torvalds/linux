@@ -24,7 +24,7 @@ int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
 	}
 
 	if (!(client->flags & I2C_CLIENT_SLAVE))
-		dev_warn(&client->dev, "%s: client slave flag not set. You might see address collisions\n",
+		dev_warn(&client->dev, "%s: client slave flag yest set. You might see address collisions\n",
 			 __func__);
 
 	if (!(client->flags & I2C_CLIENT_TEN)) {
@@ -37,7 +37,7 @@ int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
 	}
 
 	if (!client->adapter->algo->reg_slave) {
-		dev_err(&client->dev, "%s: not supported by adapter\n", __func__);
+		dev_err(&client->dev, "%s: yest supported by adapter\n", __func__);
 		return -EOPNOTSUPP;
 	}
 
@@ -61,7 +61,7 @@ int i2c_slave_unregister(struct i2c_client *client)
 	int ret;
 
 	if (!client->adapter->algo->unreg_slave) {
-		dev_err(&client->dev, "%s: not supported by adapter\n", __func__);
+		dev_err(&client->dev, "%s: yest supported by adapter\n", __func__);
 		return -EOPNOTSUPP;
 	}
 
@@ -82,7 +82,7 @@ EXPORT_SYMBOL_GPL(i2c_slave_unregister);
  * i2c_detect_slave_mode - detect operation mode
  * @dev: The device owning the bus
  *
- * This checks the device nodes for an I2C slave by checking the address
+ * This checks the device yesdes for an I2C slave by checking the address
  * used in the reg property. If the address match the I2C_OWN_SLAVE_ADDRESS
  * flag this means the device is configured to act as a I2C slave and it will
  * be listening at that address.
@@ -92,19 +92,19 @@ EXPORT_SYMBOL_GPL(i2c_slave_unregister);
  */
 bool i2c_detect_slave_mode(struct device *dev)
 {
-	if (IS_BUILTIN(CONFIG_OF) && dev->of_node) {
-		struct device_node *child;
+	if (IS_BUILTIN(CONFIG_OF) && dev->of_yesde) {
+		struct device_yesde *child;
 		u32 reg;
 
-		for_each_child_of_node(dev->of_node, child) {
+		for_each_child_of_yesde(dev->of_yesde, child) {
 			of_property_read_u32(child, "reg", &reg);
 			if (reg & I2C_OWN_SLAVE_ADDRESS) {
-				of_node_put(child);
+				of_yesde_put(child);
 				return true;
 			}
 		}
 	} else if (IS_BUILTIN(CONFIG_ACPI) && ACPI_HANDLE(dev)) {
-		dev_dbg(dev, "ACPI slave is not supported yet\n");
+		dev_dbg(dev, "ACPI slave is yest supported yet\n");
 	}
 	return false;
 }

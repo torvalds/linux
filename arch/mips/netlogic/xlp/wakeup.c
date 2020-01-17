@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -50,7 +50,7 @@
 #include <asm/netlogic/xlp-hal/pic.h>
 #include <asm/netlogic/xlp-hal/sys.h>
 
-static int xlp_wakeup_core(uint64_t sysbase, int node, int core)
+static int xlp_wakeup_core(uint64_t sysbase, int yesde, int core)
 {
 	uint32_t coremask, value;
 	int count, resetreg;
@@ -93,29 +93,29 @@ static int xlp_wakeup_core(uint64_t sysbase, int node, int core)
 static int wait_for_cpus(int cpu, int bootcpu)
 {
 	volatile uint32_t *cpu_ready = nlm_get_boot_data(BOOT_CPU_READY);
-	int i, count, notready;
+	int i, count, yestready;
 
 	count = 0x800000;
 	do {
-		notready = nlm_threads_per_core;
+		yestready = nlm_threads_per_core;
 		for (i = 0; i < nlm_threads_per_core; i++)
 			if (cpu_ready[cpu + i] || (cpu + i) == bootcpu)
-				--notready;
-	} while (notready != 0 && --count > 0);
+				--yestready;
+	} while (yestready != 0 && --count > 0);
 
 	return count != 0;
 }
 
 static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 {
-	struct nlm_soc_info *nodep;
+	struct nlm_soc_info *yesdep;
 	uint64_t syspcibase, fusebase;
 	uint32_t syscoremask, mask, fusemask;
 	int core, n, cpu, ncores;
 
 	for (n = 0; n < NLM_NR_NODES; n++) {
 		if (n != 0) {
-			/* check if node exists and is online */
+			/* check if yesde exists and is online */
 			if (cpu_is_xlp9xx()) {
 				int b = xlp9xx_get_socbus(n);
 				pr_info("Node %d SoC PCI bus %d.\n", n, b);
@@ -126,11 +126,11 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 				if (nlm_read_reg(syspcibase, 0) == 0xffffffff)
 					break;
 			}
-			nlm_node_init(n);
+			nlm_yesde_init(n);
 		}
 
 		/* read cores in reset from SYS */
-		nodep = nlm_get_node(n);
+		yesdep = nlm_get_yesde(n);
 
 		if (cpu_is_xlp9xx()) {
 			fusebase = nlm_get_fuse_regbase(n);
@@ -145,7 +145,7 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 				break;
 			}
 		} else {
-			fusemask = nlm_read_sys_reg(nodep->sysbase,
+			fusemask = nlm_read_sys_reg(yesdep->sysbase,
 						SYS_EFUSE_DEVICE_CFG_STATUS0);
 			switch (read_c0_prid() & PRID_IMP_MASK) {
 			case PRID_IMP_NETLOGIC_XLP3XX:
@@ -168,9 +168,9 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 		syscoremask = (1 << hweight32(~fusemask & mask)) - 1;
 
 		pr_info("Node %d - SYS/FUSE coremask %x\n", n, syscoremask);
-		ncores = nlm_cores_per_node();
+		ncores = nlm_cores_per_yesde();
 		for (core = 0; core < ncores; core++) {
-			/* we will be on node 0 core 0 */
+			/* we will be on yesde 0 core 0 */
 			if (n == 0 && core == 0)
 				continue;
 
@@ -184,11 +184,11 @@ static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 				continue;
 
 			/* wake up the core */
-			if (!xlp_wakeup_core(nodep->sysbase, n, core))
+			if (!xlp_wakeup_core(yesdep->sysbase, n, core))
 				continue;
 
 			/* core is up */
-			nodep->coremask |= 1u << core;
+			yesdep->coremask |= 1u << core;
 
 			/* spin until the hw threads sets their ready */
 			if (!wait_for_cpus(cpu, 0))
@@ -207,6 +207,6 @@ void xlp_wakeup_secondary_cpus(void)
 	if (!wait_for_cpus(0, 0))
 		pr_err("Node 0 : timeout core 0\n");
 
-	/* now get other cores out of reset */
+	/* yesw get other cores out of reset */
 	xlp_enable_secondary_cores(&nlm_cpumask);
 }

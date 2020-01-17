@@ -5,7 +5,7 @@
 #include <linux/zalloc.h>
 #include <subcmd/pager.h>
 #include <sys/types.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -330,7 +330,7 @@ static int __perf_pmu__new_alias(struct list_head *list, char *dir, char *name,
 
 	ret = parse_events_terms(&alias->terms, val);
 	if (ret) {
-		pr_err("Cannot parse alias %s: %d\n", val, ret);
+		pr_err("Canyest parse alias %s: %d\n", val, ret);
 		free(alias);
 		return ret;
 	}
@@ -456,12 +456,12 @@ static int pmu_aliases_parse(char *dir, struct list_head *head)
 
 		file = fopen(path, "r");
 		if (!file) {
-			pr_debug("Cannot open %s\n", path);
+			pr_debug("Canyest open %s\n", path);
 			continue;
 		}
 
 		if (perf_pmu__new_alias(head, dir, name, file) < 0)
-			pr_debug("Cannot set up %s\n", name);
+			pr_debug("Canyest set up %s\n", name);
 		fclose(file);
 	}
 
@@ -817,7 +817,7 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	/*
 	 * The pmu data we store & need consists of the pmu
 	 * type value and format definitions. Load both right
-	 * now.
+	 * yesw.
 	 */
 	if (pmu_format(name, &format))
 		return NULL;
@@ -989,7 +989,7 @@ static int pmu_resolve_param_term(struct parse_events_term *term,
 	}
 
 	if (verbose > 0)
-		printf("Required parameter '%s' not specified\n", term->config);
+		printf("Required parameter '%s' yest specified\n", term->config);
 
 	return -1;
 }
@@ -1032,13 +1032,13 @@ static int pmu_config_term(struct list_head *formats,
 
 	/*
 	 * If this is a parameter we've already used for parameterized-eval,
-	 * skip it in normal eval.
+	 * skip it in yesrmal eval.
 	 */
 	if (term->used)
 		return 0;
 
 	/*
-	 * Hardcoded terms should be already in, so nothing
+	 * Hardcoded terms should be already in, so yesthing
 	 * to be done for them.
 	 */
 	if (parse_events__is_hardcoded_term(term))
@@ -1052,7 +1052,7 @@ static int pmu_config_term(struct list_head *formats,
 			char *pmu_term = pmu_formats_string(formats);
 
 			parse_events__handle_error(err, term->err_term,
-				strdup("unknown term"),
+				strdup("unkyeswn term"),
 				parse_events_formats_error_string(pmu_term));
 			free(pmu_term);
 		}
@@ -1078,11 +1078,11 @@ static int pmu_config_term(struct list_head *formats,
 	 * using event parameters.
 	 */
 	if (term->type_val == PARSE_EVENTS__TERM_TYPE_NUM) {
-		if (term->no_value &&
+		if (term->yes_value &&
 		    bitmap_weight(format->bits, PERF_PMU_FORMAT_BITS) > 1) {
 			if (err) {
 				parse_events__handle_error(err, term->err_val,
-					   strdup("no value assigned for term"),
+					   strdup("yes value assigned for term"),
 					   NULL);
 			}
 			return -EINVAL;
@@ -1234,7 +1234,7 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 	info->per_pkg = false;
 
 	/*
-	 * Mark unit and scale as not set
+	 * Mark unit and scale as yest set
 	 * (different from default values, see below)
 	 */
 	info->unit     = NULL;
@@ -1265,9 +1265,9 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 	}
 
 	/*
-	 * if no unit or scale foundin aliases, then
+	 * if yes unit or scale foundin aliases, then
 	 * set defaults as for evsel
-	 * unit cannot left to NULL
+	 * unit canyest left to NULL
 	 */
 	if (info->unit == NULL)
 		info->unit   = "";
@@ -1307,7 +1307,7 @@ void perf_pmu__set_format(unsigned long *bits, long from, long to)
 		set_bit(b, bits);
 }
 
-static int sub_non_neg(int a, int b)
+static int sub_yesn_neg(int a, int b)
 {
 	if (b > a)
 		return 0;
@@ -1322,16 +1322,16 @@ static char *format_alias(char *buf, int len, struct perf_pmu *pmu,
 
 	list_for_each_entry(term, &alias->terms, list) {
 		if (term->type_val == PARSE_EVENTS__TERM_TYPE_STR)
-			used += snprintf(buf + used, sub_non_neg(len, used),
+			used += snprintf(buf + used, sub_yesn_neg(len, used),
 					",%s=%s", term->config,
 					term->val.str);
 	}
 
-	if (sub_non_neg(len, used) > 0) {
+	if (sub_yesn_neg(len, used) > 0) {
 		buf[used] = '/';
 		used++;
 	}
-	if (sub_non_neg(len, used) > 0) {
+	if (sub_yesn_neg(len, used) > 0) {
 		buf[used] = '\0';
 		used++;
 	} else
@@ -1418,7 +1418,7 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	}
 	aliases = zalloc(sizeof(struct sevent) * len);
 	if (!aliases)
-		goto out_enomem;
+		goto out_eyesmem;
 	pmu = NULL;
 	j = 0;
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
@@ -1431,11 +1431,11 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 				continue;
 
 			if (event_glob != NULL &&
-			    !(strglobmatch_nocase(name, event_glob) ||
-			      (!is_cpu && strglobmatch_nocase(alias->name,
+			    !(strglobmatch_yescase(name, event_glob) ||
+			      (!is_cpu && strglobmatch_yescase(alias->name,
 						       event_glob)) ||
 			      (alias->topic &&
-			       strglobmatch_nocase(alias->topic, event_glob))))
+			       strglobmatch_yescase(alias->topic, event_glob))))
 				continue;
 
 			if (is_cpu && !name_only && !alias->desc)
@@ -1448,7 +1448,7 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 								  pmu, alias);
 			aliases[j].name = strdup(aliases[j].name);
 			if (!aliases[j].name)
-				goto out_enomem;
+				goto out_eyesmem;
 
 			aliases[j].desc = long_desc ? alias->long_desc :
 						alias->desc;
@@ -1463,7 +1463,7 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 		    (event_glob == NULL || strglobmatch(pmu->name, event_glob))) {
 			char *s;
 			if (asprintf(&s, "%s//", pmu->name) < 0)
-				goto out_enomem;
+				goto out_eyesmem;
 			aliases[j].name = s;
 			j++;
 		}
@@ -1511,8 +1511,8 @@ out_free:
 	zfree(&aliases);
 	return;
 
-out_enomem:
-	printf("FATAL: not enough memory to print PMU events\n");
+out_eyesmem:
+	printf("FATAL: yest eyesugh memory to print PMU events\n");
 	if (aliases)
 		goto out_free;
 }

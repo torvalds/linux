@@ -57,7 +57,7 @@
 			bus-width = <8>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sdmmc0_default>;
-			non-removable;
+			yesn-removable;
 			mmc-ddr-1_8v;
 			status = "okay";
 		};
@@ -367,13 +367,13 @@
 
 			pinctrl@fc038000 {
 				/*
-				 * There is no real pinmux for ADC, if the pin
-				 * is not requested by another peripheral then
+				 * There is yes real pinmux for ADC, if the pin
+				 * is yest requested by ayesther peripheral then
 				 * the muxing is done when channel is enabled.
 				 * Requesting pins for ADC is GPIO is
 				 * encouraged to prevent conflicts and to
 				 * disable bias in order to be in the same
-				 * state when the pin is not muxed to the adc.
+				 * state when the pin is yest muxed to the adc.
 				 */
 				pinctrl_adc_default: adc_default {
 					pinmux = <PIN_PD23__GPIO>;
@@ -589,7 +589,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_classd_default>;
 				atmel,pwm-type = "diff";
-				atmel,non-overlap-time = <10>;
+				atmel,yesn-overlap-time = <10>;
 				status = "okay";
 			};
 

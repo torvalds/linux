@@ -137,10 +137,10 @@ struct registry_priv
 	u8 rx_stbc;
 	u8 ampdu_amsdu;/* A-MPDU Supports A-MSDU is permitted */
 	/*  Short GI support Bit Map */
-	/*  BIT0 - 20MHz, 1: support, 0: non-support */
-	/*  BIT1 - 40MHz, 1: support, 0: non-support */
-	/*  BIT2 - 80MHz, 1: support, 0: non-support */
-	/*  BIT3 - 160MHz, 1: support, 0: non-support */
+	/*  BIT0 - 20MHz, 1: support, 0: yesn-support */
+	/*  BIT1 - 40MHz, 1: support, 0: yesn-support */
+	/*  BIT2 - 80MHz, 1: support, 0: yesn-support */
+	/*  BIT3 - 160MHz, 1: support, 0: yesn-support */
 	u8 short_gi;
 	/*  BIT0: Enable VHT LDPC Rx, BIT1: Enable VHT LDPC Tx, BIT4: Enable HT LDPC Rx, BIT5: Enable HT LDPC Tx */
 	u8 ldpc_cap;
@@ -182,7 +182,7 @@ struct registry_priv
 
 	u8 ifname[16];
 
-	u8 notch_filter;
+	u8 yestch_filter;
 
 	/* define for tx power adjust */
 	u8 RegEnableTxPowerLimit;
@@ -240,8 +240,8 @@ struct rx_logs {
 	u32 core_rx_pre_data_wapi_key_err;
 	u32 core_rx_pre_data_handled;
 	u32 core_rx_pre_data_err;
-	u32 core_rx_pre_data_unknown;
-	u32 core_rx_pre_unknown;
+	u32 core_rx_pre_data_unkyeswn;
+	u32 core_rx_pre_unkyeswn;
 	u32 core_rx_enqueue;
 	u32 core_rx_dequeue;
 	u32 core_rx_post;
@@ -251,7 +251,7 @@ struct rx_logs {
 	u32 core_rx_post_decrypt_aes;
 	u32 core_rx_post_decrypt_wapi;
 	u32 core_rx_post_decrypt_hw;
-	u32 core_rx_post_decrypt_unknown;
+	u32 core_rx_post_decrypt_unkyeswn;
 	u32 core_rx_post_decrypt_err;
 	u32 core_rx_post_defrag_err;
 	u32 core_rx_post_portctrl_err;
@@ -273,8 +273,8 @@ struct tx_logs {
 	u32 os_tx_err_up;
 	u32 os_tx_err_xmit;
 	u32 os_tx_m2u;
-	u32 os_tx_m2u_ignore_fw_linked;
-	u32 os_tx_m2u_ignore_self;
+	u32 os_tx_m2u_igyesre_fw_linked;
+	u32 os_tx_m2u_igyesre_self;
 	u32 os_tx_m2u_entry;
 	u32 os_tx_m2u_entry_err_xmit;
 	u32 os_tx_m2u_entry_err_skb;
@@ -286,7 +286,7 @@ struct tx_logs {
 	u32 core_tx_upd_attrib_adhoc;
 	u32 core_tx_upd_attrib_sta;
 	u32 core_tx_upd_attrib_ap;
-	u32 core_tx_upd_attrib_unknown;
+	u32 core_tx_upd_attrib_unkyeswn;
 	u32 core_tx_upd_attrib_dhcp;
 	u32 core_tx_upd_attrib_icmp;
 	u32 core_tx_upd_attrib_active;
@@ -297,7 +297,7 @@ struct tx_logs {
 	u32 core_tx_upd_attrib_err_sec;
 	u32 core_tx_ap_enqueue_warn_fwstate;
 	u32 core_tx_ap_enqueue_warn_sta;
-	u32 core_tx_ap_enqueue_warn_nosta;
+	u32 core_tx_ap_enqueue_warn_yessta;
 	u32 core_tx_ap_enqueue_warn_link;
 	u32 core_tx_ap_enqueue_warn_trigger;
 	u32 core_tx_ap_enqueue_mcast;
@@ -312,7 +312,7 @@ struct tx_logs {
 	u32 core_tx_enqueue;
 	u32 core_tx_enqueue_class;
 	u32 core_tx_enqueue_class_err_sta;
-	u32 core_tx_enqueue_class_err_nosta;
+	u32 core_tx_enqueue_class_err_yessta;
 	u32 core_tx_enqueue_class_err_fwlink;
 	u32 intf_tx_direct;
 	u32 intf_tx_direct_err_coalesce;
@@ -520,7 +520,7 @@ struct adapter {
 	struct	recv_priv recvpriv;
 	struct	sta_priv stapriv;
 	struct	security_priv securitypriv;
-	_lock   security_key_mutex; /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	_lock   security_key_mutex; /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 	struct	registry_priv registrypriv;
 	struct	eeprom_priv eeprompriv;
 

@@ -16,10 +16,10 @@
 /* PSYCHO interrupt mapping support. */
 #define PSYCHO_IMAP_A_SLOT0	0x0c00UL
 #define PSYCHO_IMAP_B_SLOT0	0x0c20UL
-static unsigned long psycho_pcislot_imap_offset(unsigned long ino)
+static unsigned long psycho_pcislot_imap_offset(unsigned long iyes)
 {
-	unsigned int bus =  (ino & 0x10) >> 4;
-	unsigned int slot = (ino & 0x0c) >> 2;
+	unsigned int bus =  (iyes & 0x10) >> 4;
+	unsigned int slot = (iyes & 0x0c) >> 2;
 
 	if (bus == 0)
 		return PSYCHO_IMAP_A_SLOT0 + (slot * 8);
@@ -30,47 +30,47 @@ static unsigned long psycho_pcislot_imap_offset(unsigned long ino)
 #define PSYCHO_OBIO_IMAP_BASE	0x1000UL
 
 #define PSYCHO_ONBOARD_IRQ_BASE		0x20
-#define psycho_onboard_imap_offset(__ino) \
-	(PSYCHO_OBIO_IMAP_BASE + (((__ino) & 0x1f) << 3))
+#define psycho_onboard_imap_offset(__iyes) \
+	(PSYCHO_OBIO_IMAP_BASE + (((__iyes) & 0x1f) << 3))
 
 #define PSYCHO_ICLR_A_SLOT0	0x1400UL
 #define PSYCHO_ICLR_SCSI	0x1800UL
 
-#define psycho_iclr_offset(ino)					      \
-	((ino & 0x20) ? (PSYCHO_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
-			(PSYCHO_ICLR_A_SLOT0 + (((ino) & 0x1f)<<3)))
+#define psycho_iclr_offset(iyes)					      \
+	((iyes & 0x20) ? (PSYCHO_ICLR_SCSI + (((iyes) & 0x1f) << 3)) :  \
+			(PSYCHO_ICLR_A_SLOT0 + (((iyes) & 0x1f)<<3)))
 
-static unsigned int psycho_irq_build(struct device_node *dp,
-				     unsigned int ino,
+static unsigned int psycho_irq_build(struct device_yesde *dp,
+				     unsigned int iyes,
 				     void *_data)
 {
 	unsigned long controller_regs = (unsigned long) _data;
 	unsigned long imap, iclr;
 	unsigned long imap_off, iclr_off;
-	int inofixup = 0;
+	int iyesfixup = 0;
 
-	ino &= 0x3f;
-	if (ino < PSYCHO_ONBOARD_IRQ_BASE) {
+	iyes &= 0x3f;
+	if (iyes < PSYCHO_ONBOARD_IRQ_BASE) {
 		/* PCI slot */
-		imap_off = psycho_pcislot_imap_offset(ino);
+		imap_off = psycho_pcislot_imap_offset(iyes);
 	} else {
 		/* Onboard device */
-		imap_off = psycho_onboard_imap_offset(ino);
+		imap_off = psycho_onboard_imap_offset(iyes);
 	}
 
 	/* Now build the IRQ bucket. */
 	imap = controller_regs + imap_off;
 
-	iclr_off = psycho_iclr_offset(ino);
+	iclr_off = psycho_iclr_offset(iyes);
 	iclr = controller_regs + iclr_off;
 
-	if ((ino & 0x20) == 0)
-		inofixup = ino & 0x03;
+	if ((iyes & 0x20) == 0)
+		iyesfixup = iyes & 0x03;
 
-	return build_irq(inofixup, iclr, imap);
+	return build_irq(iyesfixup, iclr, imap);
 }
 
-static void __init psycho_irq_trans_init(struct device_node *dp)
+static void __init psycho_irq_trans_init(struct device_yesde *dp)
 {
 	const struct linux_prom64_registers *regs;
 
@@ -92,7 +92,7 @@ static void __init psycho_irq_trans_init(struct device_node *dp)
 
 struct sabre_irq_data {
 	unsigned long controller_regs;
-	unsigned int pci_first_busno;
+	unsigned int pci_first_busyes;
 };
 #define SABRE_CONFIGSPACE	0x001000000UL
 #define SABRE_WRSYNC		0x1c20UL
@@ -108,10 +108,10 @@ struct sabre_irq_data {
  * than APB, a special sequence must run to make sure all pending DMA
  * transfers at the time of IRQ delivery are visible in the coherency
  * domain by the cpu.  This sequence is to perform a read on the far
- * side of the non-APB bridge, then perform a read of Sabre's DMA
+ * side of the yesn-APB bridge, then perform a read of Sabre's DMA
  * write-sync register.
  */
-static void sabre_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
+static void sabre_wsync_handler(unsigned int iyes, void *_arg1, void *_arg2)
 {
 	unsigned int phys_hi = (unsigned int) (unsigned long) _arg1;
 	struct sabre_irq_data *irq_data = _arg2;
@@ -159,10 +159,10 @@ static void sabre_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
 #define SABRE_ICLR_CE		0x1878UL
 #define SABRE_ICLR_PCIERR	0x1880UL
 
-static unsigned long sabre_pcislot_imap_offset(unsigned long ino)
+static unsigned long sabre_pcislot_imap_offset(unsigned long iyes)
 {
-	unsigned int bus =  (ino & 0x10) >> 4;
-	unsigned int slot = (ino & 0x0c) >> 2;
+	unsigned int bus =  (iyes & 0x10) >> 4;
+	unsigned int slot = (iyes & 0x0c) >> 2;
 
 	if (bus == 0)
 		return SABRE_IMAP_A_SLOT0 + (slot * 8);
@@ -172,28 +172,28 @@ static unsigned long sabre_pcislot_imap_offset(unsigned long ino)
 
 #define SABRE_OBIO_IMAP_BASE	0x1000UL
 #define SABRE_ONBOARD_IRQ_BASE	0x20
-#define sabre_onboard_imap_offset(__ino) \
-	(SABRE_OBIO_IMAP_BASE + (((__ino) & 0x1f) << 3))
+#define sabre_onboard_imap_offset(__iyes) \
+	(SABRE_OBIO_IMAP_BASE + (((__iyes) & 0x1f) << 3))
 
-#define sabre_iclr_offset(ino)					      \
-	((ino & 0x20) ? (SABRE_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
-			(SABRE_ICLR_A_SLOT0 + (((ino) & 0x1f)<<3)))
+#define sabre_iclr_offset(iyes)					      \
+	((iyes & 0x20) ? (SABRE_ICLR_SCSI + (((iyes) & 0x1f) << 3)) :  \
+			(SABRE_ICLR_A_SLOT0 + (((iyes) & 0x1f)<<3)))
 
-static int sabre_device_needs_wsync(struct device_node *dp)
+static int sabre_device_needs_wsync(struct device_yesde *dp)
 {
-	struct device_node *parent = dp->parent;
+	struct device_yesde *parent = dp->parent;
 	const char *parent_model, *parent_compat;
 
 	/* This traversal up towards the root is meant to
 	 * handle two cases:
 	 *
-	 * 1) non-PCI bus sitting under PCI, such as 'ebus'
+	 * 1) yesn-PCI bus sitting under PCI, such as 'ebus'
 	 * 2) the PCI controller interrupts themselves, which
-	 *    will use the sabre_irq_build but do not need
+	 *    will use the sabre_irq_build but do yest need
 	 *    the DMA synchronization handling
 	 */
 	while (parent) {
-		if (of_node_is_type(parent, "pci"))
+		if (of_yesde_is_type(parent, "pci"))
 			break;
 		parent = parent->parent;
 	}
@@ -218,8 +218,8 @@ static int sabre_device_needs_wsync(struct device_node *dp)
 	return 1;
 }
 
-static unsigned int sabre_irq_build(struct device_node *dp,
-				    unsigned int ino,
+static unsigned int sabre_irq_build(struct device_yesde *dp,
+				    unsigned int iyes,
 				    void *_data)
 {
 	struct sabre_irq_data *irq_data = _data;
@@ -227,28 +227,28 @@ static unsigned int sabre_irq_build(struct device_node *dp,
 	const struct linux_prom_pci_registers *regs;
 	unsigned long imap, iclr;
 	unsigned long imap_off, iclr_off;
-	int inofixup = 0;
+	int iyesfixup = 0;
 	int irq;
 
-	ino &= 0x3f;
-	if (ino < SABRE_ONBOARD_IRQ_BASE) {
+	iyes &= 0x3f;
+	if (iyes < SABRE_ONBOARD_IRQ_BASE) {
 		/* PCI slot */
-		imap_off = sabre_pcislot_imap_offset(ino);
+		imap_off = sabre_pcislot_imap_offset(iyes);
 	} else {
 		/* onboard device */
-		imap_off = sabre_onboard_imap_offset(ino);
+		imap_off = sabre_onboard_imap_offset(iyes);
 	}
 
 	/* Now build the IRQ bucket. */
 	imap = controller_regs + imap_off;
 
-	iclr_off = sabre_iclr_offset(ino);
+	iclr_off = sabre_iclr_offset(iyes);
 	iclr = controller_regs + iclr_off;
 
-	if ((ino & 0x20) == 0)
-		inofixup = ino & 0x03;
+	if ((iyes & 0x20) == 0)
+		iyesfixup = iyes & 0x03;
 
-	irq = build_irq(inofixup, iclr, imap);
+	irq = build_irq(iyesfixup, iclr, imap);
 
 	/* If the parent device is a PCI<->PCI bridge other than
 	 * APB, we have to install a pre-handler to ensure that
@@ -266,7 +266,7 @@ static unsigned int sabre_irq_build(struct device_node *dp,
 	return irq;
 }
 
-static void __init sabre_irq_trans_init(struct device_node *dp)
+static void __init sabre_irq_trans_init(struct device_yesde *dp)
 {
 	const struct linux_prom64_registers *regs;
 	struct sabre_irq_data *irq_data;
@@ -281,7 +281,7 @@ static void __init sabre_irq_trans_init(struct device_node *dp)
 	irq_data->controller_regs = regs[0].phys_addr;
 
 	busrange = of_get_property(dp, "bus-range", NULL);
-	irq_data->pci_first_busno = busrange[0];
+	irq_data->pci_first_busyes = busrange[0];
 
 	dp->irq_trans->data = irq_data;
 }
@@ -292,27 +292,27 @@ static void __init sabre_irq_trans_init(struct device_node *dp)
 #define SCHIZO_IMAP_BASE	0x1000UL
 #define SCHIZO_ICLR_BASE	0x1400UL
 
-static unsigned long schizo_imap_offset(unsigned long ino)
+static unsigned long schizo_imap_offset(unsigned long iyes)
 {
-	return SCHIZO_IMAP_BASE + (ino * 8UL);
+	return SCHIZO_IMAP_BASE + (iyes * 8UL);
 }
 
-static unsigned long schizo_iclr_offset(unsigned long ino)
+static unsigned long schizo_iclr_offset(unsigned long iyes)
 {
-	return SCHIZO_ICLR_BASE + (ino * 8UL);
+	return SCHIZO_ICLR_BASE + (iyes * 8UL);
 }
 
-static unsigned long schizo_ino_to_iclr(unsigned long pbm_regs,
-					unsigned int ino)
+static unsigned long schizo_iyes_to_iclr(unsigned long pbm_regs,
+					unsigned int iyes)
 {
 
-	return pbm_regs + schizo_iclr_offset(ino);
+	return pbm_regs + schizo_iclr_offset(iyes);
 }
 
-static unsigned long schizo_ino_to_imap(unsigned long pbm_regs,
-					unsigned int ino)
+static unsigned long schizo_iyes_to_imap(unsigned long pbm_regs,
+					unsigned int iyes)
 {
-	return pbm_regs + schizo_imap_offset(ino);
+	return pbm_regs + schizo_imap_offset(iyes);
 }
 
 #define schizo_read(__reg) \
@@ -325,15 +325,15 @@ static unsigned long schizo_ino_to_imap(unsigned long pbm_regs,
 })
 #define schizo_write(__reg, __val) \
 	__asm__ __volatile__("stxa %0, [%1] %2" \
-			     : /* no outputs */ \
+			     : /* yes outputs */ \
 			     : "r" (__val), "r" (__reg), \
 			       "i" (ASI_PHYS_BYPASS_EC_E) \
 			     : "memory")
 
-static void tomatillo_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
+static void tomatillo_wsync_handler(unsigned int iyes, void *_arg1, void *_arg2)
 {
 	unsigned long sync_reg = (unsigned long) _arg2;
-	u64 mask = 1UL << (ino & IMAP_INO);
+	u64 mask = 1UL << (iyes & IMAP_INO);
 	u64 val;
 	int limit;
 
@@ -375,8 +375,8 @@ struct schizo_irq_data {
 	int chip_version;
 };
 
-static unsigned int schizo_irq_build(struct device_node *dp,
-				     unsigned int ino,
+static unsigned int schizo_irq_build(struct device_yesde *dp,
+				     unsigned int iyes,
 				     void *_data)
 {
 	struct schizo_irq_data *irq_data = _data;
@@ -386,13 +386,13 @@ static unsigned int schizo_irq_build(struct device_node *dp,
 	int irq;
 	int is_tomatillo;
 
-	ino &= 0x3f;
+	iyes &= 0x3f;
 
 	/* Now build the IRQ bucket. */
-	imap = schizo_ino_to_imap(pbm_regs, ino);
-	iclr = schizo_ino_to_iclr(pbm_regs, ino);
+	imap = schizo_iyes_to_imap(pbm_regs, iyes);
+	iclr = schizo_iyes_to_iclr(pbm_regs, iyes);
 
-	/* On Schizo, no inofixup occurs.  This is because each
+	/* On Schizo, yes iyesfixup occurs.  This is because each
 	 * INO has it's own IMAP register.  On Psycho and Sabre
 	 * there is only one IMAP register for each PCI slot even
 	 * though four different INOs can be generated by each
@@ -423,7 +423,7 @@ static unsigned int schizo_irq_build(struct device_node *dp,
 	return irq;
 }
 
-static void __init __schizo_irq_trans_init(struct device_node *dp,
+static void __init __schizo_irq_trans_init(struct device_yesde *dp,
 					   int is_tomatillo)
 {
 	const struct linux_prom64_registers *regs;
@@ -446,26 +446,26 @@ static void __init __schizo_irq_trans_init(struct device_node *dp,
 	irq_data->chip_version = of_getintprop_default(dp, "version#", 0);
 }
 
-static void __init schizo_irq_trans_init(struct device_node *dp)
+static void __init schizo_irq_trans_init(struct device_yesde *dp)
 {
 	__schizo_irq_trans_init(dp, 0);
 }
 
-static void __init tomatillo_irq_trans_init(struct device_node *dp)
+static void __init tomatillo_irq_trans_init(struct device_yesde *dp)
 {
 	__schizo_irq_trans_init(dp, 1);
 }
 
-static unsigned int pci_sun4v_irq_build(struct device_node *dp,
-					unsigned int devino,
+static unsigned int pci_sun4v_irq_build(struct device_yesde *dp,
+					unsigned int deviyes,
 					void *_data)
 {
 	u32 devhandle = (u32) (unsigned long) _data;
 
-	return sun4v_build_irq(devhandle, devino);
+	return sun4v_build_irq(devhandle, deviyes);
 }
 
-static void __init pci_sun4v_irq_trans_init(struct device_node *dp)
+static void __init pci_sun4v_irq_trans_init(struct device_yesde *dp)
 {
 	const struct linux_prom64_registers *regs;
 
@@ -485,30 +485,30 @@ struct fire_irq_data {
 #define FIRE_IMAP_BASE	0x001000
 #define FIRE_ICLR_BASE	0x001400
 
-static unsigned long fire_imap_offset(unsigned long ino)
+static unsigned long fire_imap_offset(unsigned long iyes)
 {
-	return FIRE_IMAP_BASE + (ino * 8UL);
+	return FIRE_IMAP_BASE + (iyes * 8UL);
 }
 
-static unsigned long fire_iclr_offset(unsigned long ino)
+static unsigned long fire_iclr_offset(unsigned long iyes)
 {
-	return FIRE_ICLR_BASE + (ino * 8UL);
+	return FIRE_ICLR_BASE + (iyes * 8UL);
 }
 
-static unsigned long fire_ino_to_iclr(unsigned long pbm_regs,
-					    unsigned int ino)
+static unsigned long fire_iyes_to_iclr(unsigned long pbm_regs,
+					    unsigned int iyes)
 {
-	return pbm_regs + fire_iclr_offset(ino);
+	return pbm_regs + fire_iclr_offset(iyes);
 }
 
-static unsigned long fire_ino_to_imap(unsigned long pbm_regs,
-					    unsigned int ino)
+static unsigned long fire_iyes_to_imap(unsigned long pbm_regs,
+					    unsigned int iyes)
 {
-	return pbm_regs + fire_imap_offset(ino);
+	return pbm_regs + fire_imap_offset(iyes);
 }
 
-static unsigned int fire_irq_build(struct device_node *dp,
-					 unsigned int ino,
+static unsigned int fire_irq_build(struct device_yesde *dp,
+					 unsigned int iyes,
 					 void *_data)
 {
 	struct fire_irq_data *irq_data = _data;
@@ -516,17 +516,17 @@ static unsigned int fire_irq_build(struct device_node *dp,
 	unsigned long imap, iclr;
 	unsigned long int_ctrlr;
 
-	ino &= 0x3f;
+	iyes &= 0x3f;
 
 	/* Now build the IRQ bucket. */
-	imap = fire_ino_to_imap(pbm_regs, ino);
-	iclr = fire_ino_to_iclr(pbm_regs, ino);
+	imap = fire_iyes_to_imap(pbm_regs, iyes);
+	iclr = fire_iyes_to_iclr(pbm_regs, iyes);
 
 	/* Set the interrupt controller number.  */
 	int_ctrlr = 1 << 6;
 	upa_writeq(int_ctrlr, imap);
 
-	/* The interrupt map registers do not have an INO field
+	/* The interrupt map registers do yest have an INO field
 	 * like other chips do.  They return zero in the INO
 	 * field, and the interrupt controller number is controlled
 	 * in bits 6 to 9.  So in order for build_irq() to get
@@ -534,12 +534,12 @@ static unsigned int fire_irq_build(struct device_node *dp,
 	 * which will get added to the map register zero value
 	 * read by build_irq().
 	 */
-	ino |= (irq_data->portid << 6);
-	ino -= int_ctrlr;
-	return build_irq(ino, iclr, imap);
+	iyes |= (irq_data->portid << 6);
+	iyes -= int_ctrlr;
+	return build_irq(iyes, iclr, imap);
 }
 
-static void __init fire_irq_trans_init(struct device_node *dp)
+static void __init fire_irq_trans_init(struct device_yesde *dp)
 {
 	const struct linux_prom64_registers *regs;
 	struct fire_irq_data *irq_data;
@@ -598,7 +598,7 @@ static unsigned long sysio_irq_offsets[] = {
 	SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3,
 	SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3, SYSIO_IMAP_SLOT3,
 
-	/* Onboard devices (not relevant/used on SunFire). */
+	/* Onboard devices (yest relevant/used on SunFire). */
 	SYSIO_IMAP_SCSI,
 	SYSIO_IMAP_ETH,
 	SYSIO_IMAP_BPP,
@@ -645,8 +645,8 @@ static unsigned long sysio_imap_to_iclr(unsigned long imap)
 	return imap + diff;
 }
 
-static unsigned int sbus_of_build_irq(struct device_node *dp,
-				      unsigned int ino,
+static unsigned int sbus_of_build_irq(struct device_yesde *dp,
+				      unsigned int iyes,
 				      void *_data)
 {
 	unsigned long reg_base = (unsigned long) _data;
@@ -655,19 +655,19 @@ static unsigned int sbus_of_build_irq(struct device_node *dp,
 	int sbus_slot = 0;
 	int sbus_level = 0;
 
-	ino &= 0x3f;
+	iyes &= 0x3f;
 
 	regs = of_get_property(dp, "reg", NULL);
 	if (regs)
 		sbus_slot = regs->which_io;
 
-	if (ino < 0x20)
-		ino += (sbus_slot * 8);
+	if (iyes < 0x20)
+		iyes += (sbus_slot * 8);
 
-	imap = sysio_irq_offsets[ino];
+	imap = sysio_irq_offsets[iyes];
 	if (imap == ((unsigned long)-1)) {
 		prom_printf("get_irq_translations: Bad SYSIO INO[%x]\n",
-			    ino);
+			    iyes);
 		prom_halt();
 	}
 	imap += reg_base;
@@ -676,10 +676,10 @@ static unsigned int sbus_of_build_irq(struct device_node *dp,
 	 * the right ICLR register based upon the lower SBUS irq level
 	 * bits.
 	 */
-	if (ino >= 0x20) {
+	if (iyes >= 0x20) {
 		iclr = sysio_imap_to_iclr(imap);
 	} else {
-		sbus_level = ino & 0x7;
+		sbus_level = iyes & 0x7;
 
 		switch(sbus_slot) {
 		case 0:
@@ -702,7 +702,7 @@ static unsigned int sbus_of_build_irq(struct device_node *dp,
 	return build_irq(sbus_level, iclr, imap);
 }
 
-static void __init sbus_irq_trans_init(struct device_node *dp)
+static void __init sbus_irq_trans_init(struct device_yesde *dp)
 {
 	const struct linux_prom64_registers *regs;
 
@@ -715,24 +715,24 @@ static void __init sbus_irq_trans_init(struct device_node *dp)
 #endif /* CONFIG_SBUS */
 
 
-static unsigned int central_build_irq(struct device_node *dp,
-				      unsigned int ino,
+static unsigned int central_build_irq(struct device_yesde *dp,
+				      unsigned int iyes,
 				      void *_data)
 {
-	struct device_node *central_dp = _data;
-	struct platform_device *central_op = of_find_device_by_node(central_dp);
+	struct device_yesde *central_dp = _data;
+	struct platform_device *central_op = of_find_device_by_yesde(central_dp);
 	struct resource *res;
 	unsigned long imap, iclr;
 	u32 tmp;
 
-	if (of_node_name_eq(dp, "eeprom")) {
+	if (of_yesde_name_eq(dp, "eeprom")) {
 		res = &central_op->resource[5];
-	} else if (of_node_name_eq(dp, "zs")) {
+	} else if (of_yesde_name_eq(dp, "zs")) {
 		res = &central_op->resource[4];
-	} else if (of_node_name_eq(dp, "clock-board")) {
+	} else if (of_yesde_name_eq(dp, "clock-board")) {
 		res = &central_op->resource[3];
 	} else {
-		return ino;
+		return iyes;
 	}
 
 	imap = res->start + 0x00UL;
@@ -749,7 +749,7 @@ static unsigned int central_build_irq(struct device_node *dp,
 	return build_irq(0, iclr, imap);
 }
 
-static void __init central_irq_trans_init(struct device_node *dp)
+static void __init central_irq_trans_init(struct device_yesde *dp)
 {
 	dp->irq_trans = prom_early_alloc(sizeof(struct of_irq_controller));
 	dp->irq_trans->irq_build = central_build_irq;
@@ -759,7 +759,7 @@ static void __init central_irq_trans_init(struct device_node *dp)
 
 struct irq_trans {
 	const char *name;
-	void (*init)(struct device_node *);
+	void (*init)(struct device_yesde *);
 };
 
 #ifdef CONFIG_PCI
@@ -780,16 +780,16 @@ static struct irq_trans __initdata pci_irq_trans_table[] = {
 };
 #endif
 
-static unsigned int sun4v_vdev_irq_build(struct device_node *dp,
-					 unsigned int devino,
+static unsigned int sun4v_vdev_irq_build(struct device_yesde *dp,
+					 unsigned int deviyes,
 					 void *_data)
 {
 	u32 devhandle = (u32) (unsigned long) _data;
 
-	return sun4v_build_irq(devhandle, devino);
+	return sun4v_build_irq(devhandle, deviyes);
 }
 
-static void __init sun4v_vdev_irq_trans_init(struct device_node *dp)
+static void __init sun4v_vdev_irq_trans_init(struct device_yesde *dp)
 {
 	const struct linux_prom64_registers *regs;
 
@@ -801,7 +801,7 @@ static void __init sun4v_vdev_irq_trans_init(struct device_node *dp)
 		((regs->phys_addr >> 32UL) & 0x0fffffff);
 }
 
-void __init irq_trans_init(struct device_node *dp)
+void __init irq_trans_init(struct device_yesde *dp)
 {
 #ifdef CONFIG_PCI
 	const char *model;
@@ -824,19 +824,19 @@ void __init irq_trans_init(struct device_node *dp)
 	}
 #endif
 #ifdef CONFIG_SBUS
-	if (of_node_name_eq(dp, "sbus") ||
-	    of_node_name_eq(dp, "sbi")) {
+	if (of_yesde_name_eq(dp, "sbus") ||
+	    of_yesde_name_eq(dp, "sbi")) {
 		sbus_irq_trans_init(dp);
 		return;
 	}
 #endif
-	if (of_node_name_eq(dp, "fhc") &&
-	    of_node_name_eq(dp->parent, "central")) {
+	if (of_yesde_name_eq(dp, "fhc") &&
+	    of_yesde_name_eq(dp->parent, "central")) {
 		central_irq_trans_init(dp);
 		return;
 	}
-	if (of_node_name_eq(dp, "virtual-devices") ||
-	    of_node_name_eq(dp, "niu")) {
+	if (of_yesde_name_eq(dp, "virtual-devices") ||
+	    of_yesde_name_eq(dp, "niu")) {
 		sun4v_vdev_irq_trans_init(dp);
 		return;
 	}

@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -117,7 +117,7 @@ static void dpaa_get_drvinfo(struct net_device *net_dev,
 
 	if (len >= sizeof(drvinfo->fw_version)) {
 		/* Truncated output */
-		netdev_notice(net_dev, "snprintf() = %d\n", len);
+		netdev_yestice(net_dev, "snprintf() = %d\n", len);
 	}
 	strlcpy(drvinfo->bus_info, dev_name(net_dev->dev.parent->parent),
 		sizeof(drvinfo->bus_info));
@@ -183,14 +183,14 @@ static int dpaa_set_pauseparam(struct net_device *net_dev,
 
 	phydev = net_dev->phydev;
 	if (!phydev) {
-		netdev_err(net_dev, "phy device not initialized\n");
+		netdev_err(net_dev, "phy device yest initialized\n");
 		return -ENODEV;
 	}
 
 	if (!phy_validate_pause(phydev, epause))
 		return -EINVAL;
 
-	/* The MAC should know how to handle PAUSE frame autonegotiation before
+	/* The MAC should kyesw how to handle PAUSE frame autonegotiation before
 	 * adjust_link is triggered by a forced renegotiation of sym/asym PAUSE
 	 * settings.
 	 */
@@ -492,19 +492,19 @@ static int dpaa_get_ts_info(struct net_device *net_dev,
 			    struct ethtool_ts_info *info)
 {
 	struct device *dev = net_dev->dev.parent;
-	struct device_node *mac_node = dev->of_node;
-	struct device_node *fman_node = NULL, *ptp_node = NULL;
+	struct device_yesde *mac_yesde = dev->of_yesde;
+	struct device_yesde *fman_yesde = NULL, *ptp_yesde = NULL;
 	struct platform_device *ptp_dev = NULL;
 	struct ptp_qoriq *ptp = NULL;
 
 	info->phc_index = -1;
 
-	fman_node = of_get_parent(mac_node);
-	if (fman_node)
-		ptp_node = of_parse_phandle(fman_node, "ptimer-handle", 0);
+	fman_yesde = of_get_parent(mac_yesde);
+	if (fman_yesde)
+		ptp_yesde = of_parse_phandle(fman_yesde, "ptimer-handle", 0);
 
-	if (ptp_node)
-		ptp_dev = of_find_device_by_node(ptp_node);
+	if (ptp_yesde)
+		ptp_dev = of_find_device_by_yesde(ptp_yesde);
 
 	if (ptp_dev)
 		ptp = platform_get_drvdata(ptp_dev);
@@ -584,7 +584,7 @@ revert_values:
 		if (!needs_revert[cpu])
 			continue;
 		portal = qman_get_affine_portal(cpu);
-		/* previous values will not fail, ignore return value */
+		/* previous values will yest fail, igyesre return value */
 		qman_portal_set_iperiod(portal, prev_period);
 		qman_dqrr_set_ithresh(portal, prev_thresh);
 	}

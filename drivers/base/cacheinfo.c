@@ -71,7 +71,7 @@ static inline int get_cacheinfo_idx(enum cache_type type)
 	return type;
 }
 
-static void cache_size(struct cacheinfo *this_leaf, struct device_node *np)
+static void cache_size(struct cacheinfo *this_leaf, struct device_yesde *np)
 {
 	const char *propname;
 	int ct_idx;
@@ -82,9 +82,9 @@ static void cache_size(struct cacheinfo *this_leaf, struct device_node *np)
 	of_property_read_u32(np, propname, &this_leaf->size);
 }
 
-/* not cache_line_size() because that's a macro in include/linux/cache.h */
+/* yest cache_line_size() because that's a macro in include/linux/cache.h */
 static void cache_get_line_size(struct cacheinfo *this_leaf,
-				struct device_node *np)
+				struct device_yesde *np)
 {
 	int i, lim, ct_idx;
 
@@ -105,7 +105,7 @@ static void cache_get_line_size(struct cacheinfo *this_leaf,
 	}
 }
 
-static void cache_nr_sets(struct cacheinfo *this_leaf, struct device_node *np)
+static void cache_nr_sets(struct cacheinfo *this_leaf, struct device_yesde *np)
 {
 	const char *propname;
 	int ct_idx;
@@ -123,21 +123,21 @@ static void cache_associativity(struct cacheinfo *this_leaf)
 	unsigned int size = this_leaf->size;
 
 	/*
-	 * If the cache is fully associative, there is no need to
+	 * If the cache is fully associative, there is yes need to
 	 * check the other properties.
 	 */
 	if (!(nr_sets == 1) && (nr_sets > 0 && size > 0 && line_size > 0))
 		this_leaf->ways_of_associativity = (size / nr_sets) / line_size;
 }
 
-static bool cache_node_is_unified(struct cacheinfo *this_leaf,
-				  struct device_node *np)
+static bool cache_yesde_is_unified(struct cacheinfo *this_leaf,
+				  struct device_yesde *np)
 {
 	return of_property_read_bool(np, "cache-unified");
 }
 
 static void cache_of_set_props(struct cacheinfo *this_leaf,
-			       struct device_node *np)
+			       struct device_yesde *np)
 {
 	/*
 	 * init_cache_level must setup the cache level correctly
@@ -145,7 +145,7 @@ static void cache_of_set_props(struct cacheinfo *this_leaf,
 	 * if type is NONE at this stage, it should be unified
 	 */
 	if (this_leaf->type == CACHE_TYPE_NOCACHE &&
-	    cache_node_is_unified(this_leaf, np))
+	    cache_yesde_is_unified(this_leaf, np))
 		this_leaf->type = CACHE_TYPE_UNIFIED;
 	cache_size(this_leaf, np);
 	cache_get_line_size(this_leaf, np);
@@ -153,9 +153,9 @@ static void cache_of_set_props(struct cacheinfo *this_leaf,
 	cache_associativity(this_leaf);
 }
 
-static int cache_setup_of_node(unsigned int cpu)
+static int cache_setup_of_yesde(unsigned int cpu)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct cacheinfo *this_leaf;
 	struct device *cpu_dev = get_cpu_device(cpu);
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
@@ -170,18 +170,18 @@ static int cache_setup_of_node(unsigned int cpu)
 		pr_err("No cpu device for CPU %d\n", cpu);
 		return -ENODEV;
 	}
-	np = cpu_dev->of_node;
+	np = cpu_dev->of_yesde;
 	if (!np) {
-		pr_err("Failed to find cpu%d device node\n", cpu);
+		pr_err("Failed to find cpu%d device yesde\n", cpu);
 		return -ENOENT;
 	}
 
 	while (index < cache_leaves(cpu)) {
 		this_leaf = this_cpu_ci->info_list + index;
 		if (this_leaf->level != 1)
-			np = of_find_next_cache_node(np);
+			np = of_find_next_cache_yesde(np);
 		else
-			np = of_node_get(np);/* cpu node itself */
+			np = of_yesde_get(np);/* cpu yesde itself */
 		if (!np)
 			break;
 		cache_of_set_props(this_leaf, np);
@@ -189,20 +189,20 @@ static int cache_setup_of_node(unsigned int cpu)
 		index++;
 	}
 
-	if (index != cache_leaves(cpu)) /* not all OF nodes populated */
+	if (index != cache_leaves(cpu)) /* yest all OF yesdes populated */
 		return -ENOENT;
 
 	return 0;
 }
 #else
-static inline int cache_setup_of_node(unsigned int cpu) { return 0; }
+static inline int cache_setup_of_yesde(unsigned int cpu) { return 0; }
 static inline bool cache_leaves_are_shared(struct cacheinfo *this_leaf,
 					   struct cacheinfo *sib_leaf)
 {
 	/*
-	 * For non-DT/ACPI systems, assume unique level 1 caches, system-wide
+	 * For yesn-DT/ACPI systems, assume unique level 1 caches, system-wide
 	 * shared caches for all other levels. This will be used only if
-	 * arch specific code has not populated shared_cpu_map
+	 * arch specific code has yest populated shared_cpu_map
 	 */
 	return !(this_leaf->level == 1);
 }
@@ -226,7 +226,7 @@ static int cache_shared_cpu_map_setup(unsigned int cpu)
 		return 0;
 
 	if (of_have_populated_dt())
-		ret = cache_setup_of_node(cpu);
+		ret = cache_setup_of_yesde(cpu);
 	else if (!acpi_disabled)
 		ret = cache_setup_acpi(cpu);
 
@@ -246,7 +246,7 @@ static int cache_shared_cpu_map_setup(unsigned int cpu)
 			struct cpu_cacheinfo *sib_cpu_ci = get_cpu_cacheinfo(i);
 
 			if (i == cpu || !sib_cpu_ci->info_list)
-				continue;/* skip if itself or no cacheinfo */
+				continue;/* skip if itself or yes cacheinfo */
 			sib_leaf = sib_cpu_ci->info_list + index;
 			if (cache_leaves_are_shared(this_leaf, sib_leaf)) {
 				cpumask_set_cpu(cpu, &sib_leaf->shared_cpu_map);
@@ -284,7 +284,7 @@ static void cache_shared_cpu_map_remove(unsigned int cpu)
 			cpumask_clear_cpu(sibling, &this_leaf->shared_cpu_map);
 		}
 		if (of_have_populated_dt())
-			of_node_put(this_leaf->fw_token);
+			of_yesde_put(this_leaf->fw_token);
 	}
 }
 
@@ -331,7 +331,7 @@ static int detect_cache_attributes(unsigned int cpu)
 	/*
 	 * For systems using DT for cache hierarchy, fw_token
 	 * and shared_cpu_map will be set up here only if they are
-	 * not populated already
+	 * yest populated already
 	 */
 	ret = cache_shared_cpu_map_setup(cpu);
 	if (ret) {

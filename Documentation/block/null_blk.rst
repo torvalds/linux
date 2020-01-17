@@ -9,7 +9,7 @@ Overview
 
 The null block device (``/dev/nullb*``) is used for benchmarking the various
 block-layer implementations. It emulates a block device of X gigabytes in size.
-It does not execute any read/write operation, just mark them as complete in
+It does yest execute any read/write operation, just mark them as complete in
 the request queue. The following instances are possible:
 
   Multi-queue block-layer
@@ -17,7 +17,7 @@ the request queue. The following instances are possible:
     - Request-based.
     - Configurable submission queues per device.
 
-  No block-layer (Known as bio-based)
+  No block-layer (Kyeswn as bio-based)
 
     - Bio-based. IO requests are submitted directly to the device driver.
     - Directly accepts bio data structure and returns them.
@@ -36,8 +36,8 @@ queue_mode=[0-2]: Default: 2-Multi-queue
   2  Multi-queue
   =  ============
 
-home_node=[0--nr_nodes]: Default: NUMA_NO_NODE
-  Selects what CPU node the data structures are allocated from.
+home_yesde=[0--nr_yesdes]: Default: NUMA_NO_NODE
+  Selects what CPU yesde the data structures are allocated from.
 
 gb=[Size in GB]: Default: 250GB
   The size of the device reported to the system.
@@ -54,8 +54,8 @@ irqmode=[0-2]: Default: 1-Soft-irq
 
   =  ===========================================================================
   0  None.
-  1  Soft-irq. Uses IPI to complete IOs across CPU nodes. Simulates the overhead
-     when IOs are issued from another CPU node than the home the device is
+  1  Soft-irq. Uses IPI to complete IOs across CPU yesdes. Simulates the overhead
+     when IOs are issued from ayesther CPU yesde than the home the device is
      connected to.
   2  Timer: Waits a specific period (completion_nsec) for each IO before
      completion.
@@ -66,7 +66,7 @@ completion_nsec=[ns]: Default: 10,000ns
 
 submit_queues=[1..nr_cpus]: Default: 1
   The number of submission queues attached to the device driver. If unset, it
-  defaults to 1. For multi-queue, it is ignored when use_per_node_hctx module
+  defaults to 1. For multi-queue, it is igyesred when use_per_yesde_hctx module
   parameter is 1.
 
 hw_queue_depth=[0..qdepth]: Default: 64
@@ -75,17 +75,17 @@ hw_queue_depth=[0..qdepth]: Default: 64
 Multi-queue specific parameters
 -------------------------------
 
-use_per_node_hctx=[0/1]: Default: 0
+use_per_yesde_hctx=[0/1]: Default: 0
   Number of hardware context queues.
 
   =  =====================================================================
   0  The number of submit queues are set to the value of the submit_queues
      parameter.
   1  The multi-queue block layer is instantiated with a hardware dispatch
-     queue for each CPU node in the system.
+     queue for each CPU yesde in the system.
   =  =====================================================================
 
-no_sched=[0/1]: Default: 0
+yes_sched=[0/1]: Default: 0
   Enable/disable the io scheduler.
 
   =  ======================================
@@ -97,7 +97,7 @@ blocking=[0/1]: Default: 0
   Blocking behavior of the request queue.
 
   =  ===============================================================
-  0  Register as a non-blocking blk-mq driver device.
+  0  Register as a yesn-blocking blk-mq driver device.
   1  Register as a blocking blk-mq driver device, null_blk will set
      the BLK_MQ_F_BLOCKING flag, indicating that it sometimes/always
      needs to block in its ->queue_rq() function.
@@ -107,9 +107,9 @@ shared_tags=[0/1]: Default: 0
   Sharing tags between devices.
 
   =  ================================================================
-  0  Tag set is not shared.
+  0  Tag set is yest shared.
   1  Tag set shared between devices for blk-mq. Only makes sense with
-     nr_devices > 1, otherwise there's no tag set to share.
+     nr_devices > 1, otherwise there's yes tag set to share.
   =  ================================================================
 
 zoned=[0/1]: Default: 0

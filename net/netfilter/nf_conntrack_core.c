@@ -26,7 +26,7 @@
 #include <linux/err.h>
 #include <linux/percpu.h>
 #include <linux/moduleparam.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/socket.h>
@@ -165,7 +165,7 @@ static void nf_conntrack_all_unlock(void)
 {
 	/* All prior stores must be complete before we clear
 	 * 'nf_conntrack_locks_all'. Otherwise nf_conntrack_lock()
-	 * might observe the false value but not the entire
+	 * might observe the false value but yest the entire
 	 * critical section.
 	 * It pairs with the smp_load_acquire() in nf_conntrack_lock()
 	 */
@@ -189,7 +189,7 @@ static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple,
 
 	get_random_once(&nf_conntrack_hash_rnd, sizeof(nf_conntrack_hash_rnd));
 
-	/* The direction must be ignored, so we hash everything up to the
+	/* The direction must be igyesred, so we hash everything up to the
 	 * destination ports (which is a multiple of 4) and treat the last
 	 * three bytes manually.
 	 */
@@ -361,7 +361,7 @@ static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 	}
 	protoff = ipv6_skip_exthdr(skb, extoff, &nexthdr, &frag_off);
 	/*
-	 * (protoff == skb->len) means the packet has not data, just
+	 * (protoff == skb->len) means the packet has yest data, just
 	 * IPv6 and possibly extensions headers, but it is tracked anyway
 	 */
 	if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
@@ -451,11 +451,11 @@ EXPORT_SYMBOL_GPL(nf_ct_invert_tuple);
  * intentionally doesn't re-use any of the seeds used for hash
  * table location, we assume id gets exposed to userspace.
  *
- * Following nf_conn items do not change throughout lifetime
+ * Following nf_conn items do yest change throughout lifetime
  * of the nf_conn:
  *
  * 1. nf_conn address
- * 2. nf_conn->master address (normally NULL)
+ * 2. nf_conn->master address (yesrmally NULL)
  * 3. the associated net namespace
  * 4. the original direction tuple
  */
@@ -484,8 +484,8 @@ static void
 clean_from_lists(struct nf_conn *ct)
 {
 	pr_debug("clean_from_lists(%p)\n", ct);
-	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode);
-	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_REPLY].hnnode);
+	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnyesde);
+	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_REPLY].hnyesde);
 
 	/* Destroy all pending expectations */
 	nf_ct_remove_expectations(ct);
@@ -501,7 +501,7 @@ static void nf_ct_add_to_dying_list(struct nf_conn *ct)
 	pcpu = per_cpu_ptr(nf_ct_net(ct)->ct.pcpu_lists, ct->cpu);
 
 	spin_lock(&pcpu->lock);
-	hlist_nulls_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
+	hlist_nulls_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnyesde,
 			     &pcpu->dying);
 	spin_unlock(&pcpu->lock);
 }
@@ -516,7 +516,7 @@ static void nf_ct_add_to_unconfirmed_list(struct nf_conn *ct)
 	pcpu = per_cpu_ptr(nf_ct_net(ct)->ct.pcpu_lists, ct->cpu);
 
 	spin_lock(&pcpu->lock);
-	hlist_nulls_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
+	hlist_nulls_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnyesde,
 			     &pcpu->unconfirmed);
 	spin_unlock(&pcpu->lock);
 }
@@ -530,8 +530,8 @@ static void nf_ct_del_from_dying_or_unconfirmed_list(struct nf_conn *ct)
 	pcpu = per_cpu_ptr(nf_ct_net(ct)->ct.pcpu_lists, ct->cpu);
 
 	spin_lock(&pcpu->lock);
-	BUG_ON(hlist_nulls_unhashed(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode));
-	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode);
+	BUG_ON(hlist_nulls_unhashed(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnyesde));
+	hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnyesde);
 	spin_unlock(&pcpu->lock);
 }
 
@@ -664,7 +664,7 @@ bool nf_ct_delete(struct nf_conn *ct, u32 portid, int report)
 
 	if (nf_conntrack_event_report(IPCT_DESTROY, ct,
 				    portid, report) < 0) {
-		/* destroy event was not delivered. nf_ct_put will
+		/* destroy event was yest delivered. nf_ct_put will
 		 * be done by event cache worker on redelivery.
 		 */
 		nf_ct_delete_from_lists(ct);
@@ -708,10 +708,10 @@ nf_ct_match(const struct nf_conn *ct1, const struct nf_conn *ct2)
 	       net_eq(nf_ct_net(ct1), nf_ct_net(ct2));
 }
 
-/* caller must hold rcu readlock and none of the nf_conntrack_locks */
+/* caller must hold rcu readlock and yesne of the nf_conntrack_locks */
 static void nf_ct_gc_expired(struct nf_conn *ct)
 {
-	if (!atomic_inc_not_zero(&ct->ct_general.use))
+	if (!atomic_inc_yest_zero(&ct->ct_general.use))
 		return;
 
 	if (nf_ct_should_gc(ct))
@@ -731,14 +731,14 @@ ____nf_conntrack_find(struct net *net, const struct nf_conntrack_zone *zone,
 {
 	struct nf_conntrack_tuple_hash *h;
 	struct hlist_nulls_head *ct_hash;
-	struct hlist_nulls_node *n;
+	struct hlist_nulls_yesde *n;
 	unsigned int bucket, hsize;
 
 begin:
 	nf_conntrack_get_ht(&ct_hash, &hsize);
 	bucket = reciprocal_scale(hash, hsize);
 
-	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[bucket], hnnode) {
+	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[bucket], hnyesde) {
 		struct nf_conn *ct;
 
 		ct = nf_ct_tuplehash_to_ctrack(h);
@@ -752,8 +752,8 @@ begin:
 	}
 	/*
 	 * if the nulls value we got at the end of this lookup is
-	 * not the expected one, we must restart lookup.
-	 * We probably met an item that was moved to another chain.
+	 * yest the expected one, we must restart lookup.
+	 * We probably met an item that was moved to ayesther chain.
 	 */
 	if (get_nulls_value(n) != bucket) {
 		NF_CT_STAT_INC_ATOMIC(net, search_restart);
@@ -779,7 +779,7 @@ __nf_conntrack_find_get(struct net *net, const struct nf_conntrack_zone *zone,
 		 * in, try to obtain a reference and re-check tuple
 		 */
 		ct = nf_ct_tuplehash_to_ctrack(h);
-		if (likely(atomic_inc_not_zero(&ct->ct_general.use))) {
+		if (likely(atomic_inc_yest_zero(&ct->ct_general.use))) {
 			if (likely(nf_ct_key_equal(h, tuple, zone, net)))
 				goto found;
 
@@ -808,9 +808,9 @@ static void __nf_conntrack_hash_insert(struct nf_conn *ct,
 				       unsigned int hash,
 				       unsigned int reply_hash)
 {
-	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode,
+	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnyesde,
 			   &nf_conntrack_hash[hash]);
-	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_REPLY].hnnode,
+	hlist_nulls_add_head_rcu(&ct->tuplehash[IP_CT_DIR_REPLY].hnyesde,
 			   &nf_conntrack_hash[reply_hash]);
 }
 
@@ -821,7 +821,7 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	struct net *net = nf_ct_net(ct);
 	unsigned int hash, reply_hash;
 	struct nf_conntrack_tuple_hash *h;
-	struct hlist_nulls_node *n;
+	struct hlist_nulls_yesde *n;
 	unsigned int sequence;
 
 	zone = nf_ct_zone(ct);
@@ -836,12 +836,12 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 	} while (nf_conntrack_double_lock(net, hash, reply_hash, sequence));
 
 	/* See if there's one in the list already, including reverse */
-	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[hash], hnnode)
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[hash], hnyesde)
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 				    zone, net))
 			goto out;
 
-	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[reply_hash], hnnode)
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[reply_hash], hnyesde)
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 				    zone, net))
 			goto out;
@@ -895,7 +895,7 @@ static void nf_ct_acct_merge(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 }
 
 /* Resolve race on insertion if this protocol allows this. */
-static __cold noinline int
+static __cold yesinline int
 nf_ct_resolve_clash(struct net *net, struct sk_buff *skb,
 		    enum ip_conntrack_info ctinfo,
 		    struct nf_conntrack_tuple_hash *h)
@@ -909,7 +909,7 @@ nf_ct_resolve_clash(struct net *net, struct sk_buff *skb,
 	l4proto = nf_ct_l4proto_find(nf_ct_protonum(ct));
 	if (l4proto->allow_clash &&
 	    !nf_ct_is_dying(ct) &&
-	    atomic_inc_not_zero(&ct->ct_general.use)) {
+	    atomic_inc_yest_zero(&ct->ct_general.use)) {
 		if (((ct->status & IPS_NAT_DONE_MASK) == 0) ||
 		    nf_ct_match(ct, loser_ct)) {
 			nf_ct_acct_merge(ct, ctinfo, loser_ct);
@@ -933,7 +933,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	struct nf_conn *ct;
 	struct nf_conn_help *help;
 	struct nf_conn_tstamp *tstamp;
-	struct hlist_nulls_node *n;
+	struct hlist_nulls_yesde *n;
 	enum ip_conntrack_info ctinfo;
 	struct net *net;
 	unsigned int sequence;
@@ -955,19 +955,19 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	do {
 		sequence = read_seqcount_begin(&nf_conntrack_generation);
 		/* reuse the hash saved before */
-		hash = *(unsigned long *)&ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev;
+		hash = *(unsigned long *)&ct->tuplehash[IP_CT_DIR_REPLY].hnyesde.pprev;
 		hash = scale_hash(hash);
 		reply_hash = hash_conntrack(net,
 					   &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
 	} while (nf_conntrack_double_lock(net, hash, reply_hash, sequence));
 
-	/* We're not in hash table, and we refuse to set up related
+	/* We're yest in hash table, and we refuse to set up related
 	 * connections for unconfirmed conns.  But packet copies and
 	 * REJECT will give spurious warnings here.
 	 */
 
-	/* Another skb with the same unconfirmed conntrack may
+	/* Ayesther skb with the same unconfirmed conntrack may
 	 * win the race. This may happen for bridge(br_flood)
 	 * or broadcast/multicast packets do skb_clone with
 	 * unconfirmed conntrack.
@@ -994,18 +994,18 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 
 	/* See if there's one in the list already, including reverse:
 	   NAT could have grabbed it without realizing, since we're
-	   not in the hash.  If there is, we lost race. */
-	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[hash], hnnode)
+	   yest in the hash.  If there is, we lost race. */
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[hash], hnyesde)
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 				    zone, net))
 			goto out;
 
-	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[reply_hash], hnnode)
+	hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[reply_hash], hnyesde)
 		if (nf_ct_key_equal(h, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 				    zone, net))
 			goto out;
 
-	/* Timer relative to confirmation time, not original
+	/* Timer relative to confirmation time, yest original
 	   setting time, otherwise we'd get timer wrap in
 	   weird delay cases. */
 	ct->timeout += nfct_time_stamp;
@@ -1019,7 +1019,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 
 	/* Since the lookup is lockless, hash insertion must be done after
 	 * starting the timer and setting the CONFIRMED bit. The RCU barriers
-	 * guarantee that no other CPU can find the conntrack before the above
+	 * guarantee that yes other CPU can find the conntrack before the above
 	 * stores are visible.
 	 */
 	__nf_conntrack_hash_insert(ct, hash, reply_hash);
@@ -1049,27 +1049,27 @@ EXPORT_SYMBOL_GPL(__nf_conntrack_confirm);
    for NAT). */
 int
 nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
-			 const struct nf_conn *ignored_conntrack)
+			 const struct nf_conn *igyesred_conntrack)
 {
-	struct net *net = nf_ct_net(ignored_conntrack);
+	struct net *net = nf_ct_net(igyesred_conntrack);
 	const struct nf_conntrack_zone *zone;
 	struct nf_conntrack_tuple_hash *h;
 	struct hlist_nulls_head *ct_hash;
 	unsigned int hash, hsize;
-	struct hlist_nulls_node *n;
+	struct hlist_nulls_yesde *n;
 	struct nf_conn *ct;
 
-	zone = nf_ct_zone(ignored_conntrack);
+	zone = nf_ct_zone(igyesred_conntrack);
 
 	rcu_read_lock();
  begin:
 	nf_conntrack_get_ht(&ct_hash, &hsize);
 	hash = __hash_conntrack(net, tuple, hsize);
 
-	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[hash], hnnode) {
+	hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[hash], hnyesde) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
 
-		if (ct == ignored_conntrack)
+		if (ct == igyesred_conntrack)
 			continue;
 
 		if (nf_ct_is_expired(ct)) {
@@ -1090,7 +1090,7 @@ nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 			 *
 			 * Let nf_ct_resolve_clash() deal with this later.
 			 */
-			if (nf_ct_tuple_equal(&ignored_conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+			if (nf_ct_tuple_equal(&igyesred_conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 					      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple))
 				continue;
 
@@ -1119,11 +1119,11 @@ static unsigned int early_drop_list(struct net *net,
 				    struct hlist_nulls_head *head)
 {
 	struct nf_conntrack_tuple_hash *h;
-	struct hlist_nulls_node *n;
+	struct hlist_nulls_yesde *n;
 	unsigned int drops = 0;
 	struct nf_conn *tmp;
 
-	hlist_nulls_for_each_entry_rcu(h, n, head, hnnode) {
+	hlist_nulls_for_each_entry_rcu(h, n, head, hnyesde) {
 		tmp = nf_ct_tuplehash_to_ctrack(h);
 
 		if (test_bit(IPS_OFFLOAD_BIT, &tmp->status))
@@ -1139,7 +1139,7 @@ static unsigned int early_drop_list(struct net *net,
 		    nf_ct_is_dying(tmp))
 			continue;
 
-		if (!atomic_inc_not_zero(&tmp->ct_general.use))
+		if (!atomic_inc_yest_zero(&tmp->ct_general.use))
 			continue;
 
 		/* kill only if still in same netns -- might have moved due to
@@ -1160,7 +1160,7 @@ static unsigned int early_drop_list(struct net *net,
 	return drops;
 }
 
-static noinline int early_drop(struct net *net, unsigned int hash)
+static yesinline int early_drop(struct net *net, unsigned int hash)
 {
 	unsigned int i, bucket;
 
@@ -1208,7 +1208,7 @@ static bool gc_worker_can_early_drop(const struct nf_conn *ct)
 
 #define	DAY	(86400 * HZ)
 
-/* Set an arbitrary timeout large enough not to ever expire, this save
+/* Set an arbitrary timeout large eyesugh yest to ever expire, this save
  * us a check for the IPS_OFFLOAD_BIT from the packet path via
  * nf_ct_is_expired().
  */
@@ -1237,7 +1237,7 @@ static void gc_worker(struct work_struct *work)
 	do {
 		struct nf_conntrack_tuple_hash *h;
 		struct hlist_nulls_head *ct_hash;
-		struct hlist_nulls_node *n;
+		struct hlist_nulls_yesde *n;
 		unsigned int hashsz;
 		struct nf_conn *tmp;
 
@@ -1248,7 +1248,7 @@ static void gc_worker(struct work_struct *work)
 		if (i >= hashsz)
 			i = 0;
 
-		hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[i], hnnode) {
+		hlist_nulls_for_each_entry_rcu(h, n, &ct_hash[i], hnyesde) {
 			struct net *net;
 
 			tmp = nf_ct_tuplehash_to_ctrack(h);
@@ -1273,7 +1273,7 @@ static void gc_worker(struct work_struct *work)
 				continue;
 
 			/* need to take reference to avoid possible races */
-			if (!atomic_inc_not_zero(&tmp->ct_general.use))
+			if (!atomic_inc_yest_zero(&tmp->ct_general.use))
 				continue;
 
 			if (gc_worker_skip_ct(tmp)) {
@@ -1288,7 +1288,7 @@ static void gc_worker(struct work_struct *work)
 		}
 
 		/* could check get_nulls_value() here and restart if ct
-		 * was moved to another chain.  But given gc is best-effort
+		 * was moved to ayesther chain.  But given gc is best-effort
 		 * we will just continue with next hash slot.
 		 */
 		rcu_read_unlock();
@@ -1299,7 +1299,7 @@ static void gc_worker(struct work_struct *work)
 		return;
 
 	/*
-	 * Eviction will normally happen from the packet path, and not
+	 * Eviction will yesrmally happen from the packet path, and yest
 	 * from this gc worker.
 	 *
 	 * This worker is only here to reap expired entries when system went
@@ -1307,8 +1307,8 @@ static void gc_worker(struct work_struct *work)
 	 *
 	 * The heuristics below are supposed to balance conflicting goals:
 	 *
-	 * 1. Minimize time until we notice a stale entry
-	 * 2. Maximize scan intervals to not waste cycles
+	 * 1. Minimize time until we yestice a stale entry
+	 * 2. Maximize scan intervals to yest waste cycles
 	 *
 	 * Normally, expire ratio will be close to 0.
 	 *
@@ -1365,7 +1365,7 @@ __nf_conntrack_alloc(struct net *net,
 	}
 
 	/*
-	 * Do not use kmem_cache_zalloc(), as this cache uses
+	 * Do yest use kmem_cache_zalloc(), as this cache uses
 	 * SLAB_TYPESAFE_BY_RCU.
 	 */
 	ct = kmem_cache_alloc(nf_conntrack_cachep, gfp);
@@ -1374,10 +1374,10 @@ __nf_conntrack_alloc(struct net *net,
 
 	spin_lock_init(&ct->lock);
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
-	ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode.pprev = NULL;
+	ct->tuplehash[IP_CT_DIR_ORIGINAL].hnyesde.pprev = NULL;
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *repl;
 	/* save hash for reusing when confirming */
-	*(unsigned long *)(&ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev) = hash;
+	*(unsigned long *)(&ct->tuplehash[IP_CT_DIR_REPLY].hnyesde.pprev) = hash;
 	ct->status = 0;
 	ct->timeout = 0;
 	write_pnet(&ct->ct_net, net);
@@ -1426,7 +1426,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_free);
 
 /* Allocate a new conntrack: we return -ENOMEM if classification
    failed due to stress.  Otherwise it really is unclassifiable. */
-static noinline struct nf_conntrack_tuple_hash *
+static yesinline struct nf_conntrack_tuple_hash *
 init_conntrack(struct net *net, struct nf_conn *tmpl,
 	       const struct nf_conntrack_tuple *tuple,
 	       struct sk_buff *skb,
@@ -1519,7 +1519,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 
 /* On success, returns 0, sets skb->_nfct | ctinfo */
 static int
-resolve_normal_ct(struct nf_conn *tmpl,
+resolve_yesrmal_ct(struct nf_conn *tmpl,
 		  struct sk_buff *skb,
 		  unsigned int dataoff,
 		  u_int8_t protonum,
@@ -1554,13 +1554,13 @@ resolve_normal_ct(struct nf_conn *tmpl,
 	}
 	ct = nf_ct_tuplehash_to_ctrack(h);
 
-	/* It exists; we have (non-exclusive) reference. */
+	/* It exists; we have (yesn-exclusive) reference. */
 	if (NF_CT_DIRECTION(h) == IP_CT_DIR_REPLY) {
 		ctinfo = IP_CT_ESTABLISHED_REPLY;
 	} else {
 		/* Once we've had two way comms, always ESTABLISHED. */
 		if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
-			pr_debug("normal packet for %p\n", ct);
+			pr_debug("yesrmal packet for %p\n", ct);
 			ctinfo = IP_CT_ESTABLISHED;
 		} else if (test_bit(IPS_EXPECTED_BIT, &ct->status)) {
 			pr_debug("related packet for %p\n", ct);
@@ -1579,7 +1579,7 @@ resolve_normal_ct(struct nf_conn *tmpl,
  * related to a connection.
  *
  * Callers need to check if skb has a conntrack assigned when this
- * helper returns; in such case skb belongs to an already known connection.
+ * helper returns; in such case skb belongs to an already kyeswn connection.
  */
 static unsigned int __cold
 nf_conntrack_handle_icmp(struct nf_conn *tmpl,
@@ -1674,10 +1674,10 @@ nf_conntrack_in(struct sk_buff *skb, const struct nf_hook_state *state)
 
 	tmpl = nf_ct_get(skb, &ctinfo);
 	if (tmpl || ctinfo == IP_CT_UNTRACKED) {
-		/* Previously seen (loopback or untracked)?  Ignore. */
+		/* Previously seen (loopback or untracked)?  Igyesre. */
 		if ((tmpl && !nf_ct_is_template(tmpl)) ||
 		     ctinfo == IP_CT_UNTRACKED) {
-			NF_CT_STAT_INC_ATOMIC(state->net, ignore);
+			NF_CT_STAT_INC_ATOMIC(state->net, igyesre);
 			return NF_ACCEPT;
 		}
 		skb->_nfct = 0;
@@ -1686,7 +1686,7 @@ nf_conntrack_in(struct sk_buff *skb, const struct nf_hook_state *state)
 	/* rcu_read_lock()ed by nf_hook_thresh */
 	dataoff = get_l4proto(skb, skb_network_offset(skb), state->pf, &protonum);
 	if (dataoff <= 0) {
-		pr_debug("not prepared to track yet or error occurred\n");
+		pr_debug("yest prepared to track yet or error occurred\n");
 		NF_CT_STAT_INC_ATOMIC(state->net, error);
 		NF_CT_STAT_INC_ATOMIC(state->net, invalid);
 		ret = NF_ACCEPT;
@@ -1705,7 +1705,7 @@ nf_conntrack_in(struct sk_buff *skb, const struct nf_hook_state *state)
 			goto out;
 	}
 repeat:
-	ret = resolve_normal_ct(tmpl, skb, dataoff,
+	ret = resolve_yesrmal_ct(tmpl, skb, dataoff,
 				protonum, state);
 	if (ret < 0) {
 		/* Too stressed to deal. */
@@ -1760,7 +1760,7 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 {
 	struct nf_conn_help *help = nfct_help(ct);
 
-	/* Should be unconfirmed, so not in hash table yet */
+	/* Should be unconfirmed, so yest in hash table yet */
 	WARN_ON(nf_ct_is_confirmed(ct));
 
 	pr_debug("Altering reply tuple of %p to ", ct);
@@ -1783,11 +1783,11 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 			  u32 extra_jiffies,
 			  bool do_acct)
 {
-	/* Only update if this is not a fixed timeout */
+	/* Only update if this is yest a fixed timeout */
 	if (test_bit(IPS_FIXED_TIMEOUT_BIT, &ct->status))
 		goto acct;
 
-	/* If not in hash table, timer will not be active yet */
+	/* If yest in hash table, timer will yest be active yet */
 	if (nf_ct_is_confirmed(ct))
 		extra_jiffies += nfct_time_stamp;
 
@@ -1992,7 +1992,7 @@ get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 {
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
-	struct hlist_nulls_node *n;
+	struct hlist_nulls_yesde *n;
 	spinlock_t *lockp;
 
 	for (; *bucket < nf_conntrack_htable_size; (*bucket)++) {
@@ -2000,7 +2000,7 @@ get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 		local_bh_disable();
 		nf_conntrack_lock(lockp);
 		if (*bucket < nf_conntrack_htable_size) {
-			hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[*bucket], hnnode) {
+			hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[*bucket], hnyesde) {
 				if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 					continue;
 				ct = nf_ct_tuplehash_to_ctrack(h);
@@ -2069,18 +2069,18 @@ __nf_ct_unconfirmed_destroy(struct net *net)
 
 	for_each_possible_cpu(cpu) {
 		struct nf_conntrack_tuple_hash *h;
-		struct hlist_nulls_node *n;
+		struct hlist_nulls_yesde *n;
 		struct ct_pcpu *pcpu;
 
 		pcpu = per_cpu_ptr(net->ct.pcpu_lists, cpu);
 
 		spin_lock_bh(&pcpu->lock);
-		hlist_nulls_for_each_entry(h, n, &pcpu->unconfirmed, hnnode) {
+		hlist_nulls_for_each_entry(h, n, &pcpu->unconfirmed, hnyesde) {
 			struct nf_conn *ct;
 
 			ct = nf_ct_tuplehash_to_ctrack(h);
 
-			/* we cannot call iter() on unconfirmed list, the
+			/* we canyest call iter() on unconfirmed list, the
 			 * owning cpu can reallocate ct->ext at any time.
 			 */
 			set_bit(IPS_DYING_BIT, &ct->status);
@@ -2127,7 +2127,7 @@ EXPORT_SYMBOL_GPL(nf_ct_iterate_cleanup_net);
  * @data: data to pass to @iter
  *
  * Like nf_ct_iterate_cleanup, but first marks conntracks on the
- * unconfirmed list as dying (so they will not be inserted into
+ * unconfirmed list as dying (so they will yest be inserted into
  * main table).
  *
  * Can only be called in module exit path.
@@ -2149,7 +2149,7 @@ nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
 	/* Need to wait for netns cleanup worker to finish, if its
 	 * running -- it might have deleted a net namespace from
 	 * the global list, so our __nf_ct_unconfirmed_destroy() might
-	 * not have affected all namespaces.
+	 * yest have affected all namespaces.
 	 */
 	net_ns_barrier();
 
@@ -2293,12 +2293,12 @@ int nf_conntrack_hash_resize(unsigned int hashsize)
 	for (i = 0; i < nf_conntrack_htable_size; i++) {
 		while (!hlist_nulls_empty(&nf_conntrack_hash[i])) {
 			h = hlist_nulls_entry(nf_conntrack_hash[i].first,
-					      struct nf_conntrack_tuple_hash, hnnode);
+					      struct nf_conntrack_tuple_hash, hnyesde);
 			ct = nf_ct_tuplehash_to_ctrack(h);
-			hlist_nulls_del_rcu(&h->hnnode);
+			hlist_nulls_del_rcu(&h->hnyesde);
 			bucket = __hash_conntrack(nf_ct_net(ct),
 						  &h->tuple, hashsize);
-			hlist_nulls_add_head_rcu(&h->hnnode, &hash[bucket]);
+			hlist_nulls_add_head_rcu(&h->hnyesde, &hash[bucket]);
 		}
 	}
 	old_size = nf_conntrack_htable_size;
@@ -2495,7 +2495,7 @@ void nf_conntrack_init_end(void)
 }
 
 /*
- * We need to use special "null" values, not used in hash table
+ * We need to use special "null" values, yest used in hash table
  */
 #define UNCONFIRMED_NULLS_VAL	((1<<30)+0)
 #define DYING_NULLS_VAL		((1<<30)+1)

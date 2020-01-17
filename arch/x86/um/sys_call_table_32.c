@@ -17,7 +17,7 @@
  * and the UML syscall table.
  */
 
-/* Not going to be implemented by UML, since we have no hardware. */
+/* Not going to be implemented by UML, since we have yes hardware. */
 #define sys_iopl sys_ni_syscall
 #define sys_ioperm sys_ni_syscall
 

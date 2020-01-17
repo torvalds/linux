@@ -41,7 +41,7 @@ extern const struct net_device_ops qtnf_netdev_ops;
 struct qtnf_bus;
 struct qtnf_vif;
 
-struct qtnf_sta_node {
+struct qtnf_sta_yesde {
 	struct list_head list;
 	u8 mac_addr[ETH_ALEN];
 };
@@ -100,7 +100,7 @@ struct qtnf_chan_stats {
 	u32 cca_rx;
 	u32 cca_busy;
 	u32 cca_try;
-	s8 chan_noise;
+	s8 chan_yesise;
 };
 
 struct qtnf_wmac {

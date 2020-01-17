@@ -9,7 +9,7 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_da_format.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_attr.h"
 #include "xfs_acl.h"
 
@@ -19,10 +19,10 @@
 
 static int
 xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
-		struct inode *inode, const char *name, void *value, size_t size)
+		struct iyesde *iyesde, const char *name, void *value, size_t size)
 {
 	int xflags = handler->flags;
-	struct xfs_inode *ip = XFS_I(inode);
+	struct xfs_iyesde *ip = XFS_I(iyesde);
 	int error, asize = size;
 
 	/* Convert Linux syscall to XFS internal ATTR flags */
@@ -39,7 +39,7 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 
 void
 xfs_forget_acl(
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	const char		*name,
 	int			xflags)
 {
@@ -52,20 +52,20 @@ xfs_forget_acl(
 	if (xflags & ATTR_ROOT) {
 #ifdef CONFIG_XFS_POSIX_ACL
 		if (!strcmp(name, SGI_ACL_FILE))
-			forget_cached_acl(inode, ACL_TYPE_ACCESS);
+			forget_cached_acl(iyesde, ACL_TYPE_ACCESS);
 		else if (!strcmp(name, SGI_ACL_DEFAULT))
-			forget_cached_acl(inode, ACL_TYPE_DEFAULT);
+			forget_cached_acl(iyesde, ACL_TYPE_DEFAULT);
 #endif
 	}
 }
 
 static int
 xfs_xattr_set(const struct xattr_handler *handler, struct dentry *unused,
-		struct inode *inode, const char *name, const void *value,
+		struct iyesde *iyesde, const char *name, const void *value,
 		size_t size, int flags)
 {
 	int			xflags = handler->flags;
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	int			error;
 
 	/* Convert Linux syscall to XFS internal ATTR flags */
@@ -79,14 +79,14 @@ xfs_xattr_set(const struct xattr_handler *handler, struct dentry *unused,
 	error = xfs_attr_set(ip, (unsigned char *)name,
 				(void *)value, size, xflags);
 	if (!error)
-		xfs_forget_acl(inode, name, xflags);
+		xfs_forget_acl(iyesde, name, xflags);
 
 	return error;
 }
 
 static const struct xattr_handler xfs_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
-	.flags	= 0, /* no flags implies user namespace */
+	.flags	= 0, /* yes flags implies user namespace */
 	.get	= xfs_xattr_get,
 	.set	= xfs_xattr_set,
 };
@@ -127,7 +127,7 @@ __xfs_xattr_put_listent(
 	char *offset;
 	int arraytop;
 
-	if (context->count < 0 || context->seen_enough)
+	if (context->count < 0 || context->seen_eyesugh)
 		return;
 
 	if (!context->alist)
@@ -136,7 +136,7 @@ __xfs_xattr_put_listent(
 	arraytop = context->count + prefix_len + namelen + 1;
 	if (arraytop > context->firstu) {
 		context->count = -1;	/* insufficient space */
-		context->seen_enough = 1;
+		context->seen_eyesugh = 1;
 		return;
 	}
 	offset = (char *)context->alist + context->count;
@@ -215,14 +215,14 @@ xfs_vn_listxattr(
 {
 	struct xfs_attr_list_context context;
 	struct attrlist_cursor_kern cursor = { 0 };
-	struct inode	*inode = d_inode(dentry);
+	struct iyesde	*iyesde = d_iyesde(dentry);
 	int		error;
 
 	/*
 	 * First read the regular on-disk attributes.
 	 */
 	memset(&context, 0, sizeof(context));
-	context.dp = XFS_I(inode);
+	context.dp = XFS_I(iyesde);
 	context.cursor = &cursor;
 	context.resynch = 1;
 	context.alist = size ? data : NULL;

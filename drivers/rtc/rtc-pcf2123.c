@@ -11,7 +11,7 @@
  * Thanks to Christian Pellegrin <chripell@fsfe.org> for
  * the sysfs contributions to this driver.
  *
- * Please note that the CS is active high, so platform data
+ * Please yeste that the CS is active high, so platform data
  * should look something like:
  *
  * static struct spi_board_info ek_spi_devices[] = {
@@ -31,7 +31,7 @@
 #include <linux/bcd.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -139,11 +139,11 @@ static int pcf2123_read_offset(struct device *dev, long *offset)
 
 /*
  * The offset register is a 7 bit signed value with a coarse bit in bit 7.
- * The main difference between the two is normal offset adjusts the first
+ * The main difference between the two is yesrmal offset adjusts the first
  * second of n minutes every other hour, with 61, 62 and 63 being shoved
  * into the 60th minute.
  * The coarse adjustment does the same, but every hour.
- * the two overlap, with every even normal offset value corresponding
+ * the two overlap, with every even yesrmal offset value corresponding
  * to a coarse offset. Based on this algorithm, it seems that despite the
  * name, coarse offset is a better fit for overlapping values.
  */
@@ -159,7 +159,7 @@ static int pcf2123_set_offset(struct device *dev, long offset)
 	else
 		reg = DIV_ROUND_CLOSEST(offset, OFFSET_STEP);
 
-	/* choose fine offset only for odd values in the normal range */
+	/* choose fine offset only for odd values in the yesrmal range */
 	if (reg & 1 && reg <= 63 && reg >= -64) {
 		/* Normal offset. Clear the coarse bit */
 		reg &= ~OFFSET_COARSE;
@@ -184,7 +184,7 @@ static int pcf2123_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 
 	if (rxbuf[0] & OSC_HAS_STOPPED) {
-		dev_info(dev, "clock was stopped. Time is not valid\n");
+		dev_info(dev, "clock was stopped. Time is yest valid\n");
 		return -EINVAL;
 	}
 
@@ -397,7 +397,7 @@ static int pcf2123_probe(struct spi_device *spi)
 	if (ret < 0) {
 		ret = pcf2123_reset(&spi->dev);
 		if (ret < 0) {
-			dev_err(&spi->dev, "chip not found\n");
+			dev_err(&spi->dev, "chip yest found\n");
 			return ret;
 		}
 	}
@@ -421,7 +421,7 @@ static int pcf2123_probe(struct spi_device *spi)
 		if (!ret)
 			device_init_wakeup(&spi->dev, true);
 		else
-			dev_err(&spi->dev, "could not request irq.\n");
+			dev_err(&spi->dev, "could yest request irq.\n");
 	}
 
 	/* The PCF2123's alarm only has minute accuracy. Must add timer
@@ -445,7 +445,7 @@ static int pcf2123_probe(struct spi_device *spi)
 static const struct of_device_id pcf2123_dt_ids[] = {
 	{ .compatible = "nxp,pcf2123", },
 	{ .compatible = "microcrystal,rv2123", },
-	/* Deprecated, do not use */
+	/* Deprecated, do yest use */
 	{ .compatible = "nxp,rtc-pcf2123", },
 	{ /* sentinel */ }
 };

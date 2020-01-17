@@ -16,7 +16,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
@@ -110,9 +110,9 @@ static __init int setup_vmw_sched_clock(char *s)
 	vmw_sched_clock = 0;
 	return 0;
 }
-early_param("no-vmw-sched-clock", setup_vmw_sched_clock);
+early_param("yes-vmw-sched-clock", setup_vmw_sched_clock);
 
-static unsigned long long notrace vmware_sched_clock(void)
+static unsigned long long yestrace vmware_sched_clock(void)
 {
 	unsigned long long ns;
 
@@ -125,11 +125,11 @@ static unsigned long long notrace vmware_sched_clock(void)
 static void __init vmware_sched_clock_setup(void)
 {
 	struct cyc2ns_data *d = &vmware_cyc2ns;
-	unsigned long long tsc_now = rdtsc();
+	unsigned long long tsc_yesw = rdtsc();
 
 	clocks_calc_mult_shift(&d->cyc2ns_mul, &d->cyc2ns_shift,
 			       vmware_tsc_khz, NSEC_PER_MSEC, 0);
-	d->cyc2ns_offset = mul_u64_u32_shr(tsc_now, d->cyc2ns_mul,
+	d->cyc2ns_offset = mul_u64_u32_shr(tsc_yesw, d->cyc2ns_mul,
 					   d->cyc2ns_shift);
 
 	pv_ops.time.sched_clock = vmware_sched_clock;
@@ -139,7 +139,7 @@ static void __init vmware_sched_clock_setup(void)
 static void __init vmware_paravirt_ops_setup(void)
 {
 	pv_info.name = "VMware hypervisor";
-	pv_ops.cpu.io_delay = paravirt_nop;
+	pv_ops.cpu.io_delay = paravirt_yesp;
 
 	if (vmware_tsc_khz && vmw_sched_clock)
 		vmware_sched_clock_setup();
@@ -153,8 +153,8 @@ static void __init vmware_paravirt_ops_setup(void)
  * Still, due to timing difference when running on virtual cpus, the TSC can
  * be marked as unstable in some cases. For example, the TSC sync check at
  * bootup can fail due to a marginal offset between vcpus' TSCs (though the
- * TSCs do not drift from each other).  Also, the ACPI PM timer clocksource
- * is not suitable as a watchdog when running on a hypervisor because the
+ * TSCs do yest drift from each other).  Also, the ACPI PM timer clocksource
+ * is yest suitable as a watchdog when running on a hypervisor because the
  * kernel may miss a wrap of the counter if the vcpu is descheduled for a
  * long time. To skip these checks at runtime we set these capability bits,
  * so that the kernel could just trust the hypervisor with providing a
@@ -195,7 +195,7 @@ static void __init vmware_platform_setup(void)
 		x86_platform.calibrate_cpu = vmware_get_tsc_khz;
 
 #ifdef CONFIG_X86_LOCAL_APIC
-		/* Skip lapic calibration since we know the bus frequency. */
+		/* Skip lapic calibration since we kyesw the bus frequency. */
 		lapic_timer_period = ecx / HZ;
 		pr_info("Host bus clock speed read from hypervisor : %u Hz\n",
 			ecx);
@@ -207,7 +207,7 @@ static void __init vmware_platform_setup(void)
 	vmware_paravirt_ops_setup();
 
 #ifdef CONFIG_X86_IO_APIC
-	no_timer_check = 1;
+	yes_timer_check = 1;
 #endif
 
 	vmware_set_capabilities();
@@ -224,7 +224,7 @@ static u8 vmware_select_hypercall(void)
 
 /*
  * While checking the dmi string information, just checking the product
- * serial key should be enough, as this will always have a VMware
+ * serial key should be eyesugh, as this will always have a VMware
  * specific string when running under VMware hypervisor.
  * If !boot_cpu_has(X86_FEATURE_HYPERVISOR), vmware_hypercall_mode
  * intentionally defaults to 0.

@@ -30,7 +30,7 @@ MODULE_ALIAS("ip6t_limit");
  * see net/sched/sch_tbf.c in the linux source tree
  */
 
-/* Rusty: This is my (non-mathematically-inclined) understanding of
+/* Rusty: This is my (yesn-mathematically-inclined) understanding of
    this algorithm.  The `average rate' in jiffies becomes your initial
    amount of credit `credit' and the most credit you can ever have
    `credit_cap'.  The `peak rate' becomes the cost of passing the
@@ -66,15 +66,15 @@ limit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_rateinfo *r = par->matchinfo;
 	struct xt_limit_priv *priv = r->master;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 
 	spin_lock_bh(&priv->lock);
-	priv->credit += (now - xchg(&priv->prev, now)) * CREDITS_PER_JIFFY;
+	priv->credit += (yesw - xchg(&priv->prev, yesw)) * CREDITS_PER_JIFFY;
 	if (priv->credit > r->credit_cap)
 		priv->credit = r->credit_cap;
 
 	if (priv->credit >= r->cost) {
-		/* We're not limited. */
+		/* We're yest limited. */
 		priv->credit -= r->cost;
 		spin_unlock_bh(&priv->lock);
 		return true;
@@ -147,7 +147,7 @@ struct compat_xt_rateinfo {
 };
 
 /* To keep the full "prev" timestamp, the upper 32 bits are stored in the
- * master pointer, which does not need to be preserved. */
+ * master pointer, which does yest need to be preserved. */
 static void limit_mt_compat_from_user(void *dst, const void *src)
 {
 	const struct compat_xt_rateinfo *cm = src;

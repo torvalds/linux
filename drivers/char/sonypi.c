@@ -50,19 +50,19 @@ MODULE_DESCRIPTION("Sony Programmable I/O Control Device driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(SONYPI_DRIVER_VERSION);
 
-static int minor = -1;
-module_param(minor, int, 0);
-MODULE_PARM_DESC(minor,
-		 "minor number of the misc device, default is -1 (automatic)");
+static int miyesr = -1;
+module_param(miyesr, int, 0);
+MODULE_PARM_DESC(miyesr,
+		 "miyesr number of the misc device, default is -1 (automatic)");
 
 static int verbose;		/* = 0 */
 module_param(verbose, int, 0644);
-MODULE_PARM_DESC(verbose, "be verbose, default is 0 (no)");
+MODULE_PARM_DESC(verbose, "be verbose, default is 0 (yes)");
 
 static int fnkeyinit;		/* = 0 */
 module_param(fnkeyinit, int, 0444);
 MODULE_PARM_DESC(fnkeyinit,
-		 "set this if your Fn keys do not generate any event");
+		 "set this if your Fn keys do yest generate any event");
 
 static int camera;		/* = 0 */
 module_param(camera, int, 0444);
@@ -174,7 +174,7 @@ static struct sonypi_irq_list sonypi_type1_irq_list[] = {
 	{ 11, 0x2 },	/* IRQ 11, GO22=0,GO23=1 in AML */
 	{ 10, 0x1 },	/* IRQ 10, GO22=1,GO23=0 in AML */
 	{  5, 0x0 },	/* IRQ  5, GO22=0,GO23=0 in AML */
-	{  0, 0x3 }	/* no IRQ, GO22=1,GO23=1 in AML */
+	{  0, 0x3 }	/* yes IRQ, GO22=1,GO23=1 in AML */
 };
 
 static struct sonypi_irq_list sonypi_type2_irq_list[] = {
@@ -182,7 +182,7 @@ static struct sonypi_irq_list sonypi_type2_irq_list[] = {
 	{ 10, 0x40 },	/* IRQ 10, 0x40 in SIRQ in AML */
 	{  9, 0x20 },	/* IRQ  9, 0x20 in SIRQ in AML */
 	{  6, 0x10 },	/* IRQ  6, 0x10 in SIRQ in AML */
-	{  0, 0x00 }	/* no IRQ, 0x00 in SIRQ in AML */
+	{  0, 0x00 }	/* yes IRQ, 0x00 in SIRQ in AML */
 };
 
 /* same as in type2 models */
@@ -200,7 +200,7 @@ static struct sonypi_irq_list *sonypi_type3_irq_list = sonypi_type2_irq_list;
 #define SONYPI_CAMERA_PICTURE_MODE_MASK		0x30
 #define SONYPI_CAMERA_MUTE_MASK			0x40
 
-/* the rest don't need a loop until not 0xff */
+/* the rest don't need a loop until yest 0xff */
 #define SONYPI_CAMERA_AGC			6
 #define SONYPI_CAMERA_AGC_MASK			0x30
 #define SONYPI_CAMERA_SHUTTER_MASK 		0x7
@@ -797,7 +797,7 @@ static void sonypi_report_input_event(u8 event)
 		break;
 
 	case SONYPI_EVENT_FNKEY_RELEASED:
-		/* Nothing, not all VAIOs generate this event */
+		/* Nothing, yest all VAIOs generate this event */
 		break;
 
 	default:
@@ -847,10 +847,10 @@ static irqreturn_t sonypi_irq(int irq, void *dev_id)
 
 	if (verbose)
 		printk(KERN_WARNING
-		       "sonypi: unknown event port1=0x%02x,port2=0x%02x\n",
+		       "sonypi: unkyeswn event port1=0x%02x,port2=0x%02x\n",
 		       v1, v2);
 	/* We need to return IRQ_HANDLED here because there *are*
-	 * events belonging to the sonypi device we don't know about,
+	 * events belonging to the sonypi device we don't kyesw about,
 	 * but we still don't want those to pollute the logs... */
 	return IRQ_HANDLED;
 
@@ -875,7 +875,7 @@ static int sonypi_misc_fasync(int fd, struct file *filp, int on)
 	return fasync_helper(fd, filp, on, &sonypi_device.fifo_async);
 }
 
-static int sonypi_misc_release(struct inode *inode, struct file *file)
+static int sonypi_misc_release(struct iyesde *iyesde, struct file *file)
 {
 	mutex_lock(&sonypi_device.lock);
 	sonypi_device.open_count--;
@@ -883,7 +883,7 @@ static int sonypi_misc_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int sonypi_misc_open(struct inode *inode, struct file *file)
+static int sonypi_misc_open(struct iyesde *iyesde, struct file *file)
 {
 	mutex_lock(&sonypi_device.lock);
 	/* Flush input queue on first open */
@@ -919,8 +919,8 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 	}
 
 	if (ret > 0) {
-		struct inode *inode = file_inode(file);
-		inode->i_atime = current_time(inode);
+		struct iyesde *iyesde = file_iyesde(file);
+		iyesde->i_atime = current_time(iyesde);
 	}
 
 	return ret;
@@ -1054,11 +1054,11 @@ static const struct file_operations sonypi_misc_fops = {
 	.release	= sonypi_misc_release,
 	.fasync		= sonypi_misc_fasync,
 	.unlocked_ioctl	= sonypi_misc_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice sonypi_misc_device = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.miyesr		= MISC_DYNAMIC_MINOR,
 	.name		= "sonypi",
 	.fops		= &sonypi_misc_fops,
 };
@@ -1210,12 +1210,12 @@ static int sonypi_setup_ioports(struct sonypi_device *dev,
 				const struct sonypi_ioport_list *ioport_list)
 {
 	/* try to detect if sony-laptop is being used and thus
-	 * has already requested one of the known ioports.
+	 * has already requested one of the kyeswn ioports.
 	 * As in the deprecated check_region this is racy has we have
 	 * multiple ioports available and one of them can be requested
 	 * between this check and the subsequent request. Anyway, as an
 	 * attempt to be some more user-friendly as we currently are,
-	 * this is enough.
+	 * this is eyesugh.
 	 */
 	const struct sonypi_ioport_list *check = ioport_list;
 	while (check_ioport && check->port1) {
@@ -1223,7 +1223,7 @@ static int sonypi_setup_ioports(struct sonypi_device *dev,
 				   sonypi_device.region_size,
 				   "Sony Programmable I/O Device Check")) {
 			printk(KERN_ERR "sonypi: ioport 0x%.4x busy, using sony-laptop? "
-					"if not use check_ioport=0\n",
+					"if yest use check_ioport=0\n",
 					check->port1);
 			return -EBUSY;
 		}
@@ -1280,9 +1280,9 @@ static void sonypi_display_info(void)
 	       sonypi_device.irq,
 	       sonypi_device.ioport1, sonypi_device.ioport2);
 
-	if (minor == -1)
-		printk(KERN_INFO "sonypi: device allocated minor is %d\n",
-		       sonypi_misc_device.minor);
+	if (miyesr == -1)
+		printk(KERN_INFO "sonypi: device allocated miyesr is %d\n",
+		       sonypi_misc_device.miyesr);
 }
 
 static int sonypi_probe(struct platform_device *dev)
@@ -1356,8 +1356,8 @@ static int sonypi_probe(struct platform_device *dev)
 		goto err_free_ioports;
 	}
 
-	if (minor != -1)
-		sonypi_misc_device.minor = minor;
+	if (miyesr != -1)
+		sonypi_misc_device.miyesr = miyesr;
 	error = misc_register(&sonypi_misc_device);
 	if (error) {
 		printk(KERN_ERR "sonypi: misc_register failed\n");

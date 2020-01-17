@@ -5,7 +5,7 @@ with a shared L3 memory system, control logic and external interfaces to
 form a multicore cluster. The PMU enables to gather various statistics on
 the operations of the DSU. The PMU provides independent 32bit counters that
 can count any of the supported events, along with a 64bit cycle counter.
-The PMU is accessed via CPU system registers and has no MMIO component.
+The PMU is accessed via CPU system registers and has yes MMIO component.
 
 ** DSU PMU required properties:
 

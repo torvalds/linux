@@ -20,7 +20,7 @@ void spufs_stop_callback(struct spu *spu, int irq)
 	 * It should be impossible to preempt a context while an exception
 	 * is being processed, since the context switch code is specially
 	 * coded to deal with interrupts ... But, just in case, sanity check
-	 * the context pointer.  It is OK to return doing nothing since
+	 * the context pointer.  It is OK to return doing yesthing since
 	 * the exception will be regenerated when the context is resumed.
 	 */
 	if (ctx) {
@@ -103,7 +103,7 @@ static int spu_setup_isolated(struct spu_context *ctx)
 
 	mfc_cntl = &ctx->spu->priv2->mfc_control_RW;
 
-	/* purge the MFC DMA queue to ensure no spurious accesses before we
+	/* purge the MFC DMA queue to ensure yes spurious accesses before we
 	 * enter kernel mode */
 	timeout = jiffies + HZ;
 	out_be64(mfc_cntl, MFC_CNTL_PURGE_DMA_REQUEST);
@@ -181,7 +181,7 @@ static int spu_run_init(struct spu_context *ctx, u32 *npc)
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 
 	/*
-	 * NOSCHED is synchronous scheduling with respect to the caller.
+	 * NOSCHED is synchroyesus scheduling with respect to the caller.
 	 * The caller waits for the context to be loaded.
 	 */
 	if (ctx->flags & SPU_CREATE_NOSCHED) {
@@ -253,7 +253,7 @@ static int spu_run_fini(struct spu_context *ctx, u32 *npc,
 
 	spuctx_switch_state(ctx, SPU_UTIL_IDLE_LOADED);
 	clear_bit(SPU_SCHED_SPU_RUN, &ctx->sched_flags);
-	spu_switch_log_notify(NULL, ctx, SWITCH_LOG_EXIT, *status);
+	spu_switch_log_yestify(NULL, ctx, SWITCH_LOG_EXIT, *status);
 	spu_release(ctx);
 
 	if (signal_pending(current))
@@ -289,7 +289,7 @@ static int spu_handle_restartsys(struct spu_context *ctx, long *spu_ret,
 	case -ERESTARTNOHAND:
 	case -ERESTART_RESTARTBLOCK:
 		/*
-		 * Restart block is too hard for now, just return -EINTR
+		 * Restart block is too hard for yesw, just return -EINTR
 		 * to the SPU.
 		 * ERESTARTNOHAND comes from sys_pause, we also return
 		 * -EINTR from there.
@@ -390,7 +390,7 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 		if (unlikely(test_and_clear_bit(SPU_SCHED_NOTIFY_ACTIVE,
 						&ctx->sched_flags))) {
 			if (!(status & SPU_STATUS_STOPPED_BY_STOP)) {
-				spu_switch_notify(spu, ctx);
+				spu_switch_yestify(spu, ctx);
 				continue;
 			}
 		}

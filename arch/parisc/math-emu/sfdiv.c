@@ -54,7 +54,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 	 */
 	if (Sgl_isinfinity_exponent(opnd1)) {
 		if (Sgl_iszero_mantissa(opnd1)) {
-			if (Sgl_isnotnan(opnd2)) {
+			if (Sgl_isyestnan(opnd2)) {
 				if (Sgl_isinfinity(opnd2)) {
 					/* 
 					 * invalid since both operands 
@@ -162,7 +162,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 	/*
 	 * Generate mantissa
 	 */
-	if (Sgl_isnotzero_exponent(opnd1)) {
+	if (Sgl_isyestzero_exponent(opnd1)) {
 		/* set hidden bit */
 		Sgl_clear_signexponent_set_hidden(opnd1);
 	}
@@ -173,17 +173,17 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 			*dstptr = result;
 			return(NOEXCEPTION);
 		}
-                /* is denormalized; want to normalize */
+                /* is deyesrmalized; want to yesrmalize */
                 Sgl_clear_signexponent(opnd1);
                 Sgl_leftshiftby1(opnd1);
-		Sgl_normalize(opnd1,dest_exponent);
+		Sgl_yesrmalize(opnd1,dest_exponent);
 	}
 	/* opnd2 needs to have hidden bit set with msb in hidden bit */
-	if (Sgl_isnotzero_exponent(opnd2)) {
+	if (Sgl_isyestzero_exponent(opnd2)) {
 		Sgl_clear_signexponent_set_hidden(opnd2);
 	}
 	else {
-                /* is denormalized; want to normalize */
+                /* is deyesrmalized; want to yesrmalize */
                 Sgl_clear_signexponent(opnd2);
                 Sgl_leftshiftby1(opnd2);
 		while(Sgl_iszero_hiddenhigh7mantissa(opnd2)) {
@@ -203,7 +203,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 	/* Divide the source mantissas */
 
 	/*
-	 * A non_restoring divide algorithm is used.
+	 * A yesn_restoring divide algorithm is used.
 	 */
 	Sgl_subtract(opnd1,opnd2,opnd1);
 	Sgl_setzero(opnd3);
@@ -313,7 +313,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 			case ROUNDPLUS: 
 				if (Sgl_iszero_sign(result)) {
 					Sgl_increment(opnd3);
-					if (Sgl_isone_hiddenoverflow(opnd3))
+					if (Sgl_isone_hiddeyesverflow(opnd3))
                 			    is_tiny = FALSE;
 					Sgl_decrement(opnd3);
 				}
@@ -321,7 +321,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 			case ROUNDMINUS: 
 				if (Sgl_isone_sign(result)) {
 					Sgl_increment(opnd3);
-					if (Sgl_isone_hiddenoverflow(opnd3))
+					if (Sgl_isone_hiddeyesverflow(opnd3))
                 			    is_tiny = FALSE;
 					Sgl_decrement(opnd3);
 				}
@@ -330,7 +330,7 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 				if (guardbit && (stickybit || 
 				    Sgl_isone_lowmantissa(opnd3))) {
 				      	Sgl_increment(opnd3);
-					if (Sgl_isone_hiddenoverflow(opnd3))
+					if (Sgl_isone_hiddeyesverflow(opnd3))
                 			    is_tiny = FALSE;
 					Sgl_decrement(opnd3);
 				}
@@ -339,10 +339,10 @@ sgl_fdiv (sgl_floating_point * srcptr1, sgl_floating_point * srcptr2,
 		}
 
                 /*
-                 * denormalize result or set to signed zero
+                 * deyesrmalize result or set to signed zero
                  */
 		stickybit = inexact;
-		Sgl_denormalize(opnd3,dest_exponent,guardbit,stickybit,inexact);
+		Sgl_deyesrmalize(opnd3,dest_exponent,guardbit,stickybit,inexact);
 
 		/* return rounded number */ 
 		if (inexact) {

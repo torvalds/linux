@@ -72,7 +72,7 @@ hysdn_addlog(hysdn_card *card, char *fmt, ...)
 	va_list args;
 
 	if (!pd)
-		return;		/* log structure non existent */
+		return;		/* log structure yesn existent */
 
 	cp = pd->logtmp;
 	cp += sprintf(cp, "HYSDN: card %d ", card->myid);
@@ -94,7 +94,7 @@ hysdn_addlog(hysdn_card *card, char *fmt, ...)
 /* put an log buffer into the log queue.    */
 /* This buffer will be kept until all files */
 /* opened for read got the contents.        */
-/* Flushes buffers not longer in use.       */
+/* Flushes buffers yest longer in use.       */
 /********************************************/
 static void
 put_log_buffer(hysdn_card *card, char *cp)
@@ -110,10 +110,10 @@ put_log_buffer(hysdn_card *card, char *cp)
 	if (!*cp)
 		return;
 	if (pd->if_used <= 0)
-		return;		/* no open file for read */
+		return;		/* yes open file for read */
 
 	if (!(ib = kmalloc(sizeof(struct log_data) + strlen(cp), GFP_ATOMIC)))
-		return;	/* no memory */
+		return;	/* yes memory */
 	strcpy(ib->log_start, cp);	/* set output string */
 	ib->next = NULL;
 	ib->proc_ctrl = pd;	/* point to own control structure */
@@ -139,7 +139,7 @@ put_log_buffer(hysdn_card *card, char *cp)
 
 	spin_unlock_irqrestore(&card->hysdn_lock, flags);
 
-	wake_up_interruptible(&(pd->rd_queue));		/* announce new entry */
+	wake_up_interruptible(&(pd->rd_queue));		/* anyesunce new entry */
 }				/* put_log_buffer */
 
 
@@ -171,7 +171,7 @@ hysdn_log_read(struct file *file, char __user *buf, size_t count, loff_t *off)
 {
 	struct log_data *inf;
 	int len;
-	hysdn_card *card = PDE_DATA(file_inode(file));
+	hysdn_card *card = PDE_DATA(file_iyesde(file));
 
 	if (!(inf = *((struct log_data **) file->private_data))) {
 		struct procdata *pd = card->proclog;
@@ -199,9 +199,9 @@ hysdn_log_read(struct file *file, char __user *buf, size_t count, loff_t *off)
 /* open log file */
 /******************/
 static int
-hysdn_log_open(struct inode *ino, struct file *filep)
+hysdn_log_open(struct iyesde *iyes, struct file *filep)
 {
-	hysdn_card *card = PDE_DATA(ino);
+	hysdn_card *card = PDE_DATA(iyes);
 
 	mutex_lock(&hysdn_log_mutex);
 	if ((filep->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_WRITE) {
@@ -221,21 +221,21 @@ hysdn_log_open(struct inode *ino, struct file *filep)
 		spin_unlock_irqrestore(&card->hysdn_lock, flags);
 	} else {		/* simultaneous read/write access forbidden ! */
 		mutex_unlock(&hysdn_log_mutex);
-		return (-EPERM);	/* no permission this time */
+		return (-EPERM);	/* yes permission this time */
 	}
 	mutex_unlock(&hysdn_log_mutex);
-	return nonseekable_open(ino, filep);
+	return yesnseekable_open(iyes, filep);
 }				/* hysdn_log_open */
 
 /*******************************************************************************/
 /* close a cardlog file. If the file has been opened for exclusive write it is */
-/* assumed as pof data input and the pof loader is noticed about.              */
+/* assumed as pof data input and the pof loader is yesticed about.              */
 /* Otherwise file is handled as log output. In this case the interface usage   */
-/* count is decremented and all buffers are noticed of closing. If this file   */
+/* count is decremented and all buffers are yesticed of closing. If this file   */
 /* was the last one to be closed, all buffers are freed.                       */
 /*******************************************************************************/
 static int
-hysdn_log_close(struct inode *ino, struct file *filep)
+hysdn_log_close(struct iyesde *iyes, struct file *filep)
 {
 	struct log_data *inf;
 	struct procdata *pd;
@@ -253,8 +253,8 @@ hysdn_log_close(struct inode *ino, struct file *filep)
 		if (inf)
 			pd = (struct procdata *) inf->proc_ctrl;	/* still entries there */
 		else {
-			/* no info available -> search card */
-			card = PDE_DATA(file_inode(filep));
+			/* yes info available -> search card */
+			card = PDE_DATA(file_iyesde(filep));
 			pd = card->proclog;	/* pointer to procfs log */
 		}
 		if (pd)
@@ -285,11 +285,11 @@ static __poll_t
 hysdn_log_poll(struct file *file, poll_table *wait)
 {
 	__poll_t mask = 0;
-	hysdn_card *card = PDE_DATA(file_inode(file));
+	hysdn_card *card = PDE_DATA(file_iyesde(file));
 	struct procdata *pd = card->proclog;
 
 	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_WRITE)
-		return (mask);	/* no polling for write supported */
+		return (mask);	/* yes polling for write supported */
 
 	poll_wait(file, &(pd->rd_queue), wait);
 
@@ -305,7 +305,7 @@ hysdn_log_poll(struct file *file, poll_table *wait)
 static const struct file_operations log_fops =
 {
 	.owner		= THIS_MODULE,
-	.llseek         = no_llseek,
+	.llseek         = yes_llseek,
 	.read           = hysdn_log_read,
 	.write          = hysdn_log_write,
 	.poll           = hysdn_log_poll,

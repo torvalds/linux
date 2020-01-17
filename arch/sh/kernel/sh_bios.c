@@ -51,11 +51,11 @@ void sh_bios_gdb_detach(void)
 }
 EXPORT_SYMBOL_GPL(sh_bios_gdb_detach);
 
-void sh_bios_get_node_addr(unsigned char *node_addr)
+void sh_bios_get_yesde_addr(unsigned char *yesde_addr)
 {
-	sh_bios_call(BIOS_CALL_ETH_NODE_ADDR, 0, (long)node_addr, 0, 0);
+	sh_bios_call(BIOS_CALL_ETH_NODE_ADDR, 0, (long)yesde_addr, 0, 0);
 }
-EXPORT_SYMBOL_GPL(sh_bios_get_node_addr);
+EXPORT_SYMBOL_GPL(sh_bios_get_yesde_addr);
 
 void sh_bios_shutdown(unsigned int how)
 {
@@ -81,14 +81,14 @@ void sh_bios_vbr_init(void)
 		printk(KERN_NOTICE "Setting GDB trap vector to %p\n",
 		       gdb_vbr_vector);
 	} else
-		printk(KERN_NOTICE "SH-BIOS not detected\n");
+		printk(KERN_NOTICE "SH-BIOS yest detected\n");
 }
 
 /**
  * sh_bios_vbr_reload - Re-load the system VBR from the BIOS vector.
  *
  * This can be used by save/restore code to reinitialize the system VBR
- * from the fixed BIOS VBR. A no-op if no BIOS VBR is known.
+ * from the fixed BIOS VBR. A yes-op if yes BIOS VBR is kyeswn.
  */
 void sh_bios_vbr_reload(void)
 {
@@ -115,7 +115,7 @@ static void sh_console_write(struct console *co, const char *s,
  *	Setup initial baud/bits/parity. We do two things here:
  *	- construct a cflag setting for the first rs_open()
  *	- initialize the serial port
- *	Return non-zero if we didn't find a serial port.
+ *	Return yesn-zero if we didn't find a serial port.
  */
 static int __init sh_console_setup(struct console *co, char *options)
 {
@@ -124,10 +124,10 @@ static int __init sh_console_setup(struct console *co, char *options)
 	/*
 	 *	Now construct a cflag setting.
 	 *	TODO: this is a totally bogus cflag, as we have
-	 *	no idea what serial settings the BIOS is using, or
+	 *	yes idea what serial settings the BIOS is using, or
 	 *	even if its using the serial port at all.
 	 */
-	cflag |= B115200 | CS8 | /*no parity*/0;
+	cflag |= B115200 | CS8 | /*yes parity*/0;
 
 	co->cflag = cflag;
 

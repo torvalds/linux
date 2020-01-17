@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause)
 /* raw.c - Raw sockets for protocol family CAN
  *
  * Copyright (c) 2002-2007 Volkswagen Group Electronic Research
@@ -8,21 +8,21 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this yestice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are yest restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -66,7 +66,7 @@ MODULE_ALIAS("can-proto-1");
 
 /* A raw socket has a list of can_filters attached to it, each receiving
  * the CAN frames matching that filter.  If the filter list is empty,
- * no CAN frames will be received by the socket.  The default after
+ * yes CAN frames will be received by the socket.  The default after
  * opening the socket, is to have one filter which receives all frames.
  * The filter list is allocated dynamically with the exception of the
  * list containing only one item.  This common case is optimized by
@@ -83,7 +83,7 @@ struct raw_sock {
 	struct sock sk;
 	int bound;
 	int ifindex;
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 	int loopback;
 	int recv_own_msgs;
 	int fd_frames;
@@ -125,7 +125,7 @@ static void raw_rcv(struct sk_buff *oskb, void *data)
 	if (!ro->recv_own_msgs && oskb->sk == sk)
 		return;
 
-	/* do not pass non-CAN2.0 frames to a legacy socket */
+	/* do yest pass yesn-CAN2.0 frames to a legacy socket */
 	if (!ro->fd_frames && oskb->len != CAN_MTU)
 		return;
 
@@ -263,11 +263,11 @@ static int raw_enable_allfilters(struct net *net, struct net_device *dev,
 	return err;
 }
 
-static int raw_notifier(struct notifier_block *nb,
+static int raw_yestifier(struct yestifier_block *nb,
 			unsigned long msg, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct raw_sock *ro = container_of(nb, struct raw_sock, notifier);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
+	struct raw_sock *ro = container_of(nb, struct raw_sock, yestifier);
 	struct sock *sk = &ro->sk;
 
 	if (!net_eq(dev_net(dev), sock_net(sk)))
@@ -333,10 +333,10 @@ static int raw_init(struct sock *sk)
 	if (unlikely(!ro->uniq))
 		return -ENOMEM;
 
-	/* set notifier */
-	ro->notifier.notifier_call = raw_notifier;
+	/* set yestifier */
+	ro->yestifier.yestifier_call = raw_yestifier;
 
-	register_netdevice_notifier(&ro->notifier);
+	register_netdevice_yestifier(&ro->yestifier);
 
 	return 0;
 }
@@ -351,7 +351,7 @@ static int raw_release(struct socket *sock)
 
 	ro = raw_sk(sk);
 
-	unregister_netdevice_notifier(&ro->notifier);
+	unregister_netdevice_yestifier(&ro->yestifier);
 
 	lock_sock(sk);
 
@@ -394,7 +394,7 @@ static int raw_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 	struct raw_sock *ro = raw_sk(sk);
 	int ifindex;
 	int err = 0;
-	int notify_enetdown = 0;
+	int yestify_enetdown = 0;
 
 	if (len < CAN_REQUIRED_SIZE(*addr, can_ifindex))
 		return -EINVAL;
@@ -420,7 +420,7 @@ static int raw_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 			goto out;
 		}
 		if (!(dev->flags & IFF_UP))
-			notify_enetdown = 1;
+			yestify_enetdown = 1;
 
 		ifindex = dev->ifindex;
 
@@ -458,7 +458,7 @@ static int raw_bind(struct socket *sock, struct sockaddr *uaddr, int len)
  out:
 	release_sock(sk);
 
-	if (notify_enetdown) {
+	if (yestify_enetdown) {
 		sk->sk_err = ENETDOWN;
 		if (!sock_flag(sk, SOCK_DEAD))
 			sk->sk_error_report(sk);
@@ -510,7 +510,7 @@ static int raw_setsockopt(struct socket *sock, int level, int optname,
 		count = optlen / sizeof(struct can_filter);
 
 		if (count > 1) {
-			/* filter does not fit into dfilter => alloc space */
+			/* filter does yest fit into dfilter => alloc space */
 			filter = memdup_user(optval, optlen);
 			if (IS_ERR(filter))
 				return PTR_ERR(filter);
@@ -799,12 +799,12 @@ static int raw_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	int err = 0;
-	int noblock;
+	int yesblock;
 
-	noblock =  flags & MSG_DONTWAIT;
+	yesblock =  flags & MSG_DONTWAIT;
 	flags   &= ~MSG_DONTWAIT;
 
-	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	skb = skb_recv_datagram(sk, flags, yesblock, &err);
 	if (!skb)
 		return err;
 
@@ -835,10 +835,10 @@ static int raw_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	return size;
 }
 
-static int raw_sock_no_ioctlcmd(struct socket *sock, unsigned int cmd,
+static int raw_sock_yes_ioctlcmd(struct socket *sock, unsigned int cmd,
 				unsigned long arg)
 {
-	/* no ioctls for socket layer -> hand it down to NIC layer */
+	/* yes ioctls for socket layer -> hand it down to NIC layer */
 	return -ENOIOCTLCMD;
 }
 
@@ -846,21 +846,21 @@ static const struct proto_ops raw_ops = {
 	.family        = PF_CAN,
 	.release       = raw_release,
 	.bind          = raw_bind,
-	.connect       = sock_no_connect,
-	.socketpair    = sock_no_socketpair,
-	.accept        = sock_no_accept,
+	.connect       = sock_yes_connect,
+	.socketpair    = sock_yes_socketpair,
+	.accept        = sock_yes_accept,
 	.getname       = raw_getname,
 	.poll          = datagram_poll,
-	.ioctl         = raw_sock_no_ioctlcmd,
+	.ioctl         = raw_sock_yes_ioctlcmd,
 	.gettstamp     = sock_gettstamp,
-	.listen        = sock_no_listen,
-	.shutdown      = sock_no_shutdown,
+	.listen        = sock_yes_listen,
+	.shutdown      = sock_yes_shutdown,
 	.setsockopt    = raw_setsockopt,
 	.getsockopt    = raw_getsockopt,
 	.sendmsg       = raw_sendmsg,
 	.recvmsg       = raw_recvmsg,
-	.mmap          = sock_no_mmap,
-	.sendpage      = sock_no_sendpage,
+	.mmap          = sock_yes_mmap,
+	.sendpage      = sock_yes_sendpage,
 };
 
 static struct proto raw_proto __read_mostly = {

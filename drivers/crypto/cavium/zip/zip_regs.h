@@ -14,14 +14,14 @@
  * conditions are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *
  *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
+ *    copyright yestice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
  *
- *  * Neither the name of Cavium Inc. nor the names of its contributors may be
+ *  * Neither the name of Cavium Inc. yesr the names of its contributors may be
  *    used to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -476,8 +476,8 @@ union zip_ctl_bist_status {
  * union zip_ctl_cfg - Represents the register that controls the behavior of
  * the ZIP DMA engines.
  *
- * It is recommended to keep default values for normal operation. Changing the
- * values of the fields may be useful for diagnostics.
+ * It is recommended to keep default values for yesrmal operation. Changing the
+ * values of the fields may be useful for diagyesstics.
  */
 union zip_ctl_cfg {
 	u64 u_reg64;
@@ -1326,8 +1326,8 @@ union zip_que_pri {
  * number of in-flight X2I data fetch transactions.
  *
  * Writing 0 to this register causes the ZIP module to temporarily suspend NCB
- * accesses; it is not recommended for normal operation, but may be useful for
- * diagnostics.
+ * accesses; it is yest recommended for yesrmal operation, but may be useful for
+ * diagyesstics.
  */
 union zip_throttle {
 	u64 u_reg64;

@@ -12,7 +12,7 @@ Required properties:
 - clocks: device clocks
   See Documentation/devicetree/bindings/clock/clock-bindings.txt for details.
 - clock-names: must contain "pixel", "engine", and "pll"
-- port: Output port node with endpoint definitions as described in
+- port: Output port yesde with endpoint definitions as described in
   Documentation/devicetree/bindings/graph.txt. This port should be connected
   to the input port of an attached HDMI or LVDS encoder chip.
 

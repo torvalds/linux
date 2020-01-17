@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -13,7 +13,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-// Test that values in /proc/uptime increment monotonically
+// Test that values in /proc/uptime increment moyestonically
 // while shifting across CPUs.
 #define _GNU_SOURCE
 #undef NDEBUG
@@ -65,7 +65,7 @@ int main(void)
 		memset(m, 0, len);
 		m[cpu / (8 * sizeof(unsigned long))] |= 1UL << (cpu % (8 * sizeof(unsigned long)));
 
-		/* CPU might not exist, ignore error */
+		/* CPU might yest exist, igyesre error */
 		sys_sched_setaffinity(0, len, m);
 
 		proc_uptime(fd, &u1, &i1);

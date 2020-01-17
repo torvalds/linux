@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * linux/arch/unicore32/include/asm/sigcontext.h
  *
@@ -20,7 +20,7 @@
  * to the end of the structure.
  */
 struct sigcontext {
-	unsigned long trap_no;
+	unsigned long trap_yes;
 	unsigned long error_code;
 	unsigned long oldmask;
 	unsigned long fault_address;

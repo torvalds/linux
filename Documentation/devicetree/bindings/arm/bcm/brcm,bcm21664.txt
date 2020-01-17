@@ -4,7 +4,7 @@ Broadcom BCM21664 device tree bindings
 This document describes the device tree bindings for boards with the BCM21664
 SoC.
 
-Required root node property:
+Required root yesde property:
   - compatible: brcm,bcm21664
 
 Example:

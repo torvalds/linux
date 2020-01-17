@@ -3,7 +3,7 @@
 In the Amlogic SoCs the Secure Monitor code is used to provide access to the
 NVMEM, enable JTAG, set USB boot, etc...
 
-Required properties for the secure monitor node:
+Required properties for the secure monitor yesde:
 - compatible: Should be "amlogic,meson-gxbb-sm"
 
 Example:

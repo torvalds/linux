@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -49,25 +49,25 @@
 
 #include "hfi.h"
 
-struct mmu_rb_node {
+struct mmu_rb_yesde {
 	unsigned long addr;
 	unsigned long len;
 	unsigned long __last;
-	struct rb_node node;
+	struct rb_yesde yesde;
 	struct list_head list;
 };
 
 /*
- * NOTE: filter, insert, invalidate, and evict must not sleep.  Only remove is
+ * NOTE: filter, insert, invalidate, and evict must yest sleep.  Only remove is
  * allowed to sleep.
  */
 struct mmu_rb_ops {
-	bool (*filter)(struct mmu_rb_node *node, unsigned long addr,
+	bool (*filter)(struct mmu_rb_yesde *yesde, unsigned long addr,
 		       unsigned long len);
-	int (*insert)(void *ops_arg, struct mmu_rb_node *mnode);
-	void (*remove)(void *ops_arg, struct mmu_rb_node *mnode);
-	int (*invalidate)(void *ops_arg, struct mmu_rb_node *node);
-	int (*evict)(void *ops_arg, struct mmu_rb_node *mnode,
+	int (*insert)(void *ops_arg, struct mmu_rb_yesde *myesde);
+	void (*remove)(void *ops_arg, struct mmu_rb_yesde *myesde);
+	int (*invalidate)(void *ops_arg, struct mmu_rb_yesde *yesde);
+	int (*evict)(void *ops_arg, struct mmu_rb_yesde *myesde,
 		     void *evict_arg, bool *stop);
 };
 
@@ -77,12 +77,12 @@ int hfi1_mmu_rb_register(void *ops_arg, struct mm_struct *mm,
 			 struct mmu_rb_handler **handler);
 void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler);
 int hfi1_mmu_rb_insert(struct mmu_rb_handler *handler,
-		       struct mmu_rb_node *mnode);
+		       struct mmu_rb_yesde *myesde);
 void hfi1_mmu_rb_evict(struct mmu_rb_handler *handler, void *evict_arg);
 void hfi1_mmu_rb_remove(struct mmu_rb_handler *handler,
-			struct mmu_rb_node *mnode);
+			struct mmu_rb_yesde *myesde);
 bool hfi1_mmu_rb_remove_unless_exact(struct mmu_rb_handler *handler,
 				     unsigned long addr, unsigned long len,
-				     struct mmu_rb_node **rb_node);
+				     struct mmu_rb_yesde **rb_yesde);
 
 #endif /* _HFI1_MMU_RB_H */

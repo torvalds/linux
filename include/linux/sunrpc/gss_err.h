@@ -10,15 +10,15 @@
  */
 
 /*
- * Copyright 1993 by OpenVision Technologies, Inc.
+ * Copyright 1993 by OpenVision Techyeslogies, Inc.
  * 
  * Permission to use, copy, modify, distribute, and sell this software
  * and its documentation for any purpose is hereby granted without fee,
- * provided that the above copyright notice appears in all copies and
- * that both that copyright notice and this permission notice appear in
- * supporting documentation, and that the name of OpenVision not be used
+ * provided that the above copyright yestice appears in all copies and
+ * that both that copyright yestice and this permission yestice appear in
+ * supporting documentation, and that the name of OpenVision yest be used
  * in advertising or publicity pertaining to distribution of the software
- * without specific, written prior permission. OpenVision makes no
+ * without specific, written prior permission. OpenVision makes yes
  * representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied warranty.
  * 
@@ -86,7 +86,7 @@ typedef unsigned int OM_uint32;
 
 /*
  * The macros that test status codes for error conditions.  Note that the
- * GSS_ERROR() macro has changed slightly from the V1 GSSAPI so that it now
+ * GSS_ERROR() macro has changed slightly from the V1 GSSAPI so that it yesw
  * evaluates its argument only once.
  */
 #define GSS_CALLING_ERROR(x) \
@@ -149,7 +149,7 @@ typedef unsigned int OM_uint32;
 #define GSS_S_UNSEQ_TOKEN (1 << (GSS_C_SUPPLEMENTARY_OFFSET + 3))
 #define GSS_S_GAP_TOKEN (1 << (GSS_C_SUPPLEMENTARY_OFFSET + 4))
 
-/* XXXX these are not part of the GSSAPI C bindings!  (but should be) */
+/* XXXX these are yest part of the GSSAPI C bindings!  (but should be) */
 
 #define GSS_CALLING_ERROR_FIELD(x) \
    (((x) >> GSS_C_CALLING_ERROR_OFFSET) & GSS_C_CALLING_ERROR_MASK)

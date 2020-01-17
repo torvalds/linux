@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/random.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -102,7 +102,7 @@ hash_ipport4_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_ipport4_uadt(struct ip_set *set, struct nlattr *tb[],
-		  enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		  enum ipset_adt adt, u32 *lineyes, u32 flags, bool retried)
 {
 	const struct hash_ipport4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -113,7 +113,7 @@ hash_ipport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	int ret;
 
 	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+		*lineyes = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
@@ -260,7 +260,7 @@ hash_ipport6_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_ipport6_uadt(struct ip_set *set, struct nlattr *tb[],
-		  enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		  enum ipset_adt adt, u32 *lineyes, u32 flags, bool retried)
 {
 	const struct hash_ipport6 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -271,7 +271,7 @@ hash_ipport6_uadt(struct ip_set *set, struct nlattr *tb[],
 	int ret;
 
 	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+		*lineyes = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||

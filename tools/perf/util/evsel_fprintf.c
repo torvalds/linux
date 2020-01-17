@@ -78,13 +78,13 @@ int perf_evsel__fprintf(struct evsel *evsel,
 		struct tep_format_field *field;
 
 		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT) {
-			printed += comma_fprintf(fp, &first, " (not a tracepoint)");
+			printed += comma_fprintf(fp, &first, " (yest a tracepoint)");
 			goto out;
 		}
 
 		field = evsel->tp_format->format.fields;
 		if (field == NULL) {
-			printed += comma_fprintf(fp, &first, " (no trace field)");
+			printed += comma_fprintf(fp, &first, " (yes trace field)");
 			goto out;
 		}
 
@@ -106,21 +106,21 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			      struct strlist *bt_stop_list, FILE *fp)
 {
 	int printed = 0;
-	struct callchain_cursor_node *node;
+	struct callchain_cursor_yesde *yesde;
 	int print_ip = print_opts & EVSEL__PRINT_IP;
 	int print_sym = print_opts & EVSEL__PRINT_SYM;
 	int print_dso = print_opts & EVSEL__PRINT_DSO;
 	int print_symoffset = print_opts & EVSEL__PRINT_SYMOFFSET;
 	int print_oneline = print_opts & EVSEL__PRINT_ONELINE;
 	int print_srcline = print_opts & EVSEL__PRINT_SRCLINE;
-	int print_unknown_as_addr = print_opts & EVSEL__PRINT_UNKNOWN_AS_ADDR;
+	int print_unkyeswn_as_addr = print_opts & EVSEL__PRINT_UNKNOWN_AS_ADDR;
 	int print_arrow = print_opts & EVSEL__PRINT_CALLCHAIN_ARROW;
-	int print_skip_ignored = print_opts & EVSEL__PRINT_SKIP_IGNORED;
+	int print_skip_igyesred = print_opts & EVSEL__PRINT_SKIP_IGNORED;
 	char s = print_oneline ? ' ' : '\t';
 	bool first = true;
 
 	if (sample->callchain) {
-		struct addr_location node_al;
+		struct addr_location yesde_al;
 
 		callchain_cursor_commit(cursor);
 
@@ -129,14 +129,14 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 			struct map *map;
 			u64 addr = 0;
 
-			node = callchain_cursor_current(cursor);
-			if (!node)
+			yesde = callchain_cursor_current(cursor);
+			if (!yesde)
 				break;
 
-			sym = node->ms.sym;
-			map = node->ms.map;
+			sym = yesde->ms.sym;
+			map = yesde->ms.map;
 
-			if (sym && sym->ignore && print_skip_ignored)
+			if (sym && sym->igyesre && print_skip_igyesred)
 				goto next;
 
 			printed += fprintf(fp, "%-*.*s", left_alignment, left_alignment, " ");
@@ -145,23 +145,23 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 				printed += fprintf(fp, " <-");
 
 			if (print_ip)
-				printed += fprintf(fp, "%c%16" PRIx64, s, node->ip);
+				printed += fprintf(fp, "%c%16" PRIx64, s, yesde->ip);
 
 			if (map)
-				addr = map->map_ip(map, node->ip);
+				addr = map->map_ip(map, yesde->ip);
 
 			if (print_sym) {
 				printed += fprintf(fp, " ");
-				node_al.addr = addr;
-				node_al.map  = map;
+				yesde_al.addr = addr;
+				yesde_al.map  = map;
 
 				if (print_symoffset) {
-					printed += __symbol__fprintf_symname_offs(sym, &node_al,
-										  print_unknown_as_addr,
+					printed += __symbol__fprintf_symname_offs(sym, &yesde_al,
+										  print_unkyeswn_as_addr,
 										  true, fp);
 				} else {
-					printed += __symbol__fprintf_symname(sym, &node_al,
-									     print_unknown_as_addr, fp);
+					printed += __symbol__fprintf_symname(sym, &yesde_al,
+									     print_unkyeswn_as_addr, fp);
 				}
 			}
 
@@ -205,7 +205,7 @@ int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 	int print_dso = print_opts & EVSEL__PRINT_DSO;
 	int print_symoffset = print_opts & EVSEL__PRINT_SYMOFFSET;
 	int print_srcline = print_opts & EVSEL__PRINT_SRCLINE;
-	int print_unknown_as_addr = print_opts & EVSEL__PRINT_UNKNOWN_AS_ADDR;
+	int print_unkyeswn_as_addr = print_opts & EVSEL__PRINT_UNKNOWN_AS_ADDR;
 
 	if (cursor != NULL) {
 		printed += sample__fprintf_callchain(sample, left_alignment, print_opts,
@@ -220,11 +220,11 @@ int sample__fprintf_sym(struct perf_sample *sample, struct addr_location *al,
 			printed += fprintf(fp, " ");
 			if (print_symoffset) {
 				printed += __symbol__fprintf_symname_offs(al->sym, al,
-									  print_unknown_as_addr,
+									  print_unkyeswn_as_addr,
 									  true, fp);
 			} else {
 				printed += __symbol__fprintf_symname(al->sym, al,
-								     print_unknown_as_addr, fp);
+								     print_unkyeswn_as_addr, fp);
 			}
 		}
 

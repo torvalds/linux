@@ -46,7 +46,7 @@
 
 /*
  * interrupt trigger level for tx
- * if threshold is n, no polling is required to start tx.
+ * if threshold is n, yes polling is required to start tx.
  * otherwise need polling VFF_FLUSH.
  */
 #define VFF_TX_THRE(n)		(n)
@@ -213,7 +213,7 @@ static void mtk_uart_apdma_tx_handler(struct mtk_chan *c)
 	mtk_uart_apdma_write(c, VFF_INT_EN, VFF_INT_EN_CLR_B);
 	mtk_uart_apdma_write(c, VFF_EN, VFF_EN_CLR_B);
 
-	list_del(&d->vd.node);
+	list_del(&d->vd.yesde);
 	vchan_cookie_complete(&d->vd);
 }
 
@@ -246,7 +246,7 @@ static void mtk_uart_apdma_rx_handler(struct mtk_chan *c)
 	c->rx_status = d->avail_len - cnt;
 	mtk_uart_apdma_write(c, VFF_RPT, wg);
 
-	list_del(&d->vd.node);
+	list_del(&d->vd.yesde);
 	vchan_cookie_complete(&d->vd);
 }
 
@@ -275,7 +275,7 @@ static int mtk_uart_apdma_alloc_chan_resources(struct dma_chan *chan)
 
 	ret = pm_runtime_get_sync(mtkd->ddev.dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(chan->device->dev);
+		pm_runtime_put_yesidle(chan->device->dev);
 		return ret;
 	}
 
@@ -457,9 +457,9 @@ static void mtk_uart_apdma_free(struct mtk_uart_apdmadev *mtkd)
 {
 	while (!list_empty(&mtkd->ddev.channels)) {
 		struct mtk_chan *c = list_first_entry(&mtkd->ddev.channels,
-			struct mtk_chan, vc.chan.device_node);
+			struct mtk_chan, vc.chan.device_yesde);
 
-		list_del(&c->vc.chan.device_node);
+		list_del(&c->vc.chan.device_yesde);
 		tasklet_kill(&c->vc.task);
 	}
 }
@@ -472,7 +472,7 @@ MODULE_DEVICE_TABLE(of, mtk_uart_apdma_match);
 
 static int mtk_uart_apdma_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct mtk_uart_apdmadev *mtkd;
 	int bit_mask = 32, rc;
 	struct mtk_chan *c;
@@ -528,20 +528,20 @@ static int mtk_uart_apdma_probe(struct platform_device *pdev)
 		c = devm_kzalloc(mtkd->ddev.dev, sizeof(*c), GFP_KERNEL);
 		if (!c) {
 			rc = -ENODEV;
-			goto err_no_dma;
+			goto err_yes_dma;
 		}
 
 		c->base = devm_platform_ioremap_resource(pdev, i);
 		if (IS_ERR(c->base)) {
 			rc = PTR_ERR(c->base);
-			goto err_no_dma;
+			goto err_yes_dma;
 		}
 		c->vc.desc_free = mtk_uart_apdma_desc_free;
 		vchan_init(&c->vc, &mtkd->ddev);
 
 		rc = platform_get_irq(pdev, i);
 		if (rc < 0)
-			goto err_no_dma;
+			goto err_yes_dma;
 		c->irq = rc;
 	}
 
@@ -565,7 +565,7 @@ dma_remove:
 	dma_async_device_unregister(&mtkd->ddev);
 rpm_disable:
 	pm_runtime_disable(&pdev->dev);
-err_no_dma:
+err_yes_dma:
 	mtk_uart_apdma_free(mtkd);
 	return rc;
 }
@@ -574,7 +574,7 @@ static int mtk_uart_apdma_remove(struct platform_device *pdev)
 {
 	struct mtk_uart_apdmadev *mtkd = platform_get_drvdata(pdev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 
 	mtk_uart_apdma_free(mtkd);
 

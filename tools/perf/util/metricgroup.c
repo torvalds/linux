@@ -14,7 +14,7 @@
 #include "expr.h"
 #include "rblist.h"
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include "pmu-events/pmu-events.h"
 #include "strlist.h"
 #include <assert.h>
@@ -27,7 +27,7 @@ struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 					 struct evsel *evsel,
 					 bool create)
 {
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	struct metric_event me = {
 		.evsel = evsel
 	};
@@ -39,7 +39,7 @@ struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 	if (nd)
 		return container_of(nd, struct metric_event, nd);
 	if (create) {
-		rblist__add_node(metric_events, &me);
+		rblist__add_yesde(metric_events, &me);
 		nd = rblist__find(metric_events, &me);
 		if (nd)
 			return container_of(nd, struct metric_event, nd);
@@ -47,9 +47,9 @@ struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 	return NULL;
 }
 
-static int metric_event_cmp(struct rb_node *rb_node, const void *entry)
+static int metric_event_cmp(struct rb_yesde *rb_yesde, const void *entry)
 {
-	struct metric_event *a = container_of(rb_node,
+	struct metric_event *a = container_of(rb_yesde,
 					      struct metric_event,
 					      nd);
 	const struct metric_event *b = entry;
@@ -61,7 +61,7 @@ static int metric_event_cmp(struct rb_node *rb_node, const void *entry)
 	return +1;
 }
 
-static struct rb_node *metric_event_new(struct rblist *rblist __maybe_unused,
+static struct rb_yesde *metric_event_new(struct rblist *rblist __maybe_unused,
 					const void *entry)
 {
 	struct metric_event *me = malloc(sizeof(struct metric_event));
@@ -77,8 +77,8 @@ static struct rb_node *metric_event_new(struct rblist *rblist __maybe_unused,
 static void metricgroup__rblist_init(struct rblist *metric_events)
 {
 	rblist__init(metric_events);
-	metric_events->node_cmp = metric_event_cmp;
-	metric_events->node_new = metric_event_new;
+	metric_events->yesde_cmp = metric_event_cmp;
+	metric_events->yesde_new = metric_event_new;
 }
 
 struct egroup {
@@ -172,7 +172,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 		evsel = find_evsel_group(perf_evlist, eg->ids, eg->idnum,
 					 metric_events);
 		if (!evsel) {
-			pr_debug("Cannot resolve %s: %s\n",
+			pr_debug("Canyest resolve %s: %s\n",
 					eg->metric_name, eg->metric_expr);
 			continue;
 		}
@@ -219,20 +219,20 @@ static bool match_metric(const char *n, const char *list)
 }
 
 struct mep {
-	struct rb_node nd;
+	struct rb_yesde nd;
 	const char *name;
 	struct strlist *metrics;
 };
 
-static int mep_cmp(struct rb_node *rb_node, const void *entry)
+static int mep_cmp(struct rb_yesde *rb_yesde, const void *entry)
 {
-	struct mep *a = container_of(rb_node, struct mep, nd);
+	struct mep *a = container_of(rb_yesde, struct mep, nd);
 	struct mep *b = (struct mep *)entry;
 
 	return strcmp(a->name, b->name);
 }
 
-static struct rb_node *mep_new(struct rblist *rl __maybe_unused,
+static struct rb_yesde *mep_new(struct rblist *rl __maybe_unused,
 					const void *entry)
 {
 	struct mep *me = malloc(sizeof(struct mep));
@@ -256,14 +256,14 @@ out_me:
 
 static struct mep *mep_lookup(struct rblist *groups, const char *name)
 {
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	struct mep me = {
 		.name = name
 	};
 	nd = rblist__find(groups, &me);
 	if (nd)
 		return container_of(nd, struct mep, nd);
-	rblist__add_node(groups, &me);
+	rblist__add_yesde(groups, &me);
 	nd = rblist__find(groups, &me);
 	if (nd)
 		return container_of(nd, struct mep, nd);
@@ -271,7 +271,7 @@ static struct mep *mep_lookup(struct rblist *groups, const char *name)
 }
 
 static void mep_delete(struct rblist *rl __maybe_unused,
-		       struct rb_node *nd)
+		       struct rb_yesde *nd)
 {
 	struct mep *me = container_of(nd, struct mep, nd);
 
@@ -282,7 +282,7 @@ static void mep_delete(struct rblist *rl __maybe_unused,
 
 static void metricgroup__print_strlist(struct strlist *metrics, bool raw)
 {
-	struct str_node *sn;
+	struct str_yesde *sn;
 	int n = 0;
 
 	strlist__for_each_entry (sn, metrics) {
@@ -303,7 +303,7 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	struct pmu_event *pe;
 	int i;
 	struct rblist groups;
-	struct rb_node *node, *next;
+	struct rb_yesde *yesde, *next;
 	struct strlist *metriclist = NULL;
 
 	if (!map)
@@ -316,9 +316,9 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	}
 
 	rblist__init(&groups);
-	groups.node_new = mep_new;
-	groups.node_cmp = mep_cmp;
-	groups.node_delete = mep_delete;
+	groups.yesde_new = mep_new;
+	groups.yesde_cmp = mep_cmp;
+	groups.yesde_delete = mep_delete;
 	for (i = 0; ; i++) {
 		const char *g;
 		pe = &map->table[i];
@@ -384,15 +384,15 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	else if (metrics && !raw)
 		printf("\nMetrics:\n\n");
 
-	for (node = rb_first_cached(&groups.entries); node; node = next) {
-		struct mep *me = container_of(node, struct mep, nd);
+	for (yesde = rb_first_cached(&groups.entries); yesde; yesde = next) {
+		struct mep *me = container_of(yesde, struct mep, nd);
 
 		if (metricgroups)
 			printf("%s%s%s", me->name, metrics && !raw ? ":" : "", raw ? " " : "\n");
 		if (metrics)
 			metricgroup__print_strlist(me->metrics, raw);
-		next = rb_next(node);
-		rblist__remove_node(&groups, node);
+		next = rb_next(yesde);
+		rblist__remove_yesde(&groups, yesde);
 	}
 	if (!metricgroups)
 		metricgroup__print_strlist(metriclist, raw);
@@ -422,7 +422,7 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 			const char **ids;
 			int idnum;
 			struct egroup *eg;
-			bool no_group = false;
+			bool yes_group = false;
 
 			pr_debug("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
 
@@ -435,22 +435,22 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 				pr_debug("found event %s\n", ids[j]);
 				/*
 				 * Duration time maps to a software event and can make
-				 * groups not count. Always use it outside a
+				 * groups yest count. Always use it outside a
 				 * group.
 				 */
 				if (!strcmp(ids[j], "duration_time")) {
 					if (j > 0)
 						strbuf_addf(events, "}:W,");
 					strbuf_addf(events, "duration_time");
-					no_group = true;
+					yes_group = true;
 					continue;
 				}
 				strbuf_addf(events, "%s%s",
-					j == 0 || no_group ? "{" : ",",
+					j == 0 || yes_group ? "{" : ",",
 					ids[j]);
-				no_group = false;
+				yes_group = false;
 			}
-			if (!no_group)
+			if (!yes_group)
 				strbuf_addf(events, "}:W");
 
 			eg = malloc(sizeof(struct egroup));
@@ -487,7 +487,7 @@ static int metricgroup__add_metric_list(const char *list, struct strbuf *events,
 	while ((p = strsep(&llist, ",")) != NULL) {
 		ret = metricgroup__add_metric(p, events, group_list);
 		if (ret == -EINVAL) {
-			fprintf(stderr, "Cannot find metric or group `%s'\n",
+			fprintf(stderr, "Canyest find metric or group `%s'\n",
 					p);
 			break;
 		}

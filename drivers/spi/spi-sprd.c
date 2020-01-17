@@ -912,7 +912,7 @@ static int sprd_spi_dma_init(struct platform_device *pdev, struct sprd_spi *ss)
 			return ret;
 
 		dev_warn(&pdev->dev,
-			 "failed to request dma, enter no dma mode, ret = %d\n",
+			 "failed to request dma, enter yes dma mode, ret = %d\n",
 			 ret);
 
 		return 0;
@@ -930,7 +930,7 @@ static int sprd_spi_probe(struct platform_device *pdev)
 	struct sprd_spi *ss;
 	int ret;
 
-	pdev->id = of_alias_get_id(pdev->dev.of_node, "spi");
+	pdev->id = of_alias_get_id(pdev->dev.of_yesde, "spi");
 	sctlr = spi_alloc_master(&pdev->dev, sizeof(*ss));
 	if (!sctlr)
 		return -ENOMEM;
@@ -945,7 +945,7 @@ static int sprd_spi_probe(struct platform_device *pdev)
 
 	ss->phy_base = res->start;
 	ss->dev = &pdev->dev;
-	sctlr->dev.of_node = pdev->dev.of_node;
+	sctlr->dev.of_yesde = pdev->dev.of_yesde;
 	sctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_3WIRE | SPI_TX_DUAL;
 	sctlr->bus_num = pdev->id;
 	sctlr->set_cs = sprd_spi_chipselect;
@@ -997,7 +997,7 @@ static int sprd_spi_probe(struct platform_device *pdev)
 	return 0;
 
 err_rpm_put:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 disable_clk:
 	clk_disable_unprepare(ss->clk);
@@ -1026,7 +1026,7 @@ static int sprd_spi_remove(struct platform_device *pdev)
 	if (ss->dma.enable)
 		sprd_spi_dma_release(ss);
 	clk_disable_unprepare(ss->clk);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;

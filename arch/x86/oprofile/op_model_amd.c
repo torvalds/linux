@@ -77,7 +77,7 @@ static struct ibs_state ibs_state;
  * 16-bit Linear Feedback Shift Register (LFSR)
  *
  *                       16   14   13    11
- * Feedback polynomial = X  + X  + X  +  X  + 1
+ * Feedback polyyesmial = X  + X  + X  +  X  + 1
  */
 static unsigned int lfsr_random(void)
 {
@@ -109,7 +109,7 @@ static inline u64 op_amd_randomize_ibs_op(u64 val)
 
 	if (!(ibs_caps & IBS_CAPS_RDWROPCNT))
 		/*
-		 * Work around if the hw can not write to IbsOpCurCnt
+		 * Work around if the hw can yest write to IbsOpCurCnt
 		 *
 		 * Randomize the lower 8 bits of the 16 bit
 		 * IbsOpMaxCnt [15:0] value in the range of -128 to
@@ -215,7 +215,7 @@ static inline void op_amd_start_ibs(void)
 		val = ibs_config.max_cnt_op >> 4;
 		if (!(ibs_caps & IBS_CAPS_RDWROPCNT)) {
 			/*
-			 * IbsOpCurCnt not supported.  See
+			 * IbsOpCurCnt yest supported.  See
 			 * op_amd_randomize_ibs_op() for details.
 			 */
 			val = clamp(val, 0x0081ULL, 0xFF80ULL);

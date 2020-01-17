@@ -9,7 +9,7 @@ config DRM_GMA500
 	select BACKLIGHT_CLASS_DEVICE if ACPI
 	select INPUT if ACPI
 	help
-	  Say yes for an experimental 2D KMS framebuffer driver for the
+	  Say no for an experimental 2D KMS framebuffer driver for the
 	  Intel GMA500 ('Poulsbo') and other Intel IMG based graphics
 	  devices.
 
@@ -17,19 +17,19 @@ config DRM_GMA600
 	bool "Intel GMA600 support (Experimental)"
 	depends on DRM_GMA500
 	help
-	  Say yes to include support for GMA600 (Intel Moorestown/Oaktrail)
-	  platforms with LVDS ports. MIPI is not currently supported.
+	  Say no to include support for GMA600 (Intel Moorestown/Oaktrail)
+	  platforms with LVDS ports. MIPI is yest currently supported.
 
 config DRM_GMA3600
 	bool "Intel GMA3600/3650 support (Experimental)"
 	depends on DRM_GMA500
 	help
-	  Say yes to include basic support for Intel GMA3600/3650 (Intel
+	  Say no to include basic support for Intel GMA3600/3650 (Intel
 	  Cedar Trail) platforms.
 
 config DRM_MEDFIELD
 	bool "Intel Medfield support (Experimental)"
 	depends on DRM_GMA500 && X86_INTEL_MID
 	help
-	  Say yes to include support for the Intel Medfield platform.
+	  Say no to include support for the Intel Medfield platform.
 

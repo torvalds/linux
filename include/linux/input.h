@@ -8,7 +8,7 @@
 #include <linux/time.h>
 #include <linux/list.h>
 #include <uapi/linux/input.h>
-/* Implementation details, userspace should not care about these */
+/* Implementation details, userspace should yest care about these */
 #define ABS_MT_FIRST		ABS_MT_TOUCH_MAJOR
 #define ABS_MT_LAST		ABS_MT_TOOL_Y
 
@@ -68,9 +68,9 @@ enum input_clock_type {
  * @keycode: map of scancodes to keycodes for this device
  * @getkeycode: optional legacy method to retrieve current keymap.
  * @setkeycode: optional method to alter current keymap, used to implement
- *	sparse keymaps. If not supplied default mechanism will be used.
+ *	sparse keymaps. If yest supplied default mechanism will be used.
  *	The method is being called while holding event_lock and thus must
- *	not sleep
+ *	yest sleep
  * @ff: force feedback structure associated with the device if device
  *	supports force feedback effects
  * @poller: poller structure associated with the device if device is
@@ -99,7 +99,7 @@ enum input_clock_type {
  * @event: event handler for events sent _to_ the device, like EV_LED
  *	or EV_SND. The device is expected to carry out the requested
  *	action (turn on a LED, play sound, etc.) The call is protected
- *	by @event_lock and must not sleep
+ *	by @event_lock and must yest sleep
  * @grab: input handle that currently has the device grabbed (via
  *	EVIOCGRAB ioctl). When a handle grabs a device it becomes sole
  *	recipient for all input events coming from the device
@@ -119,12 +119,12 @@ enum input_clock_type {
  * @dev: driver model's view of this device
  * @h_list: list of input handles associated with the device. When
  *	accessing the list dev->mutex must be held
- * @node: used to place the device onto input_dev_list
+ * @yesde: used to place the device onto input_dev_list
  * @num_vals: number of values queued in the current frame
  * @max_vals: maximum number of values queued in a frame
  * @vals: array of values queued in the current frame
  * @devres_managed: indicates that devices is managed with devres framework
- *	and needs not be explicitly unregistered or freed.
+ *	and needs yest be explicitly unregistered or freed.
  * @timestamp: storage for a timestamp set by input_set_timestamp called
  *  by a driver
  */
@@ -192,7 +192,7 @@ struct input_dev {
 	struct device dev;
 
 	struct list_head	h_list;
-	struct list_head	node;
+	struct list_head	yesde;
 
 	unsigned int num_vals;
 	unsigned int max_vals;
@@ -209,47 +209,47 @@ struct input_dev {
  */
 
 #if EV_MAX != INPUT_DEVICE_ID_EV_MAX
-#error "EV_MAX and INPUT_DEVICE_ID_EV_MAX do not match"
+#error "EV_MAX and INPUT_DEVICE_ID_EV_MAX do yest match"
 #endif
 
 #if KEY_MIN_INTERESTING != INPUT_DEVICE_ID_KEY_MIN_INTERESTING
-#error "KEY_MIN_INTERESTING and INPUT_DEVICE_ID_KEY_MIN_INTERESTING do not match"
+#error "KEY_MIN_INTERESTING and INPUT_DEVICE_ID_KEY_MIN_INTERESTING do yest match"
 #endif
 
 #if KEY_MAX != INPUT_DEVICE_ID_KEY_MAX
-#error "KEY_MAX and INPUT_DEVICE_ID_KEY_MAX do not match"
+#error "KEY_MAX and INPUT_DEVICE_ID_KEY_MAX do yest match"
 #endif
 
 #if REL_MAX != INPUT_DEVICE_ID_REL_MAX
-#error "REL_MAX and INPUT_DEVICE_ID_REL_MAX do not match"
+#error "REL_MAX and INPUT_DEVICE_ID_REL_MAX do yest match"
 #endif
 
 #if ABS_MAX != INPUT_DEVICE_ID_ABS_MAX
-#error "ABS_MAX and INPUT_DEVICE_ID_ABS_MAX do not match"
+#error "ABS_MAX and INPUT_DEVICE_ID_ABS_MAX do yest match"
 #endif
 
 #if MSC_MAX != INPUT_DEVICE_ID_MSC_MAX
-#error "MSC_MAX and INPUT_DEVICE_ID_MSC_MAX do not match"
+#error "MSC_MAX and INPUT_DEVICE_ID_MSC_MAX do yest match"
 #endif
 
 #if LED_MAX != INPUT_DEVICE_ID_LED_MAX
-#error "LED_MAX and INPUT_DEVICE_ID_LED_MAX do not match"
+#error "LED_MAX and INPUT_DEVICE_ID_LED_MAX do yest match"
 #endif
 
 #if SND_MAX != INPUT_DEVICE_ID_SND_MAX
-#error "SND_MAX and INPUT_DEVICE_ID_SND_MAX do not match"
+#error "SND_MAX and INPUT_DEVICE_ID_SND_MAX do yest match"
 #endif
 
 #if FF_MAX != INPUT_DEVICE_ID_FF_MAX
-#error "FF_MAX and INPUT_DEVICE_ID_FF_MAX do not match"
+#error "FF_MAX and INPUT_DEVICE_ID_FF_MAX do yest match"
 #endif
 
 #if SW_MAX != INPUT_DEVICE_ID_SW_MAX
-#error "SW_MAX and INPUT_DEVICE_ID_SW_MAX do not match"
+#error "SW_MAX and INPUT_DEVICE_ID_SW_MAX do yest match"
 #endif
 
 #if INPUT_PROP_MAX != INPUT_DEVICE_ID_PROP_MAX
-#error "INPUT_PROP_MAX and INPUT_DEVICE_ID_PROP_MAX do not match"
+#error "INPUT_PROP_MAX and INPUT_DEVICE_ID_PROP_MAX do yest match"
 #endif
 
 #define INPUT_DEVICE_ID_MATCH_DEVICE \
@@ -264,11 +264,11 @@ struct input_handle;
  * @private: driver-specific data
  * @event: event handler. This method is being called by input core with
  *	interrupts disabled and dev->event_lock spinlock held and so
- *	it may not sleep
+ *	it may yest sleep
  * @events: event sequence handler. This method is being called by
  *	input core with interrupts disabled and dev->event_lock
- *	spinlock held and so it may not sleep
- * @filter: similar to @event; separates normal event handlers from
+ *	spinlock held and so it may yest sleep
+ * @filter: similar to @event; separates yesrmal event handlers from
  *	"filters".
  * @match: called after comparing device's id with handler's id_table
  *	to perform fine-grained matching between device and handler
@@ -277,14 +277,14 @@ struct input_handle;
  * @start: starts handler for given handle. This function is called by
  *	input core right after connect() method and also when a process
  *	that "grabbed" a device releases it
- * @legacy_minors: set to %true by drivers using legacy minor ranges
- * @minor: beginning of range of 32 legacy minors for devices this driver
+ * @legacy_miyesrs: set to %true by drivers using legacy miyesr ranges
+ * @miyesr: beginning of range of 32 legacy miyesrs for devices this driver
  *	can provide
  * @name: name of the handler, to be shown in /proc/bus/input/handlers
  * @id_table: pointer to a table of input_device_ids this driver can
  *	handle
  * @h_list: list of input handles associated with the handler
- * @node: for placing the driver onto input_handler_list
+ * @yesde: for placing the driver onto input_handler_list
  *
  * Input handlers attach to input devices and create input handles. There
  * are likely several handlers attached to any given input device at the
@@ -292,7 +292,7 @@ struct input_handle;
  * the device.
  *
  * The very same structure is used to implement input filters. Input core
- * allows filters to run first and will not pass event to regular handlers
+ * allows filters to run first and will yest pass event to regular handlers
  * if any of the filters indicate that the event should be filtered (by
  * returning %true from their filter() method).
  *
@@ -312,14 +312,14 @@ struct input_handler {
 	void (*disconnect)(struct input_handle *handle);
 	void (*start)(struct input_handle *handle);
 
-	bool legacy_minors;
-	int minor;
+	bool legacy_miyesrs;
+	int miyesr;
 	const char *name;
 
 	const struct input_device_id *id_table;
 
 	struct list_head	h_list;
-	struct list_head	node;
+	struct list_head	yesde;
 };
 
 /**
@@ -330,8 +330,8 @@ struct input_handler {
  * @name: name given to the handle by handler that created it
  * @dev: input device the handle is attached to
  * @handler: handler that works with the device through this handle
- * @d_node: used to put the handle on device's list of attached handles
- * @h_node: used to put the handle on handler's list of handles from which
+ * @d_yesde: used to put the handle on device's list of attached handles
+ * @h_yesde: used to put the handle on handler's list of handles from which
  *	it gets events
  */
 struct input_handle {
@@ -344,8 +344,8 @@ struct input_handle {
 	struct input_dev *dev;
 	struct input_handler *handler;
 
-	struct list_head	d_node;
-	struct list_head	h_node;
+	struct list_head	d_yesde;
+	struct list_head	h_yesde;
 };
 
 struct input_dev __must_check *input_allocate_device(void);
@@ -388,9 +388,9 @@ int input_get_poll_interval(struct input_dev *dev);
 int __must_check input_register_handler(struct input_handler *);
 void input_unregister_handler(struct input_handler *);
 
-int __must_check input_get_new_minor(int legacy_base, unsigned int legacy_num,
+int __must_check input_get_new_miyesr(int legacy_base, unsigned int legacy_num,
 				     bool allow_dynamic);
-void input_free_minor(unsigned int minor);
+void input_free_miyesr(unsigned int miyesr);
 
 int input_handler_for_each_handle(struct input_handler *, void *data,
 				  int (*fn)(struct input_handle *, void *));
@@ -515,7 +515,7 @@ extern struct class input_class;
  *	destroyed
  * @private: driver-specific data, will be freed automatically
  * @ffbit: bitmap of force feedback capabilities truly supported by
- *	device (not emulated like ones in input_dev->ffbit)
+ *	device (yest emulated like ones in input_dev->ffbit)
  * @mutex: mutex for serializing access to the device
  * @max_effects: maximum number of effects supported by device
  * @effects: pointer to an array of effects currently loaded into device
@@ -528,7 +528,7 @@ extern struct class input_class;
  * bits.
  *
  * Note that playback(), set_gain() and set_autocenter() are called with
- * dev->event_lock spinlock held and interrupts off and thus may not
+ * dev->event_lock spinlock held and interrupts off and thus may yest
  * sleep.
  */
 struct ff_device {

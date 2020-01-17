@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -127,14 +127,14 @@ struct vfpf_acquire_tlv {
 #define VFPF_ACQUIRE_CAP_PHYSICAL_BAR   BIT(3)
 		u64 capabilities;
 		u8 fw_major;
-		u8 fw_minor;
+		u8 fw_miyesr;
 		u8 fw_revision;
 		u8 fw_engineering;
 		u32 driver_version;
 		u16 opaque_fid;	/* ME register value */
 		u8 os_type;	/* VFPF_ACQUIRE_OS_* value */
 		u8 eth_fp_hsi_major;
-		u8 eth_fp_hsi_minor;
+		u8 eth_fp_hsi_miyesr;
 		u8 padding[3];
 	} vfdev_info;
 
@@ -182,7 +182,7 @@ struct pfvf_acquire_resp_tlv {
 		u32 mfw_ver;
 
 		u16 fw_major;
-		u16 fw_minor;
+		u16 fw_miyesr;
 		u16 fw_rev;
 		u16 fw_eng;
 
@@ -192,7 +192,7 @@ struct pfvf_acquire_resp_tlv {
 /* There are old PF versions where the PF might mistakenly override the sanity
  * mechanism [version-based] and allow a VF that can't be supported to pass
  * the acquisition phase.
- * To overcome this, PFs now indicate that they're past that point and the new
+ * To overcome this, PFs yesw indicate that they're past that point and the new
  * VFs would fail probe on the older PFs that fail to do so.
  */
 #define PFVF_ACQUIRE_CAP_POST_FW_OVERRIDE	BIT(2)
@@ -218,10 +218,10 @@ struct pfvf_acquire_resp_tlv {
 		/* It's possible PF had to configure an older fastpath HSI
 		 * [in case VF is newer than PF]. This is communicated back
 		 * to the VF. It can also be used in case of error due to
-		 * non-matching versions to shed light in VF about failure.
+		 * yesn-matching versions to shed light in VF about failure.
 		 */
 		u8 major_fp_hsi;
-		u8 minor_fp_hsi;
+		u8 miyesr_fp_hsi;
 	} pfdev_info;
 
 	struct pf_vf_resc {
@@ -573,7 +573,7 @@ enum qed_bulletin_bit {
 };
 
 struct qed_bulletin_content {
-	/* crc of structure to ensure is not in mid-update */
+	/* crc of structure to ensure is yest in mid-update */
 	u32 crc;
 
 	u32 version;
@@ -584,13 +584,13 @@ struct qed_bulletin_content {
 	/* used for MAC_ADDR or MAC_ADDR_FORCED */
 	u8 mac[ETH_ALEN];
 
-	/* If valid, 1 => only untagged Rx if no vlan is configured */
+	/* If valid, 1 => only untagged Rx if yes vlan is configured */
 	u8 default_only_untagged;
 	u8 padding;
 
 	/* The following is a 'copy' of qed_mcp_link_state,
 	 * qed_mcp_link_params and qed_mcp_link_capabilities. Since it's
-	 * possible the structs will increase further along the road we cannot
+	 * possible the structs will increase further along the road we canyest
 	 * have it here; Instead we need to have all of its fields.
 	 */
 	u8 req_autoneg;
@@ -666,7 +666,7 @@ enum {
 	CHANNEL_TLV_MAX,
 
 	/* Required for iterating over vport-update tlvs.
-	 * Will break in case non-sequential vport-update tlvs.
+	 * Will break in case yesn-sequential vport-update tlvs.
 	 */
 	CHANNEL_TLV_VPORT_UPDATE_MAX = CHANNEL_TLV_VPORT_UPDATE_SGE_TPA + 1,
 };
@@ -841,12 +841,12 @@ bool qed_vf_check_mac(struct qed_hwfn *p_hwfn, u8 *mac);
  *
  * @param p_hwfn
  * @param fw_major
- * @param fw_minor
+ * @param fw_miyesr
  * @param fw_rev
  * @param fw_eng
  */
 void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
-			   u16 *fw_major, u16 *fw_minor,
+			   u16 *fw_major, u16 *fw_miyesr,
 			   u16 *fw_rev, u16 *fw_eng);
 
 /**
@@ -1111,7 +1111,7 @@ static inline bool qed_vf_check_mac(struct qed_hwfn *p_hwfn, u8 *mac)
 }
 
 static inline void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
-					 u16 *fw_major, u16 *fw_minor,
+					 u16 *fw_major, u16 *fw_miyesr,
 					 u16 *fw_rev, u16 *fw_eng)
 {
 }

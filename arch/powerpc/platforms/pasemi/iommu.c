@@ -130,7 +130,7 @@ static struct iommu_table_ops iommu_table_iobmap_ops = {
 static void iommu_table_iobmap_setup(void)
 {
 	pr_debug(" -> %s\n", __func__);
-	iommu_table_iobmap.it_busno = 0;
+	iommu_table_iobmap.it_busyes = 0;
 	iommu_table_iobmap.it_offset = 0;
 	iommu_table_iobmap.it_page_shift = IOBMAP_PAGE_SHIFT;
 
@@ -168,7 +168,7 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 	pr_debug("pci_dma_dev_setup, dev %p (%s)\n", dev, pci_name(dev));
 
 #if !defined(CONFIG_PPC_PASEMI_IOMMU_DMA_FORCE)
-	/* For non-LPAR environment, don't translate anything for the DMA
+	/* For yesn-LPAR environment, don't translate anything for the DMA
 	 * engine. The exception to this is if the user has enabled
 	 * CONFIG_PPC_PASEMI_IOMMU_DMA_FORCE at build time.
 	 */
@@ -187,7 +187,7 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 	set_iommu_table_base(&dev->dev, &iommu_table_iobmap);
 }
 
-static int __init iob_init(struct device_node *dn)
+static int __init iob_init(struct device_yesde *dn)
 {
 	unsigned long tmp;
 	u32 regword;
@@ -208,7 +208,7 @@ static int __init iob_init(struct device_node *dn)
 	/* Allocate a spare page to map all invalid IOTLB pages. */
 	tmp = memblock_phys_alloc(IOBMAP_PAGE_SIZE, IOBMAP_PAGE_SIZE);
 	if (!tmp)
-		panic("IOBMAP: Cannot allocate spare page!");
+		panic("IOBMAP: Canyest allocate spare page!");
 	/* Empty l1 is marked invalid */
 	iob_l1_emptyval = 0;
 	/* Empty l2 is mapped to dummy page */
@@ -216,7 +216,7 @@ static int __init iob_init(struct device_node *dn)
 
 	iob = ioremap(IOB_BASE, IOB_SIZE);
 	if (!iob)
-		panic("IOBMAP: Cannot map registers!");
+		panic("IOBMAP: Canyest map registers!");
 
 	/* setup direct mapping of the L1 entries */
 	for (i = 0; i < 64; i++) {

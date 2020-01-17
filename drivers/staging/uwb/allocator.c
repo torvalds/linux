@@ -322,7 +322,7 @@ int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv, struct uwb_mas_bm *availab
 	ai->max_interval = rsv->max_interval;
 
 
-	/* fill the not available vector from the available bm */
+	/* fill the yest available vector from the available bm */
 	for_each_clear_bit(bit_index, available->bm, UWB_NUM_MAS)
 		ai->bm[bit_index] = UWB_RSV_MAS_NOT_AVAIL;
 
@@ -331,7 +331,7 @@ int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv, struct uwb_mas_bm *availab
 		if (uwb_rsv_find_best_row_alloc(ai) == UWB_RSV_ALLOC_FOUND)
 			goto alloc_found;
 		else
-			goto alloc_not_found;
+			goto alloc_yest_found;
 	}
 
 	get_column_descriptors(ai);
@@ -343,12 +343,12 @@ int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv, struct uwb_mas_bm *availab
 			goto alloc_found;
 	}
 
-	/* try row reservation if no column is found */
+	/* try row reservation if yes column is found */
 	get_row_descriptors(ai);
 	if (uwb_rsv_find_best_row_alloc(ai) == UWB_RSV_ALLOC_FOUND)
 		goto alloc_found;
 	else
-		goto alloc_not_found;
+		goto alloc_yest_found;
 
   alloc_found:
 	bitmap_zero(result->bm, UWB_NUM_MAS);
@@ -368,7 +368,7 @@ int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv, struct uwb_mas_bm *availab
 	kfree(ai);		
 	return UWB_RSV_ALLOC_FOUND;
   
-  alloc_not_found:
+  alloc_yest_found:
 	kfree(ai);
 	return UWB_RSV_ALLOC_NOT_FOUND;
 }

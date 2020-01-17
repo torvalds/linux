@@ -35,7 +35,7 @@ static int txx9aclc_dma_init(struct txx9aclc_soc_device *dev,
 static const struct snd_pcm_hardware txx9aclc_pcm_hardware = {
 	/*
 	 * REVISIT: SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID
-	 * needs more works for noncoherent MIPS.
+	 * needs more works for yesncoherent MIPS.
 	 */
 	.info		  = SNDRV_PCM_INFO_INTERLEAVED |
 			    SNDRV_PCM_INFO_BATCH |
@@ -109,7 +109,7 @@ static void txx9aclc_dma_complete(void *arg)
 	struct txx9aclc_dmadata *dmadata = arg;
 	unsigned long flags;
 
-	/* dma completion handler cannot submit new operations */
+	/* dma completion handler canyest submit new operations */
 	spin_lock_irqsave(&dmadata->dma_lock, flags);
 	if (dmadata->frag_count >= 0) {
 		dmadata->dmacount--;
@@ -135,7 +135,7 @@ txx9aclc_dma_submit(struct txx9aclc_dmadata *dmadata, dma_addr_t buf_dma_addr)
 		DMA_MEM_TO_DEV : DMA_DEV_TO_MEM,
 		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
-		dev_err(&chan->dev->device, "cannot prepare slave dma\n");
+		dev_err(&chan->dev->device, "canyest prepare slave dma\n");
 		return NULL;
 	}
 	desc->callback = txx9aclc_dma_complete;
@@ -359,7 +359,7 @@ static int txx9aclc_dma_init(struct txx9aclc_soc_device *dev,
 	dmadata->dma_chan = dma_request_channel(mask, filter, dmadata);
 	if (!dmadata->dma_chan) {
 		printk(KERN_ERR
-			"DMA channel for %s is not available\n",
+			"DMA channel for %s is yest available\n",
 			dmadata->stream == SNDRV_PCM_STREAM_PLAYBACK ?
 			"playback" : "capture");
 		return -EBUSY;

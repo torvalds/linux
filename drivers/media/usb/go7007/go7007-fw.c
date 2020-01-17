@@ -8,7 +8,7 @@
  * encoder.  Much of the firmware is read verbatim from a file, but some of
  * it concerning bitrate control and other things that can be configured at
  * run-time are generated dynamically.  Note that the format headers
- * generated here do not affect the functioning of the encoder; they are
+ * generated here do yest affect the functioning of the encoder; they are
  * merely parroted back to the host at the start of each frame.
  */
 
@@ -1491,7 +1491,7 @@ static int modet_to_package(struct go7007 *go, __le16 *code, int space)
 	return cnt;
 }
 
-static noinline_for_stack int do_special(struct go7007 *go, u16 type,
+static yesinline_for_stack int do_special(struct go7007 *go, u16 type,
 					 __le16 *code, int space, int *framelen)
 {
 	switch (type) {

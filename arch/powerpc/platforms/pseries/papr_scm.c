@@ -24,7 +24,7 @@
 
 struct papr_scm_priv {
 	struct platform_device *pdev;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	uint32_t drc_index;
 	uint64_t blocks;
 	uint64_t block_size;
@@ -49,7 +49,7 @@ static int drc_pmem_bind(struct papr_scm_priv *p)
 	int64_t rc;
 
 	/*
-	 * When the hypervisor cannot map all the requested memory in a single
+	 * When the hypervisor canyest map all the requested memory in a single
 	 * hcall it returns H_BUSY and we call again with the token until
 	 * we get H_SUCCESS. Aborting the retry loop before getting H_SUCCESS
 	 * leave the system in an undefined state, so we wait.
@@ -234,7 +234,7 @@ static int papr_scm_meta_set(struct papr_scm_priv *p,
 			wrote = 1;
 		}
 
-		ret = plpar_hcall_norets(H_SCM_WRITE_METADATA, p->drc_index,
+		ret = plpar_hcall_yesrets(H_SCM_WRITE_METADATA, p->drc_index,
 					 offset, data_be, wrote);
 		if (ret == H_PARAMETER) /* bad DRC index */
 			return -ENODEV;
@@ -284,23 +284,23 @@ int papr_scm_ndctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 	return 0;
 }
 
-static inline int papr_scm_node(int node)
+static inline int papr_scm_yesde(int yesde)
 {
 	int min_dist = INT_MAX, dist;
-	int nid, min_node;
+	int nid, min_yesde;
 
-	if ((node == NUMA_NO_NODE) || node_online(node))
-		return node;
+	if ((yesde == NUMA_NO_NODE) || yesde_online(yesde))
+		return yesde;
 
-	min_node = first_online_node;
-	for_each_online_node(nid) {
-		dist = node_distance(node, nid);
+	min_yesde = first_online_yesde;
+	for_each_online_yesde(nid) {
+		dist = yesde_distance(yesde, nid);
 		if (dist < min_dist) {
 			min_dist = dist;
-			min_node = nid;
+			min_yesde = nid;
 		}
 	}
-	return min_node;
+	return min_yesde;
 }
 
 static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
@@ -313,7 +313,7 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 
 	p->bus_desc.ndctl = papr_scm_ndctl;
 	p->bus_desc.module = THIS_MODULE;
-	p->bus_desc.of_node = p->pdev->dev.of_node;
+	p->bus_desc.of_yesde = p->pdev->dev.of_yesde;
 	p->bus_desc.provider_name = kstrdup(p->pdev->name, GFP_KERNEL);
 
 	if (!p->bus_desc.provider_name)
@@ -338,7 +338,7 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 	if (nvdimm_bus_check_dimm_count(p->bus, 1))
 		goto err;
 
-	/* now add the region */
+	/* yesw add the region */
 
 	memset(&mapping, 0, sizeof(mapping));
 	mapping.nvdimm = p->nvdimm;
@@ -346,12 +346,12 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 	mapping.size = p->blocks * p->block_size; // XXX: potential overflow?
 
 	memset(&ndr_desc, 0, sizeof(ndr_desc));
-	target_nid = dev_to_node(&p->pdev->dev);
-	online_nid = papr_scm_node(target_nid);
-	ndr_desc.numa_node = online_nid;
-	ndr_desc.target_node = target_nid;
+	target_nid = dev_to_yesde(&p->pdev->dev);
+	online_nid = papr_scm_yesde(target_nid);
+	ndr_desc.numa_yesde = online_nid;
+	ndr_desc.target_yesde = target_nid;
 	ndr_desc.res = &p->res;
-	ndr_desc.of_node = p->dn;
+	ndr_desc.of_yesde = p->dn;
 	ndr_desc.provider_data = p;
 	ndr_desc.mapping = &mapping;
 	ndr_desc.num_mappings = 1;
@@ -368,7 +368,7 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 		goto err;
 	}
 	if (target_nid != online_nid)
-		dev_info(dev, "Region registered with target node %d and online node %d",
+		dev_info(dev, "Region registered with target yesde %d and online yesde %d",
 			 target_nid, online_nid);
 
 	return 0;
@@ -380,7 +380,7 @@ err:	nvdimm_bus_unregister(p->bus);
 
 static int papr_scm_probe(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	u32 drc_index, metadata_size;
 	u64 blocks, block_size;
 	struct papr_scm_priv *p;
@@ -426,7 +426,7 @@ static int papr_scm_probe(struct platform_device *pdev)
 	/* We just need to ensure that set cookies are unique across */
 	uuid_parse(uuid_str, (uuid_t *) uuid);
 	/*
-	 * cookie1 and cookie2 are not really little endian
+	 * cookie1 and cookie2 are yest really little endian
 	 * we store a little endian representation of the
 	 * uuid str so that we can compare this with the label
 	 * area cookie irrespective of the endian config with which

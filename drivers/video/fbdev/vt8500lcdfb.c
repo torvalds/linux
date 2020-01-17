@@ -9,7 +9,7 @@
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -68,7 +68,7 @@ static int vt8500lcd_set_par(struct fb_info *info)
 		info->fix.line_length = info->var.xres_virtual /
 						(8/info->var.bits_per_pixel);
 	} else {
-		/* non-palettized */
+		/* yesn-palettized */
 		info->var.transp.offset = 0;
 		info->var.transp.length = 0;
 		info->var.transp.msb_right = 0;
@@ -136,13 +136,13 @@ static inline u_int chan_to_field(u_int chan, struct fb_bitfield *bf)
 	return chan << bf->offset;
 }
 
-static int vt8500lcd_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int vt8500lcd_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info) {
 	struct vt8500lcd_info *fbi = to_vt8500lcd_info(info);
 	int ret = 1;
 	unsigned int val;
-	if (regno >= 256)
+	if (regyes >= 256)
 		return -EINVAL;
 
 	if (info->var.grayscale)
@@ -151,14 +151,14 @@ static int vt8500lcd_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 	switch (fbi->fb.fix.visual) {
 	case FB_VISUAL_TRUECOLOR:
-		if (regno < 16) {
+		if (regyes < 16) {
 			u32 *pal = fbi->fb.pseudo_palette;
 
 			val  = chan_to_field(red, &fbi->fb.var.red);
 			val |= chan_to_field(green, &fbi->fb.var.green);
 			val |= chan_to_field(blue, &fbi->fb.var.blue);
 
-			pal[regno] = val;
+			pal[regyes] = val;
 			ret = 0;
 		}
 		break;
@@ -168,7 +168,7 @@ static int vt8500lcd_setcolreg(unsigned regno, unsigned red, unsigned green,
 		writew((red & 0xf800)
 		      | ((green >> 5) & 0x7e0)
 		      | ((blue >> 11) & 0x1f),
-		       fbi->palette_cpu + sizeof(u16) * regno);
+		       fbi->palette_cpu + sizeof(u16) * regyes);
 		break;
 	}
 
@@ -214,7 +214,7 @@ static int vt8500lcd_pan_display(struct fb_var_screeninfo *var,
 /*
  * vt8500lcd_blank():
  *	Blank the display by setting all palette values to zero.  Note,
- * 	True Color modes do not really use the palette, so this will not
+ * 	True Color modes do yest really use the palette, so this will yest
  *      blank the display in all modes.
  */
 static int vt8500lcd_blank(int blank, struct fb_info *info)
@@ -292,7 +292,7 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 	fbi->fb.fix.ywrapstep	= 0;
 	fbi->fb.fix.accel	= FB_ACCEL_NONE;
 
-	fbi->fb.var.nonstd	= 0;
+	fbi->fb.var.yesnstd	= 0;
 	fbi->fb.var.activate	= FB_ACTIVATE_NOW;
 	fbi->fb.var.height	= -1;
 	fbi->fb.var.width	= -1;
@@ -305,7 +305,7 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 				| FBINFO_HWACCEL_YPAN
 				| FBINFO_VIRTFB
 				| FBINFO_PARTIAL_PAN_OK;
-	fbi->fb.node		= -1;
+	fbi->fb.yesde		= -1;
 
 	addr = fbi;
 	addr = addr + sizeof(struct vt8500lcd_info);
@@ -313,7 +313,7 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "no I/O memory resource defined\n");
+		dev_err(&pdev->dev, "yes I/O memory resource defined\n");
 		return -ENODEV;
 	}
 
@@ -330,18 +330,18 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 		goto failed_free_res;
 	}
 
-	disp_timing = of_get_display_timings(pdev->dev.of_node);
+	disp_timing = of_get_display_timings(pdev->dev.of_yesde);
 	if (!disp_timing) {
 		ret = -EINVAL;
 		goto failed_free_io;
 	}
 
-	ret = of_get_fb_videomode(pdev->dev.of_node, &of_mode,
+	ret = of_get_fb_videomode(pdev->dev.of_yesde, &of_mode,
 							OF_USE_NATIVE_MODE);
 	if (ret)
 		goto failed_free_io;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "bits-per-pixel", &bpp);
+	ret = of_property_read_u32(pdev->dev.of_yesde, "bits-per-pixel", &bpp);
 	if (ret)
 		goto failed_free_io;
 
@@ -372,7 +372,7 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "no IRQ defined\n");
+		dev_err(&pdev->dev, "yes IRQ defined\n");
 		ret = -ENODEV;
 		goto failed_free_palette;
 	}
@@ -417,7 +417,7 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Ok, now enable the LCD controller
+	 * Ok, yesw enable the LCD controller
 	 */
 	writel(readl(fbi->regbase) | 1, fbi->regbase);
 

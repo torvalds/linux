@@ -42,7 +42,7 @@
 
 /*
  * We only need 2 bios per I/O unit to make progress, but ensure we
- * have a few more available to not get too tight.
+ * have a few more available to yest get too tight.
  */
 #define R5L_POOL_SIZE	4
 
@@ -59,14 +59,14 @@ static char *r5c_journal_mode_str[] = {"write-through",
  *   if STRIPE_R5C_CACHING == 0, the stripe is in writing-out phase
  *   if STRIPE_R5C_CACHING == 1, the stripe is in caching phase
  *
- * When there is no journal, or the journal is in write-through mode,
+ * When there is yes journal, or the journal is in write-through mode,
  * the stripe is always in writing-out phase.
  *
  * For write-back journal, the stripe is sent to caching phase on write
  * (r5c_try_caching_write). r5c_make_stripe_write_out() kicks off
  * the write-out phase by clearing STRIPE_R5C_CACHING.
  *
- * Stripes in caching phase do not write the raid disks. Instead, all
+ * Stripes in caching phase do yest write the raid disks. Instead, all
  * writes are committed from the log device. Therefore, a stripe in
  * caching phase handles writes as:
  *	- write to log device
@@ -103,17 +103,17 @@ struct r5l_log {
 
 	spinlock_t io_list_lock;
 	struct list_head running_ios;	/* io_units which are still running,
-					 * and have not yet been completely
+					 * and have yest yet been completely
 					 * written to the log */
 	struct list_head io_end_ios;	/* io_units which have been completely
-					 * written to the log but not yet written
+					 * written to the log but yest yet written
 					 * to the RAID */
 	struct list_head flushing_ios;	/* io_units which are waiting for log
 					 * cache flush */
 	struct list_head finished_ios;	/* io_units which settle down in log disk */
 	struct bio flush_bio;
 
-	struct list_head no_mem_stripes;   /* pending stripes, -ENOMEM */
+	struct list_head yes_mem_stripes;   /* pending stripes, -ENOMEM */
 
 	struct kmem_cache *io_kc;
 	mempool_t io_pool;
@@ -130,8 +130,8 @@ struct r5l_log {
 					 * state) */
 	wait_queue_head_t iounit_wait;
 
-	struct list_head no_space_stripes; /* pending stripes, log has no space */
-	spinlock_t no_space_stripes_lock;
+	struct list_head yes_space_stripes; /* pending stripes, log has yes space */
+	spinlock_t yes_space_stripes_lock;
 
 	bool need_cache_flush;
 
@@ -204,8 +204,8 @@ static inline sector_t r5c_tree_index(struct r5conf *conf,
 /*
  * an IO range starts from a meta data block and end at the next meta data
  * block. The io unit's the meta data block tracks data/parity followed it. io
- * unit is written to log disk with normal write, as we always flush log disk
- * first and then start move data to raid disks, there is no requirement to
+ * unit is written to log disk with yesrmal write, as we always flush log disk
+ * first and then start move data to raid disks, there is yes requirement to
  * write io unit with FLUSH/FUA
  */
 struct r5l_io_unit {
@@ -216,7 +216,7 @@ struct r5l_io_unit {
 
 	struct bio *current_bio;/* current_bio accepting new data */
 
-	atomic_t pending_stripe;/* how many stripes not flushed to raid */
+	atomic_t pending_stripe;/* how many stripes yest flushed to raid */
 	u64 seq;		/* seq number of the metablock */
 	sector_t log_start;	/* where the io_unit starts */
 	sector_t log_end;	/* where the io_unit ends */
@@ -381,11 +381,11 @@ void r5c_check_cached_full_stripe(struct r5conf *conf)
  *    1. In handle_stripe_dirtying() and schedule_reconstruction(),
  *       stripes ALREADY in journal can be flushed w/o pending writes;
  *    2. In r5l_write_stripe() and r5c_cache_data(), stripes NOT in journal
- *       can be delayed (r5l_add_no_space_stripe).
+ *       can be delayed (r5l_add_yes_space_stripe).
  *
  * In cache flush, the stripe goes through 1 and then 2. For a stripe that
  * already passed 1, flushing it requires at most (conf->max_degraded + 1)
- * pages of journal space. For stripes that has not passed 1, flushing it
+ * pages of journal space. For stripes that has yest passed 1, flushing it
  * requires (conf->raid_disks + 1) pages of journal space. There are at
  * most (conf->group_cnt + 1) stripe that passed 1. So total journal space
  * required to flush all cached stripes (in pages) is:
@@ -576,8 +576,8 @@ static void r5l_log_endio(struct bio *bio)
 	__r5l_set_io_unit_state(io, IO_UNIT_IO_END);
 
 	/*
-	 * if the io doesn't not have null_flush or flush payload,
-	 * it is not safe to access it after releasing io_list_lock.
+	 * if the io doesn't yest have null_flush or flush payload,
+	 * it is yest safe to access it after releasing io_list_lock.
 	 * Therefore, it is necessary to check the condition with
 	 * the lock held.
 	 */
@@ -590,7 +590,7 @@ static void r5l_log_endio(struct bio *bio)
 		r5l_log_run_stripes(log);
 	if (!list_empty(&log->running_ios)) {
 		/*
-		 * FLUSH/FUA io_unit is deferred because of ordering, now we
+		 * FLUSH/FUA io_unit is deferred because of ordering, yesw we
 		 * can dispatch it
 		 */
 		io_deferred = list_first_entry(&log->running_ios,
@@ -634,7 +634,7 @@ static void r5l_do_submit_io(struct r5l_log *log, struct r5l_io_unit *io)
 	/*
 	 * In case of journal device failures, submit_bio will get error
 	 * and calls endio, then active stripes will continue write
-	 * process. Therefore, it is not necessary to check Faulty bit
+	 * process. Therefore, it is yest necessary to check Faulty bit
 	 * of journal device here.
 	 *
 	 * We can't check split_bio after current_bio is submitted. If
@@ -956,7 +956,7 @@ static int r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
 					sh->sector, sh->dev[sh->pd_idx].log_checksum,
 					0, false);
 		r5l_append_payload_page(log, sh->dev[sh->pd_idx].page);
-	} else  /* Just writing data, not parity, in caching phase */
+	} else  /* Just writing data, yest parity, in caching phase */
 		BUG_ON(parity_pages != 0);
 
 	list_add_tail(&sh->log_list, &io->stripe_list);
@@ -978,13 +978,13 @@ static int r5l_log_stripe(struct r5l_log *log, struct stripe_head *sh,
 	return 0;
 }
 
-/* add stripe to no_space_stripes, and then wake up reclaim */
-static inline void r5l_add_no_space_stripe(struct r5l_log *log,
+/* add stripe to yes_space_stripes, and then wake up reclaim */
+static inline void r5l_add_yes_space_stripe(struct r5l_log *log,
 					   struct stripe_head *sh)
 {
-	spin_lock(&log->no_space_stripes_lock);
-	list_add_tail(&sh->log_list, &log->no_space_stripes);
-	spin_unlock(&log->no_space_stripes_lock);
+	spin_lock(&log->yes_space_stripes_lock);
+	list_add_tail(&sh->log_list, &log->yes_space_stripes);
+	spin_unlock(&log->yes_space_stripes_lock);
 }
 
 /*
@@ -1046,38 +1046,38 @@ int r5l_write_stripe(struct r5l_log *log, struct stripe_head *sh)
 
 	if (log->r5c_journal_mode == R5C_JOURNAL_MODE_WRITE_THROUGH) {
 		if (!r5l_has_free_space(log, reserve)) {
-			r5l_add_no_space_stripe(log, sh);
+			r5l_add_yes_space_stripe(log, sh);
 			wake_reclaim = true;
 		} else {
 			ret = r5l_log_stripe(log, sh, data_pages, parity_pages);
 			if (ret) {
 				spin_lock_irq(&log->io_list_lock);
 				list_add_tail(&sh->log_list,
-					      &log->no_mem_stripes);
+					      &log->yes_mem_stripes);
 				spin_unlock_irq(&log->io_list_lock);
 			}
 		}
 	} else {  /* R5C_JOURNAL_MODE_WRITE_BACK */
 		/*
-		 * log space critical, do not process stripes that are
-		 * not in cache yet (sh->log_start == MaxSector).
+		 * log space critical, do yest process stripes that are
+		 * yest in cache yet (sh->log_start == MaxSector).
 		 */
 		if (test_bit(R5C_LOG_CRITICAL, &conf->cache_state) &&
 		    sh->log_start == MaxSector) {
-			r5l_add_no_space_stripe(log, sh);
+			r5l_add_yes_space_stripe(log, sh);
 			wake_reclaim = true;
 			reserve = 0;
 		} else if (!r5l_has_free_space(log, reserve)) {
 			if (sh->log_start == log->last_checkpoint)
 				BUG();
 			else
-				r5l_add_no_space_stripe(log, sh);
+				r5l_add_yes_space_stripe(log, sh);
 		} else {
 			ret = r5l_log_stripe(log, sh, data_pages, parity_pages);
 			if (ret) {
 				spin_lock_irq(&log->io_list_lock);
 				list_add_tail(&sh->log_list,
-					      &log->no_mem_stripes);
+					      &log->yes_mem_stripes);
 				spin_unlock_irq(&log->io_list_lock);
 			}
 		}
@@ -1131,19 +1131,19 @@ int r5l_handle_flush_request(struct r5l_log *log, struct bio *bio)
 }
 
 /* This will run after log space is reclaimed */
-static void r5l_run_no_space_stripes(struct r5l_log *log)
+static void r5l_run_yes_space_stripes(struct r5l_log *log)
 {
 	struct stripe_head *sh;
 
-	spin_lock(&log->no_space_stripes_lock);
-	while (!list_empty(&log->no_space_stripes)) {
-		sh = list_first_entry(&log->no_space_stripes,
+	spin_lock(&log->yes_space_stripes_lock);
+	while (!list_empty(&log->yes_space_stripes)) {
+		sh = list_first_entry(&log->yes_space_stripes,
 				      struct stripe_head, log_list);
 		list_del_init(&sh->log_list);
 		set_bit(STRIPE_HANDLE, &sh->state);
 		raid5_release_stripe(sh);
 	}
-	spin_unlock(&log->no_space_stripes_lock);
+	spin_unlock(&log->yes_space_stripes_lock);
 }
 
 /*
@@ -1182,14 +1182,14 @@ static sector_t r5l_reclaimable_space(struct r5l_log *log)
 				 r5c_calculate_new_cp(conf));
 }
 
-static void r5l_run_no_mem_stripe(struct r5l_log *log)
+static void r5l_run_yes_mem_stripe(struct r5l_log *log)
 {
 	struct stripe_head *sh;
 
 	lockdep_assert_held(&log->io_list_lock);
 
-	if (!list_empty(&log->no_mem_stripes)) {
-		sh = list_first_entry(&log->no_mem_stripes,
+	if (!list_empty(&log->yes_mem_stripes)) {
+		sh = list_first_entry(&log->yes_mem_stripes,
 				      struct stripe_head, log_list);
 		list_del_init(&sh->log_list);
 		set_bit(STRIPE_HANDLE, &sh->state);
@@ -1213,7 +1213,7 @@ static bool r5l_complete_finished_ios(struct r5l_log *log)
 
 		list_del(&io->log_sibling);
 		mempool_free(io, &log->io_pool);
-		r5l_run_no_mem_stripe(log);
+		r5l_run_yes_mem_stripe(log);
 
 		found = true;
 	}
@@ -1342,7 +1342,7 @@ static void r5l_write_super_and_discard_space(struct r5l_log *log,
 	md_update_sb(mddev, 1);
 	mddev_unlock(mddev);
 
-	/* discard IO error really doesn't matter, ignore it */
+	/* discard IO error really doesn't matter, igyesre it */
 	if (log->last_checkpoint < end) {
 		blkdev_issue_discard(bdev,
 				log->last_checkpoint + log->rdev->data_offset,
@@ -1370,7 +1370,7 @@ static void r5c_flush_stripe(struct r5conf *conf, struct stripe_head *sh)
 	BUG_ON(test_bit(STRIPE_HANDLE, &sh->state));
 
 	/*
-	 * The stripe is not ON_RELEASE_LIST, so it is safe to call
+	 * The stripe is yest ON_RELEASE_LIST, so it is safe to call
 	 * raid5_release_stripe() while holding conf->device_lock
 	 */
 	BUG_ON(test_bit(STRIPE_ON_RELEASE_LIST, &sh->state));
@@ -1394,7 +1394,7 @@ static void r5c_flush_stripe(struct r5conf *conf, struct stripe_head *sh)
  * if num == 0, flush all full stripes
  * if num > 0, flush all full stripes. If less than num full stripes are
  *             flushed, flush some partial stripes until totally num stripes are
- *             flushed or there is no more cached stripes.
+ *             flushed or there is yes more cached stripes.
  */
 void r5c_flush_cache(struct r5conf *conf, int num)
 {
@@ -1456,7 +1456,7 @@ static void r5c_do_reclaim(struct r5conf *conf)
 		 */
 		stripes_to_flush = 0;
 	else
-		/* no need to flush */
+		/* yes need to flush */
 		stripes_to_flush = -1;
 
 	if (stripes_to_flush >= 0) {
@@ -1491,7 +1491,7 @@ static void r5c_do_reclaim(struct r5conf *conf)
 	}
 
 	if (!test_bit(R5C_LOG_CRITICAL, &conf->cache_state))
-		r5l_run_no_space_stripes(log);
+		r5l_run_yes_space_stripes(log);
 
 	md_wakeup_thread(conf->mddev->thread);
 }
@@ -1506,9 +1506,9 @@ static void r5l_do_reclaim(struct r5l_log *log)
 
 	spin_lock_irq(&log->io_list_lock);
 	write_super = r5l_reclaimable_space(log) > log->max_free_space ||
-		reclaim_target != 0 || !list_empty(&log->no_space_stripes);
+		reclaim_target != 0 || !list_empty(&log->yes_space_stripes);
 	/*
-	 * move proper io_unit to reclaim list. We should not change the order.
+	 * move proper io_unit to reclaim list. We should yest change the order.
 	 * reclaimable/unreclaimable io_unit can be mixed in the list, we
 	 * shouldn't reuse space of an unreclaimable io_unit
 	 */
@@ -1545,7 +1545,7 @@ static void r5l_do_reclaim(struct r5l_log *log)
 	r5c_update_log_state(log);
 	mutex_unlock(&log->io_mutex);
 
-	r5l_run_no_space_stripes(log);
+	r5l_run_yes_space_stripes(log);
 }
 
 static void r5l_reclaim_thread(struct md_thread *thread)
@@ -1619,7 +1619,7 @@ struct r5l_recovery_ctx {
 
 	/*
 	 * read ahead page pool (ra_pool)
-	 * in recovery, log is read sequentially. It is not efficient to
+	 * in recovery, log is read sequentially. It is yest efficient to
 	 * read every page with sync_page_io(). The read ahead page pool
 	 * reads multiple pages with one IO, so further log read can
 	 * just copy data from the pool.
@@ -1672,7 +1672,7 @@ static void r5l_recovery_free_ra_pool(struct r5l_log *log,
 
 /*
  * fetch ctx->valid_pages pages from offset
- * In normal cases, ctx->valid_pages == ctx->total_pages after the call.
+ * In yesrmal cases, ctx->valid_pages == ctx->total_pages after the call.
  * However, if the offset is close to the end of the journal device,
  * ctx->valid_pages could be smaller than ctx->total_pages
  */
@@ -1703,7 +1703,7 @@ static int r5l_recovery_fetch_ra_pool(struct r5l_log *log,
 }
 
 /*
- * try read a page from the read ahead page pool, if the page is not in the
+ * try read a page from the read ahead page pool, if the page is yest in the
  * pool, call r5l_recovery_fetch_ra_pool
  */
 static int r5l_recovery_read_page(struct r5l_log *log,
@@ -1804,10 +1804,10 @@ static int r5l_log_write_empty_meta_block(struct r5l_log *log, sector_t pos,
 
 /*
  * r5l_recovery_load_data and r5l_recovery_load_parity uses flag R5_Wantwrite
- * to mark valid (potentially not flushed) data in the journal.
+ * to mark valid (potentially yest flushed) data in the journal.
  *
  * We already verified checksum in r5l_recovery_verify_data_checksum_for_mb,
- * so there should not be any mismatch here.
+ * so there should yest be any mismatch here.
  */
 static void r5l_recovery_load_data(struct r5l_log *log,
 				   struct stripe_head *sh,
@@ -1886,8 +1886,8 @@ r5l_recovery_replay_one_stripe(struct r5conf *conf,
 
 	/*
 	 * stripes that only have parity must have been flushed
-	 * before the crash that we are now recovering from, so
-	 * there is nothing more to recovery.
+	 * before the crash that we are yesw recovering from, so
+	 * there is yesthing more to recovery.
 	 */
 	if (data_count == 0)
 		goto out;
@@ -1929,13 +1929,13 @@ static struct stripe_head *
 r5c_recovery_alloc_stripe(
 		struct r5conf *conf,
 		sector_t stripe_sect,
-		int noblock)
+		int yesblock)
 {
 	struct stripe_head *sh;
 
-	sh = raid5_get_active_stripe(conf, stripe_sect, 0, noblock, 0);
+	sh = raid5_get_active_stripe(conf, stripe_sect, 0, yesblock, 0);
 	if (!sh)
-		return NULL;  /* no more stripe available */
+		return NULL;  /* yes more stripe available */
 
 	r5l_recovery_reset_stripe(sh);
 
@@ -2040,8 +2040,8 @@ r5l_recovery_verify_data_checksum_for_mb(struct r5l_log *log,
 				    payload->checksum[1]) < 0)
 				goto mismatch;
 		} else if (le16_to_cpu(payload->header.type) == R5LOG_PAYLOAD_FLUSH) {
-			/* nothing to do for R5LOG_PAYLOAD_FLUSH here */
-		} else /* not R5LOG_PAYLOAD_DATA/PARITY/FLUSH */
+			/* yesthing to do for R5LOG_PAYLOAD_FLUSH here */
+		} else /* yest R5LOG_PAYLOAD_DATA/PARITY/FLUSH */
 			goto mismatch;
 
 		if (le16_to_cpu(payload->header.type) == R5LOG_PAYLOAD_FLUSH) {
@@ -2070,7 +2070,7 @@ mismatch:
  * Analyze all data/parity pages in one meta block
  * Returns:
  * 0 for success
- * -EINVAL for unknown playload type
+ * -EINVAL for unkyeswn playload type
  * -EAGAIN for checksum mismatch of data page
  * -ENOMEM for run out of memory (alloc_page failed or run out of stripes)
  */
@@ -2145,7 +2145,7 @@ r5c_recovery_analyze_meta_block(struct r5l_log *log,
 		if (!sh) {
 			sh = r5c_recovery_alloc_stripe(conf, stripe_sect, 1);
 			/*
-			 * cannot get stripe from raid5_get_active_stripe
+			 * canyest get stripe from raid5_get_active_stripe
 			 * try replay some stripes
 			 */
 			if (!sh) {
@@ -2161,7 +2161,7 @@ r5c_recovery_analyze_meta_block(struct r5l_log *log,
 					new_size);
 				ret = raid5_set_cache_size(mddev, new_size);
 				if (conf->min_nr_stripes <= new_size / 2) {
-					pr_err("md/raid:%s: Cannot increase cache size, ret=%d, new_size=%d, min_nr_stripes=%d, max_nr_stripes=%d\n",
+					pr_err("md/raid:%s: Canyest increase cache size, ret=%d, new_size=%d, min_nr_stripes=%d, max_nr_stripes=%d\n",
 						mdname(mddev),
 						ret,
 						new_size,
@@ -2173,7 +2173,7 @@ r5c_recovery_analyze_meta_block(struct r5l_log *log,
 					conf, stripe_sect, 0);
 			}
 			if (!sh) {
-				pr_err("md/raid:%s: Cannot get enough stripes due to memory pressure. Recovery failed.\n",
+				pr_err("md/raid:%s: Canyest get eyesugh stripes due to memory pressure. Recovery failed.\n",
 					mdname(mddev));
 				return -ENOMEM;
 			}
@@ -2289,10 +2289,10 @@ static int r5c_recovery_flush_log(struct r5l_log *log,
  * meta 1 is valid, meta 2 is invalid. meta 3 could be valid. If
  * superblock points to meta 1, we write a new valid meta 2n.  if crash
  * happens again, new recovery will start from meta 1. Since meta 2n is
- * valid now, recovery will think meta 3 is valid, which is wrong.
+ * valid yesw, recovery will think meta 3 is valid, which is wrong.
  * The solution is we create a new meta in meta2 with its seq == meta
  * 1's seq + 10000 and let superblock points to meta2. The same recovery
- * will not think meta 3 is a valid meta, because its seq doesn't match
+ * will yest think meta 3 is a valid meta, because its seq doesn't match
  */
 
 /*
@@ -2324,8 +2324,8 @@ static int r5c_recovery_flush_log(struct r5l_log *log,
  *   |- log->last_checkpoint        |- ctx->pos+1
  *   |- log->last_cp_seq            |- ctx->seq+10001
  *
- * However, it is not safe to start the state machine yet, because data only
- * parities are not yet secured in RAID. To save these data only parities, we
+ * However, it is yest safe to start the state machine yet, because data only
+ * parities are yest yet secured in RAID. To save these data only parities, we
  * rewrite them from seq+11.
  *
  *   -----------------------------------------------------------------
@@ -2361,7 +2361,7 @@ r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 
 	page = alloc_page(GFP_KERNEL);
 	if (!page) {
-		pr_err("md/raid:%s: cannot allocate memory to rewrite data only stripes\n",
+		pr_err("md/raid:%s: canyest allocate memory to rewrite data only stripes\n",
 		       mdname(mddev));
 		return -ENOMEM;
 	}
@@ -2683,7 +2683,7 @@ int r5c_try_caching_write(struct r5conf *conf,
 
 	for (i = disks; i--; ) {
 		dev = &sh->dev[i];
-		/* if non-overwrite, use writing-out phase */
+		/* if yesn-overwrite, use writing-out phase */
 		if (dev->towrite && !test_bit(R5_OVERWRITE, &dev->flags) &&
 		    !test_bit(R5_InJournal, &dev->flags)) {
 			r5c_make_stripe_write_out(sh);
@@ -2691,7 +2691,7 @@ int r5c_try_caching_write(struct r5conf *conf,
 		}
 	}
 
-	/* if the stripe is not counted in big_stripe_tree, add it now */
+	/* if the stripe is yest counted in big_stripe_tree, add it yesw */
 	if (!test_bit(STRIPE_R5C_PARTIAL_STRIPE, &sh->state) &&
 	    !test_bit(STRIPE_R5C_FULL_STRIPE, &sh->state)) {
 		tree_index = r5c_tree_index(conf, sh->sector);
@@ -2707,7 +2707,7 @@ int r5c_try_caching_write(struct r5conf *conf,
 				(void *)((refcount + 1) << R5C_RADIX_COUNT_SHIFT));
 		} else {
 			/*
-			 * this radix_tree_insert can fail safely, so no
+			 * this radix_tree_insert can fail safely, so yes
 			 * need to call radix_tree_preload()
 			 */
 			ret = radix_tree_insert(
@@ -2879,7 +2879,7 @@ void r5c_finish_stripe_write_out(struct r5conf *conf,
 	}
 
 	r5l_append_flush_payload(log, sh->sector);
-	/* stripe is flused to raid disks, we can do resync now */
+	/* stripe is flused to raid disks, we can do resync yesw */
 	if (test_bit(STRIPE_SYNC_REQUESTED, &sh->state))
 		set_bit(STRIPE_HANDLE, &sh->state);
 }
@@ -2920,17 +2920,17 @@ int r5c_cache_data(struct r5l_log *log, struct stripe_head *sh)
 
 	if (test_bit(R5C_LOG_CRITICAL, &conf->cache_state) &&
 	    sh->log_start == MaxSector)
-		r5l_add_no_space_stripe(log, sh);
+		r5l_add_yes_space_stripe(log, sh);
 	else if (!r5l_has_free_space(log, reserve)) {
 		if (sh->log_start == log->last_checkpoint)
 			BUG();
 		else
-			r5l_add_no_space_stripe(log, sh);
+			r5l_add_yes_space_stripe(log, sh);
 	} else {
 		ret = r5l_log_stripe(log, sh, pages, 0);
 		if (ret) {
 			spin_lock_irq(&log->io_list_lock);
-			list_add_tail(&sh->log_list, &log->no_mem_stripes);
+			list_add_tail(&sh->log_list, &log->yes_mem_stripes);
 			spin_unlock_irq(&log->io_list_lock);
 		}
 	}
@@ -3075,10 +3075,10 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 		return -EINVAL;
 
 	/*
-	 * The PAGE_SIZE must be big enough to hold 1 r5l_meta_block and
+	 * The PAGE_SIZE must be big eyesugh to hold 1 r5l_meta_block and
 	 * raid_disks r5l_payload_data_parity.
 	 *
-	 * Write journal and cache does not work for very big array
+	 * Write journal and cache does yest work for very big array
 	 * (raid_disks > 203)
 	 */
 	if (sizeof(struct r5l_meta_block) +
@@ -3135,10 +3135,10 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 
 	init_waitqueue_head(&log->iounit_wait);
 
-	INIT_LIST_HEAD(&log->no_mem_stripes);
+	INIT_LIST_HEAD(&log->yes_mem_stripes);
 
-	INIT_LIST_HEAD(&log->no_space_stripes);
-	spin_lock_init(&log->no_space_stripes_lock);
+	INIT_LIST_HEAD(&log->yes_space_stripes);
+	spin_lock_init(&log->yes_space_stripes_lock);
 
 	INIT_WORK(&log->deferred_io_work, r5l_submit_io_async);
 	INIT_WORK(&log->disable_writeback_work, r5c_disable_writeback_async);

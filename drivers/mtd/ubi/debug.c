@@ -172,7 +172,7 @@ void ubi_dump_av(const struct ubi_ainf_volume *av)
 /**
  * ubi_dump_aeb - dump a &struct ubi_ainf_peb object.
  * @aeb: the object to dump
- * @type: object type: 0 - not corrupted, 1 - corrupted
+ * @type: object type: 0 - yest corrupted, 1 - corrupted
  */
 void ubi_dump_aeb(const struct ubi_ainf_peb *aeb, int type)
 {
@@ -227,7 +227,7 @@ int ubi_debugfs_init(void)
 	if (IS_ERR_OR_NULL(dfs_rootdir)) {
 		int err = dfs_rootdir ? PTR_ERR(dfs_rootdir) : -ENODEV;
 
-		pr_err("UBI error: cannot create \"ubi\" debugfs directory, error %d\n",
+		pr_err("UBI error: canyest create \"ubi\" debugfs directory, error %d\n",
 		       err);
 		return err;
 	}
@@ -382,7 +382,7 @@ static const struct file_operations dfs_fops = {
 	.read   = dfs_file_read,
 	.write  = dfs_file_write,
 	.open	= simple_open,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.owner  = THIS_MODULE,
 };
 
@@ -465,7 +465,7 @@ static const struct seq_operations eraseblk_count_seq_ops = {
 	.show = eraseblk_count_seq_show
 };
 
-static int eraseblk_count_open(struct inode *inode, struct file *f)
+static int eraseblk_count_open(struct iyesde *iyesde, struct file *f)
 {
 	struct seq_file *s;
 	int err;
@@ -475,7 +475,7 @@ static int eraseblk_count_open(struct inode *inode, struct file *f)
 		return err;
 
 	s = f->private_data;
-	s->private = ubi_get_device((unsigned long)inode->i_private);
+	s->private = ubi_get_device((unsigned long)iyesde->i_private);
 
 	if (!s->private)
 		return -ENODEV;
@@ -483,14 +483,14 @@ static int eraseblk_count_open(struct inode *inode, struct file *f)
 		return 0;
 }
 
-static int eraseblk_count_release(struct inode *inode, struct file *f)
+static int eraseblk_count_release(struct iyesde *iyesde, struct file *f)
 {
 	struct seq_file *s = f->private_data;
 	struct ubi_device *ubi = s->private;
 
 	ubi_put_device(ubi);
 
-	return seq_release(inode, f);
+	return seq_release(iyesde, f);
 }
 
 static const struct file_operations eraseblk_count_fops = {
@@ -584,7 +584,7 @@ void ubi_debugfs_exit_dev(struct ubi_device *ubi)
  * @ubi: UBI device description object
  * @caller: Flags set to indicate from where the function is being called
  *
- * Returns non-zero if a power cut was emulated, zero if not.
+ * Returns yesn-zero if a power cut was emulated, zero if yest.
  */
 int ubi_dbg_power_cut(struct ubi_device *ubi, int caller)
 {

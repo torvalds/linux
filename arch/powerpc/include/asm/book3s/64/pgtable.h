@@ -21,7 +21,7 @@
 #define _PAGE_RWX		(_PAGE_READ | _PAGE_WRITE | _PAGE_EXEC)
 #define _PAGE_PRIVILEGED	0x00008 /* kernel access only */
 #define _PAGE_SAO		0x00010 /* Strong access order */
-#define _PAGE_NON_IDEMPOTENT	0x00020 /* non idempotent memory */
+#define _PAGE_NON_IDEMPOTENT	0x00020 /* yesn idempotent memory */
 #define _PAGE_TOLERANT		0x00030 /* tolerant memory, cache inhibited */
 #define _PAGE_DIRTY		0x00080 /* C: page changed */
 #define _PAGE_ACCESSED		0x00100 /* R: page referenced */
@@ -67,9 +67,9 @@
 #define _RPAGE_PA_MAX		57
 
 /*
- * Max physical address bit we will use for now.
+ * Max physical address bit we will use for yesw.
  *
- * This is mostly a hardware limitation and for now Power9 has
+ * This is mostly a hardware limitation and for yesw Power9 has
  * a 51 bit limit.
  *
  * This is different from the number of physical bit required to address
@@ -83,7 +83,7 @@
  * for hash linux page table specific bits.
  *
  * In order to be compatible with future hardware generations we keep
- * some offsets and limit this for now to 53
+ * some offsets and limit this for yesw to 53
  */
 #define _PAGE_PA_MAX		53
 
@@ -104,7 +104,7 @@
  */
 #define PTE_RPN_MASK	(((1UL << _PAGE_PA_MAX) - 1) & (PAGE_MASK))
 /*
- * set of bits not changed in pmd_modify. Even though we have hash specific bits
+ * set of bits yest changed in pmd_modify. Even though we have hash specific bits
  * in here, on radix we expect them to be zero.
  */
 #define _HPAGE_CHG_MASK (PTE_RPN_MASK | _PAGE_HPTEFLAGS | _PAGE_DIRTY | \
@@ -129,7 +129,7 @@
 		     H_PTE_PKEY_BIT3 | H_PTE_PKEY_BIT4)
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
- * cacheable kernel and user pages) and one for non cacheable
+ * cacheable kernel and user pages) and one for yesn cacheable
  * pages. We always set _PAGE_COHERENT when SMP is enabled or
  * the processor might need it for DMA coherency.
  */
@@ -140,8 +140,8 @@
  *
  * Note:__pgprot is defined in arch/powerpc/include/asm/page.h
  *
- * Write permissions imply read permissions for now (we could make write-only
- * pages on BookE but we don't bother for now). Execute permission control is
+ * Write permissions imply read permissions for yesw (we could make write-only
+ * pages on BookE but we don't bother for yesw). Execute permission control is
  * possible on platforms that define _PAGE_EXEC
  */
 #define PAGE_NONE	__pgprot(_PAGE_BASE | _PAGE_PRIVILEGED)
@@ -196,7 +196,7 @@ extern unsigned long __pud_cache_index;
 #define PUD_CACHE_INDEX __pud_cache_index
 /*
  * Because of use of pte fragments and THP, size of page table
- * are not always derived out of index size above.
+ * are yest always derived out of index size above.
  */
 extern unsigned long __pte_table_size;
 extern unsigned long __pmd_table_size;
@@ -397,10 +397,10 @@ static inline int __pte_write(pte_t pte)
 static inline bool pte_savedwrite(pte_t pte)
 {
 	/*
-	 * Saved write ptes are prot none ptes that doesn't have
-	 * privileged bit sit. We mark prot none as one which has
+	 * Saved write ptes are prot yesne ptes that doesn't have
+	 * privileged bit sit. We mark prot yesne as one which has
 	 * present and pviliged bit set and RWX cleared. To mark
-	 * protnone which used to have _PAGE_WRITE set we clear
+	 * protyesne which used to have _PAGE_WRITE set we clear
 	 * the privileged bit.
 	 */
 	return !(pte_raw(pte) & cpu_to_be64(_PAGE_RWX | _PAGE_PRIVILEGED));
@@ -438,7 +438,7 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 					   unsigned long addr, pte_t *ptep)
 {
 	/*
-	 * We should not find protnone for hugetlb, but this complete the
+	 * We should yest find protyesne for hugetlb, but this complete the
 	 * interface.
 	 */
 	if (__pte_write(*ptep))
@@ -462,8 +462,8 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 {
 	if (full && radix_enabled()) {
 		/*
-		 * We know that this is a full mm pte clear and
-		 * hence can be sure there is no parallel set_pte.
+		 * We kyesw that this is a full mm pte clear and
+		 * hence can be sure there is yes parallel set_pte.
 		 */
 		return radix__ptep_get_and_clear_full(mm, addr, ptep, full);
 	}
@@ -516,7 +516,7 @@ static inline pte_t pte_clear_soft_dirty(pte_t pte)
 #endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
 
 #ifdef CONFIG_NUMA_BALANCING
-static inline int pte_protnone(pte_t pte)
+static inline int pte_protyesne(pte_t pte)
 {
 	return (pte_raw(pte) & cpu_to_be64(_PAGE_PRESENT | _PAGE_PTE | _PAGE_RWX)) ==
 		cpu_to_be64(_PAGE_PRESENT | _PAGE_PTE);
@@ -539,9 +539,9 @@ static inline pte_t pte_mk_savedwrite(pte_t pte)
 static inline pte_t pte_clear_savedwrite(pte_t pte)
 {
 	/*
-	 * Used by KSM subsystem to make a protnone pte readonly.
+	 * Used by KSM subsystem to make a protyesne pte readonly.
 	 */
-	VM_BUG_ON(!pte_protnone(pte));
+	VM_BUG_ON(!pte_protyesne(pte));
 	return __pte_raw(pte_raw(pte) | cpu_to_be64(_PAGE_PRIVILEGED));
 }
 #else
@@ -604,7 +604,7 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
  * and a page entry and page directory to the page they refer to.
  *
  * Even if PTEs can be unsigned long long, a PFN is always an unsigned
- * long for now.
+ * long for yesw.
  */
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 {
@@ -696,10 +696,10 @@ static inline pte_t pte_mkuser(pte_t pte)
 }
 
 /*
- * This is potentially called with a pmd as the argument, in which case it's not
+ * This is potentially called with a pmd as the argument, in which case it's yest
  * safe to check _PAGE_DEVMAP unless we also confirm that _PAGE_PTE is set.
- * That's because the bit we use for _PAGE_DEVMAP is not reserved for software
- * use in page directory entries (ie. non-ptes).
+ * That's because the bit we use for _PAGE_DEVMAP is yest reserved for software
+ * use in page directory entries (ie. yesn-ptes).
  */
 static inline int pte_devmap(pte_t pte)
 {
@@ -737,7 +737,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  * swp_entry_t must be independent of pte bits. We build a swp_entry_t from
  * swap type and offset we get from swap and convert that to pte to find a
  * matching pte in linux page table.
- * Clear bits not found in swap entries here.
+ * Clear bits yest found in swap entries here.
  */
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val((pte)) & ~_PAGE_PTE })
 #define __swp_entry_to_pte(x)	__pte((x).val | _PAGE_PTE)
@@ -805,11 +805,11 @@ static inline int pte_same(pte_t pte_a, pte_t pte_b)
 	return hash__pte_same(pte_a, pte_b);
 }
 
-static inline int pte_none(pte_t pte)
+static inline int pte_yesne(pte_t pte)
 {
 	if (radix_enabled())
-		return radix__pte_none(pte);
-	return hash__pte_none(pte);
+		return radix__pte_yesne(pte);
+	return hash__pte_yesne(pte);
 }
 
 static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
@@ -822,15 +822,15 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 
 #define _PAGE_CACHE_CTL	(_PAGE_SAO | _PAGE_NON_IDEMPOTENT | _PAGE_TOLERANT)
 
-#define pgprot_noncached pgprot_noncached
-static inline pgprot_t pgprot_noncached(pgprot_t prot)
+#define pgprot_yesncached pgprot_yesncached
+static inline pgprot_t pgprot_yesncached(pgprot_t prot)
 {
 	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
 			_PAGE_NON_IDEMPOTENT);
 }
 
-#define pgprot_noncached_wc pgprot_noncached_wc
-static inline pgprot_t pgprot_noncached_wc(pgprot_t prot)
+#define pgprot_yesncached_wc pgprot_yesncached_wc
+static inline pgprot_t pgprot_yesncached_wc(pgprot_t prot)
 {
 	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
 			_PAGE_TOLERANT);
@@ -845,7 +845,7 @@ static inline pgprot_t pgprot_cached(pgprot_t prot)
 #define pgprot_writecombine pgprot_writecombine
 static inline pgprot_t pgprot_writecombine(pgprot_t prot)
 {
-	return pgprot_noncached_wc(prot);
+	return pgprot_yesncached_wc(prot);
 }
 /*
  * check a pte mapping have cache inhibited property
@@ -865,7 +865,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 	*pmdp = __pmd(0);
 }
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_yesne(pmd_t pmd)
 {
 	return !pmd_raw(pmd);
 }
@@ -913,7 +913,7 @@ static inline void pud_clear(pud_t *pudp)
 	*pudp = __pud(0);
 }
 
-static inline int pud_none(pud_t pud)
+static inline int pud_yesne(pud_t pud)
 {
 	return !pud_raw(pud);
 }
@@ -956,7 +956,7 @@ static inline void pgd_clear(pgd_t *pgdp)
 	*pgdp = __pgd(0);
 }
 
-static inline int pgd_none(pgd_t pgd)
+static inline int pgd_yesne(pgd_t pgd)
 {
 	return !pgd_raw(pgd);
 }
@@ -1022,7 +1022,7 @@ extern struct page *pgd_page(pgd_t pgd);
 static inline void pte_unmap(pte_t *pte) { }
 
 /* to find an entry in a kernel page-table-directory */
-/* This now only contains the vmalloc pages */
+/* This yesw only contains the vmalloc pages */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
 #define pte_ERROR(e) \
@@ -1104,9 +1104,9 @@ static inline pte_t *pmdp_ptep(pmd_t *pmd)
 #endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
 
 #ifdef CONFIG_NUMA_BALANCING
-static inline int pmd_protnone(pmd_t pmd)
+static inline int pmd_protyesne(pmd_t pmd)
 {
-	return pte_protnone(pmd_pte(pmd));
+	return pte_protyesne(pmd_pte(pmd));
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
@@ -1118,13 +1118,13 @@ static inline int pmd_protnone(pmd_t pmd)
 static inline bool pmd_access_permitted(pmd_t pmd, bool write)
 {
 	/*
-	 * pmdp_invalidate sets this combination (which is not caught by
+	 * pmdp_invalidate sets this combination (which is yest caught by
 	 * !pte_present() check in pte_access_permitted), to prevent
 	 * lock-free lookups, as part of the serialize_against_pte_lookup()
 	 * synchronisation.
 	 *
 	 * This also catches the case where the PTE's hardware PRESENT bit is
-	 * cleared while TLB is flushed, which is suboptimal but should not
+	 * cleared while TLB is flushed, which is suboptimal but should yest
 	 * be frequent.
 	 */
 	if (pmd_is_serializing(pmd))
@@ -1168,7 +1168,7 @@ static inline int pmd_large(pmd_t pmd)
 	return !!(pmd_raw(pmd) & cpu_to_be64(_PAGE_PTE));
 }
 
-static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+static inline pmd_t pmd_mkyestpresent(pmd_t pmd)
 {
 	return __pmd(pmd_val(pmd) & ~_PAGE_PRESENT);
 }
@@ -1204,7 +1204,7 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
  * invalid (pmdp_invalidate()) before we set it with pte page
  * address. A pmd_trans_huge() check against a pmd entry during that time
  * should return true.
- * We should not call this on a hugetlb entry. We should check for HugeTLB
+ * We should yest call this on a hugetlb entry. We should check for HugeTLB
  * entry using vma->vm_flags
  * The page table walk rule is explained in Documentation/vm/transhuge.rst
  */
@@ -1326,8 +1326,8 @@ static inline int pud_pfn(pud_t pud)
 {
 	/*
 	 * Currently all calls to pud_pfn() are gated around a pud_devmap()
-	 * check so this should never be used. If it grows another user we
-	 * want to know about it.
+	 * check so this should never be used. If it grows ayesther user we
+	 * want to kyesw about it.
 	 */
 	BUILD_BUG();
 	return 0;

@@ -12,7 +12,7 @@
  *
  * Version 0.2 (99/06/16):
  *		- added kernel timer watchdog ping after close
- *		  since the hardware does not support watchdog shutdown
+ *		  since the hardware does yest support watchdog shutdown
  *
  * Version 0.3 (99/06/21):
  *		- added WDIOC_GETSTATUS and WDIOC_GETSUPPORT ioctl calls
@@ -25,7 +25,7 @@
  *		- support for one more type board
  *
  * Version 0.5 (2001/12/14) Matt Domsch <Matt_Domsch@dell.com>
- *		- added nowayout module option to override
+ *		- added yeswayout module option to override
  *		  CONFIG_WATCHDOG_NOWAYOUT
  *
  * Version 0.6 (2002/04/12): Rob Radez <rob@osinvestor.com>
@@ -103,10 +103,10 @@ static int mixcomwd_timer_alive;
 static DEFINE_TIMER(mixcomwd_timer, mixcomwd_timerfun);
 static char expect_close;
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static void mixcomwd_ping(void)
@@ -125,14 +125,14 @@ static void mixcomwd_timerfun(struct timer_list *unused)
  *	Allow only one person to hold it open
  */
 
-static int mixcomwd_open(struct inode *inode, struct file *file)
+static int mixcomwd_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(0, &mixcomwd_opened))
 		return -EBUSY;
 
 	mixcomwd_ping();
 
-	if (nowayout)
+	if (yeswayout)
 		/*
 		 * fops_get() code via open() has already done
 		 * a try_module_get() so it is safe to do the
@@ -145,10 +145,10 @@ static int mixcomwd_open(struct inode *inode, struct file *file)
 			mixcomwd_timer_alive = 0;
 		}
 	}
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int mixcomwd_release(struct inode *inode, struct file *file)
+static int mixcomwd_release(struct iyesde *iyesde, struct file *file)
 {
 	if (expect_close == 42) {
 		if (mixcomwd_timer_alive) {
@@ -158,7 +158,7 @@ static int mixcomwd_release(struct inode *inode, struct file *file)
 		mixcomwd_timer_alive = 1;
 		mod_timer(&mixcomwd_timer, jiffies + 5 * HZ);
 	} else
-		pr_crit("WDT device closed unexpectedly.  WDT will not stop!\n");
+		pr_crit("WDT device closed unexpectedly.  WDT will yest stop!\n");
 
 	clear_bit(0, &mixcomwd_opened);
 	expect_close = 0;
@@ -170,7 +170,7 @@ static ssize_t mixcomwd_write(struct file *file, const char __user *data,
 						size_t len, loff_t *ppos)
 {
 	if (len) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			/* In case it was set long ago */
@@ -208,7 +208,7 @@ static long mixcomwd_ioctl(struct file *file,
 		break;
 	case WDIOC_GETSTATUS:
 		status = mixcomwd_opened;
-		if (!nowayout)
+		if (!yeswayout)
 			status |= mixcomwd_timer_alive;
 		return put_user(status, p);
 	case WDIOC_GETBOOTSTATUS:
@@ -224,7 +224,7 @@ static long mixcomwd_ioctl(struct file *file,
 
 static const struct file_operations mixcomwd_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= mixcomwd_write,
 	.unlocked_ioctl	= mixcomwd_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -233,7 +233,7 @@ static const struct file_operations mixcomwd_fops = {
 };
 
 static struct miscdevice mixcomwd_miscdev = {
-	.minor	= WATCHDOG_MINOR,
+	.miyesr	= WATCHDOG_MINOR,
 	.name	= "watchdog",
 	.fops	= &mixcomwd_fops,
 };
@@ -269,13 +269,13 @@ static int __init mixcomwd_init(void)
 	}
 
 	if (!found) {
-		pr_err("No card detected, or port not available\n");
+		pr_err("No card detected, or port yest available\n");
 		return -ENODEV;
 	}
 
 	ret = misc_register(&mixcomwd_miscdev);
 	if (ret) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+		pr_err("canyest register miscdev on miyesr=%d (err=%d)\n",
 		       WATCHDOG_MINOR, ret);
 		goto error_misc_register_watchdog;
 	}
@@ -293,9 +293,9 @@ error_misc_register_watchdog:
 
 static void __exit mixcomwd_exit(void)
 {
-	if (!nowayout) {
+	if (!yeswayout) {
 		if (mixcomwd_timer_alive) {
-			pr_warn("I quit now, hardware will probably reboot!\n");
+			pr_warn("I quit yesw, hardware will probably reboot!\n");
 			del_timer_sync(&mixcomwd_timer);
 			mixcomwd_timer_alive = 0;
 		}

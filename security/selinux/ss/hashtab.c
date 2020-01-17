@@ -6,11 +6,11 @@
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include "hashtab.h"
 
-static struct kmem_cache *hashtab_node_cachep;
+static struct kmem_cache *hashtab_yesde_cachep;
 
 struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *key),
 			       int (*keycmp)(struct hashtab *h, const void *key1, const void *key2),
@@ -42,7 +42,7 @@ struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *
 int hashtab_insert(struct hashtab *h, void *key, void *datum)
 {
 	u32 hvalue;
-	struct hashtab_node *prev, *cur, *newnode;
+	struct hashtab_yesde *prev, *cur, *newyesde;
 
 	cond_resched();
 
@@ -60,17 +60,17 @@ int hashtab_insert(struct hashtab *h, void *key, void *datum)
 	if (cur && (h->keycmp(h, key, cur->key) == 0))
 		return -EEXIST;
 
-	newnode = kmem_cache_zalloc(hashtab_node_cachep, GFP_KERNEL);
-	if (!newnode)
+	newyesde = kmem_cache_zalloc(hashtab_yesde_cachep, GFP_KERNEL);
+	if (!newyesde)
 		return -ENOMEM;
-	newnode->key = key;
-	newnode->datum = datum;
+	newyesde->key = key;
+	newyesde->datum = datum;
 	if (prev) {
-		newnode->next = prev->next;
-		prev->next = newnode;
+		newyesde->next = prev->next;
+		prev->next = newyesde;
 	} else {
-		newnode->next = h->htable[hvalue];
-		h->htable[hvalue] = newnode;
+		newyesde->next = h->htable[hvalue];
+		h->htable[hvalue] = newyesde;
 	}
 
 	h->nel++;
@@ -80,7 +80,7 @@ int hashtab_insert(struct hashtab *h, void *key, void *datum)
 void *hashtab_search(struct hashtab *h, const void *key)
 {
 	u32 hvalue;
-	struct hashtab_node *cur;
+	struct hashtab_yesde *cur;
 
 	if (!h)
 		return NULL;
@@ -99,7 +99,7 @@ void *hashtab_search(struct hashtab *h, const void *key)
 void hashtab_destroy(struct hashtab *h)
 {
 	u32 i;
-	struct hashtab_node *cur, *temp;
+	struct hashtab_yesde *cur, *temp;
 
 	if (!h)
 		return;
@@ -109,7 +109,7 @@ void hashtab_destroy(struct hashtab *h)
 		while (cur) {
 			temp = cur;
 			cur = cur->next;
-			kmem_cache_free(hashtab_node_cachep, temp);
+			kmem_cache_free(hashtab_yesde_cachep, temp);
 		}
 		h->htable[i] = NULL;
 	}
@@ -126,7 +126,7 @@ int hashtab_map(struct hashtab *h,
 {
 	u32 i;
 	int ret;
-	struct hashtab_node *cur;
+	struct hashtab_yesde *cur;
 
 	if (!h)
 		return 0;
@@ -147,7 +147,7 @@ int hashtab_map(struct hashtab *h,
 void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 {
 	u32 i, chain_len, slots_used, max_chain_len;
-	struct hashtab_node *cur;
+	struct hashtab_yesde *cur;
 
 	slots_used = 0;
 	max_chain_len = 0;
@@ -172,7 +172,7 @@ void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 
 void __init hashtab_cache_init(void)
 {
-		hashtab_node_cachep = kmem_cache_create("hashtab_node",
-			sizeof(struct hashtab_node),
+		hashtab_yesde_cachep = kmem_cache_create("hashtab_yesde",
+			sizeof(struct hashtab_yesde),
 			0, SLAB_PANIC, NULL);
 }

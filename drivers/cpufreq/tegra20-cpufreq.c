@@ -66,8 +66,8 @@ static int tegra_target_intermediate(struct cpufreq_policy *policy,
 	 *
 	 * When target-freq is equal to intermediate freq we don't need to
 	 * switch to an intermediate freq and so this routine isn't called.
-	 * Also, we wouldn't be using pll_x anymore and must not take extra
-	 * reference to it, as it can be disabled now to save some power.
+	 * Also, we wouldn't be using pll_x anymore and must yest take extra
+	 * reference to it, as it can be disabled yesw to save some power.
 	 */
 	clk_prepare_enable(cpufreq->pll_x_clk);
 

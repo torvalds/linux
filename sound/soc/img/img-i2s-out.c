@@ -2,7 +2,7 @@
 /*
  * IMG I2S output controller driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techyeslogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -250,7 +250,7 @@ static int img_i2s_out_hw_params(struct snd_pcm_substream *substream,
 		clk_set_rate(i2s->clk_ref, pre_div_a);
 
 	/*
-	 * Another driver (eg alsa machine driver) may have rejected the above
+	 * Ayesther driver (eg alsa machine driver) may have rejected the above
 	 * change. Get the current rate and set the register bit according to
 	 * the new minimum diff
 	 */
@@ -445,7 +445,7 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 
 	i2s->base = base;
 
-	if (of_property_read_u32(pdev->dev.of_node, "img,i2s-channels",
+	if (of_property_read_u32(pdev->dev.of_yesde, "img,i2s-channels",
 			&i2s->max_i2s_chan)) {
 		dev_err(&pdev->dev, "No img,i2s-channels property\n");
 		return -EINVAL;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*************************************************************************
  *
  *	   enables user programs to display messages and control encryption
@@ -66,7 +66,7 @@ struct tape390_crypt_info {
 
 /*
  * The TAPE390_CRYPT_SET ioctl is used to switch on/off encryption.
- * The "encryption_capable" and "tape_status" fields are ignored for this ioctl!
+ * The "encryption_capable" and "tape_status" fields are igyesred for this ioctl!
  */
 #define TAPE390_CRYPT_SET _IOW('d', 2, struct tape390_crypt_info)
 

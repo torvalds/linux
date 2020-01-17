@@ -86,16 +86,16 @@ CPU_BE(	rev16		w3, w3		)
 
 	.align		5
 ENTRY(crc32_le)
-alternative_if_not ARM64_HAS_CRC32
+alternative_if_yest ARM64_HAS_CRC32
 	b		crc32_le_base
-alternative_else_nop_endif
+alternative_else_yesp_endif
 	__crc32
 ENDPROC(crc32_le)
 
 	.align		5
 ENTRY(__crc32c_le)
-alternative_if_not ARM64_HAS_CRC32
+alternative_if_yest ARM64_HAS_CRC32
 	b		__crc32c_le_base
-alternative_else_nop_endif
+alternative_else_yesp_endif
 	__crc32		c
 ENDPROC(__crc32c_le)

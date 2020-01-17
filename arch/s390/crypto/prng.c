@@ -83,7 +83,7 @@ struct prng_ws_s {
 	u64 byte_counter;
 };
 
-struct prno_ws_s {
+struct pryes_ws_s {
 	u32 res;
 	u32 reseed_counter;
 	u64 stream_bytes;
@@ -95,7 +95,7 @@ struct prng_data_s {
 	struct mutex mutex;
 	union {
 		struct prng_ws_s prngws;
-		struct prno_ws_s prnows;
+		struct pryes_ws_s pryesws;
 	};
 	u8 *buf;
 	u32 rest;
@@ -330,12 +330,12 @@ static int __init prng_sha512_selftest(void)
 		0x36, 0x8c, 0x5a, 0x9f, 0x7a, 0x4b, 0x3e, 0xe2 };
 
 	u8 buf[sizeof(random)];
-	struct prno_ws_s ws;
+	struct pryes_ws_s ws;
 
 	memset(&ws, 0, sizeof(ws));
 
 	/* initial seed */
-	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
+	cpacf_pryes(CPACF_PRNO_SHA512_DRNG_SEED,
 		   &ws, NULL, 0, seed, sizeof(seed));
 
 	/* check working states V and C */
@@ -348,9 +348,9 @@ static int __init prng_sha512_selftest(void)
 	}
 
 	/* generate random bytes */
-	cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
+	cpacf_pryes(CPACF_PRNO_SHA512_DRNG_GEN,
 		   &ws, buf, sizeof(buf), NULL, 0);
-	cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
+	cpacf_pryes(CPACF_PRNO_SHA512_DRNG_GEN,
 		   &ws, buf, sizeof(buf), NULL, 0);
 
 	/* check against expected data */
@@ -413,21 +413,21 @@ static int __init prng_sha512_instantiate(void)
 			goto outfree;
 	}
 
-	/* append the seed by 16 bytes of unique nonce */
+	/* append the seed by 16 bytes of unique yesnce */
 	get_tod_clock_ext(seed + seedlen);
 	seedlen += 16;
 
-	/* now initial seed of the prno drng */
-	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
-		   &prng_data->prnows, NULL, 0, seed, seedlen);
+	/* yesw initial seed of the pryes drng */
+	cpacf_pryes(CPACF_PRNO_SHA512_DRNG_SEED,
+		   &prng_data->pryesws, NULL, 0, seed, seedlen);
 	memzero_explicit(seed, sizeof(seed));
 
 	/* if fips mode is enabled, generate a first block of random
 	   bytes for the FIPS 140-2 Conditional Self Test */
 	if (fips_enabled) {
 		prng_data->prev = prng_data->buf + prng_chunk_size;
-		cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
-			   &prng_data->prnows,
+		cpacf_pryes(CPACF_PRNO_SHA512_DRNG_GEN,
+			   &prng_data->pryesws,
 			   prng_data->prev, prng_chunk_size, NULL, 0);
 	}
 
@@ -464,9 +464,9 @@ static int prng_sha512_reseed(void)
 			return ret;
 	}
 
-	/* do a reseed of the prno drng with this bytestring */
-	cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
-		   &prng_data->prnows, NULL, 0, seed, seedlen);
+	/* do a reseed of the pryes drng with this bytestring */
+	cpacf_pryes(CPACF_PRNO_SHA512_DRNG_SEED,
+		   &prng_data->pryesws, NULL, 0, seed, seedlen);
 	memzero_explicit(seed, sizeof(seed));
 
 	return 0;
@@ -478,15 +478,15 @@ static int prng_sha512_generate(u8 *buf, size_t nbytes)
 	int ret;
 
 	/* reseed needed ? */
-	if (prng_data->prnows.reseed_counter > prng_reseed_limit) {
+	if (prng_data->pryesws.reseed_counter > prng_reseed_limit) {
 		ret = prng_sha512_reseed();
 		if (ret)
 			return ret;
 	}
 
 	/* PRNO generate */
-	cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
-		   &prng_data->prnows, buf, nbytes, NULL, 0);
+	cpacf_pryes(CPACF_PRNO_SHA512_DRNG_GEN,
+		   &prng_data->pryesws, buf, nbytes, NULL, 0);
 
 	/* FIPS 140-2 Conditional Self Test */
 	if (fips_enabled) {
@@ -503,9 +503,9 @@ static int prng_sha512_generate(u8 *buf, size_t nbytes)
 
 /*** file io functions ***/
 
-static int prng_open(struct inode *inode, struct file *file)
+static int prng_open(struct iyesde *iyesde, struct file *file)
 {
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
 
@@ -555,11 +555,11 @@ static ssize_t prng_tdes_read(struct file *file, char __user *ubuf,
 		 * Beside the STCKF the input for the TDES-EDE is the output
 		 * of the last operation. We differ here from X9.17 since we
 		 * only store one timestamp into the buffer. Padding the whole
-		 * buffer with timestamps does not improve security, since
+		 * buffer with timestamps does yest improve security, since
 		 * successive stckf have nearly constant offsets.
-		 * If an attacker knows the first timestamp it would be
+		 * If an attacker kyesws the first timestamp it would be
 		 * trivial to guess the additional values. One timestamp
-		 * is therefore enough and still guarantees unique input values.
+		 * is therefore eyesugh and still guarantees unique input values.
 		 *
 		 * Note: you can still get strict X9.17 conformity by setting
 		 * prng_chunk_size to 8 bytes.
@@ -593,7 +593,7 @@ static ssize_t prng_sha512_read(struct file *file, char __user *ubuf,
 	int n, ret = 0;
 	u8 *p;
 
-	/* if errorflag is set do nothing and return 'broken pipe' */
+	/* if errorflag is set do yesthing and return 'broken pipe' */
 	if (prng_errorflag)
 		return -EPIPE;
 
@@ -664,25 +664,25 @@ static const struct file_operations prng_sha512_fops = {
 	.open		= &prng_open,
 	.release	= NULL,
 	.read		= &prng_sha512_read,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 static const struct file_operations prng_tdes_fops = {
 	.owner		= THIS_MODULE,
 	.open		= &prng_open,
 	.release	= NULL,
 	.read		= &prng_tdes_read,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct miscdevice prng_sha512_dev = {
 	.name	= "prandom",
-	.minor	= MISC_DYNAMIC_MINOR,
+	.miyesr	= MISC_DYNAMIC_MINOR,
 	.mode	= 0644,
 	.fops	= &prng_sha512_fops,
 };
 static struct miscdevice prng_tdes_dev = {
 	.name	= "prandom",
-	.minor	= MISC_DYNAMIC_MINOR,
+	.miyesr	= MISC_DYNAMIC_MINOR,
 	.mode	= 0644,
 	.fops	= &prng_tdes_fops,
 };
@@ -707,7 +707,7 @@ static ssize_t prng_counter_show(struct device *dev,
 	if (mutex_lock_interruptible(&prng_data->mutex))
 		return -ERESTARTSYS;
 	if (prng_mode == PRNG_MODE_SHA512)
-		counter = prng_data->prnows.stream_bytes;
+		counter = prng_data->pryesws.stream_bytes;
 	else
 		counter = prng_data->prngws.byte_counter;
 	mutex_unlock(&prng_data->mutex);
@@ -835,7 +835,7 @@ static int __init prng_init(void)
 		/* check for MSA5 support for PRNO operations */
 		if (!cpacf_query_func(CPACF_PRNO, CPACF_PRNO_SHA512_DRNG_GEN)) {
 			if (prng_mode == PRNG_MODE_SHA512) {
-				pr_err("The prng module cannot "
+				pr_err("The prng module canyest "
 				       "start in SHA-512 mode\n");
 				return -ENODEV;
 			}

@@ -58,9 +58,9 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	const u32 *max_freqp;
 	u32 max_freq;
 	int cur_pmode;
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 
-	cpu = of_get_cpu_node(policy->cpu, NULL);
+	cpu = of_get_cpu_yesde(policy->cpu, NULL);
 
 	if (!cpu)
 		return -ENODEV;
@@ -73,13 +73,13 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	if (!cbe_get_cpu_pmd_regs(policy->cpu) ||
 	    !cbe_get_cpu_mic_tm_regs(policy->cpu)) {
 		pr_info("invalid CBE regs pointers for cpufreq\n");
-		of_node_put(cpu);
+		of_yesde_put(cpu);
 		return -EINVAL;
 	}
 
 	max_freqp = of_get_property(cpu, "clock-frequency", NULL);
 
-	of_node_put(cpu);
+	of_yesde_put(cpu);
 
 	if (!max_freqp)
 		return -EINVAL;

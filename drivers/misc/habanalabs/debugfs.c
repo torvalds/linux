@@ -227,7 +227,7 @@ static int vm_show(struct seq_file *s, void *data)
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_ctx *ctx;
 	struct hl_vm *vm;
-	struct hl_vm_hash_node *hnode;
+	struct hl_vm_hash_yesde *hyesde;
 	struct hl_userptr *userptr;
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
 	enum vm_type_t *vm_type;
@@ -250,19 +250,19 @@ static int vm_show(struct seq_file *s, void *data)
 		seq_puts(s, "    virtual address        size          handle\n");
 		seq_puts(s, "----------------------------------------------------\n");
 		mutex_lock(&ctx->mem_hash_lock);
-		hash_for_each(ctx->mem_hash, i, hnode, node) {
-			vm_type = hnode->ptr;
+		hash_for_each(ctx->mem_hash, i, hyesde, yesde) {
+			vm_type = hyesde->ptr;
 
 			if (*vm_type == VM_TYPE_USERPTR) {
-				userptr = hnode->ptr;
+				userptr = hyesde->ptr;
 				seq_printf(s,
 					"    0x%-14llx      %-10u\n",
-					hnode->vaddr, userptr->size);
+					hyesde->vaddr, userptr->size);
 			} else {
-				phys_pg_pack = hnode->ptr;
+				phys_pg_pack = hyesde->ptr;
 				seq_printf(s,
 					"    0x%-14llx      %-10llu       %-4u\n",
-					hnode->vaddr, phys_pg_pack->total_size,
+					hyesde->vaddr, phys_pg_pack->total_size,
 					phys_pg_pack->handle);
 			}
 		}
@@ -388,7 +388,7 @@ static int mmu_show(struct seq_file *s, void *data)
 		ctx = hdev->compute_ctx;
 
 	if (!ctx) {
-		dev_err(hdev->dev, "no ctx available\n");
+		dev_err(hdev->dev, "yes ctx available\n");
 		return 0;
 	}
 
@@ -408,21 +408,21 @@ static int mmu_show(struct seq_file *s, void *data)
 	hop1_addr = get_next_hop_addr(hop0_pte);
 
 	if (hop1_addr == ULLONG_MAX)
-		goto not_mapped;
+		goto yest_mapped;
 
 	hop1_pte_addr = get_hop1_pte_addr(ctx, mmu_prop, hop1_addr, virt_addr);
 	hop1_pte = hdev->asic_funcs->read_pte(hdev, hop1_pte_addr);
 	hop2_addr = get_next_hop_addr(hop1_pte);
 
 	if (hop2_addr == ULLONG_MAX)
-		goto not_mapped;
+		goto yest_mapped;
 
 	hop2_pte_addr = get_hop2_pte_addr(ctx, mmu_prop, hop2_addr, virt_addr);
 	hop2_pte = hdev->asic_funcs->read_pte(hdev, hop2_pte_addr);
 	hop3_addr = get_next_hop_addr(hop2_pte);
 
 	if (hop3_addr == ULLONG_MAX)
-		goto not_mapped;
+		goto yest_mapped;
 
 	hop3_pte_addr = get_hop3_pte_addr(ctx, mmu_prop, hop3_addr, virt_addr);
 	hop3_pte = hdev->asic_funcs->read_pte(hdev, hop3_pte_addr);
@@ -431,16 +431,16 @@ static int mmu_show(struct seq_file *s, void *data)
 		hop4_addr = get_next_hop_addr(hop3_pte);
 
 		if (hop4_addr == ULLONG_MAX)
-			goto not_mapped;
+			goto yest_mapped;
 
 		hop4_pte_addr = get_hop4_pte_addr(ctx, mmu_prop, hop4_addr,
 							virt_addr);
 		hop4_pte = hdev->asic_funcs->read_pte(hdev, hop4_pte_addr);
 		if (!(hop4_pte & PAGE_PRESENT_MASK))
-			goto not_mapped;
+			goto yest_mapped;
 	} else {
 		if (!(hop3_pte & PAGE_PRESENT_MASK))
-			goto not_mapped;
+			goto yest_mapped;
 	}
 
 	seq_printf(s, "asid: %u, virt_addr: 0x%llx\n",
@@ -470,8 +470,8 @@ static int mmu_show(struct seq_file *s, void *data)
 
 	goto out;
 
-not_mapped:
-	dev_err(hdev->dev, "virt addr 0x%llx is not mapped to phys addr\n",
+yest_mapped:
+	dev_err(hdev->dev, "virt addr 0x%llx is yest mapped to phys addr\n",
 			virt_addr);
 out:
 	mutex_unlock(&ctx->mmu_lock);
@@ -570,7 +570,7 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 	bool is_dram_addr;
 
 	if (!ctx) {
-		dev_err(hdev->dev, "no ctx available\n");
+		dev_err(hdev->dev, "yes ctx available\n");
 		return -EINVAL;
 	}
 
@@ -590,21 +590,21 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 	/* hop 1 */
 	hop_addr = get_next_hop_addr(hop_pte);
 	if (hop_addr == ULLONG_MAX)
-		goto not_mapped;
+		goto yest_mapped;
 	hop_pte_addr = get_hop1_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
 	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
 
 	/* hop 2 */
 	hop_addr = get_next_hop_addr(hop_pte);
 	if (hop_addr == ULLONG_MAX)
-		goto not_mapped;
+		goto yest_mapped;
 	hop_pte_addr = get_hop2_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
 	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
 
 	/* hop 3 */
 	hop_addr = get_next_hop_addr(hop_pte);
 	if (hop_addr == ULLONG_MAX)
-		goto not_mapped;
+		goto yest_mapped;
 	hop_pte_addr = get_hop3_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
 	hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
 
@@ -612,7 +612,7 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 		/* hop 4 */
 		hop_addr = get_next_hop_addr(hop_pte);
 		if (hop_addr == ULLONG_MAX)
-			goto not_mapped;
+			goto yest_mapped;
 		hop_pte_addr = get_hop4_pte_addr(ctx, mmu_prop, hop_addr,
 							virt_addr);
 		hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
@@ -621,14 +621,14 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 	}
 
 	if (!(hop_pte & PAGE_PRESENT_MASK))
-		goto not_mapped;
+		goto yest_mapped;
 
 	*phys_addr = (hop_pte & ~offset_mask) | (virt_addr & offset_mask);
 
 	goto out;
 
-not_mapped:
-	dev_err(hdev->dev, "virt addr 0x%llx is not mapped to phys addr\n",
+yest_mapped:
+	dev_err(hdev->dev, "virt addr 0x%llx is yest mapped to phys addr\n",
 			virt_addr);
 	rc = -EINVAL;
 out:
@@ -639,7 +639,7 @@ out:
 static ssize_t hl_data_read32(struct file *f, char __user *buf,
 					size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_dbg_device_entry *entry = file_iyesde(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	char tmp_buf[32];
 	u64 addr = entry->addr;
@@ -674,7 +674,7 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 					size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_dbg_device_entry *entry = file_iyesde(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	u64 addr = entry->addr;
 	u32 value;
@@ -708,7 +708,7 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 static ssize_t hl_get_power_state(struct file *f, char __user *buf,
 		size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_dbg_device_entry *entry = file_iyesde(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	char tmp_buf[200];
 	int i;
@@ -724,7 +724,7 @@ static ssize_t hl_get_power_state(struct file *f, char __user *buf,
 		i = 3;
 
 	sprintf(tmp_buf,
-		"current power state: %d\n1 - D0\n2 - D3hot\n3 - Unknown\n", i);
+		"current power state: %d\n1 - D0\n2 - D3hot\n3 - Unkyeswn\n", i);
 	return simple_read_from_buffer(buf, count, ppos, tmp_buf,
 			strlen(tmp_buf));
 }
@@ -732,7 +732,7 @@ static ssize_t hl_get_power_state(struct file *f, char __user *buf,
 static ssize_t hl_set_power_state(struct file *f, const char __user *buf,
 					size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_dbg_device_entry *entry = file_iyesde(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	u32 value;
 	ssize_t rc;
@@ -760,7 +760,7 @@ static ssize_t hl_set_power_state(struct file *f, const char __user *buf,
 static ssize_t hl_i2c_data_read(struct file *f, char __user *buf,
 					size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_dbg_device_entry *entry = file_iyesde(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	char tmp_buf[32];
 	u32 val;
@@ -788,7 +788,7 @@ static ssize_t hl_i2c_data_read(struct file *f, char __user *buf,
 static ssize_t hl_i2c_data_write(struct file *f, const char __user *buf,
 					size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_dbg_device_entry *entry = file_iyesde(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	u32 value;
 	ssize_t rc;
@@ -812,7 +812,7 @@ static ssize_t hl_i2c_data_write(struct file *f, const char __user *buf,
 static ssize_t hl_led0_write(struct file *f, const char __user *buf,
 					size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_dbg_device_entry *entry = file_iyesde(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	u32 value;
 	ssize_t rc;
@@ -831,7 +831,7 @@ static ssize_t hl_led0_write(struct file *f, const char __user *buf,
 static ssize_t hl_led1_write(struct file *f, const char __user *buf,
 					size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_dbg_device_entry *entry = file_iyesde(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	u32 value;
 	ssize_t rc;
@@ -850,7 +850,7 @@ static ssize_t hl_led1_write(struct file *f, const char __user *buf,
 static ssize_t hl_led2_write(struct file *f, const char __user *buf,
 					size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_dbg_device_entry *entry = file_iyesde(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	u32 value;
 	ssize_t rc;
@@ -877,7 +877,7 @@ static ssize_t hl_device_read(struct file *f, char __user *buf,
 static ssize_t hl_device_write(struct file *f, const char __user *buf,
 				     size_t count, loff_t *ppos)
 {
-	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_dbg_device_entry *entry = file_iyesde(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
 	char data[30] = {0};
 
@@ -955,20 +955,20 @@ static const struct hl_info_list hl_debugfs_list[] = {
 	{"engines", engines_show, NULL}
 };
 
-static int hl_debugfs_open(struct inode *inode, struct file *file)
+static int hl_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
-	struct hl_debugfs_entry *node = inode->i_private;
+	struct hl_debugfs_entry *yesde = iyesde->i_private;
 
-	return single_open(file, node->info_ent->show, node);
+	return single_open(file, yesde->info_ent->show, yesde);
 }
 
 static ssize_t hl_debugfs_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *f_pos)
 {
-	struct hl_debugfs_entry *node = file->f_inode->i_private;
+	struct hl_debugfs_entry *yesde = file->f_iyesde->i_private;
 
-	if (node->info_ent->write)
-		return node->info_ent->write(file, buf, count, f_pos);
+	if (yesde->info_ent->write)
+		return yesde->info_ent->write(file, buf, count, f_pos);
 	else
 		return -EINVAL;
 

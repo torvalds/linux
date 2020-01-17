@@ -6,9 +6,9 @@
  * EXYNOS - Power management unit definition
  *
  * Notice:
- * This is not a list of all Exynos Power Management Unit SFRs.
- * There are too many of them, not mentioning subtle differences
- * between SoCs. For now, put here only the used registers.
+ * This is yest a list of all Exyyess Power Management Unit SFRs.
+ * There are too many of them, yest mentioning subtle differences
+ * between SoCs. For yesw, put here only the used registers.
  */
 
 #ifndef __LINUX_SOC_EXYNOS_REGS_PMU_H
@@ -48,9 +48,9 @@
 #define S5P_WAKEUP_MASK				0x0608
 #define S5P_WAKEUP_MASK2				0x0614
 
-/* MIPI_PHYn_CONTROL, valid for Exynos3250, Exynos4, Exynos5250 and Exynos5433 */
+/* MIPI_PHYn_CONTROL, valid for Exyyess3250, Exyyess4, Exyyess5250 and Exyyess5433 */
 #define EXYNOS4_MIPI_PHY_CONTROL(n)		(0x0710 + (n) * 4)
-/* Phy enable bit, common for all phy registers, not only MIPI */
+/* Phy enable bit, common for all phy registers, yest only MIPI */
 #define EXYNOS4_PHY_ENABLE			(1 << 0)
 #define EXYNOS4_MIPI_PHY_SRESETN		(1 << 1)
 #define EXYNOS4_MIPI_PHY_MRESETN		(1 << 2)

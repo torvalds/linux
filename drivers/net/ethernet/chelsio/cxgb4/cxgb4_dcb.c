@@ -11,7 +11,7 @@
 /* DCBx version control
  */
 const char * const dcb_ver_array[] = {
-	"Unknown",
+	"Unkyeswn",
 	"DCBx-CIN",
 	"DCBx-CEE 1.01",
 	"DCBx-IEEE",
@@ -213,7 +213,7 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 
 		case CXGB4_DCB_INPUT_FW_INCOMPLETE: {
 			/* We were successfully running with firmware DCB but
-			 * now it's telling us that it's in an "incomplete
+			 * yesw it's telling us that it's in an "incomplete
 			 * state.  We need to reset back to a ground state
 			 * of incomplete.
 			 */
@@ -227,7 +227,7 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 		case CXGB4_DCB_INPUT_FW_ALLSYNCED: {
 			/* we're already all sync'ed
 			 * this is only applicable for IEEE or
-			 * when another VI already completed negotiaton
+			 * when ayesther VI already completed negotiaton
 			 */
 			dcb->enabled = 1;
 			linkwatch_fire_event(dev);
@@ -396,7 +396,7 @@ void cxgb4_dcb_handle_fw_update(struct adapter *adap,
 	}
 
 	default:
-		dev_err(adap->pdev_dev, "Unknown DCB update type received %x\n",
+		dev_err(adap->pdev_dev, "Unkyeswn DCB update type received %x\n",
 			dcb_type);
 		break;
 	}
@@ -870,7 +870,7 @@ static int __cxgb4_setapp(struct net_device *dev, u8 app_idtype, u16 app_id,
 	}
 
 	if (i == CXGB4_MAX_DCBX_APP_SUPPORTED) {
-		/* no empty slots available */
+		/* yes empty slots available */
 		dev_err(adap->pdev_dev, "DCB app table full\n");
 		return -EBUSY;
 	}
@@ -1094,7 +1094,7 @@ static u8 cxgb4_setdcbx(struct net_device *dev, u8 dcb_request)
 	if (!cxgb4_dcb_state_synced(pi->dcb.state))
 		return 1;
 
-	/* There's currently no mechanism to allow for the firmware DCBX
+	/* There's currently yes mechanism to allow for the firmware DCBX
 	 * negotiation to be changed from the Host Driver.  If the caller
 	 * requests exactly the same parameters that we already have then
 	 * we'll allow them to be successfully "set" ...

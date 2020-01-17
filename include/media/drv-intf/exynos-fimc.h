@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Samsung S5P/Exynos4 SoC series camera interface driver header
+ * Samsung S5P/Exyyess4 SoC series camera interface driver header
  *
  * Copyright (C) 2010 - 2013 Samsung Electronics Co., Ltd.
  * Sylwester Nawrocki <s.nawrocki@samsung.com>
@@ -75,8 +75,8 @@ struct fimc_source_info {
 };
 
 /*
- * v4l2_device notification id. This is only for internal use in the kernel.
- * Sensor subdevs should issue S5P_FIMC_TX_END_NOTIFY notification in single
+ * v4l2_device yestification id. This is only for internal use in the kernel.
+ * Sensor subdevs should issue S5P_FIMC_TX_END_NOTIFY yestification in single
  * frame capture mode when there is only one VSYNC pulse issued by the sensor
  * at beginning of the frame transmission.
  */
@@ -86,14 +86,14 @@ struct fimc_source_info {
 
 /**
  * struct fimc_fmt - color format data structure
- * @mbus_code: media bus pixel code, -1 if not applicable
- * @fourcc: fourcc code for this format, 0 if not applicable
+ * @mbus_code: media bus pixel code, -1 if yest applicable
+ * @fourcc: fourcc code for this format, 0 if yest applicable
  * @color: the driver's private color format id
- * @memplanes: number of physically non-contiguous data planes
+ * @memplanes: number of physically yesn-contiguous data planes
  * @colplanes: number of physically contiguous data planes
  * @colorspace: v4l2 colorspace (V4L2_COLORSPACE_*)
  * @depth: per plane driver's private 'number of bits per pixel'
- * @mdataplanes: bitmask indicating meta data plane(s), (1 << plane_no)
+ * @mdataplanes: bitmask indicating meta data plane(s), (1 << plane_yes)
  * @flags: flags indicating which operation mode format applies to
  */
 struct fimc_fmt {
@@ -117,36 +117,36 @@ struct fimc_fmt {
 #define FMT_FLAGS_YUV		(1 << 7)
 };
 
-struct exynos_media_pipeline;
+struct exyyess_media_pipeline;
 
 /*
- * Media pipeline operations to be called from within a video node,  i.e. the
+ * Media pipeline operations to be called from within a video yesde,  i.e. the
  * last entity within the pipeline. Implemented by related media device driver.
  */
-struct exynos_media_pipeline_ops {
-	int (*prepare)(struct exynos_media_pipeline *p,
+struct exyyess_media_pipeline_ops {
+	int (*prepare)(struct exyyess_media_pipeline *p,
 						struct media_entity *me);
-	int (*unprepare)(struct exynos_media_pipeline *p);
-	int (*open)(struct exynos_media_pipeline *p, struct media_entity *me,
+	int (*unprepare)(struct exyyess_media_pipeline *p);
+	int (*open)(struct exyyess_media_pipeline *p, struct media_entity *me,
 							bool resume);
-	int (*close)(struct exynos_media_pipeline *p);
-	int (*set_stream)(struct exynos_media_pipeline *p, bool state);
+	int (*close)(struct exyyess_media_pipeline *p);
+	int (*set_stream)(struct exyyess_media_pipeline *p, bool state);
 };
 
-struct exynos_video_entity {
+struct exyyess_video_entity {
 	struct video_device vdev;
-	struct exynos_media_pipeline *pipe;
+	struct exyyess_media_pipeline *pipe;
 };
 
-struct exynos_media_pipeline {
+struct exyyess_media_pipeline {
 	struct media_pipeline mp;
-	const struct exynos_media_pipeline_ops *ops;
+	const struct exyyess_media_pipeline_ops *ops;
 };
 
-static inline struct exynos_video_entity *vdev_to_exynos_video_entity(
+static inline struct exyyess_video_entity *vdev_to_exyyess_video_entity(
 					struct video_device *vdev)
 {
-	return container_of(vdev, struct exynos_video_entity, vdev);
+	return container_of(vdev, struct exyyess_video_entity, vdev);
 }
 
 #define fimc_pipeline_call(ent, op, args...)				  \

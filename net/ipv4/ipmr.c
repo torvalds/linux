@@ -17,7 +17,7 @@
  *	Brad Parker		:	Better behaviour on mrouted upcall
  *					overflow.
  *      Carlos Picoto           :       PIMv1 Support
- *	Pavlin Ivanov Radoslavov:	PIMv2 Registers must checksum only PIM header
+ *	Pavlin Ivayesv Radoslavov:	PIMv2 Registers must checksum only PIM header
  *					Relax this requirement to work with older peers.
  */
 
@@ -25,7 +25,7 @@
 #include <linux/types.h>
 #include <linux/cache.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <linux/fcntl.h>
@@ -50,7 +50,7 @@
 #include <net/icmp.h>
 #include <net/udp.h>
 #include <net/raw.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/if_arp.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/compat.h>
@@ -63,7 +63,7 @@
 #include <linux/netconf.h>
 #include <net/rtnh.h>
 
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 struct ipmr_rule {
 	struct fib_rule		common;
@@ -278,7 +278,7 @@ static void __net_exit ipmr_rules_exit(struct net *net)
 	rtnl_unlock();
 }
 
-static int ipmr_rules_dump(struct net *net, struct notifier_block *nb,
+static int ipmr_rules_dump(struct net *net, struct yestifier_block *nb,
 			   struct netlink_ext_ack *extack)
 {
 	return fib_rules_dump(net, nb, RTNL_FAMILY_IPMR, extack);
@@ -337,7 +337,7 @@ static void __net_exit ipmr_rules_exit(struct net *net)
 	rtnl_unlock();
 }
 
-static int ipmr_rules_dump(struct net *net, struct notifier_block *nb,
+static int ipmr_rules_dump(struct net *net, struct yestifier_block *nb,
 			   struct netlink_ext_ack *extack)
 {
 	return 0;
@@ -366,7 +366,7 @@ static inline int ipmr_hash_cmp(struct rhashtable_compare_arg *arg,
 }
 
 static const struct rhashtable_params ipmr_rht_params = {
-	.head_offset = offsetof(struct mr_mfc, mnode),
+	.head_offset = offsetof(struct mr_mfc, myesde),
 	.key_offset = offsetof(struct mfc_cache, cmparg),
 	.key_len = sizeof(struct mfc_cache_cmp_arg),
 	.nelem_hint = 3,
@@ -396,7 +396,7 @@ static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 {
 	struct mr_table *mrt;
 
-	/* "pimreg%u" should not exceed 16 bytes (IFNAMSIZ) */
+	/* "pimreg%u" should yest exceed 16 bytes (IFNAMSIZ) */
 	if (id != RT_TABLE_DEFAULT && id >= 1000000000)
 		return ERR_PTR(-EINVAL);
 
@@ -609,8 +609,8 @@ static int __pim_rcv(struct mr_table *mrt, struct sk_buff *skb,
 	encap = (struct iphdr *)(skb_transport_header(skb) + pimlen);
 	/* Check that:
 	 * a. packet is really sent to a multicast group
-	 * b. packet is not a NULL-REGISTER
-	 * c. packet is not truncated
+	 * b. packet is yest a NULL-REGISTER
+	 * c. packet is yest truncated
 	 */
 	if (!ipv4_is_multicast(encap->daddr) ||
 	    encap->tot_len == 0 ||
@@ -644,29 +644,29 @@ static struct net_device *ipmr_reg_vif(struct net *net, struct mr_table *mrt)
 }
 #endif
 
-static int call_ipmr_vif_entry_notifiers(struct net *net,
+static int call_ipmr_vif_entry_yestifiers(struct net *net,
 					 enum fib_event_type event_type,
 					 struct vif_device *vif,
 					 vifi_t vif_index, u32 tb_id)
 {
-	return mr_call_vif_notifiers(net, RTNL_FAMILY_IPMR, event_type,
+	return mr_call_vif_yestifiers(net, RTNL_FAMILY_IPMR, event_type,
 				     vif, vif_index, tb_id,
 				     &net->ipv4.ipmr_seq);
 }
 
-static int call_ipmr_mfc_entry_notifiers(struct net *net,
+static int call_ipmr_mfc_entry_yestifiers(struct net *net,
 					 enum fib_event_type event_type,
 					 struct mfc_cache *mfc, u32 tb_id)
 {
-	return mr_call_mfc_notifiers(net, RTNL_FAMILY_IPMR, event_type,
+	return mr_call_mfc_yestifiers(net, RTNL_FAMILY_IPMR, event_type,
 				     &mfc->_c, tb_id, &net->ipv4.ipmr_seq);
 }
 
 /**
  *	vif_delete - Delete a VIF entry
- *	@notify: Set to 1, if the caller is a notifier_call
+ *	@yestify: Set to 1, if the caller is a yestifier_call
  */
-static int vif_delete(struct mr_table *mrt, int vifi, int notify,
+static int vif_delete(struct mr_table *mrt, int vifi, int yestify,
 		      struct list_head *head)
 {
 	struct net *net = read_pnet(&mrt->net);
@@ -680,7 +680,7 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 	v = &mrt->vif_table[vifi];
 
 	if (VIF_EXISTS(mrt, vifi))
-		call_ipmr_vif_entry_notifiers(net, FIB_EVENT_VIF_DEL, v, vifi,
+		call_ipmr_vif_entry_yestifiers(net, FIB_EVENT_VIF_DEL, v, vifi,
 					      mrt->id);
 
 	write_lock_bh(&mrt_lock);
@@ -712,13 +712,13 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 	in_dev = __in_dev_get_rtnl(dev);
 	if (in_dev) {
 		IPV4_DEVCONF(in_dev->cnf, MC_FORWARDING)--;
-		inet_netconf_notify_devconf(dev_net(dev), RTM_NEWNETCONF,
+		inet_netconf_yestify_devconf(dev_net(dev), RTM_NEWNETCONF,
 					    NETCONFA_MC_FORWARDING,
 					    dev->ifindex, &in_dev->cnf);
 		ip_rt_multicast_event(in_dev);
 	}
 
-	if (v->flags & (VIFF_TUNNEL | VIFF_REGISTER) && !notify)
+	if (v->flags & (VIFF_TUNNEL | VIFF_REGISTER) && !yestify)
 		unregister_netdevice_queue(dev, head);
 
 	dev_put(dev);
@@ -774,7 +774,7 @@ static void ipmr_expire_process(struct timer_list *t)
 	struct mr_table *mrt = from_timer(mrt, t, ipmr_expire_timer);
 	struct mr_mfc *c, *next;
 	unsigned long expires;
-	unsigned long now;
+	unsigned long yesw;
 
 	if (!spin_trylock(&mfc_unres_lock)) {
 		mod_timer(&mrt->ipmr_expire_timer, jiffies+HZ/10);
@@ -784,12 +784,12 @@ static void ipmr_expire_process(struct timer_list *t)
 	if (list_empty(&mrt->mfc_unres_queue))
 		goto out;
 
-	now = jiffies;
+	yesw = jiffies;
 	expires = 10*HZ;
 
 	list_for_each_entry_safe(c, next, &mrt->mfc_unres_queue, list) {
-		if (time_after(c->mfc_un.unres.expires, now)) {
-			unsigned long interval = c->mfc_un.unres.expires - now;
+		if (time_after(c->mfc_un.unres.expires, yesw)) {
+			unsigned long interval = c->mfc_un.unres.expires - yesw;
 			if (interval < expires)
 				expires = interval;
 			continue;
@@ -903,7 +903,7 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 		return -EADDRNOTAVAIL;
 	}
 	IPV4_DEVCONF(in_dev->cnf, MC_FORWARDING)++;
-	inet_netconf_notify_devconf(net, RTM_NEWNETCONF, NETCONFA_MC_FORWARDING,
+	inet_netconf_yestify_devconf(net, RTM_NEWNETCONF, NETCONFA_MC_FORWARDING,
 				    dev->ifindex, &in_dev->cnf);
 	ip_rt_multicast_event(in_dev);
 
@@ -932,7 +932,7 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 	if (vifi+1 > mrt->maxvif)
 		mrt->maxvif = vifi+1;
 	write_unlock_bh(&mrt_lock);
-	call_ipmr_vif_entry_notifiers(net, FIB_EVENT_VIF_ADD, v, vifi, mrt->id);
+	call_ipmr_vif_entry_yestifiers(net, FIB_EVENT_VIF_ADD, v, vifi, mrt->id);
 	return 0;
 }
 
@@ -1057,7 +1057,7 @@ static int ipmr_cache_report(struct mr_table *mrt,
 		return -ENOBUFS;
 
 	if (assert == IGMPMSG_WHOLEPKT || assert == IGMPMSG_WRVIFWHOLE) {
-		/* Ugly, but we have no choice with this interface.
+		/* Ugly, but we have yes choice with this interface.
 		 * Duplicate old header, fix ihl, length etc.
 		 * And all this only to mangle msg->im_msgtype and
 		 * to set msg->im_mbz to "mbz" :-)
@@ -1203,9 +1203,9 @@ static int ipmr_mfc_delete(struct mr_table *mrt, struct mfcctl *mfc, int parent)
 	rcu_read_unlock();
 	if (!c)
 		return -ENOENT;
-	rhltable_remove(&mrt->mfc_hash, &c->_c.mnode, ipmr_rht_params);
+	rhltable_remove(&mrt->mfc_hash, &c->_c.myesde, ipmr_rht_params);
 	list_del_rcu(&c->_c.list);
-	call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, c, mrt->id);
+	call_ipmr_mfc_entry_yestifiers(net, FIB_EVENT_ENTRY_DEL, c, mrt->id);
 	mroute_netlink_event(mrt, c, RTM_DELROUTE);
 	mr_cache_put(&c->_c);
 
@@ -1235,7 +1235,7 @@ static int ipmr_mfc_add(struct net *net, struct mr_table *mrt,
 		if (!mrtsock)
 			c->_c.mfc_flags |= MFC_STATIC;
 		write_unlock_bh(&mrt_lock);
-		call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_REPLACE, c,
+		call_ipmr_mfc_entry_yestifiers(net, FIB_EVENT_ENTRY_REPLACE, c,
 					      mrt->id);
 		mroute_netlink_event(mrt, c, RTM_NEWROUTE);
 		return 0;
@@ -1256,7 +1256,7 @@ static int ipmr_mfc_add(struct net *net, struct mr_table *mrt,
 	if (!mrtsock)
 		c->_c.mfc_flags |= MFC_STATIC;
 
-	ret = rhltable_insert_key(&mrt->mfc_hash, &c->cmparg, &c->_c.mnode,
+	ret = rhltable_insert_key(&mrt->mfc_hash, &c->cmparg, &c->_c.myesde,
 				  ipmr_rht_params);
 	if (ret) {
 		pr_err("ipmr: rhtable insert error %d\n", ret);
@@ -1287,7 +1287,7 @@ static int ipmr_mfc_add(struct net *net, struct mr_table *mrt,
 		ipmr_cache_resolve(net, mrt, uc, c);
 		ipmr_cache_free(uc);
 	}
-	call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_ADD, c, mrt->id);
+	call_ipmr_mfc_entry_yestifiers(net, FIB_EVENT_ENTRY_ADD, c, mrt->id);
 	mroute_netlink_event(mrt, c, RTM_NEWROUTE);
 	return 0;
 }
@@ -1319,10 +1319,10 @@ static void mroute_clean_tables(struct mr_table *mrt, int flags)
 			if (((c->mfc_flags & MFC_STATIC) && !(flags & MRT_FLUSH_MFC_STATIC)) ||
 			    (!(c->mfc_flags & MFC_STATIC) && !(flags & MRT_FLUSH_MFC)))
 				continue;
-			rhltable_remove(&mrt->mfc_hash, &c->mnode, ipmr_rht_params);
+			rhltable_remove(&mrt->mfc_hash, &c->myesde, ipmr_rht_params);
 			list_del_rcu(&c->list);
 			cache = (struct mfc_cache *)c;
-			call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, cache,
+			call_ipmr_mfc_entry_yestifiers(net, FIB_EVENT_ENTRY_DEL, cache,
 						      mrt->id);
 			mroute_netlink_event(mrt, cache, RTM_DELROUTE);
 			mr_cache_put(c);
@@ -1355,7 +1355,7 @@ static void mrtsock_destruct(struct sock *sk)
 	ipmr_for_each_table(mrt, net) {
 		if (sk == rtnl_dereference(mrt->mroute_sk)) {
 			IPV4_DEVCONF_ALL(net, MC_FORWARDING)--;
-			inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+			inet_netconf_yestify_devconf(net, RTM_NEWNETCONF,
 						    NETCONFA_MC_FORWARDING,
 						    NETCONFA_IFINDEX_ALL,
 						    net->ipv4.devconf_all);
@@ -1419,7 +1419,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 		if (ret == 0) {
 			rcu_assign_pointer(mrt->mroute_sk, sk);
 			IPV4_DEVCONF_ALL(net, MC_FORWARDING)++;
-			inet_netconf_notify_devconf(net, RTM_NEWNETCONF,
+			inet_netconf_yestify_devconf(net, RTM_NEWNETCONF,
 						    NETCONFA_MC_FORWARDING,
 						    NETCONFA_IFINDEX_ALL,
 						    net->ipv4.devconf_all);
@@ -1554,7 +1554,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 				raw_sk(sk)->ipmr_table = uval;
 		}
 		break;
-	/* Spurious command, or MRT_VERSION which you cannot set. */
+	/* Spurious command, or MRT_VERSION which you canyest set. */
 	default:
 		ret = -ENOPROTOOPT;
 	}
@@ -1628,7 +1628,7 @@ int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg)
 			return -EFAULT;
 		if (vr.vifi >= mrt->maxvif)
 			return -EINVAL;
-		vr.vifi = array_index_nospec(vr.vifi, mrt->maxvif);
+		vr.vifi = array_index_yesspec(vr.vifi, mrt->maxvif);
 		read_lock(&mrt_lock);
 		vif = &mrt->vif_table[vr.vifi];
 		if (VIF_EXISTS(mrt, vr.vifi)) {
@@ -1703,7 +1703,7 @@ int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 			return -EFAULT;
 		if (vr.vifi >= mrt->maxvif)
 			return -EINVAL;
-		vr.vifi = array_index_nospec(vr.vifi, mrt->maxvif);
+		vr.vifi = array_index_yesspec(vr.vifi, mrt->maxvif);
 		read_lock(&mrt_lock);
 		vif = &mrt->vif_table[vr.vifi];
 		if (VIF_EXISTS(mrt, vr.vifi)) {
@@ -1743,9 +1743,9 @@ int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 }
 #endif
 
-static int ipmr_device_event(struct notifier_block *this, unsigned long event, void *ptr)
+static int ipmr_device_event(struct yestifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct mr_table *mrt;
 	struct vif_device *v;
@@ -1764,8 +1764,8 @@ static int ipmr_device_event(struct notifier_block *this, unsigned long event, v
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block ip_mr_notifier = {
-	.notifier_call = ipmr_device_event,
+static struct yestifier_block ip_mr_yestifier = {
+	.yestifier_call = ipmr_device_event,
 };
 
 /* Encapsulate a packet by attaching a valid IPIP header to it.
@@ -1883,7 +1883,7 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	dev = rt->dst.dev;
 
 	if (skb->len+encap > dst_mtu(&rt->dst) && (ntohs(iph->frag_off) & IP_DF)) {
-		/* Do not fragment multicasts. Alas, IPv4 does not
+		/* Do yest fragment multicasts. Alas, IPv4 does yest
 		 * allow to send ICMP, so that packets will disappear
 		 * to blackhole.
 		 */
@@ -1919,13 +1919,13 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	IPCB(skb)->flags |= IPSKB_FORWARDED;
 
 	/* RFC1584 teaches, that DVMRP/PIM router must deliver packets locally
-	 * not only before forwarding, but after forwarding on all output
+	 * yest only before forwarding, but after forwarding on all output
 	 * interfaces. It is clear, if mrouter runs a multicasting
-	 * program, it should receive packets not depending to what interface
+	 * program, it should receive packets yest depending to what interface
 	 * program is joined.
-	 * If we will not make it, the program will have to join on all
+	 * If we will yest make it, the program will have to join on all
 	 * interfaces. On the other hand, multihoming host (or router, but
-	 * not mrouter) cannot join to more than one interface - it will
+	 * yest mrouter) canyest join to more than one interface - it will
 	 * result in receiving multiple packets.
 	 */
 	NF_HOOK(NFPROTO_IPV4, NF_INET_FORWARD,
@@ -1981,11 +1981,11 @@ static void ip_mr_forward(struct net *net, struct mr_table *mrt,
 			 * Very complicated situation...
 			 *
 			 * The best workaround until routing daemons will be
-			 * fixed is not to redistribute packet, if it was
+			 * fixed is yest to redistribute packet, if it was
 			 * send through wrong interface. It means, that
 			 * multicast applications WILL NOT work for
 			 * (S,G), which have default multicast route pointing
-			 * to wrong oif. In any case, it is not a good
+			 * to wrong oif. In any case, it is yest a good
 			 * idea to use multicasting applications on router.
 			 */
 			goto dont_forward;
@@ -1995,7 +1995,7 @@ static void ip_mr_forward(struct net *net, struct mr_table *mrt,
 
 		if (true_vifi >= 0 && mrt->mroute_do_assert &&
 		    /* pimsm uses asserts, when switching from RPT to SPT,
-		     * so that we cannot check that packet arrived on an oif.
+		     * so that we canyest check that packet arrived on an oif.
 		     * It is bad, but otherwise we would need to move pretty
 		     * large chunk of pimd to kernel. Ough... --ANK
 		     */
@@ -2024,7 +2024,7 @@ forward:
 		    true_vifi != c->_c.mfc_parent &&
 		    ip_hdr(skb)->ttl >
 				c->_c.mfc_un.res.ttls[c->_c.mfc_parent]) {
-			/* It's an (*,*) entry and the packet is not coming from
+			/* It's an (*,*) entry and the packet is yest coming from
 			 * the upstream: forward the packet to the upstream
 			 * only.
 			 */
@@ -2104,7 +2104,7 @@ int ip_mr_input(struct sk_buff *skb)
 	struct net_device *dev;
 
 	/* skb->dev passed in is the loX master dev for vrfs.
-	 * As there are no vifs associated with loopback devices,
+	 * As there are yes vifs associated with loopback devices,
 	 * get the proper interface that does have a vif associated with it.
 	 */
 	dev = skb->dev;
@@ -2116,7 +2116,7 @@ int ip_mr_input(struct sk_buff *skb)
 		}
 	}
 
-	/* Packet is looped back after forward, it should not be
+	/* Packet is looped back after forward, it should yest be
 	 * forwarded second time, but still can be delivered locally.
 	 */
 	if (IPCB(skb)->flags & IPSKB_FORWARDED)
@@ -2133,7 +2133,7 @@ int ip_mr_input(struct sk_buff *skb)
 				return 0;
 		} else if (ip_hdr(skb)->protocol == IPPROTO_IGMP) {
 			/* IGMPv1 (and broken IGMPv2 implementations sort of
-			 * Cisco IOS <= 11.2(8)) do not put router alert
+			 * Cisco IOS <= 11.2(8)) do yest put router alert
 			 * option to IGMP packets destined to routable
 			 * groups. It is very bad, because it means
 			 * that we can forward NO IGMP messages.
@@ -2352,7 +2352,7 @@ static int ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	    nla_put_in_addr(skb, RTA_DST, c->mfc_mcastgrp))
 		goto nla_put_failure;
 	err = mr_fill_mroute(mrt, skb, &c->_c, rtm);
-	/* do not break the dump if cache is unresolved */
+	/* do yest break the dump if cache is unresolved */
 	if (err < 0 && err != -ENOENT)
 		goto nla_put_failure;
 
@@ -2410,7 +2410,7 @@ static void mroute_netlink_event(struct mr_table *mrt, struct mfc_cache *mfc,
 	if (err < 0)
 		goto errout;
 
-	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_MROUTE, NULL, GFP_ATOMIC);
+	rtnl_yestify(skb, net, 0, RTNLGRP_IPV4_MROUTE, NULL, GFP_ATOMIC);
 	return;
 
 errout:
@@ -2472,7 +2472,7 @@ static void igmpmsg_netlink_event(struct mr_table *mrt, struct sk_buff *pkt)
 
 	nlmsg_end(skb, nlh);
 
-	rtnl_notify(skb, net, 0, RTNLGRP_IPV4_MROUTE_R, NULL, GFP_ATOMIC);
+	rtnl_yestify(skb, net, 0, RTNLGRP_IPV4_MROUTE_R, NULL, GFP_ATOMIC);
 	return;
 
 nla_put_failure:
@@ -2614,7 +2614,7 @@ static int ipmr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 			if (filter.dump_all_families)
 				return skb->len;
 
-			NL_SET_ERR_MSG(cb->extack, "ipv4: MR table does not exist");
+			NL_SET_ERR_MSG(cb->extack, "ipv4: MR table does yest exist");
 			return -ENOENT;
 		}
 		err = mr_table_dump(mrt, skb, cb, _ipmr_fill_mroute,
@@ -2781,7 +2781,7 @@ static bool ipmr_fill_vif(struct mr_table *mrt, u32 vifid, struct sk_buff *skb)
 		return true;
 
 	vif = &mrt->vif_table[vifid];
-	vif_nest = nla_nest_start_noflag(skb, IPMRA_VIF);
+	vif_nest = nla_nest_start_yesflag(skb, IPMRA_VIF);
 	if (!vif_nest)
 		return false;
 	if (nla_put_u32(skb, IPMRA_VIFA_IFINDEX, vif->dev->ifindex) ||
@@ -2865,7 +2865,7 @@ static int ipmr_rtm_dumplink(struct sk_buff *skb, struct netlink_callback *cb)
 		memset(hdr, 0, sizeof(*hdr));
 		hdr->ifi_family = RTNL_FAMILY_IPMR;
 
-		af = nla_nest_start_noflag(skb, IFLA_AF_SPEC);
+		af = nla_nest_start_yesflag(skb, IFLA_AF_SPEC);
 		if (!af) {
 			nlmsg_cancel(skb, nlh);
 			goto out;
@@ -2876,7 +2876,7 @@ static int ipmr_rtm_dumplink(struct sk_buff *skb, struct netlink_callback *cb)
 			goto out;
 		}
 
-		vifs = nla_nest_start_noflag(skb, IPMRA_TABLE_VIFS);
+		vifs = nla_nest_start_yesflag(skb, IPMRA_TABLE_VIFS);
 		if (!vifs) {
 			nla_nest_end(skb, af);
 			nlmsg_end(skb, nlh);
@@ -2949,7 +2949,7 @@ static int ipmr_vif_seq_show(struct seq_file *seq, void *v)
 	} else {
 		const struct vif_device *vif = v;
 		const char *name =  vif->dev ?
-				    vif->dev->name : "none";
+				    vif->dev->name : "yesne";
 
 		seq_printf(seq,
 			   "%2td %-10s %8ld %7ld  %8ld %7ld %05X %08X %08X\n",
@@ -3043,38 +3043,38 @@ static unsigned int ipmr_seq_read(struct net *net)
 	return net->ipv4.ipmr_seq + ipmr_rules_seq_read(net);
 }
 
-static int ipmr_dump(struct net *net, struct notifier_block *nb,
+static int ipmr_dump(struct net *net, struct yestifier_block *nb,
 		     struct netlink_ext_ack *extack)
 {
 	return mr_dump(net, nb, RTNL_FAMILY_IPMR, ipmr_rules_dump,
 		       ipmr_mr_table_iter, &mrt_lock, extack);
 }
 
-static const struct fib_notifier_ops ipmr_notifier_ops_template = {
+static const struct fib_yestifier_ops ipmr_yestifier_ops_template = {
 	.family		= RTNL_FAMILY_IPMR,
 	.fib_seq_read	= ipmr_seq_read,
 	.fib_dump	= ipmr_dump,
 	.owner		= THIS_MODULE,
 };
 
-static int __net_init ipmr_notifier_init(struct net *net)
+static int __net_init ipmr_yestifier_init(struct net *net)
 {
-	struct fib_notifier_ops *ops;
+	struct fib_yestifier_ops *ops;
 
 	net->ipv4.ipmr_seq = 0;
 
-	ops = fib_notifier_ops_register(&ipmr_notifier_ops_template, net);
+	ops = fib_yestifier_ops_register(&ipmr_yestifier_ops_template, net);
 	if (IS_ERR(ops))
 		return PTR_ERR(ops);
-	net->ipv4.ipmr_notifier_ops = ops;
+	net->ipv4.ipmr_yestifier_ops = ops;
 
 	return 0;
 }
 
-static void __net_exit ipmr_notifier_exit(struct net *net)
+static void __net_exit ipmr_yestifier_exit(struct net *net)
 {
-	fib_notifier_ops_unregister(net->ipv4.ipmr_notifier_ops);
-	net->ipv4.ipmr_notifier_ops = NULL;
+	fib_yestifier_ops_unregister(net->ipv4.ipmr_yestifier_ops);
+	net->ipv4.ipmr_yestifier_ops = NULL;
 }
 
 /* Setup for IP multicast routing */
@@ -3082,9 +3082,9 @@ static int __net_init ipmr_net_init(struct net *net)
 {
 	int err;
 
-	err = ipmr_notifier_init(net);
+	err = ipmr_yestifier_init(net);
 	if (err)
-		goto ipmr_notifier_fail;
+		goto ipmr_yestifier_fail;
 
 	err = ipmr_rules_init(net);
 	if (err < 0)
@@ -3108,8 +3108,8 @@ proc_vif_fail:
 	ipmr_rules_exit(net);
 #endif
 ipmr_rules_fail:
-	ipmr_notifier_exit(net);
-ipmr_notifier_fail:
+	ipmr_yestifier_exit(net);
+ipmr_yestifier_fail:
 	return err;
 }
 
@@ -3119,7 +3119,7 @@ static void __net_exit ipmr_net_exit(struct net *net)
 	remove_proc_entry("ip_mr_cache", net->proc_net);
 	remove_proc_entry("ip_mr_vif", net->proc_net);
 #endif
-	ipmr_notifier_exit(net);
+	ipmr_yestifier_exit(net);
 	ipmr_rules_exit(net);
 }
 
@@ -3141,9 +3141,9 @@ int __init ip_mr_init(void)
 	if (err)
 		goto reg_pernet_fail;
 
-	err = register_netdevice_notifier(&ip_mr_notifier);
+	err = register_netdevice_yestifier(&ip_mr_yestifier);
 	if (err)
-		goto reg_notif_fail;
+		goto reg_yestif_fail;
 #ifdef CONFIG_IP_PIMSM_V2
 	if (inet_add_protocol(&pim_protocol, IPPROTO_PIM) < 0) {
 		pr_err("%s: can't add PIM protocol\n", __func__);
@@ -3164,9 +3164,9 @@ int __init ip_mr_init(void)
 
 #ifdef CONFIG_IP_PIMSM_V2
 add_proto_fail:
-	unregister_netdevice_notifier(&ip_mr_notifier);
+	unregister_netdevice_yestifier(&ip_mr_yestifier);
 #endif
-reg_notif_fail:
+reg_yestif_fail:
 	unregister_pernet_subsys(&ipmr_net_ops);
 reg_pernet_fail:
 	kmem_cache_destroy(mrt_cachep);

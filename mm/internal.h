@@ -15,7 +15,7 @@
 /*
  * The set of flags that only affect watermark checking and reclaim
  * behaviour. This is used by the MM to obey the caller constraints
- * about IO, FS and watermark checking while ignoring placement
+ * about IO, FS and watermark checking while igyesring placement
  * hints such as HIGHMEM usage.
  */
 #define GFP_RECLAIM_MASK (__GFP_RECLAIM|__GFP_HIGH|__GFP_IO|__GFP_FS|\
@@ -26,10 +26,10 @@
 /* The GFP flags allowed during early boot */
 #define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_RECLAIM|__GFP_IO|__GFP_FS))
 
-/* Control allocation cpuset and node placement constraints */
+/* Control allocation cpuset and yesde placement constraints */
 #define GFP_CONSTRAINT_MASK (__GFP_HARDWALL|__GFP_THISNODE)
 
-/* Do not use these with a slab allocator */
+/* Do yest use these with a slab allocator */
 #define GFP_SLAB_BUG_MASK (__GFP_DMA32|__GFP_HIGHMEM|~__GFP_BITS_MASK)
 
 void page_writeback_init(void);
@@ -64,7 +64,7 @@ static inline unsigned long ra_submit(struct file_ra_state *ra,
 }
 
 /*
- * Turn a non-refcounted page (->_refcount == 0) into refcounted with
+ * Turn a yesn-refcounted page (->_refcount == 0) into refcounted with
  * a count of one.
  */
 static inline void set_page_refcounted(struct page *page)
@@ -102,17 +102,17 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
  * between functions involved in allocations, including the alloc_pages*
  * family of functions.
  *
- * nodemask, migratetype and high_zoneidx are initialized only once in
- * __alloc_pages_nodemask() and then never change.
+ * yesdemask, migratetype and high_zoneidx are initialized only once in
+ * __alloc_pages_yesdemask() and then never change.
  *
  * zonelist, preferred_zone and classzone_idx are set first in
- * __alloc_pages_nodemask() for the fast path, and might be later changed
+ * __alloc_pages_yesdemask() for the fast path, and might be later changed
  * in __alloc_pages_slowpath(). All other functions pass the whole strucure
  * by a const pointer.
  */
 struct alloc_context {
 	struct zonelist *zonelist;
-	nodemask_t *nodemask;
+	yesdemask_t *yesdemask;
 	struct zoneref *preferred_zoneref;
 	int migratetype;
 	enum zone_type high_zoneidx;
@@ -199,9 +199,9 @@ struct compact_control {
 	const unsigned int alloc_flags;	/* alloc flags of a direct compactor */
 	const int classzone_idx;	/* zone index of a direct compactor */
 	enum migrate_mode mode;		/* Async or sync migration mode */
-	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
-	bool no_set_skip_hint;		/* Don't mark blocks for skipping */
-	bool ignore_block_suitable;	/* Scan blocks considered unsuitable */
+	bool igyesre_skip_hint;		/* Scan blocks even if marked skip */
+	bool yes_set_skip_hint;		/* Don't mark blocks for skipping */
+	bool igyesre_block_suitable;	/* Scan blocks considered unsuitable */
 	bool direct_compaction;		/* False from kcompactd or /proc/... */
 	bool whole_zone;		/* Whole zone should/has been scanned */
 	bool contended;			/* Signal lock or sched contention */
@@ -232,8 +232,8 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
  * This function returns the order of a free page in the buddy system. In
  * general, page_zone(page)->lock must be held by the caller to prevent the
  * page from being allocated in parallel and returning garbage as the order.
- * If a caller does not hold page_zone(page)->lock, it must guarantee that the
- * page cannot be allocated or merged in parallel. Alternatively, it must
+ * If a caller does yest hold page_zone(page)->lock, it must guarantee that the
+ * page canyest be allocated or merged in parallel. Alternatively, it must
  * handle invalid values gracefully, and use page_order_unsafe() below.
  */
 static inline unsigned int page_order(struct page *page)
@@ -243,12 +243,12 @@ static inline unsigned int page_order(struct page *page)
 }
 
 /*
- * Like page_order(), but for callers who cannot afford to hold the zone lock.
+ * Like page_order(), but for callers who canyest afford to hold the zone lock.
  * PageBuddy() should be checked first by the caller to minimize race window,
  * and invalid values must be handled gracefully.
  *
  * READ_ONCE is used so that if the caller assigns the result into a local
- * variable and e.g. tests it for valid range before using, the compiler cannot
+ * variable and e.g. tests it for valid range before using, the compiler canyest
  * decide to remove the variable and inline the page_private(page) multiple
  * times, potentially observing different values in the tests and the actual
  * use of the result.
@@ -265,7 +265,7 @@ static inline bool is_cow_mapping(vm_flags_t flags)
  */
 
 /*
- * Executable code area - executable, not writable, not stack
+ * Executable code area - executable, yest writable, yest stack
  */
 static inline bool is_exec_mapping(vm_flags_t flags)
 {
@@ -275,7 +275,7 @@ static inline bool is_exec_mapping(vm_flags_t flags)
 /*
  * Stack area - atomatically grows in one direction
  *
- * VM_GROWSUP / VM_GROWSDOWN VMAs are always private anonymous:
+ * VM_GROWSUP / VM_GROWSDOWN VMAs are always private ayesnymous:
  * do_mmap() forbids all other combinations.
  */
 static inline bool is_stack_mapping(vm_flags_t flags)
@@ -284,7 +284,7 @@ static inline bool is_stack_mapping(vm_flags_t flags)
 }
 
 /*
- * Data area - private, writable, not stack
+ * Data area - private, writable, yest stack
  */
 static inline bool is_data_mapping(vm_flags_t flags)
 {
@@ -298,7 +298,7 @@ void __vma_unlink_list(struct mm_struct *mm, struct vm_area_struct *vma);
 
 #ifdef CONFIG_MMU
 extern long populate_vma_page_range(struct vm_area_struct *vma,
-		unsigned long start, unsigned long end, int *nonblocking);
+		unsigned long start, unsigned long end, int *yesnblocking);
 extern void munlock_vma_pages_range(struct vm_area_struct *vma,
 			unsigned long start, unsigned long end);
 static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
@@ -317,15 +317,15 @@ extern unsigned int munlock_vma_page(struct page *page);
  * we want to unconditionally remove a page from the pagecache -- e.g.,
  * on truncation or freeing.
  *
- * It is legal to call this function for any page, mlocked or not.
+ * It is legal to call this function for any page, mlocked or yest.
  * If called for a page that is still mapped by mlocked vmas, all we do
- * is revert to lazy LRU behaviour -- semantics are not broken.
+ * is revert to lazy LRU behaviour -- semantics are yest broken.
  */
 extern void clear_page_mlock(struct page *page);
 
 /*
  * mlock_migrate_page - called only from migrate_misplaced_transhuge_page()
- * (because that does not go through the full procedure of migration ptes):
+ * (because that does yest go through the full procedure of migration ptes):
  * to migrate the Mlocked page flag; update statistics.
  */
 static inline void mlock_migrate_page(struct page *newpage, struct page *page)
@@ -333,7 +333,7 @@ static inline void mlock_migrate_page(struct page *newpage, struct page *page)
 	if (TestClearPageMlocked(page)) {
 		int nr_pages = hpage_nr_pages(page);
 
-		/* Holding pmd lock, no change in irq context: __mod is safe */
+		/* Holding pmd lock, yes change in irq context: __mod is safe */
 		__mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
 		SetPageMlocked(newpage);
 		__mod_zone_page_state(page_zone(newpage), NR_MLOCK, nr_pages);
@@ -478,9 +478,9 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
 #define NODE_RECLAIM_SUCCESS	1
 
 #ifdef CONFIG_NUMA
-extern int node_reclaim(struct pglist_data *, gfp_t, unsigned int);
+extern int yesde_reclaim(struct pglist_data *, gfp_t, unsigned int);
 #else
-static inline int node_reclaim(struct pglist_data *pgdat, gfp_t mask,
+static inline int yesde_reclaim(struct pglist_data *pgdat, gfp_t mask,
 				unsigned int order)
 {
 	return NODE_RECLAIM_NOSCAN;
@@ -490,7 +490,7 @@ static inline int node_reclaim(struct pglist_data *pgdat, gfp_t mask,
 extern int hwpoison_filter(struct page *p);
 
 extern u32 hwpoison_filter_dev_major;
-extern u32 hwpoison_filter_dev_minor;
+extern u32 hwpoison_filter_dev_miyesr;
 extern u64 hwpoison_filter_flags_mask;
 extern u64 hwpoison_filter_flags_value;
 extern u64 hwpoison_filter_memcg;
@@ -514,7 +514,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 
 /*
  * Only MMU archs have async oom victim reclaim - aka oom_reaper so we
- * cannot assume a reduced access to memory reserves is sufficient for
+ * canyest assume a reduced access to memory reserves is sufficient for
  * !MMU
  */
 #ifdef CONFIG_MMU
@@ -539,7 +539,7 @@ struct tlbflush_unmap_batch;
 
 
 /*
- * only for MM internal work items which do not depend on
+ * only for MM internal work items which do yest depend on
  * any allocations or locks which might depend on allocations
  */
 extern struct workqueue_struct *mm_percpu_wq;
@@ -575,5 +575,5 @@ static inline bool is_migrate_highatomic_page(struct page *page)
 }
 
 void setup_zone_pageset(struct zone *zone);
-extern struct page *alloc_new_node_page(struct page *page, unsigned long node);
+extern struct page *alloc_new_yesde_page(struct page *page, unsigned long yesde);
 #endif	/* __MM_INTERNAL_H */

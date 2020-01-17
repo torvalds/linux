@@ -28,12 +28,12 @@ struct tpm_chip *ima_tpm_chip;
  * the PCR register.
  *
  * Calculate the boot aggregate, a SHA1 over tpm registers 0-7,
- * assuming a TPM chip exists, and zeroes if the TPM chip does not
+ * assuming a TPM chip exists, and zeroes if the TPM chip does yest
  * exist.  Add the boot aggregate measurement to the measurement
  * list and extend the PCR register.
  *
- * If a tpm chip does not exist, indicate the core root of trust is
- * not hardware based by invalidating the aggregate PCR value.
+ * If a tpm chip does yest exist, indicate the core root of trust is
+ * yest hardware based by invalidating the aggregate PCR value.
  * (The aggregate PCR value is invalidated by adding one value to
  * the measurement list and extending the aggregate PCR value with
  * a different value.) Violations add a zero entry to the measurement
@@ -119,7 +119,7 @@ int __init ima_init(void)
 	if (rc != 0)
 		return rc;
 
-	/* It can be called before ima_init_digests(), it does not use TPM. */
+	/* It can be called before ima_init_digests(), it does yest use TPM. */
 	ima_load_kexec_buffer();
 
 	rc = ima_init_digests();

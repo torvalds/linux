@@ -16,7 +16,7 @@
 
 int mtk_vcodec_init_dec_pm(struct mtk_vcodec_dev *mtkdev)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct platform_device *pdev;
 	struct mtk_vcodec_pm *pm;
 	struct mtk_vcodec_clk *dec_clk;
@@ -27,14 +27,14 @@ int mtk_vcodec_init_dec_pm(struct mtk_vcodec_dev *mtkdev)
 	pm = &mtkdev->pm;
 	pm->mtkdev = mtkdev;
 	dec_clk = &pm->vdec_clk;
-	node = of_parse_phandle(pdev->dev.of_node, "mediatek,larb", 0);
-	if (!node) {
+	yesde = of_parse_phandle(pdev->dev.of_yesde, "mediatek,larb", 0);
+	if (!yesde) {
 		mtk_v4l2_err("of_parse_phandle mediatek,larb fail!");
 		return -1;
 	}
 
-	pdev = of_find_device_by_node(node);
-	of_node_put(node);
+	pdev = of_find_device_by_yesde(yesde);
+	of_yesde_put(yesde);
 	if (WARN_ON(!pdev)) {
 		return -1;
 	}
@@ -43,7 +43,7 @@ int mtk_vcodec_init_dec_pm(struct mtk_vcodec_dev *mtkdev)
 	pm->dev = &pdev->dev;
 
 	dec_clk->clk_num =
-		of_property_count_strings(pdev->dev.of_node, "clock-names");
+		of_property_count_strings(pdev->dev.of_yesde, "clock-names");
 	if (dec_clk->clk_num > 0) {
 		dec_clk->clk_info = devm_kcalloc(&pdev->dev,
 			dec_clk->clk_num, sizeof(*clk_info),
@@ -57,7 +57,7 @@ int mtk_vcodec_init_dec_pm(struct mtk_vcodec_dev *mtkdev)
 
 	for (i = 0; i < dec_clk->clk_num; i++) {
 		clk_info = &dec_clk->clk_info[i];
-		ret = of_property_read_string_index(pdev->dev.of_node,
+		ret = of_property_read_string_index(pdev->dev.of_yesde,
 			"clock-names", i, &clk_info->clk_name);
 		if (ret) {
 			mtk_v4l2_err("Failed to get clock name id = %d", i);

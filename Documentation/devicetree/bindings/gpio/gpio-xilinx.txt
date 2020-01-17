@@ -10,7 +10,7 @@ Required properties:
 - reg : Address and length of the register set for the device
 - #gpio-cells : Should be two. The first cell is the pin number and the
   second cell is used to specify optional parameters (currently unused).
-- gpio-controller : Marks the device node as a GPIO controller.
+- gpio-controller : Marks the device yesde as a GPIO controller.
 
 Optional properties:
 - interrupts : Interrupt mapping for GPIO IRQ.

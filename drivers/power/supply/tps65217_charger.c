@@ -51,7 +51,7 @@ static int tps65217_config_charger(struct tps65217_charger *charger)
 	 *
 	 * The device can be configured to support a 100k NTC (B = 3960) by
 	 * setting the the NTC_TYPE bit in register CHGCONFIG1 to 1. However it
-	 * is not recommended to do so. In sleep mode, the charger continues
+	 * is yest recommended to do so. In sleep mode, the charger continues
 	 * charging the battery, but all register values are reset to default
 	 * values. Therefore, the charger would get the wrong temperature
 	 * information. If 100k NTC setting is required, please contact the
@@ -199,7 +199,7 @@ static int tps65217_charger_probe(struct platform_device *pdev)
 	charger->tps = tps;
 	charger->dev = &pdev->dev;
 
-	cfg.of_node = pdev->dev.of_node;
+	cfg.of_yesde = pdev->dev.of_yesde;
 	cfg.drv_data = charger;
 
 	charger->psy = devm_power_supply_register(&pdev->dev,

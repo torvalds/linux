@@ -16,7 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -36,7 +36,7 @@
 #define VML_TOHW(_val, _width) ((((_val) << (_width)) + 0x7FFF - (_val)) >> 16)
 
 static struct mutex vml_mutex;
-static struct list_head global_no_mode;
+static struct list_head global_yes_mode;
 static struct list_head global_has_mode;
 static struct fb_ops vmlfb_ops;
 static struct vml_sys *subsys = NULL;
@@ -176,7 +176,7 @@ static void vmlfb_free_vram(struct vml_info *vinfo)
 /*
  * Allocate vram. Currently we try to allocate contiguous areas from the
  * __GFP_DMA zone and puzzle them together. A better approach would be to
- * allocate one contiguous area for scanout and use one-page allocations for
+ * allocate one contiguous area for scayesut and use one-page allocations for
  * offscreen areas. This requires user-space and GPU virtual mappings.
  */
 
@@ -253,7 +253,7 @@ static int vmlfb_alloc_vram(struct vml_info *vinfo,
 	}
 
 	printk(KERN_ERR MODULE_NAME
-	       ": Could not allocate requested minimal amount of vram.\n");
+	       ": Could yest allocate requested minimal amount of vram.\n");
 
 	vmlfb_free_vram(vinfo);
 
@@ -314,13 +314,13 @@ static int vmlfb_enable_mmio(struct vml_par *par)
 	par->vdc_mem_size = pci_resource_len(par->vdc, 0);
 	if (!request_mem_region(par->vdc_mem_base, par->vdc_mem_size, "vmlfb")) {
 		printk(KERN_ERR MODULE_NAME
-		       ": Could not claim display controller MMIO.\n");
+		       ": Could yest claim display controller MMIO.\n");
 		return -EBUSY;
 	}
-	par->vdc_mem = ioremap_nocache(par->vdc_mem_base, par->vdc_mem_size);
+	par->vdc_mem = ioremap_yescache(par->vdc_mem_base, par->vdc_mem_size);
 	if (par->vdc_mem == NULL) {
 		printk(KERN_ERR MODULE_NAME
-		       ": Could not map display controller MMIO.\n");
+		       ": Could yest map display controller MMIO.\n");
 		err = -ENOMEM;
 		goto out_err_0;
 	}
@@ -328,13 +328,13 @@ static int vmlfb_enable_mmio(struct vml_par *par)
 	par->gpu_mem_base = pci_resource_start(par->gpu, 0);
 	par->gpu_mem_size = pci_resource_len(par->gpu, 0);
 	if (!request_mem_region(par->gpu_mem_base, par->gpu_mem_size, "vmlfb")) {
-		printk(KERN_ERR MODULE_NAME ": Could not claim GPU MMIO.\n");
+		printk(KERN_ERR MODULE_NAME ": Could yest claim GPU MMIO.\n");
 		err = -EBUSY;
 		goto out_err_1;
 	}
-	par->gpu_mem = ioremap_nocache(par->gpu_mem_base, par->gpu_mem_size);
+	par->gpu_mem = ioremap_yescache(par->gpu_mem_base, par->gpu_mem_size);
 	if (par->gpu_mem == NULL) {
-		printk(KERN_ERR MODULE_NAME ": Could not map GPU MMIO.\n");
+		printk(KERN_ERR MODULE_NAME ": Could yest map GPU MMIO.\n");
 		err = -ENOMEM;
 		goto out_err_2;
 	}
@@ -508,7 +508,7 @@ static int vml_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (!fb_find_mode
 	    (&info->var, info, vml_default_mode, NULL, 0, &defaultmode, 16)) {
-		printk(KERN_ERR MODULE_NAME ": Could not find initial mode\n");
+		printk(KERN_ERR MODULE_NAME ": Could yest find initial mode\n");
 	}
 
 	if (fb_alloc_cmap(&info->cmap, 256, 1) < 0) {
@@ -689,7 +689,7 @@ static int vmlfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 static void vml_wait_vblank(struct vml_info *vinfo)
 {
-	/* Wait for vblank. For now, just wait for a 50Hz cycle (20ms)) */
+	/* Wait for vblank. For yesw, just wait for a 50Hz cycle (20ms)) */
 	mdelay(20);
 }
 
@@ -874,7 +874,7 @@ static int vmlfb_set_par(struct fb_info *info)
 	int ret;
 
 	mutex_lock(&vml_mutex);
-	list_move(&vinfo->head, (subsys) ? &global_has_mode : &global_no_mode);
+	list_move(&vinfo->head, (subsys) ? &global_has_mode : &global_yes_mode);
 	ret = vmlfb_set_par_locked(vinfo);
 
 	mutex_unlock(&vml_mutex);
@@ -947,12 +947,12 @@ static int vmlfb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static int vmlfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int vmlfb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			   u_int transp, struct fb_info *info)
 {
 	u32 v;
 
-	if (regno >= 16)
+	if (regyes >= 16)
 		return -EINVAL;
 
 	if (info->var.grayscale) {
@@ -974,11 +974,11 @@ static int vmlfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 	switch (info->var.bits_per_pixel) {
 	case 16:
-		((u32 *) info->pseudo_palette)[regno] = v;
+		((u32 *) info->pseudo_palette)[regyes] = v;
 		break;
 	case 24:
 	case 32:
-		((u32 *) info->pseudo_palette)[regno] = v;
+		((u32 *) info->pseudo_palette)[regyes] = v;
 		break;
 	}
 	return 0;
@@ -1059,7 +1059,7 @@ static int __init vmlfb_init(void)
 
 	printk(KERN_DEBUG MODULE_NAME ": initializing\n");
 	mutex_init(&vml_mutex);
-	INIT_LIST_HEAD(&global_no_mode);
+	INIT_LIST_HEAD(&global_yes_mode);
 	INIT_LIST_HEAD(&global_has_mode);
 
 	return pci_register_driver(&vmlfb_pci_driver);
@@ -1083,13 +1083,13 @@ int vmlfb_register_subsys(struct vml_sys *sys)
 	 * release the list mutex in the loop.
 	 */
 
-	list = global_no_mode.next;
-	while (list != &global_no_mode) {
+	list = global_yes_mode.next;
+	while (list != &global_yes_mode) {
 		list_del_init(list);
 		entry = list_entry(list, struct vml_info, head);
 
 		/*
-		 * First, try the current mode which might not be
+		 * First, try the current mode which might yest be
 		 * completely validated with respect to the pixel clock.
 		 */
 
@@ -1099,7 +1099,7 @@ int vmlfb_register_subsys(struct vml_sys *sys)
 		} else {
 
 			/*
-			 * Didn't work. Try to find another mode,
+			 * Didn't work. Try to find ayesther mode,
 			 * that matches this subsys.
 			 */
 
@@ -1115,18 +1115,18 @@ int vmlfb_register_subsys(struct vml_sys *sys)
 				fb_set_var(&entry->info, &entry->info.var);
 			} else {
 				printk(KERN_ERR MODULE_NAME
-				       ": Sorry. no mode found for this subsys.\n");
+				       ": Sorry. yes mode found for this subsys.\n");
 			}
 			entry->info.var.activate = save_activate;
 			mutex_lock(&vml_mutex);
 		}
 		vmlfb_blank_locked(entry);
-		list = global_no_mode.next;
+		list = global_yes_mode.next;
 	}
 	mutex_unlock(&vml_mutex);
 
 	printk(KERN_DEBUG MODULE_NAME ": Registered %s subsystem.\n",
-				subsys->name ? subsys->name : "unknown");
+				subsys->name ? subsys->name : "unkyeswn");
 	return 0;
 }
 
@@ -1146,7 +1146,7 @@ void vmlfb_unregister_subsys(struct vml_sys *sys)
 	list_for_each_entry_safe(entry, next, &global_has_mode, head) {
 		printk(KERN_DEBUG MODULE_NAME ": subsys disable pipe\n");
 		vmlfb_disable_pipe(entry);
-		list_move_tail(&entry->head, &global_no_mode);
+		list_move_tail(&entry->head, &global_yes_mode);
 	}
 	mutex_unlock(&vml_mutex);
 }

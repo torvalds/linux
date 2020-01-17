@@ -13,7 +13,7 @@
  *  This software may be used and distributed according to the terms
  *  of the GNU General Public License, incorporated herein by reference.
  *
- ** Useful (if not required) reading:
+ ** Useful (if yest required) reading:
  *
  *		Texas Instruments, ThunderLAN Programmer's Guide,
  *			TI Literature Number SPWU013A
@@ -22,7 +22,7 @@
  *			available in PDF format from www.level1.com
  *		National Semiconductor, DP83840A Data Sheet
  *			available in PDF format from www.national.com
- *		Microchip Technology, 24C01A/02A/04A Data Sheet
+ *		Microchip Techyeslogy, 24C01A/02A/04A Data Sheet
  *			available in PDF format from www.microchip.com
  *
  ******************************************************************************/
@@ -195,7 +195,7 @@ static void	tlan_phy_start_link(struct net_device *);
 static void	tlan_phy_finish_auto_neg(struct net_device *);
 
 /*
-  static int	tlan_phy_nop(struct net_device *);
+  static int	tlan_phy_yesp(struct net_device *);
   static int	tlan_phy_internal_check(struct net_device *);
   static int	tlan_phy_internal_service(struct net_device *);
   static int	tlan_phy_dp83840a_check(struct net_device *);
@@ -322,7 +322,7 @@ static void tlan_remove_one(struct pci_dev *pdev)
 static void tlan_start(struct net_device *dev)
 {
 	tlan_reset_lists(dev);
-	/* NOTE: It might not be necessary to read the stats before a
+	/* NOTE: It might yest be necessary to read the stats before a
 	   reset if you don't care what the values are.
 	*/
 	tlan_read_and_clear_stats(dev, TLAN_IGNORE);
@@ -410,7 +410,7 @@ static int __init tlan_probe(void)
 	rc = pci_register_driver(&tlan_driver);
 
 	if (rc != 0) {
-		pr_err("Could not register pci driver\n");
+		pr_err("Could yest register pci driver\n");
 		goto err_out_pci_free;
 	}
 
@@ -448,14 +448,14 @@ static int tlan_init_one(struct pci_dev *pdev,
 *	Returns:
 *		0 on success, error code on error
 *	Parms:
-*		none
+*		yesne
 *
 *	The name is lower case to fit in with all the rest of
 *	the netcard_probe names.  This function looks for
-*	another TLan based adapter, setting it up with the
+*	ayesther TLan based adapter, setting it up with the
 *	allocated device struct if one is found.
 *	tlan_probe has been ported to the new net API and
-*	now allocates its own device structure. This function
+*	yesw allocates its own device structure. This function
 *	is also used by modules.
 *
 **************************************************************/
@@ -477,7 +477,7 @@ static int tlan_probe1(struct pci_dev *pdev, long ioaddr, int irq, int rev,
 
 		rc = pci_request_regions(pdev, tlan_signature);
 		if (rc) {
-			pr_err("Could not reserve IO regions\n");
+			pr_err("Could yest reserve IO regions\n");
 			goto err_out;
 		}
 	}
@@ -529,7 +529,7 @@ static int tlan_probe1(struct pci_dev *pdev, long ioaddr, int irq, int rev,
 		pci_set_drvdata(pdev, dev);
 
 	} else	{     /* EISA card */
-		/* This is a hack. We need to know which board structure
+		/* This is a hack. We need to kyesw which board structure
 		 * is suited for this adapter */
 		device_id = inw(ioaddr + EISA_ID2);
 		if (device_id == 0x20F1) {
@@ -572,13 +572,13 @@ static int tlan_probe1(struct pci_dev *pdev, long ioaddr, int irq, int rev,
 
 	rc = tlan_init(dev);
 	if (rc) {
-		pr_err("Could not set up device\n");
+		pr_err("Could yest set up device\n");
 		goto err_out_free_dev;
 	}
 
 	rc = register_netdev(dev);
 	if (rc) {
-		pr_err("Could not register device\n");
+		pr_err("Could yest register device\n");
 		goto err_out_uninit;
 	}
 
@@ -749,7 +749,7 @@ out:
 
 out2:
 		if (debug == 0x10)
-			pr_info("Card found but it is not enabled, skipping\n");
+			pr_info("Card found but it is yest enabled, skipping\n");
 		continue;
 
 	}
@@ -851,7 +851,7 @@ static int tlan_init(struct net_device *dev)
 	priv->dma_size = dma_size;
 
 	if (priv->dma_storage == NULL) {
-		pr_err("Could not allocate lists and buffers for %s\n",
+		pr_err("Could yest allocate lists and buffers for %s\n",
 		       dev->name);
 		return -ENOMEM;
 	}
@@ -921,7 +921,7 @@ static int tlan_open(struct net_device *dev)
 			  dev->name, dev);
 
 	if (err) {
-		netdev_err(dev, "Cannot open because IRQ %d is already in use\n",
+		netdev_err(dev, "Canyest open because IRQ %d is already in use\n",
 			   dev->irq);
 		return err;
 	}
@@ -989,7 +989,7 @@ static int tlan_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 /***************************************************************
  *	tlan_tx_timeout
  *
- *	Returns: nothing
+ *	Returns: yesthing
  *
  *	Params:
  *		dev	structure of device which timed out
@@ -1016,7 +1016,7 @@ static void tlan_tx_timeout(struct net_device *dev)
 /***************************************************************
  *	tlan_tx_timeout_work
  *
- *	Returns: nothing
+ *	Returns: yesthing
  *
  *	Params:
  *		work	work item of device which timed out
@@ -1037,7 +1037,7 @@ static void tlan_tx_timeout_work(struct work_struct *work)
  *	tlan_start_tx
  *
  *	Returns:
- *		0 on success, non-zero on failure.
+ *		0 on success, yesn-zero on failure.
  *	Parms:
  *		skb	A pointer to the sk_buff containing the
  *			frame to be sent.
@@ -1063,7 +1063,7 @@ static netdev_tx_t tlan_start_tx(struct sk_buff *skb, struct net_device *dev)
 	unsigned int    txlen;
 
 	if (!priv->phy_online) {
-		TLAN_DBG(TLAN_DEBUG_TX, "TRANSMIT:  %s PHY is not ready\n",
+		TLAN_DBG(TLAN_DEBUG_TX, "TRANSMIT:  %s PHY is yest ready\n",
 			 dev->name);
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -1145,7 +1145,7 @@ static netdev_tx_t tlan_start_tx(struct sk_buff *skb, struct net_device *dev)
  *	assigned TLAN adapter.  The function deactivates
  *	interrupts on its adapter, records the type of
  *	interrupt, executes the appropriate subhandler, and
- *	acknowdges the interrupt to the adapter (thus
+ *	ackyeswdges the interrupt to the adapter (thus
  *	re-enabling adapter interrupts.
  *
  **************************************************************/
@@ -1359,7 +1359,7 @@ generated by TLAN based adapters.
  *	contents of a buffer.  If detemines which list/buffer
  *	was completed and resets it.  If the buffer was the last
  *	in the channel (EOC), then the function checks to see if
- *	another buffer is ready to send, and if so, sends a Tx
+ *	ayesther buffer is ready to send, and if so, sends a Tx
  *	Go command.  Finally, the driver activates/continues the
  *	activity LED.
  *
@@ -1487,7 +1487,7 @@ static u32 tlan_handle_stat_overflow(struct net_device *dev, u16 host_int)
  *	indicates a frame has been received by the adapter from
  *	the net and the frame has been transferred to memory.
  *	The function determines the bounce buffer the frame has
- *	been loaded into, creates a new sk_buff big enough to
+ *	been loaded into, creates a new sk_buff big eyesugh to
  *	hold the frame, and sends it to protocol stack.  It
  *	then resets the used buffer and appends it to the end
  *	of the list.  If the frame was the last in the Rx
@@ -1768,7 +1768,7 @@ static u32 tlan_handle_status_check(struct net_device *dev, u16 host_int)
  *	interrupts are disabled via the DIO INTDIS register.
  *	However, TLAN chips before revision 3.0 didn't have this
  *	CSTAT member or a INTDIS register, so if this chip is
- *	pre-3.0, process EOC interrupts normally.
+ *	pre-3.0, process EOC interrupts yesrmally.
  *
  **************************************************************/
 
@@ -2505,7 +2505,7 @@ static void tlan_phy_detect(struct net_device *dev)
 	else if (priv->phy[0] != TLAN_PHY_NONE)
 		priv->phy_num = 0;
 	else
-		netdev_info(dev, "Cannot initialize device, no PHY was found!\n");
+		netdev_info(dev, "Canyest initialize device, yes PHY was found!\n");
 
 }
 
@@ -2584,7 +2584,7 @@ static void tlan_phy_reset(struct net_device *dev)
 
 	/* Wait for 500 ms and initialize.
 	 * I don't remember why I wait this long.
-	 * I've changed this to 50ms, as it seems long enough.
+	 * I've changed this to 50ms, as it seems long eyesugh.
 	 */
 	tlan_set_timer(dev, msecs_to_jiffies(50), TLAN_TIMER_PHY_START_LINK);
 
@@ -2754,7 +2754,7 @@ static void tlan_phy_finish_auto_neg(struct net_device *dev)
  *
  *
  *     This function monitors PHY condition by reading the status
- *     register via the MII bus, controls LINK LED and notifies the
+ *     register via the MII bus, controls LINK LED and yestifies the
  *     kernel about link state.
  *
  *******************************************************************/
@@ -2825,7 +2825,7 @@ these routines are based on the information in chap. 2 of the
  *
  *	Returns:
  *		false	if ack received ok
- *		true	if no ack received or other error
+ *		true	if yes ack received or other error
  *
  *	Parms:
  *		dev		The device structure containing
@@ -2882,7 +2882,7 @@ tlan_mii_read_reg(struct net_device *dev, u16 phy, u16 reg, u16 *val)
 
 	nack = tlan_get_bit(TLAN_NET_SIO_MDATA, sio);	/* check for ACK */
 	tlan_set_bit(TLAN_NET_SIO_MCLK, sio);		/* finish ACK */
-	if (nack) {					/* no ACK, so fake it */
+	if (nack) {					/* yes ACK, so fake it */
 		for (i = 0; i < 16; i++) {
 			tlan_clear_bit(TLAN_NET_SIO_MCLK, sio);
 			tlan_set_bit(TLAN_NET_SIO_MCLK, sio);
@@ -3065,7 +3065,7 @@ ThunderLAN driver eeprom routines
 
 the Compaq netelligent 10 and 10/100 cards use a microchip 24C02A
 EEPROM.  these functions are based on information in microchip's
-data sheet.  I don't know how well this functions will work with
+data sheet.  I don't kyesw how well this functions will work with
 other Eeproms.
 
 ******************************************************************************
@@ -3122,7 +3122,7 @@ static void tlan_ee_send_start(u16 io_base)
  *
  *	This function sends a byte on the serial EEPROM line,
  *	driving the clock to send each bit. The function then
- *	reverses transmission direction and reads an acknowledge
+ *	reverses transmission direction and reads an ackyeswledge
  *	bit.
  *
  **************************************************************/
@@ -3178,11 +3178,11 @@ static int tlan_ee_send_byte(u16 io_base, u8 data, int stop)
  *				data sent from the EEPROM.
  *		stop		If TLAN_EEPROM_STOP is passed, a
  *				stop cycle is sent after the
- *				byte is received, and no ack is
+ *				byte is received, and yes ack is
  *				sent.
  *
  *	This function receives 8 bits of data from the EEPROM
- *	over the serial link.  It then sends and ack bit, or no
+ *	over the serial link.  It then sends and ack bit, or yes
  *	ack and a stop bit.  This function is used to retrieve
  *	data after the address of a byte in the EEPROM has been
  *	sent.
@@ -3213,7 +3213,7 @@ static void tlan_ee_receive_byte(u16 io_base, u8 *data, int stop)
 		tlan_set_bit(TLAN_NET_SIO_ECLOK, sio);
 		tlan_clear_bit(TLAN_NET_SIO_ECLOK, sio);
 	} else {
-		tlan_set_bit(TLAN_NET_SIO_EDATA, sio);	/* no ack = 1 (?) */
+		tlan_set_bit(TLAN_NET_SIO_EDATA, sio);	/* yes ack = 1 (?) */
 		tlan_set_bit(TLAN_NET_SIO_ECLOK, sio);
 		tlan_clear_bit(TLAN_NET_SIO_ECLOK, sio);
 		/* STOP, raise data while clock is high */

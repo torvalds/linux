@@ -16,7 +16,7 @@
 #include <linux/inet.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/major.h>
 #include <linux/init.h>
@@ -164,7 +164,7 @@ static int kiss_esc(unsigned char *s, unsigned char *d, int len)
 
 	/*
 	 * Send an initial END character to flush out any data that may have
-	 * accumulated in the receiver due to line noise.
+	 * accumulated in the receiver due to line yesise.
 	 */
 
 	*ptr++ = END;
@@ -270,9 +270,9 @@ static void ax_bump(struct mkiss *ax)
 
 			/*
 			 * dl9sau bugfix: the trailling two bytes flexnet crc
-			 * will not be passed to the kernel. thus we have to
+			 * will yest be passed to the kernel. thus we have to
 			 * correct the kissparm signature, because it indicates
-			 * a crc but there's none
+			 * a crc but there's yesne
 			 */
 			*ax->rbuff &= ~0x20;
 		}
@@ -362,7 +362,7 @@ static void ax_changedmtu(struct mkiss *ax)
 	len = dev->mtu * 2;
 
 	/*
-	 * allow for arrival of larger UDP packets, even if we say not to
+	 * allow for arrival of larger UDP packets, even if we say yest to
 	 * also fixes a bug in which SunOS sends 512-byte packets even with
 	 * an MSS of 128
 	 */
@@ -447,7 +447,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 		switch (*p & 0xff) {
 		case 0x85:
 			/* command from userspace especially for us,
-			 * not for delivery to the tnc */
+			 * yest for delivery to the tnc */
 			if (len > 1) {
 				int cmd = (p[1] & 0xff);
 				switch(cmd) {
@@ -533,7 +533,7 @@ static netdev_tx_t ax_xmit(struct sk_buff *skb, struct net_device *dev)
 		 *      14 Oct 1994 Dmitry Gorodchanin.
 		 */
 		if (time_before(jiffies, dev_trans_start(dev) + 20 * HZ)) {
-			/* 20 sec timeout not reached */
+			/* 20 sec timeout yest reached */
 			return NETDEV_TX_BUSY;
 		}
 
@@ -546,7 +546,7 @@ static netdev_tx_t ax_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_start_queue(dev);
 	}
 
-	/* We were not busy, so we are now... :-) */
+	/* We were yest busy, so we are yesw... :-) */
 	netif_stop_queue(dev);
 	ax_encaps(dev, skb->data, skb->len);
 	kfree_skb(skb);
@@ -582,7 +582,7 @@ static int ax_open(struct net_device *dev)
 	len = dev->mtu * 2;
 
 	/*
-	 * allow for arrival of larger UDP packets, even if we say not to
+	 * allow for arrival of larger UDP packets, even if we say yest to
 	 * also fixes a bug in which SunOS sends 512-byte packets even with
 	 * an MSS of 128
 	 */
@@ -590,10 +590,10 @@ static int ax_open(struct net_device *dev)
 		len = 576 * 2;
 
 	if ((ax->rbuff = kmalloc(len + 4, GFP_KERNEL)) == NULL)
-		goto norbuff;
+		goto yesrbuff;
 
 	if ((ax->xbuff = kmalloc(len + 4, GFP_KERNEL)) == NULL)
-		goto noxbuff;
+		goto yesxbuff;
 
 	ax->mtu	     = dev->mtu + 73;
 	ax->buffsize = len;
@@ -606,10 +606,10 @@ static int ax_open(struct net_device *dev)
 
 	return 0;
 
-noxbuff:
+yesxbuff:
 	kfree(ax->rbuff);
 
-norbuff:
+yesrbuff:
 	return -ENOMEM;
 }
 
@@ -654,10 +654,10 @@ static void ax_setup(struct net_device *dev)
 
 /*
  * We have a potential race on dereferencing tty->disc_data, because the tty
- * layer provides no locking at all - thus one cpu could be running
- * sixpack_receive_buf while another calls sixpack_close, which zeroes
+ * layer provides yes locking at all - thus one cpu could be running
+ * sixpack_receive_buf while ayesther calls sixpack_close, which zeroes
  * tty->disc_data and frees the memory that sixpack_receive_buf is using.  The
- * best way to fix this is to use a rwlock in the tty struct, but for now we
+ * best way to fix this is to use a rwlock in the tty struct, but for yesw we
  * use a single global rwlock for all ttys in ppp line discipline.
  */
 static DEFINE_RWLOCK(disc_data_lock);
@@ -782,13 +782,13 @@ static void mkiss_close(struct tty_struct *tty)
 		return;
 
 	/*
-	 * We have now ensured that nobody can start using ap from now on, but
+	 * We have yesw ensured that yesbody can start using ap from yesw on, but
 	 * we have to wait for all existing users to finish.
 	 */
 	if (!refcount_dec_and_test(&ax->refcnt))
 		wait_for_completion(&ax->dead);
 	/*
-	 * Halt the transmit queue so that a new transmit cannot scribble
+	 * Halt the transmit queue so that a new transmit canyest scribble
 	 * on our buffers
 	 */
 	netif_stop_queue(ax->dev);
@@ -868,7 +868,7 @@ static int mkiss_ioctl(struct tty_struct *tty, struct file *file,
 /*
  * Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
- * a block of data has been received, which can now be decapsulated
+ * a block of data has been received, which can yesw be decapsulated
  * and sent on to the AX.25 layer for further processing.
  */
 static void mkiss_receive_buf(struct tty_struct *tty, const unsigned char *cp,
@@ -916,7 +916,7 @@ static void mkiss_write_wakeup(struct tty_struct *tty)
 
 	if (ax->xleft <= 0)  {
 		/* Now serial buffer is almost free & we can start
-		 * transmission of another packet
+		 * transmission of ayesther packet
 		 */
 		clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 
@@ -975,7 +975,7 @@ static void __exit mkiss_exit_driver(void)
 MODULE_AUTHOR("Ralf Baechle DL5RB <ralf@linux-mips.org>");
 MODULE_DESCRIPTION("KISS driver for AX.25 over TTYs");
 module_param(crc_force, int, 0);
-MODULE_PARM_DESC(crc_force, "crc [0 = auto | 1 = none | 2 = flexnet | 3 = smack]");
+MODULE_PARM_DESC(crc_force, "crc [0 = auto | 1 = yesne | 2 = flexnet | 3 = smack]");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_AX25);
 

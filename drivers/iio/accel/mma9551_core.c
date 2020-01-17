@@ -207,8 +207,8 @@ static int mma9551_transfer(struct i2c_client *client,
  * Commands to the MMA955xL platform consist of a write followed
  * by one or more reads.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -232,8 +232,8 @@ EXPORT_SYMBOL(mma9551_read_config_byte);
  * Commands to the MMA955xL platform consist of a write followed by one or
  * more reads.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -257,8 +257,8 @@ EXPORT_SYMBOL(mma9551_write_config_byte);
  * Commands to the MMA955xL platform consist of a write followed by one or
  * more reads.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -282,8 +282,8 @@ EXPORT_SYMBOL(mma9551_read_status_byte);
  * Commands to the MMA955xL platform consist of a write followed by one or
  * more reads.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -313,8 +313,8 @@ EXPORT_SYMBOL(mma9551_read_config_word);
  * Commands to the MMA955xL platform consist of a write followed by one or
  * more reads.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -340,8 +340,8 @@ EXPORT_SYMBOL(mma9551_write_config_word);
  * Commands to the MMA955xL platform consist of a write followed by one or
  * more reads.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -370,8 +370,8 @@ EXPORT_SYMBOL(mma9551_read_status_word);
  *
  * Read multiple configuration registers (word-sized registers).
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -409,8 +409,8 @@ EXPORT_SYMBOL(mma9551_read_config_words);
  *
  * Read multiple status registers (word-sized registers).
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -448,8 +448,8 @@ EXPORT_SYMBOL(mma9551_read_status_words);
  *
  * Write multiple configuration registers (word-sized registers).
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -483,8 +483,8 @@ EXPORT_SYMBOL(mma9551_write_config_words);
  *
  * Update bits in the given register using a bit mask.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -522,8 +522,8 @@ EXPORT_SYMBOL(mma9551_update_config_bits);
  *
  * Assign a bit from an application’s status register to a specific GPIO pin.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -594,8 +594,8 @@ EXPORT_SYMBOL(mma9551_gpio_config);
  *
  * Read version information and print device id and firmware version.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -629,8 +629,8 @@ EXPORT_SYMBOL(mma9551_read_version);
  * When enable is false, enter sleep mode (device remains in the
  * lowest-power mode).
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: 0 on success, negative value on failure.
@@ -674,7 +674,7 @@ int mma9551_set_power_state(struct i2c_client *client, bool on)
 		dev_err(&client->dev,
 			"failed to change power state to %d\n", on);
 		if (on)
-			pm_runtime_put_noidle(&client->dev);
+			pm_runtime_put_yesidle(&client->dev);
 
 		return ret;
 	}
@@ -712,8 +712,8 @@ EXPORT_SYMBOL(mma9551_sleep);
  *
  * Read accelerometer value for the specified channel.
  *
- * Locking note: This function must be called with the device lock held.
- * Locking is not handled inside the function. Callers should ensure they
+ * Locking yeste: This function must be called with the device lock held.
+ * Locking is yest handled inside the function. Callers should ensure they
  * serialize access to the HW.
  *
  * Returns: IIO_VAL_INT on success, negative value on failure.

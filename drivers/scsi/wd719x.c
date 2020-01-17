@@ -5,7 +5,7 @@
  *
  * Original driver by
  * Aaron Dewell <dewell@woods.net>
- * Gaerti <Juergen.Gaertner@mbox.si.uni-hannover.de>
+ * Gaerti <Juergen.Gaertner@mbox.si.uni-hanyesver.de>
  *
  * HW documentation available in book:
  *
@@ -15,7 +15,7 @@
  * Western Digital Corporation
  * 09-15-95
  *
- * http://web.archive.org/web/20070717175254/http://sun1.rrzn.uni-hannover.de/gaertner.juergen/wd719x/Linux/Docu/Spider/
+ * http://web.archive.org/web/20070717175254/http://sun1.rrzn.uni-hanyesver.de/gaertner.juergen/wd719x/Linux/Docu/Spider/
  */
 
 /*
@@ -83,7 +83,7 @@ static inline int wd719x_wait_ready(struct wd719x *wd)
 		udelay(1);
 	} while (i++ < WD719X_WAIT_FOR_CMD_READY);
 
-	dev_err(&wd->pdev->dev, "command register is not ready: 0x%02x\n",
+	dev_err(&wd->pdev->dev, "command register is yest ready: 0x%02x\n",
 		wd719x_readb(wd, WD719X_AMR_COMMAND));
 
 	return -ETIMEDOUT;
@@ -109,10 +109,10 @@ static inline int wd719x_wait_done(struct wd719x *wd, int timeout)
 
 	if (status != WD719X_INT_NOERRORS) {
 		u8 sue = wd719x_readb(wd, WD719X_AMR_SCB_ERROR);
-		/* we get this after wd719x_dev_reset, it's not an error */
+		/* we get this after wd719x_dev_reset, it's yest an error */
 		if (sue == WD719X_SUE_TERM)
 			return 0;
-		/* we get this after wd719x_bus_reset, it's not an error */
+		/* we get this after wd719x_bus_reset, it's yest an error */
 		if (sue == WD719X_SUE_RESET)
 			return 0;
 		dev_err(&wd->pdev->dev, "direct command failed, status 0x%02x, SUE 0x%02x\n",
@@ -213,7 +213,7 @@ static int wd719x_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 
 	scb->cmd = cmd;
 
-	scb->CDB_tag = 0;	/* Tagged queueing not supported yet */
+	scb->CDB_tag = 0;	/* Tagged queueing yest supported yet */
 	scb->devid = cmd->device->id;
 	scb->lun = cmd->device->lun;
 
@@ -344,7 +344,7 @@ static int wd719x_chip_init(struct wd719x *wd)
 	udelay(WD719X_WAIT_FOR_RISC);
 	/* Clear PIO mode bits set by BIOS */
 	wd719x_writeb(wd, WD719X_AMR_CMD_PARAM, 0);
-	/* ensure RISC is not running */
+	/* ensure RISC is yest running */
 	wd719x_writeb(wd, WD719X_PCI_MODE_SELECT, 0);
 	/* ensure command port is ready */
 	wd719x_writeb(wd, WD719X_AMR_COMMAND, 0);
@@ -389,7 +389,7 @@ static int wd719x_chip_init(struct wd719x *wd)
 		goto wd719x_init_end;
 	}
 
-	/* firmware is loaded, now initialize and wake up the RISC */
+	/* firmware is loaded, yesw initialize and wake up the RISC */
 	/* write RISC initialization long words to Spider */
 	wd719x_writel(wd, WD719X_AMR_SCB_IN, risc_init[0]);
 	wd719x_writel(wd, WD719X_AMR_SCB_IN + 4, risc_init[1]);
@@ -441,7 +441,7 @@ static int wd719x_chip_init(struct wd719x *wd)
 		goto wd719x_init_end;
 	}
 
-	/* initiate SCAM (does nothing if disabled in BIOS) */
+	/* initiate SCAM (does yesthing if disabled in BIOS) */
 	/* bug?: we should pass a mask of static IDs which we don't have */
 	ret = wd719x_direct_cmd(wd, WD719X_CMD_INIT_SCAM, 0, 0, 0, 0,
 				WD719X_WAIT_FOR_SCSI_RESET);
@@ -564,7 +564,7 @@ static inline void wd719x_interrupt_SCB(struct wd719x *wd,
 {
 	int result;
 
-	/* now have to find result from card */
+	/* yesw have to find result from card */
 	switch (regs.bytes.SUE) {
 	case WD719X_SUE_NOERRORS:
 		result = DID_OK;
@@ -627,7 +627,7 @@ static inline void wd719x_interrupt_SCB(struct wd719x *wd,
 			result = DID_PARITY;
 		break;
 	case WD719X_SUE_IGNORED:
-		dev_err(&wd->pdev->dev, "target id %d ignored command\n",
+		dev_err(&wd->pdev->dev, "target id %d igyesred command\n",
 			scb->cmd->device->id);
 		result = DID_NO_CONNECT;
 		break;
@@ -636,15 +636,15 @@ static inline void wd719x_interrupt_SCB(struct wd719x *wd,
 		result = DID_ERROR;
 		break;
 	case WD719X_SUE_BADTAGS:
-		dev_err(&wd->pdev->dev, "tag type not supported by target\n");
+		dev_err(&wd->pdev->dev, "tag type yest supported by target\n");
 		result = DID_ERROR;
 		break;
 	case WD719X_SUE_NOSCAMID:
-		dev_err(&wd->pdev->dev, "no SCAM soft ID available\n");
+		dev_err(&wd->pdev->dev, "yes SCAM soft ID available\n");
 		result = DID_ERROR;
 		break;
 	default:
-		dev_warn(&wd->pdev->dev, "unknown SUE error code: 0x%x\n",
+		dev_warn(&wd->pdev->dev, "unkyeswn SUE error code: 0x%x\n",
 			 regs.bytes.SUE);
 		result = DID_ERROR;
 		break;
@@ -671,7 +671,7 @@ static irqreturn_t wd719x_interrupt(int irq, void *dev_id)
 		spin_unlock_irqrestore(wd->sh->host_lock, flags);
 		return IRQ_NONE;
 	case WD719X_INT_LINKNOSTATUS:
-		dev_err(&wd->pdev->dev, "linked command completed with no status\n");
+		dev_err(&wd->pdev->dev, "linked command completed with yes status\n");
 		break;
 	case WD719X_INT_BADINT:
 		dev_err(&wd->pdev->dev, "unsolicited interrupt\n");
@@ -696,14 +696,14 @@ static irqreturn_t wd719x_interrupt(int irq, void *dev_id)
 		break;
 	case WD719X_INT_PIOREADY:
 		dev_err(&wd->pdev->dev, "card indicates PIO data ready but we never use PIO\n");
-		/* interrupt will not be cleared until all data is read */
+		/* interrupt will yest be cleared until all data is read */
 		break;
 	default:
-		dev_err(&wd->pdev->dev, "unknown interrupt reason: %d\n",
+		dev_err(&wd->pdev->dev, "unkyeswn interrupt reason: %d\n",
 			regs.bytes.INT);
 
 	}
-	/* clear interrupt so another can happen */
+	/* clear interrupt so ayesther can happen */
 	wd719x_writeb(wd, WD719X_AMR_INT_STATUS, WD719X_INT_NONE);
 	spin_unlock_irqrestore(wd->sh->host_lock, flags);
 
@@ -800,7 +800,7 @@ static enum wd719x_card_type wd719x_detect_type(struct wd719x *wd)
 	case 0x00:
 		return WD719X_TYPE_7296;
 	default:
-		dev_warn(&wd->pdev->dev, "unknown card type 0x%x\n", card);
+		dev_warn(&wd->pdev->dev, "unkyeswn card type 0x%x\n", card);
 		return WD719X_TYPE_UNKNOWN;
 	}
 }
@@ -809,7 +809,7 @@ static int wd719x_board_found(struct Scsi_Host *sh)
 {
 	struct wd719x *wd = shost_priv(sh);
 	static const char * const card_types[] = {
-		"Unknown card", "WD7193", "WD7197", "WD7296"
+		"Unkyeswn card", "WD7193", "WD7197", "WD7296"
 	};
 	int ret;
 

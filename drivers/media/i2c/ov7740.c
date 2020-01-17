@@ -626,7 +626,7 @@ static int ov7740_set_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+			pm_runtime_put_yesidle(&client->dev);
 			goto err_unlock;
 		}
 
@@ -656,7 +656,7 @@ static int ov7740_g_frame_interval(struct v4l2_subdev *sd,
 
 
 	tpf->numerator = 1;
-	tpf->denominator = 60;
+	tpf->deyesminator = 60;
 
 	return 0;
 }
@@ -668,7 +668,7 @@ static int ov7740_s_frame_interval(struct v4l2_subdev *sd,
 
 
 	tpf->numerator = 1;
-	tpf->denominator = 60;
+	tpf->deyesminator = 60;
 
 	return 0;
 }
@@ -734,7 +734,7 @@ static int ov7740_enum_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	fie->interval.numerator = 1;
-	fie->interval.denominator = 60;
+	fie->interval.deyesminator = 60;
 
 	return 0;
 }
@@ -1176,7 +1176,7 @@ static int ov7740_remove(struct i2c_client *client)
 	pm_runtime_get_sync(&client->dev);
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	ov7740_set_power(ov7740, 0);
 	return 0;

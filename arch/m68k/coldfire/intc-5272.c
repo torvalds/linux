@@ -20,7 +20,7 @@
 #include <asm/traps.h>
 
 /*
- * The 5272 ColdFire interrupt controller is nothing like any other
+ * The 5272 ColdFire interrupt controller is yesthing like any other
  * ColdFire interrupt controller - it truly is completely different.
  * Given its age it is unlikely to be used on any other ColdFire CPU.
  */
@@ -33,7 +33,7 @@
  *
  * Note that the external interrupts are edge triggered (unlike the
  * internal interrupt sources which are level triggered). Which means
- * they also need acknowledging via acknowledge bits.
+ * they also need ackyeswledging via ackyeswledge bits.
  */
 struct irqmap {
 	unsigned int	icr;

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2002-2005, Network Appliance, Inc. All rights reserved.
- * Copyright (c) 1999-2019, Mellanox Technologies, Inc. All rights reserved.
+ * Copyright (c) 1999-2019, Mellayesx Techyeslogies, Inc. All rights reserved.
  * Copyright (c) 2005-2006 Intel Corporation.  All rights reserved.
  */
 
@@ -128,7 +128,7 @@ struct iw_cm_id *rdma_iw_cm_id(struct rdma_cm_id *id)
 	struct rdma_id_private *id_priv;
 
 	id_priv = container_of(id, struct rdma_id_private, id);
-	if (id->device->node_type == RDMA_NODE_RNIC)
+	if (id->device->yesde_type == RDMA_NODE_RNIC)
 		return id_priv->cm_id.iw;
 	return NULL;
 }
@@ -326,8 +326,8 @@ struct ib_device *cma_get_ib_dev(struct cma_device *cma_dev)
 
 /*
  * Device removal can occur at anytime, so we need extra handling to
- * serialize notifying the user of device removal with other callbacks.
- * We do this by disabling removal notification while a callback is in process,
+ * serialize yestifying the user of device removal with other callbacks.
+ * We do this by disabling removal yestification while a callback is in process,
  * and reporting it after the callback completes.
  */
 
@@ -466,7 +466,7 @@ static void _cma_attach_to_dev(struct rdma_id_private *id_priv,
 	id_priv->cma_dev = cma_dev;
 	id_priv->id.device = cma_dev->device;
 	id_priv->id.route.addr.dev_addr.transport =
-		rdma_node_get_transport(cma_dev->device->node_type);
+		rdma_yesde_get_transport(cma_dev->device->yesde_type);
 	list_add_tail(&id_priv->list, &cma_dev->id_list);
 	if (id_priv->res.kern_name)
 		rdma_restrack_kadd(&id_priv->res);
@@ -1578,7 +1578,7 @@ static bool cma_match_net_dev(const struct rdma_cm_id *id,
 		       (addr->src_addr.ss_family == AF_IB);
 
 	/*
-	 * If the request is not for IPv6 link local, allow matching
+	 * If the request is yest for IPv6 link local, allow matching
 	 * request to any netdevice of the one or multiport rdma device.
 	 */
 	if (!cma_is_req_ipv6_ll(req))
@@ -1607,7 +1607,7 @@ static struct rdma_id_private *cma_find_listener(
 	if (!bind_list)
 		return ERR_PTR(-EINVAL);
 
-	hlist_for_each_entry(id_priv, &bind_list->owners, node) {
+	hlist_for_each_entry(id_priv, &bind_list->owners, yesde) {
 		if (cma_match_private_data(id_priv, ib_event->private_data)) {
 			if (id_priv->id.device == cm_id->device &&
 			    cma_match_net_dev(&id_priv->id, net_dev, req))
@@ -1658,8 +1658,8 @@ cma_ib_id_from_event(struct ib_cm_id *cm_id,
 	 * netdevice migrating to different net namespace and also avoids
 	 * case where net namespace doesn't get deleted while lookup is in
 	 * progress.
-	 * If the device state is not IFF_UP, its properties such as ifindex
-	 * and nd_net cannot be trusted to remain valid without rcu lock.
+	 * If the device state is yest IFF_UP, its properties such as ifindex
+	 * and nd_net canyest be trusted to remain valid without rcu lock.
 	 * net/core/dev.c change_net_namespace() ensures to synchronize with
 	 * ongoing operations on net device after device is closed using
 	 * synchronize_net().
@@ -1764,7 +1764,7 @@ static void cma_release_port(struct rdma_id_private *id_priv)
 		return;
 
 	mutex_lock(&lock);
-	hlist_del(&id_priv->node);
+	hlist_del(&id_priv->yesde);
 	if (hlist_empty(&bind_list->owners)) {
 		cma_ps_remove(net, bind_list->ps, bind_list->port);
 		kfree(bind_list);
@@ -1941,7 +1941,7 @@ static int cma_ib_handler(struct ib_cm_id *cm_id,
 		event.event = RDMA_CM_EVENT_TIMEWAIT_EXIT;
 		break;
 	case IB_CM_MRA_RECEIVED:
-		/* ignore event */
+		/* igyesre event */
 		goto out;
 	case IB_CM_REJ_RECEIVED:
 		pr_debug_ratelimited("RDMA CM: REJECTED: %s\n", rdma_reject_msg(&id_priv->id,
@@ -1960,7 +1960,7 @@ static int cma_ib_handler(struct ib_cm_id *cm_id,
 
 	ret = id_priv->id.event_handler(&id_priv->id, &event);
 	if (ret) {
-		/* Destroy the CM ID by returning a non-zero value. */
+		/* Destroy the CM ID by returning a yesn-zero value. */
 		id_priv->cm_id.ib = NULL;
 		cma_exch(id_priv, RDMA_CM_DESTROYING);
 		mutex_unlock(&id_priv->handler_mutex);
@@ -2157,7 +2157,7 @@ static int cma_ib_req_handler(struct ib_cm_id *cm_id,
 	cm_id->cm_handler = cma_ib_handler;
 
 	/*
-	 * Protect against the user destroying conn_id from another thread
+	 * Protect against the user destroying conn_id from ayesther thread
 	 * until we're done accessing it.
 	 */
 	atomic_inc(&conn_id->refcount);
@@ -2182,7 +2182,7 @@ static int cma_ib_req_handler(struct ib_cm_id *cm_id,
 
 err3:
 	cma_deref_id(conn_id);
-	/* Destroy the CM ID by returning a non-zero value. */
+	/* Destroy the CM ID by returning a yesn-zero value. */
 	conn_id->cm_id.ib = NULL;
 err2:
 	cma_exch(conn_id, RDMA_CM_DESTROYING);
@@ -2288,7 +2288,7 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 	event.param.conn.private_data_len = iw_event->private_data_len;
 	ret = id_priv->id.event_handler(&id_priv->id, &event);
 	if (ret) {
-		/* Destroy the CM ID by returning a non-zero value. */
+		/* Destroy the CM ID by returning a yesn-zero value. */
 		id_priv->cm_id.iw = NULL;
 		cma_exch(id_priv, RDMA_CM_DESTROYING);
 		mutex_unlock(&id_priv->handler_mutex);
@@ -2359,7 +2359,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	memcpy(cma_dst_addr(conn_id), raddr, rdma_addr_size(raddr));
 
 	/*
-	 * Protect against the user destroying conn_id from another thread
+	 * Protect against the user destroying conn_id from ayesther thread
 	 * until we're done accessing it.
 	 */
 	atomic_inc(&conn_id->refcount);
@@ -2503,7 +2503,7 @@ EXPORT_SYMBOL(rdma_set_service_type);
  *
  * This function should be called before rdma_connect() on active side,
  * and on passive side before rdma_accept(). It is applicable to primary
- * path only. The timeout will affect the local side of the QP, it is not
+ * path only. The timeout will affect the local side of the QP, it is yest
  * negotiated with remote side and zero disables the timer. In case it is
  * set before rdma_resolve_route, the value will also be used to determine
  * PacketLifeTime for RoCE.
@@ -3281,7 +3281,7 @@ static void cma_bind_port(struct rdma_bind_list *bind_list,
 		break;
 	}
 	id_priv->bind_list = bind_list;
-	hlist_add_head(&id_priv->node, &bind_list->owners);
+	hlist_add_head(&id_priv->yesde, &bind_list->owners);
 }
 
 static int cma_alloc_port(enum rdma_ucm_port_space ps,
@@ -3316,7 +3316,7 @@ static int cma_port_is_unique(struct rdma_bind_list *bind_list,
 	struct sockaddr  *saddr = cma_src_addr(id_priv);
 	__be16 dport = cma_port(daddr);
 
-	hlist_for_each_entry(cur_id, &bind_list->owners, node) {
+	hlist_for_each_entry(cur_id, &bind_list->owners, yesde) {
 		struct sockaddr  *cur_daddr = cma_dst_addr(cur_id);
 		struct sockaddr  *cur_saddr = cma_src_addr(cur_id);
 		__be16 cur_dport = cma_port(cur_daddr);
@@ -3403,7 +3403,7 @@ static int cma_check_port(struct rdma_bind_list *bind_list,
 	struct sockaddr *addr, *cur_addr;
 
 	addr = cma_src_addr(id_priv);
-	hlist_for_each_entry(cur_id, &bind_list->owners, node) {
+	hlist_for_each_entry(cur_id, &bind_list->owners, yesde) {
 		if (id_priv == cur_id)
 			continue;
 
@@ -3740,7 +3740,7 @@ static int cma_sidr_rep_handler(struct ib_cm_id *cm_id,
 
 	rdma_destroy_ah_attr(&event.param.ud.ah_attr);
 	if (ret) {
-		/* Destroy the CM ID by returning a non-zero value. */
+		/* Destroy the CM ID by returning a yesn-zero value. */
 		id_priv->cm_id.ib = NULL;
 		cma_exch(id_priv, RDMA_CM_DESTROYING);
 		mutex_unlock(&id_priv->handler_mutex);
@@ -4088,7 +4088,7 @@ reject:
 }
 EXPORT_SYMBOL(__rdma_accept);
 
-int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event)
+int rdma_yestify(struct rdma_cm_id *id, enum ib_event_type event)
 {
 	struct rdma_id_private *id_priv;
 	int ret;
@@ -4097,9 +4097,9 @@ int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event)
 	if (!id_priv->cm_id.ib)
 		return -EINVAL;
 
-	switch (id->device->node_type) {
+	switch (id->device->yesde_type) {
 	case RDMA_NODE_IB_CA:
-		ret = ib_cm_notify(id_priv->cm_id.ib, event);
+		ret = ib_cm_yestify(id_priv->cm_id.ib, event);
 		break;
 	default:
 		ret = 0;
@@ -4107,7 +4107,7 @@ int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event)
 	}
 	return ret;
 }
-EXPORT_SYMBOL(rdma_notify);
+EXPORT_SYMBOL(rdma_yestify);
 
 int rdma_reject(struct rdma_cm_id *id, const void *private_data,
 		u8 private_data_len)
@@ -4545,10 +4545,10 @@ static int cma_netdev_change(struct net_device *ndev, struct rdma_id_private *id
 	return 0;
 }
 
-static int cma_netdev_callback(struct notifier_block *self, unsigned long event,
+static int cma_netdev_callback(struct yestifier_block *self, unsigned long event,
 			       void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_yestifier_info_to_dev(ptr);
 	struct cma_device *cma_dev;
 	struct rdma_id_private *id_priv;
 	int ret = NOTIFY_DONE;
@@ -4572,8 +4572,8 @@ out:
 	return ret;
 }
 
-static struct notifier_block cma_nb = {
-	.notifier_call = cma_netdev_callback
+static struct yestifier_block cma_nb = {
+	.yestifier_call = cma_netdev_callback
 };
 
 static void cma_add_one(struct ib_device *device)
@@ -4648,7 +4648,7 @@ static int cma_remove_id_dev(struct rdma_id_private *id_priv)
 	cma_cancel_operation(id_priv, state);
 	mutex_lock(&id_priv->handler_mutex);
 
-	/* Check for destruction from another callback. */
+	/* Check for destruction from ayesther callback. */
 	if (!cma_comp(id_priv, RDMA_CM_DEVICE_REMOVAL))
 		goto out;
 
@@ -4746,7 +4746,7 @@ static int __init cma_init(void)
 		goto err_wq;
 
 	ib_sa_register_client(&sa_client);
-	register_netdevice_notifier(&cma_nb);
+	register_netdevice_yestifier(&cma_nb);
 
 	ret = ib_register_client(&cma_client);
 	if (ret)
@@ -4761,7 +4761,7 @@ static int __init cma_init(void)
 err_ib:
 	ib_unregister_client(&cma_client);
 err:
-	unregister_netdevice_notifier(&cma_nb);
+	unregister_netdevice_yestifier(&cma_nb);
 	ib_sa_unregister_client(&sa_client);
 	unregister_pernet_subsys(&cma_pernet_operations);
 err_wq:
@@ -4773,7 +4773,7 @@ static void __exit cma_cleanup(void)
 {
 	cma_configfs_exit();
 	ib_unregister_client(&cma_client);
-	unregister_netdevice_notifier(&cma_nb);
+	unregister_netdevice_yestifier(&cma_nb);
 	ib_sa_unregister_client(&sa_client);
 	unregister_pernet_subsys(&cma_pernet_operations);
 	destroy_workqueue(cma_wq);

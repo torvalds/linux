@@ -38,14 +38,14 @@ Protected Execution Facility
     VMs in the system. SVMs are protected while at rest and can only be
     executed by an authorized machine. All virtual machines utilize
     hypervisor services. The Ultravisor filters calls between the SVMs
-    and the hypervisor to assure that information does not accidentally
+    and the hypervisor to assure that information does yest accidentally
     leak. All hypercalls except H_RANDOM are reflected to the hypervisor.
-    H_RANDOM is not reflected to prevent the hypervisor from influencing
+    H_RANDOM is yest reflected to prevent the hypervisor from influencing
     random values in the SVM.
 
     To support this there is a refactoring of the ownership of resources
     in the CPU. Some of the resources which were previously hypervisor
-    privileged are now ultravisor privileged.
+    privileged are yesw ultravisor privileged.
 
 Hardware
 ========
@@ -54,18 +54,18 @@ Hardware
 
     * There is a new bit in the MSR that determines whether the current
       process is running in secure mode, MSR(S) bit 41. MSR(S)=1, process
-      is in secure mode, MSR(s)=0 process is in normal mode.
+      is in secure mode, MSR(s)=0 process is in yesrmal mode.
 
     * The MSR(S) bit can only be set by the Ultravisor.
 
-    * HRFID cannot be used to set the MSR(S) bit. If the hypervisor needs
+    * HRFID canyest be used to set the MSR(S) bit. If the hypervisor needs
       to return to a SVM it must use an ultracall. It can determine if
       the VM it is returning to is secure.
 
     * There is a new Ultravisor privileged register, SMFCTRL, which has an
       enable/disable bit SMFCTRL(E).
 
-    * The privilege of a process is now determined by three MSR bits,
+    * The privilege of a process is yesw determined by three MSR bits,
       MSR(S, HV, PR). In each of the tables below the modes are listed
       from least privilege to highest privilege. The higher privilege
       modes can access all the resources of the lower privilege modes.
@@ -98,20 +98,20 @@ Hardware
       | 0 | 1 | 1 | Problem (Host)|
       +---+---+---+---------------+
 
-    * Memory is partitioned into secure and normal memory. Only processes
+    * Memory is partitioned into secure and yesrmal memory. Only processes
       that are running in secure mode can access secure memory.
 
-    * The hardware does not allow anything that is not running secure to
-      access secure memory. This means that the Hypervisor cannot access
+    * The hardware does yest allow anything that is yest running secure to
+      access secure memory. This means that the Hypervisor canyest access
       the memory of the SVM without using an ultracall (asking the
       Ultravisor). The Ultravisor will only allow the hypervisor to see
       the SVM memory encrypted.
 
-    * I/O systems are not allowed to directly address secure memory. This
+    * I/O systems are yest allowed to directly address secure memory. This
       limits the SVMs to virtual I/O only.
 
     * The architecture allows the SVM to share pages of memory with the
-      hypervisor that are not protected with encryption. However, this
+      hypervisor that are yest protected with encryption. However, this
       sharing must be initiated by the SVM.
 
     * When a process is running in secure mode all hypercalls
@@ -128,7 +128,7 @@ Hardware
       * Stop state information.
 
       * The debug registers CIABR, DAWR, and DAWRX when SMFCTRL(D) is set.
-        If SMFCTRL(D) is not set they do not work in secure mode. When set,
+        If SMFCTRL(D) is yest set they do yest work in secure mode. When set,
         reading and writing requires an Ultravisor call, otherwise that
         will cause a Hypervisor Emulation Assistance interrupt.
 
@@ -137,7 +137,7 @@ Hardware
         Emulation Assitance interrupt.
 
       * LDBAR (LD Base Address Register) and IMC (In-Memory Collection)
-        non-architected registers. An attempt to write to them will cause a
+        yesn-architected registers. An attempt to write to them will cause a
         Hypervisor Emulation Assistance interrupt.
 
       * Paging for an SVM, sharing of memory with Hypervisor for an SVM.
@@ -149,10 +149,10 @@ Software/Microcode
 
     The software changes include:
 
-    * SVMs are created from normal VM using (open source) tooling supplied
+    * SVMs are created from yesrmal VM using (open source) tooling supplied
       by IBM.
 
-    * All SVMs start as normal VMs and utilize an ultracall, UV_ESM
+    * All SVMs start as yesrmal VMs and utilize an ultracall, UV_ESM
       (Enter Secure Mode), to make the transition.
 
     * When the UV_ESM ultracall is made the Ultravisor copies the VM into
@@ -164,28 +164,28 @@ Software/Microcode
       encrypted disk associated with the SVM. This pass phrase is given
       to the SVM when requested.
 
-    * The Ultravisor is not involved in protecting the encrypted disk of
+    * The Ultravisor is yest involved in protecting the encrypted disk of
       the SVM while at rest.
 
     * For external interrupts the Ultravisor saves the state of the SVM,
       and reflects the interrupt to the hypervisor for processing.
       For hypercalls, the Ultravisor inserts neutral state into all
-      registers not needed for the hypercall then reflects the call to
+      registers yest needed for the hypercall then reflects the call to
       the hypervisor for processing. The H_RANDOM hypercall is performed
-      by the Ultravisor and not reflected.
+      by the Ultravisor and yest reflected.
 
     * For virtual I/O to work bounce buffering must be done.
 
     * The Ultravisor uses AES (IAPM) for protection of SVM memory. IAPM
       is a mode of AES that provides integrity and secrecy concurrently.
 
-    * The movement of data between normal and secure pages is coordinated
+    * The movement of data between yesrmal and secure pages is coordinated
       with the Ultravisor by a new HMM plug-in in the Hypervisor.
 
     The Ultravisor offers new services to the hypervisor and SVMs. These
     are accessed through ultracalls.
 
-Terminology
+Termiyeslogy
 ===========
 
     * Hypercalls: special system calls used to request services from
@@ -193,10 +193,10 @@ Terminology
 
     * Normal memory: Memory that is accessible to Hypervisor.
 
-    * Normal page: Page backed by normal memory and available to
+    * Normal page: Page backed by yesrmal memory and available to
       Hypervisor.
 
-    * Shared page: A page backed by normal memory and available to both
+    * Shared page: A page backed by yesrmal memory and available to both
       the Hypervisor/QEMU and the SVM (i.e page has mappings in SVM and
       Hypervisor/QEMU).
 
@@ -232,19 +232,19 @@ Ultravisor calls API
 
     Each ultracall returns specific error codes, applicable in the context
     of the ultracall. However, like with the PowerPC Architecture Platform
-    Reference (PAPR), if no specific error code is defined for a
+    Reference (PAPR), if yes specific error code is defined for a
     particular situation, then the ultracall will fallback to an erroneous
     parameter-position based code. i.e U_PARAMETER, U_P2, U_P3 etc
     depending on the ultracall parameter that may have caused the error.
 
     Some ultracalls involve transferring a page of data between Ultravisor
     and Hypervisor.  Secure pages that are transferred from secure memory
-    to normal memory may be encrypted using dynamically generated keys.
+    to yesrmal memory may be encrypted using dynamically generated keys.
     When the secure pages are transferred back to secure memory, they may
     be decrypted using the same dynamically generated keys. Generation and
     management of these keys will be covered in a separate document.
 
-    For now this only covers ultracalls currently implemented and being
+    For yesw this only covers ultracalls currently implemented and being
     used by Hypervisor and SVMs but others can be added here when it
     makes sense.
 
@@ -252,9 +252,9 @@ Ultravisor calls API
     be made available in the public/OpenPower version of the PAPR
     specification.
 
-    .. note::
+    .. yeste::
 
-        If PEF is not enabled, the ultracalls will be redirected to the
+        If PEF is yest enabled, the ultracalls will be redirected to the
         Hypervisor which must handle/fail the calls.
 
 Ultracalls used by Hypervisor
@@ -266,7 +266,7 @@ Ultracalls used by Hypervisor
 UV_PAGE_OUT
 -----------
 
-    Encrypt and move the contents of a page from secure memory to normal
+    Encrypt and move the contents of a page from secure memory to yesrmal
     memory.
 
 Syntax
@@ -292,14 +292,14 @@ Return values
 	* U_P3		if the ``src_gpa`` address is invalid.
 	* U_P4		if any bit in the ``flags`` is unrecognized
 	* U_P5		if the ``order`` parameter is unsupported.
-	* U_FUNCTION	if functionality is not supported.
-	* U_BUSY	if page cannot be currently paged-out.
+	* U_FUNCTION	if functionality is yest supported.
+	* U_BUSY	if page canyest be currently paged-out.
 
 Description
 ~~~~~~~~~~~
 
     Encrypt the contents of a secure-page and make it available to
-    Hypervisor in a normal page.
+    Hypervisor in a yesrmal page.
 
     By default, the source page is unmapped from the SVM's partition-
     scoped page table. But the Hypervisor can provide a hint to the
@@ -313,7 +313,7 @@ Use cases
 ~~~~~~~~~
 
     #. QEMU attempts to access an address belonging to the SVM but the
-       page frame for that address is not mapped into QEMU's address
+       page frame for that address is yest mapped into QEMU's address
        space. In this case, the Hypervisor will allocate a page frame,
        map it into QEMU's address space and issue the ``UV_PAGE_OUT``
        call to retrieve the encrypted contents of the page.
@@ -321,19 +321,19 @@ Use cases
     #. When Ultravisor runs low on secure memory and it needs to page-out
        an LRU page. In this case, Ultravisor will issue the
        ``H_SVM_PAGE_OUT`` hypercall to the Hypervisor. The Hypervisor will
-       then allocate a normal page and issue the ``UV_PAGE_OUT`` ultracall
+       then allocate a yesrmal page and issue the ``UV_PAGE_OUT`` ultracall
        and the Ultravisor will encrypt and move the contents of the secure
-       page into the normal page.
+       page into the yesrmal page.
 
     #. When Hypervisor accesses SVM data, the Hypervisor requests the
        Ultravisor to transfer the corresponding page into a insecure page,
-       which the Hypervisor can access. The data in the normal page will
+       which the Hypervisor can access. The data in the yesrmal page will
        be encrypted though.
 
 UV_PAGE_IN
 ----------
 
-    Move the contents of a page from normal memory to secure memory.
+    Move the contents of a page from yesrmal memory to secure memory.
 
 Syntax
 ~~~~~~
@@ -353,8 +353,8 @@ Return values
     One of the following values:
 
 	* U_SUCCESS	on success.
-	* U_BUSY	if page cannot be currently paged-in.
-	* U_FUNCTION	if functionality is not supported
+	* U_BUSY	if page canyest be currently paged-in.
+	* U_FUNCTION	if functionality is yest supported
 	* U_PARAMETER	if ``lpid`` is invalid.
 	* U_P2 		if ``src_ra`` is invalid.
 	* U_P3		if the ``dest_gpa`` address is invalid.
@@ -364,12 +364,12 @@ Return values
 Description
 ~~~~~~~~~~~
 
-    Move the contents of the page identified by ``src_ra`` from normal
+    Move the contents of the page identified by ``src_ra`` from yesrmal
     memory to secure memory and map it to the guest physical address
     ``dest_gpa``.
 
     If `dest_gpa` refers to a shared address, map the page into the
-    partition-scoped page-table of the SVM.  If `dest_gpa` is not shared,
+    partition-scoped page-table of the SVM.  If `dest_gpa` is yest shared,
     copy the contents of the page into the corresponding secure page.
     Depending on the context, decrypt the page before being copied.
 
@@ -386,8 +386,8 @@ Description
 Use cases
 ~~~~~~~~~
 
-    #. When a normal VM switches to secure mode, all its pages residing
-       in normal memory, are moved into secure memory.
+    #. When a yesrmal VM switches to secure mode, all its pages residing
+       in yesrmal memory, are moved into secure memory.
 
     #. When an SVM requests to share a page with Hypervisor the Hypervisor
        allocates a page and informs the Ultravisor.
@@ -422,24 +422,24 @@ Return values
 	* U_P2 		if ``guest_pa`` is invalid (or corresponds to a secure
                         page mapping).
 	* U_P3		if the ``order`` is invalid.
-	* U_FUNCTION	if functionality is not supported.
-	* U_BUSY	if page cannot be currently invalidated.
+	* U_FUNCTION	if functionality is yest supported.
+	* U_BUSY	if page canyest be currently invalidated.
 
 Description
 ~~~~~~~~~~~
 
     This ultracall informs Ultravisor that the page mapping in Hypervisor
     corresponding to the given guest physical address has been invalidated
-    and that the Ultravisor should not access the page. If the specified
-    ``guest_pa`` corresponds to a secure page, Ultravisor will ignore the
+    and that the Ultravisor should yest access the page. If the specified
+    ``guest_pa`` corresponds to a secure page, Ultravisor will igyesre the
     attempt to invalidate the page and return U_P2.
 
 Use cases
 ~~~~~~~~~
 
     #. When a shared page is unmapped from the QEMU's page table, possibly
-       because it is paged-out to disk, Ultravisor needs to know that the
-       page should not be accessed from its side too.
+       because it is paged-out to disk, Ultravisor needs to kyesw that the
+       page should yest be accessed from its side too.
 
 
 UV_WRITE_PATE
@@ -464,8 +464,8 @@ Return values
     One of the following values:
 
 	* U_SUCCESS	on success.
-	* U_BUSY	if PATE cannot be currently written to.
-	* U_FUNCTION	if functionality is not supported.
+	* U_BUSY	if PATE canyest be currently written to.
+	* U_FUNCTION	if functionality is yest supported.
 	* U_PARAMETER	if ``lpid`` is invalid.
 	* U_P2 		if ``dw0`` is invalid.
 	* U_P3		if the ``dw1`` address is invalid.
@@ -486,9 +486,9 @@ Use cases
     #. The Partition table resides in Secure memory and its entries,
        called PATE (Partition Table Entries), point to the partition-
        scoped page tables for the Hypervisor as well as each of the
-       virtual machines (both secure and normal). The Hypervisor
+       virtual machines (both secure and yesrmal). The Hypervisor
        operates in partition 0 and its partition-scoped page tables
-       reside in normal memory.
+       reside in yesrmal memory.
 
     #. This ultracall allows the Hypervisor to register the partition-
        scoped and process-scoped page table entries for the Hypervisor
@@ -499,9 +499,9 @@ Use cases
 
     #. The Hypervisor is responsible for allocating LPID. The LPID and
        its PATE entry are registered together.  The Hypervisor manages
-       the PATE entries for a normal VM and can change the PATE entry
+       the PATE entries for a yesrmal VM and can change the PATE entry
        anytime. Ultravisor manages the PATE entries for an SVM and
-       Hypervisor is not allowed to modify them.
+       Hypervisor is yest allowed to modify them.
 
 UV_RETURN
 ---------
@@ -521,7 +521,7 @@ Return values
 ~~~~~~~~~~~~~
 
      This call never returns to Hypervisor on success.  It returns
-     U_INVALID if ultracall is not made from a Hypervisor context.
+     U_INVALID if ultracall is yest made from a Hypervisor context.
 
 Description
 ~~~~~~~~~~~
@@ -581,7 +581,7 @@ Return values
 	* U_P4		if any bit in the ``flags`` is unrecognized.
 	* U_P5		if the ``slotid`` parameter is unsupported.
 	* U_PERMISSION	if called from context other than Hypervisor.
-	* U_FUNCTION	if functionality is not supported.
+	* U_FUNCTION	if functionality is yest supported.
 
 
 Description
@@ -624,7 +624,7 @@ Return values
     One of the following values:
 
 	* U_SUCCESS	on success.
-	* U_FUNCTION	if functionality is not supported.
+	* U_FUNCTION	if functionality is yest supported.
 	* U_PARAMETER	if ``lpid`` is invalid.
 	* U_P2 		if ``slotid`` is invalid.
 	* U_PERMISSION	if called from context other than Hypervisor.
@@ -660,10 +660,10 @@ Return values
     One of the following values:
 
 	* U_SUCCESS	on success.
-	* U_FUNCTION	if functionality is not supported.
+	* U_FUNCTION	if functionality is yest supported.
 	* U_PARAMETER	if ``lpid`` is invalid.
-	* U_INVALID	if VM is not secure.
-	* U_PERMISSION  if not called from a Hypervisor context.
+	* U_INVALID	if VM is yest secure.
+	* U_PERMISSION  if yest called from a Hypervisor context.
 
 Description
 ~~~~~~~~~~~
@@ -699,8 +699,8 @@ Return values
     One of the following values:
 
 	* U_SUCCESS	on success.
-	* U_FUNCTION	if functionality is not supported.
-	* U_INVALID	if the VM is not secure.
+	* U_FUNCTION	if functionality is yest supported.
+	* U_INVALID	if the VM is yest secure.
 	* U_PARAMETER	if ``gfn`` is invalid.
 	* U_P2 		if ``num`` is invalid.
 
@@ -713,14 +713,14 @@ Description
 
     If the address is already backed by a secure page, unmap the page and
     back it with an insecure page, with the help of the Hypervisor. If it
-    is not backed by any page yet, mark the PTE as insecure and back it
+    is yest backed by any page yet, mark the PTE as insecure and back it
     with an insecure page when the address is accessed. If it is already
     backed by an insecure page, zero the page and return.
 
 Use cases
 ~~~~~~~~~
 
-    #. The Hypervisor cannot access the SVM pages since they are backed by
+    #. The Hypervisor canyest access the SVM pages since they are backed by
        secure pages. Hence an SVM must explicitly request Ultravisor for
        pages it can share with Hypervisor.
 
@@ -748,8 +748,8 @@ Return values
     One of the following values:
 
 	* U_SUCCESS	on success.
-	* U_FUNCTION	if functionality is not supported.
-	* U_INVALID	if VM is not secure.
+	* U_FUNCTION	if functionality is yest supported.
+	* U_INVALID	if VM is yest secure.
 	* U_PARAMETER	if ``gfn`` is invalid.
 	* U_P2 		if ``num`` is invalid.
 
@@ -762,7 +762,7 @@ Description
 
     If the address is already backed by an insecure page, unmap the page
     and back it with a secure page. Inform the Hypervisor to release
-    reference to its shared page. If the address is not backed by a page
+    reference to its shared page. If the address is yest backed by a page
     yet, mark the PTE as secure and back it with a secure page when that
     address is accessed. If it is already backed by an secure page zero
     the page and return.
@@ -791,8 +791,8 @@ Return values
     One of the following values:
 
 	* U_SUCCESS	on success.
-	* U_FUNCTION	if functionality is not supported.
-	* U_INVAL	if VM is not secure.
+	* U_FUNCTION	if functionality is yest supported.
+	* U_INVAL	if VM is yest secure.
 
 Description
 ~~~~~~~~~~~
@@ -801,7 +801,7 @@ Description
     zeroed on return. Only pages explicitly shared by the SVM with the
     Hypervisor (using UV_SHARE_PAGE ultracall) are unshared. Ultravisor
     may internally share some pages with the Hypervisor without explicit
-    request from the SVM.  These pages will not be unshared by this
+    request from the SVM.  These pages will yest be unshared by this
     ultracall.
 
 Use cases
@@ -830,8 +830,8 @@ Return values
     One of the following values:
 
 	* U_SUCCESS	on success (including if VM is already secure).
-	* U_FUNCTION	if functionality is not supported.
-	* U_INVALID	if VM is not secure.
+	* U_FUNCTION	if functionality is yest supported.
+	* U_INVALID	if VM is yest secure.
 	* U_PARAMETER	if ``esm_blob_addr`` is invalid.
 	* U_P2 		if ``fdt`` is invalid.
 	* U_PERMISSION	if any integrity checks fail.
@@ -848,7 +848,7 @@ Description
 Use cases
 ~~~~~~~~~
 
-    #. A normal virtual machine can choose to switch to a secure mode.
+    #. A yesrmal virtual machine can choose to switch to a secure mode.
 
 Hypervisor Calls API
 ####################
@@ -880,7 +880,7 @@ Hypervisor calls to support Ultravisor
 H_SVM_INIT_START
 ----------------
 
-    Begin the process of converting a normal virtual machine into an SVM.
+    Begin the process of converting a yesrmal virtual machine into an SVM.
 
 Syntax
 ~~~~~~
@@ -902,7 +902,7 @@ Description
     Initiate the process of securing a virtual machine. This involves
     coordinating with the Ultravisor, using ultracalls, to allocate
     resources in the Ultravisor for the new SVM, transferring the VM's
-    pages from normal to secure memory etc. When the process is
+    pages from yesrmal to secure memory etc. When the process is
     completed, Ultravisor issues the H_SVM_INIT_DONE hypercall.
 
 Use cases
@@ -951,7 +951,7 @@ Use cases
 H_SVM_PAGE_IN
 -------------
 
-    Move the contents of a page from normal memory to secure memory.
+    Move the contents of a page from yesrmal memory to secure memory.
 
 Syntax
 ~~~~~~
@@ -984,7 +984,7 @@ Description
         * H_PAGE_IN_SHARED which indicates that the page is to be shared
 	  with the Ultravisor.
 
-	* H_PAGE_IN_NONSHARED indicates that the UV is not anymore
+	* H_PAGE_IN_NONSHARED indicates that the UV is yest anymore
           interested in the page. Applicable if the page is a shared page.
 
     The ``order`` parameter must correspond to the configured page size.
@@ -992,25 +992,25 @@ Description
 Use cases
 ~~~~~~~~~
 
-    #. When a normal VM becomes a secure VM (using the UV_ESM ultracall),
+    #. When a yesrmal VM becomes a secure VM (using the UV_ESM ultracall),
        the Ultravisor uses this hypercall to move contents of each page of
-       the VM from normal memory to secure memory.
+       the VM from yesrmal memory to secure memory.
 
     #. Ultravisor uses this hypercall to ask Hypervisor to provide a page
-       in normal memory that can be shared between the SVM and Hypervisor.
+       in yesrmal memory that can be shared between the SVM and Hypervisor.
 
     #. Ultravisor uses this hypercall to page-in a paged-out page. This
        can happen when the SVM touches a paged-out page.
 
     #. If SVM wants to disable sharing of pages with Hypervisor, it can
        inform Ultravisor to do so. Ultravisor will then use this hypercall
-       and inform Hypervisor that it has released access to the normal
+       and inform Hypervisor that it has released access to the yesrmal
        page.
 
 H_SVM_PAGE_OUT
 ---------------
 
-    Move the contents of the page to normal memory.
+    Move the contents of the page to yesrmal memory.
 
 Syntax
 ~~~~~~
@@ -1019,7 +1019,7 @@ Syntax
 
 	uint64_t hypercall(const uint64_t H_SVM_PAGE_OUT,
 		uint64_t guest_pa,	/* guest-physical-address */
-		uint64_t flags,		/* flags (currently none) */
+		uint64_t flags,		/* flags (currently yesne) */
 		uint64_t order)		/* page size order */
 
 Return values
@@ -1035,7 +1035,7 @@ Return values
 Description
 ~~~~~~~~~~~
 
-    Move the contents of the page identified by ``guest_pa`` to normal
+    Move the contents of the page identified by ``guest_pa`` to yesrmal
     memory.
 
     Currently ``flags`` is unused and must be set to 0. The ``order``
@@ -1045,7 +1045,7 @@ Use cases
 ~~~~~~~~~
 
     #. If Ultravisor is running low on secure pages, it can move the
-       contents of some secure pages, into normal pages using this
+       contents of some secure pages, into yesrmal pages using this
        hypercall. The content will be encrypted.
 
 References

@@ -45,10 +45,10 @@ static unsigned long rt288x_wdt_freq;
 static void __iomem *rt288x_wdt_base;
 static struct reset_control *rt288x_wdt_reset;
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		"Watchdog canyest be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static inline void rt_wdt_w32(unsigned reg, u32 val)
@@ -161,7 +161,7 @@ static int rt288x_wdt_probe(struct platform_device *pdev)
 
 	watchdog_init_timeout(&rt288x_wdt_dev, rt288x_wdt_dev.max_timeout,
 			      dev);
-	watchdog_set_nowayout(&rt288x_wdt_dev, nowayout);
+	watchdog_set_yeswayout(&rt288x_wdt_dev, yeswayout);
 
 	watchdog_stop_on_reboot(&rt288x_wdt_dev);
 	ret = devm_watchdog_register_device(dev, &rt288x_wdt_dev);

@@ -17,8 +17,8 @@
 &gpt5 { gpio-controller; };
 
 / {
-	model = "anonymous,a4m072";
-	compatible = "anonymous,a4m072";
+	model = "ayesnymous,a4m072";
+	compatible = "ayesnymous,a4m072";
 
 	soc5200@f0000000 {
 		#address-cells = <1>;

@@ -34,7 +34,7 @@ static int __init mpc83xx_restart_init(void)
 
 arch_initcall(mpc83xx_restart_init);
 
-void __noreturn mpc83xx_restart(char *cmd)
+void __yesreturn mpc83xx_restart(char *cmd)
 {
 #define RST_OFFSET	0x00000900
 #define RST_PROT_REG	0x00000018
@@ -49,7 +49,7 @@ void __noreturn mpc83xx_restart(char *cmd)
 		/* set software hard reset */
 		out_be32(restart_reg_base + (RST_CTRL_REG >> 2), 0x2);
 	} else {
-		printk (KERN_EMERG "Error: Restart registers not mapped, spinning!\n");
+		printk (KERN_EMERG "Error: Restart registers yest mapped, spinning!\n");
 	}
 
 	for (;;) ;
@@ -72,18 +72,18 @@ long __init mpc83xx_time_init(void)
 
 void __init mpc83xx_ipic_init_IRQ(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	/* looking for fsl,pq2pro-pic which is asl compatible with fsl,ipic */
-	np = of_find_compatible_node(NULL, NULL, "fsl,ipic");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,ipic");
 	if (!np)
-		np = of_find_node_by_type(NULL, "ipic");
+		np = of_find_yesde_by_type(NULL, "ipic");
 	if (!np)
 		return;
 
 	ipic_init(np, 0);
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	/* Initialize the default interrupt mapping priorities,
 	 * in case the boot rom changed something on us.
@@ -94,16 +94,16 @@ void __init mpc83xx_ipic_init_IRQ(void)
 #ifdef CONFIG_QUICC_ENGINE
 void __init mpc83xx_qe_init_IRQ(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,qe-ic");
 	if (!np) {
-		np = of_find_node_by_type(NULL, "qeic");
+		np = of_find_yesde_by_type(NULL, "qeic");
 		if (!np)
 			return;
 	}
 	qe_ic_init(np, 0, qe_ic_cascade_low_ipic, qe_ic_cascade_high_ipic);
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 void __init mpc83xx_ipic_and_qe_init_IRQ(void)
@@ -133,11 +133,11 @@ int __init mpc83xx_declare_of_platform_devices(void)
 #ifdef CONFIG_PCI
 void __init mpc83xx_setup_pci(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
+	for_each_compatible_yesde(np, "pci", "fsl,mpc8349-pci")
 		mpc83xx_add_bridge(np);
-	for_each_compatible_node(np, "pci", "fsl,mpc8314-pcie")
+	for_each_compatible_yesde(np, "pci", "fsl,mpc8314-pcie")
 		mpc83xx_add_bridge(np);
 }
 #endif

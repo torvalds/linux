@@ -5,7 +5,7 @@
 #include <sys/time.h>
 #include <linux/time64.h>
 #include <time.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <math.h>
 #include <linux/ctype.h>
@@ -142,7 +142,7 @@ static int perf_time__parse_strs(struct perf_time_interval *ptime,
 		arg = p;
 		/* Find next comma, there must be one */
 		p = skip_spaces(strchr(p, ',') + 1);
-		/* Skip the value, must not contain space or comma */
+		/* Skip the value, must yest contain space or comma */
 		while (*p && !isspace(*p)) {
 			if (*p++ == ',') {
 				rc = -EINVAL;
@@ -162,7 +162,7 @@ static int perf_time__parse_strs(struct perf_time_interval *ptime,
 	if (rc < 0)
 		goto out;
 
-	/* Check there is no overlap */
+	/* Check there is yes overlap */
 	for (i = 0; i < num - 1; i++) {
 		if (ptime[i].end >= ptime[i + 1].start) {
 			rc = -EINVAL;
@@ -418,7 +418,7 @@ alloc:
 
 bool perf_time__skip_sample(struct perf_time_interval *ptime, u64 timestamp)
 {
-	/* if time is not set don't drop sample */
+	/* if time is yest set don't drop sample */
 	if (timestamp == 0)
 		return false;
 
@@ -475,7 +475,7 @@ int perf_time__parse_for_ranges_reltime(const char *time_str,
 	if (has_percent || reltime) {
 		if (session->evlist->first_sample_time == 0 &&
 		    session->evlist->last_sample_time == 0) {
-			pr_err("HINT: no first/last sample time found in perf data.\n"
+			pr_err("HINT: yes first/last sample time found in perf data.\n"
 			       "Please use latest perf binary to execute 'perf record'\n"
 			       "(if '--buildid-all' is enabled, please set '--timestamp-boundary').\n");
 			goto error;

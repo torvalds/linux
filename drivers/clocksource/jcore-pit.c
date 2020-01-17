@@ -42,7 +42,7 @@ struct jcore_pit {
 static void __iomem *jcore_pit_base;
 static struct jcore_pit __percpu *jcore_pit_percpu;
 
-static notrace u64 jcore_sched_clock_read(void)
+static yestrace u64 jcore_sched_clock_read(void)
 {
 	u32 seclo, nsec, seclo0;
 	__iomem void *base = jcore_pit_base;
@@ -133,22 +133,22 @@ static irqreturn_t jcore_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init jcore_pit_init(struct device_node *node)
+static int __init jcore_pit_init(struct device_yesde *yesde)
 {
 	int err;
 	unsigned pit_irq, cpu;
 	unsigned long hwirq;
 	u32 irqprio, enable_val;
 
-	jcore_pit_base = of_iomap(node, 0);
+	jcore_pit_base = of_iomap(yesde, 0);
 	if (!jcore_pit_base) {
-		pr_err("Error: Cannot map base address for J-Core PIT\n");
+		pr_err("Error: Canyest map base address for J-Core PIT\n");
 		return -ENXIO;
 	}
 
-	pit_irq = irq_of_parse_and_map(node, 0);
+	pit_irq = irq_of_parse_and_map(yesde, 0);
 	if (!pit_irq) {
-		pr_err("Error: J-Core PIT has no IRQ\n");
+		pr_err("Error: J-Core PIT has yes IRQ\n");
 		return -ENXIO;
 	}
 
@@ -181,7 +181,7 @@ static int __init jcore_pit_init(struct device_node *node)
 	}
 
 	/*
-	 * The J-Core PIT is not hard-wired to a particular IRQ, but
+	 * The J-Core PIT is yest hard-wired to a particular IRQ, but
 	 * integrated with the interrupt controller such that the IRQ it
 	 * generates is programmable, as follows:
 	 *
@@ -199,14 +199,14 @@ static int __init jcore_pit_init(struct device_node *node)
 	 *
 	 * For the PIT included in AIC2 (current), the programming
 	 * interface is equivalent modulo interrupt mapping. This is
-	 * why a different compatible tag was not used. However only
+	 * why a different compatible tag was yest used. However only
 	 * traps 64-127 (the ones actually intended to be used for
 	 * interrupts, rather than syscalls/exceptions/etc.) can be
-	 * programmed (the high 2 bits of i are ignored) and the
+	 * programmed (the high 2 bits of i are igyesred) and the
 	 * priority pppp is <<2'd and or'd onto the irq number. This
 	 * choice seems to have been made on the hardware engineering
 	 * side under an assumption that preserving old AIC1 priority
-	 * mappings was important. Future models will likely ignore
+	 * mappings was important. Future models will likely igyesre
 	 * the pppp field.
 	 */
 	hwirq = irq_get_irq_data(pit_irq)->hwirq;
@@ -218,7 +218,7 @@ static int __init jcore_pit_init(struct device_node *node)
 	for_each_present_cpu(cpu) {
 		struct jcore_pit *pit = per_cpu_ptr(jcore_pit_percpu, cpu);
 
-		pit->base = of_iomap(node, cpu);
+		pit->base = of_iomap(yesde, cpu);
 		if (!pit->base) {
 			pr_err("Unable to map PIT for cpu %u\n", cpu);
 			continue;

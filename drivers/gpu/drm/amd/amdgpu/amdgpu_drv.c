@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -35,7 +35,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
 #include <drm/drm_probe_helper.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 
 #include "amdgpu.h"
 #include "amdgpu_irq.h"
@@ -62,7 +62,7 @@
  * - 3.11.0 - Add support for sensor query info (clocks, temp, etc).
  * - 3.12.0 - Add query for double offchip LDS buffers
  * - 3.13.0 - Add PRT support
- * - 3.14.0 - Fix race in amdgpu_ctx_get_fence() and note new functionality
+ * - 3.14.0 - Fix race in amdgpu_ctx_get_fence() and yeste new functionality
  * - 3.15.0 - Export more gpu info for gfx9
  * - 3.16.0 - Add reserved vmid support
  * - 3.17.0 - Add AMDGPU_NUM_VRAM_CPU_PAGE_FAULTS.
@@ -142,7 +142,7 @@ int amdgpu_async_gfx_ring = 1;
 int amdgpu_mcbp = 0;
 int amdgpu_discovery = -1;
 int amdgpu_mes = 0;
-int amdgpu_noretry;
+int amdgpu_yesretry;
 int amdgpu_force_asic_type = -1;
 
 struct amdgpu_mgpu_info mgpu_info = {
@@ -203,21 +203,21 @@ module_param_named(test, amdgpu_testing, int, 0444);
 
 /**
  * DOC: audio (int)
- * Set HDMI/DPAudio. Only affects non-DC display handling. The default is -1 (Enabled), set 0 to disabled it.
+ * Set HDMI/DPAudio. Only affects yesn-DC display handling. The default is -1 (Enabled), set 0 to disabled it.
  */
 MODULE_PARM_DESC(audio, "Audio enable (-1 = auto, 0 = disable, 1 = enable)");
 module_param_named(audio, amdgpu_audio, int, 0444);
 
 /**
  * DOC: disp_priority (int)
- * Set display Priority (1 = normal, 2 = high). Only affects non-DC display handling. The default is 0 (auto).
+ * Set display Priority (1 = yesrmal, 2 = high). Only affects yesn-DC display handling. The default is 0 (auto).
  */
-MODULE_PARM_DESC(disp_priority, "Display Priority (0 = auto, 1 = normal, 2 = high)");
+MODULE_PARM_DESC(disp_priority, "Display Priority (0 = auto, 1 = yesrmal, 2 = high)");
 module_param_named(disp_priority, amdgpu_disp_priority, int, 0444);
 
 /**
  * DOC: hw_i2c (int)
- * To enable hw i2c engine. Only affects non-DC display handling. The default is 0 (Disabled).
+ * To enable hw i2c engine. Only affects yesn-DC display handling. The default is 0 (Disabled).
  */
 MODULE_PARM_DESC(hw_i2c, "hw i2c engine enable (0 = disable)");
 module_param_named(hw_i2c, amdgpu_hw_i2c, int, 0444);
@@ -244,15 +244,15 @@ module_param_named(msi, amdgpu_msi, int, 0444);
  * multiple values specified. 0 and negative values are invalidated. They will be adjusted
  * to the default timeout.
  *
- * - With one value specified, the setting will apply to all non-compute jobs.
+ * - With one value specified, the setting will apply to all yesn-compute jobs.
  * - With multiple values specified, the first one will be for GFX.
  *   The second one is for Compute. The third and fourth ones are
  *   for SDMA and Video.
  *
- * By default(with no lockup_timeout settings), the timeout for all non-compute(GFX, SDMA and Video)
- * jobs is 10000. And there is no timeout enforced on compute jobs.
+ * By default(with yes lockup_timeout settings), the timeout for all yesn-compute(GFX, SDMA and Video)
+ * jobs is 10000. And there is yes timeout enforced on compute jobs.
  */
-MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (default: for bare metal 10000 for non-compute jobs and infinity timeout for compute jobs; "
+MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (default: for bare metal 10000 for yesn-compute jobs and infinity timeout for compute jobs; "
 		"for passthrough or sriov, 10000 for all jobs."
 		" 0: keep default value. negative: infinity timeout), "
 		"format: for bare metal [Non-Compute] or [GFX,Compute,SDMA,Video]; "
@@ -293,7 +293,7 @@ module_param_named(runpm, amdgpu_runtime_pm, int, 0444);
 /**
  * DOC: ip_block_mask (uint)
  * Override what IP blocks are enabled on the GPU. Each GPU is a collection of IP blocks (gfx, display, video, etc.).
- * Use this parameter to disable specific blocks. Note that the IP blocks do not have a fixed index. Some asics may not have
+ * Use this parameter to disable specific blocks. Note that the IP blocks do yest have a fixed index. Some asics may yest have
  * some IPs or may include multiple instances of an IP so the ordering various from asic to asic. See the driver output in
  * the kernel log for the list of IPs on the asic. The default is 0xffffffff (enable all blocks on a device).
  */
@@ -310,7 +310,7 @@ module_param_named(bapm, amdgpu_bapm, int, 0444);
 
 /**
  * DOC: deep_color (int)
- * Set 1 to enable Deep Color support. Only affects non-DC display handling. The default is 0 (disabled).
+ * Set 1 to enable Deep Color support. Only affects yesn-DC display handling. The default is 0 (disabled).
  */
 MODULE_PARM_DESC(deep_color, "Deep Color support (1 = enable, 0 = disable (default))");
 module_param_named(deep_color, amdgpu_deep_color, int, 0444);
@@ -436,9 +436,9 @@ module_param_named(pg_mask, amdgpu_pg_mask, uint, 0444);
 
 /**
  * DOC: sdma_phase_quantum (uint)
- * Override SDMA context switch phase quantum (x 1K GPU clock cycles, 0 = no change). The default is 32.
+ * Override SDMA context switch phase quantum (x 1K GPU clock cycles, 0 = yes change). The default is 32.
  */
-MODULE_PARM_DESC(sdma_phase_quantum, "SDMA context switch phase quantum (x 1K GPU clock cycles, 0 = no change (default 32))");
+MODULE_PARM_DESC(sdma_phase_quantum, "SDMA context switch phase quantum (x 1K GPU clock cycles, 0 = yes change (default 32))");
 module_param_named(sdma_phase_quantum, amdgpu_sdma_phase_quantum, uint, 0444);
 
 /**
@@ -461,9 +461,9 @@ module_param_named(virtual_display, amdgpu_virtual_display, charp, 0444);
 
 /**
  * DOC: job_hang_limit (int)
- * Set how much time allow a job hang and not drop it. The default is 0.
+ * Set how much time allow a job hang and yest drop it. The default is 0.
  */
-MODULE_PARM_DESC(job_hang_limit, "how much time allow a job hang and not drop it (default 0)");
+MODULE_PARM_DESC(job_hang_limit, "how much time allow a job hang and yest drop it (default 0)");
 module_param_named(job_hang_limit, amdgpu_job_hang_limit, int ,0444);
 
 /**
@@ -558,7 +558,7 @@ module_param_named(smu_memory_pool_size, amdgpu_smu_memory_pool_size, uint, 0444
  * It is used to enable gfx rings that could be configured with different prioritites or equal priorities
  */
 MODULE_PARM_DESC(async_gfx_ring,
-	"Asynchronous GFX rings that could be configured with either different priorities (HP3D ring and LP3D ring), or equal priorities (0 = disabled, 1 = enabled (default))");
+	"Asynchroyesus GFX rings that could be configured with either different priorities (HP3D ring and LP3D ring), or equal priorities (0 = disabled, 1 = enabled (default))");
 module_param_named(async_gfx_ring, amdgpu_async_gfx_ring, int, 0444);
 
 /**
@@ -587,16 +587,16 @@ MODULE_PARM_DESC(mes,
 	"Enable Micro Engine Scheduler (0 = disabled (default), 1 = enabled)");
 module_param_named(mes, amdgpu_mes, int, 0444);
 
-MODULE_PARM_DESC(noretry,
+MODULE_PARM_DESC(yesretry,
 	"Disable retry faults (0 = retry enabled (default), 1 = retry disabled)");
-module_param_named(noretry, amdgpu_noretry, int, 0644);
+module_param_named(yesretry, amdgpu_yesretry, int, 0644);
 
 /**
  * DOC: force_asic_type (int)
- * A non negative value used to specify the asic type for all supported GPUs.
+ * A yesn negative value used to specify the asic type for all supported GPUs.
  */
 MODULE_PARM_DESC(force_asic_type,
-	"A non negative value used to specify the asic type for all supported GPUs");
+	"A yesn negative value used to specify the asic type for all supported GPUs");
 module_param_named(force_asic_type, amdgpu_force_asic_type, int, 0444);
 
 
@@ -621,7 +621,7 @@ MODULE_PARM_DESC(sched_policy,
 int hws_max_conc_proc = 8;
 module_param(hws_max_conc_proc, int, 0444);
 MODULE_PARM_DESC(hws_max_conc_proc,
-	"Max # processes HWS can execute concurrently when sched_policy=0 (0 = no concurrency, #VMIDs for KFD = Maximum(default))");
+	"Max # processes HWS can execute concurrently when sched_policy=0 (0 = yes concurrency, #VMIDs for KFD = Maximum(default))");
 
 /**
  * DOC: cwsr_enable (int)
@@ -645,7 +645,7 @@ MODULE_PARM_DESC(max_num_of_queues_per_device,
 
 /**
  * DOC: send_sigterm (int)
- * Send sigterm to HSA process on unhandled exceptions. Default is not to send sigterm
+ * Send sigterm to HSA process on unhandled exceptions. Default is yest to send sigterm
  * but just print errors on dmesg. Setting 1 enables sending sigterm.
  */
 int send_sigterm;
@@ -655,7 +655,7 @@ MODULE_PARM_DESC(send_sigterm,
 
 /**
  * DOC: debug_largebar (int)
- * Set debug_largebar as 1 to enable simulating large-bar capability on non-large bar
+ * Set debug_largebar as 1 to enable simulating large-bar capability on yesn-large bar
  * system. This limits the VRAM size reported to ROCm applications to the visible
  * size, usually 256MB.
  * Default value is 0, diabled.
@@ -663,18 +663,18 @@ MODULE_PARM_DESC(send_sigterm,
 int debug_largebar;
 module_param(debug_largebar, int, 0444);
 MODULE_PARM_DESC(debug_largebar,
-	"Debug large-bar flag used to simulate large-bar capability on non-large bar machine (0 = disable, 1 = enable)");
+	"Debug large-bar flag used to simulate large-bar capability on yesn-large bar machine (0 = disable, 1 = enable)");
 
 /**
- * DOC: ignore_crat (int)
- * Ignore CRAT table during KFD initialization. By default, KFD uses the ACPI CRAT
+ * DOC: igyesre_crat (int)
+ * Igyesre CRAT table during KFD initialization. By default, KFD uses the ACPI CRAT
  * table to get information about AMD APUs. This option can serve as a workaround on
  * systems with a broken CRAT table.
  */
-int ignore_crat;
-module_param(ignore_crat, int, 0444);
-MODULE_PARM_DESC(ignore_crat,
-	"Ignore CRAT table during KFD initialization (0 = use CRAT (default), 1 = ignore CRAT)");
+int igyesre_crat;
+module_param(igyesre_crat, int, 0444);
+MODULE_PARM_DESC(igyesre_crat,
+	"Igyesre CRAT table during KFD initialization (0 = use CRAT (default), 1 = igyesre CRAT)");
 
 /**
  * DOC: halt_if_hws_hang (int)
@@ -687,13 +687,13 @@ MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (defau
 
 /**
  * DOC: hws_gws_support(bool)
- * Whether HWS support gws barriers. Default value: false (not supported)
+ * Whether HWS support gws barriers. Default value: false (yest supported)
  * This will be replaced with a MEC firmware version check once firmware
  * is ready
  */
 bool hws_gws_support;
 module_param(hws_gws_support, bool, 0444);
-MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = not supported (Default), true = supported)");
+MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = yest supported (Default), true = supported)");
 
 /**
   * DOC: queue_preemption_timeout_ms (int)
@@ -1003,7 +1003,7 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x7347, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI14},
 	{0x1002, 0x734F, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI14},
 
-	/* Renoir */
+	/* Reyesir */
 	{0x1002, 0x1636, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RENOIR|AMD_IS_APU|AMD_EXP_HW_SUPPORT},
 
 	/* Navi12 */
@@ -1117,7 +1117,7 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 #ifdef MODULE
 	if (THIS_MODULE->state != MODULE_STATE_GOING)
 #endif
-		DRM_ERROR("Hotplug removal is not supported\n");
+		DRM_ERROR("Hotplug removal is yest supported\n");
 	drm_dev_unplug(dev);
 	drm_dev_put(dev);
 	pci_disable_device(pdev);
@@ -1214,7 +1214,7 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 	ret = amdgpu_device_suspend(drm_dev, false, false);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
-	pci_ignore_hotplug(pdev);
+	pci_igyesre_hotplug(pdev);
 	if (amdgpu_is_atpx_hybrid())
 		pci_set_power_state(pdev, PCI_D3cold);
 	else if (!amdgpu_has_atpx_dgpu_power_cntl())
@@ -1279,7 +1279,7 @@ long amdgpu_drm_ioctl(struct file *filp,
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev;
 	long ret;
-	dev = file_priv->minor->dev;
+	dev = file_priv->miyesr->dev;
 	ret = pm_runtime_get_sync(dev->dev);
 	if (ret < 0)
 		return ret;
@@ -1346,12 +1346,12 @@ int amdgpu_file_to_fpriv(struct file *filp, struct amdgpu_fpriv **fpriv)
 }
 
 static bool
-amdgpu_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
+amdgpu_get_crtc_scayesut_position(struct drm_device *dev, unsigned int pipe,
 				 bool in_vblank_irq, int *vpos, int *hpos,
 				 ktime_t *stime, ktime_t *etime,
 				 const struct drm_display_mode *mode)
 {
-	return amdgpu_display_get_crtc_scanoutpos(dev, pipe, 0, vpos, hpos,
+	return amdgpu_display_get_crtc_scayesutpos(dev, pipe, 0, vpos, hpos,
 						  stime, etime, mode);
 }
 
@@ -1369,8 +1369,8 @@ static struct drm_driver kms_driver = {
 	.get_vblank_counter = amdgpu_get_vblank_counter_kms,
 	.enable_vblank = amdgpu_enable_vblank_kms,
 	.disable_vblank = amdgpu_disable_vblank_kms,
-	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
-	.get_scanout_position = amdgpu_get_crtc_scanout_position,
+	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scayesutpos,
+	.get_scayesut_position = amdgpu_get_crtc_scayesut_position,
 	.irq_handler = amdgpu_irq_handler,
 	.ioctls = amdgpu_ioctls_kms,
 	.gem_free_object_unlocked = amdgpu_gem_object_free,
@@ -1392,7 +1392,7 @@ static struct drm_driver kms_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = KMS_DRIVER_MAJOR,
-	.minor = KMS_DRIVER_MINOR,
+	.miyesr = KMS_DRIVER_MINOR,
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,
 };
 
@@ -1428,7 +1428,7 @@ static int __init amdgpu_init(void)
 	kms_driver.num_ioctls = amdgpu_max_kms_ioctl;
 	amdgpu_register_atpx_handler();
 
-	/* Ignore KFD init failures. Normal when CONFIG_HSA_AMD is not set. */
+	/* Igyesre KFD init failures. Normal when CONFIG_HSA_AMD is yest set. */
 	amdgpu_amdkfd_init();
 
 	/* let modprobe override vga console setting */
@@ -1448,7 +1448,7 @@ static void __exit amdgpu_exit(void)
 	amdgpu_unregister_atpx_handler();
 	amdgpu_sync_fini();
 	amdgpu_fence_slab_fini();
-	mmu_notifier_synchronize();
+	mmu_yestifier_synchronize();
 }
 
 module_init(amdgpu_init);

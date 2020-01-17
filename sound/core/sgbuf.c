@@ -71,8 +71,8 @@ void *snd_malloc_sgbuf_pages(struct device *device,
 		return NULL;
 	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_UC_SG) {
 		type = SNDRV_DMA_TYPE_DEV_UC;
-#ifdef pgprot_noncached
-		prot = pgprot_noncached(PAGE_KERNEL);
+#ifdef pgprot_yesncached
+		prot = pgprot_yesncached(PAGE_KERNEL);
 #endif
 	}
 	sgbuf->dev = device;

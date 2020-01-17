@@ -64,8 +64,8 @@ Module Parameters
 * vref: int
     Default: 1250 (mV)
 
-    Reference voltage on VREF_ADC pin in mV. It should not be necessary to set
-    this parameter unless a non-default reference voltage is used.
+    Reference voltage on VREF_ADC pin in mV. It should yest be necessary to set
+    this parameter unless a yesn-default reference voltage is used.
 
 
 Description
@@ -85,7 +85,7 @@ Support for SMM465, SMM764, and SMM766 has been implemented but is untested.
 Usage Notes
 -----------
 
-This driver does not probe for devices, since there is no register which
+This driver does yest probe for devices, since there is yes register which
 can be safely used to identify the chip. You will have to instantiate
 the devices explicitly. When instantiating the device, you have to specify
 its configuration register address.

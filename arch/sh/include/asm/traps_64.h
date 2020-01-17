@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003  Paul Mundt
- * Copyright (C) 2004  Richard Curnow
+ * Copyright (C) 2004  Richard Curyesw
  */
 #ifndef __ASM_SH_TRAPS_64_H
 #define __ASM_SH_TRAPS_64_H

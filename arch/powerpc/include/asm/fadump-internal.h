@@ -97,8 +97,8 @@ struct fw_dump {
 	u64		boot_mem_regs_cnt;
 
 	unsigned long	fadumphdr_addr;
-	unsigned long	cpu_notes_buf_vaddr;
-	unsigned long	cpu_notes_buf_size;
+	unsigned long	cpu_yestes_buf_vaddr;
+	unsigned long	cpu_yestes_buf_size;
 
 	/*
 	 * Maximum size supported by firmware to copy from source to
@@ -113,7 +113,7 @@ struct fw_dump {
 	unsigned long	fadump_supported:1;
 	unsigned long	dump_active:1;
 	unsigned long	dump_registered:1;
-	unsigned long	nocma:1;
+	unsigned long	yescma:1;
 
 	struct fadump_ops	*ops;
 };
@@ -135,9 +135,9 @@ struct fadump_ops {
 };
 
 /* Helper functions */
-s32 fadump_setup_cpu_notes_buf(u32 num_cpus);
-void fadump_free_cpu_notes_buf(void);
-u32 *fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs);
+s32 fadump_setup_cpu_yestes_buf(u32 num_cpus);
+void fadump_free_cpu_yestes_buf(void);
+u32 *fadump_regs_to_elf_yestes(u32 *buf, struct pt_regs *regs);
 void fadump_update_elfcore_header(char *bufp);
 bool is_fadump_boot_mem_contiguous(void);
 bool is_fadump_reserved_mem_contiguous(void);
@@ -153,17 +153,17 @@ struct fw_dump {
 #endif /* CONFIG_PRESERVE_FA_DUMP */
 
 #ifdef CONFIG_PPC_PSERIES
-extern void rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node);
+extern void rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 yesde);
 #else
 static inline void
-rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node) { }
+rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 yesde) { }
 #endif
 
 #ifdef CONFIG_PPC_POWERNV
-extern void opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node);
+extern void opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 yesde);
 #else
 static inline void
-opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node) { }
+opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 yesde) { }
 #endif
 
 #endif /* _ASM_POWERPC_FADUMP_INTERNAL_H */

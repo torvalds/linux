@@ -133,7 +133,7 @@ static int brcmstb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 		/*
 		 * We can be called with separate duty and period updates,
-		 * so do not reject dc == 0 right away
+		 * so do yest reject dc == 0 right away
 		 */
 		if (pc == PWM_PERIOD_MIN || (dc < PWM_ON_MIN && duty_ns))
 			return -EINVAL;
@@ -151,7 +151,7 @@ static int brcmstb_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		cword >>= 1;
 
 		/*
-		 * Desired periods are too large, we do not have a divider
+		 * Desired periods are too large, we do yest have a divider
 		 * for them
 		 */
 		if (cword < CONST_VAR_F_MIN)

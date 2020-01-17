@@ -111,13 +111,13 @@ union cpuid10_eax {
 
 union cpuid10_ebx {
 	struct {
-		unsigned int no_unhalted_core_cycles:1;
-		unsigned int no_instructions_retired:1;
-		unsigned int no_unhalted_reference_cycles:1;
-		unsigned int no_llc_reference:1;
-		unsigned int no_llc_misses:1;
-		unsigned int no_branch_instruction_retired:1;
-		unsigned int no_branch_misses_retired:1;
+		unsigned int yes_unhalted_core_cycles:1;
+		unsigned int yes_instructions_retired:1;
+		unsigned int yes_unhalted_reference_cycles:1;
+		unsigned int yes_llc_reference:1;
+		unsigned int yes_llc_misses:1;
+		unsigned int yes_branch_instruction_retired:1;
+		unsigned int yes_branch_misses_retired:1;
 	} split;
 	unsigned int full;
 };
@@ -168,7 +168,7 @@ struct x86_pmu_capability {
 #define INTEL_PMC_MSK_FIXED_REF_CYCLES	(1ULL << INTEL_PMC_IDX_FIXED_REF_CYCLES)
 
 /*
- * We model BTS tracing as another fixed-mode PMC.
+ * We model BTS tracing as ayesther fixed-mode PMC.
  *
  * We choose a value in the middle of the fixed event range, since lower
  * values are used by actual fixed events and higher values are used
@@ -262,7 +262,7 @@ struct pebs_lbr {
 /*
  * IBS op bits/masks
  * The lower 7 bits of the current count are random bits
- * preloaded by hardware and ignored in software
+ * preloaded by hardware and igyesred in software
  */
 #define IBS_OP_CUR_CNT		(0xFFF80ULL<<32)
 #define IBS_OP_CUR_CNT_RAND	(0x0007FULL<<32)
@@ -270,7 +270,7 @@ struct pebs_lbr {
 #define IBS_OP_VAL		(1ULL<<18)
 #define IBS_OP_ENABLE		(1ULL<<17)
 #define IBS_OP_MAX_CNT		0x0000FFFFULL
-#define IBS_OP_MAX_CNT_EXT	0x007FFFFFULL	/* not a register bit mask */
+#define IBS_OP_MAX_CNT_EXT	0x007FFFFFULL	/* yest a register bit mask */
 #define IBS_RIP_INVALID		(1ULL<<38)
 
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -284,7 +284,7 @@ extern void perf_events_lapic_init(void);
 
 /*
  * Abuse bits {3,5} of the cpu eflags register. These flags are otherwise
- * unused and ABI specified to be 0, so nobody should care what we do with
+ * unused and ABI specified to be 0, so yesbody should care what we do with
  * them.
  *
  * EXACT - the IP points to the exact instruction that triggered the

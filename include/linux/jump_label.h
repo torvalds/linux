@@ -10,7 +10,7 @@
  *
  * DEPRECATED API:
  *
- * The use of 'struct static_key' directly, is now DEPRECATED. In addition
+ * The use of 'struct static_key' directly, is yesw DEPRECATED. In addition
  * static_key_{true,false}() is also DEPRECATED. IE DO NOT use the following:
  *
  * struct static_key false = STATIC_KEY_INIT_FALSE;
@@ -43,7 +43,7 @@
  * to true via a call to static_branch_enable(), or false using
  * static_branch_disable(). If the direction of the branch is switched by
  * these calls then we run-time modify the branch target via a
- * no-op -> jump or jump -> no-op conversion. For example, for an
+ * yes-op -> jump or jump -> yes-op conversion. For example, for an
  * initially false key that is used in an "if (static_branch_unlikely(&key))"
  * statement, setting the key to true requires us to patch in a jump
  * to the out-of-line of true branch.
@@ -88,7 +88,7 @@ struct static_key {
 	atomic_t enabled;
 /*
  * Note:
- *   To make anonymous unions work with old compilers, the static
+ *   To make ayesnymous unions work with old compilers, the static
  *   initialization of them requires brackets. This creates a dependency
  *   on the order of the struct with the initializers. If any fields
  *   are added, STATIC_KEY_INIT_TRUE and STATIC_KEY_INIT_FALSE may need
@@ -223,7 +223,7 @@ extern void static_key_slow_inc(struct static_key *key);
 extern void static_key_slow_dec(struct static_key *key);
 extern void static_key_slow_inc_cpuslocked(struct static_key *key);
 extern void static_key_slow_dec_cpuslocked(struct static_key *key);
-extern void jump_label_apply_nops(struct module *mod);
+extern void jump_label_apply_yesps(struct module *mod);
 extern int static_key_count(struct static_key *key);
 extern void static_key_enable(struct static_key *key);
 extern void static_key_disable(struct static_key *key);
@@ -296,7 +296,7 @@ static inline int jump_label_text_reserved(void *start, void *end)
 static inline void jump_label_lock(void) {}
 static inline void jump_label_unlock(void) {}
 
-static inline int jump_label_apply_nops(struct module *mod)
+static inline int jump_label_apply_yesps(struct module *mod)
 {
 	return 0;
 }

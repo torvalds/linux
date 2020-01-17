@@ -818,13 +818,13 @@ static void dpu_hw_intr_dispatch_irq(struct dpu_hw_intr *intr,
 				 * Once a match on irq mask, perform a callback
 				 * to the given cbfunc. cbfunc will take care
 				 * the interrupt status clearing. If cbfunc is
-				 * not provided, then the interrupt clearing
+				 * yest provided, then the interrupt clearing
 				 * is here.
 				 */
 				if (cbfunc)
 					cbfunc(arg, irq_idx);
 				else
-					intr->ops.clear_intr_status_nolock(
+					intr->ops.clear_intr_status_yeslock(
 							intr, irq_idx);
 
 				/*
@@ -885,7 +885,7 @@ static int dpu_hw_intr_enable_irq(struct dpu_hw_intr *intr, int irq_idx)
 	return 0;
 }
 
-static int dpu_hw_intr_disable_irq_nolock(struct dpu_hw_intr *intr, int irq_idx)
+static int dpu_hw_intr_disable_irq_yeslock(struct dpu_hw_intr *intr, int irq_idx)
 {
 	int reg_idx;
 	const struct dpu_intr_reg *reg;
@@ -942,7 +942,7 @@ static int dpu_hw_intr_disable_irq(struct dpu_hw_intr *intr, int irq_idx)
 	}
 
 	spin_lock_irqsave(&intr->irq_lock, irq_flags);
-	dpu_hw_intr_disable_irq_nolock(intr, irq_idx);
+	dpu_hw_intr_disable_irq_yeslock(intr, irq_idx);
 	spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
 
 	return 0;
@@ -1013,7 +1013,7 @@ static void dpu_hw_intr_get_interrupt_statuses(struct dpu_hw_intr *intr)
 	spin_unlock_irqrestore(&intr->irq_lock, irq_flags);
 }
 
-static void dpu_hw_intr_clear_intr_status_nolock(struct dpu_hw_intr *intr,
+static void dpu_hw_intr_clear_intr_status_yeslock(struct dpu_hw_intr *intr,
 		int irq_idx)
 {
 	int reg_idx;
@@ -1071,7 +1071,7 @@ static void __setup_intr_ops(struct dpu_hw_intr_ops *ops)
 	ops->clear_all_irqs = dpu_hw_intr_clear_irqs;
 	ops->disable_all_irqs = dpu_hw_intr_disable_irqs;
 	ops->get_interrupt_statuses = dpu_hw_intr_get_interrupt_statuses;
-	ops->clear_intr_status_nolock = dpu_hw_intr_clear_intr_status_nolock;
+	ops->clear_intr_status_yeslock = dpu_hw_intr_clear_intr_status_yeslock;
 	ops->get_interrupt_status = dpu_hw_intr_get_interrupt_status;
 }
 

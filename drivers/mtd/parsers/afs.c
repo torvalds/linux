@@ -123,7 +123,7 @@ static int afs_parse_v1_partition(struct mtd_info *mtd,
 	struct image_info_v1 iis;
 	u_int mask;
 	/*
-	 * Static checks cannot see that we bail out if we have an error
+	 * Static checks canyest see that we bail out if we have an error
 	 * reading the footer.
 	 */
 	u_int uninitialized_var(iis_ptr);
@@ -164,7 +164,7 @@ static int afs_parse_v1_partition(struct mtd_info *mtd,
 	img_ptr = fs.image_start & mask;
 
 	/*
-	 * Check the image info base.  This can not
+	 * Check the image info base.  This can yest
 	 * be located after the footer structure.
 	 */
 	if (iis_ptr >= ptr)
@@ -172,7 +172,7 @@ static int afs_parse_v1_partition(struct mtd_info *mtd,
 
 	/*
 	 * Check the start of this image.  The image
-	 * data can not be located after this block.
+	 * data can yest be located after this block.
 	 */
 	if (img_ptr > off)
 		return 0;

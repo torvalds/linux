@@ -95,7 +95,7 @@ static int soc_tplg_check_elem_count(struct soc_tplg *tplg, size_t elem_size,
 		return -EINVAL;
 	}
 
-	/* check there is enough room in chunk for control.
+	/* check there is eyesugh room in chunk for control.
 	   extra bytes at the end of control are for vendor data here  */
 	if (elem_size * count > bytes) {
 		dev_err(tplg->dev,
@@ -240,7 +240,7 @@ static inline void soc_control_err(struct soc_tplg *tplg,
 	struct snd_soc_tplg_ctl_hdr *hdr, const char *name)
 {
 	dev_err(tplg->dev,
-		"ASoC: no complete mixer IO handler for %s type (g,p,i) %d:%d:%d at 0x%lx\n",
+		"ASoC: yes complete mixer IO handler for %s type (g,p,i) %d:%d:%d at 0x%lx\n",
 		name, hdr->ops.get, hdr->ops.put, hdr->ops.info,
 		soc_tplg_get_offset(tplg));
 }
@@ -254,7 +254,7 @@ static int soc_tplg_vendor_load_(struct soc_tplg *tplg,
 	if (tplg->comp && tplg->ops && tplg->ops->vendor_load)
 		ret = tplg->ops->vendor_load(tplg->comp, tplg->index, hdr);
 	else {
-		dev_err(tplg->dev, "ASoC: no vendor load callback for ID %d\n",
+		dev_err(tplg->dev, "ASoC: yes vendor load callback for ID %d\n",
 			hdr->vendor_type);
 		return -EINVAL;
 	}
@@ -569,7 +569,7 @@ static void remove_backend_link(struct snd_soc_component *comp,
 
 	/*
 	 * We don't free the link here as what remove_link() do since BE
-	 * links are not allocated by topology.
+	 * links are yest allocated by topology.
 	 * We however need to reset the dobj type to its initial values
 	 */
 	dobj->type = SND_SOC_DOBJ_NONE;
@@ -633,7 +633,7 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 	if (k->put && k->get && k->info)
 		return 0;
 
-	/* none found so try standard kcontrol handlers */
+	/* yesne found so try standard kcontrol handlers */
 	ops = io_ops;
 	num_ops = ARRAY_SIZE(io_ops);
 	for (i = 0; i < num_ops; i++) {
@@ -650,7 +650,7 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 	if (k->put && k->get && k->info)
 		return 0;
 
-	/* nothing to bind */
+	/* yesthing to bind */
 	return -EINVAL;
 }
 
@@ -672,7 +672,7 @@ int snd_soc_tplg_widget_bind_event(struct snd_soc_dapm_widget *w,
 		}
 	}
 
-	/* not found */
+	/* yest found */
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(snd_soc_tplg_widget_bind_event);
@@ -1051,7 +1051,7 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 			err = soc_tplg_denum_create_values(se, ec);
 			if (err < 0) {
 				dev_err(tplg->dev,
-					"ASoC: could not create values for %s\n",
+					"ASoC: could yest create values for %s\n",
 					ec->hdr.name);
 				kfree(se);
 				continue;
@@ -1063,7 +1063,7 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 			err = soc_tplg_denum_create_texts(se, ec);
 			if (err < 0) {
 				dev_err(tplg->dev,
-					"ASoC: could not create texts for %s\n",
+					"ASoC: could yest create texts for %s\n",
 					ec->hdr.name);
 				kfree(se);
 				continue;
@@ -1099,7 +1099,7 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 		ret = soc_tplg_add_kcontrol(tplg,
 			&kc, &se->dobj.control.kcontrol);
 		if (ret < 0) {
-			dev_err(tplg->dev, "ASoC: could not add kcontrol %s\n",
+			dev_err(tplg->dev, "ASoC: could yest add kcontrol %s\n",
 				ec->hdr.name);
 			kfree(se);
 			continue;
@@ -1281,7 +1281,7 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 			kfree(routes[i]);
 
 	/*
-	 * free pointer to array of dapm routes as this is no longer needed.
+	 * free pointer to array of dapm routes as this is yes longer needed.
 	 * The memory allocated for each dapm route will be freed
 	 * when it is removed in remove_route().
 	 */
@@ -1429,7 +1429,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 		case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
 			err = soc_tplg_denum_create_values(se, ec);
 			if (err < 0) {
-				dev_err(tplg->dev, "ASoC: could not create values for %s\n",
+				dev_err(tplg->dev, "ASoC: could yest create values for %s\n",
 					ec->hdr.name);
 				goto err_se;
 			}
@@ -1439,7 +1439,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 		case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
 			err = soc_tplg_denum_create_texts(se, ec);
 			if (err < 0) {
-				dev_err(tplg->dev, "ASoC: could not create texts for %s\n",
+				dev_err(tplg->dev, "ASoC: could yest create texts for %s\n",
 					ec->hdr.name);
 				goto err_se;
 			}
@@ -1600,7 +1600,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	template.subseq = le32_to_cpu(w->subseq);
 	template.on_val = w->invert ? 0 : 1;
 	template.off_val = w->invert ? 1 : 0;
-	template.ignore_suspend = le32_to_cpu(w->ignore_suspend);
+	template.igyesre_suspend = le32_to_cpu(w->igyesre_suspend);
 	template.event_flags = le16_to_cpu(w->event_flags);
 	template.dobj.index = tplg->index;
 
@@ -1746,11 +1746,11 @@ static int soc_tplg_dapm_complete(struct soc_tplg *tplg)
 	struct snd_soc_card *card = tplg->comp->card;
 	int ret;
 
-	/* Card might not have been registered at this point.
+	/* Card might yest have been registered at this point.
 	 * If so, just return success.
 	*/
 	if (!card || !card->instantiated) {
-		dev_warn(tplg->dev, "ASoC: Parent card not yet available,"
+		dev_warn(tplg->dev, "ASoC: Parent card yest yet available,"
 			" widget card binding deferred\n");
 		return 0;
 	}
@@ -1878,7 +1878,7 @@ static void set_link_flags(struct snd_soc_dai_link *link,
 			1 : 0;
 
 	if (flag_mask & SND_SOC_TPLG_LNK_FLGBIT_VOICE_WAKEUP)
-		link->ignore_suspend =
+		link->igyesre_suspend =
 		flags & SND_SOC_TPLG_LNK_FLGBIT_VOICE_WAKEUP ?
 		1 : 0;
 }
@@ -2077,7 +2077,7 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 		size = le32_to_cpu(pcm->size);
 
 		/* check ABI version by size, create a new version of pcm
-		 * if abi not match.
+		 * if abi yest match.
 		 */
 		if (size == sizeof(*pcm)) {
 			abi_match = true;
@@ -2145,7 +2145,7 @@ static void set_link_hw_format(struct snd_soc_dai_link *link,
 			break;
 
 		default:
-			/* ignore the value */
+			/* igyesre the value */
 			break;
 		}
 
@@ -2248,7 +2248,7 @@ static int soc_tplg_link_config(struct soc_tplg *tplg,
 	link = snd_soc_find_dai_link(tplg->comp->card, le32_to_cpu(cfg->id),
 				     name, stream_name);
 	if (!link) {
-		dev_err(tplg->dev, "ASoC: physical link %s (id %d) not exist\n",
+		dev_err(tplg->dev, "ASoC: physical link %s (id %d) yest exist\n",
 			name, cfg->id);
 		return -EINVAL;
 	}
@@ -2370,7 +2370,7 @@ static int soc_tplg_dai_config(struct soc_tplg *tplg,
 	dai_component.dai_name = d->dai_name;
 	dai = snd_soc_find_dai(&dai_component);
 	if (!dai) {
-		dev_err(tplg->dev, "ASoC: physical DAI %s not registered\n",
+		dev_err(tplg->dev, "ASoC: physical DAI %s yest registered\n",
 			d->dai_name);
 		return -EINVAL;
 	}
@@ -2504,7 +2504,7 @@ static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 
 	manifest = (struct snd_soc_tplg_manifest *)tplg->pos;
 
-	/* check ABI version by size, create a new manifest if abi not match */
+	/* check ABI version by size, create a new manifest if abi yest match */
 	if (le32_to_cpu(manifest->size) == sizeof(*manifest)) {
 		abi_match = true;
 		_manifest = manifest;
@@ -2540,10 +2540,10 @@ static int soc_valid_header(struct soc_tplg *tplg,
 		return -EINVAL;
 	}
 
-	/* big endian firmware objects not supported atm */
+	/* big endian firmware objects yest supported atm */
 	if (hdr->magic == SOC_TPLG_MAGIC_BIG_ENDIAN) {
 		dev_err(tplg->dev,
-			"ASoC: pass %d big endian not supported header got %x at offset 0x%lx size 0x%zx.\n",
+			"ASoC: pass %d big endian yest supported header got %x at offset 0x%lx size 0x%zx.\n",
 			tplg->pass, hdr->magic,
 			soc_tplg_get_hdr_offset(tplg), tplg->fw->size);
 		return -EINVAL;
@@ -2551,7 +2551,7 @@ static int soc_valid_header(struct soc_tplg *tplg,
 
 	if (le32_to_cpu(hdr->magic) != SND_SOC_TPLG_MAGIC) {
 		dev_err(tplg->dev,
-			"ASoC: pass %d does not have a valid header got %x at offset 0x%lx size 0x%zx.\n",
+			"ASoC: pass %d does yest have a valid header got %x at offset 0x%lx size 0x%zx.\n",
 			tplg->pass, hdr->magic,
 			soc_tplg_get_hdr_offset(tplg), tplg->fw->size);
 		return -EINVAL;
@@ -2800,7 +2800,7 @@ int snd_soc_tplg_component_remove(struct snd_soc_component *comp, u32 index)
 		pass--;
 	}
 
-	/* let caller know if FW can be freed when no objects are left */
+	/* let caller kyesw if FW can be freed when yes objects are left */
 	return !list_empty(&comp->dobj_list);
 }
 EXPORT_SYMBOL_GPL(snd_soc_tplg_component_remove);

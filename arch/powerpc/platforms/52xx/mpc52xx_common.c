@@ -43,8 +43,8 @@ static const struct of_device_id mpc52xx_bus_ids[] __initconst = {
 /*
  * This variable is mapped in mpc52xx_map_wdt() and used in mpc52xx_restart().
  * Permanent mapping is required because mpc52xx_restart() can be called
- * from interrupt context while node mapping (which calls ioremap())
- * cannot be used at such point.
+ * from interrupt context while yesde mapping (which calls ioremap())
+ * canyest be used at such point.
  */
 static DEFINE_SPINLOCK(mpc52xx_lock);
 static struct mpc52xx_gpt __iomem *mpc52xx_wdt;
@@ -56,16 +56,16 @@ static struct mpc52xx_cdm __iomem *mpc52xx_cdm;
 void __init
 mpc5200_setup_xlb_arbiter(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct mpc52xx_xlb  __iomem *xlb;
 
-	np = of_find_matching_node(NULL, mpc52xx_xlb_ids);
+	np = of_find_matching_yesde(NULL, mpc52xx_xlb_ids);
 	xlb = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!xlb) {
 		printk(KERN_ERR __FILE__ ": "
 			"Error mapping XLB in mpc52xx_setup_cpu(). "
-			"Expect some abnormal behavior\n");
+			"Expect some abyesrmal behavior\n");
 		return;
 	}
 
@@ -134,35 +134,35 @@ static const struct of_device_id mpc52xx_gpio_wkup[] __initconst = {
 void __init
 mpc52xx_map_common_devices(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	/* mpc52xx_wdt is mapped here and used in mpc52xx_restart,
 	 * possibly from a interrupt context. wdt is only implement
 	 * on a gpt0, so check has-wdt property before mapping.
 	 */
-	for_each_matching_node(np, mpc52xx_gpt_ids) {
+	for_each_matching_yesde(np, mpc52xx_gpt_ids) {
 		if (of_get_property(np, "fsl,has-wdt", NULL) ||
 		    of_get_property(np, "has-wdt", NULL)) {
 			mpc52xx_wdt = of_iomap(np, 0);
-			of_node_put(np);
+			of_yesde_put(np);
 			break;
 		}
 	}
 
 	/* Clock Distribution Module, used by PSC clock setting function */
-	np = of_find_matching_node(NULL, mpc52xx_cdm_ids);
+	np = of_find_matching_yesde(NULL, mpc52xx_cdm_ids);
 	mpc52xx_cdm = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	/* simple_gpio registers */
-	np = of_find_matching_node(NULL, mpc52xx_gpio_simple);
+	np = of_find_matching_yesde(NULL, mpc52xx_gpio_simple);
 	simple_gpio = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	/* wkup_gpio registers */
-	np = of_find_matching_node(NULL, mpc52xx_gpio_wkup);
+	np = of_find_matching_yesde(NULL, mpc52xx_gpio_wkup);
 	wkup_gpio = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 /**
@@ -206,12 +206,12 @@ EXPORT_SYMBOL(mpc52xx_set_psc_clkdiv);
 /**
  * mpc52xx_get_xtal_freq - Get SYS_XTAL_IN frequency for a device
  *
- * @node: device node
+ * @yesde: device yesde
  *
  * Returns the frequency of the external oscillator clock connected
- * to the SYS_XTAL_IN pin, or 0 if it cannot be determined.
+ * to the SYS_XTAL_IN pin, or 0 if it canyest be determined.
  */
-unsigned int mpc52xx_get_xtal_freq(struct device_node *node)
+unsigned int mpc52xx_get_xtal_freq(struct device_yesde *yesde)
 {
 	u32 val;
 	unsigned int freq;
@@ -219,7 +219,7 @@ unsigned int mpc52xx_get_xtal_freq(struct device_node *node)
 	if (!mpc52xx_cdm)
 		return 0;
 
-	freq = mpc5xxx_get_bus_frequency(node);
+	freq = mpc5xxx_get_bus_frequency(yesde);
 	if (!freq)
 		return 0;
 
@@ -243,7 +243,7 @@ EXPORT_SYMBOL(mpc52xx_get_xtal_freq);
 /**
  * mpc52xx_restart: ppc_md->restart hook for mpc5200 using the watchdog timer
  */
-void __noreturn mpc52xx_restart(char *cmd)
+void __yesreturn mpc52xx_restart(char *cmd)
 {
 	local_irq_disable();
 
@@ -301,7 +301,7 @@ int mpc5200_psc_ac97_gpio_reset(int psc_number)
 		gpio    = MPC52xx_GPIO_PSC2_MASK;
 		break;
 	default:
-		pr_err(__FILE__ ": Unable to determine PSC, no ac97 "
+		pr_err(__FILE__ ": Unable to determine PSC, yes ac97 "
 		       "cold-reset will be performed\n");
 		return -ENODEV;
 	}

@@ -4,7 +4,7 @@
  * QoS dependencies.  It provides infrastructure for registration of:
  *
  * Dependents on a QoS value : register requests
- * Watchers of QoS value : get notified when target QoS value changes
+ * Watchers of QoS value : get yestified when target QoS value changes
  *
  * This QoS design is best effort based.  Dependents register their QoS needs.
  * Watchers register to keep track of the current QoS needs of the system.
@@ -12,14 +12,14 @@
  * There are 3 basic classes of QoS parameter: latency, timeout, throughput
  * each have defined units:
  * latency: usec
- * timeout: usec <-- currently not used.
+ * timeout: usec <-- currently yest used.
  * throughput: kbs (kilo byte / sec)
  *
- * There are lists of pm_qos_objects each one wrapping requests, notifiers
+ * There are lists of pm_qos_objects each one wrapping requests, yestifiers
  *
  * User mode requests on a QOS parameter register themselves to the
- * subsystem by opening the device node /dev/... and writing there request to
- * the node.  As long as the process holds a file handle open to the node the
+ * subsystem by opening the device yesde /dev/... and writing there request to
+ * the yesde.  As long as the process holds a file handle open to the yesde the
  * client continues to be accounted for.  Upon file release the usermode
  * request is removed and a new qos target is computed.  This way when the
  * request that the application has is cleaned up when closes the file
@@ -50,7 +50,7 @@
 #include <trace/events/power.h>
 
 /*
- * locking rule: all changes to constraints or notifiers lists
+ * locking rule: all changes to constraints or yestifiers lists
  * or pm_qos_object list and pm_qos_objects need to happen with pm_qos_lock
  * held, taken with _irqsave.  One lock to rule them all
  */
@@ -64,14 +64,14 @@ static DEFINE_SPINLOCK(pm_qos_lock);
 
 static struct pm_qos_object null_pm_qos;
 
-static BLOCKING_NOTIFIER_HEAD(cpu_dma_lat_notifier);
+static BLOCKING_NOTIFIER_HEAD(cpu_dma_lat_yestifier);
 static struct pm_qos_constraints cpu_dma_constraints = {
 	.list = PLIST_HEAD_INIT(cpu_dma_constraints.list),
 	.target_value = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE,
 	.default_value = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE,
-	.no_constraint_value = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE,
+	.yes_constraint_value = PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE,
 	.type = PM_QOS_MIN,
-	.notifiers = &cpu_dma_lat_notifier,
+	.yestifiers = &cpu_dma_lat_yestifier,
 };
 static struct pm_qos_object cpu_dma_pm_qos = {
 	.constraints = &cpu_dma_constraints,
@@ -87,25 +87,25 @@ static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
 		size_t count, loff_t *f_pos);
 static ssize_t pm_qos_power_read(struct file *filp, char __user *buf,
 		size_t count, loff_t *f_pos);
-static int pm_qos_power_open(struct inode *inode, struct file *filp);
-static int pm_qos_power_release(struct inode *inode, struct file *filp);
+static int pm_qos_power_open(struct iyesde *iyesde, struct file *filp);
+static int pm_qos_power_release(struct iyesde *iyesde, struct file *filp);
 
 static const struct file_operations pm_qos_power_fops = {
 	.write = pm_qos_power_write,
 	.read = pm_qos_power_read,
 	.open = pm_qos_power_open,
 	.release = pm_qos_power_release,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 /* unlocked internal variant */
 static inline int pm_qos_get_value(struct pm_qos_constraints *c)
 {
-	struct plist_node *node;
+	struct plist_yesde *yesde;
 	int total_value = 0;
 
 	if (plist_head_empty(&c->list))
-		return c->no_constraint_value;
+		return c->yes_constraint_value;
 
 	switch (c->type) {
 	case PM_QOS_MIN:
@@ -115,13 +115,13 @@ static inline int pm_qos_get_value(struct pm_qos_constraints *c)
 		return plist_last(&c->list)->prio;
 
 	case PM_QOS_SUM:
-		plist_for_each(node, &c->list)
-			total_value += node->prio;
+		plist_for_each(yesde, &c->list)
+			total_value += yesde->prio;
 
 		return total_value;
 
 	default:
-		/* runtime check for not using enum */
+		/* runtime check for yest using enum */
 		BUG();
 		return PM_QOS_DEFAULT_VALUE;
 	}
@@ -175,19 +175,19 @@ static int pm_qos_debug_show(struct seq_file *s, void *unused)
 		type = "Sum";
 		break;
 	default:
-		type = "Unknown";
+		type = "Unkyeswn";
 	}
 
-	plist_for_each_entry(req, &c->list, node) {
+	plist_for_each_entry(req, &c->list, yesde) {
 		char *state = "Default";
 
-		if ((req->node).prio != c->default_value) {
+		if ((req->yesde).prio != c->default_value) {
 			active_reqs++;
 			state = "Active";
 		}
 		tot_reqs++;
 		seq_printf(s, "%d: %d: %s\n", tot_reqs,
-			   (req->node).prio, state);
+			   (req->yesde).prio, state);
 	}
 
 	seq_printf(s, "Type=%s, Value=%d, Requests: active=%d / total=%d\n",
@@ -201,17 +201,17 @@ out:
 DEFINE_SHOW_ATTRIBUTE(pm_qos_debug);
 
 /**
- * pm_qos_update_target - manages the constraints list and calls the notifiers
+ * pm_qos_update_target - manages the constraints list and calls the yestifiers
  *  if needed
  * @c: constraints data struct
- * @node: request to add to the list, to update or to remove
+ * @yesde: request to add to the list, to update or to remove
  * @action: action to take on the constraints list
  * @value: value of the request to add or update
  *
  * This function returns 1 if the aggregated constraint value has changed, 0
  *  otherwise.
  */
-int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
+int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_yesde *yesde,
 			 enum pm_qos_req_action action, int value)
 {
 	unsigned long flags;
@@ -227,7 +227,7 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 
 	switch (action) {
 	case PM_QOS_REMOVE_REQ:
-		plist_del(node, &c->list);
+		plist_del(yesde, &c->list);
 		break;
 	case PM_QOS_UPDATE_REQ:
 		/*
@@ -235,14 +235,14 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 		 * with new value and add, then see if the extremal
 		 * changed
 		 */
-		plist_del(node, &c->list);
+		plist_del(yesde, &c->list);
 		/* fall through */
 	case PM_QOS_ADD_REQ:
-		plist_node_init(node, new_value);
-		plist_add(node, &c->list);
+		plist_yesde_init(yesde, new_value);
+		plist_add(yesde, &c->list);
 		break;
 	default:
-		/* no action */
+		/* yes action */
 		;
 	}
 
@@ -254,8 +254,8 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 	trace_pm_qos_update_target(action, prev_value, curr_value);
 	if (prev_value != curr_value) {
 		ret = 1;
-		if (c->notifiers)
-			blocking_notifier_call_chain(c->notifiers,
+		if (c->yestifiers)
+			blocking_yestifier_call_chain(c->yestifiers,
 						     (unsigned long)curr_value,
 						     NULL);
 	} else {
@@ -274,8 +274,8 @@ static void pm_qos_flags_remove_req(struct pm_qos_flags *pqf,
 {
 	s32 val = 0;
 
-	list_del(&req->node);
-	list_for_each_entry(req, &pqf->list, node)
+	list_del(&req->yesde);
+	list_for_each_entry(req, &pqf->list, yesde)
 		val |= req->flags;
 
 	pqf->effective_flags = val;
@@ -288,7 +288,7 @@ static void pm_qos_flags_remove_req(struct pm_qos_flags *pqf,
  * @action: Action to take on the set.
  * @val: Value of the request to add or modify.
  *
- * Update the given set of PM QoS flags and call notifiers if the aggregate
+ * Update the given set of PM QoS flags and call yestifiers if the aggregate
  * value has changed.  Returns 1 if the aggregate constraint value has changed,
  * 0 otherwise.
  */
@@ -312,12 +312,12 @@ bool pm_qos_update_flags(struct pm_qos_flags *pqf,
 		/* fall through */
 	case PM_QOS_ADD_REQ:
 		req->flags = val;
-		INIT_LIST_HEAD(&req->node);
-		list_add_tail(&req->node, &pqf->list);
+		INIT_LIST_HEAD(&req->yesde);
+		list_add_tail(&req->yesde, &pqf->list);
 		pqf->effective_flags |= val;
 		break;
 	default:
-		/* no action */
+		/* yes action */
 		;
 	}
 
@@ -352,10 +352,10 @@ static void __pm_qos_update_request(struct pm_qos_request *req,
 {
 	trace_pm_qos_update_request(req->pm_qos_class, new_value);
 
-	if (new_value != req->node.prio)
+	if (new_value != req->yesde.prio)
 		pm_qos_update_target(
 			pm_qos_array[req->pm_qos_class]->constraints,
-			&req->node, PM_QOS_UPDATE_REQ, new_value);
+			&req->yesde, PM_QOS_UPDATE_REQ, new_value);
 }
 
 /**
@@ -400,7 +400,7 @@ void pm_qos_add_request(struct pm_qos_request *req,
 	INIT_DELAYED_WORK(&req->work, pm_qos_work_fn);
 	trace_pm_qos_add_request(pm_qos_class, value);
 	pm_qos_update_target(pm_qos_array[pm_qos_class]->constraints,
-			     &req->node, PM_QOS_ADD_REQ, value);
+			     &req->yesde, PM_QOS_ADD_REQ, value);
 }
 EXPORT_SYMBOL_GPL(pm_qos_add_request);
 
@@ -421,7 +421,7 @@ void pm_qos_update_request(struct pm_qos_request *req,
 		return;
 
 	if (!pm_qos_request_active(req)) {
-		WARN(1, KERN_ERR "pm_qos_update_request() called for unknown object\n");
+		WARN(1, KERN_ERR "pm_qos_update_request() called for unkyeswn object\n");
 		return;
 	}
 
@@ -444,17 +444,17 @@ void pm_qos_update_request_timeout(struct pm_qos_request *req, s32 new_value,
 	if (!req)
 		return;
 	if (WARN(!pm_qos_request_active(req),
-		 "%s called for unknown object.", __func__))
+		 "%s called for unkyeswn object.", __func__))
 		return;
 
 	cancel_delayed_work_sync(&req->work);
 
 	trace_pm_qos_update_request_timeout(req->pm_qos_class,
 					    new_value, timeout_us);
-	if (new_value != req->node.prio)
+	if (new_value != req->yesde.prio)
 		pm_qos_update_target(
 			pm_qos_array[req->pm_qos_class]->constraints,
-			&req->node, PM_QOS_UPDATE_REQ, new_value);
+			&req->yesde, PM_QOS_UPDATE_REQ, new_value);
 
 	schedule_delayed_work(&req->work, usecs_to_jiffies(timeout_us));
 }
@@ -474,7 +474,7 @@ void pm_qos_remove_request(struct pm_qos_request *req)
 		/* silent return to keep pcm code cleaner */
 
 	if (!pm_qos_request_active(req)) {
-		WARN(1, KERN_ERR "pm_qos_remove_request() called for unknown object\n");
+		WARN(1, KERN_ERR "pm_qos_remove_request() called for unkyeswn object\n");
 		return;
 	}
 
@@ -482,56 +482,56 @@ void pm_qos_remove_request(struct pm_qos_request *req)
 
 	trace_pm_qos_remove_request(req->pm_qos_class, PM_QOS_DEFAULT_VALUE);
 	pm_qos_update_target(pm_qos_array[req->pm_qos_class]->constraints,
-			     &req->node, PM_QOS_REMOVE_REQ,
+			     &req->yesde, PM_QOS_REMOVE_REQ,
 			     PM_QOS_DEFAULT_VALUE);
 	memset(req, 0, sizeof(*req));
 }
 EXPORT_SYMBOL_GPL(pm_qos_remove_request);
 
 /**
- * pm_qos_add_notifier - sets notification entry for changes to target value
- * @pm_qos_class: identifies which qos target changes should be notified.
- * @notifier: notifier block managed by caller.
+ * pm_qos_add_yestifier - sets yestification entry for changes to target value
+ * @pm_qos_class: identifies which qos target changes should be yestified.
+ * @yestifier: yestifier block managed by caller.
  *
- * will register the notifier into a notification chain that gets called
+ * will register the yestifier into a yestification chain that gets called
  * upon changes to the pm_qos_class target value.
  */
-int pm_qos_add_notifier(int pm_qos_class, struct notifier_block *notifier)
+int pm_qos_add_yestifier(int pm_qos_class, struct yestifier_block *yestifier)
 {
 	int retval;
 
-	retval = blocking_notifier_chain_register(
-			pm_qos_array[pm_qos_class]->constraints->notifiers,
-			notifier);
+	retval = blocking_yestifier_chain_register(
+			pm_qos_array[pm_qos_class]->constraints->yestifiers,
+			yestifier);
 
 	return retval;
 }
-EXPORT_SYMBOL_GPL(pm_qos_add_notifier);
+EXPORT_SYMBOL_GPL(pm_qos_add_yestifier);
 
 /**
- * pm_qos_remove_notifier - deletes notification entry from chain.
- * @pm_qos_class: identifies which qos target changes are notified.
- * @notifier: notifier block to be removed.
+ * pm_qos_remove_yestifier - deletes yestification entry from chain.
+ * @pm_qos_class: identifies which qos target changes are yestified.
+ * @yestifier: yestifier block to be removed.
  *
- * will remove the notifier from the notification chain that gets called
+ * will remove the yestifier from the yestification chain that gets called
  * upon changes to the pm_qos_class target value.
  */
-int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier)
+int pm_qos_remove_yestifier(int pm_qos_class, struct yestifier_block *yestifier)
 {
 	int retval;
 
-	retval = blocking_notifier_chain_unregister(
-			pm_qos_array[pm_qos_class]->constraints->notifiers,
-			notifier);
+	retval = blocking_yestifier_chain_unregister(
+			pm_qos_array[pm_qos_class]->constraints->yestifiers,
+			yestifier);
 
 	return retval;
 }
-EXPORT_SYMBOL_GPL(pm_qos_remove_notifier);
+EXPORT_SYMBOL_GPL(pm_qos_remove_yestifier);
 
 /* User space interface to PM QoS classes via misc devices */
 static int register_pm_qos_misc(struct pm_qos_object *qos, struct dentry *d)
 {
-	qos->pm_qos_power_miscdev.minor = MISC_DYNAMIC_MINOR;
+	qos->pm_qos_power_miscdev.miyesr = MISC_DYNAMIC_MINOR;
 	qos->pm_qos_power_miscdev.name = qos->name;
 	qos->pm_qos_power_miscdev.fops = &pm_qos_power_fops;
 
@@ -541,24 +541,24 @@ static int register_pm_qos_misc(struct pm_qos_object *qos, struct dentry *d)
 	return misc_register(&qos->pm_qos_power_miscdev);
 }
 
-static int find_pm_qos_object_by_minor(int minor)
+static int find_pm_qos_object_by_miyesr(int miyesr)
 {
 	int pm_qos_class;
 
 	for (pm_qos_class = PM_QOS_CPU_DMA_LATENCY;
 		pm_qos_class < PM_QOS_NUM_CLASSES; pm_qos_class++) {
-		if (minor ==
-			pm_qos_array[pm_qos_class]->pm_qos_power_miscdev.minor)
+		if (miyesr ==
+			pm_qos_array[pm_qos_class]->pm_qos_power_miscdev.miyesr)
 			return pm_qos_class;
 	}
 	return -1;
 }
 
-static int pm_qos_power_open(struct inode *inode, struct file *filp)
+static int pm_qos_power_open(struct iyesde *iyesde, struct file *filp)
 {
 	long pm_qos_class;
 
-	pm_qos_class = find_pm_qos_object_by_minor(iminor(inode));
+	pm_qos_class = find_pm_qos_object_by_miyesr(imiyesr(iyesde));
 	if (pm_qos_class >= PM_QOS_CPU_DMA_LATENCY) {
 		struct pm_qos_request *req = kzalloc(sizeof(*req), GFP_KERNEL);
 		if (!req)
@@ -572,7 +572,7 @@ static int pm_qos_power_open(struct inode *inode, struct file *filp)
 	return -EPERM;
 }
 
-static int pm_qos_power_release(struct inode *inode, struct file *filp)
+static int pm_qos_power_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct pm_qos_request *req;
 
@@ -665,19 +665,19 @@ void freq_constraints_init(struct freq_constraints *qos)
 	plist_head_init(&c->list);
 	c->target_value = FREQ_QOS_MIN_DEFAULT_VALUE;
 	c->default_value = FREQ_QOS_MIN_DEFAULT_VALUE;
-	c->no_constraint_value = FREQ_QOS_MIN_DEFAULT_VALUE;
+	c->yes_constraint_value = FREQ_QOS_MIN_DEFAULT_VALUE;
 	c->type = PM_QOS_MAX;
-	c->notifiers = &qos->min_freq_notifiers;
-	BLOCKING_INIT_NOTIFIER_HEAD(c->notifiers);
+	c->yestifiers = &qos->min_freq_yestifiers;
+	BLOCKING_INIT_NOTIFIER_HEAD(c->yestifiers);
 
 	c = &qos->max_freq;
 	plist_head_init(&c->list);
 	c->target_value = FREQ_QOS_MAX_DEFAULT_VALUE;
 	c->default_value = FREQ_QOS_MAX_DEFAULT_VALUE;
-	c->no_constraint_value = FREQ_QOS_MAX_DEFAULT_VALUE;
+	c->yes_constraint_value = FREQ_QOS_MAX_DEFAULT_VALUE;
 	c->type = PM_QOS_MIN;
-	c->notifiers = &qos->max_freq_notifiers;
-	BLOCKING_INIT_NOTIFIER_HEAD(c->notifiers);
+	c->yestifiers = &qos->max_freq_yestifiers;
+	BLOCKING_INIT_NOTIFIER_HEAD(c->yestifiers);
 }
 
 /**
@@ -715,7 +715,7 @@ s32 freq_qos_read_value(struct freq_constraints *qos,
  * @action: Action to perform (add/update/remove).
  * @value: Value to assign to the QoS request.
  *
- * This is only meant to be called from inside pm_qos, not drivers.
+ * This is only meant to be called from inside pm_qos, yest drivers.
  */
 int freq_qos_apply(struct freq_qos_request *req,
 			  enum pm_qos_req_action action, s32 value)
@@ -724,11 +724,11 @@ int freq_qos_apply(struct freq_qos_request *req,
 
 	switch(req->type) {
 	case FREQ_QOS_MIN:
-		ret = pm_qos_update_target(&req->qos->min_freq, &req->pnode,
+		ret = pm_qos_update_target(&req->qos->min_freq, &req->pyesde,
 					   action, value);
 		break;
 	case FREQ_QOS_MAX:
-		ret = pm_qos_update_target(&req->qos->max_freq, &req->pnode,
+		ret = pm_qos_update_target(&req->qos->max_freq, &req->pyesde,
 					   action, value);
 		break;
 	default:
@@ -750,7 +750,7 @@ int freq_qos_apply(struct freq_qos_request *req,
  * caller needs to save that object for later use in updates and removal.
  *
  * Return 1 if the effective constraint value has changed, 0 if the effective
- * constraint value has not changed, or a negative error code on failures.
+ * constraint value has yest changed, or a negative error code on failures.
  */
 int freq_qos_add_request(struct freq_constraints *qos,
 			 struct freq_qos_request *req,
@@ -786,7 +786,7 @@ EXPORT_SYMBOL_GPL(freq_qos_add_request);
  * value for the list of requests it belongs to.
  *
  * Return 1 if the effective constraint value has changed, 0 if the effective
- * constraint value has not changed, or a negative error code on failures.
+ * constraint value has yest changed, or a negative error code on failures.
  */
 int freq_qos_update_request(struct freq_qos_request *req, s32 new_value)
 {
@@ -794,10 +794,10 @@ int freq_qos_update_request(struct freq_qos_request *req, s32 new_value)
 		return -EINVAL;
 
 	if (WARN(!freq_qos_request_active(req),
-		 "%s() called for unknown object\n", __func__))
+		 "%s() called for unkyeswn object\n", __func__))
 		return -EINVAL;
 
-	if (req->pnode.prio == new_value)
+	if (req->pyesde.prio == new_value)
 		return 0;
 
 	return freq_qos_apply(req, PM_QOS_UPDATE_REQ, new_value);
@@ -812,7 +812,7 @@ EXPORT_SYMBOL_GPL(freq_qos_update_request);
  * belongs to and recompute the effective constraint value for that list.
  *
  * Return 1 if the effective constraint value has changed, 0 if the effective
- * constraint value has not changed, or a negative error code on failures.
+ * constraint value has yest changed, or a negative error code on failures.
  */
 int freq_qos_remove_request(struct freq_qos_request *req)
 {
@@ -822,7 +822,7 @@ int freq_qos_remove_request(struct freq_qos_request *req)
 		return -EINVAL;
 
 	if (WARN(!freq_qos_request_active(req),
-		 "%s() called for unknown object\n", __func__))
+		 "%s() called for unkyeswn object\n", __func__))
 		return -EINVAL;
 
 	ret = freq_qos_apply(req, PM_QOS_REMOVE_REQ, PM_QOS_DEFAULT_VALUE);
@@ -834,28 +834,28 @@ int freq_qos_remove_request(struct freq_qos_request *req)
 EXPORT_SYMBOL_GPL(freq_qos_remove_request);
 
 /**
- * freq_qos_add_notifier - Add frequency QoS change notifier.
- * @qos: List of requests to add the notifier to.
+ * freq_qos_add_yestifier - Add frequency QoS change yestifier.
+ * @qos: List of requests to add the yestifier to.
  * @type: Request type.
- * @notifier: Notifier block to add.
+ * @yestifier: Notifier block to add.
  */
-int freq_qos_add_notifier(struct freq_constraints *qos,
+int freq_qos_add_yestifier(struct freq_constraints *qos,
 			  enum freq_qos_req_type type,
-			  struct notifier_block *notifier)
+			  struct yestifier_block *yestifier)
 {
 	int ret;
 
-	if (IS_ERR_OR_NULL(qos) || !notifier)
+	if (IS_ERR_OR_NULL(qos) || !yestifier)
 		return -EINVAL;
 
 	switch (type) {
 	case FREQ_QOS_MIN:
-		ret = blocking_notifier_chain_register(qos->min_freq.notifiers,
-						       notifier);
+		ret = blocking_yestifier_chain_register(qos->min_freq.yestifiers,
+						       yestifier);
 		break;
 	case FREQ_QOS_MAX:
-		ret = blocking_notifier_chain_register(qos->max_freq.notifiers,
-						       notifier);
+		ret = blocking_yestifier_chain_register(qos->max_freq.yestifiers,
+						       yestifier);
 		break;
 	default:
 		WARN_ON(1);
@@ -864,31 +864,31 @@ int freq_qos_add_notifier(struct freq_constraints *qos,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(freq_qos_add_notifier);
+EXPORT_SYMBOL_GPL(freq_qos_add_yestifier);
 
 /**
- * freq_qos_remove_notifier - Remove frequency QoS change notifier.
- * @qos: List of requests to remove the notifier from.
+ * freq_qos_remove_yestifier - Remove frequency QoS change yestifier.
+ * @qos: List of requests to remove the yestifier from.
  * @type: Request type.
- * @notifier: Notifier block to remove.
+ * @yestifier: Notifier block to remove.
  */
-int freq_qos_remove_notifier(struct freq_constraints *qos,
+int freq_qos_remove_yestifier(struct freq_constraints *qos,
 			     enum freq_qos_req_type type,
-			     struct notifier_block *notifier)
+			     struct yestifier_block *yestifier)
 {
 	int ret;
 
-	if (IS_ERR_OR_NULL(qos) || !notifier)
+	if (IS_ERR_OR_NULL(qos) || !yestifier)
 		return -EINVAL;
 
 	switch (type) {
 	case FREQ_QOS_MIN:
-		ret = blocking_notifier_chain_unregister(qos->min_freq.notifiers,
-							 notifier);
+		ret = blocking_yestifier_chain_unregister(qos->min_freq.yestifiers,
+							 yestifier);
 		break;
 	case FREQ_QOS_MAX:
-		ret = blocking_notifier_chain_unregister(qos->max_freq.notifiers,
-							 notifier);
+		ret = blocking_yestifier_chain_unregister(qos->max_freq.yestifiers,
+							 yestifier);
 		break;
 	default:
 		WARN_ON(1);
@@ -897,4 +897,4 @@ int freq_qos_remove_notifier(struct freq_constraints *qos,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(freq_qos_remove_notifier);
+EXPORT_SYMBOL_GPL(freq_qos_remove_yestifier);

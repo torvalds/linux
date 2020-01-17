@@ -158,7 +158,7 @@ static void __hyp_text __sysreg_restore_el1_state(struct kvm_cpu_context *ctxt)
 		isb();
 		/*
 		 * At this stage, and thanks to the above isb(), S2 is
-		 * deconfigured and disabled. We can now restore the host's
+		 * deconfigured and disabled. We can yesw restore the host's
 		 * S1 configuration: SCTLR, and only then TCR.
 		 */
 		write_sysreg_el1(ctxt->sys_regs[SCTLR_EL1],	SYS_SCTLR);
@@ -268,7 +268,7 @@ void __hyp_text __sysreg32_restore_state(struct kvm_vcpu *vcpu)
  *
  * @vcpu: The VCPU pointer
  *
- * Load system registers that do not affect the host's execution, for
+ * Load system registers that do yest affect the host's execution, for
  * example EL1 system registers on a VHE system where the host kernel
  * runs at EL2.  This function is called from KVM's vcpu_load() function
  * and loading system register state early avoids having to load them on
@@ -304,10 +304,10 @@ void kvm_vcpu_load_sysregs(struct kvm_vcpu *vcpu)
  *
  * @vcpu: The VCPU pointer
  *
- * Save guest system registers that do not affect the host's execution, for
+ * Save guest system registers that do yest affect the host's execution, for
  * example EL1 system registers on a VHE system where the host kernel
  * runs at EL2.  This function is called from KVM's vcpu_put() function
- * and deferring saving system register state until we're no longer running the
+ * and deferring saving system register state until we're yes longer running the
  * VCPU avoids having to save them on every exit from the VM.
  */
 void kvm_vcpu_put_sysregs(struct kvm_vcpu *vcpu)

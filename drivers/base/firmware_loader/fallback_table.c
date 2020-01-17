@@ -35,8 +35,8 @@ struct ctl_table firmware_config_table[] = {
 		.extra2		= SYSCTL_ONE,
 	},
 	{
-		.procname	= "ignore_sysfs_fallback",
-		.data		= &fw_fallback_config.ignore_sysfs_fallback,
+		.procname	= "igyesre_sysfs_fallback",
+		.data		= &fw_fallback_config.igyesre_sysfs_fallback,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
 		.proc_handler   = proc_douintvec_minmax,

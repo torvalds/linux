@@ -154,7 +154,7 @@ Linux USB项目：
 	http://www.linux-usb.org/
 
 写内核驱动的“不要”（Arjan van de Ven著）:
-	http://www.fenrus.org/how-to-not-write-a-device-driver-paper.pdf
+	http://www.fenrus.org/how-to-yest-write-a-device-driver-paper.pdf
 
 内核清洁工 (Kernel Janitor):
 	http://kernelnewbies.org/KernelJanitors

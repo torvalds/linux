@@ -29,7 +29,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-ctrls.h>
 #include <media/i2c/tvp514x.h>
 #include <media/media-entity.h>
@@ -274,7 +274,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
  * @sd: ptr to v4l2_subdev struct
  * @reg: TVP5146/47 register address
  *
- * Returns value read if successful, or non-zero (-1) otherwise.
+ * Returns value read if successful, or yesn-zero (-1) otherwise.
  */
 static int tvp514x_read_reg(struct v4l2_subdev *sd, u8 reg)
 {
@@ -316,7 +316,7 @@ static void dump_reg(struct v4l2_subdev *sd, u8 reg)
  * @val: value to be written to the register
  *
  * Write a value to a register in an TVP5146/47 decoder device.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or yesn-zero otherwise.
  */
 static int tvp514x_write_reg(struct v4l2_subdev *sd, u8 reg, u8 val)
 {
@@ -348,7 +348,7 @@ write_again:
  *		if token is TOK_DELAY, then a delay of 'val' msec is introduced
  *		if token is TOK_SKIP, then the register write is skipped
  *		if token is TOK_WRITE, then the register write is performed
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or yesn-zero otherwise.
  */
 static int tvp514x_write_regs(struct v4l2_subdev *sd,
 			      const struct tvp514x_reg reglist[])
@@ -378,7 +378,7 @@ static int tvp514x_write_regs(struct v4l2_subdev *sd,
  * tvp514x_query_current_std() : Query the current standard detected by TVP5146/47
  * @sd: ptr to v4l2_subdev struct
  *
- * Returns the current standard detected by TVP5146/47, STD_INVALID if there is no
+ * Returns the current standard detected by TVP5146/47, STD_INVALID if there is yes
  * standard detected.
  */
 static enum tvp514x_std tvp514x_query_current_std(struct v4l2_subdev *sd)
@@ -459,7 +459,7 @@ static void tvp514x_reg_dump(struct v4l2_subdev *sd)
  * @sd: ptr to v4l2_subdev struct
  * @decoder: ptr to tvp514x_decoder structure
  *
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or yesn-zero otherwise.
  */
 static int tvp514x_configure(struct v4l2_subdev *sd,
 		struct tvp514x_decoder *decoder)
@@ -486,7 +486,7 @@ static int tvp514x_configure(struct v4l2_subdev *sd,
  * A device is considered to be detected if the chip ID (LSB and MSB)
  * registers match the expected values.
  * Any value of the rom version register is accepted.
- * Returns ENODEV error number if no device is detected, or zero
+ * Returns ENODEV error number if yes device is detected, or zero
  * if a device is detected.
  */
 static int tvp514x_detect(struct v4l2_subdev *sd,
@@ -505,7 +505,7 @@ static int tvp514x_detect(struct v4l2_subdev *sd,
 	if ((chip_id_msb != TVP514X_CHIP_ID_MSB)
 		|| ((chip_id_lsb != TVP5146_CHIP_ID_LSB)
 		&& (chip_id_lsb != TVP5147_CHIP_ID_LSB))) {
-		/* We didn't read the values we expected, so this must not be
+		/* We didn't read the values we expected, so this must yest be
 		 * an TVP5146/47.
 		 */
 		v4l2_err(sd, "chip id mismatch msb:0x%x lsb:0x%x\n",
@@ -526,7 +526,7 @@ static int tvp514x_detect(struct v4l2_subdev *sd,
  * @sd: pointer to standard V4L2 sub-device structure
  * @std_id: standard V4L2 std_id ioctl enum
  *
- * Returns the current standard detected by TVP5146/47. If no active input is
+ * Returns the current standard detected by TVP5146/47. If yes active input is
  * detected then *std_id is set to 0 and the function returns 0.
  */
 static int tvp514x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
@@ -645,7 +645,7 @@ static int tvp514x_s_std(struct v4l2_subdev *sd, v4l2_std_id std_id)
  * @config: config value. Not used
  *
  * If index is valid, selects the requested input. Otherwise, returns -EINVAL if
- * the input is not supported or there is no active signal present in the
+ * the input is yest supported or there is yes active signal present in the
  * selected input.
  */
 static int tvp514x_s_routing(struct v4l2_subdev *sd,
@@ -690,7 +690,7 @@ static int tvp514x_s_routing(struct v4l2_subdev *sd,
  * @ctrl: pointer to v4l2_ctrl structure
  *
  * If the requested control is supported, sets the control's current
- * value in HW. Otherwise, returns -EINVAL if the control is not supported.
+ * value in HW. Otherwise, returns -EINVAL if the control is yest supported.
  */
 static int tvp514x_s_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -767,7 +767,7 @@ tvp514x_g_frame_interval(struct v4l2_subdev *sd,
  * @ival: pointer to a v4l2_subdev_frame_interval structure
  *
  * Configures the decoder to use the input parameters, if possible. If
- * not possible, returns the appropriate error code.
+ * yest possible, returns the appropriate error code.
  */
 static int
 tvp514x_s_frame_interval(struct v4l2_subdev *sd,
@@ -824,7 +824,7 @@ static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable)
 			v4l2_err(sd, "Unable to turn on decoder\n");
 			return err;
 		}
-		/* Detect if not already detected */
+		/* Detect if yest already detected */
 		err = tvp514x_detect(sd, decoder);
 		if (err) {
 			v4l2_err(sd, "Unable to detect decoder\n");
@@ -980,18 +980,18 @@ static struct tvp514x_platform_data *
 tvp514x_get_pdata(struct i2c_client *client)
 {
 	struct tvp514x_platform_data *pdata = NULL;
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-	struct device_node *endpoint;
+	struct v4l2_fwyesde_endpoint bus_cfg = { .bus_type = 0 };
+	struct device_yesde *endpoint;
 	unsigned int flags;
 
-	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_yesde)
 		return client->dev.platform_data;
 
-	endpoint = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(client->dev.of_yesde, NULL);
 	if (!endpoint)
 		return NULL;
 
-	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), &bus_cfg))
+	if (v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(endpoint), &bus_cfg))
 		goto done;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
@@ -1010,7 +1010,7 @@ tvp514x_get_pdata(struct i2c_client *client)
 		pdata->clk_polarity = 1;
 
 done:
-	of_node_put(endpoint);
+	of_yesde_put(endpoint);
 	return pdata;
 }
 
@@ -1057,7 +1057,7 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/**
 	 * Fetch platform specific data, and configure the
 	 * tvp514x_reg_list[] accordingly. Since this is one
-	 * time configuration, no need to preserve.
+	 * time configuration, yes need to preserve.
 	 */
 	decoder->tvp514x_regs[REG_OUTPUT_FORMATTER2].val |=
 		(decoder->pdata->clk_polarity << 1);

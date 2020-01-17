@@ -182,7 +182,7 @@ static void cnl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 static bool icl_combo_phy_enabled(struct drm_i915_private *dev_priv,
 				  enum phy phy)
 {
-	/* The PHY C added by EHL has no PHY_MISC register */
+	/* The PHY C added by EHL has yes PHY_MISC register */
 	if (IS_ELKHARTLAKE(dev_priv) && phy == PHY_C)
 		return I915_READ(ICL_PORT_COMP_DW0(phy)) & COMP_INIT;
 	else
@@ -270,10 +270,10 @@ static u32 ehl_combo_phy_a_mux(struct drm_i915_private *i915, u32 val)
 	bool dsi_present = intel_bios_is_dsi_present(i915, NULL);
 
 	/*
-	 * VBT's 'dvo port' field for child devices references the DDI, not
+	 * VBT's 'dvo port' field for child devices references the DDI, yest
 	 * the PHY.  So if combo PHY A is wired up to drive an external
 	 * display, we should see a child device present on PORT_D and
-	 * nothing on PORT_A and no DSI.
+	 * yesthing on PORT_A and yes DSI.
 	 */
 	if (ddi_d_present && !ddi_a_present && !dsi_present)
 		return val | ICL_PHY_MISC_MUX_DDID;
@@ -303,8 +303,8 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 		}
 
 		/*
-		 * Although EHL adds a combo PHY C, there's no PHY_MISC
-		 * register for it and no need to program the
+		 * Although EHL adds a combo PHY C, there's yes PHY_MISC
+		 * register for it and yes need to program the
 		 * DE_IO_COMP_PWR_DOWN setting on PHY C.
 		 */
 		if (IS_ELKHARTLAKE(dev_priv) && phy == PHY_C)
@@ -356,8 +356,8 @@ static void icl_combo_phys_uninit(struct drm_i915_private *dev_priv)
 				 phy_name(phy));
 
 		/*
-		 * Although EHL adds a combo PHY C, there's no PHY_MISC
-		 * register for it and no need to program the
+		 * Although EHL adds a combo PHY C, there's yes PHY_MISC
+		 * register for it and yes need to program the
 		 * DE_IO_COMP_PWR_DOWN setting on PHY C.
 		 */
 		if (IS_ELKHARTLAKE(dev_priv) && phy == PHY_C)

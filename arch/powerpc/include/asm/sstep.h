@@ -87,7 +87,7 @@ enum instruction_type {
 #define VSX_FPCONV	1	/* do floating point SP/DP conversion */
 #define VSX_SPLAT	2	/* store loaded value into all elements */
 #define VSX_LDLEFT	4	/* load VSX register from left */
-#define VSX_CHECK_VEC	8	/* check MSR_VEC not MSR_VSX for reg >= 32 */
+#define VSX_CHECK_VEC	8	/* check MSR_VEC yest MSR_VSX for reg >= 32 */
 
 /* Size field in type word */
 #define SIZE(n)		((n) << 12)
@@ -146,8 +146,8 @@ void emulate_update_regs(struct pt_regs *reg, struct instruction_op *op);
  * cache operations and barriers.
  *
  * Returns 1 if the instruction was emulated successfully,
- * 0 if it could not be emulated, or -1 for an instruction that
- * should not be emulated (rfid, mtmsrd clearing MSR_RI, etc.).
+ * 0 if it could yest be emulated, or -1 for an instruction that
+ * should yest be emulated (rfid, mtmsrd clearing MSR_RI, etc.).
  */
 extern int emulate_step(struct pt_regs *regs, unsigned int instr);
 

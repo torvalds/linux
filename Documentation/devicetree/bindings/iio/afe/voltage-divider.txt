@@ -22,7 +22,7 @@ a curcuit.
 
 Required properties:
 - compatible : "voltage-divider"
-- io-channels : Channel node of a voltage io-channel measuring Vout.
+- io-channels : Channel yesde of a voltage io-channel measuring Vout.
 - output-ohms : Resistance Rout over which the output voltage is measured.
 	        See full-ohms.
 - full-ohms : Resistance R + Rout for the full divider. The io-channel

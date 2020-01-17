@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2018, Mellayesx Techyeslogies inc.  All rights reserved.
  */
 
 #include <rdma/uverbs_std_types.h>
@@ -12,7 +12,7 @@
 /*
  * This ioctl method allows calling any defined write or write_ex
  * handler. This essentially replaces the hdr/ex_hdr system with the ioctl
- * marshalling, and brings the non-ex path into the same marshalling as the ex
+ * marshalling, and brings the yesn-ex path into the same marshalling as the ex
  * path.
  */
 static int UVERBS_HANDLER(UVERBS_METHOD_INVOKE_WRITE)(
@@ -65,7 +65,7 @@ gather_objects_handle(struct ib_uverbs_file *ufile,
 	u64 count = 0;
 	u32 *handles;
 
-	/* Allocated memory that cannot page out where we gather
+	/* Allocated memory that canyest page out where we gather
 	 * all object ids under a spin_lock.
 	 */
 	handles = uverbs_zalloc(attrs, out_len);

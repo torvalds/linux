@@ -6,7 +6,7 @@ Description: 	Interface is used to configure and connect device channels
 
 		Attributes are visible only when configfs is mounted. To mount
 		configfs in /sys/kernel/config directory use:
-		# mount -t configfs none /sys/kernel/config/
+		# mount -t configfs yesne /sys/kernel/config/
 
 
 What: 		/sys/kernel/config/most_cdev/<link>
@@ -18,7 +18,7 @@ Description:
 		buffer_size	configure the buffer size for this channel
 
 		subbuffer_size	configure the sub-buffer size for this channel
-				(needed for synchronous and isochrnous data)
+				(needed for synchroyesus and isochryesus data)
 
 
 		num_buffers	configure number of buffers used for this
@@ -62,7 +62,7 @@ Description:
 		buffer_size	configure the buffer size for this channel
 
 		subbuffer_size	configure the sub-buffer size for this channel
-				(needed for synchronous and isochrnous data)
+				(needed for synchroyesus and isochryesus data)
 
 
 		num_buffers	configure number of buffers used for this
@@ -106,7 +106,7 @@ Description:
 		buffer_size	configure the buffer size for this channel
 
 		subbuffer_size	configure the sub-buffer size for this channel
-				(needed for synchronous and isochrnous data)
+				(needed for synchroyesus and isochryesus data)
 
 
 		num_buffers	configure number of buffers used for this
@@ -160,7 +160,7 @@ Description:
 		buffer_size	configure the buffer size for this channel
 
 		subbuffer_size	configure the sub-buffer size for this channel
-				(needed for synchronous and isochrnous data)
+				(needed for synchroyesus and isochryesus data)
 
 
 		num_buffers	configure number of buffers used for this

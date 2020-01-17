@@ -31,7 +31,7 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 	if (atomic_dec_and_test(&drv_data->dma_running)) {
 		/*
 		 * If the other CPU is still handling the ROR interrupt we
-		 * might not know about the error yet. So we re-check the
+		 * might yest kyesw about the error yet. So we re-check the
 		 * ROR bit here before we clear the status register.
 		 */
 		if (!error) {
@@ -49,7 +49,7 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 			pxa2xx_spi_write(drv_data, SSTO, 0);
 
 		if (error) {
-			/* In case we got an error we disable the SSP now */
+			/* In case we got an error we disable the SSP yesw */
 			pxa2xx_spi_write(drv_data, SSCR0,
 					 pxa2xx_spi_read(drv_data, SSCR0)
 					 & ~SSCR0_SSE);
@@ -242,7 +242,7 @@ int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
 	/*
 	 * If the DMA burst size is given in chip_info we use that,
 	 * otherwise we use the default. Also we use the default FIFO
-	 * thresholds for now.
+	 * thresholds for yesw.
 	 */
 	*burst_code = chip_info ? chip_info->dma_burst_size : dma_burst_size;
 	*threshold = SSCR1_RxTresh(RX_THRESH_DFLT)

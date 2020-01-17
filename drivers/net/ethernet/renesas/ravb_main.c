@@ -626,7 +626,7 @@ static bool ravb_rx(struct net_device *ndev, int *quota, int q)
 			dma_addr = dma_map_single(ndev->dev.parent, skb->data,
 						  le16_to_cpu(desc->ds_cc),
 						  DMA_FROM_DEVICE);
-			skb_checksum_none_assert(skb);
+			skb_checksum_yesne_assert(skb);
 			/* We just set the data size to 0 for a failed mapping
 			 * which should prevent DMA  from happening...
 			 */
@@ -700,7 +700,7 @@ static void ravb_emac_interrupt_unlocked(struct net_device *ndev)
 		ndev->stats.tx_carrier_errors++;
 	if (ecsr & ECSR_LCHNG) {
 		/* Link changed */
-		if (priv->no_avb_link)
+		if (priv->yes_avb_link)
 			return;
 		psr = ravb_read(ndev, PSR);
 		if (priv->avb_link_active_low)
@@ -774,7 +774,7 @@ static bool ravb_queue_interrupt(struct net_device *ndev, int q)
 			__napi_schedule(&priv->napi[q]);
 		} else {
 			netdev_warn(ndev,
-				    "ignoring interrupt, rx status 0x%08x, rx mask 0x%08x,\n",
+				    "igyesring interrupt, rx status 0x%08x, rx mask 0x%08x,\n",
 				    ris0, ric0);
 			netdev_warn(ndev,
 				    "                    tx status 0x%08x, tx mask 0x%08x.\n",
@@ -971,8 +971,8 @@ static void ravb_adjust_link(struct net_device *ndev)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	/* Disable TX and RX right over here, if E-MAC change is ignored */
-	if (priv->no_avb_link)
+	/* Disable TX and RX right over here, if E-MAC change is igyesred */
+	if (priv->yes_avb_link)
 		ravb_rcv_snd_disable(ndev);
 
 	if (phydev->link) {
@@ -992,8 +992,8 @@ static void ravb_adjust_link(struct net_device *ndev)
 		priv->speed = 0;
 	}
 
-	/* Enable TX and RX right over here, if E-MAC change is ignored */
-	if (priv->no_avb_link && phydev->link)
+	/* Enable TX and RX right over here, if E-MAC change is igyesred */
+	if (priv->yes_avb_link && phydev->link)
 		ravb_rcv_snd_enable(ndev);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -1010,10 +1010,10 @@ static const struct soc_device_attribute r8a7795es10[] = {
 /* PHY init function */
 static int ravb_phy_init(struct net_device *ndev)
 {
-	struct device_node *np = ndev->dev.parent->of_node;
+	struct device_yesde *np = ndev->dev.parent->of_yesde;
 	struct ravb_private *priv = netdev_priv(ndev);
 	struct phy_device *phydev;
-	struct device_node *pn;
+	struct device_yesde *pn;
 	int err;
 
 	priv->link = 0;
@@ -1022,19 +1022,19 @@ static int ravb_phy_init(struct net_device *ndev)
 	/* Try connecting to PHY */
 	pn = of_parse_phandle(np, "phy-handle", 0);
 	if (!pn) {
-		/* In the case of a fixed PHY, the DT node associated
-		 * to the PHY is the Ethernet MAC DT node.
+		/* In the case of a fixed PHY, the DT yesde associated
+		 * to the PHY is the Ethernet MAC DT yesde.
 		 */
 		if (of_phy_is_fixed_link(np)) {
 			err = of_phy_register_fixed_link(np);
 			if (err)
 				return err;
 		}
-		pn = of_node_get(np);
+		pn = of_yesde_get(np);
 	}
 	phydev = of_phy_connect(ndev, pn, ravb_adjust_link, 0,
 				priv->phy_interface);
-	of_node_put(pn);
+	of_yesde_put(pn);
 	if (!phydev) {
 		netdev_err(ndev, "failed to connect PHY\n");
 		err = -ENOENT;
@@ -1054,13 +1054,13 @@ static int ravb_phy_init(struct net_device *ndev)
 		netdev_info(ndev, "limited PHY to 100Mbit/s\n");
 	}
 
-	/* 10BASE, Pause and Asym Pause is not supported */
+	/* 10BASE, Pause and Asym Pause is yest supported */
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Full_BIT);
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_Pause_BIT);
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_Asym_Pause_BIT);
 
-	/* Half Duplex is not supported */
+	/* Half Duplex is yest supported */
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
 
@@ -1223,7 +1223,7 @@ static int ravb_set_ringparam(struct net_device *ndev,
 		error = ravb_stop_dma(ndev);
 		if (error) {
 			netdev_err(ndev,
-				   "cannot set ringparam! Any AVB processes are still running?\n");
+				   "canyest set ringparam! Any AVB processes are still running?\n");
 			return error;
 		}
 		synchronize_irq(ndev->irq);
@@ -1331,7 +1331,7 @@ static inline int ravb_hook_irq(unsigned int irq, irq_handler_t handler,
 		return -ENOMEM;
 	error = request_irq(irq, handler, 0, name, ndev);
 	if (error)
-		netdev_err(ndev, "cannot request IRQ %s\n", name);
+		netdev_err(ndev, "canyest request IRQ %s\n", name);
 
 	return error;
 }
@@ -1351,7 +1351,7 @@ static int ravb_open(struct net_device *ndev)
 		error = request_irq(ndev->irq, ravb_interrupt, IRQF_SHARED,
 				    ndev->name, ndev);
 		if (error) {
-			netdev_err(ndev, "cannot request IRQ\n");
+			netdev_err(ndev, "canyest request IRQ\n");
 			goto out_napi_off;
 		}
 	} else {
@@ -1657,7 +1657,7 @@ static void ravb_set_rx_mode(struct net_device *ndev)
 /* Device close function for Ethernet AVB */
 static int ravb_close(struct net_device *ndev)
 {
-	struct device_node *np = ndev->dev.parent->of_node;
+	struct device_yesde *np = ndev->dev.parent->of_yesde;
 	struct ravb_private *priv = netdev_priv(ndev);
 	struct ravb_tstamp_skb *ts_skb, *ts_skb2;
 
@@ -1881,7 +1881,7 @@ static int ravb_mdio_init(struct ravb_private *priv)
 		 pdev->name, pdev->id);
 
 	/* Register MDIO bus */
-	error = of_mdiobus_register(priv->mii_bus, dev->of_node);
+	error = of_mdiobus_register(priv->mii_bus, dev->of_yesde);
 	if (error)
 		goto out_free_bus;
 
@@ -1973,7 +1973,7 @@ static void ravb_set_delay_mode(struct net_device *ndev)
 	if (priv->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
 	    priv->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID) {
 		if (!WARN(soc_device_match(ravb_delay_mode_quirk_match),
-			  "phy-mode %s requires TX clock internal delay mode which is not supported by this hardware revision. Please update device tree",
+			  "phy-mode %s requires TX clock internal delay mode which is yest supported by this hardware revision. Please update device tree",
 			  phy_modes(priv->phy_interface)))
 			set |= APSR_DM_TDM;
 	}
@@ -1983,7 +1983,7 @@ static void ravb_set_delay_mode(struct net_device *ndev)
 
 static int ravb_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct ravb_private *priv;
 	enum ravb_chip_id chip_id;
 	struct net_device *ndev;
@@ -2052,7 +2052,7 @@ static int ravb_probe(struct platform_device *pdev)
 	if (error && error != -ENODEV)
 		goto out_release;
 
-	priv->no_avb_link = of_property_read_bool(np, "renesas,no-ether-link");
+	priv->yes_avb_link = of_property_read_bool(np, "renesas,yes-ether-link");
 	priv->avb_link_active_low =
 		of_property_read_bool(np, "renesas,ether-link-active-low");
 
@@ -2119,7 +2119,7 @@ static int ravb_probe(struct platform_device *pdev)
 					    &priv->desc_bat_dma, GFP_KERNEL);
 	if (!priv->desc_bat) {
 		dev_err(&pdev->dev,
-			"Cannot allocate desc base address table (size %d bytes)\n",
+			"Canyest allocate desc base address table (size %d bytes)\n",
 			priv->desc_bat_size);
 		error = -ENOMEM;
 		goto out_release;
@@ -2142,7 +2142,7 @@ static int ravb_probe(struct platform_device *pdev)
 	ravb_read_mac_address(ndev, of_get_mac_address(np));
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		dev_warn(&pdev->dev,
-			 "no valid MAC address supplied, using a random one\n");
+			 "yes valid MAC address supplied, using a random one\n");
 		eth_hw_addr_random(ndev);
 	}
 
@@ -2320,13 +2320,13 @@ static int __maybe_unused ravb_resume(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused ravb_runtime_nop(struct device *dev)
+static int __maybe_unused ravb_runtime_yesp(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
 	 * and ->runtime_resume(). Simply returns success.
 	 *
 	 * This driver re-initializes all registers after
-	 * pm_runtime_get_sync() anyway so there is no need
+	 * pm_runtime_get_sync() anyway so there is yes need
 	 * to save and restore registers here.
 	 */
 	return 0;
@@ -2334,7 +2334,7 @@ static int __maybe_unused ravb_runtime_nop(struct device *dev)
 
 static const struct dev_pm_ops ravb_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ravb_suspend, ravb_resume)
-	SET_RUNTIME_PM_OPS(ravb_runtime_nop, ravb_runtime_nop, NULL)
+	SET_RUNTIME_PM_OPS(ravb_runtime_yesp, ravb_runtime_yesp, NULL)
 };
 
 static struct platform_driver ravb_driver = {

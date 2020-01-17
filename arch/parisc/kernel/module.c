@@ -15,7 +15,7 @@
  *      ipv6 the relocation types R_PARISC_PCREL17F and R_PARISC_PCREL22F may
  *      fail to reach their PLT stub if we only create one big stub array for
  *      all sections at the beginning of the core or init section.
- *      Instead we now insert individual PLT stub entries directly in front of
+ *      Instead we yesw insert individual PLT stub entries directly in front of
  *      of the code sections where the stubs are actually called.
  *      This reduces the distance between the PCREL location and the stub entry
  *      so that the relocations can be fulfilled.
@@ -24,19 +24,19 @@
  *      to be reserved amount of memory in front of each individual section.
  *
  *    - SEGREL32 handling
- *      We are not doing SEGREL32 handling correctly. According to the ABI, we
+ *      We are yest doing SEGREL32 handling correctly. According to the ABI, we
  *      should do a value offset, like this:
  *			if (in_init(me, (void *)val))
  *				val -= (uint32_t)me->init_layout.base;
  *			else
  *				val -= (uint32_t)me->core_layout.base;
  *	However, SEGREL32 is used only for PARISC unwind entries, and we want
- *	those entries to have an absolute address, and not just an offset.
+ *	those entries to have an absolute address, and yest just an offset.
  *
  *	The unwind table mechanism has the ability to specify an offset for
  *	the unwind table; however, because we split off the init functions into
- *	a different piece of memory, it is not possible to do this using a
- *	single offset. Instead, we use the above hack for now.
+ *	a different piece of memory, it is yest possible to do this using a
+ *	single offset. Instead, we use the above hack for yesw.
  */
 
 #include <linux/moduleloader.h>
@@ -198,7 +198,7 @@ void *module_alloc(unsigned long size)
 	/* using RWX means less protection for modules, but it's
 	 * easier than trying to map the text, data, init_text and
 	 * init_data correctly */
-	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
+	return __vmalloc_yesde_range(size, 1, VMALLOC_START, VMALLOC_END,
 				    GFP_KERNEL,
 				    PAGE_KERNEL_RWX, 0, NUMA_NO_NODE,
 				    __builtin_return_address(0));
@@ -321,7 +321,7 @@ int module_frob_arch_sections(CONST Elf_Ehdr *hdr,
 		if (sechdrs[i].sh_type != SHT_RELA)
 			continue;
 
-		/* some of these are not relevant for 32-bit/64-bit
+		/* some of these are yest relevant for 32-bit/64-bit
 		 * we leave them here to make the code common. the
 		 * compiler will do its thing and optimize out the
 		 * stuff we don't need
@@ -438,7 +438,7 @@ static Elf_Addr get_stub(struct module *me, unsigned long value, long addend,
 	stub = (void *) me->arch.section[targetsec].stub_offset;
 	me->arch.section[targetsec].stub_offset += sizeof(struct stub_entry);
 
-	/* do not write outside available stub area */
+	/* do yest write outside available stub area */
 	BUG_ON(0 == me->arch.section[targetsec].stub_entries--);
 
 
@@ -457,7 +457,7 @@ static Elf_Addr get_stub(struct module *me, unsigned long value, long addend,
 
 #else
 /* for 64-bit we have three kinds of stubs:
- * for normal function calls:
+ * for yesrmal function calls:
  * 	ldd 0(%dp),%dp
  * 	ldd 10(%dp), %r1
  * 	bve (%r1)
@@ -546,7 +546,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 		sym = (Elf32_Sym *)sechdrs[symindex].sh_addr
 			+ ELF32_R_SYM(rel[i].r_info);
 		if (!sym->st_value) {
-			printk(KERN_WARNING "%s: Unknown symbol %s\n",
+			printk(KERN_WARNING "%s: Unkyeswn symbol %s\n",
 			       me->name, strtab + sym->st_name);
 			return -ENOENT;
 		}
@@ -577,7 +577,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
 		case R_PARISC_PLABEL32:
 			/* 32-bit function address */
-			/* no function descriptors... */
+			/* yes function descriptors... */
 			*loc = fsel(val, addend);
 			break;
 		case R_PARISC_DIR32:
@@ -596,7 +596,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			break;
 		case R_PARISC_SEGREL32:
 			/* 32-bit segment relative address */
-			/* See note about special handling of SEGREL32 at
+			/* See yeste about special handling of SEGREL32 at
 			 * the beginning of this file.
 			 */
 			*loc = fsel(val, addend);
@@ -651,7 +651,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			break;
 
 		default:
-			printk(KERN_ERR "module %s: Unknown relocation: %u\n",
+			printk(KERN_ERR "module %s: Unkyeswn relocation: %u\n",
 			       me->name, ELF32_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}
@@ -690,7 +690,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 		sym = (Elf64_Sym *)sechdrs[symindex].sh_addr
 			+ ELF64_R_SYM(rel[i].r_info);
 		if (!sym->st_value) {
-			printk(KERN_WARNING "%s: Unknown symbol %s\n",
+			printk(KERN_WARNING "%s: Unkyeswn symbol %s\n",
 			       me->name, strtab + sym->st_name);
 			return -ENOENT;
 		}
@@ -791,7 +791,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			break;
 		case R_PARISC_SEGREL32:
 			/* 32-bit segment relative address */
-			/* See note about special handling of SEGREL32 at
+			/* See yeste about special handling of SEGREL32 at
 			 * the beginning of this file.
 			 */
 			*loc = fsel(val, addend);
@@ -808,7 +808,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 				       strtab + sym->st_name, *loc64,
 				       ((Elf_Fdesc *)*loc64)->addr);
 			} else {
-				/* if the symbol is not local to this
+				/* if the symbol is yest local to this
 				 * module then val+addend is a pointer
 				 * to the function descriptor */
 				pr_debug("Non local FPTR64 Symbol %s loc %p val %llx\n",
@@ -819,7 +819,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			break;
 
 		default:
-			printk(KERN_ERR "module %s: Unknown relocation: %Lu\n",
+			printk(KERN_ERR "module %s: Unkyeswn relocation: %Lu\n",
 			       me->name, ELF64_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}
@@ -912,7 +912,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 	kfree(me->arch.section);
 	me->arch.section = NULL;
 
-	/* no symbol table */
+	/* yes symbol table */
 	if(symhdr == NULL)
 		return 0;
 
@@ -922,7 +922,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 	pr_debug("OLD num_symtab %lu\n", nsyms);
 
 	for (i = 1; i < nsyms; i++) {
-		oldptr++;	/* note, count starts at 1 so preincrement */
+		oldptr++;	/* yeste, count starts at 1 so preincrement */
 		if(strncmp(strtab + oldptr->st_name,
 			      ".L", 2) == 0)
 			continue;

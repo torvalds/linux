@@ -36,7 +36,7 @@ MODULE_LICENSE("GPL");
 
 /*
  * Magic Number
- * Meaning is unknown - this number is required for writing to ACPI for AMW0
+ * Meaning is unkyeswn - this number is required for writing to ACPI for AMW0
  * (it's also used in acerhk when directly accessing the BIOS)
  */
 #define ACER_AMW0_WRITE	0x9610
@@ -288,7 +288,7 @@ static struct wmi_interface *interface;
 /*
  * Embedded Controller quirks
  * Some laptops require us to directly access the EC to either enable or query
- * features that are not available through WMI.
+ * features that are yest available through WMI.
  */
 
 struct quirk_entry {
@@ -318,7 +318,7 @@ static int __init dmi_matched(const struct dmi_system_id *dmi)
 	return 1;
 }
 
-static struct quirk_entry quirk_unknown = {
+static struct quirk_entry quirk_unkyeswn = {
 };
 
 static struct quirk_entry quirk_acer_aspire_1520 = {
@@ -329,7 +329,7 @@ static struct quirk_entry quirk_acer_travelmate_2490 = {
 	.mailled = 1,
 };
 
-/* This AMW0 laptop has no bluetooth */
+/* This AMW0 laptop has yes bluetooth */
 static struct quirk_entry quirk_medion_md_98300 = {
 	.wireless = 1,
 };
@@ -338,7 +338,7 @@ static struct quirk_entry quirk_fujitsu_amilo_li_1718 = {
 	.wireless = 2,
 };
 
-static struct quirk_entry quirk_lenovo_ideapad_s205 = {
+static struct quirk_entry quirk_leyesvo_ideapad_s205 = {
 	.wireless = 3,
 };
 
@@ -500,13 +500,13 @@ static const struct dmi_system_id acer_quirks[] __initconst = {
 };
 
 /*
- * This quirk list is for those non-acer machines that have AMW0_GUID1
+ * This quirk list is for those yesn-acer machines that have AMW0_GUID1
  * but supported by acer-wmi in past days. Keeping this quirk list here
- * is only for backward compatible. Please do not add new machine to
- * here anymore. Those non-acer machines should be supported by
+ * is only for backward compatible. Please do yest add new machine to
+ * here anymore. Those yesn-acer machines should be supported by
  * appropriate wmi drivers.
  */
-static const struct dmi_system_id non_acer_quirks[] __initconst = {
+static const struct dmi_system_id yesn_acer_quirks[] __initconst = {
 	{
 		.callback = dmi_matched,
 		.ident = "Fujitsu Siemens Amilo Li 1718",
@@ -527,25 +527,25 @@ static const struct dmi_system_id non_acer_quirks[] __initconst = {
 	},
 	{
 		.callback = dmi_matched,
-		.ident = "Lenovo Ideapad S205",
+		.ident = "Leyesvo Ideapad S205",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "10382LG"),
 		},
-		.driver_data = &quirk_lenovo_ideapad_s205,
+		.driver_data = &quirk_leyesvo_ideapad_s205,
 	},
 	{
 		.callback = dmi_matched,
-		.ident = "Lenovo Ideapad S205 (Brazos)",
+		.ident = "Leyesvo Ideapad S205 (Brazos)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Brazos"),
 		},
-		.driver_data = &quirk_lenovo_ideapad_s205,
+		.driver_data = &quirk_leyesvo_ideapad_s205,
 	},
 	{
 		.callback = dmi_matched,
-		.ident = "Lenovo 3000 N200",
+		.ident = "Leyesvo 3000 N200",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "0687A31"),
@@ -554,21 +554,21 @@ static const struct dmi_system_id non_acer_quirks[] __initconst = {
 	},
 	{
 		.callback = dmi_matched,
-		.ident = "Lenovo Ideapad S205-10382JG",
+		.ident = "Leyesvo Ideapad S205-10382JG",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "10382JG"),
 		},
-		.driver_data = &quirk_lenovo_ideapad_s205,
+		.driver_data = &quirk_leyesvo_ideapad_s205,
 	},
 	{
 		.callback = dmi_matched,
-		.ident = "Lenovo Ideapad S205-1038DPG",
+		.ident = "Leyesvo Ideapad S205-1038DPG",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "1038DPG"),
 		},
-		.driver_data = &quirk_lenovo_ideapad_s205,
+		.driver_data = &quirk_leyesvo_ideapad_s205,
 	},
 	{}
 };
@@ -624,8 +624,8 @@ static const struct dmi_system_id video_vendor_dmi_table[] __initconst = {
 	},
 	{
 		/*
-		 * Note no video_set_backlight_video_vendor, we must use the
-		 * acer interface, as there is no native backlight interface.
+		 * Note yes video_set_backlight_video_vendor, we must use the
+		 * acer interface, as there is yes native backlight interface.
 		 */
 		.ident = "Acer KAV80",
 		.matches = {
@@ -641,13 +641,13 @@ static void __init find_quirks(void)
 {
 	if (!force_series) {
 		dmi_check_system(acer_quirks);
-		dmi_check_system(non_acer_quirks);
+		dmi_check_system(yesn_acer_quirks);
 	} else if (force_series == 2490) {
 		quirks = &quirk_acer_travelmate_2490;
 	}
 
 	if (quirks == NULL)
-		quirks = &quirk_unknown;
+		quirks = &quirk_unkyeswn;
 
 	set_quirks();
 }
@@ -834,7 +834,7 @@ static acpi_status __init AMW0_find_mailled(void)
 	return AE_OK;
 }
 
-static const struct acpi_device_id norfkill_ids[] __initconst = {
+static const struct acpi_device_id yesrfkill_ids[] __initconst = {
 	{ "VPC2004", 0},
 	{ "IBM0068", 0},
 	{ "LEN0068", 0},
@@ -847,7 +847,7 @@ static int __init AMW0_set_cap_acpi_check_device(void)
 {
 	const struct acpi_device_id *id;
 
-	for (id = norfkill_ids; id->id[0]; id++)
+	for (id = yesrfkill_ids; id->id[0]; id++)
 		if (acpi_dev_found(id->id))
 			return true;
 
@@ -863,11 +863,11 @@ static acpi_status __init AMW0_set_capabilities(void)
 	union acpi_object *obj;
 
 	/*
-	 * On laptops with this strange GUID (non Acer), normal probing doesn't
+	 * On laptops with this strange GUID (yesn Acer), yesrmal probing doesn't
 	 * work.
 	 */
 	if (wmi_has_guid(AMW0_GUID2)) {
-		if ((quirks != &quirk_unknown) ||
+		if ((quirks != &quirk_unkyeswn) ||
 		    !AMW0_set_cap_acpi_check_device())
 			interface->capability |= ACER_CAP_WIRELESS;
 		return AE_OK;
@@ -1085,7 +1085,7 @@ static acpi_status wmid3_get_device_status(u32 *value, u16 device)
 		return AE_ERROR;
 	}
 	if (obj->buffer.length != 8) {
-		pr_warn("Unknown buffer length %d\n", obj->buffer.length);
+		pr_warn("Unkyeswn buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return AE_ERROR;
 	}
@@ -1164,7 +1164,7 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 		return AE_ERROR;
 	}
 	if (obj->buffer.length != 8) {
-		pr_warn("Unknown buffer length %d\n", obj->buffer.length);
+		pr_warn("Unkyeswn buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return AE_ERROR;
 	}
@@ -1195,7 +1195,7 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 		return AE_ERROR;
 	}
 	if (obj->buffer.length != 4) {
-		pr_warn("Unknown buffer length %d\n", obj->buffer.length);
+		pr_warn("Unkyeswn buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return AE_ERROR;
 	}
@@ -1404,7 +1404,7 @@ static void __init acer_commandline_init(void)
 }
 
 /*
- * LED device (Mail LED only, no other LEDs known yet)
+ * LED device (Mail LED only, yes other LEDs kyeswn yet)
  */
 static void mail_led_set(struct led_classdev *led_cdev,
 enum led_brightness value)
@@ -1470,7 +1470,7 @@ static int acer_backlight_init(struct device *dev)
 	bd = backlight_device_register("acer-wmi", dev, NULL, &acer_bl_ops,
 				       &props);
 	if (IS_ERR(bd)) {
-		pr_err("Could not register Acer backlight device\n");
+		pr_err("Could yest register Acer backlight device\n");
 		acer_backlight_device = NULL;
 		return PTR_ERR(bd);
 	}
@@ -1545,9 +1545,9 @@ static int acer_gsensor_event(void)
 /*
  * Rfkill devices
  */
-static void acer_rfkill_update(struct work_struct *ignored);
+static void acer_rfkill_update(struct work_struct *igyesred);
 static DECLARE_DELAYED_WORK(acer_rfkill_work, acer_rfkill_update);
-static void acer_rfkill_update(struct work_struct *ignored)
+static void acer_rfkill_update(struct work_struct *igyesred)
 {
 	u32 state;
 	acpi_status status;
@@ -1703,7 +1703,7 @@ static void acer_rfkill_exit(void)
 	return;
 }
 
-static void acer_wmi_notify(u32 value, void *context)
+static void acer_wmi_yestify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
@@ -1724,12 +1724,12 @@ static void acer_wmi_notify(u32 value, void *context)
 	if (!obj)
 		return;
 	if (obj->type != ACPI_TYPE_BUFFER) {
-		pr_warn("Unknown response received %d\n", obj->type);
+		pr_warn("Unkyeswn response received %d\n", obj->type);
 		kfree(obj);
 		return;
 	}
 	if (obj->buffer.length != 8) {
-		pr_warn("Unknown buffer length %d\n", obj->buffer.length);
+		pr_warn("Unkyeswn buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return;
 	}
@@ -1745,7 +1745,7 @@ static void acer_wmi_notify(u32 value, void *context)
 		key = sparse_keymap_entry_from_scancode(acer_wmi_input_dev,
 							return_value.key_num);
 		if (!key) {
-			pr_warn("Unknown key number - 0x%x\n",
+			pr_warn("Unkyeswn key number - 0x%x\n",
 				return_value.key_num);
 		} else {
 			scancode = return_value.key_num;
@@ -1773,7 +1773,7 @@ static void acer_wmi_notify(u32 value, void *context)
 		acer_gsensor_event();
 		break;
 	default:
-		pr_warn("Unknown function number - %d - %d\n",
+		pr_warn("Unkyeswn function number - %d - %d\n",
 			return_value.function, return_value.key_num);
 		break;
 	}
@@ -1802,7 +1802,7 @@ wmid3_set_function_mode(struct func_input_params *params,
 		return AE_ERROR;
 	}
 	if (obj->buffer.length != 4) {
-		pr_warn("Unknown buffer length %d\n", obj->buffer.length);
+		pr_warn("Unkyeswn buffer length %d\n", obj->buffer.length);
 		kfree(obj);
 		return AE_ERROR;
 	}
@@ -1942,8 +1942,8 @@ static int __init acer_wmi_input_setup(void)
 	if (err)
 		goto err_free_dev;
 
-	status = wmi_install_notify_handler(ACERWMID_EVENT_GUID,
-						acer_wmi_notify, NULL);
+	status = wmi_install_yestify_handler(ACERWMID_EVENT_GUID,
+						acer_wmi_yestify, NULL);
 	if (ACPI_FAILURE(status)) {
 		err = -EIO;
 		goto err_free_dev;
@@ -1951,12 +1951,12 @@ static int __init acer_wmi_input_setup(void)
 
 	err = input_register_device(acer_wmi_input_dev);
 	if (err)
-		goto err_uninstall_notifier;
+		goto err_uninstall_yestifier;
 
 	return 0;
 
-err_uninstall_notifier:
-	wmi_remove_notify_handler(ACERWMID_EVENT_GUID);
+err_uninstall_yestifier:
+	wmi_remove_yestify_handler(ACERWMID_EVENT_GUID);
 err_free_dev:
 	input_free_device(acer_wmi_input_dev);
 	return err;
@@ -1964,7 +1964,7 @@ err_free_dev:
 
 static void acer_wmi_input_destroy(void)
 {
-	wmi_remove_notify_handler(ACERWMID_EVENT_GUID);
+	wmi_remove_yestify_handler(ACERWMID_EVENT_GUID);
 	input_unregister_device(acer_wmi_input_dev);
 }
 
@@ -2134,16 +2134,16 @@ static int __init acer_wmi_init(void)
 	pr_info("Acer Laptop ACPI-WMI Extras\n");
 
 	if (dmi_check_system(acer_blacklist)) {
-		pr_info("Blacklisted hardware detected - not loading\n");
+		pr_info("Blacklisted hardware detected - yest loading\n");
 		return -ENODEV;
 	}
 
 	find_quirks();
 
 	/*
-	 * The AMW0_GUID1 wmi is not only found on Acer family but also other
-	 * machines like Lenovo, Fujitsu and Medion. In the past days,
-	 * acer-wmi driver handled those non-Acer machines by quirks list.
+	 * The AMW0_GUID1 wmi is yest only found on Acer family but also other
+	 * machines like Leyesvo, Fujitsu and Medion. In the past days,
+	 * acer-wmi driver handled those yesn-Acer machines by quirks list.
 	 * But actually acer-wmi driver was loaded on any machines that have
 	 * AMW0_GUID1. This behavior is strange because those machines should
 	 * be supported by appropriate wmi drivers. e.g. fujitsu-laptop,
@@ -2153,7 +2153,7 @@ static int __init acer_wmi_init(void)
 	 */
 	if (wmi_has_guid(AMW0_GUID1) &&
 	    !dmi_check_system(amw0_whitelist) &&
-	    quirks == &quirk_unknown) {
+	    quirks == &quirk_unkyeswn) {
 		pr_debug("Unsupported machine has AMW0_GUID1, unable to load\n");
 		return -ENODEV;
 	}
@@ -2212,15 +2212,15 @@ static int __init acer_wmi_init(void)
 
 	if (wmi_has_guid(WMID_GUID3)) {
 		if (ACPI_FAILURE(acer_wmi_enable_rf_button()))
-			pr_warn("Cannot enable RF Button Driver\n");
+			pr_warn("Canyest enable RF Button Driver\n");
 
 		if (ec_raw_mode) {
 			if (ACPI_FAILURE(acer_wmi_enable_ec_raw())) {
-				pr_err("Cannot enable EC raw mode\n");
+				pr_err("Canyest enable EC raw mode\n");
 				return -ENODEV;
 			}
 		} else if (ACPI_FAILURE(acer_wmi_enable_lm())) {
-			pr_err("Cannot enable Launch Manager mode\n");
+			pr_err("Canyest enable Launch Manager mode\n");
 			return -ENODEV;
 		}
 	} else if (ec_raw_mode) {
@@ -2233,7 +2233,7 @@ static int __init acer_wmi_init(void)
 			return err;
 		err = acer_wmi_accel_setup();
 		if (err && err != -ENODEV)
-			pr_warn("Cannot enable accelerometer\n");
+			pr_warn("Canyest enable accelerometer\n");
 	}
 
 	err = platform_driver_register(&acer_platform_driver);

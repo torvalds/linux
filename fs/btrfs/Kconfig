@@ -23,7 +23,7 @@ config BTRFS_FS
 	  writable snapshotting, support for multiple devices and many more
 	  features focused on fault tolerance, repair and easy administration.
 
-	  The filesystem disk format is no longer unstable, and it's not
+	  The filesystem disk format is yes longer unstable, and it's yest
 	  expected to change unless there are strong reasons to do so. If there
 	  is a format change, file systems with a unchanged format will
 	  continue to be mountable and usable by newer kernels.
@@ -44,7 +44,7 @@ config BTRFS_FS_POSIX_ACL
 	  POSIX Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  If you don't know what Access Control Lists are, say N
+	  If you don't kyesw what Access Control Lists are, say N
 
 config BTRFS_FS_CHECK_INTEGRITY
 	bool "Btrfs with integrity check tool compiled in (DANGEROUS)"
@@ -59,7 +59,7 @@ config BTRFS_FS_CHECK_INTEGRITY
 	  If the integrity check tool is included and activated in
 	  the mount options, plenty of kernel memory is used, and
 	  plenty of additional CPU cycles are spent. Enabling this
-	  functionality is not intended for normal use.
+	  functionality is yest intended for yesrmal use.
 
 	  In most cases, unless you are a btrfs developer who needs
 	  to verify the integrity of (super)-block write requests

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2019 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2019 Netroyesme Systems, Inc. */
 
 #include <linux/bitfield.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/etherdevice.h>
 #include <linux/if_link.h>
 #include <linux/if_ether.h>
@@ -24,7 +24,7 @@ nfp_net_sriov_check(struct nfp_app *app, int vf, u16 cap, const char *msg)
 
 	cap_vf = readw(app->pf->vfcfg_tbl2 + NFP_NET_VF_CFG_MB_CAP);
 	if ((cap_vf & cap) != cap) {
-		nfp_warn(app->pf->cpp, "ndo_set_vf_%s not supported\n", msg);
+		nfp_warn(app->pf->cpp, "ndo_set_vf_%s yest supported\n", msg);
 		return -EOPNOTSUPP;
 	}
 
@@ -55,7 +55,7 @@ nfp_net_sriov_update(struct nfp_app *app, int vf, u16 update, const char *msg)
 	ret = readw(app->pf->vfcfg_tbl2 + NFP_NET_VF_CFG_MB_RET);
 	if (ret)
 		nfp_warn(app->pf->cpp,
-			 "FW refused VF %s update with errno: %d\n", msg, ret);
+			 "FW refused VF %s update with erryes: %d\n", msg, ret);
 	return -ret;
 }
 

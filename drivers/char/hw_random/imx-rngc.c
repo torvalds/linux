@@ -54,7 +54,7 @@ struct imx_rngc {
 	struct completion	rng_op_done;
 	/*
 	 * err_reg is written only by the irq handler and read only
-	 * when interrupts are masked, we need no spinlock
+	 * when interrupts are masked, we need yes spinlock
 	 */
 	u32			err_reg;
 };
@@ -70,7 +70,7 @@ static inline void imx_rngc_irq_mask_clear(struct imx_rngc *rngc)
 	writel(ctrl, rngc->base + RNGC_CONTROL);
 
 	/*
-	 * CLR_INT clears the interrupt only if there's no error
+	 * CLR_INT clears the interrupt only if there's yes error
 	 * CLR_ERR clear the interrupt and the error register if there
 	 * is an error
 	 */
@@ -209,7 +209,7 @@ static int imx_rngc_probe(struct platform_device *pdev)
 
 	rngc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(rngc->clk)) {
-		dev_err(&pdev->dev, "Can not get rng_clk\n");
+		dev_err(&pdev->dev, "Can yest get rng_clk\n");
 		return PTR_ERR(rngc->clk);
 	}
 

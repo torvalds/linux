@@ -35,7 +35,7 @@ struct v3d_queue_state {
 	struct drm_gpu_scheduler sched;
 
 	u64 fence_context;
-	u64 emit_seqno;
+	u64 emit_seqyes;
 };
 
 struct v3d_dev {
@@ -102,13 +102,13 @@ struct v3d_dev {
 	struct mutex reset_lock;
 
 	/* Lock taken when creating and pushing the GPU scheduler
-	 * jobs, to keep the sched-fence seqnos in order.
+	 * jobs, to keep the sched-fence seqyess in order.
 	 */
 	struct mutex sched_lock;
 
 	/* Lock taken during a cache clean and when initiating an L2
 	 * flush, to keep L2 flushes from interfering with the
-	 * synchronous L2 cleans.
+	 * synchroyesus L2 cleans.
 	 */
 	struct mutex cache_clean_lock;
 
@@ -140,7 +140,7 @@ struct v3d_file_priv {
 struct v3d_bo {
 	struct drm_gem_shmem_object base;
 
-	struct drm_mm_node node;
+	struct drm_mm_yesde yesde;
 
 	/* List entry for the BO's position in
 	 * v3d_render_job->unref_list
@@ -157,8 +157,8 @@ to_v3d_bo(struct drm_gem_object *bo)
 struct v3d_fence {
 	struct dma_fence base;
 	struct drm_device *dev;
-	/* v3d seqno for signaled() test */
-	u64 seqno;
+	/* v3d seqyes for signaled() test */
+	u64 seqyes;
 	enum v3d_queue queue;
 };
 
@@ -277,7 +277,7 @@ struct v3d_csd_job {
 
 static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
 {
-	/* nsecs_to_jiffies64() does not guard against overflow */
+	/* nsecs_to_jiffies64() does yest guard against overflow */
 	if (NSEC_PER_SEC % HZ &&
 	    div_u64(n, NSEC_PER_SEC) >= MAX_JIFFY_OFFSET / HZ)
 		return MAX_JIFFY_OFFSET;
@@ -301,7 +301,7 @@ struct drm_gem_object *v3d_prime_import_sg_table(struct drm_device *dev,
 						 struct sg_table *sgt);
 
 /* v3d_debugfs.c */
-int v3d_debugfs_init(struct drm_minor *minor);
+int v3d_debugfs_init(struct drm_miyesr *miyesr);
 
 /* v3d_fence.c */
 extern const struct dma_fence_ops v3d_fence_ops;

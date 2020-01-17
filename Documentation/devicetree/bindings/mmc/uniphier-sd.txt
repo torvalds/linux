@@ -31,7 +31,7 @@ Optional properties:
 - sd-uhs-sdr25: see mmc.txt
 - sd-uhs-sdr50: see mmc.txt
 - cap-mmc-hw-reset: should exist if reset-names contains "hw". see mmc.txt
-- non-removable: see mmc.txt
+- yesn-removable: see mmc.txt
 
 Example:
 

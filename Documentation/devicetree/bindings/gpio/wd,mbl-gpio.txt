@@ -14,10 +14,10 @@ Required properties:
 			the second cell is used to specify the gpio polarity:
 			0 = active high
 			1 = active low
-	- gpio-controller: Marks the device node as a gpio controller.
+	- gpio-controller: Marks the device yesde as a gpio controller.
 
 Optional properties:
-	- no-output: GPIOs are read-only.
+	- yes-output: GPIOs are read-only.
 
 Examples:
 	gpio0: gpio0@e0000000 {
@@ -34,5 +34,5 @@ Examples:
 		reg = <0xe0100000 0x1>;
 		#gpio-cells = <2>;
 		gpio-controller;
-		no-output;
+		yes-output;
 	};

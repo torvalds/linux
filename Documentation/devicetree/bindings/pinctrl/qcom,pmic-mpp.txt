@@ -37,48 +37,48 @@ of PMIC's from Qualcomm.
 
 - gpio-controller:
 	Usage: required
-	Value type: <none>
-	Definition: Mark the device node as a GPIO controller
+	Value type: <yesne>
+	Definition: Mark the device yesde as a GPIO controller
 
 - #gpio-cells:
 	Usage: required
 	Value type: <u32>
 	Definition: Must be 2;
 		    the first cell will be used to define MPP number and the
-		    second denotes the flags for this MPP
+		    second deyestes the flags for this MPP
 
 Please refer to ../gpio/gpio.txt and ../interrupt-controller/interrupts.txt for
 a general description of GPIO and interrupt bindings.
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration yesde".
 
-The pin configuration nodes act as a container for an arbitrary number of
-subnodes. Each of these subnodes represents some desired configuration for a
+The pin configuration yesdes act as a container for an arbitrary number of
+subyesdes. Each of these subyesdes represents some desired configuration for a
 pin or a list of pins. This configuration can include the
 mux function to select on those pin(s), and various pin configuration
 parameters, as listed below.
 
 SUBNODES:
 
-The name of each subnode is not important; all subnodes should be enumerated
+The name of each subyesde is yest important; all subyesdes should be enumerated
 and processed purely based on their content.
 
-Each subnode only affects those parameters that are explicitly listed. In
-other words, a subnode that lists a mux function but no pin configuration
-parameters implies no information about any pin configuration parameters.
-Similarly, a pin subnode that describes a pullup parameter implies no
+Each subyesde only affects those parameters that are explicitly listed. In
+other words, a subyesde that lists a mux function but yes pin configuration
+parameters implies yes information about any pin configuration parameters.
+Similarly, a pin subyesde that describes a pullup parameter implies yes
 information about e.g. the mux function.
 
 The following generic properties as defined in pinctrl-bindings.txt are valid
-to specify in a pin configuration subnode:
+to specify in a pin configuration subyesde:
 
 - pins:
 	Usage: required
 	Value type: <string-array>
 	Definition: List of MPP pins affected by the properties specified in
-		    this subnode.  Valid pins are:
+		    this subyesde.  Valid pins are:
 		    mpp1-mpp4 for pm8841
 		    mpp1-mpp4 for pm8916
 		    mpp1-mpp8 for pm8941
@@ -97,8 +97,8 @@ to specify in a pin configuration subnode:
 
 - bias-disable:
 	Usage: optional
-	Value type: <none>
-	Definition: The specified pins should be configured as no pull.
+	Value type: <yesne>
+	Definition: The specified pins should be configured as yes pull.
 
 - bias-pull-up:
 	Usage: optional
@@ -106,29 +106,29 @@ to specify in a pin configuration subnode:
 	Definition: The specified pins should be configured as pull up.
 		    Valid values are 600, 10000 and 30000 in bidirectional mode
 		    only, i.e. when operating in qcom,analog-mode and input and
-		    outputs are enabled. The hardware ignores the configuration
+		    outputs are enabled. The hardware igyesres the configuration
 		    when operating in other modes.
 
 - bias-high-impedance:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins will put in high-Z mode and disabled.
 
 - input-enable:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins are put in input mode, i.e. their input
 		    buffer is enabled
 
 - output-high:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins are configured in output mode, driven
 		    high.
 
 - output-low:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins are configured in output mode, driven
 		    low.
 
@@ -159,7 +159,7 @@ to specify in a pin configuration subnode:
 		    PMIC_MPP_AMUX_ROUTE_CH5, PMIC_MPP_AMUX_ROUTE_CH6...
 - qcom,paired:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: Indicates that the pin should be operating in paired mode.
 
 Example:

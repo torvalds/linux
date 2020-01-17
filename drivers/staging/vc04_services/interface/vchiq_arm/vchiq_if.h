@@ -75,7 +75,7 @@ struct vchiq_service_params {
 	int fourcc;
 	vchiq_callback callback;
 	void *userdata;
-	short version;       /* Increment for non-trivial changes */
+	short version;       /* Increment for yesn-trivial changes */
 	short version_min;   /* Update for incompatible changes */
 };
 

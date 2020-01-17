@@ -12,7 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/io.h>
@@ -40,7 +40,7 @@ unsigned long gru_end_paddr __read_mostly;
 unsigned int gru_max_gids __read_mostly;
 struct gru_stats_s gru_stats;
 
-/* Guaranteed user available resources on each node */
+/* Guaranteed user available resources on each yesde */
 static int max_user_cbrs, max_user_dsr_bytes;
 
 static struct miscdevice gru_miscdev;
@@ -157,17 +157,17 @@ static int gru_create_new_context(unsigned long arg)
 static long gru_get_config_info(unsigned long arg)
 {
 	struct gru_config_info info;
-	int nodesperblade;
+	int yesdesperblade;
 
-	if (num_online_nodes() > 1 &&
-			(uv_node_to_blade_id(1) == uv_node_to_blade_id(0)))
-		nodesperblade = 2;
+	if (num_online_yesdes() > 1 &&
+			(uv_yesde_to_blade_id(1) == uv_yesde_to_blade_id(0)))
+		yesdesperblade = 2;
 	else
-		nodesperblade = 1;
+		yesdesperblade = 1;
 	memset(&info, 0, sizeof(info));
 	info.cpus = num_online_cpus();
-	info.nodes = num_online_nodes();
-	info.blades = info.nodes / nodesperblade;
+	info.yesdes = num_online_yesdes();
+	info.blades = info.yesdes / yesdesperblade;
 	info.chiplets = GRU_CHIPLETS_PER_BLADE * info.blades;
 
 	if (copy_to_user((void __user *)arg, &info, sizeof(info)))
@@ -250,7 +250,7 @@ static void gru_init_chiplet(struct gru_state *gru, unsigned long paddr,
 
 static int gru_init_tables(unsigned long gru_base_paddr, void *gru_base_vaddr)
 {
-	int pnode, nid, bid, chip;
+	int pyesde, nid, bid, chip;
 	int cbrs, dsrbytes, n;
 	int order = get_order(sizeof(struct gru_blade_state));
 	struct page *page;
@@ -261,9 +261,9 @@ static int gru_init_tables(unsigned long gru_base_paddr, void *gru_base_vaddr)
 	max_user_cbrs = GRU_NUM_CB;
 	max_user_dsr_bytes = GRU_NUM_DSR_BYTES;
 	for_each_possible_blade(bid) {
-		pnode = uv_blade_to_pnode(bid);
-		nid = uv_blade_to_memory_nid(bid);/* -1 if no memory on blade */
-		page = alloc_pages_node(nid, GFP_KERNEL, order);
+		pyesde = uv_blade_to_pyesde(bid);
+		nid = uv_blade_to_memory_nid(bid);/* -1 if yes memory on blade */
+		page = alloc_pages_yesde(nid, GFP_KERNEL, order);
 		if (!page)
 			goto fail;
 		gru_base[bid] = page_address(page);
@@ -277,8 +277,8 @@ static int gru_init_tables(unsigned long gru_base_paddr, void *gru_base_vaddr)
 		for (gru = gru_base[bid]->bs_grus, chip = 0;
 				chip < GRU_CHIPLETS_PER_BLADE;
 				chip++, gru++) {
-			paddr = gru_chiplet_paddr(gru_base_paddr, pnode, chip);
-			vaddr = gru_chiplet_vaddr(gru_base_vaddr, pnode, chip);
+			paddr = gru_chiplet_paddr(gru_base_paddr, pyesde, chip);
+			vaddr = gru_chiplet_vaddr(gru_base_vaddr, pyesde, chip);
 			gru_init_chiplet(gru, paddr, vaddr, bid, chip);
 			n = hweight64(gru->gs_cbr_map) * GRU_CBR_AU_SIZE;
 			cbrs = max(cbrs, n);
@@ -313,7 +313,7 @@ static unsigned long gru_chiplet_cpu_to_mmr(int chiplet, int cpu, int *corep)
 	int core;
 
 	/*
-	 * We target the cores of a blade and not the hyperthreads themselves.
+	 * We target the cores of a blade and yest the hyperthreads themselves.
 	 * There is a max of 8 cores per socket and 2 sockets per blade,
 	 * making for a max total of 16 cores (i.e., 16 CPUs without
 	 * hyperthreading and 32 CPUs with hyperthreading).
@@ -340,15 +340,15 @@ static unsigned long gru_chiplet_cpu_to_mmr(int chiplet, int cpu, int *corep)
 
 static int gru_irq_count[GRU_CHIPLETS_PER_BLADE];
 
-static void gru_noop(struct irq_data *d)
+static void gru_yesop(struct irq_data *d)
 {
 }
 
 static struct irq_chip gru_chip[GRU_CHIPLETS_PER_BLADE] = {
 	[0 ... GRU_CHIPLETS_PER_BLADE - 1] {
-		.irq_mask	= gru_noop,
-		.irq_unmask	= gru_noop,
-		.irq_ack	= gru_noop
+		.irq_mask	= gru_yesop,
+		.irq_unmask	= gru_yesop,
+		.irq_ack	= gru_yesop
 	}
 };
 
@@ -367,14 +367,14 @@ static int gru_chiplet_setup_tlb_irq(int chiplet, char *irq_name,
 		gru_chip[chiplet].name = irq_name;
 		ret = irq_set_chip(irq, &gru_chip[chiplet]);
 		if (ret) {
-			printk(KERN_ERR "%s: set_irq_chip failed, errno=%d\n",
+			printk(KERN_ERR "%s: set_irq_chip failed, erryes=%d\n",
 			       GRU_DRIVER_ID_STR, -ret);
 			return ret;
 		}
 
 		ret = request_irq(irq, irq_handler, 0, irq_name, NULL);
 		if (ret) {
-			printk(KERN_ERR "%s: request_irq failed, errno=%d\n",
+			printk(KERN_ERR "%s: request_irq failed, erryes=%d\n",
 			       GRU_DRIVER_ID_STR, -ret);
 			return ret;
 		}
@@ -415,7 +415,7 @@ static int gru_chiplet_setup_tlb_irq(int chiplet, char *irq_name,
 
 	irq = uv_setup_irq(irq_name, cpu, blade, mmr, UV_AFFINITY_CPU);
 	if (irq < 0) {
-		printk(KERN_ERR "%s: uv_setup_irq failed, errno=%d\n",
+		printk(KERN_ERR "%s: uv_setup_irq failed, erryes=%d\n",
 		       GRU_DRIVER_ID_STR, -irq);
 		return irq;
 	}
@@ -423,7 +423,7 @@ static int gru_chiplet_setup_tlb_irq(int chiplet, char *irq_name,
 	ret = request_irq(irq, irq_handler, 0, irq_name, NULL);
 	if (ret) {
 		uv_teardown_irq(irq);
-		printk(KERN_ERR "%s: request_irq failed, errno=%d\n",
+		printk(KERN_ERR "%s: request_irq failed, erryes=%d\n",
 		       GRU_DRIVER_ID_STR, -ret);
 		return ret;
 	}
@@ -573,18 +573,18 @@ static void __exit gru_exit(void)
 	gru_free_tables();
 	misc_deregister(&gru_miscdev);
 	gru_proc_exit();
-	mmu_notifier_synchronize();
+	mmu_yestifier_synchronize();
 }
 
 static const struct file_operations gru_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= gru_file_unlocked_ioctl,
 	.mmap		= gru_file_mmap,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct miscdevice gru_miscdev = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.miyesr		= MISC_DYNAMIC_MINOR,
 	.name		= "gru",
 	.fops		= &gru_fops,
 };

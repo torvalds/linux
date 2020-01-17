@@ -22,8 +22,8 @@ struct thunder_mdiobus_nexus {
 static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
-	struct device_node *node;
-	struct fwnode_handle *fwn;
+	struct device_yesde *yesde;
+	struct fwyesde_handle *fwn;
 	struct thunder_mdiobus_nexus *nexus;
 	int err;
 	int i;
@@ -54,24 +54,24 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 	}
 
 	i = 0;
-	device_for_each_child_node(&pdev->dev, fwn) {
+	device_for_each_child_yesde(&pdev->dev, fwn) {
 		struct resource r;
 		struct mii_bus *mii_bus;
 		struct cavium_mdiobus *bus;
 		union cvmx_smix_en smi_en;
 
-		/* If it is not an OF node we cannot handle it yet, so
+		/* If it is yest an OF yesde we canyest handle it yet, so
 		 * exit the loop.
 		 */
-		node = to_of_node(fwn);
-		if (!node)
+		yesde = to_of_yesde(fwn);
+		if (!yesde)
 			break;
 
-		err = of_address_to_resource(node, 0, &r);
+		err = of_address_to_resource(yesde, 0, &r);
 		if (err) {
 			dev_err(&pdev->dev,
 				"Couldn't translate address for \"%pOFn\"\n",
-				node);
+				yesde);
 			break;
 		}
 
@@ -96,7 +96,7 @@ static int thunder_mdiobus_pci_probe(struct pci_dev *pdev,
 		bus->mii_bus->read = cavium_mdiobus_read;
 		bus->mii_bus->write = cavium_mdiobus_write;
 
-		err = of_mdiobus_register(bus->mii_bus, node);
+		err = of_mdiobus_register(bus->mii_bus, yesde);
 		if (err)
 			dev_err(&pdev->dev, "of_mdiobus_register failed\n");
 

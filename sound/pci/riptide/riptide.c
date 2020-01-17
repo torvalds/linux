@@ -2,7 +2,7 @@
 /*
  *   Driver for the Conexant Riptide Soundchip
  *
- *	Copyright (c) 2004 Peter Gruber <nokos@gmx.net>
+ *	Copyright (c) 2004 Peter Gruber <yeskos@gmx.net>
  */
 /*
   History:
@@ -100,7 +100,7 @@
 #define SUPPORT_JOYSTICK 1
 #endif
 
-MODULE_AUTHOR("Peter Gruber <nokos@gmx.net>");
+MODULE_AUTHOR("Peter Gruber <yeskos@gmx.net>");
 MODULE_DESCRIPTION("riptide");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Conexant,Riptide}}");
@@ -176,7 +176,7 @@ MODULE_PARM_DESC(opl3_port, "OPL3 port # for Riptide driver.");
 #define UNSET_GRESET(p)   MASK_AUDIO_CONTROL(p,~0x0001)
 #define SET_AIE(p)        UMASK_AUDIO_CONTROL(p,0x0004)	/* interrupt enable */
 #define UNSET_AIE(p)      MASK_AUDIO_CONTROL(p,~0x0004)
-#define SET_AIACK(p)      UMASK_AUDIO_CONTROL(p,0x0008)	/* interrupt acknowledge */
+#define SET_AIACK(p)      UMASK_AUDIO_CONTROL(p,0x0008)	/* interrupt ackyeswledge */
 #define UNSET_AIACKT(p)   MASKAUDIO_CONTROL(p,~0x0008)
 #define SET_ECMDAE(p)     UMASK_AUDIO_CONTROL(p,0x0010)
 #define UNSET_ECMDAE(p)   MASK_AUDIO_CONTROL(p,~0x0010)
@@ -269,7 +269,7 @@ MODULE_PARM_DESC(opl3_port, "OPL3 port # for Riptide driver.");
 #define ERR_STATUS         0x10000000
 #define EMPTY_STATUS       0x08000000
 
-#define IEOB_ENABLE        0x1	/* enable interrupts for status notification above */
+#define IEOB_ENABLE        0x1	/* enable interrupts for status yestification above */
 #define IEOS_ENABLE        0x2
 #define IEOC_ENABLE        0x4
 #define RDONCE             0x8
@@ -361,9 +361,9 @@ enum RT_CHANNEL_IDS {
 enum { SB_CMD = 0, MODEM_CMD, I2S_CMD0, I2S_CMD1, FM_CMD, MAX_CMD };
 
 struct lbuspath {
-	unsigned char *noconv;
+	unsigned char *yesconv;
 	unsigned char *stereo;
-	unsigned char *mono;
+	unsigned char *moyes;
 };
 
 struct cmdport {
@@ -572,40 +572,40 @@ static unsigned char lbus_play_out[] = {
 static unsigned char lbus_play_outhp[] = {
 	HNDSPK2ACLNK, 0xff
 };
-static unsigned char lbus_play_noconv1[] = {
+static unsigned char lbus_play_yesconv1[] = {
 	DIGITAL_MIXER_IN0, 0xff
 };
 static unsigned char lbus_play_stereo1[] = {
 	INTER0_IN, DIGITAL_MIXER_IN0, 0xff
 };
-static unsigned char lbus_play_mono1[] = {
+static unsigned char lbus_play_moyes1[] = {
 	INTERM0_IN, DIGITAL_MIXER_IN0, 0xff
 };
-static unsigned char lbus_play_noconv2[] = {
+static unsigned char lbus_play_yesconv2[] = {
 	DIGITAL_MIXER_IN1, 0xff
 };
 static unsigned char lbus_play_stereo2[] = {
 	INTER1_IN, DIGITAL_MIXER_IN1, 0xff
 };
-static unsigned char lbus_play_mono2[] = {
+static unsigned char lbus_play_moyes2[] = {
 	INTERM1_IN, DIGITAL_MIXER_IN1, 0xff
 };
-static unsigned char lbus_play_noconv3[] = {
+static unsigned char lbus_play_yesconv3[] = {
 	DIGITAL_MIXER_IN2, 0xff
 };
 static unsigned char lbus_play_stereo3[] = {
 	INTER2_IN, DIGITAL_MIXER_IN2, 0xff
 };
-static unsigned char lbus_play_mono3[] = {
+static unsigned char lbus_play_moyes3[] = {
 	INTERM2_IN, DIGITAL_MIXER_IN2, 0xff
 };
-static unsigned char lbus_rec_noconv1[] = {
+static unsigned char lbus_rec_yesconv1[] = {
 	LBUS2ARM_FIFO5, 0xff
 };
 static unsigned char lbus_rec_stereo1[] = {
 	DECIM0_IN, LBUS2ARM_FIFO5, 0xff
 };
-static unsigned char lbus_rec_mono1[] = {
+static unsigned char lbus_rec_moyes1[] = {
 	DECIMM3_IN, LBUS2ARM_FIFO5, 0xff
 };
 
@@ -615,25 +615,25 @@ static unsigned char play_sources[] = {
 };
 static struct lbuspath lbus_play_paths[] = {
 	{
-	 .noconv = lbus_play_noconv1,
+	 .yesconv = lbus_play_yesconv1,
 	 .stereo = lbus_play_stereo1,
-	 .mono = lbus_play_mono1,
+	 .moyes = lbus_play_moyes1,
 	 },
 	{
-	 .noconv = lbus_play_noconv2,
+	 .yesconv = lbus_play_yesconv2,
 	 .stereo = lbus_play_stereo2,
-	 .mono = lbus_play_mono2,
+	 .moyes = lbus_play_moyes2,
 	 },
 	{
-	 .noconv = lbus_play_noconv3,
+	 .yesconv = lbus_play_yesconv3,
 	 .stereo = lbus_play_stereo3,
-	 .mono = lbus_play_mono3,
+	 .moyes = lbus_play_moyes3,
 	 },
 };
 static const struct lbuspath lbus_rec_path = {
-	.noconv = lbus_rec_noconv1,
+	.yesconv = lbus_rec_yesconv1,
 	.stereo = lbus_rec_stereo1,
-	.mono = lbus_rec_mono1,
+	.moyes = lbus_rec_moyes1,
 };
 
 #define FIRMWARE_VERSIONS 1
@@ -1186,7 +1186,7 @@ static int try_to_load_firmware(struct cmdif *cif, struct snd_riptide *chip)
 	}
 	if (!timeout) {
 		snd_printk(KERN_ERR
-			   "Riptide: device not ready, audio status: 0x%x "
+			   "Riptide: device yest ready, audio status: 0x%x "
 			   "ready: %d gerr: %d\n",
 			   READ_AUDIO_STATUS(cif->hwport),
 			   IS_READY(cif->hwport), IS_GERR(cif->hwport));
@@ -1218,14 +1218,14 @@ static int try_to_load_firmware(struct cmdif *cif, struct snd_riptide *chip)
 				       &chip->pci->dev);
 		if (err) {
 			snd_printk(KERN_ERR
-				   "Riptide: Firmware not available %d\n", err);
+				   "Riptide: Firmware yest available %d\n", err);
 			return -EIO;
 		}
 	}
 	err = loadfirmware(cif, chip->fw_entry->data, chip->fw_entry->size);
 	if (err) {
 		snd_printk(KERN_ERR
-			   "Riptide: Could not load firmware %d\n", err);
+			   "Riptide: Could yest load firmware %d\n", err);
 		return err;
 	}
 
@@ -1366,7 +1366,7 @@ static snd_pcm_uframes_t snd_riptide_pointer(struct snd_pcm_substream
 			    bytes_to_frames(runtime,
 					    data->pointer % data->size);
 	} else {
-		snd_printdd("stream not started or strange parms (%d %ld)\n",
+		snd_printdd("stream yest started or strange parms (%d %ld)\n",
 			    data->size, runtime->period_size);
 		ret = bytes_to_frames(runtime, 0);
 	}
@@ -1411,7 +1411,7 @@ static int snd_riptide_trigger(struct snd_pcm_substream *substream, int cmd)
 			udelay(1);
 		} while (i != rptr.retlongs[1] && j++ < MAX_WRITE_RETRY);
 		if (j > MAX_WRITE_RETRY)
-			snd_printk(KERN_ERR "Riptide: Could not stop stream!");
+			snd_printk(KERN_ERR "Riptide: Could yest stop stream!");
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (!(data->state & ST_PAUSE)) {
@@ -1459,13 +1459,13 @@ static int snd_riptide_prepare(struct snd_pcm_substream *substream)
 	switch (channels) {
 	case 1:
 		if (rate == 48000 && format == SNDRV_PCM_FORMAT_S16_LE)
-			lbuspath = data->paths.noconv;
+			lbuspath = data->paths.yesconv;
 		else
-			lbuspath = data->paths.mono;
+			lbuspath = data->paths.moyes;
 		break;
 	case 2:
 		if (rate == 48000 && format == SNDRV_PCM_FORMAT_S16_LE)
-			lbuspath = data->paths.noconv;
+			lbuspath = data->paths.yesconv;
 		else
 			lbuspath = data->paths.stereo;
 		break;
@@ -2014,7 +2014,7 @@ snd_riptide_joystick_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	}
 	if (!request_region(joystick_port[dev], 8, "Riptide gameport")) {
 		snd_printk(KERN_WARNING
-			   "Riptide: cannot grab gameport 0x%x\n",
+			   "Riptide: canyest grab gameport 0x%x\n",
 			   joystick_port[dev]);
 		gameport_free_port(gameport);
 		ret = -EBUSY;

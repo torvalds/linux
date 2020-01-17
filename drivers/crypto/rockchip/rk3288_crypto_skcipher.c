@@ -334,7 +334,7 @@ static void rk_update_iv(struct rk_crypto_info *dev)
 
 /* return:
  *	true	some err was occurred
- *	fault	no err, continue
+ *	fault	yes err, continue
  */
 static int rk_ablk_rx(struct rk_crypto_info *dev)
 {

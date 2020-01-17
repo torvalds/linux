@@ -11,7 +11,7 @@
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/byteorder/generic.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/etherdevice.h>
 #include <linux/gfp.h>
 #include <linux/icmpv6.h>
@@ -79,7 +79,7 @@ static void batadv_mcast_start_timer(struct batadv_priv *bat_priv)
  * If the given soft interface has a bridge on top then the refcount
  * of the according net device is increased.
  *
- * Return: NULL if no such bridge exists. Otherwise the net device of the
+ * Return: NULL if yes such bridge exists. Otherwise the net device of the
  * bridge.
  */
 static struct net_device *batadv_mcast_get_bridge(struct net_device *soft_iface)
@@ -100,10 +100,10 @@ static struct net_device *batadv_mcast_get_bridge(struct net_device *soft_iface)
 
 /**
  * batadv_mcast_mla_rtr_flags_softif_get_ipv4() - get mcast router flags from
- *  node for IPv4
+ *  yesde for IPv4
  * @dev: the interface to check
  *
- * Checks the presence of an IPv4 multicast router on this node.
+ * Checks the presence of an IPv4 multicast router on this yesde.
  *
  * Caller needs to hold rcu read lock.
  *
@@ -121,10 +121,10 @@ static u8 batadv_mcast_mla_rtr_flags_softif_get_ipv4(struct net_device *dev)
 
 /**
  * batadv_mcast_mla_rtr_flags_softif_get_ipv6() - get mcast router flags from
- *  node for IPv6
+ *  yesde for IPv6
  * @dev: the interface to check
  *
- * Checks the presence of an IPv6 multicast router on this node.
+ * Checks the presence of an IPv6 multicast router on this yesde.
  *
  * Caller needs to hold rcu read lock.
  *
@@ -149,19 +149,19 @@ batadv_mcast_mla_rtr_flags_softif_get_ipv6(struct net_device *dev)
 #endif
 
 /**
- * batadv_mcast_mla_rtr_flags_softif_get() - get mcast router flags from node
+ * batadv_mcast_mla_rtr_flags_softif_get() - get mcast router flags from yesde
  * @bat_priv: the bat priv with all the soft interface information
  * @bridge: bridge interface on top of the soft_iface if present,
  *  otherwise pass NULL
  *
  * Checks the presence of IPv4 and IPv6 multicast routers on this
- * node.
+ * yesde.
  *
  * Return:
  *	BATADV_NO_FLAGS: Both an IPv4 and IPv6 multicast router is present
  *	BATADV_MCAST_WANT_NO_RTR4: No IPv4 multicast router is present
  *	BATADV_MCAST_WANT_NO_RTR6: No IPv6 multicast router is present
- *	The former two OR'd: no multicast router is present
+ *	The former two OR'd: yes multicast router is present
  */
 static u8 batadv_mcast_mla_rtr_flags_softif_get(struct batadv_priv *bat_priv,
 						struct net_device *bridge)
@@ -191,7 +191,7 @@ static u8 batadv_mcast_mla_rtr_flags_softif_get(struct batadv_priv *bat_priv,
  *	BATADV_NO_FLAGS: Both an IPv4 and IPv6 multicast router is present
  *	BATADV_MCAST_WANT_NO_RTR4: No IPv4 multicast router is present
  *	BATADV_MCAST_WANT_NO_RTR6: No IPv6 multicast router is present
- *	The former two OR'd: no multicast router is present
+ *	The former two OR'd: yes multicast router is present
  */
 #if IS_ENABLED(CONFIG_IPV6)
 static u8 batadv_mcast_mla_rtr_flags_bridge_get(struct batadv_priv *bat_priv,
@@ -215,7 +215,7 @@ static u8 batadv_mcast_mla_rtr_flags_bridge_get(struct batadv_priv *bat_priv,
 		return BATADV_NO_FLAGS;
 
 	list_for_each_entry_safe(br_ip_entry, tmp, &bridge_mcast_list, list) {
-		/* the bridge snooping does not maintain IPv4 link-local
+		/* the bridge syesoping does yest maintain IPv4 link-local
 		 * addresses - therefore we won't find any IPv4 multicast router
 		 * address here, only IPv6 ones
 		 */
@@ -248,13 +248,13 @@ batadv_mcast_mla_rtr_flags_bridge_get(struct batadv_priv *bat_priv,
  *  otherwise pass NULL
  *
  * Checks the presence of IPv4 and IPv6 multicast routers on this
- * node or behind its bridge.
+ * yesde or behind its bridge.
  *
  * Return:
  *	BATADV_NO_FLAGS: Both an IPv4 and IPv6 multicast router is present
  *	BATADV_MCAST_WANT_NO_RTR4: No IPv4 multicast router is present
  *	BATADV_MCAST_WANT_NO_RTR6: No IPv6 multicast router is present
- *	The former two OR'd: no multicast router is present
+ *	The former two OR'd: yes multicast router is present
  */
 static u8 batadv_mcast_mla_rtr_flags_get(struct batadv_priv *bat_priv,
 					 struct net_device *bridge)
@@ -299,7 +299,7 @@ batadv_mcast_mla_flags_get(struct batadv_priv *bat_priv)
 	qr6 = &mla_flags.querier_ipv6;
 
 	if (!IS_ENABLED(CONFIG_BRIDGE_IGMP_SNOOPING))
-		pr_warn_once("No bridge IGMP snooping compiled - multicast optimizations disabled\n");
+		pr_warn_once("No bridge IGMP syesoping compiled - multicast optimizations disabled\n");
 
 	qr4->exists = br_multicast_has_querier_anywhere(dev, ETH_P_IP);
 	qr4->shadowing = br_multicast_has_querier_adjacent(dev, ETH_P_IP);
@@ -309,13 +309,13 @@ batadv_mcast_mla_flags_get(struct batadv_priv *bat_priv)
 
 	mla_flags.tvlv_flags |= BATADV_MCAST_WANT_ALL_UNSNOOPABLES;
 
-	/* 1) If no querier exists at all, then multicast listeners on
+	/* 1) If yes querier exists at all, then multicast listeners on
 	 *    our local TT clients behind the bridge will keep silent.
 	 * 2) If the selected querier is on one of our local TT clients,
 	 *    behind the bridge, then this querier might shadow multicast
 	 *    listeners on our local TT clients, behind this bridge.
 	 *
-	 * In both cases, we will signalize other batman nodes that
+	 * In both cases, we will signalize other batman yesdes that
 	 * we need all multicast traffic of the according protocol.
 	 */
 	if (!qr4->exists || qr4->shadowing) {
@@ -360,7 +360,7 @@ static bool batadv_mcast_mla_is_duplicate(u8 *mcast_addr,
  * Collects multicast addresses of IPv4 multicast listeners residing
  * on this kernel on the given soft interface, dev, in
  * the given mcast_list. In general, multicast listeners provided by
- * your multicast receiving applications run directly on this node.
+ * your multicast receiving applications run directly on this yesde.
  *
  * Return: -ENOMEM on memory allocation error or the number of
  * items added to the mcast_list otherwise.
@@ -426,7 +426,7 @@ batadv_mcast_mla_softif_get_ipv4(struct net_device *dev,
  * Collects multicast addresses of IPv6 multicast listeners residing
  * on this kernel on the given soft interface, dev, in
  * the given mcast_list. In general, multicast listeners provided by
- * your multicast receiving applications run directly on this node.
+ * your multicast receiving applications run directly on this yesde.
  *
  * Return: -ENOMEM on memory allocation error or the number of
  * items added to the mcast_list otherwise.
@@ -461,7 +461,7 @@ batadv_mcast_mla_softif_get_ipv6(struct net_device *dev,
 			continue;
 
 		if (flags->tvlv_flags & BATADV_MCAST_WANT_ALL_UNSNOOPABLES &&
-		    ipv6_addr_is_ll_all_nodes(&pmc6->mca_addr))
+		    ipv6_addr_is_ll_all_yesdes(&pmc6->mca_addr))
 			continue;
 
 		if (!(flags->tvlv_flags & BATADV_MCAST_WANT_NO_RTR6) &&
@@ -508,7 +508,7 @@ batadv_mcast_mla_softif_get_ipv6(struct net_device *dev,
  * Collects multicast addresses of multicast listeners residing
  * on this kernel on the given soft interface, dev, in
  * the given mcast_list. In general, multicast listeners provided by
- * your multicast receiving applications run directly on this node.
+ * your multicast receiving applications run directly on this yesde.
  *
  * If there is a bridge interface on top of dev, collects from that one
  * instead. Just like with IP addresses and routes, multicast listeners
@@ -577,7 +577,7 @@ static void batadv_mcast_mla_br_addr_cpy(char *dst, const struct br_ip *src)
  * @flags: flags indicating the new multicast state
  *
  * Collects multicast addresses of multicast listeners residing
- * on foreign, non-mesh devices which we gave access to our mesh via
+ * on foreign, yesn-mesh devices which we gave access to our mesh via
  * a bridge on top of the given soft interface, dev, in the given
  * mcast_list.
  *
@@ -596,7 +596,7 @@ static int batadv_mcast_mla_bridge_get(struct net_device *dev,
 	int ret;
 
 	/* we don't need to detect these devices/listeners, the IGMP/MLD
-	 * snooping code of the Linux bridge already does that for us
+	 * syesoping code of the Linux bridge already does that for us
 	 */
 	ret = br_multicast_list_adjacent(dev, &bridge_mcast_list);
 	if (ret < 0)
@@ -622,7 +622,7 @@ static int batadv_mcast_mla_bridge_get(struct net_device *dev,
 				continue;
 
 			if (tvlv_flags & BATADV_MCAST_WANT_ALL_UNSNOOPABLES &&
-			    ipv6_addr_is_ll_all_nodes(&br_ip_entry->addr.u.ip6))
+			    ipv6_addr_is_ll_all_yesdes(&br_ip_entry->addr.u.ip6))
 				continue;
 
 			if (!(tvlv_flags & BATADV_MCAST_WANT_NO_RTR6) &&
@@ -664,7 +664,7 @@ out:
 static void batadv_mcast_mla_list_free(struct hlist_head *mcast_list)
 {
 	struct batadv_hw_addr *mcast_entry;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 
 	hlist_for_each_entry_safe(mcast_entry, tmp, mcast_list, list) {
 		hlist_del(&mcast_entry->list);
@@ -673,11 +673,11 @@ static void batadv_mcast_mla_list_free(struct hlist_head *mcast_list)
 }
 
 /**
- * batadv_mcast_mla_tt_retract() - clean up multicast listener announcements
+ * batadv_mcast_mla_tt_retract() - clean up multicast listener anyesuncements
  * @bat_priv: the bat priv with all the soft interface information
- * @mcast_list: a list of addresses which should _not_ be removed
+ * @mcast_list: a list of addresses which should _yest_ be removed
  *
- * Retracts the announcement of any multicast listener from the
+ * Retracts the anyesuncement of any multicast listener from the
  * translation table except the ones listed in the given mcast_list.
  *
  * If mcast_list is NULL then all are retracted.
@@ -686,7 +686,7 @@ static void batadv_mcast_mla_tt_retract(struct batadv_priv *bat_priv,
 					struct hlist_head *mcast_list)
 {
 	struct batadv_hw_addr *mcast_entry;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 
 	hlist_for_each_entry_safe(mcast_entry, tmp, &bat_priv->mcast.mla_list,
 				  list) {
@@ -705,18 +705,18 @@ static void batadv_mcast_mla_tt_retract(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_mla_tt_add() - add multicast listener announcements
+ * batadv_mcast_mla_tt_add() - add multicast listener anyesuncements
  * @bat_priv: the bat priv with all the soft interface information
  * @mcast_list: a list of addresses which are going to get added
  *
- * Adds multicast listener announcements from the given mcast_list to the
- * translation table if they have not been added yet.
+ * Adds multicast listener anyesuncements from the given mcast_list to the
+ * translation table if they have yest been added yet.
  */
 static void batadv_mcast_mla_tt_add(struct batadv_priv *bat_priv,
 				    struct hlist_head *mcast_list)
 {
 	struct batadv_hw_addr *mcast_entry;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 
 	if (!mcast_list)
 		return;
@@ -750,12 +750,12 @@ static void batadv_mcast_mla_tt_add(struct batadv_priv *bat_priv,
  *
  * Usually this is about whether a querier appeared or vanished in
  * our mesh or whether the querier is in the suboptimal position of being
- * behind our local bridge segment: Snooping switches will directly
+ * behind our local bridge segment: Syesoping switches will directly
  * forward listener reports to the querier, therefore batman-adv and
- * the bridge will potentially not see these listeners - the querier is
+ * the bridge will potentially yest see these listeners - the querier is
  * potentially shadowing listeners from us then.
  *
- * This is only interesting for nodes with a bridge on top of their
+ * This is only interesting for yesdes with a bridge on top of their
  * soft interface.
  */
 static void
@@ -783,7 +783,7 @@ batadv_mcast_querier_log(struct batadv_priv *bat_priv, char *str_proto,
 				   str_proto);
 		else if (old_state->shadowing && !new_state->shadowing)
 			batadv_dbg(BATADV_DBG_MCAST, bat_priv,
-				   "%s Querier is not behind our bridged segment\n",
+				   "%s Querier is yest behind our bridged segment\n",
 				   str_proto);
 	}
 }
@@ -794,7 +794,7 @@ batadv_mcast_querier_log(struct batadv_priv *bat_priv, char *str_proto,
  * @bat_priv: the bat priv with all the soft interface information
  * @new_flags: flags indicating the new multicast state
  *
- * If no bridges are ever used on this node, then this function does nothing.
+ * If yes bridges are ever used on this yesde, then this function does yesthing.
  *
  * Otherwise this function outputs debug information to the 'mcast' log level
  * which might be relevant to our multicast optimizations.
@@ -802,7 +802,7 @@ batadv_mcast_querier_log(struct batadv_priv *bat_priv, char *str_proto,
  * More precisely, it outputs information when a bridge interface is added or
  * removed from a soft interface. And when a bridge is present, it further
  * outputs information about the querier state which is relevant for the
- * multicast flags this node is going to set.
+ * multicast flags this yesde is going to set.
  */
 static void
 batadv_mcast_bridge_log(struct batadv_priv *bat_priv,
@@ -812,10 +812,10 @@ batadv_mcast_bridge_log(struct batadv_priv *bat_priv,
 
 	if (!old_flags->bridged && new_flags->bridged)
 		batadv_dbg(BATADV_DBG_MCAST, bat_priv,
-			   "Bridge added: Setting Unsnoopables(U)-flag\n");
+			   "Bridge added: Setting Unsyesopables(U)-flag\n");
 	else if (old_flags->bridged && !new_flags->bridged)
 		batadv_dbg(BATADV_DBG_MCAST, bat_priv,
-			   "Bridge removed: Unsetting Unsnoopables(U)-flag\n");
+			   "Bridge removed: Unsetting Unsyesopables(U)-flag\n");
 
 	if (new_flags->bridged) {
 		batadv_mcast_querier_log(bat_priv, "IGMP",
@@ -832,7 +832,7 @@ batadv_mcast_bridge_log(struct batadv_priv *bat_priv,
  * @bat_priv: the bat priv with all the soft interface information
  * @flags: TVLV flags indicating the new multicast state
  *
- * Whenever the multicast TVLV flags this nodes announces change this notifies
+ * Whenever the multicast TVLV flags this yesdes anyesunces change this yestifies
  * userspace via the 'mcast' log level.
  */
 static void batadv_mcast_flags_log(struct batadv_priv *bat_priv, u8 flags)
@@ -891,12 +891,12 @@ batadv_mcast_mla_flags_update(struct batadv_priv *bat_priv,
  * __batadv_mcast_mla_update() - update the own MLAs
  * @bat_priv: the bat priv with all the soft interface information
  *
- * Updates the own multicast listener announcements in the translation
- * table as well as the own, announced multicast tvlv container.
+ * Updates the own multicast listener anyesuncements in the translation
+ * table as well as the own, anyesunced multicast tvlv container.
  *
- * Note that non-conflicting reads and writes to bat_priv->mcast.mla_list
+ * Note that yesn-conflicting reads and writes to bat_priv->mcast.mla_list
  * in batadv_mcast_mla_tt_retract() and batadv_mcast_mla_tt_add() are
- * ensured by the non-parallel execution of the worker this function
+ * ensured by the yesn-parallel execution of the worker this function
  * belongs to.
  */
 static void __batadv_mcast_mla_update(struct batadv_priv *bat_priv)
@@ -930,8 +930,8 @@ out:
  * batadv_mcast_mla_update() - update the own MLAs
  * @work: kernel work struct
  *
- * Updates the own multicast listener announcements in the translation
- * table as well as the own, announced multicast tvlv container.
+ * Updates the own multicast listener anyesuncements in the translation
+ * table as well as the own, anyesunced multicast tvlv container.
  *
  * In the end, reschedules the work timer.
  */
@@ -979,7 +979,7 @@ static bool batadv_mcast_is_report_ipv4(struct sk_buff *skb)
  *  potential
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the IPv4 packet to check
- * @is_unsnoopable: stores whether the destination is snoopable
+ * @is_unsyesopable: stores whether the destination is syesopable
  * @is_routable: stores whether the destination is routable
  *
  * Checks whether the given IPv4 packet has the potential to be forwarded with a
@@ -990,7 +990,7 @@ static bool batadv_mcast_is_report_ipv4(struct sk_buff *skb)
  */
 static int batadv_mcast_forw_mode_check_ipv4(struct batadv_priv *bat_priv,
 					     struct sk_buff *skb,
-					     bool *is_unsnoopable,
+					     bool *is_unsyesopable,
 					     int *is_routable)
 {
 	struct iphdr *iphdr;
@@ -1005,10 +1005,10 @@ static int batadv_mcast_forw_mode_check_ipv4(struct batadv_priv *bat_priv,
 	iphdr = ip_hdr(skb);
 
 	/* link-local multicast listeners behind a bridge are
-	 * not snoopable (see RFC4541, section 2.1.2.2)
+	 * yest syesopable (see RFC4541, section 2.1.2.2)
 	 */
 	if (ipv4_is_local_multicast(iphdr->daddr))
-		*is_unsnoopable = true;
+		*is_unsyesopable = true;
 	else
 		*is_routable = ETH_P_IP;
 
@@ -1044,7 +1044,7 @@ static bool batadv_mcast_is_report_ipv6(struct sk_buff *skb)
  *  potential
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the IPv6 packet to check
- * @is_unsnoopable: stores whether the destination is snoopable
+ * @is_unsyesopable: stores whether the destination is syesopable
  * @is_routable: stores whether the destination is routable
  *
  * Checks whether the given IPv6 packet has the potential to be forwarded with a
@@ -1054,7 +1054,7 @@ static bool batadv_mcast_is_report_ipv6(struct sk_buff *skb)
  */
 static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
 					     struct sk_buff *skb,
-					     bool *is_unsnoopable,
+					     bool *is_unsyesopable,
 					     int *is_routable)
 {
 	struct ipv6hdr *ip6hdr;
@@ -1071,11 +1071,11 @@ static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
 	if (IPV6_ADDR_MC_SCOPE(&ip6hdr->daddr) < IPV6_ADDR_SCOPE_LINKLOCAL)
 		return -EINVAL;
 
-	/* link-local-all-nodes multicast listeners behind a bridge are
-	 * not snoopable (see RFC4541, section 3, paragraph 3)
+	/* link-local-all-yesdes multicast listeners behind a bridge are
+	 * yest syesopable (see RFC4541, section 3, paragraph 3)
 	 */
-	if (ipv6_addr_is_ll_all_nodes(&ip6hdr->daddr))
-		*is_unsnoopable = true;
+	if (ipv6_addr_is_ll_all_yesdes(&ip6hdr->daddr))
+		*is_unsyesopable = true;
 	else if (IPV6_ADDR_MC_SCOPE(&ip6hdr->daddr) > IPV6_ADDR_SCOPE_LINKLOCAL)
 		*is_routable = ETH_P_IPV6;
 
@@ -1086,7 +1086,7 @@ static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
  * batadv_mcast_forw_mode_check() - check for optimized forwarding potential
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the multicast frame to check
- * @is_unsnoopable: stores whether the destination is snoopable
+ * @is_unsyesopable: stores whether the destination is syesopable
  * @is_routable: stores whether the destination is routable
  *
  * Checks whether the given multicast ethernet frame has the potential to be
@@ -1096,7 +1096,7 @@ static int batadv_mcast_forw_mode_check_ipv6(struct batadv_priv *bat_priv,
  */
 static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
 					struct sk_buff *skb,
-					bool *is_unsnoopable,
+					bool *is_unsyesopable,
 					int *is_routable)
 {
 	struct ethhdr *ethhdr = eth_hdr(skb);
@@ -1107,14 +1107,14 @@ static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
 	switch (ntohs(ethhdr->h_proto)) {
 	case ETH_P_IP:
 		return batadv_mcast_forw_mode_check_ipv4(bat_priv, skb,
-							 is_unsnoopable,
+							 is_unsyesopable,
 							 is_routable);
 	case ETH_P_IPV6:
 		if (!IS_ENABLED(CONFIG_IPV6))
 			return -EINVAL;
 
 		return batadv_mcast_forw_mode_check_ipv6(bat_priv, skb,
-							 is_unsnoopable,
+							 is_unsyesopable,
 							 is_routable);
 	default:
 		return -EINVAL;
@@ -1122,13 +1122,13 @@ static int batadv_mcast_forw_mode_check(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_forw_want_all_ip_count() - count nodes with unspecific mcast
+ * batadv_mcast_forw_want_all_ip_count() - count yesdes with unspecific mcast
  *  interest
  * @bat_priv: the bat priv with all the soft interface information
  * @ethhdr: ethernet header of a packet
  *
- * Return: the number of nodes which want all IPv4 multicast traffic if the
- * given ethhdr is from an IPv4 packet or the number of nodes which want all
+ * Return: the number of yesdes which want all IPv4 multicast traffic if the
+ * given ethhdr is from an IPv4 packet or the number of yesdes which want all
  * IPv6 traffic if it matches an IPv6 packet.
  */
 static int batadv_mcast_forw_want_all_ip_count(struct batadv_priv *bat_priv,
@@ -1146,12 +1146,12 @@ static int batadv_mcast_forw_want_all_ip_count(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_forw_rtr_count() - count nodes with a multicast router
+ * batadv_mcast_forw_rtr_count() - count yesdes with a multicast router
  * @bat_priv: the bat priv with all the soft interface information
  * @protocol: the ethernet protocol type to count multicast routers for
  *
- * Return: the number of nodes which want all routable IPv4 multicast traffic
- * if the protocol is ETH_P_IP or the number of nodes which want all routable
+ * Return: the number of yesdes which want all routable IPv4 multicast traffic
+ * if the protocol is ETH_P_IP or the number of yesdes which want all routable
  * IPv6 traffic if the protocol is ETH_P_IPV6. Otherwise returns 0.
  */
 
@@ -1169,15 +1169,15 @@ static int batadv_mcast_forw_rtr_count(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_forw_tt_node_get() - get a multicast tt node
+ * batadv_mcast_forw_tt_yesde_get() - get a multicast tt yesde
  * @bat_priv: the bat priv with all the soft interface information
  * @ethhdr: the ether header containing the multicast destination
  *
- * Return: an orig_node matching the multicast address provided by ethhdr
- * via a translation table lookup. This increases the returned nodes refcount.
+ * Return: an orig_yesde matching the multicast address provided by ethhdr
+ * via a translation table lookup. This increases the returned yesdes refcount.
  */
-static struct batadv_orig_node *
-batadv_mcast_forw_tt_node_get(struct batadv_priv *bat_priv,
+static struct batadv_orig_yesde *
+batadv_mcast_forw_tt_yesde_get(struct batadv_priv *bat_priv,
 			      struct ethhdr *ethhdr)
 {
 	return batadv_transtable_search(bat_priv, NULL, ethhdr->h_dest,
@@ -1185,77 +1185,77 @@ batadv_mcast_forw_tt_node_get(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_forw_ipv4_node_get() - get a node with an ipv4 flag
+ * batadv_mcast_forw_ipv4_yesde_get() - get a yesde with an ipv4 flag
  * @bat_priv: the bat priv with all the soft interface information
  *
- * Return: an orig_node which has the BATADV_MCAST_WANT_ALL_IPV4 flag set and
+ * Return: an orig_yesde which has the BATADV_MCAST_WANT_ALL_IPV4 flag set and
  * increases its refcount.
  */
-static struct batadv_orig_node *
-batadv_mcast_forw_ipv4_node_get(struct batadv_priv *bat_priv)
+static struct batadv_orig_yesde *
+batadv_mcast_forw_ipv4_yesde_get(struct batadv_priv *bat_priv)
 {
-	struct batadv_orig_node *tmp_orig_node, *orig_node = NULL;
+	struct batadv_orig_yesde *tmp_orig_yesde, *orig_yesde = NULL;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(tmp_orig_node,
+	hlist_for_each_entry_rcu(tmp_orig_yesde,
 				 &bat_priv->mcast.want_all_ipv4_list,
-				 mcast_want_all_ipv4_node) {
-		if (!kref_get_unless_zero(&tmp_orig_node->refcount))
+				 mcast_want_all_ipv4_yesde) {
+		if (!kref_get_unless_zero(&tmp_orig_yesde->refcount))
 			continue;
 
-		orig_node = tmp_orig_node;
+		orig_yesde = tmp_orig_yesde;
 		break;
 	}
 	rcu_read_unlock();
 
-	return orig_node;
+	return orig_yesde;
 }
 
 /**
- * batadv_mcast_forw_ipv6_node_get() - get a node with an ipv6 flag
+ * batadv_mcast_forw_ipv6_yesde_get() - get a yesde with an ipv6 flag
  * @bat_priv: the bat priv with all the soft interface information
  *
- * Return: an orig_node which has the BATADV_MCAST_WANT_ALL_IPV6 flag set
+ * Return: an orig_yesde which has the BATADV_MCAST_WANT_ALL_IPV6 flag set
  * and increases its refcount.
  */
-static struct batadv_orig_node *
-batadv_mcast_forw_ipv6_node_get(struct batadv_priv *bat_priv)
+static struct batadv_orig_yesde *
+batadv_mcast_forw_ipv6_yesde_get(struct batadv_priv *bat_priv)
 {
-	struct batadv_orig_node *tmp_orig_node, *orig_node = NULL;
+	struct batadv_orig_yesde *tmp_orig_yesde, *orig_yesde = NULL;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(tmp_orig_node,
+	hlist_for_each_entry_rcu(tmp_orig_yesde,
 				 &bat_priv->mcast.want_all_ipv6_list,
-				 mcast_want_all_ipv6_node) {
-		if (!kref_get_unless_zero(&tmp_orig_node->refcount))
+				 mcast_want_all_ipv6_yesde) {
+		if (!kref_get_unless_zero(&tmp_orig_yesde->refcount))
 			continue;
 
-		orig_node = tmp_orig_node;
+		orig_yesde = tmp_orig_yesde;
 		break;
 	}
 	rcu_read_unlock();
 
-	return orig_node;
+	return orig_yesde;
 }
 
 /**
- * batadv_mcast_forw_ip_node_get() - get a node with an ipv4/ipv6 flag
+ * batadv_mcast_forw_ip_yesde_get() - get a yesde with an ipv4/ipv6 flag
  * @bat_priv: the bat priv with all the soft interface information
  * @ethhdr: an ethernet header to determine the protocol family from
  *
- * Return: an orig_node which has the BATADV_MCAST_WANT_ALL_IPV4 or
+ * Return: an orig_yesde which has the BATADV_MCAST_WANT_ALL_IPV4 or
  * BATADV_MCAST_WANT_ALL_IPV6 flag, depending on the provided ethhdr, set and
  * increases its refcount.
  */
-static struct batadv_orig_node *
-batadv_mcast_forw_ip_node_get(struct batadv_priv *bat_priv,
+static struct batadv_orig_yesde *
+batadv_mcast_forw_ip_yesde_get(struct batadv_priv *bat_priv,
 			      struct ethhdr *ethhdr)
 {
 	switch (ntohs(ethhdr->h_proto)) {
 	case ETH_P_IP:
-		return batadv_mcast_forw_ipv4_node_get(bat_priv);
+		return batadv_mcast_forw_ipv4_yesde_get(bat_priv);
 	case ETH_P_IPV6:
-		return batadv_mcast_forw_ipv6_node_get(bat_priv);
+		return batadv_mcast_forw_ipv6_yesde_get(bat_priv);
 	default:
 		/* we shouldn't be here... */
 		return NULL;
@@ -1263,104 +1263,104 @@ batadv_mcast_forw_ip_node_get(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_forw_unsnoop_node_get() - get a node with an unsnoopable flag
+ * batadv_mcast_forw_unsyesop_yesde_get() - get a yesde with an unsyesopable flag
  * @bat_priv: the bat priv with all the soft interface information
  *
- * Return: an orig_node which has the BATADV_MCAST_WANT_ALL_UNSNOOPABLES flag
+ * Return: an orig_yesde which has the BATADV_MCAST_WANT_ALL_UNSNOOPABLES flag
  * set and increases its refcount.
  */
-static struct batadv_orig_node *
-batadv_mcast_forw_unsnoop_node_get(struct batadv_priv *bat_priv)
+static struct batadv_orig_yesde *
+batadv_mcast_forw_unsyesop_yesde_get(struct batadv_priv *bat_priv)
 {
-	struct batadv_orig_node *tmp_orig_node, *orig_node = NULL;
+	struct batadv_orig_yesde *tmp_orig_yesde, *orig_yesde = NULL;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(tmp_orig_node,
-				 &bat_priv->mcast.want_all_unsnoopables_list,
-				 mcast_want_all_unsnoopables_node) {
-		if (!kref_get_unless_zero(&tmp_orig_node->refcount))
+	hlist_for_each_entry_rcu(tmp_orig_yesde,
+				 &bat_priv->mcast.want_all_unsyesopables_list,
+				 mcast_want_all_unsyesopables_yesde) {
+		if (!kref_get_unless_zero(&tmp_orig_yesde->refcount))
 			continue;
 
-		orig_node = tmp_orig_node;
+		orig_yesde = tmp_orig_yesde;
 		break;
 	}
 	rcu_read_unlock();
 
-	return orig_node;
+	return orig_yesde;
 }
 
 /**
- * batadv_mcast_forw_rtr4_node_get() - get a node with an ipv4 mcast router flag
+ * batadv_mcast_forw_rtr4_yesde_get() - get a yesde with an ipv4 mcast router flag
  * @bat_priv: the bat priv with all the soft interface information
  *
- * Return: an orig_node which has the BATADV_MCAST_WANT_NO_RTR4 flag unset and
+ * Return: an orig_yesde which has the BATADV_MCAST_WANT_NO_RTR4 flag unset and
  * increases its refcount.
  */
-static struct batadv_orig_node *
-batadv_mcast_forw_rtr4_node_get(struct batadv_priv *bat_priv)
+static struct batadv_orig_yesde *
+batadv_mcast_forw_rtr4_yesde_get(struct batadv_priv *bat_priv)
 {
-	struct batadv_orig_node *tmp_orig_node, *orig_node = NULL;
+	struct batadv_orig_yesde *tmp_orig_yesde, *orig_yesde = NULL;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(tmp_orig_node,
+	hlist_for_each_entry_rcu(tmp_orig_yesde,
 				 &bat_priv->mcast.want_all_rtr4_list,
-				 mcast_want_all_rtr4_node) {
-		if (!kref_get_unless_zero(&tmp_orig_node->refcount))
+				 mcast_want_all_rtr4_yesde) {
+		if (!kref_get_unless_zero(&tmp_orig_yesde->refcount))
 			continue;
 
-		orig_node = tmp_orig_node;
+		orig_yesde = tmp_orig_yesde;
 		break;
 	}
 	rcu_read_unlock();
 
-	return orig_node;
+	return orig_yesde;
 }
 
 /**
- * batadv_mcast_forw_rtr6_node_get() - get a node with an ipv6 mcast router flag
+ * batadv_mcast_forw_rtr6_yesde_get() - get a yesde with an ipv6 mcast router flag
  * @bat_priv: the bat priv with all the soft interface information
  *
- * Return: an orig_node which has the BATADV_MCAST_WANT_NO_RTR6 flag unset
+ * Return: an orig_yesde which has the BATADV_MCAST_WANT_NO_RTR6 flag unset
  * and increases its refcount.
  */
-static struct batadv_orig_node *
-batadv_mcast_forw_rtr6_node_get(struct batadv_priv *bat_priv)
+static struct batadv_orig_yesde *
+batadv_mcast_forw_rtr6_yesde_get(struct batadv_priv *bat_priv)
 {
-	struct batadv_orig_node *tmp_orig_node, *orig_node = NULL;
+	struct batadv_orig_yesde *tmp_orig_yesde, *orig_yesde = NULL;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(tmp_orig_node,
+	hlist_for_each_entry_rcu(tmp_orig_yesde,
 				 &bat_priv->mcast.want_all_rtr6_list,
-				 mcast_want_all_rtr6_node) {
-		if (!kref_get_unless_zero(&tmp_orig_node->refcount))
+				 mcast_want_all_rtr6_yesde) {
+		if (!kref_get_unless_zero(&tmp_orig_yesde->refcount))
 			continue;
 
-		orig_node = tmp_orig_node;
+		orig_yesde = tmp_orig_yesde;
 		break;
 	}
 	rcu_read_unlock();
 
-	return orig_node;
+	return orig_yesde;
 }
 
 /**
- * batadv_mcast_forw_rtr_node_get() - get a node with an ipv4/ipv6 router flag
+ * batadv_mcast_forw_rtr_yesde_get() - get a yesde with an ipv4/ipv6 router flag
  * @bat_priv: the bat priv with all the soft interface information
  * @ethhdr: an ethernet header to determine the protocol family from
  *
- * Return: an orig_node which has no BATADV_MCAST_WANT_NO_RTR4 or
+ * Return: an orig_yesde which has yes BATADV_MCAST_WANT_NO_RTR4 or
  * BATADV_MCAST_WANT_NO_RTR6 flag, depending on the provided ethhdr, set and
  * increases its refcount.
  */
-static struct batadv_orig_node *
-batadv_mcast_forw_rtr_node_get(struct batadv_priv *bat_priv,
+static struct batadv_orig_yesde *
+batadv_mcast_forw_rtr_yesde_get(struct batadv_priv *bat_priv,
 			       struct ethhdr *ethhdr)
 {
 	switch (ntohs(ethhdr->h_proto)) {
 	case ETH_P_IP:
-		return batadv_mcast_forw_rtr4_node_get(bat_priv);
+		return batadv_mcast_forw_rtr4_yesde_get(bat_priv);
 	case ETH_P_IPV6:
-		return batadv_mcast_forw_rtr6_node_get(bat_priv);
+		return batadv_mcast_forw_rtr6_yesde_get(bat_priv);
 	default:
 		/* we shouldn't be here... */
 		return NULL;
@@ -1379,16 +1379,16 @@ batadv_mcast_forw_rtr_node_get(struct batadv_priv *bat_priv,
  */
 enum batadv_forw_mode
 batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
-		       struct batadv_orig_node **orig)
+		       struct batadv_orig_yesde **orig)
 {
-	int ret, tt_count, ip_count, unsnoop_count, total_count;
-	bool is_unsnoopable = false;
-	unsigned int mcast_fanout;
+	int ret, tt_count, ip_count, unsyesop_count, total_count;
+	bool is_unsyesopable = false;
+	unsigned int mcast_fayesut;
 	struct ethhdr *ethhdr;
 	int is_routable = 0;
 	int rtr_count = 0;
 
-	ret = batadv_mcast_forw_mode_check(bat_priv, skb, &is_unsnoopable,
+	ret = batadv_mcast_forw_mode_check(bat_priv, skb, &is_unsyesopable,
 					   &is_routable);
 	if (ret == -ENOMEM)
 		return BATADV_FORW_NONE;
@@ -1400,22 +1400,22 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 	tt_count = batadv_tt_global_hash_count(bat_priv, ethhdr->h_dest,
 					       BATADV_NO_FLAGS);
 	ip_count = batadv_mcast_forw_want_all_ip_count(bat_priv, ethhdr);
-	unsnoop_count = !is_unsnoopable ? 0 :
-			atomic_read(&bat_priv->mcast.num_want_all_unsnoopables);
+	unsyesop_count = !is_unsyesopable ? 0 :
+			atomic_read(&bat_priv->mcast.num_want_all_unsyesopables);
 	rtr_count = batadv_mcast_forw_rtr_count(bat_priv, is_routable);
 
-	total_count = tt_count + ip_count + unsnoop_count + rtr_count;
+	total_count = tt_count + ip_count + unsyesop_count + rtr_count;
 
 	switch (total_count) {
 	case 1:
 		if (tt_count)
-			*orig = batadv_mcast_forw_tt_node_get(bat_priv, ethhdr);
+			*orig = batadv_mcast_forw_tt_yesde_get(bat_priv, ethhdr);
 		else if (ip_count)
-			*orig = batadv_mcast_forw_ip_node_get(bat_priv, ethhdr);
-		else if (unsnoop_count)
-			*orig = batadv_mcast_forw_unsnoop_node_get(bat_priv);
+			*orig = batadv_mcast_forw_ip_yesde_get(bat_priv, ethhdr);
+		else if (unsyesop_count)
+			*orig = batadv_mcast_forw_unsyesop_yesde_get(bat_priv);
 		else if (rtr_count)
-			*orig = batadv_mcast_forw_rtr_node_get(bat_priv,
+			*orig = batadv_mcast_forw_rtr_yesde_get(bat_priv,
 							       ethhdr);
 
 		if (*orig)
@@ -1425,9 +1425,9 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
 	case 0:
 		return BATADV_FORW_NONE;
 	default:
-		mcast_fanout = atomic_read(&bat_priv->multicast_fanout);
+		mcast_fayesut = atomic_read(&bat_priv->multicast_fayesut);
 
-		if (!unsnoop_count && total_count <= mcast_fanout)
+		if (!unsyesop_count && total_count <= mcast_fayesut)
 			return BATADV_FORW_SOME;
 	}
 
@@ -1442,7 +1442,7 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
  *
  * Sends copies of a frame with multicast destination to any multicast
  * listener registered in the translation table. A transmission is performed
- * via a batman-adv unicast packet for each such destination node.
+ * via a batman-adv unicast packet for each such destination yesde.
  *
  * Return: NET_XMIT_DROP on memory allocation failure, NET_XMIT_SUCCESS
  * otherwise.
@@ -1472,7 +1472,7 @@ batadv_mcast_forw_tt(struct batadv_priv *bat_priv, struct sk_buff *skb,
 		}
 
 		batadv_send_skb_unicast(bat_priv, newskb, BATADV_UNICAST, 0,
-					orig_entry->orig_node, vid);
+					orig_entry->orig_yesde, vid);
 	}
 	rcu_read_unlock();
 
@@ -1483,14 +1483,14 @@ out:
 }
 
 /**
- * batadv_mcast_forw_want_all_ipv4() - forward to nodes with want-all-ipv4
+ * batadv_mcast_forw_want_all_ipv4() - forward to yesdes with want-all-ipv4
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the multicast packet to transmit
  * @vid: the vlan identifier
  *
- * Sends copies of a frame with multicast destination to any node with a
+ * Sends copies of a frame with multicast destination to any yesde with a
  * BATADV_MCAST_WANT_ALL_IPV4 flag set. A transmission is performed via a
- * batman-adv unicast packet for each such destination node.
+ * batman-adv unicast packet for each such destination yesde.
  *
  * Return: NET_XMIT_DROP on memory allocation failure, NET_XMIT_SUCCESS
  * otherwise.
@@ -1499,14 +1499,14 @@ static int
 batadv_mcast_forw_want_all_ipv4(struct batadv_priv *bat_priv,
 				struct sk_buff *skb, unsigned short vid)
 {
-	struct batadv_orig_node *orig_node;
+	struct batadv_orig_yesde *orig_yesde;
 	int ret = NET_XMIT_SUCCESS;
 	struct sk_buff *newskb;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(orig_node,
+	hlist_for_each_entry_rcu(orig_yesde,
 				 &bat_priv->mcast.want_all_ipv4_list,
-				 mcast_want_all_ipv4_node) {
+				 mcast_want_all_ipv4_yesde) {
 		newskb = skb_copy(skb, GFP_ATOMIC);
 		if (!newskb) {
 			ret = NET_XMIT_DROP;
@@ -1514,21 +1514,21 @@ batadv_mcast_forw_want_all_ipv4(struct batadv_priv *bat_priv,
 		}
 
 		batadv_send_skb_unicast(bat_priv, newskb, BATADV_UNICAST, 0,
-					orig_node, vid);
+					orig_yesde, vid);
 	}
 	rcu_read_unlock();
 	return ret;
 }
 
 /**
- * batadv_mcast_forw_want_all_ipv6() - forward to nodes with want-all-ipv6
+ * batadv_mcast_forw_want_all_ipv6() - forward to yesdes with want-all-ipv6
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: The multicast packet to transmit
  * @vid: the vlan identifier
  *
- * Sends copies of a frame with multicast destination to any node with a
+ * Sends copies of a frame with multicast destination to any yesde with a
  * BATADV_MCAST_WANT_ALL_IPV6 flag set. A transmission is performed via a
- * batman-adv unicast packet for each such destination node.
+ * batman-adv unicast packet for each such destination yesde.
  *
  * Return: NET_XMIT_DROP on memory allocation failure, NET_XMIT_SUCCESS
  * otherwise.
@@ -1537,14 +1537,14 @@ static int
 batadv_mcast_forw_want_all_ipv6(struct batadv_priv *bat_priv,
 				struct sk_buff *skb, unsigned short vid)
 {
-	struct batadv_orig_node *orig_node;
+	struct batadv_orig_yesde *orig_yesde;
 	int ret = NET_XMIT_SUCCESS;
 	struct sk_buff *newskb;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(orig_node,
+	hlist_for_each_entry_rcu(orig_yesde,
 				 &bat_priv->mcast.want_all_ipv6_list,
-				 mcast_want_all_ipv6_node) {
+				 mcast_want_all_ipv6_yesde) {
 		newskb = skb_copy(skb, GFP_ATOMIC);
 		if (!newskb) {
 			ret = NET_XMIT_DROP;
@@ -1552,25 +1552,25 @@ batadv_mcast_forw_want_all_ipv6(struct batadv_priv *bat_priv,
 		}
 
 		batadv_send_skb_unicast(bat_priv, newskb, BATADV_UNICAST, 0,
-					orig_node, vid);
+					orig_yesde, vid);
 	}
 	rcu_read_unlock();
 	return ret;
 }
 
 /**
- * batadv_mcast_forw_want_all() - forward packet to nodes in a want-all list
+ * batadv_mcast_forw_want_all() - forward packet to yesdes in a want-all list
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the multicast packet to transmit
  * @vid: the vlan identifier
  *
- * Sends copies of a frame with multicast destination to any node with a
+ * Sends copies of a frame with multicast destination to any yesde with a
  * BATADV_MCAST_WANT_ALL_IPV4 or BATADV_MCAST_WANT_ALL_IPV6 flag set. A
  * transmission is performed via a batman-adv unicast packet for each such
- * destination node.
+ * destination yesde.
  *
  * Return: NET_XMIT_DROP on memory allocation failure or if the protocol family
- * is neither IPv4 nor IPv6. NET_XMIT_SUCCESS otherwise.
+ * is neither IPv4 yesr IPv6. NET_XMIT_SUCCESS otherwise.
  */
 static int
 batadv_mcast_forw_want_all(struct batadv_priv *bat_priv,
@@ -1588,14 +1588,14 @@ batadv_mcast_forw_want_all(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_forw_want_all_rtr4() - forward to nodes with want-all-rtr4
+ * batadv_mcast_forw_want_all_rtr4() - forward to yesdes with want-all-rtr4
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the multicast packet to transmit
  * @vid: the vlan identifier
  *
- * Sends copies of a frame with multicast destination to any node with a
+ * Sends copies of a frame with multicast destination to any yesde with a
  * BATADV_MCAST_WANT_NO_RTR4 flag unset. A transmission is performed via a
- * batman-adv unicast packet for each such destination node.
+ * batman-adv unicast packet for each such destination yesde.
  *
  * Return: NET_XMIT_DROP on memory allocation failure, NET_XMIT_SUCCESS
  * otherwise.
@@ -1604,14 +1604,14 @@ static int
 batadv_mcast_forw_want_all_rtr4(struct batadv_priv *bat_priv,
 				struct sk_buff *skb, unsigned short vid)
 {
-	struct batadv_orig_node *orig_node;
+	struct batadv_orig_yesde *orig_yesde;
 	int ret = NET_XMIT_SUCCESS;
 	struct sk_buff *newskb;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(orig_node,
+	hlist_for_each_entry_rcu(orig_yesde,
 				 &bat_priv->mcast.want_all_rtr4_list,
-				 mcast_want_all_rtr4_node) {
+				 mcast_want_all_rtr4_yesde) {
 		newskb = skb_copy(skb, GFP_ATOMIC);
 		if (!newskb) {
 			ret = NET_XMIT_DROP;
@@ -1619,21 +1619,21 @@ batadv_mcast_forw_want_all_rtr4(struct batadv_priv *bat_priv,
 		}
 
 		batadv_send_skb_unicast(bat_priv, newskb, BATADV_UNICAST, 0,
-					orig_node, vid);
+					orig_yesde, vid);
 	}
 	rcu_read_unlock();
 	return ret;
 }
 
 /**
- * batadv_mcast_forw_want_all_rtr6() - forward to nodes with want-all-rtr6
+ * batadv_mcast_forw_want_all_rtr6() - forward to yesdes with want-all-rtr6
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: The multicast packet to transmit
  * @vid: the vlan identifier
  *
- * Sends copies of a frame with multicast destination to any node with a
+ * Sends copies of a frame with multicast destination to any yesde with a
  * BATADV_MCAST_WANT_NO_RTR6 flag unset. A transmission is performed via a
- * batman-adv unicast packet for each such destination node.
+ * batman-adv unicast packet for each such destination yesde.
  *
  * Return: NET_XMIT_DROP on memory allocation failure, NET_XMIT_SUCCESS
  * otherwise.
@@ -1642,14 +1642,14 @@ static int
 batadv_mcast_forw_want_all_rtr6(struct batadv_priv *bat_priv,
 				struct sk_buff *skb, unsigned short vid)
 {
-	struct batadv_orig_node *orig_node;
+	struct batadv_orig_yesde *orig_yesde;
 	int ret = NET_XMIT_SUCCESS;
 	struct sk_buff *newskb;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(orig_node,
+	hlist_for_each_entry_rcu(orig_yesde,
 				 &bat_priv->mcast.want_all_rtr6_list,
-				 mcast_want_all_rtr6_node) {
+				 mcast_want_all_rtr6_yesde) {
 		newskb = skb_copy(skb, GFP_ATOMIC);
 		if (!newskb) {
 			ret = NET_XMIT_DROP;
@@ -1657,25 +1657,25 @@ batadv_mcast_forw_want_all_rtr6(struct batadv_priv *bat_priv,
 		}
 
 		batadv_send_skb_unicast(bat_priv, newskb, BATADV_UNICAST, 0,
-					orig_node, vid);
+					orig_yesde, vid);
 	}
 	rcu_read_unlock();
 	return ret;
 }
 
 /**
- * batadv_mcast_forw_want_rtr() - forward packet to nodes in a want-all-rtr list
+ * batadv_mcast_forw_want_rtr() - forward packet to yesdes in a want-all-rtr list
  * @bat_priv: the bat priv with all the soft interface information
  * @skb: the multicast packet to transmit
  * @vid: the vlan identifier
  *
- * Sends copies of a frame with multicast destination to any node with a
+ * Sends copies of a frame with multicast destination to any yesde with a
  * BATADV_MCAST_WANT_NO_RTR4 or BATADV_MCAST_WANT_NO_RTR6 flag unset. A
  * transmission is performed via a batman-adv unicast packet for each such
- * destination node.
+ * destination yesde.
  *
  * Return: NET_XMIT_DROP on memory allocation failure or if the protocol family
- * is neither IPv4 nor IPv6. NET_XMIT_SUCCESS otherwise.
+ * is neither IPv4 yesr IPv6. NET_XMIT_SUCCESS otherwise.
  */
 static int
 batadv_mcast_forw_want_rtr(struct batadv_priv *bat_priv,
@@ -1698,15 +1698,15 @@ batadv_mcast_forw_want_rtr(struct batadv_priv *bat_priv,
  * @skb: the multicast packet to transmit
  * @vid: the vlan identifier
  *
- * Sends copies of a frame with multicast destination to any node that signaled
+ * Sends copies of a frame with multicast destination to any yesde that signaled
  * interest in it, that is either via the translation table or the according
  * want-all flags. A transmission is performed via a batman-adv unicast packet
- * for each such destination node.
+ * for each such destination yesde.
  *
  * The given skb is consumed/freed.
  *
  * Return: NET_XMIT_DROP on memory allocation failure or if the protocol family
- * is neither IPv4 nor IPv6. NET_XMIT_SUCCESS otherwise.
+ * is neither IPv4 yesr IPv6. NET_XMIT_SUCCESS otherwise.
  */
 int batadv_mcast_forw_send(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			   unsigned short vid)
@@ -1736,9 +1736,9 @@ int batadv_mcast_forw_send(struct batadv_priv *bat_priv, struct sk_buff *skb,
 }
 
 /**
- * batadv_mcast_want_unsnoop_update() - update unsnoop counter and list
+ * batadv_mcast_want_unsyesop_update() - update unsyesop counter and list
  * @bat_priv: the bat priv with all the soft interface information
- * @orig: the orig_node which multicast state might have changed of
+ * @orig: the orig_yesde which multicast state might have changed of
  * @mcast_flags: flags indicating the new multicast state
  *
  * If the BATADV_MCAST_WANT_ALL_UNSNOOPABLES flag of this originator,
@@ -1746,36 +1746,36 @@ int batadv_mcast_forw_send(struct batadv_priv *bat_priv, struct sk_buff *skb,
  *
  * Caller needs to hold orig->mcast_handler_lock.
  */
-static void batadv_mcast_want_unsnoop_update(struct batadv_priv *bat_priv,
-					     struct batadv_orig_node *orig,
+static void batadv_mcast_want_unsyesop_update(struct batadv_priv *bat_priv,
+					     struct batadv_orig_yesde *orig,
 					     u8 mcast_flags)
 {
-	struct hlist_node *node = &orig->mcast_want_all_unsnoopables_node;
-	struct hlist_head *head = &bat_priv->mcast.want_all_unsnoopables_list;
+	struct hlist_yesde *yesde = &orig->mcast_want_all_unsyesopables_yesde;
+	struct hlist_head *head = &bat_priv->mcast.want_all_unsyesopables_list;
 
 	lockdep_assert_held(&orig->mcast_handler_lock);
 
 	/* switched from flag unset to set */
 	if (mcast_flags & BATADV_MCAST_WANT_ALL_UNSNOOPABLES &&
 	    !(orig->mcast_flags & BATADV_MCAST_WANT_ALL_UNSNOOPABLES)) {
-		atomic_inc(&bat_priv->mcast.num_want_all_unsnoopables);
+		atomic_inc(&bat_priv->mcast.num_want_all_unsyesopables);
 
 		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
 		/* flag checks above + mcast_handler_lock prevents this */
-		WARN_ON(!hlist_unhashed(node));
+		WARN_ON(!hlist_unhashed(yesde));
 
-		hlist_add_head_rcu(node, head);
+		hlist_add_head_rcu(yesde, head);
 		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
 	/* switched from flag set to unset */
 	} else if (!(mcast_flags & BATADV_MCAST_WANT_ALL_UNSNOOPABLES) &&
 		   orig->mcast_flags & BATADV_MCAST_WANT_ALL_UNSNOOPABLES) {
-		atomic_dec(&bat_priv->mcast.num_want_all_unsnoopables);
+		atomic_dec(&bat_priv->mcast.num_want_all_unsyesopables);
 
 		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
 		/* flag checks above + mcast_handler_lock prevents this */
-		WARN_ON(hlist_unhashed(node));
+		WARN_ON(hlist_unhashed(yesde));
 
-		hlist_del_init_rcu(node);
+		hlist_del_init_rcu(yesde);
 		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
 	}
 }
@@ -1783,7 +1783,7 @@ static void batadv_mcast_want_unsnoop_update(struct batadv_priv *bat_priv,
 /**
  * batadv_mcast_want_ipv4_update() - update want-all-ipv4 counter and list
  * @bat_priv: the bat priv with all the soft interface information
- * @orig: the orig_node which multicast state might have changed of
+ * @orig: the orig_yesde which multicast state might have changed of
  * @mcast_flags: flags indicating the new multicast state
  *
  * If the BATADV_MCAST_WANT_ALL_IPV4 flag of this originator, orig, has
@@ -1792,10 +1792,10 @@ static void batadv_mcast_want_unsnoop_update(struct batadv_priv *bat_priv,
  * Caller needs to hold orig->mcast_handler_lock.
  */
 static void batadv_mcast_want_ipv4_update(struct batadv_priv *bat_priv,
-					  struct batadv_orig_node *orig,
+					  struct batadv_orig_yesde *orig,
 					  u8 mcast_flags)
 {
-	struct hlist_node *node = &orig->mcast_want_all_ipv4_node;
+	struct hlist_yesde *yesde = &orig->mcast_want_all_ipv4_yesde;
 	struct hlist_head *head = &bat_priv->mcast.want_all_ipv4_list;
 
 	lockdep_assert_held(&orig->mcast_handler_lock);
@@ -1807,9 +1807,9 @@ static void batadv_mcast_want_ipv4_update(struct batadv_priv *bat_priv,
 
 		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
 		/* flag checks above + mcast_handler_lock prevents this */
-		WARN_ON(!hlist_unhashed(node));
+		WARN_ON(!hlist_unhashed(yesde));
 
-		hlist_add_head_rcu(node, head);
+		hlist_add_head_rcu(yesde, head);
 		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
 	/* switched from flag set to unset */
 	} else if (!(mcast_flags & BATADV_MCAST_WANT_ALL_IPV4) &&
@@ -1818,9 +1818,9 @@ static void batadv_mcast_want_ipv4_update(struct batadv_priv *bat_priv,
 
 		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
 		/* flag checks above + mcast_handler_lock prevents this */
-		WARN_ON(hlist_unhashed(node));
+		WARN_ON(hlist_unhashed(yesde));
 
-		hlist_del_init_rcu(node);
+		hlist_del_init_rcu(yesde);
 		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
 	}
 }
@@ -1828,7 +1828,7 @@ static void batadv_mcast_want_ipv4_update(struct batadv_priv *bat_priv,
 /**
  * batadv_mcast_want_ipv6_update() - update want-all-ipv6 counter and list
  * @bat_priv: the bat priv with all the soft interface information
- * @orig: the orig_node which multicast state might have changed of
+ * @orig: the orig_yesde which multicast state might have changed of
  * @mcast_flags: flags indicating the new multicast state
  *
  * If the BATADV_MCAST_WANT_ALL_IPV6 flag of this originator, orig, has
@@ -1837,10 +1837,10 @@ static void batadv_mcast_want_ipv4_update(struct batadv_priv *bat_priv,
  * Caller needs to hold orig->mcast_handler_lock.
  */
 static void batadv_mcast_want_ipv6_update(struct batadv_priv *bat_priv,
-					  struct batadv_orig_node *orig,
+					  struct batadv_orig_yesde *orig,
 					  u8 mcast_flags)
 {
-	struct hlist_node *node = &orig->mcast_want_all_ipv6_node;
+	struct hlist_yesde *yesde = &orig->mcast_want_all_ipv6_yesde;
 	struct hlist_head *head = &bat_priv->mcast.want_all_ipv6_list;
 
 	lockdep_assert_held(&orig->mcast_handler_lock);
@@ -1852,9 +1852,9 @@ static void batadv_mcast_want_ipv6_update(struct batadv_priv *bat_priv,
 
 		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
 		/* flag checks above + mcast_handler_lock prevents this */
-		WARN_ON(!hlist_unhashed(node));
+		WARN_ON(!hlist_unhashed(yesde));
 
-		hlist_add_head_rcu(node, head);
+		hlist_add_head_rcu(yesde, head);
 		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
 	/* switched from flag set to unset */
 	} else if (!(mcast_flags & BATADV_MCAST_WANT_ALL_IPV6) &&
@@ -1863,9 +1863,9 @@ static void batadv_mcast_want_ipv6_update(struct batadv_priv *bat_priv,
 
 		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
 		/* flag checks above + mcast_handler_lock prevents this */
-		WARN_ON(hlist_unhashed(node));
+		WARN_ON(hlist_unhashed(yesde));
 
-		hlist_del_init_rcu(node);
+		hlist_del_init_rcu(yesde);
 		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
 	}
 }
@@ -1873,7 +1873,7 @@ static void batadv_mcast_want_ipv6_update(struct batadv_priv *bat_priv,
 /**
  * batadv_mcast_want_rtr4_update() - update want-all-rtr4 counter and list
  * @bat_priv: the bat priv with all the soft interface information
- * @orig: the orig_node which multicast state might have changed of
+ * @orig: the orig_yesde which multicast state might have changed of
  * @mcast_flags: flags indicating the new multicast state
  *
  * If the BATADV_MCAST_WANT_NO_RTR4 flag of this originator, orig, has
@@ -1882,10 +1882,10 @@ static void batadv_mcast_want_ipv6_update(struct batadv_priv *bat_priv,
  * Caller needs to hold orig->mcast_handler_lock.
  */
 static void batadv_mcast_want_rtr4_update(struct batadv_priv *bat_priv,
-					  struct batadv_orig_node *orig,
+					  struct batadv_orig_yesde *orig,
 					  u8 mcast_flags)
 {
-	struct hlist_node *node = &orig->mcast_want_all_rtr4_node;
+	struct hlist_yesde *yesde = &orig->mcast_want_all_rtr4_yesde;
 	struct hlist_head *head = &bat_priv->mcast.want_all_rtr4_list;
 
 	lockdep_assert_held(&orig->mcast_handler_lock);
@@ -1897,9 +1897,9 @@ static void batadv_mcast_want_rtr4_update(struct batadv_priv *bat_priv,
 
 		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
 		/* flag checks above + mcast_handler_lock prevents this */
-		WARN_ON(!hlist_unhashed(node));
+		WARN_ON(!hlist_unhashed(yesde));
 
-		hlist_add_head_rcu(node, head);
+		hlist_add_head_rcu(yesde, head);
 		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
 	/* switched from flag unset to set */
 	} else if (mcast_flags & BATADV_MCAST_WANT_NO_RTR4 &&
@@ -1908,9 +1908,9 @@ static void batadv_mcast_want_rtr4_update(struct batadv_priv *bat_priv,
 
 		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
 		/* flag checks above + mcast_handler_lock prevents this */
-		WARN_ON(hlist_unhashed(node));
+		WARN_ON(hlist_unhashed(yesde));
 
-		hlist_del_init_rcu(node);
+		hlist_del_init_rcu(yesde);
 		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
 	}
 }
@@ -1918,7 +1918,7 @@ static void batadv_mcast_want_rtr4_update(struct batadv_priv *bat_priv,
 /**
  * batadv_mcast_want_rtr6_update() - update want-all-rtr6 counter and list
  * @bat_priv: the bat priv with all the soft interface information
- * @orig: the orig_node which multicast state might have changed of
+ * @orig: the orig_yesde which multicast state might have changed of
  * @mcast_flags: flags indicating the new multicast state
  *
  * If the BATADV_MCAST_WANT_NO_RTR6 flag of this originator, orig, has
@@ -1927,10 +1927,10 @@ static void batadv_mcast_want_rtr4_update(struct batadv_priv *bat_priv,
  * Caller needs to hold orig->mcast_handler_lock.
  */
 static void batadv_mcast_want_rtr6_update(struct batadv_priv *bat_priv,
-					  struct batadv_orig_node *orig,
+					  struct batadv_orig_yesde *orig,
 					  u8 mcast_flags)
 {
-	struct hlist_node *node = &orig->mcast_want_all_rtr6_node;
+	struct hlist_yesde *yesde = &orig->mcast_want_all_rtr6_yesde;
 	struct hlist_head *head = &bat_priv->mcast.want_all_rtr6_list;
 
 	lockdep_assert_held(&orig->mcast_handler_lock);
@@ -1942,9 +1942,9 @@ static void batadv_mcast_want_rtr6_update(struct batadv_priv *bat_priv,
 
 		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
 		/* flag checks above + mcast_handler_lock prevents this */
-		WARN_ON(!hlist_unhashed(node));
+		WARN_ON(!hlist_unhashed(yesde));
 
-		hlist_add_head_rcu(node, head);
+		hlist_add_head_rcu(yesde, head);
 		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
 	/* switched from flag unset to set */
 	} else if (mcast_flags & BATADV_MCAST_WANT_NO_RTR6 &&
@@ -1953,9 +1953,9 @@ static void batadv_mcast_want_rtr6_update(struct batadv_priv *bat_priv,
 
 		spin_lock_bh(&bat_priv->mcast.want_lists_lock);
 		/* flag checks above + mcast_handler_lock prevents this */
-		WARN_ON(hlist_unhashed(node));
+		WARN_ON(hlist_unhashed(yesde));
 
-		hlist_del_init_rcu(node);
+		hlist_del_init_rcu(yesde);
 		spin_unlock_bh(&bat_priv->mcast.want_lists_lock);
 	}
 }
@@ -1994,13 +1994,13 @@ batadv_mcast_tvlv_flags_get(bool enabled, void *tvlv_value, u16 tvlv_value_len)
 /**
  * batadv_mcast_tvlv_ogm_handler() - process incoming multicast tvlv container
  * @bat_priv: the bat priv with all the soft interface information
- * @orig: the orig_node of the ogm
+ * @orig: the orig_yesde of the ogm
  * @flags: flags indicating the tvlv state (see batadv_tvlv_handler_flags)
  * @tvlv_value: tvlv buffer containing the multicast data
  * @tvlv_value_len: tvlv buffer length
  */
 static void batadv_mcast_tvlv_ogm_handler(struct batadv_priv *bat_priv,
-					  struct batadv_orig_node *orig,
+					  struct batadv_orig_yesde *orig,
 					  u8 flags,
 					  void *tvlv_value,
 					  u16 tvlv_value_len)
@@ -2023,7 +2023,7 @@ static void batadv_mcast_tvlv_ogm_handler(struct batadv_priv *bat_priv,
 
 	set_bit(BATADV_ORIG_CAPA_HAS_MCAST, &orig->capa_initialized);
 
-	batadv_mcast_want_unsnoop_update(bat_priv, orig, mcast_flags);
+	batadv_mcast_want_unsyesop_update(bat_priv, orig, mcast_flags);
 	batadv_mcast_want_ipv4_update(bat_priv, orig, mcast_flags);
 	batadv_mcast_want_ipv6_update(bat_priv, orig, mcast_flags);
 	batadv_mcast_want_rtr4_update(bat_priv, orig, mcast_flags);
@@ -2093,9 +2093,9 @@ static void batadv_mcast_flags_print_header(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_mcast_flags_seq_print_text() - print the mcast flags of other nodes
+ * batadv_mcast_flags_seq_print_text() - print the mcast flags of other yesdes
  * @seq: seq file to print on
- * @offset: not used
+ * @offset: yest used
  *
  * This prints a table of (primary) originators and their according
  * multicast flags, including (in the header) our own.
@@ -2108,7 +2108,7 @@ int batadv_mcast_flags_seq_print_text(struct seq_file *seq, void *offset)
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
 	struct batadv_hard_iface *primary_if;
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
-	struct batadv_orig_node *orig_node;
+	struct batadv_orig_yesde *orig_yesde;
 	struct hlist_head *head;
 	u8 flags;
 	u32 i;
@@ -2123,20 +2123,20 @@ int batadv_mcast_flags_seq_print_text(struct seq_file *seq, void *offset)
 		head = &hash->table[i];
 
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
+		hlist_for_each_entry_rcu(orig_yesde, head, hash_entry) {
 			if (!test_bit(BATADV_ORIG_CAPA_HAS_MCAST,
-				      &orig_node->capa_initialized))
+				      &orig_yesde->capa_initialized))
 				continue;
 
 			if (!test_bit(BATADV_ORIG_CAPA_HAS_MCAST,
-				      &orig_node->capabilities)) {
-				seq_printf(seq, "%pM -\n", orig_node->orig);
+				      &orig_yesde->capabilities)) {
+				seq_printf(seq, "%pM -\n", orig_yesde->orig);
 				continue;
 			}
 
-			flags = orig_node->mcast_flags;
+			flags = orig_yesde->mcast_flags;
 
-			seq_printf(seq, "%pM [%c%c%c%s%s]\n", orig_node->orig,
+			seq_printf(seq, "%pM [%c%c%c%s%s]\n", orig_yesde->orig,
 				   (flags & BATADV_MCAST_WANT_ALL_UNSNOOPABLES)
 				   ? 'U' : '.',
 				   (flags & BATADV_MCAST_WANT_ALL_IPV4)
@@ -2196,14 +2196,14 @@ int batadv_mcast_mesh_info_put(struct sk_buff *msg,
  * @msg: buffer for the message
  * @portid: netlink port
  * @cb: Control block containing additional options
- * @orig_node: originator to dump the multicast flags of
+ * @orig_yesde: originator to dump the multicast flags of
  *
  * Return: 0 or error code.
  */
 static int
 batadv_mcast_flags_dump_entry(struct sk_buff *msg, u32 portid,
 			      struct netlink_callback *cb,
-			      struct batadv_orig_node *orig_node)
+			      struct batadv_orig_yesde *orig_yesde)
 {
 	void *hdr;
 
@@ -2216,15 +2216,15 @@ batadv_mcast_flags_dump_entry(struct sk_buff *msg, u32 portid,
 	genl_dump_check_consistent(cb, hdr);
 
 	if (nla_put(msg, BATADV_ATTR_ORIG_ADDRESS, ETH_ALEN,
-		    orig_node->orig)) {
+		    orig_yesde->orig)) {
 		genlmsg_cancel(msg, hdr);
 		return -EMSGSIZE;
 	}
 
 	if (test_bit(BATADV_ORIG_CAPA_HAS_MCAST,
-		     &orig_node->capabilities)) {
+		     &orig_yesde->capabilities)) {
 		if (nla_put_u32(msg, BATADV_ATTR_MCAST_FLAGS,
-				orig_node->mcast_flags)) {
+				orig_yesde->mcast_flags)) {
 			genlmsg_cancel(msg, hdr);
 			return -EMSGSIZE;
 		}
@@ -2252,21 +2252,21 @@ batadv_mcast_flags_dump_bucket(struct sk_buff *msg, u32 portid,
 			       struct batadv_hashtable *hash,
 			       unsigned int bucket, long *idx_skip)
 {
-	struct batadv_orig_node *orig_node;
+	struct batadv_orig_yesde *orig_yesde;
 	long idx = 0;
 
 	spin_lock_bh(&hash->list_locks[bucket]);
 	cb->seq = atomic_read(&hash->generation) << 1 | 1;
 
-	hlist_for_each_entry(orig_node, &hash->table[bucket], hash_entry) {
+	hlist_for_each_entry(orig_yesde, &hash->table[bucket], hash_entry) {
 		if (!test_bit(BATADV_ORIG_CAPA_HAS_MCAST,
-			      &orig_node->capa_initialized))
+			      &orig_yesde->capa_initialized))
 			continue;
 
 		if (idx < *idx_skip)
 			goto skip;
 
-		if (batadv_mcast_flags_dump_entry(msg, portid, cb, orig_node)) {
+		if (batadv_mcast_flags_dump_entry(msg, portid, cb, orig_yesde)) {
 			spin_unlock_bh(&hash->list_locks[bucket]);
 			*idx_skip = idx;
 
@@ -2411,13 +2411,13 @@ void batadv_mcast_free(struct batadv_priv *bat_priv)
  * batadv_mcast_purge_orig() - reset originator global mcast state modifications
  * @orig: the originator which is going to get purged
  */
-void batadv_mcast_purge_orig(struct batadv_orig_node *orig)
+void batadv_mcast_purge_orig(struct batadv_orig_yesde *orig)
 {
 	struct batadv_priv *bat_priv = orig->bat_priv;
 
 	spin_lock_bh(&orig->mcast_handler_lock);
 
-	batadv_mcast_want_unsnoop_update(bat_priv, orig, BATADV_NO_FLAGS);
+	batadv_mcast_want_unsyesop_update(bat_priv, orig, BATADV_NO_FLAGS);
 	batadv_mcast_want_ipv4_update(bat_priv, orig, BATADV_NO_FLAGS);
 	batadv_mcast_want_ipv6_update(bat_priv, orig, BATADV_NO_FLAGS);
 	batadv_mcast_want_rtr4_update(bat_priv, orig,

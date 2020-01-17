@@ -18,7 +18,7 @@
 #include "sch56xx-common.h"
 
 #define DRVNAME "sch5636"
-#define DEVNAME "theseus" /* We only support one model for now */
+#define DEVNAME "theseus" /* We only support one model for yesw */
 
 #define SCH5636_REG_FUJITSU_ID		0x780
 #define SCH5636_REG_FUJITSU_REV		0x783
@@ -411,7 +411,7 @@ static int sch5636_probe(struct platform_device *pdev)
 		val = sch56xx_read_virtual_reg(data->addr,
 					       SCH5636_REG_FUJITSU_ID + i);
 		if (val < 0) {
-			pr_err("Could not read Fujitsu id byte at %#x\n",
+			pr_err("Could yest read Fujitsu id byte at %#x\n",
 				SCH5636_REG_FUJITSU_ID + i);
 			err = val;
 			goto error;
@@ -421,7 +421,7 @@ static int sch5636_probe(struct platform_device *pdev)
 	id[i] = '\0';
 
 	if (strcmp(id, "THS")) {
-		pr_err("Unknown Fujitsu id: %02x%02x%02x\n",
+		pr_err("Unkyeswn Fujitsu id: %02x%02x%02x\n",
 		       id[0], id[1], id[2]);
 		err = -ENODEV;
 		goto error;
@@ -494,7 +494,7 @@ static int sch5636_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	/* Note failing to register the watchdog is not a fatal error */
+	/* Note failing to register the watchdog is yest a fatal error */
 	data->watchdog = sch56xx_watchdog_register(&pdev->dev, data->addr,
 					(revision[0] << 8) | revision[1],
 					&data->update_lock, 0);

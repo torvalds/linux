@@ -8,9 +8,9 @@
 Sottomettere driver per il kernel Linux
 =======================================
 
-.. note::
+.. yeste::
 
-   Questo documento è vecchio e negli ultimi anni non è stato più aggiornato;
+   Questo documento è vecchio e negli ultimi anni yesn è stato più aggiornato;
    dovrebbe essere aggiornato, o forse meglio, rimosso.  La maggior parte di
    quello che viene detto qui può essere trovato anche negli altri documenti
-   dedicati allo sviluppo.  Per questo motivo il documento non verrà tradotto.
+   dedicati allo sviluppo.  Per questo motivo il documento yesn verrà tradotto.

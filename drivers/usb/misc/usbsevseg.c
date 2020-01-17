@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -344,14 +344,14 @@ static int sevseg_probe(struct usb_interface *interface,
 
 	/* PM */
 	mydev->shadow_power = 1; /* currently active */
-	mydev->has_interface_pm = 0; /* have not issued autopm_get */
+	mydev->has_interface_pm = 0; /* have yest issued autopm_get */
 
 	/*set defaults */
 	mydev->textmode = 0x02; /* ascii mode */
 	mydev->mode_msb = 0x06; /* 6 characters */
 	mydev->mode_lsb = 0x3f; /* scanmode for 6 chars */
 
-	dev_info(&interface->dev, "USB 7 Segment device now attached\n");
+	dev_info(&interface->dev, "USB 7 Segment device yesw attached\n");
 	return 0;
 
 error_mem:
@@ -366,7 +366,7 @@ static void sevseg_disconnect(struct usb_interface *interface)
 	usb_set_intfdata(interface, NULL);
 	usb_put_dev(mydev->udev);
 	kfree(mydev);
-	dev_info(&interface->dev, "USB 7 Segment now disconnected\n");
+	dev_info(&interface->dev, "USB 7 Segment yesw disconnected\n");
 }
 
 static int sevseg_suspend(struct usb_interface *intf, pm_message_t message)

@@ -16,15 +16,15 @@
 #include <linux/irq.h>
 
 static unsigned int
-lsapic_noop_startup (struct irq_data *data)
+lsapic_yesop_startup (struct irq_data *data)
 {
 	return 0;
 }
 
 static void
-lsapic_noop (struct irq_data *data)
+lsapic_yesop (struct irq_data *data)
 {
-	/* nothing to do... */
+	/* yesthing to do... */
 }
 
 static int lsapic_retrigger(struct irq_data *data)
@@ -36,10 +36,10 @@ static int lsapic_retrigger(struct irq_data *data)
 
 struct irq_chip irq_type_ia64_lsapic = {
 	.name =			"LSAPIC",
-	.irq_startup =		lsapic_noop_startup,
-	.irq_shutdown =		lsapic_noop,
-	.irq_enable =		lsapic_noop,
-	.irq_disable =		lsapic_noop,
-	.irq_ack =		lsapic_noop,
+	.irq_startup =		lsapic_yesop_startup,
+	.irq_shutdown =		lsapic_yesop,
+	.irq_enable =		lsapic_yesop,
+	.irq_disable =		lsapic_yesop,
+	.irq_ack =		lsapic_yesop,
 	.irq_retrigger =	lsapic_retrigger,
 };

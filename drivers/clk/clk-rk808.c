@@ -154,7 +154,7 @@ static int rk808_clkout_probe(struct platform_device *pdev)
 {
 	struct rk808 *rk808 = dev_get_drvdata(pdev->dev.parent);
 	struct i2c_client *client = rk808->i2c;
-	struct device_node *node = client->dev.of_node;
+	struct device_yesde *yesde = client->dev.of_yesde;
 	struct clk_init_data init = {};
 	struct rk808_clkout *rk808_clkout;
 	int ret;
@@ -173,7 +173,7 @@ static int rk808_clkout_probe(struct platform_device *pdev)
 	rk808_clkout->clkout1_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string_index(node, "clock-output-names",
+	of_property_read_string_index(yesde, "clock-output-names",
 				      0, &init.name);
 
 	ret = devm_clk_hw_register(&client->dev, &rk808_clkout->clkout1_hw);
@@ -185,7 +185,7 @@ static int rk808_clkout_probe(struct platform_device *pdev)
 	rk808_clkout->clkout2_hw.init = &init;
 
 	/* optional override of the clockname */
-	of_property_read_string_index(node, "clock-output-names",
+	of_property_read_string_index(yesde, "clock-output-names",
 				      1, &init.name);
 
 	ret = devm_clk_hw_register(&client->dev, &rk808_clkout->clkout2_hw);

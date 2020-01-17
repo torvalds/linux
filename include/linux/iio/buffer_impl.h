@@ -10,7 +10,7 @@ struct iio_dev;
 struct iio_buffer;
 
 /**
- * INDIO_BUFFER_FLAG_FIXED_WATERMARK - Watermark level of the buffer can not be
+ * INDIO_BUFFER_FLAG_FIXED_WATERMARK - Watermark level of the buffer can yest be
  *   configured. It has a fixed value which will be buffer specific.
  */
 #define INDIO_BUFFER_FLAG_FIXED_WATERMARK BIT(0)
@@ -39,9 +39,9 @@ struct iio_buffer;
  * modular as event for a given driver, different usecases may require
  * different buffer designs (space efficiency vs speed for example).
  *
- * It is worth noting that a given buffer implementation may only support a
+ * It is worth yesting that a given buffer implementation may only support a
  * small proportion of these functions.  The core code 'should' cope fine with
- * any of them not existing.
+ * any of them yest existing.
  **/
 struct iio_buffer_access_funcs {
 	int (*store_to)(struct iio_buffer *buffer, const void *data);
@@ -112,7 +112,7 @@ struct iio_buffer {
 	struct attribute_group buffer_group;
 
 	/*
-	 * @scan_el_group: Attribute group for those attributes not
+	 * @scan_el_group: Attribute group for those attributes yest
 	 * created from the iio_chan_info array.
 	 */
 	struct attribute_group scan_el_group;

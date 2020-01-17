@@ -104,8 +104,8 @@ static void ivtv_queue_move_buf(struct ivtv_stream *s, struct ivtv_queue *from,
    bytesused value. For the 'steal' queue the total available buffer
    length is always used.
 
-   -ENOMEM is returned if the buffers could not be obtained, 0 if all
-   buffers where obtained from the 'from' list and if non-zero then
+   -ENOMEM is returned if the buffers could yest be obtained, 0 if all
+   buffers where obtained from the 'from' list and if yesn-zero then
    the number of stolen buffers is returned. */
 int ivtv_queue_move(struct ivtv_stream *s, struct ivtv_queue *from, struct ivtv_queue *steal,
 		    struct ivtv_queue *to, int needed_bytes)
@@ -135,7 +135,7 @@ int ivtv_queue_move(struct ivtv_stream *s, struct ivtv_queue *from, struct ivtv_
 
 		/* move buffers from the tail of the 'steal' queue to the tail of the
 		   'from' queue. Always copy all the buffers with the same dma_xfer_cnt
-		   value, this ensures that you do not end up with partial frame data
+		   value, this ensures that you do yest end up with partial frame data
 		   if one frame is stored in multiple buffers. */
 		while (dma_xfer_cnt == buf->dma_xfer_cnt) {
 			list_move_tail(steal->list.prev, &from->list);
@@ -193,14 +193,14 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 
 	s->sg_pending = kzalloc(SGsize, GFP_KERNEL|__GFP_NOWARN);
 	if (s->sg_pending == NULL) {
-		IVTV_ERR("Could not allocate sg_pending for %s stream\n", s->name);
+		IVTV_ERR("Could yest allocate sg_pending for %s stream\n", s->name);
 		return -ENOMEM;
 	}
 	s->sg_pending_size = 0;
 
 	s->sg_processing = kzalloc(SGsize, GFP_KERNEL|__GFP_NOWARN);
 	if (s->sg_processing == NULL) {
-		IVTV_ERR("Could not allocate sg_processing for %s stream\n", s->name);
+		IVTV_ERR("Could yest allocate sg_processing for %s stream\n", s->name);
 		kfree(s->sg_pending);
 		s->sg_pending = NULL;
 		return -ENOMEM;
@@ -210,7 +210,7 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 	s->sg_dma = kzalloc(sizeof(struct ivtv_sg_element),
 					GFP_KERNEL|__GFP_NOWARN);
 	if (s->sg_dma == NULL) {
-		IVTV_ERR("Could not allocate sg_dma for %s stream\n", s->name);
+		IVTV_ERR("Could yest allocate sg_dma for %s stream\n", s->name);
 		kfree(s->sg_pending);
 		s->sg_pending = NULL;
 		kfree(s->sg_processing);

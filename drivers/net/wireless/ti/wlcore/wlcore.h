@@ -19,7 +19,7 @@
 
 /*
  * We always allocate this number of mac addresses. If we don't
- * have enough allocated addresses, the LAA bit is used
+ * have eyesugh allocated addresses, the LAA bit is used
  */
 #define WLCORE_NUM_MAC_ADDRESSES 3
 
@@ -105,7 +105,7 @@ struct wlcore_ops {
 			      struct wl1271_link *lnk);
 	bool (*lnk_low_prio)(struct wl1271 *wl, u8 hlid,
 			     struct wl1271_link *lnk);
-	int (*interrupt_notify)(struct wl1271 *wl, bool action);
+	int (*interrupt_yestify)(struct wl1271 *wl, bool action);
 	int (*rx_ba_filter)(struct wl1271 *wl, bool action);
 	int (*ap_sleep)(struct wl1271 *wl);
 	int (*smart_config_start)(struct wl1271 *wl, u32 group_bitmap);
@@ -257,15 +257,15 @@ struct wl1271 {
 	/* Time-offset between host and chipset clocks */
 	s64 time_offset;
 
-	/* Frames scheduled for transmission, not handled yet */
+	/* Frames scheduled for transmission, yest handled yet */
 	int tx_queue_count[NUM_TX_QUEUES];
 	unsigned long queue_stop_reasons[
 				NUM_TX_QUEUES * WLCORE_NUM_MAC_ADDRESSES];
 
-	/* Frames received, not handled yet by mac80211 */
+	/* Frames received, yest handled yet by mac80211 */
 	struct sk_buff_head deferred_rx_queue;
 
-	/* Frames sent, not returned yet to mac80211 */
+	/* Frames sent, yest returned yet to mac80211 */
 	struct sk_buff_head deferred_tx_queue;
 
 	struct work_struct tx_work;
@@ -359,8 +359,8 @@ struct wl1271 {
 
 	int recovery_count;
 
-	/* Most recently reported noise in dBm */
-	s8 noise;
+	/* Most recently reported yesise in dBm */
+	s8 yesise;
 
 	/* bands supported by this instance of wl12xx */
 	struct ieee80211_supported_band bands[WLCORE_NUM_BANDS];
@@ -516,27 +516,27 @@ wlcore_set_ht_cap(struct wl1271 *wl, enum nl80211_band band,
 	memcpy(&wl->ht_cap[band], ht_cap, sizeof(*ht_cap));
 }
 
-/* Tell wlcore not to care about this element when checking the version */
+/* Tell wlcore yest to care about this element when checking the version */
 #define WLCORE_FW_VER_IGNORE	-1
 
 static inline void
 wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
 		      unsigned int iftype_sr, unsigned int major_sr,
-		      unsigned int subtype_sr, unsigned int minor_sr,
+		      unsigned int subtype_sr, unsigned int miyesr_sr,
 		      unsigned int iftype_mr, unsigned int major_mr,
-		      unsigned int subtype_mr, unsigned int minor_mr)
+		      unsigned int subtype_mr, unsigned int miyesr_mr)
 {
 	wl->min_sr_fw_ver[FW_VER_CHIP] = chip;
 	wl->min_sr_fw_ver[FW_VER_IF_TYPE] = iftype_sr;
 	wl->min_sr_fw_ver[FW_VER_MAJOR] = major_sr;
 	wl->min_sr_fw_ver[FW_VER_SUBTYPE] = subtype_sr;
-	wl->min_sr_fw_ver[FW_VER_MINOR] = minor_sr;
+	wl->min_sr_fw_ver[FW_VER_MINOR] = miyesr_sr;
 
 	wl->min_mr_fw_ver[FW_VER_CHIP] = chip;
 	wl->min_mr_fw_ver[FW_VER_IF_TYPE] = iftype_mr;
 	wl->min_mr_fw_ver[FW_VER_MAJOR] = major_mr;
 	wl->min_mr_fw_ver[FW_VER_SUBTYPE] = subtype_mr;
-	wl->min_mr_fw_ver[FW_VER_MINOR] = minor_mr;
+	wl->min_mr_fw_ver[FW_VER_MINOR] = miyesr_mr;
 }
 
 /* Firmware image load chunk size */
@@ -556,7 +556,7 @@ wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
 /* means aggregated Rx packets are aligned to a SDIO block */
 #define WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN		BIT(3)
 
-/* Older firmwares did not implement the FW logger over bus feature */
+/* Older firmwares did yest implement the FW logger over bus feature */
 #define WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED	BIT(4)
 
 /* Older firmwares use an old NVS format */
@@ -568,7 +568,7 @@ wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
 /* extra header space is required for TKIP */
 #define WLCORE_QUIRK_TKIP_HEADER_SPACE		BIT(8)
 
-/* Some firmwares not support sched scans while connected */
+/* Some firmwares yest support sched scans while connected */
 #define WLCORE_QUIRK_NO_SCHED_SCAN_WHILE_CONN	BIT(9)
 
 /* separate probe response templates for one-shot and sched scans */

@@ -31,8 +31,8 @@ These values shall be obtained from the device data-sheet.
 - tCKESR-min-tck
 - tFAW-min-tck
 
-Child nodes:
-- The lpddr2 node may have one or more child nodes of type "lpddr2-timings".
+Child yesdes:
+- The lpddr2 yesde may have one or more child yesdes of type "lpddr2-timings".
   "lpddr2-timings" provides AC timing parameters of the device for
   a given speed-bin. The user may provide the timings for as many
   speed-bins as is required. Please see Documentation/devicetree/

@@ -23,7 +23,7 @@ int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 
 	if (!vha->flags.nvme_enabled) {
 		ql_log(ql_log_info, vha, 0x2100,
-		    "%s: Not registering target since Host NVME is not enabled\n",
+		    "%s: Not registering target since Host NVME is yest enabled\n",
 		    __func__);
 		return 0;
 	}
@@ -40,7 +40,7 @@ int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 
 	memset(&req, 0, sizeof(struct nvme_fc_port_info));
 	req.port_name = wwn_to_u64(fcport->port_name);
-	req.node_name = wwn_to_u64(fcport->node_name);
+	req.yesde_name = wwn_to_u64(fcport->yesde_name);
 	req.port_role = 0;
 	req.dev_loss_tmo = NVME_FC_DEV_LOSS_TMO;
 
@@ -57,7 +57,7 @@ int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 
 	ql_log(ql_log_info, vha, 0x2102,
 	    "%s: traddr=nn-0x%016llx:pn-0x%016llx PortID:%06x\n",
-	    __func__, req.node_name, req.port_name,
+	    __func__, req.yesde_name, req.port_name,
 	    req.port_id);
 
 	ret = nvme_fc_register_remoteport(vha->nvme_local_port, &req,
@@ -543,9 +543,9 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 
 	vha = fcport->vha;
 	/*
-	 * If we know the dev is going away while the transport is still sending
+	 * If we kyesw the dev is going away while the transport is still sending
 	 * IO's return busy back to stall the IO Q.  This happens when the
-	 * link goes away and fw hasn't notified us yet, but IO's are being
+	 * link goes away and fw hasn't yestified us yet, but IO's are being
 	 * returned. If the dev comes back quickly we won't exhaust the IO
 	 * retry count at the core.
 	 */
@@ -693,14 +693,14 @@ int qla_nvme_register_hba(struct scsi_qla_host *vha)
 	    min((uint8_t)(qla_nvme_fc_transport.max_hw_queues),
 		(uint8_t)(ha->max_req_queues - 2));
 
-	pinfo.node_name = wwn_to_u64(vha->node_name);
+	pinfo.yesde_name = wwn_to_u64(vha->yesde_name);
 	pinfo.port_name = wwn_to_u64(vha->port_name);
 	pinfo.port_role = FC_PORT_ROLE_NVME_INITIATOR;
 	pinfo.port_id = vha->d_id.b24;
 
 	ql_log(ql_log_info, vha, 0xffff,
 	    "register_localport: host-traddr=nn-0x%llx:pn-0x%llx on portID:%x\n",
-	    pinfo.node_name, pinfo.port_name, pinfo.port_id);
+	    pinfo.yesde_name, pinfo.port_name, pinfo.port_id);
 	qla_nvme_fc_transport.dma_boundary = vha->host->dma_boundary;
 
 	ret = nvme_fc_register_localport(&pinfo, tmpl,

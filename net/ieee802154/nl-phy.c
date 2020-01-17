@@ -230,7 +230,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 		nla_memcpy(&addr.sa_data, info->attrs[IEEE802154_ATTR_HW_ADDR],
 			   IEEE802154_ADDR_LEN);
 
-		/* strangely enough, some callbacks (inetdev_event) from
+		/* strangely eyesugh, some callbacks (inetdev_event) from
 		 * dev_set_mac_address require RTNL_LOCK
 		 */
 		rtnl_lock();

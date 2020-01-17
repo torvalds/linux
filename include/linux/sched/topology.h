@@ -25,7 +25,7 @@
 #define SD_ASYM_PACKING		0x0800  /* Place busy groups earlier in the domain */
 #define SD_PREFER_SIBLING	0x1000	/* Prefer to place tasks in a sibling domain */
 #define SD_OVERLAP		0x2000	/* sched_domains of this level overlap */
-#define SD_NUMA			0x4000	/* cross-node balancing */
+#define SD_NUMA			0x4000	/* cross-yesde balancing */
 
 #ifdef CONFIG_SCHED_SMT
 static inline int cpu_smt_flags(void)
@@ -79,7 +79,7 @@ struct sched_domain {
 	unsigned int imbalance_pct;	/* No balance until over watermark */
 	unsigned int cache_nice_tries;	/* Leave cache hot tasks for # tries */
 
-	int nohz_idle;			/* NOHZ IDLE status */
+	int yeshz_idle;			/* NOHZ IDLE status */
 	int flags;			/* See SD_* */
 	int level;
 
@@ -102,8 +102,8 @@ struct sched_domain {
 	unsigned int lb_imbalance[CPU_MAX_IDLE_TYPES];
 	unsigned int lb_gained[CPU_MAX_IDLE_TYPES];
 	unsigned int lb_hot_gained[CPU_MAX_IDLE_TYPES];
-	unsigned int lb_nobusyg[CPU_MAX_IDLE_TYPES];
-	unsigned int lb_nobusyq[CPU_MAX_IDLE_TYPES];
+	unsigned int lb_yesbusyg[CPU_MAX_IDLE_TYPES];
+	unsigned int lb_yesbusyq[CPU_MAX_IDLE_TYPES];
 
 	/* Active load balancing */
 	unsigned int alb_count;
@@ -225,9 +225,9 @@ unsigned long arch_scale_cpu_capacity(int cpu)
 }
 #endif
 
-static inline int task_node(const struct task_struct *p)
+static inline int task_yesde(const struct task_struct *p)
 {
-	return cpu_to_node(task_cpu(p));
+	return cpu_to_yesde(task_cpu(p));
 }
 
 #endif /* _LINUX_SCHED_TOPOLOGY_H */

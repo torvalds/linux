@@ -45,7 +45,7 @@ wrapper from your kernel repo:
 
 	./tools/testing/kunit/kunit.py run
 
-.. note::
+.. yeste::
    You may want to run ``make mrproper`` first.
 
 If everything worked correctly, you should see the following:
@@ -58,7 +58,7 @@ If everything worked correctly, you should see the following:
 
 followed by a list of tests that are run. All of them should be passing.
 
-.. note::
+.. yeste::
 	Because it is building a lot of sources for the first time, the
 	``Building KUnit kernel`` step may take a while.
 
@@ -76,7 +76,7 @@ create a file ``drivers/misc/example.c``:
 
 .. code-block:: c
 
-	#include <linux/errno.h>
+	#include <linux/erryes.h>
 
 	#include "example.h"
 
@@ -150,7 +150,7 @@ and the following to ``drivers/misc/Makefile``:
 
 Now add it to your ``.kunitconfig``:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	CONFIG_MISC_EXAMPLE=y
 	CONFIG_MISC_EXAMPLE_TEST=y
@@ -163,7 +163,7 @@ Now you can run the test:
 
 You should see the following failure:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	...
 	[16:08:57] [PASSED] misc-example:misc_example_add_test_basic

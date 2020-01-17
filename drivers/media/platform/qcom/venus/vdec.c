@@ -406,15 +406,15 @@ static int vdec_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 		return -EINVAL;
 
 	memset(cap->reserved, 0, sizeof(cap->reserved));
-	if (!timeperframe->denominator)
-		timeperframe->denominator = inst->timeperframe.denominator;
+	if (!timeperframe->deyesminator)
+		timeperframe->deyesminator = inst->timeperframe.deyesminator;
 	if (!timeperframe->numerator)
 		timeperframe->numerator = inst->timeperframe.numerator;
 	cap->readbuffers = 0;
 	cap->extendedmode = 0;
 	cap->capability = V4L2_CAP_TIMEPERFRAME;
 	us_per_frame = timeperframe->numerator * (u64)USEC_PER_SEC;
-	do_div(us_per_frame, timeperframe->denominator);
+	do_div(us_per_frame, timeperframe->deyesminator);
 
 	if (!us_per_frame)
 		return -EINVAL;
@@ -1192,7 +1192,7 @@ static void vdec_event_change(struct venus_inst *inst,
 	inst->out_height = ev_data->height;
 
 	dev_dbg(dev, "event %s sufficient resources (%ux%u)\n",
-		sufficient ? "" : "not", ev_data->width, ev_data->height);
+		sufficient ? "" : "yest", ev_data->width, ev_data->height);
 
 	if (sufficient) {
 		hfi_session_continue(inst);
@@ -1216,7 +1216,7 @@ static void vdec_event_change(struct venus_inst *inst,
 	mutex_unlock(&inst->lock);
 }
 
-static void vdec_event_notify(struct venus_inst *inst, u32 event,
+static void vdec_event_yestify(struct venus_inst *inst, u32 event,
 			      struct hfi_event_data *data)
 {
 	struct venus_core *core = inst->core;
@@ -1249,7 +1249,7 @@ static void vdec_event_notify(struct venus_inst *inst, u32 event,
 
 static const struct hfi_inst_ops vdec_hfi_ops = {
 	.buf_done = vdec_buf_done,
-	.event_notify = vdec_event_notify,
+	.event_yestify = vdec_event_yestify,
 };
 
 static void vdec_inst_init(struct venus_inst *inst)
@@ -1263,7 +1263,7 @@ static void vdec_inst_init(struct venus_inst *inst)
 	inst->out_height = frame_height_min(inst);
 	inst->fps = 30;
 	inst->timeperframe.numerator = 1;
-	inst->timeperframe.denominator = 30;
+	inst->timeperframe.deyesminator = 30;
 	inst->opb_buftype = HFI_BUFFER_OUTPUT;
 }
 
@@ -1355,7 +1355,7 @@ static int vdec_open(struct file *file)
 
 	/*
 	 * create m2m device for every instance, the m2m context scheduling
-	 * is made by firmware side so we do not need to care about.
+	 * is made by firmware side so we do yest need to care about.
 	 */
 	inst->m2m_dev = v4l2_m2m_init(&vdec_m2m_ops);
 	if (IS_ERR(inst->m2m_dev)) {

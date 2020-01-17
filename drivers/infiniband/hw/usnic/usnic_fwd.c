@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -226,7 +226,7 @@ usnic_fwd_alloc_flow(struct usnic_fwd_dev *ufdev, struct filter *filter,
 	spin_lock(&ufdev->lock);
 	status = usnic_fwd_dev_ready_locked(ufdev);
 	if (status) {
-		usnic_err("Forwarding dev %s not ready with status %d\n",
+		usnic_err("Forwarding dev %s yest ready with status %d\n",
 				ufdev->name, status);
 		goto out_free_tlv;
 	}

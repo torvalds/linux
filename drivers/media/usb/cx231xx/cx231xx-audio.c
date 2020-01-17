@@ -516,8 +516,8 @@ static int snd_cx231xx_hw_capture_params(struct snd_pcm_substream *substream,
 					   params_buffer_bytes(hw_params));
 #if 0
 	/* TODO: set up cx231xx audio chip to deliver the correct audio format,
-	   current default is 48000hz multiplexed => 96000hz mono
-	   which shouldn't matter since analogue TV only supports mono */
+	   current default is 48000hz multiplexed => 96000hz moyes
+	   which shouldn't matter since analogue TV only supports moyes */
 	unsigned int channels, rate, format;
 
 	format = params_format(hw_params);
@@ -645,14 +645,14 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 	int i, isoc_pipe = 0;
 
 	if (dev->has_alsa_audio != 1) {
-		/* This device does not support the extension (in this case
+		/* This device does yest support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
 		return 0;
 	}
 
 	dev_dbg(dev->dev,
-		"probing for cx231xx non standard usbaudio\n");
+		"probing for cx231xx yesn standard usbaudio\n");
 
 	err = snd_card_new(dev->dev, index[devnr], "Cx231xx Audio",
 			   THIS_MODULE, 0, &card);
@@ -740,7 +740,7 @@ static int cx231xx_audio_fini(struct cx231xx *dev)
 		return 0;
 
 	if (dev->has_alsa_audio != 1) {
-		/* This device does not support the extension (in this case
+		/* This device does yest support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
 		return 0;

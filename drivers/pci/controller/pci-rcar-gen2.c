@@ -176,7 +176,7 @@ static void rcar_pci_setup_errirq(struct rcar_pci_priv *priv)
 	ret = devm_request_irq(dev, priv->irq, rcar_pci_err_irq,
 			       IRQF_SHARED, "error irq", priv);
 	if (ret) {
-		dev_err(dev, "cannot claim IRQ for error handling\n");
+		dev_err(dev, "canyest claim IRQ for error handling\n");
 		return;
 	}
 
@@ -225,7 +225,7 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 		val |= RCAR_USBCTR_PCIAHB_WIN1_512M;
 		break;
 	default:
-		pr_warn("unknown window size %ld - defaulting to 256M\n",
+		pr_warn("unkyeswn window size %ld - defaulting to 256M\n",
 			priv->window_size);
 		priv->window_size = SZ_256M;
 		/* fall-through */
@@ -292,7 +292,7 @@ static struct pci_ops rcar_pci_ops = {
 };
 
 static int rcar_pci_parse_map_dma_ranges(struct rcar_pci_priv *pci,
-					 struct device_node *np)
+					 struct device_yesde *np)
 {
 	struct device *dev = pci->dev;
 	struct of_pci_range range;
@@ -365,20 +365,20 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	priv->dev = dev;
 
 	if (priv->irq < 0) {
-		dev_err(dev, "no valid irq found\n");
+		dev_err(dev, "yes valid irq found\n");
 		return priv->irq;
 	}
 
-	/* default window addr and size if not specified in DT */
+	/* default window addr and size if yest specified in DT */
 	priv->window_addr = 0x40000000;
 	priv->window_pci = 0x40000000;
 	priv->window_size = SZ_1G;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		struct resource busnr;
 		int ret;
 
-		ret = of_pci_parse_bus_range(dev->of_node, &busnr);
+		ret = of_pci_parse_bus_range(dev->of_yesde, &busnr);
 		if (ret < 0) {
 			dev_err(dev, "failed to parse bus-range\n");
 			return ret;
@@ -388,7 +388,7 @@ static int rcar_pci_probe(struct platform_device *pdev)
 		if (busnr.end != busnr.start)
 			dev_warn(dev, "only one bus number supported\n");
 
-		ret = rcar_pci_parse_map_dma_ranges(priv, dev->of_node);
+		ret = rcar_pci_parse_map_dma_ranges(priv, dev->of_yesde);
 		if (ret < 0) {
 			dev_err(dev, "failed to parse dma-range\n");
 			return ret;

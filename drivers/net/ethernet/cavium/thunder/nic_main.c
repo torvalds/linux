@@ -39,7 +39,7 @@ struct hw_info {
 struct nicpf {
 	struct pci_dev		*pdev;
 	struct hw_info          *hw;
-	u8			node;
+	u8			yesde;
 	unsigned int		flags;
 	u8			num_vf_en;      /* No of VF enabled */
 	bool			vf_enabled[MAX_NUM_VFS_SUPPORTED];
@@ -79,7 +79,7 @@ MODULE_DEVICE_TABLE(pci, nic_id_table);
  * containing the ThunderX ARM64 CPU implementation.  All accesses to the device
  * registers on this platform are implicitly strongly ordered with respect
  * to memory accesses. So writeq_relaxed() and readq_relaxed() are safe to use
- * with no memory barriers in this driver.  The readq()/writeq() functions add
+ * with yes memory barriers in this driver.  The readq()/writeq() functions add
  * explicit ordering operation which in this case are redundant, and only
  * add overhead.
  */
@@ -152,7 +152,7 @@ static void nic_send_msg_to_vf(struct nicpf *nic, int vf, union nic_mbx *mbx)
 }
 
 /* Responds to VF's READY message with VF's
- * ID, node, MAC address e.t.c
+ * ID, yesde, MAC address e.t.c
  * @vf: VF which sent READY message
  */
 static void nic_mbx_send_ready(struct nicpf *nic, int vf)
@@ -170,12 +170,12 @@ static void nic_mbx_send_ready(struct nicpf *nic, int vf)
 		bgx_idx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 
-		mac = bgx_get_lmac_mac(nic->node, bgx_idx, lmac);
+		mac = bgx_get_lmac_mac(nic->yesde, bgx_idx, lmac);
 		if (mac)
 			ether_addr_copy((u8 *)&mbx.nic_cfg.mac_addr, mac);
 	}
 	mbx.nic_cfg.sqs_mode = (vf >= nic->num_vf_en) ? true : false;
-	mbx.nic_cfg.node_id = nic->node;
+	mbx.nic_cfg.yesde_id = nic->yesde;
 
 	mbx.nic_cfg.loopback_supported = vf < nic->num_vf_en;
 
@@ -193,7 +193,7 @@ static void nic_mbx_send_ack(struct nicpf *nic, int vf)
 	nic_send_msg_to_vf(nic, vf, &mbx);
 }
 
-/* NACKs VF's mailbox message that PF is not able to
+/* NACKs VF's mailbox message that PF is yest able to
  * complete the action
  * @vf: VF to which ACK to be sent
  */
@@ -241,10 +241,10 @@ static void nic_get_bgx_stats(struct nicpf *nic, struct bgx_stats_msg *bgx)
 	mbx.bgx_stats.rx = bgx->rx;
 	mbx.bgx_stats.idx = bgx->idx;
 	if (bgx->rx)
-		mbx.bgx_stats.stats = bgx_get_rx_stats(nic->node, bgx_idx,
+		mbx.bgx_stats.stats = bgx_get_rx_stats(nic->yesde, bgx_idx,
 							    lmac, bgx->idx);
 	else
-		mbx.bgx_stats.stats = bgx_get_tx_stats(nic->node, bgx_idx,
+		mbx.bgx_stats.stats = bgx_get_tx_stats(nic->yesde, bgx_idx,
 							    lmac, bgx->idx);
 	nic_send_msg_to_vf(nic, bgx->vf_id, &mbx);
 }
@@ -265,7 +265,7 @@ static int nic_update_hw_frs(struct nicpf *nic, int new_frs, int vf)
 	new_frs += VLAN_ETH_HLEN + ETH_FCS_LEN + 4;
 
 	/* Update corresponding LMAC credits */
-	lmac_cnt = bgx_get_lmac_count(nic->node, bgx);
+	lmac_cnt = bgx_get_lmac_count(nic->yesde, bgx);
 	lmac_credits = nic_reg_read(nic, NIC_PF_LMAC_0_7_CREDIT + (lmac * 8));
 	lmac_credits &= ~(0xFFFFFULL << 12);
 	lmac_credits |= (((((48 * 1024) / lmac_cnt) - new_frs) / 16) << 12);
@@ -316,7 +316,7 @@ static void nic_set_tx_pkt_pad(struct nicpf *nic, int size)
  */
 static void nic_set_lmac_vf_mapping(struct nicpf *nic)
 {
-	unsigned bgx_map = bgx_get_map(nic->node);
+	unsigned bgx_map = bgx_get_map(nic->yesde);
 	int bgx, next_bgx_lmac = 0;
 	int lmac, lmac_cnt = 0;
 	u64 lmac_credit;
@@ -326,7 +326,7 @@ static void nic_set_lmac_vf_mapping(struct nicpf *nic)
 	for (bgx = 0; bgx < nic->hw->bgx_cnt; bgx++) {
 		if (!(bgx_map & (1 << bgx)))
 			continue;
-		lmac_cnt = bgx_get_lmac_count(nic->node, bgx);
+		lmac_cnt = bgx_get_lmac_count(nic->yesde, bgx);
 		for (lmac = 0; lmac < lmac_cnt; lmac++)
 			nic->vf_lmac_map[next_bgx_lmac++] =
 						NIC_SET_VF_LMAC_MAP(bgx, lmac);
@@ -344,7 +344,7 @@ static void nic_set_lmac_vf_mapping(struct nicpf *nic)
 				      NIC_PF_LMAC_0_7_CREDIT + (lmac * 8),
 				      lmac_credit);
 
-		/* On CN81XX there are only 8 VFs but max possible no of
+		/* On CN81XX there are only 8 VFs but max possible yes of
 		 * interfaces are 9.
 		 */
 		if (nic->num_vf_en >= pci_sriov_get_totalvfs(nic->pdev)) {
@@ -527,7 +527,7 @@ static void nic_config_cpi(struct nicpf *nic, struct cpi_cfg_msg *cfg)
 			/* Set MPI_ALG to '0' to disable MCAM parsing */
 			nic_reg_write(nic, NIC_PF_CPI_0_2047_CFG | (cpi << 3),
 				      (padd << 16));
-			/* MPI index is same as CPI if MPI_ALG is not enabled */
+			/* MPI index is same as CPI if MPI_ALG is yest enabled */
 			nic_reg_write(nic, NIC_PF_MPI_0_2047_CFG | (cpi << 3),
 				      (vnic << 24) | (rssi_base + rssi));
 		}
@@ -560,7 +560,7 @@ static void nic_send_rss_size(struct nicpf *nic, int vf)
  * configure:
  * - RSS index
  * - indir table i.e hash::RQ mapping
- * - no of hash bits to consider
+ * - yes of hash bits to consider
  */
 static void nic_config_rss(struct nicpf *nic, struct rss_cfg_msg *cfg)
 {
@@ -664,7 +664,7 @@ static void nic_tx_channel_cfg(struct nicpf *nic, u8 vnic,
 	 * 127-255 channels for BGX1.
 	 *
 	 * On 81xx/83xx TL3_CHAN reg should be configured with channel
-	 * within LMAC i.e 0-7 and not the actual channel number like on 88xx
+	 * within LMAC i.e 0-7 and yest the actual channel number like on 88xx
 	 */
 	chan = (lmac * hw->chans_per_lmac) + (bgx * hw->chans_per_bgx);
 	if (hw->tl1_per_bgx)
@@ -678,7 +678,7 @@ static void nic_tx_channel_cfg(struct nicpf *nic, u8 vnic,
 	tl2 = tl3 >> 2;
 	nic_reg_write(nic, NIC_PF_TL3A_0_63_CFG | (tl2 << 3), tl2);
 	nic_reg_write(nic, NIC_PF_TL2_0_63_CFG | (tl2 << 3), rr_quantum);
-	/* No priorities as of now */
+	/* No priorities as of yesw */
 	nic_reg_write(nic, NIC_PF_TL2_0_63_PRI | (tl2 << 3), 0x00);
 
 	/* Unlike 88xx where TL2s 0-31 transmits to TL1 '0' and rest to TL1 '1'
@@ -767,10 +767,10 @@ static int nic_config_loopback(struct nicpf *nic, struct set_loopback *lbk)
 	bgx_idx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[lbk->vf_id]);
 	lmac_idx = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[lbk->vf_id]);
 
-	bgx_lmac_internal_loopback(nic->node, bgx_idx, lmac_idx, lbk->enable);
+	bgx_lmac_internal_loopback(nic->yesde, bgx_idx, lmac_idx, lbk->enable);
 
 	/* Enable moving average calculation.
-	 * Keep the LVL/AVG delay to HW enforced minimum so that, not too many
+	 * Keep the LVL/AVG delay to HW enforced minimum so that, yest too many
 	 * packets sneek in between average calculations.
 	 */
 	nic_reg_write(nic, NIC_PF_CQ_AVG_CFG,
@@ -855,7 +855,7 @@ static void nic_enable_vf(struct nicpf *nic, int vf, bool enable)
 	bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 	lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 
-	bgx_lmac_rx_tx_enable(nic->node, bgx, lmac, enable);
+	bgx_lmac_rx_tx_enable(nic->yesde, bgx, lmac, enable);
 }
 
 static void nic_pause_frame(struct nicpf *nic, int vf, struct pfc *cfg)
@@ -870,14 +870,14 @@ static void nic_pause_frame(struct nicpf *nic, int vf, struct pfc *cfg)
 	lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 
 	if (cfg->get) {
-		bgx_lmac_get_pfc(nic->node, bgx, lmac, &pfc);
+		bgx_lmac_get_pfc(nic->yesde, bgx, lmac, &pfc);
 		mbx.pfc.msg = NIC_MBOX_MSG_PFC;
 		mbx.pfc.autoneg = pfc.autoneg;
 		mbx.pfc.fc_rx = pfc.fc_rx;
 		mbx.pfc.fc_tx = pfc.fc_tx;
 		nic_send_msg_to_vf(nic, vf, &mbx);
 	} else {
-		bgx_lmac_set_pfc(nic->node, bgx, lmac, cfg);
+		bgx_lmac_set_pfc(nic->yesde, bgx, lmac, cfg);
 		nic_mbx_send_ack(nic, vf);
 	}
 }
@@ -901,18 +901,18 @@ static void nic_config_timestamp(struct nicpf *nic, int vf, struct set_ptp *ptp)
 
 	if (ptp->enable && !pkind->hdr_sl) {
 		/* Skiplen to exclude 8byte timestamp while parsing pkt
-		 * If not configured, will result in L2 errors.
+		 * If yest configured, will result in L2 errors.
 		 */
 		pkind->hdr_sl = 4;
 		/* Adjust max packet length allowed */
 		pkind->maxlen += (pkind->hdr_sl * 2);
-		bgx_config_timestamping(nic->node, bgx_idx, lmac, true);
+		bgx_config_timestamping(nic->yesde, bgx_idx, lmac, true);
 		nic_reg_write(nic, NIC_PF_RX_ETYPE_0_7 | (1 << 3),
 			      (ETYPE_ALG_ENDPARSE << 16) | ETH_P_1588);
 	} else if (!ptp->enable && pkind->hdr_sl) {
 		pkind->maxlen -= (pkind->hdr_sl * 2);
 		pkind->hdr_sl = 0;
-		bgx_config_timestamping(nic->node, bgx_idx, lmac, false);
+		bgx_config_timestamping(nic->yesde, bgx_idx, lmac, false);
 		nic_reg_write(nic, NIC_PF_RX_ETYPE_0_7 | (1 << 3),
 			      (ETYPE_ALG_SKIP << 16) | ETH_P_8021Q);
 	}
@@ -922,7 +922,7 @@ static void nic_config_timestamp(struct nicpf *nic, int vf, struct set_ptp *ptp)
 
 /* Get BGX LMAC link status and update corresponding VF
  * if there is a change, valid only if internal L2 switch
- * is not present otherwise VF link is always treated as up
+ * is yest present otherwise VF link is always treated as up
  */
 static void nic_link_status_get(struct nicpf *nic, u8 vf)
 {
@@ -937,7 +937,7 @@ static void nic_link_status_get(struct nicpf *nic, u8 vf)
 	lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 
 	/* Get interface link status */
-	bgx_get_lmac_link_state(nic->node, bgx, lmac, &link);
+	bgx_get_lmac_link_state(nic->yesde, bgx, lmac, &link);
 
 	/* Send a mbox message to VF with current link status */
 	mbx.link_status.link_up = link.link_up;
@@ -1033,7 +1033,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		lmac = mbx.mac.vf_id;
 		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[lmac]);
 		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[lmac]);
-		bgx_set_lmac_mac(nic->node, bgx, lmac, mbx.mac.mac_addr);
+		bgx_set_lmac_mac(nic->yesde, bgx, lmac, mbx.mac.mac_addr);
 		break;
 	case NIC_MBOX_MSG_SET_MAX_FRS:
 		ret = nic_update_hw_frs(nic, mbx.frs.max_frs,
@@ -1094,7 +1094,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		}
 		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
-		bgx_reset_xcast_mode(nic->node, bgx, lmac,
+		bgx_reset_xcast_mode(nic->yesde, bgx, lmac,
 				     vf < NIC_VF_PER_MBX_REG ? vf :
 				     vf - NIC_VF_PER_MBX_REG);
 		break;
@@ -1106,7 +1106,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		}
 		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
-		bgx_set_dmac_cam_filter(nic->node, bgx, lmac,
+		bgx_set_dmac_cam_filter(nic->yesde, bgx, lmac,
 					mbx.xcast.mac,
 					vf < NIC_VF_PER_MBX_REG ? vf :
 					vf - NIC_VF_PER_MBX_REG);
@@ -1119,7 +1119,7 @@ static void nic_handle_mbx_intr(struct nicpf *nic, int vf)
 		}
 		bgx = NIC_GET_BGX_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
 		lmac = NIC_GET_LMAC_FROM_VF_LMAC_MAP(nic->vf_lmac_map[vf]);
-		bgx_set_xcast_mode(nic->node, bgx, lmac, mbx.xcast.mode);
+		bgx_set_xcast_mode(nic->yesde, bgx, lmac, mbx.xcast.mode);
 		break;
 	case NIC_MBOX_MSG_BGX_LINK_CHANGE:
 		if (vf >= nic->num_vf_en) {
@@ -1240,8 +1240,8 @@ static int nic_num_sqs_en(struct nicpf *nic, int vf_en)
 	if (num_online_cpus() <= MAX_QUEUES_PER_QSET)
 		return 0;
 
-	/* Check if its a multi-node environment */
-	if (nr_node_ids > 1)
+	/* Check if its a multi-yesde environment */
+	if (nr_yesde_ids > 1)
 		sqs_per_vf = MAX_SQS_PER_VF;
 
 	pos = pci_find_ext_capability(nic->pdev, PCI_EXT_CAP_ID_SRIOV);
@@ -1258,7 +1258,7 @@ static int nic_sriov_init(struct pci_dev *pdev, struct nicpf *nic)
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
 	if (!pos) {
-		dev_err(&pdev->dev, "SRIOV capability is not found in PCIe config space\n");
+		dev_err(&pdev->dev, "SRIOV capability is yest found in PCIe config space\n");
 		return -ENODEV;
 	}
 
@@ -1337,12 +1337,12 @@ static int nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* MAP PF's configuration registers */
 	nic->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
 	if (!nic->reg_base) {
-		dev_err(dev, "Cannot map config register space, aborting\n");
+		dev_err(dev, "Canyest map config register space, aborting\n");
 		err = -ENOMEM;
 		goto err_release_regions;
 	}
 
-	nic->node = nic_get_node_id(pdev);
+	nic->yesde = nic_get_yesde_id(pdev);
 
 	/* Get HW capability info */
 	nic_get_hw_info(nic);

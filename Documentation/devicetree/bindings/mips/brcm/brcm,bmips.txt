@@ -5,4 +5,4 @@ Required properties:
   "brcm,bmips5000"
 
 - mips-hpt-frequency: This is common to all CPUs in the system so it lives
-  under the "cpus" node.
+  under the "cpus" yesde.

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright(c) 2007 Intel Corporation. All rights reserved.
  *
@@ -42,7 +42,7 @@ enum fc_els_cmd {
 	ELS_FPIN =	0x16,	/* Fabric Performance Impact Notification */
 	ELS_PRLI =	0x20,	/* process login */
 	ELS_PRLO =	0x21,	/* process logout */
-	ELS_SCN =	0x22,	/* state change notification */
+	ELS_SCN =	0x22,	/* state change yestification */
 	ELS_TPLS =	0x23,	/* test process login state */
 	ELS_TPRLO =	0x24,	/* third party process logout */
 	ELS_LCLM =	0x25,	/* login control list mgmt (obs) */
@@ -56,21 +56,21 @@ enum fc_els_cmd {
 	ELS_PDISC =	0x50,	/* discover N_port service params */
 	ELS_FDISC =	0x51,	/* discover F_port service params */
 	ELS_ADISC =	0x52,	/* discover address */
-	ELS_RNC =	0x53,	/* report node cap (obs) */
+	ELS_RNC =	0x53,	/* report yesde cap (obs) */
 	ELS_FARP_REQ =	0x54,	/* FC ARP request */
 	ELS_FARP_REPL =	0x55,	/* FC ARP reply */
 	ELS_RPS =	0x56,	/* read port status block */
 	ELS_RPL =	0x57,	/* read port list */
 	ELS_RPBC =	0x58,	/* read port buffer condition */
-	ELS_FAN =	0x60,	/* fabric address notification */
-	ELS_RSCN =	0x61,	/* registered state change notification */
+	ELS_FAN =	0x60,	/* fabric address yestification */
+	ELS_RSCN =	0x61,	/* registered state change yestification */
 	ELS_SCR =	0x62,	/* state change registration */
-	ELS_RNFT =	0x63,	/* report node FC-4 types */
+	ELS_RNFT =	0x63,	/* report yesde FC-4 types */
 	ELS_CSR =	0x68,	/* clock synch. request */
 	ELS_CSU =	0x69,	/* clock synch. update */
 	ELS_LINIT =	0x70,	/* loop initialize */
 	ELS_LSTS =	0x72,	/* loop status */
-	ELS_RNID =	0x78,	/* request node ID data */
+	ELS_RNID =	0x78,	/* request yesde ID data */
 	ELS_RLIR =	0x79,	/* registered link incident report */
 	ELS_LIRR =	0x7a,	/* link incident record registration */
 	ELS_SRL =	0x7b,	/* scan remote loop */
@@ -173,13 +173,13 @@ struct fc_els_ls_rjt {
  * ELS reject reason codes (er_reason).
  */
 enum fc_els_rjt_reason {
-	ELS_RJT_NONE =		0,	/* no reject - not to be sent */
+	ELS_RJT_NONE =		0,	/* yes reject - yest to be sent */
 	ELS_RJT_INVAL =		0x01,	/* invalid ELS command code */
 	ELS_RJT_LOGIC =		0x03,	/* logical error */
 	ELS_RJT_BUSY =		0x05,	/* logical busy */
 	ELS_RJT_PROT =		0x07,	/* protocol error */
 	ELS_RJT_UNAB =		0x09,	/* unable to perform command request */
-	ELS_RJT_UNSUP =		0x0b,	/* command not supported */
+	ELS_RJT_UNSUP =		0x0b,	/* command yest supported */
 	ELS_RJT_INPROG =	0x0e,	/* command already in progress */
 	ELS_RJT_FIP =		0x20,	/* FIP error */
 	ELS_RJT_VENDOR =	0xff,	/* vendor specific error */
@@ -201,9 +201,9 @@ enum fc_els_rjt_explan {
 	ELS_EXPL_PLOGI_REQD =	0x1e,	/* N_Port login required */
 	ELS_EXPL_INSUF_RES =	0x29,	/* insufficient resources */
 	ELS_EXPL_UNAB_DATA =	0x2a,	/* unable to supply requested data */
-	ELS_EXPL_UNSUPR =	0x2c,	/* Request not supported */
+	ELS_EXPL_UNSUPR =	0x2c,	/* Request yest supported */
 	ELS_EXPL_INV_LEN =	0x2d,	/* Invalid payload length */
-	ELS_EXPL_NOT_NEIGHBOR = 0x62,	/* VN2VN_Port not in neighbor set */
+	ELS_EXPL_NOT_NEIGHBOR = 0x62,	/* VN2VN_Port yest in neighbor set */
 	/* TBD - above definitions incomplete */
 };
 
@@ -250,7 +250,7 @@ struct fc_els_csp {
 #define	FC_SP_FT_NPIV_ACC	0x2000	/* NPIV assignment (FLOGI LS_ACC) */
 #define	FC_SP_FT_FPORT	0x1000	/* F port (1) vs. N port (0) */
 #define	FC_SP_FT_ABB	0x0800	/* alternate BB_credit management */
-#define	FC_SP_FT_EDTR	0x0400	/* E_D_TOV Resolution is nanoseconds */
+#define	FC_SP_FT_EDTR	0x0400	/* E_D_TOV Resolution is nayesseconds */
 #define	FC_SP_FT_MCAST	0x0200	/* multicast */
 #define	FC_SP_FT_BCAST	0x0100	/* broadcast */
 #define	FC_SP_FT_HUNT	0x0080	/* hunt group */
@@ -288,7 +288,7 @@ struct fc_els_cssp {
 
 /*
  * cp_init flags.
- * (TBD: not all flags defined here).
+ * (TBD: yest all flags defined here).
  */
 #define	FC_CPI_CSYN	0x0010		/* clock synch. capable */
 
@@ -306,7 +306,7 @@ struct fc_els_flogi {
 	__u8		_fl_resvd[3];	/* must be zero */
 	struct fc_els_csp fl_csp;	/* common service parameters */
 	__be64		fl_wwpn;	/* port name */
-	__be64		fl_wwnn;	/* node name */
+	__be64		fl_wwnn;	/* yesde name */
 	struct fc_els_cssp fl_cssp[4];	/* class 1-4 service parameters */
 	__u8		fl_vend[16];	/* vendor version level */
 } __attribute__((__packed__));
@@ -338,8 +338,8 @@ struct fc_els_spp {
 enum fc_els_spp_resp {
 	FC_SPP_RESP_ACK	=	1,	/* request executed */
 	FC_SPP_RESP_RES =	2,	/* unable due to lack of resources */
-	FC_SPP_RESP_INIT =	3,	/* initialization not complete */
-	FC_SPP_RESP_NO_PA = 	4,	/* unknown process associator */
+	FC_SPP_RESP_INIT =	3,	/* initialization yest complete */
+	FC_SPP_RESP_NO_PA = 	4,	/* unkyeswn process associator */
 	FC_SPP_RESP_CONF = 	5,	/* configuration precludes image pair */
 	FC_SPP_RESP_COND = 	6,	/* request completed conditionally */
 	FC_SPP_RESP_MULT = 	7,	/* unable to handle multiple SPPs */
@@ -472,7 +472,7 @@ enum fc_els_scr_func {
 };
 
 /*
- * ELS_RSCN - registered state change notification payload.
+ * ELS_RSCN - registered state change yestification payload.
  */
 struct fc_els_rscn {
 	__u8		rscn_cmd;	/* RSCN opcode (0x61) */
@@ -522,7 +522,7 @@ struct fc_els_rnid {
  * Node Identification Data formats (rnid_fmt)
  */
 enum fc_els_rnid_fmt {
-	ELS_RNIDF_NONE = 0,		/* no specific identification data */
+	ELS_RNIDF_NONE = 0,		/* yes specific identification data */
 	ELS_RNIDF_GEN = 0xdf,		/* general topology discovery format */
 };
 
@@ -540,15 +540,15 @@ struct fc_els_rnid_resp {
 
 struct fc_els_rnid_cid {
 	__be64		rnid_wwpn;	/* N port name */
-	__be64		rnid_wwnn;	/* node name */
+	__be64		rnid_wwnn;	/* yesde name */
 };
 
 struct fc_els_rnid_gen {
 	__u8		rnid_vend_id[16]; /* vendor-unique ID */
 	__be32		rnid_atype;	/* associated type (see below) */
 	__be32		rnid_phys_port;	/* physical port number */
-	__be32		rnid_att_nodes;	/* number of attached nodes */
-	__u8		rnid_node_mgmt;	/* node management (see below) */
+	__be32		rnid_att_yesdes;	/* number of attached yesdes */
+	__u8		rnid_yesde_mgmt;	/* yesde management (see below) */
 	__u8		rnid_ip_ver;	/* IP version (see below) */
 	__be16		rnid_prot_port;	/* UDP / TCP port number */
 	__be32		rnid_ip_addr[4]; /* IP address */
@@ -557,14 +557,14 @@ struct fc_els_rnid_gen {
 };
 
 enum fc_els_rnid_atype {
-	ELS_RNIDA_UNK =		0x01,	/* unknown */
-	ELS_RNIDA_OTHER =	0x02,	/* none of the following */
+	ELS_RNIDA_UNK =		0x01,	/* unkyeswn */
+	ELS_RNIDA_OTHER =	0x02,	/* yesne of the following */
 	ELS_RNIDA_HUB =		0x03,
 	ELS_RNIDA_SWITCH =	0x04,
 	ELS_RNIDA_GATEWAY =	0x05,
-	ELS_RNIDA_CONV =	0x06,   /* Obsolete, do not use this value */
-	ELS_RNIDA_HBA =	        0x07,   /* Obsolete, do not use this value */
-	ELS_RNIDA_PROXY =       0x08,   /* Obsolete, do not use this value */
+	ELS_RNIDA_CONV =	0x06,   /* Obsolete, do yest use this value */
+	ELS_RNIDA_HBA =	        0x07,   /* Obsolete, do yest use this value */
+	ELS_RNIDA_PROXY =       0x08,   /* Obsolete, do yest use this value */
 	ELS_RNIDA_STORAGE =	0x09,
 	ELS_RNIDA_HOST =	0x0a,
 	ELS_RNIDA_SUBSYS =	0x0b,	/* storage subsystem (e.g., RAID) */
@@ -595,7 +595,7 @@ enum fc_els_rnid_mgmt {
 };
 
 enum fc_els_rnid_ipver {
-	ELS_RNIDIP_NONE =	0,	/* no IP support or node mgmt. */
+	ELS_RNIDIP_NONE =	0,	/* yes IP support or yesde mgmt. */
 	ELS_RNIDIP_V4 =		1,	/* IPv4 */
 	ELS_RNIDIP_V6 =		2,	/* IPv6 */
 };
@@ -758,12 +758,12 @@ struct fc_els_rlir {
  */
 struct fc_els_clir {
 	__be64		clir_wwpn;	/* incident port name */
-	__be64		clir_wwnn;	/* incident port node name */
+	__be64		clir_wwnn;	/* incident port yesde name */
 	__u8		clir_port_type;	/* incident port type */
 	__u8		clir_port_id[3];	/* incident port ID */
 
 	__be64		clir_conn_wwpn;	/* connected port name */
-	__be64		clir_conn_wwnn;	/* connected node name */
+	__be64		clir_conn_wwnn;	/* connected yesde name */
 	__be64		clir_fab_name;	/* fabric name */
 	__be32		clir_phys_port;	/* physical port number */
 	__be32		clir_trans_id;	/* transaction ID */
@@ -776,7 +776,7 @@ struct fc_els_clir {
  * CLIR clir_ts_fmt - time stamp format values.
  */
 enum fc_els_clir_ts_fmt {
-	ELS_CLIR_TS_UNKNOWN = 	0,	/* time stamp field unknown */
+	ELS_CLIR_TS_UNKNOWN = 	0,	/* time stamp field unkyeswn */
 	ELS_CLIR_TS_SEC_FRAC = 	1,	/* time in seconds and fractions */
 	ELS_CLIR_TS_CSU =	2,	/* time in clock synch update format */
 };
@@ -794,11 +794,11 @@ struct fc_els_clid {
  * CLID incident qualifier flags.
  */
 enum fc_els_clid_iq {
-	ELS_CLID_SWITCH =	0x20,	/* incident port is a switch node */
+	ELS_CLID_SWITCH =	0x20,	/* incident port is a switch yesde */
 	ELS_CLID_E_PORT =	0x10,	/* incident is an ISL (E) port */
 	ELS_CLID_SEV_MASK =	0x0c,	/* severity 2-bit field mask */
 	ELS_CLID_SEV_INFO =	0x00,	/* report is informational */
-	ELS_CLID_SEV_INOP =	0x08,	/* link not operational */
+	ELS_CLID_SEV_INOP =	0x08,	/* link yest operational */
 	ELS_CLID_SEV_DEG =	0x04,	/* link degraded but operational */
 	ELS_CLID_LASER =	0x02,	/* subassembly is a laser */
 	ELS_CLID_FRU =		0x01,	/* format can identify a FRU */
@@ -811,7 +811,7 @@ enum fc_els_clid_ic {
 	ELS_CLID_IC_IMPL =	1,	/* implicit incident */
 	ELS_CLID_IC_BER =	2,	/* bit-error-rate threshold exceeded */
 	ELS_CLID_IC_LOS =	3,	/* loss of synch or signal */
-	ELS_CLID_IC_NOS =	4,	/* non-operational primitive sequence */
+	ELS_CLID_IC_NOS =	4,	/* yesn-operational primitive sequence */
 	ELS_CLID_IC_PST =	5,	/* primitive sequence timeout */
 	ELS_CLID_IC_INVAL =	6,	/* invalid primitive sequence */
 	ELS_CLID_IC_LOOP_TO =	7,	/* loop initialization time out */

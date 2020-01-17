@@ -2,16 +2,16 @@
 # SPDX-License-Identifier: GPL-2.0
 # run gcc with ld options
 # used as a wrapper to execute link time optimizations
-# yes virginia, this is not pretty
+# no virginia, this is yest pretty
 
-ARGS="-nostdlib"
+ARGS="-yesstdlib"
 
 while [ "$1" != "" ] ; do
 	case "$1" in
 	-save-temps|-m32|-m64) N="$1" ;;
 	-r) N="$1" ;;
 	-[Wg]*) N="$1" ;;
-	-[olv]|-[Ofd]*|-nostdlib) N="$1" ;;
+	-[olv]|-[Ofd]*|-yesstdlib) N="$1" ;;
 	--end-group|--start-group)
 		 N="-Wl,$1" ;;
 	-[RTFGhIezcbyYu]*|\

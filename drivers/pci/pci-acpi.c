@@ -48,11 +48,11 @@ static int acpi_get_rc_addr(struct acpi_device *adev, struct resource *res)
 	}
 
 	if (ret == 0) {
-		dev_err(dev, "no IO and memory resources present in _CRS\n");
+		dev_err(dev, "yes IO and memory resources present in _CRS\n");
 		return -EINVAL;
 	}
 
-	entry = list_first_entry(&list, struct resource_entry, node);
+	entry = list_first_entry(&list, struct resource_entry, yesde);
 	*res = *entry->res;
 	acpi_dev_free_resource_list(&list);
 	return 0;
@@ -142,7 +142,7 @@ static void program_hpx_type0(struct pci_dev *dev, struct hpx_type0 *hpx)
 		hpx = &pci_default_type0;
 
 	if (hpx->revision > 1) {
-		pci_warn(dev, "PCI settings rev %d not supported; using defaults\n",
+		pci_warn(dev, "PCI settings rev %d yest supported; using defaults\n",
 			 hpx->revision);
 		hpx = &pci_default_type0;
 	}
@@ -188,7 +188,7 @@ static acpi_status decode_type0_hpx_record(union acpi_object *record,
 		hpx0->enable_perr     = fields[5].integer.value;
 		break;
 	default:
-		pr_warn("%s: Type 0 Revision %d record not supported\n",
+		pr_warn("%s: Type 0 Revision %d record yest supported\n",
 		       __func__, revision);
 		return AE_ERROR;
 	}
@@ -214,7 +214,7 @@ static void program_hpx_type1(struct pci_dev *dev, struct hpx_type1 *hpx)
 	if (!pos)
 		return;
 
-	pci_warn(dev, "PCI-X settings not supported\n");
+	pci_warn(dev, "PCI-X settings yest supported\n");
 }
 
 static acpi_status decode_type1_hpx_record(union acpi_object *record,
@@ -237,7 +237,7 @@ static acpi_status decode_type1_hpx_record(union acpi_object *record,
 		hpx1->tot_max_split = fields[4].integer.value;
 		break;
 	default:
-		pr_warn("%s: Type 1 Revision %d record not supported\n",
+		pr_warn("%s: Type 1 Revision %d record yest supported\n",
 		       __func__, revision);
 		return AE_ERROR;
 	}
@@ -292,7 +292,7 @@ static void program_hpx_type2(struct pci_dev *dev, struct hpx_type2 *hpx)
 		return;
 
 	if (hpx->revision > 1) {
-		pci_warn(dev, "PCIe settings rev %d not supported\n",
+		pci_warn(dev, "PCIe settings rev %d yest supported\n",
 			 hpx->revision);
 		return;
 	}
@@ -359,7 +359,7 @@ static void program_hpx_type2(struct pci_dev *dev, struct hpx_type2 *hpx)
 	pci_write_config_dword(dev, pos + PCI_ERR_CAP, reg32);
 
 	/*
-	 * FIXME: The following two registers are not supported yet.
+	 * FIXME: The following two registers are yest supported yet.
 	 *
 	 *   o Secondary Uncorrectable Error Severity Register
 	 *   o Secondary Uncorrectable Error Mask Register
@@ -399,7 +399,7 @@ static acpi_status decode_type2_hpx_record(union acpi_object *record,
 		hpx2->sec_unc_err_mask_or   = fields[17].integer.value;
 		break;
 	default:
-		pr_warn("%s: Type 2 Revision %d record not supported\n",
+		pr_warn("%s: Type 2 Revision %d record yest supported\n",
 		       __func__, revision);
 		return AE_ERROR;
 	}
@@ -614,7 +614,7 @@ static acpi_status program_type3_hpx_record(struct pci_dev *dev,
 		break;
 	default:
 		printk(KERN_WARNING
-			"%s: Type 3 Revision %d record not supported\n",
+			"%s: Type 3 Revision %d record yest supported\n",
 			__func__, revision);
 		return AE_ERROR;
 	}
@@ -685,7 +685,7 @@ static acpi_status acpi_run_hpx(struct pci_dev *dev, acpi_handle handle)
 				goto exit;
 			break;
 		default:
-			pr_err("%s: Type %d record not supported\n",
+			pr_err("%s: Type %d record yest supported\n",
 			       __func__, type);
 			status = AE_ERROR;
 			goto exit;
@@ -759,7 +759,7 @@ int pci_acpi_program_hp_params(struct pci_dev *dev)
 	}
 
 	/*
-	 * _HPP settings apply to all child buses, until another _HPP is
+	 * _HPP settings apply to all child buses, until ayesther _HPP is
 	 * encountered. If we don't find an _HPP for the input pci dev,
 	 * look for it in the parent device scope since that would apply to
 	 * this pci dev.
@@ -820,7 +820,7 @@ bool shpchp_is_native(struct pci_dev *bridge)
 }
 
 /**
- * pci_acpi_wake_bus - Root bus wakeup notification fork function.
+ * pci_acpi_wake_bus - Root bus wakeup yestification fork function.
  * @context: Device wakeup context.
  */
 static void pci_acpi_wake_bus(struct acpi_device_wakeup_context *context)
@@ -834,7 +834,7 @@ static void pci_acpi_wake_bus(struct acpi_device_wakeup_context *context)
 }
 
 /**
- * pci_acpi_wake_dev - PCI device wakeup notification work function.
+ * pci_acpi_wake_dev - PCI device wakeup yestification work function.
  * @context: Device wakeup context.
  */
 static void pci_acpi_wake_dev(struct acpi_device_wakeup_context *context)
@@ -863,36 +863,36 @@ static void pci_acpi_wake_dev(struct acpi_device_wakeup_context *context)
 }
 
 /**
- * pci_acpi_add_bus_pm_notifier - Register PM notifier for root PCI bus.
+ * pci_acpi_add_bus_pm_yestifier - Register PM yestifier for root PCI bus.
  * @dev: PCI root bridge ACPI device.
  */
-acpi_status pci_acpi_add_bus_pm_notifier(struct acpi_device *dev)
+acpi_status pci_acpi_add_bus_pm_yestifier(struct acpi_device *dev)
 {
-	return acpi_add_pm_notifier(dev, NULL, pci_acpi_wake_bus);
+	return acpi_add_pm_yestifier(dev, NULL, pci_acpi_wake_bus);
 }
 
 /**
- * pci_acpi_add_pm_notifier - Register PM notifier for given PCI device.
- * @dev: ACPI device to add the notifier for.
+ * pci_acpi_add_pm_yestifier - Register PM yestifier for given PCI device.
+ * @dev: ACPI device to add the yestifier for.
  * @pci_dev: PCI device to check for the PME status if an event is signaled.
  */
-acpi_status pci_acpi_add_pm_notifier(struct acpi_device *dev,
+acpi_status pci_acpi_add_pm_yestifier(struct acpi_device *dev,
 				     struct pci_dev *pci_dev)
 {
-	return acpi_add_pm_notifier(dev, &pci_dev->dev, pci_acpi_wake_dev);
+	return acpi_add_pm_yestifier(dev, &pci_dev->dev, pci_acpi_wake_dev);
 }
 
 /*
  * _SxD returns the D-state with the highest power
  * (lowest D-state number) supported in the S-state "x".
  *
- * If the devices does not have a _PRW
+ * If the devices does yest have a _PRW
  * (Power Resources for Wake) supporting system wakeup from "x"
  * then the OS is free to choose a lower power (higher number
  * D-state) than the return value from _SxD.
  *
  * But if _PRW is enabled at S-state "x", the OS
- * must not choose a power lower than _SxD --
+ * must yest choose a power lower than _SxD --
  * unless the device has an _SxW method specifying
  * the lowest power (highest D-state number) the device
  * may enter while still able to wake the system.
@@ -901,7 +901,7 @@ acpi_status pci_acpi_add_pm_notifier(struct acpi_device *dev,
  *
  * if (_PRW at S-state x)
  *	choose from highest power _SxD to lowest power _SxW
- * else // no _PRW at S-state x
+ * else // yes _PRW at S-state x
  *	choose highest power _SxD or any lower power
  */
 
@@ -909,7 +909,7 @@ static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
 {
 	int acpi_state, d_max;
 
-	if (pdev->no_d3cold)
+	if (pdev->yes_d3cold)
 		d_max = ACPI_STATE_D3_HOT;
 	else
 		d_max = ACPI_STATE_D3_COLD;
@@ -936,7 +936,7 @@ static struct acpi_device *acpi_pci_find_companion(struct device *dev);
 
 static bool acpi_pci_bridge_d3(struct pci_dev *dev)
 {
-	const struct fwnode_handle *fwnode;
+	const struct fwyesde_handle *fwyesde;
 	struct acpi_device *adev;
 	struct pci_dev *root;
 	u8 val;
@@ -946,7 +946,7 @@ static bool acpi_pci_bridge_d3(struct pci_dev *dev)
 
 	/*
 	 * Look for a special _DSD property for the root port and if it
-	 * is set we know the hierarchy behind it supports D3 just fine.
+	 * is set we kyesw the hierarchy behind it supports D3 just fine.
 	 */
 	root = pci_find_pcie_root_port(dev);
 	if (!root)
@@ -955,7 +955,7 @@ static bool acpi_pci_bridge_d3(struct pci_dev *dev)
 	adev = ACPI_COMPANION(&root->dev);
 	if (root == dev) {
 		/*
-		 * It is possible that the ACPI companion is not yet bound
+		 * It is possible that the ACPI companion is yest yet bound
 		 * for the root port so look it up manually here.
 		 */
 		if (!adev && !pci_dev_is_added(root))
@@ -965,8 +965,8 @@ static bool acpi_pci_bridge_d3(struct pci_dev *dev)
 	if (!adev)
 		return false;
 
-	fwnode = acpi_fwnode_handle(adev);
-	if (fwnode_property_read_u8(fwnode, "HotPlugSupportInD3", &val))
+	fwyesde = acpi_fwyesde_handle(adev);
+	if (fwyesde_property_read_u8(fwyesde, "HotPlugSupportInD3", &val))
 		return false;
 
 	return val == 1;
@@ -990,7 +990,7 @@ static int acpi_pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	};
 	int error = -EINVAL;
 
-	/* If the ACPI device has _EJ0, ignore the device */
+	/* If the ACPI device has _EJ0, igyesre the device */
 	if (!adev || acpi_has_method(adev->handle, "_EJ0"))
 		return -ENODEV;
 
@@ -1080,7 +1080,7 @@ static bool acpi_pci_need_resume(struct pci_dev *dev)
 	 * system-wide suspend/resume confuses the platform firmware, so avoid
 	 * doing that.  According to Section 16.1.6 of ACPI 6.2, endpoint
 	 * devices are expected to be in D3 before invoking the S3 entry path
-	 * from the firmware, so they should not be affected by this issue.
+	 * from the firmware, so they should yest be affected by this issue.
 	 */
 	if (pci_is_bridge(dev) && acpi_target_system_state() != ACPI_STATE_S0)
 		return true;
@@ -1134,7 +1134,7 @@ void acpi_pci_add_bus(struct pci_bus *bus)
 
 	if (obj->type == ACPI_TYPE_INTEGER && obj->integer.value == 1) {
 		bridge = pci_find_host_bridge(bus);
-		bridge->ignore_reset_delay = 1;
+		bridge->igyesre_reset_delay = 1;
 	}
 	ACPI_FREE(obj);
 }
@@ -1189,7 +1189,7 @@ static void pci_acpi_optimize_delay(struct pci_dev *pdev,
 	int value;
 	union acpi_object *obj, *elements;
 
-	if (bridge->ignore_reset_delay)
+	if (bridge->igyesre_reset_delay)
 		pdev->d3cold_delay = 0;
 
 	obj = acpi_evaluate_dsm(handle, &pci_acpi_dsm_guid, 3,
@@ -1242,7 +1242,7 @@ static void pci_acpi_setup(struct device *dev)
 	pci_acpi_optimize_delay(pci_dev, adev->handle);
 	pci_acpi_set_untrusted(pci_dev);
 
-	pci_acpi_add_pm_notifier(adev, pci_dev);
+	pci_acpi_add_pm_yestifier(adev, pci_dev);
 	if (!adev->wakeup.flags.valid)
 		return;
 
@@ -1268,7 +1268,7 @@ static void pci_acpi_cleanup(struct device *dev)
 	if (!adev)
 		return;
 
-	pci_acpi_remove_pm_notifier(adev);
+	pci_acpi_remove_pm_yestifier(adev);
 	if (adev->wakeup.flags.valid) {
 		acpi_device_power_remove_dependent(adev, dev);
 		if (pci_dev->bridge_d3)
@@ -1292,20 +1292,20 @@ static struct acpi_bus_type acpi_pci_bus = {
 };
 
 
-static struct fwnode_handle *(*pci_msi_get_fwnode_cb)(struct device *dev);
+static struct fwyesde_handle *(*pci_msi_get_fwyesde_cb)(struct device *dev);
 
 /**
- * pci_msi_register_fwnode_provider - Register callback to retrieve fwnode
- * @fn:       Callback matching a device to a fwnode that identifies a PCI
+ * pci_msi_register_fwyesde_provider - Register callback to retrieve fwyesde
+ * @fn:       Callback matching a device to a fwyesde that identifies a PCI
  *            MSI domain.
  *
  * This should be called by irqchip driver, which is the parent of
- * the MSI domain to provide callback interface to query fwnode.
+ * the MSI domain to provide callback interface to query fwyesde.
  */
 void
-pci_msi_register_fwnode_provider(struct fwnode_handle *(*fn)(struct device *))
+pci_msi_register_fwyesde_provider(struct fwyesde_handle *(*fn)(struct device *))
 {
-	pci_msi_get_fwnode_cb = fn;
+	pci_msi_get_fwyesde_cb = fn;
 }
 
 /**
@@ -1313,22 +1313,22 @@ pci_msi_register_fwnode_provider(struct fwnode_handle *(*fn)(struct device *))
  * @bus:      The PCI host bridge bus.
  *
  * This function uses the callback function registered by
- * pci_msi_register_fwnode_provider() to retrieve the irq_domain with
+ * pci_msi_register_fwyesde_provider() to retrieve the irq_domain with
  * type DOMAIN_BUS_PCI_MSI of the specified host bridge bus.
- * This returns NULL on error or when the domain is not found.
+ * This returns NULL on error or when the domain is yest found.
  */
 struct irq_domain *pci_host_bridge_acpi_msi_domain(struct pci_bus *bus)
 {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 
-	if (!pci_msi_get_fwnode_cb)
+	if (!pci_msi_get_fwyesde_cb)
 		return NULL;
 
-	fwnode = pci_msi_get_fwnode_cb(&bus->dev);
-	if (!fwnode)
+	fwyesde = pci_msi_get_fwyesde_cb(&bus->dev);
+	if (!fwyesde)
 		return NULL;
 
-	return irq_find_matching_fwnode(fwnode, DOMAIN_BUS_PCI_MSI);
+	return irq_find_matching_fwyesde(fwyesde, DOMAIN_BUS_PCI_MSI);
 }
 
 static int __init acpi_pci_init(void)
@@ -1337,12 +1337,12 @@ static int __init acpi_pci_init(void)
 
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_MSI) {
 		pr_info("ACPI FADT declares the system doesn't support MSI, so disable it\n");
-		pci_no_msi();
+		pci_yes_msi();
 	}
 
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
 		pr_info("ACPI FADT declares the system doesn't support PCIe ASPM, so disable it\n");
-		pcie_no_aspm();
+		pcie_yes_aspm();
 	}
 
 	ret = register_acpi_bus_type(&acpi_pci_bus);

@@ -66,7 +66,7 @@ struct grgpio_priv {
 
 	/*
 	 * The grgpio core can have multiple "underlying" irqs. The gpio lines
-	 * can be mapped to any one or none of these underlying irqs
+	 * can be mapped to any one or yesne of these underlying irqs
 	 * independently of each other. This driver sets up an irq domain and
 	 * hands out separate irqs to each gpio line
 	 */
@@ -81,7 +81,7 @@ struct grgpio_priv {
 	/*
 	 * This array contains information for each gpio line on the irqs
 	 * obtains from this driver. An index value of -1 for a certain gpio
-	 * line indicates that the line has no irq. Otherwise the index connects
+	 * line indicates that the line has yes irq. Otherwise the index connects
 	 * the irq to the underlying irq by pointing into the uirqs array.
 	 */
 	struct grgpio_lirq lirqs[GRGPIO_MAX_NGPIO];
@@ -249,7 +249,7 @@ static int grgpio_irq_map(struct irq_domain *d, unsigned int irq,
 
 	spin_lock_irqsave(&priv->gc.bgpio_lock, flags);
 
-	/* Request underlying irq if not already requested */
+	/* Request underlying irq if yest already requested */
 	lirq->irq = irq;
 	uirq = &priv->uirqs[lirq->index];
 	if (uirq->refcnt == 0) {
@@ -257,7 +257,7 @@ static int grgpio_irq_map(struct irq_domain *d, unsigned int irq,
 				  dev_name(priv->dev), priv);
 		if (ret) {
 			dev_err(priv->dev,
-				"Could not request underlying irq %d\n",
+				"Could yest request underlying irq %d\n",
 				uirq->uirq);
 
 			spin_unlock_irqrestore(&priv->gc.bgpio_lock, flags);
@@ -273,7 +273,7 @@ static int grgpio_irq_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, priv);
 	irq_set_chip_and_handler(irq, &grgpio_irq_chip,
 				 handle_simple_irq);
-	irq_set_noprobe(irq);
+	irq_set_yesprobe(irq);
 
 	return ret;
 }
@@ -325,7 +325,7 @@ static const struct irq_domain_ops grgpio_irq_domain_ops = {
 
 static int grgpio_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	void  __iomem *regs;
 	struct gpio_chip *gc;
 	struct grgpio_priv *priv;
@@ -356,7 +356,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 	priv->imask = gc->read_reg(regs + GRGPIO_IMASK);
 	priv->dev = &ofdev->dev;
 
-	gc->of_node = np;
+	gc->of_yesde = np;
 	gc->owner = THIS_MODULE;
 	gc->to_irq = grgpio_to_irq;
 	gc->label = devm_kasprintf(&ofdev->dev, GFP_KERNEL, "%pOF", np);
@@ -388,7 +388,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 						     &grgpio_irq_domain_ops,
 						     priv);
 		if (!priv->domain) {
-			dev_err(&ofdev->dev, "Could not add irq domain\n");
+			dev_err(&ofdev->dev, "Could yest add irq domain\n");
 			return -EINVAL;
 		}
 
@@ -418,7 +418,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 
 	err = gpiochip_add_data(gc, priv);
 	if (err) {
-		dev_err(&ofdev->dev, "Could not add gpiochip\n");
+		dev_err(&ofdev->dev, "Could yest add gpiochip\n");
 		if (priv->domain)
 			irq_domain_remove(priv->domain);
 		return err;

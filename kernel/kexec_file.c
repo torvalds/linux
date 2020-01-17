@@ -93,7 +93,7 @@ static int kexec_image_verify_sig_default(struct kimage *image, void *buf,
 					  unsigned long buf_len)
 {
 	if (!image->fops || !image->fops->verify_sig) {
-		pr_debug("kernel loader does not support signature verification.\n");
+		pr_debug("kernel loader does yest support signature verification.\n");
 		return -EKEYREJECTED;
 	}
 
@@ -114,7 +114,7 @@ int __weak arch_kexec_kernel_verify_sig(struct kimage *image, void *buf,
  * @relsec:	Section containing RELAs.
  * @symtab:	Corresponding symtab.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erryes on error.
  */
 int __weak
 arch_kexec_apply_relocations_add(struct purgatory_info *pi, Elf_Shdr *section,
@@ -131,7 +131,7 @@ arch_kexec_apply_relocations_add(struct purgatory_info *pi, Elf_Shdr *section,
  * @relsec:	Section containing RELs.
  * @symtab:	Corresponding symtab.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erryes on error.
  */
 int __weak
 arch_kexec_apply_relocations(struct purgatory_info *pi, Elf_Shdr *section,
@@ -143,7 +143,7 @@ arch_kexec_apply_relocations(struct purgatory_info *pi, Elf_Shdr *section,
 
 /*
  * Free up memory used by kernel, initrd, and command line. This is temporary
- * memory allocation which is not needed any more after these buffers have
+ * memory allocation which is yest needed any more after these buffers have
  * been loaded into separate segments and have been copied elsewhere.
  */
 void kimage_file_post_load_cleanup(struct kimage *image)
@@ -171,7 +171,7 @@ void kimage_file_post_load_cleanup(struct kimage *image)
 	/*
 	 * Above call should have called into bootloader to free up
 	 * any data stored in kimage->image_loader_data. It should
-	 * be ok now to free it up.
+	 * be ok yesw to free it up.
 	 */
 	kfree(image->image_loader_data);
 	image->image_loader_data = NULL;
@@ -190,7 +190,7 @@ kimage_validate_signature(struct kimage *image)
 	case 0:
 		break;
 
-		/* Certain verification errors are non-fatal if we're not
+		/* Certain verification errors are yesn-fatal if we're yest
 		 * checking errors, provided we aren't mandating that there
 		 * must be a valid signature.
 		 */
@@ -204,7 +204,7 @@ kimage_validate_signature(struct kimage *image)
 		reason = "kexec of image with unavailable key";
 	decide:
 		if (IS_ENABLED(CONFIG_KEXEC_SIG_FORCE)) {
-			pr_notice("%s rejected\n", reason);
+			pr_yestice("%s rejected\n", reason);
 			return ret;
 		}
 
@@ -218,12 +218,12 @@ kimage_validate_signature(struct kimage *image)
 
 		return 0;
 
-		/* All other errors are fatal, including nomem, unparseable
+		/* All other errors are fatal, including yesmem, unparseable
 		 * signatures and signature check failures - even if signatures
 		 * aren't required.
 		 */
 	default:
-		pr_notice("kernel signature verification failed (%d).\n", ret);
+		pr_yestice("kernel signature verification failed (%d).\n", ret);
 	}
 
 	return ret;
@@ -261,7 +261,7 @@ kimage_file_prepare_segments(struct kimage *image, int kernel_fd, int initrd_fd,
 	if (ret)
 		goto out;
 #endif
-	/* It is possible that there no initramfs is being loaded */
+	/* It is possible that there yes initramfs is being loaded */
 	if (!(flags & KEXEC_FILE_NO_INITRAMFS)) {
 		ret = kernel_read_file_from_fd(initrd_fd, &image->initrd_buf,
 					       &size, INT_MAX,
@@ -344,14 +344,14 @@ kimage_file_alloc_init(struct kimage **rimage, int kernel_fd,
 	image->control_code_page = kimage_alloc_control_pages(image,
 					   get_order(KEXEC_CONTROL_PAGE_SIZE));
 	if (!image->control_code_page) {
-		pr_err("Could not allocate control_code_buffer\n");
+		pr_err("Could yest allocate control_code_buffer\n");
 		goto out_free_post_load_bufs;
 	}
 
 	if (!kexec_on_panic) {
 		image->swap_page = kimage_alloc_control_pages(image, 0);
 		if (!image->swap_page) {
-			pr_err("Could not allocate swap buffer\n");
+			pr_err("Could yest allocate swap buffer\n");
 			goto out_free_control_pages;
 		}
 	}
@@ -442,7 +442,7 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 	kimage_terminate(image);
 
 	/*
-	 * Free up any temporary buffers allocated which are not needed
+	 * Free up any temporary buffers allocated which are yest needed
 	 * after image has been loaded
 	 */
 	kimage_file_post_load_cleanup(image);
@@ -476,7 +476,7 @@ static int locate_mem_hole_top_down(unsigned long start, unsigned long end,
 		temp_end = temp_start + kbuf->memsz - 1;
 
 		/*
-		 * Make sure this does not conflict with any of existing
+		 * Make sure this does yest conflict with any of existing
 		 * segments
 		 */
 		if (kimage_is_destination_range(image, temp_start, temp_end)) {
@@ -510,7 +510,7 @@ static int locate_mem_hole_bottom_up(unsigned long start, unsigned long end,
 		if (temp_end > end || temp_end > kbuf->buf_max)
 			return 0;
 		/*
-		 * Make sure this does not conflict with any of existing
+		 * Make sure this does yest conflict with any of existing
 		 * segments
 		 */
 		if (kimage_is_destination_range(image, temp_start, temp_end)) {
@@ -608,9 +608,9 @@ static int kexec_walk_memblock(struct kexec_buf *kbuf,
  * @kbuf:	Context info for the search. Also passed to @func.
  * @func:	Function to call for each memory region.
  *
- * Return: The memory walk will stop when func returns a non-zero value
+ * Return: The memory walk will stop when func returns a yesn-zero value
  * and that value will be returned. If all free regions are visited without
- * func returning non-zero, then zero will be returned.
+ * func returning yesn-zero, then zero will be returned.
  */
 static int kexec_walk_resources(struct kexec_buf *kbuf,
 				int (*func)(struct resource *, void *))
@@ -630,13 +630,13 @@ static int kexec_walk_resources(struct kexec_buf *kbuf,
  *
  * On success, kbuf->mem will have the start address of the memory region found.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erryes on error.
  */
 int kexec_locate_mem_hole(struct kexec_buf *kbuf)
 {
 	int ret;
 
-	/* Arch knows where to place */
+	/* Arch kyesws where to place */
 	if (kbuf->mem != KEXEC_BUF_MEM_UNKNOWN)
 		return 0;
 
@@ -656,7 +656,7 @@ int kexec_locate_mem_hole(struct kexec_buf *kbuf)
  * On successful return, @kbuf->mem will have the physical address of
  * the buffer in memory.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erryes on error.
  */
 int kexec_add_buffer(struct kexec_buf *kbuf)
 {
@@ -672,11 +672,11 @@ int kexec_add_buffer(struct kexec_buf *kbuf)
 		return -EINVAL;
 
 	/*
-	 * Make sure we are not trying to add buffer after allocating
+	 * Make sure we are yest trying to add buffer after allocating
 	 * control pages. All segments need to be placed first before
 	 * any control pages are allocated. As control page allocation
 	 * logic goes through list of segments to make sure there are
-	 * no destination overlaps.
+	 * yes destination overlaps.
 	 */
 	if (!list_empty(&kbuf->image->control_pages)) {
 		WARN_ON(1);
@@ -826,7 +826,7 @@ out:
  * Allocates the memory needed for the buffer. Caller is responsible to free
  * the memory after use.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erryes on error.
  */
 static int kexec_purgatory_setup_kbuf(struct purgatory_info *pi,
 				      struct kexec_buf *kbuf)
@@ -887,7 +887,7 @@ out:
  * Allocates the memory needed for the buffer. Caller is responsible to free
  * the memory after use.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erryes on error.
  */
 static int kexec_purgatory_setup_sechdrs(struct purgatory_info *pi,
 					 struct kexec_buf *kbuf)
@@ -1017,7 +1017,7 @@ static int kexec_apply_relocations(struct kimage *image)
  * image->purgatory_info.purgatory_buf/kbuf->buffer. Caller is responsible
  * to free the memory after use.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erryes on error.
  */
 int kexec_load_purgatory(struct kimage *image, struct kexec_buf *kbuf)
 {
@@ -1150,7 +1150,7 @@ int kexec_purgatory_get_set_symbol(struct kimage *image, const char *name,
 	sec = pi->sechdrs + sym->st_shndx;
 
 	if (sec->sh_type == SHT_NOBITS) {
-		pr_err("symbol %s is in a bss section. Cannot %s\n", name,
+		pr_err("symbol %s is in a bss section. Canyest %s\n", name,
 		       get_value ? "get" : "set");
 		return -EINVAL;
 	}
@@ -1245,10 +1245,10 @@ int crash_prepare_elf64_headers(struct crash_mem *mem, int kernel_map,
 	unsigned long nr_cpus = num_possible_cpus(), nr_phdr, elf_sz;
 	unsigned char *buf;
 	unsigned int cpu, i;
-	unsigned long long notes_addr;
+	unsigned long long yestes_addr;
 	unsigned long mstart, mend;
 
-	/* extra phdr for vmcoreinfo elf note */
+	/* extra phdr for vmcoreinfo elf yeste */
 	nr_phdr = nr_cpus + 1;
 	nr_phdr += mem->nr_ranges;
 
@@ -1286,16 +1286,16 @@ int crash_prepare_elf64_headers(struct crash_mem *mem, int kernel_map,
 	/* Prepare one phdr of type PT_NOTE for each present cpu */
 	for_each_present_cpu(cpu) {
 		phdr->p_type = PT_NOTE;
-		notes_addr = per_cpu_ptr_to_phys(per_cpu_ptr(crash_notes, cpu));
-		phdr->p_offset = phdr->p_paddr = notes_addr;
-		phdr->p_filesz = phdr->p_memsz = sizeof(note_buf_t);
+		yestes_addr = per_cpu_ptr_to_phys(per_cpu_ptr(crash_yestes, cpu));
+		phdr->p_offset = phdr->p_paddr = yestes_addr;
+		phdr->p_filesz = phdr->p_memsz = sizeof(yeste_buf_t);
 		(ehdr->e_phnum)++;
 		phdr++;
 	}
 
 	/* Prepare one PT_NOTE header for vmcoreinfo */
 	phdr->p_type = PT_NOTE;
-	phdr->p_offset = phdr->p_paddr = paddr_vmcoreinfo_note();
+	phdr->p_offset = phdr->p_paddr = paddr_vmcoreinfo_yeste();
 	phdr->p_filesz = phdr->p_memsz = VMCOREINFO_NOTE_SIZE;
 	(ehdr->e_phnum)++;
 	phdr++;

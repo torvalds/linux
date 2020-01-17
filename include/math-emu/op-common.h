@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If
-   not, write to the Free Software Foundation, Inc.,
+   yest, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef __MATH_EMU_OP_COMMON_H__
@@ -30,7 +30,7 @@
 
 /*
  * Finish truly unpacking a native fp value by classifying the kind
- * of fp value and normalizing both the exponent and the fraction.
+ * of fp value and yesrmalizing both the exponent and the fraction.
  */
 
 #define _FP_UNPACK_CANONICAL(fs, wc, X)					\
@@ -49,7 +49,7 @@ do {									\
       X##_c = FP_CLS_ZERO;						\
     else								\
       {									\
-	/* a denormalized number */					\
+	/* a deyesrmalized number */					\
 	_FP_I_TYPE _shift;						\
 	_FP_FRAC_CLZ_##wc(_shift, X);					\
 	_shift -= _FP_FRACXBITS_##fs;					\
@@ -82,8 +82,8 @@ do {									\
 /*
  * Before packing the bits back into the native fp result, take care
  * of such mundane things as rounding and overflow.  Also, for some
- * kinds of fp values, the original parts may not have been fully
- * extracted -- but that is ok, we can regenerate them now.
+ * kinds of fp values, the original parts may yest have been fully
+ * extracted -- but that is ok, we can regenerate them yesw.
  */
 
 #define _FP_PACK_CANONICAL(fs, wc, X)				\
@@ -124,7 +124,7 @@ do {								\
 	      }							\
 	    else						\
 	      {							\
-		/* Overflow to maximum normal */		\
+		/* Overflow to maximum yesrmal */		\
 		X##_e = _FP_EXPMAX_##fs - 1;			\
 		_FP_FRAC_SET_##wc(X, _FP_MAXFRAC_##wc);		\
 	      }							\
@@ -134,7 +134,7 @@ do {								\
       }								\
     else							\
       {								\
-	/* we've got a denormalized number */			\
+	/* we've got a deyesrmalized number */			\
 	X##_e = -X##_e + 1;					\
 	if (X##_e <= _FP_WFRACBITS_##fs)			\
 	  {							\
@@ -203,7 +203,7 @@ do {								\
   }								\
 } while (0)
 
-/* This one accepts raw argument and not cooked,  returns
+/* This one accepts raw argument and yest cooked,  returns
  * 1 if X is a signaling NaN.
  */
 #define _FP_ISSIGNAN(fs, wc, X)					\
@@ -289,7 +289,7 @@ do {									     \
 		  R##_s = Y##_s;					     \
 		}							     \
 									     \
-	      /* renormalize after subtraction */			     \
+	      /* reyesrmalize after subtraction */			     \
 	      _FP_FRAC_CLZ_##wc(diff, R);				     \
 	      diff -= _FP_WFRACXBITS_##fs;				     \
 	      if (diff)							     \
@@ -376,7 +376,7 @@ do {									     \
 
 /*
  * Main negation routine.  FIXME -- when we care about setting exception
- * bits reliably, this will not do.  We should examine all of the fp classes.
+ * bits reliably, this will yest do.  We should examine all of the fp classes.
  */
 
 #define _FP_NEG(fs, wc, R, X)		\
@@ -524,13 +524,13 @@ do {							\
 
 
 /*
- * Main differential comparison routine.  The inputs should be raw not
- * cooked.  The return is -1,0,1 for normal values, 2 otherwise.
+ * Main differential comparison routine.  The inputs should be raw yest
+ * cooked.  The return is -1,0,1 for yesrmal values, 2 otherwise.
  */
 
 #define _FP_CMP(fs, wc, ret, X, Y, un)					\
   do {									\
-    /* NANs are unordered */						\
+    /* NANs are uyesrdered */						\
     if ((X##_e == _FP_EXPMAX_##fs && !_FP_FRAC_ZEROP_##wc(X))		\
 	|| (Y##_e == _FP_EXPMAX_##fs && !_FP_FRAC_ZEROP_##wc(Y)))	\
       {									\
@@ -570,7 +570,7 @@ do {							\
 
 #define _FP_CMP_EQ(fs, wc, ret, X, Y)					  \
   do {									  \
-    /* NANs are unordered */						  \
+    /* NANs are uyesrdered */						  \
     if ((X##_e == _FP_EXPMAX_##fs && !_FP_FRAC_ZEROP_##wc(X))		  \
 	|| (Y##_e == _FP_EXPMAX_##fs && !_FP_FRAC_ZEROP_##wc(Y)))	  \
       {									  \
@@ -643,14 +643,14 @@ do {									\
  */
 
 /* RSIGNED can have following values:
- * 0:  the number is required to be 0..(2^rsize)-1, if not, NV is set plus
+ * 0:  the number is required to be 0..(2^rsize)-1, if yest, NV is set plus
  *     the result is either 0 or (2^rsize)-1 depending on the sign in such case.
- * 1:  the number is required to be -(2^(rsize-1))..(2^(rsize-1))-1, if not, NV is
+ * 1:  the number is required to be -(2^(rsize-1))..(2^(rsize-1))-1, if yest, NV is
  *     set plus the result is either -(2^(rsize-1)) or (2^(rsize-1))-1 depending
  *     on the sign in such case.
- * 2:  the number is required to be -(2^(rsize-1))..(2^(rsize-1))-1, if not, NV is
+ * 2:  the number is required to be -(2^(rsize-1))..(2^(rsize-1))-1, if yest, NV is
  *     set plus the result is truncated to fit into destination.
- * -1: the number is required to be -(2^(rsize-1))..(2^rsize)-1, if not, NV is
+ * -1: the number is required to be -(2^(rsize-1))..(2^rsize)-1, if yest, NV is
  *     set plus the result is either -(2^(rsize-1)) or (2^(rsize-1))-1 depending
  *     on the sign in such case.
  */
@@ -854,7 +854,7 @@ do {									\
     if (_t & 0xc) _t >>= 2;			\
     if (_t & 0x2) r -= 1;			\
   } while (0)
-#else /* not _FP_W_TYPE_SIZE < 64 */
+#else /* yest _FP_W_TYPE_SIZE < 64 */
 #define __FP_CLZ(r, x)				\
   do {						\
     _FP_W_TYPE _t = (x);			\
@@ -871,7 +871,7 @@ do {									\
     if (_t & 0xc) _t >>= 2;			\
     if (_t & 0x2) r -= 1;			\
   } while (0)
-#endif /* not _FP_W_TYPE_SIZE < 64 */
+#endif /* yest _FP_W_TYPE_SIZE < 64 */
 #endif /* ndef __FP_CLZ */
 
 #define _FP_DIV_HELP_imm(q, r, n, d)		\

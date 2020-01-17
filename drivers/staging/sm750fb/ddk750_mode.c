@@ -25,7 +25,7 @@ displayControlAdjust_SM750LE(struct mode_parameter *pModeParam,
 	/*
 	 * SM750LE has to set up the top-left and bottom-right
 	 * registers as well.
-	 * Note that normal SM750/SM718 only use those two register for
+	 * Note that yesrmal SM750/SM718 only use those two register for
 	 * auto-centering mode.
 	 */
 	poke32(CRT_AUTO_CENTERING_TL, 0);
@@ -185,7 +185,7 @@ static int programModeRegisters(struct mode_parameter *pModeParam,
 			  DISPLAY_CTRL_PLANE);
 
 		/*
-		 * May a hardware bug or just my test chip (not confirmed).
+		 * May a hardware bug or just my test chip (yest confirmed).
 		 * PANEL_DISPLAY_CTRL register seems requiring few writes
 		 * before a value can be successfully written in.
 		 * Added some masks to mask out the reserved bits.

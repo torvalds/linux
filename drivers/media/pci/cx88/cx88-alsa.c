@@ -6,7 +6,7 @@
  *    (c) 2007 Trent Piepho <xyzzy@speakeasy.org>
  *    (c) 2005,2006 Ricardo Cerqueira <v4l@cerqueira.org>
  *    (c) 2005 Mauro Carvalho Chehab <mchehab@kernel.org>
- *    Based on a dummy cx88 module by Gerd Knorr <kraxel@bytesex.org>
+ *    Based on a dummy cx88 module by Gerd Kyesrr <kraxel@bytesex.org>
  *    Based on dummy.c by Jaroslav Kysela <perex@perex.cz>
  */
 
@@ -388,7 +388,7 @@ static const struct snd_pcm_hardware snd_cx88_digital_hw = {
 	.channels_max = 2,
 	/*
 	 * Analog audio output will be full of clicks and pops if there
-	 * are not exactly four lines in the SRAM FIFO buffer.
+	 * are yest exactly four lines in the SRAM FIFO buffer.
 	 */
 	.period_bytes_min = DEFAULT_FIFO_SIZE / 4,
 	.period_bytes_max = DEFAULT_FIFO_SIZE / 4,
@@ -685,7 +685,7 @@ static int snd_cx88_volume_put(struct snd_kcontrol *kcontrol,
 	} else {
 		v = 0x3f - right;
 	}
-	/* Do we really know this will always be called with IRQs on? */
+	/* Do we really kyesw this will always be called with IRQs on? */
 	spin_lock_irq(&chip->reg_lock);
 	old = cx_read(AUD_VOL_CTL);
 	if (v != (old & 0x3f)) {
@@ -752,7 +752,7 @@ static int snd_cx88_switch_put(struct snd_kcontrol *kcontrol,
 static const struct snd_kcontrol_new snd_cx88_dac_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Audio-Out Switch",
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moyes_info,
 	.get = snd_cx88_switch_get,
 	.put = snd_cx88_switch_put,
 	.private_value = (1 << 8),
@@ -761,7 +761,7 @@ static const struct snd_kcontrol_new snd_cx88_dac_switch = {
 static const struct snd_kcontrol_new snd_cx88_source_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Analog-TV Switch",
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moyes_info,
 	.get = snd_cx88_switch_get,
 	.put = snd_cx88_switch_put,
 	.private_value = (1 << 6),
@@ -793,7 +793,7 @@ static int snd_cx88_alc_put(struct snd_kcontrol *kcontrol,
 static const struct snd_kcontrol_new snd_cx88_alc_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Line-In ALC Switch",
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moyes_info,
 	.get = snd_cx88_alc_get,
 	.put = snd_cx88_alc_put,
 };
@@ -843,7 +843,7 @@ static void snd_cx88_dev_free(struct snd_card *card)
  * Alsa Constructor - Component probe
  */
 
-static int devno;
+static int devyes;
 static int snd_cx88_create(struct snd_card *card, struct pci_dev *pci,
 			   struct cx88_audio_dev **rchip,
 			   struct cx88_core **core_ptr)
@@ -871,7 +871,7 @@ static int snd_cx88_create(struct snd_card *card, struct pci_dev *pci,
 
 	err = pci_set_dma_mask(pci, DMA_BIT_MASK(32));
 	if (err) {
-		dprintk(0, "%s/1: Oops: no 32bit PCI DMA ???\n", core->name);
+		dprintk(0, "%s/1: Oops: yes 32bit PCI DMA ???\n", core->name);
 		cx88_core_put(core, pci);
 		return err;
 	}
@@ -898,7 +898,7 @@ static int snd_cx88_create(struct snd_card *card, struct pci_dev *pci,
 
 	dprintk(1,
 		"ALSA %s/%i: found at %s, rev: %d, irq: %d, latency: %d, mmio: 0x%llx\n",
-		core->name, devno,
+		core->name, devyes,
 		pci_name(pci), pci->revision, pci->irq,
 		pci_lat, (unsigned long long)pci_resource_start(pci, 0));
 
@@ -919,15 +919,15 @@ static int cx88_audio_initdev(struct pci_dev *pci,
 	struct cx88_core	*core = NULL;
 	int			err;
 
-	if (devno >= SNDRV_CARDS)
+	if (devyes >= SNDRV_CARDS)
 		return (-ENODEV);
 
-	if (!enable[devno]) {
-		++devno;
+	if (!enable[devyes]) {
+		++devyes;
 		return (-ENOENT);
 	}
 
-	err = snd_card_new(&pci->dev, index[devno], id[devno], THIS_MODULE,
+	err = snd_card_new(&pci->dev, index[devyes], id[devyes], THIS_MODULE,
 			   sizeof(struct cx88_audio_dev), &card);
 	if (err < 0)
 		return err;
@@ -967,14 +967,14 @@ static int cx88_audio_initdev(struct pci_dev *pci,
 	strscpy(card->mixername, "CX88", sizeof(card->mixername));
 
 	dprintk(0, "%s/%i: ALSA support for cx2388x boards\n",
-		card->driver, devno);
+		card->driver, devyes);
 
 	err = snd_card_register(card);
 	if (err < 0)
 		goto error;
 	pci_set_drvdata(pci, card);
 
-	devno++;
+	devyes++;
 	return 0;
 
 error:
@@ -991,7 +991,7 @@ static void cx88_audio_finidev(struct pci_dev *pci)
 
 	snd_card_free(card);
 
-	devno--;
+	devyes--;
 }
 
 /*

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * linux/drivers/devfreq/governor_passive.c
+ * linux/drivers/devfreq/goveryesr_passive.c
  *
  * Copyright (C) 2016 Samsung Electronics
  * Author: Chanwoo Choi <cw00.choi@samsung.com>
@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/devfreq.h>
-#include "governor.h"
+#include "goveryesr.h"
 
 static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 					unsigned long *freq)
@@ -23,7 +23,7 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 	int i, count, ret = 0;
 
 	/*
-	 * If the devfreq device with passive governor has the specific method
+	 * If the devfreq device with passive goveryesr has the specific method
 	 * to determine the next frequency, should use the get_target_freq()
 	 * of struct devfreq_passive_data.
 	 */
@@ -38,11 +38,11 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 	 */
 
 	/*
-	 * - parent devfreq device uses the governors except for passive.
-	 * - passive devfreq device uses the passive governor.
+	 * - parent devfreq device uses the goveryesrs except for passive.
+	 * - passive devfreq device uses the passive goveryesr.
 	 *
 	 * Each devfreq has the OPP table. After deciding the new frequency
-	 * from the governor of parent devfreq device, the passive governor
+	 * from the goveryesr of parent devfreq device, the passive goveryesr
 	 * need to get the index of new frequency on OPP table of parent
 	 * device. And then the index is used for getting the suitable
 	 * new frequency for passive devfreq device.
@@ -52,9 +52,9 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 		return -EINVAL;
 
 	/*
-	 * The passive governor have to get the correct frequency from OPP
+	 * The passive goveryesr have to get the correct frequency from OPP
 	 * list of parent device. Because in this case, *freq is temporary
-	 * value which is decided by ondemand governor.
+	 * value which is decided by ondemand goveryesr.
 	 */
 	opp = devfreq_recommended_opp(parent_devfreq->dev.parent, freq, 0);
 	if (IS_ERR(opp)) {
@@ -65,7 +65,7 @@ static int devfreq_passive_get_target_freq(struct devfreq *devfreq,
 	dev_pm_opp_put(opp);
 
 	/*
-	 * Get the OPP table's index of decided freqeuncy by governor
+	 * Get the OPP table's index of decided freqeuncy by goveryesr
 	 * of parent device.
 	 */
 	for (i = 0; i < parent_devfreq->profile->max_state; i++)
@@ -96,12 +96,12 @@ static int update_devfreq_passive(struct devfreq *devfreq, unsigned long freq)
 {
 	int ret;
 
-	if (!devfreq->governor)
+	if (!devfreq->goveryesr)
 		return -EINVAL;
 
 	mutex_lock_nested(&devfreq->lock, SINGLE_DEPTH_NESTING);
 
-	ret = devfreq->governor->get_target_freq(devfreq, &freq);
+	ret = devfreq->goveryesr->get_target_freq(devfreq, &freq);
 	if (ret < 0)
 		goto out;
 
@@ -122,7 +122,7 @@ out:
 	return 0;
 }
 
-static int devfreq_passive_notifier_call(struct notifier_block *nb,
+static int devfreq_passive_yestifier_call(struct yestifier_block *nb,
 				unsigned long event, void *ptr)
 {
 	struct devfreq_passive_data *data
@@ -152,7 +152,7 @@ static int devfreq_passive_event_handler(struct devfreq *devfreq,
 	struct devfreq_passive_data *p_data
 			= (struct devfreq_passive_data *)devfreq->data;
 	struct devfreq *parent = (struct devfreq *)p_data->parent;
-	struct notifier_block *nb = &p_data->nb;
+	struct yestifier_block *nb = &p_data->nb;
 	int ret = 0;
 
 	if (!parent)
@@ -163,12 +163,12 @@ static int devfreq_passive_event_handler(struct devfreq *devfreq,
 		if (!p_data->this)
 			p_data->this = devfreq;
 
-		nb->notifier_call = devfreq_passive_notifier_call;
-		ret = devfreq_register_notifier(parent, nb,
+		nb->yestifier_call = devfreq_passive_yestifier_call;
+		ret = devfreq_register_yestifier(parent, nb,
 					DEVFREQ_TRANSITION_NOTIFIER);
 		break;
 	case DEVFREQ_GOV_STOP:
-		WARN_ON(devfreq_unregister_notifier(parent, nb,
+		WARN_ON(devfreq_unregister_yestifier(parent, nb,
 					DEVFREQ_TRANSITION_NOTIFIER));
 		break;
 	default:
@@ -178,7 +178,7 @@ static int devfreq_passive_event_handler(struct devfreq *devfreq,
 	return ret;
 }
 
-static struct devfreq_governor devfreq_passive = {
+static struct devfreq_goveryesr devfreq_passive = {
 	.name = DEVFREQ_GOV_PASSIVE,
 	.immutable = 1,
 	.get_target_freq = devfreq_passive_get_target_freq,
@@ -187,7 +187,7 @@ static struct devfreq_governor devfreq_passive = {
 
 static int __init devfreq_passive_init(void)
 {
-	return devfreq_add_governor(&devfreq_passive);
+	return devfreq_add_goveryesr(&devfreq_passive);
 }
 subsys_initcall(devfreq_passive_init);
 
@@ -195,13 +195,13 @@ static void __exit devfreq_passive_exit(void)
 {
 	int ret;
 
-	ret = devfreq_remove_governor(&devfreq_passive);
+	ret = devfreq_remove_goveryesr(&devfreq_passive);
 	if (ret)
-		pr_err("%s: failed remove governor %d\n", __func__, ret);
+		pr_err("%s: failed remove goveryesr %d\n", __func__, ret);
 }
 module_exit(devfreq_passive_exit);
 
 MODULE_AUTHOR("Chanwoo Choi <cw00.choi@samsung.com>");
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
-MODULE_DESCRIPTION("DEVFREQ Passive governor");
+MODULE_DESCRIPTION("DEVFREQ Passive goveryesr");
 MODULE_LICENSE("GPL v2");

@@ -31,12 +31,12 @@ static const struct mfd_cell wm8994_regulator_devs[] = {
 	{
 		.name = "wm8994-ldo",
 		.id = 0,
-		.pm_runtime_no_callbacks = true,
+		.pm_runtime_yes_callbacks = true,
 	},
 	{
 		.name = "wm8994-ldo",
 		.id = 1,
-		.pm_runtime_no_callbacks = true,
+		.pm_runtime_yes_callbacks = true,
 	},
 };
 
@@ -67,12 +67,12 @@ static const struct mfd_cell wm8994_devs[] = {
 		.name = "wm8994-gpio",
 		.num_resources = ARRAY_SIZE(wm8994_gpio_resources),
 		.resources = wm8994_gpio_resources,
-		.pm_runtime_no_callbacks = true,
+		.pm_runtime_yes_callbacks = true,
 	},
 };
 
 /*
- * Supplies for the main bulk of CODEC; the LDO supplies are ignored
+ * Supplies for the main bulk of CODEC; the LDO supplies are igyesred
  * and should be handled via the standard regulator API supply
  * management.
  */
@@ -125,7 +125,7 @@ static int wm8994_suspend(struct device *dev)
 		if (ret < 0) {
 			dev_err(dev, "Failed to read power status: %d\n", ret);
 		} else if (ret & WM8958_MICD_ENA) {
-			dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+			dev_dbg(dev, "CODEC still active, igyesring suspend\n");
 			return 0;
 		}
 		break;
@@ -134,7 +134,7 @@ static int wm8994_suspend(struct device *dev)
 	}
 
 	/* Disable LDO pulldowns while the device is suspended if we
-	 * don't know that something will be driving them. */
+	 * don't kyesw that something will be driving them. */
 	if (!wm8994->ldo_ena_always_driven)
 		wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
 				WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
@@ -262,7 +262,7 @@ static const struct reg_sequence wm1811_reva_patch[] = {
 #ifdef CONFIG_OF
 static int wm8994_set_pdata_from_of(struct wm8994 *wm8994)
 {
-	struct device_node *np = wm8994->dev->of_node;
+	struct device_yesde *np = wm8994->dev->of_yesde;
 	struct wm8994_pdata *pdata = &wm8994->pdata;
 	int i;
 
@@ -310,7 +310,7 @@ static int wm8994_set_pdata_from_of(struct wm8994 *wm8994)
 #endif
 
 /*
- * Instantiate the generic non-control parts of the device.
+ * Instantiate the generic yesn-control parts of the device.
  */
 static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 {
@@ -431,7 +431,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		wm8994->type = WM8958;
 		break;
 	default:
-		dev_err(wm8994->dev, "Device is not a WM8994, ID is %x\n",
+		dev_err(wm8994->dev, "Device is yest a WM8994, ID is %x\n",
 			ret);
 		ret = -EINVAL;
 		goto err_enable;
@@ -452,7 +452,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		case 0:
 		case 1:
 			dev_warn(wm8994->dev,
-				 "revision %c not fully supported\n",
+				 "revision %c yest fully supported\n",
 				 'A' + wm8994->revision);
 			break;
 		case 2:
@@ -476,7 +476,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		break;
 
 	case WM1811:
-		/* Revision C did not change the relevant layer */
+		/* Revision C did yest change the relevant layer */
 		if (wm8994->revision > 1)
 			wm8994->revision++;
 
@@ -502,7 +502,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		regmap_config = &wm8958_regmap_config;
 		break;
 	default:
-		dev_err(wm8994->dev, "Unknown device type %d\n", wm8994->type);
+		dev_err(wm8994->dev, "Unkyeswn device type %d\n", wm8994->type);
 		ret = -EINVAL;
 		goto err_enable;
 	}
@@ -515,7 +515,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	}
 
 	/* Explicitly put the device into reset in case regulators
-	 * don't get disabled in order to ensure we know the device
+	 * don't get disabled in order to ensure we kyesw the device
 	 * state.
 	 */
 	ret = wm8994_reg_write(wm8994, WM8994_SOFTWARE_RESET,
@@ -538,7 +538,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	wm8994->irq_base = pdata->irq_base;
 	wm8994->gpio_base = pdata->gpio_base;
 
-	/* GPIO configuration is only applied if it's non-zero */
+	/* GPIO configuration is only applied if it's yesn-zero */
 	for (i = 0; i < ARRAY_SIZE(pdata->gpio_defaults); i++) {
 		if (pdata->gpio_defaults[i]) {
 			wm8994_set_bits(wm8994, WM8994_GPIO_1 + i,
@@ -559,9 +559,9 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 			WM8994_SPKMODE_PU | WM8994_CSNADDR_PD,
 			pulls);
 
-	/* In some system designs where the regulators are not in use,
+	/* In some system designs where the regulators are yest in use,
 	 * we can achieve a small reduction in leakage currents by
-	 * floating LDO outputs.  This bit makes no difference if the
+	 * floating LDO outputs.  This bit makes yes difference if the
 	 * LDOs are enabled, it only affects cases where the LDOs were
 	 * in operation and are then disabled.
 	 */
@@ -633,7 +633,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	wm8994->dev = &i2c->dev;
 	wm8994->irq = i2c->irq;
 
-	if (i2c->dev.of_node) {
+	if (i2c->dev.of_yesde) {
 		of_id = of_match_device(wm8994_of_match, &i2c->dev);
 		if (of_id)
 			wm8994->type = (enum wm8994_type)of_id->data;

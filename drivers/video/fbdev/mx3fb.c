@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -402,7 +402,7 @@ static void sdc_enable_channel(struct mx3fb_info *mx3_fbi)
 		mx3_fbi->txd = dmaengine_prep_slave_sg(dma_chan,
 		      &mx3_fbi->sg[0], 1, DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT);
 		if (!mx3_fbi->txd) {
-			dev_err(mx3fb->dev, "Cannot allocate descriptor on %d\n",
+			dev_err(mx3fb->dev, "Canyest allocate descriptor on %d\n",
 				dma_chan->chan_id);
 			return;
 		}
@@ -415,7 +415,7 @@ static void sdc_enable_channel(struct mx3fb_info *mx3_fbi)
 		       mx3_fbi->txd, cookie, list_empty(&ichan->queue) ? '-' : '+');
 	} else {
 		if (!mx3_fbi->txd || !mx3_fbi->txd->tx_submit) {
-			dev_err(mx3fb->dev, "Cannot enable channel %d\n",
+			dev_err(mx3fb->dev, "Canyest enable channel %d\n",
 				dma_chan->chan_id);
 			return;
 		}
@@ -484,7 +484,7 @@ static int sdc_set_window_pos(struct mx3fb_data *mx3fb, enum ipu_channel channel
 }
 
 /**
- * sdc_init_panel() - initialize a synchronous LCD panel.
+ * sdc_init_panel() - initialize a synchroyesus LCD panel.
  * @mx3fb:		mx3fb context.
  * @panel:		panel type.
  * @pixel_clk:		desired pixel clock frequency in Hz.
@@ -764,7 +764,7 @@ static void mx3fb_dma_done(void *arg)
 	dev_dbg(mx3fb->dev, "irq %d callback\n", ichannel->eof_irq);
 
 	/* We only need one interrupt, it will be re-enabled as needed */
-	disable_irq_nosync(ichannel->eof_irq);
+	disable_irq_yessync(ichannel->eof_irq);
 
 	complete(&mx3_fbi->flip_cmpl);
 }
@@ -780,7 +780,7 @@ static bool mx3fb_must_set_par(struct fb_info *fbi)
 		return true;
 
 	/*
-	 * Ignore xoffset and yoffset update,
+	 * Igyesre xoffset and yoffset update,
 	 * because pan display handles this case.
 	 */
 	old_var.xoffset = new_var.xoffset;
@@ -1022,7 +1022,7 @@ static u32 chan_to_field(unsigned int chan, struct fb_bitfield *bf)
 	return chan << bf->offset;
 }
 
-static int mx3fb_setcolreg(unsigned int regno, unsigned int red,
+static int mx3fb_setcolreg(unsigned int regyes, unsigned int red,
 			   unsigned int green, unsigned int blue,
 			   unsigned int trans, struct fb_info *fbi)
 {
@@ -1030,12 +1030,12 @@ static int mx3fb_setcolreg(unsigned int regno, unsigned int red,
 	u32 val;
 	int ret = 1;
 
-	dev_dbg(fbi->device, "%s, regno = %u\n", __func__, regno);
+	dev_dbg(fbi->device, "%s, regyes = %u\n", __func__, regyes);
 
 	mutex_lock(&mx3_fbi->mutex);
 	/*
 	 * If greyscale is true, then we convert the RGB value
-	 * to greyscale no matter what visual we are using.
+	 * to greyscale yes matter what visual we are using.
 	 */
 	if (fbi->var.grayscale)
 		red = green = blue = (19595 * red + 38470 * green +
@@ -1046,14 +1046,14 @@ static int mx3fb_setcolreg(unsigned int regno, unsigned int red,
 		 * 16-bit True Colour.  We encode the RGB value
 		 * according to the RGB bitfield information.
 		 */
-		if (regno < 16) {
+		if (regyes < 16) {
 			u32 *pal = fbi->pseudo_palette;
 
 			val = chan_to_field(red, &fbi->var.red);
 			val |= chan_to_field(green, &fbi->var.green);
 			val |= chan_to_field(blue, &fbi->var.blue);
 
-			pal[regno] = val;
+			pal[regyes] = val;
 
 			ret = 0;
 		}
@@ -1077,7 +1077,7 @@ static void __blank(int blank, struct fb_info *fbi)
 	mx3_fbi->blank = blank;
 
 	/* Attention!
-	 * Do not call sdc_disable_channel() for a channel that is disabled
+	 * Do yest call sdc_disable_channel() for a channel that is disabled
 	 * already! This will result in a kernel NULL pointer dereference
 	 * (mx3_fbi->txd is NULL). Hide the fact, that all blank modes are
 	 * handled equally by this driver.
@@ -1092,7 +1092,7 @@ static void __blank(int blank, struct fb_info *fbi)
 	case FB_BLANK_NORMAL:
 		sdc_set_brightness(mx3fb, 0);
 		memset((char *)fbi->screen_base, 0, fbi->fix.smem_len);
-		/* Give LCD time to update - enough for 50 and 60 Hz */
+		/* Give LCD time to update - eyesugh for 50 and 60 Hz */
 		msleep(25);
 		sdc_disable_channel(mx3_fbi);
 		break;
@@ -1147,13 +1147,13 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
 		list_empty(&mx3_fbi->idmac_channel->queue) ? '-' : '+');
 
 	if (var->xoffset > 0) {
-		dev_dbg(fbi->device, "x panning not supported\n");
+		dev_dbg(fbi->device, "x panning yest supported\n");
 		return -EINVAL;
 	}
 
 	if (mx3_fbi->cur_var.xoffset == var->xoffset &&
 	    mx3_fbi->cur_var.yoffset == var->yoffset)
-		return 0;	/* No change, do nothing */
+		return 0;	/* No change, do yesthing */
 
 	y_bottom = var->yoffset;
 
@@ -1213,7 +1213,7 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
 
 	/*
 	 * Emulate original mx3fb behaviour: each new call to idmac_tx_submit()
-	 * should switch to another buffer
+	 * should switch to ayesther buffer
 	 */
 	cookie = txd->tx_submit(txd);
 	dev_dbg(fbi->device, "%d: Submit %p #%d\n", __LINE__, txd, cookie);
@@ -1319,10 +1319,10 @@ static int mx3fb_resume(struct platform_device *pdev)
  * mx3fb_map_video_memory() - allocates the DRAM memory for the frame buffer.
  * @fbi:	framebuffer information pointer
  * @mem_len:	length of mapped memory
- * @lock:	do not lock during initialisation
+ * @lock:	do yest lock during initialisation
  * @return:	Error code indicating success or failure
  *
- * This buffer is remapped into a non-cached, non-buffered, memory region to
+ * This buffer is remapped into a yesn-cached, yesn-buffered, memory region to
  * allow palette and pixel writes to occur without flushing the cache. Once this
  * area is remapped, all virtual memory access to the video memory should occur
  * at the new region.
@@ -1337,7 +1337,7 @@ static int mx3fb_map_video_memory(struct fb_info *fbi, unsigned int mem_len,
 					GFP_DMA | GFP_KERNEL);
 
 	if (!fbi->screen_base) {
-		dev_err(fbi->device, "Cannot allocate %u bytes framebuffer memory\n",
+		dev_err(fbi->device, "Canyest allocate %u bytes framebuffer memory\n",
 			mem_len);
 		retval = -EBUSY;
 		goto err0;
@@ -1560,7 +1560,7 @@ static int mx3fb_probe(struct platform_device *pdev)
 	struct dma_chan_request rq;
 
 	/*
-	 * Display Interface (DI) and Synchronous Display Controller (SDC)
+	 * Display Interface (DI) and Synchroyesus Display Controller (SDC)
 	 * registers
 	 */
 	sdc_reg = platform_get_resource(pdev, IORESOURCE_MEM, 0);

@@ -1299,7 +1299,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l36 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static struct regmap_config cs35l36_regmap = {
@@ -1431,9 +1431,9 @@ static irqreturn_t cs35l36_irq(int irq, void *data)
 static int cs35l36_handle_of_data(struct i2c_client *i2c_client,
 				struct cs35l36_platform_data *pdata)
 {
-	struct device_node *np = i2c_client->dev.of_node;
+	struct device_yesde *np = i2c_client->dev.of_yesde;
 	struct cs35l36_vpbr_cfg *vpbr_config = &pdata->vpbr_config;
-	struct device_node *vpbr_node;
+	struct device_yesde *vpbr_yesde;
 	unsigned int val;
 	int ret;
 
@@ -1491,10 +1491,10 @@ static int cs35l36_handle_of_data(struct i2c_client *i2c_client,
 	if (of_property_read_u32(np, "cirrus,temp-warn-threshold", &val) >= 0)
 		pdata->temp_warn_thld = val | CS35L36_VALID_PDATA;
 
-	if (of_property_read_u32(np, "cirrus,boost-ind-nanohenry", &val) >= 0) {
+	if (of_property_read_u32(np, "cirrus,boost-ind-nayeshenry", &val) >= 0) {
 		pdata->boost_ind = val;
 	} else {
-		dev_err(&i2c_client->dev, "Inductor not specified.\n");
+		dev_err(&i2c_client->dev, "Inductor yest specified.\n");
 		return -EINVAL;
 	}
 
@@ -1505,35 +1505,35 @@ static int cs35l36_handle_of_data(struct i2c_client *i2c_client,
 		pdata->irq_gpio_sel = val | CS35L36_VALID_PDATA;
 
 	/* VPBR Config */
-	vpbr_node = of_get_child_by_name(np, "cirrus,vpbr-config");
-	vpbr_config->is_present = vpbr_node ? true : false;
+	vpbr_yesde = of_get_child_by_name(np, "cirrus,vpbr-config");
+	vpbr_config->is_present = vpbr_yesde ? true : false;
 	if (vpbr_config->is_present) {
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-en",
+		if (of_property_read_u32(vpbr_yesde, "cirrus,vpbr-en",
 					 &val) >= 0)
 			vpbr_config->vpbr_en = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-thld",
+		if (of_property_read_u32(vpbr_yesde, "cirrus,vpbr-thld",
 					 &val) >= 0)
 			vpbr_config->vpbr_thld = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-atk-rate",
+		if (of_property_read_u32(vpbr_yesde, "cirrus,vpbr-atk-rate",
 					 &val) >= 0)
 			vpbr_config->vpbr_atk_rate = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-atk-vol",
+		if (of_property_read_u32(vpbr_yesde, "cirrus,vpbr-atk-vol",
 					 &val) >= 0)
 			vpbr_config->vpbr_atk_vol = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-max-attn",
+		if (of_property_read_u32(vpbr_yesde, "cirrus,vpbr-max-attn",
 					 &val) >= 0)
 			vpbr_config->vpbr_max_attn = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-wait",
+		if (of_property_read_u32(vpbr_yesde, "cirrus,vpbr-wait",
 					 &val) >= 0)
 			vpbr_config->vpbr_wait = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-rel-rate",
+		if (of_property_read_u32(vpbr_yesde, "cirrus,vpbr-rel-rate",
 					 &val) >= 0)
 			vpbr_config->vpbr_rel_rate = val;
-		if (of_property_read_u32(vpbr_node, "cirrus,vpbr-mute-en",
+		if (of_property_read_u32(vpbr_yesde, "cirrus,vpbr-mute-en",
 					 &val) >= 0)
 			vpbr_config->vpbr_mute_en = val;
 	}
-	of_node_put(vpbr_node);
+	of_yesde_put(vpbr_yesde);
 
 	return 0;
 }
@@ -1743,7 +1743,7 @@ static int cs35l36_i2c_probe(struct i2c_client *i2c_client,
 		if (!pdata)
 			return -ENOMEM;
 
-		if (i2c_client->dev.of_node) {
+		if (i2c_client->dev.of_yesde) {
 			ret = cs35l36_handle_of_data(i2c_client, pdata);
 			if (ret != 0)
 				return ret;

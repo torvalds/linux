@@ -193,7 +193,7 @@ static int omap_dmic_dai_hw_params(struct snd_pcm_substream *substream,
 
 	dmic->clk_div = omap_dmic_select_divider(dmic, params_rate(params));
 	if (dmic->clk_div < 0) {
-		dev_err(dmic->dev, "no valid divider for %dHz from %dHz\n",
+		dev_err(dmic->dev, "yes valid divider for %dHz from %dHz\n",
 			dmic->out_freq, dmic->fclk_freq);
 		return -EINVAL;
 	}
@@ -299,7 +299,7 @@ static int omap_dmic_select_fclk(struct omap_dmic *dmic, int clk_id,
 		return 0;
 	}
 
-	/* re-parent not allowed if a stream is ongoing */
+	/* re-parent yest allowed if a stream is ongoing */
 	if (dmic->active && dmic_is_enabled(dmic)) {
 		dev_err(dmic->dev, "can't re-parent when DMIC active\n");
 		return -EBUSY;
@@ -316,7 +316,7 @@ static int omap_dmic_select_fclk(struct omap_dmic *dmic, int clk_id,
 		parent_clk_name = "dmic_sync_mux_ck";
 		break;
 	default:
-		dev_err(dmic->dev, "fclk clk_id (%d) not supported\n", clk_id);
+		dev_err(dmic->dev, "fclk clk_id (%d) yest supported\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -365,7 +365,7 @@ static int omap_dmic_select_outclk(struct omap_dmic *dmic, int clk_id,
 	int ret = 0;
 
 	if (clk_id != OMAP_DMIC_ABE_DMIC_CLK) {
-		dev_err(dmic->dev, "output clk_id (%d) not supported\n",
+		dev_err(dmic->dev, "output clk_id (%d) yest supported\n",
 			clk_id);
 		return -EINVAL;
 	}

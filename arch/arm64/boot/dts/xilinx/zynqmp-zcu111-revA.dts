@@ -36,7 +36,7 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>, <0x8 0x00000000 0x0 0x80000000>;
-		/* Another 4GB connected to PL */
+		/* Ayesther 4GB connected to PL */
 	};
 
 	gpio-keys {
@@ -121,10 +121,10 @@
 	tca6416_u22: gpio@20 {
 		compatible = "ti,tca6416";
 		reg = <0x20>;
-		gpio-controller; /* interrupt not connected */
+		gpio-controller; /* interrupt yest connected */
 		#gpio-cells = <2>;
 		/*
-		 * IRQ not connected
+		 * IRQ yest connected
 		 * Lines:
 		 * 0 - MAX6643_OT_B
 		 * 1 - MAX6643_FANFAIL_B
@@ -137,7 +137,7 @@
 		 * 12 - CLK_SPI_MUX_SEL1
 		 * 16 - IRPS5401_ALERT_B
 		 * 17 - INA226_PMBUS_ALERT
-		 * 3, 7, 13-15 - not connected
+		 * 3, 7, 13-15 - yest connected
 		 */
 	};
 
@@ -334,7 +334,7 @@
 				sc18is603@2f { /* sc18is602 - u93 */
 					compatible = "nxp,sc18is603";
 					reg = <0x2f>;
-					/* 4 gpios for CS not handled by driver */
+					/* 4 gpios for CS yest handled by driver */
 					/*
 					 * USB2ANY cable or
 					 * LMK04208 - u90 or
@@ -430,7 +430,7 @@
 /* SD1 with level shifter */
 &sdhci1 {
 	status = "okay";
-	no-1-8-v;
+	yes-1-8-v;
 };
 
 &uart0 {

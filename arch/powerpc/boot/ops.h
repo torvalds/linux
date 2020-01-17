@@ -41,14 +41,14 @@ struct dt_ops {
 			const int buflen);
 	int	(*setprop)(const void *phandle, const char *name,
 			const void *buf, const int buflen);
-	int (*del_node)(const void *phandle);
+	int (*del_yesde)(const void *phandle);
 	void *(*get_parent)(const void *phandle);
-	/* The node must not already exist. */
-	void *(*create_node)(const void *parent, const char *name);
-	void *(*find_node_by_prop_value)(const void *prev,
+	/* The yesde must yest already exist. */
+	void *(*create_yesde)(const void *parent, const char *name);
+	void *(*find_yesde_by_prop_value)(const void *prev,
 	                                 const char *propname,
 	                                 const char *propval, int proplen);
-	void *(*find_node_by_compatible)(const void *prev,
+	void *(*find_yesde_by_compatible)(const void *prev,
 	                                 const char *compat);
 	unsigned long (*finalize)(void);
 	char *(*get_path)(const void *phandle, char *buf, int len);
@@ -93,11 +93,11 @@ int opal_console_init(void *devp, struct serial_console_data *scdp);
 void *simple_alloc_init(char *base, unsigned long heap_size,
 			unsigned long granularity, unsigned long max_allocs);
 extern void flush_cache(void *, unsigned long);
-int dt_xlate_reg(void *node, int res, unsigned long *addr, unsigned long *size);
-int dt_xlate_addr(void *node, u32 *buf, int buflen, unsigned long *xlated_addr);
-int dt_is_compatible(void *node, const char *compat);
-void dt_get_reg_format(void *node, u32 *naddr, u32 *nsize);
-int dt_get_virtual_reg(void *node, void **addr, int nres);
+int dt_xlate_reg(void *yesde, int res, unsigned long *addr, unsigned long *size);
+int dt_xlate_addr(void *yesde, u32 *buf, int buflen, unsigned long *xlated_addr);
+int dt_is_compatible(void *yesde, const char *compat);
+void dt_get_reg_format(void *yesde, u32 *naddr, u32 *nsize);
+int dt_get_virtual_reg(void *yesde, void **addr, int nres);
 
 static inline void *finddevice(const char *name)
 {
@@ -128,9 +128,9 @@ static inline int setprop_str(void *devp, const char *name, const char *buf)
 	return -1;
 }
 
-static inline int del_node(const void *devp)
+static inline int del_yesde(const void *devp)
 {
-	return dt_ops.del_node ? dt_ops.del_node(devp) : -1;
+	return dt_ops.del_yesde ? dt_ops.del_yesde(devp) : -1;
 }
 
 static inline void *get_parent(const char *devp)
@@ -138,38 +138,38 @@ static inline void *get_parent(const char *devp)
 	return dt_ops.get_parent ? dt_ops.get_parent(devp) : NULL;
 }
 
-static inline void *create_node(const void *parent, const char *name)
+static inline void *create_yesde(const void *parent, const char *name)
 {
-	return dt_ops.create_node ? dt_ops.create_node(parent, name) : NULL;
+	return dt_ops.create_yesde ? dt_ops.create_yesde(parent, name) : NULL;
 }
 
 
-static inline void *find_node_by_prop_value(const void *prev,
+static inline void *find_yesde_by_prop_value(const void *prev,
                                             const char *propname,
                                             const char *propval, int proplen)
 {
-	if (dt_ops.find_node_by_prop_value)
-		return dt_ops.find_node_by_prop_value(prev, propname,
+	if (dt_ops.find_yesde_by_prop_value)
+		return dt_ops.find_yesde_by_prop_value(prev, propname,
 		                                      propval, proplen);
 
 	return NULL;
 }
 
-static inline void *find_node_by_prop_value_str(const void *prev,
+static inline void *find_yesde_by_prop_value_str(const void *prev,
                                                 const char *propname,
                                                 const char *propval)
 {
-	return find_node_by_prop_value(prev, propname, propval,
+	return find_yesde_by_prop_value(prev, propname, propval,
 	                               strlen(propval) + 1);
 }
 
-static inline void *find_node_by_devtype(const void *prev,
+static inline void *find_yesde_by_devtype(const void *prev,
                                          const char *type)
 {
-	return find_node_by_prop_value_str(prev, "device_type", type);
+	return find_yesde_by_prop_value_str(prev, "device_type", type);
 }
 
-static inline void *find_node_by_alias(const char *alias)
+static inline void *find_yesde_by_alias(const char *alias)
 {
 	void *devp = finddevice("/aliases");
 
@@ -182,11 +182,11 @@ static inline void *find_node_by_alias(const char *alias)
 	return NULL;
 }
 
-static inline void *find_node_by_compatible(const void *prev,
+static inline void *find_yesde_by_compatible(const void *prev,
                                             const char *compat)
 {
-	if (dt_ops.find_node_by_compatible)
-		return dt_ops.find_node_by_compatible(prev, compat);
+	if (dt_ops.find_yesde_by_compatible)
+		return dt_ops.find_yesde_by_compatible(prev, compat);
 
 	return NULL;
 }
@@ -201,9 +201,9 @@ void __dt_fixup_mac_addresses(u32 startindex, ...);
 	__dt_fixup_mac_addresses(0, __VA_ARGS__, NULL)
 
 
-static inline void *find_node_by_linuxphandle(const u32 linuxphandle)
+static inline void *find_yesde_by_linuxphandle(const u32 linuxphandle)
 {
-	return find_node_by_prop_value(NULL, "linux,phandle",
+	return find_yesde_by_prop_value(NULL, "linux,phandle",
 			(char *)&linuxphandle, sizeof(u32));
 }
 

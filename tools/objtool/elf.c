@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 
 #include "elf.h"
 #include "warn.h"
@@ -325,11 +325,11 @@ static int read_symbols(struct elf *elf)
 			pfunc->cfunc = sym;
 
 			/*
-			 * Unfortunately, -fnoreorder-functions puts the child
+			 * Unfortunately, -fyesreorder-functions puts the child
 			 * inside the parent.  Remove the overlap so we can
 			 * have sane assumptions.
 			 *
-			 * Note that pfunc->len now no longer matches
+			 * Note that pfunc->len yesw yes longer matches
 			 * pfunc->sym.st_size.
 			 */
 			if (sym->sec == pfunc->sec &&
@@ -420,7 +420,7 @@ struct elf *elf_read(const char *name, int flags)
 	elf->fd = open(name, flags);
 	if (elf->fd == -1) {
 		fprintf(stderr, "objtool: Can't open '%s': %s\n",
-			name, strerror(errno));
+			name, strerror(erryes));
 		goto err;
 	}
 

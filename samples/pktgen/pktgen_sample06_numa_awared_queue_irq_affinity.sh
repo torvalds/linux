@@ -1,9 +1,9 @@
 #!/bin/bash
 #
 # Multiqueue: Using pktgen threads for sending on multiple CPUs
-#  * adding devices to kernel threads which are in the same NUMA node
+#  * adding devices to kernel threads which are in the same NUMA yesde
 #  * bound devices queue's irq affinity to the threads, 1:1 mapping
-#  * notice the naming scheme for keeping device names unique
+#  * yestice the naming scheme for keeping device names unique
 #  * nameing scheme: dev@thread_number
 #  * flow variation via random UDP source port
 #
@@ -23,9 +23,9 @@ DELAY="0"        # Zero means max speed
 UDP_SRC_MIN=9
 UDP_SRC_MAX=109
 
-node=`get_iface_node $DEV`
+yesde=`get_iface_yesde $DEV`
 irq_array=(`get_iface_irqs $DEV`)
-cpu_array=(`get_node_cpus $node`)
+cpu_array=(`get_yesde_cpus $yesde`)
 
 [ $THREADS -gt ${#irq_array[*]} -o $THREADS -gt ${#cpu_array[*]}  ] && \
 	err 1 "Thread number $THREADS exceeds: min (${#irq_array[*]},${#cpu_array[*]})"

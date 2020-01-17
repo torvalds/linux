@@ -29,7 +29,7 @@
 #define DMA_ATTR_WRITE_COMBINE		(1UL << 2)
 /*
  * DMA_ATTR_NON_CONSISTENT: Lets the platform to choose to return either
- * consistent or non-consistent memory as it sees fit.
+ * consistent or yesn-consistent memory as it sees fit.
  */
 #define DMA_ATTR_NON_CONSISTENT		(1UL << 3)
 /*
@@ -50,7 +50,7 @@
 #define DMA_ATTR_FORCE_CONTIGUOUS	(1UL << 6)
 /*
  * DMA_ATTR_ALLOC_SINGLE_PAGES: This is a hint to the DMA-mapping subsystem
- * that it's probably not worth the time to try to allocate memory to in a way
+ * that it's probably yest worth the time to try to allocate memory to in a way
  * that gives better TLB efficiency.
  */
 #define DMA_ATTR_ALLOC_SINGLE_PAGES	(1UL << 7)
@@ -69,7 +69,7 @@
 
 /*
  * A dma_addr_t can hold any valid DMA or bus address for the platform.
- * It can be given to a device to use as a DMA source or target.  A CPU cannot
+ * It can be given to a device to use as a DMA source or target.  A CPU canyest
  * reference a dma_addr_t directly because there may be translation between
  * its physical address space and the bus address space.
  */
@@ -195,7 +195,7 @@ static inline bool dma_is_direct(const struct dma_map_ops *ops)
 
 /*
  * All the dma_direct_* declarations are here just for the indirect call bypass,
- * and must not be used directly drivers!
+ * and must yest be used directly drivers!
  */
 dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t size, enum dma_data_direction dir,
@@ -676,7 +676,7 @@ static inline int dma_set_mask_and_coherent(struct device *dev, u64 mask)
 
 /*
  * Similar to the above, except it deals with the case where the device
- * does not have dev->dma_mask appropriately setup.
+ * does yest have dev->dma_mask appropriately setup.
  */
 static inline int dma_coerce_mask_and_coherent(struct device *dev, u64 mask)
 {
@@ -690,11 +690,11 @@ static inline int dma_coerce_mask_and_coherent(struct device *dev, u64 mask)
  *
  * Return %true if the devices DMA mask is too small to address all memory in
  * the system, else %false.  Lack of addressing bits is the prime reason for
- * bounce buffering, but might not be the only one.
+ * bounce buffering, but might yest be the only one.
  */
 static inline bool dma_addressing_limited(struct device *dev)
 {
-	return min_not_zero(dma_get_mask(dev), dev->bus_dma_limit) <
+	return min_yest_zero(dma_get_mask(dev), dev->bus_dma_limit) <
 			    dma_get_required_mask(dev);
 }
 

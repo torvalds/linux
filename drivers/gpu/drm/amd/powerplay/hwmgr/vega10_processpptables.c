@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -77,7 +77,7 @@ static int check_powerplay_tables(
 			ATOM_Vega10_TABLE_REVISION_VEGA10),
 		"Unsupported PPTable format!", return -1);
 	PP_ASSERT_WITH_CODE(powerplay_table->usStateArrayOffset,
-		"State table is not set!", return -1);
+		"State table is yest set!", return -1);
 	PP_ASSERT_WITH_CODE(powerplay_table->sHeader.structuresize > 0,
 		"Invalid PowerPlay Table!", return -1);
 	PP_ASSERT_WITH_CODE(state_arrays->ucNumEntries > 0,
@@ -131,7 +131,7 @@ static int init_thermal_controller(
 			le16_to_cpu(powerplay_table->usThermalControllerOffset));
 
 	PP_ASSERT_WITH_CODE((powerplay_table->usThermalControllerOffset != 0),
-			"Thermal controller table not set!", return -EINVAL);
+			"Thermal controller table yest set!", return -EINVAL);
 
 	hwmgr->thermal_controller.ucType = thermal_controller->ucType;
 	hwmgr->thermal_controller.ucI2cLine = thermal_controller->ucI2cLine;
@@ -759,7 +759,7 @@ static int get_dcefclk_voltage_dependency_table(
 			"Invalid PowerPlay Table!", return -1);
 
 /*
- * workaround needed to add another DPM level for pioneer cards
+ * workaround needed to add ayesther DPM level for pioneer cards
  * as VBIOS is locked down.
  * This DPM level was added to support 3DPM monitors @ 4K120Hz
  *

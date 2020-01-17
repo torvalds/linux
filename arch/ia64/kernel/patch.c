@@ -94,7 +94,7 @@ ia64_patch_imm60 (u64 insn_addr, u64 val)
  * We need sometimes to load the physical address of a kernel
  * object.  Often we can convert the virtual address to physical
  * at execution time, but sometimes (either for performance reasons
- * or during error recovery) we cannot to this.  Patch the marked
+ * or during error recovery) we canyest to this.  Patch the marked
  * bundles to load the physical address.
  */
 void __init
@@ -158,9 +158,9 @@ ia64_patch_mckinley_e9 (unsigned long start, unsigned long end)
 
 	while (offp < (s32 *) end) {
 		wp = (u64 *) ia64_imva((char *) offp + *offp);
-		wp[0] = 0x0000000100000011UL; /* nop.m 0; nop.i 0; br.ret.sptk.many b6 */
+		wp[0] = 0x0000000100000011UL; /* yesp.m 0; yesp.i 0; br.ret.sptk.many b6 */
 		wp[1] = 0x0084006880000200UL;
-		wp[2] = 0x0000000100000000UL; /* nop.m 0; nop.i 0; nop.i 0 */
+		wp[2] = 0x0000000100000000UL; /* yesp.m 0; yesp.i 0; yesp.i 0 */
 		wp[3] = 0x0004000000000200UL;
 		ia64_fc(wp); ia64_fc(wp + 2);
 		++offp;

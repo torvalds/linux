@@ -410,9 +410,9 @@ static int intel_th_output_attributes(struct gth_device *gth)
 {
 	struct output_attribute *out_attrs;
 	struct attribute **attrs;
-	int i, j, nouts = TH_POSSIBLE_OUTPUTS;
+	int i, j, yesuts = TH_POSSIBLE_OUTPUTS;
 	int nparms = ARRAY_SIZE(output_parms);
-	int nattrs = nouts * nparms + 1;
+	int nattrs = yesuts * nparms + 1;
 
 	attrs = devm_kcalloc(gth->dev, nattrs, sizeof(void *), GFP_KERNEL);
 	if (!attrs)
@@ -424,7 +424,7 @@ static int intel_th_output_attributes(struct gth_device *gth)
 	if (!out_attrs)
 		return -ENOMEM;
 
-	for (i = 0; i < nouts; i++) {
+	for (i = 0; i < yesuts; i++) {
 		for (j = 0; j < nparms; j++) {
 			unsigned int idx = i * nparms + j;
 			char *name;
@@ -465,7 +465,7 @@ static int intel_th_output_attributes(struct gth_device *gth)
  * intel_th_gth_stop() - stop tracing to an output device
  * @gth:		GTH device
  * @output:		output device's descriptor
- * @capture_done:	set when no more traces will be captured
+ * @capture_done:	set when yes more traces will be captured
  *
  * This will stop tracing using force storeEn off signal and wait for the
  * pipelines to be empty for the corresponding output port.
@@ -642,7 +642,7 @@ static void intel_th_gth_switch(struct intel_th_device *thdev,
  * output ports on the GTH and fill out relevant bits in output device's
  * descriptor.
  *
- * Return:	0 on success, -errno on error.
+ * Return:	0 on success, -erryes on error.
  */
 static int intel_th_gth_assign(struct intel_th_device *thdev,
 			       struct intel_th_device *othdev)

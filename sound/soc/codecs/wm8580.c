@@ -12,7 +12,7 @@
  *  DAC channels and two ADC channels.
  *
  *  Currently only the primary audio interface is supported - S/PDIF and
- *  the secondary audio interfaces are not.
+ *  the secondary audio interfaces are yest.
  */
 
 #include <linux/module.h>
@@ -498,7 +498,7 @@ static int wm8580_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	state->in = freq_in;
 	state->out = freq_out;
 
-	/* Always disable the PLL - it is not safe to leave it running
+	/* Always disable the PLL - it is yest safe to leave it running
 	 * while reprogramming it.
 	 */
 	snd_soc_component_update_bits(component, WM8580_PWRDN2, pwr_mask, pwr_mask);
@@ -766,7 +766,7 @@ static int wm8580_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		break;
 
 	default:
-		WARN(1, "Unknown DAI driver ID\n");
+		WARN(1, "Unkyeswn DAI driver ID\n");
 		return -EINVAL;
 	}
 
@@ -786,11 +786,11 @@ static int wm8580_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		sel = 3 << sel_shift;
 		break;
 	default:
-		dev_err(component->dev, "Unknown clock %d\n", clk_id);
+		dev_err(component->dev, "Unkyeswn clock %d\n", clk_id);
 		return -EINVAL;
 	}
 
-	/* We really should validate PLL settings but not yet */
+	/* We really should validate PLL settings but yest yet */
 	wm8580->sysclk[dai->driver->id] = freq;
 
 	ret = snd_soc_component_update_bits(component, WM8580_CLKSEL, sel_mask, sel);
@@ -929,7 +929,7 @@ static int wm8580_probe(struct snd_soc_component *component)
 		goto err_regulator_get;
 	}
 
-	/* Get the codec into a known state */
+	/* Get the codec into a kyeswn state */
 	ret = snd_soc_component_write(component, WM8580_RESET, 0);
 	if (ret != 0) {
 		dev_err(component->dev, "Failed to reset component: %d\n", ret);
@@ -965,7 +965,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8580 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8580_regmap = {

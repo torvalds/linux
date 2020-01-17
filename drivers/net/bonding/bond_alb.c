@@ -289,7 +289,7 @@ static int rlb_arp_recv(const struct sk_buff *skb, struct bonding *bond,
 	 * We might have used this IP address previously (on the bonding host
 	 * itself or on a system that is bridged together with the bond).
 	 * However, if arp->mac_src is different than what is stored in
-	 * rx_hashtbl, some other host is now using the IP and we must prevent
+	 * rx_hashtbl, some other host is yesw using the IP and we must prevent
 	 * sending out client updates with this IP address and the old MAC
 	 * address.
 	 * Clean up all hash table entries that have this address as ip_src but
@@ -377,7 +377,7 @@ static void rlb_teach_disabled_mac_on_primary(struct bonding *bond, u8 addr[])
 	alb_send_learning_packets(curr_active, addr, true);
 }
 
-/* slave being removed should not be active at this point
+/* slave being removed should yest be active at this point
  *
  * Caller must hold rtnl.
  */
@@ -405,14 +405,14 @@ static void rlb_clear_slave(struct bonding *bond, struct slave *slave)
 					/* A slave has been removed from the
 					 * table because it is either disabled
 					 * or being released. We must retry the
-					 * update to avoid clients from not
+					 * update to avoid clients from yest
 					 * being updated & disconnecting when
 					 * there is stress
 					 */
 					bond_info->rlb_update_retry_counter =
 						RLB_UPDATE_RETRY;
 				}
-			} else {  /* there is no active slave */
+			} else {  /* there is yes active slave */
 				rx_hash_table[index].slave = NULL;
 			}
 		}
@@ -479,8 +479,8 @@ static void rlb_update_rx_clients(struct bonding *bond)
 		}
 	}
 
-	/* do not update the entries again until this counter is zero so that
-	 * not to confuse the clients.
+	/* do yest update the entries again until this counter is zero so that
+	 * yest to confuse the clients.
 	 */
 	bond_info->rlb_update_delay_counter = RLB_UPDATE_DELAY;
 
@@ -534,11 +534,11 @@ static void rlb_req_update_subnet_clients(struct bonding *bond, __be32 src_ip)
 		client_info = &(bond_info->rx_hashtbl[hash_index]);
 
 		if (!client_info->slave) {
-			netdev_err(bond->dev, "found a client with no channel in the client's hash table\n");
+			netdev_err(bond->dev, "found a client with yes channel in the client's hash table\n");
 			continue;
 		}
-		/* update all clients using this src_ip, that are not assigned
-		 * to the team's address (curr_active_slave) and have a known
+		/* update all clients using this src_ip, that are yest assigned
+		 * to the team's address (curr_active_slave) and have a kyeswn
 		 * unicast mac address.
 		 */
 		if ((client_info->ip_src == src_ip) &&
@@ -648,7 +648,7 @@ static struct slave *rlb_choose_channel(struct sk_buff *skb, struct bonding *bon
 }
 
 /* chooses (and returns) transmit channel for arp reply
- * does not choose channel for other arp types since they are
+ * does yest choose channel for other arp types since they are
  * sent on the curr_active_slave
  */
 static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
@@ -656,7 +656,7 @@ static struct slave *rlb_arp_xmit(struct sk_buff *skb, struct bonding *bond)
 	struct arp_pkt *arp = arp_pkt(skb);
 	struct slave *tx_slave = NULL;
 
-	/* Don't modify or load balance ARPs that do not originate locally
+	/* Don't modify or load balance ARPs that do yest originate locally
 	 * (e.g.,arrive via a bridge).
 	 */
 	if (!bond_slave_has_mac_rx(bond, arp->mac_src))
@@ -816,7 +816,7 @@ static void rlb_src_link(struct bonding *bond, u32 ip_src_hash, u32 ip_dst_hash)
 }
 
 /* deletes all rx_hashtbl entries with arp->ip_src if their mac_src does
- * not match arp->mac_src
+ * yest match arp->mac_src
  */
 static void rlb_purge_src_ip(struct bonding *bond, struct arp_pkt *arp)
 {
@@ -1026,7 +1026,7 @@ static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[],
 
 /* Swap MAC addresses between two slaves.
  *
- * Called with RTNL held, and no other locks.
+ * Called with RTNL held, and yes other locks.
  */
 static void alb_swap_mac_addr(struct slave *slave1, struct slave *slave2)
 {
@@ -1043,7 +1043,7 @@ static void alb_swap_mac_addr(struct slave *slave1, struct slave *slave2)
 
 /* Send learning packets after MAC address swap.
  *
- * Called with RTNL and no other locks
+ * Called with RTNL and yes other locks
  */
 static void alb_fasten_mac_swap(struct bonding *bond, struct slave *slave1,
 				struct slave *slave2)
@@ -1095,9 +1095,9 @@ static void alb_fasten_mac_swap(struct bonding *bond, struct slave *slave1,
  * If @slave's permanent hw address is different both from its current
  * address and from @bond's address, then somewhere in the bond there's
  * a slave that has @slave's permanet address as its current address.
- * We'll make sure that that slave no longer uses @slave's permanent address.
+ * We'll make sure that that slave yes longer uses @slave's permanent address.
  *
- * Caller must hold RTNL and no other locks
+ * Caller must hold RTNL and yes other locks
  */
 static void alb_change_hw_addr_on_detach(struct bonding *bond, struct slave *slave)
 {
@@ -1135,7 +1135,7 @@ static void alb_change_hw_addr_on_detach(struct bonding *bond, struct slave *sla
  *
  * We go over the slave list, and for each slave there we compare its
  * permanent hw address with the current address of all the other slaves.
- * If no match was found, then we've found a slave with a permanent address
+ * If yes match was found, then we've found a slave with a permanent address
  * that isn't used by any other slave in the bond, so we can assign it to
  * @slave.
  *
@@ -1173,7 +1173,7 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 	 */
 	bond_for_each_slave(bond, tmp_slave1, iter) {
 		if (!bond_slave_has_mac(bond, tmp_slave1->perm_hwaddr)) {
-			/* no slave has tmp_slave1's perm addr
+			/* yes slave has tmp_slave1's perm addr
 			 * as its curr addr
 			 */
 			free_mac_slave = tmp_slave1;
@@ -1197,7 +1197,7 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 			   free_mac_slave->dev->name);
 
 	} else if (has_bond_addr) {
-		slave_err(bond->dev, slave->dev, "the slave hw address is in use by the bond; couldn't find a slave with a free hw address to give it (this should not have happened)\n");
+		slave_err(bond->dev, slave->dev, "the slave hw address is in use by the bond; couldn't find a slave with a free hw address to give it (this should yest have happened)\n");
 		return -EFAULT;
 	}
 
@@ -1216,7 +1216,7 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
  * For each slave, this function sets the interface to the new address and then
  * changes its dev_addr field to its previous value.
  *
- * Unwinding assumes bond's mac address has not yet changed.
+ * Unwinding assumes bond's mac address has yest yet changed.
  */
 static int alb_set_mac_address(struct bonding *bond, void *addr)
 {
@@ -1328,7 +1328,7 @@ static netdev_tx_t bond_do_alb_xmit(struct sk_buff *skb, struct bonding *bond,
 		spin_unlock(&bond->mode_lock);
 	}
 
-	/* no suitable interface, frame not sent */
+	/* yes suitable interface, frame yest sent */
 	bond_tx_drop(bond->dev, skb);
 out:
 	return NETDEV_TX_OK;
@@ -1344,7 +1344,7 @@ netdev_tx_t bond_tlb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	skb_reset_mac_header(skb);
 	eth_data = eth_hdr(skb);
 
-	/* Do not TX balance any multicast or broadcast */
+	/* Do yest TX balance any multicast or broadcast */
 	if (!is_multicast_ether_addr(eth_data->h_dest)) {
 		switch (skb->protocol) {
 		case htons(ETH_P_IP):
@@ -1411,7 +1411,7 @@ netdev_tx_t bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 			break;
 		}
 
-		/* IPv6 uses all-nodes multicast as an equivalent to
+		/* IPv6 uses all-yesdes multicast as an equivalent to
 		 * broadcasts in IPv4.
 		 */
 		if (ether_addr_equal_64bits(eth_data->h_dest, mac_v6_allmcast)) {
@@ -1419,7 +1419,7 @@ netdev_tx_t bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 			break;
 		}
 
-		/* Additianally, DAD probes should not be tx-balanced as that
+		/* Additianally, DAD probes should yest be tx-balanced as that
 		 * will lead to false positives for duplicate addresses and
 		 * prevent address configuration from working.
 		 */
@@ -1541,7 +1541,7 @@ void bond_alb_monitor(struct work_struct *work)
 		    (++bond_info->rlb_promisc_timeout_counter >= RLB_PROMISC_TIMEOUT)) {
 
 			/* dev_set_promiscuity requires rtnl and
-			 * nothing else.  Avoid race with bond_close.
+			 * yesthing else.  Avoid race with bond_close.
 			 */
 			rcu_read_unlock();
 			if (!rtnl_trylock())
@@ -1551,7 +1551,7 @@ void bond_alb_monitor(struct work_struct *work)
 
 			/* If the primary was set to promiscuous mode
 			 * because a slave was disabled then
-			 * it can now leave promiscuous mode.
+			 * it can yesw leave promiscuous mode.
 			 */
 			dev_set_promiscuity(rtnl_dereference(bond->curr_active_slave)->dev,
 					    -1);
@@ -1585,7 +1585,7 @@ re_arm:
 }
 
 /* assumption: called before the slave is attached to the bond
- * and not locked by the bond lock
+ * and yest locked by the bond lock
  */
 int bond_alb_init_slave(struct bonding *bond, struct slave *slave)
 {
@@ -1614,7 +1614,7 @@ int bond_alb_init_slave(struct bonding *bond, struct slave *slave)
 /* Remove slave from tlb and rlb hash tables, and fix up MAC addresses
  * if necessary.
  *
- * Caller must hold RTNL and no other locks
+ * Caller must hold RTNL and yes other locks
  */
 void bond_alb_deinit_slave(struct bonding *bond, struct slave *slave)
 {
@@ -1645,13 +1645,13 @@ void bond_alb_handle_link_change(struct bonding *bond, struct slave *slave, char
 			bond->alb_info.rlb_rebalance = 1;
 			/* If the updelay module parameter is smaller than the
 			 * forwarding delay of the switch the rebalance will
-			 * not work because the rebalance arp replies will
-			 * not be forwarded to the clients..
+			 * yest work because the rebalance arp replies will
+			 * yest be forwarded to the clients..
 			 */
 		}
 	}
 
-	if (bond_is_nondyn_tlb(bond)) {
+	if (bond_is_yesndyn_tlb(bond)) {
 		if (bond_update_slave_arr(bond, NULL))
 			pr_err("Failed to build slave-array for TLB mode.\n");
 	}
@@ -1695,7 +1695,7 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 		swap_slave = bond_slave_has_mac(bond, bond->dev->dev_addr);
 
 	/* Arrange for swap_slave and new_slave to temporarily be
-	 * ignored so we can mess with their MAC addresses without
+	 * igyesred so we can mess with their MAC addresses without
 	 * fear of interference from transmit activity.
 	 */
 	if (swap_slave)
@@ -1755,7 +1755,7 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 
 	bond_hw_addr_copy(bond_dev->dev_addr, ss->__data, bond_dev->addr_len);
 
-	/* If there is no curr_active_slave there is nothing else to do.
+	/* If there is yes curr_active_slave there is yesthing else to do.
 	 * Otherwise we'll need to pass the new address to it and handle
 	 * duplications.
 	 */

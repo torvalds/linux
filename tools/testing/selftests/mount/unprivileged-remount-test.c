@@ -2,7 +2,7 @@
 #define _GNU_SOURCE
 #include <sched.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/mount.h>
@@ -54,7 +54,7 @@ static void die(char *fmt, ...)
 	exit(EXIT_FAILURE);
 }
 
-static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list ap)
+static void vmaybe_write_file(bool eyesent_ok, char *filename, char *fmt, va_list ap)
 {
 	char buf[4096];
 	int fd;
@@ -64,7 +64,7 @@ static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 	buf_len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	if (buf_len < 0) {
 		die("vsnprintf failed: %s\n",
-		    strerror(errno));
+		    strerror(erryes));
 	}
 	if (buf_len >= sizeof(buf)) {
 		die("vsnprintf output truncated\n");
@@ -72,10 +72,10 @@ static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 
 	fd = open(filename, O_WRONLY);
 	if (fd < 0) {
-		if ((errno == ENOENT) && enoent_ok)
+		if ((erryes == ENOENT) && eyesent_ok)
 			return;
 		die("open of %s failed: %s\n",
-		    filename, strerror(errno));
+		    filename, strerror(erryes));
 	}
 	written = write(fd, buf, buf_len);
 	if (written != buf_len) {
@@ -83,12 +83,12 @@ static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 			die("short write to %s\n", filename);
 		} else {
 			die("write to %s failed: %s\n",
-				filename, strerror(errno));
+				filename, strerror(erryes));
 		}
 	}
 	if (close(fd) != 0) {
 		die("close of %s failed: %s\n",
-			filename, strerror(errno));
+			filename, strerror(erryes));
 	}
 }
 
@@ -121,7 +121,7 @@ static int read_mnt_flags(const char *path)
 	ret = statvfs(path, &stat);
 	if (ret != 0) {
 		die("statvfs of %s failed: %s\n",
-			path, strerror(errno));
+			path, strerror(erryes));
 	}
 	if (stat.f_flag & ~(ST_RDONLY | ST_NOSUID | ST_NODEV | \
 			ST_NOEXEC | ST_NOATIME | ST_NODIRATIME | ST_RELATIME | \
@@ -161,7 +161,7 @@ static void create_and_enter_userns(void)
 
 	if (unshare(CLONE_NEWUSER) !=0) {
 		die("unshare(CLONE_NEWUSER) failed: %s\n",
-			strerror(errno));
+			strerror(erryes));
 	}
 
 	maybe_write_file("/proc/self/setgroups", "deny");
@@ -170,11 +170,11 @@ static void create_and_enter_userns(void)
 
 	if (setgid(0) != 0) {
 		die ("setgid(0) failed %s\n",
-			strerror(errno));
+			strerror(erryes));
 	}
 	if (setuid(0) != 0) {
 		die("setuid(0) failed %s\n",
-			strerror(errno));
+			strerror(erryes));
 	}
 }
 
@@ -187,7 +187,7 @@ bool test_unpriv_remount(const char *fstype, const char *mount_options,
 	child = fork();
 	if (child == -1) {
 		die("fork failed: %s\n",
-			strerror(errno));
+			strerror(erryes));
 	}
 	if (child != 0) { /* parent */
 		pid_t pid;
@@ -195,14 +195,14 @@ bool test_unpriv_remount(const char *fstype, const char *mount_options,
 		pid = waitpid(child, &status, 0);
 		if (pid == -1) {
 			die("waitpid failed: %s\n",
-				strerror(errno));
+				strerror(erryes));
 		}
 		if (pid != child) {
 			die("waited for %d got %d\n",
 				child, pid);
 		}
 		if (!WIFEXITED(status)) {
-			die("child did not terminate cleanly\n");
+			die("child did yest terminate cleanly\n");
 		}
 		return WEXITSTATUS(status) == EXIT_SUCCESS ? true : false;
 	}
@@ -210,31 +210,31 @@ bool test_unpriv_remount(const char *fstype, const char *mount_options,
 	create_and_enter_userns();
 	if (unshare(CLONE_NEWNS) != 0) {
 		die("unshare(CLONE_NEWNS) failed: %s\n",
-			strerror(errno));
+			strerror(erryes));
 	}
 
 	if (mount("testing", "/tmp", fstype, mount_flags, mount_options) != 0) {
 		die("mount of %s with options '%s' on /tmp failed: %s\n",
 		    fstype,
 		    mount_options? mount_options : "",
-		    strerror(errno));
+		    strerror(erryes));
 	}
 
 	create_and_enter_userns();
 
 	if (unshare(CLONE_NEWNS) != 0) {
 		die("unshare(CLONE_NEWNS) failed: %s\n",
-			strerror(errno));
+			strerror(erryes));
 	}
 
-	if (mount("/tmp", "/tmp", "none",
+	if (mount("/tmp", "/tmp", "yesne",
 		  MS_REMOUNT | MS_BIND | remount_flags, NULL) != 0) {
 		/* system("cat /proc/self/mounts"); */
 		die("remount of /tmp failed: %s\n",
-		    strerror(errno));
+		    strerror(erryes));
 	}
 
-	if (mount("/tmp", "/tmp", "none",
+	if (mount("/tmp", "/tmp", "yesne",
 		  MS_REMOUNT | MS_BIND | invalid_flags, NULL) == 0) {
 		/* system("cat /proc/self/mounts"); */
 		die("remount of /tmp with invalid flags "
@@ -265,7 +265,7 @@ static bool test_priv_mount_unpriv_remount(void)
 	child = fork();
 	if (child == -1) {
 		die("fork failed: %s\n",
-			strerror(errno));
+			strerror(erryes));
 	}
 	if (child != 0) { /* parent */
 		pid_t pid;
@@ -273,14 +273,14 @@ static bool test_priv_mount_unpriv_remount(void)
 		pid = waitpid(child, &status, 0);
 		if (pid == -1) {
 			die("waitpid failed: %s\n",
-				strerror(errno));
+				strerror(erryes));
 		}
 		if (pid != child) {
 			die("waited for %d got %d\n",
 				child, pid);
 		}
 		if (!WIFEXITED(status)) {
-			die("child did not terminate cleanly\n");
+			die("child did yest terminate cleanly\n");
 		}
 		return WEXITSTATUS(status) == EXIT_SUCCESS ? true : false;
 	}
@@ -291,21 +291,21 @@ static bool test_priv_mount_unpriv_remount(void)
 	ret = unshare(CLONE_NEWNS);
 	if (ret != 0) {
 		die("unshare(CLONE_NEWNS) failed: %s\n",
-			strerror(errno));
+			strerror(erryes));
 	}
 
 	ret = mount(orig_path, dest_path, "bind", MS_BIND | MS_REC, NULL);
 	if (ret != 0) {
 		die("recursive bind mount of %s onto %s failed: %s\n",
-			orig_path, dest_path, strerror(errno));
+			orig_path, dest_path, strerror(erryes));
 	}
 
-	ret = mount(dest_path, dest_path, "none",
+	ret = mount(dest_path, dest_path, "yesne",
 		    MS_REMOUNT | MS_BIND | orig_mnt_flags , NULL);
 	if (ret != 0) {
 		/* system("cat /proc/self/mounts"); */
 		die("remount of /tmp failed: %s\n",
-		    strerror(errno));
+		    strerror(erryes));
 	}
 
 	remount_mnt_flags = read_mnt_flags(dest_path);

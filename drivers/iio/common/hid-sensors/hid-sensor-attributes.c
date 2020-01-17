@@ -22,7 +22,7 @@ static struct {
 	u32 usage_id;
 	int unit; /* 0 for default others from HID sensor spec */
 	int scale_val0; /* scale, whole number */
-	int scale_val1; /* scale, fraction in nanos */
+	int scale_val1; /* scale, fraction in nayess */
 } unit_conversion[] = {
 	{HID_USAGE_SENSOR_ACCEL_3D, 0, 9, 806650000},
 	{HID_USAGE_SENSOR_ACCEL_3D,
@@ -95,12 +95,12 @@ static void simple_div(int dividend, int divisor, int *whole,
 	}
 }
 
-static void split_micro_fraction(unsigned int no, int exp, int *val1, int *val2)
+static void split_micro_fraction(unsigned int yes, int exp, int *val1, int *val2)
 {
 	int divisor = int_pow(10, exp);
 
-	*val1 = no / divisor;
-	*val2 = no % divisor * int_pow(10, 6 - exp);
+	*val1 = yes / divisor;
+	*val2 = yes % divisor * int_pow(10, 6 - exp);
 }
 
 /*
@@ -303,7 +303,7 @@ EXPORT_SYMBOL(hid_sensor_write_raw_hyst_value);
  * 1.001745329 ->exp:4-> val0[10017]val1[453290000]
  * 9.806650000 ->exp:-2-> val0[0]val1[98066500]
  */
-static void adjust_exponent_nano(int *val0, int *val1, int scale0,
+static void adjust_exponent_nayes(int *val0, int *val1, int scale0,
 				  int scale1, int exp)
 {
 	int divisor;
@@ -365,7 +365,7 @@ int hid_sensor_format_scale(u32 usage_id,
 			unit_conversion[i].unit == attr_info->units) {
 			exp  = hid_sensor_convert_exponent(
 						attr_info->unit_expo);
-			adjust_exponent_nano(val0, val1,
+			adjust_exponent_nayes(val0, val1,
 					unit_conversion[i].scale_val0,
 					unit_conversion[i].scale_val1, exp);
 			break;

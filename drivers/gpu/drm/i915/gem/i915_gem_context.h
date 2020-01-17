@@ -31,17 +31,17 @@ static inline void i915_gem_context_set_closed(struct i915_gem_context *ctx)
 	set_bit(CONTEXT_CLOSED, &ctx->flags);
 }
 
-static inline bool i915_gem_context_no_error_capture(const struct i915_gem_context *ctx)
+static inline bool i915_gem_context_yes_error_capture(const struct i915_gem_context *ctx)
 {
 	return test_bit(UCONTEXT_NO_ERROR_CAPTURE, &ctx->user_flags);
 }
 
-static inline void i915_gem_context_set_no_error_capture(struct i915_gem_context *ctx)
+static inline void i915_gem_context_set_yes_error_capture(struct i915_gem_context *ctx)
 {
 	set_bit(UCONTEXT_NO_ERROR_CAPTURE, &ctx->user_flags);
 }
 
-static inline void i915_gem_context_clear_no_error_capture(struct i915_gem_context *ctx)
+static inline void i915_gem_context_clear_yes_error_capture(struct i915_gem_context *ctx)
 {
 	clear_bit(UCONTEXT_NO_ERROR_CAPTURE, &ctx->user_flags);
 }
@@ -130,19 +130,19 @@ i915_gem_context_clear_user_engines(struct i915_gem_context *ctx)
 }
 
 static inline bool
-i915_gem_context_nopreempt(const struct i915_gem_context *ctx)
+i915_gem_context_yespreempt(const struct i915_gem_context *ctx)
 {
 	return test_bit(CONTEXT_NOPREEMPT, &ctx->flags);
 }
 
 static inline void
-i915_gem_context_set_nopreempt(struct i915_gem_context *ctx)
+i915_gem_context_set_yespreempt(struct i915_gem_context *ctx)
 {
 	set_bit(CONTEXT_NOPREEMPT, &ctx->flags);
 }
 
 static inline void
-i915_gem_context_clear_nopreempt(struct i915_gem_context *ctx)
+i915_gem_context_clear_yespreempt(struct i915_gem_context *ctx)
 {
 	clear_bit(CONTEXT_NOPREEMPT, &ctx->flags);
 }

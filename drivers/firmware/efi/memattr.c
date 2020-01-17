@@ -78,7 +78,7 @@ static bool entry_is_valid(const efi_memory_desc_t *in, efi_memory_desc_t *out)
 		 * Since arm64 may execute with page sizes of up to 64 KB, the
 		 * UEFI spec mandates that RuntimeServices memory regions must
 		 * be 64 KB aligned. We need to validate this here since we will
-		 * not be able to tighten permissions on such regions without
+		 * yest be able to tighten permissions on such regions without
 		 * affecting adjacent regions.
 		 */
 		pr_warn("Entry address region misaligned\n");
@@ -92,7 +92,7 @@ static bool entry_is_valid(const efi_memory_desc_t *in, efi_memory_desc_t *out)
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
 		if (md->virt_addr == 0 && md->phys_addr != 0) {
-			/* no virtual mapping has been installed by the stub */
+			/* yes virtual mapping has been installed by the stub */
 			break;
 		}
 
@@ -142,7 +142,7 @@ int __init efi_memattr_apply_permissions(struct mm_struct *mm,
 	 * We need the EFI memory map to be setup so we can use it to
 	 * lookup the virtual addresses of all entries in the  of EFI
 	 * Memory Attributes table. If it isn't available, this
-	 * function should not be called.
+	 * function should yest be called.
 	 */
 	if (WARN_ON(!efi_enabled(EFI_MEMMAP)))
 		return 0;

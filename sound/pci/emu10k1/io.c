@@ -125,13 +125,13 @@ int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
 	int n, result;
 	int err = 0;
 
-	/* This function is not re-entrant, so protect against it. */
+	/* This function is yest re-entrant, so protect against it. */
 	spin_lock(&emu->spi_lock);
 	if (emu->card_capabilities->ca0108_chip)
 		reg = 0x3c; /* PTR20, reg 0x3c */
 	else {
 		/* For other chip types the SPI register
-		 * is currently unknown. */
+		 * is currently unkyeswn. */
 		err = 1;
 		goto spi_write_exit;
 	}
@@ -170,7 +170,7 @@ spi_write_exit:
 	return err;
 }
 
-/* The ADC does not support i2c read, so only write is implemented */
+/* The ADC does yest support i2c read, so only write is implemented */
 int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 				u32 reg,
 				u32 value)
@@ -186,7 +186,7 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 		return -EINVAL;
 	}
 
-	/* This function is not re-entrant, so protect against it. */
+	/* This function is yest re-entrant, so protect against it. */
 	spin_lock(&emu->i2c_lock);
 
 	tmp = reg << 25 | value << 16;
@@ -549,7 +549,7 @@ unsigned int snd_emu10k1_rate_to_pitch(unsigned int rate)
 	int i;
 
 	if (rate == 0)
-		return 0;	/* Bail out if no leading "1" */
+		return 0;	/* Bail out if yes leading "1" */
 	rate *= 11185;		/* Scale 48000 to 0x20002380 */
 	for (i = 31; i > 0; i--) {
 		if (rate & 0x80000000) {	/* Detect leading "1" */

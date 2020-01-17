@@ -43,7 +43,7 @@
  * TPM command can be up to 2048 byte, A TPM response can be up to
  * 1024 byte.
  * Between command and response, there are latency byte (up to 15
- * usually on st33zp24 2 are enough).
+ * usually on st33zp24 2 are eyesugh).
  *
  * Overall when sending a command and expecting an answer we need if
  * worst case:
@@ -65,7 +65,7 @@ struct st33zp24_spi_phy {
 	int latency;
 };
 
-static int st33zp24_status_to_errno(u8 code)
+static int st33zp24_status_to_erryes(u8 code)
 {
 	switch (code) {
 	case ST33ZP24_OK:
@@ -129,7 +129,7 @@ static int st33zp24_spi_send(void *phy_id, u8 tpm_register, u8 *tpm_data,
 	if (ret == 0)
 		ret = phy->rx_buf[total_length + phy->latency - 1];
 
-	return st33zp24_status_to_errno(ret);
+	return st33zp24_status_to_erryes(ret);
 } /* st33zp24_spi_send() */
 
 /*
@@ -188,7 +188,7 @@ static int st33zp24_spi_recv(void *phy_id, u8 tpm_register, u8 *tpm_data,
 	int ret;
 
 	ret = st33zp24_spi_read8_reg(phy_id, tpm_register, tpm_data, tpm_size);
-	if (!st33zp24_status_to_errno(ret))
+	if (!st33zp24_status_to_erryes(ret))
 		return tpm_size;
 	return ret;
 } /* st33zp24_spi_recv() */
@@ -244,7 +244,7 @@ static int st33zp24_spi_acpi_request_resources(struct spi_device *spi_dev)
 		dev_err(dev, "Failed to retrieve lpcpd-gpios from acpi.\n");
 		phy->io_lpcpd = -1;
 		/*
-		 * lpcpd pin is not specified. This is not an issue as
+		 * lpcpd pin is yest specified. This is yest an issue as
 		 * power management can be also managed by TPM specific
 		 * commands. So leave with a success status code.
 		 */
@@ -261,11 +261,11 @@ static int st33zp24_spi_of_request_resources(struct spi_device *spi_dev)
 	struct tpm_chip *chip = spi_get_drvdata(spi_dev);
 	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	struct st33zp24_spi_phy *phy = tpm_dev->phy_id;
-	struct device_node *pp;
+	struct device_yesde *pp;
 	int gpio;
 	int ret;
 
-	pp = spi_dev->dev.of_node;
+	pp = spi_dev->dev.of_yesde;
 	if (!pp) {
 		dev_err(&spi_dev->dev, "No platform data\n");
 		return -ENODEV;
@@ -278,7 +278,7 @@ static int st33zp24_spi_of_request_resources(struct spi_device *spi_dev)
 			"Failed to retrieve lpcpd-gpios from dts.\n");
 		phy->io_lpcpd = -1;
 		/*
-		 * lpcpd pin is not specified. This is not an issue as
+		 * lpcpd pin is yest specified. This is yest an issue as
 		 * power management can be also managed by TPM specific
 		 * commands. So leave with a success status code.
 		 */
@@ -341,7 +341,7 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 
 	/* Check SPI platform functionnalities */
 	if (!dev) {
-		pr_info("%s: dev is NULL. Device is not accessible.\n",
+		pr_info("%s: dev is NULL. Device is yest accessible.\n",
 			__func__);
 		return -ENODEV;
 	}
@@ -354,7 +354,7 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 	phy->spi_device = dev;
 
 	pdata = dev->dev.platform_data;
-	if (!pdata && dev->dev.of_node) {
+	if (!pdata && dev->dev.of_yesde) {
 		ret = st33zp24_spi_of_request_resources(dev);
 		if (ret)
 			return ret;

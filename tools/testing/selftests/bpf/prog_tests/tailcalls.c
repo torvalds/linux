@@ -2,8 +2,8 @@
 #include <test_progs.h>
 
 /* test_tailcall_1 checks basic functionality by patching multiple locations
- * in a single program for a single tail call slot with nop->jmp, jmp->nop
- * and jmp->jmp rewrites. Also checks for nop->nop.
+ * in a single program for a single tail call slot with yesp->jmp, jmp->yesp
+ * and jmp->jmp rewrites. Also checks for yesp->yesp.
  */
 static void test_tailcall_1(void)
 {
@@ -56,7 +56,7 @@ static void test_tailcall_1(void)
 		err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 					&duration, &retval, NULL);
 		CHECK(err || retval != i, "tailcall",
-		      "err %d errno %d retval %d\n", err, errno, retval);
+		      "err %d erryes %d retval %d\n", err, erryes, retval);
 
 		err = bpf_map_delete_elem(map_fd, &i);
 		if (CHECK_FAIL(err))
@@ -65,8 +65,8 @@ static void test_tailcall_1(void)
 
 	err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 				&duration, &retval, NULL);
-	CHECK(err || retval != 3, "tailcall", "err %d errno %d retval %d\n",
-	      err, errno, retval);
+	CHECK(err || retval != 3, "tailcall", "err %d erryes %d retval %d\n",
+	      err, erryes, retval);
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
 		snprintf(prog_name, sizeof(prog_name), "classifier/%i", i);
@@ -86,8 +86,8 @@ static void test_tailcall_1(void)
 
 	err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 				&duration, &retval, NULL);
-	CHECK(err || retval != 0, "tailcall", "err %d errno %d retval %d\n",
-	      err, errno, retval);
+	CHECK(err || retval != 0, "tailcall", "err %d erryes %d retval %d\n",
+	      err, erryes, retval);
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
 		j = bpf_map__def(prog_array)->max_entries - 1 - i;
@@ -112,7 +112,7 @@ static void test_tailcall_1(void)
 		err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 					&duration, &retval, NULL);
 		CHECK(err || retval != j, "tailcall",
-		      "err %d errno %d retval %d\n", err, errno, retval);
+		      "err %d erryes %d retval %d\n", err, erryes, retval);
 
 		err = bpf_map_delete_elem(map_fd, &i);
 		if (CHECK_FAIL(err))
@@ -121,18 +121,18 @@ static void test_tailcall_1(void)
 
 	err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 				&duration, &retval, NULL);
-	CHECK(err || retval != 3, "tailcall", "err %d errno %d retval %d\n",
-	      err, errno, retval);
+	CHECK(err || retval != 3, "tailcall", "err %d erryes %d retval %d\n",
+	      err, erryes, retval);
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
 		err = bpf_map_delete_elem(map_fd, &i);
-		if (CHECK_FAIL(err >= 0 || errno != ENOENT))
+		if (CHECK_FAIL(err >= 0 || erryes != ENOENT))
 			goto out;
 
 		err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 					&duration, &retval, NULL);
 		CHECK(err || retval != 3, "tailcall",
-		      "err %d errno %d retval %d\n", err, errno, retval);
+		      "err %d erryes %d retval %d\n", err, erryes, retval);
 	}
 
 out:
@@ -192,8 +192,8 @@ static void test_tailcall_2(void)
 
 	err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 				&duration, &retval, NULL);
-	CHECK(err || retval != 2, "tailcall", "err %d errno %d retval %d\n",
-	      err, errno, retval);
+	CHECK(err || retval != 2, "tailcall", "err %d erryes %d retval %d\n",
+	      err, erryes, retval);
 
 	i = 2;
 	err = bpf_map_delete_elem(map_fd, &i);
@@ -202,8 +202,8 @@ static void test_tailcall_2(void)
 
 	err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 				&duration, &retval, NULL);
-	CHECK(err || retval != 1, "tailcall", "err %d errno %d retval %d\n",
-	      err, errno, retval);
+	CHECK(err || retval != 1, "tailcall", "err %d erryes %d retval %d\n",
+	      err, erryes, retval);
 
 	i = 0;
 	err = bpf_map_delete_elem(map_fd, &i);
@@ -212,8 +212,8 @@ static void test_tailcall_2(void)
 
 	err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 				&duration, &retval, NULL);
-	CHECK(err || retval != 3, "tailcall", "err %d errno %d retval %d\n",
-	      err, errno, retval);
+	CHECK(err || retval != 3, "tailcall", "err %d erryes %d retval %d\n",
+	      err, erryes, retval);
 out:
 	bpf_object__close(obj);
 }
@@ -266,8 +266,8 @@ static void test_tailcall_3(void)
 
 	err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 				&duration, &retval, NULL);
-	CHECK(err || retval != 1, "tailcall", "err %d errno %d retval %d\n",
-	      err, errno, retval);
+	CHECK(err || retval != 1, "tailcall", "err %d erryes %d retval %d\n",
+	      err, erryes, retval);
 
 	data_map = bpf_object__find_map_by_name(obj, "tailcall.bss");
 	if (CHECK_FAIL(!data_map || !bpf_map__is_internal(data_map)))
@@ -279,8 +279,8 @@ static void test_tailcall_3(void)
 
 	i = 0;
 	err = bpf_map_lookup_elem(data_fd, &i, &val);
-	CHECK(err || val != 33, "tailcall count", "err %d errno %d count %d\n",
-	      err, errno, val);
+	CHECK(err || val != 33, "tailcall count", "err %d erryes %d count %d\n",
+	      err, erryes, val);
 
 	i = 0;
 	err = bpf_map_delete_elem(map_fd, &i);
@@ -289,14 +289,14 @@ static void test_tailcall_3(void)
 
 	err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 				&duration, &retval, NULL);
-	CHECK(err || retval != 0, "tailcall", "err %d errno %d retval %d\n",
-	      err, errno, retval);
+	CHECK(err || retval != 0, "tailcall", "err %d erryes %d retval %d\n",
+	      err, erryes, retval);
 out:
 	bpf_object__close(obj);
 }
 
 /* test_tailcall_4 checks that the kernel properly selects indirect jump
- * for the case where the key is not known. Latter is passed via global
+ * for the case where the key is yest kyeswn. Latter is passed via global
  * data to select different targets we can compare return value of.
  */
 static void test_tailcall_4(void)
@@ -363,7 +363,7 @@ static void test_tailcall_4(void)
 		err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 					&duration, &retval, NULL);
 		CHECK(err || retval != i, "tailcall",
-		      "err %d errno %d retval %d\n", err, errno, retval);
+		      "err %d erryes %d retval %d\n", err, erryes, retval);
 	}
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
@@ -378,7 +378,7 @@ static void test_tailcall_4(void)
 		err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 					&duration, &retval, NULL);
 		CHECK(err || retval != 3, "tailcall",
-		      "err %d errno %d retval %d\n", err, errno, retval);
+		      "err %d erryes %d retval %d\n", err, erryes, retval);
 	}
 out:
 	bpf_object__close(obj);
@@ -451,7 +451,7 @@ static void test_tailcall_5(void)
 		err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 					&duration, &retval, NULL);
 		CHECK(err || retval != i, "tailcall",
-		      "err %d errno %d retval %d\n", err, errno, retval);
+		      "err %d erryes %d retval %d\n", err, erryes, retval);
 	}
 
 	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
@@ -466,7 +466,7 @@ static void test_tailcall_5(void)
 		err = bpf_prog_test_run(main_fd, 1, buff, sizeof(buff), 0,
 					&duration, &retval, NULL);
 		CHECK(err || retval != 3, "tailcall",
-		      "err %d errno %d retval %d\n", err, errno, retval);
+		      "err %d erryes %d retval %d\n", err, erryes, retval);
 	}
 out:
 	bpf_object__close(obj);

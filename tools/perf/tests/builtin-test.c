@@ -5,7 +5,7 @@
  * Builtin regression testing command: ever growing number of sanity tests
  */
 #include <fcntl.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -154,8 +154,8 @@ static struct test generic_tests[] = {
 		.func = test__keep_tracking,
 	},
 	{
-		.desc = "Parse with no sample_id_all bit set",
-		.func = test__parse_no_sample_id_all,
+		.desc = "Parse with yes sample_id_all bit set",
+		.func = test__parse_yes_sample_id_all,
 	},
 	{
 		.desc = "Filter hist entries",
@@ -294,8 +294,8 @@ static struct test generic_tests[] = {
 		.func = test__unit_number__scnprint,
 	},
 	{
-		.desc = "mem2node",
-		.func = test__mem2node,
+		.desc = "mem2yesde",
+		.func = test__mem2yesde,
 	},
 	{
 		.desc = "time utils",
@@ -350,7 +350,7 @@ static int run_test(struct test *test, int subtest)
 
 	if (child < 0) {
 		pr_err("failed to fork test: %s\n",
-			str_error_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(erryes, sbuf, sizeof(sbuf)));
 		return -1;
 	}
 
@@ -604,7 +604,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 		} else {
 			int subn = t->subtest.get_nr();
 			/*
-			 * minus 2 to align with normal testcases.
+			 * minus 2 to align with yesrmal testcases.
 			 * For subtest we print additional '.x' in number.
 			 * for example:
 			 *
@@ -617,7 +617,7 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 
 			if (subn <= 0) {
 				color_fprintf(stderr, PERF_COLOR_YELLOW,
-					      " Skip (not compiled in)\n");
+					      " Skip (yest compiled in)\n");
 				continue;
 			}
 			pr_info("\n");
@@ -715,7 +715,7 @@ int cmd_test(int argc, const char **argv)
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('F', "dont-fork", &dont_fork,
-		    "Do not fork for testcase"),
+		    "Do yest fork for testcase"),
 	OPT_END()
 	};
 	const char * const test_subcommands[] = { "list", NULL };

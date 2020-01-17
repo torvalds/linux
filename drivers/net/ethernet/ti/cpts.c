@@ -104,7 +104,7 @@ static bool cpts_match_tx_ts(struct cpts *cpts, struct cpts_event *event)
 	mtype = (event->high >> MESSAGE_TYPE_SHIFT) & MESSAGE_TYPE_MASK;
 	seqid = (event->high >> SEQUENCE_ID_SHIFT) & SEQUENCE_ID_MASK;
 
-	/* no need to grab txq.lock as access is always done under cpts->lock */
+	/* yes need to grab txq.lock as access is always done under cpts->lock */
 	skb_queue_walk_safe(&cpts->txq, skb, tmp) {
 		struct skb_shared_hwtstamps ssh;
 		unsigned int class = ptp_classify_raw(skb);
@@ -178,7 +178,7 @@ static int cpts_fifo_read(struct cpts *cpts, int match)
 		case CPTS_EV_HW:
 			break;
 		default:
-			pr_err("cpts: unknown event type\n");
+			pr_err("cpts: unkyeswn event type\n");
 			break;
 		}
 		if (type == match)
@@ -533,18 +533,18 @@ static void cpts_calc_mult_shift(struct cpts *cpts)
 		 freq, cpts->cc.mult, cpts->cc.shift, (ns - NSEC_PER_SEC));
 }
 
-static int cpts_of_mux_clk_setup(struct cpts *cpts, struct device_node *node)
+static int cpts_of_mux_clk_setup(struct cpts *cpts, struct device_yesde *yesde)
 {
-	struct device_node *refclk_np;
+	struct device_yesde *refclk_np;
 	const char **parent_names;
 	unsigned int num_parents;
 	struct clk_hw *clk_hw;
 	int ret = -EINVAL;
 	u32 *mux_table;
 
-	refclk_np = of_get_child_by_name(node, "cpts-refclk-mux");
+	refclk_np = of_get_child_by_name(yesde, "cpts-refclk-mux");
 	if (!refclk_np)
-		/* refclk selection supported not for all SoCs */
+		/* refclk selection supported yest for all SoCs */
 		return 0;
 
 	num_parents = of_clk_get_parent_count(refclk_np);
@@ -605,26 +605,26 @@ static int cpts_of_mux_clk_setup(struct cpts *cpts, struct device_node *node)
 	return ret;
 
 mux_fail:
-	of_node_put(refclk_np);
+	of_yesde_put(refclk_np);
 	return ret;
 }
 
-static int cpts_of_parse(struct cpts *cpts, struct device_node *node)
+static int cpts_of_parse(struct cpts *cpts, struct device_yesde *yesde)
 {
 	int ret = -EINVAL;
 	u32 prop;
 
-	if (!of_property_read_u32(node, "cpts_clock_mult", &prop))
+	if (!of_property_read_u32(yesde, "cpts_clock_mult", &prop))
 		cpts->cc.mult = prop;
 
-	if (!of_property_read_u32(node, "cpts_clock_shift", &prop))
+	if (!of_property_read_u32(yesde, "cpts_clock_shift", &prop))
 		cpts->cc.shift = prop;
 
 	if ((cpts->cc.mult && !cpts->cc.shift) ||
 	    (!cpts->cc.mult && cpts->cc.shift))
 		goto of_error;
 
-	return cpts_of_mux_clk_setup(cpts, node);
+	return cpts_of_mux_clk_setup(cpts, yesde);
 
 of_error:
 	dev_err(cpts->dev, "CPTS: Missing property in the DT.\n");
@@ -632,7 +632,7 @@ of_error:
 }
 
 struct cpts *cpts_create(struct device *dev, void __iomem *regs,
-			 struct device_node *node)
+			 struct device_yesde *yesde)
 {
 	struct cpts *cpts;
 	int ret;
@@ -645,13 +645,13 @@ struct cpts *cpts_create(struct device *dev, void __iomem *regs,
 	cpts->reg = (struct cpsw_cpts __iomem *)regs;
 	spin_lock_init(&cpts->lock);
 
-	ret = cpts_of_parse(cpts, node);
+	ret = cpts_of_parse(cpts, yesde);
 	if (ret)
 		return ERR_PTR(ret);
 
-	cpts->refclk = devm_get_clk_from_child(dev, node, "cpts");
+	cpts->refclk = devm_get_clk_from_child(dev, yesde, "cpts");
 	if (IS_ERR(cpts->refclk))
-		/* try get clk from dev node for compatibility */
+		/* try get clk from dev yesde for compatibility */
 		cpts->refclk = devm_clk_get(dev, "cpts");
 
 	if (IS_ERR(cpts->refclk)) {

@@ -37,8 +37,8 @@ struct
 
 /*
  * NOTE: Herein lie back-to-back mb instructions.  They are magic. 
- * One plausible explanation is that the I/O controller does not properly
- * handle the system transaction.  Another involves timing.  Ho hum.
+ * One plausible explanation is that the I/O controller does yest properly
+ * handle the system transaction.  Ayesther involves timing.  Ho hum.
  */
 
 /*
@@ -57,13 +57,13 @@ struct
 /*
  * Given a bus, device, and function number, compute resulting
  * configuration space address
- * accordingly.  It is therefore not safe to have concurrent
+ * accordingly.  It is therefore yest safe to have concurrent
  * invocations to configuration space access routines, but there
  * really shouldn't be any need for this.
  *
  * Note that all config space accesses use Type 1 address format.
  *
- * Note also that type 1 is determined by non-zero bus number.
+ * Note also that type 1 is determined by yesn-zero bus number.
  *
  * Type 1:
  *
@@ -379,7 +379,7 @@ tsunami_init_arch(void)
 	unsigned long tmp;
 	
 	/* Ho hum.. init_arch is called before init_IRQ, but we need to be
-	   able to handle machine checks.  So install the handler now.  */
+	   able to handle machine checks.  So install the handler yesw.  */
 	wrent(entInt, 0);
 
 	/* NXMs just don't matter to Tsunami--unless they make it

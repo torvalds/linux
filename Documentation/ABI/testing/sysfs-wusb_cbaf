@@ -28,12 +28,12 @@ Description:
                 6. The CM looks it up its database.
 
                    - If it has a matching CHID,CDID entry, the device
-                     has been authorized before and nothing further
+                     has been authorized before and yesthing further
                      needs to be done.
 
                    - If the CDID is zero (or the CM doesn't find a
                      matching CDID in its database), the device is
-                     assumed to be not known.  The CM may associate
+                     assumed to be yest kyeswn.  The CM may associate
                      the host with device by: writing a randomly
                      generated CDID to wusb_cdid and then a random CK
                      to wusb_ck (this uploads the new CC to the

@@ -163,7 +163,7 @@ static int do_cpt_init(struct cpt_device *cpt, struct microcode *mcode)
 	int ret = 0;
 	struct device *dev = &cpt->pdev->dev;
 
-	/* Make device not ready */
+	/* Make device yest ready */
 	cpt->flags &= ~CPT_FLAG_DEVICE_READY;
 	/* Disable All PF interrupts */
 	cpt_disable_all_interrupts(cpt);
@@ -507,7 +507,7 @@ static int cpt_sriov_init(struct cpt_device *cpt, int num_vfs)
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
 	if (!pos) {
-		dev_err(&pdev->dev, "SRIOV capability is not found in PCIe config space\n");
+		dev_err(&pdev->dev, "SRIOV capability is yest found in PCIe config space\n");
 		return -ENODEV;
 	}
 
@@ -584,7 +584,7 @@ static int cpt_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* MAP PF's configuration registers */
 	cpt->reg_base = pcim_iomap(pdev, 0, 0);
 	if (!cpt->reg_base) {
-		dev_err(dev, "Cannot map config register space, aborting\n");
+		dev_err(dev, "Canyest map config register space, aborting\n");
 		err = -ENOMEM;
 		goto cpt_err_release_regions;
 	}

@@ -132,7 +132,7 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
  * __arm_ioremap takes CPU physical address.
  * __arm_ioremap_pfn takes a Page Frame Number and an offset into that page
  * The _caller variety takes a __builtin_return_address(0) value for
- * /proc/vmalloc to use - and should only be used in non-inline functions.
+ * /proc/vmalloc to use - and should only be used in yesn-inline functions.
  */
 extern void __iomem *__arm_ioremap_caller(phys_addr_t, size_t, unsigned int,
 	void *);
@@ -184,7 +184,7 @@ extern int pci_ioremap_io(unsigned int offset, phys_addr_t phys_addr);
 /*
  * PCI configuration space mapping function.
  *
- * The PCI specification does not allow configuration write
+ * The PCI specification does yest allow configuration write
  * transactions to be posted. Add an arch specific
  * pci_remap_cfgspace() definition that is implemented
  * through strongly ordered memory mappings.
@@ -244,7 +244,7 @@ void __iomem *pci_remap_cfgspace(resource_size_t res_cookie, size_t size);
  *
  * Note that we prevent GCC re-ordering or caching values in expressions
  * by introducing sequence points into the in*() definitions.  Note that
- * __raw_* do not guarantee this behaviour.
+ * __raw_* do yest guarantee this behaviour.
  *
  * The {in,out}[bwl] macros are for emulating x86-style PCI/ISA IO space.
  */
@@ -356,45 +356,45 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
  *
  * Function		Memory type	Cacheability	Cache hint
  * ioremap()		Device		n/a		n/a
- * ioremap_nocache()	Device		n/a		n/a
+ * ioremap_yescache()	Device		n/a		n/a
  * ioremap_cache()	Normal		Writeback	Read allocate
  * ioremap_wc()		Normal		Non-cacheable	n/a
  * ioremap_wt()		Normal		Non-cacheable	n/a
  *
  * All device mappings have the following properties:
- * - no access speculation
- * - no repetition (eg, on return from an exception)
+ * - yes access speculation
+ * - yes repetition (eg, on return from an exception)
  * - number, order and size of accesses are maintained
  * - unaligned accesses are "unpredictable"
  * - writes may be delayed before they hit the endpoint device
  *
- * ioremap_nocache() is the same as ioremap() as there are too many device
+ * ioremap_yescache() is the same as ioremap() as there are too many device
  * drivers using this for device registers, and documentation which tells
- * people to use it for such for this to be any different.  This is not a
+ * people to use it for such for this to be any different.  This is yest a
  * safe fallback for memory-like mappings, or memory regions where the
  * compiler may generate unaligned accesses - eg, via inlining its own
  * memcpy.
  *
- * All normal memory mappings have the following properties:
- * - reads can be repeated with no side effects
+ * All yesrmal memory mappings have the following properties:
+ * - reads can be repeated with yes side effects
  * - repeated reads return the last value written
  * - reads can fetch additional locations without side effects
- * - writes can be repeated (in certain cases) with no side effects
+ * - writes can be repeated (in certain cases) with yes side effects
  * - writes can be merged before accessing the target
  * - unaligned accesses can be supported
- * - ordering is not guaranteed without explicit dependencies or barrier
+ * - ordering is yest guaranteed without explicit dependencies or barrier
  *   instructions
  * - writes may be delayed before they hit the endpoint memory
  *
  * The cache hint is only a performance hint: CPUs may alias these hints.
- * Eg, a CPU not implementing read allocate but implementing write allocate
+ * Eg, a CPU yest implementing read allocate but implementing write allocate
  * will provide a write allocate mapping instead.
  */
 void __iomem *ioremap(resource_size_t res_cookie, size_t size);
 #define ioremap ioremap
 
 /*
- * Do not use ioremap_cache for mapping memory. Use memremap instead.
+ * Do yest use ioremap_cache for mapping memory. Use memremap instead.
  */
 void __iomem *ioremap_cache(resource_size_t res_cookie, size_t size);
 #define ioremap_cache ioremap_cache

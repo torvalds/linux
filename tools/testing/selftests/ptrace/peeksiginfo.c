@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/types.h>
 #include <sys/wait.h>
 #include <sys/syscall.h>
@@ -49,7 +49,7 @@ static int check_error_paths(pid_t child)
 
 	/*
 	 * Allocate two contiguous pages. The first one is for read-write,
-	 * another is for read-only.
+	 * ayesther is for read-only.
 	 */
 	addr_rw = mmap(NULL, 2 * PAGE_SIZE, PROT_READ | PROT_WRITE,
 				MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -71,10 +71,10 @@ static int check_error_paths(pid_t child)
 	/* Unsupported flags */
 	arg.flags = ~0;
 	ret = sys_ptrace(PTRACE_PEEKSIGINFO, child, &arg, addr_rw);
-	if (ret != -1 || errno != EINVAL) {
+	if (ret != -1 || erryes != EINVAL) {
 		err("sys_ptrace() returns %d (expected -1),"
-				" errno %d (expected %d): %m\n",
-				ret, errno, EINVAL);
+				" erryes %d (expected %d): %m\n",
+				ret, erryes, EINVAL);
 		goto out;
 	}
 	arg.flags = 0;
@@ -89,10 +89,10 @@ static int check_error_paths(pid_t child)
 
 	/* Read-only buffer */
 	ret = sys_ptrace(PTRACE_PEEKSIGINFO, child, &arg, addr_ro);
-	if (ret != -1 && errno != EFAULT) {
+	if (ret != -1 && erryes != EFAULT) {
 		err("sys_ptrace() returns %d (expected -1),"
-				" errno %d (expected %d): %m\n",
-				ret, errno, EFAULT);
+				" erryes %d (expected %d): %m\n",
+				ret, erryes, EFAULT);
 		goto out;
 	}
 
@@ -199,7 +199,7 @@ int main(int argc, char *argv[])
 
 	/*
 	 * Dump signal from the process-wide queue.
-	 * The number of signals is not multible to the buffer size
+	 * The number of signals is yest multible to the buffer size
 	 */
 	if (check_direct_path(child, 1, 3))
 		goto out;

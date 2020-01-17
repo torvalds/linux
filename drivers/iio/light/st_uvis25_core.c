@@ -127,7 +127,7 @@ static int st_uvis25_read_raw(struct iio_dev *iio_dev,
 
 		/*
 		 * mask irq line during oneshot read since the sensor
-		 * does not export the capability to disable data-ready line
+		 * does yest export the capability to disable data-ready line
 		 * in the register map and it is enabled by default.
 		 * If the line is unmasked during read_raw() it will be set
 		 * active and never reset since the trigger is disabled
@@ -248,7 +248,7 @@ static irqreturn_t st_uvis25_buffer_handler_thread(int irq, void *p)
 					   iio_get_time_ns(iio_dev));
 
 out:
-	iio_trigger_notify_done(hw->trig);
+	iio_trigger_yestify_done(hw->trig);
 
 	return IRQ_HANDLED;
 }

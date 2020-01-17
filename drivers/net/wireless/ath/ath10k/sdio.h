@@ -108,11 +108,11 @@ struct ath10k_sdio_bus_request {
 	enum ath10k_htc_ep_id eid;
 	int status;
 	/* Specifies if the current request is an HTC message.
-	 * If not, the eid is not applicable an the TX completion handler
-	 * associated with the endpoint will not be invoked.
+	 * If yest, the eid is yest applicable an the TX completion handler
+	 * associated with the endpoint will yest be invoked.
 	 */
 	bool htc_msg;
-	/* Completion that (if set) will be invoked for non HTC requests
+	/* Completion that (if set) will be invoked for yesn HTC requests
 	 * (htc_msg == false) when the request has been processed.
 	 */
 	struct completion *comp;
@@ -151,9 +151,9 @@ struct ath10k_sdio_irq_enable_regs {
 
 struct ath10k_sdio_irq_data {
 	/* protects irq_proc_reg and irq_en_reg below.
-	 * We use a mutex here and not a spinlock since we will have the
+	 * We use a mutex here and yest a spinlock since we will have the
 	 * mutex locked while calling the sdio_memcpy_ functions.
-	 * These function require non atomic context, and hence, spinlocks
+	 * These function require yesn atomic context, and hence, spinlocks
 	 * can be held while calling these functions.
 	 */
 	struct mutex mtx;

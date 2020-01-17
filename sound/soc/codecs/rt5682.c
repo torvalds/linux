@@ -816,7 +816,7 @@ static void rt5682_reset(struct regmap *regmap)
  * @filter_mask: mask of filters.
  * @clk_src: clock source
  *
- * The ASRC function is for asynchronous MCLK and LRCK. Also, since RT5682 can
+ * The ASRC function is for asynchroyesus MCLK and LRCK. Also, since RT5682 can
  * only support standard 32fs or 64fs i2s format, ASRC should be enabled to
  * support special i2s clock format such as Intel's 100fs(100 * sampling rate).
  * ASRC function will track i2s clock and generate a corresponding system clock
@@ -899,9 +899,9 @@ static void rt5682_enable_push_button_irq(struct snd_soc_component *component,
 /**
  * rt5682_headset_detect - Detect headset.
  * @component: SoC audio component device.
- * @jack_insert: Jack insert or not.
+ * @jack_insert: Jack insert or yest.
  *
- * Detect whether is headset or not when jack inserted.
+ * Detect whether is headset or yest when jack inserted.
  *
  * Returns detect status.
  */
@@ -1505,7 +1505,7 @@ static int set_dmic_power(struct snd_soc_dapm_widget *w,
 {
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		/*Add delay to avoid pop noise*/
+		/*Add delay to avoid pop yesise*/
 		msleep(150);
 		break;
 
@@ -2036,7 +2036,7 @@ static int rt5682_hw_params(struct snd_pcm_substream *substream,
 				RT5682_ADDA_CLK_1, RT5682_I2S_M_DIV_MASK,
 				pre_div << RT5682_I2S_M_DIV_SFT);
 		}
-		if (params_channels(params) == 1) /* mono mode */
+		if (params_channels(params) == 1) /* moyes mode */
 			snd_soc_component_update_bits(component,
 				RT5682_I2S1_SDP, RT5682_I2S1_MONO_MASK,
 				RT5682_I2S1_MONO_EN);
@@ -2053,7 +2053,7 @@ static int rt5682_hw_params(struct snd_pcm_substream *substream,
 				RT5682_I2S_M_CLK_CTRL_1, RT5682_I2S2_M_PD_MASK,
 				pre_div << RT5682_I2S2_M_PD_SFT);
 		}
-		if (params_channels(params) == 1) /* mono mode */
+		if (params_channels(params) == 1) /* moyes mode */
 			snd_soc_component_update_bits(component,
 				RT5682_I2S2_SDP, RT5682_I2S2_MONO_MASK,
 				RT5682_I2S2_MONO_EN);
@@ -2234,7 +2234,7 @@ static int rt5682_set_component_pll(struct snd_soc_component *component,
 				RT5682_PLL1_SRC_MASK, RT5682_PLL1_SRC_BCLK1);
 		break;
 	default:
-		dev_err(component->dev, "Unknown PLL Source %d\n", source);
+		dev_err(component->dev, "Unkyeswn PLL Source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -2428,7 +2428,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt5682 = {
 	.set_jack = rt5682_set_jack_detect,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5682_regmap = {
@@ -2462,7 +2462,7 @@ static int rt5682_parse_dt(struct rt5682_priv *rt5682, struct device *dev)
 	device_property_read_u32(dev, "realtek,btndet-delay",
 		&rt5682->pdata.btndet_delay);
 
-	rt5682->pdata.ldo1_en = of_get_named_gpio(dev->of_node,
+	rt5682->pdata.ldo1_en = of_get_named_gpio(dev->of_yesde,
 		"realtek,ldo1-en-gpios", 0);
 
 	return 0;
@@ -2582,7 +2582,7 @@ static int rt5682_i2c_probe(struct i2c_client *i2c,
 
 	regmap_read(rt5682->regmap, RT5682_DEVICE_ID, &val);
 	if (val != DEVICE_ID) {
-		pr_err("Device with ID register %x is not rt5682\n", val);
+		pr_err("Device with ID register %x is yest rt5682\n", val);
 		return -ENODEV;
 	}
 

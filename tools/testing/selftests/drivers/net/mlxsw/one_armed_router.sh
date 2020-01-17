@@ -83,7 +83,7 @@ h2_destroy()
 
 switch_create()
 {
-	ip link add name br0 type bridge mcast_snooping 0
+	ip link add name br0 type bridge mcast_syesoping 0
 	ip link set dev br0 up
 
 	ip link set dev $swp1 master br0
@@ -107,9 +107,9 @@ switch_destroy()
 	tc qdisc del dev $swp1 clsact
 
 	ip link set dev $swp2 down
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 yesmaster
 	ip link set dev $swp1 down
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 yesmaster
 
 	ip link set dev br0 down
 	ip link del dev br0

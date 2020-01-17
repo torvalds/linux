@@ -178,7 +178,7 @@ static int rirb_get_response(struct lola *chip, unsigned int *val,
 	return -EIO;
 }
 
-/* aynchronous write of a codec verb with data */
+/* aynchroyesus write of a codec verb with data */
 int lola_codec_write(struct lola *chip, unsigned int nid, unsigned int verb,
 		     unsigned int data, unsigned int extdata)
 {
@@ -216,11 +216,11 @@ int lola_codec_flush(struct lola *chip)
 static irqreturn_t lola_interrupt(int irq, void *dev_id)
 {
 	struct lola *chip = dev_id;
-	unsigned int notify_ins, notify_outs, error_ins, error_outs;
+	unsigned int yestify_ins, yestify_outs, error_ins, error_outs;
 	int handled = 0;
 	int i;
 
-	notify_ins = notify_outs = error_ins = error_outs = 0;
+	yestify_ins = yestify_outs = error_ins = error_outs = 0;
 	spin_lock(&chip->reg_lock);
 	for (;;) {
 		unsigned int status, in_sts, out_sts;
@@ -241,8 +241,8 @@ static irqreturn_t lola_interrupt(int irq, void *dev_id)
 			reg = lola_dsd_read(chip, i, STS);
 			if (reg & LOLA_DSD_STS_DESE) /* error */
 				error_ins |= (1 << i);
-			if (reg & LOLA_DSD_STS_BCIS) /* notify */
-				notify_ins |= (1 << i);
+			if (reg & LOLA_DSD_STS_BCIS) /* yestify */
+				yestify_ins |= (1 << i);
 			/* clear */
 			lola_dsd_write(chip, i, STS, reg);
 		}
@@ -255,8 +255,8 @@ static irqreturn_t lola_interrupt(int irq, void *dev_id)
 			reg = lola_dsd_read(chip, i + MAX_STREAM_IN_COUNT, STS);
 			if (reg & LOLA_DSD_STS_DESE) /* error */
 				error_outs |= (1 << i);
-			if (reg & LOLA_DSD_STS_BCIS) /* notify */
-				notify_outs |= (1 << i);
+			if (reg & LOLA_DSD_STS_BCIS) /* yestify */
+				yestify_outs |= (1 << i);
 			lola_dsd_write(chip, i + MAX_STREAM_IN_COUNT, STS, reg);
 		}
 
@@ -283,8 +283,8 @@ static irqreturn_t lola_interrupt(int irq, void *dev_id)
 	}
 	spin_unlock(&chip->reg_lock);
 
-	lola_pcm_update(chip, &chip->pcm[CAPT], notify_ins);
-	lola_pcm_update(chip, &chip->pcm[PLAY], notify_outs);
+	lola_pcm_update(chip, &chip->pcm[CAPT], yestify_ins);
+	lola_pcm_update(chip, &chip->pcm[PLAY], yestify_outs);
 
 	return IRQ_RETVAL(handled);
 }
@@ -314,7 +314,7 @@ static int reset_controller(struct lola *chip)
 			break;
 	} while (time_before(jiffies, end_time));
 	if (!gctl) {
-		dev_err(chip->card->dev, "cannot reset controller\n");
+		dev_err(chip->card->dev, "canyest reset controller\n");
 		return -EIO;
 	}
 	return 0;
@@ -444,7 +444,7 @@ static int lola_parse_tree(struct lola *chip)
 	}
 	val >>= 16;
 	if (val != 0x1369) {
-		dev_err(chip->card->dev, "Unknown codec vendor 0x%x\n", val);
+		dev_err(chip->card->dev, "Unkyeswn codec vendor 0x%x\n", val);
 		return -EINVAL;
 	}
 
@@ -454,7 +454,7 @@ static int lola_parse_tree(struct lola *chip)
 		return err;
 	}
 	if (val != 1) {
-		dev_err(chip->card->dev, "Unknown function type %d\n", val);
+		dev_err(chip->card->dev, "Unkyeswn function type %d\n", val);
 		return -EINVAL;
 	}
 
@@ -509,14 +509,14 @@ static int lola_parse_tree(struct lola *chip)
 	if (err < 0)
 		return err;
 
-	/* if last ResetController was not a ColdReset, we don't know
+	/* if last ResetController was yest a ColdReset, we don't kyesw
 	 * the state of the card; initialize here again
 	 */
 	if (!chip->cold_reset) {
 		lola_reset_setups(chip);
 		chip->cold_reset = 1;
 	} else {
-		/* set the granularity if it is not the default */
+		/* set the granularity if it is yest the default */
 		if (chip->granularity != LOLA_GRANULARITY_MIN)
 			lola_set_granularity(chip, chip->granularity, true);
 	}

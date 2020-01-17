@@ -64,7 +64,7 @@ static void print_prot(struct seq_file *m, unsigned int pr, int level)
 	seq_puts(m, (pr & _PAGE_NOEXEC) ? "NX\n" : "X\n");
 }
 
-static void note_page(struct seq_file *m, struct pg_state *st,
+static void yeste_page(struct seq_file *m, struct pg_state *st,
 		     unsigned int new_prot, int level)
 {
 	static const char units[] = "KMGTPE";
@@ -75,7 +75,7 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 
 	/*
 	 * If we have a "break" in the series, we need to flush the state
-	 * that we have now. "break" is either changing perms, levels or
+	 * that we have yesw. "break" is either changing perms, levels or
 	 * address space marker.
 	 */
 	prot = new_prot;
@@ -111,21 +111,21 @@ static void note_page(struct seq_file *m, struct pg_state *st,
 }
 
 #ifdef CONFIG_KASAN
-static void note_kasan_early_shadow_page(struct seq_file *m,
+static void yeste_kasan_early_shadow_page(struct seq_file *m,
 						struct pg_state *st)
 {
 	unsigned int prot;
 
 	prot = pte_val(*kasan_early_shadow_pte) &
 		(_PAGE_PROTECT | _PAGE_INVALID | _PAGE_NOEXEC);
-	note_page(m, st, prot, 4);
+	yeste_page(m, st, prot, 4);
 }
 #endif
 
 /*
  * The actual page table walker functions. In order to keep the
  * implementation of print_prot() short, we only check and pass
- * _PAGE_INVALID and _PAGE_PROTECT flags to note_page() if a region,
+ * _PAGE_INVALID and _PAGE_PROTECT flags to yeste_page() if a region,
  * segment or page table entry is invalid or read-only.
  * After all it's just a hint that the current level being walked
  * contains an invalid or read-only entry.
@@ -142,7 +142,7 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st,
 		pte = pte_offset_kernel(pmd, addr);
 		prot = pte_val(*pte) &
 			(_PAGE_PROTECT | _PAGE_INVALID | _PAGE_NOEXEC);
-		note_page(m, st, prot, 4);
+		yeste_page(m, st, prot, 4);
 		addr += PAGE_SIZE;
 	}
 }
@@ -156,7 +156,7 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 
 #ifdef CONFIG_KASAN
 	if ((pud_val(*pud) & PAGE_MASK) == __pa(kasan_early_shadow_pmd)) {
-		note_kasan_early_shadow_page(m, st);
+		yeste_kasan_early_shadow_page(m, st);
 		return;
 	}
 #endif
@@ -164,16 +164,16 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 	pmd = pmd_offset(pud, addr);
 	for (i = 0; i < PTRS_PER_PMD && addr < max_addr; i++, pmd++) {
 		st->current_address = addr;
-		if (!pmd_none(*pmd)) {
+		if (!pmd_yesne(*pmd)) {
 			if (pmd_large(*pmd)) {
 				prot = pmd_val(*pmd) &
 					(_SEGMENT_ENTRY_PROTECT |
 					 _SEGMENT_ENTRY_NOEXEC);
-				note_page(m, st, prot, 3);
+				yeste_page(m, st, prot, 3);
 			} else
 				walk_pte_level(m, st, pmd, addr);
 		} else
-			note_page(m, st, _PAGE_INVALID, 3);
+			yeste_page(m, st, _PAGE_INVALID, 3);
 		addr += PMD_SIZE;
 	}
 }
@@ -187,7 +187,7 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 
 #ifdef CONFIG_KASAN
 	if ((p4d_val(*p4d) & PAGE_MASK) == __pa(kasan_early_shadow_pud)) {
-		note_kasan_early_shadow_page(m, st);
+		yeste_kasan_early_shadow_page(m, st);
 		return;
 	}
 #endif
@@ -195,16 +195,16 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 	pud = pud_offset(p4d, addr);
 	for (i = 0; i < PTRS_PER_PUD && addr < max_addr; i++, pud++) {
 		st->current_address = addr;
-		if (!pud_none(*pud))
+		if (!pud_yesne(*pud))
 			if (pud_large(*pud)) {
 				prot = pud_val(*pud) &
 					(_REGION_ENTRY_PROTECT |
 					 _REGION_ENTRY_NOEXEC);
-				note_page(m, st, prot, 2);
+				yeste_page(m, st, prot, 2);
 			} else
 				walk_pmd_level(m, st, pud, addr);
 		else
-			note_page(m, st, _PAGE_INVALID, 2);
+			yeste_page(m, st, _PAGE_INVALID, 2);
 		addr += PUD_SIZE;
 	}
 }
@@ -217,7 +217,7 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st,
 
 #ifdef CONFIG_KASAN
 	if ((pgd_val(*pgd) & PAGE_MASK) == __pa(kasan_early_shadow_p4d)) {
-		note_kasan_early_shadow_page(m, st);
+		yeste_kasan_early_shadow_page(m, st);
 		return;
 	}
 #endif
@@ -225,10 +225,10 @@ static void walk_p4d_level(struct seq_file *m, struct pg_state *st,
 	p4d = p4d_offset(pgd, addr);
 	for (i = 0; i < PTRS_PER_P4D && addr < max_addr; i++, p4d++) {
 		st->current_address = addr;
-		if (!p4d_none(*p4d))
+		if (!p4d_yesne(*p4d))
 			walk_pud_level(m, st, p4d, addr);
 		else
-			note_page(m, st, _PAGE_INVALID, 2);
+			yeste_page(m, st, _PAGE_INVALID, 2);
 		addr += P4D_SIZE;
 	}
 }
@@ -244,16 +244,16 @@ static void walk_pgd_level(struct seq_file *m)
 	for (i = 0; i < PTRS_PER_PGD && addr < max_addr; i++) {
 		st.current_address = addr;
 		pgd = pgd_offset_k(addr);
-		if (!pgd_none(*pgd))
+		if (!pgd_yesne(*pgd))
 			walk_p4d_level(m, &st, pgd, addr);
 		else
-			note_page(m, &st, _PAGE_INVALID, 1);
+			yeste_page(m, &st, _PAGE_INVALID, 1);
 		addr += PGDIR_SIZE;
 		cond_resched();
 	}
 	/* Flush out the last page */
 	st.current_address = max_addr;
-	note_page(m, &st, 0, 0);
+	yeste_page(m, &st, 0, 0);
 }
 
 static int ptdump_show(struct seq_file *m, void *v)
@@ -262,7 +262,7 @@ static int ptdump_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int ptdump_open(struct inode *inode, struct file *filp)
+static int ptdump_open(struct iyesde *iyesde, struct file *filp)
 {
 	return single_open(filp, ptdump_show, NULL);
 }
@@ -279,7 +279,7 @@ static int pt_dump_init(void)
 	/*
 	 * Figure out the maximum virtual address being accessible with the
 	 * kernel ASCE. We need this to keep the page table walker functions
-	 * from accessing non-existent entries.
+	 * from accessing yesn-existent entries.
 	 */
 	max_addr = (S390_lowcore.kernel_asce & _REGION_ENTRY_TYPE_MASK) >> 2;
 	max_addr = 1UL << (max_addr * 11 + 31);

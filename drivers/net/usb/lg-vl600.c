@@ -19,7 +19,7 @@
 /*
  * The device has a CDC ACM port for modem control (it claims to be
  * CDC ACM anyway) and a CDC Ethernet port for actual network data.
- * It will however ignore data on both ports that is not encapsulated
+ * It will however igyesre data on both ports that is yest encapsulated
  * in a specific way, any data returned is also encapsulated the same
  * way.  The headers don't seem to follow any popular standard.
  *
@@ -27,7 +27,7 @@
  * sent/received from the CDC Ethernet port.  The proprietary header
  * replaces the standard ethernet header in a packet so only actual
  * ethernet frames are allowed.  The headers allow some form of
- * multiplexing by using non standard values of the .h_proto field.
+ * multiplexing by using yesn standard values of the .h_proto field.
  * Windows/Mac drivers do send a couple of such frames to the device
  * during initialisation, with protocol set to 0x0906 or 0x0b06 and (what
  * seems to be) a flag in the .dummy_flags.  This doesn't seem necessary
@@ -69,12 +69,12 @@ static int vl600_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	dev->driver_priv = s;
 
-	/* ARP packets don't go through, but they're also of no use.  The
+	/* ARP packets don't go through, but they're also of yes use.  The
 	 * subnet has only two hosts anyway: us and the gateway / DHCP
 	 * server (probably simulated by modem firmware or network operator)
 	 * whose address changes everytime we connect to the intarwebz and
 	 * who doesn't bother answering ARP requests either.  So hardware
-	 * addresses have no meaning, the destination and the source of every
+	 * addresses have yes meaning, the destination and the source of every
 	 * packet depend only on whether it is on the IN or OUT endpoint.  */
 	dev->net->flags |= IFF_NOARP;
 	/* IPv6 NDP relies on multicast.  Enable it by default. */
@@ -109,7 +109,7 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 	/* Allow a packet (or multiple packets batched together) to be
 	 * split across many frames.  We don't allow a new batch to
-	 * begin in the same frame another one is ending however, and no
+	 * begin in the same frame ayesther one is ending however, and yes
 	 * leading or trailing pad bytes.  */
 	if (s->current_rx_buf) {
 		frame = (struct vl600_frame_hdr *) s->current_rx_buf->data;
@@ -251,11 +251,11 @@ static struct sk_buff *vl600_tx_fixup(struct usbnet *dev,
 
 		if (tailroom >= full_len - skb->len - sizeof(*frame) &&
 				headroom >= sizeof(*frame))
-			/* There's enough head and tail room */
+			/* There's eyesugh head and tail room */
 			goto encapsulate;
 
 		if (headroom + tailroom + skb->len >= full_len) {
-			/* There's enough total room, just readjust */
+			/* There's eyesugh total room, just readjust */
 			skb->data = memmove(skb->head + sizeof(*frame),
 					skb->data, skb->len);
 			skb_set_tail_pointer(skb, skb->len);

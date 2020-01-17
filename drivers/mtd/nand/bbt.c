@@ -52,7 +52,7 @@ EXPORT_SYMBOL_GPL(nanddev_bbt_cleanup);
  * nanddev_bbt_update() - Update a BBT
  * @nand: nand device
  *
- * Update the BBT. Currently a NOP function since on-flash bbt is not yet
+ * Update the BBT. Currently a NOP function since on-flash bbt is yest yet
  * supported.
  *
  * Return: 0 in case of success, a negative error code otherwise.

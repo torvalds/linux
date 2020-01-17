@@ -12,7 +12,7 @@ General
 =======
 
 This driver may be used if you are writing printer firmware using Linux as
-the embedded OS. This driver has nothing to do with using a printer with
+the embedded OS. This driver has yesthing to do with using a printer with
 your Linux host system.
 
 You will need a USB device controller and a Linux driver for it that accepts
@@ -26,7 +26,7 @@ user mode printer firmware will read and write data from the kernel mode
 printer gadget driver using a device file. The printer returns a printer status
 byte when the USB HOST sends a device request to get the printer status.  The
 user space firmware can read or write this status byte using a device file
-/dev/g_printer . Both blocking and non-blocking read/write calls are supported.
+/dev/g_printer . Both blocking and yesn-blocking read/write calls are supported.
 
 
 
@@ -53,7 +53,7 @@ idVendor
 
 idProduct
 	This is the Product ID used in the device descriptor. The default
-	is 0xa4a8, you should change this to an ID that's not used by any of
+	is 0xa4a8, you should change this to an ID that's yest used by any of
 	your other USB products if you have any. It would be a good idea to
 	start numbering your products starting with say 0x0001.
 
@@ -125,7 +125,7 @@ To set printer to Selected/On-line::
 
 To set printer to Not Selected/Off-line::
 
-	# prn_example -not_selected
+	# prn_example -yest_selected
 
 
 To set paper status to paper out::
@@ -140,7 +140,7 @@ To set paper status to paper loaded::
 
 To set error status to printer OK::
 
-	# prn_example -no_error
+	# prn_example -yes_error
 
 
 To set error status to ERROR::
@@ -175,7 +175,7 @@ Example Code
   usage(const char *option)		/* I - Option string or NULL */
   {
 	if (option) {
-		fprintf(stderr,"prn_example: Unknown option \"%s\"!\n",
+		fprintf(stderr,"prn_example: Unkyeswn option \"%s\"!\n",
 				option);
 	}
 
@@ -185,10 +185,10 @@ Example Code
 	fputs("\n", stderr);
 	fputs("-get_status    Get the current printer status.\n", stderr);
 	fputs("-selected      Set the selected status to selected.\n", stderr);
-	fputs("-not_selected  Set the selected status to NOT selected.\n",
+	fputs("-yest_selected  Set the selected status to NOT selected.\n",
 			stderr);
 	fputs("-error         Set the error status to error.\n", stderr);
-	fputs("-no_error      Set the error status to NO error.\n", stderr);
+	fputs("-yes_error      Set the error status to NO error.\n", stderr);
 	fputs("-paper_out     Set the paper status to paper out.\n", stderr);
 	fputs("-paper_loaded  Set the paper status to paper loaded.\n",
 			stderr);
@@ -483,7 +483,7 @@ Example Code
 				retval = 1;
 			}
 
-		} else if (!strcmp(argv[i], "-not_selected")) {
+		} else if (!strcmp(argv[i], "-yest_selected")) {
 			if (set_printer_status(PRINTER_SELECTED, 1)) {
 				retval = 1;
 			}
@@ -493,7 +493,7 @@ Example Code
 				retval = 1;
 			}
 
-		} else if (!strcmp(argv[i], "-no_error")) {
+		} else if (!strcmp(argv[i], "-yes_error")) {
 			if (set_printer_status(PRINTER_NOT_ERROR, 0)) {
 				retval = 1;
 			}

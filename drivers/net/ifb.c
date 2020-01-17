@@ -11,7 +11,7 @@
 	2) Allows for queueing incoming traffic for shaping instead of
 	dropping.
 
-	The original concept is based on what is known as the IMQ
+	The original concept is based on what is kyeswn as the IMQ
 	driver initially written by Martin Devera, later rewritten
 	by Patrick McHardy and then maintained by Andre Correa.
 

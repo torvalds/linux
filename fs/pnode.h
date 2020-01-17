@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  linux/fs/pnode.h
+ *  linux/fs/pyesde.h
  *
  * (C) Copyright IBM Corporation 2005.
  */

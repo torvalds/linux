@@ -182,18 +182,18 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	wake_up_interruptible(&intf->frame_dump_waitqueue);
 
 	/*
-	 * Verify that the file has not been closed while we were working.
+	 * Verify that the file has yest been closed while we were working.
 	 */
 	if (!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags))
 		skb_queue_purge(&intf->frame_dump_skbqueue);
 }
 EXPORT_SYMBOL_GPL(rt2x00debug_dump_frame);
 
-static int rt2x00debug_file_open(struct inode *inode, struct file *file)
+static int rt2x00debug_file_open(struct iyesde *iyesde, struct file *file)
 {
-	struct rt2x00debug_intf *intf = inode->i_private;
+	struct rt2x00debug_intf *intf = iyesde->i_private;
 
-	file->private_data = inode->i_private;
+	file->private_data = iyesde->i_private;
 
 	if (!try_module_get(intf->debug->owner))
 		return -EBUSY;
@@ -201,7 +201,7 @@ static int rt2x00debug_file_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int rt2x00debug_file_release(struct inode *inode, struct file *file)
+static int rt2x00debug_file_release(struct iyesde *iyesde, struct file *file)
 {
 	struct rt2x00debug_intf *intf = file->private_data;
 
@@ -210,32 +210,32 @@ static int rt2x00debug_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int rt2x00debug_open_queue_dump(struct inode *inode, struct file *file)
+static int rt2x00debug_open_queue_dump(struct iyesde *iyesde, struct file *file)
 {
-	struct rt2x00debug_intf *intf = inode->i_private;
+	struct rt2x00debug_intf *intf = iyesde->i_private;
 	int retval;
 
-	retval = rt2x00debug_file_open(inode, file);
+	retval = rt2x00debug_file_open(iyesde, file);
 	if (retval)
 		return retval;
 
 	if (test_and_set_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags)) {
-		rt2x00debug_file_release(inode, file);
+		rt2x00debug_file_release(iyesde, file);
 		return -EBUSY;
 	}
 
 	return 0;
 }
 
-static int rt2x00debug_release_queue_dump(struct inode *inode, struct file *file)
+static int rt2x00debug_release_queue_dump(struct iyesde *iyesde, struct file *file)
 {
-	struct rt2x00debug_intf *intf = inode->i_private;
+	struct rt2x00debug_intf *intf = iyesde->i_private;
 
 	skb_queue_purge(&intf->frame_dump_skbqueue);
 
 	clear_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags);
 
-	return rt2x00debug_file_release(inode, file);
+	return rt2x00debug_file_release(iyesde, file);
 }
 
 static ssize_t rt2x00debug_read_queue_dump(struct file *file,

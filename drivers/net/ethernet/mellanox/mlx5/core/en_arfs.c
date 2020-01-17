@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -55,7 +55,7 @@ struct arfs_rule {
 	struct mlx5e_priv	*priv;
 	struct work_struct      arfs_work;
 	struct mlx5_flow_handle *rule;
-	struct hlist_node	hlist;
+	struct hlist_yesde	hlist;
 	int			rxq;
 	/* Flow ID passed to ndo_rx_flow_steer */
 	int			flow_id;
@@ -371,7 +371,7 @@ err:
 static void arfs_may_expire_flow(struct mlx5e_priv *priv)
 {
 	struct arfs_rule *arfs_rule;
-	struct hlist_node *htmp;
+	struct hlist_yesde *htmp;
 	int quota = 0;
 	int i;
 	int j;
@@ -400,7 +400,7 @@ static void arfs_may_expire_flow(struct mlx5e_priv *priv)
 
 static void arfs_del_rules(struct mlx5e_priv *priv)
 {
-	struct hlist_node *htmp;
+	struct hlist_yesde *htmp;
 	struct arfs_rule *rule;
 	int i;
 	int j;

@@ -36,7 +36,7 @@ struct vfio_pci_nvgpu_data {
 	struct mm_struct *mm;
 	struct mm_iommu_table_group_mem_t *mem; /* Pre-registered RAM descr. */
 	struct pci_dev *gpdev;
-	struct notifier_block group_notifier;
+	struct yestifier_block group_yestifier;
 };
 
 static size_t vfio_pci_nvgpu_rw(struct vfio_pci_device *vdev,
@@ -58,14 +58,14 @@ static size_t vfio_pci_nvgpu_rw(struct vfio_pci_device *vdev,
 	 * We map only a bit of GPU RAM for a short time instead of mapping it
 	 * for the guest lifetime as:
 	 *
-	 * 1) we do not know GPU RAM size, only aperture which is 4-8 times
+	 * 1) we do yest kyesw GPU RAM size, only aperture which is 4-8 times
 	 *    bigger than actual RAM size (16/32GB RAM vs. 128GB aperture);
 	 * 2) mapping GPU RAM allows CPU to prefetch and if this happens
 	 *    before NVLink bridge is reset (which fences GPU RAM),
 	 *    hardware management interrupts (HMI) might happen, this
 	 *    will freeze NVLink bridge.
 	 *
-	 * This is not fast path anyway.
+	 * This is yest fast path anyway.
 	 */
 	sizealigned = _ALIGN_UP(posoff + count, PAGE_SIZE);
 	ptr = ioremap_cache(data->gpu_hpa + posaligned, sizealigned);
@@ -103,8 +103,8 @@ static void vfio_pci_nvgpu_release(struct vfio_pci_device *vdev,
 		mmdrop(data->mm);
 	}
 
-	vfio_unregister_notifier(&data->gpdev->dev, VFIO_GROUP_NOTIFY,
-			&data->group_notifier);
+	vfio_unregister_yestifier(&data->gpdev->dev, VFIO_GROUP_NOTIFY,
+			&data->group_yestifier);
 
 	pnv_npu2_unmap_lpar_dev(data->gpdev);
 
@@ -151,10 +151,10 @@ static int vfio_pci_nvgpu_mmap(struct vfio_pci_device *vdev,
 	vma->vm_ops = &vfio_pci_nvgpu_mmap_vmops;
 
 	/*
-	 * Calling mm_iommu_newdev() here once as the region is not
-	 * registered yet and therefore right initialization will happen now.
+	 * Calling mm_iommu_newdev() here once as the region is yest
+	 * registered yet and therefore right initialization will happen yesw.
 	 * Other places will use mm_iommu_find() which returns
-	 * registered @mem and does not go gup().
+	 * registered @mem and does yest go gup().
 	 */
 	data->useraddr = vma->vm_start;
 	data->mm = current->mm;
@@ -189,13 +189,13 @@ static const struct vfio_pci_regops vfio_pci_nvgpu_regops = {
 	.add_capability = vfio_pci_nvgpu_add_capability,
 };
 
-static int vfio_pci_nvgpu_group_notifier(struct notifier_block *nb,
+static int vfio_pci_nvgpu_group_yestifier(struct yestifier_block *nb,
 		unsigned long action, void *opaque)
 {
 	struct kvm *kvm = opaque;
 	struct vfio_pci_nvgpu_data *data = container_of(nb,
 			struct vfio_pci_nvgpu_data,
-			group_notifier);
+			group_yestifier);
 
 	if (action == VFIO_GROUP_NOTIFY_SET_KVM && kvm &&
 			pnv_npu2_map_lpar_dev(data->gpdev,
@@ -210,37 +210,37 @@ int vfio_pci_nvdia_v100_nvlink2_init(struct vfio_pci_device *vdev)
 	int ret;
 	u64 reg[2];
 	u64 tgt = 0;
-	struct device_node *npu_node, *mem_node;
+	struct device_yesde *npu_yesde, *mem_yesde;
 	struct pci_dev *npu_dev;
 	struct vfio_pci_nvgpu_data *data;
 	uint32_t mem_phandle = 0;
 	unsigned long events = VFIO_GROUP_NOTIFY_SET_KVM;
 
 	/*
-	 * PCI config space does not tell us about NVLink presense but
+	 * PCI config space does yest tell us about NVLink presense but
 	 * platform does, use this.
 	 */
 	npu_dev = pnv_pci_get_npu_dev(vdev->pdev, 0);
 	if (!npu_dev)
 		return -ENODEV;
 
-	npu_node = pci_device_to_OF_node(npu_dev);
-	if (!npu_node)
+	npu_yesde = pci_device_to_OF_yesde(npu_dev);
+	if (!npu_yesde)
 		return -EINVAL;
 
-	if (of_property_read_u32(npu_node, "memory-region", &mem_phandle))
+	if (of_property_read_u32(npu_yesde, "memory-region", &mem_phandle))
 		return -EINVAL;
 
-	mem_node = of_find_node_by_phandle(mem_phandle);
-	if (!mem_node)
+	mem_yesde = of_find_yesde_by_phandle(mem_phandle);
+	if (!mem_yesde)
 		return -EINVAL;
 
-	if (of_property_read_variable_u64_array(mem_node, "reg", reg,
+	if (of_property_read_variable_u64_array(mem_yesde, "reg", reg,
 				ARRAY_SIZE(reg), ARRAY_SIZE(reg)) !=
 			ARRAY_SIZE(reg))
 		return -EINVAL;
 
-	if (of_property_read_u64(npu_node, "ibm,device-tgt-addr", &tgt)) {
+	if (of_property_read_u64(npu_yesde, "ibm,device-tgt-addr", &tgt)) {
 		dev_warn(&vdev->pdev->dev, "No ibm,device-tgt-addr found\n");
 		return -EFAULT;
 	}
@@ -257,21 +257,21 @@ int vfio_pci_nvdia_v100_nvlink2_init(struct vfio_pci_device *vdev)
 			data->gpu_hpa + data->size - 1);
 
 	data->gpdev = vdev->pdev;
-	data->group_notifier.notifier_call = vfio_pci_nvgpu_group_notifier;
+	data->group_yestifier.yestifier_call = vfio_pci_nvgpu_group_yestifier;
 
-	ret = vfio_register_notifier(&data->gpdev->dev, VFIO_GROUP_NOTIFY,
-			&events, &data->group_notifier);
+	ret = vfio_register_yestifier(&data->gpdev->dev, VFIO_GROUP_NOTIFY,
+			&events, &data->group_yestifier);
 	if (ret)
 		goto free_exit;
 
 	/*
-	 * We have just set KVM, we do not need the listener anymore.
+	 * We have just set KVM, we do yest need the listener anymore.
 	 * Also, keeping it registered means that if more than one GPU is
-	 * assigned, we will get several similar notifiers notifying about
-	 * the same device again which does not help with anything.
+	 * assigned, we will get several similar yestifiers yestifying about
+	 * the same device again which does yest help with anything.
 	 */
-	vfio_unregister_notifier(&data->gpdev->dev, VFIO_GROUP_NOTIFY,
-			&data->group_notifier);
+	vfio_unregister_yestifier(&data->gpdev->dev, VFIO_GROUP_NOTIFY,
+			&data->group_yestifier);
 
 	ret = vfio_pci_register_dev_region(vdev,
 			PCI_VENDOR_ID_NVIDIA | VFIO_REGION_TYPE_PCI_VENDOR_TYPE,
@@ -337,7 +337,7 @@ static int vfio_pci_npu2_mmap(struct vfio_pci_device *vdev,
 		return -EINVAL;
 
 	vma->vm_flags |= VM_PFNMAP;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	ret = remap_pfn_range(vma, vma->vm_start, data->mmio_atsd >> PAGE_SHIFT,
 			req_len, vma->vm_page_prot);
@@ -390,30 +390,30 @@ int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev)
 {
 	int ret;
 	struct vfio_pci_npu2_data *data;
-	struct device_node *nvlink_dn;
+	struct device_yesde *nvlink_dn;
 	u32 nvlink_index = 0;
 	struct pci_dev *npdev = vdev->pdev;
-	struct device_node *npu_node = pci_device_to_OF_node(npdev);
+	struct device_yesde *npu_yesde = pci_device_to_OF_yesde(npdev);
 	struct pci_controller *hose = pci_bus_to_host(npdev->bus);
 	u64 mmio_atsd = 0;
 	u64 tgt = 0;
 	u32 link_speed = 0xff;
 
 	/*
-	 * PCI config space does not tell us about NVLink presense but
+	 * PCI config space does yest tell us about NVLink presense but
 	 * platform does, use this.
 	 */
 	if (!pnv_pci_get_gpu_dev(vdev->pdev))
 		return -ENODEV;
 
 	/*
-	 * NPU2 normally has 8 ATSD registers (for concurrency) and 6 links
+	 * NPU2 yesrmally has 8 ATSD registers (for concurrency) and 6 links
 	 * so we can allocate one register per link, using nvlink index as
 	 * a key.
 	 * There is always at least one ATSD register so as long as at least
 	 * NVLink bridge #0 is passed to the guest, ATSD will be available.
 	 */
-	nvlink_dn = of_parse_phandle(npdev->dev.of_node, "ibm,nvlink", 0);
+	nvlink_dn = of_parse_phandle(npdev->dev.of_yesde, "ibm,nvlink", 0);
 	if (WARN_ON(of_property_read_u32(nvlink_dn, "ibm,npu-link-index",
 			&nvlink_index)))
 		return -ENODEV;
@@ -424,12 +424,12 @@ int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev)
 		mmio_atsd = 0;
 	}
 
-	if (of_property_read_u64(npu_node, "ibm,device-tgt-addr", &tgt)) {
+	if (of_property_read_u64(npu_yesde, "ibm,device-tgt-addr", &tgt)) {
 		dev_warn(&vdev->pdev->dev, "No ibm,device-tgt-addr found\n");
 		return -EFAULT;
 	}
 
-	if (of_property_read_u32(npu_node, "ibm,nvlink-speed", &link_speed)) {
+	if (of_property_read_u32(npu_yesde, "ibm,nvlink-speed", &link_speed)) {
 		dev_warn(&vdev->pdev->dev, "No ibm,nvlink-speed found\n");
 		return -EFAULT;
 	}
@@ -451,8 +451,8 @@ int vfio_pci_ibm_npu2_init(struct vfio_pci_device *vdev)
 
 	/*
 	 * We want to expose the capability even if this specific NVLink
-	 * did not get its own ATSD register because capabilities
-	 * belong to VFIO regions and normally there will be ATSD register
+	 * did yest get its own ATSD register because capabilities
+	 * belong to VFIO regions and yesrmally there will be ATSD register
 	 * assigned to the NVLink bridge.
 	 */
 	ret = vfio_pci_register_dev_region(vdev,

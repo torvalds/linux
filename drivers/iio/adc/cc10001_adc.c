@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014-2015 Imagination Technologies Ltd.
+ * Copyright (c) 2014-2015 Imagination Techyeslogies Ltd.
  */
 
 #include <linux/clk.h>
@@ -46,7 +46,7 @@
 
 /*
  * As per device specification, wait six clock cycles after power-up to
- * activate START. Since adding two more clock cycles delay does not
+ * activate START. Since adding two more clock cycles delay does yest
  * impact the performance too much, we are adding two additional cycles delay
  * intentionally here.
  */
@@ -183,7 +183,7 @@ done:
 	if (!sample_invalid)
 		iio_push_to_buffers_with_timestamp(indio_dev, data,
 						   iio_get_time_ns(indio_dev));
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -307,7 +307,7 @@ static int cc10001_adc_channel_init(struct iio_dev *indio_dev,
 
 static int cc10001_adc_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct cc10001_adc_device *adc_dev;
 	unsigned long adc_clk_rate;
 	struct iio_dev *indio_dev;
@@ -321,7 +321,7 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 	adc_dev = iio_priv(indio_dev);
 
 	channel_map = GENMASK(CC10001_ADC_NUM_CHANNELS - 1, 0);
-	if (!of_property_read_u32(node, "adc-reserved-channels", &ret)) {
+	if (!of_property_read_u32(yesde, "adc-reserved-channels", &ret)) {
 		adc_dev->shared = true;
 		channel_map &= ~ret;
 	}

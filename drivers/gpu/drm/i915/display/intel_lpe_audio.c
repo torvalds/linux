@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -34,7 +34,7 @@
  * Atom platforms (e.g. valleyview and cherryTrail) integrates a DMA-based
  * interface as an alternative to the traditional HDaudio path. While this
  * mode is unrelated to the LPE aka SST audio engine, the documentation refers
- * to this mode as LPE so we keep this notation for the sake of consistency.
+ * to this mode as LPE so we keep this yestation for the sake of consistency.
  *
  * The interface is handled by a separate standalone driver maintained in the
  * ALSA subsystem for simplicity. To minimize the interaction between the two
@@ -56,7 +56,7 @@
  * The MMIO/REG platform resources are created according to the registers
  * specification.
  * When forwarding LPE audio irqs, the flow control handler selection depends
- * on the platform, for example on valleyview handle_simple_irq is enough.
+ * on the platform, for example on valleyview handle_simple_irq is eyesugh.
  *
  */
 
@@ -130,7 +130,7 @@ lpe_audio_platdev_create(struct drm_i915_private *dev_priv)
 		return platdev;
 	}
 
-	pm_runtime_no_callbacks(&platdev->dev);
+	pm_runtime_yes_callbacks(&platdev->dev);
 
 	return platdev;
 }
@@ -138,8 +138,8 @@ lpe_audio_platdev_create(struct drm_i915_private *dev_priv)
 static void lpe_audio_platdev_destroy(struct drm_i915_private *dev_priv)
 {
 	/* XXX Note that platform_device_register_full() allocates a dma_mask
-	 * and never frees it. We can't free it here as we cannot guarantee
-	 * this is the last reference (i.e. that the dma_mask will not be
+	 * and never frees it. We can't free it here as we canyest guarantee
+	 * this is the last reference (i.e. that the dma_mask will yest be
 	 * used after our unregister). So ee choose to leak the sizeof(u64)
 	 * allocation here - it should be fixed in the platform_device rather
 	 * than us fiddle with its internals.
@@ -189,7 +189,7 @@ static bool lpe_audio_detect(struct drm_i915_private *dev_priv)
 		};
 
 		if (!pci_dev_present(atom_hdaudio_ids)) {
-			DRM_INFO("HDaudio controller not detected, using LPE audio instead\n");
+			DRM_INFO("HDaudio controller yest detected, using LPE audio instead\n");
 			lpe_present = true;
 		}
 	}
@@ -266,7 +266,7 @@ void intel_lpe_audio_irq_handler(struct drm_i915_private *dev_priv)
  * driver and i915
  * @dev_priv: the i915 drm device private data
  *
- * Return: 0 if successful. non-zero if detection or
+ * Return: 0 if successful. yesn-zero if detection or
  * llocation/initialization fails
  */
 int intel_lpe_audio_init(struct drm_i915_private *dev_priv)
@@ -306,7 +306,7 @@ void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_lpe_audio_notify() - notify lpe audio event
+ * intel_lpe_audio_yestify() - yestify lpe audio event
  * audio driver and i915
  * @dev_priv: the i915 drm device private data
  * @pipe: pipe
@@ -317,7 +317,7 @@ void intel_lpe_audio_teardown(struct drm_i915_private *dev_priv)
  *
  * Notify lpe audio driver of eld change.
  */
-void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
+void intel_lpe_audio_yestify(struct drm_i915_private *dev_priv,
 			    enum pipe pipe, enum port port,
 			    const void *eld, int ls_clock, bool dp_output)
 {
@@ -356,8 +356,8 @@ void intel_lpe_audio_notify(struct drm_i915_private *dev_priv,
 			   audio_enable | VLV_AMP_MUTE);
 	}
 
-	if (pdata->notify_audio_lpe)
-		pdata->notify_audio_lpe(dev_priv->lpe_audio.platdev, port - PORT_B);
+	if (pdata->yestify_audio_lpe)
+		pdata->yestify_audio_lpe(dev_priv->lpe_audio.platdev, port - PORT_B);
 
 	spin_unlock_irqrestore(&pdata->lpe_audio_slock, irqflags);
 }

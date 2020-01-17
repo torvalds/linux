@@ -4,7 +4,7 @@ README file for the dc395x SCSI driver
 Status
 ------
 The driver has been tested with CD-R and CD-R/W drives. These should
-be safe to use. Testing with hard disks has not been done to any
+be safe to use. Testing with hard disks has yest been done to any
 great degree and caution should be exercised if you want to attempt
 to use this driver with hard disks.
 
@@ -19,7 +19,7 @@ http://lists.twibble.org/mailman/listinfo/dc395x/
 Parameters
 ----------
 The driver uses the settings from the EEPROM set in the SCSI BIOS 
-setup. If there is no EEPROM, the driver uses default values.
+setup. If there is yes EEPROM, the driver uses default values.
 Both can be overridden by command line parameters (module or kernel
 parameters).
 
@@ -55,7 +55,7 @@ The following parameters are available:
    DevMode bit definition:
       Bit Val(hex) Val(dec)  Meaning
       *0    0x01       1     Parity check
-      *1    0x02       2     Synchronous Negotiation
+      *1    0x02       2     Synchroyesus Negotiation
       *2    0x04       4     Disconnection
       *3    0x08       8     Send Start command on startup. (Not used)
       *4    0x10      16     Tagged Command Queueing
@@ -69,7 +69,7 @@ The following parameters are available:
       *0    0x01       1     Support more than two drives. (Not used)
       *1    0x02       2     Use DOS compatible mapping for HDs greater than 1GB.
       *2    0x04       4     Reset SCSI Bus on startup.
-      *3    0x08       8     Active Negation: Improves SCSI Bus noise immunity.
+      *3    0x08       8     Active Negation: Improves SCSI Bus yesise immunity.
        4    0x10      16     Immediate return on BIOS seek command. (Not used)
     (*)5    0x20      32     Check for LUNs >= 1.
 
@@ -81,7 +81,7 @@ The following parameters are available:
  - reset_delay
    Default: 1, Acceptable values: 0-180
 
-   The seconds to not accept commands after a SCSI Reset
+   The seconds to yest accept commands after a SCSI Reset
 
 
 For the built  in driver the parameters should be prefixed with

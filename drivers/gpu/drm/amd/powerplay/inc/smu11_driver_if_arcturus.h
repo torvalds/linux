@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -295,7 +295,7 @@ typedef enum {
 #define CMDCONFIG_RESTART_MASK  (1 << CMDCONFIG_RESTART_BIT)
 
 typedef struct {
-  uint8_t RegisterAddr; ////only valid for write, ignored for read
+  uint8_t RegisterAddr; ////only valid for write, igyesred for read
   uint8_t Cmd;  //Read(0) or Write(1)
   uint8_t Data;  //Return data for read. Data to send for write
   uint8_t CmdConfig; //Includes whether associated command should have a stop or restart command
@@ -714,7 +714,7 @@ typedef struct {
 
   uint32_t     BoardReserved[7];
 
-  // Padding for MMHUB - do not modify this
+  // Padding for MMHUB - do yest modify this
   uint32_t     MmHubPadding[8]; // SMU internal use
 
 } PPTable_t;
@@ -729,7 +729,7 @@ typedef struct {
 
   uint16_t     SocketPowerLpfTau;
 
-  // Padding - ignore
+  // Padding - igyesre
   uint32_t     MmHubPadding[8]; // SMU internal use
 } DriverSmuConfig_t;
 
@@ -758,7 +758,7 @@ typedef struct {
 
   uint32_t Padding[4];
 
-  // Padding - ignore
+  // Padding - igyesre
   uint32_t     MmHubPadding[8]; // SMU internal use
 } SmuMetrics_t;
 

@@ -48,7 +48,7 @@ typedef unsigned int   u32;
 #define SETUP_SECT_MIN 5
 #define SETUP_SECT_MAX 64
 
-/* This must be large enough to hold the entire setup */
+/* This must be large eyesugh to hold the entire setup */
 u8 buf[SETUP_SECT_MAX*512];
 
 #define PECOFF_RELOC_RESERVE 0x20
@@ -269,7 +269,7 @@ static void efi_stub_entry_update(void)
 
 #ifdef CONFIG_EFI_MIXED
 	if (efi32_stub_entry != addr)
-		die("32-bit and 64-bit EFI entry points do not match\n");
+		die("32-bit and 64-bit EFI entry points do yest match\n");
 #endif
 	put_unaligned_le32(addr, &buf[0x264]);
 }
@@ -294,7 +294,7 @@ static inline int reserve_pecoff_reloc_section(int c)
 /*
  * Parse zoffset.h and find the entry points. We could just #include zoffset.h
  * but that would mean tools/build would have to be rebuilt every time. It's
- * not as if parsing it is hard...
+ * yest as if parsing it is hard...
  */
 #define PARSE_ZOFS(p, sym) do { \
 	if (!strncmp(p, "#define ZO_" #sym " ", 11+sizeof(#sym)))	\

@@ -2,7 +2,7 @@
 /*
  * MFD core driver for Ricoh RN5T618 PMIC
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamiyes Galvani <b.galvani@gmail.com>
  */
 
 #ifndef __LINUX_MFD_RN5T618_H

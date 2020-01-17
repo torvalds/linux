@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -102,7 +102,7 @@ int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 	mgmt_desc = (struct rsi_mgmt_desc *)skb->data;
 	xtend_desc = (struct rsi_xtended_desc *)&skb->data[FRAME_DESC_SZ];
 
-	rsi_set_len_qno(&mgmt_desc->len_qno, (skb->len - FRAME_DESC_SZ),
+	rsi_set_len_qyes(&mgmt_desc->len_qyes, (skb->len - FRAME_DESC_SZ),
 			RSI_WIFI_MGMT_Q);
 	mgmt_desc->frame_type = TX_DOT11_MGMT;
 	mgmt_desc->header_len = MIN_802_11_HDR_LEN;
@@ -176,7 +176,7 @@ int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	skb_push(skb, header_size);
 	dword_align_bytes = ((unsigned long)skb->data & 0x3f);
 	if (header_size > skb_headroom(skb)) {
-		rsi_dbg(ERR_ZONE, "%s: Not enough headroom\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: Not eyesugh headroom\n", __func__);
 		return -ENOSPC;
 	}
 	skb_push(skb, dword_align_bytes);
@@ -210,7 +210,7 @@ int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 			ieee80211_size += 8;
 		data_desc->mac_flags |= cpu_to_le16(RSI_ENCRYPT_PKT);
 	}
-	rsi_set_len_qno(&data_desc->len_qno, (skb->len - FRAME_DESC_SZ),
+	rsi_set_len_qyes(&data_desc->len_qyes, (skb->len - FRAME_DESC_SZ),
 			RSI_WIFI_DATA_Q);
 	data_desc->header_len = ieee80211_size;
 
@@ -245,7 +245,7 @@ int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 		if (common->eapol4_confirm)
 			skb->priority = VO_Q;
 		else
-			rsi_set_len_qno(&data_desc->len_qno,
+			rsi_set_len_qyes(&data_desc->len_qyes,
 					(skb->len - FRAME_DESC_SZ),
 					RSI_WIFI_MGMT_Q);
 		if ((skb->len - header_size) == EAPOL4_PACKET_LEN) {
@@ -386,9 +386,9 @@ int rsi_send_bt_pkt(struct rsi_common *common, struct sk_buff *skb)
 	int status = -EINVAL;
 	u8 header_size = 0;
 	struct rsi_bt_desc *bt_desc;
-	u8 queueno = ((skb->data[1] >> 4) & 0xf);
+	u8 queueyes = ((skb->data[1] >> 4) & 0xf);
 
-	if (queueno == RSI_BT_MGMT_Q) {
+	if (queueyes == RSI_BT_MGMT_Q) {
 		status = rsi_send_pkt_to_bus(common, skb);
 		if (status)
 			rsi_dbg(ERR_ZONE, "%s: Failed to write bt mgmt pkt\n",
@@ -397,7 +397,7 @@ int rsi_send_bt_pkt(struct rsi_common *common, struct sk_buff *skb)
 	}
 	header_size = FRAME_DESC_SZ;
 	if (header_size > skb_headroom(skb)) {
-		rsi_dbg(ERR_ZONE, "%s: Not enough headroom\n", __func__);
+		rsi_dbg(ERR_ZONE, "%s: Not eyesugh headroom\n", __func__);
 		status = -ENOSPC;
 		goto out;
 	}
@@ -405,7 +405,7 @@ int rsi_send_bt_pkt(struct rsi_common *common, struct sk_buff *skb)
 	memset(skb->data, 0, header_size);
 	bt_desc = (struct rsi_bt_desc *)skb->data;
 
-	rsi_set_len_qno(&bt_desc->len_qno, (skb->len - FRAME_DESC_SZ),
+	rsi_set_len_qyes(&bt_desc->len_qyes, (skb->len - FRAME_DESC_SZ),
 			RSI_BT_DATA_Q);
 	bt_desc->bt_pkt_type = cpu_to_le16(bt_cb(skb)->pkt_type);
 
@@ -449,7 +449,7 @@ int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb)
 
 	common->beacon_cnt++;
 	bcn_frm = (struct rsi_data_desc *)skb->data;
-	rsi_set_len_qno(&bcn_frm->len_qno, mac_bcn->len, RSI_WIFI_DATA_Q);
+	rsi_set_len_qyes(&bcn_frm->len_qyes, mac_bcn->len, RSI_WIFI_DATA_Q);
 	bcn_frm->header_len = MIN_802_11_HDR_LEN;
 	bcn_frm->frame_info = cpu_to_le16(RSI_DATA_DESC_MAC_BBP_INFO |
 					  RSI_DATA_DESC_NO_ACK_IND |
@@ -647,7 +647,7 @@ static int bl_write_header(struct rsi_hw *adapter, u8 *flash_content,
 		return -ENOMEM;
 
 	bl_hdr->flags = 0;
-	bl_hdr->image_no = cpu_to_le32(adapter->priv->coex_mode);
+	bl_hdr->image_yes = cpu_to_le32(adapter->priv->coex_mode);
 	bl_hdr->check_sum =
 		cpu_to_le32(*(u32 *)&flash_content[CHECK_SUM_OFFSET]);
 	bl_hdr->flash_start_address =
@@ -771,7 +771,7 @@ static int auto_fw_upgrade(struct rsi_hw *adapter, u8 *flash_content,
 
 	if (flash_start_address % FLASH_SECTOR_SIZE) {
 		rsi_dbg(ERR_ZONE,
-			"%s: Flash Start Address is not multiple of 4K\n",
+			"%s: Flash Start Address is yest multiple of 4K\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -860,7 +860,7 @@ static int rsi_hal_prepare_fwload(struct rsi_hw *adapter)
 	if (adapter->blcmd_timer_expired) {
 		rsi_dbg(ERR_ZONE, "%s: REGOUT read timedout\n", __func__);
 		rsi_dbg(ERR_ZONE,
-			"%s: Soft boot loader not present\n", __func__);
+			"%s: Soft boot loader yest present\n", __func__);
 		return -ETIMEDOUT;
 	}
 	bl_stop_cmd_timer(adapter);
@@ -926,7 +926,7 @@ static int rsi_load_9113_firmware(struct rsi_hw *adapter)
 		fw_entry->data[LMAC_VER_OFFSET_9113 + 2] & 0xFF;
 	common->lmac_ver.release_num =
 		fw_entry->data[LMAC_VER_OFFSET_9113 + 3] & 0xFF;
-	common->lmac_ver.minor =
+	common->lmac_ver.miyesr =
 		fw_entry->data[LMAC_VER_OFFSET_9113 + 4] & 0xFF;
 	common->lmac_ver.patch_num = 0;
 	rsi_print_version(common);
@@ -1044,7 +1044,7 @@ static int rsi_load_9116_firmware(struct rsi_hw *adapter)
 	rsi_dbg(INFO_ZONE, "FW Length = %d bytes\n", instructions_sz);
 
 	common->lmac_ver.major = ta_firmware[LMAC_VER_OFFSET_9116];
-	common->lmac_ver.minor = ta_firmware[LMAC_VER_OFFSET_9116 + 1];
+	common->lmac_ver.miyesr = ta_firmware[LMAC_VER_OFFSET_9116 + 1];
 	common->lmac_ver.release_num = ta_firmware[LMAC_VER_OFFSET_9116 + 2];
 	common->lmac_ver.patch_num = ta_firmware[LMAC_VER_OFFSET_9116 + 3];
 	common->lmac_ver.ver.info.fw_ver[0] =

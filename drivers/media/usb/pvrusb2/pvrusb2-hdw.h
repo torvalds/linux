@@ -58,9 +58,9 @@ enum pvr2_v4l_type {
 
 /* Major states that we can be in:
  *
- *  DEAD - Device is in an unusable state and cannot be recovered.  This
+ *  DEAD - Device is in an unusable state and canyest be recovered.  This
  *  can happen if we completely lose the ability to communicate with it
- *  (but it might still on the bus).  In this state there's nothing we can
+ *  (but it might still on the bus).  In this state there's yesthing we can
  *  do; it must be replugged in order to recover.
  *
  *  COLD - Device is in an unusable state, needs microcontroller firmware.
@@ -72,7 +72,7 @@ enum pvr2_v4l_type {
  *  ERROR - A problem prevents capture operation (e.g. encoder firmware
  *  missing).
  *
- *  READY - Device is operational, but not streaming.
+ *  READY - Device is operational, but yest streaming.
  *
  *  RUN - Device is streaming.
  *
@@ -95,7 +95,7 @@ struct pvr2_hdw;
 struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 				 const struct usb_device_id *devid);
 
-/* Perform second stage initialization, passing in a notification callback
+/* Perform second stage initialization, passing in a yestification callback
    for when the master state changes. */
 int pvr2_hdw_initialize(struct pvr2_hdw *,
 			void (*callback_func)(void *),
@@ -104,7 +104,7 @@ int pvr2_hdw_initialize(struct pvr2_hdw *,
 /* Destroy hardware interaction structure */
 void pvr2_hdw_destroy(struct pvr2_hdw *);
 
-/* Return true if in the ready (normal) state */
+/* Return true if in the ready (yesrmal) state */
 int pvr2_hdw_dev_ok(struct pvr2_hdw *);
 
 /* Return small integer number [1..N] for logical instance number of this
@@ -214,18 +214,18 @@ int pvr2_hdw_cpufw_get_enabled(struct pvr2_hdw *);
 
 /* Retrieve a piece of the CPU's firmware at the given offset.  Return
    value is the number of bytes retrieved or zero if we're past the end or
-   an error otherwise (e.g. if firmware retrieval is not enabled). */
+   an error otherwise (e.g. if firmware retrieval is yest enabled). */
 int pvr2_hdw_cpufw_get(struct pvr2_hdw *,unsigned int offs,
 		       char *buf,unsigned int cnt);
 
-/* Retrieve a previously stored v4l minor device number */
-int pvr2_hdw_v4l_get_minor_number(struct pvr2_hdw *,enum pvr2_v4l_type index);
+/* Retrieve a previously stored v4l miyesr device number */
+int pvr2_hdw_v4l_get_miyesr_number(struct pvr2_hdw *,enum pvr2_v4l_type index);
 
-/* Store a v4l minor device number */
-void pvr2_hdw_v4l_store_minor_number(struct pvr2_hdw *,
+/* Store a v4l miyesr device number */
+void pvr2_hdw_v4l_store_miyesr_number(struct pvr2_hdw *,
 				     enum pvr2_v4l_type index,int);
 
-/* The following entry points are all lower level things you normally don't
+/* The following entry points are all lower level things you yesrmally don't
    want to worry about. */
 
 /* Issue a command and get a response from the device.  LOTS of higher
@@ -300,14 +300,14 @@ struct pvr2_hdw_debug_info {
 };
 
 /* Non-intrusively retrieve internal state info - this is useful for
-   diagnosing lockups.  Note that this operation is completed without any
-   kind of locking and so it is not atomic and may yield inconsistent
+   diagyessing lockups.  Note that this operation is completed without any
+   kind of locking and so it is yest atomic and may yield inconsistent
    results.  This is *purely* a debugging aid. */
 void pvr2_hdw_get_debug_info_unlocked(const struct pvr2_hdw *hdw,
 				      struct pvr2_hdw_debug_info *);
 
 /* Intrusively retrieve internal state info - this is useful for
-   diagnosing overall driver state.  This operation synchronizes against
+   diagyessing overall driver state.  This operation synchronizes against
    the overall driver mutex - so if there are locking problems this will
    likely hang!  This is *purely* a debugging aid. */
 void pvr2_hdw_get_debug_info_locked(struct pvr2_hdw *hdw,
@@ -321,8 +321,8 @@ unsigned int pvr2_hdw_state_report(struct pvr2_hdw *hdw,
 /* Cause modules to log their state once */
 void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw);
 
-/* Cause encoder firmware to be uploaded into the device.  This is normally
-   done autonomously, but the interface is exported here because it is also
+/* Cause encoder firmware to be uploaded into the device.  This is yesrmally
+   done autoyesmously, but the interface is exported here because it is also
    a debugging aid. */
 int pvr2_upload_firmware2(struct pvr2_hdw *hdw);
 

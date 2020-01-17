@@ -13,8 +13,8 @@
 
 /*
  * Many of the tests here end up using const sizes, but those would
- * normally be ignored by hardened usercopy, so force the compiler
- * into choosing the non-const path to make sure we trigger the
+ * yesrmally be igyesred by hardened usercopy, so force the compiler
+ * into choosing the yesn-const path to make sure we trigger the
  * hardened usercopy checks by added "unconst" to all the const copies,
  * and making sure "cache_size" isn't optimized into a const.
  */
@@ -25,15 +25,15 @@ static struct kmem_cache *whitelist_cache;
 static const unsigned char test_text[] = "This is a test.\n";
 
 /*
- * Instead of adding -Wno-return-local-addr, just pass the stack address
+ * Instead of adding -Wyes-return-local-addr, just pass the stack address
  * through a function to obfuscate it from the compiler.
  */
-static noinline unsigned char *trick_compiler(unsigned char *stack)
+static yesinline unsigned char *trick_compiler(unsigned char *stack)
 {
 	return stack + 0;
 }
 
-static noinline unsigned char *do_usercopy_stack_callee(int value)
+static yesinline unsigned char *do_usercopy_stack_callee(int value)
 {
 	unsigned char buf[32];
 	int i;
@@ -46,7 +46,7 @@ static noinline unsigned char *do_usercopy_stack_callee(int value)
 	return trick_compiler(buf);
 }
 
-static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
+static yesinline void do_usercopy_stack(bool to_user, bool bad_frame)
 {
 	unsigned long user_addr;
 	unsigned char good_stack[32];
@@ -90,8 +90,8 @@ static noinline void do_usercopy_stack(bool to_user, bool bad_frame)
 		}
 	} else {
 		/*
-		 * There isn't a safe way to not be protected by usercopy
-		 * if we're going to write to another thread's stack.
+		 * There isn't a safe way to yest be protected by usercopy
+		 * if we're going to write to ayesther thread's stack.
 		 */
 		if (!bad_frame)
 			goto free_user;
@@ -329,11 +329,11 @@ void lkdtm_USERCOPY_KERNEL_DS(void)
 	mm_segment_t old_fs = get_fs();
 	char buf[10] = {0};
 
-	pr_info("attempting copy_to_user() to noncanonical address: %px\n",
+	pr_info("attempting copy_to_user() to yesncayesnical address: %px\n",
 		user_ptr);
 	set_fs(KERNEL_DS);
 	if (copy_to_user(user_ptr, buf, sizeof(buf)) == 0)
-		pr_err("copy_to_user() to noncanonical address succeeded!?\n");
+		pr_err("copy_to_user() to yesncayesnical address succeeded!?\n");
 	set_fs(old_fs);
 }
 

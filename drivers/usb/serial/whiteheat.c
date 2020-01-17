@@ -13,7 +13,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -47,7 +47,7 @@
 /*
    ID tables for whiteheat are unusual, because we want to different
    things for different versions of the device.  Eventually, this
-   will be doable from a single table.  But, for now, we define two
+   will be doable from a single table.  But, for yesw, we define two
    separate ID tables, and then a third table that combines them
    just for the purpose of exporting the autoloading information.
 */
@@ -95,7 +95,7 @@ static void whiteheat_break_ctl(struct tty_struct *tty, int break_state);
 static struct usb_serial_driver whiteheat_fake_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
-		.name =		"whiteheatnofirm",
+		.name =		"whiteheatyesfirm",
 	},
 	.description =		"Connect Tech - WhiteHEAT - (prerenumeration)",
 	.id_table =		id_table_prerenumeration,
@@ -144,7 +144,7 @@ struct whiteheat_command_private {
 };
 
 struct whiteheat_private {
-	__u8			mcr;		/* FIXME: no locking on mcr */
+	__u8			mcr;		/* FIXME: yes locking on mcr */
 };
 
 
@@ -159,9 +159,9 @@ static int firm_send_command(struct usb_serial_port *port, __u8 command,
 static int firm_open(struct usb_serial_port *port);
 static int firm_close(struct usb_serial_port *port);
 static void firm_setup_port(struct tty_struct *tty);
-static int firm_set_rts(struct usb_serial_port *port, __u8 onoff);
-static int firm_set_dtr(struct usb_serial_port *port, __u8 onoff);
-static int firm_set_break(struct usb_serial_port *port, __u8 onoff);
+static int firm_set_rts(struct usb_serial_port *port, __u8 oyesff);
+static int firm_set_dtr(struct usb_serial_port *port, __u8 oyesff);
+static int firm_set_break(struct usb_serial_port *port, __u8 oyesff);
 static int firm_purge(struct usb_serial_port *port, __u8 rxtx);
 static int firm_get_dtr_rts(struct usb_serial_port *port);
 static int firm_report_tx_done(struct usb_serial_port *port);
@@ -233,13 +233,13 @@ static int whiteheat_attach(struct usb_serial *serial)
 			command_port->bulk_out_endpointAddress);
 	command = kmalloc(2, GFP_KERNEL);
 	if (!command)
-		goto no_command_buffer;
+		goto yes_command_buffer;
 	command[0] = WHITEHEAT_GET_HW_INFO;
 	command[1] = 0;
 
 	result = kmalloc(sizeof(*hw_info) + 1, GFP_KERNEL);
 	if (!result)
-		goto no_result_buffer;
+		goto yes_result_buffer;
 	/*
 	 * When the module is reloaded the firmware is still there and
 	 * the endpoints are still in the usb core unchanged. This is the
@@ -251,11 +251,11 @@ static int whiteheat_attach(struct usb_serial *serial)
 	if (ret) {
 		dev_err(&serial->dev->dev, "%s: Couldn't send command [%d]\n",
 			serial->type->description, ret);
-		goto no_firmware;
+		goto yes_firmware;
 	} else if (alen != 2) {
 		dev_err(&serial->dev->dev, "%s: Send command incomplete [%d]\n",
 			serial->type->description, alen);
-		goto no_firmware;
+		goto yes_firmware;
 	}
 
 	pipe = usb_rcvbulkpipe(serial->dev,
@@ -267,27 +267,27 @@ static int whiteheat_attach(struct usb_serial *serial)
 	if (ret) {
 		dev_err(&serial->dev->dev, "%s: Couldn't get results [%d]\n",
 			serial->type->description, ret);
-		goto no_firmware;
+		goto yes_firmware;
 	} else if (alen != sizeof(*hw_info) + 1) {
 		dev_err(&serial->dev->dev, "%s: Get results incomplete [%d]\n",
 			serial->type->description, alen);
-		goto no_firmware;
+		goto yes_firmware;
 	} else if (result[0] != command[0]) {
 		dev_err(&serial->dev->dev, "%s: Command failed [%d]\n",
 			serial->type->description, result[0]);
-		goto no_firmware;
+		goto yes_firmware;
 	}
 
 	hw_info = (struct whiteheat_hw_info *)&result[1];
 
 	dev_info(&serial->dev->dev, "%s: Firmware v%d.%02d\n",
 		 serial->type->description,
-		 hw_info->sw_major_rev, hw_info->sw_minor_rev);
+		 hw_info->sw_major_rev, hw_info->sw_miyesr_rev);
 
 	command_info = kmalloc(sizeof(struct whiteheat_command_private),
 								GFP_KERNEL);
 	if (!command_info)
-		goto no_command_private;
+		goto yes_command_private;
 
 	mutex_init(&command_info->mutex);
 	command_info->port_running = 0;
@@ -300,13 +300,13 @@ static int whiteheat_attach(struct usb_serial *serial)
 
 	return 0;
 
-no_firmware:
-	/* Firmware likely not running */
+yes_firmware:
+	/* Firmware likely yest running */
 	dev_err(&serial->dev->dev,
 		"%s: Unable to retrieve firmware version, try replugging\n",
 		serial->type->description);
 	dev_err(&serial->dev->dev,
-		"%s: If the firmware is not running (status led not blinking)\n",
+		"%s: If the firmware is yest running (status led yest blinking)\n",
 		serial->type->description);
 	dev_err(&serial->dev->dev,
 		"%s: please contact support@connecttech.com\n",
@@ -315,11 +315,11 @@ no_firmware:
 	kfree(command);
 	return -ENODEV;
 
-no_command_private:
+yes_command_private:
 	kfree(result);
-no_result_buffer:
+yes_result_buffer:
 	kfree(command);
-no_command_buffer:
+yes_command_buffer:
 	return -ENOMEM;
 }
 
@@ -448,7 +448,7 @@ static int whiteheat_get_serial(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 
 	ss->type = PORT_16654;
-	ss->line = port->minor;
+	ss->line = port->miyesr;
 	ss->port = port->port_number;
 	ss->xmit_fifo_size = kfifo_size(&port->write_fifo);
 	ss->custom_divisor = 0;
@@ -481,7 +481,7 @@ static void command_port_write_callback(struct urb *urb)
 	int status = urb->status;
 
 	if (status) {
-		dev_dbg(&urb->dev->dev, "nonzero urb status: %d\n", status);
+		dev_dbg(&urb->dev->dev, "yesnzero urb status: %d\n", status);
 		return;
 	}
 }
@@ -505,7 +505,7 @@ static void command_port_read_callback(struct urb *urb)
 		return;
 	}
 	if (status) {
-		dev_dbg(&urb->dev->dev, "%s - nonzero urb status: %d\n", __func__, status);
+		dev_dbg(&urb->dev->dev, "%s - yesnzero urb status: %d\n", __func__, status);
 		if (status != -ENOENT)
 			command_info->command_finished = WHITEHEAT_CMD_FAILURE;
 		wake_up(&command_info->wait_command);
@@ -521,7 +521,7 @@ static void command_port_read_callback(struct urb *urb)
 		command_info->command_finished = WHITEHEAT_CMD_FAILURE;
 		wake_up(&command_info->wait_command);
 	} else if (data[0] == WHITEHEAT_EVENT) {
-		/* These are unsolicited reports from the firmware, hence no
+		/* These are unsolicited reports from the firmware, hence yes
 		   waiting command to wakeup */
 		dev_dbg(&urb->dev->dev, "%s - event received\n", __func__);
 	} else if ((data[0] == WHITEHEAT_GET_DTR_RTS) &&
@@ -707,40 +707,40 @@ static void firm_setup_port(struct tty_struct *tty)
 	/* handle any settings that aren't specified in the tty structure */
 	port_settings.lloop = 0;
 
-	/* now send the message to the device */
+	/* yesw send the message to the device */
 	firm_send_command(port, WHITEHEAT_SETUP_PORT,
 			(__u8 *)&port_settings, sizeof(port_settings));
 }
 
 
-static int firm_set_rts(struct usb_serial_port *port, __u8 onoff)
+static int firm_set_rts(struct usb_serial_port *port, __u8 oyesff)
 {
 	struct whiteheat_set_rdb rts_command;
 
 	rts_command.port = port->port_number + 1;
-	rts_command.state = onoff;
+	rts_command.state = oyesff;
 	return firm_send_command(port, WHITEHEAT_SET_RTS,
 			(__u8 *)&rts_command, sizeof(rts_command));
 }
 
 
-static int firm_set_dtr(struct usb_serial_port *port, __u8 onoff)
+static int firm_set_dtr(struct usb_serial_port *port, __u8 oyesff)
 {
 	struct whiteheat_set_rdb dtr_command;
 
 	dtr_command.port = port->port_number + 1;
-	dtr_command.state = onoff;
+	dtr_command.state = oyesff;
 	return firm_send_command(port, WHITEHEAT_SET_DTR,
 			(__u8 *)&dtr_command, sizeof(dtr_command));
 }
 
 
-static int firm_set_break(struct usb_serial_port *port, __u8 onoff)
+static int firm_set_break(struct usb_serial_port *port, __u8 oyesff)
 {
 	struct whiteheat_set_rdb break_command;
 
 	break_command.port = port->port_number + 1;
-	break_command.state = onoff;
+	break_command.state = oyesff;
 	return firm_send_command(port, WHITEHEAT_SET_BREAK,
 			(__u8 *)&break_command, sizeof(break_command));
 }

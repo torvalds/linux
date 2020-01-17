@@ -20,22 +20,22 @@
 
 int omapdss_device_init_output(struct omap_dss_device *out)
 {
-	struct device_node *remote_node;
+	struct device_yesde *remote_yesde;
 
-	remote_node = of_graph_get_remote_node(out->dev->of_node,
+	remote_yesde = of_graph_get_remote_yesde(out->dev->of_yesde,
 					       ffs(out->of_ports) - 1, 0);
-	if (!remote_node) {
+	if (!remote_yesde) {
 		dev_dbg(out->dev, "failed to find video sink\n");
 		return 0;
 	}
 
-	out->next = omapdss_find_device_by_node(remote_node);
-	out->bridge = of_drm_find_bridge(remote_node);
-	out->panel = of_drm_find_panel(remote_node);
+	out->next = omapdss_find_device_by_yesde(remote_yesde);
+	out->bridge = of_drm_find_bridge(remote_yesde);
+	out->panel = of_drm_find_panel(remote_yesde);
 	if (IS_ERR(out->panel))
 		out->panel = NULL;
 
-	of_node_put(remote_node);
+	of_yesde_put(remote_yesde);
 
 	if (out->next && out->type != out->next->type) {
 		dev_err(out->dev, "output type and display type don't match\n");

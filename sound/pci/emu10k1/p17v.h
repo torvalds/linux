@@ -72,8 +72,8 @@
 #endif
 
 #define ADC_MUX_MASK		0x0000000f	//Mask for ADC Mux
-#define ADC_MUX_0		0x00000001	//Value to select Unknown at ADC Mux (Not used)
-#define ADC_MUX_1		0x00000002	//Value to select Unknown at ADC Mux (Not used)
+#define ADC_MUX_0		0x00000001	//Value to select Unkyeswn at ADC Mux (Not used)
+#define ADC_MUX_1		0x00000002	//Value to select Unkyeswn at ADC Mux (Not used)
 #define ADC_MUX_2		0x00000004	//Value to select Mic at ADC Mux
 #define ADC_MUX_3		0x00000008	//Value to select Line-In at ADC Mux
 
@@ -126,9 +126,9 @@
 #define P17V_I2S_OUT_MASTER_VOL_L	0x84	/* I2S Output master volume control */
 #define P17V_I2S_OUT_MASTER_VOL_H	0x85	/* I2S Output master volume control */
 /* 86 - 87: Not used */
-#define P17V_I2S_CHANNEL_SWAP_PHASE_INVERSE	0x88	/* I2S out mono channel swap
+#define P17V_I2S_CHANNEL_SWAP_PHASE_INVERSE	0x88	/* I2S out moyes channel swap
 							 * and phase inverse */
-#define P17V_SPDIF_CHANNEL_SWAP_PHASE_INVERSE	0x89	/* SPDIF out mono channel swap
+#define P17V_SPDIF_CHANNEL_SWAP_PHASE_INVERSE	0x89	/* SPDIF out moyes channel swap
 							 * and phase inverse */
 /* 8A: Not used */
 #define P17V_SRP_P17V_ESR		0x8B	/* SRP_P17V estimated sample rate and rate lock */

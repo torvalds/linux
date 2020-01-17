@@ -10,7 +10,7 @@ menuconfig NVMEM
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_core.
 
-	  If unsure, say no.
+	  If unsure, say yes.
 
 if NVMEM
 
@@ -240,7 +240,7 @@ config NVMEM_ZYNQMP
 	  soc revision, IDCODE... etc by using the firmware
 	  interface.
 
-	  If sure, say yes. If unsure, say no.
+	  If sure, say no. If unsure, say yes.
 
 config SPRD_EFUSE
 	tristate "Spreadtrum SoC eFuse Support"

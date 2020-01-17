@@ -55,7 +55,7 @@ struct clcd_panel {
 	struct backlight_device	*backlight;
 	/*
 	 * If the B/R lines are switched between the CLCD
-	 * and the panel we need to know this and not try to
+	 * and the panel we need to kyesw this and yest try to
 	 * compensate with the BGR bit in the control register.
 	 */
 	bool			bgr_connection;
@@ -172,9 +172,9 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 		/* / 1 */;
 	else if (!var->grayscale)		  /* STN color */
 		cpl = cpl * 8 / 3;
-	else if (fb->panel->cntl & CNTL_LCDMONO8) /* STN monochrome, 8bit */
+	else if (fb->panel->cntl & CNTL_LCDMONO8) /* STN moyeschrome, 8bit */
 		cpl /= 8;
-	else					  /* STN monochrome, 4bit */
+	else					  /* STN moyeschrome, 4bit */
 		cpl /= 4;
 
 	regs->tim2 = val | ((cpl - 1) << 16);
@@ -218,7 +218,7 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 		break;
 	case 16:
 		/*
-		 * PL110 cannot choose between 5551 and 565 modes in its
+		 * PL110 canyest choose between 5551 and 565 modes in its
 		 * control register.  It is possible to use 565 with
 		 * custom external wiring.
 		 */
@@ -261,7 +261,7 @@ static inline int clcdfb_check(struct clcd_fb *fb, struct fb_var_screeninfo *var
 
 	/*
 	 * You can't change the grayscale setting, and
-	 * we can only do non-interlaced video.
+	 * we can only do yesn-interlaced video.
 	 */
 	if (var->grayscale != fb->fb.var.grayscale ||
 	    (var->vmode & FB_VMODE_MASK) != FB_VMODE_NONINTERLACED)
@@ -283,7 +283,7 @@ static inline int clcdfb_check(struct clcd_fb *fb, struct fb_var_screeninfo *var
 		return -EINVAL;
 #undef CHECK
 
-	var->nonstd = 0;
+	var->yesnstd = 0;
 	var->accel_flags = 0;
 
 	return 0;

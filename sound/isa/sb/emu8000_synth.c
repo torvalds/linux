@@ -87,7 +87,7 @@ static int snd_emu8000_remove(struct device *_dev)
 	struct snd_emu8000 *hw;
 
 	if (dev->driver_data == NULL)
-		return 0; /* no synth was allocated actually */
+		return 0; /* yes synth was allocated actually */
 
 	hw = dev->driver_data;
 	if (hw->pcm)

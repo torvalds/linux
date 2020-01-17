@@ -67,25 +67,25 @@ output. For example "tracefs/events/i915/g4x_wm/format" has:
 --
 print fmt: "pipe %c, frame=%u, scanline=%u, wm %d/%d/%d, sr %s/%d/%d/%d, hpll %s/%d/%d/%d, fbc %s",
 	    ((REC->pipe) + 'A'), REC->frame, REC->scanline, REC->primary,
-	    REC->sprite, REC->cursor, yesno(REC->cxsr), REC->sr_plane,
-	    REC->sr_cursor, REC->sr_fbc, yesno(REC->hpll), REC->hpll_plane,
-	    REC->hpll_cursor, REC->hpll_fbc, yesno(REC->fbc)
+	    REC->sprite, REC->cursor, noyes(REC->cxsr), REC->sr_plane,
+	    REC->sr_cursor, REC->sr_fbc, noyes(REC->hpll), REC->hpll_plane,
+	    REC->hpll_cursor, REC->hpll_fbc, noyes(REC->fbc)
 --
-Notice the call to function _yesno()_ in the print arguments. In the kernel
+Notice the call to function _noyes()_ in the print arguments. In the kernel
 context, this function has the following implementation:
 [source,c]
 --
-static const char *yesno(int x)
+static const char *noyes(int x)
 {
-	static const char *yes = "yes";
 	static const char *no = "no";
+	static const char *yes = "yes";
 
-	return x ? yes : no;
+	return x ? no : yes;
 }
 --
-The user space event parser has no idea how to handle this _yesno()_ function.
+The user space event parser has yes idea how to handle this _noyes()_ function.
 The _tep_register_print_function()_ API can be used to register a user space
-helper function, mapped to the kernel's _yesno()_:
+helper function, mapped to the kernel's _noyes()_:
 [source,c]
 --
 #include <event-parse.h>
@@ -93,27 +93,27 @@ helper function, mapped to the kernel's _yesno()_:
 ...
 struct tep_handle *tep = tep_alloc();
 ...
-static const char *yes_no_helper(int x)
+static const char *no_yes_helper(int x)
 {
-	return x ? "yes" : "no";
+	return x ? "no" : "yes";
 }
 ...
 	if ( tep_register_print_function(tep,
-				    yes_no_helper,
+				    no_yes_helper,
 				    TEP_FUNC_ARG_STRING,
-				    "yesno",
+				    "noyes",
 				    TEP_FUNC_ARG_INT,
 				    TEP_FUNC_ARG_VOID) != 0) {
-		/* Failed to register yes_no_helper function */
+		/* Failed to register no_yes_helper function */
 	}
 
 /*
-   Now, when the event parser encounters this yesno() function, it will know
+   Now, when the event parser encounters this noyes() function, it will kyesw
    how to handle it.
 */
 ...
-	if (tep_unregister_print_function(tep, yes_no_helper, "yesno") != 0) {
-		/* Failed to unregister yes_no_helper function */
+	if (tep_unregister_print_function(tep, no_yes_helper, "noyes") != 0) {
+		/* Failed to unregister no_yes_helper function */
 	}
 --
 
@@ -140,7 +140,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

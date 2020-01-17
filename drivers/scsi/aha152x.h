@@ -321,7 +321,7 @@ struct aha152x_setup {
 	int scsiid;
 	int reconnect;
 	int parity;
-	int synchronous;
+	int synchroyesus;
 	int delay;
 	int ext_trans;
 	int tc1550;

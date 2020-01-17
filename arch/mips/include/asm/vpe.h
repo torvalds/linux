@@ -3,8 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2005 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2005 MIPS Techyeslogies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Techyeslogies Ltd.
  */
 #ifndef _ASM_VPE_H
 #define _ASM_VPE_H
@@ -21,7 +21,7 @@
 #ifdef CONFIG_MIPS_VPE_LOADER_TOM
 #define P_SIZE (2 * 1024 * 1024)
 #else
-/* add an overhead to the max kmalloc size for non-striped symbols/etc */
+/* add an overhead to the max kmalloc size for yesn-striped symbols/etc */
 #define P_SIZE (256 * 1024)
 #endif
 
@@ -54,8 +54,8 @@ enum tc_state {
 struct vpe {
 	enum vpe_state state;
 
-	/* (device) minor associated with this vpe */
-	int minor;
+	/* (device) miyesr associated with this vpe */
+	int miyesr;
 
 	/* elfloader stuff */
 	void *load_addr;
@@ -75,8 +75,8 @@ struct vpe {
 	/* shared symbol address */
 	void *shared_ptr;
 
-	/* the list of who wants to know when something major happens */
-	struct list_head notify;
+	/* the list of who wants to kyesw when something major happens */
+	struct list_head yestify;
 
 	unsigned int ntcs;
 };
@@ -90,7 +90,7 @@ struct tc {
 	struct list_head list;	/* The global list of tc's */
 };
 
-struct vpe_notifications {
+struct vpe_yestifications {
 	void (*start)(int vpe);
 	void (*stop)(int vpe);
 
@@ -108,14 +108,14 @@ extern unsigned long physical_memsize;
 extern struct vpe_control vpecontrol;
 extern const struct file_operations vpe_fops;
 
-int vpe_notify(int index, struct vpe_notifications *notify);
+int vpe_yestify(int index, struct vpe_yestifications *yestify);
 
 void *vpe_get_shared(int index);
 char *vpe_getcwd(int index);
 
-struct vpe *get_vpe(int minor);
+struct vpe *get_vpe(int miyesr);
 struct tc *get_tc(int index);
-struct vpe *alloc_vpe(int minor);
+struct vpe *alloc_vpe(int miyesr);
 struct tc *alloc_tc(int index);
 void release_vpe(struct vpe *v);
 

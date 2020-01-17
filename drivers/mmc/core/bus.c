@@ -99,7 +99,7 @@ mmc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	/*
 	 * Request the mmc_block device.  Note: that this is a direct request
-	 * for the module it carries no information as to what is inserted.
+	 * for the module it carries yes information as to what is inserted.
 	 */
 	retval = add_uevent_var(env, "MODALIAS=mmc:block");
 
@@ -348,7 +348,7 @@ int mmc_add_card(struct mmc_card *card)
 #ifdef CONFIG_DEBUG_FS
 	mmc_add_card_debugfs(card);
 #endif
-	card->dev.of_node = mmc_of_find_child_device(card->host, 0);
+	card->dev.of_yesde = mmc_of_find_child_device(card->host, 0);
 
 	device_enable_async_suspend(&card->dev);
 
@@ -387,7 +387,7 @@ void mmc_remove_card(struct mmc_card *card)
 				mmc_hostname(card->host), card->rca);
 		}
 		device_del(&card->dev);
-		of_node_put(card->dev.of_node);
+		of_yesde_put(card->dev.of_yesde);
 	}
 
 	put_device(&card->dev);

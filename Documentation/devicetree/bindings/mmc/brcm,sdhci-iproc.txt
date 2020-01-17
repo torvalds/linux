@@ -33,5 +33,5 @@ sdhci0: sdhci@18041000 {
 	clocks = <&lcpll0_clks BCM_CYGNUS_LCPLL0_SDIO_CLK>;
 	bus-width = <4>;
 	sdhci,auto-cmd12;
-	no-1-8-v;
+	yes-1-8-v;
 };

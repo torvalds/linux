@@ -165,7 +165,7 @@ static void btf_dumper_bitfield(__u32 nr_bits, __u8 bit_offset,
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
 	left_shift_bits = 128 - bits_to_copy;
 #else
-#error neither big nor little endian
+#error neither big yesr little endian
 #endif
 	right_shift_bits = 128 - nr_bits;
 
@@ -182,7 +182,7 @@ static void btf_dumper_int_bits(__u32 int_type, __u8 bit_offset,
 	int total_bits_offset;
 
 	/* bits_offset is at most 7.
-	 * BTF_INT_OFFSET() cannot exceed 128 bits.
+	 * BTF_INT_OFFSET() canyest exceed 128 bits.
 	 */
 	total_bits_offset = bit_offset + BTF_INT_OFFSET(int_type);
 	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
@@ -372,7 +372,7 @@ static int btf_dumper_do_type(const struct btf_dumper *d, __u32 type_id,
 		btf_dumper_ptr(data, d->jw, d->is_plain_text);
 		return 0;
 	case BTF_KIND_UNKN:
-		jsonw_printf(d->jw, "(unknown)");
+		jsonw_printf(d->jw, "(unkyeswn)");
 		return 0;
 	case BTF_KIND_FWD:
 		/* map key or value can't be forward */

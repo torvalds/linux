@@ -32,7 +32,7 @@ struct bcm7038_watchdog {
 	struct clk		*clk;
 };
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 
 static void bcm7038_wdt_set_timeout_reg(struct watchdog_device *wdog)
 {
@@ -208,8 +208,8 @@ static struct platform_driver bcm7038_wdt_driver = {
 };
 module_platform_driver(bcm7038_wdt_driver);
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for Broadcom 7038 SoCs Watchdog");

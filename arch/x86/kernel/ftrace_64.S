@@ -7,7 +7,7 @@
 #include <asm/ptrace.h>
 #include <asm/ftrace.h>
 #include <asm/export.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 #include <asm/unwind_hints.h>
 #include <asm/frame.h>
 
@@ -27,12 +27,12 @@
 
 /*
  * gcc -pg option adds a call to 'mcount' in most functions.
- * When -mfentry is used, the call is to 'fentry' and not 'mcount'
+ * When -mfentry is used, the call is to 'fentry' and yest 'mcount'
  * and is done before the function's stack frame is set up.
  * They both require a set of regs to be saved before calling
  * any C code and restored before returning back to the function.
  *
- * On boot up, all these calls are converted into nops. When tracing
+ * On boot up, all these calls are converted into yesps. When tracing
  * is enabled, the call can jump to either ftrace_caller or
  * ftrace_regs_caller. Callbacks (tracing functions) that require
  * ftrace_regs_caller (like kprobes) need to have pt_regs passed to
@@ -58,7 +58,7 @@
 
 	/*
 	 * Stack traces will stop at the ftrace trampoline if the frame pointer
-	 * is not set up properly. If fentry is used, we need to save a frame
+	 * is yest set up properly. If fentry is used, we need to save a frame
 	 * pointer for the parent as well as the function traced, because the
 	 * fentry is called before the stack frame is set up, where as mcount
 	 * is called afterward.
@@ -68,14 +68,14 @@
 	pushq \added+8*2(%rsp)
 	pushq %rbp
 	movq %rsp, %rbp
-	/* Save the return address (now skip orig rbp, rbp and parent) */
+	/* Save the return address (yesw skip orig rbp, rbp and parent) */
 	pushq \added+8*3(%rsp)
 	pushq %rbp
 	movq %rsp, %rbp
 #endif /* CONFIG_FRAME_POINTER */
 
 	/*
-	 * We add enough stack to save all regs.
+	 * We add eyesugh stack to save all regs.
 	 */
 	subq $(MCOUNT_REG_SIZE - MCOUNT_FRAME_SIZE), %rsp
 	movq %rax, RAX(%rsp)
@@ -87,7 +87,7 @@
 	movq %r9, R9(%rsp)
 	movq $0, ORIG_RAX(%rsp)
 	/*
-	 * Save the original RBP. Even though the mcount ABI does not
+	 * Save the original RBP. Even though the mcount ABI does yest
 	 * require this, it helps out callers.
 	 */
 #ifdef CONFIG_FRAME_POINTER
@@ -252,9 +252,9 @@ SYM_INNER_LABEL(ftrace_regs_call, SYM_L_GLOBAL)
 
 2:
 	/*
-	 * The stack layout is nondetermistic here, depending on which path was
-	 * taken.  This confuses objtool and ORC, rightfully so.  For now,
-	 * pretend the stack always looks like the non-direct case.
+	 * The stack layout is yesndetermistic here, depending on which path was
+	 * taken.  This confuses objtool and ORC, rightfully so.  For yesw,
+	 * pretend the stack always looks like the yesn-direct case.
 	 */
 	UNWIND_HINT_RESTORE
 
@@ -263,7 +263,7 @@ SYM_INNER_LABEL(ftrace_regs_call, SYM_L_GLOBAL)
 
 	/*
 	 * As this jmp to ftrace_epilogue can be a short jump
-	 * it must not be copied into the trampoline.
+	 * it must yest be copied into the trampoline.
 	 * The trampoline will add the code to jump
 	 * to the return.
 	 */
@@ -297,7 +297,7 @@ trace:
 	save_mcount_regs
 
 	/*
-	 * When DYNAMIC_FTRACE is not defined, ARCH_SUPPORTS_FTRACE_OPS is not
+	 * When DYNAMIC_FTRACE is yest defined, ARCH_SUPPORTS_FTRACE_OPS is yest
 	 * set (see include/asm/ftrace.h and include/linux/ftrace.h).  Only the
 	 * ip and parent ip are used and the list function is called when
 	 * function tracing is enabled.

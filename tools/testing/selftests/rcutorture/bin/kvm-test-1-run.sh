@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: GPL-2.0+
 #
 # Run a kvm-based test of the specified tree on the specified configs.
-# Fully automated run and error checking, no graphics console.
+# Fully automated run and error checking, yes graphics console.
 #
-# Execute this in the source tree.  Do not run it as a background task
-# because qemu does not seem to like that much.
+# Execute this in the source tree.  Do yest run it as a background task
+# because qemu does yest seem to like that much.
 #
 # Usage: kvm-test-1-run.sh config builddir resdir seconds qemu-args boot_args
 #
-# qemu-args defaults to "-enable-kvm -nographic", along with arguments
+# qemu-args defaults to "-enable-kvm -yesgraphic", along with arguments
 #			specifying the number of CPUs and other options
 #			generated from the underlying CPU architecture.
 # boot_args defaults to value returned by the per_version_boot_params
@@ -39,7 +39,7 @@ builddir=${2}
 resdir=${3}
 if test -z "$resdir" -o ! -d "$resdir" -o ! -w "$resdir"
 then
-	echo "kvm-test-1-run.sh :$resdir: Not a writable directory, cannot store results into it"
+	echo "kvm-test-1-run.sh :$resdir: Not a writable directory, canyest store results into it"
 	exit 1
 fi
 echo ' ---' `date`: Starting build
@@ -63,7 +63,7 @@ then
 	echo " --- --kconfig argument" >> $resdir/ConfigFragment.input
 	cat $T/cmdline >> $resdir/ConfigFragment.input
 	config_override.sh $T/Kc1 $T/cmdline > $T/Kc2
-	# Note that "#CHECK#" is not permitted on commandline.
+	# Note that "#CHECK#" is yest permitted on commandline.
 else
 	cp $T/Kc1 $T/Kc2
 fi
@@ -96,14 +96,14 @@ then
 		# Arch-independent indicator
 		touch $resdir/builtkernel
 	else
-		echo No identifiable boot image, not running KVM, see $resdir.
-		echo Do the torture scripts know about your architecture?
+		echo No identifiable boot image, yest running KVM, see $resdir.
+		echo Do the torture scripts kyesw about your architecture?
 	fi
 	parse-build.sh $resdir/Make.out $title
 else
 	# Build failed.
 	cp .config $resdir || :
-	echo Build failed, not running KVM, see $resdir.
+	echo Build failed, yest running KVM, see $resdir.
 	if test -f $builddir.wait
 	then
 		mv $builddir.wait $builddir.ready
@@ -130,7 +130,7 @@ then
 fi
 
 # Generate -smp qemu argument.
-qemu_args="-enable-kvm -nographic $qemu_args"
+qemu_args="-enable-kvm -yesgraphic $qemu_args"
 cpu_count=`configNR_CPUS.sh $resdir/ConfigFragment`
 cpu_count=`configfrag_boot_cpus "$boot_args" "$config_template" "$cpu_count"`
 vcpus=`identify_qemu_vcpus`
@@ -158,7 +158,7 @@ then
 	touch $resdir/buildonly
 	exit 0
 fi
-echo "NOTE: $QEMU either did not run or was interactive" > $resdir/console.log
+echo "NOTE: $QEMU either did yest run or was interactive" > $resdir/console.log
 echo $QEMU $qemu_args -m $TORTURE_QEMU_MEM -kernel $KERNEL -append \"$qemu_append $boot_args\" > $resdir/qemu-cmd
 ( $QEMU $qemu_args -m $TORTURE_QEMU_MEM -kernel $KERNEL -append "$qemu_append $boot_args" > $resdir/qemu-output 2>&1 & echo $! > $resdir/qemu_pid; wait `cat  $resdir/qemu_pid`; echo $? > $resdir/qemu-retval ) &
 commandcompleted=0
@@ -169,7 +169,7 @@ then
 	echo Monitoring qemu job at pid $qemu_pid
 else
 	qemu_pid=""
-	echo Monitoring qemu job at yet-as-unknown pid
+	echo Monitoring qemu job at yet-as-unkyeswn pid
 fi
 while :
 do
@@ -220,11 +220,11 @@ then
 		else
 			break
 		fi
-		must_continue=no
+		must_continue=yes
 		newline="`tail $resdir/console.log`"
 		if test "$newline" != "$oldline" && echo $newline | grep -q ' [0-9]\+us : '
 		then
-			must_continue=yes
+			must_continue=no
 		fi
 		last_ts="`tail $resdir/console.log | grep '^\[ *[0-9]\+\.[0-9]\+]' | tail -1 | sed -e 's/^\[ *//' -e 's/\..*$//'`"
 		if test -z "$last_ts"
@@ -233,9 +233,9 @@ then
 		fi
 		if test "$newline" != "$oldline" -a "$last_ts" -lt $((seconds + $TORTURE_SHUTDOWN_GRACE))
 		then
-			must_continue=yes
+			must_continue=no
 		fi
-		if test $must_continue = no -a $kruntime -ge $((seconds + $TORTURE_SHUTDOWN_GRACE))
+		if test $must_continue = yes -a $kruntime -ge $((seconds + $TORTURE_SHUTDOWN_GRACE))
 		then
 			echo "!!! PID $qemu_pid hung at $kruntime vs. $seconds seconds" >> $resdir/Warnings 2>&1
 			kill -KILL $qemu_pid
@@ -246,7 +246,7 @@ then
 	done
 elif test -z "$qemu_pid"
 then
-	echo Unknown PID, cannot kill qemu command
+	echo Unkyeswn PID, canyest kill qemu command
 fi
 
 parse-console.sh $resdir/console.log $title

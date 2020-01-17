@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -25,7 +25,7 @@
 #include "rootnv50.h"
 
 #include <core/client.h>
-#include <core/notify.h>
+#include <core/yestify.h>
 #include <core/oproxy.h>
 #include <core/ramht.h>
 #include <engine/dma.h>
@@ -122,7 +122,7 @@ nv50_disp_chan_uevent_init(struct nvkm_event *event, int types, int index)
 void
 nv50_disp_chan_uevent_send(struct nv50_disp *disp, int chid)
 {
-	struct nvif_notify_uevent_rep {
+	struct nvif_yestify_uevent_rep {
 	} rep;
 
 	nvkm_event_send(&disp->uevent, 1, chid, &rep, sizeof(rep));
@@ -130,18 +130,18 @@ nv50_disp_chan_uevent_send(struct nv50_disp *disp, int chid)
 
 int
 nv50_disp_chan_uevent_ctor(struct nvkm_object *object, void *data, u32 size,
-			   struct nvkm_notify *notify)
+			   struct nvkm_yestify *yestify)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
 	union {
-		struct nvif_notify_uevent_req none;
+		struct nvif_yestify_uevent_req yesne;
 	} *args = data;
 	int ret = -ENOSYS;
 
-	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
-		notify->size  = sizeof(struct nvif_notify_uevent_rep);
-		notify->types = 1;
-		notify->index = chan->chid.user;
+	if (!(ret = nvif_unvers(ret, &data, &size, args->yesne))) {
+		yestify->size  = sizeof(struct nvif_yestify_uevent_rep);
+		yestify->types = 1;
+		yestify->index = chan->chid.user;
 		return 0;
 	}
 

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -49,9 +49,9 @@
  * 31 bit for integer part,
  * 32 bits for fractional part.
  *
- * @note
+ * @yeste
  * Currently, overflows and underflows are asserted;
- * no special result returned.
+ * yes special result returned.
  */
 
 struct fixed31_32 {
@@ -82,9 +82,9 @@ static const struct fixed31_32 dc_fixpt_ln2_div_2 = { 1488522236LL };
 
 /*
  * @brief
- * result = numerator / denominator
+ * result = numerator / deyesminator
  */
-struct fixed31_32 dc_fixpt_from_fraction(long long numerator, long long denominator);
+struct fixed31_32 dc_fixpt_from_fraction(long long numerator, long long deyesminator);
 
 /*
  * @brief
@@ -349,23 +349,23 @@ static inline struct fixed31_32 dc_fixpt_div(struct fixed31_32 arg1, struct fixe
  * @brief
  * result = reciprocal(arg) := 1 / arg
  *
- * @note
+ * @yeste
  * No special actions taken in case argument is zero.
  */
 struct fixed31_32 dc_fixpt_recip(struct fixed31_32 arg);
 
 /*
  * @brief
- * Trigonometric functions
+ * Trigoyesmetric functions
  */
 
 /*
  * @brief
  * result = sinc(arg) := sin(arg) / arg
  *
- * @note
+ * @yeste
  * Argument specified in radians,
- * internally it's normalized to [-2pi...2pi] range.
+ * internally it's yesrmalized to [-2pi...2pi] range.
  */
 struct fixed31_32 dc_fixpt_sinc(struct fixed31_32 arg);
 
@@ -373,9 +373,9 @@ struct fixed31_32 dc_fixpt_sinc(struct fixed31_32 arg);
  * @brief
  * result = sin(arg)
  *
- * @note
+ * @yeste
  * Argument specified in radians,
- * internally it's normalized to [-2pi...2pi] range.
+ * internally it's yesrmalized to [-2pi...2pi] range.
  */
 struct fixed31_32 dc_fixpt_sin(struct fixed31_32 arg);
 
@@ -383,7 +383,7 @@ struct fixed31_32 dc_fixpt_sin(struct fixed31_32 arg);
  * @brief
  * result = cos(arg)
  *
- * @note
+ * @yeste
  * Argument specified in radians
  * and should be in [-2pi...2pi] range -
  * passing arguments outside that range
@@ -400,7 +400,7 @@ struct fixed31_32 dc_fixpt_cos(struct fixed31_32 arg);
  * @brief
  * result = exp(arg)
  *
- * @note
+ * @yeste
  * Currently, function is verified for abs(arg) <= 1.
  */
 struct fixed31_32 dc_fixpt_exp(struct fixed31_32 arg);
@@ -409,10 +409,10 @@ struct fixed31_32 dc_fixpt_exp(struct fixed31_32 arg);
  * @brief
  * result = log(arg)
  *
- * @note
+ * @yeste
  * Currently, abs(arg) should be less than 1.
- * No normalization is done.
- * Currently, no special actions taken
+ * No yesrmalization is done.
+ * Currently, yes special actions taken
  * in case of invalid argument(s). Take care!
  */
 struct fixed31_32 dc_fixpt_log(struct fixed31_32 arg);
@@ -426,7 +426,7 @@ struct fixed31_32 dc_fixpt_log(struct fixed31_32 arg);
  * @brief
  * result = pow(arg1, arg2)
  *
- * @note
+ * @yeste
  * Currently, abs(arg1) should be less than 1. Take care!
  */
 static inline struct fixed31_32 dc_fixpt_pow(struct fixed31_32 arg1, struct fixed31_32 arg2)

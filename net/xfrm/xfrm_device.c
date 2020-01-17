@@ -8,7 +8,7 @@
  * Steffen Klassert <steffen.klassert@secunet.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -16,7 +16,7 @@
 #include <linux/spinlock.h>
 #include <net/dst.h>
 #include <net/xfrm.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #ifdef CONFIG_XFRM_OFFLOAD
 static void __xfrm_transport_prep(struct xfrm_state *x, struct sk_buff *skb,
@@ -154,7 +154,7 @@ struct sk_buff *validate_xmit_xfrm(struct sk_buff *skb, netdev_features_t featur
 		struct sk_buff *nskb = skb2->next;
 
 		esp_features |= skb->dev->gso_partial_features;
-		skb_mark_not_on_list(skb2);
+		skb_mark_yest_on_list(skb2);
 
 		xo = xfrm_offload(skb2);
 		xo->flags |= XFRM_DEV_RESUME;
@@ -378,9 +378,9 @@ static int xfrm_dev_down(struct net_device *dev)
 	return NOTIFY_DONE;
 }
 
-static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
+static int xfrm_dev_event(struct yestifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	switch (event) {
 	case NETDEV_REGISTER:
@@ -395,11 +395,11 @@ static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block xfrm_dev_notifier = {
-	.notifier_call	= xfrm_dev_event,
+static struct yestifier_block xfrm_dev_yestifier = {
+	.yestifier_call	= xfrm_dev_event,
 };
 
 void __init xfrm_dev_init(void)
 {
-	register_netdevice_notifier(&xfrm_dev_notifier);
+	register_netdevice_yestifier(&xfrm_dev_yestifier);
 }

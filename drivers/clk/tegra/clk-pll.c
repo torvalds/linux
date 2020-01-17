@@ -563,7 +563,7 @@ static int _calc_rate(struct clk_hw *hw, struct tegra_clk_pll_freq_table *cfg,
 	case 9600000:
 	case 28800000:
 		/*
-		 * PLL_P_OUT1 rate is not listed in PLLA table
+		 * PLL_P_OUT1 rate is yest listed in PLLA table
 		 */
 		cfreq = parent_rate / (parent_rate / 1000000);
 		break;
@@ -785,7 +785,7 @@ static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (pll->params->flags & TEGRA_PLL_FIXED) {
 		if (rate != pll->params->fixed_rate) {
-			pr_err("%s: Can not change %s fixed rate %lu to %lu\n",
+			pr_err("%s: Can yest change %s fixed rate %lu to %lu\n",
 				__func__, clk_hw_get_name(hw),
 				pll->params->fixed_rate, rate);
 			return -EINVAL;
@@ -824,7 +824,7 @@ static long clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	struct tegra_clk_pll_freq_table cfg;
 
 	if (pll->params->flags & TEGRA_PLL_FIXED) {
-		/* PLLM/MB are used for memory; we do not change rate */
+		/* PLLM/MB are used for memory; we do yest change rate */
 		if (pll->params->flags & (TEGRA_PLLM | TEGRA_PLLMB))
 			return clk_hw_get_rate(hw);
 		return pll->params->fixed_rate;
@@ -857,7 +857,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 		struct tegra_clk_pll_freq_table sel;
 		if (_get_table_rate(hw, &sel, pll->params->fixed_rate,
 					parent_rate)) {
-			pr_err("Clock %s has unknown fixed frequency\n",
+			pr_err("Clock %s has unkyeswn fixed frequency\n",
 			       clk_hw_get_name(hw));
 			BUG();
 		}
@@ -2207,8 +2207,8 @@ struct clk *tegra_clk_register_pllc(const char *name, const char *parent_name,
 		return ERR_CAST(pll);
 
 	/*
-	 * Most of PLLC register fields are shadowed, and can not be read
-	 * directly from PLL h/w. Hence, actual PLLC boot state is unknown.
+	 * Most of PLLC register fields are shadowed, and can yest be read
+	 * directly from PLL h/w. Hence, actual PLLC boot state is unkyeswn.
 	 * Initialize PLL to default state: disabled, reset; shadow registers
 	 * loaded with default parameters; dividers are preset for half of
 	 * minimum VCO rate (the latter assured that shadowed divider settings
@@ -2526,7 +2526,7 @@ static void clk_plle_tegra210_disable(struct clk_hw *hw)
 	if (pll->lock)
 		spin_lock_irqsave(pll->lock, flags);
 
-	/* If PLLE HW sequencer is enabled, SW should not disable PLLE */
+	/* If PLLE HW sequencer is enabled, SW should yest disable PLLE */
 	val = pll_readl(pll->params->aux_reg, pll);
 	if (val & PLLE_AUX_SEQ_ENABLE)
 		goto out;
@@ -2652,7 +2652,7 @@ struct clk *tegra_clk_register_pllss_tegra210(const char *name,
 
 	val = readl_relaxed(clk_base + pll_params->base_reg);
 	if (val & PLLSS_REF_SRC_SEL_MASK) {
-		WARN(1, "not supported reference clock for %s\n", name);
+		WARN(1, "yest supported reference clock for %s\n", name);
 		return ERR_PTR(-EINVAL);
 	}
 

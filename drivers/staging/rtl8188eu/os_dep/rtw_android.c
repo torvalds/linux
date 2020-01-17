@@ -155,7 +155,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		goto response;
 	}
 	if (!g_wifi_on) {
-		DBG_88E("%s: Ignore private cmd \"%s\" - iface %s is down\n",
+		DBG_88E("%s: Igyesre private cmd \"%s\" - iface %s is down\n",
 			__func__, command, ifr->ifr_name);
 		ret = 0;
 		goto free;
@@ -218,7 +218,7 @@ int rtw_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	case ANDROID_WIFI_CMD_P2P_SET_PS:
 		break;
 	default:
-		DBG_88E("Unknown PRIVATE command %s - ignored\n", command);
+		DBG_88E("Unkyeswn PRIVATE command %s - igyesred\n", command);
 		snprintf(command, 3, "OK");
 		bytes_written = strlen("OK");
 	}

@@ -16,13 +16,13 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/types.h>
 #include <linux/i2c.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/omapfb.h>
 #include <linux/platform_data/keypad-omap.h>
@@ -124,14 +124,14 @@ int sx1_getbacklight (u8 * backlight)
 				 backlight);
 }
 /* set LCD backlight power on/off */
-int sx1_setmmipower(u8 onoff)
+int sx1_setmmipower(u8 oyesff)
 {
 	int err;
 	u8 dat = 0;
 	err = sx1_i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, &dat);
 	if (err < 0)
 		return err;
-	if (onoff)
+	if (oyesff)
 		dat |= SOFIA_MMILIGHT_POWER;
 	else
 		dat &= ~SOFIA_MMILIGHT_POWER;
@@ -139,14 +139,14 @@ int sx1_setmmipower(u8 onoff)
 }
 
 /* set USB power on/off */
-int sx1_setusbpower(u8 onoff)
+int sx1_setusbpower(u8 oyesff)
 {
 	int err;
 	u8 dat = 0;
 	err = sx1_i2c_read_byte(SOFIA_I2C_ADDR, SOFIA_POWER1_REG, &dat);
 	if (err < 0)
 		return err;
-	if (onoff)
+	if (oyesff)
 		dat |= SOFIA_USB_POWER;
 	else
 		dat &= ~SOFIA_USB_POWER;
@@ -324,7 +324,7 @@ static void __init omap_sx1_init(void)
 	sx1_mmc_init();
 
 	/* turn on USB power */
-	/* sx1_setusbpower(1); can't do it here because i2c is not ready */
+	/* sx1_setusbpower(1); can't do it here because i2c is yest ready */
 	gpio_request(1, "A_IRDA_OFF");
 	gpio_request(11, "A_SWITCH");
 	gpio_request(15, "A_USB_ON");

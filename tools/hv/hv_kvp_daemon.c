@@ -3,7 +3,7 @@
  *
  *
  * Copyright (C) 2010, Novell, Inc.
- * Author : K. Y. Srinivasan <ksrinivasan@novell.com>
+ * Author : K. Y. Srinivasan <ksrinivasan@yesvell.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -16,7 +16,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
@@ -29,7 +29,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <arpa/inet.h>
 #include <linux/hyperv.h>
 #include <ifaddrs.h>
@@ -63,7 +63,7 @@ enum key_index {
 	OSBuildNumber,
 	OSName,
 	OSMajorVersion,
-	OSMinorVersion,
+	OSMiyesrVersion,
 	OSVersion,
 	ProcessorArchitecture
 };
@@ -80,11 +80,11 @@ static int in_hand_shake = 1;
 
 static char *os_name = "";
 static char *os_major = "";
-static char *os_minor = "";
+static char *os_miyesr = "";
 static char *processor_arch;
 static char *os_build;
 static char *os_version;
-static char *lic_version = "Unknown version";
+static char *lic_version = "Unkyeswn version";
 static char full_domain_name[HV_KVP_EXCHANGE_MAX_VALUE_SIZE];
 static struct utsname uts_buf;
 
@@ -125,7 +125,7 @@ static void kvp_acquire_lock(int pool)
 
 	if (fcntl(kvp_file_info[pool].fd, F_SETLKW, &fl) == -1) {
 		syslog(LOG_ERR, "Failed to acquire the lock pool: %d; error: %d %s", pool,
-				errno, strerror(errno));
+				erryes, strerror(erryes));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -137,7 +137,7 @@ static void kvp_release_lock(int pool)
 
 	if (fcntl(kvp_file_info[pool].fd, F_SETLK, &fl) == -1) {
 		syslog(LOG_ERR, "Failed to release the lock pool: %d; error: %d %s", pool,
-				errno, strerror(errno));
+				erryes, strerror(erryes));
 		exit(EXIT_FAILURE);
 	}
 }
@@ -155,7 +155,7 @@ static void kvp_update_file(int pool)
 	filep = fopen(kvp_file_info[pool].fname, "we");
 	if (!filep) {
 		syslog(LOG_ERR, "Failed to open file, pool: %d; error: %d %s", pool,
-				errno, strerror(errno));
+				erryes, strerror(erryes));
 		kvp_release_lock(pool);
 		exit(EXIT_FAILURE);
 	}
@@ -186,7 +186,7 @@ static void kvp_update_mem_state(int pool)
 	filep = fopen(kvp_file_info[pool].fname, "re");
 	if (!filep) {
 		syslog(LOG_ERR, "Failed to open file, pool: %d; error: %d %s", pool,
-				errno, strerror(errno));
+				erryes, strerror(erryes));
 		kvp_release_lock(pool);
 		exit(EXIT_FAILURE);
 	}
@@ -199,7 +199,7 @@ static void kvp_update_mem_state(int pool)
 		if (ferror(filep)) {
 			syslog(LOG_ERR,
 				"Failed to read file, pool: %d; error: %d %s",
-				 pool, errno, strerror(errno));
+				 pool, erryes, strerror(erryes));
 			kvp_release_lock(pool);
 			exit(EXIT_FAILURE);
 		}
@@ -239,7 +239,7 @@ static int kvp_file_init(void)
 	if (access(KVP_CONFIG_LOC, F_OK)) {
 		if (mkdir(KVP_CONFIG_LOC, 0755 /* rwxr-xr-x */)) {
 			syslog(LOG_ERR, "Failed to create '%s'; error: %d %s", KVP_CONFIG_LOC,
-					errno, strerror(errno));
+					erryes, strerror(erryes));
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -444,7 +444,7 @@ void kvp_get_os_info(void)
 		while (fgets(buf, sizeof(buf), file)) {
 			char *value, *q;
 
-			/* Ignore comments */
+			/* Igyesre comments */
 			if (buf[0] == '#')
 				continue;
 
@@ -532,7 +532,7 @@ kvp_osinfo_found:
 					*p = '\0';
 				p = strdup(buf);
 				if (p)
-					os_minor = p;
+					os_miyesr = p;
 			}
 		}
 	}
@@ -547,7 +547,7 @@ done:
 /*
  * Retrieve an interface name corresponding to the specified guid.
  * If there is a match, the function returns a pointer
- * to the interface name and if not, a NULL is returned.
+ * to the interface name and if yest, a NULL is returned.
  * If a match is found, the caller is responsible for
  * freeing the memory.
  */
@@ -701,7 +701,7 @@ static void kvp_get_ipconfig_info(char *if_name,
 
 	/*
 	 * Gather the DNS state.
-	 * Since there is no standard way to get this information
+	 * Since there is yes standard way to get this information
 	 * across various distributions of interest; we just invoke
 	 * an external script that needs to be ported across distros
 	 * of interest.
@@ -854,7 +854,7 @@ kvp_get_ip_info(int family, char *if_name, int op,
 		/*
 		 * We only support two address families: AF_INET and AF_INET6.
 		 * If a family value of 0 is specified, we collect both
-		 * supported address families; if not we gather info on
+		 * supported address families; if yest we gather info on
 		 * the specified address family.
 		 */
 		if ((((family != 0) &&
@@ -1052,7 +1052,7 @@ static int parse_ip_val_buffer(char *in_buf, int *offset,
 
 	/*
 	 * in_buf has sequence of characters that are separated by
-	 * the character ';'. The last sequence does not have the
+	 * the character ';'. The last sequence does yest have the
 	 * terminating ";" character.
 	 */
 	start = in_buf + *offset;
@@ -1182,7 +1182,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 
 	/*
 	 * Set the configuration for the specified interface with
-	 * the information provided. Since there is no standard
+	 * the information provided. Since there is yes standard
 	 * way to configure an interface, we will have an external
 	 * script that does the job of configuring the interface and
 	 * flushing the configuration.
@@ -1195,14 +1195,14 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	 *
 	 * The information provided here may be more than what is needed
 	 * in a given distro to configure the interface and so are free
-	 * ignore information that may not be relevant.
+	 * igyesre information that may yest be relevant.
 	 *
 	 * Here is the format of the ip configuration file:
 	 *
 	 * HWADDR=macaddr
 	 * DEVICE=interface name
 	 * BOOTPROTO=<protocol> (where <protocol> is "dhcp" if DHCP is configured
-	 *                       or "none" if no boot-time protocol should be used)
+	 *                       or "yesne" if yes boot-time protocol should be used)
 	 *
 	 * IPADDR0=ipaddr1
 	 * IPADDR1=ipaddr2
@@ -1234,7 +1234,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 
 	if (file == NULL) {
 		syslog(LOG_ERR, "Failed to open config file; error: %d %s",
-				errno, strerror(errno));
+				erryes, strerror(erryes));
 		return HV_E_FAIL;
 	}
 
@@ -1269,7 +1269,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 			goto setval_error;
 
 	} else {
-		error = kvp_write_file(file, "BOOTPROTO", "", "none");
+		error = kvp_write_file(file, "BOOTPROTO", "", "yesne");
 		if (error)
 			goto setval_error;
 	}
@@ -1316,7 +1316,7 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 
 	if (system(cmd)) {
 		syslog(LOG_ERR, "Failed to execute cmd '%s'; error: %d %s",
-				cmd, errno, strerror(errno));
+				cmd, erryes, strerror(erryes));
 		return HV_E_FAIL;
 	}
 	return 0;
@@ -1346,7 +1346,7 @@ kvp_get_domain_name(char *buffer, int length)
 			error, gai_strerror(error));
 		return;
 	}
-	snprintf(buffer, length, "%s", info->ai_canonname);
+	snprintf(buffer, length, "%s", info->ai_cayesnname);
 	freeaddrinfo(info);
 }
 
@@ -1354,7 +1354,7 @@ void print_usage(char *argv[])
 {
 	fprintf(stderr, "Usage: %s [options]\n"
 		"Options are:\n"
-		"  -n, --no-daemon        stay in foreground, don't daemonize\n"
+		"  -n, --yes-daemon        stay in foreground, don't daemonize\n"
 		"  -h, --help             print this help\n", argv[0]);
 }
 
@@ -1374,8 +1374,8 @@ int main(int argc, char *argv[])
 	int daemonize = 1, long_index = 0, opt;
 
 	static struct option long_options[] = {
-		{"help",	no_argument,	   0,  'h' },
-		{"no-daemon",	no_argument,	   0,  'n' },
+		{"help",	yes_argument,	   0,  'h' },
+		{"yes-daemon",	yes_argument,	   0,  'n' },
 		{0,		0,		   0,  0   }
 	};
 
@@ -1404,7 +1404,7 @@ int main(int argc, char *argv[])
 
 	if (kvp_fd < 0) {
 		syslog(LOG_ERR, "open /dev/vmbus/hv_kvp failed; error: %d %s",
-			errno, strerror(errno));
+			erryes, strerror(erryes));
 		exit(EXIT_FAILURE);
 	}
 
@@ -1430,7 +1430,7 @@ int main(int argc, char *argv[])
 	len = write(kvp_fd, hv_msg, sizeof(struct hv_kvp_msg));
 	if (len != sizeof(struct hv_kvp_msg)) {
 		syslog(LOG_ERR, "registration to kernel failed; error: %d %s",
-		       errno, strerror(errno));
+		       erryes, strerror(erryes));
 		close(kvp_fd);
 		exit(EXIT_FAILURE);
 	}
@@ -1442,8 +1442,8 @@ int main(int argc, char *argv[])
 		pfd.revents = 0;
 
 		if (poll(&pfd, 1, -1) < 0) {
-			syslog(LOG_ERR, "poll failed; error: %d %s", errno, strerror(errno));
-			if (errno == EINVAL) {
+			syslog(LOG_ERR, "poll failed; error: %d %s", erryes, strerror(erryes));
+			if (erryes == EINVAL) {
 				close(kvp_fd);
 				exit(EXIT_FAILURE);
 			}
@@ -1455,7 +1455,7 @@ int main(int argc, char *argv[])
 
 		if (len != sizeof(struct hv_kvp_msg)) {
 			syslog(LOG_ERR, "read failed; error:%d %s",
-			       errno, strerror(errno));
+			       erryes, strerror(erryes));
 
 			close(kvp_fd);
 			return EXIT_FAILURE;
@@ -1505,7 +1505,7 @@ int main(int argc, char *argv[])
 					(char *)kvp_ip_val->adapter_id);
 			if (if_name == NULL) {
 				/*
-				 * We could not map the guid to an
+				 * We could yest map the guid to an
 				 * interface name; return error.
 				 */
 				hv_msg->error = HV_GUID_NOTFOUND;
@@ -1552,7 +1552,7 @@ int main(int argc, char *argv[])
 
 		/*
 		 * If the pool is KVP_POOL_AUTO, dynamically generate
-		 * both the key and the value; if not read from the
+		 * both the key and the value; if yest read from the
 		 * appropriate pool.
 		 */
 		if (pool != KVP_POOL_AUTO) {
@@ -1600,9 +1600,9 @@ int main(int argc, char *argv[])
 			strcpy(key_value, os_major);
 			strcpy(key_name, "OSMajorVersion");
 			break;
-		case OSMinorVersion:
-			strcpy(key_value, os_minor);
-			strcpy(key_name, "OSMinorVersion");
+		case OSMiyesrVersion:
+			strcpy(key_value, os_miyesr);
+			strcpy(key_name, "OSMiyesrVersion");
 			break;
 		case OSVersion:
 			strcpy(key_value, os_version);
@@ -1621,8 +1621,8 @@ int main(int argc, char *argv[])
 kvp_done:
 		len = write(kvp_fd, hv_msg, sizeof(struct hv_kvp_msg));
 		if (len != sizeof(struct hv_kvp_msg)) {
-			syslog(LOG_ERR, "write failed; error: %d %s", errno,
-			       strerror(errno));
+			syslog(LOG_ERR, "write failed; error: %d %s", erryes,
+			       strerror(erryes));
 			exit(EXIT_FAILURE);
 		}
 	}

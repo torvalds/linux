@@ -204,7 +204,7 @@
 #define TEGRA30_I2S_FLOW_STATUS_MONITOR_EN		(1 << 0)
 
 /*
- * There are no fields in TEGRA30_I2S_FLOW_TOTAL, TEGRA30_I2S_FLOW_OVER,
+ * There are yes fields in TEGRA30_I2S_FLOW_TOTAL, TEGRA30_I2S_FLOW_OVER,
  * TEGRA30_I2S_FLOW_UNDER; they are counters taking the whole register.
  */
 

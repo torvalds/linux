@@ -22,7 +22,7 @@
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/xive.h>
 #include <asm/xive-regs.h>
 #include <asm/hvcall.h>
@@ -146,7 +146,7 @@ static long plpar_int_reset(unsigned long flags)
 	long rc;
 
 	do {
-		rc = plpar_hcall_norets(H_INT_RESET, flags);
+		rc = plpar_hcall_yesrets(H_INT_RESET, flags);
 	} while (plpar_busy_delay(rc));
 
 	if (rc)
@@ -202,7 +202,7 @@ static long plpar_int_set_source_config(unsigned long flags,
 
 
 	do {
-		rc = plpar_hcall_norets(H_INT_SET_SOURCE_CONFIG, flags, lisn,
+		rc = plpar_hcall_yesrets(H_INT_SET_SOURCE_CONFIG, flags, lisn,
 					target, prio, sw_irq);
 	} while (plpar_busy_delay(rc));
 
@@ -290,7 +290,7 @@ static long plpar_int_set_queue_config(unsigned long flags,
 		flags,  target, priority, qpage, qsize);
 
 	do {
-		rc = plpar_hcall_norets(H_INT_SET_QUEUE_CONFIG, flags, target,
+		rc = plpar_hcall_yesrets(H_INT_SET_QUEUE_CONFIG, flags, target,
 					priority, qpage, qsize);
 	} while (plpar_busy_delay(rc));
 
@@ -308,7 +308,7 @@ static long plpar_int_sync(unsigned long flags, unsigned long lisn)
 	long rc;
 
 	do {
-		rc = plpar_hcall_norets(H_INT_SYNC, flags, lisn);
+		rc = plpar_hcall_yesrets(H_INT_SYNC, flags, lisn);
 	} while (plpar_busy_delay(rc));
 
 	if (rc) {
@@ -403,7 +403,7 @@ static int xive_spapr_populate_irq_data(u32 hw_irq, struct xive_irq_data *data)
 	/*
 	 * When the H_INT_ESB flag is set, the H_INT_ESB hcall should
 	 * be used for interrupt management. Skip the remapping of the
-	 * ESB pages which are not available.
+	 * ESB pages which are yest available.
 	 */
 	if (data->flags & XIVE_IRQ_FLAG_H_INT_ESB)
 		return 0;
@@ -487,10 +487,10 @@ static int xive_spapr_configure_queue(u32 target, struct xive_q *q, u8 prio,
 		goto fail;
 	}
 
-	/* TODO: add support for the notification page */
+	/* TODO: add support for the yestification page */
 	q->eoi_phys = esn_page;
 
-	/* Default is to always notify */
+	/* Default is to always yestify */
 	flags = XIVE_EQ_ALWAYS_NOTIFY;
 
 	/* Configure and enable the queue in HW */
@@ -538,9 +538,9 @@ static void xive_spapr_cleanup_queue(unsigned int cpu, struct xive_cpu *xc,
 	q->qpage = NULL;
 }
 
-static bool xive_spapr_match(struct device_node *node)
+static bool xive_spapr_match(struct device_yesde *yesde)
 {
-	/* Ignore cascaded controllers for the moment */
+	/* Igyesre cascaded controllers for the moment */
 	return 1;
 }
 
@@ -583,7 +583,7 @@ static void xive_spapr_update_pending(struct xive_cpu *xc)
 	u16 ack;
 
 	/*
-	 * Perform the "Acknowledge O/S to Register" cycle.
+	 * Perform the "Ackyeswledge O/S to Register" cycle.
 	 *
 	 * Let's speedup the access to the TIMA using the raw I/O
 	 * accessor as we don't need the synchronisation routine of
@@ -671,14 +671,14 @@ static const struct xive_ops xive_spapr_ops = {
  */
 static bool xive_get_max_prio(u8 *max_prio)
 {
-	struct device_node *rootdn;
+	struct device_yesde *rootdn;
 	const __be32 *reg;
 	u32 len;
 	int prio, found;
 
-	rootdn = of_find_node_by_path("/");
+	rootdn = of_find_yesde_by_path("/");
 	if (!rootdn) {
-		pr_err("not root node found !\n");
+		pr_err("yest root yesde found !\n");
 		return false;
 	}
 
@@ -715,7 +715,7 @@ static bool xive_get_max_prio(u8 *max_prio)
 	}
 
 	if (found == 0xFF) {
-		pr_err("no valid priority found in 'ibm,plat-res-int-priorities'\n");
+		pr_err("yes valid priority found in 'ibm,plat-res-int-priorities'\n");
 		return false;
 	}
 
@@ -730,7 +730,7 @@ static const u8 *get_vec5_feature(unsigned int index)
 	const u8 *vec5;
 
 	root = of_get_flat_dt_root();
-	chosen = of_get_flat_dt_subnode_by_name(root, "chosen");
+	chosen = of_get_flat_dt_subyesde_by_name(root, "chosen");
 	if (chosen == -FDT_ERR_NOTFOUND)
 		return NULL;
 
@@ -760,10 +760,10 @@ static bool xive_spapr_disabled(void)
 		case OV5_FEAT(OV5_XIVE_EXPLOIT):
 			/* Hypervisor only supports XIVE */
 			if (xive_cmdline_disabled)
-				pr_warn("WARNING: Ignoring cmdline option xive=off\n");
+				pr_warn("WARNING: Igyesring cmdline option xive=off\n");
 			return false;
 		default:
-			pr_warn("%s: Unknown xive support option: 0x%x\n",
+			pr_warn("%s: Unkyeswn xive support option: 0x%x\n",
 				__func__, val);
 			break;
 		}
@@ -774,7 +774,7 @@ static bool xive_spapr_disabled(void)
 
 bool __init xive_spapr_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource r;
 	void __iomem *tima;
 	struct property *prop;
@@ -788,9 +788,9 @@ bool __init xive_spapr_init(void)
 		return false;
 
 	pr_devel("%s()\n", __func__);
-	np = of_find_compatible_node(NULL, NULL, "ibm,power-ivpe");
+	np = of_find_compatible_yesde(NULL, NULL, "ibm,power-ivpe");
 	if (!np) {
-		pr_devel("not found !\n");
+		pr_devel("yest found !\n");
 		return false;
 	}
 	pr_devel("Found %s\n", np->full_name);

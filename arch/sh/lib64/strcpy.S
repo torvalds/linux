@@ -30,7 +30,7 @@ strcpy:
 	mcmpeq.b r4,r63,r6
 	SHHI r6,r7,r6
 	bnei/u r6,0,tr1 // shortstring
-	pta/l no_lddst, tr2
+	pta/l yes_lddst, tr2
 	ori r3,-8,r23
 	sub r2, r23, r0
 	sub r3, r2, r21
@@ -39,7 +39,7 @@ strcpy:
 	pta/l loop, tr0
 	ori r2,-8,r22
 	mcmpeq.b r5, r63, r6
-	bgt/u r22, r23, tr2 // no_lddst
+	bgt/u r22, r23, tr2 // yes_lddst
 
 	// r22 < r23 :  Need to do a load from the destination.
 	// r22 == r23 : Doesn't actually need to load from destination,
@@ -54,8 +54,8 @@ strcpy:
 	add r5, r63, r4
 	addi r0, 8, r0
 	blink tr1, r63 // shortstring
-no_lddst:
-	// r22 > r23: note that for r22 == r23 the sthi.q would clobber
+yes_lddst:
+	// r22 > r23: yeste that for r22 == r23 the sthi.q would clobber
 	//            bytes before the destination region.
 	stlo.q r2, 0, r4
 	SHHI r4, r7, r4

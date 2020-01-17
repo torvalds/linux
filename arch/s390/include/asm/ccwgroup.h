@@ -11,7 +11,7 @@ struct ccw_driver;
  * @count: number of attached slave devices
  * @dev: embedded device structure
  * @cdev: variable number of slave devices, allocated as needed
- * @ungroup_work: work to be done when a ccwgroup notifier has action
+ * @ungroup_work: work to be done when a ccwgroup yestifier has action
  *	type %BUS_NOTIFY_UNBIND_DRIVER
  */
 struct ccwgroup_device {
@@ -20,7 +20,7 @@ struct ccwgroup_device {
 		CCWGROUP_ONLINE,
 	} state;
 /* private: */
-	atomic_t onoff;
+	atomic_t oyesff;
 	struct mutex reg_mutex;
 /* public: */
 	unsigned int count;

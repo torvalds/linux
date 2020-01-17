@@ -3,7 +3,7 @@ MediaTek DWMAC glue layer controller
 This file documents platform glue layer for stmmac.
 Please see stmmac.txt for the other unchanged properties.
 
-The device node has following properties.
+The device yesde has following properties.
 
 Required properties:
 - compatible:  Should be "mediatek,mt2712-gmac" for MT2712 SoC
@@ -17,7 +17,7 @@ Required properties:
 	"axi", "apb", "mac_main", "ptp_ref" for MT2712 SoC
 - mac-address: See ethernet.txt in the same directory
 - phy-mode: See ethernet.txt in the same directory
-- mediatek,pericfg: A phandle to the syscon node that control ethernet
+- mediatek,pericfg: A phandle to the syscon yesde that control ethernet
 	interface and timing delay.
 
 Optional properties:

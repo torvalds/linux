@@ -6,25 +6,25 @@
  */
 
 #include <linux/rtnetlink.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/export.h>
 #include <net/dcbevent.h>
 
-static ATOMIC_NOTIFIER_HEAD(dcbevent_notif_chain);
+static ATOMIC_NOTIFIER_HEAD(dcbevent_yestif_chain);
 
-int register_dcbevent_notifier(struct notifier_block *nb)
+int register_dcbevent_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&dcbevent_notif_chain, nb);
+	return atomic_yestifier_chain_register(&dcbevent_yestif_chain, nb);
 }
-EXPORT_SYMBOL(register_dcbevent_notifier);
+EXPORT_SYMBOL(register_dcbevent_yestifier);
 
-int unregister_dcbevent_notifier(struct notifier_block *nb)
+int unregister_dcbevent_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&dcbevent_notif_chain, nb);
+	return atomic_yestifier_chain_unregister(&dcbevent_yestif_chain, nb);
 }
-EXPORT_SYMBOL(unregister_dcbevent_notifier);
+EXPORT_SYMBOL(unregister_dcbevent_yestifier);
 
-int call_dcbevent_notifiers(unsigned long val, void *v)
+int call_dcbevent_yestifiers(unsigned long val, void *v)
 {
-	return atomic_notifier_call_chain(&dcbevent_notif_chain, val, v);
+	return atomic_yestifier_call_chain(&dcbevent_yestif_chain, val, v);
 }

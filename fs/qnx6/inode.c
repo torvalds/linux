@@ -29,15 +29,15 @@
 static const struct super_operations qnx6_sops;
 
 static void qnx6_put_super(struct super_block *sb);
-static struct inode *qnx6_alloc_inode(struct super_block *sb);
-static void qnx6_free_inode(struct inode *inode);
+static struct iyesde *qnx6_alloc_iyesde(struct super_block *sb);
+static void qnx6_free_iyesde(struct iyesde *iyesde);
 static int qnx6_remount(struct super_block *sb, int *flags, char *data);
 static int qnx6_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int qnx6_show_options(struct seq_file *seq, struct dentry *root);
 
 static const struct super_operations qnx6_sops = {
-	.alloc_inode	= qnx6_alloc_inode,
-	.free_inode	= qnx6_free_inode,
+	.alloc_iyesde	= qnx6_alloc_iyesde,
+	.free_iyesde	= qnx6_free_iyesde,
 	.put_super	= qnx6_put_super,
 	.statfs		= qnx6_statfs,
 	.remount_fs	= qnx6_remount,
@@ -67,20 +67,20 @@ static unsigned qnx6_get_devblock(struct super_block *sb, __fs32 block)
 	return fs32_to_cpu(sbi, block) + sbi->s_blks_off;
 }
 
-static unsigned qnx6_block_map(struct inode *inode, unsigned iblock);
+static unsigned qnx6_block_map(struct iyesde *iyesde, unsigned iblock);
 
-static int qnx6_get_block(struct inode *inode, sector_t iblock,
+static int qnx6_get_block(struct iyesde *iyesde, sector_t iblock,
 			struct buffer_head *bh, int create)
 {
 	unsigned phys;
 
-	pr_debug("qnx6_get_block inode=[%ld] iblock=[%ld]\n",
-		 inode->i_ino, (unsigned long)iblock);
+	pr_debug("qnx6_get_block iyesde=[%ld] iblock=[%ld]\n",
+		 iyesde->i_iyes, (unsigned long)iblock);
 
-	phys = qnx6_block_map(inode, iblock);
+	phys = qnx6_block_map(iyesde, iblock);
 	if (phys) {
 		/* logical block is before EOF */
-		map_bh(bh, inode->i_sb, phys);
+		map_bh(bh, iyesde->i_sb, phys);
 	}
 	return 0;
 }
@@ -106,14 +106,14 @@ static int qnx6_readpages(struct file *file, struct address_space *mapping,
 }
 
 /*
- * returns the block number for the no-th element in the tree
- * inodebits requred as there are multiple inodes in one inode block
+ * returns the block number for the yes-th element in the tree
+ * iyesdebits requred as there are multiple iyesdes in one iyesde block
  */
-static unsigned qnx6_block_map(struct inode *inode, unsigned no)
+static unsigned qnx6_block_map(struct iyesde *iyesde, unsigned yes)
 {
-	struct super_block *s = inode->i_sb;
+	struct super_block *s = iyesde->i_sb;
 	struct qnx6_sb_info *sbi = QNX6_SB(s);
-	struct qnx6_inode_info *ei = QNX6_I(inode);
+	struct qnx6_iyesde_info *ei = QNX6_I(iyesde);
 	unsigned block = 0;
 	struct buffer_head *bh;
 	__fs32 ptr;
@@ -125,10 +125,10 @@ static unsigned qnx6_block_map(struct inode *inode, unsigned no)
 	int i;
 
 	bitdelta = ptrbits * depth;
-	levelptr = no >> bitdelta;
+	levelptr = yes >> bitdelta;
 
 	if (levelptr > QNX6_NO_DIRECT_POINTERS - 1) {
-		pr_err("Requested file block number (%u) too big.", no);
+		pr_err("Requested file block number (%u) too big.", yes);
 		return 0;
 	}
 
@@ -141,7 +141,7 @@ static unsigned qnx6_block_map(struct inode *inode, unsigned no)
 			return 0;
 		}
 		bitdelta -= ptrbits;
-		levelptr = (no >> bitdelta) & mask;
+		levelptr = (yes >> bitdelta) & mask;
 		ptr = ((__fs32 *)bh->b_data)[levelptr];
 
 		if (!qnx6_check_blockptr(ptr))
@@ -163,8 +163,8 @@ static int qnx6_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bsize   = sb->s_blocksize;
 	buf->f_blocks  = fs32_to_cpu(sbi, sbi->sb->sb_num_blocks);
 	buf->f_bfree   = fs32_to_cpu(sbi, sbi->sb->sb_free_blocks);
-	buf->f_files   = fs32_to_cpu(sbi, sbi->sb->sb_num_inodes);
-	buf->f_ffree   = fs32_to_cpu(sbi, sbi->sb->sb_free_inodes);
+	buf->f_files   = fs32_to_cpu(sbi, sbi->sb->sb_num_iyesdes);
+	buf->f_ffree   = fs32_to_cpu(sbi, sbi->sb->sb_free_iyesdes);
 	buf->f_bavail  = buf->f_bfree;
 	buf->f_namelen = QNX6_LONG_NAME_MAX;
 	buf->f_fsid.val[0] = (u32)id;
@@ -183,7 +183,7 @@ static const char *qnx6_checkroot(struct super_block *s)
 	static char match_root[2][3] = {".\0\0", "..\0"};
 	int i, error = 0;
 	struct qnx6_dir_entry *dir_entry;
-	struct inode *root = d_inode(s->s_root);
+	struct iyesde *root = d_iyesde(s->s_root);
 	struct address_space *mapping = root->i_mapping;
 	struct page *page = read_mapping_page(mapping, 0, NULL);
 	if (IS_ERR(page))
@@ -211,11 +211,11 @@ void qnx6_superblock_debug(struct qnx6_super_block *sb, struct super_block *s)
 	pr_debug("serial: %llx\n", fs64_to_cpu(sbi, sb->sb_serial));
 	pr_debug("flags: %08x\n", fs32_to_cpu(sbi, sb->sb_flags));
 	pr_debug("blocksize: %08x\n", fs32_to_cpu(sbi, sb->sb_blocksize));
-	pr_debug("num_inodes: %08x\n", fs32_to_cpu(sbi, sb->sb_num_inodes));
-	pr_debug("free_inodes: %08x\n", fs32_to_cpu(sbi, sb->sb_free_inodes));
+	pr_debug("num_iyesdes: %08x\n", fs32_to_cpu(sbi, sb->sb_num_iyesdes));
+	pr_debug("free_iyesdes: %08x\n", fs32_to_cpu(sbi, sb->sb_free_iyesdes));
 	pr_debug("num_blocks: %08x\n", fs32_to_cpu(sbi, sb->sb_num_blocks));
 	pr_debug("free_blocks: %08x\n", fs32_to_cpu(sbi, sb->sb_free_blocks));
-	pr_debug("inode_levels: %02x\n", sb->Inode.levels);
+	pr_debug("iyesde_levels: %02x\n", sb->Iyesde.levels);
 }
 #endif
 
@@ -292,15 +292,15 @@ static struct buffer_head *qnx6_check_first_superblock(struct super_block *s,
 	return bh;
 }
 
-static struct inode *qnx6_private_inode(struct super_block *s,
-					struct qnx6_root_node *p);
+static struct iyesde *qnx6_private_iyesde(struct super_block *s,
+					struct qnx6_root_yesde *p);
 
 static int qnx6_fill_super(struct super_block *s, void *data, int silent)
 {
 	struct buffer_head *bh1 = NULL, *bh2 = NULL;
 	struct qnx6_super_block *sb1 = NULL, *sb2 = NULL;
 	struct qnx6_sb_info *sbi;
-	struct inode *root;
+	struct iyesde *root;
 	const char *errmsg;
 	struct qnx6_sb_info *qs;
 	int ret = -EINVAL;
@@ -315,20 +315,20 @@ static int qnx6_fill_super(struct super_block *s, void *data, int silent)
 	/* Superblock always is 512 Byte long */
 	if (!sb_set_blocksize(s, QNX6_SUPERBLOCK_SIZE)) {
 		pr_err("unable to set blocksize\n");
-		goto outnobh;
+		goto outyesbh;
 	}
 
 	/* parse the mount-options */
 	if (!qnx6_parse_options((char *) data, s)) {
 		pr_err("invalid mount options.\n");
-		goto outnobh;
+		goto outyesbh;
 	}
 	if (test_opt(s, MMI_FS)) {
 		sb1 = qnx6_mmi_fill_super(s, silent);
 		if (sb1)
 			goto mmi_success;
 		else
-			goto outnobh;
+			goto outyesbh;
 	}
 	sbi = QNX6_SB(s);
 	sbi->s_bytesex = BYTESEX_LE;
@@ -341,9 +341,9 @@ static int qnx6_fill_super(struct super_block *s, void *data, int silent)
 		bh1 = qnx6_check_first_superblock(s, 0, silent);
 		if (!bh1) {
 			pr_err("unable to read the first superblock\n");
-			goto outnobh;
+			goto outyesbh;
 		}
-		/* seems that no bootblock at partition start */
+		/* seems that yes bootblock at partition start */
 		bootblock_offset = 0;
 	}
 	sb1 = (struct qnx6_super_block *)bh1->b_data;
@@ -368,7 +368,7 @@ static int qnx6_fill_super(struct super_block *s, void *data, int silent)
 	brelse(bh1);
 	bh1 = sb_bread(s, bootblock_offset >> s->s_blocksize_bits);
 	if (!bh1)
-		goto outnobh;
+		goto outyesbh;
 	sb1 = (struct qnx6_super_block *)bh1->b_data;
 
 	/* calculate second superblock blocknumber */
@@ -416,9 +416,9 @@ static int qnx6_fill_super(struct super_block *s, void *data, int silent)
 	}
 mmi_success:
 	/* sanity check - limit maximum indirect pointer levels */
-	if (sb1->Inode.levels > QNX6_PTR_MAX_LEVELS) {
-		pr_err("too many inode levels (max %i, sb %i)\n",
-		       QNX6_PTR_MAX_LEVELS, sb1->Inode.levels);
+	if (sb1->Iyesde.levels > QNX6_PTR_MAX_LEVELS) {
+		pr_err("too many iyesde levels (max %i, sb %i)\n",
+		       QNX6_PTR_MAX_LEVELS, sb1->Iyesde.levels);
 		goto out;
 	}
 	if (sb1->Longfile.levels > QNX6_PTR_MAX_LEVELS) {
@@ -435,17 +435,17 @@ mmi_success:
 	/* ease the later tree level calculations */
 	sbi = QNX6_SB(s);
 	sbi->s_ptrbits = ilog2(s->s_blocksize / 4);
-	sbi->inodes = qnx6_private_inode(s, &sb1->Inode);
-	if (!sbi->inodes)
+	sbi->iyesdes = qnx6_private_iyesde(s, &sb1->Iyesde);
+	if (!sbi->iyesdes)
 		goto out;
-	sbi->longfile = qnx6_private_inode(s, &sb1->Longfile);
+	sbi->longfile = qnx6_private_iyesde(s, &sb1->Longfile);
 	if (!sbi->longfile)
 		goto out1;
 
-	/* prefetch root inode */
+	/* prefetch root iyesde */
 	root = qnx6_iget(s, QNX6_ROOT_INO);
 	if (IS_ERR(root)) {
-		pr_err("get inode failed\n");
+		pr_err("get iyesde failed\n");
 		ret = PTR_ERR(root);
 		goto out2;
 	}
@@ -470,13 +470,13 @@ out3:
 out2:
 	iput(sbi->longfile);
 out1:
-	iput(sbi->inodes);
+	iput(sbi->iyesdes);
 out:
 	if (bh1)
 		brelse(bh1);
 	if (bh2)
 		brelse(bh2);
-outnobh:
+outyesbh:
 	kfree(qs);
 	s->s_fs_info = NULL;
 	return ret;
@@ -487,7 +487,7 @@ static void qnx6_put_super(struct super_block *sb)
 	struct qnx6_sb_info *qs = QNX6_SB(sb);
 	brelse(qs->sb_buf);
 	iput(qs->longfile);
-	iput(qs->inodes);
+	iput(qs->iyesdes);
 	kfree(qs);
 	sb->s_fs_info = NULL;
 	return;
@@ -503,140 +503,140 @@ static const struct address_space_operations qnx6_aops = {
 	.bmap		= qnx6_bmap
 };
 
-static struct inode *qnx6_private_inode(struct super_block *s,
-					struct qnx6_root_node *p)
+static struct iyesde *qnx6_private_iyesde(struct super_block *s,
+					struct qnx6_root_yesde *p)
 {
-	struct inode *inode = new_inode(s);
-	if (inode) {
-		struct qnx6_inode_info *ei = QNX6_I(inode);
+	struct iyesde *iyesde = new_iyesde(s);
+	if (iyesde) {
+		struct qnx6_iyesde_info *ei = QNX6_I(iyesde);
 		struct qnx6_sb_info *sbi = QNX6_SB(s);
-		inode->i_size = fs64_to_cpu(sbi, p->size);
+		iyesde->i_size = fs64_to_cpu(sbi, p->size);
 		memcpy(ei->di_block_ptr, p->ptr, sizeof(p->ptr));
 		ei->di_filelevels = p->levels;
-		inode->i_mode = S_IFREG | S_IRUSR; /* probably wrong */
-		inode->i_mapping->a_ops = &qnx6_aops;
+		iyesde->i_mode = S_IFREG | S_IRUSR; /* probably wrong */
+		iyesde->i_mapping->a_ops = &qnx6_aops;
 	}
-	return inode;
+	return iyesde;
 }
 
-struct inode *qnx6_iget(struct super_block *sb, unsigned ino)
+struct iyesde *qnx6_iget(struct super_block *sb, unsigned iyes)
 {
 	struct qnx6_sb_info *sbi = QNX6_SB(sb);
-	struct qnx6_inode_entry *raw_inode;
-	struct inode *inode;
-	struct qnx6_inode_info	*ei;
+	struct qnx6_iyesde_entry *raw_iyesde;
+	struct iyesde *iyesde;
+	struct qnx6_iyesde_info	*ei;
 	struct address_space *mapping;
 	struct page *page;
 	u32 n, offs;
 
-	inode = iget_locked(sb, ino);
-	if (!inode)
+	iyesde = iget_locked(sb, iyes);
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(iyesde->i_state & I_NEW))
+		return iyesde;
 
-	ei = QNX6_I(inode);
+	ei = QNX6_I(iyesde);
 
-	inode->i_mode = 0;
+	iyesde->i_mode = 0;
 
-	if (ino == 0) {
-		pr_err("bad inode number on dev %s: %u is out of range\n",
-		       sb->s_id, ino);
-		iget_failed(inode);
+	if (iyes == 0) {
+		pr_err("bad iyesde number on dev %s: %u is out of range\n",
+		       sb->s_id, iyes);
+		iget_failed(iyesde);
 		return ERR_PTR(-EIO);
 	}
-	n = (ino - 1) >> (PAGE_SHIFT - QNX6_INODE_SIZE_BITS);
-	offs = (ino - 1) & (~PAGE_MASK >> QNX6_INODE_SIZE_BITS);
-	mapping = sbi->inodes->i_mapping;
+	n = (iyes - 1) >> (PAGE_SHIFT - QNX6_INODE_SIZE_BITS);
+	offs = (iyes - 1) & (~PAGE_MASK >> QNX6_INODE_SIZE_BITS);
+	mapping = sbi->iyesdes->i_mapping;
 	page = read_mapping_page(mapping, n, NULL);
 	if (IS_ERR(page)) {
-		pr_err("major problem: unable to read inode from dev %s\n",
+		pr_err("major problem: unable to read iyesde from dev %s\n",
 		       sb->s_id);
-		iget_failed(inode);
+		iget_failed(iyesde);
 		return ERR_CAST(page);
 	}
 	kmap(page);
-	raw_inode = ((struct qnx6_inode_entry *)page_address(page)) + offs;
+	raw_iyesde = ((struct qnx6_iyesde_entry *)page_address(page)) + offs;
 
-	inode->i_mode    = fs16_to_cpu(sbi, raw_inode->di_mode);
-	i_uid_write(inode, (uid_t)fs32_to_cpu(sbi, raw_inode->di_uid));
-	i_gid_write(inode, (gid_t)fs32_to_cpu(sbi, raw_inode->di_gid));
-	inode->i_size    = fs64_to_cpu(sbi, raw_inode->di_size);
-	inode->i_mtime.tv_sec   = fs32_to_cpu(sbi, raw_inode->di_mtime);
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_atime.tv_sec   = fs32_to_cpu(sbi, raw_inode->di_atime);
-	inode->i_atime.tv_nsec = 0;
-	inode->i_ctime.tv_sec   = fs32_to_cpu(sbi, raw_inode->di_ctime);
-	inode->i_ctime.tv_nsec = 0;
+	iyesde->i_mode    = fs16_to_cpu(sbi, raw_iyesde->di_mode);
+	i_uid_write(iyesde, (uid_t)fs32_to_cpu(sbi, raw_iyesde->di_uid));
+	i_gid_write(iyesde, (gid_t)fs32_to_cpu(sbi, raw_iyesde->di_gid));
+	iyesde->i_size    = fs64_to_cpu(sbi, raw_iyesde->di_size);
+	iyesde->i_mtime.tv_sec   = fs32_to_cpu(sbi, raw_iyesde->di_mtime);
+	iyesde->i_mtime.tv_nsec = 0;
+	iyesde->i_atime.tv_sec   = fs32_to_cpu(sbi, raw_iyesde->di_atime);
+	iyesde->i_atime.tv_nsec = 0;
+	iyesde->i_ctime.tv_sec   = fs32_to_cpu(sbi, raw_iyesde->di_ctime);
+	iyesde->i_ctime.tv_nsec = 0;
 
 	/* calc blocks based on 512 byte blocksize */
-	inode->i_blocks = (inode->i_size + 511) >> 9;
+	iyesde->i_blocks = (iyesde->i_size + 511) >> 9;
 
-	memcpy(&ei->di_block_ptr, &raw_inode->di_block_ptr,
-				sizeof(raw_inode->di_block_ptr));
-	ei->di_filelevels = raw_inode->di_filelevels;
+	memcpy(&ei->di_block_ptr, &raw_iyesde->di_block_ptr,
+				sizeof(raw_iyesde->di_block_ptr));
+	ei->di_filelevels = raw_iyesde->di_filelevels;
 
-	if (S_ISREG(inode->i_mode)) {
-		inode->i_fop = &generic_ro_fops;
-		inode->i_mapping->a_ops = &qnx6_aops;
-	} else if (S_ISDIR(inode->i_mode)) {
-		inode->i_op = &qnx6_dir_inode_operations;
-		inode->i_fop = &qnx6_dir_operations;
-		inode->i_mapping->a_ops = &qnx6_aops;
-	} else if (S_ISLNK(inode->i_mode)) {
-		inode->i_op = &page_symlink_inode_operations;
-		inode_nohighmem(inode);
-		inode->i_mapping->a_ops = &qnx6_aops;
+	if (S_ISREG(iyesde->i_mode)) {
+		iyesde->i_fop = &generic_ro_fops;
+		iyesde->i_mapping->a_ops = &qnx6_aops;
+	} else if (S_ISDIR(iyesde->i_mode)) {
+		iyesde->i_op = &qnx6_dir_iyesde_operations;
+		iyesde->i_fop = &qnx6_dir_operations;
+		iyesde->i_mapping->a_ops = &qnx6_aops;
+	} else if (S_ISLNK(iyesde->i_mode)) {
+		iyesde->i_op = &page_symlink_iyesde_operations;
+		iyesde_yeshighmem(iyesde);
+		iyesde->i_mapping->a_ops = &qnx6_aops;
 	} else
-		init_special_inode(inode, inode->i_mode, 0);
+		init_special_iyesde(iyesde, iyesde->i_mode, 0);
 	qnx6_put_page(page);
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_iyesde(iyesde);
+	return iyesde;
 }
 
-static struct kmem_cache *qnx6_inode_cachep;
+static struct kmem_cache *qnx6_iyesde_cachep;
 
-static struct inode *qnx6_alloc_inode(struct super_block *sb)
+static struct iyesde *qnx6_alloc_iyesde(struct super_block *sb)
 {
-	struct qnx6_inode_info *ei;
-	ei = kmem_cache_alloc(qnx6_inode_cachep, GFP_KERNEL);
+	struct qnx6_iyesde_info *ei;
+	ei = kmem_cache_alloc(qnx6_iyesde_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-	return &ei->vfs_inode;
+	return &ei->vfs_iyesde;
 }
 
-static void qnx6_free_inode(struct inode *inode)
+static void qnx6_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(qnx6_inode_cachep, QNX6_I(inode));
+	kmem_cache_free(qnx6_iyesde_cachep, QNX6_I(iyesde));
 }
 
 static void init_once(void *foo)
 {
-	struct qnx6_inode_info *ei = (struct qnx6_inode_info *) foo;
+	struct qnx6_iyesde_info *ei = (struct qnx6_iyesde_info *) foo;
 
-	inode_init_once(&ei->vfs_inode);
+	iyesde_init_once(&ei->vfs_iyesde);
 }
 
-static int init_inodecache(void)
+static int init_iyesdecache(void)
 {
-	qnx6_inode_cachep = kmem_cache_create("qnx6_inode_cache",
-					     sizeof(struct qnx6_inode_info),
+	qnx6_iyesde_cachep = kmem_cache_create("qnx6_iyesde_cache",
+					     sizeof(struct qnx6_iyesde_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
-	if (!qnx6_inode_cachep)
+	if (!qnx6_iyesde_cachep)
 		return -ENOMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_iyesdecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(qnx6_inode_cachep);
+	kmem_cache_destroy(qnx6_iyesde_cachep);
 }
 
 static struct dentry *qnx6_mount(struct file_system_type *fs_type,
@@ -658,13 +658,13 @@ static int __init init_qnx6_fs(void)
 {
 	int err;
 
-	err = init_inodecache();
+	err = init_iyesdecache();
 	if (err)
 		return err;
 
 	err = register_filesystem(&qnx6_fs_type);
 	if (err) {
-		destroy_inodecache();
+		destroy_iyesdecache();
 		return err;
 	}
 
@@ -675,7 +675,7 @@ static int __init init_qnx6_fs(void)
 static void __exit exit_qnx6_fs(void)
 {
 	unregister_filesystem(&qnx6_fs_type);
-	destroy_inodecache();
+	destroy_iyesdecache();
 }
 
 module_init(init_qnx6_fs)

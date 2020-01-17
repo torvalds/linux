@@ -14,7 +14,7 @@
  * compal-laptop.c - Compal laptop support.
  *
  * This driver exports a few files in /sys/devices/platform/compal-laptop/:
- *   wake_up_XXX   Whether or not we listen to such wake up events (rw)
+ *   wake_up_XXX   Whether or yest we listen to such wake up events (rw)
  *
  * In addition to these platform device attributes the driver
  * registers itself in the Linux backlight control, power_supply, rfkill
@@ -179,7 +179,7 @@ struct compal_data{
 /* =============== */
 static bool force;
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
+MODULE_PARM_DESC(force, "Force driver load, igyesre DMI data");
 
 /* Support for the wake_on_XXX, hwmon and power_supply interface. Currently
  * only gets enabled on a JHL90 board. Might work with the others too */
@@ -483,7 +483,7 @@ static ssize_t label_##POSTFIX(struct device *dev,			\
 TEMPERATURE_SHOW_TEMP_AND_LABEL(cpu,        TEMP_CPU,        "CPU_TEMP");
 TEMPERATURE_SHOW_TEMP_AND_LABEL(cpu_local,  TEMP_CPU_LOCAL,  "CPU_TEMP_LOCAL");
 TEMPERATURE_SHOW_TEMP_AND_LABEL(cpu_DTS,    TEMP_CPU_DTS,    "CPU_DTS");
-TEMPERATURE_SHOW_TEMP_AND_LABEL(northbridge,TEMP_NORTHBRIDGE,"NorthBridge");
+TEMPERATURE_SHOW_TEMP_AND_LABEL(yesrthbridge,TEMP_NORTHBRIDGE,"NorthBridge");
 TEMPERATURE_SHOW_TEMP_AND_LABEL(vga,        TEMP_VGA,        "VGA_TEMP");
 TEMPERATURE_SHOW_TEMP_AND_LABEL(SKIN,       TEMP_SKIN,       "SKIN_TEMP90");
 
@@ -524,7 +524,7 @@ static int bat_is_present(void)
 	return ((status & BAT_S1_EXISTS) != 0);
 }
 
-static int bat_technology(void)
+static int bat_techyeslogy(void)
 {
 	u8 status = ec_read_u8(BAT_STATUS1);
 
@@ -567,7 +567,7 @@ static int bat_get_property(struct power_supply *psy,
 		val->intval = bat_is_present();
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = bat_technology();
+		val->intval = bat_techyeslogy();
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN: /* THE design voltage... */
 		val->intval = ec_read_u16(BAT_VOLTAGE_DESIGN) * 1000;
@@ -613,7 +613,7 @@ static int bat_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_TEMP_AMBIENT: /* Ambient, Avg, ... same thing */
 		val->intval = ec_read_s8(BAT_TEMP_AVG) * 10;
 		break;
-	/* Neither the model name nor manufacturer name work for me. */
+	/* Neither the model name yesr manufacturer name work for me. */
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		val->strval = data->bat_model_name;
 		break;
@@ -677,13 +677,13 @@ static DEVICE_ATTR(fan1_input,  S_IRUGO, fan_show,          NULL);
 static DEVICE_ATTR(temp1_input, S_IRUGO, temp_cpu,          NULL);
 static DEVICE_ATTR(temp2_input, S_IRUGO, temp_cpu_local,    NULL);
 static DEVICE_ATTR(temp3_input, S_IRUGO, temp_cpu_DTS,      NULL);
-static DEVICE_ATTR(temp4_input, S_IRUGO, temp_northbridge,  NULL);
+static DEVICE_ATTR(temp4_input, S_IRUGO, temp_yesrthbridge,  NULL);
 static DEVICE_ATTR(temp5_input, S_IRUGO, temp_vga,          NULL);
 static DEVICE_ATTR(temp6_input, S_IRUGO, temp_SKIN,         NULL);
 static DEVICE_ATTR(temp1_label, S_IRUGO, label_cpu,         NULL);
 static DEVICE_ATTR(temp2_label, S_IRUGO, label_cpu_local,   NULL);
 static DEVICE_ATTR(temp3_label, S_IRUGO, label_cpu_DTS,     NULL);
-static DEVICE_ATTR(temp4_label, S_IRUGO, label_northbridge, NULL);
+static DEVICE_ATTR(temp4_label, S_IRUGO, label_yesrthbridge, NULL);
 static DEVICE_ATTR(temp5_label, S_IRUGO, label_vga,         NULL);
 static DEVICE_ATTR(temp6_label, S_IRUGO, label_SKIN,        NULL);
 static DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, pwm_show, pwm_store);
@@ -923,8 +923,8 @@ static void initialize_power_supply_data(struct compal_data *data)
 
 static void initialize_fan_control_data(struct compal_data *data)
 {
-	data->pwm_enable = 2; /* Keep motherboard in control for now */
-	data->curr_pwm = 255; /* Try not to cause a CPU_on_fire exception
+	data->pwm_enable = 2; /* Keep motherboard in control for yesw */
+	data->curr_pwm = 255; /* Try yest to cause a CPU_on_fire exception
 				 if we take over... */
 }
 
@@ -977,7 +977,7 @@ static int __init compal_init(void)
 	}
 
 	if (!force && !dmi_check_system(compal_dmi_table)) {
-		pr_err("Motherboard not recognized (You could try the module's force-parameter)\n");
+		pr_err("Motherboard yest recognized (You could try the module's force-parameter)\n");
 		return -ENODEV;
 	}
 

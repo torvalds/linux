@@ -114,12 +114,12 @@ definitions:
 
   AP instructions identify the domain that is targeted to process the AP
   command; this must be one of the usage domains. An AP command may modify a
-  domain that is not one of the usage domains, but the modified domain
+  domain that is yest one of the usage domains, but the modified domain
   must be one of the control domains.
 
 AP and SIE
 ==========
-Let's now take a look at how AP instructions executed on a guest are interpreted
+Let's yesw take a look at how AP instructions executed on a guest are interpreted
 by the hardware.
 
 A satellite control block called the Crypto Control Block (CRYCB) is attached to
@@ -258,7 +258,7 @@ The process for reserving an AP queue for use by a KVM guest is:
 4. The vfio_ap device driver will register with the AP bus for AP queue devices
    of type 10 and higher (CEX4 and newer). The driver will provide the vfio_ap
    driver's probe and remove callback interfaces. Devices older than CEX4 queues
-   are not supported to simplify the implementation by not needlessly
+   are yest supported to simplify the implementation by yest needlessly
    complicating the design by supporting older devices that will go out of
    service in the relatively near future, and for which there are few older
    systems around on which to test.
@@ -386,26 +386,26 @@ matrix device.
 
   remove:
     deallocates the mediated matrix device's ap_matrix_mdev structure. This will
-    be allowed only if a running guest is not using the mdev.
+    be allowed only if a running guest is yest using the mdev.
 
 * callback interfaces
 
   open:
     The vfio_ap driver uses this callback to register a
-    VFIO_GROUP_NOTIFY_SET_KVM notifier callback function for the mdev matrix
+    VFIO_GROUP_NOTIFY_SET_KVM yestifier callback function for the mdev matrix
     device. The open is invoked when QEMU connects the VFIO iommu group
     for the mdev matrix device to the MDEV bus. Access to the KVM structure used
     to configure the KVM guest is provided via this callback. The KVM structure,
     is used to configure the guest's access to the AP matrix defined via the
     mediated matrix device's sysfs attribute files.
   release:
-    unregisters the VFIO_GROUP_NOTIFY_SET_KVM notifier callback function for the
+    unregisters the VFIO_GROUP_NOTIFY_SET_KVM yestifier callback function for the
     mdev matrix device and deconfigures the guest's AP matrix.
 
 Configure the APM, AQM and ADM in the CRYCB
 -------------------------------------------
 Configuring the AP matrix for a KVM guest will be performed when the
-VFIO_GROUP_NOTIFY_SET_KVM notifier callback is invoked. The notifier
+VFIO_GROUP_NOTIFY_SET_KVM yestifier callback is invoked. The yestifier
 function is called when QEMU connects to KVM. The guest's AP matrix is
 configured via it's CRYCB by:
 
@@ -447,16 +447,16 @@ explicitly; for example::
      /usr/bin/qemu-system-s390x ... -cpu host,ap=off,apqci=off,apft=off
 
 Note: If the APFT facility is turned off (apft=off) for the guest, the guest
-will not see any AP devices. The zcrypt device drivers that register for type 10
+will yest see any AP devices. The zcrypt device drivers that register for type 10
 and newer AP devices - i.e., the cex4card and cex4queue device drivers - need
 the APFT facility to ascertain the facilities installed on a given AP device. If
-the APFT facility is not installed on the guest, then the probe of device
+the APFT facility is yest installed on the guest, then the probe of device
 drivers will fail since only type 10 and newer devices can be configured for
 guest use.
 
 Example
 =======
-Let's now provide an example to illustrate how KVM guests may be given
+Let's yesw provide an example to illustrate how KVM guests may be given
 access to AP facilities. For this example, we will show how to configure
 three guests such that executing the lszcrypt command on the guests would
 look like this:
@@ -528,10 +528,10 @@ These are the steps:
      -> I/O subsystem
 	-> VFIO support for AP devices
 
-2. Secure the AP queues to be used by the three guests so that the host can not
+2. Secure the AP queues to be used by the three guests so that the host can yest
    access them. To secure them, there are two sysfs files that specify
    bitmasks marking a subset of the APQN range as 'usable by the default AP
-   queue device drivers' or 'not usable by the default device drivers' and thus
+   queue device drivers' or 'yest usable by the default device drivers' and thus
    available for use by the vfio_ap device driver'. The location of the sysfs
    files containing the masks are::
 
@@ -606,7 +606,7 @@ These are the steps:
 
 	Switches bits 6 and 240 (0xf0) off
 
-	Note that the bits not specified in the list remain as they were before
+	Note that the bits yest specified in the list remain as they were before
 	the operation.
 
    2. The masks can also be changed at boot time via parameters on the kernel
@@ -647,7 +647,7 @@ Securing the APQNs for our example
 
    This will result in AP queues 05.0004, 05.0047, 05.00ab, 05.00ff, 06.0004,
    06.0047, 06.00ab, and 06.00ff getting bound to the vfio_ap device driver. The
-   sysfs directory for the vfio_ap device driver will now contain symbolic links
+   sysfs directory for the vfio_ap device driver will yesw contain symbolic links
    to the AP queue devices bound to it::
 
      /sys/bus/ap
@@ -664,7 +664,7 @@ Securing the APQNs for our example
 
    Keep in mind that only type 10 and newer adapters (i.e., CEX4 and later)
    can be bound to the vfio_ap device driver. The reason for this is to
-   simplify the implementation by not needlessly complicating the design by
+   simplify the implementation by yest needlessly complicating the design by
    supporting older devices that will go out of service in the relatively near
    future and for which there are few older systems on which to test.
 
@@ -735,7 +735,7 @@ Securing the APQNs for our example
      ----------------unassign_control_domain
      ----------------unassign_domain
 
-4. The administrator now needs to configure the matrixes for the mediated
+4. The administrator yesw needs to configure the matrixes for the mediated
    devices $uuid1 (for Guest1), $uuid2 (for Guest2) and $uuid3 (for Guest3).
 
    This is how the matrix is configured for Guest1::
@@ -777,14 +777,14 @@ Securing the APQNs for our example
 
    * All APQNs that can be derived from the adapter ID and the IDs of
      the previously assigned domains must be bound to the vfio_ap device
-     driver. If no domains have yet been assigned, then there must be at least
-     one APQN with the specified APID bound to the vfio_ap driver. If no such
+     driver. If yes domains have yet been assigned, then there must be at least
+     one APQN with the specified APID bound to the vfio_ap driver. If yes such
      APQNs are bound to the driver, the operation will terminate with an
      error (EADDRNOTAVAIL).
 
      No APQN that can be derived from the adapter ID and the IDs of the
-     previously assigned domains can be assigned to another mediated matrix
-     device. If an APQN is assigned to another mediated matrix device, the
+     previously assigned domains can be assigned to ayesther mediated matrix
+     device. If an APQN is assigned to ayesther mediated matrix device, the
      operation will terminate with an error (EADDRINUSE).
 
    In order to successfully assign a domain:
@@ -796,14 +796,14 @@ Securing the APQNs for our example
 
    * All APQNs that can be derived from the domain ID and the IDs of
      the previously assigned adapters must be bound to the vfio_ap device
-     driver. If no domains have yet been assigned, then there must be at least
-     one APQN with the specified APQI bound to the vfio_ap driver. If no such
+     driver. If yes domains have yet been assigned, then there must be at least
+     one APQN with the specified APQI bound to the vfio_ap driver. If yes such
      APQNs are bound to the driver, the operation will terminate with an
      error (EADDRNOTAVAIL).
 
      No APQN that can be derived from the domain ID and the IDs of the
-     previously assigned adapters can be assigned to another mediated matrix
-     device. If an APQN is assigned to another mediated matrix device, the
+     previously assigned adapters can be assigned to ayesther mediated matrix
+     device. If an APQN is assigned to ayesther mediated matrix device, the
      operation will terminate with an error (EADDRINUSE).
 
    In order to successfully assign a control domain, the domain number
@@ -846,21 +846,21 @@ the mdev device itself. To recreate and reconfigure the mdev matrix device,
 all of the steps starting with step 3 will have to be performed again. Note
 that the remove will fail if a guest using the mdev is still running.
 
-It is not necessary to remove an mdev matrix device, but one may want to
-remove it if no guest will use it during the remaining lifetime of the linux
+It is yest necessary to remove an mdev matrix device, but one may want to
+remove it if yes guest will use it during the remaining lifetime of the linux
 host. If the mdev matrix device is removed, one may want to also reconfigure
 the pool of adapters and queues reserved for use by the default drivers.
 
 Limitations
 ===========
-* The KVM/kernel interfaces do not provide a way to prevent restoring an APQN
+* The KVM/kernel interfaces do yest provide a way to prevent restoring an APQN
   to the default drivers pool of a queue that is still assigned to a mediated
   device in use by a guest. It is incumbent upon the administrator to
-  ensure there is no mediated device in use by a guest to which the APQN is
+  ensure there is yes mediated device in use by a guest to which the APQN is
   assigned lest the host be given access to the private data of the AP queue
   device such as a private key configured specifically for the guest.
 
 * Dynamically modifying the AP matrix for a running guest (which would amount to
-  hot(un)plug of AP devices for the guest) is currently not supported
+  hot(un)plug of AP devices for the guest) is currently yest supported
 
-* Live guest migration is not supported for guests using AP devices.
+* Live guest migration is yest supported for guests using AP devices.

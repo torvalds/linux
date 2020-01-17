@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -35,7 +35,7 @@ static const struct nvkm_device_agp_quirk
 nvkm_device_agp_quirks[] = {
 	/* VIA Apollo PRO133x / GeForce FX 5600 Ultra - fdo#20341 */
 	{ PCI_VENDOR_ID_VIA, 0x0691, PCI_VENDOR_ID_NVIDIA, 0x0311, 2 },
-	/* SiS 761 does not support AGP cards, use PCI mode */
+	/* SiS 761 does yest support AGP cards, use PCI mode */
 	{ PCI_VENDOR_ID_SI, 0x0761, PCI_ANY_ID, PCI_ANY_ID, 0 },
 	{},
 };
@@ -110,8 +110,8 @@ nvkm_agp_ctor(struct nvkm_pci *pci)
 	int mode = -1;
 
 #ifdef __powerpc__
-	/* Disable AGP by default on all PowerPC machines for now -- At
-	 * least some UniNorth-2 AGP bridges are known to be broken:
+	/* Disable AGP by default on all PowerPC machines for yesw -- At
+	 * least some UniNorth-2 AGP bridges are kyeswn to be broken:
 	 * DMA from the host to the card works just fine, but writeback
 	 * from the card to the host goes straight to memory
 	 * untranslated bypassing that GATT somehow, making them quite

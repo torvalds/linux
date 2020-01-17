@@ -9,7 +9,7 @@
 
 /*
  * This mysterious table is just the CRC of each possible byte. It can be
- * computed using the standard bit-at-a-time methods. The polynomial can
+ * computed using the standard bit-at-a-time methods. The polyyesmial can
  * be seen in entry 128, 0x8408. This corresponds to x^0 + x^5 + x^12.
  * Add the implicit x^16, and you have the standard CRC-CCITT.
  */
@@ -50,8 +50,8 @@ u16 const crc_ccitt_table[256] = {
 EXPORT_SYMBOL(crc_ccitt_table);
 
 /*
- * Similar table to calculate CRC16 variant known as CRC-CCITT-FALSE
- * Reflected bits order, does not augment final value.
+ * Similar table to calculate CRC16 variant kyeswn as CRC-CCITT-FALSE
+ * Reflected bits order, does yest augment final value.
  */
 u16 const crc_ccitt_false_table[256] = {
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,

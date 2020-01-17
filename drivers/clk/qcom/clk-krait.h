@@ -17,7 +17,7 @@ struct krait_mux_clk {
 	bool		reparent;
 
 	struct clk_hw	hw;
-	struct notifier_block   clk_nb;
+	struct yestifier_block   clk_nb;
 };
 
 #define to_krait_mux_clk(_hw) container_of(_hw, struct krait_mux_clk, hw)

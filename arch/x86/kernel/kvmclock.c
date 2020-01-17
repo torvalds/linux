@@ -29,19 +29,19 @@ static int msr_kvm_system_time __ro_after_init = MSR_KVM_SYSTEM_TIME;
 static int msr_kvm_wall_clock __ro_after_init = MSR_KVM_WALL_CLOCK;
 static u64 kvm_sched_clock_offset __ro_after_init;
 
-static int __init parse_no_kvmclock(char *arg)
+static int __init parse_yes_kvmclock(char *arg)
 {
 	kvmclock = 0;
 	return 0;
 }
-early_param("no-kvmclock", parse_no_kvmclock);
+early_param("yes-kvmclock", parse_yes_kvmclock);
 
-static int __init parse_no_kvmclock_vsyscall(char *arg)
+static int __init parse_yes_kvmclock_vsyscall(char *arg)
 {
 	kvmclock_vsyscall = 0;
 	return 0;
 }
-early_param("no-kvmclock-vsyscall", parse_no_kvmclock_vsyscall);
+early_param("yes-kvmclock-vsyscall", parse_yes_kvmclock_vsyscall);
 
 /* Aligned to page sizes to match whats mapped via vsyscalls to userspace */
 #define HV_CLOCK_SIZE	(sizeof(struct pvclock_vsyscall_time_info) * NR_CPUS)
@@ -69,15 +69,15 @@ static inline struct pvclock_vsyscall_time_info *this_cpu_hvclock(void)
  * have elapsed since the hypervisor wrote the data. So we try to account for
  * that with system time
  */
-static void kvm_get_wallclock(struct timespec64 *now)
+static void kvm_get_wallclock(struct timespec64 *yesw)
 {
 	wrmsrl(msr_kvm_wall_clock, slow_virt_to_phys(&wall_clock));
 	preempt_disable();
-	pvclock_read_wallclock(&wall_clock, this_cpu_pvti(), now);
+	pvclock_read_wallclock(&wall_clock, this_cpu_pvti(), yesw);
 	preempt_enable();
 }
 
-static int kvm_set_wallclock(const struct timespec64 *now)
+static int kvm_set_wallclock(const struct timespec64 *yesw)
 {
 	return -ENODEV;
 }
@@ -86,9 +86,9 @@ static u64 kvm_clock_read(void)
 {
 	u64 ret;
 
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 	ret = pvclock_clocksource_read(this_cpu_pvti());
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 	return ret;
 }
 
@@ -120,7 +120,7 @@ static inline void kvm_sched_clock_init(bool stable)
  * If we don't do that, there is the possibility that the guest
  * will calibrate under heavy load - thus, getting a lower lpj -
  * and execute the delays themselves without load. This is wrong,
- * because no delay loop can finish beforehand.
+ * because yes delay loop can finish beforehand.
  * Any heuristics is subject to fail, because ultimately, a large
  * poll of guests can be running and trouble each other. So we preset
  * lpj here
@@ -203,7 +203,7 @@ static void kvm_setup_secondary_clock(void)
  * won't be valid. In cases like kexec, in which you install a new kernel, this
  * means a random memory location will be kept being written. So before any
  * kind of shutdown from our side, we unregister the clock by writing anything
- * that does not have the 'enable' bit set in the msr
+ * that does yest have the 'enable' bit set in the msr
  */
 #ifdef CONFIG_KEXEC_CORE
 static void kvm_crash_shutdown(struct pt_regs *regs)
@@ -354,9 +354,9 @@ void __init kvmclock_init(void)
 
 	/*
 	 * X86_FEATURE_NONSTOP_TSC is TSC runs at constant rate
-	 * with P/T states and does not stop in deep C-states.
+	 * with P/T states and does yest stop in deep C-states.
 	 *
-	 * Invariant TSC exposed by host means kvmclock is not necessary:
+	 * Invariant TSC exposed by host means kvmclock is yest necessary:
 	 * can use TSC as clocksource.
 	 *
 	 */

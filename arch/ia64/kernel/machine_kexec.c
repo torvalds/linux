@@ -2,7 +2,7 @@
 /*
  * arch/ia64/kernel/machine_kexec.c
  *
- * Handle transition of Linux booting another kernel
+ * Handle transition of Linux booting ayesther kernel
  * Copyright (C) 2005 Hewlett-Packard Development Comapny, L.P.
  * Copyright (C) 2005 Khalid Aziz <khalid.aziz@hp.com>
  * Copyright (C) 2006 Intel Corp, Zou Nan hai <nanhai.zou@intel.com>
@@ -29,7 +29,7 @@ typedef void (*relocate_new_kernel_t)(
 					unsigned long indirection_page,
 					unsigned long start_address,
 					struct ia64_boot_param *boot_param,
-					unsigned long pal_addr) __noreturn;
+					unsigned long pal_addr) __yesreturn;
 
 struct kimage *ia64_kimage;
 
@@ -75,8 +75,8 @@ void machine_kexec_cleanup(struct kimage *image)
 }
 
 /*
- * Do not allocate memory (or fail in any way) in machine_kexec().
- * We are past the point of no return, committed to rebooting now.
+ * Do yest allocate memory (or fail in any way) in machine_kexec().
+ * We are past the point of yes return, committed to rebooting yesw.
  */
 static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 {
@@ -94,7 +94,7 @@ static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 		crash_save_this_cpu();
 		current->thread.ksp = (__u64)info->sw - 16;
 
-		/* Register noop init handler */
+		/* Register yesop init handler */
 		fp = ia64_tpa(init_handler->fp);
 		gp = ia64_tpa(ia64_getreg(_IA64_REG_GP));
 		ia64_sal_set_vectors(SAL_VECTOR_OS_INIT, fp, gp, 0, fp, gp, 0);
@@ -147,11 +147,11 @@ void arch_crash_save_vmcoreinfo(void)
 	VMCOREINFO_LENGTH(pgdat_list, MAX_NUMNODES);
 #endif
 #ifdef CONFIG_NUMA
-	VMCOREINFO_SYMBOL(node_memblk);
-	VMCOREINFO_LENGTH(node_memblk, NR_NODE_MEMBLKS);
-	VMCOREINFO_STRUCT_SIZE(node_memblk_s);
-	VMCOREINFO_OFFSET(node_memblk_s, start_paddr);
-	VMCOREINFO_OFFSET(node_memblk_s, size);
+	VMCOREINFO_SYMBOL(yesde_memblk);
+	VMCOREINFO_LENGTH(yesde_memblk, NR_NODE_MEMBLKS);
+	VMCOREINFO_STRUCT_SIZE(yesde_memblk_s);
+	VMCOREINFO_OFFSET(yesde_memblk_s, start_paddr);
+	VMCOREINFO_OFFSET(yesde_memblk_s, size);
 #endif
 #if CONFIG_PGTABLE_LEVELS == 3
 	VMCOREINFO_CONFIG(PGTABLE_3);

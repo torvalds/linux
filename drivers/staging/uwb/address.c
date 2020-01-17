@@ -10,7 +10,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/random.h>
@@ -33,12 +33,12 @@ struct uwb_rc_cmd_dev_addr_mgmt {
  * @hwarc:	HWA Radio Control interface instance
  * @bmOperationType:
  * 		Set/get, MAC/DEV (see WUSB1.0[8.6.2.2])
- * @baAddr:	address buffer--assumed to have enough data to hold
+ * @baAddr:	address buffer--assumed to have eyesugh data to hold
  *              the address type requested.
  * @reply:	Pointer to reply buffer (can be stack allocated)
- * @returns:	0 if ok, < 0 errno code on error.
+ * @returns:	0 if ok, < 0 erryes code on error.
  *
- * @cmd has to be allocated because USB cannot grok USB or vmalloc
+ * @cmd has to be allocated because USB canyest grok USB or vmalloc
  * buffers depending on your combination of host architecture.
  */
 static
@@ -74,7 +74,7 @@ int uwb_rc_dev_addr_mgmt(struct uwb_rc *rc,
 		goto error_cmd;
 	if (result < sizeof(*reply)) {
 		dev_err(&rc->uwb_dev.dev,
-			"DEV-ADDR-MGMT: not enough data replied: "
+			"DEV-ADDR-MGMT: yest eyesugh data replied: "
 			"%d vs %zu bytes needed\n", result, sizeof(*reply));
 		result = -ENOMSG;
 	} else if (reply->bResultCode != UWB_RC_RES_SUCCESS) {
@@ -99,7 +99,7 @@ error_kzalloc:
  * @_addr:   Pointer to address to write [assumed to be either a
  *           'struct uwb_mac_addr *' or a 'struct uwb_dev_addr *'].
  * @type:    Type of address to set (UWB_ADDR_DEV or UWB_ADDR_MAC).
- * @returns: 0 if ok, < 0 errno code on error.
+ * @returns: 0 if ok, < 0 erryes code on error.
  *
  * Some anal retentivity here: even if both 'struct
  * uwb_{dev,mac}_addr' have the actual byte array in the same offset
@@ -140,7 +140,7 @@ static int uwb_rc_addr_set(struct uwb_rc *rc,
  * @_addr:   Where to write the address data [assumed to be either a
  *           'struct uwb_mac_addr *' or a 'struct uwb_dev_addr *'].
  * @type:    Type of address to get (UWB_ADDR_DEV or UWB_ADDR_MAC).
- * @returns: 0 if ok (and *_addr set), < 0 errno code on error.
+ * @returns: 0 if ok (and *_addr set), < 0 erryes code on error.
  *
  * See comment in uwb_rc_addr_set() about anal retentivity in the
  * type handling of the address variables.
@@ -274,9 +274,9 @@ int uwb_rc_dev_addr_assign(struct uwb_rc *rc)
 
 /**
  * uwbd_evt_handle_rc_dev_addr_conflict - handle a DEV_ADDR_CONFLICT event
- * @evt: the DEV_ADDR_CONFLICT notification from the radio controller
+ * @evt: the DEV_ADDR_CONFLICT yestification from the radio controller
  *
- * A new (non-conflicting) DevAddr is assigned to the radio controller.
+ * A new (yesn-conflicting) DevAddr is assigned to the radio controller.
  *
  * [ECMA-368] 17.1.1.1.
  */

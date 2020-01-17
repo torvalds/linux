@@ -59,7 +59,7 @@ void tulip_media_task(struct work_struct *work)
 			s8 bitnum = p[offset];
 			if (p[offset+1] & 0x80) {
 				if (tulip_debug > 1)
-					netdev_dbg(dev, "Transceiver monitor tick CSR12=%#02x, no media sense\n",
+					netdev_dbg(dev, "Transceiver monitor tick CSR12=%#02x, yes media sense\n",
 						   csr12);
 				if (mleaf->type == 4) {
 					if (mleaf->media == 3 && (csr12 & 0x02))
@@ -114,7 +114,7 @@ void tulip_media_task(struct work_struct *work)
 				next_tick = 60*HZ;
 			}
 			break;
-		case 2:					/* 21142 serial block has no link beat. */
+		case 2:					/* 21142 serial block has yes link beat. */
 		default:
 			break;
 		}

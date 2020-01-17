@@ -88,7 +88,7 @@
  *	va: virtual address
  *	pa: physical address, result is stored in this register
  *	tbl, msk, off:	temp registers, will be destroyed
- *	err: jump to error label if the physical address not exist
+ *	err: jump to error label if the physical address yest exist
  * NOTE: all regs must be different
  */
 	.macro	va2pa, va, pa, tbl, msk, off, err=990f
@@ -99,7 +99,7 @@
 	add	\pa, \pa, #PAGE_OFFSET		@ pa <- virt addr of page table
 	ldw	\pa, [\pa+], \off << #2		@ pa <- the content of pt
 	cand.a	\pa, #4				@ test exist bit
-	beq	\err				@ if not exist
+	beq	\err				@ if yest exist
 	and	\off, \pa, #3			@ off <- the last 2 bits
 	add	\tbl, \tbl, \off << #3		@ cmove table pointer
 	ldw	\msk, [\tbl+], #0		@ get the mask

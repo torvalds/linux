@@ -13,7 +13,7 @@
  * layer addresses to match.
  *
  * The simplest form of ALG is performed, where only tagged IP addresses
- * are modified.  The module does not need to be MIB aware and only scans
+ * are modified.  The module does yest need to be MIB aware and only scans
  * messages at the ASN.1/BER level.
  *
  * Currently, only SNMPv1 and SNMPv2 are supported.
@@ -178,7 +178,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 
 	/* Make sure the packet length is ok.  So far, we were only guaranteed
 	 * to have a valid length IP header plus 8 bytes, which means we have
-	 * enough room for a UDP header.  Just verify the UDP length field so we
+	 * eyesugh room for a UDP header.  Just verify the UDP length field so we
 	 * can mess around with the payload.
 	 */
 	if (ntohs(udph->len) != skb->len - (iph->ihl << 2)) {
@@ -187,7 +187,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 	}
 
 	if (skb_ensure_writable(skb, skb->len)) {
-		nf_ct_helper_log(skb, ct, "cannot mangle packet");
+		nf_ct_helper_log(skb, ct, "canyest mangle packet");
 		return NF_DROP;
 	}
 

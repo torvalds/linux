@@ -23,7 +23,7 @@
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <asm/mach-pnx833x/pnx833x.h>
@@ -51,9 +51,9 @@ module_param(pnx833x_wdt_timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in Mhz. (68Mhz clock), default="
 			__MODULE_STRING(PNX_TIMEOUT_VALUE) "(30 seconds).");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 					__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 #define START_DEFAULT	1
@@ -96,12 +96,12 @@ static void pnx833x_wdt_ping(void)
 /*
  *	Allow only one person to hold it open
  */
-static int pnx833x_wdt_open(struct inode *inode, struct file *file)
+static int pnx833x_wdt_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(0, &pnx833x_wdt_alive))
 		return -EBUSY;
 
-	if (nowayout)
+	if (yeswayout)
 		__module_get(THIS_MODULE);
 
 	/* Activate timer */
@@ -112,14 +112,14 @@ static int pnx833x_wdt_open(struct inode *inode, struct file *file)
 
 	pr_info("Started watchdog timer\n");
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int pnx833x_wdt_release(struct inode *inode, struct file *file)
+static int pnx833x_wdt_release(struct iyesde *iyesde, struct file *file)
 {
 	/* Shut off the timer.
 	 * Lock it in if it's a module and we defined ...NOWAYOUT */
-	if (!nowayout)
+	if (!yeswayout)
 		pnx833x_wdt_stop(); /* Turn the WDT off */
 
 	clear_bit(0, &pnx833x_wdt_alive);
@@ -201,7 +201,7 @@ static long pnx833x_wdt_ioctl(struct file *file, unsigned int cmd,
 	}
 }
 
-static int pnx833x_wdt_notify_sys(struct notifier_block *this,
+static int pnx833x_wdt_yestify_sys(struct yestifier_block *this,
 					unsigned long code, void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
@@ -212,7 +212,7 @@ static int pnx833x_wdt_notify_sys(struct notifier_block *this,
 
 static const struct file_operations pnx833x_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= pnx833x_wdt_write,
 	.unlocked_ioctl	= pnx833x_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -221,13 +221,13 @@ static const struct file_operations pnx833x_wdt_fops = {
 };
 
 static struct miscdevice pnx833x_wdt_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.miyesr		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &pnx833x_wdt_fops,
 };
 
-static struct notifier_block pnx833x_wdt_notifier = {
-	.notifier_call = pnx833x_wdt_notify_sys,
+static struct yestifier_block pnx833x_wdt_yestifier = {
+	.yestifier_call = pnx833x_wdt_yestify_sys,
 };
 
 static int __init watchdog_init(void)
@@ -241,17 +241,17 @@ static int __init watchdog_init(void)
 		pr_info("The system was previously reset due to the watchdog firing - please investigate...\n");
 	}
 
-	ret = register_reboot_notifier(&pnx833x_wdt_notifier);
+	ret = register_reboot_yestifier(&pnx833x_wdt_yestifier);
 	if (ret) {
-		pr_err("cannot register reboot notifier (err=%d)\n", ret);
+		pr_err("canyest register reboot yestifier (err=%d)\n", ret);
 		return ret;
 	}
 
 	ret = misc_register(&pnx833x_wdt_miscdev);
 	if (ret) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+		pr_err("canyest register miscdev on miyesr=%d (err=%d)\n",
 		       WATCHDOG_MINOR, ret);
-		unregister_reboot_notifier(&pnx833x_wdt_notifier);
+		unregister_reboot_yestifier(&pnx833x_wdt_yestifier);
 		return ret;
 	}
 
@@ -266,7 +266,7 @@ static int __init watchdog_init(void)
 static void __exit watchdog_exit(void)
 {
 	misc_deregister(&pnx833x_wdt_miscdev);
-	unregister_reboot_notifier(&pnx833x_wdt_notifier);
+	unregister_reboot_yestifier(&pnx833x_wdt_yestifier);
 }
 
 module_init(watchdog_init);

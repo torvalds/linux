@@ -124,7 +124,7 @@ static int cs47l15_in1_adc_put(struct snd_kcontrol *kcontrol,
 
 	switch (ucontrol->value.integer.value[0]) {
 	case 0:
-		/* Set IN1 to normal mode */
+		/* Set IN1 to yesrmal mode */
 		snd_soc_component_update_bits(component, MADERA_DMIC1L_CONTROL,
 					      MADERA_IN1_OSR_MASK,
 					      5 << MADERA_IN1_OSR_SHIFT);
@@ -270,7 +270,7 @@ MADERA_MIXER_CONTROLS("DSP1L", MADERA_DSP1LMIX_INPUT_1_SOURCE),
 MADERA_MIXER_CONTROLS("DSP1R", MADERA_DSP1RMIX_INPUT_1_SOURCE),
 
 SOC_SINGLE_TLV("Noise Generator Volume", MADERA_COMFORT_NOISE_GENERATOR,
-	       MADERA_NOISE_GEN_GAIN_SHIFT, 0x16, 0, madera_noise_tlv),
+	       MADERA_NOISE_GEN_GAIN_SHIFT, 0x16, 0, madera_yesise_tlv),
 
 MADERA_MIXER_CONTROLS("HPOUT1L", MADERA_OUT1LMIX_INPUT_1_SOURCE),
 MADERA_MIXER_CONTROLS("HPOUT1R", MADERA_OUT1RMIX_INPUT_1_SOURCE),
@@ -1341,7 +1341,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs47l15 = {
 	.num_dapm_routes	= ARRAY_SIZE(cs47l15_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int cs47l15_probe(struct platform_device *pdev)
@@ -1354,7 +1354,7 @@ static int cs47l15_probe(struct platform_device *pdev)
 
 	/* quick exit if Madera irqchip driver hasn't completed probe */
 	if (!madera->irq_dev) {
-		dev_dbg(&pdev->dev, "irqchip driver not ready\n");
+		dev_dbg(&pdev->dev, "irqchip driver yest ready\n");
 		return -EPROBE_DEFER;
 	}
 

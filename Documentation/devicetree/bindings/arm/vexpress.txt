@@ -12,10 +12,10 @@ can be initialized in one of two different configurations ("memory
 maps"), care must be taken to include the correct one.
 
 
-Root node
+Root yesde
 ---------
 
-Required properties in the root node:
+Required properties in the root yesde:
 - compatible value:
 	compatible = "arm,vexpress,<model>", "arm,vexpress";
   where <model> is the full tile model name (as used in the tile's
@@ -36,7 +36,7 @@ Required properties in the root node:
 	compatible = "arm,vexpress,v2f-2xv6,ca7x3", \
 				"arm,vexpress,v2f-2xv6", "arm,vexpress";
 
-Optional properties in the root node:
+Optional properties in the root yesde:
 - tile model name (use name from the tile's Technical Reference
   Manual, eg. "V2P-CA5s")
 	model = "<model>";
@@ -50,10 +50,10 @@ Optional properties in the root node:
 	arm,hbi = <0x225>;
 
 
-CPU nodes
+CPU yesdes
 ---------
 
-Top-level standard "cpus" node is required. It must contain a node
+Top-level standard "cpus" yesde is required. It must contain a yesde
 with device_type = "cpu" property for every available core, eg.:
 
 	cpus {
@@ -72,7 +72,7 @@ Configuration infrastructure
 ----------------------------
 
 The platform has an elaborated configuration system, consisting of
-microcontrollers residing on the mother- and daughterboards known
+microcontrollers residing on the mother- and daughterboards kyeswn
 as Motherboard/Daughterboard Configuration Controller (MCC and DCC).
 The controllers are responsible for the platform initialization
 (reset generation, flash programming, FPGA bitfiles loading etc.)
@@ -80,11 +80,11 @@ but also control clock generators, voltage regulators, gather
 environmental data like temperature, power consumption etc. Even
 the video output switch (FPGA) is controlled that way.
 
-The controllers are not mapped into normal memory address space
+The controllers are yest mapped into yesrmal memory address space
 and must be accessed through bridges - other devices capable
 of generating transactions on the configuration bus.
 
-The nodes describing configuration controllers must define
+The yesdes describing configuration controllers must define
 the following properties:
 - compatible value:
 	compatible = "arm,vexpress,config-bus";
@@ -98,8 +98,8 @@ Platform topology
 
 As Versatile Express can be configured in number of physically
 different setups, the device tree should describe platform topology.
-Root node and main motherboard node must define the following
-property, describing physical location of the children nodes:
+Root yesde and main motherboard yesde must define the following
+property, describing physical location of the children yesdes:
 - site number:
 	arm,vexpress,site = <number>;
   where 0 means motherboard, 1 or 2 are daugtherboard sites,
@@ -111,21 +111,21 @@ property, describing physical location of the children nodes:
   can be described with:
 	arm,vexpress,dcc = <number>;
 
-Any of the numbers above defaults to zero if not defined in
-the node or any of its parent.
+Any of the numbers above defaults to zero if yest defined in
+the yesde or any of its parent.
 
 
 Motherboard
 -----------
 
-The motherboard description file provides a single "motherboard" node
+The motherboard description file provides a single "motherboard" yesde
 using 2 address cells corresponding to the Static Memory Bus used
 between the motherboard and the tile. The first cell defines the Chip
 Select (CS) line number, the second cell address offset within the CS.
 All interrupt lines between the motherboard and the tile are active
 high and are described using single cell.
 
-Optional properties of the "motherboard" node:
+Optional properties of the "motherboard" yesde:
 - motherboard's memory map variant:
 	arm,v2m-memory-map = "<name>";
   where name is one of:
@@ -133,12 +133,12 @@ Optional properties of the "motherboard" node:
             referred to as "ARM Cortex-A Series memory map":
 	arm,v2m-memory-map = "rs1";
   When this property is missing, the motherboard is using the original
-  memory map (also known as the "Legacy memory map", primarily used
+  memory map (also kyeswn as the "Legacy memory map", primarily used
   with the original CoreTile Express A9x4) with peripherals on CS7.
 
 Motherboard .dtsi files provide a set of labelled peripherals that
-can be used to obtain required phandle in the tile's "aliases" node:
-- UARTs, note that the numbers correspond to the physical connectors
+can be used to obtain required phandle in the tile's "aliases" yesde:
+- UARTs, yeste that the numbers correspond to the physical connectors
   on the motherboard's back panel:
 	v2m_serial0, v2m_serial1, v2m_serial2 and v2m_serial3
 - I2C controllers:
@@ -146,7 +146,7 @@ can be used to obtain required phandle in the tile's "aliases" node:
 - SP804 timers:
 	v2m_timer01 and v2m_timer23
 
-The tile description should define a "smb" node, describing the
+The tile description should define a "smb" yesde, describing the
 Static Memory Bus between the tile and motherboard. It must define
 the following properties:
 - "simple-bus" compatible value (to ensure creation of the children)

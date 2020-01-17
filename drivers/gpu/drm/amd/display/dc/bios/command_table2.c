@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -211,7 +211,7 @@ static enum bp_result transmitter_control_v1_6(
 	ps.param.lanenum = (uint8_t)cntl->lanes_number;
 	ps.param.hpdsel = cmd->hpd_sel_to_atom(cntl->hpd_sel);
 	ps.param.digfe_sel = cmd->dig_encoder_sel_to_atom(cntl->engine_id);
-	ps.param.connobj_id = (uint8_t)cntl->connector_obj_id.id;
+	ps.param.conyesbj_id = (uint8_t)cntl->connector_obj_id.id;
 	ps.param.symclk_10khz = cntl->pixel_clock/10;
 
 
@@ -223,7 +223,7 @@ static enum bp_result transmitter_control_v1_6(
 	}
 
 
-/*color_depth not used any more, driver has deep color factor in the Phyclk*/
+/*color_depth yest used any more, driver has deep color factor in the Phyclk*/
 	if (EXEC_BIOS_CMD_TABLE(dig1transmittercontrol, ps))
 		result = BP_RESULT_OK;
 	return result;
@@ -271,7 +271,7 @@ static enum bp_result set_pixel_clock_v7(
 	if (bp->cmd_helper->clock_source_id_to_atom(bp_params->pll_id, &pll_id)
 			&& bp->cmd_helper->controller_id_to_atom(bp_params->
 					controller_id, &controller_id)) {
-		/* Note: VBIOS still wants to use ucCRTC name which is now
+		/* Note: VBIOS still wants to use ucCRTC name which is yesw
 		 * 1 byte in ULONG
 		 *typedef struct _CRTC_PIXEL_CLOCK_FREQ
 		 *{
@@ -281,7 +281,7 @@ static enum bp_result set_pixel_clock_v7(
 		 * previous version.
 		 * ATOM_CRTC1~6, indicate the CRTC controller to
 		 * ULONG ucCRTC:8;
-		 * drive the pixel clock. not used for DCPLL case.
+		 * drive the pixel clock. yest used for DCPLL case.
 		 *}CRTC_PIXEL_CLOCK_FREQ;
 		 *union
 		 *{
@@ -407,7 +407,7 @@ static enum bp_result set_crtc_using_dtd_timing_v3(
 					bp_params->v_addressable));
 	params.v_syncwidth = cpu_to_le16((uint16_t)bp_params->v_sync_width);
 
-	/* we assume that overscan from original timing does not get bigger
+	/* we assume that overscan from original timing does yest get bigger
 	 * than 255
 	 * we will program all the borders in the Set CRTC Overscan call below
 	 */
@@ -428,7 +428,7 @@ static enum bp_result set_crtc_using_dtd_timing_v3(
 						ATOM_INTERLACE);
 
 		/* original DAL code has this condition to apply this
-		 * for non-TV/CV only
+		 * for yesn-TV/CV only
 		 * due to complex MV testing for possible impact
 		 * if ( pACParameters->signal != SignalType_YPbPr &&
 		 *  pACParameters->signal != SignalType_Composite &&

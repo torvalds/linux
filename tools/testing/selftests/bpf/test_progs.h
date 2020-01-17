@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -141,9 +141,9 @@ int extract_build_id(char *build_id, size_t size);
 void *spin_lock_thread(void *arg);
 
 #ifdef __x86_64__
-#define SYS_NANOSLEEP_KPROBE_NAME "__x64_sys_nanosleep"
+#define SYS_NANOSLEEP_KPROBE_NAME "__x64_sys_nayessleep"
 #elif defined(__s390x__)
-#define SYS_NANOSLEEP_KPROBE_NAME "__s390x_sys_nanosleep"
+#define SYS_NANOSLEEP_KPROBE_NAME "__s390x_sys_nayessleep"
 #else
-#define SYS_NANOSLEEP_KPROBE_NAME "sys_nanosleep"
+#define SYS_NANOSLEEP_KPROBE_NAME "sys_nayessleep"
 #endif

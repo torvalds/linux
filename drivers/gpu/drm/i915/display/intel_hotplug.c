@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -50,7 +50,7 @@
  *
  * The Display Port work function i915_digport_work_func() calls into
  * intel_dp_hpd_pulse() via hooks, which handles DP short pulses and DP MST long
- * pulses, with failures and non-MST long pulses triggering regular hotplug
+ * pulses, with failures and yesn-MST long pulses triggering regular hotplug
  * processing on the connector.
  *
  * The regular hotplug work function i915_hotplug_work_func() calls connector
@@ -67,9 +67,9 @@
  * from broken hardware triggering massive amounts of interrupts and grinding
  * the system to a halt.
  *
- * Current implementation expects that hotplug interrupt storm will not be
+ * Current implementation expects that hotplug interrupt storm will yest be
  * seen when display port sink is connected, hence on platforms whose DP
- * callback is handled by i915_digport_work_func reenabling of hpd is not
+ * callback is handled by i915_digport_work_func reenabling of hpd is yest
  * performed (it was never expected to be disabled in the first place ;) )
  * this is specific to DP sinks handled by this routine and any other display
  * such as HDMI or DVI enabled on the same port will have proper logic since
@@ -83,7 +83,7 @@
  *
  * It is only valid and used by digital port encoder.
  *
- * Return pin that is associatade with @port and HDP_NONE if no pin is
+ * Return pin that is associatade with @port and HDP_NONE if yes pin is
  * hard associated with that @port.
  */
 enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
@@ -141,7 +141,7 @@ enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
  * suffer from short IRQ storms and must also track these. Because short IRQ
  * storms are naturally caused by sideband interactions with DP MST devices,
  * short IRQ detection is only enabled for systems without DP MST support.
- * Systems which are new enough to support DP MST are far less likely to
+ * Systems which are new eyesugh to support DP MST are far less likely to
  * suffer from IRQ storms at all, so this is fine.
  *
  * The HPD threshold can be controlled through i915_hpd_storm_ctl in debugfs,
@@ -440,8 +440,8 @@ static void i915_hotplug_work_func(struct work_struct *work)
  * irq handlers call the platform specific hotplug irq handlers, which read and
  * decode the appropriate registers into bitmasks about hpd pins that have
  * triggered (@pin_mask), and which of those pins may be long pulses
- * (@long_mask). The @long_mask is ignored if the port corresponding to the pin
- * is not a digital port.
+ * (@long_mask). The @long_mask is igyesred if the port corresponding to the pin
+ * is yest a digital port.
  *
  * Here, we do hotplug irq storm detection and mitigation, and pass further
  * processing to appropriate bottom halves.
@@ -505,7 +505,7 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 		if (dev_priv->hotplug.stats[pin].state == HPD_DISABLED) {
 			/*
 			 * On GMCH platforms the interrupt mask bits only
-			 * prevent irq generation, not the setting of the
+			 * prevent irq generation, yest the setting of the
 			 * hotplug bits itself. So only WARN about unexpected
 			 * interrupts on saner platforms.
 			 */
@@ -547,7 +547,7 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 
 	/*
 	 * Our hotplug handler can grab modeset locks (by calling down into the
-	 * fb helpers). Hence it must not be run on our own dev-priv->wq work
+	 * fb helpers). Hence it must yest be run on our own dev-priv->wq work
 	 * queue for otherwise the flush_work in the pageflip code will
 	 * deadlock.
 	 */
@@ -648,7 +648,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
  * @dev_priv: i915 device instance
  *
  * This function enables polling for all connectors, regardless of whether or
- * not they support hotplug detection. Under certain conditions HPD may not be
+ * yest they support hotplug detection. Under certain conditions HPD may yest be
  * functional. On most Intel GPUs, this happens when we enter runtime suspend.
  * On Valleyview and Cherryview systems, this also happens when we shut off all
  * of the powerwells.
@@ -666,7 +666,7 @@ void intel_hpd_poll_init(struct drm_i915_private *dev_priv)
 	/*
 	 * We might already be holding dev->mode_config.mutex, so do this in a
 	 * seperate worker
-	 * As well, there's no issue if we race here since we always reschedule
+	 * As well, there's yes issue if we race here since we always reschedule
 	 * this worker anyway
 	 */
 	schedule_work(&dev_priv->hotplug.poll_init_work);

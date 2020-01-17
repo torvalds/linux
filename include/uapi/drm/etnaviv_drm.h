@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2015 Etnaviv Project
  *
@@ -12,7 +12,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * this program.  If yest, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __ETNAVIV_DRM_H__
@@ -24,9 +24,9 @@
 extern "C" {
 #endif
 
-/* Please note that modifications to all structs defined here are
+/* Please yeste that modifications to all structs defined here are
  * subject to backwards-compatibility constraints:
- *  1) Do not use pointers, use __u64 instead for 32 bit / 64 bit
+ *  1) Do yest use pointers, use __u64 instead for 32 bit / 64 bit
  *     user/kernel compatibility
  *  2) Keep fields aligned to their size
  *  3) Because of how drm_ioctl() works, we can add new fields at
@@ -37,13 +37,13 @@ extern "C" {
  *     fields.. so that has to be somehow ok.
  */
 
-/* timeouts are specified in clock-monotonic absolute times (to simplify
+/* timeouts are specified in clock-moyestonic absolute times (to simplify
  * restarting interrupted ioctls).  The following struct is logically the
  * same as 'struct timespec' but 32/64b ABI safe.
  */
 struct drm_etnaviv_timespec {
 	__s64 tv_sec;          /* seconds */
-	__s64 tv_nsec;         /* nanoseconds */
+	__s64 tv_nsec;         /* nayesseconds */
 };
 
 #define ETNAVIV_PARAM_GPU_MODEL                     0x01
@@ -119,7 +119,7 @@ struct drm_etnaviv_gem_cpu_prep {
 
 struct drm_etnaviv_gem_cpu_fini {
 	__u32 handle;         /* in */
-	__u32 flags;          /* in, placeholder for now, no defined values */
+	__u32 flags;          /* in, placeholder for yesw, yes defined values */
 };
 
 /*
@@ -136,7 +136,7 @@ struct drm_etnaviv_gem_submit_reloc {
 	__u32 submit_offset;  /* in, offset from submit_bo */
 	__u32 reloc_idx;      /* in, index of reloc_bo buffer */
 	__u64 reloc_offset;   /* in, offset from start of reloc_bo */
-	__u32 flags;          /* in, placeholder for now, no defined values */
+	__u32 flags;          /* in, placeholder for yesw, yes defined values */
 };
 
 /* Each buffer referenced elsewhere in the cmdstream submit (ie. the
@@ -208,7 +208,7 @@ struct drm_etnaviv_gem_submit {
 	__u32 pad;
 };
 
-/* The normal way to synchronize with the GPU is just to CPU_PREP on
+/* The yesrmal way to synchronize with the GPU is just to CPU_PREP on
  * a buffer if you need to access it from the CPU (other cmdstream
  * submission from same or other contexts, PAGE_FLIP ioctl, etc, all
  * handle the required synchronization under the hood).  This ioctl
@@ -230,7 +230,7 @@ struct drm_etnaviv_gem_userptr {
 	__u64 user_ptr;	/* in, page aligned user pointer */
 	__u64 user_size;	/* in, page aligned user size */
 	__u32 flags;		/* in, flags */
-	__u32 handle;	/* out, non-zero handle */
+	__u32 handle;	/* out, yesn-zero handle */
 };
 
 struct drm_etnaviv_gem_wait {

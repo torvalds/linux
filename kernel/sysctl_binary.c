@@ -29,7 +29,7 @@ static void deprecated_sysctl_warning(const int *name, int nlen)
 	int i;
 
 	/*
-	 * CTL_KERN/KERN_VERSION is used by older glibc and cannot
+	 * CTL_KERN/KERN_VERSION is used by older glibc and canyest
 	 * ever go away.
 	 */
 	if (nlen >= 2 && name[0] == CTL_KERN && name[1] == KERN_VERSION)
@@ -56,11 +56,11 @@ static DECLARE_BITMAP(warn_once_bitmap, WARN_ONCE_HASH_SIZE);
 
 /*
  * Print each legacy sysctl (approximately) only once.
- * To avoid making the tables non-const use a external
+ * To avoid making the tables yesn-const use a external
  * hash-table instead.
  * Worst case hash collision: 6, but very rarely.
  * NOTE! We don't use the SMP-safe bit tests. We simply
- * don't care enough.
+ * don't care eyesugh.
  */
 static void warn_on_bintable(const int *name, int nlen)
 {

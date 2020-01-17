@@ -14,11 +14,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
+ * 3. Neither the name of IBM yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -110,7 +110,7 @@ struct virtio_gpu_ctrl_hdr {
 /* data passed in the cursor vq */
 
 struct virtio_gpu_cursor_pos {
-	__le32 scanout_id;
+	__le32 scayesut_id;
 	__le32 x;
 	__le32 y;
 	__le32 padding;
@@ -152,10 +152,10 @@ struct virtio_gpu_resource_create_2d {
 };
 
 /* VIRTIO_GPU_CMD_SET_SCANOUT */
-struct virtio_gpu_set_scanout {
+struct virtio_gpu_set_scayesut {
 	struct virtio_gpu_ctrl_hdr hdr;
 	struct virtio_gpu_rect r;
-	__le32 scanout_id;
+	__le32 scayesut_id;
 	__le32 resource_id;
 };
 
@@ -305,7 +305,7 @@ struct virtio_gpu_resp_capset {
 /* VIRTIO_GPU_CMD_GET_EDID */
 struct virtio_gpu_cmd_get_edid {
 	struct virtio_gpu_ctrl_hdr hdr;
-	__le32 scanout;
+	__le32 scayesut;
 	__le32 padding;
 };
 
@@ -322,7 +322,7 @@ struct virtio_gpu_resp_edid {
 struct virtio_gpu_config {
 	__u32 events_read;
 	__u32 events_clear;
-	__u32 num_scanouts;
+	__u32 num_scayesuts;
 	__u32 num_capsets;
 };
 

@@ -9,7 +9,7 @@
 // and on sound/soc/imx/phycore-ac97.c which is
 // Copyright 2009 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/of.h>
@@ -85,8 +85,8 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 {
 	int ret;
 	int int_port = 0, ext_port;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *ssi_np = NULL, *codec_np = NULL;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *ssi_np = NULL, *codec_np = NULL;
 
 	eukrea_tlv320.dev = &pdev->dev;
 	if (np) {
@@ -94,11 +94,11 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 						 "eukrea,model");
 		if (ret) {
 			dev_err(&pdev->dev,
-				"eukrea,model node missing or invalid.\n");
+				"eukrea,model yesde missing or invalid.\n");
 			goto err;
 		}
 
-		ssi_np = of_parse_phandle(pdev->dev.of_node,
+		ssi_np = of_parse_phandle(pdev->dev.of_yesde,
 					  "ssi-controller", 0);
 		if (!ssi_np) {
 			dev_err(&pdev->dev,
@@ -109,20 +109,20 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 
 		codec_np = of_parse_phandle(ssi_np, "codec-handle", 0);
 		if (codec_np)
-			eukrea_tlv320_dai.codecs->of_node = codec_np;
+			eukrea_tlv320_dai.codecs->of_yesde = codec_np;
 		else
-			dev_err(&pdev->dev, "codec-handle node missing or invalid.\n");
+			dev_err(&pdev->dev, "codec-handle yesde missing or invalid.\n");
 
 		ret = of_property_read_u32(np, "fsl,mux-int-port", &int_port);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"fsl,mux-int-port node missing or invalid.\n");
+				"fsl,mux-int-port yesde missing or invalid.\n");
 			goto err;
 		}
 		ret = of_property_read_u32(np, "fsl,mux-ext-port", &ext_port);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"fsl,mux-ext-port node missing or invalid.\n");
+				"fsl,mux-ext-port yesde missing or invalid.\n");
 			goto err;
 		}
 
@@ -133,8 +133,8 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 		int_port--;
 		ext_port--;
 
-		eukrea_tlv320_dai.cpus->of_node = ssi_np;
-		eukrea_tlv320_dai.platforms->of_node = ssi_np;
+		eukrea_tlv320_dai.cpus->of_yesde = ssi_np;
+		eukrea_tlv320_dai.platforms->of_yesde = ssi_np;
 	} else {
 		eukrea_tlv320_dai.cpus->dai_name = "imx-ssi.0";
 		eukrea_tlv320_dai.platforms->name = "imx-ssi.0";
@@ -143,7 +143,7 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 	}
 
 	if (machine_is_eukrea_cpuimx27() ||
-	    of_find_compatible_node(NULL, NULL, "fsl,imx21-audmux")) {
+	    of_find_compatible_yesde(NULL, NULL, "fsl,imx21-audmux")) {
 		imx_audmux_v1_configure_port(MX27_AUDMUX_HPCR1_SSI0,
 			IMX_AUDMUX_V1_PCR_SYN |
 			IMX_AUDMUX_V1_PCR_TFSDIR |
@@ -161,7 +161,7 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 	} else if (machine_is_eukrea_cpuimx25sd() ||
 		   machine_is_eukrea_cpuimx35sd() ||
 		   machine_is_eukrea_cpuimx51sd() ||
-		   of_find_compatible_node(NULL, NULL, "fsl,imx31-audmux")) {
+		   of_find_compatible_yesde(NULL, NULL, "fsl,imx31-audmux")) {
 		if (!np)
 			ext_port = machine_is_eukrea_cpuimx25sd() ?
 				4 : 3;
@@ -184,7 +184,7 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 			 * requested (through the device tree).
 			 */
 			dev_err(&pdev->dev,
-				"Missing or invalid audmux DT node.\n");
+				"Missing or invalid audmux DT yesde.\n");
 			return -ENODEV;
 		} else {
 			/* Return happy.
@@ -198,7 +198,7 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 err:
 	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
-	of_node_put(ssi_np);
+	of_yesde_put(ssi_np);
 
 	return ret;
 }

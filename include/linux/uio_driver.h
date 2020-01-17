@@ -26,7 +26,7 @@ struct uio_map;
  * @addr:               address of the device's memory rounded to page
  * 			size (phys_addr is used since addr can be
  * 			logical, virtual, or physical & phys_addr_t
- * 			should always be large enough to handle any of
+ * 			should always be large eyesugh to handle any of
  * 			the address types)
  * @offs:               offset of device memory within the page
  * @size:		size of IO (multiple of page size)
@@ -69,7 +69,7 @@ struct uio_port {
 struct uio_device {
         struct module           *owner;
 	struct device		dev;
-        int                     minor;
+        int                     miyesr;
         atomic_t                event;
         struct fasync_struct    *async_queue;
         wait_queue_head_t       wait;
@@ -106,8 +106,8 @@ struct uio_info {
 	void			*priv;
 	irqreturn_t (*handler)(int irq, struct uio_info *dev_info);
 	int (*mmap)(struct uio_info *info, struct vm_area_struct *vma);
-	int (*open)(struct uio_info *info, struct inode *inode);
-	int (*release)(struct uio_info *info, struct inode *inode);
+	int (*open)(struct uio_info *info, struct iyesde *iyesde);
+	int (*release)(struct uio_info *info, struct iyesde *iyesde);
 	int (*irqcontrol)(struct uio_info *info, s32 irq_on);
 };
 
@@ -121,7 +121,7 @@ extern int __must_check
 	__uio_register_device(THIS_MODULE, parent, info)
 
 extern void uio_unregister_device(struct uio_info *info);
-extern void uio_event_notify(struct uio_info *info);
+extern void uio_event_yestify(struct uio_info *info);
 
 /* defines for uio_info->irq */
 #define UIO_IRQ_CUSTOM	-1

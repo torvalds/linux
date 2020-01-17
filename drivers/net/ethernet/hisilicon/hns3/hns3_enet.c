@@ -59,7 +59,7 @@ MODULE_PARM_DESC(debug, " Network interface message level setting");
  * Last entry must be all 0s
  *
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
- *   Class, Class Mask, private data (not used) }
+ *   Class, Class Mask, private data (yest used) }
  */
 static const struct pci_device_id hns3_pci_tbl[] = {
 	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_GE), 0},
@@ -513,8 +513,8 @@ static void hns3_nic_net_down(struct net_device *netdev)
 	/* free irq resources */
 	hns3_nic_uninit_irq(priv);
 
-	/* delay ring buffer clearing to hns3_reset_notify_uninit_enet
-	 * during reset process, because driver may not be able
+	/* delay ring buffer clearing to hns3_reset_yestify_uninit_enet
+	 * during reset process, because driver may yest be able
 	 * to disable the ring through firmware when downing the netdev.
 	 */
 	if (!hns3_nic_resetting(netdev))
@@ -718,7 +718,7 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 			l3.v4->check = 0;
 	}
 
-	/* normal or tunnel packet */
+	/* yesrmal or tunnel packet */
 	l4_offset = l4.hdr - skb->data;
 	hdr_len = (l4.tcp->doff << 2) + l4_offset;
 
@@ -792,7 +792,7 @@ static int hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
 /* when skb->encapsulation is 0, skb->ip_summed is CHECKSUM_PARTIAL
  * and it is udp packet, which has a dest port as the IANA assigned.
  * the hardware is expected to do the checksum offload, but the
- * hardware will not do the checksum offload when udp dest port is
+ * hardware will yest do the checksum offload when udp dest port is
  * 4789.
  */
 static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
@@ -873,7 +873,7 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 
 	/* handle encapsulation skb */
 	if (skb->encapsulation) {
-		/* If this is a not UDP/GRE encapsulation skb */
+		/* If this is a yest UDP/GRE encapsulation skb */
 		if (!(ol4_proto == IPPROTO_UDP || ol4_proto == IPPROTO_GRE)) {
 			/* drop the skb tunnel packet if hardware don't support,
 			 * because hardware can't calculate csum when TSO.
@@ -882,7 +882,7 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 				return -EDOM;
 
 			/* the stack computes the IP header already,
-			 * driver calculate l4 checksum when not TSO.
+			 * driver calculate l4 checksum when yest TSO.
 			 */
 			skb_checksum_help(skb);
 			return 0;
@@ -911,15 +911,15 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 			       HNS3_L3T_IPV6);
 	}
 
-	/* compute inner(/normal) L2 header size, defined in 2 Bytes */
+	/* compute inner(/yesrmal) L2 header size, defined in 2 Bytes */
 	l2_len = l3.hdr - l2_hdr;
 	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L2LEN_S, l2_len >> 1);
 
-	/* compute inner(/normal) L3 header size, defined in 4 Bytes */
+	/* compute inner(/yesrmal) L3 header size, defined in 4 Bytes */
 	l3_len = l4.hdr - l3.hdr;
 	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L3LEN_S, l3_len >> 2);
 
-	/* compute inner(/normal) L4 header size, defined in 4 Bytes */
+	/* compute inner(/yesrmal) L4 header size, defined in 4 Bytes */
 	switch (l4_proto) {
 	case IPPROTO_TCP:
 		hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_L4CS_B, 1);
@@ -953,7 +953,7 @@ static int hns3_set_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 			return -EDOM;
 
 		/* the stack computes the IP header already,
-		 * driver calculate l4 checksum when not TSO.
+		 * driver calculate l4 checksum when yest TSO.
 		 */
 		skb_checksum_help(skb);
 		return 0;
@@ -1154,7 +1154,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		desc_cb->type = (type == DESC_TYPE_SKB && !k) ?
 				DESC_TYPE_SKB : DESC_TYPE_PAGE;
 
-		/* now, fill the descriptor */
+		/* yesw, fill the descriptor */
 		desc->addr = cpu_to_le64(dma + HNS3_MAX_BD_SIZE * k);
 		desc->tx.send_size = cpu_to_le16((k == frag_buf_num - 1) ?
 				     (u16)sizeoflast : (u16)HNS3_MAX_BD_SIZE);
@@ -1322,7 +1322,7 @@ out:
 	smp_mb(); /* Memory barrier before checking ring_space */
 
 	/* Start queue in case hns3_clean_tx_ring has just made room
-	 * available and has not seen the queue stopped state performed
+	 * available and has yest seen the queue stopped state performed
 	 * by netif_stop_subqueue above.
 	 */
 	if (ring_space(ring) >= bd_num && netif_carrier_ok(netdev) &&
@@ -1482,12 +1482,12 @@ static int hns3_nic_net_set_mac_address(struct net_device *netdev, void *p)
 		return 0;
 	}
 
-	/* For VF device, if there is a perm_addr, then the user will not
+	/* For VF device, if there is a perm_addr, then the user will yest
 	 * be allowed to change the address.
 	 */
 	if (!hns3_is_phys_func(h->pdev) &&
 	    !is_zero_ether_addr(netdev->perm_addr)) {
-		netdev_err(netdev, "has permanent MAC %pM, user MAC %pM not allow\n",
+		netdev_err(netdev, "has permanent MAC %pM, user MAC %pM yest allow\n",
 			   netdev->perm_addr, mac_addr->sa_data);
 		return -EPERM;
 	}
@@ -1803,7 +1803,7 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 
 	if (i == ndev->num_tx_queues) {
 		netdev_info(ndev,
-			    "no netdev TX timeout queue found, timeout count: %llu\n",
+			    "yes netdev TX timeout queue found, timeout count: %llu\n",
 			    priv->tx_timeout_count);
 		return false;
 	}
@@ -1953,7 +1953,7 @@ static int hns3_nic_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 
 	if (is_multicast_ether_addr(mac)) {
 		netdev_err(netdev,
-			   "Invalid MAC:%pM specified. Could not set MAC\n",
+			   "Invalid MAC:%pM specified. Could yest set MAC\n",
 			   mac);
 		return -EINVAL;
 	}
@@ -2013,7 +2013,7 @@ bool hns3_is_phys_func(struct pci_dev *pdev)
 
 static void hns3_disable_sriov(struct pci_dev *pdev)
 {
-	/* If our VFs are assigned we cannot shut down SR-IOV
+	/* If our VFs are assigned we canyest shut down SR-IOV
 	 * without causing issues, so just leave the hardware
 	 * available but disabled
 	 */
@@ -2098,7 +2098,7 @@ static int hns3_pci_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	int ret;
 
 	if (!(hns3_is_phys_func(pdev) && IS_ENABLED(CONFIG_PCI_IOV))) {
-		dev_warn(&pdev->dev, "Can not config SRIOV\n");
+		dev_warn(&pdev->dev, "Can yest config SRIOV\n");
 		return -EINVAL;
 	}
 
@@ -2492,7 +2492,7 @@ void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
 	head = readl_relaxed(ring->tqp->io_base + HNS3_RING_TX_RING_HEAD_REG);
 
 	if (is_ring_empty(ring) || head == ring->next_to_clean)
-		return; /* no data to poll */
+		return; /* yes data to poll */
 
 	rmb(); /* Make sure head is ready before touch any data */
 
@@ -2573,7 +2573,7 @@ static void hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
 			hns3_replace_buffer(ring, ring->next_to_use, &res_cbs);
 
 			u64_stats_update_begin(&ring->syncp);
-			ring->stats.non_reuse_pg++;
+			ring->stats.yesn_reuse_pg++;
 			u64_stats_update_end(&ring->syncp);
 		}
 
@@ -2653,7 +2653,7 @@ static int hns3_gro_complete(struct sk_buff *skb, u32 l234info)
 					  &iph->daddr, 0);
 	} else {
 		hns3_rl_err(skb->dev,
-			    "Error: FW GRO supports only IPv4/IPv6, not 0x%04x, depth: %d\n",
+			    "Error: FW GRO supports only IPv4/IPv6, yest 0x%04x, depth: %d\n",
 			    be16_to_cpu(type), depth);
 		return -EFAULT;
 	}
@@ -2680,7 +2680,7 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
 	if (!(netdev->features & NETIF_F_RXCSUM))
 		return;
@@ -2816,7 +2816,7 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 		/* We can reuse buffer as-is, just make sure it is local */
 		if (likely(page_to_nid(desc_cb->priv) == numa_mem_id()))
 			desc_cb->reuse_flag = 1;
-		else /* This page cannot be reused so discard it */
+		else /* This page canyest be reused so discard it */
 			put_page(desc_cb->priv);
 
 		ring_ptr_move_fw(ring, next_to_clean);
@@ -2909,7 +2909,7 @@ static int hns3_set_gro_and_checksum(struct hns3_enet_ring *ring,
 	skb_shinfo(skb)->gso_size = hnae3_get_field(bd_base_info,
 						    HNS3_RXD_GRO_SIZE_M,
 						    HNS3_RXD_GRO_SIZE_S);
-	/* if there is no HW GRO, do not set gro params */
+	/* if there is yes HW GRO, do yest set gro params */
 	if (!skb_shinfo(skb)->gso_size) {
 		hns3_rx_checksum(ring, skb, l234info, bd_base_info, ol_info);
 		return 0;
@@ -3124,7 +3124,7 @@ int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget,
 
 		/* Poll one pkt */
 		err = hns3_handle_rx_bd(ring);
-		/* Do not get FE for the packet or failed to alloc skb */
+		/* Do yest get FE for the packet or failed to alloc skb */
 		if (unlikely(!ring->skb || err == -ENXIO)) {
 			goto out;
 		} else if (likely(!err)) {
@@ -3303,7 +3303,7 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 	hns3_for_each_ring(ring, tqp_vector->tx_group)
 		hns3_clean_tx_ring(ring);
 
-	/* make sure rx ring budget not smaller than 1 */
+	/* make sure rx ring budget yest smaller than 1 */
 	if (tqp_vector->num_tqps > 1)
 		rx_budget = max(budget / tqp_vector->num_tqps, 1);
 
@@ -3332,11 +3332,11 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 }
 
 static int hns3_get_vector_ring_chain(struct hns3_enet_tqp_vector *tqp_vector,
-				      struct hnae3_ring_chain_node *head)
+				      struct hnae3_ring_chain_yesde *head)
 {
 	struct pci_dev *pdev = tqp_vector->handle->pdev;
-	struct hnae3_ring_chain_node *cur_chain = head;
-	struct hnae3_ring_chain_node *chain;
+	struct hnae3_ring_chain_yesde *cur_chain = head;
+	struct hnae3_ring_chain_yesde *chain;
 	struct hns3_enet_ring *tx_ring;
 	struct hns3_enet_ring *rx_ring;
 
@@ -3415,10 +3415,10 @@ err_free_chain:
 }
 
 static void hns3_free_vector_ring_chain(struct hns3_enet_tqp_vector *tqp_vector,
-					struct hnae3_ring_chain_node *head)
+					struct hnae3_ring_chain_yesde *head)
 {
 	struct pci_dev *pdev = tqp_vector->handle->pdev;
-	struct hnae3_ring_chain_node *chain_tmp, *chain;
+	struct hnae3_ring_chain_yesde *chain_tmp, *chain;
 
 	chain = head->next;
 
@@ -3443,21 +3443,21 @@ static void hns3_nic_set_cpumask(struct hns3_nic_priv *priv)
 	struct pci_dev *pdev = priv->ae_handle->pdev;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	int num_vectors = priv->vector_num;
-	int numa_node;
+	int numa_yesde;
 	int vector_i;
 
-	numa_node = dev_to_node(&pdev->dev);
+	numa_yesde = dev_to_yesde(&pdev->dev);
 
 	for (vector_i = 0; vector_i < num_vectors; vector_i++) {
 		tqp_vector = &priv->tqp_vector[vector_i];
-		cpumask_set_cpu(cpumask_local_spread(vector_i, numa_node),
+		cpumask_set_cpu(cpumask_local_spread(vector_i, numa_yesde),
 				&tqp_vector->affinity_mask);
 	}
 }
 
 static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 {
-	struct hnae3_ring_chain_node vector_ring_chain;
+	struct hnae3_ring_chain_yesde vector_ring_chain;
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	int ret = 0;
@@ -3579,7 +3579,7 @@ static void hns3_clear_ring_group(struct hns3_enet_ring_group *group)
 
 static void hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 {
-	struct hnae3_ring_chain_node vector_ring_chain;
+	struct hnae3_ring_chain_yesde vector_ring_chain;
 	struct hnae3_handle *h = priv->ae_handle;
 	struct hns3_enet_tqp_vector *tqp_vector;
 	int i;
@@ -3866,7 +3866,7 @@ static int hns3_init_mac_addr(struct net_device *netdev)
 	if (h->ae_algo->ops->get_mac_addr)
 		h->ae_algo->ops->get_mac_addr(h, mac_addr_temp);
 
-	/* Check if the MAC address is valid, if not get a random one */
+	/* Check if the MAC address is valid, if yest get a random one */
 	if (!is_valid_ether_addr(mac_addr_temp)) {
 		eth_hw_addr_random(netdev);
 		dev_warn(priv->dev, "using random MAC address %pM\n",
@@ -4203,7 +4203,7 @@ static int hns3_clear_rx_ring(struct hns3_enet_ring *ring)
 	int ret;
 
 	while (ring->next_to_use != ring->next_to_clean) {
-		/* When a buffer is not reused, it's memory has been
+		/* When a buffer is yest reused, it's memory has been
 		 * freed in hns3_handle_rx_bd or will be freed by
 		 * stack, so we need to replace the buffer here.
 		 */
@@ -4239,7 +4239,7 @@ static int hns3_clear_rx_ring(struct hns3_enet_ring *ring)
 static void hns3_force_clear_rx_ring(struct hns3_enet_ring *ring)
 {
 	while (ring->next_to_use != ring->next_to_clean) {
-		/* When a buffer is not reused, it's memory has been
+		/* When a buffer is yest reused, it's memory has been
 		 * freed in hns3_handle_rx_bd or will be freed by
 		 * stack, so only need to unmap the buffer here.
 		 */
@@ -4292,7 +4292,7 @@ int hns3_nic_reset_all_ring(struct hnae3_handle *h)
 		hns3_init_ring_hw(&priv->ring[i]);
 
 		/* We need to clear tx ring here because self test will
-		 * use the ring and will not run down before up
+		 * use the ring and will yest run down before up
 		 */
 		hns3_clear_tx_ring(&priv->ring[i]);
 		priv->ring[i].next_to_clean = 0;
@@ -4304,7 +4304,7 @@ int hns3_nic_reset_all_ring(struct hnae3_handle *h)
 		if (ret)
 			return ret;
 
-		/* We can not know the hardware head and tail when this
+		/* We can yest kyesw the hardware head and tail when this
 		 * function is called in reset flow, so we reuse all desc.
 		 */
 		for (j = 0; j < rx_ring->desc_num; j++)
@@ -4322,7 +4322,7 @@ int hns3_nic_reset_all_ring(struct hnae3_handle *h)
 static void hns3_store_coal(struct hns3_nic_priv *priv)
 {
 	/* ethtool only support setting and querying one coal
-	 * configuration for now, so save the vector 0' coal
+	 * configuration for yesw, so save the vector 0' coal
 	 * configuration here in order to restore it.
 	 */
 	memcpy(&priv->tx_coal, &priv->tqp_vector[0].tx_group.coal,
@@ -4344,7 +4344,7 @@ static void hns3_restore_coal(struct hns3_nic_priv *priv)
 	}
 }
 
-static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
+static int hns3_reset_yestify_down_enet(struct hnae3_handle *handle)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
@@ -4369,7 +4369,7 @@ static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 	return hns3_nic_net_stop(ndev);
 }
 
-static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
+static int hns3_reset_yestify_up_enet(struct hnae3_handle *handle)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct hns3_nic_priv *priv = netdev_priv(kinfo->netdev);
@@ -4390,7 +4390,7 @@ static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 	return ret;
 }
 
-static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
+static int hns3_reset_yestify_init_enet(struct hnae3_handle *handle)
 {
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -4439,7 +4439,7 @@ err_put_ring:
 	return ret;
 }
 
-static int hns3_reset_notify_restore_enet(struct hnae3_handle *handle)
+static int hns3_reset_yestify_restore_enet(struct hnae3_handle *handle)
 {
 	struct net_device *netdev = handle->kinfo.netdev;
 	bool vlan_filter_enable;
@@ -4466,7 +4466,7 @@ static int hns3_reset_notify_restore_enet(struct hnae3_handle *handle)
 	return hns3_restore_fd_rules(netdev);
 }
 
-static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
+static int hns3_reset_yestify_uninit_enet(struct hnae3_handle *handle)
 {
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
@@ -4497,26 +4497,26 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	return ret;
 }
 
-static int hns3_reset_notify(struct hnae3_handle *handle,
-			     enum hnae3_reset_notify_type type)
+static int hns3_reset_yestify(struct hnae3_handle *handle,
+			     enum hnae3_reset_yestify_type type)
 {
 	int ret = 0;
 
 	switch (type) {
 	case HNAE3_UP_CLIENT:
-		ret = hns3_reset_notify_up_enet(handle);
+		ret = hns3_reset_yestify_up_enet(handle);
 		break;
 	case HNAE3_DOWN_CLIENT:
-		ret = hns3_reset_notify_down_enet(handle);
+		ret = hns3_reset_yestify_down_enet(handle);
 		break;
 	case HNAE3_INIT_CLIENT:
-		ret = hns3_reset_notify_init_enet(handle);
+		ret = hns3_reset_yestify_init_enet(handle);
 		break;
 	case HNAE3_UNINIT_CLIENT:
-		ret = hns3_reset_notify_uninit_enet(handle);
+		ret = hns3_reset_yestify_uninit_enet(handle);
 		break;
 	case HNAE3_RESTORE_CLIENT:
-		ret = hns3_reset_notify_restore_enet(handle);
+		ret = hns3_reset_yestify_restore_enet(handle);
 		break;
 	default:
 		break;
@@ -4538,13 +4538,13 @@ static int hns3_change_channels(struct hnae3_handle *handle, u32 new_tqp_num,
 		return ret;
 	}
 
-	ret = hns3_reset_notify(handle, HNAE3_INIT_CLIENT);
+	ret = hns3_reset_yestify(handle, HNAE3_INIT_CLIENT);
 	if (ret)
 		return ret;
 
-	ret =  hns3_reset_notify(handle, HNAE3_UP_CLIENT);
+	ret =  hns3_reset_yestify(handle, HNAE3_UP_CLIENT);
 	if (ret)
-		hns3_reset_notify(handle, HNAE3_UNINIT_CLIENT);
+		hns3_reset_yestify(handle, HNAE3_UNINIT_CLIENT);
 
 	return ret;
 }
@@ -4580,11 +4580,11 @@ int hns3_set_channels(struct net_device *netdev,
 		  "set channels: tqp_num=%u, rxfh=%d\n",
 		  new_tqp_num, rxfh_configured);
 
-	ret = hns3_reset_notify(h, HNAE3_DOWN_CLIENT);
+	ret = hns3_reset_yestify(h, HNAE3_DOWN_CLIENT);
 	if (ret)
 		return ret;
 
-	ret = hns3_reset_notify(h, HNAE3_UNINIT_CLIENT);
+	ret = hns3_reset_yestify(h, HNAE3_UNINIT_CLIENT);
 	if (ret)
 		return ret;
 
@@ -4636,7 +4636,7 @@ static const struct hnae3_client_ops client_ops = {
 	.uninit_instance = hns3_client_uninit,
 	.link_status_change = hns3_link_status_change,
 	.setup_tc = hns3_client_setup_tc,
-	.reset_notify = hns3_reset_notify,
+	.reset_yestify = hns3_reset_yestify,
 	.process_hw_error = hns3_process_hw_error,
 };
 
@@ -4657,7 +4657,7 @@ static int __init hns3_init_module(void)
 
 	client.ops = &client_ops;
 
-	INIT_LIST_HEAD(&client.node);
+	INIT_LIST_HEAD(&client.yesde);
 
 	hns3_dbg_register_debugfs(hns3_driver_name);
 

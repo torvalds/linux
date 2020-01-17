@@ -8,7 +8,7 @@
 
 #include <linux/list.h>
 #include <linux/of_platform.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/slab.h>
@@ -105,10 +105,10 @@ EXPORT_SYMBOL_GPL(mpic_msgr_disable);
 static unsigned int mpic_msgr_number_of_blocks(void)
 {
 	unsigned int count;
-	struct device_node *aliases;
+	struct device_yesde *aliases;
 
 	count = 0;
-	aliases = of_find_node_by_name(NULL, "aliases");
+	aliases = of_find_yesde_by_name(NULL, "aliases");
 
 	if (aliases) {
 		char buf[32];
@@ -130,14 +130,14 @@ static unsigned int mpic_msgr_number_of_registers(void)
 	return mpic_msgr_number_of_blocks() * MPIC_MSGR_REGISTERS_PER_BLOCK;
 }
 
-static int mpic_msgr_block_number(struct device_node *node)
+static int mpic_msgr_block_number(struct device_yesde *yesde)
 {
-	struct device_node *aliases;
+	struct device_yesde *aliases;
 	unsigned int index, number_of_blocks;
 	char buf[64];
 
 	number_of_blocks = mpic_msgr_number_of_blocks();
-	aliases = of_find_node_by_name(NULL, "aliases");
+	aliases = of_find_yesde_by_name(NULL, "aliases");
 	if (!aliases)
 		return -1;
 
@@ -146,7 +146,7 @@ static int mpic_msgr_block_number(struct device_node *node)
 
 		snprintf(buf, sizeof(buf), "mpic-msgr-block%d", index);
 		prop = of_find_property(aliases, buf, NULL);
-		if (node == of_find_node_by_path(prop->value))
+		if (yesde == of_find_yesde_by_path(prop->value))
 			break;
 	}
 
@@ -162,7 +162,7 @@ static int mpic_msgr_probe(struct platform_device *dev)
 	struct resource rsrc;
 	unsigned int i;
 	unsigned int irq_index;
-	struct device_node *np = dev->dev.of_node;
+	struct device_yesde *np = dev->dev.of_yesde;
 	unsigned int receive_mask;
 	const unsigned int *prop;
 

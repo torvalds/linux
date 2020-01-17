@@ -131,21 +131,21 @@ void panfrost_devfreq_suspend(struct panfrost_device *pfdev)
 
 static void panfrost_devfreq_update_utilization(struct panfrost_device *pfdev)
 {
-	ktime_t now;
+	ktime_t yesw;
 	ktime_t last;
 
 	if (!pfdev->devfreq.devfreq)
 		return;
 
-	now = ktime_get();
+	yesw = ktime_get();
 	last = pfdev->devfreq.time_last_update;
 
 	if (atomic_read(&pfdev->devfreq.busy_count) > 0)
-		pfdev->devfreq.busy_time += ktime_sub(now, last);
+		pfdev->devfreq.busy_time += ktime_sub(yesw, last);
 	else
-		pfdev->devfreq.idle_time += ktime_sub(now, last);
+		pfdev->devfreq.idle_time += ktime_sub(yesw, last);
 
-	pfdev->devfreq.time_last_update = now;
+	pfdev->devfreq.time_last_update = yesw;
 }
 
 void panfrost_devfreq_record_busy(struct panfrost_device *pfdev)

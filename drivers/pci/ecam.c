@@ -13,7 +13,7 @@
 
 /*
  * On 64-bit systems, we do a single ioremap for the whole config space
- * since we have enough virtual address range available.  On 32-bit, we
+ * since we have eyesugh virtual address range available.  On 32-bit, we
  * ioremap the config space for each bus individually.
  */
 static const bool per_bus_mapping = !IS_ENABLED(CONFIG_64BIT);
@@ -155,7 +155,7 @@ struct pci_ecam_ops pci_generic_ecam_ops = {
 };
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
-/* ECAM ops for 32-bit access only (non-compliant) */
+/* ECAM ops for 32-bit access only (yesn-compliant) */
 struct pci_ecam_ops pci_32b_ops = {
 	.bus_shift	= 20,
 	.pci_ops	= {

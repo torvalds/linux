@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_quota.h"
@@ -20,7 +20,7 @@ STATIC void	xfs_trans_alloc_dqinfo(xfs_trans_t *);
 
 /*
  * Add the locked dquot to the transaction.
- * The dquot must be locked, and it cannot be associated with any
+ * The dquot must be locked, and it canyest be associated with any
  * transaction.
  */
 void
@@ -43,7 +43,7 @@ xfs_trans_dqjoin(
  * already be associated with the given transaction.
  * Note that it marks the entire transaction as dirty. In the ordinary
  * case, this gets called via xfs_trans_commit, after the transaction
- * is already dirty. However, there's nothing stop this from getting
+ * is already dirty. However, there's yesthing stop this from getting
  * called directly, as done by xfs_qm_scall_setqlim. Hence, the TRANS_DIRTY
  * flag.
  */
@@ -112,8 +112,8 @@ xfs_trans_dup_dqinfo(
 				oq->qt_rtblk_res_used;
 			oq->qt_rtblk_res = oq->qt_rtblk_res_used;
 
-			nq->qt_ino_res = oq->qt_ino_res - oq->qt_ino_res_used;
-			oq->qt_ino_res = oq->qt_ino_res_used;
+			nq->qt_iyes_res = oq->qt_iyes_res - oq->qt_iyes_res_used;
+			oq->qt_iyes_res = oq->qt_iyes_res_used;
 
 		}
 	}
@@ -123,9 +123,9 @@ xfs_trans_dup_dqinfo(
  * Wrap around mod_dquot to account for both user and group quotas.
  */
 void
-xfs_trans_mod_dquot_byino(
+xfs_trans_mod_dquot_byiyes(
 	xfs_trans_t	*tp,
-	xfs_inode_t	*ip,
+	xfs_iyesde_t	*ip,
 	uint		field,
 	int64_t		delta)
 {
@@ -133,7 +133,7 @@ xfs_trans_mod_dquot_byino(
 
 	if (!XFS_IS_QUOTA_RUNNING(mp) ||
 	    !XFS_IS_QUOTA_ON(mp) ||
-	    xfs_is_quota_inode(&mp->m_sb, ip->i_ino))
+	    xfs_is_quota_iyesde(&mp->m_sb, ip->i_iyes))
 		return;
 
 	if (tp->t_dqinfo == NULL)
@@ -177,7 +177,7 @@ xfs_trans_get_dqtrx(
  * Make the changes in the transaction structure.
  * The moral equivalent to xfs_trans_mod_sb().
  * We don't touch any fields in the dquot, so we don't care
- * if it's locked or not (most of the time it won't be).
+ * if it's locked or yest (most of the time it won't be).
  */
 void
 xfs_trans_mod_dquot(
@@ -213,10 +213,10 @@ xfs_trans_mod_dquot(
 		break;
 
 		/*
-		 * inode reservation
+		 * iyesde reservation
 		 */
 	      case XFS_TRANS_DQ_RES_INOS:
-		qtrx->qt_ino_res += delta;
+		qtrx->qt_iyes_res += delta;
 		break;
 
 		/*
@@ -231,12 +231,12 @@ xfs_trans_mod_dquot(
 		break;
 
 		/*
-		 * Inode Count
+		 * Iyesde Count
 		 */
 	      case XFS_TRANS_DQ_ICOUNT:
-		if (qtrx->qt_ino_res && delta > 0) {
-			qtrx->qt_ino_res_used += delta;
-			ASSERT(qtrx->qt_ino_res >= qtrx->qt_ino_res_used);
+		if (qtrx->qt_iyes_res && delta > 0) {
+			qtrx->qt_iyes_res_used += delta;
+			ASSERT(qtrx->qt_iyes_res >= qtrx->qt_iyes_res_used);
 		}
 		qtrx->qt_icount_delta += delta;
 		break;
@@ -272,7 +272,7 @@ xfs_trans_mod_dquot(
 
 /*
  * Given an array of dqtrx structures, lock all the dquots associated and join
- * them to the transaction, provided they have been modified.  We know that the
+ * them to the transaction, provided they have been modified.  We kyesw that the
  * highest number of dquots of one type - usr, grp and prj - involved in a
  * transaction is 3 so we don't need to make this very generic.
  */
@@ -331,7 +331,7 @@ xfs_trans_apply_dquot_deltas(
 			qtrx = &qa[i];
 			/*
 			 * The array of dquots is filled
-			 * sequentially, not sparsely.
+			 * sequentially, yest sparsely.
 			 */
 			if ((dqp = qtrx->qt_dquot) == NULL)
 				break;
@@ -348,12 +348,12 @@ xfs_trans_apply_dquot_deltas(
 			 * reservation intentionally to be fair to users
 			 * (when the amount is small). On the other hand,
 			 * delayed allocs do make reservations, but that's
-			 * outside of a transaction, so we have no
+			 * outside of a transaction, so we have yes
 			 * idea how much was really reserved.
 			 * So, here we've accumulated delayed allocation blks and
-			 * non-delay blks. The assumption is that the
+			 * yesn-delay blks. The assumption is that the
 			 * delayed ones are always reserved (outside of a
-			 * transaction), and the others may or may not have
+			 * transaction), and the others may or may yest have
 			 * quota reservations.
 			 */
 			totalbdelta = qtrx->qt_bcount_delta +
@@ -398,8 +398,8 @@ xfs_trans_apply_dquot_deltas(
 			xfs_trans_log_dquot(tp, dqp);
 			/*
 			 * Take off what's left of the original reservation.
-			 * In case of delayed allocations, there's no
-			 * reservation that a transaction structure knows of.
+			 * In case of delayed allocations, there's yes
+			 * reservation that a transaction structure kyesws of.
 			 */
 			if (qtrx->qt_blk_res != 0) {
 				uint64_t	blk_res_used = 0;
@@ -452,15 +452,15 @@ xfs_trans_apply_dquot_deltas(
 			}
 
 			/*
-			 * Adjust the inode reservation.
+			 * Adjust the iyesde reservation.
 			 */
-			if (qtrx->qt_ino_res != 0) {
-				ASSERT(qtrx->qt_ino_res >=
-				       qtrx->qt_ino_res_used);
-				if (qtrx->qt_ino_res > qtrx->qt_ino_res_used)
+			if (qtrx->qt_iyes_res != 0) {
+				ASSERT(qtrx->qt_iyes_res >=
+				       qtrx->qt_iyes_res_used);
+				if (qtrx->qt_iyes_res > qtrx->qt_iyes_res_used)
 					dqp->q_res_icount -= (xfs_qcnt_t)
-						(qtrx->qt_ino_res -
-						 qtrx->qt_ino_res_used);
+						(qtrx->qt_iyes_res -
+						 qtrx->qt_iyes_res_used);
 			} else {
 				if (qtrx->qt_icount_delta)
 					dqp->q_res_icount +=
@@ -503,7 +503,7 @@ xfs_trans_unreserve_and_mod_dquots(
 			qtrx = &qa[i];
 			/*
 			 * We assume that the array of dquots is filled
-			 * sequentially, not sparsely.
+			 * sequentially, yest sparsely.
 			 */
 			if ((dqp = qtrx->qt_dquot) == NULL)
 				break;
@@ -519,13 +519,13 @@ xfs_trans_unreserve_and_mod_dquots(
 				dqp->q_res_bcount -=
 					(xfs_qcnt_t)qtrx->qt_blk_res;
 			}
-			if (qtrx->qt_ino_res) {
+			if (qtrx->qt_iyes_res) {
 				if (!locked) {
 					xfs_dqlock(dqp);
 					locked = true;
 				}
 				dqp->q_res_icount -=
-					(xfs_qcnt_t)qtrx->qt_ino_res;
+					(xfs_qcnt_t)qtrx->qt_iyes_res;
 			}
 
 			if (qtrx->qt_rtblk_res) {
@@ -564,7 +564,7 @@ xfs_quota_warn(
 }
 
 /*
- * This reserves disk blocks and inodes against a dquot.
+ * This reserves disk blocks and iyesdes against a dquot.
  * Flags indicate if the dquot is to be locked here and also
  * if the blk reservation is for RT or regular blocks.
  * Sending in XFS_QMOPT_FORCE_RES flag skips the quota check.
@@ -575,7 +575,7 @@ xfs_trans_dqresv(
 	struct xfs_mount	*mp,
 	struct xfs_dquot	*dqp,
 	int64_t			nblks,
-	long			ninos,
+	long			niyess,
 	uint			flags)
 {
 	xfs_qcnt_t		hardlimit;
@@ -645,15 +645,15 @@ xfs_trans_dqresv(
 				xfs_quota_warn(mp, dqp, QUOTA_NL_BSOFTWARN);
 			}
 		}
-		if (ninos > 0) {
-			total_count = be64_to_cpu(dqp->q_core.d_icount) + ninos;
+		if (niyess > 0) {
+			total_count = be64_to_cpu(dqp->q_core.d_icount) + niyess;
 			timer = be32_to_cpu(dqp->q_core.d_itimer);
 			warns = be16_to_cpu(dqp->q_core.d_iwarns);
 			warnlimit = dqp->q_mount->m_quotainfo->qi_iwarnlimit;
-			hardlimit = be64_to_cpu(dqp->q_core.d_ino_hardlimit);
+			hardlimit = be64_to_cpu(dqp->q_core.d_iyes_hardlimit);
 			if (!hardlimit)
 				hardlimit = defq->ihardlimit;
-			softlimit = be64_to_cpu(dqp->q_core.d_ino_softlimit);
+			softlimit = be64_to_cpu(dqp->q_core.d_iyes_softlimit);
 			if (!softlimit)
 				softlimit = defq->isoftlimit;
 
@@ -674,16 +674,16 @@ xfs_trans_dqresv(
 	}
 
 	/*
-	 * Change the reservation, but not the actual usage.
+	 * Change the reservation, but yest the actual usage.
 	 * Note that q_res_bcount = q_core.d_bcount + resv
 	 */
 	(*resbcountp) += (xfs_qcnt_t)nblks;
-	if (ninos != 0)
-		dqp->q_res_icount += (xfs_qcnt_t)ninos;
+	if (niyess != 0)
+		dqp->q_res_icount += (xfs_qcnt_t)niyess;
 
 	/*
-	 * note the reservation amt in the trans struct too,
-	 * so that the transaction knows how much was reserved by
+	 * yeste the reservation amt in the trans struct too,
+	 * so that the transaction kyesws how much was reserved by
 	 * it against this particular dquot.
 	 * We don't do this when we are reserving for a delayed allocation,
 	 * because we don't have the luxury of a transaction envelope then.
@@ -695,10 +695,10 @@ xfs_trans_dqresv(
 			xfs_trans_mod_dquot(tp, dqp,
 					    flags & XFS_QMOPT_RESBLK_MASK,
 					    nblks);
-		if (ninos != 0)
+		if (niyess != 0)
 			xfs_trans_mod_dquot(tp, dqp,
 					    XFS_TRANS_DQ_RES_INOS,
-					    ninos);
+					    niyess);
 	}
 	ASSERT(dqp->q_res_bcount >= be64_to_cpu(dqp->q_core.d_bcount));
 	ASSERT(dqp->q_res_rtbcount >= be64_to_cpu(dqp->q_core.d_rtbcount));
@@ -716,16 +716,16 @@ error_return:
 
 
 /*
- * Given dquot(s), make disk block and/or inode reservations against them.
+ * Given dquot(s), make disk block and/or iyesde reservations against them.
  * The fact that this does the reservation against user, group and
- * project quotas is important, because this follows a all-or-nothing
+ * project quotas is important, because this follows a all-or-yesthing
  * approach.
  *
  * flags = XFS_QMOPT_FORCE_RES evades limit enforcement. Used by chown.
- *	   XFS_QMOPT_ENOSPC returns ENOSPC not EDQUOT.  Used by pquota.
+ *	   XFS_QMOPT_ENOSPC returns ENOSPC yest EDQUOT.  Used by pquota.
  *	   XFS_TRANS_DQ_RES_BLKS reserves regular disk blocks
  *	   XFS_TRANS_DQ_RES_RTBLKS reserves realtime disk blocks
- * dquots are unlocked on return, if they were not locked by caller.
+ * dquots are unlocked on return, if they were yest locked by caller.
  */
 int
 xfs_trans_reserve_quota_bydquots(
@@ -735,7 +735,7 @@ xfs_trans_reserve_quota_bydquots(
 	struct xfs_dquot	*gdqp,
 	struct xfs_dquot	*pdqp,
 	int64_t			nblks,
-	long			ninos,
+	long			niyess,
 	uint			flags)
 {
 	int		error;
@@ -749,37 +749,37 @@ xfs_trans_reserve_quota_bydquots(
 	ASSERT(flags & XFS_QMOPT_RESBLK_MASK);
 
 	if (udqp) {
-		error = xfs_trans_dqresv(tp, mp, udqp, nblks, ninos,
+		error = xfs_trans_dqresv(tp, mp, udqp, nblks, niyess,
 					(flags & ~XFS_QMOPT_ENOSPC));
 		if (error)
 			return error;
 	}
 
 	if (gdqp) {
-		error = xfs_trans_dqresv(tp, mp, gdqp, nblks, ninos, flags);
+		error = xfs_trans_dqresv(tp, mp, gdqp, nblks, niyess, flags);
 		if (error)
 			goto unwind_usr;
 	}
 
 	if (pdqp) {
-		error = xfs_trans_dqresv(tp, mp, pdqp, nblks, ninos, flags);
+		error = xfs_trans_dqresv(tp, mp, pdqp, nblks, niyess, flags);
 		if (error)
 			goto unwind_grp;
 	}
 
 	/*
-	 * Didn't change anything critical, so, no need to log
+	 * Didn't change anything critical, so, yes need to log
 	 */
 	return 0;
 
 unwind_grp:
 	flags |= XFS_QMOPT_FORCE_RES;
 	if (gdqp)
-		xfs_trans_dqresv(tp, mp, gdqp, -nblks, -ninos, flags);
+		xfs_trans_dqresv(tp, mp, gdqp, -nblks, -niyess, flags);
 unwind_usr:
 	flags |= XFS_QMOPT_FORCE_RES;
 	if (udqp)
-		xfs_trans_dqresv(tp, mp, udqp, -nblks, -ninos, flags);
+		xfs_trans_dqresv(tp, mp, udqp, -nblks, -niyess, flags);
 	return error;
 }
 
@@ -787,14 +787,14 @@ unwind_usr:
 /*
  * Lock the dquot and change the reservation if we can.
  * This doesn't change the actual usage, just the reservation.
- * The inode sent in is locked.
+ * The iyesde sent in is locked.
  */
 int
 xfs_trans_reserve_quota_nblks(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	int64_t			nblks,
-	long			ninos,
+	long			niyess,
 	uint			flags)
 {
 	struct xfs_mount	*mp = ip->i_mount;
@@ -804,7 +804,7 @@ xfs_trans_reserve_quota_nblks(
 	if (XFS_IS_PQUOTA_ON(mp))
 		flags |= XFS_QMOPT_ENOSPC;
 
-	ASSERT(!xfs_is_quota_inode(&mp->m_sb, ip->i_ino));
+	ASSERT(!xfs_is_quota_iyesde(&mp->m_sb, ip->i_iyes));
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	ASSERT((flags & ~(XFS_QMOPT_FORCE_RES | XFS_QMOPT_ENOSPC)) ==
@@ -818,7 +818,7 @@ xfs_trans_reserve_quota_nblks(
 	return xfs_trans_reserve_quota_bydquots(tp, mp,
 						ip->i_udquot, ip->i_gdquot,
 						ip->i_pdquot,
-						nblks, ninos, flags);
+						nblks, niyess, flags);
 }
 
 /*

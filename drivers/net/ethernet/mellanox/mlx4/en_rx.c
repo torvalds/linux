@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -119,7 +119,7 @@ static void mlx4_en_init_rx_desc(const struct mlx4_en_priv *priv,
 		rx_desc->data[i].lkey = cpu_to_be32(priv->mdev->mr.key);
 	}
 
-	/* If the number of used fragments does not fill up the ring stride,
+	/* If the number of used fragments does yest fill up the ring stride,
 	 * remaining (unused) fragments must be padded with null address/size
 	 * and a special memory key */
 	possible_frags = (ring->stride - sizeof(struct mlx4_en_rx_desc)) / DS_SIZE;
@@ -179,7 +179,7 @@ static void mlx4_en_free_rx_desc(const struct mlx4_en_priv *priv,
 	}
 }
 
-/* Function not in fast-path */
+/* Function yest in fast-path */
 static int mlx4_en_fill_rx_buffers(struct mlx4_en_priv *priv)
 {
 	struct mlx4_en_rx_ring *ring;
@@ -195,7 +195,7 @@ static int mlx4_en_fill_rx_buffers(struct mlx4_en_priv *priv)
 						    ring->actual_size,
 						    GFP_KERNEL)) {
 				if (ring->actual_size < MLX4_EN_MIN_RX_SIZE) {
-					en_err(priv, "Failed to allocate enough rx buffers\n");
+					en_err(priv, "Failed to allocate eyesugh rx buffers\n");
 					return -ENOMEM;
 				} else {
 					new_size = rounddown_pow_of_two(ring->actual_size);
@@ -262,14 +262,14 @@ void mlx4_en_set_num_rx_rings(struct mlx4_en_dev *mdev)
 
 int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_rx_ring **pring,
-			   u32 size, u16 stride, int node, int queue_index)
+			   u32 size, u16 stride, int yesde, int queue_index)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_rx_ring *ring;
 	int err = -ENOMEM;
 	int tmp;
 
-	ring = kzalloc_node(sizeof(*ring), GFP_KERNEL, node);
+	ring = kzalloc_yesde(sizeof(*ring), GFP_KERNEL, yesde);
 	if (!ring) {
 		en_err(priv, "Failed to allocate RX ring structure\n");
 		return -ENOMEM;
@@ -288,7 +288,7 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 
 	tmp = size * roundup_pow_of_two(MLX4_EN_MAX_RX_FRAGS *
 					sizeof(struct mlx4_en_rx_alloc));
-	ring->rx_info = kvzalloc_node(tmp, GFP_KERNEL, node);
+	ring->rx_info = kvzalloc_yesde(tmp, GFP_KERNEL, yesde);
 	if (!ring->rx_info) {
 		err = -ENOMEM;
 		goto err_xdp_info;
@@ -297,10 +297,10 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	en_dbg(DRV, priv, "Allocated rx_info ring at addr:%p size:%d\n",
 		 ring->rx_info, tmp);
 
-	/* Allocate HW buffers on provided NUMA node */
-	set_dev_node(&mdev->dev->persist->pdev->dev, node);
+	/* Allocate HW buffers on provided NUMA yesde */
+	set_dev_yesde(&mdev->dev->persist->pdev->dev, yesde);
 	err = mlx4_alloc_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
-	set_dev_node(&mdev->dev->persist->pdev->dev, mdev->dev->numa_node);
+	set_dev_yesde(&mdev->dev->persist->pdev->dev, mdev->dev->numa_yesde);
 	if (err)
 		goto err_info;
 
@@ -498,7 +498,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 				  page_is_pfmemalloc(page) ||
 				  page_to_nid(page) != numa_mem_id();
 		} else if (!priv->rx_headroom) {
-			/* rx_headroom for non XDP setup is always 0.
+			/* rx_headroom for yesn XDP setup is always 0.
 			 * When XDP is set, the above condition will
 			 * guarantee page is always released.
 			 */
@@ -549,7 +549,7 @@ static void mlx4_en_refill_rx_buffers(struct mlx4_en_priv *priv,
 {
 	u32 missing = ring->actual_size - (ring->prod - ring->cons);
 
-	/* Try to batch allocations, but not too much. */
+	/* Try to batch allocations, but yest too much. */
 	if (missing < 8)
 		return;
 	do {
@@ -587,7 +587,7 @@ static int get_fixed_ipv4_csum(__wsum hw_checksum, struct sk_buff *skb,
 		return -1;
 
 	length_for_csum = (be16_to_cpu(iph->tot_len) - (iph->ihl << 2));
-	csum_pseudo_header = csum_tcpudp_nofold(iph->saddr, iph->daddr,
+	csum_pseudo_header = csum_tcpudp_yesfold(iph->saddr, iph->daddr,
 						length_for_csum, ipproto, 0);
 	skb->csum = csum_sub(hw_checksum, csum_pseudo_header);
 	return 0;
@@ -723,8 +723,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			goto next;
 		}
 
-		/* Check if we need to drop the packet if SRIOV is not enabled
-		 * and not performing the selftest or flb disabled
+		/* Check if we need to drop the packet if SRIOV is yest enabled
+		 * and yest performing the selftest or flb disabled
 		 */
 		if (priv->flags & MLX4_EN_FLAG_RX_FILTER_NEEDED) {
 			const struct ethhdr *ethh = va;
@@ -764,7 +764,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		length -= ring->fcs_del;
 
 		/* A bpf program gets first chance to drop the packet. It may
-		 * read bytes but not past the end of the frag.
+		 * read bytes but yest past the end of the frag.
 		 */
 		if (xdp_prog) {
 			dma_addr_t dma;
@@ -802,7 +802,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 					goto next;
 				}
 				trace_xdp_exception(dev, xdp_prog, act);
-				goto xdp_drop_no_cnt; /* Drop on xmit failure */
+				goto xdp_drop_yes_cnt; /* Drop on xmit failure */
 			default:
 				bpf_warn_invalid_xdp_action(act);
 				/* fall through */
@@ -811,7 +811,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				/* fall through */
 			case XDP_DROP:
 				ring->xdp_drop++;
-xdp_drop_no_cnt:
+xdp_drop_yes_cnt:
 				goto next;
 			}
 		}
@@ -832,8 +832,8 @@ xdp_drop_no_cnt:
 		skb_record_rx_queue(skb, cq_ring);
 
 		if (likely(dev->features & NETIF_F_RXCSUM)) {
-			/* TODO: For IP non TCP/UDP packets when csum complete is
-			 * not an option (not supported or any other reason) we can
+			/* TODO: For IP yesn TCP/UDP packets when csum complete is
+			 * yest an option (yest supported or any other reason) we can
 			 * actually check cqe IPOK status bit and report
 			 * CHECKSUM_UNNECESSARY rather than CHECKSUM_NONE
 			 */
@@ -853,18 +853,18 @@ xdp_drop_no_cnt:
 			} else {
 				if (!(priv->flags & MLX4_EN_FLAG_RX_CSUM_NON_TCP_UDP &&
 				      (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IP_ANY))))
-					goto csum_none;
+					goto csum_yesne;
 				if (check_csum(cqe, skb, va, dev->features))
-					goto csum_none;
+					goto csum_yesne;
 				ip_summed = CHECKSUM_COMPLETE;
 				hash_type = PKT_HASH_TYPE_L3;
 				ring->csum_complete++;
 			}
 		} else {
-csum_none:
+csum_yesne:
 			ip_summed = CHECKSUM_NONE;
 			hash_type = PKT_HASH_TYPE_L3;
-			ring->csum_none++;
+			ring->csum_yesne++;
 		}
 		skb->ip_summed = ip_summed;
 		if (dev->features & NETIF_F_RXHASH)
@@ -953,7 +953,7 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 
 	done = mlx4_en_process_rx_cq(dev, cq, budget);
 
-	/* If we used up all the quota - we're probably not done yet... */
+	/* If we used up all the quota - we're probably yest done yet... */
 	if (done == budget || !clean_complete) {
 		const struct cpumask *aff;
 		struct irq_data *idata;
@@ -971,16 +971,16 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 		if (likely(cpumask_test_cpu(cpu_curr, aff)))
 			return budget;
 
-		/* Current cpu is not according to smp_irq_affinity -
+		/* Current cpu is yest according to smp_irq_affinity -
 		 * probably affinity changed. Need to stop this NAPI
 		 * poll, and restart it on the right CPU.
 		 * Try to avoid returning a too small value (like 0),
-		 * to not fool net_rx_action() and its netdev_budget
+		 * to yest fool net_rx_action() and its netdev_budget
 		 */
 		if (done)
 			done--;
 	}
-	/* Done for now */
+	/* Done for yesw */
 	if (likely(napi_complete_done(napi, done)))
 		mlx4_en_arm_cq(priv, cq);
 	return done;
@@ -1007,7 +1007,7 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 	} else {
 		int frag_size_max = 2048, buf_size = 0;
 
-		/* should not happen, right ? */
+		/* should yest happen, right ? */
 		if (eff_mtu > PAGE_SIZE + (MLX4_EN_MAX_RX_FRAGS - 1) * 2048)
 			frag_size_max = PAGE_SIZE;
 
@@ -1224,7 +1224,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 		memcpy(rss_context->rss_key, priv->rss_key,
 		       MLX4_EN_RSS_KEY_SIZE);
 	} else {
-		en_err(priv, "Unknown RSS hash function requested\n");
+		en_err(priv, "Unkyeswn RSS hash function requested\n");
 		err = -EINVAL;
 		goto indir_err;
 	}

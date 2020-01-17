@@ -140,7 +140,7 @@ static const struct mtd_partition nettel_amd_partitions[] = {
  *	Set the Intel flash back to read mode since some old boot
  *	loaders don't.
  */
-static int nettel_reboot_notifier(struct notifier_block *nb, unsigned long val, void *v)
+static int nettel_reboot_yestifier(struct yestifier_block *nb, unsigned long val, void *v)
 {
 	struct cfi_private *cfi = nettel_intel_map.fldrv_priv;
 	unsigned long b;
@@ -153,8 +153,8 @@ static int nettel_reboot_notifier(struct notifier_block *nb, unsigned long val, 
 	return(NOTIFY_OK);
 }
 
-static struct notifier_block nettel_notifier_block = {
-	nettel_reboot_notifier, NULL, 0
+static struct yestifier_block nettel_yestifier_block = {
+	nettel_reboot_yestifier, NULL, 0
 };
 
 #endif
@@ -176,7 +176,7 @@ static int __init nettel_init(void)
 #endif
 	int rc = 0;
 
-	nettel_mmcrp = (void *) ioremap_nocache(0xfffef000, 4096);
+	nettel_mmcrp = (void *) ioremap_yescache(0xfffef000, 4096);
 	if (nettel_mmcrp == NULL) {
 		printk("SNAPGEAR: failed to disable MMCR cache??\n");
 		return(-EIO);
@@ -217,7 +217,7 @@ static int __init nettel_init(void)
 	__asm__ ("wbinvd");
 
 	nettel_amd_map.phys = amdaddr;
-	nettel_amd_map.virt = ioremap_nocache(amdaddr, maxsize);
+	nettel_amd_map.virt = ioremap_yescache(amdaddr, maxsize);
 	if (!nettel_amd_map.virt) {
 		printk("SNAPGEAR: failed to ioremap() BOOTCS\n");
 		iounmap(nettel_mmcrp);
@@ -263,7 +263,7 @@ static int __init nettel_init(void)
 			intel0addr = SC520_PAR_TO_ADDR(orig_bootcspar);
 			maxsize = SC520_PAR_TO_SIZE(orig_bootcspar);
 		} else {
-			/* Kernel base is on ROMCS1, not BOOTCS */
+			/* Kernel base is on ROMCS1, yest BOOTCS */
 			intel0cs = SC520_PAR_ROMCS1;
 			intel0par = (volatile unsigned long *)
 				(nettel_mmcrp + 0xc0);
@@ -289,7 +289,7 @@ static int __init nettel_init(void)
 #ifdef CONFIG_MTD_CFI_INTELEXT
 	/*
 	 *	We have determined the INTEL FLASH configuration, so lets
-	 *	go ahead and probe for them now.
+	 *	go ahead and probe for them yesw.
 	 */
 
 	/* Set PAR to the maximum size */
@@ -303,7 +303,7 @@ static int __init nettel_init(void)
 	/* Probe for the size of the first Intel flash */
 	nettel_intel_map.size = maxsize;
 	nettel_intel_map.phys = intel0addr;
-	nettel_intel_map.virt = ioremap_nocache(intel0addr, maxsize);
+	nettel_intel_map.virt = ioremap_yescache(intel0addr, maxsize);
 	if (!nettel_intel_map.virt) {
 		printk("SNAPGEAR: failed to ioremap() ROMCS1\n");
 		rc = -EIO;
@@ -337,7 +337,7 @@ static int __init nettel_init(void)
 	iounmap(nettel_intel_map.virt);
 
 	nettel_intel_map.size = maxsize;
-	nettel_intel_map.virt = ioremap_nocache(intel0addr, maxsize);
+	nettel_intel_map.virt = ioremap_yescache(intel0addr, maxsize);
 	if (!nettel_intel_map.virt) {
 		printk("SNAPGEAR: failed to ioremap() ROMCS1/2\n");
 		rc = -EIO;
@@ -398,7 +398,7 @@ static int __init nettel_init(void)
 	}
 
 #ifdef CONFIG_MTD_CFI_INTELEXT
-	register_reboot_notifier(&nettel_notifier_block);
+	register_reboot_yestifier(&nettel_yestifier_block);
 #endif
 
 	return rc;
@@ -424,7 +424,7 @@ out_unmap2:
 static void __exit nettel_cleanup(void)
 {
 #ifdef CONFIG_MTD_CFI_INTELEXT
-	unregister_reboot_notifier(&nettel_notifier_block);
+	unregister_reboot_yestifier(&nettel_yestifier_block);
 #endif
 	if (amd_mtd) {
 		mtd_device_unregister(amd_mtd);

@@ -52,12 +52,12 @@ static void __iomem *cns3xxx_pci_map_bus(struct pci_bus *bus,
 					 unsigned int devfn, int where)
 {
 	struct cns3xxx_pcie *cnspci = pbus_to_cnspci(bus);
-	int busno = bus->number;
+	int busyes = bus->number;
 	int slot = PCI_SLOT(devfn);
 	void __iomem *base;
 
-	/* If there is no link, just show the CNS PCI bridge. */
-	if (!cnspci->linked && busno > 0)
+	/* If there is yes link, just show the CNS PCI bridge. */
+	if (!cnspci->linked && busyes > 0)
 		return NULL;
 
 	/*
@@ -66,19 +66,19 @@ static void __iomem *cns3xxx_pci_map_bus(struct pci_bus *bus,
 	 * We place the host bridge on bus 0, and the directly connected
 	 * device on bus 1, slot 0.
 	 */
-	if (busno == 0) { /* internal PCIe bus, host bridge device */
-		if (devfn == 0) /* device# and function# are ignored by hw */
+	if (busyes == 0) { /* internal PCIe bus, host bridge device */
+		if (devfn == 0) /* device# and function# are igyesred by hw */
 			base = cnspci->host_regs;
 		else
-			return NULL; /* no such device */
+			return NULL; /* yes such device */
 
-	} else if (busno == 1) { /* directly connected PCIe device */
-		if (slot == 0) /* device# is ignored by hw */
+	} else if (busyes == 1) { /* directly connected PCIe device */
+		if (slot == 0) /* device# is igyesred by hw */
 			base = cnspci->cfg0_regs;
 		else
-			return NULL; /* no such device */
+			return NULL; /* yes such device */
 	} else /* remote PCI bus */
-		base = cnspci->cfg1_regs + ((busno & 0xf) << 20);
+		base = cnspci->cfg1_regs + ((busyes & 0xf) << 20);
 
 	return base + where + (devfn << 12);
 }
@@ -149,7 +149,7 @@ static struct cns3xxx_pcie cns3xxx_pcie[] = {
 			.flags = IORESOURCE_IO,
 		},
 		.res_mem = {
-			.name = "PCIe0 non-prefetchable",
+			.name = "PCIe0 yesn-prefetchable",
 			.start = CNS3XXX_PCIE0_MEM_BASE,
 			.end = CNS3XXX_PCIE0_HOST_BASE - 1, /* 176 MiB */
 			.flags = IORESOURCE_MEM,
@@ -168,7 +168,7 @@ static struct cns3xxx_pcie cns3xxx_pcie[] = {
 			.flags = IORESOURCE_IO,
 		},
 		.res_mem = {
-			.name = "PCIe1 non-prefetchable",
+			.name = "PCIe1 yesn-prefetchable",
 			.start = CNS3XXX_PCIE1_MEM_BASE,
 			.end = CNS3XXX_PCIE1_HOST_BASE - 1, /* 176 MiB */
 			.flags = IORESOURCE_MEM,
@@ -187,7 +187,7 @@ static void __init cns3xxx_pcie_check_link(struct cns3xxx_pcie *cnspci)
 	reg = __raw_readl(MISC_PCIE_CTRL(port));
 	/*
 	 * Enable Application Request to 1, it will exit L1 automatically,
-	 * but when chip back, it will use another clock, still can use 0x1.
+	 * but when chip back, it will use ayesther clock, still can use 0x1.
 	 */
 	reg |= 0x3;
 	__raw_writel(reg, MISC_PCIE_CTRL(port));
@@ -203,7 +203,7 @@ static void __init cns3xxx_pcie_check_link(struct cns3xxx_pcie *cnspci)
 			cnspci->linked = 1;
 			break;
 		} else if (time_after(jiffies, time + 50)) {
-			pr_info("Device not found.\n");
+			pr_info("Device yest found.\n");
 			break;
 		}
 	}

@@ -95,7 +95,7 @@ struct cc_hash_ctx {
 
 static void cc_set_desc(struct ahash_req_ctx *areq_ctx, struct cc_hash_ctx *ctx,
 			unsigned int flow_mode, struct cc_hw_desc desc[],
-			bool is_not_last_data, unsigned int *seq_size);
+			bool is_yest_last_data, unsigned int *seq_size);
 
 static void cc_set_endianity(u32 mode, struct cc_hw_desc *desc)
 {
@@ -283,7 +283,7 @@ static void cc_update_complete(struct device *dev, void *cc_req, int err)
 	dev_dbg(dev, "req=%pK\n", req);
 
 	if (err != -EINPROGRESS) {
-		/* Not a BACKLOG notification */
+		/* Not a BACKLOG yestification */
 		cc_unmap_hash_request(dev, state, req->src, false);
 		cc_unmap_req(dev, state, ctx);
 	}
@@ -302,7 +302,7 @@ static void cc_digest_complete(struct device *dev, void *cc_req, int err)
 	dev_dbg(dev, "req=%pK\n", req);
 
 	if (err != -EINPROGRESS) {
-		/* Not a BACKLOG notification */
+		/* Not a BACKLOG yestification */
 		cc_unmap_hash_request(dev, state, req->src, false);
 		cc_unmap_result(dev, state, digestsize, req->result);
 		cc_unmap_req(dev, state, ctx);
@@ -322,7 +322,7 @@ static void cc_hash_complete(struct device *dev, void *cc_req, int err)
 	dev_dbg(dev, "req=%pK\n", req);
 
 	if (err != -EINPROGRESS) {
-		/* Not a BACKLOG notification */
+		/* Not a BACKLOG yestification */
 		cc_unmap_hash_request(dev, state, req->src, false);
 		cc_unmap_result(dev, state, digestsize, req->result);
 		cc_unmap_req(dev, state, ctx);
@@ -395,8 +395,8 @@ static int cc_fin_hmac(struct cc_hw_desc *desc, struct ahash_request *req,
 
 	/* Memory Barrier: wait for IPAD/OPAD axi write to complete */
 	hw_desc_init(&desc[idx]);
-	set_din_no_dma(&desc[idx], 0, 0xfffff0);
-	set_dout_no_dma(&desc[idx], 0, 0, 1);
+	set_din_yes_dma(&desc[idx], 0, 0xfffff0);
+	set_dout_yes_dma(&desc[idx], 0, 0, 1);
 	idx++;
 
 	/* Perform HASH update */
@@ -565,7 +565,7 @@ static int cc_hash_update(struct ahash_request *req)
 		"hmac" : "hash", nbytes);
 
 	if (nbytes == 0) {
-		/* no real updates required */
+		/* yes real updates required */
 		return 0;
 	}
 
@@ -573,7 +573,7 @@ static int cc_hash_update(struct ahash_request *req)
 					block_size, flags);
 	if (rc) {
 		if (rc == 1) {
-			dev_dbg(dev, " data size not require HW update %x\n",
+			dev_dbg(dev, " data size yest require HW update %x\n",
 				nbytes);
 			/* No hardware updates are required */
 			return 0;
@@ -1160,7 +1160,7 @@ static int cc_mac_update(struct ahash_request *req)
 	gfp_t flags = cc_gfp_flags(&req->base);
 
 	if (req->nbytes == 0) {
-		/* no real updates required */
+		/* yes real updates required */
 		return 0;
 	}
 
@@ -1170,7 +1170,7 @@ static int cc_mac_update(struct ahash_request *req)
 					req->nbytes, block_size, flags);
 	if (rc) {
 		if (rc == 1) {
-			dev_dbg(dev, " data size not require HW update %x\n",
+			dev_dbg(dev, " data size yest require HW update %x\n",
 				req->nbytes);
 			/* No hardware updates are required */
 			return 0;
@@ -1289,8 +1289,8 @@ static int cc_mac_final(struct ahash_request *req)
 
 		/* Memory Barrier: wait for axi write to complete */
 		hw_desc_init(&desc[idx]);
-		set_din_no_dma(&desc[idx], 0, 0xfffff0);
-		set_dout_no_dma(&desc[idx], 0, 0, 1);
+		set_din_yes_dma(&desc[idx], 0, 0xfffff0);
+		set_dout_yes_dma(&desc[idx], 0, 0, 1);
 		idx++;
 	}
 
@@ -2213,7 +2213,7 @@ static void cc_setup_cmac(struct ahash_request *areq, struct cc_hw_desc desc[],
 
 static void cc_set_desc(struct ahash_req_ctx *areq_ctx,
 			struct cc_hash_ctx *ctx, unsigned int flow_mode,
-			struct cc_hw_desc desc[], bool is_not_last_data,
+			struct cc_hw_desc desc[], bool is_yest_last_data,
 			unsigned int *seq_size)
 {
 	unsigned int idx = *seq_size;
@@ -2229,7 +2229,7 @@ static void cc_set_desc(struct ahash_req_ctx *areq_ctx,
 	} else {
 		if (areq_ctx->data_dma_buf_type == CC_DMA_BUF_NULL) {
 			dev_dbg(dev, " NULL mode\n");
-			/* nothing to build */
+			/* yesthing to build */
 			return;
 		}
 		/* bypass */
@@ -2249,8 +2249,8 @@ static void cc_set_desc(struct ahash_req_ctx *areq_ctx,
 		set_flow_mode(&desc[idx], flow_mode);
 		idx++;
 	}
-	if (is_not_last_data)
-		set_din_not_last_indication(&desc[(idx - 1)]);
+	if (is_yest_last_data)
+		set_din_yest_last_indication(&desc[(idx - 1)]);
 	/* return updated desc sequence size */
 	*seq_size = idx;
 }
@@ -2297,7 +2297,7 @@ cc_sram_addr_t cc_larval_digest_addr(void *drvdata, u32 mode)
 
 	switch (mode) {
 	case DRV_HASH_NULL:
-		break; /*Ignore*/
+		break; /*Igyesre*/
 	case DRV_HASH_MD5:
 		return (hash_handle->larval_digest_sram_addr);
 	case DRV_HASH_SHA1:

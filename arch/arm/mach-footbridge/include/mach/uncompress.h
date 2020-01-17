@@ -29,6 +29,6 @@ static inline void flush(void)
 }
 
 /*
- * nothing to do
+ * yesthing to do
  */
 #define arch_decomp_setup()

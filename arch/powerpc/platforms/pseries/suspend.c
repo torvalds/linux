@@ -151,11 +151,11 @@ static ssize_t store_hibernate(struct device *dev,
 
 	if (!rc) {
 		/* All present CPUs must be online */
-		cpumask_andnot(offline_mask, cpu_present_mask,
+		cpumask_andyest(offline_mask, cpu_present_mask,
 				cpu_online_mask);
 		rc = rtas_online_cpus_mask(offline_mask);
 		if (rc) {
-			pr_err("%s: Could not bring present CPUs online.\n",
+			pr_err("%s: Could yest bring present CPUs online.\n",
 					__func__);
 			goto out;
 		}
@@ -164,9 +164,9 @@ static ssize_t store_hibernate(struct device *dev,
 		rc = pm_suspend(PM_SUSPEND_MEM);
 		start_topology_update();
 
-		/* Take down CPUs not online prior to suspend */
+		/* Take down CPUs yest online prior to suspend */
 		if (!rtas_offline_cpus_mask(offline_mask))
-			pr_warn("%s: Could not restore CPUs to offline "
+			pr_warn("%s: Could yest restore CPUs to offline "
 					"state.\n", __func__);
 	}
 

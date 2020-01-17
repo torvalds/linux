@@ -68,7 +68,7 @@ struct vendor_error_type_extension {
 	u8	reserved[3];
 };
 
-static u32 notrigger;
+static u32 yestrigger;
 
 static u32 vendor_flags;
 static struct debugfs_blob_wrapper vendor_blob;
@@ -77,7 +77,7 @@ static char vendor_dev[64];
 /*
  * Some BIOSes allow parameters to the SET_ERROR_TYPE entries in the
  * EINJ table through an unpublished extension. Use with caution as
- * most will ignore the parameter and make their own choice of address
+ * most will igyesre the parameter and make their own choice of address
  * for error injection.  This extension is used only if
  * param_extension module parameter is specified.
  */
@@ -124,13 +124,13 @@ static struct apei_exec_ins_type einj_ins_type[] = {
 	},
 	[ACPI_EINJ_NOOP] = {
 		.flags = 0,
-		.run   = apei_exec_noop,
+		.run   = apei_exec_yesop,
 	},
 };
 
 /*
  * Prevent EINJ interpreter to run simultaneously, because the
- * corresponding firmware implementation may not work properly when
+ * corresponding firmware implementation may yest work properly when
  * invoked simultaneously.
  */
 static DEFINE_MUTEX(einj_mutex);
@@ -172,7 +172,7 @@ static int einj_get_available_error_type(u32 *type)
 static int einj_timedout(u64 *t)
 {
 	if ((s64)*t < SPIN_UNIT) {
-		pr_warn(FW_WARN "Firmware does not respond in time\n");
+		pr_warn(FW_WARN "Firmware does yest respond in time\n");
 		return 1;
 	}
 	*t -= SPIN_UNIT;
@@ -299,7 +299,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 	r = request_mem_region(trigger_paddr, sizeof(*trigger_tab),
 			       "APEI EINJ Trigger Table");
 	if (!r) {
-		pr_err("Can not request [mem %#010llx-%#010llx] for Trigger table\n",
+		pr_err("Can yest request [mem %#010llx-%#010llx] for Trigger table\n",
 		       (unsigned long long)trigger_paddr,
 		       (unsigned long long)trigger_paddr +
 			    sizeof(*trigger_tab) - 1);
@@ -316,7 +316,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 		goto out_rel_header;
 	}
 
-	/* No action structures in the TRIGGER_ERROR table, nothing to do */
+	/* No action structures in the TRIGGER_ERROR table, yesthing to do */
 	if (!trigger_tab->entry_count)
 		goto out_rel_header;
 
@@ -326,7 +326,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 			       table_size - sizeof(*trigger_tab),
 			       "APEI EINJ Trigger Table");
 	if (!r) {
-		pr_err("Can not request [mem %#010llx-%#010llx] for Trigger Table Entry\n",
+		pr_err("Can yest request [mem %#010llx-%#010llx] for Trigger Table Entry\n",
 		       (unsigned long long)trigger_paddr + sizeof(*trigger_tab),
 		       (unsigned long long)trigger_paddr + table_size - 1);
 		goto out_rel_header;
@@ -493,7 +493,7 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	if (rc)
 		return rc;
 	trigger_paddr = apei_exec_ctx_get_output(&ctx);
-	if (notrigger == 0) {
+	if (yestrigger == 0) {
 		rc = __einj_error_trigger(trigger_paddr, type, param1, param2);
 		if (rc)
 			return rc;
@@ -534,7 +534,7 @@ static int einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	/*
 	 * Disallow crazy address masks that give BIOS leeway to pick
 	 * injection address almost anywhere. Insist on page or
-	 * better granularity and that target address is normal RAM or
+	 * better granularity and that target address is yesrmal RAM or
 	 * NVDIMM.
 	 */
 	base_addr = param1 & param2;
@@ -574,25 +574,25 @@ static int available_error_type_show(struct seq_file *m, void *v)
 	if (available_error_type & 0x0001)
 		seq_printf(m, "0x00000001\tProcessor Correctable\n");
 	if (available_error_type & 0x0002)
-		seq_printf(m, "0x00000002\tProcessor Uncorrectable non-fatal\n");
+		seq_printf(m, "0x00000002\tProcessor Uncorrectable yesn-fatal\n");
 	if (available_error_type & 0x0004)
 		seq_printf(m, "0x00000004\tProcessor Uncorrectable fatal\n");
 	if (available_error_type & 0x0008)
 		seq_printf(m, "0x00000008\tMemory Correctable\n");
 	if (available_error_type & 0x0010)
-		seq_printf(m, "0x00000010\tMemory Uncorrectable non-fatal\n");
+		seq_printf(m, "0x00000010\tMemory Uncorrectable yesn-fatal\n");
 	if (available_error_type & 0x0020)
 		seq_printf(m, "0x00000020\tMemory Uncorrectable fatal\n");
 	if (available_error_type & 0x0040)
 		seq_printf(m, "0x00000040\tPCI Express Correctable\n");
 	if (available_error_type & 0x0080)
-		seq_printf(m, "0x00000080\tPCI Express Uncorrectable non-fatal\n");
+		seq_printf(m, "0x00000080\tPCI Express Uncorrectable yesn-fatal\n");
 	if (available_error_type & 0x0100)
 		seq_printf(m, "0x00000100\tPCI Express Uncorrectable fatal\n");
 	if (available_error_type & 0x0200)
 		seq_printf(m, "0x00000200\tPlatform Correctable\n");
 	if (available_error_type & 0x0400)
-		seq_printf(m, "0x00000400\tPlatform Uncorrectable non-fatal\n");
+		seq_printf(m, "0x00000400\tPlatform Uncorrectable yesn-fatal\n");
 	if (available_error_type & 0x0800)
 		seq_printf(m, "0x00000800\tPlatform Uncorrectable fatal\n");
 
@@ -616,7 +616,7 @@ static int error_type_set(void *data, u64 val)
 
 	/*
 	 * Vendor defined types have 0x80000000 bit set, and
-	 * are not enumerated by ACPI_EINJ_GET_ERROR_TYPE
+	 * are yest enumerated by ACPI_EINJ_GET_ERROR_TYPE
 	 */
 	vendor = val & ACPI5_VENDOR_BIT;
 	tval = val & 0x7fffffff;
@@ -680,7 +680,7 @@ static int __init einj_init(void)
 	status = acpi_get_table(ACPI_SIG_EINJ, 0,
 				(struct acpi_table_header **)&einj_tab);
 	if (status == AE_NOT_FOUND) {
-		pr_warn("EINJ table not found.\n");
+		pr_warn("EINJ table yest found.\n");
 		return -ENODEV;
 	}
 	else if (ACPI_FAILURE(status)) {
@@ -738,8 +738,8 @@ static int __init einj_init(void)
 				   &error_param3);
 		debugfs_create_x64("param4", S_IRUSR | S_IWUSR, einj_debug_dir,
 				   &error_param4);
-		debugfs_create_x32("notrigger", S_IRUSR | S_IWUSR,
-				   einj_debug_dir, &notrigger);
+		debugfs_create_x32("yestrigger", S_IRUSR | S_IWUSR,
+				   einj_debug_dir, &yestrigger);
 	}
 
 	if (vendor_dev[0]) {

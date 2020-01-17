@@ -158,7 +158,7 @@ static ssize_t ds1343_show_tricklecharger(struct device *dev,
 			break;
 
 		default:
-			diodes = "no diode,";
+			diodes = "yes diode,";
 			break;
 		}
 

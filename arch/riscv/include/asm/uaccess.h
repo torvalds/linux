@@ -12,7 +12,7 @@
  * User space memory access functions
  */
 #ifdef CONFIG_MMU
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/compiler.h>
 #include <linux/thread_info.h>
 #include <asm/byteorder.h>
@@ -26,7 +26,7 @@
 
 /*
  * The fs value determines whether argument validity checking should be
- * performed or not.  If get_fs() == USER_DS, checking is performed, with
+ * performed or yest.  If get_fs() == USER_DS, checking is performed, with
  * get_fs() == KERNEL_DS, checking is bypassed.
  *
  * For historical reasons, these macros are grossly misnamed.
@@ -58,7 +58,7 @@ static inline void set_fs(mm_segment_t fs)
  *
  * Checks if a pointer to a block of memory in user space is valid.
  *
- * Returns true (nonzero) if the memory block may be valid, false (zero)
+ * Returns true (yesnzero) if the memory block may be valid, false (zero)
  * if it is definitely invalid.
  *
  * Note that, depending on architecture, this function probably just
@@ -90,7 +90,7 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
  *
  * All the routines below use bits of fixup code that are out of line
  * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
+ * we don't even have to jump over them.  Further, they do yest intrude
  * on our cache or tlb entries.
  */
 
@@ -98,7 +98,7 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 #define __MSW	1
 
 /*
- * The "__xxx" versions of the user access functions do not verify the address
+ * The "__xxx" versions of the user access functions do yest verify the address
  * space - it must have been done previously with a separate "access_ok()"
  * call.
  */
@@ -177,7 +177,7 @@ do {								\
  * Context: User context only.  This function may sleep.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -221,7 +221,7 @@ do {								\
  * Context: User context only.  This function may sleep.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -307,7 +307,7 @@ do {								\
  * Context: User context only.  This function may sleep.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -350,7 +350,7 @@ do {								\
  * Context: User context only.  This function may sleep.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable

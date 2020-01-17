@@ -25,14 +25,14 @@
 
 #define RNG_MISCDEV_MINOR		183 /* official */
 
-/* Changed at init time, in the non-modular case, and at module load
+/* Changed at init time, in the yesn-modular case, and at module load
  * time, in the module case.  Presumably, the module subsystem
  * protects against a module being loaded twice at the same time.
  */
 static int random_fd = -1;
 static DECLARE_WAIT_QUEUE_HEAD(host_read_wait);
 
-static int rng_dev_open (struct inode *inode, struct file *filp)
+static int rng_dev_open (struct iyesde *iyesde, struct file *filp)
 {
 	/* enforce read-only access to this chrdev */
 	if ((filp->f_mode & FMODE_READ) == 0)
@@ -82,7 +82,7 @@ static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
 			remove_wait_queue(&host_read_wait, &wait);
 
 			if (atomic_dec_and_test(&host_sleep_count)) {
-				ignore_sigio_fd(random_fd);
+				igyesre_sigio_fd(random_fd);
 				deactivate_fd(random_fd, RANDOM_IRQ);
 			}
 		}
@@ -99,7 +99,7 @@ static const struct file_operations rng_chrdev_ops = {
 	.owner		= THIS_MODULE,
 	.open		= rng_dev_open,
 	.read		= rng_dev_read,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 /* rng_init shouldn't be called more than once at boot time */

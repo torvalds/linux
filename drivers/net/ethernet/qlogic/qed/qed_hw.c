@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -34,7 +34,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -426,7 +426,7 @@ static void qed_dmae_opcode(struct qed_hwfn *p_hwfn,
 		   DMAE_CMD_DST_PF_ID_SHIFT);
 
 	/* Whether to write a completion word to the completion destination:
-	 * 0-Do not write a completion word
+	 * 0-Do yest write a completion word
 	 * 1-Write the completion word
 	 */
 	opcode |= (DMAE_CMD_COMP_WORD_EN_MASK << DMAE_CMD_COMP_WORD_EN_SHIFT);
@@ -483,7 +483,7 @@ static int qed_dmae_post_command(struct qed_hwfn *p_hwfn,
 	u8 idx_cmd = p_hwfn->dmae_info.channel, i;
 	int qed_status = 0;
 
-	/* verify address is not NULL */
+	/* verify address is yest NULL */
 	if ((((!p_command->dst_addr_lo) && (!p_command->dst_addr_hi)) ||
 	     ((!p_command->src_addr_lo) && (!p_command->src_addr_hi)))) {
 		DP_NOTICE(p_hwfn,
@@ -514,7 +514,7 @@ static int qed_dmae_post_command(struct qed_hwfn *p_hwfn,
 		   le32_to_cpu(p_command->dst_addr_lo));
 
 	/* Copy the command to DMAE - need to do it before every call
-	 * for source/dest address no reset.
+	 * for source/dest address yes reset.
 	 * The first 9 DWs are the command registers, the 10 DW is the
 	 * GO register, and the rest are result registers
 	 * (which are read only by the client).
@@ -572,7 +572,7 @@ void qed_dmae_info_free(struct qed_hwfn *p_hwfn)
 {
 	dma_addr_t p_phys;
 
-	/* Just make sure no one is in the middle */
+	/* Just make sure yes one is in the middle */
 	mutex_lock(&p_hwfn->dmae_info.mutex);
 
 	if (p_hwfn->dmae_info.p_completion_word) {
@@ -620,7 +620,7 @@ static int qed_dmae_operation_wait(struct qed_hwfn *p_hwfn)
 			break;
 		}
 
-		/* to sync the completion_word since we are not
+		/* to sync the completion_word since we are yest
 		 * using the volatile keyword for p_completion_word
 		 */
 		barrier();
@@ -862,7 +862,7 @@ int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
 		return -ENOMEM;
 	}
 
-	/* Fill the bottom half of the allocated memory with a known pattern */
+	/* Fill the bottom half of the allocated memory with a kyeswn pattern */
 	for (p_tmp = (u32 *)p_virt;
 	     p_tmp < (u32 *)((u8 *)p_virt + size); p_tmp++) {
 		/* Save the address itself as the value */

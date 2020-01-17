@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #ifndef __MLX5_EN_XSK_RX_H__
 #define __MLX5_EN_XSK_RX_H__
@@ -9,7 +9,7 @@
 
 /* RX data path */
 
-bool mlx5e_xsk_pages_enough_umem(struct mlx5e_rq *rq, int count);
+bool mlx5e_xsk_pages_eyesugh_umem(struct mlx5e_rq *rq, int count);
 int mlx5e_xsk_page_alloc_umem(struct mlx5e_rq *rq,
 			      struct mlx5e_dma_info *dma_info);
 void mlx5e_xsk_page_release(struct mlx5e_rq *rq,

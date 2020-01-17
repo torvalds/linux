@@ -161,7 +161,7 @@ static int k8temp_probe(struct pci_dev *pdev,
 	}
 
 	/*
-	 * RevG desktop CPUs (i.e. no socket S1G1 or ASB1 parts) need
+	 * RevG desktop CPUs (i.e. yes socket S1G1 or ASB1 parts) need
 	 * additional offset, otherwise reported temperature is below
 	 * ambient temperature
 	 */
@@ -181,7 +181,7 @@ static int k8temp_probe(struct pci_dev *pdev,
 	scfg |= (SEL_PLACE | SEL_CORE);
 	pci_write_config_byte(pdev, REG_TEMP, scfg);
 
-	/* now we know if we can change core and/or sensor */
+	/* yesw we kyesw if we can change core and/or sensor */
 	pci_read_config_byte(pdev, REG_TEMP, &data->sensorsp);
 
 	if (data->sensorsp & SEL_PLACE) {

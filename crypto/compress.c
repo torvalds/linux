@@ -8,7 +8,7 @@
  */
 #include <linux/types.h>
 #include <linux/crypto.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include "internal.h"
 

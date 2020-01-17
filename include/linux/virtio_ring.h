@@ -8,7 +8,7 @@
 
 /*
  * Barriers in virtio are tricky.  Non-SMP virtio guests can't assume
- * they're not on an SMP host system, so they need to assume real
+ * they're yest on an SMP host system, so they need to assume real
  * barriers.  Non-SMP virtio hosts could skip the barriers, but does
  * anyone care?
  *
@@ -73,7 +73,7 @@ struct virtqueue *vring_create_virtqueue(unsigned int index,
 					 bool weak_barriers,
 					 bool may_reduce_num,
 					 bool ctx,
-					 bool (*notify)(struct virtqueue *vq),
+					 bool (*yestify)(struct virtqueue *vq),
 					 void (*callback)(struct virtqueue *vq),
 					 const char *name);
 
@@ -83,7 +83,7 @@ struct virtqueue *__vring_new_virtqueue(unsigned int index,
 					struct virtio_device *vdev,
 					bool weak_barriers,
 					bool ctx,
-					bool (*notify)(struct virtqueue *),
+					bool (*yestify)(struct virtqueue *),
 					void (*callback)(struct virtqueue *),
 					const char *name);
 
@@ -98,7 +98,7 @@ struct virtqueue *vring_new_virtqueue(unsigned int index,
 				      bool weak_barriers,
 				      bool ctx,
 				      void *pages,
-				      bool (*notify)(struct virtqueue *vq),
+				      bool (*yestify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq),
 				      const char *name);
 

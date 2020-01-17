@@ -18,7 +18,7 @@
 
 DEFINE_SPINLOCK(sysfs_symlink_target_lock);
 
-void sysfs_warn_dup(struct kernfs_node *parent, const char *name)
+void sysfs_warn_dup(struct kernfs_yesde *parent, const char *name)
 {
 	char *buf;
 
@@ -26,7 +26,7 @@ void sysfs_warn_dup(struct kernfs_node *parent, const char *name)
 	if (buf)
 		kernfs_path(parent, buf, PATH_MAX);
 
-	pr_warn("cannot create duplicate filename '%s/%s'\n", buf, name);
+	pr_warn("canyest create duplicate filename '%s/%s'\n", buf, name);
 	dump_stack();
 
 	kfree(buf);
@@ -39,7 +39,7 @@ void sysfs_warn_dup(struct kernfs_node *parent, const char *name)
  */
 int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 {
-	struct kernfs_node *parent, *kn;
+	struct kernfs_yesde *parent, *kn;
 	kuid_t uid;
 	kgid_t gid;
 
@@ -79,15 +79,15 @@ int sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
  */
 void sysfs_remove_dir(struct kobject *kobj)
 {
-	struct kernfs_node *kn = kobj->sd;
+	struct kernfs_yesde *kn = kobj->sd;
 
 	/*
 	 * In general, kboject owner is responsible for ensuring removal
 	 * doesn't race with other operations and sysfs doesn't provide any
 	 * protection; however, when @kobj is used as a symlink target, the
-	 * symlinking entity usually doesn't own @kobj and thus has no
+	 * symlinking entity usually doesn't own @kobj and thus has yes
 	 * control over removal.  @kobj->sd may be removed anytime
-	 * and symlink code may end up dereferencing an already freed node.
+	 * and symlink code may end up dereferencing an already freed yesde.
 	 *
 	 * sysfs_symlink_target_lock synchronizes @kobj->sd
 	 * disassociation against symlink operations so that symlink code
@@ -106,7 +106,7 @@ void sysfs_remove_dir(struct kobject *kobj)
 int sysfs_rename_dir_ns(struct kobject *kobj, const char *new_name,
 			const void *new_ns)
 {
-	struct kernfs_node *parent;
+	struct kernfs_yesde *parent;
 	int ret;
 
 	parent = kernfs_get_parent(kobj->sd);
@@ -118,8 +118,8 @@ int sysfs_rename_dir_ns(struct kobject *kobj, const char *new_name,
 int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
 		      const void *new_ns)
 {
-	struct kernfs_node *kn = kobj->sd;
-	struct kernfs_node *new_parent;
+	struct kernfs_yesde *kn = kobj->sd;
+	struct kernfs_yesde *new_parent;
 
 	new_parent = new_parent_kobj && new_parent_kobj->sd ?
 		new_parent_kobj->sd : sysfs_root_kn;
@@ -134,7 +134,7 @@ int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
  */
 int sysfs_create_mount_point(struct kobject *parent_kobj, const char *name)
 {
-	struct kernfs_node *kn, *parent = parent_kobj->sd;
+	struct kernfs_yesde *kn, *parent = parent_kobj->sd;
 
 	kn = kernfs_create_empty_dir(parent, name);
 	if (IS_ERR(kn)) {
@@ -155,7 +155,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_mount_point);
  */
 void sysfs_remove_mount_point(struct kobject *parent_kobj, const char *name)
 {
-	struct kernfs_node *parent = parent_kobj->sd;
+	struct kernfs_yesde *parent = parent_kobj->sd;
 
 	kernfs_remove_by_name_ns(parent, name, NULL);
 }

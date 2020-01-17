@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2000 RidgeRun, Inc.
  * Author: RidgeRun, Inc.
- *         Greg Lonnon glonnon@ridgerun.com or info@ridgerun.com
+ *         Greg Lonyesn glonyesn@ridgerun.com or info@ridgerun.com
  *
  */
 
@@ -70,12 +70,12 @@ out:
 	return ret;
 }
 
-static int mmapper_open(struct inode *inode, struct file *file)
+static int mmapper_open(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
 
-static int mmapper_release(struct inode *inode, struct file *file)
+static int mmapper_release(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
@@ -95,7 +95,7 @@ static const struct file_operations mmapper_fops = {
  * No locking needed - only used (and modified) by below initcall and exitcall.
  */
 static struct miscdevice mmapper_dev = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.miyesr		= MISC_DYNAMIC_MINOR,
 	.name		= "mmapper",
 	.fops		= &mmapper_fops
 };
@@ -130,6 +130,6 @@ static void mmapper_exit(void)
 module_init(mmapper_init);
 module_exit(mmapper_exit);
 
-MODULE_AUTHOR("Greg Lonnon <glonnon@ridgerun.com>");
+MODULE_AUTHOR("Greg Lonyesn <glonyesn@ridgerun.com>");
 MODULE_DESCRIPTION("DSPLinux simulator mmapper driver");
 MODULE_LICENSE("GPL");

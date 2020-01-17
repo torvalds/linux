@@ -15,7 +15,7 @@ AR ?= $(CROSS_COMPILE)ar
 
 RM = rm -f
 
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --yes-print-directory
 
 LIBFILE = $(OUTPUT)libsubcmd.a
 
@@ -35,7 +35,7 @@ else
   CFLAGS += -O6
 endif
 
-# Treat warnings as errors unless directed not to
+# Treat warnings as errors unless directed yest to
 ifneq ($(WERROR),0)
   CFLAGS += -Werror
 endif

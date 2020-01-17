@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 PathScale, Inc. All rights reserved.
  *
@@ -16,11 +16,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -43,7 +43,7 @@
 #include <linux/sched.h>
 #include <linux/file.h>
 #include <linux/cdev.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
 
@@ -85,8 +85,8 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data);
 struct ib_ucontext *ib_uverbs_get_ucontext_file(struct ib_uverbs_file *ufile)
 {
 	/*
-	 * We do not hold the hw_destroy_rwsem lock for this flow, instead
-	 * srcu is used. It does not matter if someone races this with
+	 * We do yest hold the hw_destroy_rwsem lock for this flow, instead
+	 * srcu is used. It does yest matter if someone races this with
 	 * get_context, we get NULL or valid ucontext.
 	 */
 	struct ib_ucontext *ucontext = smp_load_acquire(&ufile->ucontext);
@@ -245,7 +245,7 @@ static ssize_t ib_uverbs_event_read(struct ib_uverbs_event_queue *ev_queue,
 					     !uverbs_file->device->ib_dev)))
 			return -ERESTARTSYS;
 
-		/* If device was disassociated and no event exists set an error */
+		/* If device was disassociated and yes event exists set an error */
 		if (list_empty(&ev_queue->event_list) &&
 		    !uverbs_file->device->ib_dev)
 			return -EIO;
@@ -348,7 +348,7 @@ static int ib_uverbs_comp_event_fasync(int fd, struct file *filp, int on)
 	return fasync_helper(fd, filp, on, &comp_ev_file->ev_queue.async_queue);
 }
 
-static int ib_uverbs_async_event_close(struct inode *inode, struct file *filp)
+static int ib_uverbs_async_event_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct ib_uverbs_async_event_file *file = filp->private_data;
 	struct ib_uverbs_file *uverbs_file = file->uverbs_file;
@@ -377,7 +377,7 @@ static int ib_uverbs_async_event_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int ib_uverbs_comp_event_close(struct inode *inode, struct file *filp)
+static int ib_uverbs_comp_event_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct ib_uobject *uobj = filp->private_data;
 	struct ib_uverbs_completion_event_file *file = container_of(
@@ -404,7 +404,7 @@ const struct file_operations uverbs_event_fops = {
 	.poll    = ib_uverbs_comp_event_poll,
 	.release = ib_uverbs_comp_event_close,
 	.fasync  = ib_uverbs_comp_event_fasync,
-	.llseek	 = no_llseek,
+	.llseek	 = yes_llseek,
 };
 
 static const struct file_operations uverbs_async_event_fops = {
@@ -413,7 +413,7 @@ static const struct file_operations uverbs_async_event_fops = {
 	.poll    = ib_uverbs_async_event_poll,
 	.release = ib_uverbs_async_event_close,
 	.fasync  = ib_uverbs_async_event_fasync,
-	.llseek	 = no_llseek,
+	.llseek	 = yes_llseek,
 };
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
@@ -572,7 +572,7 @@ struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file
 	ev_file->uverbs_file = uverbs_file;
 	kref_get(&ev_file->uverbs_file->ref);
 	kref_init(&ev_file->ref);
-	filp = anon_inode_getfile("[infinibandevent]", &uverbs_async_event_fops,
+	filp = ayesn_iyesde_getfile("[infinibandevent]", &uverbs_async_event_fops,
 				  ev_file, O_RDONLY);
 	if (IS_ERR(filp))
 		goto err_put_refs;
@@ -633,7 +633,7 @@ static ssize_t verify_hdr(struct ib_uverbs_cmd_hdr *hdr,
 		return 0;
 	}
 
-	/* not extended command */
+	/* yest extended command */
 	if (hdr->in_words * 4 != count)
 		return -EINVAL;
 
@@ -642,7 +642,7 @@ static ssize_t verify_hdr(struct ib_uverbs_cmd_hdr *hdr,
 		 * rdma-core v18 and v19 have a bug where they send DESTROY_CQ
 		 * with a 16 byte write instead of 24. Old kernels didn't
 		 * check the size so they allowed this. Now that the size is
-		 * checked provide a compatibility work around to not break
+		 * checked provide a compatibility work around to yest break
 		 * those userspaces.
 		 */
 		if (hdr->command == IB_USER_VERBS_CMD_DESTROY_CQ &&
@@ -671,7 +671,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	ssize_t ret;
 
 	if (!ib_safe_file_access(filp)) {
-		pr_err_once("uverbs_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+		pr_err_once("uverbs_write: process %d (%s) changed security contexts after opening file descriptor, this is yest allowed.\n",
 			    task_tgid_vnr(current), current->comm);
 		return -EACCES;
 	}
@@ -921,7 +921,7 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 			priv = list_first_entry(&ufile->umaps,
 						struct rdma_umap_priv, list);
 			mm = priv->vma->vm_mm;
-			ret = mmget_not_zero(mm);
+			ret = mmget_yest_zero(mm);
 			if (!ret) {
 				list_del_init(&priv->list);
 				mm = NULL;
@@ -937,7 +937,7 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 		 * The umap_lock is nested under mmap_sem since it used within
 		 * the vma_ops callbacks, so we have to clean the list one mm
 		 * at a time to get the lock ordering right. Typically there
-		 * will only be one mm, so no big deal.
+		 * will only be one mm, so yes big deal.
 		 */
 		down_read(&mm->mmap_sem);
 		if (!mmget_still_valid(mm))
@@ -967,16 +967,16 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 }
 
 /*
- * ib_uverbs_open() does not need the BKL:
+ * ib_uverbs_open() does yest need the BKL:
  *
  *  - the ib_uverbs_device structures are properly reference counted and
  *    everything else is purely local to the file being created, so
- *    races against other open calls are not a problem;
- *  - there is no ioctl method to race against;
+ *    races against other open calls are yest a problem;
+ *  - there is yes ioctl method to race against;
  *  - the open method will either immediately run -ENXIO, or all
  *    required initialization will be done.
  */
-static int ib_uverbs_open(struct inode *inode, struct file *filp)
+static int ib_uverbs_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct ib_uverbs_device *dev;
 	struct ib_uverbs_file *file;
@@ -985,8 +985,8 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	int module_dependent;
 	int srcu_key;
 
-	dev = container_of(inode->i_cdev, struct ib_uverbs_device, cdev);
-	if (!atomic_inc_not_zero(&dev->refcount))
+	dev = container_of(iyesde->i_cdev, struct ib_uverbs_device, cdev);
+	if (!atomic_inc_yest_zero(&dev->refcount))
 		return -ENXIO;
 
 	get_device(&dev->dev);
@@ -1004,7 +1004,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 		goto err;
 	}
 
-	/* In case IB device supports disassociate ucontext, there is no hard
+	/* In case IB device supports disassociate ucontext, there is yes hard
 	 * dependency between uverbs device and its low level device.
 	 */
 	module_dependent = !(ib_dev->ops.disassociate_ucontext);
@@ -1042,7 +1042,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 
 	setup_ufile_idr_uobject(file);
 
-	return stream_open(inode, filp);
+	return stream_open(iyesde, filp);
 
 err_module:
 	module_put(ib_dev->ops.owner);
@@ -1057,7 +1057,7 @@ err:
 	return ret;
 }
 
-static int ib_uverbs_close(struct inode *inode, struct file *filp)
+static int ib_uverbs_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct ib_uverbs_file *file = filp->private_data;
 
@@ -1077,7 +1077,7 @@ static const struct file_operations uverbs_fops = {
 	.write	 = ib_uverbs_write,
 	.open	 = ib_uverbs_open,
 	.release = ib_uverbs_close,
-	.llseek	 = no_llseek,
+	.llseek	 = yes_llseek,
 	.unlocked_ioctl = ib_uverbs_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 };
@@ -1088,7 +1088,7 @@ static const struct file_operations uverbs_mmap_fops = {
 	.mmap    = ib_uverbs_mmap,
 	.open	 = ib_uverbs_open,
 	.release = ib_uverbs_close,
-	.llseek	 = no_llseek,
+	.llseek	 = yes_llseek,
 	.unlocked_ioctl = ib_uverbs_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 };
@@ -1111,7 +1111,7 @@ static int ib_uverbs_get_nl_info(struct ib_device *ibdev, void *client_data,
 	 * through get_context instead of relying on modalias matching. When
 	 * the drivers are fixed they can drop this flag.
 	 */
-	if (!ibdev->ops.uverbs_no_driver_id_binding) {
+	if (!ibdev->ops.uverbs_yes_driver_id_binding) {
 		ret = nla_put_u32(res->nl_msg, RDMA_NLDEV_ATTR_UVERBS_DRIVER_ID,
 				  ibdev->ops.driver_id);
 		if (ret)
@@ -1122,7 +1122,7 @@ static int ib_uverbs_get_nl_info(struct ib_device *ibdev, void *client_data,
 
 static struct ib_client uverbs_client = {
 	.name   = "uverbs",
-	.no_kverbs_req = true,
+	.yes_kverbs_req = true,
 	.add    = ib_uverbs_add_one,
 	.remove = ib_uverbs_remove_one,
 	.get_nl_info = ib_uverbs_get_nl_info,
@@ -1336,13 +1336,13 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
 
 	if (device->ops.disassociate_ucontext) {
 		/* We disassociate HW resources and immediately return.
-		 * Userspace will see a EIO errno for all future access.
-		 * Upon returning, ib_device may be freed internally and is not
+		 * Userspace will see a EIO erryes for all future access.
+		 * Upon returning, ib_device may be freed internally and is yest
 		 * valid any more.
 		 * uverbs_device is still available until all clients close
 		 * their files, then the uverbs device ref count will be zero
 		 * and its resources will be freed.
-		 * Note: At this point no more files can be opened since the
+		 * Note: At this point yes more files can be opened since the
 		 * cdev was deleted, however active clients can still issue
 		 * commands and close their open files.
 		 */
@@ -1358,7 +1358,7 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
 	put_device(&uverbs_dev->dev);
 }
 
-static char *uverbs_devnode(struct device *dev, umode_t *mode)
+static char *uverbs_devyesde(struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0666;
@@ -1392,7 +1392,7 @@ static int __init ib_uverbs_init(void)
 		goto out_chrdev;
 	}
 
-	uverbs_class->devnode = uverbs_devnode;
+	uverbs_class->devyesde = uverbs_devyesde;
 
 	ret = class_create_file(uverbs_class, &class_attr_abi_version.attr);
 	if (ret) {
@@ -1431,7 +1431,7 @@ static void __exit ib_uverbs_cleanup(void)
 				 IB_UVERBS_NUM_FIXED_MINOR);
 	unregister_chrdev_region(dynamic_uverbs_dev,
 				 IB_UVERBS_NUM_DYNAMIC_MINOR);
-	mmu_notifier_synchronize();
+	mmu_yestifier_synchronize();
 }
 
 module_init(ib_uverbs_init);

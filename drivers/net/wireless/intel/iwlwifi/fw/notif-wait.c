@@ -35,12 +35,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -61,27 +61,27 @@
 #include <linux/export.h>
 
 #include "iwl-drv.h"
-#include "notif-wait.h"
+#include "yestif-wait.h"
 
 
-void iwl_notification_wait_init(struct iwl_notif_wait_data *notif_wait)
+void iwl_yestification_wait_init(struct iwl_yestif_wait_data *yestif_wait)
 {
-	spin_lock_init(&notif_wait->notif_wait_lock);
-	INIT_LIST_HEAD(&notif_wait->notif_waits);
-	init_waitqueue_head(&notif_wait->notif_waitq);
+	spin_lock_init(&yestif_wait->yestif_wait_lock);
+	INIT_LIST_HEAD(&yestif_wait->yestif_waits);
+	init_waitqueue_head(&yestif_wait->yestif_waitq);
 }
-IWL_EXPORT_SYMBOL(iwl_notification_wait_init);
+IWL_EXPORT_SYMBOL(iwl_yestification_wait_init);
 
-bool iwl_notification_wait(struct iwl_notif_wait_data *notif_wait,
+bool iwl_yestification_wait(struct iwl_yestif_wait_data *yestif_wait,
 			   struct iwl_rx_packet *pkt)
 {
 	bool triggered = false;
 
-	if (!list_empty(&notif_wait->notif_waits)) {
-		struct iwl_notification_wait *w;
+	if (!list_empty(&yestif_wait->yestif_waits)) {
+		struct iwl_yestification_wait *w;
 
-		spin_lock(&notif_wait->notif_wait_lock);
-		list_for_each_entry(w, &notif_wait->notif_waits, list) {
+		spin_lock(&yestif_wait->yestif_wait_lock);
+		list_for_each_entry(w, &yestif_wait->yestif_waits, list) {
 			int i;
 			bool found = false;
 
@@ -108,36 +108,36 @@ bool iwl_notification_wait(struct iwl_notif_wait_data *notif_wait,
 			if (!found)
 				continue;
 
-			if (!w->fn || w->fn(notif_wait, pkt, w->fn_data)) {
+			if (!w->fn || w->fn(yestif_wait, pkt, w->fn_data)) {
 				w->triggered = true;
 				triggered = true;
 			}
 		}
-		spin_unlock(&notif_wait->notif_wait_lock);
+		spin_unlock(&yestif_wait->yestif_wait_lock);
 	}
 
 	return triggered;
 }
-IWL_EXPORT_SYMBOL(iwl_notification_wait);
+IWL_EXPORT_SYMBOL(iwl_yestification_wait);
 
-void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_wait)
+void iwl_abort_yestification_waits(struct iwl_yestif_wait_data *yestif_wait)
 {
-	struct iwl_notification_wait *wait_entry;
+	struct iwl_yestification_wait *wait_entry;
 
-	spin_lock(&notif_wait->notif_wait_lock);
-	list_for_each_entry(wait_entry, &notif_wait->notif_waits, list)
+	spin_lock(&yestif_wait->yestif_wait_lock);
+	list_for_each_entry(wait_entry, &yestif_wait->yestif_waits, list)
 		wait_entry->aborted = true;
-	spin_unlock(&notif_wait->notif_wait_lock);
+	spin_unlock(&yestif_wait->yestif_wait_lock);
 
-	wake_up_all(&notif_wait->notif_waitq);
+	wake_up_all(&yestif_wait->yestif_waitq);
 }
-IWL_EXPORT_SYMBOL(iwl_abort_notification_waits);
+IWL_EXPORT_SYMBOL(iwl_abort_yestification_waits);
 
 void
-iwl_init_notification_wait(struct iwl_notif_wait_data *notif_wait,
-			   struct iwl_notification_wait *wait_entry,
+iwl_init_yestification_wait(struct iwl_yestif_wait_data *yestif_wait,
+			   struct iwl_yestification_wait *wait_entry,
 			   const u16 *cmds, int n_cmds,
-			   bool (*fn)(struct iwl_notif_wait_data *notif_wait,
+			   bool (*fn)(struct iwl_yestif_wait_data *yestif_wait,
 				      struct iwl_rx_packet *pkt, void *data),
 			   void *fn_data)
 {
@@ -151,32 +151,32 @@ iwl_init_notification_wait(struct iwl_notif_wait_data *notif_wait,
 	wait_entry->triggered = false;
 	wait_entry->aborted = false;
 
-	spin_lock_bh(&notif_wait->notif_wait_lock);
-	list_add(&wait_entry->list, &notif_wait->notif_waits);
-	spin_unlock_bh(&notif_wait->notif_wait_lock);
+	spin_lock_bh(&yestif_wait->yestif_wait_lock);
+	list_add(&wait_entry->list, &yestif_wait->yestif_waits);
+	spin_unlock_bh(&yestif_wait->yestif_wait_lock);
 }
-IWL_EXPORT_SYMBOL(iwl_init_notification_wait);
+IWL_EXPORT_SYMBOL(iwl_init_yestification_wait);
 
-void iwl_remove_notification(struct iwl_notif_wait_data *notif_wait,
-			     struct iwl_notification_wait *wait_entry)
+void iwl_remove_yestification(struct iwl_yestif_wait_data *yestif_wait,
+			     struct iwl_yestification_wait *wait_entry)
 {
-	spin_lock_bh(&notif_wait->notif_wait_lock);
+	spin_lock_bh(&yestif_wait->yestif_wait_lock);
 	list_del(&wait_entry->list);
-	spin_unlock_bh(&notif_wait->notif_wait_lock);
+	spin_unlock_bh(&yestif_wait->yestif_wait_lock);
 }
-IWL_EXPORT_SYMBOL(iwl_remove_notification);
+IWL_EXPORT_SYMBOL(iwl_remove_yestification);
 
-int iwl_wait_notification(struct iwl_notif_wait_data *notif_wait,
-			  struct iwl_notification_wait *wait_entry,
+int iwl_wait_yestification(struct iwl_yestif_wait_data *yestif_wait,
+			  struct iwl_yestification_wait *wait_entry,
 			  unsigned long timeout)
 {
 	int ret;
 
-	ret = wait_event_timeout(notif_wait->notif_waitq,
+	ret = wait_event_timeout(yestif_wait->yestif_waitq,
 				 wait_entry->triggered || wait_entry->aborted,
 				 timeout);
 
-	iwl_remove_notification(notif_wait, wait_entry);
+	iwl_remove_yestification(yestif_wait, wait_entry);
 
 	if (wait_entry->aborted)
 		return -EIO;
@@ -186,4 +186,4 @@ int iwl_wait_notification(struct iwl_notif_wait_data *notif_wait,
 		return -ETIMEDOUT;
 	return 0;
 }
-IWL_EXPORT_SYMBOL(iwl_wait_notification);
+IWL_EXPORT_SYMBOL(iwl_wait_yestification);

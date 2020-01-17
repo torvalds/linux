@@ -207,7 +207,7 @@ static void esp_flush_fifo(struct esp *esp)
 		while (esp_read8(ESP_FFLAGS) & ESP_FF_FBYTES) {
 			if (--lim == 0) {
 				shost_printk(KERN_ALERT, esp->host,
-					     "ESP_FF_BYTES will not clear!\n");
+					     "ESP_FF_BYTES will yest clear!\n");
 				break;
 			}
 			udelay(1);
@@ -240,7 +240,7 @@ static void esp_set_all_config3(struct esp *esp, u8 val)
 		esp->target[i].esp_config3 = val;
 }
 
-/* Reset the ESP chip, _not_ the SCSI bus. */
+/* Reset the ESP chip, _yest_ the SCSI bus. */
 static void esp_reset_esp(struct esp *esp)
 {
 	u8 family_code, version;
@@ -288,7 +288,7 @@ static void esp_reset_esp(struct esp *esp)
 	esp_write8(esp->config1, ESP_CFG1);
 	switch (esp->rev) {
 	case ESP100:
-		/* nothing to do */
+		/* yesthing to do */
 		break;
 
 	case ESP100A:
@@ -535,7 +535,7 @@ static u32 esp_dma_length_limit(struct esp *esp, u32 dma_addr, u32 dma_len)
 			dma_len = (1U << 16);
 
 		/* All of the DMA variants hooked up to these chips
-		 * cannot handle crossing a 24-bit address boundary.
+		 * canyest handle crossing a 24-bit address boundary.
 		 */
 		base = dma_addr & ((1U << 24) - 1U);
 		end = base + dma_len;
@@ -573,7 +573,7 @@ static int esp_alloc_lun_tag(struct esp_cmd_entry *ent,
 {
 	if (!ent->orig_tag[0]) {
 		/* Non-tagged, slot already taken?  */
-		if (lp->non_tagged_cmd)
+		if (lp->yesn_tagged_cmd)
 			return -EBUSY;
 
 		if (lp->hold) {
@@ -595,12 +595,12 @@ static int esp_alloc_lun_tag(struct esp_cmd_entry *ent,
 			return -EBUSY;
 		}
 
-		lp->non_tagged_cmd = ent;
+		lp->yesn_tagged_cmd = ent;
 		return 0;
 	}
 
-	/* Tagged command. Check that it isn't blocked by a non-tagged one. */
-	if (lp->non_tagged_cmd || lp->hold)
+	/* Tagged command. Check that it isn't blocked by a yesn-tagged one. */
+	if (lp->yesn_tagged_cmd || lp->hold)
 		return -EBUSY;
 
 	BUG_ON(lp->tagged_cmds[ent->orig_tag[1]]);
@@ -619,8 +619,8 @@ static void esp_free_lun_tag(struct esp_cmd_entry *ent,
 		lp->tagged_cmds[ent->orig_tag[1]] = NULL;
 		lp->num_tagged--;
 	} else {
-		BUG_ON(lp->non_tagged_cmd != ent);
-		lp->non_tagged_cmd = NULL;
+		BUG_ON(lp->yesn_tagged_cmd != ent);
+		lp->yesn_tagged_cmd = NULL;
 	}
 }
 
@@ -774,7 +774,7 @@ static void esp_maybe_execute_command(struct esp *esp)
 	esp->msg_out_len = 0;
 	if (tp->flags & ESP_TGT_CHECK_NEGO) {
 		/* Need to negotiate.  If the target is broken
-		 * go for synchronous transfers and non-wide.
+		 * go for synchroyesus transfers and yesn-wide.
 		 */
 		if (tp->flags & ESP_TGT_BROKEN) {
 			tp->flags &= ~ESP_TGT_DISCONNECT;
@@ -784,7 +784,7 @@ static void esp_maybe_execute_command(struct esp *esp)
 			tp->nego_goal_tags = 0;
 		}
 
-		/* If the settings are not changing, skip this.  */
+		/* If the settings are yest changing, skip this.  */
 		if (spi_width(tp->starget) == tp->nego_goal_width &&
 		    spi_period(tp->starget) == tp->nego_goal_period &&
 		    spi_offset(tp->starget) == tp->nego_goal_offset) {
@@ -1004,7 +1004,7 @@ static int esp_check_spur_intr(struct esp *esp)
 	switch (esp->rev) {
 	case ESP100:
 	case ESP100A:
-		/* The interrupt pending bit of the status register cannot
+		/* The interrupt pending bit of the status register canyest
 		 * be trusted on these revisions.
 		 */
 		esp->sreg &= ~ESP_STAT_INTR;
@@ -1016,7 +1016,7 @@ static int esp_check_spur_intr(struct esp *esp)
 				return 1;
 
 			/* If the DMA is indicating interrupt pending and the
-			 * ESP is not, the only possibility is a DMA error.
+			 * ESP is yest, the only possibility is a DMA error.
 			 */
 			if (!esp->ops->dma_error(esp)) {
 				shost_printk(KERN_ERR, esp->host,
@@ -1086,7 +1086,7 @@ static struct esp_cmd_entry *esp_reconnect_with_tag(struct esp *esp,
 
 	if ((esp->sreg & ESP_STAT_PMASK) != ESP_MIP) {
 		shost_printk(KERN_ERR, esp->host,
-			     "Reconnect, not MIP sreg[%02x].\n", esp->sreg);
+			     "Reconnect, yest MIP sreg[%02x].\n", esp->sreg);
 		return NULL;
 	}
 
@@ -1131,7 +1131,7 @@ static struct esp_cmd_entry *esp_reconnect_with_tag(struct esp *esp,
 	ent = lp->tagged_cmds[esp->command_block[1]];
 	if (!ent) {
 		shost_printk(KERN_ERR, esp->host,
-			     "Reconnect, no entry for tag %02x.\n",
+			     "Reconnect, yes entry for tag %02x.\n",
 			     esp->command_block[1]);
 		return NULL;
 	}
@@ -1177,7 +1177,7 @@ static int esp_reconnect(struct esp *esp)
 			u8 ireg = esp_read8(ESP_INTRPT);
 			/* This chip has a bug during reselection that can
 			 * cause a spurious illegal-command interrupt, which
-			 * we simply ACK here.  Another possibility is a bus
+			 * we simply ACK here.  Ayesther possibility is a bus
 			 * reset so we must check for that.
 			 */
 			if (ireg & ESP_INTR_SR)
@@ -1199,13 +1199,13 @@ static int esp_reconnect(struct esp *esp)
 	dev = __scsi_device_lookup_by_target(tp->starget, lun);
 	if (!dev) {
 		shost_printk(KERN_ERR, esp->host,
-			     "Reconnect, no lp tgt[%u] lun[%u]\n",
+			     "Reconnect, yes lp tgt[%u] lun[%u]\n",
 			     target, lun);
 		goto do_reset;
 	}
 	lp = dev->hostdata;
 
-	ent = lp->non_tagged_cmd;
+	ent = lp->yesn_tagged_cmd;
 	if (!ent) {
 		ent = esp_reconnect_with_tag(esp, lp);
 		if (!ent)
@@ -1265,12 +1265,12 @@ static int esp_finish_select(struct esp *esp)
 		}
 
 		/* Now that the state is unwound properly, put back onto
-		 * the issue queue.  This command is no longer active.
+		 * the issue queue.  This command is yes longer active.
 		 */
 		list_move(&ent->list, &esp->queued_cmds);
 		esp->active_cmd = NULL;
 
-		/* Return value ignored by caller, it directly invokes
+		/* Return value igyesred by caller, it directly invokes
 		 * esp_reconnect().
 		 */
 		return 0;
@@ -1375,13 +1375,13 @@ static int esp_data_bytes_sent(struct esp *esp, struct esp_cmd_entry *ent,
 
 	flush_fifo = 0;
 	if (!esp->prev_soff) {
-		/* Synchronous data transfer, always flush fifo. */
+		/* Synchroyesus data transfer, always flush fifo. */
 		flush_fifo = 1;
 	} else {
 		if (esp->rev == ESP100) {
 			u32 fflags, phase;
 
-			/* ESP100 has a chip bug where in the synchronous data
+			/* ESP100 has a chip bug where in the synchroyesus data
 			 * phase it can mistake a final long REQ pulse from the
 			 * target as an extra data byte.  Fun.
 			 *
@@ -1390,7 +1390,7 @@ static int esp_data_bytes_sent(struct esp *esp, struct esp_cmd_entry *ent,
 			 * we see spurious chunks in the fifo, we return error
 			 * to the caller which should reset and set things up
 			 * such that we only try future transfers to this
-			 * target in synchronous mode.
+			 * target in synchroyesus mode.
 			 */
 			esp->sreg = esp_read8(ESP_STATUS);
 			phase = esp->sreg & ESP_STAT_PMASK;
@@ -1616,7 +1616,7 @@ static void esp_msgin_extended(struct esp *esp)
 	scsi_esp_cmd(esp, ESP_CMD_SATN);
 }
 
-/* Analyze msgin bytes received from target so far.  Return non-zero
+/* Analyze msgin bytes received from target so far.  Return yesn-zero
  * if there are more bytes needed to complete the message.
  */
 static int esp_msgin_process(struct esp *esp)
@@ -1805,7 +1805,7 @@ again:
 			 * interrupt at the end of a successful transfer.
 			 */
 			shost_printk(KERN_INFO, esp->host,
-				     "data done, not BSERV, resetting\n");
+				     "data done, yest BSERV, resetting\n");
 			esp_schedule_reset(esp);
 			return 0;
 		}
@@ -1999,7 +1999,7 @@ again:
 				esp_event(esp, ESP_EVENT_CHECK_PHASE);
 		} else {
 			shost_printk(KERN_INFO, esp->host,
-				     "MSGIN neither BSERV not FDON, resetting");
+				     "MSGIN neither BSERV yest FDON, resetting");
 			esp_schedule_reset(esp);
 			return 0;
 		}
@@ -2223,8 +2223,8 @@ static void esp_get_revision(struct esp *esp)
 		esp->config2 = 0;
 		if (val != (ESP_CONFIG2_SCSI2ENAB | ESP_CONFIG2_REGPARITY)) {
 			/*
-			 * If what we write to cfg2 does not come back,
-			 * cfg2 is not implemented.
+			 * If what we write to cfg2 does yest come back,
+			 * cfg2 is yest implemented.
 			 * Therefore this must be a plain esp100.
 			 */
 			esp->rev = ESP100;
@@ -2241,7 +2241,7 @@ static void esp_get_revision(struct esp *esp)
 	val = esp_read8(ESP_CFG3);
 	if (val != 5) {
 		/* The cfg2 register is implemented, however
-		 * cfg3 is not, must be esp100a.
+		 * cfg3 is yest, must be esp100a.
 		 */
 		esp->rev = ESP100A;
 	} else {
@@ -2282,7 +2282,7 @@ static void esp_init_swstate(struct esp *esp)
 	}
 }
 
-/* This places the ESP into a known state at boot time. */
+/* This places the ESP into a kyeswn state at boot time. */
 static void esp_bootup_reset(struct esp *esp)
 {
 	u8 val;
@@ -2293,7 +2293,7 @@ static void esp_bootup_reset(struct esp *esp)
 	/* Reset the ESP */
 	esp_reset_esp(esp);
 
-	/* Reset the SCSI bus, but tell ESP not to generate an irq */
+	/* Reset the SCSI bus, but tell ESP yest to generate an irq */
 	val = esp_read8(ESP_CFG1);
 	val |= ESP_CONFIG1_SRRDISAB;
 	esp_write8(val, ESP_CFG1);
@@ -2322,7 +2322,7 @@ static void esp_set_clock_params(struct esp *esp)
 	 *    going into the ESP on this machine.  Any operation whose timing
 	 *    is longer than 400ns depends on this value being correct.  For
 	 *    example, you'll get blips for arbitration/selection during high
-	 *    load or with multiple targets if this is not set correctly.
+	 *    load or with multiple targets if this is yest set correctly.
 	 *
 	 * b) Selection Time-Out
 	 *
@@ -2338,7 +2338,7 @@ static void esp_set_clock_params(struct esp *esp)
 	 *
 	 *    We use a time out period of 250ms (ESP_BUS_TIMEOUT).
 	 *
-	 * c) Imperical constants for synchronous offset and transfer period
+	 * c) Imperical constants for synchroyesus offset and transfer period
          *    register values
 	 *
 	 *    This entails the smallest and largest sync period we could ever
@@ -2553,7 +2553,7 @@ static int esp_eh_abort_handler(struct scsi_cmnd *cmd)
 	if (ent && ent->cmd == cmd) {
 		/* Command is the currently active command on
 		 * the bus.  If we already have an output message
-		 * pending, no dice.
+		 * pending, yes dice.
 		 */
 		if (esp->msg_out_len)
 			goto out_failure;
@@ -2567,8 +2567,8 @@ static int esp_eh_abort_handler(struct scsi_cmnd *cmd)
 
 		scsi_esp_cmd(esp, ESP_CMD_SATN);
 	} else {
-		/* The command is disconnected.  This is not easy to
-		 * abort.  For now we fail and let the scsi error
+		/* The command is disconnected.  This is yest easy to
+		 * abort.  For yesw we fail and let the scsi error
 		 * handling layer go try a scsi bus reset or host
 		 * reset.
 		 *
@@ -2604,7 +2604,7 @@ out_success:
 
 out_failure:
 	/* XXX This might be a good location to set ESP_TGT_BROKEN
-	 * XXX since we know which target/lun in particular is
+	 * XXX since we kyesw which target/lun in particular is
 	 * XXX causing trouble.
 	 */
 	spin_unlock_irqrestore(esp->host->host_lock, flags);

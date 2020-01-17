@@ -55,7 +55,7 @@
 					 * 15:12 reserved
 					 * 11    Thermal Sensor Event
 					 * 10    reserved
-					 *  9    non-DRAM lock error (ndlock)
+					 *  9    yesn-DRAM lock error (ndlock)
 					 *  8    Refresh Timeout
 					 *  7:2  reserved
 					 *  1    ECC UE (multibit DRAM error)
@@ -73,7 +73,7 @@ NOTE: Only ONE of the three must be enabled
 					 * 15:12 reserved
 					 * 11    Thermal Sensor Event
 					 * 10    reserved
-					 *  9    non-DRAM lock error (ndlock)
+					 *  9    yesn-DRAM lock error (ndlock)
 					 *  8    Refresh Timeout
 					 *  7:2  reserved
 					 *  1    ECC UE (multibit DRAM error)
@@ -179,7 +179,7 @@ NOTE: Only ONE of the three must be enabled
 					 *		bits in 82975 in Asus
 					 *		P5W
 					 *	 19:18 Data Integ Mode
-					 *		00=none 01=ECC in 82875
+					 *		00=yesne 01=ECC in 82875
 					 * 10:8  refresh mode
 					 *  7    reserved
 					 *  6:4  mode select
@@ -243,7 +243,7 @@ static void i82975x_get_error_info(struct mem_ctl_info *mci,
 	pdev = to_pci_dev(mci->pdev);
 
 	/*
-	 * This is a mess because there is no atomic way to read all the
+	 * This is a mess because there is yes atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
@@ -259,7 +259,7 @@ static void i82975x_get_error_info(struct mem_ctl_info *mci,
 	/*
 	 * If the error is the same then we can for both reads then
 	 * the first set of reads is valid.  If there is a change then
-	 * there is a CE no info and the second set of reads is valid
+	 * there is a CE yes info and the second set of reads is valid
 	 * and should be UE info.
 	 */
 	if (!(info->errsts2 & 0x0003))
@@ -485,7 +485,7 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail0;
 	}
 	mchbar &= 0xffffc000;	/* bits 31:14 used for 16K window */
-	mch_window = ioremap_nocache(mchbar, 0x1000);
+	mch_window = ioremap_yescache(mchbar, 0x1000);
 	if (!mch_window) {
 		edac_dbg(3, "error ioremapping MCHBAR!\n");
 		goto fail0;
@@ -700,7 +700,7 @@ module_init(i82975x_init);
 module_exit(i82975x_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Arvind R. <arvino55@gmail.com>");
+MODULE_AUTHOR("Arvind R. <arviyes55@gmail.com>");
 MODULE_DESCRIPTION("MC support for Intel 82975 memory hub controllers");
 
 module_param(edac_op_state, int, 0444);

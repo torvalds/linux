@@ -1115,10 +1115,10 @@ static const struct msm_function sdm845_functions[] = {
 	FUNCTION(wlan2_adc1),
 };
 
-/* Every pin is maintained as a single group, and missing or non-existing pin
+/* Every pin is maintained as a single group, and missing or yesn-existing pin
  * would be maintained as dummy group to synchronize pin group index with
  * pin descriptor registered with pinctrl core.
- * Clients would not be able to request these dummy pin groups.
+ * Clients would yest be able to request these dummy pin groups.
  */
 static const struct msm_pingroup sdm845_groups[] = {
 	PINGROUP(0, EAST, qup0, _, _, _, _, _, _, _, _, _),
@@ -1326,7 +1326,7 @@ static int sdm845_pinctrl_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		ret = msm_pinctrl_probe(pdev, &sdm845_pinctrl);
 	} else if (has_acpi_companion(&pdev->dev)) {
 		ret = msm_pinctrl_probe(pdev, &sdm845_acpi_pinctrl);

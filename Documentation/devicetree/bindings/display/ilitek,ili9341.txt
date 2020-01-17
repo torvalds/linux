@@ -8,7 +8,7 @@ Required properties:
 - dc-gpios:	D/C pin
 - reset-gpios:	Reset pin
 
-The node for this driver must be a child node of a SPI controller, hence
+The yesde for this driver must be a child yesde of a SPI controller, hence
 all mandatory properties described in ../spi/spi-bus.txt must be specified.
 
 Optional properties:

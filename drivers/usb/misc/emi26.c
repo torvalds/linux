@@ -7,7 +7,7 @@
  * emi26.c,v 1.13 2002/03/08 13:10:26 tapio Exp
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -20,8 +20,8 @@
 #define EMI26B_PRODUCT_ID		0x0102	/* EMI 2|6 without firmware */
 
 #define ANCHOR_LOAD_INTERNAL	0xA0	/* Vendor specific request code for Anchor Upload/Download (This one is implemented in the core) */
-#define ANCHOR_LOAD_EXTERNAL	0xA3	/* This command is not implemented in the core. Requires firmware */
-#define ANCHOR_LOAD_FPGA	0xA5	/* This command is not implemented in the core. Requires firmware. Emagic extension */
+#define ANCHOR_LOAD_EXTERNAL	0xA3	/* This command is yest implemented in the core. Requires firmware */
+#define ANCHOR_LOAD_FPGA	0xA5	/* This command is yest implemented in the core. Requires firmware. Emagic extension */
 #define MAX_INTERNAL_ADDRESS	0x1B3F	/* This is the highest internal RAM address for the AN2131Q */
 #define CPUCS_REG		0x7F92  /* EZ-USB Control and Status Register.  Bit 0 controls 8051 reset */ 
 #define INTERNAL_RAM(address)   (address <= MAX_INTERNAL_ADDRESS)
@@ -85,17 +85,17 @@ static int emi26_load_firmware (struct usb_device *dev)
 
 	err = request_ihex_firmware(&loader_fw, "emi26/loader.fw", &dev->dev);
 	if (err)
-		goto nofw;
+		goto yesfw;
 
 	err = request_ihex_firmware(&bitstream_fw, "emi26/bitstream.fw",
 				    &dev->dev);
 	if (err)
-		goto nofw;
+		goto yesfw;
 
 	err = request_ihex_firmware(&firmware_fw, "emi26/firmware.fw",
 				    &dev->dev);
 	if (err) {
-	nofw:
+	yesfw:
 		dev_err(&dev->dev, "%s - request_firmware() failed\n",
 			__func__);
 		goto wraperr;
@@ -124,7 +124,7 @@ static int emi26_load_firmware (struct usb_device *dev)
 	msleep(250);	/* let device settle */
 
 	/* 2. We upload the FPGA firmware into the EMI
-	 * Note: collect up to 1023 (yes!) bytes and send them with
+	 * Note: collect up to 1023 (no!) bytes and send them with
 	 * a single request. This is _much_ faster! */
 	rec = (const struct ihex_binrec *)bitstream_fw->data;
 	do {
@@ -231,7 +231,7 @@ static int emi26_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	emi26_load_firmware(dev);
 
-	/* do not return the driver context, let real audio driver do that */
+	/* do yest return the driver context, let real audio driver do that */
 	return -EIO;
 }
 

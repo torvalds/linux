@@ -56,7 +56,7 @@ static inline u32 get_mult_div(struct snd_sof_dev *sdev, int rate)
 	default:
 		dev_warn(sdev->dev, "can't find div rate %d using 48kHz\n",
 			 rate);
-		return 0; /* use 48KHz if not found */
+		return 0; /* use 48KHz if yest found */
 	}
 };
 
@@ -76,7 +76,7 @@ static inline u32 get_bits(struct snd_sof_dev *sdev, int sample_bits)
 	default:
 		dev_warn(sdev->dev, "can't find %d bits using 16bit\n",
 			 sample_bits);
-		return SDnFMT_BITS(1); /* use 16bits format if not found */
+		return SDnFMT_BITS(1); /* use 16bits format if yest found */
 	}
 };
 
@@ -104,7 +104,7 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 	hstream->format_val = rate | bits | (params_channels(params) - 1);
 	hstream->bufsize = size;
 	hstream->period_bytes = params_period_bytes(params);
-	hstream->no_period_wakeup  =
+	hstream->yes_period_wakeup  =
 			(params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
 			(params->flags & SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP);
 
@@ -117,16 +117,16 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 	/* disable SPIB, to enable buffer wrap for stream */
 	hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
 
-	/* update no_stream_position flag for ipc params */
-	if (hda && hda->no_ipc_position) {
+	/* update yes_stream_position flag for ipc params */
+	if (hda && hda->yes_ipc_position) {
 		/* For older ABIs set host_period_bytes to zero to inform
 		 * FW we don't want position updates. Newer versions use
-		 * no_stream_position for this purpose.
+		 * yes_stream_position for this purpose.
 		 */
 		if (v->abi_version < SOF_ABI_VER(3, 10, 0))
 			ipc_params->host_period_bytes = 0;
 		else
-			ipc_params->no_stream_position = 1;
+			ipc_params->yes_stream_position = 1;
 	}
 
 	ipc_params->stream_tag = hstream->stream_tag;
@@ -159,7 +159,7 @@ snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 		return 0;
 	}
 
-	if (hda && !hda->no_ipc_position) {
+	if (hda && !hda->yes_ipc_position) {
 		/* read position from IPC position */
 		pos = spcm->stream[substream->stream].posn.host_posn;
 		goto found;
@@ -170,7 +170,7 @@ snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 	 * For Playback, Use DPIB register from HDA space which
 	 * reflects the actual data transferred.
 	 * For Capture, Use the position buffer for pointer, as DPIB
-	 * is not accurate enough, its update may be completed
+	 * is yest accurate eyesugh, its update may be completed
 	 * earlier than the data written to DDR.
 	 */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -219,7 +219,7 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 	dsp_stream = hda_dsp_stream_get(sdev, direction);
 
 	if (!dsp_stream) {
-		dev_err(sdev->dev, "error: no stream available\n");
+		dev_err(sdev->dev, "error: yes stream available\n");
 		return -ENODEV;
 	}
 
@@ -238,7 +238,7 @@ int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 	ret = hda_dsp_stream_put(sdev, direction, hstream->stream_tag);
 
 	if (ret) {
-		dev_dbg(sdev->dev, "stream %s not opened!\n", substream->name);
+		dev_dbg(sdev->dev, "stream %s yest opened!\n", substream->name);
 		return -ENODEV;
 	}
 

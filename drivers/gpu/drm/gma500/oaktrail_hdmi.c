@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -226,7 +226,7 @@ static void scu_busy_loop(void __iomem *scu_base)
 }
 
 /*
- *	You don't want to know, you really really don't want to know....
+ *	You don't want to kyesw, you really really don't want to kyesw....
  *
  *	This is magic. However it's safe magic because of the way the platform
  *	works and it is necessary magic.
@@ -789,7 +789,7 @@ void oaktrail_hdmi_save(struct drm_device *dev)
 	pipeb->stride = PSB_RVDC32(DSPBSTRIDE);
 	pipeb->addr = PSB_RVDC32(DSPBBASE);
 	pipeb->surf = PSB_RVDC32(DSPBSURF);
-	pipeb->linoff = PSB_RVDC32(DSPBLINOFF);
+	pipeb->liyesff = PSB_RVDC32(DSPBLINOFF);
 	pipeb->tileoff = PSB_RVDC32(DSPBTILEOFF);
 
 	/* cursor B */
@@ -840,7 +840,7 @@ void oaktrail_hdmi_restore(struct drm_device *dev)
 	PSB_WVDC32(hdmi_dev->savePCH_PIPEBCONF, PCH_PIPEBCONF);
 
 	/* plane */
-	PSB_WVDC32(pipeb->linoff, DSPBLINOFF);
+	PSB_WVDC32(pipeb->liyesff, DSPBLINOFF);
 	PSB_WVDC32(pipeb->stride, DSPBSTRIDE);
 	PSB_WVDC32(pipeb->tileoff, DSPBTILEOFF);
 	PSB_WVDC32(pipeb->cntr, DSPBCNTR);

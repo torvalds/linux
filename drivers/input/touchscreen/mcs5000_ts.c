@@ -147,7 +147,7 @@ static irqreturn_t mcs5000_ts_interrupt(int irq, void *dev_id)
 		break;
 
 	default:
-		dev_err(&client->dev, "Unknown ts input type %d\n",
+		dev_err(&client->dev, "Unkyeswn ts input type %d\n",
 				buffer[READ_INPUT_INFO]);
 		break;
 	}

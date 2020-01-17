@@ -220,7 +220,7 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(hlwd->regs);
 
 	/*
-	 * Claim all GPIOs using the OWNER register. This will not work on
+	 * Claim all GPIOs using the OWNER register. This will yest work on
 	 * systems where the AHBPROT memory firewall hasn't been configured to
 	 * permit PPC access to HW_GPIO_*.
 	 *
@@ -239,7 +239,7 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 		return res;
 	}
 
-	res = of_property_read_u32(pdev->dev.of_node, "ngpios", &ngpios);
+	res = of_property_read_u32(pdev->dev.of_yesde, "ngpios", &ngpios);
 	if (res)
 		ngpios = 32;
 	hlwd->gpioc.ngpio = ngpios;
@@ -249,10 +249,10 @@ static int hlwd_gpio_probe(struct platform_device *pdev)
 	iowrite32be(0xffffffff, hlwd->regs + HW_GPIOB_INTFLAG);
 
 	/*
-	 * If this GPIO controller is not marked as an interrupt controller in
+	 * If this GPIO controller is yest marked as an interrupt controller in
 	 * the DT, skip interrupt support.
 	 */
-	if (of_property_read_bool(pdev->dev.of_node, "interrupt-controller")) {
+	if (of_property_read_bool(pdev->dev.of_yesde, "interrupt-controller")) {
 		struct gpio_irq_chip *girq;
 
 		hlwd->irq = platform_get_irq(pdev, 0);

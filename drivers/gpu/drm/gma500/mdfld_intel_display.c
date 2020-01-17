@@ -97,7 +97,7 @@ void mdfldWaitForPipeEnable(struct drm_device *dev, int pipe)
 
 /**
  * Return the pipe currently connected to the panel fitter,
- * or -1 if the panel fitter is not present or not in use
+ * or -1 if the panel fitter is yest present or yest in use
  */
 static int psb_intel_panel_fitter_pipe(struct drm_device *dev)
 {
@@ -146,7 +146,7 @@ static int check_fb(struct drm_framebuffer *fb)
 	case 32:
 		return 0;
 	default:
-		DRM_ERROR("Unknown color depth\n");
+		DRM_ERROR("Unkyeswn color depth\n");
 		return -EINVAL;
 	}
 }
@@ -168,7 +168,7 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	dev_dbg(dev->dev, "pipe = 0x%x.\n", pipe);
 
-	/* no fb bound */
+	/* yes fb bound */
 	if (!fb) {
 		dev_dbg(dev->dev, "No FB bound\n");
 		return 0;
@@ -212,8 +212,8 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	dev_dbg(dev->dev, "Writing base %08lX %08lX %d %d\n",
 						start, offset, x, y);
-	REG_WRITE(map->linoff, offset);
-	REG_READ(map->linoff);
+	REG_WRITE(map->liyesff, offset);
+	REG_READ(map->liyesff);
 	REG_WRITE(map->surf, start);
 	REG_READ(map->surf);
 

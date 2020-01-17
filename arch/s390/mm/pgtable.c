@@ -6,7 +6,7 @@
 
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
@@ -27,14 +27,14 @@
 #include <asm/page-states.h>
 
 static inline void ptep_ipte_local(struct mm_struct *mm, unsigned long addr,
-				   pte_t *ptep, int nodat)
+				   pte_t *ptep, int yesdat)
 {
 	unsigned long opt, asce;
 
 	if (MACHINE_HAS_TLB_GUEST) {
 		opt = 0;
 		asce = READ_ONCE(mm->context.gmap_asce);
-		if (asce == 0UL || nodat)
+		if (asce == 0UL || yesdat)
 			opt |= IPTE_NODAT;
 		if (asce != -1UL) {
 			asce = asce ? : mm->context.asce;
@@ -47,14 +47,14 @@ static inline void ptep_ipte_local(struct mm_struct *mm, unsigned long addr,
 }
 
 static inline void ptep_ipte_global(struct mm_struct *mm, unsigned long addr,
-				    pte_t *ptep, int nodat)
+				    pte_t *ptep, int yesdat)
 {
 	unsigned long opt, asce;
 
 	if (MACHINE_HAS_TLB_GUEST) {
 		opt = 0;
 		asce = READ_ONCE(mm->context.gmap_asce);
-		if (asce == 0UL || nodat)
+		if (asce == 0UL || yesdat)
 			opt |= IPTE_NODAT;
 		if (asce != -1UL) {
 			asce = asce ? : mm->context.asce;
@@ -68,7 +68,7 @@ static inline void ptep_ipte_global(struct mm_struct *mm, unsigned long addr,
 
 static inline pte_t ptep_flush_direct(struct mm_struct *mm,
 				      unsigned long addr, pte_t *ptep,
-				      int nodat)
+				      int yesdat)
 {
 	pte_t old;
 
@@ -78,16 +78,16 @@ static inline pte_t ptep_flush_direct(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		ptep_ipte_local(mm, addr, ptep, nodat);
+		ptep_ipte_local(mm, addr, ptep, yesdat);
 	else
-		ptep_ipte_global(mm, addr, ptep, nodat);
+		ptep_ipte_global(mm, addr, ptep, yesdat);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
 
 static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 				    unsigned long addr, pte_t *ptep,
-				    int nodat)
+				    int yesdat)
 {
 	pte_t old;
 
@@ -100,7 +100,7 @@ static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 		pte_val(*ptep) |= _PAGE_INVALID;
 		mm->context.flush_mm = 1;
 	} else
-		ptep_ipte_global(mm, addr, ptep, nodat);
+		ptep_ipte_global(mm, addr, ptep, yesdat);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -218,7 +218,7 @@ static inline pgste_t pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
 	return pgste;
 }
 
-static inline pgste_t pgste_pte_notify(struct mm_struct *mm,
+static inline pgste_t pgste_pte_yestify(struct mm_struct *mm,
 				       unsigned long addr,
 				       pte_t *ptep, pgste_t pgste)
 {
@@ -228,7 +228,7 @@ static inline pgste_t pgste_pte_notify(struct mm_struct *mm,
 	bits = pgste_val(pgste) & (PGSTE_IN_BIT | PGSTE_VSIE_BIT);
 	if (bits) {
 		pgste_val(pgste) ^= bits;
-		ptep_notify(mm, addr, ptep, bits);
+		ptep_yestify(mm, addr, ptep, bits);
 	}
 #endif
 	return pgste;
@@ -241,7 +241,7 @@ static inline pgste_t ptep_xchg_start(struct mm_struct *mm,
 
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
-		pgste = pgste_pte_notify(mm, addr, ptep, pgste);
+		pgste = pgste_pte_yestify(mm, addr, ptep, pgste);
 	}
 	return pgste;
 }
@@ -272,12 +272,12 @@ pte_t ptep_xchg_direct(struct mm_struct *mm, unsigned long addr,
 {
 	pgste_t pgste;
 	pte_t old;
-	int nodat;
+	int yesdat;
 
 	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
-	nodat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
-	old = ptep_flush_direct(mm, addr, ptep, nodat);
+	yesdat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
+	old = ptep_flush_direct(mm, addr, ptep, yesdat);
 	old = ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
 	preempt_enable();
 	return old;
@@ -289,12 +289,12 @@ pte_t ptep_xchg_lazy(struct mm_struct *mm, unsigned long addr,
 {
 	pgste_t pgste;
 	pte_t old;
-	int nodat;
+	int yesdat;
 
 	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
-	nodat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
-	old = ptep_flush_lazy(mm, addr, ptep, nodat);
+	yesdat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
+	old = ptep_flush_lazy(mm, addr, ptep, yesdat);
 	old = ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
 	preempt_enable();
 	return old;
@@ -306,13 +306,13 @@ pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr,
 {
 	pgste_t pgste;
 	pte_t old;
-	int nodat;
+	int yesdat;
 	struct mm_struct *mm = vma->vm_mm;
 
 	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
-	nodat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
-	old = ptep_flush_lazy(mm, addr, ptep, nodat);
+	yesdat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
+	old = ptep_flush_lazy(mm, addr, ptep, yesdat);
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_update_all(old, pgste, mm);
 		pgste_set(ptep, pgste);
@@ -570,7 +570,7 @@ void ptep_set_pte_at(struct mm_struct *mm, unsigned long addr,
 	preempt_enable();
 }
 
-void ptep_set_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+void ptep_set_yestify(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pgste_t pgste;
 
@@ -587,7 +587,7 @@ void ptep_set_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
  * @addr: virtual address in the guest address space
  * @ptep: pointer to the page table entry
  * @prot: indicates guest access rights: PROT_NONE, PROT_READ or PROT_WRITE
- * @bit: pgste bit to set (e.g. for notification)
+ * @bit: pgste bit to set (e.g. for yestification)
  *
  * Returns 0 if the access rights were changed and -EAGAIN if the current
  * and requested access rights are incompatible.
@@ -597,7 +597,7 @@ int ptep_force_prot(struct mm_struct *mm, unsigned long addr,
 {
 	pte_t entry;
 	pgste_t pgste;
-	int pte_i, pte_p, nodat;
+	int pte_i, pte_p, yesdat;
 
 	pgste = pgste_get_lock(ptep);
 	entry = *ptep;
@@ -610,14 +610,14 @@ int ptep_force_prot(struct mm_struct *mm, unsigned long addr,
 		return -EAGAIN;
 	}
 	/* Change access rights and set pgste bit */
-	nodat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
+	yesdat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
 	if (prot == PROT_NONE && !pte_i) {
-		ptep_flush_direct(mm, addr, ptep, nodat);
+		ptep_flush_direct(mm, addr, ptep, yesdat);
 		pgste = pgste_update_all(entry, pgste, mm);
 		pte_val(entry) |= _PAGE_INVALID;
 	}
 	if (prot == PROT_READ && !pte_p) {
-		ptep_flush_direct(mm, addr, ptep, nodat);
+		ptep_flush_direct(mm, addr, ptep, yesdat);
 		pte_val(entry) &= ~_PAGE_INVALID;
 		pte_val(entry) |= _PAGE_PROTECT;
 	}
@@ -657,12 +657,12 @@ int ptep_shadow_pte(struct mm_struct *mm, unsigned long saddr,
 void ptep_unshadow_pte(struct mm_struct *mm, unsigned long saddr, pte_t *ptep)
 {
 	pgste_t pgste;
-	int nodat;
+	int yesdat;
 
 	pgste = pgste_get_lock(ptep);
-	/* notifier is called by the caller */
-	nodat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
-	ptep_flush_direct(mm, saddr, ptep, nodat);
+	/* yestifier is called by the caller */
+	yesdat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
+	ptep_flush_direct(mm, saddr, ptep, yesdat);
 	/* don't touch the storage key - it belongs to parent pgste */
 	pgste = pgste_set_pte(ptep, pgste, __pte(_PAGE_INVALID));
 	pgste_set_unlock(ptep, pgste);
@@ -670,7 +670,7 @@ void ptep_unshadow_pte(struct mm_struct *mm, unsigned long saddr, pte_t *ptep)
 
 static void ptep_zap_swap_entry(struct mm_struct *mm, swp_entry_t entry)
 {
-	if (!non_swap_entry(entry))
+	if (!yesn_swap_entry(entry))
 		dec_mm_counter(mm, MM_SWAPENTS);
 	else if (is_migration_entry(entry)) {
 		struct page *page = migration_entry_to_page(entry);
@@ -730,16 +730,16 @@ bool ptep_test_and_clear_uc(struct mm_struct *mm, unsigned long addr,
 	pgste_t pgste;
 	pte_t pte;
 	bool dirty;
-	int nodat;
+	int yesdat;
 
 	pgste = pgste_get_lock(ptep);
 	dirty = !!(pgste_val(pgste) & PGSTE_UC_BIT);
 	pgste_val(pgste) &= ~PGSTE_UC_BIT;
 	pte = *ptep;
 	if (dirty && (pte_val(pte) & _PAGE_PRESENT)) {
-		pgste = pgste_pte_notify(mm, addr, ptep, pgste);
-		nodat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
-		ptep_ipte_global(mm, addr, ptep, nodat);
+		pgste = pgste_pte_yestify(mm, addr, ptep, pgste);
+		yesdat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
+		ptep_ipte_global(mm, addr, ptep, yesdat);
 		if (MACHINE_HAS_ESOP || !(pte_val(pte) & _PAGE_WRITE))
 			pte_val(pte) |= _PAGE_PROTECT;
 		else
@@ -896,7 +896,7 @@ int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr)
 		/* Merge real referenced bit into host-set */
 		pgste_val(new) |= ((unsigned long) cc << 53) & PGSTE_HR_BIT;
 	}
-	/* Reflect guest's logical view, not physical */
+	/* Reflect guest's logical view, yest physical */
 	cc |= (pgste_val(old) & (PGSTE_GR_BIT | PGSTE_GC_BIT)) >> 49;
 	/* Changing the guest storage key is considered a change of the page */
 	if ((pgste_val(new) ^ pgste_val(old)) & PGSTE_GR_BIT)
@@ -947,7 +947,7 @@ int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	paddr = pte_val(*ptep) & PAGE_MASK;
 	if (!(pte_val(*ptep) & _PAGE_INVALID))
 		*key = page_get_storage_key(paddr);
-	/* Reflect guest's logical view, not physical */
+	/* Reflect guest's logical view, yest physical */
 	*key |= (pgste_val(pgste) & (PGSTE_GR_BIT | PGSTE_GC_BIT)) >> 48;
 	pgste_set_unlock(ptep, pgste);
 	pte_unmap_unlock(ptep, ptl);
@@ -957,11 +957,11 @@ EXPORT_SYMBOL(get_guest_storage_key);
 
 /**
  * pgste_perform_essa - perform ESSA actions on the PGSTE.
- * @mm: the memory context. It must have PGSTEs, no check is performed here!
+ * @mm: the memory context. It must have PGSTEs, yes check is performed here!
  * @hva: the host virtual address of the page whose PGSTE is to be processed
  * @orc: the specific action to perform, see the ESSA_SET_* macros.
- * @oldpte: the PTE will be saved there if the pointer is not NULL.
- * @oldpgste: the old PGSTE will be saved there if the pointer is not NULL.
+ * @oldpte: the PTE will be saved there if the pointer is yest NULL.
+ * @oldpgste: the old PGSTE will be saved there if the pointer is yest NULL.
  *
  * Return: 1 if the page is to be added to the CBRL, otherwise 0,
  *	   or < 0 in case of error. -EINVAL is returned for invalid values
@@ -1029,7 +1029,7 @@ int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
 		pgstev |= _PGSTE_GPS_USAGE_STABLE;
 		/*
 		 * Since the resident state can go away any time after this
-		 * call, we will not make this page resident. We can revisit
+		 * call, we will yest make this page resident. We can revisit
 		 * this decision if a guest will ever start using this.
 		 */
 		break;
@@ -1060,7 +1060,7 @@ EXPORT_SYMBOL(pgste_perform_essa);
 
 /**
  * set_pgste_bits - set specific PGSTE bits.
- * @mm: the memory context. It must have PGSTEs, no check is performed here!
+ * @mm: the memory context. It must have PGSTEs, yes check is performed here!
  * @hva: the host virtual address of the page whose PGSTE is to be processed
  * @bits: a bitmask representing the bits that will be touched
  * @value: the values of the bits to be written. Only the bits in the mask
@@ -1091,7 +1091,7 @@ EXPORT_SYMBOL(set_pgste_bits);
 
 /**
  * get_pgste - get the current PGSTE for the given address.
- * @mm: the memory context. It must have PGSTEs, no check is performed here!
+ * @mm: the memory context. It must have PGSTEs, yes check is performed here!
  * @hva: the host virtual address of the page whose PGSTE is to be processed
  * @pgstep: will be written with the current PGSTE for the given address.
  *

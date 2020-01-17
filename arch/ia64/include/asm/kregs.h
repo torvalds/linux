@@ -55,7 +55,7 @@
 #define IA64_PSR_LP_BIT		25
 #define IA64_PSR_TB_BIT		26
 #define IA64_PSR_RT_BIT		27
-/* The following are not affected by save_flags()/restore_flags(): */
+/* The following are yest affected by save_flags()/restore_flags(): */
 #define IA64_PSR_CPL0_BIT	32
 #define IA64_PSR_CPL1_BIT	33
 #define IA64_PSR_IS_BIT		34
@@ -97,7 +97,7 @@
 #define IA64_PSR_LP	(__IA64_UL(1) << IA64_PSR_LP_BIT)
 #define IA64_PSR_TB	(__IA64_UL(1) << IA64_PSR_TB_BIT)
 #define IA64_PSR_RT	(__IA64_UL(1) << IA64_PSR_RT_BIT)
-/* The following are not affected by save_flags()/restore_flags(): */
+/* The following are yest affected by save_flags()/restore_flags(): */
 #define IA64_PSR_CPL	(__IA64_UL(3) << IA64_PSR_CPL0_BIT)
 #define IA64_PSR_IS	(__IA64_UL(1) << IA64_PSR_IS_BIT)
 #define IA64_PSR_MC	(__IA64_UL(1) << IA64_PSR_MC_BIT)
@@ -119,7 +119,7 @@
 #define IA64_DCR_BE_BIT		 1	/* big-endian default */
 #define IA64_DCR_LC_BIT		 2	/* ia32 lock-check enable */
 #define IA64_DCR_DM_BIT		 8	/* defer TLB miss faults */
-#define IA64_DCR_DP_BIT		 9	/* defer page-not-present faults */
+#define IA64_DCR_DP_BIT		 9	/* defer page-yest-present faults */
 #define IA64_DCR_DK_BIT		10	/* defer key miss faults */
 #define IA64_DCR_DX_BIT		11	/* defer key permission faults */
 #define IA64_DCR_DR_BIT		12	/* defer access right faults */
@@ -141,7 +141,7 @@
 #define IA64_ISR_X_BIT		32	/* execute access */
 #define IA64_ISR_W_BIT		33	/* write access */
 #define IA64_ISR_R_BIT		34	/* read access */
-#define IA64_ISR_NA_BIT		35	/* non-access */
+#define IA64_ISR_NA_BIT		35	/* yesn-access */
 #define IA64_ISR_SP_BIT		36	/* speculative load exception */
 #define IA64_ISR_RS_BIT		37	/* mandatory register-stack exception */
 #define IA64_ISR_IR_BIT		38	/* invalid register frame exception */
@@ -155,7 +155,7 @@
 #define IA64_ISR_RS	(__IA64_UL(1) << IA64_ISR_RS_BIT)
 #define IA64_ISR_IR	(__IA64_UL(1) << IA64_ISR_IR_BIT)
 
-/* ISR code field for non-access instructions */
+/* ISR code field for yesn-access instructions */
 #define IA64_ISR_CODE_TPA	0
 #define IA64_ISR_CODE_FC	1
 #define IA64_ISR_CODE_PROBE	2

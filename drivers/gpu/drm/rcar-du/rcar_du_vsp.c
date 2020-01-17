@@ -225,8 +225,8 @@ static int rcar_du_vsp_plane_prepare_fb(struct drm_plane *plane,
 	int ret;
 
 	/*
-	 * There's no need to prepare (and unprepare) the framebuffer when the
-	 * plane is not visible, as it will not be displayed.
+	 * There's yes need to prepare (and unprepare) the framebuffer when the
+	 * plane is yest visible, as it will yest be displayed.
 	 */
 	if (!state->visible)
 		return 0;
@@ -341,7 +341,7 @@ static const struct drm_plane_funcs rcar_du_vsp_plane_funcs = {
 	.atomic_destroy_state = rcar_du_vsp_plane_atomic_destroy_state,
 };
 
-int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
+int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_yesde *np,
 		     unsigned int crtcs)
 {
 	struct rcar_du_device *rcdu = vsp->dev;
@@ -351,7 +351,7 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp, struct device_node *np,
 	int ret;
 
 	/* Find the VSP device and initialize it. */
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev)
 		return -ENXIO;
 

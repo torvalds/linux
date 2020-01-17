@@ -119,7 +119,7 @@ struct bfad_im_s {
 	struct bfad_s         *bfad;
 	struct workqueue_struct *drv_workq;
 	char            drv_workq_name[KOBJ_NAME_LEN];
-	struct work_struct	aen_im_notify_work;
+	struct work_struct	aen_im_yestify_work;
 };
 
 #define bfad_get_aen_entry(_drv, _entry) do {				\
@@ -147,12 +147,12 @@ static inline void bfad_im_post_vendor_event(struct bfa_aen_entry_s *entry,
 	 */
 	entry->aen_tv_sec = ts.tv_sec;
 	entry->aen_tv_usec = ts.tv_nsec / NSEC_PER_USEC;
-	entry->bfad_num = drv->inst_no;
+	entry->bfad_num = drv->inst_yes;
 	entry->seq_num = cnt;
 	entry->aen_category = cat;
 	entry->aen_type = evt;
 	if (drv->bfad_flags & BFAD_FC4_PROBE_DONE)
-		queue_work(drv->im->drv_workq, &drv->im->aen_im_notify_work);
+		queue_work(drv->im->drv_workq, &drv->im->aen_im_yestify_work);
 }
 
 struct Scsi_Host *bfad_scsi_host_alloc(struct bfad_im_port_s *im_port,

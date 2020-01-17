@@ -3,8 +3,8 @@
  * helper functions for vmalloc video4linux capture buffers
  *
  * The functions expect the hardware being able to scatter gather
- * (i.e. the buffers are not linear in physical memory, but fragmented
- * into PAGE_SIZE chunks).  They also assume the driver does not need
+ * (i.e. the buffers are yest linear in physical memory, but fragmented
+ * into PAGE_SIZE chunks).  They also assume the driver does yest need
  * to touch the video data.
  *
  * (c) 2007 Mauro Carvalho Chehab <mchehab@kernel.org>
@@ -95,7 +95,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 
 				MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
 
-				/* vfree is not atomic - can't be
+				/* vfree is yest atomic - can't be
 				   called with IRQ's disabled
 				 */
 				dprintk(1, "%s: buf[%d] freeing (%p)\n",
@@ -168,7 +168,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 
 		/* All handling should be done by __videobuf_mmap_mapper() */
 		if (!mem->vaddr) {
-			printk(KERN_ERR "memory is not allocated/mmapped.\n");
+			printk(KERN_ERR "memory is yest allocated/mmapped.\n");
 			return -EINVAL;
 		}
 		break;
@@ -178,7 +178,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 		dprintk(1, "%s memory method USERPTR\n", __func__);
 
 		if (vb->baddr) {
-			printk(KERN_ERR "USERPTR is currently not supported\n");
+			printk(KERN_ERR "USERPTR is currently yest supported\n");
 			return -EINVAL;
 		}
 
@@ -196,7 +196,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 		break;
 	case V4L2_MEMORY_OVERLAY:
 	default:
-		dprintk(1, "%s memory method OVERLAY/unknown\n", __func__);
+		dprintk(1, "%s memory method OVERLAY/unkyeswn\n", __func__);
 
 		/* Currently, doesn't support V4L2_MEMORY_OVERLAY */
 		printk(KERN_ERR "Memory method currently unsupported.\n");

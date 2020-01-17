@@ -124,7 +124,7 @@
  *     address.	 This register isn't used in the standard 8250 driver but
  *     may be used in other software.  Consult the hardware datasheet for
  *     offset details.
- *  5) For some unknown reason the security engine (MSP_SEC_BASE) registers
+ *  5) For some unkyeswn reason the security engine (MSP_SEC_BASE) registers
  *     start at an offset of 0x84 from the base address but the block of
  *     registers before this is reserved for the security engine.  The
  *     driver will have to be aware of this but it makes the register

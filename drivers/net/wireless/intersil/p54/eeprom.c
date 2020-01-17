@@ -8,7 +8,7 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Note <jbyeste@gmail.com>, et al.
  * - stlc45xx driver
  *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
  */
@@ -248,7 +248,7 @@ static struct p54_channel_entry *p54_update_channel_param(struct p54_channel_lis
 	}
 
 	if ((i < 0) && (list->entries < list->max_entries)) {
-		/* entry does not exist yet. Initialize a new one. */
+		/* entry does yest exist yet. Initialize a new one. */
 		int band = p54_get_band_from_freq(freq);
 
 		/*
@@ -329,7 +329,7 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 	    (priv->iq_autocal_len != priv->output_limit->entries))
 		wiphy_err(dev->wiphy,
 			  "Unsupported or damaged EEPROM detected. "
-			  "You may not be able to use all channels.\n");
+			  "You may yest be able to use all channels.\n");
 
 	max_channel_num = max_t(unsigned int, priv->output_limit->entries,
 				priv->iq_autocal_len);
@@ -400,7 +400,7 @@ static int p54_generate_channel_lists(struct ieee80211_hw *dev)
 			j++;
 	}
 	if (j == 0) {
-		/* no useable band available. */
+		/* yes useable band available. */
 		ret = -EINVAL;
 	}
 
@@ -670,7 +670,7 @@ static int p54_convert_output_limits(struct ieee80211_hw *dev,
 		return -EINVAL;
 
 	if (data[0] != 0) {
-		wiphy_err(dev->wiphy, "unknown output power db revision:%x\n",
+		wiphy_err(dev->wiphy, "unkyeswn output power db revision:%x\n",
 			  data[0]);
 		return -EINVAL;
 	}
@@ -781,7 +781,7 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 				break;
 			default:
 				wiphy_err(dev->wiphy,
-					  "unknown curve data revision %d\n",
+					  "unkyeswn curve data revision %d\n",
 					  curve_data->cal_method_rev);
 				err = -ENODEV;
 				break;
@@ -887,7 +887,7 @@ good_eeprom:
 	if (!synth || !priv->iq_autocal || !priv->output_limit ||
 	    !priv->curve_data) {
 		wiphy_err(dev->wiphy,
-			  "not all required entries found in eeprom!\n");
+			  "yest all required entries found in eeprom!\n");
 		err = -EINVAL;
 		goto err;
 	}

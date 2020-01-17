@@ -59,7 +59,7 @@ static struct sctp_auth_bytes *sctp_auth_create_key(__u32 key_len, gfp_t gfp)
 {
 	struct sctp_auth_bytes *key;
 
-	/* Verify that we are not going to overflow INT_MAX */
+	/* Verify that we are yest going to overflow INT_MAX */
 	if (key_len > (INT_MAX - sizeof(struct sctp_auth_bytes)))
 		return NULL;
 
@@ -157,7 +157,7 @@ static int sctp_auth_compare_vectors(struct sctp_auth_bytes *vector1,
 		longer = (diff > 0) ? vector1->data : vector2->data;
 
 		/* Check to see if the longer number is
-		 * lead-zero padded.  If it is not, it
+		 * lead-zero padded.  If it is yest, it
 		 * is automatically larger numerically.
 		 */
 		for (i = 0; i < abs(diff); i++) {
@@ -177,7 +177,7 @@ static int sctp_auth_compare_vectors(struct sctp_auth_bytes *vector1,
  *    These parameters include the parameter type, parameter length, and
  *    the parameter value, but padding is omitted; all padding MUST be
  *    removed from this concatenation before proceeding with further
- *    computation of keys.  Parameters which were not sent are simply
+ *    computation of keys.  Parameters which were yest sent are simply
  *    omitted from the concatenation process.  The resulting two vectors
  *    are called the two key vectors.
  */
@@ -303,7 +303,7 @@ static struct sctp_auth_bytes *sctp_auth_asoc_create_secret(
 	 *    These parameters include the parameter type, parameter length, and
 	 *    the parameter value, but padding is omitted; all padding MUST be
 	 *    removed from this concatenation before proceeding with further
-	 *    computation of keys.  Parameters which were not sent are simply
+	 *    computation of keys.  Parameters which were yest sent are simply
 	 *    omitted from the concatenation process.  The resulting two vectors
 	 *    are called the two key vectors.
 	 */
@@ -362,7 +362,7 @@ int sctp_auth_asoc_copy_shkeys(const struct sctp_endpoint *ep,
 	key_for_each(sh_key, &ep->endpoint_shared_keys) {
 		new = sctp_auth_shkey_create(sh_key->key_id, gfp);
 		if (!new)
-			goto nomem;
+			goto yesmem;
 
 		new->key = sh_key->key;
 		sctp_auth_key_hold(new->key);
@@ -371,7 +371,7 @@ int sctp_auth_asoc_copy_shkeys(const struct sctp_endpoint *ep,
 
 	return 0;
 
-nomem:
+yesmem:
 	sctp_auth_destroy_keys(&asoc->endpoint_shared_keys);
 	return -ENOMEM;
 }
@@ -386,13 +386,13 @@ int sctp_auth_asoc_init_active_key(struct sctp_association *asoc, gfp_t gfp)
 	struct sctp_shared_key *ep_key;
 	struct sctp_chunk *chunk;
 
-	/* If we don't support AUTH, or peer is not capable
+	/* If we don't support AUTH, or peer is yest capable
 	 * we don't need to do anything.
 	 */
 	if (!asoc->peer.auth_capable)
 		return 0;
 
-	/* If the key_id is non-zero and we couldn't find an
+	/* If the key_id is yesn-zero and we couldn't find an
 	 * endpoint pair shared key, we can't compute the
 	 * secret.
 	 * For key_id 0, endpoint pair shared key is a NULL key.
@@ -408,7 +408,7 @@ int sctp_auth_asoc_init_active_key(struct sctp_association *asoc, gfp_t gfp)
 	asoc->asoc_shared_key = secret;
 	asoc->shkey = ep_key;
 
-	/* Update send queue in case any chunk already in there now
+	/* Update send queue in case any chunk already in there yesw
 	 * needs authenticating
 	 */
 	list_for_each_entry(chunk, &asoc->outqueue.out_chunk_list, list) {
@@ -445,8 +445,8 @@ struct sctp_shared_key *sctp_auth_get_shkey(
 }
 
 /*
- * Initialize all the possible digest transforms that we can use.  Right now
- * now, the supported digests are SHA1 and SHA256.  We do this here once
+ * Initialize all the possible digest transforms that we can use.  Right yesw
+ * yesw, the supported digests are SHA1 and SHA256.  We do this here once
  * because of the restrictiong that transforms may only be allocated in
  * user context.  This forces us to pre-allocated all possible transforms
  * at the endpoint init time.
@@ -531,8 +531,8 @@ struct sctp_hmac *sctp_auth_asoc_get_hmac(const struct sctp_association *asoc)
 	if (asoc->default_hmac_id)
 		return &sctp_hmac_list[asoc->default_hmac_id];
 
-	/* Since we do not have a default entry, find the first entry
-	 * we support and return that.  Do not cache that id.
+	/* Since we do yest have a default entry, find the first entry
+	 * we support and return that.  Do yest cache that id.
 	 */
 	hmacs = asoc->peer.peer_hmacs;
 	if (!hmacs)
@@ -649,7 +649,7 @@ static int __sctp_auth_cid(enum sctp_cid chunk, struct sctp_chunks_param *param)
 	 *    The chunk types for INIT, INIT-ACK, SHUTDOWN-COMPLETE and AUTH
 	 *    chunks MUST NOT be listed in the CHUNKS parameter.  However, if
 	 *    a CHUNKS parameter is received then the types for INIT, INIT-ACK,
-	 *    SHUTDOWN-COMPLETE and AUTH chunks MUST be ignored.
+	 *    SHUTDOWN-COMPLETE and AUTH chunks MUST be igyesred.
 	 */
 	for (i = 0; !found && i < len; i++) {
 		switch (param->chunks[i]) {
@@ -989,8 +989,8 @@ int sctp_auth_deact_key_id(struct sctp_endpoint *ep,
 	if (!found)
 		return -EINVAL;
 
-	/* refcnt == 1 and !list_empty mean it's not being used anywhere
-	 * and deactivated will be set, so it's time to notify userland
+	/* refcnt == 1 and !list_empty mean it's yest being used anywhere
+	 * and deactivated will be set, so it's time to yestify userland
 	 * that this shkey can be freed.
 	 */
 	if (asoc && !list_empty(&key->key_list) &&
@@ -1022,7 +1022,7 @@ int sctp_auth_init(struct sctp_endpoint *ep, gfp_t gfp)
 		auth_hmacs = kzalloc(struct_size(auth_hmacs, hmac_ids,
 						 SCTP_AUTH_NUM_HMACS), gfp);
 		if (!auth_hmacs)
-			goto nomem;
+			goto yesmem;
 		/* Initialize the HMACS parameter.
 		 * SCTP-AUTH: Section 3.3
 		 *    Every endpoint supporting SCTP chunk authentication MUST
@@ -1041,7 +1041,7 @@ int sctp_auth_init(struct sctp_endpoint *ep, gfp_t gfp)
 		auth_chunks = kzalloc(sizeof(*auth_chunks) +
 				      SCTP_NUM_CHUNK_TYPES, gfp);
 		if (!auth_chunks)
-			goto nomem;
+			goto yesmem;
 		/* Initialize the CHUNKS parameter */
 		auth_chunks->param_hdr.type = SCTP_PARAM_CHUNKS;
 		auth_chunks->param_hdr.length =
@@ -1054,11 +1054,11 @@ int sctp_auth_init(struct sctp_endpoint *ep, gfp_t gfp)
 	 */
 	err = sctp_auth_init_hmacs(ep, gfp);
 	if (err)
-		goto nomem;
+		goto yesmem;
 
 	return 0;
 
-nomem:
+yesmem:
 	/* Free all allocations */
 	kfree(ep->auth_hmacs_list);
 	kfree(ep->auth_chunk_list);

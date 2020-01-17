@@ -18,17 +18,17 @@ prerequisite()
 	SYSFS=`mount -t sysfs | head -1 | awk '{ print $3 }'`
 
 	if [ ! -d "$SYSFS" ]; then
-		echo $msg sysfs is not mounted >&2
+		echo $msg sysfs is yest mounted >&2
 		exit $ksft_skip
 	fi
 
 	if ! ls $SYSFS/devices/system/memory/memory* > /dev/null 2>&1; then
-		echo $msg memory hotplug is not supported >&2
+		echo $msg memory hotplug is yest supported >&2
 		exit $ksft_skip
 	fi
 
 	if ! grep -q 1 $SYSFS/devices/system/memory/memory*/removable; then
-		echo $msg no hot-pluggable memory >&2
+		echo $msg yes hot-pluggable memory >&2
 		exit $ksft_skip
 	fi
 }
@@ -146,7 +146,7 @@ while getopts e:hp:r: opt; do
 		error=$OPTARG
 		;;
 	h)
-		echo "Usage $0 [ -e errno ] [ -p notifier-priority ] [ -r percent-of-memory-to-offline ]"
+		echo "Usage $0 [ -e erryes ] [ -p yestifier-priority ] [ -r percent-of-memory-to-offline ]"
 		exit
 		;;
 	p)
@@ -163,7 +163,7 @@ while getopts e:hp:r: opt; do
 done
 
 if ! [ "$error" -ge -4095 -a "$error" -lt 0 ]; then
-	echo "error code must be -4095 <= errno < 0" >&2
+	echo "error code must be -4095 <= erryes < 0" >&2
 	exit 1
 fi
 
@@ -184,7 +184,7 @@ if [ "$hotpluggable_num" -gt 0 ]; then
 		fi
 	done
 else
-	echo -e "\t\t SKIPPED - no hot-pluggable memory in offline state"
+	echo -e "\t\t SKIPPED - yes hot-pluggable memory in offline state"
 fi
 
 #
@@ -220,35 +220,35 @@ if [ "$hotpluggable_num" -gt 0 ]; then
 		fi
 	done
 else
-	echo -e "\t\t SKIPPED - no hot-pluggable memory in offline state"
+	echo -e "\t\t SKIPPED - yes hot-pluggable memory in offline state"
 fi
 
 #
-# Test with memory notifier error injection
+# Test with memory yestifier error injection
 #
 
 DEBUGFS=`mount -t debugfs | head -1 | awk '{ print $3 }'`
-NOTIFIER_ERR_INJECT_DIR=$DEBUGFS/notifier-error-inject/memory
+NOTIFIER_ERR_INJECT_DIR=$DEBUGFS/yestifier-error-inject/memory
 
 prerequisite_extra()
 {
 	msg="skip extra tests:"
 
-	/sbin/modprobe -q -r memory-notifier-error-inject
-	/sbin/modprobe -q memory-notifier-error-inject priority=$priority
+	/sbin/modprobe -q -r memory-yestifier-error-inject
+	/sbin/modprobe -q memory-yestifier-error-inject priority=$priority
 
 	if [ ! -d "$DEBUGFS" ]; then
-		echo $msg debugfs is not mounted >&2
+		echo $msg debugfs is yest mounted >&2
 		exit $retval
 	fi
 
 	if [ ! -d $NOTIFIER_ERR_INJECT_DIR ]; then
-		echo $msg memory-notifier-error-inject module is not available >&2
+		echo $msg memory-yestifier-error-inject module is yest available >&2
 		exit $retval
 	fi
 }
 
-echo -e "\t Test with memory notifier error injection"
+echo -e "\t Test with memory yestifier error injection"
 prerequisite_extra
 
 #
@@ -286,6 +286,6 @@ for memory in `hotpluggable_online_memory`; do
 done
 
 echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
-/sbin/modprobe -q -r memory-notifier-error-inject
+/sbin/modprobe -q -r memory-yestifier-error-inject
 
 exit $retval

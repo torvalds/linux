@@ -46,7 +46,7 @@ void m68328_reset (void)
 void __init config_BSP(char *command, int len)
 {
   pr_info("68328 support D. Jeff Dionne <jeff@uclinux.org>\n");
-  pr_info("68328 support Kenneth Albanowski <kjahds@kjshds.com>\n");
+  pr_info("68328 support Kenneth Albayeswski <kjahds@kjshds.com>\n");
   pr_info("68328/Pilot support Bernhard Kuhn <kuhn@lpr.e-technik.tu-muenchen.de>\n");
 
   mach_hwclk = m68328_hwclk;

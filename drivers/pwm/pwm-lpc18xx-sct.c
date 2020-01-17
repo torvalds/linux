@@ -186,7 +186,7 @@ static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (period_ns < lpc18xx_pwm->min_period_ns ||
 	    period_ns > lpc18xx_pwm->max_period_ns) {
-		dev_err(chip->dev, "period %d not in range\n", period_ns);
+		dev_err(chip->dev, "period %d yest in range\n", period_ns);
 		return -ERANGE;
 	}
 
@@ -197,7 +197,7 @@ static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/*
 	 * The PWM supports only a single period for all PWM channels.
-	 * Once the period is set, it can only be changed if no more than one
+	 * Once the period is set, it can only be changed if yes more than one
 	 * channel is requested at that moment.
 	 */
 	if (requested_events > 2 && lpc18xx_pwm->period_ns != period_ns &&
@@ -349,13 +349,13 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(lpc18xx_pwm->pwm_clk);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not prepare or enable pwm clock\n");
+		dev_err(&pdev->dev, "could yest prepare or enable pwm clock\n");
 		return ret;
 	}
 
 	lpc18xx_pwm->clk_rate = clk_get_rate(lpc18xx_pwm->pwm_clk);
 	if (!lpc18xx_pwm->clk_rate) {
-		dev_err(&pdev->dev, "pwm clock has no frequency\n");
+		dev_err(&pdev->dev, "pwm clock has yes frequency\n");
 		ret = -EINVAL;
 		goto disable_pwmclk;
 	}

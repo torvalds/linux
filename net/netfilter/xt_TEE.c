@@ -4,8 +4,8 @@
  *	Copyright © Sebastian Claßen, 2007
  *	Jan Engelhardt, 2007-2010
  *
- *	based on ipt_ROUTE.c from Cédric de Launois
- *	<delaunois@info.ucl.be>
+ *	based on ipt_ROUTE.c from Cédric de Lauyesis
+ *	<delauyesis@info.ucl.be>
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -57,10 +57,10 @@ tee_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 }
 #endif
 
-static int tee_netdev_event(struct notifier_block *this, unsigned long event,
+static int tee_netdev_event(struct yestifier_block *this, unsigned long event,
 			    void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct tee_net *tn = net_generic(net, tee_net_id);
 	struct xt_tee_priv *priv;
@@ -95,7 +95,7 @@ static int tee_tg_check(const struct xt_tgchk_param *par)
 	struct xt_tee_tginfo *info = par->targinfo;
 	struct xt_tee_priv *priv;
 
-	/* 0.0.0.0 and :: not allowed */
+	/* 0.0.0.0 and :: yest allowed */
 	if (memcmp(&info->gw, &tee_zero_address,
 		   sizeof(tee_zero_address)) == 0)
 		return -EINVAL;
@@ -185,8 +185,8 @@ static struct pernet_operations tee_net_ops = {
 	.size = sizeof(struct tee_net),
 };
 
-static struct notifier_block tee_netdev_notifier = {
-	.notifier_call = tee_netdev_event,
+static struct yestifier_block tee_netdev_yestifier = {
+	.yestifier_call = tee_netdev_event,
 };
 
 static int __init tee_tg_init(void)
@@ -201,7 +201,7 @@ static int __init tee_tg_init(void)
 	if (ret < 0)
 		goto cleanup_subsys;
 
-	ret = register_netdevice_notifier(&tee_netdev_notifier);
+	ret = register_netdevice_yestifier(&tee_netdev_yestifier);
 	if (ret < 0)
 		goto unregister_targets;
 
@@ -216,7 +216,7 @@ cleanup_subsys:
 
 static void __exit tee_tg_exit(void)
 {
-	unregister_netdevice_notifier(&tee_netdev_notifier);
+	unregister_netdevice_yestifier(&tee_netdev_yestifier);
 	xt_unregister_targets(tee_tg_reg, ARRAY_SIZE(tee_tg_reg));
 	unregister_pernet_subsys(&tee_net_ops);
 }

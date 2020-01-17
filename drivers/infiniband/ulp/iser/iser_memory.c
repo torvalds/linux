@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005, 2006 Voltaire, Inc. All rights reserved.
- * Copyright (c) 2013-2014 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2014 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -86,7 +86,7 @@ int iser_assign_reg_ops(struct iser_device *device)
 		device->reg_ops = &fastreg_ops;
 		device->remote_inv_sup = iser_always_reg;
 	} else {
-		iser_err("IB device does not support FMRs nor FastRegs, can't register memory\n");
+		iser_err("IB device does yest support FMRs yesr FastRegs, can't register memory\n");
 		return -1;
 	}
 
@@ -270,7 +270,7 @@ int iser_fast_reg_fmr(struct iscsi_iser_task *iser_task,
 
 /**
  * Unregister (previosuly registered using FMR) memory.
- * If memory is non-FMR does nothing.
+ * If memory is yesn-FMR does yesthing.
  */
 void iser_unreg_mem_fmr(struct iscsi_iser_task *iser_task,
 			enum iser_data_dir cmd_dir)

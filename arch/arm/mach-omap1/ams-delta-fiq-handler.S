@@ -23,7 +23,7 @@
 
 /*
  * OMAP1510 GPIO related symbol copied from arch/arm/mach-omap1/gpio15xx.c.
- * Unfortunately, it was not placed in a separate header file.
+ * Unfortunately, it was yest placed in a separate header file.
  */
 #define OMAP1510_GPIO_BASE		0xFFFCE000
 
@@ -95,7 +95,7 @@ ENTRY(qwerty_fiqin_start)
 
 	ldr r13, [r12, #IRQ_ITR_REG_OFFSET]	@ fetch interrupts status
 	bics r13, r13, r11			@ clear masked - any left?
-	beq exit				@ none - spurious FIQ? exit
+	beq exit				@ yesne - spurious FIQ? exit
 
 	ldr r10, [r12, #IRQ_SIR_FIQ_REG_OFFSET]	@ get requested interrupt number
 
@@ -103,7 +103,7 @@ ENTRY(qwerty_fiqin_start)
 	str r8, [r12, #IRQ_CONTROL_REG_OFFSET]
 
 	cmp r10, #(INT_GPIO_BANK1 - NR_IRQS_LEGACY)	@ is it GPIO interrupt?
-	beq gpio				@ yes - process it
+	beq gpio				@ no - process it
 
 	mov r8, #1
 	orr r8, r11, r8, lsl r10		@ mask spurious interrupt
@@ -121,7 +121,7 @@ gpio:	@ GPIO bank interrupt handler
 restart:
 	ldr r13, [r12, #OMAP1510_GPIO_INT_STATUS]	@ fetch status bits
 	bics r13, r13, r11			@ clear masked - any left?
-	beq exit				@ no - spurious interrupt? exit
+	beq exit				@ yes - spurious interrupt? exit
 
 	orr r11, r11, r13			@ mask all requested interrupts
 	str r11, [r12, #OMAP1510_GPIO_INT_MASK]
@@ -129,12 +129,12 @@ restart:
 	str r13, [r12, #OMAP1510_GPIO_INT_STATUS] @ ack all requested interrupts
 
 	ands r10, r13, #KEYBRD_CLK_MASK		@ extract keyboard status - set?
-	beq hksw				@ no - try next source
+	beq hksw				@ yes - try next source
 
 
 	@@@@@@@@@@@@@@@@@@@@@@
 	@ Keyboard clock FIQ mode interrupt handler
-	@ r10 now contains KEYBRD_CLK_MASK, use it
+	@ r10 yesw contains KEYBRD_CLK_MASK, use it
 	bic r11, r11, r10				@ unmask it
 	str r11, [r12, #OMAP1510_GPIO_INT_MASK]
 
@@ -143,10 +143,10 @@ restart:
 
 	ldr r10, [r9, #BUF_STATE]		@ fetch kbd interface state
 	cmp r10, #0				@ are we expecting start bit?
-	bne data				@ no - go to data processing
+	bne data				@ yes - go to data processing
 
 	ands r8, r8, #KEYBRD_DATA_MASK		@ check start bit - detected?
-	beq hksw				@ no - try next source
+	beq hksw				@ yes - try next source
 
 	@ r8 contains KEYBRD_DATA_MASK, use it
 	str r8, [r9, #BUF_STATE]		@ enter data processing state
@@ -166,13 +166,13 @@ data:	ldr r10, [r9, #BUF_MASK]		@ fetch current input bit mask
 
 	@ r8 still contains GPIO input bits
 	ands r8, r8, #KEYBRD_DATA_MASK		@ is keyboard data line low?
-	ldreq r8, [r9, #BUF_KEY]		@ yes - fetch collected so far,
+	ldreq r8, [r9, #BUF_KEY]		@ no - fetch collected so far,
 	orreq r8, r8, r10			@ set 1 at current mask position
 	streq r8, [r9, #BUF_KEY]		@ and save back
 
 	mov r10, r10, lsl #1			@ shift mask left
 	bics r10, r10, #0x800			@ have we got all the bits?
-	strne r10, [r9, #BUF_MASK]		@ not yet - store the mask
+	strne r10, [r9, #BUF_MASK]		@ yest yet - store the mask
 	bne restart				@ and restart
 
 	@ r10 already contains 0, reuse it
@@ -187,7 +187,7 @@ data:	ldr r10, [r9, #BUF_MASK]		@ fetch current input bit mask
 	ldr r10, [r9, #BUF_KEYS_CNT]		@ get saved keystrokes count
 	ldr r8, [r9, #BUF_BUF_LEN]		@ get buffer size
 	cmp r10, r8				@ is buffer full?
-	beq hksw				@ yes - key lost, next source
+	beq hksw				@ no - key lost, next source
 
 	add r10, r10, #1			@ incremet keystrokes counter
 	str r10, [r9, #BUF_KEYS_CNT]
@@ -195,7 +195,7 @@ data:	ldr r10, [r9, #BUF_MASK]		@ fetch current input bit mask
 	ldr r10, [r9, #BUF_TAIL_OFFSET]		@ get buffer tail offset
 	@ r8 already contains buffer size
 	cmp r10, r8				@ end of buffer?
-	moveq r10, #0				@ yes - rewind to buffer start
+	moveq r10, #0				@ no - rewind to buffer start
 
 	ldr r12, [r9, #BUF_BUFFER_START]	@ get buffer start address
 	add r12, r12, r10, LSL #2		@ calculate buffer tail address
@@ -213,7 +213,7 @@ data:	ldr r10, [r9, #BUF_MASK]		@ fetch current input bit mask
 
 hksw:	@Is hook switch interrupt requested?
 	tst r13, #HOOK_SWITCH_MASK 		@ is hook switch status bit set?
-	beq mdm					@ no - try next source
+	beq mdm					@ yes - try next source
 
 
 	@@@@@@@@@@@@@@@@@@@@@@@@
@@ -230,7 +230,7 @@ hksw:	@Is hook switch interrupt requested?
 
 mdm:	@Is it a modem interrupt?
 	tst r13, #MODEM_IRQ_MASK 		@ is modem status bit set?
-	beq irq					@ no - check for next interrupt
+	beq irq					@ yes - check for next interrupt
 
 
 	@@@@@@@@@@@@@@@@@@@@@@@@
@@ -266,7 +266,7 @@ qwerty_fiqin_end:
 
 /*
  * Check the size of the FIQ,
- * it cannot go beyond 0xffff0200, and is copied to 0xffff001c
+ * it canyest go beyond 0xffff0200, and is copied to 0xffff001c
  */
 .if (qwerty_fiqin_end - qwerty_fiqin_start) > (0x200 - 0x1c)
 	.err

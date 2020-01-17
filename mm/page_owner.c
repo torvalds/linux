@@ -62,17 +62,17 @@ static __always_inline depot_stack_handle_t create_dummy_stack(void)
 	return stack_depot_save(entries, nr_entries, GFP_KERNEL);
 }
 
-static noinline void register_dummy_stack(void)
+static yesinline void register_dummy_stack(void)
 {
 	dummy_handle = create_dummy_stack();
 }
 
-static noinline void register_failure_stack(void)
+static yesinline void register_failure_stack(void)
 {
 	failure_handle = create_dummy_stack();
 }
 
-static noinline void register_early_stack(void)
+static yesinline void register_early_stack(void)
 {
 	early_handle = create_dummy_stack();
 }
@@ -113,7 +113,7 @@ static inline bool check_recursive_alloc(unsigned long *entries,
 	return false;
 }
 
-static noinline depot_stack_handle_t save_stack(gfp_t flags)
+static yesinline depot_stack_handle_t save_stack(gfp_t flags)
 {
 	unsigned long entries[PAGE_OWNER_STACK_DEPTH];
 	depot_stack_handle_t handle;
@@ -126,7 +126,7 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
 	 * stackdepot could trigger memory allocation to save new
 	 * entry. New memory allocation would reach here and call
 	 * stack_depot_save_entries() again if we don't catch it. There is
-	 * still not enough memory in stackdepot so it would try to
+	 * still yest eyesugh memory in stackdepot so it would try to
 	 * allocate memory again and loop forever.
 	 */
 	if (check_recursive_alloc(entries, nr_entries, _RET_IP_))
@@ -179,7 +179,7 @@ static inline void __set_page_owner_handle(struct page *page,
 	}
 }
 
-noinline void __set_page_owner(struct page *page, unsigned int order,
+yesinline void __set_page_owner(struct page *page, unsigned int order,
 					gfp_t gfp_mask)
 {
 	struct page_ext *page_ext = lookup_page_ext(page);
@@ -268,7 +268,7 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
 	/*
 	 * Walk the zone in pageblock_nr_pages steps. If a page block spans
 	 * a zone boundary, it will be double counted between zones. This does
-	 * not matter as the mixed block count will still be correct
+	 * yest matter as the mixed block count will still be correct
 	 */
 	for (; pfn < end_pfn; ) {
 		page = pfn_to_online_page(pfn);
@@ -286,7 +286,7 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
 			if (!pfn_valid_within(pfn))
 				continue;
 
-			/* The pageblock is online, no need to recheck. */
+			/* The pageblock is online, yes need to recheck. */
 			page = pfn_to_page(pfn);
 
 			if (page_zone(page) != zone)
@@ -328,7 +328,7 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
 	}
 
 	/* Print counts */
-	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
+	seq_printf(m, "Node %d, zone %8s ", pgdat->yesde_id, zone->name);
 	for (i = 0; i < MIGRATE_TYPES; i++)
 		seq_printf(m, "%12lu ", count[i]);
 	seq_putc(m, '\n');
@@ -410,7 +410,7 @@ void __dump_page_owner(struct page *page)
 	int mt;
 
 	if (unlikely(!page_ext)) {
-		pr_alert("There is not page extension available.\n");
+		pr_alert("There is yest page extension available.\n");
 		return;
 	}
 
@@ -419,7 +419,7 @@ void __dump_page_owner(struct page *page)
 	mt = gfpflags_to_migratetype(gfp_mask);
 
 	if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags)) {
-		pr_alert("page_owner info is not present (never set?)\n");
+		pr_alert("page_owner info is yest present (never set?)\n");
 		return;
 	}
 
@@ -478,7 +478,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	for (; pfn < max_pfn; pfn++) {
 		/*
 		 * If the new page is in a new MAX_ORDER_NR_PAGES area,
-		 * validate the area as existing, skip it if not
+		 * validate the area as existing, skip it if yest
 		 */
 		if ((pfn & (MAX_ORDER_NR_PAGES - 1)) == 0 && !pfn_valid(pfn)) {
 			pfn += MAX_ORDER_NR_PAGES - 1;
@@ -511,7 +511,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 		/*
 		 * Although we do have the info about past allocation of free
-		 * pages, it's not relevant for current memory usage.
+		 * pages, it's yest relevant for current memory usage.
 		 */
 		if (!test_bit(PAGE_EXT_OWNER_ALLOCATED, &page_ext->flags))
 			continue;
@@ -526,7 +526,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 			continue;
 
 		/*
-		 * Access to page_ext->handle isn't synchronous so we should
+		 * Access to page_ext->handle isn't synchroyesus so we should
 		 * be careful to access it.
 		 */
 		handle = READ_ONCE(page_owner->handle);
@@ -552,7 +552,7 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
 	/*
 	 * Walk the zone in pageblock_nr_pages steps. If a page block spans
 	 * a zone boundary, it will be double counted between zones. This does
-	 * not matter as the mixed block count will still be correct
+	 * yest matter as the mixed block count will still be correct
 	 */
 	for (; pfn < end_pfn; ) {
 		unsigned long block_end_pfn;
@@ -612,15 +612,15 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
 	}
 
 	pr_info("Node %d, zone %8s: page owner found early allocated %lu pages\n",
-		pgdat->node_id, zone->name, count);
+		pgdat->yesde_id, zone->name, count);
 }
 
-static void init_zones_in_node(pg_data_t *pgdat)
+static void init_zones_in_yesde(pg_data_t *pgdat)
 {
 	struct zone *zone;
-	struct zone *node_zones = pgdat->node_zones;
+	struct zone *yesde_zones = pgdat->yesde_zones;
 
-	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
+	for (zone = yesde_zones; zone - yesde_zones < MAX_NR_ZONES; ++zone) {
 		if (!populated_zone(zone))
 			continue;
 
@@ -633,7 +633,7 @@ static void init_early_allocated_pages(void)
 	pg_data_t *pgdat;
 
 	for_each_online_pgdat(pgdat)
-		init_zones_in_node(pgdat);
+		init_zones_in_yesde(pgdat);
 }
 
 static const struct file_operations proc_page_owner_operations = {

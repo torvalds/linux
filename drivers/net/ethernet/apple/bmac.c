@@ -6,7 +6,7 @@
  * Copyright (C) 1998 Randy Gobbel.
  *
  * May 1999, Al Viro: proper release of /proc/net/bmac entry, switched to
- * dynamic procfs inode.
+ * dynamic procfs iyesde.
  */
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -131,9 +131,9 @@ static bmac_reg_entry_t reg_entries[N_REG_ENTRIES] = {
 static unsigned char *bmac_emergency_rxbuf;
 
 /*
- * Number of bytes of private data per BMAC: allow enough for
+ * Number of bytes of private data per BMAC: allow eyesugh for
  * the rx and tx dma commands plus a branch dma command each,
- * and another 16 bytes to allow us to align the dma command
+ * and ayesther 16 bytes to allow us to align the dma command
  * buffers on a 16 byte boundary.
  */
 #define PRIV_BYTES	(sizeof(struct bmac_data) \
@@ -231,7 +231,7 @@ bmac_enable_and_reset_chip(struct net_device *dev)
 	if (td)
 		dbdma_reset(td);
 
-	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 1);
+	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_yesde(bp->mdev), 0, 1);
 }
 
 #define MIFDELAY	udelay(10)
@@ -320,7 +320,7 @@ bmac_init_registers(struct net_device *dev)
 	do {
 		--i;
 		udelay(10000);
-		regValue = bmread(dev, TXRST); /* wait for reset to clear..acknowledge */
+		regValue = bmread(dev, TXRST); /* wait for reset to clear..ackyeswledge */
 	} while ((regValue & TxResetBit) && i > 0);
 
 	if (!bp->is_bmac_plus) {
@@ -496,7 +496,7 @@ static int bmac_suspend(struct macio_dev *mdev, pm_message_t state)
 		       	}
 		}
 	}
-       	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 0);
+       	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_yesde(bp->mdev), 0, 0);
 	return 0;
 }
 
@@ -505,7 +505,7 @@ static int bmac_resume(struct macio_dev *mdev)
 	struct net_device* dev = macio_get_drvdata(mdev);
 	struct bmac_data *bp = netdev_priv(dev);
 
-	/* see if this is enough */
+	/* see if this is eyesugh */
 	if (bp->opened)
 		bmac_reset_and_enable(dev);
 
@@ -770,7 +770,7 @@ static irqreturn_t bmac_txdma_intr(int irq, void *dev_id)
 		}
 		if (!(stat & ACTIVE)) {
 			/*
-			 * status field might not have been filled by DBDMA
+			 * status field might yest have been filled by DBDMA
 			 */
 			if (cp == bus_to_virt(in_le32(&bp->tx_dma->cmdptr)))
 				break;
@@ -961,7 +961,7 @@ bmac_remove_multi(struct net_device *dev,
 /* Set or clear the multicast filter for this adaptor.
     num_addrs == -1	Promiscuous mode, receive all packets
     num_addrs == 0	Normal mode, clear multicast list
-    num_addrs > 0	Multicast mode, receive normal and MC packets, and do
+    num_addrs > 0	Multicast mode, receive yesrmal and MC packets, and do
 			best-effort filtering.
  */
 static void bmac_set_multicast(struct net_device *dev)
@@ -1247,10 +1247,10 @@ static int bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 		printk(KERN_ERR "BMAC: can't use, need 3 addrs and 3 intrs\n");
 		return -ENODEV;
 	}
-	prop_addr = of_get_property(macio_get_of_node(mdev),
+	prop_addr = of_get_property(macio_get_of_yesde(mdev),
 			"mac-address", NULL);
 	if (prop_addr == NULL) {
-		prop_addr = of_get_property(macio_get_of_node(mdev),
+		prop_addr = of_get_property(macio_get_of_yesde(mdev),
 				"local-mac-address", NULL);
 		if (prop_addr == NULL) {
 			printk(KERN_ERR "BMAC: Can't get mac-address\n");
@@ -1289,7 +1289,7 @@ static int bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	for (j = 0; j < 6; ++j)
 		dev->dev_addr[j] = rev ? bitrev8(addr[j]): addr[j];
 
-	/* Enable chip without interrupts for now */
+	/* Enable chip without interrupts for yesw */
 	bmac_enable_and_reset_chip(dev);
 	bmwrite(dev, INTDISABLE, DisableAll);
 
@@ -1338,7 +1338,7 @@ static int bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	 * re-enabled on open()
 	 */
 	disable_irq(dev->irq);
-	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 0);
+	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_yesde(bp->mdev), 0, 0);
 
 	if (register_netdev(dev) != 0) {
 		printk(KERN_ERR "BMAC: Ethernet registration failed\n");
@@ -1367,7 +1367,7 @@ err_out_iounmap:
 out_release:
 	macio_release_resources(mdev);
 out_free:
-	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 0);
+	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_yesde(bp->mdev), 0, 0);
 	free_netdev(dev);
 
 	return -ENODEV;
@@ -1426,7 +1426,7 @@ static int bmac_close(struct net_device *dev)
 
 	bp->opened = 0;
 	disable_irq(dev->irq);
-	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 0);
+	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_yesde(bp->mdev), 0, 0);
 
 	return 0;
 }

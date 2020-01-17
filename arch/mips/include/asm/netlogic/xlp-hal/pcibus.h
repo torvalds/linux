@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -98,13 +98,13 @@
 
 #define nlm_read_pcie_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_pcie_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define nlm_get_pcie_base(node, inst)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
-	XLP9XX_IO_PCIE_OFFSET(node, inst) : XLP_IO_PCIE_OFFSET(node, inst))
+#define nlm_get_pcie_base(yesde, inst)	nlm_pcicfg_base(cpu_is_xlp9xx() ? \
+	XLP9XX_IO_PCIE_OFFSET(yesde, inst) : XLP_IO_PCIE_OFFSET(yesde, inst))
 
 #ifdef CONFIG_PCI_MSI
-void xlp_init_node_msi_irqs(int node, int link);
+void xlp_init_yesde_msi_irqs(int yesde, int link);
 #else
-static inline void xlp_init_node_msi_irqs(int node, int link) {}
+static inline void xlp_init_yesde_msi_irqs(int yesde, int link) {}
 #endif
 
 struct pci_dev *xlp_get_pcie_link(const struct pci_dev *dev);

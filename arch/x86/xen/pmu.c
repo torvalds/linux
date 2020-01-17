@@ -398,7 +398,7 @@ int pmu_apic_update(uint32_t val)
 	struct xen_pmu_data *xenpmu_data = get_xenpmu_data();
 
 	if (!xenpmu_data) {
-		pr_warn_once("%s: pmudata not initialized\n", __func__);
+		pr_warn_once("%s: pmudata yest initialized\n", __func__);
 		return -EINVAL;
 	}
 
@@ -418,7 +418,7 @@ static int xen_is_in_guest(void)
 	const struct xen_pmu_data *xenpmu_data = get_xenpmu_data();
 
 	if (!xenpmu_data) {
-		pr_warn_once("%s: pmudata not initialized\n", __func__);
+		pr_warn_once("%s: pmudata yest initialized\n", __func__);
 		return 0;
 	}
 
@@ -433,7 +433,7 @@ static int xen_is_user_mode(void)
 	const struct xen_pmu_data *xenpmu_data = get_xenpmu_data();
 
 	if (!xenpmu_data) {
-		pr_warn_once("%s: pmudata not initialized\n", __func__);
+		pr_warn_once("%s: pmudata yest initialized\n", __func__);
 		return 0;
 	}
 
@@ -448,7 +448,7 @@ static unsigned long xen_get_guest_ip(void)
 	const struct xen_pmu_data *xenpmu_data = get_xenpmu_data();
 
 	if (!xenpmu_data) {
-		pr_warn_once("%s: pmudata not initialized\n", __func__);
+		pr_warn_once("%s: pmudata yest initialized\n", __func__);
 		return 0;
 	}
 
@@ -490,7 +490,7 @@ irqreturn_t xen_pmu_irq_handler(int irq, void *dev_id)
 	uint8_t xenpmu_flags = get_xenpmu_flags();
 
 	if (!xenpmu_data) {
-		pr_warn_once("%s: pmudata not initialized\n", __func__);
+		pr_warn_once("%s: pmudata yest initialized\n", __func__);
 		return ret;
 	}
 
@@ -558,7 +558,7 @@ fail:
 	if (err == -EOPNOTSUPP || err == -ENOSYS)
 		pr_info_once("VPMU disabled by hypervisor.\n");
 	else
-		pr_info_once("Could not initialize VPMU for cpu %d, error %d\n",
+		pr_info_once("Could yest initialize VPMU for cpu %d, error %d\n",
 			cpu, err);
 	free_pages((unsigned long)xenpmu_data, 0);
 }

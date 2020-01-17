@@ -36,26 +36,26 @@ enum {
 	INT33FE_NODE_MAX,
 };
 
-static const struct software_node nodes[];
+static const struct software_yesde yesdes[];
 
-static const struct software_node_ref_args pi3usb30532_ref = {
-	&nodes[INT33FE_NODE_PI3USB30532]
+static const struct software_yesde_ref_args pi3usb30532_ref = {
+	&yesdes[INT33FE_NODE_PI3USB30532]
 };
 
-static const struct software_node_ref_args dp_ref = {
-	&nodes[INT33FE_NODE_DISPLAYPORT]
+static const struct software_yesde_ref_args dp_ref = {
+	&yesdes[INT33FE_NODE_DISPLAYPORT]
 };
 
-static struct software_node_ref_args mux_ref;
+static struct software_yesde_ref_args mux_ref;
 
-static const struct software_node_reference usb_connector_refs[] = {
+static const struct software_yesde_reference usb_connector_refs[] = {
 	{ "orientation-switch", 1, &pi3usb30532_ref},
 	{ "mode-switch", 1, &pi3usb30532_ref},
 	{ "displayport", 1, &dp_ref},
 	{ }
 };
 
-static const struct software_node_reference fusb302_refs[] = {
+static const struct software_yesde_reference fusb302_refs[] = {
 	{ "usb-role-switch", 1, &mux_ref},
 	{ }
 };
@@ -80,7 +80,7 @@ static int cht_int33fe_check_for_max17047(struct device *dev, void *data)
 
 	hid = acpi_device_hid(adev);
 
-	/* The MAX17047 ACPI node doesn't have an UID, so we don't check that */
+	/* The MAX17047 ACPI yesde doesn't have an UID, so we don't check that */
 	if (strcmp(hid, "MAX17047"))
 		return 0;
 
@@ -122,22 +122,22 @@ static const struct property_entry usb_connector_props[] = {
 	{ }
 };
 
-static const struct software_node nodes[] = {
+static const struct software_yesde yesdes[] = {
 	{ "fusb302", NULL, fusb302_props, fusb302_refs },
 	{ "max17047", NULL, max17047_props },
 	{ "pi3usb30532" },
 	{ "displayport" },
-	{ "connector", &nodes[0], usb_connector_props, usb_connector_refs },
+	{ "connector", &yesdes[0], usb_connector_props, usb_connector_refs },
 	{ }
 };
 
 static int cht_int33fe_setup_dp(struct cht_int33fe_data *data)
 {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	struct pci_dev *pdev;
 
-	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_DISPLAYPORT]);
-	if (!fwnode)
+	fwyesde = software_yesde_fwyesde(&yesdes[INT33FE_NODE_DISPLAYPORT]);
+	if (!fwyesde)
 		return -ENODEV;
 
 	/* First let's find the GPU PCI device */
@@ -147,68 +147,68 @@ static int cht_int33fe_setup_dp(struct cht_int33fe_data *data)
 		return -ENODEV;
 	}
 
-	/* Then the DP child device node */
-	data->dp = device_get_named_child_node(&pdev->dev, "DD02");
+	/* Then the DP child device yesde */
+	data->dp = device_get_named_child_yesde(&pdev->dev, "DD02");
 	pci_dev_put(pdev);
 	if (!data->dp)
 		return -ENODEV;
 
-	fwnode->secondary = ERR_PTR(-ENODEV);
-	data->dp->secondary = fwnode;
+	fwyesde->secondary = ERR_PTR(-ENODEV);
+	data->dp->secondary = fwyesde;
 
 	return 0;
 }
 
-static void cht_int33fe_remove_nodes(struct cht_int33fe_data *data)
+static void cht_int33fe_remove_yesdes(struct cht_int33fe_data *data)
 {
-	software_node_unregister_nodes(nodes);
+	software_yesde_unregister_yesdes(yesdes);
 
-	if (mux_ref.node) {
-		fwnode_handle_put(software_node_fwnode(mux_ref.node));
-		mux_ref.node = NULL;
+	if (mux_ref.yesde) {
+		fwyesde_handle_put(software_yesde_fwyesde(mux_ref.yesde));
+		mux_ref.yesde = NULL;
 	}
 
 	if (data->dp) {
 		data->dp->secondary = NULL;
-		fwnode_handle_put(data->dp);
+		fwyesde_handle_put(data->dp);
 		data->dp = NULL;
 	}
 }
 
-static int cht_int33fe_add_nodes(struct cht_int33fe_data *data)
+static int cht_int33fe_add_yesdes(struct cht_int33fe_data *data)
 {
 	int ret;
 
-	ret = software_node_register_nodes(nodes);
+	ret = software_yesde_register_yesdes(yesdes);
 	if (ret)
 		return ret;
 
-	/* The devices that are not created in this driver need extra steps. */
+	/* The devices that are yest created in this driver need extra steps. */
 
 	/*
-	 * There is no ACPI device node for the USB role mux, so we need to wait
-	 * until the mux driver has created software node for the mux device.
+	 * There is yes ACPI device yesde for the USB role mux, so we need to wait
+	 * until the mux driver has created software yesde for the mux device.
 	 * It means we depend on the mux driver. This function will return
 	 * -EPROBE_DEFER until the mux device is registered.
 	 */
-	mux_ref.node = software_node_find_by_name(NULL, "intel-xhci-usb-sw");
-	if (!mux_ref.node) {
+	mux_ref.yesde = software_yesde_find_by_name(NULL, "intel-xhci-usb-sw");
+	if (!mux_ref.yesde) {
 		ret = -EPROBE_DEFER;
-		goto err_remove_nodes;
+		goto err_remove_yesdes;
 	}
 
 	/*
-	 * The DP connector does have ACPI device node. In this case we can just
-	 * find that ACPI node and assign our node as the secondary node to it.
+	 * The DP connector does have ACPI device yesde. In this case we can just
+	 * find that ACPI yesde and assign our yesde as the secondary yesde to it.
 	 */
 	ret = cht_int33fe_setup_dp(data);
 	if (ret)
-		goto err_remove_nodes;
+		goto err_remove_yesdes;
 
 	return 0;
 
-err_remove_nodes:
-	cht_int33fe_remove_nodes(data);
+err_remove_yesdes:
+	cht_int33fe_remove_yesdes(data);
 
 	return ret;
 }
@@ -218,18 +218,18 @@ cht_int33fe_register_max17047(struct device *dev, struct cht_int33fe_data *data)
 {
 	struct i2c_client *max17047 = NULL;
 	struct i2c_board_info board_info;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	int ret;
 
-	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_MAX17047]);
-	if (!fwnode)
+	fwyesde = software_yesde_fwyesde(&yesdes[INT33FE_NODE_MAX17047]);
+	if (!fwyesde)
 		return -ENODEV;
 
 	i2c_for_each_dev(&max17047, cht_int33fe_check_for_max17047);
 	if (max17047) {
 		/* Pre-existing i2c-client for the max17047, add device-props */
-		fwnode->secondary = ERR_PTR(-ENODEV);
-		max17047->dev.fwnode->secondary = fwnode;
+		fwyesde->secondary = ERR_PTR(-ENODEV);
+		max17047->dev.fwyesde->secondary = fwyesde;
 		/* And re-probe to get the new device-props applied. */
 		ret = device_reprobe(&max17047->dev);
 		if (ret)
@@ -240,7 +240,7 @@ cht_int33fe_register_max17047(struct device *dev, struct cht_int33fe_data *data)
 	memset(&board_info, 0, sizeof(board_info));
 	strlcpy(board_info.type, "max17047", I2C_NAME_SIZE);
 	board_info.dev_name = "max17047";
-	board_info.fwnode = fwnode;
+	board_info.fwyesde = fwyesde;
 	data->battery_fg = i2c_acpi_new_device(dev, 1, &board_info);
 
 	return PTR_ERR_OR_ZERO(data->battery_fg);
@@ -250,7 +250,7 @@ int cht_int33fe_typec_probe(struct cht_int33fe_data *data)
 {
 	struct device *dev = data->dev;
 	struct i2c_board_info board_info;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	struct regulator *regulator;
 	int fusb302_irq;
 	int ret;
@@ -259,7 +259,7 @@ int cht_int33fe_typec_probe(struct cht_int33fe_data *data)
 	 * We expect the WC PMIC to be paired with a TI bq24292i charger-IC.
 	 * We check for the bq24292i vbus regulator here, this has 2 purposes:
 	 * 1) The bq24292i allows charging with up to 12V, setting the fusb302's
-	 *    max-snk voltage to 12V with another charger-IC is not good.
+	 *    max-snk voltage to 12V with ayesther charger-IC is yest good.
 	 * 2) For the fusb302 driver to get the bq24292i vbus regulator, the
 	 *    regulator-map, which is part of the bq24292i regulator_init_data,
 	 *    must be registered before the fusb302 is instantiated, otherwise
@@ -284,17 +284,17 @@ int cht_int33fe_typec_probe(struct cht_int33fe_data *data)
 		return fusb302_irq;
 	}
 
-	ret = cht_int33fe_add_nodes(data);
+	ret = cht_int33fe_add_yesdes(data);
 	if (ret)
 		return ret;
 
 	/* Work around BIOS bug, see comment on cht_int33fe_check_for_max17047 */
 	ret = cht_int33fe_register_max17047(dev, data);
 	if (ret)
-		goto out_remove_nodes;
+		goto out_remove_yesdes;
 
-	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_FUSB302]);
-	if (!fwnode) {
+	fwyesde = software_yesde_fwyesde(&yesdes[INT33FE_NODE_FUSB302]);
+	if (!fwyesde) {
 		ret = -ENODEV;
 		goto out_unregister_max17047;
 	}
@@ -302,7 +302,7 @@ int cht_int33fe_typec_probe(struct cht_int33fe_data *data)
 	memset(&board_info, 0, sizeof(board_info));
 	strlcpy(board_info.type, "typec_fusb302", I2C_NAME_SIZE);
 	board_info.dev_name = "fusb302";
-	board_info.fwnode = fwnode;
+	board_info.fwyesde = fwyesde;
 	board_info.irq = fusb302_irq;
 
 	data->fusb302 = i2c_acpi_new_device(dev, 2, &board_info);
@@ -311,15 +311,15 @@ int cht_int33fe_typec_probe(struct cht_int33fe_data *data)
 		goto out_unregister_max17047;
 	}
 
-	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_PI3USB30532]);
-	if (!fwnode) {
+	fwyesde = software_yesde_fwyesde(&yesdes[INT33FE_NODE_PI3USB30532]);
+	if (!fwyesde) {
 		ret = -ENODEV;
 		goto out_unregister_fusb302;
 	}
 
 	memset(&board_info, 0, sizeof(board_info));
 	board_info.dev_name = "pi3usb30532";
-	board_info.fwnode = fwnode;
+	board_info.fwyesde = fwyesde;
 	strlcpy(board_info.type, "pi3usb30532", I2C_NAME_SIZE);
 
 	data->pi3usb30532 = i2c_acpi_new_device(dev, 3, &board_info);
@@ -336,8 +336,8 @@ out_unregister_fusb302:
 out_unregister_max17047:
 	i2c_unregister_device(data->battery_fg);
 
-out_remove_nodes:
-	cht_int33fe_remove_nodes(data);
+out_remove_yesdes:
+	cht_int33fe_remove_yesdes(data);
 
 	return ret;
 }
@@ -348,7 +348,7 @@ int cht_int33fe_typec_remove(struct cht_int33fe_data *data)
 	i2c_unregister_device(data->fusb302);
 	i2c_unregister_device(data->battery_fg);
 
-	cht_int33fe_remove_nodes(data);
+	cht_int33fe_remove_yesdes(data);
 
 	return 0;
 }

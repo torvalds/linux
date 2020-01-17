@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2012 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -42,7 +42,7 @@
 #define CM_CLEANUP_CACHE_TIMEOUT  (30 * HZ)
 
 struct id_map_entry {
-	struct rb_node node;
+	struct rb_yesde yesde;
 
 	u32 sl_cm_id;
 	u32 pv_cm_id;
@@ -144,20 +144,20 @@ static struct id_map_entry *
 id_map_find_by_sl_id(struct ib_device *ibdev, u32 slave_id, u32 sl_cm_id)
 {
 	struct rb_root *sl_id_map = &to_mdev(ibdev)->sriov.sl_id_map;
-	struct rb_node *node = sl_id_map->rb_node;
+	struct rb_yesde *yesde = sl_id_map->rb_yesde;
 
-	while (node) {
+	while (yesde) {
 		struct id_map_entry *id_map_entry =
-			rb_entry(node, struct id_map_entry, node);
+			rb_entry(yesde, struct id_map_entry, yesde);
 
 		if (id_map_entry->sl_cm_id > sl_cm_id)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (id_map_entry->sl_cm_id < sl_cm_id)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else if (id_map_entry->slave_id > slave_id)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (id_map_entry->slave_id < slave_id)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return id_map_entry;
 	}
@@ -178,7 +178,7 @@ static void id_map_ent_timeout(struct work_struct *work)
 		goto out;
 	found_ent = id_map_find_by_sl_id(&dev->ib_dev, ent->slave_id, ent->sl_cm_id);
 	if (found_ent && found_ent == ent)
-		rb_erase(&found_ent->node, sl_id_map);
+		rb_erase(&found_ent->yesde, sl_id_map);
 
 out:
 	list_del(&ent->list);
@@ -198,7 +198,7 @@ static void id_map_find_del(struct ib_device *ibdev, int pv_cm_id)
 		goto out;
 	found_ent = id_map_find_by_sl_id(ibdev, ent->slave_id, ent->sl_cm_id);
 	if (found_ent && found_ent == ent)
-		rb_erase(&found_ent->node, sl_id_map);
+		rb_erase(&found_ent->yesde, sl_id_map);
 out:
 	spin_unlock(&sriov->id_map_lock);
 }
@@ -206,7 +206,7 @@ out:
 static void sl_id_map_add(struct ib_device *ibdev, struct id_map_entry *new)
 {
 	struct rb_root *sl_id_map = &to_mdev(ibdev)->sriov.sl_id_map;
-	struct rb_node **link = &sl_id_map->rb_node, *parent = NULL;
+	struct rb_yesde **link = &sl_id_map->rb_yesde, *parent = NULL;
 	struct id_map_entry *ent;
 	int slave_id = new->slave_id;
 	int sl_cm_id = new->sl_cm_id;
@@ -216,14 +216,14 @@ static void sl_id_map_add(struct ib_device *ibdev, struct id_map_entry *new)
 		pr_debug("overriding existing sl_id_map entry (cm_id = %x)\n",
 			 sl_cm_id);
 
-		rb_replace_node(&ent->node, &new->node, sl_id_map);
+		rb_replace_yesde(&ent->yesde, &new->yesde, sl_id_map);
 		return;
 	}
 
 	/* Go to the bottom of the tree */
 	while (*link) {
 		parent = *link;
-		ent = rb_entry(parent, struct id_map_entry, node);
+		ent = rb_entry(parent, struct id_map_entry, yesde);
 
 		if (ent->sl_cm_id > sl_cm_id || (ent->sl_cm_id == sl_cm_id && ent->slave_id > slave_id))
 			link = &(*link)->rb_left;
@@ -231,8 +231,8 @@ static void sl_id_map_add(struct ib_device *ibdev, struct id_map_entry *new)
 			link = &(*link)->rb_right;
 	}
 
-	rb_link_node(&new->node, parent, link);
-	rb_insert_color(&new->node, sl_id_map);
+	rb_link_yesde(&new->yesde, parent, link);
+	rb_insert_color(&new->yesde, sl_id_map);
 }
 
 static struct id_map_entry *
@@ -293,7 +293,7 @@ static void schedule_delayed(struct ib_device *ibdev, struct id_map_entry *id)
 
 	spin_lock(&sriov->id_map_lock);
 	spin_lock_irqsave(&sriov->going_down_lock, flags);
-	/*make sure that there is no schedule inside the scheduled work.*/
+	/*make sure that there is yes schedule inside the scheduled work.*/
 	if (!sriov->is_going_down) {
 		id->scheduled_delete = 1;
 		schedule_delayed_work(&id->timeout, CM_CLEANUP_CACHE_TIMEOUT);
@@ -407,7 +407,7 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 	struct mlx4_ib_sriov *sriov = &dev->sriov;
 	struct rb_root *sl_id_map = &sriov->sl_id_map;
 	struct list_head lh;
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	int need_flush = 0;
 	struct id_map_entry *map, *tmp_map;
 	/* cancel all delayed work queue entries */
@@ -425,35 +425,35 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 	if (need_flush)
 		flush_scheduled_work(); /* make sure all timers were flushed */
 
-	/* now, remove all leftover entries from databases*/
+	/* yesw, remove all leftover entries from databases*/
 	spin_lock(&sriov->id_map_lock);
 	if (slave < 0) {
 		while (rb_first(sl_id_map)) {
 			struct id_map_entry *ent =
 				rb_entry(rb_first(sl_id_map),
-					 struct id_map_entry, node);
+					 struct id_map_entry, yesde);
 
-			rb_erase(&ent->node, sl_id_map);
+			rb_erase(&ent->yesde, sl_id_map);
 			xa_erase(&sriov->pv_id_table, ent->pv_cm_id);
 		}
 		list_splice_init(&dev->sriov.cm_list, &lh);
 	} else {
-		/* first, move nodes belonging to slave to db remove list */
+		/* first, move yesdes belonging to slave to db remove list */
 		nd = rb_first(sl_id_map);
 		while (nd) {
 			struct id_map_entry *ent =
-				rb_entry(nd, struct id_map_entry, node);
+				rb_entry(nd, struct id_map_entry, yesde);
 			nd = rb_next(nd);
 			if (ent->slave_id == slave)
 				list_move_tail(&ent->list, &lh);
 		}
-		/* remove those nodes from databases */
+		/* remove those yesdes from databases */
 		list_for_each_entry_safe(map, tmp_map, &lh, list) {
-			rb_erase(&map->node, sl_id_map);
+			rb_erase(&map->yesde, sl_id_map);
 			xa_erase(&sriov->pv_id_table, map->pv_cm_id);
 		}
 
-		/* add remaining nodes from cm_list */
+		/* add remaining yesdes from cm_list */
 		list_for_each_entry_safe(map, tmp_map, &dev->sriov.cm_list, list) {
 			if (slave == map->slave_id)
 				list_move_tail(&map->list, &lh);

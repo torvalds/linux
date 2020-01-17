@@ -2,7 +2,7 @@
 /*
  * tfa9879.h  --  driver for NXP Semiconductors TFA9879
  *
- * Copyright (C) 2014 Axentia Technologies AB
+ * Copyright (C) 2014 Axentia Techyeslogies AB
  * Author: Peter Rosin <peda@axentia.se>
  */
 

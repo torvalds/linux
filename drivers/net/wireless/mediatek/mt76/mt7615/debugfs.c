@@ -62,9 +62,9 @@ mt7615_ampdu_stat_read(struct seq_file *file, void *data)
 }
 
 static int
-mt7615_ampdu_stat_open(struct inode *inode, struct file *f)
+mt7615_ampdu_stat_open(struct iyesde *iyesde, struct file *f)
 {
-	return single_open(f, mt7615_ampdu_stat_read, inode->i_private);
+	return single_open(f, mt7615_ampdu_stat_read, iyesde->i_private);
 }
 
 static const struct file_operations fops_ampdu_stat = {
@@ -173,7 +173,7 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 	debugfs_create_devm_seqfile(dev->mt76.dev, "radio", dir,
 				    mt7615_radio_read);
 	debugfs_create_u32("dfs_hw_pattern", 0400, dir, &dev->hw_pattern);
-	/* test pattern knobs */
+	/* test pattern kyesbs */
 	debugfs_create_u8("pattern_len", 0600, dir,
 			  &dev->radar_pattern.n_pulses);
 	debugfs_create_u32("pulse_period", 0600, dir,

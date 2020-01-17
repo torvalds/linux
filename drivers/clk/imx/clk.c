@@ -62,12 +62,12 @@ static struct clk * __init imx_obtain_fixed_clock_from_dt(const char *name)
 	if (!path)
 		return ERR_PTR(-ENOMEM);
 
-	phandle.np = of_find_node_by_path(path);
+	phandle.np = of_find_yesde_by_path(path);
 	kfree(path);
 
 	if (phandle.np) {
 		clk = of_clk_get_from_provider(&phandle);
-		of_node_put(phandle.np);
+		of_yesde_put(phandle.np);
 	}
 	return clk;
 }
@@ -94,7 +94,7 @@ struct clk_hw * __init imx_obtain_fixed_clock_hw(
 	return __clk_get_hw(clk);
 }
 
-struct clk_hw * __init imx_obtain_fixed_clk_hw(struct device_node *np,
+struct clk_hw * __init imx_obtain_fixed_clk_hw(struct device_yesde *np,
 					       const char *name)
 {
 	struct clk *clk;

@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *	notice, this list of conditions, and the following disclaimer,
+ *	yestice, this list of conditions, and the following disclaimer,
  *	without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *	substantially similar to the "NO WARRANTY" disclaimer below
  *	("Disclaimer") and any redistribution must be conditioned upon
  *	including a substantially similar Disclaimer requirement for further
  *	binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *	of any contributors may be used to endorse or promote products derived
  *	from this software without specific prior written permission.
  *
@@ -329,7 +329,7 @@ struct sas_identify_frame_local {
 	u8 _un21_27[7];
 } __packed;
 #else
-#error "Bitfield order not defined!"
+#error "Bitfield order yest defined!"
 #endif
 
 struct mpi_msg_hdr {
@@ -432,7 +432,7 @@ struct hw_event_resp {
 } __attribute__((packed, aligned(4)));
 
 /*
- * brief the data structure for thermal event notification
+ * brief the data structure for thermal event yestification
  */
 
 struct thermal_hw_event {
@@ -469,7 +469,7 @@ struct dereg_dev_req {
 
 /*
  * brief the data structure of DEVICE_REGISTRATION Response
- * use to notify the completion of the device registration (64 bytes)
+ * use to yestify the completion of the device registration (64 bytes)
  */
 struct dev_reg_resp {
 	__le32	tag;
@@ -517,7 +517,7 @@ struct port_ctl_req {
 
 /*
  * brief the data structure of HW Event Ack Command
- * use to acknowledge receive HW event (64 bytes)
+ * use to ackyeswledge receive HW event (64 bytes)
  */
 struct hw_event_ack_req {
 	__le32	tag;
@@ -689,8 +689,8 @@ struct task_abort_resp {
 } __attribute__((packed, aligned(4)));
 
 /**
- * brief the data structure of SAS Diagnostic Start/End Command
- * use to describe MPI SAS Diagnostic Start/End Command (64 bytes)
+ * brief the data structure of SAS Diagyesstic Start/End Command
+ * use to describe MPI SAS Diagyesstic Start/End Command (64 bytes)
  */
 struct sas_diag_start_end_req {
 	__le32	tag;
@@ -699,8 +699,8 @@ struct sas_diag_start_end_req {
 } __attribute__((packed, aligned(4)));
 
 /**
- * brief the data structure of SAS Diagnostic Execute Command
- * use to describe MPI SAS Diagnostic Execute Command (64 bytes)
+ * brief the data structure of SAS Diagyesstic Execute Command
+ * use to describe MPI SAS Diagyesstic Execute Command (64 bytes)
  */
 struct sas_diag_execute_req {
 	__le32	tag;
@@ -729,7 +729,7 @@ struct set_dev_state_req {
 /*
  * brief the data structure of SATA Start Command
  * use to describe MPI SATA IO Start Command (64 bytes)
- * Note: This structure is common for normal / encryption I/O
+ * Note: This structure is common for yesrmal / encryption I/O
  */
 
 struct sata_start_req {
@@ -739,15 +739,15 @@ struct sata_start_req {
 	__le32	ncqtag_atap_dir_m_dad;
 	struct host_to_dev_fis	sata_fis;
 	u32	reserved1;
-	u32	reserved2;	/* dword 11. rsvd for normal I/O. */
+	u32	reserved2;	/* dword 11. rsvd for yesrmal I/O. */
 				/* EPLE Descl for enc I/O */
 	u32	addr_low;	/* dword 12. rsvd for enc I/O */
 	u32	addr_high;	/* dword 13. reserved for enc I/O */
-	__le32	len;		/* dword 14: length for normal I/O. */
+	__le32	len;		/* dword 14: length for yesrmal I/O. */
 				/* EPLE Desch for enc I/O */
 	__le32	esgl;		/* dword 15. rsvd for enc I/O */
 	__le32	atapi_scsi_cdb[4];	/* dword 16-19. rsvd for enc I/O */
-	/* The below fields are reserved for normal I/O */
+	/* The below fields are reserved for yesrmal I/O */
 	__le32	key_index_mode;	/* dword 20 */
 	__le32	sector_cnt_enss;/* dword 21 */
 	__le32	keytagl;	/* dword 22 */
@@ -793,7 +793,7 @@ struct ssp_info_unit {
 /**
  * brief the data structure of SSP INI IO Start Command
  * use to describe MPI SSP INI IO Start Command (64 bytes)
- * Note: This structure is common for normal / encryption I/O
+ * Note: This structure is common for yesrmal / encryption I/O
  */
 struct ssp_ini_io_start_req {
 	__le32	tag;
@@ -801,15 +801,15 @@ struct ssp_ini_io_start_req {
 	__le32	data_len;
 	__le32	dad_dir_m_tlr;
 	struct ssp_info_unit	ssp_iu;
-	__le32	addr_low;	/* dword 12: sgl low for normal I/O. */
+	__le32	addr_low;	/* dword 12: sgl low for yesrmal I/O. */
 				/* epl_descl for encryption I/O */
-	__le32	addr_high;	/* dword 13: sgl hi for normal I/O */
+	__le32	addr_high;	/* dword 13: sgl hi for yesrmal I/O */
 				/* dpl_descl for encryption I/O */
-	__le32	len;		/* dword 14: len for normal I/O. */
+	__le32	len;		/* dword 14: len for yesrmal I/O. */
 				/* edpl_desch for encryption I/O */
-	__le32	esgl;		/* dword 15: ESGL bit for normal I/O. */
+	__le32	esgl;		/* dword 15: ESGL bit for yesrmal I/O. */
 				/* user defined tag mask for enc I/O */
-	/* The below fields are reserved for normal I/O */
+	/* The below fields are reserved for yesrmal I/O */
 	u8	udt[12];	/* dword 16-18 */
 	__le32	sectcnt_ios;	/* dword 19 */
 	__le32	key_cmode;	/* dword 20 */
@@ -1025,8 +1025,8 @@ struct get_nvm_data_resp {
 } __attribute__((packed, aligned(4)));
 
 /**
- * brief the data structure of SAS Diagnostic Start/End Response
- * use to describe MPI SAS Diagnostic Start/End Response (64 bytes)
+ * brief the data structure of SAS Diagyesstic Start/End Response
+ * use to describe MPI SAS Diagyesstic Start/End Response (64 bytes)
  *
  */
 struct sas_diag_start_end_resp {
@@ -1036,8 +1036,8 @@ struct sas_diag_start_end_resp {
 } __attribute__((packed, aligned(4)));
 
 /**
- * brief the data structure of SAS Diagnostic Execute Response
- * use to describe MPI SAS Diagnostic Execute Response (64 bytes)
+ * brief the data structure of SAS Diagyesstic Execute Response
+ * use to describe MPI SAS Diagyesstic Execute Response (64 bytes)
  *
  */
 struct sas_diag_execute_resp {
@@ -1220,7 +1220,7 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_OPEN_CNX_ERROR_CONNECTION_RATE_NOT_SUPPORTED	0x15
 #define IO_OPEN_CNX_ERROR_STP_RESOURCES_BUSY		0x16
 #define IO_OPEN_CNX_ERROR_WRONG_DESTINATION		0x17
-/* This error code 0x18 is not used on SPCv */
+/* This error code 0x18 is yest used on SPCv */
 #define IO_OPEN_CNX_ERROR_UNKNOWN_ERROR			0x18
 #define IO_XFER_ERROR_NAK_RECEIVED			0x19
 #define IO_XFER_ERROR_ACK_NAK_TIMEOUT			0x1A
@@ -1231,19 +1231,19 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_XFER_ERROR_SATA_LINK_TIMEOUT			0x1F
 #define IO_XFER_ERROR_SATA				0x20
 
-/* This error code 0x22 is not used on SPCv */
+/* This error code 0x22 is yest used on SPCv */
 #define IO_XFER_ERROR_ABORTED_DUE_TO_SRST		0x22
 #define IO_XFER_ERROR_REJECTED_NCQ_MODE			0x21
 #define IO_XFER_ERROR_ABORTED_NCQ_MODE			0x23
 #define IO_XFER_OPEN_RETRY_TIMEOUT			0x24
-/* This error code 0x25 is not used on SPCv */
+/* This error code 0x25 is yest used on SPCv */
 #define IO_XFER_SMP_RESP_CONNECTION_ERROR		0x25
 #define IO_XFER_ERROR_UNEXPECTED_PHASE			0x26
 #define IO_XFER_ERROR_XFER_RDY_OVERRUN			0x27
 #define IO_XFER_ERROR_XFER_RDY_NOT_EXPECTED		0x28
 #define IO_XFER_ERROR_CMD_ISSUE_ACK_NAK_TIMEOUT		0x30
 
-/* The following error code 0x31 and 0x32 are not using (obsolete) */
+/* The following error code 0x31 and 0x32 are yest using (obsolete) */
 #define IO_XFER_ERROR_CMD_ISSUE_BREAK_BEFORE_ACK_NAK	0x31
 #define IO_XFER_ERROR_CMD_ISSUE_PHY_DOWN_BEFORE_ACK_NAK	0x32
 
@@ -1272,7 +1272,7 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_OPEN_COLLIDE	0x47
 #define IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS_PATHWAY_BLOCKED	0x48
 #define IO_DS_INVALID					0x49
-/* WARNING: the value is not contiguous from here */
+/* WARNING: the value is yest contiguous from here */
 #define IO_XFER_ERR_LAST_PIO_DATAIN_CRC_ERR	0x52
 #define IO_XFER_DMA_ACTIVATE_TIMEOUT		0x53
 #define IO_XFER_ERROR_INTERNAL_CRC_ERROR	0x54
@@ -1287,7 +1287,7 @@ typedef struct SASProtocolTimerConfig SASProtocolTimerConfig_t;
 #define IO_XFR_ERROR_DEK_KEY_CACHE_MISS		0x2040
 /*
  * An encryption IO request failed due to DEK Key Tag mismatch.
- * The key tag supplied in the encryption IOMB does not match with
+ * The key tag supplied in the encryption IOMB does yest match with
  * the Key Tag in the referenced DEK Entry.
  */
 #define IO_XFR_ERROR_DEK_KEY_TAG_MISMATCH	0x2041

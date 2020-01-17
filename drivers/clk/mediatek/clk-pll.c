@@ -341,14 +341,14 @@ static struct clk *mtk_clk_register_pll(const struct mtk_pll_data *data,
 	return clk;
 }
 
-void mtk_clk_register_plls(struct device_node *node,
+void mtk_clk_register_plls(struct device_yesde *yesde,
 		const struct mtk_pll_data *plls, int num_plls, struct clk_onecell_data *clk_data)
 {
 	void __iomem *base;
 	int i;
 	struct clk *clk;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	if (!base) {
 		pr_err("%s(): ioremap failed\n", __func__);
 		return;

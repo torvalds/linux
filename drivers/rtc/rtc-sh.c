@@ -30,7 +30,7 @@
 #else
 /* Default values for RZ/A RTC */
 #define rtc_reg_size		sizeof(u16)
-#define RTC_BIT_INVERTED        0	/* no chip bugs */
+#define RTC_BIT_INVERTED        0	/* yes chip bugs */
 #define RTC_CAP_4_DIGIT_YEAR    (1 << 0)
 #define RTC_DEF_CAPABILITIES    RTC_CAP_4_DIGIT_YEAR
 #endif
@@ -65,7 +65,7 @@
  * across various parts, occasionally being mapped in to a completely
  * unrelated address space. For proper RYRAR support a separate resource
  * would have to be handed off, but as this is purely optional in
- * practice, we simply opt not to support it, thereby keeping the code
+ * practice, we simply opt yest to support it, thereby keeping the code
  * quite a bit more simplified.
  */
 
@@ -150,7 +150,7 @@ static int __sh_rtc_periodic(struct sh_rtc *rtc)
 	if (!pending)
 		return 0;
 
-	/* Half period enabled than one skipped and the next notified */
+	/* Half period enabled than one skipped and the next yestified */
 	if ((rtc->periodic_freq & PF_HP) && (rtc->periodic_freq & PF_COUNT))
 		rtc->periodic_freq &= ~PF_COUNT;
 	else {
@@ -237,11 +237,11 @@ static int sh_rtc_proc(struct device *dev, struct seq_file *seq)
 	unsigned int tmp;
 
 	tmp = readb(rtc->regbase + RCR1);
-	seq_printf(seq, "carry_IRQ\t: %s\n", (tmp & RCR1_CIE) ? "yes" : "no");
+	seq_printf(seq, "carry_IRQ\t: %s\n", (tmp & RCR1_CIE) ? "no" : "yes");
 
 	tmp = readb(rtc->regbase + RCR2);
 	seq_printf(seq, "periodic_IRQ\t: %s\n",
-		   (tmp & RCR2_PESMASK) ? "yes" : "no");
+		   (tmp & RCR2_PESMASK) ? "no" : "yes");
 
 	return 0;
 }
@@ -377,7 +377,7 @@ static int sh_rtc_set_time(struct device *dev, struct rtc_time *tm)
 static inline int sh_rtc_read_alarm_value(struct sh_rtc *rtc, int reg_off)
 {
 	unsigned int byte;
-	int value = -1;			/* return -1 for ignored values */
+	int value = -1;			/* return -1 for igyesred values */
 
 	byte = readb(rtc->regbase + reg_off);
 	if (byte & AR_ENB) {
@@ -414,7 +414,7 @@ static int sh_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 static inline void sh_rtc_write_alarm_value(struct sh_rtc *rtc,
 					    int value, int reg_off)
 {
-	/* < 0 for a value that is ignored */
+	/* < 0 for a value that is igyesred */
 	if (value < 0)
 		writeb(0, rtc->regbase + reg_off);
 	else
@@ -504,12 +504,12 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	if (unlikely(!rtc->res))
 		return -EBUSY;
 
-	rtc->regbase = devm_ioremap_nocache(&pdev->dev, rtc->res->start,
+	rtc->regbase = devm_ioremap_yescache(&pdev->dev, rtc->res->start,
 					rtc->regsize);
 	if (unlikely(!rtc->regbase))
 		return -EINVAL;
 
-	if (!pdev->dev.of_node) {
+	if (!pdev->dev.of_yesde) {
 		clk_id = pdev->id;
 		/* With a single device, the clock id is still "rtc0" */
 		if (clk_id < 0)
@@ -522,7 +522,7 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	rtc->clk = devm_clk_get(&pdev->dev, clk_name);
 	if (IS_ERR(rtc->clk)) {
 		/*
-		 * No error handling for rtc->clk intentionally, not all
+		 * No error handling for rtc->clk intentionally, yest all
 		 * platforms will have a unique clock for the RTC, and
 		 * the clk API can handle the struct clk pointer being
 		 * NULL.

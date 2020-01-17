@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
@@ -185,12 +185,12 @@ static int grvga_set_par(struct fb_info *info)
 	return 0;
 }
 
-static int grvga_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned blue, unsigned transp, struct fb_info *info)
+static int grvga_setcolreg(unsigned regyes, unsigned red, unsigned green, unsigned blue, unsigned transp, struct fb_info *info)
 {
 	struct grvga_par *par;
 	par = info->par;
 
-	if (regno >= 256)	/* Size of CLUT */
+	if (regyes >= 256)	/* Size of CLUT */
 		return -EINVAL;
 
 	if (info->var.grayscale) {
@@ -211,13 +211,13 @@ static int grvga_setcolreg(unsigned regno, unsigned red, unsigned green, unsigne
 
 	/* In PSEUDOCOLOR we use the hardware CLUT */
 	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR)
-		__raw_writel((regno << 24) | (red << 16) | (green << 8) | blue,
+		__raw_writel((regyes << 24) | (red << 16) | (green << 8) | blue,
 			     &par->regs->clut);
 
 	/* Truecolor uses the pseudo palette */
 	else if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
 		u32 v;
-		if (regno >= 16)
+		if (regyes >= 16)
 			return -EINVAL;
 
 
@@ -226,7 +226,7 @@ static int grvga_setcolreg(unsigned regno, unsigned red, unsigned green, unsigne
 			(blue   << info->var.blue.offset)  |
 			(transp << info->var.transp.offset);
 
-		((u32 *) (info->pseudo_palette))[regno] = v;
+		((u32 *) (info->pseudo_palette))[regyes] = v;
 	}
 	return 0;
 }
@@ -343,7 +343,7 @@ static int grvga_probe(struct platform_device *dev)
 	 *
 	 * If modestring is custom:<custom mode string> we parse the string which then contains all videoparameters
 	 * If address is left out, we allocate memory,
-	 * if size is left out we only allocate enough to support the given mode.
+	 * if size is left out we only allocate eyesugh to support the given mode.
 	 */
 	if (fb_get_options("grvga", &options)) {
 		retval = -ENODEV;
@@ -452,7 +452,7 @@ static int grvga_probe(struct platform_device *dev)
 		physical_start = dma_map_single(&dev->dev, (void *)virtual_start, grvga_mem_size, DMA_TO_DEVICE);
 
 		/* Set page reserved so that mmap will work. This is necessary
-		 * since we'll be remapping normal memory.
+		 * since we'll be remapping yesrmal memory.
 		 */
 		for (page = virtual_start;
 		     page < PAGE_ALIGN(virtual_start + grvga_mem_size);
@@ -473,7 +473,7 @@ static int grvga_probe(struct platform_device *dev)
 
 	dev_info(&dev->dev,
 		 "Aeroflex Gaisler framebuffer device (fb%d), %dx%d-%d, using %luK of video memory @ %p\n",
-		 info->node, info->var.xres, info->var.yres, info->var.bits_per_pixel,
+		 info->yesde, info->var.xres, info->var.yres, info->var.bits_per_pixel,
 		 grvga_mem_size >> 10, info->screen_base);
 
 	retval = register_framebuffer(info);

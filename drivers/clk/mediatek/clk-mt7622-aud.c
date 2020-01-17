@@ -22,7 +22,7 @@
 		.parent_name = _parent,			\
 		.regs = &audio0_cg_regs,			\
 		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr,	\
+		.ops = &mtk_clk_gate_ops_yes_setclr,	\
 	}
 
 #define GATE_AUDIO1(_id, _name, _parent, _shift) {	\
@@ -31,7 +31,7 @@
 		.parent_name = _parent,			\
 		.regs = &audio1_cg_regs,			\
 		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr,	\
+		.ops = &mtk_clk_gate_ops_yes_setclr,	\
 	}
 
 #define GATE_AUDIO2(_id, _name, _parent, _shift) {	\
@@ -40,7 +40,7 @@
 		.parent_name = _parent,			\
 		.regs = &audio2_cg_regs,			\
 		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr,	\
+		.ops = &mtk_clk_gate_ops_yes_setclr,	\
 	}
 
 #define GATE_AUDIO3(_id, _name, _parent, _shift) {	\
@@ -49,7 +49,7 @@
 		.parent_name = _parent,			\
 		.regs = &audio3_cg_regs,			\
 		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr,	\
+		.ops = &mtk_clk_gate_ops_yes_setclr,	\
 	}
 
 static const struct mtk_gate_regs audio0_cg_regs = {
@@ -133,18 +133,18 @@ static const struct mtk_gate audio_clks[] = {
 static int clk_mt7622_audiosys_init(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_AUDIO_NR_CLK);
 
-	mtk_clk_register_gates(node, audio_clks, ARRAY_SIZE(audio_clks),
+	mtk_clk_register_gates(yesde, audio_clks, ARRAY_SIZE(audio_clks),
 			       clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r) {
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could yest register clock provider: %s: %d\n",
 			pdev->name, r);
 
 		goto err_clk_provider;
@@ -157,7 +157,7 @@ static int clk_mt7622_audiosys_init(struct platform_device *pdev)
 	return 0;
 
 err_plat_populate:
-	of_clk_del_provider(node);
+	of_clk_del_provider(yesde);
 err_clk_provider:
 	return r;
 }
@@ -183,7 +183,7 @@ static int clk_mt7622_aud_probe(struct platform_device *pdev)
 	r = clk_init(pdev);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could yest register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	return r;

@@ -381,7 +381,7 @@ static int (*otg_timer_handlers[])(struct ci_hdrc *) = {
 static enum hrtimer_restart ci_otg_hrtimer_func(struct hrtimer *t)
 {
 	struct ci_hdrc *ci = container_of(t, struct ci_hdrc, otg_fsm_hrtimer);
-	ktime_t	now, *timeout;
+	ktime_t	yesw, *timeout;
 	unsigned long   enabled_timer_bits;
 	unsigned long   flags;
 	enum otg_fsm_timer cur_timer, next_timer = NUM_OTG_FSM_TIMERS;
@@ -391,9 +391,9 @@ static enum hrtimer_restart ci_otg_hrtimer_func(struct hrtimer *t)
 	enabled_timer_bits = ci->enabled_otg_timer_bits;
 	ci->next_otg_timer = NUM_OTG_FSM_TIMERS;
 
-	now = ktime_get();
+	yesw = ktime_get();
 	for_each_set_bit(cur_timer, &enabled_timer_bits, NUM_OTG_FSM_TIMERS) {
-		if (ktime_compare(now, ci->hr_timeouts[cur_timer]) >= 0) {
+		if (ktime_compare(yesw, ci->hr_timeouts[cur_timer]) >= 0) {
 			ci->enabled_otg_timer_bits &= ~(1 << cur_timer);
 			if (otg_timer_handlers[cur_timer])
 				ret = otg_timer_handlers[cur_timer](ci);
@@ -505,7 +505,7 @@ static void ci_otg_loc_conn(struct otg_fsm *fsm, int on)
  *
  * This is controlled through usbcore by usb autosuspend,
  * so the usb device class driver need support autosuspend,
- * otherwise the bus suspend will not happen.
+ * otherwise the bus suspend will yest happen.
  */
 static void ci_otg_loc_sof(struct otg_fsm *fsm, int on)
 {
@@ -528,7 +528,7 @@ static void ci_otg_loc_sof(struct otg_fsm *fsm, int on)
 
 /*
  * Start SRP pulsing by data-line pulsing,
- * no v-bus pulsing followed
+ * yes v-bus pulsing followed
  */
 static void ci_otg_start_pulse(struct otg_fsm *fsm)
 {
@@ -582,7 +582,7 @@ int ci_otg_fsm_work(struct ci_hdrc *ci)
 {
 	/*
 	 * Don't do fsm transition for B device
-	 * when there is no gadget class driver
+	 * when there is yes gadget class driver
 	 */
 	if (ci->fsm.id && !(ci->driver) &&
 		ci->fsm.otg->state < OTG_STATE_A_IDLE)
@@ -677,8 +677,8 @@ static void ci_otg_fsm_event(struct ci_hdrc *ci)
 		if (intr_sts & USBi_SLI) {
 			 fsm->b_bus_suspend = 1;
 			/*
-			 * Init a timer to know how long this suspend
-			 * will continue, if time out, indicates B no longer
+			 * Init a timer to kyesw how long this suspend
+			 * will continue, if time out, indicates B yes longer
 			 * wants to be host role
 			 */
 			 ci_otg_add_timer(ci, A_BIDL_ADIS);

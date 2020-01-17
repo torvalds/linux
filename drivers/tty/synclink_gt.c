@@ -44,7 +44,7 @@
 
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -260,7 +260,7 @@ struct slgt_info {
 	int			timeout;
 	int			x_char;		/* xon/xoff character */
 	unsigned int		read_status_mask;
-	unsigned int 		ignore_status_mask;
+	unsigned int 		igyesre_status_mask;
 
 	wait_queue_head_t	status_event_wait_q;
 	wait_queue_head_t	event_wait_q;
@@ -279,7 +279,7 @@ struct slgt_info {
 
 	int isr_overflow;
 	bool irq_requested;	/* true if IRQ requested */
-	bool irq_occurred;	/* for diagnostics use */
+	bool irq_occurred;	/* for diagyesstics use */
 
 	/* device configuration */
 
@@ -1098,24 +1098,24 @@ static int get_icount(struct tty_struct *tty,
 
 {
 	struct slgt_info *info = tty->driver_data;
-	struct mgsl_icount cnow;	/* kernel counter temps */
+	struct mgsl_icount cyesw;	/* kernel counter temps */
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->lock,flags);
-	cnow = info->icount;
+	cyesw = info->icount;
 	spin_unlock_irqrestore(&info->lock,flags);
 
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
+	icount->cts = cyesw.cts;
+	icount->dsr = cyesw.dsr;
+	icount->rng = cyesw.rng;
+	icount->dcd = cyesw.dcd;
+	icount->rx = cyesw.rx;
+	icount->tx = cyesw.tx;
+	icount->frame = cyesw.frame;
+	icount->overrun = cyesw.overrun;
+	icount->parity = cyesw.parity;
+	icount->brk = cyesw.brk;
+	icount->buf_overrun = cyesw.buf_overrun;
 
 	return 0;
 }
@@ -1851,7 +1851,7 @@ static void rx_async(struct slgt_info *info)
 				else if (status & BIT0)
 					icount->frame++;
 				/* discard char if tty control flags say so */
-				if (status & info->ignore_status_mask)
+				if (status & info->igyesre_status_mask)
 					continue;
 				if (status & BIT1)
 					stat = TTY_PARITY;
@@ -1863,7 +1863,7 @@ static void rx_async(struct slgt_info *info)
 		}
 
 		if (i < count) {
-			/* receive buffer not completed */
+			/* receive buffer yest completed */
 			info->rbuf_index += i;
 			mod_timer(&info->rx_timer, jiffies + 1);
 			break;
@@ -1875,7 +1875,7 @@ static void rx_async(struct slgt_info *info)
 		if (++end == info->rbuf_count)
 			end = 0;
 
-		/* if entire list searched then no frame available */
+		/* if entire list searched then yes frame available */
 		if (end == start)
 			break;
 	}
@@ -1958,7 +1958,7 @@ static void bh_handler(struct work_struct *work)
 			info->cts_chkcount = 0;
 			break;
 		default:
-			DBGBH(("%s unknown action\n", info->device_name));
+			DBGBH(("%s unkyeswn action\n", info->device_name));
 			break;
 		}
 	}
@@ -2141,7 +2141,7 @@ static void isr_serial(struct slgt_info *info)
 			info->icount.brk++;
 			/* process break detection if tty control allows */
 			if (info->port.tty) {
-				if (!(status & info->ignore_status_mask)) {
+				if (!(status & info->igyesre_status_mask)) {
 					if (info->read_status_mask & MASK_BREAK) {
 						tty_insert_flip_char(&info->port, 0, TTY_BREAK);
 						if (info->port.flags & ASYNC_SAK)
@@ -2222,7 +2222,7 @@ static void isr_tdma(struct slgt_info *info)
 	wr_reg32(info, TDCSR, status);	/* clear pending */
 
 	if (status & (BIT5 + BIT4 + BIT3)) {
-		// another transmit buffer has completed
+		// ayesther transmit buffer has completed
 		// run bottom half to get more send data from user
 		info->pending_bh |= BH_TRANSMIT;
 	}
@@ -2563,14 +2563,14 @@ static void change_params(struct slgt_info *info)
  	if (I_BRKINT(info->port.tty) || I_PARMRK(info->port.tty))
  		info->read_status_mask |= MASK_BREAK;
 	if (I_IGNPAR(info->port.tty))
-		info->ignore_status_mask |= MASK_PARITY | MASK_FRAMING;
+		info->igyesre_status_mask |= MASK_PARITY | MASK_FRAMING;
 	if (I_IGNBRK(info->port.tty)) {
-		info->ignore_status_mask |= MASK_BREAK;
-		/* If ignoring parity and break indicators, ignore
+		info->igyesre_status_mask |= MASK_BREAK;
+		/* If igyesring parity and break indicators, igyesre
 		 * overruns too.  (For real raw support).
 		 */
 		if (I_IGNPAR(info->port.tty))
-			info->ignore_status_mask |= MASK_OVERRUN;
+			info->igyesre_status_mask |= MASK_OVERRUN;
 	}
 
 	program_hw(info);
@@ -2674,7 +2674,7 @@ static int rx_enable(struct slgt_info *info, int enable)
 	spin_lock_irqsave(&info->lock,flags);
 	/*
 	 * enable[31..16] = receive DMA buffer fill level
-	 * 0 = noop (leave fill level unchanged)
+	 * 0 = yesop (leave fill level unchanged)
 	 * fill level must be multiple of 4 and <= buffer size
 	 */
 	rbuf_fill_level = ((unsigned int)enable) >> 16;
@@ -2721,7 +2721,7 @@ static int wait_mgsl_event(struct slgt_info *info, int __user *mask_ptr)
  	unsigned long flags;
 	int s;
 	int rc=0;
-	struct mgsl_icount cprev, cnow;
+	struct mgsl_icount cprev, cyesw;
 	int events;
 	int mask;
 	struct	_input_signal_events oldsigs, newsigs;
@@ -2773,12 +2773,12 @@ static int wait_mgsl_event(struct slgt_info *info, int __user *mask_ptr)
 
 		/* get current irq counts */
 		spin_lock_irqsave(&info->lock,flags);
-		cnow = info->icount;
+		cyesw = info->icount;
 		newsigs = info->input_signal_events;
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&info->lock,flags);
 
-		/* if no change, wait aborted for some reason */
+		/* if yes change, wait aborted for some reason */
 		if (newsigs.dsr_up   == oldsigs.dsr_up   &&
 		    newsigs.dsr_down == oldsigs.dsr_down &&
 		    newsigs.dcd_up   == oldsigs.dcd_up   &&
@@ -2787,8 +2787,8 @@ static int wait_mgsl_event(struct slgt_info *info, int __user *mask_ptr)
 		    newsigs.cts_down == oldsigs.cts_down &&
 		    newsigs.ri_up    == oldsigs.ri_up    &&
 		    newsigs.ri_down  == oldsigs.ri_down  &&
-		    cnow.exithunt    == cprev.exithunt   &&
-		    cnow.rxidle      == cprev.rxidle) {
+		    cyesw.exithunt    == cprev.exithunt   &&
+		    cyesw.rxidle      == cprev.rxidle) {
 			rc = -EIO;
 			break;
 		}
@@ -2802,12 +2802,12 @@ static int wait_mgsl_event(struct slgt_info *info, int __user *mask_ptr)
 			  (newsigs.cts_down != oldsigs.cts_down ? MgslEvent_CtsInactive:0) +
 			  (newsigs.ri_up    != oldsigs.ri_up    ? MgslEvent_RiActive:0)    +
 			  (newsigs.ri_down  != oldsigs.ri_down  ? MgslEvent_RiInactive:0)  +
-			  (cnow.exithunt    != cprev.exithunt   ? MgslEvent_ExitHuntMode:0) +
-			  (cnow.rxidle      != cprev.rxidle     ? MgslEvent_IdleReceived:0) );
+			  (cyesw.exithunt    != cprev.exithunt   ? MgslEvent_ExitHuntMode:0) +
+			  (cyesw.rxidle      != cprev.rxidle     ? MgslEvent_IdleReceived:0) );
 		if (events)
 			break;
 
-		cprev = cnow;
+		cprev = cyesw;
 		oldsigs = newsigs;
 	}
 
@@ -3034,7 +3034,7 @@ static void flush_cond_wait(struct cond_wait **head)
  * smask - set bit indicates watched pin
  *
  * The wait ends when at least one watched pin enters the specified
- * state. When 0 (no error) is returned, user_gpio->state is set to the
+ * state. When 0 (yes error) is returned, user_gpio->state is set to the
  * state of all GPIO pins when the wait ends.
  *
  * Note: Each pin may be a dedicated input, dedicated output, or
@@ -3056,7 +3056,7 @@ static int wait_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
 		return -EFAULT;
 	DBGINFO(("%s wait_gpio() state=%08x smask=%08x\n",
 		 info->device_name, gpio.state, gpio.smask));
-	/* ignore output pins identified by set IODR bit */
+	/* igyesre output pins identified by set IODR bit */
 	if ((gpio.smask &= ~rd_reg32(info, IODR)) == 0)
 		return -EINVAL;
 	init_cond_wait(&wait, gpio.smask);
@@ -3083,7 +3083,7 @@ static int wait_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
 		remove_cond_wait(&info->gpio_wait_q, &wait);
 	}
 
-	/* disable all GPIO interrupts if no waiting processes */
+	/* disable all GPIO interrupts if yes waiting processes */
 	if (info->gpio_wait_q == NULL)
 		wr_reg32(info, IOER, 0);
 	spin_unlock_irqrestore(&info->port_array[0]->lock, flags);
@@ -3097,7 +3097,7 @@ static int modem_input_wait(struct slgt_info *info,int arg)
 {
  	unsigned long flags;
 	int rc;
-	struct mgsl_icount cprev, cnow;
+	struct mgsl_icount cprev, cyesw;
 	DECLARE_WAITQUEUE(wait, current);
 
 	/* save current irq counts */
@@ -3116,27 +3116,27 @@ static int modem_input_wait(struct slgt_info *info,int arg)
 
 		/* get new irq counts */
 		spin_lock_irqsave(&info->lock,flags);
-		cnow = info->icount;
+		cyesw = info->icount;
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&info->lock,flags);
 
-		/* if no change, wait aborted for some reason */
-		if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
-		    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts) {
+		/* if yes change, wait aborted for some reason */
+		if (cyesw.rng == cprev.rng && cyesw.dsr == cprev.dsr &&
+		    cyesw.dcd == cprev.dcd && cyesw.cts == cprev.cts) {
 			rc = -EIO;
 			break;
 		}
 
 		/* check for change in caller specified modem input */
-		if ((arg & TIOCM_RNG && cnow.rng != cprev.rng) ||
-		    (arg & TIOCM_DSR && cnow.dsr != cprev.dsr) ||
-		    (arg & TIOCM_CD  && cnow.dcd != cprev.dcd) ||
-		    (arg & TIOCM_CTS && cnow.cts != cprev.cts)) {
+		if ((arg & TIOCM_RNG && cyesw.rng != cprev.rng) ||
+		    (arg & TIOCM_DSR && cyesw.dsr != cprev.dsr) ||
+		    (arg & TIOCM_CD  && cyesw.dcd != cprev.dcd) ||
+		    (arg & TIOCM_CTS && cyesw.cts != cprev.cts)) {
 			rc = 0;
 			break;
 		}
 
-		cprev = cnow;
+		cprev = cyesw;
 	}
 	remove_wait_queue(&info->status_event_wait_q, &wait);
 	set_current_state(TASK_RUNNING);
@@ -3239,7 +3239,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	DBGINFO(("%s block_til_ready\n", tty->driver->name));
 
 	if (filp->f_flags & O_NONBLOCK || tty_io_error(tty)) {
-		/* nonblock mode is set or port is not enabled */
+		/* yesnblock mode is set or port is yest enabled */
 		tty_port_set_active(port, 1);
 		return 0;
 	}
@@ -3248,10 +3248,10 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 		do_clocal = true;
 
 	/* Wait for carrier detect and the line to become
-	 * free (i.e., not in use by the callout).  While we are in
+	 * free (i.e., yest in use by the callout).  While we are in
 	 * this loop, port->count is dropped by one, so that
-	 * close() knows when to free things.  We restore it upon
-	 * exit, either normal or abnormal.
+	 * close() kyesws when to free things.  We restore it upon
+	 * exit, either yesrmal or abyesrmal.
 	 */
 
 	retval = 0;
@@ -3305,8 +3305,8 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 
 /*
  * allocate buffers used for calling line discipline receive_buf
- * directly in synchronous mode
- * note: add 5 bytes to max frame size to allow appending
+ * directly in synchroyesus mode
+ * yeste: add 5 bytes to max frame size to allow appending
  * 32-bit CRC and status byte when configured to do so
  */
 static int alloc_tmp_rbuf(struct slgt_info *info)
@@ -3450,7 +3450,7 @@ static int claim_resources(struct slgt_info *info)
 	else
 		info->reg_addr_requested = true;
 
-	info->reg_addr = ioremap_nocache(info->phys_reg_addr, SLGT_REG_SIZE);
+	info->reg_addr = ioremap_yescache(info->phys_reg_addr, SLGT_REG_SIZE);
 	if (!info->reg_addr) {
 		DBGERR(("%s can't map device registers, addr=%08X\n",
 			info->device_name, info->phys_reg_addr));
@@ -3529,7 +3529,7 @@ static void add_device(struct slgt_info *info)
 		info->params.mode = MGSL_MODE_ASYNC;
 		break;
 	default:
-		devstr = "(unknown model)";
+		devstr = "(unkyeswn model)";
 	}
 	printk("SyncLink %s %s IO=%08x IRQ=%d MaxFrameSize=%u\n",
 		devstr, info->device_name, info->phys_reg_addr,
@@ -3766,7 +3766,7 @@ static int __init slgt_init(void)
 	serial_driver->driver_name = slgt_driver_name;
 	serial_driver->name = tty_dev_prefix;
 	serial_driver->major = ttymajor;
-	serial_driver->minor_start = 64;
+	serial_driver->miyesr_start = 64;
 	serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	serial_driver->subtype = SERIAL_TYPE_NORMAL;
 	serial_driver->init_termios = tty_std_termios;
@@ -3794,7 +3794,7 @@ static int __init slgt_init(void)
 	pci_registered = true;
 
 	if (!slgt_device_list)
-		printk("%s no devices found\n",driver_name);
+		printk("%s yes devices found\n",driver_name);
 
 	return 0;
 
@@ -3923,7 +3923,7 @@ static void set_rate(struct slgt_info *info, u32 rate)
 
 	/* div = osc/rate - 1
 	 *
-	 * Round div up if osc/rate is not integer to
+	 * Round div up if osc/rate is yest integer to
 	 * force to next slowest rate.
 	 */
 
@@ -3973,7 +3973,7 @@ static void rx_start(struct slgt_info *info)
 	reset_rbufs(info);
 
 	if (info->rx_pio) {
-		/* rx request when rx FIFO not empty */
+		/* rx request when rx FIFO yest empty */
 		wr_reg16(info, SCR, (unsigned short)(rd_reg16(info, SCR) & ~BIT14));
 		slgt_irq_on(info, IRQ_RXDATA);
 		if (info->params.mode == MGSL_MODE_ASYNC) {
@@ -4241,11 +4241,11 @@ static void sync_mode(struct slgt_info *info)
 	 *
 	 * 15..13  mode
 	 *         000=HDLC/SDLC
-	 *         001=raw bit synchronous
-	 *         010=asynchronous/isochronous
-	 *         011=monosync byte synchronous
-	 *         100=bisync byte synchronous
-	 *         101=xsync byte synchronous
+	 *         001=raw bit synchroyesus
+	 *         010=asynchroyesus/isochroyesus
+	 *         011=moyessync byte synchroyesus
+	 *         100=bisync byte synchroyesus
+	 *         101=xsync byte synchroyesus
 	 * 12..10  encoding
 	 * 09      CRC enable
 	 * 08      CRC32
@@ -4319,11 +4319,11 @@ static void sync_mode(struct slgt_info *info)
 	 *
 	 * 15..13  mode
 	 *         000=HDLC/SDLC
-	 *         001=raw bit synchronous
-	 *         010=asynchronous/isochronous
-	 *         011=monosync byte synchronous
-	 *         100=bisync byte synchronous
-	 *         101=xsync byte synchronous
+	 *         001=raw bit synchroyesus
+	 *         010=asynchroyesus/isochroyesus
+	 *         011=moyessync byte synchroyesus
+	 *         100=bisync byte synchroyesus
+	 *         101=xsync byte synchroyesus
 	 * 12..10  encoding
 	 * 09      CRC enable
 	 * 08      CRC32
@@ -4663,7 +4663,7 @@ check_again:
 	 */
 	status = desc_status(info->rbufs[end]);
 
-	/* ignore CRC bit if not using CRC (bit is undefined) */
+	/* igyesre CRC bit if yest using CRC (bit is undefined) */
 	if ((info->params.crc_type & HDLC_CRC_MASK) == HDLC_CRC_NONE)
 		status &= ~BIT1;
 
@@ -4740,7 +4740,7 @@ cleanup:
 }
 
 /*
- * pass receive buffer (RAW synchronous mode) to tty layer
+ * pass receive buffer (RAW synchroyesus mode) to tty layer
  * return true if buffer available, otherwise false
  */
 static bool rx_get_buf(struct slgt_info *info)
@@ -4755,7 +4755,7 @@ static bool rx_get_buf(struct slgt_info *info)
 	case MGSL_MODE_MONOSYNC:
 	case MGSL_MODE_BISYNC:
 	case MGSL_MODE_XSYNC:
-		/* ignore residue in byte synchronous modes */
+		/* igyesre residue in byte synchroyesus modes */
 		if (desc_residue(info->rbufs[i]))
 			count--;
 		break;
@@ -4822,7 +4822,7 @@ static unsigned int tbuf_bytes(struct slgt_info *info)
 	 *
 	 * Record buf_count of last buffer with zero count starting
 	 * from current ring position. buf_count is mirror
-	 * copy of count and is not cleared by serial controller.
+	 * copy of count and is yest cleared by serial controller.
 	 * If DMA controller is active, that buffer is actively
 	 * being read so add to total.
 	 */

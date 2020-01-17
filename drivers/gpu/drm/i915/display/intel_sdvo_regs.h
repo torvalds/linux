@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -56,7 +56,7 @@ struct intel_sdvo_caps {
 	u8 device_id;
 	u8 device_rev_id;
 	u8 sdvo_version_major;
-	u8 sdvo_version_minor;
+	u8 sdvo_version_miyesr;
 	unsigned int sdvo_inputs_mask:2;
 	unsigned int smooth_scaling:1;
 	unsigned int sharp_scaling:1;

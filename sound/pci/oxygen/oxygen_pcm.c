@@ -177,7 +177,7 @@ static int oxygen_open(struct snd_pcm_substream *substream,
 		chip->spdif_pcm_bits = chip->spdif_bits;
 		chip->controls[CONTROL_SPDIF_PCM]->vd[0].access &=
 			~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE |
+		snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE |
 			       SNDRV_CTL_EVENT_MASK_INFO,
 			       &chip->controls[CONTROL_SPDIF_PCM]->id);
 	}
@@ -226,7 +226,7 @@ static int oxygen_close(struct snd_pcm_substream *substream)
 	if (channel == PCM_SPDIF) {
 		chip->controls[CONTROL_SPDIF_PCM]->vd[0].access |=
 			SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE |
+		snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE |
 			       SNDRV_CTL_EVENT_MASK_INFO,
 			       &chip->controls[CONTROL_SPDIF_PCM]->id);
 	}
@@ -553,7 +553,7 @@ static int oxygen_prepare(struct snd_pcm_substream *substream)
 	oxygen_set_bits8(chip, OXYGEN_DMA_FLUSH, channel_mask);
 	oxygen_clear_bits8(chip, OXYGEN_DMA_FLUSH, channel_mask);
 
-	if (substream->runtime->no_period_wakeup)
+	if (substream->runtime->yes_period_wakeup)
 		chip->interrupt_mask &= ~channel_mask;
 	else
 		chip->interrupt_mask |= channel_mask;
@@ -614,7 +614,7 @@ static snd_pcm_uframes_t oxygen_pointer(struct snd_pcm_substream *substream)
 	unsigned int channel = oxygen_substream_channel(substream);
 	u32 curr_addr;
 
-	/* no spinlock, this read should be atomic */
+	/* yes spinlock, this read should be atomic */
 	curr_addr = oxygen_read32(chip, channel_base_registers[channel]);
 	return bytes_to_frames(runtime, curr_addr - (u32)runtime->dma_addr);
 }

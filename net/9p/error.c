@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/jhash.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <net/9p/9p.h>
 
 /**
@@ -32,7 +32,7 @@ struct errormap {
 	int val;
 
 	int namelen;
-	struct hlist_node list;
+	struct hlist_yesde list;
 };
 
 #define ERRHASHSZ		32
@@ -40,18 +40,18 @@ static struct hlist_head hash_errmap[ERRHASHSZ];
 
 /* FixMe - reduce to a reasonable size */
 static struct errormap errmap[] = {
-	{"Operation not permitted", EPERM},
+	{"Operation yest permitted", EPERM},
 	{"wstat prohibited", EPERM},
 	{"No such file or directory", ENOENT},
-	{"directory entry not found", ENOENT},
-	{"file not found", ENOENT},
+	{"directory entry yest found", ENOENT},
+	{"file yest found", ENOENT},
 	{"Interrupted system call", EINTR},
 	{"Input/output error", EIO},
 	{"No such device or address", ENXIO},
 	{"Argument list too long", E2BIG},
 	{"Bad file descriptor", EBADF},
 	{"Resource temporarily unavailable", EAGAIN},
-	{"Cannot allocate memory", ENOMEM},
+	{"Canyest allocate memory", ENOMEM},
 	{"Permission denied", EACCES},
 	{"Bad address", EFAULT},
 	{"Block device required", ENOTBLK},
@@ -76,14 +76,14 @@ static struct errormap errmap[] = {
 	{"Resource deadlock avoided", EDEADLK},
 	{"File name too long", ENAMETOOLONG},
 	{"No locks available", ENOLCK},
-	{"Function not implemented", ENOSYS},
-	{"Directory not empty", ENOTEMPTY},
+	{"Function yest implemented", ENOSYS},
+	{"Directory yest empty", ENOTEMPTY},
 	{"Too many levels of symbolic links", ELOOP},
 	{"No message of desired type", ENOMSG},
 	{"Identifier removed", EIDRM},
 	{"No data available", ENODATA},
-	{"Machine is not on the network", ENONET},
-	{"Package not installed", ENOPKG},
+	{"Machine is yest on the network", ENONET},
+	{"Package yest installed", ENOPKG},
 	{"Object is remote", EREMOTE},
 	{"Link has been severed", ENOLINK},
 	{"Communication error on send", ECOMM},
@@ -92,13 +92,13 @@ static struct errormap errmap[] = {
 	{"File descriptor in bad state", EBADFD},
 	{"Streams pipe error", ESTRPIPE},
 	{"Too many users", EUSERS},
-	{"Socket operation on non-socket", ENOTSOCK},
+	{"Socket operation on yesn-socket", ENOTSOCK},
 	{"Message too long", EMSGSIZE},
-	{"Protocol not available", ENOPROTOOPT},
-	{"Protocol not supported", EPROTONOSUPPORT},
-	{"Socket type not supported", ESOCKTNOSUPPORT},
-	{"Operation not supported", EOPNOTSUPP},
-	{"Protocol family not supported", EPFNOSUPPORT},
+	{"Protocol yest available", ENOPROTOOPT},
+	{"Protocol yest supported", EPROTONOSUPPORT},
+	{"Socket type yest supported", ESOCKTNOSUPPORT},
+	{"Operation yest supported", EOPNOTSUPP},
+	{"Protocol family yest supported", EPFNOSUPPORT},
 	{"Network is down", ENETDOWN},
 	{"Network is unreachable", ENETUNREACH},
 	{"Network dropped connection on reset", ENETRESET},
@@ -106,26 +106,26 @@ static struct errormap errmap[] = {
 	{"Connection reset by peer", ECONNRESET},
 	{"No buffer space available", ENOBUFS},
 	{"Transport endpoint is already connected", EISCONN},
-	{"Transport endpoint is not connected", ENOTCONN},
-	{"Cannot send after transport endpoint shutdown", ESHUTDOWN},
+	{"Transport endpoint is yest connected", ENOTCONN},
+	{"Canyest send after transport endpoint shutdown", ESHUTDOWN},
 	{"Connection timed out", ETIMEDOUT},
 	{"Connection refused", ECONNREFUSED},
 	{"Host is down", EHOSTDOWN},
 	{"No route to host", EHOSTUNREACH},
 	{"Operation already in progress", EALREADY},
-	{"Operation now in progress", EINPROGRESS},
+	{"Operation yesw in progress", EINPROGRESS},
 	{"Is a named type file", EISNAM},
 	{"Remote I/O error", EREMOTEIO},
 	{"Disk quota exceeded", EDQUOT},
 /* errors from fossil, vacfs, and u9fs */
-	{"fid unknown or out of range", EBADF},
+	{"fid unkyeswn or out of range", EBADF},
 	{"permission denied", EACCES},
-	{"file does not exist", ENOENT},
+	{"file does yest exist", ENOENT},
 	{"authentication failed", ECONNREFUSED},
 	{"bad offset in directory read", ESPIPE},
 	{"bad use of fid", EBADF},
 	{"wstat can't convert between files and directories", EPERM},
-	{"directory is not empty", ENOTEMPTY},
+	{"directory is yest empty", ENOTEMPTY},
 	{"file exists", EEXIST},
 	{"file already exists", EEXIST},
 	{"file or directory already exists", EEXIST},
@@ -135,15 +135,15 @@ static struct errormap errmap[] = {
 	{"file already open for I/O", ETXTBSY},
 	{"illegal mode", EINVAL},
 	{"illegal name", ENAMETOOLONG},
-	{"not a directory", ENOTDIR},
-	{"not a member of proposed group", EPERM},
-	{"not owner", EACCES},
+	{"yest a directory", ENOTDIR},
+	{"yest a member of proposed group", EPERM},
+	{"yest owner", EACCES},
 	{"only owner can change group in wstat", EACCES},
 	{"read only file system", EROFS},
-	{"no access to special file", EPERM},
+	{"yes access to special file", EPERM},
 	{"i/o count too large", EIO},
-	{"unknown group", EINVAL},
-	{"unknown user", EINVAL},
+	{"unkyeswn group", EINVAL},
+	{"unkyeswn user", EINVAL},
 	{"bogus wstat buffer", EPROTO},
 	{"exclusive use file already open", EAGAIN},
 	{"corrupted directory entry", EIO},
@@ -157,16 +157,16 @@ static struct errormap errmap[] = {
 	{"protocol botch", EPROTO},
 	{"file system is full", ENOSPC},
 	{"file is in use", EAGAIN},
-	{"directory entry is not allocated", ENOENT},
+	{"directory entry is yest allocated", ENOENT},
 	{"file is read only", EROFS},
 	{"file has been removed", EIDRM},
 	{"only support truncation to zero length", EPERM},
-	{"cannot remove root", EPERM},
+	{"canyest remove root", EPERM},
 	{"file too big", EFBIG},
 	{"venti i/o error", EIO},
-	/* these are not errors */
-	{"u9fs rhostsauth: no authentication required", 0},
-	{"u9fs authnone: no authentication required", 0},
+	/* these are yest errors */
+	{"u9fs rhostsauth: yes authentication required", 0},
+	{"u9fs authyesne: yes authentication required", 0},
 	{NULL, -1}
 };
 
@@ -197,36 +197,36 @@ int p9_error_init(void)
 EXPORT_SYMBOL(p9_error_init);
 
 /**
- * errstr2errno - convert error string to error number
+ * errstr2erryes - convert error string to error number
  * @errstr: error string
  * @len: length of error string
  *
  */
 
-int p9_errstr2errno(char *errstr, int len)
+int p9_errstr2erryes(char *errstr, int len)
 {
-	int errno;
+	int erryes;
 	struct errormap *c;
 	int bucket;
 
-	errno = 0;
+	erryes = 0;
 	c = NULL;
 	bucket = jhash(errstr, len, 0) % ERRHASHSZ;
 	hlist_for_each_entry(c, &hash_errmap[bucket], list) {
 		if (c->namelen == len && !memcmp(c->name, errstr, len)) {
-			errno = c->val;
+			erryes = c->val;
 			break;
 		}
 	}
 
-	if (errno == 0) {
+	if (erryes == 0) {
 		/* TODO: if error isn't found, add it dynamically */
 		errstr[len] = 0;
-		pr_err("%s: server reported unknown error %s\n",
+		pr_err("%s: server reported unkyeswn error %s\n",
 		       __func__, errstr);
-		errno = ESERVERFAULT;
+		erryes = ESERVERFAULT;
 	}
 
-	return -errno;
+	return -erryes;
 }
-EXPORT_SYMBOL(p9_errstr2errno);
+EXPORT_SYMBOL(p9_errstr2erryes);

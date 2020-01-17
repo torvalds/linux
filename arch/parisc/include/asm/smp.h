@@ -27,7 +27,7 @@ typedef unsigned long address_t;
 #define cpu_number_map(cpu)	(cpu)
 #define cpu_logical_map(cpu)	(cpu)
 
-extern void smp_send_all_nop(void);
+extern void smp_send_all_yesp(void);
 
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
@@ -38,7 +38,7 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 #else /* CONFIG_SMP */
 
-static inline void smp_send_all_nop(void) { return; }
+static inline void smp_send_all_yesp(void) { return; }
 
 #endif
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  *
- * derived from imx-hdmi.c(renamed to bridge/dw_hdmi.c now)
+ * derived from imx-hdmi.c(renamed to bridge/dw_hdmi.c yesw)
  */
 
 #include <linux/component.h>
@@ -99,7 +99,7 @@ static const struct dw_hdmi_phy_config imx_phy_config[] = {
 
 static int dw_hdmi_imx_parse_dt(struct imx_hdmi *hdmi)
 {
-	struct device_node *np = hdmi->dev->of_node;
+	struct device_yesde *np = hdmi->dev->of_yesde;
 
 	hdmi->regmap = syscon_regmap_lookup_by_phandle(np, "gpr");
 	if (IS_ERR(hdmi->regmap)) {
@@ -117,7 +117,7 @@ static void dw_hdmi_imx_encoder_disable(struct drm_encoder *encoder)
 static void dw_hdmi_imx_encoder_enable(struct drm_encoder *encoder)
 {
 	struct imx_hdmi *hdmi = enc_to_imx_hdmi(encoder);
-	int mux = drm_of_encoder_active_port_id(hdmi->dev->of_node, encoder);
+	int mux = drm_of_encoder_active_port_id(hdmi->dev->of_yesde, encoder);
 
 	regmap_update_bits(hdmi->regmap, IOMUXC_GPR3,
 			   IMX6Q_GPR3_HDMI_MUX_CTL_MASK,
@@ -209,23 +209,23 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	struct imx_hdmi *hdmi;
 	int ret;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
 		return -ENOMEM;
 
-	match = of_match_node(dw_hdmi_imx_dt_ids, pdev->dev.of_node);
+	match = of_match_yesde(dw_hdmi_imx_dt_ids, pdev->dev.of_yesde);
 	plat_data = match->data;
 	hdmi->dev = &pdev->dev;
 	encoder = &hdmi->encoder;
 
-	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
+	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_yesde);
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
 	 * supposed to be connected to, it's because the CRTC has
-	 * not been registered yet.  Defer probing, and hope that
+	 * yest been registered yet.  Defer probing, and hope that
 	 * the required CRTC is added later.
 	 */
 	if (encoder->possible_crtcs == 0)

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* exynos_drm_gem.h
+/* exyyess_drm_gem.h
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  * Authoer: Inki Dae <inki.dae@samsung.com>
@@ -11,17 +11,17 @@
 #include <drm/drm_gem.h>
 #include <linux/mm_types.h>
 
-#define to_exynos_gem(x)	container_of(x, struct exynos_drm_gem, base)
+#define to_exyyess_gem(x)	container_of(x, struct exyyess_drm_gem, base)
 
 #define IS_NONCONTIG_BUFFER(f)		(f & EXYNOS_BO_NONCONTIG)
 
 /*
- * exynos drm buffer structure.
+ * exyyess drm buffer structure.
  *
  * @base: a gem object.
  *	- a new handle to this gem object would be created
  *	by drm_gem_handle_create().
- * @buffer: a pointer to exynos_drm_gem_buffer object.
+ * @buffer: a pointer to exyyess_drm_gem_buffer object.
  *	- contain the information to memory region allocated
  *	by user request or at framebuffer creation.
  *	continuous memory region allocated by user request
@@ -40,7 +40,7 @@
  * P.S. this object would be transferred to user as kms_bo.handle so
  *	user can access the buffer through kms_bo.handle.
  */
-struct exynos_drm_gem {
+struct exyyess_drm_gem {
 	struct drm_gem_object	base;
 	unsigned int		flags;
 	unsigned long		size;
@@ -53,10 +53,10 @@ struct exynos_drm_gem {
 };
 
 /* destroy a buffer with gem object */
-void exynos_drm_gem_destroy(struct exynos_drm_gem *exynos_gem);
+void exyyess_drm_gem_destroy(struct exyyess_drm_gem *exyyess_gem);
 
 /* create a new buffer with gem object */
-struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
+struct exyyess_drm_gem *exyyess_drm_gem_create(struct drm_device *dev,
 					     unsigned int flags,
 					     unsigned long size);
 
@@ -65,59 +65,59 @@ struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
  * that it is calculated with framebuffer information such as width,
  * height and bpp.
  */
-int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
+int exyyess_drm_gem_create_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 
 /* get fake-offset of gem object that can be used with mmap. */
-int exynos_drm_gem_map_ioctl(struct drm_device *dev, void *data,
+int exyyess_drm_gem_map_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 
 /*
- * get exynos drm object from gem handle, this function could be used for
+ * get exyyess drm object from gem handle, this function could be used for
  * other drivers such as 2d/3d acceleration drivers.
  * with this function call, gem object reference count would be increased.
  */
-struct exynos_drm_gem *exynos_drm_gem_get(struct drm_file *filp,
+struct exyyess_drm_gem *exyyess_drm_gem_get(struct drm_file *filp,
 					  unsigned int gem_handle);
 
 /*
- * put exynos drm object acquired from exynos_drm_gem_get(),
+ * put exyyess drm object acquired from exyyess_drm_gem_get(),
  * gem object reference count would be decreased.
  */
-static inline void exynos_drm_gem_put(struct exynos_drm_gem *exynos_gem)
+static inline void exyyess_drm_gem_put(struct exyyess_drm_gem *exyyess_gem)
 {
-	drm_gem_object_put_unlocked(&exynos_gem->base);
+	drm_gem_object_put_unlocked(&exyyess_gem->base);
 }
 
 /* get buffer information to memory region allocated by gem. */
-int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
+int exyyess_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
 
 /* free gem object. */
-void exynos_drm_gem_free_object(struct drm_gem_object *obj);
+void exyyess_drm_gem_free_object(struct drm_gem_object *obj);
 
 /* create memory region for drm framebuffer. */
-int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
+int exyyess_drm_gem_dumb_create(struct drm_file *file_priv,
 			       struct drm_device *dev,
 			       struct drm_mode_create_dumb *args);
 
 /* page fault handler and mmap fault address(virtual) to physical memory. */
-vm_fault_t exynos_drm_gem_fault(struct vm_fault *vmf);
+vm_fault_t exyyess_drm_gem_fault(struct vm_fault *vmf);
 
 /* set vm_flags and we can change the vm attribute to other one at here. */
-int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
+int exyyess_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 
 /* low-level interface prime helpers */
-struct drm_gem_object *exynos_drm_gem_prime_import(struct drm_device *dev,
+struct drm_gem_object *exyyess_drm_gem_prime_import(struct drm_device *dev,
 					    struct dma_buf *dma_buf);
-struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj);
+struct sg_table *exyyess_drm_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *
-exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
+exyyess_drm_gem_prime_import_sg_table(struct drm_device *dev,
 				     struct dma_buf_attachment *attach,
 				     struct sg_table *sgt);
-void *exynos_drm_gem_prime_vmap(struct drm_gem_object *obj);
-void exynos_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
-int exynos_drm_gem_prime_mmap(struct drm_gem_object *obj,
+void *exyyess_drm_gem_prime_vmap(struct drm_gem_object *obj);
+void exyyess_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+int exyyess_drm_gem_prime_mmap(struct drm_gem_object *obj,
 			      struct vm_area_struct *vma);
 
 #endif

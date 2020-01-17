@@ -278,7 +278,7 @@ config MACH_MX31_3DS_MXC_NAND_USE_BBT
 	depends on MTD_NAND_MXC
 	help
 	  Enable this if you want that the MXC NAND driver uses the in flash
-	  Bad Block Table to know what blocks are bad instead of scanning the
+	  Bad Block Table to kyesw what blocks are bad instead of scanning the
 	  entire flash looking for bad block markers.
 
 config MACH_MX31MOBOARD

@@ -82,7 +82,7 @@ static int xfer_msg(struct sun4i_hdmi *hdmi, struct i2c_msg *msg)
 		writel(reg, hdmi->base + SUN4I_HDMI_DDC_CTRL_REG);
 	}
 
-	/* Clear address register (not cleared by soft reset) */
+	/* Clear address register (yest cleared by soft reset) */
 	regmap_field_write(hdmi->field_ddc_addr_reg, 0);
 
 	/* Set I2C address */

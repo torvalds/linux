@@ -39,7 +39,7 @@ int __read_mostly sysctl_hung_task_check_count = PID_MAX_LIMIT;
 #define HUNG_TASK_LOCK_BREAK (HZ / 10)
 
 /*
- * Zero means infinite timeout - no checking done:
+ * Zero means infinite timeout - yes checking done:
  */
 unsigned long __read_mostly sysctl_hung_task_timeout_secs = CONFIG_DEFAULT_HUNG_TASK_TIMEOUT;
 
@@ -74,15 +74,15 @@ static int __init hung_task_panic_setup(char *str)
 __setup("hung_task_panic=", hung_task_panic_setup);
 
 static int
-hung_task_panic(struct notifier_block *this, unsigned long event, void *ptr)
+hung_task_panic(struct yestifier_block *this, unsigned long event, void *ptr)
 {
 	did_panic = 1;
 
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block panic_block = {
-	.notifier_call = hung_task_panic,
+static struct yestifier_block panic_block = {
+	.yestifier_call = hung_task_panic,
 };
 
 static void check_hung_task(struct task_struct *t, unsigned long timeout)
@@ -90,7 +90,7 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	unsigned long switch_count = t->nvcsw + t->nivcsw;
 
 	/*
-	 * Ensure the task is not frozen.
+	 * Ensure the task is yest frozen.
 	 * Also, skip vfork and any other user process that freezer should skip.
 	 */
 	if (unlikely(t->flags & (PF_FROZEN | PF_FREEZER_SKIP)))
@@ -121,7 +121,7 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	}
 
 	/*
-	 * Ok, the task did not get scheduled for more than 2 minutes,
+	 * Ok, the task did yest get scheduled for more than 2 minutes,
 	 * complain:
 	 */
 	if (sysctl_hung_task_warnings) {
@@ -166,7 +166,7 @@ static bool rcu_lock_break(struct task_struct *g, struct task_struct *t)
 }
 
 /*
- * Check whether a TASK_UNINTERRUPTIBLE does not get woken up for
+ * Check whether a TASK_UNINTERRUPTIBLE does yest get woken up for
  * a really long time (120 seconds). If that happens, print out
  * a warning.
  */
@@ -178,7 +178,7 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 
 	/*
 	 * If the system crashed already then all bets are off,
-	 * do not report extra hung tasks:
+	 * do yest report extra hung tasks:
 	 */
 	if (test_taint(TAINT_DIE) || did_panic)
 		return;
@@ -245,7 +245,7 @@ EXPORT_SYMBOL_GPL(reset_hung_task_detector);
 
 static bool hung_detector_suspended;
 
-static int hungtask_pm_notify(struct notifier_block *self,
+static int hungtask_pm_yestify(struct yestifier_block *self,
 			      unsigned long action, void *hcpu)
 {
 	switch (action) {
@@ -298,10 +298,10 @@ static int watchdog(void *dummy)
 
 static int __init hung_task_init(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
+	atomic_yestifier_chain_register(&panic_yestifier_list, &panic_block);
 
 	/* Disable hung task detector on suspend */
-	pm_notifier(hungtask_pm_notify, 0);
+	pm_yestifier(hungtask_pm_yestify, 0);
 
 	watchdog_task = kthread_run(watchdog, NULL, "khungtaskd");
 

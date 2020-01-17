@@ -16,8 +16,8 @@
 
 /* These are the operations we support */
 enum oper_type {
-	OPER_WRITE_PROP,		/* Write a property in a node */
-	OPER_CREATE_NODE,		/* Create a new node */
+	OPER_WRITE_PROP,		/* Write a property in a yesde */
+	OPER_CREATE_NODE,		/* Create a new yesde */
 };
 
 struct display_info {
@@ -30,10 +30,10 @@ struct display_info {
 
 
 /**
- * Report an error with a particular node.
+ * Report an error with a particular yesde.
  *
  * @param name		Node name to report error on
- * @param namelen	Length of node name, or -1 to use entire string
+ * @param namelen	Length of yesde name, or -1 to use entire string
  * @param err		Error number to report (-FDT_ERR_...)
  */
 static void report_error(const char *name, int namelen, int err)
@@ -84,7 +84,7 @@ static int encode_value(struct display_info *disp, char **arg, int arg_count,
 			value_size = (upto + len) + 500;
 			value = realloc(value, value_size);
 			if (!value) {
-				fprintf(stderr, "Out of mmory: cannot alloc "
+				fprintf(stderr, "Out of mmory: canyest alloc "
 					"%d bytes\n", value_size);
 				return -1;
 			}
@@ -117,19 +117,19 @@ static int encode_value(struct display_info *disp, char **arg, int arg_count,
 	return 0;
 }
 
-static int store_key_value(void *blob, const char *node_name,
+static int store_key_value(void *blob, const char *yesde_name,
 		const char *property, const char *buf, int len)
 {
-	int node;
+	int yesde;
 	int err;
 
-	node = fdt_path_offset(blob, node_name);
-	if (node < 0) {
-		report_error(node_name, -1, node);
+	yesde = fdt_path_offset(blob, yesde_name);
+	if (yesde < 0) {
+		report_error(yesde_name, -1, yesde);
 		return -1;
 	}
 
-	err = fdt_setprop(blob, node, property, buf, len);
+	err = fdt_setprop(blob, yesde, property, buf, len);
 	if (err) {
 		report_error(property, -1, err);
 		return -1;
@@ -140,7 +140,7 @@ static int store_key_value(void *blob, const char *node_name,
 /**
  * Create paths as needed for all components of a path
  *
- * Any components of the path that do not exist are created. Errors are
+ * Any components of the path that do yest exist are created. Errors are
  * reported.
  *
  * @param blob		FDT blob to write into
@@ -151,26 +151,26 @@ static int create_paths(void *blob, const char *in_path)
 {
 	const char *path = in_path;
 	const char *sep;
-	int node, offset = 0;
+	int yesde, offset = 0;
 
 	/* skip leading '/' */
 	while (*path == '/')
 		path++;
 
-	for (sep = path; *sep; path = sep + 1, offset = node) {
+	for (sep = path; *sep; path = sep + 1, offset = yesde) {
 		/* equivalent to strchrnul(), but it requires _GNU_SOURCE */
 		sep = strchr(path, '/');
 		if (!sep)
 			sep = path + strlen(path);
 
-		node = fdt_subnode_offset_namelen(blob, offset, path,
+		yesde = fdt_subyesde_offset_namelen(blob, offset, path,
 				sep - path);
-		if (node == -FDT_ERR_NOTFOUND) {
-			node = fdt_add_subnode_namelen(blob, offset, path,
+		if (yesde == -FDT_ERR_NOTFOUND) {
+			yesde = fdt_add_subyesde_namelen(blob, offset, path,
 						       sep - path);
 		}
-		if (node < 0) {
-			report_error(path, sep - path, node);
+		if (yesde < 0) {
+			report_error(path, sep - path, yesde);
 			return -1;
 		}
 	}
@@ -179,39 +179,39 @@ static int create_paths(void *blob, const char *in_path)
 }
 
 /**
- * Create a new node in the fdt.
+ * Create a new yesde in the fdt.
  *
- * This will overwrite the node_name string. Any error is reported.
+ * This will overwrite the yesde_name string. Any error is reported.
  *
  * TODO: Perhaps create fdt_path_offset_namelen() so we don't need to do this.
  *
  * @param blob		FDT blob to write into
- * @param node_name	Name of node to create
- * @return new node offset if found, or -1 on failure
+ * @param yesde_name	Name of yesde to create
+ * @return new yesde offset if found, or -1 on failure
  */
-static int create_node(void *blob, const char *node_name)
+static int create_yesde(void *blob, const char *yesde_name)
 {
-	int node = 0;
+	int yesde = 0;
 	char *p;
 
-	p = strrchr(node_name, '/');
+	p = strrchr(yesde_name, '/');
 	if (!p) {
-		report_error(node_name, -1, -FDT_ERR_BADPATH);
+		report_error(yesde_name, -1, -FDT_ERR_BADPATH);
 		return -1;
 	}
 	*p = '\0';
 
-	if (p > node_name) {
-		node = fdt_path_offset(blob, node_name);
-		if (node < 0) {
-			report_error(node_name, -1, node);
+	if (p > yesde_name) {
+		yesde = fdt_path_offset(blob, yesde_name);
+		if (yesde < 0) {
+			report_error(yesde_name, -1, yesde);
 			return -1;
 		}
 	}
 
-	node = fdt_add_subnode(blob, node, p + 1);
-	if (node < 0) {
-		report_error(p + 1, -1, node);
+	yesde = fdt_add_subyesde(blob, yesde, p + 1);
+	if (yesde < 0) {
+		report_error(p + 1, -1, yesde);
 		return -1;
 	}
 
@@ -247,7 +247,7 @@ static int do_fdtput(struct display_info *disp, const char *filename,
 			if (disp->auto_path)
 				ret = create_paths(blob, *arg);
 			else
-				ret = create_node(blob, *arg);
+				ret = create_yesde(blob, *arg);
 		}
 		break;
 	}
@@ -264,11 +264,11 @@ static const char *usage_msg =
 	"The command line arguments are joined together into a single value.\n"
 	"\n"
 	"Usage:\n"
-	"	fdtput <options> <dt file> <node> <property> [<value>...]\n"
-	"	fdtput -c <options> <dt file> [<node>...]\n"
+	"	fdtput <options> <dt file> <yesde> <property> [<value>...]\n"
+	"	fdtput -c <options> <dt file> [<yesde>...]\n"
 	"Options:\n"
-	"\t-c\t\tCreate nodes if they don't already exist\n"
-	"\t-p\t\tAutomatically create nodes as needed for the node path\n"
+	"\t-c\t\tCreate yesdes if they don't already exist\n"
+	"\t-p\t\tAutomatically create yesdes as needed for the yesde path\n"
 	"\t-t <type>\tType of data\n"
 	"\t-v\t\tVerbose: display each value decoded from command line\n"
 	"\t-h\t\tPrint this help\n\n"
@@ -299,8 +299,8 @@ int main(int argc, char *argv[])
 		/*
 		 * TODO: add options to:
 		 * - delete property
-		 * - delete node (optionally recursively)
-		 * - rename node
+		 * - delete yesde (optionally recursively)
+		 * - rename yesde
 		 * - pack fdt before writing
 		 * - set amount of free space when writing
 		 * - expand fdt if value doesn't fit
@@ -337,7 +337,7 @@ int main(int argc, char *argv[])
 
 	if (disp.oper == OPER_WRITE_PROP) {
 		if (argc < 1)
-			usage("Missing node");
+			usage("Missing yesde");
 		if (argc < 2)
 			usage("Missing property");
 	}

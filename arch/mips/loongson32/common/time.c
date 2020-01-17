@@ -49,7 +49,7 @@ static inline void ls1x_pwmtimer_restart(void)
 
 void __init ls1x_pwmtimer_init(void)
 {
-	timer_reg_base = ioremap_nocache(LS1X_TIMER_BASE, SZ_16);
+	timer_reg_base = ioremap_yescache(LS1X_TIMER_BASE, SZ_16);
 	if (!timer_reg_base)
 		panic("Failed to remap timer registers");
 
@@ -70,8 +70,8 @@ static u64 ls1x_clocksource_read(struct clocksource *cs)
 	raw_spin_lock_irqsave(&ls1x_timer_lock, flags);
 	/*
 	 * Although our caller may have the read side of xtime_lock,
-	 * this is now a seqlock, and we are cheating in this routine
-	 * by having side effects on state that we cannot undo if
+	 * this is yesw a seqlock, and we are cheating in this routine
+	 * by having side effects on state that we canyest undo if
 	 * there is a collision on the seqlock and our caller has to
 	 * retry.  (Namely, old_jifs and old_count.)  So we must treat
 	 * jiffies as volatile despite the lock.  We read jiffies
@@ -79,7 +79,7 @@ static u64 ls1x_clocksource_read(struct clocksource *cs)
 	 * the jiffies value might be older than the count (that is,
 	 * the counter may underflow between the last point where
 	 * jiffies was incremented and the point where we latch the
-	 * count), it cannot be newer.
+	 * count), it canyest be newer.
 	 */
 	jifs = jiffies;
 	/* read the count */
@@ -93,7 +93,7 @@ static u64 ls1x_clocksource_read(struct clocksource *cs)
 	 *  interrupt and incremented jiffies yet.
 	 *
 	 * Previous attempts to handle these cases intelligently were buggy, so
-	 * we just do the simple thing now.
+	 * we just do the simple thing yesw.
 	 */
 	if (count < old_count && jifs == old_jifs)
 		count = old_count;

@@ -8,7 +8,7 @@
  * Description:
  *
  * When nand_scan_bbt is called, then it tries to find the bad block table
- * depending on the options in the BBT descriptor(s). If no flash based BBT
+ * depending on the options in the BBT descriptor(s). If yes flash based BBT
  * (NAND_BBT_USE_FLASH) is specified then the device is scanned for factory
  * marked good / bad blocks. This information is used to create a memory BBT.
  * Once a new bad block is discovered then the "factory" information is updated
@@ -18,9 +18,9 @@
  * based BBT is created. If a mirrored BBT is selected then the mirror is
  * searched too and the versions are compared. If the mirror has a greater
  * version number, then the mirror BBT is used to build the memory based BBT.
- * If the tables are not versioned, then we "or" the bad block information.
- * If one of the BBTs is out of date or does not exist it is (re)created.
- * If no BBT exists at all then the device is scanned for factory marked
+ * If the tables are yest versioned, then we "or" the bad block information.
+ * If one of the BBTs is out of date or does yest exist it is (re)created.
+ * If yes BBT exists at all then the device is scanned for factory marked
  * good / bad blocks and the bad block tables are created.
  *
  * For manufacturer created BBTs like the one found on M-SYS DOC devices
@@ -50,7 +50,7 @@
  *
  * Following assumptions are made:
  * - bbts start at a page boundary, if autolocated on a block boundary
- * - the space necessary for a bbt in FLASH does not exceed a block boundary
+ * - the space necessary for a bbt in FLASH does yest exceed a block boundary
  */
 
 #include <linux/slab.h>
@@ -87,7 +87,7 @@ static inline void bbt_mark_entry(struct nand_chip *chip, int block,
 	chip->bbt[block >> BBT_ENTRY_SHIFT] |= msk;
 }
 
-static int check_pattern_no_oob(uint8_t *buf, struct nand_bbt_descr *td)
+static int check_pattern_yes_oob(uint8_t *buf, struct nand_bbt_descr *td)
 {
 	if (memcmp(buf, td->pattern, td->len))
 		return -1;
@@ -107,7 +107,7 @@ static int check_pattern_no_oob(uint8_t *buf, struct nand_bbt_descr *td)
 static int check_pattern(uint8_t *buf, int len, int paglen, struct nand_bbt_descr *td)
 {
 	if (td->options & NAND_BBT_NO_OOB)
-		return check_pattern_no_oob(buf, td);
+		return check_pattern_yes_oob(buf, td);
 
 	/* Compare the pattern */
 	if (memcmp(buf + paglen + td->offs, td->pattern, td->len))
@@ -122,7 +122,7 @@ static int check_pattern(uint8_t *buf, int len, int paglen, struct nand_bbt_desc
  * @td:	search pattern descriptor
  *
  * Check for a pattern at the given place. Used to search bad block tables and
- * good / bad block identifiers. Same as check_pattern, but no optional empty
+ * good / bad block identifiers. Same as check_pattern, but yes optional empty
  * check.
  */
 static int check_short_pattern(uint8_t *buf, struct nand_bbt_descr *td)
@@ -183,7 +183,7 @@ static int read_bbt(struct nand_chip *this, uint8_t *buf, int page, int num,
 		len = min(totlen, (size_t)(1 << this->bbt_erase_shift));
 		if (marker_len) {
 			/*
-			 * In case the BBT marker is not in the OOB area it
+			 * In case the BBT marker is yest in the OOB area it
 			 * will be just in the first page.
 			 */
 			len -= marker_len;
@@ -223,7 +223,7 @@ static int read_bbt(struct nand_chip *this, uint8_t *buf, int page, int num,
 					continue;
 				}
 				/*
-				 * Leave it for now, if it's matured we can
+				 * Leave it for yesw, if it's matured we can
 				 * move this message to pr_debug.
 				 */
 				pr_info("nand_read_bbt: bad block at 0x%012llx\n",
@@ -283,7 +283,7 @@ static int read_abs_bbt(struct nand_chip *this, uint8_t *buf,
 	return 0;
 }
 
-/* BBT marker is in the first page, no OOB */
+/* BBT marker is in the first page, yes OOB */
 static int scan_read_data(struct nand_chip *this, uint8_t *buf, loff_t offs,
 			  struct nand_bbt_descr *td)
 {
@@ -307,7 +307,7 @@ static int scan_read_data(struct nand_chip *this, uint8_t *buf, loff_t offs,
  *
  * Scan read data from data+OOB. May traverse multiple pages, interleaving
  * page,OOB,page,OOB,... in buf. Completes transfer and returns the "strongest"
- * ECC condition (error or bitflip). May quit on the first (non-ECC) error.
+ * ECC condition (error or bitflip). May quit on the first (yesn-ECC) error.
  */
 static int scan_read_oob(struct nand_chip *this, uint8_t *buf, loff_t offs,
 			 size_t len)
@@ -434,7 +434,7 @@ static int scan_block_fast(struct nand_chip *this, struct nand_bbt_descr *bd,
 		 */
 		ret = mtd_read_oob(mtd, offs + (page_offset * mtd->writesize),
 				   &ops);
-		/* Ignore ECC errors when checking for BBM */
+		/* Igyesre ECC errors when checking for BBM */
 		if (ret && !mtd_is_bitflip_or_eccerr(ret))
 			return ret;
 
@@ -576,7 +576,7 @@ static int search_bbt(struct nand_chip *this, uint8_t *buf,
 	/* Check, if we found a bbt for each requested chip */
 	for (i = 0; i < chips; i++) {
 		if (td->pages[i] == -1)
-			pr_warn("Bad block table not found for chip %d\n", i);
+			pr_warn("Bad block table yest found for chip %d\n", i);
 		else
 			pr_info("Bad block table found at page %d, version 0x%02X\n",
 				td->pages[i], td->version[i]);
@@ -849,7 +849,7 @@ static int write_bbt(struct nand_chip *this, uint8_t *buf,
 			uint8_t dat;
 			int sftcnt = (i << (3 - sft)) & sftmsk;
 			dat = bbt_get_entry(this, chip * numblocks + i);
-			/* Do not store the reserved bbt blocks! */
+			/* Do yest store the reserved bbt blocks! */
 			buf[offs + (i >> sft)] &= ~(msk[dat] << sftcnt);
 		}
 
@@ -910,7 +910,7 @@ static inline int nand_memory_bbt(struct nand_chip *this,
  * @bd: descriptor for the good/bad block search pattern
  *
  * The function checks the results of the previous call to read_bbt and creates
- * / updates the bbt(s) if necessary. Creation is necessary if no bbt was found
+ * / updates the bbt(s) if necessary. Creation is necessary if yes bbt was found
  * for the chip/device. Update is necessary if one of the tables is missing or
  * the version nr. of one table is less than the other.
  */
@@ -1202,7 +1202,7 @@ static void verify_bbt_descr(struct nand_chip *this, struct nand_bbt_descr *bd)
  * @bd: descriptor for the good/bad block search pattern
  *
  * The function checks, if a bad block table(s) is/are already available. If
- * not it scans the device for manufacturer marked good / bad blocks and writes
+ * yest it scans the device for manufacturer marked good / bad blocks and writes
  * the bad block table(s) to the selected place.
  *
  * The bad block table memory is allocated here. It must be freed by calling
@@ -1226,7 +1226,7 @@ static int nand_scan_bbt(struct nand_chip *this, struct nand_bbt_descr *bd)
 		return -ENOMEM;
 
 	/*
-	 * If no primary table decriptor is given, scan the device to build a
+	 * If yes primary table decriptor is given, scan the device to build a
 	 * memory based bad block table.
 	 */
 	if (!td) {
@@ -1306,7 +1306,7 @@ static struct nand_bbt_descr bbt_mirror_descr = {
 	.pattern = mirror_pattern
 };
 
-static struct nand_bbt_descr bbt_main_no_oob_descr = {
+static struct nand_bbt_descr bbt_main_yes_oob_descr = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
 		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP
 		| NAND_BBT_NO_OOB,
@@ -1316,7 +1316,7 @@ static struct nand_bbt_descr bbt_main_no_oob_descr = {
 	.pattern = bbt_pattern
 };
 
-static struct nand_bbt_descr bbt_mirror_no_oob_descr = {
+static struct nand_bbt_descr bbt_mirror_yes_oob_descr = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
 		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP
 		| NAND_BBT_NO_OOB,
@@ -1340,7 +1340,7 @@ static int nand_create_badblock_pattern(struct nand_chip *this)
 {
 	struct nand_bbt_descr *bd;
 	if (this->badblock_pattern) {
-		pr_warn("Bad block pattern already allocated; not replacing\n");
+		pr_warn("Bad block pattern already allocated; yest replacing\n");
 		return -EINVAL;
 	}
 	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
@@ -1371,8 +1371,8 @@ int nand_create_bbt(struct nand_chip *this)
 		/* Use the default pattern descriptors */
 		if (!this->bbt_td) {
 			if (this->bbt_options & NAND_BBT_NO_OOB) {
-				this->bbt_td = &bbt_main_no_oob_descr;
-				this->bbt_md = &bbt_mirror_no_oob_descr;
+				this->bbt_td = &bbt_main_yes_oob_descr;
+				this->bbt_md = &bbt_mirror_yes_oob_descr;
 			} else {
 				this->bbt_td = &bbt_main_descr;
 				this->bbt_md = &bbt_mirror_descr;

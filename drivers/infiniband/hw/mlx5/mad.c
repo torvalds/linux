@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -52,8 +52,8 @@ static bool can_do_mad_ifc(struct mlx5_ib_dev *dev, u8 port_num,
 	return dev->mdev->port_caps[port_num - 1].has_smi;
 }
 
-static int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey,
-			int ignore_bkey, u8 port, const struct ib_wc *in_wc,
+static int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int igyesre_mkey,
+			int igyesre_bkey, u8 port, const struct ib_wc *in_wc,
 			const struct ib_grh *in_grh, const void *in_mad,
 			void *response_mad)
 {
@@ -65,9 +65,9 @@ static int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey,
 	/* Key check traps can't be generated unless we have in_wc to
 	 * tell us where to send the trap.
 	 */
-	if (ignore_mkey || !in_wc)
+	if (igyesre_mkey || !in_wc)
 		op_modifier |= 0x1;
-	if (ignore_bkey || !in_wc)
+	if (igyesre_bkey || !in_wc)
 		op_modifier |= 0x2;
 
 	return mlx5_cmd_mad_ifc(dev->mdev, in_mad, response_mad, op_modifier,
@@ -275,7 +275,7 @@ int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		out->mad_hdr.status |= cpu_to_be16(1 << 15);
 
 	if (method == IB_MGMT_METHOD_TRAP_REPRESS)
-		/* no response for trap repress */
+		/* yes response for trap repress */
 		return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED;
 
 	return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY;
@@ -310,7 +310,7 @@ out:
 	return err;
 }
 
-int mlx5_query_mad_ifc_smp_attr_node_info(struct ib_device *ibdev,
+int mlx5_query_mad_ifc_smp_attr_yesde_info(struct ib_device *ibdev,
 					  struct ib_smp *out_mad)
 {
 	struct ib_smp *in_mad = NULL;
@@ -340,7 +340,7 @@ int mlx5_query_mad_ifc_system_image_guid(struct ib_device *ibdev,
 	if (!out_mad)
 		return -ENOMEM;
 
-	err = mlx5_query_mad_ifc_smp_attr_node_info(ibdev, out_mad);
+	err = mlx5_query_mad_ifc_smp_attr_yesde_info(ibdev, out_mad);
 	if (err)
 		goto out;
 
@@ -362,7 +362,7 @@ int mlx5_query_mad_ifc_max_pkeys(struct ib_device *ibdev,
 	if (!out_mad)
 		return -ENOMEM;
 
-	err = mlx5_query_mad_ifc_smp_attr_node_info(ibdev, out_mad);
+	err = mlx5_query_mad_ifc_smp_attr_yesde_info(ibdev, out_mad);
 	if (err)
 		goto out;
 
@@ -384,7 +384,7 @@ int mlx5_query_mad_ifc_vendor_id(struct ib_device *ibdev,
 	if (!out_mad)
 		return -ENOMEM;
 
-	err = mlx5_query_mad_ifc_smp_attr_node_info(ibdev, out_mad);
+	err = mlx5_query_mad_ifc_smp_attr_yesde_info(ibdev, out_mad);
 	if (err)
 		goto out;
 
@@ -396,7 +396,7 @@ out:
 	return err;
 }
 
-int mlx5_query_mad_ifc_node_desc(struct mlx5_ib_dev *dev, char *node_desc)
+int mlx5_query_mad_ifc_yesde_desc(struct mlx5_ib_dev *dev, char *yesde_desc)
 {
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
@@ -414,14 +414,14 @@ int mlx5_query_mad_ifc_node_desc(struct mlx5_ib_dev *dev, char *node_desc)
 	if (err)
 		goto out;
 
-	memcpy(node_desc, out_mad->data, IB_DEVICE_NODE_DESC_MAX);
+	memcpy(yesde_desc, out_mad->data, IB_DEVICE_NODE_DESC_MAX);
 out:
 	kfree(in_mad);
 	kfree(out_mad);
 	return err;
 }
 
-int mlx5_query_mad_ifc_node_guid(struct mlx5_ib_dev *dev, __be64 *node_guid)
+int mlx5_query_mad_ifc_yesde_guid(struct mlx5_ib_dev *dev, __be64 *yesde_guid)
 {
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
@@ -439,7 +439,7 @@ int mlx5_query_mad_ifc_node_guid(struct mlx5_ib_dev *dev, __be64 *node_guid)
 	if (err)
 		goto out;
 
-	memcpy(node_guid, out_mad->data + 12, 8);
+	memcpy(yesde_guid, out_mad->data + 12, 8);
 out:
 	kfree(in_mad);
 	kfree(out_mad);

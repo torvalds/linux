@@ -28,7 +28,7 @@
 #include <asm/sibyte/sb1250_scd.h>
 
 /*  *********************************************************************
-    *  Some general notes:
+    *  Some general yestes:
     *
     *  This file is basically a "what's new" header file.  Since the
     *  BCM1250 and the new BCM1480 (and derivatives) share many common
@@ -40,7 +40,7 @@
     *  for blocks that are different between the two chip families.
     *  All BCM1480-specific symbols have _BCM1480_ in their names,
     *  and all BCM1250-specific and "base" functions that are common in
-    *  both chips have no special names (this is for compatibility with
+    *  both chips have yes special names (this is for compatibility with
     *  older include files).  Therefore, if you're working with the
     *  SCD, which is very different on each chip, A_SCD_xxx implies
     *  the BCM1250 version and A_BCM1480_SCD_xxx implies the BCM1480

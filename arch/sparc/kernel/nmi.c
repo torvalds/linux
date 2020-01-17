@@ -38,7 +38,7 @@ static int panic_on_timeout;
 
 /* nmi_active:
  * >0: the NMI watchdog is active, but can be disabled
- * <0: the NMI watchdog has not been set up, and cannot be enabled
+ * <0: the NMI watchdog has yest been set up, and canyest be enabled
  *  0: the NMI watchdog is disabled, but can be enabled
  */
 atomic_t nmi_active = ATOMIC_INIT(0);		/* oprofile uses this */
@@ -69,7 +69,7 @@ static void die_nmi(const char *str, struct pt_regs *regs, int do_panic)
 {
 	int this_cpu = smp_processor_id();
 
-	if (notify_die(DIE_NMIWATCHDOG, str, regs, 0,
+	if (yestify_die(DIE_NMIWATCHDOG, str, regs, 0,
 		       pt_regs_trap_type(regs), SIGINT) == NOTIFY_STOP)
 		return;
 
@@ -79,7 +79,7 @@ static void die_nmi(const char *str, struct pt_regs *regs, int do_panic)
 		WARN(1, "Watchdog detected hard LOCKUP on cpu %d", this_cpu);
 }
 
-notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
+yestrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 {
 	unsigned int sum, touched = 0;
 	void *orig_sp;
@@ -92,7 +92,7 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 
 	orig_sp = set_hardirq_stack();
 
-	if (notify_die(DIE_NMI, "nmi", regs, 0,
+	if (yestify_die(DIE_NMI, "nmi", regs, 0,
 		       pt_regs_trap_type(regs), SIGINT) == NOTIFY_STOP)
 		touched = 1;
 	else
@@ -239,14 +239,14 @@ void nmi_adjust_hz(unsigned int new_hz)
 }
 EXPORT_SYMBOL_GPL(nmi_adjust_hz);
 
-static int nmi_shutdown(struct notifier_block *nb, unsigned long cmd, void *p)
+static int nmi_shutdown(struct yestifier_block *nb, unsigned long cmd, void *p)
 {
 	on_each_cpu(stop_nmi_watchdog, NULL, 1);
 	return 0;
 }
 
-static struct notifier_block nmi_reboot_notifier = {
-	.notifier_call = nmi_shutdown,
+static struct yestifier_block nmi_reboot_yestifier = {
+	.yestifier_call = nmi_shutdown,
 };
 
 int __init nmi_init(void)
@@ -257,7 +257,7 @@ int __init nmi_init(void)
 
 	err = check_nmi_watchdog();
 	if (!err) {
-		err = register_reboot_notifier(&nmi_reboot_notifier);
+		err = register_reboot_yestifier(&nmi_reboot_yestifier);
 		if (err) {
 			on_each_cpu(stop_nmi_watchdog, NULL, 1);
 			atomic_set(&nmi_active, -1);
@@ -280,12 +280,12 @@ __setup("nmi_watchdog=", setup_nmi_watchdog);
 
 /*
  * sparc specific NMI watchdog enable function.
- * Enables watchdog if it is not enabled already.
+ * Enables watchdog if it is yest enabled already.
  */
 int watchdog_nmi_enable(unsigned int cpu)
 {
 	if (atomic_read(&nmi_active) == -1) {
-		pr_warn("NMI watchdog cannot be enabled or disabled\n");
+		pr_warn("NMI watchdog canyest be enabled or disabled\n");
 		return -1;
 	}
 
@@ -303,12 +303,12 @@ int watchdog_nmi_enable(unsigned int cpu)
 }
 /*
  * sparc specific NMI watchdog disable function.
- * Disables watchdog if it is not disabled already.
+ * Disables watchdog if it is yest disabled already.
  */
 void watchdog_nmi_disable(unsigned int cpu)
 {
 	if (atomic_read(&nmi_active) == -1)
-		pr_warn_once("NMI watchdog cannot be enabled or disabled\n");
+		pr_warn_once("NMI watchdog canyest be enabled or disabled\n");
 	else
 		smp_call_function_single(cpu, stop_nmi_watchdog, NULL, 1);
 }

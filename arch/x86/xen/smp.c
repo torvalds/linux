@@ -136,7 +136,7 @@ void __init xen_smp_cpus_done(unsigned int max_cpus)
 
 		if (rc == 0) {
 			/*
-			 * Reset vcpu_info so this cpu cannot be onlined again.
+			 * Reset vcpu_info so this cpu canyest be onlined again.
 			 */
 			xen_vcpu_info_reset(cpu);
 			count++;
@@ -208,7 +208,7 @@ static inline int xen_map_vector(int vector)
 #endif
 	default:
 		xen_vector = -1;
-		printk(KERN_ERR "xen: vector 0x%x is not implemented\n",
+		printk(KERN_ERR "xen: vector 0x%x is yest implemented\n",
 			vector);
 	}
 

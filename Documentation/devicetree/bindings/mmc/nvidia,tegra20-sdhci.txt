@@ -73,7 +73,7 @@ Optional properties for Tegra210, Tegra186 and Tegra194:
   nvidia,pad-autocal-pull-down-offset-hs400 : Specify drive strength
   calibration offsets for HS400 mode.
 - nvidia,default-tap : Specify the default inbound sampling clock
-  trimmer value for non-tunable modes.
+  trimmer value for yesn-tunable modes.
 - nvidia,default-trim : Specify the default outbound clock trimmer
   value.
 - nvidia,dqs-trim : Specify DQS trim value for HS400 timing

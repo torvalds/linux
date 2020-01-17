@@ -17,11 +17,11 @@ Required properties:
 			the SPI bus.
 - #size-cells:		Must be <0>.
 
-SPI Controller nodes must be child of GENI based Qualcomm Universal
-Peripharal. Please refer GENI based QUP wrapper controller node bindings
+SPI Controller yesdes must be child of GENI based Qualcomm Universal
+Peripharal. Please refer GENI based QUP wrapper controller yesde bindings
 described in Documentation/devicetree/bindings/soc/qcom/qcom,geni-se.txt.
 
-SPI slave nodes must be children of the SPI master node and conform to SPI bus
+SPI slave yesdes must be children of the SPI master yesde and conform to SPI bus
 binding as described in Documentation/devicetree/bindings/spi/spi-bus.txt.
 
 Example:

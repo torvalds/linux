@@ -2,12 +2,12 @@
 Memory alignment
 ================
 
-Too many problems popped up because of unnoticed misaligned memory access in
-kernel code lately.  Therefore the alignment fixup is now unconditionally
+Too many problems popped up because of unyesticed misaligned memory access in
+kernel code lately.  Therefore the alignment fixup is yesw unconditionally
 configured in for SA11x0 based targets.  According to Alan Cox, this is a
 bad idea to configure it out, but Russell King has some good reasons for
 doing so on some f***ed up ARM architectures like the EBSA110.  However
-this is not the case on many design I'm aware of, like all SA11x0 based
+this is yest the case on many design I'm aware of, like all SA11x0 based
 ones.
 
 Of course this is a bad idea to rely on the alignment trap to perform
@@ -23,7 +23,7 @@ mode isn't recommended for performance reasons (just think about the
 floating point emulation that works about the same way).  Fix your code
 instead!
 
-Please note that randomly changing the behaviour without good thought is
+Please yeste that randomly changing the behaviour without good thought is
 real bad - it changes the behaviour of all unaligned instructions in user
 space, and might cause programs to fail unexpectedly.
 
@@ -41,13 +41,13 @@ bit		behavior when set
 1		The kernel will attempt to fix up the user process
 		performing the unaligned access.  This is of course
 		slow (think about the floating point emulator) and
-		not recommended for production use.
+		yest recommended for production use.
 
 2		The kernel will send a SIGBUS signal to the user process
 		performing the unaligned access.
 ===		========================================================
 
-Note that not all combinations are supported - only values 0 through 5.
+Note that yest all combinations are supported - only values 0 through 5.
 (6 and 7 don't make sense).
 
 For example, the following will turn on the warnings, but without

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * traps.h:  Format of entries for the Sparc trap table.
  *
@@ -13,7 +13,7 @@
 #ifndef __ASSEMBLY__
 #endif /* !(__ASSEMBLY__) */
 
-/* For patching the trap table at boot time, we need to know how to
+/* For patching the trap table at boot time, we need to kyesw how to
  * form various common Sparc instructions.  Thus these macros...
  */
 
@@ -112,7 +112,7 @@
 /* Is this a Software trap? */
 #define SW_TRAP_P(level) ((level >= SP_TRAP_SUNOS) && (level <= SP_TRAP_KBPT2))
 
-/* Is this a system call for some OS we know about? */
+/* Is this a system call for some OS we kyesw about? */
 #define SCALL_TRAP_P(level) ((level == SP_TRAP_SUNOS) || \
 			     (level == SP_TRAP_SOLARIS) || \
 			     (level == SP_TRAP_NETBSD) || \

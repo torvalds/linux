@@ -21,9 +21,9 @@
 #include "util.h"
 
 enum display_mode {
-	MODE_SHOW_VALUE,	/* show values for node properties */
-	MODE_LIST_PROPS,	/* list the properties for a node */
-	MODE_LIST_SUBNODES,	/* list the subnodes of a node */
+	MODE_SHOW_VALUE,	/* show values for yesde properties */
+	MODE_LIST_PROPS,	/* list the properties for a yesde */
+	MODE_LIST_SUBNODES,	/* list the subyesdes of a yesde */
 };
 
 /* Holds information which controls our output and options */
@@ -31,7 +31,7 @@ struct display_info {
 	int type;		/* data type (s/i/u/x or 0 for default) */
 	int size;		/* data size (1/2/4) */
 	enum display_mode mode;	/* display mode that we are using */
-	const char *default_val; /* default value if node/property not found */
+	const char *default_val; /* default value if yesde/property yest found */
 };
 
 static void report_error(const char *where, int err)
@@ -48,7 +48,7 @@ static void report_error(const char *where, int err)
  * @param disp		Display information / options
  * @param data		Data to display
  * @param len		Maximum length of buffer
- * @return 0 if ok, -1 if data does not match format
+ * @return 0 if ok, -1 if data does yest match format
  */
 static int show_data(struct display_info *disp, const char *data, int len)
 {
@@ -59,7 +59,7 @@ static int show_data(struct display_info *disp, const char *data, int len)
 	int is_string;
 	char fmt[3];
 
-	/* no data, don't print */
+	/* yes data, don't print */
 	if (len == 0)
 		return 0;
 
@@ -99,21 +99,21 @@ static int show_data(struct display_info *disp, const char *data, int len)
 }
 
 /**
- * List all properties in a node, one per line.
+ * List all properties in a yesde, one per line.
  *
  * @param blob		FDT blob
- * @param node		Node to display
- * @return 0 if ok, or FDT_ERR... if not.
+ * @param yesde		Node to display
+ * @return 0 if ok, or FDT_ERR... if yest.
  */
-static int list_properties(const void *blob, int node)
+static int list_properties(const void *blob, int yesde)
 {
 	const struct fdt_property *data;
 	const char *name;
 	int prop;
 
-	prop = fdt_first_property_offset(blob, node);
+	prop = fdt_first_property_offset(blob, yesde);
 	do {
-		/* Stop silently when there are no more properties */
+		/* Stop silently when there are yes more properties */
 		if (prop < 0)
 			return prop == -FDT_ERR_NOTFOUND ? 0 : prop;
 		data = fdt_get_property_by_offset(blob, prop, NULL);
@@ -127,25 +127,25 @@ static int list_properties(const void *blob, int node)
 #define MAX_LEVEL	32		/* how deeply nested we will go */
 
 /**
- * List all subnodes in a node, one per line
+ * List all subyesdes in a yesde, one per line
  *
  * @param blob		FDT blob
- * @param node		Node to display
- * @return 0 if ok, or FDT_ERR... if not.
+ * @param yesde		Node to display
+ * @return 0 if ok, or FDT_ERR... if yest.
  */
-static int list_subnodes(const void *blob, int node)
+static int list_subyesdes(const void *blob, int yesde)
 {
-	int nextoffset;		/* next node offset from libfdt */
+	int nextoffset;		/* next yesde offset from libfdt */
 	uint32_t tag;		/* current tag */
 	int level = 0;		/* keep track of nesting level */
 	const char *pathp;
-	int depth = 1;		/* the assumed depth of this node */
+	int depth = 1;		/* the assumed depth of this yesde */
 
 	while (level >= 0) {
-		tag = fdt_next_tag(blob, node, &nextoffset);
+		tag = fdt_next_tag(blob, yesde, &nextoffset);
 		switch (tag) {
 		case FDT_BEGIN_NODE:
-			pathp = fdt_get_name(blob, node, NULL);
+			pathp = fdt_get_name(blob, yesde, NULL);
 			if (level <= depth) {
 				if (pathp == NULL)
 					pathp = "/* NULL pointer error */";
@@ -171,42 +171,42 @@ static int list_subnodes(const void *blob, int node)
 			break;
 		default:
 			if (level <= depth)
-				printf("Unknown tag 0x%08X\n", tag);
+				printf("Unkyeswn tag 0x%08X\n", tag);
 			return 1;
 		}
-		node = nextoffset;
+		yesde = nextoffset;
 	}
 	return 0;
 }
 
 /**
- * Show the data for a given node (and perhaps property) according to the
+ * Show the data for a given yesde (and perhaps property) according to the
  * display option provided.
  *
  * @param blob		FDT blob
  * @param disp		Display information / options
- * @param node		Node to display
- * @param property	Name of property to display, or NULL if none
+ * @param yesde		Node to display
+ * @param property	Name of property to display, or NULL if yesne
  * @return 0 if ok, -ve on error
  */
 static int show_data_for_item(const void *blob, struct display_info *disp,
-		int node, const char *property)
+		int yesde, const char *property)
 {
 	const void *value = NULL;
 	int len, err = 0;
 
 	switch (disp->mode) {
 	case MODE_LIST_PROPS:
-		err = list_properties(blob, node);
+		err = list_properties(blob, yesde);
 		break;
 
 	case MODE_LIST_SUBNODES:
-		err = list_subnodes(blob, node);
+		err = list_subyesdes(blob, yesde);
 		break;
 
 	default:
 		assert(property);
-		value = fdt_getprop(blob, node, property, &len);
+		value = fdt_getprop(blob, yesde, property, &len);
 		if (value) {
 			if (show_data(disp, value, len))
 				err = -1;
@@ -238,26 +238,26 @@ static int do_fdtget(struct display_info *disp, const char *filename,
 {
 	char *blob;
 	const char *prop;
-	int i, node;
+	int i, yesde;
 
 	blob = utilfdt_read(filename);
 	if (!blob)
 		return -1;
 
 	for (i = 0; i + args_per_step <= arg_count; i += args_per_step) {
-		node = fdt_path_offset(blob, arg[i]);
-		if (node < 0) {
+		yesde = fdt_path_offset(blob, arg[i]);
+		if (yesde < 0) {
 			if (disp->default_val) {
 				puts(disp->default_val);
 				continue;
 			} else {
-				report_error(arg[i], node);
+				report_error(arg[i], yesde);
 				return -1;
 			}
 		}
 		prop = args_per_step == 1 ? NULL : arg[i + 1];
 
-		if (show_data_for_item(blob, disp, node, prop))
+		if (show_data_for_item(blob, disp, yesde, prop))
 			return -1;
 	}
 	return 0;
@@ -268,12 +268,12 @@ static const char *usage_msg =
 	"\n"
 	"Each value is printed on a new line.\n\n"
 	"Usage:\n"
-	"	fdtget <options> <dt file> [<node> <property>]...\n"
-	"	fdtget -p <options> <dt file> [<node> ]...\n"
+	"	fdtget <options> <dt file> [<yesde> <property>]...\n"
+	"	fdtget -p <options> <dt file> [<yesde> ]...\n"
 	"Options:\n"
 	"\t-t <type>\tType of data\n"
-	"\t-p\t\tList properties for each node\n"
-	"\t-l\t\tList subnodes for each node\n"
+	"\t-p\t\tList properties for each yesde\n"
+	"\t-l\t\tList subyesdes for each yesde\n"
 	"\t-d\t\tDefault value to display when the property is "
 			"missing\n"
 	"\t-h\t\tPrint this help\n\n"
@@ -338,11 +338,11 @@ int main(int argc, char *argv[])
 	argv += optind;
 	argc -= optind;
 
-	/* Allow no arguments, and silently succeed */
+	/* Allow yes arguments, and silently succeed */
 	if (!argc)
 		return 0;
 
-	/* Check for node, property arguments */
+	/* Check for yesde, property arguments */
 	if (args_per_step == 2 && (argc % 2))
 		usage("Must have an even number of arguments");
 

@@ -17,14 +17,14 @@ config DVB_MAX_ADAPTERS
 	  If you are unsure about this, use the default value 16
 
 config DVB_DYNAMIC_MINORS
-	bool "Dynamic DVB minor allocation"
+	bool "Dynamic DVB miyesr allocation"
 	depends on DVB_CORE
 	help
-	  If you say Y here, the DVB subsystem will use dynamic minor
+	  If you say Y here, the DVB subsystem will use dynamic miyesr
 	  allocation for any device that uses the DVB major number.
 	  This means that you can have more than 4 of a single type
 	  of device (like demuxes and frontends) per adapter, but udev
-	  will be required to manage the device nodes.
+	  will be required to manage the device yesdes.
 
 	  If you are unsure about this, say N here.
 
@@ -35,7 +35,7 @@ config DVB_DEMUX_SECTION_LOSS_LOG
 	  Enable extra log messages meant to detect packet loss
 	  inside the Kernel.
 
-	  Should not be enabled on normal cases, as logs can
+	  Should yest be enabled on yesrmal cases, as logs can
 	  be very verbose.
 
 	  If you are unsure about this, say N here.
@@ -47,7 +47,7 @@ config DVB_ULE_DEBUG
 	  Enable extra log messages meant to detect problems while
 	  handling DVB network ULE packet loss inside the Kernel.
 
-	  Should not be enabled on normal cases, as logs can
+	  Should yest be enabled on yesrmal cases, as logs can
 	  be very verbose.
 
 	  If you are unsure about this, say N here.

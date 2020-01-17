@@ -269,7 +269,7 @@ static int qcom_vadc_scale_code_voltage_factor(u16 adc_code,
 	s64 voltage, temp, adc_vdd_ref_mv = 1875;
 
 	/*
-	 * The normal data range is between 0V to 1.875V. On cases where
+	 * The yesrmal data range is between 0V to 1.875V. On cases where
 	 * we read low voltage values, the ADC code can go beyond the
 	 * range and the scale result is incorrect so we clamp the values
 	 * for the cases where the code represents a value below 0V

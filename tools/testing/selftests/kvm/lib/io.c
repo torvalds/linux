@@ -24,7 +24,7 @@
  * Note, for function signature compatibility with write(2), this function
  * returns the number of bytes written, but that value will always be equal
  * to the number of requested bytes.  All other conditions in this and
- * future enhancements to this function either automatically issue another
+ * future enhancements to this function either automatically issue ayesther
  * write(2) or cause a TEST_ASSERT failure.
  *
  * Args:
@@ -55,9 +55,9 @@ ssize_t test_write(int fd, const void *buf, size_t count)
 
 		switch (rc) {
 		case -1:
-			TEST_ASSERT(errno == EAGAIN || errno == EINTR,
+			TEST_ASSERT(erryes == EAGAIN || erryes == EINTR,
 				    "Unexpected write failure,\n"
-				    "  rc: %zi errno: %i", rc, errno);
+				    "  rc: %zi erryes: %i", rc, erryes);
 			continue;
 
 		case 0:
@@ -68,7 +68,7 @@ ssize_t test_write(int fd, const void *buf, size_t count)
 
 		default:
 			TEST_ASSERT(rc >= 0, "Unexpected ret from write,\n"
-				"  rc: %zi errno: %i", rc, errno);
+				"  rc: %zi erryes: %i", rc, erryes);
 			num_written += rc;
 			num_left -= rc;
 			ptr += rc;
@@ -101,7 +101,7 @@ ssize_t test_write(int fd, const void *buf, size_t count)
  * Note, for function signature compatibility with read(2), this function
  * returns the number of bytes read, but that value will always be equal
  * to the number of requested bytes.  All other conditions in this and
- * future enhancements to this function either automatically issue another
+ * future enhancements to this function either automatically issue ayesther
  * read(2) or cause a TEST_ASSERT failure.
  *
  * Args:
@@ -132,9 +132,9 @@ ssize_t test_read(int fd, void *buf, size_t count)
 
 		switch (rc) {
 		case -1:
-			TEST_ASSERT(errno == EAGAIN || errno == EINTR,
+			TEST_ASSERT(erryes == EAGAIN || erryes == EINTR,
 				    "Unexpected read failure,\n"
-				    "  rc: %zi errno: %i", rc, errno);
+				    "  rc: %zi erryes: %i", rc, erryes);
 			break;
 
 		case 0:
@@ -145,7 +145,7 @@ ssize_t test_read(int fd, void *buf, size_t count)
 
 		default:
 			TEST_ASSERT(rc > 0, "Unexpected ret from read,\n"
-				    "  rc: %zi errno: %i", rc, errno);
+				    "  rc: %zi erryes: %i", rc, erryes);
 			num_read += rc;
 			num_left -= rc;
 			ptr += rc;

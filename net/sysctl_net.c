@@ -45,7 +45,7 @@ static int net_ctl_permissions(struct ctl_table_header *head,
 	struct net *net = container_of(head->set, struct net, sysctls);
 
 	/* Allow network administrator to have same access as root. */
-	if (ns_capable_noaudit(net->user_ns, CAP_NET_ADMIN)) {
+	if (ns_capable_yesaudit(net->user_ns, CAP_NET_ADMIN)) {
 		int mode = (table->mode >> 6) & 7;
 		return (mode << 6) | (mode << 3) | mode;
 	}
@@ -98,7 +98,7 @@ __init int net_sysctl_init(void)
 	static struct ctl_table empty[1];
 	int ret = -ENOMEM;
 	/* Avoid limitations in the sysctl implementation by
-	 * registering "/proc/sys/net" as an empty directory not in a
+	 * registering "/proc/sys/net" as an empty directory yest in a
 	 * network namespace.
 	 */
 	net_header = register_sysctl("net", empty);

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -117,20 +117,20 @@
  * This code deals with PGRAPH contexts on NV50 family cards. Like NV40, it's
  * the GPU itself that does context-switching, but it needs a special
  * microcode to do it. And it's the driver's task to supply this microcode,
- * further known as ctxprog, as well as the initial context values, known
+ * further kyeswn as ctxprog, as well as the initial context values, kyeswn
  * as ctxvals.
  *
- * Without ctxprog, you cannot switch contexts. Not even in software, since
+ * Without ctxprog, you canyest switch contexts. Not even in software, since
  * the majority of context [xfer strands] isn't accessible directly. You're
  * stuck with a single channel, and you also suffer all the problems resulting
- * from missing ctxvals, since you cannot load them.
+ * from missing ctxvals, since you canyest load them.
  *
- * Without ctxvals, you're stuck with PGRAPH's default context. It's enough to
+ * Without ctxvals, you're stuck with PGRAPH's default context. It's eyesugh to
  * run 2d operations, but trying to utilise 3d or CUDA will just lock you up,
  * since you don't have... some sort of needed setup.
  *
- * Nouveau will just disable acceleration if not given ctxprog + ctxvals, since
- * it's too much hassle to handle no-ctxprog as a special case.
+ * Nouveau will just disable acceleration if yest given ctxprog + ctxvals, since
+ * it's too much hassle to handle yes-ctxprog as a special case.
  */
 
 /*
@@ -141,7 +141,7 @@
  * area of memory on PGRAPH, and it'll be run when PFIFO wants PGRAPH to
  * switch channel. or when the driver explicitely requests it. Stuff visible
  * to ctxprog consists of: PGRAPH MMIO registers, PGRAPH context strands,
- * the per-channel context save area in VRAM [known as ctxvals or grctx],
+ * the per-channel context save area in VRAM [kyeswn as ctxvals or grctx],
  * 4 flags registers, a scratch register, two grctx pointers, plus many
  * random poorly-understood details.
  *
@@ -224,7 +224,7 @@ nv50_grctx_generate(struct nvkm_grctx *ctx)
 	cp_bra (ctx, SWAP_DIRECTION, SAVE, cp_check_load);
 
 	cp_set (ctx, UNK20, SET);
-	cp_set (ctx, SWAP_DIRECTION, SAVE); /* no idea why this is needed, but fixes at least one lockup. */
+	cp_set (ctx, SWAP_DIRECTION, SAVE); /* yes idea why this is needed, but fixes at least one lockup. */
 	cp_lsr (ctx, ctx->ctxvals_base);
 	cp_out (ctx, CP_SET_XFER_POINTER);
 	cp_lsr (ctx, 4);
@@ -247,7 +247,7 @@ nv50_grctx_generate(struct nvkm_grctx *ctx)
 	cp_set (ctx, XFER_SWITCH, DISABLE);
 	cp_set (ctx, STATE, STOPPED);
 	cp_out (ctx, CP_END);
-	ctx->ctxvals_pos += 0x400; /* padding... no idea why you need it */
+	ctx->ctxvals_pos += 0x400; /* padding... yes idea why you need it */
 
 	return 0;
 }
@@ -286,7 +286,7 @@ nv50_grctx_init(struct nvkm_device *device, u32 *size)
 }
 
 /*
- * Constructs MMIO part of ctxprog and ctxvals. Just a matter of knowing which
+ * Constructs MMIO part of ctxprog and ctxvals. Just a matter of kyeswing which
  * registers to save/restore and the default values for them.
  */
 
@@ -1053,8 +1053,8 @@ nv50_gr_construct_mmio_ddata(struct nvkm_grctx *ctx)
 	dd_emit(ctx, 1, 1);		/* 000000ff VP_REG_ALLOC_TEMP / 4 rounded up */
 	dd_emit(ctx, 1, 1);		/* 00000001 */
 	dd_emit(ctx, 1, 0);		/* 00000001 */
-	dd_emit(ctx, 1, 0);		/* 00000001 VTX_ATTR_MASK_UNK0 nonempty */
-	dd_emit(ctx, 1, 0);		/* 00000001 VTX_ATTR_MASK_UNK1 nonempty */
+	dd_emit(ctx, 1, 0);		/* 00000001 VTX_ATTR_MASK_UNK0 yesnempty */
+	dd_emit(ctx, 1, 0);		/* 00000001 VTX_ATTR_MASK_UNK1 yesnempty */
 	dd_emit(ctx, 1, 0x200);		/* 0003ffff GP_VERTEX_OUTPUT_COUNT*GP_REG_ALLOC_RESULT */
 	if (IS_NVA3F(device->chipset))
 		dd_emit(ctx, 1, 0x200);
@@ -1124,13 +1124,13 @@ nv50_gr_construct_mmio_ddata(struct nvkm_grctx *ctx)
  * addresses are unrelated to each other, and data in them is closely
  * packed together. The strand layout varies a bit between cards: here
  * and there, a single word is thrown out in the middle and the whole
- * strand is offset by a bit from corresponding one on another chipset.
+ * strand is offset by a bit from corresponding one on ayesther chipset.
  * For this reason, addresses of stuff in strands are almost useless.
- * Knowing sequence of stuff and size of gaps between them is much more
+ * Kyeswing sequence of stuff and size of gaps between them is much more
  * useful, and that's how we build the strands in our generator.
  *
  * NVA0 takes this mess to a whole new level by cutting the old strands
- * into a few dozen pieces [known as genes], rearranging them randomly,
+ * into a few dozen pieces [kyeswn as genes], rearranging them randomly,
  * and putting them back together to make new strands. Hopefully these
  * genes correspond more or less directly to the same PGRAPH subunits
  * as in 400040 register.
@@ -1140,17 +1140,17 @@ nv50_gr_construct_mmio_ddata(struct nvkm_grctx *ctx)
  * some of them can be clearly deduced, others can be guessed, and yet
  * others won't be resolved without figuring out the real meaning of
  * given ctxval. For the same reason, ending point of each strand
- * is unknown. Except for strand 0, which is the longest strand and
+ * is unkyeswn. Except for strand 0, which is the longest strand and
  * its end corresponds to end of the whole xfer.
  *
  * An unsolved mystery is the seek instruction: it takes an argument
  * in bits 8-18, and that argument is clearly the place in strands to
  * seek to... but the offsets don't seem to correspond to offsets as
- * seen in grctx. Perhaps there's another, real, not randomly-changing
+ * seen in grctx. Perhaps there's ayesther, real, yest randomly-changing
  * addressing in strands, and the xfer insn just happens to skip over
  * the unused bits? NV10-NV30 PIPE comes to mind...
  *
- * As far as I know, there's no way to access the xfer areas directly
+ * As far as I kyesw, there's yes way to access the xfer areas directly
  * without the help of ctxprog.
  */
 
@@ -1345,7 +1345,7 @@ nv50_gr_construct_xfer1(struct nvkm_grctx *ctx)
 }
 
 /*
- * non-trivial demagiced parts of ctx init go here
+ * yesn-trivial demagiced parts of ctx init go here
  */
 
 static void
@@ -1366,7 +1366,7 @@ nv50_gr_construct_gene_dispatch(struct nvkm_grctx *ctx)
 		xf_emit(ctx, 8*3, 0);
 	else
 		xf_emit(ctx, 0x100*3, 0);
-	/* and another bonus slot?!? */
+	/* and ayesther bonus slot?!? */
 	xf_emit(ctx, 3, 0);
 	/* and YET ANOTHER bonus slot? */
 	if (IS_NVA3F(device->chipset))
@@ -3039,7 +3039,7 @@ static void
 nv50_gr_construct_xfer_tex(struct nvkm_grctx *ctx)
 {
 	struct nvkm_device *device = ctx->device;
-	xf_emit(ctx, 2, 0);		/* 1 LINKED_TSC. yes, 2. */
+	xf_emit(ctx, 2, 0);		/* 1 LINKED_TSC. no, 2. */
 	if (device->chipset != 0x50)
 		xf_emit(ctx, 1, 0);	/* 3 */
 	xf_emit(ctx, 1, 1);		/* 1ffff BLIT_DU_DX_INT */

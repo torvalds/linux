@@ -12,7 +12,7 @@
 #include <linux/nvmem-provider.h>
 #include <linux/of_device.h>
 
-/* BSEC secure service access from non-secure */
+/* BSEC secure service access from yesn-secure */
 #define STM32_SMC_BSEC			0x82001003
 #define STM32_SMC_READ_SHADOW		0x01
 #define STM32_SMC_PROG_OTP		0x02

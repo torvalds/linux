@@ -80,7 +80,7 @@ struct mgr_priv_data {
 
 	bool shadow_info_dirty;
 
-	/* If true, GO bit is up and shadow registers cannot be written.
+	/* If true, GO bit is up and shadow registers canyest be written.
 	 * Never true for manual update displays */
 	bool busy;
 
@@ -385,7 +385,7 @@ static bool extra_info_update_ongoing(void)
 	return false;
 }
 
-/* wait until no extra_info updates are pending */
+/* wait until yes extra_info updates are pending */
 static void wait_pending_extra_info_updates(void)
 {
 	bool updating;
@@ -515,7 +515,7 @@ static int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 		 * 3 - dirty = false, shadow_dirty = true
 		 * 4 - shadow_dirty = false */
 		if (i++ == 3) {
-			DSSERR("mgr(%d)->wait_for_go() not finishing\n",
+			DSSERR("mgr(%d)->wait_for_go() yest finishing\n",
 					mgr->id);
 			r = 0;
 			break;
@@ -592,7 +592,7 @@ static int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 		 * 3 - dirty = false, shadow_dirty = true
 		 * 4 - shadow_dirty = false */
 		if (i++ == 3) {
-			DSSERR("ovl(%d)->wait_for_go() not finishing\n",
+			DSSERR("ovl(%d)->wait_for_go() yest finishing\n",
 					ovl->id);
 			r = 0;
 			break;
@@ -640,7 +640,7 @@ static void dss_ovl_write_regs(struct omap_overlay *ovl)
 		 */
 		DSSERR("dispc_ovl_setup failed for ovl %d\n", ovl->id);
 
-		/* This will leave fifo configurations in a nonoptimal state */
+		/* This will leave fifo configurations in a yesyesptimal state */
 		op->enabled = false;
 		dispc_ovl_enable(ovl->id, false);
 		return;
@@ -661,7 +661,7 @@ static void dss_ovl_write_regs_extra(struct omap_overlay *ovl)
 	if (!op->extra_info_dirty)
 		return;
 
-	/* note: write also when op->enabled == false, so that the ovl gets
+	/* yeste: write also when op->enabled == false, so that the ovl gets
 	 * disabled */
 
 	dispc_ovl_enable(ovl->id, op->enabled);
@@ -739,7 +739,7 @@ static void dss_write_regs(void)
 
 		r = dss_check_settings(mgr);
 		if (r) {
-			DSSERR("cannot write registers for manager %s: "
+			DSSERR("canyest write registers for manager %s: "
 					"illegal configuration\n", mgr->name);
 			continue;
 		}
@@ -818,7 +818,7 @@ static void dss_mgr_start_update_compat(struct omap_overlay_manager *mgr)
 
 	r = dss_check_settings(mgr);
 	if (r) {
-		DSSERR("cannot start manual update: illegal configuration\n");
+		DSSERR("canyest start manual update: illegal configuration\n");
 		spin_unlock_irqrestore(&data_lock, flags);
 		return;
 	}
@@ -1186,7 +1186,7 @@ static int dss_mgr_set_output(struct omap_overlay_manager *mgr,
 	}
 
 	if ((mgr->supported_outputs & output->id) == 0) {
-		DSSERR("output does not support manager %s\n",
+		DSSERR("output does yest support manager %s\n",
 			mgr->name);
 		r = -EINVAL;
 		goto err;
@@ -1212,7 +1212,7 @@ static int dss_mgr_unset_output(struct omap_overlay_manager *mgr)
 	mutex_lock(&apply_lock);
 
 	if (!mgr->output) {
-		DSSERR("failed to unset output, output not set\n");
+		DSSERR("failed to unset output, output yest set\n");
 		r = -EINVAL;
 		goto err;
 	}
@@ -1259,7 +1259,7 @@ static void dss_mgr_set_timings_compat(struct omap_overlay_manager *mgr,
 	spin_lock_irqsave(&data_lock, flags);
 
 	if (mp->updating) {
-		DSSERR("cannot set timings for %s: manager needs to be disabled\n",
+		DSSERR("canyest set timings for %s: manager needs to be disabled\n",
 			mgr->name);
 		goto out;
 	}
@@ -1287,7 +1287,7 @@ static void dss_mgr_set_lcd_config_compat(struct omap_overlay_manager *mgr,
 	spin_lock_irqsave(&data_lock, flags);
 
 	if (mp->enabled) {
-		DSSERR("cannot apply lcd config for %s: manager needs to be disabled\n",
+		DSSERR("canyest apply lcd config for %s: manager needs to be disabled\n",
 			mgr->name);
 		goto out;
 	}
@@ -1392,7 +1392,7 @@ static int dss_ovl_unset_manager(struct omap_overlay *ovl)
 	mutex_lock(&apply_lock);
 
 	if (!ovl->manager) {
-		DSSERR("failed to detach overlay: manager not set\n");
+		DSSERR("failed to detach overlay: manager yest set\n");
 		r = -EINVAL;
 		goto err;
 	}
@@ -1412,7 +1412,7 @@ static int dss_ovl_unset_manager(struct omap_overlay *ovl)
 	wait_pending_extra_info_updates();
 
 	/*
-	 * For a manual update display, there is no guarantee that the overlay
+	 * For a manual update display, there is yes guarantee that the overlay
 	 * is really disabled in HW, we may need an extra update from this
 	 * manager before the configurations can go in. Return an error if the
 	 * overlay needed an update from the manager.

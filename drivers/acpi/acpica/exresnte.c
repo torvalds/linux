@@ -18,17 +18,17 @@ ACPI_MODULE_NAME("exresnte")
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ex_resolve_node_to_value
+ * FUNCTION:    acpi_ex_resolve_yesde_to_value
  *
  * PARAMETERS:  object_ptr      - Pointer to a location that contains
- *                                a pointer to a NS node, and will receive a
+ *                                a pointer to a NS yesde, and will receive a
  *                                pointer to the resolved object.
  *              walk_state      - Current state. Valid only if executing AML
  *                                code. NULL if simply resolving an object
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Resolve a Namespace node to a valued object
+ * DESCRIPTION: Resolve a Namespace yesde to a valued object
  *
  * Note: for some of the data types, the pointer attached to the Node
  * can be either a pointer to an actual internal object or a pointer into the
@@ -42,27 +42,27 @@ ACPI_MODULE_NAME("exresnte")
  *
  ******************************************************************************/
 acpi_status
-acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
+acpi_ex_resolve_yesde_to_value(struct acpi_namespace_yesde **object_ptr,
 			      struct acpi_walk_state *walk_state)
 {
 	acpi_status status = AE_OK;
 	union acpi_operand_object *source_desc;
 	union acpi_operand_object *obj_desc = NULL;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	acpi_object_type entry_type;
 
-	ACPI_FUNCTION_TRACE(ex_resolve_node_to_value);
+	ACPI_FUNCTION_TRACE(ex_resolve_yesde_to_value);
 
 	/*
-	 * The stack pointer points to a struct acpi_namespace_node (Node). Get the
+	 * The stack pointer points to a struct acpi_namespace_yesde (Node). Get the
 	 * object that is attached to the Node.
 	 */
-	node = *object_ptr;
-	source_desc = acpi_ns_get_attached_object(node);
-	entry_type = acpi_ns_get_type((acpi_handle)node);
+	yesde = *object_ptr;
+	source_desc = acpi_ns_get_attached_object(yesde);
+	entry_type = acpi_ns_get_type((acpi_handle)yesde);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Entry=%p SourceDesc=%p [%s]\n",
-			  node, source_desc,
+			  yesde, source_desc,
 			  acpi_ut_get_type_name(entry_type)));
 
 	if ((entry_type == ACPI_TYPE_LOCAL_ALIAS) ||
@@ -70,14 +70,14 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 		/* There is always exactly one level of indirection */
 
-		node = ACPI_CAST_PTR(struct acpi_namespace_node, node->object);
-		source_desc = acpi_ns_get_attached_object(node);
-		entry_type = acpi_ns_get_type((acpi_handle)node);
-		*object_ptr = node;
+		yesde = ACPI_CAST_PTR(struct acpi_namespace_yesde, yesde->object);
+		source_desc = acpi_ns_get_attached_object(yesde);
+		entry_type = acpi_ns_get_type((acpi_handle)yesde);
+		*object_ptr = yesde;
 	}
 
 	/*
-	 * Several object types require no further processing:
+	 * Several object types require yes further processing:
 	 * 1) Device/Thermal objects don't have a "real" subobject, return Node
 	 * 2) Method locals and arguments have a pseudo-Node
 	 * 3) 10/2007: Added method type to assist with Package construction.
@@ -85,13 +85,13 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	if ((entry_type == ACPI_TYPE_DEVICE) ||
 	    (entry_type == ACPI_TYPE_THERMAL) ||
 	    (entry_type == ACPI_TYPE_METHOD) ||
-	    (node->flags & (ANOBJ_METHOD_ARG | ANOBJ_METHOD_LOCAL))) {
+	    (yesde->flags & (ANOBJ_METHOD_ARG | ANOBJ_METHOD_LOCAL))) {
 		return_ACPI_STATUS(AE_OK);
 	}
 
 	if (!source_desc) {
-		ACPI_ERROR((AE_INFO, "No object attached to node [%4.4s] %p",
-			    node->name.ascii, node));
+		ACPI_ERROR((AE_INFO, "No object attached to yesde [%4.4s] %p",
+			    yesde->name.ascii, yesde));
 		return_ACPI_STATUS(AE_AML_UNINITIALIZED_NODE);
 	}
 
@@ -103,7 +103,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_PACKAGE:
 
 		if (source_desc->common.type != ACPI_TYPE_PACKAGE) {
-			ACPI_ERROR((AE_INFO, "Object not a Package, type %s",
+			ACPI_ERROR((AE_INFO, "Object yest a Package, type %s",
 				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
@@ -121,7 +121,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_BUFFER:
 
 		if (source_desc->common.type != ACPI_TYPE_BUFFER) {
-			ACPI_ERROR((AE_INFO, "Object not a Buffer, type %s",
+			ACPI_ERROR((AE_INFO, "Object yest a Buffer, type %s",
 				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
@@ -139,7 +139,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_STRING:
 
 		if (source_desc->common.type != ACPI_TYPE_STRING) {
-			ACPI_ERROR((AE_INFO, "Object not a String, type %s",
+			ACPI_ERROR((AE_INFO, "Object yest a String, type %s",
 				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
@@ -153,7 +153,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	case ACPI_TYPE_INTEGER:
 
 		if (source_desc->common.type != ACPI_TYPE_INTEGER) {
-			ACPI_ERROR((AE_INFO, "Object not a Integer, type %s",
+			ACPI_ERROR((AE_INFO, "Object yest a Integer, type %s",
 				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
@@ -171,7 +171,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "FieldRead Node=%p SourceDesc=%p Type=%X\n",
-				  node, source_desc, entry_type));
+				  yesde, source_desc, entry_type));
 
 		status =
 		    acpi_ex_read_data_from_field(walk_state, source_desc,
@@ -192,14 +192,14 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 		acpi_ut_add_reference(obj_desc);
 		break;
 
-		/* TYPE_ANY is untyped, and thus there is no object associated with it */
+		/* TYPE_ANY is untyped, and thus there is yes object associated with it */
 
 	case ACPI_TYPE_ANY:
 
 		ACPI_ERROR((AE_INFO,
-			    "Untyped entry %p, no attached object!", node));
+			    "Untyped entry %p, yes attached object!", yesde));
 
-		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);	/* Cannot be AE_TYPE */
+		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);	/* Canyest be AE_TYPE */
 
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
@@ -228,11 +228,11 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 	default:
 
-		/* Default case is for unknown types */
+		/* Default case is for unkyeswn types */
 
 		ACPI_ERROR((AE_INFO,
-			    "Node %p - Unknown object type 0x%X",
-			    node, entry_type));
+			    "Node %p - Unkyeswn object type 0x%X",
+			    yesde, entry_type));
 
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 

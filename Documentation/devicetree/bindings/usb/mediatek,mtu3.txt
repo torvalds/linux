@@ -1,4 +1,4 @@
-The device node for Mediatek USB3.0 DRD controller
+The device yesde for Mediatek USB3.0 DRD controller
 
 Required properties:
  - compatible : should be "mediatek,<soc-model>-mtu3", "mediatek,mtu3",
@@ -9,7 +9,7 @@ Required properties:
  - reg : specifies physical base address and size of the registers
  - reg-names: should be "mac" for device IP and "ippc" for IP port control
  - interrupts : interrupt used by the device IP
- - power-domains : a phandle to USB power domain node to control USB's
+ - power-domains : a phandle to USB power domain yesde to control USB's
 	mtcmos
  - vusb33-supply : regulator of USB avdd3.3v
  - clocks : a list of phandle + clock-specifier pairs, one for each
@@ -22,30 +22,30 @@ Required properties:
 	refer to usb/generic.txt
 
 Optional properties:
- - #address-cells, #size-cells : should be '2' if the device has sub-nodes
+ - #address-cells, #size-cells : should be '2' if the device has sub-yesdes
 	with 'reg' property
  - ranges : allows valid 1:1 translation between child's address space and
 	parent's address space
  - extcon : external connector for vbus and idpin changes detection, needed
 	when supports dual-role mode.
-	it's considered valid for compatibility reasons, not allowed for
+	it's considered valid for compatibility reasons, yest allowed for
 	new bindings, and use "usb-role-switch" property instead.
  - vbus-supply : reference to the VBUS regulator, needed when supports
 	dual-role mode.
-	it's considered valid for compatibility reasons, not allowed for
-	new bindings, and put into a usb-connector node.
+	it's considered valid for compatibility reasons, yest allowed for
+	new bindings, and put into a usb-connector yesde.
 	see connector/usb-connector.txt.
  - pinctrl-names : a pinctrl state named "default" is optional, and need be
 	defined if auto drd switch is enabled, that means the property dr_mode
 	is set as "otg", and meanwhile the property "mediatek,enable-manual-drd"
-	is not set.
+	is yest set.
  - pinctrl-0 : pin control group
 	See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
  - maximum-speed : valid arguments are "super-speed", "high-speed" and
 	"full-speed"; refer to usb/generic.txt
  - usb-role-switch : use USB Role Switch to support dual-role switch, but
-	not extcon; see usb/generic.txt.
+	yest extcon; see usb/generic.txt.
  - enable-manual-drd : supports manual dual-role switch via debugfs; usually
 	used when receptacle is TYPE-A and also wants to support dual-role
 	mode.
@@ -63,12 +63,12 @@ Optional properties:
 additionally the properties from usb-hcd.yaml (in the current directory) are
 supported.
 
-Sub-nodes:
-The xhci should be added as subnode to mtu3 as shown in the following example
+Sub-yesdes:
+The xhci should be added as subyesde to mtu3 as shown in the following example
 if host mode is enabled. The DT binding details of xhci can be found in:
 Documentation/devicetree/bindings/usb/mediatek,mtk-xhci.txt
 
-The port would be added as subnode if use "usb-role-switch" property.
+The port would be added as subyesde if use "usb-role-switch" property.
 	see graph.txt
 
 Example:

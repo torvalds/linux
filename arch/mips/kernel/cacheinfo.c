@@ -24,8 +24,8 @@ static int __init_cache_level(unsigned int cpu)
 	int levels = 0, leaves = 0;
 
 	/*
-	 * If Dcache is not set, we assume the cache structures
-	 * are not properly initialized.
+	 * If Dcache is yest set, we assume the cache structures
+	 * are yest properly initialized.
 	 */
 	if (c->dcache.waysize)
 		levels += 1;

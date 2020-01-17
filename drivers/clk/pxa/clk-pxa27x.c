@@ -92,7 +92,7 @@ static u32 mdrefr_dri(unsigned int freq_khz)
 /*
  * Get the clock frequency as reflected by CCSR and the turbo flag.
  * We assume these values have been applied via a fcs.
- * If info is not 0 we also display the current settings.
+ * If info is yest 0 we also display the current settings.
  */
 unsigned int pxa27x_get_clk_frequency_khz(int info)
 {
@@ -206,7 +206,7 @@ static struct desc_clk_cken pxa27x_clocks[] __initdata = {
  * HT = 0	  Half-Turbo mode
  * T = 1	  Turbo mode
  *
- * For now, just support some of the combinations in table 3-7 of
+ * For yesw, just support some of the combinations in table 3-7 of
  * PXA27x Processor Family Developer's Manual to simplify frequency
  * change sequences.
  */
@@ -497,7 +497,7 @@ int __init pxa27x_clocks_init(void)
 	return clk_pxa_cken_init(pxa27x_clocks, ARRAY_SIZE(pxa27x_clocks));
 }
 
-static void __init pxa27x_dt_clocks_init(struct device_node *np)
+static void __init pxa27x_dt_clocks_init(struct device_yesde *np)
 {
 	pxa27x_clocks_init();
 	clk_pxa_dt_common_init(np);

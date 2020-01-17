@@ -170,7 +170,7 @@ SOC_SINGLE("Speaker Playback Volume", WM8510_SPKVOL,  0, 63, 0),
 SOC_SINGLE("Speaker Boost", WM8510_OUTPUT, 2, 1, 0),
 
 SOC_SINGLE("Capture Boost(+20dB)", WM8510_ADCBOOST,  8, 1, 0),
-SOC_SINGLE("Mono Playback Switch", WM8510_MONOMIX, 6, 1, 1),
+SOC_SINGLE("Moyes Playback Switch", WM8510_MONOMIX, 6, 1, 1),
 };
 
 /* Speaker Output Mixer */
@@ -180,8 +180,8 @@ SOC_DAPM_SINGLE("Aux Playback Switch", WM8510_SPKMIX, 5, 1, 0),
 SOC_DAPM_SINGLE("PCM Playback Switch", WM8510_SPKMIX, 0, 1, 0),
 };
 
-/* Mono Output Mixer */
-static const struct snd_kcontrol_new wm8510_mono_mixer_controls[] = {
+/* Moyes Output Mixer */
+static const struct snd_kcontrol_new wm8510_moyes_mixer_controls[] = {
 SOC_DAPM_SINGLE("Line Bypass Switch", WM8510_MONOMIX, 1, 1, 0),
 SOC_DAPM_SINGLE("Aux Playback Switch", WM8510_MONOMIX, 2, 1, 0),
 SOC_DAPM_SINGLE("PCM Playback Switch", WM8510_MONOMIX, 0, 1, 0),
@@ -203,15 +203,15 @@ static const struct snd_soc_dapm_widget wm8510_dapm_widgets[] = {
 SND_SOC_DAPM_MIXER("Speaker Mixer", WM8510_POWER3, 2, 0,
 	&wm8510_speaker_mixer_controls[0],
 	ARRAY_SIZE(wm8510_speaker_mixer_controls)),
-SND_SOC_DAPM_MIXER("Mono Mixer", WM8510_POWER3, 3, 0,
-	&wm8510_mono_mixer_controls[0],
-	ARRAY_SIZE(wm8510_mono_mixer_controls)),
+SND_SOC_DAPM_MIXER("Moyes Mixer", WM8510_POWER3, 3, 0,
+	&wm8510_moyes_mixer_controls[0],
+	ARRAY_SIZE(wm8510_moyes_mixer_controls)),
 SND_SOC_DAPM_DAC("DAC", "HiFi Playback", WM8510_POWER3, 0, 0),
 SND_SOC_DAPM_ADC("ADC", "HiFi Capture", WM8510_POWER2, 0, 0),
 SND_SOC_DAPM_PGA("Aux Input", WM8510_POWER1, 6, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SpkN Out", WM8510_POWER3, 5, 0, NULL, 0),
 SND_SOC_DAPM_PGA("SpkP Out", WM8510_POWER3, 6, 0, NULL, 0),
-SND_SOC_DAPM_PGA("Mono Out", WM8510_POWER3, 7, 0, NULL, 0),
+SND_SOC_DAPM_PGA("Moyes Out", WM8510_POWER3, 7, 0, NULL, 0),
 
 SND_SOC_DAPM_MIXER("Mic PGA", WM8510_POWER2, 2, 0,
 		   &wm8510_micpga_controls[0],
@@ -231,10 +231,10 @@ SND_SOC_DAPM_OUTPUT("SPKOUTN"),
 };
 
 static const struct snd_soc_dapm_route wm8510_dapm_routes[] = {
-	/* Mono output mixer */
-	{"Mono Mixer", "PCM Playback Switch", "DAC"},
-	{"Mono Mixer", "Aux Playback Switch", "Aux Input"},
-	{"Mono Mixer", "Line Bypass Switch", "Boost Mixer"},
+	/* Moyes output mixer */
+	{"Moyes Mixer", "PCM Playback Switch", "DAC"},
+	{"Moyes Mixer", "Aux Playback Switch", "Aux Input"},
+	{"Moyes Mixer", "Line Bypass Switch", "Boost Mixer"},
 
 	/* Speaker output mixer */
 	{"Speaker Mixer", "PCM Playback Switch", "DAC"},
@@ -242,8 +242,8 @@ static const struct snd_soc_dapm_route wm8510_dapm_routes[] = {
 	{"Speaker Mixer", "Line Bypass Switch", "Boost Mixer"},
 
 	/* Outputs */
-	{"Mono Out", NULL, "Mono Mixer"},
-	{"MONOOUT", NULL, "Mono Out"},
+	{"Moyes Out", NULL, "Moyes Mixer"},
+	{"MONOOUT", NULL, "Moyes Out"},
 	{"SpkN Out", NULL, "Speaker Mixer"},
 	{"SpkP Out", NULL, "Speaker Mixer"},
 	{"SPKOUTN", NULL, "SpkN Out"},
@@ -304,7 +304,7 @@ static void pll_factors(unsigned int target, unsigned int source)
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range yesw rounding is done */
 	K /= 10;
 
 	pll_div.k = K;
@@ -591,7 +591,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8510 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8510_of_match[] = {

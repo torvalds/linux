@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -27,7 +27,7 @@
 #ifndef __NOUVEAU_CONNECTOR_H__
 #define __NOUVEAU_CONNECTOR_H__
 
-#include <nvif/notify.h>
+#include <nvif/yestify.h>
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
@@ -35,20 +35,20 @@
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_util.h>
 
-#include "nouveau_crtc.h"
-#include "nouveau_encoder.h"
+#include "yesuveau_crtc.h"
+#include "yesuveau_encoder.h"
 
 struct nvkm_i2c_port;
 struct dcb_output;
 
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
-struct nouveau_backlight;
+struct yesuveau_backlight;
 #endif
 
-#define nouveau_conn_atom(p)                                                   \
-	container_of((p), struct nouveau_conn_atom, state)
+#define yesuveau_conn_atom(p)                                                   \
+	container_of((p), struct yesuveau_conn_atom, state)
 
-struct nouveau_conn_atom {
+struct yesuveau_conn_atom {
 	struct drm_connector_state state;
 
 	struct {
@@ -99,43 +99,43 @@ struct nouveau_conn_atom {
 	} set;
 };
 
-struct nouveau_connector {
+struct yesuveau_connector {
 	struct drm_connector base;
 	enum dcb_connector_type type;
 	u8 index;
 	u8 *dcb;
 
-	struct nvif_notify hpd;
+	struct nvif_yestify hpd;
 
 	struct drm_dp_aux aux;
 
 	int dithering_mode;
 	int scaling_mode;
 
-	struct nouveau_encoder *detected_encoder;
+	struct yesuveau_encoder *detected_encoder;
 	struct edid *edid;
 	struct drm_display_mode *native_mode;
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
-	struct nouveau_backlight *backlight;
+	struct yesuveau_backlight *backlight;
 #endif
 	/*
-	 * Our connector property code expects a nouveau_conn_atom struct
-	 * even on pre-nv50 where we do not support atomic. This embedded
-	 * version gets used in the non atomic modeset case.
+	 * Our connector property code expects a yesuveau_conn_atom struct
+	 * even on pre-nv50 where we do yest support atomic. This embedded
+	 * version gets used in the yesn atomic modeset case.
 	 */
-	struct nouveau_conn_atom properties_state;
+	struct yesuveau_conn_atom properties_state;
 };
 
-static inline struct nouveau_connector *nouveau_connector(
+static inline struct yesuveau_connector *yesuveau_connector(
 						struct drm_connector *con)
 {
-	return container_of(con, struct nouveau_connector, base);
+	return container_of(con, struct yesuveau_connector, base);
 }
 
 static inline bool
-nouveau_connector_is_mst(struct drm_connector *connector)
+yesuveau_connector_is_mst(struct drm_connector *connector)
 {
-	const struct nouveau_encoder *nv_encoder;
+	const struct yesuveau_encoder *nv_encoder;
 	const struct drm_encoder *encoder;
 
 	if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
@@ -149,23 +149,23 @@ nouveau_connector_is_mst(struct drm_connector *connector)
 	return encoder->encoder_type == DRM_MODE_ENCODER_DPMST;
 }
 
-#define nouveau_for_each_non_mst_connector_iter(connector, iter) \
+#define yesuveau_for_each_yesn_mst_connector_iter(connector, iter) \
 	drm_for_each_connector_iter(connector, iter) \
-		for_each_if(!nouveau_connector_is_mst(connector))
+		for_each_if(!yesuveau_connector_is_mst(connector))
 
-static inline struct nouveau_connector *
-nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
+static inline struct yesuveau_connector *
+yesuveau_crtc_connector_get(struct yesuveau_crtc *nv_crtc)
 {
 	struct drm_device *dev = nv_crtc->base.dev;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
-	struct nouveau_connector *nv_connector = NULL;
+	struct yesuveau_connector *nv_connector = NULL;
 	struct drm_crtc *crtc = to_drm_crtc(nv_crtc);
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
-	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
+	yesuveau_for_each_yesn_mst_connector_iter(connector, &conn_iter) {
 		if (connector->encoder && connector->encoder->crtc == crtc) {
-			nv_connector = nouveau_connector(connector);
+			nv_connector = yesuveau_connector(connector);
 			break;
 		}
 	}
@@ -175,49 +175,49 @@ nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 }
 
 struct drm_connector *
-nouveau_connector_create(struct drm_device *, const struct dcb_output *);
+yesuveau_connector_create(struct drm_device *, const struct dcb_output *);
 
-extern int nouveau_tv_disable;
-extern int nouveau_ignorelid;
-extern int nouveau_duallink;
-extern int nouveau_hdmimhz;
+extern int yesuveau_tv_disable;
+extern int yesuveau_igyesrelid;
+extern int yesuveau_duallink;
+extern int yesuveau_hdmimhz;
 
-void nouveau_conn_attach_properties(struct drm_connector *);
-void nouveau_conn_reset(struct drm_connector *);
+void yesuveau_conn_attach_properties(struct drm_connector *);
+void yesuveau_conn_reset(struct drm_connector *);
 struct drm_connector_state *
-nouveau_conn_atomic_duplicate_state(struct drm_connector *);
-void nouveau_conn_atomic_destroy_state(struct drm_connector *,
+yesuveau_conn_atomic_duplicate_state(struct drm_connector *);
+void yesuveau_conn_atomic_destroy_state(struct drm_connector *,
 				       struct drm_connector_state *);
-int nouveau_conn_atomic_set_property(struct drm_connector *,
+int yesuveau_conn_atomic_set_property(struct drm_connector *,
 				     struct drm_connector_state *,
 				     struct drm_property *, u64);
-int nouveau_conn_atomic_get_property(struct drm_connector *,
+int yesuveau_conn_atomic_get_property(struct drm_connector *,
 				     const struct drm_connector_state *,
 				     struct drm_property *, u64 *);
-struct drm_display_mode *nouveau_conn_native_mode(struct drm_connector *);
+struct drm_display_mode *yesuveau_conn_native_mode(struct drm_connector *);
 
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
-extern int nouveau_backlight_init(struct drm_connector *);
-extern void nouveau_backlight_fini(struct drm_connector *);
-extern void nouveau_backlight_ctor(void);
-extern void nouveau_backlight_dtor(void);
+extern int yesuveau_backlight_init(struct drm_connector *);
+extern void yesuveau_backlight_fini(struct drm_connector *);
+extern void yesuveau_backlight_ctor(void);
+extern void yesuveau_backlight_dtor(void);
 #else
 static inline int
-nouveau_backlight_init(struct drm_connector *connector)
+yesuveau_backlight_init(struct drm_connector *connector)
 {
 	return 0;
 }
 
 static inline void
-nouveau_backlight_fini(struct drm_connector *connector) {
+yesuveau_backlight_fini(struct drm_connector *connector) {
 }
 
 static inline void
-nouveau_backlight_ctor(void) {
+yesuveau_backlight_ctor(void) {
 }
 
 static inline void
-nouveau_backlight_dtor(void) {
+yesuveau_backlight_dtor(void) {
 }
 #endif
 

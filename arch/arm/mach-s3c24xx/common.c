@@ -186,9 +186,9 @@ static void s3c24xx_default_idle(void)
 
 	/* the samsung port seems to do a loop and then unset idle.. */
 	for (i = 0; i < 50; i++)
-		tmp += __raw_readl(S3C2410_CLKCON); /* ensure loop not optimised out */
+		tmp += __raw_readl(S3C2410_CLKCON); /* ensure loop yest optimised out */
 
-	/* this bit is not cleared on re-start... */
+	/* this bit is yest cleared on re-start... */
 
 	__raw_writel(__raw_readl(S3C2410_CLKCON) & ~S3C2410_CLKCON_IDLE,
 		     S3C2410_CLKCON);
@@ -338,7 +338,7 @@ static const struct dma_slave_map s3c2410_dma_slave_map[] = {
 	{ "s3c2410-spi.1", "tx", (void *)DMACH_SPI1_TX },
 	/*
 	 * The DMA request source[1] (DMACH_UARTx_SRC2) are
-	 * not used in the UART driver.
+	 * yest used in the UART driver.
 	 */
 	{ "s3c2410-uart.0", "rx", (void *)DMACH_UART0 },
 	{ "s3c2410-uart.0", "tx", (void *)DMACH_UART0 },

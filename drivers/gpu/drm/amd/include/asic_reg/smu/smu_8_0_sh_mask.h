@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -950,8 +950,8 @@
 #define MP_DRAM_CNTL_WRREQ_CNTL_1__vfid__SHIFT 0x1
 #define MP_DRAM_CNTL_WRREQ_CNTL_1__physical_MASK 0x100
 #define MP_DRAM_CNTL_WRREQ_CNTL_1__physical__SHIFT 0x8
-#define MP_DRAM_CNTL_WRREQ_CNTL_1__snoop_MASK 0x200
-#define MP_DRAM_CNTL_WRREQ_CNTL_1__snoop__SHIFT 0x9
+#define MP_DRAM_CNTL_WRREQ_CNTL_1__syesop_MASK 0x200
+#define MP_DRAM_CNTL_WRREQ_CNTL_1__syesop__SHIFT 0x9
 #define MP_DRAM_CNTL_WRREQ_CNTL_1__inval_MASK 0x400
 #define MP_DRAM_CNTL_WRREQ_CNTL_1__inval__SHIFT 0xa
 #define MP_DRAM_CNTL_WRREQ_CNTL_1__op_MASK 0x3f800
@@ -992,8 +992,8 @@
 #define MP_DRAM_CNTL_WRREQ_STATUS__credit_counter__SHIFT 0x0
 #define MP_DRAM_CNTL_WRREQ_STATUS__reserved0_MASK 0xe0
 #define MP_DRAM_CNTL_WRREQ_STATUS__reserved0__SHIFT 0x5
-#define MP_DRAM_CNTL_WRREQ_STATUS__fifo_not_empty_MASK 0x100
-#define MP_DRAM_CNTL_WRREQ_STATUS__fifo_not_empty__SHIFT 0x8
+#define MP_DRAM_CNTL_WRREQ_STATUS__fifo_yest_empty_MASK 0x100
+#define MP_DRAM_CNTL_WRREQ_STATUS__fifo_yest_empty__SHIFT 0x8
 #define MP_DRAM_CNTL_WRREQ_STATUS__reserved1_MASK 0xfe00
 #define MP_DRAM_CNTL_WRREQ_STATUS__reserved1__SHIFT 0x9
 #define MP_DRAM_CNTL_WRREQ_STATUS__tag_pointer_MASK 0xf0000
@@ -1034,8 +1034,8 @@
 #define MP_DRAM_CNTL_RDREQ_CNTL_1__physical__SHIFT 0x16
 #define MP_DRAM_CNTL_RDREQ_CNTL_1__exe_MASK 0x800000
 #define MP_DRAM_CNTL_RDREQ_CNTL_1__exe__SHIFT 0x17
-#define MP_DRAM_CNTL_RDREQ_CNTL_1__snoop_MASK 0x1000000
-#define MP_DRAM_CNTL_RDREQ_CNTL_1__snoop__SHIFT 0x18
+#define MP_DRAM_CNTL_RDREQ_CNTL_1__syesop_MASK 0x1000000
+#define MP_DRAM_CNTL_RDREQ_CNTL_1__syesop__SHIFT 0x18
 #define MP_DRAM_CNTL_RDREQ_CNTL_1__shared_MASK 0x2000000
 #define MP_DRAM_CNTL_RDREQ_CNTL_1__shared__SHIFT 0x19
 #define MP_DRAM_CNTL_RDREQ_CNTL_1__vf_MASK 0x4000000

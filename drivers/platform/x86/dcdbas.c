@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/cpu.h>
 #include <linux/gfp.h>
 #include <linux/init.h>
@@ -247,11 +247,11 @@ static int raise_smi(void *par)
 	}
 
 	/* generate SMI */
-	/* inb to force posted write through and make SMI happen now */
+	/* inb to force posted write through and make SMI happen yesw */
 	asm volatile (
 		"outb %b0,%w1\n"
 		"inb %w1"
-		: /* no output args */
+		: /* yes output args */
 		: "a" (smi_cmd->command_code),
 		  "d" (smi_cmd->command_address),
 		  "b" (smi_cmd->ebx),
@@ -326,7 +326,7 @@ static ssize_t smi_request_store(struct device *dev,
 		 * the struct smi_cmd to BIOS.
 		 *
 		 * Because the address that smi_cmd (smi_data_buf) points to
-		 * will be from memremap() of a non-memory address if WSMT
+		 * will be from memremap() of a yesn-memory address if WSMT
 		 * is present, we can't use virt_to_phys() on smi_cmd, so
 		 * we have to use the physical address that was saved when
 		 * the virtual address for smi_cmd was received.
@@ -451,7 +451,7 @@ static int host_control_smi(void)
  * finished shutting down if the user application specified a
  * host control action to perform on shutdown.  It is safe to
  * use smi_data_buf at this point because the system has finished
- * shutting down and no userspace apps are running.
+ * shutting down and yes userspace apps are running.
  */
 static void dcdbas_host_control(void)
 {
@@ -465,7 +465,7 @@ static void dcdbas_host_control(void)
 	host_control_action = HC_ACTION_NONE;
 
 	if (!smi_data_buf) {
-		dev_dbg(&dcdbas_pdev->dev, "%s: no SMI buffer\n", __func__);
+		dev_dbg(&dcdbas_pdev->dev, "%s: yes SMI buffer\n", __func__);
 		return;
 	}
 
@@ -542,7 +542,7 @@ static int dcdbas_check_wsmt(void)
 	}
 
 	if (!eps) {
-		dev_dbg(&dcdbas_pdev->dev, "found WSMT, but no EPS found\n");
+		dev_dbg(&dcdbas_pdev->dev, "found WSMT, but yes EPS found\n");
 		return -ENODEV;
 	}
 
@@ -556,7 +556,7 @@ static int dcdbas_check_wsmt(void)
 	}
 	/*
 	 * Limit remap size to MAX_SMI_DATA_BUF_SIZE + 8 (since the first 8
-	 * bytes are used for a semaphore, not the data buffer itself).
+	 * bytes are used for a semaphore, yest the data buffer itself).
 	 */
 	remap_size = eps->num_of_4k_pages * PAGE_SIZE;
 	if (remap_size > MAX_SMI_DATA_BUF_SIZE + 8)
@@ -567,7 +567,7 @@ static int dcdbas_check_wsmt(void)
 		return -ENOMEM;
 	}
 
-	/* First 8 bytes is for a semaphore, not part of the smi_data_buf */
+	/* First 8 bytes is for a semaphore, yest part of the smi_data_buf */
 	smi_data_buf_phys_addr = eps->smm_comm_buff_addr + 8;
 	smi_data_buf = eps_buffer + 8;
 	smi_data_buf_size = remap_size - 8;
@@ -579,9 +579,9 @@ static int dcdbas_check_wsmt(void)
 }
 
 /**
- * dcdbas_reboot_notify: handle reboot notification for host control
+ * dcdbas_reboot_yestify: handle reboot yestification for host control
  */
-static int dcdbas_reboot_notify(struct notifier_block *nb, unsigned long code,
+static int dcdbas_reboot_yestify(struct yestifier_block *nb, unsigned long code,
 				void *unused)
 {
 	switch (code) {
@@ -600,8 +600,8 @@ static int dcdbas_reboot_notify(struct notifier_block *nb, unsigned long code,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block dcdbas_reboot_nb = {
-	.notifier_call = dcdbas_reboot_notify,
+static struct yestifier_block dcdbas_reboot_nb = {
+	.yestifier_call = dcdbas_reboot_yestify,
 	.next = NULL,
 	.priority = INT_MIN
 };
@@ -661,7 +661,7 @@ static int dcdbas_probe(struct platform_device *dev)
 	if (error)
 		return error;
 
-	register_reboot_notifier(&dcdbas_reboot_nb);
+	register_reboot_yestifier(&dcdbas_reboot_nb);
 
 	dev_info(&dev->dev, "%s (version %s)\n",
 		 DRIVER_DESCRIPTION, DRIVER_VERSION);
@@ -671,7 +671,7 @@ static int dcdbas_probe(struct platform_device *dev)
 
 static int dcdbas_remove(struct platform_device *dev)
 {
-	unregister_reboot_notifier(&dcdbas_reboot_nb);
+	unregister_reboot_yestifier(&dcdbas_reboot_nb);
 	sysfs_remove_group(&dev->dev.kobj, &dcdbas_attr_group);
 
 	return 0;
@@ -726,7 +726,7 @@ static void __exit dcdbas_exit(void)
 	 * make sure functions that use dcdbas_pdev are called
 	 * before platform_device_unregister
 	 */
-	unregister_reboot_notifier(&dcdbas_reboot_nb);
+	unregister_reboot_yestifier(&dcdbas_reboot_nb);
 
 	/*
 	 * We have to free the buffer here instead of dcdbas_remove

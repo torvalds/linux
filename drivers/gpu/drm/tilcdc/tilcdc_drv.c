@@ -111,16 +111,16 @@ static int tilcdc_commit(struct drm_device *dev,
 	}
 
 	/*
-	 * Everything below can be run asynchronously without the need to grab
+	 * Everything below can be run asynchroyesusly without the need to grab
 	 * any modeset locks at all under one condition: It must be guaranteed
-	 * that the asynchronous work has either been cancelled (if the driver
+	 * that the asynchroyesus work has either been cancelled (if the driver
 	 * supports it, which at least requires that the framebuffers get
 	 * cleaned up with drm_atomic_helper_cleanup_planes()) or completed
 	 * before the new state gets committed on the software side with
 	 * drm_atomic_helper_swap_state().
 	 *
 	 * This scheme allows new atomic state updates to be prepared and
-	 * checked in parallel to the asynchronous completion of the previous
+	 * checked in parallel to the asynchroyesus completion of the previous
 	 * update. Which is important since compositors need to figure out the
 	 * composition of the next frame right after having submitted the
 	 * current layout.
@@ -163,7 +163,7 @@ static void modeset_init(struct drm_device *dev)
 }
 
 #ifdef CONFIG_CPU_FREQ
-static int cpufreq_transition(struct notifier_block *nb,
+static int cpufreq_transition(struct yestifier_block *nb,
 				     unsigned long val, void *data)
 {
 	struct tilcdc_drm_private *priv = container_of(nb,
@@ -185,8 +185,8 @@ static void tilcdc_fini(struct drm_device *dev)
 	struct tilcdc_drm_private *priv = dev->dev_private;
 
 #ifdef CONFIG_CPU_FREQ
-	if (priv->freq_transition.notifier_call)
-		cpufreq_unregister_notifier(&priv->freq_transition,
+	if (priv->freq_transition.yestifier_call)
+		cpufreq_unregister_yestifier(&priv->freq_transition,
 					    CPUFREQ_TRANSITION_NOTIFIER);
 #endif
 
@@ -222,7 +222,7 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 {
 	struct drm_device *ddev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct tilcdc_drm_private *priv;
 	struct resource *res;
 	u32 bpp = 0;
@@ -256,7 +256,7 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 		goto init_failed;
 	}
 
-	priv->mmio = ioremap_nocache(res->start, resource_size(res));
+	priv->mmio = ioremap_yescache(res->start, resource_size(res));
 	if (!priv->mmio) {
 		dev_err(dev, "failed to ioremap\n");
 		ret = -ENOMEM;
@@ -270,17 +270,17 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 		goto init_failed;
 	}
 
-	if (of_property_read_u32(node, "max-bandwidth", &priv->max_bandwidth))
+	if (of_property_read_u32(yesde, "max-bandwidth", &priv->max_bandwidth))
 		priv->max_bandwidth = TILCDC_DEFAULT_MAX_BANDWIDTH;
 
 	DBG("Maximum Bandwidth Value %d", priv->max_bandwidth);
 
-	if (of_property_read_u32(node, "max-width", &priv->max_width))
+	if (of_property_read_u32(yesde, "max-width", &priv->max_width))
 		priv->max_width = TILCDC_DEFAULT_MAX_WIDTH;
 
 	DBG("Maximum Horizontal Pixel Width Value %dpixels", priv->max_width);
 
-	if (of_property_read_u32(node, "max-pixelclock",
+	if (of_property_read_u32(yesde, "max-pixelclock",
 					&priv->max_pixelclock))
 		priv->max_pixelclock = TILCDC_DEFAULT_MAX_PIXELCLOCK;
 
@@ -299,7 +299,7 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 		priv->rev = 2;
 		break;
 	default:
-		dev_warn(dev, "Unknown PID Reg value 0x%08x, "
+		dev_warn(dev, "Unkyeswn PID Reg value 0x%08x, "
 			"defaulting to LCD revision 1\n",
 			tilcdc_read(ddev, LCDC_PID_REG));
 		priv->rev = 1;
@@ -316,7 +316,7 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 	} else {
 		const char *str = "\0";
 
-		of_property_read_string(node, "blue-and-red-wiring", &str);
+		of_property_read_string(yesde, "blue-and-red-wiring", &str);
 		if (0 == strcmp(str, "crossed")) {
 			DBG("Configured for crossed blue and red wires");
 			priv->pixelformats = tilcdc_crossed_formats;
@@ -330,7 +330,7 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 				ARRAY_SIZE(tilcdc_straight_formats);
 			bpp = 16; /* Choose bpp with RGB support for fbdef */
 		} else {
-			DBG("Blue and red wiring '%s' unknown, use legacy mode",
+			DBG("Blue and red wiring '%s' unkyeswn, use legacy mode",
 			    str);
 			priv->pixelformats = tilcdc_legacy_formats;
 			priv->num_pixelformats =
@@ -347,12 +347,12 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 	modeset_init(ddev);
 
 #ifdef CONFIG_CPU_FREQ
-	priv->freq_transition.notifier_call = cpufreq_transition;
-	ret = cpufreq_register_notifier(&priv->freq_transition,
+	priv->freq_transition.yestifier_call = cpufreq_transition;
+	ret = cpufreq_register_yestifier(&priv->freq_transition,
 			CPUFREQ_TRANSITION_NOTIFIER);
 	if (ret) {
-		dev_err(dev, "failed to register cpufreq notifier\n");
-		priv->freq_transition.notifier_call = NULL;
+		dev_err(dev, "failed to register cpufreq yestifier\n");
+		priv->freq_transition.yestifier_call = NULL;
 		goto init_failed;
 	}
 #endif
@@ -373,7 +373,7 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 
 	if (!priv->external_connector &&
 	    ((priv->num_encoders == 0) || (priv->num_connectors == 0))) {
-		dev_err(dev, "no encoders/connectors found\n");
+		dev_err(dev, "yes encoders/connectors found\n");
 		ret = -EPROBE_DEFER;
 		goto init_failed;
 	}
@@ -452,8 +452,8 @@ static const struct {
 #ifdef CONFIG_DEBUG_FS
 static int tilcdc_regs_show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	unsigned i;
 
@@ -473,8 +473,8 @@ static int tilcdc_regs_show(struct seq_file *m, void *arg)
 
 static int tilcdc_mm_show(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct drm_printer p = drm_seq_file_printer(m);
 	drm_mm_print(&dev->vma_offset_manager->vm_addr_space_mm, &p);
 	return 0;
@@ -485,22 +485,22 @@ static struct drm_info_list tilcdc_debugfs_list[] = {
 		{ "mm",   tilcdc_mm_show,   0 },
 };
 
-static int tilcdc_debugfs_init(struct drm_minor *minor)
+static int tilcdc_debugfs_init(struct drm_miyesr *miyesr)
 {
-	struct drm_device *dev = minor->dev;
+	struct drm_device *dev = miyesr->dev;
 	struct tilcdc_module *mod;
 	int ret;
 
 	ret = drm_debugfs_create_files(tilcdc_debugfs_list,
 			ARRAY_SIZE(tilcdc_debugfs_list),
-			minor->debugfs_root, minor);
+			miyesr->debugfs_root, miyesr);
 
 	list_for_each_entry(mod, &module_list, list)
 		if (mod->funcs->debugfs_init)
-			mod->funcs->debugfs_init(mod, minor);
+			mod->funcs->debugfs_init(mod, miyesr);
 
 	if (ret) {
-		dev_err(dev->dev, "could not install tilcdc_debugfs_list\n");
+		dev_err(dev->dev, "could yest install tilcdc_debugfs_list\n");
 		return ret;
 	}
 
@@ -533,7 +533,7 @@ static struct drm_driver tilcdc_driver = {
 	.desc               = "TI LCD Controller DRM",
 	.date               = "20121205",
 	.major              = 1,
-	.minor              = 0,
+	.miyesr              = 0,
 };
 
 /*
@@ -597,8 +597,8 @@ static int tilcdc_pdev_probe(struct platform_device *pdev)
 	struct component_match *match = NULL;
 	int ret;
 
-	/* bail out early if no DT data: */
-	if (!pdev->dev.of_node) {
+	/* bail out early if yes DT data: */
+	if (!pdev->dev.of_yesde) {
 		dev_err(&pdev->dev, "device-tree data is missing\n");
 		return -ENXIO;
 	}

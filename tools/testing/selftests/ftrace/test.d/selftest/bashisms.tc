@@ -3,7 +3,7 @@
 # description: Meta-selftest: Checkbashisms
 
 if [ ! -f $FTRACETEST_ROOT/ftracetest ]; then
-  echo "Hmm, we can not find ftracetest"
+  echo "Hmm, we can yest find ftracetest"
   exit_unresolved
 fi
 

@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/clk.h>
@@ -61,7 +61,7 @@ static void omap1_clk_allow_idle(struct clk *clk)
 	if (!(clk->flags & CLOCK_IDLE_CONTROL))
 		return;
 
-	if (iclk->no_idle_count > 0 && !(--iclk->no_idle_count))
+	if (iclk->yes_idle_count > 0 && !(--iclk->yes_idle_count))
 		arm_idlect1_mask |= 1 << iclk->idlect_shift;
 }
 
@@ -72,7 +72,7 @@ static void omap1_clk_deny_idle(struct clk *clk)
 	if (!(clk->flags & CLOCK_IDLE_CONTROL))
 		return;
 
-	if (iclk->no_idle_count++ == 0)
+	if (iclk->yes_idle_count++ == 0)
 		arm_idlect1_mask &= ~(1 << iclk->idlect_shift);
 }
 
@@ -89,7 +89,7 @@ static __u16 verify_ckctl_value(__u16 newval)
 	 * LCD_CK <= TC_CK
 	 * ARMPER_CK <= TC_CK
 	 *
-	 * However, maximum frequencies are not checked for!
+	 * However, maximum frequencies are yest checked for!
 	 */
 	__u8 per_exp;
 	__u8 lcd_exp;
@@ -135,7 +135,7 @@ static int calc_dsor_exp(struct clk *clk, unsigned long rate)
 	 * which is invalid value. Caller must check for this value and act
 	 * accordingly.
 	 *
-	 * Note: This function does not check for following limitations set
+	 * Note: This function does yest check for following limitations set
 	 * by the hardware (all conditions must be true):
 	 * DSPMMU_CK == DSP_CK  or  DSPMMU_CK == DSP_CK/2
 	 * ARM_CK >= TC_CK
@@ -212,7 +212,7 @@ int omap1_select_table_rate(struct clk *clk, unsigned long rate)
 		return -EINVAL;
 
 	/*
-	 * In most cases we should not need to reprogram DPLL.
+	 * In most cases we should yest need to reprogram DPLL.
 	 * Reprogramming the DPLL is tricky, it must be done from SRAM.
 	 */
 	omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val);
@@ -305,14 +305,14 @@ static unsigned calc_ext_dsor(unsigned long rate)
 {
 	unsigned dsor;
 
-	/* MCLK and BCLK divisor selection is not linear:
+	/* MCLK and BCLK divisor selection is yest linear:
 	 * freq = 96MHz / dsor
 	 *
 	 * RATIO_SEL range: dsor <-> RATIO_SEL
 	 * 0..6: (RATIO_SEL+2) <-> (dsor-2)
 	 * 6..48:  (8+(RATIO_SEL-6)*2) <-> ((dsor-8)/2+6)
 	 * Minimum dsor is 2 and maximum is 96. Odd divisors starting from 9
-	 * can not be used.
+	 * can yest be used.
 	 */
 	for (dsor = 2; dsor < 96; ++dsor) {
 		if ((dsor & 1) && dsor > 8)
@@ -520,7 +520,7 @@ const struct clkops clkops_dspck = {
 	.disable	= omap1_clk_disable_dsp_domain,
 };
 
-/* XXX SYSC register handling does not belong in the clock framework */
+/* XXX SYSC register handling does yest belong in the clock framework */
 static int omap1_clk_enable_uart_functional_16xx(struct clk *clk)
 {
 	int ret;
@@ -528,7 +528,7 @@ static int omap1_clk_enable_uart_functional_16xx(struct clk *clk)
 
 	ret = omap1_clk_enable_generic(clk);
 	if (ret == 0) {
-		/* Set smart idle acknowledgement mode */
+		/* Set smart idle ackyeswledgement mode */
 		uclk = (struct uart_clk *)clk;
 		omap_writeb((omap_readb(uclk->sysc_addr) & ~0x10) | 8,
 			    uclk->sysc_addr);
@@ -537,19 +537,19 @@ static int omap1_clk_enable_uart_functional_16xx(struct clk *clk)
 	return ret;
 }
 
-/* XXX SYSC register handling does not belong in the clock framework */
+/* XXX SYSC register handling does yest belong in the clock framework */
 static void omap1_clk_disable_uart_functional_16xx(struct clk *clk)
 {
 	struct uart_clk *uclk;
 
-	/* Set force idle acknowledgement mode */
+	/* Set force idle ackyeswledgement mode */
 	uclk = (struct uart_clk *)clk;
 	omap_writeb((omap_readb(uclk->sysc_addr) & ~0x18), uclk->sysc_addr);
 
 	omap1_clk_disable_generic(clk);
 }
 
-/* XXX SYSC register handling does not belong in the clock framework */
+/* XXX SYSC register handling does yest belong in the clock framework */
 const struct clkops clkops_uart_16xx = {
 	.enable		= omap1_clk_enable_uart_functional_16xx,
 	.disable	= omap1_clk_disable_uart_functional_16xx,
@@ -583,7 +583,7 @@ void omap1_clk_disable_unused(struct clk *clk)
 	__u32 regval32;
 
 	/* Clocks in the DSP domain need api_ck. Just assume bootloader
-	 * has not enabled any DSP clocks */
+	 * has yest enabled any DSP clocks */
 	if (clk->enable_reg == DSP_IDLECT2) {
 		pr_info("Skipping reset check for DSP domain clock \"%s\"\n",
 			clk->name);
@@ -701,7 +701,7 @@ EXPORT_SYMBOL(clk_set_rate);
 
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
-	WARN_ONCE(1, "clk_set_parent() not implemented for OMAP1\n");
+	WARN_ONCE(1, "clk_set_parent() yest implemented for OMAP1\n");
 
 	return -EINVAL;
 }
@@ -741,7 +741,7 @@ void clk_reparent(struct clk *child, struct clk *parent)
 		list_add(&child->sibling, &parent->children);
 	child->parent = parent;
 
-	/* now do the debugfs renaming to reattach the child
+	/* yesw do the debugfs renaming to reattach the child
 	   to the proper parent */
 }
 
@@ -762,7 +762,7 @@ static LIST_HEAD(root_clks);
 /**
  * recalculate_root_clocks - recalculate and propagate all root clocks
  *
- * Recalculates all root clocks (clocks with no parent), which if the
+ * Recalculates all root clocks (clocks with yes parent), which if the
  * clock's .recalc is set correctly, should also propagate their rates.
  * Called at init.
  */
@@ -781,7 +781,7 @@ void recalculate_root_clocks(void)
  * clk_preinit - initialize any fields in the struct clk before clk init
  * @clk: struct clk * to initialize
  *
- * Initialize any struct clk fields needed before normal clk initialization
+ * Initialize any struct clk fields needed before yesrmal clk initialization
  * can run.  No return value.
  */
 void clk_preinit(struct clk *clk)
@@ -797,7 +797,7 @@ int clk_register(struct clk *clk)
 	/*
 	 * trap out already registered clocks
 	 */
-	if (clk->node.next || clk->node.prev)
+	if (clk->yesde.next || clk->yesde.prev)
 		return 0;
 
 	mutex_lock(&clocks_mutex);
@@ -806,7 +806,7 @@ int clk_register(struct clk *clk)
 	else
 		list_add(&clk->sibling, &root_clks);
 
-	list_add(&clk->node, &clocks);
+	list_add(&clk->yesde, &clocks);
 	if (clk->init)
 		clk->init(clk);
 	mutex_unlock(&clocks_mutex);
@@ -822,7 +822,7 @@ void clk_unregister(struct clk *clk)
 
 	mutex_lock(&clocks_mutex);
 	list_del(&clk->sibling);
-	list_del(&clk->node);
+	list_del(&clk->yesde);
 	mutex_unlock(&clocks_mutex);
 }
 EXPORT_SYMBOL(clk_unregister);
@@ -831,7 +831,7 @@ void clk_enable_init_clocks(void)
 {
 	struct clk *clkp;
 
-	list_for_each_entry(clkp, &clocks, node)
+	list_for_each_entry(clkp, &clocks, yesde)
 		if (clkp->flags & ENABLE_ON_INIT)
 			clk_enable(clkp);
 }
@@ -841,7 +841,7 @@ void clk_enable_init_clocks(void)
  * @name: name of the struct clk to locate
  *
  * Locate an OMAP struct clk by its name.  Assumes that struct clk
- * names are unique.  Returns NULL if not found or a pointer to the
+ * names are unique.  Returns NULL if yest found or a pointer to the
  * struct clk if found.
  */
 struct clk *omap_clk_get_by_name(const char *name)
@@ -851,7 +851,7 @@ struct clk *omap_clk_get_by_name(const char *name)
 
 	mutex_lock(&clocks_mutex);
 
-	list_for_each_entry(c, &clocks, node) {
+	list_for_each_entry(c, &clocks, yesde) {
 		if (!strcmp(c->name, name)) {
 			ret = c;
 			break;
@@ -870,7 +870,7 @@ int omap_clk_enable_autoidle_all(void)
 
 	spin_lock_irqsave(&clockfw_lock, flags);
 
-	list_for_each_entry(c, &clocks, node)
+	list_for_each_entry(c, &clocks, yesde)
 		if (c->ops->allow_idle)
 			c->ops->allow_idle(c);
 
@@ -886,7 +886,7 @@ int omap_clk_disable_autoidle_all(void)
 
 	spin_lock_irqsave(&clockfw_lock, flags);
 
-	list_for_each_entry(c, &clocks, node)
+	list_for_each_entry(c, &clocks, yesde)
 		if (c->ops->deny_idle)
 			c->ops->deny_idle(c);
 
@@ -915,7 +915,7 @@ const struct clkops clkops_null = {
 /*
  * Dummy clock
  *
- * Used for clock aliases that are needed on some OMAPs, but not others
+ * Used for clock aliases that are needed on some OMAPs, but yest others
  */
 struct clk dummy_ck = {
 	.name	= "dummy",
@@ -938,7 +938,7 @@ static int __init clk_disable_unused(void)
 	pr_info("clock: disabling unused clocks to save power\n");
 
 	spin_lock_irqsave(&clockfw_lock, flags);
-	list_for_each_entry(ck, &clocks, node) {
+	list_for_each_entry(ck, &clocks, yesde) {
 		if (ck->ops == &clkops_null)
 			continue;
 
@@ -974,10 +974,10 @@ static int debug_clock_show(struct seq_file *s, void *unused)
 	seq_printf(s, "%-30s %-30s %-10s %s\n",
 		   "clock-name", "parent-name", "rate", "use-count");
 
-	list_for_each_entry(c, &clocks, node) {
+	list_for_each_entry(c, &clocks, yesde) {
 		pa = c->parent;
 		seq_printf(s, "%-30s %-30s %-10lu %d\n",
-			   c->name, pa ? pa->name : "none", c->rate,
+			   c->name, pa ? pa->name : "yesne", c->rate,
 			   c->usecount);
 	}
 	mutex_unlock(&clocks_mutex);
@@ -1019,7 +1019,7 @@ static int __init clk_debugfs_init(void)
 	d = debugfs_create_dir("clock", NULL);
 	clk_debugfs_root = d;
 
-	list_for_each_entry(c, &clocks, node)
+	list_for_each_entry(c, &clocks, yesde)
 		clk_debugfs_register(c);
 
 	debugfs_create_file("summary", S_IRUGO, d, NULL, &debug_clock_fops);

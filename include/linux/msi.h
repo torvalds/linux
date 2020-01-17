@@ -11,7 +11,7 @@ struct msi_msg {
 	u32	data;		/* 16 bits of msi message data */
 };
 
-extern int pci_msi_ignore_mask;
+extern int pci_msi_igyesre_mask;
 /* Helper functions */
 struct irq_data;
 struct msi_desc;
@@ -75,7 +75,7 @@ struct ti_sci_inta_msi_desc {
  * @maskbit:	[PCI MSI/X] Mask-Pending bit supported?
  * @is_64:	[PCI MSI/X] Address size: 0=32bit 1=64bit
  * @entry_nr:	[PCI MSI/X] Entry which is described by this descriptor
- * @default_irq:[PCI MSI/X] The default pre-assigned non-MSI irq
+ * @default_irq:[PCI MSI/X] The default pre-assigned yesn-MSI irq
  * @mask_pos:	[PCI MSI]   Mask register position
  * @mask_base:	[PCI MSI-X] Mask register base address
  * @platform:	[platform]  Platform device specific msi descriptor data
@@ -121,7 +121,7 @@ struct msi_desc {
 		 * Non PCI variants add their data structure here. New
 		 * entries need to use a named structure. We want
 		 * proper name spaces for this. The PCI part is
-		 * anonymous for now as it would require an immediate
+		 * ayesnymous for yesw as it would require an immediate
 		 * tree wide cleanup.
 		 */
 		struct platform_msi_desc platform;
@@ -209,7 +209,7 @@ void default_restore_msi_irqs(struct pci_dev *dev);
 struct msi_controller {
 	struct module *owner;
 	struct device *dev;
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 	struct list_head list;
 
 	int (*setup_irq)(struct msi_controller *chip, struct pci_dev *dev,
@@ -227,8 +227,8 @@ struct msi_controller {
 struct irq_domain;
 struct irq_domain_ops;
 struct irq_chip;
-struct device_node;
-struct fwnode_handle;
+struct device_yesde;
+struct fwyesde_handle;
 struct msi_domain_info;
 
 /**
@@ -297,12 +297,12 @@ struct msi_domain_info {
 /* Flags for msi_domain_info */
 enum {
 	/*
-	 * Init non implemented ops callbacks with default MSI domain
+	 * Init yesn implemented ops callbacks with default MSI domain
 	 * callbacks.
 	 */
 	MSI_FLAG_USE_DEF_DOM_OPS	= (1 << 0),
 	/*
-	 * Init non implemented chip callbacks with default MSI chip
+	 * Init yesn implemented chip callbacks with default MSI chip
 	 * callbacks.
 	 */
 	MSI_FLAG_USE_DEF_CHIP_OPS	= (1 << 1),
@@ -324,7 +324,7 @@ enum {
 int msi_domain_set_affinity(struct irq_data *data, const struct cpumask *mask,
 			    bool force);
 
-struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *msi_create_irq_domain(struct fwyesde_handle *fwyesde,
 					 struct msi_domain_info *info,
 					 struct irq_domain *parent);
 int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
@@ -332,7 +332,7 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 void msi_domain_free_irqs(struct irq_domain *domain, struct device *dev);
 struct msi_domain_info *msi_get_domain_info(struct irq_domain *domain);
 
-struct irq_domain *platform_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *platform_msi_create_irq_domain(struct fwyesde_handle *fwyesde,
 						  struct msi_domain_info *info,
 						  struct irq_domain *parent);
 int platform_msi_domain_alloc_irqs(struct device *dev, unsigned int nvec,
@@ -366,7 +366,7 @@ void *platform_msi_get_host_data(struct irq_domain *domain);
 
 #ifdef CONFIG_PCI_MSI_IRQ_DOMAIN
 void pci_msi_domain_write_msg(struct irq_data *irq_data, struct msi_msg *msg);
-struct irq_domain *pci_msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *pci_msi_create_irq_domain(struct fwyesde_handle *fwyesde,
 					     struct msi_domain_info *info,
 					     struct irq_domain *parent);
 irq_hw_number_t pci_msi_domain_calc_hwirq(struct pci_dev *dev,

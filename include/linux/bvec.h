@@ -2,14 +2,14 @@
 /*
  * bvec iterator
  *
- * Copyright (C) 2001 Ming Lei <ming.lei@canonical.com>
+ * Copyright (C) 2001 Ming Lei <ming.lei@cayesnical.com>
  */
 #ifndef __LINUX_BVEC_ITER_H
 #define __LINUX_BVEC_ITER_H
 
 #include <linux/kernel.h>
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 
 /*
@@ -39,7 +39,7 @@ struct bvec_iter_all {
 };
 
 /*
- * various member access, note that bio_data should of course not be used
+ * various member access, yeste that bio_data should of course yest be used
  * on highmem page vectors
  */
 #define __bvec_iter_bvec(bvec, iter)	(&(bvec)[(iter).bi_idx])

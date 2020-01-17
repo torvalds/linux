@@ -36,7 +36,7 @@ static void bridge_platform_create(nasid_t nasid, int widget, int masterwid)
 
 	wd = kzalloc(sizeof(*wd), GFP_KERNEL);
 	if (!wd)
-		goto no_mem;
+		goto yes_mem;
 
 	snprintf(wd->dev_id, sizeof(wd->dev_id), "bridge-%012lx",
 		 offset + (widget << SWIN_SIZE_BITS));
@@ -50,7 +50,7 @@ static void bridge_platform_create(nasid_t nasid, int widget, int masterwid)
 	pdev = platform_device_alloc("sgi_w1", PLATFORM_DEVID_AUTO);
 	if (!pdev) {
 		kfree(wd);
-		goto no_mem;
+		goto yes_mem;
 	}
 	platform_device_add_resources(pdev, &w1_res, 1);
 	platform_device_add_data(pdev, wd, sizeof(*wd));
@@ -58,11 +58,11 @@ static void bridge_platform_create(nasid_t nasid, int widget, int masterwid)
 
 	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
 	if (!bd)
-		goto no_mem;
+		goto yes_mem;
 	pdev = platform_device_alloc("xtalk-bridge", PLATFORM_DEVID_AUTO);
 	if (!pdev) {
 		kfree(bd);
-		goto no_mem;
+		goto yes_mem;
 	}
 
 
@@ -88,7 +88,7 @@ static void bridge_platform_create(nasid_t nasid, int widget, int masterwid)
 	pr_info("xtalk:n%d/%x bridge widget\n", nasid, widget);
 	return;
 
-no_mem:
+yes_mem:
 	pr_warn("xtalk:n%d/%x bridge create out of memory\n", nasid, widget);
 }
 
@@ -107,7 +107,7 @@ static int probe_one_port(nasid_t nasid, int widget, int masterwid)
 		bridge_platform_create(nasid, widget, masterwid);
 		break;
 	default:
-		pr_info("xtalk:n%d/%d unknown widget (0x%x)\n",
+		pr_info("xtalk:n%d/%d unkyeswn widget (0x%x)\n",
 			nasid, widget, partnum);
 		break;
 	}
@@ -166,7 +166,7 @@ static int xbow_probe(nasid_t nasid)
 	return 0;
 }
 
-static void xtalk_probe_node(nasid_t nasid)
+static void xtalk_probe_yesde(nasid_t nasid)
 {
 	volatile u64		hubreg;
 	xwidget_part_num_t	partnum;
@@ -192,7 +192,7 @@ static void xtalk_probe_node(nasid_t nasid)
 		xbow_probe(nasid);
 		break;
 	default:
-		pr_info("xtalk:n%d/0 unknown widget (0x%x)\n", nasid, partnum);
+		pr_info("xtalk:n%d/0 unkyeswn widget (0x%x)\n", nasid, partnum);
 		break;
 	}
 }
@@ -201,8 +201,8 @@ static int __init xtalk_init(void)
 {
 	nasid_t nasid;
 
-	for_each_online_node(nasid)
-		xtalk_probe_node(nasid);
+	for_each_online_yesde(nasid)
+		xtalk_probe_yesde(nasid);
 
 	return 0;
 }

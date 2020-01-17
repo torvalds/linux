@@ -218,18 +218,18 @@ static struct cpufreq_driver imx6q_cpufreq_driver = {
 
 static void imx6q_opp_check_speed_grading(struct device *dev)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *base;
 	u32 val;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-ocotp");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx6q-ocotp");
 	if (!np)
 		return;
 
 	base = of_iomap(np, 0);
 	if (!base) {
 		dev_err(dev, "failed to map ocotp\n");
-		goto put_node;
+		goto put_yesde;
 	}
 
 	/*
@@ -258,8 +258,8 @@ static void imx6q_opp_check_speed_grading(struct device *dev)
 				dev_warn(dev, "failed to disable 1.2GHz OPP\n");
 	}
 	iounmap(base);
-put_node:
-	of_node_put(np);
+put_yesde:
+	of_yesde_put(np);
 }
 
 #define OCOTP_CFG3_6UL_SPEED_696MHZ	0x2
@@ -271,20 +271,20 @@ static int imx6ul_opp_check_speed_grading(struct device *dev)
 	u32 val;
 	int ret = 0;
 
-	if (of_find_property(dev->of_node, "nvmem-cells", NULL)) {
+	if (of_find_property(dev->of_yesde, "nvmem-cells", NULL)) {
 		ret = nvmem_cell_read_u32(dev, "speed_grade", &val);
 		if (ret)
 			return ret;
 	} else {
-		struct device_node *np;
+		struct device_yesde *np;
 		void __iomem *base;
 
-		np = of_find_compatible_node(NULL, NULL, "fsl,imx6ul-ocotp");
+		np = of_find_compatible_yesde(NULL, NULL, "fsl,imx6ul-ocotp");
 		if (!np)
 			return -ENOENT;
 
 		base = of_iomap(np, 0);
-		of_node_put(np);
+		of_yesde_put(np);
 		if (!base) {
 			dev_err(dev, "failed to map ocotp\n");
 			return -EFAULT;
@@ -326,7 +326,7 @@ static int imx6ul_opp_check_speed_grading(struct device *dev)
 
 static int imx6q_cpufreq_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct dev_pm_opp *opp;
 	unsigned long min_volt, max_volt;
 	int num, ret;
@@ -340,9 +340,9 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	np = of_node_get(cpu_dev->of_node);
+	np = of_yesde_get(cpu_dev->of_yesde);
 	if (!np) {
-		dev_err(cpu_dev, "failed to find cpu0 node\n");
+		dev_err(cpu_dev, "failed to find cpu0 yesde\n");
 		return -ENOENT;
 	}
 
@@ -354,7 +354,7 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 
 	ret = clk_bulk_get(cpu_dev, num_clks, clks);
 	if (ret)
-		goto put_node;
+		goto put_yesde;
 
 	arm_reg = regulator_get(cpu_dev, "arm");
 	pu_reg = regulator_get_optional(cpu_dev, "pu");
@@ -363,7 +363,7 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 			PTR_ERR(soc_reg) == -EPROBE_DEFER ||
 			PTR_ERR(pu_reg) == -EPROBE_DEFER) {
 		ret = -EPROBE_DEFER;
-		dev_dbg(cpu_dev, "regulators not ready, defer\n");
+		dev_dbg(cpu_dev, "regulators yest ready, defer\n");
 		goto put_reg;
 	}
 	if (IS_ERR(arm_reg) || IS_ERR(soc_reg)) {
@@ -383,11 +383,11 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 		ret = imx6ul_opp_check_speed_grading(cpu_dev);
 		if (ret) {
 			if (ret == -EPROBE_DEFER)
-				goto put_node;
+				goto put_yesde;
 
 			dev_err(cpu_dev, "failed to read ocotp: %d\n",
 				ret);
-			goto put_node;
+			goto put_yesde;
 		}
 	} else {
 		imx6q_opp_check_speed_grading(cpu_dev);
@@ -398,7 +398,7 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	num = dev_pm_opp_get_opp_count(cpu_dev);
 	if (num < 0) {
 		ret = num;
-		dev_err(cpu_dev, "no OPP table is found: %d\n", ret);
+		dev_err(cpu_dev, "yes OPP table is found: %d\n", ret);
 		goto out_free_opp;
 	}
 
@@ -441,7 +441,7 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	}
 
 soc_opp_out:
-	/* use fixed soc opp volt if no valid soc opp info found in dtb */
+	/* use fixed soc opp volt if yes valid soc opp info found in dtb */
 	if (soc_opp_count != num) {
 		dev_warn(cpu_dev, "can NOT find valid fsl,soc-operating-points property in dtb, use default value!\n");
 		for (j = 0; j < num; j++)
@@ -490,7 +490,7 @@ soc_opp_out:
 		goto free_freq_table;
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 	return 0;
 
 free_freq_table:
@@ -507,8 +507,8 @@ put_reg:
 		regulator_put(soc_reg);
 
 	clk_bulk_put(num_clks, clks);
-put_node:
-	of_node_put(np);
+put_yesde:
+	of_yesde_put(np);
 
 	return ret;
 }

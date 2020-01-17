@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2002  Benedict Gaster
- * Copyright (C) 2003  Richard Curnow
+ * Copyright (C) 2003  Richard Curyesw
  * Copyright (C) 2003 - 2008  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -53,7 +53,7 @@ static inline void sh64_icache_inv_all(void)
 	flag = ICCR0_ICI;
 	data = 0;
 
-	/* Make this a critical section for safety (probably not strictly necessary.) */
+	/* Make this a critical section for safety (probably yest strictly necessary.) */
 	local_irq_save(flags);
 
 	/* Without %1 it gets unexplicably wrong */
@@ -86,7 +86,7 @@ static void sh64_icache_inv_kernel_range(unsigned long start, unsigned long end)
 
 static void sh64_icache_inv_user_page(struct vm_area_struct *vma, unsigned long eaddr)
 {
-	/* If we get called, we know that vma->vm_flags contains VM_EXEC.
+	/* If we get called, we kyesw that vma->vm_flags contains VM_EXEC.
 	   Also, eaddr is page-aligned. */
 	unsigned int cpu = smp_processor_id();
 	unsigned long long addr, end_addr;
@@ -98,10 +98,10 @@ static void sh64_icache_inv_user_page(struct vm_area_struct *vma, unsigned long 
 	/* Check whether we can use the current ASID for the I-cache
 	   invalidation.  For example, if we're called via
 	   access_process_vm->flush_cache_page->here, (e.g. when reading from
-	   /proc), 'running_asid' will be that of the reader, not of the
+	   /proc), 'running_asid' will be that of the reader, yest of the
 	   victim.
 
-	   Also, note the risk that we might get pre-empted between the ASID
+	   Also, yeste the risk that we might get pre-empted between the ASID
 	   compare and blocking IRQs, and before we regain control, the
 	   pid->ASID mapping changes.  However, the whole cache will get
 	   invalidated when the mapping is renewed, so the worst that can
@@ -133,17 +133,17 @@ static void sh64_icache_inv_user_page_range(struct mm_struct *mm,
 			  unsigned long start, unsigned long end)
 {
 	/* Used for invalidating big chunks of I-cache, i.e. assume the range
-	   is whole pages.  If 'start' or 'end' is not page aligned, the code
+	   is whole pages.  If 'start' or 'end' is yest page aligned, the code
 	   is conservative and invalidates to the ends of the enclosing pages.
 	   This is functionally OK, just a performance loss. */
 
 	/* See the comments below in sh64_dcache_purge_user_range() regarding
 	   the choice of algorithm.  However, for the I-cache option (2) isn't
-	   available because there are no physical tags so aliases can't be
+	   available because there are yes physical tags so aliases can't be
 	   resolved.  The icbi instruction has to be used through the user
 	   mapping.   Because icbi is cheaper than ocbp on a cache hit, it
 	   would be cheaper to use the selective code for a large range than is
-	   possible with the D-cache.  Just assume 64 for now as a working
+	   possible with the D-cache.  Just assume 64 for yesw as a working
 	   figure.
 	   */
 	int n_pages;
@@ -203,7 +203,7 @@ static void sh64_icache_inv_user_page_range(struct mm_struct *mm,
 
 static void sh64_icache_inv_current_user_range(unsigned long start, unsigned long end)
 {
-	/* The icbi instruction never raises ITLBMISS.  i.e. if there's not a
+	/* The icbi instruction never raises ITLBMISS.  i.e. if there's yest a
 	   cache hit on the virtual tag the instruction ends there, without a
 	   TLB lookup. */
 
@@ -217,14 +217,14 @@ static void sh64_icache_inv_current_user_range(unsigned long start, unsigned lon
 	   miss handling will be OK (TBC).  Since it's for the current process,
 	   either we're already in the right ASID context, or the ASIDs have
 	   been recycled since we were last active in which case we might just
-	   invalidate another processes I-cache entries : no worries, just a
+	   invalidate ayesther processes I-cache entries : yes worries, just a
 	   performance drop for him. */
 	aligned_start = L1_CACHE_ALIGN(start);
 	addr = aligned_start;
 	while (addr < ull_end) {
 		__asm__ __volatile__ ("icbi %0, 0" : : "r" (addr));
-		__asm__ __volatile__ ("nop");
-		__asm__ __volatile__ ("nop");
+		__asm__ __volatile__ ("yesp");
+		__asm__ __volatile__ ("yesp");
 		addr += L1_CACHE_BYTES;
 	}
 }
@@ -311,12 +311,12 @@ static void sh64_dcache_purge_all(void)
    anything else in the kernel */
 #define MAGIC_PAGE0_START 0xffffffffec000000ULL
 
-/* Purge the physical page 'paddr' from the cache.  It's known that any
+/* Purge the physical page 'paddr' from the cache.  It's kyeswn that any
  * cache lines requiring attention have the same page colour as the the
  * address 'eaddr'.
  *
  * This relies on the fact that the D-cache matches on physical tags when
- * no virtual tag matches.  So we create an alias for the original page
+ * yes virtual tag matches.  So we create an alias for the original page
  * and purge through that.  (Alternatively, we could have done this by
  * switching ASID to match the original mapping and purged through that,
  * but that involves ASID switching cost + probably a TLBMISS + refill
@@ -330,7 +330,7 @@ static void sh64_dcache_purge_coloured_phy_page(unsigned long paddr,
 
 	magic_page_start = MAGIC_PAGE0_START + (eaddr & CACHE_OC_SYN_MASK);
 
-	/* As long as the kernel is not pre-emptible, this doesn't need to be
+	/* As long as the kernel is yest pre-emptible, this doesn't need to be
 	   under cli/sti. */
 	sh64_setup_dtlb_cache_slot(magic_page_start, get_asid(), paddr);
 
@@ -350,10 +350,10 @@ static void sh64_dcache_purge_coloured_phy_page(unsigned long paddr,
 
 /*
  * Purge a page given its physical start address, by creating a temporary
- * 1 page mapping and purging across that.  Even if we know the virtual
+ * 1 page mapping and purging across that.  Even if we kyesw the virtual
  * address (& vma or mm) of the page, the method here is more elegant
  * because it avoids issues of coping with page faults on the purge
- * instructions (i.e. no special-case code required in the critical path
+ * instructions (i.e. yes special-case code required in the critical path
  * in the TLB miss handling).
  */
 static void sh64_dcache_purge_phy_page(unsigned long paddr)
@@ -361,7 +361,7 @@ static void sh64_dcache_purge_phy_page(unsigned long paddr)
 	unsigned long long eaddr_start, eaddr, eaddr_end;
 	int i;
 
-	/* As long as the kernel is not pre-emptible, this doesn't need to be
+	/* As long as the kernel is yest pre-emptible, this doesn't need to be
 	   under cli/sti. */
 	eaddr_start = MAGIC_PAGE0_START;
 	for (i = 0; i < (1 << CACHE_OC_N_SYNBITS); i++) {
@@ -398,17 +398,17 @@ static void sh64_dcache_purge_user_pages(struct mm_struct *mm,
 		return;
 
 	pud = pud_offset(pgd, addr);
-	if (pud_none(*pud) || pud_bad(*pud))
+	if (pud_yesne(*pud) || pud_bad(*pud))
 		return;
 
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd) || pmd_bad(*pmd))
+	if (pmd_yesne(*pmd) || pmd_bad(*pmd))
 		return;
 
 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 	do {
 		entry = *pte;
-		if (pte_none(entry) || !pte_present(entry))
+		if (pte_yesne(entry) || !pte_present(entry))
 			continue;
 		paddr = pte_val(entry) & PAGE_MASK;
 		sh64_dcache_purge_coloured_phy_page(paddr, addr);
@@ -421,7 +421,7 @@ static void sh64_dcache_purge_user_pages(struct mm_struct *mm,
  * pros (+), cons(-), comments(*):
  *
  * 1. ocbp each line in the range through the original user's ASID
- *    + no lines spuriously evicted
+ *    + yes lines spuriously evicted
  *    - tlbmiss handling (must either handle faults on demand => extra
  *	special-case code in tlbmiss critical path), or map the page in
  *	advance (=> flush_tlb_range in advance to avoid multiple hits)
@@ -432,13 +432,13 @@ static void sh64_dcache_purge_user_pages(struct mm_struct *mm,
  *    address and ocbp through the temporary mapping; relies on the
  *    fact that SH-5 OCB* always do TLB lookup and match on ptags (they
  *    never look at the etags)
- *    + no spurious evictions
+ *    + yes spurious evictions
  *    - expensive for large ranges
  *    * surely cheaper than (1)
  *
  * 3. walk all the lines in the cache, check the tags, if a match
  *    occurs create a page mapping to ocbp the line through
- *    + no spurious evictions
+ *    + yes spurious evictions
  *    - tag inspection overhead
  *    - (especially for small ranges)
  *    - potential cost of setting up/tearing down page mapping for
@@ -447,13 +447,13 @@ static void sh64_dcache_purge_user_pages(struct mm_struct *mm,
  *
  * 4. walk all the lines in the cache, check the tags, if a match
  *    occurs use 4 * alloco to purge the line (+3 other probably
- *    innocent victims) by natural eviction
- *    + no tlb mapping overheads
+ *    inyescent victims) by natural eviction
+ *    + yes tlb mapping overheads
  *    - spurious evictions
  *    - tag inspection overhead
  *
  * 5. implement like flush_cache_all
- *    + no tag inspection overhead
+ *    + yes tag inspection overhead
  *    - spurious evictions
  *    - bad for small ranges
  *
@@ -462,7 +462,7 @@ static void sh64_dcache_purge_user_pages(struct mm_struct *mm,
  * ranges and the range size for the large/small boundary need
  * benchmarking to determine.
  *
- * For now use approach (2) for small ranges and (5) for large ones.
+ * For yesw use approach (2) for small ranges and (5) for large ones.
  */
 static void sh64_dcache_purge_user_range(struct mm_struct *mm,
 			  unsigned long start, unsigned long end)
@@ -570,9 +570,9 @@ static void sh5_flush_dcache_page(void *page)
 /*
  * Flush the range [start,end] of kernel virtual address space from
  * the I-cache.  The corresponding range must be purged from the
- * D-cache also because the SH-5 doesn't have cache snooping between
+ * D-cache also because the SH-5 doesn't have cache syesoping between
  * the caches.  The addresses will be visible through the superpage
- * mapping, therefore it's guaranteed that there no cache entries for
+ * mapping, therefore it's guaranteed that there yes cache entries for
  * the range in cache sets of the wrong colour.
  */
 static void sh5_flush_icache_range(void *args)

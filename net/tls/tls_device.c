@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Mellanox Technologies All rights reserved.
+/* Copyright (c) 2018, Mellayesx Techyeslogies All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -11,11 +11,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -41,7 +41,7 @@
 #include "trace.h"
 
 /* device_offload_lock is used to synchronize tls_dev_add
- * against NETDEV_DOWN notifications.
+ * against NETDEV_DOWN yestifications.
  */
 static DECLARE_RWSEM(device_offload_lock);
 
@@ -174,8 +174,8 @@ static void tls_icsk_clean_acked(struct sock *sk, u32 acked_seq)
 	spin_unlock_irqrestore(&ctx->lock, flags);
 }
 
-/* At this point, there should be no references on this
- * socket and no in-flight SKBs associated with this
+/* At this point, there should be yes references on this
+ * socket and yes in-flight SKBs associated with this
  * socket, so it is safe to free all the resources.
  */
 static void tls_device_sk_destruct(struct sock *sk)
@@ -311,7 +311,7 @@ static int tls_device_record_close(struct sock *sk,
 	 * device will fill in the tag, we just need to append a placeholder
 	 * use socket memory to improve coalescing (re-using a single buffer
 	 * increases frag count)
-	 * if we can't allocate memory now, steal some back from data
+	 * if we can't allocate memory yesw, steal some back from data
 	 */
 	if (likely(skb_page_frag_refill(prot->tag_size, pfrag,
 					sk->sk_allocation))) {
@@ -386,7 +386,7 @@ static int tls_do_allocation(struct sock *sk,
 
 static int tls_device_copy_data(void *addr, size_t bytes, struct iov_iter *i)
 {
-	size_t pre_copy, nocache;
+	size_t pre_copy, yescache;
 
 	pre_copy = ~((unsigned long)addr - 1) & (SMP_CACHE_BYTES - 1);
 	if (pre_copy) {
@@ -397,11 +397,11 @@ static int tls_device_copy_data(void *addr, size_t bytes, struct iov_iter *i)
 		addr += pre_copy;
 	}
 
-	nocache = round_down(bytes, SMP_CACHE_BYTES);
-	if (copy_from_iter_nocache(addr, nocache, i) != nocache)
+	yescache = round_down(bytes, SMP_CACHE_BYTES);
+	if (copy_from_iter_yescache(addr, yescache, i) != yescache)
 		return -EFAULT;
-	bytes -= nocache;
-	addr += nocache;
+	bytes -= yescache;
+	addr += yescache;
 
 	if (bytes && copy_from_iter(addr, bytes, i) != bytes)
 		return -EFAULT;
@@ -446,7 +446,7 @@ static int tls_push_data(struct sock *sk,
 
 	pfrag = sk_page_frag(sk);
 
-	/* TLS_HEADER_SIZE is not counted as part of the TLS record, and
+	/* TLS_HEADER_SIZE is yest counted as part of the TLS record, and
 	 * we need to leave room for an authentication tag.
 	 */
 	max_open_record_len = TLS_MAX_PAYLOAD_SIZE +
@@ -700,10 +700,10 @@ void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)
 			return;
 		break;
 	case TLS_OFFLOAD_SYNC_TYPE_CORE_NEXT_HINT:
-		if (likely(!rx_ctx->resync_nh_do_now))
+		if (likely(!rx_ctx->resync_nh_do_yesw))
 			return;
 
-		/* head of next rec is already in, note that the sock_inq will
+		/* head of next rec is already in, yeste that the sock_inq will
 		 * include the currently parsed message when called from parser
 		 */
 		sock_data = tcp_inq(sk);
@@ -713,7 +713,7 @@ void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)
 			return;
 		}
 
-		rx_ctx->resync_nh_do_now = 0;
+		rx_ctx->resync_nh_do_yesw = 0;
 		seq += rcd_len;
 		tls_bigint_increment(rcd_sn, prot->rec_seq_size);
 		break;
@@ -732,7 +732,7 @@ static void tls_device_core_ctrl_rx_resync(struct tls_context *tls_ctx,
 	if (ctx->resync_type != TLS_OFFLOAD_SYNC_TYPE_CORE_NEXT_HINT)
 		return;
 	/* already scheduled */
-	if (ctx->resync_nh_do_now)
+	if (ctx->resync_nh_do_yesw)
 		return;
 	/* seen decrypted fragments since last fully-failed record */
 	if (ctx->resync_nh_reset) {
@@ -756,7 +756,7 @@ static void tls_device_core_ctrl_rx_resync(struct tls_context *tls_ctx,
 	/* head of next rec is already in, parser will sync for us */
 	if (tcp_inq(sk) > rxm->full_len) {
 		trace_tls_device_rx_resync_nh_schedule(sk);
-		ctx->resync_nh_do_now = 1;
+		ctx->resync_nh_do_yesw = 1;
 	} else {
 		struct tls_prot_info *prot = &tls_ctx->prot_info;
 		u8 rcd_sn[TLS_MAX_REC_SEQ_SIZE];
@@ -798,7 +798,7 @@ static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 	if (err)
 		goto free_buf;
 
-	/* We are interested only in the decrypted data not the auth */
+	/* We are interested only in the decrypted data yest the auth */
 	err = decrypt_skb(sk, skb, sg);
 	if (err != -EBADMSG)
 		goto free_buf;
@@ -909,7 +909,7 @@ static void tls_device_attach(struct tls_context *ctx, struct sock *sk,
 
 int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 {
-	u16 nonce_size, tag_size, iv_size, rec_seq_size;
+	u16 yesnce_size, tag_size, iv_size, rec_seq_size;
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
 	struct tls_record_info *start_marker_record;
@@ -945,7 +945,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 
 	switch (crypto_info->cipher_type) {
 	case TLS_CIPHER_AES_GCM_128:
-		nonce_size = TLS_CIPHER_AES_GCM_128_IV_SIZE;
+		yesnce_size = TLS_CIPHER_AES_GCM_128_IV_SIZE;
 		tag_size = TLS_CIPHER_AES_GCM_128_TAG_SIZE;
 		iv_size = TLS_CIPHER_AES_GCM_128_IV_SIZE;
 		iv = ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->iv;
@@ -966,7 +966,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 
 	prot->version = crypto_info->version;
 	prot->cipher_type = crypto_info->cipher_type;
-	prot->prepend_size = TLS_HEADER_SIZE + nonce_size;
+	prot->prepend_size = TLS_HEADER_SIZE + yesnce_size;
 	prot->tag_size = tag_size;
 	prot->overhead_size = prot->prepend_size + prot->tag_size;
 	prot->iv_size = iv_size;
@@ -1017,7 +1017,7 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 
 	netdev = get_netdev_for_sock(sk);
 	if (!netdev) {
-		pr_err_ratelimited("%s: netdev not found\n", __func__);
+		pr_err_ratelimited("%s: netdev yest found\n", __func__);
 		rc = -EINVAL;
 		goto disable_cad;
 	}
@@ -1093,7 +1093,7 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 
 	netdev = get_netdev_for_sock(sk);
 	if (!netdev) {
-		pr_err_ratelimited("%s: netdev not found\n", __func__);
+		pr_err_ratelimited("%s: netdev yest found\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1191,7 +1191,7 @@ static int tls_device_down(struct net_device *netdev)
 	spin_lock_irqsave(&tls_device_lock, flags);
 	list_for_each_entry_safe(ctx, tmp, &tls_device_list, list) {
 		if (ctx->netdev != netdev ||
-		    !refcount_inc_not_zero(&ctx->refcount))
+		    !refcount_inc_yest_zero(&ctx->refcount))
 			continue;
 
 		list_move(&ctx->list, &list);
@@ -1223,10 +1223,10 @@ static int tls_device_down(struct net_device *netdev)
 	return NOTIFY_DONE;
 }
 
-static int tls_dev_event(struct notifier_block *this, unsigned long event,
+static int tls_dev_event(struct yestifier_block *this, unsigned long event,
 			 void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (!dev->tlsdev_ops &&
 	    !(dev->features & (NETIF_F_HW_TLS_RX | NETIF_F_HW_TLS_TX)))
@@ -1251,18 +1251,18 @@ static int tls_dev_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block tls_dev_notifier = {
-	.notifier_call	= tls_dev_event,
+static struct yestifier_block tls_dev_yestifier = {
+	.yestifier_call	= tls_dev_event,
 };
 
 void __init tls_device_init(void)
 {
-	register_netdevice_notifier(&tls_dev_notifier);
+	register_netdevice_yestifier(&tls_dev_yestifier);
 }
 
 void __exit tls_device_cleanup(void)
 {
-	unregister_netdevice_notifier(&tls_dev_notifier);
+	unregister_netdevice_yestifier(&tls_dev_yestifier);
 	flush_work(&tls_device_gc_work);
 	clean_acked_data_flush();
 }

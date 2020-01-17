@@ -66,7 +66,7 @@ void dccp_time_wait(struct sock *sk, int state, int timeo)
 	} else {
 		/* Sorry, if we're out of memory, just CLOSE this
 		 * socket up.  We've got bigger problems than
-		 * non-graceful socket closings.
+		 * yesn-graceful socket closings.
 		 */
 		DCCP_WARN("time wait bucket table overflow\n");
 	}
@@ -103,7 +103,7 @@ struct sock *dccp_create_openreq_child(const struct sock *sk,
 		/*
 		 * Step 3: Process LISTEN state
 		 *
-		 *    Choose S.ISS (initial seqno) or set from Init Cookies
+		 *    Choose S.ISS (initial seqyes) or set from Init Cookies
 		 *    Initialize S.GAR := S.ISS
 		 *    Set S.ISR, S.GSR from packet (or Init Cookies)
 		 *
@@ -146,7 +146,7 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 
 	/* TCP/DCCP listeners became lockless.
 	 * DCCP stores complex state in its request_sock, so we need
-	 * a protection for them, now this code runs without being protected
+	 * a protection for them, yesw this code runs without being protected
 	 * by the parent (listener) lock.
 	 */
 	spin_lock_bh(&dreq->dreq_lock);
@@ -158,7 +158,7 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 			dccp_pr_debug("Retransmitted REQUEST\n");
 			dreq->dreq_gsr = DCCP_SKB_CB(skb)->dccpd_seq;
 			/*
-			 * Send another RESPONSE packet
+			 * Send ayesther RESPONSE packet
 			 * To protect against Request floods, increment retrans
 			 * counter (backoff, monitored by dccp_response_timer).
 			 */
@@ -230,7 +230,7 @@ int dccp_child_process(struct sock *parent, struct sock *child,
 	} else {
 		/* Alas, it is possible again, because we do lookup
 		 * in main socket hash table and lock on listening
-		 * socket does not protect us more.
+		 * socket does yest protect us more.
 		 */
 		__sk_add_backlog(child, skb);
 	}

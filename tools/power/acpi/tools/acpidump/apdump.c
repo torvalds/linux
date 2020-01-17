@@ -126,7 +126,7 @@ u32 ap_get_table_length(struct acpi_table_header *table)
  * FUNCTION:    ap_dump_table_buffer
  *
  * PARAMETERS:  table               - ACPI table to be dumped
- *              instance            - ACPI table instance no. to be dumped
+ *              instance            - ACPI table instance yes. to be dumped
  *              address             - Physical address of the table
  *
  * RETURN:      None
@@ -201,18 +201,18 @@ int ap_dump_all_tables(void)
 		    acpi_os_get_table_by_index(i, &table, &instance, &address);
 		if (ACPI_FAILURE(status)) {
 
-			/* AE_LIMIT means that no more tables are available */
+			/* AE_LIMIT means that yes more tables are available */
 
 			if (status == AE_LIMIT) {
 				return (0);
 			} else if (i == 0) {
 				fprintf(stderr,
-					"Could not get ACPI tables, %s\n",
+					"Could yest get ACPI tables, %s\n",
 					acpi_format_exception(status));
 				return (-1);
 			} else {
 				fprintf(stderr,
-					"Could not get ACPI table at index %u, %s\n",
+					"Could yest get ACPI table at index %u, %s\n",
 					i, acpi_format_exception(status));
 				continue;
 			}
@@ -255,7 +255,7 @@ int ap_dump_table_by_address(char *ascii_address)
 
 	status = acpi_ut_strtoul64(ascii_address, &long_address);
 	if (ACPI_FAILURE(status)) {
-		fprintf(stderr, "%s: Could not convert to a physical address\n",
+		fprintf(stderr, "%s: Could yest convert to a physical address\n",
 			ascii_address);
 		return (-1);
 	}
@@ -263,7 +263,7 @@ int ap_dump_table_by_address(char *ascii_address)
 	address = (acpi_physical_address)long_address;
 	status = acpi_os_get_table_by_address(address, &table);
 	if (ACPI_FAILURE(status)) {
-		fprintf(stderr, "Could not get table at 0x%8.8X%8.8X, %s\n",
+		fprintf(stderr, "Could yest get table at 0x%8.8X%8.8X, %s\n",
 			ACPI_FORMAT_UINT64(address),
 			acpi_format_exception(status));
 		return (-1);
@@ -308,7 +308,7 @@ int ap_dump_table_by_name(char *signature)
 	strcpy(local_signature, signature);
 	acpi_ut_strupr(local_signature);
 
-	/* To be friendly, handle tables whose signatures do not match the name */
+	/* To be friendly, handle tables whose signatures do yest match the name */
 
 	if (ACPI_COMPARE_NAMESEG(local_signature, "FADT")) {
 		strcpy(local_signature, ACPI_SIG_FADT);
@@ -323,14 +323,14 @@ int ap_dump_table_by_name(char *signature)
 						   &table, &address);
 		if (ACPI_FAILURE(status)) {
 
-			/* AE_LIMIT means that no more tables are available */
+			/* AE_LIMIT means that yes more tables are available */
 
 			if (status == AE_LIMIT) {
 				return (0);
 			}
 
 			fprintf(stderr,
-				"Could not get ACPI table with signature [%s], %s\n",
+				"Could yest get ACPI table with signature [%s], %s\n",
 				local_signature, acpi_format_exception(status));
 			return (-1);
 		}

@@ -6,7 +6,7 @@
 **   Description: SCSI RAID Device Driver for
 **                ARECA RAID Host adapter
 *******************************************************************************
-** Copyright (C) 2002 - 2005, Areca Technology Corporation All rights reserved.
+** Copyright (C) 2002 - 2005, Areca Techyeslogy Corporation All rights reserved.
 **
 **     Web site: www.areca.com.tw
 **       E-mail: support@areca.com.tw
@@ -23,11 +23,11 @@
 ** modification, are permitted provided that the following conditions
 ** are met:
 ** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
+**    yestice, this list of conditions and the following disclaimer.
 ** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
+**    yestice, this list of conditions and the following disclaimer in the
 **    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
+** 3. The name of the author may yest be used to endorse or promote products
 **    derived from this software without specific prior written permission.
 **
 ** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -326,7 +326,7 @@ struct FIRMWARE_INFO
 	*/
 #define ARCMSR_HBCMU_OUTBOUND_DOORBELL_ISR	0x00000004
 	/*
-	** Set if Outbound Doorbell register bits 30:1 have a non-zero
+	** Set if Outbound Doorbell register bits 30:1 have a yesn-zero
 	** value. This bit clears only when Outbound Doorbell bits
 	** 30:1 are ALL clear. Only a write to the Outbound Doorbell
 	** Clear register clears bits in the Outbound Doorbell register.
@@ -334,13 +334,13 @@ struct FIRMWARE_INFO
 #define ARCMSR_HBCMU_OUTBOUND_POSTQUEUE_ISR	0x00000008
 	/*
 	** Set whenever the Outbound Post List Producer/Consumer
-	** Register (FIFO) is not empty. It clears when the Outbound
+	** Register (FIFO) is yest empty. It clears when the Outbound
 	** Post List FIFO is empty.
 	*/
 #define ARCMSR_HBCMU_SAS_ALL_INT		0x00000010
 	/*
 	** This bit indicates a SAS interrupt from a source external to
-	** the PCIe core. This bit is not maskable.
+	** the PCIe core. This bit is yest maskable.
 	*/
 	/* DoorBell*/
 #define ARCMSR_HBCMU_DRV2IOP_DATA_WRITE_OK			0x00000002
@@ -534,9 +534,9 @@ struct MessageUnit_C{
 	uint32_t	master_error_address_high;		/*0018 001B*/
 	uint32_t	hcb_size;				/*001C 001F*/
 	uint32_t	inbound_doorbell;			/*0020 0023*/
-	uint32_t	diagnostic_rw_data;			/*0024 0027*/
-	uint32_t	diagnostic_rw_address_low;		/*0028 002B*/
-	uint32_t	diagnostic_rw_address_high;		/*002C 002F*/
+	uint32_t	diagyesstic_rw_data;			/*0024 0027*/
+	uint32_t	diagyesstic_rw_address_low;		/*0028 002B*/
+	uint32_t	diagyesstic_rw_address_high;		/*002C 002F*/
 	uint32_t	host_int_status;			/*0030 0033*/
 	uint32_t	host_int_mask;				/*0034 0037*/
 	uint32_t	dcr_data;				/*0038 003B*/
@@ -559,7 +559,7 @@ struct MessageUnit_C{
 	uint32_t	last_used_message_source_address_high;	/*007C 007F*/
 	uint32_t	pull_mode_data_byte_count[4];		/*0080 008F*/
 	uint32_t	message_dest_address_index;		/*0090 0093*/
-	uint32_t	done_queue_not_empty_int_counter_timer;	/*0094 0097*/
+	uint32_t	done_queue_yest_empty_int_counter_timer;	/*0094 0097*/
 	uint32_t	utility_A_int_counter_timer;		/*0098 009B*/
 	uint32_t	outbound_doorbell;			/*009C 009F*/
 	uint32_t	outbound_doorbell_clear;		/*00A0 00A3*/
@@ -584,7 +584,7 @@ struct MessageUnit_C{
 	uint32_t	last_used_message_dest_address_high;	/*00EC 00EF*/
 	uint32_t	message_done_queue_base_address_low;	/*00F0 00F3*/
 	uint32_t	message_done_queue_base_address_high;	/*00F4 00F7*/
-	uint32_t	host_diagnostic;			/*00F8 00FB*/
+	uint32_t	host_diagyesstic;			/*00F8 00FB*/
 	uint32_t	write_sequence;				/*00FC 00FF*/
 	uint32_t	reserved1[34];				/*0100 0187*/
 	uint32_t	reserved2[1950];			/*0188 1FFF*/
@@ -652,16 +652,16 @@ struct MessageUnit_D {
 struct MessageUnit_E{
 	uint32_t	iobound_doorbell;			/*0000 0003*/
 	uint32_t	write_sequence_3xxx;			/*0004 0007*/
-	uint32_t	host_diagnostic_3xxx;			/*0008 000B*/
+	uint32_t	host_diagyesstic_3xxx;			/*0008 000B*/
 	uint32_t	posted_outbound_doorbell;		/*000C 000F*/
 	uint32_t	master_error_attribute;			/*0010 0013*/
 	uint32_t	master_error_address_low;		/*0014 0017*/
 	uint32_t	master_error_address_high;		/*0018 001B*/
 	uint32_t	hcb_size;				/*001C 001F*/
 	uint32_t	inbound_doorbell;			/*0020 0023*/
-	uint32_t	diagnostic_rw_data;			/*0024 0027*/
-	uint32_t	diagnostic_rw_address_low;		/*0028 002B*/
-	uint32_t	diagnostic_rw_address_high;		/*002C 002F*/
+	uint32_t	diagyesstic_rw_data;			/*0024 0027*/
+	uint32_t	diagyesstic_rw_address_low;		/*0028 002B*/
+	uint32_t	diagyesstic_rw_address_high;		/*002C 002F*/
 	uint32_t	host_int_status;			/*0030 0033*/
 	uint32_t	host_int_mask;				/*0034 0037*/
 	uint32_t	dcr_data;				/*0038 003B*/
@@ -684,7 +684,7 @@ struct MessageUnit_E{
 	uint32_t	last_used_message_source_address_high;	/*007C 007F*/
 	uint32_t	pull_mode_data_byte_count[4];		/*0080 008F*/
 	uint32_t	message_dest_address_index;		/*0090 0093*/
-	uint32_t	done_queue_not_empty_int_counter_timer;	/*0094 0097*/
+	uint32_t	done_queue_yest_empty_int_counter_timer;	/*0094 0097*/
 	uint32_t	utility_A_int_counter_timer;		/*0098 009B*/
 	uint32_t	outbound_doorbell;			/*009C 009F*/
 	uint32_t	outbound_doorbell_clear;		/*00A0 00A3*/
@@ -709,7 +709,7 @@ struct MessageUnit_E{
 	uint32_t	last_used_message_dest_address_high;	/*00EC 00EF*/
 	uint32_t	message_done_queue_base_address_low;	/*00F0 00F3*/
 	uint32_t	message_done_queue_base_address_high;	/*00F4 00F7*/
-	uint32_t	host_diagnostic;			/*00F8 00FB*/
+	uint32_t	host_diagyesstic;			/*00F8 00FB*/
 	uint32_t	write_sequence;				/*00FC 00FF*/
 	uint32_t	reserved1[34];				/*0100 0187*/
 	uint32_t	reserved2[1950];			/*0188 1FFF*/

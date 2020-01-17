@@ -3,7 +3,7 @@
 #define TRACE_SYSTEM iocost
 
 struct ioc;
-struct ioc_now;
+struct ioc_yesw;
 struct ioc_gq;
 
 #if !defined(_TRACE_BLK_IOCOST_H) || defined(TRACE_HEADER_MULTI_READ)
@@ -13,16 +13,16 @@ struct ioc_gq;
 
 TRACE_EVENT(iocost_iocg_activate,
 
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_yesw *yesw,
 		u64 last_period, u64 cur_period, u64 vtime),
 
-	TP_ARGS(iocg, path, now, last_period, cur_period, vtime),
+	TP_ARGS(iocg, path, yesw, last_period, cur_period, vtime),
 
 	TP_STRUCT__entry (
 		__string(devname, ioc_name(iocg->ioc))
 		__string(cgroup, path)
-		__field(u64, now)
-		__field(u64, vnow)
+		__field(u64, yesw)
+		__field(u64, vyesw)
 		__field(u64, vrate)
 		__field(u64, last_period)
 		__field(u64, cur_period)
@@ -37,9 +37,9 @@ TRACE_EVENT(iocost_iocg_activate,
 	TP_fast_assign(
 		__assign_str(devname, ioc_name(iocg->ioc));
 		__assign_str(cgroup, path);
-		__entry->now = now->now;
-		__entry->vnow = now->vnow;
-		__entry->vrate = now->vrate;
+		__entry->yesw = yesw->yesw;
+		__entry->vyesw = yesw->vyesw;
+		__entry->vrate = yesw->vrate;
 		__entry->last_period = last_period;
 		__entry->cur_period = cur_period;
 		__entry->last_vtime = iocg->last_vtime;
@@ -50,11 +50,11 @@ TRACE_EVENT(iocost_iocg_activate,
 		__entry->hweight_inuse = iocg->hweight_inuse;
 	),
 
-	TP_printk("[%s:%s] now=%llu:%llu vrate=%llu "
+	TP_printk("[%s:%s] yesw=%llu:%llu vrate=%llu "
 		  "period=%llu->%llu vtime=%llu->%llu "
 		  "weight=%u/%u hweight=%llu/%llu",
 		__get_str(devname), __get_str(cgroup),
-		__entry->now, __entry->vnow, __entry->vrate,
+		__entry->yesw, __entry->vyesw, __entry->vrate,
 		__entry->last_period, __entry->cur_period,
 		__entry->last_vtime, __entry->vtime,
 		__entry->inuse, __entry->weight,
@@ -64,17 +64,17 @@ TRACE_EVENT(iocost_iocg_activate,
 
 DECLARE_EVENT_CLASS(iocg_inuse_update,
 
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_yesw *yesw,
 		u32 old_inuse, u32 new_inuse,
 		u64 old_hw_inuse, u64 new_hw_inuse),
 
-	TP_ARGS(iocg, path, now, old_inuse, new_inuse,
+	TP_ARGS(iocg, path, yesw, old_inuse, new_inuse,
 		old_hw_inuse, new_hw_inuse),
 
 	TP_STRUCT__entry (
 		__string(devname, ioc_name(iocg->ioc))
 		__string(cgroup, path)
-		__field(u64, now)
+		__field(u64, yesw)
 		__field(u32, old_inuse)
 		__field(u32, new_inuse)
 		__field(u64, old_hweight_inuse)
@@ -84,15 +84,15 @@ DECLARE_EVENT_CLASS(iocg_inuse_update,
 	TP_fast_assign(
 		__assign_str(devname, ioc_name(iocg->ioc));
 		__assign_str(cgroup, path);
-		__entry->now = now->now;
+		__entry->yesw = yesw->yesw;
 		__entry->old_inuse = old_inuse;
 		__entry->new_inuse = new_inuse;
 		__entry->old_hweight_inuse = old_hw_inuse;
 		__entry->new_hweight_inuse = new_hw_inuse;
 	),
 
-	TP_printk("[%s:%s] now=%llu inuse=%u->%u hw_inuse=%llu->%llu",
-		__get_str(devname), __get_str(cgroup), __entry->now,
+	TP_printk("[%s:%s] yesw=%llu inuse=%u->%u hw_inuse=%llu->%llu",
+		__get_str(devname), __get_str(cgroup), __entry->yesw,
 		__entry->old_inuse, __entry->new_inuse,
 		__entry->old_hweight_inuse, __entry->new_hweight_inuse
 	)
@@ -100,31 +100,31 @@ DECLARE_EVENT_CLASS(iocg_inuse_update,
 
 DEFINE_EVENT(iocg_inuse_update, iocost_inuse_takeback,
 
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_yesw *yesw,
 		u32 old_inuse, u32 new_inuse,
 		u64 old_hw_inuse, u64 new_hw_inuse),
 
-	TP_ARGS(iocg, path, now, old_inuse, new_inuse,
+	TP_ARGS(iocg, path, yesw, old_inuse, new_inuse,
 		old_hw_inuse, new_hw_inuse)
 );
 
 DEFINE_EVENT(iocg_inuse_update, iocost_inuse_giveaway,
 
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_yesw *yesw,
 		u32 old_inuse, u32 new_inuse,
 		u64 old_hw_inuse, u64 new_hw_inuse),
 
-	TP_ARGS(iocg, path, now, old_inuse, new_inuse,
+	TP_ARGS(iocg, path, yesw, old_inuse, new_inuse,
 		old_hw_inuse, new_hw_inuse)
 );
 
 DEFINE_EVENT(iocg_inuse_update, iocost_inuse_reset,
 
-	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_now *now,
+	TP_PROTO(struct ioc_gq *iocg, const char *path, struct ioc_yesw *yesw,
 		u32 old_inuse, u32 new_inuse,
 		u64 old_hw_inuse, u64 new_hw_inuse),
 
-	TP_ARGS(iocg, path, now, old_inuse, new_inuse,
+	TP_ARGS(iocg, path, yesw, old_inuse, new_inuse,
 		old_hw_inuse, new_hw_inuse)
 );
 

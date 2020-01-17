@@ -2,7 +2,7 @@
  * OMAP SoC specific OPP Data helpers
  *
  * Copyright (C) 2009-2010 Texas Instruments Incorporated - http://www.ti.com/
- *	Nishanth Menon
+ *	Nishanth Meyesn
  *	Kevin Hilman
  * Copyright (C) 2010 Nokia Corporation.
  *      Eduardo Valentin
@@ -40,7 +40,7 @@
  * pairs that the device will support per voltage domain. This is called
  * Operating Points or OPP. The actual definitions of OMAP Operating Points
  * varies over silicon within the same family of devices. For a specific
- * domain, you can have a set of {frequency, voltage} pairs and this is denoted
+ * domain, you can have a set of {frequency, voltage} pairs and this is deyested
  * by an array of omap_opp_def. As the kernel boots and more information is
  * available, a set of these are activated based on the precise nature of
  * device the kernel boots up on. It is interesting to remember that each IP
@@ -71,9 +71,9 @@ struct omap_opp_def {
  * Initialization wrapper used to define SmartReflex process data
  * XXX Is this needed?  Just use C99 initializers in data files?
  */
-#define VOLT_DATA_DEFINE(_v_nom, _efuse_offs, _errminlimit, _errgain)  \
+#define VOLT_DATA_DEFINE(_v_yesm, _efuse_offs, _errminlimit, _errgain)  \
 {								       \
-	.volt_nominal	= _v_nom,				       \
+	.volt_yesminal	= _v_yesm,				       \
 	.sr_efuse_offs	= _efuse_offs,				       \
 	.sr_errminlimit = _errminlimit,				       \
 	.vp_errgain	= _errgain				       \

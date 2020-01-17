@@ -44,7 +44,7 @@ struct liquidio_if_cfg_resp {
 #define LIO_IFCFG_WAIT_TIME    3000 /* In milli seconds */
 #define LIQUIDIO_NDEV_STATS_POLL_TIME_MS 200
 
-/* Structure of a node in list of gather components maintained by
+/* Structure of a yesde in list of gather components maintained by
  * NIC driver for each network device.
  */
 struct octnic_gather {
@@ -196,7 +196,7 @@ struct lio {
 /**
  * \brief Enable or disable feature
  * @param netdev    pointer to network device
- * @param cmd       Command that just requires acknowledgment
+ * @param cmd       Command that just requires ackyeswledgment
  * @param param1    Parameter to command
  */
 int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1);
@@ -339,7 +339,7 @@ recv_buffer_recycle(struct octeon_device *oct, void *buf)
 	}
 
 	if (unlikely(page_count(pg_info->page) != 1) ||
-	    unlikely(page_to_nid(pg_info->page)	!= numa_node_id())) {
+	    unlikely(page_to_nid(pg_info->page)	!= numa_yesde_id())) {
 		dma_unmap_page(&oct->pci_dev->dev,
 			       pg_info->dma, (PAGE_SIZE << 0),
 			       DMA_FROM_DEVICE);
@@ -571,13 +571,13 @@ static inline void stop_txqs(struct net_device *netdev)
 static inline void wake_txqs(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
-	int i, qno;
+	int i, qyes;
 
 	for (i = 0; i < netdev->real_num_tx_queues; i++) {
-		qno = lio->linfo.txpciq[i % lio->oct_dev->num_iqs].s.q_no;
+		qyes = lio->linfo.txpciq[i % lio->oct_dev->num_iqs].s.q_yes;
 
 		if (__netif_subqueue_stopped(netdev, i)) {
-			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
+			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qyes,
 						  tx_restart, 1);
 			netif_wake_subqueue(netdev, i);
 		}
@@ -605,22 +605,22 @@ static inline int skb_iq(struct octeon_device *oct, struct sk_buff *skb)
 }
 
 /**
- * Remove the node at the head of the list. The list would be empty at
- * the end of this call if there are no more nodes in the list.
+ * Remove the yesde at the head of the list. The list would be empty at
+ * the end of this call if there are yes more yesdes in the list.
  */
 static inline struct list_head *lio_list_delete_head(struct list_head *root)
 {
-	struct list_head *node;
+	struct list_head *yesde;
 
 	if (root->prev == root && root->next == root)
-		node = NULL;
+		yesde = NULL;
 	else
-		node = root->next;
+		yesde = root->next;
 
-	if (node)
-		list_del(node);
+	if (yesde)
+		list_del(yesde);
 
-	return node;
+	return yesde;
 }
 
 #endif

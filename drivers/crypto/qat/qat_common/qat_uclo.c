@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -132,7 +132,7 @@ static int qat_uclo_check_uof_format(struct icp_qat_uof_filehdr *hdr)
 		return -EINVAL;
 	}
 	if (min != ICP_QAT_UOF_MINVER || maj != ICP_QAT_UOF_MAJVER) {
-		pr_err("QAT: bad UOF version, major 0x%x, minor 0x%x\n",
+		pr_err("QAT: bad UOF version, major 0x%x, miyesr 0x%x\n",
 		       maj, min);
 		return -EINVAL;
 	}
@@ -157,7 +157,7 @@ static int qat_uclo_check_suof_format(struct icp_qat_suof_filehdr *suof_hdr)
 		return -EINVAL;
 	}
 	if (maj != ICP_QAT_SUOF_MAJVER || min != ICP_QAT_SUOF_MINVER) {
-		pr_err("QAT: bad SUOF version, major 0x%x, minor 0x%x\n",
+		pr_err("QAT: bad SUOF version, major 0x%x, miyesr 0x%x\n",
 		       maj, min);
 		return -EINVAL;
 	}
@@ -702,7 +702,7 @@ static int qat_uclo_map_ae(struct icp_qat_fw_loader_handle *handle, int max_ae)
 		}
 	}
 	if (!mflag) {
-		pr_err("QAT: uimage uses AE not set\n");
+		pr_err("QAT: uimage uses AE yest set\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -819,7 +819,7 @@ static int qat_uclo_init_reg(struct icp_qat_fw_loader_handle *handle,
 	case ICP_NEIGH_REL:
 		return qat_hal_init_nn(handle, ae, ctx_mask, reg_addr, value);
 	default:
-		pr_err("QAT: UOF uses not supported reg type 0x%x\n", reg_type);
+		pr_err("QAT: UOF uses yest supported reg type 0x%x\n", reg_type);
 		return -EFAULT;
 	}
 	return 0;
@@ -868,10 +868,10 @@ static int qat_uclo_init_reg_sym(struct icp_qat_fw_loader_handle *handle,
 					  exp_res);
 			break;
 		case ICP_QAT_UOF_INIT_EXPR:
-			pr_err("QAT: INIT_EXPR feature not supported\n");
+			pr_err("QAT: INIT_EXPR feature yest supported\n");
 			return -EINVAL;
 		case ICP_QAT_UOF_INIT_EXPR_ENDIAN_SWAP:
-			pr_err("QAT: INIT_EXPR_ENDIAN_SWAP feature not supported\n");
+			pr_err("QAT: INIT_EXPR_ENDIAN_SWAP feature yest supported\n");
 			return -EINVAL;
 		default:
 			break;

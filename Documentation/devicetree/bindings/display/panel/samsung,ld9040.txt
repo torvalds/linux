@@ -16,9 +16,9 @@ Optional properties:
   - panel-width-mm: physical panel width [mm]
   - panel-height-mm: physical panel height [mm]
 
-The device node can contain one 'port' child node with one child
-'endpoint' node, according to the bindings defined in [3]. This
-node should describe panel's video bus.
+The device yesde can contain one 'port' child yesde with one child
+'endpoint' yesde, according to the bindings defined in [3]. This
+yesde should describe panel's video bus.
 
 [1]: Documentation/devicetree/bindings/display/panel/display-timing.txt
 [2]: Documentation/devicetree/bindings/spi/spi-bus.txt

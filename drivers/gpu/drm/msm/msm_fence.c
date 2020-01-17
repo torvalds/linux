@@ -51,7 +51,7 @@ int msm_wait_fence(struct msm_fence_context *fctx, uint32_t fence,
 	}
 
 	if (!timeout) {
-		/* no-wait: */
+		/* yes-wait: */
 		ret = fence_completed(fctx, fence) ? 0 : -EBUSY;
 	} else {
 		unsigned long remaining_jiffies = timeout_to_jiffies(timeout);
@@ -111,7 +111,7 @@ static const char *msm_fence_get_timeline_name(struct dma_fence *fence)
 static bool msm_fence_signaled(struct dma_fence *fence)
 {
 	struct msm_fence *f = to_msm_fence(fence);
-	return fence_completed(f->fctx, f->base.seqno);
+	return fence_completed(f->fctx, f->base.seqyes);
 }
 
 static const struct dma_fence_ops msm_fence_ops = {

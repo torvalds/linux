@@ -63,13 +63,13 @@ Description:
 		For backing devices: When on, writeback caching is enabled and
 		writes will be buffered in the cache. When off, caching is in
 		writethrough mode; reads and writes will be added to the
-		cache but no write buffering will take place.
+		cache but yes write buffering will take place.
 
 What:		/sys/block/<disk>/bcache/writeback_running
 Date:		November 2010
 Contact:	Kent Overstreet <kent.overstreet@gmail.com>
 Description:
-		For backing devices: when off, dirty data will not be written
+		For backing devices: when off, dirty data will yest be written
 		from the cache to the backing device. The cache will still be
 		used to buffer writes until it is mostly full, at which point
 		writes transparently revert to writethrough mode. Intended only
@@ -80,7 +80,7 @@ Date:		November 2010
 Contact:	Kent Overstreet <kent.overstreet@gmail.com>
 Description:
 		For backing devices: In writeback mode, when dirty data is
-		written to the cache and the cache held no dirty data for that
+		written to the cache and the cache held yes dirty data for that
 		backing device, writeback from cache to backing device starts
 		after this delay, expressed as an integer number of seconds.
 
@@ -88,22 +88,22 @@ What:		/sys/block/<disk>/bcache/writeback_percent
 Date:		November 2010
 Contact:	Kent Overstreet <kent.overstreet@gmail.com>
 Description:
-		For backing devices: If nonzero, writeback from cache to
+		For backing devices: If yesnzero, writeback from cache to
 		backing device only takes place when more than this percentage
 		of the cache is used, allowing more write coalescing to take
 		place and reducing total number of writes sent to the backing
 		device. Integer between 0 and 40.
 
-What:		/sys/block/<disk>/bcache/synchronous
+What:		/sys/block/<disk>/bcache/synchroyesus
 Date:		November 2010
 Contact:	Kent Overstreet <kent.overstreet@gmail.com>
 Description:
-		For a cache, a boolean that allows synchronous mode to be
-		switched on and off. In synchronous mode all writes are ordered
+		For a cache, a boolean that allows synchroyesus mode to be
+		switched on and off. In synchroyesus mode all writes are ordered
 		such that the cache can reliably recover from unclean shutdown;
-		if disabled bcache will not generally wait for writes to
-		complete but if the cache is not shut down cleanly all data
-		will be discarded from the cache. Should not be turned off with
+		if disabled bcache will yest generally wait for writes to
+		complete but if the cache is yest shut down cleanly all data
+		will be discarded from the cache. Should yest be turned off with
 		writeback caching enabled.
 
 What:		/sys/block/<disk>/bcache/discard
@@ -131,14 +131,14 @@ What:		/sys/block/<disk>/bcache/tree_depth
 Date:		November 2010
 Contact:	Kent Overstreet <kent.overstreet@gmail.com>
 Description:
-		For a cache, height of the btree excluding leaf nodes (i.e. a
-		one node tree will have a depth of 0).
+		For a cache, height of the btree excluding leaf yesdes (i.e. a
+		one yesde tree will have a depth of 0).
 
 What:		/sys/block/<disk>/bcache/btree_cache_size
 Date:		November 2010
 Contact:	Kent Overstreet <kent.overstreet@gmail.com>
 Description:
-		Number of btree buckets/nodes that are currently cached in
+		Number of btree buckets/yesdes that are currently cached in
 		memory; cache dynamically grows and shrinks in response to
 		memory pressure from the rest of the system.
 

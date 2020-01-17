@@ -82,7 +82,7 @@ static struct snd_soc_dai_link mt2701_wm8960_dai_links[] = {
 	/* BE */
 	{
 		.name = "wm8960-codec",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS
 			| SND_SOC_DAIFMT_GATED,
 		.ops = &mt2701_wm8960_be_ops,
@@ -106,27 +106,27 @@ static struct snd_soc_card mt2701_wm8960_card = {
 static int mt2701_wm8960_machine_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt2701_wm8960_card;
-	struct device_node *platform_node, *codec_node;
+	struct device_yesde *platform_yesde, *codec_yesde;
 	struct snd_soc_dai_link *dai_link;
 	int ret, i;
 
-	platform_node = of_parse_phandle(pdev->dev.of_node,
+	platform_yesde = of_parse_phandle(pdev->dev.of_yesde,
 					 "mediatek,platform", 0);
-	if (!platform_node) {
+	if (!platform_yesde) {
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->platforms->name)
 			continue;
-		dai_link->platforms->of_node = platform_node;
+		dai_link->platforms->of_yesde = platform_yesde;
 	}
 
 	card->dev = &pdev->dev;
 
-	codec_node = of_parse_phandle(pdev->dev.of_node,
+	codec_yesde = of_parse_phandle(pdev->dev.of_yesde,
 				      "mediatek,audio-codec", 0);
-	if (!codec_node) {
+	if (!codec_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;
@@ -134,7 +134,7 @@ static int mt2701_wm8960_machine_probe(struct platform_device *pdev)
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->codecs->name)
 			continue;
-		dai_link->codecs->of_node = codec_node;
+		dai_link->codecs->of_yesde = codec_yesde;
 	}
 
 	ret = snd_soc_of_parse_audio_routing(card, "audio-routing");

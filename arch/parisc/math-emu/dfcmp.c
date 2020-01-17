@@ -56,34 +56,34 @@ dbl_fcmp (dbl_floating_point * leftptr, dbl_floating_point * rightptr,
 	 * comparing a signaling NaN or when comparing quiet NaNs and the
 	 * low bit of the condition is set */
         if( ((Dbl_exponent(leftp1) == DBL_INFINITY_EXPONENT)
-	    && Dbl_isnotzero_mantissa(leftp1,leftp2) 
+	    && Dbl_isyestzero_mantissa(leftp1,leftp2) 
 	    && (Exception(cond) || Dbl_isone_signaling(leftp1)))
 	   ||
 	    ((Dbl_exponent(rightp1) == DBL_INFINITY_EXPONENT)
-	    && Dbl_isnotzero_mantissa(rightp1,rightp2) 
+	    && Dbl_isyestzero_mantissa(rightp1,rightp2) 
 	    && (Exception(cond) || Dbl_isone_signaling(rightp1))) )
 	    {
 	    if( Is_invalidtrap_enabled() ) {
-	    	Set_status_cbit(Unordered(cond));
+	    	Set_status_cbit(Uyesrdered(cond));
 		return(INVALIDEXCEPTION);
 	    }
 	    else Set_invalidflag();
-	    Set_status_cbit(Unordered(cond));
+	    Set_status_cbit(Uyesrdered(cond));
 	    return(NOEXCEPTION);
 	    }
-	/* All the exceptional conditions are handled, now special case
+	/* All the exceptional conditions are handled, yesw special case
 	   NaN compares */
         else if( ((Dbl_exponent(leftp1) == DBL_INFINITY_EXPONENT)
-	    && Dbl_isnotzero_mantissa(leftp1,leftp2))
+	    && Dbl_isyestzero_mantissa(leftp1,leftp2))
 	   ||
 	    ((Dbl_exponent(rightp1) == DBL_INFINITY_EXPONENT)
-	    && Dbl_isnotzero_mantissa(rightp1,rightp2)) )
+	    && Dbl_isyestzero_mantissa(rightp1,rightp2)) )
 	    {
-	    /* NaNs always compare unordered. */
-	    Set_status_cbit(Unordered(cond));
+	    /* NaNs always compare uyesrdered. */
+	    Set_status_cbit(Uyesrdered(cond));
 	    return(NOEXCEPTION);
 	    }
-	/* infinities will drop down to the normal compare mechanisms */
+	/* infinities will drop down to the yesrmal compare mechanisms */
 	}
     /* First compare for unequal signs => less or greater or
      * special equal case */

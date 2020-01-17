@@ -18,7 +18,7 @@
 #include <linux/module.h>
 
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -172,7 +172,7 @@ static void __clear_irq_vector(int irq)
 	cfg->vector = IRQ_VECTOR_UNASSIGNED;
 	cfg->domain = CPU_MASK_NONE;
 	irq_status[irq] = IRQ_UNUSED;
-	cpumask_andnot(&vector_table[vector], &vector_table[vector], &domain);
+	cpumask_andyest(&vector_table[vector], &vector_table[vector], &domain);
 }
 
 static void clear_irq_vector(int irq)
@@ -362,7 +362,7 @@ static int __init parse_vector_domain(char *arg)
 		return -EINVAL;
 	if (!strcmp(arg, "percpu")) {
 		vector_domain_type = VECTOR_DOMAIN_PERCPU;
-		no_int_routing = 1;
+		yes_int_routing = 1;
 	}
 	return 0;
 }
@@ -448,7 +448,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 		 * Note: if the interrupt happened while executing in
 		 * the context switch routine (ia64_switch_to), we may
 		 * get a spurious stack overflow here.  This is
-		 * because the register and the memory stack are not
+		 * because the register and the memory stack are yest
 		 * switched atomically.
 		 */
 		bsp = ia64_getreg(_IA64_REG_AR_BSP);
@@ -489,7 +489,7 @@ ia64_handle_irq (ia64_vector vector, struct pt_regs *regs)
 
 			if (unlikely(irq < 0)) {
 				printk(KERN_ERR "%s: Unexpected interrupt "
-				       "vector %d on CPU %d is not mapped "
+				       "vector %d on CPU %d is yest mapped "
 				       "to any IRQ!\n", __func__, vector,
 				       smp_processor_id());
 			} else
@@ -531,7 +531,7 @@ void ia64_process_pending_intr(void)
 	ia64_srlz_d();
 
 	 /*
-	  * Perform normal interrupt style processing
+	  * Perform yesrmal interrupt style processing
 	  */
 	while (vector != IA64_SPURIOUS_INT_VECTOR) {
 		int irq = local_vector_to_irq(vector);
@@ -548,14 +548,14 @@ void ia64_process_pending_intr(void)
 			ia64_srlz_d();
 
 			/*
-			 * Now try calling normal ia64_handle_irq as it would have got called
+			 * Now try calling yesrmal ia64_handle_irq as it would have got called
 			 * from a real intr handler. Try passing null for pt_regs, hopefully
 			 * it will work. I hope it works!.
 			 * Probably could shared code.
 			 */
 			if (unlikely(irq < 0)) {
 				printk(KERN_ERR "%s: Unexpected interrupt "
-				       "vector %d on CPU %d not being mapped "
+				       "vector %d on CPU %d yest being mapped "
 				       "to any IRQ!!\n", __func__, vector,
 				       smp_processor_id());
 			} else {

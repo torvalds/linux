@@ -15,7 +15,7 @@
  * @ctx: packet context to decode
  * @packet: expected packet
  * @new_ctx: expected new packet context
- * @ctx_unchanged: the packet context must not change
+ * @ctx_unchanged: the packet context must yest change
  */
 struct test_data {
 	int len;

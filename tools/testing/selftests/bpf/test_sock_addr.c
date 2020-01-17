@@ -667,7 +667,7 @@ static int load_insns(const struct sock_addr_test *test,
  * [2] BPF_LD_IMM64 & BPF_JMP_REG are used below whenever there is a need to
  * compare a register with unsigned 32bit integer. BPF_JMP_IMM can't be used
  * in such cases since it accepts only _signed_ 32bit integer as IMM
- * argument. Also note that BPF_LD_IMM64 contains 2 instructions what matters
+ * argument. Also yeste that BPF_LD_IMM64 contains 2 instructions what matters
  * to count jumps properly.
  */
 
@@ -1295,7 +1295,7 @@ static int sendmsg_to_server(int type, const struct sockaddr_storage *addr,
 
 	if (sendmsg(fd, &hdr, flags) != sizeof(data)) {
 		log_err("Fail to send message to server");
-		*syscall_err = errno;
+		*syscall_err = erryes;
 		goto err;
 	}
 

@@ -42,7 +42,7 @@ static void solo_set_time(struct solo_dev *solo_dev)
 
 	ktime_get_ts64(&ts);
 
-	/* no overflow because we use monotonic timestamps */
+	/* yes overflow because we use moyestonic timestamps */
 	solo_reg_write(solo_dev, SOLO_TIMER_SEC, (u32)ts.tv_sec);
 	solo_reg_write(solo_dev, SOLO_TIMER_USEC, (u32)ts.tv_nsec / NSEC_PER_USEC);
 }
@@ -97,7 +97,7 @@ static irqreturn_t solo_isr(int irq, void *data)
 	if (!status)
 		return IRQ_NONE;
 
-	/* Acknowledge all interrupts immediately */
+	/* Ackyeswledge all interrupts immediately */
 	solo_reg_write(solo_dev, SOLO_IRQ_STAT, status);
 
 	if (status & SOLO_IRQ_PCI_ERR)
@@ -165,7 +165,7 @@ static ssize_t eeprom_store(struct device *dev, struct device_attribute *attr,
 	int i;
 
 	if (count & 0x1)
-		dev_warn(dev, "EEPROM Write not aligned (truncating)\n");
+		dev_warn(dev, "EEPROM Write yest aligned (truncating)\n");
 
 	if (!full_eeprom && count > 64) {
 		dev_warn(dev, "EEPROM Write truncated to 64 bytes\n");
@@ -398,7 +398,7 @@ static const struct device_attribute solo_dev_attrs[] = {
 
 static void solo_device_release(struct device *dev)
 {
-	/* Do nothing */
+	/* Do yesthing */
 }
 
 static int solo_sysfs_init(struct solo_dev *solo_dev)
@@ -415,7 +415,7 @@ static int solo_sysfs_init(struct solo_dev *solo_dev)
 
 	dev->release = solo_device_release;
 	dev->parent = &solo_dev->pdev->dev;
-	set_dev_node(dev, dev_to_node(&solo_dev->pdev->dev));
+	set_dev_yesde(dev, dev_to_yesde(&solo_dev->pdev->dev));
 	dev_set_name(dev, "%s-%d-%d", driver, solo_dev->vfd->num,
 		     solo_dev->nr_chans);
 

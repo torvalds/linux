@@ -264,7 +264,7 @@ static int max8998_set_voltage_buck_sel(struct regulator_dev *rdev,
 			if (pdata->buck_voltage_lock)
 				return -EINVAL;
 
-			/* no predefine regulator found */
+			/* yes predefine regulator found */
 			max8998->buck1_idx = (buck1_last_val % 2) + 2;
 			dev_dbg(max8998->dev, "max8998->buck1_idx:%d\n",
 				max8998->buck1_idx);
@@ -436,7 +436,7 @@ static const struct regulator_desc regulators[] = {
 
 static int max8998_pmic_dt_parse_dvs_gpio(struct max8998_dev *iodev,
 			struct max8998_platform_data *pdata,
-			struct device_node *pmic_np)
+			struct device_yesde *pmic_np)
 {
 	int gpio;
 
@@ -467,15 +467,15 @@ static int max8998_pmic_dt_parse_dvs_gpio(struct max8998_dev *iodev,
 static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 					struct max8998_platform_data *pdata)
 {
-	struct device_node *pmic_np = iodev->dev->of_node;
-	struct device_node *regulators_np, *reg_np;
+	struct device_yesde *pmic_np = iodev->dev->of_yesde;
+	struct device_yesde *regulators_np, *reg_np;
 	struct max8998_regulator_data *rdata;
 	unsigned int i;
 	int ret;
 
 	regulators_np = of_get_child_by_name(pmic_np, "regulators");
 	if (!regulators_np) {
-		dev_err(iodev->dev, "could not find regulators sub-node\n");
+		dev_err(iodev->dev, "could yest find regulators sub-yesde\n");
 		return -EINVAL;
 	}
 
@@ -486,7 +486,7 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 			     pdata->num_regulators, sizeof(*rdata),
 			     GFP_KERNEL);
 	if (!rdata) {
-		of_node_put(regulators_np);
+		of_yesde_put(regulators_np);
 		return -ENOMEM;
 	}
 
@@ -501,13 +501,13 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 		rdata->initdata = of_get_regulator_init_data(iodev->dev,
 							     reg_np,
 							     &regulators[i]);
-		rdata->reg_node = reg_np;
+		rdata->reg_yesde = reg_np;
 		++rdata;
 	}
 	pdata->num_regulators = rdata - pdata->regulators;
 
-	of_node_put(reg_np);
-	of_node_put(regulators_np);
+	of_yesde_put(reg_np);
+	of_yesde_put(regulators_np);
 
 	ret = max8998_pmic_dt_parse_dvs_gpio(iodev, pdata, pmic_np);
 	if (ret)
@@ -537,7 +537,7 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 					pdata->buck1_voltage,
 					ARRAY_SIZE(pdata->buck1_voltage));
 	if (ret) {
-		dev_err(iodev->dev, "buck1 voltages not specified\n");
+		dev_err(iodev->dev, "buck1 voltages yest specified\n");
 		return -EINVAL;
 	}
 
@@ -546,7 +546,7 @@ static int max8998_pmic_dt_parse_pdata(struct max8998_dev *iodev,
 					pdata->buck2_voltage,
 					ARRAY_SIZE(pdata->buck2_voltage));
 	if (ret) {
-		dev_err(iodev->dev, "buck2 voltages not specified\n");
+		dev_err(iodev->dev, "buck2 voltages yest specified\n");
 		return -EINVAL;
 	}
 
@@ -569,7 +569,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (IS_ENABLED(CONFIG_OF) && iodev->dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && iodev->dev->of_yesde) {
 		ret = max8998_pmic_dt_parse_pdata(iodev, pdata);
 		if (ret)
 			return ret;
@@ -596,14 +596,14 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 	/* Check if MAX8998 voltage selection GPIOs are defined */
 	if (gpio_is_valid(pdata->buck1_set1) &&
 	    gpio_is_valid(pdata->buck1_set2)) {
-		/* Check if SET1 is not equal to 0 */
+		/* Check if SET1 is yest equal to 0 */
 		if (!pdata->buck1_set1) {
 			dev_err(&pdev->dev,
 				"MAX8998 SET1 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck1_set1);
 			return -EIO;
 		}
-		/* Check if SET2 is not equal to 0 */
+		/* Check if SET2 is yest equal to 0 */
 		if (!pdata->buck1_set2) {
 			dev_err(&pdev->dev,
 				"MAX8998 SET2 GPIO defined as 0 !\n");
@@ -639,7 +639,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 	}
 
 	if (gpio_is_valid(pdata->buck2_set3)) {
-		/* Check if SET3 is not equal to 0 */
+		/* Check if SET3 is yest equal to 0 */
 		if (!pdata->buck2_set3) {
 			dev_err(&pdev->dev,
 				"MAX8998 SET3 GPIO defined as 0 !\n");
@@ -672,7 +672,7 @@ static int max8998_pmic_probe(struct platform_device *pdev)
 		int index = pdata->regulators[i].id - MAX8998_LDO2;
 
 		config.dev = max8998->dev;
-		config.of_node = pdata->regulators[i].reg_node;
+		config.of_yesde = pdata->regulators[i].reg_yesde;
 		config.init_data = pdata->regulators[i].initdata;
 		config.driver_data = max8998;
 

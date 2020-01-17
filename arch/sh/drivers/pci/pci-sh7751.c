@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include "pci-sh4.h"
 #include <asm/addrspace.h>
@@ -24,7 +24,7 @@ static int __init __area_sdram_check(struct pci_channel *chan,
 	word = __raw_readl(SH7751_BCR1);
 	/* check BCR for SDRAM in area */
 	if (((word >> area) & 1) == 0) {
-		printk("PCI: Area %d is not configured for SDRAM. BCR1=0x%lx\n",
+		printk("PCI: Area %d is yest configured for SDRAM. BCR1=0x%lx\n",
 		       area, word);
 		return 0;
 	}
@@ -33,7 +33,7 @@ static int __init __area_sdram_check(struct pci_channel *chan,
 	word = __raw_readw(SH7751_BCR2);
 	/* check BCR2 for 32bit SDRAM interface*/
 	if (((word >> (area << 1)) & 0x3) != 0x3) {
-		printk("PCI: Area %d is not 32 bit SDRAM. BCR2=0x%lx\n",
+		printk("PCI: Area %d is yest 32 bit SDRAM. BCR2=0x%lx\n",
 		       area, word);
 		return 0;
 	}
@@ -86,7 +86,7 @@ static int __init sh7751_pci_init(void)
 	id = pci_read_reg(chan, SH7751_PCICONF0);
 	if (id != ((SH7751_DEVICE_ID << 16) | SH7751_VENDOR_ID) &&
 	    id != ((SH7751R_DEVICE_ID << 16) | SH7751_VENDOR_ID)) {
-		pr_debug("PCI: This is not an SH7751(R) (%x)\n", id);
+		pr_debug("PCI: This is yest an SH7751(R) (%x)\n", id);
 		return -ENODEV;
 	}
 
@@ -95,9 +95,9 @@ static int __init sh7751_pci_init(void)
 	reg |= 0x80000;
 	__raw_writel(reg, SH7751_BCR1);
 
-	/* Turn the clocks back on (not done in reset)*/
+	/* Turn the clocks back on (yest done in reset)*/
 	pci_write_reg(chan, 0, SH4_PCICLKR);
-	/* Clear Powerdown IRQ's (not done in reset) */
+	/* Clear Powerdown IRQ's (yest done in reset) */
 	word = SH4_PCIPINT_D3 | SH4_PCIPINT_D0;
 	pci_write_reg(chan, word, SH4_PCIPINT);
 
@@ -162,7 +162,7 @@ static int __init sh7751_pci_init(void)
 	word = __raw_readl(SH7751_MCR);
 	pci_write_reg(chan, word, SH4_PCIMCR);
 
-	/* NOTE: I'm ignoring the PCI error IRQs for now..
+	/* NOTE: I'm igyesring the PCI error IRQs for yesw..
 	 * TODO: add support for the internal error interrupts and
 	 * DMA interrupts...
 	 */

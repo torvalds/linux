@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <libudev.h>
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -75,7 +75,7 @@ static int get_exported_devices(char *host, int sockfd)
 	dbg("exportable devices: %d\n", reply.ndev);
 
 	if (reply.ndev == 0) {
-		info("no exportable devices found on %s", host);
+		info("yes exportable devices found on %s", host);
 		return 0;
 	}
 
@@ -131,7 +131,7 @@ static int list_exported_devices(char *host)
 
 	sockfd = usbip_net_tcp_connect(host, usbip_port_string);
 	if (sockfd < 0) {
-		err("could not connect to %s:%s: %s", host,
+		err("could yest connect to %s:%s: %s", host,
 		    usbip_port_string, gai_strerror(sockfd));
 		return -1;
 	}
@@ -185,12 +185,12 @@ static int list_devices(bool parsable)
 	/* Create libudev device enumeration. */
 	enumerate = udev_enumerate_new(udev);
 
-	/* Take only USB devices that are not hubs and do not have
-	 * the bInterfaceNumber attribute, i.e. are not interfaces.
+	/* Take only USB devices that are yest hubs and do yest have
+	 * the bInterfaceNumber attribute, i.e. are yest interfaces.
 	 */
 	udev_enumerate_add_match_subsystem(enumerate, "usb");
-	udev_enumerate_add_nomatch_sysattr(enumerate, "bDeviceClass", "09");
-	udev_enumerate_add_nomatch_sysattr(enumerate, "bInterfaceNumber", NULL);
+	udev_enumerate_add_yesmatch_sysattr(enumerate, "bDeviceClass", "09");
+	udev_enumerate_add_yesmatch_sysattr(enumerate, "bInterfaceNumber", NULL);
 	udev_enumerate_scan_devices(enumerate);
 
 	devices = udev_enumerate_get_list_entry(enumerate);
@@ -200,7 +200,7 @@ static int list_devices(bool parsable)
 		path = udev_list_entry_get_name(dev_list_entry);
 		dev = udev_device_new_from_syspath(udev, path);
 
-		/* Ignore devices attached to vhci_hcd */
+		/* Igyesre devices attached to vhci_hcd */
 		devpath = udev_device_get_devpath(dev);
 		if (strstr(devpath, USBIP_VHCI_DRV_NAME)) {
 			dbg("Skip the device %s already attached to %s\n",
@@ -218,7 +218,7 @@ static int list_devices(bool parsable)
 		busid = udev_device_get_sysname(dev);
 		if (!idVendor || !idProduct || !bConfValue || !bNumIntfs) {
 			err("problem getting device attributes: %s",
-			    strerror(errno));
+			    strerror(erryes));
 			goto err_out;
 		}
 
@@ -288,7 +288,7 @@ static int list_gadget_devices(bool parsable)
 
 		if (!descriptors) {
 			err("problem getting device attributes: %s",
-			    strerror(errno));
+			    strerror(erryes));
 			goto err_out;
 		}
 
@@ -325,10 +325,10 @@ err_out:
 int usbip_list(int argc, char *argv[])
 {
 	static const struct option opts[] = {
-		{ "parsable", no_argument,       NULL, 'p' },
+		{ "parsable", yes_argument,       NULL, 'p' },
 		{ "remote",   required_argument, NULL, 'r' },
-		{ "local",    no_argument,       NULL, 'l' },
-		{ "device",    no_argument,       NULL, 'd' },
+		{ "local",    yes_argument,       NULL, 'l' },
+		{ "device",    yes_argument,       NULL, 'd' },
 		{ NULL,       0,                 NULL,  0  }
 	};
 

@@ -31,7 +31,7 @@ Creating MAD agents
   be unregistered when the descriptor is closed.
 
   2014
-       a new registration ioctl is now provided which allows additional
+       a new registration ioctl is yesw provided which allows additional
        fields to be provided during registration.
        Users of this registration call are implicitly setting the use of
        pkey_index (see below).
@@ -39,15 +39,15 @@ Creating MAD agents
 Receiving MADs
 ==============
 
-  MADs are received using read().  The receive side now supports
+  MADs are received using read().  The receive side yesw supports
   RMPP. The buffer passed to read() must be at least one
   struct ib_user_mad + 256 bytes. For example:
 
-  If the buffer passed is not large enough to hold the received
-  MAD (RMPP), the errno is set to ENOSPC and the length of the
+  If the buffer passed is yest large eyesugh to hold the received
+  MAD (RMPP), the erryes is set to ENOSPC and the length of the
   buffer needed is set in mad.length.
 
-  Example for normal MAD (non RMPP) reads::
+  Example for yesrmal MAD (yesn RMPP) reads::
 
 	struct ib_user_mad *mad;
 	mad = malloc(sizeof *mad + 256);
@@ -117,11 +117,11 @@ Transaction IDs
 P_Key Index Handling
 ====================
 
-  The old ib_umad interface did not allow setting the P_Key index for
-  MADs that are sent and did not provide a way for obtaining the P_Key
+  The old ib_umad interface did yest allow setting the P_Key index for
+  MADs that are sent and did yest provide a way for obtaining the P_Key
   index of received MADs.  A new layout for struct ib_user_mad_hdr
   with a pkey_index member has been defined; however, to preserve binary
-  compatibility with older applications, this new layout will not be used
+  compatibility with older applications, this new layout will yest be used
   unless one of IB_USER_MAD_ENABLE_PKEY or IB_USER_MAD_REGISTER_AGENT2 ioctl's
   are called before a file descriptor is used for anything else.
 
@@ -135,7 +135,7 @@ Setting IsSM Capability Bit
   To set the IsSM capability bit for a port, simply open the
   corresponding issm device file.  If the IsSM bit is already set,
   then the open call will block until the bit is cleared (or return
-  immediately with errno set to EAGAIN if the O_NONBLOCK flag is
+  immediately with erryes set to EAGAIN if the O_NONBLOCK flag is
   passed to open()).  The IsSM bit will be cleared when the issm file
   is closed.  No read, write or other operations can be performed on
   the issm file.
@@ -149,7 +149,7 @@ Setting IsSM Capability Bit
     KERNEL=="umad*", NAME="infiniband/%k"
     KERNEL=="issm*", NAME="infiniband/%k"
 
-  can be used.  This will create device nodes named::
+  can be used.  This will create device yesdes named::
 
     /dev/infiniband/umad0
     /dev/infiniband/issm0

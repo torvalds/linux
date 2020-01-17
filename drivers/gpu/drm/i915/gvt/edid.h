@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -63,9 +63,9 @@ enum gmbus_cycle_type {
 /*
  * States of GMBUS
  *
- * GMBUS0-3 could be related to the EDID virtualization. Another two GMBUS
+ * GMBUS0-3 could be related to the EDID virtualization. Ayesther two GMBUS
  * registers, GMBUS4 (interrupt mask) and GMBUS5 (2 byte indes register), are
- * not considered here. Below describes the usage of GMBUS registers that are
+ * yest considered here. Below describes the usage of GMBUS registers that are
  * cared by the EDID virtualization
  *
  * GMBUS0:
@@ -77,7 +77,7 @@ enum gmbus_cycle_type {
  *      Command and Status.
  *      bit0 is the direction bit: 1 is read; 0 is write.
  *      bit1 - bit7 is slave 7-bit address.
- *      bit16 - bit24 total byte count (ignore?)
+ *      bit16 - bit24 total byte count (igyesre?)
  *
  * GMBUS2:
  *      Most of bits are read only except bit 15 (IN_USE)
@@ -91,7 +91,7 @@ enum gmbus_cycle_type {
  */
 
 /* From hw specs, Other phases like START, ADDRESS, INDEX
- * are invisible to GMBUS MMIO interface. So no definitions
+ * are invisible to GMBUS MMIO interface. So yes definitions
  * in below enum types
  */
 enum gvt_gmbus_phase {
@@ -119,8 +119,8 @@ enum i2c_state {
 	I2C_AUX_CH = 2
 };
 
-/* I2C sequences cannot interleave.
- * GMBUS and AUX_CH sequences cannot interleave.
+/* I2C sequences canyest interleave.
+ * GMBUS and AUX_CH sequences canyest interleave.
  */
 struct intel_vgpu_i2c_edid {
 	enum i2c_state state;

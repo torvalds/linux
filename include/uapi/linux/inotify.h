@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
- * Inode based directory notification for Linux
+ * Iyesde based directory yestification for Linux
  *
  * Copyright (C) 2005 John McCutchan
  */
@@ -13,12 +13,12 @@
 #include <linux/types.h>
 
 /*
- * struct inotify_event - structure read from the inotify device for each event
+ * struct iyestify_event - structure read from the iyestify device for each event
  *
  * When you are watching a directory, you will receive the filename for events
  * such as IN_CREATE, IN_DELETE, IN_OPEN, IN_CLOSE, ..., relative to the wd.
  */
-struct inotify_event {
+struct iyestify_event {
 	__s32		wd;		/* watch descriptor */
 	__u32		mask;		/* watch mask */
 	__u32		cookie;		/* cookie to synchronize two events */
@@ -43,7 +43,7 @@ struct inotify_event {
 /* the following are legal events.  they are sent as needed to any watch */
 #define IN_UNMOUNT		0x00002000	/* Backing fs was unmounted */
 #define IN_Q_OVERFLOW		0x00004000	/* Event queued overflowed */
-#define IN_IGNORED		0x00008000	/* File was ignored */
+#define IN_IGNORED		0x00008000	/* File was igyesred */
 
 /* helper events */
 #define IN_CLOSE		(IN_CLOSE_WRITE | IN_CLOSE_NOWRITE) /* close */
@@ -60,7 +60,7 @@ struct inotify_event {
 
 /*
  * All of the events - we build the list by hand so that we can add flags in
- * the future and not break backward compatibility.  Apps will get only the
+ * the future and yest break backward compatibility.  Apps will get only the
  * events that they originally wanted.  Be sure to add new events here!
  */
 #define IN_ALL_EVENTS	(IN_ACCESS | IN_MODIFY | IN_ATTRIB | IN_CLOSE_WRITE | \
@@ -68,12 +68,12 @@ struct inotify_event {
 			 IN_MOVED_TO | IN_DELETE | IN_CREATE | IN_DELETE_SELF | \
 			 IN_MOVE_SELF)
 
-/* Flags for sys_inotify_init1.  */
+/* Flags for sys_iyestify_init1.  */
 #define IN_CLOEXEC O_CLOEXEC
 #define IN_NONBLOCK O_NONBLOCK
 
 /*
- * ioctl numbers: inotify uses 'I' prefix for all ioctls,
+ * ioctl numbers: iyestify uses 'I' prefix for all ioctls,
  * except historical FIONREAD, which is based on 'T'.
  *
  * INOTIFY_IOC_SETNEXTWD: set desired number of next created

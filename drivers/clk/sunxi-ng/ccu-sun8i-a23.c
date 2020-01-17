@@ -48,9 +48,9 @@ static struct ccu_nkmp pll_cpux_clk = {
  *
  * With sigma-delta modulation for fractional-N on the audio PLL,
  * we have to use specific dividers. This means the variable divider
- * can no longer be used, as the audio codec requests the exact clock
- * rates we support through this mechanism. So we now hard code the
- * variable divider to 1. This means the clock rates will no longer
+ * can yes longer be used, as the audio codec requests the exact clock
+ * rates we support through this mechanism. So we yesw hard code the
+ * variable divider to 1. This means the clock rates will yes longer
  * match the clock names.
  */
 #define SUN8I_A23_PLL_AUDIO_REG	0x008
@@ -129,7 +129,7 @@ static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_gpu_clk, "pll-gpu",
  *
  * The MIPI mode is a standard NKM-style clock. The HDMI mode is an
  * integer / fractional clock with switchable multipliers and dividers.
- * This is not supported here. We hardcode the PLL to MIPI mode.
+ * This is yest supported here. We hardcode the PLL to MIPI mode.
  */
 #define SUN8I_A23_PLL_MIPI_REG	0x040
 static SUNXI_CCU_NKM_WITH_GATE_LOCK(pll_mipi_clk, "pll-mipi",
@@ -354,7 +354,7 @@ static SUNXI_CCU_MUX_WITH_GATE(i2s0_clk, "i2s0", i2s_parents,
 static SUNXI_CCU_MUX_WITH_GATE(i2s1_clk, "i2s1", i2s_parents,
 			       0x0b4, 16, 2, BIT(31), CLK_SET_RATE_PARENT);
 
-/* TODO: the parent for most of the USB clocks is not known */
+/* TODO: the parent for most of the USB clocks is yest kyeswn */
 static SUNXI_CCU_GATE(usb_phy0_clk,	"usb-phy0",	"osc24M",
 		      0x0cc, BIT(8), 0);
 static SUNXI_CCU_GATE(usb_phy1_clk,	"usb-phy1",	"osc24M",
@@ -547,7 +547,7 @@ static const struct clk_hw *clk_parent_pll_audio[] = {
 	&pll_audio_base_clk.common.hw
 };
 
-/* We hardcode the divider to 1 for now */
+/* We hardcode the divider to 1 for yesw */
 static CLK_FIXED_FACTOR_HWS(pll_audio_clk, "pll-audio",
 			    clk_parent_pll_audio,
 			    1, 1, CLK_SET_RATE_PARENT);
@@ -724,14 +724,14 @@ static const struct sunxi_ccu_desc sun8i_a23_ccu_desc = {
 	.num_resets	= ARRAY_SIZE(sun8i_a23_ccu_resets),
 };
 
-static void __init sun8i_a23_ccu_setup(struct device_node *node)
+static void __init sun8i_a23_ccu_setup(struct device_yesde *yesde)
 {
 	void __iomem *reg;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
+		pr_err("%pOF: Could yest map the clock registers\n", yesde);
 		return;
 	}
 
@@ -745,7 +745,7 @@ static void __init sun8i_a23_ccu_setup(struct device_node *node)
 	val &= ~BIT(16);
 	writel(val, reg + SUN8I_A23_PLL_MIPI_REG);
 
-	sunxi_ccu_probe(node, reg, &sun8i_a23_ccu_desc);
+	sunxi_ccu_probe(yesde, reg, &sun8i_a23_ccu_desc);
 }
 CLK_OF_DECLARE(sun8i_a23_ccu, "allwinner,sun8i-a23-ccu",
 	       sun8i_a23_ccu_setup);

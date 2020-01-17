@@ -38,8 +38,8 @@ static pmu_config_t pmu_conf_gen={
 	.pmu_name   = "Generic",
 	.pmu_family = 0xff, /* any */
 	.ovfl_val   = (1UL << 32) - 1,
-	.num_ibrs   = 0, /* does not use */
-	.num_dbrs   = 0, /* does not use */
+	.num_ibrs   = 0, /* does yest use */
+	.num_dbrs   = 0, /* does yest use */
 	.pmd_desc   = pfm_gen_pmd_desc,
 	.pmc_desc   = pfm_gen_pmc_desc
 };

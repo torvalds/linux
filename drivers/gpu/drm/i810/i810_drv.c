@@ -12,7 +12,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -52,7 +52,7 @@ static const struct file_operations i810_driver_fops = {
 	.mmap = drm_legacy_mmap,
 	.poll = drm_poll,
 	.compat_ioctl = drm_compat_ioctl,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static struct drm_driver driver = {
@@ -68,7 +68,7 @@ static struct drm_driver driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.miyesr = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
@@ -80,7 +80,7 @@ static struct pci_driver i810_pci_driver = {
 static int __init i810_init(void)
 {
 	if (num_possible_cpus() > 1) {
-		pr_err("drm/i810 does not support SMP\n");
+		pr_err("drm/i810 does yest support SMP\n");
 		return -EINVAL;
 	}
 	driver.num_ioctls = i810_max_ioctl;

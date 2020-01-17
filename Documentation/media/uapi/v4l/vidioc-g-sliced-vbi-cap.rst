@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_SLICED_VBI_CAP:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_SLICED_VBI_CAP - Query sliced VBI capabilities
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_SLICED_VBI_CAP, struct v4l2_sliced_vbi_cap *argp )
@@ -46,7 +46,7 @@ output device, applications initialize the ``type`` field of a struct
 driver fills in the remaining fields or returns an ``EINVAL`` error code if
 the sliced VBI API is unsupported or ``type`` is invalid.
 
-.. note::
+.. yeste::
 
    The ``type`` field was added, and the ioctl changed from read-only
    to write-read, in Linux 2.6.19.
@@ -103,7 +103,7 @@ the sliced VBI API is unsupported or ``type`` is invalid.
       - :cspan:`2` The number of VBI lines the hardware can capture or
 	output per frame, or the number of services it can identify on a
 	given line may be limited. For example on PAL line 16 the hardware
-	may be able to look for a VPS or Teletext signal, but not both at
+	may be able to look for a VPS or Teletext signal, but yest both at
 	the same time. Applications can learn about these limits using the
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl as described in
 	:ref:`sliced`.
@@ -188,13 +188,13 @@ the sliced VBI API is unsupported or ``type`` is invalid.
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

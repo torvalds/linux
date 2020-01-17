@@ -162,7 +162,7 @@ asmlinkage int sparc_do_fork(unsigned long clone_flags,
 /* signal_32.c */
 asmlinkage void do_sigreturn(struct pt_regs *regs);
 asmlinkage void do_rt_sigreturn(struct pt_regs *regs);
-void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0,
+void do_yestify_resume(struct pt_regs *regs, unsigned long orig_i0,
                       unsigned long thread_info_flags);
 asmlinkage int do_sys_sigstack(struct sigstack __user *ssptr,
                                struct sigstack __user *ossptr,

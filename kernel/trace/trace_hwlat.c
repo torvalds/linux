@@ -5,7 +5,7 @@
  * Use this tracer to detect large system latencies induced by the behavior of
  * certain underlying system hardware or firmware, independent of Linux itself.
  * The code was developed originally to detect the presence of SMIs on Intel
- * and AMD systems, although there is no dependency upon x86 herein.
+ * and AMD systems, although there is yes dependency upon x86 herein.
  *
  * The classical example usage of this tracer is in detecting the presence of
  * SMIs or System Management Interrupts on Intel and AMD systems. An SMI is a
@@ -20,7 +20,7 @@
  * Although certain hardware-inducing latencies are necessary (for example,
  * a modern system often requires an SMI handler for correct thermal control
  * and remote management) they can wreak havoc upon any OS-level performance
- * guarantees toward low-latency, especially when the OS is not even made
+ * guarantees toward low-latency, especially when the OS is yest even made
  * aware of the presence of these interrupts. For this reason, we need a
  * somewhat brute force mechanism to detect these interrupts. In this case,
  * we do it by hogging all of the CPU(s) for configurable timer intervals,
@@ -126,7 +126,7 @@ static void trace_hwlat_sample(struct hwlat_sample *sample)
 	entry->nmi_count		= sample->nmi_count;
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit_nostack(buffer, event);
+		trace_buffer_unlock_commit_yesstack(buffer, event);
 }
 
 /* Macros to encapsulate the time capturing infrastructure */
@@ -144,7 +144,7 @@ void trace_hwlat_callback(bool enter)
 
 	/*
 	 * Currently trace_clock_local() calls sched_clock() and the
-	 * generic version is not NMI safe.
+	 * generic version is yest NMI safe.
 	 */
 	if (!IS_ENABLED(CONFIG_GENERIC_SCHED_CLOCK)) {
 		if (enter)
@@ -230,7 +230,7 @@ static int get_sample(void)
 
 	barrier(); /* finish the above in the view for NMIs */
 	trace_hwlat_callback_enabled = false;
-	barrier(); /* Make sure nmi_total_ts is no longer updated */
+	barrier(); /* Make sure nmi_total_ts is yes longer updated */
 
 	ret = 0;
 
@@ -259,7 +259,7 @@ static int get_sample(void)
 		/* Keep a running maximum ever recorded hardware latency */
 		if (latency > tr->max_latency) {
 			tr->max_latency = latency;
-			latency_fsnotify(tr);
+			latency_fsyestify(tr);
 		}
 	}
 
@@ -311,7 +311,7 @@ static void move_to_next_cpu(void)
  *
  * Used to periodically sample the CPU TSC via a call to get_sample. We
  * disable interrupts, which does (intentionally) introduce latency since we
- * need to ensure nothing else might be running (and thus preempting).
+ * need to ensure yesthing else might be running (and thus preempting).
  * Obviously this should never be used in production environments.
  *
  * Executes one loop interaction on each CPU in tracing_cpumask sysfs file.
@@ -369,7 +369,7 @@ static int start_kthread(struct trace_array *tr)
 
 	kthread = kthread_create(kthread_fn, NULL, "hwlatd");
 	if (IS_ERR(kthread)) {
-		pr_err(BANNER "could not start sampling thread\n");
+		pr_err(BANNER "could yest start sampling thread\n");
 		return -ENOMEM;
 	}
 
@@ -387,7 +387,7 @@ static int start_kthread(struct trace_array *tr)
  * stop_kthread - Inform the hardware latency samping/detector kthread to stop
  *
  * This kicks the running hardware latency sampling/detector kernel thread and
- * tells it to stop sampling now. Use this on unload and at system shutdown.
+ * tells it to stop sampling yesw. Use this on unload and at system shutdown.
  */
 static void stop_kthread(void)
 {
@@ -438,7 +438,7 @@ static ssize_t hwlat_read(struct file *filp, char __user *ubuf,
  * This function provides a write implementation for the "width" interface
  * to the hardware latency detector. It can be used to configure
  * for how many us of the total window us we will actively sample for any
- * hardware-induced latency periods. Obviously, it is not possible to
+ * hardware-induced latency periods. Obviously, it is yest possible to
  * sample constantly and have the system respond to a sample reader, or,
  * worse, without having the system appear to have gone out to lunch. It
  * is enforced that width is less that the total window size.
@@ -566,7 +566,7 @@ static void hwlat_tracer_start(struct trace_array *tr)
 
 	err = start_kthread(tr);
 	if (err)
-		pr_err(BANNER "Cannot start hwlat kthread\n");
+		pr_err(BANNER "Canyest start hwlat kthread\n");
 }
 
 static void hwlat_tracer_stop(struct trace_array *tr)

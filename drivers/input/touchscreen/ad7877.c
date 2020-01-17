@@ -10,7 +10,7 @@
  * History:
  * Copyright (c) 2005 David Brownell
  * Copyright (c) 2006 Nokia Corporation
- * Various changes: Imre Deak <imre.deak@nokia.com>
+ * Various changes: Imre Deak <imre.deak@yeskia.com>
  *
  * Using code from:
  *  - corgi_ts.c
@@ -116,10 +116,10 @@ enum {
 #define AD7877_AVG(x)			((x & 0x3) << 10)
 
 /* Control REG 1 */
-#define	AD7877_SER			(1 << 11)	/* non-differential */
+#define	AD7877_SER			(1 << 11)	/* yesn-differential */
 #define	AD7877_DFR			(0 << 11)	/* differential */
 
-#define AD7877_MODE_NOC  (0)	/* Do not convert */
+#define AD7877_MODE_NOC  (0)	/* Do yest convert */
 #define AD7877_MODE_SCC  (1)	/* Single channel conversion */
 #define AD7877_MODE_SEQ0 (2)	/* Sequence 0 in Slave Mode */
 #define AD7877_MODE_SEQ1 (3)	/* Sequence 1 in Master Mode */
@@ -329,7 +329,7 @@ static int ad7877_process_data(struct ad7877 *ts)
 	 * The samples processed here are already preprocessed by the AD7877.
 	 * The preprocessing function consists of an averaging filter.
 	 * The combination of 'first conversion delay' and averaging provides a robust solution,
-	 * discarding the spurious noise in the signal and keeping only the data of interest.
+	 * discarding the spurious yesise in the signal and keeping only the data of interest.
 	 * The size of the averaging filter is programmable. (dev.platform_data, see linux/spi/ad7877.h)
 	 * Other user-programmable conversion controls include variable acquisition time,
 	 * and first conversion delay. Up to 16 averages can be taken per conversion.
@@ -418,7 +418,7 @@ static void ad7877_disable(void *data)
 	}
 
 	/*
-	 * We know the chip's in lowpower mode since we always
+	 * We kyesw the chip's in lowpower mode since we always
 	 * leave it that way after every request
 	 */
 
@@ -673,12 +673,12 @@ static int ad7877_probe(struct spi_device *spi)
 	u16				verify;
 
 	if (!spi->irq) {
-		dev_dbg(&spi->dev, "no IRQ?\n");
+		dev_dbg(&spi->dev, "yes IRQ?\n");
 		return -ENODEV;
 	}
 
 	if (!pdata) {
-		dev_dbg(&spi->dev, "no platform data?\n");
+		dev_dbg(&spi->dev, "yes platform data?\n");
 		return -ENODEV;
 	}
 

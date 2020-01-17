@@ -10,19 +10,19 @@
  *              Eduardo Marcelo Serrat <emserrat@geocities.com>
  *
  * Changes:
- *          Steve Whitehouse : Devices now see incoming frames so they
+ *          Steve Whitehouse : Devices yesw see incoming frames so they
  *                             can mark on who it came from.
  *          Steve Whitehouse : Fixed bug in creating neighbours. Each neighbour
- *                             can now have a device specific setup func.
+ *                             can yesw have a device specific setup func.
  *          Steve Whitehouse : Added /proc/sys/net/decnet/conf/<dev>/
  *          Steve Whitehouse : Fixed bug which sometimes killed timer
  *          Steve Whitehouse : Multiple ifaddr support
- *          Steve Whitehouse : SIOCGIFCONF is now a compile time option
+ *          Steve Whitehouse : SIOCGIFCONF is yesw a compile time option
  *          Steve Whitehouse : /proc/sys/net/decnet/conf/<sys>/forwarding
- *          Steve Whitehouse : Removed timer1 - it's a user space issue now
+ *          Steve Whitehouse : Removed timer1 - it's a user space issue yesw
  *         Patrick Caulfield : Fixed router hello message format
  *          Steve Whitehouse : Got rid of constant sizes for blksize for
- *                             devices. All mtu based now.
+ *                             devices. All mtu based yesw.
  */
 
 #include <linux/capability.h>
@@ -40,7 +40,7 @@
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
 #include <linux/sysctl.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/uaccess.h>
@@ -76,7 +76,7 @@ static BLOCKING_NOTIFIER_HEAD(dnaddr_chain);
 
 static struct dn_dev *dn_dev_create(struct net_device *dev, int *err);
 static void dn_dev_delete(struct net_device *dev);
-static void dn_ifaddr_notify(int event, struct dn_ifaddr *ifa);
+static void dn_ifaddr_yestify(int event, struct dn_ifaddr *ifa);
 
 static int dn_eth_up(struct net_device *);
 static void dn_eth_down(struct net_device *);
@@ -344,8 +344,8 @@ static void dn_dev_del_ifa(struct dn_dev *dn_db, struct dn_ifaddr __rcu **ifap, 
 		}
 	}
 
-	dn_ifaddr_notify(RTM_DELADDR, ifa1);
-	blocking_notifier_call_chain(&dnaddr_chain, NETDEV_DOWN, ifa1);
+	dn_ifaddr_yestify(RTM_DELADDR, ifa1);
+	blocking_yestifier_call_chain(&dnaddr_chain, NETDEV_DOWN, ifa1);
 	if (destroy) {
 		dn_dev_free_ifa(ifa1);
 
@@ -380,8 +380,8 @@ static int dn_dev_insert_ifa(struct dn_dev *dn_db, struct dn_ifaddr *ifa)
 	ifa->ifa_next = dn_db->ifa_list;
 	rcu_assign_pointer(dn_db->ifa_list, ifa);
 
-	dn_ifaddr_notify(RTM_NEWADDR, ifa);
-	blocking_notifier_call_chain(&dnaddr_chain, NETDEV_UP, ifa);
+	dn_ifaddr_yestify(RTM_NEWADDR, ifa);
+	blocking_yestifier_call_chain(&dnaddr_chain, NETDEV_UP, ifa);
 
 	return 0;
 }
@@ -462,7 +462,7 @@ int dn_dev_ioctl(unsigned int cmd, void __user *arg)
 
 	switch (cmd) {
 	case SIOCGIFADDR:
-		*((__le16 *)sdn->sdn_nodeaddr) = ifa->ifa_local;
+		*((__le16 *)sdn->sdn_yesdeaddr) = ifa->ifa_local;
 		goto rarok;
 
 	case SIOCSIFADDR:
@@ -715,7 +715,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static void dn_ifaddr_notify(int event, struct dn_ifaddr *ifa)
+static void dn_ifaddr_yestify(int event, struct dn_ifaddr *ifa)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
@@ -731,7 +731,7 @@ static void dn_ifaddr_notify(int event, struct dn_ifaddr *ifa)
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, &init_net, 0, RTNLGRP_DECnet_IFADDR, NULL, GFP_KERNEL);
+	rtnl_yestify(skb, &init_net, 0, RTNLGRP_DECnet_IFADDR, NULL, GFP_KERNEL);
 	return;
 errout:
 	if (err < 0)
@@ -814,7 +814,7 @@ out:
  * This is one of those areas where the initial VMS concepts don't really
  * map onto the Linux concepts, and since we introduced multiple addresses
  * per interface we have to cope with slightly odd ways of finding out what
- * "our address" really is. Mostly it's not a problem; for this we just guess
+ * "our address" really is. Mostly it's yest a problem; for this we just guess
  * a sensible default. Eventually the routing code will take care of all the
  * nasties for us I hope.
  */
@@ -835,9 +835,9 @@ last_chance:
 	goto last_chance;
 }
 
-static void dn_send_endnode_hello(struct net_device *dev, struct dn_ifaddr *ifa)
+static void dn_send_endyesde_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 {
-	struct endnode_hello_message *msg;
+	struct endyesde_hello_message *msg;
 	struct sk_buff *skb = NULL;
 	__le16 *pktlen;
 	struct dn_dev *dn_db = rcu_dereference_raw(dev->dn_ptr);
@@ -885,7 +885,7 @@ static int dn_am_i_a_router(struct dn_neigh *dn, struct dn_dev *dn_db, struct dn
 	if (time_before(jiffies, dn_db->uptime + DRDELAY))
 		return 0;
 
-	/* If there is no router, then yes... */
+	/* If there is yes router, then no... */
 	if (!dn_db->router)
 		return 1;
 
@@ -893,7 +893,7 @@ static int dn_am_i_a_router(struct dn_neigh *dn, struct dn_dev *dn_db, struct dn
 	if (dn->priority < dn_db->parms.priority)
 		return 1;
 
-	/* if we have equal priority and a higher node number */
+	/* if we have equal priority and a higher yesde number */
 	if (dn->priority != dn_db->parms.priority)
 		return 0;
 
@@ -980,7 +980,7 @@ static void dn_send_brd_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 	struct dn_dev *dn_db = rcu_dereference_raw(dev->dn_ptr);
 
 	if (dn_db->parms.forwarding == 0)
-		dn_send_endnode_hello(dev, ifa);
+		dn_send_endyesde_hello(dev, ifa);
 	else
 		dn_send_router_hello(dev, ifa);
 }
@@ -1152,7 +1152,7 @@ void dn_dev_up(struct net_device *dev)
 	/*
 	 * Need to ensure that loopback device has a dn_db attached to it
 	 * to allow creation of neighbours against it, even though it might
-	 * not have a local address of its own. Might as well do the same for
+	 * yest have a local address of its own. Might as well do the same for
 	 * all autoconfigured interfaces.
 	 */
 	if (dn_db == NULL) {
@@ -1272,14 +1272,14 @@ void dn_dev_devices_on(void)
 	rtnl_unlock();
 }
 
-int register_dnaddr_notifier(struct notifier_block *nb)
+int register_dnaddr_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&dnaddr_chain, nb);
+	return blocking_yestifier_chain_register(&dnaddr_chain, nb);
 }
 
-int unregister_dnaddr_notifier(struct notifier_block *nb)
+int unregister_dnaddr_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&dnaddr_chain, nb);
+	return blocking_yestifier_chain_unregister(&dnaddr_chain, nb);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -1386,7 +1386,7 @@ static const struct seq_operations dn_dev_seq_ops = {
 
 static int addr[2];
 module_param_array(addr, int, NULL, 0444);
-MODULE_PARM_DESC(addr, "The DECnet address of this machine: area,node");
+MODULE_PARM_DESC(addr, "The DECnet address of this machine: area,yesde");
 
 void __init dn_dev_init(void)
 {

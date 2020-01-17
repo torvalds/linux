@@ -46,7 +46,7 @@ static int mcb_lpc_probe(struct platform_device *pdev)
 	priv->base = devm_ioremap(&pdev->dev, priv->mem->start,
 				  resource_size(priv->mem));
 	if (!priv->base) {
-		dev_err(&pdev->dev, "Cannot ioremap\n");
+		dev_err(&pdev->dev, "Canyest ioremap\n");
 		return -ENOMEM;
 	}
 

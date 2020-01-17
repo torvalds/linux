@@ -65,7 +65,7 @@ static int hix5hd2_sata_phy_init(struct phy *phy)
 	int ret;
 
 	if (priv->peri_ctrl) {
-		ret = of_property_read_u32_array(phy->dev.of_node,
+		ret = of_property_read_u32_array(phy->dev.of_yesde,
 						 "hisilicon,power-reg",
 						 &data[0], 2);
 		if (ret) {
@@ -150,7 +150,7 @@ static int hix5hd2_sata_phy_probe(struct platform_device *pdev)
 	if (!priv->base)
 		return -ENOMEM;
 
-	priv->peri_ctrl = syscon_regmap_lookup_by_phandle(dev->of_node,
+	priv->peri_ctrl = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 					"hisilicon,peripheral-syscon");
 	if (IS_ERR(priv->peri_ctrl))
 		priv->peri_ctrl = NULL;

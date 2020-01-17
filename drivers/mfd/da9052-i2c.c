@@ -74,7 +74,7 @@ static int da9052_i2c_fix(struct da9052 *da9052, unsigned char reg)
 	default:
 		/*
 		 * For other chips parking of I2C register
-		 * to a safe place is not required.
+		 * to a safe place is yest required.
 		 */
 		break;
 	}
@@ -155,10 +155,10 @@ static int da9052_i2c_probe(struct i2c_client *client,
 
 #ifdef CONFIG_OF
 	if (!id) {
-		struct device_node *np = client->dev.of_node;
+		struct device_yesde *np = client->dev.of_yesde;
 		const struct of_device_id *deviceid;
 
-		deviceid = of_match_node(dialog_dt_ids, np);
+		deviceid = of_match_yesde(dialog_dt_ids, np);
 		id = deviceid->data;
 	}
 #endif

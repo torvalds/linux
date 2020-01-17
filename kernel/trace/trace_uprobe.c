@@ -63,7 +63,7 @@ struct trace_uprobe {
 	struct trace_uprobe_filter	filter;
 	struct uprobe_consumer		consumer;
 	struct path			path;
-	struct inode			*inode;
+	struct iyesde			*iyesde;
 	char				*filename;
 	unsigned long			offset;
 	unsigned long			ref_ctr_offset;
@@ -134,7 +134,7 @@ static unsigned long get_user_stack_nth(struct pt_regs *regs, unsigned int n)
 /*
  * Uprobes-specific fetch functions
  */
-static nokprobe_inline int
+static yeskprobe_inline int
 probe_mem_read(void *dest, void *src, size_t size)
 {
 	void __user *vaddr = (void __force __user *)src;
@@ -142,7 +142,7 @@ probe_mem_read(void *dest, void *src, size_t size)
 	return copy_from_user(dest, vaddr, size) ? -EFAULT : 0;
 }
 
-static nokprobe_inline int
+static yeskprobe_inline int
 probe_mem_read_user(void *dest, void *src, size_t size)
 {
 	return probe_mem_read(dest, src, size);
@@ -152,7 +152,7 @@ probe_mem_read_user(void *dest, void *src, size_t size)
  * Fetch a null-terminated string. Caller MUST set *(u32 *)dest with max
  * length and relative data location.
  */
-static nokprobe_inline int
+static yeskprobe_inline int
 fetch_store_string(unsigned long addr, void *dest, void *base)
 {
 	long ret;
@@ -174,7 +174,7 @@ fetch_store_string(unsigned long addr, void *dest, void *base)
 		else
 			/*
 			 * Include the terminating null byte. In this case it
-			 * was copied by strncpy_from_user but not accounted
+			 * was copied by strncpy_from_user but yest accounted
 			 * for in ret.
 			 */
 			ret++;
@@ -184,14 +184,14 @@ fetch_store_string(unsigned long addr, void *dest, void *base)
 	return ret;
 }
 
-static nokprobe_inline int
+static yeskprobe_inline int
 fetch_store_string_user(unsigned long addr, void *dest, void *base)
 {
 	return fetch_store_string(addr, dest, base);
 }
 
 /* Return the length of string -- including null terminal byte */
-static nokprobe_inline int
+static yeskprobe_inline int
 fetch_store_strlen(unsigned long addr)
 {
 	int len;
@@ -205,7 +205,7 @@ fetch_store_strlen(unsigned long addr)
 	return (len > MAX_STRING_SIZE) ? 0 : len;
 }
 
-static nokprobe_inline int
+static yeskprobe_inline int
 fetch_store_strlen_user(unsigned long addr)
 {
 	return fetch_store_strlen(addr);
@@ -222,7 +222,7 @@ static unsigned long translate_user_vaddr(unsigned long file_offset)
 	return base_addr + file_offset;
 }
 
-/* Note that we don't verify it, since the code does not come from user space */
+/* Note that we don't verify it, since the code does yest come from user space */
 static int
 process_fetch_insn(struct fetch_insn *code, struct pt_regs *regs, void *dest,
 		   void *base)
@@ -326,7 +326,7 @@ static bool trace_uprobe_match(const char *system, const char *event,
 	   trace_uprobe_match_command_head(tu, argc, argv);
 }
 
-static nokprobe_inline struct trace_uprobe *
+static yeskprobe_inline struct trace_uprobe *
 trace_uprobe_primary_from_call(struct trace_event_call *call)
 {
 	struct trace_probe *tp;
@@ -416,12 +416,12 @@ static bool trace_uprobe_has_same_uprobe(struct trace_uprobe *orig,
 {
 	struct trace_probe_event *tpe = orig->tp.event;
 	struct trace_probe *pos;
-	struct inode *comp_inode = d_real_inode(comp->path.dentry);
+	struct iyesde *comp_iyesde = d_real_iyesde(comp->path.dentry);
 	int i;
 
 	list_for_each_entry(pos, &tpe->probes, list) {
 		orig = container_of(pos, struct trace_uprobe, tp);
-		if (comp_inode != d_real_inode(orig->path.dentry) ||
+		if (comp_iyesde != d_real_iyesde(orig->path.dentry) ||
 		    comp->offset != orig->offset)
 			continue;
 
@@ -468,22 +468,22 @@ static int append_trace_uprobe(struct trace_uprobe *tu, struct trace_uprobe *to)
 }
 
 /*
- * Uprobe with multiple reference counter is not allowed. i.e.
- * If inode and offset matches, reference counter offset *must*
+ * Uprobe with multiple reference counter is yest allowed. i.e.
+ * If iyesde and offset matches, reference counter offset *must*
  * match as well. Though, there is one exception: If user is
  * replacing old trace_uprobe with new one(same group/event),
  * then we allow same uprobe with new reference counter as far
- * as the new one does not conflict with any other existing
+ * as the new one does yest conflict with any other existing
  * ones.
  */
 static int validate_ref_ctr_offset(struct trace_uprobe *new)
 {
 	struct dyn_event *pos;
 	struct trace_uprobe *tmp;
-	struct inode *new_inode = d_real_inode(new->path.dentry);
+	struct iyesde *new_iyesde = d_real_iyesde(new->path.dentry);
 
 	for_each_trace_uprobe(tmp, pos) {
-		if (new_inode == d_real_inode(tmp->path.dentry) &&
+		if (new_iyesde == d_real_iyesde(tmp->path.dentry) &&
 		    new->offset == tmp->offset &&
 		    new->ref_ctr_offset != tmp->ref_ctr_offset) {
 			pr_warn("Reference counter offset mismatch.");
@@ -766,7 +766,7 @@ static const struct seq_operations probes_seq_op = {
 	.show   = probes_seq_show
 };
 
-static int probes_open(struct inode *inode, struct file *file)
+static int probes_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 
@@ -821,7 +821,7 @@ static const struct seq_operations profile_seq_op = {
 	.show	= probes_profile_seq_show
 };
 
-static int profile_open(struct inode *inode, struct file *file)
+static int profile_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 
@@ -856,7 +856,7 @@ static int uprobe_buffer_init(void)
 		return -ENOMEM;
 
 	for_each_possible_cpu(cpu) {
-		struct page *p = alloc_pages_node(cpu_to_node(cpu),
+		struct page *p = alloc_pages_yesde(cpu_to_yesde(cpu),
 						  GFP_KERNEL, 0);
 		if (p == NULL) {
 			err_cpu = cpu;
@@ -1048,16 +1048,16 @@ static int trace_uprobe_enable(struct trace_uprobe *tu, filter_func_t filter)
 	int ret;
 
 	tu->consumer.filter = filter;
-	tu->inode = d_real_inode(tu->path.dentry);
+	tu->iyesde = d_real_iyesde(tu->path.dentry);
 
 	if (tu->ref_ctr_offset)
-		ret = uprobe_register_refctr(tu->inode, tu->offset,
+		ret = uprobe_register_refctr(tu->iyesde, tu->offset,
 				tu->ref_ctr_offset, &tu->consumer);
 	else
-		ret = uprobe_register(tu->inode, tu->offset, &tu->consumer);
+		ret = uprobe_register(tu->iyesde, tu->offset, &tu->consumer);
 
 	if (ret)
-		tu->inode = NULL;
+		tu->iyesde = NULL;
 
 	return ret;
 }
@@ -1069,13 +1069,13 @@ static void __probe_event_disable(struct trace_probe *tp)
 
 	list_for_each_entry(pos, trace_probe_probe_list(tp), list) {
 		tu = container_of(pos, struct trace_uprobe, tp);
-		if (!tu->inode)
+		if (!tu->iyesde)
 			continue;
 
 		WARN_ON(!uprobe_filter_is_empty(&tu->filter));
 
-		uprobe_unregister(tu->inode, tu->offset, &tu->consumer);
-		tu->inode = NULL;
+		uprobe_unregister(tu->iyesde, tu->offset, &tu->consumer);
+		tu->iyesde = NULL;
 	}
 }
 
@@ -1227,7 +1227,7 @@ static int uprobe_perf_close(struct trace_uprobe *tu, struct perf_event *event)
 	write_unlock(&tu->filter.rwlock);
 
 	if (!done)
-		return uprobe_apply(tu->inode, tu->offset, &tu->consumer, false);
+		return uprobe_apply(tu->iyesde, tu->offset, &tu->consumer, false);
 
 	return 0;
 }
@@ -1259,7 +1259,7 @@ static int uprobe_perf_open(struct trace_uprobe *tu, struct perf_event *event)
 
 	err = 0;
 	if (!done) {
-		err = uprobe_apply(tu->inode, tu->offset, &tu->consumer, true);
+		err = uprobe_apply(tu->iyesde, tu->offset, &tu->consumer, true);
 		if (err)
 			uprobe_perf_close(tu, event);
 	}
@@ -1319,7 +1319,7 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 
 	size = esize + tu->tp.size + dsize;
 	size = ALIGN(size + sizeof(u32), sizeof(u64)) - sizeof(u32);
-	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE, "profile buffer not large enough"))
+	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE, "profile buffer yest large eyesugh"))
 		return;
 
 	preempt_disable();
@@ -1549,8 +1549,8 @@ create_local_trace_uprobe(char *name, unsigned long offs,
 	}
 
 	/*
-	 * local trace_kprobes are not added to dyn_event, so they are never
-	 * searched in find_trace_kprobe(). Therefore, there is no concern of
+	 * local trace_kprobes are yest added to dyn_event, so they are never
+	 * searched in find_trace_kprobe(). Therefore, there is yes concern of
 	 * duplicated name "DUMMY_EVENT" here.
 	 */
 	tu = alloc_trace_uprobe(UPROBE_EVENT_SYSTEM, "DUMMY_EVENT", 0,

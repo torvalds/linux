@@ -70,7 +70,7 @@
 /* 
 *  after the elf code is loaded, and the flowtable info was passed to it,
 *  the driver polls on this address, until it shows 1 (presence) or 2 (absence)
-*  once it is non-zero, the daughter board type may be read
+*  once it is yesn-zero, the daughter board type may be read
 */
 #define  MIXART_PSEUDOREG_DBRD_PRESENCE_OFFSET     MIXART_PSEUDOREG+0x990   
 

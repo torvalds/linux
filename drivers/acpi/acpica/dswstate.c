@@ -549,7 +549,7 @@ struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id,
  *
  * PARAMETERS:  walk_state      - New state to be initialized
  *              op              - Current parse op
- *              method_node     - Control method NS node, if any
+ *              method_yesde     - Control method NS yesde, if any
  *              aml_start       - Start of AML
  *              aml_length      - Length of AML
  *              info            - Method info block (params, etc.)
@@ -564,7 +564,7 @@ struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id,
 acpi_status
 acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 		      union acpi_parse_object *op,
-		      struct acpi_namespace_node *method_node,
+		      struct acpi_namespace_yesde *method_yesde,
 		      u8 * aml_start,
 		      u32 aml_length,
 		      struct acpi_evaluate_info *info, u8 pass_number)
@@ -595,17 +595,17 @@ acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 		return_ACPI_STATUS(status);
 	}
 
-	if (method_node) {
-		walk_state->parser_state.start_node = method_node;
+	if (method_yesde) {
+		walk_state->parser_state.start_yesde = method_yesde;
 		walk_state->walk_type = ACPI_WALK_METHOD;
-		walk_state->method_node = method_node;
+		walk_state->method_yesde = method_yesde;
 		walk_state->method_desc =
-		    acpi_ns_get_attached_object(method_node);
+		    acpi_ns_get_attached_object(method_yesde);
 
 		/* Push start scope on scope stack and make it current  */
 
 		status =
-		    acpi_ds_scope_stack_push(method_node, ACPI_TYPE_METHOD,
+		    acpi_ds_scope_stack_push(method_yesde, ACPI_TYPE_METHOD,
 					     walk_state);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
@@ -622,28 +622,28 @@ acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 	} else {
 		/*
 		 * Setup the current scope.
-		 * Find a Named Op that has a namespace node associated with it.
+		 * Find a Named Op that has a namespace yesde associated with it.
 		 * search upwards from this Op. Current scope is the first
-		 * Op with a namespace node.
+		 * Op with a namespace yesde.
 		 */
 		extra_op = parser_state->start_op;
-		while (extra_op && !extra_op->common.node) {
+		while (extra_op && !extra_op->common.yesde) {
 			extra_op = extra_op->common.parent;
 		}
 
 		if (!extra_op) {
-			parser_state->start_node = NULL;
+			parser_state->start_yesde = NULL;
 		} else {
-			parser_state->start_node = extra_op->common.node;
+			parser_state->start_yesde = extra_op->common.yesde;
 		}
 
-		if (parser_state->start_node) {
+		if (parser_state->start_yesde) {
 
 			/* Push start scope on scope stack and make it current  */
 
 			status =
-			    acpi_ds_scope_stack_push(parser_state->start_node,
-						     parser_state->start_node->
+			    acpi_ds_scope_stack_push(parser_state->start_yesde,
+						     parser_state->start_yesde->
 						     type, walk_state);
 			if (ACPI_FAILURE(status)) {
 				return_ACPI_STATUS(status);
@@ -678,12 +678,12 @@ void acpi_ds_delete_walk_state(struct acpi_walk_state *walk_state)
 	}
 
 	if (walk_state->descriptor_type != ACPI_DESC_TYPE_WALK) {
-		ACPI_ERROR((AE_INFO, "%p is not a valid walk state",
+		ACPI_ERROR((AE_INFO, "%p is yest a valid walk state",
 			    walk_state));
 		return_VOID;
 	}
 
-	/* There should not be any open scopes */
+	/* There should yest be any open scopes */
 
 	if (walk_state->parser_state.scope) {
 		ACPI_ERROR((AE_INFO, "%p walk still has a scope list",

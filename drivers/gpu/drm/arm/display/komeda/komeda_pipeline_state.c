@@ -144,8 +144,8 @@ komeda_component_get_old_state(struct komeda_component *c,
  *
  * So when set a user to komeda_component, need first to check the status of
  * component->pipeline to see if the pipeline is available on this specific
- * CRTC. if the pipeline is busy (assigned to another CRTC), even the required
- * component is free, the component still cannot be assigned to the direct user.
+ * CRTC. if the pipeline is busy (assigned to ayesther CRTC), even the required
+ * component is free, the component still canyest be assigned to the direct user.
  */
 static struct komeda_component_state *
 komeda_component_get_state_and_set_user(struct komeda_component *c,
@@ -191,7 +191,7 @@ komeda_component_add_input(struct komeda_component_state *state,
 
 	/* since the inputs[i] is only valid when it is active. So if a input[i]
 	 * is a newly enabled input which switches from disable to enable, then
-	 * the old inputs[i] is undefined (NOT zeroed), we can not rely on
+	 * the old inputs[i] is undefined (NOT zeroed), we can yest rely on
 	 * memcmp, but directly mark it changed
 	 */
 	if (!has_bit(idx, state->affected_inputs) ||
@@ -465,7 +465,7 @@ komeda_scaler_check_cfg(struct komeda_scaler *scaler,
 	}
 
 	/* If input comes from compiz that means the scaling is for writeback
-	 * and scaler can not do upscaling for writeback
+	 * and scaler can yest do upscaling for writeback
 	 */
 	if (has_bit(dflow->input.component->id, KOMEDA_PIPELINE_COMPIZS))
 		max_upscaling = 1;
@@ -906,7 +906,7 @@ int komeda_build_layer_data_flow(struct komeda_layer *layer,
 
 /*
  * Split is introduced for workaround scaler's input/output size limitation.
- * The idea is simple, if one scaler can not fit the requirement, use two.
+ * The idea is simple, if one scaler can yest fit the requirement, use two.
  * So split splits the big source image to two half parts (left/right) and do
  * the scaling by two scaler separately and independently.
  * But split also imports an edge problem in the middle of the image when
@@ -917,7 +917,7 @@ int komeda_build_layer_data_flow(struct komeda_layer *layer,
  * The extra overlap do eliminate the edge problem, but which may also generates
  * unnecessary pixels when scaling, we need to crop them before scaler output
  * the result to the next stage. and for the how to crop, it depends on the
- * unneeded pixels, another words the position where overlay has been added.
+ * unneeded pixels, ayesther words the position where overlay has been added.
  * - left: crop the right
  * - right: crop the left
  *
@@ -969,7 +969,7 @@ static void komeda_split_data_flow(struct komeda_scaler *scaler,
 
 	/* split the origin content */
 	/* left/right here always means the left/right part of display image,
-	 * not the source Image
+	 * yest the source Image
 	 */
 	/* DRM rotation is anti-clockwise */
 	if (r90) {
@@ -981,16 +981,16 @@ static void komeda_split_data_flow(struct komeda_scaler *scaler,
 			l_dflow->in_h = ALIGN(dflow->in_h, 2) / 2 + l_dflow->overlap;
 			r_dflow->in_h = dflow->in_h / 2 + r_dflow->overlap;
 		} else {
-			/* split without scaler, no overlap */
+			/* split without scaler, yes overlap */
 			l_dflow->in_h = ALIGN(((dflow->in_h + 1) >> 1), 2);
 			r_dflow->in_h = dflow->in_h - l_dflow->in_h;
 		}
 
 		/* Consider YUV format, after split, the split source w/h
-		 * may not aligned to 2. we have two choices for such case.
+		 * may yest aligned to 2. we have two choices for such case.
 		 * 1. scaler is enabled (overlap != 0), we can do a alignment
 		 *    both left/right and crop the extra data by scaler.
-		 * 2. scaler is not enabled, only align the split left
+		 * 2. scaler is yest enabled, only align the split left
 		 *    src/disp, and the rest part assign to right
 		 */
 		if ((overlap != 0) && dflow->is_yuv) {
@@ -1061,7 +1061,7 @@ static void komeda_split_data_flow(struct komeda_scaler *scaler,
 /* For layer split, a plane state will be split to two data flows and handled
  * by two separated komeda layer input pipelines. komeda supports two types of
  * layer split:
- * - none-scaling split:
+ * - yesne-scaling split:
  *             / layer-left -> \
  * plane_state                  compiz-> ...
  *             \ layer-right-> /
@@ -1071,7 +1071,7 @@ static void komeda_split_data_flow(struct komeda_scaler *scaler,
  * plane_state                          merger -> compiz-> ...
  *             \ layer-right-> scaler->/
  *
- * Since merger only supports scaler as input, so for none-scaling split, two
+ * Since merger only supports scaler as input, so for yesne-scaling split, two
  * layer data flows will be output to compiz directly. for scaling_split, two
  * data flow will be merged by merger firstly, then merger outputs one merged
  * data flow to compiz.
@@ -1108,7 +1108,7 @@ int komeda_build_layer_split_data_flow(struct komeda_layer *left,
 	komeda_rotate_data_flow(dflow, dflow->rot);
 
 	/* left and right dflow has been merged to compiz already,
-	 * no need merger to merge them anymore.
+	 * yes need merger to merge them anymore.
 	 */
 	if (r_dflow.input.component == l_dflow.input.component)
 		return 0;
@@ -1247,7 +1247,7 @@ int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
 	struct drm_atomic_state *drm_st = kcrtc_st->base.state;
 	struct komeda_pipeline_state *st;
 
-	/* ignore the pipeline which is not affected */
+	/* igyesre the pipeline which is yest affected */
 	if (!pipe || !has_bit(pipe->id, kcrtc_st->affected_pipes))
 		return 0;
 
@@ -1271,7 +1271,7 @@ int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
  * Phase 2: disable the standalone disabled components, flush it.
  *
  * RETURNS:
- * true: disable is not complete, needs a phase 2 disable.
+ * true: disable is yest complete, needs a phase 2 disable.
  * false: disable is complete.
  */
 bool komeda_pipeline_disable(struct komeda_pipeline *pipe,

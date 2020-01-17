@@ -74,8 +74,8 @@ DEFINE_SIMPLE_ATTRIBUTE(sti_drm_fps_fops,
 
 static int sti_drm_fps_dbg_show(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = s->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct drm_plane *p;
 
 	list_for_each_entry(p, &dev->mode_config.plane_list, head) {
@@ -93,23 +93,23 @@ static struct drm_info_list sti_drm_dbg_list[] = {
 	{"fps_get", sti_drm_fps_dbg_show, 0},
 };
 
-static int sti_drm_dbg_init(struct drm_minor *minor)
+static int sti_drm_dbg_init(struct drm_miyesr *miyesr)
 {
 	int ret;
 
 	ret = drm_debugfs_create_files(sti_drm_dbg_list,
 				       ARRAY_SIZE(sti_drm_dbg_list),
-				       minor->debugfs_root, minor);
+				       miyesr->debugfs_root, miyesr);
 	if (ret)
 		goto err;
 
-	debugfs_create_file("fps_show", S_IRUGO | S_IWUSR, minor->debugfs_root,
-			    minor->dev, &sti_drm_fps_fops);
+	debugfs_create_file("fps_show", S_IRUGO | S_IWUSR, miyesr->debugfs_root,
+			    miyesr->dev, &sti_drm_fps_fops);
 
 	DRM_INFO("%s: debugfs installed\n", DRIVER_NAME);
 	return 0;
 err:
-	DRM_ERROR("%s: cannot install debugfs\n", DRIVER_NAME);
+	DRM_ERROR("%s: canyest install debugfs\n", DRIVER_NAME);
 	return ret;
 }
 
@@ -134,7 +134,7 @@ static void sti_mode_config_init(struct drm_device *dev)
 
 	dev->mode_config.funcs = &sti_mode_config_funcs;
 
-	dev->mode_config.normalize_zpos = true;
+	dev->mode_config.yesrmalize_zpos = true;
 }
 
 DEFINE_DRM_GEM_CMA_FOPS(sti_driver_fops);
@@ -163,12 +163,12 @@ static struct drm_driver sti_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.miyesr = DRIVER_MINOR,
 };
 
 static int compare_of(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->of_yesde == data;
 }
 
 static int sti_init(struct drm_device *ddev)
@@ -255,20 +255,20 @@ static const struct component_master_ops sti_ops = {
 static int sti_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *child_np;
+	struct device_yesde *yesde = dev->of_yesde;
+	struct device_yesde *child_np;
 	struct component_match *match = NULL;
 
 	dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 
 	devm_of_platform_populate(dev);
 
-	child_np = of_get_next_available_child(node, NULL);
+	child_np = of_get_next_available_child(yesde, NULL);
 
 	while (child_np) {
 		drm_of_component_match_add(dev, &match, compare_of,
 					   child_np);
-		child_np = of_get_next_available_child(node, child_np);
+		child_np = of_get_next_available_child(yesde, child_np);
 	}
 
 	return component_master_add_with_match(dev, &sti_ops, match);
@@ -283,7 +283,7 @@ static int sti_platform_remove(struct platform_device *pdev)
 
 static const struct of_device_id sti_dt_ids[] = {
 	{ .compatible = "st,sti-display-subsystem", },
-	{ /* end node */ },
+	{ /* end yesde */ },
 };
 MODULE_DEVICE_TABLE(of, sti_dt_ids);
 

@@ -25,7 +25,7 @@
 #include <video/omapfb_dss.h>
 #include <video/mipi_display.h>
 
-/* DSI Virtual channel. Hardcoded for now. */
+/* DSI Virtual channel. Hardcoded for yesw. */
 #define TCH 0
 
 #define DCS_READ_NUM_ERRORS	0x05
@@ -143,7 +143,7 @@ static int dsicm_sleep_in(struct panel_drv_data *ddata)
 	hw_guard_wait(ddata);
 
 	cmd = MIPI_DCS_ENTER_SLEEP_MODE;
-	r = in->ops.dsi->dcs_write_nosync(in, ddata->channel, &cmd, 1);
+	r = in->ops.dsi->dcs_write_yessync(in, ddata->channel, &cmd, 1);
 	if (r)
 		return r;
 
@@ -205,7 +205,7 @@ static int dsicm_set_update_window(struct panel_drv_data *ddata,
 	buf[3] = (x2 >> 8) & 0xff;
 	buf[4] = (x2 >> 0) & 0xff;
 
-	r = in->ops.dsi->dcs_write_nosync(in, ddata->channel, buf, sizeof(buf));
+	r = in->ops.dsi->dcs_write_yessync(in, ddata->channel, buf, sizeof(buf));
 	if (r)
 		return r;
 
@@ -215,7 +215,7 @@ static int dsicm_set_update_window(struct panel_drv_data *ddata,
 	buf[3] = (y2 >> 8) & 0xff;
 	buf[4] = (y2 >> 0) & 0xff;
 
-	r = in->ops.dsi->dcs_write_nosync(in, ddata->channel, buf, sizeof(buf));
+	r = in->ops.dsi->dcs_write_yessync(in, ddata->channel, buf, sizeof(buf));
 	if (r)
 		return r;
 
@@ -852,7 +852,7 @@ static void dsicm_te_timeout_work_callback(struct work_struct *work)
 					te_timeout_work.work);
 	struct omap_dss_device *in = ddata->in;
 
-	dev_err(&ddata->pdev->dev, "TE not received for 250ms!\n");
+	dev_err(&ddata->pdev->dev, "TE yest received for 250ms!\n");
 
 	atomic_set(&ddata->do_update, 0);
 	in->ops.dsi->bus_unlock(in);
@@ -879,7 +879,7 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 		goto err;
 	}
 
-	/* XXX no need to send this every frame, but dsi break if not done */
+	/* XXX yes need to send this every frame, but dsi break if yest done */
 	r = dsicm_set_update_window(ddata, 0, 0,
 			dssdev->panel.timings.x_res,
 			dssdev->panel.timings.y_res);
@@ -897,7 +897,7 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 			goto err;
 	}
 
-	/* note: no bus_unlock here. unlock is in framedone_cb */
+	/* yeste: yes bus_unlock here. unlock is in framedone_cb */
 	mutex_unlock(&ddata->lock);
 	return 0;
 err:
@@ -1117,19 +1117,19 @@ static struct omap_dss_driver dsicm_ops = {
 
 static int dsicm_probe_of(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *in;
 	int gpio;
 
-	gpio = of_get_named_gpio(node, "reset-gpios", 0);
+	gpio = of_get_named_gpio(yesde, "reset-gpios", 0);
 	if (!gpio_is_valid(gpio)) {
 		dev_err(&pdev->dev, "failed to parse reset gpio\n");
 		return gpio;
 	}
 	ddata->reset_gpio = gpio;
 
-	gpio = of_get_named_gpio(node, "te-gpios", 0);
+	gpio = of_get_named_gpio(yesde, "te-gpios", 0);
 	if (gpio_is_valid(gpio) || gpio == -ENOENT) {
 		ddata->ext_te_gpio = gpio;
 	} else {
@@ -1137,7 +1137,7 @@ static int dsicm_probe_of(struct platform_device *pdev)
 		return gpio;
 	}
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(yesde);
 	if (IS_ERR(in)) {
 		dev_err(&pdev->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -1161,7 +1161,7 @@ static int dsicm_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "probe\n");
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);

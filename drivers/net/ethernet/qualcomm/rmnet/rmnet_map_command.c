@@ -32,8 +32,8 @@ static u8 rmnet_map_do_flow_control(struct sk_buff *skb,
 
 	vnd = ep->egress_dev;
 
-	/* Ignore the ip family and pass the sequence number for both v4 and v6
-	 * sequence. User space does not support creating dedicated flows for
+	/* Igyesre the ip family and pass the sequence number for both v4 and v6
+	 * sequence. User space does yest support creating dedicated flows for
 	 * the 2 protocols
 	 */
 	r = rmnet_vnd_do_flow_control(vnd, enable);

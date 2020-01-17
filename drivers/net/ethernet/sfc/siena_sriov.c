@@ -46,8 +46,8 @@ enum efx_vf_tx_filter_mode {
  *	inside a work item.
  * @req_addr: VFDI incoming request DMA address (in VF's PCI address space).
  * @req_type: Expected next incoming (from VF) %VFDI_EV_TYPE member.
- * @req_seqno: Expected next incoming (from VF) %VFDI_EV_SEQ member.
- * @msg_seqno: Next %VFDI_EV_SEQ member to reply to VF. Protected by
+ * @req_seqyes: Expected next incoming (from VF) %VFDI_EV_SEQ member.
+ * @msg_seqyes: Next %VFDI_EV_SEQ member to reply to VF. Protected by
  *	@status_lock
  * @busy: VFDI request queued to be processed or being processed. Receiving
  *	a VFDI request when @busy is set is an error condition.
@@ -61,7 +61,7 @@ enum efx_vf_tx_filter_mode {
  * @tx_filter_id: Transmit MAC filter ID.
  * @addr: The MAC address and outer vlan tag of the VF.
  * @status_addr: VF DMA address of page for &struct vfdi_status updates.
- * @status_lock: Mutex protecting @msg_seqno, @status_addr, @addr,
+ * @status_lock: Mutex protecting @msg_seqyes, @status_addr, @addr,
  *	@peer_page_addrs and @peer_page_count from simultaneous
  *	updates by the VM and consumption by
  *	efx_siena_sriov_update_vf_addr()
@@ -89,8 +89,8 @@ struct siena_vf {
 	struct work_struct req;
 	u64 req_addr;
 	int req_type;
-	unsigned req_seqno;
-	unsigned msg_seqno;
+	unsigned req_seqyes;
+	unsigned msg_seqyes;
 	bool busy;
 	struct efx_buffer buf;
 	unsigned buftbl_base;
@@ -131,7 +131,7 @@ struct efx_memcpy_req {
 /**
  * struct efx_local_addr - A MAC address on the vswitch without a VF.
  *
- * Siena does not have a switch, so VFs can't transmit data to each
+ * Siena does yest have a switch, so VFs can't transmit data to each
  * other. Instead the VFs must be made aware of the local addresses
  * on the vswitch, so that they can arrange for an alternative
  * software datapath to be used.
@@ -315,7 +315,7 @@ static void efx_siena_sriov_reset_tx_filter(struct siena_vf *vf)
 	if (is_zero_ether_addr(vf->addr.mac_addr))
 		return;
 
-	/* Turn on TX filtering automatically if not explicitly
+	/* Turn on TX filtering automatically if yest explicitly
 	 * enabled or disabled.
 	 */
 	if (vf->tx_filter_mode == VF_TX_FILTER_AUTO && vf_max_tx_channels <= 2)
@@ -420,7 +420,7 @@ static void __efx_siena_sriov_push_vf_status(struct siena_vf *vf)
 						     generation_start);
 	copy[0].length = sizeof(status->generation_start);
 	/* DMA the rest of the structure (excluding the generations). This
-	 * assumes that the non-generation portion of vfdi_status is in
+	 * assumes that the yesn-generation portion of vfdi_status is in
 	 * one chunk starting at the version member.
 	 */
 	data_offset = offsetof(struct vfdi_status, version);
@@ -435,7 +435,7 @@ static void __efx_siena_sriov_push_vf_status(struct siena_vf *vf)
 	count = 0;
 	list_for_each_entry(epp, &nic_data->local_page_list, link) {
 		if (count == vf->peer_page_count) {
-			/* The VF driver will know they need to provide more
+			/* The VF driver will kyesw they need to provide more
 			 * pages because peer_addr_count is too large.
 			 */
 			break;
@@ -465,9 +465,9 @@ static void __efx_siena_sriov_push_vf_status(struct siena_vf *vf)
 	/* Notify the guest */
 	EFX_POPULATE_QWORD_3(event,
 			     FSF_AZ_EV_CODE, FSE_CZ_EV_CODE_USER_EV,
-			     VFDI_EV_SEQ, (vf->msg_seqno & 0xff),
+			     VFDI_EV_SEQ, (vf->msg_seqyes & 0xff),
 			     VFDI_EV_TYPE, VFDI_EV_TYPE_STATUS);
-	++vf->msg_seqno;
+	++vf->msg_seqyes;
 	efx_farch_generate_event(efx,
 				 EFX_VI_BASE + vf->index * efx_vf_size(efx),
 				 &event);
@@ -931,7 +931,7 @@ static void efx_siena_sriov_vfdi(struct work_struct *work)
 
 
 
-/* After a reset the event queues inside the guests no longer exist. Fill the
+/* After a reset the event queues inside the guests yes longer exist. Fill the
  * event ring in guest memory with VFDI reset events, then (re-initialise) the
  * event queue to raise an interrupt. The guest driver will then recover.
  */
@@ -956,9 +956,9 @@ static void efx_siena_sriov_reset_vf(struct siena_vf *vf,
 	mutex_lock(&vf->status_lock);
 	EFX_POPULATE_QWORD_3(event,
 			     FSF_AZ_EV_CODE, FSE_CZ_EV_CODE_USER_EV,
-			     VFDI_EV_SEQ, vf->msg_seqno,
+			     VFDI_EV_SEQ, vf->msg_seqyes,
 			     VFDI_EV_TYPE, VFDI_EV_TYPE_RESET);
-	vf->msg_seqno++;
+	vf->msg_seqyes++;
 	for (pos = 0; pos < EFX_PAGE_SIZE; pos += sizeof(event))
 		memcpy(buffer->addr + pos, &event, sizeof(event));
 
@@ -977,7 +977,7 @@ static void efx_siena_sriov_reset_vf(struct siena_vf *vf,
 		if (rc) {
 			if (net_ratelimit())
 				netif_err(efx, hw, efx->net_dev,
-					  "ERROR: Unable to notify %s of reset"
+					  "ERROR: Unable to yestify %s of reset"
 					  ": %d\n", vf->pci_name, -rc);
 			break;
 		}
@@ -1016,7 +1016,7 @@ static void efx_siena_sriov_reset_vf_work(struct work_struct *work)
 	}
 }
 
-static void efx_siena_sriov_handle_no_channel(struct efx_nic *efx)
+static void efx_siena_sriov_handle_yes_channel(struct efx_nic *efx)
 {
 	netif_err(efx, drv, efx->net_dev,
 		  "ERROR: IOV requires MSI-X and 1 additional interrupt"
@@ -1040,11 +1040,11 @@ efx_siena_sriov_get_channel_name(struct efx_channel *channel,
 }
 
 static const struct efx_channel_type efx_siena_sriov_channel_type = {
-	.handle_no_channel	= efx_siena_sriov_handle_no_channel,
+	.handle_yes_channel	= efx_siena_sriov_handle_yes_channel,
 	.pre_probe		= efx_siena_sriov_probe_channel,
 	.post_remove		= efx_channel_dummy_op_void,
 	.get_name		= efx_siena_sriov_get_channel_name,
-	/* no copy operation; channel must not be reallocated */
+	/* yes copy operation; channel must yest be reallocated */
 	.keep_eventq		= true,
 };
 
@@ -1056,7 +1056,7 @@ void efx_siena_sriov_probe(struct efx_nic *efx)
 		return;
 
 	if (efx_siena_sriov_cmd(efx, false, &efx->vi_scale, &count)) {
-		netif_info(efx, probe, efx->net_dev, "no SR-IOV VFs probed\n");
+		netif_info(efx, probe, efx->net_dev, "yes SR-IOV VFs probed\n");
 		return;
 	}
 	if (count > 0 && count > max_vfs)
@@ -1145,7 +1145,7 @@ static void efx_siena_sriov_peer_work(struct work_struct *data)
 	vfdi_status->peer_count = peer_count;
 	mutex_unlock(&nic_data->local_lock);
 
-	/* Free any now unused endpoint pages */
+	/* Free any yesw unused endpoint pages */
 	while (!list_empty(&pages)) {
 		epp = list_first_entry(
 			&pages, struct efx_endpoint_page, link);
@@ -1424,9 +1424,9 @@ void efx_siena_sriov_event(struct efx_channel *channel, efx_qword_t *event)
 	if (type == VFDI_EV_TYPE_REQ_WORD0) {
 		/* Resynchronise */
 		vf->req_type = VFDI_EV_TYPE_REQ_WORD0;
-		vf->req_seqno = seq + 1;
+		vf->req_seqyes = seq + 1;
 		vf->req_addr = 0;
-	} else if (seq != (vf->req_seqno++ & 0xff) || type != vf->req_type)
+	} else if (seq != (vf->req_seqyes++ & 0xff) || type != vf->req_type)
 		goto error;
 
 	switch (vf->req_type) {
@@ -1452,7 +1452,7 @@ error:
 			  vf->pci_name);
 	/* Reset the request and sequence number */
 	vf->req_type = VFDI_EV_TYPE_REQ_WORD0;
-	vf->req_seqno = seq + 1;
+	vf->req_seqyes = seq + 1;
 }
 
 void efx_siena_sriov_flr(struct efx_nic *efx, unsigned vf_i)
@@ -1495,7 +1495,7 @@ void efx_siena_sriov_tx_flush_done(struct efx_nic *efx, efx_qword_t *event)
 	queue = EFX_QWORD_FIELD(*event,  FSF_AZ_DRIVER_EV_SUBDATA);
 	if (map_vi_index(efx, queue, &vf, &qid))
 		return;
-	/* Ignore flush completions triggered by an FLR */
+	/* Igyesre flush completions triggered by an FLR */
 	if (!test_bit(qid, vf->txq_mask))
 		return;
 
@@ -1644,7 +1644,7 @@ int efx_siena_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf_i,
 			spoofchk ? VF_TX_FILTER_ON : VF_TX_FILTER_OFF;
 		rc = 0;
 	} else {
-		/* This cannot be changed while TX queues are running */
+		/* This canyest be changed while TX queues are running */
 		rc = -EBUSY;
 	}
 	mutex_unlock(&vf->txq_lock);

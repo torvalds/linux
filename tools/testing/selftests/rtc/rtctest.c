@@ -5,7 +5,7 @@
  * Copyright (c) 2018 Alexandre Belloni <alexandre.belloni@bootlin.com>
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <linux/rtc.h>
 #include <stdio.h>
@@ -56,8 +56,8 @@ TEST_F_TIMEOUT(rtc, uie_read, NUM_UIE + 2) {
 	/* Turn on update interrupts */
 	rc = ioctl(self->fd, RTC_UIE_ON, 0);
 	if (rc == -1) {
-		ASSERT_EQ(EINVAL, errno);
-		TH_LOG("skip update IRQs not supported.");
+		ASSERT_EQ(EINVAL, erryes);
+		TH_LOG("skip update IRQs yest supported.");
 		return;
 	}
 
@@ -81,8 +81,8 @@ TEST_F(rtc, uie_select) {
 	/* Turn on update interrupts */
 	rc = ioctl(self->fd, RTC_UIE_ON, 0);
 	if (rc == -1) {
-		ASSERT_EQ(EINVAL, errno);
-		TH_LOG("skip update IRQs not supported.");
+		ASSERT_EQ(EINVAL, erryes);
+		TH_LOG("skip update IRQs yest supported.");
 		return;
 	}
 
@@ -125,15 +125,15 @@ TEST_F(rtc, alarm_alm_set) {
 
 	rc = ioctl(self->fd, RTC_ALM_SET, &tm);
 	if (rc == -1) {
-		ASSERT_EQ(EINVAL, errno);
-		TH_LOG("skip alarms are not supported.");
+		ASSERT_EQ(EINVAL, erryes);
+		TH_LOG("skip alarms are yest supported.");
 		return;
 	}
 
 	rc = ioctl(self->fd, RTC_ALM_READ, &tm);
 	ASSERT_NE(-1, rc);
 
-	TH_LOG("Alarm time now set to %02d:%02d:%02d.",
+	TH_LOG("Alarm time yesw set to %02d:%02d:%02d.",
 	       tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	/* Enable alarm interrupts */
@@ -181,15 +181,15 @@ TEST_F(rtc, alarm_wkalm_set) {
 
 	rc = ioctl(self->fd, RTC_WKALM_SET, &alarm);
 	if (rc == -1) {
-		ASSERT_EQ(EINVAL, errno);
-		TH_LOG("skip alarms are not supported.");
+		ASSERT_EQ(EINVAL, erryes);
+		TH_LOG("skip alarms are yest supported.");
 		return;
 	}
 
 	rc = ioctl(self->fd, RTC_WKALM_RD, &alarm);
 	ASSERT_NE(-1, rc);
 
-	TH_LOG("Alarm time now set to %02d/%02d/%02d %02d:%02d:%02d.",
+	TH_LOG("Alarm time yesw set to %02d/%02d/%02d %02d:%02d:%02d.",
 	       alarm.time.tm_mday, alarm.time.tm_mon + 1,
 	       alarm.time.tm_year + 1900, alarm.time.tm_hour,
 	       alarm.time.tm_min, alarm.time.tm_sec);
@@ -227,15 +227,15 @@ TEST_F_TIMEOUT(rtc, alarm_alm_set_minute, 65) {
 
 	rc = ioctl(self->fd, RTC_ALM_SET, &tm);
 	if (rc == -1) {
-		ASSERT_EQ(EINVAL, errno);
-		TH_LOG("skip alarms are not supported.");
+		ASSERT_EQ(EINVAL, erryes);
+		TH_LOG("skip alarms are yest supported.");
 		return;
 	}
 
 	rc = ioctl(self->fd, RTC_ALM_READ, &tm);
 	ASSERT_NE(-1, rc);
 
-	TH_LOG("Alarm time now set to %02d:%02d:%02d.",
+	TH_LOG("Alarm time yesw set to %02d:%02d:%02d.",
 	       tm.tm_hour, tm.tm_min, tm.tm_sec);
 
 	/* Enable alarm interrupts */
@@ -283,15 +283,15 @@ TEST_F_TIMEOUT(rtc, alarm_wkalm_set_minute, 65) {
 
 	rc = ioctl(self->fd, RTC_WKALM_SET, &alarm);
 	if (rc == -1) {
-		ASSERT_EQ(EINVAL, errno);
-		TH_LOG("skip alarms are not supported.");
+		ASSERT_EQ(EINVAL, erryes);
+		TH_LOG("skip alarms are yest supported.");
 		return;
 	}
 
 	rc = ioctl(self->fd, RTC_WKALM_RD, &alarm);
 	ASSERT_NE(-1, rc);
 
-	TH_LOG("Alarm time now set to %02d/%02d/%02d %02d:%02d:%02d.",
+	TH_LOG("Alarm time yesw set to %02d/%02d/%02d %02d:%02d:%02d.",
 	       alarm.time.tm_mday, alarm.time.tm_mon + 1,
 	       alarm.time.tm_year + 1900, alarm.time.tm_hour,
 	       alarm.time.tm_min, alarm.time.tm_sec);

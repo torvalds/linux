@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* exynos_drm_fimd.c
+/* exyyess_drm_fimd.c
  *
  * Copyright (C) 2011 Samsung Electronics Co.Ltd
  * Authors:
@@ -23,12 +23,12 @@
 
 #include <drm/drm_fourcc.h>
 #include <drm/drm_vblank.h>
-#include <drm/exynos_drm.h>
+#include <drm/exyyess_drm.h>
 
-#include "exynos_drm_crtc.h"
-#include "exynos_drm_drv.h"
-#include "exynos_drm_fb.h"
-#include "exynos_drm_plane.h"
+#include "exyyess_drm_crtc.h"
+#include "exyyess_drm_drv.h"
+#include "exyyess_drm_fb.h"
+#include "exyyess_drm_plane.h"
 
 /*
  * FIMD stands for Fully Interactive Mobile Display and
@@ -67,13 +67,13 @@
 #define TRIGCON				0x1A4
 #define TRGMODE_ENABLE			(1 << 0)
 #define SWTRGCMD_ENABLE			(1 << 1)
-/* Exynos3250, 3472, 5260 5410, 5420 and 5422 only supported. */
+/* Exyyess3250, 3472, 5260 5410, 5420 and 5422 only supported. */
 #define HWTRGEN_ENABLE			(1 << 3)
 #define HWTRGMASK_ENABLE		(1 << 4)
-/* Exynos3250, 3472, 5260, 5420 and 5422 only supported. */
+/* Exyyess3250, 3472, 5260, 5420 and 5422 only supported. */
 #define HWTRIGEN_PER_ENABLE		(1 << 31)
 
-/* display mode change control register except exynos4 */
+/* display mode change control register except exyyess4 */
 #define VIDOUT_CON			0x000
 #define VIDOUT_CON_F_I80_LDI0		(0x2 << 8)
 
@@ -123,7 +123,7 @@ static struct fimd_driver_data s5pv210_fimd_driver_data = {
 	.has_clksel = 1,
 };
 
-static struct fimd_driver_data exynos3_fimd_driver_data = {
+static struct fimd_driver_data exyyess3_fimd_driver_data = {
 	.timing_base = 0x20000,
 	.lcdblk_offset = 0x210,
 	.lcdblk_bypass_shift = 1,
@@ -131,7 +131,7 @@ static struct fimd_driver_data exynos3_fimd_driver_data = {
 	.has_vidoutcon = 1,
 };
 
-static struct fimd_driver_data exynos4_fimd_driver_data = {
+static struct fimd_driver_data exyyess4_fimd_driver_data = {
 	.timing_base = 0x0,
 	.lcdblk_offset = 0x210,
 	.lcdblk_vt_shift = 10,
@@ -140,7 +140,7 @@ static struct fimd_driver_data exynos4_fimd_driver_data = {
 	.has_vtsel = 1,
 };
 
-static struct fimd_driver_data exynos5_fimd_driver_data = {
+static struct fimd_driver_data exyyess5_fimd_driver_data = {
 	.timing_base = 0x20000,
 	.lcdblk_offset = 0x214,
 	.lcdblk_vt_shift = 24,
@@ -151,7 +151,7 @@ static struct fimd_driver_data exynos5_fimd_driver_data = {
 	.has_dp_clk = 1,
 };
 
-static struct fimd_driver_data exynos5420_fimd_driver_data = {
+static struct fimd_driver_data exyyess5420_fimd_driver_data = {
 	.timing_base = 0x20000,
 	.lcdblk_offset = 0x214,
 	.lcdblk_vt_shift = 24,
@@ -167,9 +167,9 @@ static struct fimd_driver_data exynos5420_fimd_driver_data = {
 struct fimd_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
-	struct exynos_drm_crtc		*crtc;
-	struct exynos_drm_plane		planes[WINDOWS_NR];
-	struct exynos_drm_plane_config	configs[WINDOWS_NR];
+	struct exyyess_drm_crtc		*crtc;
+	struct exyyess_drm_plane		planes[WINDOWS_NR];
+	struct exyyess_drm_plane_config	configs[WINDOWS_NR];
 	struct clk			*bus_clk;
 	struct clk			*lcd_clk;
 	void __iomem			*regs;
@@ -189,7 +189,7 @@ struct fimd_context {
 
 	const struct fimd_driver_data *driver_data;
 	struct drm_encoder *encoder;
-	struct exynos_drm_clk		dp_clk;
+	struct exyyess_drm_clk		dp_clk;
 };
 
 static const struct of_device_id fimd_driver_dt_match[] = {
@@ -197,14 +197,14 @@ static const struct of_device_id fimd_driver_dt_match[] = {
 	  .data = &s3c64xx_fimd_driver_data },
 	{ .compatible = "samsung,s5pv210-fimd",
 	  .data = &s5pv210_fimd_driver_data },
-	{ .compatible = "samsung,exynos3250-fimd",
-	  .data = &exynos3_fimd_driver_data },
-	{ .compatible = "samsung,exynos4210-fimd",
-	  .data = &exynos4_fimd_driver_data },
-	{ .compatible = "samsung,exynos5250-fimd",
-	  .data = &exynos5_fimd_driver_data },
-	{ .compatible = "samsung,exynos5420-fimd",
-	  .data = &exynos5420_fimd_driver_data },
+	{ .compatible = "samsung,exyyess3250-fimd",
+	  .data = &exyyess3_fimd_driver_data },
+	{ .compatible = "samsung,exyyess4210-fimd",
+	  .data = &exyyess4_fimd_driver_data },
+	{ .compatible = "samsung,exyyess5250-fimd",
+	  .data = &exyyess5_fimd_driver_data },
+	{ .compatible = "samsung,exyyess5420-fimd",
+	  .data = &exyyess5420_fimd_driver_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, fimd_driver_dt_match);
@@ -240,7 +240,7 @@ static inline void fimd_set_bits(struct fimd_context *ctx, u32 reg, u32 mask,
 	writel(val, ctx->regs + reg);
 }
 
-static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
+static int fimd_enable_vblank(struct exyyess_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	u32 val;
@@ -272,7 +272,7 @@ static int fimd_enable_vblank(struct exynos_drm_crtc *crtc)
 	return 0;
 }
 
-static void fimd_disable_vblank(struct exynos_drm_crtc *crtc)
+static void fimd_disable_vblank(struct exyyess_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	u32 val;
@@ -296,7 +296,7 @@ static void fimd_disable_vblank(struct exynos_drm_crtc *crtc)
 	}
 }
 
-static void fimd_wait_for_vblank(struct exynos_drm_crtc *crtc)
+static void fimd_wait_for_vblank(struct exyyess_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 
@@ -342,12 +342,12 @@ static void fimd_enable_shadow_channel_path(struct fimd_context *ctx,
 	writel(val, ctx->regs + SHADOWCON);
 }
 
-static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
+static void fimd_clear_channels(struct exyyess_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	unsigned int win, ch_enabled = 0;
 
-	/* Hardware is in unknown state, so ensure it gets enabled properly */
+	/* Hardware is in unkyeswn state, so ensure it gets enabled properly */
 	pm_runtime_get_sync(ctx->dev);
 
 	clk_prepare_enable(ctx->bus_clk);
@@ -386,7 +386,7 @@ static void fimd_clear_channels(struct exynos_drm_crtc *crtc)
 }
 
 
-static int fimd_atomic_check(struct exynos_drm_crtc *crtc,
+static int fimd_atomic_check(struct exyyess_drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
 	struct drm_display_mode *mode = &state->adjusted_mode;
@@ -450,7 +450,7 @@ static void fimd_setup_trigger(struct fimd_context *ctx)
 	writel(val, timing_base + TRIGCON);
 }
 
-static void fimd_commit(struct exynos_drm_crtc *crtc)
+static void fimd_commit(struct exyyess_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	struct drm_display_mode *mode = &crtc->base.state->adjusted_mode;
@@ -461,7 +461,7 @@ static void fimd_commit(struct exynos_drm_crtc *crtc)
 	if (ctx->suspended)
 		return;
 
-	/* nothing to do if we haven't set the mode yet */
+	/* yesthing to do if we haven't set the mode yet */
 	if (mode->htotal == 0 || mode->vtotal == 0)
 		return;
 
@@ -636,9 +636,9 @@ static void fimd_win_set_bldmod(struct fimd_context *ctx, unsigned int win,
 static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
 				struct drm_framebuffer *fb, int width)
 {
-	struct exynos_drm_plane plane = ctx->planes[win];
-	struct exynos_drm_plane_state *state =
-		to_exynos_plane_state(plane.base.state);
+	struct exyyess_drm_plane plane = ctx->planes[win];
+	struct exyyess_drm_plane_state *state =
+		to_exyyess_plane_state(plane.base.state);
 	uint32_t pixel_format = fb->format->format;
 	unsigned int alpha = state->base.alpha;
 	u32 val = WINCONx_ENWIN;
@@ -690,7 +690,7 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win,
 	/*
 	 * Setting dma-burst to 16Word causes permanent tearing for very small
 	 * buffers, e.g. cursor buffer. Burst Mode switching which based on
-	 * plane size is not recommended as plane size varies alot towards the
+	 * plane size is yest recommended as plane size varies alot towards the
 	 * end of the screen and rapid movement causes unstable DMA, but it is
 	 * still better to change dma-burst than displaying garbage.
 	 */
@@ -758,7 +758,7 @@ static void fimd_shadow_protect_win(struct fimd_context *ctx,
 	writel(val, ctx->regs + reg);
 }
 
-static void fimd_atomic_begin(struct exynos_drm_crtc *crtc)
+static void fimd_atomic_begin(struct exyyess_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	int i;
@@ -770,7 +770,7 @@ static void fimd_atomic_begin(struct exynos_drm_crtc *crtc)
 		fimd_shadow_protect_win(ctx, i, true);
 }
 
-static void fimd_atomic_flush(struct exynos_drm_crtc *crtc)
+static void fimd_atomic_flush(struct exyyess_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	int i;
@@ -781,14 +781,14 @@ static void fimd_atomic_flush(struct exynos_drm_crtc *crtc)
 	for (i = 0; i < WINDOWS_NR; i++)
 		fimd_shadow_protect_win(ctx, i, false);
 
-	exynos_crtc_handle_event(crtc);
+	exyyess_crtc_handle_event(crtc);
 }
 
-static void fimd_update_plane(struct exynos_drm_crtc *crtc,
-			      struct exynos_drm_plane *plane)
+static void fimd_update_plane(struct exyyess_drm_crtc *crtc,
+			      struct exyyess_drm_plane *plane)
 {
-	struct exynos_drm_plane_state *state =
-				to_exynos_plane_state(plane->base.state);
+	struct exyyess_drm_plane_state *state =
+				to_exyyess_plane_state(plane->base.state);
 	struct fimd_context *ctx = crtc->ctx;
 	struct drm_framebuffer *fb = state->base.fb;
 	dma_addr_t dma_addr;
@@ -805,7 +805,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	offset += state->src.y * pitch;
 
 	/* buffer start address */
-	dma_addr = exynos_drm_fb_dma_addr(fb, 0) + offset;
+	dma_addr = exyyess_drm_fb_dma_addr(fb, 0) + offset;
 	val = (unsigned long)dma_addr;
 	writel(val, ctx->regs + VIDWx_BUF_START(win, 0));
 
@@ -879,8 +879,8 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 		atomic_set(&ctx->win_updated, 1);
 }
 
-static void fimd_disable_plane(struct exynos_drm_crtc *crtc,
-			       struct exynos_drm_plane *plane)
+static void fimd_disable_plane(struct exyyess_drm_crtc *crtc,
+			       struct exyyess_drm_plane *plane)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	unsigned int win = plane->index;
@@ -894,7 +894,7 @@ static void fimd_disable_plane(struct exynos_drm_crtc *crtc,
 		fimd_enable_shadow_channel_path(ctx, win, false);
 }
 
-static void fimd_enable(struct exynos_drm_crtc *crtc)
+static void fimd_enable(struct exyyess_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 
@@ -912,7 +912,7 @@ static void fimd_enable(struct exynos_drm_crtc *crtc)
 	fimd_commit(ctx->crtc);
 }
 
-static void fimd_disable(struct exynos_drm_crtc *crtc)
+static void fimd_disable(struct exyyess_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	int i;
@@ -960,14 +960,14 @@ static void fimd_trigger(struct device *dev)
 	writel(reg, timing_base + TRIGCON);
 
 	/*
-	 * Exits triggering mode if vblank is not enabled yet, because when the
-	 * VIDINTCON0 register is not set, it can not exit from triggering mode.
+	 * Exits triggering mode if vblank is yest enabled yet, because when the
+	 * VIDINTCON0 register is yest set, it can yest exit from triggering mode.
 	 */
 	if (!test_bit(0, &ctx->irq_flags))
 		atomic_set(&ctx->triggering, 0);
 }
 
-static void fimd_te_handler(struct exynos_drm_crtc *crtc)
+static void fimd_te_handler(struct exyyess_drm_crtc *crtc)
 {
 	struct fimd_context *ctx = crtc->ctx;
 	u32 trg_type = ctx->driver_data->trg_type;
@@ -997,7 +997,7 @@ out:
 		drm_crtc_handle_vblank(&ctx->crtc->base);
 }
 
-static void fimd_dp_clock_enable(struct exynos_drm_clk *clk, bool enable)
+static void fimd_dp_clock_enable(struct exyyess_drm_clk *clk, bool enable)
 {
 	struct fimd_context *ctx = container_of(clk, struct fimd_context,
 						dp_clk);
@@ -1005,7 +1005,7 @@ static void fimd_dp_clock_enable(struct exynos_drm_clk *clk, bool enable)
 	writel(val, ctx->regs + DP_MIE_CLKCON);
 }
 
-static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
+static const struct exyyess_drm_crtc_ops fimd_crtc_ops = {
 	.enable = fimd_enable,
 	.disable = fimd_disable,
 	.enable_vblank = fimd_enable_vblank,
@@ -1055,7 +1055,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_plane *exynos_plane;
+	struct exyyess_drm_plane *exyyess_plane;
 	unsigned int i;
 	int ret;
 
@@ -1067,14 +1067,14 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 		ctx->configs[i].zpos = i;
 		ctx->configs[i].type = fimd_win_types[i];
 		ctx->configs[i].capabilities = capabilities[i];
-		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
+		ret = exyyess_plane_init(drm_dev, &ctx->planes[i], i,
 					&ctx->configs[i]);
 		if (ret)
 			return ret;
 	}
 
-	exynos_plane = &ctx->planes[DEFAULT_WIN];
-	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
+	exyyess_plane = &ctx->planes[DEFAULT_WIN];
+	ctx->crtc = exyyess_drm_crtc_create(drm_dev, &exyyess_plane->base,
 			EXYNOS_DISPLAY_TYPE_LCD, &fimd_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc))
 		return PTR_ERR(ctx->crtc);
@@ -1085,12 +1085,12 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	if (ctx->encoder)
-		exynos_dpi_bind(drm_dev, ctx->encoder);
+		exyyess_dpi_bind(drm_dev, ctx->encoder);
 
 	if (is_drm_iommu_supported(drm_dev))
 		fimd_clear_channels(ctx->crtc);
 
-	return exynos_drm_register_dma(drm_dev, dev);
+	return exyyess_drm_register_dma(drm_dev, dev);
 }
 
 static void fimd_unbind(struct device *dev, struct device *master,
@@ -1100,10 +1100,10 @@ static void fimd_unbind(struct device *dev, struct device *master,
 
 	fimd_disable(ctx->crtc);
 
-	exynos_drm_unregister_dma(ctx->drm_dev, ctx->dev);
+	exyyess_drm_unregister_dma(ctx->drm_dev, ctx->dev);
 
 	if (ctx->encoder)
-		exynos_dpi_remove(ctx->encoder);
+		exyyess_dpi_remove(ctx->encoder);
 }
 
 static const struct component_ops fimd_component_ops = {
@@ -1115,11 +1115,11 @@ static int fimd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fimd_context *ctx;
-	struct device_node *i80_if_timings;
+	struct device_yesde *i80_if_timings;
 	struct resource *res;
 	int ret;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -ENODEV;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
@@ -1130,12 +1130,12 @@ static int fimd_probe(struct platform_device *pdev)
 	ctx->suspended = true;
 	ctx->driver_data = of_device_get_match_data(dev);
 
-	if (of_property_read_bool(dev->of_node, "samsung,invert-vden"))
+	if (of_property_read_bool(dev->of_yesde, "samsung,invert-vden"))
 		ctx->vidcon1 |= VIDCON1_INV_VDEN;
-	if (of_property_read_bool(dev->of_node, "samsung,invert-vclk"))
+	if (of_property_read_bool(dev->of_yesde, "samsung,invert-vclk"))
 		ctx->vidcon1 |= VIDCON1_INV_VCLK;
 
-	i80_if_timings = of_get_child_by_name(dev->of_node, "i80-if-timings");
+	i80_if_timings = of_get_child_by_name(dev->of_yesde, "i80-if-timings");
 	if (i80_if_timings) {
 		u32 val;
 
@@ -1164,9 +1164,9 @@ static int fimd_probe(struct platform_device *pdev)
 			val = 0;
 		ctx->i80ifcon |= LCD_WR_HOLD(val);
 	}
-	of_node_put(i80_if_timings);
+	of_yesde_put(i80_if_timings);
 
-	ctx->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
+	ctx->sysreg = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 							"samsung,sysreg");
 	if (IS_ERR(ctx->sysreg)) {
 		dev_warn(dev, "failed to get system register.\n");
@@ -1210,7 +1210,7 @@ static int fimd_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	ctx->encoder = exynos_dpi_probe(dev);
+	ctx->encoder = exyyess_dpi_probe(dev);
 	if (IS_ERR(ctx->encoder))
 		return PTR_ERR(ctx->encoder);
 
@@ -1238,7 +1238,7 @@ static int fimd_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int exynos_fimd_suspend(struct device *dev)
+static int exyyess_fimd_suspend(struct device *dev)
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
 
@@ -1248,7 +1248,7 @@ static int exynos_fimd_suspend(struct device *dev)
 	return 0;
 }
 
-static int exynos_fimd_resume(struct device *dev)
+static int exyyess_fimd_resume(struct device *dev)
 {
 	struct fimd_context *ctx = dev_get_drvdata(dev);
 	int ret;
@@ -1273,8 +1273,8 @@ static int exynos_fimd_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops exynos_fimd_pm_ops = {
-	SET_RUNTIME_PM_OPS(exynos_fimd_suspend, exynos_fimd_resume, NULL)
+static const struct dev_pm_ops exyyess_fimd_pm_ops = {
+	SET_RUNTIME_PM_OPS(exyyess_fimd_suspend, exyyess_fimd_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
 };
@@ -1283,9 +1283,9 @@ struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
 	.remove		= fimd_remove,
 	.driver		= {
-		.name	= "exynos4-fb",
+		.name	= "exyyess4-fb",
 		.owner	= THIS_MODULE,
-		.pm	= &exynos_fimd_pm_ops,
+		.pm	= &exyyess_fimd_pm_ops,
 		.of_match_table = fimd_driver_dt_match,
 	},
 };

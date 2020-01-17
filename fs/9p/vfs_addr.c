@@ -9,7 +9,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/stat.h>
@@ -38,7 +38,7 @@
 static int v9fs_fid_readpage(void *data, struct page *page)
 {
 	struct p9_fid *fid = data;
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	struct bio_vec bvec = {.bv_page = page, .bv_len = PAGE_SIZE};
 	struct iov_iter to;
 	int retval, err;
@@ -47,7 +47,7 @@ static int v9fs_fid_readpage(void *data, struct page *page)
 
 	BUG_ON(!PageLocked(page));
 
-	retval = v9fs_readpage_from_fscache(inode, page);
+	retval = v9fs_readpage_from_fscache(iyesde, page);
 	if (retval == 0)
 		return retval;
 
@@ -55,7 +55,7 @@ static int v9fs_fid_readpage(void *data, struct page *page)
 
 	retval = p9_client_read(fid, page_offset(page), &to, &err);
 	if (err) {
-		v9fs_uncache_page(inode, page);
+		v9fs_uncache_page(iyesde, page);
 		retval = err;
 		goto done;
 	}
@@ -64,7 +64,7 @@ static int v9fs_fid_readpage(void *data, struct page *page)
 	flush_dcache_page(page);
 	SetPageUptodate(page);
 
-	v9fs_readpage_to_fscache(inode, page);
+	v9fs_readpage_to_fscache(iyesde, page);
 	retval = 0;
 
 done:
@@ -99,12 +99,12 @@ static int v9fs_vfs_readpages(struct file *filp, struct address_space *mapping,
 			     struct list_head *pages, unsigned nr_pages)
 {
 	int ret = 0;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
-	inode = mapping->host;
-	p9_debug(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, filp);
+	iyesde = mapping->host;
+	p9_debug(P9_DEBUG_VFS, "iyesde: %p file: %p\n", iyesde, filp);
 
-	ret = v9fs_readpages_from_fscache(inode, mapping, pages, &nr_pages);
+	ret = v9fs_readpages_from_fscache(iyesde, mapping, pages, &nr_pages);
 	if (ret == 0)
 		return ret;
 
@@ -147,9 +147,9 @@ static void v9fs_invalidate_page(struct page *page, unsigned int offset,
 
 static int v9fs_vfs_writepage_locked(struct page *page)
 {
-	struct inode *inode = page->mapping->host;
-	struct v9fs_inode *v9inode = V9FS_I(inode);
-	loff_t size = i_size_read(inode);
+	struct iyesde *iyesde = page->mapping->host;
+	struct v9fs_iyesde *v9iyesde = V9FS_I(iyesde);
+	loff_t size = i_size_read(iyesde);
 	struct iov_iter from;
 	struct bio_vec bvec;
 	int err, len;
@@ -165,11 +165,11 @@ static int v9fs_vfs_writepage_locked(struct page *page)
 	iov_iter_bvec(&from, WRITE, &bvec, 1, len);
 
 	/* We should have writeback_fid always set */
-	BUG_ON(!v9inode->writeback_fid);
+	BUG_ON(!v9iyesde->writeback_fid);
 
 	set_page_writeback(page);
 
-	p9_client_write(v9inode->writeback_fid, page_offset(page), &from, &err);
+	p9_client_write(v9iyesde->writeback_fid, page_offset(page), &from, &err);
 
 	end_page_writeback(page);
 	return err;
@@ -205,9 +205,9 @@ static int v9fs_vfs_writepage(struct page *page, struct writeback_control *wbc)
 static int v9fs_launder_page(struct page *page)
 {
 	int retval;
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 
-	v9fs_fscache_wait_on_page_write(inode, page);
+	v9fs_fscache_wait_on_page_write(iyesde, page);
 	if (clear_page_dirty_for_io(page)) {
 		retval = v9fs_vfs_writepage_locked(page);
 		if (retval)
@@ -223,10 +223,10 @@ static int v9fs_launder_page(struct page *page)
  * The presence of v9fs_direct_IO() in the address space ops vector
  * allowes open() O_DIRECT flags which would have failed otherwise.
  *
- * In the non-cached mode, we shunt off direct read and write requests before
+ * In the yesn-cached mode, we shunt off direct read and write requests before
  * the VFS gets them, so this method should never be called.
  *
- * Direct IO is not 'yet' supported in the cached mode. Hence when
+ * Direct IO is yest 'yet' supported in the cached mode. Hence when
  * this routine is called through generic_file_aio_read(), the read/write fails
  * with an error.
  *
@@ -241,10 +241,10 @@ v9fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	if (iov_iter_rw(iter) == WRITE) {
 		n = p9_client_write(file->private_data, pos, iter, &err);
 		if (n) {
-			struct inode *inode = file_inode(file);
-			loff_t i_size = i_size_read(inode);
+			struct iyesde *iyesde = file_iyesde(file);
+			loff_t i_size = i_size_read(iyesde);
 			if (pos + n > i_size)
-				inode_add_bytes(inode, pos + n - i_size);
+				iyesde_add_bytes(iyesde, pos + n - i_size);
 		}
 	} else {
 		n = p9_client_read(file->private_data, pos, iter, &err);
@@ -258,28 +258,28 @@ static int v9fs_write_begin(struct file *filp, struct address_space *mapping,
 {
 	int retval = 0;
 	struct page *page;
-	struct v9fs_inode *v9inode;
+	struct v9fs_iyesde *v9iyesde;
 	pgoff_t index = pos >> PAGE_SHIFT;
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 
 
 	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
 
-	v9inode = V9FS_I(inode);
+	v9iyesde = V9FS_I(iyesde);
 start:
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page) {
 		retval = -ENOMEM;
 		goto out;
 	}
-	BUG_ON(!v9inode->writeback_fid);
+	BUG_ON(!v9iyesde->writeback_fid);
 	if (PageUptodate(page))
 		goto out;
 
 	if (len == PAGE_SIZE)
 		goto out;
 
-	retval = v9fs_fid_readpage(v9inode->writeback_fid, page);
+	retval = v9fs_fid_readpage(v9iyesde->writeback_fid, page);
 	put_page(page);
 	if (!retval)
 		goto start;
@@ -293,7 +293,7 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 			  struct page *page, void *fsdata)
 {
 	loff_t last_pos = pos + copied;
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 
 	p9_debug(P9_DEBUG_VFS, "filp %p, mapping %p\n", filp, mapping);
 
@@ -307,11 +307,11 @@ static int v9fs_write_end(struct file *filp, struct address_space *mapping,
 	}
 	/*
 	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold the i_mutex.
+	 * canyest change under us because we hold the i_mutex.
 	 */
-	if (last_pos > inode->i_size) {
-		inode_add_bytes(inode, last_pos - inode->i_size);
-		i_size_write(inode, last_pos);
+	if (last_pos > iyesde->i_size) {
+		iyesde_add_bytes(iyesde, last_pos - iyesde->i_size);
+		i_size_write(iyesde, last_pos);
 	}
 	set_page_dirty(page);
 out:
@@ -325,7 +325,7 @@ out:
 const struct address_space_operations v9fs_addr_operations = {
 	.readpage = v9fs_vfs_readpage,
 	.readpages = v9fs_vfs_readpages,
-	.set_page_dirty = __set_page_dirty_nobuffers,
+	.set_page_dirty = __set_page_dirty_yesbuffers,
 	.writepage = v9fs_vfs_writepage,
 	.write_begin = v9fs_write_begin,
 	.write_end = v9fs_write_end,

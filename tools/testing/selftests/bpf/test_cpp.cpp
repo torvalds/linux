@@ -3,7 +3,7 @@
 #include "bpf.h"
 #include "btf.h"
 
-/* do nothing, just make sure we can link successfully */
+/* do yesthing, just make sure we can link successfully */
 
 int main(int argc, char *argv[])
 {

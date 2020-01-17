@@ -268,7 +268,7 @@ struct bna_mem_info {
 	enum bna_mem_type mem_type;
 	u32		len;
 	u32		num;
-	u32		align_sz; /* 0/1 = no alignment */
+	u32		align_sz; /* 0/1 = yes alignment */
 	struct bna_mem_descr *mdl;
 	void			*cookie; /* For bnad to unmap dma later */
 };

@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 ******************************
 Single-planar format structure
@@ -67,7 +67,7 @@ Single-planar format structure
     * - :cspan:`2`
 
 	Both applications and drivers can set this field to request
-	padding bytes at the end of each line. Drivers however may ignore
+	padding bytes at the end of each line. Drivers however may igyesre
 	the value requested by the application, returning ``width`` times
 	bytes per pixel or a larger value required by the hardware. That
 	implies applications can just set this field to zero to get a
@@ -77,7 +77,7 @@ Single-planar format structure
 	reside in accessible memory. Consider cases where padding bytes
 	after the last line of an image cross a system page boundary.
 	Input devices may write padding bytes, the value is undefined.
-	Output devices ignore the contents of padding bytes.
+	Output devices igyesre the contents of padding bytes.
 
 	When the image format is planar the ``bytesperline`` value applies
 	to the first plane and is divided by the same factor as the
@@ -87,7 +87,7 @@ Single-planar format structure
 	must return a ``bytesperline`` value rounded up to a multiple of
 	the scale factor.
 
-	For compressed formats the ``bytesperline`` value makes no sense.
+	For compressed formats the ``bytesperline`` value makes yes sense.
 	Applications and drivers must set this to 0 in that case.
     * - __u32
       - ``sizeimage``
@@ -101,7 +101,7 @@ Single-planar format structure
 
 	Clients are allowed to set the sizeimage field for variable length
 	compressed data flagged with ``V4L2_FMT_FLAG_COMPRESSED`` at
-	:ref:`VIDIOC_ENUM_FMT`, but the driver may ignore it and set the
+	:ref:`VIDIOC_ENUM_FMT`, but the driver may igyesre it and set the
 	value itself, or it may modify the provided value based on
 	alignment requirements or minimum/maximum size requirements.
 	If the client wants to leave this to the driver, then it should
@@ -125,7 +125,7 @@ Single-planar format structure
 	must first ensure that the feature is supported by querying the
 	device for the :ref:`V4L2_CAP_EXT_PIX_FORMAT <querycap>`
 	capability. If the capability isn't set the pixel format extended
-	fields are not supported and using the extended fields will lead
+	fields are yest supported and using the extended fields will lead
 	to undefined results.
 
 	To use the extended fields, applications must set the ``priv``
@@ -142,7 +142,7 @@ Single-planar format structure
       - ``flags``
       - Flags set by the application or driver, see :ref:`format-flags`.
     * - union {
-      - (anonymous)
+      - (ayesnymous)
       -
     * - __u32
       - ``ycbcr_enc``

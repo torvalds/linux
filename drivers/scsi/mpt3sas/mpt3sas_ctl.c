@@ -1,10 +1,10 @@
 /*
- * Management Module Support for MPT (Message Passing Technology) based
+ * Management Module Support for MPT (Message Passing Techyeslogy) based
  * controllers
  *
  * This code is based on drivers/scsi/mpt3sas/mpt3sas_ctl.c
  * Copyright (C) 2012-2014  LSI Corporation
- * Copyright (C) 2013-2014 Avago Technologies
+ * Copyright (C) 2013-2014 Avago Techyeslogies
  *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -24,7 +24,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
 
@@ -38,14 +38,14 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -67,7 +67,7 @@ static DECLARE_WAIT_QUEUE_HEAD(ctl_poll_wait);
 
 /**
  * enum block_state - blocking state
- * @NON_BLOCKING: non blocking
+ * @NON_BLOCKING: yesn blocking
  * @BLOCKING: blocking
  *
  * These states are for ioctls that need to wait for a response
@@ -84,7 +84,7 @@ enum block_state {
  * @smid: system request message index
  * @calling_function_name: string pass from calling function
  * @mpi_reply: reply message frame
- * Context: none.
+ * Context: yesne.
  *
  * Function for displaying debug info helpful when debugging issues
  * in this module.
@@ -142,7 +142,7 @@ _ctl_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 		desc = "port_enable";
 		break;
 	case MPI2_FUNCTION_EVENT_NOTIFICATION:
-		desc = "event_notification";
+		desc = "event_yestification";
 		break;
 	case MPI2_FUNCTION_FW_DOWNLOAD:
 		desc = "fw_download";
@@ -241,7 +241,7 @@ _ctl_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
  * @smid: system request message index
  * @msix_index: MSIX table index supplied by the OS
  * @reply: reply message frame(lower 32bit addr)
- * Context: none.
+ * Context: yesne.
  *
  * The callback handler when using ioc->ctl_cb_idx.
  *
@@ -309,7 +309,7 @@ mpt3sas_ctl_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
  * The bitmask in ioc->event_type[] indicates which events should be
  * be saved in the driver event_log.  This bitmask is set by application.
  *
- * Return: 1 when event should be captured, or zero means no match.
+ * Return: 1 when event should be captured, or zero means yes match.
  */
 static int
 _ctl_check_event_type(struct MPT3SAS_ADAPTER *ioc, u16 event)
@@ -364,7 +364,7 @@ mpt3sas_ctl_add_to_event_log(struct MPT3SAS_ADAPTER *ioc,
 
 	/* This aen_event_read_flag flag is set until the
 	 * application has read the event log.
-	 * For MPI2_EVENT_LOG_ENTRY_ADDED, we always notify.
+	 * For MPI2_EVENT_LOG_ENTRY_ADDED, we always yestify.
 	 */
 	if (event == MPI2_EVENT_LOG_ENTRY_ADDED ||
 	    (send_aen && !ioc->aen_event_read_flag)) {
@@ -421,7 +421,7 @@ _ctl_verify_adapter(int ioc_number, struct MPT3SAS_ADAPTER **iocpp,
 		if (ioc->id != ioc_number)
 			continue;
 		/* Check whether this ioctl command is from right
-		 * ioctl device or not, if not continue the search.
+		 * ioctl device or yest, if yest continue the search.
 		 */
 		version = ioc->hba_mpi_version_belonged;
 		/* MPI25_VERSION and MPI26_VERSION uses same ioctl
@@ -617,7 +617,7 @@ _ctl_set_task_mid(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command *karg,
 
 	if (!found) {
 		dctlprintk(ioc,
-			   ioc_info(ioc, "%s: handle(0x%04x), lun(%d), no active mid!!\n",
+			   ioc_info(ioc, "%s: handle(0x%04x), lun(%d), yes active mid!!\n",
 				    desc, le16_to_cpu(tm_request->DevHandle),
 				    lun));
 		tm_reply = ioc->ctl_cmds.reply;
@@ -802,7 +802,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		 * Use Error Response buffer address field to hold the sense
 		 * buffer address.
 		 * Clear the internal sense buffer, which will potentially hold
-		 * the Completion Queue Entry on return, or 0 if no Entry.
+		 * the Completion Queue Entry on return, or 0 if yes Entry.
 		 * Build the PRPs and set direction bits.
 		 * Send the request.
 		 */
@@ -913,7 +913,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 
 		if (data[1] == 0x91 && (data[10] == 1 || data[10] == 2)) {
 			ioc->ioc_link_reset_in_progress = 1;
-			ioc->ignore_loginfos = 1;
+			ioc->igyesre_loginfos = 1;
 		}
 		ioc->build_sg(ioc, psge, data_out_dma, data_out_sz, data_in_dma,
 		    data_in_sz);
@@ -991,7 +991,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 		    || sasiounit_request->Operation ==
 		    MPI2_SAS_OP_PHY_LINK_RESET) {
 			ioc->ioc_link_reset_in_progress = 1;
-			ioc->ignore_loginfos = 1;
+			ioc->igyesre_loginfos = 1;
 		}
 		/* drop to default case for posting the request */
 	}
@@ -1018,7 +1018,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	    mpi_request->Function == MPI2_FUNCTION_SAS_IO_UNIT_CONTROL) &&
 		ioc->ioc_link_reset_in_progress) {
 		ioc->ioc_link_reset_in_progress = 0;
-		ioc->ignore_loginfos = 0;
+		ioc->igyesre_loginfos = 0;
 	}
 	if (!(ioc->ctl_cmds.status & MPT3_CMD_COMPLETE)) {
 		issue_reset =
@@ -1070,7 +1070,7 @@ _ctl_do_mpt_command(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command karg,
 	    MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH || mpi_request->Function ==
 	    MPI2_FUNCTION_NVME_ENCAPSULATED)) {
 		if (karg.sense_data_ptr == NULL) {
-			ioc_info(ioc, "Response buffer provided by application is NULL; Response data will not be returned\n");
+			ioc_info(ioc, "Response buffer provided by application is NULL; Response data will yest be returned\n");
 			goto out;
 		}
 		sz_arg = (mpi_request->Function ==
@@ -1509,7 +1509,7 @@ _ctl_diag_capability(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type)
  * @ioc: per adapter object
  * @unique_id: specifies the unique_id for the buffer
  *
- * returns MPT3_DIAG_UID_NOT_FOUND if the id not found
+ * returns MPT3_DIAG_UID_NOT_FOUND if the id yest found
  */
 static u8
 _ctl_diag_get_bufftype(struct MPT3SAS_ADAPTER *ioc, u32 unique_id)
@@ -1551,7 +1551,7 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 
 	ioc_state = mpt3sas_base_get_iocstate(ioc, 1);
 	if (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
-		ioc_err(ioc, "%s: failed due to ioc not operational\n",
+		ioc_err(ioc, "%s: failed due to ioc yest operational\n",
 			__func__);
 		rc = -EAGAIN;
 		goto out;
@@ -1655,7 +1655,7 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 	}
 
 	if (diag_register->requested_buffer_size % 4)  {
-		ioc_err(ioc, "%s: the requested_buffer_size is not 4 byte aligned\n",
+		ioc_err(ioc, "%s: the requested_buffer_size is yest 4 byte aligned\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1680,7 +1680,7 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 	    MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED;
 	memcpy(ioc->product_specific[buffer_type],
 	    diag_register->product_specific, MPT3_PRODUCT_SPECIFIC_DWORDS);
-	ioc->diagnostic_flags[buffer_type] = diag_register->diagnostic_flags;
+	ioc->diagyesstic_flags[buffer_type] = diag_register->diagyesstic_flags;
 
 	if (request_data) {
 		request_data_dma = ioc->diag_buffer_dma[buffer_type];
@@ -1711,7 +1711,7 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 
 	mpi_request->Function = MPI2_FUNCTION_DIAG_BUFFER_POST;
 	mpi_request->BufferType = diag_register->buffer_type;
-	mpi_request->Flags = cpu_to_le32(diag_register->diagnostic_flags);
+	mpi_request->Flags = cpu_to_le32(diag_register->diagyesstic_flags);
 	mpi_request->BufferAddress = cpu_to_le64(request_data_dma);
 	mpi_request->BufferLength = cpu_to_le32(request_data_sz);
 	mpi_request->VF_ID = 0; /* TODO */
@@ -1742,7 +1742,7 @@ _ctl_diag_register_2(struct MPT3SAS_ADAPTER *ioc,
 
 	/* process the completed Reply Message Frame */
 	if ((ioc->ctl_cmds.status & MPT3_CMD_REPLY_VALID) == 0) {
-		ioc_err(ioc, "%s: no reply message\n", __func__);
+		ioc_err(ioc, "%s: yes reply message\n", __func__);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -1814,7 +1814,7 @@ mpt3sas_enable_diag_buffer(struct MPT3SAS_ADAPTER *ioc, u8 bits_to_register)
 			    ioc->manu_pg11.HostTraceBufferDecrementSizeKB<<10;
 
 			if (min_trace_buff_size > trace_buff_size) {
-				/* The buff size is not set correctly */
+				/* The buff size is yest set correctly */
 				ioc_err(ioc,
 				    "Min Trace Buff size (%d KB) greater than Max Trace Buff size (%d KB)\n",
 				     min_trace_buff_size>>10,
@@ -1827,7 +1827,7 @@ mpt3sas_enable_diag_buffer(struct MPT3SAS_ADAPTER *ioc, u8 bits_to_register)
 			if (decr_trace_buff_size == 0) {
 				/*
 				 * retry the min size if decrement
-				 * is not available.
+				 * is yest available.
 				 */
 				decr_trace_buff_size =
 				    trace_buff_size - min_trace_buff_size;
@@ -1853,7 +1853,7 @@ mpt3sas_enable_diag_buffer(struct MPT3SAS_ADAPTER *ioc, u8 bits_to_register)
 
 		if (ret_val == -ENOMEM)
 			ioc_err(ioc,
-			    "Cannot allocate trace buffer memory. Last memory tried = %d KB\n",
+			    "Canyest allocate trace buffer memory. Last memory tried = %d KB\n",
 			    diag_register.requested_buffer_size>>10);
 		else if (ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE]
 		    & MPT3_DIAG_BUFFER_IS_REGISTERED) {
@@ -1943,7 +1943,7 @@ _ctl_diag_unregister(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 
 	buffer_type = _ctl_diag_get_bufftype(ioc, karg.unique_id);
 	if (buffer_type == MPT3_DIAG_UID_NOT_FOUND) {
-		ioc_err(ioc, "%s: buffer with unique_id(0x%08x) not found\n",
+		ioc_err(ioc, "%s: buffer with unique_id(0x%08x) yest found\n",
 		    __func__, karg.unique_id);
 		return -EINVAL;
 	}
@@ -1956,19 +1956,19 @@ _ctl_diag_unregister(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 
 	if ((ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
-		ioc_err(ioc, "%s: buffer_type(0x%02x) is not registered\n",
+		ioc_err(ioc, "%s: buffer_type(0x%02x) is yest registered\n",
 			__func__, buffer_type);
 		return -EINVAL;
 	}
 	if ((ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_RELEASED) == 0) {
-		ioc_err(ioc, "%s: buffer_type(0x%02x) has not been released\n",
+		ioc_err(ioc, "%s: buffer_type(0x%02x) has yest been released\n",
 			__func__, buffer_type);
 		return -EINVAL;
 	}
 
 	if (karg.unique_id != ioc->unique_id[buffer_type]) {
-		ioc_err(ioc, "%s: unique_id(0x%08x) is not registered\n",
+		ioc_err(ioc, "%s: unique_id(0x%08x) is yest registered\n",
 			__func__, karg.unique_id);
 		return -EINVAL;
 	}
@@ -2037,7 +2037,7 @@ _ctl_diag_query(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	    MPT3_DIAG_BUFFER_IS_DRIVER_ALLOCATED)) {
 		if ((ioc->diag_buffer_status[buffer_type] &
 		    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
-			ioc_err(ioc, "%s: buffer_type(0x%02x) is not registered\n",
+			ioc_err(ioc, "%s: buffer_type(0x%02x) is yest registered\n",
 				__func__, buffer_type);
 			return -EINVAL;
 		}
@@ -2045,7 +2045,7 @@ _ctl_diag_query(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 
 	if (karg.unique_id) {
 		if (karg.unique_id != ioc->unique_id[buffer_type]) {
-			ioc_err(ioc, "%s: unique_id(0x%08x) is not registered\n",
+			ioc_err(ioc, "%s: unique_id(0x%08x) is yest registered\n",
 				__func__, karg.unique_id);
 			return -EINVAL;
 		}
@@ -2081,7 +2081,7 @@ _ctl_diag_query(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	karg.total_buffer_size = ioc->diag_buffer_sz[buffer_type];
 	karg.driver_added_buffer_size = 0;
 	karg.unique_id = ioc->unique_id[buffer_type];
-	karg.diagnostic_flags = ioc->diagnostic_flags[buffer_type];
+	karg.diagyesstic_flags = ioc->diagyesstic_flags[buffer_type];
 
 	if (copy_to_user(arg, &karg, sizeof(struct mpt3_diag_query))) {
 		ioc_err(ioc, "%s: unable to write mpt3_diag_query data @ %p\n",
@@ -2166,7 +2166,7 @@ mpt3sas_send_diag_release(struct MPT3SAS_ADAPTER *ioc, u8 buffer_type,
 
 	/* process the completed Reply Message Frame */
 	if ((ioc->ctl_cmds.status & MPT3_CMD_REPLY_VALID) == 0) {
-		ioc_err(ioc, "%s: no reply message\n", __func__);
+		ioc_err(ioc, "%s: yes reply message\n", __func__);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -2219,7 +2219,7 @@ _ctl_diag_release(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 
 	buffer_type = _ctl_diag_get_bufftype(ioc, karg.unique_id);
 	if (buffer_type == MPT3_DIAG_UID_NOT_FOUND) {
-		ioc_err(ioc, "%s: buffer with unique_id(0x%08x) not found\n",
+		ioc_err(ioc, "%s: buffer with unique_id(0x%08x) yest found\n",
 		    __func__, karg.unique_id);
 		return -EINVAL;
 	}
@@ -2232,13 +2232,13 @@ _ctl_diag_release(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 
 	if ((ioc->diag_buffer_status[buffer_type] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
-		ioc_err(ioc, "%s: buffer_type(0x%02x) is not registered\n",
+		ioc_err(ioc, "%s: buffer_type(0x%02x) is yest registered\n",
 			__func__, buffer_type);
 		return -EINVAL;
 	}
 
 	if (karg.unique_id != ioc->unique_id[buffer_type]) {
-		ioc_err(ioc, "%s: unique_id(0x%08x) is not registered\n",
+		ioc_err(ioc, "%s: unique_id(0x%08x) is yest registered\n",
 			__func__, karg.unique_id);
 		return -EINVAL;
 	}
@@ -2309,7 +2309,7 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 
 	buffer_type = _ctl_diag_get_bufftype(ioc, karg.unique_id);
 	if (buffer_type == MPT3_DIAG_UID_NOT_FOUND) {
-		ioc_err(ioc, "%s: buffer with unique_id(0x%08x) not found\n",
+		ioc_err(ioc, "%s: buffer with unique_id(0x%08x) yest found\n",
 		    __func__, karg.unique_id);
 		return -EINVAL;
 	}
@@ -2321,7 +2321,7 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	}
 
 	if (karg.unique_id != ioc->unique_id[buffer_type]) {
-		ioc_err(ioc, "%s: unique_id(0x%08x) is not registered\n",
+		ioc_err(ioc, "%s: unique_id(0x%08x) is yest registered\n",
 			__func__, karg.unique_id);
 		return -EINVAL;
 	}
@@ -2336,7 +2336,7 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	request_size = ioc->diag_buffer_sz[buffer_type];
 
 	if ((karg.starting_offset % 4) || (karg.bytes_to_read % 4)) {
-		ioc_err(ioc, "%s: either the starting_offset or bytes_to_read are not 4 byte aligned\n",
+		ioc_err(ioc, "%s: either the starting_offset or bytes_to_read are yest 4 byte aligned\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -2357,7 +2357,7 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	else
 		copy_size = karg.bytes_to_read;
 
-	if (copy_to_user((void __user *)uarg->diagnostic_data,
+	if (copy_to_user((void __user *)uarg->diagyesstic_data,
 	    diag_data, copy_size)) {
 		ioc_err(ioc, "%s: Unable to write mpt_diag_read_buffer_t data @ %p\n",
 			__func__, diag_data);
@@ -2426,7 +2426,7 @@ _ctl_diag_read_buffer(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 
 	/* process the completed Reply Message Frame */
 	if ((ioc->ctl_cmds.status & MPT3_CMD_REPLY_VALID) == 0) {
-		ioc_err(ioc, "%s: no reply message\n", __func__);
+		ioc_err(ioc, "%s: yes reply message\n", __func__);
 		rc = -EFAULT;
 		goto out;
 	}
@@ -3214,14 +3214,14 @@ host_trace_buffer_size_show(struct device *cdev,
 	struct DIAG_BUFFER_START *request_data;
 
 	if (!ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE]) {
-		ioc_err(ioc, "%s: host_trace_buffer is not registered\n",
+		ioc_err(ioc, "%s: host_trace_buffer is yest registered\n",
 			__func__);
 		return 0;
 	}
 
 	if ((ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
-		ioc_err(ioc, "%s: host_trace_buffer is not registered\n",
+		ioc_err(ioc, "%s: host_trace_buffer is yest registered\n",
 			__func__);
 		return 0;
 	}
@@ -3261,14 +3261,14 @@ host_trace_buffer_show(struct device *cdev, struct device_attribute *attr,
 	u32 size;
 
 	if (!ioc->diag_buffer[MPI2_DIAG_BUF_TYPE_TRACE]) {
-		ioc_err(ioc, "%s: host_trace_buffer is not registered\n",
+		ioc_err(ioc, "%s: host_trace_buffer is yest registered\n",
 			__func__);
 		return 0;
 	}
 
 	if ((ioc->diag_buffer_status[MPI2_DIAG_BUF_TYPE_TRACE] &
 	    MPT3_DIAG_BUFFER_IS_REGISTERED) == 0) {
-		ioc_err(ioc, "%s: host_trace_buffer is not registered\n",
+		ioc_err(ioc, "%s: host_trace_buffer is yest registered\n",
 			__func__);
 		return 0;
 	}
@@ -3422,7 +3422,7 @@ host_trace_buffer_enable_store(struct device *cdev,
 }
 static DEVICE_ATTR_RW(host_trace_buffer_enable);
 
-/*********** diagnostic trigger suppport *********************************/
+/*********** diagyesstic trigger suppport *********************************/
 
 /**
  * diag_trigger_master_show - show the diag_trigger_master attribute
@@ -3646,7 +3646,7 @@ diag_trigger_mpi_store(struct device *cdev,
 
 static DEVICE_ATTR_RW(diag_trigger_mpi);
 
-/*********** diagnostic trigger suppport *** END ****************************/
+/*********** diagyesstic trigger suppport *** END ****************************/
 
 /*****************************************/
 
@@ -3915,13 +3915,13 @@ static const struct file_operations ctl_gen2_fops = {
 };
 
 static struct miscdevice ctl_dev = {
-	.minor  = MPT3SAS_MINOR,
+	.miyesr  = MPT3SAS_MINOR,
 	.name   = MPT3SAS_DEV_NAME,
 	.fops   = &ctl_fops,
 };
 
 static struct miscdevice gen2_ctl_dev = {
-	.minor  = MPT2SAS_MINOR,
+	.miyesr  = MPT2SAS_MINOR,
 	.name   = MPT2SAS_DEV_NAME,
 	.fops   = &ctl_gen2_fops,
 };
@@ -3940,7 +3940,7 @@ mpt3sas_ctl_init(ushort hbas_to_enumerate)
 	 */
 	if (hbas_to_enumerate != 1)
 		if (misc_register(&ctl_dev) < 0)
-			pr_err("%s can't register misc device [minor=%d]\n",
+			pr_err("%s can't register misc device [miyesr=%d]\n",
 			    MPT3SAS_DRIVER_NAME, MPT3SAS_MINOR);
 
 	/* Don't register mpt3ctl ioctl device if
@@ -3948,7 +3948,7 @@ mpt3sas_ctl_init(ushort hbas_to_enumerate)
 	 */
 	if (hbas_to_enumerate != 2)
 		if (misc_register(&gen2_ctl_dev) < 0)
-			pr_err("%s can't register misc device [minor=%d]\n",
+			pr_err("%s can't register misc device [miyesr=%d]\n",
 			    MPT2SAS_DRIVER_NAME, MPT2SAS_MINOR);
 
 	init_waitqueue_head(&ctl_poll_wait);

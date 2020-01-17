@@ -54,7 +54,7 @@
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>
 
-/* Whether we react on sysrq keys or just ignore them */
+/* Whether we react on sysrq keys or just igyesre them */
 static int __read_mostly sysrq_enabled = CONFIG_MAGIC_SYSRQ_DEFAULT_ENABLE;
 static bool __read_mostly sysrq_always_enabled;
 
@@ -64,7 +64,7 @@ static bool sysrq_on(void)
 }
 
 /*
- * A value of 1 means 'all', other nonzero values are an op mask:
+ * A value of 1 means 'all', other yesnzero values are an op mask:
  */
 static bool sysrq_on_mask(int mask)
 {
@@ -178,7 +178,7 @@ static void sysrq_handle_show_timers(int key)
 static struct sysrq_key_op sysrq_show_timers_op = {
 	.handler	= sysrq_handle_show_timers,
 	.help_msg	= "show-all-timers(q)",
-	.action_msg	= "Show clockevent devices & pending hrtimers (no others)",
+	.action_msg	= "Show clockevent devices & pending hrtimers (yes others)",
 };
 
 static void sysrq_handle_mountro(int key)
@@ -214,7 +214,7 @@ static void showacpu(void *dummy)
 {
 	unsigned long flags;
 
-	/* Idle CPUs have no interesting backtrace. */
+	/* Idle CPUs have yes interesting backtrace. */
 	if (idle_cpu(smp_processor_id()))
 		return;
 
@@ -235,8 +235,8 @@ static void sysrq_handle_showallcpus(int key)
 {
 	/*
 	 * Fall back to the workqueue based printing if the
-	 * backtrace printing did not succeed or the
-	 * architecture has no support for it:
+	 * backtrace printing did yest succeed or the
+	 * architecture has yes support for it:
 	 */
 	if (!trigger_all_cpu_backtrace()) {
 		struct pt_regs *regs = NULL;
@@ -358,12 +358,12 @@ static struct sysrq_key_op sysrq_term_op = {
 	.enable_mask	= SYSRQ_ENABLE_SIGNAL,
 };
 
-static void moom_callback(struct work_struct *ignored)
+static void moom_callback(struct work_struct *igyesred)
 {
 	const gfp_t gfp_mask = GFP_KERNEL;
 	struct oom_control oc = {
-		.zonelist = node_zonelist(first_memory_node, gfp_mask),
-		.nodemask = NULL,
+		.zonelist = yesde_zonelist(first_memory_yesde, gfp_mask),
+		.yesdemask = NULL,
 		.memcg = NULL,
 		.gfp_mask = gfp_mask,
 		.order = -1,
@@ -371,7 +371,7 @@ static void moom_callback(struct work_struct *ignored)
 
 	mutex_lock(&oom_lock);
 	if (!out_of_memory(&oc))
-		pr_info("OOM request ignored. No task eligible\n");
+		pr_info("OOM request igyesred. No task eligible\n");
 	mutex_unlock(&oom_lock);
 }
 
@@ -415,7 +415,7 @@ static struct sysrq_key_op sysrq_kill_op = {
 
 static void sysrq_handle_unrt(int key)
 {
-	normalize_rt_tasks();
+	yesrmalize_rt_tasks();
 }
 static struct sysrq_key_op sysrq_unrt_op = {
 	.handler	= sysrq_handle_unrt,
@@ -537,7 +537,7 @@ void __handle_sysrq(int key, bool check_mask)
 	rcu_read_lock();
 	/*
 	 * Raise the apparent loglevel to maximum so that the sysrq header
-	 * is shown to provide the user with positive feedback.  We do not
+	 * is shown to provide the user with positive feedback.  We do yest
 	 * simply emit this at KERN_EMERG as that would change message
 	 * routing in the consumers of /proc/kmsg.
 	 */
@@ -548,7 +548,7 @@ void __handle_sysrq(int key, bool check_mask)
         if (op_p) {
 		/*
 		 * Should we check for enabled operations (/proc/sysrq-trigger
-		 * should not) and is the invoked operation enabled?
+		 * should yest) and is the invoked operation enabled?
 		 */
 		if (!check_mask || sysrq_on_mask(op_p->enable_mask)) {
 			pr_info("%s\n", op_p->action_msg);
@@ -647,7 +647,7 @@ static void sysrq_parse_reset_sequence(struct sysrq_state *state)
 			state->reset_seq_cnt++;
 	}
 
-	/* Disable reset until old keys are not released */
+	/* Disable reset until old keys are yest released */
 	state->reset_canceled = state->reset_seq_cnt != 0;
 
 	state->reset_seq_version = sysrq_reset_seq_version;
@@ -679,7 +679,7 @@ static void sysrq_detect_reset_sequence(struct sysrq_state *state,
 {
 	if (!test_bit(code, state->reset_keybit)) {
 		/*
-		 * Pressing any key _not_ in reset sequence cancels
+		 * Pressing any key _yest_ in reset sequence cancels
 		 * the reset sequence.  Also cancelling the timer in
 		 * case additional keys were pressed after a reset
 		 * has been requested.
@@ -699,7 +699,7 @@ static void sysrq_detect_reset_sequence(struct sysrq_state *state,
 		if (--state->reset_seq_cnt == 0)
 			state->reset_canceled = false;
 	} else if (value == 1) {
-		/* key press, not autorepeat */
+		/* key press, yest autorepeat */
 		if (++state->reset_seq_cnt == state->reset_seq_len &&
 		    !state->reset_canceled) {
 			sysrq_handle_reset_request(state);
@@ -711,13 +711,13 @@ static void sysrq_detect_reset_sequence(struct sysrq_state *state,
 static void sysrq_of_get_keyreset_config(void)
 {
 	u32 key;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct property *prop;
 	const __be32 *p;
 
-	np = of_find_node_by_path("/chosen/linux,sysrq-reset-seq");
+	np = of_find_yesde_by_path("/chosen/linux,sysrq-reset-seq");
 	if (!np) {
-		pr_debug("No sysrq node found");
+		pr_debug("No sysrq yesde found");
 		return;
 	}
 
@@ -735,7 +735,7 @@ static void sysrq_of_get_keyreset_config(void)
 	/* Get reset timeout if any. */
 	of_property_read_u32(np, "timeout-ms", &sysrq_reset_downtime_ms);
 
-	of_node_put(np);
+	of_yesde_put(np);
 }
 #else
 static void sysrq_of_get_keyreset_config(void)
@@ -751,7 +751,7 @@ static void sysrq_reinject_alt_sysrq(struct work_struct *work)
 	unsigned int alt_code = sysrq->alt_use;
 
 	if (sysrq->need_reinject) {
-		/* we do not want the assignment to be reordered */
+		/* we do yest want the assignment to be reordered */
 		sysrq->reinjecting = true;
 		mb();
 
@@ -797,7 +797,7 @@ static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
 			sysrq->active = true;
 			sysrq->alt_use = sysrq->alt;
 			/*
-			 * If nothing else will be pressed we'll need
+			 * If yesthing else will be pressed we'll need
 			 * to re-inject Alt-SysRq keysroke.
 			 */
 			sysrq->need_reinject = true;
@@ -807,7 +807,7 @@ static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
 		 * Pretend that sysrq was never pressed at all. This
 		 * is needed to properly handle KGDB which will try
 		 * to release all keys after exiting debugger. If we
-		 * do not clear key bit it KGDB will end up sending
+		 * do yest clear key bit it KGDB will end up sending
 		 * release events for Alt and SysRq, potentially
 		 * triggering print screen function.
 		 */
@@ -835,7 +835,7 @@ static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
 			sysrq_parse_reset_sequence(sysrq);
 
 		/*
-		 * If we are not suppressing key presses keep track of
+		 * If we are yest suppressing key presses keep track of
 		 * keyboard state so we can release keys that have been
 		 * pressed before entering SysRq mode.
 		 */
@@ -868,7 +868,7 @@ static bool sysrq_filter(struct input_handle *handle,
 	bool suppress;
 
 	/*
-	 * Do not filter anything if we are in the process of re-injecting
+	 * Do yest filter anything if we are in the process of re-injecting
 	 * Alt+SysRq combination.
 	 */
 	if (sysrq->reinjecting)
@@ -945,7 +945,7 @@ static void sysrq_disconnect(struct input_handle *handle)
 }
 
 /*
- * We are matching on KEY_LEFTALT instead of KEY_SYSRQ because not all
+ * We are matching on KEY_LEFTALT instead of KEY_SYSRQ because yest all
  * keyboards have SysRq key predefined and so user may add it to keymap
  * later, but we expect all such keyboards to have left alt.
  */
@@ -1018,7 +1018,7 @@ static const struct kernel_param_ops param_ops_sysrq_reset_seq = {
 	__param_check(name, p, unsigned short)
 
 /*
- * not really modular, but the easiest way to keep compat with existing
+ * yest really modular, but the easiest way to keep compat with existing
  * bootargs behaviour is to continue using module_param here.
  */
 module_param_array_named(reset_seq, sysrq_reset_seq, sysrq_reset_seq,
@@ -1071,7 +1071,7 @@ static int __sysrq_swap_key_ops(int key, struct sysrq_key_op *insert_op_p,
 	/*
 	 * A concurrent __handle_sysrq either got the old op or the new op.
 	 * Wait for it to go away before returning, so the code for an old
-	 * op is not freed (eg. on module unload) while it is in use.
+	 * op is yest freed (eg. on module unload) while it is in use.
 	 */
 	synchronize_rcu();
 
@@ -1110,7 +1110,7 @@ static ssize_t write_sysrq_trigger(struct file *file, const char __user *buf,
 
 static const struct file_operations proc_sysrq_trigger_operations = {
 	.write		= write_sysrq_trigger,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static void sysrq_init_procfs(void)

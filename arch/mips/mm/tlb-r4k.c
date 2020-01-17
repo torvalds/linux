@@ -6,7 +6,7 @@
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997, 1998, 1999, 2000 Ralf Baechle ralf@gnu.org
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2002 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2002 MIPS Techyeslogies, Inc.  All rights reserved.
  */
 #include <linux/cpu_pm.h>
 #include <linux/init.h>
@@ -30,7 +30,7 @@ extern void build_tlb_refill_handler(void);
 /*
  * LOONGSON-2 has a 4 entry itlb which is a subset of jtlb, LOONGSON-3 has
  * a 4 entry itlb and a 4 entry dtlb which are subsets of jtlb. Unfortunately,
- * itlb/dtlb are not totally transparent to software.
+ * itlb/dtlb are yest totally transparent to software.
  */
 static inline void flush_micro_tlb(void)
 {
@@ -288,7 +288,7 @@ void local_flush_tlb_one(unsigned long page)
 
 /*
  * We will need multiple versions of update_mmu_cache(), one that just
- * updates the TLB with the new pte(s), and another which also checks
+ * updates the TLB with the new pte(s), and ayesther which also checks
  * for the R4k "end of page" hardware bug and does the needy.
  */
 void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
@@ -524,7 +524,7 @@ static void r4k_tlb_configure(void)
 
 	if (cpu_has_rixi) {
 		/*
-		 * Enable the no read, no exec bits, and enable large physical
+		 * Enable the yes read, yes exec bits, and enable large physical
 		 * address.
 		 */
 #ifdef CONFIG_64BIT
@@ -553,13 +553,13 @@ void tlb_init(void)
 			write_c0_index(wired-1);
 			printk("Restricting TLB to %d entries\n", ntlb);
 		} else
-			printk("Ignoring invalid argument ntlb=%d\n", ntlb);
+			printk("Igyesring invalid argument ntlb=%d\n", ntlb);
 	}
 
 	build_tlb_refill_handler();
 }
 
-static int r4k_tlb_pm_notifier(struct notifier_block *self, unsigned long cmd,
+static int r4k_tlb_pm_yestifier(struct yestifier_block *self, unsigned long cmd,
 			       void *v)
 {
 	switch (cmd) {
@@ -572,12 +572,12 @@ static int r4k_tlb_pm_notifier(struct notifier_block *self, unsigned long cmd,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block r4k_tlb_pm_notifier_block = {
-	.notifier_call = r4k_tlb_pm_notifier,
+static struct yestifier_block r4k_tlb_pm_yestifier_block = {
+	.yestifier_call = r4k_tlb_pm_yestifier,
 };
 
 static int __init r4k_tlb_init_pm(void)
 {
-	return cpu_pm_register_notifier(&r4k_tlb_pm_notifier_block);
+	return cpu_pm_register_yestifier(&r4k_tlb_pm_yestifier_block);
 }
 arch_initcall(r4k_tlb_init_pm);

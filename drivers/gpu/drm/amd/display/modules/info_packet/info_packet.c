@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -138,7 +138,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 			stream->link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED)
 		vscPacketRevision = 5;
 
-	/* VSC packet not needed based on the features
+	/* VSC packet yest needed based on the features
 	 * supported by this DP display
 	 */
 	if (vscPacketRevision == 0)
@@ -234,7 +234,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	 *   (Requires VSC_SDP_EXTENSION_FOR_COLORIMETRY_SUPPORTED bit set to 1 in DPCD 02210h. This
 	 *   DPCD register is exposed in the new Extended Receiver Capability field for DPCD Rev. 1.4
 	 *   (and higher). When MISC1. bit 6. is Set to 1, a Source device uses a VSC SDP to indicate
-	 *   the Pixel Encoding/Colorimetry Format and that a Sink device must ignore MISC1, bit 7, and
+	 *   the Pixel Encoding/Colorimetry Format and that a Sink device must igyesre MISC1, bit 7, and
 	 *   MISC0, bits 7:1 (MISC1, bit 7. and MISC0, bits 7:1 become "don't care").)
 	 */
 	if (vscPacketRevision == 0x5) {
@@ -331,7 +331,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		case PIXEL_ENCODING_YCBCR444:
 		case PIXEL_ENCODING_YCBCR422:
 		case PIXEL_ENCODING_YCBCR420:
-			/* Note: xvYCC probably not supported correctly here on DP since colorspace translation
+			/* Note: xvYCC probably yest supported correctly here on DP since colorspace translation
 			 * loses distinction between BT601 vs xvYCC601 in translation
 			 */
 			if (stream->output_color_space == COLOR_SPACE_YCBCR601)
@@ -354,7 +354,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		/* Set color depth */
 		switch (stream->timing.display_color_depth) {
 		case COLOR_DEPTH_666:
-			/* NOTE: This is actually not valid for YCbCr pixel encoding to have 6 bpc
+			/* NOTE: This is actually yest valid for YCbCr pixel encoding to have 6 bpc
 			 *       as of DP1.4 spec, but value of 0 probably reserved here for potential future use.
 			 */
 			info_packet->sb[17] = 0;

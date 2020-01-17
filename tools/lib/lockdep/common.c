@@ -14,7 +14,7 @@ bool debug_locks_silent;
 
 __attribute__((destructor)) static void liblockdep_exit(void)
 {
-	debug_check_no_locks_held();
+	debug_check_yes_locks_held();
 }
 
 struct task_struct *__curr(void)

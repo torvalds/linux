@@ -47,7 +47,7 @@ can be routed from GPIO19 of the GPIO controller.
 To better understand the change from PXA25x/PXA27x GPIO alternate function
 to this new MFP mechanism, here are several key points:
 
-  1. GPIO controller on PXA3xx is now a dedicated controller, same as other
+  1. GPIO controller on PXA3xx is yesw a dedicated controller, same as other
      internal controllers like PWM, SSP and UART, with 128 internal signals
      which can be routed to external through one or more MFPs (e.g. GPIO<0>
      can be routed through either MFP_PIN_GPIO0 as well as MFP_PIN_GPIO0_2,
@@ -60,14 +60,14 @@ to this new MFP mechanism, here are several key points:
        - GPIO direction control
        - GPIO level change detection
 
-  3. Low power state for each pin is now controlled by MFP, this means the
-     PGSRx registers on PXA2xx are now useless on PXA3xx
+  3. Low power state for each pin is yesw controlled by MFP, this means the
+     PGSRx registers on PXA2xx are yesw useless on PXA3xx
 
-  4. Wakeup detection is now controlled by MFP, PWER does not control the
+  4. Wakeup detection is yesw controlled by MFP, PWER does yest control the
      wakeup from GPIO(s) any more, depending on the sleeping state, ADxER
      (as defined in pxa3xx-regs.h) controls the wakeup from MFP
 
-NOTE: with such a clear separation of MFP and GPIO, by GPIO<xx> we normally
+NOTE: with such a clear separation of MFP and GPIO, by GPIO<xx> we yesrmally
 mean it is a GPIO signal, and by MFP<xxx> or pin xxx, we mean a physical
 pad (or ball).
 
@@ -250,7 +250,7 @@ Pin Configuration
      * 		  alternate function = 0,
      * 		  drive strength = fast 3mA (MFP_DS03X)
      * 		  low power mode = default
-     * 		  edge detection = none
+     * 		  edge detection = yesne
      *
      * MFP_CFG	- default MFPR value with alternate function
      * MFP_CFG_DRV	- default MFPR value with alternate function and
@@ -270,7 +270,7 @@ Pin Configuration
    modes.
 
    NOTE: this is the default setting of this pin being configured as SSP3_RXD
-   which can be modified a bit in board code, though it is not recommended to
+   which can be modified a bit in board code, though it is yest recommended to
    do so, simply because this default setting is usually carefully encoded,
    and is supposed to work in most cases.
 

@@ -51,7 +51,7 @@
 
 /* Limits on Hop-by-Hop and Destination options.
  *
- * Per RFC8200 there is no limit on the maximum number or lengths of options in
+ * Per RFC8200 there is yes limit on the maximum number or lengths of options in
  * Hop-by-Hop or Destination options other then the packet must fit in an MTU.
  * We allow configurable limits in order to mitigate potential denial of
  * service attacks.
@@ -61,7 +61,7 @@
  *     extension header
  *   - Limit the byte length of a Hop-by-Hop or Destination options extension
  *     header
- *   - Disallow unknown options
+ *   - Disallow unkyeswn options
  *
  * The limits are expressed in corresponding sysctls:
  *
@@ -71,13 +71,13 @@
  * ipv6.sysctl.max_hbh_opts_len
  *
  * max_*_opts_cnt is the number of TLVs that are allowed for Destination
- * options or Hop-by-Hop options. If the number is less than zero then unknown
- * TLVs are disallowed and the number of known options that are allowed is the
- * absolute value. Setting the value to INT_MAX indicates no limit.
+ * options or Hop-by-Hop options. If the number is less than zero then unkyeswn
+ * TLVs are disallowed and the number of kyeswn options that are allowed is the
+ * absolute value. Setting the value to INT_MAX indicates yes limit.
  *
  * max_*_opts_len is the length limit in bytes of a Destination or
  * Hop-by-Hop options extension header. Setting the value to INT_MAX
- * indicates no length limit.
+ * indicates yes length limit.
  *
  * If a limit is exceeded when processing an extension header the packet is
  * silently discarded.
@@ -119,7 +119,7 @@
  *	Addr scopes
  */
 #define IPV6_ADDR_MC_SCOPE(a)	\
-	((a)->s6_addr[1] & 0x0f)	/* nonstandard */
+	((a)->s6_addr[1] & 0x0f)	/* yesnstandard */
 #define __IPV6_ADDR_SCOPE_INVALID	-1
 #define IPV6_ADDR_SCOPE_NODELOCAL	0x01
 #define IPV6_ADDR_SCOPE_LINKLOCAL	0x02
@@ -170,7 +170,7 @@ static inline struct sk_buff *ip6_fraglist_next(struct ip6_fraglist_iter *iter)
 	struct sk_buff *skb = iter->frag;
 
 	iter->frag = skb->next;
-	skb_mark_not_on_list(skb);
+	skb_mark_yest_on_list(skb);
 
 	return skb;
 }
@@ -375,7 +375,7 @@ static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
 	rcu_read_lock();
 	opt = rcu_dereference(np->opt);
 	if (opt) {
-		if (!refcount_inc_not_zero(&opt->refcnt))
+		if (!refcount_inc_yest_zero(&opt->refcnt))
 			opt = NULL;
 		else
 			opt = rcu_pointer_handoff(opt);
@@ -419,7 +419,7 @@ static inline void fl6_sock_release(struct ip6_flowlabel *fl)
 		atomic_dec(&fl->users);
 }
 
-void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info);
+void icmpv6_yestify(struct sk_buff *skb, u8 type, u8 code, __be32 info);
 
 void icmpv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
 				struct icmp6hdr *thdr, int len);
@@ -444,7 +444,7 @@ struct ipv6_txoptions *ipv6_update_options(struct sock *sk,
 
 static inline bool ipv6_accept_ra(struct inet6_dev *idev)
 {
-	/* If forwarding is enabled, RA are not accepted unless the special
+	/* If forwarding is enabled, RA are yest accepted unless the special
 	 * hybrid mode (accept_ra=2) is enabled.
 	 */
 	return idev->cnf.forwarding ? idev->cnf.accept_ra == 2 :
@@ -682,7 +682,7 @@ static inline bool ipv6_addr_loopback(const struct in6_addr *a)
 
 /*
  * Note that we must __force cast these to unsigned long to make sparse happy,
- * since all of the endian-annotated types are fixed size regardless of arch.
+ * since all of the endian-anyestated types are fixed size regardless of arch.
  */
 static inline bool ipv6_addr_v4mapped(const struct in6_addr *a)
 {
@@ -769,7 +769,7 @@ static inline int __ipv6_addr_diff32(const void *token1, const void *token2, int
 	 *	and we are here.
 	 *
 	 *	Ideally, this function should stop comparison
-	 *	at prefix length. It does not, but it is still OK,
+	 *	at prefix length. It does yest, but it is still OK,
 	 *	if returned value is greater than prefix length.
 	 *					--ANK (980803)
 	 */
@@ -845,10 +845,10 @@ static inline void iph_to_flow_copy_v6addrs(struct flow_keys *flow,
 
 #if IS_ENABLED(CONFIG_IPV6)
 
-static inline bool ipv6_can_nonlocal_bind(struct net *net,
+static inline bool ipv6_can_yesnlocal_bind(struct net *net,
 					  struct inet_sock *inet)
 {
-	return net->ipv6.sysctl.ip_nonlocal_bind ||
+	return net->ipv6.sysctl.ip_yesnlocal_bind ||
 		inet->freebind || inet->transparent;
 }
 

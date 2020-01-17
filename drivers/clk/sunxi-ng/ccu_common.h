@@ -21,7 +21,7 @@
 /* MMC timing mode switch bit */
 #define CCU_MMC_NEW_TIMING_MODE		BIT(30)
 
-struct device_node;
+struct device_yesde;
 
 struct ccu_common {
 	void __iomem	*base;
@@ -52,7 +52,7 @@ struct sunxi_ccu_desc {
 void ccu_helper_wait_for_lock(struct ccu_common *common, u32 lock);
 
 struct ccu_pll_nb {
-	struct notifier_block	clk_nb;
+	struct yestifier_block	clk_nb;
 	struct ccu_common	*common;
 
 	u32	enable;
@@ -61,9 +61,9 @@ struct ccu_pll_nb {
 
 #define to_ccu_pll_nb(_nb) container_of(_nb, struct ccu_pll_nb, clk_nb)
 
-int ccu_pll_notifier_register(struct ccu_pll_nb *pll_nb);
+int ccu_pll_yestifier_register(struct ccu_pll_nb *pll_nb);
 
-int sunxi_ccu_probe(struct device_node *node, void __iomem *reg,
+int sunxi_ccu_probe(struct device_yesde *yesde, void __iomem *reg,
 		    const struct sunxi_ccu_desc *desc);
 
 #endif /* _COMMON_H_ */

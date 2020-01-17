@@ -117,7 +117,7 @@ static int sun9i_a80_usb_clk_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = sunxi_ccu_probe(pdev->dev.of_node, reg,
+	ret = sunxi_ccu_probe(pdev->dev.of_yesde, reg,
 			      &sun9i_a80_usb_clk_desc);
 	if (ret)
 		goto err_disable_clk;

@@ -4,14 +4,14 @@
 
 #include <stdbool.h>
 
-#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+#pragma GCC diagyesstic igyesred "-Wstrict-prototypes"
 #include <gtk/gtk.h>
-#pragma GCC diagnostic error "-Wstrict-prototypes"
+#pragma GCC diagyesstic error "-Wstrict-prototypes"
 
 
 struct perf_gtk_context {
 	GtkWidget *main_window;
-	GtkWidget *notebook;
+	GtkWidget *yestebook;
 
 #ifdef HAVE_GTK_INFO_BAR_SUPPORT
 	GtkWidget *info_bar;
@@ -60,9 +60,9 @@ struct hist_browser_timer;
 int perf_evlist__gtk_browse_hists(struct evlist *evlist, const char *help,
 				  struct hist_browser_timer *hbt,
 				  float min_pcnt);
-int hist_entry__gtk_annotate(struct hist_entry *he,
+int hist_entry__gtk_anyestate(struct hist_entry *he,
 			     struct evsel *evsel,
 			     struct hist_browser_timer *hbt);
-void perf_gtk__show_annotations(void);
+void perf_gtk__show_anyestations(void);
 
 #endif /* _PERF_GTK_H_ */

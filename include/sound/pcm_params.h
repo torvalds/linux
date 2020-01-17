@@ -28,7 +28,7 @@ static inline size_t snd_mask_sizeof(void)
 	return sizeof(struct snd_mask);
 }
 
-static inline void snd_mask_none(struct snd_mask *mask)
+static inline void snd_mask_yesne(struct snd_mask *mask)
 {
 	memset(mask, 0, sizeof(*mask));
 }
@@ -104,7 +104,7 @@ static inline void snd_mask_leave(struct snd_mask *mask, unsigned int val)
 {
 	unsigned int v;
 	v = mask->bits[MASK_OFS(val)] & MASK_BIT(val);
-	snd_mask_none(mask);
+	snd_mask_yesne(mask);
 	mask->bits[MASK_OFS(val)] = v;
 }
 
@@ -220,7 +220,7 @@ static inline void snd_interval_any(struct snd_interval *i)
 	i->empty = 0;
 }
 
-static inline void snd_interval_none(struct snd_interval *i)
+static inline void snd_interval_yesne(struct snd_interval *i)
 {
 	i->empty = 1;
 }

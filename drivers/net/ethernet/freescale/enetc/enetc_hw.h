@@ -27,13 +27,13 @@
 #define ENETC_SICAR0	0x40
 #define ENETC_SICAR1	0x44
 #define ENETC_SICAR2	0x48
-/* rd snoop, no alloc
- * wr snoop, no alloc, partial cache line update for BDs and full cache line
+/* rd syesop, yes alloc
+ * wr syesop, yes alloc, partial cache line update for BDs and full cache line
  * update for data
  */
 #define ENETC_SICAR_RD_COHERENT	0x2b2b0000
 #define ENETC_SICAR_WR_COHERENT	0x00006727
-#define ENETC_SICAR_MSI	0x00300030 /* rd/wr device, no snoop, no alloc */
+#define ENETC_SICAR_MSI	0x00300030 /* rd/wr device, yes syesop, yes alloc */
 
 #define ENETC_SIPMAR0	0x80
 #define ENETC_SIPMAR1	0x84
@@ -514,7 +514,7 @@ enum enetc_msg_cmd_action_type {
 /* PSI-VSI command header format */
 struct enetc_msg_cmd_header {
 	u16 type;	/* command class type */
-	u16 id;		/* denotes the specific required action */
+	u16 id;		/* deyestes the specific required action */
 };
 
 /* Common H/W utility functions */

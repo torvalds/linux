@@ -198,7 +198,7 @@ struct mci_result {
 			 * SNR in dB x 100
 			 * Note: negative values are valid in DVB-S2
 			 */
-			s16 signal_to_noise;
+			s16 signal_to_yesise;
 			s16 rsvd2;
 			/*
 			 * Counter for packet errors
@@ -207,7 +207,7 @@ struct mci_result {
 			u32 packet_errors;
 			/* Bit error rate: PreRS in DVB-S, PreBCH in DVB-S2X */
 			u32 ber_numerator;
-			u32 ber_denominator;
+			u32 ber_deyesminator;
 		} dvbs2_signal_info;
 
 		struct {

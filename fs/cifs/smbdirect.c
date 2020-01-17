@@ -102,7 +102,7 @@ int smbd_keep_alive_interval = 120;
 /* Default maximum number of SGEs in a RDMA write/read */
 int smbd_max_frmr_depth = 2048;
 
-/* If payload is less than this byte, use RDMA send/recv not read/write */
+/* If payload is less than this byte, use RDMA send/recv yest read/write */
 int rdma_readwrite_threshold = 4096;
 
 /* Transport logging functions
@@ -427,7 +427,7 @@ static void smbd_post_send_credits(struct work_struct *work)
 			else
 				response = get_empty_queue_buffer(info);
 			if (!response) {
-				/* now switch to emtpy packet queue */
+				/* yesw switch to emtpy packet queue */
 				if (use_receive_queue) {
 					use_receive_queue = 0;
 					continue;
@@ -665,7 +665,7 @@ static int smbd_ia_open(
 	if (!frwr_is_supported(&info->id->device->attrs)) {
 		log_rdma_event(ERR,
 			"Fast Registration Work Requests "
-			"(FRWR) is not supported\n");
+			"(FRWR) is yest supported\n");
 		log_rdma_event(ERR,
 			"Device capability flags = %llx "
 			"max_fast_reg_page_list_len = %u\n",
@@ -843,7 +843,7 @@ static int smbd_create_header(struct smbd_connection *info,
 		return rc;
 
 	if (info->transport_status != SMBD_CONNECTED) {
-		log_outgoing(ERR, "disconnected not sending\n");
+		log_outgoing(ERR, "disconnected yest sending\n");
 		return -EAGAIN;
 	}
 	atomic_dec(&info->send_credits);
@@ -1044,7 +1044,7 @@ static int smbd_post_send_page(struct smbd_connection *info, struct page *page,
 /*
  * Send an empty message
  * Empty message is used to extend credits to peer to for keep live
- * while there is no upper layer payload to send at the time
+ * while there is yes upper layer payload to send at the time
  */
 static int smbd_post_send_empty(struct smbd_connection *info)
 {
@@ -1240,7 +1240,7 @@ static struct smbd_response *get_empty_queue_buffer(
  * Get a receive buffer
  * For each remote send, we need to post a receive. The receive buffers are
  * pre-allocated in advance.
- * return value: the receive buffer, NULL if none is available
+ * return value: the receive buffer, NULL if yesne is available
  */
 static struct smbd_response *get_receive_buffer(struct smbd_connection *info)
 {
@@ -1423,7 +1423,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	wait_event(info->wait_send_payload_pending,
 		atomic_read(&info->send_payload_pending) == 0);
 
-	/* It's not posssible for upper layer to get to reassembly */
+	/* It's yest posssible for upper layer to get to reassembly */
 	log_rdma_event(INFO, "drain the reassembly queue\n");
 	do {
 		spin_lock_irqsave(&info->reassembly_queue_lock, flags);
@@ -1447,7 +1447,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 
 	/*
 	 * For performance reasons, memory registration and deregistration
-	 * are not locked by srv_mutex. It is possible some processes are
+	 * are yest locked by srv_mutex. It is possible some processes are
 	 * blocked on transport srv_mutex while holding memory registration.
 	 * Release the transport srv_mutex to allow them to hit the failure
 	 * path when sending data, and then release memory registartions.
@@ -1495,7 +1495,7 @@ int smbd_reconnect(struct TCP_Server_Info *server)
 
 	/*
 	 * This is possible if transport is disconnected and we haven't received
-	 * notification from RDMA, but upper layer has detected timeout
+	 * yestification from RDMA, but upper layer has detected timeout
 	 */
 	if (server->smbd_conn->transport_status == SMBD_CONNECTED) {
 		log_rdma_event(INFO, "disconnecting transport\n");
@@ -1839,8 +1839,8 @@ try_again:
  * size: the length of data to read
  * return value: actual data read
  * Note: this implementation copies the data from reassebmly queue to receive
- * buffers used by upper layer. This is not the optimal code path. A better way
- * to do it is to not have upper layer allocate its receive buffers but rather
+ * buffers used by upper layer. This is yest the optimal code path. A better way
+ * to do it is to yest have upper layer allocate its receive buffers but rather
  * borrow the buffer from reassembly queue, and return it after data is
  * consumed. But this will require more changes to upper layer code, and also
  * need to consider packet boundaries while they still being reassembled.
@@ -1916,7 +1916,7 @@ again:
 			if (to_copy == data_length - offset) {
 				queue_length--;
 				/*
-				 * No need to lock if we are not at the
+				 * No need to lock if we are yest at the
 				 * end of the queue
 				 */
 				if (queue_length)
@@ -2000,7 +2000,7 @@ static int smbd_recv_page(struct smbd_connection *info,
 	if (ret)
 		return ret;
 
-	/* now we can read from reassembly queue and not sleep */
+	/* yesw we can read from reassembly queue and yest sleep */
 	page_address = kmap_atomic(page);
 	to_address = (char *) page_address + page_offset;
 
@@ -2016,7 +2016,7 @@ static int smbd_recv_page(struct smbd_connection *info,
 /*
  * Receive data from transport
  * msg: a msghdr point to the buffer, can be ITER_KVEC or ITER_BVEC
- * return: total bytes read, or 0. SMB Direct will not do partial read.
+ * return: total bytes read, or 0. SMB Direct will yest do partial read.
  */
 int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 {
@@ -2055,7 +2055,7 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 	}
 
 out:
-	/* SMBDirect will read it all or nothing */
+	/* SMBDirect will read it all or yesthing */
 	if (rc > 0)
 		msg->msg_iter.count = 0;
 	return rc;
@@ -2197,7 +2197,7 @@ next_rqst:
 		log_write(INFO, "looping i=%d buflen=%d\n", i, buflen);
 	}
 
-	/* now sending pages if there are any */
+	/* yesw sending pages if there are any */
 	for (i = 0; i < rqst->rq_npages; i++) {
 		unsigned int offset;
 
@@ -2257,9 +2257,9 @@ static void register_mr_done(struct ib_cq *cq, struct ib_wc *wc)
 /*
  * The work queue function that recovers MRs
  * We need to call ib_dereg_mr() and ib_alloc_mr() before this MR can be used
- * again. Both calls are slow, so finish them in a workqueue. This will not
+ * again. Both calls are slow, so finish them in a workqueue. This will yest
  * block I/O path.
- * There is one workqueue that recovers MRs, there is no need to lock as the
+ * There is one workqueue that recovers MRs, there is yes need to lock as the
  * I/O requests calling smbd_register_mr will never update the links in the
  * mr_list.
  */
@@ -2330,10 +2330,10 @@ static void destroy_mr_list(struct smbd_connection *info)
 
 /*
  * Allocate MRs used for RDMA read/write
- * The number of MRs will not exceed hardware capability in responder_resources
+ * The number of MRs will yest exceed hardware capability in responder_resources
  * All MRs are kept in mr_list. The MR can be recovered after it's used
  * Recovery is done in smbd_mr_recovery_work. The content of list entry changes
- * as MRs are used and recovered for I/O, but the list links will not change
+ * as MRs are used and recovered for I/O, but the list links will yest change
  */
 static int allocate_mr_list(struct smbd_connection *info)
 {
@@ -2438,7 +2438,7 @@ again:
  * Register memory for RDMA read/write
  * pages[]: the list of pages to register memory with
  * num_pages: the number of pages to register
- * tailsz: if non-zero, the bytes to register in the last page
+ * tailsz: if yesn-zero, the bytes to register in the last page
  * writing: true if this is a RDMA write (SMB read), false for RDMA read
  * need_invalidate: true if this MR needs to be locally invalidated after I/O
  * return value: the MR registered, NULL if failed.
@@ -2520,7 +2520,7 @@ skip_multiple_pages:
 			IB_ACCESS_REMOTE_READ;
 
 	/*
-	 * There is no need for waiting for complemtion on ib_post_send
+	 * There is yes need for waiting for complemtion on ib_post_send
 	 * on IB_WR_REG_MR. Hardware enforces a barrier and order of execution
 	 * on the next ib_post_send when we actaully send I/O to remote peer
 	 */
@@ -2563,7 +2563,7 @@ static void local_inv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 /*
  * Deregister a MR after I/O is done
- * This function may wait if remote invalidation is not used
+ * This function may wait if remote invalidation is yest used
  * and we have to locally invalidate the buffer to prevent data is being
  * modified by remote peer after upper layer consumes it
  */

@@ -115,7 +115,7 @@
 #define rOFDM0_TRxPathEnable		0xc04
 #define rOFDM0_TRMuxPar			0xc08
 #define rOFDM0_TRSWIsolation		0xc0c
-/* RxIQ DC offset, Rx digital filter, DC notch filter */
+/* RxIQ DC offset, Rx digital filter, DC yestch filter */
 #define rOFDM0_XARxAFE			0xc10
 #define rOFDM0_XARxIQImbalance		0xc14 /* RxIQ imbalance matrix */
 #define rOFDM0_XBRxAFE			0xc18
@@ -179,7 +179,7 @@
 #define rOFDM1_RxPseudoNoiseWgt		0xd58
 #define rOFDM_PHYCounter1		0xda0 /* cca, parity fail */
 #define rOFDM_PHYCounter2		0xda4 /* rate illegal, crc8 fail */
-#define rOFDM_PHYCounter3		0xda8 /* MCS not supported */
+#define rOFDM_PHYCounter3		0xda8 /* MCS yest supported */
 #define rOFDM_ShortCFOAB		0xdac
 #define rOFDM_ShortCFOCD		0xdb0
 #define rOFDM_LongCFOAB			0xdb4
@@ -708,7 +708,7 @@
 
 #define bmax_en_pwdB		0xffff
 #define bCC_power_dB		0xffff0000
-#define bnoise_pwdB		0xffff
+#define byesise_pwdB		0xffff
 #define bPowerMeasTLength	10
 #define bPowerMeasFLength	3
 #define bRx_HT_BW		0x1
@@ -785,7 +785,7 @@
 #define bTxAGCRateMCS11_MCS8	0x7f7f7f7f
 #define bTxAGCRateMCS15_MCS12	0x7f7f7f7f
 
-#define bRxPesudoNoiseOn	0x20000000 /* Rx Pseduo noise */
+#define bRxPesudoNoiseOn	0x20000000 /* Rx Pseduo yesise */
 #define bRxPesudoNoise_A	0xff
 #define bRxPesudoNoise_B	0xff00
 #define bRxPesudoNoise_C	0xff0000

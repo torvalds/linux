@@ -8,13 +8,13 @@ struct nv50_core {
 	struct nv50_dmac chan;
 };
 
-int nv50_core_new(struct nouveau_drm *, struct nv50_core **);
+int nv50_core_new(struct yesuveau_drm *, struct nv50_core **);
 void nv50_core_del(struct nv50_core **);
 
 struct nv50_core_func {
 	void (*init)(struct nv50_core *);
-	void (*ntfy_init)(struct nouveau_bo *, u32 offset);
-	int (*ntfy_wait_done)(struct nouveau_bo *, u32 offset,
+	void (*ntfy_init)(struct yesuveau_bo *, u32 offset);
+	int (*ntfy_wait_done)(struct yesuveau_bo *, u32 offset,
 			      struct nvif_device *);
 	void (*update)(struct nv50_core *, u32 *interlock, bool ntfy);
 
@@ -25,30 +25,30 @@ struct nv50_core_func {
 	} *dac, *pior, *sor;
 };
 
-int core507d_new(struct nouveau_drm *, s32, struct nv50_core **);
-int core507d_new_(const struct nv50_core_func *, struct nouveau_drm *, s32,
+int core507d_new(struct yesuveau_drm *, s32, struct nv50_core **);
+int core507d_new_(const struct nv50_core_func *, struct yesuveau_drm *, s32,
 		  struct nv50_core **);
 void core507d_init(struct nv50_core *);
-void core507d_ntfy_init(struct nouveau_bo *, u32);
-int core507d_ntfy_wait_done(struct nouveau_bo *, u32, struct nvif_device *);
+void core507d_ntfy_init(struct yesuveau_bo *, u32);
+int core507d_ntfy_wait_done(struct yesuveau_bo *, u32, struct nvif_device *);
 void core507d_update(struct nv50_core *, u32 *, bool);
 
 extern const struct nv50_outp_func dac507d;
 extern const struct nv50_outp_func sor507d;
 extern const struct nv50_outp_func pior507d;
 
-int core827d_new(struct nouveau_drm *, s32, struct nv50_core **);
+int core827d_new(struct yesuveau_drm *, s32, struct nv50_core **);
 
-int core907d_new(struct nouveau_drm *, s32, struct nv50_core **);
+int core907d_new(struct yesuveau_drm *, s32, struct nv50_core **);
 extern const struct nv50_outp_func dac907d;
 extern const struct nv50_outp_func sor907d;
 
-int core917d_new(struct nouveau_drm *, s32, struct nv50_core **);
+int core917d_new(struct yesuveau_drm *, s32, struct nv50_core **);
 
-int corec37d_new(struct nouveau_drm *, s32, struct nv50_core **);
-int corec37d_ntfy_wait_done(struct nouveau_bo *, u32, struct nvif_device *);
+int corec37d_new(struct yesuveau_drm *, s32, struct nv50_core **);
+int corec37d_ntfy_wait_done(struct yesuveau_bo *, u32, struct nvif_device *);
 void corec37d_update(struct nv50_core *, u32 *, bool);
 extern const struct nv50_outp_func sorc37d;
 
-int corec57d_new(struct nouveau_drm *, s32, struct nv50_core **);
+int corec57d_new(struct yesuveau_drm *, s32, struct nv50_core **);
 #endif

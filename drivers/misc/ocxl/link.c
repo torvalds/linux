@@ -56,7 +56,7 @@ struct spa {
 	/*
 	 * The following field are used by the memory fault
 	 * interrupt handler. We can only have one interrupt at a
-	 * time. The NPU won't raise another interrupt until the
+	 * time. The NPU won't raise ayesther interrupt until the
 	 * previous one has been ack'd by writing to the TFC register
 	 */
 	struct xsl_fault {
@@ -110,7 +110,7 @@ static void ack_irq(struct spa *spa, enum xsl_response r)
 {
 	u64 reg = 0;
 
-	/* continue is not supported */
+	/* continue is yest supported */
 	if (r == RESTART)
 		reg = PPC_BIT(31);
 	else if (r == ADDRESS_ERROR)
@@ -155,8 +155,8 @@ static void xsl_fault_handler_bh(struct work_struct *fault_work)
 
 	if (!radix_enabled()) {
 		/*
-		 * update_mmu_cache() will not have loaded the hash
-		 * since current->trap is not a 0x400 or 0x300, so
+		 * update_mmu_cache() will yest have loaded the hash
+		 * since current->trap is yest a 0x400 or 0x300, so
 		 * just call hash_page_mm() here.
 		 */
 		access = _PAGE_PRESENT | _PAGE_READ;
@@ -194,10 +194,10 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 	pe = spa->spa_mem + pe_handle;
 	pid = be32_to_cpu(pe->pid);
 	/* We could be reading all null values here if the PE is being
-	 * removed while an interrupt kicks in. It's not supposed to
-	 * happen if the driver notified the AFU to terminate the
+	 * removed while an interrupt kicks in. It's yest supposed to
+	 * happen if the driver yestified the AFU to terminate the
 	 * PASID, and the AFU waited for pending operations before
-	 * acknowledging. But even if it happens, we won't find a
+	 * ackyeswledging. But even if it happens, we won't find a
 	 * memory context below and fail silently, so it should be ok.
 	 */
 	if (!(dsisr & SPA_XSL_TF)) {
@@ -210,7 +210,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 	pe_data = radix_tree_lookup(&spa->pe_tree, pe_handle);
 	if (!pe_data) {
 		/*
-		 * Could only happen if the driver didn't notify the
+		 * Could only happen if the driver didn't yestify the
 		 * AFU about PASID termination before removing the PE,
 		 * or the AFU didn't wait for all memory access to
 		 * have completed.
@@ -220,7 +220,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 		 * scenario
 		 */
 		rcu_read_unlock();
-		pr_debug("Unknown mm context for xsl interrupt\n");
+		pr_debug("Unkyeswn mm context for xsl interrupt\n");
 		ack_irq(spa, ADDRESS_ERROR);
 		return IRQ_HANDLED;
 	}
@@ -237,7 +237,7 @@ static irqreturn_t xsl_fault_handler(int irq, void *data)
 	}
 	WARN_ON(pe_data->mm->context.id != pid);
 
-	if (mmget_not_zero(pe_data->mm)) {
+	if (mmget_yest_zero(pe_data->mm)) {
 			spa->xsl_fault.pe = pe_handle;
 			spa->xsl_fault.dar = dar;
 			spa->xsl_fault.dsisr = dsisr;
@@ -553,12 +553,12 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 	 * The mm must stay valid for as long as the device uses it. We
 	 * lower the count when the context is removed from the SPA.
 	 *
-	 * We grab mm_count (and not mm_users), as we don't want to
+	 * We grab mm_count (and yest mm_users), as we don't want to
 	 * end up in a circular dependency if a process mmaps its
 	 * mmio, therefore incrementing the file ref count when
 	 * calling mmap(), and forgets to unmap before exiting. In
 	 * that scenario, when the kernel handles the death of the
-	 * process, the file is not cleaned because unmap was not
+	 * process, the file is yest cleaned because unmap was yest
 	 * called, and the mm wouldn't be freed because we would still
 	 * have a reference on mm_users. Incrementing mm_count solves
 	 * the problem.
@@ -592,7 +592,7 @@ int ocxl_link_update_pe(void *link_handle, int pasid, __u16 tid)
 	/*
 	 * The barrier makes sure the PE is updated
 	 * before we clear the NPU context cache below, so that the
-	 * old PE cannot be reloaded erroneously.
+	 * old PE canyest be reloaded erroneously.
 	 */
 	mb();
 
@@ -623,14 +623,14 @@ int ocxl_link_remove_pe(void *link_handle, int pasid)
 	 * About synchronization with our memory fault handler:
 	 *
 	 * Before removing the PE, the driver is supposed to have
-	 * notified the AFU, which should have cleaned up and make
-	 * sure the PASID is no longer in use, including pending
-	 * interrupts. However, there's no way to be sure...
+	 * yestified the AFU, which should have cleaned up and make
+	 * sure the PASID is yes longer in use, including pending
+	 * interrupts. However, there's yes way to be sure...
 	 *
 	 * We clear the PE and remove the context from our radix
 	 * tree. From that point on, any new interrupt for that
 	 * context will fail silently, which is ok. As mentioned
-	 * above, that's not expected, but it could happen if the
+	 * above, that's yest expected, but it could happen if the
 	 * driver or AFU didn't do the right thing.
 	 *
 	 * There could still be a bottom half running, but we don't
@@ -654,7 +654,7 @@ int ocxl_link_remove_pe(void *link_handle, int pasid)
 	/*
 	 * The barrier makes sure the PE is removed from the SPA
 	 * before we clear the NPU context cache below, so that the
-	 * old PE cannot be reloaded erroneously.
+	 * old PE canyest be reloaded erroneously.
 	 */
 	mb();
 

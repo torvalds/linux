@@ -3,7 +3,7 @@
 # This is a simple wrapper Makefile that calls the main Makefile.perf
 # with a -j option to do parallel builds
 #
-# If you want to invoke the perf build in some non-standard way then
+# If you want to invoke the perf build in some yesn-standard way then
 # you can use the 'make -f Makefile.perf' method to invoke it.
 #
 
@@ -32,7 +32,7 @@ ifeq ($(JOBS),)
 endif
 
 #
-# Only pass canonical directory names as the output directory:
+# Only pass cayesnical directory names as the output directory:
 #
 ifneq ($(O),)
   FULL_O := $(shell readlink -f $(O) || echo $(O))
@@ -56,13 +56,13 @@ define print_msg
 endef
 
 define make
-  @$(MAKE) -f Makefile.perf --no-print-directory -j$(JOBS) O=$(FULL_O) $(SET_DEBUG) $@
+  @$(MAKE) -f Makefile.perf --yes-print-directory -j$(JOBS) O=$(FULL_O) $(SET_DEBUG) $@
 endef
 
 #
-# Needed if no target specified:
+# Needed if yes target specified:
 # (Except for tags and TAGS targets. The reason is that the
-# Makefile does not treat tags/TAGS as targets but as files
+# Makefile does yest treat tags/TAGS as targets but as files
 # and thus won't rebuilt them once they are in place.)
 #
 all tags TAGS:
@@ -90,7 +90,7 @@ clean:
 	$(make) -j1
 
 #
-# The build-test target is not really parallel, don't print the jobs info,
+# The build-test target is yest really parallel, don't print the jobs info,
 # it also uses only the tests/make targets that don't pollute the source
 # repository, i.e. that uses O= or builds the tarpkg outside the source
 # repo directories.
@@ -100,7 +100,7 @@ clean:
 # make -C tools/perf -f tests/make
 #
 build-test:
-	@$(MAKE) SHUF=1 -f tests/make REUSE_FEATURES_DUMP=1 MK=Makefile SET_PARALLEL=1 --no-print-directory tarpkg out
+	@$(MAKE) SHUF=1 -f tests/make REUSE_FEATURES_DUMP=1 MK=Makefile SET_PARALLEL=1 --yes-print-directory tarpkg out
 
 #
 # All other targets get passed through:

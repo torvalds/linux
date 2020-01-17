@@ -269,7 +269,7 @@ static void ring_buffer_producer(void)
 
 #ifndef CONFIG_PREEMPTION
 		/*
-		 * If we are a non preempt kernel, the 10 seconds run will
+		 * If we are a yesn preempt kernel, the 10 seconds run will
 		 * stop everything while it runs. Instead, we will call
 		 * cond_resched and also add any time that was lost by a
 		 * reschedule.
@@ -317,7 +317,7 @@ static void ring_buffer_producer(void)
 		trace_printk("Running Producer at SCHED_FIFO %d\n",
 			     producer_fifo);
 
-	/* Let the user know that the test is running at low priority */
+	/* Let the user kyesw that the test is running at low priority */
 	if (producer_fifo < 0 && consumer_fifo < 0 &&
 	    producer_nice == MAX_NICE && consumer_nice == MAX_NICE)
 		trace_printk("WARNING!!! This test is running at lowest priority.\n");
@@ -344,7 +344,7 @@ static void ring_buffer_producer(void)
 	trace_printk("Entries per millisec: %ld\n", hit);
 
 	if (hit) {
-		/* Calculate the average time in nanosecs */
+		/* Calculate the average time in nayessecs */
 		avg = NSEC_PER_MSEC / hit;
 		trace_printk("%ld ns per entry\n", avg);
 	}
@@ -359,10 +359,10 @@ static void ring_buffer_producer(void)
 		/* it is possible that hit + missed will overflow and be zero */
 		if (!(hit + missed)) {
 			trace_printk("hit + missed overflowed and totalled zero!\n");
-			hit--; /* make it non zero */
+			hit--; /* make it yesn zero */
 		}
 
-		/* Calculate the average time in nanosecs */
+		/* Calculate the average time in nayessecs */
 		avg = NSEC_PER_MSEC / (hit + missed);
 		trace_printk("%ld ns per entry\n", avg);
 	}

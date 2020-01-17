@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/reboot.h>
 #include <linux/kdev_t.h>
 #include <linux/types.h>
@@ -83,7 +83,7 @@ void __init platform_calibrate_ccount(void)
 
 #ifdef CONFIG_OF
 
-static void __init xtfpga_clk_setup(struct device_node *np)
+static void __init xtfpga_clk_setup(struct device_yesde *np)
 {
 	void __iomem *base = of_iomap(np, 0);
 	struct clk *clk;
@@ -111,13 +111,13 @@ static void __init xtfpga_clk_setup(struct device_node *np)
 CLK_OF_DECLARE(xtfpga_clk, "cdns,xtfpga-clock", xtfpga_clk_setup);
 
 #define MAC_LEN 6
-static void __init update_local_mac(struct device_node *node)
+static void __init update_local_mac(struct device_yesde *yesde)
 {
 	struct property *newmac;
 	const u8* macaddr;
 	int prop_len;
 
-	macaddr = of_get_property(node, "local-mac-address", &prop_len);
+	macaddr = of_get_property(yesde, "local-mac-address", &prop_len);
 	if (macaddr == NULL || prop_len != MAC_LEN)
 		return;
 
@@ -135,14 +135,14 @@ static void __init update_local_mac(struct device_node *node)
 
 	memcpy(newmac->value, macaddr, MAC_LEN);
 	((u8*)newmac->value)[5] = (*(u32*)DIP_SWITCHES_VADDR) & 0x3f;
-	of_update_property(node, newmac);
+	of_update_property(yesde, newmac);
 }
 
 static int __init machine_setup(void)
 {
-	struct device_node *eth = NULL;
+	struct device_yesde *eth = NULL;
 
-	if ((eth = of_find_compatible_node(eth, NULL, "opencores,ethoc")))
+	if ((eth = of_find_compatible_yesde(eth, NULL, "opencores,ethoc")))
 		update_local_mac(eth);
 	return 0;
 }
@@ -286,7 +286,7 @@ static int __init xtavnet_init(void)
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
 	/* ETHOC driver is a bit quiet; at least display Ethernet MAC, so user
-	 * knows whether they set it correctly on the DIP switches.
+	 * kyesws whether they set it correctly on the DIP switches.
 	 */
 	pr_info("XTFPGA: Ethernet MAC %pM\n", ethoc_pdata.hwaddr);
 	ethoc_pdata.eth_clkfreq = *(long *)XTFPGA_CLKFRQ_VADDR;

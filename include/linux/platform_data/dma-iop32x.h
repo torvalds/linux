@@ -15,7 +15,7 @@
 #else
 #define IOP_PARANOIA 0
 #endif
-#define iop_paranoia(x) BUG_ON(IOP_PARANOIA && (x))
+#define iop_parayesia(x) BUG_ON(IOP_PARANOIA && (x))
 
 #define DMA0_ID 0
 #define DMA1_ID 1
@@ -65,8 +65,8 @@ struct iop_adma_chan {
 
 /**
  * struct iop_adma_desc_slot - IOP-ADMA software descriptor
- * @slot_node: node on the iop_adma_chan.all_slots list
- * @chain_node: node on the op_adma_chan.chain list
+ * @slot_yesde: yesde on the iop_adma_chan.all_slots list
+ * @chain_yesde: yesde on the op_adma_chan.chain list
  * @hw_desc: virtual address of the hardware descriptor chain
  * @phys: hardware address of the hardware descriptor chain
  * @group_head: first operation in a transaction
@@ -81,8 +81,8 @@ struct iop_adma_chan {
  * @crc32_result: result crc calculation
  */
 struct iop_adma_desc_slot {
-	struct list_head slot_node;
-	struct list_head chain_node;
+	struct list_head slot_yesde;
+	struct list_head chain_yesde;
 	void *hw_desc;
 	struct iop_adma_desc_slot *group_head;
 	u16 slot_cnt;

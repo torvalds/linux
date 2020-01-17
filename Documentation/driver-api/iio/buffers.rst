@@ -10,7 +10,7 @@ Buffers
 
 The Industrial I/O core offers a way for continuous data capture based on a
 trigger source. Multiple data channels can be read at once from
-:file:`/dev/iio:device{X}` character device node, thus reducing the CPU load.
+:file:`/dev/iio:device{X}` character device yesde, thus reducing the CPU load.
 
 IIO buffer sysfs interface
 ==========================
@@ -32,7 +32,7 @@ exposed to userspace applications via the
 attributes of the following form:
 
 * :file:`enable`, used for enabling a channel. If and only if its attribute
-  is non *zero*, then a triggered capture will contain data samples for this
+  is yesn *zero*, then a triggered capture will contain data samples for this
   channel.
 * :file:`type`, description of the scan element data storage within the buffer
   and hence the form in which it is read from user space.
@@ -114,7 +114,7 @@ channels with a higher index. Each channel needs to have a unique
 **scan_index**.
 
 Setting **scan_index** to -1 can be used to indicate that the specific channel
-does not support buffered capture. In this case no entries will be created for
+does yest support buffered capture. In this case yes entries will be created for
 the channel in the scan_elements directory.
 
 More details

@@ -88,7 +88,7 @@
 struct cmd {
 	int cmd_len;
 	unsigned char cmd_id;
-	unsigned char no_cmd_params;
+	unsigned char yes_cmd_params;
 	unsigned char cmd_params[MAX_CMD_PARAMS];
 	enum req_type req;
 };
@@ -104,7 +104,7 @@ struct param_list {
  * such as SEND_RECEIVE_CMD, PROTOCOL_SELECT_CMD, etc.
  * These top level cmds are used internally while implementing various ops of
  * digital layer/driver probe or extending the digital framework layer for
- * features that are not yet implemented there, for example, WTX cmd handling.
+ * features that are yest yet implemented there, for example, WTX cmd handling.
  */
 enum st95hf_cmd_list {
 	CMD_ECHO,
@@ -122,62 +122,62 @@ static const struct cmd cmd_array[] = {
 	[CMD_ECHO] = {
 		.cmd_len = 0x2,
 		.cmd_id = ECHO_CMD,
-		.no_cmd_params = 0,
+		.yes_cmd_params = 0,
 		.req = SYNC,
 	},
 	[CMD_ISO14443A_CONFIG] = {
 		.cmd_len = 0x7,
 		.cmd_id = WRITE_REGISTER_CMD,
-		.no_cmd_params = 0x4,
+		.yes_cmd_params = 0x4,
 		.cmd_params = {0x3A, 0x00, 0x5A, 0x04},
 		.req = SYNC,
 	},
 	[CMD_ISO14443A_DEMOGAIN] = {
 		.cmd_len = 0x7,
 		.cmd_id = WRITE_REGISTER_CMD,
-		.no_cmd_params = 0x4,
+		.yes_cmd_params = 0x4,
 		.cmd_params = {0x68, 0x01, 0x01, 0xDF},
 		.req = SYNC,
 	},
 	[CMD_ISO14443B_DEMOGAIN] = {
 		.cmd_len = 0x7,
 		.cmd_id = WRITE_REGISTER_CMD,
-		.no_cmd_params = 0x4,
+		.yes_cmd_params = 0x4,
 		.cmd_params = {0x68, 0x01, 0x01, 0x51},
 		.req = SYNC,
 	},
 	[CMD_ISO14443A_PROTOCOL_SELECT] = {
 		.cmd_len = 0x7,
 		.cmd_id = PROTOCOL_SELECT_CMD,
-		.no_cmd_params = 0x4,
+		.yes_cmd_params = 0x4,
 		.cmd_params = {ISO14443A_PROTOCOL_CODE, 0x00, 0x01, 0xA0},
 		.req = SYNC,
 	},
 	[CMD_ISO14443B_PROTOCOL_SELECT] = {
 		.cmd_len = 0x7,
 		.cmd_id = PROTOCOL_SELECT_CMD,
-		.no_cmd_params = 0x4,
+		.yes_cmd_params = 0x4,
 		.cmd_params = {ISO14443B_PROTOCOL_CODE, 0x01, 0x03, 0xFF},
 		.req = SYNC,
 	},
 	[CMD_WTX_RESPONSE] = {
 		.cmd_len = 0x6,
 		.cmd_id = SEND_RECEIVE_CMD,
-		.no_cmd_params = 0x3,
+		.yes_cmd_params = 0x3,
 		.cmd_params = {0xF2, 0x00, TRFLAG_NFCA_STD_FRAME_CRC},
 		.req = ASYNC,
 	},
 	[CMD_FIELD_OFF] = {
 		.cmd_len = 0x5,
 		.cmd_id = PROTOCOL_SELECT_CMD,
-		.no_cmd_params = 0x2,
+		.yes_cmd_params = 0x2,
 		.cmd_params = {0x0, 0x0},
 		.req = SYNC,
 	},
 	[CMD_ISO15693_PROTOCOL_SELECT] = {
 		.cmd_len = 0x5,
 		.cmd_id = PROTOCOL_SELECT_CMD,
-		.no_cmd_params = 0x2,
+		.yes_cmd_params = 0x2,
 		.cmd_params = {ISO15693_PROTOCOL_CODE, 0x0D},
 		.req = SYNC,
 	},
@@ -212,7 +212,7 @@ struct st95_digital_cmd_complete_arg {
  * @nfcdev_free: flag to have the state of nfc device object.
  *	[alive | died]
  * @current_protocol: current nfc protocol.
- * @current_rf_tech: current rf technology.
+ * @current_rf_tech: current rf techyeslogy.
  * @fwi: frame waiting index, received in reply of RATS according to
  *	digital protocol.
  */
@@ -237,13 +237,13 @@ struct st95hf_context {
  * that are described in the cmd_array[]. It can optionally
  * receive the response if the cmd request is of type
  * SYNC. For that to happen caller must pass true to recv_res.
- * For ASYNC request, recv_res is ignored and the
+ * For ASYNC request, recv_res is igyesred and the
  * function will never try to receive the response on behalf
  * of the caller.
  */
 static int st95hf_send_recv_cmd(struct st95hf_context *st95context,
 				enum st95hf_cmd_list cmd,
-				int no_modif,
+				int yes_modif,
 				struct param_list *list_array,
 				bool recv_res)
 {
@@ -253,20 +253,20 @@ static int st95hf_send_recv_cmd(struct st95hf_context *st95context,
 
 	if (cmd_array[cmd].cmd_len > MAX_CMD_LEN)
 		return -EINVAL;
-	if (cmd_array[cmd].no_cmd_params < no_modif)
+	if (cmd_array[cmd].yes_cmd_params < yes_modif)
 		return -EINVAL;
-	if (no_modif && !list_array)
+	if (yes_modif && !list_array)
 		return -EINVAL;
 
 	spi_cmd_buffer[0] = ST95HF_COMMAND_SEND;
 	spi_cmd_buffer[1] = cmd_array[cmd].cmd_id;
-	spi_cmd_buffer[2] = cmd_array[cmd].no_cmd_params;
+	spi_cmd_buffer[2] = cmd_array[cmd].yes_cmd_params;
 
 	memcpy(&spi_cmd_buffer[3], cmd_array[cmd].cmd_params,
 	       spi_cmd_buffer[2]);
 
-	for (i = 0; i < no_modif; i++) {
-		if (list_array[i].param_offset >= cmd_array[cmd].no_cmd_params)
+	for (i = 0; i < yes_modif; i++) {
+		if (list_array[i].param_offset >= cmd_array[cmd].yes_cmd_params)
 			return -EINVAL;
 		spi_cmd_buffer[3 + list_array[i].param_offset] =
 						list_array[i].new_param_val;
@@ -619,7 +619,7 @@ static int st95hf_handle_wtx(struct st95hf_context *stcontext,
 			return result;
 		}
 
-		/* Send response of wtx with ASYNC as no response expected */
+		/* Send response of wtx with ASYNC as yes response expected */
 		new_params[0].param_offset = 1;
 		new_params[0].new_param_val = wtx_val;
 
@@ -633,7 +633,7 @@ static int st95hf_handle_wtx(struct st95hf_context *stcontext,
 		return result;
 	}
 
-	/* if no new wtx, cofigure with default values */
+	/* if yes new wtx, cofigure with default values */
 	if (nfcddev->curr_protocol == NFC_PROTO_ISO14443)
 		val_mm = cmd_array[CMD_ISO14443A_PROTOCOL_SELECT].cmd_params[3];
 	else if (nfcddev->curr_protocol == NFC_PROTO_ISO14443_B)
@@ -779,21 +779,21 @@ static irqreturn_t st95hf_irq_thread_handler(int irq, void  *st95hfcontext)
 	spidevice = &stcontext->spicontext.spidev->dev;
 
 	/*
-	 * check semaphore, if not down() already, then we don't
-	 * know in which context the ISR is called and surely it
+	 * check semaphore, if yest down() already, then we don't
+	 * kyesw in which context the ISR is called and surely it
 	 * will be a bug. Note that down() of the semaphore is done
 	 * in the corresponding st95hf_in_send_cmd() and then
 	 * only this ISR should be called. ISR will up() the
 	 * semaphore before leaving. Hence when the ISR is called
 	 * the correct behaviour is down_trylock() should always
-	 * return 1 (indicating semaphore cant be taken and hence no
+	 * return 1 (indicating semaphore cant be taken and hence yes
 	 * change in semaphore count).
-	 * If not, then we up() the semaphore and crash on
+	 * If yest, then we up() the semaphore and crash on
 	 * a BUG() !
 	 */
 	if (!down_trylock(&stcontext->exchange_lock)) {
 		up(&stcontext->exchange_lock);
-		WARN(1, "unknown context in ST95HF ISR");
+		WARN(1, "unkyeswn context in ST95HF ISR");
 		return IRQ_NONE;
 	}
 
@@ -960,12 +960,12 @@ static int st95hf_in_send_cmd(struct nfc_digital_dev *ddev,
 
 	/*
 	 * down the semaphore to indicate to remove func that an
-	 * ISR is pending, note that it will not block here in any case.
+	 * ISR is pending, yeste that it will yest block here in any case.
 	 * If found blocked, it is a BUG!
 	 */
 	rc = down_killable(&stcontext->exchange_lock);
 	if (rc) {
-		WARN(1, "Semaphore is not found up in st95hf_in_send_cmd\n");
+		WARN(1, "Semaphore is yest found up in st95hf_in_send_cmd\n");
 		return rc;
 	}
 
@@ -1113,7 +1113,7 @@ static int st95hf_probe(struct spi_device *nfc_spi_dev)
 	dev_set_drvdata(&nfc_spi_dev->dev, spicontext);
 
 	st95context->enable_gpio =
-		of_get_named_gpio(nfc_spi_dev->dev.of_node,
+		of_get_named_gpio(nfc_spi_dev->dev.of_yesde,
 				  "enable-gpio",
 				  0);
 	if (!gpio_is_valid(st95context->enable_gpio)) {
@@ -1141,7 +1141,7 @@ static int st95hf_probe(struct spi_device *nfc_spi_dev)
 			goto err_disable_regulator;
 		}
 	} else {
-		dev_err(&nfc_spi_dev->dev, "not a valid IRQ associated with ST95HF\n");
+		dev_err(&nfc_spi_dev->dev, "yest a valid IRQ associated with ST95HF\n");
 		ret = -EINVAL;
 		goto err_disable_regulator;
 	}

@@ -20,16 +20,16 @@
 
 extern int acpi_lapic;
 #define acpi_disabled 0	/* ACPI always enabled on IA64 */
-#define acpi_noirq 0	/* ACPI always enabled on IA64 */
+#define acpi_yesirq 0	/* ACPI always enabled on IA64 */
 #define acpi_pci_disabled 0 /* ACPI PCI always enabled on IA64 */
-#define acpi_strict 1	/* no ACPI spec workarounds on IA64 */
+#define acpi_strict 1	/* yes ACPI spec workarounds on IA64 */
 
 static inline bool acpi_has_cpu_in_madt(void)
 {
 	return !!acpi_lapic;
 }
 
-#define acpi_processor_cstate_check(x) (x) /* no idle limits on IA64 :) */
+#define acpi_processor_cstate_check(x) (x) /* yes idle limits on IA64 :) */
 static inline void disable_acpi(void) { }
 
 int acpi_request_vector (u32 int_type);
@@ -91,10 +91,10 @@ static inline void per_cpu_scan_finalize(int min_cpus, int reserve_cpus)
 
 	for (cpu = low_cpu; cpu < high_cpu; cpu++) {
 		cpumask_set_cpu(cpu, &early_cpu_possible_map);
-		if (node_cpuid[cpu].nid == NUMA_NO_NODE) {
-			node_cpuid[cpu].nid = next_nid;
+		if (yesde_cpuid[cpu].nid == NUMA_NO_NODE) {
+			yesde_cpuid[cpu].nid = next_nid;
 			next_nid++;
-			if (next_nid >= num_online_nodes())
+			if (next_nid >= num_online_yesdes())
 				next_nid = 0;
 		}
 	}

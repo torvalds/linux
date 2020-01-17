@@ -124,7 +124,7 @@ static inline void handle_group_key(struct ieee_param *param,
 	}
 }
 
-static noinline_for_stack char *translate_scan_wpa(struct iw_request_info *info,
+static yesinline_for_stack char *translate_scan_wpa(struct iw_request_info *info,
 						   struct wlan_network *pnetwork,
 						   struct iw_event *iwe,
 						   char *start, char *stop)
@@ -182,7 +182,7 @@ static noinline_for_stack char *translate_scan_wpa(struct iw_request_info *info,
 	return start;
 }
 
-static noinline_for_stack char *translate_scan_wps(struct iw_request_info *info,
+static yesinline_for_stack char *translate_scan_wps(struct iw_request_info *info,
 						   struct wlan_network *pnetwork,
 						   struct iw_event *iwe,
 						   char *start, char *stop)
@@ -334,7 +334,7 @@ static char *translate_scan(struct _adapter *padapter,
 				  IW_QUAL_NOISE_INVALID);
 	iwe.u.qual.level = rssi;  /* signal strength */
 	iwe.u.qual.qual = 0; /* signal quality */
-	iwe.u.qual.noise = 0; /* noise level */
+	iwe.u.qual.yesise = 0; /* yesise level */
 	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_QUAL_LEN);
 	/* how to translate rssi to ?% */
 	return start;
@@ -719,7 +719,7 @@ static int r8711_wx_set_mode(struct net_device *dev,
 
 	switch (wrqu->mode) {
 	case IW_MODE_AUTO:
-		networkType = Ndis802_11AutoUnknown;
+		networkType = Ndis802_11AutoUnkyeswn;
 		break;
 	case IW_MODE_ADHOC:
 		networkType = Ndis802_11IBSS;
@@ -736,7 +736,7 @@ static int r8711_wx_set_mode(struct net_device *dev,
 	if (Ndis802_11APMode == networkType)
 		r8712_setopmode_cmd(padapter, networkType);
 	else
-		r8712_setopmode_cmd(padapter, Ndis802_11AutoUnknown);
+		r8712_setopmode_cmd(padapter, Ndis802_11AutoUnkyeswn);
 
 	r8712_set_802_11_infrastructure_mode(padapter, networkType);
 	return 0;
@@ -839,7 +839,7 @@ static int r871x_wx_set_pmkid(struct net_device *dev,
 		intReturn = true;
 		break;
 	default:
-		netdev_info(dev, "r8712u: %s: unknown Command\n", __func__);
+		netdev_info(dev, "r8712u: %s: unkyeswn Command\n", __func__);
 		intReturn = false;
 		break;
 	}
@@ -851,7 +851,7 @@ static int r8711_wx_get_sens(struct net_device *dev,
 			     union iwreq_data *wrqu, char *extra)
 {
 	wrqu->sens.value = 0;
-	wrqu->sens.fixed = 0;	/* no auto select */
+	wrqu->sens.fixed = 0;	/* yes auto select */
 	wrqu->sens.disabled = 1;
 	return 0;
 }
@@ -880,12 +880,12 @@ static int r8711_wx_get_range(struct net_device *dev,
 	/* percent values between 0 and 100. */
 	range->max_qual.qual = 100;
 	range->max_qual.level = 100;
-	range->max_qual.noise = 100;
+	range->max_qual.yesise = 100;
 	range->max_qual.updated = 7; /* Updated all three */
 	range->avg_qual.qual = 92; /* > 8% missed beacons is 'bad' */
 	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
 	range->avg_qual.level = 0x100 - 78;
-	range->avg_qual.noise = 0;
+	range->avg_qual.yesise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */
 	range->num_bitrates = RATE_COUNT;
 	for (i = 0; i < RATE_COUNT && i < IW_MAX_BITRATES; i++)
@@ -1001,7 +1001,7 @@ static int r871x_wx_set_priv(struct net_device *dev,
 		);
 		sprintf(ext, "OK");
 	} else {
-		netdev_info(dev, "r8712u: %s: unknown Command %s.\n",
+		netdev_info(dev, "r8712u: %s: unkyeswn Command %s.\n",
 			    __func__, ext);
 		goto FREE_EXT;
 	}
@@ -1024,7 +1024,7 @@ FREE_EXT:
  * MAC# of a preferred Access Point.
  * Currently, the request comes via Wireless Extensions' SIOCSIWAP ioctl.
  *
- * For this operation to succeed, there is no need for the interface to be up.
+ * For this operation to succeed, there is yes need for the interface to be up.
  *
  */
 static int r8711_wx_set_wap(struct net_device *dev,
@@ -1231,7 +1231,7 @@ static int r8711_wx_get_scan(struct net_device *dev,
  * This function intends to handle the Set ESSID command.
  * Currently, the request comes via the Wireless Extensions' SIOCSIWESSID ioctl.
  *
- * For this operation to succeed, there is no need for the interface to be Up.
+ * For this operation to succeed, there is yes need for the interface to be Up.
  *
  */
 static int r8711_wx_set_essid(struct net_device *dev,
@@ -1424,7 +1424,7 @@ static int r8711_wx_get_rate(struct net_device *dev,
 		rate = pcur_bss->rates[i] & 0x7F;
 		if (rate > max_rate)
 			max_rate = rate;
-		wrqu->bitrate.fixed = 0;	/* no auto select */
+		wrqu->bitrate.fixed = 0;	/* yes auto select */
 		wrqu->bitrate.value = rate * 500000;
 		i++;
 	}
@@ -1450,7 +1450,7 @@ static int r8711_wx_get_rts(struct net_device *dev,
 	struct _adapter *padapter = netdev_priv(dev);
 
 	wrqu->rts.value = padapter->registrypriv.rts_thresh;
-	wrqu->rts.fixed = 0;	/* no auto select */
+	wrqu->rts.fixed = 0;	/* yes auto select */
 	return 0;
 }
 
@@ -1478,7 +1478,7 @@ static int r8711_wx_get_frag(struct net_device *dev,
 	struct _adapter *padapter = netdev_priv(dev);
 
 	wrqu->frag.value = padapter->xmitpriv.frag_len;
-	wrqu->frag.fixed = 0;	/* no auto select */
+	wrqu->frag.fixed = 0;	/* yes auto select */
 	return 0;
 }
 
@@ -1487,7 +1487,7 @@ static int r8711_wx_get_retry(struct net_device *dev,
 				union iwreq_data *wrqu, char *extra)
 {
 	wrqu->retry.value = 7;
-	wrqu->retry.fixed = 0;	/* no auto select */
+	wrqu->retry.fixed = 0;	/* yes auto select */
 	wrqu->retry.disabled = 1;
 	return 0;
 }
@@ -1561,7 +1561,7 @@ static int r8711_wx_set_enc(struct net_device *dev,
 			     FIELD_OFFSET(struct NDIS_802_11_WEP, KeyMaterial);
 	} else {
 		wep.KeyLength = 0;
-		if (keyindex_provided == 1) { /* set key_id only, no given
+		if (keyindex_provided == 1) { /* set key_id only, yes given
 					       * KeyMaterial(erq->length==0).
 					       */
 			padapter->securitypriv.PrivacyKeyIndex = key;
@@ -1657,7 +1657,7 @@ static int r8711_wx_get_power(struct net_device *dev,
 				union iwreq_data *wrqu, char *extra)
 {
 	wrqu->power.value = 0;
-	wrqu->power.fixed = 0;	/* no auto select */
+	wrqu->power.fixed = 0;	/* yes auto select */
 	wrqu->power.disabled = 1;
 	return 0;
 }
@@ -1692,7 +1692,7 @@ static int r871x_wx_set_auth(struct net_device *dev,
 		break;
 	case IW_AUTH_KEY_MGMT:
 		/*
-		 *  ??? does not use these parameters
+		 *  ??? does yest use these parameters
 		 */
 		break;
 	case IW_AUTH_TKIP_COUNTERMEASURES:
@@ -1710,8 +1710,8 @@ static int r871x_wx_set_auth(struct net_device *dev,
 		 * wpa_supplicant calls set_wpa_enabled when the driver
 		 * is loaded and unloaded, regardless of if WPA is being
 		 * used.  No other calls are made which can be used to
-		 * determine if encryption will be used or not prior to
-		 * association being expected.  If encryption is not being
+		 * determine if encryption will be used or yest prior to
+		 * association being expected.  If encryption is yest being
 		 * used, drop_unencrypted is set to false, else true -- we
 		 * can use this to determine if the CAP_PRIVACY_ON bit should
 		 * be set.
@@ -1767,7 +1767,7 @@ static int r871x_wx_set_enc_ext(struct net_device *dev,
 
 	switch (pext->alg) {
 	case IW_ENCODE_ALG_NONE:
-		alg_name = "none";
+		alg_name = "yesne";
 		break;
 	case IW_ENCODE_ALG_WEP:
 		alg_name = "WEP";
@@ -2102,8 +2102,8 @@ static int wpa_set_param(struct net_device *dev, u8 name, u32 value)
 		 * wpa_supplicant calls set_wpa_enabled when the driver
 		 * is loaded and unloaded, regardless of if WPA is being
 		 * used.  No other calls are made which can be used to
-		 * determine if encryption will be used or not prior to
-		 * association being expected.  If encryption is not being
+		 * determine if encryption will be used or yest prior to
+		 * association being expected.  If encryption is yest being
 		 * used, drop_unencrypted is set to false, else true -- we
 		 * can use this to determine if the CAP_PRIVACY_ON bit should
 		 * be set.
@@ -2305,20 +2305,20 @@ static struct iw_statistics *r871x_get_wireless_stats(struct net_device *dev)
 	struct iw_statistics *piwstats = &padapter->iwstats;
 	int tmp_level = 0;
 	int tmp_qual = 0;
-	int tmp_noise = 0;
+	int tmp_yesise = 0;
 
 	if (check_fwstate(&padapter->mlmepriv, _FW_LINKED) != true) {
 		piwstats->qual.qual = 0;
 		piwstats->qual.level = 0;
-		piwstats->qual.noise = 0;
+		piwstats->qual.yesise = 0;
 	} else {
 		/* show percentage, we need transfer dbm to original value. */
 		tmp_level = padapter->recvpriv.fw_rssi;
 		tmp_qual = padapter->recvpriv.signal;
-		tmp_noise = padapter->recvpriv.noise;
+		tmp_yesise = padapter->recvpriv.yesise;
 		piwstats->qual.level = tmp_level;
 		piwstats->qual.qual = tmp_qual;
-		piwstats->qual.noise = tmp_noise;
+		piwstats->qual.yesise = tmp_yesise;
 	}
 	piwstats->qual.updated = IW_QUAL_ALL_UPDATED;
 	return &padapter->iwstats;

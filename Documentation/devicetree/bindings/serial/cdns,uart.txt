@@ -15,7 +15,7 @@ Required properties:
 Optional properties:
 - cts-override : Override the CTS modem status signal. This signal will
   always be reported as active instead of being obtained from the modem status
-  register. Define this if your serial port does not use this pin
+  register. Define this if your serial port does yest use this pin
 
 Example:
 	uart@e0000000 {

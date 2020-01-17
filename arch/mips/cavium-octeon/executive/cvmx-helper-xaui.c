@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -71,7 +71,7 @@ int __cvmx_helper_xaui_probe(int interface)
 	/*
 	 * Due to errata GMX-700 on CN56XXp1.x and CN52XXp1.x, the
 	 * interface needs to be enabled before IPD otherwise per port
-	 * backpressure may not work properly.
+	 * backpressure may yest work properly.
 	 */
 	mode.u64 = cvmx_read_csr(CVMX_GMXX_INF_MODE(interface));
 	mode.s.en = 1;
@@ -132,7 +132,7 @@ int __cvmx_helper_xaui_enable(int interface)
 
 	/* (2) Disable GMX. */
 	xauiMiscCtl.u64 = cvmx_read_csr(CVMX_PCSXX_MISC_CTL_REG(interface));
-	xauiMiscCtl.s.gmxeno = 1;
+	xauiMiscCtl.s.gmxeyes = 1;
 	cvmx_write_csr(CVMX_PCSXX_MISC_CTL_REG(interface), xauiMiscCtl.u64);
 
 	/* (3) Disable GMX and PCSX interrupts. */
@@ -232,7 +232,7 @@ int __cvmx_helper_xaui_enable(int interface)
 	cvmx_write_csr(CVMX_PCSXX_INT_EN_REG(interface), pcsx_int_en_reg.u64);
 
 	/* (8) Enable packet reception */
-	xauiMiscCtl.s.gmxeno = 0;
+	xauiMiscCtl.s.gmxeyes = 0;
 	cvmx_write_csr(CVMX_PCSXX_MISC_CTL_REG(interface), xauiMiscCtl.u64);
 
 	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(0, interface));
@@ -251,7 +251,7 @@ int __cvmx_helper_xaui_enable(int interface)
 
 /**
  * Return the link state of an IPD/PKO port as returned by
- * auto negotiation. The result of this function may not match
+ * auto negotiation. The result of this function may yest match
  * Octeon's link config if auto negotiation has changed since
  * the last call to cvmx_helper_link_set().
  *
@@ -290,7 +290,7 @@ cvmx_helper_link_info_t __cvmx_helper_xaui_link_get(int ipd_port)
 
 /**
  * Configure an IPD/PKO port for the specified link state. This
- * function does not influence auto negotiation at the PHY level.
+ * function does yest influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
  * by cvmx_helper_link_get().
  *
@@ -312,7 +312,7 @@ int __cvmx_helper_xaui_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
 	if (!link_info.s.link_up)
 		return 0;
 
-	/* Do nothing if both RX and TX are happy */
+	/* Do yesthing if both RX and TX are happy */
 	if ((gmxx_tx_xaui_ctl.s.ls == 0) && (gmxx_rx_xaui_ctl.s.status == 0))
 		return 0;
 

@@ -19,7 +19,7 @@
  * e0000000	@runtime	128M	PCIe-0 Memory space
  * e8000000	@runtime	128M	PCIe-1 Memory space
  * f1000000	fec00000	1M	on-chip south-bridge registers
- * f1800000	fe400000	8M	on-chip north-bridge registers
+ * f1800000	fe400000	8M	on-chip yesrth-bridge registers
  * f2000000	fee00000	1M	PCIe-0 I/O space
  * f2100000	fef00000	1M	PCIe-1 I/O space
  */

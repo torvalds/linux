@@ -71,7 +71,7 @@
 /* Something interesting happened
    IN[0] - A value to log
    IN[1] - An offset of a string in the MiniMe memory;
-	   0/zero/NULL means "I have nothing to say" */
+	   0/zero/NULL means "I have yesthing to say" */
 #define CX18_EPU_DEBUG				(EPU_CMD_MASK_DEBUG | 0x0003)
 
 /* Reads memory/registers (32-bit)
@@ -162,7 +162,7 @@
 /* Description: This command set spatial filter type
    IN[0] - Task handle.
    IN[1] - luma type: 0 = disable, 1 = 1D horizontal only, 2 = 1D vertical only,
-		      3 = 2D H/V separable, 4 = 2D symmetric non-separable
+		      3 = 2D H/V separable, 4 = 2D symmetric yesn-separable
    IN[2] - chroma type: 0 - disable, 1 = 1D horizontal
    ReturnCode - One of the ERR_CAPTURE_... */
 #define CX18_CPU_SET_SPATIAL_FILTER_TYPE	(CPU_CMD_MASK_CAPTURE | 0x000C)
@@ -177,7 +177,7 @@
 #define CX18_CPU_SET_MEDIAN_CORING		(CPU_CMD_MASK_CAPTURE | 0x000E)
 
 /* Description: This command set the picture type mask for index file
-   IN[0] - Task handle (ignored by firmware)
+   IN[0] - Task handle (igyesred by firmware)
    IN[1] -	0 = disable index file output
 			1 = output I picture
 			2 = P picture
@@ -379,7 +379,7 @@
 /* No Error / Success */
 #define CNXT_OK                 0x000000
 
-/* Received unknown command */
+/* Received unkyeswn command */
 #define CXERR_UNK_CMD           0x000001
 
 /* First parameter in the command is invalid */
@@ -388,10 +388,10 @@
 /* Second parameter in the command is invalid */
 #define CXERR_INVALID_PARAM2    0x000003
 
-/* Device interface is not open/found */
+/* Device interface is yest open/found */
 #define CXERR_DEV_NOT_FOUND     0x000004
 
-/* Requested function is not implemented/available */
+/* Requested function is yest implemented/available */
 #define CXERR_NOTSUPPORTED      0x000005
 
 /* Invalid pointer is provided */
@@ -400,13 +400,13 @@
 /* Unable to allocate memory */
 #define CXERR_NOMEM             0x000007
 
-/* Object/Link not found */
+/* Object/Link yest found */
 #define CXERR_LINK              0x000008
 
-/* Device busy, command cannot be executed */
+/* Device busy, command canyest be executed */
 #define CXERR_BUSY              0x000009
 
-/* File/device/handle is not open. */
+/* File/device/handle is yest open. */
 #define CXERR_NOT_OPEN          0x00000A
 
 /* Value is out of range */
@@ -424,13 +424,13 @@
 /* Operation aborted */
 #define CXERR_ABORT             0x00000F
 
-/* Specified I2C device not found for read/write */
+/* Specified I2C device yest found for read/write */
 #define CXERR_I2CDEV_NOTFOUND   0x000010
 
 /* Error in I2C data xfer (but I2C device is present) */
 #define CXERR_I2CDEV_XFERERR    0x000011
 
-/* Channel changing component not ready */
+/* Channel changing component yest ready */
 #define CXERR_CHANNELNOTREADY   0x000012
 
 /* PPU (Presensation/Decoder) mail box is corrupted */
@@ -460,16 +460,16 @@
 /* No Interrupt received from HW (for I2C access) */
 #define CXERR_NO_HW_I2C_INTR    0x00001B
 
-/* RPU is not ready to accept commands! */
+/* RPU is yest ready to accept commands! */
 #define CXERR_RPU_NOT_READY     0x00001C
 
-/* RPU is not ready to accept commands! */
+/* RPU is yest ready to accept commands! */
 #define CXERR_RPU_NO_ACK        0x00001D
 
-/* The are no buffers ready. Try again soon! */
+/* The are yes buffers ready. Try again soon! */
 #define CXERR_NODATA_AGAIN      0x00001E
 
-/* The stream is stopping. Function not allowed now! */
+/* The stream is stopping. Function yest allowed yesw! */
 #define CXERR_STOPPING_STATUS   0x00001F
 
 /* Trying to access hardware when the power is turned OFF */

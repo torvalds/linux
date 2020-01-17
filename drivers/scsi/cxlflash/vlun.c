@@ -2,7 +2,7 @@
 /*
  * CXL Flash Device Driver
  *
- * Written by: Manoj N. Kumar <manoj@linux.vnet.ibm.com>, IBM Corporation
+ * Written by: Mayesj N. Kumar <mayesj@linux.vnet.ibm.com>, IBM Corporation
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
@@ -54,7 +54,7 @@ static void marshal_clone_to_rele(struct dk_cxlflash_clone *clone,
  * ba_init() - initializes a block allocator
  * @ba_lun:	Block allocator to initialize.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int ba_init(struct ba_lun *ba_lun)
 {
@@ -104,7 +104,7 @@ static int ba_init(struct ba_lun *ba_lun)
 	for (i = 0; i < bali->lun_bmap_size; i++)
 		bali->lun_alloc_map[i] = 0xFFFFFFFFFFFFFFFFULL;
 
-	/* If the last word not fully utilized, mark extra bits as allocated */
+	/* If the last word yest fully utilized, mark extra bits as allocated */
 	last_word_underflow = (bali->lun_bmap_size * BITS_PER_LONG);
 	last_word_underflow -= bali->free_aun_cnt;
 	if (last_word_underflow > 0) {
@@ -207,7 +207,7 @@ static u64 ba_alloc(struct ba_lun *ba_lun)
 					  bali->free_curr_idx,
 					  bali, &bit_word);
 		if (bit_pos == -1) {
-			pr_debug("%s: Could not find an allocation unit on LUN:"
+			pr_debug("%s: Could yest find an allocation unit on LUN:"
 				 " lun_id=%016llx\n", __func__, ba_lun->lun_id);
 			return -1ULL;
 		}
@@ -262,7 +262,7 @@ static int ba_free(struct ba_lun *ba_lun, u64 to_free)
 	bali = ba_lun->ba_lun_handle;
 
 	if (validate_alloc(bali, to_free)) {
-		pr_debug("%s: AUN %llx is not allocated on lun_id=%016llx\n",
+		pr_debug("%s: AUN %llx is yest allocated on lun_id=%016llx\n",
 			 __func__, to_free, ba_lun->lun_id);
 		return -1;
 	}
@@ -309,7 +309,7 @@ static int ba_clone(struct ba_lun *ba_lun, u64 to_clone)
 	struct ba_lun_info *bali = ba_lun->ba_lun_handle;
 
 	if (validate_alloc(bali, to_clone)) {
-		pr_debug("%s: AUN=%llx not allocated on lun_id=%016llx\n",
+		pr_debug("%s: AUN=%llx yest allocated on lun_id=%016llx\n",
 			 __func__, to_clone, ba_lun->lun_id);
 		return -1;
 	}
@@ -363,7 +363,7 @@ void cxlflash_ba_terminate(struct ba_lun *ba_lun)
  * init_vlun() - initializes a LUN for virtual use
  * @lun_info:	LUN information structure that owns the block allocator.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int init_vlun(struct llun_info *lli)
 {
@@ -384,7 +384,7 @@ static int init_vlun(struct llun_info *lli)
 
 	rc = ba_init(&blka->ba_lun);
 	if (unlikely(rc))
-		pr_debug("%s: cannot init block_alloc, rc=%d\n", __func__, rc);
+		pr_debug("%s: canyest init block_alloc, rc=%d\n", __func__, rc);
 
 	pr_debug("%s: returning rc=%d lli=%p\n", __func__, rc, lli);
 	return rc;
@@ -414,7 +414,7 @@ static int init_vlun(struct llun_info *lli)
  * Note that the above puts a requirement on this routine to only be called on
  * an ioctl thread.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int write_same16(struct scsi_device *sdev,
 			u64 lba,
@@ -490,12 +490,12 @@ out:
  * @new_size:	Number of translation entries associated with RHTE.
  *
  * By design, this routine employs a 'best attempt' allocation and will
- * truncate the requested size down if there is not sufficient space in
+ * truncate the requested size down if there is yest sufficient space in
  * the block allocator to satisfy the request but there does exist some
  * amount of space. The user is made aware of this by returning the size
  * allocated.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int grow_lxt(struct afu *afu,
 		    struct scsi_device *sdev,
@@ -519,7 +519,7 @@ static int grow_lxt(struct afu *afu,
 
 	/*
 	 * Check what is available in the block allocator before re-allocating
-	 * LXT array. This is done up front under the mutex which must not be
+	 * LXT array. This is done up front under the mutex which must yest be
 	 * released until after allocation is complete.
 	 */
 	mutex_lock(&blka->mutex);
@@ -554,14 +554,14 @@ static int grow_lxt(struct afu *afu,
 	} else
 		lxt = lxt_old;
 
-	/* nothing can fail from now on */
+	/* yesthing can fail from yesw on */
 	my_new_size = rhte->lxt_cnt + delta;
 
 	/* add new entries to the end */
 	for (i = rhte->lxt_cnt; i < my_new_size; i++) {
 		/*
 		 * Due to the earlier check of available space, ba_alloc
-		 * cannot fail here. If it did due to internal error,
+		 * canyest fail here. If it did due to internal error,
 		 * leave a rlba_base of -1u which will likely be a
 		 * invalid LUN (too large).
 		 */
@@ -613,7 +613,7 @@ out:
  * @ctxi:	Context owning resources.
  * @new_size:	Number of translation entries associated with RHTE.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int shrink_lxt(struct afu *afu,
 		      struct scsi_device *sdev,
@@ -659,7 +659,7 @@ static int shrink_lxt(struct afu *afu,
 	} else
 		lxt = lxt_old;
 
-	/* Nothing can fail from now on */
+	/* Nothing can fail from yesw on */
 	my_new_size = rhte->lxt_cnt - delta;
 
 	/*
@@ -724,7 +724,7 @@ out:
  * prologue for _cxlflash_disk_release() regarding AFU syncs and contexts
  * on the error recovery list.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int _cxlflash_vlun_resize(struct scsi_device *sdev,
 			  struct ctx_info *ctxi,
@@ -759,7 +759,7 @@ int _cxlflash_vlun_resize(struct scsi_device *sdev,
 		new_size);
 
 	if (unlikely(gli->mode != MODE_VIRTUAL)) {
-		dev_dbg(dev, "%s: LUN mode does not support resize mode=%d\n",
+		dev_dbg(dev, "%s: LUN mode does yest support resize mode=%d\n",
 			__func__, gli->mode);
 		rc = -EINVAL;
 		goto out;
@@ -796,7 +796,7 @@ int _cxlflash_vlun_resize(struct scsi_device *sdev,
 		 * need to perform a translation sync with the AFU. This
 		 * scenario likely follows a previous sync failure during
 		 * a resize operation. Accordingly, perform the heavyweight
-		 * form of translation sync as it is unknown which type of
+		 * form of translation sync as it is unkyeswn which type of
 		 * resize failed previously.
 		 */
 		rc = cxlflash_afu_sync(afu, ctxid, rhndl, AFU_HW_SYNC);
@@ -880,7 +880,7 @@ static inline u8 get_num_ports(u32 psm)
  *	- at the top for LUNs visible on multiple ports.
  *	- at the bottom for LUNs visible only on one port.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int init_luntable(struct cxlflash_cfg *cfg, struct llun_info *lli)
 {
@@ -968,7 +968,7 @@ out:
  * the virtual LUN in last LBA format. When the size of the virtual LUN
  * is zero, the last LBA is reflected as -1.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int cxlflash_disk_virtual_open(struct scsi_device *sdev, void *arg)
 {
@@ -1086,7 +1086,7 @@ err0:
  * @rhte:	Destination resource handle entry (RHTE).
  * @rhte_src:	Source resource handle entry (RHTE).
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int clone_lxt(struct afu *afu,
 		     struct blka *blka,
@@ -1120,7 +1120,7 @@ static int clone_lxt(struct afu *afu,
 		memcpy(lxt, rhte_src->lxt_start,
 		       (sizeof(*lxt) * rhte_src->lxt_cnt));
 
-		/* clone the LBAs in block allocator via ref_cnt, note that the
+		/* clone the LBAs in block allocator via ref_cnt, yeste that the
 		 * block allocator mutex must be held until it is established
 		 * that this routine will complete without the need for a
 		 * cleanup.
@@ -1176,16 +1176,16 @@ err:
 }
 
 /**
- * cxlflash_disk_clone() - clone a context by making snapshot of another
+ * cxlflash_disk_clone() - clone a context by making snapshot of ayesther
  * @sdev:	SCSI device associated with LUN owning virtual LUN.
  * @clone:	Clone ioctl data structure.
  *
  * This routine effectively performs cxlflash_disk_open operation for each
  * in-use virtual resource in the source context. Note that the destination
- * context must be in pristine state and cannot have any resource handles
+ * context must be in pristine state and canyest have any resource handles
  * open at the time of the clone.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int cxlflash_disk_clone(struct scsi_device *sdev,
 			struct dk_cxlflash_clone *clone)
@@ -1214,7 +1214,7 @@ int cxlflash_disk_clone(struct scsi_device *sdev,
 	dev_dbg(dev, "%s: ctxid_src=%llu ctxid_dst=%llu\n",
 		__func__, ctxid_src, ctxid_dst);
 
-	/* Do not clone yourself */
+	/* Do yest clone yourself */
 	if (unlikely(rctxid_src == rctxid_dst)) {
 		rc = -EINVAL;
 		goto out;
@@ -1236,7 +1236,7 @@ int cxlflash_disk_clone(struct scsi_device *sdev,
 		goto out;
 	}
 
-	/* Verify there is no open resource handle in the destination context */
+	/* Verify there is yes open resource handle in the destination context */
 	for (i = 0; i < MAX_RHT_PER_CONTEXT; i++)
 		if (ctxi_dst->rht_start[i].nmask != 0) {
 			rc = -EINVAL;

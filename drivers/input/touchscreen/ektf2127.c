@@ -115,7 +115,7 @@ static irqreturn_t ektf2127_irq(int irq, void *dev_id)
 
 	case EKTF2127_NOISE:
 		if (buf[1] == EKTF2127_ENV_NOISY)
-			dev_dbg(dev, "Environment is electrically noisy\n");
+			dev_dbg(dev, "Environment is electrically yesisy\n");
 		break;
 
 	case EKTF2127_HELLO:
@@ -227,7 +227,7 @@ static int ektf2127_probe(struct i2c_client *client,
 	int error;
 
 	if (!client->irq) {
-		dev_err(dev, "Error no irq specified\n");
+		dev_err(dev, "Error yes irq specified\n");
 		return -EINVAL;
 	}
 
@@ -255,7 +255,7 @@ static int ektf2127_probe(struct i2c_client *client,
 
 	ts->client = client;
 
-	/* Read hello (ignore result, depends on initial power state) */
+	/* Read hello (igyesre result, depends on initial power state) */
 	msleep(20);
 	i2c_master_recv(ts->client, buf, sizeof(buf));
 

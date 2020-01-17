@@ -13,13 +13,13 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
-char *ap_cp_unique_name(struct device *dev, struct device_node *np,
+char *ap_cp_unique_name(struct device *dev, struct device_yesde *np,
 			const char *name)
 {
 	const __be32 *reg;
 	u64 addr;
 
-	/* Do not create a name if there is no clock */
+	/* Do yest create a name if there is yes clock */
 	if (!name)
 		return NULL;
 

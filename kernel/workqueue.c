@@ -18,8 +18,8 @@
  * This is the generic async execution mechanism.  Work items as are
  * executed in process context.  The worker pool is shared and
  * automatically managed.  There are two worker pools for each CPU (one for
- * normal work items and the other for high priority ones) and some extra
- * pools for workqueues which are not bound to any specific CPU - the
+ * yesrmal work items and the other for high priority ones) and some extra
+ * pools for workqueues which are yest bound to any specific CPU - the
  * number of these backing pools is dynamic.
  *
  * Please read Documentation/core-api/workqueue.rst for details.
@@ -34,7 +34,7 @@
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kthread.h>
 #include <linux/hardirq.h>
 #include <linux/mempolicy.h>
@@ -45,7 +45,7 @@
 #include <linux/jhash.h>
 #include <linux/hashtable.h>
 #include <linux/rculist.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/moduleparam.h>
 #include <linux/uaccess.h>
 #include <linux/sched/isolation.h>
@@ -59,7 +59,7 @@ enum {
 	 *
 	 * A bound pool is either associated or disassociated with its CPU.
 	 * While associated (!DISASSOCIATED), all workers are bound to the
-	 * CPU and none has %WORKER_UNBOUND set and concurrency management
+	 * CPU and yesne has %WORKER_UNBOUND set and concurrency management
 	 * is in effect.
 	 *
 	 * While DISASSOCIATED, the cpu may be offline and all workers have
@@ -114,14 +114,14 @@ enum {
  * I: Modifiable by initialization/destruction paths and read-only for
  *    everyone else.
  *
- * P: Preemption protected.  Disabling preemption is enough and should
+ * P: Preemption protected.  Disabling preemption is eyesugh and should
  *    only be modified and accessed from the local cpu.
  *
  * L: pool->lock protected.  Access with pool->lock held.
  *
- * X: During normal operation, modification requires pool->lock and should
+ * X: During yesrmal operation, modification requires pool->lock and should
  *    be done only from local cpu.  Either disabling preemption on local
- *    cpu or grabbing pool->lock is enough for read access.  If
+ *    cpu or grabbing pool->lock is eyesugh for read access.  If
  *    POOL_DISASSOCIATED is set, it's identical to L.
  *
  * A: wq_pool_attach_mutex protected.
@@ -147,7 +147,7 @@ enum {
 struct worker_pool {
 	spinlock_t		lock;		/* the pool lock */
 	int			cpu;		/* I: the associated cpu */
-	int			node;		/* I: the associated node ID */
+	int			yesde;		/* I: the associated yesde ID */
 	int			id;		/* I: pool ID */
 	unsigned int		flags;		/* X: flags */
 
@@ -173,7 +173,7 @@ struct worker_pool {
 	struct ida		worker_ida;	/* worker IDs for task name */
 
 	struct workqueue_attrs	*attrs;		/* I: worker attributes */
-	struct hlist_node	hash_node;	/* PL: unbound_pool_hash node */
+	struct hlist_yesde	hash_yesde;	/* PL: unbound_pool_hash yesde */
 	int			refcnt;		/* PL: refcnt for unbound pools */
 
 	/*
@@ -207,8 +207,8 @@ struct pool_workqueue {
 	int			nr_active;	/* L: nr of active works */
 	int			max_active;	/* L: max active works */
 	struct list_head	delayed_works;	/* L: delayed works */
-	struct list_head	pwqs_node;	/* WR: node on wq->pwqs */
-	struct list_head	mayday_node;	/* MD: node on wq->maydays */
+	struct list_head	pwqs_yesde;	/* WR: yesde on wq->pwqs */
+	struct list_head	mayday_yesde;	/* MD: yesde on wq->maydays */
 
 	/*
 	 * Release of unbound pwq is punted to system_wq.  See put_pwq()
@@ -276,13 +276,13 @@ struct workqueue_struct {
 	/* hot fields used during command issue, aligned to cacheline */
 	unsigned int		flags ____cacheline_aligned; /* WQ: WQ_* flags */
 	struct pool_workqueue __percpu *cpu_pwqs; /* I: per-cpu pwqs */
-	struct pool_workqueue __rcu *numa_pwq_tbl[]; /* PWR: unbound pwqs indexed by node */
+	struct pool_workqueue __rcu *numa_pwq_tbl[]; /* PWR: unbound pwqs indexed by yesde */
 };
 
 static struct kmem_cache *pwq_cache;
 
 static cpumask_var_t *wq_numa_possible_cpumask;
-					/* possible CPUs of each node */
+					/* possible CPUs of each yesde */
 
 static bool wq_disable_numa;
 module_param_named(disable_numa, wq_disable_numa, bool, 0444);
@@ -313,7 +313,7 @@ static cpumask_var_t wq_unbound_cpumask;
 static DEFINE_PER_CPU(int, wq_rr_cpu_last);
 
 /*
- * Local execution of unbound work items is no longer guaranteed.  The
+ * Local execution of unbound work items is yes longer guaranteed.  The
  * following always forces round-robin CPU selection on unbound work items
  * to uncover usages which depend on it.
  */
@@ -386,7 +386,7 @@ static void show_pwq(struct pool_workqueue *pwq);
  * caller is responsible for guaranteeing that the pool stays online.
  *
  * The if/else clause exists only for the lockdep assertion and can be
- * ignored.
+ * igyesred.
  */
 #define for_each_pool(pool, pi)						\
 	idr_for_each_entry(&worker_pool_idr, pool, pi)			\
@@ -401,10 +401,10 @@ static void show_pwq(struct pool_workqueue *pwq);
  * This must be called with wq_pool_attach_mutex.
  *
  * The if/else clause exists only for the lockdep assertion and can be
- * ignored.
+ * igyesred.
  */
 #define for_each_pool_worker(worker, pool)				\
-	list_for_each_entry((worker), &(pool)->workers, node)		\
+	list_for_each_entry((worker), &(pool)->workers, yesde)		\
 		if (({ lockdep_assert_held(&wq_pool_attach_mutex); false; })) { } \
 		else
 
@@ -418,10 +418,10 @@ static void show_pwq(struct pool_workqueue *pwq);
  * responsible for guaranteeing that the pwq stays online.
  *
  * The if/else clause exists only for the lockdep assertion and can be
- * ignored.
+ * igyesred.
  */
 #define for_each_pwq(pwq, wq)						\
-	list_for_each_entry_rcu((pwq), &(wq)->pwqs, pwqs_node,		\
+	list_for_each_entry_rcu((pwq), &(wq)->pwqs, pwqs_yesde,		\
 				 lockdep_is_held(&(wq->mutex)))
 
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
@@ -526,7 +526,7 @@ static inline void debug_work_deactivate(struct work_struct *work) { }
  * @pool: the pool pointer of interest
  *
  * Returns 0 if ID in [0, WORK_OFFQ_POOL_NONE) is allocated and assigned
- * successfully, -errno on failure.
+ * successfully, -erryes on failure.
  */
 static int worker_pool_assign_id(struct worker_pool *pool)
 {
@@ -544,32 +544,32 @@ static int worker_pool_assign_id(struct worker_pool *pool)
 }
 
 /**
- * unbound_pwq_by_node - return the unbound pool_workqueue for the given node
+ * unbound_pwq_by_yesde - return the unbound pool_workqueue for the given yesde
  * @wq: the target workqueue
- * @node: the node ID
+ * @yesde: the yesde ID
  *
  * This must be called with any of wq_pool_mutex, wq->mutex or RCU
  * read locked.
  * If the pwq needs to be used beyond the locking in effect, the caller is
  * responsible for guaranteeing that the pwq stays online.
  *
- * Return: The unbound pool_workqueue for @node.
+ * Return: The unbound pool_workqueue for @yesde.
  */
-static struct pool_workqueue *unbound_pwq_by_node(struct workqueue_struct *wq,
-						  int node)
+static struct pool_workqueue *unbound_pwq_by_yesde(struct workqueue_struct *wq,
+						  int yesde)
 {
 	assert_rcu_or_wq_mutex_or_pool_mutex(wq);
 
 	/*
-	 * XXX: @node can be NUMA_NO_NODE if CPU goes offline while a
+	 * XXX: @yesde can be NUMA_NO_NODE if CPU goes offline while a
 	 * delayed item is pending.  The plan is to keep CPU -> NODE
 	 * mapping valid and stable across CPU on/offlines.  Once that
 	 * happens, this workaround can be removed.
 	 */
-	if (unlikely(node == NUMA_NO_NODE))
+	if (unlikely(yesde == NUMA_NO_NODE))
 		return wq->dfl_pwq;
 
-	return rcu_dereference_raw(wq->numa_pwq_tbl[node]);
+	return rcu_dereference_raw(wq->numa_pwq_tbl[yesde]);
 }
 
 static unsigned int work_color_to_flags(int color)
@@ -589,7 +589,7 @@ static int work_next_color(int color)
 }
 
 /*
- * While queued, %WORK_STRUCT_PWQ is set and non flag bits of a work's data
+ * While queued, %WORK_STRUCT_PWQ is set and yesn flag bits of a work's data
  * contain the pointer to the queued pwq.  Once execution starts, the flag
  * is cleared and the high bits contain OFFQ flags and pool ID.
  *
@@ -605,7 +605,7 @@ static int work_next_color(int color)
  *
  * %WORK_OFFQ_CANCELING is used to mark a work item which is being
  * canceled.  While being canceled, a work item may have its PENDING set
- * but stay off timer and worklist for arbitrarily long and nobody should
+ * but stay off timer and worklist for arbitrarily long and yesbody should
  * try to steal the PENDING bit.
  */
 static inline void set_work_data(struct work_struct *work, unsigned long data,
@@ -642,7 +642,7 @@ static void set_work_pool_and_clear_pending(struct work_struct *work,
 	set_work_data(work, (unsigned long)pool_id << WORK_OFFQ_POOL_SHIFT, 0);
 	/*
 	 * The following mb guarantees that previous clear of a PENDING bit
-	 * will not be reordered with any speculative LOADS or STORES from
+	 * will yest be reordered with any speculative LOADS or STORES from
 	 * work->current_func, which is executed afterwards.  This possible
 	 * reordering can lead to a missed execution on attempt to queue
 	 * the same @work.  E.g. consider this case:
@@ -663,8 +663,8 @@ static void set_work_pool_and_clear_pending(struct work_struct *work,
 	 * Without an explicit full barrier speculative LOAD on line 8 can
 	 * be executed before CPU#0 does STORE on line 1.  If that happens,
 	 * CPU#0 observes the PENDING bit is still set and new execution of
-	 * a @work is not queued in a hope, that CPU#1 will eventually
-	 * finish the queued @work.  Meanwhile CPU#1 does not see
+	 * a @work is yest queued in a hope, that CPU#1 will eventually
+	 * finish the queued @work.  Meanwhile CPU#1 does yest see
 	 * event_indicated is set, because speculative LOAD was executed
 	 * before actual STORE.
 	 */
@@ -700,7 +700,7 @@ static struct pool_workqueue *get_work_pwq(struct work_struct *work)
  * beyond the critical section, the caller is responsible for ensuring the
  * returned pool is and stays online.
  *
- * Return: The worker_pool @work was last associated with.  %NULL if none.
+ * Return: The worker_pool @work was last associated with.  %NULL if yesne.
  */
 static struct worker_pool *get_work_pool(struct work_struct *work)
 {
@@ -725,7 +725,7 @@ static struct worker_pool *get_work_pool(struct work_struct *work)
  * @work: the work item of interest
  *
  * Return: The worker_pool ID @work was last associated with.
- * %WORK_OFFQ_POOL_NONE if none.
+ * %WORK_OFFQ_POOL_NONE if yesne.
  */
 static int get_work_pool_id(struct work_struct *work)
 {
@@ -755,7 +755,7 @@ static bool work_is_canceling(struct work_struct *work)
 
 /*
  * Policy functions.  These define the policies on how the global worker
- * pools are managed.  Unless noted otherwise, these functions assume that
+ * pools are managed.  Unless yested otherwise, these functions assume that
  * they're being called with pool->lock held.
  */
 
@@ -866,8 +866,8 @@ void wq_worker_sleeping(struct task_struct *task)
 	struct worker_pool *pool;
 
 	/*
-	 * Rescuers, which may not have all the fields set up like normal
-	 * workers, also reach here, let's not access anything before
+	 * Rescuers, which may yest have all the fields set up like yesrmal
+	 * workers, also reach here, let's yest access anything before
 	 * checking NOT_RUNNING.
 	 */
 	if (worker->flags & WORKER_NOT_RUNNING)
@@ -883,12 +883,12 @@ void wq_worker_sleeping(struct task_struct *task)
 
 	/*
 	 * The counterpart of the following dec_and_test, implied mb,
-	 * worklist not empty test sequence is in insert_work().
+	 * worklist yest empty test sequence is in insert_work().
 	 * Please read comment there.
 	 *
 	 * NOT_RUNNING is clear.  This means that we're bound to and
 	 * running on the local cpu w/ rq lock held and preemption
-	 * disabled, which in turn means that none else could be
+	 * disabled, which in turn means that yesne else could be
 	 * manipulating idle_list, so dereferencing idle_list without pool
 	 * lock is safe.
 	 */
@@ -906,7 +906,7 @@ void wq_worker_sleeping(struct task_struct *task)
  * @task: Task to retrieve last work function of.
  *
  * Determine the last function a worker executed. This is called from
- * the scheduler to get a worker's last known identity.
+ * the scheduler to get a worker's last kyeswn identity.
  *
  * CONTEXT:
  * spin_lock_irq(rq->lock)
@@ -919,7 +919,7 @@ void wq_worker_sleeping(struct task_struct *task)
  * As this function doesn't involve any workqueue-related locking, it
  * only returns stable values when called from inside the scheduler's
  * queuing and dequeuing paths, when @task, which must be a kworker,
- * is guaranteed to not be processing any works.
+ * is guaranteed to yest be processing any works.
  *
  * Return:
  * The last work function %current executed as a worker, NULL if it
@@ -978,8 +978,8 @@ static inline void worker_clr_flags(struct worker *worker, unsigned int flags)
 
 	/*
 	 * If transitioning out of NOT_RUNNING, increment nr_running.  Note
-	 * that the nested NOT_RUNNING is not a noop.  NOT_RUNNING is mask
-	 * of multiple flags, not a single flag.
+	 * that the nested NOT_RUNNING is yest a yesop.  NOT_RUNNING is mask
+	 * of multiple flags, yest a single flag.
 	 */
 	if ((flags & WORKER_NOT_RUNNING) && (oflags & WORKER_NOT_RUNNING))
 		if (!(worker->flags & WORKER_NOT_RUNNING))
@@ -999,8 +999,8 @@ static inline void worker_clr_flags(struct worker *worker, unsigned int flags)
  * being executed.
  *
  * This is a bit tricky.  A work item may be freed once its execution
- * starts and nothing prevents the freed area from being recycled for
- * another work item.  If the same work item address ends up being reused
+ * starts and yesthing prevents the freed area from being recycled for
+ * ayesther work item.  If the same work item address ends up being reused
  * before the original execution finishes, workqueue will identify the
  * recycled work item as currently executing and make it wait until the
  * current execution finishes, introducing an unwanted dependency.
@@ -1043,7 +1043,7 @@ static struct worker *find_worker_executing_work(struct worker_pool *pool,
  * be scheduled starts at @work and includes any consecutive work with
  * WORK_STRUCT_LINKED set in its predecessor.
  *
- * If @nextp is not NULL, it's updated to point to the next work of
+ * If @nextp is yest NULL, it's updated to point to the next work of
  * the last scheduled work.  This allows move_linked_works() to be
  * nested inside outer list_for_each_entry_safe().
  *
@@ -1240,14 +1240,14 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 
 		/*
 		 * dwork->timer is irqsafe.  If del_timer() fails, it's
-		 * guaranteed that the timer is not queued anywhere and not
+		 * guaranteed that the timer is yest queued anywhere and yest
 		 * running on the local CPU.
 		 */
 		if (likely(del_timer(&dwork->timer)))
 			return 1;
 	}
 
-	/* try to claim PENDING the normal way */
+	/* try to claim PENDING the yesrmal way */
 	if (!test_and_set_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(work)))
 		return 0;
 
@@ -1274,7 +1274,7 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 		debug_work_deactivate(work);
 
 		/*
-		 * A delayed work item cannot be grabbed directly because
+		 * A delayed work item canyest be grabbed directly because
 		 * it might have linked NO_COLOR work items which, if left
 		 * on the delayed_list, will confuse pwq->nr_active
 		 * management later on and cause stall.  Make sure the work
@@ -1338,7 +1338,7 @@ static void insert_work(struct pool_workqueue *pwq, struct work_struct *work,
 }
 
 /*
- * Test whether @work is being queued from another work executing on the
+ * Test whether @work is being queued from ayesther work executing on the
  * same workqueue.
  */
 static bool is_chained_work(struct workqueue_struct *wq)
@@ -1418,12 +1418,12 @@ retry:
 	if (!(wq->flags & WQ_UNBOUND))
 		pwq = per_cpu_ptr(wq->cpu_pwqs, cpu);
 	else
-		pwq = unbound_pwq_by_node(wq, cpu_to_node(cpu));
+		pwq = unbound_pwq_by_yesde(wq, cpu_to_yesde(cpu));
 
 	/*
 	 * If @work was previously on a different pool, it might still be
 	 * running there, in which case the work needs to be queued on that
-	 * pool to guarantee non-reentrancy.
+	 * pool to guarantee yesn-reentrancy.
 	 */
 	last_pool = get_work_pool(work);
 	if (last_pool && last_pool != pwq->pool) {
@@ -1436,7 +1436,7 @@ retry:
 		if (worker && worker->current_pwq->wq == wq) {
 			pwq = worker->current_pwq;
 		} else {
-			/* meh... not running there, queue here */
+			/* meh... yest running there, queue here */
 			spin_unlock(&last_pool->lock);
 			spin_lock(&pwq->pool->lock);
 		}
@@ -1448,7 +1448,7 @@ retry:
 	 * pwq is determined and locked.  For unbound pools, we could have
 	 * raced with pwq release and it could already be dead.  If its
 	 * refcnt is zero, repeat pwq selection.  Note that pwqs never die
-	 * without another pwq replacing it in the numa_pwq_tbl or while
+	 * without ayesther pwq replacing it in the numa_pwq_tbl or while
 	 * work items are executing on it, so the retrying is guaranteed to
 	 * make forward-progress.
 	 */
@@ -1520,15 +1520,15 @@ bool queue_work_on(int cpu, struct workqueue_struct *wq,
 EXPORT_SYMBOL(queue_work_on);
 
 /**
- * workqueue_select_cpu_near - Select a CPU based on NUMA node
- * @node: NUMA node ID that we want to select a CPU from
+ * workqueue_select_cpu_near - Select a CPU based on NUMA yesde
+ * @yesde: NUMA yesde ID that we want to select a CPU from
  *
  * This function will attempt to find a "random" cpu available on a given
- * node. If there are no CPUs available on the given node it will return
+ * yesde. If there are yes CPUs available on the given yesde it will return
  * WORK_CPU_UNBOUND indicating that we should just schedule to any
  * available CPU if we need to schedule this work.
  */
-static int workqueue_select_cpu_near(int node)
+static int workqueue_select_cpu_near(int yesde)
 {
 	int cpu;
 
@@ -1536,43 +1536,43 @@ static int workqueue_select_cpu_near(int node)
 	if (!wq_numa_enabled)
 		return WORK_CPU_UNBOUND;
 
-	/* Delay binding to CPU if node is not valid or online */
-	if (node < 0 || node >= MAX_NUMNODES || !node_online(node))
+	/* Delay binding to CPU if yesde is yest valid or online */
+	if (yesde < 0 || yesde >= MAX_NUMNODES || !yesde_online(yesde))
 		return WORK_CPU_UNBOUND;
 
-	/* Use local node/cpu if we are already there */
+	/* Use local yesde/cpu if we are already there */
 	cpu = raw_smp_processor_id();
-	if (node == cpu_to_node(cpu))
+	if (yesde == cpu_to_yesde(cpu))
 		return cpu;
 
-	/* Use "random" otherwise know as "first" online CPU of node */
-	cpu = cpumask_any_and(cpumask_of_node(node), cpu_online_mask);
+	/* Use "random" otherwise kyesw as "first" online CPU of yesde */
+	cpu = cpumask_any_and(cpumask_of_yesde(yesde), cpu_online_mask);
 
 	/* If CPU is valid return that, otherwise just defer */
 	return cpu < nr_cpu_ids ? cpu : WORK_CPU_UNBOUND;
 }
 
 /**
- * queue_work_node - queue work on a "random" cpu for a given NUMA node
- * @node: NUMA node that we are targeting the work for
+ * queue_work_yesde - queue work on a "random" cpu for a given NUMA yesde
+ * @yesde: NUMA yesde that we are targeting the work for
  * @wq: workqueue to use
  * @work: work to queue
  *
- * We queue the work to a "random" CPU within a given NUMA node. The basic
+ * We queue the work to a "random" CPU within a given NUMA yesde. The basic
  * idea here is to provide a way to somehow associate work with a given
- * NUMA node.
+ * NUMA yesde.
  *
  * This function will only make a best effort attempt at getting this onto
- * the right NUMA node. If no node is requested or the requested node is
+ * the right NUMA yesde. If yes yesde is requested or the requested yesde is
  * offline then we just fall back to standard queue_work behavior.
  *
  * Currently the "random" CPU ends up being the first available CPU in the
- * intersection of cpu_online_mask and the cpumask of the node, unless we
- * are running on the node. In that case we just use the current CPU.
+ * intersection of cpu_online_mask and the cpumask of the yesde, unless we
+ * are running on the yesde. In that case we just use the current CPU.
  *
  * Return: %false if @work was already on a queue, %true otherwise.
  */
-bool queue_work_node(int node, struct workqueue_struct *wq,
+bool queue_work_yesde(int yesde, struct workqueue_struct *wq,
 		     struct work_struct *work)
 {
 	unsigned long flags;
@@ -1581,7 +1581,7 @@ bool queue_work_node(int node, struct workqueue_struct *wq,
 	/*
 	 * This current implementation is specific to unbound workqueues.
 	 * Specifically we only return the first available CPU for a given
-	 * node instead of cycling through individual CPUs within the node.
+	 * yesde instead of cycling through individual CPUs within the yesde.
 	 *
 	 * If this is used with a per-cpu workqueue then the logic in
 	 * workqueue_select_cpu_near would need to be updated to allow for
@@ -1592,7 +1592,7 @@ bool queue_work_node(int node, struct workqueue_struct *wq,
 	local_irq_save(flags);
 
 	if (!test_and_set_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(work))) {
-		int cpu = workqueue_select_cpu_near(node);
+		int cpu = workqueue_select_cpu_near(yesde);
 
 		__queue_work(cpu, wq, work);
 		ret = true;
@@ -1601,7 +1601,7 @@ bool queue_work_node(int node, struct workqueue_struct *wq,
 	local_irq_restore(flags);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(queue_work_node);
+EXPORT_SYMBOL_GPL(queue_work_yesde);
 
 void delayed_work_timer_fn(struct timer_list *t)
 {
@@ -1627,7 +1627,7 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
 	 * If @delay is 0, queue @dwork->work immediately.  This is for
 	 * both optimization and correctness.  The earliest @timer can
 	 * expire is on the closest next tick and delayed_work users depend
-	 * on that there's no such delay when @delay is 0.
+	 * on that there's yes such delay when @delay is 0.
 	 */
 	if (!delay) {
 		__queue_work(cpu, wq, &dwork->work);
@@ -1781,7 +1781,7 @@ static void worker_enter_idle(struct worker *worker)
 	 * Sanity check nr_running.  Because unbind_workers() releases
 	 * pool->lock between setting %WORKER_UNBOUND and zapping
 	 * nr_running, the warning may trigger spuriously.  Check iff
-	 * unbind is not in progress.
+	 * unbind is yest in progress.
 	 */
 	WARN_ON_ONCE(!(pool->flags & POOL_DISASSOCIATED) &&
 		     pool->nr_workers == pool->nr_idle &&
@@ -1808,15 +1808,15 @@ static void worker_leave_idle(struct worker *worker)
 	list_del_init(&worker->entry);
 }
 
-static struct worker *alloc_worker(int node)
+static struct worker *alloc_worker(int yesde)
 {
 	struct worker *worker;
 
-	worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, node);
+	worker = kzalloc_yesde(sizeof(*worker), GFP_KERNEL, yesde);
 	if (worker) {
 		INIT_LIST_HEAD(&worker->entry);
 		INIT_LIST_HEAD(&worker->scheduled);
-		INIT_LIST_HEAD(&worker->node);
+		INIT_LIST_HEAD(&worker->yesde);
 		/* on creation a worker is in !idle && prep state */
 		worker->flags = WORKER_PREP;
 	}
@@ -1851,7 +1851,7 @@ static void worker_attach_to_pool(struct worker *worker,
 	if (pool->flags & POOL_DISASSOCIATED)
 		worker->flags |= WORKER_UNBOUND;
 
-	list_add_tail(&worker->node, &pool->workers);
+	list_add_tail(&worker->yesde, &pool->workers);
 	worker->pool = pool;
 
 	mutex_unlock(&wq_pool_attach_mutex);
@@ -1872,7 +1872,7 @@ static void worker_detach_from_pool(struct worker *worker)
 
 	mutex_lock(&wq_pool_attach_mutex);
 
-	list_del(&worker->node);
+	list_del(&worker->yesde);
 	worker->pool = NULL;
 
 	if (list_empty(&pool->workers))
@@ -1909,7 +1909,7 @@ static struct worker *create_worker(struct worker_pool *pool)
 	if (id < 0)
 		goto fail;
 
-	worker = alloc_worker(pool->node);
+	worker = alloc_worker(pool->yesde);
 	if (!worker)
 		goto fail;
 
@@ -1921,7 +1921,7 @@ static struct worker *create_worker(struct worker_pool *pool)
 	else
 		snprintf(id_buf, sizeof(id_buf), "u%d:%d", pool->id, id);
 
-	worker->task = kthread_create_on_node(worker_thread, worker, pool->node,
+	worker->task = kthread_create_on_yesde(worker_thread, worker, pool->yesde,
 					      "kworker/%s", id_buf);
 	if (IS_ERR(worker->task))
 		goto fail;
@@ -2014,14 +2014,14 @@ static void send_mayday(struct work_struct *work)
 		return;
 
 	/* mayday mayday mayday */
-	if (list_empty(&pwq->mayday_node)) {
+	if (list_empty(&pwq->mayday_yesde)) {
 		/*
 		 * If @pwq is for an unbound wq, its base ref may be put at
 		 * any time due to an attribute change.  Pin @pwq until the
 		 * rescuer is done with it.
 		 */
 		get_pwq(pwq);
-		list_add_tail(&pwq->mayday_node, &wq->maydays);
+		list_add_tail(&pwq->mayday_yesde, &wq->maydays);
 		wake_up_process(wq->rescuer->task);
 	}
 }
@@ -2120,7 +2120,7 @@ restart:
  * %false if the pool doesn't need management and the caller can safely
  * start processing works, %true if management function was performed and
  * the conditions that the caller verified before calling the function may
- * no longer be true.
+ * yes longer be true.
  */
 static bool manage_workers(struct worker *worker)
 {
@@ -2217,8 +2217,8 @@ __acquires(&pool->lock)
 		worker_set_flags(worker, WORKER_CPU_INTENSIVE);
 
 	/*
-	 * Wake up another worker if necessary.  The condition is always
-	 * false for normal per-cpu workers since nr_running would always
+	 * Wake up ayesther worker if necessary.  The condition is always
+	 * false for yesrmal per-cpu workers since nr_running would always
 	 * be >= 1 at this point.  This is used to chain execution of the
 	 * pending work items for WORKER_NOT_RUNNING workers such as the
 	 * UNBOUND and CPU_INTENSIVE ones.
@@ -2249,13 +2249,13 @@ __acquires(&pool->lock)
 	 *		A(W1)
 	 *		C(C)
 	 *
-	 * Which would create W1->C->W1 dependencies, even though there is no
+	 * Which would create W1->C->W1 dependencies, even though there is yes
 	 * actual deadlock possible. There are two solutions, using a
 	 * read-recursive acquire on the work(queue) 'locks', but this will then
 	 * hit the lockdep limitation on recursive locks, or simply discard
 	 * these locks.
 	 *
-	 * AFAICT there is no possible deadlock scenario between the
+	 * AFAICT there is yes possible deadlock scenario between the
 	 * flush_work() and complete() primitives (except for single-threaded
 	 * workqueues), so hiding them isn't a problem.
 	 */
@@ -2263,7 +2263,7 @@ __acquires(&pool->lock)
 	trace_workqueue_execute_start(work);
 	worker->current_func(work);
 	/*
-	 * While we must be careful to not use "work" after this, the trace
+	 * While we must be careful to yest use "work" after this, the trace
 	 * point will only record its address.
 	 */
 	trace_workqueue_execute_end(work);
@@ -2310,7 +2310,7 @@ __acquires(&pool->lock)
  * process_scheduled_works - process scheduled works
  * @worker: self
  *
- * Process all scheduled works.  Please note that the scheduled list
+ * Process all scheduled works.  Please yeste that the scheduled list
  * may change while processing a work, so this function repeatedly
  * fetches a work from the top and executes it.
  *
@@ -2374,7 +2374,7 @@ woke_up:
 
 	worker_leave_idle(worker);
 recheck:
-	/* no more worker necessary? */
+	/* yes more worker necessary? */
 	if (!need_more_worker(pool))
 		goto sleep;
 
@@ -2385,7 +2385,7 @@ recheck:
 	/*
 	 * ->scheduled list can only be filled while a worker is
 	 * preparing to process a work or actually processing it.
-	 * Make sure nobody diddled with it while I was sleeping.
+	 * Make sure yesbody diddled with it while I was sleeping.
 	 */
 	WARN_ON_ONCE(!list_empty(&worker->scheduled));
 
@@ -2406,7 +2406,7 @@ recheck:
 		pool->watchdog_ts = jiffies;
 
 		if (likely(!(*work_data_bits(work) & WORK_STRUCT_LINKED))) {
-			/* optimization path, not strictly necessary */
+			/* optimization path, yest strictly necessary */
 			process_one_work(worker, work);
 			if (unlikely(!list_empty(&worker->scheduled)))
 				process_scheduled_works(worker);
@@ -2419,10 +2419,10 @@ recheck:
 	worker_set_flags(worker, WORKER_PREP);
 sleep:
 	/*
-	 * pool->lock is held and there's no work to process and no need to
+	 * pool->lock is held and there's yes work to process and yes need to
 	 * manage, sleep.  Workers are woken up only while holding
 	 * pool->lock or from local cpu, so setting the current state
-	 * before releasing pool->lock is enough to prevent losing any
+	 * before releasing pool->lock is eyesugh to prevent losing any
 	 * event.
 	 */
 	worker_enter_idle(worker);
@@ -2473,7 +2473,7 @@ repeat:
 	/*
 	 * By the time the rescuer is requested to stop, the workqueue
 	 * shouldn't have any work pending, but @wq->maydays may still have
-	 * pwq(s) queued.  This can happen by non-rescuer workers consuming
+	 * pwq(s) queued.  This can happen by yesn-rescuer workers consuming
 	 * all the work items before the rescuer got to them.  Go through
 	 * @wq->maydays processing before acting on should_stop so that the
 	 * list is always empty on exit.
@@ -2485,13 +2485,13 @@ repeat:
 
 	while (!list_empty(&wq->maydays)) {
 		struct pool_workqueue *pwq = list_first_entry(&wq->maydays,
-					struct pool_workqueue, mayday_node);
+					struct pool_workqueue, mayday_yesde);
 		struct worker_pool *pool = pwq->pool;
 		struct work_struct *work, *n;
 		bool first = true;
 
 		__set_current_state(TASK_RUNNING);
-		list_del_init(&pwq->mayday_node);
+		list_del_init(&pwq->mayday_yesde);
 
 		spin_unlock_irq(&wq_mayday_lock);
 
@@ -2531,9 +2531,9 @@ repeat:
 				 * Queue iff we aren't racing destruction
 				 * and somebody else hasn't queued it already.
 				 */
-				if (wq->rescuer && list_empty(&pwq->mayday_node)) {
+				if (wq->rescuer && list_empty(&pwq->mayday_yesde)) {
 					get_pwq(pwq);
-					list_add_tail(&pwq->mayday_node, &wq->maydays);
+					list_add_tail(&pwq->mayday_yesde, &wq->maydays);
 				}
 				spin_unlock(&wq_mayday_lock);
 			}
@@ -2546,7 +2546,7 @@ repeat:
 		put_pwq(pwq);
 
 		/*
-		 * Leave this pool.  If need_more_worker() is %true, notify a
+		 * Leave this pool.  If need_more_worker() is %true, yestify a
 		 * regular worker; otherwise, we end up with 0 concurrency
 		 * and stalling the execution.
 		 */
@@ -2580,7 +2580,7 @@ repeat:
  * @target_work: work item being flushed (NULL for workqueue flushes)
  *
  * %current is trying to flush the whole @target_wq or @target_work on it.
- * If @target_wq doesn't have %WQ_MEM_RECLAIM, verify that %current is not
+ * If @target_wq doesn't have %WQ_MEM_RECLAIM, verify that %current is yest
  * reclaiming memory or running on a workqueue which doesn't have
  * %WQ_MEM_RECLAIM as that can break forward-progress guarantee leading to
  * a deadlock.
@@ -2623,10 +2623,10 @@ static void wq_barrier_func(struct work_struct *work)
  * @pwq: pwq to insert barrier into
  * @barr: wq_barrier to insert
  * @target: target work to attach @barr to
- * @worker: worker currently executing @target, NULL if @target is not executing
+ * @worker: worker currently executing @target, NULL if @target is yest executing
  *
  * @barr is linked to @target such that @barr is completed only after
- * @target finishes execution.  Please note that the ordering
+ * @target finishes execution.  Please yeste that the ordering
  * guarantee is observed only with respect to @target and on the local
  * cpu.
  *
@@ -2636,7 +2636,7 @@ static void wq_barrier_func(struct work_struct *work)
  * flag of the previous work while there must be a valid next work
  * after a work with LINKED flag set.
  *
- * Note that when @worker is non-NULL, @target may be modified
+ * Note that when @worker is yesn-NULL, @target may be modified
  * underneath us, so we can't reliably determine pwq from @target.
  *
  * CONTEXT:
@@ -2651,7 +2651,7 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
 
 	/*
 	 * debugobject calls are safe here even with pool->lock locked
-	 * as we know for sure that this will not trigger any of the
+	 * as we kyesw for sure that this will yest trigger any of the
 	 * checks and call back into the fixup functions where we
 	 * might deadlock.
 	 */
@@ -2685,24 +2685,24 @@ static void insert_wq_barrier(struct pool_workqueue *pwq,
 /**
  * flush_workqueue_prep_pwqs - prepare pwqs for workqueue flushing
  * @wq: workqueue being flushed
- * @flush_color: new flush color, < 0 for no-op
- * @work_color: new work color, < 0 for no-op
+ * @flush_color: new flush color, < 0 for yes-op
+ * @work_color: new work color, < 0 for yes-op
  *
  * Prepare pwqs for workqueue flushing.
  *
- * If @flush_color is non-negative, flush_color on all pwqs should be
- * -1.  If no pwq has in-flight commands at the specified color, all
+ * If @flush_color is yesn-negative, flush_color on all pwqs should be
+ * -1.  If yes pwq has in-flight commands at the specified color, all
  * pwq->flush_color's stay at -1 and %false is returned.  If any pwq
  * has in flight commands, its pwq->flush_color is set to
  * @flush_color, @wq->nr_pwqs_to_flush is updated accordingly, pwq
  * wakeup logic is armed and %true is returned.
  *
  * The caller should have initialized @wq->first_flusher prior to
- * calling this function with non-negative @flush_color.  If
- * @flush_color is negative, no flush color update is done and %false
+ * calling this function with yesn-negative @flush_color.  If
+ * @flush_color is negative, yes flush color update is done and %false
  * is returned.
  *
- * If @work_color is non-negative, all pwqs should have the same
+ * If @work_color is yesn-negative, all pwqs should have the same
  * work_color which is previous to @work_color and all will be
  * advanced to @work_color.
  *
@@ -2758,7 +2758,7 @@ static bool flush_workqueue_prep_pwqs(struct workqueue_struct *wq,
  * @wq: workqueue to flush
  *
  * This function sleeps until all work items which were queued on entry
- * have finished execution, but it is not livelocked by new incoming ones.
+ * have finished execution, but it is yest livelocked by new incoming ones.
  */
 void flush_workqueue(struct workqueue_struct *wq)
 {
@@ -2784,7 +2784,7 @@ void flush_workqueue(struct workqueue_struct *wq)
 
 	if (next_color != wq->flush_color) {
 		/*
-		 * Color space is not full.  The current work_color
+		 * Color space is yest full.  The current work_color
 		 * becomes our flush_color and work_color is advanced
 		 * by one.
 		 */
@@ -2793,14 +2793,14 @@ void flush_workqueue(struct workqueue_struct *wq)
 		wq->work_color = next_color;
 
 		if (!wq->first_flusher) {
-			/* no flush in progress, become the first flusher */
+			/* yes flush in progress, become the first flusher */
 			WARN_ON_ONCE(wq->flush_color != this_flusher.flush_color);
 
 			wq->first_flusher = &this_flusher;
 
 			if (!flush_workqueue_prep_pwqs(wq, wq->flush_color,
 						       wq->work_color)) {
-				/* nothing to flush, done */
+				/* yesthing to flush, done */
 				wq->flush_color = next_color;
 				wq->first_flusher = NULL;
 				goto out_unlock;
@@ -3091,7 +3091,7 @@ static bool __cancel_work_timer(struct work_struct *work, bool is_dwork)
 		 * because we may get scheduled between @work's completion
 		 * and the other canceling task resuming and clearing
 		 * CANCELING - flush_work() will return false immediately
-		 * as @work is no longer busy, try_to_grab_pending() will
+		 * as @work is yes longer busy, try_to_grab_pending() will
 		 * return -ENOENT as @work is still being canceled and the
 		 * other canceling task won't be able to clear CANCELING as
 		 * we're hogging the CPU.
@@ -3121,7 +3121,7 @@ static bool __cancel_work_timer(struct work_struct *work, bool is_dwork)
 	local_irq_restore(flags);
 
 	/*
-	 * This allows canceling during early boot.  We know that @work
+	 * This allows canceling during early boot.  We kyesw that @work
 	 * isn't executing.
 	 */
 	if (wq_online)
@@ -3147,10 +3147,10 @@ static bool __cancel_work_timer(struct work_struct *work, bool is_dwork)
  *
  * Cancel @work and wait for its execution to finish.  This function
  * can be used even if the work re-queues itself or migrates to
- * another workqueue.  On return from this function, @work is
- * guaranteed to be not pending or executing on any CPU.
+ * ayesther workqueue.  On return from this function, @work is
+ * guaranteed to be yest pending or executing on any CPU.
  *
- * cancel_work_sync(&delayed_work->work) must not be used for
+ * cancel_work_sync(&delayed_work->work) must yest be used for
  * delayed_work's.  Use cancel_delayed_work_sync() instead.
  *
  * The caller must ensure that the workqueue on which @work was last
@@ -3262,7 +3262,7 @@ bool cancel_delayed_work_sync(struct delayed_work *dwork)
 EXPORT_SYMBOL(cancel_delayed_work_sync);
 
 /**
- * schedule_on_each_cpu - execute a function synchronously on each online CPU
+ * schedule_on_each_cpu - execute a function synchroyesusly on each online CPU
  * @func: the function to call
  *
  * schedule_on_each_cpu() executes @func on each online CPU using the
@@ -3270,7 +3270,7 @@ EXPORT_SYMBOL(cancel_delayed_work_sync);
  * schedule_on_each_cpu() is very slow.
  *
  * Return:
- * 0 on success, -errno on failure.
+ * 0 on success, -erryes on failure.
  */
 int schedule_on_each_cpu(work_func_t func)
 {
@@ -3369,11 +3369,11 @@ static void copy_workqueue_attrs(struct workqueue_attrs *to,
 	to->nice = from->nice;
 	cpumask_copy(to->cpumask, from->cpumask);
 	/*
-	 * Unlike hash and equality test, this function doesn't ignore
-	 * ->no_numa as it is used for both pool and wq attrs.  Instead,
-	 * get_unbound_pool() explicitly clears ->no_numa after copying.
+	 * Unlike hash and equality test, this function doesn't igyesre
+	 * ->yes_numa as it is used for both pool and wq attrs.  Instead,
+	 * get_unbound_pool() explicitly clears ->yes_numa after copying.
 	 */
-	to->no_numa = from->no_numa;
+	to->yes_numa = from->yes_numa;
 }
 
 /* hash value of the content of @attr */
@@ -3404,7 +3404,7 @@ static bool wqattrs_equal(const struct workqueue_attrs *a,
  *
  * Initialize a newly zalloc'd @pool.  It also allocates @pool->attrs.
  *
- * Return: 0 on success, -errno on failure.  Even on failure, all fields
+ * Return: 0 on success, -erryes on failure.  Even on failure, all fields
  * inside @pool proper are initialized and put_unbound_pool() can be called
  * on @pool safely to release it.
  */
@@ -3413,7 +3413,7 @@ static int init_worker_pool(struct worker_pool *pool)
 	spin_lock_init(&pool->lock);
 	pool->id = -1;
 	pool->cpu = -1;
-	pool->node = NUMA_NO_NODE;
+	pool->yesde = NUMA_NO_NODE;
 	pool->flags |= POOL_DISASSOCIATED;
 	pool->watchdog_ts = jiffies;
 	INIT_LIST_HEAD(&pool->worklist);
@@ -3427,7 +3427,7 @@ static int init_worker_pool(struct worker_pool *pool)
 	INIT_LIST_HEAD(&pool->workers);
 
 	ida_init(&pool->worker_ida);
-	INIT_HLIST_NODE(&pool->hash_node);
+	INIT_HLIST_NODE(&pool->hash_yesde);
 	pool->refcnt = 1;
 
 	/* shouldn't fail above this point */
@@ -3507,7 +3507,7 @@ static void rcu_free_pool(struct rcu_head *rcu)
  * Put @pool.  If its refcnt reaches zero, it gets destroyed in RCU
  * safe manner.  get_unbound_pool() calls this function on its failure path
  * and this function should be able to release pools which went through,
- * successfully or not, init_worker_pool().
+ * successfully or yest, init_worker_pool().
  *
  * Should be called with wq_pool_mutex held.
  */
@@ -3529,7 +3529,7 @@ static void put_unbound_pool(struct worker_pool *pool)
 	/* release id and unhash */
 	if (pool->id >= 0)
 		idr_remove(&worker_pool_idr, pool->id);
-	hash_del(&pool->hash_node);
+	hash_del(&pool->hash_yesde);
 
 	/*
 	 * Become the manager and destroy all workers.  This prevents
@@ -3580,44 +3580,44 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 {
 	u32 hash = wqattrs_hash(attrs);
 	struct worker_pool *pool;
-	int node;
-	int target_node = NUMA_NO_NODE;
+	int yesde;
+	int target_yesde = NUMA_NO_NODE;
 
 	lockdep_assert_held(&wq_pool_mutex);
 
 	/* do we already have a matching pool? */
-	hash_for_each_possible(unbound_pool_hash, pool, hash_node, hash) {
+	hash_for_each_possible(unbound_pool_hash, pool, hash_yesde, hash) {
 		if (wqattrs_equal(pool->attrs, attrs)) {
 			pool->refcnt++;
 			return pool;
 		}
 	}
 
-	/* if cpumask is contained inside a NUMA node, we belong to that node */
+	/* if cpumask is contained inside a NUMA yesde, we belong to that yesde */
 	if (wq_numa_enabled) {
-		for_each_node(node) {
+		for_each_yesde(yesde) {
 			if (cpumask_subset(attrs->cpumask,
-					   wq_numa_possible_cpumask[node])) {
-				target_node = node;
+					   wq_numa_possible_cpumask[yesde])) {
+				target_yesde = yesde;
 				break;
 			}
 		}
 	}
 
-	/* nope, create a new one */
-	pool = kzalloc_node(sizeof(*pool), GFP_KERNEL, target_node);
+	/* yespe, create a new one */
+	pool = kzalloc_yesde(sizeof(*pool), GFP_KERNEL, target_yesde);
 	if (!pool || init_worker_pool(pool) < 0)
 		goto fail;
 
 	lockdep_set_subclass(&pool->lock, 1);	/* see put_pwq() */
 	copy_workqueue_attrs(pool->attrs, attrs);
-	pool->node = target_node;
+	pool->yesde = target_yesde;
 
 	/*
-	 * no_numa isn't a worker_pool attribute, always clear it.  See
+	 * yes_numa isn't a worker_pool attribute, always clear it.  See
 	 * 'struct workqueue_attrs' comments for detail.
 	 */
-	pool->attrs->no_numa = false;
+	pool->attrs->yes_numa = false;
 
 	if (worker_pool_assign_id(pool) < 0)
 		goto fail;
@@ -3627,7 +3627,7 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 		goto fail;
 
 	/* install */
-	hash_add(unbound_pool_hash, &pool->hash_node, hash);
+	hash_add(unbound_pool_hash, &pool->hash_yesde, hash);
 
 	return pool;
 fail:
@@ -3658,7 +3658,7 @@ static void pwq_unbound_release_workfn(struct work_struct *work)
 		return;
 
 	mutex_lock(&wq->mutex);
-	list_del_rcu(&pwq->pwqs_node);
+	list_del_rcu(&pwq->pwqs_yesde);
 	is_last = list_empty(&wq->pwqs);
 	mutex_unlock(&wq->mutex);
 
@@ -3669,7 +3669,7 @@ static void pwq_unbound_release_workfn(struct work_struct *work)
 	call_rcu(&pwq->rcu, rcu_free_pwq);
 
 	/*
-	 * If we're the last pwq going away, @wq is already dead and no one
+	 * If we're the last pwq going away, @wq is already dead and yes one
 	 * is gonna access it anymore.  Schedule RCU free.
 	 */
 	if (is_last) {
@@ -3695,7 +3695,7 @@ static void pwq_adjust_max_active(struct pool_workqueue *pwq)
 	/* for @wq->saved_max_active */
 	lockdep_assert_held(&wq->mutex);
 
-	/* fast exit for non-freezable wqs */
+	/* fast exit for yesn-freezable wqs */
 	if (!freezable && pwq->max_active == wq->saved_max_active)
 		return;
 
@@ -3739,8 +3739,8 @@ static void init_pwq(struct pool_workqueue *pwq, struct workqueue_struct *wq,
 	pwq->flush_color = -1;
 	pwq->refcnt = 1;
 	INIT_LIST_HEAD(&pwq->delayed_works);
-	INIT_LIST_HEAD(&pwq->pwqs_node);
-	INIT_LIST_HEAD(&pwq->mayday_node);
+	INIT_LIST_HEAD(&pwq->pwqs_yesde);
+	INIT_LIST_HEAD(&pwq->mayday_yesde);
 	INIT_WORK(&pwq->unbound_release_work, pwq_unbound_release_workfn);
 }
 
@@ -3751,8 +3751,8 @@ static void link_pwq(struct pool_workqueue *pwq)
 
 	lockdep_assert_held(&wq->mutex);
 
-	/* may be called multiple times, ignore if already linked */
-	if (!list_empty(&pwq->pwqs_node))
+	/* may be called multiple times, igyesre if already linked */
+	if (!list_empty(&pwq->pwqs_yesde))
 		return;
 
 	/* set the matching work_color */
@@ -3762,7 +3762,7 @@ static void link_pwq(struct pool_workqueue *pwq)
 	pwq_adjust_max_active(pwq);
 
 	/* link in @pwq */
-	list_add_rcu(&pwq->pwqs_node, &wq->pwqs);
+	list_add_rcu(&pwq->pwqs_yesde, &wq->pwqs);
 }
 
 /* obtain a pool matching @attr and create a pwq associating the pool and @wq */
@@ -3778,7 +3778,7 @@ static struct pool_workqueue *alloc_unbound_pwq(struct workqueue_struct *wq,
 	if (!pool)
 		return NULL;
 
-	pwq = kmem_cache_alloc_node(pwq_cache, GFP_KERNEL, pool->node);
+	pwq = kmem_cache_alloc_yesde(pwq_cache, GFP_KERNEL, pool->yesde);
 	if (!pwq) {
 		put_unbound_pool(pool);
 		return NULL;
@@ -3789,43 +3789,43 @@ static struct pool_workqueue *alloc_unbound_pwq(struct workqueue_struct *wq,
 }
 
 /**
- * wq_calc_node_cpumask - calculate a wq_attrs' cpumask for the specified node
+ * wq_calc_yesde_cpumask - calculate a wq_attrs' cpumask for the specified yesde
  * @attrs: the wq_attrs of the default pwq of the target workqueue
- * @node: the target NUMA node
+ * @yesde: the target NUMA yesde
  * @cpu_going_down: if >= 0, the CPU to consider as offline
  * @cpumask: outarg, the resulting cpumask
  *
- * Calculate the cpumask a workqueue with @attrs should use on @node.  If
+ * Calculate the cpumask a workqueue with @attrs should use on @yesde.  If
  * @cpu_going_down is >= 0, that cpu is considered offline during
  * calculation.  The result is stored in @cpumask.
  *
- * If NUMA affinity is not enabled, @attrs->cpumask is always used.  If
- * enabled and @node has online CPUs requested by @attrs, the returned
- * cpumask is the intersection of the possible CPUs of @node and
+ * If NUMA affinity is yest enabled, @attrs->cpumask is always used.  If
+ * enabled and @yesde has online CPUs requested by @attrs, the returned
+ * cpumask is the intersection of the possible CPUs of @yesde and
  * @attrs->cpumask.
  *
- * The caller is responsible for ensuring that the cpumask of @node stays
+ * The caller is responsible for ensuring that the cpumask of @yesde stays
  * stable.
  *
  * Return: %true if the resulting @cpumask is different from @attrs->cpumask,
  * %false if equal.
  */
-static bool wq_calc_node_cpumask(const struct workqueue_attrs *attrs, int node,
+static bool wq_calc_yesde_cpumask(const struct workqueue_attrs *attrs, int yesde,
 				 int cpu_going_down, cpumask_t *cpumask)
 {
-	if (!wq_numa_enabled || attrs->no_numa)
+	if (!wq_numa_enabled || attrs->yes_numa)
 		goto use_dfl;
 
-	/* does @node have any online CPUs @attrs wants? */
-	cpumask_and(cpumask, cpumask_of_node(node), attrs->cpumask);
+	/* does @yesde have any online CPUs @attrs wants? */
+	cpumask_and(cpumask, cpumask_of_yesde(yesde), attrs->cpumask);
 	if (cpu_going_down >= 0)
 		cpumask_clear_cpu(cpu_going_down, cpumask);
 
 	if (cpumask_empty(cpumask))
 		goto use_dfl;
 
-	/* yeap, return possible CPUs in @node that @attrs wants */
-	cpumask_and(cpumask, attrs->cpumask, wq_numa_possible_cpumask[node]);
+	/* yeap, return possible CPUs in @yesde that @attrs wants */
+	cpumask_and(cpumask, attrs->cpumask, wq_numa_possible_cpumask[yesde]);
 
 	if (cpumask_empty(cpumask)) {
 		pr_warn_once("WARNING: workqueue cpumask: online intersect > "
@@ -3840,9 +3840,9 @@ use_dfl:
 	return false;
 }
 
-/* install @pwq into @wq's numa_pwq_tbl[] for @node and return the old pwq */
+/* install @pwq into @wq's numa_pwq_tbl[] for @yesde and return the old pwq */
 static struct pool_workqueue *numa_pwq_tbl_install(struct workqueue_struct *wq,
-						   int node,
+						   int yesde,
 						   struct pool_workqueue *pwq)
 {
 	struct pool_workqueue *old_pwq;
@@ -3853,8 +3853,8 @@ static struct pool_workqueue *numa_pwq_tbl_install(struct workqueue_struct *wq,
 	/* link_pwq() can handle duplicate calls */
 	link_pwq(pwq);
 
-	old_pwq = rcu_access_pointer(wq->numa_pwq_tbl[node]);
-	rcu_assign_pointer(wq->numa_pwq_tbl[node], pwq);
+	old_pwq = rcu_access_pointer(wq->numa_pwq_tbl[yesde]);
+	rcu_assign_pointer(wq->numa_pwq_tbl[yesde], pwq);
 	return old_pwq;
 }
 
@@ -3871,10 +3871,10 @@ struct apply_wqattrs_ctx {
 static void apply_wqattrs_cleanup(struct apply_wqattrs_ctx *ctx)
 {
 	if (ctx) {
-		int node;
+		int yesde;
 
-		for_each_node(node)
-			put_pwq_unlocked(ctx->pwq_tbl[node]);
+		for_each_yesde(yesde)
+			put_pwq_unlocked(ctx->pwq_tbl[yesde]);
 		put_pwq_unlocked(ctx->dfl_pwq);
 
 		free_workqueue_attrs(ctx->attrs);
@@ -3890,11 +3890,11 @@ apply_wqattrs_prepare(struct workqueue_struct *wq,
 {
 	struct apply_wqattrs_ctx *ctx;
 	struct workqueue_attrs *new_attrs, *tmp_attrs;
-	int node;
+	int yesde;
 
 	lockdep_assert_held(&wq_pool_mutex);
 
-	ctx = kzalloc(struct_size(ctx, pwq_tbl, nr_node_ids), GFP_KERNEL);
+	ctx = kzalloc(struct_size(ctx, pwq_tbl, nr_yesde_ids), GFP_KERNEL);
 
 	new_attrs = alloc_workqueue_attrs();
 	tmp_attrs = alloc_workqueue_attrs();
@@ -3927,14 +3927,14 @@ apply_wqattrs_prepare(struct workqueue_struct *wq,
 	if (!ctx->dfl_pwq)
 		goto out_free;
 
-	for_each_node(node) {
-		if (wq_calc_node_cpumask(new_attrs, node, -1, tmp_attrs->cpumask)) {
-			ctx->pwq_tbl[node] = alloc_unbound_pwq(wq, tmp_attrs);
-			if (!ctx->pwq_tbl[node])
+	for_each_yesde(yesde) {
+		if (wq_calc_yesde_cpumask(new_attrs, yesde, -1, tmp_attrs->cpumask)) {
+			ctx->pwq_tbl[yesde] = alloc_unbound_pwq(wq, tmp_attrs);
+			if (!ctx->pwq_tbl[yesde])
 				goto out_free;
 		} else {
 			ctx->dfl_pwq->refcnt++;
-			ctx->pwq_tbl[node] = ctx->dfl_pwq;
+			ctx->pwq_tbl[yesde] = ctx->dfl_pwq;
 		}
 	}
 
@@ -3957,7 +3957,7 @@ out_free:
 /* set attrs and install prepared pwqs, @ctx points to old pwqs on return */
 static void apply_wqattrs_commit(struct apply_wqattrs_ctx *ctx)
 {
-	int node;
+	int yesde;
 
 	/* all pwqs have been created successfully, let's install'em */
 	mutex_lock(&ctx->wq->mutex);
@@ -3965,11 +3965,11 @@ static void apply_wqattrs_commit(struct apply_wqattrs_ctx *ctx)
 	copy_workqueue_attrs(ctx->wq->unbound_attrs, ctx->attrs);
 
 	/* save the previous pwq and install the new one */
-	for_each_node(node)
-		ctx->pwq_tbl[node] = numa_pwq_tbl_install(ctx->wq, node,
-							  ctx->pwq_tbl[node]);
+	for_each_yesde(yesde)
+		ctx->pwq_tbl[yesde] = numa_pwq_tbl_install(ctx->wq, yesde,
+							  ctx->pwq_tbl[yesde]);
 
-	/* @dfl_pwq might not have been used, ensure it's linked */
+	/* @dfl_pwq might yest have been used, ensure it's linked */
 	link_pwq(ctx->dfl_pwq);
 	swap(ctx->wq->dfl_pwq, ctx->dfl_pwq);
 
@@ -4023,9 +4023,9 @@ static int apply_workqueue_attrs_locked(struct workqueue_struct *wq,
  * @attrs: the workqueue_attrs to apply, allocated with alloc_workqueue_attrs()
  *
  * Apply @attrs to an unbound workqueue @wq.  Unless disabled, on NUMA
- * machines, this function maps a separate pwq to each NUMA node with
+ * machines, this function maps a separate pwq to each NUMA yesde with
  * possibles CPUs in @attrs->cpumask so that work items are affine to the
- * NUMA node it was issued on.  Older pwqs are released as in-flight work
+ * NUMA yesde it was issued on.  Older pwqs are released as in-flight work
  * items finish.  Note that a work item which repeatedly requeues itself
  * back-to-back will stay on its current pwq.
  *
@@ -4033,7 +4033,7 @@ static int apply_workqueue_attrs_locked(struct workqueue_struct *wq,
  *
  * Assumes caller has CPU hotplug read exclusion, i.e. get_online_cpus().
  *
- * Return: 0 on success and -errno on failure.
+ * Return: 0 on success and -erryes on failure.
  */
 int apply_workqueue_attrs(struct workqueue_struct *wq,
 			  const struct workqueue_attrs *attrs)
@@ -4060,11 +4060,11 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
  * @wq accordingly.
  *
  * If NUMA affinity can't be adjusted due to memory allocation failure, it
- * falls back to @wq->dfl_pwq which may not be optimal but is always
+ * falls back to @wq->dfl_pwq which may yest be optimal but is always
  * correct.
  *
- * Note that when the last allowed CPU of a NUMA node goes offline for a
- * workqueue with a cpumask spanning multiple nodes, the workers which were
+ * Note that when the last allowed CPU of a NUMA yesde goes offline for a
+ * workqueue with a cpumask spanning multiple yesdes, the workers which were
  * already executing the work items for the workqueue will lose their CPU
  * affinity and may execute on any CPU.  This is similar to how per-cpu
  * workqueues behave on CPU_DOWN.  If a workqueue user wants strict
@@ -4074,7 +4074,7 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 static void wq_update_unbound_numa(struct workqueue_struct *wq, int cpu,
 				   bool online)
 {
-	int node = cpu_to_node(cpu);
+	int yesde = cpu_to_yesde(cpu);
 	int cpu_off = online ? -1 : cpu;
 	struct pool_workqueue *old_pwq = NULL, *pwq;
 	struct workqueue_attrs *target_attrs;
@@ -4083,7 +4083,7 @@ static void wq_update_unbound_numa(struct workqueue_struct *wq, int cpu,
 	lockdep_assert_held(&wq_pool_mutex);
 
 	if (!wq_numa_enabled || !(wq->flags & WQ_UNBOUND) ||
-	    wq->unbound_attrs->no_numa)
+	    wq->unbound_attrs->yes_numa)
 		return;
 
 	/*
@@ -4095,7 +4095,7 @@ static void wq_update_unbound_numa(struct workqueue_struct *wq, int cpu,
 	cpumask = target_attrs->cpumask;
 
 	copy_workqueue_attrs(target_attrs, wq->unbound_attrs);
-	pwq = unbound_pwq_by_node(wq, node);
+	pwq = unbound_pwq_by_yesde(wq, yesde);
 
 	/*
 	 * Let's determine what needs to be done.  If the target cpumask is
@@ -4103,7 +4103,7 @@ static void wq_update_unbound_numa(struct workqueue_struct *wq, int cpu,
 	 * and create a new one if they don't match.  If the target cpumask
 	 * equals the default pwq's, the default pwq should be used.
 	 */
-	if (wq_calc_node_cpumask(wq->dfl_pwq->pool->attrs, node, cpu_off, cpumask)) {
+	if (wq_calc_yesde_cpumask(wq->dfl_pwq->pool->attrs, yesde, cpu_off, cpumask)) {
 		if (cpumask_equal(cpumask, pwq->pool->attrs->cpumask))
 			return;
 	} else {
@@ -4120,7 +4120,7 @@ static void wq_update_unbound_numa(struct workqueue_struct *wq, int cpu,
 
 	/* Install the new pwq. */
 	mutex_lock(&wq->mutex);
-	old_pwq = numa_pwq_tbl_install(wq, node, pwq);
+	old_pwq = numa_pwq_tbl_install(wq, yesde, pwq);
 	goto out_unlock;
 
 use_dfl_pwq:
@@ -4128,7 +4128,7 @@ use_dfl_pwq:
 	spin_lock_irq(&wq->dfl_pwq->pool->lock);
 	get_pwq(wq->dfl_pwq);
 	spin_unlock_irq(&wq->dfl_pwq->pool->lock);
-	old_pwq = numa_pwq_tbl_install(wq, node, wq->dfl_pwq);
+	old_pwq = numa_pwq_tbl_install(wq, yesde, wq->dfl_pwq);
 out_unlock:
 	mutex_unlock(&wq->mutex);
 	put_pwq_unlocked(old_pwq);
@@ -4163,8 +4163,8 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 	if (wq->flags & __WQ_ORDERED) {
 		ret = apply_workqueue_attrs(wq, ordered_wq_attrs[highpri]);
 		/* there should only be single pwq for ordering guarantee */
-		WARN(!ret && (wq->pwqs.next != &wq->dfl_pwq->pwqs_node ||
-			      wq->pwqs.prev != &wq->dfl_pwq->pwqs_node),
+		WARN(!ret && (wq->pwqs.next != &wq->dfl_pwq->pwqs_yesde ||
+			      wq->pwqs.prev != &wq->dfl_pwq->pwqs_yesde),
 		     "ordering guarantee broken for workqueue %s\n", wq->name);
 	} else {
 		ret = apply_workqueue_attrs(wq, unbound_std_wq_attrs[highpri]);
@@ -4228,8 +4228,8 @@ struct workqueue_struct *alloc_workqueue(const char *fmt,
 	struct pool_workqueue *pwq;
 
 	/*
-	 * Unbound && max_active == 1 used to imply ordered, which is no
-	 * longer the case on NUMA machines due to per-node pools.  While
+	 * Unbound && max_active == 1 used to imply ordered, which is yes
+	 * longer the case on NUMA machines due to per-yesde pools.  While
 	 * alloc_ordered_workqueue() is the right way to create an ordered
 	 * workqueue, keep the previous behavior to avoid subtle breakages
 	 * on NUMA.
@@ -4243,7 +4243,7 @@ struct workqueue_struct *alloc_workqueue(const char *fmt,
 
 	/* allocate wq and format name */
 	if (flags & WQ_UNBOUND)
-		tbl_size = nr_node_ids * sizeof(wq->numa_pwq_tbl[0]);
+		tbl_size = nr_yesde_ids * sizeof(wq->numa_pwq_tbl[0]);
 
 	wq = kzalloc(sizeof(*wq) + tbl_size, GFP_KERNEL);
 	if (!wq)
@@ -4340,7 +4340,7 @@ static bool pwq_busy(struct pool_workqueue *pwq)
 void destroy_workqueue(struct workqueue_struct *wq)
 {
 	struct pool_workqueue *pwq;
-	int node;
+	int yesde;
 
 	/*
 	 * Remove it from sysfs first so that sanity check failure doesn't
@@ -4409,9 +4409,9 @@ void destroy_workqueue(struct workqueue_struct *wq)
 		 * access numa_pwq_tbl[] and dfl_pwq to put the base refs.
 		 * @wq will be freed when the last pwq is released.
 		 */
-		for_each_node(node) {
-			pwq = rcu_access_pointer(wq->numa_pwq_tbl[node]);
-			RCU_INIT_POINTER(wq->numa_pwq_tbl[node], NULL);
+		for_each_yesde(yesde) {
+			pwq = rcu_access_pointer(wq->numa_pwq_tbl[yesde]);
+			RCU_INIT_POINTER(wq->numa_pwq_tbl[yesde], NULL);
 			put_pwq_unlocked(pwq);
 		}
 
@@ -4495,14 +4495,14 @@ bool current_is_workqueue_rescuer(void)
  * @wq: target workqueue
  *
  * Test whether @wq's cpu workqueue for @cpu is congested.  There is
- * no synchronization around this function and the test result is
+ * yes synchronization around this function and the test result is
  * unreliable and only useful as advisory hints or for debugging.
  *
  * If @cpu is WORK_CPU_UNBOUND, the test is performed on the local CPU.
  * Note that both per-cpu and unbound workqueues may be associated with
  * multiple pool_workqueues which have separate congested states.  A
  * workqueue being congested on one CPU doesn't mean the workqueue is also
- * contested on other CPUs / NUMA nodes.
+ * contested on other CPUs / NUMA yesdes.
  *
  * Return:
  * %true if congested, %false otherwise.
@@ -4521,7 +4521,7 @@ bool workqueue_congested(int cpu, struct workqueue_struct *wq)
 	if (!(wq->flags & WQ_UNBOUND))
 		pwq = per_cpu_ptr(wq->cpu_pwqs, cpu);
 	else
-		pwq = unbound_pwq_by_node(wq, cpu_to_node(cpu));
+		pwq = unbound_pwq_by_yesde(wq, cpu_to_yesde(cpu));
 
 	ret = !list_empty(&pwq->delayed_works);
 	preempt_enable();
@@ -4535,7 +4535,7 @@ EXPORT_SYMBOL_GPL(workqueue_congested);
  * work_busy - test whether a work is currently pending or running
  * @work: the work to be tested
  *
- * Test whether @work is currently pending or running.  There is no
+ * Test whether @work is currently pending or running.  There is yes
  * synchronization around this function and the test result is
  * unreliable and only useful as advisory hints or for debugging.
  *
@@ -4640,8 +4640,8 @@ void print_worker_info(const char *log_lvl, struct task_struct *task)
 static void pr_cont_pool_info(struct worker_pool *pool)
 {
 	pr_cont(" cpus=%*pbl", nr_cpumask_bits, pool->attrs->cpumask);
-	if (pool->node != NUMA_NO_NODE)
-		pr_cont(" node=%d", pool->node);
+	if (pool->yesde != NUMA_NO_NODE)
+		pr_cont(" yesde=%d", pool->yesde);
 	pr_cont(" flags=0x%x nice=%d", pool->flags, pool->attrs->nice);
 }
 
@@ -4672,7 +4672,7 @@ static void show_pwq(struct pool_workqueue *pwq)
 
 	pr_cont(" active=%d/%d refcnt=%d%s\n",
 		pwq->nr_active, pwq->max_active, pwq->refcnt,
-		!list_empty(&pwq->mayday_node) ? " MAYDAY" : "");
+		!list_empty(&pwq->mayday_yesde) ? " MAYDAY" : "");
 
 	hash_for_each(pool->busy_hash, bkt, worker, hentry) {
 		if (worker->current_pwq == pwq) {
@@ -4901,10 +4901,10 @@ static void unbind_workers(int cpu)
 		schedule();
 
 		/*
-		 * Sched callbacks are disabled now.  Zap nr_running.
+		 * Sched callbacks are disabled yesw.  Zap nr_running.
 		 * After this, nr_running stays zero and need_more_worker()
 		 * and keep_working() are always true as long as the
-		 * worklist is not empty.  This pool now behaves as an
+		 * worklist is yest empty.  This pool yesw behaves as an
 		 * unbound (in terms of concurrency management) pool which
 		 * are served by workers tied to the pool.
 		 */
@@ -4956,7 +4956,7 @@ static void rebind_workers(struct worker_pool *pool)
 		 * of the associated CPU for local wake-ups targeting it to
 		 * work.  Kick all idle workers so that they migrate to the
 		 * associated CPU.  Doing this in the same loop as
-		 * replacing UNBOUND with REBOUND is safe as no worker will
+		 * replacing UNBOUND with REBOUND is safe as yes worker will
 		 * be bound before @pool->lock is released.
 		 */
 		if (worker_flags & WORKER_IDLE)
@@ -4965,7 +4965,7 @@ static void rebind_workers(struct worker_pool *pool)
 		/*
 		 * We want to clear UNBOUND but can't directly call
 		 * worker_clr_flags() or adjust nr_running.  Atomically
-		 * replace UNBOUND with another NOT_RUNNING flag REBOUND.
+		 * replace UNBOUND with ayesther NOT_RUNNING flag REBOUND.
 		 * @worker will clear REBOUND using worker_clr_flags() when
 		 * it initiates the next execution cycle thus restoring
 		 * concurrency management.  Note that when or whether
@@ -5094,7 +5094,7 @@ static void work_for_cpu_fn(struct work_struct *work)
  * @arg: the function arg
  *
  * It is up to the caller to ensure that the cpu doesn't go offline.
- * The caller must not hold any locks which would prevent @fn from completing.
+ * The caller must yest hold any locks which would prevent @fn from completing.
  *
  * Return: The value @fn returns.
  */
@@ -5116,7 +5116,7 @@ EXPORT_SYMBOL_GPL(work_on_cpu);
  * @fn:  the function to run
  * @arg: the function argument
  *
- * Disables CPU hotplug and calls work_on_cpu(). The caller must not hold
+ * Disables CPU hotplug and calls work_on_cpu(). The caller must yest hold
  * any locks which would prevent @fn from completing.
  *
  * Return: The value @fn returns.
@@ -5193,7 +5193,7 @@ bool freeze_workqueues_busy(void)
 		if (!(wq->flags & WQ_FREEZABLE))
 			continue;
 		/*
-		 * nr_active is monotonically decreasing.  It's safe
+		 * nr_active is moyestonically decreasing.  It's safe
 		 * to peek without lock.
 		 */
 		rcu_read_lock();
@@ -5337,7 +5337,7 @@ int workqueue_set_unbound_cpumask(cpumask_var_t cpumask)
  *
  * Unbound workqueues have the following extra attributes.
  *
- *  pool_ids	RO int	: the associated pool IDs for each node
+ *  pool_ids	RO int	: the associated pool IDs for each yesde
  *  nice	RW int	: nice value of the workers
  *  cpumask	RW mask	: bitmask of allowed CPUs for the workers
  *  numa	RW bool	: whether enable NUMA affinity
@@ -5398,14 +5398,14 @@ static ssize_t wq_pool_ids_show(struct device *dev,
 {
 	struct workqueue_struct *wq = dev_to_wq(dev);
 	const char *delim = "";
-	int node, written = 0;
+	int yesde, written = 0;
 
 	get_online_cpus();
 	rcu_read_lock();
-	for_each_node(node) {
+	for_each_yesde(yesde) {
 		written += scnprintf(buf + written, PAGE_SIZE - written,
-				     "%s%d:%d", delim, node,
-				     unbound_pwq_by_node(wq, node)->pool->id);
+				     "%s%d:%d", delim, yesde,
+				     unbound_pwq_by_yesde(wq, yesde)->pool->id);
 		delim = " ";
 	}
 	written += scnprintf(buf + written, PAGE_SIZE - written, "\n");
@@ -5513,7 +5513,7 @@ static ssize_t wq_numa_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&wq->mutex);
 	written = scnprintf(buf, PAGE_SIZE, "%d\n",
-			    !wq->unbound_attrs->no_numa);
+			    !wq->unbound_attrs->yes_numa);
 	mutex_unlock(&wq->mutex);
 
 	return written;
@@ -5534,7 +5534,7 @@ static ssize_t wq_numa_store(struct device *dev, struct device_attribute *attr,
 
 	ret = -EINVAL;
 	if (sscanf(buf, "%d", &v) == 1) {
-		attrs->no_numa = !v;
+		attrs->yes_numa = !v;
 		ret = apply_workqueue_attrs_locked(wq, attrs);
 	}
 
@@ -5623,7 +5623,7 @@ static void wq_device_release(struct device *dev)
  * apply_workqueue_attrs() may race against userland updating the
  * attributes.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  */
 int workqueue_sysfs_register(struct workqueue_struct *wq)
 {
@@ -5786,7 +5786,7 @@ static void wq_watchdog_timer_fn(struct timer_list *unused)
 	mod_timer(&wq_watchdog_timer, jiffies + thresh);
 }
 
-notrace void wq_watchdog_touch(int cpu)
+yestrace void wq_watchdog_touch(int cpu)
 {
 	if (cpu >= 0)
 		per_cpu(wq_watchdog_touched_cpu, cpu) = jiffies;
@@ -5847,9 +5847,9 @@ static inline void wq_watchdog_init(void) { }
 static void __init wq_numa_init(void)
 {
 	cpumask_var_t *tbl;
-	int node, cpu;
+	int yesde, cpu;
 
-	if (num_possible_nodes() <= 1)
+	if (num_possible_yesdes() <= 1)
 		return;
 
 	if (wq_disable_numa) {
@@ -5861,25 +5861,25 @@ static void __init wq_numa_init(void)
 	BUG_ON(!wq_update_unbound_numa_attrs_buf);
 
 	/*
-	 * We want masks of possible CPUs of each node which isn't readily
-	 * available.  Build one from cpu_to_node() which should have been
-	 * fully initialized by now.
+	 * We want masks of possible CPUs of each yesde which isn't readily
+	 * available.  Build one from cpu_to_yesde() which should have been
+	 * fully initialized by yesw.
 	 */
-	tbl = kcalloc(nr_node_ids, sizeof(tbl[0]), GFP_KERNEL);
+	tbl = kcalloc(nr_yesde_ids, sizeof(tbl[0]), GFP_KERNEL);
 	BUG_ON(!tbl);
 
-	for_each_node(node)
-		BUG_ON(!zalloc_cpumask_var_node(&tbl[node], GFP_KERNEL,
-				node_online(node) ? node : NUMA_NO_NODE));
+	for_each_yesde(yesde)
+		BUG_ON(!zalloc_cpumask_var_yesde(&tbl[yesde], GFP_KERNEL,
+				yesde_online(yesde) ? yesde : NUMA_NO_NODE));
 
 	for_each_possible_cpu(cpu) {
-		node = cpu_to_node(cpu);
-		if (WARN_ON(node == NUMA_NO_NODE)) {
-			pr_warn("workqueue: NUMA node mapping not available for cpu%d, disabling NUMA support\n", cpu);
+		yesde = cpu_to_yesde(cpu);
+		if (WARN_ON(yesde == NUMA_NO_NODE)) {
+			pr_warn("workqueue: NUMA yesde mapping yest available for cpu%d, disabling NUMA support\n", cpu);
 			/* happens iff arch is bonkers, let's just proceed */
 			return;
 		}
-		cpumask_set_cpu(cpu, tbl[node]);
+		cpumask_set_cpu(cpu, tbl[yesde]);
 	}
 
 	wq_numa_possible_cpumask = tbl;
@@ -5902,7 +5902,7 @@ int __init workqueue_init_early(void)
 	int hk_flags = HK_FLAG_DOMAIN | HK_FLAG_WQ;
 	int i, cpu;
 
-	WARN_ON(__alignof__(struct pool_workqueue) < __alignof__(long long));
+	WARN_ON(__aligyesf__(struct pool_workqueue) < __aligyesf__(long long));
 
 	BUG_ON(!alloc_cpumask_var(&wq_unbound_cpumask, GFP_KERNEL));
 	cpumask_copy(wq_unbound_cpumask, housekeeping_cpumask(hk_flags));
@@ -5919,7 +5919,7 @@ int __init workqueue_init_early(void)
 			pool->cpu = cpu;
 			cpumask_copy(pool->attrs->cpumask, cpumask_of(cpu));
 			pool->attrs->nice = std_nice[i++];
-			pool->node = cpu_to_node(cpu);
+			pool->yesde = cpu_to_yesde(cpu);
 
 			/* alloc pool ID */
 			mutex_lock(&wq_pool_mutex);
@@ -5939,11 +5939,11 @@ int __init workqueue_init_early(void)
 		/*
 		 * An ordered wq should have only one pwq as ordering is
 		 * guaranteed by max_active which is enforced by pwqs.
-		 * Turn off NUMA so that dfl_pwq is used for all nodes.
+		 * Turn off NUMA so that dfl_pwq is used for all yesdes.
 		 */
 		BUG_ON(!(attrs = alloc_workqueue_attrs()));
 		attrs->nice = std_nice[i];
-		attrs->no_numa = true;
+		attrs->yes_numa = true;
 		ordered_wq_attrs[i] = attrs;
 	}
 
@@ -5973,7 +5973,7 @@ int __init workqueue_init_early(void)
  * This is the latter half of two-staged workqueue subsystem initialization
  * and invoked as soon as kthreads can be created and scheduled.
  * Workqueues have been created and work items queued on them, but there
- * are no kworkers executing the work items yet.  Populate the worker pools
+ * are yes kworkers executing the work items yet.  Populate the worker pools
  * with the initial workers and enable future kworker creations.
  */
 int __init workqueue_init(void)
@@ -5984,9 +5984,9 @@ int __init workqueue_init(void)
 
 	/*
 	 * It'd be simpler to initialize NUMA in workqueue_init_early() but
-	 * CPU to node mapping may not be available that early on some
+	 * CPU to yesde mapping may yest be available that early on some
 	 * archs such as power and arm64.  As per-cpu pools created
-	 * previously could be missing node hint and unbound pools NUMA
+	 * previously could be missing yesde hint and unbound pools NUMA
 	 * affinity, fix them up.
 	 *
 	 * Also, while iterating workqueues, create rescuers if requested.
@@ -5997,7 +5997,7 @@ int __init workqueue_init(void)
 
 	for_each_possible_cpu(cpu) {
 		for_each_cpu_worker_pool(pool, cpu) {
-			pool->node = cpu_to_node(cpu);
+			pool->yesde = cpu_to_yesde(cpu);
 		}
 	}
 
@@ -6018,7 +6018,7 @@ int __init workqueue_init(void)
 		}
 	}
 
-	hash_for_each(unbound_pool_hash, bkt, pool, hash_node)
+	hash_for_each(unbound_pool_hash, bkt, pool, hash_yesde)
 		BUG_ON(!create_worker(pool));
 
 	wq_online = true;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_MSG_H
 #define _UAPI_LINUX_MSG_H
 
@@ -10,9 +10,9 @@
 #define MSG_STAT_ANY 13
 
 /* msgrcv options */
-#define MSG_NOERROR     010000  /* no error if message is too big */
+#define MSG_NOERROR     010000  /* yes error if message is too big */
 #define MSG_EXCEPT      020000  /* recv any msg except of specified type.*/
-#define MSG_COPY        040000  /* copy (not remove) all queue messages */
+#define MSG_COPY        040000  /* copy (yest remove) all queue messages */
 
 /* Obsolete, used only for backwards compatibility and libc5 compiles */
 struct msqid_ds {
@@ -83,7 +83,7 @@ struct msginfo {
 #define MSGTQL  MSGMNB            /* number of system message headers */
 #define MSGMAP  MSGMNB            /* number of entries in message map */
 #define MSGSSZ  16                /* message segment size */
-#define __MSGSEG ((MSGPOOL * 1024) / MSGSSZ) /* max no. of segments */
+#define __MSGSEG ((MSGPOOL * 1024) / MSGSSZ) /* max yes. of segments */
 #define MSGSEG (__MSGSEG <= 0xffff ? __MSGSEG : 0xffff)
 
 

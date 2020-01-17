@@ -72,14 +72,14 @@ struct smu_cmd_buf {
 
 struct smu_device {
 	spinlock_t		lock;
-	struct device_node	*of_node;
+	struct device_yesde	*of_yesde;
 	struct platform_device	*of_dev;
 	int			doorbell;	/* doorbell gpio */
 	u32 __iomem		*db_buf;	/* doorbell buffer */
-	struct device_node	*db_node;
+	struct device_yesde	*db_yesde;
 	unsigned int		db_irq;
 	int			msg;
-	struct device_node	*msg_node;
+	struct device_yesde	*msg_yesde;
 	unsigned int		msg_irq;
 	struct smu_cmd_buf	*cmd_buf;	/* command buffer virtual */
 	u32			cmd_buf_abs;	/* command buffer absolute */
@@ -93,7 +93,7 @@ struct smu_device {
 
 /*
  * I don't think there will ever be more than one SMU, so
- * for now, just hard code that
+ * for yesw, just hard code that
  */
 static DEFINE_MUTEX(smu_mutex);
 static struct smu_device	*smu;
@@ -149,7 +149,7 @@ static void smu_start_cmd(void)
 
 	/* This isn't exactly a DMA mapping here, I suspect
 	 * the SMU is actually communicating with us via i2c to the
-	 * northbridge or the CPU to access RAM.
+	 * yesrthbridge or the CPU to access RAM.
 	 */
 	writel(smu->cmd_buf_abs, smu->db_buf);
 
@@ -190,7 +190,7 @@ static irqreturn_t smu_db_intr(int irq, void *arg)
 
 		/* CPU might have brought back the cache line, so we need
 		 * to flush again before peeking at the SMU response. We
-		 * flush the entire buffer for now as we haven't read the
+		 * flush the entire buffer for yesw as we haven't read the
 		 * reply length (it's only 2 cache lines anyway)
 		 */
 		faddr = (unsigned long)smu->cmd_buf;
@@ -217,7 +217,7 @@ static irqreturn_t smu_db_intr(int irq, void *arg)
 	}
 
 	/* Now complete the command. Write status last in order as we lost
-	 * ownership of the command structure as soon as it's no longer -1
+	 * ownership of the command structure as soon as it's yes longer -1
 	 */
 	done = cmd->done;
 	misc = cmd->misc;
@@ -236,21 +236,21 @@ static irqreturn_t smu_db_intr(int irq, void *arg)
 	if (done)
 		done(cmd, misc);
 
-	/* It's an edge interrupt, nothing to do */
+	/* It's an edge interrupt, yesthing to do */
 	return IRQ_HANDLED;
 }
 
 
 static irqreturn_t smu_msg_intr(int irq, void *arg)
 {
-	/* I don't quite know what to do with this one, we seem to never
+	/* I don't quite kyesw what to do with this one, we seem to never
 	 * receive it, so I suspect we have to arm it someway in the SMU
 	 * to start getting events that way.
 	 */
 
 	printk(KERN_INFO "SMU: message interrupt !\n");
 
-	/* It's an edge interrupt, nothing to do */
+	/* It's an edge interrupt, yesthing to do */
 	return IRQ_HANDLED;
 }
 
@@ -470,11 +470,11 @@ EXPORT_SYMBOL(smu_present);
 
 int __init smu_init (void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const u32 *data;
 	int ret = 0;
 
-        np = of_find_node_by_type(NULL, "smu");
+        np = of_find_yesde_by_type(NULL, "smu");
         if (np == NULL)
 		return -ENODEV;
 
@@ -499,7 +499,7 @@ int __init smu_init (void)
 	spin_lock_init(&smu->lock);
 	INIT_LIST_HEAD(&smu->cmd_list);
 	INIT_LIST_HEAD(&smu->cmd_i2c_list);
-	smu->of_node = np;
+	smu->of_yesde = np;
 	smu->db_irq = 0;
 	smu->msg_irq = 0;
 
@@ -509,17 +509,17 @@ int __init smu_init (void)
 	smu->cmd_buf_abs = (u32)smu_cmdbuf_abs;
 	smu->cmd_buf = __va(smu_cmdbuf_abs);
 
-	smu->db_node = of_find_node_by_name(NULL, "smu-doorbell");
-	if (smu->db_node == NULL) {
+	smu->db_yesde = of_find_yesde_by_name(NULL, "smu-doorbell");
+	if (smu->db_yesde == NULL) {
 		printk(KERN_ERR "SMU: Can't find doorbell GPIO !\n");
 		ret = -ENXIO;
 		goto fail_bootmem;
 	}
-	data = of_get_property(smu->db_node, "reg", NULL);
+	data = of_get_property(smu->db_yesde, "reg", NULL);
 	if (data == NULL) {
 		printk(KERN_ERR "SMU: Can't find doorbell GPIO address !\n");
 		ret = -ENXIO;
-		goto fail_db_node;
+		goto fail_db_yesde;
 	}
 
 	/* Current setup has one doorbell GPIO that does both doorbell
@@ -532,13 +532,13 @@ int __init smu_init (void)
 
 	/* Now look for the smu-interrupt GPIO */
 	do {
-		smu->msg_node = of_find_node_by_name(NULL, "smu-interrupt");
-		if (smu->msg_node == NULL)
+		smu->msg_yesde = of_find_yesde_by_name(NULL, "smu-interrupt");
+		if (smu->msg_yesde == NULL)
 			break;
-		data = of_get_property(smu->msg_node, "reg", NULL);
+		data = of_get_property(smu->msg_yesde, "reg", NULL);
 		if (data == NULL) {
-			of_node_put(smu->msg_node);
-			smu->msg_node = NULL;
+			of_yesde_put(smu->msg_yesde);
+			smu->msg_yesde = NULL;
 			break;
 		}
 		smu->msg = *data;
@@ -548,32 +548,32 @@ int __init smu_init (void)
 
 	/* Doorbell buffer is currently hard-coded, I didn't find a proper
 	 * device-tree entry giving the address. Best would probably to use
-	 * an offset for K2 base though, but let's do it that way for now.
+	 * an offset for K2 base though, but let's do it that way for yesw.
 	 */
 	smu->db_buf = ioremap(0x8000860c, 0x1000);
 	if (smu->db_buf == NULL) {
 		printk(KERN_ERR "SMU: Can't map doorbell buffer pointer !\n");
 		ret = -ENXIO;
-		goto fail_msg_node;
+		goto fail_msg_yesde;
 	}
 
 	/* U3 has an issue with NAP mode when issuing SMU commands */
-	smu->broken_nap = pmac_get_uninorth_variant() < 4;
+	smu->broken_nap = pmac_get_uniyesrth_variant() < 4;
 	if (smu->broken_nap)
 		printk(KERN_INFO "SMU: using NAP mode workaround\n");
 
 	sys_ctrler = SYS_CTRLER_SMU;
 	return 0;
 
-fail_msg_node:
-	of_node_put(smu->msg_node);
-fail_db_node:
-	of_node_put(smu->db_node);
+fail_msg_yesde:
+	of_yesde_put(smu->msg_yesde);
+fail_db_yesde:
+	of_yesde_put(smu->db_yesde);
 fail_bootmem:
 	memblock_free(__pa(smu), sizeof(struct smu_device));
 	smu = NULL;
 fail_np:
-	of_node_put(np);
+	of_yesde_put(np);
 	return ret;
 }
 
@@ -585,17 +585,17 @@ static int smu_late_init(void)
 
 	timer_setup(&smu->i2c_timer, smu_i2c_retry, 0);
 
-	if (smu->db_node) {
-		smu->db_irq = irq_of_parse_and_map(smu->db_node, 0);
+	if (smu->db_yesde) {
+		smu->db_irq = irq_of_parse_and_map(smu->db_yesde, 0);
 		if (!smu->db_irq)
-			printk(KERN_ERR "smu: failed to map irq for node %pOF\n",
-			       smu->db_node);
+			printk(KERN_ERR "smu: failed to map irq for yesde %pOF\n",
+			       smu->db_yesde);
 	}
-	if (smu->msg_node) {
-		smu->msg_irq = irq_of_parse_and_map(smu->msg_node, 0);
+	if (smu->msg_yesde) {
+		smu->msg_irq = irq_of_parse_and_map(smu->msg_yesde, 0);
 		if (!smu->msg_irq)
-			printk(KERN_ERR "smu: failed to map irq for node %pOF\n",
-			       smu->msg_node);
+			printk(KERN_ERR "smu: failed to map irq for yesde %pOF\n",
+			       smu->msg_yesde);
 	}
 
 	/*
@@ -636,9 +636,9 @@ core_initcall(smu_late_init);
 
 static void smu_expose_childs(struct work_struct *unused)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	for (np = NULL; (np = of_get_next_child(smu->of_node, np)) != NULL;)
+	for (np = NULL; (np = of_get_next_child(smu->of_yesde, np)) != NULL;)
 		if (of_device_is_compatible(np, "smu-sensors"))
 			of_platform_device_create(np, "smu-sensors",
 						  &smu->of_dev->dev);
@@ -653,7 +653,7 @@ static int smu_platform_probe(struct platform_device* dev)
 	smu->of_dev = dev;
 
 	/*
-	 * Ok, we are matched, now expose all i2c busses. We have to defer
+	 * Ok, we are matched, yesw expose all i2c busses. We have to defer
 	 * that unfortunately or it would deadlock inside the device model
 	 */
 	schedule_work(&smu_expose_childs_work);
@@ -681,7 +681,7 @@ static struct platform_driver smu_of_platform_driver =
 static int __init smu_init_sysfs(void)
 {
 	/*
-	 * For now, we don't power manage machines with an SMU chip,
+	 * For yesw, we don't power manage machines with an SMU chip,
 	 * I'm a bit too far from figuring out how that works with those
 	 * new chipsets, but that will come back and bite us
 	 */
@@ -721,8 +721,8 @@ static void smu_i2c_complete_command(struct smu_i2c_cmd *cmd, int fail)
 
 	DPRINTK("SMU: completing, success: %d\n", !fail);
 
-	/* Update status and mark no pending i2c command with lock
-	 * held so nobody comes in while we dequeue an eventual
+	/* Update status and mark yes pending i2c command with lock
+	 * held so yesbody comes in while we dequeue an eventual
 	 * pending next i2c command
 	 */
 	spin_lock_irqsave(&smu->lock, flags);
@@ -730,7 +730,7 @@ static void smu_i2c_complete_command(struct smu_i2c_cmd *cmd, int fail)
 	wmb();
 	cmd->status = fail ? -EIO : 0;
 
-	/* Is there another i2c command waiting ? */
+	/* Is there ayesther i2c command waiting ? */
 	if (!list_empty(&smu->cmd_i2c_list)) {
 		struct smu_i2c_cmd *newcmd;
 
@@ -809,7 +809,7 @@ static void smu_i2c_low_completion(struct smu_cmd *scmd, void *misc)
 
 	DPRINTK("SMU: going to stage 1\n");
 
-	/* Ok, initial command complete, now poll status */
+	/* Ok, initial command complete, yesw poll status */
 	scmd->reply_buf = cmd->pdata;
 	scmd->reply_len = sizeof(cmd->pdata);
 	scmd->data_buf = cmd->pdata;
@@ -1000,7 +1000,7 @@ static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 		       "%02x !\n", id, hdr->id);
 		goto failure;
 	}
-	if (of_add_property(smu->of_node, prop)) {
+	if (of_add_property(smu->of_yesde, prop)) {
 		printk(KERN_DEBUG "SMU: Failed creating sdb-partition-%02x "
 		       "property !\n", id);
 		goto failure;
@@ -1036,7 +1036,7 @@ const struct smu_sdbp_header *__smu_get_sdb_partition(int id,
 	} else
 		mutex_lock(&smu_part_access);
 
-	part = of_get_property(smu->of_node, pname, size);
+	part = of_get_property(smu->of_yesde, pname, size);
 	if (part == NULL) {
 		DPRINTK("trying to extract from SMU ...\n");
 		part = smu_create_sdb_partition(id);
@@ -1080,7 +1080,7 @@ struct smu_private
 };
 
 
-static int smu_open(struct inode *inode, struct file *file)
+static int smu_open(struct iyesde *iyesde, struct file *file)
 {
 	struct smu_private *pp;
 	unsigned long flags;
@@ -1270,7 +1270,7 @@ static __poll_t smu_fpoll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-static int smu_release(struct inode *inode, struct file *file)
+static int smu_release(struct iyesde *iyesde, struct file *file)
 {
 	struct smu_private *pp = file->private_data;
 	unsigned long flags;
@@ -1314,7 +1314,7 @@ static int smu_release(struct inode *inode, struct file *file)
 
 
 static const struct file_operations smu_device_fops = {
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.read		= smu_read,
 	.write		= smu_write,
 	.poll		= smu_fpoll,
@@ -1331,7 +1331,7 @@ static int smu_device_init(void)
 	if (!smu)
 		return -ENODEV;
 	if (misc_register(&pmu_device) < 0)
-		printk(KERN_ERR "via-pmu: cannot register misc device.\n");
+		printk(KERN_ERR "via-pmu: canyest register misc device.\n");
 	return 0;
 }
 device_initcall(smu_device_init);

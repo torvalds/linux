@@ -44,14 +44,14 @@ END_BTB_FLUSH_SECTION
 #endif
 
 
-#define NORMAL_EXCEPTION_PROLOG(intno)						     \
+#define NORMAL_EXCEPTION_PROLOG(intyes)						     \
 	mtspr	SPRN_SPRG_WSCRATCH0, r10;	/* save one register */	     \
 	mfspr	r10, SPRN_SPRG_THREAD;					     \
 	stw	r11, THREAD_NORMSAVE(0)(r10);				     \
 	stw	r13, THREAD_NORMSAVE(2)(r10);				     \
-	mfcr	r13;			/* save CR in r13 for now	   */\
+	mfcr	r13;			/* save CR in r13 for yesw	   */\
 	mfspr	r11, SPRN_SRR1;		                                     \
-	DO_KVM	BOOKE_INTERRUPT_##intno SPRN_SRR1;			     \
+	DO_KVM	BOOKE_INTERRUPT_##intyes SPRN_SRR1;			     \
 	andi.	r11, r11, MSR_PR;	/* check whether user or kernel    */\
 	mr	r11, r1;						     \
 	beq	1f;							     \
@@ -83,18 +83,18 @@ END_BTB_FLUSH_SECTION
 	SAVE_4GPRS(3, r11);						     \
 	SAVE_2GPRS(7, r11)
 
-.macro SYSCALL_ENTRY trapno intno srr1
+.macro SYSCALL_ENTRY trapyes intyes srr1
 	mfspr	r10, SPRN_SPRG_THREAD
 #ifdef CONFIG_KVM_BOOKE_HV
 BEGIN_FTR_SECTION
 	mtspr	SPRN_SPRG_WSCRATCH0, r10
 	stw	r11, THREAD_NORMSAVE(0)(r10)
 	stw	r13, THREAD_NORMSAVE(2)(r10)
-	mfcr	r13			/* save CR in r13 for now	   */
+	mfcr	r13			/* save CR in r13 for yesw	   */
 	mfspr	r11, SPRN_SRR1
 	mtocrf	0x80, r11	/* check MSR[GS] without clobbering reg */
 	bf	3, 1975f
-	b	kvmppc_handler_\intno\()_\srr1
+	b	kvmppc_handler_\intyes\()_\srr1
 1975:
 	mr	r12, r13
 	lwz	r13, THREAD_NORMSAVE(2)(r10)
@@ -122,7 +122,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	stw	r2,GPR2(r11)
 	addi	r12, r12, STACK_FRAME_REGS_MARKER@l
 	stw	r9,_MSR(r11)
-	li	r2, \trapno + 1
+	li	r2, \trapyes + 1
 	stw	r12, 8(r11)
 	stw	r2,_TRAP(r11)
 	SAVE_GPR(0, r11)
@@ -220,22 +220,22 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 
 /*
  * Exception prolog for critical/machine check exceptions.  This is a
- * little different from the normal exception prolog above since a
+ * little different from the yesrmal exception prolog above since a
  * critical/machine check exception can potentially occur at any point
- * during normal exception processing. Thus we cannot use the same SPRG
- * registers as the normal prolog above. Instead we use a portion of the
+ * during yesrmal exception processing. Thus we canyest use the same SPRG
+ * registers as the yesrmal prolog above. Instead we use a portion of the
  * critical/machine check exception stack at low physical addresses.
  */
-#define EXC_LEVEL_EXCEPTION_PROLOG(exc_level, intno, exc_level_srr0, exc_level_srr1) \
+#define EXC_LEVEL_EXCEPTION_PROLOG(exc_level, intyes, exc_level_srr0, exc_level_srr1) \
 	mtspr	SPRN_SPRG_WSCRATCH_##exc_level,r8;			     \
 	BOOKE_LOAD_EXC_LEVEL_STACK(exc_level);/* r8 points to the exc_level stack*/ \
 	stw	r9,GPR9(r8);		/* save various registers	   */\
-	mfcr	r9;			/* save CR in r9 for now	   */\
+	mfcr	r9;			/* save CR in r9 for yesw	   */\
 	stw	r10,GPR10(r8);						     \
 	stw	r11,GPR11(r8);						     \
 	stw	r9,_CCR(r8);		/* save CR on stack		   */\
 	mfspr	r11,exc_level_srr1;	/* check whether user or kernel    */\
-	DO_KVM	BOOKE_INTERRUPT_##intno exc_level_srr1;		             \
+	DO_KVM	BOOKE_INTERRUPT_##intyes exc_level_srr1;		             \
 	BOOKE_CLEAR_BTB(r10)						\
 	andi.	r11,r11,MSR_PR;						     \
 	mfspr	r11,SPRN_SPRG_THREAD;	/* if from user, start at top of   */\
@@ -271,8 +271,8 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	SAVE_4GPRS(3, r11);						     \
 	SAVE_2GPRS(7, r11)
 
-#define CRITICAL_EXCEPTION_PROLOG(intno) \
-		EXC_LEVEL_EXCEPTION_PROLOG(CRIT, intno, SPRN_CSRR0, SPRN_CSRR1)
+#define CRITICAL_EXCEPTION_PROLOG(intyes) \
+		EXC_LEVEL_EXCEPTION_PROLOG(CRIT, intyes, SPRN_CSRR0, SPRN_CSRR1)
 #define DEBUG_EXCEPTION_PROLOG \
 		EXC_LEVEL_EXCEPTION_PROLOG(DBG, DEBUG, SPRN_DSRR0, SPRN_DSRR1)
 #define MCHECK_EXCEPTION_PROLOG \
@@ -292,7 +292,7 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	stw	r11, THREAD_NORMSAVE(0)(r10);				     \
 	mfspr	r11, SPRN_SRR1;		                                     \
 	stw	r13, THREAD_NORMSAVE(2)(r10);				     \
-	mfcr	r13;			/* save CR in r13 for now	   */\
+	mfcr	r13;			/* save CR in r13 for yesw	   */\
 	DO_KVM	BOOKE_INTERRUPT_GUEST_DBELL SPRN_GSRR1;			     \
 	trap
 
@@ -303,15 +303,15 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
         .align 5;              						     \
 label:
 
-#define EXCEPTION(n, intno, label, hdlr, xfer)			\
+#define EXCEPTION(n, intyes, label, hdlr, xfer)			\
 	START_EXCEPTION(label);					\
-	NORMAL_EXCEPTION_PROLOG(intno);				\
+	NORMAL_EXCEPTION_PROLOG(intyes);				\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;			\
 	xfer(n, hdlr)
 
-#define CRITICAL_EXCEPTION(n, intno, label, hdlr)			\
+#define CRITICAL_EXCEPTION(n, intyes, label, hdlr)			\
 	START_EXCEPTION(label);						\
-	CRITICAL_EXCEPTION_PROLOG(intno);				\
+	CRITICAL_EXCEPTION_PROLOG(intyes);				\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				\
 	EXC_XFER_TEMPLATE(hdlr, n+2, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), \
 			  crit_transfer_to_handler, ret_from_crit_exc)
@@ -351,7 +351,7 @@ label:
  * If we get a debug trap on the first instruction of an exception handler,
  * we reset the MSR_DE in the _exception handler's_ MSR (the debug trap is
  * a critical exception, so we are using SPRN_CSRR1 to manipulate the MSR).
- * The exception handler was handling a non-critical interrupt, so it will
+ * The exception handler was handling a yesn-critical interrupt, so it will
  * save (and later restore) the MSR via SPRN_CSRR1, which will still have
  * the MSR_DE bit set.
  */
@@ -403,7 +403,7 @@ label:
 	PPC_RFDI;							      \
 	b	.;							      \
 									      \
-	/* continue normal handling for a debug exception... */		      \
+	/* continue yesrmal handling for a debug exception... */		      \
 2:	mfspr	r4,SPRN_DBSR;						      \
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
 	EXC_XFER_TEMPLATE(DebugException, 0x2008, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), debug_transfer_to_handler, ret_from_debug_exc)
@@ -456,7 +456,7 @@ label:
 	rfci;								      \
 	b	.;							      \
 									      \
-	/* continue normal handling for a critical exception... */	      \
+	/* continue yesrmal handling for a critical exception... */	      \
 2:	mfspr	r4,SPRN_DBSR;						      \
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
 	EXC_XFER_TEMPLATE(DebugException, 0x2002, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), crit_transfer_to_handler, ret_from_crit_exc)

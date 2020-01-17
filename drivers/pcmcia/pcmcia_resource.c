@@ -38,7 +38,7 @@ int pcmcia_validate_mem(struct pcmcia_socket *s)
 {
 	if (s->resource_ops->validate_mem)
 		return s->resource_ops->validate_mem(s);
-	/* if there is no callback, we can assume that everything is OK */
+	/* if there is yes callback, we can assume that everything is OK */
 	return 0;
 }
 
@@ -74,7 +74,7 @@ static void release_io_space(struct pcmcia_socket *s, struct resource *res)
 				release_resource(res);
 			res->start = res->end = 0;
 			res->flags = IORESOURCE_IO;
-			/* Free the window if no one else is using it */
+			/* Free the window if yes one else is using it */
 			if (s->io[i].InUse == 0) {
 				release_resource(s->io[i].res);
 				kfree(s->io[i].res);
@@ -263,7 +263,7 @@ int pcmcia_fixup_iowidth(struct pcmcia_device *p_dev)
 
 	if (!(s->state & SOCKET_PRESENT) ||
 		!(p_dev->function_config->state & CONFIG_LOCKED)) {
-		dev_dbg(&p_dev->dev, "No card? Config not locked?\n");
+		dev_dbg(&p_dev->dev, "No card? Config yest locked?\n");
 		ret = -EACCES;
 		goto unlock;
 	}
@@ -311,7 +311,7 @@ int pcmcia_fixup_vpp(struct pcmcia_device *p_dev, unsigned char new_vpp)
 
 	if (!(s->state & SOCKET_PRESENT) ||
 		!(p_dev->function_config->state & CONFIG_LOCKED)) {
-		dev_dbg(&p_dev->dev, "No card? Config not locked?\n");
+		dev_dbg(&p_dev->dev, "No card? Config yest locked?\n");
 		ret = -EACCES;
 		goto unlock;
 	}
@@ -337,8 +337,8 @@ EXPORT_SYMBOL(pcmcia_fixup_vpp);
  * @p_dev: pcmcia device
  *
  * pcmcia_release_configuration() is the 1:1 counterpart to
- * pcmcia_enable_device(): If a PCMCIA device is no longer used by any
- * driver, the Vpp voltage is set to 0, IRQs will no longer be generated,
+ * pcmcia_enable_device(): If a PCMCIA device is yes longer used by any
+ * driver, the Vpp voltage is set to 0, IRQs will yes longer be generated,
  * and I/O ranges will be disabled. As pcmcia_release_io() and
  * pcmcia_release_window() still need to be called, device drivers are
  * expected to call pcmcia_disable_device() instead.
@@ -441,7 +441,7 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, struct resource *res)
 	win = &s->win[w];
 
 	if (!(p_dev->_win & CLIENT_WIN_REQ(w))) {
-		dev_dbg(&p_dev->dev, "not releasing unknown window\n");
+		dev_dbg(&p_dev->dev, "yest releasing unkyeswn window\n");
 		mutex_unlock(&s->ops_mutex);
 		return -EINVAL;
 	}
@@ -520,7 +520,7 @@ int pcmcia_enable_device(struct pcmcia_device *p_dev)
 		status = CCSR_AUDIO_ENA;
 		if (!(p_dev->config_regs & PRESENT_STATUS))
 			dev_warn(&p_dev->dev, "speaker requested, but "
-					      "PRESENT_STATUS not set!\n");
+					      "PRESENT_STATUS yest set!\n");
 	}
 	if (flags & CONF_ENABLE_IRQ)
 		s->socket.io_irq = s->pcmcia_irq;
@@ -722,7 +722,7 @@ static irqreturn_t test_action(int cpl, void *dev_id)
  * pcmcia_setup_isa_irq() - determine whether an ISA IRQ can be used
  * @p_dev - the associated PCMCIA device
  *
- * locking note: must be called with ops_mutex locked.
+ * locking yeste: must be called with ops_mutex locked.
  */
 static int pcmcia_setup_isa_irq(struct pcmcia_device *p_dev, int type)
 {
@@ -737,11 +737,11 @@ static int pcmcia_setup_isa_irq(struct pcmcia_device *p_dev, int type)
 		if (irq > NR_IRQS)
 			continue;
 
-		/* marked as available by driver, not blocked by userspace? */
+		/* marked as available by driver, yest blocked by userspace? */
 		if (!((mask >> irq) & 1))
 			continue;
 
-		/* avoid an IRQ which is already used by another PCMCIA card */
+		/* avoid an IRQ which is already used by ayesther PCMCIA card */
 		if ((try < 32) && pcmcia_used_irq[irq])
 			continue;
 
@@ -787,7 +787,7 @@ void pcmcia_cleanup_irq(struct pcmcia_socket *s)
  * pcmcia_setup_irq() - determine IRQ to be used for device
  * @p_dev - the associated PCMCIA device
  *
- * locking note: must be called with ops_mutex locked.
+ * locking yeste: must be called with ops_mutex locked.
  */
 int pcmcia_setup_irq(struct pcmcia_device *p_dev)
 {
@@ -928,11 +928,11 @@ EXPORT_SYMBOL(pcmcia_request_window);
  * @p_dev: the associated PCMCIA device
  *
  * pcmcia_disable_device() is the driver-callable counterpart to
- * pcmcia_enable_device(): If a PCMCIA device is no longer used,
+ * pcmcia_enable_device(): If a PCMCIA device is yes longer used,
  * drivers are expected to clean up and disable the device by calling
  * this function. Any I/O ranges (iomem and ioports) will be released,
- * the Vpp voltage will be set to 0, and IRQs will no longer be
- * generated -- at least if there is no other card function (of
+ * the Vpp voltage will be set to 0, and IRQs will yes longer be
+ * generated -- at least if there is yes other card function (of
  * multifunction devices) being used.
  */
 void pcmcia_disable_device(struct pcmcia_device *p_dev)

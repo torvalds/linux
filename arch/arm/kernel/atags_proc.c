@@ -13,7 +13,7 @@ struct buffer {
 static ssize_t atags_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	struct buffer *b = PDE_DATA(file_inode(file));
+	struct buffer *b = PDE_DATA(file_iyesde(file));
 	return simple_read_from_buffer(buf, count, ppos, b->data, b->size);
 }
 
@@ -33,7 +33,7 @@ void __init save_atags(const struct tag *tags)
 static int __init init_atags_procfs(void)
 {
 	/*
-	 * This cannot go into save_atags() because kmalloc and proc don't work
+	 * This canyest go into save_atags() because kmalloc and proc don't work
 	 * yet when it is called.
 	 */
 	struct proc_dir_entry *tags_entry;
@@ -56,20 +56,20 @@ static int __init init_atags_procfs(void)
 
 	b = kmalloc(sizeof(*b) + size, GFP_KERNEL);
 	if (!b)
-		goto nomem;
+		goto yesmem;
 
 	b->size = size;
 	memcpy(b->data, atags_copy, size);
 
 	tags_entry = proc_create_data("atags", 0400, NULL, &atags_fops, b);
 	if (!tags_entry)
-		goto nomem;
+		goto yesmem;
 
 	return 0;
 
-nomem:
+yesmem:
 	kfree(b);
-	pr_err("Exporting ATAGs: not enough memory\n");
+	pr_err("Exporting ATAGs: yest eyesugh memory\n");
 
 	return -ENOMEM;
 }

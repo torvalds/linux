@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -34,7 +34,7 @@
  *
  * i915 is responsible to reserve stolen memory for FBC and configure its
  * offset on proper registers. The hardware takes care of all
- * compress/decompress. However there are many known cases where we have to
+ * compress/decompress. However there are many kyeswn cases where we have to
  * forcibly disable it to allow proper screen updates.
  */
 
@@ -50,7 +50,7 @@ static inline bool fbc_supported(struct drm_i915_private *dev_priv)
 	return HAS_FBC(dev_priv);
 }
 
-static inline bool no_fbc_on_multiple_pipes(struct drm_i915_private *dev_priv)
+static inline bool yes_fbc_on_multiple_pipes(struct drm_i915_private *dev_priv)
 {
 	return INTEL_GEN(dev_priv) <= 3;
 }
@@ -93,7 +93,7 @@ static int intel_fbc_calculate_cfb_size(struct drm_i915_private *dev_priv,
 	else if (INTEL_GEN(dev_priv) >= 8)
 		lines = min(lines, 2560);
 
-	/* Hardware needs the full buffer stride, not just the active area. */
+	/* Hardware needs the full buffer stride, yest just the active area. */
 	return lines * cache->fb.stride;
 }
 
@@ -416,7 +416,7 @@ static void intel_fbc_deactivate(struct drm_i915_private *dev_priv,
 	if (fbc->active)
 		intel_fbc_hw_deactivate(dev_priv);
 
-	fbc->no_fbc_reason = reason;
+	fbc->yes_fbc_reason = reason;
 }
 
 static bool multiple_pipes_ok(struct intel_crtc *crtc,
@@ -427,7 +427,7 @@ static bool multiple_pipes_ok(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 
 	/* Don't even bother tracking anything we don't need. */
-	if (!no_fbc_on_multiple_pipes(dev_priv))
+	if (!yes_fbc_on_multiple_pipes(dev_priv))
 		return true;
 
 	if (plane_state->base.visible)
@@ -439,7 +439,7 @@ static bool multiple_pipes_ok(struct intel_crtc *crtc,
 }
 
 static int find_compression_threshold(struct drm_i915_private *dev_priv,
-				      struct drm_mm_node *node,
+				      struct drm_mm_yesde *yesde,
 				      int size,
 				      int fb_cpp)
 {
@@ -450,7 +450,7 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 	/* The FBC hardware for BDW/SKL doesn't have access to the stolen
 	 * reserved range size, so it always assumes the maximum (8mb) is used.
 	 * If we enable FBC using a CFB on that memory range we'll get FIFO
-	 * underruns, even if that range is not reserved by the BIOS. */
+	 * underruns, even if that range is yest reserved by the BIOS. */
 	if (IS_BROADWELL(dev_priv) || IS_GEN9_BC(dev_priv))
 		end = resource_size(&dev_priv->dsm) - 8 * 1024 * 1024;
 	else
@@ -464,7 +464,7 @@ static int find_compression_threshold(struct drm_i915_private *dev_priv,
 	 */
 
 	/* Try to over-allocate to reduce reallocations and fragmentation. */
-	ret = i915_gem_stolen_insert_node_in_range(dev_priv, node, size <<= 1,
+	ret = i915_gem_stolen_insert_yesde_in_range(dev_priv, yesde, size <<= 1,
 						   4096, 0, end);
 	if (ret == 0)
 		return compression_threshold;
@@ -475,7 +475,7 @@ again:
 	    (fb_cpp == 2 && compression_threshold == 2))
 		return 0;
 
-	ret = i915_gem_stolen_insert_node_in_range(dev_priv, node, size >>= 1,
+	ret = i915_gem_stolen_insert_yesde_in_range(dev_priv, yesde, size >>= 1,
 						   4096, 0, end);
 	if (ret && INTEL_GEN(dev_priv) <= 4) {
 		return 0;
@@ -491,10 +491,10 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct drm_mm_node *uninitialized_var(compressed_llb);
+	struct drm_mm_yesde *uninitialized_var(compressed_llb);
 	int size, fb_cpp, ret;
 
-	WARN_ON(drm_mm_node_allocated(&fbc->compressed_fb));
+	WARN_ON(drm_mm_yesde_allocated(&fbc->compressed_fb));
 
 	size = intel_fbc_calculate_cfb_size(dev_priv, &fbc->state_cache);
 	fb_cpp = fbc->state_cache.fb.format->cpp[0];
@@ -504,7 +504,7 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 	if (!ret)
 		goto err_llb;
 	else if (ret > 1) {
-		DRM_INFO("Reducing the compressed framebuffer size. This may lead to less power savings than a non-reduced-size. Try to increase stolen memory size if available in BIOS.\n");
+		DRM_INFO("Reducing the compressed framebuffer size. This may lead to less power savings than a yesn-reduced-size. Try to increase stolen memory size if available in BIOS.\n");
 
 	}
 
@@ -519,7 +519,7 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 		if (!compressed_llb)
 			goto err_fb;
 
-		ret = i915_gem_stolen_insert_node(dev_priv, compressed_llb,
+		ret = i915_gem_stolen_insert_yesde(dev_priv, compressed_llb,
 						  4096, 4096);
 		if (ret)
 			goto err_fb;
@@ -545,10 +545,10 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 
 err_fb:
 	kfree(compressed_llb);
-	i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_fb);
+	i915_gem_stolen_remove_yesde(dev_priv, &fbc->compressed_fb);
 err_llb:
 	if (drm_mm_initialized(&dev_priv->mm.stolen))
-		pr_info_once("drm: not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
+		pr_info_once("drm: yest eyesugh stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
 	return -ENOSPC;
 }
 
@@ -556,11 +556,11 @@ static void __intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
-	if (drm_mm_node_allocated(&fbc->compressed_fb))
-		i915_gem_stolen_remove_node(dev_priv, &fbc->compressed_fb);
+	if (drm_mm_yesde_allocated(&fbc->compressed_fb))
+		i915_gem_stolen_remove_yesde(dev_priv, &fbc->compressed_fb);
 
 	if (fbc->compressed_llb) {
-		i915_gem_stolen_remove_node(dev_priv, fbc->compressed_llb);
+		i915_gem_stolen_remove_yesde(dev_priv, fbc->compressed_llb);
 		kfree(fbc->compressed_llb);
 	}
 }
@@ -609,7 +609,7 @@ static bool pixel_format_is_valid(struct drm_i915_private *dev_priv,
 		return true;
 	case DRM_FORMAT_XRGB1555:
 	case DRM_FORMAT_RGB565:
-		/* 16bpp not supported on gen2 */
+		/* 16bpp yest supported on gen2 */
 		if (IS_GEN(dev_priv, 2))
 			return false;
 		/* WaFbcOnly1to1Ratio:ctg */
@@ -623,7 +623,7 @@ static bool pixel_format_is_valid(struct drm_i915_private *dev_priv,
 
 /*
  * For some reason, the hardware tracking starts looking at whatever we
- * programmed as the display plane base address register. It does not look at
+ * programmed as the display plane base address register. It does yest look at
  * the X and Y offset registers. That's why we look at the crtc->adjusted{x,y}
  * variables instead of just looking at the pipe/plane size.
  */
@@ -675,7 +675,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	/*
 	 * Src coordinates are already rotated by 270 degrees for
 	 * the 90/270 degree plane rotation cases (to match the
-	 * GTT mapping), hence no need to account for rotation here.
+	 * GTT mapping), hence yes need to account for rotation here.
 	 */
 	cache->plane.src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	cache->plane.src_h = drm_rect_height(&plane_state->base.src) >> 16;
@@ -708,68 +708,68 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	 * global for all CRTC.
 	 */
 	if (fbc->underrun_detected) {
-		fbc->no_fbc_reason = "underrun detected";
+		fbc->yes_fbc_reason = "underrun detected";
 		return false;
 	}
 
 	if (!cache->vma) {
-		fbc->no_fbc_reason = "primary plane not visible";
+		fbc->yes_fbc_reason = "primary plane yest visible";
 		return false;
 	}
 
 	if (cache->crtc.mode_flags & DRM_MODE_FLAG_INTERLACE) {
-		fbc->no_fbc_reason = "incompatible mode";
+		fbc->yes_fbc_reason = "incompatible mode";
 		return false;
 	}
 
 	if (!intel_fbc_hw_tracking_covers_screen(crtc)) {
-		fbc->no_fbc_reason = "mode too large for compression";
+		fbc->yes_fbc_reason = "mode too large for compression";
 		return false;
 	}
 
 	/* The use of a CPU fence is mandatory in order to detect writes
-	 * by the CPU to the scanout and trigger updates to the FBC.
+	 * by the CPU to the scayesut and trigger updates to the FBC.
 	 *
 	 * Note that is possible for a tiled surface to be unmappable (and
-	 * so have no fence associated with it) due to aperture constaints
+	 * so have yes fence associated with it) due to aperture constaints
 	 * at the time of pinning.
 	 *
 	 * FIXME with 90/270 degree rotation we should use the fence on
-	 * the normal GTT view (the rotated view doesn't even have a
+	 * the yesrmal GTT view (the rotated view doesn't even have a
 	 * fence). Would need changes to the FBC fence Y offset as well.
-	 * For now this will effecively disable FBC with 90/270 degree
+	 * For yesw this will effecively disable FBC with 90/270 degree
 	 * rotation.
 	 */
 	if (!(cache->flags & PLANE_HAS_FENCE)) {
-		fbc->no_fbc_reason = "framebuffer not tiled or fenced";
+		fbc->yes_fbc_reason = "framebuffer yest tiled or fenced";
 		return false;
 	}
 	if (INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv) &&
 	    cache->plane.rotation != DRM_MODE_ROTATE_0) {
-		fbc->no_fbc_reason = "rotation unsupported";
+		fbc->yes_fbc_reason = "rotation unsupported";
 		return false;
 	}
 
 	if (!stride_is_valid(dev_priv, cache->fb.stride)) {
-		fbc->no_fbc_reason = "framebuffer stride not supported";
+		fbc->yes_fbc_reason = "framebuffer stride yest supported";
 		return false;
 	}
 
 	if (!pixel_format_is_valid(dev_priv, cache->fb.format->format)) {
-		fbc->no_fbc_reason = "pixel format is invalid";
+		fbc->yes_fbc_reason = "pixel format is invalid";
 		return false;
 	}
 
 	if (cache->plane.pixel_blend_mode != DRM_MODE_BLEND_PIXEL_NONE &&
 	    cache->fb.format->has_alpha) {
-		fbc->no_fbc_reason = "per-pixel alpha blending is incompatible with FBC";
+		fbc->yes_fbc_reason = "per-pixel alpha blending is incompatible with FBC";
 		return false;
 	}
 
 	/* WaFbcExceedCdClockThreshold:hsw,bdw */
 	if ((IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) &&
 	    cache->crtc.hsw_bdw_pixel_rate >= dev_priv->cdclk.hw.cdclk * 95 / 100) {
-		fbc->no_fbc_reason = "pixel rate is too big";
+		fbc->yes_fbc_reason = "pixel rate is too big";
 		return false;
 	}
 
@@ -779,13 +779,13 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	 * over-allocate the CFB, there's a chance we may keep FBC enabled even
 	 * if this happens, but if we exceed the current CFB size we'll have to
 	 * disable FBC. Notice that it would be possible to disable FBC, wait
-	 * for a frame, free the stolen node, then try to reenable FBC in case
+	 * for a frame, free the stolen yesde, then try to reenable FBC in case
 	 * we didn't get any invalidate/deactivate calls, but this would require
 	 * a lot of tracking just for a specific case. If we conclude it's an
 	 * important case, we can implement it later. */
 	if (intel_fbc_calculate_cfb_size(dev_priv, &fbc->state_cache) >
 	    fbc->compressed_fb.size * fbc->threshold) {
-		fbc->no_fbc_reason = "CFB requirements changed";
+		fbc->yes_fbc_reason = "CFB requirements changed";
 		return false;
 	}
 
@@ -796,7 +796,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	 */
 	if (IS_GEN_RANGE(dev_priv, 9, 10) &&
 	    (fbc->state_cache.plane.adjusted_y & 3)) {
-		fbc->no_fbc_reason = "plane Y offset is misaligned";
+		fbc->yes_fbc_reason = "plane Y offset is misaligned";
 		return false;
 	}
 
@@ -808,17 +808,17 @@ static bool intel_fbc_can_enable(struct drm_i915_private *dev_priv)
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
 	if (intel_vgpu_active(dev_priv)) {
-		fbc->no_fbc_reason = "VGPU is active";
+		fbc->yes_fbc_reason = "VGPU is active";
 		return false;
 	}
 
 	if (!i915_modparams.enable_fbc) {
-		fbc->no_fbc_reason = "disabled per module param or by default";
+		fbc->yes_fbc_reason = "disabled per module param or by default";
 		return false;
 	}
 
 	if (fbc->underrun_detected) {
-		fbc->no_fbc_reason = "underrun detected";
+		fbc->yes_fbc_reason = "underrun detected";
 		return false;
 	}
 
@@ -1063,7 +1063,7 @@ void intel_fbc_choose_crtc(struct drm_i915_private *dev_priv,
 	}
 
 	if (!crtc_chosen)
-		fbc->no_fbc_reason = "no suitable CRTC for FBC";
+		fbc->yes_fbc_reason = "yes suitable CRTC for FBC";
 
 out:
 	mutex_unlock(&fbc->lock);
@@ -1109,12 +1109,12 @@ void intel_fbc_enable(struct intel_crtc *crtc,
 
 	intel_fbc_update_state_cache(crtc, crtc_state, plane_state);
 	if (intel_fbc_alloc_cfb(crtc)) {
-		fbc->no_fbc_reason = "not enough stolen memory";
+		fbc->yes_fbc_reason = "yest eyesugh stolen memory";
 		goto out;
 	}
 
 	DRM_DEBUG_KMS("Enabling FBC on pipe %c\n", pipe_name(crtc->pipe));
-	fbc->no_fbc_reason = "FBC enabled but not active yet\n";
+	fbc->yes_fbc_reason = "FBC enabled but yest active yet\n";
 
 	fbc->enabled = true;
 	fbc->crtc = crtc;
@@ -1202,7 +1202,7 @@ int intel_fbc_reset_underrun(struct drm_i915_private *dev_priv)
 
 	if (dev_priv->fbc.underrun_detected) {
 		DRM_DEBUG_KMS("Re-allowing FBC after fifo underrun\n");
-		dev_priv->fbc.no_fbc_reason = "FIFO underrun cleared";
+		dev_priv->fbc.yes_fbc_reason = "FIFO underrun cleared";
 	}
 
 	dev_priv->fbc.underrun_detected = false;
@@ -1216,7 +1216,7 @@ int intel_fbc_reset_underrun(struct drm_i915_private *dev_priv)
  * @dev_priv: i915 device instance
  *
  * Without FBC, most underruns are harmless and don't really cause too many
- * problems, except for an annoying message on dmesg. With FBC, underruns can
+ * problems, except for an anyesying message on dmesg. With FBC, underruns can
  * become black screens or even worse, especially when paired with bad
  * watermarks. So in order for us to be on the safe side, completely disable FBC
  * in case we ever detect a FIFO underrun on any pipe. An underrun on any pipe
@@ -1232,9 +1232,9 @@ void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *dev_priv)
 	if (!fbc_supported(dev_priv))
 		return;
 
-	/* There's no guarantee that underrun_detected won't be set to true
+	/* There's yes guarantee that underrun_detected won't be set to true
 	 * right after this check and before the work is scheduled, but that's
-	 * not a problem since we'll check it again under the work function
+	 * yest a problem since we'll check it again under the work function
 	 * while FBC is locked. This check here is just to prevent us from
 	 * unnecessarily scheduling the work, and it relies on the fact that we
 	 * never switch underrun_detect back to false after it's true. */
@@ -1257,7 +1257,7 @@ void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv)
 	struct intel_crtc *crtc;
 
 	/* Don't even bother tracking anything if we don't need. */
-	if (!no_fbc_on_multiple_pipes(dev_priv))
+	if (!yes_fbc_on_multiple_pipes(dev_priv))
 		return;
 
 	for_each_intel_crtc(&dev_priv->drm, crtc)
@@ -1269,7 +1269,7 @@ void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv)
 /*
  * The DDX driver changes its behavior depending on the value it reads from
  * i915.enable_fbc, so sanitize it by translating the default value into either
- * 0 or 1 in order to allow it to know what's going on.
+ * 0 or 1 in order to allow it to kyesw what's going on.
  *
  * Notice that this is done at driver initialization and we still allow user
  * space to change the value during runtime without sanitizing it again. IGT
@@ -1331,7 +1331,7 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 		      i915_modparams.enable_fbc);
 
 	if (!HAS_FBC(dev_priv)) {
-		fbc->no_fbc_reason = "unsupported by this chipset";
+		fbc->yes_fbc_reason = "unsupported by this chipset";
 		return;
 	}
 

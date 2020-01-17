@@ -161,7 +161,7 @@ static int sparse_keymap_setkeycode(struct input_dev *dev,
  * The function calculates size and allocates copy of the original
  * keymap after which sets up input device event bits appropriately.
  * The allocated copy of the keymap is automatically freed when it
- * is no longer needed.
+ * is yes longer needed.
  */
 int sparse_keymap_setup(struct input_dev *dev,
 			const struct key_entry *keymap,
@@ -223,9 +223,9 @@ EXPORT_SYMBOL(sparse_keymap_setup);
  * sparse_keymap_report_entry - report event corresponding to given key entry
  * @dev: Input device for which event should be reported
  * @ke: key entry describing event
- * @value: Value that should be reported (ignored by %KE_SW entries)
+ * @value: Value that should be reported (igyesred by %KE_SW entries)
  * @autorelease: Signals whether release event should be emitted for %KE_KEY
- *	entries right after reporting press event, ignored by all other
+ *	entries right after reporting press event, igyesred by all other
  *	entries
  *
  * This function is used to report input event described by given
@@ -261,9 +261,9 @@ EXPORT_SYMBOL(sparse_keymap_report_entry);
  * sparse_keymap_report_event - report event corresponding to given scancode
  * @dev: Input device using sparse keymap
  * @code: Scan code
- * @value: Value that should be reported (ignored by %KE_SW entries)
+ * @value: Value that should be reported (igyesred by %KE_SW entries)
  * @autorelease: Signals whether release event should be emitted for %KE_KEY
- *	entries right after reporting press event, ignored by all other
+ *	entries right after reporting press event, igyesred by all other
  *	entries
  *
  * This function is used to perform lookup in an input device using sparse
@@ -275,18 +275,18 @@ bool sparse_keymap_report_event(struct input_dev *dev, unsigned int code,
 {
 	const struct key_entry *ke =
 		sparse_keymap_entry_from_scancode(dev, code);
-	struct key_entry unknown_ke;
+	struct key_entry unkyeswn_ke;
 
 	if (ke) {
 		sparse_keymap_report_entry(dev, ke, value, autorelease);
 		return true;
 	}
 
-	/* Report an unknown key event as a debugging aid */
-	unknown_ke.type = KE_KEY;
-	unknown_ke.code = code;
-	unknown_ke.keycode = KEY_UNKNOWN;
-	sparse_keymap_report_entry(dev, &unknown_ke, value, true);
+	/* Report an unkyeswn key event as a debugging aid */
+	unkyeswn_ke.type = KE_KEY;
+	unkyeswn_ke.code = code;
+	unkyeswn_ke.keycode = KEY_UNKNOWN;
+	sparse_keymap_report_entry(dev, &unkyeswn_ke, value, true);
 
 	return false;
 }

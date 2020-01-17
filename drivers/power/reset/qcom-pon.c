@@ -2,7 +2,7 @@
 // Copyright (c) 2017-18 Linaro Limited
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -58,7 +58,7 @@ static int pm8916_pon_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	error = of_property_read_u32(pdev->dev.of_node, "reg",
+	error = of_property_read_u32(pdev->dev.of_yesde, "reg",
 				     &pon->baseaddr);
 	if (error)
 		return error;

@@ -158,7 +158,7 @@ add_ip6erspan_tunnel()
 add_vxlan_tunnel()
 {
 	# Set static ARP entry here because iptables set-mark works
-	# on L3 packet, as a result not applying to ARP packets,
+	# on L3 packet, as a result yest applying to ARP packets,
 	# causing errors at get_tunnel_{key/opt}.
 
 	# at_ns0 namespace
@@ -225,7 +225,7 @@ add_ip6geneve_tunnel()
 	# at_ns0 namespace
 	ip netns exec at_ns0 \
 		ip link add dev $DEV_NS type $TYPE id 22 \
-		remote ::22     # geneve has no local option
+		remote ::22     # geneve has yes local option
 	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
 	ip netns exec at_ns0 ip link set dev $DEV_NS up
 
@@ -672,7 +672,7 @@ check()
 {
 	ip link help 2>&1 | grep -q "\s$1\s"
 	if [ $? -ne 0 ];then
-		echo "SKIP $1: iproute2 not support"
+		echo "SKIP $1: iproute2 yest support"
 	cleanup
 	return 1
 	fi

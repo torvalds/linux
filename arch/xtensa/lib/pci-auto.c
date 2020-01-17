@@ -22,8 +22,8 @@
  *
  * Setting up a PCI
  *
- * pci_ctrl->first_busno = <first bus number (0)>
- * pci_ctrl->last_busno = <last bus number (0xff)>
+ * pci_ctrl->first_busyes = <first bus number (0)>
+ * pci_ctrl->last_busyes = <last bus number (0xff)>
  * pci_ctrl->ops = <PCI config operations>
  * pci_ctrl->map_irq = <function to return the interrupt number for a device>
  *
@@ -39,7 +39,7 @@
  * pcibios_init_resource(&pci_ctrl->mem_resources[0], <MEM space start>,
  * 			 <MEM space end>, IORESOURCE_MEM, "PCI host bridge");
  *
- * pci_ctrl->last_busno = pciauto_bus_scan(pci_ctrl,pci_ctrl->first_busno);
+ * pci_ctrl->last_busyes = pciauto_bus_scan(pci_ctrl,pci_ctrl->first_busyes);
  *
  * int __init pciauto_bus_scan(struct pci_controller *pci_ctrl, int current_bus)
  *
@@ -73,7 +73,7 @@ pciauto_setup_bars(struct pci_dev *dev, int bar_limit)
 		pci_write_config_dword(dev, bar, 0xffffffff);
 		pci_read_config_dword(dev, bar, &bar_size);
 
-		/* If BAR is not implemented go to the next BAR */
+		/* If BAR is yest implemented go to the next BAR */
 		if (!bar_size)
 			continue;
 
@@ -179,7 +179,7 @@ pciauto_postscan_setup_bridge(struct pci_dev *dev, int current_bus, int sub_bus,
 
 	/*
 	 * Round memory allocator to 1MB boundary.
-	 * If no space used, allocate minimum.
+	 * If yes space used, allocate minimum.
 	 */
 	pciauto_upper_memspc &= ~(0x100000 - 1);
 	if (*memsave == pciauto_upper_memspc)
@@ -236,7 +236,7 @@ int __init pciauto_bus_scan(struct pci_controller *pci_ctrl, int current_bus)
 	 * to allocated base addresses on this pci_controller.
 	 */
 
-	if (current_bus == pci_ctrl->first_busno)
+	if (current_bus == pci_ctrl->first_busyes)
 	{
 		pciauto_upper_iospc = pci_ctrl->io_resource.end + 1;
 		pciauto_upper_memspc = pci_ctrl->mem_resources[0].end + 1;
@@ -247,7 +247,7 @@ int __init pciauto_bus_scan(struct pci_controller *pci_ctrl, int current_bus)
 	for (pci_devfn = 0; pci_devfn < 0xff; pci_devfn++)
 	{
 		/* Skip our host bridge */
-		if ((current_bus == pci_ctrl->first_busno) && (pci_devfn == 0))
+		if ((current_bus == pci_ctrl->first_busyes) && (pci_devfn == 0))
 			continue;
 
 		if (PCI_FUNC(pci_devfn) && !found_multi)

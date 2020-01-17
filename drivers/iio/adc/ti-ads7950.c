@@ -2,7 +2,7 @@
 /*
  * Texas Instruments ADS7950 SPI ADC driver
  *
- * Copyright 2016 David Lechner <david@lechnology.com>
+ * Copyright 2016 David Lechner <david@lechyeslogy.com>
  *
  * Based on iio/ad7923.c:
  * Copyright 2011 Analog Devices Inc
@@ -10,7 +10,7 @@
  *
  * And also on hwmon/ads79xx.c
  * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
- *	Nishanth Menon
+ *	Nishanth Meyesn
  */
 
 #include <linux/acpi.h>
@@ -292,7 +292,7 @@ static int ti_ads7950_update_scan_mode(struct iio_dev *indio_dev,
 		st->tx_buf[len++] = cmd;
 	}
 
-	/* Data for the 1st channel is not returned until the 3rd transfer */
+	/* Data for the 1st channel is yest returned until the 3rd transfer */
 	st->tx_buf[len++] = 0;
 	st->tx_buf[len++] = 0;
 
@@ -318,7 +318,7 @@ static irqreturn_t ti_ads7950_trigger_handler(int irq, void *p)
 
 out:
 	mutex_unlock(&st->slock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -723,6 +723,6 @@ static struct spi_driver ti_ads7950_driver = {
 };
 module_spi_driver(ti_ads7950_driver);
 
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechyeslogy.com>");
 MODULE_DESCRIPTION("TI TI_ADS7950 ADC");
 MODULE_LICENSE("GPL v2");

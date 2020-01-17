@@ -29,9 +29,9 @@ static void xdr_decode_YFSFid(const __be32 **_bp, struct afs_fid *fid)
 	const struct yfs_xdr_YFSFid *x = (const void *)*_bp;
 
 	fid->vid	= xdr_to_u64(x->volume);
-	fid->vnode	= xdr_to_u64(x->vnode.lo);
-	fid->vnode_hi	= ntohl(x->vnode.hi);
-	fid->unique	= ntohl(x->vnode.unique);
+	fid->vyesde	= xdr_to_u64(x->vyesde.lo);
+	fid->vyesde_hi	= ntohl(x->vyesde.hi);
+	fid->unique	= ntohl(x->vyesde.unique);
 	*_bp += xdr_size(x);
 }
 
@@ -54,9 +54,9 @@ static __be32 *xdr_encode_YFSFid(__be32 *bp, struct afs_fid *fid)
 	struct yfs_xdr_YFSFid *x = (void *)bp;
 
 	x->volume	= u64_to_xdr(fid->vid);
-	x->vnode.lo	= u64_to_xdr(fid->vnode);
-	x->vnode.hi	= htonl(fid->vnode_hi);
-	x->vnode.unique	= htonl(fid->unique);
+	x->vyesde.lo	= u64_to_xdr(fid->vyesde);
+	x->vyesde.hi	= htonl(fid->vyesde_hi);
+	x->vyesde.unique	= htonl(fid->unique);
 	return bp + xdr_size(x);
 }
 
@@ -119,8 +119,8 @@ static struct timespec64 yfs_time_to_linux(s64 t)
 	u64 abs_t;
 
 	/*
-	 * Unfortunately can not use normal 64 bit division on 32 bit arch, but
-	 * the alternative, do_div, does not work with negative numbers so have
+	 * Unfortunately can yest use yesrmal 64 bit division on 32 bit arch, but
+	 * the alternative, do_div, does yest work with negative numbers so have
 	 * to special case them
 	 */
 	if (t < 0) {
@@ -164,16 +164,16 @@ static void xdr_dump_bad(const __be32 *bp)
 	__be32 x[4];
 	int i;
 
-	pr_notice("YFS XDR: Bad status record\n");
+	pr_yestice("YFS XDR: Bad status record\n");
 	for (i = 0; i < 5 * 4 * 4; i += 16) {
 		memcpy(x, bp, 16);
 		bp += 4;
-		pr_notice("%03x: %08x %08x %08x %08x\n",
+		pr_yestice("%03x: %08x %08x %08x %08x\n",
 			  i, ntohl(x[0]), ntohl(x[1]), ntohl(x[2]), ntohl(x[3]));
 	}
 
 	memcpy(x, bp, 4);
-	pr_notice("0x50: %08x\n", ntohl(x[0]));
+	pr_yestice("0x50: %08x\n", ntohl(x[0]));
 }
 
 /*
@@ -210,7 +210,7 @@ static int xdr_decode_YFSFetchStatus(const __be32 **_bp,
 	status->author		= xdr_to_u64(xdr->author);
 	status->owner		= xdr_to_u64(xdr->owner);
 	status->caller_access	= ntohl(xdr->caller_access); /* Ticket dependent */
-	status->anon_access	= ntohl(xdr->anon_access);
+	status->ayesn_access	= ntohl(xdr->ayesn_access);
 	status->mode		= ntohl(xdr->mode) & S_IALLUGO;
 	status->group		= xdr_to_u64(xdr->group);
 	status->lock_count	= ntohl(xdr->lock_count);
@@ -380,8 +380,8 @@ static int yfs_deliver_status_and_volsync(struct afs_call *call)
 /*
  * YFS.FetchStatus operation type
  */
-static const struct afs_call_type yfs_RXYFSFetchStatus_vnode = {
-	.name		= "YFS.FetchStatus(vnode)",
+static const struct afs_call_type yfs_RXYFSFetchStatus_vyesde = {
+	.name		= "YFS.FetchStatus(vyesde)",
 	.op		= yfs_FS_FetchStatus,
 	.deliver	= yfs_deliver_fs_status_cb_and_volsync,
 	.destructor	= afs_flat_call_destructor,
@@ -393,15 +393,15 @@ static const struct afs_call_type yfs_RXYFSFetchStatus_vnode = {
 int yfs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_status_cb *scb,
 			     struct afs_volsync *volsync)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vyesde *vyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(vyesde);
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
+	       key_serial(fc->key), vyesde->fid.vid, vyesde->fid.vyesde);
 
-	call = afs_alloc_flat_call(net, &yfs_RXYFSFetchStatus_vnode,
+	call = afs_alloc_flat_call(net, &yfs_RXYFSFetchStatus_vyesde,
 				   sizeof(__be32) * 2 +
 				   sizeof(struct yfs_xdr_YFSFid),
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
@@ -420,11 +420,11 @@ int yfs_fs_fetch_file_status(struct afs_fs_cursor *fc, struct afs_status_cb *scb
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSFETCHSTATUS);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_YFSFid(bp, &vyesde->fid);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call(call, &vyesde->fid);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -463,7 +463,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 		_debug("DATA length: %llu", req->actual_len);
 		req->remain = min(req->len, req->actual_len);
 		if (req->remain == 0)
-			goto no_more_data;
+			goto yes_more_data;
 
 		call->unmarshall++;
 
@@ -502,7 +502,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 
 		ASSERTCMP(req->remain, ==, 0);
 		if (req->actual_len <= req->len)
-			goto no_more_data;
+			goto yes_more_data;
 
 		/* Discard any excess data the server gave us */
 		afs_extract_discard(call, req->actual_len - req->len);
@@ -517,7 +517,7 @@ static int yfs_deliver_fs_fetch_data64(struct afs_call *call)
 		if (ret < 0)
 			return ret;
 
-	no_more_data:
+	yes_more_data:
 		call->unmarshall = 4;
 		afs_extract_to_buf(call,
 				   sizeof(struct yfs_xdr_YFSFetchStatus) +
@@ -583,13 +583,13 @@ static const struct afs_call_type yfs_RXYFSFetchData64 = {
 int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_status_cb *scb,
 		      struct afs_read *req)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vyesde *vyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(vyesde);
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},%llx,%llx",
-	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode,
+	       key_serial(fc->key), vyesde->fid.vid, vyesde->fid.vyesde,
 	       req->pos, req->len);
 
 	call = afs_alloc_flat_call(net, &yfs_RXYFSFetchData64,
@@ -611,13 +611,13 @@ int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_status_cb *scb,
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSFETCHDATA64);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_YFSFid(bp, &vyesde->fid);
 	bp = xdr_encode_u64(bp, req->pos);
 	bp = xdr_encode_u64(bp, req->len);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call(call, &vyesde->fid);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -626,7 +626,7 @@ int yfs_fs_fetch_data(struct afs_fs_cursor *fc, struct afs_status_cb *scb,
 /*
  * Deliver reply data for YFS.CreateFile or YFS.MakeDir.
  */
-static int yfs_deliver_fs_create_vnode(struct afs_call *call)
+static int yfs_deliver_fs_create_vyesde(struct afs_call *call)
 {
 	const __be32 *bp;
 	int ret;
@@ -659,7 +659,7 @@ static int yfs_deliver_fs_create_vnode(struct afs_call *call)
 static const struct afs_call_type afs_RXFSCreateFile = {
 	.name		= "YFS.CreateFile",
 	.op		= yfs_FS_CreateFile,
-	.deliver	= yfs_deliver_fs_create_vnode,
+	.deliver	= yfs_deliver_fs_create_vyesde,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -669,13 +669,13 @@ static const struct afs_call_type afs_RXFSCreateFile = {
 int yfs_fs_create_file(struct afs_fs_cursor *fc,
 		       const char *name,
 		       umode_t mode,
-		       struct afs_status_cb *dvnode_scb,
+		       struct afs_status_cb *dvyesde_scb,
 		       struct afs_fid *newfid,
 		       struct afs_status_cb *new_scb)
 {
-	struct afs_vnode *dvnode = fc->vnode;
+	struct afs_vyesde *dvyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(dvnode);
+	struct afs_net *net = afs_v2net(dvyesde);
 	size_t namesz, reqsz, rplsz;
 	__be32 *bp;
 
@@ -699,7 +699,7 @@ int yfs_fs_create_file(struct afs_fs_cursor *fc,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->out_dir_scb = dvnode_scb;
+	call->out_dir_scb = dvyesde_scb;
 	call->out_fid = newfid;
 	call->out_scb = new_scb;
 
@@ -707,14 +707,14 @@ int yfs_fs_create_file(struct afs_fs_cursor *fc,
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSCREATEFILE);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &dvnode->fid);
+	bp = xdr_encode_YFSFid(bp, &dvyesde->fid);
 	bp = xdr_encode_string(bp, name, namesz);
 	bp = xdr_encode_YFSStoreStatus_mode(bp, mode);
 	bp = xdr_encode_u32(bp, yfs_LockNone); /* ViceLockType */
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call1(call, &dvnode->fid, name);
+	trace_afs_make_fs_call1(call, &dvyesde->fid, name);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -723,7 +723,7 @@ int yfs_fs_create_file(struct afs_fs_cursor *fc,
 static const struct afs_call_type yfs_RXFSMakeDir = {
 	.name		= "YFS.MakeDir",
 	.op		= yfs_FS_MakeDir,
-	.deliver	= yfs_deliver_fs_create_vnode,
+	.deliver	= yfs_deliver_fs_create_vyesde,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -733,13 +733,13 @@ static const struct afs_call_type yfs_RXFSMakeDir = {
 int yfs_fs_make_dir(struct afs_fs_cursor *fc,
 		    const char *name,
 		    umode_t mode,
-		    struct afs_status_cb *dvnode_scb,
+		    struct afs_status_cb *dvyesde_scb,
 		    struct afs_fid *newfid,
 		    struct afs_status_cb *new_scb)
 {
-	struct afs_vnode *dvnode = fc->vnode;
+	struct afs_vyesde *dvyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(dvnode);
+	struct afs_net *net = afs_v2net(dvyesde);
 	size_t namesz, reqsz, rplsz;
 	__be32 *bp;
 
@@ -762,7 +762,7 @@ int yfs_fs_make_dir(struct afs_fs_cursor *fc,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->out_dir_scb = dvnode_scb;
+	call->out_dir_scb = dvyesde_scb;
 	call->out_fid = newfid;
 	call->out_scb = new_scb;
 
@@ -770,13 +770,13 @@ int yfs_fs_make_dir(struct afs_fs_cursor *fc,
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSMAKEDIR);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &dvnode->fid);
+	bp = xdr_encode_YFSFid(bp, &dvyesde->fid);
 	bp = xdr_encode_string(bp, name, namesz);
 	bp = xdr_encode_YFSStoreStatus_mode(bp, mode);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call1(call, &dvnode->fid, name);
+	trace_afs_make_fs_call1(call, &dvyesde->fid, name);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -806,7 +806,7 @@ static int yfs_deliver_fs_remove_file2(struct afs_call *call)
 	ret = xdr_decode_YFSFetchStatus(&bp, call, call->out_scb);
 	if (ret < 0)
 		return ret;
-	/* Was deleted if vnode->status.abort_code == VNOVNODE. */
+	/* Was deleted if vyesde->status.abort_code == VNOVNODE. */
 
 	xdr_decode_YFSVolSync(&bp, call->out_volsync);
 	return 0;
@@ -825,13 +825,13 @@ static const struct afs_call_type yfs_RXYFSRemoveFile2 = {
 /*
  * Remove a file and retrieve new file status.
  */
-int yfs_fs_remove_file2(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
-			const char *name, struct afs_status_cb *dvnode_scb,
-			struct afs_status_cb *vnode_scb)
+int yfs_fs_remove_file2(struct afs_fs_cursor *fc, struct afs_vyesde *vyesde,
+			const char *name, struct afs_status_cb *dvyesde_scb,
+			struct afs_status_cb *vyesde_scb)
 {
-	struct afs_vnode *dvnode = fc->vnode;
+	struct afs_vyesde *dvyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(dvnode);
+	struct afs_net *net = afs_v2net(dvyesde);
 	size_t namesz;
 	__be32 *bp;
 
@@ -852,19 +852,19 @@ int yfs_fs_remove_file2(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->out_dir_scb = dvnode_scb;
-	call->out_scb = vnode_scb;
+	call->out_dir_scb = dvyesde_scb;
+	call->out_scb = vyesde_scb;
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSREMOVEFILE2);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &dvnode->fid);
+	bp = xdr_encode_YFSFid(bp, &dvyesde->fid);
 	bp = xdr_encode_string(bp, name, namesz);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call1(call, &dvnode->fid, name);
+	trace_afs_make_fs_call1(call, &dvyesde->fid, name);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -913,13 +913,13 @@ static const struct afs_call_type yfs_RXYFSRemoveDir = {
 /*
  * remove a file or directory
  */
-int yfs_fs_remove(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
+int yfs_fs_remove(struct afs_fs_cursor *fc, struct afs_vyesde *vyesde,
 		  const char *name, bool isdir,
-		  struct afs_status_cb *dvnode_scb)
+		  struct afs_status_cb *dvyesde_scb)
 {
-	struct afs_vnode *dvnode = fc->vnode;
+	struct afs_vyesde *dvyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(dvnode);
+	struct afs_net *net = afs_v2net(dvyesde);
 	size_t namesz;
 	__be32 *bp;
 
@@ -938,18 +938,18 @@ int yfs_fs_remove(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->out_dir_scb = dvnode_scb;
+	call->out_dir_scb = dvyesde_scb;
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp = xdr_encode_u32(bp, isdir ? YFSREMOVEDIR : YFSREMOVEFILE);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &dvnode->fid);
+	bp = xdr_encode_YFSFid(bp, &dvyesde->fid);
 	bp = xdr_encode_string(bp, name, namesz);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call1(call, &dvnode->fid, name);
+	trace_afs_make_fs_call1(call, &dvyesde->fid, name);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -994,14 +994,14 @@ static const struct afs_call_type yfs_RXYFSLink = {
 /*
  * Make a hard link.
  */
-int yfs_fs_link(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
+int yfs_fs_link(struct afs_fs_cursor *fc, struct afs_vyesde *vyesde,
 		const char *name,
-		struct afs_status_cb *dvnode_scb,
-		struct afs_status_cb *vnode_scb)
+		struct afs_status_cb *dvyesde_scb,
+		struct afs_status_cb *vyesde_scb)
 {
-	struct afs_vnode *dvnode = fc->vnode;
+	struct afs_vyesde *dvyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(vyesde);
 	size_t namesz;
 	__be32 *bp;
 
@@ -1021,20 +1021,20 @@ int yfs_fs_link(struct afs_fs_cursor *fc, struct afs_vnode *vnode,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->out_dir_scb = dvnode_scb;
-	call->out_scb = vnode_scb;
+	call->out_dir_scb = dvyesde_scb;
+	call->out_scb = vyesde_scb;
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSLINK);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &dvnode->fid);
+	bp = xdr_encode_YFSFid(bp, &dvyesde->fid);
 	bp = xdr_encode_string(bp, name, namesz);
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_YFSFid(bp, &vyesde->fid);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call1(call, &vnode->fid, name);
+	trace_afs_make_fs_call1(call, &vyesde->fid, name);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -1085,13 +1085,13 @@ static const struct afs_call_type yfs_RXYFSSymlink = {
 int yfs_fs_symlink(struct afs_fs_cursor *fc,
 		   const char *name,
 		   const char *contents,
-		   struct afs_status_cb *dvnode_scb,
+		   struct afs_status_cb *dvyesde_scb,
 		   struct afs_fid *newfid,
-		   struct afs_status_cb *vnode_scb)
+		   struct afs_status_cb *vyesde_scb)
 {
-	struct afs_vnode *dvnode = fc->vnode;
+	struct afs_vyesde *dvyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(dvnode);
+	struct afs_net *net = afs_v2net(dvyesde);
 	size_t namesz, contents_sz;
 	__be32 *bp;
 
@@ -1114,22 +1114,22 @@ int yfs_fs_symlink(struct afs_fs_cursor *fc,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->out_dir_scb = dvnode_scb;
+	call->out_dir_scb = dvyesde_scb;
 	call->out_fid = newfid;
-	call->out_scb = vnode_scb;
+	call->out_scb = vyesde_scb;
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSSYMLINK);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &dvnode->fid);
+	bp = xdr_encode_YFSFid(bp, &dvyesde->fid);
 	bp = xdr_encode_string(bp, name, namesz);
 	bp = xdr_encode_string(bp, contents, contents_sz);
 	bp = xdr_encode_YFSStoreStatus_mode(bp, S_IRWXUGO);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call1(call, &dvnode->fid, name);
+	trace_afs_make_fs_call1(call, &dvyesde->fid, name);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -1179,14 +1179,14 @@ static const struct afs_call_type yfs_RXYFSRename = {
  */
 int yfs_fs_rename(struct afs_fs_cursor *fc,
 		  const char *orig_name,
-		  struct afs_vnode *new_dvnode,
+		  struct afs_vyesde *new_dvyesde,
 		  const char *new_name,
-		  struct afs_status_cb *orig_dvnode_scb,
-		  struct afs_status_cb *new_dvnode_scb)
+		  struct afs_status_cb *orig_dvyesde_scb,
+		  struct afs_status_cb *new_dvyesde_scb)
 {
-	struct afs_vnode *orig_dvnode = fc->vnode;
+	struct afs_vyesde *orig_dvyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(orig_dvnode);
+	struct afs_net *net = afs_v2net(orig_dvyesde);
 	size_t o_namesz, n_namesz;
 	__be32 *bp;
 
@@ -1208,21 +1208,21 @@ int yfs_fs_rename(struct afs_fs_cursor *fc,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->out_dir_scb = orig_dvnode_scb;
-	call->out_scb = new_dvnode_scb;
+	call->out_dir_scb = orig_dvyesde_scb;
+	call->out_scb = new_dvyesde_scb;
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSRENAME);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &orig_dvnode->fid);
+	bp = xdr_encode_YFSFid(bp, &orig_dvyesde->fid);
 	bp = xdr_encode_string(bp, orig_name, o_namesz);
-	bp = xdr_encode_YFSFid(bp, &new_dvnode->fid);
+	bp = xdr_encode_YFSFid(bp, &new_dvyesde->fid);
 	bp = xdr_encode_string(bp, new_name, n_namesz);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call2(call, &orig_dvnode->fid, orig_name, new_name);
+	trace_afs_make_fs_call2(call, &orig_dvyesde->fid, orig_name, new_name);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -1246,14 +1246,14 @@ int yfs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
 		      unsigned offset, unsigned to,
 		      struct afs_status_cb *scb)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vyesde *vyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(vyesde);
 	loff_t size, pos, i_size;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
+	       key_serial(fc->key), vyesde->fid.vid, vyesde->fid.vyesde);
 
 	size = (loff_t)to - (loff_t)offset;
 	if (first != last)
@@ -1261,7 +1261,7 @@ int yfs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
 	pos = (loff_t)first << PAGE_SHIFT;
 	pos += offset;
 
-	i_size = i_size_read(&vnode->vfs_inode);
+	i_size = i_size_read(&vyesde->vfs_iyesde);
 	if (pos + size > i_size)
 		i_size = size + pos;
 
@@ -1293,15 +1293,15 @@ int yfs_fs_store_data(struct afs_fs_cursor *fc, struct address_space *mapping,
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSSTOREDATA64);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
-	bp = xdr_encode_YFSStoreStatus_mtime(bp, &vnode->vfs_inode.i_mtime);
+	bp = xdr_encode_YFSFid(bp, &vyesde->fid);
+	bp = xdr_encode_YFSStoreStatus_mtime(bp, &vyesde->vfs_iyesde.i_mtime);
 	bp = xdr_encode_u64(bp, pos);
 	bp = xdr_encode_u64(bp, size);
 	bp = xdr_encode_u64(bp, i_size);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call(call, &vyesde->fid);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -1331,13 +1331,13 @@ static const struct afs_call_type yfs_RXYFSStoreData64_as_Status = {
 static int yfs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr,
 			       struct afs_status_cb *scb)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vyesde *vyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(vyesde);
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
+	       key_serial(fc->key), vyesde->fid.vid, vyesde->fid.vyesde);
 
 	call = afs_alloc_flat_call(net, &yfs_RXYFSStoreData64_as_Status,
 				   sizeof(__be32) * 2 +
@@ -1356,7 +1356,7 @@ static int yfs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr,
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSSTOREDATA64);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_YFSFid(bp, &vyesde->fid);
 	bp = xdr_encode_YFS_StoreStatus(bp, attr);
 	bp = xdr_encode_u64(bp, attr->ia_size);	/* position of start of write */
 	bp = xdr_encode_u64(bp, 0);		/* size of write */
@@ -1364,7 +1364,7 @@ static int yfs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr,
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call(call, &vyesde->fid);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -1377,16 +1377,16 @@ static int yfs_fs_setattr_size(struct afs_fs_cursor *fc, struct iattr *attr,
 int yfs_fs_setattr(struct afs_fs_cursor *fc, struct iattr *attr,
 		   struct afs_status_cb *scb)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vyesde *vyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(vyesde);
 	__be32 *bp;
 
 	if (attr->ia_valid & ATTR_SIZE)
 		return yfs_fs_setattr_size(fc, attr, scb);
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
+	       key_serial(fc->key), vyesde->fid.vid, vyesde->fid.vyesde);
 
 	call = afs_alloc_flat_call(net, &yfs_RXYFSStoreStatus,
 				   sizeof(__be32) * 2 +
@@ -1404,12 +1404,12 @@ int yfs_fs_setattr(struct afs_fs_cursor *fc, struct iattr *attr,
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSSTORESTATUS);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_YFSFid(bp, &vyesde->fid);
 	bp = xdr_encode_YFS_StoreStatus(bp, attr);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call(call, &vyesde->fid);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -1561,9 +1561,9 @@ static const struct afs_call_type yfs_RXYFSGetVolumeStatus = {
 int yfs_fs_get_volume_status(struct afs_fs_cursor *fc,
 			     struct afs_volume_status *vs)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vyesde *vyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(vyesde);
 	__be32 *bp;
 
 	_enter("");
@@ -1585,11 +1585,11 @@ int yfs_fs_get_volume_status(struct afs_fs_cursor *fc,
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSGETVOLUMESTATUS);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_u64(bp, vnode->fid.vid);
+	bp = xdr_encode_u64(bp, vyesde->fid.vid);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call(call, &vyesde->fid);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -1633,9 +1633,9 @@ static const struct afs_call_type yfs_RXYFSReleaseLock = {
 int yfs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type,
 		    struct afs_status_cb *scb)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vyesde *vyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(vyesde);
 	__be32 *bp;
 
 	_enter("");
@@ -1650,19 +1650,19 @@ int yfs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type,
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->lvnode = vnode;
+	call->lvyesde = vyesde;
 	call->out_scb = scb;
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSSETLOCK);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_YFSFid(bp, &vyesde->fid);
 	bp = xdr_encode_u32(bp, type);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_calli(call, &vnode->fid, type);
+	trace_afs_make_fs_calli(call, &vyesde->fid, type);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -1673,9 +1673,9 @@ int yfs_fs_set_lock(struct afs_fs_cursor *fc, afs_lock_type_t type,
  */
 int yfs_fs_extend_lock(struct afs_fs_cursor *fc, struct afs_status_cb *scb)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vyesde *vyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(vyesde);
 	__be32 *bp;
 
 	_enter("");
@@ -1689,18 +1689,18 @@ int yfs_fs_extend_lock(struct afs_fs_cursor *fc, struct afs_status_cb *scb)
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->lvnode = vnode;
+	call->lvyesde = vyesde;
 	call->out_scb = scb;
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSEXTENDLOCK);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_YFSFid(bp, &vyesde->fid);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call(call, &vyesde->fid);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -1711,9 +1711,9 @@ int yfs_fs_extend_lock(struct afs_fs_cursor *fc, struct afs_status_cb *scb)
  */
 int yfs_fs_release_lock(struct afs_fs_cursor *fc, struct afs_status_cb *scb)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vyesde *vyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(vyesde);
 	__be32 *bp;
 
 	_enter("");
@@ -1727,18 +1727,18 @@ int yfs_fs_release_lock(struct afs_fs_cursor *fc, struct afs_status_cb *scb)
 		return -ENOMEM;
 
 	call->key = fc->key;
-	call->lvnode = vnode;
+	call->lvyesde = vyesde;
 	call->out_scb = scb;
 
 	/* marshall the parameters */
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSRELEASELOCK);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_YFSFid(bp, &vyesde->fid);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call(call, &vyesde->fid);
 	afs_set_fc_call(call, fc);
 	afs_make_call(&fc->ac, call, GFP_NOFS);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
@@ -1755,7 +1755,7 @@ static const struct afs_call_type yfs_RXYFSFetchStatus = {
 };
 
 /*
- * Fetch the status information for a fid without needing a vnode handle.
+ * Fetch the status information for a fid without needing a vyesde handle.
  */
 int yfs_fs_fetch_status(struct afs_fs_cursor *fc,
 			struct afs_net *net,
@@ -1767,7 +1767,7 @@ int yfs_fs_fetch_status(struct afs_fs_cursor *fc,
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(fc->key), fid->vid, fid->vnode);
+	       key_serial(fc->key), fid->vid, fid->vyesde);
 
 	call = afs_alloc_flat_call(net, &yfs_RXYFSFetchStatus,
 				   sizeof(__be32) * 2 +
@@ -1936,7 +1936,7 @@ int yfs_fs_inline_bulk_status(struct afs_fs_cursor *fc,
 	int i;
 
 	_enter(",%x,{%llx:%llu},%u",
-	       key_serial(fc->key), fids[0].vid, fids[1].vnode, nr_fids);
+	       key_serial(fc->key), fids[0].vid, fids[1].vyesde, nr_fids);
 
 	call = afs_alloc_flat_call(net, &yfs_RXYFSInlineBulkStatus,
 				   sizeof(__be32) +
@@ -2107,13 +2107,13 @@ struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *fc,
 					struct yfs_acl *yacl,
 					struct afs_status_cb *scb)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vyesde *vyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(vyesde);
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
+	       key_serial(fc->key), vyesde->fid.vid, vyesde->fid.vyesde);
 
 	call = afs_alloc_flat_call(net, &yfs_RXYFSFetchOpaqueACL,
 				   sizeof(__be32) * 2 +
@@ -2135,11 +2135,11 @@ struct yfs_acl *yfs_fs_fetch_opaque_acl(struct afs_fs_cursor *fc,
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSFETCHOPAQUEACL);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_YFSFid(bp, &vyesde->fid);
 	yfs_check_req(call, bp);
 
 	afs_use_fs_server(call, fc->cbi);
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call(call, &vyesde->fid);
 	afs_make_call(&fc->ac, call, GFP_KERNEL);
 	return (struct yfs_acl *)afs_wait_for_call_to_complete(call, &fc->ac);
 }
@@ -2160,14 +2160,14 @@ static const struct afs_call_type yfs_RXYFSStoreOpaqueACL2 = {
 int yfs_fs_store_opaque_acl2(struct afs_fs_cursor *fc, const struct afs_acl *acl,
 			     struct afs_status_cb *scb)
 {
-	struct afs_vnode *vnode = fc->vnode;
+	struct afs_vyesde *vyesde = fc->vyesde;
 	struct afs_call *call;
-	struct afs_net *net = afs_v2net(vnode);
+	struct afs_net *net = afs_v2net(vyesde);
 	size_t size;
 	__be32 *bp;
 
 	_enter(",%x,{%llx:%llu},,",
-	       key_serial(fc->key), vnode->fid.vid, vnode->fid.vnode);
+	       key_serial(fc->key), vyesde->fid.vid, vyesde->fid.vyesde);
 
 	size = round_up(acl->size, 4);
 	call = afs_alloc_flat_call(net, &yfs_RXYFSStoreOpaqueACL2,
@@ -2189,14 +2189,14 @@ int yfs_fs_store_opaque_acl2(struct afs_fs_cursor *fc, const struct afs_acl *acl
 	bp = call->request;
 	bp = xdr_encode_u32(bp, YFSSTOREOPAQUEACL2);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
-	bp = xdr_encode_YFSFid(bp, &vnode->fid);
+	bp = xdr_encode_YFSFid(bp, &vyesde->fid);
 	bp = xdr_encode_u32(bp, acl->size);
 	memcpy(bp, acl->data, acl->size);
 	if (acl->size != size)
 		memset((void *)bp + acl->size, 0, size - acl->size);
 	yfs_check_req(call, bp);
 
-	trace_afs_make_fs_call(call, &vnode->fid);
+	trace_afs_make_fs_call(call, &vyesde->fid);
 	afs_make_call(&fc->ac, call, GFP_KERNEL);
 	return afs_wait_for_call_to_complete(call, &fc->ac);
 }

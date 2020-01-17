@@ -27,13 +27,13 @@ struct insn_state {
 
 struct instruction {
 	struct list_head list;
-	struct hlist_node hash;
+	struct hlist_yesde hash;
 	struct section *sec;
 	unsigned long offset;
 	unsigned int len;
 	enum insn_type type;
 	unsigned long immediate;
-	bool alt_group, dead_end, ignore, hint, save, restore, ignore_alts;
+	bool alt_group, dead_end, igyesre, hint, save, restore, igyesre_alts;
 	bool retpoline_safe;
 	u8 visited;
 	struct symbol *call_dest;
@@ -51,7 +51,7 @@ struct objtool_file {
 	struct elf *elf;
 	struct list_head insn_list;
 	DECLARE_HASHTABLE(insn_hash, 16);
-	bool ignore_unreachables, c_file, hints, rodata;
+	bool igyesre_unreachables, c_file, hints, rodata;
 };
 
 int check(const char *objname, bool orc);

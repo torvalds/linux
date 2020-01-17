@@ -195,7 +195,7 @@ static netdev_tx_t bgmac_dma_tx_add(struct bgmac *bgmac,
 	wmb();
 
 	/* Increase ring->end to point empty slot. We tell hardware the first
-	 * slot it should *not* read.
+	 * slot it should *yest* read.
 	 */
 	bgmac_write(bgmac, ring->mmio_base + BGMAC_DMA_TX_INDEX,
 		    ring->index_base +
@@ -258,7 +258,7 @@ static void bgmac_dma_tx_free(struct bgmac *bgmac, struct bgmac_dma_ring *ring)
 		ctl1 = le32_to_cpu(ring->cpu_base[slot_idx].ctl1);
 		len = ctl1 & BGMAC_DESC_CTL1_LEN;
 		if (ctl0 & BGMAC_DESC_CTL0_SOF)
-			/* Unmap no longer used buffer */
+			/* Unmap yes longer used buffer */
 			dma_unmap_single(dma_dev, slot->dma_addr, len,
 					 DMA_TO_DEVICE);
 		else
@@ -478,7 +478,7 @@ static int bgmac_dma_rx_read(struct bgmac *bgmac, struct bgmac_dma_ring *ring,
 			skb_pull(skb, BGMAC_RX_FRAME_OFFSET +
 				 BGMAC_RX_BUF_OFFSET);
 
-			skb_checksum_none_assert(skb);
+			skb_checksum_yesne_assert(skb);
 			skb->protocol = eth_type_trans(skb, bgmac->net_dev);
 			bgmac->net_dev->stats.rx_bytes += len;
 			bgmac->net_dev->stats.rx_packets++;
@@ -623,7 +623,7 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 
 	if (!(bgmac->feature_flags & BGMAC_FEAT_IDM_MASK)) {
 		if (!(bgmac_idm_read(bgmac, BCMA_IOST) & BCMA_IOST_DMA64)) {
-			dev_err(bgmac->dev, "Core does not report 64-bit DMA\n");
+			dev_err(bgmac->dev, "Core does yest report 64-bit DMA\n");
 			return -ENOTSUPP;
 		}
 	}
@@ -701,7 +701,7 @@ static int bgmac_dma_init(struct bgmac *bgmac)
 			bgmac_dma_tx_enable(bgmac, ring);
 
 		ring->start = 0;
-		ring->end = 0;	/* Points the slot that should *not* be read */
+		ring->end = 0;	/* Points the slot that should *yest* be read */
 	}
 
 	for (i = 0; i < BGMAC_MAX_RX_RINGS; i++) {
@@ -744,7 +744,7 @@ error:
  **************************************************/
 
 /* TODO: can we just drop @force? Can we don't reset MAC at all if there is
- * nothing to change? Try if after stabilizng driver.
+ * yesthing to change? Try if after stabilizng driver.
  */
 static void bgmac_cmdcfg_maskset(struct bgmac *bgmac, u32 mask, u32 set,
 				 bool force)
@@ -1104,7 +1104,7 @@ static void bgmac_chip_init(struct bgmac *bgmac)
 	/* 1 interrupt per received frame */
 	bgmac_write(bgmac, BGMAC_INT_RECV_LAZY, 1 << BGMAC_IRL_FC_SHIFT);
 
-	/* Enable 802.3x tx flow control (honor received PAUSE frames) */
+	/* Enable 802.3x tx flow control (hoyesr received PAUSE frames) */
 	bgmac_cmdcfg_maskset(bgmac, ~BGMAC_CMDCFG_RPI, 0, true);
 
 	bgmac_set_rx_mode(bgmac->net_dev);
@@ -1135,7 +1135,7 @@ static irqreturn_t bgmac_interrupt(int irq, void *dev_id)
 
 	int_status &= ~(BGMAC_IS_TX0 | BGMAC_IS_RX);
 	if (int_status)
-		dev_err(bgmac->dev, "Unknown IRQs: 0x%08X\n", int_status);
+		dev_err(bgmac->dev, "Unkyeswn IRQs: 0x%08X\n", int_status);
 
 	/* Disable new interrupts until handling existing ones */
 	bgmac_chip_intrs_off(bgmac);
@@ -1340,7 +1340,7 @@ static struct bgmac_stat bgmac_get_strings_stats[] = {
 	{ 4, BGMAC_RX_ALIGN_ERRS, "rx_align" },
 	{ 4, BGMAC_RX_SYMBOL_ERRS, "rx_symbol" },
 	{ 4, BGMAC_RX_PAUSE_PKTS, "rx_pause" },
-	{ 4, BGMAC_RX_NONPAUSE_PKTS, "rx_nonpause" },
+	{ 4, BGMAC_RX_NONPAUSE_PKTS, "rx_yesnpause" },
 	{ 4, BGMAC_RX_SACHANGES, "rx_sa_changes" },
 	{ 4, BGMAC_RX_UNI_PKTS, "rx_unicast" },
 };
@@ -1503,7 +1503,7 @@ int bgmac_enet_probe(struct bgmac *bgmac)
 			 net_dev->dev_addr);
 	}
 
-	/* This (reset &) enable is not preset in specs or reference driver but
+	/* This (reset &) enable is yest preset in specs or reference driver but
 	 * Broadcom does it in arch PCI code when enabling fake PCI device.
 	 */
 	bgmac_clk_enable(bgmac, 0);
@@ -1523,14 +1523,14 @@ int bgmac_enet_probe(struct bgmac *bgmac)
 	}
 
 	bgmac->int_mask = BGMAC_IS_ERRMASK | BGMAC_IS_RX | BGMAC_IS_TX_MASK;
-	if (bcm47xx_nvram_getenv("et0_no_txint", NULL, 0) == 0)
+	if (bcm47xx_nvram_getenv("et0_yes_txint", NULL, 0) == 0)
 		bgmac->int_mask &= ~BGMAC_IS_TX_MASK;
 
 	netif_napi_add(net_dev, &bgmac->napi, bgmac_poll, BGMAC_WEIGHT);
 
 	err = bgmac_phy_connect(bgmac);
 	if (err) {
-		dev_err(bgmac->dev, "Cannot connect to phy\n");
+		dev_err(bgmac->dev, "Canyest connect to phy\n");
 		goto err_dma_free;
 	}
 
@@ -1540,7 +1540,7 @@ int bgmac_enet_probe(struct bgmac *bgmac)
 
 	err = register_netdev(bgmac->net_dev);
 	if (err) {
-		dev_err(bgmac->dev, "Cannot register net device\n");
+		dev_err(bgmac->dev, "Canyest register net device\n");
 		goto err_phy_disconnect;
 	}
 

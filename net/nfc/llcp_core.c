@@ -23,14 +23,14 @@ static void nfc_llcp_rx_skb(struct nfc_llcp_local *local, struct sk_buff *skb);
 void nfc_llcp_sock_link(struct llcp_sock_list *l, struct sock *sk)
 {
 	write_lock(&l->lock);
-	sk_add_node(sk, &l->head);
+	sk_add_yesde(sk, &l->head);
 	write_unlock(&l->lock);
 }
 
 void nfc_llcp_sock_unlink(struct llcp_sock_list *l, struct sock *sk)
 {
 	write_lock(&l->lock);
-	sk_del_node_init(sk);
+	sk_del_yesde_init(sk);
 	write_unlock(&l->lock);
 }
 
@@ -67,7 +67,7 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool device,
 				    int err)
 {
 	struct sock *sk;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	struct nfc_llcp_sock *llcp_sock;
 
 	skb_queue_purge(&local->tx_queue);
@@ -112,7 +112,7 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool device,
 
 		bh_unlock_sock(sk);
 
-		sk_del_node_init(sk);
+		sk_del_yesde_init(sk);
 	}
 
 	write_unlock(&local->sockets.lock);
@@ -137,7 +137,7 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool device,
 
 		bh_unlock_sock(sk);
 
-		sk_del_node_init(sk);
+		sk_del_yesde_init(sk);
 	}
 
 	write_unlock(&local->raw_sockets.lock);
@@ -243,7 +243,7 @@ static void nfc_llcp_sdreq_timeout_work(struct work_struct *work)
 {
 	unsigned long time;
 	HLIST_HEAD(nl_sdres_list);
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	struct nfc_llcp_sdp_tlv *sdp;
 	struct nfc_llcp_local *local = container_of(work, struct nfc_llcp_local,
 						    sdreq_timeout_work);
@@ -252,15 +252,15 @@ static void nfc_llcp_sdreq_timeout_work(struct work_struct *work)
 
 	time = jiffies - msecs_to_jiffies(3 * local->remote_lto);
 
-	hlist_for_each_entry_safe(sdp, n, &local->pending_sdreqs, node) {
+	hlist_for_each_entry_safe(sdp, n, &local->pending_sdreqs, yesde) {
 		if (time_after(sdp->time, time))
 			continue;
 
 		sdp->sap = LLCP_SDP_UNBOUND;
 
-		hlist_del(&sdp->node);
+		hlist_del(&sdp->yesde);
 
-		hlist_add_head(&sdp->node, &nl_sdres_list);
+		hlist_add_head(&sdp->yesde, &nl_sdres_list);
 	}
 
 	if (!hlist_empty(&local->pending_sdreqs))
@@ -398,7 +398,7 @@ u8 nfc_llcp_get_sdp_ssap(struct nfc_llcp_local *local,
 		}
 
 		/*
-		 * Check if there already is a non WKS socket bound
+		 * Check if there already is a yesn WKS socket bound
 		 * to this service name.
 		 */
 		if (nfc_llcp_sock_from_sn(local, sock->service_name,
@@ -630,7 +630,7 @@ int nfc_llcp_set_remote_gb(struct nfc_dev *dev, u8 *gb, u8 gb_len)
 	local->remote_gb_len = gb_len;
 
 	if (memcmp(local->remote_gb, llcp_magic, 3)) {
-		pr_err("MAC does not support LLCP\n");
+		pr_err("MAC does yest support LLCP\n");
 		return -EINVAL;
 	}
 
@@ -854,12 +854,12 @@ static void nfc_llcp_recv_ui(struct nfc_llcp_local *local,
 
 	pr_debug("%d %d\n", dsap, ssap);
 
-	/* We're looking for a bound socket, not a client one */
+	/* We're looking for a bound socket, yest a client one */
 	llcp_sock = nfc_llcp_sock_get(local, dsap, LLCP_SAP_SDP);
 	if (llcp_sock == NULL || llcp_sock->sk.sk_type != SOCK_DGRAM)
 		return;
 
-	/* There is no sequence with UI frames */
+	/* There is yes sequence with UI frames */
 	skb_pull(skb, LLCP_HEADER_SIZE);
 	if (!sock_queue_rcv_skb(&llcp_sock->sk, skb)) {
 		/*
@@ -1280,7 +1280,7 @@ static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
 			}
 
 			/*
-			 * We found a socket but its ssap has not been reserved
+			 * We found a socket but its ssap has yest been reserved
 			 * yet. We need to assign it for good and send a reply.
 			 * The ssap will be freed when the socket is closed.
 			 */
@@ -1316,7 +1316,7 @@ add_snl:
 				goto exit;
 
 			sdres_tlvs_len += sdp->tlv_len;
-			hlist_add_head(&sdp->node, &llc_sdres_list);
+			hlist_add_head(&sdp->yesde, &llc_sdres_list);
 			break;
 
 		case LLCP_TLV_SDRES:
@@ -1324,7 +1324,7 @@ add_snl:
 
 			pr_debug("LLCP_TLV_SDRES: searching tid %d\n", tlv[2]);
 
-			hlist_for_each_entry(sdp, &local->pending_sdreqs, node) {
+			hlist_for_each_entry(sdp, &local->pending_sdreqs, yesde) {
 				if (sdp->tid != tlv[2])
 					continue;
 
@@ -1333,9 +1333,9 @@ add_snl:
 				pr_debug("Found: uri=%s, sap=%d\n",
 					 sdp->uri, sdp->sap);
 
-				hlist_del(&sdp->node);
+				hlist_del(&sdp->yesde);
 
-				hlist_add_head(&sdp->node, &nl_sdres_list);
+				hlist_add_head(&sdp->yesde, &nl_sdres_list);
 
 				break;
 			}
@@ -1390,7 +1390,7 @@ static void nfc_llcp_recv_agf(struct nfc_llcp_local *local, struct sk_buff *skb)
 
 		new_skb = nfc_alloc_recv_skb(pdu_len, GFP_KERNEL);
 		if (new_skb == NULL) {
-			pr_err("Could not allocate PDU\n");
+			pr_err("Could yest allocate PDU\n");
 			return;
 		}
 

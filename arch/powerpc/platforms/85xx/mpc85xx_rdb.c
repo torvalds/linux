@@ -45,7 +45,7 @@ void __init mpc85xx_rdb_pic_init(void)
 	struct mpic *mpic;
 
 #ifdef CONFIG_QUICC_ENGINE
-	struct device_node *np;
+	struct device_yesde *np;
 #endif
 
 	if (of_machine_is_compatible("fsl,MPC85XXRDB-CAMP")) {
@@ -64,14 +64,14 @@ void __init mpc85xx_rdb_pic_init(void)
 	mpic_init(mpic);
 
 #ifdef CONFIG_QUICC_ENGINE
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,qe-ic");
 	if (np) {
 		qe_ic_init(np, 0, qe_ic_cascade_low_mpic,
 				qe_ic_cascade_high_mpic);
-		of_node_put(np);
+		of_yesde_put(np);
 
 	} else
-		pr_err("%s: Could not find qe-ic node\n", __func__);
+		pr_err("%s: Could yest find qe-ic yesde\n", __func__);
 #endif
 
 }
@@ -92,16 +92,16 @@ static void __init mpc85xx_rdb_setup_arch(void)
 	mpc85xx_qe_par_io_init();
 #if defined(CONFIG_UCC_GETH) || defined(CONFIG_SERIAL_QE)
 	if (machine_is(p1025_rdb)) {
-		struct device_node *np;
+		struct device_yesde *np;
 
 		struct ccsr_guts __iomem *guts;
 
-		np = of_find_node_by_name(NULL, "global-utilities");
+		np = of_find_yesde_by_name(NULL, "global-utilities");
 		if (np) {
 			guts = of_iomap(np, 0);
 			if (!guts) {
 
-				pr_err("mpc85xx-rdb: could not map global utilities register\n");
+				pr_err("mpc85xx-rdb: could yest map global utilities register\n");
 
 			} else {
 			/* P1025 has pins muxed for QE and other functions. To
@@ -116,7 +116,7 @@ static void __init mpc85xx_rdb_setup_arch(void)
 						MPC85xx_PMUXCR_QE(12));
 				iounmap(guts);
 			}
-			of_node_put(np);
+			of_yesde_put(np);
 		}
 
 	}

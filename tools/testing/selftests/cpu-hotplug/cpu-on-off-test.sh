@@ -19,12 +19,12 @@ prerequisite()
 	SYSFS=`mount -t sysfs | head -1 | awk '{ print $3 }'`
 
 	if [ ! -d "$SYSFS" ]; then
-		echo $msg sysfs is not mounted >&2
+		echo $msg sysfs is yest mounted >&2
 		exit $ksft_skip
 	fi
 
 	if ! ls $SYSFS/devices/system/cpu/cpu* > /dev/null 2>&1; then
-		echo $msg cpu hotplug is not supported >&2
+		echo $msg cpu hotplug is yest supported >&2
 		exit $ksft_skip
 	fi
 
@@ -167,7 +167,7 @@ while getopts e:ahp: opt; do
 		allcpus=1
 		;;
 	h)
-		echo "Usage $0 [ -a ] [ -e errno ] [ -p notifier-priority ]"
+		echo "Usage $0 [ -a ] [ -e erryes ] [ -p yestifier-priority ]"
 		echo -e "\t default offline one cpu"
 		echo -e "\t run with -a option to offline all cpus"
 		exit
@@ -179,7 +179,7 @@ while getopts e:ahp: opt; do
 done
 
 if ! [ "$error" -ge -4095 -a "$error" -lt 0 ]; then
-	echo "error code must be -4095 <= errno < 0" >&2
+	echo "error code must be -4095 <= erryes < 0" >&2
 	exit 1
 fi
 
@@ -231,26 +231,26 @@ for cpu in `hotplaggable_offline_cpus`; do
 done
 
 #
-# Test with cpu notifier error injection
+# Test with cpu yestifier error injection
 #
 
 DEBUGFS=`mount -t debugfs | head -1 | awk '{ print $3 }'`
-NOTIFIER_ERR_INJECT_DIR=$DEBUGFS/notifier-error-inject/cpu
+NOTIFIER_ERR_INJECT_DIR=$DEBUGFS/yestifier-error-inject/cpu
 
 prerequisite_extra()
 {
 	msg="skip extra tests:"
 
-	/sbin/modprobe -q -r cpu-notifier-error-inject
-	/sbin/modprobe -q cpu-notifier-error-inject priority=$priority
+	/sbin/modprobe -q -r cpu-yestifier-error-inject
+	/sbin/modprobe -q cpu-yestifier-error-inject priority=$priority
 
 	if [ ! -d "$DEBUGFS" ]; then
-		echo $msg debugfs is not mounted >&2
+		echo $msg debugfs is yest mounted >&2
 		exit $ksft_skip
 	fi
 
 	if [ ! -d $NOTIFIER_ERR_INJECT_DIR ]; then
-		echo $msg cpu-notifier-error-inject module is not available >&2
+		echo $msg cpu-yestifier-error-inject module is yest available >&2
 		exit $ksft_skip
 	fi
 }
@@ -290,4 +290,4 @@ for cpu in `hotpluggable_online_cpus`; do
 done
 
 echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/CPU_DOWN_PREPARE/error
-/sbin/modprobe -q -r cpu-notifier-error-inject
+/sbin/modprobe -q -r cpu-yestifier-error-inject

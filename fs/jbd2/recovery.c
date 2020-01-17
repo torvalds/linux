@@ -16,7 +16,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/jbd2.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/crc32.h>
 #include <linux/blkdev.h>
 #endif
@@ -53,13 +53,13 @@ static void journal_brelse_array(struct buffer_head *b[], int n)
 
 /*
  * When reading from the journal, we are going through the block device
- * layer directly and so there is no readahead being done for us.  We
+ * layer directly and so there is yes readahead being done for us.  We
  * need to implement any readahead ourselves if we want it to happen at
  * all.  Recovery is basically one long sequential read, so make sure we
  * do the IO in reasonably large chunks.
  *
- * This is not so critical that we need to be enormously clever about
- * the readahead size, though.  128K is a purely arbitrary, good-enough
+ * This is yest so critical that we need to be eyesrmously clever about
+ * the readahead size, though.  128K is a purely arbitrary, good-eyesugh
  * fixed value.
  */
 
@@ -298,7 +298,7 @@ int jbd2_journal_recover(journal_t *journal)
  * @journal: journal to startup
  *
  * Locate any valid recovery information from the journal and set up the
- * journal structures in memory to ignore it (presumably because the
+ * journal structures in memory to igyesre it (presumably because the
  * caller has evidence that it is out of date).
  * This function doesn't appear to be exported..
  *
@@ -324,7 +324,7 @@ int jbd2_journal_skip_recovery(journal_t *journal)
 		int dropped = info.end_transaction - 
 			be32_to_cpu(journal->j_superblock->s_sequence);
 		jbd_debug(1,
-			  "JBD2: ignoring %d transaction%s from the journal.\n",
+			  "JBD2: igyesring %d transaction%s from the journal.\n",
 			  dropped, (dropped == 1) ? "" : "s");
 #endif
 		journal->j_transaction_sequence = ++info.end_transaction;
@@ -461,8 +461,8 @@ static int do_one_pass(journal_t *journal,
 
 		cond_resched();
 
-		/* If we already know where to stop the log traversal,
-		 * check right now that we haven't gone past the end of
+		/* If we already kyesw where to stop the log traversal,
+		 * check right yesw that we haven't gone past the end of
 		 * the log. */
 
 		if (pass != PASS_SCAN)
@@ -551,7 +551,7 @@ static int do_one_pass(journal_t *journal,
 				continue;
 			}
 
-			/* A descriptor block: we can now write all of
+			/* A descriptor block: we can yesw write all of
 			 * the data blocks.  Yay, useful work is finally
 			 * getting done here! */
 
@@ -670,7 +670,7 @@ static int do_one_pass(journal_t *journal,
 			 *		|
 			 * 	 _______|______________
 			 * 	|	 	      |
-			 * Commit block found	Commit block not found
+			 * Commit block found	Commit block yest found
 			 *      |		      |
 			 * "Journal Corruption"       |
 			 *		 _____________|_________
@@ -679,13 +679,13 @@ static int do_one_pass(journal_t *journal,
 			 *	and (n+1)th interrupted     interrupted
 			 *	before commit block
 			 *      could reach the disk.
-			 *	(Cannot find the difference in above
+			 *	(Canyest find the difference in above
 			 *	 mentioned conditions. Hence assume
 			 *	 "Interrupted Commit".)
 			 */
 
 			/* Found an expected commit block: if checksums
-			 * are present verify them in PASS_SCAN; else not
+			 * are present verify them in PASS_SCAN; else yest
 			 * much to do other than move on to the next sequence
 			 * number. */
 			if (pass == PASS_SCAN &&
@@ -718,7 +718,7 @@ static int do_one_pass(journal_t *journal,
 				 * If fs is mounted using an old kernel and then
 				 * kernel with journal_chksum is used then we
 				 * get a situation where the journal flag has
-				 * checksum flag set but checksums are not
+				 * checksum flag set but checksums are yest
 				 * present i.e chksum = 0, in the individual
 				 * commit blocks.
 				 * Hence to avoid checksum failures, in this
@@ -780,8 +780,8 @@ static int do_one_pass(journal_t *journal,
  done:
 	/*
 	 * We broke out of the log scan loop: either we came to the
-	 * known end of the log or we found an unexpected block in the
-	 * log.  If the latter happened, then we know that the "current"
+	 * kyeswn end of the log or we found an unexpected block in the
+	 * log.  If the latter happened, then we kyesw that the "current"
 	 * transaction marks the end of the valid log.
 	 */
 

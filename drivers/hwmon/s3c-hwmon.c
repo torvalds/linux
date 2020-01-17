@@ -268,7 +268,7 @@ static int s3c_hwmon_probe(struct platform_device *dev)
 	int i;
 
 	if (!pdata) {
-		dev_err(&dev->dev, "no platform data supplied\n");
+		dev_err(&dev->dev, "yes platform data supplied\n");
 		return -EINVAL;
 	}
 
@@ -284,7 +284,7 @@ static int s3c_hwmon_probe(struct platform_device *dev)
 
 	hwmon->client = s3c_adc_register(dev, NULL, NULL, 0);
 	if (IS_ERR(hwmon->client)) {
-		dev_err(&dev->dev, "cannot register adc\n");
+		dev_err(&dev->dev, "canyest register adc\n");
 		return PTR_ERR(hwmon->client);
 	}
 

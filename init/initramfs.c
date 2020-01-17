@@ -47,27 +47,27 @@ static void __init error(char *x)
 #define N_ALIGN(len) ((((len) + 1) & ~3) + 2)
 
 static __initdata struct hash {
-	int ino, minor, major;
+	int iyes, miyesr, major;
 	umode_t mode;
 	struct hash *next;
 	char name[N_ALIGN(PATH_MAX)];
 } *head[32];
 
-static inline int hash(int major, int minor, int ino)
+static inline int hash(int major, int miyesr, int iyes)
 {
-	unsigned long tmp = ino + minor + (major << 3);
+	unsigned long tmp = iyes + miyesr + (major << 3);
 	tmp += tmp >> 5;
 	return tmp & 31;
 }
 
-static char __init *find_link(int major, int minor, int ino,
+static char __init *find_link(int major, int miyesr, int iyes,
 			      umode_t mode, char *name)
 {
 	struct hash **p, *q;
-	for (p = head + hash(major, minor, ino); *p; p = &(*p)->next) {
-		if ((*p)->ino != ino)
+	for (p = head + hash(major, miyesr, iyes); *p; p = &(*p)->next) {
+		if ((*p)->iyes != iyes)
 			continue;
-		if ((*p)->minor != minor)
+		if ((*p)->miyesr != miyesr)
 			continue;
 		if ((*p)->major != major)
 			continue;
@@ -79,8 +79,8 @@ static char __init *find_link(int major, int minor, int ino,
 	if (!q)
 		panic("can't allocate link hash entry");
 	q->major = major;
-	q->minor = minor;
-	q->ino = ino;
+	q->miyesr = miyesr;
+	q->iyes = iyes;
 	q->mode = mode;
 	strcpy(q->name, name);
 	q->next = NULL;
@@ -145,7 +145,7 @@ static __initdata time64_t mtime;
 
 /* cpio header parsing */
 
-static __initdata unsigned long ino, major, minor, nlink;
+static __initdata unsigned long iyes, major, miyesr, nlink;
 static __initdata umode_t mode;
 static __initdata unsigned long body_len, name_len;
 static __initdata uid_t uid;
@@ -163,7 +163,7 @@ static void __init parse_header(char *s)
 		memcpy(buf, s, 8);
 		parsed[i] = simple_strtoul(buf, NULL, 16);
 	}
-	ino = parsed[0];
+	iyes = parsed[0];
 	mode = parsed[1];
 	uid = parsed[2];
 	gid = parsed[3];
@@ -171,7 +171,7 @@ static void __init parse_header(char *s)
 	mtime = parsed[5]; /* breaks in y2106 */
 	body_len = parsed[6];
 	major = parsed[7];
-	minor = parsed[8];
+	miyesr = parsed[8];
 	rdev = new_encode_dev(MKDEV(parsed[9], parsed[10]));
 	name_len = parsed[11];
 }
@@ -248,7 +248,7 @@ static int __init do_header(void)
 		return 1;
 	}
 	if (memcmp(collected, "070701", 6)) {
-		error("no cpio magic");
+		error("yes cpio magic");
 		return 1;
 	}
 	parse_header(collected);
@@ -307,7 +307,7 @@ static void __init clean_path(char *path, umode_t fmode)
 static int __init maybe_link(void)
 {
 	if (nlink >= 2) {
-		char *old = find_link(major, minor, ino, mode, collected);
+		char *old = find_link(major, miyesr, iyes, mode, collected);
 		if (old) {
 			clean_path(collected, 0);
 			return (ksys_link(old, collected) < 0) ? -1 : 1;
@@ -352,7 +352,7 @@ static int __init do_name(void)
 	} else if (S_ISBLK(mode) || S_ISCHR(mode) ||
 		   S_ISFIFO(mode) || S_ISSOCK(mode)) {
 		if (maybe_link() == 0) {
-			ksys_mknod(collected, mode, rdev);
+			ksys_mkyesd(collected, mode, rdev);
 			ksys_chown(collected, uid, gid);
 			ksys_chmod(collected, mode);
 			do_utime(collected, mtime);
@@ -484,7 +484,7 @@ static char * __init unpack_to_rootfs(char *buf, unsigned long len)
 		} else if (compress_name) {
 			if (!message) {
 				snprintf(msg_buf, sizeof msg_buf,
-					 "compression method %s not configured",
+					 "compression method %s yest configured",
 					 compress_name);
 				message = msg_buf;
 			}
@@ -549,13 +549,13 @@ static bool kexec_free_initrd(void)
 
 	/*
 	 * If the initrd region is overlapped with crashkernel reserved region,
-	 * free only memory that is not part of crashkernel region.
+	 * free only memory that is yest part of crashkernel region.
 	 */
 	if (initrd_start >= crashk_end || initrd_end <= crashk_start)
 		return false;
 
 	/*
-	 * Initialize initrd memory region since the kexec boot does not do.
+	 * Initialize initrd memory region since the kexec boot does yest do.
 	 */
 	memset((void *)initrd_start, 0, initrd_end - initrd_start);
 	if (initrd_start < crashk_start)
@@ -632,7 +632,7 @@ static void __init populate_initrd_image(char *err)
 
 	unpack_to_rootfs(__initramfs_start, __initramfs_size);
 
-	printk(KERN_INFO "rootfs image is not initramfs (%s); looks like an initrd\n",
+	printk(KERN_INFO "rootfs image is yest initramfs (%s); looks like an initrd\n",
 			err);
 	fd = ksys_open("/initrd.image", O_WRONLY | O_CREAT, 0700);
 	if (fd < 0)
@@ -675,7 +675,7 @@ static int __init populate_rootfs(void)
 done:
 	/*
 	 * If the initrd region is overlapped with crashkernel reserved region,
-	 * free only memory that is not part of crashkernel region.
+	 * free only memory that is yest part of crashkernel region.
 	 */
 	if (!do_retain_initrd && initrd_start && !kexec_free_initrd())
 		free_initrd_mem(initrd_start, initrd_end);

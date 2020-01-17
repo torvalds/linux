@@ -154,7 +154,7 @@ void ipmi_si_hardcode_exit(void)
 
 /*
  * Returns true of the given address exists as a hardcoded address,
- * false if not.
+ * false if yest.
  */
 int ipmi_si_hardcode_match(int addr_space, unsigned long addr)
 {

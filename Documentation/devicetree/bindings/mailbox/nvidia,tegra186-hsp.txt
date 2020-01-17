@@ -4,7 +4,7 @@ The HSP modules are used for the processors to share resources and communicate
 together. It provides a set of hardware synchronization primitives for
 interprocessor communication. So the interprocessor communication (IPC)
 protocols can use hardware synchronization primitives, when operating between
-two processors not in an SMP relationship.
+two processors yest in an SMP relationship.
 
 The features that HSP supported are shared mailboxes, shared semaphores,
 arbitrated semaphores and doorbells.
@@ -32,7 +32,7 @@ Required properties:
     in a matching order.
 - #mbox-cells : Should be 2.
 
-The mbox specifier of the "mboxes" property in the client node should contain
+The mbox specifier of the "mboxes" property in the client yesde should contain
 two cells. The first cell determines the HSP type and the second cell is used
 to identify the mailbox that the client is going to use.
 

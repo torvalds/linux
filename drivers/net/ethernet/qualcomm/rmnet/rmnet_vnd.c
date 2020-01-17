@@ -144,7 +144,7 @@ static const struct net_device_ops rmnet_vnd_ops = {
 
 static const char rmnet_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"Checksum ok",
-	"Checksum valid bit not set",
+	"Checksum valid bit yest set",
 	"Checksum validation failed",
 	"Checksum error bad buffer",
 	"Checksum error bad ip version",

@@ -149,17 +149,17 @@ static __be32 decode_compound_hdr_arg(struct xdr_stream *xdr, struct cb_compound
 	p = xdr_inline_decode(xdr, 12);
 	if (unlikely(p == NULL))
 		return htonl(NFS4ERR_RESOURCE);
-	hdr->minorversion = ntohl(*p++);
-	/* Check for minor version support */
-	if (hdr->minorversion <= NFS4_MAX_MINOR_VERSION) {
-		hdr->cb_ident = ntohl(*p++); /* ignored by v4.1 and v4.2 */
+	hdr->miyesrversion = ntohl(*p++);
+	/* Check for miyesr version support */
+	if (hdr->miyesrversion <= NFS4_MAX_MINOR_VERSION) {
+		hdr->cb_ident = ntohl(*p++); /* igyesred by v4.1 and v4.2 */
 	} else {
 		pr_warn_ratelimited("NFS: %s: NFSv4 server callback with "
-			"illegal minor version %u!\n",
-			__func__, hdr->minorversion);
+			"illegal miyesr version %u!\n",
+			__func__, hdr->miyesrversion);
 		return htonl(NFS4ERR_MINOR_VERS_MISMATCH);
 	}
-	hdr->nops = ntohl(*p);
+	hdr->yesps = ntohl(*p);
 	return 0;
 }
 
@@ -223,7 +223,7 @@ static __be32 decode_layoutrecall_args(struct svc_rqst *rqstp,
 
 	args->cbl_layout_type = ntohl(*p++);
 	/* Depite the spec's xdr, iomode really belongs in the FILE switch,
-	 * as it is unusable and ignored with the other types.
+	 * as it is unusable and igyesred with the other types.
 	 */
 	iomode = ntohl(*p++);
 	args->cbl_layoutchanged = ntohl(*p++);
@@ -246,25 +246,25 @@ static __be32 decode_layoutrecall_args(struct svc_rqst *rqstp,
 		if (unlikely(p == NULL))
 			return htonl(NFS4ERR_BADXDR);
 		p = xdr_decode_hyper(p, &args->cbl_fsid.major);
-		p = xdr_decode_hyper(p, &args->cbl_fsid.minor);
+		p = xdr_decode_hyper(p, &args->cbl_fsid.miyesr);
 	} else if (args->cbl_recall_type != RETURN_ALL)
 		return htonl(NFS4ERR_BADXDR);
 	return 0;
 }
 
 static
-__be32 decode_devicenotify_args(struct svc_rqst *rqstp,
+__be32 decode_deviceyestify_args(struct svc_rqst *rqstp,
 				struct xdr_stream *xdr,
 				void *argp)
 {
-	struct cb_devicenotifyargs *args = argp;
+	struct cb_deviceyestifyargs *args = argp;
 	__be32 *p;
 	__be32 status = 0;
 	u32 tmp;
 	int n, i;
 	args->ndevs = 0;
 
-	/* Num of device notifications */
+	/* Num of device yestifications */
 	p = xdr_inline_decode(xdr, sizeof(uint32_t));
 	if (unlikely(p == NULL)) {
 		status = htonl(NFS4ERR_BADXDR);
@@ -284,9 +284,9 @@ __be32 decode_devicenotify_args(struct svc_rqst *rqstp,
 		goto out;
 	}
 
-	/* Decode each dev notification */
+	/* Decode each dev yestification */
 	for (i = 0; i < n; i++) {
-		struct cb_devicenotifyitem *dev = &args->devs[i];
+		struct cb_deviceyestifyitem *dev = &args->devs[i];
 
 		p = xdr_inline_decode(xdr, (4 * sizeof(uint32_t)) +
 				      NFS4_DEVICEID4_SIZE);
@@ -300,17 +300,17 @@ __be32 decode_devicenotify_args(struct svc_rqst *rqstp,
 			status = htonl(NFS4ERR_INVAL);
 			goto err;
 		}
-		dev->cbd_notify_type = ntohl(*p++);
-		if (dev->cbd_notify_type != NOTIFY_DEVICEID4_CHANGE &&
-		    dev->cbd_notify_type != NOTIFY_DEVICEID4_DELETE) {
+		dev->cbd_yestify_type = ntohl(*p++);
+		if (dev->cbd_yestify_type != NOTIFY_DEVICEID4_CHANGE &&
+		    dev->cbd_yestify_type != NOTIFY_DEVICEID4_DELETE) {
 			status = htonl(NFS4ERR_INVAL);
 			goto err;
 		}
 
 		tmp = ntohl(*p++);	/* opaque size */
-		if (((dev->cbd_notify_type == NOTIFY_DEVICEID4_CHANGE) &&
+		if (((dev->cbd_yestify_type == NOTIFY_DEVICEID4_CHANGE) &&
 		     (tmp != NFS4_DEVICEID4_SIZE + 8)) ||
-		    ((dev->cbd_notify_type == NOTIFY_DEVICEID4_DELETE) &&
+		    ((dev->cbd_yestify_type == NOTIFY_DEVICEID4_DELETE) &&
 		     (tmp != NFS4_DEVICEID4_SIZE + 4))) {
 			status = htonl(NFS4ERR_INVAL);
 			goto err;
@@ -333,7 +333,7 @@ __be32 decode_devicenotify_args(struct svc_rqst *rqstp,
 		args->ndevs++;
 
 		dprintk("%s: type %d layout 0x%x immediate %d\n",
-			__func__, dev->cbd_notify_type, dev->cbd_layout_type,
+			__func__, dev->cbd_yestify_type, dev->cbd_layout_type,
 			dev->cbd_immediate);
 	}
 out:
@@ -478,7 +478,7 @@ static __be32 decode_recallslot_args(struct svc_rqst *rqstp,
 	return 0;
 }
 
-static __be32 decode_lockowner(struct xdr_stream *xdr, struct cb_notify_lock_args *args)
+static __be32 decode_lockowner(struct xdr_stream *xdr, struct cb_yestify_lock_args *args)
 {
 	__be32		*p;
 	unsigned int	len;
@@ -508,10 +508,10 @@ static __be32 decode_lockowner(struct xdr_stream *xdr, struct cb_notify_lock_arg
 	return 0;
 }
 
-static __be32 decode_notify_lock_args(struct svc_rqst *rqstp,
+static __be32 decode_yestify_lock_args(struct svc_rqst *rqstp,
 		struct xdr_stream *xdr, void *argp)
 {
-	struct cb_notify_lock_args *args = argp;
+	struct cb_yestify_lock_args *args = argp;
 	__be32 status;
 
 	status = decode_fh(xdr, &args->cbnl_fh);
@@ -663,8 +663,8 @@ static __be32 encode_compound_hdr_res(struct xdr_stream *xdr, struct cb_compound
 	status = encode_string(xdr, hdr->taglen, hdr->tag);
 	if (unlikely(status != 0))
 		return status;
-	hdr->nops = xdr_reserve_space(xdr, 4);
-	if (unlikely(hdr->nops == NULL))
+	hdr->yesps = xdr_reserve_space(xdr, 4);
+	if (unlikely(hdr->yesps == NULL))
 		return htonl(NFS4ERR_RESOURCE);
 	return 0;
 }
@@ -754,13 +754,13 @@ static __be32 encode_cb_sequence_res(struct svc_rqst *rqstp,
 }
 
 static __be32
-preprocess_nfs41_op(int nop, unsigned int op_nr, struct callback_op **op)
+preprocess_nfs41_op(int yesp, unsigned int op_nr, struct callback_op **op)
 {
 	if (op_nr == OP_CB_SEQUENCE) {
-		if (nop != 0)
+		if (yesp != 0)
 			return htonl(NFS4ERR_SEQUENCE_POS);
 	} else {
-		if (nop == 0)
+		if (yesp == 0)
 			return htonl(NFS4ERR_OP_NOT_IN_SESSION);
 	}
 
@@ -796,7 +796,7 @@ static void nfs4_callback_free_slot(struct nfs4_session *session,
 
 	spin_lock(&tbl->slot_tbl_lock);
 	/*
-	 * Let the state manager know callback processing done.
+	 * Let the state manager kyesw callback processing done.
 	 * A single slot, so highest used slotid is either 0 or -1
 	 */
 	nfs4_free_slot(tbl, slot);
@@ -814,7 +814,7 @@ static void nfs4_cb_free_slot(struct cb_process_state *cps)
 #else /* CONFIG_NFS_V4_1 */
 
 static __be32
-preprocess_nfs41_op(int nop, unsigned int op_nr, struct callback_op **op)
+preprocess_nfs41_op(int yesp, unsigned int op_nr, struct callback_op **op)
 {
 	return htonl(NFS4ERR_MINOR_VERS_MISMATCH);
 }
@@ -826,9 +826,9 @@ static void nfs4_cb_free_slot(struct cb_process_state *cps)
 
 #ifdef CONFIG_NFS_V4_2
 static __be32
-preprocess_nfs42_op(int nop, unsigned int op_nr, struct callback_op **op)
+preprocess_nfs42_op(int yesp, unsigned int op_nr, struct callback_op **op)
 {
-	__be32 status = preprocess_nfs41_op(nop, op_nr, op);
+	__be32 status = preprocess_nfs41_op(yesp, op_nr, op);
 	if (status != htonl(NFS4ERR_OP_ILLEGAL))
 		return status;
 
@@ -841,7 +841,7 @@ preprocess_nfs42_op(int nop, unsigned int op_nr, struct callback_op **op)
 }
 #else /* CONFIG_NFS_V4_2 */
 static __be32
-preprocess_nfs42_op(int nop, unsigned int op_nr, struct callback_op **op)
+preprocess_nfs42_op(int yesp, unsigned int op_nr, struct callback_op **op)
 {
 	return htonl(NFS4ERR_MINOR_VERS_MISMATCH);
 }
@@ -862,7 +862,7 @@ preprocess_nfs4_op(unsigned int op_nr, struct callback_op **op)
 	return htonl(NFS_OK);
 }
 
-static __be32 process_op(int nop, struct svc_rqst *rqstp,
+static __be32 process_op(int yesp, struct svc_rqst *rqstp,
 		struct xdr_stream *xdr_in, void *argp,
 		struct xdr_stream *xdr_out, void *resp,
 		struct cb_process_state *cps)
@@ -877,15 +877,15 @@ static __be32 process_op(int nop, struct svc_rqst *rqstp,
 	if (unlikely(status))
 		return status;
 
-	switch (cps->minorversion) {
+	switch (cps->miyesrversion) {
 	case 0:
 		status = preprocess_nfs4_op(op_nr, &op);
 		break;
 	case 1:
-		status = preprocess_nfs41_op(nop, op_nr, &op);
+		status = preprocess_nfs41_op(yesp, op_nr, &op);
 		break;
 	case 2:
-		status = preprocess_nfs42_op(nop, op_nr, &op);
+		status = preprocess_nfs42_op(yesp, op_nr, &op);
 		break;
 	default:
 		status = htonl(NFS4ERR_MINOR_VERS_MISMATCH);
@@ -932,7 +932,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 		.clp = NULL,
 		.net = SVC_NET(rqstp),
 	};
-	unsigned int nops = 0;
+	unsigned int yesps = 0;
 
 	xdr_init_decode(&xdr_in, &rqstp->rq_arg,
 			rqstp->rq_arg.head[0].iov_base, NULL);
@@ -944,7 +944,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 	if (status == htonl(NFS4ERR_RESOURCE))
 		return rpc_garbage_args;
 
-	if (hdr_arg.minorversion == 0) {
+	if (hdr_arg.miyesrversion == 0) {
 		cps.clp = nfs4_find_client_ident(SVC_NET(rqstp), hdr_arg.cb_ident);
 		if (!cps.clp || !check_gss_callback_principal(cps.clp, rqstp)) {
 			if (cps.clp)
@@ -953,7 +953,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 		}
 	}
 
-	cps.minorversion = hdr_arg.minorversion;
+	cps.miyesrversion = hdr_arg.miyesrversion;
 	hdr_res.taglen = hdr_arg.taglen;
 	hdr_res.tag = hdr_arg.tag;
 	if (encode_compound_hdr_res(&xdr_out, &hdr_res) != 0) {
@@ -961,22 +961,22 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 			nfs_put_client(cps.clp);
 		return rpc_system_err;
 	}
-	while (status == 0 && nops != hdr_arg.nops) {
-		status = process_op(nops, rqstp, &xdr_in,
+	while (status == 0 && yesps != hdr_arg.yesps) {
+		status = process_op(yesps, rqstp, &xdr_in,
 				    rqstp->rq_argp, &xdr_out, rqstp->rq_resp,
 				    &cps);
-		nops++;
+		yesps++;
 	}
 
 	/* Buffer overflow in decode_ops_hdr or encode_ops_hdr. Return
 	* resource error in cb_compound status without returning op */
 	if (unlikely(status == htonl(NFS4ERR_RESOURCE_HDR))) {
 		status = htonl(NFS4ERR_RESOURCE);
-		nops--;
+		yesps--;
 	}
 
 	*hdr_res.status = status;
-	*hdr_res.nops = htonl(nops);
+	*hdr_res.yesps = htonl(yesps);
 	nfs4_cb_free_slot(&cps);
 	nfs_put_client(cps.clp);
 	return rpc_success;
@@ -1011,8 +1011,8 @@ static struct callback_op callback_ops[] = {
 		.res_maxsize = CB_OP_LAYOUTRECALL_RES_MAXSZ,
 	},
 	[OP_CB_NOTIFY_DEVICEID] = {
-		.process_op = nfs4_callback_devicenotify,
-		.decode_args = decode_devicenotify_args,
+		.process_op = nfs4_callback_deviceyestify,
+		.decode_args = decode_deviceyestify_args,
 		.res_maxsize = CB_OP_DEVICENOTIFY_RES_MAXSZ,
 	},
 	[OP_CB_SEQUENCE] = {
@@ -1032,8 +1032,8 @@ static struct callback_op callback_ops[] = {
 		.res_maxsize = CB_OP_RECALLSLOT_RES_MAXSZ,
 	},
 	[OP_CB_NOTIFY_LOCK] = {
-		.process_op = nfs4_callback_notify_lock,
-		.decode_args = decode_notify_lock_args,
+		.process_op = nfs4_callback_yestify_lock,
+		.decode_args = decode_yestify_lock_args,
 		.res_maxsize = CB_OP_NOTIFY_LOCK_RES_MAXSZ,
 	},
 #endif /* CONFIG_NFS_V4_1 */

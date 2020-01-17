@@ -13,7 +13,7 @@
 
 #include <linux/irq.h>
 
-struct device_node;
+struct device_yesde;
 struct qe_ic;
 
 #define NUM_OF_QE_IC_GROUPS	6
@@ -54,13 +54,13 @@ enum qe_ic_grp_id {
 };
 
 #ifdef CONFIG_QUICC_ENGINE
-void qe_ic_init(struct device_node *node, unsigned int flags,
+void qe_ic_init(struct device_yesde *yesde, unsigned int flags,
 		void (*low_handler)(struct irq_desc *desc),
 		void (*high_handler)(struct irq_desc *desc));
 unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic);
 unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic);
 #else
-static inline void qe_ic_init(struct device_node *node, unsigned int flags,
+static inline void qe_ic_init(struct device_yesde *yesde, unsigned int flags,
 		void (*low_handler)(struct irq_desc *desc),
 		void (*high_handler)(struct irq_desc *desc))
 {}

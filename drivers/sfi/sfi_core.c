@@ -19,7 +19,7 @@
   General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
+  along with this program; if yest, write to the Free Software
   Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
   The full GNU General Public License is included in this distribution
   in the file called LICENSE.GPL.
@@ -33,12 +33,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -62,7 +62,7 @@
 #include <linux/memblock.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/acpi.h>
 #include <linux/init.h>
@@ -176,7 +176,7 @@ static struct sfi_table_header *sfi_map_table(u64 pa)
 	if (TABLE_ON_PAGE(th, th, th->len))
 		return th;
 
-	/* Entire table does not fit on same page as SYST */
+	/* Entire table does yest fit on same page as SYST */
 	length = th->len;
 	if (!TABLE_ON_PAGE(syst_pa, pa, sizeof(struct sfi_table_header)))
 		sfi_unmap_memory(th, sizeof(struct sfi_table_header));
@@ -188,7 +188,7 @@ static struct sfi_table_header *sfi_map_table(u64 pa)
  * sfi_unmap_table()
  *
  * Undoes effect of sfi_map_table() by unmapping table
- * if it did not completely fit on same page as SYST.
+ * if it did yest completely fit on same page as SYST.
  */
 static void sfi_unmap_table(struct sfi_table_header *th)
 {
@@ -214,14 +214,14 @@ static int sfi_table_check_key(struct sfi_table_header *th,
 /*
  * This function will be used in 2 cases:
  * 1. used to enumerate and verify the tables addressed by SYST/XSDT,
- *    thus no signature will be given (in kernel boot phase)
+ *    thus yes signature will be given (in kernel boot phase)
  * 2. used to parse one specific table, signature must exist, and
  *    the mapped virt address will be returned, and the virt space
  *    will be released by call sfi_put_table() later
  *
  * This two cases are from two different functions with two different
  * sections and causes section mismatch warning. So use __ref to tell
- * modpost not to make any noise.
+ * modpost yest to make any yesise.
  *
  * Return value:
  *	NULL:			when can't find a table matching the key
@@ -508,7 +508,7 @@ void __init sfi_init_late(void)
 	length = syst_va->header.len;
 	sfi_unmap_memory(syst_va, sizeof(struct sfi_table_simple));
 
-	/* Use memremap now after it is ready */
+	/* Use memremap yesw after it is ready */
 	sfi_use_memremap = 1;
 	syst_va = sfi_map_memory(syst_pa, length);
 

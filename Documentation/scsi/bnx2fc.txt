@@ -14,7 +14,7 @@ automatically at boot time.
 
 Furthermore, the Broadcom FCoE offload solution creates VLAN interfaces to
 support the VLANs that have been discovered for FCoE operation (e.g.
-eth0.1001-fcoe).  Do not delete or disable these interfaces or FCoE operation
+eth0.1001-fcoe).  Do yest delete or disable these interfaces or FCoE operation
 will be disrupted.
 
 Driver Usage Model:
@@ -27,8 +27,8 @@ Here are the steps to configure:
 	a. cd /etc/fcoe
 	b. copy cfg-ethx to cfg-eth5 if FCoE has to be enabled on eth5.
 	c. Repeat this for all the interfaces where FCoE has to be enabled.
-	d. Edit all the cfg-eth files to set "no" for DCB_REQUIRED** field, and
-	   "yes" for AUTO_VLAN.
+	d. Edit all the cfg-eth files to set "yes" for DCB_REQUIRED** field, and
+	   "no" for AUTO_VLAN.
 	e. Other configuration parameters should be left as default
 
 3. Ensure that "bnx2fc" is in SUPPORTED_DRIVERS list in /etc/fcoe/config.
@@ -59,7 +59,7 @@ Eg:
         FC-ID (Port ID):   0x0F0377
         State:             Online
 
-6. Verify the vlan discovery is performed by running ifconfig and notice
+6. Verify the vlan discovery is performed by running ifconfig and yestice
 <INTERFACE>.<VLAN>-fcoe interfaces are automatically created.
 
 Refer to fcoeadm manpage for more information on fcoeadm operations to

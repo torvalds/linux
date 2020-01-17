@@ -96,7 +96,7 @@ int tegra_vde_iommu_init(struct tegra_vde *vde)
 		goto put_iova;
 
 	/*
-	 * We're using some static addresses that are not accessible by VDE
+	 * We're using some static addresses that are yest accessible by VDE
 	 * to trap invalid memory accesses.
 	 */
 	shift = iova_shift(&vde->iova);

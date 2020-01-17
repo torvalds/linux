@@ -27,7 +27,7 @@ extern int xen_have_vector_callback;
 
 /*
  * Events delivered via platform PCI interrupts are always
- * routed to vcpu 0 and hence cannot be rebound.
+ * routed to vcpu 0 and hence canyest be rebound.
  */
 static inline bool xen_support_evtchn_rebind(void)
 {

@@ -31,13 +31,13 @@ enum perf_tool_event {
  * @core - libperf evsel object
  * @name - Can be set to retain the original event name passed by the user,
  *         so that when showing results in tools such as 'perf stat', we
- *         show the name used, not some alias.
+ *         show the name used, yest some alias.
  * @id_pos: the position of the event id (PERF_SAMPLE_ID or
  *          PERF_SAMPLE_IDENTIFIER) in a sample event i.e. in the array of
  *          struct perf_record_sample
  * @is_pos: the position (counting backwards) of the event id (PERF_SAMPLE_ID or
- *          PERF_SAMPLE_IDENTIFIER) in a non-sample event i.e. if sample_id_all
- *          is used there is an id sample appended to non-sample events
+ *          PERF_SAMPLE_IDENTIFIER) in a yesn-sample event i.e. if sample_id_all
+ *          is used there is an id sample appended to yesn-sample events
  * @priv:   And what is in its containing unnamed union are tool specific
  */
 struct evsel {
@@ -68,12 +68,12 @@ struct evsel {
 	bool 			supported;
 	bool 			needs_swap;
 	bool 			disabled;
-	bool			no_aux_samples;
+	bool			yes_aux_samples;
 	bool			immediate;
 	bool			tracking;
 	bool			per_pkg;
 	bool			precise_max;
-	bool			ignore_missing_thread;
+	bool			igyesre_missing_thread;
 	bool			forced_leader;
 	bool			use_uncore_alias;
 	/* parse modifier helper */
@@ -313,12 +313,12 @@ int perf_evsel__parse_sample_timestamp(struct evsel *evsel,
 
 static inline struct evsel *perf_evsel__next(struct evsel *evsel)
 {
-	return list_entry(evsel->core.node.next, struct evsel, core.node);
+	return list_entry(evsel->core.yesde.next, struct evsel, core.yesde);
 }
 
 static inline struct evsel *perf_evsel__prev(struct evsel *evsel)
 {
-	return list_entry(evsel->core.node.prev, struct evsel, core.node);
+	return list_entry(evsel->core.yesde.prev, struct evsel, core.yesde);
 }
 
 /**
@@ -374,15 +374,15 @@ static inline int perf_evsel__group_idx(struct evsel *evsel)
 
 /* Iterates group WITHOUT the leader. */
 #define for_each_group_member(_evsel, _leader) 					\
-for ((_evsel) = list_entry((_leader)->core.node.next, struct evsel, core.node); \
+for ((_evsel) = list_entry((_leader)->core.yesde.next, struct evsel, core.yesde); \
      (_evsel) && (_evsel)->leader == (_leader);					\
-     (_evsel) = list_entry((_evsel)->core.node.next, struct evsel, core.node))
+     (_evsel) = list_entry((_evsel)->core.yesde.next, struct evsel, core.yesde))
 
 /* Iterates group WITH the leader. */
 #define for_each_group_evsel(_evsel, _leader) 					\
 for ((_evsel) = _leader; 							\
      (_evsel) && (_evsel)->leader == (_leader);					\
-     (_evsel) = list_entry((_evsel)->core.node.next, struct evsel, core.node))
+     (_evsel) = list_entry((_evsel)->core.yesde.next, struct evsel, core.yesde))
 
 static inline bool perf_evsel__has_branch_callstack(const struct evsel *evsel)
 {

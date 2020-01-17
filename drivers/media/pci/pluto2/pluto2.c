@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2005 Andreas Oberritter <obi@linuxtv.org>
  *
- * based on pluto2.c 1.10 - http://instinct-wp8.no-ip.org/pluto/
+ * based on pluto2.c 1.10 - http://instinct-wp8.yes-ip.org/pluto/
  *	by Dany Salman <salmandany@yahoo.fr>
  *	Copyright (c) 2004 TDF
  */
@@ -281,12 +281,12 @@ static void pluto_dma_end(struct pluto *pluto, unsigned int nbpackets)
 
 	/* Workaround for broken hardware:
 	 * [1] On startup NBPACKETS seems to contain an uninitialized value,
-	 *     but no packets have been transferred.
+	 *     but yes packets have been transferred.
 	 * [2] Sometimes (actually very often) NBPACKETS stays at zero
 	 *     although one packet has been transferred.
 	 * [3] Sometimes (actually rarely), the card gets into an erroneous
 	 *     mode where it continuously generates interrupts, claiming it
-	 *     has received nbpackets>TS_DMA_PACKETS packets, but no packet
+	 *     has received nbpackets>TS_DMA_PACKETS packets, but yes packet
 	 *     has been transferred. Only a reset seems to solve this
 	 */
 	if ((nbpackets == 0) || (nbpackets > TS_DMA_PACKETS)) {
@@ -422,15 +422,15 @@ static void pluto_hw_exit(struct pluto *pluto)
 	pluto_reset_frontend(pluto, 0);
 }
 
-static inline u32 divide(u32 numerator, u32 denominator)
+static inline u32 divide(u32 numerator, u32 deyesminator)
 {
-	if (denominator == 0)
+	if (deyesminator == 0)
 		return ~0;
 
-	return DIV_ROUND_CLOSEST(numerator, denominator);
+	return DIV_ROUND_CLOSEST(numerator, deyesminator);
 }
 
-/* LG Innotek TDTE-E001P (Infineon TUA6034) */
+/* LG Inyestek TDTE-E001P (Infineon TUA6034) */
 static int lg_tdtpe001p_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
@@ -507,7 +507,7 @@ static int frontend_init(struct pluto *pluto)
 
 	pluto->fe = tda10046_attach(&pluto2_fe_config, &pluto->i2c_adap);
 	if (!pluto->fe) {
-		dev_err(&pluto->pdev->dev, "could not attach frontend\n");
+		dev_err(&pluto->pdev->dev, "could yest attach frontend\n");
 		return -ENODEV;
 	}
 	pluto->fe->ops.tuner_ops.set_params = lg_tdtpe001p_tuner_set_params;

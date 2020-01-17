@@ -95,7 +95,7 @@ int ceph_pagelist_append(struct ceph_pagelist *pl, const void *buf, size_t len)
 }
 EXPORT_SYMBOL(ceph_pagelist_append);
 
-/* Allocate enough pages for a pagelist to append the given amount
+/* Allocate eyesugh pages for a pagelist to append the given amount
  * of data without without allocating.
  * Returns: 0 on success, -ENOMEM on error.
  */

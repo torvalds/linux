@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -165,7 +165,7 @@
 #	define NV_PCRTC_CURSOR_CONFIG_CUR_LINES_64		(4 << 24)
 #	define NV_PCRTC_CURSOR_CONFIG_CUR_BLEND_ALPHA		(1 << 28)
 
-/* note: PCRTC_GPIO is not available on nv10, and in fact aliases 0x600810 */
+/* yeste: PCRTC_GPIO is yest available on nv10, and in fact aliases 0x600810 */
 #define NV_PCRTC_GPIO					0x00600818
 #define NV_PCRTC_GPIO_EXT				0x0060081c
 #define NV_PCRTC_830					0x00600830
@@ -205,8 +205,8 @@
 #		define NV_CIO_CR_OVL_VDT_9		5:5
 #		define NV_CIO_CR_OVL_VDE_9		6:6
 #		define NV_CIO_CR_OVL_VRS_9		7:7
-#	define NV_CIO_CR_RSAL_INDEX		0x08	/* normally "preset row scan" */
-#	define NV_CIO_CR_CELL_HT_INDEX		0x09	/* cell height?! normally "max scan line" */
+#	define NV_CIO_CR_RSAL_INDEX		0x08	/* yesrmally "preset row scan" */
+#	define NV_CIO_CR_CELL_HT_INDEX		0x09	/* cell height?! yesrmally "max scan line" */
 #		define NV_CIO_CR_CELL_HT_VBS_9		5:5
 #		define NV_CIO_CR_CELL_HT_SCANDBL	7:7
 #	define NV_CIO_CR_CURS_ST_INDEX		0x0a	/* cursor start */

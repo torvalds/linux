@@ -92,7 +92,7 @@ acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
  * FUNCTION:    acpi_ev_mask_gpe
  *
  * PARAMETERS:  gpe_event_info          - GPE to be blocked/unblocked
- *              is_masked               - Whether the GPE is masked or not
+ *              is_masked               - Whether the GPE is masked or yest
  *
  * RETURN:      Status
  *
@@ -240,8 +240,8 @@ acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_info)
  * PARAMETERS:  gpe_number          - Raw GPE number
  *              gpe_block           - A GPE info block
  *
- * RETURN:      A GPE event_info struct. NULL if not a valid GPE (The gpe_number
- *              is not within the specified GPE block)
+ * RETURN:      A GPE event_info struct. NULL if yest a valid GPE (The gpe_number
+ *              is yest within the specified GPE block)
  *
  * DESCRIPTION: Returns the event_info struct associated with this GPE. This is
  *              the low-level implementation of ev_get_gpe_event_info.
@@ -275,16 +275,16 @@ struct acpi_gpe_event_info *acpi_ev_low_get_gpe_info(u32 gpe_number,
  *
  * FUNCTION:    acpi_ev_get_gpe_event_info
  *
- * PARAMETERS:  gpe_device          - Device node. NULL for GPE0/GPE1
+ * PARAMETERS:  gpe_device          - Device yesde. NULL for GPE0/GPE1
  *              gpe_number          - Raw GPE number
  *
- * RETURN:      A GPE event_info struct. NULL if not a valid GPE
+ * RETURN:      A GPE event_info struct. NULL if yest a valid GPE
  *
  * DESCRIPTION: Returns the event_info struct associated with this GPE.
  *              Validates the gpe_block and the gpe_number
  *
  *              Should be called only when the GPE lists are semaphore locked
- *              and not subject to change.
+ *              and yest subject to change.
  *
  ******************************************************************************/
 
@@ -312,7 +312,7 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 			}
 		}
 
-		/* The gpe_number was not in the range of either FADT GPE block */
+		/* The gpe_number was yest in the range of either FADT GPE block */
 
 		return (NULL);
 	}
@@ -320,7 +320,7 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 	/* A Non-NULL gpe_device means this is a GPE Block Device */
 
 	obj_desc =
-	    acpi_ns_get_attached_object((struct acpi_namespace_node *)
+	    acpi_ns_get_attached_object((struct acpi_namespace_yesde *)
 					       gpe_device);
 	if (!obj_desc || !obj_desc->device.gpe_block) {
 		return (NULL);
@@ -347,7 +347,7 @@ struct acpi_gpe_event_info *acpi_ev_get_gpe_event_info(acpi_handle gpe_device,
 u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 {
 	struct acpi_gpe_block_info *gpe_block;
-	struct acpi_namespace_node *gpe_device;
+	struct acpi_namespace_yesde *gpe_device;
 	struct acpi_gpe_register_info *gpe_register_info;
 	struct acpi_gpe_event_info *gpe_event_info;
 	u32 gpe_number;
@@ -358,7 +358,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 
 	ACPI_FUNCTION_NAME(ev_gpe_detect);
 
-	/* Check for the case where there are no GPEs */
+	/* Check for the case where there are yes GPEs */
 
 	if (!gpe_xrupt_list) {
 		return (int_status);
@@ -375,7 +375,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 
 	gpe_block = gpe_xrupt_list->gpe_block_list_head;
 	while (gpe_block) {
-		gpe_device = gpe_block->node;
+		gpe_device = gpe_block->yesde;
 
 		/*
 		 * Read all of the 8-bit GPE status and enable registers in this GPE
@@ -388,13 +388,13 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
 			gpe_register_info = &gpe_block->register_info[i];
 
 			/*
-			 * Optimization: If there are no GPEs enabled within this
-			 * register, we can safely ignore the entire register.
+			 * Optimization: If there are yes GPEs enabled within this
+			 * register, we can safely igyesre the entire register.
 			 */
 			if (!(gpe_register_info->enable_for_run |
 			      gpe_register_info->enable_for_wake)) {
 				ACPI_DEBUG_PRINT((ACPI_DB_INTERRUPTS,
-						  "Ignore disabled registers for GPE %02X-%02X: "
+						  "Igyesre disabled registers for GPE %02X-%02X: "
 						  "RunEnable=%02X, WakeEnable=%02X\n",
 						  gpe_register_info->
 						  base_gpe_number,
@@ -447,7 +447,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list)
  * DESCRIPTION: Perform the actual execution of a GPE control method. This
  *              function is called from an invocation of acpi_os_execute and
  *              therefore does NOT execute at interrupt level - so that
- *              the control method itself is not executed in the context of
+ *              the control method itself is yest executed in the context of
  *              an interrupt handler.
  *
  ******************************************************************************/
@@ -457,32 +457,32 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 	struct acpi_gpe_event_info *gpe_event_info = context;
 	acpi_status status = AE_OK;
 	struct acpi_evaluate_info *info;
-	struct acpi_gpe_notify_info *notify;
+	struct acpi_gpe_yestify_info *yestify;
 
 	ACPI_FUNCTION_TRACE(ev_asynch_execute_gpe_method);
 
-	/* Do the correct dispatch - normal method or implicit notify */
+	/* Do the correct dispatch - yesrmal method or implicit yestify */
 
 	switch (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags)) {
 	case ACPI_GPE_DISPATCH_NOTIFY:
 		/*
-		 * Implicit notify.
-		 * Dispatch a DEVICE_WAKE notify to the appropriate handler.
+		 * Implicit yestify.
+		 * Dispatch a DEVICE_WAKE yestify to the appropriate handler.
 		 * NOTE: the request is queued for execution after this method
-		 * completes. The notify handlers are NOT invoked synchronously
+		 * completes. The yestify handlers are NOT invoked synchroyesusly
 		 * from this thread -- because handlers may in turn run other
 		 * control methods.
 		 *
-		 * June 2012: Expand implicit notify mechanism to support
-		 * notifies on multiple device objects.
+		 * June 2012: Expand implicit yestify mechanism to support
+		 * yestifies on multiple device objects.
 		 */
-		notify = gpe_event_info->dispatch.notify_list;
-		while (ACPI_SUCCESS(status) && notify) {
+		yestify = gpe_event_info->dispatch.yestify_list;
+		while (ACPI_SUCCESS(status) && yestify) {
 			status =
-			    acpi_ev_queue_notify_request(notify->device_node,
+			    acpi_ev_queue_yestify_request(yestify->device_yesde,
 							 ACPI_NOTIFY_DEVICE_WAKE);
 
-			notify = notify->next;
+			yestify = yestify->next;
 		}
 
 		break;
@@ -499,8 +499,8 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 			 * Invoke the GPE Method (_Lxx, _Exx) i.e., evaluate the
 			 * _Lxx/_Exx control method that corresponds to this GPE
 			 */
-			info->prefix_node =
-			    gpe_event_info->dispatch.method_node;
+			info->prefix_yesde =
+			    gpe_event_info->dispatch.method_yesde;
 			info->flags = ACPI_IGNORE_RETURN_VALUE;
 
 			status = acpi_ns_evaluate(info);
@@ -510,9 +510,9 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"while evaluating GPE method [%4.4s]",
-					acpi_ut_get_node_name(gpe_event_info->
+					acpi_ut_get_yesde_name(gpe_event_info->
 							      dispatch.
-							      method_node)));
+							      method_yesde)));
 		}
 		break;
 
@@ -521,7 +521,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 		goto error_exit;	/* Should never happen */
 	}
 
-	/* Defer enabling of GPE until all notify handlers are done */
+	/* Defer enabling of GPE until all yestify handlers are done */
 
 	status = acpi_os_execute(OSL_NOTIFY_HANDLER,
 				 acpi_ev_asynch_enable_gpe, gpe_event_info);
@@ -544,7 +544,7 @@ error_exit:
  *
  * RETURN:      None
  *
- * DESCRIPTION: Asynchronous clear/enable for GPE. This allows the GPE to
+ * DESCRIPTION: Asynchroyesus clear/enable for GPE. This allows the GPE to
  *              complete (i.e., finish execution of Notify)
  *
  ******************************************************************************/
@@ -571,7 +571,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_enable_gpe(void *context)
  * RETURN:      Status
  *
  * DESCRIPTION: Clear/Enable a GPE. Common code that is used after execution
- *              of a GPE method or a synchronous or asynchronous GPE handler.
+ *              of a GPE method or a synchroyesus or asynchroyesus GPE handler.
  *
  ******************************************************************************/
 
@@ -606,7 +606,7 @@ acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info)
  *
  * FUNCTION:    acpi_ev_detect_gpe
  *
- * PARAMETERS:  gpe_device          - Device node. NULL for GPE0/GPE1
+ * PARAMETERS:  gpe_device          - Device yesde. NULL for GPE0/GPE1
  *              gpe_event_info      - Info for this GPE
  *              gpe_number          - Number relative to the parent GPE block
  *
@@ -623,7 +623,7 @@ acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info)
  ******************************************************************************/
 
 u32
-acpi_ev_detect_gpe(struct acpi_namespace_node *gpe_device,
+acpi_ev_detect_gpe(struct acpi_namespace_yesde *gpe_device,
 		   struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 {
 	u32 int_status = ACPI_INTERRUPT_NOT_HANDLED;
@@ -703,10 +703,10 @@ acpi_ev_detect_gpe(struct acpi_namespace_node *gpe_device,
 		gpe_handler_info = gpe_event_info->dispatch.handler;
 
 		/*
-		 * There is no protection around the namespace node
+		 * There is yes protection around the namespace yesde
 		 * and the GPE handler to ensure a safe destruction
 		 * because:
-		 * 1. The namespace node is expected to always
+		 * 1. The namespace yesde is expected to always
 		 *    exist after loading a table.
 		 * 2. The GPE handler is expected to be flushed by
 		 *    acpi_os_wait_events_complete() before the
@@ -733,7 +733,7 @@ error_exit:
  *
  * FUNCTION:    acpi_ev_gpe_dispatch
  *
- * PARAMETERS:  gpe_device          - Device node. NULL for GPE0/GPE1
+ * PARAMETERS:  gpe_device          - Device yesde. NULL for GPE0/GPE1
  *              gpe_event_info      - Info for this GPE
  *              gpe_number          - Number relative to the parent GPE block
  *
@@ -745,7 +745,7 @@ error_exit:
  ******************************************************************************/
 
 u32
-acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
+acpi_ev_gpe_dispatch(struct acpi_namespace_yesde *gpe_device,
 		     struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 {
 	acpi_status status;
@@ -754,11 +754,11 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 	ACPI_FUNCTION_TRACE(ev_gpe_dispatch);
 
 	/*
-	 * Always disable the GPE so that it does not keep firing before
-	 * any asynchronous activity completes (either from the execution
-	 * of a GPE method or an asynchronous GPE handler.)
+	 * Always disable the GPE so that it does yest keep firing before
+	 * any asynchroyesus activity completes (either from the execution
+	 * of a GPE method or an asynchroyesus GPE handler.)
 	 *
-	 * If there is no handler or method to run, just disable the
+	 * If there is yes handler or method to run, just disable the
 	 * GPE and leave it disabled permanently to prevent further such
 	 * pointless events from firing.
 	 */
@@ -770,7 +770,7 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 	}
 
 	/*
-	 * If edge-triggered, clear the GPE status bit now. Note that
+	 * If edge-triggered, clear the GPE status bit yesw. Note that
 	 * level-triggered events are cleared after the GPE is serviced.
 	 */
 	if ((gpe_event_info->flags & ACPI_GPE_XRUPT_TYPE_MASK) ==
@@ -791,8 +791,8 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 	/*
 	 * Dispatch the GPE to either an installed handler or the control
 	 * method associated with this GPE (_Lxx or _Exx). If a handler
-	 * exists, we invoke it and do not attempt to run the method.
-	 * If there is neither a handler nor a method, leave the GPE
+	 * exists, we invoke it and do yest attempt to run the method.
+	 * If there is neither a handler yesr a method, leave the GPE
 	 * disabled.
 	 */
 	switch (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags)) {
@@ -833,8 +833,8 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 	default:
 		/*
 		 * No handler or method to run!
-		 * 03/2010: This case should no longer be possible. We will not allow
-		 * a GPE to be enabled if it has no handler or method.
+		 * 03/2010: This case should yes longer be possible. We will yest allow
+		 * a GPE to be enabled if it has yes handler or method.
 		 */
 		ACPI_ERROR((AE_INFO,
 			    "No handler or method for GPE %02X, disabling event",

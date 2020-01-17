@@ -150,7 +150,7 @@ static int olpc_bat_get_health(union power_supply_propval *val)
 		break;
 
 	default:
-		/* Eep. We don't know this failure code */
+		/* Eep. We don't kyesw this failure code */
 		ret = -EIO;
 	}
 
@@ -175,7 +175,7 @@ static int olpc_bat_get_mfr(union power_supply_propval *val)
 		val->strval = "BYD";
 		break;
 	default:
-		val->strval = "Unknown";
+		val->strval = "Unkyeswn";
 		break;
 	}
 
@@ -253,7 +253,7 @@ static int olpc_bat_get_charge_full_design(union power_supply_propval *val)
 	return ret;
 }
 
-static int olpc_bat_get_charge_now(union power_supply_propval *val)
+static int olpc_bat_get_charge_yesw(union power_supply_propval *val)
 {
 	uint8_t soc;
 	union power_supply_propval full;
@@ -347,8 +347,8 @@ static int olpc_bat_get_property(struct power_supply *psy,
 
 	/* Theoretically there's a race here -- the battery could be
 	   removed immediately after we check whether it's present, and
-	   then we query for some other property of the now-absent battery.
-	   It doesn't matter though -- the EC will return the last-known
+	   then we query for some other property of the yesw-absent battery.
+	   It doesn't matter though -- the EC will return the last-kyeswn
 	   information, and it's as if we just ran that _little_ bit faster
 	   and managed to read it out before the battery went away. */
 	if (!(ec_byte & (BAT_STAT_PRESENT | BAT_STAT_TRICKLE)) &&
@@ -430,7 +430,7 @@ static int olpc_bat_get_property(struct power_supply *psy,
 			return ret;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		ret = olpc_bat_get_charge_now(val);
+		ret = olpc_bat_get_charge_yesw(val);
 		if (ret)
 			return ret;
 		break;
@@ -498,7 +498,7 @@ static enum power_supply_property olpc_xo1_bat_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
 };
 
-/* XO-1.5 does not have ambient temperature property */
+/* XO-1.5 does yest have ambient temperature property */
 static enum power_supply_property olpc_xo15_bat_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
@@ -649,7 +649,7 @@ static int olpc_battery_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (of_find_compatible_node(NULL, NULL, "olpc,xo1.75-ec")) {
+	if (of_find_compatible_yesde(NULL, NULL, "olpc,xo1.75-ec")) {
 		/* XO 1.75 */
 		data->new_proto = true;
 		data->little_endian = true;
@@ -670,9 +670,9 @@ static int olpc_battery_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* Ignore the status. It doesn't actually matter */
+	/* Igyesre the status. It doesn't actually matter */
 
-	ac_psy_cfg.of_node = pdev->dev.of_node;
+	ac_psy_cfg.of_yesde = pdev->dev.of_yesde;
 	ac_psy_cfg.drv_data = data;
 
 	data->olpc_ac = devm_power_supply_register(&pdev->dev, &olpc_ac_desc,
@@ -680,7 +680,7 @@ static int olpc_battery_probe(struct platform_device *pdev)
 	if (IS_ERR(data->olpc_ac))
 		return PTR_ERR(data->olpc_ac);
 
-	if (of_device_is_compatible(pdev->dev.of_node, "olpc,xo1.5-battery")) {
+	if (of_device_is_compatible(pdev->dev.of_yesde, "olpc,xo1.5-battery")) {
 		/* XO-1.5 */
 		olpc_bat_desc.properties = olpc_xo15_bat_props;
 		olpc_bat_desc.num_properties = ARRAY_SIZE(olpc_xo15_bat_props);
@@ -690,7 +690,7 @@ static int olpc_battery_probe(struct platform_device *pdev)
 		olpc_bat_desc.num_properties = ARRAY_SIZE(olpc_xo1_bat_props);
 	}
 
-	bat_psy_cfg.of_node = pdev->dev.of_node;
+	bat_psy_cfg.of_yesde = pdev->dev.of_yesde;
 	bat_psy_cfg.drv_data = data;
 	bat_psy_cfg.attr_grp = olpc_bat_sysfs_groups;
 

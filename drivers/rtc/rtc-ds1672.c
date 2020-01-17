@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * An rtc/i2c driver for the Dallas DS1672
- * Copyright 2005-06 Tower Technologies
+ * Copyright 2005-06 Tower Techyeslogies
  *
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  */
@@ -51,7 +51,7 @@ static int ds1672_read_time(struct device *dev, struct rtc_time *tm)
 	}
 
 	if (buf[0] & DS1672_REG_CONTROL_EOSC) {
-		dev_warn(&client->dev, "Oscillator not enabled. Set time to enable.\n");
+		dev_warn(&client->dev, "Oscillator yest enabled. Set time to enable.\n");
 		return -EINVAL;
 	}
 

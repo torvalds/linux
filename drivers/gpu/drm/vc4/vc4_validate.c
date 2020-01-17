@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -24,7 +24,7 @@
 /**
  * DOC: Command list validator for VC4.
  *
- * Since the VC4 has no IOMMU between it and system memory, a user
+ * Since the VC4 has yes IOMMU between it and system memory, a user
  * with access to execute command lists could escalate privilege by
  * overwriting system memory (drawing to it as a framebuffer) or
  * reading system memory it shouldn't (reading it as a vertex buffer
@@ -65,7 +65,7 @@ utile_width(int cpp)
 	case 8:
 		return 2;
 	default:
-		DRM_ERROR("unknown cpp: %d\n", cpp);
+		DRM_ERROR("unkyeswn cpp: %d\n", cpp);
 		return 1;
 	}
 }
@@ -82,14 +82,14 @@ utile_height(int cpp)
 	case 8:
 		return 4;
 	default:
-		DRM_ERROR("unknown cpp: %d\n", cpp);
+		DRM_ERROR("unkyeswn cpp: %d\n", cpp);
 		return 1;
 	}
 }
 
 /**
  * size_is_lt() - Returns whether a miplevel of the given size will
- * use the lineartile (LT) tiling layout rather than the normal T
+ * use the lineartile (LT) tiling layout rather than the yesrmal T
  * tiling layout.
  * @width: Width in pixels of the miplevel
  * @height: Height in pixels of the miplevel
@@ -276,8 +276,8 @@ validate_indexed_prim_list(VALIDATE_ARGS)
 	if (!ib)
 		return -EINVAL;
 
-	exec->bin_dep_seqno = max(exec->bin_dep_seqno,
-				  to_vc4_bo(&ib->base)->write_seqno);
+	exec->bin_dep_seqyes = max(exec->bin_dep_seqyes,
+				  to_vc4_bo(&ib->base)->write_seqyes);
 
 	if (offset > ib->base.size ||
 	    (ib->base.size - offset) / index_size < length) {
@@ -619,7 +619,7 @@ reloc_tex(struct vc4_exec_info *exec,
 			cube_map_stride = p3 & VC4_TEX_P2_CMST_MASK;
 		}
 		if (!cube_map_stride) {
-			DRM_DEBUG("Cube map stride not set\n");
+			DRM_DEBUG("Cube map stride yest set\n");
 			goto fail;
 		}
 	}
@@ -689,7 +689,7 @@ reloc_tex(struct vc4_exec_info *exec,
 		uint32_t aligned_width, aligned_height;
 		uint32_t level_size;
 
-		/* Once the levels get small enough, they drop from T to LT. */
+		/* Once the levels get small eyesugh, they drop from T to LT. */
 		if (tiling_format == VC4_TILING_FORMAT_T &&
 		    size_is_lt(level_width, level_height, cpp)) {
 			tiling_format = VC4_TILING_FORMAT_LT;
@@ -727,8 +727,8 @@ reloc_tex(struct vc4_exec_info *exec,
 	*validated_p0 = tex->paddr + p0;
 
 	if (is_cs) {
-		exec->bin_dep_seqno = max(exec->bin_dep_seqno,
-					  to_vc4_bo(&tex->base)->write_seqno);
+		exec->bin_dep_seqyes = max(exec->bin_dep_seqyes,
+					  to_vc4_bo(&tex->base)->write_seqyes);
 	}
 
 	return true;
@@ -810,13 +810,13 @@ validate_gl_shader_rec(struct drm_device *dev,
 
 	if (((*(uint16_t *)pkt_u & VC4_SHADER_FLAG_FS_SINGLE_THREAD) == 0) !=
 	    to_vc4_bo(&bo[0]->base)->validated_shader->is_threaded) {
-		DRM_DEBUG("Thread mode of CL and FS do not match\n");
+		DRM_DEBUG("Thread mode of CL and FS do yest match\n");
 		return -EINVAL;
 	}
 
 	if (to_vc4_bo(&bo[1]->base)->validated_shader->is_threaded ||
 	    to_vc4_bo(&bo[2]->base)->validated_shader->is_threaded) {
-		DRM_DEBUG("cs and vs cannot be threaded\n");
+		DRM_DEBUG("cs and vs canyest be threaded\n");
 		return -EINVAL;
 	}
 
@@ -892,8 +892,8 @@ validate_gl_shader_rec(struct drm_device *dev,
 		uint32_t stride = *(uint8_t *)(pkt_u + o + 5);
 		uint32_t max_index;
 
-		exec->bin_dep_seqno = max(exec->bin_dep_seqno,
-					  to_vc4_bo(&vbo->base)->write_seqno);
+		exec->bin_dep_seqyes = max(exec->bin_dep_seqyes,
+					  to_vc4_bo(&vbo->base)->write_seqyes);
 
 		if (state->addr & 0x8)
 			stride |= (*(uint32_t *)(pkt_u + 100 + i * 4)) & ~0xff;

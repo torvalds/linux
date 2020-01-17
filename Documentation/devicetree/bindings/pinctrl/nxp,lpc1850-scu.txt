@@ -9,7 +9,7 @@ Required properties:
 The lpc1850-scu driver uses the generic pin multiplexing and generic pin
 configuration documented in pinctrl-bindings.txt.
 
-The following generic nodes are supported:
+The following generic yesdes are supported:
  - function
  - pins
  - bias-disable

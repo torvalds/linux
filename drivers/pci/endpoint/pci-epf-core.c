@@ -26,13 +26,13 @@ static const struct device_type pci_epf_type;
  * @epf: the EPF device bound to the EPC device which has established
  *	 the connection with the host
  *
- * Invoke to notify the function driver that EPC device has established
+ * Invoke to yestify the function driver that EPC device has established
  * a connection with the Root Complex.
  */
 void pci_epf_linkup(struct pci_epf *epf)
 {
 	if (!epf->driver) {
-		dev_WARN(&epf->dev, "epf device not bound to driver\n");
+		dev_WARN(&epf->dev, "epf device yest bound to driver\n");
 		return;
 	}
 
@@ -45,13 +45,13 @@ EXPORT_SYMBOL_GPL(pci_epf_linkup);
  *		      EPF device and EPC device has been lost
  * @epf: the EPF device which has lost the binding with the EPC device
  *
- * Invoke to notify the function driver that the binding between the EPF device
+ * Invoke to yestify the function driver that the binding between the EPF device
  * and EPC device has been lost.
  */
 void pci_epf_unbind(struct pci_epf *epf)
 {
 	if (!epf->driver) {
-		dev_WARN(&epf->dev, "epf device not bound to driver\n");
+		dev_WARN(&epf->dev, "epf device yest bound to driver\n");
 		return;
 	}
 
@@ -65,12 +65,12 @@ EXPORT_SYMBOL_GPL(pci_epf_unbind);
  *		    bound to a EPC device
  * @epf: the EPF device which has been bound to the EPC device
  *
- * Invoke to notify the function driver that it has been bound to a EPC device
+ * Invoke to yestify the function driver that it has been bound to a EPC device
  */
 int pci_epf_bind(struct pci_epf *epf)
 {
 	if (!epf->driver) {
-		dev_WARN(&epf->dev, "epf device not bound to driver\n");
+		dev_WARN(&epf->dev, "epf device yest bound to driver\n");
 		return -EINVAL;
 	}
 
@@ -88,7 +88,7 @@ EXPORT_SYMBOL_GPL(pci_epf_bind);
  *
  * Invoke to free the allocated PCI EPF register space.
  */
-void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar)
+void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_baryes bar)
 {
 	struct device *dev = epf->epc->dev.parent;
 
@@ -100,7 +100,7 @@ void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar)
 
 	epf->bar[bar].phys_addr = 0;
 	epf->bar[bar].size = 0;
-	epf->bar[bar].barno = 0;
+	epf->bar[bar].baryes = 0;
 	epf->bar[bar].flags = 0;
 }
 EXPORT_SYMBOL_GPL(pci_epf_free_space);
@@ -113,7 +113,7 @@ EXPORT_SYMBOL_GPL(pci_epf_free_space);
  *
  * Invoke to allocate memory for the PCI EPF register space.
  */
-void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
+void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_baryes bar,
 			  size_t align)
 {
 	void *space;
@@ -136,7 +136,7 @@ void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
 
 	epf->bar[bar].phys_addr = phys_addr;
 	epf->bar[bar].size = size;
-	epf->bar[bar].barno = bar;
+	epf->bar[bar].baryes = bar;
 	epf->bar[bar].flags |= upper_32_bits(size) ?
 				PCI_BASE_ADDRESS_MEM_TYPE_64 :
 				PCI_BASE_ADDRESS_MEM_TYPE_32;

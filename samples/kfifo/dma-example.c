@@ -56,14 +56,14 @@ static int __init example_init(void)
 	 *      \_*free space*                \_*free space*
 	 *
 	 * We need two different SG entries: one for the free space area at the
-	 * end of the kfifo buffer (19 bytes) and another for the first free
+	 * end of the kfifo buffer (19 bytes) and ayesther for the first free
 	 * byte at the beginning, after the kfifo_skip().
 	 */
 	sg_init_table(sg, ARRAY_SIZE(sg));
 	nents = kfifo_dma_in_prepare(&fifo, sg, ARRAY_SIZE(sg), FIFO_SIZE);
 	printk(KERN_INFO "DMA sgl entries: %d\n", nents);
 	if (!nents) {
-		/* fifo is full and no sgl was created */
+		/* fifo is full and yes sgl was created */
 		printk(KERN_WARNING "error kfifo_dma_in_prepare\n");
 		return -EIO;
 	}
@@ -93,7 +93,7 @@ static int __init example_init(void)
 	nents = kfifo_dma_out_prepare(&fifo, sg, ARRAY_SIZE(sg), 8);
 	printk(KERN_INFO "DMA sgl entries: %d\n", nents);
 	if (!nents) {
-		/* no data was available and no sgl was created */
+		/* yes data was available and yes sgl was created */
 		printk(KERN_WARNING "error kfifo_dma_out_prepare\n");
 		return -EIO;
 	}

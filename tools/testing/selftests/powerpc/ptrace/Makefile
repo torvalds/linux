@@ -7,7 +7,7 @@ TEST_GEN_PROGS := ptrace-gpr ptrace-tm-gpr ptrace-tm-spd-gpr \
 top_srcdir = ../../../../..
 include ../../lib.mk
 
-CFLAGS += -m64 -I../../../../../usr/include -I../tm -mhtm -fno-pie
+CFLAGS += -m64 -I../../../../../usr/include -I../tm -mhtm -fyes-pie
 
 $(OUTPUT)/ptrace-pkey $(OUTPUT)/core-pkey: child.h
 $(OUTPUT)/ptrace-pkey $(OUTPUT)/core-pkey: LDLIBS += -pthread

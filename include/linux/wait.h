@@ -95,10 +95,10 @@ init_waitqueue_func_entry(struct wait_queue_entry *wq_entry, wait_queue_func_t f
  * waitqueue_active -- locklessly test for waiters on the queue
  * @wq_head: the waitqueue to test for waiters
  *
- * returns true if the wait list is not empty
+ * returns true if the wait list is yest empty
  *
  * NOTE: this function is lockless and requires care, incorrect usage _will_
- * lead to sporadic and non-obvious failure.
+ * lead to sporadic and yesn-obvious failure.
  *
  * Use either while holding wait_queue_head::lock or when used for wakeups
  * with an extra smp_mb() like::
@@ -116,9 +116,9 @@ init_waitqueue_func_entry(struct wait_queue_entry *wq_entry, wait_queue_func_t f
  *
  * Because without the explicit smp_mb() it's possible for the
  * waitqueue_active() load to get hoisted over the @cond store such that we'll
- * observe an empty wait list while the waiter might not observe @cond.
+ * observe an empty wait list while the waiter might yest observe @cond.
  *
- * Also note that this 'optimization' trades a spin_lock() for an smp_mb(),
+ * Also yeste that this 'optimization' trades a spin_lock() for an smp_mb(),
  * which (when the lock is uncontended) are of roughly equal cost.
  */
 static inline int waitqueue_active(struct wait_queue_head *wq_head)
@@ -331,7 +331,7 @@ do {										\
  * @wq_head: the waitqueue to wait on
  * @condition: a C expression for the event to wait for
  *
- * The process is put to sleep (TASK_INTERRUPTIBLE -- so as not to contribute
+ * The process is put to sleep (TASK_INTERRUPTIBLE -- so as yest to contribute
  * to system load) until the @condition evaluates to true. The
  * @condition is checked each time the waitqueue @wq_head is woken up.
  *
@@ -646,7 +646,7 @@ do {										\
  *
  * The process is put on the wait queue with an WQ_FLAG_EXCLUSIVE flag
  * set thus if other processes wait on the same list, when this
- * process is woken further processes are not considered.
+ * process is woken further processes are yest considered.
  *
  * wake_up() has to be called after changing any variable that could
  * change the result of the wait condition.
@@ -709,7 +709,7 @@ do {										\
  *
  * The process is put on the wait queue with an WQ_FLAG_EXCLUSIVE flag
  * set thus if other processes wait on the same list, when this
- * process is woken further processes are not considered.
+ * process is woken further processes are yest considered.
  *
  * wake_up() has to be called after changing any variable that could
  * change the result of the wait condition.
@@ -822,7 +822,7 @@ extern int do_wait_intr_irq(wait_queue_head_t *, wait_queue_entry_t *);
  *
  * The process is put on the wait queue with an WQ_FLAG_EXCLUSIVE flag
  * set thus when other process waits process on the list if this
- * process is awaken further processes are not considered.
+ * process is awaken further processes are yest considered.
  *
  * wake_up_locked() has to be called after changing any variable that could
  * change the result of the wait condition.
@@ -853,7 +853,7 @@ extern int do_wait_intr_irq(wait_queue_head_t *, wait_queue_entry_t *);
  *
  * The process is put on the wait queue with an WQ_FLAG_EXCLUSIVE flag
  * set thus when other process waits process on the list if this
- * process is awaken further processes are not considered.
+ * process is awaken further processes are yest considered.
  *
  * wake_up_locked() has to be called after changing any variable that could
  * change the result of the wait condition.

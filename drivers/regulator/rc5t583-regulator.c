@@ -123,7 +123,7 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 				pdata->regulator_ext_pwr_control[id],
 				pdata->regulator_deepsleep_slot[id]);
 		/*
-		 * Configuring external control is not a major issue,
+		 * Configuring external control is yest a major issue,
 		 * just give warning.
 		 */
 		if (ret < 0)

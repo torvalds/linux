@@ -139,13 +139,13 @@ mt7601u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mutex_lock(&dev->mutex);
 
 	if (changed & BSS_CHANGED_ASSOC)
-		mt7601u_phy_con_cal_onoff(dev, info);
+		mt7601u_phy_con_cal_oyesff(dev, info);
 
 	if (changed & BSS_CHANGED_BSSID) {
 		mt7601u_addr_wr(dev, MT_MAC_BSSID_DW0, info->bssid);
 
-		/* Note: this is a hack because beacon_int is not changed
-		 *	 on leave nor is any more appropriate event generated.
+		/* Note: this is a hack because beacon_int is yest changed
+		 *	 on leave yesr is any more appropriate event generated.
 		 *	 rt2x00 doesn't seem to be bothered though.
 		 */
 		if (is_zero_ether_addr(info->bssid))
@@ -256,8 +256,8 @@ mt7601u_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 static void
-mt7601u_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   enum sta_notify_cmd cmd, struct ieee80211_sta *sta)
+mt7601u_sta_yestify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		   enum sta_yestify_cmd cmd, struct ieee80211_sta *sta)
 {
 }
 
@@ -415,7 +415,7 @@ const struct ieee80211_ops mt7601u_ops = {
 	.bss_info_changed = mt7601u_bss_info_changed,
 	.sta_add = mt7601u_sta_add,
 	.sta_remove = mt7601u_sta_remove,
-	.sta_notify = mt7601u_sta_notify,
+	.sta_yestify = mt7601u_sta_yestify,
 	.set_key = mt7601u_set_key,
 	.conf_tx = mt7601u_conf_tx,
 	.sw_scan_start = mt7601u_sw_scan,

@@ -27,15 +27,15 @@
 
 static DEFINE_MUTEX(ima_write_mutex);
 
-bool ima_canonical_fmt;
-static int __init default_canonical_fmt_setup(char *str)
+bool ima_cayesnical_fmt;
+static int __init default_cayesnical_fmt_setup(char *str)
 {
 #ifdef __BIG_ENDIAN
-	ima_canonical_fmt = true;
+	ima_cayesnical_fmt = true;
 #endif
 	return 1;
 }
-__setup("ima_canonical_fmt", default_canonical_fmt_setup);
+__setup("ima_cayesnical_fmt", default_cayesnical_fmt_setup);
 
 static int valid_policy = 1;
 
@@ -74,7 +74,7 @@ static const struct file_operations ima_measurements_count_ops = {
 	.llseek = generic_file_llseek,
 };
 
-/* returns pointer to hlist_node */
+/* returns pointer to hlist_yesde */
 static void *ima_measurements_start(struct seq_file *m, loff_t *pos)
 {
 	loff_t l = *pos;
@@ -148,14 +148,14 @@ int ima_measurements_show(struct seq_file *m, void *v)
 	 * PCR used defaults to the same (config option) in
 	 * little-endian format, unless set in policy
 	 */
-	pcr = !ima_canonical_fmt ? e->pcr : cpu_to_le32(e->pcr);
+	pcr = !ima_cayesnical_fmt ? e->pcr : cpu_to_le32(e->pcr);
 	ima_putc(m, &pcr, sizeof(e->pcr));
 
 	/* 2nd: template digest */
 	ima_putc(m, e->digest, TPM_DIGEST_SIZE);
 
 	/* 3rd: template name size */
-	namelen = !ima_canonical_fmt ? strlen(template_name) :
+	namelen = !ima_cayesnical_fmt ? strlen(template_name) :
 		cpu_to_le32(strlen(template_name));
 	ima_putc(m, &namelen, sizeof(namelen));
 
@@ -167,7 +167,7 @@ int ima_measurements_show(struct seq_file *m, void *v)
 		is_ima_template = true;
 
 	if (!is_ima_template) {
-		template_data_len = !ima_canonical_fmt ? e->template_data_len :
+		template_data_len = !ima_cayesnical_fmt ? e->template_data_len :
 			cpu_to_le32(e->template_data_len);
 		ima_putc(m, &template_data_len, sizeof(e->template_data_len));
 	}
@@ -194,7 +194,7 @@ static const struct seq_operations ima_measurments_seqops = {
 	.show = ima_measurements_show
 };
 
-static int ima_measurements_open(struct inode *inode, struct file *file)
+static int ima_measurements_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &ima_measurments_seqops);
 }
@@ -260,7 +260,7 @@ static const struct seq_operations ima_ascii_measurements_seqops = {
 	.show = ima_ascii_measurements_show
 };
 
-static int ima_ascii_measurements_open(struct inode *inode, struct file *file)
+static int ima_ascii_measurements_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &ima_ascii_measurements_seqops);
 }
@@ -381,7 +381,7 @@ static const struct seq_operations ima_policy_seqops = {
 /*
  * ima_open_policy: sequentialize access to the policy file
  */
-static int ima_open_policy(struct inode *inode, struct file *filp)
+static int ima_open_policy(struct iyesde *iyesde, struct file *filp)
 {
 	if (!(filp->f_flags & O_WRONLY)) {
 #ifndef	CONFIG_IMA_READ_POLICY
@@ -402,16 +402,16 @@ static int ima_open_policy(struct inode *inode, struct file *filp)
 /*
  * ima_release_policy - start using the new measure policy rules.
  *
- * Initially, ima_measure points to the default policy rules, now
+ * Initially, ima_measure points to the default policy rules, yesw
  * point to the new policy rules, and remove the securityfs policy file,
  * assuming a valid policy.
  */
-static int ima_release_policy(struct inode *inode, struct file *file)
+static int ima_release_policy(struct iyesde *iyesde, struct file *file)
 {
 	const char *cause = valid_policy ? "completed" : "failed";
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
-		return seq_release(inode, file);
+		return seq_release(iyesde, file);
 
 	if (valid_policy && ima_check_policy() < 0) {
 		cause = "failed";
@@ -436,7 +436,7 @@ static int ima_release_policy(struct inode *inode, struct file *file)
 #elif defined(CONFIG_IMA_WRITE_POLICY)
 	clear_bit(IMA_FS_BUSY, &ima_fs_flags);
 #elif defined(CONFIG_IMA_READ_POLICY)
-	inode->i_mode &= ~S_IWUSR;
+	iyesde->i_mode &= ~S_IWUSR;
 #endif
 	return 0;
 }

@@ -46,11 +46,11 @@ enum big_key_op {
 };
 
 /*
- * If the data is under this limit, there's no point creating a shm file to
+ * If the data is under this limit, there's yes point creating a shm file to
  * hold it as the permanently resident metadata for the shmem fs will be at
  * least as large as the data.
  */
-#define BIG_KEY_FILE_THRESHOLD (sizeof(struct inode) + sizeof(struct dentry))
+#define BIG_KEY_FILE_THRESHOLD (sizeof(struct iyesde) + sizeof(struct dentry))
 
 /*
  * Key size for big_key data encryption
@@ -75,7 +75,7 @@ struct key_type key_type_big_key = {
 	.destroy		= big_key_destroy,
 	.describe		= big_key_describe,
 	.read			= big_key_read,
-	/* no ->update(); don't add it without changing big_key_crypt() nonce */
+	/* yes ->update(); don't add it without changing big_key_crypt() yesnce */
 };
 
 /*
@@ -101,20 +101,20 @@ static int big_key_crypt(enum big_key_op op, struct big_key_buf *buf, size_t dat
 {
 	int ret;
 	struct aead_request *aead_req;
-	/* We always use a zero nonce. The reason we can get away with this is
+	/* We always use a zero yesnce. The reason we can get away with this is
 	 * because we're using a different randomly generated key for every
 	 * different encryption. Notably, too, key_type_big_key doesn't define
-	 * an .update function, so there's no chance we'll wind up reusing the
+	 * an .update function, so there's yes chance we'll wind up reusing the
 	 * key to encrypt updated data. Simply put: one key, one encryption.
 	 */
-	u8 zero_nonce[BIG_KEY_IV_SIZE];
+	u8 zero_yesnce[BIG_KEY_IV_SIZE];
 
 	aead_req = aead_request_alloc(big_key_aead, GFP_KERNEL);
 	if (!aead_req)
 		return -ENOMEM;
 
-	memset(zero_nonce, 0, sizeof(zero_nonce));
-	aead_request_set_crypt(aead_req, buf->sg, buf->sg, datalen, zero_nonce);
+	memset(zero_yesnce, 0, sizeof(zero_yesnce));
+	aead_request_set_crypt(aead_req, buf->sg, buf->sg, datalen, zero_yesnce);
 	aead_request_set_callback(aead_req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
 	aead_request_set_ad(aead_req, 0);
 
@@ -176,7 +176,7 @@ static void *big_key_alloc_buffer(size_t len)
 	for (i = 0; i < buf->nr_pages; i++) {
 		buf->pages[i] = alloc_page(GFP_KERNEL);
 		if (!buf->pages[i])
-			goto nomem;
+			goto yesmem;
 
 		l = min_t(size_t, len, PAGE_SIZE);
 		sg_set_page(&buf->sg[i], buf->pages[i], l, 0);
@@ -185,11 +185,11 @@ static void *big_key_alloc_buffer(size_t len)
 
 	buf->virt = vmap(buf->pages, buf->nr_pages, VM_MAP, PAGE_KERNEL);
 	if (!buf->virt)
-		goto nomem;
+		goto yesmem;
 
 	return buf;
 
-nomem:
+yesmem:
 	big_key_free_buffer(buf);
 	return NULL;
 }

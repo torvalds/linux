@@ -35,7 +35,7 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci,
 	int		i;
 	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
-	seg = kzalloc_node(sizeof(*seg), flags, dev_to_node(dev));
+	seg = kzalloc_yesde(sizeof(*seg), flags, dev_to_yesde(dev));
 	if (!seg)
 		return NULL;
 
@@ -46,8 +46,8 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci,
 	}
 
 	if (max_packet) {
-		seg->bounce_buf = kzalloc_node(max_packet, flags,
-					dev_to_node(dev));
+		seg->bounce_buf = kzalloc_yesde(max_packet, flags,
+					dev_to_yesde(dev));
 		if (!seg->bounce_buf) {
 			dma_pool_free(xhci->segment_pool, seg->trbs, dma);
 			kfree(seg);
@@ -94,7 +94,7 @@ static void xhci_free_segments_for_ring(struct xhci_hcd *xhci,
  *
  * Change the last TRB in the prev segment to be a Link TRB which points to the
  * DMA address of the next segment.  The caller needs to set any Link TRB
- * related flags, such as End TRB, Toggle Cycle, and no snoop.
+ * related flags, such as End TRB, Toggle Cycle, and yes syesop.
  */
 static void xhci_link_segments(struct xhci_hcd *xhci, struct xhci_segment *prev,
 		struct xhci_segment *next, enum xhci_ring_type type)
@@ -367,7 +367,7 @@ struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 	int ret;
 	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
-	ring = kzalloc_node(sizeof(*ring), flags, dev_to_node(dev));
+	ring = kzalloc_yesde(sizeof(*ring), flags, dev_to_yesde(dev));
 	if (!ring)
 		return NULL;
 
@@ -384,7 +384,7 @@ struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 	if (ret)
 		goto fail;
 
-	/* Only event ring does not use link TRB */
+	/* Only event ring does yest use link TRB */
 	if (type != TYPE_EVENT) {
 		/* See section 4.9.2.1 and 6.4.4.1 */
 		ring->last_seg->trbs[TRBS_PER_SEGMENT - 1].link.control |=
@@ -451,7 +451,7 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	xhci_link_rings(xhci, ring, first, last, num_segs);
 	trace_xhci_ring_expansion(ring);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_ring_expansion,
-			"ring expansion succeed, now has %d segments",
+			"ring expansion succeed, yesw has %d segments",
 			ring->num_segs);
 
 	return 0;
@@ -466,7 +466,7 @@ struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 	if ((type != XHCI_CTX_TYPE_DEVICE) && (type != XHCI_CTX_TYPE_INPUT))
 		return NULL;
 
-	ctx = kzalloc_node(sizeof(*ctx), flags, dev_to_node(dev));
+	ctx = kzalloc_yesde(sizeof(*ctx), flags, dev_to_yesde(dev));
 	if (!ctx)
 		return NULL;
 
@@ -602,7 +602,7 @@ struct xhci_ring *xhci_stream_id_to_ring(
 
 /*
  * Change an endpoint's internal structure so it supports stream IDs.  The
- * number of requested streams includes stream 0, which cannot be used by device
+ * number of requested streams includes stream 0, which canyest be used by device
  * drivers.
  *
  * The number of stream contexts in the stream context array may be bigger than
@@ -625,13 +625,13 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 			"stream context array entries.\n",
 			num_streams, num_stream_ctxs);
 	if (xhci->cmd_ring_reserved_trbs == MAX_RSVD_CMD_TRBS) {
-		xhci_dbg(xhci, "Command ring has no reserved TRBs available\n");
+		xhci_dbg(xhci, "Command ring has yes reserved TRBs available\n");
 		return NULL;
 	}
 	xhci->cmd_ring_reserved_trbs++;
 
-	stream_info = kzalloc_node(sizeof(*stream_info), mem_flags,
-			dev_to_node(dev));
+	stream_info = kzalloc_yesde(sizeof(*stream_info), mem_flags,
+			dev_to_yesde(dev));
 	if (!stream_info)
 		goto cleanup_trbs;
 
@@ -639,9 +639,9 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 	stream_info->num_stream_ctxs = num_stream_ctxs;
 
 	/* Initialize the array of virtual pointers to stream rings. */
-	stream_info->stream_rings = kcalloc_node(
+	stream_info->stream_rings = kcalloc_yesde(
 			num_streams, sizeof(struct xhci_ring *), mem_flags,
-			dev_to_node(dev));
+			dev_to_yesde(dev));
 	if (!stream_info->stream_rings)
 		goto cleanup_info;
 
@@ -727,7 +727,7 @@ void xhci_setup_streams_ep_input_ctx(struct xhci_hcd *xhci,
 		struct xhci_stream_info *stream_info)
 {
 	u32 max_primary_streams;
-	/* MaxPStreams is the number of stream context array entries, not the
+	/* MaxPStreams is the number of stream context array entries, yest the
 	 * number we're actually using.  Must be in 2^(MaxPstreams + 1) format.
 	 * fls(0) = 0, fls(0x1) = 1, fls(0x10) = 2, fls(0x100) = 3, etc.
 	 */
@@ -743,10 +743,10 @@ void xhci_setup_streams_ep_input_ctx(struct xhci_hcd *xhci,
 
 /*
  * Sets the MaxPStreams field and the Linear Stream Array field to 0.
- * Reinstalls the "normal" endpoint ring (at its previous dequeue mark,
- * not at the beginning of the ring).
+ * Reinstalls the "yesrmal" endpoint ring (at its previous dequeue mark,
+ * yest at the beginning of the ring).
  */
-void xhci_setup_no_streams_ep_input_ctx(struct xhci_ep_ctx *ep_ctx,
+void xhci_setup_yes_streams_ep_input_ctx(struct xhci_ep_ctx *ep_ctx,
 		struct xhci_virt_ep *ep)
 {
 	dma_addr_t addr;
@@ -808,7 +808,7 @@ static void xhci_free_tt_info(struct xhci_hcd *xhci,
 	bool slot_found = false;
 
 	/* If the device never made it past the Set Address stage,
-	 * it may not have the real_port set correctly.
+	 * it may yest have the real_port set correctly.
 	 */
 	if (virt_dev->real_port == 0 ||
 			virt_dev->real_port > HCS_MAX_PORTS(xhci->hcs_params1)) {
@@ -847,8 +847,8 @@ int xhci_alloc_tt_info(struct xhci_hcd *xhci,
 	for (i = 0; i < num_ports; i++, tt_info++) {
 		struct xhci_interval_bw_table *bw_table;
 
-		tt_info = kzalloc_node(sizeof(*tt_info), mem_flags,
-				dev_to_node(dev));
+		tt_info = kzalloc_yesde(sizeof(*tt_info), mem_flags,
+				dev_to_yesde(dev));
 		if (!tt_info)
 			goto free_tts;
 		INIT_LIST_HEAD(&tt_info->tt_list);
@@ -908,7 +908,7 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 		 */
 		if (!list_empty(&dev->eps[i].bw_endpoint_list))
 			xhci_warn(xhci, "Slot %u endpoint %u "
-					"not removed from BW list!\n",
+					"yest removed from BW list!\n",
 					slot_id, i);
 	}
 	/* If this is a hub, free the TT(s) from the TT list */
@@ -964,7 +964,7 @@ static void xhci_free_virt_devices_depth_first(struct xhci_hcd *xhci, int slot_i
 		}
 	}
 out:
-	/* we are now at a leaf device */
+	/* we are yesw at a leaf device */
 	xhci_debugfs_remove_slot(xhci, slot_id);
 	xhci_free_virt_device(xhci, slot_id);
 }
@@ -1064,9 +1064,9 @@ void xhci_copy_ep0_dequeue_into_input_ctx(struct xhci_hcd *xhci,
  * The xHCI roothub may have ports of differing speeds in any order in the port
  * status registers.
  *
- * The xHCI hardware wants to know the roothub port number that the USB device
+ * The xHCI hardware wants to kyesw the roothub port number that the USB device
  * is attached to (or the roothub port its ancestor hub is attached to).  All we
- * know is the index of that port under either the USB 2.0 or the USB 3.0
+ * kyesw is the index of that port under either the USB 2.0 or the USB 3.0
  * roothub, but that doesn't give us the real index into the HW port status
  * registers. Call xhci_find_raw_port_number() to get real index.
  */
@@ -1101,7 +1101,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	dev = xhci->devs[udev->slot_id];
 	/* Slot ID 0 is reserved */
 	if (udev->slot_id == 0 || !dev) {
-		xhci_warn(xhci, "Slot ID %d is not assigned to this device\n",
+		xhci_warn(xhci, "Slot ID %d is yest assigned to this device\n",
 				udev->slot_id);
 		return -EINVAL;
 	}
@@ -1156,7 +1156,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 
 	/* Find the right bandwidth table that this device will be a part of.
 	 * If this is a full speed device attached directly to a root port (or a
-	 * decendent of one), it counts as a primary bandwidth domain, not a
+	 * decendent of one), it counts as a primary bandwidth domain, yest a
 	 * secondary bandwidth domain under a TT.  An xhci_tt_info structure
 	 * will never be created for the HS root hub.
 	 */
@@ -1233,7 +1233,7 @@ static unsigned int xhci_parse_exponent_interval(struct usb_device *udev,
 	if (udev->speed == USB_SPEED_FULL) {
 		/*
 		 * Full speed isoc endpoints specify interval in frames,
-		 * not microframes. We are using microframes everywhere,
+		 * yest microframes. We are using microframes everywhere,
 		 * so adjust accordingly.
 		 */
 		interval += 3;	/* 1 frame = 2^3 uframes */
@@ -1286,7 +1286,7 @@ static unsigned int xhci_parse_frame_interval(struct usb_device *udev,
  * The polling interval is expressed in "microframes".  If xHCI's Interval field
  * is set to N, it will service the endpoint every 2^(Interval)*125us.
  *
- * The NAK interval is one NAK per 1 to 255 microframes, or no NAKs if interval
+ * The NAK interval is one NAK per 1 to 255 microframes, or yes NAKs if interval
  * is set to 0.
  */
 static unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
@@ -1396,7 +1396,7 @@ static u32 xhci_get_max_esit_payload(struct usb_device *udev,
 	int max_burst;
 	int max_packet;
 
-	/* Only applies for interrupt or isochronous endpoints */
+	/* Only applies for interrupt or isochroyesus endpoints */
 	if (usb_endpoint_xfer_control(&ep->desc) ||
 			usb_endpoint_xfer_bulk(&ep->desc))
 		return 0;
@@ -1415,7 +1415,7 @@ static u32 xhci_get_max_esit_payload(struct usb_device *udev,
 	return max_packet * max_burst;
 }
 
-/* Set up an endpoint with one ring segment.  Do not allocate stream rings.
+/* Set up an endpoint with one ring segment.  Do yest allocate stream rings.
  * Drivers will have to call usb_alloc_streams() to do that.
  */
 int xhci_endpoint_init(struct xhci_hcd *xhci,
@@ -1449,7 +1449,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	/*
 	 * Get values to fill the endpoint context, mostly from ep descriptor.
 	 * The average TRB buffer lengt for bulk endpoints is unclear as we
-	 * have no clue on scatter gather list entry size. For Isoc and Int,
+	 * have yes clue on scatter gather list entry size. For Isoc and Int,
 	 * set it to max available. See xHCI 1.1 spec 4.14.1.1 for details.
 	 */
 	max_esit_payload = xhci_get_max_esit_payload(udev, ep);
@@ -1554,7 +1554,7 @@ void xhci_update_bw_info(struct xhci_hcd *xhci,
 		bw_info = &virt_dev->eps[i].bw_info;
 
 		/* We can't tell what endpoint type is being dropped, but
-		 * unconditionally clearing the bandwidth info for non-periodic
+		 * unconditionally clearing the bandwidth info for yesn-periodic
 		 * endpoints should be harmless because the info will never be
 		 * set in the first place.
 		 */
@@ -1568,7 +1568,7 @@ void xhci_update_bw_info(struct xhci_hcd *xhci,
 			ep_ctx = xhci_get_ep_ctx(xhci, in_ctx, i);
 			ep_type = CTX_TO_EP_TYPE(le32_to_cpu(ep_ctx->ep_info2));
 
-			/* Ignore non-periodic endpoints */
+			/* Igyesre yesn-periodic endpoints */
 			if (ep_type != ISOC_OUT_EP && ep_type != INT_OUT_EP &&
 					ep_type != ISOC_IN_EP &&
 					ep_type != INT_IN_EP)
@@ -1653,8 +1653,8 @@ static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
 	if (!num_sp)
 		return 0;
 
-	xhci->scratchpad = kzalloc_node(sizeof(*xhci->scratchpad), flags,
-				dev_to_node(dev));
+	xhci->scratchpad = kzalloc_yesde(sizeof(*xhci->scratchpad), flags,
+				dev_to_yesde(dev));
 	if (!xhci->scratchpad)
 		goto fail_sp;
 
@@ -1664,8 +1664,8 @@ static int scratchpad_alloc(struct xhci_hcd *xhci, gfp_t flags)
 	if (!xhci->scratchpad->sp_array)
 		goto fail_sp2;
 
-	xhci->scratchpad->sp_buffers = kcalloc_node(num_sp, sizeof(void *),
-					flags, dev_to_node(dev));
+	xhci->scratchpad->sp_buffers = kcalloc_yesde(num_sp, sizeof(void *),
+					flags, dev_to_yesde(dev));
 	if (!xhci->scratchpad->sp_buffers)
 		goto fail_sp3;
 
@@ -1735,14 +1735,14 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 	struct xhci_command *command;
 	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
-	command = kzalloc_node(sizeof(*command), mem_flags, dev_to_node(dev));
+	command = kzalloc_yesde(sizeof(*command), mem_flags, dev_to_yesde(dev));
 	if (!command)
 		return NULL;
 
 	if (allocate_completion) {
 		command->completion =
-			kzalloc_node(sizeof(struct completion), mem_flags,
-				dev_to_node(dev));
+			kzalloc_yesde(sizeof(struct completion), mem_flags,
+				dev_to_yesde(dev));
 		if (!command->completion) {
 			kfree(command);
 			return NULL;
@@ -1893,7 +1893,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	scratchpad_free(xhci);
 
 	if (!xhci->rh_bw)
-		goto no_bw;
+		goto yes_bw;
 
 	for (i = 0; i < num_ports; i++) {
 		struct xhci_tt_bw_info *tt, *n;
@@ -1903,7 +1903,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 		}
 	}
 
-no_bw:
+yes_bw:
 	xhci->cmd_ring_reserved_trbs = 0;
 	xhci->usb2_rhub.num_ports = 0;
 	xhci->usb3_rhub.num_ports = 0;
@@ -2047,7 +2047,7 @@ static int xhci_check_trb_in_td_math(struct xhci_hcd *xhci)
 			.input_dma = xhci->event_ring->first_seg->dma + (TRBS_PER_SEGMENT - 4)*16,
 			.result_seg = NULL,
 		},
-		/* TRB not in this ring, and we have a wrapped TD */
+		/* TRB yest in this ring, and we have a wrapped TD */
 		{	.input_seg = xhci->event_ring->first_seg,
 			.start_trb = &xhci->event_ring->first_seg->trbs[TRBS_PER_SEGMENT - 3],
 			.end_trb = &xhci->event_ring->first_seg->trbs[1],
@@ -2117,29 +2117,29 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 {
 	u32 temp, port_offset, port_count;
 	int i;
-	u8 major_revision, minor_revision;
+	u8 major_revision, miyesr_revision;
 	struct xhci_hub *rhub;
 	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
 	temp = readl(addr);
 	major_revision = XHCI_EXT_PORT_MAJOR(temp);
-	minor_revision = XHCI_EXT_PORT_MINOR(temp);
+	miyesr_revision = XHCI_EXT_PORT_MINOR(temp);
 
 	if (major_revision == 0x03) {
 		rhub = &xhci->usb3_rhub;
 	} else if (major_revision <= 0x02) {
 		rhub = &xhci->usb2_rhub;
 	} else {
-		xhci_warn(xhci, "Ignoring unknown port speed, "
+		xhci_warn(xhci, "Igyesring unkyeswn port speed, "
 				"Ext Cap %p, revision = 0x%x\n",
 				addr, major_revision);
-		/* Ignoring port protocol we can't understand. FIXME */
+		/* Igyesring port protocol we can't understand. FIXME */
 		return;
 	}
 	rhub->maj_rev = XHCI_EXT_PORT_MAJOR(temp);
 
-	if (rhub->min_rev < minor_revision)
-		rhub->min_rev = minor_revision;
+	if (rhub->min_rev < miyesr_revision)
+		rhub->min_rev = miyesr_revision;
 
 	/* Port offset and count in the third dword, see section 7.2 */
 	temp = readl(addr + 2);
@@ -2156,8 +2156,8 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 
 	rhub->psi_count = XHCI_EXT_PORT_PSIC(temp);
 	if (rhub->psi_count) {
-		rhub->psi = kcalloc_node(rhub->psi_count, sizeof(*rhub->psi),
-				    GFP_KERNEL, dev_to_node(dev));
+		rhub->psi = kcalloc_yesde(rhub->psi_count, sizeof(*rhub->psi),
+				    GFP_KERNEL, dev_to_yesde(dev));
 		if (!rhub->psi)
 			rhub->psi_count = 0;
 
@@ -2195,7 +2195,7 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 	port_offset--;
 	for (i = port_offset; i < (port_offset + port_count); i++) {
 		struct xhci_port *hw_port = &xhci->hw_ports[i];
-		/* Duplicate entry.  Ignore the port if the revisions differ. */
+		/* Duplicate entry.  Igyesre the port if the revisions differ. */
 		if (hw_port->rhub) {
 			xhci_warn(xhci, "Duplicate port entry, Ext Cap %p,"
 					" port %u\n", addr, i);
@@ -2215,7 +2215,7 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 		hw_port->rhub = rhub;
 		rhub->num_ports++;
 	}
-	/* FIXME: Should we disable ports not in the Extended Capabilities? */
+	/* FIXME: Should we disable ports yest in the Extended Capabilities? */
 }
 
 static void xhci_create_rhub_port_array(struct xhci_hcd *xhci,
@@ -2227,8 +2227,8 @@ static void xhci_create_rhub_port_array(struct xhci_hcd *xhci,
 
 	if (!rhub->num_ports)
 		return;
-	rhub->ports = kcalloc_node(rhub->num_ports, sizeof(rhub->ports), flags,
-			dev_to_node(dev));
+	rhub->ports = kcalloc_yesde(rhub->num_ports, sizeof(rhub->ports), flags,
+			dev_to_yesde(dev));
 	for (i = 0; i < HCS_MAX_PORTS(xhci->hcs_params1); i++) {
 		if (xhci->hw_ports[i].rhub != rhub ||
 		    xhci->hw_ports[i].hcd_portnum == DUPLICATE_ENTRY)
@@ -2259,8 +2259,8 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
 
 	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
-	xhci->hw_ports = kcalloc_node(num_ports, sizeof(*xhci->hw_ports),
-				flags, dev_to_node(dev));
+	xhci->hw_ports = kcalloc_yesde(num_ports, sizeof(*xhci->hw_ports),
+				flags, dev_to_yesde(dev));
 	if (!xhci->hw_ports)
 		return -ENOMEM;
 
@@ -2270,8 +2270,8 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 		xhci->hw_ports[i].hw_portnum = i;
 	}
 
-	xhci->rh_bw = kcalloc_node(num_ports, sizeof(*xhci->rh_bw), flags,
-				   dev_to_node(dev));
+	xhci->rh_bw = kcalloc_yesde(num_ports, sizeof(*xhci->rh_bw), flags,
+				   dev_to_yesde(dev));
 	if (!xhci->rh_bw)
 		return -ENOMEM;
 	for (i = 0; i < num_ports; i++) {
@@ -2298,8 +2298,8 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 						      XHCI_EXT_CAPS_PROTOCOL);
 	}
 
-	xhci->ext_caps = kcalloc_node(cap_count, sizeof(*xhci->ext_caps),
-				flags, dev_to_node(dev));
+	xhci->ext_caps = kcalloc_yesde(cap_count, sizeof(*xhci->ext_caps),
+				flags, dev_to_yesde(dev));
 	if (!xhci->ext_caps)
 		return -ENOMEM;
 
@@ -2339,7 +2339,7 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 
 	/*
 	 * Note we could have all USB 3.0 ports, or all USB 2.0 ports.
-	 * Not sure how the USB core will handle a hub with no ports...
+	 * Not sure how the USB core will handle a hub with yes ports...
 	 */
 
 	xhci_create_rhub_port_array(xhci, &xhci->usb2_rhub, flags);
@@ -2375,7 +2375,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"Supported page size of %iK", (1 << (i+12)) / 1024);
 	else
-		xhci_warn(xhci, "WARN: no supported page size\n");
+		xhci_warn(xhci, "WARN: yes supported page size\n");
 	/* Use 4K pages, since that's common and the minimum the HC supports */
 	xhci->page_shift = 12;
 	xhci->page_size = 1 << xhci->page_shift;
@@ -2441,7 +2441,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	if (!xhci->small_streams_pool || !xhci->medium_streams_pool)
 		goto fail;
 
-	/* Set up the command ring to have one segments for now. */
+	/* Set up the command ring to have one segments for yesw. */
 	xhci->cmd_ring = xhci_ring_alloc(xhci, 1, 1, TYPE_COMMAND, 0, flags);
 	if (!xhci->cmd_ring)
 		goto fail;
@@ -2479,7 +2479,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci->ir_set = &xhci->run_regs->ir_set[0];
 
 	/*
-	 * Event ring setup: Allocate a normal ring, but also setup
+	 * Event ring setup: Allocate a yesrmal ring, but also setup
 	 * the event ring segment table (ERST).  Section 4.9.3.
 	 */
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "// Allocating event ring");
@@ -2538,14 +2538,14 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	if (xhci_setup_port_arrays(xhci, flags))
 		goto fail;
 
-	/* Enable USB 3.0 device notifications for function remote wake, which
+	/* Enable USB 3.0 device yestifications for function remote wake, which
 	 * is necessary for allowing USB 3.0 devices to do remote wakeup from
 	 * U3 (device suspend).
 	 */
-	temp = readl(&xhci->op_regs->dev_notification);
+	temp = readl(&xhci->op_regs->dev_yestification);
 	temp &= ~DEV_NOTE_MASK;
 	temp |= DEV_NOTE_FWAKE;
-	writel(temp, &xhci->op_regs->dev_notification);
+	writel(temp, &xhci->op_regs->dev_yestification);
 
 	return 0;
 

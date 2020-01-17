@@ -1,10 +1,10 @@
 Device Tree bindings for MVEBU SDRAM controllers
 
 The Marvell EBU SoCs all have a SDRAM controller. The SDRAM controller
-differs from one SoC variant to another, but they also share a number
+differs from one SoC variant to ayesther, but they also share a number
 of commonalities.
 
-For now, this Device Tree binding documentation only documents the
+For yesw, this Device Tree binding documentation only documents the
 Armada XP SDRAM controller.
 
 Required properties:

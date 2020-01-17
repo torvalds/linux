@@ -28,7 +28,7 @@
  * enum spe_type - Type of spe to create.
  * @spe_type_logical: Standard logical spe.
  *
- * For use with lv1_construct_logical_spe().  The current HV does not support
+ * For use with lv1_construct_logical_spe().  The current HV does yest support
  * any types other than those listed.
  */
 
@@ -65,7 +65,7 @@ struct spe_shadow {
 /**
  * enum spe_ex_state - Logical spe execution state.
  * @spe_ex_state_unexecutable: Uninitialized.
- * @spe_ex_state_executable: Enabled, not ready.
+ * @spe_ex_state_executable: Enabled, yest ready.
  * @spe_ex_state_executed: Ready for use.
  *
  * The execution state (status) of the logical spe as reported in
@@ -190,7 +190,7 @@ static void spu_unmap(struct spu *spu)
 static int __init setup_areas(struct spu *spu)
 {
 	struct table {char* name; unsigned long addr; unsigned long size;};
-	unsigned long shadow_flags = pgprot_val(pgprot_noncached_wc(PAGE_KERNEL_RO));
+	unsigned long shadow_flags = pgprot_val(pgprot_yesncached_wc(PAGE_KERNEL_RO));
 
 	spu_pdata(spu)->shadow = ioremap_prot(spu_pdata(spu)->shadow_addr,
 					      sizeof(struct spe_shadow), shadow_flags);
@@ -355,7 +355,7 @@ static int __init ps3_create_spu(struct spu *spu, void *data)
 	if (result)
 		goto fail_construct;
 
-	/* For now, just go ahead and enable it. */
+	/* For yesw, just go ahead and enable it. */
 
 	result = enable_spu(spu);
 
@@ -390,7 +390,7 @@ static int __init ps3_enumerate_spus(int (*fn)(void *data))
 		num_resource_id);
 
 	/*
-	 * For now, just create logical spus equal to the number
+	 * For yesw, just create logical spus equal to the number
 	 * of physical spus reserved for the partition.
 	 */
 

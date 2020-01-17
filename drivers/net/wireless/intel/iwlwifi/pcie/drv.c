@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -1002,7 +1002,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (IS_ERR(iwl_trans))
 		return PTR_ERR(iwl_trans);
 
-	/* the trans_cfg should never change, so set it now */
+	/* the trans_cfg should never change, so set it yesw */
 	iwl_trans->trans_cfg = &cfg->trans;
 
 	if (WARN_ONCE(!iwl_trans->trans_cfg->csr,
@@ -1059,7 +1059,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			cfg = &iwl22000_2ax_cfg_jf;
 		} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id) ==
 			   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HRCDB)) {
-			IWL_ERR(iwl_trans, "RF ID HRCDB is not supported\n");
+			IWL_ERR(iwl_trans, "RF ID HRCDB is yest supported\n");
 			return -EINVAL;
 		} else {
 			IWL_ERR(iwl_trans, "Unrecognized RF ID 0x%08x\n",
@@ -1082,7 +1082,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			cfg = &iwl22000_2ax_cfg_qnj_hr_a0_f0;
 		} else {
 			/*
-			 * a step no FPGA
+			 * a step yes FPGA
 			 */
 			cfg = &iwl22000_2ac_cfg_hr;
 		}
@@ -1091,7 +1091,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/*
 	 * This is a hack to switch from Qu B0 to Qu C0.  We need to
 	 * do this for all cfgs that use Qu B0.  All this code is in
-	 * urgent need for a refactor, but for now this is the easiest
+	 * urgent need for a refactor, but for yesw this is the easiest
 	 * thing to do to support Qu C-step.
 	 */
 	if (iwl_trans->hw_rev == CSR_HW_REV_TYPE_QU_C0) {
@@ -1126,17 +1126,17 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 #endif
-	/* now set the real cfg we decided to use */
+	/* yesw set the real cfg we decided to use */
 	iwl_trans->cfg = cfg;
 
 	if (iwl_trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_8000 &&
 	    iwl_trans_grab_nic_access(iwl_trans, &flags)) {
 		u32 hw_step;
 
-		hw_step = iwl_read_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG);
+		hw_step = iwl_read_umac_prph_yes_grab(iwl_trans, WFPM_CTRL_REG);
 		hw_step |= ENABLE_WFPM;
-		iwl_write_umac_prph_no_grab(iwl_trans, WFPM_CTRL_REG, hw_step);
-		hw_step = iwl_read_prph_no_grab(iwl_trans, CNVI_AUX_MISC_CHIP);
+		iwl_write_umac_prph_yes_grab(iwl_trans, WFPM_CTRL_REG, hw_step);
+		hw_step = iwl_read_prph_yes_grab(iwl_trans, CNVI_AUX_MISC_CHIP);
 		hw_step = (hw_step >> HW_STEP_LOCATION_BITS) & 0xF;
 		if (hw_step == 0x3)
 			iwl_trans->hw_rev = (iwl_trans->hw_rev & 0xFFFFFFF3) |
@@ -1157,7 +1157,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* The PCI device starts with a reference taken and we are
 	 * supposed to release it here.  But to simplify the
-	 * interaction with the opmode, we don't do it now, but let
+	 * interaction with the opmode, we don't do it yesw, but let
 	 * the opmode release it when it's ready.
 	 */
 
@@ -1181,8 +1181,8 @@ static void iwl_pci_remove(struct pci_dev *pdev)
 
 static int iwl_pci_suspend(struct device *device)
 {
-	/* Before you put code here, think about WoWLAN. You cannot check here
-	 * whether WoWLAN is enabled or not, and your code will run even if
+	/* Before you put code here, think about WoWLAN. You canyest check here
+	 * whether WoWLAN is enabled or yest, and your code will run even if
 	 * WoWLAN is enabled - don't kill the NIC, someone may need it in Sx.
 	 */
 
@@ -1195,8 +1195,8 @@ static int iwl_pci_resume(struct device *device)
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	/* Before you put code here, think about WoWLAN. You cannot check here
-	 * whether WoWLAN is enabled or not, and your code will run even if
+	/* Before you put code here, think about WoWLAN. You canyest check here
+	 * whether WoWLAN is enabled or yest, and your code will run even if
 	 * WoWLAN is enabled - the NIC may be alive.
 	 */
 

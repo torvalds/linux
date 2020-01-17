@@ -73,8 +73,8 @@ int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta);
 int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);
-void wfx_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    enum sta_notify_cmd cmd, struct ieee80211_sta *sta);
+void wfx_sta_yestify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		    enum sta_yestify_cmd cmd, struct ieee80211_sta *sta);
 int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set);
 int wfx_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     struct ieee80211_ampdu_params *params);

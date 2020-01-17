@@ -44,7 +44,7 @@ irqreturn_t tve200_irq(int irq, void *data)
 	 * firing at start of active image, which works around the problem
 	 * since those occur strictly in sequence, and we get two IRQs for each
 	 * frame, one at start of Vblank (that we make call into the CRTC) and
-	 * another one at the start of the image (that we discard).
+	 * ayesther one at the start of the image (that we discard).
 	 */
 	if (stat & TVE200_INT_V_STATUS) {
 		val = readl(priv->regs + TVE200_CTRL);
@@ -76,7 +76,7 @@ static int tve200_display_check(struct drm_simple_display_pipe *pipe,
 	struct drm_framebuffer *fb = pstate->fb;
 
 	/*
-	 * We support these specific resolutions and nothing else.
+	 * We support these specific resolutions and yesthing else.
 	 */
 	if (!(mode->hdisplay == 352 && mode->vdisplay == 240) && /* SIF(525) */
 	    !(mode->hdisplay == 352 && mode->vdisplay == 288) && /* CIF(625) */
@@ -93,12 +93,12 @@ static int tve200_display_check(struct drm_simple_display_pipe *pipe,
 
 		/* FB base address must be dword aligned. */
 		if (offset & 3) {
-			DRM_DEBUG_KMS("FB not 32-bit aligned\n");
+			DRM_DEBUG_KMS("FB yest 32-bit aligned\n");
 			return -EINVAL;
 		}
 
 		/*
-		 * There's no pitch register, the mode's hdisplay
+		 * There's yes pitch register, the mode's hdisplay
 		 * controls this.
 		 */
 		if (fb->pitches[0] != mode->hdisplay * fb->format->cpp[0]) {
@@ -209,7 +209,7 @@ static void tve200_display_enable(struct drm_simple_display_pipe *pipe,
 		ctrl1 |= TVE200_IPDMOD_YUV420;
 		break;
 	default:
-		dev_err(drm->dev, "Unknown FB format 0x%08x\n",
+		dev_err(drm->dev, "Unkyeswn FB format 0x%08x\n",
 			fb->format->format);
 		break;
 	}

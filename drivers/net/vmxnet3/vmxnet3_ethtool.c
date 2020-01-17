@@ -5,7 +5,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License and no later version.
+ * Free Software Foundation; version 2 of the License and yes later version.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -14,7 +14,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * The full GNU General Public License is included in this distribution in
@@ -547,10 +547,10 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 	    param->rx_jumbo_pending > VMXNET3_RX_RING2_MAX_SIZE)
 		return -EINVAL;
 
-	/* if adapter not yet initialized, do nothing */
+	/* if adapter yest yet initialized, do yesthing */
 	if (adapter->rx_buf_per_pkt == 0) {
-		netdev_err(netdev, "adapter not completely initialized, "
-			   "ring size cannot be changed yet\n");
+		netdev_err(netdev, "adapter yest completely initialized, "
+			   "ring size canyest be changed yet\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -717,7 +717,7 @@ vmxnet3_set_rss(struct net_device *netdev, const u32 *p, const u8 *key,
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	struct UPT1_RSSConf *rssConf = adapter->rss_conf;
 
-	/* We do not allow change in unsupported parameters */
+	/* We do yest allow change in unsupported parameters */
 	if (key ||
 	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
 		return -EOPNOTSUPP;

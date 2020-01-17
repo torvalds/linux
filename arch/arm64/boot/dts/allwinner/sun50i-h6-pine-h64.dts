@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ or MIT)
 /*
- * Copyright (c) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (c) 2017 Iceyeswy Zheng <iceyeswy@aosc.io>
  */
 
 /dts-v1/;
@@ -118,7 +118,7 @@
 &mmc2 {
 	vmmc-supply = <&reg_cldo1>;
 	vqmmc-supply = <&reg_bldo2>;
-	non-removable;
+	yesn-removable;
 	cap-mmc-hw-reset;
 	bus-width = <8>;
 	status = "okay";

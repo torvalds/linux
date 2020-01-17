@@ -211,7 +211,7 @@ int cpsw_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *coal)
 update_return:
 	writel(int_ctrl, &cpsw->wr_regs->int_control);
 
-	cpsw_notice(priv, timer, "Set coalesce to %d usecs.\n", coal_intvl);
+	cpsw_yestice(priv, timer, "Set coalesce to %d usecs.\n", coal_intvl);
 	cpsw->coal_intvl = coal_intvl;
 
 	return 0;
@@ -314,23 +314,23 @@ void cpsw_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int slave_no = cpsw_slave_index(cpsw, priv);
+	int slave_yes = cpsw_slave_index(cpsw, priv);
 
 	wol->supported = 0;
 	wol->wolopts = 0;
 
-	if (cpsw->slaves[slave_no].phy)
-		phy_ethtool_get_wol(cpsw->slaves[slave_no].phy, wol);
+	if (cpsw->slaves[slave_yes].phy)
+		phy_ethtool_get_wol(cpsw->slaves[slave_yes].phy, wol);
 }
 
 int cpsw_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int slave_no = cpsw_slave_index(cpsw, priv);
+	int slave_yes = cpsw_slave_index(cpsw, priv);
 
-	if (cpsw->slaves[slave_no].phy)
-		return phy_ethtool_set_wol(cpsw->slaves[slave_no].phy, wol);
+	if (cpsw->slaves[slave_yes].phy)
+		return phy_ethtool_set_wol(cpsw->slaves[slave_yes].phy, wol);
 	else
 		return -EOPNOTSUPP;
 }
@@ -362,7 +362,7 @@ int cpsw_ethtool_op_begin(struct net_device *ndev)
 	ret = pm_runtime_get_sync(cpsw->dev);
 	if (ret < 0) {
 		cpsw_err(priv, drv, "ethtool begin failed %d\n", ret);
-		pm_runtime_put_noidle(cpsw->dev);
+		pm_runtime_put_yesidle(cpsw->dev);
 	}
 
 	return ret;
@@ -397,12 +397,12 @@ int cpsw_get_link_ksettings(struct net_device *ndev,
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int slave_no = cpsw_slave_index(cpsw, priv);
+	int slave_yes = cpsw_slave_index(cpsw, priv);
 
-	if (!cpsw->slaves[slave_no].phy)
+	if (!cpsw->slaves[slave_yes].phy)
 		return -EOPNOTSUPP;
 
-	phy_ethtool_ksettings_get(cpsw->slaves[slave_no].phy, ecmd);
+	phy_ethtool_ksettings_get(cpsw->slaves[slave_yes].phy, ecmd);
 	return 0;
 }
 
@@ -411,22 +411,22 @@ int cpsw_set_link_ksettings(struct net_device *ndev,
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int slave_no = cpsw_slave_index(cpsw, priv);
+	int slave_yes = cpsw_slave_index(cpsw, priv);
 
-	if (!cpsw->slaves[slave_no].phy)
+	if (!cpsw->slaves[slave_yes].phy)
 		return -EOPNOTSUPP;
 
-	return phy_ethtool_ksettings_set(cpsw->slaves[slave_no].phy, ecmd);
+	return phy_ethtool_ksettings_set(cpsw->slaves[slave_yes].phy, ecmd);
 }
 
 int cpsw_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int slave_no = cpsw_slave_index(cpsw, priv);
+	int slave_yes = cpsw_slave_index(cpsw, priv);
 
-	if (cpsw->slaves[slave_no].phy)
-		return phy_ethtool_get_eee(cpsw->slaves[slave_no].phy, edata);
+	if (cpsw->slaves[slave_yes].phy)
+		return phy_ethtool_get_eee(cpsw->slaves[slave_yes].phy, edata);
 	else
 		return -EOPNOTSUPP;
 }
@@ -435,10 +435,10 @@ int cpsw_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int slave_no = cpsw_slave_index(cpsw, priv);
+	int slave_yes = cpsw_slave_index(cpsw, priv);
 
-	if (cpsw->slaves[slave_no].phy)
-		return phy_ethtool_set_eee(cpsw->slaves[slave_no].phy, edata);
+	if (cpsw->slaves[slave_yes].phy)
+		return phy_ethtool_set_eee(cpsw->slaves[slave_yes].phy, edata);
 	else
 		return -EOPNOTSUPP;
 }
@@ -447,10 +447,10 @@ int cpsw_nway_reset(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
-	int slave_no = cpsw_slave_index(cpsw, priv);
+	int slave_yes = cpsw_slave_index(cpsw, priv);
 
-	if (cpsw->slaves[slave_no].phy)
-		return genphy_restart_aneg(cpsw->slaves[slave_no].phy);
+	if (cpsw->slaves[slave_yes].phy)
+		return genphy_restart_aneg(cpsw->slaves[slave_yes].phy);
 	else
 		return -EOPNOTSUPP;
 }
@@ -623,13 +623,13 @@ int cpsw_set_channels_common(struct net_device *ndev,
 		/* Inform stack about new count of queues */
 		ret = netif_set_real_num_tx_queues(sl_ndev, cpsw->tx_ch_num);
 		if (ret) {
-			dev_err(priv->dev, "cannot set real number of tx queues\n");
+			dev_err(priv->dev, "canyest set real number of tx queues\n");
 			goto err;
 		}
 
 		ret = netif_set_real_num_rx_queues(sl_ndev, cpsw->rx_ch_num);
 		if (ret) {
-			dev_err(priv->dev, "cannot set real number of rx queues\n");
+			dev_err(priv->dev, "canyest set real number of rx queues\n");
 			goto err;
 		}
 	}
@@ -647,7 +647,7 @@ int cpsw_set_channels_common(struct net_device *ndev,
 	if (!ret)
 		return 0;
 err:
-	dev_err(priv->dev, "cannot update channels number, closing device\n");
+	dev_err(priv->dev, "canyest update channels number, closing device\n");
 	cpsw_fail(cpsw);
 	return ret;
 }
@@ -658,7 +658,7 @@ void cpsw_get_ringparam(struct net_device *ndev,
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
 
-	/* not supported */
+	/* yest supported */
 	ering->tx_max_pending = cpsw->descs_pool_size - CPSW_MAX_QUEUES;
 	ering->tx_pending = cpdma_get_num_tx_descs(cpsw->dma);
 	ering->rx_max_pending = cpsw->descs_pool_size - CPSW_MAX_QUEUES;
@@ -671,7 +671,7 @@ int cpsw_set_ringparam(struct net_device *ndev,
 	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
 	int descs_num, ret;
 
-	/* ignore ering->tx_pending - only rx_pending adjustment is supported */
+	/* igyesre ering->tx_pending - only rx_pending adjustment is supported */
 
 	if (ering->rx_mini_pending || ering->rx_jumbo_pending ||
 	    ering->rx_pending < CPSW_MAX_QUEUES ||
@@ -704,7 +704,7 @@ int cpsw_set_ringparam(struct net_device *ndev,
 		return 0;
 err:
 	cpdma_set_num_rx_descs(cpsw->dma, descs_num);
-	dev_err(cpsw->dev, "cannot set ring params, closing device\n");
+	dev_err(cpsw->dev, "canyest set ring params, closing device\n");
 	cpsw_fail(cpsw);
 	return ret;
 }

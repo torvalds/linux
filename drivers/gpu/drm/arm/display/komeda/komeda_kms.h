@@ -27,7 +27,7 @@ struct komeda_plane {
 	 * represents available layer input pipelines for this plane.
 	 *
 	 * NOTE:
-	 * the layer is not for a specific Layer, but indicate a group of
+	 * the layer is yest for a specific Layer, but indicate a group of
 	 * Layers with same capabilities.
 	 */
 	struct komeda_layer *layer;
@@ -42,8 +42,8 @@ struct komeda_plane {
 struct komeda_plane_state {
 	/** @base: &drm_plane_state */
 	struct drm_plane_state base;
-	/** @zlist_node: zorder list node */
-	struct list_head zlist_node;
+	/** @zlist_yesde: zorder list yesde */
+	struct list_head zlist_yesde;
 
 	/** @layer_split: on/off layer_split */
 	u8 layer_split : 1;

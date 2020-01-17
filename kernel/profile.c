@@ -18,7 +18,7 @@
 #include <linux/export.h>
 #include <linux/profile.h>
 #include <linux/memblock.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/mm.h>
 #include <linux/cpumask.h>
 #include <linux/cpu.h>
@@ -132,53 +132,53 @@ int __ref profile_init(void)
 	return -ENOMEM;
 }
 
-/* Profile event notifications */
+/* Profile event yestifications */
 
-static BLOCKING_NOTIFIER_HEAD(task_exit_notifier);
-static ATOMIC_NOTIFIER_HEAD(task_free_notifier);
-static BLOCKING_NOTIFIER_HEAD(munmap_notifier);
+static BLOCKING_NOTIFIER_HEAD(task_exit_yestifier);
+static ATOMIC_NOTIFIER_HEAD(task_free_yestifier);
+static BLOCKING_NOTIFIER_HEAD(munmap_yestifier);
 
 void profile_task_exit(struct task_struct *task)
 {
-	blocking_notifier_call_chain(&task_exit_notifier, 0, task);
+	blocking_yestifier_call_chain(&task_exit_yestifier, 0, task);
 }
 
 int profile_handoff_task(struct task_struct *task)
 {
 	int ret;
-	ret = atomic_notifier_call_chain(&task_free_notifier, 0, task);
+	ret = atomic_yestifier_call_chain(&task_free_yestifier, 0, task);
 	return (ret == NOTIFY_OK) ? 1 : 0;
 }
 
 void profile_munmap(unsigned long addr)
 {
-	blocking_notifier_call_chain(&munmap_notifier, 0, (void *)addr);
+	blocking_yestifier_call_chain(&munmap_yestifier, 0, (void *)addr);
 }
 
-int task_handoff_register(struct notifier_block *n)
+int task_handoff_register(struct yestifier_block *n)
 {
-	return atomic_notifier_chain_register(&task_free_notifier, n);
+	return atomic_yestifier_chain_register(&task_free_yestifier, n);
 }
 EXPORT_SYMBOL_GPL(task_handoff_register);
 
-int task_handoff_unregister(struct notifier_block *n)
+int task_handoff_unregister(struct yestifier_block *n)
 {
-	return atomic_notifier_chain_unregister(&task_free_notifier, n);
+	return atomic_yestifier_chain_unregister(&task_free_yestifier, n);
 }
 EXPORT_SYMBOL_GPL(task_handoff_unregister);
 
-int profile_event_register(enum profile_type type, struct notifier_block *n)
+int profile_event_register(enum profile_type type, struct yestifier_block *n)
 {
 	int err = -EINVAL;
 
 	switch (type) {
 	case PROFILE_TASK_EXIT:
-		err = blocking_notifier_chain_register(
-				&task_exit_notifier, n);
+		err = blocking_yestifier_chain_register(
+				&task_exit_yestifier, n);
 		break;
 	case PROFILE_MUNMAP:
-		err = blocking_notifier_chain_register(
-				&munmap_notifier, n);
+		err = blocking_yestifier_chain_register(
+				&munmap_yestifier, n);
 		break;
 	}
 
@@ -186,18 +186,18 @@ int profile_event_register(enum profile_type type, struct notifier_block *n)
 }
 EXPORT_SYMBOL_GPL(profile_event_register);
 
-int profile_event_unregister(enum profile_type type, struct notifier_block *n)
+int profile_event_unregister(enum profile_type type, struct yestifier_block *n)
 {
 	int err = -EINVAL;
 
 	switch (type) {
 	case PROFILE_TASK_EXIT:
-		err = blocking_notifier_chain_unregister(
-				&task_exit_notifier, n);
+		err = blocking_yestifier_chain_unregister(
+				&task_exit_yestifier, n);
 		break;
 	case PROFILE_MUNMAP:
-		err = blocking_notifier_chain_unregister(
-				&munmap_notifier, n);
+		err = blocking_yestifier_chain_unregister(
+				&munmap_yestifier, n);
 		break;
 	}
 
@@ -227,13 +227,13 @@ EXPORT_SYMBOL_GPL(profile_event_unregister);
  * particularly given that the number of distinct profile buffer
  * positions to which hits are accounted during short intervals (e.g.
  * several seconds) is usually very small. Exclusion from buffer
- * flipping is provided by interrupt disablement (note that for
+ * flipping is provided by interrupt disablement (yeste that for
  * SCHED_PROFILING or SLEEP_PROFILING profile_hit() may be called from
  * process context).
  * The hash function is meant to be lightweight as opposed to strong,
  * and was vaguely inspired by ppc64 firmware-supported inverted
  * pagetable hash functions, but uses a full hashtable full of finite
- * collision chains, not just pairs of them.
+ * collision chains, yest just pairs of them.
  *
  * -- nyc
  */
@@ -351,7 +351,7 @@ static int profile_dead_cpu(unsigned int cpu)
 
 static int profile_prepare_cpu(unsigned int cpu)
 {
-	int i, node = cpu_to_mem(cpu);
+	int i, yesde = cpu_to_mem(cpu);
 	struct page *page;
 
 	per_cpu(cpu_profile_flip, cpu) = 0;
@@ -360,7 +360,7 @@ static int profile_prepare_cpu(unsigned int cpu)
 		if (per_cpu(cpu_profile_hits, cpu)[i])
 			continue;
 
-		page = __alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
+		page = __alloc_pages_yesde(yesde, GFP_KERNEL | __GFP_ZERO, 0);
 		if (!page) {
 			profile_dead_cpu(cpu);
 			return -ENOMEM;
@@ -419,7 +419,7 @@ static int prof_cpu_mask_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int prof_cpu_mask_proc_open(struct inode *inode, struct file *file)
+static int prof_cpu_mask_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, prof_cpu_mask_proc_show, NULL);
 }

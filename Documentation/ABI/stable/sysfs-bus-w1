@@ -7,5 +7,5 @@ Description:	Bus scanning interval, microseconds component.
 		100 ms - hence the tens-to-hundreds milliseconds scan intervals
 		are required.
 		see Documentation/w1/w1-generic.rst for detailed information.
-Users:		any user space application which wants to know bus scanning
+Users:		any user space application which wants to kyesw bus scanning
 		interval

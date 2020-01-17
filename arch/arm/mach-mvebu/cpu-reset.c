@@ -41,7 +41,7 @@ int mvebu_cpu_reset_deassert(int cpu)
 	return 0;
 }
 
-static int mvebu_cpu_reset_map(struct device_node *np, int res_idx)
+static int mvebu_cpu_reset_map(struct device_yesde *np, int res_idx)
 {
 	struct resource res;
 
@@ -70,11 +70,11 @@ static int mvebu_cpu_reset_map(struct device_node *np, int res_idx)
 
 static int __init mvebu_cpu_reset_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int res_idx;
 	int ret;
 
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_yesde(NULL, NULL,
 				     "marvell,armada-370-cpu-reset");
 	if (np) {
 		res_idx = 0;
@@ -83,7 +83,7 @@ static int __init mvebu_cpu_reset_init(void)
 		 * This code is kept for backward compatibility with
 		 * old Device Trees.
 		 */
-		np = of_find_compatible_node(NULL, NULL,
+		np = of_find_compatible_yesde(NULL, NULL,
 					     "marvell,armada-370-xp-pmsu");
 		if (np) {
 			pr_warn(FW_WARN "deprecated pmsu binding\n");
@@ -91,12 +91,12 @@ static int __init mvebu_cpu_reset_init(void)
 		}
 	}
 
-	/* No reset node found */
+	/* No reset yesde found */
 	if (!np)
 		return -ENODEV;
 
 	ret = mvebu_cpu_reset_map(np, res_idx);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return ret;
 }

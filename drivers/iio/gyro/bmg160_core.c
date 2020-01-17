@@ -191,7 +191,7 @@ static int bmg160_get_filter(struct bmg160_data *data, int *val)
 		return ret;
 	}
 
-	/* Ignore the readonly reserved bit. */
+	/* Igyesre the readonly reserved bit. */
 	bw_bits &= ~BMG160_REG_PMU_BW_RES;
 
 	for (i = 0; i < ARRAY_SIZE(bmg160_samp_freq_table); ++i) {
@@ -233,7 +233,7 @@ static int bmg160_chip_init(struct bmg160_data *data)
 	unsigned int val;
 
 	/*
-	 * Reset chip to get it in a known good state. A delay of 30ms after
+	 * Reset chip to get it in a kyeswn good state. A delay of 30ms after
 	 * reset is required according to the datasheet.
 	 */
 	regmap_write(data->regmap, BMG160_GYRO_REG_RESET,
@@ -316,7 +316,7 @@ static int bmg160_set_power_state(struct bmg160_data *data, bool on)
 		dev_err(dev, "Failed: bmg160_set_power_state for %d\n", on);
 
 		if (on)
-			pm_runtime_put_noidle(dev);
+			pm_runtime_put_yesidle(dev);
 
 		return ret;
 	}
@@ -359,8 +359,8 @@ static int bmg160_setup_any_motion_interrupt(struct bmg160_data *data,
 		}
 
 		/*
-		 * New data interrupt is always non-latched,
-		 * which will have higher priority, so no need
+		 * New data interrupt is always yesn-latched,
+		 * which will have higher priority, so yes need
 		 * to set latched mode, we will be flooded anyway with INTR
 		 */
 		if (!data->dready_trigger_on) {
@@ -450,7 +450,7 @@ static int bmg160_get_bw(struct bmg160_data *data, int *val)
 		return ret;
 	}
 
-	/* Ignore the readonly reserved bit. */
+	/* Igyesre the readonly reserved bit. */
 	bw_bits &= ~BMG160_REG_PMU_BW_RES;
 
 	for (i = 0; i < ARRAY_SIZE(bmg160_samp_freq_table); ++i) {
@@ -888,7 +888,7 @@ static irqreturn_t bmg160_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 					   pf->timestamp);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1195,7 +1195,7 @@ void bmg160_core_remove(struct device *dev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 
 	iio_triggered_buffer_cleanup(indio_dev);
 

@@ -109,7 +109,7 @@ sk_load_byte_msh_positive_offset:
 	mr	r4, r_addr;					\
 	li	r6, SIZE;					\
 	bl	skb_copy_bits;					\
-	nop;							\
+	yesp;							\
 	/* R3 = 0 on success */					\
 	addi	r1, r1, BPF_PPC_SLOWPATH_FRAME;			\
 	PPC_LL	r0, PPC_LR_STKOFF(r1);					\
@@ -161,7 +161,7 @@ bpf_slow_path_byte_msh:
 	mr	r4, r_addr;					\
 	li	r5, SIZE;					\
 	bl	bpf_internal_load_pointer_neg_helper;		\
-	nop;							\
+	yesp;							\
 	/* R3 != 0 on success */				\
 	addi	r1, r1, BPF_PPC_SLOWPATH_FRAME;			\
 	PPC_LL	r0, PPC_LR_STKOFF(r1);					\

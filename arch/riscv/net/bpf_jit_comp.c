@@ -479,7 +479,7 @@ static bool is_32b_int(s64 val)
 static int is_12b_check(int off, int insn)
 {
 	if (!is_12b_int(off)) {
-		pr_err("bpf-jit: insn=%d offset=%d not supported yet!\n",
+		pr_err("bpf-jit: insn=%d offset=%d yest supported yet!\n",
 		       insn, (int)off);
 		return -1;
 	}
@@ -489,7 +489,7 @@ static int is_12b_check(int off, int insn)
 static int is_13b_check(int off, int insn)
 {
 	if (!is_13b_int(off)) {
-		pr_err("bpf-jit: insn=%d offset=%d not supported yet!\n",
+		pr_err("bpf-jit: insn=%d offset=%d yest supported yet!\n",
 		       insn, (int)off);
 		return -1;
 	}
@@ -499,7 +499,7 @@ static int is_13b_check(int off, int insn)
 static int is_21b_check(int off, int insn)
 {
 	if (!is_21b_int(off)) {
-		pr_err("bpf-jit: insn=%d offset=%d not supported yet!\n",
+		pr_err("bpf-jit: insn=%d offset=%d yest supported yet!\n",
 		       insn, (int)off);
 		return -1;
 	}
@@ -1002,7 +1002,7 @@ out_be:
 	case BPF_JMP | BPF_JA:
 		rvoff = rv_offset(i + off, i, ctx);
 		if (!is_21b_int(rvoff)) {
-			pr_err("bpf-jit: insn=%d offset=%d not supported yet!\n",
+			pr_err("bpf-jit: insn=%d offset=%d yest supported yet!\n",
 			       i, rvoff);
 			return -1;
 		}
@@ -1221,7 +1221,7 @@ out_be:
 			i = ctx->ninsns;
 			emit_imm(RV_REG_T1, addr, ctx);
 			for (i = ctx->ninsns - i; i < 8; i++) {
-				/* nop */
+				/* yesp */
 				emit(rv_addi(RV_REG_ZERO, RV_REG_ZERO, 0),
 				     ctx);
 			}
@@ -1415,7 +1415,7 @@ out_be:
 		     rv_amoadd_d(RV_REG_ZERO, rs, rd, 0, 0), ctx);
 		break;
 	default:
-		pr_err("bpf-jit: unknown opcode %02x\n", code);
+		pr_err("bpf-jit: unkyeswn opcode %02x\n", code);
 		return -EINVAL;
 	}
 
@@ -1588,7 +1588,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		goto out_offset;
 	}
 
-	/* First pass generates the ctx->offset, but does not emit an image. */
+	/* First pass generates the ctx->offset, but does yest emit an image. */
 	if (build_body(ctx, extra_pass)) {
 		prog = orig_prog;
 		goto out_offset;
@@ -1597,7 +1597,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	ctx->epilogue_offset = ctx->ninsns;
 	build_epilogue(ctx);
 
-	/* Allocate image, now that we know the size. */
+	/* Allocate image, yesw that we kyesw the size. */
 	image_size = sizeof(u32) * ctx->ninsns;
 	jit_data->header = bpf_jit_binary_alloc(image_size, &jit_data->image,
 						sizeof(u32),

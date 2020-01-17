@@ -12,7 +12,7 @@
 #include <linux/memory.h>
 #include <asm/extable.h>
 #include <asm/set_memory.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 #include <asm/text-patching.h>
 
 static u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
@@ -107,7 +107,7 @@ static int bpf_size_to_x86_bytes(int bpf_size)
  * register in load/store instructions, it always needs an
  * extra byte of encoding and is callee saved.
  *
- * x86-64 register R9 is not used by BPF programs, but can be used by BPF
+ * x86-64 register R9 is yest used by BPF programs, but can be used by BPF
  * trampoline. x86-64 register R10 is used for blinding (if enabled).
  */
 static const int reg2hex[] = {
@@ -211,17 +211,17 @@ struct jit_context {
 
 /*
  * Emit x86-64 prologue code for BPF program and check its size.
- * bpf_tail_call helper will skip it while jumping into another program
+ * bpf_tail_call helper will skip it while jumping into ayesther program
  */
 static void emit_prologue(u8 **pprog, u32 stack_depth, bool ebpf_from_cbpf)
 {
 	u8 *prog = *pprog;
 	int cnt = X86_PATCH_SIZE;
 
-	/* BPF trampoline can be made to work without these nops,
-	 * but let's waste 5 bytes for now and optimize later
+	/* BPF trampoline can be made to work without these yesps,
+	 * but let's waste 5 bytes for yesw and optimize later
 	 */
-	memcpy(prog, ideal_nops[NOP_ATOMIC5], cnt);
+	memcpy(prog, ideal_yesps[NOP_ATOMIC5], cnt);
 	prog += cnt;
 	EMIT1(0x55);             /* push rbp */
 	EMIT3(0x48, 0x89, 0xE5); /* mov rbp, rsp */
@@ -269,13 +269,13 @@ static int __bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 				void *old_addr, void *new_addr,
 				const bool text_live)
 {
-	const u8 *nop_insn = ideal_nops[NOP_ATOMIC5];
+	const u8 *yesp_insn = ideal_yesps[NOP_ATOMIC5];
 	u8 old_insn[X86_PATCH_SIZE];
 	u8 new_insn[X86_PATCH_SIZE];
 	u8 *prog;
 	int ret;
 
-	memcpy(old_insn, nop_insn, X86_PATCH_SIZE);
+	memcpy(old_insn, yesp_insn, X86_PATCH_SIZE);
 	if (old_addr) {
 		prog = old_insn;
 		ret = t == BPF_MOD_CALL ?
@@ -285,7 +285,7 @@ static int __bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 			return ret;
 	}
 
-	memcpy(new_insn, nop_insn, X86_PATCH_SIZE);
+	memcpy(new_insn, yesp_insn, X86_PATCH_SIZE);
 	if (new_addr) {
 		prog = new_insn;
 		ret = t == BPF_MOD_CALL ?
@@ -316,7 +316,7 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type t,
 {
 	if (!is_kernel_text((long)ip) &&
 	    !is_bpf_text_address((long)ip))
-		/* BPF poking in modules is not supported */
+		/* BPF poking in modules is yest supported */
 		return -EINVAL;
 
 	return __bpf_arch_text_poke(ip, t, old_addr, new_addr, true);
@@ -422,7 +422,7 @@ static void emit_bpf_tail_call_direct(struct bpf_jit_poke_descriptor *poke,
 	poke->ip = image + (addr - X86_PATCH_SIZE);
 	poke->adj_off = PROLOGUE_SIZE;
 
-	memcpy(prog, ideal_nops[NOP_ATOMIC5], X86_PATCH_SIZE);
+	memcpy(prog, ideal_yesps[NOP_ATOMIC5], X86_PATCH_SIZE);
 	prog += X86_PATCH_SIZE;
 	/* out: */
 
@@ -447,8 +447,8 @@ static void bpf_tail_call_direct_fixup(struct bpf_prog *prog)
 		mutex_lock(&array->aux->poke_mutex);
 		target = array->ptrs[poke->tail_call.key];
 		if (target) {
-			/* Plain memcpy is used when image is not live yet
-			 * and still not locked as read-only. Once poke
+			/* Plain memcpy is used when image is yest live yet
+			 * and still yest locked as read-only. Once poke
 			 * location is active (poke->ip_stable), any parallel
 			 * bpf_arch_text_poke() might occur still on the
 			 * read-write image until we finally locked it as
@@ -514,7 +514,7 @@ static void emit_mov_imm64(u8 **pprog, u32 dst_reg,
 
 	if (is_uimm32(((u64)imm32_hi << 32) | (u32)imm32_lo)) {
 		/*
-		 * For emitting plain u32, where sign bit must not be
+		 * For emitting plain u32, where sign bit must yest be
 		 * propagated LLVM tends to load imm64 over mov32
 		 * directly, so save couple of bytes by just doing
 		 * 'mov %eax, imm32' instead.
@@ -578,7 +578,7 @@ static void emit_ldx(u8 **pprog, u32 size, u32 dst_reg, u32 src_reg, int off)
 	/*
 	 * If insn->off == 0 we can save one extra byte, but
 	 * special case of x86 R13 which always needs an offset
-	 * is not worth the hassle
+	 * is yest worth the hassle
 	 */
 	if (is_imm8(off))
 		EMIT2(add_2reg(0x40, src_reg, dst_reg), off);
@@ -722,7 +722,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 				EMIT1(add_1mod(0x40, dst_reg));
 
 			/*
-			 * b3 holds 'normal' opcode, b2 short form only valid
+			 * b3 holds 'yesrmal' opcode, b2 short form only valid
 			 * in case dst is eax/rax.
 			 */
 			switch (BPF_OP(insn->code)) {
@@ -971,7 +971,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 				EMIT2(0x89, add_2reg(0xC0, dst_reg, dst_reg));
 				break;
 			case 64:
-				/* nop */
+				/* yesp */
 				break;
 			}
 			break;
@@ -1062,7 +1062,7 @@ st:			if (is_imm8(insn->off))
 				 * pt_regs->ip to jump over this x86 instruction
 				 * and upper bits to figure out which pt_regs to zero out.
 				 * End result: x86 insn "mov rbx, qword ptr [rax+0x14]"
-				 * of 4 bytes will be ignored and rbx will be zero inited.
+				 * of 4 bytes will be igyesred and rbx will be zero inited.
 				 */
 				ex->fixup = (prog - temp) | (reg2pt_regs[dst_reg] << 8);
 			}
@@ -1259,7 +1259,7 @@ emit_cond_jmp:		/* Convert BPF opcode to x86 */
 				jmp_offset = addrs[i + insn->off] - addrs[i];
 
 			if (!jmp_offset)
-				/* Optimize out nop jumps */
+				/* Optimize out yesp jumps */
 				break;
 emit_jmp:
 			if (is_imm8(jmp_offset)) {
@@ -1294,10 +1294,10 @@ emit_jmp:
 			/*
 			 * By design x86-64 JIT should support all BPF instructions.
 			 * This error will be seen if new instruction was added
-			 * to the interpreter, but not to the JIT, or if there is
+			 * to the interpreter, but yest to the JIT, or if there is
 			 * junk in bpf_prog.
 			 */
-			pr_err("bpf_jit: unknown opcode %02x\n", insn->code);
+			pr_err("bpf_jit: unkyeswn opcode %02x\n", insn->code);
 			return -EINVAL;
 		}
 
@@ -1320,7 +1320,7 @@ emit_jmp:
 	}
 
 	if (image && excnt != bpf_prog->aux->num_exentries) {
-		pr_err("extable is not populated\n");
+		pr_err("extable is yest populated\n");
 		return -EFAULT;
 	}
 	return proglen;
@@ -1418,7 +1418,7 @@ static int invoke_bpf(struct btf_func_model *m, u8 **pprog,
  * leave
  * ret
  *
- * eth_type_trans has 5 byte nop at the beginning. These 5 bytes will be
+ * eth_type_trans has 5 byte yesp at the beginning. These 5 bytes will be
  * replaced with 'call generated_bpf_trampoline'. When it returns
  * eth_type_trans will continue executing with original skb and dev pointers.
  *
@@ -1522,7 +1522,7 @@ int arch_prepare_bpf_trampoline(void *image, struct btf_func_model *m, u32 flags
 		EMIT4(0x48, 0x83, 0xC4, 8); /* add rsp, 8 */
 	EMIT1(0xC3); /* ret */
 	/* One half of the page has active running trampoline.
-	 * Another half is an area for next trampoline.
+	 * Ayesther half is an area for next trampoline.
 	 * Make sure the trampoline generation logic doesn't overflow.
 	 */
 	if (WARN_ON_ONCE(prog - (u8 *)image > PAGE_SIZE / 2 - BPF_INSN_SAFETY))
@@ -1633,7 +1633,7 @@ out_image:
 			 * The verifier changed their opcode from LDX|MEM|size
 			 * to LDX|PROBE_MEM|size to make JITing easier.
 			 */
-			u32 align = __alignof__(struct exception_table_entry);
+			u32 align = __aligyesf__(struct exception_table_entry);
 			u32 extable_size = prog->aux->num_exentries *
 				sizeof(struct exception_table_entry);
 

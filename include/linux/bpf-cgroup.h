@@ -3,7 +3,7 @@
 #define _BPF_CGROUP_H
 
 #include <linux/bpf.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/jump_label.h>
 #include <linux/percpu.h>
 #include <linux/percpu-refcount.h>
@@ -47,12 +47,12 @@ struct bpf_cgroup_storage {
 	struct bpf_cgroup_storage_map *map;
 	struct bpf_cgroup_storage_key key;
 	struct list_head list;
-	struct rb_node node;
+	struct rb_yesde yesde;
 	struct rcu_head rcu;
 };
 
 struct bpf_prog_list {
-	struct list_head node;
+	struct list_head yesde;
 	struct bpf_prog *prog;
 	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE];
 };
@@ -115,7 +115,7 @@ int __cgroup_bpf_run_filter_sock_ops(struct sock *sk,
 				     struct bpf_sock_ops_kern *sock_ops,
 				     enum bpf_attach_type type);
 
-int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
+int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 miyesr,
 				      short access, enum bpf_attach_type type);
 
 int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
@@ -272,11 +272,11 @@ int bpf_percpu_cgroup_storage_update(struct bpf_map *map, void *key,
 	__ret;								       \
 })
 
-#define BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type, major, minor, access)	      \
+#define BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type, major, miyesr, access)	      \
 ({									      \
 	int __ret = 0;							      \
 	if (cgroup_bpf_enabled)						      \
-		__ret = __cgroup_bpf_check_dev_permission(type, major, minor, \
+		__ret = __cgroup_bpf_check_dev_permission(type, major, miyesr, \
 							  access,	      \
 							  BPF_CGROUP_DEVICE); \
 									      \
@@ -395,7 +395,7 @@ static inline int bpf_percpu_cgroup_storage_update(struct bpf_map *map,
 #define BPF_CGROUP_RUN_PROG_UDP4_RECVMSG_LOCK(sk, uaddr) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_UDP6_RECVMSG_LOCK(sk, uaddr) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_SOCK_OPS(sock_ops) ({ 0; })
-#define BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type,major,minor,access) ({ 0; })
+#define BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type,major,miyesr,access) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_SYSCTL(head,table,write,buf,count,pos,nbuf) ({ 0; })
 #define BPF_CGROUP_GETSOCKOPT_MAX_OPTLEN(optlen) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_GETSOCKOPT(sock, level, optname, optval, \

@@ -94,7 +94,7 @@ static __init struct key_restriction *get_builtin_and_secondary_restriction(void
  */
 static __init int system_trusted_keyring_init(void)
 {
-	pr_notice("Initialise system trusted keyrings\n");
+	pr_yestice("Initialise system trusted keyrings\n");
 
 	builtin_trusted_keys =
 		keyring_alloc(".builtin_trusted_keys",
@@ -140,7 +140,7 @@ static __init int load_system_certificate_list(void)
 	const u8 *p, *end;
 	size_t plen;
 
-	pr_notice("Loading compiled-in X.509 certificates\n");
+	pr_yestice("Loading compiled-in X.509 certificates\n");
 
 	p = system_certificate_list;
 	end = p + system_certificate_list_size;
@@ -172,7 +172,7 @@ static __init int load_system_certificate_list(void)
 			pr_err("Problem loading in-kernel X.509 certificate (%ld)\n",
 			       PTR_ERR(key));
 		} else {
-			pr_notice("Loaded X.509 cert '%s'\n",
+			pr_yestice("Loaded X.509 cert '%s'\n",
 				  key_ref_to_ptr(key)->description);
 			key_ref_put(key);
 		}
@@ -213,7 +213,7 @@ int verify_pkcs7_message_sig(const void *data, size_t len,
 
 	/* The data should be detached - so we need to supply it. */
 	if (data && pkcs7_supply_detached_data(pkcs7, data, len) < 0) {
-		pr_err("PKCS#7 signature with non-detached data\n");
+		pr_err("PKCS#7 signature with yesn-detached data\n");
 		ret = -EBADMSG;
 		goto error;
 	}
@@ -238,14 +238,14 @@ int verify_pkcs7_message_sig(const void *data, size_t len,
 #endif
 		if (!trusted_keys) {
 			ret = -ENOKEY;
-			pr_devel("PKCS#7 platform keyring is not available\n");
+			pr_devel("PKCS#7 platform keyring is yest available\n");
 			goto error;
 		}
 	}
 	ret = pkcs7_validate_trust(pkcs7, trusted_keys);
 	if (ret < 0) {
 		if (ret == -ENOKEY)
-			pr_devel("PKCS#7 signature not signed with a trusted key\n");
+			pr_devel("PKCS#7 signature yest signed with a trusted key\n");
 		goto error;
 	}
 
@@ -255,7 +255,7 @@ int verify_pkcs7_message_sig(const void *data, size_t len,
 		ret = pkcs7_get_content_data(pkcs7, &data, &len, &asn1hdrlen);
 		if (ret < 0) {
 			if (ret == -ENODATA)
-				pr_devel("PKCS#7 message does not contain data\n");
+				pr_devel("PKCS#7 message does yest contain data\n");
 			goto error;
 		}
 

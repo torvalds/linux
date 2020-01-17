@@ -570,7 +570,7 @@ static uint32_t gk208_grhub_code[] = {
 	0x00800699,
 	0x09f60217,
 	0xf404bd00,
-/* 0x0522: chsw_prev_no_next */
+/* 0x0522: chsw_prev_yes_next */
 	0x20f92f0e,
 	0x32f412b2,
 	0x0232f401,
@@ -578,7 +578,7 @@ static uint32_t gk208_grhub_code[] = {
 	0x008020fc,
 	0x02f602c0,
 	0xf404bd00,
-/* 0x053e: chsw_no_prev */
+/* 0x053e: chsw_yes_prev */
 	0x23c8130e,
 	0x0d0bf41f,
 	0xf40131f4,
@@ -591,12 +591,12 @@ static uint32_t gk208_grhub_code[] = {
 	0x00800499,
 	0x09f60217,
 	0xf504bd00,
-/* 0x056b: main_not_ctx_switch */
+/* 0x056b: main_yest_ctx_switch */
 	0xb0ff300e,
 	0x1bf401e4,
 	0x7ef2b20c,
 	0xf4000820,
-/* 0x057a: main_not_ctx_chan */
+/* 0x057a: main_yest_ctx_chan */
 	0xe4b0400e,
 	0x2c1bf402,
 	0x99f094bd,
@@ -609,7 +609,7 @@ static uint32_t gk208_grhub_code[] = {
 	0x17008007,
 	0x0009f602,
 	0x0ef404bd,
-/* 0x05a9: main_not_ctx_save */
+/* 0x05a9: main_yest_ctx_save */
 	0x10ef9411,
 	0x7e01f5f0,
 	0xf50002f8,
@@ -637,12 +637,12 @@ static uint32_t gk208_grhub_code[] = {
 	0x010e0400,
 	0xf61d0040,
 	0x04bd000e,
-/* 0x060c: ih_no_fifo */
+/* 0x060c: ih_yes_fifo */
 	0x0100abe4,
 	0x0d0c0bf4,
 	0x40014e10,
 	0x0000047e,
-/* 0x061c: ih_no_ctxsw */
+/* 0x061c: ih_yes_ctxsw */
 	0x0400abe4,
 	0x8e560bf4,
 	0x7e400708,
@@ -665,13 +665,13 @@ static uint32_t gk208_grhub_code[] = {
 	0x01004b00,
 	0x448ebfb2,
 	0x8f7e4001,
-/* 0x0676: ih_no_fwmthd */
+/* 0x0676: ih_yes_fwmthd */
 	0x044b0000,
 	0xffb0bd05,
 	0x0bf4b4ab,
 	0x0700800c,
 	0x000bf603,
-/* 0x068a: ih_no_other */
+/* 0x068a: ih_yes_other */
 	0x004004bd,
 	0x000af601,
 	0xf0fc04bd,
@@ -874,7 +874,7 @@ static uint32_t gk208_grhub_code[] = {
 	0x40019810,
 	0xf40511fd,
 	0x327e070b,
-/* 0x0966: ctx_xfer_no_post_mmio */
+/* 0x0966: ctx_xfer_yes_post_mmio */
 /* 0x0966: ctx_xfer_done */
 	0x00f80008,
 	0x00000000,

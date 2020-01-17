@@ -127,7 +127,7 @@ void sgdma_reset(struct altera_tse_private *priv)
 }
 
 /* For SGDMA, interrupts remain enabled after initially enabling,
- * so no need to provide implementations for abstract enable
+ * so yes need to provide implementations for abstract enable
  * and disable
  */
 
@@ -160,7 +160,7 @@ void sgdma_clear_txirq(struct altera_tse_private *priv)
 }
 
 /* transmits buffer through SGDMA. Returns number of buffers
- * transmitted, 0 if not possible.
+ * transmitted, 0 if yest possible.
  *
  * tx_lock is held by the caller
  */
@@ -269,10 +269,10 @@ u32 sgdma_rx_status(struct altera_tse_private *priv)
 		} else {
 			/* If the SGDMA indicated an end of packet on recv,
 			 * then it's expected that the rxstatus from the
-			 * descriptor is non-zero - meaning a valid packet
-			 * with a nonzero length, or an error has been
-			 * indicated. if not, then all we can do is signal
-			 * an error and return no packet received. Most likely
+			 * descriptor is yesn-zero - meaning a valid packet
+			 * with a yesnzero length, or an error has been
+			 * indicated. if yest, then all we can do is signal
+			 * an error and return yes packet received. Most likely
 			 * there is a system design error, or an error in the
 			 * underlying kernel (cache or cache management problem)
 			 */
@@ -300,7 +300,7 @@ static void sgdma_setup_descrip(struct sgdma_descrip __iomem *desc,
 				int rfixed,
 				int wfixed)
 {
-	/* Clear the next descriptor as not owned by hardware */
+	/* Clear the next descriptor as yest owned by hardware */
 
 	u32 ctrl = csrrd8(ndesc, sgdma_descroffs(control));
 	ctrl &= ~SGDMA_CONTROL_HW_OWNED;
@@ -330,7 +330,7 @@ static void sgdma_setup_descrip(struct sgdma_descrip __iomem *desc,
 /* If hardware is busy, don't restart async read.
  * if status register is 0 - meaning initial state, restart async read,
  * probably for the first time when populating a receive buffer.
- * If read status indicate not busy and a status, restart the async
+ * If read status indicate yest busy and a status, restart the async
  * DMA read.
  */
 static int sgdma_async_read(struct altera_tse_private *priv)
@@ -345,7 +345,7 @@ static int sgdma_async_read(struct altera_tse_private *priv)
 	if (!sgdma_rxbusy(priv)) {
 		rxbuffer = queue_rx_peekhead(priv);
 		if (rxbuffer == NULL) {
-			netdev_err(priv->dev, "no rx buffers available\n");
+			netdev_err(priv->dev, "yes rx buffers available\n");
 			return 0;
 		}
 
@@ -507,13 +507,13 @@ static int sgdma_rxbusy(struct altera_tse_private *priv)
 }
 
 /* waits for the tx sgdma to finish it's current operation, returns 0
- * when it transitions to nonbusy, returns 1 if the operation times out
+ * when it transitions to yesnbusy, returns 1 if the operation times out
  */
 static int sgdma_txbusy(struct altera_tse_private *priv)
 {
 	int delay = 0;
 
-	/* if DMA is busy, wait for current transactino to finish */
+	/* if DMA is busy, wait for current transactiyes to finish */
 	while ((csrrd32(priv->tx_dma_csr, sgdma_csroffs(status))
 		& SGDMA_STSREG_BUSY) && (delay++ < 100))
 		udelay(1);

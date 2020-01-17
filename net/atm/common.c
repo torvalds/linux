@@ -11,7 +11,7 @@
 #include <linux/atm.h>		/* ATM stuff */
 #include <linux/atmdev.h>
 #include <linux/socket.h>	/* SOL_SOCKET */
-#include <linux/errno.h>	/* error codes */
+#include <linux/erryes.h>	/* error codes */
 #include <linux/capability.h>
 #include <linux/mm.h>
 #include <linux/sched/signal.h>
@@ -38,14 +38,14 @@ EXPORT_SYMBOL(vcc_hash);
 DEFINE_RWLOCK(vcc_sklist_lock);
 EXPORT_SYMBOL(vcc_sklist_lock);
 
-static ATOMIC_NOTIFIER_HEAD(atm_dev_notify_chain);
+static ATOMIC_NOTIFIER_HEAD(atm_dev_yestify_chain);
 
 static void __vcc_insert_socket(struct sock *sk)
 {
 	struct atm_vcc *vcc = atm_sk(sk);
 	struct hlist_head *head = &vcc_hash[vcc->vci & (VCC_HTABLE_SIZE - 1)];
 	sk->sk_hash = vcc->vci & (VCC_HTABLE_SIZE - 1);
-	sk_add_node(sk, head);
+	sk_add_yesde(sk, head);
 }
 
 void vcc_insert_socket(struct sock *sk)
@@ -59,7 +59,7 @@ EXPORT_SYMBOL(vcc_insert_socket);
 static void vcc_remove_socket(struct sock *sk)
 {
 	write_lock_irq(&vcc_sklist_lock);
-	sk_del_node_init(sk);
+	sk_del_yesde_init(sk);
 	write_unlock_irq(&vcc_sklist_lock);
 }
 
@@ -164,7 +164,7 @@ int vcc_create(struct net *net, struct socket *sock, int protocol, int family, i
 	vcc->owner = NULL;
 	vcc->push_oam = NULL;
 	vcc->release_cb = NULL;
-	vcc->vpi = vcc->vci = 0; /* no VCI/VPI yet */
+	vcc->vpi = vcc->vci = 0; /* yes VCI/VPI yet */
 	vcc->atm_options = vcc->aal_options = 0;
 	sk->sk_destruct = vcc_sock_destruct;
 	return 0;
@@ -181,7 +181,7 @@ static void vcc_destroy_socket(struct sock *sk)
 		if (vcc->dev->ops->close)
 			vcc->dev->ops->close(vcc);
 		if (vcc->push)
-			vcc->push(vcc, NULL); /* atmarpd has no push */
+			vcc->push(vcc, NULL); /* atmarpd has yes push */
 		module_put(vcc->owner);
 
 		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
@@ -251,11 +251,11 @@ void atm_dev_signal_change(struct atm_dev *dev, char signal)
 	WARN_ON(signal < ATM_PHY_SIG_LOST || signal > ATM_PHY_SIG_FOUND);
 
 	if (dev->signal == signal)
-		return; /* no change */
+		return; /* yes change */
 
 	dev->signal = signal;
 
-	atomic_notifier_call_chain(&atm_dev_notify_chain, signal, dev);
+	atomic_yestifier_call_chain(&atm_dev_yestify_chain, signal, dev);
 }
 EXPORT_SYMBOL(atm_dev_signal_change);
 
@@ -266,7 +266,7 @@ void atm_dev_release_vccs(struct atm_dev *dev)
 	write_lock_irq(&vcc_sklist_lock);
 	for (i = 0; i < VCC_HTABLE_SIZE; i++) {
 		struct hlist_head *head = &vcc_hash[i];
-		struct hlist_node *tmp;
+		struct hlist_yesde *tmp;
 		struct sock *s;
 		struct atm_vcc *vcc;
 
@@ -274,7 +274,7 @@ void atm_dev_release_vccs(struct atm_dev *dev)
 			vcc = atm_sk(s);
 			if (vcc->dev == dev) {
 				vcc_release_async(vcc, -EPIPE);
-				sk_del_node_init(s);
+				sk_del_yesde_init(s);
 			}
 		}
 	}
@@ -688,7 +688,7 @@ static int atm_change_qos(struct atm_vcc *vcc, struct atm_qos *qos)
 	int error;
 
 	/*
-	 * Don't let the QoS change the already connected AAL type nor the
+	 * Don't let the QoS change the already connected AAL type yesr the
 	 * traffic class.
 	 */
 	if (qos->aal != vcc->qos.aal ||
@@ -835,17 +835,17 @@ int vcc_getsockopt(struct socket *sock, int level, int optname,
 	return vcc->dev->ops->getsockopt(vcc, level, optname, optval, len);
 }
 
-int register_atmdevice_notifier(struct notifier_block *nb)
+int register_atmdevice_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&atm_dev_notify_chain, nb);
+	return atomic_yestifier_chain_register(&atm_dev_yestify_chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_atmdevice_notifier);
+EXPORT_SYMBOL_GPL(register_atmdevice_yestifier);
 
-void unregister_atmdevice_notifier(struct notifier_block *nb)
+void unregister_atmdevice_yestifier(struct yestifier_block *nb)
 {
-	atomic_notifier_chain_unregister(&atm_dev_notify_chain, nb);
+	atomic_yestifier_chain_unregister(&atm_dev_yestify_chain, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_atmdevice_notifier);
+EXPORT_SYMBOL_GPL(unregister_atmdevice_yestifier);
 
 static int __init atm_init(void)
 {

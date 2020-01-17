@@ -17,7 +17,7 @@
 #endif
 
 struct lkdtm_list {
-	struct list_head node;
+	struct list_head yesde;
 };
 
 /*
@@ -37,13 +37,13 @@ static int recur_count = REC_NUM_DEFAULT;
 static DEFINE_SPINLOCK(lock_me_up);
 
 /*
- * Make sure compiler does not optimize this function or stack frame away:
- * - function marked noinline
+ * Make sure compiler does yest optimize this function or stack frame away:
+ * - function marked yesinline
  * - stack variables are marked volatile
  * - stack variables are written (memset()) and read (pr_info())
  * - function has external effects (pr_info())
  * */
-static int noinline recursive_loop(int remaining)
+static int yesinline recursive_loop(int remaining)
 {
 	volatile char buf[REC_STACK_SIZE];
 
@@ -106,13 +106,13 @@ void lkdtm_EXHAUST_STACK(void)
 	pr_info("FAIL: survived without exhausting stack?!\n");
 }
 
-static noinline void __lkdtm_CORRUPT_STACK(void *stack)
+static yesinline void __lkdtm_CORRUPT_STACK(void *stack)
 {
 	memset(stack, '\xff', 64);
 }
 
-/* This should trip the stack canary, not corrupt the return address. */
-noinline void lkdtm_CORRUPT_STACK(void)
+/* This should trip the stack canary, yest corrupt the return address. */
+yesinline void lkdtm_CORRUPT_STACK(void)
 {
 	/* Use default char array length that triggers stack protection. */
 	char data[8] __aligned(sizeof(void *));
@@ -123,7 +123,7 @@ noinline void lkdtm_CORRUPT_STACK(void)
 }
 
 /* Same as above but will only get a canary with -fstack-protector-strong */
-noinline void lkdtm_CORRUPT_STACK_STRONG(void)
+yesinline void lkdtm_CORRUPT_STACK_STRONG(void)
 {
 	union {
 		unsigned short shorts[4];
@@ -165,7 +165,7 @@ void lkdtm_SPINLOCKUP(void)
 {
 	/* Must be called twice to trigger. */
 	spin_lock(&lock_me_up);
-	/* Let sparse know we intended to exit holding the lock. */
+	/* Let sparse kyesw we intended to exit holding the lock. */
 	__release(&lock_me_up);
 }
 
@@ -191,26 +191,26 @@ void lkdtm_CORRUPT_LIST_ADD(void)
 
 	/*
 	 * Adding to the list performs these actions:
-	 *	test_head.next->prev = &good.node
-	 *	good.node.next = test_head.next
-	 *	good.node.prev = test_head
-	 *	test_head.next = good.node
+	 *	test_head.next->prev = &good.yesde
+	 *	good.yesde.next = test_head.next
+	 *	good.yesde.prev = test_head
+	 *	test_head.next = good.yesde
 	 */
-	list_add(&good.node, &test_head);
+	list_add(&good.yesde, &test_head);
 
 	pr_info("attempting corrupted list addition\n");
 	/*
 	 * In simulating this "write what where" primitive, the "what" is
-	 * the address of &bad.node, and the "where" is the address held
+	 * the address of &bad.yesde, and the "where" is the address held
 	 * by "redirection".
 	 */
 	test_head.next = redirection;
-	list_add(&bad.node, &test_head);
+	list_add(&bad.yesde, &test_head);
 
 	if (target[0] == NULL && target[1] == NULL)
-		pr_err("Overwrite did not happen, but no BUG?!\n");
+		pr_err("Overwrite did yest happen, but yes BUG?!\n");
 	else
-		pr_err("list_add() corruption not detected!\n");
+		pr_err("list_add() corruption yest detected!\n");
 }
 
 void lkdtm_CORRUPT_LIST_DEL(void)
@@ -220,22 +220,22 @@ void lkdtm_CORRUPT_LIST_DEL(void)
 	void *target[2] = { };
 	void *redirection = &target;
 
-	list_add(&item.node, &test_head);
+	list_add(&item.yesde, &test_head);
 
 	pr_info("attempting good list removal\n");
-	list_del(&item.node);
+	list_del(&item.yesde);
 
 	pr_info("attempting corrupted list removal\n");
-	list_add(&item.node, &test_head);
+	list_add(&item.yesde, &test_head);
 
 	/* As with the list_add() test above, this corrupts "next". */
-	item.node.next = redirection;
-	list_del(&item.node);
+	item.yesde.next = redirection;
+	list_del(&item.yesde);
 
 	if (target[0] == NULL && target[1] == NULL)
-		pr_err("Overwrite did not happen, but no BUG?!\n");
+		pr_err("Overwrite did yest happen, but yes BUG?!\n");
 	else
-		pr_err("list_del() corruption not detected!\n");
+		pr_err("list_del() corruption yest detected!\n");
 }
 
 /* Test if unbalanced set_fs(KERNEL_DS)/set_fs(USER_DS) check exists. */
@@ -244,7 +244,7 @@ void lkdtm_CORRUPT_USER_DS(void)
 	pr_info("setting bad task size limit\n");
 	set_fs(KERNEL_DS);
 
-	/* Make sure we do not keep running with a KERNEL_DS! */
+	/* Make sure we do yest keep running with a KERNEL_DS! */
 	force_sig(SIGKILL);
 }
 
@@ -288,12 +288,12 @@ void lkdtm_UNSET_SMEP(void)
 	cr4 = native_read_cr4();
 
 	if ((cr4 & X86_CR4_SMEP) != X86_CR4_SMEP) {
-		pr_err("FAIL: SMEP not in use\n");
+		pr_err("FAIL: SMEP yest in use\n");
 		return;
 	}
 	cr4 &= ~(X86_CR4_SMEP);
 
-	pr_info("trying to clear SMEP normally\n");
+	pr_info("trying to clear SMEP yesrmally\n");
 	native_write_cr4(cr4);
 	if (cr4 == native_read_cr4()) {
 		pr_err("FAIL: pinning SMEP failed!\n");
@@ -302,7 +302,7 @@ void lkdtm_UNSET_SMEP(void)
 		native_write_cr4(cr4);
 		return;
 	}
-	pr_info("ok: SMEP did not get cleared\n");
+	pr_info("ok: SMEP did yest get cleared\n");
 
 	/*
 	 * To test the post-write pinning verification we need to call
@@ -322,7 +322,7 @@ void lkdtm_UNSET_SMEP(void)
 			break;
 	}
 	if (i >= MOV_CR4_DEPTH) {
-		pr_info("ok: cannot locate cr4 writing call gadget\n");
+		pr_info("ok: canyest locate cr4 writing call gadget\n");
 		return;
 	}
 	direct_write_cr4 = (void *)(insn + i);
@@ -332,7 +332,7 @@ void lkdtm_UNSET_SMEP(void)
 	if (native_read_cr4() & X86_CR4_SMEP) {
 		pr_info("ok: SMEP removal was reverted\n");
 	} else {
-		pr_err("FAIL: cleared SMEP not detected!\n");
+		pr_err("FAIL: cleared SMEP yest detected!\n");
 		cr4 |= X86_CR4_SMEP;
 		pr_info("restoring SMEP\n");
 		native_write_cr4(cr4);
@@ -355,7 +355,7 @@ void lkdtm_DOUBLE_FAULT(void)
 		.p = 1,		/* present */
 		.d = 1,		/* 32-bit */
 		.g = 0,		/* limit in bytes */
-		.s = 1,		/* not system */
+		.s = 1,		/* yest system */
 	};
 
 	local_irq_disable();

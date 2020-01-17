@@ -23,10 +23,10 @@
  * PERF_RECORD_AUXTRACE_ERROR:
  *	Indicates an error during AUXTRACE collection such as buffer overflow.
  * PERF_RECORD_FINISHED_ROUND:
- *	Perf events are not necessarily in time stamp order, as they can be
+ *	Perf events are yest necessarily in time stamp order, as they can be
  *	collected in parallel on different CPUs. If the events should be
  *	processed in time order they need to be sorted first.
- *	Perf report guarantees that there is no reordering over a
+ *	Perf report guarantees that there is yes reordering over a
  *	PERF_RECORD_FINISHED_ROUND boundary event. All perf records with a
  *	time stamp lower than this record are processed (and displayed) before
  *	the succeeding perf record are processed.
@@ -44,7 +44,7 @@
  * the offset and size of a CPU's auxtrace data. During auxtrace processing
  * the data portion is mmap()'ed.
  *
- * To sort the queues in chronological order, all queue access is controlled
+ * To sort the queues in chroyeslogical order, all queue access is controlled
  * by the auxtrace_heap. This is basicly a stack, each stack element has two
  * entries, the queue number and a time stamp. However the stack is sorted by
  * the time stamps. The highest time stamp is at the bottom the lowest
@@ -133,13 +133,13 @@
  * The timestamp of PERF_RECORD_FINISHED_ROUND event is taken to process all
  * PERF_RECORD_XXX entries stored in the ordered_event list. This list was
  * built up while reading the perf.data file.
- * Each event is now processed by calling perf_session__deliver_event().
+ * Each event is yesw processed by calling perf_session__deliver_event().
  * This enables time synchronization between the data in the perf.data file and
  * the data in the auxiliary trace buffers.
  */
 
 #include <endian.h>
-#include <errno.h>
+#include <erryes.h>
 #include <byteswap.h>
 #include <inttypes.h>
 #include <linux/kernel.h>
@@ -188,7 +188,7 @@ struct s390_cpumsf_queue {
 };
 
 /* Check if the raw data should be dumped to file. If this is the case and
- * the file to dump to has not been opened for writing, do so.
+ * the file to dump to has yest been opened for writing, do so.
  *
  * Return 0 on success and greater zero on error so processing continues.
  */
@@ -204,7 +204,7 @@ static int s390_cpumcf_dumpctr(struct s390_cpumsf *sf,
 
 	q = &sf->queues.queue_array[sample->cpu];
 	sfq = q->priv;
-	if (!sfq)		/* Queue not yet allocated */
+	if (!sfq)		/* Queue yest yet allocated */
 		return rc;
 
 	if (!sfq->logfile_ctr) {
@@ -280,7 +280,7 @@ static bool s390_cpumsf_basic_show(const char *color, size_t pos,
 	return true;
 }
 
-/* Display s390 CPU measurement facility diagnostic-sampling data entry.
+/* Display s390 CPU measurement facility diagyesstic-sampling data entry.
  * Data written on s390 in big endian byte order and contains bit
  * fields across byte boundaries.
  */
@@ -297,7 +297,7 @@ static bool s390_cpumsf_diag_show(const char *color, size_t pos,
 	diag = &local;
 #endif
 	if (diag->def < S390_CPUMSF_DIAG_DEF_FIRST) {
-		pr_err("Invalid AUX trace diagnostic entry [%#08zx]\n", pos);
+		pr_err("Invalid AUX trace diagyesstic entry [%#08zx]\n", pos);
 		return false;
 	}
 	color_fprintf(stdout, color, "    [%#08zx] Diag    Def:%04x %c\n",
@@ -310,7 +310,7 @@ static unsigned long long trailer_timestamp(struct hws_trailer_entry *te,
 					    int idx)
 {
 	/* te->t set: TOD in STCKE format, bytes 8-15
-	 * to->t not set: TOD in STCK format, bytes 0-7
+	 * to->t yest set: TOD in STCK format, bytes 0-7
 	 */
 	unsigned long long ts;
 
@@ -360,11 +360,11 @@ static bool s390_cpumsf_trailer_show(const char *color, size_t pos,
  * end which contains the sample entry data sizes.
  *
  * Return true if the sample data block passes the checks and set the
- * basic set entry size and diagnostic set entry size.
+ * basic set entry size and diagyesstic set entry size.
  *
  * Return false on failure.
  *
- * Note: Old hardware does not set the basic or diagnostic entry sizes
+ * Note: Old hardware does yest set the basic or diagyesstic entry sizes
  * in the trailer entry. Use the type number instead.
  */
 static bool s390_cpumsf_validate(int machine_type,
@@ -416,7 +416,7 @@ static bool s390_cpumsf_validate(int machine_type,
 	return true;
 }
 
-/* Return true if there is room for another entry */
+/* Return true if there is room for ayesther entry */
 static bool s390_cpumsf_reached_trailer(size_t entry_sz, size_t pos)
 {
 	size_t payload = S390_CPUMSF_PAGESZ - sizeof(struct hws_trailer_entry);
@@ -451,7 +451,7 @@ static void s390_cpumsf_dump(struct s390_cpumsf *sf,
 	}
 
 	/* s390 kernel always returns 4KB blocks fully occupied,
-	 * no partially filled SDBs.
+	 * yes partially filled SDBs.
 	 */
 	while (pos < len) {
 		/* Handle Basic entry */
@@ -461,7 +461,7 @@ static void s390_cpumsf_dump(struct s390_cpumsf *sf,
 		else
 			return;
 
-		/* Handle Diagnostic entry */
+		/* Handle Diagyesstic entry */
 		diag = (struct hws_diag_entry *)(buf + pos);
 		if (s390_cpumsf_diag_show(color, pos, diag))
 			pos += dsdes;
@@ -478,7 +478,7 @@ static void s390_cpumsf_dump(struct s390_cpumsf *sf,
 			pos -= sizeof(te);
 			memcpy(&te, buf + pos, sizeof(te));
 			/* Set descriptor sizes in case of old hardware
-			 * where these values are not set.
+			 * where these values are yest set.
 			 */
 			te.bsdes = bsdes;
 			te.dsdes = dsdes;
@@ -563,7 +563,7 @@ static unsigned long long get_trailer_time(const unsigned char *buf)
 		return 0;
 
 	/* Correct calculation to convert time stamp in trailer entry to
-	 * nano seconds (taken from arch/s390 function tod_to_ns()).
+	 * nayes seconds (taken from arch/s390 function tod_to_ns()).
 	 * TOD_CLOCK_BASE is stored in trailer entry member progusage2.
 	 */
 	aux_time = trailer_timestamp(te, clock_base) - progusage2;
@@ -640,7 +640,7 @@ static int s390_cpumsf_samples(struct s390_cpumsf_queue *sfq, u64 *ts)
 			goto out;
 		}
 
-		pos += dsdes;	/* Skip diagnositic entry */
+		pos += dsdes;	/* Skip diagyessitic entry */
 
 		/* Check for trailer entry */
 		if (!s390_cpumsf_reached_trailer(bsdes + dsdes, pos)) {
@@ -676,7 +676,7 @@ out:
  * be processed. This value is updated by called functions and
  * returned to the caller.
  *
- * Resume processing in the current buffer. If there is no buffer
+ * Resume processing in the current buffer. If there is yes buffer
  * get a new buffer from the queue and setup start position for
  * processing.
  * When a buffer is completely processed remove it from the queue
@@ -747,9 +747,9 @@ static int s390_cpumsf_run_decoder(struct s390_cpumsf_queue *sfq,
 		  buffer->size, buffer->use_size);
 	err = s390_cpumsf_samples(sfq, ts);
 
-	/* If non-zero, there is either an error (err < 0) or the buffer is
+	/* If yesn-zero, there is either an error (err < 0) or the buffer is
 	 * completely done (err > 0). The error is unrecoverable, usually
-	 * some descriptors could not be read successfully, so continue with
+	 * some descriptors could yest be read successfully, so continue with
 	 * the next buffer.
 	 * In both cases the parameter 'ts' has been updated.
 	 */
@@ -757,7 +757,7 @@ static int s390_cpumsf_run_decoder(struct s390_cpumsf_queue *sfq,
 		sfq->buffer = NULL;
 		list_del_init(&buffer->list);
 		auxtrace_buffer__free(buffer);
-		if (err > 0)		/* Buffer done, no error */
+		if (err > 0)		/* Buffer done, yes error */
 			err = 0;
 	}
 	return err;
@@ -978,7 +978,7 @@ s390_cpumsf_process_auxtrace_event(struct perf_session *session,
 	} else {
 		data_offset = lseek(fd, 0, SEEK_CUR);
 		if (data_offset == -1)
-			return -errno;
+			return -erryes;
 	}
 
 	err = auxtrace_queues__add_event(&sf->queues, session, event,
@@ -1056,7 +1056,7 @@ static int s390_cpumsf_get_type(const char *cpuid)
 }
 
 /* Check itrace options set on perf report command.
- * Return true, if none are set or all options specified can be
+ * Return true, if yesne are set or all options specified can be
  * handled on s390 (currently only option 'd' for logging.
  * Return false otherwise.
  */

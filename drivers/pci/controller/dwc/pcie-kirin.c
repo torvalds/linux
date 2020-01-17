@@ -201,7 +201,7 @@ static int kirin_pcie_phy_init(struct kirin_pcie *kirin_pcie)
 	usleep_range(PIPE_CLK_WAIT_MIN, PIPE_CLK_WAIT_MAX);
 	reg_val = kirin_apb_phy_readl(kirin_pcie, PCIE_APB_PHY_STATUS0);
 	if (reg_val & PIPE_CLK_STABLE) {
-		dev_err(dev, "PIPE clk is not stable\n");
+		dev_err(dev, "PIPE clk is yest stable\n");
 		return -EINVAL;
 	}
 
@@ -413,7 +413,7 @@ static int kirin_pcie_establish_link(struct pcie_port *pp)
 	kirin_apb_ctrl_writel(kirin_pcie, PCIE_LTSSM_ENABLE_BIT,
 			      PCIE_APP_LTSSM_ENABLE);
 
-	/* check if the link is up or not */
+	/* check if the link is up or yest */
 	while (!kirin_pcie_link_up(pci)) {
 		usleep_range(LINK_WAIT_MIN, LINK_WAIT_MAX);
 		count++;
@@ -488,8 +488,8 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	int ret;
 
-	if (!dev->of_node) {
-		dev_err(dev, "NULL node\n");
+	if (!dev->of_yesde) {
+		dev_err(dev, "NULL yesde\n");
 		return -EINVAL;
 	}
 
@@ -513,7 +513,7 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	kirin_pcie->gpio_id_reset = of_get_named_gpio(dev->of_node,
+	kirin_pcie->gpio_id_reset = of_get_named_gpio(dev->of_yesde,
 						      "reset-gpios", 0);
 	if (kirin_pcie->gpio_id_reset < 0)
 		return -ENODEV;

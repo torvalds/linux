@@ -156,14 +156,14 @@ static ssize_t polarity_show(struct device *child,
 			     char *buf)
 {
 	const struct pwm_device *pwm = child_to_pwm_device(child);
-	const char *polarity = "unknown";
+	const char *polarity = "unkyeswn";
 	struct pwm_state state;
 
 	pwm_get_state(pwm, &state);
 
 	switch (state.polarity) {
 	case PWM_POLARITY_NORMAL:
-		polarity = "normal";
+		polarity = "yesrmal";
 		break;
 
 	case PWM_POLARITY_INVERSED:
@@ -184,7 +184,7 @@ static ssize_t polarity_store(struct device *child,
 	struct pwm_state state;
 	int ret;
 
-	if (sysfs_streq(buf, "normal"))
+	if (sysfs_streq(buf, "yesrmal"))
 		polarity = PWM_POLARITY_NORMAL;
 	else if (sysfs_streq(buf, "inversed"))
 		polarity = PWM_POLARITY_INVERSED;
@@ -491,7 +491,7 @@ void pwmchip_sysfs_export(struct pwm_chip *chip)
 
 	/*
 	 * If device_create() fails the pwm_chip is still usable by
-	 * the kernel it's just not exported.
+	 * the kernel it's just yest exported.
 	 */
 	parent = device_create(&pwm_class, chip->dev, MKDEV(0, 0), chip,
 			       "pwmchip%d", chip->base);

@@ -31,7 +31,7 @@ static void rtw_fw_c2h_cmd_handle_ext(struct rtw_dev *rtwdev,
 
 static u16 get_max_amsdu_len(u32 bit_rate)
 {
-	/* lower than ofdm, do not aggregate */
+	/* lower than ofdm, do yest aggregate */
 	if (bit_rate < 550)
 		return 1;
 
@@ -43,7 +43,7 @@ static u16 get_max_amsdu_len(u32 bit_rate)
 	if (bit_rate < 4000)
 		return 2600;
 
-	/* not yet 80M 2ss mcs8/9, make it twice regular packet size */
+	/* yest yet 80M 2ss mcs8/9, make it twice regular packet size */
 	if (bit_rate < 7000)
 		return 3500;
 
@@ -137,10 +137,10 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 
 	switch (c2h->id) {
 	case C2H_BT_INFO:
-		rtw_coex_bt_info_notify(rtwdev, c2h->payload, len);
+		rtw_coex_bt_info_yestify(rtwdev, c2h->payload, len);
 		break;
 	case C2H_WLAN_INFO:
-		rtw_coex_wl_fwdbginfo_notify(rtwdev, c2h->payload, len);
+		rtw_coex_wl_fwdbginfo_yestify(rtwdev, c2h->payload, len);
 		break;
 	case C2H_HALMAC:
 		rtw_fw_c2h_cmd_handle_ext(rtwdev, skb);
@@ -367,7 +367,7 @@ void rtw_fw_force_bt_tx_power(struct rtw_dev *rtwdev, u8 bt_pwr_dec_lvl)
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
-void rtw_fw_bt_ignore_wlan_action(struct rtw_dev *rtwdev, bool enable)
+void rtw_fw_bt_igyesre_wlan_action(struct rtw_dev *rtwdev, bool enable)
 {
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 
@@ -429,7 +429,7 @@ void rtw_fw_send_rssi_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 void rtw_fw_send_ra_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 {
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
-	bool no_update = si->updated;
+	bool yes_update = si->updated;
 	bool disable_pt = true;
 
 	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_RA_INFO);
@@ -440,7 +440,7 @@ void rtw_fw_send_ra_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 	SET_RA_INFO_SGI_EN(h2c_pkt, si->sgi_enable);
 	SET_RA_INFO_BW_MODE(h2c_pkt, si->bw_mode);
 	SET_RA_INFO_LDPC(h2c_pkt, si->ldpc_en);
-	SET_RA_INFO_NO_UPDATE(h2c_pkt, no_update);
+	SET_RA_INFO_NO_UPDATE(h2c_pkt, yes_update);
 	SET_RA_INFO_VHT_EN(h2c_pkt, si->vht_enable);
 	SET_RA_INFO_DIS_PT(h2c_pkt, disable_pt);
 	SET_RA_INFO_RA_MASK0(h2c_pkt, (si->ra_mask & 0xff));
@@ -812,7 +812,7 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
 
 		/* Reserved page is downloaded via TX path, and TX path will
 		 * generate a tx_desc at the header to describe length of
-		 * the buffer. If we are not counting page numbers with the
+		 * the buffer. If we are yest counting page numbers with the
 		 * size of tx_desc added at the first rsvd_pkt (usually a
 		 * beacon, firmware default refer to the first page as the
 		 * content of beacon), we could generate a buffer which size
@@ -843,8 +843,8 @@ static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev,
 	/* Copy the content of each rsvd_pkt to the buf, and they should
 	 * be aligned to the pages.
 	 *
-	 * Note that the first rsvd_pkt is a beacon no matter what vif->type.
-	 * And that rsvd_pkt does not require tx_desc because when it goes
+	 * Note that the first rsvd_pkt is a beacon yes matter what vif->type.
+	 * And that rsvd_pkt does yest require tx_desc because when it goes
 	 * through TX path, the TX path will generate one for it.
 	 */
 	list_for_each_entry(rsvd_pkt, &rtwdev->rsvd_page_list, list) {

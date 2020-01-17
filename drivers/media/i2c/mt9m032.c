@@ -119,8 +119,8 @@
 
 /*
  * The available MT9M032 datasheet is missing documentation for register 0x10
- * MT9P031 seems to be close enough, so use constants from that datasheet for
- * now.
+ * MT9P031 seems to be close eyesugh, so use constants from that datasheet for
+ * yesw.
  * But keep the name MT9P031 to remind us, that this isn't really confirmed
  * for this sensor.
  */
@@ -191,18 +191,18 @@ static int mt9m032_update_timing(struct mt9m032 *sensor,
 	row_time = mt9m032_row_time(sensor, crop->width);
 
 	vblank = div_u64(1000000000ULL * interval->numerator,
-			 (u64)row_time * interval->denominator)
+			 (u64)row_time * interval->deyesminator)
 	       - crop->height;
 
 	if (vblank > MT9M032_VBLANK_MAX) {
 		/* hardware limits to 11 bit values */
-		interval->denominator = 1000;
+		interval->deyesminator = 1000;
 		interval->numerator =
 			div_u64((crop->height + MT9M032_VBLANK_MAX) *
-				(u64)row_time * interval->denominator,
+				(u64)row_time * interval->deyesminator,
 				1000000000ULL);
 		vblank = div_u64(1000000000ULL * interval->numerator,
-				 (u64)row_time * interval->denominator)
+				 (u64)row_time * interval->deyesminator)
 		       - crop->height;
 	}
 	/* enforce minimal 1.6ms blanking time. */
@@ -400,7 +400,7 @@ static int mt9m032_set_pad_format(struct v4l2_subdev *subdev,
 		goto done;
 	}
 
-	/* Scaling is not supported, the format is thus fixed. */
+	/* Scaling is yest supported, the format is thus fixed. */
 	fmt->format = *__mt9m032_get_pad_format(sensor, cfg, fmt->which);
 	ret = 0;
 
@@ -511,8 +511,8 @@ static int mt9m032_set_frame_interval(struct v4l2_subdev *subdev,
 	}
 
 	/* Avoid divisions by 0. */
-	if (fi->interval.denominator == 0)
-		fi->interval.denominator = 1;
+	if (fi->interval.deyesminator == 0)
+		fi->interval.deyesminator = 1;
 
 	ret = mt9m032_update_timing(sensor, &fi->interval);
 	if (!ret)
@@ -733,7 +733,7 @@ static int mt9m032_probe(struct i2c_client *client,
 
 	chip_version = mt9m032_read(client, MT9M032_CHIP_VERSION);
 	if (chip_version != MT9M032_CHIP_VERSION_VALUE) {
-		dev_err(&client->dev, "MT9M032 not detected, wrong version "
+		dev_err(&client->dev, "MT9M032 yest detected, wrong version "
 			"0x%04x\n", chip_version);
 		ret = -ENODEV;
 		goto error_sensor;
@@ -743,7 +743,7 @@ static int mt9m032_probe(struct i2c_client *client,
 		 client->addr);
 
 	sensor->frame_interval.numerator = 1;
-	sensor->frame_interval.denominator = 30;
+	sensor->frame_interval.deyesminator = 30;
 
 	sensor->crop.left = MT9M032_COLUMN_START_DEF;
 	sensor->crop.top = MT9M032_ROW_START_DEF;

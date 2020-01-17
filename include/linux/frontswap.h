@@ -8,7 +8,7 @@
 #include <linux/jump_label.h>
 
 /*
- * Return code to denote that requested number of
+ * Return code to deyeste that requested number of
  * frontswap pages are unused(moved to page cache).
  * Used in in shmem_unuse and try_to_unuse.
  */
@@ -18,7 +18,7 @@ struct frontswap_ops {
 	void (*init)(unsigned); /* this swap type was just swapon'ed */
 	int (*store)(unsigned, pgoff_t, struct page *); /* store a page */
 	int (*load)(unsigned, pgoff_t, struct page *); /* load a page */
-	void (*invalidate_page)(unsigned, pgoff_t); /* page no longer needed */
+	void (*invalidate_page)(unsigned, pgoff_t); /* page yes longer needed */
 	void (*invalidate_area)(unsigned); /* swap type just swapoff'ed */
 	struct frontswap_ops *next; /* private pointer to next ops */
 };
@@ -61,7 +61,7 @@ static inline unsigned long *frontswap_map_get(struct swap_info_struct *p)
 	return p->frontswap_map;
 }
 #else
-/* all inline routines become no-ops and all externs are ignored */
+/* all inline routines become yes-ops and all externs are igyesred */
 
 static inline bool frontswap_enabled(void)
 {

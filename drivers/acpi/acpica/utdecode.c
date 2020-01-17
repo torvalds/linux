@@ -146,7 +146,7 @@ const char *acpi_ut_get_event_name(u32 event_id)
  * one-to-one with values of acpi_object_type
  *
  * The type ACPI_TYPE_ANY (Untyped) is used as a "don't care" when searching;
- * when stored in a table it really means that we have thus far seen no
+ * when stored in a table it really means that we have thus far seen yes
  * evidence to indicate what type is actually going to be stored for this
  & entry.
  */
@@ -225,19 +225,19 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_get_node_name
+ * FUNCTION:    acpi_ut_get_yesde_name
  *
- * PARAMETERS:  object               - A namespace node
+ * PARAMETERS:  object               - A namespace yesde
  *
- * RETURN:      ASCII name of the node
+ * RETURN:      ASCII name of the yesde
  *
- * DESCRIPTION: Validate the node and return the node's ACPI name.
+ * DESCRIPTION: Validate the yesde and return the yesde's ACPI name.
  *
  ******************************************************************************/
 
-const char *acpi_ut_get_node_name(void *object)
+const char *acpi_ut_get_yesde_name(void *object)
 {
-	struct acpi_namespace_node *node = (struct acpi_namespace_node *)object;
+	struct acpi_namespace_yesde *yesde = (struct acpi_namespace_yesde *)object;
 
 	/* Must return a string of exactly 4 characters == ACPI_NAMESEG_SIZE */
 
@@ -245,27 +245,27 @@ const char *acpi_ut_get_node_name(void *object)
 		return ("NULL");
 	}
 
-	/* Check for Root node */
+	/* Check for Root yesde */
 
-	if ((object == ACPI_ROOT_OBJECT) || (object == acpi_gbl_root_node)) {
+	if ((object == ACPI_ROOT_OBJECT) || (object == acpi_gbl_root_yesde)) {
 		return ("\"\\\" ");
 	}
 
-	/* Descriptor must be a namespace node */
+	/* Descriptor must be a namespace yesde */
 
-	if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+	if (ACPI_GET_DESCRIPTOR_TYPE(yesde) != ACPI_DESC_TYPE_NAMED) {
 		return ("####");
 	}
 
 	/*
-	 * Ensure name is valid. The name was validated/repaired when the node
-	 * was created, but make sure it has not been corrupted.
+	 * Ensure name is valid. The name was validated/repaired when the yesde
+	 * was created, but make sure it has yest been corrupted.
 	 */
-	acpi_ut_repair_name(node->name.ascii);
+	acpi_ut_repair_name(yesde->name.ascii);
 
 	/* Return the name */
 
-	return (node->name.ascii);
+	return (yesde->name.ascii);
 }
 
 /*******************************************************************************
@@ -355,7 +355,7 @@ const char *acpi_ut_get_reference_name(union acpi_operand_object *object)
 	}
 
 	if (object->reference.class > ACPI_REFCLASS_MAX) {
-		return ("Unknown Reference class");
+		return ("Unkyeswn Reference class");
 	}
 
 	return (acpi_gbl_ref_class_names[object->reference.class]);
@@ -402,19 +402,19 @@ const char *acpi_ut_get_mutex_name(u32 mutex_id)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_get_notify_name
+ * FUNCTION:    acpi_ut_get_yestify_name
  *
- * PARAMETERS:  notify_value    - Value from the Notify() request
+ * PARAMETERS:  yestify_value    - Value from the Notify() request
  *
- * RETURN:      Decoded name for the notify value
+ * RETURN:      Decoded name for the yestify value
  *
- * DESCRIPTION: Translate a Notify Value to a notify namestring.
+ * DESCRIPTION: Translate a Notify Value to a yestify namestring.
  *
  ******************************************************************************/
 
 /* Names for Notify() values, used for debug output */
 
-static const char *acpi_gbl_generic_notify[ACPI_GENERIC_NOTIFY_MAX + 1] = {
+static const char *acpi_gbl_generic_yestify[ACPI_GENERIC_NOTIFY_MAX + 1] = {
 	/* 00 */ "Bus Check",
 	/* 01 */ "Device Check",
 	/* 02 */ "Device Wake",
@@ -436,7 +436,7 @@ static const char *acpi_gbl_generic_notify[ACPI_GENERIC_NOTIFY_MAX + 1] = {
 						/* ACPI 6.3 */
 };
 
-static const char *acpi_gbl_device_notify[5] = {
+static const char *acpi_gbl_device_yestify[5] = {
 	/* 80 */ "Status Change",
 	/* 81 */ "Information Change",
 	/* 82 */ "Device-Specific Change",
@@ -444,7 +444,7 @@ static const char *acpi_gbl_device_notify[5] = {
 	/* 84 */ "Reserved"
 };
 
-static const char *acpi_gbl_processor_notify[5] = {
+static const char *acpi_gbl_processor_yestify[5] = {
 	/* 80 */ "Performance Capability Change",
 	/* 81 */ "C-State Change",
 	/* 82 */ "Throttling Capability Change",
@@ -452,7 +452,7 @@ static const char *acpi_gbl_processor_notify[5] = {
 	/* 84 */ "Minimum Excursion"
 };
 
-static const char *acpi_gbl_thermal_notify[5] = {
+static const char *acpi_gbl_thermal_yestify[5] = {
 	/* 80 */ "Thermal Status Change",
 	/* 81 */ "Thermal Trip Point Change",
 	/* 82 */ "Thermal Device List Change",
@@ -460,43 +460,43 @@ static const char *acpi_gbl_thermal_notify[5] = {
 	/* 84 */ "Reserved"
 };
 
-const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type)
+const char *acpi_ut_get_yestify_name(u32 yestify_value, acpi_object_type type)
 {
 
 	/* 00 - 0F are "common to all object types" (from ACPI Spec) */
 
-	if (notify_value <= ACPI_GENERIC_NOTIFY_MAX) {
-		return (acpi_gbl_generic_notify[notify_value]);
+	if (yestify_value <= ACPI_GENERIC_NOTIFY_MAX) {
+		return (acpi_gbl_generic_yestify[yestify_value]);
 	}
 
 	/* 10 - 7F are reserved */
 
-	if (notify_value <= ACPI_MAX_SYS_NOTIFY) {
+	if (yestify_value <= ACPI_MAX_SYS_NOTIFY) {
 		return ("Reserved");
 	}
 
 	/* 80 - 84 are per-object-type */
 
-	if (notify_value <= ACPI_SPECIFIC_NOTIFY_MAX) {
+	if (yestify_value <= ACPI_SPECIFIC_NOTIFY_MAX) {
 		switch (type) {
 		case ACPI_TYPE_ANY:
 		case ACPI_TYPE_DEVICE:
-			return (acpi_gbl_device_notify[notify_value - 0x80]);
+			return (acpi_gbl_device_yestify[yestify_value - 0x80]);
 
 		case ACPI_TYPE_PROCESSOR:
-			return (acpi_gbl_processor_notify[notify_value - 0x80]);
+			return (acpi_gbl_processor_yestify[yestify_value - 0x80]);
 
 		case ACPI_TYPE_THERMAL:
-			return (acpi_gbl_thermal_notify[notify_value - 0x80]);
+			return (acpi_gbl_thermal_yestify[yestify_value - 0x80]);
 
 		default:
-			return ("Target object type does not support notifies");
+			return ("Target object type does yest support yestifies");
 		}
 	}
 
 	/* 84 - BF are device-specific */
 
-	if (notify_value <= ACPI_MAX_DEVICE_SPECIFIC_NOTIFY) {
+	if (yestify_value <= ACPI_MAX_DEVICE_SPECIFIC_NOTIFY) {
 		return ("Device-Specific");
 	}
 
@@ -520,7 +520,7 @@ const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type)
  ******************************************************************************/
 
 static const char *acpi_gbl_argument_type[20] = {
-	/* 00 */ "Unknown ARGP",
+	/* 00 */ "Unkyeswn ARGP",
 	/* 01 */ "ByteData",
 	/* 02 */ "ByteList",
 	/* 03 */ "CharList",
@@ -546,7 +546,7 @@ const char *acpi_ut_get_argument_type_name(u32 arg_type)
 {
 
 	if (arg_type > ARGP_MAX) {
-		return ("Unknown ARGP");
+		return ("Unkyeswn ARGP");
 	}
 
 	return (acpi_gbl_argument_type[arg_type]);

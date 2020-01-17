@@ -79,7 +79,7 @@ static const char * const imx8mn_gpu_ahb_sels[] = {"osc_24m", "sys_pll1_800m", "
 						   "sys_pll3_out", "sys_pll2_1000m", "audio_pll1_out",
 						   "video_pll1_out", "audio_pll2_out", };
 
-static const char * const imx8mn_noc_sels[] = {"osc_24m", "sys_pll1_800m", "sys_pll3_out",
+static const char * const imx8mn_yesc_sels[] = {"osc_24m", "sys_pll1_800m", "sys_pll3_out",
 					       "sys_pll2_1000m", "sys_pll2_500m", "audio_pll1_out",
 					       "video_pll1_out", "audio_pll2_out", };
 
@@ -294,7 +294,7 @@ static struct clk ** const uart_clks[] = {
 static int imx8mn_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	void __iomem *base;
 	int ret;
 
@@ -306,7 +306,7 @@ static int imx8mn_clocks_probe(struct platform_device *pdev)
 	clks[IMX8MN_CLK_EXT3] = of_clk_get_by_name(np, "clk_ext3");
 	clks[IMX8MN_CLK_EXT4] = of_clk_get_by_name(np, "clk_ext4");
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx8mn-anatop");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx8mn-anatop");
 	base = of_iomap(np, 0);
 	if (WARN_ON(!base)) {
 		ret = -ENOMEM;
@@ -395,7 +395,7 @@ static int imx8mn_clocks_probe(struct platform_device *pdev)
 	clks[IMX8MN_SYS_PLL2_500M] = imx_clk_fixed_factor("sys_pll2_500m", "sys_pll2_500m_cg", 1, 2);
 	clks[IMX8MN_SYS_PLL2_1000M] = imx_clk_fixed_factor("sys_pll2_1000m", "sys_pll2_out", 1, 1);
 
-	np = dev->of_node;
+	np = dev->of_yesde;
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (WARN_ON(IS_ERR(base))) {
 		ret = PTR_ERR(base);
@@ -423,7 +423,7 @@ static int imx8mn_clocks_probe(struct platform_device *pdev)
 	clks[IMX8MN_CLK_USB_BUS] = imx8m_clk_composite("usb_bus", imx8mn_usb_bus_sels, base + 0x8b80);
 	clks[IMX8MN_CLK_GPU_AXI] = imx8m_clk_composite("gpu_axi", imx8mn_gpu_axi_sels, base + 0x8c00);
 	clks[IMX8MN_CLK_GPU_AHB] = imx8m_clk_composite("gpu_ahb", imx8mn_gpu_ahb_sels, base + 0x8c80);
-	clks[IMX8MN_CLK_NOC] = imx8m_clk_composite_critical("noc", imx8mn_noc_sels, base + 0x8d00);
+	clks[IMX8MN_CLK_NOC] = imx8m_clk_composite_critical("yesc", imx8mn_yesc_sels, base + 0x8d00);
 
 	clks[IMX8MN_CLK_AHB] = imx8m_clk_composite_critical("ahb", imx8mn_ahb_sels, base + 0x9000);
 	clks[IMX8MN_CLK_AUDIO_AHB] = imx8m_clk_composite("audio_ahb", imx8mn_audio_ahb_sels, base + 0x9100);

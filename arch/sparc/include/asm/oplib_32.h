@@ -28,16 +28,16 @@ extern enum prom_major_version prom_vers;
 /* Revision, and firmware revision. */
 extern unsigned int prom_rev, prom_prev;
 
-/* Root node of the prom device tree, this stays constant after
+/* Root yesde of the prom device tree, this stays constant after
  * initialization is complete.
  */
-extern phandle prom_root_node;
+extern phandle prom_root_yesde;
 
 /* Pointer to prom structure containing the device tree traversal
  * and usage utility functions.  Only prom-lib should use these,
  * users use the interface defined by the library only!
  */
-extern struct linux_nodeops *prom_nodeops;
+extern struct linux_yesdeops *prom_yesdeops;
 
 /* The functions... */
 
@@ -62,10 +62,10 @@ void prom_feval(char *forth_string);
  */
 void prom_cmdline(void);
 
-/* Enter the prom, with no chance of continuation for the stand-alone
+/* Enter the prom, with yes chance of continuation for the stand-alone
  * which calls this.
  */
-void __noreturn prom_halt(void);
+void __yesreturn prom_halt(void);
 
 /* Set the PROM 'sync' callback function to the passed function pointer.
  * When the user gives the 'sync' command at the prom prompt while the
@@ -76,7 +76,7 @@ void __noreturn prom_halt(void);
 typedef void (*sync_func_t)(void);
 void prom_setsync(sync_func_t func_ptr);
 
-/* Acquire the IDPROM of the root node in the prom device tree.  This
+/* Acquire the IDPROM of the root yesde in the prom device tree.  This
  * gets passed a buffer where you would like it stuffed.  The return value
  * is the format type of this idprom or 0xff on error.
  */
@@ -100,10 +100,10 @@ void prom_write(const char *buf, unsigned int len);
 
 /* Multiprocessor operations... */
 
-/* Start the CPU with the given device tree node, context table, and context
+/* Start the CPU with the given device tree yesde, context table, and context
  * at the passed program counter.
  */
-int prom_startcpu(int cpunode, struct linux_prom_registers *context_table,
+int prom_startcpu(int cpuyesde, struct linux_prom_registers *context_table,
 		  int context, char *program_counter);
 
 /* Initialize the memory lists based upon the prom version. */
@@ -111,54 +111,54 @@ void prom_meminit(void);
 
 /* PROM device tree traversal functions... */
 
-/* Get the child node of the given node, or zero if no child exists. */
-phandle prom_getchild(phandle parent_node);
+/* Get the child yesde of the given yesde, or zero if yes child exists. */
+phandle prom_getchild(phandle parent_yesde);
 
-/* Get the next sibling node of the given node, or zero if no further
+/* Get the next sibling yesde of the given yesde, or zero if yes further
  * siblings exist.
  */
-phandle prom_getsibling(phandle node);
+phandle prom_getsibling(phandle yesde);
 
-/* Get the length, at the passed node, of the given property type.
- * Returns -1 on error (ie. no such property at this node).
+/* Get the length, at the passed yesde, of the given property type.
+ * Returns -1 on error (ie. yes such property at this yesde).
  */
-int prom_getproplen(phandle thisnode, const char *property);
+int prom_getproplen(phandle thisyesde, const char *property);
 
 /* Fetch the requested property using the given buffer.  Returns
  * the number of bytes the prom put into your buffer or -1 on error.
  */
-int __must_check prom_getproperty(phandle thisnode, const char *property,
+int __must_check prom_getproperty(phandle thisyesde, const char *property,
 				  char *prop_buffer, int propbuf_size);
 
 /* Acquire an integer property. */
-int prom_getint(phandle node, char *property);
+int prom_getint(phandle yesde, char *property);
 
 /* Acquire an integer property, with a default value. */
-int prom_getintdefault(phandle node, char *property, int defval);
+int prom_getintdefault(phandle yesde, char *property, int defval);
 
 /* Acquire a boolean property, 0=FALSE 1=TRUE. */
-int prom_getbool(phandle node, char *prop);
+int prom_getbool(phandle yesde, char *prop);
 
 /* Acquire a string property, null string on error. */
-void prom_getstring(phandle node, char *prop, char *buf, int bufsize);
+void prom_getstring(phandle yesde, char *prop, char *buf, int bufsize);
 
-/* Search all siblings starting at the passed node for "name" matching
- * the given string.  Returns the node on success, zero on failure.
+/* Search all siblings starting at the passed yesde for "name" matching
+ * the given string.  Returns the yesde on success, zero on failure.
  */
-phandle prom_searchsiblings(phandle node_start, char *name);
+phandle prom_searchsiblings(phandle yesde_start, char *name);
 
 /* Returns the next property after the passed property for the given
- * node.  Returns null string on failure.
+ * yesde.  Returns null string on failure.
  */
-char *prom_nextprop(phandle node, char *prev_property, char *buffer);
+char *prom_nextprop(phandle yesde, char *prev_property, char *buffer);
 
 /* Returns phandle of the path specified */
 phandle prom_finddevice(char *name);
 
-/* Set the indicated property at the given node with the passed value.
+/* Set the indicated property at the given yesde with the passed value.
  * Returns the number of bytes of your value that the prom took.
  */
-int prom_setprop(phandle node, const char *prop_name, char *prop_value,
+int prom_setprop(phandle yesde, const char *prop_name, char *prop_value,
 		 int value_size);
 
 phandle prom_inst2pkg(int);
@@ -168,16 +168,16 @@ phandle prom_inst2pkg(int);
 /* Apply promlib probes OBIO ranges to registers. */
 void prom_apply_obio_ranges(struct linux_prom_registers *obioregs, int nregs);
 
-/* Apply ranges of any prom node (and optionally parent node as well) to registers. */
-void prom_apply_generic_ranges(phandle node, phandle parent,
+/* Apply ranges of any prom yesde (and optionally parent yesde as well) to registers. */
+void prom_apply_generic_ranges(phandle yesde, phandle parent,
 			       struct linux_prom_registers *sbusregs, int nregs);
 
 void prom_ranges_init(void);
 
 /* CPU probing helpers.  */
-int cpu_find_by_instance(int instance, phandle *prom_node, int *mid);
-int cpu_find_by_mid(int mid, phandle *prom_node);
-int cpu_get_hwmid(phandle prom_node);
+int cpu_find_by_instance(int instance, phandle *prom_yesde, int *mid);
+int cpu_find_by_mid(int mid, phandle *prom_yesde);
+int cpu_get_hwmid(phandle prom_yesde);
 
 extern spinlock_t prom_lock;
 

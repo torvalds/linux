@@ -82,7 +82,7 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 		}
 
 		sc = list_first_entry(&ordered_sc_list->head,
-				      struct octeon_soft_command, node);
+				      struct octeon_soft_command, yesde);
 
 		status = OCTEON_REQUEST_PENDING;
 
@@ -93,10 +93,10 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 
 		if (status64 != COMPLETION_WORD_INIT) {
 			/* This logic ensures that all 64b have been written.
-			 * 1. check byte 0 for non-FF
-			 * 2. if non-FF, then swap result from BE to host order
-			 * 3. check byte 7 (swapped to 0) for non-FF
-			 * 4. if non-FF, use the low 32-bit status code
+			 * 1. check byte 0 for yesn-FF
+			 * 2. if yesn-FF, then swap result from BE to host order
+			 * 3. check byte 7 (swapped to 0) for yesn-FF
+			 * 4. if yesn-FF, use the low 32-bit status code
 			 * 5. if either byte 0 or byte 7 is FF, don't use status
 			 */
 			if ((status64 & 0xff) != 0xff) {
@@ -108,7 +108,7 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 						status =
 						  FIRMWARE_STATUS_CODE(status);
 					} else {
-						/* i.e. no error */
+						/* i.e. yes error */
 						status = OCTEON_REQUEST_DONE;
 					}
 				}
@@ -133,8 +133,8 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 			sc->sc_status = status;
 
 			/* we have received a response or we have timed out */
-			/* remove node from linked list */
-			list_del(&sc->node);
+			/* remove yesde from linked list */
+			list_del(&sc->yesde);
 			atomic_dec(&octeon_dev->response_list
 				   [OCTEON_ORDERED_SC_LIST].
 				   pending_req_count);
@@ -143,12 +143,12 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 				atomic_inc(&octeon_dev->response_list
 					   [OCTEON_DONE_SC_LIST].
 					   pending_req_count);
-				list_add_tail(&sc->node,
+				list_add_tail(&sc->yesde,
 					      &octeon_dev->response_list
 					      [OCTEON_DONE_SC_LIST].head);
 
 				if (unlikely(READ_ONCE(sc->caller_is_done))) {
-					/* caller does not wait for response
+					/* caller does yest wait for response
 					 * from firmware
 					 */
 					if (status != OCTEON_REQUEST_DONE) {
@@ -183,7 +183,7 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 					atomic_inc(&octeon_dev->response_list
 						   [OCTEON_ZOMBIE_SC_LIST].
 						   pending_req_count);
-					list_add_tail(&sc->node,
+					list_add_tail(&sc->yesde,
 						      &octeon_dev->response_list
 						      [OCTEON_ZOMBIE_SC_LIST].
 						      head);
@@ -199,7 +199,7 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 			request_complete++;
 
 		} else {
-			/* no response yet */
+			/* yes response yet */
 			request_complete = 0;
 			spin_unlock_bh
 			    (&ordered_sc_list->lock);
@@ -210,7 +210,7 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 		 * and let this function be invoked the next time the poll
 		 * thread runs
 		 * to process the remaining requests. This function can take up
-		 * the entire CPU if there is no upper limit to the requests
+		 * the entire CPU if there is yes upper limit to the requests
 		 * processed.
 		 */
 		if (request_complete >= resp_to_process)

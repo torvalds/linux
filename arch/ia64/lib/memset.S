@@ -122,7 +122,7 @@ GLOBAL_ENTRY(memset)
 ;; }
 
 { .mib
-	nop.m 0
+	yesp.m 0
 	shr.u	linecnt = cnt, LSIZE_SH
 (p_zr)	br.cond.dptk.many .l1b			// Jump to use stf.spill
 ;; }
@@ -148,7 +148,7 @@ GLOBAL_ENTRY(memset)
 .pref_l1a:
 { .mib
 	stf8 [ptr9] = fvalue, 128		// Do stores one cache line apart
-	nop.i	0
+	yesp.i	0
 	br.cloop.dptk.few .pref_l1a
 ;; }
 { .mmi
@@ -192,8 +192,8 @@ GLOBAL_ENTRY(memset)
 ;; }
 { .mbb
 	cmp.le  p_scr, p0 = 8, cnt		// just a few bytes left ?
-(p_scr) br.cond.dpnt.many  .fraction_of_line	// Branch no. 2
-	br.cond.dpnt.many  .move_bytes_from_alignment	// Branch no. 3
+(p_scr) br.cond.dpnt.many  .fraction_of_line	// Branch yes. 2
+	br.cond.dpnt.many  .move_bytes_from_alignment	// Branch yes. 3
 ;; }
 
 	TEXT_ALIGN(32)
@@ -218,7 +218,7 @@ GLOBAL_ENTRY(memset)
 .pref_l1b:
 { .mib
 	stf.spill [ptr9] = f0, 128		// Do stores one cache line apart
-	nop.i   0
+	yesp.i   0
 	br.cloop.dptk.few .pref_l1b
 ;; }
 { .mmi
@@ -314,7 +314,7 @@ GLOBAL_ENTRY(memset)
 ;; }
 .restore_and_exit:
 { .mib
-	nop.m	0
+	yesp.m	0
 	mov.i	ar.lc = save_lc
 	br.ret.sptk.many rp
 ;; }

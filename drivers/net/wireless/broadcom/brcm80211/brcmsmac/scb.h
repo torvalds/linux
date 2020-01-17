@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -70,9 +70,9 @@ struct scb {
 	uint fragresid[NUMPRIO];/* #bytes unused in frag buffer per prio */
 
 	u16 seqctl[NUMPRIO];	/* seqctl of last received frame (for dups) */
-	/* seqctl of last received frame (for dups) for non-QoS data and
+	/* seqctl of last received frame (for dups) for yesn-QoS data and
 	 * management */
-	u16 seqctl_nonqos;
+	u16 seqctl_yesnqos;
 	u16 seqnum[NUMPRIO];/* WME: driver maintained sw seqnum per priority */
 
 	struct scb_ampdu scb_ampdu;	/* AMPDU state including per tid info */

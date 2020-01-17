@@ -8,11 +8,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -43,7 +43,7 @@
 #include "core.h"
 #include "link.h"
 #include "socket.h"
-#include "node.h"
+#include "yesde.h"
 
 #define SKB_LMIN	(100)
 #define SKB_LMAX	(SKB_LMIN * 2)
@@ -130,7 +130,7 @@ int tipc_skb_dump(struct sk_buff *skb, bool more, char *buf);
 int tipc_list_dump(struct sk_buff_head *list, bool more, char *buf);
 int tipc_sk_dump(struct sock *sk, u16 dqueues, char *buf);
 int tipc_link_dump(struct tipc_link *l, u16 dqueues, char *buf);
-int tipc_node_dump(struct tipc_node *n, bool more, char *buf);
+int tipc_yesde_dump(struct tipc_yesde *n, bool more, char *buf);
 bool tipc_sk_filtering(struct sock *sk);
 
 DECLARE_EVENT_CLASS(tipc_skb_class,
@@ -290,8 +290,8 @@ DECLARE_EVENT_CLASS(tipc_link_transmq_class,
 		__field(u16, from)
 		__field(u16, to)
 		__field(u32, len)
-		__field(u16, fseqno)
-		__field(u16, lseqno)
+		__field(u16, fseqyes)
+		__field(u16, lseqyes)
 	),
 
 	TP_fast_assign(
@@ -299,13 +299,13 @@ DECLARE_EVENT_CLASS(tipc_link_transmq_class,
 		__entry->from = f;
 		__entry->to = t;
 		__entry->len = skb_queue_len(tq);
-		__entry->fseqno = msg_seqno(buf_msg(skb_peek(tq)));
-		__entry->lseqno = msg_seqno(buf_msg(skb_peek_tail(tq)));
+		__entry->fseqyes = msg_seqyes(buf_msg(skb_peek(tq)));
+		__entry->lseqyes = msg_seqyes(buf_msg(skb_peek_tail(tq)));
 	),
 
 	TP_printk("<%s> retrans req: [%u-%u] transmq: %u [%u-%u]\n",
 		  __entry->name, __entry->from, __entry->to,
-		  __entry->len, __entry->fseqno, __entry->lseqno)
+		  __entry->len, __entry->fseqyes, __entry->lseqyes)
 );
 
 DEFINE_EVENT(tipc_link_transmq_class, tipc_link_retrans,
@@ -318,12 +318,12 @@ DEFINE_EVENT_PRINT(tipc_link_transmq_class, tipc_link_bc_ack,
 	TP_ARGS(r, f, t, tq),
 	TP_printk("<%s> acked: [%u-%u] transmq: %u [%u-%u]\n",
 		  __entry->name, __entry->from, __entry->to,
-		  __entry->len, __entry->fseqno, __entry->lseqno)
+		  __entry->len, __entry->fseqyes, __entry->lseqyes)
 );
 
-DECLARE_EVENT_CLASS(tipc_node_class,
+DECLARE_EVENT_CLASS(tipc_yesde_class,
 
-	TP_PROTO(struct tipc_node *n, bool more, const char *header),
+	TP_PROTO(struct tipc_yesde *n, bool more, const char *header),
 
 	TP_ARGS(n, more, header),
 
@@ -335,8 +335,8 @@ DECLARE_EVENT_CLASS(tipc_node_class,
 
 	TP_fast_assign(
 		__assign_str(header, header);
-		__entry->addr = tipc_node_get_addr(n);
-		tipc_node_dump(n, more, __get_str(buf));
+		__entry->addr = tipc_yesde_get_addr(n);
+		tipc_yesde_dump(n, more, __get_str(buf));
 	),
 
 	TP_printk("<%x> %s\n%s", __entry->addr, __get_str(header),
@@ -344,18 +344,18 @@ DECLARE_EVENT_CLASS(tipc_node_class,
 );
 
 #define DEFINE_NODE_EVENT(name) \
-DEFINE_EVENT(tipc_node_class, name, \
-	TP_PROTO(struct tipc_node *n, bool more, const char *header), \
+DEFINE_EVENT(tipc_yesde_class, name, \
+	TP_PROTO(struct tipc_yesde *n, bool more, const char *header), \
 	TP_ARGS(n, more, header))
-DEFINE_NODE_EVENT(tipc_node_dump);
-DEFINE_NODE_EVENT(tipc_node_create);
-DEFINE_NODE_EVENT(tipc_node_delete);
-DEFINE_NODE_EVENT(tipc_node_lost_contact);
-DEFINE_NODE_EVENT(tipc_node_timeout);
-DEFINE_NODE_EVENT(tipc_node_link_up);
-DEFINE_NODE_EVENT(tipc_node_link_down);
-DEFINE_NODE_EVENT(tipc_node_reset_links);
-DEFINE_NODE_EVENT(tipc_node_check_state);
+DEFINE_NODE_EVENT(tipc_yesde_dump);
+DEFINE_NODE_EVENT(tipc_yesde_create);
+DEFINE_NODE_EVENT(tipc_yesde_delete);
+DEFINE_NODE_EVENT(tipc_yesde_lost_contact);
+DEFINE_NODE_EVENT(tipc_yesde_timeout);
+DEFINE_NODE_EVENT(tipc_yesde_link_up);
+DEFINE_NODE_EVENT(tipc_yesde_link_down);
+DEFINE_NODE_EVENT(tipc_yesde_reset_links);
+DEFINE_NODE_EVENT(tipc_yesde_check_state);
 
 DECLARE_EVENT_CLASS(tipc_fsm_class,
 
@@ -387,7 +387,7 @@ DEFINE_EVENT(tipc_fsm_class, fsm_name, \
 	TP_PROTO(const char *name, u32 os, u32 ns, int evt), \
 	TP_ARGS(name, os, ns, evt))
 DEFINE_FSM_EVENT(tipc_link_fsm);
-DEFINE_FSM_EVENT(tipc_node_fsm);
+DEFINE_FSM_EVENT(tipc_yesde_fsm);
 
 TRACE_EVENT(tipc_l2_device_event,
 
@@ -417,7 +417,7 @@ TRACE_EVENT(tipc_l2_device_event,
 	TP_printk("%s on: <%s>/<%s> oper: %s carrier: %s bearer: %s\n",
 		  dev_evt_sym(__entry->evt), __get_str(dev_name),
 		  __get_str(b_name), (__entry->oper) ? "up" : "down",
-		  (__entry->carrier) ? "ok" : "notok",
+		  (__entry->carrier) ? "ok" : "yestok",
 		  (__entry->b_up) ? "up" : "down")
 );
 

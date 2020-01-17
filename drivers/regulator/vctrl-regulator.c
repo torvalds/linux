@@ -95,7 +95,7 @@ static int vctrl_set_voltage(struct regulator_dev *rdev,
 	int ret;
 
 	if (req_min_uV >= uV || !vctrl->ovp_threshold)
-		/* voltage rising or no OVP */
+		/* voltage rising or yes OVP */
 		return regulator_set_voltage(
 			ctrl_reg,
 			vctrl_calc_ctrl_voltage(vctrl, req_min_uV),
@@ -107,7 +107,7 @@ static int vctrl_set_voltage(struct regulator_dev *rdev,
 		int next_ctrl_uV;
 		int delay;
 
-		/* Make sure no infinite loop even in crazy cases */
+		/* Make sure yes infinite loop even in crazy cases */
 		if (max_drop_uV == 0)
 			max_drop_uV = 1;
 
@@ -154,7 +154,7 @@ static int vctrl_set_voltage_sel(struct regulator_dev *rdev,
 		return -EINVAL;
 
 	if (selector >= vctrl->sel || !vctrl->ovp_threshold) {
-		/* voltage rising or no OVP */
+		/* voltage rising or yes OVP */
 		ret = regulator_set_voltage(ctrl_reg,
 					    vctrl->vtable[selector].ctrl,
 					    vctrl->vtable[selector].ctrl);
@@ -222,7 +222,7 @@ static int vctrl_parse_dt(struct platform_device *pdev,
 			  struct vctrl_data *vctrl)
 {
 	int ret;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	u32 pval;
 	u32 vrange_ctrl[2];
 
@@ -248,7 +248,7 @@ static int vctrl_parse_dt(struct platform_device *pdev,
 		/* We use the value as int and as divider; sanity check */
 		if (vctrl->min_slew_down_rate == 0) {
 			dev_err(&pdev->dev,
-				"min-slew-down-rate must not be 0\n");
+				"min-slew-down-rate must yest be 0\n");
 			return -EINVAL;
 		} else if (vctrl->min_slew_down_rate > INT_MAX) {
 			dev_err(&pdev->dev, "min-slew-down-rate (%u) too big\n",
@@ -421,7 +421,7 @@ static const struct regulator_ops vctrl_ops_cont = {
 	.set_voltage	  = vctrl_set_voltage,
 };
 
-static const struct regulator_ops vctrl_ops_non_cont = {
+static const struct regulator_ops vctrl_ops_yesn_cont = {
 	.enable		  = vctrl_enable,
 	.disable	  = vctrl_disable,
 	.is_enabled	  = vctrl_is_enabled,
@@ -433,7 +433,7 @@ static const struct regulator_ops vctrl_ops_non_cont = {
 
 static int vctrl_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct vctrl_data *vctrl;
 	const struct regulator_init_data *init_data;
 	struct regulator_desc *rdesc;
@@ -465,14 +465,14 @@ static int vctrl_probe(struct platform_device *pdev)
 		rdesc->continuous_voltage_range = true;
 		rdesc->ops = &vctrl_ops_cont;
 	} else {
-		rdesc->ops = &vctrl_ops_non_cont;
+		rdesc->ops = &vctrl_ops_yesn_cont;
 	}
 
 	init_data = of_get_regulator_init_data(&pdev->dev, np, rdesc);
 	if (!init_data)
 		return -ENOMEM;
 
-	cfg.of_node = np;
+	cfg.of_yesde = np;
 	cfg.dev = &pdev->dev;
 	cfg.driver_data = vctrl;
 	cfg.init_data = init_data;

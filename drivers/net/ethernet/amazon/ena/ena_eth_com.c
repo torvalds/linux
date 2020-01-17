@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -383,8 +383,8 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	WARN(io_sq->direction != ENA_COM_IO_QUEUE_DIRECTION_TX, "wrong Q type");
 
 	/* num_bufs +1 for potential meta desc */
-	if (unlikely(!ena_com_sq_have_enough_space(io_sq, num_bufs + 1))) {
-		pr_debug("Not enough space in the tx queue\n");
+	if (unlikely(!ena_com_sq_have_eyesugh_space(io_sq, num_bufs + 1))) {
+		pr_debug("Not eyesugh space in the tx queue\n");
 		return -ENOMEM;
 	}
 
@@ -567,7 +567,7 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 
 	WARN(io_sq->direction != ENA_COM_IO_QUEUE_DIRECTION_RX, "wrong Q type");
 
-	if (unlikely(!ena_com_sq_have_enough_space(io_sq, 1)))
+	if (unlikely(!ena_com_sq_have_eyesugh_space(io_sq, 1)))
 		return -ENOSPC;
 
 	desc = get_sq_desc(io_sq);

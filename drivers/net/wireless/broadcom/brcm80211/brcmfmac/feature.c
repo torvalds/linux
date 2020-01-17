@@ -137,7 +137,7 @@ static void brcmf_feat_iovar_int_get(struct brcmf_if *ifp,
 	u32 data;
 	int err;
 
-	/* we need to know firmware error */
+	/* we need to kyesw firmware error */
 	ifp->fwil_fwerr = true;
 
 	err = brcmf_fil_iovar_int_get(ifp, name, &data);
@@ -158,7 +158,7 @@ static void brcmf_feat_iovar_data_set(struct brcmf_if *ifp,
 {
 	int err;
 
-	/* we need to know firmware error */
+	/* we need to kyesw firmware error */
 	ifp->fwil_fwerr = true;
 
 	err = brcmf_fil_iovar_data_set(ifp, name, data, len);
@@ -183,7 +183,7 @@ static void brcmf_feat_firmware_capabilities(struct brcmf_if *ifp)
 
 	err = brcmf_fil_iovar_data_get(ifp, "cap", caps, sizeof(caps));
 	if (err) {
-		bphy_err(drvr, "could not get firmware cap (%d)\n", err);
+		bphy_err(drvr, "could yest get firmware cap (%d)\n", err);
 		return;
 	}
 
@@ -216,7 +216,7 @@ static int brcmf_feat_fwcap_debugfs_read(struct seq_file *seq, void *data)
 
 	err = brcmf_fil_iovar_data_get(ifp, "cap", caps, sizeof(caps));
 	if (err) {
-		bphy_err(drvr, "could not get firmware cap (%d)\n", err);
+		bphy_err(drvr, "could yest get firmware cap (%d)\n", err);
 		return err;
 	}
 
@@ -238,7 +238,7 @@ static int brcmf_feat_fwcap_debugfs_read(struct seq_file *seq, void *data)
 void brcmf_feat_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_if *ifp = brcmf_get_ifp(drvr, 0);
-	struct brcmf_pno_macaddr_le pfn_mac;
+	struct brcmf_pyes_macaddr_le pfn_mac;
 	struct brcmf_gscan_config gscan_cfg;
 	u32 wowl_cap;
 	s32 err;
@@ -265,7 +265,7 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 					BIT(BRCMF_FEAT_WOWL_GTK);
 		}
 	}
-	/* MBSS does not work for all chips */
+	/* MBSS does yest work for all chips */
 	switch (drvr->bus_if->chip) {
 	case BRCM_CC_4330_CHIP_ID:
 	case BRCM_CC_43362_CHIP_ID:
@@ -303,7 +303,7 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 		drvr->chip_quirks |= BIT(BRCMF_FEAT_QUIRK_NEED_MPC);
 		break;
 	default:
-		/* no quirks */
+		/* yes quirks */
 		break;
 	}
 }

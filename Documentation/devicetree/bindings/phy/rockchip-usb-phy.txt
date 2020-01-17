@@ -12,10 +12,10 @@ Deprecated properties:
  - rockchip,grf : phandle to the syscon managing the "general
    register files" - phy should be a child of the GRF instead
 
-Sub-nodes:
-Each PHY should be represented as a sub-node.
+Sub-yesdes:
+Each PHY should be represented as a sub-yesde.
 
-Sub-nodes
+Sub-yesdes
 required properties:
 - #phy-cells: should be 0
 - reg: PHY configure reg address offset in GRF

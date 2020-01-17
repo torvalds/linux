@@ -260,7 +260,7 @@ void rtw_bf_enable_bfee_mu(struct rtw_dev *rtwdev, struct rtw_vif *vif,
 	bf_info->cur_csi_rpt_rate = DESC_RATE6M;
 	rtw_bf_cfg_sounding(rtwdev, vif, DESC_RATE6M);
 
-	/* accept action_no_ack */
+	/* accept action_yes_ack */
 	rtw_write16_set(rtwdev, REG_RXFLTMAP0, BIT_RXFLTMAP0_ACTIONNOACK);
 
 	/* accept NDPA and BF report poll */
@@ -313,7 +313,7 @@ void rtw_bf_set_gid_table(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	struct cfg_mumimo_para param;
 
 	if (bfee->role != RTW_BFEE_MU) {
-		rtw_dbg(rtwdev, RTW_DBG_BF, "this vif is not mu bfee\n");
+		rtw_dbg(rtwdev, RTW_DBG_BF, "this vif is yest mu bfee\n");
 		return;
 	}
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI__ASM_GENERIC_SIGNAL_H
 #define _UAPI__ASM_GENERIC_SIGNAL_H
 
@@ -46,7 +46,7 @@
 #define SIGSYS		31
 #define	SIGUNUSED	31
 
-/* These should not be considered constants from userland.  */
+/* These should yest be considered constants from userland.  */
 #define SIGRTMIN	32
 #ifndef SIGRTMAX
 #define SIGRTMAX	_NSIG
@@ -77,7 +77,7 @@
 #define SA_ONESHOT	SA_RESETHAND
 
 /*
- * New architectures should not define the obsolete
+ * New architectures should yest define the obsolete
  *	SA_RESTORER	0x04000000
  */
 
@@ -91,7 +91,7 @@ typedef struct {
 	unsigned long sig[_NSIG_WORDS];
 } sigset_t;
 
-/* not actually used, but required for linux/syscalls.h */
+/* yest actually used, but required for linux/syscalls.h */
 typedef unsigned long old_sigset_t;
 
 #include <asm-generic/signal-defs.h>

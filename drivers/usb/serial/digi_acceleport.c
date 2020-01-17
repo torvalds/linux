@@ -12,7 +12,7 @@
 */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -332,7 +332,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
  *  Cond Wait Interruptible Timeout Irqrestore
  *
  *  Do spin_unlock_irqrestore and interruptible_sleep_on_timeout
- *  so that wake ups are not lost if they occur between the unlock
+ *  so that wake ups are yest lost if they occur between the unlock
  *  and the sleep.  In other words, spin_unlock_irqrestore and
  *  interruptible_sleep_on_timeout are "atomic" with respect to
  *  wake ups.  This is used to implement condition variables.
@@ -381,7 +381,7 @@ static void digi_wakeup_write_lock(struct work_struct *work)
  *
  *  Write commands on the out of band port.  Commands are 4
  *  bytes each, multiple commands can be sent at once, and
- *  no command will be split across USB packets.  Returns 0
+ *  yes command will be split across USB packets.  Returns 0
  *  if successful, -EINTR if interrupted while sleeping and
  *  the interruptible flag is true, or a negative error
  *  returned by usb_submit_urb.
@@ -411,7 +411,7 @@ static int digi_write_oob_command(struct usb_serial_port *port,
 			spin_lock_irqsave(&oob_priv->dp_port_lock, flags);
 		}
 
-		/* len must be a multiple of 4, so commands are not split */
+		/* len must be a multiple of 4, so commands are yest split */
 		len = min(count, oob_port->bulk_out_size);
 		if (len > 4)
 			len &= ~3;
@@ -438,8 +438,8 @@ static int digi_write_oob_command(struct usb_serial_port *port,
  *
  *  Write commands on the given port.  Commands are 4
  *  bytes each, multiple commands can be sent at once, and
- *  no command will be split across USB packets.  If timeout
- *  is non-zero, write in band command will return after
+ *  yes command will be split across USB packets.  If timeout
+ *  is yesn-zero, write in band command will return after
  *  waiting unsuccessfully for the URB status to clear for
  *  timeout ticks.  Returns 0 if successful, or a negative
  *  error returned by digi_write.
@@ -474,9 +474,9 @@ static int digi_write_inb_command(struct usb_serial_port *port,
 			spin_lock_irqsave(&priv->dp_port_lock, flags);
 		}
 
-		/* len must be a multiple of 4 and small enough to */
+		/* len must be a multiple of 4 and small eyesugh to */
 		/* guarantee the write will send buffered data first, */
-		/* so commands are in order with data and not split */
+		/* so commands are in order with data and yest split */
 		len = min(count, port->bulk_out_size-2-priv->dp_out_buf_len);
 		if (len > 4)
 			len &= ~3;
@@ -520,7 +520,7 @@ static int digi_write_inb_command(struct usb_serial_port *port,
  *  Sets or clears DTR and RTS on the port, according to the
  *  modem_signals argument.  Use TIOCM_DTR and TIOCM_RTS flags
  *  for the modem_signals argument.  Returns 0 if successful,
- *  -EINTR if interrupted while sleeping, or a non-zero error
+ *  -EINTR if interrupted while sleeping, or a yesn-zero error
  *  returned by usb_submit_urb.
  */
 
@@ -637,7 +637,7 @@ static void digi_rx_throttle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct digi_port *priv = usb_get_serial_port_data(port);
 
-	/* stop receiving characters by not resubmitting the read urb */
+	/* stop receiving characters by yest resubmitting the read urb */
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 	priv->dp_throttled = 1;
 	priv->dp_throttle_restart = 0;
@@ -923,7 +923,7 @@ static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
 	/* there are races on the port private buffer */
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 
-	/* wait for urb status clear to submit another urb */
+	/* wait for urb status clear to submit ayesther urb */
 	if (priv->dp_write_urb_in_use) {
 		/* buffer data if count is 1 (probably put_char) if possible */
 		if (count == 1 && priv->dp_out_buf_len < DIGI_OUT_BUF_SIZE) {
@@ -1091,7 +1091,7 @@ static int digi_open(struct tty_struct *tty, struct usb_serial_port *port)
 	int ret;
 	unsigned char buf[32];
 	struct digi_port *priv = usb_get_serial_port_data(port);
-	struct ktermios not_termios;
+	struct ktermios yest_termios;
 
 	/* be sure the device is started up */
 	if (digi_startup_device(port->serial) != 0)
@@ -1115,9 +1115,9 @@ static int digi_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	/* set termios settings */
 	if (tty) {
-		not_termios.c_cflag = ~tty->termios.c_cflag;
-		not_termios.c_iflag = ~tty->termios.c_iflag;
-		digi_set_termios(tty, port, &not_termios);
+		yest_termios.c_cflag = ~tty->termios.c_cflag;
+		yest_termios.c_iflag = ~tty->termios.c_iflag;
+		digi_set_termios(tty, port, &yest_termios);
 	}
 	return 0;
 }
@@ -1193,7 +1193,7 @@ exit:
  *  Digi Startup Device
  *
  *  Starts reads on all ports.  Must be called AFTER startup, with
- *  urbs initialized.  Returns 0 if successful, non-zero error otherwise.
+ *  urbs initialized.  Returns 0 if successful, yesn-zero error otherwise.
  */
 
 static int digi_startup_device(struct usb_serial *serial)
@@ -1323,7 +1323,7 @@ static void digi_read_bulk_callback(struct urb *urb)
 	int ret;
 	int status = urb->status;
 
-	/* port sanity check, do not resubmit if port is not valid */
+	/* port sanity check, do yest resubmit if port is yest valid */
 	if (port == NULL)
 		return;
 	priv = usb_get_serial_port_data(port);
@@ -1339,15 +1339,15 @@ static void digi_read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	/* do not resubmit urb if it has any status error */
+	/* do yest resubmit urb if it has any status error */
 	if (status) {
 		dev_err(&port->dev,
-			"%s: nonzero read bulk status: status=%d, port=%d\n",
+			"%s: yesnzero read bulk status: status=%d, port=%d\n",
 			__func__, status, priv->dp_port_num);
 		return;
 	}
 
-	/* handle oob or inb callback, do not resubmit if error */
+	/* handle oob or inb callback, do yest resubmit if error */
 	if (priv->dp_port_num == serial_priv->ds_oob_port_num) {
 		if (digi_read_oob_callback(urb) != 0)
 			return;
@@ -1370,8 +1370,8 @@ static void digi_read_bulk_callback(struct urb *urb)
  *  Digi Read INB Callback
  *
  *  Digi Read INB Callback handles reads on the in band ports, sending
- *  the data on to the tty subsystem.  When called we know port and
- *  port->private are not NULL and port->serial has been validated.
+ *  the data on to the tty subsystem.  When called we kyesw port and
+ *  port->private are yest NULL and port->serial has been validated.
  *  It returns 0 if successful, 1 if successful but the port is
  *  throttled, and -1 if the sanity checks failed.
  */
@@ -1410,7 +1410,7 @@ static int digi_read_inb_callback(struct urb *urb)
 
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 
-	/* check for throttle; if set, do not resubmit read urb */
+	/* check for throttle; if set, do yest resubmit read urb */
 	/* indicate the read chain needs to be restarted on unthrottle */
 	throttled = priv->dp_throttled;
 	if (throttled)
@@ -1424,7 +1424,7 @@ static int digi_read_inb_callback(struct urb *urb)
 		/* get flag from port_status */
 		tty_flag = 0;
 
-		/* overrun is special, not associated with a char */
+		/* overrun is special, yest associated with a char */
 		if (port_status & DIGI_OVERRUN_ERROR)
 			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 
@@ -1450,7 +1450,7 @@ static int digi_read_inb_callback(struct urb *urb)
 	if (opcode == DIGI_CMD_RECEIVE_DISABLE)
 		dev_dbg(&port->dev, "%s: got RECEIVE_DISABLE\n", __func__);
 	else if (opcode != DIGI_CMD_RECEIVE_DATA)
-		dev_dbg(&port->dev, "%s: unknown opcode: %d\n", __func__, opcode);
+		dev_dbg(&port->dev, "%s: unkyeswn opcode: %d\n", __func__, opcode);
 
 	return throttled ? 1 : 0;
 
@@ -1461,7 +1461,7 @@ static int digi_read_inb_callback(struct urb *urb)
  *  Digi Read OOB Callback
  *
  *  Digi Read OOB Callback handles reads on the out of band port.
- *  When called we know port and port->private are not NULL and
+ *  When called we kyesw port and port->private are yest NULL and
  *  the port->serial is valid.  It returns 0 if successful, and
  *  -1 if the sanity checks failed.
  */

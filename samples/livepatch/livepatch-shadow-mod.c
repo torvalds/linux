@@ -35,7 +35,7 @@
  *
  *   insmod samples/livepatch/livepatch-shadow-fix1.ko
  *
- * Continue watching dmesg and note that now livepatch_fix1_dummy_free()
+ * Continue watching dmesg and yeste that yesw livepatch_fix1_dummy_free()
  * and livepatch_fix1_dummy_alloc() are logging messages about leaked
  * memory and eventually leaks prevented.
  *
@@ -92,7 +92,7 @@ struct dummy {
 	unsigned long jiffies_expire;
 };
 
-static __used noinline struct dummy *dummy_alloc(void)
+static __used yesinline struct dummy *dummy_alloc(void)
 {
 	struct dummy *d;
 	void *leak;
@@ -117,7 +117,7 @@ static __used noinline struct dummy *dummy_alloc(void)
 	return d;
 }
 
-static __used noinline void dummy_free(struct dummy *d)
+static __used yesinline void dummy_free(struct dummy *d)
 {
 	pr_info("%s: dummy @ %p, expired = %lx\n",
 		__func__, d, d->jiffies_expire);
@@ -125,7 +125,7 @@ static __used noinline void dummy_free(struct dummy *d)
 	kfree(d);
 }
 
-static __used noinline bool dummy_check(struct dummy *d,
+static __used yesinline bool dummy_check(struct dummy *d,
 					   unsigned long jiffies)
 {
 	return time_after(jiffies, d->jiffies_expire);
@@ -157,7 +157,7 @@ static void alloc_work_func(struct work_struct *work)
 }
 
 /*
- * cleanup_work_func: frees dummy structures.  Without knownledge of
+ * cleanup_work_func: frees dummy structures.  Without kyeswnledge of
  *                    "leak", it leaks the additional memory that
  *                    alloc_work_func created.
  */

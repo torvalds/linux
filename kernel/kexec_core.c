@@ -48,7 +48,7 @@
 DEFINE_MUTEX(kexec_mutex);
 
 /* Per cpu memory for storing cpu states in case of system crash. */
-note_buf_t __percpu *crash_notes;
+yeste_buf_t __percpu *crash_yestes;
 
 /* Flag to indicate we are going to kexec a new kernel */
 bool kexec_in_progress = false;
@@ -73,11 +73,11 @@ struct resource crashk_low_res = {
 int kexec_should_crash(struct task_struct *p)
 {
 	/*
-	 * If crash_kexec_post_notifiers is enabled, don't run
+	 * If crash_kexec_post_yestifiers is enabled, don't run
 	 * crash_kexec() here yet, which must be run after panic
-	 * notifiers in panic().
+	 * yestifiers in panic().
 	 */
-	if (crash_kexec_post_notifiers)
+	if (crash_kexec_post_yestifiers)
 		return 0;
 	/*
 	 * There are 4 panic() calls in do_exit() path, each of which
@@ -103,7 +103,7 @@ EXPORT_SYMBOL_GPL(kexec_crash_loaded);
  * In that environment kexec copies the new kernel to its final
  * resting place.  This means I can only support memory whose
  * physical address can fit in an unsigned long.  In particular
- * addresses where (pfn << PAGE_SHIFT) > ULONG_MAX cannot be handled.
+ * addresses where (pfn << PAGE_SHIFT) > ULONG_MAX canyest be handled.
  * If the assembly stub has more restrictive requirements
  * KEXEC_SOURCE_MEMORY_LIMIT and KEXEC_DEST_MEMORY_LIMIT can be
  * defined more restrictively in <asm/kexec.h>.
@@ -120,7 +120,7 @@ EXPORT_SYMBOL_GPL(kexec_crash_loaded);
  * The assembly stub in the control code buffer is passed a linked list
  * of descriptor pages detailing the source pages of the new kernel,
  * and the destination addresses of those source pages.  As this data
- * structure is not used in the context of the current OS, it must
+ * structure is yest used in the context of the current OS, it must
  * be self-contained.
  *
  * The code has been made to work with highmem pages and will use a
@@ -136,7 +136,7 @@ EXPORT_SYMBOL_GPL(kexec_crash_loaded);
 
 /*
  * KIMAGE_NO_DEST is an impossible destination address..., for
- * allocating pages whose destination address we do not care about.
+ * allocating pages whose destination address we do yest care about.
  */
 #define KIMAGE_NO_DEST (-1UL)
 #define PAGE_COUNT(x) (((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
@@ -178,10 +178,10 @@ int sanity_check_segment_list(struct kimage *image)
 			return -EADDRNOTAVAIL;
 	}
 
-	/* Verify our destination addresses do not overlap.
+	/* Verify our destination addresses do yest overlap.
 	 * If we alloed overlapping destination addresses
-	 * through very weird things can happen with no
-	 * easy explanation as one segment stops on another.
+	 * through very weird things can happen with yes
+	 * easy explanation as one segment stops on ayesther.
 	 */
 	for (i = 0; i < nr_segments; i++) {
 		unsigned long mstart, mend;
@@ -211,7 +211,7 @@ int sanity_check_segment_list(struct kimage *image)
 	}
 
 	/*
-	 * Verify that no more than half of memory will be consumed. If the
+	 * Verify that yes more than half of memory will be consumed. If the
 	 * request from userspace is too large, a large amount of time will be
 	 * wasted allocating pages, which can cause a soft lockup.
 	 */
@@ -263,7 +263,7 @@ struct kimage *do_kimage_alloc_init(void)
 	image->head = 0;
 	image->entry = &image->head;
 	image->last_entry = &image->head;
-	image->control_page = ~0; /* By default this does not apply */
+	image->control_page = ~0; /* By default this does yest apply */
 	image->type = KEXEC_TYPE_DEFAULT;
 
 	/* Initialize the list of control pages */
@@ -347,17 +347,17 @@ void kimage_free_page_list(struct list_head *list)
 	}
 }
 
-static struct page *kimage_alloc_normal_control_pages(struct kimage *image,
+static struct page *kimage_alloc_yesrmal_control_pages(struct kimage *image,
 							unsigned int order)
 {
 	/* Control pages are special, they are the intermediaries
 	 * that are needed while we copy the rest of the pages
 	 * to their final resting place.  As such they must
-	 * not conflict with either the destination addresses
+	 * yest conflict with either the destination addresses
 	 * or memory the kernel is already using.
 	 *
 	 * The only case where we really need more than one of
-	 * these are for architectures where we cannot disable
+	 * these are for architectures where we canyest disable
 	 * the MMU and must instead generate an identity mapped
 	 * page table for all of the memory.
 	 *
@@ -395,9 +395,9 @@ static struct page *kimage_alloc_normal_control_pages(struct kimage *image,
 		list_add(&pages->lru, &image->control_pages);
 
 		/* Because the page is already in it's destination
-		 * location we will never allocate another page at
+		 * location we will never allocate ayesther page at
 		 * that address.  Therefore kimage_alloc_pages
-		 * will not return it (again) and we don't need
+		 * will yest return it (again) and we don't need
 		 * to give it an entry in image->segment[].
 		 */
 	}
@@ -406,7 +406,7 @@ static struct page *kimage_alloc_normal_control_pages(struct kimage *image,
 	 * Ideally I would convert multi-page allocations into single
 	 * page allocations, and add everything to image->dest_pages.
 	 *
-	 * For now it is simpler to just free the pages.
+	 * For yesw it is simpler to just free the pages.
 	 */
 	kimage_free_page_list(&extra_pages);
 
@@ -419,7 +419,7 @@ static struct page *kimage_alloc_crash_control_pages(struct kimage *image,
 	/* Control pages are special, they are the intermediaries
 	 * that are needed while we copy the rest of the pages
 	 * to their final resting place.  As such they must
-	 * not conflict with either the destination addresses
+	 * yest conflict with either the destination addresses
 	 * or memory the kernel is already using.
 	 *
 	 * Control pages are also the only pags we must allocate
@@ -428,7 +428,7 @@ static struct page *kimage_alloc_crash_control_pages(struct kimage *image,
 	 * into them directly.
 	 *
 	 * The only case where we really need more than one of
-	 * these are for architectures where we cannot disable
+	 * these are for architectures where we canyest disable
 	 * the MMU and must instead generate an identity mapped
 	 * page table for all of the memory.
 	 *
@@ -487,7 +487,7 @@ struct page *kimage_alloc_control_pages(struct kimage *image,
 
 	switch (image->type) {
 	case KEXEC_TYPE_DEFAULT:
-		pages = kimage_alloc_normal_control_pages(image, order);
+		pages = kimage_alloc_yesrmal_control_pages(image, order);
 		break;
 	case KEXEC_TYPE_CRASH:
 		pages = kimage_alloc_crash_control_pages(image, order);
@@ -511,17 +511,17 @@ int kimage_crash_copy_vmcoreinfo(struct kimage *image)
 	 * after kexec syscall, we naturally protect it from write
 	 * (even read) access under kernel direct mapping. But on
 	 * the other hand, we still need to operate it when crash
-	 * happens to generate vmcoreinfo note, hereby we rely on
+	 * happens to generate vmcoreinfo yeste, hereby we rely on
 	 * vmap for this purpose.
 	 */
 	vmcoreinfo_page = kimage_alloc_control_pages(image, 0);
 	if (!vmcoreinfo_page) {
-		pr_warn("Could not allocate vmcoreinfo buffer\n");
+		pr_warn("Could yest allocate vmcoreinfo buffer\n");
 		return -ENOMEM;
 	}
 	safecopy = vmap(&vmcoreinfo_page, 1, VM_MAP, PAGE_KERNEL);
 	if (!safecopy) {
-		pr_warn("Could not vmap vmcoreinfo buffer\n");
+		pr_warn("Could yest vmap vmcoreinfo buffer\n");
 		return -ENOMEM;
 	}
 
@@ -681,18 +681,18 @@ static struct page *kimage_alloc_page(struct kimage *image,
 {
 	/*
 	 * Here we implement safeguards to ensure that a source page
-	 * is not copied to its destination page before the data on
-	 * the destination page is no longer useful.
+	 * is yest copied to its destination page before the data on
+	 * the destination page is yes longer useful.
 	 *
 	 * To do this we maintain the invariant that a source page is
-	 * either its own destination page, or it is not a
+	 * either its own destination page, or it is yest a
 	 * destination page at all.
 	 *
 	 * That is slightly stronger than required, but the proof
-	 * that no problems will not occur is trivial, and the
+	 * that yes problems will yest occur is trivial, and the
 	 * implementation is simply to verify.
 	 *
-	 * When allocating all pages normally this algorithm will run
+	 * When allocating all pages yesrmally this algorithm will run
 	 * in O(N) time, but in the worst case it will run in O(N^2)
 	 * time.   If the runtime is a problem the data structures can
 	 * be fixed.
@@ -719,7 +719,7 @@ static struct page *kimage_alloc_page(struct kimage *image,
 		page = kimage_alloc_pages(gfp_mask, 0);
 		if (!page)
 			return NULL;
-		/* If the page cannot be used file it away */
+		/* If the page canyest be used file it away */
 		if (page_to_boot_pfn(page) >
 				(KEXEC_SOURCE_MEMORY_LIMIT >> PAGE_SHIFT)) {
 			list_add(&page->lru, &image->unusable_pages);
@@ -731,13 +731,13 @@ static struct page *kimage_alloc_page(struct kimage *image,
 		if (addr == destination)
 			break;
 
-		/* If the page is not a destination page use it */
+		/* If the page is yest a destination page use it */
 		if (!kimage_is_destination_range(image, addr,
 						  addr + PAGE_SIZE))
 			break;
 
 		/*
-		 * I know that the page is someones destination page.
+		 * I kyesw that the page is someones destination page.
 		 * See if there is already a source page for this
 		 * destination page.  And if so swap the source pages.
 		 */
@@ -752,9 +752,9 @@ static struct page *kimage_alloc_page(struct kimage *image,
 			copy_highpage(page, old_page);
 			*old = addr | (*old & ~PAGE_MASK);
 
-			/* The old page I have found cannot be a
+			/* The old page I have found canyest be a
 			 * destination page, so return it if it's
-			 * gfp_flags honor the ones passed in.
+			 * gfp_flags hoyesr the ones passed in.
 			 */
 			if (!(gfp_mask & __GFP_HIGHMEM) &&
 			    PageHighMem(old_page)) {
@@ -772,7 +772,7 @@ static struct page *kimage_alloc_page(struct kimage *image,
 	return page;
 }
 
-static int kimage_load_normal_segment(struct kimage *image,
+static int kimage_load_yesrmal_segment(struct kimage *image,
 					 struct kexec_segment *segment)
 {
 	unsigned long maddr;
@@ -916,7 +916,7 @@ int kimage_load_segment(struct kimage *image,
 
 	switch (image->type) {
 	case KEXEC_TYPE_DEFAULT:
-		result = kimage_load_normal_segment(image, segment);
+		result = kimage_load_yesrmal_segment(image, segment);
 		break;
 	case KEXEC_TYPE_CRASH:
 		result = kimage_load_crash_segment(image, segment);
@@ -935,13 +935,13 @@ int kexec_load_disabled;
  * only when panic_cpu holds the current CPU number; this is the only CPU
  * which processes crash_kexec routines.
  */
-void __noclone __crash_kexec(struct pt_regs *regs)
+void __yesclone __crash_kexec(struct pt_regs *regs)
 {
 	/* Take the kexec_mutex here to prevent sys_kexec_load
 	 * running on one cpu from replacing the crash kernel
 	 * we are using after a panic on a different cpu.
 	 *
-	 * If the crash kernel was not located in a fixed area
+	 * If the crash kernel was yest located in a fixed area
 	 * of memory the xchg(&kexec_crash_image) would be
 	 * sufficient.  But since I reuse the memory...
 	 */
@@ -976,7 +976,7 @@ void crash_kexec(struct pt_regs *regs)
 		__crash_kexec(regs);
 
 		/*
-		 * Reset panic_cpu to allow another panic()/crash_kexec()
+		 * Reset panic_cpu to allow ayesther panic()/crash_kexec()
 		 * call.
 		 */
 		atomic_set(&panic_cpu, PANIC_CPU_INVALID);
@@ -1060,61 +1060,61 @@ void crash_save_cpu(struct pt_regs *regs, int cpu)
 	if ((cpu < 0) || (cpu >= nr_cpu_ids))
 		return;
 
-	/* Using ELF notes here is opportunistic.
+	/* Using ELF yestes here is opportunistic.
 	 * I need a well defined structure format
 	 * for the data I pass, and I need tags
 	 * on the data to indicate what information I have
-	 * squirrelled away.  ELF notes happen to provide
-	 * all of that, so there is no need to invent something new.
+	 * squirrelled away.  ELF yestes happen to provide
+	 * all of that, so there is yes need to invent something new.
 	 */
-	buf = (u32 *)per_cpu_ptr(crash_notes, cpu);
+	buf = (u32 *)per_cpu_ptr(crash_yestes, cpu);
 	if (!buf)
 		return;
 	memset(&prstatus, 0, sizeof(prstatus));
 	prstatus.pr_pid = current->pid;
 	elf_core_copy_kernel_regs(&prstatus.pr_reg, regs);
-	buf = append_elf_note(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS,
+	buf = append_elf_yeste(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS,
 			      &prstatus, sizeof(prstatus));
-	final_note(buf);
+	final_yeste(buf);
 }
 
-static int __init crash_notes_memory_init(void)
+static int __init crash_yestes_memory_init(void)
 {
 	/* Allocate memory for saving cpu registers. */
 	size_t size, align;
 
 	/*
-	 * crash_notes could be allocated across 2 vmalloc pages when percpu
+	 * crash_yestes could be allocated across 2 vmalloc pages when percpu
 	 * is vmalloc based . vmalloc doesn't guarantee 2 continuous vmalloc
 	 * pages are also on 2 continuous physical pages. In this case the
-	 * 2nd part of crash_notes in 2nd page could be lost since only the
-	 * starting address and size of crash_notes are exported through sysfs.
-	 * Here round up the size of crash_notes to the nearest power of two
+	 * 2nd part of crash_yestes in 2nd page could be lost since only the
+	 * starting address and size of crash_yestes are exported through sysfs.
+	 * Here round up the size of crash_yestes to the nearest power of two
 	 * and pass it to __alloc_percpu as align value. This can make sure
-	 * crash_notes is allocated inside one physical page.
+	 * crash_yestes is allocated inside one physical page.
 	 */
-	size = sizeof(note_buf_t);
-	align = min(roundup_pow_of_two(sizeof(note_buf_t)), PAGE_SIZE);
+	size = sizeof(yeste_buf_t);
+	align = min(roundup_pow_of_two(sizeof(yeste_buf_t)), PAGE_SIZE);
 
 	/*
-	 * Break compile if size is bigger than PAGE_SIZE since crash_notes
+	 * Break compile if size is bigger than PAGE_SIZE since crash_yestes
 	 * definitely will be in 2 pages with that.
 	 */
 	BUILD_BUG_ON(size > PAGE_SIZE);
 
-	crash_notes = __alloc_percpu(size, align);
-	if (!crash_notes) {
+	crash_yestes = __alloc_percpu(size, align);
+	if (!crash_yestes) {
 		pr_warn("Memory allocation for saving cpu register states failed\n");
 		return -ENOMEM;
 	}
 	return 0;
 }
-subsys_initcall(crash_notes_memory_init);
+subsys_initcall(crash_yestes_memory_init);
 
 
 /*
  * Move into place and start executing a preloaded standalone
- * executable.  If nothing was preloaded return an error.
+ * executable.  If yesthing was preloaded return an error.
  */
 int kernel_kexec(void)
 {
@@ -1141,8 +1141,8 @@ int kernel_kexec(void)
 		if (error)
 			goto Resume_console;
 		/* At this point, dpm_suspend_start() has been called,
-		 * but *not* dpm_suspend_end(). We *must* call
-		 * dpm_suspend_end() now.  Otherwise, drivers for
+		 * but *yest* dpm_suspend_end(). We *must* call
+		 * dpm_suspend_end() yesw.  Otherwise, drivers for
 		 * some devices (e.g. interrupt controllers) become
 		 * desynchronized with the actual state of the
 		 * hardware at resume time, and evil weirdness ensues.
@@ -1166,7 +1166,7 @@ int kernel_kexec(void)
 
 		/*
 		 * migrate_to_reboot_cpu() disables CPU hotplug assuming that
-		 * no further code needs to use CPU hotplug (which is true in
+		 * yes further code needs to use CPU hotplug (which is true in
 		 * the reboot case). However, the kexec path depends on using
 		 * CPU hotplug again; so re-enable it here.
 		 */

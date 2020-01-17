@@ -12,7 +12,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -72,14 +72,14 @@ extern "C" {
 #define MGA_WARP_T2GZSA		(MGA_T2|MGA_S|MGA_A)
 #define MGA_WARP_T2GZSAF	(MGA_T2|MGA_S|MGA_F|MGA_A)
 
-#define MGA_MAX_G200_PIPES	8	/* no multitex */
+#define MGA_MAX_G200_PIPES	8	/* yes multitex */
 #define MGA_MAX_G400_PIPES	16
 #define MGA_MAX_WARP_PIPES	MGA_MAX_G400_PIPES
 #define MGA_WARP_UCODE_SIZE	32768	/* in bytes */
 
 #define MGA_CARD_TYPE_G200	1
 #define MGA_CARD_TYPE_G400	2
-#define MGA_CARD_TYPE_G450	3	/* not currently used */
+#define MGA_CARD_TYPE_G450	3	/* yest currently used */
 #define MGA_CARD_TYPE_G550	4
 
 #define MGA_FRONT		0x1
@@ -310,7 +310,7 @@ typedef struct drm_mga_dma_bootstrap {
 	 * be filled in with the actual AGP texture settings.
 	 *
 	 * \warning
-	 * If these fields are non-zero, but dma_mga_dma_bootstrap::agp_mode
+	 * If these fields are yesn-zero, but dma_mga_dma_bootstrap::agp_mode
 	 * is zero, it means that PCI memory (most likely through the use of
 	 * an IOMMU) is being used for "AGP" textures.
 	 */
@@ -323,7 +323,7 @@ typedef struct drm_mga_dma_bootstrap {
 	 * Requested size of the primary DMA region.
 	 *
 	 * On return from the DRM_MGA_DMA_BOOTSTRAP ioctl, this field will be
-	 * filled in with the actual AGP mode.  If AGP was not available
+	 * filled in with the actual AGP mode.  If AGP was yest available
 	 */
 	__u32 primary_size;
 
@@ -341,7 +341,7 @@ typedef struct drm_mga_dma_bootstrap {
 	 * Requested size of each secondary DMA buffer.
 	 *
 	 * While the kernel \b is free to reduce
-	 * dma_mga_dma_bootstrap::secondary_bin_count, it is \b not allowed
+	 * dma_mga_dma_bootstrap::secondary_bin_count, it is \b yest allowed
 	 * to reduce dma_mga_dma_bootstrap::secondary_bin_size.
 	 */
 	__u32 secondary_bin_size;
@@ -353,7 +353,7 @@ typedef struct drm_mga_dma_bootstrap {
 	 * possible.
 	 *
 	 * On return from the DRM_MGA_DMA_BOOTSTRAP ioctl, this field will be
-	 * filled in with the actual AGP mode.  If AGP was not available
+	 * filled in with the actual AGP mode.  If AGP was yest available
 	 * (i.e., PCI DMA was used), this value will be zero.
 	 */
 	__u32 agp_mode;
@@ -408,7 +408,7 @@ typedef struct _drm_mga_blit {
 #define MGA_PARAM_IRQ_NR            1
 
 /* 3.2: Query the actual card type.  The DDX only distinguishes between
- * G200 chips and non-G200 chips, which it calls G400.  It turns out that
+ * G200 chips and yesn-G200 chips, which it calls G400.  It turns out that
  * there are some very sublte differences between the G4x0 chips and the G550
  * chips.  Using this parameter query, a client-side driver can detect the
  * difference between a G4x0 and a G550.

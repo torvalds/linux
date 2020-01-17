@@ -15,12 +15,12 @@ fail() { #msg
 }
 
 if [ ! -f set_event ]; then
-    echo "event tracing is not supported"
+    echo "event tracing is yest supported"
     exit_unsupported
 fi
 
 if [ ! -f synthetic_events ]; then
-    echo "synthetic event is not supported"
+    echo "synthetic event is yest supported"
     exit_unsupported
 fi
 
@@ -38,7 +38,7 @@ echo "myevent u64 var1" >> synthetic_events
 # synthetic event must be found in synthetic_events
 grep "myevent[[:space:]]u64 var1" synthetic_events
 
-# it is not possible to add same name event
+# it is yest possible to add same name event
 ! echo "myevent u64 var2" >> synthetic_events
 
 # Non-append open will cleanup all events and add new one

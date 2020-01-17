@@ -9,12 +9,12 @@
 
 /*
  * Driver: fl512
- * Description: unknown
+ * Description: unkyeswn
  * Author: Anders Gnistrup <ex18@kalman.iau.dtu.dk>
- * Devices: [unknown] FL512 (fl512)
- * Status: unknown
+ * Devices: [unkyeswn] FL512 (fl512)
+ * Status: unkyeswn
  *
- * Digital I/O is not supported.
+ * Digital I/O is yest supported.
  *
  * Configuration options:
  *   [0] - I/O port base address

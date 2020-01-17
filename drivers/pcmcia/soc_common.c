@@ -4,7 +4,7 @@
     integrated SOCs like the SA-11x0 and PXA2xx microprocessors.
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may yest use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -21,10 +21,10 @@
     terms of the GNU Public License version 2 (the "GPL"), in which
     case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
+    only under the terms of the GPL and yest to allow others to use
     your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
+    by deleting the provisions above and replace them with the yestice
+    and other provisions required by the GPL.  If you do yest delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
 
@@ -270,7 +270,7 @@ static void soc_pcmcia_hw_disable(struct soc_pcmcia_socket *skt)
 
 /*
  * The CF 3.0 specification says that cards tie VS1 to ground and leave
- * VS2 open.  Many implementations do not wire up the VS signals, so we
+ * VS2 open.  Many implementations do yest wire up the VS signals, so we
  * provide hard-coded values as per the CF 3.0 spec.
  */
 void soc_common_cf_socket_state(struct soc_pcmcia_socket *skt,
@@ -312,7 +312,7 @@ static unsigned int soc_common_pcmcia_skt_state(struct soc_pcmcia_socket *skt)
 	stat |= state.vs_3v  ? SS_3VCARD : 0;
 	stat |= state.vs_Xv  ? SS_XVCARD : 0;
 
-	/* The power status of individual sockets is not available
+	/* The power status of individual sockets is yest available
 	 * explicitly from the hardware, so we just remember the state
 	 * and regurgitate it upon request:
 	 */
@@ -368,7 +368,7 @@ static int soc_common_pcmcia_config_skt(
 
 		/*
 		 * This really needs a better solution.  The IRQ
-		 * may or may not be claimed by the driver.
+		 * may or may yest be claimed by the driver.
 		 */
 		if (skt->irq_state != 1 && state->io_irq) {
 			skt->irq_state = 1;
@@ -477,7 +477,7 @@ static void soc_common_pcmcia_poll_event(struct timer_list *t)
  * low-level PCMCIA init() operation via soc_common_pcmcia_thread()).
  * The actual interrupt-servicing work is performed by
  * soc_common_pcmcia_thread(), largely because the Card Services event-
- * handling code performs scheduling operations which cannot be
+ * handling code performs scheduling operations which canyest be
  * executed from within an interrupt context.
  */
 static irqreturn_t soc_common_pcmcia_interrupt(int irq, void *dev)
@@ -498,7 +498,7 @@ static irqreturn_t soc_common_pcmcia_interrupt(int irq, void *dev)
  * fills in bits in `status' according to internal driver state or
  * the value of the voltage detect chipselect register.
  *
- * As a debugging note, during card startup, the PCMCIA core issues
+ * As a debugging yeste, during card startup, the PCMCIA core issues
  * three set_socket() commands in a row the first with RESET deasserted,
  * the second with RESET asserted, and the last with RESET deasserted
  * again. Following the third set_socket(), a get_status() command will
@@ -742,7 +742,7 @@ static struct pccard_operations soc_common_pcmcia_operations = {
 
 
 #ifdef CONFIG_CPU_FREQ
-static int soc_common_pcmcia_cpufreq_nb(struct notifier_block *nb,
+static int soc_common_pcmcia_cpufreq_nb(struct yestifier_block *nb,
 	unsigned long val, void *data)
 {
 	struct soc_pcmcia_socket *skt = container_of(nb, struct soc_pcmcia_socket, cpufreq_nb);
@@ -775,13 +775,13 @@ void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt)
 
 #ifdef CONFIG_CPU_FREQ
 	if (skt->ops->frequency_change)
-		cpufreq_unregister_notifier(&skt->cpufreq_nb,
+		cpufreq_unregister_yestifier(&skt->cpufreq_nb,
 					    CPUFREQ_TRANSITION_NOTIFIER);
 #endif
 
 	soc_pcmcia_hw_shutdown(skt);
 
-	/* should not be required; violates some lowlevel drivers */
+	/* should yest be required; violates some lowlevel drivers */
 	soc_common_pcmcia_config_skt(skt, &dead_socket);
 
 	iounmap(skt->virt_io);
@@ -826,7 +826,7 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 
 	/*
 	 * We initialize default socket timing here, because
-	 * we are not guaranteed to see a SetIOMap operation at
+	 * we are yest guaranteed to see a SetIOMap operation at
 	 * runtime.
 	 */
 	skt->ops->set_timing(skt);
@@ -846,13 +846,13 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 
 #ifdef CONFIG_CPU_FREQ
 	if (skt->ops->frequency_change) {
-		skt->cpufreq_nb.notifier_call = soc_common_pcmcia_cpufreq_nb;
+		skt->cpufreq_nb.yestifier_call = soc_common_pcmcia_cpufreq_nb;
 
-		ret = cpufreq_register_notifier(&skt->cpufreq_nb,
+		ret = cpufreq_register_yestifier(&skt->cpufreq_nb,
 						CPUFREQ_TRANSITION_NOTIFIER);
 		if (ret < 0)
 			dev_err(skt->socket.dev.parent,
-				"unable to register CPU frequency change notifier for PCMCIA (%d)\n",
+				"unable to register CPU frequency change yestifier for PCMCIA (%d)\n",
 				ret);
 	}
 #endif

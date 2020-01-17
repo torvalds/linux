@@ -63,7 +63,7 @@ struct rionet_private {
 };
 
 struct rionet_peer {
-	struct list_head node;
+	struct list_head yesde;
 	struct rio_dev *rdev;
 	struct resource *res;
 };
@@ -237,7 +237,7 @@ static void rionet_dbell_event(struct rio_mport *mport, void *dev_id, u16 sid, u
 	if (info == RIONET_DOORBELL_JOIN) {
 		if (!nets[netid].active[sid]) {
 			spin_lock(&nets[netid].lock);
-			list_for_each_entry(peer, &nets[netid].peers, node) {
+			list_for_each_entry(peer, &nets[netid].peers, yesde) {
 				if (peer->rdev->destid == sid) {
 					nets[netid].active[sid] = peer->rdev;
 					nets[netid].nact++;
@@ -351,7 +351,7 @@ static int rionet_open(struct net_device *ndev)
 	netif_start_queue(ndev);
 
 	spin_lock_irqsave(&nets[netid].lock, flags);
-	list_for_each_entry(peer, &nets[netid].peers, node) {
+	list_for_each_entry(peer, &nets[netid].peers, yesde) {
 		/* Send a join message */
 		rio_send_doorbell(peer->rdev, RIONET_DOORBELL_JOIN);
 	}
@@ -381,7 +381,7 @@ static int rionet_close(struct net_device *ndev)
 		kfree_skb(rnet->rx_skb[i]);
 
 	spin_lock_irqsave(&nets[netid].lock, flags);
-	list_for_each_entry(peer, &nets[netid].peers, node) {
+	list_for_each_entry(peer, &nets[netid].peers, yesde) {
 		if (nets[netid].active[peer->rdev->destid]) {
 			rio_send_doorbell(peer->rdev, RIONET_DOORBELL_LEAVE);
 			nets[netid].active[peer->rdev->destid] = NULL;
@@ -411,9 +411,9 @@ static void rionet_remove_dev(struct device *dev, struct subsys_interface *sif)
 		return;
 
 	spin_lock_irqsave(&nets[netid].lock, flags);
-	list_for_each_entry(peer, &nets[netid].peers, node) {
+	list_for_each_entry(peer, &nets[netid].peers, yesde) {
 		if (peer->rdev == rdev) {
-			list_del(&peer->node);
+			list_del(&peer->yesde);
 			if (nets[netid].active[rdev->destid]) {
 				state = atomic_read(&rdev->state);
 				if (state != RIO_DEVICE_GONE &&
@@ -564,7 +564,7 @@ static int rionet_add_dev(struct device *dev, struct subsys_interface *sif)
 					 &ldst_ops);
 		if (!is_rionet_capable(lsrc_ops, ldst_ops)) {
 			printk(KERN_ERR
-			       "%s: local device %s is not network capable\n",
+			       "%s: local device %s is yest network capable\n",
 			       DRV_NAME, rdev->net->hport->name);
 			goto out;
 		}
@@ -617,7 +617,7 @@ static int rionet_add_dev(struct device *dev, struct subsys_interface *sif)
 		}
 
 		spin_lock_irqsave(&nets[netid].lock, flags);
-		list_add_tail(&peer->node, &nets[netid].peers);
+		list_add_tail(&peer->yesde, &nets[netid].peers);
 		spin_unlock_irqrestore(&nets[netid].lock, flags);
 		pr_debug("%s: %s add peer %s\n",
 			 DRV_NAME, __func__, rio_name(rdev));
@@ -632,7 +632,7 @@ out:
 	return rc;
 }
 
-static int rionet_shutdown(struct notifier_block *nb, unsigned long code,
+static int rionet_shutdown(struct yestifier_block *nb, unsigned long code,
 			   void *unused)
 {
 	struct rionet_peer *peer;
@@ -646,7 +646,7 @@ static int rionet_shutdown(struct notifier_block *nb, unsigned long code,
 			continue;
 
 		spin_lock_irqsave(&nets[i].lock, flags);
-		list_for_each_entry(peer, &nets[i].peers, node) {
+		list_for_each_entry(peer, &nets[i].peers, yesde) {
 			if (nets[i].active[peer->rdev->destid]) {
 				rio_send_doorbell(peer->rdev,
 						  RIONET_DOORBELL_LEAVE);
@@ -703,8 +703,8 @@ static struct subsys_interface rionet_interface = {
 	.remove_dev	= rionet_remove_dev,
 };
 
-static struct notifier_block rionet_notifier = {
-	.notifier_call = rionet_shutdown,
+static struct yestifier_block rionet_yestifier = {
+	.yestifier_call = rionet_shutdown,
 };
 
 /* the rio_mport_interface is used to handle local mport devices */
@@ -718,9 +718,9 @@ static int __init rionet_init(void)
 {
 	int ret;
 
-	ret = register_reboot_notifier(&rionet_notifier);
+	ret = register_reboot_yestifier(&rionet_yestifier);
 	if (ret) {
-		pr_err("%s: failed to register reboot notifier (err=%d)\n",
+		pr_err("%s: failed to register reboot yestifier (err=%d)\n",
 		       DRV_NAME, ret);
 		return ret;
 	}
@@ -737,7 +737,7 @@ static int __init rionet_init(void)
 
 static void __exit rionet_exit(void)
 {
-	unregister_reboot_notifier(&rionet_notifier);
+	unregister_reboot_yestifier(&rionet_yestifier);
 	subsys_interface_unregister(&rionet_interface);
 	class_interface_unregister(&rio_mport_interface);
 }

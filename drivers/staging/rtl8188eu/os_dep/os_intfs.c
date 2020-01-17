@@ -124,9 +124,9 @@ module_param(rtw_mc2u_disable, int, 0644);
 module_param(rtw_80211d, int, 0644);
 MODULE_PARM_DESC(rtw_80211d, "Enable 802.11d mechanism");
 
-static uint rtw_notch_filter = RTW_NOTCH_FILTER;
-module_param(rtw_notch_filter, uint, 0644);
-MODULE_PARM_DESC(rtw_notch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
+static uint rtw_yestch_filter = RTW_NOTCH_FILTER;
+module_param(rtw_yestch_filter, uint, 0644);
+MODULE_PARM_DESC(rtw_yestch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P");
 module_param_named(debug, rtw_debug, int, 0444);
 MODULE_PARM_DESC(debug, "Set debug level (1-9) (default 1)");
 
@@ -181,7 +181,7 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	registry_par->enable80211d = (u8)rtw_80211d;
 	snprintf(registry_par->ifname, 16, "%s", ifname);
 	snprintf(registry_par->if2name, 16, "%s", if2name);
-	registry_par->notch_filter = (u8)rtw_notch_filter;
+	registry_par->yestch_filter = (u8)rtw_yestch_filter;
 	registry_par->monitor_enable = rtw_monitor_enable;
 }
 
@@ -551,7 +551,7 @@ static int _netdev_open(struct net_device *pnetdev)
 
 	if (pwrctrlpriv->ps_flag) {
 		padapter->net_closed = false;
-		goto netdev_open_normal_process;
+		goto netdev_open_yesrmal_process;
 	}
 
 	if (!padapter->bup) {
@@ -595,7 +595,7 @@ static int _netdev_open(struct net_device *pnetdev)
 	else
 		netif_tx_wake_all_queues(pnetdev);
 
-netdev_open_normal_process:
+netdev_open_yesrmal_process:
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("-88eu_drv - dev_open\n"));
 	DBG_88E("-88eu_drv - drv_open, bup =%d\n", padapter->bup);
 	return 0;

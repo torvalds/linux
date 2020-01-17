@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- linux-c -*- --------------------------------------------------------- *
  *
- * linux/fs/devpts/inode.c
+ * linux/fs/devpts/iyesde.c
  *
  *  Copyright 1998-2004 H. Peter Anvin -- All Rights Reserved
  *
@@ -22,12 +22,12 @@
 #include <linux/idr.h>
 #include <linux/devpts_fs.h>
 #include <linux/parser.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/seq_file.h>
 
 #define DEVPTS_DEFAULT_MODE 0600
 /*
- * ptmx is a new node in /dev/pts and will be unused in legacy (single-
+ * ptmx is a new yesde in /dev/pts and will be unused in legacy (single-
  * instance) mode. To prevent surprises in user space, set permissions of
  * ptmx to 0. Use 'chmod' or remount with '-o ptmxmode' to set meaningful
  * permissions.
@@ -150,19 +150,19 @@ static int devpts_ptmx_path(struct path *path)
 /*
  * Try to find a suitable devpts filesystem. We support the following
  * scenarios:
- * - The ptmx device node is located in the same directory as the devpts
- *   mount where the pts device nodes are located.
+ * - The ptmx device yesde is located in the same directory as the devpts
+ *   mount where the pts device yesdes are located.
  *   This is e.g. the case when calling open on the /dev/pts/ptmx device
- *   node when the devpts filesystem is mounted at /dev/pts.
- * - The ptmx device node is located outside the devpts filesystem mount
- *   where the pts device nodes are located. For example, the ptmx device
- *   is a symlink, separate device node, or bind-mount.
+ *   yesde when the devpts filesystem is mounted at /dev/pts.
+ * - The ptmx device yesde is located outside the devpts filesystem mount
+ *   where the pts device yesdes are located. For example, the ptmx device
+ *   is a symlink, separate device yesde, or bind-mount.
  *   A supported scenario is bind-mounting /dev/pts/ptmx to /dev/ptmx and
  *   then calling open on /dev/ptmx. In this case a suitable pts
  *   subdirectory can be found in the common parent directory /dev of the
  *   devpts mount and the ptmx bind-mount, after resolving the /dev/ptmx
  *   bind-mount.
- *   If no suitable pts subdirectory can be found this function will fail.
+ *   If yes suitable pts subdirectory can be found this function will fail.
  *   This is e.g. the case when bind-mounting /dev/pts/ptmx to /ptmx.
  */
 struct vfsmount *devpts_mntget(struct file *filp, struct pts_fs_info *fsi)
@@ -238,7 +238,7 @@ void devpts_release(struct pts_fs_info *fsi)
 
 /*
  * parse_mount_options():
- *	Set @opts to mount options specified in @data. If an option is not
+ *	Set @opts to mount options specified in @data. If an option is yest
  *	specified in @data, set it to its default value.
  *
  * Note: @data may be NULL (in which case all options are set to default).
@@ -319,21 +319,21 @@ static int parse_mount_options(char *data, int op, struct pts_mount_opts *opts)
 	return 0;
 }
 
-static int mknod_ptmx(struct super_block *sb)
+static int mkyesd_ptmx(struct super_block *sb)
 {
 	int mode;
 	int rc = -ENOMEM;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct dentry *root = sb->s_root;
 	struct pts_fs_info *fsi = DEVPTS_SB(sb);
 	struct pts_mount_opts *opts = &fsi->mount_opts;
 	kuid_t ptmx_uid = current_fsuid();
 	kgid_t ptmx_gid = current_fsgid();
 
-	inode_lock(d_inode(root));
+	iyesde_lock(d_iyesde(root));
 
-	/* If we have already created ptmx node, return */
+	/* If we have already created ptmx yesde, return */
 	if (fsi->ptmx_dentry) {
 		rc = 0;
 		goto out;
@@ -341,43 +341,43 @@ static int mknod_ptmx(struct super_block *sb)
 
 	dentry = d_alloc_name(root, "ptmx");
 	if (!dentry) {
-		pr_err("Unable to alloc dentry for ptmx node\n");
+		pr_err("Unable to alloc dentry for ptmx yesde\n");
 		goto out;
 	}
 
 	/*
-	 * Create a new 'ptmx' node in this mount of devpts.
+	 * Create a new 'ptmx' yesde in this mount of devpts.
 	 */
-	inode = new_inode(sb);
-	if (!inode) {
-		pr_err("Unable to alloc inode for ptmx node\n");
+	iyesde = new_iyesde(sb);
+	if (!iyesde) {
+		pr_err("Unable to alloc iyesde for ptmx yesde\n");
 		dput(dentry);
 		goto out;
 	}
 
-	inode->i_ino = 2;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	iyesde->i_iyes = 2;
+	iyesde->i_mtime = iyesde->i_atime = iyesde->i_ctime = current_time(iyesde);
 
 	mode = S_IFCHR|opts->ptmxmode;
-	init_special_inode(inode, mode, MKDEV(TTYAUX_MAJOR, 2));
-	inode->i_uid = ptmx_uid;
-	inode->i_gid = ptmx_gid;
+	init_special_iyesde(iyesde, mode, MKDEV(TTYAUX_MAJOR, 2));
+	iyesde->i_uid = ptmx_uid;
+	iyesde->i_gid = ptmx_gid;
 
-	d_add(dentry, inode);
+	d_add(dentry, iyesde);
 
 	fsi->ptmx_dentry = dentry;
 	rc = 0;
 out:
-	inode_unlock(d_inode(root));
+	iyesde_unlock(d_iyesde(root));
 	return rc;
 }
 
 static void update_ptmx_mode(struct pts_fs_info *fsi)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	if (fsi->ptmx_dentry) {
-		inode = d_inode(fsi->ptmx_dentry);
-		inode->i_mode = S_IFCHR|fsi->mount_opts.ptmxmode;
+		iyesde = d_iyesde(fsi->ptmx_dentry);
+		iyesde->i_mode = S_IFCHR|fsi->mount_opts.ptmxmode;
 	}
 }
 
@@ -392,7 +392,7 @@ static int devpts_remount(struct super_block *sb, int *flags, char *data)
 	/*
 	 * parse_mount_options() restores options to default values
 	 * before parsing and may have changed ptmxmode. So, update the
-	 * mode in the inode too. Bogus options don't fail the remount,
+	 * mode in the iyesde too. Bogus options don't fail the remount,
 	 * so do this even on error return.
 	 */
 	update_ptmx_mode(fsi);
@@ -444,7 +444,7 @@ static void *new_pts_fs_info(struct super_block *sb)
 static int
 devpts_fill_super(struct super_block *s, void *data, int silent)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int error;
 
 	s->s_iflags &= ~SB_I_NODEV;
@@ -465,23 +465,23 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 		goto fail;
 
 	error = -ENOMEM;
-	inode = new_inode(s);
-	if (!inode)
+	iyesde = new_iyesde(s);
+	if (!iyesde)
 		goto fail;
-	inode->i_ino = 1;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
-	inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO | S_IWUSR;
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
-	set_nlink(inode, 2);
+	iyesde->i_iyes = 1;
+	iyesde->i_mtime = iyesde->i_atime = iyesde->i_ctime = current_time(iyesde);
+	iyesde->i_mode = S_IFDIR | S_IRUGO | S_IXUGO | S_IWUSR;
+	iyesde->i_op = &simple_dir_iyesde_operations;
+	iyesde->i_fop = &simple_dir_operations;
+	set_nlink(iyesde, 2);
 
-	s->s_root = d_make_root(inode);
+	s->s_root = d_make_root(iyesde);
 	if (!s->s_root) {
 		pr_err("get root dentry failed\n");
 		goto fail;
 	}
 
-	error = mknod_ptmx(s);
+	error = mkyesd_ptmx(s);
 	if (error)
 		goto fail_dput;
 
@@ -502,7 +502,7 @@ fail:
 static struct dentry *devpts_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	return mount_nodev(fs_type, flags, data, devpts_fill_super);
+	return mount_yesdev(fs_type, flags, data, devpts_fill_super);
 }
 
 static void devpts_kill_sb(struct super_block *sb)
@@ -523,7 +523,7 @@ static struct file_system_type devpts_fs_type = {
 };
 
 /*
- * The normal naming convention is simply /dev/pts/<number>; this conforms
+ * The yesrmal naming convention is simply /dev/pts/<number>; this conforms
  * to the System V naming convention
  */
 
@@ -551,19 +551,19 @@ void devpts_kill_index(struct pts_fs_info *fsi, int idx)
 }
 
 /**
- * devpts_pty_new -- create a new inode in /dev/pts/
- * @ptmx_inode: inode of the master
- * @device: major+minor of the node to be created
- * @index: used as a name of the node
+ * devpts_pty_new -- create a new iyesde in /dev/pts/
+ * @ptmx_iyesde: iyesde of the master
+ * @device: major+miyesr of the yesde to be created
+ * @index: used as a name of the yesde
  * @priv: what's given back by devpts_get_priv
  *
- * The created inode is returned. Remove it from /dev/pts/ by devpts_pty_kill.
+ * The created iyesde is returned. Remove it from /dev/pts/ by devpts_pty_kill.
  */
 struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
 {
 	struct dentry *dentry;
 	struct super_block *sb = fsi->sb;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct dentry *root;
 	struct pts_mount_opts *opts;
 	char s[12];
@@ -571,25 +571,25 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
 	root = sb->s_root;
 	opts = &fsi->mount_opts;
 
-	inode = new_inode(sb);
-	if (!inode)
+	iyesde = new_iyesde(sb);
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
 
-	inode->i_ino = index + 3;
-	inode->i_uid = opts->setuid ? opts->uid : current_fsuid();
-	inode->i_gid = opts->setgid ? opts->gid : current_fsgid();
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
-	init_special_inode(inode, S_IFCHR|opts->mode, MKDEV(UNIX98_PTY_SLAVE_MAJOR, index));
+	iyesde->i_iyes = index + 3;
+	iyesde->i_uid = opts->setuid ? opts->uid : current_fsuid();
+	iyesde->i_gid = opts->setgid ? opts->gid : current_fsgid();
+	iyesde->i_mtime = iyesde->i_atime = iyesde->i_ctime = current_time(iyesde);
+	init_special_iyesde(iyesde, S_IFCHR|opts->mode, MKDEV(UNIX98_PTY_SLAVE_MAJOR, index));
 
 	sprintf(s, "%d", index);
 
 	dentry = d_alloc_name(root, s);
 	if (dentry) {
 		dentry->d_fsdata = priv;
-		d_add(dentry, inode);
-		fsnotify_create(d_inode(root), dentry);
+		d_add(dentry, iyesde);
+		fsyestify_create(d_iyesde(root), dentry);
 	} else {
-		iput(inode);
+		iput(iyesde);
 		dentry = ERR_PTR(-ENOMEM);
 	}
 
@@ -598,9 +598,9 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
 
 /**
  * devpts_get_priv -- get private data for a slave
- * @pts_inode: inode of the slave
+ * @pts_iyesde: iyesde of the slave
  *
- * Returns whatever was passed as priv in devpts_pty_new for a given inode.
+ * Returns whatever was passed as priv in devpts_pty_new for a given iyesde.
  */
 void *devpts_get_priv(struct dentry *dentry)
 {
@@ -610,8 +610,8 @@ void *devpts_get_priv(struct dentry *dentry)
 }
 
 /**
- * devpts_pty_kill -- remove inode form /dev/pts/
- * @inode: inode of the slave to be removed
+ * devpts_pty_kill -- remove iyesde form /dev/pts/
+ * @iyesde: iyesde of the slave to be removed
  *
  * This is an inverse operation of devpts_pty_new.
  */
@@ -620,8 +620,8 @@ void devpts_pty_kill(struct dentry *dentry)
 	WARN_ON_ONCE(dentry->d_sb->s_magic != DEVPTS_SUPER_MAGIC);
 
 	dentry->d_fsdata = NULL;
-	drop_nlink(dentry->d_inode);
-	fsnotify_unlink(d_inode(dentry->d_parent), dentry);
+	drop_nlink(dentry->d_iyesde);
+	fsyestify_unlink(d_iyesde(dentry->d_parent), dentry);
 	d_drop(dentry);
 	dput(dentry);	/* d_alloc_name() in devpts_pty_new() */
 }

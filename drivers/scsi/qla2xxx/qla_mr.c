@@ -90,7 +90,7 @@ qlafx00_mailbox_command(scsi_qla_host_t *vha, struct mbx_cmd_32 *mcp)
 	/*
 	 * Wait for active mailbox commands to finish by waiting at most tov
 	 * seconds. This is to serialize actual issuing of mailbox cmds during
-	 * non ISP abort time.
+	 * yesn ISP abort time.
 	 */
 	if (!wait_for_completion_timeout(&ha->mbx_cmd_comp, mcp->tov * HZ)) {
 		/* Timeout occurred. Return error. */
@@ -215,7 +215,7 @@ qlafx00_mailbox_command(scsi_qla_host_t *vha, struct mbx_cmd_32 *mcp)
 		ql_dbg(ql_dbg_mbx, vha, 0x113a,
 		    "checking for additional resp interrupt.\n");
 
-		/* polling mode for non isp_abort commands. */
+		/* polling mode for yesn isp_abort commands. */
 		qla2x00_poll(ha->rsp_q_map[0]);
 	}
 
@@ -223,7 +223,7 @@ qlafx00_mailbox_command(scsi_qla_host_t *vha, struct mbx_cmd_32 *mcp)
 	    mcp->mb[0] != MBC_GEN_SYSTEM_ERROR) {
 		if (!io_lock_on || (mcp->flags & IOCTL_CMD) ||
 		    ha->flags.eeh_busy) {
-			/* not in dpc. schedule it for dpc to take over. */
+			/* yest in dpc. schedule it for dpc to take over. */
 			ql_dbg(ql_dbg_mbx, vha, 0x115d,
 			    "Timeout, schedule isp_abort_needed.\n");
 
@@ -789,16 +789,16 @@ qlafx00_iospace_config(struct qla_hw_data *ha)
 	}
 
 	ha->cregbase =
-	    ioremap_nocache(pci_resource_start(ha->pdev, 0), BAR0_LEN_FX00);
+	    ioremap_yescache(pci_resource_start(ha->pdev, 0), BAR0_LEN_FX00);
 	if (!ha->cregbase) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x0128,
-		    "cannot remap MMIO (%s), aborting\n", pci_name(ha->pdev));
+		    "canyest remap MMIO (%s), aborting\n", pci_name(ha->pdev));
 		goto iospace_error_exit;
 	}
 
 	if (!(pci_resource_flags(ha->pdev, 2) & IORESOURCE_MEM)) {
 		ql_log_pci(ql_log_warn, ha->pdev, 0x0129,
-		    "region #2 not an MMIO resource (%s), aborting\n",
+		    "region #2 yest an MMIO resource (%s), aborting\n",
 		    pci_name(ha->pdev));
 		goto iospace_error_exit;
 	}
@@ -810,10 +810,10 @@ qlafx00_iospace_config(struct qla_hw_data *ha)
 	}
 
 	ha->iobase =
-	    ioremap_nocache(pci_resource_start(ha->pdev, 2), BAR2_LEN_FX00);
+	    ioremap_yescache(pci_resource_start(ha->pdev, 2), BAR2_LEN_FX00);
 	if (!ha->iobase) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x012b,
-		    "cannot remap MMIO (%s), aborting\n", pci_name(ha->pdev));
+		    "canyest remap MMIO (%s), aborting\n", pci_name(ha->pdev));
 		goto iospace_error_exit;
 	}
 
@@ -967,10 +967,10 @@ qlafx00_init_fw_ready(scsi_qla_host_t *vha)
 			if ((aenmbx & 0xFF00) == MBA_FW_INIT_INPROGRESS)
 				break;
 
-			/* If fw is apparently not ready. In order to continue,
+			/* If fw is apparently yest ready. In order to continue,
 			 * we might need to issue Mbox cmd, but the problem is
 			 * that the DoorBell vector values that come with the
-			 * 8060 AEN are most likely gone by now (and thus no
+			 * 8060 AEN are most likely gone by yesw (and thus yes
 			 * bell would be rung on the fw side when mbox cmd is
 			 * issued). We have to therefore grab the 8060 AEN
 			 * shadow regs (filled in by FW when the last 8060
@@ -999,7 +999,7 @@ qlafx00_init_fw_ready(scsi_qla_host_t *vha)
 			/* Get the FW state */
 			rval = qlafx00_get_firmware_state(vha, state);
 			if (rval != QLA_SUCCESS) {
-				/* Retry if timer has not expired */
+				/* Retry if timer has yest expired */
 				break;
 			}
 
@@ -1150,7 +1150,7 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 	for_each_set_bit(tgt_id, (void *)ha->gid_list,
 	    QLAFX00_TGT_NODE_LIST_SIZE) {
 
-		/* Send get target node info */
+		/* Send get target yesde info */
 		new_fcport->tgt_id = tgt_id;
 		rval = qlafx00_fx_disc(vha, new_fcport,
 		    FXDISC_GET_TGT_NODE_INFO);
@@ -1171,7 +1171,7 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 			found++;
 
 			/*
-			 * If tgt_id is same and state FCS_ONLINE, nothing
+			 * If tgt_id is same and state FCS_ONLINE, yesthing
 			 * changed.
 			 */
 			if (fcport->tgt_id == new_fcport->tgt_id &&
@@ -1187,15 +1187,15 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 			    "wwnn = %llx wwpn = %llx.\n",
 			    __func__, fcport->tgt_id,
 			    atomic_read(&fcport->state),
-			    (unsigned long long)wwn_to_u64(fcport->node_name),
+			    (unsigned long long)wwn_to_u64(fcport->yesde_name),
 			    (unsigned long long)wwn_to_u64(fcport->port_name));
 
 			ql_log(ql_log_info, vha, 0x208c,
-			    "TGT-ID Announce(%s): Discovered tgt "
+			    "TGT-ID Anyesunce(%s): Discovered tgt "
 			    "id 0x%x wwnn = %llx "
 			    "wwpn = %llx.\n", __func__, new_fcport->tgt_id,
 			    (unsigned long long)
-			    wwn_to_u64(new_fcport->node_name),
+			    wwn_to_u64(new_fcport->yesde_name),
 			    (unsigned long long)
 			    wwn_to_u64(new_fcport->port_name));
 
@@ -1207,7 +1207,7 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 				qla2x00_update_fcport(vha, fcport);
 			} else {
 				ql_log(ql_log_info, vha, 0x208e,
-				    " Existing TGT-ID %x did not get "
+				    " Existing TGT-ID %x did yest get "
 				    " offline event from firmware.\n",
 				    fcport->old_tgt_id);
 				qla2x00_mark_device_lost(vha, fcport, 0, 0);
@@ -1221,7 +1221,7 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 		if (found)
 			continue;
 
-		/* If device was not in our fcports list, then add it. */
+		/* If device was yest in our fcports list, then add it. */
 		list_add_tail(&new_fcport->list, new_fcports);
 
 		/* Allocate a new replacement fcport. */
@@ -1236,7 +1236,7 @@ qlafx00_find_all_targets(scsi_qla_host_t *vha,
 
 /*
  * qlafx00_configure_all_targets
- *      Setup target devices with node ID's.
+ *      Setup target devices with yesde ID's.
  *
  * Input:
  *      ha = adapter block pointer.
@@ -1291,11 +1291,11 @@ qlafx00_configure_all_targets(scsi_qla_host_t *vha)
 		    "Attach new target id 0x%x wwnn = %llx "
 		    "wwpn = %llx.\n",
 		    fcport->tgt_id,
-		    (unsigned long long)wwn_to_u64(fcport->node_name),
+		    (unsigned long long)wwn_to_u64(fcport->yesde_name),
 		    (unsigned long long)wwn_to_u64(fcport->port_name));
 	}
 
-	/* Free all new device structures not processed. */
+	/* Free all new device structures yest processed. */
 	list_for_each_entry_safe(fcport, rmptemp, &new_fcports, list) {
 		list_del(&fcport->list);
 		kfree(fcport);
@@ -1314,7 +1314,7 @@ qlafx00_configure_all_targets(scsi_qla_host_t *vha)
  * Returns:
  *      0 = success.
  *      1 = error.
- *      2 = database was full and device was not configured.
+ *      2 = database was full and device was yest configured.
  */
 int
 qlafx00_configure_devices(scsi_qla_host_t *vha)
@@ -1346,7 +1346,7 @@ qlafx00_configure_devices(scsi_qla_host_t *vha)
 		    "%s *** FAILED ***.\n", __func__);
 	} else {
 		ql_dbg(ql_dbg_disc, vha, 0x2093,
-		    "%s: exiting normally.\n", __func__);
+		    "%s: exiting yesrmally.\n", __func__);
 	}
 	return rval;
 }
@@ -1466,7 +1466,7 @@ qlafx00_rescan_isp(scsi_qla_host_t *vha)
 	if (!status) {
 		vha->flags.online = 1;
 
-		/* if no cable then assume it's good */
+		/* if yes cable then assume it's good */
 		if ((vha->device_flags & DFLG_NO_CABLE))
 			status = 0;
 		/* Register system information */
@@ -1772,12 +1772,12 @@ qlafx00_process_aen(struct scsi_qla_host *vha, struct qla_work_evt *evt)
 static void
 qlafx00_update_host_attr(scsi_qla_host_t *vha, struct port_info_data *pinfo)
 {
-	u64 port_name = 0, node_name = 0;
+	u64 port_name = 0, yesde_name = 0;
 
 	port_name = (unsigned long long)wwn_to_u64(pinfo->port_name);
-	node_name = (unsigned long long)wwn_to_u64(pinfo->node_name);
+	yesde_name = (unsigned long long)wwn_to_u64(pinfo->yesde_name);
 
-	fc_host_node_name(vha->host) = node_name;
+	fc_host_yesde_name(vha->host) = yesde_name;
 	fc_host_port_name(vha->host) = port_name;
 	if (!pinfo->port_type)
 		vha->hw->current_topology = ISP_CFG_F;
@@ -1879,9 +1879,9 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 			phost_info->os_type = OS_TYPE_LINUX;
 			strlcpy(phost_info->sysname, p_sysid->sysname,
 				sizeof(phost_info->sysname));
-			strlcpy(phost_info->nodename, p_sysid->nodename,
-				sizeof(phost_info->nodename));
-			if (!strcmp(phost_info->nodename, "(none)"))
+			strlcpy(phost_info->yesdename, p_sysid->yesdename,
+				sizeof(phost_info->yesdename));
+			if (!strcmp(phost_info->yesdename, "(yesne)"))
 				ha->mr.host_info_resend = true;
 			strlcpy(phost_info->release, p_sysid->release,
 				sizeof(phost_info->release));
@@ -1898,10 +1898,10 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 			    "ISP%04X: Host registration with firmware\n",
 			    ha->pdev->device);
 			ql_dbg(ql_dbg_init, vha, 0x014a,
-			    "os_type = '%d', sysname = '%s', nodname = '%s'\n",
+			    "os_type = '%d', sysname = '%s', yesdname = '%s'\n",
 			    phost_info->os_type,
 			    phost_info->sysname,
-			    phost_info->nodename);
+			    phost_info->yesdename);
 			ql_dbg(ql_dbg_init, vha, 0x014b,
 			    "release = '%s', version = '%s'\n",
 			    phost_info->release,
@@ -1955,14 +1955,14 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 		memcpy(&vha->hw->mr.fru_serial_num, pinfo->fru_serial_num,
 		    sizeof(vha->hw->mr.fru_serial_num));
 		vha->hw->mr.critical_temperature =
-		    (pinfo->nominal_temp_value) ?
-		    pinfo->nominal_temp_value : QLAFX00_CRITEMP_THRSHLD;
+		    (pinfo->yesminal_temp_value) ?
+		    pinfo->yesminal_temp_value : QLAFX00_CRITEMP_THRSHLD;
 		ha->mr.extended_io_enabled = (pinfo->enabled_capabilities &
 		    QLAFX00_EXTENDED_IO_EN_MASK) != 0;
 	} else if (fx_type == FXDISC_GET_PORT_INFO) {
 		struct port_info_data *pinfo =
 		    (struct port_info_data *) fdisc->u.fxiocb.rsp_addr;
-		memcpy(vha->node_name, pinfo->node_name, WWN_SIZE);
+		memcpy(vha->yesde_name, pinfo->yesde_name, WWN_SIZE);
 		memcpy(vha->port_name, pinfo->port_name, WWN_SIZE);
 		vha->d_id.b.domain = pinfo->port_id[0];
 		vha->d_id.b.area = pinfo->port_id[1];
@@ -1971,16 +1971,16 @@ qlafx00_fx_disc(scsi_qla_host_t *vha, fc_port_t *fcport, uint16_t fx_type)
 		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x0141,
 		    pinfo, 16);
 	} else if (fx_type == FXDISC_GET_TGT_NODE_INFO) {
-		struct qlafx00_tgt_node_info *pinfo =
-		    (struct qlafx00_tgt_node_info *) fdisc->u.fxiocb.rsp_addr;
-		memcpy(fcport->node_name, pinfo->tgt_node_wwnn, WWN_SIZE);
-		memcpy(fcport->port_name, pinfo->tgt_node_wwpn, WWN_SIZE);
+		struct qlafx00_tgt_yesde_info *pinfo =
+		    (struct qlafx00_tgt_yesde_info *) fdisc->u.fxiocb.rsp_addr;
+		memcpy(fcport->yesde_name, pinfo->tgt_yesde_wwnn, WWN_SIZE);
+		memcpy(fcport->port_name, pinfo->tgt_yesde_wwpn, WWN_SIZE);
 		fcport->port_type = FCT_TARGET;
 		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x0144,
 		    pinfo, 16);
 	} else if (fx_type == FXDISC_GET_TGT_NODE_LIST) {
-		struct qlafx00_tgt_node_info *pinfo =
-		    (struct qlafx00_tgt_node_info *) fdisc->u.fxiocb.rsp_addr;
+		struct qlafx00_tgt_yesde_info *pinfo =
+		    (struct qlafx00_tgt_yesde_info *) fdisc->u.fxiocb.rsp_addr;
 		ql_dump_buffer(ql_dbg_init + ql_dbg_buffer, vha, 0x0146,
 		    pinfo, 16);
 		memcpy(vha->hw->gid_list, pinfo, QLAFX00_TGT_NODE_LIST_SIZE);
@@ -2063,7 +2063,7 @@ qlafx00_initialize_adapter(scsi_qla_host_t *vha)
 
 	/*
 	 * Allocate the array of outstanding commands
-	 * now that we know the firmware resources.
+	 * yesw that we kyesw the firmware resources.
 	 */
 	rval = qla2x00_alloc_outstanding_cmds(ha, vha->req);
 	if (rval != QLA_SUCCESS)
@@ -2165,7 +2165,7 @@ qlafx00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 	if (sense_len) {
 		ql_dbg(ql_dbg_io + ql_dbg_buffer, vha, 0x3039,
 		    "Check condition Sense data, nexus%ld:%d:%llu cmd=%p.\n",
-		    sp->vha->host_no, cp->device->id, cp->device->lun,
+		    sp->vha->host_yes, cp->device->id, cp->device->lun,
 		    cp);
 		ql_dump_buffer(ql_dbg_io + ql_dbg_buffer, vha, 0x3049,
 		    cp->sense_buffer, sense_len);
@@ -2223,7 +2223,7 @@ qlafx00_ioctl_iosb_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 	if (sp->type == SRB_FXIOCB_DCMD) {
 		iocb_job = &sp->u.iocb_cmd;
-		iocb_job->u.fxiocb.seq_number = pkt->seq_no;
+		iocb_job->u.fxiocb.seq_number = pkt->seq_yes;
 		iocb_job->u.fxiocb.fw_flags = pkt->fw_iotcl_flags;
 		iocb_job->u.fxiocb.result = pkt->status;
 		if (iocb_job->u.fxiocb.flags & SRB_FXDISC_RSP_DWRD_VALID)
@@ -2243,7 +2243,7 @@ qlafx00_ioctl_iosb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		fstatus.reserved_2 = pkt->dataword_r_extra;
 		fstatus.res_count = pkt->residuallen;
 		fstatus.status = pkt->status;
-		fstatus.seq_number = pkt->seq_no;
+		fstatus.seq_number = pkt->seq_yes;
 		memcpy(fstatus.reserved_3,
 		    pkt->reserved_2, 20 * sizeof(uint8_t));
 
@@ -2447,7 +2447,7 @@ qlafx00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		    lscsi_status != cpu_to_le16((uint16_t)SAM_STAT_BUSY)) {
 			/*
 			 * scsi status of task set and busy are considered
-			 * to be task not completed.
+			 * to be task yest completed.
 			 */
 
 			ql_dbg(ql_dbg_io, fcport->vha, 0x3054,
@@ -2468,7 +2468,7 @@ qlafx00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 
 check_scsi_status:
 		/*
-		 * Check to see if SCSI Status is non zero. If so report SCSI
+		 * Check to see if SCSI Status is yesn zero. If so report SCSI
 		 * Status.
 		 */
 		if (lscsi_status != 0) {
@@ -2531,7 +2531,7 @@ check_scsi_status:
 		    "tgt_id: 0x%x lscsi_status: 0x%x cdb=%10phN len=0x%x "
 		    "rsp_info=%p resid=0x%x fw_resid=0x%x sense_len=0x%x, "
 		    "par_sense_len=0x%x, rsp_info_len=0x%x\n",
-		    comp_status, scsi_status, res, vha->host_no,
+		    comp_status, scsi_status, res, vha->host_yes,
 		    cp->device->id, cp->device->lun, fcport->tgt_id,
 		    lscsi_status, cp->cmnd, scsi_bufflen(cp),
 		    rsp_info, resid_len, fw_resid_len, sense_len,
@@ -2563,13 +2563,13 @@ qlafx00_status_cont_entry(struct rsp_que *rsp, sts_cont_entry_t *pkt)
 
 	if (!sp) {
 		ql_dbg(ql_dbg_io, vha, 0x3037,
-		    "no SP, sp = %p\n", sp);
+		    "yes SP, sp = %p\n", sp);
 		return;
 	}
 
 	if (!GET_FW_SENSE_LEN(sp)) {
 		ql_dbg(ql_dbg_io, vha, 0x304b,
-		    "no fw sense data, sp = %p\n", sp);
+		    "yes fw sense data, sp = %p\n", sp);
 		return;
 	}
 	cp = GET_CMD_SP(sp);
@@ -2583,7 +2583,7 @@ qlafx00_status_cont_entry(struct rsp_que *rsp, sts_cont_entry_t *pkt)
 
 	if (!GET_CMD_SENSE_LEN(sp)) {
 		ql_dbg(ql_dbg_io, vha, 0x304c,
-		    "no sense data, sp = %p\n", sp);
+		    "yes sense data, sp = %p\n", sp);
 	} else {
 		sense_len = GET_CMD_SENSE_LEN(sp);
 		sense_ptr = GET_CMD_SENSE_PTR(sp);
@@ -2776,7 +2776,7 @@ qlafx00_process_response_queue(struct scsi_qla_host *vha,
 		default:
 			/* Type Not Supported. */
 			ql_dbg(ql_dbg_async, vha, 0x5081,
-			    "Received unknown response pkt type %x "
+			    "Received unkyeswn response pkt type %x "
 			    "entry status=%x.\n",
 			    pkt->entry_type, pkt->entry_status);
 			break;
@@ -2788,7 +2788,7 @@ qlafx00_process_response_queue(struct scsi_qla_host *vha,
 }
 
 /**
- * qlafx00_async_event() - Process aynchronous events.
+ * qlafx00_async_event() - Process aynchroyesus events.
  * @vha: SCSI driver HA context
  */
 static void
@@ -2809,7 +2809,7 @@ qlafx00_async_event(scsi_qla_host_t *vha)
 
 	case QLAFX00_MBA_SHUTDOWN_RQSTD:	/* Shutdown requested */
 		ql_dbg(ql_dbg_async, vha, 0x5076,
-		    "Asynchronous FW shutdown requested.\n");
+		    "Asynchroyesus FW shutdown requested.\n");
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		qla2xxx_wake_dpc(vha);
 		break;
@@ -2819,7 +2819,7 @@ qlafx00_async_event(scsi_qla_host_t *vha)
 		ha->aenmb[2] = RD_REG_DWORD(&reg->aenmailbox2);
 		ha->aenmb[3] = RD_REG_DWORD(&reg->aenmailbox3);
 		ql_dbg(ql_dbg_async, vha, 0x5077,
-		    "Asynchronous port Update received "
+		    "Asynchroyesus port Update received "
 		    "aenmb[0]: %x, aenmb[1]: %x, aenmb[2]: %x, aenmb[3]: %x\n",
 		    ha->aenmb[0], ha->aenmb[1], ha->aenmb[2], ha->aenmb[3]);
 		data_size = 4;
@@ -2827,21 +2827,21 @@ qlafx00_async_event(scsi_qla_host_t *vha)
 
 	case QLAFX00_MBA_TEMP_OVER:	/* Over temperature event */
 		ql_log(ql_log_info, vha, 0x5085,
-		    "Asynchronous over temperature event received "
+		    "Asynchroyesus over temperature event received "
 		    "aenmb[0]: %x\n",
 		    ha->aenmb[0]);
 		break;
 
 	case QLAFX00_MBA_TEMP_NORM:	/* Normal temperature event */
 		ql_log(ql_log_info, vha, 0x5086,
-		    "Asynchronous normal temperature event received "
+		    "Asynchroyesus yesrmal temperature event received "
 		    "aenmb[0]: %x\n",
 		    ha->aenmb[0]);
 		break;
 
 	case QLAFX00_MBA_TEMP_CRIT:	/* Critical temperature event */
 		ql_log(ql_log_info, vha, 0x5083,
-		    "Asynchronous critical temperature event received "
+		    "Asynchroyesus critical temperature event received "
 		    "aenmb[0]: %x\n",
 		ha->aenmb[0]);
 		break;
@@ -3068,7 +3068,7 @@ qlafx00_build_scsi_iocbs(srb_t *sp, struct cmd_type_7_fx00 *cmd_pkt,
  * qlafx00_start_scsi() - Send a SCSI command to the ISP
  * @sp: command to send to the ISP
  *
- * Returns non-zero if a failure occurred, else zero.
+ * Returns yesn-zero if a failure occurred, else zero.
  */
 int
 qlafx00_start_scsi(srb_t *sp)
@@ -3092,7 +3092,7 @@ qlafx00_start_scsi(srb_t *sp)
 	rsp = ha->rsp_q_map[0];
 	req = vha->req;
 
-	/* So we know we haven't pci_map'ed anything yet */
+	/* So we kyesw we haven't pci_map'ed anything yet */
 	tot_dsds = 0;
 
 	/* Acquire ring specific lock */
@@ -3236,7 +3236,7 @@ qlafx00_abort_iocb(srb_t *sp, struct abort_iocb_entry_fx00 *pabt_iocb)
 	abt_iocb.abort_handle =
 	    cpu_to_le32(MAKE_HANDLE(req->id, fxio->u.abt.cmd_hndl));
 	abt_iocb.tgt_id_sts = cpu_to_le16(sp->fcport->tgt_id);
-	abt_iocb.req_que_no = cpu_to_le16(req->id);
+	abt_iocb.req_que_yes = cpu_to_le16(req->id);
 
 	memcpy((void *)pabt_iocb, &abt_iocb,
 	    sizeof(struct abort_iocb_entry_fx00));

@@ -138,7 +138,7 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ret = of_property_read_string(dev->of_node, "ti,pm-firmware",
+	ret = of_property_read_string(dev->of_yesde, "ti,pm-firmware",
 				      &fw_name);
 	if (ret) {
 		dev_err(dev, "No firmware filename given\n");
@@ -177,7 +177,7 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 		}
 		wkupm3->mem[i].bus_addr = res->start;
 		wkupm3->mem[i].size = resource_size(res);
-		addrp = of_get_address(dev->of_node, i, &size, NULL);
+		addrp = of_get_address(dev->of_yesde, i, &size, NULL);
 		/*
 		 * The wkupm3 has umem at address 0 in its view, so the device
 		 * addresses for each memory region is computed as a relative
@@ -202,7 +202,7 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 err_put_rproc:
 	rproc_free(rproc);
 err:
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	pm_runtime_disable(dev);
 	return ret;
 }

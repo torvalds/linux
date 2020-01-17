@@ -76,7 +76,7 @@ const char *sctp_cname(const union sctp_subtype cid)
 		break;
 	}
 
-	return "unknown chunk";
+	return "unkyeswn chunk";
 }
 
 /* These are printable forms of the states.  */
@@ -93,7 +93,7 @@ const char *const sctp_state_tbl[SCTP_STATE_NUM_STATES] = {
 
 /* Events that could change the state of an association.  */
 const char *const sctp_evttype_tbl[] = {
-	"EVENT_T_unknown",
+	"EVENT_T_unkyeswn",
 	"EVENT_T_CHUNK",
 	"EVENT_T_TIMEOUT",
 	"EVENT_T_OTHER",
@@ -128,7 +128,7 @@ const char *sctp_pname(const union sctp_subtype id)
 {
 	if (id.primitive <= SCTP_EVENT_PRIMITIVE_MAX)
 		return sctp_primitive_tbl[id.primitive];
-	return "unknown_primitive";
+	return "unkyeswn_primitive";
 }
 
 static const char *const sctp_other_tbl[] = {
@@ -141,7 +141,7 @@ const char *sctp_oname(const union sctp_subtype id)
 {
 	if (id.other <= SCTP_EVENT_OTHER_MAX)
 		return sctp_other_tbl[id.other];
-	return "unknown 'other' event";
+	return "unkyeswn 'other' event";
 }
 
 static const char *const sctp_timer_tbl[] = {
@@ -165,5 +165,5 @@ const char *sctp_tname(const union sctp_subtype id)
 
 	if (id.timeout < ARRAY_SIZE(sctp_timer_tbl))
 		return sctp_timer_tbl[id.timeout];
-	return "unknown_timer";
+	return "unkyeswn_timer";
 }

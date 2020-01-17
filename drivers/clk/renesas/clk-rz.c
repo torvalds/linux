@@ -37,8 +37,8 @@ static u16 __init rz_cpg_read_mode_pins(void)
 	void __iomem *ppr0, *pibc0;
 	u16 modes;
 
-	ppr0 = ioremap_nocache(PPR0, 2);
-	pibc0 = ioremap_nocache(PIBC0, 2);
+	ppr0 = ioremap_yescache(PPR0, 2);
+	pibc0 = ioremap_yescache(PIBC0, 2);
 	BUG_ON(!ppr0 || !pibc0);
 	iowrite16(4, pibc0);	/* enable input buffer */
 	modes = ioread16(ppr0);
@@ -49,7 +49,7 @@ static u16 __init rz_cpg_read_mode_pins(void)
 }
 
 static struct clk * __init
-rz_cpg_register_clock(struct device_node *np, struct rz_cpg *cpg, const char *name)
+rz_cpg_register_clock(struct device_yesde *np, struct rz_cpg *cpg, const char *name)
 {
 	u32 val;
 	unsigned mult;
@@ -64,11 +64,11 @@ rz_cpg_register_clock(struct device_node *np, struct rz_cpg *cpg, const char *na
 		return clk_register_fixed_factor(NULL, name, parent_name, 0, mult, 1);
 	}
 
-	/* If mapping regs failed, skip non-pll clocks. System will boot anyhow */
+	/* If mapping regs failed, skip yesn-pll clocks. System will boot anyhow */
 	if (!cpg->reg)
 		return ERR_PTR(-ENXIO);
 
-	/* FIXME:"i" and "g" are variable clocks with non-integer dividers (e.g. 2/3)
+	/* FIXME:"i" and "g" are variable clocks with yesn-integer dividers (e.g. 2/3)
 	 * and the constraint that always g <= i. To get the rz platform started,
 	 * let them run at fixed current speed and implement the details later.
 	 */
@@ -83,7 +83,7 @@ rz_cpg_register_clock(struct device_node *np, struct rz_cpg *cpg, const char *na
 	return clk_register_fixed_factor(NULL, name, "pll", 0, mult, 3);
 }
 
-static void __init rz_cpg_clocks_init(struct device_node *np)
+static void __init rz_cpg_clocks_init(struct device_yesde *np)
 {
 	struct rz_cpg *cpg;
 	struct clk **clks;

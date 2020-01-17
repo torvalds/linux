@@ -13,7 +13,7 @@
 #ifndef _S390_IDALS_H
 #define _S390_IDALS_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -68,7 +68,7 @@ static inline unsigned long *idal_create_words(unsigned long *idaws,
  * If necessary it allocates an IDAL and sets the appropriate flags.
  */
 static inline int
-set_normalized_cda(struct ccw1 * ccw, void *vaddr)
+set_yesrmalized_cda(struct ccw1 * ccw, void *vaddr)
 {
 	unsigned int nridaws;
 	unsigned long *idal;
@@ -93,7 +93,7 @@ set_normalized_cda(struct ccw1 * ccw, void *vaddr)
  * Releases any allocated IDAL related to the CCW.
  */
 static inline void
-clear_normalized_cda(struct ccw1 * ccw)
+clear_yesrmalized_cda(struct ccw1 * ccw)
 {
 	if (ccw->flags & CCW_FLAG_IDA) {
 		kfree((void *)(unsigned long) ccw->cda);
@@ -136,7 +136,7 @@ idal_buffer_alloc(size_t size, int page_order)
 			__get_free_pages(GFP_KERNEL, page_order);
 		if (ib->data[i] != NULL)
 			continue;
-		// Not enough memory
+		// Not eyesugh memory
 		while (i >= nr_chunks) {
 			i -= nr_chunks;
 			free_pages((unsigned long) ib->data[i],
@@ -184,7 +184,7 @@ idal_buffer_set_cda(struct idal_buffer *ib, struct ccw1 *ccw)
 		ccw->cda = (u32)(addr_t) ib->data;
 		ccw->flags |= CCW_FLAG_IDA;
 	} else
-		// we do not need idals - use direct addressing
+		// we do yest need idals - use direct addressing
 		ccw->cda = (u32)(addr_t) ib->data[0];
 	ccw->count = ib->size;
 }

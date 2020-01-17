@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause) */
 /*
  * cec - HDMI Consumer Electronics Control message functions
  *
@@ -155,7 +155,7 @@ struct cec_op_dvb_data {
 struct cec_op_channel_data {
 	__u8 channel_number_fmt;
 	__u16 major;
-	__u16 minor;
+	__u16 miyesr;
 };
 
 struct cec_op_digital_service_id {
@@ -195,8 +195,8 @@ static inline void cec_set_digital_service_id(__u8 *msg,
 		*msg++ = (digital->channel.channel_number_fmt << 2) |
 			 (digital->channel.major >> 8);
 		*msg++ = digital->channel.major & 0xff;
-		*msg++ = digital->channel.minor >> 8;
-		*msg++ = digital->channel.minor & 0xff;
+		*msg++ = digital->channel.miyesr >> 8;
+		*msg++ = digital->channel.miyesr & 0xff;
 		*msg++ = 0;
 		*msg++ = 0;
 		return;
@@ -232,7 +232,7 @@ static inline void cec_get_digital_service_id(const __u8 *msg,
 	if (digital->service_id_method == CEC_OP_SERVICE_ID_METHOD_BY_CHANNEL) {
 		digital->channel.channel_number_fmt = msg[1] >> 2;
 		digital->channel.major = ((msg[1] & 3) << 6) | msg[2];
-		digital->channel.minor = (msg[3] << 8) | msg[4];
+		digital->channel.miyesr = (msg[3] << 8) | msg[4];
 		return;
 	}
 	digital->dvb.transport_id = (msg[1] << 8) | msg[2];
@@ -839,9 +839,9 @@ static inline void cec_msg_get_menu_language(struct cec_msg *msg,
 
 /*
  * Assumes a single RC Profile byte and a single Device Features byte,
- * i.e. no extended features are supported by this helper function.
+ * i.e. yes extended features are supported by this helper function.
  *
- * As of CEC 2.0 no extended features are defined, should those be added
+ * As of CEC 2.0 yes extended features are defined, should those be added
  * in the future, then this function needs to be adapted or a new function
  * should be added.
  */
@@ -1319,8 +1319,8 @@ static inline void cec_msg_user_control_pressed(struct cec_msg *msg,
 		msg->msg[3] = (ui_cmd->channel_identifier.channel_number_fmt << 2) |
 			      (ui_cmd->channel_identifier.major >> 8);
 		msg->msg[4] = ui_cmd->channel_identifier.major & 0xff;
-		msg->msg[5] = ui_cmd->channel_identifier.minor >> 8;
-		msg->msg[6] = ui_cmd->channel_identifier.minor & 0xff;
+		msg->msg[5] = ui_cmd->channel_identifier.miyesr >> 8;
+		msg->msg[6] = ui_cmd->channel_identifier.miyesr & 0xff;
 		break;
 	}
 }
@@ -1349,7 +1349,7 @@ static inline void cec_ops_user_control_pressed(const struct cec_msg *msg,
 		ui_cmd->has_opt_arg = 1;
 		ui_cmd->channel_identifier.channel_number_fmt = msg->msg[3] >> 2;
 		ui_cmd->channel_identifier.major = ((msg->msg[3] & 3) << 6) | msg->msg[4];
-		ui_cmd->channel_identifier.minor = (msg->msg[5] << 8) | msg->msg[6];
+		ui_cmd->channel_identifier.miyesr = (msg->msg[5] << 8) | msg->msg[6];
 		break;
 	}
 }
@@ -1867,7 +1867,7 @@ static inline void cec_ops_cdc_hec_request_deactivation(const struct cec_msg *ms
 	*phys_addr3 = (msg->msg[9] << 8) | msg->msg[10];
 }
 
-static inline void cec_msg_cdc_hec_notify_alive(struct cec_msg *msg)
+static inline void cec_msg_cdc_hec_yestify_alive(struct cec_msg *msg)
 {
 	msg->len = 5;
 	msg->msg[0] |= 0xf; /* broadcast */
@@ -1876,7 +1876,7 @@ static inline void cec_msg_cdc_hec_notify_alive(struct cec_msg *msg)
 	msg->msg[4] = CEC_MSG_CDC_HEC_NOTIFY_ALIVE;
 }
 
-static inline void cec_ops_cdc_hec_notify_alive(const struct cec_msg *msg,
+static inline void cec_ops_cdc_hec_yestify_alive(const struct cec_msg *msg,
 						__u16 *phys_addr)
 {
 	*phys_addr = (msg->msg[2] << 8) | msg->msg[3];

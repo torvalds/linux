@@ -75,7 +75,7 @@ static struct drm_driver komeda_kms_driver = {
 	.desc = "Arm Komeda Display Processor driver",
 	.date = "20181101",
 	.major = 0,
-	.minor = 1,
+	.miyesr = 1,
 };
 
 static void komeda_kms_commit_tail(struct drm_atomic_state *old_state)
@@ -104,34 +104,34 @@ static int komeda_plane_state_list_add(struct drm_plane_state *plane_st,
 				       struct list_head *zorder_list)
 {
 	struct komeda_plane_state *new = to_kplane_st(plane_st);
-	struct komeda_plane_state *node, *last;
+	struct komeda_plane_state *yesde, *last;
 
 	last = list_empty(zorder_list) ?
-	       NULL : list_last_entry(zorder_list, typeof(*last), zlist_node);
+	       NULL : list_last_entry(zorder_list, typeof(*last), zlist_yesde);
 
 	/* Considering the list sequence is zpos increasing, so if list is empty
-	 * or the zpos of new node bigger than the last node in list, no need
+	 * or the zpos of new yesde bigger than the last yesde in list, yes need
 	 * loop and just insert the new one to the tail of the list.
 	 */
 	if (!last || (new->base.zpos > last->base.zpos)) {
-		list_add_tail(&new->zlist_node, zorder_list);
+		list_add_tail(&new->zlist_yesde, zorder_list);
 		return 0;
 	}
 
 	/* Build the list by zpos increasing */
-	list_for_each_entry(node, zorder_list, zlist_node) {
-		if (new->base.zpos < node->base.zpos) {
-			list_add_tail(&new->zlist_node, &node->zlist_node);
+	list_for_each_entry(yesde, zorder_list, zlist_yesde) {
+		if (new->base.zpos < yesde->base.zpos) {
+			list_add_tail(&new->zlist_yesde, &yesde->zlist_yesde);
 			break;
-		} else if (node->base.zpos == new->base.zpos) {
-			struct drm_plane *a = node->base.plane;
+		} else if (yesde->base.zpos == new->base.zpos) {
+			struct drm_plane *a = yesde->base.plane;
 			struct drm_plane *b = new->base.plane;
 
 			/* Komeda doesn't support setting a same zpos for
 			 * different planes.
 			 */
 			DRM_DEBUG_ATOMIC("PLANE: %s and PLANE: %s are configured same zpos: %d.\n",
-					 a->name, b->name, node->base.zpos);
+					 a->name, b->name, yesde->base.zpos);
 			return -EINVAL;
 		}
 	}
@@ -139,7 +139,7 @@ static int komeda_plane_state_list_add(struct drm_plane_state *plane_st,
 	return 0;
 }
 
-static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
+static int komeda_crtc_yesrmalize_zpos(struct drm_crtc *crtc,
 				      struct drm_crtc_state *crtc_st)
 {
 	struct drm_atomic_state *state = crtc_st->state;
@@ -151,7 +151,7 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 	struct list_head zorder_list;
 	int order = 0, err;
 
-	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] calculating normalized zpos values\n",
+	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] calculating yesrmalized zpos values\n",
 			 crtc->base.id, crtc->name);
 
 	INIT_LIST_HEAD(&zorder_list);
@@ -170,11 +170,11 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 
 	kcrtc_st->max_slave_zorder = 0;
 
-	list_for_each_entry(kplane_st, &zorder_list, zlist_node) {
+	list_for_each_entry(kplane_st, &zorder_list, zlist_yesde) {
 		plane_st = &kplane_st->base;
 		plane = plane_st->plane;
 
-		plane_st->normalized_zpos = order++;
+		plane_st->yesrmalized_zpos = order++;
 		/* When layer_split has been enabled, one plane will be handled
 		 * by two separated komeda layers (left/right), which may needs
 		 * two zorders.
@@ -184,14 +184,14 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 		if (to_kplane_st(plane_st)->layer_split)
 			order++;
 
-		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] zpos:%d, normalized zpos: %d\n",
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] zpos:%d, yesrmalized zpos: %d\n",
 				 plane->base.id, plane->name,
-				 plane_st->zpos, plane_st->normalized_zpos);
+				 plane_st->zpos, plane_st->yesrmalized_zpos);
 
 		/* calculate max slave zorder */
 		if (has_bit(drm_plane_index(plane), kcrtc->slave_planes))
 			kcrtc_st->max_slave_zorder =
-				max(plane_st->normalized_zpos,
+				max(plane_st->yesrmalized_zpos,
 				    kcrtc_st->max_slave_zorder);
 	}
 
@@ -220,7 +220,7 @@ static int komeda_kms_check(struct drm_device *dev,
 		if (err)
 			return err;
 
-		err = komeda_crtc_normalize_zpos(crtc, new_crtc_st);
+		err = komeda_crtc_yesrmalize_zpos(crtc, new_crtc_st);
 		if (err)
 			return err;
 	}

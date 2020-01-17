@@ -43,7 +43,7 @@
 /* ************************************************** */
 
 struct safe_buffer {
-	struct list_head node;
+	struct list_head yesde;
 
 	/* original request */
 	void		*ptr;
@@ -142,7 +142,7 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 
 	if (buf->safe == NULL) {
 		dev_warn(dev,
-			 "%s: could not alloc dma memory (size=%d)\n",
+			 "%s: could yest alloc dma memory (size=%d)\n",
 			 __func__, size);
 		kfree(buf);
 		return NULL;
@@ -155,7 +155,7 @@ alloc_safe_buffer(struct dmabounce_device_info *device_info, void *ptr,
 #endif
 
 	write_lock_irqsave(&device_info->lock, flags);
-	list_add(&buf->node, &device_info->safe_buffers);
+	list_add(&buf->yesde, &device_info->safe_buffers);
 	write_unlock_irqrestore(&device_info->lock, flags);
 
 	return buf;
@@ -170,7 +170,7 @@ find_safe_buffer(struct dmabounce_device_info *device_info, dma_addr_t safe_dma_
 
 	read_lock_irqsave(&device_info->lock, flags);
 
-	list_for_each_entry(b, &device_info->safe_buffers, node)
+	list_for_each_entry(b, &device_info->safe_buffers, yesde)
 		if (b->safe_dma_addr <= safe_dma_addr &&
 		    b->safe_dma_addr + b->size > safe_dma_addr) {
 			rb = b;
@@ -190,7 +190,7 @@ free_safe_buffer(struct dmabounce_device_info *device_info, struct safe_buffer *
 
 	write_lock_irqsave(&device_info->lock, flags);
 
-	list_del(&buf->node);
+	list_del(&buf->yesde);
 
 	write_unlock_irqrestore(&device_info->lock, flags);
 
@@ -332,7 +332,7 @@ static dma_addr_t dmabounce_map_page(struct device *dev, struct page *page,
 	}
 
 	if (PageHighMem(page)) {
-		dev_err(dev, "DMA buffer bouncing of HIGHMEM pages is not supported\n");
+		dev_err(dev, "DMA buffer bouncing of HIGHMEM pages is yest supported\n");
 		return DMA_MAPPING_ERROR;
 	}
 
@@ -473,7 +473,7 @@ static int dmabounce_init_pool(struct dmabounce_pool *pool, struct device *dev,
 	DO_STATS(pool->allocs = 0);
 	pool->pool = dma_pool_create(name, dev, size,
 				     0 /* byte alignment */,
-				     0 /* no page-crossing issues */);
+				     0 /* yes page-crossing issues */);
 
 	return pool->pool ? 0 : -ENOMEM;
 }
@@ -488,7 +488,7 @@ int dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 	device_info = kmalloc(sizeof(struct dmabounce_device_info), GFP_ATOMIC);
 	if (!device_info) {
 		dev_err(dev,
-			"Could not allocated dmabounce_device_info\n");
+			"Could yest allocated dmabounce_device_info\n");
 		return -ENOMEM;
 	}
 
@@ -496,7 +496,7 @@ int dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 				  "small_dmabounce_pool", small_buffer_size);
 	if (ret) {
 		dev_err(dev,
-			"dmabounce: could not allocate DMA pool for %ld byte objects\n",
+			"dmabounce: could yest allocate DMA pool for %ld byte objects\n",
 			small_buffer_size);
 		goto err_free;
 	}
@@ -507,7 +507,7 @@ int dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 					  large_buffer_size);
 		if (ret) {
 			dev_err(dev,
-				"dmabounce: could not allocate DMA pool for %ld byte objects\n",
+				"dmabounce: could yest allocate DMA pool for %ld byte objects\n",
 				large_buffer_size);
 			goto err_destroy;
 		}

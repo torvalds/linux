@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <linux/ptrace.h>
@@ -127,7 +127,7 @@ static int genregs_set(struct task_struct *target,
 
 #define REG_IGNORE_ONE(LOC)		\
 	if (!ret)			\
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, \
+		ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf, \
 			offsetof(struct user_regs_struct, LOC), \
 			offsetof(struct user_regs_struct, LOC) + 4);
 
@@ -196,7 +196,7 @@ static int arcv2regs_get(struct task_struct *target,
 		copy_sz = 4;	/* r30 only */
 
 	/*
-	 * itemized copy not needed like above as layout of regs (r30,r58,r59)
+	 * itemized copy yest needed like above as layout of regs (r30,r58,r59)
 	 * is exactly same in kernel (pt_regs) and userspace (user_regs_arcv2)
 	 */
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &regs->r30,
@@ -233,7 +233,7 @@ enum arc_getset {
 
 static const struct user_regset arc_regsets[] = {
 	[REGSET_CMN] = {
-	       .core_note_type = NT_PRSTATUS,
+	       .core_yeste_type = NT_PRSTATUS,
 	       .n = ELF_NGREG,
 	       .size = sizeof(unsigned long),
 	       .align = sizeof(unsigned long),
@@ -242,7 +242,7 @@ static const struct user_regset arc_regsets[] = {
 	},
 #ifdef CONFIG_ISA_ARCV2
 	[REGSET_ARCV2] = {
-	       .core_note_type = NT_ARC_V2,
+	       .core_yeste_type = NT_ARC_V2,
 	       .n = ELF_ARCV2REG,
 	       .size = sizeof(unsigned long),
 	       .align = sizeof(unsigned long),

@@ -43,7 +43,7 @@ struct timberdale_device {
 	unsigned char __iomem   *ctl_membase;
 	struct {
 		u32 major;
-		u32 minor;
+		u32 miyesr;
 		u32 config;
 	} fw;
 };
@@ -285,7 +285,7 @@ static const struct resource timberdale_video_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	/*
-	note that the "frame buffer" is located in DMA area
+	yeste that the "frame buffer" is located in DMA area
 	starting at 0x1200000
 	*/
 };
@@ -628,7 +628,7 @@ static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr,
 {
 	struct timberdale_device *priv = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d.%d.%d\n", priv->fw.major, priv->fw.minor,
+	return sprintf(buf, "%d.%d.%d\n", priv->fw.major, priv->fw.miyesr,
 		priv->fw.config);
 }
 
@@ -676,20 +676,20 @@ static int timb_probe(struct pci_dev *dev,
 
 	/* read the HW config */
 	priv->fw.major = ioread32(priv->ctl_membase + TIMB_REV_MAJOR);
-	priv->fw.minor = ioread32(priv->ctl_membase + TIMB_REV_MINOR);
+	priv->fw.miyesr = ioread32(priv->ctl_membase + TIMB_REV_MINOR);
 	priv->fw.config = ioread32(priv->ctl_membase + TIMB_HW_CONFIG);
 
 	if (priv->fw.major > TIMB_SUPPORTED_MAJOR) {
 		dev_err(&dev->dev, "The driver supports an older "
 			"version of the FPGA, please update the driver to "
-			"support %d.%d\n", priv->fw.major, priv->fw.minor);
+			"support %d.%d\n", priv->fw.major, priv->fw.miyesr);
 		goto err_config;
 	}
 	if (priv->fw.major < TIMB_SUPPORTED_MAJOR ||
-		priv->fw.minor < TIMB_REQUIRED_MINOR) {
+		priv->fw.miyesr < TIMB_REQUIRED_MINOR) {
 		dev_err(&dev->dev, "The FPGA image is too old (%d.%d), "
 			"please upgrade the FPGA to at least: %d.%d\n",
-			priv->fw.major, priv->fw.minor,
+			priv->fw.major, priv->fw.miyesr,
 			TIMB_SUPPORTED_MAJOR, TIMB_REQUIRED_MINOR);
 		goto err_config;
 	}
@@ -764,8 +764,8 @@ static int timb_probe(struct pci_dev *dev,
 			&dev->resource[0], msix_entries[0].vector, NULL);
 		break;
 	default:
-		dev_err(&dev->dev, "Unknown IP setup: %d.%d.%d\n",
-			priv->fw.major, priv->fw.minor, ip_setup);
+		dev_err(&dev->dev, "Unkyeswn IP setup: %d.%d.%d\n",
+			priv->fw.major, priv->fw.miyesr, ip_setup);
 		err = -ENODEV;
 		goto err_mfd;
 	}
@@ -799,7 +799,7 @@ static int timb_probe(struct pci_dev *dev,
 
 	dev_info(&dev->dev,
 		"Found Timberdale Card. Rev: %d.%d, HW config: 0x%02x\n",
-		priv->fw.major, priv->fw.minor, priv->fw.config);
+		priv->fw.major, priv->fw.miyesr, priv->fw.config);
 
 	return 0;
 

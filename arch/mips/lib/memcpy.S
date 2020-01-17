@@ -10,7 +10,7 @@
  * Copyright (C) 2002 Broadcom, Inc.
  *   memcpy/copy_user author: Mark Vandevoorde
  * Copyright (C) 2007  Maciej W. Rozycki
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techyeslogies Ltd.
  *
  * Mnemonic names for arguments to memcpy/__copy_user
  */
@@ -19,7 +19,7 @@
  * Hack to resolve longstanding prefetch issue
  *
  * Prefetching may be fatal on some systems if we're prefetching beyond the
- * end of memory on some systems.  It's also a seriously bad idea on non
+ * end of memory on some systems.  It's also a seriously bad idea on yesn
  * dma-coherent systems.
  */
 #ifdef CONFIG_DMA_NONCOHERENT
@@ -56,10 +56,10 @@
  * __copy_user assumes that src and dst don't overlap, and that the call is
  * implementing one of the following:
  *   copy_to_user
- *     - src is readable  (no exceptions when reading src)
+ *     - src is readable  (yes exceptions when reading src)
  *   copy_from_user
- *     - dst is writable  (no exceptions when writing dst)
- * __copy_user uses a non-standard calling convention; see
+ *     - dst is writable  (yes exceptions when writing dst)
+ * __copy_user uses a yesn-standard calling convention; see
  * include/asm-mips/uaccess.h
  *
  * When an exception happens on a load, the handler must
@@ -77,17 +77,17 @@
  *     of the copy,
  *  2- src_entry <= src < AT, and
  *  3- (dst - src) == (dst_entry - src_entry),
- * The _entry suffix denotes values when __copy_user was called.
+ * The _entry suffix deyestes values when __copy_user was called.
  *
- * (1) is set up up by uaccess.h and maintained by not writing AT in copy_user
+ * (1) is set up up by uaccess.h and maintained by yest writing AT in copy_user
  * (2) is met by incrementing src by the number of bytes copied
- * (3) is met by not doing loads between a pair of increments of dst and src
+ * (3) is met by yest doing loads between a pair of increments of dst and src
  *
  * The exception handlers for stores adjust len (if necessary) and return.
- * These handlers do not need to overwrite any data.
+ * These handlers do yest need to overwrite any data.
  *
  * For __rmemcpy and memmove an exception is always a kernel bug, therefore
- * they're not protected.
+ * they're yest protected.
  */
 
 /* Instruction type */
@@ -129,7 +129,7 @@
 			.previous;				\
 		.else;						\
 			/*					\
-			 *  Still in EVA, but no need for	\
+			 *  Still in EVA, but yes need for	\
 			 * exception handler or EVA insn	\
 			 */					\
 			insn reg, addr;				\
@@ -220,7 +220,7 @@
 			 */						\
 			.set at=v1;					\
 			user_pref(hint, addr);				\
-			.set noat;					\
+			.set yesat;					\
 		.else;							\
 			kernel_pref(hint, addr);			\
 		.endif;							\
@@ -253,9 +253,9 @@
 #define ADDRMASK (NBYTES-1)
 
 	.text
-	.set	noreorder
+	.set	yesreorder
 #ifndef CONFIG_CPU_DADDI_WORKAROUNDS
-	.set	noat
+	.set	yesat
 #else
 	.set	at=v1
 #endif
@@ -272,9 +272,9 @@
 	.macro __BUILD_COPY_USER mode, from, to
 
 	/* initialize __memcpy if this the first time we execute this macro */
-	.ifnotdef __memcpy
+	.ifyestdef __memcpy
 	.set __memcpy, 1
-	.hidden __memcpy /* make sure it does not leak */
+	.hidden __memcpy /* make sure it does yest leak */
 	.endif
 
 	/*
@@ -303,7 +303,7 @@
 	PREFD(	1, 2*32(dst) )
 #ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
 	bnez	t1, .Ldst_unaligned\@
-	 nop
+	 yesp
 	bnez	t0, .Lsrc_unaligned_dst_aligned\@
 #else
 	or	t0, t0, t1
@@ -344,7 +344,7 @@
 	PREFS(	0, 8*32(src) )
 	PREFD(	1, 8*32(dst) )
 	bne	len, rem, 1b
-	 nop
+	 yesp
 
 	/*
 	 * len == rem == the number of bytes left to copy < 8*NBYTES
@@ -371,13 +371,13 @@
 	.set	reorder				/* DADDI_WAR */
 	ADD	dst, dst, 4*NBYTES
 	beqz	len, .Ldone\@
-	.set	noreorder
+	.set	yesreorder
 .Lless_than_4units\@:
 	/*
 	 * rem = len % NBYTES
 	 */
 	beq	rem, len, .Lcopy_bytes\@
-	 nop
+	 yesp
 1:
 	R10KCBARRIER(0(ra))
 	LOAD(t0, 0(src), .Ll_exc\@)
@@ -387,7 +387,7 @@
 	.set	reorder				/* DADDI_WAR */
 	ADD	dst, dst, NBYTES
 	bne	rem, len, 1b
-	.set	noreorder
+	.set	yesreorder
 
 #ifdef CONFIG_CPU_HAS_LOAD_STORE_LR
 	/*
@@ -419,7 +419,7 @@
 	 * t1 = dst & ADDRMASK; T1 > 0
 	 * len >= NBYTES
 	 *
-	 * Copy enough bytes to align dst
+	 * Copy eyesugh bytes to align dst
 	 * Set match = (src and dst have same alignment)
 	 */
 #define match rem
@@ -447,7 +447,7 @@
  * Avoid consecutive LD*'s to the same register since some mips
  * implementations can't issue them in the same cycle.
  * It's OK to load FIRST(N+1) before REST(N) because the two addresses
- * are to the same unit (unless src is aligned, but it's not).
+ * are to the same unit (unless src is aligned, but it's yest).
  */
 	R10KCBARRIER(0(ra))
 	LDFIRST(t0, FIRST(0)(src), .Ll_exc\@)
@@ -459,26 +459,26 @@
 	LDFIRST(t3, FIRST(3)(src), .Ll_exc_copy\@)
 	LDREST(t2, REST(2)(src), .Ll_exc_copy\@)
 	LDREST(t3, REST(3)(src), .Ll_exc_copy\@)
-	PREFS(	0, 9*32(src) )		# 0 is PREF_LOAD  (not streamed)
+	PREFS(	0, 9*32(src) )		# 0 is PREF_LOAD  (yest streamed)
 	ADD	src, src, 4*NBYTES
 #ifdef CONFIG_CPU_SB1
-	nop				# improves slotting
+	yesp				# improves slotting
 #endif
 	STORE(t0, UNIT(0)(dst),	.Ls_exc_p4u\@)
 	STORE(t1, UNIT(1)(dst),	.Ls_exc_p3u\@)
 	STORE(t2, UNIT(2)(dst),	.Ls_exc_p2u\@)
 	STORE(t3, UNIT(3)(dst),	.Ls_exc_p1u\@)
-	PREFD(	1, 9*32(dst) )		# 1 is PREF_STORE (not streamed)
+	PREFD(	1, 9*32(dst) )		# 1 is PREF_STORE (yest streamed)
 	.set	reorder				/* DADDI_WAR */
 	ADD	dst, dst, 4*NBYTES
 	bne	len, rem, 1b
-	.set	noreorder
+	.set	yesreorder
 
 .Lcleanup_src_unaligned\@:
 	beqz	len, .Ldone\@
 	 and	rem, len, NBYTES-1  # rem = len % NBYTES
 	beq	rem, len, .Lcopy_bytes\@
-	 nop
+	 yesp
 1:
 	R10KCBARRIER(0(ra))
 	LDFIRST(t0, FIRST(0)(src), .Ll_exc\@)
@@ -489,12 +489,12 @@
 	.set	reorder				/* DADDI_WAR */
 	ADD	dst, dst, NBYTES
 	bne	len, rem, 1b
-	.set	noreorder
+	.set	yesreorder
 
 #endif /* CONFIG_CPU_HAS_LOAD_STORE_LR */
 .Lcopy_bytes_checklen\@:
 	beqz	len, .Ldone\@
-	 nop
+	 yesp
 .Lcopy_bytes\@:
 	/* 0 < len < NBYTES  */
 	R10KCBARRIER(0(ra))
@@ -518,7 +518,7 @@
 	STOREB(t0, NBYTES-2(dst), .Ls_exc_p1\@)
 .Ldone\@:
 	jr	ra
-	 nop
+	 yesp
 
 #ifndef CONFIG_CPU_HAS_LOAD_STORE_LR
 .Lcopy_unaligned_bytes\@:
@@ -553,7 +553,7 @@
 	 * Assumes src < THREAD_BUADDR($28)
 	 */
 	LOADK	t0, TI_TASK($28)
-	 nop
+	 yesp
 	LOADK	t0, THREAD_BUADDR(t0)
 1:
 	LOADB(t1, 0(src), .Ll_exc\@)
@@ -562,22 +562,22 @@
 	.set	reorder				/* DADDI_WAR */
 	ADD	dst, dst, 1
 	bne	src, t0, 1b
-	.set	noreorder
+	.set	yesreorder
 .Ll_exc\@:
 	LOADK	t0, TI_TASK($28)
-	 nop
+	 yesp
 	LOADK	t0, THREAD_BUADDR(t0)	# t0 is just past last good address
-	 nop
+	 yesp
 	SUB	len, AT, t0		# len number of uncopied bytes
 	jr	ra
-	 nop
+	 yesp
 
 #define SEXC(n)							\
 	.set	reorder;			/* DADDI_WAR */ \
 .Ls_exc_p ## n ## u\@:						\
 	ADD	len, len, n*NBYTES;				\
 	jr	ra;						\
-	.set	noreorder
+	.set	yesreorder
 
 SEXC(8)
 SEXC(7)
@@ -592,10 +592,10 @@ SEXC(1)
 	.set	reorder				/* DADDI_WAR */
 	ADD	len, len, 1
 	jr	ra
-	.set	noreorder
+	.set	yesreorder
 .Ls_exc\@:
 	jr	ra
-	 nop
+	 yesp
 	.endm
 
 	.align	5
@@ -615,7 +615,7 @@ EXPORT_SYMBOL(memmove)
 LEAF(__rmemcpy)					/* a0=dst a1=src a2=len */
 	 sltu	t0, a1, a0
 	beqz	t0, .Lr_end_bytes_up		# src >= dst
-	 nop
+	 yesp
 	ADD	a0, a2				# dst = dst + len
 	ADD	a1, a2				# src = src + len
 
@@ -628,7 +628,7 @@ LEAF(__rmemcpy)					/* a0=dst a1=src a2=len */
 	.set	reorder				/* DADDI_WAR */
 	SUB	a0, a0, 0x1
 	bnez	a2, .Lr_end_bytes
-	.set	noreorder
+	.set	yesreorder
 
 .Lr_out:
 	jr	ra
@@ -643,7 +643,7 @@ LEAF(__rmemcpy)					/* a0=dst a1=src a2=len */
 	.set	reorder				/* DADDI_WAR */
 	ADD	a0, a0, 0x1
 	bnez	a2, .Lr_end_bytes_up
-	.set	noreorder
+	.set	yesreorder
 
 	jr	ra
 	 move	a2, zero

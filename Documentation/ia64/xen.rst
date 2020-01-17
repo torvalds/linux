@@ -61,16 +61,16 @@ Making a disk image for guest OS
       # mkdir /mnt/{root,proc,sys,home,tmp}
 
       Note: You may miss some device files. If so, please create them
-      with mknod. Or you can use tar instead of cp.
+      with mkyesd. Or you can use tar instead of cp.
 
  2. modify DomU's fstab::
 
       # vi /mnt/etc/fstab
          /dev/xvda1  /            ext3    defaults        1 1
-         none        /dev/pts     devpts  gid=5,mode=620  0 0
-         none        /dev/shm     tmpfs   defaults        0 0
-         none        /proc        proc    defaults        0 0
-         none        /sys         sysfs   defaults        0 0
+         yesne        /dev/pts     devpts  gid=5,mode=620  0 0
+         yesne        /dev/shm     tmpfs   defaults        0 0
+         yesne        /proc        proc    defaults        0 0
+         yesne        /sys         sysfs   defaults        0 0
 
  3. modify inittab
 

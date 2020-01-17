@@ -60,10 +60,10 @@ static unsigned int cpm_set(unsigned int cpm_reg, unsigned int mask)
 	unsigned int value;
 
 	/* CPM controller supports 3 different types of sleep interface
-	 * known as class 1, 2 and 3. For class 1 units, they are
+	 * kyeswn as class 1, 2 and 3. For class 1 units, they are
 	 * unconditionally put to sleep when the corresponding CPM bit is
-	 * set. For class 2 and 3 units this is not case; if they can be
-	 * put to to sleep, they will. Here we do not verify, we just
+	 * set. For class 2 and 3 units this is yest case; if they can be
+	 * put to to sleep, they will. Here we do yest verify, we just
 	 * set them and expect them to eventually go off when they can.
 	 */
 	value = dcr_read(cpm.dcr_host, cpm.dcr_offset[cpm_reg]);
@@ -231,7 +231,7 @@ static const struct platform_suspend_ops cpm_suspend_ops = {
 	.enter		= cpm_suspend_enter,
 };
 
-static int cpm_get_uint_property(struct device_node *np,
+static int cpm_get_uint_property(struct device_yesde *np,
 				 const char *name)
 {
 	int len;
@@ -245,7 +245,7 @@ static int cpm_get_uint_property(struct device_node *np,
 
 static int __init cpm_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int dcr_base, dcr_len;
 	int ret = 0;
 
@@ -254,7 +254,7 @@ static int __init cpm_init(void)
 		ppc_md.power_save = &cpm_idle;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,cpm");
+	np = of_find_compatible_yesde(NULL, NULL, "ibm,cpm");
 	if (!np) {
 		ret = -EINVAL;
 		goto out;
@@ -264,10 +264,10 @@ static int __init cpm_init(void)
 	dcr_len = dcr_resource_len(np, 0);
 
 	if (dcr_base == 0 || dcr_len == 0) {
-		printk(KERN_ERR "cpm: could not parse dcr property for %pOF\n",
+		printk(KERN_ERR "cpm: could yest parse dcr property for %pOF\n",
 		       np);
 		ret = -EINVAL;
-		goto node_put;
+		goto yesde_put;
 	}
 
 	cpm.dcr_host = dcr_map(np, dcr_base, dcr_len);
@@ -276,7 +276,7 @@ static int __init cpm_init(void)
 		printk(KERN_ERR "cpm: failed to map dcr property for %pOF\n",
 		       np);
 		ret = -EINVAL;
-		goto node_put;
+		goto yesde_put;
 	}
 
 	/* All 4xx SoCs with a CPM controller have one of two
@@ -302,7 +302,7 @@ static int __init cpm_init(void)
 	cpm.standby = cpm_get_uint_property(np, "standby");
 	cpm.suspend = cpm_get_uint_property(np, "suspend");
 
-	/* If some IPs are unused let's turn them off now */
+	/* If some IPs are unused let's turn them off yesw */
 
 	if (cpm.unused) {
 		cpm_set(CPM_ER, cpm.unused);
@@ -316,8 +316,8 @@ static int __init cpm_init(void)
 
 	if (cpm.standby || cpm.suspend)
 		suspend_set_ops(&cpm_suspend_ops);
-node_put:
-	of_node_put(np);
+yesde_put:
+	of_yesde_put(np);
 out:
 	return ret;
 }

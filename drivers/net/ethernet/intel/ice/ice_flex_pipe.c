@@ -53,7 +53,7 @@ static struct ice_buf_table *ice_find_buf_table(struct ice_seg *ice_seg)
  * @state: pointer to the enum state
  *
  * This function will enumerate all the buffers in the ice segment. The first
- * call is made with the ice_seg parameter non-NULL; on subsequent calls,
+ * call is made with the ice_seg parameter yesn-NULL; on subsequent calls,
  * ice_seg is set to NULL which continues the enumeration. When the function
  * returns a NULL pointer, then the end of the buffers has been reached, or an
  * unexpected value has been detected (for example an invalid section count or
@@ -112,7 +112,7 @@ ice_pkg_advance_sect(struct ice_seg *ice_seg, struct ice_pkg_enum *state)
  * @sect_type: section type to enumerate
  *
  * This function will enumerate all the sections of a particular type in the
- * ice segment. The first call is made with the ice_seg parameter non-NULL;
+ * ice segment. The first call is made with the ice_seg parameter yesn-NULL;
  * on subsequent calls, ice_seg is set to NULL which continues the enumeration.
  * When the function returns a NULL pointer, then the end of the matching
  * sections has been reached.
@@ -169,8 +169,8 @@ ice_pkg_enum_section(struct ice_seg *ice_seg, struct ice_pkg_enum *state,
  *
  * ICE_SUCCESS        - Means the caller has acquired the global config lock
  *                      and can perform writing of the package.
- * ICE_ERR_AQ_NO_WORK - Indicates another driver has already written the
- *                      package or has found that no update was necessary; in
+ * ICE_ERR_AQ_NO_WORK - Indicates ayesther driver has already written the
+ *                      package or has found that yes update was necessary; in
  *                      this case, the caller can just skip performing any
  *                      update of the package.
  */
@@ -269,7 +269,7 @@ ice_find_seg_in_pkg(struct ice_hw *hw, u32 seg_type,
 	u32 i;
 
 	ice_debug(hw, ICE_DBG_PKG, "Package format version: %d.%d.%d.%d\n",
-		  pkg_hdr->format_ver.major, pkg_hdr->format_ver.minor,
+		  pkg_hdr->format_ver.major, pkg_hdr->format_ver.miyesr,
 		  pkg_hdr->format_ver.update, pkg_hdr->format_ver.draft);
 
 	/* Search all package segments for the requested segment type */
@@ -307,7 +307,7 @@ ice_dwnld_cfg_bufs(struct ice_hw *hw, struct ice_buf *bufs, u32 count)
 		return ICE_ERR_PARAM;
 
 	/* If the first buffer's first section has its metadata bit set
-	 * then there are no buffers to be downloaded, and the operation is
+	 * then there are yes buffers to be downloaded, and the operation is
 	 * considered a success.
 	 */
 	bh = (struct ice_buf_hdr *)bufs;
@@ -403,7 +403,7 @@ ice_download_pkg(struct ice_hw *hw, struct ice_seg *ice_seg)
 	struct ice_buf_table *ice_buf_tbl;
 
 	ice_debug(hw, ICE_DBG_PKG, "Segment version: %d.%d.%d.%d\n",
-		  ice_seg->hdr.seg_ver.major, ice_seg->hdr.seg_ver.minor,
+		  ice_seg->hdr.seg_ver.major, ice_seg->hdr.seg_ver.miyesr,
 		  ice_seg->hdr.seg_ver.update, ice_seg->hdr.seg_ver.draft);
 
 	ice_debug(hw, ICE_DBG_PKG, "Seg: type 0x%X, size %d, name %s\n",
@@ -442,12 +442,12 @@ ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 		memcpy(hw->pkg_name, meta_seg->pkg_name, sizeof(hw->pkg_name));
 
 		ice_debug(hw, ICE_DBG_PKG, "Pkg: %d.%d.%d.%d, %s\n",
-			  meta_seg->pkg_ver.major, meta_seg->pkg_ver.minor,
+			  meta_seg->pkg_ver.major, meta_seg->pkg_ver.miyesr,
 			  meta_seg->pkg_ver.update, meta_seg->pkg_ver.draft,
 			  meta_seg->pkg_name);
 	} else {
 		ice_debug(hw, ICE_DBG_INIT,
-			  "Did not find metadata segment in driver package\n");
+			  "Did yest find metadata segment in driver package\n");
 		return ICE_ERR_CFG;
 	}
 
@@ -458,12 +458,12 @@ ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 		       sizeof(hw->ice_pkg_name));
 
 		ice_debug(hw, ICE_DBG_PKG, "Ice Pkg: %d.%d.%d.%d, %s\n",
-			  seg_hdr->seg_ver.major, seg_hdr->seg_ver.minor,
+			  seg_hdr->seg_ver.major, seg_hdr->seg_ver.miyesr,
 			  seg_hdr->seg_ver.update, seg_hdr->seg_ver.draft,
 			  seg_hdr->seg_name);
 	} else {
 		ice_debug(hw, ICE_DBG_INIT,
-			  "Did not find ice segment in driver package\n");
+			  "Did yest find ice segment in driver package\n");
 		return ICE_ERR_CFG;
 	}
 
@@ -515,7 +515,7 @@ static enum ice_status ice_get_pkg_info(struct ice_hw *hw)
 
 		ice_debug(hw, ICE_DBG_PKG, "Pkg[%d]: %d.%d.%d.%d,%s,%s\n",
 			  i, pkg_info->pkg_info[i].ver.major,
-			  pkg_info->pkg_info[i].ver.minor,
+			  pkg_info->pkg_info[i].ver.miyesr,
 			  pkg_info->pkg_info[i].ver.update,
 			  pkg_info->pkg_info[i].ver.draft,
 			  pkg_info->pkg_info[i].name, flags);
@@ -544,7 +544,7 @@ static enum ice_status ice_verify_pkg(struct ice_pkg_hdr *pkg, u32 len)
 		return ICE_ERR_BUF_TOO_SHORT;
 
 	if (pkg->format_ver.major != ICE_PKG_FMT_VER_MAJ ||
-	    pkg->format_ver.minor != ICE_PKG_FMT_VER_MNR ||
+	    pkg->format_ver.miyesr != ICE_PKG_FMT_VER_MNR ||
 	    pkg->format_ver.update != ICE_PKG_FMT_VER_UPD ||
 	    pkg->format_ver.draft != ICE_PKG_FMT_VER_DFT)
 		return ICE_ERR_CFG;
@@ -614,14 +614,14 @@ static void ice_init_pkg_regs(struct ice_hw *hw)
  * @pkg_ver: pointer to a version structure to check
  *
  * Check to make sure that the package about to be downloaded is compatible with
- * the driver. To be compatible, the major and minor components of the package
+ * the driver. To be compatible, the major and miyesr components of the package
  * version must match our ICE_PKG_SUPP_VER_MAJ and ICE_PKG_SUPP_VER_MNR
  * definitions.
  */
 static enum ice_status ice_chk_pkg_version(struct ice_pkg_ver *pkg_ver)
 {
 	if (pkg_ver->major != ICE_PKG_SUPP_VER_MAJ ||
-	    pkg_ver->minor != ICE_PKG_SUPP_VER_MNR)
+	    pkg_ver->miyesr != ICE_PKG_SUPP_VER_MNR)
 		return ICE_ERR_NOT_SUPPORTED;
 
 	return 0;
@@ -640,14 +640,14 @@ static enum ice_status ice_chk_pkg_version(struct ice_pkg_ver *pkg_ver)
  * within the supplied package buffer. Next, the function will cache any hints
  * from the package, followed by downloading the package itself. Note, that if
  * a previous PF driver has already downloaded the package successfully, then
- * the current driver will not have to download the package again.
+ * the current driver will yest have to download the package again.
  *
  * The local package contents will be used to query default behavior and to
  * update specific sections of the HW's version of the package (e.g. to update
  * the parse graph to understand new protocols).
  *
  * This function stores a pointer to the package buffer memory, and it is
- * expected that the supplied buffer will not be freed immediately. If the
+ * expected that the supplied buffer will yest be freed immediately. If the
  * package buffer needs to be freed, such as when read from a file, use
  * ice_copy_and_init_pkg() instead of directly calling ice_init_pkg() in this
  * case.
@@ -684,7 +684,7 @@ enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 	/* find segment in given package */
 	seg = (struct ice_seg *)ice_find_seg_in_pkg(hw, SEGMENT_TYPE_ICE, pkg);
 	if (!seg) {
-		ice_debug(hw, ICE_DBG_INIT, "no ice segment in package.\n");
+		ice_debug(hw, ICE_DBG_INIT, "yes ice segment in package.\n");
 		return ICE_ERR_CFG;
 	}
 
@@ -692,7 +692,7 @@ enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 	status = ice_download_pkg(hw, seg);
 	if (status == ICE_ERR_AQ_NO_WORK) {
 		ice_debug(hw, ICE_DBG_INIT,
-			  "package previously loaded - no work.\n");
+			  "package previously loaded - yes work.\n");
 		status = 0;
 	}
 
@@ -826,7 +826,7 @@ ice_ptg_remove_ptype(struct ice_hw *hw, enum ice_block blk, u16 ptype, u8 ptg)
 	if (!hw->blk[blk].xlt1.ptg_tbl[ptg].in_use)
 		return ICE_ERR_DOES_NOT_EXIST;
 
-	/* Should not happen if .in_use is set, bad config */
+	/* Should yest happen if .in_use is set, bad config */
 	if (!hw->blk[blk].xlt1.ptg_tbl[ptg].first_ptype)
 		return ICE_ERR_CFG;
 
@@ -857,7 +857,7 @@ ice_ptg_remove_ptype(struct ice_hw *hw, enum ice_block blk, u16 ptype, u8 ptg)
  * @ptg: the PTG to add or move the ptype to
  *
  * This function will either add or move a ptype to a particular PTG depending
- * on if the ptype is already part of another group. Note that using a
+ * on if the ptype is already part of ayesther group. Note that using a
  * a destination PTG ID of ICE_DEFAULT_PTG (0) will move the ptype to the
  * default PTG.
  */
@@ -1078,7 +1078,7 @@ ice_vsig_add_mv_vsi(struct ice_hw *hw, enum ice_block blk, u16 vsi, u16 vsig)
 	if (vsi >= ICE_MAX_VSI || idx >= ICE_MAX_VSIGS)
 		return ICE_ERR_PARAM;
 
-	/* if VSIG not in use and VSIG is not default type this VSIG
+	/* if VSIG yest in use and VSIG is yest default type this VSIG
 	 * doesn't exist.
 	 */
 	if (!hw->blk[blk].xlt2.vsig_tbl[idx].in_use &&
@@ -1089,7 +1089,7 @@ ice_vsig_add_mv_vsi(struct ice_hw *hw, enum ice_block blk, u16 vsi, u16 vsig)
 	if (status)
 		return status;
 
-	/* no update required if vsigs match */
+	/* yes update required if vsigs match */
 	if (orig_vsig == vsig)
 		return 0;
 
@@ -1196,7 +1196,7 @@ static void ice_init_sw_xlt2_db(struct ice_hw *hw, enum ice_block blk)
 		if (vsig) {
 			ice_vsig_alloc_val(hw, blk, vsig);
 			ice_vsig_add_mv_vsi(hw, blk, vsi, vsig);
-			/* no changes at this time, since this has been
+			/* yes changes at this time, since this has been
 			 * initialized from the original package
 			 */
 			hw->blk[blk].xlt2.vsis[vsi].changed = 0;
@@ -1227,7 +1227,7 @@ static void ice_init_sw_db(struct ice_hw *hw)
  * Will attempt to read the entire content of a given table of a single block
  * into the driver database. We assume that the buffer will always
  * be as large or larger than the data contained in the package. If
- * this condition is not met, there is most likely an error in the package
+ * this condition is yest met, there is most likely an error in the package
  * contents.
  */
 static void ice_fill_tbl(struct ice_hw *hw, enum ice_block block_id, u32 sid)
@@ -1244,10 +1244,10 @@ static void ice_fill_tbl(struct ice_hw *hw, enum ice_block block_id, u32 sid)
 
 	/* if the HW segment pointer is null then the first iteration of
 	 * ice_pkg_enum_section() will fail. In this case the HW tables will
-	 * not be filled and return success.
+	 * yest be filled and return success.
 	 */
 	if (!hw->seg) {
-		ice_debug(hw, ICE_DBG_PKG, "hw->seg is NULL, tables are not filled\n");
+		ice_debug(hw, ICE_DBG_PKG, "hw->seg is NULL, tables are yest filled\n");
 		return;
 	}
 

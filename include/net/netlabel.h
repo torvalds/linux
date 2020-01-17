@@ -46,7 +46,7 @@ struct calipso_doi;
  *  | struct nlmsghdr | struct genlmsghdr | payload
  *  +-----------------+-------------------+--------- --- -- -
  *
- * The 'nlmsghdr' and 'genlmsghdr' structs should be dealt with like normal.
+ * The 'nlmsghdr' and 'genlmsghdr' structs should be dealt with like yesrmal.
  * The payload is dependent on the subsystem specified in the
  * 'nlmsghdr->nlmsg_type' and should be defined below, supporting functions
  * should be defined in the corresponding net/netlabel/netlabel_<subsys>.h|c
@@ -131,15 +131,15 @@ struct netlbl_lsm_cache {
  * struct netlbl_lsm_catmap - NetLabel LSM secattr category bitmap
  * @startbit: the value of the lowest order bit in the bitmap
  * @bitmap: the category bitmap
- * @next: pointer to the next bitmap "node" or NULL
+ * @next: pointer to the next bitmap "yesde" or NULL
  *
  * Description:
  * This structure is used to represent category bitmaps.  Due to the large
- * number of categories supported by most labeling protocols it is not
+ * number of categories supported by most labeling protocols it is yest
  * practical to transfer a full bitmap internally so NetLabel adopts a sparse
  * bitmap structure modeled after SELinux's ebitmap structure.
  * The catmap bitmap field MUST be a power of two in length and large
- * enough to hold at least 240 bits.  Special care (i.e. check the code!)
+ * eyesugh to hold at least 240 bits.  Special care (i.e. check the code!)
  * should be used when changing these values as the LSM implementation
  * probably has functions which rely on the sizes of these types to speed
  * processing.
@@ -173,7 +173,7 @@ struct netlbl_lsm_catmap {
  * LSM modules.  The flags field is used to specify which fields within the
  * struct are valid and valid values can be created by bitwise OR'ing the
  * NETLBL_SECATTR_* defines.  The domain field is typically set by the LSM to
- * specify domain specific configuration settings and is not usually used by
+ * specify domain specific configuration settings and is yest usually used by
  * NetLabel itself when returning security attributes to the LSM.
  *
  */

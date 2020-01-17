@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techyeslogies
  * Author: Paul Burton <paul.burton@mips.com>
  *
  * pcibios_align_resource taken from arch/arm/kernel/bios32.c.

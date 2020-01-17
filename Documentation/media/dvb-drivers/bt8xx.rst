@@ -5,12 +5,12 @@ How to get the bt8xx cards working
 
 Authors: Richard Walker,
 	 Jamie Honan,
-	 Michael Hunold,
+	 Michael Huyesld,
 	 Manu Abraham,
 	 Uwe Bugla,
 	 Michael Krufky
 
-.. note::
+.. yeste::
 
    This documentation is outdated. Please check at the DVB wiki
    at https://linuxtv.org/wiki for more updated info.
@@ -28,14 +28,14 @@ Compiling kernel please enable:
 #) ``Device drivers`` => ``Multimedia devices`` => ``Video For Linux`` => ``Video Capture Adapters`` => ``BT848 Video For Linux``
 #) ``Device drivers`` => ``Multimedia devices`` => ``Digital Video Broadcasting Devices`` => ``DVB for Linux`` ``DVB Core Support`` ``Bt8xx based PCI Cards``
 
-  Please use the following options with care as deselection of drivers which are in fact necessary may result in DVB devices that cannot be tuned due to lack of driver support:
-  You can save RAM by deselecting every frontend module that your DVB card does not need.
+  Please use the following options with care as deselection of drivers which are in fact necessary may result in DVB devices that canyest be tuned due to lack of driver support:
+  You can save RAM by deselecting every frontend module that your DVB card does yest need.
 
   First please remove the static dependency of DVB card drivers on all frontend modules for all possible card variants by enabling:
 
 #) ``Device drivers`` => ``Multimedia devices`` => ``Digital Video Broadcasting Devices`` => ``DVB for Linux`` ``DVB Core Support`` ``Load and attach frontend modules as needed``
 
-  If you know the frontend driver that your card needs please enable:
+  If you kyesw the frontend driver that your card needs please enable:
 
 #) ``Device drivers`` => ``Multimedia devices`` => ``Digital Video Broadcasting Devices`` => ``DVB for Linux`` ``DVB Core Support`` ``Customise DVB Frontends`` => ``Customise the frontend modules to build``
 
@@ -46,7 +46,7 @@ Loading Modules
 
 Regular case: If the bttv driver detects a bt8xx-based DVB card, all frontend and backend modules will be loaded automatically.
 Exceptions are:
-- Old TwinHan DST cards or clones with or without CA slot and not containing an Eeprom.
+- Old TwinHan DST cards or clones with or without CA slot and yest containing an Eeprom.
 People running udev please see Documentation/media/dvb-drivers/udev.rst.
 
 In the following cases overriding the PCI type detection for dvb-bt8xx might be necessary:
@@ -54,18 +54,18 @@ In the following cases overriding the PCI type detection for dvb-bt8xx might be 
 Running TwinHan and Clones
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: none
+.. code-block:: yesne
 
 	$ modprobe bttv card=113
 	$ modprobe dst
 
 Useful parameters for verbosity level and debugging the dst module:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	verbose=0:		messages are disabled
 		1:		only error messages are displayed
-		2:		notifications are displayed
+		2:		yestifications are displayed
 		3:		other useful messages are displayed
 		4:		debug setting
 	dst_addons=0:		card is a free to air (FTA) card only
@@ -81,7 +81,7 @@ Running multiple cards
 
 Examples of card ID's:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	Pinnacle PCTV Sat:		 94
 	Nebula Electronics Digi TV:	104
@@ -92,13 +92,13 @@ Examples of card ID's:
 	DViCO FusionHDTV DVB-T Lite:	128
 	DViCO FusionHDTV 5 Lite:	135
 
-.. note::
+.. yeste::
 
    The order of the card ID should be uprising:
 
    Example:
 
-   .. code-block:: none
+   .. code-block:: yesne
 
 	$ modprobe bttv card=113 card=135
 
@@ -109,15 +109,15 @@ Probing the cards with broken PCI subsystem ID
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are some TwinHan cards that the EEPROM has become corrupted for some
-reason. The cards do not have correct PCI subsystem ID. But we can force
+reason. The cards do yest have correct PCI subsystem ID. But we can force
 probing the cards with broken PCI subsystem ID
 
-.. code-block:: none
+.. code-block:: yesne
 
 	$ echo 109e 0878 $subvendor $subdevice > \
 		/sys/bus/pci/drivers/bt878/new_id
 
-.. code-block:: none
+.. code-block:: yesne
 
 	109e: PCI_VENDOR_ID_BROOKTREE
 	0878: PCI_DEVICE_ID_BROOKTREE_878

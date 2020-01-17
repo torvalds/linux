@@ -28,27 +28,27 @@
 static LIST_HEAD(cdev_list);
 static DEFINE_MUTEX(cdev_mutex);
 
-static DEFINE_MUTEX(notify_mutex);
-static RAW_NOTIFIER_HEAD(listen_notify_list);
+static DEFINE_MUTEX(yestify_mutex);
+static RAW_NOTIFIER_HEAD(listen_yestify_list);
 static struct proto chtls_cpl_prot;
 struct request_sock_ops chtls_rsk_ops;
 static uint send_page_order = (14 - PAGE_SHIFT < 0) ? 0 : 14 - PAGE_SHIFT;
 
-static void register_listen_notifier(struct notifier_block *nb)
+static void register_listen_yestifier(struct yestifier_block *nb)
 {
-	mutex_lock(&notify_mutex);
-	raw_notifier_chain_register(&listen_notify_list, nb);
-	mutex_unlock(&notify_mutex);
+	mutex_lock(&yestify_mutex);
+	raw_yestifier_chain_register(&listen_yestify_list, nb);
+	mutex_unlock(&yestify_mutex);
 }
 
-static void unregister_listen_notifier(struct notifier_block *nb)
+static void unregister_listen_yestifier(struct yestifier_block *nb)
 {
-	mutex_lock(&notify_mutex);
-	raw_notifier_chain_unregister(&listen_notify_list, nb);
-	mutex_unlock(&notify_mutex);
+	mutex_lock(&yestify_mutex);
+	raw_yestifier_chain_unregister(&listen_yestify_list, nb);
+	mutex_unlock(&yestify_mutex);
 }
 
-static int listen_notify_handler(struct notifier_block *this,
+static int listen_yestify_handler(struct yestifier_block *this,
 				 unsigned long event, void *data)
 {
 	struct chtls_listen *clisten;
@@ -69,8 +69,8 @@ static int listen_notify_handler(struct notifier_block *this,
 	return ret;
 }
 
-static struct notifier_block listen_notifier = {
-	.notifier_call = listen_notify_handler
+static struct yestifier_block listen_yestifier = {
+	.yestifier_call = listen_yestify_handler
 };
 
 static int listen_backlog_rcv(struct sock *sk, struct sk_buff *skb)
@@ -99,10 +99,10 @@ static int chtls_start_listen(struct chtls_dev *cdev, struct sock *sk)
 		return -ENOMEM;
 	clisten->cdev = cdev;
 	clisten->sk = sk;
-	mutex_lock(&notify_mutex);
-	err = raw_notifier_call_chain(&listen_notify_list,
+	mutex_lock(&yestify_mutex);
+	err = raw_yestifier_call_chain(&listen_yestify_list,
 				      CHTLS_LISTEN_START, clisten);
-	mutex_unlock(&notify_mutex);
+	mutex_unlock(&yestify_mutex);
 	return err;
 }
 
@@ -118,10 +118,10 @@ static void chtls_stop_listen(struct chtls_dev *cdev, struct sock *sk)
 		return;
 	clisten->cdev = cdev;
 	clisten->sk = sk;
-	mutex_lock(&notify_mutex);
-	raw_notifier_call_chain(&listen_notify_list,
+	mutex_lock(&yestify_mutex);
+	raw_yestifier_call_chain(&listen_yestify_list,
 				CHTLS_LISTEN_STOP, clisten);
-	mutex_unlock(&notify_mutex);
+	mutex_unlock(&yestify_mutex);
 }
 
 static int chtls_inline_feature(struct tls_toe_device *dev)
@@ -257,7 +257,7 @@ static void *chtls_uld_add(const struct cxgb4_lld_info *info)
 
 		cdev->rspq_skb_cache[i] = __alloc_skb(size,
 						      gfp_any(), 0,
-						      lldi->nodeid);
+						      lldi->yesdeid);
 		if (unlikely(!cdev->rspq_skb_cache[i]))
 			goto out_rspq_skb;
 	}
@@ -345,7 +345,7 @@ static struct sk_buff *copy_gl_to_skb_pkt(const struct pkt_gl *gl,
 		return NULL;
 	__skb_put(skb, gl->tot_len + sizeof(struct cpl_pass_accept_req)
 		   - pktshift);
-	/* For now we will copy  cpl_rx_pkt in the skb */
+	/* For yesw we will copy  cpl_rx_pkt in the skb */
 	skb_copy_to_linear_data(skb, rsp, sizeof(struct cpl_rx_pkt));
 	skb_copy_to_linear_data_offset(skb, sizeof(struct cpl_pass_accept_req)
 				       , gl->va + pktshift,
@@ -385,7 +385,7 @@ static int chtls_recv_rsp(struct chtls_dev *cdev, const __be64 *rsp)
 
 	rspq_bin = hash_ptr((void *)rsp, RSPQ_HASH_BITS);
 	skb = cdev->rspq_skb_cache[rspq_bin];
-	if (skb && !skb_is_nonlinear(skb) &&
+	if (skb && !skb_is_yesnlinear(skb) &&
 	    !skb_shared(skb) && !skb_cloned(skb)) {
 		refcount_inc(&skb->users);
 		if (refcount_read(&skb->users) == 2) {
@@ -439,7 +439,7 @@ static int chtls_uld_rx_handler(void *handle, const __be64 *rsp,
 
 	if (unlikely(opcode == CPL_RX_PKT)) {
 		if (chtls_recv_packet(cdev, gl, rsp) < 0)
-			goto nomem;
+			goto yesmem;
 		return 0;
 	}
 
@@ -449,11 +449,11 @@ static int chtls_uld_rx_handler(void *handle, const __be64 *rsp,
 #define RX_PULL_LEN 128
 	skb = cxgb4_pktgl_to_skb(gl, RX_PULL_LEN, RX_PULL_LEN);
 	if (unlikely(!skb))
-		goto nomem;
+		goto yesmem;
 	chtls_recv(cdev, &skb, rsp);
 	return 0;
 
-nomem:
+yesmem:
 	return -ENOMEM;
 }
 
@@ -582,14 +582,14 @@ static void __init chtls_init_ulp_ops(void)
 static int __init chtls_register(void)
 {
 	chtls_init_ulp_ops();
-	register_listen_notifier(&listen_notifier);
+	register_listen_yestifier(&listen_yestifier);
 	cxgb4_register_uld(CXGB4_ULD_TLS, &chtls_uld_info);
 	return 0;
 }
 
 static void __exit chtls_unregister(void)
 {
-	unregister_listen_notifier(&listen_notifier);
+	unregister_listen_yestifier(&listen_yestifier);
 	chtls_free_all_uld();
 	cxgb4_unregister_uld(CXGB4_ULD_TLS);
 }

@@ -24,7 +24,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -69,7 +69,7 @@ typedef volatile struct au1xxx_dma_channel {
 #define DDMA_CFG_DP	(1 << 6)	/* destination DMA polarity */
 #define DDMA_CFG_SYNC	(1 << 5)	/* Sync static bus controller */
 #define DDMA_CFG_PPR	(1 << 4)	/* PCI posted read/write control */
-#define DDMA_CFG_DFN	(1 << 3)	/* Descriptor fetch non-coherent */
+#define DDMA_CFG_DFN	(1 << 3)	/* Descriptor fetch yesn-coherent */
 #define DDMA_CFG_SBE	(1 << 2)	/* Source big endian */
 #define DDMA_CFG_DBE	(1 << 1)	/* Destination big endian */
 #define DDMA_CFG_EN	(1 << 0)	/* Channel enable */
@@ -115,8 +115,8 @@ typedef volatile struct au1xxx_ddma_desc {
 #define DSCR_CMD0_DW_MASK	(0x3 << 16)	/* Destination Width */
 #define DSCR_CMD0_ARB		(0x1 << 15)	/* Set for Hi Pri */
 #define DSCR_CMD0_DT_MASK	(0x3 << 13)	/* Descriptor Type */
-#define DSCR_CMD0_SN		(0x1 << 12)	/* Source non-coherent */
-#define DSCR_CMD0_DN		(0x1 << 11)	/* Destination non-coherent */
+#define DSCR_CMD0_SN		(0x1 << 12)	/* Source yesn-coherent */
+#define DSCR_CMD0_DN		(0x1 << 11)	/* Destination yesn-coherent */
 #define DSCR_CMD0_SM		(0x1 << 10)	/* Stride mode */
 #define DSCR_CMD0_IE		(0x1 << 8)	/* Interrupt Enable */
 #define DSCR_CMD0_SP		(0x1 << 4)	/* Status pointer select */
@@ -302,7 +302,7 @@ typedef volatile struct au1xxx_ddma_desc {
 
 /*
  * DDMA API definitions
- * FIXME: may not fit to this header file
+ * FIXME: may yest fit to this header file
  */
 typedef struct dbdma_device_table {
 	u32	dev_id;

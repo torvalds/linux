@@ -27,7 +27,7 @@
 /*
  * DM816X hardware modules integration data
  *
- * Note: This is incomplete and at present, not generated from h/w database.
+ * Note: This is incomplete and at present, yest generated from h/w database.
  */
 
 /*
@@ -1473,7 +1473,7 @@ static struct omap_hwmod_ocp_if dm81xx_tptc3__alwon_l3_fast = {
  * REVISIT: Test and enable the following once clocks work:
  * dm81xx_l4_ls__mailbox
  *
- * Also note that some devices share a single clkctrl_offs..
+ * Also yeste that some devices share a single clkctrl_offs..
  * For example, i2c1 and 3 share one, and i2c2 and 4 share one.
  */
 static struct omap_hwmod_ocp_if *dm814x_hwmod_ocp_ifs[] __initdata = {

@@ -21,7 +21,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -67,7 +67,7 @@ static int store_updates_sp(struct pt_regs *regs)
 void bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 {
 	const struct exception_table_entry *fixup;
-/* MS: no context */
+/* MS: yes context */
 	/* Are we prepared to handle this fault?  */
 	fixup = search_exception_tables(regs->pc);
 	if (fixup) {
@@ -108,7 +108,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 
 	if (unlikely(faulthandler_disabled() || !mm)) {
 		if (kernel_mode(regs))
-			goto bad_area_nosemaphore;
+			goto bad_area_yessemaphore;
 
 		/* faulthandler_disabled() in user mode is really bad,
 		   as is current->mm == NULL. */
@@ -133,13 +133,13 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 	 *
 	 * As the vast majority of faults will be valid we will only perform
 	 * the source reference check when there is a possibility of a deadlock.
-	 * Attempt to lock the address space, if we cannot we then validate the
+	 * Attempt to lock the address space, if we canyest we then validate the
 	 * source.  If this is invalid we can skip the address space check,
 	 * thus avoiding the deadlock.
 	 */
 	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
 		if (kernel_mode(regs) && !search_exception_tables(regs->pc))
-			goto bad_area_nosemaphore;
+			goto bad_area_yessemaphore;
 
 retry:
 		down_read(&mm->mmap_sem);
@@ -262,7 +262,7 @@ good_area:
 bad_area:
 	up_read(&mm->mmap_sem);
 
-bad_area_nosemaphore:
+bad_area_yessemaphore:
 	pte_errors++;
 
 	/* User mode accesses cause a SIGSEGV */

@@ -12,35 +12,35 @@
  * Basic fh
  */
 struct ceph_nfs_fh {
-	u64 ino;
+	u64 iyes;
 } __attribute__ ((packed));
 
 /*
- * Larger fh that includes parent ino.
+ * Larger fh that includes parent iyes.
  */
 struct ceph_nfs_confh {
-	u64 ino, parent_ino;
+	u64 iyes, parent_iyes;
 } __attribute__ ((packed));
 
 /*
- * fh for snapped inode
+ * fh for snapped iyesde
  */
 struct ceph_nfs_snapfh {
-	u64 ino;
+	u64 iyes;
 	u64 snapid;
-	u64 parent_ino;
+	u64 parent_iyes;
 	u32 hash;
 } __attribute__ ((packed));
 
-static int ceph_encode_snapfh(struct inode *inode, u32 *rawfh, int *max_len,
-			      struct inode *parent_inode)
+static int ceph_encode_snapfh(struct iyesde *iyesde, u32 *rawfh, int *max_len,
+			      struct iyesde *parent_iyesde)
 {
 	static const int snap_handle_length =
 		sizeof(struct ceph_nfs_snapfh) >> 2;
 	struct ceph_nfs_snapfh *sfh = (void *)rawfh;
-	u64 snapid = ceph_snap(inode);
+	u64 snapid = ceph_snap(iyesde);
 	int ret;
-	bool no_parent = true;
+	bool yes_parent = true;
 
 	if (*max_len < snap_handle_length) {
 		*max_len = snap_handle_length;
@@ -50,40 +50,40 @@ static int ceph_encode_snapfh(struct inode *inode, u32 *rawfh, int *max_len,
 
 	ret =  -EINVAL;
 	if (snapid != CEPH_SNAPDIR) {
-		struct inode *dir;
-		struct dentry *dentry = d_find_alias(inode);
+		struct iyesde *dir;
+		struct dentry *dentry = d_find_alias(iyesde);
 		if (!dentry)
 			goto out;
 
 		rcu_read_lock();
-		dir = d_inode_rcu(dentry->d_parent);
+		dir = d_iyesde_rcu(dentry->d_parent);
 		if (ceph_snap(dir) != CEPH_SNAPDIR) {
-			sfh->parent_ino = ceph_ino(dir);
+			sfh->parent_iyes = ceph_iyes(dir);
 			sfh->hash = ceph_dentry_hash(dir, dentry);
-			no_parent = false;
+			yes_parent = false;
 		}
 		rcu_read_unlock();
 		dput(dentry);
 	}
 
-	if (no_parent) {
-		if (!S_ISDIR(inode->i_mode))
+	if (yes_parent) {
+		if (!S_ISDIR(iyesde->i_mode))
 			goto out;
-		sfh->parent_ino = sfh->ino;
+		sfh->parent_iyes = sfh->iyes;
 		sfh->hash = 0;
 	}
-	sfh->ino = ceph_ino(inode);
+	sfh->iyes = ceph_iyes(iyesde);
 	sfh->snapid = snapid;
 
 	*max_len = snap_handle_length;
 	ret = FILEID_BTRFS_WITH_PARENT;
 out:
-	dout("encode_snapfh %llx.%llx ret=%d\n", ceph_vinop(inode), ret);
+	dout("encode_snapfh %llx.%llx ret=%d\n", ceph_viyesp(iyesde), ret);
 	return ret;
 }
 
-static int ceph_encode_fh(struct inode *inode, u32 *rawfh, int *max_len,
-			  struct inode *parent_inode)
+static int ceph_encode_fh(struct iyesde *iyesde, u32 *rawfh, int *max_len,
+			  struct iyesde *parent_iyesde)
 {
 	static const int handle_length =
 		sizeof(struct ceph_nfs_fh) >> 2;
@@ -91,10 +91,10 @@ static int ceph_encode_fh(struct inode *inode, u32 *rawfh, int *max_len,
 		sizeof(struct ceph_nfs_confh) >> 2;
 	int type;
 
-	if (ceph_snap(inode) != CEPH_NOSNAP)
-		return ceph_encode_snapfh(inode, rawfh, max_len, parent_inode);
+	if (ceph_snap(iyesde) != CEPH_NOSNAP)
+		return ceph_encode_snapfh(iyesde, rawfh, max_len, parent_iyesde);
 
-	if (parent_inode && (*max_len < connected_handle_length)) {
+	if (parent_iyesde && (*max_len < connected_handle_length)) {
 		*max_len = connected_handle_length;
 		return FILEID_INVALID;
 	} else if (*max_len < handle_length) {
@@ -102,35 +102,35 @@ static int ceph_encode_fh(struct inode *inode, u32 *rawfh, int *max_len,
 		return FILEID_INVALID;
 	}
 
-	if (parent_inode) {
+	if (parent_iyesde) {
 		struct ceph_nfs_confh *cfh = (void *)rawfh;
 		dout("encode_fh %llx with parent %llx\n",
-		     ceph_ino(inode), ceph_ino(parent_inode));
-		cfh->ino = ceph_ino(inode);
-		cfh->parent_ino = ceph_ino(parent_inode);
+		     ceph_iyes(iyesde), ceph_iyes(parent_iyesde));
+		cfh->iyes = ceph_iyes(iyesde);
+		cfh->parent_iyes = ceph_iyes(parent_iyesde);
 		*max_len = connected_handle_length;
 		type = FILEID_INO32_GEN_PARENT;
 	} else {
 		struct ceph_nfs_fh *fh = (void *)rawfh;
-		dout("encode_fh %llx\n", ceph_ino(inode));
-		fh->ino = ceph_ino(inode);
+		dout("encode_fh %llx\n", ceph_iyes(iyesde));
+		fh->iyes = ceph_iyes(iyesde);
 		*max_len = handle_length;
 		type = FILEID_INO32_GEN;
 	}
 	return type;
 }
 
-static struct inode *__lookup_inode(struct super_block *sb, u64 ino)
+static struct iyesde *__lookup_iyesde(struct super_block *sb, u64 iyes)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(sb)->mdsc;
-	struct inode *inode;
-	struct ceph_vino vino;
+	struct iyesde *iyesde;
+	struct ceph_viyes viyes;
 	int err;
 
-	vino.ino = ino;
-	vino.snap = CEPH_NOSNAP;
-	inode = ceph_find_inode(sb, vino);
-	if (!inode) {
+	viyes.iyes = iyes;
+	viyes.snap = CEPH_NOSNAP;
+	iyesde = ceph_find_iyesde(sb, viyes);
+	if (!iyesde) {
 		struct ceph_mds_request *req;
 		int mask;
 
@@ -140,45 +140,45 @@ static struct inode *__lookup_inode(struct super_block *sb, u64 ino)
 			return ERR_CAST(req);
 
 		mask = CEPH_STAT_CAP_INODE;
-		if (ceph_security_xattr_wanted(d_inode(sb->s_root)))
+		if (ceph_security_xattr_wanted(d_iyesde(sb->s_root)))
 			mask |= CEPH_CAP_XATTR_SHARED;
-		req->r_args.lookupino.mask = cpu_to_le32(mask);
+		req->r_args.lookupiyes.mask = cpu_to_le32(mask);
 
-		req->r_ino1 = vino;
+		req->r_iyes1 = viyes;
 		req->r_num_caps = 1;
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
-		inode = req->r_target_inode;
-		if (inode)
-			ihold(inode);
+		iyesde = req->r_target_iyesde;
+		if (iyesde)
+			ihold(iyesde);
 		ceph_mdsc_put_request(req);
-		if (!inode)
+		if (!iyesde)
 			return err < 0 ? ERR_PTR(err) : ERR_PTR(-ESTALE);
 	}
-	return inode;
+	return iyesde;
 }
 
-struct inode *ceph_lookup_inode(struct super_block *sb, u64 ino)
+struct iyesde *ceph_lookup_iyesde(struct super_block *sb, u64 iyes)
 {
-	struct inode *inode = __lookup_inode(sb, ino);
-	if (IS_ERR(inode))
-		return inode;
-	if (inode->i_nlink == 0) {
-		iput(inode);
+	struct iyesde *iyesde = __lookup_iyesde(sb, iyes);
+	if (IS_ERR(iyesde))
+		return iyesde;
+	if (iyesde->i_nlink == 0) {
+		iput(iyesde);
 		return ERR_PTR(-ESTALE);
 	}
-	return inode;
+	return iyesde;
 }
 
-static struct dentry *__fh_to_dentry(struct super_block *sb, u64 ino)
+static struct dentry *__fh_to_dentry(struct super_block *sb, u64 iyes)
 {
-	struct inode *inode = __lookup_inode(sb, ino);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	if (inode->i_nlink == 0) {
-		iput(inode);
+	struct iyesde *iyesde = __lookup_iyesde(sb, iyes);
+	if (IS_ERR(iyesde))
+		return ERR_CAST(iyesde);
+	if (iyesde->i_nlink == 0) {
+		iput(iyesde);
 		return ERR_PTR(-ESTALE);
 	}
-	return d_obtain_alias(inode);
+	return d_obtain_alias(iyesde);
 }
 
 static struct dentry *__snapfh_to_dentry(struct super_block *sb,
@@ -187,27 +187,27 @@ static struct dentry *__snapfh_to_dentry(struct super_block *sb,
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(sb)->mdsc;
 	struct ceph_mds_request *req;
-	struct inode *inode;
-	struct ceph_vino vino;
+	struct iyesde *iyesde;
+	struct ceph_viyes viyes;
 	int mask;
 	int err;
 	bool unlinked = false;
 
 	if (want_parent) {
-		vino.ino = sfh->parent_ino;
+		viyes.iyes = sfh->parent_iyes;
 		if (sfh->snapid == CEPH_SNAPDIR)
-			vino.snap = CEPH_NOSNAP;
-		else if (sfh->ino == sfh->parent_ino)
-			vino.snap = CEPH_SNAPDIR;
+			viyes.snap = CEPH_NOSNAP;
+		else if (sfh->iyes == sfh->parent_iyes)
+			viyes.snap = CEPH_SNAPDIR;
 		else
-			vino.snap = sfh->snapid;
+			viyes.snap = sfh->snapid;
 	} else {
-		vino.ino = sfh->ino;
-		vino.snap = sfh->snapid;
+		viyes.iyes = sfh->iyes;
+		viyes.snap = sfh->snapid;
 	}
-	inode = ceph_find_inode(sb, vino);
-	if (inode)
-		return d_obtain_alias(inode);
+	iyesde = ceph_find_iyesde(sb, viyes);
+	if (iyesde)
+		return d_obtain_alias(iyesde);
 
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_LOOKUPINO,
 				       USE_ANY_MDS);
@@ -215,49 +215,49 @@ static struct dentry *__snapfh_to_dentry(struct super_block *sb,
 		return ERR_CAST(req);
 
 	mask = CEPH_STAT_CAP_INODE;
-	if (ceph_security_xattr_wanted(d_inode(sb->s_root)))
+	if (ceph_security_xattr_wanted(d_iyesde(sb->s_root)))
 		mask |= CEPH_CAP_XATTR_SHARED;
-	req->r_args.lookupino.mask = cpu_to_le32(mask);
-	if (vino.snap < CEPH_NOSNAP) {
-		req->r_args.lookupino.snapid = cpu_to_le64(vino.snap);
-		if (!want_parent && sfh->ino != sfh->parent_ino) {
-			req->r_args.lookupino.parent =
-					cpu_to_le64(sfh->parent_ino);
-			req->r_args.lookupino.hash =
+	req->r_args.lookupiyes.mask = cpu_to_le32(mask);
+	if (viyes.snap < CEPH_NOSNAP) {
+		req->r_args.lookupiyes.snapid = cpu_to_le64(viyes.snap);
+		if (!want_parent && sfh->iyes != sfh->parent_iyes) {
+			req->r_args.lookupiyes.parent =
+					cpu_to_le64(sfh->parent_iyes);
+			req->r_args.lookupiyes.hash =
 					cpu_to_le32(sfh->hash);
 		}
 	}
 
-	req->r_ino1 = vino;
+	req->r_iyes1 = viyes;
 	req->r_num_caps = 1;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
-	inode = req->r_target_inode;
-	if (inode) {
-		if (vino.snap == CEPH_SNAPDIR) {
-			if (inode->i_nlink == 0)
+	iyesde = req->r_target_iyesde;
+	if (iyesde) {
+		if (viyes.snap == CEPH_SNAPDIR) {
+			if (iyesde->i_nlink == 0)
 				unlinked = true;
-			inode = ceph_get_snapdir(inode);
-		} else if (ceph_snap(inode) == vino.snap) {
-			ihold(inode);
+			iyesde = ceph_get_snapdir(iyesde);
+		} else if (ceph_snap(iyesde) == viyes.snap) {
+			ihold(iyesde);
 		} else {
-			/* mds does not support lookup snapped inode */
+			/* mds does yest support lookup snapped iyesde */
 			err = -EOPNOTSUPP;
-			inode = NULL;
+			iyesde = NULL;
 		}
 	}
 	ceph_mdsc_put_request(req);
 
 	if (want_parent) {
 		dout("snapfh_to_parent %llx.%llx\n err=%d\n",
-		     vino.ino, vino.snap, err);
+		     viyes.iyes, viyes.snap, err);
 	} else {
 		dout("snapfh_to_dentry %llx.%llx parent %llx hash %x err=%d",
-		      vino.ino, vino.snap, sfh->parent_ino, sfh->hash, err);
+		      viyes.iyes, viyes.snap, sfh->parent_iyes, sfh->hash, err);
 	}
-	if (!inode)
+	if (!iyesde)
 		return ERR_PTR(-ESTALE);
 	/* see comments in ceph_get_parent() */
-	return unlinked ? d_obtain_root(inode) : d_obtain_alias(inode);
+	return unlinked ? d_obtain_root(iyesde) : d_obtain_alias(iyesde);
 }
 
 /*
@@ -280,16 +280,16 @@ static struct dentry *ceph_fh_to_dentry(struct super_block *sb,
 	if (fh_len < sizeof(*fh) / 4)
 		return NULL;
 
-	dout("fh_to_dentry %llx\n", fh->ino);
-	return __fh_to_dentry(sb, fh->ino);
+	dout("fh_to_dentry %llx\n", fh->iyes);
+	return __fh_to_dentry(sb, fh->iyes);
 }
 
 static struct dentry *__get_parent(struct super_block *sb,
-				   struct dentry *child, u64 ino)
+				   struct dentry *child, u64 iyes)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(sb)->mdsc;
 	struct ceph_mds_request *req;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int mask;
 	int err;
 
@@ -299,54 +299,54 @@ static struct dentry *__get_parent(struct super_block *sb,
 		return ERR_CAST(req);
 
 	if (child) {
-		req->r_inode = d_inode(child);
-		ihold(d_inode(child));
+		req->r_iyesde = d_iyesde(child);
+		ihold(d_iyesde(child));
 	} else {
-		req->r_ino1 = (struct ceph_vino) {
-			.ino = ino,
+		req->r_iyes1 = (struct ceph_viyes) {
+			.iyes = iyes,
 			.snap = CEPH_NOSNAP,
 		};
 	}
 
 	mask = CEPH_STAT_CAP_INODE;
-	if (ceph_security_xattr_wanted(d_inode(sb->s_root)))
+	if (ceph_security_xattr_wanted(d_iyesde(sb->s_root)))
 		mask |= CEPH_CAP_XATTR_SHARED;
 	req->r_args.getattr.mask = cpu_to_le32(mask);
 
 	req->r_num_caps = 1;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
-	inode = req->r_target_inode;
-	if (inode)
-		ihold(inode);
+	iyesde = req->r_target_iyesde;
+	if (iyesde)
+		ihold(iyesde);
 	ceph_mdsc_put_request(req);
-	if (!inode)
+	if (!iyesde)
 		return ERR_PTR(-ENOENT);
 
-	return d_obtain_alias(inode);
+	return d_obtain_alias(iyesde);
 }
 
 static struct dentry *ceph_get_parent(struct dentry *child)
 {
-	struct inode *inode = d_inode(child);
+	struct iyesde *iyesde = d_iyesde(child);
 	struct dentry *dn;
 
-	if (ceph_snap(inode) != CEPH_NOSNAP) {
-		struct inode* dir;
+	if (ceph_snap(iyesde) != CEPH_NOSNAP) {
+		struct iyesde* dir;
 		bool unlinked = false;
-		/* do not support non-directory */
+		/* do yest support yesn-directory */
 		if (!d_is_dir(child)) {
 			dn = ERR_PTR(-EINVAL);
 			goto out;
 		}
-		dir = __lookup_inode(inode->i_sb, ceph_ino(inode));
+		dir = __lookup_iyesde(iyesde->i_sb, ceph_iyes(iyesde));
 		if (IS_ERR(dir)) {
 			dn = ERR_CAST(dir);
 			goto out;
 		}
-		/* There can be multiple paths to access snapped inode.
-		 * For simplicity, treat snapdir of head inode as parent */
-		if (ceph_snap(inode) != CEPH_SNAPDIR) {
-			struct inode *snapdir = ceph_get_snapdir(dir);
+		/* There can be multiple paths to access snapped iyesde.
+		 * For simplicity, treat snapdir of head iyesde as parent */
+		if (ceph_snap(iyesde) != CEPH_SNAPDIR) {
+			struct iyesde *snapdir = ceph_get_snapdir(dir);
 			if (dir->i_nlink == 0)
 				unlinked = true;
 			iput(dir);
@@ -357,7 +357,7 @@ static struct dentry *ceph_get_parent(struct dentry *child)
 			dir = snapdir;
 		}
 		/* If directory has already been deleted, futher get_parent
-		 * will fail. Do not mark snapdir dentry as disconnected,
+		 * will fail. Do yest mark snapdir dentry as disconnected,
 		 * this prevent exportfs from doing futher get_parent. */
 		if (unlinked)
 			dn = d_obtain_root(dir);
@@ -367,8 +367,8 @@ static struct dentry *ceph_get_parent(struct dentry *child)
 		dn = __get_parent(child->d_sb, child, 0);
 	}
 out:
-	dout("get_parent %p ino %llx.%llx err=%ld\n",
-	     child, ceph_vinop(inode), (long)PTR_ERR_OR_ZERO(dn));
+	dout("get_parent %p iyes %llx.%llx err=%ld\n",
+	     child, ceph_viyesp(iyesde), (long)PTR_ERR_OR_ZERO(dn));
 	return dn;
 }
 
@@ -392,27 +392,27 @@ static struct dentry *ceph_fh_to_parent(struct super_block *sb,
 	if (fh_len < sizeof(*cfh) / 4)
 		return NULL;
 
-	dout("fh_to_parent %llx\n", cfh->parent_ino);
-	dentry = __get_parent(sb, NULL, cfh->ino);
+	dout("fh_to_parent %llx\n", cfh->parent_iyes);
+	dentry = __get_parent(sb, NULL, cfh->iyes);
 	if (unlikely(dentry == ERR_PTR(-ENOENT)))
-		dentry = __fh_to_dentry(sb, cfh->parent_ino);
+		dentry = __fh_to_dentry(sb, cfh->parent_iyes);
 	return dentry;
 }
 
 static int __get_snap_name(struct dentry *parent, char *name,
 			   struct dentry *child)
 {
-	struct inode *inode = d_inode(child);
-	struct inode *dir = d_inode(parent);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct iyesde *iyesde = d_iyesde(child);
+	struct iyesde *dir = d_iyesde(parent);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
 	struct ceph_mds_request *req = NULL;
 	char *last_name = NULL;
 	unsigned next_offset = 2;
 	int err = -EINVAL;
 
-	if (ceph_ino(inode) != ceph_ino(dir))
+	if (ceph_iyes(iyesde) != ceph_iyes(dir))
 		goto out;
-	if (ceph_snap(inode) == CEPH_SNAPDIR) {
+	if (ceph_snap(iyesde) == CEPH_SNAPDIR) {
 		if (ceph_snap(dir) == CEPH_NOSNAP) {
 			strcpy(name, fsc->mount_options->snapdir_name);
 			err = 0;
@@ -434,7 +434,7 @@ static int __get_snap_name(struct dentry *parent, char *name,
 			req = NULL;
 			goto out;
 		}
-		err = ceph_alloc_readdir_reply_buffer(req, inode);
+		err = ceph_alloc_readdir_reply_buffer(req, iyesde);
 		if (err)
 			goto out;
 
@@ -447,13 +447,13 @@ static int __get_snap_name(struct dentry *parent, char *name,
 			last_name = NULL;
 		}
 
-		req->r_inode = dir;
+		req->r_iyesde = dir;
 		ihold(dir);
 		req->r_dentry = dget(parent);
 
-		inode_lock(dir);
+		iyesde_lock(dir);
 		err = ceph_mdsc_do_request(fsc->mdsc, NULL, req);
-		inode_unlock(dir);
+		iyesde_unlock(dir);
 
 		if (err < 0)
 			goto out;
@@ -461,9 +461,9 @@ static int __get_snap_name(struct dentry *parent, char *name,
 		rinfo = &req->r_reply_info;
 		for (i = 0; i < rinfo->dir_nr; i++) {
 			rde = rinfo->dir_entries + i;
-			BUG_ON(!rde->inode.in);
-			if (ceph_snap(inode) ==
-			    le64_to_cpu(rde->inode.in->snapid)) {
+			BUG_ON(!rde->iyesde.in);
+			if (ceph_snap(iyesde) ==
+			    le64_to_cpu(rde->iyesde.in->snapid)) {
 				memcpy(name, rde->name, rde->name_len);
 				name[rde->name_len] = '\0';
 				err = 0;
@@ -491,8 +491,8 @@ out:
 	if (req)
 		ceph_mdsc_put_request(req);
 	kfree(last_name);
-	dout("get_snap_name %p ino %llx.%llx err=%d\n",
-	     child, ceph_vinop(inode), err);
+	dout("get_snap_name %p iyes %llx.%llx err=%d\n",
+	     child, ceph_viyesp(iyesde), err);
 	return err;
 }
 
@@ -501,39 +501,39 @@ static int ceph_get_name(struct dentry *parent, char *name,
 {
 	struct ceph_mds_client *mdsc;
 	struct ceph_mds_request *req;
-	struct inode *inode = d_inode(child);
+	struct iyesde *iyesde = d_iyesde(child);
 	int err;
 
-	if (ceph_snap(inode) != CEPH_NOSNAP)
+	if (ceph_snap(iyesde) != CEPH_NOSNAP)
 		return __get_snap_name(parent, name, child);
 
-	mdsc = ceph_inode_to_client(inode)->mdsc;
+	mdsc = ceph_iyesde_to_client(iyesde)->mdsc;
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_LOOKUPNAME,
 				       USE_ANY_MDS);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	inode_lock(d_inode(parent));
+	iyesde_lock(d_iyesde(parent));
 
-	req->r_inode = inode;
-	ihold(inode);
-	req->r_ino2 = ceph_vino(d_inode(parent));
-	req->r_parent = d_inode(parent);
+	req->r_iyesde = iyesde;
+	ihold(iyesde);
+	req->r_iyes2 = ceph_viyes(d_iyesde(parent));
+	req->r_parent = d_iyesde(parent);
 	set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
 	req->r_num_caps = 2;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
 
-	inode_unlock(d_inode(parent));
+	iyesde_unlock(d_iyesde(parent));
 
 	if (!err) {
 		struct ceph_mds_reply_info_parsed *rinfo = &req->r_reply_info;
 		memcpy(name, rinfo->dname, rinfo->dname_len);
 		name[rinfo->dname_len] = 0;
-		dout("get_name %p ino %llx.%llx name %s\n",
-		     child, ceph_vinop(inode), name);
+		dout("get_name %p iyes %llx.%llx name %s\n",
+		     child, ceph_viyesp(iyesde), name);
 	} else {
-		dout("get_name %p ino %llx.%llx err %d\n",
-		     child, ceph_vinop(inode), err);
+		dout("get_name %p iyes %llx.%llx err %d\n",
+		     child, ceph_viyesp(iyesde), err);
 	}
 
 	ceph_mdsc_put_request(req);

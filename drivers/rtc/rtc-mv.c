@@ -232,7 +232,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 	/* make sure the 24 hour mode is enabled */
 	rtc_time = readl(pdata->ioaddr + RTC_TIME_REG_OFFS);
 	if (rtc_time & RTC_HOURS_12H_MODE) {
-		dev_err(&pdev->dev, "12 Hour mode is enabled but not supported.\n");
+		dev_err(&pdev->dev, "12 Hour mode is enabled but yest supported.\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -242,7 +242,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 		ssleep(1);
 		rtc_time = readl(pdata->ioaddr + RTC_TIME_REG_OFFS);
 		if (rtc_time == 0x01000000) {
-			dev_err(&pdev->dev, "internal RTC not ticking\n");
+			dev_err(&pdev->dev, "internal RTC yest ticking\n");
 			ret = -ENODEV;
 			goto out;
 		}
@@ -263,7 +263,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 		if (devm_request_irq(&pdev->dev, pdata->irq, mv_rtc_interrupt,
 				     IRQF_SHARED,
 				     pdev->name, pdata) < 0) {
-			dev_warn(&pdev->dev, "interrupt not available.\n");
+			dev_warn(&pdev->dev, "interrupt yest available.\n");
 			pdata->irq = -1;
 		}
 	}

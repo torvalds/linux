@@ -43,7 +43,7 @@ bool validate_extra_context(struct extra_context *extra, char **err)
 	else if (extra->size & 0x0fUL)
 		*err = "Extra SIZE misaligned";
 	else if (extra->datap != (uint64_t)term + sizeof(*term))
-		*err = "Extra DATAP misplaced (not contiguous)";
+		*err = "Extra DATAP misplaced (yest contiguous)";
 	if (*err)
 		return false;
 
@@ -108,19 +108,19 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			/*
 			 * This is a BAD magic header defined
 			 * artificially by a testcase and surely
-			 * unknown to the Kernel parse_user_sigframe().
+			 * unkyeswn to the Kernel parse_user_sigframe().
 			 * It MUST cause a Kernel induced SEGV
 			 */
 			*err = "BAD MAGIC !";
 			break;
 		default:
 			/*
-			 * A still unknown Magic: potentially freshly added
-			 * to the Kernel code and still unknown to the
+			 * A still unkyeswn Magic: potentially freshly added
+			 * to the Kernel code and still unkyeswn to the
 			 * tests.
 			 */
 			fprintf(stdout,
-				"SKIP Unknown MAGIC: 0x%X - Is KSFT arm64/signal up to date ?\n",
+				"SKIP Unkyeswn MAGIC: 0x%X - Is KSFT arm64/signal up to date ?\n",
 				head->magic);
 			break;
 		}
@@ -151,7 +151,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 
 /*
  * This function walks through the records inside the provided reserved area
- * trying to find enough space to fit @need_sz bytes: if not enough space is
+ * trying to find eyesugh space to fit @need_sz bytes: if yest eyesugh space is
  * available and an extra_context record is present, it throws away the
  * extra_context record.
  *
@@ -161,11 +161,11 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
  * @shead: points to the start of reserved area
  * @need_sz: needed bytes
  * @resv_sz: reserved area size in bytes
- * @offset: if not null, this will be filled with the offset of the return
+ * @offset: if yest null, this will be filled with the offset of the return
  *	    head pointer from @shead
  *
  * @return: pointer to a new head where to start storing need_sz bytes, or
- *	    NULL if space could not be made available.
+ *	    NULL if space could yest be made available.
  */
 struct _aarch64_ctx *get_starting_head(struct _aarch64_ctx *shead,
 				       size_t need_sz, size_t resv_sz,
@@ -175,7 +175,7 @@ struct _aarch64_ctx *get_starting_head(struct _aarch64_ctx *shead,
 	struct _aarch64_ctx *head;
 
 	head = get_terminator(shead, resv_sz, &offs);
-	/* not found a terminator...no need to update offset if any */
+	/* yest found a terminator...yes need to update offset if any */
 	if (!head)
 		return head;
 	if (resv_sz - offs < need_sz) {

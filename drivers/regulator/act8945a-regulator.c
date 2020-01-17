@@ -237,7 +237,7 @@ static const struct regulator_ops act8945a_ops = {
 		.supply_name		= _supply,			\
 		.of_match		= of_match_ptr("REG_"#_id),	\
 		.of_map_mode		= act8945a_of_map_mode,		\
-		.regulators_node	= of_match_ptr("regulators"),	\
+		.regulators_yesde	= of_match_ptr("regulators"),	\
 		.id			= _family##_ID_##_id,		\
 		.type			= REGULATOR_VOLTAGE,		\
 		.ops			= &act8945a_ops,		\
@@ -287,11 +287,11 @@ static int act8945a_pmic_probe(struct platform_device *pdev)
 	act8945a->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!act8945a->regmap) {
 		dev_err(&pdev->dev,
-			"could not retrieve regmap from parent device\n");
+			"could yest retrieve regmap from parent device\n");
 		return -EINVAL;
 	}
 
-	voltage_select = of_property_read_bool(pdev->dev.parent->of_node,
+	voltage_select = of_property_read_bool(pdev->dev.parent->of_yesde,
 					       "active-semi,vsel-high");
 
 	if (voltage_select) {
@@ -303,7 +303,7 @@ static int act8945a_pmic_probe(struct platform_device *pdev)
 	}
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = pdev->dev.parent->of_node;
+	config.dev->of_yesde = pdev->dev.parent->of_yesde;
 	config.driver_data = act8945a;
 	for (i = 0; i < num_regulators; i++) {
 		rdev = devm_regulator_register(&pdev->dev, &regulators[i],

@@ -11,7 +11,7 @@
 
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -318,7 +318,7 @@ static int cytherm_probe(struct usb_interface *interface,
 	dev->brightness = 0xFF;
 
 	dev_info (&interface->dev,
-		  "Cypress thermometer device now attached\n");
+		  "Cypress thermometer device yesw attached\n");
 	return 0;
 
 error_mem:
@@ -338,7 +338,7 @@ static void cytherm_disconnect(struct usb_interface *interface)
 
 	kfree(dev);
 
-	dev_info(&interface->dev, "Cypress thermometer now disconnected\n");
+	dev_info(&interface->dev, "Cypress thermometer yesw disconnected\n");
 }
 
 /* usb specific object needed to register this driver with the usb subsystem */

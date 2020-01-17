@@ -121,7 +121,7 @@ int rtl8366_set_pvid(struct realtek_smi *smi, unsigned int port,
 		}
 	}
 
-	/* We have no MC entry for this VID, try to find an empty one */
+	/* We have yes MC entry for this VID, try to find an empty one */
 	for (i = 0; i < smi->num_vlan_mc; i++) {
 		ret = smi->ops->get_vlan_mc(smi, i, &vlanmc);
 		if (ret)
@@ -282,7 +282,7 @@ int rtl8366_init_vlan(struct realtek_smi *smi)
 		/* For each port, set the port as member of VLAN (port+1)
 		 * and untagged, except for the CPU port: the CPU port (5) is
 		 * member of VLAN 6 and so are ALL the other ports as well.
-		 * Use filter 0 (no filter).
+		 * Use filter 0 (yes filter).
 		 */
 		dev_info(smi->dev, "VLAN%d port mask for port %d, %08x\n",
 			 (port + 1), port, mask);
@@ -307,7 +307,7 @@ int rtl8366_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 	struct rtl8366_vlan_4k vlan4k;
 	int ret;
 
-	/* Use VLAN nr port + 1 since VLAN0 is not valid */
+	/* Use VLAN nr port + 1 since VLAN0 is yest valid */
 	if (!smi->ops->is_vlan_valid(smi, port + 1))
 		return -EINVAL;
 
@@ -316,14 +316,14 @@ int rtl8366_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 		 port);
 
 	/* TODO:
-	 * The hardware support filter ID (FID) 0..7, I have no clue how to
+	 * The hardware support filter ID (FID) 0..7, I have yes clue how to
 	 * support this in the driver when the callback only says on/off.
 	 */
 	ret = smi->ops->get_vlan_4k(smi, port + 1, &vlan4k);
 	if (ret)
 		return ret;
 
-	/* Just set the filter to FID 1 for now then */
+	/* Just set the filter to FID 1 for yesw then */
 	ret = rtl8366_set_vlan(smi, port + 1,
 			       vlan4k.member,
 			       vlan4k.untag,
@@ -379,7 +379,7 @@ void rtl8366_vlan_add(struct dsa_switch *ds, int port,
 	dev_info(smi->dev, "add VLAN on port %d, %s, %s\n",
 		 port,
 		 untagged ? "untagged" : "tagged",
-		 pvid ? " PVID" : "no PVID");
+		 pvid ? " PVID" : "yes PVID");
 
 	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
 		dev_err(smi->dev, "port is DSA or CPU port\n");
@@ -398,7 +398,7 @@ void rtl8366_vlan_add(struct dsa_switch *ds, int port,
 		 */
 		ret = rtl8366_get_pvid(smi, port, &pvid_val);
 		if (ret < 0) {
-			dev_err(smi->dev, "could not lookup PVID for port %d\n",
+			dev_err(smi->dev, "could yest lookup PVID for port %d\n",
 				port);
 			return;
 		}

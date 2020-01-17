@@ -339,7 +339,7 @@ static void nfcsim_debugfs_init(void)
 	nfcsim_debugfs_root = debugfs_create_dir("nfcsim", NULL);
 
 	if (!nfcsim_debugfs_root)
-		pr_err("Could not create debugfs entry\n");
+		pr_err("Could yest create debugfs entry\n");
 
 }
 
@@ -356,20 +356,20 @@ static void nfcsim_debugfs_init_dev(struct nfcsim *dev)
 	int n;
 
 	if (!nfcsim_debugfs_root) {
-		NFCSIM_ERR(dev, "nfcsim debugfs not initialized\n");
+		NFCSIM_ERR(dev, "nfcsim debugfs yest initialized\n");
 		return;
 	}
 
 	idx = dev->nfc_digital_dev->nfc_dev->idx;
 	n = snprintf(devname, sizeof(devname), "nfc%d", idx);
 	if (n >= sizeof(devname)) {
-		NFCSIM_ERR(dev, "Could not compute dev name for dev %d\n", idx);
+		NFCSIM_ERR(dev, "Could yest compute dev name for dev %d\n", idx);
 		return;
 	}
 
 	dev_dir = debugfs_create_dir(devname, nfcsim_debugfs_root);
 	if (!dev_dir) {
-		NFCSIM_ERR(dev, "Could not create debugfs entries for nfc%d\n",
+		NFCSIM_ERR(dev, "Could yest create debugfs entries for nfc%d\n",
 			   idx);
 		return;
 	}
@@ -407,7 +407,7 @@ static struct nfcsim *nfcsim_device_new(struct nfcsim_link *link_in,
 
 	rc = nfc_digital_register_device(dev->nfc_digital_dev);
 	if (rc) {
-		pr_err("Could not register digital device (%d)\n", rc);
+		pr_err("Could yest register digital device (%d)\n", rc);
 		nfc_digital_free_device(dev->nfc_digital_dev);
 		kfree(dev);
 

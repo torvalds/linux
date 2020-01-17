@@ -55,12 +55,12 @@ static int proc_do_uts_string(struct ctl_table *table, int write,
 		 * Write back the new value.
 		 * Note that, since we dropped uts_sem, the result can
 		 * theoretically be incorrect if there are two parallel writes
-		 * at non-zero offsets to the same sysctl.
+		 * at yesn-zero offsets to the same sysctl.
 		 */
 		down_write(&uts_sem);
 		memcpy(get_uts(table), tmp_data, sizeof(tmp_data));
 		up_write(&uts_sem);
-		proc_sys_poll_notify(table->poll);
+		proc_sys_poll_yestify(table->poll);
 	}
 
 	return r;
@@ -96,8 +96,8 @@ static struct ctl_table uts_kern_table[] = {
 	},
 	{
 		.procname	= "hostname",
-		.data		= init_uts_ns.name.nodename,
-		.maxlen		= sizeof(init_uts_ns.name.nodename),
+		.data		= init_uts_ns.name.yesdename,
+		.maxlen		= sizeof(init_uts_ns.name.yesdename),
 		.mode		= 0644,
 		.proc_handler	= proc_do_uts_string,
 		.poll		= &hostname_poll,
@@ -127,11 +127,11 @@ static struct ctl_table uts_root_table[] = {
  * Notify userspace about a change in a certain entry of uts_kern_table,
  * identified by the parameter proc.
  */
-void uts_proc_notify(enum uts_proc proc)
+void uts_proc_yestify(enum uts_proc proc)
 {
 	struct ctl_table *table = &uts_kern_table[proc];
 
-	proc_sys_poll_notify(table->poll);
+	proc_sys_poll_yestify(table->poll);
 }
 #endif
 

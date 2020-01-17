@@ -106,7 +106,7 @@
 #define VIDCON2_YUVORDCrCb			(1 << 7)
 
 /* PRTCON (S3C6410)
- * Might not be present in the S3C6410 documentation,
+ * Might yest be present in the S3C6410 documentation,
  * but tests prove it's there almost for sure; shouldn't hurt in any case.
  */
 #define PRTCON					0x0c
@@ -410,7 +410,7 @@
 #define WINxMAP_MAP_COLOUR_LIMIT		0xffffff
 #define WINxMAP_MAP_COLOUR(_x)			((_x) << 0)
 
-/* Winodw palette control */
+/* Wiyesdw palette control */
 #define WPALCON					0x1A0
 #define WPALCON_PAL_UPDATE			(1 << 9)
 #define WPALCON_W4PAL_16BPP_A555		(1 << 8)
@@ -460,20 +460,20 @@
  * Value	Win0	 Win1	  Win2	   Win3	    Win 4
  * 0000		1(P)	 1(P)	  1(P)	   1(P)	    1(P)
  * 0001		2(P)	 2(P)     2(P)	   2(P)	    2(P)
- * 0010		4(P)	 4(P)     4(P)	   4(P)     -none-
- * 0011		8(P)	 8(P)     -none-   -none-   -none-
- * 0100		-none-	 8(A232)  8(A232)  -none-   -none-
+ * 0010		4(P)	 4(P)     4(P)	   4(P)     -yesne-
+ * 0011		8(P)	 8(P)     -yesne-   -yesne-   -yesne-
+ * 0100		-yesne-	 8(A232)  8(A232)  -yesne-   -yesne-
  * 0101		16(565)	 16(565)  16(565)  16(565)   16(565)
- * 0110		-none-	 16(A555) 16(A555) 16(A555)  16(A555)
+ * 0110		-yesne-	 16(A555) 16(A555) 16(A555)  16(A555)
  * 0111		16(I555) 16(I565) 16(I555) 16(I555)  16(I555)
  * 1000		18(666)	 18(666)  18(666)  18(666)   18(666)
- * 1001		-none-	 18(A665) 18(A665) 18(A665)  16(A665)
- * 1010		-none-	 19(A666) 19(A666) 19(A666)  19(A666)
+ * 1001		-yesne-	 18(A665) 18(A665) 18(A665)  16(A665)
+ * 1010		-yesne-	 19(A666) 19(A666) 19(A666)  19(A666)
  * 1011		24(888)	 24(888)  24(888)  24(888)   24(888)
- * 1100		-none-	 24(A887) 24(A887) 24(A887)  24(A887)
- * 1101		-none-	 25(A888) 25(A888) 25(A888)  25(A888)
- * 1110		-none-	 -none-	  -none-   -none-    -none-
- * 1111		-none-	 -none-   -none-   -none-    -none-
+ * 1100		-yesne-	 24(A887) 24(A887) 24(A887)  24(A887)
+ * 1101		-yesne-	 25(A888) 25(A888) 25(A888)  25(A888)
+ * 1110		-yesne-	 -yesne-	  -yesne-   -yesne-    -yesne-
+ * 1111		-yesne-	 -yesne-   -yesne-   -yesne-    -yesne-
 */
 
 /* FIMD Version 8 register offset definitions */

@@ -4,7 +4,7 @@
  * Copyright (C) 2011 Intel Corporation
  *
  * Author:
- * Dmitry Kasatkin <dmitry.kasatkin@nokia.com>
+ * Dmitry Kasatkin <dmitry.kasatkin@yeskia.com>
  *                 <dmitry.kasatkin@intel.com>
  *
  * File: sign.c
@@ -50,7 +50,7 @@ static const char *pkcs_1_v1_5_decode_emsa(const unsigned char *msg,
 
 	/* separator check */
 	if (msg[i] != 0)
-		/* There was no octet with hexadecimal value 0x00
+		/* There was yes octet with hexadecimal value 0x00
 		to separate ps from m. */
 		return NULL;
 
@@ -227,7 +227,7 @@ int digsig_verify(struct key *keyring, const char *sig, int siglen,
 		key = request_key(&key_type_user, name, NULL);
 	}
 	if (IS_ERR(key)) {
-		pr_err("key not found, id: %s\n", name);
+		pr_err("key yest found, id: %s\n", name);
 		return PTR_ERR(key);
 	}
 

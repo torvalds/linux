@@ -49,10 +49,10 @@ static void __hyp_text __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 	/*
 	 * We are about to set CPTR_EL2.TFP to trap all floating point
 	 * register accesses to EL2, however, the ARM ARM clearly states that
-	 * traps are only taken to EL2 if the operation would not otherwise
+	 * traps are only taken to EL2 if the operation would yest otherwise
 	 * trap to EL1.  Therefore, always make sure that for 32-bit guests,
 	 * we set FPEXC.EN to prevent traps to EL1, when setting the TFP bit.
-	 * If FP/ASIMD is not implemented, FPEXC is UNDEFINED and any access to
+	 * If FP/ASIMD is yest implemented, FPEXC is UNDEFINED and any access to
 	 * it will cause an exception.
 	 */
 	if (vcpu_el1_is_32bit(vcpu) && system_supports_fpsimd()) {
@@ -125,7 +125,7 @@ static void __hyp_text __activate_traps_nvhe(struct kvm_vcpu *vcpu)
 		isb();
 		/*
 		 * At this stage, and thanks to the above isb(), S2 is
-		 * configured and enabled. We can now restore the guest's S1
+		 * configured and enabled. We can yesw restore the guest's S1
 		 * configuration: SCTLR, and only then TCR.
 		 */
 		write_sysreg_el1(ctxt->sys_regs[SCTLR_EL1],	SYS_SCTLR);
@@ -162,7 +162,7 @@ static void deactivate_traps_vhe(void)
 	 * before we can switch to the EL2/EL0 translation regime used by
 	 * the host.
 	 */
-	asm(ALTERNATIVE("nop", "isb", ARM64_WORKAROUND_1165522));
+	asm(ALTERNATIVE("yesp", "isb", ARM64_WORKAROUND_1165522));
 
 	write_sysreg(CPACR_EL1_DEFAULT, cpacr_el1);
 	write_sysreg(vectors, vbar_el1);
@@ -247,7 +247,7 @@ static void __hyp_text __deactivate_vm(struct kvm_vcpu *vcpu)
 	write_sysreg(0, vttbr_el2);
 }
 
-/* Save VGICv3 state on non-VHE systems */
+/* Save VGICv3 state on yesn-VHE systems */
 static void __hyp_text __hyp_vgic_save_state(struct kvm_vcpu *vcpu)
 {
 	if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif)) {
@@ -256,7 +256,7 @@ static void __hyp_text __hyp_vgic_save_state(struct kvm_vcpu *vcpu)
 	}
 }
 
-/* Restore VGICv3 state on non_VEH systems */
+/* Restore VGICv3 state on yesn_VEH systems */
 static void __hyp_text __hyp_vgic_restore_state(struct kvm_vcpu *vcpu)
 {
 	if (static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif)) {
@@ -309,13 +309,13 @@ static bool __hyp_text __populate_fault_info(struct kvm_vcpu *vcpu)
 	far = read_sysreg_el2(SYS_FAR);
 
 	/*
-	 * The HPFAR can be invalid if the stage 2 fault did not
+	 * The HPFAR can be invalid if the stage 2 fault did yest
 	 * happen during a stage 1 page table walk (the ESR_EL2.S1PTW
 	 * bit is clear) and one of the two following cases are true:
 	 *   1. The fault was due to a permission fault
 	 *   2. The processor carries errata 834220
 	 *
-	 * Therefore, for all non S1PTW faults where we either have a
+	 * Therefore, for all yesn S1PTW faults where we either have a
 	 * permission fault or the errata workaround is enabled, we
 	 * resolve the IPA using the AT instruction.
 	 */
@@ -357,7 +357,7 @@ static bool __hyp_text __hyp_handle_fpsimd(struct kvm_vcpu *vcpu)
 	    hsr_ec != ESR_ELx_EC_SVE)
 		return false;
 
-	/* Don't handle SVE traps for non-SVE vcpus here: */
+	/* Don't handle SVE traps for yesn-SVE vcpus here: */
 	if (!sve_guest)
 		if (hsr_ec != ESR_ELx_EC_FP_ASIMD)
 			return false;
@@ -423,8 +423,8 @@ static bool __hyp_text handle_tx2_tvm(struct kvm_vcpu *vcpu)
 	u64 val = vcpu_get_reg(vcpu, rt);
 
 	/*
-	 * The normal sysreg handling code expects to see the traps,
-	 * let's not do anything here.
+	 * The yesrmal sysreg handling code expects to see the traps,
+	 * let's yest do anything here.
 	 */
 	if (vcpu->arch.hcr_el2 & HCR_TVM)
 		return false;
@@ -483,7 +483,7 @@ static bool __hyp_text fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 
 	/*
 	 * We're using the raw exception code in order to only process
-	 * the trap if no SError is pending. We will come back to the
+	 * the trap if yes SError is pending. We will come back to the
 	 * same PC once the SError has been injected, and replay the
 	 * trapping instruction.
 	 */
@@ -498,7 +498,7 @@ static bool __hyp_text fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 	/*
 	 * We trap the first access to the FP/SIMD to save the host context
 	 * and restore the guest context lazily.
-	 * If FP/SIMD is not implemented, handle the trap and inject an
+	 * If FP/SIMD is yest implemented, handle the trap and inject an
 	 * undefined instruction exception to the guest.
 	 * Similarly for trapped SVE accesses.
 	 */
@@ -635,7 +635,7 @@ int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	 * HCR_EL2.TGE.
 	 *
 	 * We have already configured the guest's stage 1 translation in
-	 * kvm_vcpu_load_sysregs above.  We must now call __activate_vm
+	 * kvm_vcpu_load_sysregs above.  We must yesw call __activate_vm
 	 * before __activate_traps, because __activate_vm configures
 	 * stage 2 translation, and __activate_traps clear HCR_EL2.TGE
 	 * (among other things).
@@ -672,7 +672,7 @@ int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 }
 NOKPROBE_SYMBOL(kvm_vcpu_run_vhe);
 
-/* Switch to the guest for legacy non-VHE systems */
+/* Switch to the guest for legacy yesn-VHE systems */
 int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *host_ctxt;
@@ -682,7 +682,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Having IRQs masked via PMR when entering the guest means the GIC
-	 * will not signal the CPU of interrupts of lower priority, and the
+	 * will yest signal the CPU of interrupts of lower priority, and the
 	 * only way to get out will be via guest exceptions.
 	 * Naturally, we want to avoid this.
 	 */
@@ -745,7 +745,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 		__fpsimd_save_fpexc32(vcpu);
 
 	/*
-	 * This must come after restoring the host sysregs, since a non-VHE
+	 * This must come after restoring the host sysregs, since a yesn-VHE
 	 * system may enable SPE here and make use of the TTBRs.
 	 */
 	__debug_switch_to_host(vcpu);
@@ -779,7 +779,7 @@ static void __hyp_text __hyp_call_panic_nvhe(u64 spsr, u64 elr, u64 par,
 
 	/*
 	 * Force the panic string to be loaded from the literal pool,
-	 * making sure it is a kernel address and not a PC-relative
+	 * making sure it is a kernel address and yest a PC-relative
 	 * reference.
 	 */
 	asm volatile("ldr %0, =__hyp_panic_string" : "=r" (str_va));
@@ -806,7 +806,7 @@ static void __hyp_call_panic_vhe(u64 spsr, u64 elr, u64 par,
 }
 NOKPROBE_SYMBOL(__hyp_call_panic_vhe);
 
-void __hyp_text __noreturn hyp_panic(struct kvm_cpu_context *host_ctxt)
+void __hyp_text __yesreturn hyp_panic(struct kvm_cpu_context *host_ctxt)
 {
 	u64 spsr = read_sysreg_el2(SYS_SPSR);
 	u64 elr = read_sysreg_el2(SYS_ELR);

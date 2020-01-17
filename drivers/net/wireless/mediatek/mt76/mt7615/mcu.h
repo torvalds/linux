@@ -178,8 +178,8 @@ struct bss_info_basic {
 	u8 wmm_idx;
 	u8 dtim_period;
 	u8 bmc_tx_wlan_idx;
-	u8 cipher; /* not used */
-	u8 phymode; /* not used */
+	u8 cipher; /* yest used */
+	u8 phymode; /* yest used */
 	u8 rsv1[5];
 } __packed;
 
@@ -383,14 +383,14 @@ enum {
 	WTBL_RX,
 	WTBL_HT,
 	WTBL_VHT,
-	WTBL_PEER_PS, /* not used */
+	WTBL_PEER_PS, /* yest used */
 	WTBL_TX_PS,
 	WTBL_HDR_TRANS,
 	WTBL_SEC_KEY,
 	WTBL_BA,
 	WTBL_RDG, /* obsoleted */
-	WTBL_PROTECT, /* not used */
-	WTBL_CLEAR, /* not used */
+	WTBL_PROTECT, /* yest used */
+	WTBL_CLEAR, /* yest used */
 	WTBL_BF,
 	WTBL_SMPS,
 	WTBL_RAW_DATA, /* debug only */
@@ -459,7 +459,7 @@ enum {
 	STA_REC_BF,
 	STA_REC_AMSDU, /* for CR4 */
 	STA_REC_BA,
-	STA_REC_RED, /* not used */
+	STA_REC_RED, /* yest used */
 	STA_REC_TX_PROC, /* for hdr trans and CSO in CR4 */
 	STA_REC_HT,
 	STA_REC_VHT,

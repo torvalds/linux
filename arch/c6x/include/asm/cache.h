@@ -29,7 +29,7 @@
 #define L2MODE_SIZE	  L2MODE_256K_CACHE
 
 /*
- * For practical reasons the L1_CACHE_BYTES defines should not be smaller than
+ * For practical reasons the L1_CACHE_BYTES defines should yest be smaller than
  * the L2 line size
  */
 #define L1_CACHE_SHIFT        L2_CACHE_SHIFT
@@ -83,12 +83,12 @@ extern void L2_cache_block_invalidate(unsigned int start, unsigned int end);
 extern void L2_cache_block_writeback(unsigned int start, unsigned int end);
 extern void L2_cache_block_writeback_invalidate(unsigned int start,
 						unsigned int end);
-extern void L2_cache_block_invalidate_nowait(unsigned int start,
+extern void L2_cache_block_invalidate_yeswait(unsigned int start,
 					     unsigned int end);
-extern void L2_cache_block_writeback_nowait(unsigned int start,
+extern void L2_cache_block_writeback_yeswait(unsigned int start,
 					    unsigned int end);
 
-extern void L2_cache_block_writeback_invalidate_nowait(unsigned int start,
+extern void L2_cache_block_writeback_invalidate_yeswait(unsigned int start,
 						       unsigned int end);
 
 #endif /* _ASM_C6X_CACHE_H */

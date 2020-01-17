@@ -60,7 +60,7 @@ $list_in_array = 1;	# Emit original SCRIPTS assembler in comments in
 
 # Table of operator encodings
 # XXX - NCR53c710 only implements 
-# 	move (nop) = 0x00_00_00_00
+# 	move (yesp) = 0x00_00_00_00
 #	or = 0x02_00_00_00
 # 	and = 0x04_00_00_00
 # 	add = 0x06_00_00_00
@@ -190,7 +190,7 @@ else {
 
 $address = 0;				# Address of current instruction
 
-$lineno = 0;				# Line number we are parsing
+$lineyes = 0;				# Line number we are parsing
 
 $output = 'script.h';			# Output file
 $outputu = 'scriptu.h';
@@ -254,7 +254,7 @@ print STDERR "Referencing symbol $1, length = $length in $_\n" if ($debug);
 	} else {
 	    if (!defined($symbol_values{$symbol})) {
 print STDERR "forward $1\n" if ($debug_external);
-		$forward{$symbol} = "line $lineno : $_";
+		$forward{$symbol} = "line $lineyes : $_";
 	    } 
 	    $symbol_references{$symbol} = "$relative,$tmp,$length";
 	}
@@ -282,25 +282,25 @@ sub parse_conditional {
 	    print STDERR "$0 : parsed IF\n" if ($debug);
 	}
     } else {
-	    die "$0 : syntax error in line $lineno : $_
+	    die "$0 : syntax error in line $lineyes : $_
 	expected IF or WHEN
 ";
     }
 
     if ($conditional =~ /^NOT\s+(.*)$/i) {
-	$not = 'NOT ';
+	$yest = 'NOT ';
 	$other = 'OR';
 	$conditional = $1;
 	print STDERR "$0 : parsed NOT\n" if ($debug);
     } else {
 	$code[$address] |= 0x00_08_00_00;
-	$not = '';
+	$yest = '';
 	$other = 'AND'
     }
 
     $need_data = 0;
     if ($conditional =~ /^ATN\s*(.*)/i) {#
-	die "$0 : syntax error in line $lineno : $_
+	die "$0 : syntax error in line $lineyes : $_
 	WHEN conditional is incompatible with ATN 
 " if (!$allow_atn);
 	$code[$address] |= 0x00_02_00_00;
@@ -322,12 +322,12 @@ print STDERR "Parsing conjunction, expecting $other\n" if ($debug);
 	$conjunction = $1;
 	$conditional = $2;
 	$need_data = 1;
-	die "$0 : syntax error in line $lineno : $_
+	die "$0 : syntax error in line $lineyes : $_
 	    Illegal use of $1.  Valid uses are 
-	    ".$not."<phase> $1 data
-	    ".$not."ATN $1 data
+	    ".$yest."<phase> $1 data
+	    ".$yest."ATN $1 data
 " if ($other eq '');
-	die "$0 : syntax error in line $lineno : $_
+	die "$0 : syntax error in line $lineyes : $_
 	Illegal use of $conjunction.  Valid syntaxes are 
 		NOT <phase>|ATN OR data
 		<phase>|ATN AND data
@@ -343,7 +343,7 @@ print STDERR "looking for data in $conditional\n" if ($debug);
 	    &parse_value($1, 0, 0, 1);
 	    print STDERR "$0 : parsed data\n" if ($debug);
 	} else {
-	die "$0 : syntax error in line $lineno : $_
+	die "$0 : syntax error in line $lineyes : $_
 	expected <data>.
 ";
 	}
@@ -354,18 +354,18 @@ print STDERR "looking for data in $conditional\n" if ($debug);
 	if ($conditional =~ /^AND\s\s*MASK\s\s*($value)\s*(.*)/i) {
 	    &parse_value ($1, 0, 1, 1);
 	    print STDERR "$0 parsed AND MASK $1\n" if ($debug);
-	    die "$0 : syntax error in line $lineno : $_
-	expected end of line, not \"$2\"
+	    die "$0 : syntax error in line $lineyes : $_
+	expected end of line, yest \"$2\"
 " if ($2 ne '');
 	} else {
-	    die "$0 : syntax error in line $lineno : $_
-	expected \",AND MASK <data>\", not \"$2\"
+	    die "$0 : syntax error in line $lineyes : $_
+	expected \",AND MASK <data>\", yest \"$2\"
 ";
 	}
     } elsif ($conditional !~ /^\s*$/) { 
-	die "$0 : syntax error in line $lineno : $_
+	die "$0 : syntax error in line $lineyes : $_
 	expected end of line" . (($need_data) ? " or \"AND MASK <data>\"" : "") . "
-	not \"$conditional\"
+	yest \"$conditional\"
 ";
     }
 }
@@ -377,7 +377,7 @@ $outputu = shift;
     
 # Main loop
 while (<STDIN>) {
-    $lineno = $lineno + 1;
+    $lineyes = $lineyes + 1;
     $list[$address] = $list[$address].$_;
     s/;.*$//;				# Strip comments
 
@@ -392,7 +392,7 @@ while (<STDIN>) {
 	    push (@label, $1);
 	    $_ = $2;
 	} else {
-	    die "$0 : redefinition of symbol $1 in line $lineno : $_\n";
+	    die "$0 : redefinition of symbol $1 in line $lineyes : $_\n";
 	}
     }
 
@@ -413,11 +413,11 @@ while (<STDIN>) {
 			push (@relative, $id);
 		    }
 		} else {
-		    die "$0 : redefinition of symbol $id in line $lineno : $_\n";
+		    die "$0 : redefinition of symbol $id in line $lineyes : $_\n";
 		}
 	    } else {
 		die 
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	    expected <identifier> = <value>
 ";
 	    }
@@ -430,13 +430,13 @@ while (<STDIN>) {
 		push (@external, $external);
 		delete $forward{$external};
 		if (defined($symbol_values{$external})) {
-			die "$0 : redefinition of symbol $1 in line $lineno : $_\n";
+			die "$0 : redefinition of symbol $1 in line $lineyes : $_\n";
 		}
 		$symbol_values{$external} = $external;
 print STDERR "defined external $1 to $external\n" if ($debug_external);
 	    } else {
 		die 
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	expected <identifier>, got $external
 ";
 	    }
@@ -447,7 +447,7 @@ print STDERR "defined external $1 to $external\n" if ($debug_external);
 	    push (@entry, $1);
 	} else {
 	    die
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	expected ENTRY <identifier>
 ";
 	}
@@ -493,7 +493,7 @@ printf STDERR "Move memory instruction = %08x,%08x,%08x\n",
 	
 	    } else {
 		die 
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	expected <count>, <source>, <destination>
 "
 	    }
@@ -518,7 +518,7 @@ print STDERR "register operand  data8 source\n" if ($debug);
 		if ($op ne '-') {
 		    $data8 = $3;
 		} else {
-		    die "- is not implemented yet.\n"
+		    die "- is yest implemented yet.\n"
 		}
 	    } elsif ($src =~ /^($register)\s*$/i) {
 print STDERR "register source\n" if ($debug);
@@ -537,14 +537,14 @@ print STDERR "data8 source\n" if ($debug);
 	    } else {
 		if (!$force) {
 		    die 
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	expected <register>
 		<data8>
 		<register> <operand> <data8>
 ";
 		} else {
 		    die
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	expected <register>
 ";
 		}
@@ -554,7 +554,7 @@ print STDERR "data8 source\n" if ($debug);
 		$rest = $2;
 	    } else {
 	    die 
-"$0 : syntax error in $lineno : $_
+"$0 : syntax error in $lineyes : $_
 	expected <register>, got $rest
 ";
 	    }
@@ -565,7 +565,7 @@ print STDERR "data8 source\n" if ($debug);
 		    $code[$address] |= 0x01_00_00_00;
 		} else {
 		    die
-"$0 : syntax error in $lineno : $_
+"$0 : syntax error in $lineyes : $_
 	WITH CARRY option is incompatible with the $op operator.
 ";
 		}
@@ -573,7 +573,7 @@ print STDERR "data8 source\n" if ($debug);
 
 	    if ($rest !~ /^\s*$/) {
 		die
-"$0 : syntax error in $lineno : $_
+"$0 : syntax error in $lineyes : $_
 	Expected end of line, got $rest
 ";
 	    }
@@ -593,7 +593,7 @@ print STDERR "data8 source\n" if ($debug);
 		    ($registers{$dst_reg} << 16);
 	    } else {
 		die
-"$0 : Illegal combination of registers in line $lineno : $_
+"$0 : Illegal combination of registers in line $lineyes : $_
 	Either source and destination registers must be the same,
 	or either source or destination register must be SFBR.
 ";
@@ -607,7 +607,7 @@ print STDERR "data8 source\n" if ($debug);
 	    $address += 2;
 	} else {
 	    die 
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	expected (initiator) <length>, <address>, WHEN <phase>
 		 (target) <length>, <address>, WITH <phase>
 		 MEMORY <length>, <source>, <destination>
@@ -639,7 +639,7 @@ print STDERR "data8 source\n" if ($debug);
 	    $address += 2;
         } else {
 	    die 
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	expected SELECT id, alternate_address or 
 		SELECT FROM address, alternate_address or 
 		RESELECT id, alternate_address or
@@ -660,7 +660,7 @@ print STDERR "Parsing WAIT $rest\n" if ($debug);
 	    $address += 2;
 	} else {
 	    die
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	expected (initiator) WAIT DISCONNECT or 
 		 (initiator) WAIT RESELECT alternate_address or
 		 (target) WAIT SELECT alternate_address
@@ -684,7 +684,7 @@ print STDERR "Parsing WAIT $rest\n" if ($debug);
 		$code[$address] |= 0x00_00_04_00;
 	    } else {
 		die 
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	expected $set followed by a AND delimited list of one or 
 	more strings from the list ACK, ATN, CARRY, TARGET.
 ";
@@ -711,14 +711,14 @@ print STDERR "parsing JUMP, rest = $rest\n" if ($debug);
 print STDERR "parsing JUMP REL, addr = $addr, rest = $rest\n" if ($debug);
 	    $code[$address]  |= 0x00_80_00_00;
 	    &parse_value($addr, 1, 0, 4);
-# Absolute jump, requires no more gunk
+# Absolute jump, requires yes more gunk
 	} elsif ($rest =~ /^($value)\s*(.*)/) {
 	    $addr = $1;
 	    $rest = $2;
 	    &parse_value($addr, 1, 0, 4);
 	} else {
 	    die
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	expected <address> or REL (address)
 ";
 	}
@@ -729,7 +729,7 @@ print STDERR "parsing JUMP REL, addr = $addr, rest = $rest\n" if ($debug);
 	    $code[$address] |= (1 << 19);
 	} else {
 	    die
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	expected , <conditional> or end of line, got $1
 ";
 	}
@@ -746,7 +746,7 @@ print STDERR "Parsing $instruction\n" if ($debug);
 	    &parse_conditional ($conditional);
 	} elsif ($conditional !~ /^\s*$/) {
 	    die
-"$0 : syntax error in line $lineno : $_
+"$0 : syntax error in line $lineyes : $_
 	expected , <conditional> 
 ";
 	} else {
@@ -759,17 +759,17 @@ print STDERR "Parsing $instruction\n" if ($debug);
 	$code[$address] = 0x48_00_00_00;
 	$code[$address + 1] = 0x00_00_00_00;
 	$address += 2;
-# I'm not sure that I should be including this extension, but 
+# I'm yest sure that I should be including this extension, but 
 # what the hell?
     } elsif (/^\s*NOP\s*$/i) {
 	$code[$address] = 0x80_88_00_00;
 	$code[$address + 1] = 0x00_00_00_00;
 	$address += 2;
-# Ignore lines consisting entirely of white space
+# Igyesre lines consisting entirely of white space
     } elsif (/^\s*$/) {
     } else {
 	die 
-"$0 : syntax error in line $lineno: $_
+"$0 : syntax error in line $lineyes: $_
 	expected label:, ABSOLUTE, CLEAR, DISCONNECT, EXTERNAL, MOVE, RESELECT,
 	    SELECT SET, or WAIT
 ";

@@ -29,8 +29,8 @@ asmlinkage __visible void __irq_entry do_IRQ(struct pt_regs *regs)
 #ifdef CONFIG_SMP
 	case RV_IRQ_SOFT:
 		/*
-		 * We only use software interrupts to pass IPIs, so if a non-SMP
-		 * system gets one, then we don't know what to do.
+		 * We only use software interrupts to pass IPIs, so if a yesn-SMP
+		 * system gets one, then we don't kyesw what to do.
 		 */
 		riscv_software_interrupt();
 		break;

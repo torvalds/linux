@@ -16,7 +16,7 @@
 
 static struct clk_hw_onecell_data *clk_data;
 
-static void __init efm32gg_cmu_init(struct device_node *np)
+static void __init efm32gg_cmu_init(struct device_yesde *np)
 {
 	int i;
 	void __iomem *base;
@@ -35,7 +35,7 @@ static void __init efm32gg_cmu_init(struct device_node *np)
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		pr_warn("Failed to map address range for efm32gg,cmu node\n");
+		pr_warn("Failed to map address range for efm32gg,cmu yesde\n");
 		return;
 	}
 

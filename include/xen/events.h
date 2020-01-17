@@ -62,13 +62,13 @@ void xen_send_IPI_one(unsigned int cpu, enum ipi_vector vector);
 void rebind_evtchn_irq(int evtchn, int irq);
 int xen_set_affinity_evtchn(struct irq_desc *desc, unsigned int tcpu);
 
-static inline void notify_remote_via_evtchn(int port)
+static inline void yestify_remote_via_evtchn(int port)
 {
 	struct evtchn_send send = { .port = port };
 	(void)HYPERVISOR_event_channel_op(EVTCHNOP_send, &send);
 }
 
-void notify_remote_via_irq(int irq);
+void yestify_remote_via_irq(int irq);
 
 void xen_irq_resume(void);
 
@@ -125,7 +125,7 @@ int xen_pirq_from_irq(unsigned irq);
 /* Return the irq allocated to the gsi */
 int xen_irq_from_gsi(unsigned gsi);
 
-/* Determine whether to ignore this IRQ if it is passed to a guest. */
+/* Determine whether to igyesre this IRQ if it is passed to a guest. */
 int xen_test_irq_shared(int irq);
 
 /* initialize Xen IRQ subsystem */

@@ -14,7 +14,7 @@
 #include <linux/sizes.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-yesr.h>
 #include <linux/platform_data/intel-spi.h>
 
 #include "intel-spi.h"
@@ -126,7 +126,7 @@
  * struct intel_spi - Driver private data
  * @dev: Device pointer
  * @info: Pointer to board specific info
- * @nor: SPI NOR layer structure
+ * @yesr: SPI NOR layer structure
  * @base: Beginning of MMIO space
  * @pregs: Start of protection registers
  * @sregs: Start of software sequencer registers
@@ -144,7 +144,7 @@
 struct intel_spi {
 	struct device *dev;
 	const struct intel_spi_boardinfo *info;
-	struct spi_nor nor;
+	struct spi_yesr yesr;
 	void __iomem *base;
 	void __iomem *pregs;
 	void __iomem *sregs;
@@ -370,7 +370,7 @@ static int intel_spi_init(struct intel_spi *ispi)
 	 * The HW sequencer has a predefined list of opcodes, with only the
 	 * erase opcode being programmable in LVSCC and UVSCC registers.
 	 * If these registers don't contain a valid erase opcode, erase
-	 * cannot be done using HW sequencer.
+	 * canyest be done using HW sequencer.
 	 */
 	lvscc = readl(ispi->base + LVSCC);
 	uvscc = readl(ispi->base + UVSCC);
@@ -383,7 +383,7 @@ static int intel_spi_init(struct intel_spi *ispi)
 			ispi->erase_64k = false;
 
 	if (ispi->sregs == NULL && (ispi->swseq_reg || ispi->swseq_erase)) {
-		dev_err(ispi->dev, "software sequencer not supported, but required\n");
+		dev_err(ispi->dev, "software sequencer yest supported, but required\n");
 		return -EINVAL;
 	}
 
@@ -505,7 +505,7 @@ static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, size_t len,
 
 	/*
 	 * Always clear it after each SW sequencer operation regardless
-	 * of whether it is successful or not.
+	 * of whether it is successful or yest.
 	 */
 	atomic_preopcode = ispi->atomic_preopcode;
 	ispi->atomic_preopcode = 0;
@@ -525,7 +525,7 @@ static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, size_t len,
 			/* Pick matching preopcode for the atomic sequence */
 			preop = readw(ispi->sregs + PREOP_OPTYPE);
 			if ((preop & 0xff) == atomic_preopcode)
-				; /* Do nothing */
+				; /* Do yesthing */
 			else if ((preop >> 8) == atomic_preopcode)
 				val |= SSFSTS_CTL_SPOP;
 			else
@@ -555,10 +555,10 @@ static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, size_t len,
 	return 0;
 }
 
-static int intel_spi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
+static int intel_spi_read_reg(struct spi_yesr *yesr, u8 opcode, u8 *buf,
 			      size_t len)
 {
-	struct intel_spi *ispi = nor->priv;
+	struct intel_spi *ispi = yesr->priv;
 	int ret;
 
 	/* Address of the first chip */
@@ -576,19 +576,19 @@ static int intel_spi_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 	return intel_spi_read_block(ispi, buf, len);
 }
 
-static int intel_spi_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
+static int intel_spi_write_reg(struct spi_yesr *yesr, u8 opcode, const u8 *buf,
 			       size_t len)
 {
-	struct intel_spi *ispi = nor->priv;
+	struct intel_spi *ispi = yesr->priv;
 	int ret;
 
 	/*
 	 * This is handled with atomic operation and preop code in Intel
 	 * controller so we only verify that it is available. If the
-	 * controller is not locked, program the opcode to the PREOP
+	 * controller is yest locked, program the opcode to the PREOP
 	 * register for later use.
 	 *
-	 * When hardware sequencer is used there is no need to program
+	 * When hardware sequencer is used there is yes need to program
 	 * any opcodes (it handles them automatically as part of a command).
 	 */
 	if (opcode == SPINOR_OP_WREN) {
@@ -625,22 +625,22 @@ static int intel_spi_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
 	return intel_spi_hw_cycle(ispi, opcode, len);
 }
 
-static ssize_t intel_spi_read(struct spi_nor *nor, loff_t from, size_t len,
+static ssize_t intel_spi_read(struct spi_yesr *yesr, loff_t from, size_t len,
 			      u_char *read_buf)
 {
-	struct intel_spi *ispi = nor->priv;
+	struct intel_spi *ispi = yesr->priv;
 	size_t block_size, retlen = 0;
 	u32 val, status;
 	ssize_t ret;
 
 	/*
-	 * Atomic sequence is not expected with HW sequencer reads. Make
+	 * Atomic sequence is yest expected with HW sequencer reads. Make
 	 * sure it is cleared regardless.
 	 */
 	if (WARN_ON_ONCE(ispi->atomic_preopcode))
 		ispi->atomic_preopcode = 0;
 
-	switch (nor->read_opcode) {
+	switch (yesr->read_opcode) {
 	case SPINOR_OP_READ:
 	case SPINOR_OP_READ_FAST:
 	case SPINOR_OP_READ_4B:
@@ -653,7 +653,7 @@ static ssize_t intel_spi_read(struct spi_nor *nor, loff_t from, size_t len,
 	while (len > 0) {
 		block_size = min_t(size_t, len, INTEL_SPI_FIFO_SZ);
 
-		/* Read cannot cross 4K boundary */
+		/* Read canyest cross 4K boundary */
 		block_size = min_t(loff_t, from + block_size,
 				   round_up(from + 1, SZ_4K)) - from;
 
@@ -696,10 +696,10 @@ static ssize_t intel_spi_read(struct spi_nor *nor, loff_t from, size_t len,
 	return retlen;
 }
 
-static ssize_t intel_spi_write(struct spi_nor *nor, loff_t to, size_t len,
+static ssize_t intel_spi_write(struct spi_yesr *yesr, loff_t to, size_t len,
 			       const u_char *write_buf)
 {
-	struct intel_spi *ispi = nor->priv;
+	struct intel_spi *ispi = yesr->priv;
 	size_t block_size, retlen = 0;
 	u32 val, status;
 	ssize_t ret;
@@ -710,7 +710,7 @@ static ssize_t intel_spi_write(struct spi_nor *nor, loff_t to, size_t len,
 	while (len > 0) {
 		block_size = min_t(size_t, len, INTEL_SPI_FIFO_SZ);
 
-		/* Write cannot cross 4K boundary */
+		/* Write canyest cross 4K boundary */
 		block_size = min_t(loff_t, to + block_size,
 				   round_up(to + 1, SZ_4K)) - to;
 
@@ -728,7 +728,7 @@ static ssize_t intel_spi_write(struct spi_nor *nor, loff_t to, size_t len,
 			return ret;
 		}
 
-		/* Start the write now */
+		/* Start the write yesw */
 		val |= HSFSTS_CTL_FGO;
 		writel(val, ispi->base + HSFSTS_CTL);
 
@@ -759,10 +759,10 @@ static ssize_t intel_spi_write(struct spi_nor *nor, loff_t to, size_t len,
 	return retlen;
 }
 
-static int intel_spi_erase(struct spi_nor *nor, loff_t offs)
+static int intel_spi_erase(struct spi_yesr *yesr, loff_t offs)
 {
-	size_t erase_size, len = nor->mtd.erasesize;
-	struct intel_spi *ispi = nor->priv;
+	size_t erase_size, len = yesr->mtd.erasesize;
+	struct intel_spi *ispi = yesr->priv;
 	u32 val, status, cmd;
 	int ret;
 
@@ -779,7 +779,7 @@ static int intel_spi_erase(struct spi_nor *nor, loff_t offs)
 		while (len > 0) {
 			writel(offs, ispi->base + FADDR);
 
-			ret = intel_spi_sw_cycle(ispi, nor->erase_opcode,
+			ret = intel_spi_sw_cycle(ispi, yesr->erase_opcode,
 						 0, OPTYPE_WRITE_WITH_ADDR);
 			if (ret)
 				return ret;
@@ -886,7 +886,7 @@ static void intel_spi_fill_partition(struct intel_spi *ispi,
 	}
 }
 
-static const struct spi_nor_controller_ops intel_spi_controller_ops = {
+static const struct spi_yesr_controller_ops intel_spi_controller_ops = {
 	.read_reg = intel_spi_read_reg,
 	.write_reg = intel_spi_write_reg,
 	.read = intel_spi_read,
@@ -897,7 +897,7 @@ static const struct spi_nor_controller_ops intel_spi_controller_ops = {
 struct intel_spi *intel_spi_probe(struct device *dev,
 	struct resource *mem, const struct intel_spi_boardinfo *info)
 {
-	const struct spi_nor_hwcaps hwcaps = {
+	const struct spi_yesr_hwcaps hwcaps = {
 		.mask = SNOR_HWCAPS_READ |
 			SNOR_HWCAPS_READ_FAST |
 			SNOR_HWCAPS_PP,
@@ -925,11 +925,11 @@ struct intel_spi *intel_spi_probe(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ispi->nor.dev = ispi->dev;
-	ispi->nor.priv = ispi;
-	ispi->nor.controller_ops = &intel_spi_controller_ops;
+	ispi->yesr.dev = ispi->dev;
+	ispi->yesr.priv = ispi;
+	ispi->yesr.controller_ops = &intel_spi_controller_ops;
 
-	ret = spi_nor_scan(&ispi->nor, NULL, &hwcaps);
+	ret = spi_yesr_scan(&ispi->yesr, NULL, &hwcaps);
 	if (ret) {
 		dev_info(dev, "failed to locate the chip\n");
 		return ERR_PTR(ret);
@@ -937,11 +937,11 @@ struct intel_spi *intel_spi_probe(struct device *dev,
 
 	intel_spi_fill_partition(ispi, &part);
 
-	/* Prevent writes if not explicitly enabled */
+	/* Prevent writes if yest explicitly enabled */
 	if (!ispi->writeable || !writeable)
-		ispi->nor.mtd.flags &= ~MTD_WRITEABLE;
+		ispi->yesr.mtd.flags &= ~MTD_WRITEABLE;
 
-	ret = mtd_device_register(&ispi->nor.mtd, &part, 1);
+	ret = mtd_device_register(&ispi->yesr.mtd, &part, 1);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -951,7 +951,7 @@ EXPORT_SYMBOL_GPL(intel_spi_probe);
 
 int intel_spi_remove(struct intel_spi *ispi)
 {
-	return mtd_device_unregister(&ispi->nor.mtd);
+	return mtd_device_unregister(&ispi->yesr.mtd);
 }
 EXPORT_SYMBOL_GPL(intel_spi_remove);
 

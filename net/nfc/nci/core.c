@@ -8,7 +8,7 @@
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
- *  Acknowledgements:
+ *  Ackyeswledgements:
  *  This file is based on hci_core.c, which was written
  *  by Maxim Krasnyansky.
  */
@@ -114,7 +114,7 @@ static int __nci_request(struct nci_dev *ndev,
 	if (completion_rc > 0) {
 		switch (ndev->req_status) {
 		case NCI_REQ_DONE:
-			rc = nci_to_errno(ndev->req_result);
+			rc = nci_to_erryes(ndev->req_result);
 			break;
 
 		case NCI_REQ_CANCELED:
@@ -559,7 +559,7 @@ static int nci_close_device(struct nci_dev *ndev)
 		      msecs_to_jiffies(NCI_RESET_TIMEOUT));
 
 	/* After this point our queues are empty
-	 * and no works are scheduled.
+	 * and yes works are scheduled.
 	 */
 	ndev->ops->close(ndev);
 
@@ -836,7 +836,7 @@ static void nci_stop_poll(struct nfc_dev *nfc_dev)
 
 	if ((atomic_read(&ndev->state) != NCI_DISCOVERY) &&
 	    (atomic_read(&ndev->state) != NCI_W4_ALL_DISCOVERIES)) {
-		pr_err("unable to stop poll, since poll is not active\n");
+		pr_err("unable to stop poll, since poll is yest active\n");
 		return;
 	}
 
@@ -857,7 +857,7 @@ static int nci_activate_target(struct nfc_dev *nfc_dev,
 
 	if ((atomic_read(&ndev->state) != NCI_W4_HOST_SELECT) &&
 	    (atomic_read(&ndev->state) != NCI_POLL_ACTIVE)) {
-		pr_err("there is no available target to activate\n");
+		pr_err("there is yes available target to activate\n");
 		return -EINVAL;
 	}
 
@@ -879,7 +879,7 @@ static int nci_activate_target(struct nfc_dev *nfc_dev,
 	}
 
 	if (!(nci_target->supported_protocols & (1 << protocol))) {
-		pr_err("target does not support the requested protocol 0x%x\n",
+		pr_err("target does yest support the requested protocol 0x%x\n",
 		       protocol);
 		return -EINVAL;
 	}
@@ -920,7 +920,7 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev,
 	pr_debug("entry\n");
 
 	if (!ndev->target_active_prot) {
-		pr_err("unable to deactivate target, no active target\n");
+		pr_err("unable to deactivate target, yes active target\n");
 		return;
 	}
 
@@ -999,7 +999,7 @@ static int nci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	pr_debug("target_idx %d, len %d\n", target->idx, skb->len);
 
 	if (!ndev->target_active_prot) {
-		pr_err("unable to exchange data, no active target\n");
+		pr_err("unable to exchange data, yes active target\n");
 		return -EINVAL;
 	}
 
@@ -1321,7 +1321,7 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload)
 
 	skb = nci_skb_alloc(ndev, (NCI_CTRL_HDR_SIZE + plen), GFP_KERNEL);
 	if (!skb) {
-		pr_err("no memory for command\n");
+		pr_err("yes memory for command\n");
 		return -ENOMEM;
 	}
 
@@ -1482,7 +1482,7 @@ static void nci_rx_work(struct work_struct *work)
 			break;
 
 		default:
-			pr_err("unknown MT 0x%x\n", nci_mt(skb->data));
+			pr_err("unkyeswn MT 0x%x\n", nci_mt(skb->data));
 			kfree_skb(skb);
 			break;
 		}

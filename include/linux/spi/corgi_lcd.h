@@ -14,7 +14,7 @@ struct corgi_lcd_platform_data {
 	int	gpio_backlight_on;	/* -1 if n/a */
 	int	gpio_backlight_cont;	/* -1 if n/a */
 
-	void (*notify)(int intensity);
+	void (*yestify)(int intensity);
 	void (*kick_battery)(void);
 };
 

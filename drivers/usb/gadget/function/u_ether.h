@@ -133,7 +133,7 @@ int gether_register_netdev(struct net_device *net);
  * gadget driver using this framework.  The link layer addresses
  * are set to random values.
  *
- * Returns negative errno, or zero on success
+ * Returns negative erryes, or zero on success
  */
 static inline struct net_device *gether_setup_default(void)
 {
@@ -156,7 +156,7 @@ void gether_set_gadget(struct net_device *net, struct usb_gadget *g);
  *
  * This sets the device-side Ethernet address of this ethernet-over-usb link
  * if dev_addr is correct.
- * Returns negative errno if the new address is incorrect.
+ * Returns negative erryes if the new address is incorrect.
  */
 int gether_set_dev_addr(struct net_device *net, const char *dev_addr);
 
@@ -167,7 +167,7 @@ int gether_set_dev_addr(struct net_device *net, const char *dev_addr);
  * @len: length of the @dev_addr buffer
  *
  * This gets the device-side Ethernet address of this ethernet-over-usb link.
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erryes.
  */
 int gether_get_dev_addr(struct net_device *net, char *dev_addr, int len);
 
@@ -178,7 +178,7 @@ int gether_get_dev_addr(struct net_device *net, char *dev_addr, int len);
  *
  * This sets the host-side Ethernet address of this ethernet-over-usb link
  * if host_addr is correct.
- * Returns negative errno if the new address is incorrect.
+ * Returns negative erryes if the new address is incorrect.
  */
 int gether_set_host_addr(struct net_device *net, const char *host_addr);
 
@@ -189,7 +189,7 @@ int gether_set_host_addr(struct net_device *net, const char *host_addr);
  * @len: length of the @host_addr buffer
  *
  * This gets the host-side Ethernet address of this ethernet-over-usb link.
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erryes.
  */
 int gether_get_host_addr(struct net_device *net, char *host_addr, int len);
 
@@ -201,7 +201,7 @@ int gether_get_host_addr(struct net_device *net, char *host_addr, int len);
  *
  * This gets the CDC formatted host-side Ethernet address of this
  * ethernet-over-usb link.
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erryes.
  */
 int gether_get_host_addr_cdc(struct net_device *net, char *host_addr, int len);
 
@@ -240,7 +240,7 @@ unsigned gether_get_qmult(struct net_device *net);
  * @len: length of the @name buffer
  *
  * This gets the interface name of this ethernet-over-usb link.
- * Returns zero on success, else negative errno.
+ * Returns zero on success, else negative erryes.
  */
 int gether_get_ifname(struct net_device *net, char *name, int len);
 
@@ -257,7 +257,7 @@ static inline bool can_support_ecm(struct usb_gadget *gadget)
 		return false;
 
 	/* Everything else is *presumably* fine ... but this is a bit
-	 * chancy, so be **CERTAIN** there are no hardware issues with
+	 * chancy, so be **CERTAIN** there are yes hardware issues with
 	 * your controller.  Add it above if it can't handle CDC.
 	 */
 	return true;

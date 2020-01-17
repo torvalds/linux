@@ -18,7 +18,7 @@
  * Thanks to "Christopher J. Reimer" <reimer@doe.carleton.ca> for
  * fixing the problem with the BIOS on some Acer motherboards.
  *
- * Thanks to "Benoit Poulot-Cazajous" <poulot@chorus.fr> for testing
+ * Thanks to "Beyesit Poulot-Cazajous" <poulot@chorus.fr> for testing
  * "TX" chipset compatibility and for providing patches for the "TX" chipset.
  *
  * Thanks to Christian Brunner <chb@muc.de> for taking a good first crack
@@ -305,7 +305,7 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base, u8 req_mode)
  *	the DMA transfer.  The speed is then limited by the requested mode.
  *
  *	Returns 0 if the drive/host combination is incapable of DMA transfers
- *	or if the requested mode is not a DMA mode.
+ *	or if the requested mode is yest a DMA mode.
  */
 
 u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
@@ -343,7 +343,7 @@ u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
 	mode = min(mode, req_mode);
 
 	printk(KERN_INFO "%s: %s mode selected\n", drive->name,
-			  mode ? ide_xfer_verbose(mode) : "no DMA");
+			  mode ? ide_xfer_verbose(mode) : "yes DMA");
 
 	return mode;
 }
@@ -357,7 +357,7 @@ static int ide_tune_dma(ide_drive_t *drive)
 	    (drive->dev_flags & IDE_DFLAG_NODMA))
 		return 0;
 
-	/* consult the list of known "bad" drives */
+	/* consult the list of kyeswn "bad" drives */
 	if (__ide_dma_bad_drive(drive))
 		return 0;
 
@@ -398,7 +398,7 @@ int ide_set_dma(ide_drive_t *drive)
 	/*
 	 * Force DMAing for the beginning of the check.
 	 * Some chipsets appear to do interesting
-	 * things, if not checked and cleared.
+	 * things, if yest checked and cleared.
 	 *   PARANOIA!!!
 	 */
 	ide_dma_off_quietly(drive);
@@ -420,7 +420,7 @@ void ide_check_dma_crc(ide_drive_t *drive)
 	drive->crc_count = 0;
 	mode = drive->current_speed;
 	/*
-	 * Don't try non Ultra-DMA modes without iCRC's.  Force the
+	 * Don't try yesn Ultra-DMA modes without iCRC's.  Force the
 	 * device to PIO and make the user enable SWDMA/MWDMA modes.
 	 */
 	if (mode > XFER_UDMA_0 && mode <= XFER_UDMA_7)
@@ -476,7 +476,7 @@ ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	}
 
 	/*
-	 * disable dma for now, but remember that we did so because of
+	 * disable dma for yesw, but remember that we did so because of
 	 * a timeout -- we'll reenable after we finish this next request
 	 * (or rather the first chunk of it) in pio.
 	 */

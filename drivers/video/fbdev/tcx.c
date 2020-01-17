@@ -11,7 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -74,7 +74,7 @@ static struct fb_ops tcx_ops = {
 #define TCX_THC_REV_MINREV_SHIFT     28
 #define TCX_THC_REV_MINREV_MASK      15
 
-/* The contents are unknown */
+/* The contents are unkyeswn */
 struct tcx_tec {
 	u32 tec_matrix;
 	u32 tec_clip;
@@ -160,14 +160,14 @@ static int tcx_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 /**
  *      tcx_setcolreg - Optional function. Sets a color register.
- *      @regno: boolean, 0 copy local, 1 get_user() function
+ *      @regyes: boolean, 0 copy local, 1 get_user() function
  *      @red: frame buffer colormap structure
  *      @green: The green value which can be up to 16 bits wide
  *      @blue:  The blue value which can be up to 16 bits wide.
  *      @transp: If supported the alpha value which can be up to 16 bits wide.
  *      @info: frame buffer info structure
  */
-static int tcx_setcolreg(unsigned regno,
+static int tcx_setcolreg(unsigned regyes,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp, struct fb_info *info)
 {
@@ -175,7 +175,7 @@ static int tcx_setcolreg(unsigned regno,
 	struct bt_regs __iomem *bt = par->bt;
 	unsigned long flags;
 
-	if (regno >= 256)
+	if (regyes >= 256)
 		return 1;
 
 	red >>= 8;
@@ -184,7 +184,7 @@ static int tcx_setcolreg(unsigned regno,
 
 	spin_lock_irqsave(&par->lock, flags);
 
-	sbus_writel(regno << 24, &bt->addr);
+	sbus_writel(regyes << 24, &bt->addr);
 	sbus_writel(red << 24, &bt->color_map);
 	sbus_writel(green << 24, &bt->color_map);
 	sbus_writel(blue << 24, &bt->color_map);
@@ -365,7 +365,7 @@ static void tcx_unmap_regs(struct platform_device *op, struct fb_info *info,
 
 static int tcx_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	struct fb_info *info;
 	struct tcx_par *par;
 	int linebytes, i, err;

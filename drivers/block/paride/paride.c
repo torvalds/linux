@@ -15,7 +15,7 @@
 	1.04    GRG 1998.11.28  added support for FRIQ 
 	1.05    TMW 2000.06.06  use parport_find_number instead of
 				parport_enumerate
-	1.06    TMW 2001.03.26  more sane parport-or-not resource management
+	1.06    TMW 2001.03.26  more sane parport-or-yest resource management
 */
 
 #define PI_VERSION      "1.06"
@@ -190,7 +190,7 @@ static int default_test_proto(PIA * pi, char *scratch, int verbose)
 		       pi->device, pi->proto->name, pi->port,
 		       pi->mode, e[0], e[1]);
 
-	return (e[0] && e[1]);	/* not here if both > 0 */
+	return (e[0] && e[1]);	/* yest here if both > 0 */
 }
 
 static int pi_test_proto(PIA * pi, char *scratch, int verbose)
@@ -237,7 +237,7 @@ void paride_unregister(PIP * pr)
 	if (!pr)
 		return;
 	if (protocols[pr->index] != pr) {
-		printk("paride: %s not registered\n", pr->name);
+		printk("paride: %s yest registered\n", pr->name);
 		return;
 	}
 	protocols[pr->index] = NULL;
@@ -421,7 +421,7 @@ int pi_init(PIA * pi, int autoprobe, int port, int mode,
 		if (autoprobe)
 			printk("%s: Autoprobe failed\n", device);
 		else
-			printk("%s: Adapter not found\n", device);
+			printk("%s: Adapter yest found\n", device);
 		return 0;
 	}
 

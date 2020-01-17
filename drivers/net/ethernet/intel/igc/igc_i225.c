@@ -69,7 +69,7 @@ static s32 igc_get_hw_semaphore_i225(struct igc_hw *hw)
 			}
 		}
 
-		/* If we do not have the semaphore here, we have to give up. */
+		/* If we do yest have the semaphore here, we have to give up. */
 		if (i == timeout) {
 			hw_dbg("Driver can't access device - SMBI bit is set.\n");
 			return -IGC_ERR_NVM;
@@ -182,7 +182,7 @@ static s32 igc_read_nvm_srrd_i225(struct igc_hw *hw, u16 offset, u16 words,
 	s32 status = 0;
 	u16 i, count;
 
-	/* We cannot hold synchronization semaphores for too long,
+	/* We canyest hold synchronization semaphores for too long,
 	 * because of forceful takeover procedure. However it is more efficient
 	 * to read in bursts than synchronizing access for each word.
 	 */
@@ -212,7 +212,7 @@ static s32 igc_read_nvm_srrd_i225(struct igc_hw *hw, u16 offset, u16 words,
  *
  * Writes data to Shadow Ram at offset using EEWR register.
  *
- * If igc_update_nvm_checksum is not called after this function , the
+ * If igc_update_nvm_checksum is yest called after this function , the
  * Shadow Ram will most likely contain an invalid checksum.
  */
 static s32 igc_write_nvm_srwr(struct igc_hw *hw, u16 offset, u16 words,
@@ -224,7 +224,7 @@ static s32 igc_write_nvm_srwr(struct igc_hw *hw, u16 offset, u16 words,
 	s32 ret_val = 0;
 
 	/* A check for invalid values:  offset too large, too many words,
-	 * too many words for the offset, and not enough words.
+	 * too many words for the offset, and yest eyesugh words.
 	 */
 	if (offset >= nvm->word_size || (words > (nvm->word_size - offset)) ||
 	    words == 0) {
@@ -268,8 +268,8 @@ out:
  *
  * Writes data to Shadow RAM at offset using EEWR register.
  *
- * If igc_update_nvm_checksum is not called after this function , the
- * data will not be committed to FLASH and also Shadow RAM will most likely
+ * If igc_update_nvm_checksum is yest called after this function , the
+ * data will yest be committed to FLASH and also Shadow RAM will most likely
  * contain an invalid checksum.
  *
  * If error code is returned, data and Shadow RAM may be inconsistent - buffer
@@ -281,7 +281,7 @@ static s32 igc_write_nvm_srwr_i225(struct igc_hw *hw, u16 offset, u16 words,
 	s32 status = 0;
 	u16 i, count;
 
-	/* We cannot hold synchronization semaphores for too long,
+	/* We canyest hold synchronization semaphores for too long,
 	 * because of forceful takeover procedure. However it is more efficient
 	 * to write in bursts than synchronizing access for each word.
 	 */
@@ -401,7 +401,7 @@ static s32 igc_update_nvm_checksum_i225(struct igc_hw *hw)
 	u16 i, nvm_data;
 
 	/* Read the first word from the EEPROM. If this times out or fails, do
-	 * not continue or we could be in for a very long wait while every
+	 * yest continue or we could be in for a very long wait while every
 	 * EEPROM read fails
 	 */
 	ret_val = igc_read_nvm_eerd(hw, 0, 1, &nvm_data);
@@ -414,8 +414,8 @@ static s32 igc_update_nvm_checksum_i225(struct igc_hw *hw)
 	if (ret_val)
 		goto out;
 
-	/* Do not use hw->nvm.ops.write, hw->nvm.ops.read
-	 * because we do not want to take the synchronization
+	/* Do yest use hw->nvm.ops.write, hw->nvm.ops.read
+	 * because we do yest want to take the synchronization
 	 * semaphores twice here.
 	 */
 

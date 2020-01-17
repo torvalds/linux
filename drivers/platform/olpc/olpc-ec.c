@@ -25,7 +25,7 @@ struct ec_cmd_desc {
 
 	int err;
 	struct completion finished;
-	struct list_head node;
+	struct list_head yesde;
 
 	void *priv;
 };
@@ -84,8 +84,8 @@ static void olpc_ec_worker(struct work_struct *w)
 	/* Grab the first pending command from the queue */
 	spin_lock_irqsave(&ec->cmd_q_lock, flags);
 	if (!list_empty(&ec->cmd_q)) {
-		desc = list_first_entry(&ec->cmd_q, struct ec_cmd_desc, node);
-		list_del(&desc->node);
+		desc = list_first_entry(&ec->cmd_q, struct ec_cmd_desc, yesde);
+		list_del(&desc->yesde);
 	}
 	spin_unlock_irqrestore(&ec->cmd_q_lock, flags);
 
@@ -107,7 +107,7 @@ static void olpc_ec_worker(struct work_struct *w)
 }
 
 /*
- * Throw a cmd descripter onto the list.  We now have SMP OLPC machines, so
+ * Throw a cmd descripter onto the list.  We yesw have SMP OLPC machines, so
  * locking is pretty critical.
  */
 static void queue_ec_descriptor(struct ec_cmd_desc *desc,
@@ -115,10 +115,10 @@ static void queue_ec_descriptor(struct ec_cmd_desc *desc,
 {
 	unsigned long flags;
 
-	INIT_LIST_HEAD(&desc->node);
+	INIT_LIST_HEAD(&desc->yesde);
 
 	spin_lock_irqsave(&ec->cmd_q_lock, flags);
-	list_add_tail(&desc->node, &ec->cmd_q);
+	list_add_tail(&desc->yesde, &ec->cmd_q);
 	spin_unlock_irqrestore(&ec->cmd_q_lock, flags);
 
 	schedule_work(&ec->worker);
@@ -129,7 +129,7 @@ int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 	struct olpc_ec_priv *ec = ec_priv;
 	struct ec_cmd_desc desc;
 
-	/* Driver not yet registered. */
+	/* Driver yest yet registered. */
 	if (!ec_driver)
 		return -EPROBE_DEFER;
 
@@ -158,7 +158,7 @@ int olpc_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *outbuf, size_t outlen)
 	/* Timeouts must be handled in the platform-specific EC hook */
 	wait_for_completion(&desc.finished);
 
-	/* The worker thread dequeues the cmd; no need to do anything here */
+	/* The worker thread dequeues the cmd; yes need to do anything here */
 	return desc.err;
 }
 EXPORT_SYMBOL_GPL(olpc_ec_cmd);

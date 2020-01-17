@@ -152,7 +152,7 @@
 #define UDCCONR_ET_S	13
 #define UDCCONR_ET_INT	(0x03 << 13)	/*   Interrupt */
 #define UDCCONR_ET_BULK	(0x02 << 13)	/*   Bulk */
-#define UDCCONR_ET_ISO	(0x01 << 13)	/*   Isochronous */
+#define UDCCONR_ET_ISO	(0x01 << 13)	/*   Isochroyesus */
 #define UDCCONR_ET_NU	(0x00 << 13)	/*   Not used */
 #define UDCCONR_ED	(1 << 12)	/* Endpoint Direction */
 #define UDCCONR_MPS	(0x3ff << 2)	/* Maximum Packet Size */
@@ -205,7 +205,7 @@
 /*
  * Endpoint definitions
  *
- * Once enabled, pxa endpoint configuration is freezed, and cannot change
+ * Once enabled, pxa endpoint configuration is freezed, and canyest change
  * unless a reset happens or the udc is disabled.
  * Therefore, we must define all pxa potential endpoint definitions needed for
  * all gadget and set them up before the udc is enabled.
@@ -314,7 +314,7 @@ struct udc_usb_ep {
  * @dev: udc device
  * @queue: requests queue
  * @lock: lock to pxa_ep data (queues and stats)
- * @enabled: true when endpoint enabled (not stopped by gadget layer)
+ * @enabled: true when endpoint enabled (yest stopped by gadget layer)
  * @in_handle_ep: number of recursions of handle_ep() function
  * 	Prevents deadlocks or infinite recursions of types :
  *	  irq->handle_ep()->req_done()->req.complete()->pxa_ep_queue()->handle_ep()
@@ -427,7 +427,7 @@ struct udc_stats {
  * @driver: bound gadget (zero, g_ether, g_mass_storage, ...)
  * @dev: device
  * @udc_command: machine specific function to activate D+ pullup
- * @gpiod: gpio descriptor of gpio for D+ pullup (or NULL if none)
+ * @gpiod: gpio descriptor of gpio for D+ pullup (or NULL if yesne)
  * @transceiver: external transceiver to handle vbus sense and D+ pullup
  * @ep0state: control endpoint state machine state
  * @stats: statistics on udc usage

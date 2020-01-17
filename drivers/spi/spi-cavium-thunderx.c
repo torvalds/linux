@@ -70,7 +70,7 @@ static int thunderx_spi_probe(struct pci_dev *pdev,
 	master->transfer_one_message = octeon_spi_transfer_one_message;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->max_speed_hz = OCTEON_SPI_MAX_CLOCK_HZ;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 
 	pci_set_drvdata(pdev, master);
 
@@ -98,7 +98,7 @@ static void thunderx_spi_remove(struct pci_dev *pdev)
 
 	clk_disable_unprepare(p->clk);
 	pci_release_regions(pdev);
-	/* Put everything in a known state. */
+	/* Put everything in a kyeswn state. */
 	writeq(0, p->register_base + OCTEON_SPI_CFG(p));
 }
 

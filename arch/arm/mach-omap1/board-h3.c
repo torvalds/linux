@@ -8,7 +8,7 @@
  * Copyright (C) 2002 MontaVista Software, Inc.
  * Copyright (C) 2001 RidgeRun, Inc.
  * Author: RidgeRun, Inc.
- *         Greg Lonnon (glonnon@ridgerun.com) or info@ridgerun.com
+ *         Greg Lonyesn (glonyesn@ridgerun.com) or info@ridgerun.com
  */
 #include <linux/gpio.h>
 #include <linux/types.h>
@@ -16,7 +16,7 @@
 #include <linux/major.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/mtd/mtd.h>
@@ -94,7 +94,7 @@ static const unsigned int h3_keymap[] = {
 };
 
 
-static struct mtd_partition nor_partitions[] = {
+static struct mtd_partition yesr_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
 	{
 	      .name		= "bootloader",
@@ -125,26 +125,26 @@ static struct mtd_partition nor_partitions[] = {
 	}
 };
 
-static struct physmap_flash_data nor_data = {
+static struct physmap_flash_data yesr_data = {
 	.width		= 2,
 	.set_vpp	= omap1_set_vpp,
-	.parts		= nor_partitions,
-	.nr_parts	= ARRAY_SIZE(nor_partitions),
+	.parts		= yesr_partitions,
+	.nr_parts	= ARRAY_SIZE(yesr_partitions),
 };
 
-static struct resource nor_resource = {
+static struct resource yesr_resource = {
 	/* This is on CS3, wherever it's mapped */
 	.flags		= IORESOURCE_MEM,
 };
 
-static struct platform_device nor_device = {
+static struct platform_device yesr_device = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &nor_data,
+		.platform_data	= &yesr_data,
 	},
 	.num_resources	= 1,
-	.resource	= &nor_resource,
+	.resource	= &yesr_resource,
 };
 
 static struct mtd_partition nand_partitions[] = {
@@ -350,7 +350,7 @@ static struct platform_device h3_gpio_leds = {
 };
 
 static struct platform_device *devices[] __initdata = {
-	&nor_device,
+	&yesr_device,
 	&nand_device,
         &smc91x_device,
 	&intlat_device,
@@ -392,14 +392,14 @@ static void __init h3_init(void)
 
 	/* Here we assume the NOR boot config:  NOR on CS3 (possibly swapped
 	 * to address 0 by a dip switch), NAND on CS2B.  The NAND driver will
-	 * notice whether a NAND chip is enabled at probe time.
+	 * yestice whether a NAND chip is enabled at probe time.
 	 *
 	 * H3 support NAND-boot, with a dip switch to put NOR on CS2B and NAND
 	 * (which on H2 may be 16bit) on CS3.  Try detecting that in code here,
 	 * to avoid probing every possible flash configuration...
 	 */
-	nor_resource.end = nor_resource.start = omap_cs3_phys();
-	nor_resource.end += SZ_32M - 1;
+	yesr_resource.end = yesr_resource.start = omap_cs3_phys();
+	yesr_resource.end += SZ_32M - 1;
 
 	nand_resource.end = nand_resource.start = OMAP_CS2B_PHYS;
 	nand_resource.end += SZ_4K - 1;

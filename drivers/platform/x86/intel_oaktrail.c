@@ -81,7 +81,7 @@
 
 static bool force;
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
+MODULE_PARM_DESC(force, "Force driver load, igyesre DMI data");
 
 static struct platform_device *oaktrail_device;
 static struct backlight_device *oaktrail_bl_device;
@@ -307,7 +307,7 @@ static int __init oaktrail_init(void)
 	}
 
 	if (!force && !dmi_check_system(oaktrail_dmi_table)) {
-		pr_err("Platform not recognized (You could try the module's force-parameter)");
+		pr_err("Platform yest recognized (You could try the module's force-parameter)");
 		return -ENODEV;
 	}
 

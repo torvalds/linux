@@ -22,11 +22,11 @@
  * without having to do pointer masking.
  */
 struct thread_info {
-	struct task_struct *task;	/* XXX not really needed, except for dup_task_struct() */
+	struct task_struct *task;	/* XXX yest really needed, except for dup_task_struct() */
 	__u32 flags;			/* thread_info flags (see TIF_*) */
 	__u32 cpu;			/* current CPU */
 	__u32 last_cpu;			/* Last CPU thread ran on */
-	__u32 status;			/* Thread synchronous flags */
+	__u32 status;			/* Thread synchroyesus flags */
 	mm_segment_t addr_limit;	/* user-level address space limit */
 	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
@@ -55,15 +55,15 @@ struct thread_info {
 #ifndef ASM_OFFSETS_C
 /* how to get the thread information struct from C */
 #define current_thread_info()	((struct thread_info *) ((char *) current + IA64_TASK_SIZE))
-#define alloc_thread_stack_node(tsk, node)	\
+#define alloc_thread_stack_yesde(tsk, yesde)	\
 		((unsigned long *) ((char *) (tsk) + IA64_TASK_SIZE))
 #define task_thread_info(tsk)	((struct thread_info *) ((char *) (tsk) + IA64_TASK_SIZE))
 #else
 #define current_thread_info()	((struct thread_info *) 0)
-#define alloc_thread_stack_node(tsk, node)	((unsigned long *) 0)
+#define alloc_thread_stack_yesde(tsk, yesde)	((unsigned long *) 0)
 #define task_thread_info(tsk)	((struct thread_info *) 0)
 #endif
-#define free_thread_stack(tsk)	/* nothing */
+#define free_thread_stack(tsk)	/* yesthing */
 #define task_stack_page(tsk)	((void *)(tsk))
 
 #define __HAVE_THREAD_FUNCTIONS
@@ -80,9 +80,9 @@ struct thread_info {
 #endif
 #define end_of_stack(p) (unsigned long *)((void *)(p) + IA64_RBS_OFFSET)
 
-#define alloc_task_struct_node(node)						\
+#define alloc_task_struct_yesde(yesde)						\
 ({										\
-	struct page *page = alloc_pages_node(node, GFP_KERNEL | __GFP_COMP,	\
+	struct page *page = alloc_pages_yesde(yesde, GFP_KERNEL | __GFP_COMP,	\
 					     KERNEL_STACK_SIZE_ORDER);		\
 	struct task_struct *ret = page ? page_address(page) : NULL;		\
 										\
@@ -103,7 +103,7 @@ struct thread_info {
 #define TIF_SYSCALL_TRACE	2	/* syscall trace active */
 #define TIF_SYSCALL_AUDIT	3	/* syscall auditing active */
 #define TIF_SINGLESTEP		4	/* restore singlestep on return to user mode */
-#define TIF_NOTIFY_RESUME	6	/* resumption notification requested */
+#define TIF_NOTIFY_RESUME	6	/* resumption yestification requested */
 #define TIF_MEMDIE		17	/* is terminating due to OOM killer */
 #define TIF_MCA_INIT		18	/* this task is processing MCA or INIT */
 #define TIF_DB_DISABLED		19	/* debug trap disabled for fsyscall */

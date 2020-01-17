@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -175,7 +175,7 @@ int ath9k_hw_nvram_swap_data(struct ath_hw *ah, bool *swap_needed, int size)
 	} else if (magic != AR5416_EEPROM_MAGIC) {
 		if (ath9k_hw_use_flash(ah)) {
 			ath_dbg(common, EEPROM,
-				"Ignoring invalid EEPROM magic (0x%04x).\n",
+				"Igyesring invalid EEPROM magic (0x%04x).\n",
 				magic);
 		} else {
 			ath_err(common,
@@ -187,7 +187,7 @@ int ath9k_hw_nvram_swap_data(struct ath_hw *ah, bool *swap_needed, int size)
 	if (needs_byteswap) {
 		if (ah->ah_flags & AH_NO_EEP_SWAP) {
 			ath_info(common,
-				 "Ignoring endianness difference in EEPROM magic bytes.\n");
+				 "Igyesring endianness difference in EEPROM magic bytes.\n");
 		} else {
 			eepdata = (u16 *)(&ah->eeprom);
 

@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _format:
 
@@ -45,7 +45,7 @@ change controls or modify other properties. The first :ref:`VIDIOC_S_FMT <VIDIOC
 assigns a logical stream (video data, VBI data etc.) exclusively to one
 file descriptor.
 
-Exclusive means no other application, more precisely no other file
+Exclusive means yes other application, more precisely yes other file
 descriptor, can grab this stream or change device properties
 inconsistent with the negotiated parameters. A video standard change for
 example, when the new standard uses a different number of scan lines,
@@ -87,13 +87,13 @@ by all drivers exchanging image data with applications.
 
 .. important::
 
-    Drivers are not supposed to convert image formats in kernel space.
+    Drivers are yest supposed to convert image formats in kernel space.
     They must enumerate only formats directly supported by the hardware.
     If necessary driver writers should publish an example conversion
     routine or library for integration into applications.
 
 .. [#f1]
-   Enumerating formats an application has no a-priori knowledge of
-   (otherwise it could explicitly ask for them and need not enumerate)
+   Enumerating formats an application has yes a-priori kyeswledge of
+   (otherwise it could explicitly ask for them and need yest enumerate)
    seems useless, but there are applications serving as proxy between
    drivers and the actual video applications for which this is useful.

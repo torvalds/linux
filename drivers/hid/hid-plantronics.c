@@ -50,13 +50,13 @@ static int plantronics_input_mapping(struct hid_device *hdev,
 		goto defaulted;
 
 	/* handle volume up/down mapping */
-	/* non-standard types or multi-HID interfaces - plt_type is PID */
+	/* yesn-standard types or multi-HID interfaces - plt_type is PID */
 	if (!(plt_type & HID_USAGE_PAGE)) {
 		switch (plt_type) {
 		case PLT_DA60:
 			if (PLT_ALLOW_CONSUMER)
 				goto defaulted;
-			goto ignored;
+			goto igyesred;
 		default:
 			if (PLT_ALLOW_CONSUMER)
 				goto defaulted;
@@ -69,7 +69,7 @@ static int plantronics_input_mapping(struct hid_device *hdev,
 		if (PLT_ALLOW_CONSUMER)
 			goto defaulted;
 	}
-	/* not 'basic telephony' - apply legacy mapping */
+	/* yest 'basic telephony' - apply legacy mapping */
 	/* only map if the field is in the device's primary vendor page */
 	else if (!((field->application ^ plt_type) & HID_USAGE_PAGE)) {
 		switch (usage->hid) {
@@ -87,10 +87,10 @@ static int plantronics_input_mapping(struct hid_device *hdev,
 /*
  * Future mapping of call control or other usages,
  * if and when keys are defined would go here
- * otherwise, ignore everything else that was not mapped
+ * otherwise, igyesre everything else that was yest mapped
  */
 
-ignored:
+igyesred:
 	return -1;
 
 defaulted:

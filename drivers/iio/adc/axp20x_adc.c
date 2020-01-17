@@ -232,7 +232,7 @@ static int axp20x_adc_raw(struct iio_dev *indio_dev,
 
 	/*
 	 * N.B.:  Unlike the Chinese datasheets tell, the charging current is
-	 * stored on 12 bits, not 13 bits. Only discharging current is on 13
+	 * stored on 12 bits, yest 13 bits. Only discharging current is on 13
 	 * bits.
 	 */
 	if (chan->type == IIO_CURRENT && chan->channel == AXP20X_BATT_DISCHRG_I)
@@ -255,7 +255,7 @@ static int axp22x_adc_raw(struct iio_dev *indio_dev,
 
 	/*
 	 * N.B.: Unlike the Chinese datasheets tell, the charging current is
-	 * stored on 12 bits, not 13 bits. Only discharging current is on 13
+	 * stored on 12 bits, yest 13 bits. Only discharging current is on 13
 	 * bits.
 	 */
 	if (chan->type == IIO_CURRENT && chan->channel == AXP22X_BATT_DISCHRG_I)
@@ -669,10 +669,10 @@ static int axp20x_probe(struct platform_device *pdev)
 
 	info->regmap = axp20x_dev->regmap;
 	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	if (!pdev->dev.of_node) {
+	if (!pdev->dev.of_yesde) {
 		const struct platform_device_id *id;
 
 		id = platform_get_device_id(pdev);
@@ -707,7 +707,7 @@ static int axp20x_probe(struct platform_device *pdev)
 
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not register the device\n");
+		dev_err(&pdev->dev, "could yest register the device\n");
 		goto fail_register;
 	}
 

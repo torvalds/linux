@@ -86,7 +86,7 @@ int octnet_send_nic_data_pkt(struct octeon_device *oct,
 {
 	int ring_doorbell = !xmit_more;
 
-	return octeon_send_command(oct, ndata->q_no, ring_doorbell, &ndata->cmd,
+	return octeon_send_command(oct, ndata->q_yes, ring_doorbell, &ndata->cmd,
 				   ndata->buf, ndata->datasize,
 				   ndata->reqtype);
 }
@@ -122,7 +122,7 @@ static inline struct octeon_soft_command
 		memcpy(data + OCTNET_CMD_SIZE, nctrl->udd, uddsize);
 	}
 
-	sc->iq_no = (u32)nctrl->iq_no;
+	sc->iq_yes = (u32)nctrl->iq_yes;
 
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC, OPCODE_NIC_CMD,
 				    0, 0, 0);
@@ -148,7 +148,7 @@ octnet_send_nic_ctrl_pkt(struct octeon_device *oct,
 	    (nctrl->ncmd.s.cmd != OCTNET_CMD_RX_CTL)) {
 		spin_unlock_bh(&oct->cmd_resp_wqlock);
 		dev_err(&oct->pci_dev->dev,
-			"%s cmd:%d not processed since driver offline\n",
+			"%s cmd:%d yest processed since driver offline\n",
 			__func__, nctrl->ncmd.s.cmd);
 		return -1;
 	}
@@ -174,7 +174,7 @@ octnet_send_nic_ctrl_pkt(struct octeon_device *oct,
 
 	if (nctrl->ncmd.s.cmdgroup == 0) {
 		switch (nctrl->ncmd.s.cmd) {
-			/* caller holds lock, can not sleep */
+			/* caller holds lock, can yest sleep */
 		case OCTNET_CMD_CHANGE_DEVFLAGS:
 		case OCTNET_CMD_SET_MULTI_LIST:
 		case OCTNET_CMD_SET_UC_LIST:

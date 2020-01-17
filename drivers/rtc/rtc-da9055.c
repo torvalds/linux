@@ -314,7 +314,7 @@ err_rtc:
 }
 
 #ifdef CONFIG_PM
-/* Turn off the alarm if it should not be a wake source. */
+/* Turn off the alarm if it should yest be a wake source. */
 static int da9055_rtc_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);

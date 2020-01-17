@@ -77,7 +77,7 @@
 #define TW_KR		0xc2		/* Keyboard restore */
 #define TW_PLUSALARM	0x04		/* Add this bit for alarm */
 
-#define RAW3270_FIRSTMINOR	1	/* First minor number */
+#define RAW3270_FIRSTMINOR	1	/* First miyesr number */
 #define RAW3270_MAXDEVS		255	/* Max number of 3270 devices */
 
 /* For TUBGETMOD and TUBSETMOD. Should include. */
@@ -192,14 +192,14 @@ struct raw3270 *raw3270_setup_console(void);
 void raw3270_wait_cons_dev(struct raw3270 *);
 
 /* Notifier for device addition/removal */
-struct raw3270_notifier {
+struct raw3270_yestifier {
 	struct list_head list;
-	void (*create)(int minor);
-	void (*destroy)(int minor);
+	void (*create)(int miyesr);
+	void (*destroy)(int miyesr);
 };
 
-int raw3270_register_notifier(struct raw3270_notifier *);
-void raw3270_unregister_notifier(struct raw3270_notifier *);
+int raw3270_register_yestifier(struct raw3270_yestifier *);
+void raw3270_unregister_yestifier(struct raw3270_yestifier *);
 void raw3270_pm_unfreeze(struct raw3270_view *);
 
 /*

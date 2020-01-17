@@ -256,7 +256,7 @@ static int __init oprofile_init(void)
 
 	/* setup timer mode: */
 	timer_mode = 1;
-	/* no nmi timer mode if oprofile.timer is set */
+	/* yes nmi timer mode if oprofile.timer is set */
 	if (timer || op_nmi_timer_init(&oprofile_ops)) {
 		err = oprofile_timer_init(&oprofile_ops);
 		if (err)

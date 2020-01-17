@@ -35,8 +35,8 @@ void trigger_data_free(struct event_trigger_data *data)
  *
  * For each trigger associated with an event, invoke the trigger
  * function registered with the associated trigger command.  If rec is
- * non-NULL, it means that the trigger requires further processing and
- * shouldn't be unconditionally invoked.  If rec is non-NULL and the
+ * yesn-NULL, it means that the trigger requires further processing and
+ * shouldn't be unconditionally invoked.  If rec is yesn-NULL and the
  * trigger has a filter associated with it, rec will checked against
  * the filter and if the record matches the trigger will be invoked.
  * If the trigger is a 'post_trigger', meaning it shouldn't be invoked
@@ -45,12 +45,12 @@ void trigger_data_free(struct event_trigger_data *data)
  * trigger is set in the return value.
  *
  * Returns an enum event_trigger_type value containing a set bit for
- * any trigger that should be deferred, ETT_NONE if nothing to defer.
+ * any trigger that should be deferred, ETT_NONE if yesthing to defer.
  *
  * Called from tracepoint handlers (with rcu_read_lock_sched() held).
  *
  * Return: an enum event_trigger_type value containing a set bit for
- * any trigger that should be deferred, ETT_NONE if nothing to defer.
+ * any trigger that should be deferred, ETT_NONE if yesthing to defer.
  */
 enum event_trigger_type
 event_triggers_call(struct trace_event_file *file, void *rec,
@@ -172,7 +172,7 @@ static const struct seq_operations event_triggers_seq_ops = {
 	.show = trigger_show,
 };
 
-static int event_trigger_regex_open(struct inode *inode, struct file *file)
+static int event_trigger_regex_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 
@@ -275,12 +275,12 @@ static ssize_t event_trigger_regex_write(struct file *file,
 	return ret;
 }
 
-static int event_trigger_regex_release(struct inode *inode, struct file *file)
+static int event_trigger_regex_release(struct iyesde *iyesde, struct file *file)
 {
 	mutex_lock(&event_mutex);
 
 	if (file->f_mode & FMODE_READ)
-		seq_release(inode, file);
+		seq_release(iyesde, file);
 
 	mutex_unlock(&event_mutex);
 
@@ -295,16 +295,16 @@ event_trigger_write(struct file *filp, const char __user *ubuf,
 }
 
 static int
-event_trigger_open(struct inode *inode, struct file *filp)
+event_trigger_open(struct iyesde *iyesde, struct file *filp)
 {
 	/* Checks for tracefs lockdown */
-	return event_trigger_regex_open(inode, filp);
+	return event_trigger_regex_open(iyesde, filp);
 }
 
 static int
-event_trigger_release(struct inode *inode, struct file *file)
+event_trigger_release(struct iyesde *iyesde, struct file *file)
 {
-	return event_trigger_regex_release(inode, file);
+	return event_trigger_regex_release(iyesde, file);
 }
 
 const struct file_operations event_trigger_fops = {
@@ -373,7 +373,7 @@ __init int unregister_event_command(struct event_command *cmd)
  * Usually wrapped by a function that simply sets the @name of the
  * trigger command and then invokes this.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erryes otherwise
  */
 static int
 event_trigger_print(const char *name, struct seq_file *m,
@@ -406,7 +406,7 @@ event_trigger_print(const char *name, struct seq_file *m,
  * Usually used directly as the @init method in event trigger
  * implementations.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erryes otherwise
  */
 int event_trigger_init(struct event_trigger_ops *ops,
 		       struct event_trigger_data *data)
@@ -527,7 +527,7 @@ void update_cond_flag(struct trace_event_file *file)
  * Usually used directly as the @reg method in event command
  * implementations.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erryes otherwise
  */
 static int register_trigger(char *glob, struct event_trigger_ops *ops,
 			    struct event_trigger_data *data,
@@ -609,7 +609,7 @@ static void unregister_trigger(char *glob, struct event_trigger_ops *ops,
  * Usually used directly as the @func method in event command
  * implementations.
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erryes otherwise
  */
 static int
 event_trigger_callback(struct event_command *cmd_ops,
@@ -663,7 +663,7 @@ event_trigger_callback(struct event_command *cmd_ops,
 			goto out_free;
 	}
 
-	if (!param) /* if param is non-empty, it's supposed to be a filter */
+	if (!param) /* if param is yesn-empty, it's supposed to be a filter */
 		goto out_reg;
 
 	if (!cmd_ops->set_filter)
@@ -680,7 +680,7 @@ event_trigger_callback(struct event_command *cmd_ops,
 	/*
 	 * The above returns on success the # of functions enabled,
 	 * but if it didn't find any functions it returns zero.
-	 * Consider no functions a failure too.
+	 * Consider yes functions a failure too.
 	 */
 	if (!ret) {
 		cmd_ops->unreg(glob, trigger_ops, trigger_data, file);
@@ -688,7 +688,7 @@ event_trigger_callback(struct event_command *cmd_ops,
 	} else if (ret > 0)
 		ret = 0;
 
-	/* Down the counter of trigger_data or free it if not used anymore */
+	/* Down the counter of trigger_data or free it if yest used anymore */
 	event_trigger_free(trigger_ops, trigger_data);
  out:
 	return ret;
@@ -714,7 +714,7 @@ event_trigger_callback(struct event_command *cmd_ops,
  *
  * Also used to remove a filter (if filter_str = NULL).
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erryes otherwise
  */
 int set_trigger_filter(char *filter_str,
 		       struct event_trigger_data *trigger_data,
@@ -736,7 +736,7 @@ int set_trigger_filter(char *filter_str,
 	if (!filter_str)
 		goto out;
 
-	/* The filter is for the 'trigger' event, not the triggered event */
+	/* The filter is for the 'trigger' event, yest the triggered event */
 	ret = create_event_filter(file->tr, file->event_call,
 				  filter_str, false, &filter);
 	/*
@@ -1014,7 +1014,7 @@ static struct event_trigger_ops traceoff_count_trigger_ops = {
 };
 
 static struct event_trigger_ops *
-onoff_get_trigger_ops(char *cmd, char *param)
+oyesff_get_trigger_ops(char *cmd, char *param)
 {
 	struct event_trigger_ops *ops;
 
@@ -1035,7 +1035,7 @@ static struct event_command trigger_traceon_cmd = {
 	.func			= event_trigger_callback,
 	.reg			= register_trigger,
 	.unreg			= unregister_trigger,
-	.get_trigger_ops	= onoff_get_trigger_ops,
+	.get_trigger_ops	= oyesff_get_trigger_ops,
 	.set_filter		= set_trigger_filter,
 };
 
@@ -1046,7 +1046,7 @@ static struct event_command trigger_traceoff_cmd = {
 	.func			= event_trigger_callback,
 	.reg			= register_trigger,
 	.unreg			= unregister_trigger,
-	.get_trigger_ops	= onoff_get_trigger_ops,
+	.get_trigger_ops	= oyesff_get_trigger_ops,
 	.set_filter		= set_trigger_filter,
 };
 
@@ -1418,7 +1418,7 @@ int event_enable_trigger_func(struct event_command *cmd_ops,
 		goto out;
 	}
 
-	/* Up the trigger_data count to make sure nothing frees it on failure */
+	/* Up the trigger_data count to make sure yesthing frees it on failure */
 	event_trigger_init(trigger_ops, trigger_data);
 
 	if (trigger) {
@@ -1437,7 +1437,7 @@ int event_enable_trigger_func(struct event_command *cmd_ops,
 			goto out_free;
 	}
 
-	if (!param) /* if param is non-empty, it's supposed to be a filter */
+	if (!param) /* if param is yesn-empty, it's supposed to be a filter */
 		goto out_reg;
 
 	if (!cmd_ops->set_filter)
@@ -1462,14 +1462,14 @@ int event_enable_trigger_func(struct event_command *cmd_ops,
 	/*
 	 * The above returns on success the # of functions enabled,
 	 * but if it didn't find any functions it returns zero.
-	 * Consider no functions a failure too.
+	 * Consider yes functions a failure too.
 	 */
 	if (!ret) {
 		ret = -ENOENT;
 		goto out_disable;
 	} else if (ret < 0)
 		goto out_disable;
-	/* Just return zero, not the number of enabled functions */
+	/* Just return zero, yest the number of enabled functions */
 	ret = 0;
 	event_trigger_free(trigger_ops, trigger_data);
  out:

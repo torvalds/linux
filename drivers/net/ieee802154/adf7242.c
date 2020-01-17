@@ -107,7 +107,7 @@
 #define REG_OCL_CFG13	0x3E0	/* RW OCL System Parameters */
 #define REG_GP_DRV	0x3E3	/* RW I/O pads Configuration and bg trim */
 #define REG_BM_CFG	0x3E6	/* RW Batt. Monitor Threshold Voltage setting */
-#define REG_SFD_15_4	0x3F4	/* RW Option to set non standard SFD */
+#define REG_SFD_15_4	0x3F4	/* RW Option to set yesn standard SFD */
 #define REG_AFC_CFG	0x3F7	/* RW AFC mode and polarity */
 #define REG_AFC_KI_KP	0x3F8	/* RW AFC ki and kp */
 #define REG_AFC_RANGE	0x3F9	/* RW AFC range */
@@ -1021,7 +1021,7 @@ static irqreturn_t adf7242_isr(int irq, void *data)
 		adf7242_cmd_rx(lp);
 	} else {
 		/* This can only be xmit without IRQ, likely a RX packet.
-		 * we get an TX IRQ shortly - do nothing or let the xmit
+		 * we get an TX IRQ shortly - do yesthing or let the xmit
 		 * timeout handle this
 		 */
 
@@ -1041,7 +1041,7 @@ static int adf7242_soft_reset(struct adf7242_local *lp, int line)
 	dev_warn(&lp->spi->dev, "%s (line %d)\n", __func__, line);
 
 	if (test_bit(FLAG_START, &lp->flags))
-		disable_irq_nosync(lp->spi->irq);
+		disable_irq_yessync(lp->spi->irq);
 
 	adf7242_cmd(lp, CMD_RC_PC_RESET_NO_WAIT);
 	usleep_range(200, 250);
@@ -1192,7 +1192,7 @@ static int adf7242_probe(struct spi_device *spi)
 	int ret, irq_type;
 
 	if (!spi->irq) {
-		dev_err(&spi->dev, "no IRQ specified\n");
+		dev_err(&spi->dev, "yes IRQ specified\n");
 		return -EINVAL;
 	}
 

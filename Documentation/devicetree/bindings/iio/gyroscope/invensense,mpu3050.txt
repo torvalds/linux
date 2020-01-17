@@ -14,11 +14,11 @@ Optional properties:
   - vlogic-supply : supply regulator for the signal voltage.
   - mount-matrix : see iio/mount-matrix.txt
 
-Optional subnodes:
+Optional subyesdes:
   - The MPU-3050 will pass through and forward the I2C signals from the
     incoming I2C bus, alternatively drive traffic to a slave device (usually
-    an accelerometer) on its own initiative. Therefore is supports a subnode
-    i2c gate node. For details see: i2c/i2c-gate.txt
+    an accelerometer) on its own initiative. Therefore is supports a subyesde
+    i2c gate yesde. For details see: i2c/i2c-gate.txt
 
 Example:
 
@@ -35,8 +35,8 @@ mpu3050@68 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		fnord@18 {
-			compatible = "fnord";
+		fyesrd@18 {
+			compatible = "fyesrd";
 			reg = <0x18>;
 			interrupt-parent = <&foo>;
 			interrupts = <13 IRQ_TYPE_EDGE_FALLING>;

@@ -36,11 +36,11 @@ int main(int argc, char *argv[])
 	struct kvm_s390_mem_op ksmo;
 	int rv, i, maxsize;
 
-	setbuf(stdout, NULL);	/* Tell stdout not to buffer its content */
+	setbuf(stdout, NULL);	/* Tell stdout yest to buffer its content */
 
 	maxsize = kvm_check_cap(KVM_CAP_S390_MEM_OP);
 	if (!maxsize) {
-		fprintf(stderr, "CAP_S390_MEM_OP not supported -> skip test\n");
+		fprintf(stderr, "CAP_S390_MEM_OP yest supported -> skip test\n");
 		exit(KSFT_SKIP);
 	}
 	if (maxsize > sizeof(mem1))
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 	vcpu_ioctl(vm, VCPU_ID, KVM_S390_MEM_OP, &ksmo);
 
 	TEST_ASSERT(!memcmp(mem1, mem2, maxsize),
-		    "Memory contents do not match!");
+		    "Memory contents do yest match!");
 
 	/* Check error conditions - first bad size: */
 	ksmo.gaddr = (uintptr_t)mem1;
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 	ksmo.buf = (uintptr_t)mem1;
 	ksmo.ar = 0;
 	rv = _vcpu_ioctl(vm, VCPU_ID, KVM_S390_MEM_OP, &ksmo);
-	TEST_ASSERT(rv == -1 && errno == E2BIG, "ioctl allows insane sizes");
+	TEST_ASSERT(rv == -1 && erryes == E2BIG, "ioctl allows insane sizes");
 
 	/* Zero size: */
 	ksmo.gaddr = (uintptr_t)mem1;
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 	ksmo.buf = (uintptr_t)mem1;
 	ksmo.ar = 0;
 	rv = _vcpu_ioctl(vm, VCPU_ID, KVM_S390_MEM_OP, &ksmo);
-	TEST_ASSERT(rv == -1 && (errno == EINVAL || errno == ENOMEM),
+	TEST_ASSERT(rv == -1 && (erryes == EINVAL || erryes == ENOMEM),
 		    "ioctl allows 0 as size");
 
 	/* Bad flags: */
@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
 	ksmo.buf = (uintptr_t)mem1;
 	ksmo.ar = 0;
 	rv = _vcpu_ioctl(vm, VCPU_ID, KVM_S390_MEM_OP, &ksmo);
-	TEST_ASSERT(rv == -1 && errno == EINVAL, "ioctl allows all flags");
+	TEST_ASSERT(rv == -1 && erryes == EINVAL, "ioctl allows all flags");
 
 	/* Bad operation: */
 	ksmo.gaddr = (uintptr_t)mem1;
@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
 	ksmo.buf = (uintptr_t)mem1;
 	ksmo.ar = 0;
 	rv = _vcpu_ioctl(vm, VCPU_ID, KVM_S390_MEM_OP, &ksmo);
-	TEST_ASSERT(rv == -1 && errno == EINVAL, "ioctl allows bad operations");
+	TEST_ASSERT(rv == -1 && erryes == EINVAL, "ioctl allows bad operations");
 
 	/* Bad guest address: */
 	ksmo.gaddr = ~0xfffUL;
@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
 	ksmo.buf = (uintptr_t)mem1;
 	ksmo.ar = 0;
 	rv = _vcpu_ioctl(vm, VCPU_ID, KVM_S390_MEM_OP, &ksmo);
-	TEST_ASSERT(rv > 0, "ioctl does not report bad guest memory access");
+	TEST_ASSERT(rv > 0, "ioctl does yest report bad guest memory access");
 
 	/* Bad host address: */
 	ksmo.gaddr = (uintptr_t)mem1;
@@ -142,8 +142,8 @@ int main(int argc, char *argv[])
 	ksmo.buf = 0;
 	ksmo.ar = 0;
 	rv = _vcpu_ioctl(vm, VCPU_ID, KVM_S390_MEM_OP, &ksmo);
-	TEST_ASSERT(rv == -1 && errno == EFAULT,
-		    "ioctl does not report bad host memory address");
+	TEST_ASSERT(rv == -1 && erryes == EFAULT,
+		    "ioctl does yest report bad host memory address");
 
 	/* Bad access register: */
 	run->psw_mask &= ~(3UL << (63 - 17));
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
 	ksmo.buf = (uintptr_t)mem1;
 	ksmo.ar = 17;
 	rv = _vcpu_ioctl(vm, VCPU_ID, KVM_S390_MEM_OP, &ksmo);
-	TEST_ASSERT(rv == -1 && errno == EINVAL, "ioctl allows ARs > 15");
+	TEST_ASSERT(rv == -1 && erryes == EINVAL, "ioctl allows ARs > 15");
 	run->psw_mask &= ~(3UL << (63 - 17));   /* Disable AR mode */
 	vcpu_run(vm, VCPU_ID);                  /* Run to sync new state */
 

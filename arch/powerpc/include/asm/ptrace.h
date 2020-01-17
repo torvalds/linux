@@ -6,7 +6,7 @@
  * kernel stack during a system call or other kernel entry.
  *
  * this should only contain volatile regs
- * since we can keep non-volatile in the thread_struct
+ * since we can keep yesn-volatile in the thread_struct
  * should set this up when only volatiles are saved
  * by intr code.
  *
@@ -169,9 +169,9 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
 	} while(0)
 
 struct task_struct;
-extern int ptrace_get_reg(struct task_struct *task, int regno,
+extern int ptrace_get_reg(struct task_struct *task, int regyes,
 			  unsigned long *data);
-extern int ptrace_put_reg(struct task_struct *task, int regno,
+extern int ptrace_put_reg(struct task_struct *task, int regyes,
 			  unsigned long data);
 
 #define current_pt_regs() \
@@ -243,7 +243,7 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
  * @addr:      address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If yest, returns false.
  */
 
 static inline bool regs_within_kernel_stack(struct pt_regs *regs,

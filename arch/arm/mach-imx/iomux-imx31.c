@@ -79,7 +79,7 @@ void mxc_iomux_set_pad(enum iomux_pins pin, u32 config)
 
 /*
  * allocs a single pin:
- * 	- reserves the pin so that it is not claimed by another driver
+ * 	- reserves the pin so that it is yest claimed by ayesther driver
  * 	- setups the iomux according to the configuration
  */
 int mxc_iomux_alloc_pin(unsigned int pin, const char *label)
@@ -87,7 +87,7 @@ int mxc_iomux_alloc_pin(unsigned int pin, const char *label)
 	unsigned pad = pin & IOMUX_PADNUM_MASK;
 
 	if (pad >= (PIN_MAX + 1)) {
-		printk(KERN_ERR "mxc_iomux: Attempt to request nonexistent pin %u for \"%s\"\n",
+		printk(KERN_ERR "mxc_iomux: Attempt to request yesnexistent pin %u for \"%s\"\n",
 			pad, label ? label : "?");
 		return -EINVAL;
 	}

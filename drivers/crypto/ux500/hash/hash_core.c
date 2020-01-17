@@ -42,14 +42,14 @@ static int hash_mode;
 module_param(hash_mode, int, 0);
 MODULE_PARM_DESC(hash_mode, "CPU or DMA mode. CPU = 0 (default), DMA = 1");
 
-/* HMAC-SHA1, no key */
+/* HMAC-SHA1, yes key */
 static const u8 zero_message_hmac_sha1[SHA1_DIGEST_SIZE] = {
 	0xfb, 0xdb, 0x1d, 0x1b, 0x18, 0xaa, 0x6c, 0x08,
 	0x32, 0x4b, 0x7d, 0x64, 0xb7, 0x1f, 0xb7, 0x63,
 	0x70, 0x69, 0x0e, 0x1d
 };
 
-/* HMAC-SHA256, no key */
+/* HMAC-SHA256, yes key */
 static const u8 zero_message_hmac_sha256[SHA256_DIGEST_SIZE] = {
 	0xb6, 0x13, 0x67, 0x9a, 0x08, 0x14, 0xd9, 0xec,
 	0x77, 0x2f, 0x95, 0xd7, 0x78, 0xc3, 0x5f, 0xc5,
@@ -156,7 +156,7 @@ static int hash_set_dma_transfer(struct hash_ctx *ctx, struct scatterlist *sg,
 			direction);
 
 	if (!ctx->device->dma.sg_len) {
-		dev_err(ctx->device->dev, "%s: Could not map the sg list (TO_DEVICE)\n",
+		dev_err(ctx->device->dev, "%s: Could yest map the sg list (TO_DEVICE)\n",
 			__func__);
 		return -EFAULT;
 	}
@@ -366,7 +366,7 @@ static int hash_get_device_data(struct hash_ctx *ctx,
 {
 	int			ret;
 	struct klist_iter	device_iterator;
-	struct klist_node	*device_node;
+	struct klist_yesde	*device_yesde;
 	struct hash_device_data *local_device_data = NULL;
 
 	/* Wait until a device is available */
@@ -376,14 +376,14 @@ static int hash_get_device_data(struct hash_ctx *ctx,
 
 	/* Select a device */
 	klist_iter_init(&driver_data.device_list, &device_iterator);
-	device_node = klist_next(&device_iterator);
-	while (device_node) {
-		local_device_data = container_of(device_node,
-					   struct hash_device_data, list_node);
+	device_yesde = klist_next(&device_iterator);
+	while (device_yesde) {
+		local_device_data = container_of(device_yesde,
+					   struct hash_device_data, list_yesde);
 		spin_lock(&local_device_data->ctx_lock);
 		/* current_ctx allocates a device, NULL = unallocated */
 		if (local_device_data->current_ctx) {
-			device_node = klist_next(&device_iterator);
+			device_yesde = klist_next(&device_iterator);
 		} else {
 			local_device_data->current_ctx = ctx;
 			ctx->device = local_device_data;
@@ -394,13 +394,13 @@ static int hash_get_device_data(struct hash_ctx *ctx,
 	}
 	klist_iter_exit(&device_iterator);
 
-	if (!device_node) {
+	if (!device_yesde) {
 		/**
 		 * No free device found.
 		 * Since we allocated a device with down_interruptible, this
-		 * should not be able to happen.
+		 * should yest be able to happen.
 		 * Number of available devices, which are contained in
-		 * device_allocation, is therefore decremented by not doing
+		 * device_allocation, is therefore decremented by yest doing
 		 * an up(device_allocation).
 		 */
 		return -EBUSY;
@@ -568,7 +568,7 @@ static int hash_init(struct ahash_request *req)
 				req_ctx->dma_mode = true;
 			} else {
 				req_ctx->dma_mode = false;
-				pr_debug("%s: DMA mode, but use CPU mode for datalength < %d or non-aligned data, except in last nent\n",
+				pr_debug("%s: DMA mode, but use CPU mode for datalength < %d or yesn-aligned data, except in last nent\n",
 					 __func__,
 					 HASH_DMA_PERFORMANCE_MIN_SIZE);
 			}
@@ -653,7 +653,7 @@ static void hash_messagepad(struct hash_device_data *device_data,
  * @ctx: Hash context
  * @incr: Length of message processed already
  *
- * Overflow cannot occur, because conditions for overflow are checked in
+ * Overflow canyest occur, because conditions for overflow are checked in
  * hash_hw_update.
  */
 static void hash_incrementlength(struct hash_req_ctx *ctx, u32 incr)
@@ -741,7 +741,7 @@ int hash_setconfiguration(struct hash_device_data *device_data,
 void hash_begin(struct hash_device_data *device_data, struct hash_ctx *ctx)
 {
 	/* HW and SW initializations */
-	/* Note: there is no need to initialize buffer and digest members */
+	/* Note: there is yes need to initialize buffer and digest members */
 
 	while (readl(&device_data->base->str) & HASH_STR_DCAL_MASK)
 		cpu_relax();
@@ -800,7 +800,7 @@ static int hash_process_data(struct hash_device_data *device_data,
 			}
 			/*
 			 * If 'data_buffer' is four byte aligned and
-			 * local buffer does not have any data, we can
+			 * local buffer does yest have any data, we can
 			 * write data directly from 'data_buffer' to
 			 * HW peripheral, otherwise we first copy data
 			 * to a local buffer
@@ -1055,7 +1055,7 @@ out:
 }
 
 /**
- * hash_hw_update - Updates current HASH computation hashing another part of
+ * hash_hw_update - Updates current HASH computation hashing ayesther part of
  *                  the message.
  * @req:	Byte array containing the message to be hashed (caller
  *		allocated).
@@ -1405,12 +1405,12 @@ out:
 	return ret1 ? ret1 : ret2;
 }
 
-static int ahash_noimport(struct ahash_request *req, const void *in)
+static int ahash_yesimport(struct ahash_request *req, const void *in)
 {
 	return -ENOSYS;
 }
 
-static int ahash_noexport(struct ahash_request *req, void *out)
+static int ahash_yesexport(struct ahash_request *req, void *out)
 {
 	return -ENOSYS;
 }
@@ -1519,8 +1519,8 @@ static struct hash_algo_template hash_algs[] = {
 			.update = ahash_update,
 			.final = ahash_final,
 			.digest = ahash_sha1_digest,
-			.export = ahash_noexport,
-			.import = ahash_noimport,
+			.export = ahash_yesexport,
+			.import = ahash_yesimport,
 			.halg.digestsize = SHA1_DIGEST_SIZE,
 			.halg.statesize = sizeof(struct hash_ctx),
 			.halg.base = {
@@ -1542,8 +1542,8 @@ static struct hash_algo_template hash_algs[] = {
 			.update	= ahash_update,
 			.final = ahash_final,
 			.digest = ahash_sha256_digest,
-			.export = ahash_noexport,
-			.import = ahash_noimport,
+			.export = ahash_yesexport,
+			.import = ahash_yesimport,
 			.halg.digestsize = SHA256_DIGEST_SIZE,
 			.halg.statesize = sizeof(struct hash_ctx),
 			.halg.base = {
@@ -1566,8 +1566,8 @@ static struct hash_algo_template hash_algs[] = {
 			.final = ahash_final,
 			.digest = hmac_sha1_digest,
 			.setkey = hmac_sha1_setkey,
-			.export = ahash_noexport,
-			.import = ahash_noimport,
+			.export = ahash_yesexport,
+			.import = ahash_yesimport,
 			.halg.digestsize = SHA1_DIGEST_SIZE,
 			.halg.statesize = sizeof(struct hash_ctx),
 			.halg.base = {
@@ -1590,8 +1590,8 @@ static struct hash_algo_template hash_algs[] = {
 			.final = ahash_final,
 			.digest = hmac_sha256_digest,
 			.setkey = hmac_sha256_setkey,
-			.export = ahash_noexport,
-			.import = ahash_noimport,
+			.export = ahash_yesexport,
+			.import = ahash_yesimport,
 			.halg.digestsize = SHA256_DIGEST_SIZE,
 			.halg.statesize = sizeof(struct hash_ctx),
 			.halg.base = {
@@ -1722,7 +1722,7 @@ static int ux500_hash_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, device_data);
 
 	/* Put the new device into the device list... */
-	klist_add_tail(&device_data->list_node, &driver_data.device_list);
+	klist_add_tail(&device_data->list_yesde, &driver_data.device_list);
 	/* ... and signal that a new device is available. */
 	up(&driver_data.device_allocation);
 
@@ -1782,8 +1782,8 @@ static int ux500_hash_remove(struct platform_device *pdev)
 	spin_unlock(&device_data->ctx_lock);
 
 	/* Remove the device from the list */
-	if (klist_node_attached(&device_data->list_node))
-		klist_remove(&device_data->list_node);
+	if (klist_yesde_attached(&device_data->list_yesde))
+		klist_remove(&device_data->list_yesde);
 
 	/* If this was the last device, remove the services */
 	if (list_empty(&driver_data.device_list.k_list))
@@ -1823,7 +1823,7 @@ static void ux500_hash_shutdown(struct platform_device *pdev)
 				__func__);
 		/**
 		 * (Allocate the device)
-		 * Need to set this to non-null (dummy) value,
+		 * Need to set this to yesn-null (dummy) value,
 		 * to avoid usage if context switching.
 		 */
 		device_data->current_ctx++;
@@ -1831,8 +1831,8 @@ static void ux500_hash_shutdown(struct platform_device *pdev)
 	spin_unlock(&device_data->ctx_lock);
 
 	/* Remove the device from the list */
-	if (klist_node_attached(&device_data->list_node))
-		klist_remove(&device_data->list_node);
+	if (klist_yesde_attached(&device_data->list_yesde))
+		klist_remove(&device_data->list_yesde);
 
 	/* If this was the last device, remove the services */
 	if (list_empty(&driver_data.device_list.k_list))

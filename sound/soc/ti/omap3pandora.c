@@ -2,7 +2,7 @@
 /*
  * omap3pandora.c  --  SoC audio for Pandora Handheld Console
  *
- * Author: Gražvydas Ignotas <notasas@gmail.com>
+ * Author: Gražvydas Igyestas <yestasas@gmail.com>
  */
 
 #include <linux/clk.h>
@@ -300,6 +300,6 @@ static void __exit omap3pandora_soc_exit(void)
 }
 module_exit(omap3pandora_soc_exit);
 
-MODULE_AUTHOR("Grazvydas Ignotas <notasas@gmail.com>");
+MODULE_AUTHOR("Grazvydas Igyestas <yestasas@gmail.com>");
 MODULE_DESCRIPTION("ALSA SoC OMAP3 Pandora");
 MODULE_LICENSE("GPL");

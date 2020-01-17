@@ -114,12 +114,12 @@ static void urb_completion(struct urb *purb)
 	dprintk(2, "%s: %d\n", __func__, purb->actual_length);
 
 	if (!dev) {
-		dprintk(2, "%s: no dev!\n", __func__);
+		dprintk(2, "%s: yes dev!\n", __func__);
 		return;
 	}
 
 	if (!dev->urb_streaming) {
-		dprintk(2, "%s: not streaming!\n", __func__);
+		dprintk(2, "%s: yest streaming!\n", __func__);
 		return;
 	}
 
@@ -407,7 +407,7 @@ static int dvb_register(struct au0828_dev *dev)
 			if (!dev->dig_transfer_buffer[i]) {
 				result = -ENOMEM;
 
-				pr_err("failed buffer allocation (errno = %d)\n",
+				pr_err("failed buffer allocation (erryes = %d)\n",
 				       result);
 				goto fail_adapter;
 			}
@@ -421,7 +421,7 @@ static int dvb_register(struct au0828_dev *dev)
 				      KBUILD_MODNAME, THIS_MODULE,
 				      &dev->usbdev->dev, adapter_nr);
 	if (result < 0) {
-		pr_err("dvb_register_adapter failed (errno = %d)\n",
+		pr_err("dvb_register_adapter failed (erryes = %d)\n",
 		       result);
 		goto fail_adapter;
 	}
@@ -435,7 +435,7 @@ static int dvb_register(struct au0828_dev *dev)
 	/* register frontend */
 	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
 	if (result < 0) {
-		pr_err("dvb_register_frontend failed (errno = %d)\n",
+		pr_err("dvb_register_frontend failed (erryes = %d)\n",
 		       result);
 		goto fail_frontend;
 	}
@@ -455,7 +455,7 @@ static int dvb_register(struct au0828_dev *dev)
 	dvb->demux.stop_feed  = au0828_dvb_stop_feed;
 	result = dvb_dmx_init(&dvb->demux);
 	if (result < 0) {
-		pr_err("dvb_dmx_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmx_init failed (erryes = %d)\n", result);
 		goto fail_dmx;
 	}
 
@@ -464,14 +464,14 @@ static int dvb_register(struct au0828_dev *dev)
 	dvb->dmxdev.capabilities = 0;
 	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (result < 0) {
-		pr_err("dvb_dmxdev_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmxdev_init failed (erryes = %d)\n", result);
 		goto fail_dmxdev;
 	}
 
 	dvb->fe_hw.source = DMX_FRONTEND_0;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		pr_err("add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
+		pr_err("add_frontend failed (DMX_FRONTEND_0, erryes = %d)\n",
 		       result);
 		goto fail_fe_hw;
 	}
@@ -479,14 +479,14 @@ static int dvb_register(struct au0828_dev *dev)
 	dvb->fe_mem.source = DMX_MEMORY_FE;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
-		pr_err("add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+		pr_err("add_frontend failed (DMX_MEMORY_FE, erryes = %d)\n",
 		       result);
 		goto fail_fe_mem;
 	}
 
 	result = dvb->demux.dmx.connect_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		pr_err("connect_frontend failed (errno = %d)\n", result);
+		pr_err("connect_frontend failed (erryes = %d)\n", result);
 		goto fail_fe_conn;
 	}
 

@@ -32,7 +32,7 @@ static const struct usb_device_id zd1201_table[] = {
 	{}
 };
 
-static int ap;	/* Are we an AP or a normal station? */
+static int ap;	/* Are we an AP or a yesrmal station? */
 
 #define ZD1201_VERSION	"0.15"
 
@@ -41,7 +41,7 @@ MODULE_DESCRIPTION("Driver for ZyDAS ZD1201 based USB Wireless adapters");
 MODULE_VERSION(ZD1201_VERSION);
 MODULE_LICENSE("GPL");
 module_param(ap, int, 0);
-MODULE_PARM_DESC(ap, "If non-zero Access Point firmware will be loaded");
+MODULE_PARM_DESC(ap, "If yesn-zero Access Point firmware will be loaded");
 MODULE_DEVICE_TABLE(usb, zd1201_table);
 
 
@@ -282,7 +282,7 @@ static void zd1201_usbrx(struct urb *urb)
 			memcpy(wrqu.addr.sa_data, data+8, ETH_ALEN);
 			wrqu.addr.sa_family = ARPHRD_ETHER;
 			/* There isn't a event that trully fits this request.
-			   We assume that userspace will be smart enough to
+			   We assume that userspace will be smart eyesugh to
 			   see a new station being expired and sends back a
 			   authstation ioctl to authorize it. */
 			wireless_send_event(zd->dev, IWEVEXPIRED, &wrqu, NULL);
@@ -358,10 +358,10 @@ static void zd1201_usbrx(struct urb *urb)
 				skb_put_data(skb, &data[datalen - 14], 12);
 				skb_put_data(skb, &data[6], 2);
 				skb_put_data(skb, data + 8, len);
-				hlist_add_head(&frag->fnode, &zd->fraglist);
+				hlist_add_head(&frag->fyesde, &zd->fraglist);
 				goto resubmit;
 			}
-			hlist_for_each_entry(frag, &zd->fraglist, fnode)
+			hlist_for_each_entry(frag, &zd->fraglist, fyesde)
 				if (frag->seq == (seq&IEEE80211_SCTL_SEQ))
 					break;
 			if (!frag)
@@ -372,7 +372,7 @@ static void zd1201_usbrx(struct urb *urb)
 				memcpy(ptr, data+8, len);
 			if (fc & IEEE80211_FCTL_MOREFRAGS)
 				goto resubmit;
-			hlist_del_init(&frag->fnode);
+			hlist_del_init(&frag->fyesde);
 			kfree(frag);
 		} else {
 			if (datalen<14)
@@ -432,11 +432,11 @@ static int zd1201_getconfig(struct zd1201 *zd, int rid, void *riddata,
 	if (length > zd->rxlen)
 		length = zd->rxlen-6;
 
-	/* If access bit is not on, then error */
+	/* If access bit is yest on, then error */
 	if ((code & ZD1201_ACCESSBIT) != ZD1201_ACCESSBIT || rid_fid != rid )
 		return -EINVAL;
 
-	/* Not enough buffer for allocating data */
+	/* Not eyesugh buffer for allocating data */
 	if (riddatalen != (length - 4)) {
 		dev_dbg(&zd->usb->dev, "riddatalen mismatches, expected=%u, (packet=%u) length=%u, rid=0x%04X, rid_fid=0x%04X\n",
 		    riddatalen, zd->rxlen, length, rid, rid_fid);
@@ -455,7 +455,7 @@ static int zd1201_getconfig(struct zd1201 *zd, int rid, void *riddata,
 		return -EIO;
 
 	if (zd->rxdata[zd->rxlen - 1] != ZD1201_PACKET_RESOURCE) {
-		dev_dbg(&zd->usb->dev, "Packet type mismatch: 0x%x not 0x3\n",
+		dev_dbg(&zd->usb->dev, "Packet type mismatch: 0x%x yest 0x3\n",
 		    zd->rxdata[zd->rxlen-1]);
 		return -EINVAL;
 	}
@@ -578,7 +578,7 @@ static int zd1201_setconfig(struct zd1201 *zd, int rid, void *buf, int len, int 
 	if (wait) {
 		wait_event_interruptible(zd->rxdataq, zd->rxdatas);
 		if (!zd->rxlen || le16_to_cpu(*(__le16*)&zd->rxdata[6]) != rid) {
-			dev_dbg(&zd->usb->dev, "wrong or no RID received\n");
+			dev_dbg(&zd->usb->dev, "wrong or yes RID received\n");
 		}
 	}
 
@@ -746,7 +746,7 @@ static int zd1201_net_open(struct net_device *dev)
 {
 	struct zd1201 *zd = netdev_priv(dev);
 
-	/* Start MAC with wildcard if no essid set */
+	/* Start MAC with wildcard if yes essid set */
 	if (!zd->mac_enabled)
 		zd1201_join(zd, zd->essid, zd->essidlen);
 	netif_start_queue(dev);
@@ -960,7 +960,7 @@ static int zd1201_set_mode(struct net_device *dev,
 		case IW_MODE_MONITOR:
 			monitor = 1;
 			zd->dev->type = ARPHRD_IEEE80211;
-			/* Make sure we are no longer associated with by
+			/* Make sure we are yes longer associated with by
 			   setting an 'impossible' essid.
 			   (otherwise we mess up firmware)
 			 */
@@ -1028,7 +1028,7 @@ static int zd1201_get_mode(struct net_device *dev,
 			*mode = IW_MODE_MASTER;
 			break;
 		default:
-			dev_dbg(&zd->usb->dev, "Unknown porttype: %d\n",
+			dev_dbg(&zd->usb->dev, "Unkyeswn porttype: %d\n",
 			    porttype);
 			*mode = IW_MODE_AUTO;
 	}
@@ -1050,7 +1050,7 @@ static int zd1201_get_range(struct net_device *dev,
 
 	range->max_qual.qual = 128;
 	range->max_qual.level = 128;
-	range->max_qual.noise = 128;
+	range->max_qual.yesise = 128;
 	range->max_qual.updated = 7;
 
 	range->encoding_size[0] = 5;
@@ -1084,14 +1084,14 @@ static int zd1201_get_wap(struct net_device *dev,
 	unsigned char buffer[6];
 
 	if (!zd1201_getconfig(zd, ZD1201_RID_COMMSQUALITY, buffer, 6)) {
-		/* Unfortunately the quality and noise reported is useless.
+		/* Unfortunately the quality and yesise reported is useless.
 		   they seem to be accumulators that increase until you
 		   read them, unless we poll on a fixed interval we can't
 		   use them
 		 */
 		/*zd->iwstats.qual.qual = le16_to_cpu(((__le16 *)buffer)[0]);*/
 		zd->iwstats.qual.level = le16_to_cpu(((__le16 *)buffer)[1]);
-		/*zd->iwstats.qual.noise = le16_to_cpu(((__le16 *)buffer)[2]);*/
+		/*zd->iwstats.qual.yesise = le16_to_cpu(((__le16 *)buffer)[2]);*/
 		zd->iwstats.qual.updated = 2;
 	}
 
@@ -1181,7 +1181,7 @@ static int zd1201_get_scan(struct net_device *dev,
 		
 		iwe.cmd = IWEVQUAL;
 		iwe.u.qual.qual = zd->rxdata[i+4];
-		iwe.u.qual.noise= zd->rxdata[i+2]/10-100;
+		iwe.u.qual.yesise= zd->rxdata[i+2]/10-100;
 		iwe.u.qual.level = (256+zd->rxdata[i+4]*100)/255-100;
 		iwe.u.qual.updated = 7;
 		cev = iwe_stream_add_event(info, cev, end_buf,
@@ -1686,7 +1686,7 @@ static const iw_handler zd1201_private_handler[] = {
 	(iw_handler) zd1201_set_hostauth,	/* ZD1201SIWHOSTAUTH */
 	(iw_handler) zd1201_get_hostauth,	/* ZD1201GIWHOSTAUTH */
 	(iw_handler) zd1201_auth_sta,		/* ZD1201SIWAUTHSTA */
-	(iw_handler) NULL,			/* nothing to get */
+	(iw_handler) NULL,			/* yesthing to get */
 	(iw_handler) zd1201_set_maxassoc,	/* ZD1201SIMAXASSOC */
 	(iw_handler) zd1201_get_maxassoc,	/* ZD1201GIMAXASSOC */
 };
@@ -1829,15 +1829,15 @@ err_zd:
 static void zd1201_disconnect(struct usb_interface *interface)
 {
 	struct zd1201 *zd = usb_get_intfdata(interface);
-	struct hlist_node *node2;
+	struct hlist_yesde *yesde2;
 	struct zd1201_frag *frag;
 
 	if (!zd)
 		return;
 	usb_set_intfdata(interface, NULL);
 
-	hlist_for_each_entry_safe(frag, node2, &zd->fraglist, fnode) {
-		hlist_del_init(&frag->fnode);
+	hlist_for_each_entry_safe(frag, yesde2, &zd->fraglist, fyesde) {
+		hlist_del_init(&frag->fyesde);
 		kfree_skb(frag->skb);
 		kfree(frag);
 	}

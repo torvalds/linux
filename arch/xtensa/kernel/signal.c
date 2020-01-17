@@ -16,7 +16,7 @@
  */
 
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/personality.h>
 #include <linux/tracehook.h>
@@ -60,7 +60,7 @@ flush_window_regs_user(struct pt_regs *regs)
 	int err = 1;
 	int base;
 
-	/* Return if no other frames. */
+	/* Return if yes other frames. */
 
 	if (regs->wmask == 1)
 		return 0;
@@ -125,7 +125,7 @@ errout:
 /*
  * Note: We don't copy double exception 'regs', we have to finish double exc. 
  * first before we return to signal handler! This dbl.exc.handler might cause 
- * another double exception, but I think we are fine as the situation is the 
+ * ayesther double exception, but I think we are fine as the situation is the 
  * same as if we had returned to the signal handerl and got an interrupt 
  * immediately...
  */
@@ -244,7 +244,7 @@ asmlinkage long xtensa_rt_sigreturn(void)
 	int ret;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	if (regs->depc > 64)
 		panic("rt_sigreturn in double exception!\n");
@@ -381,7 +381,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 
 	/* 
 	 * Create signal handler execution context.
-	 * Return context not modified until this point.
+	 * Return context yest modified until this point.
 	 */
 
 	/* Set up registers for signal handler; preserve the threadptr */
@@ -415,7 +415,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  *
  * Note that we go through the signals twice: once to check the signals that
@@ -455,7 +455,7 @@ static void do_signal(struct pt_regs *regs)
 					break;
 
 				default:
-					/* nothing to do */
+					/* yesthing to do */
 					if (regs->areg[2] != 0)
 					break;
 			}
@@ -473,7 +473,7 @@ static void do_signal(struct pt_regs *regs)
 
 	/* Did we come from a system call? */
 	if (regs->syscall != NO_SYSCALL) {
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - yes handlers present */
 		switch (regs->areg[2]) {
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
@@ -488,7 +488,7 @@ static void do_signal(struct pt_regs *regs)
 		}
 	}
 
-	/* If there's no signal to deliver, we just restore the saved mask.  */
+	/* If there's yes signal to deliver, we just restore the saved mask.  */
 	restore_saved_sigmask();
 
 	if (current->ptrace & PT_SINGLESTEP)
@@ -496,11 +496,11 @@ static void do_signal(struct pt_regs *regs)
 	return;
 }
 
-void do_notify_resume(struct pt_regs *regs)
+void do_yestify_resume(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal(regs);
 
 	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 }

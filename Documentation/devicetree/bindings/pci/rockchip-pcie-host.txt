@@ -50,10 +50,10 @@ Required properties for per-lane PHY model (preferred):
   them won't be used for your cases. Entries are of the form "pcie-phy-N":
   where N ranges from 0 to 3.
   (see example below and you MUST also refer to ../phy/rockchip-pcie-phy.txt
-  for changing the #phy-cells of phy node to support it)
+  for changing the #phy-cells of phy yesde to support it)
 
 Optional Property:
-- aspm-no-l0s: RC won't support ASPM L0s. This property is needed if
+- aspm-yes-l0s: RC won't support ASPM L0s. This property is needed if
 	using 24MHz OSC for RC's PHY.
 - ep-gpios: contain the entry for pre-reset GPIO
 - num-lanes: number of lanes to use
@@ -62,15 +62,15 @@ Optional Property:
 - vpcie1v8-supply: The phandle to the 1.8v regulator to use for PCIe.
 - vpcie0v9-supply: The phandle to the 0.9v regulator to use for PCIe.
 
-*Interrupt controller child node*
-The core controller provides a single interrupt for legacy INTx. The PCIe node
-should contain an interrupt controller node as a target for the PCI
-'interrupt-map' property. This node represents the domain at which the four
+*Interrupt controller child yesde*
+The core controller provides a single interrupt for legacy INTx. The PCIe yesde
+should contain an interrupt controller yesde as a target for the PCI
+'interrupt-map' property. This yesde represents the domain at which the four
 INTx interrupts are decoded and routed.
 
 
-Required properties for Interrupt controller child node:
-- interrupt-controller: identifies the node as an interrupt controller
+Required properties for Interrupt controller child yesde:
+- interrupt-controller: identifies the yesde as an interrupt controller
 - #address-cells: specifies the number of cells needed to encode an
 	address. The value must be 0.
 - #interrupt-cells: specifies the number of cells needed to encode an

@@ -49,10 +49,10 @@ channel: a phandle to the DMA controller plus the following four integer cells:
 3. A 32bit mask specifying the DMA channel configuration which are device
    dependent:
   -bit 9: Peripheral Increment Address
-	0x0: no address increment between transfers
+	0x0: yes address increment between transfers
 	0x1: increment address between transfers
  -bit 10: Memory Increment Address
-	0x0: no address increment between transfers
+	0x0: yes address increment between transfers
 	0x1: increment address between transfers
  -bit 15: Peripheral Increment Offset Size
 	0x0: offset size is linked to the peripheral bus width

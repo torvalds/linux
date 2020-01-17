@@ -192,7 +192,7 @@ struct mipi_dphy_timing {
 	unsigned int wakeup;
 };
 
-struct inno_dsidphy {
+struct inyes_dsidphy {
 	struct device *dev;
 	struct clk *ref_clk;
 	struct clk *pclk_phy;
@@ -221,21 +221,21 @@ enum {
 	REGISTER_PART_LVDS,
 };
 
-static inline struct inno_dsidphy *hw_to_inno(struct clk_hw *hw)
+static inline struct inyes_dsidphy *hw_to_inyes(struct clk_hw *hw)
 {
-	return container_of(hw, struct inno_dsidphy, pll.hw);
+	return container_of(hw, struct inyes_dsidphy, pll.hw);
 }
 
-static void phy_update_bits(struct inno_dsidphy *inno,
+static void phy_update_bits(struct inyes_dsidphy *inyes,
 			    u8 first, u8 second, u8 mask, u8 val)
 {
 	u32 reg = PHY_REG(first, second) << 2;
 	unsigned int tmp, orig;
 
-	orig = readl(inno->phy_base + reg);
+	orig = readl(inyes->phy_base + reg);
 	tmp = orig & ~mask;
 	tmp |= val & mask;
-	writel(tmp, inno->phy_base + reg);
+	writel(tmp, inyes->phy_base + reg);
 }
 
 static void mipi_dphy_timing_get_default(struct mipi_dphy_timing *timing,
@@ -266,7 +266,7 @@ static void mipi_dphy_timing_get_default(struct mipi_dphy_timing *timing,
 	timing->wakeup = 1000000000;
 }
 
-static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
+static void inyes_dsidphy_mipi_mode_enable(struct inyes_dsidphy *inyes)
 {
 	struct mipi_dphy_timing gotp;
 	const struct {
@@ -295,40 +295,40 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 	unsigned int i;
 
 	/* Select MIPI mode */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x03,
+	phy_update_bits(inyes, REGISTER_PART_LVDS, 0x03,
 			MODE_ENABLE_MASK, MIPI_MODE_ENABLE);
 	/* Configure PLL */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
-			REG_PREDIV_MASK, REG_PREDIV(inno->pll.prediv));
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
-			REG_FBDIV_HI_MASK, REG_FBDIV_HI(inno->pll.fbdiv));
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x04,
-			REG_FBDIV_LO_MASK, REG_FBDIV_LO(inno->pll.fbdiv));
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x03,
+			REG_PREDIV_MASK, REG_PREDIV(inyes->pll.prediv));
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x03,
+			REG_FBDIV_HI_MASK, REG_FBDIV_HI(inyes->pll.fbdiv));
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x04,
+			REG_FBDIV_LO_MASK, REG_FBDIV_LO(inyes->pll.fbdiv));
 	/* Enable PLL and LDO */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x01,
 			REG_LDOPD_MASK | REG_PLLPD_MASK,
 			REG_LDOPD_POWER_ON | REG_PLLPD_POWER_ON);
 	/* Reset analog */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x01,
 			REG_SYNCRST_MASK, REG_SYNCRST_RESET);
 	udelay(1);
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x01,
 			REG_SYNCRST_MASK, REG_SYNCRST_NORMAL);
 	/* Reset digital */
-	phy_update_bits(inno, REGISTER_PART_DIGITAL, 0x00,
+	phy_update_bits(inyes, REGISTER_PART_DIGITAL, 0x00,
 			REG_DIG_RSTN_MASK, REG_DIG_RSTN_RESET);
 	udelay(1);
-	phy_update_bits(inno, REGISTER_PART_DIGITAL, 0x00,
+	phy_update_bits(inyes, REGISTER_PART_DIGITAL, 0x00,
 			REG_DIG_RSTN_MASK, REG_DIG_RSTN_NORMAL);
 
-	txbyteclkhs = inno->pll.rate / 8;
+	txbyteclkhs = inyes->pll.rate / 8;
 	t_txbyteclkhs = div_u64(PSEC_PER_SEC, txbyteclkhs);
 
 	esc_clk_div = DIV_ROUND_UP(txbyteclkhs, 20000000);
 	txclkesc = txbyteclkhs / esc_clk_div;
 	t_txclkesc = div_u64(PSEC_PER_SEC, txclkesc);
 
-	ui = div_u64(PSEC_PER_SEC, inno->pll.rate);
+	ui = div_u64(PSEC_PER_SEC, inyes->pll.rate);
 
 	memset(&gotp, 0, sizeof(gotp));
 	mipi_dphy_timing_get_default(&gotp, ui);
@@ -377,7 +377,7 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 	ta_wait = DIV_ROUND_UP(gotp.taget, t_txclkesc);
 
 	for (i = 0; i < ARRAY_SIZE(timings); i++)
-		if (inno->pll.rate <= timings[i].rate)
+		if (inyes->pll.rate <= timings[i].rate)
 			break;
 
 	if (i == ARRAY_SIZE(timings))
@@ -395,105 +395,105 @@ static void inno_dsidphy_mipi_mode_enable(struct inno_dsidphy *inno)
 		else
 			hs_zero = data_lane_hs_zero;
 
-		phy_update_bits(inno, i, 0x05, T_LPX_CNT_MASK,
+		phy_update_bits(inyes, i, 0x05, T_LPX_CNT_MASK,
 				T_LPX_CNT(lpx));
-		phy_update_bits(inno, i, 0x06, T_HS_PREPARE_CNT_MASK,
+		phy_update_bits(inyes, i, 0x06, T_HS_PREPARE_CNT_MASK,
 				T_HS_PREPARE_CNT(hs_prepare));
-		phy_update_bits(inno, i, 0x07, T_HS_ZERO_CNT_MASK,
+		phy_update_bits(inyes, i, 0x07, T_HS_ZERO_CNT_MASK,
 				T_HS_ZERO_CNT(hs_zero));
-		phy_update_bits(inno, i, 0x08, T_HS_TRAIL_CNT_MASK,
+		phy_update_bits(inyes, i, 0x08, T_HS_TRAIL_CNT_MASK,
 				T_HS_TRAIL_CNT(hs_trail));
-		phy_update_bits(inno, i, 0x09, T_HS_EXIT_CNT_MASK,
+		phy_update_bits(inyes, i, 0x09, T_HS_EXIT_CNT_MASK,
 				T_HS_EXIT_CNT(hs_exit));
-		phy_update_bits(inno, i, 0x0a, T_CLK_POST_CNT_MASK,
+		phy_update_bits(inyes, i, 0x0a, T_CLK_POST_CNT_MASK,
 				T_CLK_POST_CNT(clk_post));
-		phy_update_bits(inno, i, 0x0e, T_CLK_PRE_CNT_MASK,
+		phy_update_bits(inyes, i, 0x0e, T_CLK_PRE_CNT_MASK,
 				T_CLK_PRE_CNT(clk_pre));
-		phy_update_bits(inno, i, 0x0c, T_WAKEUP_CNT_HI_MASK,
+		phy_update_bits(inyes, i, 0x0c, T_WAKEUP_CNT_HI_MASK,
 				T_WAKEUP_CNT_HI(wakeup >> 8));
-		phy_update_bits(inno, i, 0x0d, T_WAKEUP_CNT_LO_MASK,
+		phy_update_bits(inyes, i, 0x0d, T_WAKEUP_CNT_LO_MASK,
 				T_WAKEUP_CNT_LO(wakeup));
-		phy_update_bits(inno, i, 0x10, T_TA_GO_CNT_MASK,
+		phy_update_bits(inyes, i, 0x10, T_TA_GO_CNT_MASK,
 				T_TA_GO_CNT(ta_go));
-		phy_update_bits(inno, i, 0x11, T_TA_SURE_CNT_MASK,
+		phy_update_bits(inyes, i, 0x11, T_TA_SURE_CNT_MASK,
 				T_TA_SURE_CNT(ta_sure));
-		phy_update_bits(inno, i, 0x12, T_TA_WAIT_CNT_MASK,
+		phy_update_bits(inyes, i, 0x12, T_TA_WAIT_CNT_MASK,
 				T_TA_WAIT_CNT(ta_wait));
 	}
 
 	/* Enable all lanes on analog part */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x00,
 			LANE_EN_MASK, LANE_EN_CK | LANE_EN_3 | LANE_EN_2 |
 			LANE_EN_1 | LANE_EN_0);
 }
 
-static void inno_dsidphy_lvds_mode_enable(struct inno_dsidphy *inno)
+static void inyes_dsidphy_lvds_mode_enable(struct inyes_dsidphy *inyes)
 {
 	u8 prediv = 2;
 	u16 fbdiv = 28;
 
 	/* Sample clock reverse direction */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x08,
 			SAMPLE_CLOCK_DIRECTION_MASK,
 			SAMPLE_CLOCK_DIRECTION_REVERSE);
 
 	/* Select LVDS mode */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x03,
+	phy_update_bits(inyes, REGISTER_PART_LVDS, 0x03,
 			MODE_ENABLE_MASK, LVDS_MODE_ENABLE);
 	/* Configure PLL */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x03,
 			REG_PREDIV_MASK, REG_PREDIV(prediv));
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x03,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x03,
 			REG_FBDIV_HI_MASK, REG_FBDIV_HI(fbdiv));
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x04,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x04,
 			REG_FBDIV_LO_MASK, REG_FBDIV_LO(fbdiv));
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x08, 0xff, 0xfc);
+	phy_update_bits(inyes, REGISTER_PART_LVDS, 0x08, 0xff, 0xfc);
 	/* Enable PLL and Bandgap */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x0b,
+	phy_update_bits(inyes, REGISTER_PART_LVDS, 0x0b,
 			LVDS_PLL_POWER_MASK | LVDS_BANDGAP_POWER_MASK,
 			LVDS_PLL_POWER_ON | LVDS_BANDGAP_POWER_ON);
 
 	msleep(20);
 
 	/* Reset LVDS digital logic */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x00,
+	phy_update_bits(inyes, REGISTER_PART_LVDS, 0x00,
 			LVDS_DIGITAL_INTERNAL_RESET_MASK,
 			LVDS_DIGITAL_INTERNAL_RESET_ENABLE);
 	udelay(1);
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x00,
+	phy_update_bits(inyes, REGISTER_PART_LVDS, 0x00,
 			LVDS_DIGITAL_INTERNAL_RESET_MASK,
 			LVDS_DIGITAL_INTERNAL_RESET_DISABLE);
 	/* Enable LVDS digital logic */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x01,
+	phy_update_bits(inyes, REGISTER_PART_LVDS, 0x01,
 			LVDS_DIGITAL_INTERNAL_ENABLE_MASK,
 			LVDS_DIGITAL_INTERNAL_ENABLE);
 	/* Enable LVDS analog driver */
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x0b,
+	phy_update_bits(inyes, REGISTER_PART_LVDS, 0x0b,
 			LVDS_LANE_EN_MASK, LVDS_CLK_LANE_EN |
 			LVDS_DATA_LANE0_EN | LVDS_DATA_LANE1_EN |
 			LVDS_DATA_LANE2_EN | LVDS_DATA_LANE3_EN);
 }
 
-static int inno_dsidphy_power_on(struct phy *phy)
+static int inyes_dsidphy_power_on(struct phy *phy)
 {
-	struct inno_dsidphy *inno = phy_get_drvdata(phy);
+	struct inyes_dsidphy *inyes = phy_get_drvdata(phy);
 
-	clk_prepare_enable(inno->pclk_phy);
-	pm_runtime_get_sync(inno->dev);
+	clk_prepare_enable(inyes->pclk_phy);
+	pm_runtime_get_sync(inyes->dev);
 
 	/* Bandgap power on */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x00,
 			BANDGAP_POWER_MASK, BANDGAP_POWER_ON);
 	/* Enable power work */
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x00,
 			POWER_WORK_MASK, POWER_WORK_ENABLE);
 
-	switch (inno->mode) {
+	switch (inyes->mode) {
 	case PHY_MODE_MIPI_DPHY:
-		inno_dsidphy_mipi_mode_enable(inno);
+		inyes_dsidphy_mipi_mode_enable(inyes);
 		break;
 	case PHY_MODE_LVDS:
-		inno_dsidphy_lvds_mode_enable(inno);
+		inyes_dsidphy_lvds_mode_enable(inyes);
 		break;
 	default:
 		return -EINVAL;
@@ -502,42 +502,42 @@ static int inno_dsidphy_power_on(struct phy *phy)
 	return 0;
 }
 
-static int inno_dsidphy_power_off(struct phy *phy)
+static int inyes_dsidphy_power_off(struct phy *phy)
 {
-	struct inno_dsidphy *inno = phy_get_drvdata(phy);
+	struct inyes_dsidphy *inyes = phy_get_drvdata(phy);
 
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00, LANE_EN_MASK, 0);
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x00, LANE_EN_MASK, 0);
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x01,
 			REG_LDOPD_MASK | REG_PLLPD_MASK,
 			REG_LDOPD_POWER_DOWN | REG_PLLPD_POWER_DOWN);
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x00,
 			POWER_WORK_MASK, POWER_WORK_DISABLE);
-	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x00,
+	phy_update_bits(inyes, REGISTER_PART_ANALOG, 0x00,
 			BANDGAP_POWER_MASK, BANDGAP_POWER_DOWN);
 
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x0b, LVDS_LANE_EN_MASK, 0);
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x01,
+	phy_update_bits(inyes, REGISTER_PART_LVDS, 0x0b, LVDS_LANE_EN_MASK, 0);
+	phy_update_bits(inyes, REGISTER_PART_LVDS, 0x01,
 			LVDS_DIGITAL_INTERNAL_ENABLE_MASK,
 			LVDS_DIGITAL_INTERNAL_DISABLE);
-	phy_update_bits(inno, REGISTER_PART_LVDS, 0x0b,
+	phy_update_bits(inyes, REGISTER_PART_LVDS, 0x0b,
 			LVDS_PLL_POWER_MASK | LVDS_BANDGAP_POWER_MASK,
 			LVDS_PLL_POWER_OFF | LVDS_BANDGAP_POWER_DOWN);
 
-	pm_runtime_put(inno->dev);
-	clk_disable_unprepare(inno->pclk_phy);
+	pm_runtime_put(inyes->dev);
+	clk_disable_unprepare(inyes->pclk_phy);
 
 	return 0;
 }
 
-static int inno_dsidphy_set_mode(struct phy *phy, enum phy_mode mode,
+static int inyes_dsidphy_set_mode(struct phy *phy, enum phy_mode mode,
 				   int submode)
 {
-	struct inno_dsidphy *inno = phy_get_drvdata(phy);
+	struct inyes_dsidphy *inyes = phy_get_drvdata(phy);
 
 	switch (mode) {
 	case PHY_MODE_MIPI_DPHY:
 	case PHY_MODE_LVDS:
-		inno->mode = mode;
+		inyes->mode = mode;
 		break;
 	default:
 		return -EINVAL;
@@ -546,14 +546,14 @@ static int inno_dsidphy_set_mode(struct phy *phy, enum phy_mode mode,
 	return 0;
 }
 
-static const struct phy_ops inno_dsidphy_ops = {
-	.set_mode = inno_dsidphy_set_mode,
-	.power_on = inno_dsidphy_power_on,
-	.power_off = inno_dsidphy_power_off,
+static const struct phy_ops inyes_dsidphy_ops = {
+	.set_mode = inyes_dsidphy_set_mode,
+	.power_on = inyes_dsidphy_power_on,
+	.power_off = inyes_dsidphy_power_off,
 	.owner = THIS_MODULE,
 };
 
-static unsigned long inno_dsidphy_pll_round_rate(struct inno_dsidphy *inno,
+static unsigned long inyes_dsidphy_pll_round_rate(struct inyes_dsidphy *inyes,
 						   unsigned long prate,
 						   unsigned long rate,
 						   u8 *prediv, u16 *fbdiv)
@@ -623,81 +623,81 @@ static unsigned long inno_dsidphy_pll_round_rate(struct inno_dsidphy *inno,
 	return best_freq;
 }
 
-static long inno_dsidphy_pll_clk_round_rate(struct clk_hw *hw,
+static long inyes_dsidphy_pll_clk_round_rate(struct clk_hw *hw,
 					      unsigned long rate,
 					      unsigned long *prate)
 {
-	struct inno_dsidphy *inno = hw_to_inno(hw);
+	struct inyes_dsidphy *inyes = hw_to_inyes(hw);
 	unsigned long fout;
 	u16 fbdiv = 1;
 	u8 prediv = 1;
 
-	fout = inno_dsidphy_pll_round_rate(inno, *prate, rate,
+	fout = inyes_dsidphy_pll_round_rate(inyes, *prate, rate,
 					     &prediv, &fbdiv);
 
 	return fout;
 }
 
-static int inno_dsidphy_pll_clk_set_rate(struct clk_hw *hw,
+static int inyes_dsidphy_pll_clk_set_rate(struct clk_hw *hw,
 					   unsigned long rate,
 					   unsigned long parent_rate)
 {
-	struct inno_dsidphy *inno = hw_to_inno(hw);
+	struct inyes_dsidphy *inyes = hw_to_inyes(hw);
 	unsigned long fout;
 	u16 fbdiv = 1;
 	u8 prediv = 1;
 
-	fout = inno_dsidphy_pll_round_rate(inno, parent_rate, rate,
+	fout = inyes_dsidphy_pll_round_rate(inyes, parent_rate, rate,
 					     &prediv, &fbdiv);
 
-	dev_dbg(inno->dev, "fin=%lu, fout=%lu, prediv=%u, fbdiv=%u\n",
+	dev_dbg(inyes->dev, "fin=%lu, fout=%lu, prediv=%u, fbdiv=%u\n",
 		parent_rate, fout, prediv, fbdiv);
 
-	inno->pll.prediv = prediv;
-	inno->pll.fbdiv = fbdiv;
-	inno->pll.rate = fout;
+	inyes->pll.prediv = prediv;
+	inyes->pll.fbdiv = fbdiv;
+	inyes->pll.rate = fout;
 
 	return 0;
 }
 
 static unsigned long
-inno_dsidphy_pll_clk_recalc_rate(struct clk_hw *hw, unsigned long prate)
+inyes_dsidphy_pll_clk_recalc_rate(struct clk_hw *hw, unsigned long prate)
 {
-	struct inno_dsidphy *inno = hw_to_inno(hw);
+	struct inyes_dsidphy *inyes = hw_to_inyes(hw);
 
 	/* PLL_Output_Frequency = (FREF / PREDIV * FBDIV) / 2 */
-	return (prate / inno->pll.prediv * inno->pll.fbdiv) / 2;
+	return (prate / inyes->pll.prediv * inyes->pll.fbdiv) / 2;
 }
 
-static const struct clk_ops inno_dsidphy_pll_clk_ops = {
-	.round_rate = inno_dsidphy_pll_clk_round_rate,
-	.set_rate = inno_dsidphy_pll_clk_set_rate,
-	.recalc_rate = inno_dsidphy_pll_clk_recalc_rate,
+static const struct clk_ops inyes_dsidphy_pll_clk_ops = {
+	.round_rate = inyes_dsidphy_pll_clk_round_rate,
+	.set_rate = inyes_dsidphy_pll_clk_set_rate,
+	.recalc_rate = inyes_dsidphy_pll_clk_recalc_rate,
 };
 
-static int inno_dsidphy_pll_register(struct inno_dsidphy *inno)
+static int inyes_dsidphy_pll_register(struct inyes_dsidphy *inyes)
 {
-	struct device *dev = inno->dev;
+	struct device *dev = inyes->dev;
 	struct clk *clk;
 	const char *parent_name;
 	struct clk_init_data init;
 	int ret;
 
-	parent_name = __clk_get_name(inno->ref_clk);
+	parent_name = __clk_get_name(inyes->ref_clk);
 
 	init.name = "mipi_dphy_pll";
-	ret = of_property_read_string(dev->of_node, "clock-output-names",
+	ret = of_property_read_string(dev->of_yesde, "clock-output-names",
 				      &init.name);
 	if (ret < 0)
 		dev_dbg(dev, "phy should set clock-output-names property\n");
 
-	init.ops = &inno_dsidphy_pll_clk_ops;
+	init.ops = &inyes_dsidphy_pll_clk_ops;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 	init.flags = 0;
 
-	inno->pll.hw.init = &init;
-	clk = devm_clk_register(dev, &inno->pll.hw);
+	inyes->pll.hw.init = &init;
+	clk = devm_clk_register(dev, &inyes->pll.hw);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
 		dev_err(dev, "failed to register PLL: %d\n", ret);
@@ -705,57 +705,57 @@ static int inno_dsidphy_pll_register(struct inno_dsidphy *inno)
 	}
 
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
-					   &inno->pll.hw);
+					   &inyes->pll.hw);
 }
 
-static int inno_dsidphy_probe(struct platform_device *pdev)
+static int inyes_dsidphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct inno_dsidphy *inno;
+	struct inyes_dsidphy *inyes;
 	struct phy_provider *phy_provider;
 	struct phy *phy;
 	int ret;
 
-	inno = devm_kzalloc(dev, sizeof(*inno), GFP_KERNEL);
-	if (!inno)
+	inyes = devm_kzalloc(dev, sizeof(*inyes), GFP_KERNEL);
+	if (!inyes)
 		return -ENOMEM;
 
-	inno->dev = dev;
-	platform_set_drvdata(pdev, inno);
+	inyes->dev = dev;
+	platform_set_drvdata(pdev, inyes);
 
-	inno->phy_base = devm_platform_ioremap_resource(pdev, 0);
-	if (!inno->phy_base)
+	inyes->phy_base = devm_platform_ioremap_resource(pdev, 0);
+	if (!inyes->phy_base)
 		return -ENOMEM;
 
-	inno->ref_clk = devm_clk_get(dev, "ref");
-	if (IS_ERR(inno->ref_clk)) {
-		ret = PTR_ERR(inno->ref_clk);
+	inyes->ref_clk = devm_clk_get(dev, "ref");
+	if (IS_ERR(inyes->ref_clk)) {
+		ret = PTR_ERR(inyes->ref_clk);
 		dev_err(dev, "failed to get ref clock: %d\n", ret);
 		return ret;
 	}
 
-	inno->pclk_phy = devm_clk_get(dev, "pclk");
-	if (IS_ERR(inno->pclk_phy)) {
-		ret = PTR_ERR(inno->pclk_phy);
+	inyes->pclk_phy = devm_clk_get(dev, "pclk");
+	if (IS_ERR(inyes->pclk_phy)) {
+		ret = PTR_ERR(inyes->pclk_phy);
 		dev_err(dev, "failed to get phy pclk: %d\n", ret);
 		return ret;
 	}
 
-	inno->rst = devm_reset_control_get(dev, "apb");
-	if (IS_ERR(inno->rst)) {
-		ret = PTR_ERR(inno->rst);
+	inyes->rst = devm_reset_control_get(dev, "apb");
+	if (IS_ERR(inyes->rst)) {
+		ret = PTR_ERR(inyes->rst);
 		dev_err(dev, "failed to get system reset control: %d\n", ret);
 		return ret;
 	}
 
-	phy = devm_phy_create(dev, NULL, &inno_dsidphy_ops);
+	phy = devm_phy_create(dev, NULL, &inyes_dsidphy_ops);
 	if (IS_ERR(phy)) {
 		ret = PTR_ERR(phy);
 		dev_err(dev, "failed to create phy: %d\n", ret);
 		return ret;
 	}
 
-	phy_set_drvdata(phy, inno);
+	phy_set_drvdata(phy, inyes);
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (IS_ERR(phy_provider)) {
@@ -764,7 +764,7 @@ static int inno_dsidphy_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = inno_dsidphy_pll_register(inno);
+	ret = inyes_dsidphy_pll_register(inyes);
 	if (ret)
 		return ret;
 
@@ -773,33 +773,33 @@ static int inno_dsidphy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int inno_dsidphy_remove(struct platform_device *pdev)
+static int inyes_dsidphy_remove(struct platform_device *pdev)
 {
-	struct inno_dsidphy *inno = platform_get_drvdata(pdev);
+	struct inyes_dsidphy *inyes = platform_get_drvdata(pdev);
 
-	pm_runtime_disable(inno->dev);
+	pm_runtime_disable(inyes->dev);
 
 	return 0;
 }
 
-static const struct of_device_id inno_dsidphy_of_match[] = {
+static const struct of_device_id inyes_dsidphy_of_match[] = {
 	{ .compatible = "rockchip,px30-dsi-dphy", },
 	{ .compatible = "rockchip,rk3128-dsi-dphy", },
 	{ .compatible = "rockchip,rk3368-dsi-dphy", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, inno_dsidphy_of_match);
+MODULE_DEVICE_TABLE(of, inyes_dsidphy_of_match);
 
-static struct platform_driver inno_dsidphy_driver = {
+static struct platform_driver inyes_dsidphy_driver = {
 	.driver = {
-		.name = "inno-dsidphy",
-		.of_match_table	= of_match_ptr(inno_dsidphy_of_match),
+		.name = "inyes-dsidphy",
+		.of_match_table	= of_match_ptr(inyes_dsidphy_of_match),
 	},
-	.probe = inno_dsidphy_probe,
-	.remove = inno_dsidphy_remove,
+	.probe = inyes_dsidphy_probe,
+	.remove = inyes_dsidphy_remove,
 };
-module_platform_driver(inno_dsidphy_driver);
+module_platform_driver(inyes_dsidphy_driver);
 
 MODULE_AUTHOR("Wyon Bi <bivvy.bi@rock-chips.com>");
-MODULE_DESCRIPTION("Innosilicon MIPI/LVDS/TTL Video Combo PHY driver");
+MODULE_DESCRIPTION("Inyessilicon MIPI/LVDS/TTL Video Combo PHY driver");
 MODULE_LICENSE("GPL v2");

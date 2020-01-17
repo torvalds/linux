@@ -63,7 +63,7 @@ static void rtw_coex_limited_tx(struct rtw_dev *rtwdev,
 
 	if (tx_limit_en) {
 		/* set BT polluted packet on for tx rate adaptive,
-		 * not including tx retry broken by PTA
+		 * yest including tx retry broken by PTA
 		 */
 		rtw_write8_set(rtwdev, REG_TX_HANG_CTRL, BIT_EN_GNT_BT_AWAKE);
 
@@ -107,7 +107,7 @@ static void rtw_coex_limited_wl(struct rtw_dev *rtwdev)
 
 	if (coex->under_5g ||
 	    coex_dm->bt_status == COEX_BTSTATUS_NCON_IDLE) {
-		/* no need to limit tx */
+		/* yes need to limit tx */
 	} else {
 		tx_limit = true;
 		if (coex_stat->bt_hid_exist || coex_stat->bt_hfp_exist ||
@@ -162,20 +162,20 @@ static void rtw_coex_wl_ccklock_detect(struct rtw_dev *rtwdev)
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 
-	/* TODO: wait for rx_rate_change_notify implement */
+	/* TODO: wait for rx_rate_change_yestify implement */
 	coex_stat->wl_cck_lock = false;
 	coex_stat->wl_cck_lock_pre = false;
 	coex_stat->wl_cck_lock_ever = false;
 }
 
-static void rtw_coex_wl_noisy_detect(struct rtw_dev *rtwdev)
+static void rtw_coex_wl_yesisy_detect(struct rtw_dev *rtwdev)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	u32 cnt_cck;
 
-	/* wifi noisy environment identification */
+	/* wifi yesisy environment identification */
 	cnt_cck = dm_info->cck_ok_cnt + dm_info->cck_err_cnt;
 
 	if (!coex_stat->wl_gl_busy) {
@@ -206,11 +206,11 @@ static void rtw_coex_wl_noisy_detect(struct rtw_dev *rtwdev)
 		}
 
 		if (coex_stat->cnt_wl[COEX_CNT_WL_NOISY2] == 5)
-			coex_stat->wl_noisy_level = 2;
+			coex_stat->wl_yesisy_level = 2;
 		else if (coex_stat->cnt_wl[COEX_CNT_WL_NOISY1] == 5)
-			coex_stat->wl_noisy_level = 1;
+			coex_stat->wl_yesisy_level = 1;
 		else
-			coex_stat->wl_noisy_level = 0;
+			coex_stat->wl_yesisy_level = 0;
 	}
 }
 
@@ -234,7 +234,7 @@ static void rtw_coex_tdma_timer_base(struct rtw_dev *rtwdev, u8 type)
 
 	rtw_fw_bt_wifi_control(rtwdev, para[0], &para[1]);
 
-	/* no 5ms_wl_slot_extend for 4-slot mode  */
+	/* yes 5ms_wl_slot_extend for 4-slot mode  */
 	if (coex_stat->tdma_timer_base == 3)
 		rtw_coex_wl_ccklock_action(rtwdev);
 }
@@ -263,7 +263,7 @@ void rtw_coex_write_scbd(struct rtw_dev *rtwdev, u16 bitpos, bool set)
 	val |= coex_stat->score_board;
 
 	/* for 8822b, scbd[10] is CQDDR on
-	 * for 8822c, scbd[10] is no fix 2M
+	 * for 8822c, scbd[10] is yes fix 2M
 	 */
 	if (!chip->new_scbd10_def && (bitpos & COEX_SCBD_FIX2M)) {
 		if (set)
@@ -398,7 +398,7 @@ static void rtw_coex_update_wl_link_info(struct rtw_dev *rtwdev, u8 reason)
 	else
 		coex_stat->wl_linkscan_proc = false;
 
-	rtw_coex_wl_noisy_detect(rtwdev);
+	rtw_coex_wl_yesisy_detect(rtwdev);
 
 	for (i = 0; i < 4; i++) {
 		rssi_state = coex_dm->wl_rssi_state[i];
@@ -696,7 +696,7 @@ static void rtw_coex_set_bt_rx_gain(struct rtw_dev *rtwdev, u8 bt_lna_lvl)
 
 	coex_dm->cur_bt_lna_lvl = bt_lna_lvl;
 
-	/* notify BT rx gain table changed */
+	/* yestify BT rx gain table changed */
 	if (bt_lna_lvl < 7) {
 		rtw_coex_set_lna_constrain_level(rtwdev, bt_lna_lvl);
 		rtw_coex_write_scbd(rtwdev, COEX_SCBD_RXGAIN, true);
@@ -712,7 +712,7 @@ static void rtw_coex_set_rf_para(struct rtw_dev *rtwdev,
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 	u8 offset = 0;
 
-	if (coex->freerun && coex_stat->wl_noisy_level <= 1)
+	if (coex->freerun && coex_stat->wl_yesisy_level <= 1)
 		offset = 3;
 
 	rtw_coex_set_wl_tx_power(rtwdev, para.wl_pwr_dec_lvl);
@@ -797,14 +797,14 @@ static void rtw_coex_table(struct rtw_dev *rtwdev, u8 type)
 	}
 }
 
-static void rtw_coex_ignore_wlan_act(struct rtw_dev *rtwdev, bool enable)
+static void rtw_coex_igyesre_wlan_act(struct rtw_dev *rtwdev, bool enable)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 
 	if (coex->stop_dm)
 		return;
 
-	rtw_fw_bt_ignore_wlan_action(rtwdev, enable);
+	rtw_fw_bt_igyesre_wlan_action(rtwdev, enable);
 }
 
 static void rtw_coex_power_save_state(struct rtw_dev *rtwdev, u8 ps_type,
@@ -1053,7 +1053,7 @@ static void rtw_coex_set_ant_path(struct rtw_dev *rtwdev, bool force, u8 phase)
 		pos_type = COEX_SWITCH_TO_WLG_BT;
 		break;
 	default:
-		WARN(1, "unknown phase when setting antenna path\n");
+		WARN(1, "unkyeswn phase when setting antenna path\n");
 		return;
 	}
 
@@ -1474,7 +1474,7 @@ static void rtw_coex_action_bt_a2dp(struct rtw_dev *rtwdev)
 		/* Shared-Ant */
 		slot_type = TDMA_4SLOT;
 
-		if (coex_stat->wl_gl_busy && coex_stat->wl_noisy_level == 0)
+		if (coex_stat->wl_gl_busy && coex_stat->wl_yesisy_level == 0)
 			table_case = 10;
 		else
 			table_case = 9;
@@ -1545,7 +1545,7 @@ static void rtw_coex_action_bt_pan(struct rtw_dev *rtwdev)
 
 	if (efuse->share_ant) {
 		/* Shared-Ant */
-		if (coex_stat->wl_gl_busy && coex_stat->wl_noisy_level == 0)
+		if (coex_stat->wl_gl_busy && coex_stat->wl_yesisy_level == 0)
 			table_case = 14;
 		else
 			table_case = 10;
@@ -1624,7 +1624,7 @@ static void rtw_coex_action_bt_a2dp_pan(struct rtw_dev *rtwdev)
 	if (efuse->share_ant) {
 		/* Shared-Ant */
 		if (coex_stat->wl_gl_busy &&
-		    coex_stat->wl_noisy_level == 0)
+		    coex_stat->wl_yesisy_level == 0)
 			table_case = 14;
 		else
 			table_case = 10;
@@ -1821,7 +1821,7 @@ static void rtw_coex_action_wl_linkscan(struct rtw_dev *rtwdev)
 	rtw_coex_tdma(rtwdev, false, tdma_case | slot_type);
 }
 
-static void rtw_coex_action_wl_not_connected(struct rtw_dev *rtwdev)
+static void rtw_coex_action_wl_yest_connected(struct rtw_dev *rtwdev)
 {
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -1972,7 +1972,7 @@ static void rtw_coex_run_coex(struct rtw_dev *rtwdev, u8 reason)
 	if (coex_stat->wl_connected)
 		rtw_coex_action_wl_connected(rtwdev);
 	else
-		rtw_coex_action_wl_not_connected(rtwdev);
+		rtw_coex_action_wl_yest_connected(rtwdev);
 
 exit:
 	rtw_coex_set_gnt_fix(rtwdev);
@@ -2071,7 +2071,7 @@ void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only)
 	__rtw_coex_init_hw_config(rtwdev, wifi_only);
 }
 
-void rtw_coex_ips_notify(struct rtw_dev *rtwdev, u8 type)
+void rtw_coex_ips_yestify(struct rtw_dev *rtwdev, u8 type)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
@@ -2098,7 +2098,7 @@ void rtw_coex_ips_notify(struct rtw_dev *rtwdev, u8 type)
 	}
 }
 
-void rtw_coex_lps_notify(struct rtw_dev *rtwdev, u8 type)
+void rtw_coex_lps_yestify(struct rtw_dev *rtwdev, u8 type)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
@@ -2129,7 +2129,7 @@ void rtw_coex_lps_notify(struct rtw_dev *rtwdev, u8 type)
 	}
 }
 
-void rtw_coex_scan_notify(struct rtw_dev *rtwdev, u8 type)
+void rtw_coex_scan_yestify(struct rtw_dev *rtwdev, u8 type)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
@@ -2149,7 +2149,7 @@ void rtw_coex_scan_notify(struct rtw_dev *rtwdev, u8 type)
 	} else if ((type == COEX_SCAN_START_2G) || (type == COEX_SCAN_START)) {
 		coex_stat->wl_hi_pri_task2 = true;
 
-		/* Force antenna setup for no scan result issue */
+		/* Force antenna setup for yes scan result issue */
 		rtw_coex_set_ant_path(rtwdev, true, COEX_SET_ANT_2G);
 		rtw_coex_run_coex(rtwdev, COEX_RSN_2GSCANSTART);
 	} else {
@@ -2158,7 +2158,7 @@ void rtw_coex_scan_notify(struct rtw_dev *rtwdev, u8 type)
 	}
 }
 
-void rtw_coex_switchband_notify(struct rtw_dev *rtwdev, u8 type)
+void rtw_coex_switchband_yestify(struct rtw_dev *rtwdev, u8 type)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 
@@ -2170,10 +2170,10 @@ void rtw_coex_switchband_notify(struct rtw_dev *rtwdev, u8 type)
 	else if (type == COEX_SWITCH_TO_24G_NOFORSCAN)
 		rtw_coex_run_coex(rtwdev, COEX_RSN_2GSWITCHBAND);
 	else
-		rtw_coex_scan_notify(rtwdev, COEX_SCAN_START_2G);
+		rtw_coex_scan_yestify(rtwdev, COEX_SCAN_START_2G);
 }
 
-void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 type)
+void rtw_coex_connect_yestify(struct rtw_dev *rtwdev, u8 type)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
@@ -2194,7 +2194,7 @@ void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 type)
 		coex_stat->wl_hi_pri_task1 = true;
 		coex_stat->cnt_wl[COEX_CNT_WL_CONNPKT] = 2;
 
-		/* Force antenna setup for no scan result issue */
+		/* Force antenna setup for yes scan result issue */
 		rtw_coex_set_ant_path(rtwdev, true, COEX_SET_ANT_2G);
 
 		rtw_coex_run_coex(rtwdev, COEX_RSN_2GCONSTART);
@@ -2213,7 +2213,7 @@ void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 type)
 	}
 }
 
-void rtw_coex_media_status_notify(struct rtw_dev *rtwdev, u8 type)
+void rtw_coex_media_status_yestify(struct rtw_dev *rtwdev, u8 type)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
@@ -2230,7 +2230,7 @@ void rtw_coex_media_status_notify(struct rtw_dev *rtwdev, u8 type)
 	} else if (type == COEX_MEDIA_CONNECT) {
 		rtw_coex_write_scbd(rtwdev, COEX_SCBD_ACTIVE, true);
 
-		/* Force antenna setup for no scan result issue */
+		/* Force antenna setup for yes scan result issue */
 		rtw_coex_set_ant_path(rtwdev, true, COEX_SET_ANT_2G);
 
 		/* Set CCK Rx high Pri */
@@ -2253,7 +2253,7 @@ void rtw_coex_media_status_notify(struct rtw_dev *rtwdev, u8 type)
 	rtw_coex_update_wl_ch_info(rtwdev, type);
 }
 
-void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
+void rtw_coex_bt_info_yestify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
@@ -2397,10 +2397,10 @@ void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 		rtw_coex_update_wl_ch_info(rtwdev, type);
 	}
 
-	/* if ignore_wlan_act && not set_up_link */
+	/* if igyesre_wlan_act && yest set_up_link */
 	if ((coex_stat->bt_info_hb1 & BIT(3)) &&
 	    (!(coex_stat->bt_info_hb1 & BIT(2))))
-		rtw_coex_ignore_wlan_act(rtwdev, false);
+		rtw_coex_igyesre_wlan_act(rtwdev, false);
 
 	coex_stat->bt_opp_exist = ((coex_stat->bt_info_hb2 & BIT(0)) == BIT(0));
 	if (coex_stat->bt_info_hb2 & BIT(1))
@@ -2426,7 +2426,7 @@ void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 	rtw_coex_run_coex(rtwdev, COEX_RSN_BTINFO);
 }
 
-void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
+void rtw_coex_wl_fwdbginfo_yestify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
@@ -2454,7 +2454,7 @@ void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 	rtw_coex_wl_ccklock_detect(rtwdev);
 }
 
-void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev)
+void rtw_coex_wl_status_change_yestify(struct rtw_dev *rtwdev)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 

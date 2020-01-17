@@ -33,7 +33,7 @@
 **			0 : 256 bytes frame
 **			1 : 512 bytes frame
 **		bit30 :
-**			0 : normal request
+**			0 : yesrmal request
 **			1 : BIOS request
 **		bit29 : reserved
 **		bit28 : reserved
@@ -48,7 +48,7 @@
 **			bit30 : reserved for BIOS handshake
 **			bit29 : reserved
 **			bit28 :
-**			0 : no error, ignore AdapStatus/DevStatus/SenseData
+**			0 : yes error, igyesre AdapStatus/DevStatus/SenseData
 **			1 : Error, error code in AdapStatus/DevStatus/SenseData
 **			bit27 : reserved
 **	6. BIOS request
@@ -117,7 +117,7 @@
 **  --------------------------------------------------------------------
 **    	(A) 1st byte : command block length (low byte)
 **    	(B) 2nd byte : command block length (high byte)
-**                note ..command block length shouldn't > 2040 bytes,
+**                yeste ..command block length shouldn't > 2040 bytes,
 **    		length excludes these two bytes
 **    	(C) 3rd byte : command code
 **    	(D) 4th and following bytes : variable length data bytes
@@ -128,8 +128,8 @@
 **  --------------------------------------------------------------------
 **    	The following are command code defined in raid controller Command
 **    	code 0x10--0x1? are used for system level management,
-**    	no password checking is needed and should be implemented in separate
-**    	well controlled utility and not for end user access.
+**    	yes password checking is needed and should be implemented in separate
+**    	well controlled utility and yest for end user access.
 **    	Command code 0x20--0x?? always check the password,
 **    	password must be entered to enable these command.
 **    	enum
@@ -183,7 +183,7 @@
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x10
 **    		byte 3          : password length (should be 0x0f)
-**    		byte 4-0x13     : should be "ArEcATecHnoLogY"
+**    		byte 4-0x13     : should be "ArEcATecHyesLogY"
 **    		byte 0x14--0x23 : Serial number string (must be 16 bytes)
 **      GUI_SET_VENDOR : Set vendor string for the controller
 **    		byte 0,1        : length
@@ -223,7 +223,7 @@
 **    		byte 3          : Page# (0/1/2/3) (0xff --> clear OEM logo)
 **    		byte 4/5/6/7    : 0x55/0xaa/0xa5/0x5a
 **    		byte 8          : TITLE.JPG data (each page must be 2000 bytes)
-**    		                  note page0 1st 2 byte must be
+**    		                  yeste page0 1st 2 byte must be
 **    					actual length of the JPG file
 **      GUI_POLL_EVENT : Poll If Event Log Changed
 **    		byte 0,1        : length
@@ -328,7 +328,7 @@
 **    		BYTE gpdCurrentUdmaMode;
 **    		BYTE gpdUdmaMode;
 **    		BYTE gpdDriveSelect;
-**    		BYTE gpdRaidNumber; //     0xff if not belongs to a raid set
+**    		BYTE gpdRaidNumber; //     0xff if yest belongs to a raid set
 **    		sSCSI_ATTR gpdScsi;
 **    		BYTE gpdReserved[40]; //     Total to 128 bytes
 **    	} sGUI_PHY_DRV, *pGUI_PHY_DRV;
@@ -420,9 +420,9 @@
 **    		byte 5 			: data bit
 **    					(0:7 bit, 1:8 bit : must be 8 bit)
 **    		byte 6 			: stop bit (0:1, 1:2 stop bits)
-**    		byte 7 			: parity (0:none, 1:off, 2:even)
+**    		byte 7 			: parity (0:yesne, 1:off, 2:even)
 **    		byte 8 			: flow control
-**    			(0:none, 1:xon/xoff, 2:hardware => must use none)
+**    			(0:yesne, 1:xon/xoff, 2:hardware => must use yesne)
 **      GUI_NO_OPERATION : No operation
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x38
@@ -463,9 +463,9 @@
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x43
 **    		byte 3          : Flash Method
-**    				(0:flash selected, 1:flash not selected)
+**    				(0:flash selected, 1:flash yest selected)
 **    		byte 4/5/6/7    : IDE device mask to be flashed
-**                           note .... no response data available
+**                           yeste .... yes response data available
 **    	GUI_CREATE_RAIDSET : Create Raid Set
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x50
@@ -480,7 +480,7 @@
 **    		byte 2          : command code 0x52
 **    		byte 3          : raidset#
 **    		byte 4/5/6/7    : device mask for expansion
-**    		byte 8/9/10     : (8:0 no change, 1 change, 0xff:terminate,
+**    		byte 8/9/10     : (8:0 yes change, 1 change, 0xff:terminate,
 **    				9:new raid level,
 **    				10:new stripe size
 **    				0/1/2/3/4/5->4/8/16/32/64/128K )
@@ -522,7 +522,7 @@
 **    		byte 2          : command code 0x61
 **    		byte 3          : volumeset#
 **    		byte 4-19       : new volume set name
-**    		(if byte4 == 0, not change)
+**    		(if byte4 == 0, yest change)
 **    		byte 20-27      : new volume capacity (reserved)
 **    		byte 28 		: new raid level
 **    		byte 29 		: new stripe size

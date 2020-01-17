@@ -28,7 +28,7 @@ struct asd_ocm_dir {
 	char sig[2];
 	u8   _r1[2];
 	u8   major;          /* 0 */
-	u8   minor;          /* 0 */
+	u8   miyesr;          /* 0 */
 	u8   _r2;
 	u8   num_de;
 	struct asd_ocm_dir_ent entry[15];
@@ -53,7 +53,7 @@ struct asd_ocm_dir {
 static struct asd_ocm_dir OCMDirInit =
 {
 	.sig = {0x4D, 0x4F},	/* signature */
-	.num_de = OCM_INIT_DIR_ENTRIES,	/* no. of directory entries */
+	.num_de = OCM_INIT_DIR_ENTRIES,	/* yes. of directory entries */
 };
 
 /***************************************************************************
@@ -91,9 +91,9 @@ static struct asd_ocm_dir_ent OCMDirEntriesInit[OCM_INIT_DIR_ENTRIES] =
 struct asd_bios_chim_struct {
 	char sig[4];
 	u8   major;          /* 1 */
-	u8   minor;          /* 0 */
+	u8   miyesr;          /* 0 */
 	u8   bios_major;
-	u8   bios_minor;
+	u8   bios_miyesr;
 	__le32  bios_build;
 	u8   flags;
 	u8   pci_slot;
@@ -111,7 +111,7 @@ struct asd_bios_chim_struct {
  * @offs: offset into OCM where to read from
  * @size: how many bytes to read
  *
- * Return the number of bytes not read. Return 0 on success.
+ * Return the number of bytes yest read. Return 0 on success.
  */
 static int asd_read_ocm_seg(struct asd_ha_struct *asd_ha, void *buffer,
 			    u32 offs, int size)
@@ -136,7 +136,7 @@ static int asd_read_ocm_dir(struct asd_ha_struct *asd_ha,
 	}
 
 	if (dir->sig[0] != 'M' || dir->sig[1] != 'O') {
-		ASD_DPRINTK("no valid dir signature(%c%c) at start of OCM\n",
+		ASD_DPRINTK("yes valid dir signature(%c%c) at start of OCM\n",
 			    dir->sig[0], dir->sig[1]);
 		return -ENOENT;
 	}
@@ -156,7 +156,7 @@ static int asd_read_ocm_dir(struct asd_ha_struct *asd_ha,
  * @offs: offset into OCM to write to
  * @size: how many bytes to write
  *
- * Return the number of bytes not written. Return 0 on success.
+ * Return the number of bytes yest written. Return 0 on success.
  */
 static void asd_write_ocm_seg(struct asd_ha_struct *asd_ha, void *buffer,
 			    u32 offs, int size)
@@ -209,7 +209,7 @@ static int asd_get_bios_chim(struct asd_ha_struct *asd_ha,
 	err = -ENOMEM;
 	bc_struct = kmalloc(sizeof(*bc_struct), GFP_KERNEL);
 	if (!bc_struct) {
-		asd_printk("no memory for bios_chim struct\n");
+		asd_printk("yes memory for bios_chim struct\n");
 		goto out;
 	}
 	err = asd_read_ocm_seg(asd_ha, (void *)bc_struct, offs,
@@ -220,7 +220,7 @@ static int asd_get_bios_chim(struct asd_ha_struct *asd_ha,
 	}
 	if (strncmp(bc_struct->sig, "SOIB", 4)
 	    && strncmp(bc_struct->sig, "IPSA", 4)) {
-		ASD_DPRINTK("BIOS_CHIM entry has no valid sig(%c%c%c%c)\n",
+		ASD_DPRINTK("BIOS_CHIM entry has yes valid sig(%c%c%c%c)\n",
 			    bc_struct->sig[0], bc_struct->sig[1],
 			    bc_struct->sig[2], bc_struct->sig[3]);
 		err = -ENOENT;
@@ -235,7 +235,7 @@ static int asd_get_bios_chim(struct asd_ha_struct *asd_ha,
 	if (bc_struct->flags & BC_BIOS_PRESENT) {
 		asd_ha->hw_prof.bios.present = 1;
 		asd_ha->hw_prof.bios.maj = bc_struct->bios_major;
-		asd_ha->hw_prof.bios.min = bc_struct->bios_minor;
+		asd_ha->hw_prof.bios.min = bc_struct->bios_miyesr;
 		asd_ha->hw_prof.bios.bld = le32_to_cpu(bc_struct->bios_build);
 		ASD_DPRINTK("BIOS present (%d,%d), %d\n",
 			    asd_ha->hw_prof.bios.maj,
@@ -309,8 +309,8 @@ asd_hwi_check_ocm_access (struct asd_ha_struct *asd_ha)
 			goto out;
 		}
 
-		printk(KERN_INFO "OCM is not initialized by BIOS,"
-		       "reinitialize it and ignore it, current IntrptStatus"
+		printk(KERN_INFO "OCM is yest initialized by BIOS,"
+		       "reinitialize it and igyesre it, current IntrptStatus"
 		       "is 0x%x\n", v);
 
 		if (v)
@@ -343,7 +343,7 @@ int asd_read_ocm(struct asd_ha_struct *asd_ha)
 
 	dir = kmalloc(sizeof(*dir), GFP_KERNEL);
 	if (!dir) {
-		asd_printk("no memory for ocm dir\n");
+		asd_printk("yes memory for ocm dir\n");
 		return -ENOMEM;
 	}
 
@@ -437,9 +437,9 @@ struct asd_manuf_phy_param {
 
 #if 0
 static const char *asd_sb_type[] = {
-	"unknown",
+	"unkyeswn",
 	"SGPIO",
-	[2 ... 0x7F] = "unknown",
+	[2 ... 0x7F] = "unkyeswn",
 	[0x80] = "ADPT_I2C",
 	[0x81 ... 0xFF] = "VENDOR_UNIQUExx"
 };
@@ -447,14 +447,14 @@ static const char *asd_sb_type[] = {
 
 struct asd_ms_sb_desc {
 	u8    type;
-	u8    node_desc_index;
+	u8    yesde_desc_index;
 	u8    conn_desc_index;
 	u8    _recvd[0];
 } __attribute__ ((packed));
 
 #if 0
 static const char *asd_conn_type[] = {
-	[0 ... 7] = "unknown",
+	[0 ... 7] = "unkyeswn",
 	"SFF8470",
 	"SFF8482",
 	"SFF8484",
@@ -464,7 +464,7 @@ static const char *asd_conn_type[] = {
 };
 
 static const char *asd_conn_location[] = {
-	"unknown",
+	"unkyeswn",
 	"internal",
 	"external",
 	"board_to_board",
@@ -487,7 +487,7 @@ struct asd_nd_phy_desc {
 } __attribute__ ((packed));
 
 #if 0
-static const char *asd_node_type[] = {
+static const char *asd_yesde_type[] = {
 	"IOP",
 	"IO_CONTROLLER",
 	"EXPANDER",
@@ -497,7 +497,7 @@ static const char *asd_node_type[] = {
 };
 #endif
 
-struct asd_ms_node_desc {
+struct asd_ms_yesde_desc {
 	u8    type;
 	u8    num_phy_desc;
 	u8    size_phy_desc;
@@ -514,11 +514,11 @@ struct asd_ms_conn_map {
 	__le16 cm_size;		  /* size of this struct */
 	u8    num_conn;
 	u8    conn_size;
-	u8    num_nodes;
+	u8    num_yesdes;
 	u8    usage_model_id;
 	u32   _resvd;
 	struct asd_ms_conn_desc conn_desc[0];
-	struct asd_ms_node_desc node_desc[0];
+	struct asd_ms_yesde_desc yesde_desc[0];
 } __attribute__ ((packed));
 
 struct asd_ctrla_phy_entry {
@@ -587,7 +587,7 @@ static int asd_read_flash_seg(struct asd_ha_struct *asd_ha,
  * @flash_dir: pointer to flash directory structure
  *
  * If found, the flash directory segment will be copied to
- * @flash_dir.  Return 1 if found, 0 if not.
+ * @flash_dir.  Return 1 if found, 0 if yest.
  */
 static int asd_find_flash_dir(struct asd_ha_struct *asd_ha,
 			      struct asd_flash_dir *flash_dir)
@@ -665,7 +665,7 @@ static int asd_find_flash_de(struct asd_flash_dir *flash_dir, u32 entry_type,
 static int asd_validate_ms(struct asd_manuf_sec *ms)
 {
 	if (ms->sig[0] != 'S' || ms->sig[1] != 'M') {
-		ASD_DPRINTK("manuf sec: no valid sig(%c%c)\n",
+		ASD_DPRINTK("manuf sec: yes valid sig(%c%c)\n",
 			    ms->sig[0], ms->sig[1]);
 		return -ENOENT;
 	}
@@ -736,9 +736,9 @@ static void *asd_find_ll_by_id(void * const start, const u8 id0, const u8 id1)
  *
  * The manufacturing sector contans also the linked list of sub-segments,
  * since when it was read, its size was taken from the flash directory,
- * not from the structure size.
+ * yest from the structure size.
  *
- * HIDDEN phys do not count in the total count.  REPORTED phys cannot
+ * HIDDEN phys do yest count in the total count.  REPORTED phys canyest
  * be enabled but are reported and counted towards the total.
  * ENABLED phys are enabled by default and count towards the total.
  * The absolute total phy number is ASD_MAX_PHYS.  hw_prof->num_phys
@@ -760,7 +760,7 @@ static int asd_ms_get_phy_params(struct asd_ha_struct *asd_ha,
 
 	phy_param = asd_find_ll_by_id(manuf_sec, 'P', 'M');
 	if (!phy_param) {
-		ASD_DPRINTK("ms: no phy parameters found\n");
+		ASD_DPRINTK("ms: yes phy parameters found\n");
 		ASD_DPRINTK("ms: Creating default phy parameters\n");
 		dflt_phy_param.sig[0] = 'P';
 		dflt_phy_param.sig[1] = 'M';
@@ -826,7 +826,7 @@ static int asd_ms_get_connector_map(struct asd_ha_struct *asd_ha,
 
 	cm = asd_find_ll_by_id(manuf_sec, 'M', 'C');
 	if (!cm) {
-		ASD_DPRINTK("ms: no connector map found\n");
+		ASD_DPRINTK("ms: yes connector map found\n");
 		return 0;
 	}
 
@@ -866,7 +866,7 @@ static int asd_process_ms(struct asd_ha_struct *asd_ha,
 	err = -ENOMEM;
 	manuf_sec = kmalloc(size, GFP_KERNEL);
 	if (!manuf_sec) {
-		ASD_DPRINTK("no mem for manuf sector\n");
+		ASD_DPRINTK("yes mem for manuf sector\n");
 		goto out;
 	}
 
@@ -995,7 +995,7 @@ static int asd_process_ctrl_a_user(struct asd_ha_struct *asd_ha,
 	err = -ENOMEM;
 	el = kmalloc(size, GFP_KERNEL);
 	if (!el) {
-		ASD_DPRINTK("no mem for ctrla user settings section\n");
+		ASD_DPRINTK("yes mem for ctrla user settings section\n");
 		goto out;
 	}
 

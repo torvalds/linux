@@ -12,7 +12,7 @@
 ENTRY(secure_cntvoff_init)
 	.arch	armv7-a
 	/*
-	 * CNTVOFF has to be initialized either from non-secure Hypervisor
+	 * CNTVOFF has to be initialized either from yesn-secure Hypervisor
 	 * mode or secure Monitor mode with SCR.NS==1. If TrustZone is enabled
 	 * then it should be handled by the secure code. The CPU must implement
 	 * the virtualization extensions.

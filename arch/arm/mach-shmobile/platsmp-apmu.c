@@ -84,7 +84,7 @@ static int __maybe_unused apmu_wrap(int cpu, int (*fn)(void __iomem *p, int cpu)
 }
 
 #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_SUSPEND)
-/* nicked from arch/arm/mach-exynos/hotplug.c */
+/* nicked from arch/arm/mach-exyyess/hotplug.c */
 static inline void cpu_enter_lowpower_a15(void)
 {
 	unsigned int v;
@@ -189,7 +189,7 @@ static void apmu_init_cpu(struct resource *res, int cpu, int bit)
 	if ((cpu >= ARRAY_SIZE(apmu_cpus)) || apmu_cpus[cpu].iomem)
 		return;
 
-	apmu_cpus[cpu].iomem = ioremap_nocache(res->start, resource_size(res));
+	apmu_cpus[cpu].iomem = ioremap_yescache(res->start, resource_size(res));
 	apmu_cpus[cpu].bit = bit;
 
 	pr_debug("apmu ioremap %d %d %pr\n", cpu, bit, res);
@@ -207,12 +207,12 @@ static const struct of_device_id apmu_ids[] = {
 
 static void apmu_parse_dt(void (*fn)(struct resource *res, int cpu, int bit))
 {
-	struct device_node *np_apmu, *np_cpu;
+	struct device_yesde *np_apmu, *np_cpu;
 	struct resource res;
 	int bit, index;
 	u32 id;
 
-	for_each_matching_node(np_apmu, apmu_ids) {
+	for_each_matching_yesde(np_apmu, apmu_ids) {
 		/* only enable the cluster that includes the boot CPU */
 		bool is_allowed = false;
 
@@ -222,12 +222,12 @@ static void apmu_parse_dt(void (*fn)(struct resource *res, int cpu, int bit))
 				if (!of_property_read_u32(np_cpu, "reg", &id)) {
 					if (id == cpu_logical_map(0)) {
 						is_allowed = true;
-						of_node_put(np_cpu);
+						of_yesde_put(np_cpu);
 						break;
 					}
 
 				}
-				of_node_put(np_cpu);
+				of_yesde_put(np_cpu);
 			}
 		}
 		if (!is_allowed)
@@ -243,7 +243,7 @@ static void apmu_parse_dt(void (*fn)(struct resource *res, int cpu, int bit))
 								    0, &res))
 						fn(&res, index, bit);
 				}
-				of_node_put(np_cpu);
+				of_yesde_put(np_cpu);
 			}
 		}
 	}

@@ -32,9 +32,9 @@ mt76x02_ampdu_stat_read(struct seq_file *file, void *data)
 }
 
 static int
-mt76x02_ampdu_stat_open(struct inode *inode, struct file *f)
+mt76x02_ampdu_stat_open(struct iyesde *iyesde, struct file *f)
 {
-	return single_open(f, mt76x02_ampdu_stat_read, inode->i_private);
+	return single_open(f, mt76x02_ampdu_stat_read, iyesde->i_private);
 }
 
 static int read_txpower(struct seq_file *file, void *data)
@@ -82,9 +82,9 @@ mt76x02_dfs_stat_read(struct seq_file *file, void *data)
 }
 
 static int
-mt76x02_dfs_stat_open(struct inode *inode, struct file *f)
+mt76x02_dfs_stat_open(struct iyesde *iyesde, struct file *f)
 {
-	return single_open(f, mt76x02_dfs_stat_read, inode->i_private);
+	return single_open(f, mt76x02_dfs_stat_read, iyesde->i_private);
 }
 
 static const struct file_operations fops_dfs_stat = {

@@ -16,7 +16,7 @@
   Lesser General Public License for more details.
 
   You should have received a copy of the GNU Lesser General Public
-  License along with this library; if not, write to the Free Software
+  License along with this library; if yest, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 */
@@ -30,9 +30,9 @@
 
   Permission to use, copy, modify and distribute this software and its
   documentation is hereby granted, provided that both the copyright
-  notice and this permission notice appear in all copies of the software,
+  yestice and this permission yestice appear in all copies of the software,
   derivative works or modified versions, and any portions thereof, and
-  that both notices appear in supporting documentation.
+  that both yestices appear in supporting documentation.
 
   NRL ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION AND
   DISCLAIMS ANY LIABILITY OF ANY KIND FOR ANY DAMAGES WHATSOEVER
@@ -227,7 +227,7 @@ struct he_buff {
 	u8 data[];
 };
 
-#ifdef notyet
+#ifdef yestyet
 struct he_group {
 	u32 rpbl_size, rpbl_qsize;
 	struct he_rpb_entry *rbpl_ba;
@@ -269,7 +269,7 @@ struct he_dev {
 
 	struct he_vcc_table *he_vcc_table;
 
-#ifdef notyet
+#ifdef yestyet
 	struct he_group group[HE_NUM_GROUPS];
 #endif
 	struct he_cs_stper cs_stper[HE_NUM_CS_STPER];

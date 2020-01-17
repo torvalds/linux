@@ -144,7 +144,7 @@ static int regcache_lzo_init(struct regmap *map)
 	/*
 	 * allocate a bitmap to be used when syncing the cache with
 	 * the hardware.  Each time a register is modified, the corresponding
-	 * bit is set in the bitmap, so we know that we have to sync
+	 * bit is set in the bitmap, so we kyesw that we have to sync
 	 * that register.
 	 */
 	bmp_size = map->num_reg_defaults_raw;
@@ -310,7 +310,7 @@ static int regcache_lzo_write(struct regmap *map,
 		goto out;
 	}
 
-	/* set the bit so we know we have to sync this register */
+	/* set the bit so we kyesw we have to sync this register */
 	set_bit(reg / map->reg_stride, lzo_block->sync_bmp);
 	kfree(tmp_dst);
 	kfree(lzo_block->src);

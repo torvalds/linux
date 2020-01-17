@@ -22,7 +22,7 @@ Each parameters have defined units:
 1. PM QoS framework
 ===================
 
-The infrastructure exposes multiple misc device nodes one per implemented
+The infrastructure exposes multiple misc device yesdes one per implemented
 parameter.  The set of parameters implement is defined by pm_qos_power_init()
 and pm_qos_params.h.  This is done because having the available parameters
 being runtime configurable or changeable from a driver was seen as too easy to
@@ -34,7 +34,7 @@ changes to the request list or elements of the list.  Typically the
 aggregated target value is simply the max or min of the request values held
 in the parameter list elements.
 Note: the aggregated target value is implemented as an atomic variable so that
-reading the aggregated value does not require any locking mechanism.
+reading the aggregated value does yest require any locking mechanism.
 
 
 From kernel mode the use of this interface is simple:
@@ -42,33 +42,33 @@ From kernel mode the use of this interface is simple:
 void pm_qos_add_request(handle, param_class, target_value):
   Will insert an element into the list for that identified PM QoS class with the
   target value.  Upon change to this list the new target is recomputed and any
-  registered notifiers are called only if the target value is now different.
+  registered yestifiers are called only if the target value is yesw different.
   Clients of pm_qos need to save the returned handle for future use in other
   pm_qos API functions.
 
 void pm_qos_update_request(handle, new_target_value):
   Will update the list element pointed to by the handle with the new target
-  value and recompute the new aggregated target, calling the notification tree
+  value and recompute the new aggregated target, calling the yestification tree
   if the target is changed.
 
 void pm_qos_remove_request(handle):
   Will remove the element.  After removal it will update the aggregate target
-  and call the notification tree if the target was changed as a result of
+  and call the yestification tree if the target was changed as a result of
   removing the request.
 
 int pm_qos_request(param_class):
   Returns the aggregated value for a given PM QoS class.
 
 int pm_qos_request_active(handle):
-  Returns if the request is still active, i.e. it has not been removed from a
+  Returns if the request is still active, i.e. it has yest been removed from a
   PM QoS class constraints list.
 
-int pm_qos_add_notifier(param_class, notifier):
-  Adds a notification callback function to the PM QoS class. The callback is
+int pm_qos_add_yestifier(param_class, yestifier):
+  Adds a yestification callback function to the PM QoS class. The callback is
   called when the aggregated value for the PM QoS class is changed.
 
-int pm_qos_remove_notifier(int param_class, notifier):
-  Removes the notification callback function for the PM QoS class.
+int pm_qos_remove_yestifier(int param_class, yestifier):
+  Removes the yestification callback function for the PM QoS class.
 
 
 From user mode:
@@ -80,16 +80,16 @@ parameter requests in the following way:
 To register the default pm_qos target for the specific parameter, the process
 must open /dev/cpu_dma_latency
 
-As long as the device node is held open that process has a registered
+As long as the device yesde is held open that process has a registered
 request on the parameter.
 
 To change the requested target value the process needs to write an s32 value to
-the open device node.  Alternatively the user mode program could write a hex
+the open device yesde.  Alternatively the user mode program could write a hex
 string for the value using 10 char long format e.g. "0x12345678".  This
 translates to a pm_qos_update_request call.
 
 To remove the user mode request for a target value simply close the device
-node.
+yesde.
 
 
 2. PM QoS per-device latency and flags framework
@@ -106,7 +106,7 @@ The PM QoS flags aggregate value is a gather (bitwise OR) of all list elements'
 values.  One device PM QoS flag is defined currently: PM_QOS_FLAG_NO_POWER_OFF.
 
 Note: The aggregated target values are implemented in such a way that reading
-the aggregated value does not require any locking mechanism.
+the aggregated value does yest require any locking mechanism.
 
 
 From kernel mode the use of this interface is the following:
@@ -114,18 +114,18 @@ From kernel mode the use of this interface is the following:
 int dev_pm_qos_add_request(device, handle, type, value):
   Will insert an element into the list for that identified device with the
   target value.  Upon change to this list the new target is recomputed and any
-  registered notifiers are called only if the target value is now different.
+  registered yestifiers are called only if the target value is yesw different.
   Clients of dev_pm_qos need to save the handle for future use in other
   dev_pm_qos API functions.
 
 int dev_pm_qos_update_request(handle, new_value):
   Will update the list element pointed to by the handle with the new target
-  value and recompute the new aggregated target, calling the notification
+  value and recompute the new aggregated target, calling the yestification
   trees if the target is changed.
 
 int dev_pm_qos_remove_request(handle):
   Will remove the element.  After removal it will update the aggregate target
-  and call the notification trees if the target was changed as a result of
+  and call the yestification trees if the target was changed as a result of
   removing the request.
 
 s32 dev_pm_qos_read_value(device, type):
@@ -142,13 +142,13 @@ enum pm_qos_flags_status dev_pm_qos_flags(device, mask)
 	PM_QOS_FLAGS_NONE:
 		No flags from the mask are set
 	PM_QOS_FLAGS_UNDEFINED:
-		The device's PM QoS structure has not been initialized
+		The device's PM QoS structure has yest been initialized
 		or the list of requests is empty.
 
 int dev_pm_qos_add_ancestor_request(dev, handle, type, value)
   Add a PM QoS request for the first direct ancestor of the given device whose
-  power.ignore_children flag is unset (for DEV_PM_QOS_RESUME_LATENCY requests)
-  or whose power.set_latency_tolerance callback pointer is not NULL (for
+  power.igyesre_children flag is unset (for DEV_PM_QOS_RESUME_LATENCY requests)
+  or whose power.set_latency_tolerance callback pointer is yest NULL (for
   DEV_PM_QOS_LATENCY_TOLERANCE requests).
 
 int dev_pm_qos_expose_latency_limit(device, value)
@@ -163,27 +163,27 @@ void dev_pm_qos_hide_latency_limit(device)
 
 int dev_pm_qos_expose_flags(device, value)
   Add a request to the device's PM QoS list of flags and create sysfs attribute
-  pm_qos_no_power_off under the device's power directory allowing user space to
+  pm_qos_yes_power_off under the device's power directory allowing user space to
   change the value of the PM_QOS_FLAG_NO_POWER_OFF flag.
 
 void dev_pm_qos_hide_flags(device)
   Drop the request added by dev_pm_qos_expose_flags() from the device's PM QoS
-  list of flags and remove sysfs attribute pm_qos_no_power_off from the device's
+  list of flags and remove sysfs attribute pm_qos_yes_power_off from the device's
   power directory.
 
 Notification mechanisms:
 
-The per-device PM QoS framework has a per-device notification tree.
+The per-device PM QoS framework has a per-device yestification tree.
 
-int dev_pm_qos_add_notifier(device, notifier, type):
-  Adds a notification callback function for the device for a particular request
+int dev_pm_qos_add_yestifier(device, yestifier, type):
+  Adds a yestification callback function for the device for a particular request
   type.
 
   The callback is called when the aggregated value of the device constraints
   list is changed.
 
-int dev_pm_qos_remove_notifier(device, notifier, type):
-  Removes the notification callback function for the device.
+int dev_pm_qos_remove_yestifier(device, yestifier, type):
+  Removes the yestification callback function for the device.
 
 
 Active state latency tolerance
@@ -206,19 +206,19 @@ Whenever the effective latency tolerance changes for the device, its
 be passed to it.  If that value is negative, which means that the list of
 latency tolerance requirements for the device is empty, the callback is expected
 to switch the underlying hardware latency tolerance control mechanism to an
-autonomous mode if available.  If that value is PM_QOS_LATENCY_ANY, in turn, and
-the hardware supports a special "no requirement" setting, the callback is
+autoyesmous mode if available.  If that value is PM_QOS_LATENCY_ANY, in turn, and
+the hardware supports a special "yes requirement" setting, the callback is
 expected to use it.  That allows software to prevent the hardware from
 automatically updating the device's latency tolerance in response to its power
 state changes (e.g. during transitions from D3cold to D0), which generally may
-be done in the autonomous latency tolerance control mode.
+be done in the autoyesmous latency tolerance control mode.
 
 If .set_latency_tolerance() is present for the device, sysfs attribute
 pm_qos_latency_tolerance_us will be present in the devivce's power directory.
 Then, user space can use that attribute to specify its latency tolerance
-requirement for the device, if any.  Writing "any" to it means "no requirement,
-but do not let the hardware control latency tolerance" and writing "auto" to it
-allows the hardware to be switched to the autonomous mode if there are no other
+requirement for the device, if any.  Writing "any" to it means "yes requirement,
+but do yest let the hardware control latency tolerance" and writing "auto" to it
+allows the hardware to be switched to the autoyesmous mode if there are yes other
 requirements from the kernel side in the device's list.
 
 Kernel code can use the functions described above along with the

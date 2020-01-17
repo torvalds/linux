@@ -94,7 +94,7 @@ static void dwmac1000_dma_init(void __iomem *ioaddr,
 	if (dma_cfg->fixed_burst)
 		value |= DMA_BUS_MODE_FB;
 
-	/* Mixed Burst has no effect when fb is set */
+	/* Mixed Burst has yes effect when fb is set */
 	if (dma_cfg->mixed_burst)
 		value |= DMA_BUS_MODE_MB;
 
@@ -182,7 +182,7 @@ static void dwmac1000_dma_operation_mode_tx(void __iomem *ioaddr, int mode,
 
 	if (mode == SF_DMA_MODE) {
 		pr_debug("GMAC: enable TX store and forward mode\n");
-		/* Transmit COE type 2 cannot be done in cut-through mode. */
+		/* Transmit COE type 2 canyest be done in cut-through mode. */
 		csr6 |= DMA_CONTROL_TSF;
 		/* Operating on second frame increase the performance
 		 * especially when transmit store-and-forward is used.

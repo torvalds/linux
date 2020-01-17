@@ -141,7 +141,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Antenna setup changes require the RX to be disabled,
-	 * else the changes will be ignored by the device.
+	 * else the changes will be igyesred by the device.
 	 */
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2x00queue_stop_queue(rt2x00dev->rx);
@@ -149,7 +149,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Write new antenna setup to device and reset the link tuner.
 	 * The latter is required since we need to recalibrate the
-	 * noise-sensitivity ratio for the new setup.
+	 * yesise-sensitivity ratio for the new setup.
 	 */
 	rt2x00dev->ops->lib->config_ant(rt2x00dev, &config);
 

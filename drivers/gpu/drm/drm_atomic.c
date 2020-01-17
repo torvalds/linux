@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -226,7 +226,7 @@ EXPORT_SYMBOL(drm_atomic_state_default_clear);
  *
  * When the w/w mutex algorithm detects a deadlock we need to back off and drop
  * all locks. So someone else could sneak in and change the current modeset
- * configuration. Which means that all the state assembled in @state is no
+ * configuration. Which means that all the state assembled in @state is yes
  * longer an atomic update to the current state, but to some arbitrary earlier
  * state. Which could break assumptions the driver's
  * &drm_mode_config_funcs.atomic_check likely relies on.
@@ -327,7 +327,7 @@ static int drm_atomic_crtc_check(const struct drm_crtc_state *old_crtc_state,
 
 	/* NOTE: we explicitly don't enforce constraints such as primary
 	 * layer covering entire screen, since that is something we want
-	 * to allow (on hw that supports it).  For hw that does not, it
+	 * to allow (on hw that supports it).  For hw that does yest, it
 	 * should be checked in driver's crtc->atomic_check() vfunc.
 	 *
 	 * TODO: Add generic modeset state checks once we support those.
@@ -517,8 +517,8 @@ plane_switching_crtc(const struct drm_plane_state *old_plane_state,
 	if (old_plane_state->crtc == new_plane_state->crtc)
 		return false;
 
-	/* This could be refined, but currently there's no helper or driver code
-	 * to implement direct switching of active planes nor userspace to take
+	/* This could be refined, but currently there's yes helper or driver code
+	 * to implement direct switching of active planes yesr userspace to take
 	 * advantage of more direct plane switching without the intermediate
 	 * full OFF state.
 	 */
@@ -548,11 +548,11 @@ static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
 
 	/* either *both* CRTC and FB must be set, or neither */
 	if (crtc && !fb) {
-		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] CRTC set but no FB\n",
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] CRTC set but yes FB\n",
 				 plane->base.id, plane->name);
 		return -EINVAL;
 	} else if (fb && !crtc) {
-		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] FB set but no CRTC\n",
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] FB set but yes CRTC\n",
 				 plane->base.id, plane->name);
 		return -EINVAL;
 	}
@@ -661,7 +661,7 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
 	drm_printf(p, "\tcrtc-pos=" DRM_RECT_FMT "\n", DRM_RECT_ARG(&dest));
 	drm_printf(p, "\tsrc-pos=" DRM_RECT_FP_FMT "\n", DRM_RECT_FP_ARG(&src));
 	drm_printf(p, "\trotation=%x\n", state->rotation);
-	drm_printf(p, "\tnormalized-zpos=%x\n", state->normalized_zpos);
+	drm_printf(p, "\tyesrmalized-zpos=%x\n", state->yesrmalized_zpos);
 	drm_printf(p, "\tcolor-encoding=%s\n",
 		   drm_get_color_encoding_name(state->color_encoding));
 	drm_printf(p, "\tcolor-range=%s\n",
@@ -675,12 +675,12 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
  * DOC: handling driver private state
  *
  * Very often the DRM objects exposed to userspace in the atomic modeset api
- * (&drm_connector, &drm_crtc and &drm_plane) do not map neatly to the
+ * (&drm_connector, &drm_crtc and &drm_plane) do yest map neatly to the
  * underlying hardware. Especially for any kind of shared resources (e.g. shared
  * clocks, scaler units, bandwidth and fifo limits shared among a group of
  * planes or CRTCs, and so on) it makes sense to model these as independent
  * objects. Drivers then need to do similar state tracking and commit ordering for
- * such private (since not exposed to userpace) objects as the atomic core and
+ * such private (since yest exposed to userpace) objects as the atomic core and
  * helpers already provide for connectors, planes and CRTCs.
  *
  * To make this easier on drivers the atomic core provides some support to track
@@ -689,7 +689,7 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
  *
  * Similar to userspace-exposed objects, private state structures can be
  * acquired by calling drm_atomic_get_private_obj_state(). Since this function
- * does not take care of locking, drivers should wrap it for each type of
+ * does yest take care of locking, drivers should wrap it for each type of
  * private state object they have with the required call to drm_modeset_lock()
  * for the corresponding &drm_modeset_lock.
  *
@@ -701,7 +701,7 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
  * least if they want to iterate over all objects of a given type.
  *
  * An earlier way to handle driver private state was by subclassing struct
- * &drm_atomic_state. But since that encourages non-standard ways to implement
+ * &drm_atomic_state. But since that encourages yesn-standard ways to implement
  * the check/commit split atomic requires (by using e.g. "check and rollback or
  * commit instead" of "duplicate state, check, then either commit or release
  * duplicated state) it is deprecated in favour of using &drm_private_state.
@@ -814,7 +814,7 @@ EXPORT_SYMBOL(drm_atomic_get_private_obj_state);
  * @obj: private_obj to grab
  *
  * This function returns the old private object state for the given private_obj,
- * or NULL if the private_obj is not part of the global atomic state.
+ * or NULL if the private_obj is yest part of the global atomic state.
  */
 struct drm_private_state *
 drm_atomic_get_old_private_obj_state(struct drm_atomic_state *state,
@@ -836,7 +836,7 @@ EXPORT_SYMBOL(drm_atomic_get_old_private_obj_state);
  * @obj: private_obj to grab
  *
  * This function returns the new private object state for the given private_obj,
- * or NULL if the private_obj is not part of the global atomic state.
+ * or NULL if the private_obj is yest part of the global atomic state.
  */
 struct drm_private_state *
 drm_atomic_get_new_private_obj_state(struct drm_atomic_state *state,
@@ -860,15 +860,15 @@ EXPORT_SYMBOL(drm_atomic_get_new_private_obj_state);
  * This function finds and returns the connector that was connected to @encoder
  * as specified by the @state.
  *
- * If there is no connector in @state which previously had @encoder connected to
+ * If there is yes connector in @state which previously had @encoder connected to
  * it, this function will return NULL. While this may seem like an invalid use
- * case, it is sometimes useful to differentiate commits which had no prior
+ * case, it is sometimes useful to differentiate commits which had yes prior
  * connectors attached to @encoder vs ones that did (and to inspect their
  * state). This is especially true in enable hooks because the pipeline has
  * changed.
  *
  * Returns: The old connector connected to @encoder, or NULL if the encoder is
- * not connected.
+ * yest connected.
  */
 struct drm_connector *
 drm_atomic_get_old_connector_for_encoder(struct drm_atomic_state *state,
@@ -895,14 +895,14 @@ EXPORT_SYMBOL(drm_atomic_get_old_connector_for_encoder);
  * This function finds and returns the connector that will be connected to
  * @encoder as specified by the @state.
  *
- * If there is no connector in @state which will have @encoder connected to it,
+ * If there is yes connector in @state which will have @encoder connected to it,
  * this function will return NULL. While this may seem like an invalid use case,
- * it is sometimes useful to differentiate commits which have no connectors
+ * it is sometimes useful to differentiate commits which have yes connectors
  * attached to @encoder vs ones that do (and to inspect their state). This is
  * especially true in disable hooks because the pipeline will change.
  *
  * Returns: The new connector connected to @encoder, or NULL if the encoder is
- * not connected.
+ * yest connected.
  */
 struct drm_connector *
 drm_atomic_get_new_connector_for_encoder(struct drm_atomic_state *state,
@@ -1088,7 +1088,7 @@ EXPORT_SYMBOL(drm_atomic_add_affected_connectors);
  *
  * Since acquiring a plane state will always also acquire the w/w mutex of the
  * current CRTC for that plane (if there is any) adding all the plane states for
- * a CRTC will not reduce parallism of atomic updates.
+ * a CRTC will yest reduce parallism of atomic updates.
  *
  * Returns:
  * 0 on success or can fail with -EDEADLK or -ENOMEM. When the error is EDEADLK
@@ -1227,7 +1227,7 @@ int drm_atomic_commit(struct drm_atomic_state *state)
 EXPORT_SYMBOL(drm_atomic_commit);
 
 /**
- * drm_atomic_nonblocking_commit - atomic nonblocking commit
+ * drm_atomic_yesnblocking_commit - atomic yesnblocking commit
  * @state: atomic configuration to check
  *
  * Note that this function can return -EDEADLK if the driver needed to acquire
@@ -1240,7 +1240,7 @@ EXPORT_SYMBOL(drm_atomic_commit);
  * Returns:
  * 0 on success, negative error code on failure.
  */
-int drm_atomic_nonblocking_commit(struct drm_atomic_state *state)
+int drm_atomic_yesnblocking_commit(struct drm_atomic_state *state)
 {
 	struct drm_mode_config *config = &state->dev->mode_config;
 	int ret;
@@ -1249,11 +1249,11 @@ int drm_atomic_nonblocking_commit(struct drm_atomic_state *state)
 	if (ret)
 		return ret;
 
-	DRM_DEBUG_ATOMIC("committing %p nonblocking\n", state);
+	DRM_DEBUG_ATOMIC("committing %p yesnblocking\n", state);
 
 	return config->funcs->atomic_commit(state->dev, state, true);
 }
-EXPORT_SYMBOL(drm_atomic_nonblocking_commit);
+EXPORT_SYMBOL(drm_atomic_yesnblocking_commit);
 
 /* just used from drm-client and atomic-helper: */
 int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
@@ -1494,10 +1494,10 @@ static void __drm_state_dump(struct drm_device *dev, struct drm_printer *p,
  * ratelimit this!)
  *
  * The caller must drm_modeset_lock_all(), or if this is called
- * from error irq handler, it should not be enabled by default.
- * (Ie. if you are debugging errors you might not care that this
+ * from error irq handler, it should yest be enabled by default.
+ * (Ie. if you are debugging errors you might yest care that this
  * is racey.  But calling this without all modeset locks held is
- * not inherently safe.)
+ * yest inherently safe.)
  */
 void drm_state_dump(struct drm_device *dev, struct drm_printer *p)
 {
@@ -1508,8 +1508,8 @@ EXPORT_SYMBOL(drm_state_dump);
 #ifdef CONFIG_DEBUG_FS
 static int drm_state_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	__drm_state_dump(dev, &p, true);
@@ -1522,10 +1522,10 @@ static const struct drm_info_list drm_atomic_debugfs_list[] = {
 	{"state", drm_state_info, 0},
 };
 
-int drm_atomic_debugfs_init(struct drm_minor *minor)
+int drm_atomic_debugfs_init(struct drm_miyesr *miyesr)
 {
 	return drm_debugfs_create_files(drm_atomic_debugfs_list,
 			ARRAY_SIZE(drm_atomic_debugfs_list),
-			minor->debugfs_root, minor);
+			miyesr->debugfs_root, miyesr);
 }
 #endif

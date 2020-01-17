@@ -29,7 +29,7 @@
 				   controlled by the device driver. Must
 				   be <= 5 */
 
-#undef RCQ_SUPPORT		/* Do not define this for now */
+#undef RCQ_SUPPORT		/* Do yest define this for yesw */
 
 #define NS_TST_NUM_ENTRIES 2340	/* + 1 for return */
 #define NS_TST_RESERVED 340	/* N. entries reserved for UBR/ABR/VBR */
@@ -230,7 +230,7 @@ typedef struct ns_scqe {
 
 #define ns_tbd_mkword_1(flags, m, n, buflen) \
       (cpu_to_le32((flags) | (m) << 23 | (n) << 16 | (buflen)))
-#define ns_tbd_mkword_1_novbr(flags, buflen) \
+#define ns_tbd_mkword_1_yesvbr(flags, buflen) \
       (cpu_to_le32((flags) | (buflen) | 0x00810000))
 #define ns_tbd_mkword_3(control, pdulen) \
       (cpu_to_le32((control) << 16 | (pdulen)))
@@ -395,7 +395,7 @@ typedef struct ns_scd {
 #define NS_SCD_XMITFOREVER   0x02000000
 
    /* NOTE: There are other fields in word 2 of the SCD, but as they should
-      not be needed in the device driver they are not defined here. */
+      yest be needed in the device driver they are yest defined here. */
 
 /* NICStAR local SRAM memory map */
 
@@ -486,7 +486,7 @@ enum ns_regs {
 						   Interrupt Enable */
 #define NS_CFG_RSQSIZE_MASK   0x00C00000	/* Receive Status Queue Size */
 #define NS_CFG_ICACCEPT       0x00200000	/* Invalid Cell Accept */
-#define NS_CFG_IGNOREGFC      0x00100000	/* Ignore General Flow Control */
+#define NS_CFG_IGNOREGFC      0x00100000	/* Igyesre General Flow Control */
 #define NS_CFG_VPIBITS_MASK   0x000C0000	/* VPI/VCI Bits Size Select */
 #define NS_CFG_RCTSIZE_MASK   0x00030000	/* Receive Connection Table Size */
 #define NS_CFG_VCERRACCEPT    0x00008000	/* VPI/VCI Error Cell Accept */
@@ -690,7 +690,7 @@ typedef struct skb_pool {
 	struct sk_buff_head queue;
 } skb_pool;
 
-/* NOTE: for small and large buffer pools, the count is not used, as the
+/* NOTE: for small and large buffer pools, the count is yest used, as the
          actual value used for buffer management is the one read from the
 	 card. */
 
@@ -748,7 +748,7 @@ typedef struct ns_dev {
 } ns_dev;
 
    /* NOTE: Each tste2vc entry relates a given TST entry to the corresponding
-      CBR vc. If the entry is not allocated, it must be NULL.
+      CBR vc. If the entry is yest allocated, it must be NULL.
 
       There are two TSTs so the driver can modify them on the fly
       without stopping the transmission.

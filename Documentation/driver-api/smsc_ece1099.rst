@@ -56,5 +56,5 @@ Communication Protocol
 	located on the Companion device. The bus comprises three signals,
 	BC_CLK, BC_DAT and BC_INT#. The Master device always provides the
 	clock, BC_CLK, and the Companion device is the source for an
-	independent asynchronous interrupt signal, BC_INT#. The ECE1099
+	independent asynchroyesus interrupt signal, BC_INT#. The ECE1099
 	supports BC-Link speeds up to 24MHz.

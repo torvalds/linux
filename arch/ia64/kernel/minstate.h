@@ -54,7 +54,7 @@
 	mov r26=ar.pfs;			/* I */							\
 	MOV_FROM_IIP(r28);			/* M */						\
 	mov r21=ar.fpsr;		/* M */							\
-	__COVER;				/* B;; (or nothing) */				\
+	__COVER;				/* B;; (or yesthing) */				\
 	;;											\
 	adds r16=IA64_TASK_THREAD_ON_USTACK_OFFSET,r16;						\
 	;;											\
@@ -162,7 +162,7 @@
  *	r10:	contents of ar.ssd
  *	r11:	FPSR_DEFAULT
  *
- * Registers r14 and r15 are guaranteed not to be touched by SAVE_REST.
+ * Registers r14 and r15 are guaranteed yest to be touched by SAVE_REST.
  */
 #define SAVE_REST				\
 .mem.offset 0,0; st8.spill [r2]=r16,16;		\

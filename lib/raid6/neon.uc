@@ -31,7 +31,7 @@ typedef uint8x16_t unative_t;
 #define NSIZE	sizeof(unative_t)
 
 /*
- * The SHLBYTE() operation shifts each byte left by 1, *not*
+ * The SHLBYTE() operation shifts each byte left by 1, *yest*
  * rolling over into the next byte
  */
 static inline unative_t SHLBYTE(unative_t v)

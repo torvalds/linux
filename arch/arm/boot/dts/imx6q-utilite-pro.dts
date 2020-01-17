@@ -9,7 +9,7 @@
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -33,7 +33,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -174,16 +174,16 @@
 };
 
 /*
- * A single IPU is not able to drive both display interfaces available on the
+ * A single IPU is yest able to drive both display interfaces available on the
  * Utilite Pro at high resolution due to its bandwidth limitation. Since the
  * tfp410 encoder is wired up to IPU1, sever the link between IPU1 and the
  * SoC-internal Designware HDMI encoder forcing the latter to be connected to
  * IPU2 instead of IPU1.
  */
-/delete-node/&ipu1_di0_hdmi;
-/delete-node/&hdmi_mux_0;
-/delete-node/&ipu1_di1_hdmi;
-/delete-node/&hdmi_mux_1;
+/delete-yesde/&ipu1_di0_hdmi;
+/delete-yesde/&hdmi_mux_0;
+/delete-yesde/&ipu1_di1_hdmi;
+/delete-yesde/&hdmi_mux_1;
 
 &hdmi {
 	pinctrl-names = "default";
@@ -329,7 +329,7 @@
 		#address-cells = <3>;
 		#size-cells = <2>;
 
-		/* non-removable i211 ethernet card */
+		/* yesn-removable i211 ethernet card */
 		eth1: intel,i211@pcie0,0 {
 			reg = <0x010000 0 0 0 0>;
 		};
@@ -348,7 +348,7 @@
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	pinctrl-1 = <&pinctrl_usdhc3_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc3_200mhz>;
-	no-1-8-v;
+	yes-1-8-v;
 	broken-cd;
 	keep-power-in-suspend;
 	status = "okay";

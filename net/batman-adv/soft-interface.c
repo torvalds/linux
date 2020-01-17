@@ -12,7 +12,7 @@
 #include <linux/cache.h>
 #include <linux/compiler.h>
 #include <linux/cpumask.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/gfp.h>
@@ -64,9 +64,9 @@ int batadv_skb_head_push(struct sk_buff *skb, unsigned int len)
 {
 	int result;
 
-	/* TODO: We must check if we can release all references to non-payload
+	/* TODO: We must check if we can release all references to yesn-payload
 	 * data using __skb_header_release in our skbs to allow skb_cow_header
-	 * to work optimally. This means that those skbs are not allowed to read
+	 * to work optimally. This means that those skbs are yest allowed to read
 	 * or write any data which is before the current position of skb->data
 	 * after that call and thus allow other skbs with the same data buffer
 	 * to write freely in that area.
@@ -168,7 +168,7 @@ static int batadv_interface_change_mtu(struct net_device *dev, int new_mtu)
  * batadv_interface_set_rx_mode() - set the rx mode of a device
  * @dev: registered network device to modify
  *
- * We do not actually need to set any rx filters for the virtual batman
+ * We do yest actually need to set any rx filters for the virtual batman
  * soft interface. However a dummy handler enables a user to set static
  * multicast listeners for instance.
  */
@@ -195,10 +195,10 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 	unsigned long brd_delay = 1;
 	bool do_bcast = false, client_added;
 	unsigned short vid;
-	u32 seqno;
+	u32 seqyes;
 	int gw_mode;
 	enum batadv_forw_mode forw_mode = BATADV_FORW_SINGLE;
-	struct batadv_orig_node *mcast_single_orig = NULL;
+	struct batadv_orig_yesde *mcast_single_orig = NULL;
 	int network_offset = ETH_HLEN;
 	__be16 proto;
 
@@ -252,10 +252,10 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 			goto dropped;
 	}
 
-	/* Snoop address candidates from DHCPACKs for early DAT filling */
-	batadv_dat_snoop_outgoing_dhcp_ack(bat_priv, skb, proto, vid);
+	/* Syesop address candidates from DHCPACKs for early DAT filling */
+	batadv_dat_syesop_outgoing_dhcp_ack(bat_priv, skb, proto, vid);
 
-	/* don't accept stp packets. STP does not help in meshes.
+	/* don't accept stp packets. STP does yest help in meshes.
 	 * better use the bridge loop avoidance ...
 	 *
 	 * The same goes for ECTP sent at least by some Cisco Switches,
@@ -281,7 +281,7 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 		 * batadv_gw_dhcp_recipient_get()
 		 */
 		ethhdr = eth_hdr(skb);
-		/* if gw_mode is on, broadcast any non-DHCP message.
+		/* if gw_mode is on, broadcast any yesn-DHCP message.
 		 * All the DHCP packets are going to be sent as unicast
 		 */
 		if (dhcp_rcp == BATADV_DHCP_NO) {
@@ -293,7 +293,7 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 			dst_hint = chaddr;
 		else if ((gw_mode == BATADV_GW_MODE_SERVER) &&
 			 (dhcp_rcp == BATADV_DHCP_TO_SERVER))
-			/* gateways should not forward any DHCP message if
+			/* gateways should yest forward any DHCP message if
 			 * directed to a DHCP server
 			 */
 			goto dropped;
@@ -319,11 +319,11 @@ send:
 		if (!primary_if)
 			goto dropped;
 
-		/* in case of ARP request, we do not immediately broadcasti the
+		/* in case of ARP request, we do yest immediately broadcasti the
 		 * packet, instead we first wait for DAT to try to retrieve the
 		 * correct ARP entry
 		 */
-		if (batadv_dat_snoop_outgoing_arp_request(bat_priv, skb))
+		if (batadv_dat_syesop_outgoing_arp_request(bat_priv, skb))
 			brd_delay = msecs_to_jiffies(ARP_REQ_DELAY);
 
 		if (batadv_skb_head_push(skb, sizeof(*bcast_packet)) < 0)
@@ -338,14 +338,14 @@ send:
 		bcast_packet->reserved = 0;
 
 		/* hw address of first interface is the orig mac because only
-		 * this mac is known throughout the mesh
+		 * this mac is kyeswn throughout the mesh
 		 */
 		ether_addr_copy(bcast_packet->orig,
 				primary_if->net_dev->dev_addr);
 
 		/* set broadcast sequence number */
-		seqno = atomic_inc_return(&bat_priv->bcast_seqno);
-		bcast_packet->seqno = htonl(seqno);
+		seqyes = atomic_inc_return(&bat_priv->bcast_seqyes);
+		bcast_packet->seqyes = htonl(seqyes);
 
 		batadv_add_bcast_packet_to_list(bat_priv, skb, brd_delay, true);
 
@@ -369,11 +369,11 @@ send:
 		} else if (forw_mode == BATADV_FORW_SOME) {
 			ret = batadv_mcast_forw_send(bat_priv, skb, vid);
 		} else {
-			if (batadv_dat_snoop_outgoing_arp_request(bat_priv,
+			if (batadv_dat_syesop_outgoing_arp_request(bat_priv,
 								  skb))
 				goto dropped;
 
-			batadv_dat_snoop_outgoing_arp_reply(bat_priv, skb);
+			batadv_dat_syesop_outgoing_arp_reply(bat_priv, skb);
 
 			ret = batadv_send_skb_via_tt(bat_priv, skb, dst_hint,
 						     vid);
@@ -392,7 +392,7 @@ dropped_freed:
 	batadv_inc_counter(bat_priv, BATADV_CNT_TX_DROPPED);
 end:
 	if (mcast_single_orig)
-		batadv_orig_node_put(mcast_single_orig);
+		batadv_orig_yesde_put(mcast_single_orig);
 	if (primary_if)
 		batadv_hardif_put(primary_if);
 	return NETDEV_TX_OK;
@@ -403,7 +403,7 @@ end:
  * @soft_iface: local interface which will receive the ethernet frame
  * @skb: ethernet frame for @soft_iface
  * @hdr_size: size of already parsed batman-adv header
- * @orig_node: originator from which the batman-adv packet was sent
+ * @orig_yesde: originator from which the batman-adv packet was sent
  *
  * Sends a ethernet frame to the receive path of the local @soft_iface.
  * skb->data has still point to the batman-adv header with the size @hdr_size.
@@ -417,7 +417,7 @@ end:
  */
 void batadv_interface_rx(struct net_device *soft_iface,
 			 struct sk_buff *skb, int hdr_size,
-			 struct batadv_orig_node *orig_node)
+			 struct batadv_orig_yesde *orig_yesde)
 {
 	struct batadv_bcast_packet *batadv_bcast_packet;
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
@@ -432,7 +432,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	skb_pull_rcsum(skb, hdr_size);
 	skb_reset_mac_header(skb);
 
-	/* clean the netfilter state now that the batman-adv header has been
+	/* clean the netfilter state yesw that the batman-adv header has been
 	 * removed
 	 */
 	nf_reset_ct(skb);
@@ -468,13 +468,13 @@ void batadv_interface_rx(struct net_device *soft_iface,
 			   skb->len + ETH_HLEN);
 
 	/* Let the bridge loop avoidance check the packet. If will
-	 * not handle it, we can safely push it up.
+	 * yest handle it, we can safely push it up.
 	 */
 	if (batadv_bla_rx(bat_priv, skb, vid, is_bcast))
 		goto out;
 
-	if (orig_node)
-		batadv_tt_add_temporary_global_entry(bat_priv, orig_node,
+	if (orig_yesde)
+		batadv_tt_add_temporary_global_entry(bat_priv, orig_yesde,
 						     ethhdr->h_source, vid);
 
 	if (is_multicast_ether_addr(ethhdr->h_dest)) {
@@ -484,7 +484,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 		if (batadv_vlan_ap_isola_get(bat_priv, vid) &&
 		    batadv_tt_global_is_isolated(bat_priv, ethhdr->h_source,
 						 vid)) {
-			/* save bits in skb->mark not covered by the mask and
+			/* save bits in skb->mark yest covered by the mask and
 			 * apply the mark on the rest
 			 */
 			skb->mark &= ~bat_priv->isolation_mark_mask;
@@ -601,7 +601,7 @@ int batadv_softif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
 	hlist_add_head_rcu(&vlan->list, &bat_priv->softif_vlan_list);
 	spin_unlock_bh(&bat_priv->softif_vlan_list_lock);
 
-	/* batadv_sysfs_add_vlan cannot be in the spinlock section due to the
+	/* batadv_sysfs_add_vlan canyest be in the spinlock section due to the
 	 * sleeping behavior of the sysfs functions and the fs_reclaim lock
 	 */
 	err = batadv_sysfs_add_vlan(bat_priv->soft_iface, vlan);
@@ -664,7 +664,7 @@ static int batadv_interface_add_vid(struct net_device *dev, __be16 proto,
 	int ret;
 
 	/* only 802.1Q vlans are supported.
-	 * batman-adv does not know how to handle other types
+	 * batman-adv does yest kyesw how to handle other types
 	 */
 	if (proto != htons(ETH_P_8021Q))
 		return -EINVAL;
@@ -672,10 +672,10 @@ static int batadv_interface_add_vid(struct net_device *dev, __be16 proto,
 	vid |= BATADV_VLAN_HAS_TAG;
 
 	/* if a new vlan is getting created and it already exists, it means that
-	 * it was not deleted yet. batadv_softif_vlan_get() increases the
+	 * it was yest deleted yet. batadv_softif_vlan_get() increases the
 	 * refcount in order to revive the object.
 	 *
-	 * if it does not exist then create it.
+	 * if it does yest exist then create it.
 	 */
 	vlan = batadv_softif_vlan_get(bat_priv, vid);
 	if (!vlan)
@@ -712,7 +712,7 @@ static int batadv_interface_add_vid(struct net_device *dev, __be16 proto,
  * Destroy all the internal structures used to handle the vlan identified by vid
  * on top of the mesh interface
  *
- * Return: 0 on success, -EINVAL if the specified prototype is not ETH_P_8021Q
+ * Return: 0 on success, -EINVAL if the specified prototype is yest ETH_P_8021Q
  * or -ENOENT if the specified vlan id wasn't registered.
  */
 static int batadv_interface_kill_vid(struct net_device *dev, __be16 proto,
@@ -721,7 +721,7 @@ static int batadv_interface_kill_vid(struct net_device *dev, __be16 proto,
 	struct batadv_priv *bat_priv = netdev_priv(dev);
 	struct batadv_softif_vlan *vlan;
 
-	/* only 802.1Q vlans are supported. batman-adv does not know how to
+	/* only 802.1Q vlans are supported. batman-adv does yest kyesw how to
 	 * handle other types
 	 */
 	if (proto != htons(ETH_P_8021Q))
@@ -748,7 +748,7 @@ static int batadv_interface_kill_vid(struct net_device *dev, __be16 proto,
 static int batadv_softif_init_late(struct net_device *dev)
 {
 	struct batadv_priv *bat_priv;
-	u32 random_seqno;
+	u32 random_seqyes;
 	int ret;
 	size_t cnt_len = sizeof(u64) * BATADV_CNT_NUM;
 
@@ -758,7 +758,7 @@ static int batadv_softif_init_late(struct net_device *dev)
 	/* batadv_interface_stats() needs to be available as soon as
 	 * register_netdevice() has been called
 	 */
-	bat_priv->bat_counters = __alloc_percpu(cnt_len, __alignof__(u64));
+	bat_priv->bat_counters = __alloc_percpu(cnt_len, __aligyesf__(u64));
 	if (!bat_priv->bat_counters)
 		return -ENOMEM;
 
@@ -772,8 +772,8 @@ static int batadv_softif_init_late(struct net_device *dev)
 #endif
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	atomic_set(&bat_priv->multicast_mode, 1);
-	atomic_set(&bat_priv->multicast_fanout, 16);
-	atomic_set(&bat_priv->mcast.num_want_all_unsnoopables, 0);
+	atomic_set(&bat_priv->multicast_fayesut, 16);
+	atomic_set(&bat_priv->mcast.num_want_all_unsyesopables, 0);
 	atomic_set(&bat_priv->mcast.num_want_all_ipv4, 0);
 	atomic_set(&bat_priv->mcast.num_want_all_ipv6, 0);
 #endif
@@ -791,7 +791,7 @@ static int batadv_softif_init_late(struct net_device *dev)
 	atomic_set(&bat_priv->batman_queue_left, BATADV_BATMAN_QUEUE_LEN);
 
 	atomic_set(&bat_priv->mesh_state, BATADV_MESH_INACTIVE);
-	atomic_set(&bat_priv->bcast_seqno, 1);
+	atomic_set(&bat_priv->bcast_seqyes, 1);
 	atomic_set(&bat_priv->tt.vn, 0);
 	atomic_set(&bat_priv->tt.local_changes, 0);
 	atomic_set(&bat_priv->tt.ogm_append_cnt, 0);
@@ -805,9 +805,9 @@ static int batadv_softif_init_late(struct net_device *dev)
 	bat_priv->isolation_mark = 0;
 	bat_priv->isolation_mark_mask = 0;
 
-	/* randomize initial seqno to avoid collision */
-	get_random_bytes(&random_seqno, sizeof(random_seqno));
-	atomic_set(&bat_priv->frag_seqno, random_seqno);
+	/* randomize initial seqyes to avoid collision */
+	get_random_bytes(&random_seqyes, sizeof(random_seqyes));
+	atomic_set(&bat_priv->frag_seqyes, random_seqyes);
 
 	bat_priv->primary_if = NULL;
 
@@ -1031,7 +1031,7 @@ static void batadv_softif_init_early(struct net_device *dev)
 	dev->priv_flags |= IFF_NO_QUEUE;
 
 	/* can't call min_mtu, because the needed variables
-	 * have not been initialized yet
+	 * have yest been initialized yet
 	 */
 	dev->mtu = ETH_DATA_LEN;
 

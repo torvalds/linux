@@ -56,10 +56,10 @@ enum clkrst_index {
 	CLKRST_MAX,
 };
 
-static void u8500_clk_init(struct device_node *np)
+static void u8500_clk_init(struct device_yesde *np)
 {
 	struct prcmu_fw_version *fw_version;
-	struct device_node *child = NULL;
+	struct device_yesde *child = NULL;
 	const char *sgaclk_parent = NULL;
 	struct clk *clk, *rtc_clk, *twd_clk;
 	u32 bases[CLKRST_MAX];
@@ -429,7 +429,7 @@ static void u8500_clk_init(struct device_node *np)
 	/* PRCC K-clocks
 	 *
 	 * FIXME: Some drivers requires PERPIH[n| to be automatically enabled
-	 * by enabling just the K-clock, even if it is not a valid parent to
+	 * by enabling just the K-clock, even if it is yest a valid parent to
 	 * the K-clock. Until drivers get fixed we might need some kind of
 	 * "parent muxed join".
 	 */
@@ -541,24 +541,24 @@ static void u8500_clk_init(struct device_node *np)
 			bases[CLKRST6_INDEX], BIT(0), CLK_SET_RATE_GATE);
 	PRCC_KCLK_STORE(clk, 6, 0);
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		static struct clk_onecell_data clk_data;
 
-		if (of_node_name_eq(child, "prcmu-clock")) {
+		if (of_yesde_name_eq(child, "prcmu-clock")) {
 			clk_data.clks = prcmu_clk;
 			clk_data.clk_num = ARRAY_SIZE(prcmu_clk);
 			of_clk_add_provider(child, of_clk_src_onecell_get, &clk_data);
 		}
-		if (of_node_name_eq(child, "prcc-periph-clock"))
+		if (of_yesde_name_eq(child, "prcc-periph-clock"))
 			of_clk_add_provider(child, ux500_twocell_get, prcc_pclk);
 
-		if (of_node_name_eq(child, "prcc-kernel-clock"))
+		if (of_yesde_name_eq(child, "prcc-kernel-clock"))
 			of_clk_add_provider(child, ux500_twocell_get, prcc_kclk);
 
-		if (of_node_name_eq(child, "rtc32k-clock"))
+		if (of_yesde_name_eq(child, "rtc32k-clock"))
 			of_clk_add_provider(child, of_clk_src_simple_get, rtc_clk);
 
-		if (of_node_name_eq(child, "smp-twd-clock"))
+		if (of_yesde_name_eq(child, "smp-twd-clock"))
 			of_clk_add_provider(child, of_clk_src_simple_get, twd_clk);
 	}
 }

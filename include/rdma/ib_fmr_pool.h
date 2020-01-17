@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -68,7 +68,7 @@ struct ib_pool_fmr {
 	struct ib_fmr      *fmr;
 	struct ib_fmr_pool *pool;
 	struct list_head    list;
-	struct hlist_node   cache_node;
+	struct hlist_yesde   cache_yesde;
 	int                 ref_count;
 	int                 remap_count;
 	u64                 io_virtual_address;

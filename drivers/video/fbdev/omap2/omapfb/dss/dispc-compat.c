@@ -246,7 +246,7 @@ static void print_irq_status(u32 status)
 
 /* Called from dss.c. Note that we don't touch clocks here,
  * but we presume they are on because we got an IRQ. However,
- * an irq handler may turn the clocks off, so we may not have
+ * an irq handler may turn the clocks off, so we may yest have
  * clock later in the function. */
 static irqreturn_t omap_dispc_irq_handler(int irq, void *arg)
 {
@@ -262,7 +262,7 @@ static irqreturn_t omap_dispc_irq_handler(int irq, void *arg)
 	irqstatus = dispc_read_irqstatus();
 	irqenable = dispc_read_irqenable();
 
-	/* IRQ is not for us */
+	/* IRQ is yest for us */
 	if (!(irqstatus & irqenable)) {
 		spin_unlock(&dispc_compat.irq_lock);
 		return IRQ_NONE;
@@ -469,7 +469,7 @@ static void dispc_mgr_disable_lcd_out(enum omap_channel channel)
 		return;
 
 	/*
-	 * When we disable LCD output, we need to wait for FRAMEDONE to know
+	 * When we disable LCD output, we need to wait for FRAMEDONE to kyesw
 	 * that DISPC has finished with the LCD output.
 	 */
 
@@ -502,7 +502,7 @@ static void dispc_digit_out_enable_isr(void *data, u32 mask)
 {
 	struct completion *compl = data;
 
-	/* ignore any sync lost interrupts */
+	/* igyesre any sync lost interrupts */
 	if (mask & (DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD))
 		complete(compl);
 }
@@ -518,7 +518,7 @@ static void dispc_mgr_enable_digit_out(void)
 
 	/*
 	 * Digit output produces some sync lost interrupts during the first
-	 * frame when enabling. Those need to be ignored, so we register for the
+	 * frame when enabling. Those need to be igyesred, so we register for the
 	 * sync lost irq to prevent the error handler from triggering.
 	 */
 
@@ -556,7 +556,7 @@ static void dispc_mgr_disable_digit_out(void)
 
 	/*
 	 * When we disable the digit output, we need to wait for FRAMEDONE to
-	 * know that DISPC has finished with the output.
+	 * kyesw that DISPC has finished with the output.
 	 */
 
 	irq_mask = dispc_mgr_get_framedone_irq(OMAP_DSS_CHANNEL_DIGIT);
@@ -571,7 +571,7 @@ static void dispc_mgr_disable_digit_out(void)
 		irq_mask = dispc_mgr_get_vsync_irq(OMAP_DSS_CHANNEL_DIGIT);
 		/*
 		 * We need to wait for both even and odd vsyncs. Note that this
-		 * is not totally reliable, as we could get a vsync interrupt
+		 * is yest totally reliable, as we could get a vsync interrupt
 		 * before we disable the output, which leads to timeout in the
 		 * wait_for_completion.
 		 */

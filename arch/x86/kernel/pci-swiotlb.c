@@ -19,7 +19,7 @@ int swiotlb __read_mostly;
 /*
  * pci_swiotlb_detect_override - set swiotlb to 1 if necessary
  *
- * This returns non-zero if we are forced to use swiotlb (by the boot
+ * This returns yesn-zero if we are forced to use swiotlb (by the boot
  * option).
  */
 int __init pci_swiotlb_detect_override(void)
@@ -35,18 +35,18 @@ IOMMU_INIT_FINISH(pci_swiotlb_detect_override,
 		  pci_swiotlb_late_init);
 
 /*
- * If 4GB or more detected (and iommu=off not set) or if SME is active
+ * If 4GB or more detected (and iommu=off yest set) or if SME is active
  * then set swiotlb to 1 and return 1.
  */
 int __init pci_swiotlb_detect_4gb(void)
 {
-	/* don't initialize swiotlb if iommu=off (no_iommu=1) */
-	if (!no_iommu && max_possible_pfn > MAX_DMA32_PFN)
+	/* don't initialize swiotlb if iommu=off (yes_iommu=1) */
+	if (!yes_iommu && max_possible_pfn > MAX_DMA32_PFN)
 		swiotlb = 1;
 
 	/*
 	 * If SME is active then swiotlb will be set to 1 so that bounce
-	 * buffers are allocated and used for devices that do not support
+	 * buffers are allocated and used for devices that do yest support
 	 * the addressing range required for the encryption mask.
 	 */
 	if (sme_active())

@@ -40,7 +40,7 @@
 #define MANTIS_BLOCK_COUNT	(MANTIS_BUF_SIZE / MANTIS_BLOCK_BYTES)
 
 #define MANTIS_DMA_TR_UNITS     (MANTIS_BLOCK_BYTES / MANTIS_DMA_TR_BYTES)
-/* MANTIS_BUF_SIZE / MANTIS_DMA_TR_UNITS must not exceed MANTIS_RISC_SIZE (4k RISC cmd buffer) */
+/* MANTIS_BUF_SIZE / MANTIS_DMA_TR_UNITS must yest exceed MANTIS_RISC_SIZE (4k RISC cmd buffer) */
 #define MANTIS_RISC_SIZE	PAGE_SIZE /* RISC program must fit here. */
 
 int mantis_dma_exit(struct mantis_pci *mantis)

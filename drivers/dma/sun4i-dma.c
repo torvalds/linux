@@ -18,7 +18,7 @@
 
 #include "virt-dma.h"
 
-/** Common macros to normal and dedicated DMA registers **/
+/** Common macros to yesrmal and dedicated DMA registers **/
 
 #define SUN4I_DMA_CFG_LOADING			BIT(31)
 #define SUN4I_DMA_CFG_DST_DATA_WIDTH(width)	((width) << 25)
@@ -100,7 +100,7 @@
 /** DMA Driver **/
 
 /*
- * Normal DMA has 8 channels, and Dedicated DMA has another 8, so
+ * Normal DMA has 8 channels, and Dedicated DMA has ayesther 8, so
  * that's 16 channels. As for endpoints, there's 29 and 21
  * respectively. Given that the Normal DMA endpoints (other than
  * SDRAM) can be used as tx/rx, we need 78 vchans in total
@@ -222,7 +222,7 @@ static struct sun4i_dma_pchan *find_and_use_pchan(struct sun4i_dma_dev *priv,
 	int i, max;
 
 	/*
-	 * pchans 0-SUN4I_NDMA_NR_MAX_CHANNELS are normal, and
+	 * pchans 0-SUN4I_NDMA_NR_MAX_CHANNELS are yesrmal, and
 	 * SUN4I_NDMA_NR_MAX_CHANNELS+ are dedicated ones
 	 */
 	if (vchan->is_dedicated) {
@@ -333,7 +333,7 @@ static int __execute_vchan_pending(struct sun4i_dma_dev *priv,
 		return -EBUSY;
 
 	/*
-	 * Channel endpoints must not be repeated, so if this vchan
+	 * Channel endpoints must yest be repeated, so if this vchan
 	 * has already submitted some work, we can't do anything else
 	 */
 	if (vchan->processing) {
@@ -356,7 +356,7 @@ static int __execute_vchan_pending(struct sun4i_dma_dev *priv,
 		contract = to_sun4i_dma_contract(vd);
 		if (list_empty(&contract->demands)) {
 			/* The contract has been completed so mark it as such */
-			list_del(&contract->vd.node);
+			list_del(&contract->vd.yesde);
 			vchan_cookie_complete(&contract->vd);
 			dev_dbg(chan2dev(&vchan->vc.chan),
 				"Empty contract found and marked complete");
@@ -420,10 +420,10 @@ static int sanitize_config(struct dma_slave_config *sconfig,
 }
 
 /**
- * Generate a promise, to be used in a normal DMA contract.
+ * Generate a promise, to be used in a yesrmal DMA contract.
  *
  * A NDMA promise contains all the information required to program the
- * normal part of the DMA Engine and get data copied. A non-executed
+ * yesrmal part of the DMA Engine and get data copied. A yesn-executed
  * promise will live in the demands list on a contract. Once it has been
  * completed, it will be moved to the completed demands list for later freeing.
  * All linked promises will be freed when the corresponding contract is freed
@@ -490,7 +490,7 @@ fail:
  * Generate a promise, to be used in a dedicated DMA contract.
  *
  * A DDMA promise contains all the information required to program the
- * Dedicated part of the DMA Engine and get data copied. A non-executed
+ * Dedicated part of the DMA Engine and get data copied. A yesn-executed
  * promise will live in the demands list on a contract. Once it has been
  * completed, it will be moved to the completed demands list for later freeing.
  * All linked promises will be freed when the corresponding contract is freed
@@ -546,10 +546,10 @@ fail:
 /**
  * Generate a contract
  *
- * Contracts function as DMA descriptors. As our hardware does not support
+ * Contracts function as DMA descriptors. As our hardware does yest support
  * linked lists, we need to implement SG via software. We use a contract
  * to hold all the pieces of the request and process them serially one
- * after another. Each piece is represented as a promise.
+ * after ayesther. Each piece is represented as a promise.
  */
 static struct sun4i_dma_contract *generate_dma_contract(void)
 {
@@ -678,7 +678,7 @@ sun4i_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf, size_t len,
 	if (vchan->is_dedicated) {
 		/*
 		 * As we are using this just for audio data, we need to use
-		 * normal DMA. There is nothing stopping us from supporting
+		 * yesrmal DMA. There is yesthing stopping us from supporting
 		 * dedicated DMA here as well, so if a client comes up and
 		 * requires it, it will be simple to implement it.
 		 */
@@ -825,9 +825,9 @@ sun4i_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		 * These are the magic DMA engine timings that keep SPI going.
 		 * I haven't seen any interface on DMAEngine to configure
 		 * timings, and so far they seem to work for everything we
-		 * support, so I've kept them here. I don't know if other
+		 * support, so I've kept them here. I don't kyesw if other
 		 * devices need different timings because, as usual, we only
-		 * have the "para" bitfield meanings, but no comment on what
+		 * have the "para" bitfield meanings, but yes comment on what
 		 * the values should be when doing a certain operation :|
 		 */
 		para = SUN4I_DDMA_MAGIC_SPI_PARAMETERS;
@@ -1033,7 +1033,7 @@ handle_pending:
 			spin_lock(&vchan->vc.lock);
 
 			/*
-			 * Move the promise into the completed list now that
+			 * Move the promise into the completed list yesw that
 			 * we're done with it
 			 */
 			list_del(&vchan->processing->list);
@@ -1047,10 +1047,10 @@ handle_pending:
 			 * - Latency is very important, as this is used by audio
 			 * We therefore just cycle through the list and dispatch
 			 * whatever we have here, reusing the pchan. There's
-			 * no need to run the thread after this.
+			 * yes need to run the thread after this.
 			 *
-			 * For non-cyclic transfers we need to look around,
-			 * so we can program some more work, or notify the
+			 * For yesn-cyclic transfers we need to look around,
+			 * so we can program some more work, or yestify the
 			 * client that their transfers have been completed.
 			 */
 			if (contract->is_cyclic) {
@@ -1180,7 +1180,7 @@ static int sun4i_dma_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/*
-	 * [0..SUN4I_NDMA_NR_MAX_CHANNELS) are normal pchans, and
+	 * [0..SUN4I_NDMA_NR_MAX_CHANNELS) are yesrmal pchans, and
 	 * [SUN4I_NDMA_NR_MAX_CHANNELS..SUN4I_DMA_NR_MAX_CHANNELS) are
 	 * dedicated ones
 	 */
@@ -1218,7 +1218,7 @@ static int sun4i_dma_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, priv->irq, sun4i_dma_interrupt,
 			       0, dev_name(&pdev->dev), priv);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request IRQ\n");
+		dev_err(&pdev->dev, "Canyest request IRQ\n");
 		goto err_clk_disable;
 	}
 
@@ -1228,7 +1228,7 @@ static int sun4i_dma_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node, sun4i_dma_of_xlate,
+	ret = of_dma_controller_register(pdev->dev.of_yesde, sun4i_dma_of_xlate,
 					 priv);
 	if (ret) {
 		dev_err(&pdev->dev, "of_dma_controller_register failed\n");
@@ -1250,10 +1250,10 @@ static int sun4i_dma_remove(struct platform_device *pdev)
 {
 	struct sun4i_dma_dev *priv = platform_get_drvdata(pdev);
 
-	/* Disable IRQ so no more work is scheduled */
+	/* Disable IRQ so yes more work is scheduled */
 	disable_irq(priv->irq);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	dma_async_device_unregister(&priv->slave);
 
 	clk_disable_unprepare(priv->clk);

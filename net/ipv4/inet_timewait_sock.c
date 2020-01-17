@@ -34,7 +34,7 @@ void inet_twsk_bind_unhash(struct inet_timewait_sock *tw,
 	if (!tb)
 		return;
 
-	__hlist_del(&tw->tw_bind_node);
+	__hlist_del(&tw->tw_bind_yesde);
 	tw->tw_tb = NULL;
 	inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
 	__sock_put((struct sock *)tw);
@@ -48,7 +48,7 @@ static void inet_twsk_kill(struct inet_timewait_sock *tw)
 	struct inet_bind_hashbucket *bhead;
 
 	spin_lock(lock);
-	sk_nulls_del_node_init_rcu((struct sock *)tw);
+	sk_nulls_del_yesde_init_rcu((struct sock *)tw);
 	spin_unlock(lock);
 
 	/* Disassociate with bind bucket. */
@@ -81,16 +81,16 @@ void inet_twsk_put(struct inet_timewait_sock *tw)
 }
 EXPORT_SYMBOL_GPL(inet_twsk_put);
 
-static void inet_twsk_add_node_rcu(struct inet_timewait_sock *tw,
+static void inet_twsk_add_yesde_rcu(struct inet_timewait_sock *tw,
 				   struct hlist_nulls_head *list)
 {
-	hlist_nulls_add_head_rcu(&tw->tw_node, list);
+	hlist_nulls_add_head_rcu(&tw->tw_yesde, list);
 }
 
-static void inet_twsk_add_bind_node(struct inet_timewait_sock *tw,
+static void inet_twsk_add_bind_yesde(struct inet_timewait_sock *tw,
 				    struct hlist_head *list)
 {
-	hlist_add_head(&tw->tw_bind_node, list);
+	hlist_add_head(&tw->tw_bind_yesde, list);
 }
 
 /*
@@ -115,15 +115,15 @@ void inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	spin_lock(&bhead->lock);
 	tw->tw_tb = icsk->icsk_bind_hash;
 	WARN_ON(!icsk->icsk_bind_hash);
-	inet_twsk_add_bind_node(tw, &tw->tw_tb->owners);
+	inet_twsk_add_bind_yesde(tw, &tw->tw_tb->owners);
 	spin_unlock(&bhead->lock);
 
 	spin_lock(lock);
 
-	inet_twsk_add_node_rcu(tw, &ehead->chain);
+	inet_twsk_add_yesde_rcu(tw, &ehead->chain);
 
 	/* Step 3: Remove SK from hash chain */
-	if (__sk_nulls_del_node_init_rcu(sk))
+	if (__sk_nulls_del_yesde_init_rcu(sk))
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 
 	spin_unlock(lock);
@@ -134,8 +134,8 @@ void inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	 * - one reference for timer.
 	 * We can use atomic_set() because prior spin_lock()/spin_unlock()
 	 * committed into memory all tw fields.
-	 * Also note that after this point, we lost our implicit reference
-	 * so we are not allowed to use tw anymore.
+	 * Also yeste that after this point, we lost our implicit reference
+	 * so we are yest allowed to use tw anymore.
 	 */
 	refcount_set(&tw->tw_refcnt, 3);
 }
@@ -188,8 +188,8 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk,
 		twsk_net_set(tw, sock_net(sk));
 		timer_setup(&tw->tw_timer, tw_timer_handler, TIMER_PINNED);
 		/*
-		 * Because we use RCU lookups, we should not set tw_refcnt
-		 * to a non null value before everything is setup for this
+		 * Because we use RCU lookups, we should yest set tw_refcnt
+		 * to a yesn null value before everything is setup for this
 		 * timewait socket.
 		 */
 		refcount_set(&tw->tw_refcnt, 0);
@@ -207,7 +207,7 @@ EXPORT_SYMBOL_GPL(inet_twsk_alloc);
 
 /* This is for handling early-kills of TIME_WAIT sockets.
  * Warning : consume reference.
- * Caller should not access tw anymore.
+ * Caller should yest access tw anymore.
  */
 void inet_twsk_deschedule_put(struct inet_timewait_sock *tw)
 {
@@ -234,7 +234,7 @@ void __inet_twsk_schedule(struct inet_timewait_sock *tw, int timeo, bool rearm)
 	 *   only for 60sec, we should wait at least for 240 secs.
 	 *   Well, 240 consumes too much of resources 8)
 	 * ]
-	 * This interval is not reduced to catch old duplicate and
+	 * This interval is yest reduced to catch old duplicate and
 	 * responces to our wandering segments living for two MSLs.
 	 * However, if we use PAWS to detect
 	 * old duplicates, we can reduce the interval to bounds required
@@ -258,7 +258,7 @@ void inet_twsk_purge(struct inet_hashinfo *hashinfo, int family)
 {
 	struct inet_timewait_sock *tw;
 	struct sock *sk;
-	struct hlist_nulls_node *node;
+	struct hlist_nulls_yesde *yesde;
 	unsigned int slot;
 
 	for (slot = 0; slot <= hashinfo->ehash_mask; slot++) {
@@ -267,7 +267,7 @@ restart_rcu:
 		cond_resched();
 		rcu_read_lock();
 restart:
-		sk_nulls_for_each_rcu(sk, node, &head->chain) {
+		sk_nulls_for_each_rcu(sk, yesde, &head->chain) {
 			if (sk->sk_state != TCP_TIME_WAIT)
 				continue;
 			tw = inet_twsk(sk);
@@ -275,7 +275,7 @@ restart:
 				refcount_read(&twsk_net(tw)->count))
 				continue;
 
-			if (unlikely(!refcount_inc_not_zero(&tw->tw_refcnt)))
+			if (unlikely(!refcount_inc_yest_zero(&tw->tw_refcnt)))
 				continue;
 
 			if (unlikely((tw->tw_family != family) ||
@@ -291,10 +291,10 @@ restart:
 			goto restart_rcu;
 		}
 		/* If the nulls value we got at the end of this lookup is
-		 * not the expected one, we must restart lookup.
-		 * We probably met an item that was moved to another chain.
+		 * yest the expected one, we must restart lookup.
+		 * We probably met an item that was moved to ayesther chain.
 		 */
-		if (get_nulls_value(node) != slot)
+		if (get_nulls_value(yesde) != slot)
 			goto restart;
 		rcu_read_unlock();
 	}

@@ -28,7 +28,7 @@
 /* size of output line, for discovery_trace and slow_ring_trace */
 #define LPFC_DEBUG_TRC_ENTRY_SIZE 100
 
-/* nodelist output buffer size */
+/* yesdelist output buffer size */
 #define LPFC_NODELIST_SIZE 8192
 #define LPFC_NODELIST_ENTRY_SIZE 120
 
@@ -56,7 +56,7 @@
 #define LPFC_DEBUG_OUT_LINE_SZ	80
 
 /*
- * For SLI4 iDiag debugfs diagnostics tool
+ * For SLI4 iDiag debugfs diagyesstics tool
  */
 
 /* pciConf */
@@ -283,7 +283,7 @@ struct lpfc_idiag {
 #else
 
 #define lpfc_nvmeio_data(phba, fmt, arg...) \
-	no_printk(fmt, ##arg)
+	yes_printk(fmt, ##arg)
 
 #endif
 
@@ -390,7 +390,7 @@ lpfc_debug_dump_q(struct lpfc_queue *q)
 		"%d: [qid:%d, type:%d, subtype:%d, "
 		"qe_size:%d, qe_count:%d, "
 		"host_index:%d, port_index:%d]\n",
-		(q->phba)->brd_no,
+		(q->phba)->brd_yes,
 		q->queue_id, q->type, q->subtype,
 		q->entry_size, q->entry_count,
 		q->host_index, q->hba_index);

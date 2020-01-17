@@ -209,7 +209,7 @@ static void rzn1_pinctrl_mdio_select(struct rzn1_pinctrl *ipctl, int mdio,
  * with the corresponding values.
  * Make sure to unlock write protection and reset it afterward.
  *
- * NOTE: There is no protection for potential concurrency, it is assumed these
+ * NOTE: There is yes protection for potential concurrency, it is assumed these
  * calls are serialized already.
  */
 static int rzn1_set_hw_pin_func(struct rzn1_pinctrl *ipctl, unsigned int pin,
@@ -248,7 +248,7 @@ static int rzn1_set_hw_pin_func(struct rzn1_pinctrl *ipctl, unsigned int pin,
 		rzn1_pinctrl_mdio_select(ipctl, mdio_channel, mdio_func);
 	}
 
-	/* Note here, we do not allow anything past the MDIO Mux values */
+	/* Note here, we do yest allow anything past the MDIO Mux values */
 	if (pin >= ARRAY_SIZE(ipctl->lev1->conf) ||
 	    pin_config >= RZN1_FUNC_MDIO0_HIGHZ)
 		return -EINVAL;
@@ -323,15 +323,15 @@ static int rzn1_get_group_pins(struct pinctrl_dev *pctldev,
 }
 
 /*
- * This function is called for each pinctl 'Function' node.
- * Sub-nodes can be used to describe multiple 'Groups' for the 'Function'
- * If there aren't any sub-nodes, the 'Group' is essentially the 'Function'.
+ * This function is called for each pinctl 'Function' yesde.
+ * Sub-yesdes can be used to describe multiple 'Groups' for the 'Function'
+ * If there aren't any sub-yesdes, the 'Group' is essentially the 'Function'.
  * Each 'Group' uses pinmux = <...> to detail the pins and data used to select
  * the functionality. Each 'Group' has optional pin configurations that apply
  * to all pins in the 'Group'.
  */
-static int rzn1_dt_node_to_map_one(struct pinctrl_dev *pctldev,
-				   struct device_node *np,
+static int rzn1_dt_yesde_to_map_one(struct pinctrl_dev *pctldev,
+				   struct device_yesde *np,
 				   struct pinctrl_map **map,
 				   unsigned int *num_maps)
 {
@@ -343,11 +343,11 @@ static int rzn1_dt_node_to_map_one(struct pinctrl_dev *pctldev,
 	unsigned int reserve = 1;
 	int ret;
 
-	dev_dbg(ipctl->dev, "processing node %pOF\n", np);
+	dev_dbg(ipctl->dev, "processing yesde %pOF\n", np);
 
 	grp = rzn1_pinctrl_find_group_by_name(ipctl, np->name);
 	if (!grp) {
-		dev_err(ipctl->dev, "unable to find group for node %pOF\n", np);
+		dev_err(ipctl->dev, "unable to find group for yesde %pOF\n", np);
 
 		return -EINVAL;
 	}
@@ -356,7 +356,7 @@ static int rzn1_dt_node_to_map_one(struct pinctrl_dev *pctldev,
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &configs,
 					      &num_configs);
 	if (ret < 0) {
-		dev_err(ipctl->dev, "%pOF: could not parse property\n", np);
+		dev_err(ipctl->dev, "%pOF: could yest parse property\n", np);
 
 		return ret;
 	}
@@ -395,25 +395,25 @@ out:
 	return ret;
 }
 
-static int rzn1_dt_node_to_map(struct pinctrl_dev *pctldev,
-			       struct device_node *np,
+static int rzn1_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+			       struct device_yesde *np,
 			       struct pinctrl_map **map,
 			       unsigned int *num_maps)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	int ret;
 
 	*map = NULL;
 	*num_maps = 0;
 
-	ret = rzn1_dt_node_to_map_one(pctldev, np, map, num_maps);
+	ret = rzn1_dt_yesde_to_map_one(pctldev, np, map, num_maps);
 	if (ret < 0)
 		return ret;
 
-	for_each_child_of_node(np, child) {
-		ret = rzn1_dt_node_to_map_one(pctldev, child, map, num_maps);
+	for_each_child_of_yesde(np, child) {
+		ret = rzn1_dt_yesde_to_map_one(pctldev, child, map, num_maps);
 		if (ret < 0) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 	}
@@ -425,7 +425,7 @@ static const struct pinctrl_ops rzn1_pctrl_ops = {
 	.get_groups_count = rzn1_get_groups_count,
 	.get_group_name = rzn1_get_group_name,
 	.get_group_pins = rzn1_get_group_pins,
-	.dt_node_to_map = rzn1_dt_node_to_map,
+	.dt_yesde_to_map = rzn1_dt_yesde_to_map,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -587,7 +587,7 @@ static int rzn1_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				break;
 			default:
 				dev_err(ipctl->dev,
-					"Drive strength %umA not supported\n",
+					"Drive strength %umA yest supported\n",
 					arg);
 
 				return -EINVAL;
@@ -631,7 +631,7 @@ static int rzn1_pinconf_group_get(struct pinctrl_dev *pctldev,
 		if (rzn1_pinconf_get(pctldev, grp->pins[i], config))
 			return -ENOTSUPP;
 
-		/* configs do not match between two pins */
+		/* configs do yest match between two pins */
 		if (i && (old != *config))
 			return -ENOTSUPP;
 
@@ -681,7 +681,7 @@ static struct pinctrl_desc rzn1_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-static int rzn1_pinctrl_parse_groups(struct device_node *np,
+static int rzn1_pinctrl_parse_groups(struct device_yesde *np,
 				     struct rzn1_pin_group *grp,
 				     struct rzn1_pinctrl *ipctl)
 {
@@ -702,13 +702,13 @@ static int rzn1_pinctrl_parse_groups(struct device_node *np,
 	list = of_get_property(np, RZN1_PINS_PROP, &size);
 	if (!list) {
 		dev_err(ipctl->dev,
-			"no " RZN1_PINS_PROP " property in node %pOF\n", np);
+			"yes " RZN1_PINS_PROP " property in yesde %pOF\n", np);
 
 		return -EINVAL;
 	}
 
 	if (!size) {
-		dev_err(ipctl->dev, "Invalid " RZN1_PINS_PROP " in node %pOF\n",
+		dev_err(ipctl->dev, "Invalid " RZN1_PINS_PROP " in yesde %pOF\n",
 			np);
 
 		return -EINVAL;
@@ -734,15 +734,15 @@ static int rzn1_pinctrl_parse_groups(struct device_node *np,
 	return grp->npins;
 }
 
-static int rzn1_pinctrl_count_function_groups(struct device_node *np)
+static int rzn1_pinctrl_count_function_groups(struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	int count = 0;
 
 	if (of_property_count_u32_elems(np, RZN1_PINS_PROP) > 0)
 		count++;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (of_property_count_u32_elems(child, RZN1_PINS_PROP) > 0)
 			count++;
 	}
@@ -750,13 +750,13 @@ static int rzn1_pinctrl_count_function_groups(struct device_node *np)
 	return count;
 }
 
-static int rzn1_pinctrl_parse_functions(struct device_node *np,
+static int rzn1_pinctrl_parse_functions(struct device_yesde *np,
 					struct rzn1_pinctrl *ipctl,
 					unsigned int index)
 {
 	struct rzn1_pmx_func *func;
 	struct rzn1_pin_group *grp;
-	struct device_node *child;
+	struct device_yesde *child;
 	unsigned int i = 0;
 	int ret;
 
@@ -766,7 +766,7 @@ static int rzn1_pinctrl_parse_functions(struct device_node *np,
 	func->name = np->name;
 	func->num_groups = rzn1_pinctrl_count_function_groups(np);
 	if (func->num_groups == 0) {
-		dev_err(ipctl->dev, "no groups defined in %pOF\n", np);
+		dev_err(ipctl->dev, "yes groups defined in %pOF\n", np);
 		return -EINVAL;
 	}
 	dev_dbg(ipctl->dev, "function %s has %d groups\n",
@@ -789,13 +789,13 @@ static int rzn1_pinctrl_parse_functions(struct device_node *np,
 		ipctl->ngroups++;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		func->groups[i] = child->name;
 		grp = &ipctl->groups[ipctl->ngroups];
 		grp->func = func->name;
 		ret = rzn1_pinctrl_parse_groups(child, grp, ipctl);
 		if (ret < 0) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 		i++;
@@ -811,8 +811,8 @@ static int rzn1_pinctrl_parse_functions(struct device_node *np,
 static int rzn1_pinctrl_probe_dt(struct platform_device *pdev,
 				 struct rzn1_pinctrl *ipctl)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *child;
 	unsigned int maxgroups = 0;
 	unsigned int i = 0;
 	int nfuncs = 0;
@@ -830,7 +830,7 @@ static int rzn1_pinctrl_probe_dt(struct platform_device *pdev,
 		return -ENOMEM;
 
 	ipctl->ngroups = 0;
-	for_each_child_of_node(np, child)
+	for_each_child_of_yesde(np, child)
 		maxgroups += rzn1_pinctrl_count_function_groups(child);
 
 	ipctl->groups = devm_kmalloc_array(&pdev->dev,
@@ -840,10 +840,10 @@ static int rzn1_pinctrl_probe_dt(struct platform_device *pdev,
 	if (!ipctl->groups)
 		return -ENOMEM;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		ret = rzn1_pinctrl_parse_functions(child, ipctl, i++);
 		if (ret < 0) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 	}
@@ -900,7 +900,7 @@ static int rzn1_pinctrl_probe(struct platform_device *pdev)
 	ret = devm_pinctrl_register_and_init(&pdev->dev, &rzn1_pinctrl_desc,
 					     ipctl, &ipctl->pctl);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register rzn1 pinctrl driver\n");
+		dev_err(&pdev->dev, "could yest register rzn1 pinctrl driver\n");
 		goto err_clk;
 	}
 

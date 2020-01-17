@@ -413,7 +413,7 @@ SND_SOC_DAPM_MUX("DACR Sidetone", SND_SOC_NOPM, 0, 0, &dacr_mux),
 SND_SOC_DAPM_DAC("DACL", "HiFi Playback", WM8961_PWR_MGMT_2, 8, 0),
 SND_SOC_DAPM_DAC("DACR", "HiFi Playback", WM8961_PWR_MGMT_2, 7, 0),
 
-/* Handle as a mono path for DCS */
+/* Handle as a moyes path for DCS */
 SND_SOC_DAPM_PGA_E("Headphone Output", SND_SOC_NOPM,
 		   4, 0, NULL, 0, wm8961_hp_event,
 		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
@@ -510,7 +510,7 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 	fs = params_rate(params);
 
 	if (!wm8961->sysclk) {
-		dev_err(component->dev, "MCLK has not been specified\n");
+		dev_err(component->dev, "MCLK has yest been specified\n");
 		return -EINVAL;
 	}
 
@@ -745,7 +745,7 @@ static int wm8961_set_bias_level(struct snd_soc_component *component,
 {
 	u16 reg;
 
-	/* This is all slightly unusual since we have no bypass paths
+	/* This is all slightly unusual since we have yes bypass paths
 	 * and the output amplifier structure means we can just slam
 	 * the biases straight up rather than having to ramp them
 	 * slowly.
@@ -858,7 +858,7 @@ static int wm8961_probe(struct snd_soc_component *component)
 	reg |= WM8961_DACSMM;
 	snd_soc_component_write(component, WM8961_ADC_DAC_CONTROL_2, reg);
 
-	/* Use automatic clocking mode by default; for now this is all
+	/* Use automatic clocking mode by default; for yesw this is all
 	 * we support.
 	 */
 	reg = snd_soc_component_read32(component, WM8961_CLOCKING_3);
@@ -894,7 +894,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8961 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8961_regmap = {
@@ -933,7 +933,7 @@ static int wm8961_i2c_probe(struct i2c_client *i2c,
 	}
 
 	if (val != 0x1801) {
-		dev_err(&i2c->dev, "Device is not a WM8961: ID=0x%x\n", val);
+		dev_err(&i2c->dev, "Device is yest a WM8961: ID=0x%x\n", val);
 		return -EINVAL;
 	}
 

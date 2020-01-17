@@ -39,7 +39,7 @@
 #define SA1100_ISR_PASS_LIMIT	256
 
 /*
- * Convert from ignore_status_mask or read_status_mask to UTSR[01]
+ * Convert from igyesre_status_mask or read_status_mask to UTSR[01]
  */
 #define SM_TO_UTSR0(x)	((x) & 0xff)
 #define SM_TO_UTSR1(x)	((x) >> 8)
@@ -196,7 +196,7 @@ sa1100_rx_chars(struct sa1100_port *sport)
 		flg = TTY_NORMAL;
 
 		/*
-		 * note that the error handling code is
+		 * yeste that the error handling code is
 		 * out of the main execution path
 		 */
 		if (status & UTSR1_TO_SM(UTSR1_PRE | UTSR1_FRE | UTSR1_ROR)) {
@@ -220,11 +220,11 @@ sa1100_rx_chars(struct sa1100_port *sport)
 		}
 
 		if (uart_handle_sysrq_char(&sport->port, ch))
-			goto ignore_char;
+			goto igyesre_char;
 
 		uart_insert_char(&sport->port, status, UTSR1_TO_SM(UTSR1_ROR), ch, flg);
 
-	ignore_char:
+	igyesre_char:
 		status = UTSR1_TO_SM(UART_GET_UTSR1(sport)) |
 			 UTSR0_TO_SM(UART_GET_UTSR0(sport));
 	}
@@ -257,7 +257,7 @@ static void sa1100_tx_chars(struct sa1100_port *sport)
 	}
 
 	/*
-	 * Tried using FIFO (not checking TNF) for fifo fill:
+	 * Tried using FIFO (yest checking TNF) for fifo fill:
 	 * still had the '4 bytes repeated' problem.
 	 */
 	while (UART_GET_UTSR1(sport) & UTSR1_TNF) {
@@ -315,7 +315,7 @@ static irqreturn_t sa1100_int(int irq, void *dev_id)
 }
 
 /*
- * Return TIOCSER_TEMT when transmitter is not busy.
+ * Return TIOCSER_TEMT when transmitter is yest busy.
  */
 static unsigned int sa1100_tx_empty(struct uart_port *port)
 {
@@ -466,21 +466,21 @@ sa1100_set_termios(struct uart_port *port, struct ktermios *termios,
 				UTSR0_TO_SM(UTSR0_RBB | UTSR0_REB);
 
 	/*
-	 * Characters to ignore
+	 * Characters to igyesre
 	 */
-	sport->port.ignore_status_mask = 0;
+	sport->port.igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		sport->port.ignore_status_mask |=
+		sport->port.igyesre_status_mask |=
 				UTSR1_TO_SM(UTSR1_FRE | UTSR1_PRE);
 	if (termios->c_iflag & IGNBRK) {
-		sport->port.ignore_status_mask |=
+		sport->port.igyesre_status_mask |=
 				UTSR0_TO_SM(UTSR0_RBB | UTSR0_REB);
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			sport->port.ignore_status_mask |=
+			sport->port.igyesre_status_mask |=
 				UTSR1_TO_SM(UTSR1_ROR);
 	}
 
@@ -621,10 +621,10 @@ static struct sa1100_port sa1100_ports[NR_PORTS];
  *
  * Note also that we support "console=ttySAx" where "x" is either 0 or 1.
  * Which serial port this ends up being depends on the machine you're
- * running this kernel on.  I'm not convinced that this is a good idea,
+ * running this kernel on.  I'm yest convinced that this is a good idea,
  * but that's the way it traditionally works.
  *
- * Note that NanoEngine UART3 becomes UART2, and UART2 is no longer
+ * Note that NayesEngine UART3 becomes UART2, and UART2 is yes longer
  * used here.
  */
 static void __init sa1100_init_ports(void)
@@ -832,7 +832,7 @@ static struct uart_driver sa1100_reg = {
 	.driver_name		= "ttySA",
 	.dev_name		= "ttySA",
 	.major			= SERIAL_SA1100_MAJOR,
-	.minor			= MINOR_START,
+	.miyesr			= MINOR_START,
 	.nr			= NR_PORTS,
 	.cons			= SA1100_CONSOLE,
 };
@@ -862,9 +862,9 @@ static int sa1100_serial_add_one_port(struct sa1100_port *sport, struct platform
 	sport->port.dev = &dev->dev;
 
 	// mctrl_gpio_init() requires that the GPIO driver supports interrupts,
-	// but we need to support GPIO drivers for hardware that has no such
-	// interrupts.  Use mctrl_gpio_init_noauto() instead.
-	sport->gpios = mctrl_gpio_init_noauto(sport->port.dev, 0);
+	// but we need to support GPIO drivers for hardware that has yes such
+	// interrupts.  Use mctrl_gpio_init_yesauto() instead.
+	sport->gpios = mctrl_gpio_init_yesauto(sport->port.dev, 0);
 	if (IS_ERR(sport->gpios)) {
 		int err = PTR_ERR(sport->gpios);
 

@@ -14,14 +14,14 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      yestice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright yestice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. yesr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
@@ -272,7 +272,7 @@ xprt_rdma_inject_disconnect(struct rpc_xprt *xprt)
  * xprt_rdma_destroy - Full tear down of transport
  * @xprt: doomed transport context
  *
- * Caller guarantees there will be no more calls to us with
+ * Caller guarantees there will be yes more calls to us with
  * this @xprt.
  */
 static void
@@ -294,7 +294,7 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 	module_put(THIS_MODULE);
 }
 
-/* 60 second timeout, no retries */
+/* 60 second timeout, yes retries */
 static const struct rpc_timeout xprt_rdma_default_timeout = {
 	.to_initval = 60 * HZ,
 	.to_maxval = 60 * HZ,
@@ -327,7 +327,7 @@ xprt_setup_rdma(struct xprt_create *args)
 	xprt->reestablish_timeout = RPCRDMA_INIT_REEST_TO;
 	xprt->idle_timeout = RPCRDMA_IDLE_DISC_TO;
 
-	xprt->resvport = 0;		/* privileged port not needed */
+	xprt->resvport = 0;		/* privileged port yest needed */
 	xprt->ops = &xprt_rdma_procs;
 
 	/*
@@ -335,7 +335,7 @@ xprt_setup_rdma(struct xprt_create *args)
 	 */
 	sap = args->dstaddr;
 
-	/* Ensure xprt->addr holds valid server TCP (not RDMA)
+	/* Ensure xprt->addr holds valid server TCP (yest RDMA)
 	 * address, for any side protocols which peek at it */
 	xprt->prot = IPPROTO_TCP;
 	xprt->addrlen = args->addrlen;
@@ -541,7 +541,7 @@ xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
  *
  * tk_status values:
  *	%0 if task->tk_rqstp points to a fresh rpc_rqst
- *	%-EAGAIN if no rpc_rqst is available; queued on backlog
+ *	%-EAGAIN if yes rpc_rqst is available; queued on backlog
  */
 static void
 xprt_rdma_alloc_slot(struct rpc_xprt *xprt, struct rpc_task *task)
@@ -599,7 +599,7 @@ static bool rpcrdma_check_regbuf(struct rpcrdma_xprt *r_xprt,
  * Return values:
  *        0:	Success; rq_buffer points to RPC buffer to use
  *   ENOMEM:	Out of memory, call again later
- *      EIO:	A permanent error occurred, do not retry
+ *      EIO:	A permanent error occurred, do yest retry
  */
 static int
 xprt_rdma_allocate(struct rpc_task *task)
@@ -634,7 +634,7 @@ out_fail:
  * xprt_rdma_free - release resources allocated by xprt_rdma_allocate
  * @task: RPC task
  *
- * Caller guarantees rqst->rq_buffer is non-NULL.
+ * Caller guarantees rqst->rq_buffer is yesn-NULL.
  */
 static void
 xprt_rdma_free(struct rpc_task *task)
@@ -649,9 +649,9 @@ xprt_rdma_free(struct rpc_task *task)
 		frwr_unmap_sync(r_xprt, req);
 
 	/* XXX: If the RPC is completing because of a signal and
-	 * not because a reply was received, we ought to ensure
+	 * yest because a reply was received, we ought to ensure
 	 * that the Send completion has fired, so that memory
-	 * involved with the Send is not still visible to the NIC.
+	 * involved with the Send is yest still visible to the NIC.
 	 */
 }
 
@@ -667,9 +667,9 @@ xprt_rdma_free(struct rpc_task *task)
  *	%-EAGAIN if the caller should call again
  *	%-ENOBUFS if the caller should call again after a delay
  *	%-EMSGSIZE if encoding ran out of buffer space. The request
- *		was not sent. Do not try to send this message again.
- *	%-EIO if an I/O error occurred. The request was not sent.
- *		Do not try to send this message again.
+ *		was yest sent. Do yest try to send this message again.
+ *	%-EIO if an I/O error occurred. The request was yest sent.
+ *		Do yest try to send this message again.
  */
 static int
 xprt_rdma_send_request(struct rpc_rqst *rqst)
@@ -704,7 +704,7 @@ xprt_rdma_send_request(struct rpc_rqst *rqst)
 
 	rqst->rq_xmit_bytes_sent += rqst->rq_snd_buf.len;
 
-	/* An RPC with no reply will throw off credit accounting,
+	/* An RPC with yes reply will throw off credit accounting,
 	 * so drop the connection to reset the credit grant.
 	 */
 	if (!rpc_reply_expected(rqst->rq_task))
@@ -750,7 +750,7 @@ void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		   r_xprt->rx_stats.hardway_register_count,
 		   r_xprt->rx_stats.failed_marshal_count,
 		   r_xprt->rx_stats.bad_reply_count,
-		   r_xprt->rx_stats.nomsg_call_count);
+		   r_xprt->rx_stats.yesmsg_call_count);
 	seq_printf(seq, "%lu %lu %lu %lu %lu %lu\n",
 		   r_xprt->rx_stats.mrs_recycled,
 		   r_xprt->rx_stats.mrs_orphaned,

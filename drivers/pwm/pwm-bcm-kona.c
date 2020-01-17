@@ -27,10 +27,10 @@
 /*
  * The Kona PWM has some unusual characteristics.  Here are the main points.
  *
- * 1) There is no disable bit and the hardware docs advise programming a zero
- *    duty to achieve output equivalent to that of a normal disable operation.
+ * 1) There is yes disable bit and the hardware docs advise programming a zero
+ *    duty to achieve output equivalent to that of a yesrmal disable operation.
  *
- * 2) Changes to prescale, duty, period, and polarity do not take effect until
+ * 2) Changes to prescale, duty, period, and polarity do yest take effect until
  *    a subsequent rising edge of the trigger bit.
  *
  * 3) If the smooth bit and trigger bit are both low, the output is a constant
@@ -90,7 +90,7 @@ static void kona_pwmc_prepare_for_settings(struct kona_pwmc *kp,
 
 	/*
 	 * There must be a min 400ns delay between clearing trigger and setting
-	 * it. Failing to do this may result in no PWM signal.
+	 * it. Failing to do this may result in yes PWM signal.
 	 */
 	ndelay(400);
 }
@@ -137,7 +137,7 @@ static int kona_pwmc_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		val = rate * duty_ns;
 		dc = div64_u64(val, div);
 
-		/* If duty_ns or period_ns are not achievable then return */
+		/* If duty_ns or period_ns are yest achievable then return */
 		if (pc < PERIOD_COUNT_MIN || dc < DUTY_CYCLE_HIGH_MIN)
 			return -EINVAL;
 

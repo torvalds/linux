@@ -58,7 +58,7 @@
 /*
  * CYAPA trackpad device states.
  * Used in register 0x00, bit1-0, DeviceStatus field.
- * Other values indicate device is in an abnormal state and must be reset.
+ * Other values indicate device is in an abyesrmal state and must be reset.
  */
 #define CYAPA_DEV_NORMAL  0x03
 #define CYAPA_DEV_BUSY    0x01
@@ -235,7 +235,7 @@ static int cyapa_gen3_try_poll_handler(struct cyapa *cyapa);
  * @len    - expected length of smbus command result
  * @values - buffer to store smbus command result
  *
- * Returns negative errno, else the number of bytes written.
+ * Returns negative erryes, else the number of bytes written.
  *
  * Note:
  * In trackpad device, the memory block allocated for I2C register map
@@ -365,7 +365,7 @@ static int cyapa_gen3_state_parse(struct cyapa *cyapa, u8 *reg_data, int len)
 			(reg_data[REG_OP_DATA1] & OP_DATA_VALID)) {
 		/*
 		 * Normal state when running in operational mode,
-		 * may also not in full power state or
+		 * may also yest in full power state or
 		 * busying in command process.
 		 */
 		if (GEN3_FINGER_NUM(reg_data[REG_OP_DATA1]) <=
@@ -403,7 +403,7 @@ static int cyapa_gen3_state_parse(struct cyapa *cyapa, u8 *reg_data, int len)
  *
  * Returns:
  *   0        on success
- *   -EAGAIN  device was reset, but is not now in bootloader idle state
+ *   -EAGAIN  device was reset, but is yest yesw in bootloader idle state
  *   < 0      if the device never responds within the timeout
  */
 static int cyapa_gen3_bl_enter(struct cyapa *cyapa)
@@ -680,7 +680,7 @@ static int cyapa_gen3_write_fw_block(struct cyapa *cyapa,
 			return (ret < 0) ? ret : -EIO;
 	} while ((status[REG_BL_STATUS] & BL_STATUS_BUSY) && --tries);
 
-	/* Ignore WATCHDOG bit and reserved bits. */
+	/* Igyesre WATCHDOG bit and reserved bits. */
 	bl_status = status[REG_BL_STATUS] & ~BL_STATUS_REV_MASK;
 	bl_error = status[REG_BL_ERROR] & ~BL_ERROR_RESERVED;
 
@@ -773,7 +773,7 @@ static ssize_t cyapa_gen3_do_calibrate(struct device *dev,
 	timeout = jiffies + 2 * HZ;
 	do {
 		/*
-		 * For this recalibration, the max time will not exceed 2s.
+		 * For this recalibration, the max time will yest exceed 2s.
 		 * The average time is approximately 500 - 700 ms, and we
 		 * will check the status every 100 - 200ms.
 		 */
@@ -891,13 +891,13 @@ static u16 cyapa_get_wait_time_for_pwr_cmd(u8 pwr_mode)
  *   Full : Max scans and report rate.
  *   Idle : Report rate set by user specified time.
  *   ButtonOnly : No scans for fingers. When the button is triggered,
- *     a slave interrupt is asserted to notify host to wake up.
+ *     a slave interrupt is asserted to yestify host to wake up.
  *   Off : Only awake for i2c commands from host. No function for button
  *     or touch sensors.
  *
  * The power_mode command should conform to the following :
  *   Full : 0x3f
- *   Idle : Configurable from 20 to 1000ms. See note below for
+ *   Idle : Configurable from 20 to 1000ms. See yeste below for
  *     cyapa_sleep_time_to_pwr_cmd and cyapa_pwr_cmd_to_sleep_time
  *   ButtonOnly : 0x01
  *   Off : 0x00
@@ -955,7 +955,7 @@ static int cyapa_gen3_set_power_mode(struct cyapa *cyapa, u8 power_mode,
 	if (cyapa->operational && input && input->users &&
 	    (pm_stage == CYAPA_PM_RUNTIME_SUSPEND ||
 	     pm_stage == CYAPA_PM_RUNTIME_RESUME)) {
-		/* Try to polling in 120Hz, read may fail, just ignore it. */
+		/* Try to polling in 120Hz, read may fail, just igyesre it. */
 		interval = 1000 / 120;
 		while (sleep_time > 0) {
 			if (sleep_time > interval)
@@ -1047,11 +1047,11 @@ static int cyapa_gen3_bl_query_data(struct cyapa *cyapa)
  * firmware supported by this driver.
  *
  * Returns:
- *   -EBUSY  no device or in bootloader
+ *   -EBUSY  yes device or in bootloader
  *   -EIO    failure while reading from device
  *   -EAGAIN device is still in bootloader
  *           if ->state = CYAPA_STATE_BL_IDLE, device has invalid firmware
- *   -EINVAL device is in operational mode, but not supported by this driver
+ *   -EINVAL device is in operational mode, but yest supported by this driver
  *   0       device is supported
  */
 static int cyapa_gen3_do_operational_check(struct cyapa *cyapa)
@@ -1117,7 +1117,7 @@ static int cyapa_gen3_do_operational_check(struct cyapa *cyapa)
 }
 
 /*
- * Return false, do not continue process
+ * Return false, do yest continue process
  * Return true, continue process.
  */
 static bool cyapa_gen3_irq_cmd_handler(struct cyapa *cyapa)
@@ -1204,7 +1204,7 @@ static int cyapa_gen3_irq_handler(struct cyapa *cyapa)
 
 /*
  * This function will be called in the cyapa_gen3_set_power_mode function,
- * and it's known that it may failed in some situation after the set power
+ * and it's kyeswn that it may failed in some situation after the set power
  * mode command was sent. So this function is aimed to avoid the knwon
  * and unwanted output I2C and data parse error messages.
  */

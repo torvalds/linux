@@ -4,17 +4,17 @@ MediaTek XS-PHY binding
 The XS-PHY controller supports physical layer functionality for USB3.1
 GEN2 controller on MediaTek SoCs.
 
-Required properties (controller (parent) node):
+Required properties (controller (parent) yesde):
  - compatible	: should be "mediatek,<soc-model>-xsphy", "mediatek,xsphy",
 		  soc-model is the name of SoC, such as mt3611 etc;
 		  when using "mediatek,xsphy" compatible string, you need SoC specific
 		  ones in addition, one of:
 		  - "mediatek,mt3611-xsphy"
 
- - #address-cells, #size-cells : should use the same values as the root node
+ - #address-cells, #size-cells : should use the same values as the root yesde
  - ranges: must be present
 
-Optional properties (controller (parent) node):
+Optional properties (controller (parent) yesde):
  - reg		: offset and length of register shared by multiple U3 ports,
 		  exclude port's private register, if only U2 ports provided,
 		  shouldn't use the property.
@@ -23,12 +23,12 @@ Optional properties (controller (parent) node):
  - mediatek,src-coef	: u32, coefficient for slew rate calibrate, depends on
 		  SoC process
 
-Required nodes	: a sub-node is required for each port the controller
+Required yesdes	: a sub-yesde is required for each port the controller
 		  provides. Address range information including the usual
-		  'reg' property is used inside these nodes to describe
+		  'reg' property is used inside these yesdes to describe
 		  the controller's topology.
 
-Required properties (port (child) node):
+Required properties (port (child) yesde):
 - reg		: address and length of the register set for the port.
 - clocks	: a list of phandle + clock-specifier pairs, one for each
 		  entry in clock-names
@@ -42,13 +42,13 @@ Required properties (port (child) node):
 			- PHY_TYPE_USB3
 
 The following optional properties are only for debug or HQA test
-Optional properties (PHY_TYPE_USB2 port (child) node):
+Optional properties (PHY_TYPE_USB2 port (child) yesde):
 - mediatek,eye-src	: u32, the value of slew rate calibrate
 - mediatek,eye-vrt	: u32, the selection of VRT reference voltage
 - mediatek,eye-term	: u32, the selection of HS_TX TERM reference voltage
 - mediatek,efuse-intr	: u32, the selection of Internal Resistor
 
-Optional properties (PHY_TYPE_USB3 port (child) node):
+Optional properties (PHY_TYPE_USB3 port (child) yesde):
 - mediatek,efuse-intr	: u32, the selection of Internal Resistor
 - mediatek,efuse-tx-imp	: u32, the selection of TX Impedance
 - mediatek,efuse-rx-imp	: u32, the selection of RX Impedance

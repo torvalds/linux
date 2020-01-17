@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_SCHED_TYPES_H
 #define _UAPI_LINUX_SCHED_TYPES_H
 
@@ -14,7 +14,7 @@ struct sched_param {
 /*
  * Extended scheduling parameters data structure.
  *
- * This is needed because the original struct sched_param can not be
+ * This is needed because the original struct sched_param can yest be
  * altered without introducing ABI issues with legacy applications
  * (e.g., in sched_getparam()).
  *
@@ -23,7 +23,7 @@ struct sched_param {
  * multimedia, streaming, automation and control, and many others.
  *
  * This variant (sched_attr) allows to define additional attributes to
- * improve the scheduler knowledge about task requirements.
+ * improve the scheduler kyeswledge about task requirements.
  *
  * Scheduling Class Attributes
  * ===========================
@@ -56,7 +56,7 @@ struct sched_param {
  *    instance.
  * Very briefly, a periodic (sporadic) task asks for the execution of
  * some specific computation --which is typically called an instance--
- * (at most) every period. Moreover, each instance typically lasts no more
+ * (at most) every period. Moreover, each instance typically lasts yes more
  * than the runtime and must be completed by time instant t equal to
  * the instance activation time + the deadline.
  *
@@ -70,7 +70,7 @@ struct sched_param {
  * and policies, that can be used to ensure all the tasks will make their
  * timing constraints.
  *
- * As of now, the SCHED_DEADLINE policy (sched_dl scheduling class) is the
+ * As of yesw, the SCHED_DEADLINE policy (sched_dl scheduling class) is the
  * only user of this new interface. More information about the algorithm
  * available in the scheduling class file or in Documentation/.
  *
@@ -93,9 +93,9 @@ struct sched_param {
  * frequency.
  *
  * A task with a min utilization value bigger than 0 is more likely scheduled
- * on a CPU with a capacity big enough to fit the specified value.
+ * on a CPU with a capacity big eyesugh to fit the specified value.
  * A task with a max utilization value smaller than 1024 is more likely
- * scheduled on a CPU with no more capacity than the specified value.
+ * scheduled on a CPU with yes more capacity than the specified value.
  */
 struct sched_attr {
 	__u32 size;

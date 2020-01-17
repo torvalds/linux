@@ -30,7 +30,7 @@
 	pr_info("ERROR: Microblaze " x "-different for PVR and DTS\n");
 #endif
 
-void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu)
+void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_yesde *cpu)
 {
 	struct pvr_s pvr;
 	u32 temp; /* for saving temp value */

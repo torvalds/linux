@@ -17,10 +17,10 @@
 
 #define DEFAULT_TIMEOUT 30
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		 "Watchdog canyest be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static unsigned int timeout;
@@ -151,7 +151,7 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 	dev->wdt.max_hw_heartbeat_ms = (U32_MAX - 1) / dev->clk_rate;
 
 	watchdog_init_timeout(&dev->wdt, timeout, &pdev->dev);
-	watchdog_set_nowayout(&dev->wdt, nowayout);
+	watchdog_set_yeswayout(&dev->wdt, yeswayout);
 	watchdog_set_drvdata(&dev->wdt, dev);
 
 	/*

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver for Linear Technology LTC4245 I2C Multiple Supply Hot Swap Controller
+ * Driver for Linear Techyeslogy LTC4245 I2C Multiple Supply Hot Swap Controller
  *
  * Copyright (C) 2008 Ira W. Snyder <iws@ovro.caltech.edu>
  *
@@ -80,7 +80,7 @@ static void ltc4245_update_gpios(struct device *dev)
 	u8 gpio_curr, gpio_next, gpio_reg;
 	int i;
 
-	/* no extra gpio support, we're basically done */
+	/* yes extra gpio support, we're basically done */
 	if (!data->use_extra_gpios) {
 		data->gpios[0] = data->vregs[LTC4245_GPIOADC - 0x10];
 		return;
@@ -212,7 +212,7 @@ static unsigned int ltc4245_get_current(struct device *dev, u8 reg)
 
 	/*
 	 * The strange looking conversions that follow are fixed-point
-	 * math, since we cannot do floating point in the kernel.
+	 * math, since we canyest do floating point in the kernel.
 	 *
 	 * Step 1: convert sense register to microVolts
 	 * Step 2: convert voltage to milliAmperes
@@ -222,7 +222,7 @@ static unsigned int ltc4245_get_current(struct device *dev, u8 reg)
 	 *
 	 * With the resistors that are fractions of a milliOhm, we multiply
 	 * the voltage and resistance by 10, to shift the decimal point.
-	 * Now we can use the normal division operator again.
+	 * Now we can use the yesrmal division operator again.
 	 */
 
 	switch (reg) {
@@ -427,7 +427,7 @@ static const struct hwmon_chip_info ltc4245_chip_info = {
 static bool ltc4245_use_extra_gpios(struct i2c_client *client)
 {
 	struct ltc4245_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 
 	/* prefer platform data */
 	if (pdata)

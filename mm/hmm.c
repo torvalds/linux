@@ -23,7 +23,7 @@
 #include <linux/sched/mm.h>
 #include <linux/jump_label.h>
 #include <linux/dma-mapping.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/memory_hotplug.h>
 
 struct hmm_vma_walk {
@@ -82,13 +82,13 @@ static int hmm_pfns_fill(unsigned long addr, unsigned long end,
  * hmm_vma_walk_hole_() - handle a range lacking valid pmd or pte(s)
  * @addr: range virtual start address (inclusive)
  * @end: range virtual end address (exclusive)
- * @fault: should we fault or not ?
+ * @fault: should we fault or yest ?
  * @write_fault: write fault ?
  * @walk: mm_walk structure
  * Return: 0 on success, -EBUSY after page fault, or page fault error
  *
- * This function will be called whenever pmd_none() or pte_none() returns true,
- * or whenever there is no page directory covering the virtual address range.
+ * This function will be called whenever pmd_yesne() or pte_yesne() returns true,
+ * or whenever there is yes page directory covering the virtual address range.
  */
 static int hmm_vma_walk_hole_(unsigned long addr, unsigned long end,
 			      bool fault, bool write_fault,
@@ -130,7 +130,7 @@ static inline void hmm_pte_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
 		return;
 
 	/*
-	 * So we not only consider the individual per page request we also
+	 * So we yest only consider the individual per page request we also
 	 * consider the default flags requested for the range. The API can
 	 * be used 2 ways. The first one where the HMM user coalesces
 	 * multiple page faults into one request and sets flags per pfn for
@@ -154,7 +154,7 @@ static inline void hmm_pte_need_fault(const struct hmm_vma_walk *hmm_vma_walk,
 		return;
 	}
 
-	/* If CPU page table is not valid then we need to fault */
+	/* If CPU page table is yest valid then we need to fault */
 	*fault = !(cpu_flags & range->flags[HMM_PFN_VALID]);
 	/* Need to write fault ? */
 	if ((pfns & range->flags[HMM_PFN_WRITE]) &&
@@ -204,7 +204,7 @@ static int hmm_vma_walk_hole(unsigned long addr, unsigned long end,
 
 static inline uint64_t pmd_to_hmm_pfn_flags(struct hmm_range *range, pmd_t pmd)
 {
-	if (pmd_protnone(pmd))
+	if (pmd_protyesne(pmd))
 		return 0;
 	return pmd_write(pmd) ? range->flags[HMM_PFN_VALID] |
 				range->flags[HMM_PFN_WRITE] :
@@ -226,7 +226,7 @@ static int hmm_vma_handle_pmd(struct mm_walk *walk, unsigned long addr,
 	hmm_range_need_fault(hmm_vma_walk, pfns, npages, cpu_flags,
 			     &fault, &write_fault);
 
-	if (pmd_protnone(pmd) || fault || write_fault)
+	if (pmd_protyesne(pmd) || fault || write_fault)
 		return hmm_vma_walk_hole_(addr, end, fault, write_fault, walk);
 
 	pfn = pmd_pfn(pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
@@ -254,7 +254,7 @@ int hmm_vma_handle_pmd(struct mm_walk *walk, unsigned long addr,
 
 static inline uint64_t pte_to_hmm_pfn_flags(struct hmm_range *range, pte_t pte)
 {
-	if (pte_none(pte) || !pte_present(pte) || pte_protnone(pte))
+	if (pte_yesne(pte) || !pte_present(pte) || pte_protyesne(pte))
 		return 0;
 	return pte_write(pte) ? range->flags[HMM_PFN_VALID] |
 				range->flags[HMM_PFN_WRITE] :
@@ -275,7 +275,7 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 	*pfn = range->values[HMM_PFN_NONE];
 	fault = write_fault = false;
 
-	if (pte_none(pte)) {
+	if (pte_yesne(pte)) {
 		hmm_pte_need_fault(hmm_vma_walk, orig_pfn, 0,
 				   &fault, &write_fault);
 		if (fault || write_fault)
@@ -286,7 +286,7 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 	if (!pte_present(pte)) {
 		swp_entry_t entry = pte_to_swp_entry(pte);
 
-		if (!non_swap_entry(entry)) {
+		if (!yesn_swap_entry(entry)) {
 			cpu_flags = pte_to_hmm_pfn_flags(range, pte);
 			hmm_pte_need_fault(hmm_vma_walk, orig_pfn, cpu_flags,
 					   &fault, &write_fault);
@@ -296,7 +296,7 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 		}
 
 		/*
-		 * This is a special swap entry, ignore migration, use
+		 * This is a special swap entry, igyesre migration, use
 		 * device and report anything else as error.
 		 */
 		if (is_device_private_entry(entry)) {
@@ -348,7 +348,7 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 		}
 		/*
 		 * Since each architecture defines a struct page for the zero
-		 * page, just fall through and treat it like a normal page.
+		 * page, just fall through and treat it like a yesrmal page.
 		 */
 	}
 
@@ -379,7 +379,7 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
 
 again:
 	pmd = READ_ONCE(*pmdp);
-	if (pmd_none(pmd))
+	if (pmd_yesne(pmd))
 		return hmm_vma_walk_hole(start, end, walk);
 
 	if (thp_migration_supported() && is_pmd_migration_entry(pmd)) {
@@ -406,7 +406,7 @@ again:
 		/*
 		 * No need to take pmd_lock here, even if some other thread
 		 * is splitting the huge pmd we will get that event through
-		 * mmu_notifier callback.
+		 * mmu_yestifier callback.
 		 *
 		 * So just read pmd value and check again it's a transparent
 		 * huge or device mapping one and compute corresponding pfn
@@ -422,9 +422,9 @@ again:
 	}
 
 	/*
-	 * We have handled all the valid cases above ie either none, migration,
+	 * We have handled all the valid cases above ie either yesne, migration,
 	 * huge or transparent huge. At this point either it is a valid pmd
-	 * entry pointing to pte directory or it is a bad pmd that will not
+	 * entry pointing to pte directory or it is a bad pmd that will yest
 	 * recover.
 	 */
 	if (pmd_bad(pmd))
@@ -444,9 +444,9 @@ again:
 	}
 	if (hmm_vma_walk->pgmap) {
 		/*
-		 * We do put_dev_pagemap() here and not in hmm_vma_handle_pte()
+		 * We do put_dev_pagemap() here and yest in hmm_vma_handle_pte()
 		 * so that we can leverage get_dev_pagemap() optimization which
-		 * will not re-take a reference on a pgmap if we already have
+		 * will yest re-take a reference on a pgmap if we already have
 		 * one.
 		 */
 		put_dev_pagemap(hmm_vma_walk->pgmap);
@@ -481,7 +481,7 @@ static int hmm_vma_walk_pud(pud_t *pudp, unsigned long start, unsigned long end,
 
 again:
 	pud = READ_ONCE(*pudp);
-	if (pud_none(pud))
+	if (pud_yesne(pud))
 		return hmm_vma_walk_hole(start, end, walk);
 
 	if (pud_huge(pud) && pud_devmap(pud)) {
@@ -521,7 +521,7 @@ again:
 	}
 
 	split_huge_pud(walk->vma, pudp, addr);
-	if (pud_none(*pudp))
+	if (pud_yesne(*pudp))
 		goto again;
 
 	pmdp = pmd_offset(pudp, addr);
@@ -601,8 +601,8 @@ static int hmm_vma_walk_test(unsigned long start, unsigned long end,
 		return -EFAULT;
 
 	/*
-	 * If the vma does not allow read access, then assume that it does not
-	 * allow write access either. HMM does not support architectures
+	 * If the vma does yest allow read access, then assume that it does yest
+	 * allow write access either. HMM does yest support architectures
 	 * that allow write without read.
 	 */
 	if (!(vma->vm_flags & VM_READ)) {
@@ -654,13 +654,13 @@ static const struct mm_walk_ops hmm_walk_ops = {
  * -EAGAIN:	A page fault needs to be retried and mmap_sem was dropped.
  * -EBUSY:	The range has been invalidated and the caller needs to wait for
  *		the invalidation to finish.
- * -EFAULT:	Invalid (i.e., either no valid vma or it is illegal to access
+ * -EFAULT:	Invalid (i.e., either yes valid vma or it is illegal to access
  *		that range) number of valid pages in range->pfns[] (from
  *              range start address).
  *
- * This is similar to a regular CPU page fault except that it will not trigger
- * any memory migration if the memory being faulted is not accessible by CPUs
- * and caller does not ask for migration.
+ * This is similar to a regular CPU page fault except that it will yest trigger
+ * any memory migration if the memory being faulted is yest accessible by CPUs
+ * and caller does yest ask for migration.
  *
  * On error, for one virtual address in the range, the function will mark the
  * corresponding HMM pfn entry with an error flag.
@@ -672,15 +672,15 @@ long hmm_range_fault(struct hmm_range *range, unsigned int flags)
 		.last = range->start,
 		.flags = flags,
 	};
-	struct mm_struct *mm = range->notifier->mm;
+	struct mm_struct *mm = range->yestifier->mm;
 	int ret;
 
 	lockdep_assert_held(&mm->mmap_sem);
 
 	do {
-		/* If range is no longer valid force retry. */
-		if (mmu_interval_check_retry(range->notifier,
-					     range->notifier_seq))
+		/* If range is yes longer valid force retry. */
+		if (mmu_interval_check_retry(range->yestifier,
+					     range->yestifier_seq))
 			return -EBUSY;
 		ret = walk_page_range(mm, hmm_vma_walk.last, range->end,
 				      &hmm_walk_ops, &hmm_vma_walk);

@@ -16,7 +16,7 @@
 	 BPF_F_STACK_BUILD_ID)
 
 struct stack_map_bucket {
-	struct pcpu_freelist_node fnode;
+	struct pcpu_freelist_yesde fyesde;
 	u32 hash;
 	u32 nr;
 	u64 data[];
@@ -41,7 +41,7 @@ static void do_up_read(struct irq_work *entry)
 	struct stack_map_irq_work *work;
 
 	work = container_of(entry, struct stack_map_irq_work, irq_work);
-	up_read_non_owner(work->sem);
+	up_read_yesn_owner(work->sem);
 	work->sem = NULL;
 }
 
@@ -64,7 +64,7 @@ static int prealloc_elems_and_freelist(struct bpf_stack_map *smap)
 	int err;
 
 	smap->elems = bpf_map_area_alloc(elem_size * smap->map.max_entries,
-					 smap->map.numa_node);
+					 smap->map.numa_yesde);
 	if (!smap->elems)
 		return -ENOMEM;
 
@@ -119,7 +119,7 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	if (err)
 		return ERR_PTR(err);
 
-	smap = bpf_map_area_alloc(cost, bpf_map_attr_numa_node(attr));
+	smap = bpf_map_area_alloc(cost, bpf_map_attr_numa_yesde(attr));
 	if (!smap) {
 		bpf_map_charge_finish(&mem);
 		return ERR_PTR(-ENOMEM);
@@ -151,45 +151,45 @@ free_charge:
 
 #define BPF_BUILD_ID 3
 /*
- * Parse build id from the note segment. This logic can be shared between
+ * Parse build id from the yeste segment. This logic can be shared between
  * 32-bit and 64-bit system, because Elf32_Nhdr and Elf64_Nhdr are
  * identical.
  */
 static inline int stack_map_parse_build_id(void *page_addr,
 					   unsigned char *build_id,
-					   void *note_start,
-					   Elf32_Word note_size)
+					   void *yeste_start,
+					   Elf32_Word yeste_size)
 {
-	Elf32_Word note_offs = 0, new_offs;
+	Elf32_Word yeste_offs = 0, new_offs;
 
 	/* check for overflow */
-	if (note_start < page_addr || note_start + note_size < note_start)
+	if (yeste_start < page_addr || yeste_start + yeste_size < yeste_start)
 		return -EINVAL;
 
-	/* only supports note that fits in the first page */
-	if (note_start + note_size > page_addr + PAGE_SIZE)
+	/* only supports yeste that fits in the first page */
+	if (yeste_start + yeste_size > page_addr + PAGE_SIZE)
 		return -EINVAL;
 
-	while (note_offs + sizeof(Elf32_Nhdr) < note_size) {
-		Elf32_Nhdr *nhdr = (Elf32_Nhdr *)(note_start + note_offs);
+	while (yeste_offs + sizeof(Elf32_Nhdr) < yeste_size) {
+		Elf32_Nhdr *nhdr = (Elf32_Nhdr *)(yeste_start + yeste_offs);
 
 		if (nhdr->n_type == BPF_BUILD_ID &&
 		    nhdr->n_namesz == sizeof("GNU") &&
 		    nhdr->n_descsz > 0 &&
 		    nhdr->n_descsz <= BPF_BUILD_ID_SIZE) {
 			memcpy(build_id,
-			       note_start + note_offs +
+			       yeste_start + yeste_offs +
 			       ALIGN(sizeof("GNU"), 4) + sizeof(Elf32_Nhdr),
 			       nhdr->n_descsz);
 			memset(build_id + nhdr->n_descsz, 0,
 			       BPF_BUILD_ID_SIZE - nhdr->n_descsz);
 			return 0;
 		}
-		new_offs = note_offs + sizeof(Elf32_Nhdr) +
+		new_offs = yeste_offs + sizeof(Elf32_Nhdr) +
 			ALIGN(nhdr->n_namesz, 4) + ALIGN(nhdr->n_descsz, 4);
-		if (new_offs <= note_offs)  /* overflow */
+		if (new_offs <= yeste_offs)  /* overflow */
 			break;
-		note_offs = new_offs;
+		yeste_offs = new_offs;
 	}
 	return -EINVAL;
 }
@@ -255,7 +255,7 @@ static int stack_map_get_build_id(struct vm_area_struct *vma,
 
 	page = find_get_page(vma->vm_file->f_mapping, 0);
 	if (!page)
-		return -EFAULT;	/* page not mapped */
+		return -EFAULT;	/* page yest mapped */
 
 	ret = -EINVAL;
 	page_addr = kmap_atomic(page);
@@ -290,23 +290,23 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 	if (irqs_disabled()) {
 		work = this_cpu_ptr(&up_read_work);
 		if (atomic_read(&work->irq_work.flags) & IRQ_WORK_BUSY)
-			/* cannot queue more up_read, fallback */
+			/* canyest queue more up_read, fallback */
 			irq_work_busy = true;
 	}
 
 	/*
-	 * We cannot do up_read() when the irq is disabled, because of
+	 * We canyest do up_read() when the irq is disabled, because of
 	 * risk to deadlock with rq_lock. To do build_id lookup when the
 	 * irqs are disabled, we need to run up_read() in irq_work. We use
 	 * a percpu variable to do the irq_work. If the irq_work is
-	 * already used by another lookup, we fall back to report ips.
+	 * already used by ayesther lookup, we fall back to report ips.
 	 *
 	 * Same fallback is used for kernel stack (!user) on a stackmap
 	 * with build_id.
 	 */
 	if (!user || !current || !current->mm || irq_work_busy ||
 	    down_read_trylock(&current->mm->mmap_sem) == 0) {
-		/* cannot access current->mm, fall back to ips */
+		/* canyest access current->mm, fall back to ips */
 		for (i = 0; i < trace_nr; i++) {
 			id_offs[i].status = BPF_STACK_BUILD_ID_IP;
 			id_offs[i].ip = ips[i];
@@ -336,7 +336,7 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 		irq_work_queue(&work->irq_work);
 		/*
 		 * The irq_work will release the mmap_sem with
-		 * up_read_non_owner(). The rwsem_release() is called
+		 * up_read_yesn_owner(). The rwsem_release() is called
 		 * here to release the lock from lockdep's perspective.
 		 */
 		rwsem_release(&current->mm->mmap_sem.dep_map, _RET_IP_);
@@ -404,11 +404,11 @@ BPF_CALL_3(bpf_get_stackid, struct pt_regs *, regs, struct bpf_map *, map,
 		trace_len = trace_nr * sizeof(struct bpf_stack_build_id);
 		if (hash_matches && bucket->nr == trace_nr &&
 		    memcmp(bucket->data, new_bucket->data, trace_len) == 0) {
-			pcpu_freelist_push(&smap->freelist, &new_bucket->fnode);
+			pcpu_freelist_push(&smap->freelist, &new_bucket->fyesde);
 			return id;
 		}
 		if (bucket && !(flags & BPF_F_REUSE_STACKID)) {
-			pcpu_freelist_push(&smap->freelist, &new_bucket->fnode);
+			pcpu_freelist_push(&smap->freelist, &new_bucket->fyesde);
 			return -EEXIST;
 		}
 	} else {
@@ -430,7 +430,7 @@ BPF_CALL_3(bpf_get_stackid, struct pt_regs *, regs, struct bpf_map *, map,
 
 	old_bucket = xchg(&smap->buckets[id], new_bucket);
 	if (old_bucket)
-		pcpu_freelist_push(&smap->freelist, &old_bucket->fnode);
+		pcpu_freelist_push(&smap->freelist, &old_bucket->fyesde);
 	return id;
 }
 
@@ -536,7 +536,7 @@ int bpf_stackmap_copy(struct bpf_map *map, void *key, void *value)
 
 	old_bucket = xchg(&smap->buckets[id], bucket);
 	if (old_bucket)
-		pcpu_freelist_push(&smap->freelist, &old_bucket->fnode);
+		pcpu_freelist_push(&smap->freelist, &old_bucket->fyesde);
 	return 0;
 }
 
@@ -587,7 +587,7 @@ static int stack_map_delete_elem(struct bpf_map *map, void *key)
 
 	old_bucket = xchg(&smap->buckets[id], NULL);
 	if (old_bucket) {
-		pcpu_freelist_push(&smap->freelist, &old_bucket->fnode);
+		pcpu_freelist_push(&smap->freelist, &old_bucket->fyesde);
 		return 0;
 	} else {
 		return -ENOENT;
@@ -615,7 +615,7 @@ const struct bpf_map_ops stack_trace_map_ops = {
 	.map_lookup_elem = stack_map_lookup_elem,
 	.map_update_elem = stack_map_update_elem,
 	.map_delete_elem = stack_map_delete_elem,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = map_check_yes_btf,
 };
 
 static int __init stack_map_init(void)

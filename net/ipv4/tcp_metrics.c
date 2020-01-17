@@ -329,13 +329,13 @@ void tcp_update_metrics(struct sock *sk)
 	int m;
 
 	sk_dst_confirm(sk);
-	if (net->ipv4.sysctl_tcp_nometrics_save || !dst)
+	if (net->ipv4.sysctl_tcp_yesmetrics_save || !dst)
 		return;
 
 	rcu_read_lock();
 	if (icsk->icsk_backoff || !tp->srtt_us) {
 		/* This session failed to estimate rtt. Why?
-		 * Probably, no packets returned in time.  Reset our
+		 * Probably, yes packets returned in time.  Reset our
 		 * results.
 		 */
 		tm = tcp_get_metrics(sk, dst, false);
@@ -384,7 +384,7 @@ void tcp_update_metrics(struct sock *sk)
 	}
 
 	if (tcp_in_initial_slowstart(tp)) {
-		/* Slow start still did not finish. */
+		/* Slow start still did yest finish. */
 		if (!tcp_metric_locked(tm, TCP_METRIC_SSTHRESH)) {
 			val = tcp_metric_get(tm, TCP_METRIC_SSTHRESH);
 			if (val && (tp->snd_cwnd >> 1) > val)
@@ -408,7 +408,7 @@ void tcp_update_metrics(struct sock *sk)
 			tcp_metric_set(tm, TCP_METRIC_CWND, (val + tp->snd_cwnd) >> 1);
 		}
 	} else {
-		/* Else slow start did not finish, cwnd is non-sense,
+		/* Else slow start did yest finish, cwnd is yesn-sense,
 		 * ssthresh may be also invalid.
 		 */
 		if (!tcp_metric_locked(tm, TCP_METRIC_CWND)) {
@@ -476,23 +476,23 @@ void tcp_init_metrics(struct sock *sk)
 	crtt = tcp_metric_get(tm, TCP_METRIC_RTT);
 	rcu_read_unlock();
 reset:
-	/* The initial RTT measurement from the SYN/SYN-ACK is not ideal
+	/* The initial RTT measurement from the SYN/SYN-ACK is yest ideal
 	 * to seed the RTO for later data packets because SYN packets are
 	 * small. Use the per-dst cached values to seed the RTO but keep
 	 * the RTT estimator variables intact (e.g., srtt, mdev, rttvar).
 	 * Later the RTO will be updated immediately upon obtaining the first
 	 * data RTT sample (tcp_rtt_estimator()). Hence the cached RTT only
-	 * influences the first RTO but not later RTT estimation.
+	 * influences the first RTO but yest later RTT estimation.
 	 *
-	 * But if RTT is not available from the SYN (due to retransmits or
+	 * But if RTT is yest available from the SYN (due to retransmits or
 	 * syn cookies) or the cache, force a conservative 3secs timeout.
 	 *
-	 * A bit of theory. RTT is time passed after "normal" sized packet
-	 * is sent until it is ACKed. In normal circumstances sending small
+	 * A bit of theory. RTT is time passed after "yesrmal" sized packet
+	 * is sent until it is ACKed. In yesrmal circumstances sending small
 	 * packets force peer to delay ACKs and calculation is correct too.
 	 * The algorithm is adaptive and, provided we follow specs, it
 	 * NEVER underestimate RTT. BUT! If peer tries to make some clever
-	 * tricks sort of "quick acks" for time long enough to decrease RTT
+	 * tricks sort of "quick acks" for time long eyesugh to decrease RTT
 	 * to low value, and then abruptly stops to do it and starts to delay
 	 * ACKs, wait for troubles.
 	 */
@@ -596,7 +596,7 @@ static const struct nla_policy tcp_metrics_nl_policy[TCP_METRICS_ATTR_MAX + 1] =
 	[TCP_METRICS_ATTR_ADDR_IPV4]	= { .type = NLA_U32, },
 	[TCP_METRICS_ATTR_ADDR_IPV6]	= { .type = NLA_BINARY,
 					    .len = sizeof(struct in6_addr), },
-	/* Following attributes are not received for GET/DEL,
+	/* Following attributes are yest received for GET/DEL,
 	 * we keep them for reference
 	 */
 #if 0
@@ -648,7 +648,7 @@ static int tcp_metrics_fill_info(struct sk_buff *msg,
 	{
 		int n = 0;
 
-		nest = nla_nest_start_noflag(msg, TCP_METRICS_ATTR_VALS);
+		nest = nla_nest_start_yesflag(msg, TCP_METRICS_ATTR_VALS);
 		if (!nest)
 			goto nla_put_failure;
 		for (i = 0; i < TCP_METRIC_MAX_KERNEL + 1; i++) {
@@ -1023,9 +1023,9 @@ void __init tcp_metrics_init(void)
 
 	ret = register_pernet_subsys(&tcp_net_metrics_ops);
 	if (ret < 0)
-		panic("Could not allocate the tcp_metrics hash table\n");
+		panic("Could yest allocate the tcp_metrics hash table\n");
 
 	ret = genl_register_family(&tcp_metrics_nl_family);
 	if (ret < 0)
-		panic("Could not register tcp_metrics generic netlink\n");
+		panic("Could yest register tcp_metrics generic netlink\n");
 }

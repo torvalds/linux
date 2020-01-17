@@ -3,7 +3,7 @@
  * wm8978.c  --  WM8978 ALSA SoC Audio Codec driver
  *
  * Copyright (C) 2009-2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- * Copyright (C) 2007 Carlos Munoz <carlos@kenati.com>
+ * Copyright (C) 2007 Carlos Muyesz <carlos@kenati.com>
  * Copyright 2006-2009 Wolfson Microelectronics PLC.
  * Based on wm8974 and wm8990 by Liam Girdwood <lrg@slimlogic.co.uk>
  */
@@ -273,7 +273,7 @@ static const struct snd_kcontrol_new wm8978_right_out_mixer[] = {
 	SOC_DAPM_SINGLE("PCM Playback Switch", WM8978_RIGHT_MIXER_CONTROL, 0, 1, 0),
 };
 
-/* OUT3/OUT4 Mixer not implemented */
+/* OUT3/OUT4 Mixer yest implemented */
 
 /* Mixer #2: Input PGA Mute */
 static const struct snd_kcontrol_new wm8978_left_input_mixer[] = {
@@ -438,14 +438,14 @@ static void pll_factors(struct snd_soc_component *component,
 
 /* MCLK dividers */
 static const int mclk_numerator[]	= {1, 3, 2, 3, 4, 6, 8, 12};
-static const int mclk_denominator[]	= {1, 2, 1, 1, 1, 1, 1, 1};
+static const int mclk_deyesminator[]	= {1, 2, 1, 1, 1, 1, 1, 1};
 
 /*
  * find index >= idx, such that, for a given f_out,
  * 3 * f_mclk / 4 <= f_PLLOUT < 13 * f_mclk / 4
  * f_out can be f_256fs or f_opclk, currently only used for f_256fs. Can be
  * generalised for f_opclk with suitable coefficient arrays, but currently
- * the OPCLK divisor is calculated directly, not iteratively.
+ * the OPCLK divisor is calculated directly, yest iteratively.
  */
 static int wm8978_enum_mclk(unsigned int f_out, unsigned int f_mclk,
 			    unsigned int *f_pllout)
@@ -454,7 +454,7 @@ static int wm8978_enum_mclk(unsigned int f_out, unsigned int f_mclk,
 
 	for (i = 0; i < ARRAY_SIZE(mclk_numerator); i++) {
 		unsigned int f_pllout_x4 = 4 * f_out * mclk_numerator[i] /
-			mclk_denominator[i];
+			mclk_deyesminator[i];
 		if (3 * f_mclk <= f_pllout_x4 && f_pllout_x4 < 13 * f_mclk) {
 			*f_pllout = f_pllout_x4 / 4;
 			return i;
@@ -481,7 +481,7 @@ static int wm8978_configure_pll(struct snd_soc_component *component)
 
 	if (f_opclk) {
 		unsigned int opclk_div;
-		/* Cannot set up MCLK divider now, do later */
+		/* Canyest set up MCLK divider yesw, do later */
 		wm8978->mclk_idx = -1;
 
 		/*
@@ -572,14 +572,14 @@ static int wm8978_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 
 		if (wm8978->f_mclk)
 			/*
-			 * We know the MCLK frequency, the user has requested
+			 * We kyesw the MCLK frequency, the user has requested
 			 * OPCLK, configure the PLL based on that and start it
 			 * and OPCLK immediately. We will configure PLL to match
 			 * user-requested OPCLK frquency as good as possible.
 			 * In fact, it is likely, that matching the sampling
-			 * rate, when it becomes known, is more important, and
-			 * we will not be reconfiguring PLL then, because we
-			 * must not interrupt OPCLK. But it should be fine,
+			 * rate, when it becomes kyeswn, is more important, and
+			 * we will yest be reconfiguring PLL then, because we
+			 * must yest interrupt OPCLK. But it should be fine,
 			 * because typically the user will request OPCLK to run
 			 * at 256fs or 512fs, and for these cases we will also
 			 * find an exact MCLK divider configuration - it will
@@ -602,7 +602,7 @@ static int wm8978_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 }
 
 /*
- * @freq:	when .set_pll() us not used, freq is codec MCLK input frequency
+ * @freq:	when .set_pll() us yest used, freq is codec MCLK input frequency
  */
 static int wm8978_set_dai_sysclk(struct snd_soc_dai *codec_dai, int clk_id,
 				 unsigned int freq, int dir)
@@ -769,7 +769,7 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	/* Sampling rate is known now, can configure the MCLK divider */
+	/* Sampling rate is kyeswn yesw, can configure the MCLK divider */
 	wm8978->f_256fs = params_rate(params) * 256;
 
 	if (wm8978->sysclk == WM8978_MCLK) {
@@ -777,7 +777,7 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 		f_sel = wm8978->f_mclk;
 	} else {
 		if (!wm8978->f_opclk) {
-			/* We only enter here, if OPCLK is not used */
+			/* We only enter here, if OPCLK is yest used */
 			int ret = wm8978_configure_pll(component);
 			if (ret < 0)
 				return ret;
@@ -792,7 +792,7 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 
 		for (i = 0; i < ARRAY_SIZE(mclk_numerator); i++) {
 			diff = abs(wm8978->f_256fs * 3 -
-				   f_sel * 3 * mclk_denominator[i] / mclk_numerator[i]);
+				   f_sel * 3 * mclk_deyesminator[i] / mclk_numerator[i]);
 
 			if (diff < diff_best) {
 				diff_best = diff;
@@ -803,14 +803,14 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 				break;
 		}
 	} else {
-		/* OPCLK not used, codec driven by PLL */
+		/* OPCLK yest used, codec driven by PLL */
 		best = wm8978->mclk_idx;
 		diff = 0;
 	}
 
 	if (diff)
 		dev_warn(component->dev, "Imprecise sampling rate: %uHz%s\n",
-			f_sel * mclk_denominator[best] / mclk_numerator[best] / 256,
+			f_sel * mclk_deyesminator[best] / mclk_numerator[best] / 256,
 			wm8978->sysclk == WM8978_MCLK ?
 			", consider using PLL" : "");
 
@@ -1004,7 +1004,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8978 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8978_regmap_config = {

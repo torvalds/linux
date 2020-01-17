@@ -5,7 +5,7 @@
  * Memory merging support.
  *
  * This code enables dynamic sharing of identical pages found in different
- * memory areas, even if they are not shared by fork().
+ * memory areas, even if they are yest shared by fork().
  */
 
 #include <linux/bitops.h>
@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/sched/coredump.h>
 
-struct stable_node;
+struct stable_yesde;
 struct mem_cgroup;
 
 #ifdef CONFIG_KSM
@@ -39,10 +39,10 @@ static inline void ksm_exit(struct mm_struct *mm)
 
 /*
  * When do_swap_page() first faults in from swap what used to be a KSM page,
- * no problem, it will be assigned to this vma's anon_vma; but thereafter,
- * it might be faulted into a different anon_vma (or perhaps to a different
- * offset in the same anon_vma).  do_swap_page() cannot do all the locking
- * needed to reconstitute a cross-anon_vma KSM page: for now it has to make
+ * yes problem, it will be assigned to this vma's ayesn_vma; but thereafter,
+ * it might be faulted into a different ayesn_vma (or perhaps to a different
+ * offset in the same ayesn_vma).  do_swap_page() canyest do all the locking
+ * needed to reconstitute a cross-ayesn_vma KSM page: for yesw it has to make
  * a copy, and leave remerging the pages to a later pass of ksmd.
  *
  * We'd like to make this conditional on vma->vm_flags & VM_MERGEABLE,

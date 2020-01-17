@@ -31,8 +31,8 @@ IC (PMIC)
 	Value type: <boolean>
 	Definition: defining this property disables charging
 
-This charger is a sub-node of one of the 8941 PMIC blocks, and is specified
-as a child node in DTS of that node.  See ../mfd/qcom,spmi-pmic.txt and
+This charger is a sub-yesde of one of the 8941 PMIC blocks, and is specified
+as a child yesde in DTS of that yesde.  See ../mfd/qcom,spmi-pmic.txt and
 ../mfd/qcom-pm8xxx.txt
 
 Example:

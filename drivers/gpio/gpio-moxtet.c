@@ -76,7 +76,7 @@ static int moxtet_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 {
 	struct moxtet_gpio_chip *chip = gpiochip_get_data(gc);
 
-	/* All lines are hard wired to be either input or output, not both. */
+	/* All lines are hard wired to be either input or output, yest both. */
 	if (chip->desc->in_mask & BIT(offset))
 		return GPIO_LINE_DIRECTION_IN;
 	else if (chip->desc->out_mask & BIT(offset))
@@ -116,13 +116,13 @@ static int moxtet_gpio_direction_output(struct gpio_chip *gc,
 static int moxtet_gpio_probe(struct device *dev)
 {
 	struct moxtet_gpio_chip *chip;
-	struct device_node *nc = dev->of_node;
+	struct device_yesde *nc = dev->of_yesde;
 	int id;
 
 	id = to_moxtet_device(dev)->id;
 
 	if (id >= ARRAY_SIZE(descs)) {
-		dev_err(dev, "%pOF Moxtet device id 0x%x is not supported by gpio-moxtet driver\n",
+		dev_err(dev, "%pOF Moxtet device id 0x%x is yest supported by gpio-moxtet driver\n",
 			nc, id);
 		return -ENOTSUPP;
 	}

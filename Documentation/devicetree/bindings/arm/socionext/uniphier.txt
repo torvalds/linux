@@ -1,11 +1,11 @@
 Socionext UniPhier SoC family
 -----------------------------
 
-Required properties in the root node:
+Required properties in the root yesde:
   - compatible: should contain board and SoC compatible strings
 
 SoC and board compatible strings:
-  (sorted chronologically)
+  (sorted chroyeslogically)
 
   - LD4 SoC:  "socionext,uniphier-ld4"
       - Reference Board: "socionext,uniphier-ld4-ref"

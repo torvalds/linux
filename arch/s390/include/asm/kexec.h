@@ -15,7 +15,7 @@
 /*
  * KEXEC_SOURCE_MEMORY_LIMIT maximum page get_free_page can return.
  * I.e. Maximum page that is mapped directly into kernel memory,
- * and kmap is not required.
+ * and kmap is yest required.
  */
 
 /* Maximum physical address we can use pages from */

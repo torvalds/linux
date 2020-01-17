@@ -94,7 +94,7 @@ static int __init bgrt_init(void)
 	bgrt_image = memremap(bgrt_tab.image_address, bgrt_image_size,
 			      MEMREMAP_WB);
 	if (!bgrt_image) {
-		pr_notice("Ignoring BGRT: failed to map image memory\n");
+		pr_yestice("Igyesring BGRT: failed to map image memory\n");
 		return -ENOMEM;
 	}
 

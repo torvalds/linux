@@ -77,7 +77,7 @@ static void *elf64_load(struct kimage *image, char *kernel_buf,
 	fdt_size = fdt_totalsize(initial_boot_params) * 2;
 	fdt = kmalloc(fdt_size, GFP_KERNEL);
 	if (!fdt) {
-		pr_err("Not enough memory for the device tree.\n");
+		pr_err("Not eyesugh memory for the device tree.\n");
 		ret = -ENOMEM;
 		goto out;
 	}

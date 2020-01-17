@@ -392,8 +392,8 @@ static int xts_paes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 	}
 
 	/*
-	 * xts_check_key verifies the key length is not odd and makes
-	 * sure that the two keys are not the same. This can be done
+	 * xts_check_key verifies the key length is yest odd and makes
+	 * sure that the two keys are yest the same. This can be done
 	 * on the two protected keys as well
 	 */
 	ckey_len = (ctx->pk[0].type == PKEY_KEYTYPE_AES_128) ?

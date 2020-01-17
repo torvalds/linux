@@ -209,16 +209,16 @@ static inline int sctp_verify_addr(struct sock *sk, union sctp_addr *addr,
 	return 0;
 }
 
-/* Look up the association by its id.  If this is not a UDP-style
- * socket, the ID field is always ignored.
+/* Look up the association by its id.  If this is yest a UDP-style
+ * socket, the ID field is always igyesred.
  */
 struct sctp_association *sctp_id2assoc(struct sock *sk, sctp_assoc_t id)
 {
 	struct sctp_association *asoc = NULL;
 
-	/* If this is not a UDP-style socket, assoc id should be ignored. */
+	/* If this is yest a UDP-style socket, assoc id should be igyesred. */
 	if (!sctp_style(sk, UDP)) {
-		/* Return NULL if the socket state is not ESTABLISHED. It
+		/* Return NULL if the socket state is yest ESTABLISHED. It
 		 * could be a TCP-style listening socket or a socket which
 		 * hasn't yet called connect() to establish an association.
 		 */
@@ -425,9 +425,9 @@ static int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 
  /* ADDIP Section 4.1.1 Congestion Control of ASCONF Chunks
  *
- * R1) One and only one ASCONF Chunk MAY be in transit and unacknowledged
+ * R1) One and only one ASCONF Chunk MAY be in transit and unackyeswledged
  * at any one time.  If a sender, after sending an ASCONF chunk, decides
- * it needs to transfer another ASCONF Chunk, it MUST wait until the
+ * it needs to transfer ayesther ASCONF Chunk, it MUST wait until the
  * ASCONF-ACK Chunk returns from the previous ASCONF Chunk before sending a
  * subsequent ASCONF. Note this restriction binds each side, so at any
  * time two ASCONF may be in-transit on any given association (one sent
@@ -516,7 +516,7 @@ err_bindx_add:
  * addresses are added to the endpoint.
  *
  * If any of the addresses is already in the bind address list of the
- * association, we do not send the chunk for that association.  But it will not
+ * association, we do yest send the chunk for that association.  But it will yest
  * affect other associations.
  *
  * Only sctp_setsockopt_bindx() is supposed to call this function.
@@ -560,7 +560,7 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 
 		/* Check if any address in the packed array of addresses is
 		 * in the bind address list of the association. If so,
-		 * do not send the asconf chunk to its peer, but continue with
+		 * do yest send the asconf chunk to its peer, but continue with
 		 * other associations.
 		 */
 		addr_buf = addrs;
@@ -629,7 +629,7 @@ out:
 	return retval;
 }
 
-/* Remove a list of addresses from bind addresses list.  Do not remove the
+/* Remove a list of addresses from bind addresses list.  Do yest remove the
  * last address.
  *
  * Basically run through each address specified in the addrs/addrcnt
@@ -661,7 +661,7 @@ static int sctp_bindx_rem(struct sock *sk, struct sockaddr *addrs, int addrcnt)
 	addr_buf = addrs;
 	for (cnt = 0; cnt < addrcnt; cnt++) {
 		/* If the bind address list is empty or if there is only one
-		 * bind address, there is nothing more to be removed (we need
+		 * bind address, there is yesthing more to be removed (we need
 		 * at least one address here).
 		 */
 		if (list_empty(&bp->address_list) ||
@@ -718,7 +718,7 @@ err_bindx_rem:
  * local addresses are removed from the endpoint.
  *
  * If any of the addresses is already in the bind address list of the
- * association, we do not send the chunk for that association.  But it will not
+ * association, we do yest send the chunk for that association.  But it will yest
  * affect other associations.
  *
  * Only sctp_setsockopt_bindx() is supposed to call this function.
@@ -763,8 +763,8 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 			continue;
 
 		/* Check if any address in the packed array of addresses is
-		 * not present in the bind address list of the association.
-		 * If so, do not send the asconf chunk to its peer, but
+		 * yest present in the bind address list of the association.
+		 * If so, do yest send the asconf chunk to its peer, but
 		 * continue with other associations.
 		 */
 		addr_buf = addrs;
@@ -785,8 +785,8 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 			continue;
 
 		/* Find one address in the association's bind address list
-		 * that is not in the packed array of addresses. This is to
-		 * make sure that we do not delete all the addresses in the
+		 * that is yest in the packed array of addresses. This is to
+		 * make sure that we do yest delete all the addresses in the
 		 * association.
 		 */
 		bp = &asoc->base.bind_addr;
@@ -829,7 +829,7 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 		if (laddr == NULL)
 			return -EINVAL;
 
-		/* We do not need RCU protection throughout this loop
+		/* We do yest need RCU protection throughout this loop
 		 * because this is done under a socket lock from the
 		 * setsockopt call.
 		 */
@@ -857,7 +857,7 @@ skip_mkasconf:
 
 		/* Update the route and saddr entries for all the transports
 		 * as some of the addresses in the bind address list are
-		 * about to be deleted and cannot be used as source addresses.
+		 * about to be deleted and canyest be used as source addresses.
 		 */
 		list_for_each_entry(transport, &asoc->peer.transport_addr_list,
 					transports) {
@@ -912,15 +912,15 @@ int sctp_asconf_mgmt(struct sctp_sock *sp, struct sctp_sockaddr_entry *addrw)
  * addrs is a pointer to an array of one or more socket addresses. Each
  * address is contained in its appropriate structure (i.e. struct
  * sockaddr_in or struct sockaddr_in6) the family of the address type
- * must be used to distinguish the address length (note that this
+ * must be used to distinguish the address length (yeste that this
  * representation is termed a "packed array" of addresses). The caller
  * specifies the number of addresses in the array with addrcnt.
  *
  * On success, sctp_bindx() returns 0. On failure, sctp_bindx() returns
- * -1, and sets errno to the appropriate error code.
+ * -1, and sets erryes to the appropriate error code.
  *
  * For SCTP, the port given in each socket address must be the same, or
- * sctp_bindx() will fail, setting errno to EINVAL.
+ * sctp_bindx() will fail, setting erryes to EINVAL.
  *
  * The flags parameter is formed from the bitwise OR of zero or more of
  * the following currently defined flags:
@@ -933,28 +933,28 @@ int sctp_asconf_mgmt(struct sctp_sock *sp, struct sctp_sockaddr_entry *addrw)
  * association, and SCTP_BINDX_REM_ADDR directs SCTP to remove the given
  * addresses from the association. The two flags are mutually exclusive;
  * if both are given, sctp_bindx() will fail with EINVAL. A caller may
- * not remove all addresses from an association; sctp_bindx() will
+ * yest remove all addresses from an association; sctp_bindx() will
  * reject such an attempt with EINVAL.
  *
  * An application can use sctp_bindx(SCTP_BINDX_ADD_ADDR) to associate
  * additional addresses with an endpoint after calling bind().  Or use
  * sctp_bindx(SCTP_BINDX_REM_ADDR) to remove some addresses a listening
- * socket is associated with so that no new association accepted will be
+ * socket is associated with so that yes new association accepted will be
  * associated with those addresses. If the endpoint supports dynamic
  * address a SCTP_BINDX_REM_ADDR or SCTP_BINDX_ADD_ADDR may cause a
  * endpoint to send the appropriate message to the peer to change the
  * peers address lists.
  *
  * Adding and removing addresses from a connected association is
- * optional functionality. Implementations that do not support this
+ * optional functionality. Implementations that do yest support this
  * functionality should return EOPNOTSUPP.
  *
- * Basically do nothing but copying the addresses from user to kernel
+ * Basically do yesthing but copying the addresses from user to kernel
  * land and invoking either sctp_bindx_add() or sctp_bindx_rem() on the sk.
  * This is used for tunneling the sctp_bindx() request through sctp_setsockopt()
  * from userspace.
  *
- * On exit there is no need to do sockfd_put(), sys_setsockopt() does
+ * On exit there is yes need to do sockfd_put(), sys_setsockopt() does
  * it.
  *
  * sk        The sk of the socket
@@ -963,7 +963,7 @@ int sctp_asconf_mgmt(struct sctp_sock *sp, struct sctp_sockaddr_entry *addrw)
  * op        Operation to perform (add or remove, see the flags of
  *           sctp_bindx)
  *
- * Returns 0 if ok, <0 errno code on error.
+ * Returns 0 if ok, <0 erryes code on error.
  */
 static int sctp_setsockopt_bindx(struct sock *sk,
 				 struct sockaddr __user *addrs,
@@ -998,7 +998,7 @@ static int sctp_setsockopt_bindx(struct sock *sk,
 		sa_addr = addr_buf;
 		af = sctp_get_af_specific(sa_addr->sa_family);
 
-		/* If the address family is not supported or if this address
+		/* If the address family is yest supported or if this address
 		 * causes the address buffer to overflow return EINVAL.
 		 */
 		if (!af || (walk_size + af->sockaddr_len) > addrs_size) {
@@ -1202,7 +1202,7 @@ static int __sctp_connect(struct sock *sk, struct sockaddr *kaddrs,
 	}
 
 	/* In case the user of sctp_connectx() wants an association
-	 * id back, assign one now.
+	 * id back, assign one yesw.
 	 */
 	if (assoc_id) {
 		err = sctp_assoc_set_id(asoc, GFP_KERNEL);
@@ -1248,17 +1248,17 @@ out_free:
  * addrs is a pointer to an array of one or more socket addresses. Each
  * address is contained in its appropriate structure (i.e. struct
  * sockaddr_in or struct sockaddr_in6) the family of the address type
- * must be used to distengish the address length (note that this
+ * must be used to distengish the address length (yeste that this
  * representation is termed a "packed array" of addresses). The caller
  * specifies the number of addresses in the array with addrcnt.
  *
  * On success, sctp_connectx() returns 0. It also sets the assoc_id to
  * the association id of the new association.  On failure, sctp_connectx()
- * returns -1, and sets errno to the appropriate error code.  The assoc_id
- * is not touched by the kernel.
+ * returns -1, and sets erryes to the appropriate error code.  The assoc_id
+ * is yest touched by the kernel.
  *
  * For SCTP, the port given in each socket address must be the same, or
- * sctp_connectx() will fail, setting errno to EINVAL.
+ * sctp_connectx() will fail, setting erryes to EINVAL.
  *
  * An application can use sctp_connectx to initiate an association with
  * an endpoint that is multi-homed.  Much like sctp_bindx() this call
@@ -1269,23 +1269,23 @@ out_free:
  * the list when needed.
  *
  * Note that the list of addresses passed in is only used for setting up
- * the association.  It does not necessarily equal the set of addresses
+ * the association.  It does yest necessarily equal the set of addresses
  * the peer uses for the resulting association.  If the caller wants to
  * find out the set of peer addresses, it must use sctp_getpaddrs() to
  * retrieve them after the association has been set up.
  *
- * Basically do nothing but copying the addresses from user to kernel
+ * Basically do yesthing but copying the addresses from user to kernel
  * land and invoking either sctp_connectx(). This is used for tunneling
  * the sctp_connectx() request through sctp_setsockopt() from userspace.
  *
- * On exit there is no need to do sockfd_put(), sys_setsockopt() does
+ * On exit there is yes need to do sockfd_put(), sys_setsockopt() does
  * it.
  *
  * sk        The sk of the socket
  * addrs     The pointer to the addresses in user land
  * addrssize Size of the addrs buffer
  *
- * Returns >=0 if ok, <0 errno code on error.
+ * Returns >=0 if ok, <0 erryes code on error.
  */
 static int __sctp_setsockopt_connectx(struct sock *sk,
 				      struct sockaddr __user *addrs,
@@ -1430,7 +1430,7 @@ static int sctp_getsockopt_connectx3(struct sock *sk, int len,
  *
  * To gracefully shutdown a specific association represented by the
  * UDP-style socket, an application should use the sendmsg() call,
- * passing no user data, but including the appropriate flag in the
+ * passing yes user data, but including the appropriate flag in the
  * ancillary data (see Section xxxx).
  *
  * If sd in the close() call is a branched-off socket representing only
@@ -1446,7 +1446,7 @@ static int sctp_getsockopt_connectx3(struct sock *sk, int len,
  *
  *      sd      - the socket descriptor of the association to be closed.
  *
- * After an application calls close() on a socket descriptor, no further
+ * After an application calls close() on a socket descriptor, yes further
  * socket operations will succeed on that descriptor.
  *
  * API 7.1.4 SO_LINGER
@@ -1455,16 +1455,16 @@ static int sctp_getsockopt_connectx3(struct sock *sk, int len,
  * perform the SCTP ABORT primitive.  The linger option structure is:
  *
  *  struct  linger {
- *     int     l_onoff;                // option on/off
+ *     int     l_oyesff;                // option on/off
  *     int     l_linger;               // linger time
  * };
  *
- * To enable the option, set l_onoff to 1.  If the l_linger value is set
+ * To enable the option, set l_oyesff to 1.  If the l_linger value is set
  * to 0, calling close() is the same as the ABORT primitive.  If the
  * value is set to a negative value, the setsockopt() call will return
  * an error.  If the value is set to a positive value linger_time, the
  * close() can be blocked for at most linger_time ms.  If the graceful
- * shutdown phase does not finish during this period, close() will
+ * shutdown phase does yest finish during this period, close() will
  * return but the graceful shutdown phase continues in the system.
  */
 static void sctp_close(struct sock *sk, long timeout)
@@ -1494,7 +1494,7 @@ static void sctp_close(struct sock *sk, long timeout)
 		if (sctp_style(sk, TCP)) {
 			/* A closed association can still be in the list if
 			 * it belongs to a TCP-style listening socket that is
-			 * not yet accepted. If so, free it. If not, send an
+			 * yest yet accepted. If so, free it. If yest, send an
 			 * ABORT or SHUTDOWN based on the linger options.
 			 */
 			if (sctp_state(asoc, CLOSED)) {
@@ -1522,7 +1522,7 @@ static void sctp_close(struct sock *sk, long timeout)
 	/* This will run the backlog queue.  */
 	release_sock(sk);
 
-	/* Supposedly, no process has access to the socket, but
+	/* Supposedly, yes process has access to the socket, but
 	 * the net layers still may.
 	 * Also, sctp_destroy_sock() needs to be called with addr_wq_lock
 	 * held and that should be grabbed before socket lock.
@@ -1575,7 +1575,7 @@ static int sctp_error(struct sock *sk, int flags, int err)
  * Note:  This function could use a rewrite especially when explicit
  * connect support comes in.
  */
-/* BUG:  We do not implement the equivalent of sk_stream_wait_memory(). */
+/* BUG:  We do yest implement the equivalent of sk_stream_wait_memory(). */
 
 static int sctp_msghdr_parse(const struct msghdr *msg,
 			     struct sctp_cmsgs *cmsgs);
@@ -2028,8 +2028,8 @@ out:
  * start of a skb even when data is spread across the list of skb's in the
  * frag_list. len specifies the total amount of data that needs to be removed.
  * when 'len' bytes could be removed from the skb, it returns 0.
- * If 'len' exceeds the total skb length,  it returns the no. of bytes that
- * could not be removed.
+ * If 'len' exceeds the total skb length,  it returns the yes. of bytes that
+ * could yest be removed.
  */
 static int sctp_skb_pull(struct sk_buff *skb, int len)
 {
@@ -2074,7 +2074,7 @@ static int sctp_skb_pull(struct sk_buff *skb, int len)
  *            5 for complete description of the flags.
  */
 static int sctp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-			int noblock, int flags, int *addr_len)
+			int yesblock, int flags, int *addr_len)
 {
 	struct sctp_ulpevent *event = NULL;
 	struct sctp_sock *sp = sctp_sk(sk);
@@ -2083,8 +2083,8 @@ static int sctp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	int err = 0;
 	int skb_len;
 
-	pr_debug("%s: sk:%p, msghdr:%p, len:%zd, noblock:%d, flags:0x%x, "
-		 "addr_len:%p)\n", __func__, sk, msg, len, noblock, flags,
+	pr_debug("%s: sk:%p, msghdr:%p, len:%zd, yesblock:%d, flags:0x%x, "
+		 "addr_len:%p)\n", __func__, sk, msg, len, yesblock, flags,
 		 addr_len);
 
 	lock_sock(sk);
@@ -2095,7 +2095,7 @@ static int sctp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		goto out;
 	}
 
-	skb = sctp_skb_recv_datagram(sk, flags, noblock, &err);
+	skb = sctp_skb_recv_datagram(sk, flags, yesblock, &err);
 	if (!skb)
 		goto out;
 
@@ -2120,7 +2120,7 @@ static int sctp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	else
 		head_skb = skb;
 	sock_recv_ts_and_drops(msg, sk, head_skb);
-	if (sctp_ulpevent_is_notification(event)) {
+	if (sctp_ulpevent_is_yestification(event)) {
 		msg->msg_flags |= MSG_NOTIFICATION;
 		sp->pf->event_msgname(event, msg->msg_name, addr_len);
 	} else {
@@ -2154,7 +2154,7 @@ static int sctp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		 * rwnd by that amount. If all the data in the skb is read,
 		 * rwnd is updated when the event is freed.
 		 */
-		if (!sctp_ulpevent_is_notification(event))
+		if (!sctp_ulpevent_is_yestification(event))
 			sctp_assoc_rwnd_increase(event->asoc, copied);
 		goto out;
 	} else if ((event->msg_flags & MSG_NOTIFICATION) ||
@@ -2183,7 +2183,7 @@ out:
 
 /* 7.1.12 Enable/Disable message fragmentation (SCTP_DISABLE_FRAGMENTS)
  *
- * This option is a on/off flag.  If enabled no SCTP message
+ * This option is a on/off flag.  If enabled yes SCTP message
  * fragmentation will be performed.  Instead if a message being sent
  * exceeds the current PMTU size, the message will NOT be sent and
  * instead a error will be indicated to the user.
@@ -2228,8 +2228,8 @@ static int sctp_setsockopt_events(struct sock *sk, char __user *optval,
 		asoc->subscribe = sctp_sk(sk)->subscribe;
 
 	/* At the time when a user app subscribes to SCTP_SENDER_DRY_EVENT,
-	 * if there is no data to be sent or retransmit, the stack will
-	 * immediately send up this notification.
+	 * if there is yes data to be sent or retransmit, the stack will
+	 * immediately send up this yestification.
 	 */
 	if (sctp_ulpevent_type_enabled(sp->subscribe, SCTP_SENDER_DRY_EVENT)) {
 		struct sctp_ulpevent *event;
@@ -2254,7 +2254,7 @@ static int sctp_setsockopt_events(struct sock *sk, char __user *optval,
  * set it will cause associations that are idle for more than the
  * specified number of seconds to automatically close.  An association
  * being idle is defined an association that has NOT sent or received
- * user data.  The special value of '0' indicates that no automatic
+ * user data.  The special value of '0' indicates that yes automatic
  * close of any associations should be performed.  The option expects an
  * integer defining the number of seconds of idle time before an
  * association is closed.
@@ -2306,12 +2306,12 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
  *   spp_address     - This specifies which address is of interest.
  *   spp_hbinterval  - This contains the value of the heartbeat interval,
  *                     in milliseconds.  If a  value of zero
- *                     is present in this field then no changes are to
+ *                     is present in this field then yes changes are to
  *                     be made to this parameter.
  *   spp_pathmaxrxt  - This contains the maximum number of
  *                     retransmissions before this address shall be
  *                     considered unreachable. If a  value of zero
- *                     is present in this field then no changes are to
+ *                     is present in this field then yes changes are to
  *                     be made to this parameter.
  *   spp_pathmtu     - When Path MTU discovery is disabled the value
  *                     specified here will be the "fixed" path mtu.
@@ -2324,7 +2324,7 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
  *                     for. This value will apply to all addresses of an
  *                     association if the spp_address field is empty. Note
  *                     also, that if delayed sack is enabled and this
- *                     value is set to 0, no change is made to the last
+ *                     value is set to 0, yes change is made to the last
  *                     recorded delayed sack timer value.
  *
  *   spp_flags       - These flags are used to control various features
@@ -2386,10 +2386,10 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
  *                     If a specific destination address is set (in the
  *                     spp_address field), then the value returned is that of
  *                     the address.  If just an association is specified (and
- *                     no address), then the association's default flow label
- *                     is returned.  If neither an association nor a destination
+ *                     yes address), then the association's default flow label
+ *                     is returned.  If neither an association yesr a destination
  *                     is specified, then the socket's default flow label is
- *                     returned.  For non-IPv6 sockets, this flag will be left
+ *                     returned.  For yesn-IPv6 sockets, this flag will be left
  *                     cleared.
  *
  *                     SPP_DSCP:  Setting this flag enables the setting of the
@@ -2402,7 +2402,7 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
  *                     spp_address field), then that specific destination
  *                     address's DSCP value is returned.  If just an association
  *                     is specified, then the association's default DSCP is
- *                     returned.  If neither an association nor a destination is
+ *                     returned.  If neither an association yesr a destination is
  *                     specified, then the socket's default DSCP is returned.
  *
  *   spp_ipv6_flowlabel
@@ -2436,7 +2436,7 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 	}
 
 	/* Note that unless the spp_flag is set to SPP_HB_ENABLE the value of
-	 * this field is ignored.  Note also that a value of zero indicates
+	 * this field is igyesred.  Note also that a value of zero indicates
 	 * the current setting should be left unchanged.
 	 */
 	if (params->spp_flags & SPP_HB_ENABLE) {
@@ -2511,7 +2511,7 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 	}
 
 	/* Note that unless the spp_flag is set to SPP_SACKDELAY_ENABLE the
-	 * value of this field is ignored.  Note also that a value of zero
+	 * value of this field is igyesred.  Note also that a value of zero
 	 * indicates the current setting should be left unchanged.
 	 */
 	if ((params->spp_flags & SPP_SACKDELAY_ENABLE) && params->spp_sackdelay) {
@@ -2645,7 +2645,7 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 		return -EINVAL;
 
 	/* If an address other than INADDR_ANY is specified, and
-	 * no transport is found, then the request is invalid.
+	 * yes transport is found, then the request is invalid.
 	 */
 	if (!sctp_is_any(sk, (union sctp_addr *)&params.spp_address)) {
 		trans = sctp_addr_id2transport(sk, &params.spp_address,
@@ -2656,7 +2656,7 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 
 	/* Get association, if assoc_id != SCTP_FUTURE_ASSOC and the
 	 * socket is a one to many style socket, and an association
-	 * was not found, then the id was invalid.
+	 * was yest found, then the id was invalid.
 	 */
 	asoc = sctp_id2assoc(sk, params.spp_assoc_id);
 	if (!asoc && params.spp_assoc_id != SCTP_FUTURE_ASSOC &&
@@ -2664,7 +2664,7 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 		return -EINVAL;
 
 	/* Heartbeat demand can only be sent on a transport or
-	 * association, but not a socket.
+	 * association, but yest a socket.
 	 */
 	if (params.spp_flags & SPP_HB_DEMAND && !trans && !asoc)
 		return -EINVAL;
@@ -2747,9 +2747,9 @@ static void sctp_apply_asoc_delayed_ack(struct sctp_sack_info *params,
  * milliseconds.  It also allows changing the delayed ack frequency.
  * Changing the frequency to 1 disables the delayed sack algorithm.  If
  * the assoc_id is 0, then this sets or gets the endpoints default
- * values.  If the assoc_id field is non-zero, then the set or get
+ * values.  If the assoc_id field is yesn-zero, then the set or get
  * effects the specified association for the one to many model (the
- * assoc_id field is ignored by the one to one model).  Note that if
+ * assoc_id field is igyesred by the one to one model).  Note that if
  * sack_delay or sack_freq are 0 when setting this option, then the
  * current values will remain unchanged.
  *
@@ -2810,7 +2810,7 @@ static int sctp_setsockopt_delayed_ack(struct sock *sk,
 
 	/* Get association, if sack_assoc_id != SCTP_FUTURE_ASSOC and the
 	 * socket is a one to many style socket, and an association
-	 * was not found, then the id was invalid.
+	 * was yest found, then the id was invalid.
 	 */
 	asoc = sctp_id2assoc(sk, params.sack_assoc_id);
 	if (!asoc && params.sack_assoc_id > SCTP_ALL_ASSOC &&
@@ -2888,7 +2888,7 @@ static int sctp_setsockopt_initmsg(struct sock *sk, char __user *optval, unsigne
  * 7.1.14 Set default send parameters (SCTP_DEFAULT_SEND_PARAM)
  *
  *   Applications that wish to use the sendto() system call may wish to
- *   specify a default set of parameters that would normally be supplied
+ *   specify a default set of parameters that would yesrmally be supplied
  *   through the inclusion of ancillary data.  This socket option allows
  *   such an application to set the default sctp_sndrcvinfo structure.
  *   The application that wishes to use this socket option simply passes
@@ -3058,11 +3058,11 @@ static int sctp_setsockopt_primary_addr(struct sock *sk, char __user *optval,
  * 7.1.5 SCTP_NODELAY
  *
  * Turn on/off any Nagle-like algorithm.  This means that packets are
- * generally sent as soon as possible and no unnecessary delays are
+ * generally sent as soon as possible and yes unnecessary delays are
  * introduced, at the cost of more packets in the network.  Expects an
  *  integer boolean flag.
  */
-static int sctp_setsockopt_nodelay(struct sock *sk, char __user *optval,
+static int sctp_setsockopt_yesdelay(struct sock *sk, char __user *optval,
 				   unsigned int optlen)
 {
 	int val;
@@ -3072,7 +3072,7 @@ static int sctp_setsockopt_nodelay(struct sock *sk, char __user *optval,
 	if (get_user(val, (int __user *)optval))
 		return -EFAULT;
 
-	sctp_sk(sk)->nodelay = (val == 0) ? 0 : 1;
+	sctp_sk(sk)->yesdelay = (val == 0) ? 0 : 1;
 	return 0;
 }
 
@@ -3084,7 +3084,7 @@ static int sctp_setsockopt_nodelay(struct sock *sk, char __user *optval,
  * timeout (RTO) are tunable. sctp_rtoinfo structure is used to access
  * and modify these parameters.
  * All parameters are time values, in milliseconds.  A value of 0, when
- * modifying the parameters, indicates that the current value should not
+ * modifying the parameters, indicates that the current value should yest
  * be changed.
  *
  */
@@ -3131,7 +3131,7 @@ static int sctp_setsockopt_rtoinfo(struct sock *sk, char __user *optval, unsigne
 		asoc->rto_max = rto_max;
 		asoc->rto_min = rto_min;
 	} else {
-		/* If there is no association or the association-id = 0
+		/* If there is yes association or the association-id = 0
 		 * set the values to the endpoint.
 		 */
 		if (rtoinfo.srto_initial != 0)
@@ -3218,7 +3218,7 @@ static int sctp_setsockopt_associnfo(struct sock *sk, char __user *optval, unsig
  * This socket option is a boolean flag which turns on or off mapped V4
  * addresses.  If this option is turned on and the socket is type
  * PF_INET6, then IPv4 addresses will be mapped to V6 representation.
- * If this option is turned off, then no mapping will be done of V4
+ * If this option is turned off, then yes mapping will be done of V4
  * addresses and a user will receive both PF_INET6 and PF_INET type
  * addresses on the socket.
  */
@@ -3259,7 +3259,7 @@ static int sctp_setsockopt_mappedv4(struct sock *sk, char __user *optval, unsign
  *   uint32_t assoc_value;
  * };
  *
- * assoc_id:  This parameter is ignored for one-to-one style sockets.
+ * assoc_id:  This parameter is igyesred for one-to-one style sockets.
  *    For one-to-many style sockets this parameter indicates which
  *    association the user is performing an action upon.  Note that if
  *    this field's value is zero then the endpoints default value is
@@ -3408,7 +3408,7 @@ static int sctp_setsockopt_adaptation_layer(struct sock *sk, char __user *optval
 /*
  * 7.1.29.  Set or Get the default context (SCTP_CONTEXT)
  *
- * The context field in the sctp_sndrcvinfo structure is normally only
+ * The context field in the sctp_sndrcvinfo structure is yesrmally only
  * used when a failed message is retrieved holding the value that was
  * sent down on the actual send call.  This option allows the setting of
  * a default context on an association basis that will be received on
@@ -3416,7 +3416,7 @@ static int sctp_setsockopt_adaptation_layer(struct sock *sk, char __user *optval
  * one-2-many model for an application to keep some reference to an
  * internal state machine that is processing messages on the
  * association.  Note that the setting of this value only effects
- * received messages from the peer and does not effect the value that is
+ * received messages from the peer and does yest effect the value that is
  * saved with outbound messages.
  */
 static int sctp_setsockopt_context(struct sock *sk, char __user *optval,
@@ -3465,14 +3465,14 @@ static int sctp_setsockopt_context(struct sock *sk, char __user *optval,
  * socket, is when subsequent calls to receive a message may return
  * parts of messages from different associations.  Some implementations
  * may allow you to turn this value on or off.  If so, when turned off,
- * no fragment interleave will occur (which will cause a head of line
+ * yes fragment interleave will occur (which will cause a head of line
  * blocking amongst multiple associations sharing the same one to many
  * socket).  When this option is turned on, then each receive call may
  * come from a different association (thus the user must receive data
  * with the extended calls (e.g. sctp_recvmsg) to keep track of which
  * association each receive belongs to.
  *
- * This option takes a boolean value.  A non-zero value indicates that
+ * This option takes a boolean value.  A yesn-zero value indicates that
  * fragmented interleave is on.  A value of zero indicates that
  * fragmented interleave is off.
  *
@@ -3514,7 +3514,7 @@ static int sctp_setsockopt_fragment_interleave(struct sock *sk,
  *
  * Note that any single message having a length smaller than or equal to
  * the SCTP partial delivery point will be delivered in one single read
- * call as long as the user provided buffer is large enough to hold the
+ * call as long as the user provided buffer is large eyesugh to hold the
  * message.
  */
 static int sctp_setsockopt_partial_delivery_point(struct sock *sk,
@@ -3900,8 +3900,8 @@ static int sctp_setsockopt_deactivate_key(struct sock *sk, char __user *optval,
  * that this option has two caveats namely: a) it only affects sockets that
  * are bound to all addresses available to the SCTP stack, and b) the system
  * administrator may have an overriding control that turns the ASCONF feature
- * off no matter what setting the socket option may have.
- * This option expects an integer boolean flag, where a non-zero value turns on
+ * off yes matter what setting the socket option may have.
+ * This option expects an integer boolean flag, where a yesn-zero value turns on
  * the option, and a zero value turns off the option.
  * Note. In this implementation, socket operation overrides default parameter
  * being set by sysctl as well as FreeBSD implementation
@@ -4663,14 +4663,14 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 
 	/* I can hardly begin to describe how wrong this is.  This is
 	 * so broken as to be worse than useless.  The API draft
-	 * REALLY is NOT helpful here...  I am not convinced that the
+	 * REALLY is NOT helpful here...  I am yest convinced that the
 	 * semantics of setsockopt() with a level OTHER THAN SOL_SCTP
 	 * are at all well-founded.
 	 */
 	if (level != SOL_SCTP) {
 		struct sctp_af *af = sctp_sk(sk)->pf->af;
 		retval = af->setsockopt(sk, level, optname, optval, optlen);
-		goto out_nounlock;
+		goto out_yesunlock;
 	}
 
 	lock_sock(sk);
@@ -4742,7 +4742,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		retval = sctp_setsockopt_peer_primary_addr(sk, optval, optlen);
 		break;
 	case SCTP_NODELAY:
-		retval = sctp_setsockopt_nodelay(sk, optval, optlen);
+		retval = sctp_setsockopt_yesdelay(sk, optval, optlen);
 		break;
 	case SCTP_RTOINFO:
 		retval = sctp_setsockopt_rtoinfo(sk, optval, optlen);
@@ -4859,7 +4859,7 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 
 	release_sock(sk);
 
-out_nounlock:
+out_yesunlock:
 	return retval;
 }
 
@@ -5105,13 +5105,13 @@ static int sctp_init_sock(struct sock *sk)
 			  SPP_SACKDELAY_ENABLE;
 	sp->default_ss = SCTP_SS_DEFAULT;
 
-	/* If enabled no SCTP message fragmentation will be performed.
+	/* If enabled yes SCTP message fragmentation will be performed.
 	 * Configure through SCTP_DISABLE_FRAGMENTS socket option.
 	 */
 	sp->disable_fragments = 0;
 
 	/* Enable Nagle algorithm by default.  */
-	sp->nodelay           = 0;
+	sp->yesdelay           = 0;
 
 	sp->recvrcvinfo = 0;
 	sp->recvnxtinfo = 0;
@@ -5186,7 +5186,7 @@ static void sctp_destroy_sock(struct sock *sk)
 	/* Release our hold on the endpoint. */
 	sp = sctp_sk(sk);
 	/* This could happen during socket init, thus we bail out
-	 * early, since the rest of the below is not setup either.
+	 * early, since the rest of the below is yest setup either.
 	 */
 	if (sp->ep == NULL)
 		return;
@@ -5202,7 +5202,7 @@ static void sctp_destroy_sock(struct sock *sk)
 	local_bh_enable();
 }
 
-/* Triggered when there are no references on the socket anymore */
+/* Triggered when there are yes references on the socket anymore */
 static void sctp_destruct_sock(struct sock *sk)
 {
 	struct sctp_sock *sp = sctp_sk(sk);
@@ -5262,7 +5262,7 @@ int sctp_get_sctp_info(struct sock *sk, struct sctp_association *asoc,
 		info->sctpi_s_autoclose = sp->autoclose;
 		info->sctpi_s_adaptation_ind = sp->adaptation_ind;
 		info->sctpi_s_pd_point = sp->pd_point;
-		info->sctpi_s_nodelay = sp->nodelay;
+		info->sctpi_s_yesdelay = sp->yesdelay;
 		info->sctpi_s_disable_fragments = sp->disable_fragments;
 		info->sctpi_s_v4mapped = sp->v4mapped;
 		info->sctpi_s_frag_interleave = sp->frag_interleave;
@@ -5298,7 +5298,7 @@ int sctp_get_sctp_info(struct sock *sk, struct sctp_association *asoc,
 	info->sctpi_peer_capable = mask;
 	mask = asoc->peer.sack_needed << 1;
 	mask = (mask | asoc->peer.sack_generation) << 1;
-	mask = (mask | asoc->peer.zero_window_announced);
+	mask = (mask | asoc->peer.zero_window_anyesunced);
 	info->sctpi_peer_sack = mask;
 
 	info->sctpi_isacks = asoc->stats.isacks;
@@ -5614,7 +5614,7 @@ out:
 
 /* 7.1.12 Enable/Disable message fragmentation (SCTP_DISABLE_FRAGMENTS)
  *
- * This option is a on/off flag.  If enabled no SCTP message
+ * This option is a on/off flag.  If enabled yes SCTP message
  * fragmentation will be performed.  Instead if a message being sent
  * exceeds the current PMTU size, the message will NOT be sent and
  * instead a error will be indicated to the user.
@@ -5636,9 +5636,9 @@ static int sctp_getsockopt_disable_fragments(struct sock *sk, int len,
 	return 0;
 }
 
-/* 7.1.15 Set notification and ancillary events (SCTP_EVENTS)
+/* 7.1.15 Set yestification and ancillary events (SCTP_EVENTS)
  *
- * This socket option is used to specify various notifications and
+ * This socket option is used to specify various yestifications and
  * ancillary data the user wishes to receive.
  */
 static int sctp_getsockopt_events(struct sock *sk, int len, char __user *optval,
@@ -5671,7 +5671,7 @@ static int sctp_getsockopt_events(struct sock *sk, int len, char __user *optval,
  * set it will cause associations that are idle for more than the
  * specified number of seconds to automatically close.  An association
  * being idle is defined an association that has NOT sent or received
- * user data.  The special value of '0' indicates that no automatic
+ * user data.  The special value of '0' indicates that yes automatic
  * close of any associations should be performed.  The option expects an
  * integer defining the number of seconds of idle time before an
  * association is closed.
@@ -5699,15 +5699,15 @@ int sctp_do_peeloff(struct sock *sk, sctp_assoc_t id, struct socket **sockp)
 	struct socket *sock;
 	int err = 0;
 
-	/* Do not peel off from one netns to another one. */
+	/* Do yest peel off from one netns to ayesther one. */
 	if (!net_eq(current->nsproxy->net_ns, sock_net(sk)))
 		return -EINVAL;
 
 	if (!asoc)
 		return -EINVAL;
 
-	/* An association cannot be branched off from an already peeled-off
-	 * socket, nor is this supported for tcp style sockets.
+	/* An association canyest be branched off from an already peeled-off
+	 * socket, yesr is this supported for tcp style sockets.
 	 */
 	if (!sctp_style(sk, UDP))
 		return -EINVAL;
@@ -5871,12 +5871,12 @@ out:
  *   spp_address     - This specifies which address is of interest.
  *   spp_hbinterval  - This contains the value of the heartbeat interval,
  *                     in milliseconds.  If a  value of zero
- *                     is present in this field then no changes are to
+ *                     is present in this field then yes changes are to
  *                     be made to this parameter.
  *   spp_pathmaxrxt  - This contains the maximum number of
  *                     retransmissions before this address shall be
  *                     considered unreachable. If a  value of zero
- *                     is present in this field then no changes are to
+ *                     is present in this field then yes changes are to
  *                     be made to this parameter.
  *   spp_pathmtu     - When Path MTU discovery is disabled the value
  *                     specified here will be the "fixed" path mtu.
@@ -5889,7 +5889,7 @@ out:
  *                     for. This value will apply to all addresses of an
  *                     association if the spp_address field is empty. Note
  *                     also, that if delayed sack is enabled and this
- *                     value is set to 0, no change is made to the last
+ *                     value is set to 0, yes change is made to the last
  *                     recorded delayed sack timer value.
  *
  *   spp_flags       - These flags are used to control various features
@@ -5947,10 +5947,10 @@ out:
  *                     If a specific destination address is set (in the
  *                     spp_address field), then the value returned is that of
  *                     the address.  If just an association is specified (and
- *                     no address), then the association's default flow label
- *                     is returned.  If neither an association nor a destination
+ *                     yes address), then the association's default flow label
+ *                     is returned.  If neither an association yesr a destination
  *                     is specified, then the socket's default flow label is
- *                     returned.  For non-IPv6 sockets, this flag will be left
+ *                     returned.  For yesn-IPv6 sockets, this flag will be left
  *                     cleared.
  *
  *                     SPP_DSCP:  Setting this flag enables the setting of the
@@ -5963,7 +5963,7 @@ out:
  *                     spp_address field), then that specific destination
  *                     address's DSCP value is returned.  If just an association
  *                     is specified, then the association's default DSCP is
- *                     returned.  If neither an association nor a destination is
+ *                     returned.  If neither an association yesr a destination is
  *                     specified, then the socket's default DSCP is returned.
  *
  *   spp_ipv6_flowlabel
@@ -5999,25 +5999,25 @@ static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
 		return -EFAULT;
 
 	/* If an address other than INADDR_ANY is specified, and
-	 * no transport is found, then the request is invalid.
+	 * yes transport is found, then the request is invalid.
 	 */
 	if (!sctp_is_any(sk, (union sctp_addr *)&params.spp_address)) {
 		trans = sctp_addr_id2transport(sk, &params.spp_address,
 					       params.spp_assoc_id);
 		if (!trans) {
-			pr_debug("%s: failed no transport\n", __func__);
+			pr_debug("%s: failed yes transport\n", __func__);
 			return -EINVAL;
 		}
 	}
 
 	/* Get association, if assoc_id != SCTP_FUTURE_ASSOC and the
 	 * socket is a one to many style socket, and an association
-	 * was not found, then the id was invalid.
+	 * was yest found, then the id was invalid.
 	 */
 	asoc = sctp_id2assoc(sk, params.spp_assoc_id);
 	if (!asoc && params.spp_assoc_id != SCTP_FUTURE_ASSOC &&
 	    sctp_style(sk, UDP)) {
-		pr_debug("%s: failed no association\n", __func__);
+		pr_debug("%s: failed yes association\n", __func__);
 		return -EINVAL;
 	}
 
@@ -6094,9 +6094,9 @@ static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
  * milliseconds.  It also allows changing the delayed ack frequency.
  * Changing the frequency to 1 disables the delayed sack algorithm.  If
  * the assoc_id is 0, then this sets or gets the endpoints default
- * values.  If the assoc_id field is non-zero, then the set or get
+ * values.  If the assoc_id field is yesn-zero, then the set or get
  * effects the specified association for the one to many model (the
- * assoc_id field is ignored by the one to one model).  Note that if
+ * assoc_id field is igyesred by the one to one model).  Note that if
  * sack_delay or sack_freq are 0 when setting this option, then the
  * current values will remain unchanged.
  *
@@ -6147,7 +6147,7 @@ static int sctp_getsockopt_delayed_ack(struct sock *sk, int len,
 
 	/* Get association, if sack_assoc_id != SCTP_FUTURE_ASSOC and the
 	 * socket is a one to many style socket, and an association
-	 * was not found, then the id was invalid.
+	 * was yest found, then the id was invalid.
 	 */
 	asoc = sctp_id2assoc(sk, params.sack_assoc_id);
 	if (!asoc && params.sack_assoc_id != SCTP_FUTURE_ASSOC &&
@@ -6368,7 +6368,7 @@ static int sctp_getsockopt_local_addrs(struct sock *sk, int len,
 	}
 
 	buf = addrs;
-	/* Protection on the bound address list is not needed since
+	/* Protection on the bound address list is yest needed since
 	 * in the socket option context we hold a socket lock and
 	 * thus the bound address list can't change.
 	 */
@@ -6479,7 +6479,7 @@ static int sctp_getsockopt_adaptation_layer(struct sock *sk, int len,
  * 7.1.14 Set default send parameters (SCTP_DEFAULT_SEND_PARAM)
  *
  *   Applications that wish to use the sendto() system call may wish to
- *   specify a default set of parameters that would normally be supplied
+ *   specify a default set of parameters that would yesrmally be supplied
  *   through the inclusion of ancillary data.  This socket option allows
  *   such an application to set the default sctp_sndrcvinfo structure.
 
@@ -6585,12 +6585,12 @@ static int sctp_getsockopt_default_sndinfo(struct sock *sk, int len,
  * 7.1.5 SCTP_NODELAY
  *
  * Turn on/off any Nagle-like algorithm.  This means that packets are
- * generally sent as soon as possible and no unnecessary delays are
+ * generally sent as soon as possible and yes unnecessary delays are
  * introduced, at the cost of more packets in the network.  Expects an
  * integer boolean flag.
  */
 
-static int sctp_getsockopt_nodelay(struct sock *sk, int len,
+static int sctp_getsockopt_yesdelay(struct sock *sk, int len,
 				   char __user *optval, int __user *optlen)
 {
 	int val;
@@ -6599,7 +6599,7 @@ static int sctp_getsockopt_nodelay(struct sock *sk, int len,
 		return -EINVAL;
 
 	len = sizeof(int);
-	val = (sctp_sk(sk)->nodelay == 1);
+	val = (sctp_sk(sk)->yesdelay == 1);
 	if (put_user(len, optlen))
 		return -EFAULT;
 	if (copy_to_user(optval, &val, len))
@@ -6615,7 +6615,7 @@ static int sctp_getsockopt_nodelay(struct sock *sk, int len,
  * timeout (RTO) are tunable. sctp_rtoinfo structure is used to access
  * and modify these parameters.
  * All parameters are time values, in milliseconds.  A value of 0, when
- * modifying the parameters, indicates that the current value should not
+ * modifying the parameters, indicates that the current value should yest
  * be changed.
  *
  */
@@ -6738,7 +6738,7 @@ static int sctp_getsockopt_associnfo(struct sock *sk, int len,
  * This socket option is a boolean flag which turns on or off mapped V4
  * addresses.  If this option is turned on and the socket is type
  * PF_INET6, then IPv4 addresses will be mapped to V6 representation.
- * If this option is turned off, then no mapping will be done of V4
+ * If this option is turned off, then yes mapping will be done of V4
  * addresses and a user will receive both PF_INET6 and PF_INET type
  * addresses on the socket.
  */
@@ -6815,7 +6815,7 @@ static int sctp_getsockopt_context(struct sock *sk, int len,
  *   uint32_t assoc_value;
  * };
  *
- * assoc_id:  This parameter is ignored for one-to-one style sockets.
+ * assoc_id:  This parameter is igyesred for one-to-one style sockets.
  *    For one-to-many style sockets this parameter indicates which
  *    association the user is performing an action upon.  Note that if
  *    this field's value is zero then the endpoints default value is
@@ -7056,7 +7056,7 @@ static int sctp_getsockopt_peer_auth_chunks(struct sock *sk, int len,
 	if (!ch)
 		goto num;
 
-	/* See if the user provided enough room for all the data */
+	/* See if the user provided eyesugh room for all the data */
 	num_chunks = ntohs(ch->param_hdr.length) - sizeof(struct sctp_paramhdr);
 	if (len < num_chunks)
 		return -EINVAL;
@@ -7328,7 +7328,7 @@ static int sctp_getsockopt_assoc_stats(struct sock *sk, int len,
 	sas.sas_opackets = asoc->stats.opackets;
 	sas.sas_ipackets = asoc->stats.ipackets;
 
-	/* New high max rto observed, will return 0 if not a single
+	/* New high max rto observed, will return 0 if yest a single
 	 * RTO update took place. obs_rto_ipaddr will be bogus
 	 * in such a case
 	 */
@@ -8017,7 +8017,7 @@ static int sctp_getsockopt(struct sock *sk, int level, int optname,
 
 	/* I can hardly begin to describe how wrong this is.  This is
 	 * so broken as to be worse than useless.  The API draft
-	 * REALLY is NOT helpful here...  I am not convinced that the
+	 * REALLY is NOT helpful here...  I am yest convinced that the
 	 * semantics of getsockopt() with a level OTHER THAN SOL_SCTP
 	 * are at all well-founded.
 	 */
@@ -8090,7 +8090,7 @@ static int sctp_getsockopt(struct sock *sk, int level, int optname,
 		retval = sctp_getsockopt_primary_addr(sk, len, optval, optlen);
 		break;
 	case SCTP_NODELAY:
-		retval = sctp_getsockopt_nodelay(sk, len, optval, optlen);
+		retval = sctp_getsockopt_yesdelay(sk, len, optval, optlen);
 		break;
 	case SCTP_RTOINFO:
 		retval = sctp_getsockopt_rtoinfo(sk, len, optval, optlen);
@@ -8312,13 +8312,13 @@ static int sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 			goto fail;
 
 		/* OK, here is the one we will use.  HEAD (the port
-		 * hash table list entry) is non-NULL and we hold it's
+		 * hash table list entry) is yesn-NULL and we hold it's
 		 * mutex.
 		 */
 		snum = rover;
 	} else {
 		/* We are given an specific port number; we verify
-		 * that it is not being used. If it is used, we will
+		 * that it is yest being used. If it is used, we will
 		 * exahust the search in the hash list corresponding
 		 * to the port number (snum) - we detect that with the
 		 * port iterator, pp being NULL.
@@ -8331,12 +8331,12 @@ static int sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 		}
 	}
 	pp = NULL;
-	goto pp_not_found;
+	goto pp_yest_found;
 pp_found:
 	if (!hlist_empty(&pp->owner)) {
 		/* We had a port hash table hit - there is an
 		 * available port (pp != NULL) and it is being
-		 * used by other socket (pp->owner not empty); that other
+		 * used by other socket (pp->owner yest empty); that other
 		 * socket is going to be sk2.
 		 */
 		struct sock *sk2;
@@ -8379,7 +8379,7 @@ pp_found:
 
 		pr_debug("%s: found a match\n", __func__);
 	}
-pp_not_found:
+pp_yest_found:
 	/* If there was a hash table miss, create a new port.  */
 	ret = 1;
 	if (!pp && !(pp = sctp_bucket_create(head, net, snum)))
@@ -8418,7 +8418,7 @@ pp_not_found:
 success:
 	if (!sp->bind_hash) {
 		inet_sk(sk)->inet_num = snum;
-		sk_add_bind_node(sk, &pp->owner);
+		sk_add_bind_yesde(sk, &pp->owner);
 		sp->bind_hash = pp;
 	}
 	ret = 0;
@@ -8470,12 +8470,12 @@ static int sctp_listen_start(struct sock *sk, int backlog)
 	}
 
 	/*
-	 * If a bind() or sctp_bindx() is not called prior to a listen()
+	 * If a bind() or sctp_bindx() is yest called prior to a listen()
 	 * call that allows new associations to be accepted, the system
 	 * picks an ephemeral port and will choose an address set equivalent
 	 * to binding with a wildcard address.
 	 *
-	 * This is not currently spelled out in the SCTP sockets
+	 * This is yest currently spelled out in the SCTP sockets
 	 * extensions draft, but follows the practice as seen in TCP
 	 * sockets.
 	 *
@@ -8498,7 +8498,7 @@ static int sctp_listen_start(struct sock *sk, int backlog)
 /*
  * 4.1.3 / 5.1.3 listen()
  *
- *   By default, new associations are not accepted for UDP style sockets.
+ *   By default, new associations are yest accepted for UDP style sockets.
  *   An application uses listen() to mark a socket as being able to
  *   accept new associations.
  *
@@ -8520,7 +8520,7 @@ int sctp_inet_listen(struct socket *sock, int backlog)
 
 	lock_sock(sk);
 
-	/* Peeled-off sockets are not allowed to listen().  */
+	/* Peeled-off sockets are yest allowed to listen().  */
 	if (sctp_style(sk, UDP_HIGH_BANDWIDTH))
 		goto out;
 
@@ -8567,7 +8567,7 @@ out:
  * in this place.  We assume that we don't need locks either until proven
  * otherwise.
  *
- * Another thing to note is that we include the Async I/O support
+ * Ayesther thing to yeste is that we include the Async I/O support
  * here, again, by modeling the current TCP/UDP code.  We don't have
  * a good way to test with it yet.
  */
@@ -8582,7 +8582,7 @@ __poll_t sctp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	sock_rps_record_flow(sk);
 
 	/* A TCP-style listening socket becomes readable when the accept queue
-	 * is not empty.
+	 * is yest empty.
 	 */
 	if (sctp_style(sk, TCP) && sctp_sstate(sk, LISTENING))
 		return (!list_empty(&sp->ep->asocs)) ?
@@ -8603,7 +8603,7 @@ __poll_t sctp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
 		mask |= EPOLLIN | EPOLLRDNORM;
 
-	/* The association is either gone or not ready.  */
+	/* The association is either gone or yest ready.  */
 	if (!sctp_style(sk, UDP) && sctp_sstate(sk, CLOSED))
 		return mask;
 
@@ -8613,7 +8613,7 @@ __poll_t sctp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	} else {
 		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 		/*
-		 * Since the socket is not locked, the buffer
+		 * Since the socket is yest locked, the buffer
 		 * might be made available after the writeable check and
 		 * before the bit is set.  This could cause a lost I/O
 		 * signal.  tcp_poll() has a race breaker for this race
@@ -8642,7 +8642,7 @@ static struct sctp_bind_bucket *sctp_bucket_create(
 		pp->fastreuse = 0;
 		INIT_HLIST_HEAD(&pp->owner);
 		pp->net = net;
-		hlist_add_head(&pp->node, &head->chain);
+		hlist_add_head(&pp->yesde, &head->chain);
 	}
 	return pp;
 }
@@ -8651,7 +8651,7 @@ static struct sctp_bind_bucket *sctp_bucket_create(
 static void sctp_bucket_destroy(struct sctp_bind_bucket *pp)
 {
 	if (pp && hlist_empty(&pp->owner)) {
-		__hlist_del(&pp->node);
+		__hlist_del(&pp->yesde);
 		kmem_cache_free(sctp_bucket_cachep, pp);
 		SCTP_DBG_OBJCNT_DEC(bind_bucket);
 	}
@@ -8667,7 +8667,7 @@ static inline void __sctp_put_port(struct sock *sk)
 
 	spin_lock(&head->lock);
 	pp = sctp_sk(sk)->bind_hash;
-	__sk_del_bind_node(sk);
+	__sk_del_bind_yesde(sk);
 	sctp_sk(sk)->bind_hash = NULL;
 	inet_sk(sk)->inet_num = 0;
 	sctp_bucket_destroy(pp);
@@ -8750,7 +8750,7 @@ static int sctp_msghdr_parse(const struct msghdr *msg, struct sctp_cmsgs *cmsgs)
 		if (!CMSG_OK(my_msg, cmsg))
 			return -EINVAL;
 
-		/* Should we parse this header or ignore?  */
+		/* Should we parse this header or igyesre?  */
 		if (cmsg->cmsg_level != IPPROTO_SCTP)
 			continue;
 
@@ -8763,7 +8763,7 @@ static int sctp_msghdr_parse(const struct msghdr *msg, struct sctp_cmsgs *cmsgs)
 			 * This cmsghdr structure provides information for
 			 * initializing new SCTP associations with sendmsg().
 			 * The SCTP_INITMSG socket option uses this same data
-			 * structure.  This structure is not used for
+			 * structure.  This structure is yest used for
 			 * recvmsg().
 			 *
 			 * cmsg_level    cmsg_type      cmsg_data[]
@@ -8918,10 +8918,10 @@ static int sctp_wait_for_packet(struct sock *sk, int *err, long *timeo_p)
 	if (signal_pending(current))
 		goto interrupted;
 
-	/* Let another process have a go.  Since we are going to sleep
+	/* Let ayesther process have a go.  Since we are going to sleep
 	 * anyway.  Note: This may cause odd behaviors if the message
-	 * does not fit in the user's buffer, but this seems to be the
-	 * only way to honor MSG_DONTWAIT realistically.
+	 * does yest fit in the user's buffer, but this seems to be the
+	 * only way to hoyesr MSG_DONTWAIT realistically.
 	 */
 	release_sock(sk);
 	*timeo_p = schedule_timeout(*timeo_p);
@@ -8932,7 +8932,7 @@ ready:
 	return 0;
 
 interrupted:
-	error = sock_intr_errno(*timeo_p);
+	error = sock_intr_erryes(*timeo_p);
 
 out:
 	finish_wait(sk_sleep(sk), &wait);
@@ -8945,20 +8945,20 @@ out:
  * with a few changes to make lksctp work.
  */
 struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
-				       int noblock, int *err)
+				       int yesblock, int *err)
 {
 	int error;
 	struct sk_buff *skb;
 	long timeo;
 
-	timeo = sock_rcvtimeo(sk, noblock);
+	timeo = sock_rcvtimeo(sk, yesblock);
 
 	pr_debug("%s: timeo:%ld, max:%ld\n", __func__, timeo,
 		 MAX_SCHEDULE_TIMEOUT);
 
 	do {
 		/* Again only user level code calls this function,
-		 * so nothing interrupt level
+		 * so yesthing interrupt level
 		 * will suddenly eat the receive_queue.
 		 *
 		 *  Look at current nfs client by the way...
@@ -8975,16 +8975,16 @@ struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
 		if (skb)
 			return skb;
 
-		/* Caller is allowed not to check sk->sk_err before calling. */
+		/* Caller is allowed yest to check sk->sk_err before calling. */
 		error = sock_error(sk);
 		if (error)
-			goto no_packet;
+			goto yes_packet;
 
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			break;
 
 		if (sk_can_busy_loop(sk)) {
-			sk_busy_loop(sk, noblock);
+			sk_busy_loop(sk, yesblock);
 
 			if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
 				continue;
@@ -8993,12 +8993,12 @@ struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
 		/* User doesn't want to wait.  */
 		error = -EAGAIN;
 		if (!timeo)
-			goto no_packet;
+			goto yes_packet;
 	} while (sctp_wait_for_packet(sk, err, &timeo) == 0);
 
 	return NULL;
 
-no_packet:
+yes_packet:
 	*err = error;
 	return NULL;
 }
@@ -9025,7 +9025,7 @@ static void __sctp_write_space(struct sctp_association *asoc)
 
 			/* Note that we try to include the Async I/O support
 			 * here by modeling from the current TCP/UDP code.
-			 * We have not tested with it yet.
+			 * We have yest tested with it yet.
 			 */
 			if (!(sk->sk_shutdown & SEND_SHUTDOWN))
 				sock_wake_async(wq, SOCK_WAKE_SPACE, POLL_OUT);
@@ -9046,7 +9046,7 @@ static void sctp_wake_up_waiters(struct sock *sk,
 		return __sctp_write_space(asoc);
 
 	/* If association goes down and is just flushing its
-	 * outq, then just normally notify others.
+	 * outq, then just yesrmally yestify others.
 	 */
 	if (asoc->base.dead)
 		return sctp_write_space(sk);
@@ -9059,7 +9059,7 @@ static void sctp_wake_up_waiters(struct sock *sk,
 	 * Note that we reach sctp_wake_up_waiters() only when
 	 * associations free up queued chunks, thus we are under
 	 * lock and the list of associations on a socket is
-	 * guaranteed not to change.
+	 * guaranteed yest to change.
 	 */
 	for (tmp = list_next_entry(tmp, asocs); 1;
 	     tmp = list_next_entry(tmp, asocs)) {
@@ -9094,7 +9094,7 @@ static void sctp_wfree(struct sk_buff *skb)
 		struct sctp_shared_key *shkey = chunk->shkey;
 
 		/* refcnt == 2 and !list_empty mean after this release, it's
-		 * not being used anywhere, and it's time to notify userland
+		 * yest being used anywhere, and it's time to yestify userland
 		 * that this shkey can be freed if it's been deactivated.
 		 */
 		if (shkey->deactivated && !list_empty(&shkey->key_list) &&
@@ -9157,7 +9157,7 @@ static int sctp_wait_for_sndbuf(struct sctp_association *asoc, long *timeo_p,
 		if (asoc->base.dead)
 			goto do_dead;
 		if (!*timeo_p)
-			goto do_nonblock;
+			goto do_yesnblock;
 		if (sk->sk_err || asoc->state >= SCTP_STATE_SHUTDOWN_PENDING)
 			goto do_error;
 		if (signal_pending(current))
@@ -9168,7 +9168,7 @@ static int sctp_wait_for_sndbuf(struct sctp_association *asoc, long *timeo_p,
 		    sk_wmem_schedule(sk, msg_len))
 			break;
 
-		/* Let another process have a go.  Since we are going
+		/* Let ayesther process have a go.  Since we are going
 		 * to sleep anyway.
 		 */
 		release_sock(sk);
@@ -9197,10 +9197,10 @@ do_error:
 	goto out;
 
 do_interrupted:
-	err = sock_intr_errno(*timeo_p);
+	err = sock_intr_erryes(*timeo_p);
 	goto out;
 
-do_nonblock:
+do_yesnblock:
 	err = -EAGAIN;
 	goto out;
 }
@@ -9264,7 +9264,7 @@ static int sctp_wait_for_connect(struct sctp_association *asoc, long *timeo_p)
 		prepare_to_wait_exclusive(&asoc->wait, &wait,
 					  TASK_INTERRUPTIBLE);
 		if (!*timeo_p)
-			goto do_nonblock;
+			goto do_yesnblock;
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			break;
 		if (sk->sk_err || asoc->state >= SCTP_STATE_SHUTDOWN_PENDING ||
@@ -9276,7 +9276,7 @@ static int sctp_wait_for_connect(struct sctp_association *asoc, long *timeo_p)
 		if (sctp_state(asoc, ESTABLISHED))
 			break;
 
-		/* Let another process have a go.  Since we are going
+		/* Let ayesther process have a go.  Since we are going
 		 * to sleep anyway.
 		 */
 		release_sock(sk);
@@ -9302,10 +9302,10 @@ do_error:
 	goto out;
 
 do_interrupted:
-	err = sock_intr_errno(*timeo_p);
+	err = sock_intr_erryes(*timeo_p);
 	goto out;
 
-do_nonblock:
+do_yesnblock:
 	err = -EINPROGRESS;
 	goto out;
 }
@@ -9337,7 +9337,7 @@ static int sctp_wait_for_accept(struct sock *sk, long timeo)
 		if (!list_empty(&ep->asocs))
 			break;
 
-		err = sock_intr_errno(timeo);
+		err = sock_intr_erryes(timeo);
 		if (signal_pending(current))
 			break;
 
@@ -9394,8 +9394,8 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 	newsk->sk_bound_dev_if = sk->sk_bound_dev_if;
 	newsk->sk_flags = sk->sk_flags;
 	newsk->sk_tsflags = sk->sk_tsflags;
-	newsk->sk_no_check_tx = sk->sk_no_check_tx;
-	newsk->sk_no_check_rx = sk->sk_no_check_rx;
+	newsk->sk_yes_check_tx = sk->sk_yes_check_tx;
+	newsk->sk_yes_check_rx = sk->sk_yes_check_rx;
 	newsk->sk_reuse = sk->sk_reuse;
 	sctp_sk(newsk)->reuse = sp->reuse;
 
@@ -9486,7 +9486,7 @@ static int sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 						 inet_sk(oldsk)->inet_num)];
 	spin_lock_bh(&head->lock);
 	pp = sctp_sk(oldsk)->bind_hash;
-	sk_add_bind_node(newsk, &pp->owner);
+	sk_add_bind_yesde(newsk, &pp->owner);
 	sctp_sk(newsk)->bind_hash = pp;
 	inet_sk(newsk)->inet_num = inet_sk(oldsk)->inet_num;
 	spin_unlock_bh(&head->lock);
@@ -9523,9 +9523,9 @@ static int sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 
 	/* Clean up any messages pending delivery due to partial
 	 * delivery.   Three cases:
-	 * 1) No partial deliver;  no work.
+	 * 1) No partial deliver;  yes work.
 	 * 2) Peeling off partial delivery; keep pd_lobby in new pd_lobby.
-	 * 3) Peeling off non-partial delivery; move pd_lobby to receive_queue.
+	 * 3) Peeling off yesn-partial delivery; move pd_lobby to receive_queue.
 	 */
 	atomic_set(&sctp_sk(newsk)->pd_mode, assoc->ulpq.pd_mode);
 
@@ -9615,7 +9615,7 @@ struct proto sctp_prot = {
 	.backlog_rcv =	sctp_backlog_rcv,
 	.hash        =	sctp_hash,
 	.unhash      =	sctp_unhash,
-	.no_autobind =	true,
+	.yes_autobind =	true,
 	.obj_size    =  sizeof(struct sctp_sock),
 	.useroffset  =  offsetof(struct sctp_sock, subscribe),
 	.usersize    =  offsetof(struct sctp_sock, initmsg) -
@@ -9657,7 +9657,7 @@ struct proto sctpv6_prot = {
 	.backlog_rcv	= sctp_backlog_rcv,
 	.hash		= sctp_hash,
 	.unhash		= sctp_unhash,
-	.no_autobind	= true,
+	.yes_autobind	= true,
 	.obj_size	= sizeof(struct sctp6_sock),
 	.useroffset	= offsetof(struct sctp6_sock, sctp.subscribe),
 	.usersize	= offsetof(struct sctp6_sock, sctp.initmsg) -

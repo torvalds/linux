@@ -11,7 +11,7 @@
 //
 // This driver implements the Samsung pinctrl driver. It supports setting up of
 // pinmux and pinconf configurations. The gpiolib interface is also included.
-// External interrupt (gpio and wakeup) support are not included in this driver
+// External interrupt (gpio and wakeup) support are yest included in this driver
 // but provides extensions to which platform specific implementation of the gpio
 // and wakeup interrupts can be hooked to.
 
@@ -170,9 +170,9 @@ static void samsung_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static int samsung_dt_subnode_to_map(struct samsung_pinctrl_drv_data *drvdata,
+static int samsung_dt_subyesde_to_map(struct samsung_pinctrl_drv_data *drvdata,
 				     struct device *dev,
-				     struct device_node *np,
+				     struct device_yesde *np,
 				     struct pinctrl_map **map,
 				     unsigned *reserved_maps,
 				     unsigned *num_maps)
@@ -200,7 +200,7 @@ static int samsung_dt_subnode_to_map(struct samsung_pinctrl_drv_data *drvdata,
 				goto exit;
 		/* EINVAL=missing, which is fine since it's optional */
 		} else if (ret != -EINVAL) {
-			dev_err(dev, "could not parse property %s\n",
+			dev_err(dev, "could yest parse property %s\n",
 				cfg_params[i].property);
 		}
 	}
@@ -212,7 +212,7 @@ static int samsung_dt_subnode_to_map(struct samsung_pinctrl_drv_data *drvdata,
 		reserve++;
 	ret = of_property_count_strings(np, "samsung,pins");
 	if (ret < 0) {
-		dev_err(dev, "could not parse property samsung,pins\n");
+		dev_err(dev, "could yest parse property samsung,pins\n");
 		goto exit;
 	}
 	reserve *= ret;
@@ -245,14 +245,14 @@ exit:
 	return ret;
 }
 
-static int samsung_dt_node_to_map(struct pinctrl_dev *pctldev,
-					struct device_node *np_config,
+static int samsung_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+					struct device_yesde *np_config,
 					struct pinctrl_map **map,
 					unsigned *num_maps)
 {
 	struct samsung_pinctrl_drv_data *drvdata;
 	unsigned reserved_maps;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
 	drvdata = pinctrl_dev_get_drvdata(pctldev);
@@ -262,17 +262,17 @@ static int samsung_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = 0;
 
 	if (!of_get_child_count(np_config))
-		return samsung_dt_subnode_to_map(drvdata, pctldev->dev,
+		return samsung_dt_subyesde_to_map(drvdata, pctldev->dev,
 							np_config, map,
 							&reserved_maps,
 							num_maps);
 
-	for_each_child_of_node(np_config, np) {
-		ret = samsung_dt_subnode_to_map(drvdata, pctldev->dev, np, map,
+	for_each_child_of_yesde(np_config, np) {
+		ret = samsung_dt_subyesde_to_map(drvdata, pctldev->dev, np, map,
 						&reserved_maps, num_maps);
 		if (ret < 0) {
 			samsung_dt_free_map(pctldev, *map, *num_maps);
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 	}
@@ -311,7 +311,7 @@ static const struct pinctrl_ops samsung_pctrl_ops = {
 	.get_groups_count	= samsung_get_group_count,
 	.get_group_name		= samsung_get_group_name,
 	.get_group_pins		= samsung_get_group_pins,
-	.dt_node_to_map		= samsung_dt_node_to_map,
+	.dt_yesde_to_map		= samsung_dt_yesde_to_map,
 	.dt_free_map		= samsung_dt_free_map,
 #ifdef CONFIG_DEBUG_FS
 	.pin_dbg_show		= samsung_pin_dbg_show,
@@ -650,7 +650,7 @@ static int samsung_gpio_direction_output(struct gpio_chip *gc, unsigned offset,
 
 /*
  * gpiolib gpio_to_irq callback function. Creates a mapping between a GPIO pin
- * and a virtual IRQ, if not already present.
+ * and a virtual IRQ, if yest already present.
  */
 static int samsung_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
@@ -694,7 +694,7 @@ static struct samsung_pin_group *samsung_pinctrl_create_groups(
 
 static int samsung_pinctrl_create_function(struct device *dev,
 				struct samsung_pinctrl_drv_data *drvdata,
-				struct device_node *func_np,
+				struct device_yesde *func_np,
 				struct samsung_pmx_func *func)
 {
 	int npins;
@@ -706,7 +706,7 @@ static int samsung_pinctrl_create_function(struct device *dev,
 
 	npins = of_property_count_strings(func_np, "samsung,pins");
 	if (npins < 1) {
-		dev_err(dev, "invalid pin list in %pOFn node", func_np);
+		dev_err(dev, "invalid pin list in %pOFn yesde", func_np);
 		return -EINVAL;
 	}
 
@@ -723,7 +723,7 @@ static int samsung_pinctrl_create_function(struct device *dev,
 							i, &gname);
 		if (ret) {
 			dev_err(dev,
-				"failed to read pin name %d from %pOFn node\n",
+				"failed to read pin name %d from %pOFn yesde\n",
 				i, func_np);
 			return ret;
 		}
@@ -741,17 +741,17 @@ static struct samsung_pmx_func *samsung_pinctrl_create_functions(
 				unsigned int *cnt)
 {
 	struct samsung_pmx_func *functions, *func;
-	struct device_node *dev_np = dev->of_node;
-	struct device_node *cfg_np;
+	struct device_yesde *dev_np = dev->of_yesde;
+	struct device_yesde *cfg_np;
 	unsigned int func_cnt = 0;
 	int ret;
 
 	/*
-	 * Iterate over all the child nodes of the pin controller node
+	 * Iterate over all the child yesdes of the pin controller yesde
 	 * and create pin groups and pin function lists.
 	 */
-	for_each_child_of_node(dev_np, cfg_np) {
-		struct device_node *func_np;
+	for_each_child_of_yesde(dev_np, cfg_np) {
+		struct device_yesde *func_np;
 
 		if (!of_get_child_count(cfg_np)) {
 			if (!of_find_property(cfg_np,
@@ -761,7 +761,7 @@ static struct samsung_pmx_func *samsung_pinctrl_create_functions(
 			continue;
 		}
 
-		for_each_child_of_node(cfg_np, func_np) {
+		for_each_child_of_yesde(cfg_np, func_np) {
 			if (!of_find_property(func_np,
 			    "samsung,pin-function", NULL))
 				continue;
@@ -776,18 +776,18 @@ static struct samsung_pmx_func *samsung_pinctrl_create_functions(
 	func = functions;
 
 	/*
-	 * Iterate over all the child nodes of the pin controller node
+	 * Iterate over all the child yesdes of the pin controller yesde
 	 * and create pin groups and pin function lists.
 	 */
 	func_cnt = 0;
-	for_each_child_of_node(dev_np, cfg_np) {
-		struct device_node *func_np;
+	for_each_child_of_yesde(dev_np, cfg_np) {
+		struct device_yesde *func_np;
 
 		if (!of_get_child_count(cfg_np)) {
 			ret = samsung_pinctrl_create_function(dev, drvdata,
 							cfg_np, func);
 			if (ret < 0) {
-				of_node_put(cfg_np);
+				of_yesde_put(cfg_np);
 				return ERR_PTR(ret);
 			}
 			if (ret > 0) {
@@ -797,12 +797,12 @@ static struct samsung_pmx_func *samsung_pinctrl_create_functions(
 			continue;
 		}
 
-		for_each_child_of_node(cfg_np, func_np) {
+		for_each_child_of_yesde(cfg_np, func_np) {
 			ret = samsung_pinctrl_create_function(dev, drvdata,
 						func_np, func);
 			if (ret < 0) {
-				of_node_put(func_np);
-				of_node_put(cfg_np);
+				of_yesde_put(func_np);
+				of_yesde_put(cfg_np);
 				return ERR_PTR(ret);
 			}
 			if (ret > 0) {
@@ -818,7 +818,7 @@ static struct samsung_pmx_func *samsung_pinctrl_create_functions(
 
 /*
  * Parse the information about all the available pin groups and pin functions
- * from device node of the pin-controller. A pin group is formed with all
+ * from device yesde of the pin-controller. A pin group is formed with all
  * the pins listed in the "samsung,pins" property.
  */
 
@@ -907,7 +907,7 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 	drvdata->pctl_dev = devm_pinctrl_register(&pdev->dev, ctrldesc,
 						  drvdata);
 	if (IS_ERR(drvdata->pctl_dev)) {
-		dev_err(&pdev->dev, "could not register pinctrl driver\n");
+		dev_err(&pdev->dev, "could yest register pinctrl driver\n");
 		return PTR_ERR(drvdata->pctl_dev);
 	}
 
@@ -966,7 +966,7 @@ static int samsung_gpiolib_register(struct platform_device *pdev,
 		gc->base = bank->grange.base;
 		gc->ngpio = bank->nr_pins;
 		gc->parent = &pdev->dev;
-		gc->of_node = bank->of_node;
+		gc->of_yesde = bank->of_yesde;
 		gc->label = bank->name;
 
 		ret = devm_gpiochip_add_data(&pdev->dev, gc, bank);
@@ -983,11 +983,11 @@ static int samsung_gpiolib_register(struct platform_device *pdev,
 static const struct samsung_pin_ctrl *
 samsung_pinctrl_get_soc_data_for_of_alias(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	const struct samsung_pinctrl_of_match_data *of_data;
 	int id;
 
-	id = of_alias_get_id(node, "pinctrl");
+	id = of_alias_get_id(yesde, "pinctrl");
 	if (id < 0) {
 		dev_err(&pdev->dev, "failed to get alias id\n");
 		return NULL;
@@ -1007,8 +1007,8 @@ static const struct samsung_pin_ctrl *
 samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 			     struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *np;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *np;
 	const struct samsung_pin_bank_data *bdata;
 	const struct samsung_pin_ctrl *ctrl;
 	struct samsung_pin_bank *bank;
@@ -1072,13 +1072,13 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 	 */
 	d->virt_base = virt_base[0];
 
-	for_each_child_of_node(node, np) {
+	for_each_child_of_yesde(yesde, np) {
 		if (!of_find_property(np, "gpio-controller", NULL))
 			continue;
 		bank = d->pin_banks;
 		for (i = 0; i < d->nr_banks; ++i, ++bank) {
-			if (of_node_name_eq(np, bank->name)) {
-				bank->of_node = np;
+			if (of_yesde_name_eq(np, bank->name)) {
+				bank->of_yesde = np;
 				break;
 			}
 		}
@@ -1104,7 +1104,7 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 
 	ctrl = samsung_pinctrl_get_soc_data(drvdata, pdev);
 	if (IS_ERR(ctrl)) {
-		dev_err(&pdev->dev, "driver data not available\n");
+		dev_err(&pdev->dev, "driver data yest available\n");
 		return PTR_ERR(ctrl);
 	}
 	drvdata->dev = dev;
@@ -1242,28 +1242,28 @@ static int __maybe_unused samsung_pinctrl_resume(struct device *dev)
 
 static const struct of_device_id samsung_pinctrl_dt_match[] = {
 #ifdef CONFIG_PINCTRL_EXYNOS_ARM
-	{ .compatible = "samsung,exynos3250-pinctrl",
-		.data = &exynos3250_of_data },
-	{ .compatible = "samsung,exynos4210-pinctrl",
-		.data = &exynos4210_of_data },
-	{ .compatible = "samsung,exynos4x12-pinctrl",
-		.data = &exynos4x12_of_data },
-	{ .compatible = "samsung,exynos5250-pinctrl",
-		.data = &exynos5250_of_data },
-	{ .compatible = "samsung,exynos5260-pinctrl",
-		.data = &exynos5260_of_data },
-	{ .compatible = "samsung,exynos5410-pinctrl",
-		.data = &exynos5410_of_data },
-	{ .compatible = "samsung,exynos5420-pinctrl",
-		.data = &exynos5420_of_data },
+	{ .compatible = "samsung,exyyess3250-pinctrl",
+		.data = &exyyess3250_of_data },
+	{ .compatible = "samsung,exyyess4210-pinctrl",
+		.data = &exyyess4210_of_data },
+	{ .compatible = "samsung,exyyess4x12-pinctrl",
+		.data = &exyyess4x12_of_data },
+	{ .compatible = "samsung,exyyess5250-pinctrl",
+		.data = &exyyess5250_of_data },
+	{ .compatible = "samsung,exyyess5260-pinctrl",
+		.data = &exyyess5260_of_data },
+	{ .compatible = "samsung,exyyess5410-pinctrl",
+		.data = &exyyess5410_of_data },
+	{ .compatible = "samsung,exyyess5420-pinctrl",
+		.data = &exyyess5420_of_data },
 	{ .compatible = "samsung,s5pv210-pinctrl",
 		.data = &s5pv210_of_data },
 #endif
 #ifdef CONFIG_PINCTRL_EXYNOS_ARM64
-	{ .compatible = "samsung,exynos5433-pinctrl",
-		.data = &exynos5433_of_data },
-	{ .compatible = "samsung,exynos7-pinctrl",
-		.data = &exynos7_of_data },
+	{ .compatible = "samsung,exyyess5433-pinctrl",
+		.data = &exyyess5433_of_data },
+	{ .compatible = "samsung,exyyess7-pinctrl",
+		.data = &exyyess7_of_data },
 #endif
 #ifdef CONFIG_PINCTRL_S3C64XX
 	{ .compatible = "samsung,s3c64xx-pinctrl",

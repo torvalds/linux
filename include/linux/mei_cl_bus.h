@@ -28,11 +28,11 @@ typedef void (*mei_cldev_cb_t)(struct mei_cl_device *cldev);
  * @cl: mei client
  * @name: device name
  * @rx_work: async work to execute Rx event callback
- * @rx_cb: Drivers register this callback to get asynchronous ME
- *	Rx buffer pending notifications.
- * @notif_work: async work to execute FW notif event callback
- * @notif_cb: Drivers register this callback to get asynchronous ME
- *	FW notification pending notifications.
+ * @rx_cb: Drivers register this callback to get asynchroyesus ME
+ *	Rx buffer pending yestifications.
+ * @yestif_work: async work to execute FW yestif event callback
+ * @yestif_cb: Drivers register this callback to get asynchroyesus ME
+ *	FW yestification pending yestifications.
  *
  * @do_match: wheather device can be matched with a driver
  * @is_added: device is already scanned
@@ -49,8 +49,8 @@ struct mei_cl_device {
 
 	struct work_struct rx_work;
 	mei_cldev_cb_t rx_cb;
-	struct work_struct notif_work;
-	mei_cldev_cb_t notif_cb;
+	struct work_struct yestif_work;
+	mei_cldev_cb_t yestif_cb;
 
 	unsigned int do_match:1;
 	unsigned int is_added:1;
@@ -83,7 +83,7 @@ void mei_cldev_driver_unregister(struct mei_cl_driver *cldrv);
  *
  * @__mei_cldrv: mei_cl_driver structure
  *
- *  Helper macro for mei cl drivers which do not do anything special in module
+ *  Helper macro for mei cl drivers which do yest do anything special in module
  *  init/exit, for eliminating a boilerplate code.
  */
 #define module_mei_cl_driver(__mei_cldrv) \
@@ -93,12 +93,12 @@ void mei_cldev_driver_unregister(struct mei_cl_driver *cldrv);
 
 ssize_t mei_cldev_send(struct mei_cl_device *cldev, u8 *buf, size_t length);
 ssize_t mei_cldev_recv(struct mei_cl_device *cldev, u8 *buf, size_t length);
-ssize_t mei_cldev_recv_nonblock(struct mei_cl_device *cldev, u8 *buf,
+ssize_t mei_cldev_recv_yesnblock(struct mei_cl_device *cldev, u8 *buf,
 				size_t length);
 
 int mei_cldev_register_rx_cb(struct mei_cl_device *cldev, mei_cldev_cb_t rx_cb);
-int mei_cldev_register_notif_cb(struct mei_cl_device *cldev,
-				mei_cldev_cb_t notif_cb);
+int mei_cldev_register_yestif_cb(struct mei_cl_device *cldev,
+				mei_cldev_cb_t yestif_cb);
 
 const uuid_le *mei_cldev_uuid(const struct mei_cl_device *cldev);
 u8 mei_cldev_ver(const struct mei_cl_device *cldev);

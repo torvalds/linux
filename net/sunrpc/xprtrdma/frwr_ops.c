@@ -7,7 +7,7 @@
 /* Lightweight memory registration using Fast Registration Work
  * Requests (FRWR).
  *
- * FRWR features ordered asynchronous registration and invalidation
+ * FRWR features ordered asynchroyesus registration and invalidation
  * of arbitrarily-sized memory regions. This is the fastest and safest
  * but most complex memory registration mode.
  */
@@ -19,7 +19,7 @@
  * Memory Region is invalidated using a LOCAL_INV Work Request
  * (frwr_unmap_async and frwr_unmap_sync).
  *
- * Typically FAST_REG Work Requests are not signaled, and neither are
+ * Typically FAST_REG Work Requests are yest signaled, and neither are
  * RDMA Send Work Requests (with the exception of signaling occasionally
  * to prevent provider work queue overflows). This greatly reduces HCA
  * interrupt workload.
@@ -27,7 +27,7 @@
 
 /* Transport recovery
  *
- * frwr_map and frwr_unmap_* cannot run at the same time the transport
+ * frwr_map and frwr_unmap_* canyest run at the same time the transport
  * connect worker is running. The connect worker holds the transport
  * send lock, just as ->send_request does. This prevents frwr_map and
  * the connect worker from running concurrently. When a connection is
@@ -61,13 +61,13 @@ bool frwr_is_supported(struct ib_device *device)
 	struct ib_device_attr *attrs = &device->attrs;
 
 	if (!(attrs->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
-		goto out_not_supported;
+		goto out_yest_supported;
 	if (attrs->max_fast_reg_page_list_len == 0)
-		goto out_not_supported;
+		goto out_yest_supported;
 	return true;
 
-out_not_supported:
-	pr_info("rpcrdma: 'frwr' mode is not supported by device %s\n",
+out_yest_supported:
+	pr_info("rpcrdma: 'frwr' mode is yest supported by device %s\n",
 		device->name);
 	return false;
 }
@@ -115,8 +115,8 @@ static void frwr_mr_recycle(struct rpcrdma_mr *mr)
  * Used after a failed marshal. For FRWR, this means the MRs
  * don't have to be fully released and recreated.
  *
- * NB: This is safe only as long as none of @req's MRs are
- * involved with an ongoing asynchronous FAST_REG or LOCAL_INV
+ * NB: This is safe only as long as yesne of @req's MRs are
+ * involved with an ongoing asynchroyesus FAST_REG or LOCAL_INV
  * Work Request.
  */
 void frwr_reset(struct rpcrdma_req *req)
@@ -132,7 +132,7 @@ void frwr_reset(struct rpcrdma_req *req)
  * @ia: interface adapter
  * @mr: generic MR to prepare for FRWR
  *
- * Returns zero if successful. Otherwise a negative errno
+ * Returns zero if successful. Otherwise a negative erryes
  * is returned.
  */
 int frwr_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
@@ -184,7 +184,7 @@ out_list_err:
  *	ia->ri_max_frwr_depth
  *	ia->ri_mrtype
  *
- * On failure, a negative errno is returned.
+ * On failure, a negative erryes is returned.
  */
 int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 {
@@ -196,7 +196,7 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 		ia->ri_mrtype = IB_MR_TYPE_SG_GAPS;
 
 	/* Quirk: Some devices advertise a large max_fast_reg_page_list_len
-	 * capability, but perform optimally when the MRs are not larger
+	 * capability, but perform optimally when the MRs are yest larger
 	 * than a page.
 	 */
 	if (attrs->max_sge_rd > 1)
@@ -288,7 +288,7 @@ size_t frwr_maxpages(struct rpcrdma_xprt *r_xprt)
  * Prepare a REG_MR Work Request to register a memory region
  * for remote access via RDMA READ or RDMA WRITE.
  *
- * Returns the next segment or a negative errno pointer.
+ * Returns the next segment or a negative erryes pointer.
  * On success, @mr is filled in.
  */
 struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
@@ -365,7 +365,7 @@ out_mapmr_err:
 
 /**
  * frwr_wc_fastreg - Invoked by RDMA provider for a flushed FastReg WC
- * @cq:	completion queue (ignored)
+ * @cq:	completion queue (igyesred)
  * @wc:	completed WR
  *
  */
@@ -444,7 +444,7 @@ static void __frwr_release_mr(struct ib_wc *wc, struct rpcrdma_mr *mr)
 
 /**
  * frwr_wc_localinv - Invoked by RDMA provider for a LOCAL_INV WC
- * @cq:	completion queue (ignored)
+ * @cq:	completion queue (igyesred)
  * @wc:	completed WR
  *
  */
@@ -462,7 +462,7 @@ static void frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
 
 /**
  * frwr_wc_localinv_wake - Invoked by RDMA provider for a LOCAL_INV WC
- * @cq:	completion queue (ignored)
+ * @cq:	completion queue (igyesred)
  * @wc:	completed WR
  *
  * Awaken anyone waiting for an MR to finish being fenced.
@@ -483,7 +483,7 @@ static void frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 /**
  * frwr_unmap_sync - invalidate memory regions that were registered for @req
  * @r_xprt: controlling transport instance
- * @req: rpcrdma_req with a non-empty list of MRs to process
+ * @req: rpcrdma_req with a yesn-empty list of MRs to process
  *
  * Sleeps until it is safe for the host CPU to access the previously mapped
  * memory regions. This guarantees that registered MRs are properly fenced
@@ -542,14 +542,14 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 	/* The final LOCAL_INV WR in the chain is supposed to
 	 * do the wake. If it was never posted, the wake will
-	 * not happen, so don't wait in that case.
+	 * yest happen, so don't wait in that case.
 	 */
 	if (bad_wr != first)
 		wait_for_completion(&frwr->fr_linv_done);
 	if (!rc)
 		return;
 
-	/* Recycle MRs in the LOCAL_INV chain that did not get posted.
+	/* Recycle MRs in the LOCAL_INV chain that did yest get posted.
 	 */
 	trace_xprtrdma_post_linv(req, rc);
 	while (bad_wr) {
@@ -565,7 +565,7 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 /**
  * frwr_wc_localinv_done - Invoked by RDMA provider for a signaled LOCAL_INV WC
- * @cq:	completion queue (ignored)
+ * @cq:	completion queue (igyesred)
  * @wc:	completed WR
  *
  */
@@ -589,7 +589,7 @@ static void frwr_wc_localinv_done(struct ib_cq *cq, struct ib_wc *wc)
 /**
  * frwr_unmap_async - invalidate memory regions that were registered for @req
  * @r_xprt: controlling transport instance
- * @req: rpcrdma_req with a non-empty list of MRs to process
+ * @req: rpcrdma_req with a yesn-empty list of MRs to process
  *
  * This guarantees that registered MRs are properly fenced from the
  * server before the RPC consumer accesses the data in them. It also
@@ -645,7 +645,7 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	if (!rc)
 		return;
 
-	/* Recycle MRs in the LOCAL_INV chain that did not get posted.
+	/* Recycle MRs in the LOCAL_INV chain that did yest get posted.
 	 */
 	trace_xprtrdma_post_linv(req, rc);
 	while (bad_wr) {
@@ -658,7 +658,7 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 	/* The final LOCAL_INV WR in the chain is supposed to
 	 * do the wake. If it was never posted, the wake will
-	 * not happen, so wake here in that case.
+	 * yest happen, so wake here in that case.
 	 */
 	rpcrdma_complete_rqst(req->rl_reply);
 }

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -188,7 +188,7 @@ struct amdgpu_gfx_funcs {
 	void (*select_se_sh)(struct amdgpu_device *adev, u32 se_num,
 			     u32 sh_num, u32 instance);
 	void (*read_wave_data)(struct amdgpu_device *adev, uint32_t simd,
-			       uint32_t wave, uint32_t *dst, int *no_fields);
+			       uint32_t wave, uint32_t *dst, int *yes_fields);
 	void (*read_wave_vgprs)(struct amdgpu_device *adev, uint32_t simd,
 				uint32_t wave, uint32_t thread, uint32_t start,
 				uint32_t size, uint32_t *dst);

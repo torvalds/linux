@@ -309,7 +309,7 @@ static int us122l_set_sample_rate(struct usb_device *dev, int rate)
 			     USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_OUT,
 			     UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep, data, 3, 1000);
 	if (err < 0)
-		snd_printk(KERN_ERR "%d: cannot set freq %d to ep 0x%x\n",
+		snd_printk(KERN_ERR "%d: canyest set freq %d to ep 0x%x\n",
 			   dev->devnum, rate, ep);
 	return err;
 }

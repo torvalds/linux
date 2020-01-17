@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,7 +33,7 @@
  * Display Manager (which instantiates DC) has the option to supply it's own
  * (external to DC) implementation of VBIOS, which will be called by DC, using
  * this interface.
- * (The intended use is Diagnostics, but other uses may appear.)
+ * (The intended use is Diagyesstics, but other uses may appear.)
  *****************************************************************************/
 
 #include "include/bios_parser_types.h"

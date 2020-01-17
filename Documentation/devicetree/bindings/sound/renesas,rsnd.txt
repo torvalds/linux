@@ -64,22 +64,22 @@ ${LINUX}/arch/arm/boot/dts/r8a7790.dts can be good example.
 
 SRC can convert [xx]Hz to [yy]Hz. Then, it has below 2 modes
 
- Asynchronous mode:	input data / output data are based on different clocks.
+ Asynchroyesus mode:	input data / output data are based on different clocks.
 			you can use this mode on Playback / Capture
- Synchronous mode:	input data / output data are based on same clocks.
+ Synchroyesus mode:	input data / output data are based on same clocks.
 			This mode will be used if system doesn't have its input clock,
 			for example digital TV case.
 			you can use this mode on Playback
 
 ------------------
-**     Asynchronous mode
+**     Asynchroyesus mode
 ------------------
 
 You need to use "simple-scu-audio-card" or "audio-graph-scu-card" for it.
-see "Example: simple sound card for Asynchronous mode"
+see "Example: simple sound card for Asynchroyesus mode"
 
 ------------------
-**     Synchronous mode
+**     Synchroyesus mode
 ------------------
 
 	> amixer set "SRC Out Rate" on
@@ -183,7 +183,7 @@ Volume Ramp
 
 SSIU can avoid some under/over run error, because it has some buffer.
 But you can't use it if SSI was PIO mode.
-In DMA mode, you can select not to use SSIU by using "no-busif" via SSI.
+In DMA mode, you can select yest to use SSIU by using "yes-busif" via SSI.
 
 SSIU handles BUSIF which will be used for TDM Split mode.
 This driver is assuming that audio-graph card will be used.
@@ -214,7 +214,7 @@ see "Example: simple sound card for TDM Split"
 **  PIO mode
 
 You can use PIO mode which is for connection check by using.
-Note: The system will drop non-SSI modules in PIO mode
+Note: The system will drop yesn-SSI modules in PIO mode
 even though if DT is selecting other modules.
 
 	&ssi0 {
@@ -224,10 +224,10 @@ even though if DT is selecting other modules.
 ** DMA mode without SSIU
 
 You can use DMA without SSIU.
-Note: under/over run, or noise are likely to occur
+Note: under/over run, or yesise are likely to occur
 
 	&ssi0 {
-		no-busif;
+		yes-busif;
 	};
 
 ** PIN sharing
@@ -286,30 +286,30 @@ Required properties:
 				   SRU/ADG/SSI      if generation1
 				   SRU/ADG/SSIU/SSI/AUDIO-DMAC-periperi if generation2/generation3
 				   Select extended AUDIO-DMAC-periperi address if SoC has it,
-				   otherwise select normal AUDIO-DMAC-periperi address.
+				   otherwise select yesrmal AUDIO-DMAC-periperi address.
 - reg-names			: Should contain the register names.
 				   scu/adg/ssi	if generation1
 				   scu/adg/ssiu/ssi/audmapp if generation2/generation3
 - rcar_sound,ssi		: Should contain SSI feature.
-				  The number of SSI subnode should be same as HW.
+				  The number of SSI subyesde should be same as HW.
 				  see below for detail.
 - rcar_sound,ssiu		: Should contain SSIU feature.
-				  The number of SSIU subnode should be same as HW.
+				  The number of SSIU subyesde should be same as HW.
 				  see below for detail.
 - rcar_sound,src		: Should contain SRC feature.
-				  The number of SRC subnode should be same as HW.
+				  The number of SRC subyesde should be same as HW.
 				  see below for detail.
 - rcar_sound,ctu		: Should contain CTU feature.
-				  The number of CTU subnode should be same as HW.
+				  The number of CTU subyesde should be same as HW.
 				  see below for detail.
 - rcar_sound,mix		: Should contain MIX feature.
-				  The number of MIX subnode should be same as HW.
+				  The number of MIX subyesde should be same as HW.
 				  see below for detail.
 - rcar_sound,dvc		: Should contain DVC feature.
-				  The number of DVC subnode should be same as HW.
+				  The number of DVC subyesde should be same as HW.
 				  see below for detail.
 - rcar_sound,dai		: DAI contents.
-				  The number of DAI subnode should be same as HW.
+				  The number of DAI subyesde should be same as HW.
 				  see below for detail.
 - #sound-dai-cells		: it must be 0 if your system is using single DAI
 				  it must be 1 if your system is using multi  DAI
@@ -322,35 +322,35 @@ Optional properties:
 - #clock-cells			: it must be 0 if your system has audio_clkout
 				  it must be 1 if your system has audio_clkout0/1/2/3
 - clock-frequency		: for all audio_clkout0/1/2/3
-- clkout-lr-asynchronous	: boolean property. it indicates that audio_clkoutn
+- clkout-lr-asynchroyesus	: boolean property. it indicates that audio_clkoutn
 				  is asynchronizes with lr-clock.
 - resets			: References to SSI resets.
 - reset-names			: List of valid reset names.
 				  "ssi-all", "ssi.X"
 
-SSI subnode properties:
+SSI subyesde properties:
 - interrupts			: Should contain SSI interrupt for PIO transfer
 - shared-pin			: if shared clock pin
 - pio-transfer			: use PIO transfer mode
-- no-busif			: BUSIF is not ussed when [mem -> SSI] via DMA case
+- yes-busif			: BUSIF is yest ussed when [mem -> SSI] via DMA case
 - dma				: Should contain Audio DMAC entry
 - dma-names			: SSI  case "rx"  (=playback), "tx"  (=capture)
-				  Deprecated: see SSIU subnode properties
+				  Deprecated: see SSIU subyesde properties
 				  SSIU case "rxu" (=playback), "txu" (=capture)
 
-SSIU subnode properties:
+SSIU subyesde properties:
 - dma				: Should contain Audio DMAC entry
 - dma-names			: "rx" (=playback), "tx" (=capture)
 
-SRC subnode properties:
+SRC subyesde properties:
 - dma				: Should contain Audio DMAC entry
 - dma-names			: "rx" (=playback), "tx" (=capture)
 
-DVC subnode properties:
+DVC subyesde properties:
 - dma				: Should contain Audio DMAC entry
 - dma-names			: "tx" (=playback/capture)
 
-DAI subnode properties:
+DAI subyesde properties:
 - playback			: list of playback modules
 - capture			: list of capture  modules
 
@@ -584,14 +584,14 @@ Example: simple sound card
 };
 
 =============================================
-Example: simple sound card for Asynchronous mode
+Example: simple sound card for Asynchroyesus mode
 =============================================
 
 sound {
 	compatible = "simple-scu-audio-card";
 	...
 	/*
-	 * SRC Asynchronous mode setting
+	 * SRC Asynchroyesus mode setting
 	 * Playback:
 	 * All input data will be converted to 48kHz
 	 * Capture:

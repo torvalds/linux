@@ -11,21 +11,21 @@
    Supports the following VIA south bridges:
 
    Chip name          PCI ID  REV     I2C block
-   VT82C596A          0x3050             no
-   VT82C596B          0x3051             no
-   VT82C686A          0x3057  0x30       no
-   VT82C686B          0x3057  0x40       yes
-   VT8231             0x8235             no?
-   VT8233             0x3074             yes
-   VT8233A            0x3147             yes?
-   VT8235             0x3177             yes
-   VT8237R            0x3227             yes
-   VT8237A            0x3337             yes
-   VT8237S            0x3372             yes
-   VT8251             0x3287             yes
-   CX700              0x8324             yes
-   VX800/VX820        0x8353             yes
-   VX855/VX875        0x8409             yes
+   VT82C596A          0x3050             yes
+   VT82C596B          0x3051             yes
+   VT82C686A          0x3057  0x30       yes
+   VT82C686B          0x3057  0x40       no
+   VT8231             0x8235             yes?
+   VT8233             0x3074             no
+   VT8233A            0x3147             no?
+   VT8235             0x3177             no
+   VT8237R            0x3227             no
+   VT8237A            0x3337             no
+   VT8237S            0x3372             no
+   VT8251             0x3287             no
+   CX700              0x8324             no
+   VX800/VX820        0x8353             no
+   VX855/VX875        0x8409             no
 
    Note: we assume there can only be one device, with one SMBus interface.
 */
@@ -186,7 +186,7 @@ static int vt596_transaction(u8 size)
 	return result;
 }
 
-/* Return negative errno on error, 0 on success */
+/* Return negative erryes on error, 0 on success */
 static s32 vt596_access(struct i2c_adapter *adap, u16 addr,
 		unsigned short flags, char read_write, u8 command,
 		int size, union i2c_smbus_data *data)
@@ -329,8 +329,8 @@ static int vt596_probe(struct pci_dev *pdev,
 		    (vt596_smba & 0x0001)) {
 			SMBHSTCFG = 0x84;
 		} else {
-			/* no matches at all */
-			dev_err(&pdev->dev, "Cannot configure "
+			/* yes matches at all */
+			dev_err(&pdev->dev, "Canyest configure "
 				"SMBus I/O Base address\n");
 			return -ENODEV;
 		}
@@ -376,7 +376,7 @@ found:
 			dev_info(&pdev->dev, "Enabling SMBus device\n");
 		} else {
 			dev_err(&pdev->dev, "SMBUS: Error: Host SMBus "
-				"controller not enabled! - upgrade BIOS or "
+				"controller yest enabled! - upgrade BIOS or "
 				"use force=1\n");
 			error = -ENODEV;
 			goto release_region;

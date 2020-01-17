@@ -24,7 +24,7 @@ if test -f "$litmus" -a -r "$litmus"
 then
 	:
 else
-	echo ' --- ' error: \"$litmus\" is not a readable file
+	echo ' --- ' error: \"$litmus\" is yest a readable file
 	exit 255
 fi
 

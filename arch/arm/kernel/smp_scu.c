@@ -55,7 +55,7 @@ void scu_enable(void __iomem *scu_base)
 
 	scu_ctrl |= SCU_ENABLE;
 
-	/* Cortex-A9 earlier than r2p0 has no standby bit in SCU */
+	/* Cortex-A9 earlier than r2p0 has yes standby bit in SCU */
 	if ((read_cpuid_id() & 0xff0ffff0) == 0x410fc090 &&
 	    (read_cpuid_id() & 0x00f0000f) >= 0x00200000)
 		scu_ctrl |= SCU_STANDBY_ENABLE;

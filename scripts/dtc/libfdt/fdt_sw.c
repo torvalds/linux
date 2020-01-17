@@ -53,8 +53,8 @@ static int fdt_sw_probe_memrsv_(void *fdt)
 /* 'struct' state:	Enter this state after fdt_finish_reservemap()
  *
  * Allowed functions:
- *	fdt_begin_node()
- *	fdt_end_node()
+ *	fdt_begin_yesde()
+ *	fdt_end_yesde()
  *	fdt_property*()
  *	fdt_finish()			[moves to 'complete' state]
  */
@@ -84,7 +84,7 @@ static inline uint32_t sw_flags(void *fdt)
 
 /* 'complete' state:	Enter this state after fdt_finish()
  *
- * Allowed functions: none
+ * Allowed functions: yesne
  */
 
 static void *fdt_grab_space_(void *fdt, size_t len)
@@ -208,9 +208,9 @@ int fdt_finish_reservemap(void *fdt)
 	return 0;
 }
 
-int fdt_begin_node(void *fdt, const char *name)
+int fdt_begin_yesde(void *fdt, const char *name)
 {
-	struct fdt_node_header *nh;
+	struct fdt_yesde_header *nh;
 	int namelen;
 
 	FDT_SW_PROBE_STRUCT(fdt);
@@ -225,7 +225,7 @@ int fdt_begin_node(void *fdt, const char *name)
 	return 0;
 }
 
-int fdt_end_node(void *fdt)
+int fdt_end_yesde(void *fdt)
 {
 	fdt32_t *en;
 
@@ -249,7 +249,7 @@ static int fdt_add_string_(void *fdt, const char *s)
 	offset = -strtabsize - len;
 	struct_top = fdt_off_dt_struct(fdt) + fdt_size_dt_struct(fdt);
 	if (fdt_totalsize(fdt) + offset < struct_top)
-		return 0; /* no more room :( */
+		return 0; /* yes more room :( */
 
 	memcpy(strtab + offset, s, len);
 	fdt_set_size_dt_strings(fdt, strtabsize + len);

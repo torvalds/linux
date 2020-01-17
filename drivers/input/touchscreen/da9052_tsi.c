@@ -37,7 +37,7 @@ static irqreturn_t da9052_ts_pendwn_irq(int irq, void *data)
 
 	if (!tsi->stopped) {
 		/* Mask PEN_DOWN event and unmask TSI_READY event */
-		da9052_disable_irq_nosync(tsi->da9052, DA9052_IRQ_PENDOWN);
+		da9052_disable_irq_yessync(tsi->da9052, DA9052_IRQ_PENDOWN);
 		da9052_enable_irq(tsi->da9052, DA9052_IRQ_TSIREADY);
 
 		da9052_ts_adc_toggle(tsi, true);

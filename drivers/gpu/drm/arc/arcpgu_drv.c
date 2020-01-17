@@ -2,7 +2,7 @@
 /*
  * ARC PGU DRM driver.
  *
- * Copyright (C) 2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2016 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <linux/clk.h>
@@ -46,7 +46,7 @@ static int arcpgu_load(struct drm_device *drm)
 {
 	struct platform_device *pdev = to_platform_device(drm->dev);
 	struct arcpgu_drm_private *arcpgu;
-	struct device_node *encoder_node = NULL, *endpoint_node = NULL;
+	struct device_yesde *encoder_yesde = NULL, *endpoint_yesde = NULL;
 	struct resource *res;
 	int ret;
 
@@ -85,19 +85,19 @@ static int arcpgu_load(struct drm_device *drm)
 	 * There is only one output port inside each device. It is linked with
 	 * encoder endpoint.
 	 */
-	endpoint_node = of_graph_get_next_endpoint(pdev->dev.of_node, NULL);
-	if (endpoint_node) {
-		encoder_node = of_graph_get_remote_port_parent(endpoint_node);
-		of_node_put(endpoint_node);
+	endpoint_yesde = of_graph_get_next_endpoint(pdev->dev.of_yesde, NULL);
+	if (endpoint_yesde) {
+		encoder_yesde = of_graph_get_remote_port_parent(endpoint_yesde);
+		of_yesde_put(endpoint_yesde);
 	}
 
-	if (encoder_node) {
-		ret = arcpgu_drm_hdmi_init(drm, encoder_node);
-		of_node_put(encoder_node);
+	if (encoder_yesde) {
+		ret = arcpgu_drm_hdmi_init(drm, encoder_yesde);
+		of_yesde_put(encoder_yesde);
 		if (ret < 0)
 			return ret;
 	} else {
-		dev_info(drm->dev, "no encoder found. Assumed virtual LCD on simulation platform\n");
+		dev_info(drm->dev, "yes encoder found. Assumed virtual LCD on simulation platform\n");
 		ret = arcpgu_drm_sim_init(drm, NULL);
 		if (ret < 0)
 			return ret;
@@ -122,8 +122,8 @@ static int arcpgu_unload(struct drm_device *drm)
 #ifdef CONFIG_DEBUG_FS
 static int arcpgu_show_pxlclock(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *drm = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *drm = yesde->miyesr->dev;
 	struct arcpgu_drm_private *arcpgu = drm->dev_private;
 	unsigned long clkrate = clk_get_rate(arcpgu->clk);
 	unsigned long mode_clock = arcpgu->crtc.mode.crtc_clock * 1000;
@@ -137,10 +137,10 @@ static struct drm_info_list arcpgu_debugfs_list[] = {
 	{ "clocks", arcpgu_show_pxlclock, 0 },
 };
 
-static int arcpgu_debugfs_init(struct drm_minor *minor)
+static int arcpgu_debugfs_init(struct drm_miyesr *miyesr)
 {
 	return drm_debugfs_create_files(arcpgu_debugfs_list,
-		ARRAY_SIZE(arcpgu_debugfs_list), minor->debugfs_root, minor);
+		ARRAY_SIZE(arcpgu_debugfs_list), miyesr->debugfs_root, miyesr);
 }
 #endif
 
@@ -150,7 +150,7 @@ static struct drm_driver arcpgu_drm_driver = {
 	.desc = "ARC PGU Controller",
 	.date = "20160219",
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 	.patchlevel = 0,
 	.fops = &arcpgu_drm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
@@ -228,6 +228,6 @@ static struct platform_driver arcpgu_platform_driver = {
 
 module_platform_driver(arcpgu_platform_driver);
 
-MODULE_AUTHOR("Carlos Palminha <palminha@synopsys.com>");
+MODULE_AUTHOR("Carlos Palminha <palminha@syyespsys.com>");
 MODULE_DESCRIPTION("ARC PGU DRM driver");
 MODULE_LICENSE("GPL");

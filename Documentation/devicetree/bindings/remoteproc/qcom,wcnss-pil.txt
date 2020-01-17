@@ -56,11 +56,11 @@ on the Qualcomm WCNSS core.
 - memory-region:
 	Usage: required
 	Value type: <prop-encoded-array>
-	Definition: reference to reserved-memory node for the remote processor
+	Definition: reference to reserved-memory yesde for the remote processor
 		    see ../reserved-memory/reserved-memory.txt
 
 = SUBNODES
-A required subnode of the WCNSS PIL is used to describe the attached rf module
+A required subyesde of the WCNSS PIL is used to describe the attached rf module
 and its resource dependencies. It is described by the following properties:
 
 - compatible:
@@ -91,7 +91,7 @@ and its resource dependencies. It is described by the following properties:
 		    booting of the WCNSS core
 
 
-The wcnss node can also have an subnode named "smd-edge" that describes the SMD
+The wcnss yesde can also have an subyesde named "smd-edge" that describes the SMD
 edge, channels and devices related to the WCNSS.
 See ../soc/qcom/qcom,smd.txt for details on how to describe the SMD edge.
 

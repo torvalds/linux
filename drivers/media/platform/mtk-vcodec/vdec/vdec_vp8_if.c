@@ -57,8 +57,8 @@
  * @cur_c_fb_dma      : current plane C frame buffer dma address
  * @bs_dma	      : bitstream dma address
  * @bs_sz	      : bitstream size
- * @resolution_changed: resolution change flag 1 - changed,  0 - not change
- * @show_frame	      : display this frame or not
+ * @resolution_changed: resolution change flag 1 - changed,  0 - yest change
+ * @show_frame	      : display this frame or yest
  * @wait_key_frame    : wait key frame coming
  */
 struct vdec_vp8_dec_info {
@@ -112,7 +112,7 @@ struct vdec_vp8_hw_reg_base {
 /**
  * struct vdec_vp8_vpu_inst - VPU instance for VP8 decode
  * @wq_hd	: Wait queue to wait VPU message ack
- * @signaled	: 1 - Host has received ack message from VPU, 0 - not receive
+ * @signaled	: 1 - Host has received ack message from VPU, 0 - yest receive
  * @failure	: VPU execution result status 0 - success, others - fail
  * @inst_addr	: VPU decoder instance address
  */
@@ -124,22 +124,22 @@ struct vdec_vp8_vpu_inst {
 };
 
 /* frame buffer (fb) list
- * [available_fb_node_list]  - decode fb are initialized to 0 and populated in
+ * [available_fb_yesde_list]  - decode fb are initialized to 0 and populated in
  * [fb_use_list]  - fb is set after decode and is moved to this list
- * [fb_free_list] - fb is not needed for reference will be moved from
+ * [fb_free_list] - fb is yest needed for reference will be moved from
  *		     [fb_use_list] to [fb_free_list] and
  *		     once user remove fb from [fb_free_list],
- *		     it is circulated back to [available_fb_node_list]
+ *		     it is circulated back to [available_fb_yesde_list]
  * [fb_disp_list] - fb is set after decode and is moved to this list
  *                   once user remove fb from [fb_disp_list] it is
- *                   circulated back to [available_fb_node_list]
+ *                   circulated back to [available_fb_yesde_list]
  */
 
 /**
  * struct vdec_vp8_inst - VP8 decoder instance
  * @cur_fb		   : current frame buffer
- * @dec_fb		   : decode frame buffer node
- * @available_fb_node_list : list to store available frame buffer node
+ * @dec_fb		   : decode frame buffer yesde
+ * @available_fb_yesde_list : list to store available frame buffer yesde
  * @fb_use_list		   : list to store frame buffer in use
  * @fb_free_list	   : list to store free frame buffer
  * @fb_disp_list	   : list to store display ready frame buffer
@@ -152,8 +152,8 @@ struct vdec_vp8_vpu_inst {
  */
 struct vdec_vp8_inst {
 	struct vdec_fb *cur_fb;
-	struct vdec_fb_node dec_fb[VP8_MAX_FRM_BUF_NODE_NUM];
-	struct list_head available_fb_node_list;
+	struct vdec_fb_yesde dec_fb[VP8_MAX_FRM_BUF_NODE_NUM];
+	struct list_head available_fb_yesde_list;
 	struct list_head fb_use_list;
 	struct list_head fb_free_list;
 	struct list_head fb_disp_list;
@@ -292,52 +292,52 @@ static void get_pic_info(struct vdec_vp8_inst *inst, struct vdec_pic_info *pic)
 
 static void vp8_dec_finish(struct vdec_vp8_inst *inst)
 {
-	struct vdec_fb_node *node;
+	struct vdec_fb_yesde *yesde;
 	uint64_t prev_y_dma = inst->vsi->dec.prev_y_dma;
 
 	mtk_vcodec_debug(inst, "prev fb base dma=%llx", prev_y_dma);
 
 	/* put last decode ok frame to fb_free_list */
 	if (prev_y_dma != 0) {
-		list_for_each_entry(node, &inst->fb_use_list, list) {
-			struct vdec_fb *fb = (struct vdec_fb *)node->fb;
+		list_for_each_entry(yesde, &inst->fb_use_list, list) {
+			struct vdec_fb *fb = (struct vdec_fb *)yesde->fb;
 
 			if (prev_y_dma == (uint64_t)fb->base_y.dma_addr) {
-				list_move_tail(&node->list,
+				list_move_tail(&yesde->list,
 					       &inst->fb_free_list);
 				break;
 			}
 		}
 	}
 
-	/* available_fb_node_list -> fb_use_list */
-	node = list_first_entry(&inst->available_fb_node_list,
-				struct vdec_fb_node, list);
-	node->fb = inst->cur_fb;
-	list_move_tail(&node->list, &inst->fb_use_list);
+	/* available_fb_yesde_list -> fb_use_list */
+	yesde = list_first_entry(&inst->available_fb_yesde_list,
+				struct vdec_fb_yesde, list);
+	yesde->fb = inst->cur_fb;
+	list_move_tail(&yesde->list, &inst->fb_use_list);
 
-	/* available_fb_node_list -> fb_disp_list */
+	/* available_fb_yesde_list -> fb_disp_list */
 	if (inst->vsi->dec.show_frame) {
-		node = list_first_entry(&inst->available_fb_node_list,
-					struct vdec_fb_node, list);
-		node->fb = inst->cur_fb;
-		list_move_tail(&node->list, &inst->fb_disp_list);
+		yesde = list_first_entry(&inst->available_fb_yesde_list,
+					struct vdec_fb_yesde, list);
+		yesde->fb = inst->cur_fb;
+		list_move_tail(&yesde->list, &inst->fb_disp_list);
 	}
 }
 
 static void move_fb_list_use_to_free(struct vdec_vp8_inst *inst)
 {
-	struct vdec_fb_node *node, *tmp;
+	struct vdec_fb_yesde *yesde, *tmp;
 
-	list_for_each_entry_safe(node, tmp, &inst->fb_use_list, list)
-		list_move_tail(&node->list, &inst->fb_free_list);
+	list_for_each_entry_safe(yesde, tmp, &inst->fb_use_list, list)
+		list_move_tail(&yesde->list, &inst->fb_free_list);
 }
 
 static void init_list(struct vdec_vp8_inst *inst)
 {
 	int i;
 
-	INIT_LIST_HEAD(&inst->available_fb_node_list);
+	INIT_LIST_HEAD(&inst->available_fb_yesde_list);
 	INIT_LIST_HEAD(&inst->fb_use_list);
 	INIT_LIST_HEAD(&inst->fb_free_list);
 	INIT_LIST_HEAD(&inst->fb_disp_list);
@@ -346,19 +346,19 @@ static void init_list(struct vdec_vp8_inst *inst)
 		INIT_LIST_HEAD(&inst->dec_fb[i].list);
 		inst->dec_fb[i].fb = NULL;
 		list_add_tail(&inst->dec_fb[i].list,
-			      &inst->available_fb_node_list);
+			      &inst->available_fb_yesde_list);
 	}
 }
 
 static void add_fb_to_free_list(struct vdec_vp8_inst *inst, void *fb)
 {
-	struct vdec_fb_node *node;
+	struct vdec_fb_yesde *yesde;
 
 	if (fb) {
-		node = list_first_entry(&inst->available_fb_node_list,
-					struct vdec_fb_node, list);
-		node->fb = fb;
-		list_move_tail(&node->list, &inst->fb_free_list);
+		yesde = list_first_entry(&inst->available_fb_yesde_list,
+					struct vdec_fb_yesde, list);
+		yesde->fb = fb;
+		list_move_tail(&yesde->list, &inst->fb_free_list);
 	}
 }
 
@@ -370,7 +370,7 @@ static int alloc_working_buf(struct vdec_vp8_inst *inst)
 	mem->size = VP8_WORKING_BUF_SZ;
 	err = mtk_vcodec_mem_alloc(inst->ctx, mem);
 	if (err) {
-		mtk_vcodec_err(inst, "Cannot allocate working buffer");
+		mtk_vcodec_err(inst, "Canyest allocate working buffer");
 		return err;
 	}
 
@@ -514,20 +514,20 @@ error:
 
 static void get_disp_fb(struct vdec_vp8_inst *inst, struct vdec_fb **out_fb)
 {
-	struct vdec_fb_node *node;
+	struct vdec_fb_yesde *yesde;
 	struct vdec_fb *fb;
 
-	node = list_first_entry_or_null(&inst->fb_disp_list,
-					struct vdec_fb_node, list);
-	if (node) {
-		list_move_tail(&node->list, &inst->available_fb_node_list);
-		fb = (struct vdec_fb *)node->fb;
+	yesde = list_first_entry_or_null(&inst->fb_disp_list,
+					struct vdec_fb_yesde, list);
+	if (yesde) {
+		list_move_tail(&yesde->list, &inst->available_fb_yesde_list);
+		fb = (struct vdec_fb *)yesde->fb;
 		fb->status |= FB_ST_DISPLAY;
 		mtk_vcodec_debug(inst, "[FB] get disp fb %p st=%d",
-				 node->fb, fb->status);
+				 yesde->fb, fb->status);
 	} else {
 		fb = NULL;
-		mtk_vcodec_debug(inst, "[FB] there is no disp fb");
+		mtk_vcodec_debug(inst, "[FB] there is yes disp fb");
 	}
 
 	*out_fb = fb;
@@ -535,20 +535,20 @@ static void get_disp_fb(struct vdec_vp8_inst *inst, struct vdec_fb **out_fb)
 
 static void get_free_fb(struct vdec_vp8_inst *inst, struct vdec_fb **out_fb)
 {
-	struct vdec_fb_node *node;
+	struct vdec_fb_yesde *yesde;
 	struct vdec_fb *fb;
 
-	node = list_first_entry_or_null(&inst->fb_free_list,
-					struct vdec_fb_node, list);
-	if (node) {
-		list_move_tail(&node->list, &inst->available_fb_node_list);
-		fb = (struct vdec_fb *)node->fb;
+	yesde = list_first_entry_or_null(&inst->fb_free_list,
+					struct vdec_fb_yesde, list);
+	if (yesde) {
+		list_move_tail(&yesde->list, &inst->available_fb_yesde_list);
+		fb = (struct vdec_fb *)yesde->fb;
 		fb->status |= FB_ST_FREE;
 		mtk_vcodec_debug(inst, "[FB] get free fb %p st=%d",
-				 node->fb, fb->status);
+				 yesde->fb, fb->status);
 	} else {
 		fb = NULL;
-		mtk_vcodec_debug(inst, "[FB] there is no free fb");
+		mtk_vcodec_debug(inst, "[FB] there is yes free fb");
 	}
 
 	*out_fb = fb;

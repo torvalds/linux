@@ -88,7 +88,7 @@ static inline const char *rq_qos_id_to_name(enum rq_qos_id id)
 	case RQ_QOS_COST:
 		return "cost";
 	}
-	return "unknown";
+	return "unkyeswn";
 }
 
 static inline void rq_wait_init(struct rq_wait *rq_wait)
@@ -174,8 +174,8 @@ static inline void rq_qos_done_bio(struct request_queue *q, struct bio *bio)
 static inline void rq_qos_throttle(struct request_queue *q, struct bio *bio)
 {
 	/*
-	 * BIO_TRACKED lets controllers know that a bio went through the
-	 * normal rq_qos path.
+	 * BIO_TRACKED lets controllers kyesw that a bio went through the
+	 * yesrmal rq_qos path.
 	 */
 	bio_set_flag(bio, BIO_TRACKED);
 	if (q->rq_qos)

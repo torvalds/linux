@@ -78,7 +78,7 @@ static const char * const m2m_entity_name[] = {
  * @proc_pads:		&struct media_pad with the @proc pads.
  *			Used only when the M2M device is registered via
  *			v4l2_m2m_unregister_media_controller().
- * @intf_devnode:	&struct media_intf devnode pointer with the interface
+ * @intf_devyesde:	&struct media_intf devyesde pointer with the interface
  *			with controls the M2M device.
  * @curr_ctx:		currently running instance
  * @job_queue:		instances queued to run
@@ -95,7 +95,7 @@ struct v4l2_m2m_dev {
 	struct media_pad	sink_pad;
 	struct media_entity	proc;
 	struct media_pad	proc_pads[2];
-	struct media_intf_devnode *intf_devnode;
+	struct media_intf_devyesde *intf_devyesde;
 #endif
 
 	struct list_head	job_queue;
@@ -244,7 +244,7 @@ EXPORT_SYMBOL(v4l2_m2m_get_curr_priv);
  * Get next transaction (if present) from the waiting jobs list and run it.
  *
  * Note that this function can run on a given v4l2_m2m_ctx context,
- * but call .device_run for another context.
+ * but call .device_run for ayesther context.
  */
 static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
 {
@@ -253,7 +253,7 @@ static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
 	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
 	if (NULL != m2m_dev->curr_ctx) {
 		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
-		dprintk("Another instance is running, won't run now\n");
+		dprintk("Ayesther instance is running, won't run yesw\n");
 		return;
 	}
 
@@ -342,7 +342,7 @@ static void __v4l2_m2m_try_queue(struct v4l2_m2m_dev *m2m_dev,
 
 	if (m2m_dev->m2m_ops->job_ready
 		&& (!m2m_dev->m2m_ops->job_ready(m2m_ctx->priv))) {
-		dprintk("Driver not ready\n");
+		dprintk("Driver yest ready\n");
 		goto job_unlock;
 	}
 
@@ -363,7 +363,7 @@ job_unlock:
  * This function shouldn't run in interrupt context.
  *
  * Note that v4l2_m2m_try_schedule() can schedule one job for this context,
- * and then run another job for another context.
+ * and then run ayesther job for ayesther context.
  */
 void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
 {
@@ -418,7 +418,7 @@ static void v4l2_m2m_cancel_job(struct v4l2_m2m_ctx *m2m_ctx)
 		dprintk("m2m_ctx: %p had been on queue and was removed\n",
 			m2m_ctx);
 	} else {
-		/* Do nothing, was not on queue/running */
+		/* Do yesthing, was yest on queue/running */
 		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
 	}
 }
@@ -431,7 +431,7 @@ static void v4l2_m2m_schedule_next_job(struct v4l2_m2m_dev *m2m_dev,
 				       struct v4l2_m2m_ctx *m2m_ctx)
 {
 	/*
-	 * This instance might have more buffers ready, but since we do not
+	 * This instance might have more buffers ready, but since we do yest
 	 * allow more than one job on the job_queue per instance, each has
 	 * to be scheduled separately after the previous one finishes.
 	 */
@@ -439,7 +439,7 @@ static void v4l2_m2m_schedule_next_job(struct v4l2_m2m_dev *m2m_dev,
 
 	/*
 	 * We might be running in atomic context,
-	 * but the job must be run in non-atomic context.
+	 * but the job must be run in yesn-atomic context.
 	 */
 	schedule_work(&m2m_dev->job_work);
 }
@@ -452,7 +452,7 @@ static bool _v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 				 struct v4l2_m2m_ctx *m2m_ctx)
 {
 	if (!m2m_dev->curr_ctx || m2m_dev->curr_ctx != m2m_ctx) {
-		dprintk("Called by an instance not currently running\n");
+		dprintk("Called by an instance yest currently running\n");
 		return false;
 	}
 
@@ -470,7 +470,7 @@ void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 	bool schedule_next;
 
 	/*
-	 * This function should not be used for drivers that support
+	 * This function should yest be used for drivers that support
 	 * holding capture buffers. Those should use
 	 * v4l2_m2m_buf_done_and_job_finish() instead.
 	 */
@@ -523,7 +523,7 @@ int v4l2_m2m_reqbufs(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	vq = v4l2_m2m_get_vq(m2m_ctx, reqbufs->type);
 	ret = vb2_reqbufs(vq, reqbufs);
 	/* If count == 0, then the owner has released all buffers and he
-	   is no longer owner of the queue. Otherwise we have an owner. */
+	   is yes longer owner of the queue. Otherwise we have an owner. */
 	if (ret == 0)
 		vq->owner = reqbufs->count ? file->private_data : NULL;
 
@@ -566,7 +566,7 @@ int v4l2_m2m_qbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	vq = v4l2_m2m_get_vq(m2m_ctx, buf->type);
 	if (!V4L2_TYPE_IS_OUTPUT(vq->type) &&
 	    (buf->flags & V4L2_BUF_FLAG_REQUEST_FD)) {
-		dprintk("%s: requests cannot be used with capture buffers\n",
+		dprintk("%s: requests canyest be used with capture buffers\n",
 			__func__);
 		return -EPERM;
 	}
@@ -652,7 +652,7 @@ int v4l2_m2m_streamoff(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 
 	m2m_dev = m2m_ctx->m2m_dev;
 	spin_lock_irqsave(&m2m_dev->job_spinlock, flags_job);
-	/* We should not be scheduled anymore, since we're dropping a queue. */
+	/* We should yest be scheduled anymore, since we're dropping a queue. */
 	if (m2m_ctx->job_flags & TRANS_QUEUED)
 		list_del(&m2m_ctx->queue);
 	m2m_ctx->job_flags = 0;
@@ -776,8 +776,8 @@ EXPORT_SYMBOL(v4l2_m2m_mmap);
 #if defined(CONFIG_MEDIA_CONTROLLER)
 void v4l2_m2m_unregister_media_controller(struct v4l2_m2m_dev *m2m_dev)
 {
-	media_remove_intf_links(&m2m_dev->intf_devnode->intf);
-	media_devnode_remove(m2m_dev->intf_devnode);
+	media_remove_intf_links(&m2m_dev->intf_devyesde->intf);
+	media_devyesde_remove(m2m_dev->intf_devyesde);
 
 	media_entity_remove_links(m2m_dev->source);
 	media_entity_remove_links(&m2m_dev->sink);
@@ -829,7 +829,7 @@ static int v4l2_m2m_register_entity(struct media_device *mdev,
 	entity->obj_type = MEDIA_ENTITY_TYPE_BASE;
 	if (type != MEM2MEM_ENT_TYPE_PROC) {
 		entity->info.dev.major = VIDEO_MAJOR;
-		entity->info.dev.minor = vdev->minor;
+		entity->info.dev.miyesr = vdev->miyesr;
 	}
 	len = strlen(vdev->name) + 2 + strlen(m2m_entity_name[type]);
 	name = kmalloc(len, GFP_KERNEL);
@@ -891,25 +891,25 @@ int v4l2_m2m_register_media_controller(struct v4l2_m2m_dev *m2m_dev,
 		goto err_rm_links0;
 
 	/* Create video interface */
-	m2m_dev->intf_devnode = media_devnode_create(mdev,
+	m2m_dev->intf_devyesde = media_devyesde_create(mdev,
 			MEDIA_INTF_T_V4L_VIDEO, 0,
-			VIDEO_MAJOR, vdev->minor);
-	if (!m2m_dev->intf_devnode) {
+			VIDEO_MAJOR, vdev->miyesr);
+	if (!m2m_dev->intf_devyesde) {
 		ret = -ENOMEM;
 		goto err_rm_links1;
 	}
 
 	/* Connect the two DMA engines to the interface */
 	link = media_create_intf_link(m2m_dev->source,
-			&m2m_dev->intf_devnode->intf,
+			&m2m_dev->intf_devyesde->intf,
 			MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
 	if (!link) {
 		ret = -ENOMEM;
-		goto err_rm_devnode;
+		goto err_rm_devyesde;
 	}
 
 	link = media_create_intf_link(&m2m_dev->sink,
-			&m2m_dev->intf_devnode->intf,
+			&m2m_dev->intf_devyesde->intf,
 			MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
 	if (!link) {
 		ret = -ENOMEM;
@@ -918,9 +918,9 @@ int v4l2_m2m_register_media_controller(struct v4l2_m2m_dev *m2m_dev,
 	return 0;
 
 err_rm_intf_link:
-	media_remove_intf_links(&m2m_dev->intf_devnode->intf);
-err_rm_devnode:
-	media_devnode_remove(m2m_dev->intf_devnode);
+	media_remove_intf_links(&m2m_dev->intf_devyesde->intf);
+err_rm_devyesde:
+	media_devyesde_remove(m2m_dev->intf_devyesde);
 err_rm_links1:
 	media_entity_remove_links(&m2m_dev->sink);
 err_rm_links0:
@@ -1264,7 +1264,7 @@ int v4l2_m2m_ioctl_stateless_decoder_cmd(struct file *file, void *priv,
 		out_vb->flags &= ~V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF;
 	} else if (cap_vb && cap_vb->is_held) {
 		/*
-		 * If there were no output buffers, but there is a
+		 * If there were yes output buffers, but there is a
 		 * capture buffer that is held, then release that
 		 * buffer.
 		 */

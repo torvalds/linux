@@ -39,10 +39,10 @@
 #if defined(CONFIG_AS_CFI_SECTIONS) && defined(__ASSEMBLY__)
 #ifndef BUILD_VDSO
 	/*
-	 * Emit CFI data in .debug_frame sections, not .eh_frame sections.
+	 * Emit CFI data in .debug_frame sections, yest .eh_frame sections.
 	 * The latter we currently just discard since we don't do DWARF
 	 * unwinding at runtime.  So only the offline DWARF information is
-	 * useful to anyone.  Note we should not use this directive if
+	 * useful to anyone.  Note we should yest use this directive if
 	 * vmlinux.lds.S gets changed so it doesn't discard .eh_frame.
 	 */
 	.cfi_sections .debug_frame
@@ -59,26 +59,26 @@
 
 /*
  * Due to the structure of pre-exisiting code, don't use assembler line
- * comment character # to ignore the arguments. Instead, use a dummy macro.
+ * comment character # to igyesre the arguments. Instead, use a dummy macro.
  */
-.macro cfi_ignore a=0, b=0, c=0, d=0
+.macro cfi_igyesre a=0, b=0, c=0, d=0
 .endm
 
-#define CFI_STARTPROC		cfi_ignore
-#define CFI_ENDPROC		cfi_ignore
-#define CFI_DEF_CFA		cfi_ignore
-#define CFI_DEF_CFA_REGISTER	cfi_ignore
-#define CFI_DEF_CFA_OFFSET	cfi_ignore
-#define CFI_ADJUST_CFA_OFFSET	cfi_ignore
-#define CFI_OFFSET		cfi_ignore
-#define CFI_REL_OFFSET		cfi_ignore
-#define CFI_REGISTER		cfi_ignore
-#define CFI_RESTORE		cfi_ignore
-#define CFI_REMEMBER_STATE	cfi_ignore
-#define CFI_RESTORE_STATE	cfi_ignore
-#define CFI_UNDEFINED		cfi_ignore
-#define CFI_ESCAPE		cfi_ignore
-#define CFI_SIGNAL_FRAME	cfi_ignore
+#define CFI_STARTPROC		cfi_igyesre
+#define CFI_ENDPROC		cfi_igyesre
+#define CFI_DEF_CFA		cfi_igyesre
+#define CFI_DEF_CFA_REGISTER	cfi_igyesre
+#define CFI_DEF_CFA_OFFSET	cfi_igyesre
+#define CFI_ADJUST_CFA_OFFSET	cfi_igyesre
+#define CFI_OFFSET		cfi_igyesre
+#define CFI_REL_OFFSET		cfi_igyesre
+#define CFI_REGISTER		cfi_igyesre
+#define CFI_RESTORE		cfi_igyesre
+#define CFI_REMEMBER_STATE	cfi_igyesre
+#define CFI_RESTORE_STATE	cfi_igyesre
+#define CFI_UNDEFINED		cfi_igyesre
+#define CFI_ESCAPE		cfi_igyesre
+#define CFI_SIGNAL_FRAME	cfi_igyesre
 
 #endif
 

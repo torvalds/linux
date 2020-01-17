@@ -359,9 +359,9 @@ static void tegra_smmu_enable(struct tegra_smmu *smmu, unsigned int swgroup,
 		value |= SMMU_ASID_ENABLE;
 		smmu_writel(smmu, value, group->reg);
 	} else {
-		pr_warn("%s group from swgroup %u not found\n", __func__,
+		pr_warn("%s group from swgroup %u yest found\n", __func__,
 				swgroup);
-		/* No point moving ahead if group was not found */
+		/* No point moving ahead if group was yest found */
 		return;
 	}
 
@@ -467,7 +467,7 @@ static int tegra_smmu_attach_dev(struct iommu_domain *domain,
 {
 	struct tegra_smmu *smmu = dev->archdata.iommu;
 	struct tegra_smmu_as *as = to_smmu_as(domain);
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct of_phandle_args args;
 	unsigned int index = 0;
 	int err = 0;
@@ -476,12 +476,12 @@ static int tegra_smmu_attach_dev(struct iommu_domain *domain,
 					   &args)) {
 		unsigned int swgroup = args.args[0];
 
-		if (args.np != smmu->dev->of_node) {
-			of_node_put(args.np);
+		if (args.np != smmu->dev->of_yesde) {
+			of_yesde_put(args.np);
 			continue;
 		}
 
-		of_node_put(args.np);
+		of_yesde_put(args.np);
 
 		err = tegra_smmu_as_prepare(smmu, as);
 		if (err < 0)
@@ -500,7 +500,7 @@ static int tegra_smmu_attach_dev(struct iommu_domain *domain,
 static void tegra_smmu_detach_dev(struct iommu_domain *domain, struct device *dev)
 {
 	struct tegra_smmu_as *as = to_smmu_as(domain);
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct tegra_smmu *smmu = as->smmu;
 	struct of_phandle_args args;
 	unsigned int index = 0;
@@ -509,12 +509,12 @@ static void tegra_smmu_detach_dev(struct iommu_domain *domain, struct device *de
 					   &args)) {
 		unsigned int swgroup = args.args[0];
 
-		if (args.np != smmu->dev->of_node) {
-			of_node_put(args.np);
+		if (args.np != smmu->dev->of_yesde) {
+			of_yesde_put(args.np);
 			continue;
 		}
 
-		of_node_put(args.np);
+		of_yesde_put(args.np);
 
 		tegra_smmu_disable(smmu, swgroup, as->id);
 		tegra_smmu_as_unprepare(smmu, as);
@@ -624,7 +624,7 @@ static void tegra_smmu_pte_put_use(struct tegra_smmu_as *as, unsigned long iova)
 	struct page *page = as->pts[pde];
 
 	/*
-	 * When no entries in this page table are used anymore, return the
+	 * When yes entries in this page table are used anymore, return the
 	 * memory page to the system.
 	 */
 	if (--as->count[pde] == 0) {
@@ -719,12 +719,12 @@ static phys_addr_t tegra_smmu_iova_to_phys(struct iommu_domain *domain,
 	return PFN_PHYS(pfn);
 }
 
-static struct tegra_smmu *tegra_smmu_find(struct device_node *np)
+static struct tegra_smmu *tegra_smmu_find(struct device_yesde *np)
 {
 	struct platform_device *pdev;
 	struct tegra_mc *mc;
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev)
 		return NULL;
 
@@ -741,7 +741,7 @@ static int tegra_smmu_configure(struct tegra_smmu *smmu, struct device *dev,
 	const struct iommu_ops *ops = smmu->iommu.ops;
 	int err;
 
-	err = iommu_fwspec_init(dev, &dev->of_node->fwnode, ops);
+	err = iommu_fwspec_init(dev, &dev->of_yesde->fwyesde, ops);
 	if (err < 0) {
 		dev_err(dev, "failed to initialize fwspec: %d\n", err);
 		return err;
@@ -759,7 +759,7 @@ static int tegra_smmu_configure(struct tegra_smmu *smmu, struct device *dev,
 
 static int tegra_smmu_add_device(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct tegra_smmu *smmu = NULL;
 	struct iommu_group *group;
 	struct of_phandle_args args;
@@ -771,7 +771,7 @@ static int tegra_smmu_add_device(struct device *dev)
 		smmu = tegra_smmu_find(args.np);
 		if (smmu) {
 			err = tegra_smmu_configure(smmu, dev, &args);
-			of_node_put(args.np);
+			of_yesde_put(args.np);
 
 			if (err < 0)
 				return err;
@@ -788,7 +788,7 @@ static int tegra_smmu_add_device(struct device *dev)
 			break;
 		}
 
-		of_node_put(args.np);
+		of_yesde_put(args.np);
 		index++;
 	}
 
@@ -911,12 +911,12 @@ static void tegra_smmu_ahb_enable(void)
 		{ .compatible = "nvidia,tegra30-ahb", },
 		{ }
 	};
-	struct device_node *ahb;
+	struct device_yesde *ahb;
 
-	ahb = of_find_matching_node(NULL, ahb_match);
+	ahb = of_find_matching_yesde(NULL, ahb_match);
 	if (ahb) {
 		tegra_ahb_enable_smmu(ahb);
-		of_node_put(ahb);
+		of_yesde_put(ahb);
 	}
 }
 
@@ -937,9 +937,9 @@ static int tegra_smmu_swgroups_show(struct seq_file *s, void *data)
 		value = smmu_readl(smmu, group->reg);
 
 		if (value & SMMU_ASID_ENABLE)
-			status = "yes";
-		else
 			status = "no";
+		else
+			status = "yes";
 
 		asid = value & SMMU_ASID_MASK;
 
@@ -968,9 +968,9 @@ static int tegra_smmu_clients_show(struct seq_file *s, void *data)
 		value = smmu_readl(smmu, client->smmu.reg);
 
 		if (value & BIT(client->smmu.bit))
-			status = "yes";
-		else
 			status = "no";
+		else
+			status = "yes";
 
 		seq_printf(s, "%-12s %s\n", client->name, status);
 	}
@@ -1014,7 +1014,7 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 	 * This is a bit of a hack. Ideally we'd want to simply return this
 	 * value. However the IOMMU registration process will attempt to add
 	 * all devices to the IOMMU when bus_set_iommu() is called. In order
-	 * not to rely on global variables to track the IOMMU instance, we
+	 * yest to rely on global variables to track the IOMMU instance, we
 	 * set it here so that it can be looked up from the .add_device()
 	 * callback via the IOMMU device's .drvdata field.
 	 */
@@ -1068,7 +1068,7 @@ struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 		return ERR_PTR(err);
 
 	iommu_device_set_ops(&smmu->iommu, &tegra_smmu_ops);
-	iommu_device_set_fwnode(&smmu->iommu, dev->fwnode);
+	iommu_device_set_fwyesde(&smmu->iommu, dev->fwyesde);
 
 	err = iommu_device_register(&smmu->iommu);
 	if (err) {

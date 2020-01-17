@@ -3,7 +3,7 @@ Kernel driver ltc4260
 
 Supported chips:
 
-  * Linear Technology LTC4260
+  * Linear Techyeslogy LTC4260
 
     Prefix: 'ltc4260'
 
@@ -26,7 +26,7 @@ and removed from a live backplane.
 Usage Notes
 -----------
 
-This driver does not probe for LTC4260 devices, since there is no register
+This driver does yest probe for LTC4260 devices, since there is yes register
 which can be safely used to identify the chip. You will have to instantiate
 the devices explicitly.
 

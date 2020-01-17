@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk/tegra.h>
 
-#include <media/cec-notifier.h>
+#include <media/cec-yestifier.h>
 
 #include "tegra_cec.h"
 
@@ -37,7 +37,7 @@ struct tegra_cec {
 	struct device		*dev;
 	struct clk		*clk;
 	void __iomem		*cec_base;
-	struct cec_notifier	*notifier;
+	struct cec_yestifier	*yestifier;
 	int			tegra_cec_irq;
 	bool			rx_done;
 	bool			tx_done;
@@ -321,7 +321,7 @@ static int tegra_cec_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret = 0;
 
-	hdmi_dev = cec_notifier_parse_hdmi_phandle(&pdev->dev);
+	hdmi_dev = cec_yestifier_parse_hdmi_phandle(&pdev->dev);
 
 	if (IS_ERR(hdmi_dev))
 		return PTR_ERR(hdmi_dev);
@@ -351,7 +351,7 @@ static int tegra_cec_probe(struct platform_device *pdev)
 	if (cec->tegra_cec_irq <= 0)
 		return -EBUSY;
 
-	cec->cec_base = devm_ioremap_nocache(&pdev->dev, res->start,
+	cec->cec_base = devm_ioremap_yescache(&pdev->dev, res->start,
 					     resource_size(res));
 
 	if (!cec->cec_base) {
@@ -393,9 +393,9 @@ static int tegra_cec_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	cec->notifier = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+	cec->yestifier = cec_yestifier_cec_adap_register(hdmi_dev, NULL,
 						       cec->adap);
-	if (!cec->notifier) {
+	if (!cec->yestifier) {
 		ret = -ENOMEM;
 		goto err_adapter;
 	}
@@ -403,13 +403,13 @@ static int tegra_cec_probe(struct platform_device *pdev)
 	ret = cec_register_adapter(cec->adap, &pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Couldn't register device\n");
-		goto err_notifier;
+		goto err_yestifier;
 	}
 
 	return 0;
 
-err_notifier:
-	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+err_yestifier:
+	cec_yestifier_cec_adap_unregister(cec->yestifier, cec->adap);
 err_adapter:
 	cec_delete_adapter(cec->adap);
 err_clk:
@@ -423,7 +423,7 @@ static int tegra_cec_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(cec->clk);
 
-	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+	cec_yestifier_cec_adap_unregister(cec->yestifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
 
 	return 0;
@@ -436,7 +436,7 @@ static int tegra_cec_suspend(struct platform_device *pdev, pm_message_t state)
 
 	clk_disable_unprepare(cec->clk);
 
-	dev_notice(&pdev->dev, "suspended\n");
+	dev_yestice(&pdev->dev, "suspended\n");
 	return 0;
 }
 
@@ -444,7 +444,7 @@ static int tegra_cec_resume(struct platform_device *pdev)
 {
 	struct tegra_cec *cec = platform_get_drvdata(pdev);
 
-	dev_notice(&pdev->dev, "Resuming\n");
+	dev_yestice(&pdev->dev, "Resuming\n");
 
 	clk_prepare_enable(cec->clk);
 

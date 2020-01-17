@@ -171,7 +171,7 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 	palmas_gpio->gpio_chip.get	= palmas_gpio_get;
 	palmas_gpio->gpio_chip.parent = &pdev->dev;
 #ifdef CONFIG_OF_GPIO
-	palmas_gpio->gpio_chip.of_node = pdev->dev.of_node;
+	palmas_gpio->gpio_chip.of_yesde = pdev->dev.of_yesde;
 #endif
 	palmas_pdata = dev_get_platdata(palmas->dev);
 	if (palmas_pdata && palmas_pdata->gpio_base)
@@ -182,7 +182,7 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 	ret = devm_gpiochip_add_data(&pdev->dev, &palmas_gpio->gpio_chip,
 				     palmas_gpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "Could yest register gpiochip, %d\n", ret);
 		return ret;
 	}
 

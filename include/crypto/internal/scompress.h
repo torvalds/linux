@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Synchronous Compression operations
+ * Synchroyesus Compression operations
  *
  * Copyright 2015 LG Electronics Inc.
  * Copyright (c) 2016, Intel Corporation
@@ -17,7 +17,7 @@ struct crypto_scomp {
 };
 
 /**
- * struct scomp_alg - synchronous compression algorithm
+ * struct scomp_alg - synchroyesus compression algorithm
  *
  * @alloc_ctx:	Function allocates algorithm specific context
  * @free_ctx:	Function frees context allocated with alloc_ctx
@@ -94,9 +94,9 @@ struct acomp_req *crypto_acomp_scomp_alloc_ctx(struct acomp_req *req);
 void crypto_acomp_scomp_free_ctx(struct acomp_req *req);
 
 /**
- * crypto_register_scomp() -- Register synchronous compression algorithm
+ * crypto_register_scomp() -- Register synchroyesus compression algorithm
  *
- * Function registers an implementation of a synchronous
+ * Function registers an implementation of a synchroyesus
  * compression algorithm
  *
  * @alg:	algorithm definition
@@ -106,9 +106,9 @@ void crypto_acomp_scomp_free_ctx(struct acomp_req *req);
 int crypto_register_scomp(struct scomp_alg *alg);
 
 /**
- * crypto_unregister_scomp() -- Unregister synchronous compression algorithm
+ * crypto_unregister_scomp() -- Unregister synchroyesus compression algorithm
  *
- * Function unregisters an implementation of a synchronous
+ * Function unregisters an implementation of a synchroyesus
  * compression algorithm
  *
  * @alg:	algorithm definition

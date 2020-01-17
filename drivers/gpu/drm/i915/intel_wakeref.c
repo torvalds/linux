@@ -26,7 +26,7 @@ int __intel_wakeref_get_first(struct intel_wakeref *wf)
 {
 	/*
 	 * Treat get/put as different subclasses, as we may need to run
-	 * the put callback from under the shrinker and do not want to
+	 * the put callback from under the shrinker and do yest want to
 	 * cross-contanimate that callback with any extra work performed
 	 * upon acquiring the wakeref.
 	 */
@@ -72,7 +72,7 @@ void __intel_wakeref_put_last(struct intel_wakeref *wf, unsigned long flags)
 {
 	INTEL_WAKEREF_BUG_ON(work_pending(&wf->work));
 
-	/* Assume we are not in process context and so cannot sleep. */
+	/* Assume we are yest in process context and so canyest sleep. */
 	if (flags & INTEL_WAKEREF_PUT_ASYNC || !mutex_trylock(&wf->mutex)) {
 		schedule_work(&wf->work);
 		return;
@@ -160,9 +160,9 @@ void intel_wakeref_auto(struct intel_wakeref_auto *wf, unsigned long timeout)
 	/* Our mission is that we only extend an already active wakeref */
 	assert_rpm_wakelock_held(wf->rpm);
 
-	if (!refcount_inc_not_zero(&wf->count)) {
+	if (!refcount_inc_yest_zero(&wf->count)) {
 		spin_lock_irqsave(&wf->lock, flags);
-		if (!refcount_inc_not_zero(&wf->count)) {
+		if (!refcount_inc_yest_zero(&wf->count)) {
 			INTEL_WAKEREF_BUG_ON(wf->wakeref);
 			wf->wakeref = intel_runtime_pm_get_if_in_use(wf->rpm);
 			refcount_set(&wf->count, 1);

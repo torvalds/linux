@@ -13,7 +13,7 @@ Required properties:
 - reg: Base address and length of each register bank used by the external
   IRQ pins driven by the interrupt controller hardware module. The base
   addresses, length and number of required register banks varies with soctype.
-- interrupt-controller: Identifies the node as an interrupt controller.
+- interrupt-controller: Identifies the yesde as an interrupt controller.
 - #interrupt-cells: has to be <2>: an interrupt index and flags, as defined in
   interrupts.txt in this directory.
 - interrupts: Must contain a list of interrupt specifiers. For each interrupt

@@ -21,7 +21,7 @@
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/mtd/mtd.h>
-#include "nodelist.h"
+#include "yesdelist.h"
 
 static size_t jffs2_acl_size(int count)
 {
@@ -173,7 +173,7 @@ static void *jffs2_acl_to_medium(const struct posix_acl *acl, size_t *size)
 	return ERR_PTR(-EINVAL);
 }
 
-struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
+struct posix_acl *jffs2_get_acl(struct iyesde *iyesde, int type)
 {
 	struct posix_acl *acl;
 	char *value = NULL;
@@ -189,12 +189,12 @@ struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
 	default:
 		BUG();
 	}
-	rc = do_jffs2_getxattr(inode, xprefix, "", NULL, 0);
+	rc = do_jffs2_getxattr(iyesde, xprefix, "", NULL, 0);
 	if (rc > 0) {
 		value = kmalloc(rc, GFP_KERNEL);
 		if (!value)
 			return ERR_PTR(-ENOMEM);
-		rc = do_jffs2_getxattr(inode, xprefix, "", value, rc);
+		rc = do_jffs2_getxattr(iyesde, xprefix, "", value, rc);
 	}
 	if (rc > 0) {
 		acl = jffs2_acl_from_medium(value, rc);
@@ -207,7 +207,7 @@ struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-static int __jffs2_set_acl(struct inode *inode, int xprefix, struct posix_acl *acl)
+static int __jffs2_set_acl(struct iyesde *iyesde, int xprefix, struct posix_acl *acl)
 {
 	char *value = NULL;
 	size_t size = 0;
@@ -218,7 +218,7 @@ static int __jffs2_set_acl(struct inode *inode, int xprefix, struct posix_acl *a
 		if (IS_ERR(value))
 			return PTR_ERR(value);
 	}
-	rc = do_jffs2_setxattr(inode, xprefix, "", value, size, 0);
+	rc = do_jffs2_setxattr(iyesde, xprefix, "", value, size, 0);
 	if (!value && rc == -ENODATA)
 		rc = 0;
 	kfree(value);
@@ -226,7 +226,7 @@ static int __jffs2_set_acl(struct inode *inode, int xprefix, struct posix_acl *a
 	return rc;
 }
 
-int jffs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int jffs2_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type)
 {
 	int rc, xprefix;
 
@@ -236,16 +236,16 @@ int jffs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		if (acl) {
 			umode_t mode;
 
-			rc = posix_acl_update_mode(inode, &mode, &acl);
+			rc = posix_acl_update_mode(iyesde, &mode, &acl);
 			if (rc)
 				return rc;
-			if (inode->i_mode != mode) {
+			if (iyesde->i_mode != mode) {
 				struct iattr attr;
 
 				attr.ia_valid = ATTR_MODE | ATTR_CTIME;
 				attr.ia_mode = mode;
-				attr.ia_ctime = current_time(inode);
-				rc = jffs2_do_setattr(inode, &attr);
+				attr.ia_ctime = current_time(iyesde);
+				rc = jffs2_do_setattr(iyesde, &attr);
 				if (rc < 0)
 					return rc;
 			}
@@ -253,52 +253,52 @@ int jffs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		break;
 	case ACL_TYPE_DEFAULT:
 		xprefix = JFFS2_XPREFIX_ACL_DEFAULT;
-		if (!S_ISDIR(inode->i_mode))
+		if (!S_ISDIR(iyesde->i_mode))
 			return acl ? -EACCES : 0;
 		break;
 	default:
 		return -EINVAL;
 	}
-	rc = __jffs2_set_acl(inode, xprefix, acl);
+	rc = __jffs2_set_acl(iyesde, xprefix, acl);
 	if (!rc)
-		set_cached_acl(inode, type, acl);
+		set_cached_acl(iyesde, type, acl);
 	return rc;
 }
 
-int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, umode_t *i_mode)
+int jffs2_init_acl_pre(struct iyesde *dir_i, struct iyesde *iyesde, umode_t *i_mode)
 {
 	struct posix_acl *default_acl, *acl;
 	int rc;
 
-	cache_no_acl(inode);
+	cache_yes_acl(iyesde);
 
 	rc = posix_acl_create(dir_i, i_mode, &default_acl, &acl);
 	if (rc)
 		return rc;
 
 	if (default_acl) {
-		set_cached_acl(inode, ACL_TYPE_DEFAULT, default_acl);
+		set_cached_acl(iyesde, ACL_TYPE_DEFAULT, default_acl);
 		posix_acl_release(default_acl);
 	}
 	if (acl) {
-		set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
+		set_cached_acl(iyesde, ACL_TYPE_ACCESS, acl);
 		posix_acl_release(acl);
 	}
 	return 0;
 }
 
-int jffs2_init_acl_post(struct inode *inode)
+int jffs2_init_acl_post(struct iyesde *iyesde)
 {
 	int rc;
 
-	if (inode->i_default_acl) {
-		rc = __jffs2_set_acl(inode, JFFS2_XPREFIX_ACL_DEFAULT, inode->i_default_acl);
+	if (iyesde->i_default_acl) {
+		rc = __jffs2_set_acl(iyesde, JFFS2_XPREFIX_ACL_DEFAULT, iyesde->i_default_acl);
 		if (rc)
 			return rc;
 	}
 
-	if (inode->i_acl) {
-		rc = __jffs2_set_acl(inode, JFFS2_XPREFIX_ACL_ACCESS, inode->i_acl);
+	if (iyesde->i_acl) {
+		rc = __jffs2_set_acl(iyesde, JFFS2_XPREFIX_ACL_ACCESS, iyesde->i_acl);
 		if (rc)
 			return rc;
 	}

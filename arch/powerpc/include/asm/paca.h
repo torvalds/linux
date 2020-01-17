@@ -37,7 +37,7 @@ register struct paca_struct *local_paca asm("r13");
 #if defined(CONFIG_DEBUG_PREEMPT) && defined(CONFIG_SMP)
 extern unsigned int debug_smp_processor_id(void); /* from linux/smp.h */
 /*
- * Add standard checks that preemption cannot occur when using get_paca():
+ * Add standard checks that preemption canyest occur when using get_paca():
  * otherwise the paca_struct it points to may be the wrong one just after.
  */
 #define get_paca()	((void) debug_smp_processor_id(), local_paca)
@@ -56,7 +56,7 @@ struct task_struct;
 /*
  * Defines the layout of the paca.
  *
- * This structure is not directly accessed by firmware or the service
+ * This structure is yest directly accessed by firmware or the service
  * processor.
  */
 struct paca_struct {
@@ -92,7 +92,7 @@ struct paca_struct {
 	u64 data_offset;		/* per cpu data offset */
 	s16 hw_cpu_id;			/* Physical processor number */
 	u8 cpu_start;			/* At startup, processor spins until */
-					/* this becomes non-zero. */
+					/* this becomes yesn-zero. */
 	u8 kexec_state;		/* set when kexec down has irqs off */
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct slb_shadow *slb_shadow_ptr;
@@ -132,7 +132,7 @@ struct paca_struct {
 
 	/*
 	 * We can have up to 3 levels of reentrancy in the TLB miss handler,
-	 * in each of four exception levels (normal, crit, mcheck, debug).
+	 * in each of four exception levels (yesrmal, crit, mcheck, debug).
 	 */
 	u64 extlb[12][EX_TLB_SIZE / sizeof(u64)];
 	u64 exmc[8];		/* used for machine checks */
@@ -189,7 +189,7 @@ struct paca_struct {
 		struct {
 			/* PNV_THREAD_RUNNING/NAP/SLEEP	*/
 			u8 thread_idle_state;
-			/* Mask to denote subcore sibling threads */
+			/* Mask to deyeste subcore sibling threads */
 			u8 subcore_sibling_mask;
 		};
 
@@ -198,7 +198,7 @@ struct paca_struct {
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 			/* The PSSCR value that the kernel requested before going to stop */
 			u64 requested_psscr;
-			/* Flag to request this thread not to stop */
+			/* Flag to request this thread yest to stop */
 			atomic_t dont_stop;
 #endif
 		};
@@ -206,7 +206,7 @@ struct paca_struct {
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
-	/* Non-maskable exceptions that are not performance critical */
+	/* Non-maskable exceptions that are yest performance critical */
 	u64 exnmi[EX_SIZE];	/* used for system reset (nmi) */
 	u64 exmc[EX_SIZE];	/* used for machine checks */
 #endif

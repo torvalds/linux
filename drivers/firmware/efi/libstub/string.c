@@ -37,7 +37,7 @@ char *strstr(const char *s1, const char *s2)
 /**
  * strncmp - Compare two length-limited strings
  * @cs: One string
- * @ct: Another string
+ * @ct: Ayesther string
  * @count: The maximum number of bytes to compare
  */
 int strncmp(const char *cs, const char *ct, size_t count)

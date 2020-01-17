@@ -12,7 +12,7 @@
  *  linux/fs/binfmt_aout.c:
  *      Copyright (C) 1991, 1992, 1996  Linus Torvalds
  *  linux/fs/binfmt_flat.c for 2.0 kernel
- *	    Copyright (C) 1998  Kenneth Albanowski <kjahds@kjahds.com>
+ *	    Copyright (C) 1998  Kenneth Albayeswski <kjahds@kjahds.com>
  *	JAN/99 -- coded full program relocation (gerg@snapgear.com)
  */
 
@@ -23,7 +23,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/string.h>
 #include <linux/fs.h>
@@ -54,7 +54,7 @@
  * User data (data section and bss) needs to be aligned.
  * We pick 0x20 here because it is the max value elf2flt has always
  * used in producing FLAT files, and because it seems to be large
- * enough to make all the gcc alignment related tests happy.
+ * eyesugh to make all the gcc alignment related tests happy.
  */
 #define FLAT_DATA_ALIGN	(0x20)
 
@@ -109,7 +109,7 @@ static struct linux_binfmt flat_format = {
 static int flat_core_dump(struct coredump_params *cprm)
 {
 	pr_warn("Process %s:%d received signr %d and should have core dumped\n",
-		current->comm, current->pid, cprm->siginfo->si_signo);
+		current->comm, current->pid, cprm->siginfo->si_sigyes);
 	return 1;
 }
 
@@ -226,19 +226,19 @@ static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
 
 	/* Check gzip magic number */
 	if ((buf[0] != 037) || ((buf[1] != 0213) && (buf[1] != 0236))) {
-		pr_debug("unknown compression magic?\n");
+		pr_debug("unkyeswn compression magic?\n");
 		goto out_free_buf;
 	}
 
 	/* Check gzip method */
 	if (buf[2] != 8) {
-		pr_debug("unknown compression method?\n");
+		pr_debug("unkyeswn compression method?\n");
 		goto out_free_buf;
 	}
 	/* Check gzip flags */
 	if ((buf[3] & ENCRYPTED) || (buf[3] & CONTINUATION) ||
 	    (buf[3] & RESERVED)) {
-		pr_debug("unknown flags?\n");
+		pr_debug("unkyeswn flags?\n");
 		goto out_free_buf;
 	}
 
@@ -333,7 +333,7 @@ calc_reloc(unsigned long r, struct lib_info *p, int curid, int internalp)
 	}
 	if (curid != id) {
 		if (internalp) {
-			pr_err("reloc address 0x%lx not in same module "
+			pr_err("reloc address 0x%lx yest in same module "
 			       "(%d != %d)", r, curid, id);
 			goto failed;
 		} else if (!p->lib_list[id].loaded &&
@@ -411,7 +411,7 @@ static void old_reloc(unsigned long rl)
 		val += current->mm->end_data;
 		break;
 	default:
-		pr_err("Unknown relocation type=%x\n", r.reloc.type);
+		pr_err("Unkyeswn relocation type=%x\n", r.reloc.type);
 		break;
 	}
 	put_user(val, ptr);
@@ -458,7 +458,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 		 *   "BINFMT_FLAT: bad header magic".
 		 * But for the kernel which also use ELF FD-PIC format, this
 		 * error message is confusing.
-		 * because a lot of people do not manage to produce good
+		 * because a lot of people do yest manage to produce good
 		 */
 		ret = -ENOEXEC;
 		goto err;
@@ -477,7 +477,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 
 	/* Don't allow old format executables to use shared libraries */
 	if (rev == OLD_FLAT_VERSION && id != 0) {
-		pr_err("shared libraries are not available before rev 0x%lx\n",
+		pr_err("shared libraries are yest available before rev 0x%lx\n",
 		       FLAT_VERSION);
 		ret = -ENOEXEC;
 		goto err;
@@ -513,7 +513,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 
 #ifndef CONFIG_BINFMT_ZFLAT
 	if (flags & (FLAT_FLAG_GZIP|FLAT_FLAG_GZDATA)) {
-		pr_err("Support for ZFLAT executables is not enabled.\n");
+		pr_err("Support for ZFLAT executables is yest enabled.\n");
 		ret = -ENOEXEC;
 		goto err;
 	}
@@ -538,7 +538,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 		if (ret)
 			goto err;
 
-		/* OK, This is the point of no return */
+		/* OK, This is the point of yes return */
 		set_personality(PER_LINUX_32BIT);
 		setup_new_exec(bprm);
 	}
@@ -567,7 +567,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 			ret = textpos;
 			if (!textpos)
 				ret = -ENOMEM;
-			pr_err("Unable to mmap process text, errno %d\n", ret);
+			pr_err("Unable to mmap process text, erryes %d\n", ret);
 			goto err;
 		}
 
@@ -581,7 +581,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 			if (!realdatastart)
 				ret = -ENOMEM;
 			pr_err("Unable to allocate RAM for process data, "
-			       "errno %d\n", ret);
+			       "erryes %d\n", ret);
 			vm_munmap(textpos, text_len);
 			goto err;
 		}
@@ -603,7 +603,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 		}
 		if (IS_ERR_VALUE(result)) {
 			ret = result;
-			pr_err("Unable to read data+bss, errno %d\n", ret);
+			pr_err("Unable to read data+bss, erryes %d\n", ret);
 			vm_munmap(textpos, text_len);
 			vm_munmap(realdatastart, len);
 			goto err;
@@ -625,7 +625,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 			if (!textpos)
 				ret = -ENOMEM;
 			pr_err("Unable to allocate RAM for process text/data, "
-			       "errno %d\n", ret);
+			       "erryes %d\n", ret);
 			goto err;
 		}
 
@@ -638,7 +638,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 		memp_size = len;
 #ifdef CONFIG_BINFMT_ZFLAT
 		/*
-		 * load it all in and treat it like a RAM load from now on
+		 * load it all in and treat it like a RAM load from yesw on
 		 */
 		if (flags & FLAT_FLAG_GZIP) {
 #ifndef CONFIG_MMU
@@ -704,7 +704,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 		}
 		if (IS_ERR_VALUE(result)) {
 			ret = result;
-			pr_err("Unable to read code+data+bss, errno %d\n", ret);
+			pr_err("Unable to read code+data+bss, erryes %d\n", ret);
 			vm_munmap(textpos, text_len + data_len + extra);
 			goto err;
 		}
@@ -787,10 +787,10 @@ static int load_flat_file(struct linux_binprm *bprm,
 	 * Now run through the relocation entries.
 	 * We've got to be careful here as C++ produces relocatable zero
 	 * entries in the constructor and destructor tables which are then
-	 * tested for being not zero (which will always occur unless we're
+	 * tested for being yest zero (which will always occur unless we're
 	 * based from address zero).  This causes an endless loop as __start
-	 * is at zero.  The solution used is to not relocate zero addresses.
-	 * This has the negative side effect of not allowing a global data
+	 * is at zero.  The solution used is to yest relocate zero addresses.
+	 * This has the negative side effect of yest allowing a global data
 	 * reference to be statically initialised to _stext (I've moved
 	 * __start to address 4 so that is okay).
 	 */
@@ -874,7 +874,7 @@ err:
 
 /*
  * Load a shared library into memory.  The library gets its own data
- * segment (including bss) but not argv/argc/environ.
+ * segment (including bss) but yest argv/argc/environ.
  */
 
 static int load_flat_shared_library(int id, struct lib_info *libs)
@@ -916,7 +916,7 @@ static int load_flat_shared_library(int id, struct lib_info *libs)
 
 /*
  * These are the functions used to load flat style executables and shared
- * libraries.  There is no binary dependent code anywhere else.
+ * libraries.  There is yes binary dependent code anywhere else.
  */
 
 static int load_flat_binary(struct linux_binprm *bprm)
@@ -933,7 +933,7 @@ static int load_flat_binary(struct linux_binprm *bprm)
 	/*
 	 * We have to add the size of our arguments to our stack size
 	 * otherwise it's too easy for users to create stack overflows
-	 * by passing in a huge argument list.  And yes,  we have to be
+	 * by passing in a huge argument list.  And no,  we have to be
 	 * pedantic and include space for the argv/envp array as it may have
 	 * a lot of entries.
 	 */

@@ -97,12 +97,12 @@ union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y)
 		/* fall through */
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
-		/* normalize ym,ye */
+		/* yesrmalize ym,ye */
 		DPDNORMY;
 		break;
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_NORM):
-		/* normalize xm,xe */
+		/* yesrmalize xm,xe */
 		DPDNORMX;
 		break;
 
@@ -161,7 +161,7 @@ union ieee754dp ieee754dp_sub(union ieee754dp x, union ieee754dp y)
 				return ieee754dp_zero(0);	/* other round modes   => sign = 1 */
 		}
 
-		/* normalize to rounding precision
+		/* yesrmalize to rounding precision
 		 */
 		while ((xm >> (DP_FBITS + 3)) == 0) {
 			xm <<= 1;

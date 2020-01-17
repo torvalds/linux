@@ -111,7 +111,7 @@ static void drop_current_rng(void)
 }
 
 /* Returns ERR_PTR(), NULL or refcounted hwrng */
-static struct hwrng *get_current_rng_nolock(void)
+static struct hwrng *get_current_rng_yeslock(void)
 {
 	if (current_rng)
 		kref_get(&current_rng->ref);
@@ -126,7 +126,7 @@ static struct hwrng *get_current_rng(void)
 	if (mutex_lock_interruptible(&rng_mutex))
 		return ERR_PTR(-ERESTARTSYS);
 
-	rng = get_current_rng_nolock();
+	rng = get_current_rng_yeslock();
 
 	mutex_unlock(&rng_mutex);
 	return rng;
@@ -173,7 +173,7 @@ skip_init:
 	return 0;
 }
 
-static int rng_dev_open(struct inode *inode, struct file *filp)
+static int rng_dev_open(struct iyesde *iyesde, struct file *filp)
 {
 	/* enforce read-only access to this chrdev */
 	if ((filp->f_mode & FMODE_READ) == 0)
@@ -283,15 +283,15 @@ static const struct file_operations rng_chrdev_ops = {
 	.owner		= THIS_MODULE,
 	.open		= rng_dev_open,
 	.read		= rng_dev_read,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static const struct attribute_group *rng_dev_groups[];
 
 static struct miscdevice rng_miscdev = {
-	.minor		= HWRNG_MINOR,
+	.miyesr		= HWRNG_MINOR,
 	.name		= RNG_MODULE_NAME,
-	.nodename	= "hwrng",
+	.yesdename	= "hwrng",
 	.fops		= &rng_chrdev_ops,
 	.groups		= rng_dev_groups,
 };
@@ -342,7 +342,7 @@ static ssize_t hwrng_attr_current_store(struct device *dev,
 			}
 		}
 	}
-	new_rng = get_current_rng_nolock();
+	new_rng = get_current_rng_yeslock();
 	mutex_unlock(&rng_mutex);
 
 	if (new_rng) {
@@ -365,7 +365,7 @@ static ssize_t hwrng_attr_current_show(struct device *dev,
 	if (IS_ERR(rng))
 		return PTR_ERR(rng);
 
-	ret = snprintf(buf, PAGE_SIZE, "%s\n", rng ? rng->name : "none");
+	ret = snprintf(buf, PAGE_SIZE, "%s\n", rng ? rng->name : "yesne");
 	put_rng(rng);
 
 	return ret;
@@ -444,11 +444,11 @@ static int hwrng_fillfn(void *unused)
 		mutex_unlock(&reading_mutex);
 		put_rng(rng);
 		if (rc <= 0) {
-			pr_warn("hwrng: no data available\n");
+			pr_warn("hwrng: yes data available\n");
 			msleep_interruptible(10000);
 			continue;
 		}
-		/* Outside lock, sure, but y'know: randomness. */
+		/* Outside lock, sure, but y'kyesw: randomness. */
 		add_hwgenerator_randomness((void *)rng_fillbuf, rc,
 					   rc * current_quality * 8 >> 10);
 	}
@@ -477,7 +477,7 @@ int hwrng_register(struct hwrng *rng)
 
 	mutex_lock(&rng_mutex);
 
-	/* Must not register two RNGs with the same name. */
+	/* Must yest register two RNGs with the same name. */
 	err = -EEXIST;
 	list_for_each_entry(tmp, &rng_list, list) {
 		if (strcmp(tmp->name, rng->name) == 0)
@@ -499,7 +499,7 @@ int hwrng_register(struct hwrng *rng)
 	    (!cur_rng_set_by_user && rng->quality > current_rng->quality)) {
 		/*
 		 * Set new rng as current as the new rng source
-		 * provides better entropy quality and was not
+		 * provides better entropy quality and was yest
 		 * chosen by userspace.
 		 */
 		err = set_current_rng(rng);
@@ -549,7 +549,7 @@ void hwrng_unregister(struct hwrng *rng)
 		}
 	}
 
-	new_rng = get_current_rng_nolock();
+	new_rng = get_current_rng_yeslock();
 	if (list_empty(&rng_list)) {
 		mutex_unlock(&rng_mutex);
 		if (hwrng_fill)

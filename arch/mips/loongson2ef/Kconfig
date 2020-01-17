@@ -29,7 +29,7 @@ config LEMOTE_FULOONG2E
 	select LOONGSON_MC146818
 	help
 	  Lemote Fuloong(2e) mini-PC board based on the Chinese Loongson-2E CPU and
-	  an FPGA northbridge
+	  an FPGA yesrthbridge
 
 	  Lemote Fuloong(2e) mini PC have a VIA686B south bridge.
 
@@ -62,8 +62,8 @@ config LEMOTE_MACH2F
 	  Lemote Loongson 2F family machines utilize the 2F revision of
 	  Loongson processor and the AMD CS5536 south bridge.
 
-	  These family machines include fuloong2f mini PC, yeeloong2f notebook,
-	  LingLoong allinone PC and so forth.
+	  These family machines include fuloong2f mini PC, yeeloong2f yestebook,
+	  LingLoong alliyesne PC and so forth.
 
 endchoice
 
@@ -76,7 +76,7 @@ config CS5536_MFGPT
 	select MIPS_EXTERNAL_TIMER
 	help
 	  This option enables the mfgpt0 timer of AMD CS5536. With this timer
-	  switched on you can not use high resolution timers.
+	  switched on you can yest use high resolution timers.
 
 	  If you want to enable the Loongson2 CPUFreq Driver, Please enable
 	  this option at first, otherwise, You will get wrong system time.

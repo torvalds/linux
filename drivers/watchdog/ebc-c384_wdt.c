@@ -5,7 +5,7 @@
  */
 #include <linux/device.h>
 #include <linux/dmi.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/isa.h>
@@ -27,9 +27,9 @@
 #define CFG_ADDR		(BASE_ADDR + 1)
 #define PET_ADDR		(BASE_ADDR + 2)
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static unsigned timeout;
@@ -107,7 +107,7 @@ static int ebc_c384_wdt_probe(struct device *dev, unsigned int id)
 	wdd->min_timeout = 1;
 	wdd->max_timeout = WATCHDOG_MAX_TIMEOUT;
 
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_yeswayout(wdd, yeswayout);
 	watchdog_init_timeout(wdd, timeout, dev);
 
 	return devm_watchdog_register_device(dev, wdd);

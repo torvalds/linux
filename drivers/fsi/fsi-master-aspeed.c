@@ -397,7 +397,7 @@ static int aspeed_master_init(struct fsi_master_aspeed *aspeed)
 	reg = cpu_to_be32(~0);
 	opb_writel(aspeed, ctrl_base + FSI_MSENP0, reg);
 
-	/* Leave enabled long enough for master logic to set up */
+	/* Leave enabled long eyesugh for master logic to set up */
 	mdelay(FSI_LINK_ENABLE_SETUP_TIME);
 
 	opb_writel(aspeed, ctrl_base + FSI_MCENP0, reg);
@@ -484,7 +484,7 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 
 	aspeed->master.dev.parent = &pdev->dev;
 	aspeed->master.dev.release = aspeed_master_release;
-	aspeed->master.dev.of_node = of_node_get(dev_of_node(&pdev->dev));
+	aspeed->master.dev.of_yesde = of_yesde_get(dev_of_yesde(&pdev->dev));
 
 	aspeed->master.n_links = links;
 	aspeed->master.read = aspeed_master_read;

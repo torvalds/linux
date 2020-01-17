@@ -11,7 +11,7 @@ facilities.  This is based around a number of principles:
      objects easier.
 
  (2) Every index, file or other object is represented by a cookie.  This cookie
-     may or may not have anything associated with it, but the netfs doesn't
+     may or may yest have anything associated with it, but the netfs doesn't
      need to care.
 
  (3) Barring the top-level index (one entry per cached netfs), the index
@@ -57,7 +57,7 @@ using a record of the following structure:
 
 This first two fields should be filled in before registration, and the third
 will be filled in by the registration function; any other fields should just be
-ignored and are for internal use only.
+igyesred and are for internal use only.
 
 The fields are:
 
@@ -68,7 +68,7 @@ The fields are:
      afresh).
 
  (3) The cookie representing the primary index will be allocated according to
-     another parameter passed into the registration function.
+     ayesther parameter passed into the registration function.
 
 For example, kAFS (linux/fs/afs/) uses the following definitions to describe
 itself:
@@ -86,7 +86,7 @@ INDEX DEFINITION
 Indices are used for two purposes:
 
  (1) To aid the finding of a file based on a series of keys (such as AFS's
-     "cell", "volume ID", "vnode ID").
+     "cell", "volume ID", "vyesde ID").
 
  (2) To make it easier to discard a subset of all the files cached based around
      a particular key - for instance to mirror the removal of an AFS volume.
@@ -95,14 +95,14 @@ However, since it's unlikely that any two netfs's are going to want to define
 their index hierarchies in quite the same way, FS-Cache tries to impose as few
 restraints as possible on how an index is structured and where it is placed in
 the tree.  The netfs can even mix indices and data files at the same level, but
-it's not recommended.
+it's yest recommended.
 
 Each index entry consists of a key of indeterminate length plus some auxiliary
 data, also of indeterminate length.
 
 There are some limits on indices:
 
- (1) Any index containing non-index objects should be restricted to a single
+ (1) Any index containing yesn-index objects should be restricted to a single
      cache.  Any such objects created within an index will be created in the
      first cache only.  The cache in which an index is created can be
      controlled by cache tags (see below).
@@ -167,13 +167,13 @@ This has the following fields:
  (3) A function to select the cache in which to store an index [optional].
 
      This function is invoked when an index needs to be instantiated in a cache
-     during the instantiation of a non-index object.  Only the immediate index
-     parent for the non-index object will be queried.  Any indices above that
-     in the hierarchy may be stored in multiple caches.  This function does not
-     need to be supplied for any non-index object or any index that will only
+     during the instantiation of a yesn-index object.  Only the immediate index
+     parent for the yesn-index object will be queried.  Any indices above that
+     in the hierarchy may be stored in multiple caches.  This function does yest
+     need to be supplied for any yesn-index object or any index that will only
      have index children.
 
-     If this function is not supplied or if it returns NULL then the first
+     If this function is yest supplied or if it returns NULL then the first
      cache in the parent's list will be chosen, or failing that, the first
      cache in the master list.
 
@@ -208,22 +208,22 @@ This has the following fields:
      provided: one to get an extra reference on the context, and one to drop a
      reference to it.
 
-     If the context is not used or is a type of object that won't go out of
-     scope, then these functions are not required.  These functions are not
-     required for indices as indices may not contain data.  These functions may
-     be called in interrupt context and so may not sleep.
+     If the context is yest used or is a type of object that won't go out of
+     scope, then these functions are yest required.  These functions are yest
+     required for indices as indices may yest contain data.  These functions may
+     be called in interrupt context and so may yest sleep.
 
  (6) A function to mark a page as retaining cache metadata [optional].
 
      This is called by the cache to indicate that it is retaining in-memory
      information for this page and that the netfs should uncache the page when
-     it has finished.  This does not indicate whether there's data on the disk
-     or not.  Note that several pages at once may be presented for marking.
+     it has finished.  This does yest indicate whether there's data on the disk
+     or yest.  Note that several pages at once may be presented for marking.
 
      The PG_fscache bit is set on the pages before this function would be
-     called, so the function need not be provided if this is sufficient.
+     called, so the function need yest be provided if this is sufficient.
 
-     This function is not required for indices as they're not permitted data.
+     This function is yest required for indices as they're yest permitted data.
 
  (7) A function to unmark all the pages retaining cache metadata [mandatory].
 
@@ -233,7 +233,7 @@ This has the following fields:
      its tracking information so that the pages don't need to be explicitly
      uncached.
 
-     This function is not required for indices as they're not permitted data.
+     This function is yest required for indices as they're yest permitted data.
 
 
 ===================================
@@ -324,12 +324,12 @@ object_size.  For indices, this should be 0.  This value will be passed to the
 ->check_aux() callback.
 
 Note that this function never returns an error - all errors are handled
-internally.  It may, however, return NULL to indicate no cookie.  It is quite
-acceptable to pass this token back to this function as the parent to another
+internally.  It may, however, return NULL to indicate yes cookie.  It is quite
+acceptable to pass this token back to this function as the parent to ayesther
 acquisition (or even to the relinquish cookie, read page and write page
 functions - see below).
 
-Note also that no indices are actually created in a cache until a non-index
+Note also that yes indices are actually created in a cache until a yesn-index
 object needs to be created somewhere down the hierarchy.  Furthermore, an index
 may be created in several different caches independently at different times.
 This is all handled transparently, and the netfs doesn't see any of it.
@@ -339,7 +339,7 @@ must be enabled to do anything with it.  A disabled cookie can be enabled by
 calling fscache_enable_cookie() (see below).
 
 For example, with AFS, a cell would be added to the primary index.  This index
-entry would have a dependent inode containing volume mappings within this cell:
+entry would have a dependent iyesde containing volume mappings within this cell:
 
 	cell->cache =
 		fscache_acquire_cookie(afs_cache_netfs.primary_index,
@@ -349,7 +349,7 @@ entry would have a dependent inode containing volume mappings within this cell:
 				       cell, 0, true);
 
 And then a particular volume could be added to that index by ID, creating
-another index for vnodes (AFS inode equivalents):
+ayesther index for vyesdes (AFS iyesde equivalents):
 
 	volume->cache =
 		fscache_acquire_cookie(volume->cell->cache,
@@ -367,12 +367,12 @@ The fourth step is to request a data file be created in the cache.  This is
 identical to index cookie acquisition.  The only difference is that the type in
 the object definition should be something other than index type.
 
-	vnode->cache =
+	vyesde->cache =
 		fscache_acquire_cookie(volume->cache,
-				       &afs_vnode_cache_object_def,
+				       &afs_vyesde_cache_object_def,
 				       &key, sizeof(key),
 				       &aux, sizeof(aux),
-				       vnode, vnode->status.size, true);
+				       vyesde, vyesde->status.size, true);
 
 
 =================================
@@ -386,7 +386,7 @@ than index type.  While the parent object could be an index, it's more likely
 it would be some other type of object such as a data file.
 
 	xattr->cache =
-		fscache_acquire_cookie(vnode->cache,
+		fscache_acquire_cookie(vyesde->cache,
 				       &afs_xattr_cache_object_def,
 				       &xattr->name, strlen(xattr->name),
 				       NULL, 0,
@@ -406,13 +406,13 @@ cache to adjust its metadata for data tracking appropriately:
 
 	int fscache_attr_changed(struct fscache_cookie *cookie);
 
-The cache will return -ENOBUFS if there is no backing cache or if there is no
+The cache will return -ENOBUFS if there is yes backing cache or if there is yes
 space to allocate any extra metadata required in the cache.
 
 Note that attempts to read or write data pages in the cache over this size may
 be rebuffed with -ENOBUFS.
 
-This operation schedules an attribute adjustment to happen asynchronously at
+This operation schedules an attribute adjustment to happen asynchroyesusly at
 some point in the future, and as such, it may happen after the function returns
 to the caller.  The attribute adjustment excludes read and write operations.
 
@@ -426,7 +426,7 @@ three functions that are used to do this.
 
 Note:
 
- (1) A page should not be re-read or re-allocated without uncaching it first.
+ (1) A page should yest be re-read or re-allocated without uncaching it first.
 
  (2) A read or allocated page must be uncached when the netfs page is released
      from the pagecache.
@@ -441,7 +441,7 @@ PAGE READ
 
 Firstly, the netfs should ask FS-Cache to examine the caches and read the
 contents cached for a particular page of a particular file if present, or else
-allocate space to store the contents if not:
+allocate space to store the contents if yest:
 
 	typedef
 	void (*fscache_rw_complete_t)(struct page *page,
@@ -459,7 +459,7 @@ the page specified will have the data loaded into it (and is also used to
 specify the page number), and the gfp argument is used to control how any
 memory allocations made are satisfied.
 
-If the cookie indicates the inode is not cached:
+If the cookie indicates the iyesde is yest cached:
 
  (1) The function will return -ENOBUFS.
 
@@ -483,14 +483,14 @@ Else if there's a copy of the page resident in the cache:
 
      (*) An argument that's 0 on success or negative for an error code.
 
-     If an error occurs, it should be assumed that the page contains no usable
+     If an error occurs, it should be assumed that the page contains yes usable
      data.  fscache_readpages_cancel() may need to be called.
 
      end_io_func() will be called in process context if the read is results in
      an error, but it might be called in interrupt context if the read is
      successful.
 
-Otherwise, if there's not a copy available in cache, but the cache may be able
+Otherwise, if there's yest a copy available in cache, but the cache may be able
 to store the page:
 
  (1) The mark_pages_cached() cookie operation will be called on that page.
@@ -507,7 +507,7 @@ read any data from the cache.
 PAGE ALLOCATE
 -------------
 
-Alternatively, if there's not expected to be any data in the cache for a page
+Alternatively, if there's yest expected to be any data in the cache for a page
 because the file has been extended, a block can simply be allocated instead:
 
 	int fscache_alloc_page(struct fscache_cookie *cookie,
@@ -540,10 +540,10 @@ contain the data to be written (and is also used to specify the page number),
 object_size is the revised size of the object and the gfp argument is used to
 control how any memory allocations made are satisfied.
 
-The page must have first been read or allocated successfully and must not have
+The page must have first been read or allocated successfully and must yest have
 been uncached before writing is performed.
 
-If the cookie indicates the inode is not cached then:
+If the cookie indicates the iyesde is yest cached then:
 
  (1) The function will return -ENOBUFS.
 
@@ -559,11 +559,11 @@ Else if space can be allocated in the cache to hold this page:
  (4) When the write is complete PG_fscache_write is cleared on the page and
      anyone waiting for that bit will be woken up.
 
-Else if there's no space available in the cache, -ENOBUFS will be returned.  It
-is also possible for the PG_fscache_write bit to be cleared when no write took
+Else if there's yes space available in the cache, -ENOBUFS will be returned.  It
+is also possible for the PG_fscache_write bit to be cleared when yes write took
 place if unforeseen circumstances arose (such as a disk error).
 
-Writing takes place asynchronously.
+Writing takes place asynchroyesusly.
 
 
 MULTIPLE PAGE READ
@@ -602,9 +602,9 @@ This works in a similar way to fscache_read_or_alloc_page(), except:
 
  (4) end_io_func will be called once for each page being read as the reads
      complete.  It will be called in process context if error != 0, but it may
-     be called in interrupt context if there is no error.
+     be called in interrupt context if there is yes error.
 
-Note that a return of -ENODATA, -ENOBUFS or any other error does not preclude
+Note that a return of -ENODATA, -ENOBUFS or any other error does yest preclude
 some of the pages being read and some being allocated.  Those pages will have
 been marked appropriately and will need uncaching.
 
@@ -612,8 +612,8 @@ been marked appropriately and will need uncaching.
 CANCELLATION OF UNREAD PAGES
 ----------------------------
 
-If one or more pages are passed to fscache_read_or_alloc_pages() but not then
-read from the cache and also not read from the underlying filesystem then
+If one or more pages are passed to fscache_read_or_alloc_pages() but yest then
+read from the cache and also yest read from the underlying filesystem then
 those pages will need to have any marks and reservations removed.  This can be
 done by calling:
 
@@ -642,7 +642,7 @@ make sure the cache's in-memory tracking information gets torn down.
 Note that pages can't be explicitly deleted from the a data file.  The whole
 data file must be retired (see the relinquish cookie function below).
 
-Furthermore, note that this does not cancel the asynchronous read or write
+Furthermore, yeste that this does yest cancel the asynchroyesus read or write
 operation started by the read/alloc and write functions, so the page
 invalidation functions must use:
 
@@ -667,26 +667,26 @@ need to allocate memory):
 					gfp_t gfp);
 
 This takes the netfs cookie, and the page and gfp arguments as supplied to
-releasepage().  It will return false if the page cannot be released yet for
-some reason and if it returns true, the page has been uncached and can now be
+releasepage().  It will return false if the page canyest be released yet for
+some reason and if it returns true, the page has been uncached and can yesw be
 released.
 
 To make a page available for release, this function may wait for an outstanding
 storage request to complete, or it may attempt to cancel the storage request -
-in which case the page will not be stored in the cache this time.
+in which case the page will yest be stored in the cache this time.
 
 
 BULK INODE PAGE UNCACHE
 -----------------------
 
 A convenience routine is provided to perform an uncache on all the pages
-attached to an inode.  This assumes that the pages on the inode correspond on a
+attached to an iyesde.  This assumes that the pages on the iyesde correspond on a
 1:1 basis with the pages in the cache.
 
-	void fscache_uncache_all_inode_pages(struct fscache_cookie *cookie,
-					     struct inode *inode);
+	void fscache_uncache_all_iyesde_pages(struct fscache_cookie *cookie,
+					     struct iyesde *iyesde);
 
-This takes the netfs cookie that the pages were cached with and the inode that
+This takes the netfs cookie that the pages were cached with and the iyesde that
 the pages are attached to.  This function will wait for pages to finish being
 written to the cache and for the cache to finish with the page generally.  No
 error is returned.
@@ -703,7 +703,7 @@ cache, the following function can be called:
 				      const void *aux_data);
 
 This will call back to the netfs to check whether the auxiliary data associated
-with a cookie is correct; if aux_data is non-NULL, it will update the auxiliary
+with a cookie is correct; if aux_data is yesn-NULL, it will update the auxiliary
 data buffer first.  It returns 0 if it is and -ESTALE if it isn't; it may also
 return -ENOMEM and -ERESTARTSYS.
 
@@ -714,7 +714,7 @@ following function should be called:
 				   const void *aux_data);
 
 This function will update the cookie's auxiliary data buffer from aux_data if
-that is non-NULL and then schedule this to be stored on disk.  The update
+that is yesn-NULL and then schedule this to be stored on disk.  The update
 method in the parent index definition will be called to transfer the data.
 
 Note that partial updates may happen automatically at other times, such as when
@@ -726,7 +726,7 @@ COOKIE ENABLEMENT
 =================
 
 Cookies exist in one of two states: enabled and disabled.  If a cookie is
-disabled, it ignores all attempts to acquire child cookies; check, update or
+disabled, it igyesres all attempts to acquire child cookies; check, update or
 invalidate its state; allocate, read or write backing pages - though it is
 still possible to uncache pages and relinquish the cookie.
 
@@ -737,13 +737,13 @@ can be enabled or disabled later.  To disable a cookie, call:
 				    const void *aux_data,
     				    bool invalidate);
 
-If the cookie is not already disabled, this locks the cookie against other
+If the cookie is yest already disabled, this locks the cookie against other
 enable and disable ops, marks the cookie as being disabled, discards or
 invalidates any backing objects and waits for cessation of activity on any
 associated object before unlocking the cookie.
 
 All possible failures are handled internally.  The caller should consider
-calling fscache_uncache_all_inode_pages() afterwards to make sure all page
+calling fscache_uncache_all_iyesde_pages() afterwards to make sure all page
 markings are cleared up.
 
 Cookies can be enabled or reenabled with:
@@ -754,12 +754,12 @@ Cookies can be enabled or reenabled with:
     				   bool (*can_enable)(void *data),
     				   void *data)
 
-If the cookie is not already enabled, this locks the cookie against other
-enable and disable ops, invokes can_enable() and, if the cookie is not an index
+If the cookie is yest already enabled, this locks the cookie against other
+enable and disable ops, invokes can_enable() and, if the cookie is yest an index
 cookie, will begin the procedure of acquiring backing objects.
 
 The optional can_enable() function is passed the data argument and returns a
-ruling as to whether or not enablement should actually be permitted to begin.
+ruling as to whether or yest enablement should actually be permitted to begin.
 
 All possible failures are handled internally.  The cookie will only be marked
 as enabled if provisional backing objects are allocated.
@@ -768,7 +768,7 @@ The object's data size is updated from object_size and is passed to the
 ->check_aux() function.
 
 In both cases, the cookie's auxiliary data buffer is updated from aux_data if
-that is non-NULL inside the enablement lock before proceeding.
+that is yesn-NULL inside the enablement lock before proceeding.
 
 
 ===============================
@@ -783,11 +783,11 @@ There are a number of operations that can be used to control cookies:
 	void fscache_unpin_cookie(struct fscache_cookie *cookie);
 
      These operations permit data cookies to be pinned into the cache and to
-     have the pinning removed.  They are not permitted on index cookies.
+     have the pinning removed.  They are yest permitted on index cookies.
 
      The pinning function will return 0 if successful, -ENOBUFS in the cookie
      isn't backed by a cache, -EOPNOTSUPP if the cache doesn't support pinning,
-     -ENOSPC if there isn't enough space to honour the operation, -ENOMEM or
+     -ENOSPC if there isn't eyesugh space to hoyesur the operation, -ENOMEM or
      -EIO if there's any other problem.
 
  (*) Data space reservation:
@@ -802,11 +802,11 @@ There are a number of operations that can be used to control cookies:
 
      The function will return 0 if successful, -ENOBUFS in the cookie isn't
      backed by a cache, -EOPNOTSUPP if the cache doesn't support reservations,
-     -ENOSPC if there isn't enough space to honour the operation, -ENOMEM or
+     -ENOSPC if there isn't eyesugh space to hoyesur the operation, -ENOMEM or
      -EIO if there's any other problem.
 
      Note that this doesn't pin an object in a cache; it can still be culled to
-     make space if it's not in use.
+     make space if it's yest in use.
 
 
 =====================
@@ -819,7 +819,7 @@ To get rid of a cookie, this function should be called.
 				       const void *aux_data,
 				       bool retire);
 
-If retire is non-zero, then the object will be marked for recycling, and all
+If retire is yesn-zero, then the object will be marked for recycling, and all
 copies of it will be removed from all active caches in which it is present.
 Not only that but all child objects will also be retired.
 
@@ -827,10 +827,10 @@ If retire is zero, then the object may be available again when next the
 acquisition function is called.  Retirement here will overrule the pinning on a
 cookie.
 
-The cookie's auxiliary data will be updated from aux_data if that is non-NULL
+The cookie's auxiliary data will be updated from aux_data if that is yesn-NULL
 so that the cache can lazily update it on disk.
 
-One very important note - relinquish must NOT be called for a cookie unless all
+One very important yeste - relinquish must NOT be called for a cookie unless all
 the cookies for "child" indices, objects and pages have been relinquished
 first.
 
@@ -839,7 +839,7 @@ first.
 INDEX INVALIDATION
 ==================
 
-There is no direct way to invalidate an index subtree.  To do this, the caller
+There is yes direct way to invalidate an index subtree.  To do this, the caller
 should relinquish and retire the cookie they have, and then acquire a new one.
 
 
@@ -850,7 +850,7 @@ DATA FILE INVALIDATION
 Sometimes it will be necessary to invalidate an object that contains data.
 Typically this will be necessary when the server tells the netfs of a foreign
 change - at which point the netfs has to throw away all the state it had for an
-inode and reload from the server.
+iyesde and reload from the server.
 
 To indicate that a cache object should be invalidated, the following function
 can be called:
@@ -880,7 +880,7 @@ FS-CACHE SPECIFIC PAGE FLAG
 FS-Cache makes use of a page flag, PG_private_2, for its own purpose.  This is
 given the alternative name PG_fscache.
 
-PG_fscache is used to indicate that the page is known by the cache, and that
+PG_fscache is used to indicate that the page is kyeswn by the cache, and that
 the cache must be informed if the page is going to go away.  It's an indication
 to the netfs that the cache has an interest in this page, where an interest may
 be a pointer to it, resources allocated or reserved for it, or I/O in progress
@@ -890,12 +890,12 @@ The netfs can use this information in methods such as releasepage() to
 determine whether it needs to uncache a page or update it.
 
 Furthermore, if this bit is set, releasepage() and invalidatepage() operations
-will be called on a page to get rid of it, even if PG_private is not set.  This
+will be called on a page to get rid of it, even if PG_private is yest set.  This
 allows caching to attempted on a page before read_cache_pages() to be called
 after fscache_read_or_alloc_pages() as the former will try and release pages it
 was given under certain circumstances.
 
-This bit does not overlap with such as PG_private.  This means that FS-Cache
+This bit does yest overlap with such as PG_private.  This means that FS-Cache
 can be used with a filesystem that uses the block buffering code.
 
 There are a number of operations defined on this flag:

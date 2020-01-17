@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_DQEVENT:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_DQEVENT - Dequeue event
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_DQEVENT, struct v4l2_event *argp )
@@ -99,7 +99,7 @@ call.
       -
       - Event sequence number. The sequence number is incremented for
 	every subscribed event that takes place. If sequence numbers are
-	not contiguous it means that events have been lost.
+	yest contiguous it means that events have been lost.
     * - struct timespec
       - ``timestamp``
       -
@@ -109,7 +109,7 @@ call.
     * - u32
       - ``id``
       -
-      - The ID associated with the event source. If the event does not
+      - The ID associated with the event source. If the event does yest
 	have an associated ID (this depends on the event type), then this
 	is 0.
     * - __u32
@@ -159,12 +159,12 @@ call.
 	If the event is generated due to a call to
 	:ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` or
 	:ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`, then the
-	event will *not* be sent to the file handle that called the ioctl
+	event will *yest* be sent to the file handle that called the ioctl
 	function. This prevents nasty feedback loops. If you *do* want to
 	get the event, then set the ``V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK``
 	flag.
 
-	This event type will ensure that no information is lost when more
+	This event type will ensure that yes information is lost when more
 	events are raised than there is room internally. In that case the
 	struct :c:type:`v4l2_event_ctrl` of the
 	second-oldest event is kept, but the ``changes`` field of the
@@ -178,9 +178,9 @@ call.
 	associated with it.
 
 	If the hardware needs to be stopped in the case of a buffer
-	underrun it might not be able to generate this event. In such
+	underrun it might yest be able to generate this event. In such
 	cases the ``frame_sequence`` field in struct
-	:c:type:`v4l2_event_frame_sync` will not
+	:c:type:`v4l2_event_frame_sync` will yest
 	be incremented. This causes two consecutive frame sequence numbers
 	to have n times frame interval in between them.
     * - ``V4L2_EVENT_SOURCE_CHANGE``
@@ -189,13 +189,13 @@ call.
 	during runtime by the video device. It can be a runtime resolution
 	change triggered by a video decoder or the format change happening
 	on an input connector. This event requires that the ``id`` matches
-	the input index (when used with a video device node) or the pad
-	index (when used with a subdevice node) from which you want to
+	the input index (when used with a video device yesde) or the pad
+	index (when used with a subdevice yesde) from which you want to
 	receive events.
 
 	This event has a struct
 	:c:type:`v4l2_event_src_change`
-	associated with it. The ``changes`` bitfield denotes what has
+	associated with it. The ``changes`` bitfield deyestes what has
 	changed for the subscribed pad. If multiple events occurred before
 	application could dequeue them, then the changes will have the
 	ORed value of all the events generated.
@@ -245,7 +245,7 @@ call.
       -
       - The type of the control. See enum
 	:c:type:`v4l2_ctrl_type`.
-    * - union (anonymous)
+    * - union (ayesnymous)
       -
       -
       -
@@ -253,7 +253,7 @@ call.
       - __s32
       - ``value``
       - The 32-bit value of the control for 32-bit control types. This is
-	0 for string controls since the value of a string cannot be passed
+	0 for string controls since the value of a string canyest be passed
 	using :ref:`VIDIOC_DQEVENT`.
     * -
       - __s64
@@ -331,7 +331,7 @@ call.
       - Currently only one flag is available: if
 	``V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ`` is set, then the
 	``frame_sequence`` field is valid, otherwise that field should be
-	ignored.
+	igyesred.
     * - __u32
       - ``frame_sequence``
       - The sequence number of the frame being received. Only valid if the
@@ -339,8 +339,8 @@ call.
     * - __u32
       - ``region_mask``
       - The bitmask of the regions that reported motion. There is at least
-	one region. If this field is 0, then no motion was detected at
-	all. If there is no ``V4L2_CID_DETECT_MD_REGION_GRID`` control
+	one region. If this field is 0, then yes motion was detected at
+	all. If there is yes ``V4L2_CID_DETECT_MD_REGION_GRID`` control
 	(see :ref:`detect-controls`) to assign a different region to
 	each cell in the motion detection grid, then that all cells are
 	automatically assigned to the default region 0.
@@ -359,7 +359,7 @@ call.
     * - ``V4L2_EVENT_CTRL_CH_VALUE``
       - 0x0001
       - This control event was triggered because the value of the control
-	changed. Special cases: Volatile controls do no generate this
+	changed. Special cases: Volatile controls do yes generate this
 	event; If a control has the ``V4L2_CTRL_FLAG_EXECUTE_ON_WRITE``
 	flag set, then this event is sent as well, regardless its value.
     * - ``V4L2_EVENT_CTRL_CH_FLAGS``
@@ -399,7 +399,7 @@ call.
 	video signal and you must stop and restart streaming
 	(:ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>`
 	followed by :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`). The reason is
-	that many Video Capture devices are not able to recover from a temporary
+	that many Video Capture devices are yest able to recover from a temporary
 	loss of signal and so restarting streaming I/O is required in order for
 	the hardware to synchronize to the video signal.
 
@@ -407,6 +407,6 @@ call.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

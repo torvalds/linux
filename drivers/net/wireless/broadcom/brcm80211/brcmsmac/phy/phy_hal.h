@@ -79,7 +79,7 @@
 #define BRCMS_TXPWR_DB_FACTOR	4
 
 /* a large TX Power as an init value to factor out of min() calculations,
- * keep low enough to fit in an s8, units are .25 dBm
+ * keep low eyesugh to fit in an s8, units are .25 dBm
  */
 #define BRCMS_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */
 
@@ -196,7 +196,7 @@ void wlc_phy_bw_state_set(struct brcms_phy_pub *ppi, u16 bw);
 
 int wlc_phy_rssi_compute(struct brcms_phy_pub *pih, struct d11rxhdr *rxh);
 void wlc_phy_por_inform(struct brcms_phy_pub *ppi);
-void wlc_phy_noise_sample_intr(struct brcms_phy_pub *ppi);
+void wlc_phy_yesise_sample_intr(struct brcms_phy_pub *ppi);
 bool wlc_phy_bist_check_phy(struct brcms_phy_pub *ppi);
 
 void wlc_phy_set_deaf(struct brcms_phy_pub *ppi, bool user_flag);
@@ -239,7 +239,7 @@ s8 wlc_phy_stf_ssmode_get(struct brcms_phy_pub *pih, u16 chanspec);
 void wlc_phy_ldpc_override_set(struct brcms_phy_pub *ppi, bool val);
 
 void wlc_phy_cal_perical(struct brcms_phy_pub *ppi, u8 reason);
-void wlc_phy_noise_sample_request_external(struct brcms_phy_pub *ppi);
+void wlc_phy_yesise_sample_request_external(struct brcms_phy_pub *ppi);
 void wlc_phy_edcrs_lock(struct brcms_phy_pub *pih, bool lock);
 void wlc_phy_cal_papd_recal(struct brcms_phy_pub *ppi);
 

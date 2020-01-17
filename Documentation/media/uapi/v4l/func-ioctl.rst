@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _func-ioctl:
 
@@ -19,7 +19,7 @@ Name
 v4l2-ioctl - Program a V4L2 device
 
 
-Synopsis
+Syyespsis
 ========
 
 .. code-block:: c
@@ -52,7 +52,7 @@ argument ``fd`` must be an open file descriptor. An ioctl ``request``
 has encoded in it whether the argument is an input, output or read/write
 parameter, and the size of the argument ``argp`` in bytes. Macros and
 defines specifying V4L2 ioctl requests are located in the
-``videodev2.h`` header file. Applications should use their own copy, not
+``videodev2.h`` header file. Applications should use their own copy, yest
 include the version in the kernel sources on the system they compile on.
 All V4L2 ioctl requests, their respective function and parameters are
 specified in :ref:`user-func`.
@@ -61,7 +61,7 @@ specified in :ref:`user-func`.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

@@ -85,7 +85,7 @@ static struct platform_device *gmac_controller2_init(void *gmac0_addr)
 	ndata1.pcs_addr	= gmac4_addr;
 	ndata1.mii_addr	= gmac0_addr;
 	ndata1.gpio_addr = gpio_addr;
-	ndata1.cpu_mask = nlm_current_node()->coremask;
+	ndata1.cpu_mask = nlm_current_yesde()->coremask;
 
 	xlr_net_dev1.resource = xlr_net1_res;
 
@@ -130,7 +130,7 @@ static void xls_gmac_init(void)
 		ioremap(CPHYSADDR(nlm_mmio_base(NETLOGIC_IO_GPIO_OFFSET)),
 			0xfff);
 	ndata0.gpio_addr = gpio_addr;
-	ndata0.cpu_mask = nlm_current_node()->coremask;
+	ndata0.cpu_mask = nlm_current_yesde()->coremask;
 
 	xlr_net_dev0.resource = xlr_net0_res;
 
@@ -147,7 +147,7 @@ static void xls_gmac_init(void)
 				  xlr_gmac_irqs[0]);
 		platform_device_register(&xlr_net_dev0);
 
-		/* second block is XAUI, not supported yet */
+		/* second block is XAUI, yest supported yet */
 		break;
 	default:
 		/* default XLS config, all ports SGMII */
@@ -172,7 +172,7 @@ static void xlr_gmac_init(void)
 {
 	int mac;
 
-	/* assume all GMACs for now */
+	/* assume all GMACs for yesw */
 	static struct xlr_net_data ndata0 = {
 		.phy_interface	= PHY_INTERFACE_MODE_RGMII,
 		.serdes_addr	= NULL,
@@ -192,7 +192,7 @@ static void xlr_gmac_init(void)
 		ioremap(CPHYSADDR(nlm_mmio_base(NETLOGIC_IO_GMAC_0_OFFSET)),
 			0xfff);
 
-	ndata0.cpu_mask = nlm_current_node()->coremask;
+	ndata0.cpu_mask = nlm_current_yesde()->coremask;
 
 	for (mac = 0; mac < MAX_NUM_XLR_GMAC; mac++) {
 		ndata0.tx_stnid[mac] = FMN_STNID_GMAC0_TX0 + mac;

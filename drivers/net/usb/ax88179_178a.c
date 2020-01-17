@@ -195,7 +195,7 @@ static int __ax88179_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 	if (!in_pm)
 		fn = usbnet_read_cmd;
 	else
-		fn = usbnet_read_cmd_nopm;
+		fn = usbnet_read_cmd_yespm;
 
 	ret = fn(dev, cmd, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 value, index, data, size);
@@ -218,7 +218,7 @@ static int __ax88179_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 	if (!in_pm)
 		fn = usbnet_write_cmd;
 	else
-		fn = usbnet_write_cmd_nopm;
+		fn = usbnet_write_cmd_yespm;
 
 	ret = fn(dev, cmd, USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 value, index, data, size);
@@ -248,7 +248,7 @@ static void ax88179_write_cmd_async(struct usbnet *dev, u8 cmd, u16 value,
 	}
 }
 
-static int ax88179_read_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
+static int ax88179_read_cmd_yespm(struct usbnet *dev, u8 cmd, u16 value,
 				 u16 index, u16 size, void *data)
 {
 	int ret;
@@ -270,7 +270,7 @@ static int ax88179_read_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
 	return ret;
 }
 
-static int ax88179_write_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
+static int ax88179_write_cmd_yespm(struct usbnet *dev, u8 cmd, u16 value,
 				  u16 index, u16 size, void *data)
 {
 	int ret;
@@ -430,27 +430,27 @@ static int ax88179_suspend(struct usb_interface *intf, pm_message_t message)
 	usbnet_suspend(intf, message);
 
 	/* Disable RX path */
-	ax88179_read_cmd_nopm(dev, AX_ACCESS_MAC, AX_MEDIUM_STATUS_MODE,
+	ax88179_read_cmd_yespm(dev, AX_ACCESS_MAC, AX_MEDIUM_STATUS_MODE,
 			      2, 2, &tmp16);
 	tmp16 &= ~AX_MEDIUM_RECEIVE_EN;
-	ax88179_write_cmd_nopm(dev, AX_ACCESS_MAC, AX_MEDIUM_STATUS_MODE,
+	ax88179_write_cmd_yespm(dev, AX_ACCESS_MAC, AX_MEDIUM_STATUS_MODE,
 			       2, 2, &tmp16);
 
 	/* Force bulk-in zero length */
-	ax88179_read_cmd_nopm(dev, AX_ACCESS_MAC, AX_PHYPWR_RSTCTL,
+	ax88179_read_cmd_yespm(dev, AX_ACCESS_MAC, AX_PHYPWR_RSTCTL,
 			      2, 2, &tmp16);
 
 	tmp16 |= AX_PHYPWR_RSTCTL_BZ | AX_PHYPWR_RSTCTL_IPRL;
-	ax88179_write_cmd_nopm(dev, AX_ACCESS_MAC, AX_PHYPWR_RSTCTL,
+	ax88179_write_cmd_yespm(dev, AX_ACCESS_MAC, AX_PHYPWR_RSTCTL,
 			       2, 2, &tmp16);
 
 	/* change clock */
 	tmp8 = 0;
-	ax88179_write_cmd_nopm(dev, AX_ACCESS_MAC, AX_CLK_SELECT, 1, 1, &tmp8);
+	ax88179_write_cmd_yespm(dev, AX_ACCESS_MAC, AX_CLK_SELECT, 1, 1, &tmp8);
 
 	/* Configure RX control register => stop operation */
 	tmp16 = AX_RX_CTL_STOP;
-	ax88179_write_cmd_nopm(dev, AX_ACCESS_MAC, AX_RX_CTL, 2, 2, &tmp16);
+	ax88179_write_cmd_yespm(dev, AX_ACCESS_MAC, AX_RX_CTL, 2, 2, &tmp16);
 
 	return 0;
 }
@@ -468,8 +468,8 @@ static int ax88179_auto_detach(struct usbnet *dev, int in_pm)
 		fnr = ax88179_read_cmd;
 		fnw = ax88179_write_cmd;
 	} else {
-		fnr = ax88179_read_cmd_nopm;
-		fnw = ax88179_write_cmd_nopm;
+		fnr = ax88179_read_cmd_yespm;
+		fnw = ax88179_write_cmd_yespm;
 	}
 
 	if (fnr(dev, AX_ACCESS_EEPROM, 0x43, 1, 2, &tmp16) < 0)
@@ -501,12 +501,12 @@ static int ax88179_resume(struct usb_interface *intf)
 
 	/* Power up ethernet PHY */
 	tmp16 = 0;
-	ax88179_write_cmd_nopm(dev, AX_ACCESS_MAC, AX_PHYPWR_RSTCTL,
+	ax88179_write_cmd_yespm(dev, AX_ACCESS_MAC, AX_PHYPWR_RSTCTL,
 			       2, 2, &tmp16);
 	udelay(1000);
 
 	tmp16 = AX_PHYPWR_RSTCTL_IPRL;
-	ax88179_write_cmd_nopm(dev, AX_ACCESS_MAC, AX_PHYPWR_RSTCTL,
+	ax88179_write_cmd_yespm(dev, AX_ACCESS_MAC, AX_PHYPWR_RSTCTL,
 			       2, 2, &tmp16);
 	msleep(200);
 
@@ -514,15 +514,15 @@ static int ax88179_resume(struct usb_interface *intf)
 	ax88179_auto_detach(dev, 1);
 
 	/* Enable clock */
-	ax88179_read_cmd_nopm(dev, AX_ACCESS_MAC,  AX_CLK_SELECT, 1, 1, &tmp8);
+	ax88179_read_cmd_yespm(dev, AX_ACCESS_MAC,  AX_CLK_SELECT, 1, 1, &tmp8);
 	tmp8 |= AX_CLK_SELECT_ACS | AX_CLK_SELECT_BCS;
-	ax88179_write_cmd_nopm(dev, AX_ACCESS_MAC, AX_CLK_SELECT, 1, 1, &tmp8);
+	ax88179_write_cmd_yespm(dev, AX_ACCESS_MAC, AX_CLK_SELECT, 1, 1, &tmp8);
 	msleep(100);
 
 	/* Configure RX control register => start operation */
 	tmp16 = AX_RX_CTL_DROPCRCERR | AX_RX_CTL_IPE | AX_RX_CTL_START |
 		AX_RX_CTL_AP | AX_RX_CTL_AMALL | AX_RX_CTL_AB;
-	ax88179_write_cmd_nopm(dev, AX_ACCESS_MAC, AX_RX_CTL, 2, 2, &tmp16);
+	ax88179_write_cmd_yespm(dev, AX_ACCESS_MAC, AX_RX_CTL, 2, 2, &tmp16);
 
 	return usbnet_resume(intf);
 }
@@ -1388,7 +1388,7 @@ static int ax88179_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	u16 hdr_off;
 	u32 *pkt_hdr;
 
-	/* This check is no longer done by usbnet */
+	/* This check is yes longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len)
 		return 0;
 
@@ -1725,8 +1725,8 @@ static const struct driver_info samsung_info = {
 	.tx_fixup = ax88179_tx_fixup,
 };
 
-static const struct driver_info lenovo_info = {
-	.description = "Lenovo OneLinkDock Gigabit LAN",
+static const struct driver_info leyesvo_info = {
+	.description = "Leyesvo OneLinkDock Gigabit LAN",
 	.bind = ax88179_bind,
 	.unbind = ax88179_unbind,
 	.status = ax88179_status,
@@ -1776,9 +1776,9 @@ static const struct usb_device_id products[] = {
 	USB_DEVICE(0x04e8, 0xa100),
 	.driver_info = (unsigned long)&samsung_info,
 }, {
-	/* Lenovo OneLinkDock Gigabit LAN */
+	/* Leyesvo OneLinkDock Gigabit LAN */
 	USB_DEVICE(0x17ef, 0x304b),
-	.driver_info = (unsigned long)&lenovo_info,
+	.driver_info = (unsigned long)&leyesvo_info,
 }, {
 	/* Belkin B2B128 USB 3.0 Hub + Gigabit Ethernet Adapter */
 	USB_DEVICE(0x050d, 0x0128),

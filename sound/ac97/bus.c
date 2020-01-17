@@ -66,22 +66,22 @@ ac97_codec_find(struct ac97_controller *ac97_ctrl, unsigned int codec_num)
 	return ac97_ctrl->codecs[codec_num];
 }
 
-static struct device_node *
+static struct device_yesde *
 ac97_of_get_child_device(struct ac97_controller *ac97_ctrl, int idx,
 			 unsigned int vendor_id)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	u32 reg;
 	char compat[] = "ac97,0000,0000";
 
 	snprintf(compat, sizeof(compat), "ac97,%04x,%04x",
 		 vendor_id >> 16, vendor_id & 0xffff);
 
-	for_each_child_of_node(ac97_ctrl->parent->of_node, node) {
-		if ((idx != of_property_read_u32(node, "reg", &reg)) ||
-		    !of_device_is_compatible(node, compat))
+	for_each_child_of_yesde(ac97_ctrl->parent->of_yesde, yesde) {
+		if ((idx != of_property_read_u32(yesde, "reg", &reg)) ||
+		    !of_device_is_compatible(yesde, compat))
 			continue;
-		return node;
+		return yesde;
 	}
 
 	return NULL;
@@ -95,7 +95,7 @@ static void ac97_codec_release(struct device *dev)
 	adev = to_ac97_device(dev);
 	ac97_ctrl = adev->ac97_ctrl;
 	ac97_ctrl->codecs[adev->num] = NULL;
-	of_node_put(dev->of_node);
+	of_yesde_put(dev->of_yesde);
 	kfree(adev);
 }
 
@@ -118,7 +118,7 @@ static int ac97_codec_add(struct ac97_controller *ac97_ctrl, int idx,
 
 	device_initialize(&codec->dev);
 	dev_set_name(&codec->dev, "%s:%u", dev_name(ac97_ctrl->parent), idx);
-	codec->dev.of_node = ac97_of_get_child_device(ac97_ctrl, idx,
+	codec->dev.of_yesde = ac97_of_get_child_device(ac97_ctrl, idx,
 						      vendor_id);
 
 	ret = device_add(&codec->dev);
@@ -498,7 +498,7 @@ static int ac97_bus_probe(struct device *dev)
 	if (ret)
 		return ret;
 
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -508,7 +508,7 @@ static int ac97_bus_probe(struct device *dev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	ac97_put_disable_clk(adev);
 
 	return ret;
@@ -525,7 +525,7 @@ static int ac97_bus_remove(struct device *dev)
 		return ret;
 
 	ret = adrv->remove(adev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	if (ret == 0)
 		ac97_put_disable_clk(adev);
 

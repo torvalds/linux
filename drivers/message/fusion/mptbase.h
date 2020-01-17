@@ -3,7 +3,7 @@
  *      High performance SCSI + LAN / Fibre Channel device drivers.
  *      For use with PCI chip/adapter(s):
  *          LSIFC9xx/LSI409xx Fibre Channel
- *      running LSI Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Techyeslogy) firmware.
  *
  *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -27,7 +27,7 @@
     MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
     solely responsible for determining the appropriateness of using and
     distributing the Program and assumes all risks associated with its
-    exercise of rights under this Agreement, including but not limited to
+    exercise of rights under this Agreement, including but yest limited to
     the risks and costs of program errors, damage to or loss of data,
     programs or equipment, and unavailability or interruption of operations.
 
@@ -41,7 +41,7 @@
     HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if yest, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
@@ -90,7 +90,7 @@
 #define MPT_MAX_ADAPTERS		18
 #define MPT_MAX_PROTOCOL_DRIVERS	16
 #define MPT_MAX_CALLBACKNAME_LEN	49
-#define MPT_MAX_BUS			1	/* Do not change */
+#define MPT_MAX_BUS			1	/* Do yest change */
 #define MPT_MAX_FC_DEVICES		255
 #define MPT_MAX_SCSI_DEVICES		16
 #define MPT_LAST_LUN			255
@@ -280,10 +280,10 @@ typedef union _MPT_FRAME_TRACKER {
 	 * The message context must be reset (computed via base address
 	 * + an offset) prior to issuing any command.
 	 *
-	 * NOTE2: On non-32-bit systems, where pointers are LARGE,
+	 * NOTE2: On yesn-32-bit systems, where pointers are LARGE,
 	 * using the linkage pointers destroys our sacred MsgContext
 	 * field contents.  But we don't care anymore because these
-	 * are now reset in mpt_put_msg_frame() just prior to sending
+	 * are yesw reset in mpt_put_msg_frame() just prior to sending
 	 * a request off to the IOC.
 	 */
 	struct {
@@ -346,7 +346,7 @@ typedef struct _SYSIF_REGS
 {
 	u32	Doorbell;	/* 00     System<->IOC Doorbell reg  */
 	u32	WriteSequence;	/* 04     Write Sequence register    */
-	u32	Diagnostic;	/* 08     Diagnostic register        */
+	u32	Diagyesstic;	/* 08     Diagyesstic register        */
 	u32	TestBase;	/* 0C     Test Base Address          */
 	u32	DiagRwData;	/* 10     Read Write Data (fw download)   */
 	u32	DiagRwAddress;	/* 14     Read Write Address (fw download)*/
@@ -494,7 +494,7 @@ typedef	struct _SpiCfgData {
 	u8		 sdp0version;		/* SDP0 version */
 	u8		 sdp0length;		/* SDP0 length  */
 	u8		 dvScheduled;		/* 1 if scheduled */
-	u8		 noQas;			/* Disable QAS for this adapter */
+	u8		 yesQas;			/* Disable QAS for this adapter */
 	u8		 Saf_Te;		/* 1 to force all Processors as
 						 * SAF-TE if Inquiry data length
 						 * is too short to check for SAF-TE
@@ -728,12 +728,12 @@ typedef struct _MPT_ADAPTER
 	struct workqueue_struct	*fw_event_q;
 	struct list_head	 fw_event_list;
 	spinlock_t		 fw_event_lock;
-	u8			 fw_events_off; /* if '1', then ignore events */
+	u8			 fw_events_off; /* if '1', then igyesre events */
 	char 			 fw_event_q_name[MPT_KOBJ_NAME_LEN];
 
 	struct mutex		 sas_discovery_mutex;
 	u8			 sas_discovery_runtime;
-	u8			 sas_discovery_ignore_events;
+	u8			 sas_discovery_igyesre_events;
 
 	/* port_info object for the host */
 	struct mptsas_portinfo	*hba_port_info;
@@ -749,7 +749,7 @@ typedef struct _MPT_ADAPTER
 	MPT_MGMT		 internal_cmds;
 	MPT_MGMT		 taskmgmt_cmds;
 	MPT_MGMT		 ioctl_cmds;
-	spinlock_t		 taskmgmt_lock; /* diagnostic reset lock */
+	spinlock_t		 taskmgmt_lock; /* diagyesstic reset lock */
 	int			 taskmgmt_in_progress;
 	u8			 taskmgmt_quiesce_io;
 	u8			 ioc_reset_in_progress;
@@ -792,7 +792,7 @@ typedef struct _MPT_ADAPTER
 /*
  *  New return value convention:
  *    1 = Ok to free associated request frame
- *    0 = not Ok ...
+ *    0 = yest Ok ...
  */
 typedef int (*MPT_CALLBACK)(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply);
 typedef int (*MPT_EVHANDLER)(MPT_ADAPTER *ioc, EventNotificationReply_t *evReply);

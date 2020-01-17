@@ -40,7 +40,7 @@ static inline void cxgb3i_set_private_ipv4addr(struct net_device *ndev,
 		memcpy(pi->iscsic.mac_addr, ndev->dev_addr, ETH_ALEN);
 }
 
-struct cpl_iscsi_hdr_norss {
+struct cpl_iscsi_hdr_yesrss {
 	union opcode_tid ot;
 	u16 pdu_len_ddp;
 	u16 len;
@@ -50,7 +50,7 @@ struct cpl_iscsi_hdr_norss {
 	u8 status;
 };
 
-struct cpl_rx_data_ddp_norss {
+struct cpl_rx_data_ddp_yesrss {
 	union opcode_tid ot;
 	u16 urg;
 	u16 len;

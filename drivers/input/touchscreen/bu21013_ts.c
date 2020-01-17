@@ -415,7 +415,7 @@ static int bu21013_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&client->dev, "i2c smbus byte data not supported\n");
+		dev_err(&client->dev, "i2c smbus byte data yest supported\n");
 		return -EIO;
 	}
 

@@ -203,7 +203,7 @@ end_of_mp_start_test:
 	return res;
 }
 
-/*This function change the DUT from the MP test mode into normal mode */
+/*This function change the DUT from the MP test mode into yesrmal mode */
 static int mp_stop_test(struct _adapter *padapter)
 {
 	struct mp_priv *pmppriv = &padapter->mppriv;
@@ -222,7 +222,7 @@ static int mp_stop_test(struct _adapter *padapter)
 				 tgt_network->network.MacAddress);
 	if (psta)
 		r8712_free_stainfo(padapter, psta);
-	/* 3 3. return to normal state (default:station mode) */
+	/* 3 3. return to yesrmal state (default:station mode) */
 	pmlmepriv->fw_state = pmppriv->prev_fw_state; /* WIFI_STATION_STATE;*/
 	/*flush the cur_network*/
 	memset(tgt_network, 0, sizeof(struct wlan_network));

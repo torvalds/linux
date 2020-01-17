@@ -37,7 +37,7 @@
         "BriefDescription": "Cycles when L1 and L2 are locked due to UC or split lock",
         "Counter": "0,1,2,3",
         "EventName": "LOCK_CYCLES.SPLIT_LOCK_UC_LOCK_DURATION",
-        "PublicDescription": "This event counts cycles in which the L1 and L2 are locked due to a UC lock or split lock. A lock is asserted in case of locked memory access, due to noncacheable memory, locked operation that spans two cache lines, or a page walk from the noncacheable page table. L1D and L2 locks have a very high performance penalty and it is highly recommended to avoid such access.",
+        "PublicDescription": "This event counts cycles in which the L1 and L2 are locked due to a UC lock or split lock. A lock is asserted in case of locked memory access, due to yesncacheable memory, locked operation that spans two cache lines, or a page walk from the yesncacheable page table. L1D and L2 locks have a very high performance penalty and it is highly recommended to avoid such access.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     }

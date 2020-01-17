@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2017, Linaro Ltd.  All rights reserved.
  *
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Author: Daniel Lezcayes <daniel.lezcayes@linaro.org>
  */
 #include <linux/clk.h>
 #include <linux/interrupt.h>
@@ -33,7 +33,7 @@ static __init void timer_of_irq_exit(struct of_timer_irq *of_irq)
 
 /**
  * timer_of_irq_init - Request the interrupt
- * @np: a device tree node pointer
+ * @np: a device tree yesde pointer
  * @of_irq: an of_timer_irq structure pointer
  *
  * Get the interrupt number from the DT from its definition and
@@ -47,7 +47,7 @@ static __init void timer_of_irq_exit(struct of_timer_irq *of_irq)
  *
  * Returns 0 on success, < 0 otherwise
  */
-static __init int timer_of_irq_init(struct device_node *np,
+static __init int timer_of_irq_init(struct device_yesde *np,
 				    struct of_timer_irq *of_irq)
 {
 	int ret;
@@ -100,14 +100,14 @@ static __init void timer_of_clk_exit(struct of_timer_clk *of_clk)
 
 /**
  * timer_of_clk_init - Initialize the clock resources
- * @np: a device tree node pointer
+ * @np: a device tree yesde pointer
  * @of_clk: a of_timer_clk structure pointer
  *
  * Get the clock by name or by index, enable it and get the rate
  *
  * Returns 0 on success, < 0 otherwise
  */
-static __init int timer_of_clk_init(struct device_node *np,
+static __init int timer_of_clk_init(struct device_yesde *np,
 				    struct of_timer_clk *of_clk)
 {
 	int ret;
@@ -151,7 +151,7 @@ static __init void timer_of_base_exit(struct of_timer_base *of_base)
 	iounmap(of_base->base);
 }
 
-static __init int timer_of_base_init(struct device_node *np,
+static __init int timer_of_base_init(struct device_yesde *np,
 				     struct of_timer_base *of_base)
 {
 	of_base->base = of_base->name ?
@@ -165,7 +165,7 @@ static __init int timer_of_base_init(struct device_node *np,
 	return 0;
 }
 
-int __init timer_of_init(struct device_node *np, struct timer_of *to)
+int __init timer_of_init(struct device_yesde *np, struct timer_of *to)
 {
 	int ret = -EINVAL;
 	int flags = 0;

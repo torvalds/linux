@@ -5,11 +5,11 @@
  *
  * KVM/MIPS: Binary Patching for privileged instructions, reduces traps.
  *
- * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012  MIPS Techyeslogies, Inc.  All rights reserved.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/highmem.h>
 #include <linux/kvm_host.h>
@@ -41,7 +41,7 @@ retry:
 
 	if (unlikely(err)) {
 		/*
-		 * We write protect clean pages in GVA page table so normal
+		 * We write protect clean pages in GVA page table so yesrmal
 		 * Linux TLB mod handler doesn't silently dirty the page.
 		 * Its also possible we raced with a GVA invalidation.
 		 * Try to force the page to become dirty.
@@ -68,10 +68,10 @@ retry:
 int kvm_mips_trans_cache_index(union mips_instruction inst, u32 *opc,
 			       struct kvm_vcpu *vcpu)
 {
-	union mips_instruction nop_inst = { 0 };
+	union mips_instruction yesp_inst = { 0 };
 
 	/* Replace the CACHE instruction, with a NOP */
-	return kvm_mips_trans_replace(vcpu, opc, nop_inst);
+	return kvm_mips_trans_replace(vcpu, opc, yesp_inst);
 }
 
 /*

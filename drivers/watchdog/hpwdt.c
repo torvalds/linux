@@ -32,7 +32,7 @@
 
 static bool ilo5;
 static unsigned int soft_margin = DEFAULT_MARGIN;	/* in seconds */
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 static bool pretimeout = IS_ENABLED(CONFIG_HPWDT_NMI_DECODING);
 static int kdumptimeout = -1;
 
@@ -263,7 +263,7 @@ error1:
 	unregister_nmi_handler(NMI_UNKNOWN, "hpwdt");
 error:
 	dev_warn(&dev->dev,
-		"Unable to register a die notifier (err=%d).\n",
+		"Unable to register a die yestifier (err=%d).\n",
 		retval);
 	return retval;
 #endif	/* CONFIG_HPWDT_NMI_DECODING */
@@ -286,13 +286,13 @@ static int hpwdt_init_one(struct pci_dev *dev,
 
 	/*
 	 * First let's find out if we are on an iLO2+ server. We will
-	 * not run on a legacy ASM box.
+	 * yest run on a legacy ASM box.
 	 * So we only support the G5 ProLiant servers and higher.
 	 */
 	if (dev->subsystem_vendor != PCI_VENDOR_ID_HP &&
 	    dev->subsystem_vendor != PCI_VENDOR_ID_HP_3PAR) {
 		dev_warn(&dev->dev,
-			"This server does not have an iLO2+ ASIC.\n");
+			"This server does yest have an iLO2+ ASIC.\n");
 		return -ENODEV;
 	}
 
@@ -331,7 +331,7 @@ static int hpwdt_init_one(struct pci_dev *dev,
 		goto error_init_nmi_decoding;
 
 	watchdog_stop_on_unregister(&hpwdt_dev);
-	watchdog_set_nowayout(&hpwdt_dev, nowayout);
+	watchdog_set_yeswayout(&hpwdt_dev, yeswayout);
 	watchdog_init_timeout(&hpwdt_dev, soft_margin, NULL);
 
 	if (pretimeout && hpwdt_dev.timeout <= PRETIMEOUT_SEC) {
@@ -348,8 +348,8 @@ static int hpwdt_init_one(struct pci_dev *dev,
 
 	dev_info(&dev->dev, "HPE Watchdog Timer Driver: Version: %s\n",
 				HPWDT_VERSION);
-	dev_info(&dev->dev, "timeout: %d seconds (nowayout=%d)\n",
-				hpwdt_dev.timeout, nowayout);
+	dev_info(&dev->dev, "timeout: %d seconds (yeswayout=%d)\n",
+				hpwdt_dev.timeout, yeswayout);
 	dev_info(&dev->dev, "pretimeout: %s.\n",
 				pretimeout ? "on" : "off");
 	dev_info(&dev->dev, "kdumptimeout: %d.\n", kdumptimeout);
@@ -394,8 +394,8 @@ MODULE_PARM_DESC(soft_margin, "Watchdog timeout in seconds");
 module_param_named(timeout, soft_margin, int, 0);
 MODULE_PARM_DESC(timeout, "Alias of soft_margin");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 module_param(kdumptimeout, int, 0444);

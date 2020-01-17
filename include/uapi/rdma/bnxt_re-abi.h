@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-2-Clause) */
 /*
  * Broadcom NetXtreme-E RoCE driver.
  *
@@ -16,9 +16,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -66,7 +66,7 @@ struct bnxt_re_uctx_resp {
 
 /*
  * This struct is placed after the ib_uverbs_alloc_pd_resp struct, which is
- * not 8 byted aligned. To avoid undesired padding in various cases we have to
+ * yest 8 byted aligned. To avoid undesired padding in various cases we have to
  * set this struct to packed.
  */
 struct bnxt_re_pd_resp {

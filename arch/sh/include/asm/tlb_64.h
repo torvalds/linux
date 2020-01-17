@@ -18,7 +18,7 @@
 #ifndef __ASSEMBLY__
 
 /**
- * for_each_dtlb_entry - Iterate over free (non-wired) DTLB entries
+ * for_each_dtlb_entry - Iterate over free (yesn-wired) DTLB entries
  *
  * @tlb:	TLB entry
  */
@@ -28,7 +28,7 @@
 	     tlb += cpu_data->dtlb.step)
 
 /**
- * for_each_itlb_entry - Iterate over free (non-wired) ITLB entries
+ * for_each_itlb_entry - Iterate over free (yesn-wired) ITLB entries
  *
  * @tlb:	TLB entry
  */

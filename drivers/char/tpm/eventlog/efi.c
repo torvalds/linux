@@ -34,7 +34,7 @@ int tpm_read_log_efi(struct tpm_chip *chip)
 
 	log_tbl = memremap(efi.tpm_log, sizeof(*log_tbl), MEMREMAP_WB);
 	if (!log_tbl) {
-		pr_err("Could not map UEFI TPM log table !\n");
+		pr_err("Could yest map UEFI TPM log table !\n");
 		return -ENOMEM;
 	}
 
@@ -44,7 +44,7 @@ int tpm_read_log_efi(struct tpm_chip *chip)
 	log_tbl = memremap(efi.tpm_log, sizeof(*log_tbl) + log_size,
 			   MEMREMAP_WB);
 	if (!log_tbl) {
-		pr_err("Could not map UEFI TPM log table payload!\n");
+		pr_err("Could yest map UEFI TPM log table payload!\n");
 		return -ENOMEM;
 	}
 
@@ -69,7 +69,7 @@ int tpm_read_log_efi(struct tpm_chip *chip)
 			     sizeof(*final_tbl) + efi_tpm_final_log_size,
 			     MEMREMAP_WB);
 	if (!final_tbl) {
-		pr_err("Could not map UEFI TPM final log\n");
+		pr_err("Could yest map UEFI TPM final log\n");
 		kfree(log->bios_event_log);
 		ret = -ENOMEM;
 		goto out;

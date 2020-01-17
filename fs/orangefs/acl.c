@@ -10,7 +10,7 @@
 #include "orangefs-bufmap.h"
 #include <linux/posix_acl_xattr.h>
 
-struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
+struct posix_acl *orangefs_get_acl(struct iyesde *iyesde, int type)
 {
 	struct posix_acl *acl;
 	int ret;
@@ -31,19 +31,19 @@ struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
 	 * Rather than incurring a network call just to determine the exact
 	 * length of the attribute, I just allocate a max length to save on
 	 * the network call. Conceivably, we could pass NULL to
-	 * orangefs_inode_getxattr() to probe the length of the value, but
-	 * I don't do that for now.
+	 * orangefs_iyesde_getxattr() to probe the length of the value, but
+	 * I don't do that for yesw.
 	 */
 	value = kmalloc(ORANGEFS_MAX_XATTR_VALUELEN, GFP_KERNEL);
 	if (!value)
 		return ERR_PTR(-ENOMEM);
 
 	gossip_debug(GOSSIP_ACL_DEBUG,
-		     "inode %pU, key %s, type %d\n",
-		     get_khandle_from_ino(inode),
+		     "iyesde %pU, key %s, type %d\n",
+		     get_khandle_from_iyes(iyesde),
 		     key,
 		     type);
-	ret = orangefs_inode_getxattr(inode, key, value,
+	ret = orangefs_iyesde_getxattr(iyesde, key, value,
 				      ORANGEFS_MAX_XATTR_VALUELEN);
 	/* if the key exists, convert it to an in-memory rep */
 	if (ret > 0) {
@@ -51,8 +51,8 @@ struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
 	} else if (ret == -ENODATA || ret == -ENOSYS) {
 		acl = NULL;
 	} else {
-		gossip_err("inode %pU retrieving acl's failed with error %d\n",
-			   get_khandle_from_ino(inode),
+		gossip_err("iyesde %pU retrieving acl's failed with error %d\n",
+			   get_khandle_from_iyes(iyesde),
 			   ret);
 		acl = ERR_PTR(ret);
 	}
@@ -61,7 +61,7 @@ struct posix_acl *orangefs_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-static int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl,
+static int __orangefs_set_acl(struct iyesde *iyesde, struct posix_acl *acl,
 			      int type)
 {
 	int error = 0;
@@ -82,8 +82,8 @@ static int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl,
 	}
 
 	gossip_debug(GOSSIP_ACL_DEBUG,
-		     "%s: inode %pU, key %s type %d\n",
-		     __func__, get_khandle_from_ino(inode),
+		     "%s: iyesde %pU, key %s type %d\n",
+		     __func__, get_khandle_from_iyes(iyesde),
 		     name,
 		     type);
 
@@ -102,21 +102,21 @@ static int __orangefs_set_acl(struct inode *inode, struct posix_acl *acl,
 		     "%s: name %s, value %p, size %zd, acl %p\n",
 		     __func__, name, value, size, acl);
 	/*
-	 * Go ahead and set the extended attribute now. NOTE: Suppose acl
+	 * Go ahead and set the extended attribute yesw. NOTE: Suppose acl
 	 * was NULL, then value will be NULL and size will be 0 and that
 	 * will xlate to a removexattr. However, we don't want removexattr
-	 * complain if attributes does not exist.
+	 * complain if attributes does yest exist.
 	 */
-	error = orangefs_inode_setxattr(inode, name, value, size, 0);
+	error = orangefs_iyesde_setxattr(iyesde, name, value, size, 0);
 
 out:
 	kfree(value);
 	if (!error)
-		set_cached_acl(inode, type, acl);
+		set_cached_acl(iyesde, type, acl);
 	return error;
 }
 
-int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int orangefs_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type)
 {
 	int error;
 	struct iattr iattr;
@@ -130,7 +130,7 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		 * and "mode" to the new desired value. It is up to
 		 * us to propagate the new mode back to the server...
 		 */
-		error = posix_acl_update_mode(inode, &iattr.ia_mode, &acl);
+		error = posix_acl_update_mode(iyesde, &iattr.ia_mode, &acl);
 		if (error) {
 			gossip_err("%s: posix_acl_update_mode err: %d\n",
 				   __func__,
@@ -139,10 +139,10 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		}
 
 		if (acl) {
-			rc = __orangefs_set_acl(inode, acl, type);
+			rc = __orangefs_set_acl(iyesde, acl, type);
 		} else {
 			iattr.ia_valid = ATTR_MODE;
-			rc = __orangefs_setattr(inode, &iattr);
+			rc = __orangefs_setattr(iyesde, &iattr);
 		}
 
 		return rc;
@@ -152,10 +152,10 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	}
 }
 
-int orangefs_init_acl(struct inode *inode, struct inode *dir)
+int orangefs_init_acl(struct iyesde *iyesde, struct iyesde *dir)
 {
 	struct posix_acl *default_acl, *acl;
-	umode_t mode = inode->i_mode;
+	umode_t mode = iyesde->i_mode;
 	struct iattr iattr;
 	int error = 0;
 
@@ -164,28 +164,28 @@ int orangefs_init_acl(struct inode *inode, struct inode *dir)
 		return error;
 
 	if (default_acl) {
-		error = __orangefs_set_acl(inode, default_acl,
+		error = __orangefs_set_acl(iyesde, default_acl,
 					   ACL_TYPE_DEFAULT);
 		posix_acl_release(default_acl);
 	} else {
-		inode->i_default_acl = NULL;
+		iyesde->i_default_acl = NULL;
 	}
 
 	if (acl) {
 		if (!error)
-			error = __orangefs_set_acl(inode, acl, ACL_TYPE_ACCESS);
+			error = __orangefs_set_acl(iyesde, acl, ACL_TYPE_ACCESS);
 		posix_acl_release(acl);
 	} else {
-		inode->i_acl = NULL;
+		iyesde->i_acl = NULL;
 	}
 
-	/* If mode of the inode was changed, then do a forcible ->setattr */
-	if (mode != inode->i_mode) {
+	/* If mode of the iyesde was changed, then do a forcible ->setattr */
+	if (mode != iyesde->i_mode) {
 		memset(&iattr, 0, sizeof iattr);
-		inode->i_mode = mode;
+		iyesde->i_mode = mode;
 		iattr.ia_mode = mode;
 		iattr.ia_valid |= ATTR_MODE;
-		__orangefs_setattr(inode, &iattr);
+		__orangefs_setattr(iyesde, &iattr);
 	}
 
 	return error;

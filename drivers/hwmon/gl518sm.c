@@ -12,11 +12,11 @@
  *
  * Notes about the port:
  * Release 0x00 of the GL518SM chipset doesn't support reading of in0,
- * in1 nor in2. The original driver had an ugly workaround to get them
+ * in1 yesr in2. The original driver had an ugly workaround to get them
  * anyway (changing limits and watching alarms trigger and wear off).
- * We did not keep that part of the original driver in the Linux 2.6
+ * We did yest keep that part of the original driver in the Linux 2.6
  * version, since it was making the driver significantly more complex
- * with no real benefit.
+ * with yes real benefit.
  */
 
 #include <linux/module.h>
@@ -31,7 +31,7 @@
 #include <linux/sysfs.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, I2C_CLIENT_END };
 
 enum chips { gl518sm_r00, gl518sm_r80 };
 
@@ -65,7 +65,7 @@ enum chips { gl518sm_r00, gl518sm_r80 };
  * Conversions. Rounding and limit checking is only done on the TO_REG
  * variants. Note that you should be a bit careful with which arguments
  * these macros are called: arguments may be evaluated more than once.
- * Fixing this is just not worth it.
+ * Fixing this is just yest worth it.
  */
 
 #define RAW_FROM_REG(val)	val
@@ -656,7 +656,7 @@ static struct i2c_driver gl518_driver = {
 	.probe		= gl518_probe,
 	.id_table	= gl518_id,
 	.detect		= gl518_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(gl518_driver);

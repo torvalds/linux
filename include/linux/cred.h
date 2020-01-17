@@ -17,7 +17,7 @@
 #include <linux/sched/user.h>
 
 struct cred;
-struct inode;
+struct iyesde;
 
 /*
  * COW Supplementary groups list
@@ -94,7 +94,7 @@ static inline int groups_search(const struct group_info *group_info, kgid_t grp)
  *	task is attempting to affect this one.
  *
  *  (2) The subjective context.  These details are used when the task is acting
- *	upon another object, be that a file, a task, a key or whatever.
+ *	upon ayesther object, be that a file, a task, a key or whatever.
  *
  * Note that some members of this structure belong to both categories - the
  * LSM security pointer for instance.
@@ -104,8 +104,8 @@ static inline int groups_search(const struct group_info *group_info, kgid_t grp)
  * context is used whenever that task is acted upon.
  *
  * task->cred points to the subjective context that defines the details of how
- * that task is going to act upon another object.  This may be overridden
- * temporarily to point to another security context, but normally points to the
+ * that task is going to act upon ayesther object.  This may be overridden
+ * temporarily to point to ayesther security context, but yesrmally points to the
  * same context as task->real_cred.
  */
 struct cred {
@@ -147,7 +147,7 @@ struct cred {
 	struct group_info *group_info;	/* supplementary groups for euid/fsgid */
 	/* RCU deletion */
 	union {
-		int non_rcu;			/* Can we skip RCU deletion? */
+		int yesn_rcu;			/* Can we skip RCU deletion? */
 		struct rcu_head	rcu;		/* RCU deletion hook */
 	};
 } __randomize_layout;
@@ -164,10 +164,10 @@ extern void abort_creds(struct cred *);
 extern const struct cred *override_creds(const struct cred *);
 extern void revert_creds(const struct cred *);
 extern struct cred *prepare_kernel_cred(struct task_struct *);
-extern int change_create_files_as(struct cred *, struct inode *);
+extern int change_create_files_as(struct cred *, struct iyesde *);
 extern int set_security_override(struct cred *, u32);
 extern int set_security_override_from_ctx(struct cred *, const char *);
-extern int set_create_files_as(struct cred *, struct inode *);
+extern int set_create_files_as(struct cred *, struct iyesde *);
 extern int cred_fscmp(const struct cred *, const struct cred *);
 extern void __init cred_init(void);
 
@@ -236,7 +236,7 @@ static inline struct cred *get_new_cred(struct cred *cred)
  * @cred: The credentials to reference
  *
  * Get a reference on the specified set of credentials.  The caller must
- * release the reference.  If %NULL is passed, it is returned with no action.
+ * release the reference.  If %NULL is passed, it is returned with yes action.
  *
  * This is used to deal with a committed set of credentials.  Although the
  * pointer is const, this will temporarily discard the const and increment the
@@ -246,23 +246,23 @@ static inline struct cred *get_new_cred(struct cred *cred)
  */
 static inline const struct cred *get_cred(const struct cred *cred)
 {
-	struct cred *nonconst_cred = (struct cred *) cred;
+	struct cred *yesnconst_cred = (struct cred *) cred;
 	if (!cred)
 		return cred;
 	validate_creds(cred);
-	nonconst_cred->non_rcu = 0;
-	return get_new_cred(nonconst_cred);
+	yesnconst_cred->yesn_rcu = 0;
+	return get_new_cred(yesnconst_cred);
 }
 
 static inline const struct cred *get_cred_rcu(const struct cred *cred)
 {
-	struct cred *nonconst_cred = (struct cred *) cred;
+	struct cred *yesnconst_cred = (struct cred *) cred;
 	if (!cred)
 		return NULL;
-	if (!atomic_inc_not_zero(&nonconst_cred->usage))
+	if (!atomic_inc_yest_zero(&yesnconst_cred->usage))
 		return NULL;
 	validate_creds(cred);
-	nonconst_cred->non_rcu = 0;
+	yesnconst_cred->yesn_rcu = 0;
 	return cred;
 }
 
@@ -271,7 +271,7 @@ static inline const struct cred *get_cred_rcu(const struct cred *cred)
  * @cred: The credentials to release
  *
  * Release a reference to a set of credentials, deleting them when the last ref
- * is released.  If %NULL is passed, nothing is done.
+ * is released.  If %NULL is passed, yesthing is done.
  *
  * This takes a const pointer to a set of credentials because the credentials
  * on task_struct are attached by const pointers to prevent accidental
@@ -292,7 +292,7 @@ static inline void put_cred(const struct cred *_cred)
  * current_cred - Access the current task's subjective credentials
  *
  * Access the subjective credentials of the current task.  RCU-safe,
- * since nobody else can modify it.
+ * since yesbody else can modify it.
  */
 #define current_cred() \
 	rcu_dereference_protected(current->cred, 1)
@@ -301,7 +301,7 @@ static inline void put_cred(const struct cred *_cred)
  * current_real_cred - Access the current task's objective credentials
  *
  * Access the objective credentials of the current task.  RCU-safe,
- * since nobody else can modify it.
+ * since yesbody else can modify it.
  */
 #define current_real_cred() \
 	rcu_dereference_protected(current->real_cred, 1)
@@ -313,7 +313,7 @@ static inline void put_cred(const struct cred *_cred)
  * Access the objective credentials of a task.  The caller must hold the RCU
  * readlock.
  *
- * The result of this function should not be passed directly to get_cred();
+ * The result of this function should yest be passed directly to get_cred();
  * rather get_task_cred() should be used instead.
  */
 #define __task_cred(task)	\
@@ -324,7 +324,7 @@ static inline void put_cred(const struct cred *_cred)
  *
  * Get the subjective credentials of the current task, pinning them so that
  * they can't go away.  Accessing the current task's credentials directly is
- * not permitted.
+ * yest permitted.
  */
 #define get_current_cred()				\
 	(get_cred(current_cred()))

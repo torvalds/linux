@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -48,7 +48,7 @@ struct ch_tc_flower_entry {
 	struct ch_filter_specification fs;
 	struct ch_tc_flower_stats stats;
 	unsigned long tc_flower_cookie;
-	struct rhash_head node;
+	struct rhash_head yesde;
 	struct rcu_head rcu;
 	spinlock_t lock; /* lock for stats */
 	u32 filter_id;

@@ -11,7 +11,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -56,7 +56,7 @@
 
 struct agp_version {
 	__u16 major;
-	__u16 minor;
+	__u16 miyesr;
 };
 
 typedef struct _agp_info {
@@ -92,7 +92,7 @@ typedef struct _agp_region {
 typedef struct _agp_allocate {
 	int key;		/* tag of allocation            */
 	__kernel_size_t pg_count;/* number of pages             */
-	__u32 type;		/* 0 == normal, other devspec   */
+	__u32 type;		/* 0 == yesrmal, other devspec   */
    	__u32 physical;         /* device specific (some devices  
 				 * need a phys address of the     
 				 * actual page behind the gatt    

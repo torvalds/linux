@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -139,7 +139,7 @@ struct clk_bypass {
 	uint32_t dprefclk_bypass;
 };
 /*
- * This table is not contiguous, can have holes, each
+ * This table is yest contiguous, can have holes, each
  * entry correspond to one set of WM. For example if
  * we have 2 DPM and LPDDR, we will WM set A, B and
  * D occupied, C will be emptry.
@@ -185,7 +185,7 @@ struct clk_mgr_funcs {
 
 	bool (*are_clock_states_equal) (struct dc_clocks *a,
 			struct dc_clocks *b);
-	void (*notify_wm_ranges)(struct clk_mgr *clk_mgr);
+	void (*yestify_wm_ranges)(struct clk_mgr *clk_mgr);
 };
 
 struct clk_mgr {

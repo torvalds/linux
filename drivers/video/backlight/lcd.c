@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/lcd.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/ctype.h>
 #include <linux/err.h>
 #include <linux/fb.h>
@@ -24,13 +24,13 @@
  * framebuffer driver. We're looking if that important event is blanking,
  * and if it is, we're switching lcd power as well ...
  */
-static int fb_notifier_callback(struct notifier_block *self,
+static int fb_yestifier_callback(struct yestifier_block *self,
 				 unsigned long event, void *data)
 {
 	struct lcd_device *ld;
 	struct fb_event *evdata = data;
 
-	ld = container_of(self, struct lcd_device, fb_notif);
+	ld = container_of(self, struct lcd_device, fb_yestif);
 	if (!ld->ops)
 		return 0;
 
@@ -50,14 +50,14 @@ static int fb_notifier_callback(struct notifier_block *self,
 
 static int lcd_register_fb(struct lcd_device *ld)
 {
-	memset(&ld->fb_notif, 0, sizeof(ld->fb_notif));
-	ld->fb_notif.notifier_call = fb_notifier_callback;
-	return fb_register_client(&ld->fb_notif);
+	memset(&ld->fb_yestif, 0, sizeof(ld->fb_yestif));
+	ld->fb_yestif.yestifier_call = fb_yestifier_callback;
+	return fb_register_client(&ld->fb_yestif);
 }
 
 static void lcd_unregister_fb(struct lcd_device *ld)
 {
-	fb_unregister_client(&ld->fb_notif);
+	fb_unregister_client(&ld->fb_yestif);
 }
 #else
 static int lcd_register_fb(struct lcd_device *ld)
@@ -301,7 +301,7 @@ EXPORT_SYMBOL(devm_lcd_device_register);
  * @ld: the lcd device to unregister
  *
  * Deallocated a lcd allocated with devm_lcd_device_register(). Normally
- * this function will not need to be called and the resource management
+ * this function will yest need to be called and the resource management
  * code will ensure that the resource is freed.
  */
 void devm_lcd_device_unregister(struct device *dev, struct lcd_device *ld)
@@ -324,7 +324,7 @@ static int __init lcd_class_init(void)
 {
 	lcd_class = class_create(THIS_MODULE, "lcd");
 	if (IS_ERR(lcd_class)) {
-		pr_warn("Unable to create backlight class; errno = %ld\n",
+		pr_warn("Unable to create backlight class; erryes = %ld\n",
 			PTR_ERR(lcd_class));
 		return PTR_ERR(lcd_class);
 	}

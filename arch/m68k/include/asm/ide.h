@@ -37,7 +37,7 @@
 
 /*
  * Get rid of defs from io.h - ide has its private and conflicting versions
- * Since so far no single m68k platform uses ISA/PCI I/O space for IDE, we
+ * Since so far yes single m68k platform uses ISA/PCI I/O space for IDE, we
  * always use the `raw' MMIO versions
  */
 #undef readb

@@ -95,7 +95,7 @@ static void cpu8815_restart(enum reboot_mode mode, const char *cmd)
 }
 
 static const char * cpu8815_board_compat[] = {
-	"st,nomadik-nhk-15",
+	"st,yesmadik-nhk-15",
 	"calaosystems,usb-s8815",
 	NULL,
 };

@@ -159,7 +159,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 
 	port->rmnet_mode = mode;
 
-	hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
+	hlist_add_head_rcu(&ep->hlyesde, &port->muxed_ep[mux_id]);
 
 	if (data[IFLA_RMNET_FLAGS]) {
 		struct ifla_rmnet_flags *flags;
@@ -199,7 +199,7 @@ static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 
 	ep = rmnet_get_endpoint(port, mux_id);
 	if (ep) {
-		hlist_del_init_rcu(&ep->hlnode);
+		hlist_del_init_rcu(&ep->hlyesde);
 		rmnet_unregister_bridge(dev, port);
 		rmnet_vnd_dellink(mux_id, port, ep);
 		kfree(ep);
@@ -212,7 +212,7 @@ static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 static void rmnet_force_unassociate_device(struct net_device *dev)
 {
 	struct net_device *real_dev = dev;
-	struct hlist_node *tmp_ep;
+	struct hlist_yesde *tmp_ep;
 	struct rmnet_endpoint *ep;
 	struct rmnet_port *port;
 	unsigned long bkt_ep;
@@ -228,11 +228,11 @@ static void rmnet_force_unassociate_device(struct net_device *dev)
 	rcu_read_lock();
 	rmnet_unregister_bridge(dev, port);
 
-	hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlnode) {
+	hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlyesde) {
 		unregister_netdevice_queue(ep->egress_dev, &list);
 		rmnet_vnd_dellink(ep->mux_id, port, ep);
 
-		hlist_del_init_rcu(&ep->hlnode);
+		hlist_del_init_rcu(&ep->hlyesde);
 		kfree(ep);
 	}
 
@@ -242,10 +242,10 @@ static void rmnet_force_unassociate_device(struct net_device *dev)
 	rmnet_unregister_real_device(real_dev, port);
 }
 
-static int rmnet_config_notify_cb(struct notifier_block *nb,
+static int rmnet_config_yestify_cb(struct yestifier_block *nb,
 				  unsigned long event, void *data)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(data);
+	struct net_device *dev = netdev_yestifier_info_to_dev(data);
 
 	if (!dev)
 		return NOTIFY_DONE;
@@ -263,8 +263,8 @@ static int rmnet_config_notify_cb(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block rmnet_dev_notifier __read_mostly = {
-	.notifier_call = rmnet_config_notify_cb,
+static struct yestifier_block rmnet_dev_yestifier __read_mostly = {
+	.yestifier_call = rmnet_config_yestify_cb,
 };
 
 static int rmnet_rtnl_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -309,8 +309,8 @@ static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
 		if (!ep)
 			return -ENODEV;
 
-		hlist_del_init_rcu(&ep->hlnode);
-		hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
+		hlist_del_init_rcu(&ep->hlyesde);
+		hlist_add_head_rcu(&ep->hlyesde, &port->muxed_ep[mux_id]);
 
 		ep->mux_id = mux_id;
 		priv->mux_id = mux_id;
@@ -392,7 +392,7 @@ struct rmnet_endpoint *rmnet_get_endpoint(struct rmnet_port *port, u8 mux_id)
 {
 	struct rmnet_endpoint *ep;
 
-	hlist_for_each_entry_rcu(ep, &port->muxed_ep[mux_id], hlnode) {
+	hlist_for_each_entry_rcu(ep, &port->muxed_ep[mux_id], hlyesde) {
 		if (ep->mux_id == mux_id)
 			return ep;
 	}
@@ -459,13 +459,13 @@ static int __init rmnet_init(void)
 {
 	int rc;
 
-	rc = register_netdevice_notifier(&rmnet_dev_notifier);
+	rc = register_netdevice_yestifier(&rmnet_dev_yestifier);
 	if (rc != 0)
 		return rc;
 
 	rc = rtnl_link_register(&rmnet_link_ops);
 	if (rc != 0) {
-		unregister_netdevice_notifier(&rmnet_dev_notifier);
+		unregister_netdevice_yestifier(&rmnet_dev_yestifier);
 		return rc;
 	}
 	return rc;
@@ -473,7 +473,7 @@ static int __init rmnet_init(void)
 
 static void __exit rmnet_exit(void)
 {
-	unregister_netdevice_notifier(&rmnet_dev_notifier);
+	unregister_netdevice_yestifier(&rmnet_dev_yestifier);
 	rtnl_link_unregister(&rmnet_link_ops);
 }
 

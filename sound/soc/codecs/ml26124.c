@@ -22,7 +22,7 @@
 #define DVOL_CTL_DVMUTE_ON		BIT(4)	/* Digital volume MUTE On */
 #define DVOL_CTL_DVMUTE_OFF		0	/* Digital volume MUTE Off */
 #define ML26124_SAI_NO_DELAY	BIT(1)
-#define ML26124_SAI_FRAME_SYNC	(BIT(5) | BIT(0)) /* For mono (Telecodec) */
+#define ML26124_SAI_FRAME_SYNC	(BIT(5) | BIT(0)) /* For moyes (Telecodec) */
 #define ML26134_CACHESIZE 212
 #define ML26124_VMID	BIT(1)
 #define ML26124_RATES (SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_32000 |\
@@ -537,7 +537,7 @@ static const struct snd_soc_component_driver soc_component_dev_ml26124 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ml26124_i2c_regmap = {

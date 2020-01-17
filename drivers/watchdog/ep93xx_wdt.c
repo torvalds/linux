@@ -2,7 +2,7 @@
  * Watchdog driver for Cirrus Logic EP93xx family of devices.
  *
  * Copyright (c) 2004 Ray Lehtiniemi
- * Copyright (c) 2006 Tower Technologies
+ * Copyright (c) 2006 Tower Techyeslogies
  * Based on ep93xx driver, bits from alim7101_wdt.c
  *
  * Authors: Ray Lehtiniemi <rayl@mail.com>,
@@ -29,9 +29,9 @@
 /* default timeout (secs) */
 #define WDT_TIMEOUT 30
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started");
 
 static unsigned int timeout;
 module_param(timeout, uint, 0);
@@ -113,7 +113,7 @@ static int ep93xx_wdt_probe(struct platform_device *pdev)
 	wdd->max_hw_heartbeat_ms = 200;
 	wdd->parent = dev;
 
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_yeswayout(wdd, yeswayout);
 
 	wdd->timeout = WDT_TIMEOUT;
 	watchdog_init_timeout(wdd, timeout, dev);

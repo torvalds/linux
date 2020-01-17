@@ -337,7 +337,7 @@ static int rtsx_base_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
 			return err;
 		break;
 	default:
-		pcr_dbg(pcr, "unknown output voltage %d\n", voltage);
+		pcr_dbg(pcr, "unkyeswn output voltage %d\n", voltage);
 		return -EINVAL;
 	}
 
@@ -472,9 +472,9 @@ void rts5249_init_params(struct rtsx_pcr *pcr)
 	option->ltr_idle_latency = LTR_IDLE_LATENCY_DEF;
 	option->ltr_l1off_latency = LTR_L1OFF_LATENCY_DEF;
 	option->dev_aspm_mode = DEV_ASPM_DYNAMIC;
-	option->l1_snooze_delay = L1_SNOOZE_DELAY_DEF;
+	option->l1_syesoze_delay = L1_SNOOZE_DELAY_DEF;
 	option->ltr_l1off_sspwrgate = LTR_L1OFF_SSPWRGATE_5249_DEF;
-	option->ltr_l1off_snooze_sspwrgate =
+	option->ltr_l1off_syesoze_sspwrgate =
 		LTR_L1OFF_SNOOZE_SSPWRGATE_5249_DEF;
 }
 
@@ -578,7 +578,7 @@ static void rts5250_set_l1off_cfg_sub_d0(struct rtsx_pcr *pcr, int active)
 	if (active) {
 		/* Run, latency: 60us */
 		if (aspm_L1_1)
-			val = option->ltr_l1off_snooze_sspwrgate;
+			val = option->ltr_l1off_syesoze_sspwrgate;
 	} else {
 		/* L1off, latency: 300us */
 		if (aspm_L1_2)
@@ -619,7 +619,7 @@ void rts524a_init_params(struct rtsx_pcr *pcr)
 {
 	rts5249_init_params(pcr);
 	pcr->option.ltr_l1off_sspwrgate = LTR_L1OFF_SSPWRGATE_5250_DEF;
-	pcr->option.ltr_l1off_snooze_sspwrgate =
+	pcr->option.ltr_l1off_syesoze_sspwrgate =
 		LTR_L1OFF_SNOOZE_SSPWRGATE_5250_DEF;
 
 	pcr->reg_pm_ctrl3 = RTS524A_PM_CTRL3;
@@ -734,7 +734,7 @@ void rts525a_init_params(struct rtsx_pcr *pcr)
 {
 	rts5249_init_params(pcr);
 	pcr->option.ltr_l1off_sspwrgate = LTR_L1OFF_SSPWRGATE_5250_DEF;
-	pcr->option.ltr_l1off_snooze_sspwrgate =
+	pcr->option.ltr_l1off_syesoze_sspwrgate =
 		LTR_L1OFF_SNOOZE_SSPWRGATE_5250_DEF;
 
 	pcr->reg_pm_ctrl3 = RTS524A_PM_CTRL3;

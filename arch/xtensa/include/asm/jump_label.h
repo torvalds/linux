@@ -14,14 +14,14 @@ static __always_inline bool arch_static_branch(struct static_key *key,
 					       bool branch)
 {
 	asm_volatile_goto("1:\n\t"
-			  "_nop\n\t"
+			  "_yesp\n\t"
 			  ".pushsection __jump_table,  \"aw\"\n\t"
-			  ".word 1b, %l[l_yes], %c0\n\t"
+			  ".word 1b, %l[l_no], %c0\n\t"
 			  ".popsection\n\t"
-			  : :  "i" (&((char *)key)[branch]) :  : l_yes);
+			  : :  "i" (&((char *)key)[branch]) :  : l_no);
 
 	return false;
-l_yes:
+l_no:
 	return true;
 }
 
@@ -35,21 +35,21 @@ static __always_inline bool arch_static_branch_jump(struct static_key *key,
 	 * is one such point. Assembler and/or linker may insert padding
 	 * or literals here, breaking code flow in case the J instruction
 	 * is later replaced with NOP. Put a label right after the J to
-	 * make it reachable and wrap both into a no-transform block
+	 * make it reachable and wrap both into a yes-transform block
 	 * to avoid any assembler interference with this.
 	 */
 	asm_volatile_goto("1:\n\t"
-			  ".begin no-transform\n\t"
-			  "_j %l[l_yes]\n\t"
+			  ".begin yes-transform\n\t"
+			  "_j %l[l_no]\n\t"
 			  "2:\n\t"
-			  ".end no-transform\n\t"
+			  ".end yes-transform\n\t"
 			  ".pushsection __jump_table,  \"aw\"\n\t"
-			  ".word 1b, %l[l_yes], %c0\n\t"
+			  ".word 1b, %l[l_no], %c0\n\t"
 			  ".popsection\n\t"
-			  : :  "i" (&((char *)key)[branch]) :  : l_yes);
+			  : :  "i" (&((char *)key)[branch]) :  : l_no);
 
 	return false;
-l_yes:
+l_no:
 	return true;
 }
 

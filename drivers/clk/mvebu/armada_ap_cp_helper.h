@@ -4,8 +4,8 @@
 #define __ARMADA_AP_CP_HELPER_H
 
 struct device;
-struct device_node;
+struct device_yesde;
 
-char *ap_cp_unique_name(struct device *dev, struct device_node *np,
+char *ap_cp_unique_name(struct device *dev, struct device_yesde *np,
 			const char *name);
 #endif

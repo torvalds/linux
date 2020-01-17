@@ -79,7 +79,7 @@ static struct rc_map_table manli[] = {
 	 *  SOURCE         STEREO *
 	 *                        */
 	{ 0x11, KEY_TV },	/*XXX*/
-	{ 0x0d, KEY_MODE },	/*XXX there's no KEY_STEREO	*/
+	{ 0x0d, KEY_MODE },	/*XXX there's yes KEY_STEREO	*/
 
 	/*  0x0f    0x1b    0x1a  *
 	 *  AUDIO   Vol+    Chan+ *

@@ -104,7 +104,7 @@ int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	/* IEEE 1394 bus requires. */
 	delay = 0x2e00;
 
-	/* For no-data or empty packets to adjust PCM sampling frequency. */
+	/* For yes-data or empty packets to adjust PCM sampling frequency. */
 	delay += 8000 * 3072 * s->syt_interval / rate;
 
 	p->next_seconds = 0;

@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/rational.h>
 #include <linux/videodev2.h>
 #include <linux/v4l2-dv-timings.h>
@@ -237,7 +237,7 @@ EXPORT_SYMBOL_GPL(v4l2_find_dv_timings_cea861_vic);
  * @t1: compare this v4l2_dv_timings struct...
  * @t2: with this struct.
  * @pclock_delta: the allowed pixelclock deviation.
- * @match_reduced_fps: if true, then fail if V4L2_DV_FL_REDUCED_FPS does not
+ * @match_reduced_fps: if true, then fail if V4L2_DV_FL_REDUCED_FPS does yest
  *	match.
  *
  * Compare t1 with t2 with a given margin of error for the pixelclock.
@@ -345,7 +345,7 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
 	if (bt->flags & V4L2_DV_FL_HAS_PICTURE_ASPECT)
 		pr_info("%s: picture aspect (hor:vert): %u:%u\n", dev_prefix,
 			bt->picture_aspect.numerator,
-			bt->picture_aspect.denominator);
+			bt->picture_aspect.deyesminator);
 	if (bt->flags & V4L2_DV_FL_HAS_CEA861_VIC)
 		pr_info("%s: CEA-861 VIC: %u\n", dev_prefix, bt->cea861_vic);
 	if (bt->flags & V4L2_DV_FL_HAS_HDMI_VIC)
@@ -363,13 +363,13 @@ struct v4l2_fract v4l2_dv_timings_aspect_ratio(const struct v4l2_dv_timings *t)
 	if (!(t->bt.flags & V4L2_DV_FL_HAS_PICTURE_ASPECT))
 		return ratio;
 
-	ratio.numerator = t->bt.width * t->bt.picture_aspect.denominator;
-	ratio.denominator = t->bt.height * t->bt.picture_aspect.numerator;
+	ratio.numerator = t->bt.width * t->bt.picture_aspect.deyesminator;
+	ratio.deyesminator = t->bt.height * t->bt.picture_aspect.numerator;
 
-	rational_best_approximation(ratio.numerator, ratio.denominator,
-				    ratio.numerator, ratio.denominator, &n, &d);
+	rational_best_approximation(ratio.numerator, ratio.deyesminator,
+				    ratio.numerator, ratio.deyesminator, &n, &d);
 	ratio.numerator = n;
-	ratio.denominator = d;
+	ratio.deyesminator = d;
 	return ratio;
 }
 EXPORT_SYMBOL_GPL(v4l2_dv_timings_aspect_ratio);
@@ -408,7 +408,7 @@ struct v4l2_fract v4l2_calc_timeperframe(const struct v4l2_dv_timings *t)
 	rational_best_approximation(fps, 100, fps, 100, &n, &d);
 
 	fps_fract.numerator = d;
-	fps_fract.denominator = n;
+	fps_fract.deyesminator = n;
 	return fps_fract;
 }
 EXPORT_SYMBOL_GPL(v4l2_calc_timeperframe);
@@ -426,7 +426,7 @@ EXPORT_SYMBOL_GPL(v4l2_calc_timeperframe);
 #define CVT_MIN_V_BPORCH	7	/* lines */
 #define CVT_MIN_V_PORCH_RND	3	/* lines */
 #define CVT_MIN_VSYNC_BP	550	/* min time of vsync + back porch (us) */
-#define CVT_HSYNC_PERCENT       8       /* nominal hsync as percentage of line */
+#define CVT_HSYNC_PERCENT       8       /* yesminal hsync as percentage of line */
 
 /* Normal blanking for CVT uses GTF to calculate horizontal blanking */
 #define CVT_CELL_GRAN		8	/* character cell granularity */
@@ -453,9 +453,9 @@ EXPORT_SYMBOL_GPL(v4l2_calc_timeperframe);
  * @frame_height - the total height of the frame (including blanking) in lines.
  * @hfreq - the horizontal frequency in Hz.
  * @vsync - the height of the vertical sync in lines.
- * @active_width - active width of image (does not include blanking). This
+ * @active_width - active width of image (does yest include blanking). This
  * information is needed only in case of version 2 of reduced blanking.
- * In other cases, this parameter does not have any effect on timings.
+ * In other cases, this parameter does yest have any effect on timings.
  * @polarities - the horizontal and vertical polarities (same as struct
  *		v4l2_bt_timings polarities).
  * @interlaced - if this flag is true, it indicates interlaced format
@@ -672,11 +672,11 @@ EXPORT_SYMBOL_GPL(v4l2_detect_cvt);
  * @polarities - the horizontal and vertical polarities (same as struct
  *		v4l2_bt_timings polarities).
  * @interlaced - if this flag is true, it indicates interlaced format
- * @aspect - preferred aspect ratio. GTF has no method of determining the
+ * @aspect - preferred aspect ratio. GTF has yes method of determining the
  *		aspect ratio in order to derive the image width from the
  *		image height, so it has to be passed explicitly. Usually
  *		the native screen aspect ratio is used for this. If it
- *		is not filled in correctly, then 16:9 will be assumed.
+ *		is yest filled in correctly, then 16:9 will be assumed.
  * @fmt - the resulting timings.
  *
  * This function will attempt to detect if the given values correspond to a
@@ -721,11 +721,11 @@ bool v4l2_detect_gtf(unsigned frame_height,
 	if (image_height < 0)
 		return false;
 
-	if (aspect.numerator == 0 || aspect.denominator == 0) {
+	if (aspect.numerator == 0 || aspect.deyesminator == 0) {
 		aspect.numerator = 16;
-		aspect.denominator = 9;
+		aspect.deyesminator = 9;
 	}
-	image_width = ((image_height * aspect.numerator) / aspect.denominator);
+	image_width = ((image_height * aspect.numerator) / aspect.deyesminator);
 	image_width = (image_width + GTF_CELL_GRAN/2) & ~(GTF_CELL_GRAN - 1);
 
 	/* Horizontal */
@@ -815,7 +815,7 @@ struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait)
 	/* Both filled in, so they are interpreted as the screen size in cm */
 	if (hor_landscape && vert_portrait) {
 		aspect.numerator = hor_landscape;
-		aspect.denominator = vert_portrait;
+		aspect.deyesminator = vert_portrait;
 		return aspect;
 	}
 	/* Only one is filled in, so interpret them as a ratio:
@@ -824,21 +824,21 @@ struct v4l2_fract v4l2_calc_aspect_ratio(u8 hor_landscape, u8 vert_portrait)
 	/* Change some rounded values into the exact aspect ratio */
 	if (ratio == 79) {
 		aspect.numerator = 16;
-		aspect.denominator = 9;
+		aspect.deyesminator = 9;
 	} else if (ratio == 34) {
 		aspect.numerator = 4;
-		aspect.denominator = 3;
+		aspect.deyesminator = 3;
 	} else if (ratio == 68) {
 		aspect.numerator = 15;
-		aspect.denominator = 9;
+		aspect.deyesminator = 9;
 	} else {
 		aspect.numerator = hor_landscape + 99;
-		aspect.denominator = 100;
+		aspect.deyesminator = 100;
 	}
 	if (hor_landscape)
 		return aspect;
-	/* The aspect ratio is for portrait, so swap numerator and denominator */
-	swap(aspect.denominator, aspect.numerator);
+	/* The aspect ratio is for portrait, so swap numerator and deyesminator */
+	swap(aspect.deyesminator, aspect.numerator);
 	return aspect;
 }
 EXPORT_SYMBOL_GPL(v4l2_calc_aspect_ratio);
@@ -852,7 +852,7 @@ EXPORT_SYMBOL_GPL(v4l2_calc_aspect_ratio);
  * Determines the HDMI colorimetry information, i.e. how the HDMI
  * pixel color data should be interpreted.
  *
- * Note that some of the newer features (DCI-P3, HDR) are not yet
+ * Note that some of the newer features (DCI-P3, HDR) are yest yet
  * implemented: the hdmi.h header needs to be updated to the HDMI 2.0
  * and CTA-861-G standards.
  */
@@ -975,7 +975,7 @@ v4l2_hdmi_rx_colorimetry(const struct hdmi_avi_infoframe *avi,
 		}
 		/*
 		 * YCC Quantization Range signaling is more-or-less broken,
-		 * let's just ignore this.
+		 * let's just igyesre this.
 		 */
 		break;
 	}
@@ -988,11 +988,11 @@ EXPORT_SYMBOL_GPL(v4l2_hdmi_rx_colorimetry);
  *
  * @edid:	pointer to the EDID data
  * @size:	size in bytes of the EDID data
- * @offset:	If not %NULL then the location of the physical address
+ * @offset:	If yest %NULL then the location of the physical address
  *		bytes in the EDID will be returned here. This is set to 0
- *		if there is no physical address found.
+ *		if there is yes physical address found.
  *
- * Return: the physical address or CEC_PHYS_ADDR_INVALID if there is none.
+ * Return: the physical address or CEC_PHYS_ADDR_INVALID if there is yesne.
  */
 u16 v4l2_get_edid_phys_addr(const u8 *edid, unsigned int size,
 			    unsigned int *offset)
@@ -1016,7 +1016,7 @@ EXPORT_SYMBOL_GPL(v4l2_get_edid_phys_addr);
  *
  * This function finds the location of the physical address in the EDID
  * and fills in the given physical address and updates the checksum
- * at the end of the EDID block. It does nothing if the EDID doesn't
+ * at the end of the EDID block. It does yesthing if the EDID doesn't
  * contain a physical address.
  */
 void v4l2_set_edid_phys_addr(u8 *edid, unsigned int size, u16 phys_addr)
@@ -1076,7 +1076,7 @@ u16 v4l2_phys_addr_for_input(u16 phys_addr, u8 input)
 		return phys_addr | input;
 
 	/*
-	 * All nibbles are used so no valid physical addresses can be assigned
+	 * All nibbles are used so yes valid physical addresses can be assigned
 	 * to the input.
 	 */
 	return CEC_PHYS_ADDR_INVALID;
@@ -1087,8 +1087,8 @@ EXPORT_SYMBOL_GPL(v4l2_phys_addr_for_input);
  * v4l2_phys_addr_validate() - validate a physical address from an EDID
  *
  * @phys_addr:	the physical address to validate
- * @parent:	if not %NULL, then this is filled with the parents PA.
- * @port:	if not %NULL, then this is filled with the input port.
+ * @parent:	if yest %NULL, then this is filled with the parents PA.
+ * @port:	if yest %NULL, then this is filled with the input port.
  *
  * This validates a physical address as read from an EDID. If the
  * PA is invalid (such as 1.0.1.0 since '0' is only allowed at the end),
@@ -1105,7 +1105,7 @@ EXPORT_SYMBOL_GPL(v4l2_phys_addr_for_input);
  *
  * PA = f.f.f.f: has parent f.f.f.f and input port 0.
  *
- * Return: 0 if the PA is valid, -EINVAL if not.
+ * Return: 0 if the PA is valid, -EINVAL if yest.
  */
 int v4l2_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port)
 {

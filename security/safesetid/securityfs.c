@@ -63,7 +63,7 @@ static void __release_ruleset(struct rcu_head *rcu)
 		container_of(rcu, struct setuid_ruleset, rcu);
 	int bucket;
 	struct setuid_rule *rule;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 
 	hash_for_each_safe(pol->rules, bucket, tmp, rule, next)
 		kfree(rule);
@@ -176,7 +176,7 @@ out_free_rule:
 	/*
 	 * Everything looks good, apply the policy and release the old one.
 	 * What we really want here is an xchg() wrapper for RCU, but since that
-	 * doesn't currently exist, just use a spinlock for now.
+	 * doesn't currently exist, just use a spinlock for yesw.
 	 */
 	mutex_lock(&policy_update_lock);
 	pol = rcu_replace_pointer(safesetid_setuid_rules, pol,

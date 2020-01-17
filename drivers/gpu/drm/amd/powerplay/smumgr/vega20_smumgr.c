@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -79,7 +79,7 @@ static uint32_t vega20_wait_for_response(struct pp_hwmgr *hwmgr)
 }
 
 /*
- * Send a message to the SMC, and do not wait for its response.
+ * Send a message to the SMC, and do yest wait for its response.
  * @param    smumgr  the address of the powerplay hardware manager.
  * @param    msg the message to send.
  * @return   Always return 0.
@@ -563,7 +563,7 @@ static int vega20_start_smu(struct pp_hwmgr *hwmgr)
 
 	ret = vega20_is_smc_ram_running(hwmgr);
 	PP_ASSERT_WITH_CODE(ret,
-			"[Vega20StartSmu] SMC is not running!",
+			"[Vega20StartSmu] SMC is yest running!",
 			return -EINVAL);
 
 	ret = vega20_set_tools_address(hwmgr);

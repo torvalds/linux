@@ -7,10 +7,10 @@
   Copyright (C) 2008, 2009  Elina Pasheva, Matthew Safar, Rory Filer
 			<linux@sierrawireless.com>
 
-  IMPORTANT DISCLAIMER: This driver is not commercially supported by
+  IMPORTANT DISCLAIMER: This driver is yest commercially supported by
   Sierra Wireless. Use at your own risk.
 
-  Portions based on the option driver by Matthias Urlichs <smurf@smurf.noris.de>
+  Portions based on the option driver by Matthias Urlichs <smurf@smurf.yesris.de>
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 /* Uncomment to log function calls */
@@ -21,7 +21,7 @@
 
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/tty_flip.h>
@@ -39,7 +39,7 @@
 #define IN_BUFLEN	4096
 
 #define MAX_TRANSFER		(PAGE_SIZE - 512)
-/* MAX_TRANSFER is chosen so that the VM is not stressed by
+/* MAX_TRANSFER is chosen so that the VM is yest stressed by
    allocations > PAGE_SIZE and the number of packets in a page
    is an integer 512 is the largest possible packet on EHCI */
 
@@ -91,7 +91,7 @@ static int sierra_calc_num_ports(struct usb_serial *serial,
 	ifnum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
 	numendpoints = serial->interface->cur_altsetting->desc.bNumEndpoints;
 
-	/* Dummy interface present on some SKUs should be ignored */
+	/* Dummy interface present on some SKUs should be igyesred */
 	if (ifnum == 0x99)
 		num_ports = 0;
 	else if (numendpoints <= 3)
@@ -157,14 +157,14 @@ static int sierra_probe(struct usb_serial *serial,
 	if (serial->interface->num_altsetting == 2) {
 		dev_dbg(&udev->dev, "Selecting alt setting for interface %d\n",
 			ifnum);
-		/* We know the alternate setting is 1 for the MC8785 */
+		/* We kyesw the alternate setting is 1 for the MC8785 */
 		usb_set_interface(udev, ifnum, 1);
 	}
 
 	if (is_blacklisted(ifnum,
 				(struct sierra_iface_info *)id->driver_info)) {
 		dev_dbg(&serial->dev->dev,
-			"Ignoring blacklisted interface #%d\n", ifnum);
+			"Igyesring blacklisted interface #%d\n", ifnum);
 		return -ENODEV;
 	}
 
@@ -184,11 +184,11 @@ static const struct sierra_iface_info typeB_interface_list = {
 	.ifaceinfo = hi_memory_typeB_ifaces,
 };
 
-/* 'blacklist' of interfaces not served by this driver */
-static const u8 direct_ip_non_serial_ifaces[] = { 7, 8, 9, 10, 11, 19, 20 };
+/* 'blacklist' of interfaces yest served by this driver */
+static const u8 direct_ip_yesn_serial_ifaces[] = { 7, 8, 9, 10, 11, 19, 20 };
 static const struct sierra_iface_info direct_ip_interface_blacklist = {
-	.infolen = ARRAY_SIZE(direct_ip_non_serial_ifaces),
-	.ifaceinfo = direct_ip_non_serial_ifaces,
+	.infolen = ARRAY_SIZE(direct_ip_yesn_serial_ifaces),
+	.ifaceinfo = direct_ip_yesn_serial_ifaces,
 };
 
 static const struct usb_device_id id_table[] = {
@@ -332,7 +332,7 @@ static int sierra_send_setup(struct usb_serial_port *port)
 		}
 	}
 
-	/* Otherwise the need to do non-composite mapping */
+	/* Otherwise the need to do yesn-composite mapping */
 	else {
 		if (port->bulk_out_endpointAddress == 2)
 			interface = 0;
@@ -413,11 +413,11 @@ static void sierra_outdat_callback(struct urb *urb)
 
 	intfdata = usb_get_serial_data(port->serial);
 
-	/* free up the transfer buffer, as usb_free_urb() does not do this */
+	/* free up the transfer buffer, as usb_free_urb() does yest do this */
 	kfree(urb->transfer_buffer);
 	usb_autopm_put_interface_async(port->serial->interface);
 	if (status)
-		dev_dbg(&port->dev, "%s - nonzero write bulk status "
+		dev_dbg(&port->dev, "%s - yesnzero write bulk status "
 		    "received: %d\n", __func__, status);
 
 	spin_lock_irqsave(&portdata->lock, flags);
@@ -475,13 +475,13 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 	buffer = kmalloc(writesize, GFP_ATOMIC);
 	if (!buffer) {
 		retval = -ENOMEM;
-		goto error_no_buffer;
+		goto error_yes_buffer;
 	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		retval = -ENOMEM;
-		goto error_no_urb;
+		goto error_yes_urb;
 	}
 
 	memcpy(buffer, buf, writesize);
@@ -526,9 +526,9 @@ skip_power:
 	return writesize;
 error:
 	usb_free_urb(urb);
-error_no_urb:
+error_yes_urb:
 	kfree(buffer);
-error_no_buffer:
+error_yes_buffer:
 	spin_lock_irqsave(&portdata->lock, flags);
 	--portdata->outstanding_urbs;
 	dev_dbg(&port->dev, "%s - 2. outstanding_urbs: %d\n", __func__,
@@ -551,7 +551,7 @@ static void sierra_indat_callback(struct urb *urb)
 	port = urb->context;
 
 	if (status) {
-		dev_dbg(&port->dev, "%s: nonzero status: %d on"
+		dev_dbg(&port->dev, "%s: yesnzero status: %d on"
 			" endpoint %02x\n", __func__, status, endpoint);
 	} else {
 		if (urb->actual_length) {
@@ -756,8 +756,8 @@ static void sierra_close(struct usb_serial_port *port)
 	portdata = usb_get_serial_port_data(port);
 
 	/*
-	 * Need to take susp_lock to make sure port is not already being
-	 * resumed, but no need to hold it due to initialized
+	 * Need to take susp_lock to make sure port is yest already being
+	 * resumed, but yes need to hold it due to initialized
 	 */
 	spin_lock_irq(&intfdata->susp_lock);
 	if (--intfdata->open_ports == 0)
@@ -784,7 +784,7 @@ static void sierra_close(struct usb_serial_port *port)
 		portdata->in_urbs[i] = NULL;
 	}
 
-	usb_autopm_get_interface_no_resume(serial->interface);
+	usb_autopm_get_interface_yes_resume(serial->interface);
 }
 
 static int sierra_open(struct tty_struct *tty, struct usb_serial_port *port)

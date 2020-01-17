@@ -44,11 +44,11 @@ int smpcfd_prepare_cpu(unsigned int cpu)
 {
 	struct call_function_data *cfd = &per_cpu(cfd_data, cpu);
 
-	if (!zalloc_cpumask_var_node(&cfd->cpumask, GFP_KERNEL,
-				     cpu_to_node(cpu)))
+	if (!zalloc_cpumask_var_yesde(&cfd->cpumask, GFP_KERNEL,
+				     cpu_to_yesde(cpu)))
 		return -ENOMEM;
-	if (!zalloc_cpumask_var_node(&cfd->cpumask_ipi, GFP_KERNEL,
-				     cpu_to_node(cpu))) {
+	if (!zalloc_cpumask_var_yesde(&cfd->cpumask_ipi, GFP_KERNEL,
+				     cpu_to_yesde(cpu))) {
 		free_cpumask_var(cfd->cpumask);
 		return -ENOMEM;
 	}
@@ -100,9 +100,9 @@ void __init call_function_init(void)
 /*
  * csd_lock/csd_unlock used to serialize access to per-cpu csd resources
  *
- * For non-synchronous ipi calls the csd can still be in use by the
+ * For yesn-synchroyesus ipi calls the csd can still be in use by the
  * previous function call. For multi-cpu calls its even more interesting
- * as we'll have to ensure no other cpu is observing our csd.
+ * as we'll have to ensure yes other cpu is observing our csd.
  */
 static __always_inline void csd_lock_wait(call_single_data_t *csd)
 {
@@ -146,7 +146,7 @@ static int generic_exec_single(int cpu, call_single_data_t *csd,
 		unsigned long flags;
 
 		/*
-		 * We can unlock early even for the synchronous on-stack case,
+		 * We can unlock early even for the synchroyesus on-stack case,
 		 * since we're doing this from the same CPU..
 		 */
 		csd_unlock(csd);
@@ -168,7 +168,7 @@ static int generic_exec_single(int cpu, call_single_data_t *csd,
 	/*
 	 * The list addition should be visible before sending the IPI
 	 * handler locks the list to pull the entry off it because of
-	 * normal cache coherency rules implied by spinlocks.
+	 * yesrmal cache coherency rules implied by spinlocks.
 	 *
 	 * If IPIs can go out of order to the cache coherency protocol
 	 * in an architecture, sufficient synchronisation should be added
@@ -210,7 +210,7 @@ void generic_smp_call_function_single_interrupt(void)
 static void flush_smp_call_function_queue(bool warn_cpu_offline)
 {
 	struct llist_head *head;
-	struct llist_node *entry;
+	struct llist_yesde *entry;
 	call_single_data_t *csd, *csd_next;
 	static bool warned;
 
@@ -228,7 +228,7 @@ static void flush_smp_call_function_queue(bool warn_cpu_offline)
 
 		/*
 		 * We don't have to use the _safe() variant here
-		 * because we are not invoking the IPI handlers yet.
+		 * because we are yest invoking the IPI handlers yet.
 		 */
 		llist_for_each_entry(csd, entry, llist)
 			pr_warn("IPI callback %pS sent to offline CPU\n",
@@ -251,7 +251,7 @@ static void flush_smp_call_function_queue(bool warn_cpu_offline)
 
 	/*
 	 * Handle irq works queued remotely by irq_work_queue_on().
-	 * Smp functions above are typically synchronous so they
+	 * Smp functions above are typically synchroyesus so they
 	 * better run first since some other CPUs may be busy waiting
 	 * for them.
 	 */
@@ -260,7 +260,7 @@ static void flush_smp_call_function_queue(bool warn_cpu_offline)
 
 /*
  * smp_call_function_single - Run a function on a specific CPU
- * @func: The function to run. This must be fast and non-blocking.
+ * @func: The function to run. This must be fast and yesn-blocking.
  * @info: An arbitrary pointer to pass to the function.
  * @wait: If true, wait until function has completed on other CPUs.
  *
@@ -277,14 +277,14 @@ int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 	int err;
 
 	/*
-	 * prevent preemption and reschedule on another processor,
+	 * prevent preemption and reschedule on ayesther processor,
 	 * as well as CPU removal
 	 */
 	this_cpu = get_cpu();
 
 	/*
 	 * Can deadlock when called with interrupts disabled.
-	 * We allow cpu's that are not yet online though, as no one else can
+	 * We allow cpu's that are yest yet online though, as yes one else can
 	 * send smp call function interrupt to this cpu and as such deadlocks
 	 * can't happen.
 	 */
@@ -317,19 +317,19 @@ int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 EXPORT_SYMBOL(smp_call_function_single);
 
 /**
- * smp_call_function_single_async(): Run an asynchronous function on a
+ * smp_call_function_single_async(): Run an asynchroyesus function on a
  * 			         specific CPU.
  * @cpu: The CPU to run on.
  * @csd: Pre-allocated and setup data structure
  *
- * Like smp_call_function_single(), but the call is asynchonous and
+ * Like smp_call_function_single(), but the call is asynchoyesus and
  * can thus be done from contexts with disabled interrupts.
  *
  * The caller passes his own pre-allocated data structure
  * (ie: embedded in an object) and is responsible for synchronizing it
  * such that the IPIs performed on the @csd are strictly serialized.
  *
- * NOTE: Be careful, there is unfortunately no current debugging facility to
+ * NOTE: Be careful, there is unfortunately yes current debugging facility to
  * validate the correctness of this serialization.
  */
 int smp_call_function_single_async(int cpu, call_single_data_t *csd)
@@ -355,22 +355,22 @@ EXPORT_SYMBOL_GPL(smp_call_function_single_async);
 /*
  * smp_call_function_any - Run a function on any of the given cpus
  * @mask: The mask of cpus it can run on.
- * @func: The function to run. This must be fast and non-blocking.
+ * @func: The function to run. This must be fast and yesn-blocking.
  * @info: An arbitrary pointer to pass to the function.
  * @wait: If true, wait until function has completed.
  *
- * Returns 0 on success, else a negative status code (if no cpus were online).
+ * Returns 0 on success, else a negative status code (if yes cpus were online).
  *
  * Selection preference:
  *	1) current cpu if in @mask
- *	2) any cpu of current node if in @mask
+ *	2) any cpu of current yesde if in @mask
  *	3) any other online cpu in @mask
  */
 int smp_call_function_any(const struct cpumask *mask,
 			  smp_call_func_t func, void *info, int wait)
 {
 	unsigned int cpu;
-	const struct cpumask *nodemask;
+	const struct cpumask *yesdemask;
 	int ret;
 
 	/* Try for same CPU (cheapest) */
@@ -378,10 +378,10 @@ int smp_call_function_any(const struct cpumask *mask,
 	if (cpumask_test_cpu(cpu, mask))
 		goto call;
 
-	/* Try for same node. */
-	nodemask = cpumask_of_node(cpu_to_node(cpu));
-	for (cpu = cpumask_first_and(nodemask, mask); cpu < nr_cpu_ids;
-	     cpu = cpumask_next_and(cpu, nodemask, mask)) {
+	/* Try for same yesde. */
+	yesdemask = cpumask_of_yesde(cpu_to_yesde(cpu));
+	for (cpu = cpumask_first_and(yesdemask, mask); cpu < nr_cpu_ids;
+	     cpu = cpumask_next_and(cpu, yesdemask, mask)) {
 		if (cpu_online(cpu))
 			goto call;
 	}
@@ -398,14 +398,14 @@ EXPORT_SYMBOL_GPL(smp_call_function_any);
 /**
  * smp_call_function_many(): Run a function on a set of other CPUs.
  * @mask: The set of cpus to run on (only runs on online subset).
- * @func: The function to run. This must be fast and non-blocking.
+ * @func: The function to run. This must be fast and yesn-blocking.
  * @info: An arbitrary pointer to pass to the function.
  * @wait: If true, wait (atomically) until function has completed
  *        on other CPUs.
  *
  * If @wait is true, then returns once @func has returned.
  *
- * You must not call this function with disabled interrupts or from a
+ * You must yest call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler. Preemption
  * must be disabled when calling this function.
  */
@@ -417,7 +417,7 @@ void smp_call_function_many(const struct cpumask *mask,
 
 	/*
 	 * Can deadlock when called with interrupts disabled.
-	 * We allow cpu's that are not yet online though, as no one else can
+	 * We allow cpu's that are yest yet online though, as yes one else can
 	 * send smp call function interrupt to this cpu and as such deadlocks
 	 * can't happen.
 	 */
@@ -432,7 +432,7 @@ void smp_call_function_many(const struct cpumask *mask,
 	 */
 	WARN_ON_ONCE(!in_task());
 
-	/* Try to fastpath.  So, what's a CPU they want? Ignoring this one. */
+	/* Try to fastpath.  So, what's a CPU they want? Igyesring this one. */
 	cpu = cpumask_first_and(mask, cpu_online_mask);
 	if (cpu == this_cpu)
 		cpu = cpumask_next_and(cpu, mask, cpu_online_mask);
@@ -441,7 +441,7 @@ void smp_call_function_many(const struct cpumask *mask,
 	if (cpu >= nr_cpu_ids)
 		return;
 
-	/* Do we have another CPU which isn't us? */
+	/* Do we have ayesther CPU which isn't us? */
 	next_cpu = cpumask_next_and(cpu, mask, cpu_online_mask);
 	if (next_cpu == this_cpu)
 		next_cpu = cpumask_next_and(next_cpu, mask, cpu_online_mask);
@@ -490,7 +490,7 @@ EXPORT_SYMBOL(smp_call_function_many);
 
 /**
  * smp_call_function(): Run a function on all other CPUs.
- * @func: The function to run. This must be fast and non-blocking.
+ * @func: The function to run. This must be fast and yesn-blocking.
  * @info: An arbitrary pointer to pass to the function.
  * @wait: If true, wait (atomically) until function has completed
  *        on other CPUs.
@@ -500,7 +500,7 @@ EXPORT_SYMBOL(smp_call_function_many);
  * If @wait is true, then returns once @func has returned; otherwise
  * it returns just before the target cpu calls @func.
  *
- * You must not call this function with disabled interrupts or from a
+ * You must yest call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler.
  */
 void smp_call_function(smp_call_func_t func, void *info, int wait)
@@ -519,7 +519,7 @@ EXPORT_SYMBOL(setup_max_cpus);
 /*
  * Setup routine for controlling SMP activation
  *
- * Command-line option of "nosmp" or "maxcpus=0" will disable SMP
+ * Command-line option of "yessmp" or "maxcpus=0" will disable SMP
  * activation entirely (the MPS table probe still happens, though).
  *
  * Command-line option of "maxcpus=<NUM>", where <NUM> is an integer
@@ -529,7 +529,7 @@ EXPORT_SYMBOL(setup_max_cpus);
 
 void __weak arch_disable_smp_support(void) { }
 
-static int __init nosmp(char *str)
+static int __init yessmp(char *str)
 {
 	setup_max_cpus = 0;
 	arch_disable_smp_support();
@@ -537,7 +537,7 @@ static int __init nosmp(char *str)
 	return 0;
 }
 
-early_param("nosmp", nosmp);
+early_param("yessmp", yessmp);
 
 /* this is hard limit */
 static int __init nrcpus(char *str)
@@ -577,7 +577,7 @@ void __init setup_nr_cpu_ids(void)
 /* Called by boot processor to activate the rest. */
 void __init smp_init(void)
 {
-	int num_nodes, num_cpus;
+	int num_yesdes, num_cpus;
 	unsigned int cpu;
 
 	idle_threads_init();
@@ -593,10 +593,10 @@ void __init smp_init(void)
 			cpu_up(cpu);
 	}
 
-	num_nodes = num_online_nodes();
+	num_yesdes = num_online_yesdes();
 	num_cpus  = num_online_cpus();
-	pr_info("Brought up %d node%s, %d CPU%s\n",
-		num_nodes, (num_nodes > 1 ? "s" : ""),
+	pr_info("Brought up %d yesde%s, %d CPU%s\n",
+		num_yesdes, (num_yesdes > 1 ? "s" : ""),
 		num_cpus,  (num_cpus  > 1 ? "s" : ""));
 
 	/* Any cleanup work */
@@ -625,14 +625,14 @@ EXPORT_SYMBOL(on_each_cpu);
  * on_each_cpu_mask(): Run a function on processors specified by
  * cpumask, which may include the local processor.
  * @mask: The set of cpus to run on (only runs on online subset).
- * @func: The function to run. This must be fast and non-blocking.
+ * @func: The function to run. This must be fast and yesn-blocking.
  * @info: An arbitrary pointer to pass to the function.
  * @wait: If true, wait (atomically) until function has completed
  *        on other CPUs.
  *
  * If @wait is true, then returns once @func has returned.
  *
- * You must not call this function with disabled interrupts or from a
+ * You must yest call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler.  The
  * exception is that it may be used during early boot while
  * early_boot_irqs_disabled is set.
@@ -664,20 +664,20 @@ EXPORT_SYMBOL(on_each_cpu_mask);
  *		return a blooean value indicating whether to IPI
  *		the specified CPU.
  * @func:	The function to run on all applicable CPUs.
- *		This must be fast and non-blocking.
+ *		This must be fast and yesn-blocking.
  * @info:	An arbitrary pointer to pass to both functions.
  * @wait:	If true, wait (atomically) until function has
  *		completed on other CPUs.
  * @gfp_flags:	GFP flags to use when allocating the cpumask
  *		used internally by the function.
  *
- * The function might sleep if the GFP flags indicates a non
+ * The function might sleep if the GFP flags indicates a yesn
  * atomic allocation is allowed.
  *
- * Preemption is disabled to protect against CPUs going offline but not online.
- * CPUs going online during the call will not be seen or sent an IPI.
+ * Preemption is disabled to protect against CPUs going offline but yest online.
+ * CPUs going online during the call will yest be seen or sent an IPI.
  *
- * You must not call this function with disabled interrupts or
+ * You must yest call this function with disabled interrupts or
  * from a hardware interrupt handler or from a bottom half handler.
  */
 void on_each_cpu_cond_mask(bool (*cond_func)(int cpu, void *info),
@@ -723,7 +723,7 @@ void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),
 }
 EXPORT_SYMBOL(on_each_cpu_cond);
 
-static void do_nothing(void *unused)
+static void do_yesthing(void *unused)
 {
 }
 
@@ -735,21 +735,21 @@ static void do_nothing(void *unused)
  * callback function has been executed on all cpus. The execution of
  * the function can only happen on the remote cpus after they have
  * left the idle function which had been called via pm_idle function
- * pointer. So it's guaranteed that nothing uses the previous pointer
+ * pointer. So it's guaranteed that yesthing uses the previous pointer
  * anymore.
  */
 void kick_all_cpus_sync(void)
 {
 	/* Make sure the change is visible before we kick the cpus */
 	smp_mb();
-	smp_call_function(do_nothing, NULL, 1);
+	smp_call_function(do_yesthing, NULL, 1);
 }
 EXPORT_SYMBOL_GPL(kick_all_cpus_sync);
 
 /**
  * wake_up_all_idle_cpus - break all cpus out of idle
  * wake_up_all_idle_cpus try to break all cpus which is in idle state even
- * including idle polling cpus, for non-idle cpus, we will do nothing
+ * including idle polling cpus, for yesn-idle cpus, we will do yesthing
  * for them.
  */
 void wake_up_all_idle_cpus(void)

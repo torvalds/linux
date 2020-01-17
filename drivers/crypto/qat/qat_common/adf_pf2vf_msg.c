@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -182,7 +182,7 @@ static int __adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 	}
 
 	/*
-	 * This function now owns the PV2VF CSR.  The IN_USE_BY pattern must
+	 * This function yesw owns the PV2VF CSR.  The IN_USE_BY pattern must
 	 * remain in the PF2VF CSR for all writes including ACK from remote
 	 * until this local function relinquishes the CSR.  Send the message
 	 * by interrupting the remote.
@@ -196,7 +196,7 @@ static int __adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 	} while ((val & int_bit) && (count++ < ADF_IOV_MSG_ACK_MAX_RETRY));
 
 	if (val & int_bit) {
-		dev_dbg(&GET_DEV(accel_dev), "ACK not received from remote\n");
+		dev_dbg(&GET_DEV(accel_dev), "ACK yest received from remote\n");
 		val &= ~int_bit;
 		ret = -EIO;
 	}
@@ -250,7 +250,7 @@ void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info)
 	ADF_CSR_WR(pmisc_addr, hw_data->get_pf2vf_offset(vf_nr), msg);
 
 	if (!(msg & ADF_VF2PF_MSGORIGIN_SYSTEM))
-		/* Ignore legacy non-system (non-kernel) VF2PF messages */
+		/* Igyesre legacy yesn-system (yesn-kernel) VF2PF messages */
 		goto err;
 
 	switch ((msg & ADF_VF2PF_MSGTYPE_MASK) >> ADF_VF2PF_MSGTYPE_SHIFT) {
@@ -300,7 +300,7 @@ void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info)
 			  ADF_PF2VF_VERSION_RESP_VERS_SHIFT));
 		resp |= ADF_PF2VF_VF_COMPATIBLE <<
 			ADF_PF2VF_VERSION_RESP_RESULT_SHIFT;
-		/* Set legacy major and minor version num */
+		/* Set legacy major and miyesr version num */
 		resp |= 1 << ADF_PF2VF_MAJORVERSION_SHIFT |
 			1 << ADF_PF2VF_MINORVERSION_SHIFT;
 		break;
@@ -331,11 +331,11 @@ void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info)
 	adf_enable_vf2pf_interrupts(accel_dev, (1 << vf_nr));
 	return;
 err:
-	dev_dbg(&GET_DEV(accel_dev), "Unknown message from VF%d (0x%x);\n",
+	dev_dbg(&GET_DEV(accel_dev), "Unkyeswn message from VF%d (0x%x);\n",
 		vf_nr + 1, msg);
 }
 
-void adf_pf2vf_notify_restarting(struct adf_accel_dev *accel_dev)
+void adf_pf2vf_yestify_restarting(struct adf_accel_dev *accel_dev)
 {
 	struct adf_accel_vf_info *vf;
 	u32 msg = (ADF_PF2VF_MSGORIGIN_SYSTEM |
@@ -388,13 +388,13 @@ static int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 		/* fall through */
 	case ADF_PF2VF_VF_INCOMPATIBLE:
 		dev_err(&GET_DEV(accel_dev),
-			"PF (vers %d) and VF (vers %d) are not compatible\n",
+			"PF (vers %d) and VF (vers %d) are yest compatible\n",
 			accel_dev->vf.pf_version,
 			ADF_PFVF_COMPATIBILITY_VERSION);
 		return -EINVAL;
 	default:
 		dev_err(&GET_DEV(accel_dev),
-			"Invalid response from PF; assume not compatible\n");
+			"Invalid response from PF; assume yest compatible\n");
 		return -EINVAL;
 	}
 	return ret;

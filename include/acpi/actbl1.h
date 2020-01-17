@@ -14,7 +14,7 @@
  *
  * Additional ACPI Tables
  *
- * These tables are not consumed directly by the ACPICA subsystem, but are
+ * These tables are yest consumed directly by the ACPICA subsystem, but are
  * included here to support device drivers and the AML disassembler.
  *
  ******************************************************************************/
@@ -53,7 +53,7 @@
 #define ACPI_SIG_MSDM           "MSDM"	/* Microsoft Data Management Table */
 
 /*
- * These tables have been seen in the field, but no definition has been found
+ * These tables have been seen in the field, but yes definition has been found
  */
 #ifdef ACPI_UNDEFINED_TABLES
 #define ACPI_SIG_ATKG           "ATKG"
@@ -68,10 +68,10 @@
 #pragma pack(1)
 
 /*
- * Note: C bitfields are not used for this reason:
+ * Note: C bitfields are yest used for this reason:
  *
  * "Bitfields are great and easy to read, but unfortunately the C language
- * does not specify the layout of bitfields in memory, which means they are
+ * does yest specify the layout of bitfields in memory, which means they are
  * essentially useless for dealing with packed data in on-disk formats or
  * binary wire protocols." (Or ACPI tables and buffers.) "If you ask me,
  * this decision was a design error in C. Ritchie could have picked an order
@@ -231,7 +231,7 @@ struct acpi_table_bert {
 	u64 address;		/* Physical address of the error region */
 };
 
-/* Boot Error Region (not a subtable, pointed to by Address field above) */
+/* Boot Error Region (yest a subtable, pointed to by Address field above) */
 
 struct acpi_bert_region {
 	u32 block_status;	/* Type of error information */
@@ -354,7 +354,7 @@ struct acpi_csrt_group {
 
 struct acpi_csrt_shared_info {
 	u16 major_version;
-	u16 minor_version;
+	u16 miyesr_version;
 	u32 mmio_base_low;
 	u32 mmio_base_high;
 	u32 gsi_interrupt;
@@ -433,7 +433,7 @@ struct acpi_dbg2_device {
 	 * Data that follows:
 	 *    base_address (required) - Each in 12-byte Generic Address Structure format.
 	 *    address_size (required) - Array of u32 sizes corresponding to each base_address register.
-	 *    Namepath    (required) - Null terminated string. Single dot if not supported.
+	 *    Namepath    (required) - Null terminated string. Single dot if yest supported.
 	 *    oem_data    (optional) - Length is oem_data_length.
 	 */
 };
@@ -481,7 +481,7 @@ struct acpi_table_dbgp {
  * DMAR - DMA Remapping table
  *        Version 1
  *
- * Conforms to "Intel Virtualization Technology for Directed I/O",
+ * Conforms to "Intel Virtualization Techyeslogy for Directed I/O",
  * Version 2.3, October 2014
  *
  ******************************************************************************/
@@ -984,12 +984,12 @@ struct acpi_table_gtdt {
 	u32 reserved;
 	u32 secure_el1_interrupt;
 	u32 secure_el1_flags;
-	u32 non_secure_el1_interrupt;
-	u32 non_secure_el1_flags;
+	u32 yesn_secure_el1_interrupt;
+	u32 yesn_secure_el1_flags;
 	u32 virtual_timer_interrupt;
 	u32 virtual_timer_flags;
-	u32 non_secure_el2_interrupt;
-	u32 non_secure_el2_flags;
+	u32 yesn_secure_el2_interrupt;
+	u32 yesn_secure_el2_flags;
 	u64 counter_read_block_address;
 	u32 platform_timer_count;
 	u32 platform_timer_offset;
@@ -1166,7 +1166,7 @@ struct acpi_hest_aer_common {
 
 /* Hardware Error Notification */
 
-struct acpi_hest_notify {
+struct acpi_hest_yestify {
 	u8 type;
 	u8 length;
 	u16 config_write_enable;
@@ -1180,7 +1180,7 @@ struct acpi_hest_notify {
 
 /* Values for Notify Type field above */
 
-enum acpi_hest_notify_types {
+enum acpi_hest_yestify_types {
 	ACPI_HEST_NOTIFY_POLLED = 0,
 	ACPI_HEST_NOTIFY_EXTERNAL = 1,
 	ACPI_HEST_NOTIFY_LOCAL = 2,
@@ -1233,7 +1233,7 @@ struct acpi_hest_ia_corrected {
 	u8 enabled;
 	u32 records_to_preallocate;
 	u32 max_sections_per_record;
-	struct acpi_hest_notify notify;
+	struct acpi_hest_yestify yestify;
 	u8 num_hardware_banks;
 	u8 reserved2[3];
 };
@@ -1286,7 +1286,7 @@ struct acpi_hest_generic {
 	u32 max_sections_per_record;
 	u32 max_raw_data_length;
 	struct acpi_generic_address error_status_address;
-	struct acpi_hest_notify notify;
+	struct acpi_hest_yestify yestify;
 	u32 error_block_length;
 };
 
@@ -1301,7 +1301,7 @@ struct acpi_hest_generic_v2 {
 	u32 max_sections_per_record;
 	u32 max_raw_data_length;
 	struct acpi_generic_address error_status_address;
-	struct acpi_hest_notify notify;
+	struct acpi_hest_yestify yestify;
 	u32 error_block_length;
 	struct acpi_generic_address read_ack_register;
 	u64 read_ack_preserve;
@@ -1375,7 +1375,7 @@ struct acpi_hest_ia_deferred_check {
 	u8 enabled;
 	u32 records_to_preallocate;
 	u32 max_sections_per_record;
-	struct acpi_hest_notify notify;
+	struct acpi_hest_yestify yestify;
 	u8 num_hardware_banks;
 	u8 reserved2[3];
 };
@@ -1535,8 +1535,8 @@ enum acpi_hpet_page_protect {
  * Conforms to "iSCSI Boot Firmware Table (iBFT) as Defined in ACPI 3.0b
  * Specification", Version 1.01, March 1, 2007
  *
- * Note: It appears that this table is not intended to appear in the RSDT/XSDT.
- * Therefore, it is not currently supported by the disassembler.
+ * Note: It appears that this table is yest intended to appear in the RSDT/XSDT.
+ * Therefore, it is yest currently supported by the disassembler.
  *
  ******************************************************************************/
 

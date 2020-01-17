@@ -3,7 +3,7 @@
 /*
  * drm_sysfs.c - Modifications to drm_sysfs_class.c to support
  *               extra sysfs attribute from DRM. Normal drm_sysfs_class
- *               does not allow adding attributes.
+ *               does yest allow adding attributes.
  *
  * Copyright (c) 2004 Jon Smirl <jonsmirl@gmail.com>
  * Copyright (c) 2003-2004 Greg Kroah-Hartman <greg@kroah.com>
@@ -29,7 +29,7 @@
 #include "drm_internal.h"
 #include "drm_crtc_internal.h"
 
-#define to_drm_minor(d) dev_get_drvdata(d)
+#define to_drm_miyesr(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
 
 /**
@@ -46,13 +46,13 @@
  * drm_connector_unregister().
  */
 
-static struct device_type drm_sysfs_device_minor = {
-	.name = "drm_minor"
+static struct device_type drm_sysfs_device_miyesr = {
+	.name = "drm_miyesr"
 };
 
 struct class *drm_class;
 
-static char *drm_devnode(struct device *dev, umode_t *mode)
+static char *drm_devyesde(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
 }
@@ -84,7 +84,7 @@ int drm_sysfs_init(void)
 		return err;
 	}
 
-	drm_class->devnode = drm_devnode;
+	drm_class->devyesde = drm_devyesde;
 	drm_setup_hdcp_srm(drm_class);
 	return 0;
 }
@@ -293,7 +293,7 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 		return PTR_ERR(connector->kdev);
 	}
 
-	/* Let userspace know we have a new connector */
+	/* Let userspace kyesw we have a new connector */
 	drm_sysfs_hotplug_event(dev);
 
 	if (connector->ddc)
@@ -385,30 +385,30 @@ static void drm_sysfs_release(struct device *dev)
 	kfree(dev);
 }
 
-struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
+struct device *drm_sysfs_miyesr_alloc(struct drm_miyesr *miyesr)
 {
-	const char *minor_str;
+	const char *miyesr_str;
 	struct device *kdev;
 	int r;
 
-	if (minor->type == DRM_MINOR_RENDER)
-		minor_str = "renderD%d";
+	if (miyesr->type == DRM_MINOR_RENDER)
+		miyesr_str = "renderD%d";
 	else
-		minor_str = "card%d";
+		miyesr_str = "card%d";
 
 	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
 	if (!kdev)
 		return ERR_PTR(-ENOMEM);
 
 	device_initialize(kdev);
-	kdev->devt = MKDEV(DRM_MAJOR, minor->index);
+	kdev->devt = MKDEV(DRM_MAJOR, miyesr->index);
 	kdev->class = drm_class;
-	kdev->type = &drm_sysfs_device_minor;
-	kdev->parent = minor->dev->dev;
+	kdev->type = &drm_sysfs_device_miyesr;
+	kdev->parent = miyesr->dev->dev;
 	kdev->release = drm_sysfs_release;
-	dev_set_drvdata(kdev, minor);
+	dev_set_drvdata(kdev, miyesr);
 
-	r = dev_set_name(kdev, minor_str, minor->index);
+	r = dev_set_name(kdev, miyesr_str, miyesr->index);
 	if (r < 0)
 		goto err_free;
 

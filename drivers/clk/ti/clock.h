@@ -149,11 +149,11 @@ enum {
 /**
  * struct ti_dt_clk - OMAP DT clock alias declarations
  * @lk: clock lookup definition
- * @node_name: clock DT node to map to
+ * @yesde_name: clock DT yesde to map to
  */
 struct ti_dt_clk {
 	struct clk_lookup		lk;
-	char				*node_name;
+	char				*yesde_name;
 };
 
 #define DT_CLK(dev, con, name)		\
@@ -162,7 +162,7 @@ struct ti_dt_clk {
 			.dev_id = dev,	\
 			.con_id = con,	\
 		},			\
-		.node_name = name,	\
+		.yesde_name = name,	\
 	}
 
 /* CLKCTRL type definitions */
@@ -208,7 +208,7 @@ extern const struct omap_clkctrl_data am438x_clkctrl_compat_data[];
 extern const struct omap_clkctrl_data dm814_clkctrl_data[];
 extern const struct omap_clkctrl_data dm816_clkctrl_data[];
 
-typedef void (*ti_of_clk_init_cb_t)(void *, struct device_node *);
+typedef void (*ti_of_clk_init_cb_t)(void *, struct device_yesde *);
 
 struct clk *ti_clk_register(struct device *dev, struct clk_hw *hw,
 			    const char *con);
@@ -224,14 +224,14 @@ struct clk_hw *ti_clk_build_component_mux(struct ti_clk_mux *setup);
 int ti_clk_parse_divider_data(int *div_table, int num_dividers, int max_div,
 			      u8 flags, struct clk_omap_divider *div);
 
-int ti_clk_get_reg_addr(struct device_node *node, int index,
+int ti_clk_get_reg_addr(struct device_yesde *yesde, int index,
 			struct clk_omap_reg *reg);
 void ti_dt_clocks_register(struct ti_dt_clk *oclks);
-int ti_clk_retry_init(struct device_node *node, void *user,
+int ti_clk_retry_init(struct device_yesde *yesde, void *user,
 		      ti_of_clk_init_cb_t func);
-int ti_clk_add_component(struct device_node *node, struct clk_hw *hw, int type);
+int ti_clk_add_component(struct device_yesde *yesde, struct clk_hw *hw, int type);
 
-int of_ti_clk_autoidle_setup(struct device_node *node);
+int of_ti_clk_autoidle_setup(struct device_yesde *yesde);
 void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks);
 
 extern const struct clk_hw_omap_ops clkhwops_omap3_dpll;
@@ -271,16 +271,16 @@ void omap2_clkt_iclk_allow_idle(struct clk_hw_omap *clk);
 void omap2_clkt_iclk_deny_idle(struct clk_hw_omap *clk);
 
 u8 omap2_init_dpll_parent(struct clk_hw *hw);
-int omap3_noncore_dpll_enable(struct clk_hw *hw);
-void omap3_noncore_dpll_disable(struct clk_hw *hw);
-int omap3_noncore_dpll_set_parent(struct clk_hw *hw, u8 index);
-int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
+int omap3_yesncore_dpll_enable(struct clk_hw *hw);
+void omap3_yesncore_dpll_disable(struct clk_hw *hw);
+int omap3_yesncore_dpll_set_parent(struct clk_hw *hw, u8 index);
+int omap3_yesncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 				unsigned long parent_rate);
-int omap3_noncore_dpll_set_rate_and_parent(struct clk_hw *hw,
+int omap3_yesncore_dpll_set_rate_and_parent(struct clk_hw *hw,
 					   unsigned long rate,
 					   unsigned long parent_rate,
 					   u8 index);
-int omap3_noncore_dpll_determine_rate(struct clk_hw *hw,
+int omap3_yesncore_dpll_determine_rate(struct clk_hw *hw,
 				      struct clk_rate_request *req);
 long omap2_dpll_round_rate(struct clk_hw *hw, unsigned long target_rate,
 			   unsigned long *parent_rate);

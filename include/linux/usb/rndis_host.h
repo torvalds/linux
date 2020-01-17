@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
@@ -24,12 +24,12 @@
 #include <linux/rndis.h>
 
 /*
- * CONTROL uses CDC "encapsulated commands" with funky notifications.
+ * CONTROL uses CDC "encapsulated commands" with funky yestifications.
  *  - control-out:  SEND_ENCAPSULATED
  *  - interrupt-in:  RESPONSE_AVAILABLE
  *  - control-in:  GET_ENCAPSULATED
  *
- * We'll try to ignore the RESPONSE_AVAILABLE notifications.
+ * We'll try to igyesre the RESPONSE_AVAILABLE yestifications.
  *
  * REVISIT some RNDIS implementations seem to have curious issues still
  * to be resolved.
@@ -74,7 +74,7 @@ struct rndis_init {		/* OUT */
 	__le32	msg_len;			/* 24 */
 	__le32	request_id;
 	__le32	major_version;			/* of rndis (1.0) */
-	__le32	minor_version;
+	__le32	miyesr_version;
 	__le32	max_transfer_size;
 } __attribute__ ((packed));
 
@@ -85,7 +85,7 @@ struct rndis_init_c {		/* IN */
 	__le32	request_id;
 	__le32	status;
 	__le32	major_version;			/* of rndis (1.0) */
-	__le32	minor_version;
+	__le32	miyesr_version;
 	__le32	device_flags;
 	__le32	medium;				/* zero == 802.3 */
 	__le32	max_packets_per_message;
@@ -95,7 +95,7 @@ struct rndis_init_c {		/* IN */
 	__le32	af_list_size;			/* zero */
 } __attribute__ ((packed));
 
-struct rndis_halt {		/* OUT (no reply) */
+struct rndis_halt {		/* OUT (yes reply) */
 	/* header and: */
 	__le32	msg_type;			/* RNDIS_MSG_HALT */
 	__le32	msg_len;

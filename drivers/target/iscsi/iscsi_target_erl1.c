@@ -32,7 +32,7 @@
  *	Used to dump excess datain payload for certain error recovery
  *	situations.  Receive in OFFLOAD_BUF_SIZE max of datain per rx_data().
  *
- *	dump_padding_digest denotes if padding and data digests need
+ *	dump_padding_digest deyestes if padding and data digests need
  *	to be dumped.
  */
 int iscsit_dump_data_payload(
@@ -91,8 +91,8 @@ static int iscsit_send_recovery_r2t_for_snack(
 	struct iscsi_r2t *r2t)
 {
 	/*
-	 * If the struct iscsi_r2t has not been sent yet, we can safely
-	 * ignore retransmission
+	 * If the struct iscsi_r2t has yest been sent yet, we can safely
+	 * igyesre retransmission
 	 * of the R2TSN in question.
 	 */
 	spin_lock_bh(&cmd->r2t_lock);
@@ -118,8 +118,8 @@ static int iscsit_handle_r2t_snack(
 	struct iscsi_r2t *r2t;
 
 	/*
-	 * Make sure the initiator is not requesting retransmission
-	 * of R2TSNs already acknowledged by a TMR TASK_REASSIGN.
+	 * Make sure the initiator is yest requesting retransmission
+	 * of R2TSNs already ackyeswledged by a TMR TASK_REASSIGN.
 	 */
 	if ((cmd->cmd_flags & ICF_GOT_DATACK_SNACK) &&
 	    (begrun <= cmd->acked_data_sn)) {
@@ -166,12 +166,12 @@ static int iscsit_handle_r2t_snack(
  *
  *	FIXME: How is this handled for a RData SNACK?
  */
-int iscsit_create_recovery_datain_values_datasequenceinorder_yes(
+int iscsit_create_recovery_datain_values_datasequenceiyesrder_no(
 	struct iscsi_cmd *cmd,
 	struct iscsi_datain_req *dr)
 {
 	u32 data_sn = 0, data_sn_count = 0;
-	u32 pdu_start = 0, seq_no = 0;
+	u32 pdu_start = 0, seq_yes = 0;
 	u32 begrun = dr->begrun;
 	struct iscsi_conn *conn = cmd->conn;
 
@@ -191,12 +191,12 @@ int iscsit_create_recovery_datain_values_datasequenceinorder_yes(
 			dr->next_burst_len = 0;
 			pdu_start += data_sn_count;
 			data_sn_count = 0;
-			seq_no++;
+			seq_yes++;
 		}
 	}
 
 	if (!conn->sess->sess_ops->DataPDUInOrder) {
-		cmd->seq_no = seq_no;
+		cmd->seq_yes = seq_yes;
 		cmd->pdu_start = pdu_start;
 		cmd->pdu_send_order = data_sn_count;
 	}
@@ -212,7 +212,7 @@ int iscsit_create_recovery_datain_values_datasequenceinorder_yes(
  *
  *	FIXME: How is this handled for a RData SNACK?
  */
-int iscsit_create_recovery_datain_values_datasequenceinorder_no(
+int iscsit_create_recovery_datain_values_datasequenceiyesrder_yes(
 	struct iscsi_cmd *cmd,
 	struct iscsi_datain_req *dr)
 {
@@ -245,10 +245,10 @@ int iscsit_create_recovery_datain_values_datasequenceinorder_no(
 
 		/*
 		 * No data has been transferred for this DataIN sequence, so the
-		 * seq->first_datasn and seq->last_datasn have not been set.
+		 * seq->first_datasn and seq->last_datasn have yest been set.
 		 */
 		if (!seq->sent) {
-			pr_err("Ignoring non-sent sequence 0x%08x ->"
+			pr_err("Igyesring yesn-sent sequence 0x%08x ->"
 				" 0x%08x\n\n", seq->first_datasn,
 				seq->last_datasn);
 			continue;
@@ -381,14 +381,14 @@ static int iscsit_handle_recovery_datain(
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 
 	if (!(se_cmd->transport_state & CMD_T_COMPLETE)) {
-		pr_err("Ignoring ITT: 0x%08x Data SNACK\n",
+		pr_err("Igyesring ITT: 0x%08x Data SNACK\n",
 				cmd->init_task_tag);
 		return 0;
 	}
 
 	/*
-	 * Make sure the initiator is not requesting retransmission
-	 * of DataSNs already acknowledged by a Data ACK SNACK.
+	 * Make sure the initiator is yest requesting retransmission
+	 * of DataSNs already ackyeswledged by a Data ACK SNACK.
 	 */
 	if ((cmd->cmd_flags & ICF_GOT_DATACK_SNACK) &&
 	    (begrun <= cmd->acked_data_sn)) {
@@ -446,7 +446,7 @@ int iscsit_handle_recovery_datain_or_r2t(
 		return 0;
 
 	/*
-	 * FIXME: This will not work for bidi commands.
+	 * FIXME: This will yest work for bidi commands.
 	 */
 	switch (cmd->data_direction) {
 	case DMA_TO_DEVICE:
@@ -455,7 +455,7 @@ int iscsit_handle_recovery_datain_or_r2t(
 		return iscsit_handle_recovery_datain(cmd, buf, begrun,
 				runlength);
 	default:
-		pr_err("Unknown cmd->data_direction: 0x%02x\n",
+		pr_err("Unkyeswn cmd->data_direction: 0x%02x\n",
 				cmd->data_direction);
 		return -1;
 	}
@@ -491,7 +491,7 @@ int iscsit_handle_status_snack(
 		found_cmd = 0;
 
 		spin_lock_bh(&conn->cmd_lock);
-		list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
+		list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_yesde) {
 			if (cmd->stat_sn == begrun) {
 				found_cmd = 1;
 				break;
@@ -503,7 +503,7 @@ int iscsit_handle_status_snack(
 			pr_err("Unable to find StatSN: 0x%08x for"
 				" a Status SNACK, assuming this was a"
 				" protactic SNACK for an untransmitted"
-				" StatSN, ignoring.\n", begrun);
+				" StatSN, igyesring.\n", begrun);
 			begrun++;
 			continue;
 		}
@@ -511,7 +511,7 @@ int iscsit_handle_status_snack(
 		spin_lock_bh(&cmd->istate_lock);
 		if (cmd->i_state == ISTATE_SEND_DATAIN) {
 			spin_unlock_bh(&cmd->istate_lock);
-			pr_err("Ignoring Status SNACK for BegRun:"
+			pr_err("Igyesring Status SNACK for BegRun:"
 				" 0x%08x, RunLength: 0x%08x, assuming this was"
 				" a protactic SNACK for an untransmitted"
 				" StatSN\n", begrun, runlength);
@@ -578,7 +578,7 @@ static int iscsit_send_recovery_r2t(
 	return ret;
 }
 
-int iscsit_dataout_datapduinorder_no_fbit(
+int iscsit_dataout_datapduiyesrder_yes_fbit(
 	struct iscsi_cmd *cmd,
 	struct iscsi_pdu *pdu)
 {
@@ -593,7 +593,7 @@ int iscsit_dataout_datapduinorder_no_fbit(
 	 */
 	if (conn->sess->sess_ops->DataSequenceInOrder) {
 		for (i = 0; i < cmd->pdu_count; i++) {
-			if (cmd->pdu_list[i].seq_no == pdu->seq_no) {
+			if (cmd->pdu_list[i].seq_yes == pdu->seq_yes) {
 				if (!first_pdu)
 					first_pdu = &cmd->pdu_list[i];
 				xfer_len += cmd->pdu_list[i].length;
@@ -613,7 +613,7 @@ int iscsit_dataout_datapduinorder_no_fbit(
 
 	/*
 	 * Loop through the ending DataOUT Sequence checking each struct iscsi_pdu.
-	 * The following ugly logic does batching of not received PDUs.
+	 * The following ugly logic does batching of yest received PDUs.
 	 */
 	for (i = 0; i < pdu_count; i++) {
 		if (first_pdu[i].status == ISCSI_PDU_RECEIVED_OK) {
@@ -628,8 +628,8 @@ int iscsit_dataout_datapduinorder_no_fbit(
 		}
 		/*
 		 * Set recovery = 1 for any missing, CRC failed, or timed
-		 * out PDUs to let the DataOUT logic know that this sequence
-		 * has not been completed yet.
+		 * out PDUs to let the DataOUT logic kyesw that this sequence
+		 * has yest been completed yet.
 		 *
 		 * Also, only send a Recovery R2T for ISCSI_PDU_NOT_RECEIVED.
 		 * We assume if the PDU either failed CRC or timed out
@@ -883,7 +883,7 @@ int iscsit_execute_ooo_cmdsns(struct iscsi_session *sess)
  *
  *	1. With sess->cmdsn_mutex held from iscsi_execute_ooo_cmdsns()
  *	or iscsi_check_received_cmdsn().
- *	2. With no locks held directly from iscsi_handle_XXX_pdu() functions
+ *	2. With yes locks held directly from iscsi_handle_XXX_pdu() functions
  *	for immediate commands.
  */
 int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
@@ -980,7 +980,7 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 			lr = iscsit_logout_removeconnforrecovery(cmd, cmd->conn);
 			break;
 		default:
-			pr_err("Unknown iSCSI Logout Request Code:"
+			pr_err("Unkyeswn iSCSI Logout Request Code:"
 				" 0x%02x\n", cmd->logout_reason);
 			return -1;
 		}
@@ -988,8 +988,8 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 		return lr;
 	default:
 		spin_unlock_bh(&cmd->istate_lock);
-		pr_err("Cannot perform out of order execution for"
-		" unknown iSCSI Opcode: 0x%02x\n", cmd->iscsi_opcode);
+		pr_err("Canyest perform out of order execution for"
+		" unkyeswn iSCSI Opcode: 0x%02x\n", cmd->iscsi_opcode);
 		return -1;
 	}
 
@@ -1100,7 +1100,7 @@ void iscsit_handle_dataout_timeout(struct timer_list *t)
 	struct iscsi_cmd *cmd = from_timer(cmd, t, dataout_timer);
 	struct iscsi_conn *conn = cmd->conn;
 	struct iscsi_session *sess = NULL;
-	struct iscsi_node_attrib *na;
+	struct iscsi_yesde_attrib *na;
 
 	iscsit_inc_conn_usage_count(conn);
 
@@ -1112,7 +1112,7 @@ void iscsit_handle_dataout_timeout(struct timer_list *t)
 	}
 	cmd->dataout_timer_flags &= ~ISCSI_TF_RUNNING;
 	sess = conn->sess;
-	na = iscsit_tpg_get_node_attrib(sess);
+	na = iscsit_tpg_get_yesde_attrib(sess);
 
 	if (!sess->sess_ops->ErrorRecoveryLevel) {
 		pr_err("Unable to recover from DataOut timeout while"
@@ -1185,7 +1185,7 @@ void iscsit_mod_dataout_timer(struct iscsi_cmd *cmd)
 {
 	struct iscsi_conn *conn = cmd->conn;
 	struct iscsi_session *sess = conn->sess;
-	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
+	struct iscsi_yesde_attrib *na = iscsit_tpg_get_yesde_attrib(sess);
 
 	spin_lock_bh(&cmd->dataout_timeout_lock);
 	if (!(cmd->dataout_timer_flags & ISCSI_TF_RUNNING)) {
@@ -1205,7 +1205,7 @@ void iscsit_start_dataout_timer(
 	struct iscsi_conn *conn)
 {
 	struct iscsi_session *sess = conn->sess;
-	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
+	struct iscsi_yesde_attrib *na = iscsit_tpg_get_yesde_attrib(sess);
 
 	lockdep_assert_held(&cmd->dataout_timeout_lock);
 

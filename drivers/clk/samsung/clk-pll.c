@@ -6,7 +6,7 @@
  * This file contains the utility functions to register the pll clocks.
 */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -494,7 +494,7 @@ static int samsung_pll45xx_set_rate(struct clk_hw *hw, unsigned long drate,
 		ktime_t delta = ktime_sub(ktime_get(), start);
 
 		if (ktime_to_ms(delta) > PLL_TIMEOUT_MS) {
-			pr_err("%s: could not lock PLL %s\n",
+			pr_err("%s: could yest lock PLL %s\n",
 					__func__, clk_hw_get_name(hw));
 			return -EFAULT;
 		}
@@ -653,7 +653,7 @@ static int samsung_pll46xx_set_rate(struct clk_hw *hw, unsigned long drate,
 		ktime_t delta = ktime_sub(ktime_get(), start);
 
 		if (ktime_to_ms(delta) > PLL_TIMEOUT_MS) {
-			pr_err("%s: could not lock PLL %s\n",
+			pr_err("%s: could yest lock PLL %s\n",
 					__func__, clk_hw_get_name(hw));
 			return -EFAULT;
 		}
@@ -1256,7 +1256,7 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
 	if (!pll) {
-		pr_err("%s: could not allocate pll clk %s\n",
+		pr_err("%s: could yest allocate pll clk %s\n",
 			__func__, pll_clk->name);
 		return;
 	}
@@ -1277,7 +1277,7 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 					sizeof(struct samsung_pll_rate_table),
 					GFP_KERNEL);
 		WARN(!pll->rate_table,
-			"%s: could not allocate rate table for %s\n",
+			"%s: could yest allocate rate table for %s\n",
 			__func__, pll_clk->name);
 	}
 
@@ -1377,7 +1377,7 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 			init.ops = &samsung_pll2650xx_clk_ops;
 		break;
 	default:
-		pr_warn("%s: Unknown pll type for pll clk %s\n",
+		pr_warn("%s: Unkyeswn pll type for pll clk %s\n",
 			__func__, pll_clk->name);
 	}
 

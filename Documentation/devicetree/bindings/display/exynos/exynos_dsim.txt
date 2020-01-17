@@ -1,12 +1,12 @@
-Exynos MIPI DSI Master
+Exyyess MIPI DSI Master
 
 Required properties:
   - compatible: value should be one of the following
-		"samsung,exynos3250-mipi-dsi" /* for Exynos3250/3472 SoCs */
-		"samsung,exynos4210-mipi-dsi" /* for Exynos4 SoCs */
-		"samsung,exynos5410-mipi-dsi" /* for Exynos5410/5420/5440 SoCs */
-		"samsung,exynos5422-mipi-dsi" /* for Exynos5422/5800 SoCs */
-		"samsung,exynos5433-mipi-dsi" /* for Exynos5433 SoCs */
+		"samsung,exyyess3250-mipi-dsi" /* for Exyyess3250/3472 SoCs */
+		"samsung,exyyess4210-mipi-dsi" /* for Exyyess4 SoCs */
+		"samsung,exyyess5410-mipi-dsi" /* for Exyyess5410/5420/5440 SoCs */
+		"samsung,exyyess5422-mipi-dsi" /* for Exyyess5422/5800 SoCs */
+		"samsung,exyyess5433-mipi-dsi" /* for Exyyess5433 SoCs */
   - reg: physical base address and length of the registers set for the device
   - interrupts: should contain DSI interrupt
   - clocks: list of clock specifiers, must contain an entry for each required
@@ -26,13 +26,13 @@ Required properties:
   - samsung,esc-clock-frequency: specifies DSI frequency in escape mode
 
 Optional properties:
-  - power-domains: a phandle to DSIM power domain node
+  - power-domains: a phandle to DSIM power domain yesde
 
-Child nodes:
-  Should contain DSI peripheral nodes (see MIPI DSI bindings [1]).
+Child yesdes:
+  Should contain DSI peripheral yesdes (see MIPI DSI bindings [1]).
 
 Video interfaces:
-  Device node can contain following video interface port nodes according to [2]:
+  Device yesde can contain following video interface port yesdes according to [2]:
   0: RGB input,
   1: DSI output
 
@@ -42,7 +42,7 @@ Video interfaces:
 Example:
 
 	dsi@11c80000 {
-		compatible = "samsung,exynos4210-mipi-dsi";
+		compatible = "samsung,exyyess4210-mipi-dsi";
 		reg = <0x11C80000 0x10000>;
 		interrupts = <0 79 0>;
 		clocks = <&clock 286>, <&clock 143>;

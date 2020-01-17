@@ -10,8 +10,8 @@
  *
  * Original driver:
  * Copyright (C) 2005 Nokia Corporation
- * Author: Paul Mundt <paul.mundt@nokia.com>
- *         Juha Yrjölä <juha.yrjola@nokia.com>
+ * Author: Paul Mundt <paul.mundt@yeskia.com>
+ *         Juha Yrjölä <juha.yrjola@yeskia.com>
  * OMAP Dual-mode timer framework support by Timo Teras
  *
  * Some parts based off of TI's 24xx code:
@@ -54,7 +54,7 @@ static inline struct ti_32k *to_ti_32k(struct clocksource *cs)
 	return container_of(cs, struct ti_32k, cs);
 }
 
-static u64 notrace ti_32k_read_cycles(struct clocksource *cs)
+static u64 yestrace ti_32k_read_cycles(struct clocksource *cs)
 {
 	struct ti_32k *ti = to_ti_32k(cs);
 
@@ -71,12 +71,12 @@ static struct ti_32k ti_32k_timer = {
 	},
 };
 
-static u64 notrace omap_32k_read_sched_clock(void)
+static u64 yestrace omap_32k_read_sched_clock(void)
 {
 	return ti_32k_read_cycles(&ti_32k_timer.cs);
 }
 
-static int __init ti_32k_timer_init(struct device_node *np)
+static int __init ti_32k_timer_init(struct device_yesde *np)
 {
 	int ret;
 

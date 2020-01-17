@@ -45,7 +45,7 @@ properties:
     description: timeout to get data
     $ref: /schemas/types.yaml#/definitions/uint32
 
-  # Deprecated properties, do not use in new device tree sources:
+  # Deprecated properties, do yest use in new device tree sources:
   gpios:
     minItems: 2
     maxItems: 2
@@ -53,16 +53,16 @@ properties:
 
   i2c-gpio,sda-open-drain:
     # Generate a warning if present
-    not: true
+    yest: true
     description: this means that something outside of our control has put
       the GPIO line used for SDA into open drain mode, and that something is
-      not the GPIO chip. It is essentially an inconsistency flag.
+      yest the GPIO chip. It is essentially an inconsistency flag.
 
   i2c-gpio,scl-open-drain:
     # Generate a warning if present
-    not: true
+    yest: true
     description: this means that something outside of our control has put the
-      GPIO line used for SCL into open drain mode, and that something is not
+      GPIO line used for SCL into open drain mode, and that something is yest
       the GPIO chip. It is essentially an inconsistency flag.
 
 required:

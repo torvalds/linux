@@ -249,7 +249,7 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 {
 	struct resource *res;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct regmap *regmap;
 	int err;
 

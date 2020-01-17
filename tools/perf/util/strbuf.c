@@ -5,14 +5,14 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 /*
  * Used as the default ->buf value, so that people can always assume
- * buf is non NULL and ->buf is NUL terminated even for a freshly
+ * buf is yesn NULL and ->buf is NUL terminated even for a freshly
  * initialized strbuf.
  */
 char strbuf_slopbuf[1];
@@ -116,7 +116,7 @@ static int strbuf_addv(struct strbuf *sb, const char *fmt, va_list ap)
 		}
 		len = vsnprintf(sb->buf + sb->len, sb->alloc - sb->len, fmt, ap_saved);
 		if (len > strbuf_avail(sb)) {
-			pr_debug("this should not happen, your vsnprintf is broken");
+			pr_debug("this should yest happen, your vsnprintf is broken");
 			va_end(ap_saved);
 			return -EINVAL;
 		}

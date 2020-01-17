@@ -2,7 +2,7 @@
 /*
  * Driver for NXP PN533 NFC Chip - core functions
  *
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Nokia de Tecyeslogia
  * Copyright (C) 2012-2013 Tieto Poland
  */
 
@@ -401,7 +401,7 @@ static int pn533_send_async_complete(struct pn533 *dev)
 	int status, rc = 0;
 
 	if (!cmd) {
-		dev_dbg(dev->dev, "%s: cmd not set\n", __func__);
+		dev_dbg(dev->dev, "%s: cmd yest set\n", __func__);
 		goto done;
 	}
 
@@ -417,7 +417,7 @@ static int pn533_send_async_complete(struct pn533 *dev)
 		goto done;
 	}
 
-	/* when no response is set we got interrupted */
+	/* when yes response is set we got interrupted */
 	if (!resp)
 		resp = ERR_PTR(-EINTR);
 
@@ -606,12 +606,12 @@ static int pn533_send_sync_complete(struct pn533 *dev, void *_arg,
 
 /*  pn533_send_cmd_sync
  *
- *  Please note the req parameter is freed inside the function to
+ *  Please yeste the req parameter is freed inside the function to
  *  limit a number of return value interpretations by the caller.
  *
  *  1. negative in case of error during TX path -> req should be freed
  *
- *  2. negative in case of error during RX path -> req should not be freed
+ *  2. negative in case of error during RX path -> req should yest be freed
  *     as it's been already freed at the beginning of RX path by
  *     async_complete_cb.
  *
@@ -688,8 +688,8 @@ static bool pn533_target_type_a_is_valid(struct pn533_target_type_a *type_a,
 		return false;
 
 	/*
-	 * The length check of nfcid[] and ats[] are not being performed because
-	 * the values are not being used
+	 * The length check of nfcid[] and ats[] are yest being performed because
+	 * the values are yest being used
 	 */
 
 	/* Requirement 4.6.3.3 from NFC Forum Digital Spec */
@@ -924,7 +924,7 @@ static int pn533_target_found(struct pn533 *dev, u8 tg, u8 *tgdata,
 		break;
 	default:
 		nfc_err(dev->dev,
-			"Unknown current poll modulation\n");
+			"Unkyeswn current poll modulation\n");
 		return -EPROTO;
 	}
 
@@ -1476,7 +1476,7 @@ static int pn533_autopoll_complete(struct pn533 *dev, void *arg,
 			break;
 		default:
 			nfc_err(dev->dev,
-				    "Unknown current poll modulation\n");
+				    "Unkyeswn current poll modulation\n");
 			rc = -EPROTO;
 		}
 
@@ -1663,13 +1663,13 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev,
 
 	if (dev->tgt_active_prot) {
 		nfc_err(dev->dev,
-			"Cannot poll with a target already activated\n");
+			"Canyest poll with a target already activated\n");
 		return -EBUSY;
 	}
 
 	if (dev->tgt_mode) {
 		nfc_err(dev->dev,
-			"Cannot poll while already being activated\n");
+			"Canyest poll while already being activated\n");
 		return -EBUSY;
 	}
 
@@ -1747,7 +1747,7 @@ static int pn533_start_poll(struct nfc_dev *nfc_dev,
 
 	pn533_poll_create_mod_list(dev, im_protocols, tm_protocols);
 
-	/* Do not always start polling from the same modulation */
+	/* Do yest always start polling from the same modulation */
 	get_random_bytes(&rand_mod, sizeof(rand_mod));
 	rand_mod %= dev->poll_mod_count;
 	dev->poll_mod_curr = rand_mod;
@@ -1771,7 +1771,7 @@ static void pn533_stop_poll(struct nfc_dev *nfc_dev)
 
 	if (!dev->poll_mod_count) {
 		dev_dbg(dev->dev,
-			"Polling operation was not running\n");
+			"Polling operation was yest running\n");
 		return;
 	}
 
@@ -1828,7 +1828,7 @@ static int pn533_activate_target(struct nfc_dev *nfc_dev,
 
 	if (dev->poll_mod_count) {
 		nfc_err(dev->dev,
-			"Cannot activate while polling\n");
+			"Canyest activate while polling\n");
 		return -EBUSY;
 	}
 
@@ -1840,7 +1840,7 @@ static int pn533_activate_target(struct nfc_dev *nfc_dev,
 
 	if (!dev->tgt_available_prots) {
 		nfc_err(dev->dev,
-			"There is no available target to activate\n");
+			"There is yes available target to activate\n");
 		return -EINVAL;
 	}
 
@@ -1900,7 +1900,7 @@ static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
 	dev_dbg(dev->dev, "%s\n", __func__);
 
 	if (!dev->tgt_active_prot) {
-		nfc_err(dev->dev, "There is no active target\n");
+		nfc_err(dev->dev, "There is yes active target\n");
 		return;
 	}
 
@@ -1938,7 +1938,7 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 	if (dev->tgt_available_prots &&
 	    !(dev->tgt_available_prots & (1 << NFC_PROTO_NFC_DEP))) {
 		nfc_err(dev->dev,
-			"The target does not support DEP\n");
+			"The target does yest support DEP\n");
 		rc =  -EINVAL;
 		goto error;
 	}
@@ -1997,7 +1997,7 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 
 	if (dev->poll_mod_count) {
 		nfc_err(dev->dev,
-			"Cannot bring the DEP link up while polling\n");
+			"Canyest bring the DEP link up while polling\n");
 		return -EBUSY;
 	}
 
@@ -2195,7 +2195,7 @@ _error:
 
 /*
  * Receive an incoming pn533 frame. skb contains only header and payload.
- * If skb == NULL, it is a notification that the link below is dead.
+ * If skb == NULL, it is a yestification that the link below is dead.
  */
 void pn533_recv_frame(struct pn533 *dev, struct sk_buff *skb, int status)
 {
@@ -2227,7 +2227,7 @@ void pn533_recv_frame(struct pn533 *dev, struct sk_buff *skb, int status)
 		nfc_err(dev->dev, "Received an invalid frame\n");
 		dev->cmd->status = -EIO;
 	} else if (!pn533_rx_frame_is_cmd_response(dev, skb->data)) {
-		nfc_err(dev->dev, "It it not the response to the last command\n");
+		nfc_err(dev->dev, "It it yest the response to the last command\n");
 		dev->cmd->status = -EIO;
 	}
 
@@ -2297,7 +2297,7 @@ static int pn533_transceive(struct nfc_dev *nfc_dev,
 
 	if (!dev->tgt_active_prot) {
 		nfc_err(dev->dev,
-			"Can't exchange data if there is no active target\n");
+			"Can't exchange data if there is yes active target\n");
 		rc = -EINVAL;
 		goto error;
 	}
@@ -2712,7 +2712,7 @@ static int pn533_setup(struct pn533 *dev)
 		break;
 
 	default:
-		nfc_err(dev->dev, "Unknown device type %d\n",
+		nfc_err(dev->dev, "Unkyeswn device type %d\n",
 			dev->device_type);
 		return -EINVAL;
 	}
@@ -2772,7 +2772,7 @@ int pn533_finalize_setup(struct pn533 *dev)
 		return rc;
 	}
 
-	nfc_info(dev->dev, "NXP PN5%02X firmware ver %d.%d now attached\n",
+	nfc_info(dev->dev, "NXP PN5%02X firmware ver %d.%d yesw attached\n",
 		fw_ver.ic, fw_ver.ver, fw_ver.rev);
 
 	rc = pn533_setup(dev);

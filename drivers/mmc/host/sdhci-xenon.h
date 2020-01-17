@@ -8,7 +8,7 @@
 #ifndef SDHCI_XENON_H_
 #define SDHCI_XENON_H_
 
-/* Register Offset of Xenon SDHC self-defined register */
+/* Register Offset of Xeyesn SDHC self-defined register */
 #define XENON_SYS_CFG_INFO			0x0104
 #define XENON_SLOT_TYPE_SDIO_SHIFT		24
 #define XENON_NR_SUPPORTED_SLOT_MASK		0x7
@@ -49,31 +49,31 @@
 #define XENON_DEFAULT_SDCLK_FREQ		400000
 #define XENON_LOWEST_SDCLK_FREQ			100000
 
-/* Xenon specific Mode Select value */
+/* Xeyesn specific Mode Select value */
 #define XENON_CTRL_HS200			0x5
 #define XENON_CTRL_HS400			0x6
 
-struct xenon_priv {
+struct xeyesn_priv {
 	unsigned char	tuning_count;
 	/* idx of SDHC */
 	u8		sdhc_id;
 
 	/*
 	 * eMMC/SD/SDIO require different register settings.
-	 * Xenon driver has to recognize card type
-	 * before mmc_host->card is not available.
+	 * Xeyesn driver has to recognize card type
+	 * before mmc_host->card is yest available.
 	 * This field records the card type during init.
-	 * It is updated in xenon_init_card().
+	 * It is updated in xeyesn_init_card().
 	 *
 	 * It is only valid during initialization after it is updated.
-	 * Do not access this variable in normal transfers after
+	 * Do yest access this variable in yesrmal transfers after
 	 * initialization completes.
 	 */
 	unsigned int	init_card_type;
 
 	/*
 	 * The bus_width, timing, and clock fields in below
-	 * record the current ios setting of Xenon SDHC.
+	 * record the current ios setting of Xeyesn SDHC.
 	 * Driver will adjust PHY setting if any change to
 	 * ios affects PHY timing.
 	 */
@@ -88,13 +88,13 @@ struct xenon_priv {
 	 * passed from device tree.
 	 */
 	void		*phy_params;
-	struct xenon_emmc_phy_regs *emmc_phy_regs;
+	struct xeyesn_emmc_phy_regs *emmc_phy_regs;
 	bool restore_needed;
 };
 
-int xenon_phy_adj(struct sdhci_host *host, struct mmc_ios *ios);
-int xenon_phy_parse_dt(struct device_node *np,
+int xeyesn_phy_adj(struct sdhci_host *host, struct mmc_ios *ios);
+int xeyesn_phy_parse_dt(struct device_yesde *np,
 		       struct sdhci_host *host);
-void xenon_soc_pad_ctrl(struct sdhci_host *host,
+void xeyesn_soc_pad_ctrl(struct sdhci_host *host,
 			unsigned char signal_voltage);
 #endif

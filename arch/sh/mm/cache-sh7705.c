@@ -26,7 +26,7 @@
 #include <asm/cacheflush.h>
 
 /*
- * The 32KB cache on the SH7705 suffers from the same synonym problem
+ * The 32KB cache on the SH7705 suffers from the same syyesnym problem
  * as SH4 CPUs
  */
 static inline void cache_wback_all(void)
@@ -93,9 +93,9 @@ static void __flush_dcache_page(unsigned long phys)
 	 * entries are invalidated.
 	 *
 	 * Since 2 bits of the cache index are derived from the virtual page
-	 * number, knowing this would reduce the number of cache entries to be
+	 * number, kyeswing this would reduce the number of cache entries to be
 	 * searched by a factor of 4. However this function exists to deal with
-	 * potential cache aliasing, therefore the optimisation is probably not
+	 * potential cache aliasing, therefore the optimisation is probably yest
 	 * possible.
 	 */
 	local_irq_save(flags);

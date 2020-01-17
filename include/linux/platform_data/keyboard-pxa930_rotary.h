@@ -7,7 +7,7 @@
  * rotary can be either interpreted as a ralative input event (e.g.
  * REL_WHEEL or REL_HWHEEL) or a specific key event (e.g. UP/DOWN
  * or LEFT/RIGHT), depending on if up_key & down_key are assigned
- * or rel_code is assigned a non-zero value. When all are non-zero,
+ * or rel_code is assigned a yesn-zero value. When all are yesn-zero,
  * up_key and down_key will be preferred.
  */
 struct pxa930_rotary_platform_data {

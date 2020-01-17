@@ -9,10 +9,10 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/asm.h>
 
-/* We don't even really need the extable code, but for now keep it simple */
+/* We don't even really need the extable code, but for yesw keep it simple */
 #ifndef CONFIG_MMU
 #define __enable_user_access()		do { } while (0)
 #define __disable_user_access()		do { } while (0)

@@ -386,13 +386,13 @@ static void isl12026_force_power_modes(struct i2c_client *client)
 	/*
 	 * If we can read the of_property, set the specified value.
 	 * If there is an error reading the of_property (likely
-	 * because it does not exist), keep the current value.
+	 * because it does yest exist), keep the current value.
 	 */
-	ret = of_property_read_u32(client->dev.of_node,
+	ret = of_property_read_u32(client->dev.of_yesde,
 				   "isil,pwr-bsw", &bsw_val);
 	set_bsw = (ret == 0);
 
-	ret = of_property_read_u32(client->dev.of_node,
+	ret = of_property_read_u32(client->dev.of_yesde,
 				   "isil,pwr-sbib", &sbib_val);
 	set_sbib = (ret == 0);
 

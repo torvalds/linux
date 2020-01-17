@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -72,8 +72,8 @@ struct amdgpu_doorbell_index {
 			uint32_t vce_ring6_7;
 		} uvd_vce;
 	};
-	uint32_t first_non_cp;
-	uint32_t last_non_cp;
+	uint32_t first_yesn_cp;
+	uint32_t last_yesn_cp;
 	uint32_t max_assignment;
 	/* Per engine SDMA doorbell size in dword */
 	uint32_t sdma_doorbell_range;
@@ -237,7 +237,7 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	/*
 	 * Other graphics doorbells can be allocated here: from 0x8c to 0xdf
 	 * Graphics voltage island aperture 1
-	 * default non-graphics QWORD index is 0xe0 - 0xFF inclusive
+	 * default yesn-graphics QWORD index is 0xe0 - 0xFF inclusive
 	 */
 
 	/* For vega10 sriov, the sdma doorbell must be fixed as follow

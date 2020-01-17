@@ -830,7 +830,7 @@ static const int TSI148_GCSR_MBOX[4] = { TSI148_GCSR_MBOX0,
 
 
 /*
- * VMEbus PCI Error Diagnostics PCI/X Attributes Register  CRG + $280
+ * VMEbus PCI Error Diagyesstics PCI/X Attributes Register  CRG + $280
  */
 #define TSI148_LCSR_EDPAT_EDPCL        (1<<29)
 

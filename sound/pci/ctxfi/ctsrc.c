@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /**
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techyeslogy Ltd. All Rights Reserved.
  *
  * @File	ctsrc.c
  *
@@ -674,7 +674,7 @@ static int srcimp_rsc_init(struct srcimp *srcimp,
 	if (err)
 		return err;
 
-	/* Reserve memory for imapper nodes */
+	/* Reserve memory for imapper yesdes */
 	srcimp->imappers = kcalloc(desc->msr, sizeof(struct imapper),
 				   GFP_KERNEL);
 	if (!srcimp->imappers) {

@@ -10,9 +10,9 @@
  *
  * This pin control driver is intended to be used only an ACPI-enabled
  * system.  As such, UEFI will handle all pin control configuration, so
- * this driver does not provide pin control functions.  It is effectively
+ * this driver does yest provide pin control functions.  It is effectively
  * a GPIO-only driver.  The alternative is to duplicate the GPIO code of
- * pinctrl-msm.c into another driver.
+ * pinctrl-msm.c into ayesther driver.
  */
 
 #include <linux/module.h>
@@ -25,7 +25,7 @@
 /* A maximum of 256 allows us to use a u8 array to hold the GPIO numbers */
 #define MAX_GPIOS	256
 
-/* maximum size of each gpio name (enough room for "gpioXXX" + null) */
+/* maximum size of each gpio name (eyesugh room for "gpioXXX" + null) */
 #define NAME_SIZE	8
 
 static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
@@ -58,7 +58,7 @@ static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 		return ret;
 	}
 	/*
-	 * The number of available GPIOs should be non-zero, and no
+	 * The number of available GPIOs should be yesn-zero, and yes
 	 * more than the total number of GPIOS.
 	 */
 	if (!ret || ret > num_gpios) {
@@ -70,7 +70,7 @@ static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 	ret = device_property_read_u8_array(&pdev->dev, "gpios", gpios,
 					    avail_gpios);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not read list of GPIOs\n");
+		dev_err(&pdev->dev, "could yest read list of GPIOs\n");
 		return ret;
 	}
 
@@ -85,8 +85,8 @@ static int qdf2xxx_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/*
-	 * Initialize the array.  GPIOs not listed in the 'gpios' array
-	 * still need a number, but nothing else.
+	 * Initialize the array.  GPIOs yest listed in the 'gpios' array
+	 * still need a number, but yesthing else.
 	 */
 	for (i = 0; i < num_gpios; i++) {
 		pins[i].number = i;
@@ -160,5 +160,5 @@ static void __exit qdf2xxx_pinctrl_exit(void)
 }
 module_exit(qdf2xxx_pinctrl_exit);
 
-MODULE_DESCRIPTION("Qualcomm Technologies QDF2xxx pin control driver");
+MODULE_DESCRIPTION("Qualcomm Techyeslogies QDF2xxx pin control driver");
 MODULE_LICENSE("GPL v2");

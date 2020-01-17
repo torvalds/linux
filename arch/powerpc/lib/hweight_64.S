@@ -15,8 +15,8 @@
 _GLOBAL(__arch_hweight8)
 BEGIN_FTR_SECTION
 	b __sw_hweight8
-	nop
-	nop
+	yesp
+	yesp
 FTR_SECTION_ELSE
 	PPC_POPCNTB(R3,R3)
 	clrldi	r3,r3,64-8
@@ -27,10 +27,10 @@ EXPORT_SYMBOL(__arch_hweight8)
 _GLOBAL(__arch_hweight16)
 BEGIN_FTR_SECTION
 	b __sw_hweight16
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
 FTR_SECTION_ELSE
   BEGIN_FTR_SECTION_NESTED(50)
 	PPC_POPCNTB(R3,R3)
@@ -50,12 +50,12 @@ EXPORT_SYMBOL(__arch_hweight16)
 _GLOBAL(__arch_hweight32)
 BEGIN_FTR_SECTION
 	b __sw_hweight32
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 FTR_SECTION_ELSE
   BEGIN_FTR_SECTION_NESTED(51)
 	PPC_POPCNTB(R3,R3)
@@ -76,14 +76,14 @@ EXPORT_SYMBOL(__arch_hweight32)
 _GLOBAL(__arch_hweight64)
 BEGIN_FTR_SECTION
 	b __sw_hweight64
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 FTR_SECTION_ELSE
   BEGIN_FTR_SECTION_NESTED(52)
 	PPC_POPCNTB(R3,R3)

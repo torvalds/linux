@@ -76,7 +76,7 @@ static irqreturn_t jornada720_ts_interrupt(int irq, void *dev_id)
 		jornada_ssp_start();
 
 		/* proper reply to request is always TXDUMMY */
-		if (jornada_ssp_inout(GETTOUCHSAMPLES) == TXDUMMY) {
+		if (jornada_ssp_iyesut(GETTOUCHSAMPLES) == TXDUMMY) {
 			jornada720_ts_collect_data(jornada_ts);
 
 			x = jornada720_ts_average(jornada_ts->x_data);

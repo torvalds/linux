@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/suspend.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 
 #include "pm.h"
@@ -100,7 +100,7 @@ static const struct platform_suspend_ops pxa_pm_ops = {
 static int __init pxa_pm_init(void)
 {
 	if (!pxa_cpu_pm_fns) {
-		printk(KERN_ERR "no valid pxa_cpu_pm_fns defined\n");
+		printk(KERN_ERR "yes valid pxa_cpu_pm_fns defined\n");
 		return -EINVAL;
 	}
 

@@ -6,7 +6,7 @@
  *
  * TODO:
  *	Add termios method that uses copy_hw but also kills all echo
- *	flags as the navman is rx only so cannot echo.
+ *	flags as the navman is rx only so canyest echo.
  */
 
 #include <linux/gfp.h>
@@ -18,7 +18,7 @@
 #include <linux/usb/serial.h>
 
 static const struct usb_device_id id_table[] = {
-	{ USB_DEVICE(0x0a99, 0x0001) },	/* Talon Technology device */
+	{ USB_DEVICE(0x0a99, 0x0001) },	/* Talon Techyeslogy device */
 	{ USB_DEVICE(0x0df7, 0x0900) },	/* Mobile Action i-gotU */
 	{ },
 };
@@ -43,7 +43,7 @@ static void navman_read_int_callback(struct urb *urb)
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - yesnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}

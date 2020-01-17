@@ -20,9 +20,9 @@ struct sun8i_tcon_top_quirks {
 	bool has_dsi;
 };
 
-static bool sun8i_tcon_top_node_is_tcon_top(struct device_node *node)
+static bool sun8i_tcon_top_yesde_is_tcon_top(struct device_yesde *yesde)
 {
-	return !!of_match_node(sun8i_tcon_top_of_table, node);
+	return !!of_match_yesde(sun8i_tcon_top_of_table, yesde);
 }
 
 int sun8i_tcon_top_set_hdmi_src(struct device *dev, int tcon)
@@ -31,8 +31,8 @@ int sun8i_tcon_top_set_hdmi_src(struct device *dev, int tcon)
 	unsigned long flags;
 	u32 val;
 
-	if (!sun8i_tcon_top_node_is_tcon_top(dev->of_node)) {
-		dev_err(dev, "Device is not TCON TOP!\n");
+	if (!sun8i_tcon_top_yesde_is_tcon_top(dev->of_yesde)) {
+		dev_err(dev, "Device is yest TCON TOP!\n");
 		return -EINVAL;
 	}
 
@@ -60,8 +60,8 @@ int sun8i_tcon_top_de_config(struct device *dev, int mixer, int tcon)
 	unsigned long flags;
 	u32 reg;
 
-	if (!sun8i_tcon_top_node_is_tcon_top(dev->of_node)) {
-		dev_err(dev, "Device is not TCON TOP!\n");
+	if (!sun8i_tcon_top_yesde_is_tcon_top(dev->of_yesde)) {
+		dev_err(dev, "Device is yest TCON TOP!\n");
 		return -EINVAL;
 	}
 
@@ -103,13 +103,13 @@ static struct clk_hw *sun8i_tcon_top_register_gate(struct device *dev,
 	const char *clk_name, *parent_name;
 	int ret, index;
 
-	index = of_property_match_string(dev->of_node, "clock-names", parent);
+	index = of_property_match_string(dev->of_yesde, "clock-names", parent);
 	if (index < 0)
 		return ERR_PTR(index);
 
-	parent_name = of_clk_get_parent_name(dev->of_node, index);
+	parent_name = of_clk_get_parent_name(dev->of_yesde, index);
 
-	ret = of_property_read_string_index(dev->of_node,
+	ret = of_property_read_string_index(dev->of_yesde,
 					    "clock-output-names", name_index,
 					    &clk_name);
 	if (ret)
@@ -166,13 +166,13 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 
 	ret = reset_control_deassert(tcon_top->rst);
 	if (ret) {
-		dev_err(dev, "Could not deassert ctrl reset control\n");
+		dev_err(dev, "Could yest deassert ctrl reset control\n");
 		return ret;
 	}
 
 	ret = clk_prepare_enable(tcon_top->bus);
 	if (ret) {
-		dev_err(dev, "Could not enable bus clock\n");
+		dev_err(dev, "Could yest enable bus clock\n");
 		goto err_assert_reset;
 	}
 
@@ -185,8 +185,8 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 
 	/*
 	 * TCON TOP has two muxes, which select parent clock for each TCON TV
-	 * channel clock. Parent could be either TCON TV or TVE clock. For now
-	 * we leave this fixed to TCON TV, since TVE driver for R40 is not yet
+	 * channel clock. Parent could be either TCON TV or TVE clock. For yesw
+	 * we leave this fixed to TCON TV, since TVE driver for R40 is yest yet
 	 * implemented. Once it is, graph needs to be traversed to determine
 	 * if TVE is active on each TCON TV. If it is, mux should be switched
 	 * to TVE clock parent.
@@ -216,7 +216,7 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 
 	clk_data->num = CLK_NUM;
 
-	ret = of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+	ret = of_clk_add_hw_provider(dev->of_yesde, of_clk_hw_onecell_get,
 				     clk_data);
 	if (ret)
 		goto err_unregister_gates;
@@ -243,7 +243,7 @@ static void sun8i_tcon_top_unbind(struct device *dev, struct device *master,
 	struct clk_hw_onecell_data *clk_data = tcon_top->clk_data;
 	int i;
 
-	of_clk_del_provider(dev->of_node);
+	of_clk_del_provider(dev->of_yesde);
 	for (i = 0; i < CLK_NUM; i++)
 		if (clk_data->hws[i])
 			clk_hw_unregister_gate(clk_data->hws[i]);
@@ -278,7 +278,7 @@ static const struct sun8i_tcon_top_quirks sun50i_h6_tcon_top_quirks = {
 	/* Nothing special */
 };
 
-/* sun4i_drv uses this list to check if a device node is a TCON TOP */
+/* sun4i_drv uses this list to check if a device yesde is a TCON TOP */
 const struct of_device_id sun8i_tcon_top_of_table[] = {
 	{
 		.compatible = "allwinner,sun8i-r40-tcon-top",

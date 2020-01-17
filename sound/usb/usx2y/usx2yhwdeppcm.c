@@ -91,7 +91,7 @@ static inline int usX2Y_iso_frames_per_buffer(struct snd_pcm_runtime *runtime,
  * we copy the data directly from the pcm buffer.
  * the current position to be copied is held in hwptr field.
  * since a urb can handle only a single linear buffer, if the total
- * transferred area overflows the buffer boundary, we cannot send
+ * transferred area overflows the buffer boundary, we canyest send
  * it directly from the buffer.  thus the data is once copied to
  * a temporary buffer and urb points to that.
  */
@@ -116,7 +116,7 @@ static int usX2Y_hwdep_urb_play_prepare(struct snd_usX2Y_substream *subs,
 		/* calculate the size of a packet */
 		counts = shm->captured_iso[shm->playback_iso_head].length / usX2Y->stride;
 		if (counts < 43 || counts > 50) {
-			snd_printk(KERN_ERR "should not be here with counts=%i\n", counts);
+			snd_printk(KERN_ERR "should yest be here with counts=%i\n", counts);
 			return -EPIPE;
 		}
 		/* set up descriptor */
@@ -432,7 +432,7 @@ static int usX2Y_usbpcm_urbs_start(struct snd_usX2Y_substream *subs)
 					}
 					urb->transfer_buffer_length = subs->maxpacksize * nr_of_packs(); 
 					if ((err = usb_submit_urb(urb, GFP_KERNEL)) < 0) {
-						snd_printk (KERN_ERR "cannot usb_submit_urb() for urb %d, err = %d\n", u, err);
+						snd_printk (KERN_ERR "canyest usb_submit_urb() for urb %d, err = %d\n", u, err);
 						err = -EPIPE;
 						goto cleanup;
 					}  else {
@@ -455,7 +455,7 @@ static int usX2Y_usbpcm_urbs_start(struct snd_usX2Y_substream *subs)
 		
  cleanup:
 	if (err) {
-		usX2Y_subs_startup_finish(usX2Y);	// Call it now
+		usX2Y_subs_startup_finish(usX2Y);	// Call it yesw
 		usX2Y_clients_stop(usX2Y);		// something is completely wroong > stop evrything			
 	}
 	return err;

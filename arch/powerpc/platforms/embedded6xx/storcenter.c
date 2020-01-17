@@ -37,7 +37,7 @@ static int __init storcenter_device_probe(void)
 machine_device_initcall(storcenter, storcenter_device_probe);
 
 
-static int __init storcenter_add_bridge(struct device_node *dev)
+static int __init storcenter_add_bridge(struct device_yesde *dev)
 {
 #ifdef CONFIG_PCI
 	int len;
@@ -51,8 +51,8 @@ static int __init storcenter_add_bridge(struct device_node *dev)
 		return -ENOMEM;
 
 	bus_range = of_get_property(dev, "bus-range", &len);
-	hose->first_busno = bus_range ? bus_range[0] : 0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->first_busyes = bus_range ? bus_range[0] : 0;
+	hose->last_busyes = bus_range ? bus_range[1] : 0xff;
 
 	setup_indirect_pci(hose, MPC10X_MAPB_CNFG_ADDR, MPC10X_MAPB_CNFG_DATA, 0);
 
@@ -66,10 +66,10 @@ static int __init storcenter_add_bridge(struct device_node *dev)
 
 static void __init storcenter_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	/* Lookup PCI host bridges */
-	for_each_compatible_node(np, "pci", "mpc10x-pci")
+	for_each_compatible_yesde(np, "pci", "mpc10x-pci")
 		storcenter_add_bridge(np);
 
 	printk(KERN_INFO "IOMEGA StorCenter\n");
@@ -96,7 +96,7 @@ static void __init storcenter_init_IRQ(void)
 	mpic_init(mpic);
 }
 
-static void __noreturn storcenter_restart(char *cmd)
+static void __yesreturn storcenter_restart(char *cmd)
 {
 	local_irq_disable();
 

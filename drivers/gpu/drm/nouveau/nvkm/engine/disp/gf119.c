@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -191,7 +191,7 @@ gf119_disp_init(struct nv50_disp *disp)
 	int i;
 
 	/* The below segments of code copying values from one register to
-	 * another appear to inform EVO of the display capabilities or
+	 * ayesther appear to inform EVO of the display capabilities or
 	 * something similar.
 	 */
 

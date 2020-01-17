@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -486,9 +486,9 @@ union cvmx_pcsxx_misc_ctl_reg {
 		uint64_t tx_swap:1;
 		uint64_t rx_swap:1;
 		uint64_t xaui:1;
-		uint64_t gmxeno:1;
+		uint64_t gmxeyes:1;
 #else
-		uint64_t gmxeno:1;
+		uint64_t gmxeyes:1;
 		uint64_t xaui:1;
 		uint64_t rx_swap:1;
 		uint64_t tx_swap:1;

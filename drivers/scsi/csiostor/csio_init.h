@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -43,8 +43,8 @@
 #include <scsi/scsi_transport_fc.h>
 
 #include "csio_scsi.h"
-#include "csio_lnode.h"
-#include "csio_rnode.h"
+#include "csio_lyesde.h"
+#include "csio_ryesde.h"
 #include "csio_hw.h"
 
 #define CSIO_DRV_AUTHOR			"Chelsio Communications"
@@ -54,7 +54,7 @@
 extern struct fc_function_template csio_fc_transport_funcs;
 extern struct fc_function_template csio_fc_transport_vport_funcs;
 
-void csio_fchost_attr_init(struct csio_lnode *);
+void csio_fchost_attr_init(struct csio_lyesde *);
 
 /* INTx handlers */
 void csio_scsi_intx_handler(struct csio_hw *, void *, uint32_t,
@@ -63,23 +63,23 @@ void csio_scsi_intx_handler(struct csio_hw *, void *, uint32_t,
 void csio_fwevt_intx_handler(struct csio_hw *, void *, uint32_t,
 				struct csio_fl_dma_buf *, void *);
 
-/* Common os lnode APIs */
-void csio_lnodes_block_request(struct csio_hw *);
-void csio_lnodes_unblock_request(struct csio_hw *);
-void csio_lnodes_block_by_port(struct csio_hw *, uint8_t);
-void csio_lnodes_unblock_by_port(struct csio_hw *, uint8_t);
+/* Common os lyesde APIs */
+void csio_lyesdes_block_request(struct csio_hw *);
+void csio_lyesdes_unblock_request(struct csio_hw *);
+void csio_lyesdes_block_by_port(struct csio_hw *, uint8_t);
+void csio_lyesdes_unblock_by_port(struct csio_hw *, uint8_t);
 
-struct csio_lnode *csio_shost_init(struct csio_hw *, struct device *, bool,
-					struct csio_lnode *);
-void csio_shost_exit(struct csio_lnode *);
-void csio_lnodes_exit(struct csio_hw *, bool);
+struct csio_lyesde *csio_shost_init(struct csio_hw *, struct device *, bool,
+					struct csio_lyesde *);
+void csio_shost_exit(struct csio_lyesde *);
+void csio_lyesdes_exit(struct csio_hw *, bool);
 
 /* DebugFS helper routines */
 void csio_add_debugfs_mem(struct csio_hw *, const char *,
 		unsigned int, unsigned int);
 
 static inline struct Scsi_Host *
-csio_ln_to_shost(struct csio_lnode *ln)
+csio_ln_to_shost(struct csio_lyesde *ln)
 {
 	return container_of((void *)ln, struct Scsi_Host, hostdata[0]);
 }

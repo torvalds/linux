@@ -39,7 +39,7 @@
 #define PHYS_OFFSET		CONFIG_NIOS2_MEM_BASE
 
 /*
- * It's normally defined only for FLATMEM config but it's
+ * It's yesrmally defined only for FLATMEM config but it's
  * used in our early mem init code for all memory models.
  * So always define it.
  */

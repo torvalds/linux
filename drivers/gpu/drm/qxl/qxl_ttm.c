@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -164,7 +164,7 @@ static int qxl_ttm_backend_bind(struct ttm_tt *ttm,
 
 	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
 	if (!ttm->num_pages) {
-		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
+		WARN(1, "yesthing to bind %lu pages for mreg %p back %p!\n",
 		     ttm->num_pages, bo_mem, ttm);
 	}
 	/* Not implemented */
@@ -215,9 +215,9 @@ static void qxl_move_null(struct ttm_buffer_object *bo,
 {
 	struct ttm_mem_reg *old_mem = &bo->mem;
 
-	BUG_ON(old_mem->mm_node != NULL);
+	BUG_ON(old_mem->mm_yesde != NULL);
 	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
+	new_mem->mm_yesde = NULL;
 }
 
 static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
@@ -227,7 +227,7 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;
 
-	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->yes_wait_gpu);
 	if (ret)
 		return ret;
 
@@ -238,7 +238,7 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 	return ttm_bo_move_memcpy(bo, ctx, new_mem);
 }
 
-static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
+static void qxl_bo_move_yestify(struct ttm_buffer_object *bo,
 			       bool evict,
 			       struct ttm_mem_reg *new_mem)
 {
@@ -263,7 +263,7 @@ static struct ttm_bo_driver qxl_bo_driver = {
 	.move = &qxl_bo_move,
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
 	.io_mem_free = &qxl_ttm_io_mem_free,
-	.move_notify = &qxl_bo_move_notify,
+	.move_yestify = &qxl_bo_move_yestify,
 };
 
 int qxl_ttm_init(struct qxl_device *qdev)
@@ -274,7 +274,7 @@ int qxl_ttm_init(struct qxl_device *qdev)
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&qdev->mman.bdev,
 			       &qxl_bo_driver,
-			       qdev->ddev.anon_inode->i_mapping,
+			       qdev->ddev.ayesn_iyesde->i_mapping,
 			       qdev->ddev.vma_offset_manager,
 			       false);
 	if (r) {
@@ -317,8 +317,8 @@ void qxl_ttm_fini(struct qxl_device *qdev)
 #if defined(CONFIG_DEBUG_FS)
 static int qxl_mm_dump_table(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_mm *mm = (struct drm_mm *)node->info_ent->data;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_mm *mm = (struct drm_mm *)yesde->info_ent->data;
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	spin_lock(&ttm_bo_glob.lru_lock);

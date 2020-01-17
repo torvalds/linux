@@ -12,7 +12,7 @@
 	clocks {
 	       /*
 		* The muxing of external clocks/internal dividers for osc* clock
-		* sources has been hidden under the carpet by now.
+		* sources has been hidden under the carpet by yesw.
 		*/
 		#address-cells = <1>;
 		#size-cells = <1>;

@@ -172,7 +172,7 @@
 #define B43_BFL_AIRLINEMODE		0x0004	/* implements GPIO 13 radio disable indication */
 #define B43_BFL_RSSI			0x0008	/* software calculates nrssi slope. */
 #define B43_BFL_ENETSPI			0x0010	/* has ephy roboswitch spi */
-#define B43_BFL_XTAL_NOSLOW		0x0020	/* no slow clock available */
+#define B43_BFL_XTAL_NOSLOW		0x0020	/* yes slow clock available */
 #define B43_BFL_CCKHIPWR		0x0040	/* can do high power CCK transmission */
 #define B43_BFL_ENETADM			0x0080	/* has ADMtek switch */
 #define B43_BFL_ENETVLAN		0x0100	/* can do vlan */
@@ -185,8 +185,8 @@
 #define B43_BFL_ALTIQ			0x8000	/* alternate I/Q settings */
 
 /* SPROM boardflags_hi values */
-#define B43_BFH_NOPA			0x0001	/* has no PA */
-#define B43_BFH_RSSIINV			0x0002	/* RSSI uses positive slope (not TSSI) */
+#define B43_BFH_NOPA			0x0001	/* has yes PA */
+#define B43_BFH_RSSIINV			0x0002	/* RSSI uses positive slope (yest TSSI) */
 #define B43_BFH_PAREF			0x0004	/* uses the PARef LDO */
 #define B43_BFH_3TSWITCH		0x0008	/* uses a triple throw switch shared
 						 * with bluetooth */
@@ -249,7 +249,7 @@ enum {
 #define B43_SHM_SH_HOSTF3		0x0062	/* Hostflags 3 for ucode options */
 #define B43_SHM_SH_RFATT		0x0064	/* Current radio attenuation value */
 #define B43_SHM_SH_RADAR		0x0066	/* Radar register */
-#define B43_SHM_SH_PHYTXNOI		0x006E	/* PHY noise directly after TX (lower 8bit only) */
+#define B43_SHM_SH_PHYTXNOI		0x006E	/* PHY yesise directly after TX (lower 8bit only) */
 #define B43_SHM_SH_RFRXSP1		0x0072	/* RF RX SP Register 1 */
 #define B43_SHM_SH_HOSTF4		0x0078	/* Hostflags 4 for ucode options */
 #define B43_SHM_SH_CHAN			0x00A0	/* Current channel (low 8bit only) */
@@ -269,7 +269,7 @@ enum {
 #define B43_SHM_SH_SIZE23		0x009A	/* TX FIFO size for FIFO 2 and 3 */
 #define B43_SHM_SH_SIZE45		0x009C	/* TX FIFO size for FIFO 4 and 5 */
 #define B43_SHM_SH_SIZE67		0x009E	/* TX FIFO size for FIFO 6 and 7 */
-/* SHM_SHARED background noise */
+/* SHM_SHARED background yesise */
 #define B43_SHM_SH_JSSI0		0x0088	/* Measure JSSI 0 */
 #define B43_SHM_SH_JSSI1		0x008A	/* Measure JSSI 1 */
 #define B43_SHM_SH_JSSIAUX		0x008C	/* Measure JSSI AUX */
@@ -468,7 +468,7 @@ enum {
 #define B43_MACCTL_PROMISC		0x01000000	/* Promiscuous mode */
 #define B43_MACCTL_HWPS			0x02000000	/* Hardware Power Saving */
 #define B43_MACCTL_AWAKE		0x04000000	/* Device is awake */
-#define B43_MACCTL_CLOSEDNET		0x08000000	/* Closed net (no SSID bcast) */
+#define B43_MACCTL_CLOSEDNET		0x08000000	/* Closed net (yes SSID bcast) */
 #define B43_MACCTL_TBTTHOLD		0x10000000	/* TBTT Hold */
 #define B43_MACCTL_DISCTXSTAT		0x20000000	/* Discard TX status */
 #define B43_MACCTL_DISCPMQ		0x40000000	/* Discard Power Management Queue */
@@ -479,7 +479,7 @@ enum {
 #define B43_MACCMD_BEACON1_VALID	0x00000002	/* Beacon 1 in template RAM is busy/valid */
 #define B43_MACCMD_DFQ_VALID		0x00000004	/* Directed frame queue valid (IBSS PS mode, ATIM) */
 #define B43_MACCMD_CCA			0x00000008	/* Clear channel assessment */
-#define B43_MACCMD_BGNOISE		0x00000010	/* Background noise */
+#define B43_MACCMD_BGNOISE		0x00000010	/* Background yesise */
 
 /* B43_MMIO_PSM_PHY_HDR bits */
 #define B43_PSM_HDR_MAC_PHY_RESET	0x00000001
@@ -684,15 +684,15 @@ struct b43_pio {
 	struct b43_pio_rxqueue *rx_queue;
 };
 
-/* Context information for a noise calculation (Link Quality). */
-struct b43_noise_calculation {
+/* Context information for a yesise calculation (Link Quality). */
+struct b43_yesise_calculation {
 	bool calculation_running;
 	u8 nr_samples;
 	s8 samples[8][4];
 };
 
 struct b43_stats {
-	u8 link_noise;
+	u8 link_yesise;
 };
 
 struct b43_key {
@@ -753,7 +753,7 @@ struct b43_request_fw_context {
 	/* Temporary buffer for storing the firmware name. */
 	char fwname[64];
 	/* A fatal error occurred while requesting. Firmware request
-	 * can not continue, as any other request will also fail. */
+	 * can yest continue, as any other request will also fail. */
 	int fatal_failure;
 };
 
@@ -765,7 +765,7 @@ struct b43_firmware_file {
 	 * the type by the firmware name. NOT the file contents.
 	 * If you want to check for proprietary vs opensource, use (struct b43_firmware)->opensource
 	 * instead! The (struct b43_firmware)->opensource flag is derived from the actual firmware
-	 * binary code, not just the filename.
+	 * binary code, yest just the filename.
 	 */
 	enum b43_firmware_file_type type;
 };
@@ -814,7 +814,7 @@ enum b43_band {
 /* Device (802.11 core) initialization status. */
 enum {
 	B43_STAT_UNINIT = 0,	/* Uninitialized. */
-	B43_STAT_INITIALIZED = 1,	/* Initialized, but not started, yet. */
+	B43_STAT_INITIALIZED = 1,	/* Initialized, but yest started, yet. */
 	B43_STAT_STARTED = 2,	/* Up and running. */
 };
 #define b43_status(wldev)		atomic_read(&(wldev)->__init_status)
@@ -827,7 +827,7 @@ enum {
 struct b43_wldev {
 	struct b43_bus_dev *dev;
 	struct b43_wl *wl;
-	/* a completion event structure needed if this call is asynchronous */
+	/* a completion event structure needed if this call is asynchroyesus */
 	struct completion fw_load_complete;
 
 	/* The device initialization status.
@@ -864,7 +864,7 @@ struct b43_wldev {
 	u32 irq_mask;
 
 	/* Link Quality calculation context. */
-	struct b43_noise_calculation noisecalc;
+	struct b43_yesise_calculation yesisecalc;
 	/* if > 0 MAC is suspended. if == 0 MAC is enabled. */
 	int mac_suspended;
 

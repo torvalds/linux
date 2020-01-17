@@ -82,6 +82,6 @@ struct omap_drm_private {
 };
 
 
-int omap_debugfs_init(struct drm_minor *minor);
+int omap_debugfs_init(struct drm_miyesr *miyesr);
 
 #endif /* __OMAPDRM_DRV_H__ */

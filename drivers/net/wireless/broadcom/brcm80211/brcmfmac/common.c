@@ -61,7 +61,7 @@ MODULE_PARM_DESC(fcmode, "Mode of firmware signalled flow control");
 
 static int brcmf_roamoff;
 module_param_named(roamoff, brcmf_roamoff, int, 0400);
-MODULE_PARM_DESC(roamoff, "Do not use internal roaming engine");
+MODULE_PARM_DESC(roamoff, "Do yest use internal roaming engine");
 
 static int brcmf_iapp_enable;
 module_param_named(iapp, brcmf_iapp_enable, int, 0);
@@ -69,9 +69,9 @@ MODULE_PARM_DESC(iapp, "Enable partial support for the obsoleted Inter-Access Po
 
 #ifdef DEBUG
 /* always succeed brcmf_bus_started() */
-static int brcmf_ignore_probe_fail;
-module_param_named(ignore_probe_fail, brcmf_ignore_probe_fail, int, 0);
-MODULE_PARM_DESC(ignore_probe_fail, "always succeed probe for debugging");
+static int brcmf_igyesre_probe_fail;
+module_param_named(igyesre_probe_fail, brcmf_igyesre_probe_fail, int, 0);
+MODULE_PARM_DESC(igyesre_probe_fail, "always succeed probe for debugging");
 #endif
 
 static struct brcmfmac_platform_data *brcmfmac_pdata;
@@ -140,9 +140,9 @@ static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 		return err;
 	}
 
-	err = firmware_request_nowarn(&clm, clm_name, bus->dev);
+	err = firmware_request_yeswarn(&clm, clm_name, bus->dev);
 	if (err) {
-		brcmf_info("no clm_blob available (err=%d), device may have limited channels available\n",
+		brcmf_info("yes clm_blob available (err=%d), device may have limited channels available\n",
 			   err);
 		return 0;
 	}
@@ -237,7 +237,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		ri->chippkg = le32_to_cpu(revinfo.chippkg);
 		ri->nvramrev = le32_to_cpu(revinfo.nvramrev);
 
-		/* use revinfo if not known yet */
+		/* use revinfo if yest kyeswn yet */
 		if (!bus->chip) {
 			bus->chip = le32_to_cpu(revinfo.chipnum);
 			bus->chiprev = le32_to_cpu(revinfo.chiprev);
@@ -334,7 +334,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		goto done;
 	}
 
-	/* Enable tx beamforming, errors can be ignored (not supported) */
+	/* Enable tx beamforming, errors can be igyesred (yest supported) */
 	(void)brcmf_fil_iovar_int_set(ifp, "txbf", 1);
 done:
 	return err;
@@ -379,7 +379,7 @@ void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...)
 static void brcmf_mp_attach(void)
 {
 	/* If module param firmware path is set then this will always be used,
-	 * if not set then if available use the platform data version. To make
+	 * if yest set then if available use the platform data version. To make
 	 * sure it gets initialized at all, always copy the module param version
 	 */
 	strlcpy(brcmf_mp_global.firmware_path, brcmf_firmware_path,
@@ -414,7 +414,7 @@ struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
 	settings->roamoff = !!brcmf_roamoff;
 	settings->iapp = !!brcmf_iapp_enable;
 #ifdef DEBUG
-	settings->ignore_probe_fail = !!brcmf_ignore_probe_fail;
+	settings->igyesre_probe_fail = !!brcmf_igyesre_probe_fail;
 #endif
 
 	if (bus_type == BRCMF_BUSTYPE_SDIO)

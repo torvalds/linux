@@ -13,12 +13,12 @@
 
 	.text
 
-/* The nop here is a hack.  The dwarf2 unwind routines subtract 1 from
+/* The yesp here is a hack.  The dwarf2 unwind routines subtract 1 from
    the return address to get an address in the middle of the presumed
    call instruction.  Since we don't have a call here, we artificially
-   extend the range covered by the unwind info by adding a nop before
+   extend the range covered by the unwind info by adding a yesp before
    the real start.  */
-	nop
+	yesp
 V_FUNCTION_BEGIN(__kernel_sigtramp32)
 .Lsig_start = . - 4
 	li	r0,__NR_sigreturn
@@ -27,7 +27,7 @@ V_FUNCTION_BEGIN(__kernel_sigtramp32)
 V_FUNCTION_END(__kernel_sigtramp32)
 
 .Lsigrt_start:
-	nop
+	yesp
 V_FUNCTION_BEGIN(__kernel_sigtramp_rt32)
 	li	r0,__NR_rt_sigreturn
 	sc
@@ -50,9 +50,9 @@ V_FUNCTION_END(__kernel_sigtramp_rt32)
 
 /* Register REGNO can be found at offset OFS of a pt_regs structure.
    A pointer to the pt_regs is stored in memory at the old sp plus PTREGS.  */
-#define rsave(regno, ofs) \
+#define rsave(regyes, ofs) \
   .byte 0x10;			/* DW_CFA_expression */			\
-  .uleb128 regno;		/*   regno */				\
+  .uleb128 regyes;		/*   regyes */				\
   .uleb128 9f - 1f;		/*   length */				\
 1:									\
   .byte 0x71; .sleb128 PTREGS;	/*     DW_OP_breg1 */			\
@@ -66,12 +66,12 @@ V_FUNCTION_END(__kernel_sigtramp_rt32)
    of the VMX reg struct.  The VMX reg struct is at offset VREGS of
    the pt_regs struct.  This macro is for REGNO == 0, and contains
    'subroutines' that the other macros jump to.  */
-#define vsave_msr0(regno) \
+#define vsave_msr0(regyes) \
   .byte 0x10;			/* DW_CFA_expression */			\
-  .uleb128 regno + 77;		/*   regno */				\
+  .uleb128 regyes + 77;		/*   regyes */				\
   .uleb128 9f - 1f;		/*   length */				\
 1:									\
-  .byte 0x30 + regno;		/*     DW_OP_lit0 */			\
+  .byte 0x30 + regyes;		/*     DW_OP_lit0 */			\
 2:									\
   .byte 0x40;			/*     DW_OP_lit16 */			\
   .byte 0x1e;			/*     DW_OP_mul */			\
@@ -96,20 +96,20 @@ V_FUNCTION_END(__kernel_sigtramp_rt32)
 
 /* If msr bit 1<<25 is set, then VMX register REGNO is at offset REGNO*16
    of the VMX reg struct.  REGNO is 1 thru 31.  */
-#define vsave_msr1(regno) \
+#define vsave_msr1(regyes) \
   .byte 0x10;			/* DW_CFA_expression */			\
-  .uleb128 regno + 77;		/*   regno */				\
+  .uleb128 regyes + 77;		/*   regyes */				\
   .uleb128 9f - 1f;		/*   length */				\
 1:									\
-  .byte 0x30 + regno;		/*     DW_OP_lit n */			\
+  .byte 0x30 + regyes;		/*     DW_OP_lit n */			\
   .byte 0x2f; .short 2b - 9f;	/*     DW_OP_skip */			\
 9:
 
 /* If msr bit 1<<25 is set, then VMX register REGNO is at offset OFS of
    the VMX save block.  */
-#define vsave_msr2(regno, ofs) \
+#define vsave_msr2(regyes, ofs) \
   .byte 0x10;			/* DW_CFA_expression */			\
-  .uleb128 regno + 77;		/*   regno */				\
+  .uleb128 regyes + 77;		/*   regyes */				\
   .uleb128 9f - 1f;		/*   length */				\
 1:									\
   .byte 0x0a; .short ofs;	/*     DW_OP_const2u */			\
@@ -117,9 +117,9 @@ V_FUNCTION_END(__kernel_sigtramp_rt32)
 9:
 
 /* VMX register REGNO is at offset OFS of the VMX save area.  */
-#define vsave(regno, ofs) \
+#define vsave(regyes, ofs) \
   .byte 0x10;			/* DW_CFA_expression */			\
-  .uleb128 regno + 77;		/*   regno */				\
+  .uleb128 regyes + 77;		/*   regyes */				\
   .uleb128 9f - 1f;		/*   length */				\
 1:									\
   .byte 0x71; .sleb128 PTREGS;	/*     DW_OP_breg1 */			\

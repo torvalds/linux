@@ -52,7 +52,7 @@ enum {
 #define WLAN_STA_TIM BIT(3)
 #define WLAN_STA_PERM BIT(4)
 #define WLAN_STA_AUTHORIZED BIT(5)
-#define WLAN_STA_PENDING_POLL BIT(6) /* pending activity poll not ACKed */
+#define WLAN_STA_PENDING_POLL BIT(6) /* pending activity poll yest ACKed */
 #define WLAN_STA_SHORT_PREAMBLE BIT(7)
 #define WLAN_STA_PREAUTH BIT(8)
 #define WLAN_STA_WME BIT(9)
@@ -534,13 +534,13 @@ enum MGN_RATE{
 #define IS_OFDM_RATE(_rate)				(MGN_6M <= _rate && _rate <= MGN_54M  && _rate != MGN_11M)
 
 
-/* NOTE: This data is for statistical purposes; not all hardware provides this
- *       information for frames received.  Not setting these will not cause
+/* NOTE: This data is for statistical purposes; yest all hardware provides this
+ *       information for frames received.  Not setting these will yest cause
  *       any adverse affects. */
 struct ieee80211_rx_stats {
 	s8 rssi;
 	u8 signal;
-	u8 noise;
+	u8 yesise;
 	u8 received_channel;
 	u16 rate; /* in 100 kbps */
 	u8 mask;
@@ -550,7 +550,7 @@ struct ieee80211_rx_stats {
 
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
- * concurrent frames, but it should be noted that each entry can consume about
+ * concurrent frames, but it should be yested that each entry can consume about
  * 2 kB of RAM and increasing cache size will slow down frame reassembly. */
 #define IEEE80211_FRAG_CACHE_LEN 4
 
@@ -582,7 +582,7 @@ struct ieee80211_stats {
 	uint rx_unicast_octets;
 	uint rx_multicast_octets;
 	uint rx_fcs_errors;
-	uint rx_discards_no_buffer;
+	uint rx_discards_yes_buffer;
 	uint tx_discards_wrong_sa;
 	uint rx_discards_undecryptable;
 	uint rx_message_in_msg_fragments;
@@ -599,8 +599,8 @@ struct ieee80211_softmac_stats {
 	uint rx_auth_rs_ok;
 	uint rx_auth_rs_err;
 	uint tx_auth_rq;
-	uint no_auth_rs;
-	uint no_ass_rs;
+	uint yes_auth_rs;
+	uint yes_ass_rs;
 	uint tx_ass_rq;
 	uint rx_ass_rq;
 	uint tx_probe_rq;
@@ -806,11 +806,11 @@ join_res:
 
 enum ieee80211_state {
 
-	/* the card is not linked at all */
+	/* the card is yest linked at all */
 	IEEE80211_NOLINK = 0,
 
 	/* IEEE80211_ASSOCIATING* are for BSS client mode
-	 * the driver shall not perform RX filtering unless
+	 * the driver shall yest perform RX filtering unless
 	 * the state is LINKED.
 	 * The driver shall just check for the state LINKED and
 	 * defaults to NOLINK for ALL the other states (including
@@ -888,9 +888,9 @@ enum rtw_ieee80211_category {
 	RTW_WLAN_CATEGORY_FT = 6,
 	RTW_WLAN_CATEGORY_HT = 7,
 	RTW_WLAN_CATEGORY_SA_QUERY = 8,
-	RTW_WLAN_CATEGORY_UNPROTECTED_WNM = 11, /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	RTW_WLAN_CATEGORY_UNPROTECTED_WNM = 11, /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 	RTW_WLAN_CATEGORY_TDLS = 12,
-	RTW_WLAN_CATEGORY_SELF_PROTECTED = 15, /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	RTW_WLAN_CATEGORY_SELF_PROTECTED = 15, /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 	RTW_WLAN_CATEGORY_WMM = 17,
 	RTW_WLAN_CATEGORY_VHT = 21,
 	RTW_WLAN_CATEGORY_P2P = 0x7f,/* P2P action frames */
@@ -993,12 +993,12 @@ enum rtw_ieee80211_vht_actioncode{
  * @RTW_IEEE80211_CHAN_DISABLED: This channel is disabled.
  * @RTW_IEEE80211_CHAN_PASSIVE_SCAN: Only passive scanning is permitted
  *      on this channel.
- * @RTW_IEEE80211_CHAN_NO_IBSS: IBSS is not allowed on this channel.
+ * @RTW_IEEE80211_CHAN_NO_IBSS: IBSS is yest allowed on this channel.
  * @RTW_IEEE80211_CHAN_RADAR: Radar detection is required on this channel.
  * @RTW_IEEE80211_CHAN_NO_HT40PLUS: extension channel above this channel
- *      is not permitted.
+ *      is yest permitted.
  * @RTW_IEEE80211_CHAN_NO_HT40MINUS: extension channel below this channel
- *      is not permitted.
+ *      is yest permitted.
  */
   enum rtw_ieee80211_channel_flags {
           RTW_IEEE80211_CHAN_DISABLED         = 1<<0,
@@ -1105,11 +1105,11 @@ struct rtw_ieee802_11_elems {
 	u8 vht_capabilities_len;
 	u8 *vht_operation;
 	u8 vht_operation_len;
-	u8 *vht_op_mode_notify;
-	u8 vht_op_mode_notify_len;
+	u8 *vht_op_mode_yestify;
+	u8 vht_op_mode_yestify_len;
 };
 
-typedef enum { ParseOK = 0, ParseUnknown = 1, ParseFailed = -1 } ParseRes;
+typedef enum { ParseOK = 0, ParseUnkyeswn = 1, ParseFailed = -1 } ParseRes;
 
 ParseRes rtw_ieee802_11_parse_elems(u8 *start, uint len,
 				struct rtw_ieee802_11_elems *elems,
@@ -1119,7 +1119,7 @@ u8 *rtw_set_fixed_ie(unsigned char *pbuf, unsigned int len, unsigned char *sourc
 u8 *rtw_set_ie(u8 *pbuf, sint index, uint len, u8 *source, uint *frlen);
 
 enum secondary_ch_offset {
-	SCN = 0, /* no secondary channel */
+	SCN = 0, /* yes secondary channel */
 	SCA = 1, /* secondary channel above */
 	SCB = 3,  /* secondary channel below */
 };

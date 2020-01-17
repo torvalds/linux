@@ -50,9 +50,9 @@ livepatch: '$MOD_LIVEPATCH': unpatching complete
 # TEST: multiple livepatches
 # - load a livepatch that modifies the output from /proc/cmdline and
 #   verify correct behavior
-# - load another livepatch and verify that both livepatches are active
+# - load ayesther livepatch and verify that both livepatches are active
 # - unload the second livepatch and verify that the first is still active
-# - unload the first livepatch and verify none are active
+# - unload the first livepatch and verify yesne are active
 
 echo -n "TEST: multiple livepatches ... "
 dmesg -C
@@ -115,7 +115,7 @@ livepatch: '$MOD_LIVEPATCH': unpatching complete
 # - load an atomic replace livepatch and verify that only the second is active
 # - remove the first livepatch and verify that the atomic replace livepatch
 #   is still active
-# - remove the atomic replace livepatch and verify that none are active
+# - remove the atomic replace livepatch and verify that yesne are active
 
 echo -n "TEST: atomic replace livepatch ... "
 dmesg -C

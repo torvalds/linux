@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -930,7 +930,7 @@ static void csky_perf_event_update(struct perf_event *event,
 
 	/*
 	 * We aren't afraid of hwc->prev_count changing beneath our feet
-	 * because there's no way for us to re-enter this function anytime.
+	 * because there's yes way for us to re-enter this function anytime.
 	 */
 	local64_set(&hwc->prev_count, new_raw_count);
 	local64_add(delta, &event->count);
@@ -1124,7 +1124,7 @@ static irqreturn_t csky_pmu_handle_irq(int irq_num, void *dev)
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
-		/* Ignore if we don't have an event. */
+		/* Igyesre if we don't have an event. */
 		if (!event)
 			continue;
 		/*
@@ -1150,7 +1150,7 @@ static irqreturn_t csky_pmu_handle_irq(int irq_num, void *dev)
 	 *
 	 * Note: this call *must* be run with interrupts disabled. For
 	 * platforms that can have the PMU interrupts raised as an NMI, this
-	 * will not work.
+	 * will yest work.
 	 */
 	irq_work_run();
 
@@ -1167,7 +1167,7 @@ static int csky_pmu_request_irq(irq_handler_t handler)
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
 	if (irqs < 1) {
-		pr_err("no irqs for PMUs defined\n");
+		pr_err("yes irqs for PMUs defined\n");
 		return -ENODEV;
 	}
 
@@ -1293,16 +1293,16 @@ static int csky_pmu_dying_cpu(unsigned int cpu)
 int csky_pmu_device_probe(struct platform_device *pdev,
 			  const struct of_device_id *of_table)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	int ret;
 
 	ret = init_hw_perf_events();
 	if (ret) {
-		pr_notice("[perf] failed to probe PMU!\n");
+		pr_yestice("[perf] failed to probe PMU!\n");
 		return ret;
 	}
 
-	if (of_property_read_u32(node, "count-width",
+	if (of_property_read_u32(yesde, "count-width",
 				 &csky_pmu.count_width)) {
 		csky_pmu.count_width = DEFAULT_COUNT_WIDTH;
 	}
@@ -1316,7 +1316,7 @@ int csky_pmu_device_probe(struct platform_device *pdev,
 	ret = csky_pmu_request_irq(csky_pmu_handle_irq);
 	if (ret) {
 		csky_pmu.pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
-		pr_notice("[perf] PMU request irq fail!\n");
+		pr_yestice("[perf] PMU request irq fail!\n");
 	}
 
 	ret = cpuhp_setup_state(CPUHP_AP_PERF_ONLINE, "AP_PERF_ONLINE",
@@ -1361,9 +1361,9 @@ static int __init csky_pmu_probe(void)
 
 	ret = platform_driver_register(&csky_pmu_driver);
 	if (ret)
-		pr_notice("[perf] PMU initialization failed\n");
+		pr_yestice("[perf] PMU initialization failed\n");
 	else
-		pr_notice("[perf] PMU initialization done\n");
+		pr_yestice("[perf] PMU initialization done\n");
 
 	return ret;
 }

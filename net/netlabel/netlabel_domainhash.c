@@ -160,7 +160,7 @@ static struct netlbl_dom_map *netlbl_domhsh_search(const char *domain,
  *
  * Description:
  * Searches the domain hash table and returns a pointer to the hash table
- * entry if an exact match is found, if an exact match is not present in the
+ * entry if an exact match is found, if an exact match is yest present in the
  * hash table then the default entry is returned if valid otherwise NULL is
  * returned.  @family may be %AF_UNSPEC which matches any address family
  * entries.  The caller is responsible ensuring that the hash table is
@@ -353,7 +353,7 @@ static int netlbl_domhsh_validate(const struct netlbl_dom_map *entry)
  *
  * Description:
  * Initializes the domain hash table, should be called only by
- * netlbl_user_init() during initialization.  Returns zero on success, non-zero
+ * netlbl_user_init() during initialization.  Returns zero on success, yesn-zero
  * values on error.
  *
  */
@@ -395,7 +395,7 @@ int __init netlbl_domhsh_init(u32 size)
  * Adds a new entry to the domain hash table and handles any updates to the
  * lower level protocol handler (i.e. CIPSO).  @entry->family may be set to
  * %AF_UNSPEC which will add an entry that matches all address families.  This
- * is only useful for the unlabelled type and will only succeed if there is no
+ * is only useful for the unlabelled type and will only succeed if there is yes
  * existing entry for any address family with the same domain.  Returns zero
  * on success, negative on failure.
  *
@@ -496,7 +496,7 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 		old_list6 = &entry_old->def.addrsel->list6;
 
 		/* we only allow the addition of address selectors if all of
-		 * the selectors do not exist in the existing domain map */
+		 * the selectors do yest exist in the existing domain map */
 		netlbl_af4list_foreach_rcu(iter4, &entry->def.addrsel->list4)
 			if (netlbl_af4list_search_exact(iter4->addr,
 							iter4->mask,

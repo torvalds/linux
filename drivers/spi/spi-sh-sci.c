@@ -39,7 +39,7 @@ struct sh_sci_spi {
 static inline void setbits(struct sh_sci_spi *sp, int bits, int on)
 {
 	/*
-	 * We are the only user of SCSPTR so no locking is required.
+	 * We are the only user of SCSPTR so yes locking is required.
 	 * Reading bit 2 and 0 in SCSPTR gives pin state as input.
 	 * Writing the same bits sets the output value.
 	 * This makes regular read-modify-write difficult so we

@@ -22,9 +22,9 @@
 	       __FILE__, __LINE__, &(e), pgd_val(e))
 
 /* Rules for using set_pte: the pte being assigned *must* be
- * either not present or in a state where the hardware will
- * not attempt to update the pte.  In places where this is
- * not possible, use pte_get_and_clear to obtain the old pte
+ * either yest present or in a state where the hardware will
+ * yest attempt to update the pte.  In places where this is
+ * yest possible, use pte_get_and_clear to obtain the old pte
  * value and then use set_pte to update it.  -ben
  */
 static inline void native_set_pte(pte_t *ptep, pte_t pte)
@@ -43,34 +43,34 @@ static inline void native_set_pte(pte_t *ptep, pte_t pte)
  * vs page faults vs MADV_DONTNEED. On the page fault side
  * pmd_populate() rightfully does a set_64bit(), but if we're reading the
  * pmd_t with a "*pmdp" on the mincore side, a SMP race can happen
- * because GCC will not read the 64-bit value of the pmd atomically.
+ * because GCC will yest read the 64-bit value of the pmd atomically.
  *
  * To fix this all places running pte_offset_map_lock() while holding the
  * mmap_sem in read mode, shall read the pmdp pointer using this
- * function to know if the pmd is null or not, and in turn to know if
+ * function to kyesw if the pmd is null or yest, and in turn to kyesw if
  * they can run pte_offset_map_lock() or pmd_trans_huge() or other pmd
  * operations.
  *
  * Without THP if the mmap_sem is held for reading, the pmd can only
- * transition from null to not null while pmd_read_atomic() runs. So
+ * transition from null to yest null while pmd_read_atomic() runs. So
  * we can always return atomic pmd values with this function.
  *
  * With THP if the mmap_sem is held for reading, the pmd can become
- * trans_huge or none or point to a pte (and in turn become "stable")
+ * trans_huge or yesne or point to a pte (and in turn become "stable")
  * at any time under pmd_read_atomic(). We could read it truly
  * atomically here with an atomic64_read() for the THP enabled case (and
  * it would be a whole lot simpler), but to avoid using cmpxchg8b we
  * only return an atomic pmdval if the low part of the pmdval is later
  * found to be stable (i.e. pointing to a pte). We are also returning a
- * 'none' (zero) pmdval if the low part of the pmd is zero.
+ * 'yesne' (zero) pmdval if the low part of the pmd is zero.
  *
- * In some cases the high and low part of the pmdval returned may not be
+ * In some cases the high and low part of the pmdval returned may yest be
  * consistent if THP is enabled (the low part may point to previously
  * mapped hugepage, while the high part may point to a more recently
- * mapped hugepage), but pmd_none_or_trans_huge_or_clear_bad() only
+ * mapped hugepage), but pmd_yesne_or_trans_huge_or_clear_bad() only
  * needs the low part of the pmd to be read atomically to decide if the
- * pmd is unstable or not, with the only exception when the low part
- * of the pmd is zero, in which case we return a 'none' pmd.
+ * pmd is unstable or yest, with the only exception when the low part
+ * of the pmd is zero, in which case we return a 'yesne' pmd.
  */
 static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
 {
@@ -80,7 +80,7 @@ static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
 	ret = (pmdval_t) (*tmp);
 	if (ret) {
 		/*
-		 * If the low part is null, we must not read the high part
+		 * If the low part is null, we must yest read the high part
 		 * or we can end up with a partial pmd.
 		 */
 		smp_rmb();
@@ -138,7 +138,7 @@ static inline void pud_clear(pud_t *pudp)
 	set_pud(pudp, __pud(0));
 
 	/*
-	 * According to Intel App note "TLBs, Paging-Structure Caches,
+	 * According to Intel App yeste "TLBs, Paging-Structure Caches,
 	 * and Their Invalidation", April 2007, document 317080-001,
 	 * section 8.1: in PAE mode we explicitly have to flush the
 	 * TLB via cr3 if the top-level pgd is changed...

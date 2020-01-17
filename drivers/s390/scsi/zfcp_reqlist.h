@@ -56,7 +56,7 @@ static inline struct zfcp_reqlist *zfcp_reqlist_alloc(void)
  * zfcp_reqlist_isempty - Check whether the request list empty
  * @rl: pointer to reqlist
  *
- * Returns: 1 if list is empty, 0 if not
+ * Returns: 1 if list is empty, 0 if yest
  */
 static inline int zfcp_reqlist_isempty(struct zfcp_reqlist *rl)
 {
@@ -99,7 +99,7 @@ _zfcp_reqlist_find(struct zfcp_reqlist *rl, unsigned long req_id)
  * @req_id: The request id to look for
  *
  * Returns a pointer to the FSF request with the specified request id
- * or NULL if there is no known FSF request with this id.
+ * or NULL if there is yes kyeswn FSF request with this id.
  */
 static inline struct zfcp_fsf_req *
 zfcp_reqlist_find(struct zfcp_reqlist *rl, unsigned long req_id)
@@ -124,7 +124,7 @@ zfcp_reqlist_find(struct zfcp_reqlist *rl, unsigned long req_id)
  * during both steps of the operation.
  *
  * Returns: Pointer to the FSF request if the request has been found,
- * NULL if it has not been found.
+ * NULL if it has yest been found.
  */
 static inline struct zfcp_fsf_req *
 zfcp_reqlist_find_rm(struct zfcp_reqlist *rl, unsigned long req_id)
@@ -190,7 +190,7 @@ static inline void zfcp_reqlist_move(struct zfcp_reqlist *rl,
  * @data: freely chosen argument; passed through to @f as second parameter.
  *
  * Uses :c:macro:`list_for_each_entry` to iterate over the lists in the hash-
- * table (not a 'safe' variant, so don't modify the list).
+ * table (yest a 'safe' variant, so don't modify the list).
  *
  * Holds @rl->lock over the entire request-iteration.
  */

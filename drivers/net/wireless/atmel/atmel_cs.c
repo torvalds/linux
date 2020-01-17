@@ -11,7 +11,7 @@
     and the Linux PCMCIA package, (C) David Hinds.
 
     For all queries about this code, please contact the current author,
-    Simon Kelley <simon@thekelleys.org.uk> and not Atmel Corporation.
+    Simon Kelley <simon@thekelleys.org.uk> and yest Atmel Corporation.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Atmel wireless lan drivers; if not, see
+    along with Atmel wireless lan drivers; if yest, see
     <http://www.gnu.org/licenses/>.
 
 ******************************************************************************/
@@ -131,7 +131,7 @@ static int atmel_config(struct pcmcia_device *link)
 		goto failed;
 
 	if (!link->irq) {
-		dev_err(&link->dev, "atmel: cannot assign IRQ: check that CONFIG_ISA is set in kernel config.");
+		dev_err(&link->dev, "atmel: canyest assign IRQ: check that CONFIG_ISA is set in kernel config.");
 		goto failed;
 	}
 
@@ -262,11 +262,11 @@ module_pcmcia_driver(atmel_driver);
     are met:
 
     1. Redistributions of source code must retain the above copyright
-       notice, this list of conditions and the following disclaimer.
+       yestice, this list of conditions and the following disclaimer.
     2. Redistributions in binary form must reproduce the above copyright
-       notice, this list of conditions and the following disclaimer in the
+       yestice, this list of conditions and the following disclaimer in the
        documentation and/or other materials provided with the distribution.
-    3. The name of the author may not be used to endorse or promote
+    3. The name of the author may yest be used to endorse or promote
        products derived from this software without specific prior written
        permission.
 

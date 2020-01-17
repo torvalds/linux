@@ -26,7 +26,7 @@ int op_cache_initialize(void)
 				     NULL);
 
 	if (!op_cache) {
-		gossip_err("Cannot create orangefs_op_cache\n");
+		gossip_err("Canyest create orangefs_op_cache\n");
 		return -ENOMEM;
 	}
 

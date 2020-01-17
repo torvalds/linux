@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/module.h>
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
@@ -13,7 +13,7 @@
 #define MLX5_MAX_IRQ_NAME (32)
 
 struct mlx5_irq {
-	struct atomic_notifier_head nh;
+	struct atomic_yestifier_head nh;
 	cpumask_var_t mask;
 	char name[MLX5_MAX_IRQ_NAME];
 };
@@ -56,26 +56,26 @@ static struct mlx5_irq *mlx5_irq_get(struct mlx5_core_dev *dev, int vecidx)
 }
 
 int mlx5_irq_attach_nb(struct mlx5_irq_table *irq_table, int vecidx,
-		       struct notifier_block *nb)
+		       struct yestifier_block *nb)
 {
 	struct mlx5_irq *irq;
 
 	irq = &irq_table->irq[vecidx];
-	return atomic_notifier_chain_register(&irq->nh, nb);
+	return atomic_yestifier_chain_register(&irq->nh, nb);
 }
 
 int mlx5_irq_detach_nb(struct mlx5_irq_table *irq_table, int vecidx,
-		       struct notifier_block *nb)
+		       struct yestifier_block *nb)
 {
 	struct mlx5_irq *irq;
 
 	irq = &irq_table->irq[vecidx];
-	return atomic_notifier_chain_unregister(&irq->nh, nb);
+	return atomic_yestifier_chain_unregister(&irq->nh, nb);
 }
 
 static irqreturn_t mlx5_irq_int_handler(int irq, void *nh)
 {
-	atomic_notifier_call_chain(nh, 0, NULL);
+	atomic_yestifier_call_chain(nh, 0, NULL);
 	return IRQ_HANDLED;
 }
 
@@ -183,7 +183,7 @@ static int set_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
 		return -ENOMEM;
 	}
 
-	cpumask_set_cpu(cpumask_local_spread(i, mdev->priv.numa_node),
+	cpumask_set_cpu(cpumask_local_spread(i, mdev->priv.numa_yesde),
 			irq->mask);
 	if (IS_ENABLED(CONFIG_SMP) &&
 	    irq_set_affinity_hint(irqn, irq->mask))

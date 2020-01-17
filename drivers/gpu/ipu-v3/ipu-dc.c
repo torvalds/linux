@@ -7,7 +7,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -91,7 +91,7 @@ struct ipu_dc {
 	unsigned int		di;
 	void __iomem		*base;
 	struct ipu_dc_priv	*priv;
-	int			chno;
+	int			chyes;
 	bool			in_use;
 };
 
@@ -357,7 +357,7 @@ int ipu_dc_init(struct ipu_soc *ipu, struct device *dev,
 		return -ENOMEM;
 
 	for (i = 0; i < IPU_DC_NUM_CHANNELS; i++) {
-		priv->channels[i].chno = i;
+		priv->channels[i].chyes = i;
 		priv->channels[i].priv = priv;
 		priv->channels[i].base = priv->dc_reg + channel_offsets[i];
 	}

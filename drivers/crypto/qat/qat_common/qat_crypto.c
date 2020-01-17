@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -92,7 +92,7 @@ static int qat_crypto_free_instances(struct adf_accel_dev *accel_dev)
 	return 0;
 }
 
-struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
+struct qat_crypto_instance *qat_crypto_get_instance_yesde(int yesde)
 {
 	struct adf_accel_dev *accel_dev = NULL, *tmp_dev;
 	struct qat_crypto_instance *inst = NULL, *tmp_inst;
@@ -101,8 +101,8 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 	list_for_each_entry(tmp_dev, adf_devmgr_get_head(), list) {
 		unsigned long ctr;
 
-		if ((node == dev_to_node(&GET_DEV(tmp_dev)) ||
-		     dev_to_node(&GET_DEV(tmp_dev)) < 0) &&
+		if ((yesde == dev_to_yesde(&GET_DEV(tmp_dev)) ||
+		     dev_to_yesde(&GET_DEV(tmp_dev)) < 0) &&
 		    adf_dev_started(tmp_dev) &&
 		    !list_empty(&tmp_dev->crypto_list)) {
 			ctr = atomic_read(&tmp_dev->ref_count);
@@ -114,7 +114,7 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 	}
 
 	if (!accel_dev) {
-		pr_info("QAT: Could not find a device on node %d\n", node);
+		pr_info("QAT: Could yest find a device on yesde %d\n", yesde);
 		/* Get any started device */
 		list_for_each_entry(tmp_dev, adf_devmgr_get_head(), list) {
 			if (adf_dev_started(tmp_dev) &&
@@ -140,7 +140,7 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 	}
 	if (inst) {
 		if (adf_dev_get(accel_dev)) {
-			dev_err(&GET_DEV(accel_dev), "Could not increment dev refctr\n");
+			dev_err(&GET_DEV(accel_dev), "Could yest increment dev refctr\n");
 			return NULL;
 		}
 		atomic_inc(&inst->refctr);
@@ -258,8 +258,8 @@ static int qat_crypto_create_instances(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 
 	for (i = 0; i < num_inst; i++) {
-		inst = kzalloc_node(sizeof(*inst), GFP_KERNEL,
-				    dev_to_node(&GET_DEV(accel_dev)));
+		inst = kzalloc_yesde(sizeof(*inst), GFP_KERNEL,
+				    dev_to_yesde(&GET_DEV(accel_dev)));
 		if (!inst)
 			goto err;
 

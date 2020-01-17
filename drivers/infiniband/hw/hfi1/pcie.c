@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -78,7 +78,7 @@ int hfi1_pcie_init(struct hfi1_devdata *dd)
 		 *
 		 * Both reset cases set the BAR back to initial state.  For
 		 * the latter case, the AER sticky error bit at offset 0x718
-		 * should be set, but the Linux kernel doesn't yet know
+		 * should be set, but the Linux kernel doesn't yet kyesw
 		 * about that, it appears.  If the original BAR was retained
 		 * in the kernel data structures, this may be OK.
 		 */
@@ -96,7 +96,7 @@ int hfi1_pcie_init(struct hfi1_devdata *dd)
 	if (ret) {
 		/*
 		 * If the 64 bit setup fails, try 32 bit.  Some systems
-		 * do not setup 64 bit maps on systems with 2GB or less
+		 * do yest setup 64 bit maps on systems with 2GB or less
 		 * memory installed.
 		 */
 		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
@@ -130,7 +130,7 @@ void hfi1_pcie_cleanup(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	/*
 	 * Release regions should be called after the disable. OK to
-	 * call if request regions has not been called or failed.
+	 * call if request regions has yest been called or failed.
 	 */
 	pci_release_regions(pdev);
 }
@@ -157,11 +157,11 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 
 	/* sanity check vs expectations */
 	if (len != TXE_PIO_SEND + TXE_PIO_SIZE) {
-		dd_dev_err(dd, "chip PIO range does not match\n");
+		dd_dev_err(dd, "chip PIO range does yest match\n");
 		return -EINVAL;
 	}
 
-	dd->kregbase1 = ioremap_nocache(addr, RCV_ARRAY);
+	dd->kregbase1 = ioremap_yescache(addr, RCV_ARRAY);
 	if (!dd->kregbase1) {
 		dd_dev_err(dd, "UC mapping of kregbase1 failed\n");
 		return -ENOMEM;
@@ -171,20 +171,20 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 	/* verify that reads actually work, save revision for reset check */
 	dd->revision = readq(dd->kregbase1 + CCE_REVISION);
 	if (dd->revision == ~(u64)0) {
-		dd_dev_err(dd, "Cannot read chip CSRs\n");
-		goto nomem;
+		dd_dev_err(dd, "Canyest read chip CSRs\n");
+		goto yesmem;
 	}
 
 	rcv_array_count = readq(dd->kregbase1 + RCV_ARRAY_CNT);
 	dd_dev_info(dd, "RcvArray count: %u\n", rcv_array_count);
 	dd->base2_start  = RCV_ARRAY + rcv_array_count * 8;
 
-	dd->kregbase2 = ioremap_nocache(
+	dd->kregbase2 = ioremap_yescache(
 		addr + dd->base2_start,
 		TXE_PIO_SEND - dd->base2_start);
 	if (!dd->kregbase2) {
 		dd_dev_err(dd, "UC mapping of kregbase2 failed\n");
-		goto nomem;
+		goto yesmem;
 	}
 	dd_dev_info(dd, "UC base2: %p for %x\n", dd->kregbase2,
 		    TXE_PIO_SEND - dd->base2_start);
@@ -192,7 +192,7 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 	dd->piobase = ioremap_wc(addr + TXE_PIO_SEND, TXE_PIO_SIZE);
 	if (!dd->piobase) {
 		dd_dev_err(dd, "WC mapping of send buffers failed\n");
-		goto nomem;
+		goto yesmem;
 	}
 	dd_dev_info(dd, "WC piobase: %p for %x\n", dd->piobase, TXE_PIO_SIZE);
 
@@ -206,14 +206,14 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 				     rcv_array_count * 8);
 	if (!dd->rcvarray_wc) {
 		dd_dev_err(dd, "WC mapping of receive array failed\n");
-		goto nomem;
+		goto yesmem;
 	}
 	dd_dev_info(dd, "WC RcvArray: %p for %x\n",
 		    dd->rcvarray_wc, rcv_array_count * 8);
 
-	dd->flags |= HFI1_PRESENT;	/* chip.c CSR routines now work */
+	dd->flags |= HFI1_PRESENT;	/* chip.c CSR routines yesw work */
 	return 0;
-nomem:
+yesmem:
 	ret = -ENOMEM;
 	hfi1_pcie_ddcleanup(dd);
 	return ret;
@@ -247,7 +247,7 @@ static u32 extract_speed(u16 linkstat)
 	u32 speed;
 
 	switch (linkstat & PCI_EXP_LNKSTA_CLS) {
-	default: /* not defined, assume Gen1 */
+	default: /* yest defined, assume Gen1 */
 	case PCI_EXP_LNKSTA_CLS_2_5GB:
 		speed = 2500; /* Gen 1, 2.5GHz */
 		break;
@@ -311,7 +311,7 @@ int pcie_speeds(struct hfi1_devdata *dd)
 
 	if ((linkcap & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_8_0GB) {
 		dd_dev_info(dd,
-			    "This HFI is not Gen3 capable, max speed 0x%x, need 0x3\n",
+			    "This HFI is yest Gen3 capable, max speed 0x%x, need 0x3\n",
 			    linkcap & PCI_EXP_LNKCAP_SLS);
 		dd->link_gen3_capable = 0;
 	}
@@ -322,7 +322,7 @@ int pcie_speeds(struct hfi1_devdata *dd)
 	if (parent &&
 	    (dd->pcidev->bus->max_bus_speed == PCIE_SPEED_2_5GT ||
 	     dd->pcidev->bus->max_bus_speed == PCIE_SPEED_5_0GT)) {
-		dd_dev_info(dd, "Parent PCIe bridge does not support Gen3\n");
+		dd_dev_info(dd, "Parent PCIe bridge does yest support Gen3\n");
 		dd->link_gen3_capable = 0;
 	}
 
@@ -445,7 +445,7 @@ error:
 }
 
 /*
- * BIOS may not set PCIe bus-utilization parameters for best performance.
+ * BIOS may yest set PCIe bus-utilization parameters for best performance.
  * Check and optionally adjust them to maximize our throughput.
  */
 static int hfi1_pcie_caps;
@@ -480,23 +480,23 @@ void tune_pcie_caps(struct hfi1_devdata *dd)
 	/* Find out supported and configured values for parent (root) */
 	parent = dd->pcidev->bus->self;
 	/*
-	 * The driver cannot perform the tuning if it does not have
+	 * The driver canyest perform the tuning if it does yest have
 	 * access to the upstream component.
 	 */
 	if (!parent) {
-		dd_dev_info(dd, "Parent not found\n");
+		dd_dev_info(dd, "Parent yest found\n");
 		return;
 	}
 	if (!pci_is_root_bus(parent->bus)) {
-		dd_dev_info(dd, "Parent not root\n");
+		dd_dev_info(dd, "Parent yest root\n");
 		return;
 	}
 	if (!pci_is_pcie(parent)) {
-		dd_dev_info(dd, "Parent is not PCI Express capable\n");
+		dd_dev_info(dd, "Parent is yest PCI Express capable\n");
 		return;
 	}
 	if (!pci_is_pcie(dd->pcidev)) {
-		dd_dev_info(dd, "PCI device is not PCI Express capable\n");
+		dd_dev_info(dd, "PCI device is yest PCI Express capable\n");
 		return;
 	}
 	rc_mpss = parent->pcie_mpss;
@@ -559,8 +559,8 @@ pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	pci_ers_result_t ret = PCI_ERS_RESULT_RECOVERED;
 
 	switch (state) {
-	case pci_channel_io_normal:
-		dd_dev_info(dd, "State Normal, ignoring\n");
+	case pci_channel_io_yesrmal:
+		dd_dev_info(dd, "State Normal, igyesring\n");
 		break;
 
 	case pci_channel_io_frozen:
@@ -572,7 +572,7 @@ pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	case pci_channel_io_perm_failure:
 		if (dd) {
 			dd_dev_info(dd, "State Permanent Failure, disabling\n");
-			/* no more register accesses! */
+			/* yes more register accesses! */
 			dd->flags &= ~HFI1_PRESENT;
 			hfi1_disable_after_error(dd);
 		}
@@ -611,7 +611,7 @@ pci_slot_reset(struct pci_dev *pdev)
 {
 	struct hfi1_devdata *dd = pci_get_drvdata(pdev);
 
-	dd_dev_info(dd, "HFI1 slot_reset function called, ignored\n");
+	dd_dev_info(dd, "HFI1 slot_reset function called, igyesred\n");
 	return PCI_ERS_RESULT_CAN_RECOVER;
 }
 
@@ -622,9 +622,9 @@ pci_resume(struct pci_dev *pdev)
 
 	dd_dev_info(dd, "HFI1 resume function called\n");
 	/*
-	 * Running jobs will fail, since it's asynchronous
+	 * Running jobs will fail, since it's asynchroyesus
 	 * unlike sysfs-requested reset.   Better than
-	 * doing nothing.
+	 * doing yesthing.
 	 */
 	hfi1_init(dd, 1); /* same as re-init after reset */
 }
@@ -641,7 +641,7 @@ const struct pci_error_handlers hfi1_pci_err_handler = {
 
 /*
  * This code is separated out because it is expected to be removed in the
- * final shipping product.  If not, then it will be revisited and items
+ * final shipping product.  If yest, then it will be revisited and items
  * will be moved to more standard locations.
  */
 
@@ -651,7 +651,7 @@ const struct pci_error_handlers hfi1_pci_err_handler = {
 #define DL_STATUS_BOTH 0x3	/* hfi0 and hfi1 firmware download complete */
 
 /* ASIC_PCI_SD_HOST_STATUS.FW_DNLD_ERR field values */
-#define DL_ERR_NONE		0x0	/* no error */
+#define DL_ERR_NONE		0x0	/* yes error */
 #define DL_ERR_SWAP_PARITY	0x1	/* parity error in SerDes interrupt */
 					/*   or response data */
 #define DL_ERR_DISABLED	0x2	/* hfi disabled */
@@ -826,7 +826,7 @@ static void pcie_post_steps(struct hfi1_devdata *dd)
 	 * This avoids a spurious framing error that can otherwise be
 	 * generated by the MAC layer.
 	 *
-	 * Use individual addresses since no broadcast is set up.
+	 * Use individual addresses since yes broadcast is set up.
 	 */
 	for (i = 0; i < NUM_PCIE_SERDES; i++) {
 		sbus_request(dd, pcie_pcs_addrs[dd->hfi1_id][i],
@@ -839,7 +839,7 @@ static void pcie_post_steps(struct hfi1_devdata *dd)
 /*
  * Trigger a secondary bus reset (SBR) on ourselves using our parent.
  *
- * Based on pci_parent_bus_reset() which is not exported by the
+ * Based on pci_parent_bus_reset() which is yest exported by the
  * kernel core.
  */
 static int trigger_sbr(struct hfi1_devdata *dd)
@@ -849,15 +849,15 @@ static int trigger_sbr(struct hfi1_devdata *dd)
 
 	/* need a parent */
 	if (!dev->bus->self) {
-		dd_dev_err(dd, "%s: no parent device\n", __func__);
+		dd_dev_err(dd, "%s: yes parent device\n", __func__);
 		return -ENOTTY;
 	}
 
-	/* should not be anyone else on the bus */
+	/* should yest be anyone else on the bus */
 	list_for_each_entry(pdev, &dev->bus->devices, bus_list)
 		if (pdev != dev) {
 			dd_dev_err(dd,
-				   "%s: another device is on the same bus\n",
+				   "%s: ayesther device is on the same bus\n",
 				   __func__);
 			return -ENOTTY;
 		}
@@ -948,7 +948,7 @@ static void write_xmt_margin(struct hfi1_devdata *dd, const char *fname)
 			       & LANE_BUNDLE_MASK;
 
 		/*
-		 * For A0, EFUSE values are not set.  Override with the
+		 * For A0, EFUSE values are yest set.  Override with the
 		 * correct values.
 		 */
 		if (is_ax(dd)) {
@@ -1030,7 +1030,7 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 	}
 
 	/*
-	 * The driver cannot do the transition if it has no access to the
+	 * The driver canyest do the transition if it has yes access to the
 	 * upstream component
 	 */
 	if (!parent) {
@@ -1049,11 +1049,11 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 
 	/* step 1: pcie link working in gen1/gen2 */
 
-	/* step 2: if either side is not capable of Gen3, done */
+	/* step 2: if either side is yest capable of Gen3, done */
 	if (pcie_target == 3 && !dd->link_gen3_capable) {
-		dd_dev_err(dd, "The PCIe link is not Gen3 capable\n");
+		dd_dev_err(dd, "The PCIe link is yest Gen3 capable\n");
 		ret = -ENOSYS;
-		goto done_no_mutex;
+		goto done_yes_mutex;
 	}
 
 	/* hold the SBus resource across the firmware download and SBR */
@@ -1064,7 +1064,7 @@ int do_pcie_gen3_transition(struct hfi1_devdata *dd)
 		return ret;
 	}
 
-	/* make sure thermal polling is not causing interrupts */
+	/* make sure thermal polling is yest causing interrupts */
 	therm = read_csr(dd, ASIC_CFG_THERM_POLL_EN);
 	if (therm) {
 		write_csr(dd, ASIC_CFG_THERM_POLL_EN, 0x0);
@@ -1081,7 +1081,7 @@ retry:
 	dd_dev_info(dd, "%s: downloading firmware\n", __func__);
 	ret = load_pcie_firmware(dd);
 	if (ret) {
-		/* do not proceed if the firmware cannot be downloaded */
+		/* do yest proceed if the firmware canyest be downloaded */
 		return_error = 1;
 		goto done;
 	}
@@ -1099,7 +1099,7 @@ retry:
 	/* clear all 16 per-lane error bits (PCIe: Lane Error Status) */
 	pci_write_config_dword(dd->pcidev, PCIE_CFG_SPCIE2, 0xffff);
 
-	/* step 5a: Set Synopsys Port Logic registers */
+	/* step 5a: Set Syyespsys Port Logic registers */
 
 	/*
 	 * PcieCfgRegPl2 - Port Force Link
@@ -1231,7 +1231,7 @@ retry:
 	 * step 5f: clear DirectSpeedChange
 	 * PcieCfgRegPl67.DirectSpeedChange must be zero to prevent the
 	 * change in the speed target from starting before we are ready.
-	 * This field defaults to 0 and we are not changing it, so nothing
+	 * This field defaults to 0 and we are yest changing it, so yesthing
 	 * needs to be done.
 	 */
 
@@ -1253,7 +1253,7 @@ retry:
 
 	dd_dev_info(dd, "%s: ..old link control2: 0x%x\n", __func__,
 		    (u32)lnkctl2);
-	/* only write to parent if target is not as high as ours */
+	/* only write to parent if target is yest as high as ours */
 	if ((lnkctl2 & PCI_EXP_LNKCTL2_TLS) < target_vector) {
 		lnkctl2 &= ~PCI_EXP_LNKCTL2_TLS;
 		lnkctl2 |= target_vector;
@@ -1303,9 +1303,9 @@ retry:
 
 	/*
 	 * step 6: quiesce PCIe link
-	 * The chip has already been reset, so there will be no traffic
-	 * from the chip.  Linux has no easy way to enforce that it will
-	 * not try to access the device, so we just need to hope it doesn't
+	 * The chip has already been reset, so there will be yes traffic
+	 * from the chip.  Linux has yes easy way to enforce that it will
+	 * yest try to access the device, so we just need to hope it doesn't
 	 * do it while we are doing the reset.
 	 */
 
@@ -1337,11 +1337,11 @@ retry:
 		goto done;
 	}
 
-	/* restore PCI space registers we know were reset */
+	/* restore PCI space registers we kyesw were reset */
 	dd_dev_info(dd, "%s: calling restore_pci_variables\n", __func__);
 	ret = restore_pci_variables(dd);
 	if (ret) {
-		dd_dev_err(dd, "%s: Could not restore PCI variables\n",
+		dd_dev_err(dd, "%s: Could yest restore PCI variables\n",
 			   __func__);
 		return_error = 1;
 		goto done;
@@ -1354,7 +1354,7 @@ retry:
 	 * Check the gasket block status.
 	 *
 	 * This is the first CSR read after the SBR.  If the read returns
-	 * all 1s (fails), the link did not make it back.
+	 * all 1s (fails), the link did yest make it back.
 	 *
 	 * Once we're sure we can read and write, clear the DC reset after
 	 * the SBR.  Then check for any per-lane errors. Then look over
@@ -1411,10 +1411,10 @@ retry:
 		    dd->lbus_info);
 
 	if (dd->lbus_speed != target_speed ||
-	    dd->lbus_width < target_width) { /* not target */
+	    dd->lbus_width < target_width) { /* yest target */
 		/* maybe retry */
 		do_retry = retry_count < pcie_retry;
-		dd_dev_err(dd, "PCIe link speed or width did not match target%s\n",
+		dd_dev_err(dd, "PCIe link speed or width did yest match target%s\n",
 			   do_retry ? ", retrying" : "");
 		retry_count++;
 		if (do_retry) {
@@ -1432,8 +1432,8 @@ done:
 			    __func__);
 	}
 	release_chip_resource(dd, CR_SBUS);
-done_no_mutex:
-	/* return no error if it is OK to be at current speed */
+done_yes_mutex:
+	/* return yes error if it is OK to be at current speed */
 	if (ret && !return_error) {
 		dd_dev_err(dd, "Proceeding at current speed PCIe speed\n");
 		ret = 0;

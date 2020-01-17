@@ -10,7 +10,7 @@
  * Author: Sakari Ailus <sakari.ailus@linux.intel.com>
  */
 
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/file.h>
 #include <linux/refcount.h>
 
@@ -65,7 +65,7 @@ static void media_request_release(struct kref *kref)
 
 	dev_dbg(mdev->dev, "request: release %s\n", req->debug_str);
 
-	/* No other users, no need for a spinlock */
+	/* No other users, yes need for a spinlock */
 	req->state = MEDIA_REQUEST_STATE_CLEANING;
 
 	media_request_clean(req);
@@ -82,7 +82,7 @@ void media_request_put(struct media_request *req)
 }
 EXPORT_SYMBOL_GPL(media_request_put);
 
-static int media_request_close(struct inode *inode, struct file *filp)
+static int media_request_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct media_request *req = filp->private_data;
 
@@ -155,11 +155,11 @@ static long media_request_ioctl_queue(struct media_request *req)
 	 * If the req_validate was successful, then we mark the state as QUEUED
 	 * and call req_queue. The reason we set the state first is that this
 	 * allows req_queue to unbind or complete the queued objects in case
-	 * they are immediately 'consumed'. State changes from QUEUED to another
+	 * they are immediately 'consumed'. State changes from QUEUED to ayesther
 	 * state can only happen if either the driver changes the state or if
 	 * the user cancels the vb2 queue. The driver can only change the state
-	 * after each object is queued through the req_queue op (and note that
-	 * that op cannot fail), so setting the state to QUEUED up front is
+	 * after each object is queued through the req_queue op (and yeste that
+	 * that op canyest fail), so setting the state to QUEUED up front is
 	 * safe.
 	 *
 	 * The other reason for changing the state is if the vb2 queue is
@@ -194,14 +194,14 @@ static long media_request_ioctl_reinit(struct media_request *req)
 	if (req->state != MEDIA_REQUEST_STATE_IDLE &&
 	    req->state != MEDIA_REQUEST_STATE_COMPLETE) {
 		dev_dbg(mdev->dev,
-			"request: %s not in idle or complete state, cannot reinit\n",
+			"request: %s yest in idle or complete state, canyest reinit\n",
 			req->debug_str);
 		spin_unlock_irqrestore(&req->lock, flags);
 		return -EBUSY;
 	}
 	if (req->access_count) {
 		dev_dbg(mdev->dev,
-			"request: %s is being accessed, cannot reinit\n",
+			"request: %s is being accessed, canyest reinit\n",
 			req->debug_str);
 		spin_unlock_irqrestore(&req->lock, flags);
 		return -EBUSY;
@@ -255,7 +255,7 @@ media_request_get_by_fd(struct media_device *mdev, int request_fd)
 
 	f = fdget(request_fd);
 	if (!f.file)
-		goto err_no_req_fd;
+		goto err_yes_req_fd;
 
 	if (f.file->f_op != &request_fops)
 		goto err_fput;
@@ -268,7 +268,7 @@ media_request_get_by_fd(struct media_device *mdev, int request_fd)
 	 * the request can never be released. The fdget() above ensures that
 	 * even if userspace closes the request filehandle, the release()
 	 * fop won't be called, so the media_request_get() always succeeds
-	 * and there is no race condition where the request was released
+	 * and there is yes race condition where the request was released
 	 * before media_request_get() is called.
 	 */
 	media_request_get(req);
@@ -279,8 +279,8 @@ media_request_get_by_fd(struct media_device *mdev, int request_fd)
 err_fput:
 	fdput(f);
 
-err_no_req_fd:
-	dev_dbg(mdev->dev, "cannot find request_fd %d\n", request_fd);
+err_yes_req_fd:
+	dev_dbg(mdev->dev, "canyest find request_fd %d\n", request_fd);
 	return ERR_PTR(-EINVAL);
 }
 EXPORT_SYMBOL_GPL(media_request_get_by_fd);
@@ -292,7 +292,7 @@ int media_request_alloc(struct media_device *mdev, int *alloc_fd)
 	int fd;
 	int ret;
 
-	/* Either both are NULL or both are non-NULL */
+	/* Either both are NULL or both are yesn-NULL */
 	if (WARN_ON(!mdev->ops->req_alloc ^ !mdev->ops->req_free))
 		return -ENOMEM;
 
@@ -300,7 +300,7 @@ int media_request_alloc(struct media_device *mdev, int *alloc_fd)
 	if (fd < 0)
 		return fd;
 
-	filp = anon_inode_getfile("request", &request_fops, NULL, O_CLOEXEC);
+	filp = ayesn_iyesde_getfile("request", &request_fops, NULL, O_CLOEXEC);
 	if (IS_ERR(filp)) {
 		ret = PTR_ERR(filp);
 		goto err_put_fd;

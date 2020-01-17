@@ -71,8 +71,8 @@ static void __init imx_smp_prepare_cpus(unsigned int max_cpus)
 	imx_smp_prepare();
 
 	/*
-	 * The diagnostic register holds the errata bits.  Mostly bootloader
-	 * does not bring up secondary cores, so that when errata bits are set
+	 * The diagyesstic register holds the errata bits.  Mostly bootloader
+	 * does yest bring up secondary cores, so that when errata bits are set
 	 * in bootloader, they are set only for boot cpu.  But on a SMP
 	 * configuration, it should be equally done on every single core.
 	 * Read the register from boot cpu here, and will replicate it into
@@ -103,11 +103,11 @@ static int ls1021a_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init ls1021a_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *dcfg_base;
 	unsigned long paddr;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,ls1021a-dcfg");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,ls1021a-dcfg");
 	dcfg_base = of_iomap(np, 0);
 	BUG_ON(!dcfg_base);
 

@@ -59,7 +59,7 @@ static int ipq806x_lpass_alloc_dma_channel(struct lpass_data *drvdata, int dir)
 {
 	if (dir == SNDRV_PCM_STREAM_PLAYBACK)
 		return IPQ806X_LPAIF_RDMA_CHAN_MI2S;
-	else	/* Capture currently not implemented */
+	else	/* Capture currently yest implemented */
 		return -EINVAL;
 }
 

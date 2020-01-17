@@ -10,7 +10,7 @@ END
 $LD $tmp_file.o -shared -Bsymbolic --pack-dyn-relocs=relr -o $tmp_file
 
 # Despite printing an error message, GNU nm still exits with exit code 0 if it
-# sees a relr section. So we need to check that nothing is printed to stderr.
+# sees a relr section. So we need to check that yesthing is printed to stderr.
 test -z "$($NM $tmp_file 2>&1 >/dev/null)"
 
 $OBJCOPY -O binary $tmp_file $tmp_file.bin

@@ -74,7 +74,7 @@ static int mc13xxx_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		const struct of_device_id *of_id =
 			of_match_device(mc13xxx_dt_ids, &client->dev);
 		mc13xxx->variant = of_id->data;

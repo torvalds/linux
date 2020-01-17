@@ -101,7 +101,7 @@ static inline u32 qeth_get_device_id(struct ccw_device *cdev)
 	u32 id;
 
 	ccw_device_get_id(cdev, &dev_id);
-	id = dev_id.devno;
+	id = dev_id.devyes;
 	id |= (u32) (dev_id.ssid << 16);
 
 	return id;
@@ -149,7 +149,7 @@ enum qeth_sbp_states {
 struct qeth_sbp_info {
 	__u32 supported_funcs;
 	enum qeth_sbp_roles role;
-	__u32 hostnotification:1;
+	__u32 hostyestification:1;
 	__u32 reflect_promisc:1;
 	__u32 reflect_promisc_primary:1;
 };
@@ -243,7 +243,7 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 #define QETH_PCI_THRESHOLD_A(card) ((card)->qdio.in_buf_pool.buf_count+1)
 /*enqueued free buffers left before we get a PCI*/
 #define QETH_PCI_THRESHOLD_B(card) 0
-/*not used unless the microcode gets patched*/
+/*yest used unless the microcode gets patched*/
 #define QETH_PCI_TIMER_VALUE(card) 3
 
 /* priority queing */
@@ -267,7 +267,7 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 struct qeth_hdr_layer3 {
 	__u8  id;
 	__u8  flags;
-	__u16 inbound_checksum; /*TSO:__u16 seqno */
+	__u16 inbound_checksum; /*TSO:__u16 seqyes */
 	__u32 token;		/*TSO: __u32 reserved */
 	__u16 length;
 	__u8  vlan_prio;
@@ -295,10 +295,10 @@ struct qeth_hdr_layer3 {
 struct qeth_hdr_layer2 {
 	__u8 id;
 	__u8 flags[3];
-	__u8 port_no;
+	__u8 port_yes;
 	__u8 hdr_length;
 	__u16 pkt_length;
-	__u16 seq_no;
+	__u16 seq_yes;
 	__u16 vlan_id;
 	__u32 reserved;
 	__u8 reserved2[16];
@@ -307,7 +307,7 @@ struct qeth_hdr_layer2 {
 struct qeth_hdr_osn {
 	__u8 id;
 	__u8 reserved;
-	__u16 seq_no;
+	__u16 seq_yes;
 	__u16 reserved2;
 	__u16 control_flags;
 	__u16 pdu_length;
@@ -326,7 +326,7 @@ struct qeth_hdr {
 /*TCP Segmentation Offload header*/
 struct qeth_hdr_ext_tso {
 	__u16 hdr_tot_len;
-	__u8  imb_hdr_no;
+	__u8  imb_hdr_yes;
 	__u8  reserved;
 	__u8  hdr_type;
 	__u8  hdr_version;
@@ -478,8 +478,8 @@ struct qeth_card_stats {
 	u64 rx_sg_frags;
 	u64 rx_sg_alloc_page;
 
-	u64 rx_dropped_nomem;
-	u64 rx_dropped_notsupp;
+	u64 rx_dropped_yesmem;
+	u64 rx_dropped_yestsupp;
 	u64 rx_dropped_runt;
 
 	/* rtnl_link_stats64 */
@@ -523,7 +523,7 @@ struct qeth_qdio_out_q {
 	struct qeth_out_q_stats stats;
 	u8 next_buf_to_fill;
 	u8 max_elements;
-	u8 queue_no;
+	u8 queue_yes;
 	u8 do_pack;
 	struct qeth_card *card;
 	atomic_t state;
@@ -543,7 +543,7 @@ struct qeth_qdio_out_q {
 };
 
 #define qeth_for_each_output_queue(card, q, i)		\
-	for (i = 0; i < card->qdio.no_out_queues &&	\
+	for (i = 0; i < card->qdio.yes_out_queues &&	\
 		    (q = card->qdio.out_qs[i]); i++)
 
 #define	qeth_napi_to_out_queue(n) container_of(n, struct qeth_qdio_out_q, napi)
@@ -569,7 +569,7 @@ static inline bool qeth_out_queue_is_empty(struct qeth_qdio_out_q *queue)
 struct qeth_qdio_info {
 	atomic_t state;
 	/* input */
-	int no_in_queues;
+	int yes_in_queues;
 	struct qeth_qdio_q *in_q;
 	struct qeth_qdio_q *c_q;
 	struct qeth_qdio_buffer_pool in_buf_pool;
@@ -577,7 +577,7 @@ struct qeth_qdio_info {
 	int in_buf_size;
 
 	/* output */
-	int no_out_queues;
+	int yes_out_queues;
 	struct qeth_qdio_out_q *out_qs[QETH_MAX_QUEUES];
 	struct qdio_outbuf_state *out_bufstates;
 
@@ -691,7 +691,7 @@ struct qeth_token {
 	__u32 ulp_connection_r;
 };
 
-struct qeth_seqno {
+struct qeth_seqyes {
 	__u32 trans_hdr;
 	__u32 pdu_hdr;
 	__u32 pdu_hdr_ack;
@@ -820,7 +820,7 @@ struct qeth_card {
 	struct qeth_card_stats stats;
 	struct qeth_card_info info;
 	struct qeth_token token;
-	struct qeth_seqno seqno;
+	struct qeth_seqyes seqyes;
 	struct qeth_card_options options;
 
 	struct workqueue_struct *event_wq;
@@ -867,7 +867,7 @@ struct qeth_trap_id {
 	char vmname[8];
 	__u8 chpid;
 	__u8 ssid;
-	__u16 devno;
+	__u16 devyes;
 } __packed;
 
 /*some helper functions*/
@@ -890,7 +890,7 @@ static inline u16 qeth_iqd_translate_txq(struct net_device *dev, u16 txq)
 static inline bool qeth_iqd_is_mcast_queue(struct qeth_card *card,
 					   struct qeth_qdio_out_q *queue)
 {
-	return qeth_iqd_translate_txq(card->dev, queue->queue_no) ==
+	return qeth_iqd_translate_txq(card->dev, queue->queue_yes) ==
 	       QETH_IQD_MCAST_TXQ;
 }
 
@@ -1062,7 +1062,7 @@ struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *card,
 struct qeth_cmd_buffer *qeth_get_diag_cmd(struct qeth_card *card,
 					  enum qeth_diags_cmds sub_cmd,
 					  unsigned int data_length);
-void qeth_notify_cmd(struct qeth_cmd_buffer *iob, int reason);
+void qeth_yestify_cmd(struct qeth_cmd_buffer *iob, int reason);
 void qeth_put_cmd(struct qeth_cmd_buffer *iob);
 
 struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
@@ -1116,7 +1116,7 @@ int qeth_xmit(struct qeth_card *card, struct sk_buff *skb,
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);
-int qeth_osn_register(unsigned char *read_dev_no, struct net_device **,
+int qeth_osn_register(unsigned char *read_dev_yes, struct net_device **,
 		int (*assist_cb)(struct net_device *, void *),
 		int (*data_cb)(struct sk_buff *));
 void qeth_osn_deregister(struct net_device *);

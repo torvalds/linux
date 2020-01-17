@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -46,7 +46,7 @@ extern "C" {
 #define NOUVEAU_GEM_TILE_ZETA        0x00000004
 #define NOUVEAU_GEM_TILE_NONCONTIG   0x00000008
 
-struct drm_nouveau_gem_info {
+struct drm_yesuveau_gem_info {
 	__u32 handle;
 	__u32 domain;
 	__u64 size;
@@ -56,33 +56,33 @@ struct drm_nouveau_gem_info {
 	__u32 tile_flags;
 };
 
-struct drm_nouveau_gem_new {
-	struct drm_nouveau_gem_info info;
+struct drm_yesuveau_gem_new {
+	struct drm_yesuveau_gem_info info;
 	__u32 channel_hint;
 	__u32 align;
 };
 
 #define NOUVEAU_GEM_MAX_BUFFERS 1024
-struct drm_nouveau_gem_pushbuf_bo_presumed {
+struct drm_yesuveau_gem_pushbuf_bo_presumed {
 	__u32 valid;
 	__u32 domain;
 	__u64 offset;
 };
 
-struct drm_nouveau_gem_pushbuf_bo {
+struct drm_yesuveau_gem_pushbuf_bo {
 	__u64 user_priv;
 	__u32 handle;
 	__u32 read_domains;
 	__u32 write_domains;
 	__u32 valid_domains;
-	struct drm_nouveau_gem_pushbuf_bo_presumed presumed;
+	struct drm_yesuveau_gem_pushbuf_bo_presumed presumed;
 };
 
 #define NOUVEAU_GEM_RELOC_LOW  (1 << 0)
 #define NOUVEAU_GEM_RELOC_HIGH (1 << 1)
 #define NOUVEAU_GEM_RELOC_OR   (1 << 2)
 #define NOUVEAU_GEM_MAX_RELOCS 1024
-struct drm_nouveau_gem_pushbuf_reloc {
+struct drm_yesuveau_gem_pushbuf_reloc {
 	__u32 reloc_bo_index;
 	__u32 reloc_bo_offset;
 	__u32 bo_index;
@@ -93,14 +93,14 @@ struct drm_nouveau_gem_pushbuf_reloc {
 };
 
 #define NOUVEAU_GEM_MAX_PUSH 512
-struct drm_nouveau_gem_pushbuf_push {
+struct drm_yesuveau_gem_pushbuf_push {
 	__u32 bo_index;
 	__u32 pad;
 	__u64 offset;
 	__u64 length;
 };
 
-struct drm_nouveau_gem_pushbuf {
+struct drm_yesuveau_gem_pushbuf {
 	__u32 channel;
 	__u32 nr_buffers;
 	__u64 buffers;
@@ -116,12 +116,12 @@ struct drm_nouveau_gem_pushbuf {
 
 #define NOUVEAU_GEM_CPU_PREP_NOWAIT                                  0x00000001
 #define NOUVEAU_GEM_CPU_PREP_WRITE                                   0x00000004
-struct drm_nouveau_gem_cpu_prep {
+struct drm_yesuveau_gem_cpu_prep {
 	__u32 handle;
 	__u32 flags;
 };
 
-struct drm_nouveau_gem_cpu_fini {
+struct drm_yesuveau_gem_cpu_fini {
 	__u32 handle;
 };
 
@@ -141,12 +141,12 @@ struct drm_nouveau_gem_cpu_fini {
 #define DRM_NOUVEAU_GEM_CPU_FINI       0x43
 #define DRM_NOUVEAU_GEM_INFO           0x44
 
-struct drm_nouveau_svm_init {
+struct drm_yesuveau_svm_init {
 	__u64 unmanaged_addr;
 	__u64 unmanaged_size;
 };
 
-struct drm_nouveau_svm_bind {
+struct drm_yesuveau_svm_bind {
 	__u64 header;
 	__u64 va_start;
 	__u64 va_end;
@@ -169,14 +169,14 @@ struct drm_nouveau_svm_bind {
 
 /*
  * Below is use to validate ioctl argument, userspace can also use it to make
- * sure that no bit are set beyond known fields for a given kernel version.
+ * sure that yes bit are set beyond kyeswn fields for a given kernel version.
  */
 #define NOUVEAU_SVM_BIND_VALID_BITS     48
 #define NOUVEAU_SVM_BIND_VALID_MASK     ((1ULL << NOUVEAU_SVM_BIND_VALID_BITS) - 1)
 
 
 /*
- * NOUVEAU_BIND_COMMAND__MIGRATE: synchronous migrate to target memory.
+ * NOUVEAU_BIND_COMMAND__MIGRATE: synchroyesus migrate to target memory.
  * result: number of page successfuly migrate to the target memory.
  */
 #define NOUVEAU_SVM_BIND_COMMAND__MIGRATE               0
@@ -187,14 +187,14 @@ struct drm_nouveau_svm_bind {
 #define NOUVEAU_SVM_BIND_TARGET__GPU_VRAM               (1UL << 31)
 
 
-#define DRM_IOCTL_NOUVEAU_SVM_INIT           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_SVM_INIT, struct drm_nouveau_svm_init)
-#define DRM_IOCTL_NOUVEAU_SVM_BIND           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_SVM_BIND, struct drm_nouveau_svm_bind)
+#define DRM_IOCTL_NOUVEAU_SVM_INIT           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_SVM_INIT, struct drm_yesuveau_svm_init)
+#define DRM_IOCTL_NOUVEAU_SVM_BIND           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_SVM_BIND, struct drm_yesuveau_svm_bind)
 
-#define DRM_IOCTL_NOUVEAU_GEM_NEW            DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_NEW, struct drm_nouveau_gem_new)
-#define DRM_IOCTL_NOUVEAU_GEM_PUSHBUF        DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_PUSHBUF, struct drm_nouveau_gem_pushbuf)
-#define DRM_IOCTL_NOUVEAU_GEM_CPU_PREP       DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_CPU_PREP, struct drm_nouveau_gem_cpu_prep)
-#define DRM_IOCTL_NOUVEAU_GEM_CPU_FINI       DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_CPU_FINI, struct drm_nouveau_gem_cpu_fini)
-#define DRM_IOCTL_NOUVEAU_GEM_INFO           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_INFO, struct drm_nouveau_gem_info)
+#define DRM_IOCTL_NOUVEAU_GEM_NEW            DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_NEW, struct drm_yesuveau_gem_new)
+#define DRM_IOCTL_NOUVEAU_GEM_PUSHBUF        DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_PUSHBUF, struct drm_yesuveau_gem_pushbuf)
+#define DRM_IOCTL_NOUVEAU_GEM_CPU_PREP       DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_CPU_PREP, struct drm_yesuveau_gem_cpu_prep)
+#define DRM_IOCTL_NOUVEAU_GEM_CPU_FINI       DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_CPU_FINI, struct drm_yesuveau_gem_cpu_fini)
+#define DRM_IOCTL_NOUVEAU_GEM_INFO           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GEM_INFO, struct drm_yesuveau_gem_info)
 
 #if defined(__cplusplus)
 }

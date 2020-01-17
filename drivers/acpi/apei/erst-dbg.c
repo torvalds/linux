@@ -29,7 +29,7 @@ static unsigned int erst_dbg_buf_len;
 /* Prevent erst_dbg_read/write from being invoked concurrently */
 static DEFINE_MUTEX(erst_dbg_mutex);
 
-static int erst_dbg_open(struct inode *inode, struct file *file)
+static int erst_dbg_open(struct iyesde *iyesde, struct file *file)
 {
 	int rc, *pos;
 
@@ -42,10 +42,10 @@ static int erst_dbg_open(struct inode *inode, struct file *file)
 	if (rc)
 		return rc;
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
-static int erst_dbg_release(struct inode *inode, struct file *file)
+static int erst_dbg_release(struct iyesde *iyesde, struct file *file)
 {
 	erst_get_record_id_end();
 
@@ -98,7 +98,7 @@ retry_next:
 	rc = erst_get_record_id_next(pos, &id);
 	if (rc)
 		goto out;
-	/* no more record */
+	/* yes more record */
 	if (id == APEI_ERST_INVALID_RECORD_ID) {
 		/*
 		 * If the persistent store is empty initially, the function
@@ -198,11 +198,11 @@ static const struct file_operations erst_dbg_ops = {
 	.read		= erst_dbg_read,
 	.write		= erst_dbg_write,
 	.unlocked_ioctl	= erst_dbg_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice erst_dbg_dev = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.miyesr	= MISC_DYNAMIC_MINOR,
 	.name	= "erst_dbg",
 	.fops	= &erst_dbg_ops,
 };

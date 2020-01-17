@@ -3,7 +3,7 @@
 /*
  * LCD Backlight driver for RAVE SP
  *
- * Copyright (C) 2018 Zodiac Inflight Innovations
+ * Copyright (C) 2018 Zodiac Inflight Inyesvations
  *
  */
 
@@ -56,11 +56,11 @@ static int rave_sp_backlight_probe(struct platform_device *pdev)
 		return PTR_ERR(bd);
 
 	/*
-	 * If there is a phandle pointing to the device node we can
-	 * assume that another device will manage the status changes.
-	 * If not we make sure the backlight is in a consistent state.
+	 * If there is a phandle pointing to the device yesde we can
+	 * assume that ayesther device will manage the status changes.
+	 * If yest we make sure the backlight is in a consistent state.
 	 */
-	if (!dev->of_node->phandle)
+	if (!dev->of_yesde->phandle)
 		backlight_update_status(bd);
 
 	return 0;
@@ -84,5 +84,5 @@ MODULE_DEVICE_TABLE(of, rave_sp_backlight_of_match);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrey Vostrikov <andrey.vostrikov@cogentembedded.com>");
 MODULE_AUTHOR("Nikita Yushchenko <nikita.yoush@cogentembedded.com>");
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiryesv <andrew.smiryesv@gmail.com>");
 MODULE_DESCRIPTION("RAVE SP Backlight driver");

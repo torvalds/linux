@@ -143,29 +143,29 @@ static const struct irq_domain_ops irq_domain_ops = {
 	.map = intc_map,
 };
 
-static int __init intc_of_init(struct device_node *node,
-			       struct device_node *parent)
+static int __init intc_of_init(struct device_yesde *yesde,
+			       struct device_yesde *parent)
 {
 	struct resource res;
 	struct irq_domain *domain;
 	int irq;
 
-	if (!of_property_read_u32_array(node, "ralink,intc-registers",
+	if (!of_property_read_u32_array(yesde, "ralink,intc-registers",
 					rt_intc_regs, 6))
 		pr_info("intc: using register map from devicetree\n");
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (!irq)
 		panic("Failed to get INTC IRQ");
 
-	if (of_address_to_resource(node, 0, &res))
+	if (of_address_to_resource(yesde, 0, &res))
 		panic("Failed to get intc memory range");
 
 	if (!request_mem_region(res.start, resource_size(&res),
 				res.name))
 		pr_err("Failed to request intc memory");
 
-	rt_intc_membase = ioremap_nocache(res.start,
+	rt_intc_membase = ioremap_yescache(res.start,
 					resource_size(&res));
 	if (!rt_intc_membase)
 		panic("Failed to remap intc memory");
@@ -176,7 +176,7 @@ static int __init intc_of_init(struct device_node *node,
 	/* route all INTC interrupts to MIPS HW0 interrupt */
 	rt_intc_w32(0, INTC_REG_TYPE);
 
-	domain = irq_domain_add_legacy(node, RALINK_INTC_IRQ_COUNT,
+	domain = irq_domain_add_legacy(yesde, RALINK_INTC_IRQ_COUNT,
 			RALINK_INTC_IRQ_BASE, 0, &irq_domain_ops, NULL);
 	if (!domain)
 		panic("Failed to add irqdomain");

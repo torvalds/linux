@@ -38,7 +38,7 @@
  *
  * HDMI Output is composed of :
  *
- * - A Synopsys DesignWare HDMI Controller IP
+ * - A Syyespsys DesignWare HDMI Controller IP
  * - A TOP control block controlling the Clocks and PHY
  * - A custom HDMI PHY in order convert video to TMDS signal
  *
@@ -48,15 +48,15 @@
  *   |            HDMI TOP               |<= HPD
  *   |___________________________________|
  *   |                  |                |
- *   |  Synopsys HDMI   |   HDMI PHY     |=> TMDS
+ *   |  Syyespsys HDMI   |   HDMI PHY     |=> TMDS
  *   |    Controller    |________________|
  *   |___________________________________|<=> DDC
  *
  *
  * The HDMI TOP block only supports HPD sensing.
- * The Synopsys HDMI Controller interrupt is routed
+ * The Syyespsys HDMI Controller interrupt is routed
  * through the TOP Block interrupt.
- * Communication to the TOP Block and the Synopsys
+ * Communication to the TOP Block and the Syyespsys
  * HDMI Controller is done a pair of addr+read/write
  * registers.
  * The HDMI PHY is configured by registers in the
@@ -71,7 +71,7 @@
  * or ENCP encoders to generate DVI timings for the
  * HDMI controller.
  *
- * GXBB, GXL and GXM embeds the Synopsys DesignWare
+ * GXBB, GXL and GXM embeds the Syyespsys DesignWare
  * HDMI TX IP version 2.01a with HDCP and I2C & S/PDIF
  * audio source interfaces.
  *
@@ -155,7 +155,7 @@ struct meson_dw_hdmi {
 static inline int dw_hdmi_is_compatible(struct meson_dw_hdmi *dw_hdmi,
 					const char *compat)
 {
-	return of_device_is_compatible(dw_hdmi->dev->of_node, compat);
+	return of_device_is_compatible(dw_hdmi->dev->of_yesde, compat);
 }
 
 /* PHY (via TOP bridge) and Controller dedicated register interface */
@@ -434,7 +434,7 @@ static int dw_hdmi_phy_init(struct dw_hdmi *hdmi, void *data,
 	dw_hdmi_top_write_bits(dw_hdmi, HDMITX_TOP_CLK_CNTL,
 			       0x3 << 4, 0x3 << 4);
 
-	/* Enable normal output to PHY */
+	/* Enable yesrmal output to PHY */
 	dw_hdmi->data->top_write(dw_hdmi, HDMITX_TOP_BIST_CNTL, BIT(12));
 
 	/* TMDS pattern setup (TOFIX Handle the YUV420 case) */
@@ -626,7 +626,7 @@ dw_hdmi_mode_valid(struct drm_connector *connector,
 	    mode->clock > connector->display_info.max_tmds_clock)
 		return MODE_BAD;
 
-	/* Check against non-VIC supported modes */
+	/* Check against yesn-VIC supported modes */
 	if (!vic) {
 		status = meson_venc_hdmi_supported_mode(mode);
 		if (status != MODE_OK)
@@ -722,7 +722,7 @@ static void meson_venc_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	/* VCLK Set clock */
 	dw_hdmi_set_vclk(dw_hdmi, mode);
 
-	/* Setup YUV444 to HDMI-TX, no 10bit diphering */
+	/* Setup YUV444 to HDMI-TX, yes 10bit diphering */
 	writel_relaxed(0, priv->io_base + _REG(VPU_HDMI_FMT_CTRL));
 }
 
@@ -782,22 +782,22 @@ static const struct meson_dw_hdmi_data meson_dw_hdmi_g12a_data = {
 
 static bool meson_hdmi_connector_is_available(struct device *dev)
 {
-	struct device_node *ep, *remote;
+	struct device_yesde *ep, *remote;
 
 	/* HDMI Connector is on the second port, first endpoint */
-	ep = of_graph_get_endpoint_by_regs(dev->of_node, 1, 0);
+	ep = of_graph_get_endpoint_by_regs(dev->of_yesde, 1, 0);
 	if (!ep)
 		return false;
 
-	/* If the endpoint node exists, consider it enabled */
+	/* If the endpoint yesde exists, consider it enabled */
 	remote = of_graph_get_remote_port(ep);
 	if (remote) {
-		of_node_put(ep);
+		of_yesde_put(ep);
 		return true;
 	}
 
-	of_node_put(ep);
-	of_node_put(remote);
+	of_yesde_put(ep);
+	of_yesde_put(remote);
 
 	return false;
 }
@@ -860,7 +860,7 @@ static int meson_dw_hdmi_bind(struct device *dev, struct device *master,
 	DRM_DEBUG_DRIVER("\n");
 
 	if (!meson_hdmi_connector_is_available(dev)) {
-		dev_info(drm->dev, "HDMI Output connector not available\n");
+		dev_info(drm->dev, "HDMI Output connector yest available\n");
 		return -ENODEV;
 	}
 

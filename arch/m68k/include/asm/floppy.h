@@ -22,7 +22,7 @@ asmlinkage irqreturn_t floppy_hardint(int irq, void *dev_id);
 /* constants... */
 
 #undef MAX_DMA_ADDRESS
-#define MAX_DMA_ADDRESS   0x00  /* nothing like that */
+#define MAX_DMA_ADDRESS   0x00  /* yesthing like that */
 
 
 /*
@@ -102,12 +102,12 @@ static void fd_free_irq(void)
 #define fd_dma_mem_alloc(size)	vdma_mem_alloc(size)
 #define fd_dma_setup(addr, size, mode, io) vdma_dma_setup(addr, size, mode, io)
 
-#define fd_enable_irq()           /* nothing... */
-#define fd_disable_irq()          /* nothing... */
+#define fd_enable_irq()           /* yesthing... */
+#define fd_disable_irq()          /* yesthing... */
 
-#define fd_free_dma()             /* nothing */
+#define fd_free_dma()             /* yesthing */
 
-/* No 64k boundary crossing problems on Q40 - no DMA at all */
+/* No 64k boundary crossing problems on Q40 - yes DMA at all */
 #define CROSS_64KB(a,s) (0)
 
 #define DMA_MODE_READ  0x44    /* i386 look-alike */

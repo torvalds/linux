@@ -35,7 +35,7 @@
 
 struct special_entry {
 	const char *sec;
-	bool group, jump_or_nop;
+	bool group, jump_or_yesp;
 	unsigned char size, orig, new;
 	unsigned char orig_len, new_len; /* group only */
 	unsigned char feature; /* ALTERNATIVE macro CPU feature */
@@ -54,7 +54,7 @@ struct special_entry entries[] = {
 	},
 	{
 		.sec = "__jump_table",
-		.jump_or_nop = true,
+		.jump_or_yesp = true,
 		.size = JUMP_ENTRY_SIZE,
 		.orig = JUMP_ORIG_OFFSET,
 		.new = JUMP_NEW_OFFSET,
@@ -78,7 +78,7 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 	offset = idx * entry->size;
 
 	alt->group = entry->group;
-	alt->jump_or_nop = entry->jump_or_nop;
+	alt->jump_or_yesp = entry->jump_or_yesp;
 
 	if (alt->group) {
 		alt->orig_len = *(unsigned char *)(sec->data->d_buf + offset +
@@ -124,7 +124,7 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 		return -1;
 	}
 	if (orig_rela->sym->type != STT_SECTION) {
-		WARN_FUNC("don't know how to handle non-section rela symbol %s",
+		WARN_FUNC("don't kyesw how to handle yesn-section rela symbol %s",
 			   sec, offset + entry->orig, orig_rela->sym->name);
 		return -1;
 	}
@@ -172,7 +172,7 @@ int special_get_alts(struct elf *elf, struct list_head *alts)
 			continue;
 
 		if (sec->len % entry->size != 0) {
-			WARN("%s size not a multiple of %d",
+			WARN("%s size yest a multiple of %d",
 			     sec->name, entry->size);
 			return -1;
 		}

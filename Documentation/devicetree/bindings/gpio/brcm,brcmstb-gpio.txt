@@ -19,7 +19,7 @@ Required properties:
     bit[0]: polarity (0 for active-high, 1 for active-low)
 
 - gpio-controller:
-    Specifies that the node is a GPIO controller.
+    Specifies that the yesde is a GPIO controller.
 
 - brcm,gpio-bank-widths:
     Number of GPIO lines for each bank.  Number of elements must
@@ -49,7 +49,7 @@ Optional properties:
     See also Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 
 - interrupt-controller:
-    Marks the device node as an interrupt controller
+    Marks the device yesde as an interrupt controller
 
 - wakeup-source:
     GPIOs for this controller can be used as a wakeup source

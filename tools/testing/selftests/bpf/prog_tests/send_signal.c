@@ -22,18 +22,18 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 	__u64 val;
 
 	if (CHECK(pipe(pipe_c2p), test_name,
-		  "pipe pipe_c2p error: %s\n", strerror(errno)))
+		  "pipe pipe_c2p error: %s\n", strerror(erryes)))
 		return;
 
 	if (CHECK(pipe(pipe_p2c), test_name,
-		  "pipe pipe_p2c error: %s\n", strerror(errno))) {
+		  "pipe pipe_p2c error: %s\n", strerror(erryes))) {
 		close(pipe_c2p[0]);
 		close(pipe_c2p[1]);
 		return;
 	}
 
 	pid = fork();
-	if (CHECK(pid < 0, test_name, "fork error: %s\n", strerror(errno))) {
+	if (CHECK(pid < 0, test_name, "fork error: %s\n", strerror(erryes))) {
 		close(pipe_c2p[0]);
 		close(pipe_c2p[1]);
 		close(pipe_p2c[0]);
@@ -42,13 +42,13 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 	}
 
 	if (pid == 0) {
-		/* install signal handler and notify parent */
+		/* install signal handler and yestify parent */
 		signal(SIGUSR1, sigusr1_handler);
 
 		close(pipe_c2p[0]); /* close read */
 		close(pipe_p2c[1]); /* close write */
 
-		/* notify parent signal handler is installed */
+		/* yestify parent signal handler is installed */
 		write(pipe_c2p[1], buf, 1);
 
 		/* make sure parent enabled bpf program to send_signal */
@@ -62,7 +62,7 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 		else
 			write(pipe_c2p[1], "0", 1);
 
-		/* wait for parent notification and exit */
+		/* wait for parent yestification and exit */
 		read(pipe_p2c[0], buf, 1);
 
 		close(pipe_c2p[1]);
@@ -75,25 +75,25 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 
 	err = bpf_prog_load(file, prog_type, &obj, &prog_fd);
 	if (CHECK(err < 0, test_name, "bpf_prog_load error: %s\n",
-		  strerror(errno)))
+		  strerror(erryes)))
 		goto prog_load_failure;
 
 	pmu_fd = syscall(__NR_perf_event_open, attr, pid, -1,
 			 -1 /* group id */, 0 /* flags */);
 	if (CHECK(pmu_fd < 0, test_name, "perf_event_open error: %s\n",
-		  strerror(errno))) {
+		  strerror(erryes))) {
 		err = -1;
 		goto close_prog;
 	}
 
 	err = ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0);
 	if (CHECK(err < 0, test_name, "ioctl perf_event_ioc_enable error: %s\n",
-		  strerror(errno)))
+		  strerror(erryes)))
 		goto disable_pmu;
 
 	err = ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd);
 	if (CHECK(err < 0, test_name, "ioctl perf_event_ioc_set_bpf error: %s\n",
-		  strerror(errno)))
+		  strerror(erryes)))
 		goto disable_pmu;
 
 	err = -1;
@@ -113,12 +113,12 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 	val = (((__u64)(SIGUSR1)) << 32) | pid;
 	bpf_map_update_elem(info_map_fd, &key, &val, 0);
 
-	/* notify child that bpf program can send_signal now */
+	/* yestify child that bpf program can send_signal yesw */
 	write(pipe_p2c[1], buf, 1);
 
 	/* wait for result */
 	err = read(pipe_c2p[0], buf, 1);
-	if (CHECK(err < 0, test_name, "reading pipe error: %s\n", strerror(errno)))
+	if (CHECK(err < 0, test_name, "reading pipe error: %s\n", strerror(erryes)))
 		goto disable_pmu;
 	if (CHECK(err == 0, test_name, "reading pipe error: size 0\n")) {
 		err = -1;
@@ -127,7 +127,7 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 
 	CHECK(buf[0] != '2', test_name, "incorrect result\n");
 
-	/* notify child safe to exit */
+	/* yestify child safe to exit */
 	write(pipe_p2c[1], buf, 1);
 
 disable_pmu:
@@ -142,7 +142,7 @@ prog_load_failure:
 
 static void test_send_signal_tracepoint(void)
 {
-	const char *id_path = "/sys/kernel/debug/tracing/events/syscalls/sys_enter_nanosleep/id";
+	const char *id_path = "/sys/kernel/debug/tracing/events/syscalls/sys_enter_nayessleep/id";
 	struct perf_event_attr attr = {
 		.type = PERF_TYPE_TRACEPOINT,
 		.sample_type = PERF_SAMPLE_RAW | PERF_SAMPLE_CALLCHAIN,
@@ -155,15 +155,15 @@ static void test_send_signal_tracepoint(void)
 
 	efd = open(id_path, O_RDONLY, 0);
 	if (CHECK(efd < 0, "tracepoint",
-		  "open syscalls/sys_enter_nanosleep/id failure: %s\n",
-		  strerror(errno)))
+		  "open syscalls/sys_enter_nayessleep/id failure: %s\n",
+		  strerror(erryes)))
 		return;
 
 	bytes = read(efd, buf, sizeof(buf));
 	close(efd);
 	if (CHECK(bytes <= 0 || bytes >= sizeof(buf), "tracepoint",
-		  "read syscalls/sys_enter_nanosleep/id failure: %s\n",
-		  strerror(errno)))
+		  "read syscalls/sys_enter_nayessleep/id failure: %s\n",
+		  strerror(erryes)))
 		return;
 
 	attr.config = strtol(buf, NULL, 0);
@@ -199,8 +199,8 @@ static void test_send_signal_nmi(void)
 	pmu_fd = syscall(__NR_perf_event_open, &attr, 0 /* pid */,
 			 -1 /* cpu */, -1 /* group_fd */, 0 /* flags */);
 	if (pmu_fd == -1) {
-		if (errno == ENOENT) {
-			printf("%s:SKIP:no PERF_COUNT_HW_CPU_CYCLES\n",
+		if (erryes == ENOENT) {
+			printf("%s:SKIP:yes PERF_COUNT_HW_CPU_CYCLES\n",
 			       __func__);
 			test__skip();
 			return;

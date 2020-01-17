@@ -110,9 +110,9 @@ static unsigned char cfag12864b_isset(unsigned char x, unsigned char y)
 }
 
 /*
- * not (x, y) pixel
+ * yest (x, y) pixel
  */
-static void cfag12864b_not(unsigned char x, unsigned char y)
+static void cfag12864b_yest(unsigned char x, unsigned char y)
 {
 	if (cfag12864b_isset(x, y))
 		cfag12864b_unset(x, y);
@@ -229,10 +229,10 @@ static void example(unsigned char n)
 		break;
 
 	case 6:
-		printf("Do negative not-ing all bits");
+		printf("Do negative yest-ing all bits");
 		for (i = 0; i < CFAG12864B_WIDTH; i++)
 			for (j = 0; j < CFAG12864B_HEIGHT; j ++)
-				cfag12864b_not(i, j);
+				cfag12864b_yest(i, j);
 		break;
 	}
 

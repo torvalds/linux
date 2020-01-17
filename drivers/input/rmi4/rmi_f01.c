@@ -84,7 +84,7 @@ struct f01_basic_properties {
 #define RMI_F01_CTRL0_NOSLEEP_BIT	BIT(2)
 
 /*
- * When this bit is set, the touch controller employs a noise-filtering
+ * When this bit is set, the touch controller employs a yesise-filtering
  * algorithm designed for use with a connected battery charger.
  */
 #define RMI_F01_CTRL0_CHARGER_BIT	BIT(5)
@@ -127,7 +127,7 @@ struct f01_data {
 	u16 doze_holdoff_addr;
 
 	bool suspended;
-	bool old_nosleep;
+	bool old_yessleep;
 
 	unsigned int num_of_irq_regs;
 };
@@ -343,8 +343,8 @@ static int rmi_f01_of_probe(struct device *dev,
 	u32 val;
 
 	retval = rmi_of_property_read_u32(dev,
-			(u32 *)&pdata->power_management.nosleep,
-			"syna,nosleep-mode", 1);
+			(u32 *)&pdata->power_management.yessleep,
+			"syna,yessleep-mode", 1);
 	if (retval)
 		return retval;
 
@@ -390,7 +390,7 @@ static int rmi_f01_probe(struct rmi_function *fn)
 	u8 device_status;
 	u8 temp;
 
-	if (fn->dev.of_node) {
+	if (fn->dev.of_yesde) {
 		error = rmi_f01_of_probe(&fn->dev, pdata);
 		if (error)
 			return error;
@@ -414,7 +414,7 @@ static int rmi_f01_probe(struct rmi_function *fn)
 		return error;
 	}
 
-	switch (pdata->power_management.nosleep) {
+	switch (pdata->power_management.yessleep) {
 	case RMI_REG_STATE_DEFAULT:
 		break;
 	case RMI_REG_STATE_OFF:
@@ -461,7 +461,7 @@ static int rmi_f01_probe(struct rmi_function *fn)
 	}
 
 	dev_info(&fn->dev, "found RMI device, manufacturer: %s, product: %s, fw id: %d\n",
-		 f01->properties.manufacturer_id == 1 ? "Synaptics" : "unknown",
+		 f01->properties.manufacturer_id == 1 ? "Synaptics" : "unkyeswn",
 		 f01->properties.product_id, f01->properties.firmware_id);
 
 	/* Advance to interrupt control registers, then skip over them. */
@@ -576,7 +576,7 @@ static int rmi_f01_probe(struct rmi_function *fn)
 
 static void rmi_f01_remove(struct rmi_function *fn)
 {
-	/* Note that the bus device is used, not the F01 device */
+	/* Note that the bus device is used, yest the F01 device */
 	sysfs_remove_group(&fn->rmi_dev->dev.kobj, &rmi_f01_attr_group);
 }
 
@@ -632,7 +632,7 @@ static int rmi_f01_suspend(struct rmi_function *fn)
 	struct f01_data *f01 = dev_get_drvdata(&fn->dev);
 	int error;
 
-	f01->old_nosleep =
+	f01->old_yessleep =
 		f01->device_control.ctrl0 & RMI_F01_CTRL0_NOSLEEP_BIT;
 	f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_NOSLEEP_BIT;
 
@@ -646,7 +646,7 @@ static int rmi_f01_suspend(struct rmi_function *fn)
 			  f01->device_control.ctrl0);
 	if (error) {
 		dev_err(&fn->dev, "Failed to write sleep mode: %d.\n", error);
-		if (f01->old_nosleep)
+		if (f01->old_yessleep)
 			f01->device_control.ctrl0 |= RMI_F01_CTRL0_NOSLEEP_BIT;
 		f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_SLEEP_MODE_MASK;
 		f01->device_control.ctrl0 |= RMI_SLEEP_MODE_NORMAL;
@@ -661,7 +661,7 @@ static int rmi_f01_resume(struct rmi_function *fn)
 	struct f01_data *f01 = dev_get_drvdata(&fn->dev);
 	int error;
 
-	if (f01->old_nosleep)
+	if (f01->old_yessleep)
 		f01->device_control.ctrl0 |= RMI_F01_CTRL0_NOSLEEP_BIT;
 
 	f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_SLEEP_MODE_MASK;
@@ -671,7 +671,7 @@ static int rmi_f01_resume(struct rmi_function *fn)
 			  f01->device_control.ctrl0);
 	if (error) {
 		dev_err(&fn->dev,
-			"Failed to restore normal operation: %d.\n", error);
+			"Failed to restore yesrmal operation: %d.\n", error);
 		return error;
 	}
 
@@ -712,7 +712,7 @@ struct rmi_function_handler rmi_f01_handler = {
 	.driver = {
 		.name	= "rmi4_f01",
 		/*
-		 * Do not allow user unbinding F01 as it is critical
+		 * Do yest allow user unbinding F01 as it is critical
 		 * function.
 		 */
 		.suppress_bind_attrs = true,

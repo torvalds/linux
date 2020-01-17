@@ -54,9 +54,9 @@ struct kmem_cache {
 	unsigned long reaped;
 	unsigned long errors;
 	unsigned long max_freeable;
-	unsigned long node_allocs;
-	unsigned long node_frees;
-	unsigned long node_overflow;
+	unsigned long yesde_allocs;
+	unsigned long yesde_frees;
+	unsigned long yesde_overflow;
 	atomic_t allochit;
 	atomic_t allocmiss;
 	atomic_t freehit;
@@ -86,7 +86,7 @@ struct kmem_cache {
 	unsigned int useroffset;	/* Usercopy region offset */
 	unsigned int usersize;		/* Usercopy region size */
 
-	struct kmem_cache_node *node[MAX_NUMNODES];
+	struct kmem_cache_yesde *yesde[MAX_NUMNODES];
 };
 
 static inline void *nearest_obj(struct kmem_cache *cache, struct page *page,

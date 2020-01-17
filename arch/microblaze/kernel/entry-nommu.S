@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2007-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2007-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -10,7 +10,7 @@
 
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/entry.h>
 #include <asm/asm-offsets.h>
 #include <asm/registers.h>
@@ -55,7 +55,7 @@ ENTRY(_interrupt)
 	swi	r11, r0, PER_CPU(R11_SAVE)	/* temporarily save r11 */
 	lwi	r11, r0, PER_CPU(KM)		/* load mode indicator */
 	beqid	r11, 1f
-	nop
+	yesp
 	brid	2f				/* jump over */
 	addik	r1, r1, (-PT_SIZE)	/* room for pt_regs (delay slot) */
 1:						/* switch to kernel stack */
@@ -122,7 +122,7 @@ ENTRY(_interrupt)
 
 ret_from_intr:
 	lwi	r11, r1, PT_MODE
-	bneid	r11, no_intr_resched
+	bneid	r11, yes_intr_resched
 
 3:
 	lwi	r6, r31, TS_THREAD_INFO	/* get thread info */
@@ -132,17 +132,17 @@ ret_from_intr:
 	andi	r11, r19, _TIF_NEED_RESCHED
 	beqi	r11, 1f
 	bralid	r15, schedule
-	nop
+	yesp
 	bri	3b
 1:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
-	beqid	r11, no_intr_resched
+	beqid	r11, yes_intr_resched
 	addk	r5, r1, r0
-	bralid	r15, do_notify_resume
+	bralid	r15, do_yestify_resume
 	addk	r6, r0, r0
 	bri	3b
 
-no_intr_resched:
-	/* Disable interrupts, we are now committed to the state restore */
+yes_intr_resched:
+	/* Disable interrupts, we are yesw committed to the state restore */
 	disable_irq
 
 	/* save mode indicator */
@@ -194,7 +194,7 @@ restore_context:
 	lwi	r2, r1, PT_R2
 	lwi	r1, r1, PT_R1
 	rtid	r14, 0
-	nop
+	yesp
 
 ENTRY(_reset)
 	brai	0;
@@ -204,7 +204,7 @@ ENTRY(_user_exception)
 	swi	r11, r0, PER_CPU(R11_SAVE)	/* temporarily save r11 */
 	lwi	r11, r0, PER_CPU(KM)		/* load mode indicator */
 	beqid	r11, 1f				/* Already in kernel mode? */
-	nop
+	yesp
 	brid	2f				/* jump over */
 	addik	r1, r1, (-PT_SIZE)	/* Room for pt_regs (delay slot) */
 1:						/* Switch to kernel stack */
@@ -253,9 +253,9 @@ ENTRY(_user_exception)
 	swi	r31, r1, PT_R31
 
 	disable_irq
-	nop		/* make sure IE bit is in effect */
+	yesp		/* make sure IE bit is in effect */
 	clear_bip	/* once IE is in effect it is safe to clear BIP */
-	nop
+	yesp
 
 	/* special purpose registers */
 	mfs	r11, rmsr
@@ -274,12 +274,12 @@ ENTRY(_user_exception)
 	swi	r11, r0, PER_CPU(KM)
 	/* restore r31 */
 	lwi	r31, r0, PER_CPU(CURRENT_SAVE)
-	/* re-enable interrupts now we are in kernel mode */
+	/* re-enable interrupts yesw we are in kernel mode */
 	enable_irq
 
 	/* See if the system call number is valid. */
 	addi	r11, r12, -__NR_syscalls
-	bgei	r11, 1f			/* return to user if not valid */
+	bgei	r11, 1f			/* return to user if yest valid */
 	/* Figure out which function to use for this system call. */
 	/* Note Microblaze barrel shift is optional, so don't rely on it */
 	add	r12, r12, r12			/* convert num -> ptr */
@@ -291,12 +291,12 @@ ENTRY(_user_exception)
 	bri	0				/* won't reach here */
 1:
 	brid	ret_to_user			/* jump to syscall epilogue */
-	addi	r3, r0, -ENOSYS			/* set errno in delay slot */
+	addi	r3, r0, -ENOSYS			/* set erryes in delay slot */
 
 /*
  * Debug traps are like a system call, but entered via brki r14, 0x60
  * All we need to do is send the SIGTRAP signal to current, ptrace and
- * do_notify_resume will handle the rest
+ * do_yestify_resume will handle the rest
  */
 ENTRY(_debug_exception)
 	swi	r1, r0, PER_CPU(ENTRY_SP)	/* save the current sp */
@@ -344,9 +344,9 @@ ENTRY(_debug_exception)
 	swi	r31, r1, PT_R31
 
 	disable_irq
-	nop		/* make sure IE bit is in effect */
+	yesp		/* make sure IE bit is in effect */
 	clear_bip	/* once IE is in effect it is safe to clear BIP */
-	nop
+	yesp
 
 	/* special purpose registers */
 	mfs	r11, rmsr
@@ -365,7 +365,7 @@ ENTRY(_debug_exception)
 	swi	r11, r0, PER_CPU(KM)
 	/* restore r31 */
 	lwi	r31, r0, PER_CPU(CURRENT_SAVE)
-	/* re-enable interrupts now we are in kernel mode */
+	/* re-enable interrupts yesw we are in kernel mode */
 	enable_irq
 
 	addi	r5, r0, SIGTRAP			/* sending the trap signal */
@@ -402,7 +402,7 @@ ENTRY(_switch_to)
 	swi	r16, r11, CC_R16
 	swi	r17, r11, CC_R17
 	swi	r18, r11, CC_R18
-	/* save non-volatile registers */
+	/* save yesn-volatile registers */
 	swi	r19, r11, CC_R19
 	swi	r20, r11, CC_R20
 	swi	r21, r11, CC_R21
@@ -441,7 +441,7 @@ ENTRY(_switch_to)
 	mts	rear, r12
 	lwi	r12, r11, CC_MSR
 	mts	rmsr, r12
-	/* non-volatile registers */
+	/* yesn-volatile registers */
 	lwi	r30, r11, CC_R30
 	lwi	r29, r11, CC_R29
 	lwi	r28, r11, CC_R28
@@ -466,17 +466,17 @@ ENTRY(_switch_to)
 	lwi	r1, r11, CC_R1
 
 	rtsd	r15, 8
-	nop
+	yesp
 
 ENTRY(ret_from_fork)
 	addk	r5, r0, r3
 	brlid	r15, schedule_tail
-	nop
+	yesp
 	swi	r31, r1, PT_R31		/* save r31 in user context. */
 			/* will soon be restored to r31 in ret_to_user */
 	addk	r3, r0, r0
 	brid	ret_to_user
-	nop
+	yesp
 
 ENTRY(ret_from_kernel_thread)
 	brlid	r15, schedule_tail
@@ -494,14 +494,14 @@ work_pending:
 	andi	r11, r19, _TIF_NEED_RESCHED
 	beqi	r11, 1f
 	bralid	r15, schedule
-	nop
+	yesp
 	bri	4f
 1:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
-	beqi	r11, no_work_pending
+	beqi	r11, yes_work_pending
 	addk	r5, r30, r0
-	bralid	r15, do_notify_resume
+	bralid	r15, do_yestify_resume
 	addik	r6, r0, 1
-	addk	r30, r0, r0	/* no restarts from now on */
+	addk	r30, r0, r0	/* yes restarts from yesw on */
 4:
 	disable_irq
 	lwi	r6, r31, TS_THREAD_INFO /* get thread info */
@@ -517,7 +517,7 @@ ENTRY(ret_to_user)
 	lwi	r6, r31, TS_THREAD_INFO /* get thread info */
 	lwi	r19, r6, TI_FLAGS /* get flags in thread info */
 	bnei	r19, work_pending /* do an extra work if any bits are set */
-no_work_pending:
+yes_work_pending:
 	disable_irq
 
 2:
@@ -570,10 +570,10 @@ no_work_pending:
 	lwi	r1, r1, PT_R1
 
 	rtid	r14, 0
-	nop
+	yesp
 
 sys_rt_sigreturn_wrapper:
-	addk	r30, r0, r0		/* no restarts for this one */
+	addk	r30, r0, r0		/* yes restarts for this one */
 	brid	sys_rt_sigreturn
 	addk	r5, r1, r0
 
@@ -616,7 +616,7 @@ microblaze_trap_handlers:
 	.word ret_to_user  ; .word ret_to_user    ; .word type_SYSCALL
 	.word ret_from_intr; .word ret_from_intr  ; .word type_IRQ
 	/* Fuzzy matches go here */
-	.word ret_from_intr; .word no_intr_resched; .word type_IRQ_PREEMPT
-	.word work_pending ; .word no_work_pending; .word type_SYSCALL_PREEMPT
+	.word ret_from_intr; .word yes_intr_resched; .word type_IRQ_PREEMPT
+	.word work_pending ; .word yes_work_pending; .word type_SYSCALL_PREEMPT
 	/* End of table */
 	.word 0             ; .word 0               ; .word 0

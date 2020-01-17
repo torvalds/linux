@@ -220,7 +220,7 @@ static u8 dm644x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 /*----------------------------------------------------------------------*/
 
 static s8 queue_priority_mapping[][2] = {
-	/* {event queue no, Priority} */
+	/* {event queue yes, Priority} */
 	{0, 3},
 	{1, 7},
 	{-1, -1},
@@ -271,7 +271,7 @@ static struct resource edma_resources[] = {
 		.start	= DAVINCI_INTC_IRQ(IRQ_CCERRINT),
 		.flags	= IORESOURCE_IRQ,
 	},
-	/* not using TC*_ERR */
+	/* yest using TC*_ERR */
 };
 
 static const struct platform_device_info dm644x_edma_device __initconst = {
@@ -521,7 +521,7 @@ static struct resource dm644_gpio_resources[] = {
 };
 
 static struct davinci_gpio_platform_data dm644_gpio_platform_data = {
-	.no_auto_base	= true,
+	.yes_auto_base	= true,
 	.base		= 0,
 	.ngpio		= 71,
 };
@@ -547,14 +547,14 @@ static struct map_desc dm644x_io_desc[] = {
 static struct davinci_id dm644x_ids[] = {
 	{
 		.variant	= 0x0,
-		.part_no	= 0xb700,
+		.part_yes	= 0xb700,
 		.manufacturer	= 0x017,
 		.cpu_id		= DAVINCI_CPU_ID_DM6446,
 		.name		= "dm6446",
 	},
 	{
 		.variant	= 0x1,
-		.part_no	= 0xb700,
+		.part_yes	= 0xb700,
 		.manufacturer	= 0x017,
 		.cpu_id		= DAVINCI_CPU_ID_DM6446,
 		.name		= "dm6446a",

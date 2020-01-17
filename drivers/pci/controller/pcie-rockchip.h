@@ -162,7 +162,7 @@
 #define   PCIE_CORE_IB_REGION_ADDR0_LO_ADDR	0xffffff00
 #define PCIE_RP_IB_ADDR1		(PCIE_CORE_AXI_INBOUND_BASE + 0x4)
 
-/* Size of one AXI Region (not Region 0) */
+/* Size of one AXI Region (yest Region 0) */
 #define AXI_REGION_SIZE				BIT(20)
 /* Size of Region 0, equal to sum of sizes of other regions */
 #define AXI_REGION_0_SIZE			(32 * (0x1 << 20))

@@ -6,7 +6,7 @@
 #include <asm/machvec.h>
 
 /*
- * Only legacy non-sparseirq platforms have to set a reasonably sane
+ * Only legacy yesn-sparseirq platforms have to set a reasonably sane
  * value here. sparseirq platforms allocate their irq_descs on the fly,
  * so will expand automatically based on the number of registered IRQs.
  */
@@ -17,8 +17,8 @@
 #endif
 
 /*
- * This is a special IRQ number for indicating that no IRQ has been
- * triggered and to simply ignore the IRQ dispatch. This is a special
+ * This is a special IRQ number for indicating that yes IRQ has been
+ * triggered and to simply igyesre the IRQ dispatch. This is a special
  * case that can happen with IRQ auto-distribution when multiple CPUs
  * are woken up and signalled in parallel.
  */

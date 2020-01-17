@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -142,7 +142,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	} else {
 		ret = vmw_mob_pt_populate(dev_priv, mob);
 		if (unlikely(ret != 0))
-			goto out_no_populate;
+			goto out_yes_populate;
 
 		vmw_mob_pt_setup(mob, iter, otable->size >> PAGE_SHIFT);
 		mob->pt_level += VMW_MOBFMT_PTDEPTH_1 - SVGA3D_MOBFMT_PTDEPTH_1;
@@ -151,7 +151,7 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
 		ret = -ENOMEM;
-		goto out_no_fifo;
+		goto out_yes_fifo;
 	}
 
 	memset(cmd, 0, sizeof(*cmd));
@@ -175,8 +175,8 @@ static int vmw_setup_otable_base(struct vmw_private *dev_priv,
 
 	return 0;
 
-out_no_fifo:
-out_no_populate:
+out_yes_fifo:
+out_yes_populate:
 	vmw_mob_destroy(mob);
 	return ret;
 }
@@ -240,7 +240,7 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 	struct vmw_otable *otables = batch->otables;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	SVGAOTableType i;
 	int ret;
@@ -261,7 +261,7 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 			    0, false, &batch->otable_bo);
 
 	if (unlikely(ret != 0))
-		goto out_no_bo;
+		goto out_yes_bo;
 
 	ret = ttm_bo_reserve(batch->otable_bo, false, true, NULL);
 	BUG_ON(ret != 0);
@@ -283,7 +283,7 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 					    offset,
 					    &otables[i]);
 		if (unlikely(ret != 0))
-			goto out_no_setup;
+			goto out_yes_setup;
 		offset += otables[i].size;
 	}
 
@@ -291,7 +291,7 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 
 out_unreserve:
 	ttm_bo_unreserve(batch->otable_bo);
-out_no_setup:
+out_yes_setup:
 	for (i = 0; i < batch->num_otables; ++i) {
 		if (batch->otables[i].enabled)
 			vmw_takedown_otable_base(dev_priv, i,
@@ -300,7 +300,7 @@ out_no_setup:
 
 	ttm_bo_put(batch->otable_bo);
 	batch->otable_bo = NULL;
-out_no_bo:
+out_yes_bo:
 	return ret;
 }
 
@@ -435,7 +435,7 @@ static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 	int ret;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 
 	BUG_ON(mob->pt_bo != NULL);
@@ -681,7 +681,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 
 	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
-		goto out_no_cmd_space;
+		goto out_yes_cmd_space;
 
 	cmd->header.id = SVGA_3D_CMD_DEFINE_GB_MOB64;
 	cmd->header.size = sizeof(cmd->body);
@@ -694,7 +694,7 @@ int vmw_mob_bind(struct vmw_private *dev_priv,
 
 	return 0;
 
-out_no_cmd_space:
+out_yes_cmd_space:
 	vmw_fifo_resource_dec(dev_priv);
 	if (pt_set_up) {
 		ttm_bo_put(mob->pt_bo);

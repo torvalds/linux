@@ -21,7 +21,7 @@
 
 /*
  * Simulate disabling preemption by locking a particular cpu. NR_CPUS
- * should be the actual number of cpus, not just the maximum.
+ * should be the actual number of cpus, yest just the maximum.
  */
 struct lock_impl cpu_preemption_locks[NR_CPUS] = {
 	CPU_PREEMPTION_LOCKS_INIT0
@@ -62,7 +62,7 @@ void preempt_disable(void)
 	if (preempt_disable_count++)
 		return;
 
-	thread_cpu_id = nondet_int();
+	thread_cpu_id = yesndet_int();
 	assume(thread_cpu_id >= 0);
 	assume(thread_cpu_id < NR_CPUS);
 	lock_impl_lock(&cpu_preemption_locks[thread_cpu_id]);

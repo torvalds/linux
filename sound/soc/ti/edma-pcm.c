@@ -41,7 +41,7 @@ int edma_pcm_platform_register(struct device *dev)
 {
 	struct snd_dmaengine_pcm_config *config;
 
-	if (dev->of_node)
+	if (dev->of_yesde)
 		return devm_snd_dmaengine_pcm_register(dev,
 						&edma_dmaengine_pcm_config, 0);
 

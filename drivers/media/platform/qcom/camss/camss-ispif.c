@@ -876,7 +876,7 @@ static void ispif_try_format(struct ispif_line *line,
 			if (fmt->code == line->formats[i])
 				break;
 
-		/* If not found, use UYVY as default */
+		/* If yest found, use UYVY as default */
 		if (i >= line->nformats)
 			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
@@ -1104,14 +1104,14 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
 	ispif->base = devm_ioremap_resource(dev, r);
 	if (IS_ERR(ispif->base)) {
-		dev_err(dev, "could not map memory\n");
+		dev_err(dev, "could yest map memory\n");
 		return PTR_ERR(ispif->base);
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[1]);
 	ispif->base_clk_mux = devm_ioremap_resource(dev, r);
 	if (IS_ERR(ispif->base_clk_mux)) {
-		dev_err(dev, "could not map memory\n");
+		dev_err(dev, "could yest map memory\n");
 		return PTR_ERR(ispif->base_clk_mux);
 	}
 
@@ -1290,7 +1290,7 @@ static const struct media_entity_operations ispif_media_ops = {
 };
 
 /*
- * msm_ispif_register_entities - Register subdev node for ISPIF module
+ * msm_ispif_register_entities - Register subdev yesde for ISPIF module
  * @ispif: ISPIF device
  * @v4l2_dev: V4L2 device
  *
@@ -1354,7 +1354,7 @@ error:
 }
 
 /*
- * msm_ispif_unregister_entities - Unregister ISPIF module subdev node
+ * msm_ispif_unregister_entities - Unregister ISPIF module subdev yesde
  * @ispif: ISPIF device
  */
 void msm_ispif_unregister_entities(struct ispif_device *ispif)

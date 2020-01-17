@@ -9,7 +9,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -62,8 +62,8 @@ i915_param_named_unsafe(panel_use_ssc, int, 0600,
 	"(default: auto from VBT)");
 
 i915_param_named_unsafe(vbt_sdvo_panel_type, int, 0400,
-	"Override/Ignore selection of SDVO panel mode in the VBT "
-	"(-2=ignore, -1=auto [default], index in VBT BIOS table)");
+	"Override/Igyesre selection of SDVO panel mode in the VBT "
+	"(-2=igyesre, -1=auto [default], index in VBT BIOS table)");
 
 i915_param_named_unsafe(reset, int, 0600,
 	"Attempt GPU resets (0=disabled, 1=full gpu reset, 2=engine reset [default])");
@@ -120,7 +120,7 @@ i915_param_named_unsafe(force_reset_modeset_test, bool, 0600,
 
 i915_param_named_unsafe(invert_brightness, int, 0600,
 	"Invert backlight brightness "
-	"(-1 force normal, 0 machine defaults, 1 force inversion), please "
+	"(-1 force yesrmal, 0 machine defaults, 1 force inversion), please "
 	"report PCI device ID, subsystem vendor and subsystem device ID "
 	"to dri-devel@lists.freedesktop.org, if your machine needs it. "
 	"It will then be included in an upcoming module version.");
@@ -140,7 +140,7 @@ i915_param_named_unsafe(nuclear_pageflip, bool, 0400,
 
 /* WA to get away with the default setting in VBT for early platforms.Will be removed */
 i915_param_named_unsafe(edp_vswing, int, 0400,
-	"Ignore/Override vswing pre-emph table selection from VBT "
+	"Igyesre/Override vswing pre-emph table selection from VBT "
 	"(0=use value from vbt [default], 1=low power swing(200mV),"
 	"2=default swing(400mV))");
 
@@ -190,7 +190,7 @@ static __always_inline void _print_param(struct drm_printer *p,
 					 const void *x)
 {
 	if (!__builtin_strcmp(type, "bool"))
-		drm_printf(p, "i915.%s=%s\n", name, yesno(*(const bool *)x));
+		drm_printf(p, "i915.%s=%s\n", name, noyes(*(const bool *)x));
 	else if (!__builtin_strcmp(type, "int"))
 		drm_printf(p, "i915.%s=%d\n", name, *(const int *)x);
 	else if (!__builtin_strcmp(type, "unsigned int"))
@@ -200,7 +200,7 @@ static __always_inline void _print_param(struct drm_printer *p,
 	else if (!__builtin_strcmp(type, "char *"))
 		drm_printf(p, "i915.%s=%s\n", name, *(const char **)x);
 	else
-		WARN_ONCE(1, "no printer defined for param type %s (i915.%s)\n",
+		WARN_ONCE(1, "yes printer defined for param type %s (i915.%s)\n",
 			  type, name);
 }
 
@@ -240,7 +240,7 @@ static __always_inline void free_param(const char *type, void *x)
 	}
 }
 
-/* free the allocated members, *not* the passed in params itself */
+/* free the allocated members, *yest* the passed in params itself */
 void i915_params_free(struct i915_params *params)
 {
 #define FREE(T, x, ...) free_param(#T, &params->x);

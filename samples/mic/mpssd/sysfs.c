@@ -29,14 +29,14 @@ readsysfs(char *dir, char *entry)
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
 		mpsslog("Failed to open sysfs entry '%s': %s\n",
-			filename, strerror(errno));
+			filename, strerror(erryes));
 		return NULL;
 	}
 
 	len = read(fd, value, sizeof(value));
 	if (len < 0) {
 		mpsslog("Failed to read sysfs entry '%s': %s\n",
-			filename, strerror(errno));
+			filename, strerror(erryes));
 		goto readsys_ret;
 	}
 	if (len == 0)
@@ -70,17 +70,17 @@ setsysfs(char *dir, char *entry, char *value)
 
 	fd = open(filename, O_RDWR);
 	if (fd < 0) {
-		ret = errno;
+		ret = erryes;
 		mpsslog("Failed to open sysfs entry '%s': %s\n",
-			filename, strerror(errno));
+			filename, strerror(erryes));
 		goto done;
 	}
 
 	if (!oldvalue || strcmp(value, oldvalue)) {
 		if (write(fd, value, strlen(value)) < 0) {
-			ret = errno;
+			ret = erryes;
 			mpsslog("Failed to write new sysfs entry '%s': %s\n",
-				filename, strerror(errno));
+				filename, strerror(erryes));
 		}
 	}
 	close(fd);

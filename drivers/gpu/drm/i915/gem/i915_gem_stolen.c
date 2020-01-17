@@ -4,7 +4,7 @@
  * Copyright © 2008-2012 Intel Corporation
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mutex.h>
 
 #include <drm/drm_mm.h>
@@ -16,7 +16,7 @@
 
 /*
  * The BIOS typically reserves some of the system's memory for the exclusive
- * use of the integrated graphics. This memory is no longer available for
+ * use of the integrated graphics. This memory is yes longer available for
  * use by the OS and so the user finds that his system has less memory
  * available than he put in. We refer to this memory as stolen.
  *
@@ -26,8 +26,8 @@
  * for is a boon.
  */
 
-int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
-					 struct drm_mm_node *node, u64 size,
+int i915_gem_stolen_insert_yesde_in_range(struct drm_i915_private *dev_priv,
+					 struct drm_mm_yesde *yesde, u64 size,
 					 unsigned alignment, u64 start, u64 end)
 {
 	int ret;
@@ -40,7 +40,7 @@ int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
 		start = 4096;
 
 	mutex_lock(&dev_priv->mm.stolen_lock);
-	ret = drm_mm_insert_node_in_range(&dev_priv->mm.stolen, node,
+	ret = drm_mm_insert_yesde_in_range(&dev_priv->mm.stolen, yesde,
 					  size, alignment, 0,
 					  start, end, DRM_MM_INSERT_BEST);
 	mutex_unlock(&dev_priv->mm.stolen_lock);
@@ -48,19 +48,19 @@ int i915_gem_stolen_insert_node_in_range(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
-				struct drm_mm_node *node, u64 size,
+int i915_gem_stolen_insert_yesde(struct drm_i915_private *dev_priv,
+				struct drm_mm_yesde *yesde, u64 size,
 				unsigned alignment)
 {
-	return i915_gem_stolen_insert_node_in_range(dev_priv, node, size,
+	return i915_gem_stolen_insert_yesde_in_range(dev_priv, yesde, size,
 						    alignment, 0, U64_MAX);
 }
 
-void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
-				 struct drm_mm_node *node)
+void i915_gem_stolen_remove_yesde(struct drm_i915_private *dev_priv,
+				 struct drm_mm_yesde *yesde)
 {
 	mutex_lock(&dev_priv->mm.stolen_lock);
-	drm_mm_remove_node(node);
+	drm_mm_remove_yesde(yesde);
 	mutex_unlock(&dev_priv->mm.stolen_lock);
 }
 
@@ -115,7 +115,7 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 	}
 
 	/*
-	 * Verify that nothing else uses this physical address. Stolen
+	 * Verify that yesthing else uses this physical address. Stolen
 	 * memory should be reserved by the BIOS and hidden from the
 	 * kernel. So if the region is already marked as busy, something
 	 * is seriously wrong.
@@ -364,14 +364,14 @@ static int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	mutex_init(&dev_priv->mm.stolen_lock);
 
 	if (intel_vgpu_active(dev_priv)) {
-		dev_notice(dev_priv->drm.dev,
+		dev_yestice(dev_priv->drm.dev,
 			   "%s, disabling use of stolen memory\n",
 			   "iGVT-g active");
 		return 0;
 	}
 
 	if (intel_vtd_active() && INTEL_GEN(dev_priv) < 8) {
-		dev_notice(dev_priv->drm.dev,
+		dev_yestice(dev_priv->drm.dev,
 			   "%s, disabling use of stolen memory\n",
 			   "DMAR active");
 		return 0;
@@ -442,7 +442,7 @@ static int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	 * it likely means we failed to read the registers correctly.
 	 */
 	if (!reserved_base) {
-		DRM_ERROR("inconsistent reservation %pa + %pa; ignoring\n",
+		DRM_ERROR("inconsistent reservation %pa + %pa; igyesring\n",
 			  &reserved_base, &reserved_size);
 		reserved_base = stolen_top;
 		reserved_size = 0;
@@ -484,7 +484,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 
 	GEM_BUG_ON(range_overflows(offset, size, resource_size(&dev_priv->dsm)));
 
-	/* We hide that we have no struct page backing our stolen object
+	/* We hide that we have yes struct page backing our stolen object
 	 * by wrapping the contiguous physical allocation with a fake
 	 * dma mapping in a single scatterlist.
 	 */
@@ -534,11 +534,11 @@ static void
 i915_gem_object_release_stolen(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	struct drm_mm_node *stolen = fetch_and_zero(&obj->stolen);
+	struct drm_mm_yesde *stolen = fetch_and_zero(&obj->stolen);
 
 	GEM_BUG_ON(!stolen);
 
-	i915_gem_stolen_remove_node(dev_priv, stolen);
+	i915_gem_stolen_remove_yesde(dev_priv, stolen);
 	kfree(stolen);
 
 	if (obj->mm.region)
@@ -553,7 +553,7 @@ static const struct drm_i915_gem_object_ops i915_gem_object_stolen_ops = {
 
 static struct drm_i915_gem_object *
 __i915_gem_object_create_stolen(struct drm_i915_private *dev_priv,
-				struct drm_mm_node *stolen,
+				struct drm_mm_yesde *stolen,
 				struct intel_memory_region *mem)
 {
 	static struct lock_class_key lock_class;
@@ -595,7 +595,7 @@ _i915_gem_object_create_stolen(struct intel_memory_region *mem,
 {
 	struct drm_i915_private *dev_priv = mem->i915;
 	struct drm_i915_gem_object *obj;
-	struct drm_mm_node *stolen;
+	struct drm_mm_yesde *stolen;
 	int ret;
 
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
@@ -608,7 +608,7 @@ _i915_gem_object_create_stolen(struct intel_memory_region *mem,
 	if (!stolen)
 		return ERR_PTR(-ENOMEM);
 
-	ret = i915_gem_stolen_insert_node(dev_priv, stolen, size, 4096);
+	ret = i915_gem_stolen_insert_yesde(dev_priv, stolen, size, 4096);
 	if (ret) {
 		obj = ERR_PTR(ret);
 		goto err_free;
@@ -621,7 +621,7 @@ _i915_gem_object_create_stolen(struct intel_memory_region *mem,
 	return obj;
 
 err_remove:
-	i915_gem_stolen_remove_node(dev_priv, stolen);
+	i915_gem_stolen_remove_yesde(dev_priv, stolen);
 err_free:
 	kfree(stolen);
 	return obj;
@@ -672,7 +672,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_gem_object *obj;
-	struct drm_mm_node *stolen;
+	struct drm_mm_yesde *stolen;
 	struct i915_vma *vma;
 	int ret;
 
@@ -695,7 +695,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	stolen->start = stolen_offset;
 	stolen->size = size;
 	mutex_lock(&dev_priv->mm.stolen_lock);
-	ret = drm_mm_reserve_node(&dev_priv->mm.stolen, stolen);
+	ret = drm_mm_reserve_yesde(&dev_priv->mm.stolen, stolen);
 	mutex_unlock(&dev_priv->mm.stolen_lock);
 	if (ret) {
 		DRM_DEBUG_DRIVER("failed to allocate stolen space\n");
@@ -706,7 +706,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	obj = __i915_gem_object_create_stolen(dev_priv, stolen, NULL);
 	if (IS_ERR(obj)) {
 		DRM_DEBUG_DRIVER("failed to allocate stolen object\n");
-		i915_gem_stolen_remove_node(dev_priv, stolen);
+		i915_gem_stolen_remove_yesde(dev_priv, stolen);
 		kfree(stolen);
 		return obj;
 	}
@@ -731,7 +731,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	 * later.
 	 */
 	mutex_lock(&ggtt->vm.mutex);
-	ret = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
+	ret = i915_gem_gtt_reserve(&ggtt->vm, &vma->yesde,
 				   size, gtt_offset, obj->cache_level,
 				   0);
 	if (ret) {
@@ -740,7 +740,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 		goto err_pages;
 	}
 
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	GEM_BUG_ON(!drm_mm_yesde_allocated(&vma->yesde));
 
 	GEM_BUG_ON(vma->pages);
 	vma->pages = obj->mm.pages;

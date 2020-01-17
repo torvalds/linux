@@ -186,7 +186,7 @@
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_CRD",
         "PerPkg": "1",
-        "PublicDescription": "TOR Inserts; Code read from local IA that misses in the snoop filter",
+        "PublicDescription": "TOR Inserts; Code read from local IA that misses in the syesop filter",
         "UMask": "0xC80FFE01",
         "UMaskExt": "0xC80FFE",
         "Unit": "CHA"
@@ -198,7 +198,7 @@
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_CRD_PREF",
         "PerPkg": "1",
-        "PublicDescription": "TOR Inserts; Code read prefetch from local IA that misses in the snoop filter",
+        "PublicDescription": "TOR Inserts; Code read prefetch from local IA that misses in the syesop filter",
         "UMask": "0xC88FFE01",
         "UMaskExt": "0xC88FFE",
         "Unit": "CHA"
@@ -210,7 +210,7 @@
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_OPT",
         "PerPkg": "1",
-        "PublicDescription": "TOR Inserts; Data read opt from local IA that misses in the snoop filter",
+        "PublicDescription": "TOR Inserts; Data read opt from local IA that misses in the syesop filter",
         "UMask": "0xC827FE01",
         "UMaskExt": "0xC827FE",
         "Unit": "CHA"
@@ -222,7 +222,7 @@
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_OPT_PREF",
         "PerPkg": "1",
-        "PublicDescription": "TOR Inserts; Data read opt prefetch from local IA that misses in the snoop filter",
+        "PublicDescription": "TOR Inserts; Data read opt prefetch from local IA that misses in the syesop filter",
         "UMask": "0xC8A7FE01",
         "UMaskExt": "0xC8A7FE",
         "Unit": "CHA"
@@ -234,7 +234,7 @@
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO",
         "PerPkg": "1",
-        "PublicDescription": "TOR Inserts; Read for ownership from local IA that misses in the snoop filter",
+        "PublicDescription": "TOR Inserts; Read for ownership from local IA that misses in the syesop filter",
         "UMask": "0xC807FE01",
         "UMaskExt": "0xC807FE",
         "Unit": "CHA"
@@ -246,7 +246,7 @@
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_PREF",
         "PerPkg": "1",
-        "PublicDescription": "TOR Inserts; Read for ownership prefetch from local IA that misses in the snoop filter",
+        "PublicDescription": "TOR Inserts; Read for ownership prefetch from local IA that misses in the syesop filter",
         "UMask": "0xC887FE01",
         "UMaskExt": "0xC887FE",
         "Unit": "CHA"
@@ -258,7 +258,7 @@
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_WCIL",
         "PerPkg": "1",
-        "PublicDescription": "TOR Inserts; Data read from local IA that misses in the snoop filter",
+        "PublicDescription": "TOR Inserts; Data read from local IA that misses in the syesop filter",
         "UMask": "0xC86FFE01",
         "UMaskExt": "0xC86FFE",
         "Unit": "CHA"
@@ -270,7 +270,7 @@
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_WCILF",
         "PerPkg": "1",
-        "PublicDescription": "TOR Inserts; Data read from local IA that misses in the snoop filter",
+        "PublicDescription": "TOR Inserts; Data read from local IA that misses in the syesop filter",
         "UMask": "0xC867FE01",
         "UMaskExt": "0xC867FE",
         "Unit": "CHA"

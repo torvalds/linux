@@ -2,7 +2,7 @@
         ktti.c        (c) 1998  Grant R. Guenther <grant@torque.net>
                           Under the terms of the GNU General Public License.
 
-	ktti.c is a low-level protocol driver for the KT Technology
+	ktti.c is a low-level protocol driver for the KT Techyeslogy
 	parallel port adapter.  This adapter is used in the "PHd" 
         portable hard-drives.  As far as I can tell, this device
 	supports 4-bit mode _only_.  

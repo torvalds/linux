@@ -15,80 +15,80 @@
 #include <linux/quotaops.h>
 
 /*
- * We pack the tails of files on file close, not at the time they are written.
+ * We pack the tails of files on file close, yest at the time they are written.
  * This implies an unnecessary copy of the tail and an unnecessary indirect item
  * insertion/balancing, for files that are written in one write.
  * It avoids unnecessary tail packings (balances) for files that are written in
- * multiple writes and are small enough to have tails.
+ * multiple writes and are small eyesugh to have tails.
  *
  * file_release is called by the VFS layer when the file is closed.  If
  * this is the last open file descriptor, and the file
- * small enough to have a tail, and the tail is currently in an
- * unformatted node, the tail is converted back into a direct item.
+ * small eyesugh to have a tail, and the tail is currently in an
+ * unformatted yesde, the tail is converted back into a direct item.
  *
  * We use reiserfs_truncate_file to pack the tail, since it already has
  * all the conditions coded.
  */
-static int reiserfs_file_release(struct inode *inode, struct file *filp)
+static int reiserfs_file_release(struct iyesde *iyesde, struct file *filp)
 {
 
 	struct reiserfs_transaction_handle th;
 	int err;
 	int jbegin_failure = 0;
 
-	BUG_ON(!S_ISREG(inode->i_mode));
+	BUG_ON(!S_ISREG(iyesde->i_mode));
 
-	if (!atomic_dec_and_mutex_lock(&REISERFS_I(inode)->openers,
-				       &REISERFS_I(inode)->tailpack))
+	if (!atomic_dec_and_mutex_lock(&REISERFS_I(iyesde)->openers,
+				       &REISERFS_I(iyesde)->tailpack))
 		return 0;
 
-	/* fast out for when nothing needs to be done */
-	if ((!(REISERFS_I(inode)->i_flags & i_pack_on_close_mask) ||
-	     !tail_has_to_be_packed(inode)) &&
-	    REISERFS_I(inode)->i_prealloc_count <= 0) {
-		mutex_unlock(&REISERFS_I(inode)->tailpack);
+	/* fast out for when yesthing needs to be done */
+	if ((!(REISERFS_I(iyesde)->i_flags & i_pack_on_close_mask) ||
+	     !tail_has_to_be_packed(iyesde)) &&
+	    REISERFS_I(iyesde)->i_prealloc_count <= 0) {
+		mutex_unlock(&REISERFS_I(iyesde)->tailpack);
 		return 0;
 	}
 
-	reiserfs_write_lock(inode->i_sb);
+	reiserfs_write_lock(iyesde->i_sb);
 	/*
 	 * freeing preallocation only involves relogging blocks that
 	 * are already in the current transaction.  preallocation gets
 	 * freed at the end of each transaction, so it is impossible for
 	 * us to log any additional blocks (including quota blocks)
 	 */
-	err = journal_begin(&th, inode->i_sb, 1);
+	err = journal_begin(&th, iyesde->i_sb, 1);
 	if (err) {
 		/*
-		 * uh oh, we can't allow the inode to go away while there
+		 * uh oh, we can't allow the iyesde to go away while there
 		 * is still preallocation blocks pending.  Try to join the
 		 * aborted transaction
 		 */
 		jbegin_failure = err;
-		err = journal_join_abort(&th, inode->i_sb);
+		err = journal_join_abort(&th, iyesde->i_sb);
 
 		if (err) {
 			/*
 			 * hmpf, our choices here aren't good.  We can pin
-			 * the inode which will disallow unmount from ever
-			 * happening, we can do nothing, which will corrupt
+			 * the iyesde which will disallow unmount from ever
+			 * happening, we can do yesthing, which will corrupt
 			 * random memory on unmount, or we can forcibly
 			 * remove the file from the preallocation list, which
-			 * will leak blocks on disk.  Lets pin the inode
-			 * and let the admin know what is going on.
+			 * will leak blocks on disk.  Lets pin the iyesde
+			 * and let the admin kyesw what is going on.
 			 */
-			igrab(inode);
-			reiserfs_warning(inode->i_sb, "clm-9001",
-					 "pinning inode %lu because the "
+			igrab(iyesde);
+			reiserfs_warning(iyesde->i_sb, "clm-9001",
+					 "pinning iyesde %lu because the "
 					 "preallocation can't be freed",
-					 inode->i_ino);
+					 iyesde->i_iyes);
 			goto out;
 		}
 	}
-	reiserfs_update_inode_transaction(inode);
+	reiserfs_update_iyesde_transaction(iyesde);
 
 #ifdef REISERFS_PREALLOCATE
-	reiserfs_discard_prealloc(&th, inode);
+	reiserfs_discard_prealloc(&th, iyesde);
 #endif
 	err = journal_end(&th);
 
@@ -97,41 +97,41 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 		err = jbegin_failure;
 
 	if (!err &&
-	    (REISERFS_I(inode)->i_flags & i_pack_on_close_mask) &&
-	    tail_has_to_be_packed(inode)) {
+	    (REISERFS_I(iyesde)->i_flags & i_pack_on_close_mask) &&
+	    tail_has_to_be_packed(iyesde)) {
 
 		/*
 		 * if regular file is released by last holder and it has been
-		 * appended (we append by unformatted node only) or its direct
+		 * appended (we append by unformatted yesde only) or its direct
 		 * item(s) had to be converted, then it may have to be
 		 * indirect2direct converted
 		 */
-		err = reiserfs_truncate_file(inode, 0);
+		err = reiserfs_truncate_file(iyesde, 0);
 	}
 out:
-	reiserfs_write_unlock(inode->i_sb);
-	mutex_unlock(&REISERFS_I(inode)->tailpack);
+	reiserfs_write_unlock(iyesde->i_sb);
+	mutex_unlock(&REISERFS_I(iyesde)->tailpack);
 	return err;
 }
 
-static int reiserfs_file_open(struct inode *inode, struct file *file)
+static int reiserfs_file_open(struct iyesde *iyesde, struct file *file)
 {
-	int err = dquot_file_open(inode, file);
+	int err = dquot_file_open(iyesde, file);
 
 	/* somebody might be tailpacking on final close; wait for it */
-        if (!atomic_inc_not_zero(&REISERFS_I(inode)->openers)) {
-		mutex_lock(&REISERFS_I(inode)->tailpack);
-		atomic_inc(&REISERFS_I(inode)->openers);
-		mutex_unlock(&REISERFS_I(inode)->tailpack);
+        if (!atomic_inc_yest_zero(&REISERFS_I(iyesde)->openers)) {
+		mutex_lock(&REISERFS_I(iyesde)->tailpack);
+		atomic_inc(&REISERFS_I(iyesde)->openers);
+		mutex_unlock(&REISERFS_I(iyesde)->tailpack);
 	}
 	return err;
 }
 
-void reiserfs_vfs_truncate_file(struct inode *inode)
+void reiserfs_vfs_truncate_file(struct iyesde *iyesde)
 {
-	mutex_lock(&REISERFS_I(inode)->tailpack);
-	reiserfs_truncate_file(inode, 1);
-	mutex_unlock(&REISERFS_I(inode)->tailpack);
+	mutex_lock(&REISERFS_I(iyesde)->tailpack);
+	reiserfs_truncate_file(iyesde, 1);
+	mutex_unlock(&REISERFS_I(iyesde)->tailpack);
 }
 
 /* Sync a reiserfs file. */
@@ -144,7 +144,7 @@ void reiserfs_vfs_truncate_file(struct inode *inode)
 static int reiserfs_sync_file(struct file *filp, loff_t start, loff_t end,
 			      int datasync)
 {
-	struct inode *inode = filp->f_mapping->host;
+	struct iyesde *iyesde = filp->f_mapping->host;
 	int err;
 	int barrier_done;
 
@@ -152,45 +152,45 @@ static int reiserfs_sync_file(struct file *filp, loff_t start, loff_t end,
 	if (err)
 		return err;
 
-	inode_lock(inode);
-	BUG_ON(!S_ISREG(inode->i_mode));
-	err = sync_mapping_buffers(inode->i_mapping);
-	reiserfs_write_lock(inode->i_sb);
-	barrier_done = reiserfs_commit_for_inode(inode);
-	reiserfs_write_unlock(inode->i_sb);
-	if (barrier_done != 1 && reiserfs_barrier_flush(inode->i_sb))
-		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
-	inode_unlock(inode);
+	iyesde_lock(iyesde);
+	BUG_ON(!S_ISREG(iyesde->i_mode));
+	err = sync_mapping_buffers(iyesde->i_mapping);
+	reiserfs_write_lock(iyesde->i_sb);
+	barrier_done = reiserfs_commit_for_iyesde(iyesde);
+	reiserfs_write_unlock(iyesde->i_sb);
+	if (barrier_done != 1 && reiserfs_barrier_flush(iyesde->i_sb))
+		blkdev_issue_flush(iyesde->i_sb->s_bdev, GFP_KERNEL, NULL);
+	iyesde_unlock(iyesde);
 	if (barrier_done < 0)
 		return barrier_done;
 	return (err < 0) ? -EIO : 0;
 }
 
 /* taken fs/buffer.c:__block_commit_write */
-int reiserfs_commit_page(struct inode *inode, struct page *page,
+int reiserfs_commit_page(struct iyesde *iyesde, struct page *page,
 			 unsigned from, unsigned to)
 {
 	unsigned block_start, block_end;
 	int partial = 0;
 	unsigned blocksize;
 	struct buffer_head *bh, *head;
-	unsigned long i_size_index = inode->i_size >> PAGE_SHIFT;
+	unsigned long i_size_index = iyesde->i_size >> PAGE_SHIFT;
 	int new;
-	int logit = reiserfs_file_data_log(inode);
-	struct super_block *s = inode->i_sb;
+	int logit = reiserfs_file_data_log(iyesde);
+	struct super_block *s = iyesde->i_sb;
 	int bh_per_page = PAGE_SIZE / s->s_blocksize;
 	struct reiserfs_transaction_handle th;
 	int ret = 0;
 
 	th.t_trans_id = 0;
-	blocksize = i_blocksize(inode);
+	blocksize = i_blocksize(iyesde);
 
 	if (logit) {
 		reiserfs_write_lock(s);
 		ret = journal_begin(&th, s, bh_per_page + 1);
 		if (ret)
 			goto drop_write_lock;
-		reiserfs_update_inode_transaction(inode);
+		reiserfs_update_iyesde_transaction(iyesde);
 	}
 	for (bh = head = page_buffers(page), block_start = 0;
 	     bh != head || !block_start;
@@ -213,9 +213,9 @@ int reiserfs_commit_page(struct inode *inode, struct page *page,
 				 * do data=ordered on any page past the end
 				 * of file and any buffer marked BH_New.
 				 */
-				if (reiserfs_data_ordered(inode->i_sb) &&
+				if (reiserfs_data_ordered(iyesde->i_sb) &&
 				    (new || page->index >= i_size_index)) {
-					reiserfs_add_ordered_list(inode, bh);
+					reiserfs_add_ordered_list(iyesde, bh);
 				}
 			}
 		}
@@ -252,7 +252,7 @@ const struct file_operations reiserfs_file_operations = {
 	.llseek = generic_file_llseek,
 };
 
-const struct inode_operations reiserfs_file_inode_operations = {
+const struct iyesde_operations reiserfs_file_iyesde_operations = {
 	.setattr = reiserfs_setattr,
 	.listxattr = reiserfs_listxattr,
 	.permission = reiserfs_permission,

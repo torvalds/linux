@@ -238,7 +238,7 @@
 /* Define controls in register TW5864_DSP_SKIP */
 /*
  * Skip Offset Enable bit
- * 0 DSP_SKIP_OFFSET value is not used (default 8)
+ * 0 DSP_SKIP_OFFSET value is yest used (default 8)
  * 1 DSP_SKIP_OFFSET value is used in HW
  */
 #define TW5864_DSP_SKIP_OFEN 0x0080
@@ -430,7 +430,7 @@
 #define TW5864_VLC_BIT_ALIGN_SHIFT 8
 #define TW5864_VLC_BIT_ALIGN_MASK (0x1f << 8)
 /*
- * Synchronous Interface select for VLC Stream
+ * Synchroyesus Interface select for VLC Stream
  * 1 CDC_VLCS_MAS read VLC stream
  * 0 CPU read VLC stream
  */
@@ -450,7 +450,7 @@
 /*
  * Status of VLC stream in DDR (one bit for each buffer)
  * 1 VLC is ready in buffer n (HW set)
- * 0 VLC is not ready in buffer n (SW clear)
+ * 0 VLC is yest ready in buffer n (SW clear)
  */
 #define TW5864_VLC_BUF_RDY_SHIFT 24
 #define TW5864_VLC_BUF_RDY_MASK (0xff << 24)
@@ -548,7 +548,7 @@
 /* Enable AD Loopback Test */
 #define TW5864_TEST_ADLOOP_EN BIT(30)
 /*
- * 0 Asynchronous Mode or PCI target mode
+ * 0 Asynchroyesus Mode or PCI target mode
  * 1 PCI Initiator Mode
  */
 #define TW5864_AUD_MODE BIT(31)
@@ -778,7 +778,7 @@
 #define TW5864_SYSPLL_ICP_SEL (0x03 << 4)
 /*
  * PLL low pass filter phase margin adjustment
- * 0 no 5pF (default)
+ * 0 yes 5pF (default)
  * 1 5pF added
  */
 #define TW5864_SYSPLL_LPF_5PF BIT(6)
@@ -926,7 +926,7 @@
  * H264EN_CH_DNS[n] H264 Encoding Path Downscale Video Decoder Input for
  * channel n
  * 1 Downscale Y to 1/2
- * 0 Does not downscale
+ * 0 Does yest downscale
  */
 #define TW5864_H264EN_CH_DNS 0x9008
 /*
@@ -997,7 +997,7 @@
 #define TW5864_H264EN_BUS2_MAP 0x9208
 #define TW5864_H264EN_BUS3_MAP 0x920c
 
-/* This register is not defined in datasheet, but used in reference driver */
+/* This register is yest defined in datasheet, but used in reference driver */
 #define TW5864_UNDECLARED_ERROR_FLAGS_0x9218 0x9218
 
 #define TW5864_GPIO1 0x9800
@@ -1310,7 +1310,7 @@
 
 /*
  * Every channel of preview and audio have ping-pong buffers in system memory,
- * this register is the buffer flag to notify software which buffer is been
+ * this register is the buffer flag to yestify software which buffer is been
  * operated.
  */
 #define TW5864_PREV_AND_AU_BUF_FLAG 0x18010
@@ -1455,19 +1455,19 @@
 #define TW5864_INDIR_VIN_0(channel) (0x000 + channel * 0x010)
 /* Define controls in register TW5864_INDIR_VIN_0 */
 /*
- * 1 Video not present. (sync is not detected in number of consecutive line
+ * 1 Video yest present. (sync is yest detected in number of consecutive line
  * periods specified by MISSCNT register)
  * 0 Video detected.
  */
 #define TW5864_INDIR_VIN_0_VDLOSS BIT(7)
 /*
  * 1 Horizontal sync PLL is locked to the incoming video source.
- * 0 Horizontal sync PLL is not locked.
+ * 0 Horizontal sync PLL is yest locked.
  */
 #define TW5864_INDIR_VIN_0_HLOCK BIT(6)
 /*
  * 1 Sub-carrier PLL is locked to the incoming video source.
- * 0 Sub-carrier PLL is not locked.
+ * 0 Sub-carrier PLL is yest locked.
  */
 #define TW5864_INDIR_VIN_0_SLOCK BIT(5)
 /*
@@ -1477,7 +1477,7 @@
 #define TW5864_INDIR_VIN_0_FLD BIT(4)
 /*
  * 1 Vertical logic is locked to the incoming video source.
- * 0 Vertical logic is not locked.
+ * 0 Vertical logic is yest locked.
  */
 #define TW5864_INDIR_VIN_0_VLOCK BIT(3)
 /*
@@ -1557,7 +1557,7 @@
 
 /* HUE These bits control the color hue as 2's complement number. They have
  * value from +36o (7Fh) to -36o (80h) with an increment of 2.8o. The 2 LSB has
- * no effect. The positive value gives greenish tone and negative value gives
+ * yes effect. The positive value gives greenish tone and negative value gives
  * purplish tone. The default value is 0o (00h). This is effective only on NTSC
  * system. The default is 00h.
  */
@@ -1581,7 +1581,7 @@
 
 /*
  * These bits control the amount of sharpness enhancement on the luminance
- * signals. There are 16 levels of control with "0" having no effect on the
+ * signals. There are 16 levels of control with "0" having yes effect on the
  * output image. 1 through 15 provides sharpness enhancement with "F" being the
  * strongest. The default is 1.
  */
@@ -1596,7 +1596,7 @@
 
 /*
  * These bits control the brightness. They have value of –128 to 127 in 2's
- * complement form. Positive value increases brightness. A value 0 has no
+ * complement form. Positive value increases brightness. A value 0 has yes
  * effect on the data. The default is 00h.
  */
 #define TW5864_INDIR_VIN_A_BRIGHT(channel) (0x00a + channel * 0x010)
@@ -1604,7 +1604,7 @@
 /*
  * These bits control the digital gain adjustment to the U (or Cb) component of
  * the digital video signal. The color saturation can be adjusted by adjusting
- * the U and V color gain components by the same amount in the normal
+ * the U and V color gain components by the same amount in the yesrmal
  * situation. The U and V can also be adjusted independently to provide greater
  * flexibility. The range of adjustment is 0 to 200%. A value of 128 (80h) has
  * gain of 100%. The default is 80h.
@@ -1614,7 +1614,7 @@
 /*
  * These bits control the digital gain adjustment to the V (or Cr) component of
  * the digital video signal. The color saturation can be adjusted by adjusting
- * the U and V color gain components by the same amount in the normal
+ * the U and V color gain components by the same amount in the yesrmal
  * situation. The U and V can also be adjusted independently to provide greater
  * flexibility. The range of adjustment is 0 to 200%. A value of 128 (80h) has
  * gain of 100%. The default is 80h.
@@ -1754,7 +1754,7 @@
 /*
  * Disable the mixing ratio value for all audio.
  * 0 Apply individual mixing ratio value for each audio (default)
- * 1 Apply nominal value for all audio commonly
+ * 1 Apply yesminal value for all audio commonly
  */
 #define TW5864_INDIR_AIN_MIX_DERATIO BIT(5)
 /*
@@ -1832,7 +1832,7 @@
 #define TW5864_INDIR_AIN_0x0E4_ASYNRDLY BIT(4)
 /*
  * ASYNP input signal delay.
- * 0 no delay
+ * 0 yes delay
  * 1 add one 27MHz period delay in ASYNP signal input
  */
 #define TW5864_INDIR_AIN_0x0E4_ASYNPDLY BIT(3)

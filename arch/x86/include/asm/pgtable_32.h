@@ -79,7 +79,7 @@ do {						\
  * This is how much memory in addition to the memory covered up to
  * and including _end we need mapped initially.
  * We need:
- *     (KERNEL_IMAGE_SIZE/4096) / 1024 pages (worst case, non PAE)
+ *     (KERNEL_IMAGE_SIZE/4096) / 1024 pages (worst case, yesn PAE)
  *     (KERNEL_IMAGE_SIZE/4096) / 512 + 4 pages (worst case for PAE)
  *
  * Modulo rounding, each megabyte assigned here requires a kilobyte of

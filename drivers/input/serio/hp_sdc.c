@@ -8,9 +8,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -36,12 +36,12 @@
  *
  * hp_sdc_put does all writing to the SDC.  ISR can run on a different
  * CPU than hp_sdc_put, but only one CPU runs hp_sdc_put at a time
- * (it cannot really benefit from SMP anyway.)  A tasket fit this perfectly.
+ * (it canyest really benefit from SMP anyway.)  A tasket fit this perfectly.
  *
  * All data coming back from the SDC is sent via interrupt and can be read
- * fully in the ISR, so there are no latency/throughput problems there.
+ * fully in the ISR, so there are yes latency/throughput problems there.
  * The problem is with output, due to the slow clock speed of the SDC
- * compared to the CPU.  This should not be too horrible most of the time,
+ * compared to the CPU.  This should yest be too horrible most of the time,
  * but if used with HIL devices that support the multibyte transfer command,
  * keeping outbound throughput flowing at the 6500KBps that the HIL is
  * capable of is more than can be done at HZ=100.
@@ -49,20 +49,20 @@
  * Busy polling for IBF clear wastes CPU cycles and bus cycles.  hp_sdc.ibf
  * is set to 0 when the IBF flag in the status register has cleared.  ISR
  * may do this, and may also access the parts of queued transactions related
- * to reading data back from the SDC, but otherwise will not touch the
+ * to reading data back from the SDC, but otherwise will yest touch the
  * hp_sdc state. Whenever a register is written hp_sdc.ibf is set to 1.
  *
  * The i8042 write index and the values in the 4-byte input buffer
  * starting at 0x70 are kept track of in hp_sdc.wi, and .r7[], respectively,
  * to minimize the amount of IO needed to the SDC.  However these values
- * do not need to be locked since they are only ever accessed by hp_sdc_put.
+ * do yest need to be locked since they are only ever accessed by hp_sdc_put.
  *
  * A timer task schedules the tasklet once per second just to make
  * sure it doesn't freeze up and to allow for bad reads to time out.
  */
 
 #include <linux/hp_sdc.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -83,7 +83,7 @@
 # define sdc_readb(p)		in_8(p)
 # define sdc_writeb(v,p)	out_8((p),(v))
 #else
-# error "HIL is not supported on this platform"
+# error "HIL is yest supported on this platform"
 #endif
 
 #define PREFIX "HP SDC: "
@@ -105,8 +105,8 @@ EXPORT_SYMBOL(hp_sdc_enqueue_transaction);
 EXPORT_SYMBOL(hp_sdc_dequeue_transaction);
 
 static bool hp_sdc_disabled;
-module_param_named(no_hpsdc, hp_sdc_disabled, bool, 0);
-MODULE_PARM_DESC(no_hpsdc, "Do not enable HP SDC driver.");
+module_param_named(yes_hpsdc, hp_sdc_disabled, bool, 0);
+MODULE_PARM_DESC(yes_hpsdc, "Do yest enable HP SDC driver.");
 
 static hp_i8042_sdc	hp_sdc;	/* All driver state is kept in here. */
 
@@ -224,12 +224,12 @@ static irqreturn_t hp_sdc_isr(int irq, void *dev_id)
 	/* Read data unconditionally to advance i8042. */
 	data =   hp_sdc_data_in8();
 
-	/* For now we are ignoring these until we get the SDC to behave. */
+	/* For yesw we are igyesring these until we get the SDC to behave. */
 	if (((status & 0xf1) == 0x51) && data == 0x82)
 		return IRQ_HANDLED;
 
 	switch (status & HP_SDC_STATUS_IRQMASK) {
-	case 0: /* This case is not documented. */
+	case 0: /* This case is yest documented. */
 		break;
 
 	case HP_SDC_STATUS_USERTIMER:
@@ -306,20 +306,20 @@ static void hp_sdc_tasklet(unsigned long foo)
 	write_lock_irq(&hp_sdc.rtq_lock);
 
 	if (hp_sdc.rcurr >= 0) {
-		ktime_t now = ktime_get();
+		ktime_t yesw = ktime_get();
 
-		if (ktime_after(now, ktime_add_us(hp_sdc.rtime,
+		if (ktime_after(yesw, ktime_add_us(hp_sdc.rtime,
 						  HP_SDC_MAX_REG_DELAY))) {
 			hp_sdc_transaction *curr;
 			uint8_t tmp;
 
 			curr = hp_sdc.tq[hp_sdc.rcurr];
-			/* If this turns out to be a normal failure mode
+			/* If this turns out to be a yesrmal failure mode
 			 * we'll need to figure out a way to communicate
 			 * it back to the application. and be less verbose.
 			 */
 			printk(KERN_WARNING PREFIX "read timeout (%lldus)!\n",
-			       ktime_us_delta(now, hp_sdc.rtime));
+			       ktime_us_delta(yesw, hp_sdc.rtime));
 			curr->idx += hp_sdc.rqty;
 			hp_sdc.rqty = 0;
 			tmp = curr->seq[curr->actidx];
@@ -355,7 +355,7 @@ unsigned long hp_sdc_put(void)
 
 	write_lock(&hp_sdc.lock);
 
-	/* If i8042 buffers are full, we cannot do anything that
+	/* If i8042 buffers are full, we canyest do anything that
 	   requires output, so we skip to the administrativa. */
 	if (hp_sdc.ibf) {
 		hp_sdc_status_in8();
@@ -392,7 +392,7 @@ unsigned long hp_sdc_put(void)
 		if (hp_sdc.tq[curridx] != NULL)
 			break; /* Found one. */
 	}
-	if (curridx == hp_sdc.wcurr) { /* There's nothing queued to do. */
+	if (curridx == hp_sdc.wcurr) { /* There's yesthing queued to do. */
 		curridx = -1;
 	}
 	hp_sdc.wcurr = curridx;
@@ -646,7 +646,7 @@ int hp_sdc_dequeue_transaction(hp_sdc_transaction *this)
 
 	write_lock_irqsave(&hp_sdc.lock, flags);
 
-	/* TODO: don't remove it if it's not done. */
+	/* TODO: don't remove it if it's yest done. */
 
 	for (i = 0; i < HP_SDC_QUEUE_LEN; i++)
 		if (hp_sdc.tq[i] == this)
@@ -757,7 +757,7 @@ int hp_sdc_release_hil_irq(hp_sdc_irqhook *callback)
 	}
 
 	hp_sdc.hil = NULL;
-	/* Disable interrupts from HIL only if there is no cooked driver. */
+	/* Disable interrupts from HIL only if there is yes cooked driver. */
 	if(hp_sdc.cooked == NULL) {
 		hp_sdc.im |= (HP_SDC_IM_HIL | HP_SDC_IM_RESET);
 		hp_sdc.set_im = 1;
@@ -778,7 +778,7 @@ int hp_sdc_release_cooked_irq(hp_sdc_irqhook *callback)
 	}
 
 	hp_sdc.cooked = NULL;
-	/* Disable interrupts from HIL only if there is no raw HIL driver. */
+	/* Disable interrupts from HIL only if there is yes raw HIL driver. */
 	if(hp_sdc.hil == NULL) {
 		hp_sdc.im |= (HP_SDC_IM_HIL | HP_SDC_IM_RESET);
 		hp_sdc.set_im = 1;
@@ -858,28 +858,28 @@ static int __init hp_sdc_init(void)
 
 	hp_sdc.dev_err = -ENODEV;
 
-	errstr = "IO not found for";
+	errstr = "IO yest found for";
 	if (!hp_sdc.base_io)
 		goto err0;
 
-	errstr = "IRQ not found for";
+	errstr = "IRQ yest found for";
 	if (!hp_sdc.irq)
 		goto err0;
 
 	hp_sdc.dev_err = -EBUSY;
 
 #if defined(__hppa__)
-	errstr = "IO not available for";
+	errstr = "IO yest available for";
         if (request_region(hp_sdc.data_io, 2, hp_sdc_driver.name))
 		goto err0;
 #endif
 
-	errstr = "IRQ not available for";
+	errstr = "IRQ yest available for";
 	if (request_irq(hp_sdc.irq, &hp_sdc_isr, IRQF_SHARED,
 			"HP SDC", &hp_sdc))
 		goto err1;
 
-	errstr = "NMI not available for";
+	errstr = "NMI yest available for";
 	if (request_irq(hp_sdc.nmi, &hp_sdc_nmisr, IRQF_SHARED,
 			"HP SDC NMI", &hp_sdc))
 		goto err2;
@@ -963,7 +963,7 @@ static int __init hp_sdc_init_hppa(struct parisc_device *d)
 
 static void hp_sdc_exit(void)
 {
-	/* do nothing if we don't have a SDC */
+	/* do yesthing if we don't have a SDC */
 	if (!hp_sdc.dev)
 		return;
 
@@ -973,7 +973,7 @@ static void hp_sdc_exit(void)
 	hp_sdc_spin_ibf();
 	sdc_writeb(HP_SDC_CMD_SET_IM | HP_SDC_IM_MASK, hp_sdc.status_io);
 
-	/* Wait until we know this has been processed by the i8042 */
+	/* Wait until we kyesw this has been processed by the i8042 */
 	hp_sdc_spin_ibf();
 
 	free_irq(hp_sdc.nmi, &hp_sdc);
@@ -1001,7 +1001,7 @@ static int __init hp_sdc_register(void)
 #endif
 
 	if (hp_sdc_disabled) {
-		printk(KERN_WARNING PREFIX "HP SDC driver disabled by no_hpsdc=1.\n");
+		printk(KERN_WARNING PREFIX "HP SDC driver disabled by yes_hpsdc=1.\n");
 		return -ENODEV;
 	}
 
@@ -1101,7 +1101,7 @@ static int __init hp_sdc_register(void)
 module_init(hp_sdc_register);
 module_exit(hp_sdc_exit);
 
-/* Timing notes:  These measurements taken on my 64MHz 7100-LC (715/64)
+/* Timing yestes:  These measurements taken on my 64MHz 7100-LC (715/64)
  *                                              cycles cycles-adj    time
  * between two consecutive mfctl(16)'s:              4        n/a    63ns
  * hp_sdc_spin_ibf when idle:                      119        115   1.7us

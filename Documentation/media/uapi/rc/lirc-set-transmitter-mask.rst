@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _lirc_set_transmitter_mask:
 
@@ -18,7 +18,7 @@ Name
 
 LIRC_SET_TRANSMITTER_MASK - Enables send codes on a given set of transmitters
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, LIRC_SET_TRANSMITTER_MASK, __u32 *mask )
@@ -46,13 +46,13 @@ This ioctl enables the given set of transmitters. The first transmitter is
 encoded by the least significant bit and so on.
 
 When an invalid bit mask is given, i.e. a bit is set, even though the device
-does not have so many transitters, then this ioctl returns the number of
-available transitters and does nothing otherwise.
+does yest have so many transitters, then this ioctl returns the number of
+available transitters and does yesthing otherwise.
 
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

@@ -125,7 +125,7 @@ ux500_regulator_debug_init(struct platform_device *pdev,
 	/* create directory */
 	rdebug.dir = debugfs_create_dir("ux500-regulator", NULL);
 	if (!rdebug.dir)
-		goto exit_no_debugfs;
+		goto exit_yes_debugfs;
 
 	/* create "status" file */
 	rdebug.status_file = debugfs_create_file("status",
@@ -163,7 +163,7 @@ exit_destroy_status:
 	debugfs_remove(rdebug.status_file);
 exit_destroy_dir:
 	debugfs_remove(rdebug.dir);
-exit_no_debugfs:
+exit_yes_debugfs:
 	dev_err(&pdev->dev, "failed to create debugfs entries.\n");
 	return -ENOMEM;
 }

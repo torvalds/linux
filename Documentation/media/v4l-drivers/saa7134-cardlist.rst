@@ -95,7 +95,7 @@ SAA7134 cards list
      - 185b:c100
 
    * - 20
-     - Matrox CronosPlus
+     - Matrox CroyessPlus
      - 102B:48d0
 
    * - 21
@@ -303,11 +303,11 @@ SAA7134 cards list
      - 185b:c901
 
    * - 72
-     - RTD Embedded Technologies VFG7350
+     - RTD Embedded Techyeslogies VFG7350
      - 1435:7350
 
    * - 73
-     - RTD Embedded Technologies VFG7330
+     - RTD Embedded Techyeslogies VFG7330
      - 1435:7330
 
    * - 74

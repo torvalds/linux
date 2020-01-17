@@ -22,25 +22,25 @@ static struct tty_struct *speakup_tty;
  */
 static DEFINE_MUTEX(speakup_tty_mutex);
 
-static int ser_to_dev(int ser, dev_t *dev_no)
+static int ser_to_dev(int ser, dev_t *dev_yes)
 {
 	if (ser < 0 || ser > (255 - 64)) {
 		pr_err("speakup: Invalid ser param. Must be between 0 and 191 inclusive.\n");
 		return -EINVAL;
 	}
 
-	*dev_no = MKDEV(4, (64 + ser));
+	*dev_yes = MKDEV(4, (64 + ser));
 	return 0;
 }
 
-static int get_dev_to_use(struct spk_synth *synth, dev_t *dev_no)
+static int get_dev_to_use(struct spk_synth *synth, dev_t *dev_yes)
 {
-	/* use ser only when dev is not specified */
+	/* use ser only when dev is yest specified */
 	if (strcmp(synth->dev_name, SYNTH_DEFAULT_DEV) ||
 	    synth->ser == SYNTH_DEFAULT_SER)
-		return tty_dev_name_to_number(synth->dev_name, dev_no);
+		return tty_dev_name_to_number(synth->dev_name, dev_yes);
 
-	return ser_to_dev(synth->ser, dev_no);
+	return ser_to_dev(synth->ser, dev_yes);
 }
 
 static int spk_ttyio_ldisc_open(struct tty_struct *tty)
@@ -114,7 +114,7 @@ static int spk_ttyio_out_unicode(struct spk_synth *in_synth, u16 ch);
 static void spk_ttyio_send_xchar(char ch);
 static void spk_ttyio_tiocmset(unsigned int set, unsigned int clear);
 static unsigned char spk_ttyio_in(void);
-static unsigned char spk_ttyio_in_nowait(void);
+static unsigned char spk_ttyio_in_yeswait(void);
 static void spk_ttyio_flush_buffer(void);
 
 struct spk_io_ops spk_ttyio_ops = {
@@ -123,7 +123,7 @@ struct spk_io_ops spk_ttyio_ops = {
 	.send_xchar = spk_ttyio_send_xchar,
 	.tiocmset = spk_ttyio_tiocmset,
 	.synth_in = spk_ttyio_in,
-	.synth_in_nowait = spk_ttyio_in_nowait,
+	.synth_in_yeswait = spk_ttyio_in_yeswait,
 	.flush_buffer = spk_ttyio_flush_buffer,
 };
 EXPORT_SYMBOL_GPL(spk_ttyio_ops);
@@ -169,7 +169,7 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 		tty_set_termios(tty, &tmp_termios);
 		/*
 		 * check c_cflag to see if it's updated as tty_set_termios
-		 * may not return error even when no tty bits are
+		 * may yest return error even when yes tty bits are
 		 * changed by the request.
 		 */
 		get_termios(tty, &tmp_termios);
@@ -211,9 +211,9 @@ static int spk_ttyio_out(struct spk_synth *in_synth, const char ch)
 		if (ret < 0) {
 			pr_warn("%s: I/O error, deactivating speakup\n",
 				in_synth->long_name);
-			/* No synth any more, so nobody will restart TTYs,
+			/* No synth any more, so yesbody will restart TTYs,
 			 * and we thus need to do it ourselves.  Now that there
-			 * is no synth we can let application flood anyway
+			 * is yes synth we can let application flood anyway
 			 */
 			in_synth->alive = 0;
 			speakup_start_ttys();
@@ -248,8 +248,8 @@ static int check_tty(struct tty_struct *tty)
 	if (!tty) {
 		pr_warn("%s: I/O error, deactivating speakup\n",
 			spk_ttyio_synth->long_name);
-		/* No synth any more, so nobody will restart TTYs, and we thus
-		 * need to do it ourselves.  Now that there is no synth we can
+		/* No synth any more, so yesbody will restart TTYs, and we thus
+		 * need to do it ourselves.  Now that there is yes synth we can
 		 * let application flood anyway
 		 */
 		spk_ttyio_synth->alive = 0;
@@ -316,7 +316,7 @@ static unsigned char spk_ttyio_in(void)
 	return ttyio_in(SPK_SYNTH_TIMEOUT);
 }
 
-static unsigned char spk_ttyio_in_nowait(void)
+static unsigned char spk_ttyio_in_yeswait(void)
 {
 	u8 rv = ttyio_in(0);
 

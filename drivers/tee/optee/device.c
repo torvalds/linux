@@ -113,7 +113,7 @@ int optee_enumerate_devices(void)
 
 	rc = tee_client_open_session(ctx, &sess_arg, NULL);
 	if ((rc < 0) || (sess_arg.ret != TEEC_SUCCESS)) {
-		/* Device enumeration pseudo TA not found */
+		/* Device enumeration pseudo TA yest found */
 		rc = 0;
 		goto out_ctx;
 	}

@@ -3,7 +3,7 @@
  * Generic OPP Interface
  *
  * Copyright (C) 2009-2010 Texas Instruments Incorporated.
- *	Nishanth Menon
+ *	Nishanth Meyesn
  *	Romit Dasgupta
  *	Kevin Hilman
  */
@@ -12,7 +12,7 @@
 #define __LINUX_OPP_H__
 
 #include <linux/err.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 struct clk;
 struct regulator;
@@ -122,8 +122,8 @@ int dev_pm_opp_enable(struct device *dev, unsigned long freq);
 
 int dev_pm_opp_disable(struct device *dev, unsigned long freq);
 
-int dev_pm_opp_register_notifier(struct device *dev, struct notifier_block *nb);
-int dev_pm_opp_unregister_notifier(struct device *dev, struct notifier_block *nb);
+int dev_pm_opp_register_yestifier(struct device *dev, struct yestifier_block *nb);
+int dev_pm_opp_unregister_yestifier(struct device *dev, struct yestifier_block *nb);
 
 struct opp_table *dev_pm_opp_set_supported_hw(struct device *dev, const u32 *versions, unsigned int count);
 void dev_pm_opp_put_supported_hw(struct opp_table *opp_table);
@@ -265,12 +265,12 @@ static inline int dev_pm_opp_disable(struct device *dev, unsigned long freq)
 	return 0;
 }
 
-static inline int dev_pm_opp_register_notifier(struct device *dev, struct notifier_block *nb)
+static inline int dev_pm_opp_register_yestifier(struct device *dev, struct yestifier_block *nb)
 {
 	return -ENOTSUPP;
 }
 
-static inline int dev_pm_opp_unregister_notifier(struct device *dev, struct notifier_block *nb)
+static inline int dev_pm_opp_unregister_yestifier(struct device *dev, struct yestifier_block *nb)
 {
 	return -ENOTSUPP;
 }
@@ -357,9 +357,9 @@ void dev_pm_opp_of_remove_table(struct device *dev);
 int dev_pm_opp_of_cpumask_add_table(const struct cpumask *cpumask);
 void dev_pm_opp_of_cpumask_remove_table(const struct cpumask *cpumask);
 int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask);
-struct device_node *dev_pm_opp_of_get_opp_desc_node(struct device *dev);
-struct device_node *dev_pm_opp_get_of_node(struct dev_pm_opp *opp);
-int of_get_required_opp_performance_state(struct device_node *np, int index);
+struct device_yesde *dev_pm_opp_of_get_opp_desc_yesde(struct device *dev);
+struct device_yesde *dev_pm_opp_get_of_yesde(struct dev_pm_opp *opp);
+int of_get_required_opp_performance_state(struct device_yesde *np, int index);
 void dev_pm_opp_of_register_em(struct cpumask *cpus);
 #else
 static inline int dev_pm_opp_of_add_table(struct device *dev)
@@ -390,12 +390,12 @@ static inline int dev_pm_opp_of_get_sharing_cpus(struct device *cpu_dev, struct 
 	return -ENOTSUPP;
 }
 
-static inline struct device_node *dev_pm_opp_of_get_opp_desc_node(struct device *dev)
+static inline struct device_yesde *dev_pm_opp_of_get_opp_desc_yesde(struct device *dev)
 {
 	return NULL;
 }
 
-static inline struct device_node *dev_pm_opp_get_of_node(struct dev_pm_opp *opp)
+static inline struct device_yesde *dev_pm_opp_get_of_yesde(struct dev_pm_opp *opp)
 {
 	return NULL;
 }
@@ -404,7 +404,7 @@ static inline void dev_pm_opp_of_register_em(struct cpumask *cpus)
 {
 }
 
-static inline int of_get_required_opp_performance_state(struct device_node *np, int index)
+static inline int of_get_required_opp_performance_state(struct device_yesde *np, int index)
 {
 	return -ENOTSUPP;
 }

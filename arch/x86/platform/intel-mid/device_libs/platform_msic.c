@@ -36,7 +36,7 @@ static struct platform_device msic_device = {
 	.resource	= msic_resources,
 };
 
-static int msic_scu_status_change(struct notifier_block *nb,
+static int msic_scu_status_change(struct yestifier_block *nb,
 				  unsigned long code, void *data)
 {
 	if (code == SCU_DOWN) {
@@ -49,8 +49,8 @@ static int msic_scu_status_change(struct notifier_block *nb,
 
 static int __init msic_init(void)
 {
-	static struct notifier_block msic_scu_notifier = {
-		.notifier_call	= msic_scu_status_change,
+	static struct yestifier_block msic_scu_yestifier = {
+		.yestifier_call	= msic_scu_status_change,
 	};
 
 	/*
@@ -58,7 +58,7 @@ static int __init msic_init(void)
 	 * can be registered.
 	 */
 	if (intel_mid_has_msic())
-		intel_scu_notifier_add(&msic_scu_notifier);
+		intel_scu_yestifier_add(&msic_scu_yestifier);
 
 	return 0;
 }

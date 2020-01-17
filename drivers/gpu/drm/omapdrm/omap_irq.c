@@ -9,7 +9,7 @@
 #include "omap_drv.h"
 
 struct omap_irq_wait {
-	struct list_head node;
+	struct list_head yesde;
 	wait_queue_head_t wq;
 	u32 irqmask;
 	int count;
@@ -24,7 +24,7 @@ static void omap_irq_update(struct drm_device *dev)
 
 	assert_spin_locked(&priv->wait_lock);
 
-	list_for_each_entry(wait, &priv->wait_list, node)
+	list_for_each_entry(wait, &priv->wait_list, yesde)
 		irqmask |= wait->irqmask;
 
 	DBG("irqmask=%08x", irqmask);
@@ -50,7 +50,7 @@ struct omap_irq_wait * omap_irq_wait_init(struct drm_device *dev,
 	wait->count = count;
 
 	spin_lock_irqsave(&priv->wait_lock, flags);
-	list_add(&wait->node, &priv->wait_list);
+	list_add(&wait->yesde, &priv->wait_list);
 	omap_irq_update(dev);
 	spin_unlock_irqrestore(&priv->wait_lock, flags);
 
@@ -67,7 +67,7 @@ int omap_irq_wait(struct drm_device *dev, struct omap_irq_wait *wait,
 	ret = wait_event_timeout(wait->wq, (wait->count <= 0), timeout);
 
 	spin_lock_irqsave(&priv->wait_lock, flags);
-	list_del(&wait->node);
+	list_del(&wait->yesde);
 	omap_irq_update(dev);
 	spin_unlock_irqrestore(&priv->wait_lock, flags);
 
@@ -104,12 +104,12 @@ int omap_irq_enable_framedone(struct drm_crtc *crtc, bool enable)
  * @pipe: which irq to enable
  *
  * Enable vblank interrupts for @crtc.  If the device doesn't have
- * a hardware vblank counter, this routine should be a no-op, since
+ * a hardware vblank counter, this routine should be a yes-op, since
  * interrupts will have to stay on to keep the count accurate.
  *
  * RETURNS
- * Zero on success, appropriate errno if the given @crtc's vblank
- * interrupt cannot be enabled.
+ * Zero on success, appropriate erryes if the given @crtc's vblank
+ * interrupt canyest be enabled.
  */
 int omap_irq_enable_vblank(struct drm_crtc *crtc)
 {
@@ -135,7 +135,7 @@ int omap_irq_enable_vblank(struct drm_crtc *crtc)
  * @pipe: which irq to enable
  *
  * Disable vblank interrupts for @crtc.  If the device doesn't have
- * a hardware vblank counter, this routine should be a no-op, since
+ * a hardware vblank counter, this routine should be a yes-op, since
  * interrupts will have to stay on to keep the count accurate.
  */
 void omap_irq_disable_vblank(struct drm_crtc *crtc)
@@ -239,7 +239,7 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 	omap_irq_fifo_underflow(priv, irqstatus);
 
 	spin_lock_irqsave(&priv->wait_lock, flags);
-	list_for_each_entry_safe(wait, n, &priv->wait_list, node) {
+	list_for_each_entry_safe(wait, n, &priv->wait_list, yesde) {
 		if (wait->irqmask & irqstatus)
 			omap_irq_wait_handler(wait);
 	}

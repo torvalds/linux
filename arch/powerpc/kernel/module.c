@@ -73,7 +73,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 #ifdef CONFIG_PPC_BARRIER_NOSPEC
 	sect = find_section(hdr, sechdrs, "__spec_barrier_fixup");
 	if (sect != NULL)
-		do_barrier_nospec_fixups_range(barrier_nospec_enabled,
+		do_barrier_yesspec_fixups_range(barrier_yesspec_enabled,
 				  (void *)sect->sh_addr,
 				  (void *)sect->sh_addr + sect->sh_size);
 #endif /* CONFIG_PPC_BARRIER_NOSPEC */

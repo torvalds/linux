@@ -1336,7 +1336,7 @@ static int sd_switch_function(struct rtsx_chip *chip, u8 bus_width)
 	}
 
 	if (!func_to_switch || (func_to_switch == HS_SUPPORT)) {
-		/* Do not try to switch current limit if the card doesn't
+		/* Do yest try to switch current limit if the card doesn't
 		 * support UHS mode or we don't want it to support UHS mode
 		 */
 		return STATUS_SUCCESS;
@@ -3056,7 +3056,7 @@ int reset_sd_card(struct rtsx_chip *chip)
 	if (retval != STATUS_SUCCESS)
 		return STATUS_FAIL;
 
-	if (chip->ignore_sd && CHK_SDIO_EXIST(chip) &&
+	if (chip->igyesre_sd && CHK_SDIO_EXIST(chip) &&
 	    !CHK_SDIO_IGNORED(chip)) {
 		if (chip->asic_code) {
 			retval = sd_pull_ctl_enable(chip);
@@ -3411,7 +3411,7 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector,
 		rtsx_add_cmd(chip, CHECK_REG_CMD, REG_SD_TRANSFER,
 			     SD_TRANSFER_END, SD_TRANSFER_END);
 
-		rtsx_send_cmd_no_wait(chip);
+		rtsx_send_cmd_yes_wait(chip);
 	} else {
 		if (srb->sc_data_direction == DMA_FROM_DEVICE) {
 			dev_dbg(rtsx_dev(chip), "SD/MMC CMD %d\n",
@@ -3441,7 +3441,7 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector,
 			rtsx_add_cmd(chip, CHECK_REG_CMD, REG_SD_TRANSFER,
 				     SD_TRANSFER_END, SD_TRANSFER_END);
 
-			rtsx_send_cmd_no_wait(chip);
+			rtsx_send_cmd_yes_wait(chip);
 		} else {
 			retval = rtsx_send_cmd(chip, SD_CARD, 50);
 			if (retval < 0) {
@@ -3483,7 +3483,7 @@ int sd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip, u32 start_sector,
 			rtsx_add_cmd(chip, CHECK_REG_CMD, REG_SD_TRANSFER,
 				     SD_TRANSFER_END, SD_TRANSFER_END);
 
-			rtsx_send_cmd_no_wait(chip);
+			rtsx_send_cmd_yes_wait(chip);
 		}
 
 		sd_card->seq_mode = 1;
@@ -3848,7 +3848,7 @@ static inline int get_rsp_type(struct scsi_cmnd *srb, u8 *rsp_type,
 	return STATUS_SUCCESS;
 }
 
-int sd_execute_no_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
+int sd_execute_yes_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 {
 	struct sd_info *sd_card = &chip->sd_card;
 	unsigned int lun = SCSI_LUN(srb);
@@ -4113,7 +4113,7 @@ int sd_execute_read_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		rtsx_add_cmd(chip, CHECK_REG_CMD, REG_SD_TRANSFER,
 			     SD_TRANSFER_END, SD_TRANSFER_END);
 
-		rtsx_send_cmd_no_wait(chip);
+		rtsx_send_cmd_yes_wait(chip);
 
 		retval = rtsx_transfer_data(chip, SD_CARD, scsi_sglist(srb),
 					    scsi_bufflen(srb),
@@ -4396,7 +4396,7 @@ int sd_execute_write_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		rtsx_add_cmd(chip, CHECK_REG_CMD, REG_SD_TRANSFER,
 			     SD_TRANSFER_END, SD_TRANSFER_END);
 
-		rtsx_send_cmd_no_wait(chip);
+		rtsx_send_cmd_yes_wait(chip);
 
 		retval = rtsx_transfer_data(chip, SD_CARD, scsi_sglist(srb),
 					    scsi_bufflen(srb),
@@ -4498,7 +4498,7 @@ int sd_execute_write_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		dev_dbg(rtsx_dev(chip), "sd_lock_state = 0x%x, sd_card->sd_lock_status = 0x%x\n",
 			sd_lock_state, sd_card->sd_lock_status);
 		if (sd_lock_state ^ (sd_card->sd_lock_status & SD_LOCKED)) {
-			sd_card->sd_lock_notify = 1;
+			sd_card->sd_lock_yestify = 1;
 			if (sd_lock_state &&
 			    (sd_card->sd_lock_status & SD_LOCK_1BIT_MODE)) {
 				sd_card->sd_lock_status |= (

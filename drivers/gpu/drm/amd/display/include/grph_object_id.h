@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -98,7 +98,7 @@ enum clock_source_id {
 	CLOCK_SOURCE_ID_EXTERNAL, /* ID (Phy) ref. clk. for DP */
 	CLOCK_SOURCE_ID_DCPLL,
 	CLOCK_SOURCE_ID_DFS,	/* DENTIST */
-	CLOCK_SOURCE_ID_VCE,	/* VCE does not need a real PLL */
+	CLOCK_SOURCE_ID_VCE,	/* VCE does yest need a real PLL */
 	/* Used to distinguish between programming pixel clock and ID (Phy) clock */
 	CLOCK_SOURCE_ID_DP_DTO,
 
@@ -123,7 +123,7 @@ enum encoder_id {
 	ENCODER_ID_INTERNAL_DAC2,	/* TV/CV DAC */
 
 	/* External Third Party Encoders */
-	ENCODER_ID_INTERNAL_LVTM1,	/* not used for Radeon */
+	ENCODER_ID_INTERNAL_LVTM1,	/* yest used for Radeon */
 	ENCODER_ID_INTERNAL_HDMI,
 
 	/* Kaledisope (KLDSCP) Class Display Hardware */
@@ -198,7 +198,7 @@ enum transmitter_color_depth {
 };
 
 enum dp_alt_mode {
-	DP_Alt_mode__Unknown = 0,
+	DP_Alt_mode__Unkyeswn = 0,
 	DP_Alt_mode__Connect,
 	DP_Alt_mode__NoConnect,
 };
@@ -210,10 +210,10 @@ enum dp_alt_mode {
  * Object identication
  *
  * This struct should stay very simple
- *  No dependencies at all (no includes)
+ *  No dependencies at all (yes includes)
  *  No debug messages or asserts
  *  No #ifndef and preprocessor directives
- *  No grow in space (no more data member)
+ *  No grow in space (yes more data member)
  *****************************************************************************
  */
 

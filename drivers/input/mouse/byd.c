@@ -33,7 +33,7 @@
  */
 
 /*
- * True device resolution is unknown, however experiments show the
+ * True device resolution is unkyeswn, however experiments show the
  * resolution is about 111 units/mm.
  * Absolute coordinate packets are in the range 0-255 for both X and Y
  * we pick ABS_X/ABS_Y dimensions which are multiples of 256 and in
@@ -70,7 +70,7 @@
 /*
  * Physical buttons function mapping
  *  0 : enable
- *  4 : normal
+ *  4 : yesrmal
  *  5 : left button custom command
  *  6 : right button custom command
  *  8 : disable
@@ -264,7 +264,7 @@ static void byd_clear_touch(struct timer_list *t)
 	/*
 	 * Move cursor back to center of pad when we lose touch - this
 	 * specifically improves user experience when moving cursor with one
-	 * finger, and pressing a button with another.
+	 * finger, and pressing a button with ayesther.
 	 */
 	priv->abs_x = BYD_PAD_WIDTH / 2;
 	priv->abs_y = BYD_PAD_HEIGHT / 2;
@@ -276,7 +276,7 @@ static psmouse_ret_t byd_process_byte(struct psmouse *psmouse)
 	u8 *pkt = psmouse->packet;
 
 	if (psmouse->pktcnt > 0 && !(pkt[0] & PS2_ALWAYS_1)) {
-		psmouse_warn(psmouse, "Always_1 bit not 1. pkt[0] = %02x\n",
+		psmouse_warn(psmouse, "Always_1 bit yest 1. pkt[0] = %02x\n",
 			     pkt[0]);
 		return PSMOUSE_BAD_DATA;
 	}

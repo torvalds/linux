@@ -136,7 +136,7 @@ static void lp8788_pwm_ctrl(struct lp8788_bl *bl, int br, int max_br)
 	if (!bl->pwm) {
 		pwm = devm_pwm_get(dev, LP8788_DEV_BACKLIGHT);
 		if (IS_ERR(pwm)) {
-			dev_err(dev, "can not get PWM device\n");
+			dev_err(dev, "can yest get PWM device\n");
 			return;
 		}
 

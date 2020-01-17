@@ -49,14 +49,14 @@ void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag);
 extern int nr_allocated;
 
 /* Normally private parts of lib/radix-tree.c */
-struct radix_tree_node *entry_to_node(void *ptr);
+struct radix_tree_yesde *entry_to_yesde(void *ptr);
 void radix_tree_dump(struct radix_tree_root *root);
 int root_tag_get(struct radix_tree_root *root, unsigned int tag);
-unsigned long node_maxindex(struct radix_tree_node *);
+unsigned long yesde_maxindex(struct radix_tree_yesde *);
 unsigned long shift_maxindex(unsigned int shift);
 int radix_tree_cpu_dead(unsigned int cpu);
 struct radix_tree_preload {
 	unsigned nr;
-	struct radix_tree_node *nodes;
+	struct radix_tree_yesde *yesdes;
 };
 extern struct radix_tree_preload radix_tree_preloads;

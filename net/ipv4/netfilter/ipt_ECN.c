@@ -47,7 +47,7 @@ set_ect_tcp(struct sk_buff *skb, const struct ipt_ECN_info *einfo)
 	struct tcphdr _tcph, *tcph;
 	__be16 oldval;
 
-	/* Not enough header? */
+	/* Not eyesugh header? */
 	tcph = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_tcph), &_tcph);
 	if (!tcph)
 		return false;
@@ -103,7 +103,7 @@ static int ecn_tg_check(const struct xt_tgchk_param *par)
 
 	if ((einfo->operation & (IPT_ECN_OP_SET_ECE|IPT_ECN_OP_SET_CWR)) &&
 	    (e->ip.proto != IPPROTO_TCP || (e->ip.invflags & XT_INV_PROTO))) {
-		pr_info_ratelimited("cannot use operation on non-tcp rule\n");
+		pr_info_ratelimited("canyest use operation on yesn-tcp rule\n");
 		return -EINVAL;
 	}
 	return 0;

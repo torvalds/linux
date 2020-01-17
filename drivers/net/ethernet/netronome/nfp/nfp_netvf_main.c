@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_netvf_main.c
- * Netronome virtual function network device driver: Main entry point
- * Author: Jason McMullan <jason.mcmullan@netronome.com>
- *         Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Netroyesme virtual function network device driver: Main entry point
+ * Author: Jason McMullan <jason.mcmullan@netroyesme.com>
+ *         Rolf Neugebauer <rolf.neugebauer@netroyesme.com>
  */
 
 #include <linux/module.h>
@@ -69,7 +69,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	int max_tx_rings, max_rx_rings;
 	u32 tx_bar_off, rx_bar_off;
 	u32 tx_bar_sz, rx_bar_sz;
-	int tx_bar_no, rx_bar_no;
+	int tx_bar_yes, rx_bar_yes;
 	struct nfp_net_vf *vf;
 	unsigned int num_irqs;
 	u8 __iomem *ctrl_bar;
@@ -106,7 +106,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	 * first NFP_NET_CFG_BAR_SZ of the BAR.  This keeps the code
 	 * the identical for PF and VF drivers.
 	 */
-	ctrl_bar = ioremap_nocache(pci_resource_start(pdev, NFP_NET_CTRL_BAR),
+	ctrl_bar = ioremap_yescache(pci_resource_start(pdev, NFP_NET_CTRL_BAR),
 				   NFP_NET_CFG_BAR_SZ);
 	if (!ctrl_bar) {
 		dev_err(&pdev->dev,
@@ -117,8 +117,8 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 
 	nfp_net_get_fw_version(&fw_ver, ctrl_bar);
 	if (fw_ver.resv || fw_ver.class != NFP_NET_CFG_VERSION_CLASS_GENERIC) {
-		dev_err(&pdev->dev, "Unknown Firmware ABI %d.%d.%d.%d\n",
-			fw_ver.resv, fw_ver.class, fw_ver.major, fw_ver.minor);
+		dev_err(&pdev->dev, "Unkyeswn Firmware ABI %d.%d.%d.%d\n",
+			fw_ver.resv, fw_ver.class, fw_ver.major, fw_ver.miyesr);
 		err = -EINVAL;
 		goto err_ctrl_unmap;
 	}
@@ -126,20 +126,20 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	/* Determine stride */
 	if (nfp_net_fw_ver_eq(&fw_ver, 0, 0, 0, 1)) {
 		stride = 2;
-		tx_bar_no = NFP_NET_Q0_BAR;
-		rx_bar_no = NFP_NET_Q1_BAR;
-		dev_warn(&pdev->dev, "OBSOLETE Firmware detected - VF isolation not available\n");
+		tx_bar_yes = NFP_NET_Q0_BAR;
+		rx_bar_yes = NFP_NET_Q1_BAR;
+		dev_warn(&pdev->dev, "OBSOLETE Firmware detected - VF isolation yest available\n");
 	} else {
 		switch (fw_ver.major) {
 		case 1 ... 5:
 			stride = 4;
-			tx_bar_no = NFP_NET_Q0_BAR;
-			rx_bar_no = tx_bar_no;
+			tx_bar_yes = NFP_NET_Q0_BAR;
+			rx_bar_yes = tx_bar_yes;
 			break;
 		default:
 			dev_err(&pdev->dev, "Unsupported Firmware ABI %d.%d.%d.%d\n",
 				fw_ver.resv, fw_ver.class,
-				fw_ver.major, fw_ver.minor);
+				fw_ver.major, fw_ver.miyesr);
 			err = -EINVAL;
 			goto err_ctrl_unmap;
 		}
@@ -153,16 +153,16 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	rx_bar_sz = NFP_QCP_QUEUE_ADDR_SZ * max_rx_rings * stride;
 
 	/* Sanity checks */
-	if (tx_bar_sz > pci_resource_len(pdev, tx_bar_no)) {
+	if (tx_bar_sz > pci_resource_len(pdev, tx_bar_yes)) {
 		dev_err(&pdev->dev,
 			"TX BAR too small for number of TX rings. Adjusting\n");
-		tx_bar_sz = pci_resource_len(pdev, tx_bar_no);
+		tx_bar_sz = pci_resource_len(pdev, tx_bar_yes);
 		max_tx_rings = (tx_bar_sz / NFP_QCP_QUEUE_ADDR_SZ) / 2;
 	}
-	if (rx_bar_sz > pci_resource_len(pdev, rx_bar_no)) {
+	if (rx_bar_sz > pci_resource_len(pdev, rx_bar_yes)) {
 		dev_err(&pdev->dev,
 			"RX BAR too small for number of RX rings. Adjusting\n");
-		rx_bar_sz = pci_resource_len(pdev, rx_bar_no);
+		rx_bar_sz = pci_resource_len(pdev, rx_bar_yes);
 		max_rx_rings = (rx_bar_sz / NFP_QCP_QUEUE_ADDR_SZ) / 2;
 	}
 
@@ -184,7 +184,7 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 	nn->stride_tx = stride;
 	nn->stride_rx = stride;
 
-	if (rx_bar_no == tx_bar_no) {
+	if (rx_bar_yes == tx_bar_yes) {
 		u32 bar_off, bar_sz;
 		resource_size_t map_addr;
 
@@ -199,10 +199,10 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 		else
 			bar_sz = (rx_bar_off + rx_bar_sz) - bar_off;
 
-		map_addr = pci_resource_start(pdev, tx_bar_no) + bar_off;
-		vf->q_bar = ioremap_nocache(map_addr, bar_sz);
+		map_addr = pci_resource_start(pdev, tx_bar_yes) + bar_off;
+		vf->q_bar = ioremap_yescache(map_addr, bar_sz);
 		if (!vf->q_bar) {
-			nn_err(nn, "Failed to map resource %d\n", tx_bar_no);
+			nn_err(nn, "Failed to map resource %d\n", tx_bar_yes);
 			err = -EIO;
 			goto err_netdev_free;
 		}
@@ -215,19 +215,19 @@ static int nfp_netvf_pci_probe(struct pci_dev *pdev,
 		resource_size_t map_addr;
 
 		/* TX queues */
-		map_addr = pci_resource_start(pdev, tx_bar_no) + tx_bar_off;
-		nn->tx_bar = ioremap_nocache(map_addr, tx_bar_sz);
+		map_addr = pci_resource_start(pdev, tx_bar_yes) + tx_bar_off;
+		nn->tx_bar = ioremap_yescache(map_addr, tx_bar_sz);
 		if (!nn->tx_bar) {
-			nn_err(nn, "Failed to map resource %d\n", tx_bar_no);
+			nn_err(nn, "Failed to map resource %d\n", tx_bar_yes);
 			err = -EIO;
 			goto err_netdev_free;
 		}
 
 		/* RX queues */
-		map_addr = pci_resource_start(pdev, rx_bar_no) + rx_bar_off;
-		nn->rx_bar = ioremap_nocache(map_addr, rx_bar_sz);
+		map_addr = pci_resource_start(pdev, rx_bar_yes) + rx_bar_off;
+		nn->rx_bar = ioremap_yescache(map_addr, rx_bar_sz);
 		if (!nn->rx_bar) {
-			nn_err(nn, "Failed to map resource %d\n", rx_bar_no);
+			nn_err(nn, "Failed to map resource %d\n", rx_bar_yes);
 			err = -EIO;
 			goto err_unmap_tx;
 		}

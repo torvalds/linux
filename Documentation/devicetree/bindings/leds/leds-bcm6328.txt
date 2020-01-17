@@ -38,13 +38,13 @@ Optional properties:
   - brcm,serial-shift-inv : Boolean, inverts Serial LEDs shift direction.
     Default : false
 
-Each LED is represented as a sub-node of the brcm,bcm6328-leds device.
+Each LED is represented as a sub-yesde of the brcm,bcm6328-leds device.
 
-LED sub-node required properties:
+LED sub-yesde required properties:
   - reg : LED pin number (only LEDs 0 to 23 are valid).
 
-LED sub-node optional properties:
-  a) Optional properties for sub-nodes related to software controlled LEDs:
+LED sub-yesde optional properties:
+  a) Optional properties for sub-yesdes related to software controlled LEDs:
     - label : see Documentation/devicetree/bindings/leds/common.txt
     - active-low : Boolean, makes LED active low.
       Default : false
@@ -53,7 +53,7 @@ LED sub-node optional properties:
     - linux,default-trigger : see
       Documentation/devicetree/bindings/leds/common.txt
 
-  b) Optional properties for sub-nodes related to hardware controlled LEDs:
+  b) Optional properties for sub-yesdes related to hardware controlled LEDs:
     - brcm,hardware-controlled : Boolean, makes this LED hardware controlled.
       Default : false
     - brcm,link-signal-sources : An array of hardware link

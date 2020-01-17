@@ -11,7 +11,7 @@ Required properties:
 - interrupts      : Interrupt specifier for the IOMMU instance
 - interrupt-names : Interrupt name for the IOMMU instance
 - #iommu-cells    : Should be <0>.  This indicates the iommu is a
-                    "single-master" device, and needs no additional information
+                    "single-master" device, and needs yes additional information
                     to associate with its master device.  See:
                     Documentation/devicetree/bindings/iommu/iommu.txt
 - clocks          : A list of clocks required for the IOMMU to be accessible by

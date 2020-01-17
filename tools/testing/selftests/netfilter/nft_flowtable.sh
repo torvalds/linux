@@ -5,9 +5,9 @@
 # Creates following topology:
 #
 # Originator (MTU 9000) <-Router1-> MTU 1500 <-Router2-> Responder (MTU 2000)
-# Router1 is the one doing flow offloading, Router2 has no special
+# Router1 is the one doing flow offloading, Router2 has yes special
 # purpose other than having a link that is smaller than either Originator
-# and responder, i.e. TCPMSS announced values are too large and will still
+# and responder, i.e. TCPMSS anyesunced values are too large and will still
 # result in fragmentation and/or PMTU discovery.
 
 # Kselftest framework requirement - SKIP code is 4.
@@ -23,25 +23,25 @@ log_netns=$(sysctl -n net.netfilter.nf_log_all_netns)
 
 nft --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nft tool"
+	echo "SKIP: Could yest run test without nft tool"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could yest run test without ip tool"
 	exit $ksft_skip
 fi
 
 which nc > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nc (netcat)"
+	echo "SKIP: Could yest run test without nc (netcat)"
 	exit $ksft_skip
 fi
 
 ip netns add nsr1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace"
+	echo "SKIP: Could yest create net namespace"
 	exit $ksft_skip
 fi
 
@@ -84,9 +84,9 @@ ip -net nsr2 addr add 10.0.2.1/24 dev veth1
 ip -net nsr2 addr add dead:2::1/64 dev veth1
 
 # set different MTUs so we need to push packets coming from ns1 (large MTU)
-# to ns2 (smaller MTU) to stack either to perform fragmentation (ip_no_pmtu_disc=1),
+# to ns2 (smaller MTU) to stack either to perform fragmentation (ip_yes_pmtu_disc=1),
 # or to do PTMU discovery (send ICMP error back to originator).
-# ns2 is going via nsr2 with a smaller mtu, so that TCPMSS announced by both peers
+# ns2 is going via nsr2 with a smaller mtu, so that TCPMSS anyesunced by both peers
 # is NOT the lowest link mtu.
 
 ip -net nsr1 link set veth0 mtu 9000
@@ -96,7 +96,7 @@ ip -net nsr2 link set veth1 mtu 2000
 ip -net ns2 link set eth0 mtu 2000
 
 # transfer-net between nsr1 and nsr2.
-# these addresses are not used for connections.
+# these addresses are yest used for connections.
 ip -net nsr1 addr add 192.168.10.1/24 dev veth1
 ip -net nsr1 addr add fee1:2::1/64 dev veth1
 
@@ -113,10 +113,10 @@ for i in 1 2; do
   ip -net ns$i route add default via 10.0.$i.1
   ip -net ns$i addr add dead:$i::99/64 dev eth0
   ip -net ns$i route add default via dead:$i::1
-  ip netns exec ns$i sysctl net.ipv4.tcp_no_metrics_save=1 > /dev/null
+  ip netns exec ns$i sysctl net.ipv4.tcp_yes_metrics_save=1 > /dev/null
 
   # don't set ip DF bit for first two tests
-  ip netns exec ns$i sysctl net.ipv4.ip_no_pmtu_disc=1 > /dev/null
+  ip netns exec ns$i sysctl net.ipv4.ip_yes_pmtu_disc=1 > /dev/null
 done
 
 ip -net nsr1 route add default via 192.168.10.2
@@ -135,7 +135,7 @@ table inet filter {
       # flow offloaded? Tag ct with mark 1, so we can detect when it fails.
       meta oif "veth1" tcp dport 12345 flow offload @f1 counter
 
-      # use packet size to trigger 'should be offloaded by now'.
+      # use packet size to trigger 'should be offloaded by yesw'.
       # otherwise, if 'flow offload' expression never offloads, the
       # test will pass.
       tcp dport 12345 meta length gt 200 ct mark set 1 counter
@@ -156,7 +156,7 @@ table inet filter {
 
       ct state established,related accept
 
-      # for packets that we can't offload yet, i.e. SYN (any ct that is not confirmed)
+      # for packets that we can't offload yet, i.e. SYN (any ct that is yest confirmed)
       meta length lt 200 oif "veth1" tcp dport 12345 counter accept
 
       meta nfproto ipv4 meta l4proto icmp accept
@@ -166,21 +166,21 @@ table inet filter {
 EOF
 
 if [ $? -ne 0 ]; then
-	echo "SKIP: Could not load nft ruleset"
+	echo "SKIP: Could yest load nft ruleset"
 	exit $ksft_skip
 fi
 
 # test basic connectivity
 ip netns exec ns1 ping -c 1 -q 10.0.2.99 > /dev/null
 if [ $? -ne 0 ];then
-  echo "ERROR: ns1 cannot reach ns2" 1>&2
+  echo "ERROR: ns1 canyest reach ns2" 1>&2
   bash
   exit 1
 fi
 
 ip netns exec ns2 ping -c 1 -q 10.0.1.99 > /dev/null
 if [ $? -ne 0 ];then
-  echo "ERROR: ns2 cannot reach ns1" 1>&2
+  echo "ERROR: ns2 canyest reach ns1" 1>&2
   exit 1
 fi
 
@@ -206,7 +206,7 @@ make_file()
 	SIZE=$((RANDOM % 1024))
 	SIZE=$((SIZE + 128))
 	TSIZE=$((TSIZE + SIZE))
-	dd if=/dev/urandom conf=notrunc of="$name" bs=1 count=$SIZE 2> /dev/null
+	dd if=/dev/urandom conf=yestrunc of="$name" bs=1 count=$SIZE 2> /dev/null
 }
 
 check_transfer()
@@ -335,12 +335,12 @@ handle=$(ip netns exec nsr1 nft -a list table inet filter | grep something-to-gr
 
 ip netns exec nsr1 nft delete rule inet filter forward $handle
 if [ $? -ne 0 ] ;then
-	echo "FAIL: Could not delete large-packet accept rule"
+	echo "FAIL: Could yest delete large-packet accept rule"
 	exit 1
 fi
 
-ip netns exec ns1 sysctl net.ipv4.ip_no_pmtu_disc=0 > /dev/null
-ip netns exec ns2 sysctl net.ipv4.ip_no_pmtu_disc=0 > /dev/null
+ip netns exec ns1 sysctl net.ipv4.ip_yes_pmtu_disc=0 > /dev/null
+ip netns exec ns2 sysctl net.ipv4.ip_yes_pmtu_disc=0 > /dev/null
 
 test_tcp_forwarding_nat ns1 ns2
 if [ $? -eq 0 ] ;then

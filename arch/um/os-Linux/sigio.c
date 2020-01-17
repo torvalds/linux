@@ -4,7 +4,7 @@
  */
 
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <pty.h>
@@ -60,10 +60,10 @@ static int write_sigio_thread(void *unused)
 	while (1) {
 		n = poll(fds->poll, fds->used, -1);
 		if (n < 0) {
-			if (errno == EINTR)
+			if (erryes == EINTR)
 				continue;
 			printk(UM_KERN_ERR "write_sigio_thread : poll returned "
-			       "%d, errno = %d\n", n, errno);
+			       "%d, erryes = %d\n", n, erryes);
 		}
 		for (i = 0; i < fds->used; i++) {
 			p = &fds->poll[i];
@@ -76,7 +76,7 @@ static int write_sigio_thread(void *unused)
 					printk(UM_KERN_ERR
 					       "write_sigio_thread : "
 					       "read on socket failed, "
-					       "err = %d\n", errno);
+					       "err = %d\n", erryes);
 				tmp = current_poll;
 				current_poll = next_poll;
 				next_poll = tmp;
@@ -93,7 +93,7 @@ static int write_sigio_thread(void *unused)
 			if (n != sizeof(c))
 				printk(UM_KERN_ERR "write_sigio_thread : "
 				       "write on socket failed, err = %d\n",
-				       errno);
+				       erryes);
 		}
 	}
 
@@ -136,14 +136,14 @@ static void update_thread(void)
 	CATCH_EINTR(n = write(sigio_private[0], &c, sizeof(c)));
 	if (n != sizeof(c)) {
 		printk(UM_KERN_ERR "update_thread : write failed, err = %d\n",
-		       errno);
+		       erryes);
 		goto fail;
 	}
 
 	CATCH_EINTR(n = read(sigio_private[0], &c, sizeof(c)));
 	if (n != sizeof(c)) {
 		printk(UM_KERN_ERR "update_thread : read failed, err = %d\n",
-		       errno);
+		       erryes);
 		goto fail;
 	}
 
@@ -199,7 +199,7 @@ int add_sigio_fd(int fd)
 	return err;
 }
 
-int ignore_sigio_fd(int fd)
+int igyesre_sigio_fd(int fd)
 {
 	struct pollfd *p;
 	int err = 0, i, n = 0;
@@ -207,7 +207,7 @@ int ignore_sigio_fd(int fd)
 	/*
 	 * This is called from exitcalls elsewhere in UML - if
 	 * sigio_cleanup has already run, then update_thread will hang
-	 * or fail because the thread is no longer running.
+	 * or fail because the thread is yes longer running.
 	 */
 	if (write_sigio_pid == -1)
 		return -EIO;
@@ -289,8 +289,8 @@ static void write_sigio_workaround(void)
 	sigio_lock();
 
 	/*
-	 * Did we race? Don't try to optimize this, please, it's not so likely
-	 * to happen, and no more than once at the boot.
+	 * Did we race? Don't try to optimize this, please, it's yest so likely
+	 * to happen, and yes more than once at the boot.
 	 */
 	if (write_sigio_pid != -1)
 		goto out_free;
@@ -405,7 +405,7 @@ static void openpty_cb(void *arg)
 
 	info->err = 0;
 	if (openpty(&info->master, &info->slave, NULL, NULL, NULL))
-		info->err = -errno;
+		info->err = -erryes;
 }
 
 static int async_pty(int master, int slave)
@@ -414,14 +414,14 @@ static int async_pty(int master, int slave)
 
 	flags = fcntl(master, F_GETFL);
 	if (flags < 0)
-		return -errno;
+		return -erryes;
 
 	if ((fcntl(master, F_SETFL, flags | O_NONBLOCK | O_ASYNC) < 0) ||
 	    (fcntl(master, F_SETOWN, os_getpid()) < 0))
-		return -errno;
+		return -erryes;
 
 	if ((fcntl(slave, F_SETFL, flags | O_NONBLOCK) < 0))
-		return -errno;
+		return -erryes;
 
 	return 0;
 }
@@ -434,7 +434,7 @@ static void __init check_one_sigio(void (*proc)(int, int))
 
 	initial_thread_cb(openpty_cb, &pty);
 	if (pty.err) {
-		printk(UM_KERN_ERR "check_one_sigio failed, errno = %d\n",
+		printk(UM_KERN_ERR "check_one_sigio failed, erryes = %d\n",
 		       -pty.err);
 		return;
 	}
@@ -448,10 +448,10 @@ static void __init check_one_sigio(void (*proc)(int, int))
 		return;
 	}
 
-	/* Not now, but complain so we now where we failed. */
+	/* Not yesw, but complain so we yesw where we failed. */
 	err = raw(master);
 	if (err < 0) {
-		printk(UM_KERN_ERR "check_one_sigio : raw failed, errno = %d\n",
+		printk(UM_KERN_ERR "check_one_sigio : raw failed, erryes = %d\n",
 		      -err);
 		return;
 	}
@@ -465,7 +465,7 @@ static void __init check_one_sigio(void (*proc)(int, int))
 
 	if (sigaction(SIGIO, NULL, &old) < 0) {
 		printk(UM_KERN_ERR "check_one_sigio : sigaction 1 failed, "
-		       "errno = %d\n", errno);
+		       "erryes = %d\n", erryes);
 		return;
 	}
 
@@ -473,7 +473,7 @@ static void __init check_one_sigio(void (*proc)(int, int))
 	new.sa_handler = handler;
 	if (sigaction(SIGIO, &new, NULL) < 0) {
 		printk(UM_KERN_ERR "check_one_sigio : sigaction 2 failed, "
-		       "errno = %d\n", errno);
+		       "erryes = %d\n", erryes);
 		return;
 	}
 
@@ -485,7 +485,7 @@ static void __init check_one_sigio(void (*proc)(int, int))
 
 	if (sigaction(SIGIO, &old, NULL) < 0)
 		printk(UM_KERN_ERR "check_one_sigio : sigaction 3 failed, "
-		       "errno = %d\n", errno);
+		       "erryes = %d\n", erryes);
 }
 
 static void tty_output(int master, int slave)
@@ -498,9 +498,9 @@ static void tty_output(int master, int slave)
 	memset(buf, 0, sizeof(buf));
 
 	while (write(master, buf, sizeof(buf)) > 0) ;
-	if (errno != EAGAIN)
-		printk(UM_KERN_ERR "tty_output : write failed, errno = %d\n",
-		       errno);
+	if (erryes != EAGAIN)
+		printk(UM_KERN_ERR "tty_output : write failed, erryes = %d\n",
+		       erryes);
 	while (((n = read(slave, buf, sizeof(buf))) > 0) &&
 	       !({ barrier(); got_sigio; }))
 		;
@@ -539,7 +539,7 @@ static void __init check_sigio(void)
 	check_one_sigio(tty_close);
 }
 
-/* Here because it only does the SIGIO testing for now */
+/* Here because it only does the SIGIO testing for yesw */
 void __init os_check_bugs(void)
 {
 	check_sigio();

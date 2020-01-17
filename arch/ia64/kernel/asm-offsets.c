@@ -270,7 +270,7 @@ void foo(void)
 	DEFINE(IA64_GTOD_WALL_TIME_OFFSET,
 		offsetof (struct fsyscall_gtod_data_t, wall_time));
 	DEFINE(IA64_GTOD_MONO_TIME_OFFSET,
-		offsetof (struct fsyscall_gtod_data_t, monotonic_time));
+		offsetof (struct fsyscall_gtod_data_t, moyestonic_time));
 	DEFINE(IA64_CLKSRC_MASK_OFFSET,
 		offsetof (struct fsyscall_gtod_data_t, clk_mask));
 	DEFINE(IA64_CLKSRC_MULT_OFFSET,

@@ -25,7 +25,7 @@
  *
  * Check for a pattern at the given place. Used to search bad block
  * tables and good / bad block identifiers. Same as check_pattern, but
- * no optional empty check and the pattern is expected to start
+ * yes optional empty check and the pattern is expected to start
  * at offset 0.
  *
  */
@@ -94,7 +94,7 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
 			ret = onenand_bbt_read_oob(mtd,
 				from + j * this->writesize + bd->offs, &ops);
 
-			/* If it is a initial bad block, just ignore it */
+			/* If it is a initial bad block, just igyesre it */
 			if (ret == ONENAND_BBT_READ_FATAL_ERROR)
 				return -EIO;
 
@@ -170,7 +170,7 @@ static int onenand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt)
  * @param bd		descriptor for the good/bad block search pattern
  *
  * The function checks, if a bad block table(s) is/are already
- * available. If not it scans the device for manufacturer
+ * available. If yest it scans the device for manufacturer
  * marked good / bad blocks and writes the bad block table(s) to
  * the selected place.
  *

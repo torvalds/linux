@@ -54,14 +54,14 @@ static int t1pci_add_card(struct capicardparams *p, struct pci_dev *pdev)
 
 	card = b1_alloc_card(1);
 	if (!card) {
-		printk(KERN_WARNING "t1pci: no memory.\n");
+		printk(KERN_WARNING "t1pci: yes memory.\n");
 		retval = -ENOMEM;
 		goto err;
 	}
 
 	card->dma = avmcard_dma_alloc("t1pci", pdev, 2048 + 128, 2048 + 128);
 	if (!card->dma) {
-		printk(KERN_WARNING "t1pci: no memory.\n");
+		printk(KERN_WARNING "t1pci: yes memory.\n");
 		retval = -ENOMEM;
 		goto err_free;
 	}
@@ -96,7 +96,7 @@ static int t1pci_add_card(struct capicardparams *p, struct pci_dev *pdev)
 			printk(KERN_NOTICE "t1pci: NO card at 0x%x (%d)\n",
 			       card->port, retval);
 		else
-			printk(KERN_NOTICE "t1pci: card at 0x%x, but cable not connected or T1 has no power (%d)\n",
+			printk(KERN_NOTICE "t1pci: card at 0x%x, but cable yest connected or T1 has yes power (%d)\n",
 			       card->port, retval);
 		retval = -EIO;
 		goto err_unmap;
@@ -207,7 +207,7 @@ static int t1pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	retval = t1pci_add_card(&param, dev);
 	if (retval != 0) {
-		printk(KERN_ERR "t1pci: no AVM-T1-PCI at i/o %#x, irq %d detected, mem %#x\n",
+		printk(KERN_ERR "t1pci: yes AVM-T1-PCI at i/o %#x, irq %d detected, mem %#x\n",
 		       param.port, param.irq, param.membase);
 		pci_disable_device(dev);
 		return -ENODEV;

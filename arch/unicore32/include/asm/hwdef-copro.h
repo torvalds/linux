@@ -22,7 +22,7 @@
 
 #define vectors_high()		(cr_alignment & CR_V)
 
-extern unsigned long cr_no_alignment;	/* defined in entry.S */
+extern unsigned long cr_yes_alignment;	/* defined in entry.S */
 extern unsigned long cr_alignment;	/* defined in entry.S */
 
 static inline unsigned int get_cr(void)

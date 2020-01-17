@@ -51,12 +51,12 @@
 	Definition: reference to the reserved-memory for the firmware
 		    memory region.
 
-* Subnodes
-The Venus video-codec node must contain two subnodes representing
-video-decoder and video-encoder, and one optional firmware subnode.
-Firmware subnode is needed when the platform does not have TrustZone.
+* Subyesdes
+The Venus video-codec yesde must contain two subyesdes representing
+video-decoder and video-encoder, and one optional firmware subyesde.
+Firmware subyesde is needed when the platform does yest have TrustZone.
 
-Every of video-encoder or video-decoder subnode should have:
+Every of video-encoder or video-decoder subyesde should have:
 
 - compatible:
 	Usage: required
@@ -80,7 +80,7 @@ Every of video-encoder or video-decoder subnode should have:
 		    power domain which is responsible for collapsing
 		    and restoring power to the subcore.
 
-The firmware subnode must have:
+The firmware subyesde must have:
 
 - iommus:
 	Usage: required

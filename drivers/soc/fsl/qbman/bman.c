@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -31,7 +31,7 @@
 #include "bman_priv.h"
 
 #define IRQNAME		"BMan portal %d"
-#define MAX_IRQNAME	16	/* big enough for "BMan portal %d" */
+#define MAX_IRQNAME	16	/* big eyesugh for "BMan portal %d" */
 
 /* Portal register assists */
 
@@ -106,7 +106,7 @@ enum bm_rcr_cmode {		/* s/w-only */
 struct bm_rcr_entry {
 	union {
 		struct {
-			u8 _ncw_verb; /* writes to this are non-coherent */
+			u8 _ncw_verb; /* writes to this are yesn-coherent */
 			u8 bpid; /* used with BM_RCR_VERB_CMD_BPID_SINGLE */
 			u8 __reserved1[62];
 		};
@@ -131,7 +131,7 @@ struct bm_rcr {
 
 /* MC (Management Command) command */
 struct bm_mc_command {
-	u8 _ncw_verb; /* writes to this are non-coherent */
+	u8 _ncw_verb; /* writes to this are yesn-coherent */
 	u8 bpid; /* used by acquire command */
 	u8 __reserved[62];
 };
@@ -245,7 +245,7 @@ static inline void put_affine_portal(void)
 struct bman_pool {
 	/* index of the buffer pool to encapsulate (0-63) */
 	u32 bpid;
-	/* Used for hash-table admin when using depletion notifications. */
+	/* Used for hash-table admin when using depletion yestifications. */
 	struct bman_portal *portal;
 	struct bman_pool *next;
 };
@@ -619,7 +619,7 @@ static u32 poll_portal_slow(struct bman_portal *p, u32 is)
 		is &= ~BM_PIRQ_RCRI;
 	}
 
-	/* There should be no status register bits left undefined */
+	/* There should be yes status register bits left undefined */
 	DPAA_ASSERT(!is);
 	return ret;
 }

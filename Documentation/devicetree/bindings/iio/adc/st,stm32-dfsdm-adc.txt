@@ -10,9 +10,9 @@ It is mainly targeted for:
 It features up to 8 serial digital interfaces (SPI or Manchester) and
 up to 4 filters on stm32h7 or 6 filters on stm32mp1.
 
-Each child node match with a filter instance.
+Each child yesde match with a filter instance.
 
-Contents of a STM32 DFSDM root node:
+Contents of a STM32 DFSDM root yesde:
 ------------------------------------
 Required properties:
 - compatible: Should be one of:
@@ -32,14 +32,14 @@ Optional properties:
 - spi-max-frequency: Requested only for SPI master mode.
 		  SPI clock OUT frequency (Hz). This clock must be set according
 		  to "clock" property. Frequency must be a multiple of the rcc
-		  clock frequency. If not, SPI CLKOUT frequency will not be
+		  clock frequency. If yest, SPI CLKOUT frequency will yest be
 		  accurate.
 - pinctrl-names:	Set to "default".
 - pinctrl-0:		List of phandles pointing to pin configuration
-			nodes to set pins in mode of operation for dfsdm
+			yesdes to set pins in mode of operation for dfsdm
 			on external pin.
 
-Contents of a STM32 DFSDM child nodes:
+Contents of a STM32 DFSDM child yesdes:
 --------------------------------------
 
 Required properties:
@@ -62,8 +62,8 @@ Required properties:
 Required properties for "st,stm32-dfsdm-adc" compatibility:
 - io-channels: From common IIO binding. Used to pipe external sigma delta
 		modulator or internal ADC output to DFSDM channel.
-		This is not required for "st,stm32-dfsdm-pdm" compatibility as
-		PDM microphone is binded in Audio DT node.
+		This is yest required for "st,stm32-dfsdm-pdm" compatibility as
+		PDM microphone is binded in Audio DT yesde.
 
 Required properties for "st,stm32-dfsdm-pdm" compatibility:
 - #sound-dai-cells: Must be set to 0.
@@ -85,7 +85,7 @@ Optional properties:
 
 - st,adc-alt-channel: Must be defined if two sigma delta modulator are
 			  connected on same SPI input.
-			  If not set, channel n is connected to SPI input n.
+			  If yest set, channel n is connected to SPI input n.
 			  If set, channel n is connected to SPI input n + 1.
 
 - st,filter0-sync: Set to 1 to synchronize with DFSDM filter instance 0.

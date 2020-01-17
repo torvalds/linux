@@ -101,12 +101,12 @@ static int pcf8523_load_capacitance(struct i2c_client *client)
 		return err;
 
 	load = 12500;
-	of_property_read_u32(client->dev.of_node, "quartz-load-femtofarads",
+	of_property_read_u32(client->dev.of_yesde, "quartz-load-femtofarads",
 			     &load);
 
 	switch (load) {
 	default:
-		dev_warn(&client->dev, "Unknown quartz-load-femtofarads value: %d. Assuming 12500",
+		dev_warn(&client->dev, "Unkyeswn quartz-load-femtofarads value: %d. Assuming 12500",
 			 load);
 		/* fall through */
 	case 12500:
@@ -230,7 +230,7 @@ static int pcf8523_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	 * The hardware can only store values between 0 and 99 in it's YEAR
 	 * register (with 99 overflowing to 0 on increment).
 	 * After 2100-02-28 we could start interpreting the year to be in the
-	 * interval [2100, 2199], but there is no path to switch in a smooth way
+	 * interval [2100, 2199], but there is yes path to switch in a smooth way
 	 * because the chip handles YEAR=0x00 (and the out-of-spec
 	 * YEAR=0xa0) as a leap year, but 2100 isn't.
 	 */
@@ -259,8 +259,8 @@ static int pcf8523_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	err = i2c_transfer(client->adapter, &msg, 1);
 	if (err < 0) {
 		/*
-		 * If the time cannot be set, restart the RTC anyway. Note
-		 * that errors are ignored if the RTC cannot be started so
+		 * If the time canyest be set, restart the RTC anyway. Note
+		 * that errors are igyesred if the RTC canyest be started so
 		 * that we have a chance to propagate the original error.
 		 */
 		pcf8523_start_rtc(client);

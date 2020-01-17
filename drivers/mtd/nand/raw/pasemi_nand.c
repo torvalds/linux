@@ -77,7 +77,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct pci_dev *pdev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct resource res;
 	struct nand_chip *chip;
 	int err = 0;

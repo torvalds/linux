@@ -4,7 +4,7 @@
  * device driver for philips saa7134 based TV cards
  * tv audio decoder (fm stereo, nicam, ...)
  *
- * (c) 2001-03 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2001-03 Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #include "saa7134.h"
@@ -190,7 +190,7 @@ static void mute_input_7134(struct saa7134_dev *dev)
 
 	if (dev->hw_mute  == mute &&
 		dev->hw_input == in && !dev->insuspend) {
-		audio_dbg(1, "mute/input: nothing to do [mute=%d,input=%s]\n",
+		audio_dbg(1, "mute/input: yesthing to do [mute=%d,input=%s]\n",
 			  mute, saa7134_input_name[in->type]);
 		return;
 	}
@@ -238,11 +238,11 @@ static void mute_input_7134(struct saa7134_dev *dev)
 
 static void tvaudio_setmode(struct saa7134_dev *dev,
 			    struct saa7134_tvaudio *audio,
-			    char *note)
+			    char *yeste)
 {
 	int acpf, tweak = 0;
 
-	if (dev->tvnorm->id == V4L2_STD_NTSC) {
+	if (dev->tvyesrm->id == V4L2_STD_NTSC) {
 		acpf = 0x19066;
 	} else {
 		acpf = 0x1e000;
@@ -250,9 +250,9 @@ static void tvaudio_setmode(struct saa7134_dev *dev,
 	if (audio_clock_tweak > -1024 && audio_clock_tweak < 1024)
 		tweak = audio_clock_tweak;
 
-	if (note)
+	if (yeste)
 		audio_dbg(1, "tvaudio_setmode: %s %s [%d.%03d/%d.%03d MHz] acpf=%d%+d\n",
-			note, audio->name,
+			yeste, audio->name,
 			audio->carr1 / 1000, audio->carr1 % 1000,
 			audio->carr2 / 1000, audio->carr2 % 1000,
 			acpf, tweak);
@@ -294,7 +294,7 @@ static void tvaudio_setmode(struct saa7134_dev *dev,
 		saa_writeb(SAA7134_NICAM_CONFIG,              0x00);
 		break;
 	case TVAUDIO_FM_SAT_STEREO:
-		/* not implemented (yet) */
+		/* yest implemented (yet) */
 		break;
 	}
 }
@@ -318,7 +318,7 @@ static int tvaudio_checkcarrier(struct saa7134_dev *dev, struct mainscan *scan)
 {
 	__s32 left,right,value;
 
-	if (!(dev->tvnorm->id & scan->std)) {
+	if (!(dev->tvyesrm->id & scan->std)) {
 		audio_dbg(1, "skipping %d.%03d MHz [%4s]\n",
 			  scan->carr / 1000, scan->carr % 1000, scan->name);
 		return 0;
@@ -383,7 +383,7 @@ static int tvaudio_getstereo(struct saa7134_dev *dev, struct saa7134_tvaudio *au
 			retval = V4L2_TUNER_SUB_MONO;
 		break;
 	case TVAUDIO_FM_SAT_STEREO:
-		/* not implemented (yet) */
+		/* yest implemented (yet) */
 		break;
 	case TVAUDIO_NICAM_FM:
 	case TVAUDIO_NICAM_AM:
@@ -411,7 +411,7 @@ static int tvaudio_getstereo(struct saa7134_dev *dev, struct saa7134_tvaudio *au
 	}
 	if (retval != -1)
 		audio_dbg(1, "found audio subchannels:%s%s%s%s\n",
-			(retval & V4L2_TUNER_SUB_MONO)   ? " mono"   : "",
+			(retval & V4L2_TUNER_SUB_MONO)   ? " moyes"   : "",
 			(retval & V4L2_TUNER_SUB_STEREO) ? " stereo" : "",
 			(retval & V4L2_TUNER_SUB_LANG1)  ? " lang1"  : "",
 			(retval & V4L2_TUNER_SUB_LANG2)  ? " lang2"  : "");
@@ -422,7 +422,7 @@ static int tvaudio_setstereo(struct saa7134_dev *dev, struct saa7134_tvaudio *au
 			     u32 mode)
 {
 	static char *name[] = {
-		[ V4L2_TUNER_MODE_MONO   ] = "mono",
+		[ V4L2_TUNER_MODE_MONO   ] = "moyes",
 		[ V4L2_TUNER_MODE_STEREO ] = "stereo",
 		[ V4L2_TUNER_MODE_LANG1  ] = "lang1",
 		[ V4L2_TUNER_MODE_LANG2  ] = "lang2",
@@ -439,7 +439,7 @@ static int tvaudio_setstereo(struct saa7134_dev *dev, struct saa7134_tvaudio *au
 
 	switch (audio->mode) {
 	case TVAUDIO_FM_MONO:
-		/* nothing to do ... */
+		/* yesthing to do ... */
 		break;
 	case TVAUDIO_FM_K_STEREO:
 	case TVAUDIO_FM_BG_STEREO:
@@ -497,7 +497,7 @@ static int tvaudio_thread(void *data)
 		carrier = 0;
 		default_carrier = 0;
 		for (i = 0; i < ARRAY_SIZE(mainscan); i++) {
-			if (!(dev->tvnorm->id & mainscan[i].std))
+			if (!(dev->tvyesrm->id & mainscan[i].std))
 				continue;
 			if (!default_carrier)
 				default_carrier = mainscan[i].carr;
@@ -532,20 +532,20 @@ static int tvaudio_thread(void *data)
 		if (0 != carrier && max1 > 2000 && max1 > max2*3) {
 			/* found good carrier */
 			audio_dbg(1, "found %s main sound carrier @ %d.%03d MHz [%d/%d]\n",
-				  dev->tvnorm->name, carrier/1000, carrier%1000,
+				  dev->tvyesrm->name, carrier/1000, carrier%1000,
 				  max1, max2);
 			dev->last_carrier = carrier;
 			dev->automute = 0;
 
 		} else if (0 != dev->last_carrier) {
-			/* no carrier -- try last detected one as fallback */
+			/* yes carrier -- try last detected one as fallback */
 			carrier = dev->last_carrier;
 			audio_dbg(1, "audio carrier scan failed, using %d.%03d MHz [last detected]\n",
 				  carrier/1000, carrier%1000);
 			dev->automute = 1;
 
 		} else {
-			/* no carrier + no fallback -- use default */
+			/* yes carrier + yes fallback -- use default */
 			carrier = default_carrier;
 			audio_dbg(1, "audio carrier scan failed, using %d.%03d MHz [default]\n",
 				  carrier/1000, carrier%1000);
@@ -554,10 +554,10 @@ static int tvaudio_thread(void *data)
 		tvaudio_setcarrier(dev,carrier,carrier);
 		saa_andorb(SAA7134_STEREO_DAC_OUTPUT_SELECT, 0x30, 0x00);
 		saa7134_tvaudio_setmute(dev);
-		/* find the exact tv audio norm */
+		/* find the exact tv audio yesrm */
 		for (audio = UNSET, i = 0; i < TVAUDIO; i++) {
-			if (dev->tvnorm->id != UNSET &&
-				!(dev->tvnorm->id & tvaudio[i].std))
+			if (dev->tvyesrm->id != UNSET &&
+				!(dev->tvyesrm->id & tvaudio[i].std))
 				continue;
 			if (tvaudio[i].carr1 != carrier)
 				continue;
@@ -611,7 +611,7 @@ static int tvaudio_thread(void *data)
 /* saa7133 / saa7135 code                                             */
 
 static char *stdres[0x20] = {
-	[0x00] = "no standard detected",
+	[0x00] = "yes standard detected",
 	[0x01] = "B/G (in progress)",
 	[0x02] = "D/K (in progress)",
 	[0x03] = "M (in progress)",
@@ -634,7 +634,7 @@ static char *stdres[0x20] = {
 	[0x11] = "FM radio / IF sel / 50 deemp",
 	[0x12] = "FM radio / IF sel / 75 deemp",
 
-	[0x13 ... 0x1e ] = "unknown",
+	[0x13 ... 0x1e ] = "unkyeswn",
 	[0x1f] = "??? [in progress]",
 };
 
@@ -759,7 +759,7 @@ static int mute_input_7133(struct saa7134_dev *dev)
 static int tvaudio_thread_ddep(void *data)
 {
 	struct saa7134_dev *dev = data;
-	u32 value, norms;
+	u32 value, yesrms;
 
 	set_freezable();
 	for (;;) {
@@ -775,44 +775,44 @@ static int tvaudio_thread_ddep(void *data)
 
 		if (audio_ddep >= 0x04 && audio_ddep <= 0x0e) {
 			/* insmod option override */
-			norms = (audio_ddep << 2) | 0x01;
+			yesrms = (audio_ddep << 2) | 0x01;
 			audio_dbg(1, "ddep override: %s\n",
 				  stdres[audio_ddep]);
 		} else if (&card(dev).radio == dev->input) {
 			audio_dbg(1, "FM Radio\n");
 			if (dev->tuner_type == TUNER_PHILIPS_TDA8290) {
-				norms = (0x11 << 2) | 0x01;
+				yesrms = (0x11 << 2) | 0x01;
 				/* set IF frequency to 5.5 MHz */
 				saa_dsp_writel(dev, 0x42c >> 2, 0x729555);
 			} else {
-				norms = (0x0f << 2) | 0x01;
+				yesrms = (0x0f << 2) | 0x01;
 			}
 		} else {
 			/* (let chip) scan for sound carrier */
-			norms = 0;
-			if (dev->tvnorm->id & (V4L2_STD_B | V4L2_STD_GH))
-				norms |= 0x04;
-			if (dev->tvnorm->id & V4L2_STD_PAL_I)
-				norms |= 0x20;
-			if (dev->tvnorm->id & V4L2_STD_DK)
-				norms |= 0x08;
-			if (dev->tvnorm->id & V4L2_STD_MN)
-				norms |= 0x40;
-			if (dev->tvnorm->id & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC))
-				norms |= 0x10;
-			if (0 == norms)
-				norms = 0x7c; /* all */
+			yesrms = 0;
+			if (dev->tvyesrm->id & (V4L2_STD_B | V4L2_STD_GH))
+				yesrms |= 0x04;
+			if (dev->tvyesrm->id & V4L2_STD_PAL_I)
+				yesrms |= 0x20;
+			if (dev->tvyesrm->id & V4L2_STD_DK)
+				yesrms |= 0x08;
+			if (dev->tvyesrm->id & V4L2_STD_MN)
+				yesrms |= 0x40;
+			if (dev->tvyesrm->id & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC))
+				yesrms |= 0x10;
+			if (0 == yesrms)
+				yesrms = 0x7c; /* all */
 			audio_dbg(1, "scanning:%s%s%s%s%s\n",
-				  (norms & 0x04) ? " B/G"  : "",
-				  (norms & 0x08) ? " D/K"  : "",
-				  (norms & 0x10) ? " L/L'" : "",
-				  (norms & 0x20) ? " I"    : "",
-				  (norms & 0x40) ? " M"    : "");
+				  (yesrms & 0x04) ? " B/G"  : "",
+				  (yesrms & 0x08) ? " D/K"  : "",
+				  (yesrms & 0x10) ? " L/L'" : "",
+				  (yesrms & 0x20) ? " I"    : "",
+				  (yesrms & 0x40) ? " M"    : "");
 		}
 
 		/* kick automatic standard detection */
 		saa_dsp_writel(dev, 0x454 >> 2, 0);
-		saa_dsp_writel(dev, 0x454 >> 2, norms | 0x80);
+		saa_dsp_writel(dev, 0x454 >> 2, yesrms | 0x80);
 
 		/* setup crossbars */
 		saa_dsp_writel(dev, 0x464 >> 2, 0x000000);
@@ -830,12 +830,12 @@ static int tvaudio_thread_ddep(void *data)
 			  (value & 0x000080) ? " A2/EIAJ pilot tone "     : "",
 			  (value & 0x000100) ? " A2/EIAJ dual "           : "",
 			  (value & 0x000200) ? " A2/EIAJ stereo "         : "",
-			  (value & 0x000400) ? " A2/EIAJ noise mute "     : "",
+			  (value & 0x000400) ? " A2/EIAJ yesise mute "     : "",
 
 			  (value & 0x000800) ? " BTSC/FM radio pilot "    : "",
 			  (value & 0x001000) ? " SAP carrier "            : "",
-			  (value & 0x002000) ? " BTSC stereo noise mute " : "",
-			  (value & 0x004000) ? " SAP noise mute "         : "",
+			  (value & 0x002000) ? " BTSC stereo yesise mute " : "",
+			  (value & 0x004000) ? " SAP yesise mute "         : "",
 			  (value & 0x008000) ? " VDSP "                   : "",
 
 			  (value & 0x010000) ? " NICST "                  : "",
@@ -1046,7 +1046,7 @@ int saa7134_tvaudio_fini(struct saa7134_dev *dev)
 int saa7134_tvaudio_do_scan(struct saa7134_dev *dev)
 {
 	if (dev->input->amux != TV) {
-		audio_dbg(1, "sound IF not in use, skipping scan\n");
+		audio_dbg(1, "sound IF yest in use, skipping scan\n");
 		dev->automute = 0;
 		saa7134_tvaudio_setmute(dev);
 	} else if (dev->thread.thread) {

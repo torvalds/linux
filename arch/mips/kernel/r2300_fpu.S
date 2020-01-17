@@ -13,7 +13,7 @@
  */
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/export.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
@@ -52,7 +52,7 @@ LEAF(_restore_fp)
 	jr	ra
 	END(_restore_fp)
 
-	.set	noreorder
+	.set	yesreorder
 
 /**
  * _save_fp_context() - save FP context from the FPU

@@ -45,7 +45,7 @@ static const char *board_type_str(void)
 	case BCSR_WHOAMI_PB1550_DDR:
 		return "PB1550";
 	default:
-		return "(unknown)";
+		return "(unkyeswn)";
 	}
 }
 
@@ -78,7 +78,7 @@ void __init board_setup(void)
 		ret = -ENODEV;
 	}
 	if (ret)
-		panic("cannot initialize board support");
+		panic("canyest initialize board support");
 }
 
 static int __init db1xxx_arch_init(void)

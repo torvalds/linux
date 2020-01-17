@@ -9,7 +9,7 @@
  * layout and extra registers.  The ID register in the V2 peripheral
  * unit on the OMAP4430 reports the same ID as the V1 peripheral
  * unit on the OMAP3530, so we must inform the driver which IP
- * version we know it is running on from platform / cpu-specific
+ * version we kyesw it is running on from platform / cpu-specific
  * code using these constants in the hwmod class definition.
  */
 

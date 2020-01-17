@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -137,7 +137,7 @@ static void save_platform_config_fields(struct hfi1_devdata *dd)
 				ASIC_CFG_SCRATCH_2);
 
 	ppd->tx_preset_eq = (temp_scratch & TX_EQ_SMASK) >> TX_EQ_SHIFT;
-	ppd->tx_preset_noeq = (temp_scratch & TX_NO_EQ_SMASK) >> TX_NO_EQ_SHIFT;
+	ppd->tx_preset_yeseq = (temp_scratch & TX_NO_EQ_SMASK) >> TX_NO_EQ_SHIFT;
 	ppd->rx_preset = (temp_scratch & RX_SMASK) >> RX_SHIFT;
 
 	ppd->max_power_class = (temp_scratch & QSFP_MAX_POWER_SMASK) >>
@@ -338,7 +338,7 @@ static void apply_rx_cdr(struct hfi1_pportdata *ppd,
 	cable_power_class = get_qsfp_power_class(cache[QSFP_MOD_PWR_OFFS]);
 
 	if (cable_power_class <= QSFP_POWER_CLASS_3) {
-		/* Power class <= 3, ignore config & turn RX CDR on */
+		/* Power class <= 3, igyesre config & turn RX CDR on */
 		*cdr_ctrl_byte |= 0xF;
 		return;
 	}
@@ -389,7 +389,7 @@ static void apply_tx_cdr(struct hfi1_pportdata *ppd,
 	cable_power_class = get_qsfp_power_class(cache[QSFP_MOD_PWR_OFFS]);
 
 	if (cable_power_class <= QSFP_POWER_CLASS_3) {
-		/* Power class <= 3, ignore config & turn TX CDR on */
+		/* Power class <= 3, igyesre config & turn TX CDR on */
 		*cdr_ctrl_byte |= 0xF0;
 		return;
 	}
@@ -544,10 +544,10 @@ static void apply_eq_settings(struct hfi1_pportdata *ppd,
 {
 	u8 *cache = ppd->qsfp_info.cache;
 
-	/* no point going on w/o a page 3 */
+	/* yes point going on w/o a page 3 */
 	if (cache[2] & 4) {
 		dd_dev_info(ppd->dd,
-			    "%s: Upper page 03 not present\n",
+			    "%s: Upper page 03 yest present\n",
 			    __func__);
 		return;
 	}
@@ -566,10 +566,10 @@ static void apply_rx_amplitude_settings(
 	u32 rx_preset;
 	u8 rx_amp = 0, i = 0, preferred = 0, *cache = ppd->qsfp_info.cache;
 
-	/* no point going on w/o a page 3 */
+	/* yes point going on w/o a page 3 */
 	if (cache[2] & 4) {
 		dd_dev_info(ppd->dd,
-			    "%s: Upper page 03 not present\n",
+			    "%s: Upper page 03 yest present\n",
 			    __func__);
 		return;
 	}
@@ -612,11 +612,11 @@ static void apply_rx_amplitude_settings(
 	}
 
 	/*
-	 * Verify that preferred RX amplitude is not just a
+	 * Verify that preferred RX amplitude is yest just a
 	 * fall through of the default
 	 */
 	if (!preferred && !(cache[(128 * 3) + 225] & 0x1)) {
-		dd_dev_info(ppd->dd, "No supported RX AMP, not applying\n");
+		dd_dev_info(ppd->dd, "No supported RX AMP, yest applying\n");
 		return;
 	}
 
@@ -752,7 +752,7 @@ static void apply_tunings(
 	 * o The aoc_low_power_setting is applied to all lanes even
 	 *   though only lane 0's value is examined by the firmware.
 	 * o A lingering low power setting after a cable swap does
-	 *   not occur.  On cable unplug the 8051 is reset and
+	 *   yest occur.  On cable unplug the 8051 is reset and
 	 *   restarted on cable insert.  This resets all settings to
 	 *   their default, erasing any previous low power setting.
 	 */
@@ -912,7 +912,7 @@ static int tune_qsfp(struct hfi1_pportdata *ppd,
 	case 0xD: /* fallthrough */
 	case 0xF:
 	default:
-		dd_dev_warn(ppd->dd, "%s: Unknown/unsupported cable\n",
+		dd_dev_warn(ppd->dd, "%s: Unkyeswn/unsupported cable\n",
 			    __func__);
 		break;
 	}
@@ -939,11 +939,11 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 
 	/* the link defaults to enabled */
 	ppd->link_enabled = 1;
-	/* the driver link ready state defaults to not ready */
+	/* the driver link ready state defaults to yest ready */
 	ppd->driver_link_ready = 0;
 	ppd->offline_disabled_reason = HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE);
 
-	/* Skip the tuning for testing (loopback != none) and simulations */
+	/* Skip the tuning for testing (loopback != yesne) and simulations */
 	if (loopback != LOOPBACK_NONE ||
 	    ppd->dd->icode == ICODE_FUNCTIONAL_SIMULATOR) {
 		ppd->driver_link_ready = 1;
@@ -953,7 +953,7 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 						    qsfp_resource(ppd->dd),
 						    QSFP_WAIT);
 			if (ret) {
-				dd_dev_err(ppd->dd, "%s: hfi%d: cannot lock i2c chain\n",
+				dd_dev_err(ppd->dd, "%s: hfi%d: canyest lock i2c chain\n",
 					   __func__, (int)ppd->dd->hfi1_id);
 				goto bail;
 			}
@@ -1017,7 +1017,7 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 						    qsfp_resource(ppd->dd),
 						    QSFP_WAIT);
 			if (ret) {
-				dd_dev_err(ppd->dd, "%s: hfi%d: cannot lock i2c chain\n",
+				dd_dev_err(ppd->dd, "%s: hfi%d: canyest lock i2c chain\n",
 					   __func__, (int)ppd->dd->hfi1_id);
 				goto bail;
 			}
@@ -1054,7 +1054,7 @@ void tune_serdes(struct hfi1_pportdata *ppd)
 		}
 		break;
 	default:
-		dd_dev_warn(ppd->dd, "%s: Unknown port type\n", __func__);
+		dd_dev_warn(ppd->dd, "%s: Unkyeswn port type\n", __func__);
 		ppd->port_type = PORT_TYPE_UNKNOWN;
 		tuning_method = OPA_UNKNOWN_TUNING;
 		total_atten = 0;

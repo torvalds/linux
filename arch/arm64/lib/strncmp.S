@@ -62,15 +62,15 @@ WEAK(strncmp)
 	b.ne	.Lmutual_align
 	/* Calculate the number of full and partial words -1.  */
 	/*
-	* when limit is mulitply of 8, if not sub 1,
+	* when limit is mulitply of 8, if yest sub 1,
 	* the judgement of last dword will wrong.
 	*/
-	sub	limit_wd, limit, #1 /* limit != 0, so no underflow.  */
+	sub	limit_wd, limit, #1 /* limit != 0, so yes underflow.  */
 	lsr	limit_wd, limit_wd, #3  /* Convert to Dwords.  */
 
 	/*
 	* NUL detection works on the principle that (X - 1) & (~X) & 0x80
-	* (=> (X - 1) & ~(X | 0x7f)) is non-zero iff a byte is zero, and
+	* (=> (X - 1) & ~(X | 0x7f)) is yesn-zero iff a byte is zero, and
 	* can be done in parallel across the entire word.
 	*/
 .Lloop_aligned:
@@ -87,11 +87,11 @@ WEAK(strncmp)
 	b.eq	.Lloop_aligned
 
 	/*Not reached the limit, must have found the end or a diff.  */
-	tbz	limit_wd, #63, .Lnot_limit
+	tbz	limit_wd, #63, .Lyest_limit
 
 	/* Limit % 8 == 0 => all bytes significant.  */
 	ands	limit, limit, #7
-	b.eq	.Lnot_limit
+	b.eq	.Lyest_limit
 
 	lsl	limit, limit, #3    /* Bits -> bytes.  */
 	mov	mask, #~0
@@ -103,13 +103,13 @@ CPU_LE( lsl	mask, mask, limit )
 	/* Make sure that the NUL byte is marked in the syndrome.  */
 	orr	has_nul, has_nul, mask
 
-.Lnot_limit:
+.Lyest_limit:
 	orr	syndrome, diff, has_nul
 	b	.Lcal_cmpresult
 
 .Lmutual_align:
 	/*
-	* Sources are mutually aligned, but are not currently at an
+	* Sources are mutually aligned, but are yest currently at an
 	* alignment boundary.  Round down the addresses and then mask off
 	* the bytes that precede the start point.
 	* We also need to adjust the limit calculations, but without
@@ -121,7 +121,7 @@ CPU_LE( lsl	mask, mask, limit )
 	neg	tmp3, tmp1, lsl #3  /* 64 - bits(bytes beyond align). */
 	ldr	data2, [src2], #8
 	mov	tmp2, #~0
-	sub	limit_wd, limit, #1 /* limit != 0, so no underflow.  */
+	sub	limit_wd, limit, #1 /* limit != 0, so yes underflow.  */
 	/* Big-endian.  Early bytes are at MSB.  */
 CPU_BE( lsl	tmp2, tmp2, tmp3 )	/* Shift (tmp1 & 63).  */
 	/* Little-endian.  Early bytes are at LSB.  */
@@ -137,7 +137,7 @@ CPU_LE( lsr	tmp2, tmp2, tmp3 )	/* Shift (tmp1 & 63).  */
 	add	limit_wd, limit_wd, tmp3, lsr #3
 	b	.Lstart_realigned
 
-/*when src1 offset is not equal to src2 offset...*/
+/*when src1 offset is yest equal to src2 offset...*/
 .Lmisaligned8:
 	cmp	limit, #8
 	b.lo	.Ltiny8proc /*limit < 8... */
@@ -153,7 +153,7 @@ CPU_LE( lsr	tmp2, tmp2, tmp3 )	/* Shift (tmp1 & 63).  */
 	subs	tmp3, tmp1, tmp2
 	csel	pos, tmp1, tmp2, hi /*Choose the maximum. */
 	/*
-	* Here, limit is not less than 8, so directly run .Ltinycmp
+	* Here, limit is yest less than 8, so directly run .Ltinycmp
 	* without checking the limit.*/
 	sub	limit, limit, pos
 .Ltinycmp:
@@ -191,7 +191,7 @@ CPU_LE( lsr	tmp2, tmp2, tmp3 )	/* Shift (tmp1 & 63).  */
 	eor	diff, data1, data2  /* Non-zero if differences found.  */
 	csinv	endloop, diff, xzr, ne/*if limit_wd is 0,will finish the cmp*/
 	bics	has_nul, tmp1, tmp2
-	ccmp	endloop, #0, #0, eq /*has_null is ZERO: no null byte*/
+	ccmp	endloop, #0, #0, eq /*has_null is ZERO: yes null byte*/
 	b.ne	.Lunequal_proc
 	/*How far is the current str2 from the alignment boundary...*/
 	and	tmp3, tmp3, #7
@@ -225,7 +225,7 @@ CPU_LE( lsr	tmp2, tmp2, tmp3 )	/* Shift (tmp1 & 63).  */
 	eor	diff, data1, data2  /* Non-zero if differences found.  */
 	csinv	endloop, diff, xzr, ne/*if limit_wd is 0,will finish the cmp*/
 	bics	has_nul, tmp1, tmp2
-	ccmp	endloop, #0, #0, eq /*has_null is ZERO: no null byte*/
+	ccmp	endloop, #0, #0, eq /*has_null is ZERO: yes null byte*/
 	b.eq	.Lloopcmp_proc
 
 .Lunequal_proc:
@@ -240,10 +240,10 @@ CPU_LE( rev	syndrome, syndrome )
 CPU_LE( rev	data1, data1 )
 CPU_LE( rev	data2, data2 )
 	/*
-	* For big-endian we cannot use the trick with the syndrome value
+	* For big-endian we canyest use the trick with the syndrome value
 	* as carry-propagation can corrupt the upper bits if the trailing
 	* bytes in the string contain 0x01.
-	* However, if there is no NUL byte in the dword, we can generate
+	* However, if there is yes NUL byte in the dword, we can generate
 	* the result directly.  We can't just subtract the bytes as the
 	* MSB might be significant.
 	*/
@@ -261,9 +261,9 @@ CPU_BE( bic	has_nul, tmp1, tmp2 )
 CPU_BE( rev	has_nul, has_nul )
 CPU_BE( orr	syndrome, diff, has_nul )
 	/*
-	* The MS-non-zero bit of the syndrome marks either the first bit
+	* The MS-yesn-zero bit of the syndrome marks either the first bit
 	* that is different, or the top bit of the first zero byte.
-	* Shifting left now will bring the critical information into the
+	* Shifting left yesw will bring the critical information into the
 	* top bits.
 	*/
 	clz	pos, syndrome

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -744,7 +744,7 @@
 /* VIDEO_LIPSYNC, AUDIO_LIPSYNC
  * 0   = invalid
  * x   = legal delay value
- * 255 = sync not supported
+ * 255 = sync yest supported
  */
 #define AZ_F0_CODEC_PIN_CONTROL_RESPONSE_HBR             0x38
 #       define HBR_CAPABLE                                (1 << 0) /* enabled by default */
@@ -1762,13 +1762,13 @@
 /* COMMAND */
 #              define PACKET3_CP_DMA_DIS_WC        (1 << 21)
 #              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 22)
-                /* 0 - none
+                /* 0 - yesne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
 		 */
 #              define PACKET3_CP_DMA_CMD_DST_SWAP(x) ((x) << 24)
-                /* 0 - none
+                /* 0 - yesne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
@@ -1811,7 +1811,7 @@
 #define	PACKET3_EVENT_WRITE				0x46
 #define		EVENT_TYPE(x)                           ((x) << 0)
 #define		EVENT_INDEX(x)                          ((x) << 8)
-                /* 0 - any non-TS event
+                /* 0 - any yesn-TS event
 		 * 1 - ZPASS_DONE
 		 * 2 - SAMPLE_PIPELINESTAT
 		 * 3 - SAMPLE_STREAMOUTSTAT*
@@ -1830,7 +1830,7 @@
 		 * 3 - send 64bit counter value
 		 */
 #define		INT_SEL(x)                              ((x) << 24)
-                /* 0 - none
+                /* 0 - yesne
 		 * 1 - interrupt only (DATA_SEL = 0)
 		 * 2 - interrupt when data write is confirmed
 		 */
@@ -1872,8 +1872,8 @@
 #define	PACKET3_SWITCH_BUFFER				0x8B
 
 /* ASYNC DMA - first instance at 0xd000, second at 0xd800 */
-#define DMA0_REGISTER_OFFSET                              0x0 /* not a register */
-#define DMA1_REGISTER_OFFSET                              0x200 /* not a register */
+#define DMA0_REGISTER_OFFSET                              0x0 /* yest a register */
+#define DMA1_REGISTER_OFFSET                              0x200 /* yest a register */
 
 #define DMA_RB_CNTL                                       0x3400
 #       define DMA_RB_ENABLE                              (1 << 0)

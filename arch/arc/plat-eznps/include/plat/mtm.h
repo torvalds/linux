@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright(c) 2015 EZchip Technologies.
+ * Copyright(c) 2015 EZchip Techyeslogies.
  */
 
 #ifndef _PLAT_EZNPS_MTM_H

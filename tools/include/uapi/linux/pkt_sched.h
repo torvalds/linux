@@ -1,18 +1,18 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __LINUX_PKT_SCHED_H
 #define __LINUX_PKT_SCHED_H
 
 #include <linux/types.h>
 
-/* Logical priority bands not depending on specific packet scheduler.
+/* Logical priority bands yest depending on specific packet scheduler.
    Every scheduler will map them to real traffic classes, if it has
-   no more precise mechanism to classify packets.
+   yes more precise mechanism to classify packets.
 
-   These numbers have no special meaning, though their coincidence
-   with obsolete IPv6 values is not occasional :-). New IPv6 drafts
+   These numbers have yes special meaning, though their coincidence
+   with obsolete IPv6 values is yest occasional :-). New IPv6 drafts
    preferred full anarchy inspired by diffserv group.
 
-   Note: TC_PRIO_BESTEFFORT does not mean that it is the most unhappy
+   Note: TC_PRIO_BESTEFFORT does yest mean that it is the most unhappy
    class, actually, as rule it will be handled with more care than
    filler or even bulk.
  */
@@ -54,12 +54,12 @@ struct tc_estimator {
 
     They can be considered as opaque numbers from user API viewpoint,
     but actually they always consist of two fields: major and
-    minor numbers, which are interpreted by kernel specially,
-    that may be used by applications, though not recommended.
+    miyesr numbers, which are interpreted by kernel specially,
+    that may be used by applications, though yest recommended.
 
-    F.e. qdisc handles always have minor number equal to zero,
+    F.e. qdisc handles always have miyesr number equal to zero,
     classes (or flows) have major equal to parent qdisc major, and
-    minor uniquely identifying class inside qdisc.
+    miyesr uniquely identifying class inside qdisc.
 
     Macros to manipulate handles:
  */
@@ -205,7 +205,7 @@ enum {
 
 /* TEQL section */
 
-/* TEQL does not require any parameters */
+/* TEQL does yest require any parameters */
 
 /* SFQ section */
 
@@ -402,7 +402,7 @@ struct tc_htb_glob {
 	__u32 debug;		/* debug flags */
 
 	/* stats */
-	__u32 direct_pkts; /* count of non shaped packets */
+	__u32 direct_pkts; /* count of yesn shaped packets */
 };
 enum {
 	TCA_HTB_UNSPEC,
@@ -590,9 +590,9 @@ enum {
 struct tc_netem_qopt {
 	__u32	latency;	/* added delay (us) */
 	__u32   limit;		/* fifo limit (packets) */
-	__u32	loss;		/* random packet loss (0=none ~0=100%) */
-	__u32	gap;		/* re-ordering gap (0 for none) */
-	__u32   duplicate;	/* random packet dup  (0=none ~0=100%) */
+	__u32	loss;		/* random packet loss (0=yesne ~0=100%) */
+	__u32	gap;		/* re-ordering gap (0 for yesne) */
+	__u32   duplicate;	/* random packet dup  (0=yesne ~0=100%) */
 	__u32	jitter;		/* random jitter in latency (us) */
 };
 
@@ -675,8 +675,8 @@ struct tc_drr_stats {
 #define TC_QOPT_MAX_QUEUE 16
 
 enum {
-	TC_MQPRIO_HW_OFFLOAD_NONE,	/* no offload requested */
-	TC_MQPRIO_HW_OFFLOAD_TCS,	/* offload TCs, no queue counts */
+	TC_MQPRIO_HW_OFFLOAD_NONE,	/* yes offload requested */
+	TC_MQPRIO_HW_OFFLOAD_TCS,	/* offload TCs, yes queue counts */
 	__TC_MQPRIO_HW_OFFLOAD_MAX
 };
 
@@ -879,7 +879,7 @@ enum {
 
 	TCA_FQ_RATE_ENABLE,	/* enable/disable rate limiting */
 
-	TCA_FQ_FLOW_DEFAULT_RATE,/* obsolete, do not use */
+	TCA_FQ_FLOW_DEFAULT_RATE,/* obsolete, do yest use */
 
 	TCA_FQ_FLOW_MAX_RATE,	/* per flow max rate */
 

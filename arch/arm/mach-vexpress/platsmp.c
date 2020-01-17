@@ -6,7 +6,7 @@
  *  All Rights Reserved
  */
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/smp.h>
 #include <linux/io.h>
 #include <linux/of_address.h>
@@ -24,7 +24,7 @@ bool __init vexpress_smp_init_ops(void)
 {
 #ifdef CONFIG_MCPM
 	int cpu;
-	struct device_node *cpu_node, *cci_node;
+	struct device_yesde *cpu_yesde, *cci_yesde;
 
 	/*
 	 * The best way to detect a multi-cluster configuration
@@ -36,14 +36,14 @@ bool __init vexpress_smp_init_ops(void)
 	for_each_possible_cpu(cpu) {
 		bool available;
 
-		cpu_node = of_get_cpu_node(cpu, NULL);
-		if (WARN(!cpu_node, "Missing cpu device node!"))
+		cpu_yesde = of_get_cpu_yesde(cpu, NULL);
+		if (WARN(!cpu_yesde, "Missing cpu device yesde!"))
 			return false;
 
-		cci_node = of_parse_phandle(cpu_node, "cci-control-port", 0);
-		available = cci_node && of_device_is_available(cci_node);
-		of_node_put(cci_node);
-		of_node_put(cpu_node);
+		cci_yesde = of_parse_phandle(cpu_yesde, "cci-control-port", 0);
+		available = cci_yesde && of_device_is_available(cci_yesde);
+		of_yesde_put(cci_yesde);
+		of_yesde_put(cpu_yesde);
 
 		if (!available)
 			return false;
@@ -64,7 +64,7 @@ static const struct of_device_id vexpress_smp_dt_scu_match[] __initconst = {
 
 static void __init vexpress_smp_dt_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *scu = of_find_matching_node(NULL,
+	struct device_yesde *scu = of_find_matching_yesde(NULL,
 			vexpress_smp_dt_scu_match);
 
 	if (scu)

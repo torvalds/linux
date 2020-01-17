@@ -2665,7 +2665,7 @@ struct fcoe_kwqe_init1 {
  */
 struct fcoe_kwqe_init2 {
 	u8 hsi_major_version;
-	u8 hsi_minor_version;
+	u8 hsi_miyesr_version;
 	struct fcoe_kwqe_header hdr;
 	__le32 hash_tbl_pbl_addr_lo;
 	__le32 hash_tbl_pbl_addr_hi;
@@ -3374,7 +3374,7 @@ struct ustorm_fcoe_st_context {
 };
 
 /*
- * The FCoE non-aggregative context of Tstorm
+ * The FCoE yesn-aggregative context of Tstorm
  */
 struct tstorm_fcoe_st_context {
 	struct regpair reserved0;
@@ -3726,9 +3726,9 @@ struct iscsi_cq_db_prod_pnd_cmpltn_cnt_arr {
 };
 
 /*
- * Cstorm CQ sequence to notify array, updated by driver
+ * Cstorm CQ sequence to yestify array, updated by driver
  */
-struct iscsi_cq_db_sqn_2_notify_arr {
+struct iscsi_cq_db_sqn_2_yestify_arr {
 	u16 sqn[8];
 };
 
@@ -3737,8 +3737,8 @@ struct iscsi_cq_db_sqn_2_notify_arr {
  */
 struct cstorm_iscsi_st_context {
 	struct iscsi_cq_db_prod_pnd_cmpltn_cnt_arr cq_c_prod_pend_comp_ctr_arr;
-	struct iscsi_cq_db_sqn_2_notify_arr cq_c_prod_sqn_arr;
-	struct iscsi_cq_db_sqn_2_notify_arr cq_c_sqn_2_notify_arr;
+	struct iscsi_cq_db_sqn_2_yestify_arr cq_c_prod_sqn_arr;
+	struct iscsi_cq_db_sqn_2_yestify_arr cq_c_sqn_2_yestify_arr;
 	struct regpair hq_pbl_base;
 	struct regpair hq_curr_pbe;
 	struct regpair task_pbl_base;
@@ -4239,7 +4239,7 @@ struct tstorm_iscsi_st_context_section {
 };
 
 /*
- * The iSCSI non-aggregative context of Tstorm
+ * The iSCSI yesn-aggregative context of Tstorm
  */
 struct tstorm_iscsi_st_context {
 	struct tstorm_tcp_st_context_section tcp;
@@ -4869,7 +4869,7 @@ struct iscsi_text_req_hdr_little_endian {
 /*
  * PDU header of an iSCSI Nop-Out
  */
-struct iscsi_nop_out_hdr_little_endian {
+struct iscsi_yesp_out_hdr_little_endian {
 #if defined(__BIG_ENDIAN)
 	u8 opcode;
 	u8 op_attr;
@@ -4911,7 +4911,7 @@ union iscsi_pdu_headers_little_endian {
 	struct iscsi_logout_req_hdr_little_endian logout_req_pdu_hdr;
 	struct iscsi_tmf_req_hdr_little_endian tmf_req_pdu_hdr;
 	struct iscsi_text_req_hdr_little_endian text_req_pdu_hdr;
-	struct iscsi_nop_out_hdr_little_endian nop_out_pdu_hdr;
+	struct iscsi_yesp_out_hdr_little_endian yesp_out_pdu_hdr;
 };
 
 struct iscsi_hq_bd {

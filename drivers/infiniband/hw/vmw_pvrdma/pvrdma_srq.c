@@ -21,11 +21,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -57,7 +57,7 @@
  * @ibsrq: the shared receive queue to query
  * @srq_attr: attributes to query and return to client
  *
- * @return: 0 for success, otherwise returns an errno.
+ * @return: 0 for success, otherwise returns an erryes.
  */
 int pvrdma_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 {
@@ -76,7 +76,7 @@ int pvrdma_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_QUERY_SRQ_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not query shared receive queue, error: %d\n",
+			 "could yest query shared receive queue, error: %d\n",
 			 ret);
 		return -EINVAL;
 	}
@@ -94,7 +94,7 @@ int pvrdma_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
  * @init_attr: shared receive queue attributes
  * @udata: user data
  *
- * @return: 0 on success, otherwise returns an errno.
+ * @return: 0 on success, otherwise returns an erryes.
  */
 int pvrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 		      struct ib_udata *udata)
@@ -113,13 +113,13 @@ int pvrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 	if (!udata) {
 		/* No support for kernel clients. */
 		dev_warn(&dev->pdev->dev,
-			 "no shared receive queue support for kernel client\n");
+			 "yes shared receive queue support for kernel client\n");
 		return -EOPNOTSUPP;
 	}
 
 	if (init_attr->srq_type != IB_SRQT_BASIC) {
 		dev_warn(&dev->pdev->dev,
-			 "shared receive queue type %d not supported\n",
+			 "shared receive queue type %d yest supported\n",
 			 init_attr->srq_type);
 		return -EINVAL;
 	}
@@ -164,7 +164,7 @@ int pvrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 	ret = pvrdma_page_dir_init(dev, &srq->pdir, srq->npages, false);
 	if (ret) {
 		dev_warn(&dev->pdev->dev,
-			 "could not allocate page directory\n");
+			 "could yest allocate page directory\n");
 		goto err_umem;
 	}
 
@@ -183,7 +183,7 @@ int pvrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_SRQ_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not create shared receive queue, error: %d\n",
+			 "could yest create shared receive queue, error: %d\n",
 			 ret);
 		goto err_page_dir;
 	}
@@ -225,7 +225,7 @@ static void pvrdma_free_srq(struct pvrdma_dev *dev, struct pvrdma_srq *srq)
 		complete(&srq->free);
 	wait_for_completion(&srq->free);
 
-	/* There is no support for kernel clients, so this is safe. */
+	/* There is yes support for kernel clients, so this is safe. */
 	ib_umem_release(srq->umem);
 
 	pvrdma_page_dir_cleanup(dev, &srq->pdir);
@@ -268,7 +268,7 @@ void pvrdma_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
  * @attr_mask: attributes mask
  * @udata: user data
  *
- * @returns 0 on success, otherwise returns an errno.
+ * @returns 0 on success, otherwise returns an erryes.
  */
 int pvrdma_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		      enum ib_srq_attr_mask attr_mask, struct ib_udata *udata)
@@ -292,7 +292,7 @@ int pvrdma_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 	ret = pvrdma_cmd_post(dev, &req, NULL, 0);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not modify shared receive queue, error: %d\n",
+			 "could yest modify shared receive queue, error: %d\n",
 			 ret);
 
 		return -EINVAL;

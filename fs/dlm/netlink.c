@@ -95,7 +95,7 @@ static void fill_data(struct dlm_lock_data *data, struct dlm_lkb *lkb)
 	memset(data, 0, sizeof(struct dlm_lock_data));
 
 	data->version = DLM_LOCK_DATA_VERSION;
-	data->nodeid = lkb->lkb_nodeid;
+	data->yesdeid = lkb->lkb_yesdeid;
 	data->ownpid = lkb->lkb_ownpid;
 	data->id = lkb->lkb_id;
 	data->remid = lkb->lkb_remid;

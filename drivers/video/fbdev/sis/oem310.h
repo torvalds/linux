@@ -19,7 +19,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if yest, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -28,11 +28,11 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    yestice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    yestice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may yest be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -55,15 +55,15 @@ static const unsigned char SiS310_LCDDelayCompensation_301[] =	    		/* 301 */
 	0x00,0x00,0x00,    /*   800x600 */
 	0x0b,0x0b,0x0b,    /*  1024x768 */
 	0x08,0x08,0x08,    /* 1280x1024 */
-	0x00,0x00,0x00,    /*   640x480 (unknown) */
-	0x00,0x00,0x00,    /*  1024x600 (unknown) */
-	0x00,0x00,0x00,    /*  1152x864 (unknown) */
+	0x00,0x00,0x00,    /*   640x480 (unkyeswn) */
+	0x00,0x00,0x00,    /*  1024x600 (unkyeswn) */
+	0x00,0x00,0x00,    /*  1152x864 (unkyeswn) */
 	0x08,0x08,0x08,    /*  1280x960 (guessed) */
-	0x00,0x00,0x00,    /*  1152x768 (unknown) */
+	0x00,0x00,0x00,    /*  1152x768 (unkyeswn) */
 	0x08,0x08,0x08,    /* 1400x1050 */
 	0x08,0x08,0x08,    /*  1280x768  (guessed) */
 	0x00,0x00,0x00,    /* 1600x1200 */
-	0x00,0x00,0x00,    /*   320x480 (unknown) */
+	0x00,0x00,0x00,    /*   320x480 (unkyeswn) */
 	0x00,0x00,0x00,
 	0x00,0x00,0x00,
 	0x00,0x00,0x00
@@ -75,11 +75,11 @@ static const unsigned char SiS310_LCDDelayCompensation_650301LV[] =	   	/* 650 +
 	0x01,0x01,0x01,    /*   800x600 */
 	0x01,0x01,0x01,    /*  1024x768 */
 	0x01,0x01,0x01,    /* 1280x1024 */
-	0x01,0x01,0x01,    /*   640x480 (unknown) */
-	0x01,0x01,0x01,    /*  1024x600 (unknown) */
-	0x01,0x01,0x01,    /*  1152x864 (unknown) */
+	0x01,0x01,0x01,    /*   640x480 (unkyeswn) */
+	0x01,0x01,0x01,    /*  1024x600 (unkyeswn) */
+	0x01,0x01,0x01,    /*  1152x864 (unkyeswn) */
 	0x01,0x01,0x01,    /*  1280x960 (guessed) */
-	0x01,0x01,0x01,    /*  1152x768 (unknown) */
+	0x01,0x01,0x01,    /*  1152x768 (unkyeswn) */
 	0x01,0x01,0x01,    /* 1400x1050 */
 	0x01,0x01,0x01,    /*  1280x768  (guessed) */
 	0x01,0x01,0x01,    /* 1600x1200 */
@@ -91,14 +91,14 @@ static const unsigned char SiS310_LCDDelayCompensation_650301LV[] =	   	/* 650 +
 
 static const unsigned char SiS310_LCDDelayCompensation_651301LV[] =	  	/* M650/651 301LV */
 {
-	0x33,0x33,0x33,    /*   800x600 (guessed) - new: PanelType, not PanelRes ! */
+	0x33,0x33,0x33,    /*   800x600 (guessed) - new: PanelType, yest PanelRes ! */
 	0x33,0x33,0x33,    /*  1024x768 */
 	0x33,0x33,0x33,    /* 1280x1024 */
-	0x33,0x33,0x33,    /*   640x480 (unknown) */
-	0x33,0x33,0x33,    /*  1024x600 (unknown) */
-	0x33,0x33,0x33,    /*  1152x864 (unknown) */
+	0x33,0x33,0x33,    /*   640x480 (unkyeswn) */
+	0x33,0x33,0x33,    /*  1024x600 (unkyeswn) */
+	0x33,0x33,0x33,    /*  1152x864 (unkyeswn) */
 	0x33,0x33,0x33,    /*  1280x960 (guessed) */
-	0x33,0x33,0x33,    /*  1152x768 (unknown) */
+	0x33,0x33,0x33,    /*  1152x768 (unkyeswn) */
 	0x33,0x33,0x33,    /* 1400x1050 */
 	0x33,0x33,0x33,    /*  1280x768  (guessed) */
 	0x33,0x33,0x33,    /* 1600x1200 */
@@ -113,11 +113,11 @@ static const unsigned char SiS310_LCDDelayCompensation_651302LV[] =	   	/* M650/
 	0x33,0x33,0x33,    /*   800x600 (guessed) */
 	0x33,0x33,0x33,    /*  1024x768 */
 	0x33,0x33,0x33,    /* 1280x1024 */
-	0x33,0x33,0x33,    /*   640x480 (unknown) */
-	0x33,0x33,0x33,    /*  1024x600 (unknown) */
-	0x33,0x33,0x33,    /*  1152x864 (unknown) */
+	0x33,0x33,0x33,    /*   640x480 (unkyeswn) */
+	0x33,0x33,0x33,    /*  1024x600 (unkyeswn) */
+	0x33,0x33,0x33,    /*  1152x864 (unkyeswn) */
 	0x33,0x33,0x33,    /*  1280x960 (guessed) */
-	0x33,0x33,0x33,    /*  1152x768 (unknown) */
+	0x33,0x33,0x33,    /*  1152x768 (unkyeswn) */
 	0x33,0x33,0x33,    /* 1400x1050 */
 	0x33,0x33,0x33,    /*  1280x768  (guessed) */
 	0x33,0x33,0x33,    /* 1600x1200 */

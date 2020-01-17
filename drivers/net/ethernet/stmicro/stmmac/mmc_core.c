@@ -276,14 +276,14 @@ static void dwmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 	/* IPv4 */
 	mmc->mmc_rx_ipv4_gd += readl(mmcaddr + MMC_RX_IPV4_GD);
 	mmc->mmc_rx_ipv4_hderr += readl(mmcaddr + MMC_RX_IPV4_HDERR);
-	mmc->mmc_rx_ipv4_nopay += readl(mmcaddr + MMC_RX_IPV4_NOPAY);
+	mmc->mmc_rx_ipv4_yespay += readl(mmcaddr + MMC_RX_IPV4_NOPAY);
 	mmc->mmc_rx_ipv4_frag += readl(mmcaddr + MMC_RX_IPV4_FRAG);
 	mmc->mmc_rx_ipv4_udsbl += readl(mmcaddr + MMC_RX_IPV4_UDSBL);
 
 	mmc->mmc_rx_ipv4_gd_octets += readl(mmcaddr + MMC_RX_IPV4_GD_OCTETS);
 	mmc->mmc_rx_ipv4_hderr_octets +=
 	    readl(mmcaddr + MMC_RX_IPV4_HDERR_OCTETS);
-	mmc->mmc_rx_ipv4_nopay_octets +=
+	mmc->mmc_rx_ipv4_yespay_octets +=
 	    readl(mmcaddr + MMC_RX_IPV4_NOPAY_OCTETS);
 	mmc->mmc_rx_ipv4_frag_octets += readl(mmcaddr +
 					      MMC_RX_IPV4_FRAG_OCTETS);
@@ -294,12 +294,12 @@ static void dwmac_mmc_read(void __iomem *mmcaddr, struct stmmac_counters *mmc)
 	mmc->mmc_rx_ipv6_gd_octets += readl(mmcaddr + MMC_RX_IPV6_GD_OCTETS);
 	mmc->mmc_rx_ipv6_hderr_octets +=
 	    readl(mmcaddr + MMC_RX_IPV6_HDERR_OCTETS);
-	mmc->mmc_rx_ipv6_nopay_octets +=
+	mmc->mmc_rx_ipv6_yespay_octets +=
 	    readl(mmcaddr + MMC_RX_IPV6_NOPAY_OCTETS);
 
 	mmc->mmc_rx_ipv6_gd += readl(mmcaddr + MMC_RX_IPV6_GD);
 	mmc->mmc_rx_ipv6_hderr += readl(mmcaddr + MMC_RX_IPV6_HDERR);
-	mmc->mmc_rx_ipv6_nopay += readl(mmcaddr + MMC_RX_IPV6_NOPAY);
+	mmc->mmc_rx_ipv6_yespay += readl(mmcaddr + MMC_RX_IPV6_NOPAY);
 
 	/* Protocols */
 	mmc->mmc_rx_udp_gd += readl(mmcaddr + MMC_RX_UDP_GD);

@@ -2,7 +2,7 @@
 /*
  * ARC On-Chip(fpga) UART Driver
  *
- * Copyright (C) 2010-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2010-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * vineetg: July 10th 2012
  *  -Decoupled the driver from arch/arc
@@ -10,7 +10,7 @@
  *    +Using early_platform_xxx() for early console (thx to mach-shmobile/xxx)
  *
  * Vineetg: Aug 21st 2010
- *  -Is uart_tx_stopped() not done in tty write path as it has already been
+ *  -Is uart_tx_stopped() yest done in tty write path as it has already been
  *   taken care of, in serial core
  *
  * Vineetg: Aug 18th 2010
@@ -43,7 +43,7 @@
 #define ARC_UART_TX_FIFO_SIZE  1
 
 /*
- * UART Register set (this is not a Standards Compliant IP)
+ * UART Register set (this is yest a Standards Compliant IP)
  * Also each reg is Word aligned, but only 8 bits wide
  */
 #define R_ID0	0
@@ -65,7 +65,7 @@
 #define RXFULL  0x08	/* Receive FIFO full */
 #define RXFULL1 0x10	/* Receive FIFO has space for 1 char (tot space=4) */
 
-#define RXFERR  0x01	/* Frame Error: Stop Bit not detected */
+#define RXFERR  0x01	/* Frame Error: Stop Bit yest detected */
 #define RXOERR  0x02	/* OverFlow Err: Char recv but RXFULL still set */
 
 /* Uart bit fiddling helpers: lowest level */
@@ -116,7 +116,7 @@ static struct uart_driver arc_uart_driver = {
 	.driver_name	= DRIVER_NAME,
 	.dev_name	= ARC_SERIAL_DEV_NAME,
 	.major		= 0,
-	.minor		= 0,
+	.miyesr		= 0,
 	.nr		= CONFIG_SERIAL_ARC_NR_PORTS,
 #ifdef CONFIG_SERIAL_ARC_CONSOLE
 	.cons		= &arc_console,
@@ -137,7 +137,7 @@ static void arc_serial_stop_tx(struct uart_port *port)
 }
 
 /*
- * Return TIOCSER_TEMT when transmitter is not busy.
+ * Return TIOCSER_TEMT when transmitter is yest busy.
  */
 static unsigned int arc_serial_tx_empty(struct uart_port *port)
 {
@@ -213,7 +213,7 @@ static void arc_serial_rx_chars(struct uart_port *port, unsigned int status)
 	 */
 	do {
 		/*
-		 * This could be an Rx Intr for err (no data),
+		 * This could be an Rx Intr for err (yes data),
 		 * so check err and clear that Intr first
 		 */
 		if (unlikely(status & (RXOERR | RXFERR))) {
@@ -247,7 +247,7 @@ static void arc_serial_rx_chars(struct uart_port *port, unsigned int status)
 }
 
 /*
- * A note on the Interrupt handling state machine of this driver
+ * A yeste on the Interrupt handling state machine of this driver
  *
  * kernel printk writes funnel thru the console driver framework and in order
  * to keep things simple as well as efficient, it writes to UART in polled
@@ -270,7 +270,7 @@ static void arc_serial_rx_chars(struct uart_port *port, unsigned int status)
  * be the last char to send, before settling down into the quiet polled mode).
  * It then calls the exact routine used by tty layer write to send out any
  * more char in tty buffer. In case of sending, it re-enables Tx-intr. In case
- * of no data, it remains disabled.
+ * of yes data, it remains disabled.
  * This is how the transmit state machine is dynamically switched on/off
  */
 
@@ -283,12 +283,12 @@ static irqreturn_t arc_serial_isr(int irq, void *dev_id)
 
 	/*
 	 * Single IRQ for both Rx (data available) Tx (room available) Interrupt
-	 * notifications from the UART Controller.
+	 * yestifications from the UART Controller.
 	 * To demultiplex between the two, we check the relevant bits
 	 */
 	if (status & RXIENB) {
 
-		/* already in ISR, no need of xx_irqsave */
+		/* already in ISR, yes need of xx_irqsave */
 		spin_lock(&port->lock);
 		arc_serial_rx_chars(port, status);
 		spin_unlock(&port->lock);
@@ -326,7 +326,7 @@ static unsigned int arc_serial_get_mctrl(struct uart_port *port)
 
 static void arc_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* MCR not present */
+	/* MCR yest present */
 }
 
 static void arc_serial_break_ctl(struct uart_port *port, int break_state)
@@ -349,7 +349,7 @@ static int arc_serial_startup(struct uart_port *port)
 	return 0;
 }
 
-/* This is not really needed */
+/* This is yest really needed */
 static void arc_serial_shutdown(struct uart_port *port)
 {
 	free_irq(port->irq, port);
@@ -366,7 +366,7 @@ arc_serial_set_termios(struct uart_port *port, struct ktermios *new,
 	/*
 	 * Use the generic handler so that any specially encoded baud rates
 	 * such as SPD_xx flags or "%B0" can be handled
-	 * Max Baud I suppose will not be more than current 115K * 4
+	 * Max Baud I suppose will yest be more than current 115K * 4
 	 * Formula for ARC UART is: hw-val = ((CLK/(BAUD*4)) -1)
 	 * spread over two 8-bit registers
 	 */
@@ -497,7 +497,7 @@ static int arc_serial_console_setup(struct console *co, char *options)
 		return -ENODEV;
 
 	/*
-	 * The uart port backing the console (e.g. ttyARC1) might not have been
+	 * The uart port backing the console (e.g. ttyARC1) might yest have been
 	 * init yet. If so, defer the console setup to after the port.
 	 */
 	port = &arc_uart_ports[co->index].port;
@@ -579,13 +579,13 @@ OF_EARLYCON_DECLARE(arc_uart, "snps,arc-uart", arc_early_console_setup);
 
 static int arc_serial_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct arc_uart_port *uart;
 	struct uart_port *port;
 	int dev_id;
 	u32 val;
 
-	/* no device tree device */
+	/* yes device tree device */
 	if (!np)
 		return -ENODEV;
 
@@ -629,10 +629,10 @@ static int arc_serial_probe(struct platform_device *pdev)
 	port->fifosize = ARC_UART_TX_FIFO_SIZE;
 
 	/*
-	 * uart_insert_char( ) uses it in decideding whether to ignore a
-	 * char or not. Explicitly setting it here, removes the subtelty
+	 * uart_insert_char( ) uses it in decideding whether to igyesre a
+	 * char or yest. Explicitly setting it here, removes the subtelty
 	 */
-	port->ignore_status_mask = 0;
+	port->igyesre_status_mask = 0;
 
 	return uart_add_one_port(&arc_uart_driver, &arc_uart_ports[dev_id].port);
 }
@@ -685,4 +685,4 @@ module_exit(arc_serial_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_AUTHOR("Vineet Gupta");
-MODULE_DESCRIPTION("ARC(Synopsys) On-Chip(fpga) serial driver");
+MODULE_DESCRIPTION("ARC(Syyespsys) On-Chip(fpga) serial driver");

@@ -64,7 +64,7 @@
  * printk's trimmed out.
  *
  * Revision 3.6  1995/01/19  21:49:56  guru
- * This is working pretty well. I gained 1 K/s in speed.. now it's just
+ * This is working pretty well. I gained 1 K/s in speed.. yesw it's just
  * robustness and printk's to be diked out.
  *
  * Revision 3.5  1995/01/18  22:29:59  guru
@@ -77,13 +77,13 @@
  * infinite sleep in a lock somewhere..
  *
  * Revision 3.2  1995/01/15  16:46:06  guru
- * Log trimmed of non-pertinent 1.x branch messages
+ * Log trimmed of yesn-pertinent 1.x branch messages
  *
  * Revision 3.1  1995/01/15  14:41:45  guru
  * New Scheduler and timer stuff...
  *
  * Revision 1.15  1995/01/15  14:29:02  guru
- * Will make 1.14 (now 1.15) the 3.0 branch, and the 1.12 the 2.0 branch, the one
+ * Will make 1.14 (yesw 1.15) the 3.0 branch, and the 1.12 the 2.0 branch, the one
  * with the dumber scheduler
  *
  * Revision 1.14  1995/01/15  02:37:08  guru
@@ -95,7 +95,7 @@
  *
  * 	scheduler was torn out and replaced with something smarter
  *
- * 	global names not prefixed with eql_ were renamed to protect
+ * 	global names yest prefixed with eql_ were renamed to protect
  * 	against namespace collisions
  *
  * 	a few more abstract interfaces were added to facilitate any
@@ -103,10 +103,10 @@
  * 	a linked list of slaves.  going to a heap would be a bit of
  * 	an overkill.
  *
- * 	this compiles fine with no warnings.
+ * 	this compiles fine with yes warnings.
  *
  * 	the locking mechanism and timer stuff must be written however,
- * 	this version will not work otherwise
+ * 	this version will yest work otherwise
  *
  * Sorry, I had to rewrite most of this for 2.5.x -DaveM
  */
@@ -417,7 +417,7 @@ static int eql_enslave(struct net_device *master_dev, slaving_request_t __user *
 		return -ENODEV;
 
 	if ((master_dev->flags & IFF_UP) == IFF_UP) {
-		/* slave is not a master & not already a slave: */
+		/* slave is yest a master & yest already a slave: */
 		if (!eql_is_master(slave_dev) && !eql_is_slave(slave_dev)) {
 			slave_t *s = kmalloc(sizeof(*s), GFP_KERNEL);
 			equalizer_t *eql = netdev_priv(master_dev);

@@ -102,7 +102,7 @@ struct stat64_emu31 {
 	unsigned long long  st_dev;
 	unsigned int    __pad1;
 #define STAT64_HAS_BROKEN_ST_INO        1
-	u32             __st_ino;
+	u32             __st_iyes;
 	unsigned int    st_mode;
 	unsigned int    st_nlink;
 	u32             st_uid;
@@ -120,7 +120,7 @@ struct stat64_emu31 {
 	u32             __pad7;
 	u32             st_ctime;
 	u32             __pad8;     /* will be high 32 bits of ctime someday */
-	unsigned long   st_ino;
+	unsigned long   st_iyes;
 };	
 
 static int cp_stat64(struct stat64_emu31 __user *ubuf, struct kstat *stat)
@@ -130,8 +130,8 @@ static int cp_stat64(struct stat64_emu31 __user *ubuf, struct kstat *stat)
 	memset(&tmp, 0, sizeof(tmp));
 
 	tmp.st_dev = huge_encode_dev(stat->dev);
-	tmp.st_ino = stat->ino;
-	tmp.__st_ino = (u32)stat->ino;
+	tmp.st_iyes = stat->iyes;
+	tmp.__st_iyes = (u32)stat->iyes;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = (unsigned int)stat->nlink;
 	tmp.st_uid = from_kuid_munged(current_user_ns(), stat->uid);

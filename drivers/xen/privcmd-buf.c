@@ -34,7 +34,7 @@ struct privcmd_buf_vma_private {
 	struct page *pages[];
 };
 
-static int privcmd_buf_open(struct inode *ino, struct file *file)
+static int privcmd_buf_open(struct iyesde *iyes, struct file *file)
 {
 	struct privcmd_buf_private *file_priv;
 
@@ -62,7 +62,7 @@ static void privcmd_buf_vmapriv_free(struct privcmd_buf_vma_private *vma_priv)
 	kfree(vma_priv);
 }
 
-static int privcmd_buf_release(struct inode *ino, struct file *file)
+static int privcmd_buf_release(struct iyesde *iyes, struct file *file)
 {
 	struct privcmd_buf_private *file_priv = file->private_data;
 	struct privcmd_buf_vma_private *vma_priv;
@@ -185,7 +185,7 @@ const struct file_operations xen_privcmdbuf_fops = {
 EXPORT_SYMBOL_GPL(xen_privcmdbuf_fops);
 
 struct miscdevice xen_privcmdbuf_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "xen/hypercall",
 	.fops = &xen_privcmdbuf_fops,
 };

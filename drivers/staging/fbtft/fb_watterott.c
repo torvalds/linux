@@ -151,7 +151,7 @@ static int init_display(struct fbtft_par *par)
 	/* enable SPI interface by having CS and MOSI low during reset */
 	save_mode = par->spi->mode;
 	/*
-	 * Set CS active inverse polarity: just setting SPI_CS_HIGH does not
+	 * Set CS active inverse polarity: just setting SPI_CS_HIGH does yest
 	 * work with GPIO based chip selects that are logically active high
 	 * but inverted inside the GPIO library, so enforce inverted
 	 * semantics.
@@ -160,7 +160,7 @@ static int init_display(struct fbtft_par *par)
 	ret = spi_setup(par->spi);
 	if (ret) {
 		dev_err(par->info->device,
-			"Could not set inverse CS polarity\n");
+			"Could yest set inverse CS polarity\n");
 		return ret;
 	}
 	write_reg(par, 0x00); /* make sure mode is set */
@@ -171,7 +171,7 @@ static int init_display(struct fbtft_par *par)
 	par->spi->mode = save_mode;
 	ret = spi_setup(par->spi);
 	if (ret) {
-		dev_err(par->info->device, "Could not restore SPI mode\n");
+		dev_err(par->info->device, "Could yest restore SPI mode\n");
 		return ret;
 	}
 	write_reg(par, 0x00);
@@ -187,7 +187,7 @@ static int init_display(struct fbtft_par *par)
 
 static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	/* not used on this controller */
+	/* yest used on this controller */
 }
 
 static int set_var(struct fbtft_par *par)
@@ -263,7 +263,7 @@ static void register_chip_backlight(struct fbtft_par *par)
 				       &bl_props);
 	if (IS_ERR(bd)) {
 		dev_err(par->info->device,
-			"cannot register backlight device (%ld)\n",
+			"canyest register backlight device (%ld)\n",
 			PTR_ERR(bd));
 		return;
 	}

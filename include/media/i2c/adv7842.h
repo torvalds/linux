@@ -178,9 +178,9 @@ struct adv7842_platform_data {
 
 	/* HDMI free run, CP-reg 0xBA */
 	unsigned hdmi_free_run_enable:1;
-	/* 0 = Mode 0: run when there is no TMDS clock
-	   1 = Mode 1: run when there is no TMDS clock or the
-	       video resolution does not match programmed one. */
+	/* 0 = Mode 0: run when there is yes TMDS clock
+	   1 = Mode 1: run when there is yes TMDS clock or the
+	       video resolution does yest match programmed one. */
 	unsigned hdmi_free_run_mode:1;
 
 	/* SDP free run, CP-reg 0xDD */

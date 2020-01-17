@@ -20,14 +20,14 @@
  * Gcc-csky with -pg will insert stub in function prologue:
  *	push	lr
  *	jbsr	_mcount
- *	nop32
- *	nop32
+ *	yesp32
+ *	yesp32
  *
  * If the (callee - current_pc) is less then 64MB, we'll use bsr:
  *	push	lr
  *	bsr	_mcount
- *	nop32
- *	nop32
+ *	yesp32
+ *	yesp32
  * else we'll use (movih + ori + jsr):
  *	push	lr
  *	movih	r26, ...
@@ -38,11 +38,11 @@
  *
  */
 static inline void make_jbsr(unsigned long callee, unsigned long pc,
-			     uint16_t *call, bool nolr)
+			     uint16_t *call, bool yeslr)
 {
 	long offset;
 
-	call[0]	= nolr ? NOP : PUSH_LR;
+	call[0]	= yeslr ? NOP : PUSH_LR;
 
 	offset = (long) callee - (long) pc;
 
@@ -64,18 +64,18 @@ static inline void make_jbsr(unsigned long callee, unsigned long pc,
 	}
 }
 
-static uint16_t nops[7] = {NOP, NOP32_HI, NOP32_LO, NOP32_HI, NOP32_LO,
+static uint16_t yesps[7] = {NOP, NOP32_HI, NOP32_LO, NOP32_HI, NOP32_LO,
 				NOP32_HI, NOP32_LO};
-static int ftrace_check_current_nop(unsigned long hook)
+static int ftrace_check_current_yesp(unsigned long hook)
 {
 	uint16_t olds[7];
 	unsigned long hook_pos = hook - 2;
 
-	if (probe_kernel_read((void *)olds, (void *)hook_pos, sizeof(nops)))
+	if (probe_kernel_read((void *)olds, (void *)hook_pos, sizeof(yesps)))
 		return -EFAULT;
 
-	if (memcmp((void *)nops, (void *)olds, sizeof(nops))) {
-		pr_err("%p: nop but get (%04x %04x %04x %04x %04x %04x %04x)\n",
+	if (memcmp((void *)yesps, (void *)olds, sizeof(yesps))) {
+		pr_err("%p: yesp but get (%04x %04x %04x %04x %04x %04x %04x)\n",
 			(void *)hook_pos,
 			olds[0], olds[1], olds[2], olds[3], olds[4], olds[5],
 			olds[6]);
@@ -87,17 +87,17 @@ static int ftrace_check_current_nop(unsigned long hook)
 }
 
 static int ftrace_modify_code(unsigned long hook, unsigned long target,
-			      bool enable, bool nolr)
+			      bool enable, bool yeslr)
 {
 	uint16_t call[7];
 
 	unsigned long hook_pos = hook - 2;
 	int ret = 0;
 
-	make_jbsr(target, hook, call, nolr);
+	make_jbsr(target, hook, call, yeslr);
 
-	ret = probe_kernel_write((void *)hook_pos, enable ? call : nops,
-				 sizeof(nops));
+	ret = probe_kernel_write((void *)hook_pos, enable ? call : yesps,
+				 sizeof(yesps));
 	if (ret)
 		return -EPERM;
 
@@ -108,7 +108,7 @@ static int ftrace_modify_code(unsigned long hook, unsigned long target,
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
-	int ret = ftrace_check_current_nop(rec->ip);
+	int ret = ftrace_check_current_yesp(rec->ip);
 
 	if (ret)
 		return ret;
@@ -116,7 +116,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	return ftrace_modify_code(rec->ip, addr, true, false);
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
+int ftrace_make_yesp(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
 	return ftrace_modify_code(rec->ip, addr, false, false);
@@ -159,7 +159,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		 * jl	_mcount
 		 * We only need set *parent for resume
 		 *
-		 * For csky-gcc function has no sub-call:
+		 * For csky-gcc function has yes sub-call:
 		 * subi	sp,	sp, 4
 		 * stw	r8,	(sp, 0)
 		 * mov	r8,	sp

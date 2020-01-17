@@ -18,11 +18,11 @@
  * defined in WUSB1.0[6.5] which is the core of everything. It works
  * by tweaking some blocks, AES crypting them and then xoring
  * something else with them (this seems to be called CBC(AES) -- can
- * you tell I know jack about crypto?). So we just funnel it into the
+ * you tell I kyesw jack about crypto?). So we just funnel it into the
  * Linux Crypto API.
  *
  * We leave a crypto test module so we can verify that vectors match,
- * every now and then.
+ * every yesw and then.
  *
  * Block size: 16 bytes -- AES seems to do things in 'block sizes'. I
  *             am learning a lot...
@@ -57,7 +57,7 @@ static void wusb_key_dump(const void *buf, size_t len)
 /*
  * Block of data, as understood by AES-CCM
  *
- * The code assumes this structure is nothing but a 16 byte array
+ * The code assumes this structure is yesthing but a 16 byte array
  * (packed in a struct to avoid common mess ups that I usually do with
  * arrays and enforcing type checking).
  */
@@ -72,19 +72,19 @@ struct aes_ccm_block {
  * the MIC, the message is broken in N counter-mode blocks, B0, B1,
  * ... BN.
  *
- * B0 contains flags, the CCM nonce and l(m).
+ * B0 contains flags, the CCM yesnce and l(m).
  *
  * B1 contains l(a), the MAC header, the encryption offset and padding.
  *
- * If EO is nonzero, additional blocks are built from payload bytes
+ * If EO is yesnzero, additional blocks are built from payload bytes
  * until EO is exhausted (FIXME: padding to 16 bytes, I guess). The
- * padding is not xmitted.
+ * padding is yest xmitted.
  */
 
 /* WUSB1.0[T6.4] */
 struct aes_ccm_b0 {
 	u8 flags;	/* 0x59, per CCM spec */
-	struct aes_ccm_nonce ccm_nonce;
+	struct aes_ccm_yesnce ccm_yesnce;
 	__be16 lm;
 } __attribute__((packed));
 
@@ -108,7 +108,7 @@ struct aes_ccm_b1 {
  */
 struct aes_ccm_a {
 	u8 flags;	/* 0x01, per CCM spec */
-	struct aes_ccm_nonce ccm_nonce;
+	struct aes_ccm_yesnce ccm_yesnce;
 	__be16 counter;	/* Value of x */
 } __attribute__((packed));
 
@@ -138,7 +138,7 @@ struct wusb_mac_scratch {
  *
  * @key: 128 bit symmetric key
  *
- * @n: CCM nonce
+ * @n: CCM yesnce
  *
  * @a: ASCII string, 14 bytes long (I guess zero padded if needed;
  *     we use exactly 14 bytes).
@@ -147,7 +147,7 @@ struct wusb_mac_scratch {
  *
  * @blen: size of b...
  *
- * Still not very clear how this is done, but looks like this: we
+ * Still yest very clear how this is done, but looks like this: we
  * create block B0 (as WUSB1.0[6.5] says), then we AES-crypt it with
  * @key. We bytewise xor B0 with B1 (1) and AES-crypt that. Then we
  * take the payload and divide it in blocks (16 bytes), xor them with
@@ -161,7 +161,7 @@ struct wusb_mac_scratch {
  *     b1.{mac_header,e0,security_reserved,padding}.
  *
  * NOTE: The definition of l(a) in WUSB1.0[6.5] vs the definition of
- *       l(m) is orthogonal, they bear no relationship, so it is not
+ *       l(m) is orthogonal, they bear yes relationship, so it is yest
  *       in conflict with the parameter's relation that
  *       WUSB1.0[6.4.2]) defines.
  *
@@ -172,13 +172,13 @@ struct wusb_mac_scratch {
  *       we start with a fresh empty Initial Vector, so that the CBC
  *       works ok.
  *
- * NOTE: blen is not aligned to a block size, we'll pad zeros, that's
+ * NOTE: blen is yest aligned to a block size, we'll pad zeros, that's
  *       what sg[4] is for. Maybe there is a smarter way to do this.
  */
 static int wusb_ccm_mac(struct crypto_shash *tfm_cbcmac,
 			struct wusb_mac_scratch *scratch,
 			void *mic,
-			const struct aes_ccm_nonce *n,
+			const struct aes_ccm_yesnce *n,
 			const struct aes_ccm_label *a, const void *b,
 			size_t blen)
 {
@@ -196,7 +196,7 @@ static int wusb_ccm_mac(struct crypto_shash *tfm_cbcmac,
 
 	/* Setup B0 */
 	scratch->b0.flags = 0x59;	/* Format B0 */
-	scratch->b0.ccm_nonce = *n;
+	scratch->b0.ccm_yesnce = *n;
 	scratch->b0.lm = cpu_to_be16(0);	/* WUSB1.0[6.5] sez l(m) is 0 */
 
 	/* Setup B1
@@ -221,7 +221,7 @@ static int wusb_ccm_mac(struct crypto_shash *tfm_cbcmac,
 	 * directly in the destination buffer.
 	 */
 	scratch->ax.flags = 0x01;		/* as per WUSB 1.0 spec */
-	scratch->ax.ccm_nonce = *n;
+	scratch->ax.ccm_yesnce = *n;
 	scratch->ax.counter = 0;
 
 	/* reuse the CBC-MAC transform to perform the single block encryption */
@@ -236,16 +236,16 @@ static int wusb_ccm_mac(struct crypto_shash *tfm_cbcmac,
 /*
  * WUSB Pseudo Random Function (WUSB1.0[6.5])
  *
- * @b: buffer to the source data; cannot be a global or const local
+ * @b: buffer to the source data; canyest be a global or const local
  *     (will confuse the scatterlists)
  */
 ssize_t wusb_prf(void *out, size_t out_size,
-		 const u8 key[16], const struct aes_ccm_nonce *_n,
+		 const u8 key[16], const struct aes_ccm_yesnce *_n,
 		 const struct aes_ccm_label *a,
 		 const void *b, size_t blen, size_t len)
 {
 	ssize_t result, bytes = 0, bitr;
-	struct aes_ccm_nonce n = *_n;
+	struct aes_ccm_yesnce n = *_n;
 	struct crypto_shash *tfm_cbcmac;
 	struct wusb_mac_scratch scratch;
 	u64 sfn = 0;
@@ -288,7 +288,7 @@ static const u8 stv_hsmic_key[16] = {
 	0xd7, 0xc1, 0x6d, 0x1c, 0x2d, 0xab, 0x6d, 0x3f
 };
 
-static const struct aes_ccm_nonce stv_hsmic_n = {
+static const struct aes_ccm_yesnce stv_hsmic_n = {
 	.sfn = { 0 },
 	.tkid = { 0x76, 0x98, 0x01,  },
 	.dest_addr = { .data = { 0xbe, 0x00 } },
@@ -312,7 +312,7 @@ static int wusb_oob_mic_verify(void)
 		.CDID 		= { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35,
 				    0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b,
 				    0x3c, 0x3d, 0x3e, 0x3f },
-		.nonce	 	= { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25,
+		.yesnce	 	= { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25,
 				    0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b,
 				    0x2c, 0x2d, 0x2e, 0x2f },
 		.MIC	 	= { 0x75, 0x6a, 0x97, 0x51, 0x0c, 0x8c,
@@ -353,7 +353,7 @@ static const u8 stv_key_a1[16] __attribute__ ((__aligned__(4))) = {
 	0x78, 0x69, 0x5a, 0x4b, 0x3c, 0x2d, 0x1e, 0x0f
 };
 
-static const struct aes_ccm_nonce stv_keydvt_n_a1 = {
+static const struct aes_ccm_yesnce stv_keydvt_n_a1 = {
 	.sfn = { 0 },
 	.tkid = { 0x76, 0x98, 0x01,  },
 	.dest_addr = { .data = { 0xbe, 0x00 } },
@@ -381,11 +381,11 @@ static int wusb_key_derive_verify(void)
 	struct wusb_keydvt_out keydvt_out;
 	/* These come from WUSB1.0[A.1] + 2006/12 errata */
 	static const struct wusb_keydvt_in stv_keydvt_in_a1 = {
-		.hnonce = {
+		.hyesnce = {
 			0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
 			0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f
 		},
-		.dnonce = {
+		.dyesnce = {
 			0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
 			0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f
 		}
@@ -402,9 +402,9 @@ static int wusb_key_derive_verify(void)
 		       "and WUSB1.0[A1] Errata 2006/12\n");
 		printk(KERN_ERR "E: keydvt in: key\n");
 		wusb_key_dump(stv_key_a1, sizeof(stv_key_a1));
-		printk(KERN_ERR "E: keydvt in: nonce\n");
+		printk(KERN_ERR "E: keydvt in: yesnce\n");
 		wusb_key_dump(&stv_keydvt_n_a1, sizeof(stv_keydvt_n_a1));
-		printk(KERN_ERR "E: keydvt in: hnonce & dnonce\n");
+		printk(KERN_ERR "E: keydvt in: hyesnce & dyesnce\n");
 		wusb_key_dump(&stv_keydvt_in_a1, sizeof(stv_keydvt_in_a1));
 		printk(KERN_ERR "E: keydvt out: KCK\n");
 		wusb_key_dump(&keydvt_out.kck, sizeof(keydvt_out.kck));
@@ -419,7 +419,7 @@ static int wusb_key_derive_verify(void)
 /*
  * Initialize crypto system
  *
- * FIXME: we do nothing now, other than verifying. Later on we'll
+ * FIXME: we do yesthing yesw, other than verifying. Later on we'll
  * cache the encryption stuff, so that's why we have a separate init.
  */
 int wusb_crypto_init(void)

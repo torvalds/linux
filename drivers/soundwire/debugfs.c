@@ -57,7 +57,7 @@ static int sdw_slave_reg_show(struct seq_file *s_file, void *data)
 
 	ret = scnprintf(buf, RD_BUF, "Register  Value\n");
 
-	/* DP0 non-banked registers */
+	/* DP0 yesn-banked registers */
 	ret += scnprintf(buf + ret, RD_BUF - ret, "\nDP0\n");
 	for (i = SDW_DP0_INT; i <= SDW_DP0_PREPARECTRL; i++)
 		ret += sdw_sprintf(slave, buf, ret, i);
@@ -84,7 +84,7 @@ static int sdw_slave_reg_show(struct seq_file *s_file, void *data)
 		ret += sdw_sprintf(slave, buf, ret, i);
 
 	/*
-	 * SCP Bank 0/1 registers are read-only and cannot be
+	 * SCP Bank 0/1 registers are read-only and canyest be
 	 * retrieved from the Slave. The Master typically keeps track
 	 * of the current frame size so the information can be found
 	 * in other places

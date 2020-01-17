@@ -119,7 +119,7 @@ static int mt6397_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, mt6397);
 	irq_set_chip_and_handler(irq, &mt6397_irq_chip, handle_level_irq);
 	irq_set_nested_thread(irq, 1);
-	irq_set_noprobe(irq);
+	irq_set_yesprobe(irq);
 
 	return 0;
 }
@@ -159,12 +159,12 @@ int mt6397_irq_init(struct mt6397_chip *chip)
 	regmap_write(chip->regmap, chip->int_con[0], 0x0);
 	regmap_write(chip->regmap, chip->int_con[1], 0x0);
 
-	chip->irq_domain = irq_domain_add_linear(chip->dev->of_node,
+	chip->irq_domain = irq_domain_add_linear(chip->dev->of_yesde,
 						 MT6397_IRQ_NR,
 						 &mt6397_irq_domain_ops,
 						 chip);
 	if (!chip->irq_domain) {
-		dev_err(chip->dev, "could not create irq domain\n");
+		dev_err(chip->dev, "could yest create irq domain\n");
 		return -ENOMEM;
 	}
 

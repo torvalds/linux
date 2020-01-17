@@ -35,7 +35,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 	printk(KERN_DEBUG "%*s domain-%d: ", level, "", level);
 
 	if (!(sd->flags & SD_LOAD_BALANCE)) {
-		printk("does not load-balance\n");
+		printk("does yest load-balance\n");
 		if (sd->parent)
 			printk(KERN_ERR "ERROR: !SD_LOAD_BALANCE domain has parent");
 		return -1;
@@ -45,10 +45,10 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 	       cpumask_pr_args(sched_domain_span(sd)), sd->name);
 
 	if (!cpumask_test_cpu(cpu, sched_domain_span(sd))) {
-		printk(KERN_ERR "ERROR: domain->span does not contain CPU%d\n", cpu);
+		printk(KERN_ERR "ERROR: domain->span does yest contain CPU%d\n", cpu);
 	}
 	if (group && !cpumask_test_cpu(cpu, sched_group_span(group))) {
-		printk(KERN_ERR "ERROR: domain->groups does not contain CPU%d\n", cpu);
+		printk(KERN_ERR "ERROR: domain->groups does yest contain CPU%d\n", cpu);
 	}
 
 	printk(KERN_DEBUG "%*s groups:", level + 1, "");
@@ -90,7 +90,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 		if (group == sd->groups && sd->child &&
 		    !cpumask_equal(sched_domain_span(sd->child),
 				   sched_group_span(group))) {
-			printk(KERN_ERR "ERROR: domain->groups does not match domain->child\n");
+			printk(KERN_ERR "ERROR: domain->groups does yest match domain->child\n");
 		}
 
 		printk(KERN_CONT " }");
@@ -108,7 +108,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 
 	if (sd->parent &&
 	    !cpumask_subset(groupmask, sched_domain_span(sd->parent)))
-		printk(KERN_ERR "ERROR: parent span is not a superset of domain->span\n");
+		printk(KERN_ERR "ERROR: parent span is yest a superset of domain->span\n");
 	return 0;
 }
 
@@ -192,7 +192,7 @@ sd_parent_degenerate(struct sched_domain *sd, struct sched_domain *parent)
 				SD_SHARE_PKG_RESOURCES |
 				SD_PREFER_SIBLING |
 				SD_SHARE_POWERDOMAIN);
-		if (nr_node_ids == 1)
+		if (nr_yesde_ids == 1)
 			pflags &= ~SD_SERIALIZE;
 	}
 	if (~cflags & pflags)
@@ -261,7 +261,7 @@ static struct perf_domain *pd_init(int cpu)
 
 	if (!obj) {
 		if (sched_debug())
-			pr_info("%s: no EM found for CPU%d\n", __func__, cpu);
+			pr_info("%s: yes EM found for CPU%d\n", __func__, cpu);
 		return NULL;
 	}
 
@@ -317,7 +317,7 @@ static void sched_energy_set(bool has_eas)
  * EAS can be used on a root domain if it meets all the following conditions:
  *    1. an Energy Model (EM) is available;
  *    2. the SD_ASYM_CPUCAPACITY flag is set in the sched_domain hierarchy.
- *    3. the EM complexity is low enough to keep scheduling overheads low;
+ *    3. the EM complexity is low eyesugh to keep scheduling overheads low;
  *    4. schedutil is driving the frequency of all CPUs of the rd;
  *
  * The complexity of the Energy Model is defined as:
@@ -331,14 +331,14 @@ static void sched_energy_set(bool has_eas)
  *              domains (for example, on a system with 2 performance domains,
  *              with 10 capacity states each, nr_cs = 2 * 10 = 20).
  *
- * It is generally not a good idea to use such a model in the wake-up path on
+ * It is generally yest a good idea to use such a model in the wake-up path on
  * very complex platforms because of the associated scheduling overheads. The
  * arbitrary constraint below prevents that. It makes EAS usable up to 16 CPUs
  * with per-CPU DVFS and less than 8 capacity states each, for example.
  */
 #define EM_MAX_COMPLEXITY 2048
 
-extern struct cpufreq_governor schedutil_gov;
+extern struct cpufreq_goveryesr schedutil_gov;
 static bool build_perf_domains(const struct cpumask *cpu_map)
 {
 	int i, nr_pd = 0, nr_cs = 0, nr_cpus = cpumask_weight(cpu_map);
@@ -346,7 +346,7 @@ static bool build_perf_domains(const struct cpumask *cpu_map)
 	int cpu = cpumask_first(cpu_map);
 	struct root_domain *rd = cpu_rq(cpu)->rd;
 	struct cpufreq_policy *policy;
-	struct cpufreq_governor *gov;
+	struct cpufreq_goveryesr *gov;
 
 	if (!sysctl_sched_energy_aware)
 		goto free;
@@ -354,7 +354,7 @@ static bool build_perf_domains(const struct cpumask *cpu_map)
 	/* EAS is enabled for asymmetric CPU capacity topologies. */
 	if (!per_cpu(sd_asym_cpucapacity, cpu)) {
 		if (sched_debug()) {
-			pr_info("rd %*pbl: CPUs do not have asymmetric capacities\n",
+			pr_info("rd %*pbl: CPUs do yest have asymmetric capacities\n",
 					cpumask_pr_args(cpu_map));
 		}
 		goto free;
@@ -365,11 +365,11 @@ static bool build_perf_domains(const struct cpumask *cpu_map)
 		if (find_pd(pd, i))
 			continue;
 
-		/* Do not attempt EAS if schedutil is not being used. */
+		/* Do yest attempt EAS if schedutil is yest being used. */
 		policy = cpufreq_cpu_get(i);
 		if (!policy)
 			goto free;
-		gov = policy->governor;
+		gov = policy->goveryesr;
 		cpufreq_cpu_put(policy);
 		if (gov != &schedutil_gov) {
 			if (rd->pd)
@@ -578,9 +578,9 @@ static void free_sched_groups(struct sched_group *sg, int free_sgc)
 static void destroy_sched_domain(struct sched_domain *sd)
 {
 	/*
-	 * A normal sched domain may have multiple group references, an
+	 * A yesrmal sched domain may have multiple group references, an
 	 * overlapping domain, having private groups, only one.  Iterate,
-	 * dropping group/capacity references, freeing where none remain.
+	 * dropping group/capacity references, freeing where yesne remain.
 	 */
 	free_sched_groups(sd->groups, 1);
 
@@ -663,7 +663,7 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 	struct rq *rq = cpu_rq(cpu);
 	struct sched_domain *tmp;
 
-	/* Remove the sched domains which do not contribute to scheduling. */
+	/* Remove the sched domains which do yest contribute to scheduling. */
 	for (tmp = sd; tmp; ) {
 		struct sched_domain *parent = tmp->parent;
 		if (!parent)
@@ -713,11 +713,11 @@ enum s_alloc {
 	sa_rootdomain,
 	sa_sd,
 	sa_sd_storage,
-	sa_none,
+	sa_yesne,
 };
 
 /*
- * Return the canonical balance CPU for this group, this is the first CPU
+ * Return the cayesnical balance CPU for this group, this is the first CPU
  * of this group that's also in the balance mask.
  *
  * The balance mask are all those CPUs that could actually end up at this
@@ -734,15 +734,15 @@ int group_balance_cpu(struct sched_group *sg)
 /*
  * NUMA topology (first read the regular topology blurb below)
  *
- * Given a node-distance table, for example:
+ * Given a yesde-distance table, for example:
  *
- *   node   0   1   2   3
+ *   yesde   0   1   2   3
  *     0:  10  20  30  20
  *     1:  20  10  20  30
  *     2:  30  20  10  20
  *     3:  20  30  20  10
  *
- * which represents a 4 node ring topology like:
+ * which represents a 4 yesde ring topology like:
  *
  *   0 ----- 1
  *   |       |
@@ -752,7 +752,7 @@ int group_balance_cpu(struct sched_group *sg)
  *
  * We want to construct domains and groups to represent this. The way we go
  * about doing this is to build the domains on 'hops'. For each NUMA level we
- * construct the mask of all nodes reachable in @level hops.
+ * construct the mask of all yesdes reachable in @level hops.
  *
  * For the above NUMA topology that gives 3 levels:
  *
@@ -766,22 +766,22 @@ int group_balance_cpu(struct sched_group *sg)
  *
  *
  * As can be seen; things don't nicely line up as with the regular topology.
- * When we iterate a domain in child domain chunks some nodes can be
+ * When we iterate a domain in child domain chunks some yesdes can be
  * represented multiple times -- hence the "overlap" naming for this part of
  * the topology.
  *
- * In order to minimize this overlap, we only build enough groups to cover the
+ * In order to minimize this overlap, we only build eyesugh groups to cover the
  * domain. For instance Node-0 NUMA-2 would only get groups: 0-1,3 and 1-3.
  *
  * Because:
  *
  *  - the first group of each domain is its child domain; this
  *    gets us the first 0-1,3
- *  - the only uncovered node is 2, who's child domain is 1-3.
+ *  - the only uncovered yesde is 2, who's child domain is 1-3.
  *
  * However, because of the overlap, computing a unique CPU for each group is
  * more complicated. Consider for instance the groups of NODE-1 NUMA-2, both
- * groups include the CPUs of Node-0, while those CPUs would not in fact ever
+ * groups include the CPUs of Node-0, while those CPUs would yest in fact ever
  * end up at those groups (they would end up in group: 0-1,3).
  *
  * To correct this we have to introduce the group balance mask. This mask
@@ -795,9 +795,9 @@ int group_balance_cpu(struct sched_group *sg)
  * used for sched_group_capacity links.
  *
  *
- * Another 'interesting' topology is:
+ * Ayesther 'interesting' topology is:
  *
- *   node   0   1   2   3
+ *   yesde   0   1   2   3
  *     0:  10  20  20  30
  *     1:  20  10  20  20
  *     2:  20  20  10  20
@@ -811,11 +811,11 @@ int group_balance_cpu(struct sched_group *sg)
  *   | /     |
  *   2 ----- 3
  *
- * This topology is asymmetric, nodes 1,2 are fully connected, but nodes 0,3
- * are not.
+ * This topology is asymmetric, yesdes 1,2 are fully connected, but yesdes 0,3
+ * are yest.
  *
  * This leads to a few particularly weird cases where the sched_domain's are
- * not of the same number for each CPU. Consider:
+ * yest of the same number for each CPU. Consider:
  *
  * NUMA-2	0-3						0-3
  *  groups:	{0-2},{1-3}					{1-3},{0-2}
@@ -851,27 +851,27 @@ build_balance_mask(struct sched_domain *sd, struct sched_group *sg, struct cpuma
 
 		/*
 		 * Can happen in the asymmetric case, where these siblings are
-		 * unused. The mask will not be empty because those CPUs that
+		 * unused. The mask will yest be empty because those CPUs that
 		 * do have the top domain _should_ span the domain.
 		 */
 		if (!sibling->child)
 			continue;
 
-		/* If we would not end up here, we can't continue from here */
+		/* If we would yest end up here, we can't continue from here */
 		if (!cpumask_equal(sg_span, sched_domain_span(sibling->child)))
 			continue;
 
 		cpumask_set_cpu(i, mask);
 	}
 
-	/* We must not have empty masks here */
+	/* We must yest have empty masks here */
 	WARN_ON_ONCE(cpumask_empty(mask));
 }
 
 /*
- * XXX: This creates per-node group entries; since the load-balancer will
+ * XXX: This creates per-yesde group entries; since the load-balancer will
  * immediately access remote memory to construct this group's load-balance
- * statistics having the groups node local is of dubious benefit.
+ * statistics having the groups yesde local is of dubious benefit.
  */
 static struct sched_group *
 build_group_from_child_sched_domain(struct sched_domain *sd, int cpu)
@@ -879,8 +879,8 @@ build_group_from_child_sched_domain(struct sched_domain *sd, int cpu)
 	struct sched_group *sg;
 	struct cpumask *sg_span;
 
-	sg = kzalloc_node(sizeof(struct sched_group) + cpumask_size(),
-			GFP_KERNEL, cpu_to_node(cpu));
+	sg = kzalloc_yesde(sizeof(struct sched_group) + cpumask_size(),
+			GFP_KERNEL, cpu_to_yesde(cpu));
 
 	if (!sg)
 		return NULL;
@@ -914,7 +914,7 @@ static void init_overlap_sched_group(struct sched_domain *sd,
 
 	/*
 	 * Initialize sgc->capacity such that even if we mess up the
-	 * domains and no possible iteration will get us here, we won't
+	 * domains and yes possible iteration will get us here, we won't
 	 * die on a /0 trap.
 	 */
 	sg_span = sched_group_span(sg);
@@ -944,7 +944,7 @@ build_overlap_sched_groups(struct sched_domain *sd, int cpu)
 		sibling = *per_cpu_ptr(sdd->sd, i);
 
 		/*
-		 * Asymmetric node setups can result in situations where the
+		 * Asymmetric yesde setups can result in situations where the
 		 * domain tree is of unequal depth, make sure to skip domains
 		 * that already cover the entire range.
 		 *
@@ -993,7 +993,7 @@ fail:
  *  - Multi-Core Cache (MC)
  *  - Package (DIE)
  *
- * Where the last one more or less denotes everything up to a NUMA node.
+ * Where the last one more or less deyestes everything up to a NUMA yesde.
  *
  * The tree consists of 3 primary data structures:
  *
@@ -1002,10 +1002,10 @@ fail:
  *          `-'             `-'
  *
  * The sched_domains are per-CPU and have a two way link (parent & child) and
- * denote the ever growing mask of CPUs belonging to that level of topology.
+ * deyeste the ever growing mask of CPUs belonging to that level of topology.
  *
  * Each sched_domain has a circular (double) linked list of sched_group's, each
- * denoting the domains of the level below (or individual CPUs in case of the
+ * deyesting the domains of the level below (or individual CPUs in case of the
  * first domain level). The sched_group linked by a sched_domain includes the
  * CPU of that sched_domain [*].
  *
@@ -1228,7 +1228,7 @@ static void __free_domain_allocs(struct s_data *d, enum s_alloc what,
 	case sa_sd_storage:
 		__sdt_free(cpu_map);
 		/* Fall through */
-	case sa_none:
+	case sa_yesne:
 		break;
 	}
 }
@@ -1253,7 +1253,7 @@ __visit_domain_allocation_hell(struct s_data *d, const struct cpumask *cpu_map)
 /*
  * NULL the sd_data elements we've used to build the sched_domain and
  * sched_group structure so that the subsequent __free_domain_allocs()
- * will not free the data we're using.
+ * will yest free the data we're using.
  */
 static void claim_allocations(int cpu, struct sched_domain *sd)
 {
@@ -1281,13 +1281,13 @@ static int			sched_domains_curr_level;
 int				sched_max_numa_distance;
 static int			*sched_domains_numa_distance;
 static struct cpumask		***sched_domains_numa_masks;
-int __read_mostly		node_reclaim_distance = RECLAIM_DISTANCE;
+int __read_mostly		yesde_reclaim_distance = RECLAIM_DISTANCE;
 #endif
 
 /*
  * SD_flags allowed in topology descriptions.
  *
- * These flags are purely descriptive of the topology and do not prescribe
+ * These flags are purely descriptive of the topology and do yest prescribe
  * behaviour. Behaviour is artificial and mapped in the below sd_init()
  * function:
  *
@@ -1400,7 +1400,7 @@ sd_init(struct sched_domain_topology_level *tl,
 
 		sd->flags &= ~SD_PREFER_SIBLING;
 		sd->flags |= SD_SERIALIZE;
-		if (sched_domains_numa_distance[tl->numa_level] > node_reclaim_distance) {
+		if (sched_domains_numa_distance[tl->numa_level] > yesde_reclaim_distance) {
 			sd->flags &= ~(SD_BALANCE_EXEC |
 				       SD_BALANCE_FORK |
 				       SD_WAKE_AFFINE);
@@ -1458,7 +1458,7 @@ void set_sched_topology(struct sched_domain_topology_level *tl)
 
 static const struct cpumask *sd_numa_mask(int cpu)
 {
-	return sched_domains_numa_masks[sched_domains_curr_level][cpu_to_node(cpu)];
+	return sched_domains_numa_masks[sched_domains_curr_level][cpu_to_yesde(cpu)];
 }
 
 static void sched_numa_warn(const char *str)
@@ -1473,10 +1473,10 @@ static void sched_numa_warn(const char *str)
 
 	printk(KERN_WARNING "ERROR: %s\n\n", str);
 
-	for (i = 0; i < nr_node_ids; i++) {
+	for (i = 0; i < nr_yesde_ids; i++) {
 		printk(KERN_WARNING "  ");
-		for (j = 0; j < nr_node_ids; j++)
-			printk(KERN_CONT "%02d ", node_distance(i,j));
+		for (j = 0; j < nr_yesde_ids; j++)
+			printk(KERN_CONT "%02d ", yesde_distance(i,j));
 		printk(KERN_CONT "\n");
 	}
 	printk(KERN_WARNING "\n");
@@ -1486,7 +1486,7 @@ bool find_numa_distance(int distance)
 {
 	int i;
 
-	if (distance == node_distance(0, 0))
+	if (distance == yesde_distance(0, 0))
 		return true;
 
 	for (i = 0; i < sched_domains_numa_levels; i++) {
@@ -1499,22 +1499,22 @@ bool find_numa_distance(int distance)
 
 /*
  * A system can have three types of NUMA topology:
- * NUMA_DIRECT: all nodes are directly connected, or not a NUMA system
- * NUMA_GLUELESS_MESH: some nodes reachable through intermediary nodes
- * NUMA_BACKPLANE: nodes can reach other nodes through a backplane
+ * NUMA_DIRECT: all yesdes are directly connected, or yest a NUMA system
+ * NUMA_GLUELESS_MESH: some yesdes reachable through intermediary yesdes
+ * NUMA_BACKPLANE: yesdes can reach other yesdes through a backplane
  *
  * The difference between a glueless mesh topology and a backplane
- * topology lies in whether communication between not directly
- * connected nodes goes through intermediary nodes (where programs
+ * topology lies in whether communication between yest directly
+ * connected yesdes goes through intermediary yesdes (where programs
  * could run), or through backplane controllers. This affects
  * placement of programs.
  *
  * The type of topology can be discerned with the following tests:
- * - If the maximum distance between any nodes is 1 hop, the system
+ * - If the maximum distance between any yesdes is 1 hop, the system
  *   is directly connected.
- * - If for two nodes A and B, located N > 1 hops away from each other,
- *   there is an intermediary node C, which is < N hops away from both
- *   nodes A and B, the system is a glueless mesh.
+ * - If for two yesdes A and B, located N > 1 hops away from each other,
+ *   there is an intermediary yesde C, which is < N hops away from both
+ *   yesdes A and B, the system is a glueless mesh.
  */
 static void init_numa_topology_type(void)
 {
@@ -1527,16 +1527,16 @@ static void init_numa_topology_type(void)
 		return;
 	}
 
-	for_each_online_node(a) {
-		for_each_online_node(b) {
-			/* Find two nodes furthest removed from each other. */
-			if (node_distance(a, b) < n)
+	for_each_online_yesde(a) {
+		for_each_online_yesde(b) {
+			/* Find two yesdes furthest removed from each other. */
+			if (yesde_distance(a, b) < n)
 				continue;
 
-			/* Is there an intermediary node between a and b? */
-			for_each_online_node(c) {
-				if (node_distance(a, c) < n &&
-				    node_distance(b, c) < n) {
+			/* Is there an intermediary yesde between a and b? */
+			for_each_online_yesde(c) {
+				if (yesde_distance(a, c) < n &&
+				    yesde_distance(b, c) < n) {
 					sched_numa_topology_type =
 							NUMA_GLUELESS_MESH;
 					return;
@@ -1551,31 +1551,31 @@ static void init_numa_topology_type(void)
 
 void sched_init_numa(void)
 {
-	int next_distance, curr_distance = node_distance(0, 0);
+	int next_distance, curr_distance = yesde_distance(0, 0);
 	struct sched_domain_topology_level *tl;
 	int level = 0;
 	int i, j, k;
 
-	sched_domains_numa_distance = kzalloc(sizeof(int) * (nr_node_ids + 1), GFP_KERNEL);
+	sched_domains_numa_distance = kzalloc(sizeof(int) * (nr_yesde_ids + 1), GFP_KERNEL);
 	if (!sched_domains_numa_distance)
 		return;
 
-	/* Includes NUMA identity node at level 0. */
+	/* Includes NUMA identity yesde at level 0. */
 	sched_domains_numa_distance[level++] = curr_distance;
 	sched_domains_numa_levels = level;
 
 	/*
-	 * O(nr_nodes^2) deduplicating selection sort -- in order to find the
-	 * unique distances in the node_distance() table.
+	 * O(nr_yesdes^2) deduplicating selection sort -- in order to find the
+	 * unique distances in the yesde_distance() table.
 	 *
-	 * Assumes node_distance(0,j) includes all distances in
-	 * node_distance(i,j) in order to avoid cubic time.
+	 * Assumes yesde_distance(0,j) includes all distances in
+	 * yesde_distance(i,j) in order to avoid cubic time.
 	 */
 	next_distance = curr_distance;
-	for (i = 0; i < nr_node_ids; i++) {
-		for (j = 0; j < nr_node_ids; j++) {
-			for (k = 0; k < nr_node_ids; k++) {
-				int distance = node_distance(i, k);
+	for (i = 0; i < nr_yesde_ids; i++) {
+		for (j = 0; j < nr_yesde_ids; j++) {
+			for (k = 0; k < nr_yesde_ids; k++) {
+				int distance = yesde_distance(i, k);
 
 				if (distance > curr_distance &&
 				    (distance < next_distance ||
@@ -1583,15 +1583,15 @@ void sched_init_numa(void)
 					next_distance = distance;
 
 				/*
-				 * While not a strong assumption it would be nice to know
-				 * about cases where if node A is connected to B, B is not
+				 * While yest a strong assumption it would be nice to kyesw
+				 * about cases where if yesde A is connected to B, B is yest
 				 * equally connected to A.
 				 */
-				if (sched_debug() && node_distance(k, i) != distance)
-					sched_numa_warn("Node-distance not symmetric");
+				if (sched_debug() && yesde_distance(k, i) != distance)
+					sched_numa_warn("Node-distance yest symmetric");
 
 				if (sched_debug() && i && !find_numa_distance(distance))
-					sched_numa_warn("Node-0 not representative");
+					sched_numa_warn("Node-0 yest representative");
 			}
 			if (next_distance != curr_distance) {
 				sched_domains_numa_distance[level++] = next_distance;
@@ -1630,27 +1630,27 @@ void sched_init_numa(void)
 		return;
 
 	/*
-	 * Now for each level, construct a mask per node which contains all
-	 * CPUs of nodes that are that many hops away from us.
+	 * Now for each level, construct a mask per yesde which contains all
+	 * CPUs of yesdes that are that many hops away from us.
 	 */
 	for (i = 0; i < level; i++) {
 		sched_domains_numa_masks[i] =
-			kzalloc(nr_node_ids * sizeof(void *), GFP_KERNEL);
+			kzalloc(nr_yesde_ids * sizeof(void *), GFP_KERNEL);
 		if (!sched_domains_numa_masks[i])
 			return;
 
-		for (j = 0; j < nr_node_ids; j++) {
+		for (j = 0; j < nr_yesde_ids; j++) {
 			struct cpumask *mask = kzalloc(cpumask_size(), GFP_KERNEL);
 			if (!mask)
 				return;
 
 			sched_domains_numa_masks[i][j] = mask;
 
-			for_each_node(k) {
-				if (node_distance(j, k) > sched_domains_numa_distance[i])
+			for_each_yesde(k) {
+				if (yesde_distance(j, k) > sched_domains_numa_distance[i])
 					continue;
 
-				cpumask_or(mask, mask, cpumask_of_node(k));
+				cpumask_or(mask, mask, cpumask_of_yesde(k));
 			}
 		}
 	}
@@ -1701,12 +1701,12 @@ void sched_init_numa(void)
 
 void sched_domains_numa_masks_set(unsigned int cpu)
 {
-	int node = cpu_to_node(cpu);
+	int yesde = cpu_to_yesde(cpu);
 	int i, j;
 
 	for (i = 0; i < sched_domains_numa_levels; i++) {
-		for (j = 0; j < nr_node_ids; j++) {
-			if (node_distance(j, node) <= sched_domains_numa_distance[i])
+		for (j = 0; j < nr_yesde_ids; j++) {
+			if (yesde_distance(j, yesde) <= sched_domains_numa_distance[i])
 				cpumask_set_cpu(cpu, sched_domains_numa_masks[i][j]);
 		}
 	}
@@ -1717,7 +1717,7 @@ void sched_domains_numa_masks_clear(unsigned int cpu)
 	int i, j;
 
 	for (i = 0; i < sched_domains_numa_levels; i++) {
-		for (j = 0; j < nr_node_ids; j++)
+		for (j = 0; j < nr_yesde_ids; j++)
 			cpumask_clear_cpu(cpu, sched_domains_numa_masks[i][j]);
 	}
 }
@@ -1728,11 +1728,11 @@ void sched_domains_numa_masks_clear(unsigned int cpu)
  * cpumask: cpumask to find a cpu from
  * cpu: cpu to be close to
  *
- * returns: cpu, or nr_cpu_ids when nothing found.
+ * returns: cpu, or nr_cpu_ids when yesthing found.
  */
 int sched_numa_find_closest(const struct cpumask *cpus, int cpu)
 {
-	int i, j = cpu_to_node(cpu);
+	int i, j = cpu_to_yesde(cpu);
 
 	for (i = 0; i < sched_domains_numa_levels; i++) {
 		cpu = cpumask_any_and(cpus, sched_domains_numa_masks[i][j]);
@@ -1774,22 +1774,22 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 			struct sched_group *sg;
 			struct sched_group_capacity *sgc;
 
-			sd = kzalloc_node(sizeof(struct sched_domain) + cpumask_size(),
-					GFP_KERNEL, cpu_to_node(j));
+			sd = kzalloc_yesde(sizeof(struct sched_domain) + cpumask_size(),
+					GFP_KERNEL, cpu_to_yesde(j));
 			if (!sd)
 				return -ENOMEM;
 
 			*per_cpu_ptr(sdd->sd, j) = sd;
 
-			sds = kzalloc_node(sizeof(struct sched_domain_shared),
-					GFP_KERNEL, cpu_to_node(j));
+			sds = kzalloc_yesde(sizeof(struct sched_domain_shared),
+					GFP_KERNEL, cpu_to_yesde(j));
 			if (!sds)
 				return -ENOMEM;
 
 			*per_cpu_ptr(sdd->sds, j) = sds;
 
-			sg = kzalloc_node(sizeof(struct sched_group) + cpumask_size(),
-					GFP_KERNEL, cpu_to_node(j));
+			sg = kzalloc_yesde(sizeof(struct sched_group) + cpumask_size(),
+					GFP_KERNEL, cpu_to_yesde(j));
 			if (!sg)
 				return -ENOMEM;
 
@@ -1797,8 +1797,8 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 
 			*per_cpu_ptr(sdd->sg, j) = sg;
 
-			sgc = kzalloc_node(sizeof(struct sched_group_capacity) + cpumask_size(),
-					GFP_KERNEL, cpu_to_node(j));
+			sgc = kzalloc_yesde(sizeof(struct sched_group_capacity) + cpumask_size(),
+					GFP_KERNEL, cpu_to_yesde(j));
 			if (!sgc)
 				return -ENOMEM;
 
@@ -1864,7 +1864,7 @@ static struct sched_domain *build_sched_domain(struct sched_domain_topology_leve
 				    sched_domain_span(sd))) {
 			pr_err("BUG: arch topology borken\n");
 #ifdef CONFIG_SCHED_DEBUG
-			pr_err("     the %s domain not a subset of the %s domain\n",
+			pr_err("     the %s domain yest a subset of the %s domain\n",
 					child->name, sd->name);
 #endif
 			/* Fixup, ensure @sd has at least @child CPUs. */
@@ -1945,7 +1945,7 @@ next_level:
 static int
 build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *attr)
 {
-	enum s_alloc alloc_state = sa_none;
+	enum s_alloc alloc_state = sa_yesne;
 	struct sched_domain *sd;
 	struct s_data d;
 	struct rq *rq = NULL;
@@ -2000,7 +2000,7 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 		}
 	}
 
-	/* Calculate CPU capacity for physical packages and nodes */
+	/* Calculate CPU capacity for physical packages and yesdes */
 	for (i = nr_cpumask_bits-1; i >= 0; i--) {
 		if (!cpumask_test_cpu(i, cpu_map))
 			continue;
@@ -2092,7 +2092,7 @@ void free_sched_domains(cpumask_var_t doms[], unsigned int ndoms)
 }
 
 /*
- * Set up scheduler domains and groups.  For now this just excludes isolated
+ * Set up scheduler domains and groups.  For yesw this just excludes isolated
  * CPUs, but could be used to exclude other special cases in the future.
  */
 int sched_init_domains(const struct cpumask *cpu_map)
@@ -2117,7 +2117,7 @@ int sched_init_domains(const struct cpumask *cpu_map)
 
 /*
  * Detach sched domains from a group of CPUs specified in cpu_map
- * These CPUs will now be attached to the NULL domain
+ * These CPUs will yesw be attached to the NULL domain
  */
 static void detach_destroy_domains(const struct cpumask *cpu_map)
 {
@@ -2158,8 +2158,8 @@ static int dattrs_equal(struct sched_domain_attr *cur, int idx_cur,
  *
  * 'doms_new' is an array of cpumask_var_t's of length 'ndoms_new'.
  * The masks don't intersect (don't overlap.) We should setup one
- * sched domain for each mask. CPUs not in any of the cpumasks will
- * not be load balanced. If the same cpumask appears both in the
+ * sched domain for each mask. CPUs yest in any of the cpumasks will
+ * yest be load balanced. If the same cpumask appears both in the
  * current 'doms_cur' domains and in the new 'doms_new', we can leave
  * it as it is.
  *
@@ -2172,7 +2172,7 @@ static int dattrs_equal(struct sched_domain_attr *cur, int idx_cur,
  *
  * If doms_new == NULL it will be replaced with cpu_online_mask.
  * ndoms_new == 0 is a special case for destroying existing domains,
- * and it will not create the default domain.
+ * and it will yest create the default domain.
  *
  * Call with hotplug lock and sched_domains_mutex held
  */
@@ -2222,7 +2222,7 @@ void partition_sched_domains_locked(int ndoms_new, cpumask_var_t doms_new[],
 				goto match1;
 			}
 		}
-		/* No match - a current sched domain not in new doms_new[] */
+		/* No match - a current sched domain yest in new doms_new[] */
 		detach_destroy_domains(doms_cur[i]);
 match1:
 		;

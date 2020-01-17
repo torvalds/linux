@@ -2,10 +2,10 @@
 #include <linux/types.h>
 #include <linux/module.h>
 
-/* Some of this are builtin function (some are not but could in the future),
+/* Some of this are builtin function (some are yest but could in the future),
  * so I *must* declare good prototypes for them and then EXPORT them.
  * The kernel code uses the macro defined by include/linux/string.h,
- * so I undef macros; the userspace code does not include that and I
+ * so I undef macros; the userspace code does yest include that and I
  * add an EXPORT for the glibc one.
  */
 
@@ -19,7 +19,7 @@ extern void *memmove(void *, const void *, size_t);
 extern void *memset(void *, int, size_t);
 extern int printf(const char *, ...);
 
-/* If it's not defined, the export is included in lib/string.c.*/
+/* If it's yest defined, the export is included in lib/string.c.*/
 #ifdef __HAVE_ARCH_STRSTR
 EXPORT_SYMBOL(strstr);
 #endif
@@ -34,7 +34,7 @@ EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(printf);
 
 /* Here, instead, I can provide a fake prototype. Yes, someone cares: genksyms.
- * However, the modules will use the CRC defined *here*, no matter if it is
+ * However, the modules will use the CRC defined *here*, yes matter if it is
  * good; so the versions of these symbols will always match
  */
 #define EXPORT_SYMBOL_PROTO(sym)       \
@@ -51,7 +51,7 @@ EXPORT_SYMBOL(vsyscall_ehdr);
 EXPORT_SYMBOL(vsyscall_end);
 #endif
 
-EXPORT_SYMBOL_PROTO(__errno_location);
+EXPORT_SYMBOL_PROTO(__erryes_location);
 
 EXPORT_SYMBOL_PROTO(access);
 EXPORT_SYMBOL_PROTO(open);
@@ -76,7 +76,7 @@ EXPORT_SYMBOL_PROTO(futimes);
 EXPORT_SYMBOL_PROTO(chmod);
 EXPORT_SYMBOL_PROTO(fchmod);
 EXPORT_SYMBOL_PROTO(rename);
-EXPORT_SYMBOL_PROTO(__xmknod);
+EXPORT_SYMBOL_PROTO(__xmkyesd);
 
 EXPORT_SYMBOL_PROTO(symlink);
 EXPORT_SYMBOL_PROTO(link);
@@ -106,7 +106,7 @@ EXPORT_SYMBOL_PROTO(fdatasync);
 
 EXPORT_SYMBOL_PROTO(lstat64);
 EXPORT_SYMBOL_PROTO(fstat64);
-EXPORT_SYMBOL_PROTO(mknod);
+EXPORT_SYMBOL_PROTO(mkyesd);
 
 /* Export symbols used by GCC for the stack protector. */
 extern void __stack_smash_handler(void *) __attribute__((weak));

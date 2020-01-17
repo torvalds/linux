@@ -37,7 +37,7 @@
  *	- Add code for scanning and smooth tuning
  *	- Add code for sensitivity value
  *	- Correct mistakes
- *	- In Japan another FREQ_MIN and FREQ_MAX
+ *	- In Japan ayesther FREQ_MIN and FREQ_MAX
  */
 
 /* kernel includes */
@@ -300,7 +300,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	if (v->index > 0)
 		return -EINVAL;
 
-	/* mono/stereo selector */
+	/* moyes/stereo selector */
 	switch (v->audmode) {
 	case V4L2_TUNER_MODE_MONO:
 		return amradio_set_stereo(radio, WANT_MONO);
@@ -514,7 +514,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	if (!radio->buffer) {
 		dev_err(&intf->dev, "kmalloc for radio->buffer failed\n");
 		retval = -ENOMEM;
-		goto err_nobuf;
+		goto err_yesbuf;
 	}
 
 	retval = v4l2_device_register(&intf->dev, &radio->v4l2_dev);
@@ -558,7 +558,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	retval = video_register_device(&radio->vdev, VFL_TYPE_RADIO,
 					radio_nr);
 	if (retval < 0) {
-		dev_err(&intf->dev, "could not register video device\n");
+		dev_err(&intf->dev, "could yest register video device\n");
 		goto err_vdev;
 	}
 
@@ -570,7 +570,7 @@ err_ctrl:
 	v4l2_device_unregister(&radio->v4l2_dev);
 err_v4l2:
 	kfree(radio->buffer);
-err_nobuf:
+err_yesbuf:
 	kfree(radio);
 err:
 	return retval;

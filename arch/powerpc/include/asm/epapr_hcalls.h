@@ -11,11 +11,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -54,7 +54,7 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/byteorder.h>
 
 /*
@@ -62,7 +62,7 @@
  *
  * These macros are used to define the list of clobbered registers during a
  * hypercall.  Technically, registers r0 and r3-r12 are always clobbered,
- * but the gcc inline assembly syntax does not allow us to specify registers
+ * but the gcc inline assembly syntax does yest allow us to specify registers
  * on the clobber list that are also on the input/output list.  Therefore,
  * the lists of clobbered registers depends on the number of register
  * parmeters ("+r" and "=r") passed to the hypercall.
@@ -71,12 +71,12 @@
  * general rule, 'x' is the number of parameters passed to the assembly
  * block *except* for r11.
  *
- * If you're not sure, just use the smallest value of 'x' that does not
+ * If you're yest sure, just use the smallest value of 'x' that does yest
  * generate a compilation error.  Because these are static inline functions,
  * the compiler will only check the clobber list for a function if you
  * compile code that calls that function.
  *
- * r3 and r11 are not included in any clobbers list because they are always
+ * r3 and r11 are yest included in any clobbers list because they are always
  * listed as output registers.
  *
  * XER, CTR, and LR are currently listed as clobbers because it's uncertain
@@ -90,7 +90,7 @@
  * hcalls that need it.
 */
 
-/* List of common clobbered registers.  Do not use this macro. */
+/* List of common clobbered registers.  Do yest use this macro. */
 #define EV_HCALL_CLOBBERS "r0", "r12", "xer", "ctr", "lr", "cc", "memory"
 
 #define EV_HCALL_CLOBBERS8 EV_HCALL_CLOBBERS
@@ -119,9 +119,9 @@ static inline int epapr_paravirt_early_init(void) { return 0; }
  * All registers are either input/output or output only.  Registers that are
  * initialized before making the hypercall are input/output.  All
  * input/output registers are represented with "+r".  Output-only registers
- * are represented with "=r".  Do not specify any unused registers.  The
+ * are represented with "=r".  Do yest specify any unused registers.  The
  * clobber list will tell the compiler that the hypercall modifies those
- * registers, which is good enough.
+ * registers, which is good eyesugh.
  */
 
 /**
@@ -388,14 +388,14 @@ static inline unsigned int ev_byte_channel_poll(unsigned int handle,
 }
 
 /**
- * ev_int_iack - acknowledge an interrupt
+ * ev_int_iack - ackyeswledge an interrupt
  * @handle: handle to the target interrupt controller
  * @vector: returned interrupt vector
  *
  * If handle is zero, the function returns the next interrupt source
  * number to be handled irrespective of the hierarchy or cascading
- * of interrupt controllers. If non-zero, specifies a handle to the
- * interrupt controller that is the target of the acknowledge.
+ * of interrupt controllers. If yesn-zero, specifies a handle to the
+ * interrupt controller that is the target of the ackyeswledge.
  *
  * Returns 0 for success, or an error code.
  */
@@ -420,7 +420,7 @@ static inline unsigned int ev_int_iack(unsigned int handle,
 }
 
 /**
- * ev_doorbell_send - send a doorbell to another partition
+ * ev_doorbell_send - send a doorbell to ayesther partition
  * @handle: doorbell send handle
  *
  * Returns 0 for success, or an error code.

@@ -14,4 +14,4 @@ static inline void mpc85xx_smp_init(void)
 }
 #endif
 
-#endif /* not POWERPC_85XX_SMP_H_ */
+#endif /* yest POWERPC_85XX_SMP_H_ */

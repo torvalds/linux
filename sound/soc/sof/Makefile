@@ -7,10 +7,10 @@ snd-sof-pci-objs := sof-pci-dev.o
 snd-sof-acpi-objs := sof-acpi-dev.o
 snd-sof-of-objs := sof-of-dev.o
 
-snd-sof-nocodec-objs := nocodec.o
+snd-sof-yescodec-objs := yescodec.o
 
 obj-$(CONFIG_SND_SOC_SOF) += snd-sof.o
-obj-$(CONFIG_SND_SOC_SOF_NOCODEC) += snd-sof-nocodec.o
+obj-$(CONFIG_SND_SOC_SOF_NOCODEC) += snd-sof-yescodec.o
 
 
 obj-$(CONFIG_SND_SOC_SOF_ACPI) += snd-sof-acpi.o

@@ -192,7 +192,7 @@ static int mt9p031_reset(struct mt9p031 *mt9p031)
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9p031->subdev);
 	int ret;
 
-	/* Disable chip output, synchronous option update */
+	/* Disable chip output, synchroyesus option update */
 	ret = mt9p031_write(client, MT9P031_RST, MT9P031_RST_ENABLE);
 	if (ret < 0)
 		return ret;
@@ -461,7 +461,7 @@ static int mt9p031_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (ret < 0)
 		return ret;
 
-	/* Switch to master "normal" mode */
+	/* Switch to master "yesrmal" mode */
 	ret = mt9p031_set_output_control(mt9p031, 0,
 					 MT9P031_OUTPUT_CONTROL_CEN);
 	if (ret < 0)
@@ -702,7 +702,7 @@ static int mt9p031_s_ctrl(struct v4l2_ctrl *ctrl)
 		 * Second analog stage  x1      x4      0.125
 		 * Digital stage        x1      x16     0.125
 		 *
-		 * To minimize noise, the gain stages should be used in the
+		 * To minimize yesise, the gain stages should be used in the
 		 * second analog stage, first analog stage, digital stage order.
 		 * Gain from a previous stage should be pushed to its maximum
 		 * value before the next stage is used.
@@ -826,8 +826,8 @@ static const char * const mt9p031_test_pattern_menu[] = {
 	"Diagonal Gradient",
 	"Classic Test Pattern",
 	"Walking 1s",
-	"Monochrome Horizontal Bars",
-	"Monochrome Vertical Bars",
+	"Moyeschrome Horizontal Bars",
+	"Moyeschrome Vertical Bars",
 	"Vertical Color Bars",
 };
 
@@ -926,7 +926,7 @@ static int mt9p031_registered(struct v4l2_subdev *subdev)
 	mt9p031_power_off(mt9p031);
 
 	if (data != MT9P031_CHIP_VERSION_VALUE) {
-		dev_err(&client->dev, "MT9P031 not detected, wrong version "
+		dev_err(&client->dev, "MT9P031 yest detected, wrong version "
 			"0x%04x\n", data);
 		return -ENODEV;
 	}
@@ -1006,12 +1006,12 @@ static struct mt9p031_platform_data *
 mt9p031_get_pdata(struct i2c_client *client)
 {
 	struct mt9p031_platform_data *pdata;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_yesde)
 		return client->dev.platform_data;
 
-	np = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	np = of_graph_get_next_endpoint(client->dev.of_yesde, NULL);
 	if (!np)
 		return NULL;
 
@@ -1023,7 +1023,7 @@ mt9p031_get_pdata(struct i2c_client *client)
 	of_property_read_u32(np, "pixel-clock-frequency", &pdata->target_freq);
 
 done:
-	of_node_put(np);
+	of_yesde_put(np);
 	return pdata;
 }
 

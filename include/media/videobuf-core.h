@@ -5,7 +5,7 @@
  * (c) 2007 Mauro Carvalho Chehab, <mchehab@kernel.org>
  *
  * Highly based on video-buf written originally by:
- * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
+ * (c) 2001,02 Gerd Kyesrr <kraxel@bytesex.org>
  * (c) 2006 Mauro Carvalho Chehab, <mchehab@kernel.org>
  * (c) 2006 Ted Walther and John Sokol
  */
@@ -172,7 +172,7 @@ static inline void videobuf_queue_unlock(struct videobuf_queue *q)
 }
 
 int videobuf_waiton(struct videobuf_queue *q, struct videobuf_buffer *vb,
-		int non_blocking, int intr);
+		int yesn_blocking, int intr);
 int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		struct v4l2_framebuffer *fbuf);
 
@@ -202,7 +202,7 @@ int videobuf_querybuf(struct videobuf_queue *q, struct v4l2_buffer *b);
 int videobuf_qbuf(struct videobuf_queue *q,
 		  struct v4l2_buffer *b);
 int videobuf_dqbuf(struct videobuf_queue *q,
-		   struct v4l2_buffer *b, int nonblocking);
+		   struct v4l2_buffer *b, int yesnblocking);
 int videobuf_streamon(struct videobuf_queue *q);
 int videobuf_streamoff(struct videobuf_queue *q);
 
@@ -212,10 +212,10 @@ int videobuf_read_start(struct videobuf_queue *q);
 void videobuf_read_stop(struct videobuf_queue *q);
 ssize_t videobuf_read_stream(struct videobuf_queue *q,
 			     char __user *data, size_t count, loff_t *ppos,
-			     int vbihack, int nonblocking);
+			     int vbihack, int yesnblocking);
 ssize_t videobuf_read_one(struct videobuf_queue *q,
 			  char __user *data, size_t count, loff_t *ppos,
-			  int nonblocking);
+			  int yesnblocking);
 __poll_t videobuf_poll_stream(struct file *file,
 				  struct videobuf_queue *q,
 				  poll_table *wait);

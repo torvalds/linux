@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _capture:
 
@@ -20,11 +20,11 @@ capture process and move images from the driver into user space.
 
 Conventionally V4L2 video capture devices are accessed through character
 device special files named ``/dev/video`` and ``/dev/video0`` to
-``/dev/video63`` with major number 81 and minor numbers 0 to 63.
+``/dev/video63`` with major number 81 and miyesr numbers 0 to 63.
 ``/dev/video`` is typically a symbolic link to the preferred video
 device.
 
-.. note:: The same device file names are used for video output devices.
+.. yeste:: The same device file names are used for video output devices.
 
 
 Querying Capabilities
@@ -62,7 +62,7 @@ capture, the latter how images are stored in memory, i. e. in RGB or YUV
 format, the number of bits per pixel or width and height. Together they
 also define how images are scaled in the process.
 
-As usual these parameters are *not* reset at :ref:`open() <func-open>`
+As usual these parameters are *yest* reset at :ref:`open() <func-open>`
 time to permit Unix tool chains, programming a device and then reading
 from it as if it was a plain file. Well written V4L2 applications ensure
 they really get what they want, including cropping and scaling.
@@ -98,7 +98,7 @@ struct :c:type:`v4l2_pix_format_mplane` are
 discussed in :ref:`pixfmt`. See also the specification of the
 :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`, :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` and :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctls for
 details. Video capture devices must implement both the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`
-and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ignores all
+and :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl, even if :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` igyesres all
 requests and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` does.
 :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` is optional.
 

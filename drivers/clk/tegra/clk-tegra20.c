@@ -486,7 +486,7 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .dev_id = "host1x", .dt_id = TEGRA20_CLK_HOST1X },
 	{ .dev_id = "3d", .dt_id = TEGRA20_CLK_GR3D },
 	{ .dev_id = "2d", .dt_id = TEGRA20_CLK_GR2D },
-	{ .dev_id = "tegra-nor", .dt_id = TEGRA20_CLK_NOR },
+	{ .dev_id = "tegra-yesr", .dt_id = TEGRA20_CLK_NOR },
 	{ .dev_id = "sdhci-tegra.0", .dt_id = TEGRA20_CLK_SDMMC1 },
 	{ .dev_id = "sdhci-tegra.1", .dt_id = TEGRA20_CLK_SDMMC2 },
 	{ .dev_id = "sdhci-tegra.2", .dt_id = TEGRA20_CLK_SDMMC3 },
@@ -523,7 +523,7 @@ static struct tegra_clk tegra20_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_csite] = { .dt_id = TEGRA20_CLK_CSITE, .present = true },
 	[tegra_clk_vfir] = { .dt_id = TEGRA20_CLK_VFIR, .present = true },
 	[tegra_clk_mipi] = { .dt_id = TEGRA20_CLK_MIPI, .present = true },
-	[tegra_clk_nor] = { .dt_id = TEGRA20_CLK_NOR, .present = true },
+	[tegra_clk_yesr] = { .dt_id = TEGRA20_CLK_NOR, .present = true },
 	[tegra_clk_rtc] = { .dt_id = TEGRA20_CLK_RTC, .present = true },
 	[tegra_clk_timer] = { .dt_id = TEGRA20_CLK_TIMER, .present = true },
 	[tegra_clk_kbc] = { .dt_id = TEGRA20_CLK_KBC, .present = true },
@@ -774,7 +774,7 @@ static struct tegra_periph_init_data tegra_periph_clk_list[] = {
 	TEGRA_INIT_DATA("pwm", NULL, NULL, pwm_parents,     CLK_SOURCE_PWM,   28, 3, 0, 0, 8, 1, 0, 17, TEGRA_PERIPH_ON_APB, TEGRA20_CLK_PWM),
 };
 
-static struct tegra_periph_init_data tegra_periph_nodiv_clk_list[] = {
+static struct tegra_periph_init_data tegra_periph_yesdiv_clk_list[] = {
 	TEGRA_INIT_DATA_NODIV("uarta",	mux_pllpcm_clkm, CLK_SOURCE_UARTA, 30, 2, 6,   TEGRA_PERIPH_ON_APB, TEGRA20_CLK_UARTA),
 	TEGRA_INIT_DATA_NODIV("uartb",	mux_pllpcm_clkm, CLK_SOURCE_UARTB, 30, 2, 7,   TEGRA_PERIPH_ON_APB, TEGRA20_CLK_UARTB),
 	TEGRA_INIT_DATA_NODIV("uartc",	mux_pllpcm_clkm, CLK_SOURCE_UARTC, 30, 2, 55,  TEGRA_PERIPH_ON_APB, TEGRA20_CLK_UARTC),
@@ -844,9 +844,9 @@ static void __init tegra20_periph_clk_init(void)
 		clks[data->clk_id] = clk;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(tegra_periph_nodiv_clk_list); i++) {
-		data = &tegra_periph_nodiv_clk_list[i];
-		clk = tegra_clk_register_periph_nodiv(data->name,
+	for (i = 0; i < ARRAY_SIZE(tegra_periph_yesdiv_clk_list); i++) {
+		data = &tegra_periph_yesdiv_clk_list[i];
+		clk = tegra_clk_register_periph_yesdiv(data->name,
 					data->p.parent_names,
 					data->num_parents, &data->periph,
 					clk_base, data->offset);
@@ -885,7 +885,7 @@ static void tegra20_wait_cpu_in_reset(u32 cpu)
 		reg = readl(clk_base +
 			    TEGRA_CLK_RST_CONTROLLER_RST_CPU_CMPLX_SET);
 		cpu_relax();
-	} while (!(reg & (1 << cpu)));	/* check CPU been reset or not */
+	} while (!(reg & (1 << cpu)));	/* check CPU been reset or yest */
 
 	return;
 }
@@ -1114,9 +1114,9 @@ static struct clk *tegra20_clk_src_onecell_get(struct of_phandle_args *clkspec,
 	return clk;
 }
 
-static void __init tegra20_clock_init(struct device_node *np)
+static void __init tegra20_clock_init(struct device_yesde *np)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	clk_base = of_iomap(np, 0);
 	if (!clk_base) {
@@ -1124,13 +1124,13 @@ static void __init tegra20_clock_init(struct device_node *np)
 		BUG();
 	}
 
-	node = of_find_matching_node(NULL, pmc_match);
-	if (!node) {
-		pr_err("Failed to find pmc node\n");
+	yesde = of_find_matching_yesde(NULL, pmc_match);
+	if (!yesde) {
+		pr_err("Failed to find pmc yesde\n");
 		BUG();
 	}
 
-	pmc_base = of_iomap(node, 0);
+	pmc_base = of_iomap(yesde, 0);
 	if (!pmc_base) {
 		pr_err("Can't map pmc registers\n");
 		BUG();

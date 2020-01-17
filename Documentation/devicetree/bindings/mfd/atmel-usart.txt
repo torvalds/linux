@@ -1,4 +1,4 @@
-* Atmel Universal Synchronous Asynchronous Receiver/Transmitter (USART)
+* Atmel Universal Synchroyesus Asynchroyesus Receiver/Transmitter (USART)
 
 Required properties for USART:
 - compatible: Should be "atmel,<chip>-usart" or "atmel,<chip>-dbgu"
@@ -14,12 +14,12 @@ Required properties for USART:
 Required properties for USART in SPI mode:
 - #size-cells      : Must be <0>
 - #address-cells   : Must be <1>
-- cs-gpios: chipselects (internal cs not supported)
+- cs-gpios: chipselects (internal cs yest supported)
 - atmel,usart-mode : Must be <AT91_USART_MODE_SPI> (found in dt-bindings/mfd/at91-usart.h)
 
 Optional properties in serial and SPI mode:
 - dma bindings for dma transfer:
-	- dmas: DMA specifier, consisting of a phandle to DMA controller node,
+	- dmas: DMA specifier, consisting of a phandle to DMA controller yesde,
 		memory peripheral interface and USART DMA channel ID, FIFO configuration.
 		The order of DMA channels is fixed. The first DMA channel must be TX
 		associated channel and the second one must be RX associated channel.

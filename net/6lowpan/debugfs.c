@@ -115,9 +115,9 @@ static int lowpan_ctx_pfx_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int lowpan_ctx_pfx_open(struct inode *inode, struct file *file)
+static int lowpan_ctx_pfx_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, lowpan_ctx_pfx_show, inode->i_private);
+	return single_open(file, lowpan_ctx_pfx_show, iyesde->i_private);
 }
 
 static ssize_t lowpan_ctx_pfx_write(struct file *fp,

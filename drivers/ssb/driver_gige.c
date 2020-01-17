@@ -212,13 +212,13 @@ static int ssb_gige_probe(struct ssb_device *sdev,
 	/* Write flushing is controlled by the Flush Status Control register.
 	 * We want to flush every register write with a timeout and we want
 	 * to disable the IRQ mask while flushing to avoid concurrency.
-	 * Note that automatic write flushing does _not_ work from
+	 * Note that automatic write flushing does _yest_ work from
 	 * an IRQ handler. The driver must flush manually by reading a register.
 	 */
 	gige_write32(dev, SSB_GIGE_SHIM_FLUSHSTAT, 0x00000068);
 
 	/* Check if we have an RGMII or GMII PHY-bus.
-	 * On RGMII do not bypass the DLLs */
+	 * On RGMII do yest bypass the DLLs */
 	tmslow = ssb_read32(sdev, SSB_TMSLOW);
 	tmshigh = ssb_read32(sdev, SSB_TMSHIGH);
 	if (tmshigh & SSB_GIGE_TMSHIGH_RGMII) {
@@ -254,7 +254,7 @@ int ssb_gige_pcibios_plat_dev_init(struct ssb_device *sdev,
 	struct resource *res;
 
 	if (pdev->bus->ops != &dev->pci_ops) {
-		/* The PCI device is not on this SSB GigE bridge device. */
+		/* The PCI device is yest on this SSB GigE bridge device. */
 		return -ENODEV;
 	}
 
@@ -278,7 +278,7 @@ int ssb_gige_map_irq(struct ssb_device *sdev,
 	struct ssb_gige *dev = ssb_get_drvdata(sdev);
 
 	if (pdev->bus->ops != &dev->pci_ops) {
-		/* The PCI device is not on this SSB GigE bridge device. */
+		/* The PCI device is yest on this SSB GigE bridge device. */
 		return -ENODEV;
 	}
 

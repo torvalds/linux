@@ -313,7 +313,7 @@ static void _InitNormalChipOneOutEpPriority(struct adapter *Adapter)
 		value = QUEUE_NORMAL;
 		break;
 	default:
-		/* RT_ASSERT(false, ("Shall not reach here!\n")); */
+		/* RT_ASSERT(false, ("Shall yest reach here!\n")); */
 		break;
 	}
 
@@ -347,7 +347,7 @@ static void _InitNormalChipTwoOutEpPriority(struct adapter *Adapter)
 		valueLow = QUEUE_NORMAL;
 		break;
 	default:
-		/* RT_ASSERT(false, ("Shall not reach here!\n")); */
+		/* RT_ASSERT(false, ("Shall yest reach here!\n")); */
 		break;
 	}
 
@@ -412,7 +412,7 @@ static void _InitQueuePriority(struct adapter *Adapter)
 		_InitNormalChipThreeOutEpPriority(Adapter);
 		break;
 	default:
-		/* RT_ASSERT(false, ("Shall not reach here!\n")); */
+		/* RT_ASSERT(false, ("Shall yest reach here!\n")); */
 		break;
 	}
 
@@ -478,7 +478,7 @@ static void _InitWMACSetting(struct adapter *padapter)
 	rtw_write16(padapter, REG_RXFLTMAP2, value16);
 
 	/*  2010.09.08 hpfan */
-	/*  Since ADF is removed from RCR, ps-poll will not be indicate to driver, */
+	/*  Since ADF is removed from RCR, ps-poll will yest be indicate to driver, */
 	/*  RxFilterMap should mask ps-poll to gurantee AP mode can rx ps-poll. */
 	value16 = 0x400;
 	rtw_write16(padapter, REG_RXFLTMAP1, value16);
@@ -627,7 +627,7 @@ static void _InitOperationMode(struct adapter *padapter)
 		break;
 	case WIRELESS_MODE_N_24G:
 		/*  It support CCK rate by default. */
-		/*  CCK rate will be filtered out only when associated AP does not support it. */
+		/*  CCK rate will be filtered out only when associated AP does yest support it. */
 		regBwOpMode = BW_OPMODE_20MHZ;
 		break;
 	case WIRELESS_MODE_N_5G:
@@ -721,7 +721,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 		adapter_to_pwrctl(padapter)->pre_ips_type == 0
 	) {
 		unsigned long start_time;
-		u8 cpwm_orig, cpwm_now;
+		u8 cpwm_orig, cpwm_yesw;
 		u8 val8, bMacPwrCtrlOn = true;
 
 		DBG_871X("%s: Leaving IPS in FWLPS state\n", __func__);
@@ -745,8 +745,8 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 
 			mdelay(1);
 
-			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_now);
-			if ((cpwm_orig ^ cpwm_now) & 0x80)
+			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_yesw);
+			if ((cpwm_orig ^ cpwm_yesw) & 0x80)
 				break;
 
 			if (jiffies_to_msecs(jiffies - start_time) > 100) {
@@ -806,7 +806,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 		pHalData->fw_ractrl = false;
 		return ret;
 	} else {
-		RT_TRACE(_module_hci_hal_init_c_, _drv_notice_, ("rtl8723bs_hal_init(): Download Firmware Success!!\n"));
+		RT_TRACE(_module_hci_hal_init_c_, _drv_yestice_, ("rtl8723bs_hal_init(): Download Firmware Success!!\n"));
 		padapter->bFWReady = true;
 		pHalData->fw_ractrl = true;
 	}
@@ -818,7 +818,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 	if (pwrctrlpriv->reg_rfoff)
 		pwrctrlpriv->rf_pwrstate = rf_off;
 
-	/*  2010/08/09 MH We need to check if we need to turnon or off RF after detecting */
+	/*  2010/08/09 MH We need to check if we need to turyesn or off RF after detecting */
 	/*  HW GPIO pin. Before PHY_RFConfig8192C. */
 	HalDetectPwrDownMode(padapter);
 
@@ -911,7 +911,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 		CHANNEL_WIDTH_20, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HAL_PRIME_CHNL_OFFSET_DONT_CARE);
 
 	/*  Record original value for template. This is arough data, we can only use the data */
-	/*  for power adjust. The value can not be adjustde according to different power!!! */
+	/*  for power adjust. The value can yest be adjustde according to different power!!! */
 /* 	pHalData->OriginalCckTxPwrIdx = pHalData->CurrentCckTxPwrIdx; */
 /* 	pHalData->OriginalOfdm24GTxPwrIdx = pHalData->CurrentOfdm24GTxPwrIdx; */
 
@@ -1247,7 +1247,7 @@ static void Hal_EfuseParseMACAddr_8723BS(
 
 	RT_TRACE(
 		_module_hci_hal_init_c_,
-		_drv_notice_,
+		_drv_yestice_,
 		(
 			"Hal_EfuseParseMACAddr_8723BS: Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
 			pEEPROM->mac_addr[0],
@@ -1401,7 +1401,7 @@ static void ReadAdapterInfo8723BS(struct adapter *padapter)
 }
 
 /*
- * If variable not handled here,
+ * If variable yest handled here,
  * some variables will be processed in SetHwReg8723B()
  */
 static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
@@ -1429,7 +1429,7 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 	case HW_VAR_SET_RPWM:
 		/*  rpwm value only use BIT0(clock bit) , BIT6(Ack bit), and BIT7(Toggle bit) */
 		/*  BIT0 value - 1: 32k, 0:40MHz. */
-		/*  BIT6 value - 1: report cpwm value after success set, 0:do not report. */
+		/*  BIT6 value - 1: report cpwm value after success set, 0:do yest report. */
 		/*  BIT7 value - Toggle bit change. */
 		{
 			val8 = *val;
@@ -1476,7 +1476,7 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 					DBG_871X_LEVEL(_drv_always_, "RX_DMA_IDLE is true\n");
 					break;
 				} else {
-					/*  If RX_DMA is not idle, receive one pkt from DMA */
+					/*  If RX_DMA is yest idle, receive one pkt from DMA */
 					res = sdio_local_read(padapter, SDIO_REG_RX0_REQ_LEN, 4, (u8 *)&tmp);
 					len = le16_to_cpu(tmp);
 					DBG_871X_LEVEL(_drv_always_, "RX len:%d\n", len);
@@ -1515,7 +1515,7 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 			rtl8723b_set_wowlan_cmd(padapter, 1);
 
 			/*  6. Check EnableWoWlan CMD is ready */
-			if (!pwrctl->wowlan_pno_enable) {
+			if (!pwrctl->wowlan_pyes_enable) {
 				DBG_871X_LEVEL(_drv_always_, "Check EnableWoWlan CMD is ready\n");
 				mstatus = rtw_read8(padapter, REG_WOW_CTRL);
 				trycnt = 10;
@@ -1686,7 +1686,7 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 					DBG_871X_LEVEL(_drv_always_, "RX_DMA_IDLE is true\n");
 					break;
 				} else {
-					/*  If RX_DMA is not idle, receive one pkt from DMA */
+					/*  If RX_DMA is yest idle, receive one pkt from DMA */
 					res = sdio_local_read(padapter, SDIO_REG_RX0_REQ_LEN, 4, (u8 *)&tmp);
 					len = le16_to_cpu(tmp);
 
@@ -1775,7 +1775,7 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 }
 
 /*
- * If variable not handled here,
+ * If variable yest handled here,
  * some variables will be processed in GetHwReg8723B()
  */
 static void GetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)

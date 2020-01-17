@@ -13,7 +13,7 @@
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {
-	"constant register |= constant should not bypass stack boundary checks",
+	"constant register |= constant should yest bypass stack boundary checks",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -48),
@@ -43,7 +43,7 @@
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
 {
-	"constant register |= constant register should not bypass stack boundary checks",
+	"constant register |= constant register should yest bypass stack boundary checks",
 	.insns = {
 	BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -48),

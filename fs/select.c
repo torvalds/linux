@@ -7,7 +7,7 @@
  *
  *  4 February 1994
  *     COFF/ELF binary emulation. If the process has the STICKY_TIMEOUTS
- *     flag set in its personality we do *not* modify the given timeout
+ *     flag set in its personality we do *yest* modify the given timeout
  *     parameter to reflect time remaining.
  *
  *  24 January 2000
@@ -75,7 +75,7 @@ static long __estimate_accuracy(struct timespec64 *tv)
 u64 select_estimate_accuracy(struct timespec64 *tv)
 {
 	u64 ret;
-	struct timespec64 now;
+	struct timespec64 yesw;
 
 	/*
 	 * Realtime tasks get a slack of 0 for obvious reasons.
@@ -84,9 +84,9 @@ u64 select_estimate_accuracy(struct timespec64 *tv)
 	if (rt_task(current))
 		return 0;
 
-	ktime_get_ts64(&now);
-	now = timespec64_sub(*tv, now);
-	ret = __estimate_accuracy(&now);
+	ktime_get_ts64(&yesw);
+	yesw = timespec64_sub(*tv, yesw);
+	ret = __estimate_accuracy(&yesw);
 	if (ret < current->timer_slack_ns)
 		return current->timer_slack_ns;
 	return ret;
@@ -105,7 +105,7 @@ struct poll_table_page {
 
 /*
  * Ok, Peter made a complicated, but straightforward multiple_wait() function.
- * I have rewritten this, taking some shortcuts: This code may not be easy to
+ * I have rewritten this, taking some shortcuts: This code may yest be easy to
  * follow, but it should be free of race-conditions, and it's practical. If you
  * understand what I'm doing here, then you understand how the linux
  * sleep/wakeup mechanism works.
@@ -200,7 +200,7 @@ static int __pollwake(wait_queue_entry_t *wait, unsigned mode, int sync, void *k
 	 * Perform the default wake up operation using a dummy
 	 * waitqueue.
 	 *
-	 * TODO: This is hacky but there currently is no interface to
+	 * TODO: This is hacky but there currently is yes interface to
 	 * pass in @sync.  @sync is scheduled to be removed and once
 	 * that happens, wake_up_process() can be used directly.
 	 */
@@ -263,12 +263,12 @@ static int poll_schedule_timeout(struct poll_wqueues *pwq, int state,
  * poll_select_set_timeout - helper function to setup the timeout value
  * @to:		pointer to timespec64 variable for the final timeout
  * @sec:	seconds (from user space)
- * @nsec:	nanoseconds (from user space)
+ * @nsec:	nayesseconds (from user space)
  *
- * Note, we do not use a timespec for the user space value here, That
+ * Note, we do yest use a timespec for the user space value here, That
  * way we can use the function for timeval and compat interfaces as well.
  *
- * Returns -EINVAL if sec/nsec are not normalized. Otherwise 0.
+ * Returns -EINVAL if sec/nsec are yest yesrmalized. Otherwise 0.
  */
 int poll_select_set_timeout(struct timespec64 *to, time64_t sec, long nsec)
 {
@@ -356,7 +356,7 @@ static int poll_select_finish(struct timespec64 *end_time,
 	 * If an application puts its timeval in read-only memory, we
 	 * don't want the Linux-specific update to the timeval to
 	 * cause a fault after the select has completed
-	 * successfully. However, because we're not updating the
+	 * successfully. However, because we're yest updating the
 	 * timeval, we can't restart the system call.
 	 */
 
@@ -579,7 +579,7 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 			break;
 		}
 
-		/* only if found POLL_BUSY_LOOP sockets && not out of time */
+		/* only if found POLL_BUSY_LOOP sockets && yest out of time */
 		if (can_busy_loop && !need_resched()) {
 			if (!busy_start) {
 				busy_start = busy_loop_current_time();
@@ -612,7 +612,7 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 
 /*
  * We can actually return ERESTARTSYS instead of EINTR, but I'd
- * like to be certain this leads to no problems. So I return
+ * like to be certain this leads to yes problems. So I return
  * EINTR just for safety.
  *
  * Update: ERESTARTSYS breaks at least the xview clock binary, so
@@ -631,7 +631,7 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 
 	ret = -EINVAL;
 	if (n < 0)
-		goto out_nofds;
+		goto out_yesfds;
 
 	/* max_fds can increase, so grab it once to avoid race */
 	rcu_read_lock();
@@ -649,15 +649,15 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 	size = FDS_BYTES(n);
 	bits = stack_fds;
 	if (size > sizeof(stack_fds) / 6) {
-		/* Not enough space in on-stack array; must use kmalloc */
+		/* Not eyesugh space in on-stack array; must use kmalloc */
 		ret = -ENOMEM;
 		if (size > (SIZE_MAX / 6))
-			goto out_nofds;
+			goto out_yesfds;
 
 		alloc_size = 6 * size;
 		bits = kvmalloc(alloc_size, GFP_KERNEL);
 		if (!bits)
-			goto out_nofds;
+			goto out_yesfds;
 	}
 	fds.in      = bits;
 	fds.out     = bits +   size;
@@ -693,7 +693,7 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 out:
 	if (bits != stack_fds)
 		kvfree(bits);
-out_nofds:
+out_yesfds:
 	return ret;
 }
 
@@ -836,7 +836,7 @@ struct poll_list {
  * interested in events matching the pollfd->events mask, and the result
  * matching that mask is both recorded in pollfd->revents and returned. The
  * pwait poll_table will be used by the fd-provided poll handler for waiting,
- * if pwait->_qproc is non-NULL.
+ * if pwait->_qproc is yesn-NULL.
  */
 static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 				     bool *can_busy_poll,
@@ -878,7 +878,7 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
 	__poll_t busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
 	unsigned long busy_start = 0;
 
-	/* Optimise the no-wait case */
+	/* Optimise the yes-wait case */
 	if (end_time && !end_time->tv_sec && !end_time->tv_nsec) {
 		pt->_qproc = NULL;
 		timed_out = 1;
@@ -927,7 +927,7 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
 		if (count || timed_out)
 			break;
 
-		/* only if found POLL_BUSY_LOOP sockets && not out of time */
+		/* only if found POLL_BUSY_LOOP sockets && yest out of time */
 		if (can_busy_loop && !need_resched()) {
 			if (!busy_start) {
 				busy_start = busy_loop_current_time();
@@ -1165,7 +1165,7 @@ int compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 
 /*
  * We can actually return ERESTARTSYS instead of EINTR, but I'd
- * like to be certain this leads to no problems. So I return
+ * like to be certain this leads to yes problems. So I return
  * EINTR just for safety.
  *
  * Update: ERESTARTSYS breaks at least the xview clock binary, so
@@ -1182,7 +1182,7 @@ static int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 	long stack_fds[SELECT_STACK_ALLOC/sizeof(long)];
 
 	if (n < 0)
-		goto out_nofds;
+		goto out_yesfds;
 
 	/* max_fds can increase, so grab it once to avoid race */
 	rcu_read_lock();
@@ -1203,7 +1203,7 @@ static int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 		bits = kmalloc_array(6, size, GFP_KERNEL);
 		ret = -ENOMEM;
 		if (!bits)
-			goto out_nofds;
+			goto out_yesfds;
 	}
 	fds.in      = (unsigned long *)  bits;
 	fds.out     = (unsigned long *) (bits +   size);
@@ -1238,7 +1238,7 @@ static int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 out:
 	if (bits != stack_fds)
 		kfree(bits);
-out_nofds:
+out_yesfds:
 	return ret;
 }
 

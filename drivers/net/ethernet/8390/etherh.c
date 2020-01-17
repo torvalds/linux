@@ -31,7 +31,7 @@
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -245,7 +245,7 @@ etherh_getifstat(struct net_device *dev)
 }
 
 /*
- * Configure the interface.  Note that we ignore the other
+ * Configure the interface.  Note that we igyesre the other
  * parts of ifmap, since its mostly meaningless for this driver.
  */
 static int etherh_set_config(struct net_device *dev, struct ifmap *map)
@@ -447,7 +447,7 @@ etherh_get_header (struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_p
  *
  * This routine should set everything up anew at each open, even
  * registers that "should" only need to be set once at boot, so that
- * there is non-reboot way to recover if something goes wrong.
+ * there is yesn-reboot way to recover if something goes wrong.
  */
 static int
 etherh_open(struct net_device *dev)
@@ -460,12 +460,12 @@ etherh_open(struct net_device *dev)
 	/*
 	 * Make sure that we aren't going to change the
 	 * media type on the next reset - we are about to
-	 * do automedia manually now.
+	 * do automedia manually yesw.
 	 */
 	ei_local->interface_num = 0;
 
 	/*
-	 * If we are doing automedia detection, do it now.
+	 * If we are doing automedia detection, do it yesw.
 	 * This is more reliable than the 8390's detection.
 	 */
 	if (dev->flags & IFF_AUTOMEDIA) {
@@ -508,7 +508,7 @@ static int etherh_addr(char *addr, struct expansion_card *ec)
 	if (!ecard_readchunk(&cd, ec, 0xf5, 0)) {
 		printk(KERN_ERR "%s: unable to read module description string\n",
 		       dev_name(&ec->dev));
-		goto no_addr;
+		goto yes_addr;
 	}
 
 	s = strchr(cd.d.string, '(');
@@ -528,7 +528,7 @@ static int etherh_addr(char *addr, struct expansion_card *ec)
 	printk(KERN_ERR "%s: unable to parse MAC address: %s\n",
 	       dev_name(&ec->dev), cd.d.string);
 
- no_addr:
+ yes_addr:
 	return -ENODEV;
 }
 
@@ -709,9 +709,9 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 	eh->ctrl_port += data->ctrlport_offset;
 
 	/*
-	 * IRQ and control port handling - only for non-NIC slot cards.
+	 * IRQ and control port handling - only for yesn-NIC slot cards.
 	 */
-	if (ec->slot_no != 8) {
+	if (ec->slot_yes != 8) {
 		ecard_setirq(ec, &etherh_ops, eh);
 	} else {
 		/*
@@ -750,7 +750,7 @@ etherh_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto free;
 
 	netdev_info(dev, "%s in slot %d, %pM\n",
-		    data->name, ec->slot_no, dev->dev_addr);
+		    data->name, ec->slot_yes, dev->dev_addr);
 
 	ecard_set_drvdata(ec, dev);
 

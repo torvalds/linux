@@ -27,7 +27,7 @@ enum {
 #define SYSC_REG_RSTCTRL		0x34
 #define  RESET_MCM			BIT(2)
 
-/* Registers to mac forward control for unknown frames */
+/* Registers to mac forward control for unkyeswn frames */
 #define MT7530_MFC			0x10
 #define  BC_FFP(x)			(((x) & 0xff) << 24)
 #define  UNM_FFP(x)			(((x) & 0xff) << 16)
@@ -386,12 +386,12 @@ struct mt7530_fdb {
 	u8 port_mask;
 	u8 aging;
 	u8 mac[6];
-	bool noarp;
+	bool yesarp;
 };
 
 /* struct mt7530_port -	This is the main data structure for holding the state
  *			of the port.
- * @enable:	The status used for show port is enabled or not.
+ * @enable:	The status used for show port is enabled or yest.
  * @pm:		The matrix used to show all connections with the port.
  * @pvid:	The VLAN specified is to be considered a PVID at ingress.  Any
  *		untagged frames will be assigned to the related VLAN.
@@ -424,7 +424,7 @@ static const char *p5_intf_modes(unsigned int p5_interface)
 	case P5_INTF_SEL_GMAC5:
 		return "GMAC5";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 

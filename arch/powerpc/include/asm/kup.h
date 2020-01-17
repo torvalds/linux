@@ -6,7 +6,7 @@
 #include <asm/book3s/64/kup-radix.h>
 #endif
 #ifdef CONFIG_PPC_8xx
-#include <asm/nohash/32/kup-8xx.h>
+#include <asm/yeshash/32/kup-8xx.h>
 #endif
 #ifdef CONFIG_PPC_BOOK3S_32
 #include <asm/book3s/32/kup.h>

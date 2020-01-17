@@ -63,7 +63,7 @@ int proc_dolasatrtc(struct ctl_table *table, int write,
 
 	if (write) {
 		/*
-		 * Due to the RTC hardware limitation, we can not actually
+		 * Due to the RTC hardware limitation, we can yest actually
 		 * use the full 64-bit range here.
 		 */
 		ts.tv_sec = rtctmp;

@@ -28,7 +28,7 @@ struct work_struct {
 };
 
 struct timer_list {
-	struct hlist_node	entry;
+	struct hlist_yesde	entry;
 	unsigned long		expires;
 	void			(*function)(unsigned long);
 	unsigned long		data;

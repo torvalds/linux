@@ -18,7 +18,7 @@ strcpy:
 
 	mov	$16, $0		# set up return value
 	mov	$26, $23	# set up return address
-	unop
+	uyesp
 	br	__stxcpy	# do the copy
 
 	.end strcpy

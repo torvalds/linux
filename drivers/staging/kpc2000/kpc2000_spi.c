@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -464,7 +464,7 @@ kp_spi_probe(struct platform_device *pldev)
 		goto free_master;
 	}
 
-	kpspi->base = devm_ioremap_nocache(&pldev->dev, r->start,
+	kpspi->base = devm_ioremap_yescache(&pldev->dev, r->start,
 					   resource_size(r));
 
 	status = spi_register_master(master);
@@ -484,7 +484,7 @@ kp_spi_probe(struct platform_device *pldev)
 		NEW_SPI_DEVICE_FROM_BOARD_INFO_TABLE(p2kr0_board_info);
 		break;
 	default:
-		dev_err(&pldev->dev, "Unknown hardware, cant know what partition table to use!\n");
+		dev_err(&pldev->dev, "Unkyeswn hardware, cant kyesw what partition table to use!\n");
 		goto free_master;
 	}
 

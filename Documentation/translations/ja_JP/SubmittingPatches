@@ -6,8 +6,8 @@ If you find any difference between this document and the original file
 or a problem with the translation,
 please contact the maintainer of this file or JF project.
 
-Please also note that the purpose of this file is to be easier to read
-for non English (read: Japanese) speakers and is not intended as a
+Please also yeste that the purpose of this file is to be easier to read
+for yesn English (read: Japanese) speakers and is yest intended as a
 fork. So if you have any comments or updates of this file, please try
 to update the original English file first.
 
@@ -83,7 +83,7 @@ dontdiff ファイルには Linux カーネルのビルドプロセスの過程�
 コマンドで無視されるべきです。dontdiff ファイルは 2.6.12 以後のバージョ
 ンの Linux カーネルソースツリーに含まれています。それより前のバージョン
 の Linux カーネルソースツリーに対する dontdiff ファイルは、
-<http://www.xenotime.net/linux/doc/dontdiff>から取得することができます。
+<http://www.xeyestime.net/linux/doc/dontdiff>から取得することができます。
 
 投稿するパッチの中に関係のない余分なファイルが含まれていないことを確
 認してください。diff(1) コマンドで生成したパッチがあなたの意図したとお
@@ -96,7 +96,7 @@ dontdiff ファイルには Linux カーネルのビルドプロセスの過程�
 る多くのスクリプトがあります。
 
 Quilt:
-http://savannah.nongnu.org/projects/quilt
+http://savannah.yesngnu.org/projects/quilt
 
 2) パッチに対する説明
 
@@ -370,7 +370,7 @@ Signed-off-by とあなたがその末尾に追加する Signed-off-by の間に
 
     Date:   Tue May 13 19:10:30 2008 +0000
 
-        SCSI: libiscsi regression in 2.6.25: fix nop timer handling
+        SCSI: libiscsi regression in 2.6.25: fix yesp timer handling
 
         commit 4cf1043593db6a337f10e006c23c69e5fc93e722 upstream
 
@@ -707,7 +707,7 @@ NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
 Kernel Documentation/process/coding-style.rst:
   <http://users.sosdg.org/~qiyong/lxr/source/Documentation/process/coding-style.rst>
 
-Linus Torvalds's mail on the canonical patch format:
+Linus Torvalds's mail on the cayesnical patch format:
   <http://lkml.org/lkml/2005/4/7/183>
 
 Andi Kleen, "On submitting kernel patches"

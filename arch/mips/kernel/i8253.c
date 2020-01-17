@@ -32,7 +32,7 @@ void __init setup_pit_timer(void)
 
 static int __init init_pit_clocksource(void)
 {
-	if (num_possible_cpus() > 1 || /* PIT does not scale! */
+	if (num_possible_cpus() > 1 || /* PIT does yest scale! */
 	    !clockevent_state_periodic(&i8253_clockevent))
 		return 0;
 

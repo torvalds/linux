@@ -87,7 +87,7 @@ MODULE_VERSION(DRV_VERSION);
 static unsigned int get_scr_cfg_addr(struct ata_port *ap, unsigned int sc_reg)
 {
 	struct uli_priv *hpriv = ap->host->private_data;
-	return hpriv->scr_cfg_addr[ap->port_no] + (4 * sc_reg);
+	return hpriv->scr_cfg_addr[ap->port_yes] + (4 * sc_reg);
 }
 
 static u32 uli_scr_cfg_read(struct ata_link *link, unsigned int sc_reg)

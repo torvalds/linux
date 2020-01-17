@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 1999,2000 MIPS Techyeslogies, Inc.  All rights reserved.
  *
  * Setting up the clock on the MIPS boards.
  */
@@ -185,7 +185,7 @@ static void __init init_rtc(void)
 {
 	unsigned char freq, ctrl;
 
-	/* Set 32KHz time base if not already set */
+	/* Set 32KHz time base if yest already set */
 	freq = CMOS_READ(RTC_FREQ_SELECT);
 	if ((freq & RTC_DIV_CTL) != RTC_REF_CLCK_32KHZ)
 		CMOS_WRITE(RTC_REF_CLCK_32KHZ, RTC_FREQ_SELECT);
@@ -207,17 +207,17 @@ static struct property gic_frequency_prop = {
 
 static void update_gic_frequency_dt(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	gic_frequency_dt = cpu_to_be32(gic_frequency);
 
-	node = of_find_compatible_node(NULL, NULL, "mti,gic-timer");
-	if (!node) {
-		pr_err("mti,gic-timer device node not found\n");
+	yesde = of_find_compatible_yesde(NULL, NULL, "mti,gic-timer");
+	if (!yesde) {
+		pr_err("mti,gic-timer device yesde yest found\n");
 		return;
 	}
 
-	if (of_update_property(node, &gic_frequency_prop) < 0)
+	if (of_update_property(yesde, &gic_frequency_prop) < 0)
 		pr_err("error updating gic frequency property\n");
 }
 

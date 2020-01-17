@@ -33,11 +33,11 @@ static irqreturn_t dummy_interrupt(int irq, void *dev_id)
 static int __init dummy_irq_init(void)
 {
 	if (irq < 0) {
-		printk(KERN_ERR "dummy-irq: no IRQ given.  Use irq=N\n");
+		printk(KERN_ERR "dummy-irq: yes IRQ given.  Use irq=N\n");
 		return -EIO;
 	}
 	if (request_irq(irq, &dummy_interrupt, IRQF_SHARED, "dummy_irq", &irq)) {
-		printk(KERN_ERR "dummy-irq: cannot register IRQ %d\n", irq);
+		printk(KERN_ERR "dummy-irq: canyest register IRQ %d\n", irq);
 		return -EIO;
 	}
 	printk(KERN_INFO "dummy-irq: registered for IRQ %d\n", irq);

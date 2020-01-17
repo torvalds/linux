@@ -160,14 +160,14 @@ struct tm6000_endpoint {
 
 struct tm6000_core {
 	/* generic device properties */
-	char				name[30];	/* name (including minor) of the device */
+	char				name[30];	/* name (including miyesr) of the device */
 	int				model;		/* index in the device_data struct */
-	int				devno;		/* marks the number of this device */
+	int				devyes;		/* marks the number of this device */
 	enum tm6000_devtype		dev_type;	/* type of device */
 	unsigned char			eedata[256];	/* Eeprom data */
 	unsigned			eedata_size;	/* Size of the eeprom info */
 
-	v4l2_std_id                     norm;           /* Current norm */
+	v4l2_std_id                     yesrm;           /* Current yesrm */
 	int				width, height;	/* Selected resolution */
 
 	enum tm6000_core_state		state;

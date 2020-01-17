@@ -24,7 +24,7 @@
 
 /*
  * Test of instruction analysis against tampering.
- * Feed random binary to instruction decoder and ensure not to
+ * Feed random binary to instruction decoder and ensure yest to
  * access out-of-instruction-buffer.
  */
 
@@ -43,7 +43,7 @@ static void usage(const char *err)
 {
 	if (err)
 		fprintf(stderr, "%s: Error: %s\n\n", prog, err);
-	fprintf(stderr, "Usage: %s [-y|-n|-v] [-s seed[,no]] [-m max] [-i input]\n", prog);
+	fprintf(stderr, "Usage: %s [-y|-n|-v] [-s seed[,yes]] [-m max] [-i input]\n", prog);
 	fprintf(stderr, "\t-y	64bit mode\n");
 	fprintf(stderr, "\t-n	32bit mode\n");
 	fprintf(stderr, "\t-v	Verbosity(-vv dumps any decoded result)\n");

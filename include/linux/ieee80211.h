@@ -600,7 +600,7 @@ static inline bool ieee80211_is_cfendack(__le16 fc)
 }
 
 /**
- * ieee80211_is_nullfunc - check if frame is a regular (non-QoS) nullfunc frame
+ * ieee80211_is_nullfunc - check if frame is a regular (yesn-QoS) nullfunc frame
  * @fc: frame control bytes in little-endian byteorder
  */
 static inline bool ieee80211_is_nullfunc(__le16 fc)
@@ -626,7 +626,7 @@ static inline bool ieee80211_is_qos_nullfunc(__le16 fc)
 static inline bool ieee80211_is_bufferable_mmpdu(__le16 fc)
 {
 	/* IEEE 802.11-2012, definition of "bufferable management frame";
-	 * note that this ignores the IBSS special case. */
+	 * yeste that this igyesres the IBSS special case. */
 	return ieee80211_is_mgmt(fc) &&
 	       (ieee80211_is_action(fc) ||
 		ieee80211_is_disassoc(fc) ||
@@ -634,7 +634,7 @@ static inline bool ieee80211_is_bufferable_mmpdu(__le16 fc)
 }
 
 /**
- * ieee80211_is_first_frag - check if IEEE80211_SCTL_FRAG is not set
+ * ieee80211_is_first_frag - check if IEEE80211_SCTL_FRAG is yest set
  * @seq_ctrl: frame sequence control bytes in little-endian byteorder
  */
 static inline bool ieee80211_is_first_frag(__le16 seq_ctrl)
@@ -679,7 +679,7 @@ enum ieee80211_preq_flags {
  * enum ieee80211_preq_target_flags - mesh PREQ element per target flags
  *
  * @IEEE80211_PREQ_TO_FLAG: target only subfield
- * @IEEE80211_PREQ_USN_FLAG: unknown target HWMP sequence number subfield
+ * @IEEE80211_PREQ_USN_FLAG: unkyeswn target HWMP sequence number subfield
  */
 enum ieee80211_preq_target_flags {
 	IEEE80211_PREQ_TO_FLAG	= 1<<0,
@@ -713,7 +713,7 @@ struct ieee80211_msrment_ie {
 /**
  * struct ieee80211_channel_sw_ie
  *
- * This structure refers to "Channel Switch Announcement information element"
+ * This structure refers to "Channel Switch Anyesuncement information element"
  */
 struct ieee80211_channel_sw_ie {
 	u8 mode;
@@ -724,7 +724,7 @@ struct ieee80211_channel_sw_ie {
 /**
  * struct ieee80211_ext_chansw_ie
  *
- * This structure represents the "Extended Channel Switch Announcement element"
+ * This structure represents the "Extended Channel Switch Anyesuncement element"
  */
 struct ieee80211_ext_chansw_ie {
 	u8 mode;
@@ -822,7 +822,7 @@ enum mesh_config_capab_flags {
 /**
  * struct ieee80211_rann_ie
  *
- * This structure refers to "Root Announcement information element"
+ * This structure refers to "Root Anyesuncement information element"
  */
 struct ieee80211_rann_ie {
 	u8 rann_flags;
@@ -1015,7 +1015,7 @@ struct ieee80211_mgmt {
 				struct {
 					u8 action_code;
 					u8 chanwidth;
-				} __packed ht_notify_cw;
+				} __packed ht_yestify_cw;
 				struct {
 					u8 action_code;
 					u8 dialog_token;
@@ -1025,12 +1025,12 @@ struct ieee80211_mgmt {
 				struct {
 					u8 action_code;
 					u8 operating_mode;
-				} __packed vht_opmode_notif;
+				} __packed vht_opmode_yestif;
 				struct {
 					u8 action_code;
 					u8 membership[WLAN_MEMBERSHIP_LEN];
 					u8 position[WLAN_USER_POSITION_LEN];
-				} __packed vht_group_notif;
+				} __packed vht_group_yestif;
 				struct {
 					u8 action_code;
 					u8 dialog_token;
@@ -1224,17 +1224,17 @@ enum ieee80211_p2p_attr_id {
 /* Typical max value used here */
 #define IEEE80211_P2P_NOA_DESC_MAX	4
 
-struct ieee80211_p2p_noa_desc {
+struct ieee80211_p2p_yesa_desc {
 	u8 count;
 	__le32 duration;
 	__le32 interval;
 	__le32 start_time;
 } __packed;
 
-struct ieee80211_p2p_noa_attr {
+struct ieee80211_p2p_yesa_attr {
 	u8 index;
 	u8 oppps_ctwindow;
-	struct ieee80211_p2p_noa_desc desc[IEEE80211_P2P_NOA_DESC_MAX];
+	struct ieee80211_p2p_yesa_desc desc[IEEE80211_P2P_NOA_DESC_MAX];
 } __packed;
 
 #define IEEE80211_P2P_OPPPS_ENABLE_BIT		BIT(7)
@@ -1269,7 +1269,7 @@ struct ieee80211_bar {
  * @rx_mask: RX mask
  * @rx_highest: highest supported RX rate. If set represents
  *	the highest supported RX data rate in units of 1 Mbps.
- *	If this field is 0 this value should not be used to
+ *	If this field is 0 this value should yest be used to
  *	consider the highest RX data rate supported.
  * @tx_params: TX parameters
  */
@@ -1467,14 +1467,14 @@ struct ieee80211_ht_operation {
  * @rx_mcs_map: RX MCS map 2 bits for each stream, total 8 streams
  * @rx_highest: Indicates highest long GI VHT PPDU data rate
  *	STA can receive. Rate expressed in units of 1 Mbps.
- *	If this field is 0 this value should not be used to
+ *	If this field is 0 this value should yest be used to
  *	consider the highest RX data rate supported.
  *	The top 3 bits of this field indicate the Maximum NSTS,total
  *	(a beamformee capability.)
  * @tx_mcs_map: TX MCS map 2 bits for each stream, total 8 streams
  * @tx_highest: Indicates highest long GI VHT PPDU data rate
  *	STA can transmit. Rate expressed in units of 1 Mbps.
- *	If this field is 0 this value should not be used to
+ *	If this field is 0 this value should yest be used to
  *	consider the highest TX data rate supported.
  *	The top 2 bits of this field are reserved, the
  *	3rd bit from the top indiciates VHT Extended NSS BW
@@ -1719,7 +1719,7 @@ struct ieee80211_mu_edca_param_set {
  * @cap: VHT capabilities of the peer
  * @bw: bandwidth to use
  * @mcs: MCS index to use
- * @ext_nss_bw_capable: indicates whether or not the local transmitter
+ * @ext_nss_bw_capable: indicates whether or yest the local transmitter
  *	(rate scaling algorithm) can deal with the new logic
  *	(dot11VHTExtendedNSSBWCapable)
  *
@@ -1853,8 +1853,8 @@ int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 #define IEEE80211_HE_PHY_CAP2_DOPPLER_TX				0x10
 #define IEEE80211_HE_PHY_CAP2_DOPPLER_RX				0x20
 
-/* Note that the meaning of UL MU below is different between an AP and a non-AP
- * sta, where in the AP case it indicates support for Rx and in the non-AP sta
+/* Note that the meaning of UL MU below is different between an AP and a yesn-AP
+ * sta, where in the AP case it indicates support for Rx and in the yesn-AP sta
  * case it indicates support for Tx.
  */
 #define IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO			0x40
@@ -2057,7 +2057,7 @@ ieee80211_he_ppe_size(u8 ppe_thres_hdr, const u8 *phy_cap_info)
  *	after the ext ID byte. It is assumed that he_oper_ie has at least
  *	sizeof(struct ieee80211_he_operation) bytes, the caller must have
  *	validated this.
- * @return the actual size of the IE data (not including header), or 0 on error
+ * @return the actual size of the IE data (yest including header), or 0 on error
  */
 static inline u8
 ieee80211_he_oper_size(const u8 *he_oper_ie)
@@ -2066,7 +2066,7 @@ ieee80211_he_oper_size(const u8 *he_oper_ie)
 	u8 oper_len = sizeof(struct ieee80211_he_operation);
 	u32 he_oper_params;
 
-	/* Make sure the input is not NULL */
+	/* Make sure the input is yest NULL */
 	if (!he_oper_ie)
 		return 0;
 
@@ -2095,7 +2095,7 @@ ieee80211_he_oper_size(const u8 *he_oper_ie)
  *	after the ext ID byte. It is assumed that he_spr_ie has at least
  *	sizeof(struct ieee80211_he_spr) bytes, the caller must have validated
  *	this
- * @return the actual size of the IE data (not including header), or 0 on error
+ * @return the actual size of the IE data (yest including header), or 0 on error
  */
 static inline u8
 ieee80211_he_spr_size(const u8 *he_spr_ie)
@@ -2104,7 +2104,7 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 	u8 spr_len = sizeof(struct ieee80211_he_spr);
 	u32 he_spr_params;
 
-	/* Make sure the input is not NULL */
+	/* Make sure the input is yest NULL */
 	if (!he_spr_ie)
 		return 0;
 
@@ -2339,7 +2339,7 @@ enum ieee80211_reasoncode {
 enum ieee80211_eid {
 	WLAN_EID_SSID = 0,
 	WLAN_EID_SUPP_RATES = 1,
-	WLAN_EID_FH_PARAMS = 2, /* reserved now */
+	WLAN_EID_FH_PARAMS = 2, /* reserved yesw */
 	WLAN_EID_DS_PARAMS = 3,
 	WLAN_EID_CF_PARAMS = 4,
 	WLAN_EID_TIM = 5,
@@ -2771,7 +2771,7 @@ enum ieee80211_tdls_actioncode {
 
 /*
  * When set, indicates that the AP is able to tolerate 26-tone RU UL
- * OFDMA transmissions using HE TB PPDU from OBSS (not falsely classify the
+ * OFDMA transmissions using HE TB PPDU from OBSS (yest falsely classify the
  * 26-tone RU UL OFDMA transmissions as radar pulses).
  */
 #define WLAN_EXT_CAPA10_OBSS_NARROW_BW_RU_TOLERANCE_SUPPORT BIT(7)
@@ -2826,7 +2826,7 @@ enum ieee80211_mesh_path_metric {
  *
  * These attribute are used by dot11MeshHWMPRootMode to set root mesh STA mode
  *
- * @IEEE80211_ROOTMODE_NO_ROOT: the mesh STA is not a root mesh STA (default)
+ * @IEEE80211_ROOTMODE_NO_ROOT: the mesh STA is yest a root mesh STA (default)
  * @IEEE80211_ROOTMODE_ROOT: the mesh STA is a root mesh STA if greater than
  *	this value
  * @IEEE80211_PROACTIVE_PREQ_NO_PREP: the mesh STA is a root mesh STA supports
@@ -2867,13 +2867,13 @@ enum ieee80211_root_mode_identifier {
  * compromises of the 'ext' struct represented below:
  *
  *  - Regulatory extension ID - when generating IE this just needs
- *    to be monotonically increasing for each triplet passed in
+ *    to be moyestonically increasing for each triplet passed in
  *    the IE
  *  - Regulatory class - index into set of rules
  *  - Coverage class - index into air propagation time (Table 7-27),
  *    in microseconds, you can compute the air propagation time from
  *    the index by multiplying by 3, so index 10 yields a propagation
- *    of 10 us. Valid values are 0-31, values 32-255 are not defined
+ *    of 10 us. Valid values are 0-31, values 32-255 are yest defined
  *    yet. A value of 0 inicates air propagation of <= 1 us.
  *
  *  See also Table I.2 for Emission limit sets and table
@@ -2883,14 +2883,14 @@ enum ieee80211_root_mode_identifier {
 #define IEEE80211_COUNTRY_EXTENSION_ID 201
 
 /*
- *  Channels numbers in the IE must be monotonically increasing
- *  if dot11RegulatoryClassesRequired is not true.
+ *  Channels numbers in the IE must be moyestonically increasing
+ *  if dot11RegulatoryClassesRequired is yest true.
  *
  *  If dot11RegulatoryClassesRequired is true consecutive
  *  subband triplets following a regulatory triplet shall
- *  have monotonically increasing first_channel number fields.
+ *  have moyestonically increasing first_channel number fields.
  *
- *  Channel numbers shall not overlap.
+ *  Channel numbers shall yest overlap.
  *
  *  Note that max_power is signed.
  */
@@ -2992,7 +2992,7 @@ struct ieee80211_bssid_index {
  *
  * @bssid_count: total number of active BSSIDs in the set
  * @profile_periodicity: the least number of beacon frames need to be received
- *	in order to discover all the nontransmitted BSSIDs in the set.
+ *	in order to discover all the yesntransmitted BSSIDs in the set.
  */
 struct ieee80211_multiple_bssid_configuration {
 	u8 bssid_count;
@@ -3071,7 +3071,7 @@ struct ieee80211_tspec_ie {
 	u8 version;
 	__le16 tsinfo;
 	u8 tsinfo_resvd;
-	__le16 nominal_msdu;
+	__le16 yesminal_msdu;
 	__le16 max_msdu;
 	__le32 min_service_int;
 	__le32 max_service_int;
@@ -3121,9 +3121,9 @@ static inline u8 ieee80211_get_tid(struct ieee80211_hdr *hdr)
  * @hdr: the frame
  *
  * Given an 802.11 frame, this function returns the offset
- * to the source address (SA). It does not verify that the
- * header is long enough to contain the address, and the
- * header must be long enough to contain the frame control
+ * to the source address (SA). It does yest verify that the
+ * header is long eyesugh to contain the address, and the
+ * header must be long eyesugh to contain the frame control
  * field.
  */
 static inline u8 *ieee80211_get_SA(struct ieee80211_hdr *hdr)
@@ -3140,9 +3140,9 @@ static inline u8 *ieee80211_get_SA(struct ieee80211_hdr *hdr)
  * @hdr: the frame
  *
  * Given an 802.11 frame, this function returns the offset
- * to the destination address (DA). It does not verify that
- * the header is long enough to contain the address, and the
- * header must be long enough to contain the frame control
+ * to the destination address (DA). It does yest verify that
+ * the header is long eyesugh to contain the address, and the
+ * header must be long eyesugh to contain the frame control
  * field.
  */
 static inline u8 *ieee80211_get_DA(struct ieee80211_hdr *hdr)
@@ -3285,8 +3285,8 @@ static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 }
 
 /**
- * ieee80211_get_tdls_action - get tdls packet action (or -1, if not tdls packet)
- * @skb: the skb containing the frame, length will not be checked
+ * ieee80211_get_tdls_action - get tdls packet action (or -1, if yest tdls packet)
+ * @skb: the skb containing the frame, length will yest be checked
  * @hdr_size: the size of the ieee80211_hdr that starts at skb->data
  *
  * This function assumes the frame is a data frame, and that the network header
@@ -3294,7 +3294,7 @@ static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
  */
 static inline int ieee80211_get_tdls_action(struct sk_buff *skb, u32 hdr_size)
 {
-	if (!skb_is_nonlinear(skb) &&
+	if (!skb_is_yesnlinear(skb) &&
 	    skb->len > (skb_network_offset(skb) + 2)) {
 		/* Point to where the indication of TDLS should start */
 		const u8 *tdls_data = skb_network_header(skb) - 2;
@@ -3401,10 +3401,10 @@ struct element {
  *
  * This function returns %true if all the data was parsed or considered
  * while walking the elements. Only use this if your for_each_element()
- * loop cannot be broken out of, otherwise it always returns %false.
+ * loop canyest be broken out of, otherwise it always returns %false.
  *
  * If some data was malformed, this returns %false since the last parsed
- * element will not fill the whole remaining data.
+ * element will yest fill the whole remaining data.
  */
 static inline bool for_each_element_completed(const struct element *element,
 					      const void *data, size_t datalen)

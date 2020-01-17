@@ -10,7 +10,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,13 +33,13 @@
  * Prototype for this hypercall is:
  *   long callback_op(int cmd, void *extra_args)
  * @cmd        == CALLBACKOP_??? (callback operation).
- * @extra_args == Operation-specific extra arguments (NULL if none).
+ * @extra_args == Operation-specific extra arguments (NULL if yesne).
  */
 
 /* x86: Callback for event delivery. */
 #define CALLBACKTYPE_event                 0
 
-/* x86: Failsafe callback when guest state cannot be restored by Xen. */
+/* x86: Failsafe callback when guest state canyest be restored by Xen. */
 #define CALLBACKTYPE_failsafe              1
 
 /* x86/64 hypervisor: Syscall by 64-bit guest app ('64-on-64-on-64'). */
@@ -47,7 +47,7 @@
 
 /*
  * x86/32 hypervisor: Only available on x86/32 when supervisor_mode_kernel
- *     feature is enabled. Do not use this callback type in new code.
+ *     feature is enabled. Do yest use this callback type in new code.
  */
 #define CALLBACKTYPE_sysenter_deprecated   3
 
@@ -71,7 +71,7 @@
 #define CALLBACKTYPE_syscall32             7
 
 /*
- * Disable event deliver during callback? This flag is ignored for event and
+ * Disable event deliver during callback? This flag is igyesred for event and
  * NMI callbacks: event delivery is unconditionally disabled.
  */
 #define _CALLBACKF_mask_events             0

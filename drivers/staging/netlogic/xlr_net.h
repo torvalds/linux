@@ -47,7 +47,7 @@
 #define   W_HALF_DUPLEX__abebt                                       4
 #define   O_HALF_DUPLEX__abebe                                      19
 #define   O_HALF_DUPLEX__bpnb                                       18
-#define   O_HALF_DUPLEX__nobo                                       17
+#define   O_HALF_DUPLEX__yesbo                                       17
 #define   O_HALF_DUPLEX__edxsdfr                                    16
 #define   O_HALF_DUPLEX__retry                                      12
 #define   W_HALF_DUPLEX__retry                                       4
@@ -92,7 +92,7 @@
 #define   O_INTERFACE_CONTROL__rspd                                 16
 #define   O_INTERFACE_CONTROL__hr100                                15
 #define   O_INTERFACE_CONTROL__frcq                                 10
-#define   O_INTERFACE_CONTROL__nocfr                                 9
+#define   O_INTERFACE_CONTROL__yescfr                                 9
 #define   O_INTERFACE_CONTROL__dlfct                                 8
 #define   O_INTERFACE_CONTROL__enjab                                 0
 #define R_INTERFACE_STATUS                                         0x0F
@@ -182,7 +182,7 @@
 #define   O_XGMAC_MIIM_FILED__miimrddat              0
 #define   W_XGMAC_MIIM_FILED__miimrddat             16
 #define R_XGMAC_MIIM_CONFIG             0x12
-#define   O_XGMAC_MIIM_CONFIG__hstnopram             7
+#define   O_XGMAC_MIIM_CONFIG__hstyespram             7
 #define   O_XGMAC_MIIM_CONFIG__hstclkdiv             0
 #define   W_XGMAC_MIIM_CONFIG__hstclkdiv             7
 #define R_XGMAC_MIIM_LINK_FAIL_VECTOR   0x13

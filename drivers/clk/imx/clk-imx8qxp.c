@@ -19,7 +19,7 @@
 
 static int imx8qxp_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *ccm_node = pdev->dev.of_node;
+	struct device_yesde *ccm_yesde = pdev->dev.of_yesde;
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **clks;
 	int ret, i;
@@ -134,7 +134,7 @@ static int imx8qxp_clk_probe(struct platform_device *pdev)
 				i, PTR_ERR(clks[i]));
 	}
 
-	return of_clk_add_hw_provider(ccm_node, of_clk_hw_onecell_get, clk_data);
+	return of_clk_add_hw_provider(ccm_yesde, of_clk_hw_onecell_get, clk_data);
 }
 
 static const struct of_device_id imx8qxp_match[] = {

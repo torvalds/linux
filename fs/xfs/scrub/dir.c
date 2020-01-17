@@ -11,7 +11,7 @@
 #include "xfs_mount.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_icache.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
@@ -23,9 +23,9 @@
 int
 xchk_setup_directory(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
-	return xchk_setup_inode_contents(sc, ip, 0);
+	return xchk_setup_iyesde_contents(sc, ip, 0);
 }
 
 /* Directories */
@@ -39,17 +39,17 @@ struct xchk_dir_ctx {
 	struct xfs_scrub	*sc;
 };
 
-/* Check that an inode's mode matches a given DT_ type. */
+/* Check that an iyesde's mode matches a given DT_ type. */
 STATIC int
 xchk_dir_check_ftype(
 	struct xchk_dir_ctx	*sdc,
 	xfs_fileoff_t		offset,
-	xfs_ino_t		inum,
+	xfs_iyes_t		inum,
 	int			dtype)
 {
 	struct xfs_mount	*mp = sdc->sc->mp;
-	struct xfs_inode	*ip;
-	int			ino_dtype;
+	struct xfs_iyesde	*ip;
+	int			iyes_dtype;
 	int			error = 0;
 
 	if (!xfs_sb_version_hasftype(&mp->m_sb)) {
@@ -60,12 +60,12 @@ xchk_dir_check_ftype(
 	}
 
 	/*
-	 * Grab the inode pointed to by the dirent.  We release the
-	 * inode before we cancel the scrub transaction.  Since we're
-	 * don't know a priori that releasing the inode won't trigger
+	 * Grab the iyesde pointed to by the dirent.  We release the
+	 * iyesde before we cancel the scrub transaction.  Since we're
+	 * don't kyesw a priori that releasing the iyesde won't trigger
 	 * eofblocks cleanup (which allocates what would be a nested
 	 * transaction), we can't use DONTCACHE here because DONTCACHE
-	 * inodes can trigger immediate inactive cleanup of the inode.
+	 * iyesdes can trigger immediate inactive cleanup of the iyesde.
 	 */
 	error = xfs_iget(mp, sdc->sc->tp, inum, 0, 0, &ip);
 	if (!xchk_fblock_xref_process_error(sdc->sc, XFS_DATA_FORK, offset,
@@ -73,9 +73,9 @@ xchk_dir_check_ftype(
 		goto out;
 
 	/* Convert mode to the DT_* values that dir_emit uses. */
-	ino_dtype = xfs_dir3_get_dtype(mp,
+	iyes_dtype = xfs_dir3_get_dtype(mp,
 			xfs_mode_to_ftype(VFS_I(ip)->i_mode));
-	if (ino_dtype != dtype)
+	if (iyes_dtype != dtype)
 		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
 	xfs_irele(ip);
 out:
@@ -87,7 +87,7 @@ out:
  *
  * We use the VFS directory iterator (i.e. readdir) to call this
  * function for every directory entry in a directory.  Once we're here,
- * we check the inode number to make sure it's sane, then we check that
+ * we check the iyesde number to make sure it's sane, then we check that
  * we can look up this filename.  Finally, we check the ftype.
  */
 STATIC int
@@ -96,14 +96,14 @@ xchk_dir_actor(
 	const char		*name,
 	int			namelen,
 	loff_t			pos,
-	u64			ino,
+	u64			iyes,
 	unsigned		type)
 {
 	struct xfs_mount	*mp;
-	struct xfs_inode	*ip;
+	struct xfs_iyesde	*ip;
 	struct xchk_dir_ctx	*sdc;
 	struct xfs_name		xname;
-	xfs_ino_t		lookup_ino;
+	xfs_iyes_t		lookup_iyes;
 	xfs_dablk_t		offset;
 	int			error = 0;
 
@@ -116,8 +116,8 @@ xchk_dir_actor(
 	if (xchk_should_terminate(sdc->sc, &error))
 		return error;
 
-	/* Does this inode number make sense? */
-	if (!xfs_verify_dir_ino(mp, ino)) {
+	/* Does this iyesde number make sense? */
+	if (!xfs_verify_dir_iyes(mp, iyes)) {
 		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
 		goto out;
 	}
@@ -133,18 +133,18 @@ xchk_dir_actor(
 		if (xfs_sb_version_hasftype(&mp->m_sb) && type != DT_DIR)
 			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
 					offset);
-		if (ino != ip->i_ino)
+		if (iyes != ip->i_iyes)
 			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
 					offset);
 	} else if (!strncmp("..", name, namelen)) {
 		/*
-		 * If this is ".." in the root inode, check that the inum
+		 * If this is ".." in the root iyesde, check that the inum
 		 * matches this dir.
 		 */
 		if (xfs_sb_version_hasftype(&mp->m_sb) && type != DT_DIR)
 			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
 					offset);
-		if (ip->i_ino == mp->m_sb.sb_rootino && ino != ip->i_ino)
+		if (ip->i_iyes == mp->m_sb.sb_rootiyes && iyes != ip->i_iyes)
 			xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK,
 					offset);
 	}
@@ -154,17 +154,17 @@ xchk_dir_actor(
 	xname.len = namelen;
 	xname.type = XFS_DIR3_FT_UNKNOWN;
 
-	error = xfs_dir_lookup(sdc->sc->tp, ip, &xname, &lookup_ino, NULL);
+	error = xfs_dir_lookup(sdc->sc->tp, ip, &xname, &lookup_iyes, NULL);
 	if (!xchk_fblock_process_error(sdc->sc, XFS_DATA_FORK, offset,
 			&error))
 		goto out;
-	if (lookup_ino != ino) {
+	if (lookup_iyes != iyes) {
 		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
 		goto out;
 	}
 
 	/* Verify the file type.  This function absorbs error codes. */
-	error = xchk_dir_check_ftype(sdc, offset, lookup_ino, type);
+	error = xchk_dir_check_ftype(sdc, offset, lookup_iyes, type);
 	if (error)
 		goto out;
 out:
@@ -186,15 +186,15 @@ xchk_dir_rec(
 {
 	struct xfs_da_state_blk		*blk = &ds->state->path.blk[level];
 	struct xfs_mount		*mp = ds->state->mp;
-	struct xfs_inode		*dp = ds->dargs.dp;
+	struct xfs_iyesde		*dp = ds->dargs.dp;
 	struct xfs_da_geometry		*geo = mp->m_dir_geo;
 	struct xfs_dir2_data_entry	*dent;
 	struct xfs_buf			*bp;
 	struct xfs_dir2_leaf_entry	*ent;
 	unsigned int			end;
 	unsigned int			iter_off;
-	xfs_ino_t			ino;
-	xfs_dablk_t			rec_bno;
+	xfs_iyes_t			iyes;
+	xfs_dablk_t			rec_byes;
 	xfs_dir2_db_t			db;
 	xfs_dir2_data_aoff_t		off;
 	xfs_dir2_dataptr_t		ptr;
@@ -223,19 +223,19 @@ xchk_dir_rec(
 	/* Find the directory entry's location. */
 	db = xfs_dir2_dataptr_to_db(geo, ptr);
 	off = xfs_dir2_dataptr_to_off(geo, ptr);
-	rec_bno = xfs_dir2_db_to_da(geo, db);
+	rec_byes = xfs_dir2_db_to_da(geo, db);
 
-	if (rec_bno >= geo->leafblk) {
+	if (rec_byes >= geo->leafblk) {
 		xchk_da_set_corrupt(ds, level);
 		goto out;
 	}
-	error = xfs_dir3_data_read(ds->dargs.trans, dp, rec_bno,
+	error = xfs_dir3_data_read(ds->dargs.trans, dp, rec_byes,
 			XFS_DABUF_MAP_HOLE_OK, &bp);
-	if (!xchk_fblock_process_error(ds->sc, XFS_DATA_FORK, rec_bno,
+	if (!xchk_fblock_process_error(ds->sc, XFS_DATA_FORK, rec_byes,
 			&error))
 		goto out;
 	if (!bp) {
-		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_byes);
 		goto out;
 	}
 	xchk_buffer_recheck(ds->sc, bp);
@@ -249,7 +249,7 @@ xchk_dir_rec(
 	iter_off = geo->data_entry_offset;
 	end = xfs_dir3_data_end_offset(geo, bp->b_addr);
 	if (!end) {
-		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_byes);
 		goto out_relse;
 	}
 	for (;;) {
@@ -257,7 +257,7 @@ xchk_dir_rec(
 		struct xfs_dir2_data_unused	*dup = bp->b_addr + iter_off;
 
 		if (iter_off >= end) {
-			xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+			xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_byes);
 			goto out_relse;
 		}
 
@@ -271,18 +271,18 @@ xchk_dir_rec(
 	}
 
 	/* Retrieve the entry, sanity check it, and compare hashes. */
-	ino = be64_to_cpu(dent->inumber);
+	iyes = be64_to_cpu(dent->inumber);
 	hash = be32_to_cpu(ent->hashval);
 	tag = be16_to_cpup(xfs_dir2_data_entry_tag_p(mp, dent));
-	if (!xfs_verify_dir_ino(mp, ino) || tag != off)
-		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+	if (!xfs_verify_dir_iyes(mp, iyes) || tag != off)
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_byes);
 	if (dent->namelen == 0) {
-		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_byes);
 		goto out_relse;
 	}
 	calc_hash = xfs_da_hashname(dent->name, dent->namelen);
 	if (calc_hash != hash)
-		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_bno);
+		xchk_fblock_set_corrupt(ds->sc, XFS_DATA_FORK, rec_byes);
 
 out_relse:
 	xfs_trans_brelse(ds->dargs.trans, bp);
@@ -636,12 +636,12 @@ xchk_directory_blocks(
 	xfs_fileoff_t		free_lblk;
 	xfs_fileoff_t		lblk;
 	struct xfs_iext_cursor	icur;
-	xfs_dablk_t		dabno;
+	xfs_dablk_t		dabyes;
 	bool			found;
 	int			is_block = 0;
 	int			error;
 
-	/* Ignore local format directories. */
+	/* Igyesre local format directories. */
 	if (sc->ip->i_d.di_format != XFS_DINODE_FMT_EXTENTS &&
 	    sc->ip->i_d.di_format != XFS_DINODE_FMT_BTREE)
 		return 0;
@@ -680,7 +680,7 @@ xchk_directory_blocks(
 		 *
 		 * Iterate all the fsbcount-aligned block offsets in
 		 * this directory.  The directory block reading code is
-		 * smart enough to do its own bmap lookups to handle
+		 * smart eyesugh to do its own bmap lookups to handle
 		 * discontiguous directory blocks.  When we're done
 		 * with the extent record, re-query the bmap at the
 		 * next fsbcount-aligned offset to avoid redundant
@@ -695,8 +695,8 @@ xchk_directory_blocks(
 			if (error)
 				goto out;
 		}
-		dabno = got.br_startoff + got.br_blockcount;
-		lblk = roundup(dabno, args.geo->fsbcount);
+		dabyes = got.br_startoff + got.br_blockcount;
+		lblk = roundup(dabyes, args.geo->fsbcount);
 		found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &icur, &got);
 	}
 
@@ -744,7 +744,7 @@ xchk_directory_blocks(
 		 *
 		 * Iterate all the fsbcount-aligned block offsets in
 		 * this directory.  The directory block reading code is
-		 * smart enough to do its own bmap lookups to handle
+		 * smart eyesugh to do its own bmap lookups to handle
 		 * discontiguous directory blocks.  When we're done
 		 * with the extent record, re-query the bmap at the
 		 * next fsbcount-aligned offset to avoid redundant
@@ -759,8 +759,8 @@ xchk_directory_blocks(
 			if (error)
 				goto out;
 		}
-		dabno = got.br_startoff + got.br_blockcount;
-		lblk = roundup(dabno, args.geo->fsbcount);
+		dabyes = got.br_startoff + got.br_blockcount;
+		lblk = roundup(dabyes, args.geo->fsbcount);
 		found = xfs_iext_lookup_extent(sc->ip, ifp, lblk, &icur, &got);
 	}
 out:
@@ -786,7 +786,7 @@ xchk_directory(
 
 	/* Plausible size? */
 	if (sc->ip->i_d.di_size < xfs_dir2_sf_hdr_size(0)) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		xchk_iyes_set_corrupt(sc, sc->ip->i_iyes);
 		goto out;
 	}
 
@@ -818,7 +818,7 @@ xchk_directory(
 	 *
 	 * Use the xfs_readdir function to call xchk_dir_actor on
 	 * every directory entry in this directory.  In _actor, we check
-	 * the name, inode number, and ftype (if applicable) of the
+	 * the name, iyesde number, and ftype (if applicable) of the
 	 * entry.  xfs_readdir uses the VFS filldir functions to provide
 	 * iteration context.
 	 *

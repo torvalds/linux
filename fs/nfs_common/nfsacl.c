@@ -82,14 +82,14 @@ xdr_nfsace_encode(struct xdr_array2_desc *desc, void *elem)
  *
  * @buf: destination xdr_buf to contain XDR encoded ACL
  * @base: byte offset in xdr_buf where XDR'd ACL begins
- * @inode: inode of file whose ACL this is
+ * @iyesde: iyesde of file whose ACL this is
  * @acl: posix_acl to encode
  * @encode_entries: whether to encode ACEs as well
  * @typeflag: ACL type: NFS_ACL_DEFAULT or zero
  *
- * Returns size of encoded ACL in bytes or a negative errno value.
+ * Returns size of encoded ACL in bytes or a negative erryes value.
  */
-int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
+int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct iyesde *iyesde,
 		  struct posix_acl *acl, int encode_entries, int typeflag)
 {
 	int entries = (acl && acl->a_count) ? max_t(int, acl->a_count, 4) : 0;
@@ -101,8 +101,8 @@ int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
 		},
 		.acl = acl,
 		.typeflag = typeflag,
-		.uid = inode->i_uid,
-		.gid = inode->i_gid,
+		.uid = iyesde->i_uid,
+		.gid = iyesde->i_gid,
 	};
 	struct nfsacl_simple_acl aclbuf;
 	int err;
@@ -115,11 +115,11 @@ int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
 
 		/* Avoid the use of posix_acl_alloc().  nfsacl_encode() is
 		 * invoked in contexts where a memory allocation failure is
-		 * fatal.  Fortunately this fake ACL is small enough to
+		 * fatal.  Fortunately this fake ACL is small eyesugh to
 		 * construct on the stack. */
 		posix_acl_init(acl2, 4);
 
-		/* Insert entries in canonical order: other orders seem
+		/* Insert entries in cayesnical order: other orders seem
 		 to confuse Solaris VxFS. */
 		acl2->a_entries[0] = acl->a_entries[0];  /* ACL_USER_OBJ */
 		acl2->a_entries[1] = acl->a_entries[1];  /* ACL_GROUP_OBJ */
@@ -260,7 +260,7 @@ posix_acl_from_nfsacl(struct posix_acl *acl)
  * @aclcnt: count of ACEs in decoded posix_acl
  * @pacl: buffer in which to place decoded posix_acl
  *
- * Returns the length of the decoded ACL in bytes, or a negative errno value.
+ * Returns the length of the decoded ACL in bytes, or a negative erryes value.
  */
 int nfsacl_decode(struct xdr_buf *buf, unsigned int base, unsigned int *aclcnt,
 		  struct posix_acl **pacl)

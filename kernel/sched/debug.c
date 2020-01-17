@@ -130,7 +130,7 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 	char buf[64];
 	char *cmp;
 	int ret;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	if (cnt > 63)
 		cnt = 63;
@@ -142,11 +142,11 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 	cmp = strstrip(buf);
 
 	/* Ensure the static_key remains in a consistent state */
-	inode = file_inode(filp);
+	iyesde = file_iyesde(filp);
 	cpus_read_lock();
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 	ret = sched_feat_set(cmp);
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	cpus_read_unlock();
 	if (ret < 0)
 		return ret;
@@ -156,7 +156,7 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
-static int sched_feat_open(struct inode *inode, struct file *filp)
+static int sched_feat_open(struct iyesde *iyesde, struct file *filp)
 {
 	return single_open(filp, sched_feat_show, NULL);
 }
@@ -332,7 +332,7 @@ void register_sched_domain_sysctl(void)
 
 	if (!init_done) {
 		init_done = true;
-		/* init to possible to not have holes in @cpu_entries */
+		/* init to possible to yest have holes in @cpu_entries */
 		cpumask_copy(sd_sysctl_cpus, cpu_possible_mask);
 	}
 
@@ -450,7 +450,7 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 		SPLIT_NS(schedstat_val_or_zero(p->se.statistics.sum_sleep_runtime)));
 
 #ifdef CONFIG_NUMA_BALANCING
-	SEQ_printf(m, " %d %d", task_node(p), task_numa_group_id(p));
+	SEQ_printf(m, " %d %d", task_yesde(p), task_numa_group_id(p));
 #endif
 #ifdef CONFIG_CGROUP_SCHED
 	SEQ_printf(m, " %s", task_group_path(task_group(p)));
@@ -677,7 +677,7 @@ do {									\
 }
 
 static const char *sched_tunable_scaling_names[] = {
-	"none",
+	"yesne",
 	"logarithmic",
 	"linear"
 };
@@ -818,10 +818,10 @@ __initcall(init_sched_debug_procfs);
 
 
 #ifdef CONFIG_NUMA_BALANCING
-void print_numa_stats(struct seq_file *m, int node, unsigned long tsf,
+void print_numa_stats(struct seq_file *m, int yesde, unsigned long tsf,
 		unsigned long tpf, unsigned long gsf, unsigned long gpf)
 {
-	SEQ_printf(m, "numa_faults node=%d ", node);
+	SEQ_printf(m, "numa_faults yesde=%d ", yesde);
 	SEQ_printf(m, "task_private=%lu task_shared=%lu ", tpf, tsf);
 	SEQ_printf(m, "group_private=%lu group_shared=%lu\n", gpf, gsf);
 }
@@ -846,8 +846,8 @@ static void sched_show_numa(struct task_struct *p, struct seq_file *m)
 	P(numa_pages_migrated);
 	P(numa_preferred_nid);
 	P(total_numa_faults);
-	SEQ_printf(m, "current_node=%d, numa_group_id=%d\n",
-			task_node(p), task_numa_group_id(p));
+	SEQ_printf(m, "current_yesde=%d, numa_group_id=%d\n",
+			task_yesde(p), task_numa_group_id(p));
 	show_numa_stats(p, m);
 	mpol_put(pol);
 #endif

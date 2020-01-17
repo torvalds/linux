@@ -55,7 +55,7 @@
  *
  *	Sep.15, 2004	Hiroshi Miura <miura@da-cha.org>
  *		-v0.8	Generate key input event on input subsystem.
- *			This is based on yet another driver written by
+ *			This is based on yet ayesther driver written by
  *							Ryuta Nakanishi.
  *
  *	Sep.10, 2004	Hiroshi Miura <miura@da-cha.org>
@@ -68,7 +68,7 @@
  *	Aug.25, 2004	Hiroshi Miura <miura@da-cha.org>
  *		-v0.6.3 replace read_acpi_int by standard function
  *							acpi_evaluate_integer
- *			some clean up and make smart copyright notice.
+ *			some clean up and make smart copyright yestice.
  *			fix return value of pcc_acpi_get_key()
  *			fix checking return value of acpi_bus_register_driver()
  *
@@ -129,7 +129,7 @@ MODULE_LICENSE("GPL");
 #define LOGPREFIX "pcc_acpi: "
 
 /* Define ACPI PATHs */
-/* Lets note hotkeys */
+/* Lets yeste hotkeys */
 #define METHOD_HKEY_QUERY	"HINF"
 #define METHOD_HKEY_SQTY	"SQTY"
 #define METHOD_HKEY_SINF	"SINF"
@@ -158,11 +158,11 @@ enum SINF_BITS { SINF_NUM_BATTERIES = 0,
 		 SINF_ENV_STATE,
 		 SINF_STICKY_KEY = 0x80,
 	};
-/* R1 handles SINF_AC_CUR_BRIGHT as SINF_CUR_BRIGHT, doesn't know AC state */
+/* R1 handles SINF_AC_CUR_BRIGHT as SINF_CUR_BRIGHT, doesn't kyesw AC state */
 
 static int acpi_pcc_hotkey_add(struct acpi_device *device);
 static int acpi_pcc_hotkey_remove(struct acpi_device *device);
-static void acpi_pcc_hotkey_notify(struct acpi_device *device, u32 event);
+static void acpi_pcc_hotkey_yestify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id pcc_device_ids[] = {
 	{ "MAT0012", 0},
@@ -185,7 +185,7 @@ static struct acpi_driver acpi_pcc_driver = {
 	.ops =		{
 				.add =		acpi_pcc_hotkey_add,
 				.remove =	acpi_pcc_hotkey_remove,
-				.notify =	acpi_pcc_hotkey_notify,
+				.yestify =	acpi_pcc_hotkey_yestify,
 			},
 	.drv.pm =	&acpi_pcc_hotkey_pm,
 };
@@ -447,7 +447,7 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 		return;
 	}
 
-	/* hack: some firmware sends no key down for sleep / hibernate */
+	/* hack: some firmware sends yes key down for sleep / hibernate */
 	if ((result & 0xf) == 0x7 || (result & 0xf) == 0xa) {
 		if (result & 0x80)
 			sleep_keydown_seen = 1;
@@ -459,10 +459,10 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 	if (!sparse_keymap_report_event(hotk_input_dev,
 					result & 0xf, result & 0x80, false))
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Unknown hotkey event: %d\n", result));
+				  "Unkyeswn hotkey event: %d\n", result));
 }
 
-static void acpi_pcc_hotkey_notify(struct acpi_device *device, u32 event)
+static void acpi_pcc_hotkey_yestify(struct acpi_device *device, u32 event)
 {
 	struct pcc_acpi *pcc = acpi_driver_data(device);
 
@@ -471,7 +471,7 @@ static void acpi_pcc_hotkey_notify(struct acpi_device *device, u32 event)
 		acpi_pcc_generate_keyinput(pcc);
 		break;
 	default:
-		/* nothing to do */
+		/* yesthing to do */
 		break;
 	}
 }

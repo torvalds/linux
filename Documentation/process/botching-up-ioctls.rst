@@ -8,15 +8,15 @@ By: Daniel Vetter, Copyright © 2013 Intel Corporation
 
 One clear insight kernel graphics hackers gained in the past few years is that
 trying to come up with a unified interface to manage the execution units and
-memory on completely different GPUs is a futile effort. So nowadays every
+memory on completely different GPUs is a futile effort. So yeswadays every
 driver has its own set of ioctls to allocate memory and submit work to the GPU.
-Which is nice, since there's no more insanity in the form of fake-generic, but
+Which is nice, since there's yes more insanity in the form of fake-generic, but
 actually only used once interfaces. But the clear downside is that there's much
 more potential to screw things up.
 
 To avoid repeating all the same mistakes again I've written up some of the
 lessons learned while botching the job for the drm/i915 driver. Most of these
-only cover technicalities and not the big-picture issues like what the command
+only cover technicalities and yest the big-picture issues like what the command
 submission ioctl exactly should look like. Learning these lessons is probably
 something every GPU driver has to do on its own.
 
@@ -42,7 +42,7 @@ will need to add a 32-bit compat layer:
    e.g. the drm core does.
 
  * Pointers are __u64, cast from/to a uintprt_t on the userspace side and
-   from/to a void __user * in the kernel. Try really hard not to delay this
+   from/to a void __user * in the kernel. Try really hard yest to delay this
    conversion or worse, fiddle the raw __u64 through your code since that
    diminishes the checking tools like sparse can provide. The macro
    u64_to_user_ptr can be used in the kernel to avoid warnings about integers
@@ -66,11 +66,11 @@ will have a second iteration or at least an extension for any given interface.
    the structure. The drm core checks the passed-in size for each ioctl call
    and zero-extends any mismatches between kernel and userspace. That helps,
    but isn't a complete solution since newer userspace on older kernels won't
-   notice that the newly added fields at the end get ignored. So this still
+   yestice that the newly added fields at the end get igyesred. So this still
    needs a new driver feature flags.
 
  * Check all unused fields and flags and all the padding for whether it's 0,
-   and reject the ioctl if that's not the case. Otherwise your nice plan for
+   and reject the ioctl if that's yest the case. Otherwise your nice plan for
    future extensions is going right down the gutters since someone will submit
    an ioctl struct with random stack garbage in the yet unused parts. Which
    then bakes in the ABI that those fields can never be used for anything else
@@ -110,7 +110,7 @@ anyway:
    paths pretty much for free for graphics drivers. Also, be consistent with
    how you handle ioctl restarting - e.g. drm has a tiny drmIoctl helper in its
    userspace library. The i915 driver botched this with the set_tiling ioctl,
-   now we're stuck forever with some arcane semantics in both the kernel and
+   yesw we're stuck forever with some arcane semantics in both the kernel and
    userspace.
 
  * If you can't make a given codepath restartable make a stuck task at least
@@ -127,26 +127,26 @@ anyway:
 Time, Waiting and Missing it
 ----------------------------
 
-GPUs do most everything asynchronously, so we have a need to time operations and
-wait for outstanding ones. This is really tricky business; at the moment none of
+GPUs do most everything asynchroyesusly, so we have a need to time operations and
+wait for outstanding ones. This is really tricky business; at the moment yesne of
 the ioctls supported by the drm/i915 get this fully right, which means there's
 still tons more lessons to learn here.
 
  * Use CLOCK_MONOTONIC as your reference time, always. It's what alsa, drm and
-   v4l use by default nowadays. But let userspace know which timestamps are
+   v4l use by default yeswadays. But let userspace kyesw which timestamps are
    derived from different clock domains like your main system clock (provided
    by the kernel) or some independent hardware counter somewhere else. Clocks
-   will mismatch if you look close enough, but if performance measuring tools
+   will mismatch if you look close eyesugh, but if performance measuring tools
    have this information they can at least compensate. If your userspace can
    get at the raw values of some clocks (e.g. through in-command-stream
    performance counter sampling instructions) consider exposing those also.
 
- * Use __s64 seconds plus __u64 nanoseconds to specify time. It's not the most
+ * Use __s64 seconds plus __u64 nayesseconds to specify time. It's yest the most
    convenient time specification, but it's mostly the standard.
 
- * Check that input time values are normalized and reject them if not. Note
+ * Check that input time values are yesrmalized and reject them if yest. Note
    that the kernel native struct ktime has a signed integer for both seconds
-   and nanoseconds, so beware here.
+   and nayesseconds, so beware here.
 
  * For timeouts, use absolute times. If you're a good fellow and made your
    ioctl restartable relative timeouts tend to be too coarse and can
@@ -156,8 +156,8 @@ still tons more lessons to learn here.
    always be extended - but users will surely hate you if their neat animations
    starts to stutter due to this.
 
- * Consider ditching any synchronous wait ioctls with timeouts and just deliver
-   an asynchronous event on a pollable file descriptor. It fits much better
+ * Consider ditching any synchroyesus wait ioctls with timeouts and just deliver
+   an asynchroyesus event on a pollable file descriptor. It fits much better
    into event driven applications' main loop.
 
  * Have testcases for corner-cases, especially whether the return values for
@@ -185,21 +185,21 @@ entails its own little set of pitfalls:
    explicitly. Only go with a more global per-device namespace if the objects
    are truly device-unique. One counterexample in the drm modeset interfaces is
    that the per-device modeset objects like connectors share a namespace with
-   framebuffer objects, which mostly are not shared at all. A separate
+   framebuffer objects, which mostly are yest shared at all. A separate
    namespace, private by default, for framebuffers would have been more
    suitable.
 
  * Think about uniqueness requirements for userspace handles. E.g. for most drm
    drivers it's a userspace bug to submit the same object twice in the same
    command submission ioctl. But then if objects are shareable userspace needs
-   to know whether it has seen an imported object from a different process
-   already or not. I haven't tried this myself yet due to lack of a new class
-   of objects, but consider using inode numbers on your shared file descriptors
+   to kyesw whether it has seen an imported object from a different process
+   already or yest. I haven't tried this myself yet due to lack of a new class
+   of objects, but consider using iyesde numbers on your shared file descriptors
    as unique identifiers - it's how real files are told apart, too.
    Unfortunately this requires a full-blown virtual filesystem in the kernel.
 
 
-Last, but not Least
+Last, but yest Least
 -------------------
 
 Not every problem needs a new ioctl:
@@ -215,7 +215,7 @@ Not every problem needs a new ioctl:
    per-device settings, or for child objects with fairly static lifetimes (like
    output connectors in drm with all the detection override attributes). Or
    maybe only your testsuite needs this interface, and then debugfs with its
-   disclaimer of not having a stable ABI would be better.
+   disclaimer of yest having a stable ABI would be better.
 
 Finally, the name of the game is to get it right on the first attempt, since if
 your driver proves popular and your hardware platforms long-lived then you'll

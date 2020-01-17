@@ -57,9 +57,9 @@ struct imx_ldb_channel {
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 
-	struct device_node *child;
+	struct device_yesde *child;
 	struct i2c_adapter *ddc;
-	int chno;
+	int chyes;
 	void *edid;
 	int edid_len;
 	struct drm_display_mode mode;
@@ -106,16 +106,16 @@ static void imx_ldb_ch_set_bus_format(struct imx_ldb_channel *imx_ldb_ch,
 	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
-		if (imx_ldb_ch->chno == 0 || dual)
+		if (imx_ldb_ch->chyes == 0 || dual)
 			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH0_24;
-		if (imx_ldb_ch->chno == 1 || dual)
+		if (imx_ldb_ch->chyes == 1 || dual)
 			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH1_24;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
-		if (imx_ldb_ch->chno == 0 || dual)
+		if (imx_ldb_ch->chyes == 0 || dual)
 			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH0_24 |
 					 LDB_BIT_MAP_CH0_JEIDA;
-		if (imx_ldb_ch->chno == 1 || dual)
+		if (imx_ldb_ch->chyes == 1 || dual)
 			ldb->ldb_ctrl |= LDB_DATA_WIDTH_CH1_24 |
 					 LDB_BIT_MAP_CH1_JEIDA;
 		break;
@@ -163,32 +163,32 @@ static struct drm_encoder *imx_ldb_connector_best_encoder(
 	return &imx_ldb_ch->encoder;
 }
 
-static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chno,
+static void imx_ldb_set_clock(struct imx_ldb *ldb, int mux, int chyes,
 		unsigned long serial_clk, unsigned long di_clk)
 {
 	int ret;
 
-	dev_dbg(ldb->dev, "%s: now: %ld want: %ld\n", __func__,
-			clk_get_rate(ldb->clk_pll[chno]), serial_clk);
-	clk_set_rate(ldb->clk_pll[chno], serial_clk);
+	dev_dbg(ldb->dev, "%s: yesw: %ld want: %ld\n", __func__,
+			clk_get_rate(ldb->clk_pll[chyes]), serial_clk);
+	clk_set_rate(ldb->clk_pll[chyes], serial_clk);
 
 	dev_dbg(ldb->dev, "%s after: %ld\n", __func__,
-			clk_get_rate(ldb->clk_pll[chno]));
+			clk_get_rate(ldb->clk_pll[chyes]));
 
-	dev_dbg(ldb->dev, "%s: now: %ld want: %ld\n", __func__,
-			clk_get_rate(ldb->clk[chno]),
+	dev_dbg(ldb->dev, "%s: yesw: %ld want: %ld\n", __func__,
+			clk_get_rate(ldb->clk[chyes]),
 			(long int)di_clk);
-	clk_set_rate(ldb->clk[chno], di_clk);
+	clk_set_rate(ldb->clk[chyes], di_clk);
 
 	dev_dbg(ldb->dev, "%s after: %ld\n", __func__,
-			clk_get_rate(ldb->clk[chno]));
+			clk_get_rate(ldb->clk[chyes]));
 
 	/* set display clock mux to LDB input clock */
-	ret = clk_set_parent(ldb->clk_sel[mux], ldb->clk[chno]);
+	ret = clk_set_parent(ldb->clk_sel[mux], ldb->clk[chyes]);
 	if (ret)
 		dev_err(ldb->dev,
 			"unable to set di%d parent clock to ldb_di%d\n", mux,
-			chno);
+			chyes);
 }
 
 static void imx_ldb_encoder_enable(struct drm_encoder *encoder)
@@ -207,7 +207,7 @@ static void imx_ldb_encoder_enable(struct drm_encoder *encoder)
 		clk_prepare_enable(ldb->clk[0]);
 		clk_prepare_enable(ldb->clk[1]);
 	} else {
-		clk_set_parent(ldb->clk_sel[mux], ldb->clk[imx_ldb_ch->chno]);
+		clk_set_parent(ldb->clk_sel[mux], ldb->clk[imx_ldb_ch->chyes]);
 	}
 
 	if (imx_ldb_ch == &ldb->channel[0] || dual) {
@@ -271,7 +271,7 @@ imx_ldb_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		imx_ldb_set_clock(ldb, mux, 1, serial_clk, di_clk);
 	} else {
 		serial_clk = 7000UL * mode->clock;
-		imx_ldb_set_clock(ldb, mux, imx_ldb_ch->chno, serial_clk,
+		imx_ldb_set_clock(ldb, mux, imx_ldb_ch->chyes, serial_clk,
 				  di_clk);
 	}
 
@@ -404,19 +404,19 @@ static const struct drm_encoder_helper_funcs imx_ldb_encoder_helper_funcs = {
 	.atomic_check = imx_ldb_encoder_atomic_check,
 };
 
-static int imx_ldb_get_clk(struct imx_ldb *ldb, int chno)
+static int imx_ldb_get_clk(struct imx_ldb *ldb, int chyes)
 {
 	char clkname[16];
 
-	snprintf(clkname, sizeof(clkname), "di%d", chno);
-	ldb->clk[chno] = devm_clk_get(ldb->dev, clkname);
-	if (IS_ERR(ldb->clk[chno]))
-		return PTR_ERR(ldb->clk[chno]);
+	snprintf(clkname, sizeof(clkname), "di%d", chyes);
+	ldb->clk[chyes] = devm_clk_get(ldb->dev, clkname);
+	if (IS_ERR(ldb->clk[chyes]))
+		return PTR_ERR(ldb->clk[chyes]);
 
-	snprintf(clkname, sizeof(clkname), "di%d_pll", chno);
-	ldb->clk_pll[chno] = devm_clk_get(ldb->dev, clkname);
+	snprintf(clkname, sizeof(clkname), "di%d_pll", chyes);
+	ldb->clk_pll[chyes] = devm_clk_get(ldb->dev, clkname);
 
-	return PTR_ERR_OR_ZERO(ldb->clk_pll[chno]);
+	return PTR_ERR_OR_ZERO(ldb->clk_pll[chyes]);
 }
 
 static int imx_ldb_register(struct drm_device *drm,
@@ -430,7 +430,7 @@ static int imx_ldb_register(struct drm_device *drm,
 	if (ret)
 		return ret;
 
-	ret = imx_ldb_get_clk(ldb, imx_ldb_ch->chno);
+	ret = imx_ldb_get_clk(ldb, imx_ldb_ch->chyes);
 	if (ret)
 		return ret;
 
@@ -453,8 +453,8 @@ static int imx_ldb_register(struct drm_device *drm,
 		}
 	} else {
 		/*
-		 * We want to add the connector whenever there is no bridge
-		 * that brings its own, not only when there is a panel. For
+		 * We want to add the connector whenever there is yes bridge
+		 * that brings its own, yest only when there is a panel. For
 		 * historical reasons, the ldb driver can also work without
 		 * a panel.
 		 */
@@ -494,7 +494,7 @@ static const struct imx_ldb_bit_mapping imx_ldb_bit_mappings[] = {
 	{ MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA, 24, "jeida" },
 };
 
-static u32 of_get_bus_format(struct device *dev, struct device_node *np)
+static u32 of_get_bus_format(struct device *dev, struct device_yesde *np)
 {
 	const char *bm;
 	u32 datawidth = 0;
@@ -543,16 +543,16 @@ static const struct of_device_id imx_ldb_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, imx_ldb_dt_ids);
 
 static int imx_ldb_panel_ddc(struct device *dev,
-		struct imx_ldb_channel *channel, struct device_node *child)
+		struct imx_ldb_channel *channel, struct device_yesde *child)
 {
-	struct device_node *ddc_node;
+	struct device_yesde *ddc_yesde;
 	const u8 *edidp;
 	int ret;
 
-	ddc_node = of_parse_phandle(child, "ddc-i2c-bus", 0);
-	if (ddc_node) {
-		channel->ddc = of_find_i2c_adapter_by_node(ddc_node);
-		of_node_put(ddc_node);
+	ddc_yesde = of_parse_phandle(child, "ddc-i2c-bus", 0);
+	if (ddc_yesde) {
+		channel->ddc = of_find_i2c_adapter_by_yesde(ddc_yesde);
+		of_yesde_put(ddc_yesde);
 		if (!channel->ddc) {
 			dev_warn(dev, "failed to get ddc i2c adapter\n");
 			return -EPROBE_DEFER;
@@ -560,8 +560,8 @@ static int imx_ldb_panel_ddc(struct device *dev,
 	}
 
 	if (!channel->ddc) {
-		/* if no DDC available, fallback to hardcoded EDID */
-		dev_dbg(dev, "no ddc available\n");
+		/* if yes DDC available, fallback to hardcoded EDID */
+		dev_dbg(dev, "yes ddc available\n");
 
 		edidp = of_get_property(child, "edid",
 					&channel->edid_len);
@@ -570,7 +570,7 @@ static int imx_ldb_panel_ddc(struct device *dev,
 						channel->edid_len,
 						GFP_KERNEL);
 		} else if (!channel->panel) {
-			/* fallback to display-timings node */
+			/* fallback to display-timings yesde */
 			ret = of_get_drm_display_mode(child,
 						      &channel->mode,
 						      &channel->bus_flags,
@@ -585,10 +585,10 @@ static int imx_ldb_panel_ddc(struct device *dev,
 static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 {
 	struct drm_device *drm = data;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct of_device_id *of_id =
 			of_match_device(imx_ldb_dt_ids, dev);
-	struct device_node *child;
+	struct device_yesde *child;
 	struct imx_ldb *imx_ldb;
 	int dual;
 	int ret;
@@ -639,7 +639,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 	if (i == 0)
 		return ret;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		struct imx_ldb_channel *channel;
 		int bus_format;
 
@@ -653,13 +653,13 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 			continue;
 
 		if (dual && i > 0) {
-			dev_warn(dev, "dual-channel mode, ignoring second output\n");
+			dev_warn(dev, "dual-channel mode, igyesring second output\n");
 			continue;
 		}
 
 		channel = &imx_ldb->channel[i];
 		channel->ldb = imx_ldb;
-		channel->chno = i;
+		channel->chyes = i;
 
 		/*
 		 * The output port is port@4 with an external 4-port mux or
@@ -671,7 +671,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		if (ret && ret != -ENODEV)
 			goto free_child;
 
-		/* panel ddc only if there is no bridge */
+		/* panel ddc only if there is yes bridge */
 		if (!channel->bridge) {
 			ret = imx_ldb_panel_ddc(dev, channel, child);
 			if (ret)
@@ -681,7 +681,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 		bus_format = of_get_bus_format(dev, child);
 		if (bus_format == -EINVAL) {
 			/*
-			 * If no bus format was specified in the device tree,
+			 * If yes bus format was specified in the device tree,
 			 * we can still get it from the connected panel later.
 			 */
 			if (channel->panel && channel->panel->funcs &&
@@ -689,7 +689,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 				bus_format = 0;
 		}
 		if (bus_format < 0) {
-			dev_err(dev, "could not determine data mapping: %d\n",
+			dev_err(dev, "could yest determine data mapping: %d\n",
 				bus_format);
 			ret = bus_format;
 			goto free_child;
@@ -709,7 +709,7 @@ static int imx_ldb_bind(struct device *dev, struct device *master, void *data)
 	return 0;
 
 free_child:
-	of_node_put(child);
+	of_yesde_put(child);
 	return ret;
 }
 

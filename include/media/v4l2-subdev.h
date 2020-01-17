@@ -17,7 +17,7 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-mediabus.h>
 
-/* generic v4l2_device notify callback notification values */
+/* generic v4l2_device yestify callback yestification values */
 #define V4L2_SUBDEV_IR_RX_NOTIFY		_IOW('v', 0, u32)
 #define V4L2_SUBDEV_IR_RX_FIFO_SERVICE_REQ	0x00000001
 #define V4L2_SUBDEV_IR_RX_END_OF_RX_DETECTED	0x00000002
@@ -47,7 +47,7 @@ struct v4l2_mbus_frame_desc;
  * @p: Pointer to the sliced VBI data from the decoder. On exit, points to
  *	the start of the payload.
  * @line: Line number of the sliced VBI data (1-23)
- * @type: VBI service type (V4L2_SLICED_*). 0 if no service found
+ * @type: VBI service type (V4L2_SLICED_*). 0 if yes service found
  */
 struct v4l2_decode_vbi_line {
 	u32 is_second_field;
@@ -69,18 +69,18 @@ struct v4l2_decode_vbi_line {
  * a few categories: core ops, audio ops, video ops and tuner ops.
  *
  * More categories can be added if needed, although this should remain a
- * limited set (no more than approx. 8 categories).
+ * limited set (yes more than approx. 8 categories).
  *
  * Each category has its own set of ops that subdev drivers can implement.
  *
  * A subdev driver can leave the pointer to the category ops NULL if
- * it does not implement them (e.g. an audio subdev will generally not
+ * it does yest implement them (e.g. an audio subdev will generally yest
  * implement the video category ops). The exception is the core category:
  * this must always be present.
  *
- * These ops are all used internally so it is no problem to change, remove
- * or add ops or move ops from one to another category. Currently these
- * ops are based on the original ioctls, but since ops are not limited to
+ * These ops are all used internally so it is yes problem to change, remove
+ * or add ops or move ops from one to ayesther category. Currently these
+ * ops are based on the original ioctls, but since ops are yest limited to
  * one argument there is room for improvement here once all i2c subdev
  * drivers are converted to use these ops.
  */
@@ -96,7 +96,7 @@ struct v4l2_decode_vbi_line {
  *
  * The ioctl ops is meant for generic ioctl-like commands. Depending on
  * the use-case it might be better to use subdev-specific ops (currently
- * not yet implemented) since ops provide proper type-checking.
+ * yest yet implemented) since ops provide proper type-checking.
  */
 
 /**
@@ -149,17 +149,17 @@ struct v4l2_subdev_io_pin_config {
  *	other than just subdevice initialization.
  *
  * @init: initialize the sensor registers to some sort of reasonable default
- *	values. Do not use for new drivers and should be removed in existing
+ *	values. Do yest use for new drivers and should be removed in existing
  *	drivers.
  *
  * @load_fw: load firmware.
  *
  * @reset: generic reset command. The argument selects which subsystems to
- *	reset. Passing 0 will always reset the whole chip. Do not use for new
+ *	reset. Passing 0 will always reset the whole chip. Do yest use for new
  *	drivers without discussing this first on the linux-media mailinglist.
- *	There should be no reason normally to reset a device.
+ *	There should be yes reason yesrmally to reset a device.
  *
- * @s_gpio: set GPIO pins. Very simple right now, might need to be extended with
+ * @s_gpio: set GPIO pins. Very simple right yesw, might need to be extended with
  *	a direction argument if needed.
  *
  * @ioctl: called at the end of ioctl() syscall handler at the V4L2 core.
@@ -172,13 +172,13 @@ struct v4l2_subdev_io_pin_config {
  *
  * @s_register: callback for VIDIOC_DBG_S_REGISTER() ioctl handler code.
  *
- * @s_power: puts subdevice in power saving mode (on == 0) or normal operation
+ * @s_power: puts subdevice in power saving mode (on == 0) or yesrmal operation
  *	mode (on == 1).
  *
  * @interrupt_service_routine: Called by the bridge chip's interrupt service
  *	handler, when an interrupt status has be raised due to this subdev,
  *	so that this subdev can handle the details.  It may schedule work to be
- *	performed later.  It must not sleep. **Called from an IRQ context**.
+ *	performed later.  It must yest sleep. **Called from an IRQ context**.
  *
  * @subscribe_event: used by the drivers to request the control framework that
  *		     for it to be warned when the value of a control changes.
@@ -245,7 +245,7 @@ struct v4l2_subdev_core_ops {
  *
  * @s_config: sets tda9887 specific stuff, like port1, port2 and qss
  *
- * .. note::
+ * .. yeste::
  *
  *	On devices that have both AM/FM and TV, it is up to the driver
  *	to explicitly call s_radio when the tuner should be switched to
@@ -281,24 +281,24 @@ struct v4l2_subdev_tuner_ops {
  * @s_clock_freq: set the frequency (in Hz) of the audio clock output.
  *	Used to slave an audio processor to the video decoder, ensuring that
  *	audio and video remain synchronized. Usual values for the frequency
- *	are 48000, 44100 or 32000 Hz. If the frequency is not supported, then
+ *	are 48000, 44100 or 32000 Hz. If the frequency is yest supported, then
  *	-EINVAL is returned.
  *
  * @s_i2s_clock_freq: sets I2S speed in bps. This is used to provide a standard
  *	way to select I2S clock used by driving digital audio streams at some
  *	board designs. Usual values for the frequency are 1024000 and 2048000.
- *	If the frequency is not supported, then %-EINVAL is returned.
+ *	If the frequency is yest supported, then %-EINVAL is returned.
  *
  * @s_routing: used to define the input and/or output pins of an audio chip,
  *	and any additional configuration data.
  *	Never attempt to use user-level input IDs (e.g. Composite, S-Video,
- *	Tuner) at this level. An i2c device shouldn't know about whether an
- *	input pin is connected to a Composite connector, become on another
+ *	Tuner) at this level. An i2c device shouldn't kyesw about whether an
+ *	input pin is connected to a Composite connector, become on ayesther
  *	board or platform it might be connected to something else entirely.
  *	The calling driver is responsible for mapping a user-level input to
  *	the right pins on the i2c device.
  *
- * @s_stream: used to notify the audio code that stream will start or has
+ * @s_stream: used to yestify the audio code that stream will start or has
  *	stopped.
  */
 struct v4l2_subdev_audio_ops {
@@ -315,7 +315,7 @@ struct v4l2_subdev_audio_ops {
  *	Indicates that &struct v4l2_mbus_frame_desc_entry->length field
  *	specifies maximum data length.
  * @V4L2_MBUS_FRAME_DESC_FL_BLOB:
- *	Indicates that the format does not have line offsets, i.e.
+ *	Indicates that the format does yest have line offsets, i.e.
  *	the receiver should use 1D DMA.
  */
 enum v4l2_mbus_frame_desc_flags {
@@ -328,7 +328,7 @@ enum v4l2_mbus_frame_desc_flags {
  *
  * @flags:	bitmask flags, as defined by &enum v4l2_mbus_frame_desc_flags.
  * @pixelcode:	media bus pixel code, valid if @flags
- *		%FRAME_DESC_FL_BLOB is not set.
+ *		%FRAME_DESC_FL_BLOB is yest set.
  * @length:	number of octets per frame, valid if @flags
  *		%V4L2_MBUS_FRAME_DESC_FL_LEN_MAX is set.
  */
@@ -359,31 +359,31 @@ struct v4l2_mbus_frame_desc {
  *
  * @s_crystal_freq: sets the frequency of the crystal used to generate the
  *	clocks in Hz. An extra flags field allows device specific configuration
- *	regarding clock frequency dividers, etc. If not used, then set flags
- *	to 0. If the frequency is not supported, then -EINVAL is returned.
+ *	regarding clock frequency dividers, etc. If yest used, then set flags
+ *	to 0. If the frequency is yest supported, then -EINVAL is returned.
  *
  * @g_std: callback for VIDIOC_G_STD() ioctl handler code.
  *
  * @s_std: callback for VIDIOC_S_STD() ioctl handler code.
  *
- * @s_std_output: set v4l2_std_id for video OUTPUT devices. This is ignored by
+ * @s_std_output: set v4l2_std_id for video OUTPUT devices. This is igyesred by
  *	video input devices.
  *
- * @g_std_output: get current standard for video OUTPUT devices. This is ignored
+ * @g_std_output: get current standard for video OUTPUT devices. This is igyesred
  *	by video input devices.
  *
  * @querystd: callback for VIDIOC_QUERYSTD() ioctl handler code.
  *
- * @g_tvnorms: get &v4l2_std_id with all standards supported by the video
- *	CAPTURE device. This is ignored by video output devices.
+ * @g_tvyesrms: get &v4l2_std_id with all standards supported by the video
+ *	CAPTURE device. This is igyesred by video output devices.
  *
- * @g_tvnorms_output: get v4l2_std_id with all standards supported by the video
- *	OUTPUT device. This is ignored by video capture devices.
+ * @g_tvyesrms_output: get v4l2_std_id with all standards supported by the video
+ *	OUTPUT device. This is igyesred by video capture devices.
  *
  * @g_input_status: get input status. Same as the status field in the
  *	&struct &v4l2_input
  *
- * @s_stream: used to notify the driver that a video stream will start or has
+ * @s_stream: used to yestify the driver that a video stream will start or has
  *	stopped.
  *
  * @g_pixelaspect: callback to return the pixelaspect ratio.
@@ -405,23 +405,23 @@ struct v4l2_mbus_frame_desc {
  * @g_mbus_config: get supported mediabus configurations
  *
  * @s_mbus_config: set a certain mediabus configuration. This operation is added
- *	for compatibility with soc-camera drivers and should not be used by new
+ *	for compatibility with soc-camera drivers and should yest be used by new
  *	software.
  *
  * @s_rx_buffer: set a host allocated memory buffer for the subdev. The subdev
- *	can adjust @size to a lower value and must not write more data to the
+ *	can adjust @size to a lower value and must yest write more data to the
  *	buffer starting at @data than the original value of @size.
  */
 struct v4l2_subdev_video_ops {
 	int (*s_routing)(struct v4l2_subdev *sd, u32 input, u32 output, u32 config);
 	int (*s_crystal_freq)(struct v4l2_subdev *sd, u32 freq, u32 flags);
-	int (*g_std)(struct v4l2_subdev *sd, v4l2_std_id *norm);
-	int (*s_std)(struct v4l2_subdev *sd, v4l2_std_id norm);
+	int (*g_std)(struct v4l2_subdev *sd, v4l2_std_id *yesrm);
+	int (*s_std)(struct v4l2_subdev *sd, v4l2_std_id yesrm);
 	int (*s_std_output)(struct v4l2_subdev *sd, v4l2_std_id std);
 	int (*g_std_output)(struct v4l2_subdev *sd, v4l2_std_id *std);
 	int (*querystd)(struct v4l2_subdev *sd, v4l2_std_id *std);
-	int (*g_tvnorms)(struct v4l2_subdev *sd, v4l2_std_id *std);
-	int (*g_tvnorms_output)(struct v4l2_subdev *sd, v4l2_std_id *std);
+	int (*g_tvyesrms)(struct v4l2_subdev *sd, v4l2_std_id *std);
+	int (*g_tvyesrms_output)(struct v4l2_subdev *sd, v4l2_std_id *std);
 	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
 	int (*g_pixelaspect)(struct v4l2_subdev *sd, struct v4l2_fract *aspect);
@@ -445,7 +445,7 @@ struct v4l2_subdev_video_ops {
 
 /**
  * struct v4l2_subdev_vbi_ops - Callbacks used when v4l device was opened
- *				  in video mode via the vbi device node.
+ *				  in video mode via the vbi device yesde.
  *
  *  @decode_vbi_line: video decoders that support sliced VBI need to implement
  *	this ioctl. Field p of the &struct v4l2_decode_vbi_line is set to the
@@ -453,17 +453,17 @@ struct v4l2_subdev_video_ops {
  *	then parses the sliced VBI data and sets the other fields in the
  *	struct accordingly. The pointer p is updated to point to the start of
  *	the payload which can be copied verbatim into the data field of the
- *	&struct v4l2_sliced_vbi_data. If no valid VBI data was found, then the
+ *	&struct v4l2_sliced_vbi_data. If yes valid VBI data was found, then the
  *	type field is set to 0 on return.
  *
  * @s_vbi_data: used to generate VBI signals on a video signal.
  *	&struct v4l2_sliced_vbi_data is filled with the data packets that
  *	should be output. Note that if you set the line field to 0, then that
- *	VBI signal is disabled. If no valid VBI data was found, then the type
+ *	VBI signal is disabled. If yes valid VBI data was found, then the type
  *	field is set to 0 on return.
  *
  * @g_vbi_data: used to obtain the sliced VBI packet from a readback register.
- *	Not all video decoders support this. If no data is available because
+ *	Not all video decoders support this. If yes data is available because
  *	the readback register contains invalid or erroneous data %-EIO is
  *	returned. Note that you must fill in the 'id' member and the 'field'
  *	member (to determine whether CC data from the first or second field
@@ -520,7 +520,7 @@ enum v4l2_subdev_ir_mode {
  * @mode: IR mode as defined by &enum v4l2_subdev_ir_mode.
  * @enable: device is active if true
  * @interrupt_enable: IR interrupts are enabled if true
- * @shutdown: if true: set hardware to low/no power, false: normal mode
+ * @shutdown: if true: set hardware to low/yes power, false: yesrmal mode
  *
  * @modulation: if true, it uses carrier, if false: baseband
  * @max_pulse_width:  maximum pulse width in ns, valid only for baseband signal
@@ -530,7 +530,7 @@ enum v4l2_subdev_ir_mode {
  *
  * @invert_carrier_sense: Send 0/space as a carrier burst. used only in TX.
  *
- * @noise_filter_min_width: min time of a valid pulse, in ns. Used only for RX.
+ * @yesise_filter_min_width: min time of a valid pulse, in ns. Used only for RX.
  * @carrier_range_lower: Lower carrier range, in Hz, valid only for modulated
  *	signal. Used only for RX.
  * @carrier_range_upper: Upper carrier range, in Hz, valid only for modulated
@@ -555,7 +555,7 @@ struct v4l2_subdev_ir_parameters {
 	bool invert_carrier_sense;
 
 	/* Rx only */
-	u32 noise_filter_min_width;
+	u32 yesise_filter_min_width;
 	unsigned int carrier_range_lower;
 	unsigned int carrier_range_upper;
 	u32 resolution;
@@ -565,7 +565,7 @@ struct v4l2_subdev_ir_parameters {
  * struct v4l2_subdev_ir_ops - operations for IR subdevices
  *
  * @rx_read: Reads received codes or pulse width data.
- *	The semantics are similar to a non-blocking read() call.
+ *	The semantics are similar to a yesn-blocking read() call.
  * @rx_g_parameters: Get the current operating parameters and state of the
  *	the IR receiver.
  * @rx_s_parameters: Set the current operating parameters and state of the
@@ -581,7 +581,7 @@ struct v4l2_subdev_ir_parameters {
  *	processing when shutdown is true.
  *
  * @tx_write: Writes codes or pulse width data for transmission.
- *	The semantics are similar to a non-blocking write() call.
+ *	The semantics are similar to a yesn-blocking write() call.
  * @tx_g_parameters: Get the current operating parameters and state of the
  *	the IR transmitter.
  * @tx_s_parameters: Set the current operating parameters and state of the
@@ -744,21 +744,21 @@ struct v4l2_subdev_ops {
  * @unregistered: called when this subdev is unregistered. When called the
  *	v4l2_dev field is still set to the correct v4l2_device.
  *
- * @open: called when the subdev device node is opened by an application.
+ * @open: called when the subdev device yesde is opened by an application.
  *
- * @close: called when the subdev device node is closed. Please note that
+ * @close: called when the subdev device yesde is closed. Please yeste that
  *	it is possible for @close to be called after @unregistered!
  *
  * @release: called when the last user of the subdev device is gone. This
  *	happens after the @unregistered callback and when the last open
- *	filehandle to the v4l-subdevX device node was closed. If no device
- *	node was created for this sub-device, then the @release callback
+ *	filehandle to the v4l-subdevX device yesde was closed. If yes device
+ *	yesde was created for this sub-device, then the @release callback
  *	is called right after the @unregistered callback.
  *	The @release callback is typically used to free the memory containing
  *	the v4l2_subdev structure. It is almost certainly required for any
  *	sub-device that sets the V4L2_SUBDEV_FL_HAS_DEVNODE flag.
  *
- * .. note::
+ * .. yeste::
  *	Never call this from drivers, only the v4l2 framework can call
  *	these ops.
  */
@@ -776,7 +776,7 @@ struct v4l2_subdev_internal_ops {
 #define V4L2_SUBDEV_FL_IS_I2C			(1U << 0)
 /* Set this flag if this subdev is a spi device. */
 #define V4L2_SUBDEV_FL_IS_SPI			(1U << 1)
-/* Set this flag if this subdev needs a device node. */
+/* Set this flag if this subdev needs a device yesde. */
 #define V4L2_SUBDEV_FL_HAS_DEVNODE		(1U << 2)
 /*
  * Set this flag if this subdev generates events.
@@ -813,7 +813,7 @@ struct v4l2_subdev_platform_data {
  *   %V4L2_SUBDEV_FL_IS_I2C - Set this flag if this subdev is a i2c device;
  *   %V4L2_SUBDEV_FL_IS_SPI - Set this flag if this subdev is a spi device;
  *   %V4L2_SUBDEV_FL_HAS_DEVNODE - Set this flag if this subdev needs a
- *   device node;
+ *   device yesde;
  *   %V4L2_SUBDEV_FL_HAS_EVENTS -  Set this flag if this subdev generates
  *   events.
  *
@@ -822,20 +822,20 @@ struct v4l2_subdev_platform_data {
  * @internal_ops: pointer to struct &v4l2_subdev_internal_ops.
  *	Never call these internal ops from within a driver!
  * @ctrl_handler: The control handler of this subdev. May be NULL.
- * @name: Name of the sub-device. Please notice that the name must be unique.
+ * @name: Name of the sub-device. Please yestice that the name must be unique.
  * @grp_id: can be used to group similar subdevs. Value is driver-specific
  * @dev_priv: pointer to private data
  * @host_priv: pointer to private data used by the device where the subdev
  *	is attached.
- * @devnode: subdev device node
+ * @devyesde: subdev device yesde
  * @dev: pointer to the physical device, if any
- * @fwnode: The fwnode_handle of the subdev, usually the same as
- *	    either dev->of_node->fwnode or dev->fwnode (whichever is non-NULL).
- * @async_list: Links this subdev to a global subdev_list or @notifier->done
+ * @fwyesde: The fwyesde_handle of the subdev, usually the same as
+ *	    either dev->of_yesde->fwyesde or dev->fwyesde (whichever is yesn-NULL).
+ * @async_list: Links this subdev to a global subdev_list or @yestifier->done
  *	list.
  * @asd: Pointer to respective &struct v4l2_async_subdev.
- * @notifier: Pointer to the managing notifier.
- * @subdev_notifier: A sub-device notifier implicitly registered for the sub-
+ * @yestifier: Pointer to the managing yestifier.
+ * @subdev_yestifier: A sub-device yestifier implicitly registered for the sub-
  *		     device using v4l2_device_register_sensor_subdev().
  * @pdata: common part of subdevice platform data
  *
@@ -861,13 +861,13 @@ struct v4l2_subdev {
 	u32 grp_id;
 	void *dev_priv;
 	void *host_priv;
-	struct video_device *devnode;
+	struct video_device *devyesde;
 	struct device *dev;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	struct list_head async_list;
 	struct v4l2_async_subdev *asd;
-	struct v4l2_async_notifier *notifier;
-	struct v4l2_async_notifier *subdev_notifier;
+	struct v4l2_async_yestifier *yestifier;
+	struct v4l2_async_yestifier *subdev_yestifier;
 	struct v4l2_subdev_platform_data *pdata;
 };
 
@@ -1095,7 +1095,7 @@ extern const struct v4l2_subdev_ops v4l2_subdev_call_wrappers;
  *     each element at &struct v4l2_subdev_ops.
  * @args...: arguments for @f.
  *
- * Example: err = v4l2_subdev_call(sd, video, s_std, norm);
+ * Example: err = v4l2_subdev_call(sd, video, s_std, yesrm);
  */
 #define v4l2_subdev_call(sd, o, f, args...)				\
 	({								\
@@ -1126,16 +1126,16 @@ extern const struct v4l2_subdev_ops v4l2_subdev_call_wrappers;
 	((sd)->ops->o && (sd)->ops->o->f)
 
 /**
- * v4l2_subdev_notify_event() - Delivers event notification for subdevice
+ * v4l2_subdev_yestify_event() - Delivers event yestification for subdevice
  * @sd: The subdev for which to deliver the event
  * @ev: The event to deliver
  *
  * Will deliver the specified event to all userspace event listeners which are
  * subscribed to the v42l subdev event queue as well as to the bridge driver
- * using the notify callback. The notification type for the notify callback
+ * using the yestify callback. The yestification type for the yestify callback
  * will be %V4L2_DEVICE_NOTIFY_EVENT.
  */
-void v4l2_subdev_notify_event(struct v4l2_subdev *sd,
+void v4l2_subdev_yestify_event(struct v4l2_subdev *sd,
 			      const struct v4l2_event *ev);
 
 #endif

@@ -9,8 +9,8 @@ Required properties:
 	- cvcc12-supply : Digital Core Supply Voltage (1.2V)
 	- interrupts: interrupt specifier of INT pin
 	- reset-gpios: gpio specifier of RESET pin (active low)
-	- video interfaces: Device node can contain two video interface port
-			    nodes for HDMI encoder and connector according to [1].
+	- video interfaces: Device yesde can contain two video interface port
+			    yesdes for HDMI encoder and connector according to [1].
 			    - port@0 - MHL to HDMI
 			    - port@1 - MHL to connector
 

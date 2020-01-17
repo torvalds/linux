@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _IPX_H_
 #define _IPX_H_
 #include <linux/libc-compat.h>	/* for compatibility with glibc netipx/ipx.h */
@@ -13,7 +13,7 @@ struct sockaddr_ipx {
 	__kernel_sa_family_t sipx_family;
 	__be16		sipx_port;
 	__be32		sipx_network;
-	unsigned char 	sipx_node[IPX_NODE_LEN];
+	unsigned char 	sipx_yesde[IPX_NODE_LEN];
 	__u8		sipx_type;
 	unsigned char	sipx_zero;	/* 16 byte fill */
 };
@@ -31,7 +31,7 @@ struct sockaddr_ipx {
 struct ipx_route_definition {
 	__be32        ipx_network;
 	__be32        ipx_router_network;
-	unsigned char ipx_router_node[IPX_NODE_LEN];
+	unsigned char ipx_router_yesde[IPX_NODE_LEN];
 };
 #endif /* __UAPI_DEF_IPX_ROUTE_DEFINITION */
 
@@ -50,7 +50,7 @@ struct ipx_interface_definition {
 #define IPX_SPECIAL_NONE	0
 #define IPX_PRIMARY		1
 #define IPX_INTERNAL		2
-	unsigned char ipx_node[IPX_NODE_LEN];
+	unsigned char ipx_yesde[IPX_NODE_LEN];
 };
 #endif /* __UAPI_DEF_IPX_INTERFACE_DEFINITION */
 
@@ -70,7 +70,7 @@ struct ipx_route_def {
 	__be32		ipx_network;
 	__be32		ipx_router_network;
 #define IPX_ROUTE_NO_ROUTER	0
-	unsigned char	ipx_router_node[IPX_NODE_LEN];
+	unsigned char	ipx_router_yesde[IPX_NODE_LEN];
 	unsigned char	ipx_device[16];
 	unsigned short	ipx_flags;
 #define IPX_RT_SNAP		8

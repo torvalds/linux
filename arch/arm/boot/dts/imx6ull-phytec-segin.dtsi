@@ -12,9 +12,9 @@
 };
 
 &iomuxc {
-	/delete-node/ flexcan1engrp;
-	/delete-node/ rtcintgrp;
-	/delete-node/ stmpegrp;
+	/delete-yesde/ flexcan1engrp;
+	/delete-yesde/ rtcintgrp;
+	/delete-yesde/ stmpegrp;
 };
 
 &iomuxc_snvs {

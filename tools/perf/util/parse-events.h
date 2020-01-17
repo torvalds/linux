@@ -40,8 +40,8 @@ int exclude_perf(const struct option *opt, const char *arg, int unset);
 #define EVENTS_HELP_MAX (128*1024)
 
 enum perf_pmu_event_symbol_type {
-	PMU_EVENT_SYMBOL_ERR,		/* not a PMU EVENT */
-	PMU_EVENT_SYMBOL,		/* normal style PMU event */
+	PMU_EVENT_SYMBOL_ERR,		/* yest a PMU EVENT */
+	PMU_EVENT_SYMBOL,		/* yesrmal style PMU event */
 	PMU_EVENT_SYMBOL_PREFIX,	/* prefix of pre-suf style event */
 	PMU_EVENT_SYMBOL_SUFFIX,	/* suffix of pre-suf style event */
 };
@@ -100,7 +100,7 @@ struct parse_events_term {
 	int type_term;
 	struct list_head list;
 	bool used;
-	bool no_value;
+	bool yes_value;
 
 	/* error string indexes for within parsed string */
 	int err_term;
@@ -135,7 +135,7 @@ void parse_events__shrink_config_terms(void);
 int parse_events__is_hardcoded_term(struct parse_events_term *term);
 int parse_events_term__num(struct parse_events_term **term,
 			   int type_term, char *config, u64 num,
-			   bool novalue,
+			   bool yesvalue,
 			   void *loc_term, void *loc_val);
 int parse_events_term__str(struct parse_events_term **term,
 			   int type_term, char *config, char *str,
@@ -231,7 +231,7 @@ void parse_events_print_error(struct parse_events_error *err,
 #ifdef HAVE_LIBELF_SUPPORT
 /*
  * If the probe point starts with '%',
- * or starts with "sdt_" and has a ':' but no '=',
+ * or starts with "sdt_" and has a ':' but yes '=',
  * then it should be a SDT/cached probe point.
  */
 static inline bool is_sdt_event(char *str)

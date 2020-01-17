@@ -257,13 +257,13 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	range->max_qual.qual = 100;
 	/* TODO: Find real max RSSI and stick here */
 	range->max_qual.level = 0;
-	range->max_qual.noise = 0x100 - 98;
+	range->max_qual.yesise = 0x100 - 98;
 	range->max_qual.updated = 7; /* Updated all three */
 
 	range->avg_qual.qual = 92; /* > 8% missed beacons is 'bad' */
 	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
 	range->avg_qual.level = 0x100 - 78;
-	range->avg_qual.noise = 0;
+	range->avg_qual.yesise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */
 
 	range->num_bitrates = RATE_COUNT;
@@ -452,7 +452,7 @@ static int r8192_wx_get_frag(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	wrqu->frag.value = priv->ieee80211->fts;
-	wrqu->frag.fixed = 0;	/* no auto select */
+	wrqu->frag.fixed = 0;	/* yes auto select */
 	wrqu->frag.disabled = (wrqu->frag.value == DEFAULT_FRAG_THRESHOLD);
 
 	return 0;
@@ -524,7 +524,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 
 
 
-	/* sometimes, the length is zero while we do not type key value */
+	/* sometimes, the length is zero while we do yest type key value */
 	if (wrqu->encoding.length != 0) {
 
 		for (i = 0; i < 4; i++) {
@@ -588,7 +588,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 				hwkey);                 /* KeyContent */
 
 		} else {
-			printk("wrong type in WEP, not WEP40 and WEP104\n");
+			printk("wrong type in WEP, yest WEP40 and WEP104\n");
 		}
 
 	}
@@ -641,7 +641,7 @@ static int r8192_wx_set_retry(struct net_device *dev,
 
 	} else {
 		priv->retry_data = wrqu->retry.value;
-		DMESG("Setting retry for non RTS/CTS data to %d", wrqu->retry.value);
+		DMESG("Setting retry for yesn RTS/CTS data to %d", wrqu->retry.value);
 	}
 
 	/* FIXME !
@@ -688,7 +688,7 @@ static int r8192_wx_get_sens(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	if (priv->rf_set_sens == NULL)
-		return -1; /* we have not this support for this radio */
+		return -1; /* we have yest this support for this radio */
 	wrqu->sens.value = priv->sens;
 	return 0;
 }
@@ -703,7 +703,7 @@ static int r8192_wx_set_sens(struct net_device *dev,
 
 	mutex_lock(&priv->wx_mutex);
 	if (priv->rf_set_sens == NULL) {
-		err = -1; /* we have not this support for this radio */
+		err = -1; /* we have yest this support for this radio */
 		goto exit;
 	}
 	if (priv->rf_set_sens(dev, wrqu->sens.value) == 0)
@@ -739,7 +739,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		u8 idx = 0, alg = 0, group = 0;
 
 		if ((encoding->flags & IW_ENCODE_DISABLED) || ext->alg == IW_ENCODE_ALG_NONE)
-			/* none is not allowed to use hwsec WB 2008.07.01 */
+			/* yesne is yest allowed to use hwsec WB 2008.07.01 */
 			goto end_hw_sec;
 
 		/* as IW_ENCODE_ALG_CCMP is defined to be 3 and KEY_TYPE_CCMP is defined to 4; */
@@ -943,23 +943,23 @@ struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 	struct iw_statistics *wstats = &priv->wstats;
 	int tmp_level = 0;
 	int tmp_qual = 0;
-	int tmp_noise = 0;
+	int tmp_yesise = 0;
 
 	if (ieee->state < IEEE80211_LINKED) {
 		wstats->qual.qual = 0;
 		wstats->qual.level = 0;
-		wstats->qual.noise = 0;
+		wstats->qual.yesise = 0;
 		wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 		return wstats;
 	}
 
 	tmp_level = (&ieee->current_network)->stats.rssi;
 	tmp_qual = (&ieee->current_network)->stats.signal;
-	tmp_noise = (&ieee->current_network)->stats.noise;
+	tmp_yesise = (&ieee->current_network)->stats.yesise;
 
 	wstats->qual.level = tmp_level;
 	wstats->qual.qual = tmp_qual;
-	wstats->qual.noise = tmp_noise;
+	wstats->qual.yesise = tmp_yesise;
 	wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	return wstats;
 }

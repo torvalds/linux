@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -60,7 +60,7 @@
  * data.  It is guaranteed that *return_data will be NULL and *size = 0
  * if this routine fails.
  *
- * Return 0 on success, -errno on failure.
+ * Return 0 on success, -erryes on failure.
  */
 static int read_efi_var(const char *name, unsigned long *size,
 			void **return_data)
@@ -109,10 +109,10 @@ static int read_efi_var(const char *name, unsigned long *size,
 
 	/*
 	 * It would be nice to call efi_status_to_err() here, but that
-	 * is in the EFIVAR_FS code and may not be compiled in.
-	 * However, even that is insufficient since it does not cover
+	 * is in the EFIVAR_FS code and may yest be compiled in.
+	 * However, even that is insufficient since it does yest cover
 	 * EFI_BUFFER_TOO_SMALL which could be an important return.
-	 * For now, just split out succces or not found.
+	 * For yesw, just split out succces or yest found.
 	 */
 	ret = status == EFI_SUCCESS   ? 0 :
 	      status == EFI_NOT_FOUND ? -ENOENT :
@@ -146,7 +146,7 @@ fail:
  *	<PCIe address>-<kind>
  * Return an kalloc'ed array and size of the data.
  *
- * Returns 0 on success, -errno on failure.
+ * Returns 0 on success, -erryes on failure.
  */
 int read_hfi1_efi_var(struct hfi1_devdata *dd, const char *kind,
 		      unsigned long *size, void **return_data)

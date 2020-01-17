@@ -129,7 +129,7 @@ static int sh4202_read_vcr(unsigned long base, struct superhyway_vcr_info *vcr)
 	 * itself it appears that these are all consistently mapped with
 	 * VCRH preceding VCRL.
 	 *
-	 * Do not trust the documentation, for it is evil.
+	 * Do yest trust the documentation, for it is evil.
 	 */
 	vcrh = __raw_readl(base);
 	vcrl = __raw_readl(base + sizeof(u32));

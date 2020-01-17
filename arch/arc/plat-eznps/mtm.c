@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright(c) 2015 EZchip Technologies.
+ * Copyright(c) 2015 EZchip Techyeslogies.
  */
 
 #include <linux/smp.h>

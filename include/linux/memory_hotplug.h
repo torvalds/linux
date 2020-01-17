@@ -4,7 +4,7 @@
 
 #include <linux/mmzone.h>
 #include <linux/spinlock.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/bug.h>
 
 struct page;
@@ -106,18 +106,18 @@ extern void generic_online_page(struct page *page, unsigned int order);
 extern int set_online_page_callback(online_page_callback_t callback);
 extern int restore_online_page_callback(online_page_callback_t callback);
 
-extern int try_online_node(int nid);
+extern int try_online_yesde(int nid);
 
 extern int arch_add_memory(int nid, u64 start, u64 size,
 			struct mhp_restrictions *restrictions);
 extern u64 max_mem_size;
 
 extern bool memhp_auto_online;
-/* If movable_node boot option specified */
-extern bool movable_node_enabled;
-static inline bool movable_node_is_enabled(void)
+/* If movable_yesde boot option specified */
+extern bool movable_yesde_enabled;
+static inline bool movable_yesde_is_enabled(void)
 {
-	return movable_node_enabled;
+	return movable_yesde_enabled;
 }
 
 extern void arch_remove_memory(int nid, u64 start, u64 size,
@@ -151,68 +151,68 @@ static inline int memory_add_physaddr_to_nid(u64 start)
 
 #ifdef CONFIG_HAVE_ARCH_NODEDATA_EXTENSION
 /*
- * For supporting node-hotadd, we have to allocate a new pgdat.
+ * For supporting yesde-hotadd, we have to allocate a new pgdat.
  *
  * If an arch has generic style NODE_DATA(),
- * node_data[nid] = kzalloc() works well. But it depends on the architecture.
+ * yesde_data[nid] = kzalloc() works well. But it depends on the architecture.
  *
- * In general, generic_alloc_nodedata() is used.
- * Now, arch_free_nodedata() is just defined for error path of node_hot_add.
+ * In general, generic_alloc_yesdedata() is used.
+ * Now, arch_free_yesdedata() is just defined for error path of yesde_hot_add.
  *
  */
-extern pg_data_t *arch_alloc_nodedata(int nid);
-extern void arch_free_nodedata(pg_data_t *pgdat);
-extern void arch_refresh_nodedata(int nid, pg_data_t *pgdat);
+extern pg_data_t *arch_alloc_yesdedata(int nid);
+extern void arch_free_yesdedata(pg_data_t *pgdat);
+extern void arch_refresh_yesdedata(int nid, pg_data_t *pgdat);
 
 #else /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
 
-#define arch_alloc_nodedata(nid)	generic_alloc_nodedata(nid)
-#define arch_free_nodedata(pgdat)	generic_free_nodedata(pgdat)
+#define arch_alloc_yesdedata(nid)	generic_alloc_yesdedata(nid)
+#define arch_free_yesdedata(pgdat)	generic_free_yesdedata(pgdat)
 
 #ifdef CONFIG_NUMA
 /*
  * If ARCH_HAS_NODEDATA_EXTENSION=n, this func is used to allocate pgdat.
- * XXX: kmalloc_node() can't work well to get new node's memory at this time.
- *	Because, pgdat for the new node is not allocated/initialized yet itself.
- *	To use new node's memory, more consideration will be necessary.
+ * XXX: kmalloc_yesde() can't work well to get new yesde's memory at this time.
+ *	Because, pgdat for the new yesde is yest allocated/initialized yet itself.
+ *	To use new yesde's memory, more consideration will be necessary.
  */
-#define generic_alloc_nodedata(nid)				\
+#define generic_alloc_yesdedata(nid)				\
 ({								\
 	kzalloc(sizeof(pg_data_t), GFP_KERNEL);			\
 })
 /*
- * This definition is just for error path in node hotadd.
- * For node hotremove, we have to replace this.
+ * This definition is just for error path in yesde hotadd.
+ * For yesde hotremove, we have to replace this.
  */
-#define generic_free_nodedata(pgdat)	kfree(pgdat)
+#define generic_free_yesdedata(pgdat)	kfree(pgdat)
 
-extern pg_data_t *node_data[];
-static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
+extern pg_data_t *yesde_data[];
+static inline void arch_refresh_yesdedata(int nid, pg_data_t *pgdat)
 {
-	node_data[nid] = pgdat;
+	yesde_data[nid] = pgdat;
 }
 
 #else /* !CONFIG_NUMA */
 
 /* never called */
-static inline pg_data_t *generic_alloc_nodedata(int nid)
+static inline pg_data_t *generic_alloc_yesdedata(int nid)
 {
 	BUG();
 	return NULL;
 }
-static inline void generic_free_nodedata(pg_data_t *pgdat)
+static inline void generic_free_yesdedata(pg_data_t *pgdat)
 {
 }
-static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
+static inline void arch_refresh_yesdedata(int nid, pg_data_t *pgdat)
 {
 }
 #endif /* CONFIG_NUMA */
 #endif /* CONFIG_HAVE_ARCH_NODEDATA_EXTENSION */
 
 #ifdef CONFIG_HAVE_BOOTMEM_INFO_NODE
-extern void __init register_page_bootmem_info_node(struct pglist_data *pgdat);
+extern void __init register_page_bootmem_info_yesde(struct pglist_data *pgdat);
 #else
-static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
+static inline void register_page_bootmem_info_yesde(struct pglist_data *pgdat)
 {
 }
 #endif
@@ -247,18 +247,18 @@ static inline void zone_span_writelock(struct zone *zone) {}
 static inline void zone_span_writeunlock(struct zone *zone) {}
 static inline void zone_seqlock_init(struct zone *zone) {}
 
-static inline int mhp_notimplemented(const char *func)
+static inline int mhp_yestimplemented(const char *func)
 {
 	printk(KERN_WARNING "%s() called, with CONFIG_MEMORY_HOTPLUG disabled\n", func);
 	dump_stack();
 	return -ENOSYS;
 }
 
-static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
+static inline void register_page_bootmem_info_yesde(struct pglist_data *pgdat)
 {
 }
 
-static inline int try_online_node(int nid)
+static inline int try_online_yesde(int nid)
 {
 	return 0;
 }
@@ -269,7 +269,7 @@ static inline void put_online_mems(void) {}
 static inline void mem_hotplug_begin(void) {}
 static inline void mem_hotplug_done(void) {}
 
-static inline bool movable_node_is_enabled(void)
+static inline bool movable_yesde_is_enabled(void)
 {
 	return false;
 }
@@ -282,17 +282,17 @@ static inline bool movable_node_is_enabled(void)
 static inline
 void pgdat_resize_lock(struct pglist_data *pgdat, unsigned long *flags)
 {
-	spin_lock_irqsave(&pgdat->node_size_lock, *flags);
+	spin_lock_irqsave(&pgdat->yesde_size_lock, *flags);
 }
 static inline
 void pgdat_resize_unlock(struct pglist_data *pgdat, unsigned long *flags)
 {
-	spin_unlock_irqrestore(&pgdat->node_size_lock, *flags);
+	spin_unlock_irqrestore(&pgdat->yesde_size_lock, *flags);
 }
 static inline
 void pgdat_resize_init(struct pglist_data *pgdat)
 {
-	spin_lock_init(&pgdat->node_size_lock);
+	spin_lock_init(&pgdat->yesde_size_lock);
 }
 #else /* !(CONFIG_MEMORY_HOTPLUG || CONFIG_DEFERRED_STRUCT_PAGE_INIT) */
 /*
@@ -306,7 +306,7 @@ static inline void pgdat_resize_init(struct pglist_data *pgdat) {}
 #ifdef CONFIG_MEMORY_HOTREMOVE
 
 extern bool is_mem_section_removable(unsigned long pfn, unsigned long nr_pages);
-extern void try_offline_node(int nid);
+extern void try_offline_yesde(int nid);
 extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
 extern int remove_memory(int nid, u64 start, u64 size);
 extern void __remove_memory(int nid, u64 start, u64 size);
@@ -318,7 +318,7 @@ static inline bool is_mem_section_removable(unsigned long pfn,
 	return false;
 }
 
-static inline void try_offline_node(int nid) {}
+static inline void try_offline_yesde(int nid) {}
 
 static inline int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 {

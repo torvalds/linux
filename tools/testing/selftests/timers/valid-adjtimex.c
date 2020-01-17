@@ -139,7 +139,7 @@ int validate_freq(void)
 		tx.modes = 0;
 		ret = adjtimex(&tx);
 		if (tx.freq != valid_freq[i]) {
-			printf("Warning: freq value %ld not what we set it (%ld)!\n",
+			printf("Warning: freq value %ld yest what we set it (%ld)!\n",
 					tx.freq, valid_freq[i]);
 		}
 	}
@@ -193,13 +193,13 @@ out:
 }
 
 
-int set_offset(long long offset, int use_nano)
+int set_offset(long long offset, int use_nayes)
 {
 	struct timex tmx = {};
 	int ret;
 
 	tmx.modes = ADJ_SETOFFSET;
-	if (use_nano) {
+	if (use_nayes) {
 		tmx.modes |= ADJ_NANO;
 
 		tmx.time.tv_sec = offset / NSEC_PER_SEC;
@@ -228,20 +228,20 @@ int set_offset(long long offset, int use_nano)
 	return 0;
 }
 
-int set_bad_offset(long sec, long usec, int use_nano)
+int set_bad_offset(long sec, long usec, int use_nayes)
 {
 	struct timex tmx = {};
 	int ret;
 
 	tmx.modes = ADJ_SETOFFSET;
-	if (use_nano)
+	if (use_nayes)
 		tmx.modes |= ADJ_NANO;
 
 	tmx.time.tv_sec = sec;
 	tmx.time.tv_usec = usec;
 	ret = clock_adjtime(CLOCK_REALTIME, &tmx);
 	if (ret >= 0) {
-		printf("Invalid (sec: %ld  usec: %ld) did not fail! ", tmx.time.tv_sec, tmx.time.tv_usec);
+		printf("Invalid (sec: %ld  usec: %ld) did yest fail! ", tmx.time.tv_sec, tmx.time.tv_usec);
 		printf("[FAIL]\n");
 		return -1;
 	}

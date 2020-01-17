@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -118,7 +118,7 @@ gf119_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 	case NV_MEM_TARGET_VM:
 	case NV_MEM_TARGET_PCI:
 	case NV_MEM_TARGET_PCI_NOSNOOP:
-		/* XXX: don't currently know how to construct a real one
+		/* XXX: don't currently kyesw how to construct a real one
 		 *      of these.  we only use them to represent pushbufs
 		 *      on these chipsets, and the classes that use them
 		 *      deal with the target themselves.

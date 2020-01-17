@@ -80,7 +80,7 @@ EXPORT_SYMBOL_GPL(dev_pm_set_wake_irq);
  * Detach a device wake IRQ and free resources.
  *
  * Note that it's OK for drivers to call this without calling
- * dev_pm_set_wake_irq() as all the driver instances may not have
+ * dev_pm_set_wake_irq() as all the driver instances may yest have
  * a wake IRQ configured. This avoid adding wake IRQ specific
  * checks into the drivers.
  */
@@ -119,7 +119,7 @@ EXPORT_SYMBOL_GPL(dev_pm_clear_wake_irq);
  * device may need to restore context and start up regulators, we
  * use a threaded IRQ.
  *
- * Also note that we are not resending the lost device interrupts.
+ * Also yeste that we are yest resending the lost device interrupts.
  * We assume that the wake-up interrupt just needs to wake-up the
  * device, and then device's pm_runtime_resume() can deal with the
  * situation.
@@ -140,7 +140,7 @@ static irqreturn_t handle_threaded_wake_irq(int irq, void *_wirq)
 	res = pm_runtime_resume(wirq->dev);
 	if (res < 0)
 		dev_warn(wirq->dev,
-			 "wake IRQ with no resume: %i\n", res);
+			 "wake IRQ with yes resume: %i\n", res);
 
 	return IRQ_HANDLED;
 }
@@ -184,7 +184,7 @@ int dev_pm_set_dedicated_wake_irq(struct device *dev, int irq)
 	wirq->irq = irq;
 	irq_set_status_flags(irq, IRQ_NOAUTOEN);
 
-	/* Prevent deferred spurious wakeirqs with disable_irq_nosync() */
+	/* Prevent deferred spurious wakeirqs with disable_irq_yessync() */
 	irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
 
 	/*
@@ -249,7 +249,7 @@ void dev_pm_disable_wake_irq(struct device *dev)
 	struct wake_irq *wirq = dev->power.wakeirq;
 
 	if (wirq && (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED))
-		disable_irq_nosync(wirq->irq);
+		disable_irq_yessync(wirq->irq);
 }
 EXPORT_SYMBOL_GPL(dev_pm_disable_wake_irq);
 
@@ -303,7 +303,7 @@ void dev_pm_disable_wake_irq_check(struct device *dev)
 		return;
 
 	if (wirq->status & WAKE_IRQ_DEDICATED_MANAGED)
-		disable_irq_nosync(wirq->irq);
+		disable_irq_yessync(wirq->irq);
 }
 
 /**
@@ -344,6 +344,6 @@ void dev_pm_disarm_wake_irq(struct wake_irq *wirq)
 
 		if (wirq->status & WAKE_IRQ_DEDICATED_ALLOCATED &&
 		    !pm_runtime_status_suspended(wirq->dev))
-			disable_irq_nosync(wirq->irq);
+			disable_irq_yessync(wirq->irq);
 	}
 }

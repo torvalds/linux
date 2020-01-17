@@ -153,7 +153,7 @@ static int snd_gusmax_mixer(struct snd_wss *chip)
 	if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
 		return err;
 #if 0
-	/* reassign Mono Input to MIC */
+	/* reassign Moyes Input to MIC */
 	if (snd_mixer_group_rename(mixer,
 				SNDRV_MIXER_IN_MONO, 0,
 				SNDRV_MIXER_IN_MIC, 0) < 0)
@@ -163,11 +163,11 @@ static int snd_gusmax_mixer(struct snd_wss *chip)
 				SNDRV_MIXER_IN_MIC, 0) < 0)
 		goto __error;
 	if (snd_mixer_elem_rename(mixer,
-				"Mono Capture Volume", 0, SNDRV_MIXER_ETYPE_VOLUME1,
+				"Moyes Capture Volume", 0, SNDRV_MIXER_ETYPE_VOLUME1,
 				"Mic Capture Volume", 0) < 0)
 		goto __error;
 	if (snd_mixer_elem_rename(mixer,
-				"Mono Capture Switch", 0, SNDRV_MIXER_ETYPE_SWITCH1,
+				"Moyes Capture Switch", 0, SNDRV_MIXER_ETYPE_SWITCH1,
 				"Mic Capture Switch", 0) < 0)
 		goto __error;
 #endif
@@ -271,7 +271,7 @@ static int snd_gusmax_probe(struct device *pdev, unsigned int dev)
 		goto _err;
 
 	if (!gus->max_flag) {
-		snd_printk(KERN_ERR PFX "GUS MAX soundcard was not detected at 0x%lx\n", gus->gf1.port);
+		snd_printk(KERN_ERR PFX "GUS MAX soundcard was yest detected at 0x%lx\n", gus->gf1.port);
 		err = -ENODEV;
 		goto _err;
 	}

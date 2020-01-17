@@ -145,7 +145,7 @@ static struct ti_dt_clk omap2xxx_clks[] = {
 	DT_CLK(NULL, "timer_32k_ck", "func_32k_ck"),
 	DT_CLK(NULL, "timer_sys_ck", "sys_ck"),
 	DT_CLK(NULL, "timer_ext_ck", "alt_ck"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 static struct ti_dt_clk omap2420_clks[] = {
@@ -167,7 +167,7 @@ static struct ti_dt_clk omap2420_clks[] = {
 	DT_CLK(NULL, "vlynq_ick", "vlynq_ick"),
 	DT_CLK(NULL, "vlynq_fck", "vlynq_fck"),
 	DT_CLK("musb-hdrc", "fck", "osc_ck"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 static struct ti_dt_clk omap2430_clks[] = {
@@ -205,7 +205,7 @@ static struct ti_dt_clk omap2430_clks[] = {
 	DT_CLK(NULL, "mmchsdb1_fck", "mmchsdb1_fck"),
 	DT_CLK("omap_hsmmc.1", "mmchsdb_fck", "mmchsdb2_fck"),
 	DT_CLK(NULL, "mmchsdb2_fck", "mmchsdb2_fck"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 static const char *enable_init_clks[] = {

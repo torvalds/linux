@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare Multimedia Card Interface driver
+ * Syyespsys DesignWare Multimedia Card Interface driver
  *
  * Copyright (C) 2009 NXP Semiconductors
- * Copyright (C) 2009, 2010 Imagination Technologies Ltd.
+ * Copyright (C) 2009, 2010 Imagination Techyeslogies Ltd.
  */
 
 #include <linux/err.h>
@@ -76,8 +76,8 @@ static int dw_mci_pltfm_probe(struct platform_device *pdev)
 	const struct dw_mci_drv_data *drv_data = NULL;
 	const struct of_device_id *match;
 
-	if (pdev->dev.of_node) {
-		match = of_match_node(dw_mci_pltfm_match, pdev->dev.of_node);
+	if (pdev->dev.of_yesde) {
+		match = of_match_yesde(dw_mci_pltfm_match, pdev->dev.of_yesde);
 		drv_data = match->data;
 	}
 
@@ -107,5 +107,5 @@ module_platform_driver(dw_mci_pltfm_driver);
 
 MODULE_DESCRIPTION("DW Multimedia Card Interface driver");
 MODULE_AUTHOR("NXP Semiconductor VietNam");
-MODULE_AUTHOR("Imagination Technologies Ltd");
+MODULE_AUTHOR("Imagination Techyeslogies Ltd");
 MODULE_LICENSE("GPL v2");

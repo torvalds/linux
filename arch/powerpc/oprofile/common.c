@@ -12,7 +12,7 @@
 #include <linux/oprofile.h>
 #include <linux/init.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/ptrace.h>
 #include <asm/pmc.h>
 #include <asm/cputable.h>
@@ -135,15 +135,15 @@ static int op_powerpc_create_files(struct dentry *root)
 	 *               event and cycles; and SPU cycle profiling
 	 * bits 1-31  -  Currently unused.
 	 *
-	 * If the file does not exist, then the kernel only supports SPU
+	 * If the file does yest exist, then the kernel only supports SPU
 	 * cycle profiling, PPU event and cycle profiling.
 	 */
 	oprofilefs_create_ulong(root, "cell_support", &sys.cell_support);
 	sys.cell_support = 0x1; /* Note, the user OProfile tool must check
 				 * that this bit is set before attempting to
 				 * user SPU event profiling.  Older kernels
-				 * will not have this file, hence the user
-				 * tool is not allowed to do SPU event
+				 * will yest have this file, hence the user
+				 * tool is yest allowed to do SPU event
 				 * profiling on older kernels.  Older kernels
 				 * will accept SPU events but collected data
 				 * is garbage.

@@ -222,8 +222,8 @@ static ssize_t zfcp_sysfs_port_rescan_store(struct device *dev,
 
 	/*
 	 * Users wish is our command: immediately schedule and flush a
-	 * worker to conduct a synchronous port scan, that is, neither
-	 * a random delay nor a rate limit is applied here.
+	 * worker to conduct a synchroyesus port scan, that is, neither
+	 * a random delay yesr a rate limit is applied here.
 	 */
 	queue_delayed_work(adapter->work_queue, &adapter->scan_work, 0);
 	flush_delayed_work(&adapter->scan_work);
@@ -272,7 +272,7 @@ static bool zfcp_sysfs_port_in_use(struct zfcp_port *const port)
 		goto unlock_host_lock;
 	}
 
-	/* port is about to be removed, so no more unit_add or slave_alloc */
+	/* port is about to be removed, so yes more unit_add or slave_alloc */
 	zfcp_sysfs_port_set_removing(port);
 	in_use = false;
 
@@ -337,7 +337,7 @@ zfcp_sysfs_adapter_diag_max_age_show(struct device *dev,
 		return -ENODEV;
 
 	/* ceil(log(2^64 - 1) / log(10)) = 20 */
-	rc = scnprintf(buf, 20 + 2, "%lu\n", adapter->diagnostics->max_age);
+	rc = scnprintf(buf, 20 + 2, "%lu\n", adapter->diagyesstics->max_age);
 
 	zfcp_ccw_adapter_put(adapter);
 	return rc;
@@ -359,7 +359,7 @@ zfcp_sysfs_adapter_diag_max_age_store(struct device *dev,
 	if (rc != 0)
 		goto out;
 
-	adapter->diagnostics->max_age = max_age;
+	adapter->diagyesstics->max_age = max_age;
 
 	rc = count;
 out:
@@ -730,7 +730,7 @@ static ssize_t zfcp_sysfs_adapter_diag_b2b_credit_show(
 	    0 != (status & ZFCP_STATUS_COMMON_ERP_FAILED))
 		goto out;
 
-	diag_hdr = &adapter->diagnostics->config_data.header;
+	diag_hdr = &adapter->diagyesstics->config_data.header;
 
 	rc = zfcp_diag_update_buffer_limited(
 		adapter, diag_hdr, zfcp_diag_update_config_data_buffer);
@@ -740,7 +740,7 @@ static ssize_t zfcp_sysfs_adapter_diag_b2b_credit_show(
 	spin_lock_irqsave(&diag_hdr->access_lock, flags);
 	/* nport_serv_param doesn't contain the ELS_Command code */
 	nsp = (struct fc_els_flogi *)((unsigned long)
-					      adapter->diagnostics->config_data
+					      adapter->diagyesstics->config_data
 						      .data.nport_serv_param -
 				      sizeof(u32));
 
@@ -780,7 +780,7 @@ static ZFCP_DEV_ATTR(adapter_diag, b2b_credit, 0400,
 			goto out;					       \
 		}							       \
 									       \
-		diag_hdr = &adapter->diagnostics->port_data.header;	       \
+		diag_hdr = &adapter->diagyesstics->port_data.header;	       \
 									       \
 		rc = zfcp_diag_update_buffer_limited(			       \
 			adapter, diag_hdr, zfcp_diag_update_port_data_buffer); \
@@ -790,7 +790,7 @@ static ZFCP_DEV_ATTR(adapter_diag, b2b_credit, 0400,
 		spin_lock_irqsave(&diag_hdr->access_lock, flags);	       \
 		rc = scnprintf(						       \
 			buf, (_prtsize) + 2, _prtfmt "\n",		       \
-			adapter->diagnostics->port_data.data._qtcb_member);    \
+			adapter->diagyesstics->port_data.data._qtcb_member);    \
 		spin_unlock_irqrestore(&diag_hdr->access_lock, flags);	       \
 									       \
 	out:								       \
@@ -827,6 +827,6 @@ static struct attribute *zfcp_sysfs_diag_attrs[] = {
 };
 
 const struct attribute_group zfcp_sysfs_diag_attr_group = {
-	.name = "diagnostics",
+	.name = "diagyesstics",
 	.attrs = zfcp_sysfs_diag_attrs,
 };

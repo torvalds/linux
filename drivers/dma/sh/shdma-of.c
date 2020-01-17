@@ -43,14 +43,14 @@ static int shdma_of_probe(struct platform_device *pdev)
 	const struct of_dev_auxdata *lookup = dev_get_platdata(&pdev->dev);
 	int ret;
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_yesde,
 					 shdma_of_xlate, pdev);
 	if (ret < 0)
 		return ret;
 
-	ret = of_platform_populate(pdev->dev.of_node, NULL, lookup, &pdev->dev);
+	ret = of_platform_populate(pdev->dev.of_yesde, NULL, lookup, &pdev->dev);
 	if (ret < 0)
-		of_dma_controller_free(pdev->dev.of_node);
+		of_dma_controller_free(pdev->dev.of_yesde);
 
 	return ret;
 }

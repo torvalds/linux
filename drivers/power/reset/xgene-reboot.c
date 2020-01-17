@@ -12,7 +12,7 @@
  */
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -24,10 +24,10 @@ struct xgene_reboot_context {
 	struct device *dev;
 	void *csr;
 	u32 mask;
-	struct notifier_block restart_handler;
+	struct yestifier_block restart_handler;
 };
 
-static int xgene_restart_handler(struct notifier_block *this,
+static int xgene_restart_handler(struct yestifier_block *this,
 				 unsigned long mode, void *cmd)
 {
 	struct xgene_reboot_context *ctx =
@@ -54,22 +54,22 @@ static int xgene_reboot_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->csr = of_iomap(dev->of_node, 0);
+	ctx->csr = of_iomap(dev->of_yesde, 0);
 	if (!ctx->csr) {
-		dev_err(dev, "can not map resource\n");
+		dev_err(dev, "can yest map resource\n");
 		return -ENODEV;
 	}
 
-	if (of_property_read_u32(dev->of_node, "mask", &ctx->mask))
+	if (of_property_read_u32(dev->of_yesde, "mask", &ctx->mask))
 		ctx->mask = 0xFFFFFFFF;
 
 	ctx->dev = dev;
-	ctx->restart_handler.notifier_call = xgene_restart_handler;
+	ctx->restart_handler.yestifier_call = xgene_restart_handler;
 	ctx->restart_handler.priority = 128;
 	err = register_restart_handler(&ctx->restart_handler);
 	if (err) {
 		iounmap(ctx->csr);
-		dev_err(dev, "cannot register restart handler (err=%d)\n", err);
+		dev_err(dev, "canyest register restart handler (err=%d)\n", err);
 	}
 
 	return err;

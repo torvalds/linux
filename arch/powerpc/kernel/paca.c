@@ -30,21 +30,21 @@ static void *__init alloc_paca_data(unsigned long size, unsigned long align,
 	int nid;
 
 	/*
-	 * boot_cpuid paca is allocated very early before cpu_to_node is up.
-	 * Set bottom-up mode, because the boot CPU should be on node-0,
+	 * boot_cpuid paca is allocated very early before cpu_to_yesde is up.
+	 * Set bottom-up mode, because the boot CPU should be on yesde-0,
 	 * which will put its paca in the right place.
 	 */
 	if (cpu == boot_cpuid) {
 		nid = NUMA_NO_NODE;
 		memblock_set_bottom_up(true);
 	} else {
-		nid = early_cpu_to_node(cpu);
+		nid = early_cpu_to_yesde(cpu);
 	}
 
 	ptr = memblock_alloc_try_nid(size, align, MEMBLOCK_LOW_LIMIT,
 				     limit, nid);
 	if (!ptr)
-		panic("cannot allocate paca data");
+		panic("canyest allocate paca data");
 
 	if (cpu == boot_cpuid)
 		memblock_set_bottom_up(false);
@@ -72,7 +72,7 @@ static void *__init alloc_shared_lppaca(unsigned long size, unsigned long align,
 					       PAGE_SIZE, MEMBLOCK_LOW_LIMIT,
 					       limit, NUMA_NO_NODE);
 		if (!shared_lppaca)
-			panic("cannot allocate shared data");
+			panic("canyest allocate shared data");
 
 		memblock_set_bottom_up(false);
 		uv_share_page(PHYS_PFN(__pa(shared_lppaca)),
@@ -83,7 +83,7 @@ static void *__init alloc_shared_lppaca(unsigned long size, unsigned long align,
 	shared_lppaca_size += size;
 
 	/*
-	 * This is very early in boot, so no harm done if the kernel crashes at
+	 * This is very early in boot, so yes harm done if the kernel crashes at
 	 * this point.
 	 */
 	BUG_ON(shared_lppaca_size >= shared_lppaca_total_size);
@@ -95,7 +95,7 @@ static void *__init alloc_shared_lppaca(unsigned long size, unsigned long align,
  * See asm/lppaca.h for more detail.
  *
  * lppaca structures must must be 1kB in size, L1 cache line aligned,
- * and not cross 4kB boundary. A 1kB size and 1kB alignment will satisfy
+ * and yest cross 4kB boundary. A 1kB size and 1kB alignment will satisfy
  * these requirements.
  */
 static inline void init_lppaca(struct lppaca *lppaca)
@@ -171,7 +171,7 @@ static struct slb_shadow * __init new_slb_shadow(int cpu, unsigned long limit)
  * per processor.  The Paca array must contain an entry for each thread.
  * The VPD Areas will give a max logical processors = 2 * max physical
  * processors.  The processor VPD array needs one entry per physical
- * processor (not thread).
+ * processor (yest thread).
  */
 struct paca_struct **paca_ptrs __read_mostly;
 EXPORT_SYMBOL(paca_ptrs);
@@ -199,7 +199,7 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 #endif
 
 #ifdef CONFIG_PPC_BOOK3E
-	/* For now -- if we have threads this will be adjusted later */
+	/* For yesw -- if we have threads this will be adjusted later */
 	new_paca->tcd_ptr = &new_paca->tcd;
 #endif
 }
@@ -251,7 +251,7 @@ void __init allocate_paca(int cpu)
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
-	 * We access pacas in real mode, and cannot take SLB faults
+	 * We access pacas in real mode, and canyest take SLB faults
 	 * on them when in virtual mode, so allocate them accordingly.
 	 */
 	limit = min(ppc64_bolted_size(), ppc64_rma_size);

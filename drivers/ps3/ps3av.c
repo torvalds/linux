@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/ioctl.h>
 #include <linux/fb.h>
 #include <linux/slab.h>
@@ -534,7 +534,7 @@ static void ps3av_set_videomode_cont(u32 id, u32 old_id)
 	ps3av_set_video_disable_sig();
 
 	/*
-	 * AV backend needs non-VESA mode setting at least one time
+	 * AV backend needs yesn-VESA mode setting at least one time
 	 * when VESA mode is used.
 	 */
 	if (vesa == 0 && (id & PS3AV_MODE_MASK) >= PS3AV_MODE_WXGA) {
@@ -600,7 +600,7 @@ static enum ps3av_mode_num ps3av_resbit2id(u32 res_50, u32 res_60,
 
 	/*
 	 * We mask off the resolution bits we care about and combine the
-	 * results in one bitfield, so make sure there's no overlap
+	 * results in one bitfield, so make sure there's yes overlap
 	 */
 	BUILD_BUG_ON(PS3AV_RES_MASK_50 << SHIFT_50 &
 		     PS3AV_RES_MASK_60 << SHIFT_60);
@@ -777,7 +777,7 @@ static int ps3av_auto_videomode(struct ps3av_pkt_av_get_hw_conf *av_hw_conf)
 	}
 
 	if (!id) {
-		/* no HDMI interface or HDMI is off */
+		/* yes HDMI interface or HDMI is off */
 		if (ps3av->region & PS3AV_REGION_60)
 			id = PS3AV_DEFAULT_AVMULTI_MODE_ID_REG_60;
 		else

@@ -2,7 +2,7 @@
 /*
  * ALSA SoC TLV320AIC3X codec driver
  *
- * Author:      Vladimir Barinov, <vbarinov@embeddedalley.com>
+ * Author:      Vladimir Bariyesv, <vbariyesv@embeddedalley.com>
  * Copyright:   (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  */
 
@@ -112,7 +112,7 @@
 #define PGAR_2_HPRCOM_VOL		70
 #define DACR1_2_HPRCOM_VOL		71
 #define HPRCOM_CTRL			72
-/* Mono Line Output Plus/Minus control registers */
+/* Moyes Line Output Plus/Minus control registers */
 #define LINE2L_2_MONOLOPM_VOL		73
 #define PGAL_2_MONOLOPM_VOL		74
 #define DACL1_2_MONOLOPM_VOL		75

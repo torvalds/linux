@@ -163,7 +163,7 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 
 		mt76x02_dfs_init_detector(dev);
 
-		wiphy->reg_notifier = mt76x02_regd_notifier;
+		wiphy->reg_yestifier = mt76x02_regd_yestifier;
 		wiphy->iface_combinations = mt76x02_if_comb;
 		wiphy->n_iface_combinations = ARRAY_SIZE(mt76x02_if_comb);
 		wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
@@ -312,7 +312,7 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	/*
 	 * Client mode typically only has one configurable BSSID register,
 	 * which is used for bssidx=0. This is linked to the MAC address.
-	 * Since mac80211 allows changing interface types, and we cannot
+	 * Since mac80211 allows changing interface types, and we canyest
 	 * force the use of the primary MAC address for a station mode
 	 * interface, we need some other way of configuring a per-interface
 	 * remote BSSID.
@@ -320,7 +320,7 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	 * used for AP mode and bssidx 8-15 for client mode.
 	 * We shift the station interface bss index by 8 to force the
 	 * hardware to recognize the BSSID.
-	 * The resulting bssidx mismatch for unicast frames is ignored by hw.
+	 * The resulting bssidx mismatch for unicast frames is igyesred by hw.
 	 */
 	if (vif->type == NL80211_IFTYPE_STATION)
 		idx += 8;
@@ -423,7 +423,7 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 
 	/*
-	 * The hardware does not support per-STA RX GTK, fall back
+	 * The hardware does yest support per-STA RX GTK, fall back
 	 * to software mode for these.
 	 */
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||

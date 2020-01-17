@@ -5,9 +5,9 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
-struct device_node;
+struct device_yesde;
 struct ethtool_cmd;
-struct fwnode_handle;
+struct fwyesde_handle;
 struct net_device;
 
 enum {
@@ -104,13 +104,13 @@ struct phylink_mac_ops {
  * @state: a pointer to a &struct phylink_link_state.
  *
  * Clear bits in the @supported and @state->advertising masks that
- * are not supportable by the MAC.
+ * are yest supportable by the MAC.
  *
  * Note that the PHY may be able to transform from one connection
- * technology to another, so, eg, don't clear 1000BaseX just
+ * techyeslogy to ayesther, so, eg, don't clear 1000BaseX just
  * because the MAC is unable to BaseX mode. This is more about
  * clearing unsupported speeds and duplex settings. The port modes
- * should not be cleared; phylink_set_port_modes() will help with this.
+ * should yest be cleared; phylink_set_port_modes() will help with this.
  *
  * If the @state->interface mode is %PHY_INTERFACE_MODE_1000BASEX
  * or %PHY_INTERFACE_MODE_2500BASEX, select the appropriate mode
@@ -120,7 +120,7 @@ struct phylink_mac_ops {
  * When @state->interface is %PHY_INTERFACE_MODE_NA, phylink expects the
  * MAC driver to return all supported link modes.
  *
- * If the @state->interface mode is not supported, then the @supported
+ * If the @state->interface mode is yest supported, then the @supported
  * mask must be cleared.
  */
 void validate(struct phylink_config *config, unsigned long *supported,
@@ -147,7 +147,7 @@ void mac_pcs_get_state(struct phylink_config *config,
  * @mode: one of %MLO_AN_FIXED, %MLO_AN_PHY, %MLO_AN_INBAND.
  * @state: a pointer to a &struct phylink_link_state.
  *
- * Note - not all members of @state are valid.  In particular,
+ * Note - yest all members of @state are valid.  In particular,
  * @state->lp_advertising, @state->link, @state->an_complete are never
  * guaranteed to be correct, and so any mac_config() implementation must
  * never reference these fields.
@@ -158,7 +158,7 @@ void mac_pcs_get_state(struct phylink_config *config,
  *   Configure the specified @state->speed, @state->duplex and
  *   @state->pause (%MLO_PAUSE_TX / %MLO_PAUSE_RX) modes over a link
  *   specified by @state->interface.  @state->advertising may be used,
- *   but is not required.  Other members of @state must be ignored.
+ *   but is yest required.  Other members of @state must be igyesred.
  *
  *   Valid state members: interface, speed, duplex, pause, advertising.
  *
@@ -166,7 +166,7 @@ void mac_pcs_get_state(struct phylink_config *config,
  *   place the link in an inband negotiation mode (such as 802.3z
  *   1000base-X or Cisco SGMII mode depending on the @state->interface
  *   mode). In both cases, link state management (whether the link
- *   is up or not) is performed by the MAC, and reported via the
+ *   is up or yest) is performed by the MAC, and reported via the
  *   mac_pcs_get_state() callback. Changes in link state must be made
  *   by calling phylink_mac_change().
  *
@@ -178,7 +178,7 @@ void mac_pcs_get_state(struct phylink_config *config,
  *
  *   If in Cisco SGMII mode, the link speed and duplex mode are passed
  *   in the serial bitstream 16-bit configuration word, and the MAC
- *   should be configured to read these bits and acknowledge the
+ *   should be configured to read these bits and ackyeswledge the
  *   configuration word. Nothing is advertised by the MAC. The MAC is
  *   responsible for reading the configuration word and configuring
  *   itself accordingly.
@@ -186,8 +186,8 @@ void mac_pcs_get_state(struct phylink_config *config,
  *   Valid state members: interface, an_enabled, pause, advertising.
  *
  * Implementations are expected to update the MAC to reflect the
- * requested settings - i.o.w., if nothing has changed between two
- * calls, no action is expected.  If only flow control settings have
+ * requested settings - i.o.w., if yesthing has changed between two
+ * calls, yes action is expected.  If only flow control settings have
  * changed, flow control should be updated *without* taking the link
  * down.  This "update" behaviour is critical to avoid bouncing the
  * link up status.
@@ -207,7 +207,7 @@ void mac_an_restart(struct phylink_config *config);
  * @mode: link autonegotiation mode
  * @interface: link &typedef phy_interface_t mode
  *
- * If @mode is not an in-band negotiation mode (as defined by
+ * If @mode is yest an in-band negotiation mode (as defined by
  * phylink_autoneg_inband()), force the link down and disable any
  * Energy Efficient Ethernet MAC configuration. Interface type
  * selection must be done in mac_config().
@@ -222,9 +222,9 @@ void mac_link_down(struct phylink_config *config, unsigned int mode,
  * @interface: link &typedef phy_interface_t mode
  * @phy: any attached phy
  *
- * If @mode is not an in-band negotiation mode (as defined by
+ * If @mode is yest an in-band negotiation mode (as defined by
  * phylink_autoneg_inband()), allow the link to come up. If @phy
- * is non-%NULL, configure Energy Efficient Ethernet by calling
+ * is yesn-%NULL, configure Energy Efficient Ethernet by calling
  * phy_init_eee() and perform appropriate MAC configuration for EEE.
  * Interface type selection must be done in mac_config().
  */
@@ -233,13 +233,13 @@ void mac_link_up(struct phylink_config *config, unsigned int mode,
 		 struct phy_device *phy);
 #endif
 
-struct phylink *phylink_create(struct phylink_config *, struct fwnode_handle *,
+struct phylink *phylink_create(struct phylink_config *, struct fwyesde_handle *,
 			       phy_interface_t iface,
 			       const struct phylink_mac_ops *ops);
 void phylink_destroy(struct phylink *);
 
 int phylink_connect_phy(struct phylink *, struct phy_device *);
-int phylink_of_phy_connect(struct phylink *, struct device_node *, u32 flags);
+int phylink_of_phy_connect(struct phylink *, struct device_yesde *, u32 flags);
 void phylink_disconnect_phy(struct phylink *);
 int phylink_fixed_state_cb(struct phylink *,
 			   void (*cb)(struct net_device *dev,

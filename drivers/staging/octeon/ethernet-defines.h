@@ -8,7 +8,7 @@
 /*
  * A few defines are used to control the operation of this driver:
  *  USE_ASYNC_IOBDMA
- *      Use asynchronous IO access to hardware. This uses Octeon's asynchronous
+ *      Use asynchroyesus IO access to hardware. This uses Octeon's asynchroyesus
  *      IOBDMAs to issue IO accesses without stalling. Set this to zero
  *      to disable this. Note that IOBDMAs require CVMSEG.
  *  REUSE_SKBUFFS_WITHOUT_FREE

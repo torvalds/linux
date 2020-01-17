@@ -12,18 +12,18 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 
-#include <linux/soc/samsung/exynos-regs-pmu.h>
-#include <linux/soc/samsung/exynos-pmu.h>
+#include <linux/soc/samsung/exyyess-regs-pmu.h>
+#include <linux/soc/samsung/exyyess-pmu.h>
 
-#include "exynos-pmu.h"
+#include "exyyess-pmu.h"
 
-struct exynos_pmu_context {
+struct exyyess_pmu_context {
 	struct device *dev;
-	const struct exynos_pmu_data *pmu_data;
+	const struct exyyess_pmu_data *pmu_data;
 };
 
 void __iomem *pmu_base_addr;
-static struct exynos_pmu_context *pmu_context;
+static struct exyyess_pmu_context *pmu_context;
 
 void pmu_raw_writel(u32 val, u32 offset)
 {
@@ -35,10 +35,10 @@ u32 pmu_raw_readl(u32 offset)
 	return readl_relaxed(pmu_base_addr + offset);
 }
 
-void exynos_sys_powerdown_conf(enum sys_powerdown mode)
+void exyyess_sys_powerdown_conf(enum sys_powerdown mode)
 {
 	unsigned int i;
-	const struct exynos_pmu_data *pmu_data;
+	const struct exyyess_pmu_data *pmu_data;
 
 	if (!pmu_context || !pmu_context->pmu_data)
 		return;
@@ -63,51 +63,51 @@ void exynos_sys_powerdown_conf(enum sys_powerdown mode)
  * and useless on other arch.
  */
 #ifdef CONFIG_EXYNOS_PMU_ARM_DRIVERS
-#define exynos_pmu_data_arm_ptr(data)	(&data)
+#define exyyess_pmu_data_arm_ptr(data)	(&data)
 #else
-#define exynos_pmu_data_arm_ptr(data)	NULL
+#define exyyess_pmu_data_arm_ptr(data)	NULL
 #endif
 
 /*
  * PMU platform driver and devicetree bindings.
  */
-static const struct of_device_id exynos_pmu_of_device_ids[] = {
+static const struct of_device_id exyyess_pmu_of_device_ids[] = {
 	{
-		.compatible = "samsung,exynos3250-pmu",
-		.data = exynos_pmu_data_arm_ptr(exynos3250_pmu_data),
+		.compatible = "samsung,exyyess3250-pmu",
+		.data = exyyess_pmu_data_arm_ptr(exyyess3250_pmu_data),
 	}, {
-		.compatible = "samsung,exynos4210-pmu",
-		.data = exynos_pmu_data_arm_ptr(exynos4210_pmu_data),
+		.compatible = "samsung,exyyess4210-pmu",
+		.data = exyyess_pmu_data_arm_ptr(exyyess4210_pmu_data),
 	}, {
-		.compatible = "samsung,exynos4412-pmu",
-		.data = exynos_pmu_data_arm_ptr(exynos4412_pmu_data),
+		.compatible = "samsung,exyyess4412-pmu",
+		.data = exyyess_pmu_data_arm_ptr(exyyess4412_pmu_data),
 	}, {
-		.compatible = "samsung,exynos5250-pmu",
-		.data = exynos_pmu_data_arm_ptr(exynos5250_pmu_data),
+		.compatible = "samsung,exyyess5250-pmu",
+		.data = exyyess_pmu_data_arm_ptr(exyyess5250_pmu_data),
 	}, {
-		.compatible = "samsung,exynos5410-pmu",
+		.compatible = "samsung,exyyess5410-pmu",
 	}, {
-		.compatible = "samsung,exynos5420-pmu",
-		.data = exynos_pmu_data_arm_ptr(exynos5420_pmu_data),
+		.compatible = "samsung,exyyess5420-pmu",
+		.data = exyyess_pmu_data_arm_ptr(exyyess5420_pmu_data),
 	}, {
-		.compatible = "samsung,exynos5433-pmu",
+		.compatible = "samsung,exyyess5433-pmu",
 	}, {
-		.compatible = "samsung,exynos7-pmu",
+		.compatible = "samsung,exyyess7-pmu",
 	},
 	{ /*sentinel*/ },
 };
 
-struct regmap *exynos_get_pmu_regmap(void)
+struct regmap *exyyess_get_pmu_regmap(void)
 {
-	struct device_node *np = of_find_matching_node(NULL,
-						      exynos_pmu_of_device_ids);
+	struct device_yesde *np = of_find_matching_yesde(NULL,
+						      exyyess_pmu_of_device_ids);
 	if (np)
-		return syscon_node_to_regmap(np);
+		return syscon_yesde_to_regmap(np);
 	return ERR_PTR(-ENODEV);
 }
-EXPORT_SYMBOL_GPL(exynos_get_pmu_regmap);
+EXPORT_SYMBOL_GPL(exyyess_get_pmu_regmap);
 
-static int exynos_pmu_probe(struct platform_device *pdev)
+static int exyyess_pmu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
@@ -118,7 +118,7 @@ static int exynos_pmu_probe(struct platform_device *pdev)
 		return PTR_ERR(pmu_base_addr);
 
 	pmu_context = devm_kzalloc(&pdev->dev,
-			sizeof(struct exynos_pmu_context),
+			sizeof(struct exyyess_pmu_context),
 			GFP_KERNEL);
 	if (!pmu_context)
 		return -ENOMEM;
@@ -131,23 +131,23 @@ static int exynos_pmu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pmu_context);
 
 	if (devm_of_platform_populate(dev))
-		dev_err(dev, "Error populating children, reboot and poweroff might not work properly\n");
+		dev_err(dev, "Error populating children, reboot and poweroff might yest work properly\n");
 
-	dev_dbg(dev, "Exynos PMU Driver probe done\n");
+	dev_dbg(dev, "Exyyess PMU Driver probe done\n");
 	return 0;
 }
 
-static struct platform_driver exynos_pmu_driver = {
+static struct platform_driver exyyess_pmu_driver = {
 	.driver  = {
-		.name   = "exynos-pmu",
-		.of_match_table = exynos_pmu_of_device_ids,
+		.name   = "exyyess-pmu",
+		.of_match_table = exyyess_pmu_of_device_ids,
 	},
-	.probe = exynos_pmu_probe,
+	.probe = exyyess_pmu_probe,
 };
 
-static int __init exynos_pmu_init(void)
+static int __init exyyess_pmu_init(void)
 {
-	return platform_driver_register(&exynos_pmu_driver);
+	return platform_driver_register(&exyyess_pmu_driver);
 
 }
-postcore_initcall(exynos_pmu_init);
+postcore_initcall(exyyess_pmu_init);

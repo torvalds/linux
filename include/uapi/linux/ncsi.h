@@ -105,7 +105,7 @@ enum ncsi_nl_pkg_attrs {
  * @NCSI_CHANNEL_ATTR: nested array of channel attributes
  * @NCSI_CHANNEL_ATTR_ID: channel ID
  * @NCSI_CHANNEL_ATTR_VERSION_MAJOR: channel major version number
- * @NCSI_CHANNEL_ATTR_VERSION_MINOR: channel minor version number
+ * @NCSI_CHANNEL_ATTR_VERSION_MINOR: channel miyesr version number
  * @NCSI_CHANNEL_ATTR_VERSION_STR: channel version string
  * @NCSI_CHANNEL_ATTR_LINK_STATE: channel link state flags
  * @NCSI_CHANNEL_ATTR_ACTIVE: channels with this flag are in

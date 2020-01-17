@@ -20,12 +20,12 @@ Optional properties:
 - micbias-resistor-k-ohms : the bias resistor to be used in kOhms
 	The resistor can take values of 2k, 4k or 8k.
 	If set to 0 it will be off.
-	If this node is not mentioned or if the value is unknown, then
+	If this yesde is yest mentioned or if the value is unkyeswn, then
 	micbias	resistor is set to 4K.
 
 - micbias-voltage-m-volts : the bias voltage to be used in mVolts
 	The voltage can take values from 1.25V to 3V by 250mV steps
-	If this node is not mentioned or the value is unknown, then
+	If this yesde is yest mentioned or the value is unkyeswn, then
 	the value is set to 1.25V.
 
 - lrclk-strength: the LRCLK pad strength. Possible values are:

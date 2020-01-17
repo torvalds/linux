@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,7 +24,7 @@
 #include "priv.h"
 #include "acpi.h"
 
-#include <core/notify.h>
+#include <core/yestify.h>
 #include <core/option.h>
 
 #include <subdev/bios.h>
@@ -2612,12 +2612,12 @@ nv168_chipset = {
 
 static int
 nvkm_device_event_ctor(struct nvkm_object *object, void *data, u32 size,
-		       struct nvkm_notify *notify)
+		       struct nvkm_yestify *yestify)
 {
 	if (!WARN_ON(size != 0)) {
-		notify->size  = 0;
-		notify->types = 1;
-		notify->index = 0;
+		yestify->size  = 0;
+		yestify->types = 1;
+		yestify->index = 0;
 		return 0;
 	}
 	return -EINVAL;
@@ -3089,7 +3089,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x167: device->chip = &nv167_chipset; break;
 		case 0x168: device->chip = &nv168_chipset; break;
 		default:
-			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
+			nvdev_error(device, "unkyeswn chipset (%08x)\n", boot0);
 			goto done;
 		}
 

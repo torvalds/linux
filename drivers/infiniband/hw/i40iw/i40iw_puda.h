@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -61,7 +61,7 @@ struct i40iw_puda_completion_info {
 	u8 l3proto;
 	u8 l4proto;
 	u16 payload_len;
-	u32 compl_error;	/* No_err=0, else major and minor err code */
+	u32 compl_error;	/* No_err=0, else major and miyesr err code */
 	u32 qp_id;
 	u32 wqe_idx;
 };

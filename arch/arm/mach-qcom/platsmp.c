@@ -7,7 +7,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/of.h>
@@ -52,17 +52,17 @@ static void qcom_cpu_die(unsigned int cpu)
 
 static int scss_release_secondary(unsigned int cpu)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	void __iomem *base;
 
-	node = of_find_compatible_node(NULL, NULL, "qcom,gcc-msm8660");
-	if (!node) {
-		pr_err("%s: can't find node\n", __func__);
+	yesde = of_find_compatible_yesde(NULL, NULL, "qcom,gcc-msm8660");
+	if (!yesde) {
+		pr_err("%s: can't find yesde\n", __func__);
 		return -ENXIO;
 	}
 
-	base = of_iomap(node, 0);
-	of_node_put(node);
+	base = of_iomap(yesde, 0);
+	of_yesde_put(yesde);
 	if (!base)
 		return -ENOMEM;
 
@@ -79,32 +79,32 @@ static int kpssv1_release_secondary(unsigned int cpu)
 {
 	int ret = 0;
 	void __iomem *reg, *saw_reg;
-	struct device_node *cpu_node, *acc_node, *saw_node;
+	struct device_yesde *cpu_yesde, *acc_yesde, *saw_yesde;
 	u32 val;
 
-	cpu_node = of_get_cpu_node(cpu, NULL);
-	if (!cpu_node)
+	cpu_yesde = of_get_cpu_yesde(cpu, NULL);
+	if (!cpu_yesde)
 		return -ENODEV;
 
-	acc_node = of_parse_phandle(cpu_node, "qcom,acc", 0);
-	if (!acc_node) {
+	acc_yesde = of_parse_phandle(cpu_yesde, "qcom,acc", 0);
+	if (!acc_yesde) {
 		ret = -ENODEV;
 		goto out_acc;
 	}
 
-	saw_node = of_parse_phandle(cpu_node, "qcom,saw", 0);
-	if (!saw_node) {
+	saw_yesde = of_parse_phandle(cpu_yesde, "qcom,saw", 0);
+	if (!saw_yesde) {
 		ret = -ENODEV;
 		goto out_saw;
 	}
 
-	reg = of_iomap(acc_node, 0);
+	reg = of_iomap(acc_yesde, 0);
 	if (!reg) {
 		ret = -ENOMEM;
 		goto out_acc_map;
 	}
 
-	saw_reg = of_iomap(saw_node, 0);
+	saw_reg = of_iomap(saw_yesde, 0);
 	if (!saw_reg) {
 		ret = -ENOMEM;
 		goto out_saw_map;
@@ -146,51 +146,51 @@ static int kpssv1_release_secondary(unsigned int cpu)
 out_saw_map:
 	iounmap(reg);
 out_acc_map:
-	of_node_put(saw_node);
+	of_yesde_put(saw_yesde);
 out_saw:
-	of_node_put(acc_node);
+	of_yesde_put(acc_yesde);
 out_acc:
-	of_node_put(cpu_node);
+	of_yesde_put(cpu_yesde);
 	return ret;
 }
 
 static int kpssv2_release_secondary(unsigned int cpu)
 {
 	void __iomem *reg;
-	struct device_node *cpu_node, *l2_node, *acc_node, *saw_node;
+	struct device_yesde *cpu_yesde, *l2_yesde, *acc_yesde, *saw_yesde;
 	void __iomem *l2_saw_base;
 	unsigned reg_val;
 	int ret;
 
-	cpu_node = of_get_cpu_node(cpu, NULL);
-	if (!cpu_node)
+	cpu_yesde = of_get_cpu_yesde(cpu, NULL);
+	if (!cpu_yesde)
 		return -ENODEV;
 
-	acc_node = of_parse_phandle(cpu_node, "qcom,acc", 0);
-	if (!acc_node) {
+	acc_yesde = of_parse_phandle(cpu_yesde, "qcom,acc", 0);
+	if (!acc_yesde) {
 		ret = -ENODEV;
 		goto out_acc;
 	}
 
-	l2_node = of_parse_phandle(cpu_node, "next-level-cache", 0);
-	if (!l2_node) {
+	l2_yesde = of_parse_phandle(cpu_yesde, "next-level-cache", 0);
+	if (!l2_yesde) {
 		ret = -ENODEV;
 		goto out_l2;
 	}
 
-	saw_node = of_parse_phandle(l2_node, "qcom,saw", 0);
-	if (!saw_node) {
+	saw_yesde = of_parse_phandle(l2_yesde, "qcom,saw", 0);
+	if (!saw_yesde) {
 		ret = -ENODEV;
 		goto out_saw;
 	}
 
-	reg = of_iomap(acc_node, 0);
+	reg = of_iomap(acc_yesde, 0);
 	if (!reg) {
 		ret = -ENOMEM;
 		goto out_map;
 	}
 
-	l2_saw_base = of_iomap(saw_node, 0);
+	l2_saw_base = of_iomap(saw_yesde, 0);
 	if (!l2_saw_base) {
 		ret = -ENOMEM;
 		goto out_saw_map;
@@ -243,13 +243,13 @@ static int kpssv2_release_secondary(unsigned int cpu)
 out_saw_map:
 	iounmap(reg);
 out_map:
-	of_node_put(saw_node);
+	of_yesde_put(saw_yesde);
 out_saw:
-	of_node_put(l2_node);
+	of_yesde_put(l2_yesde);
 out_l2:
-	of_node_put(acc_node);
+	of_yesde_put(acc_yesde);
 out_acc:
-	of_node_put(cpu_node);
+	of_yesde_put(cpu_yesde);
 
 	return ret;
 }

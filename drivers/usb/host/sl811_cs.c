@@ -103,7 +103,7 @@ static int sl811_hc_init(struct device *parent, resource_size_t base_addr,
 	resources[2].start = base_addr + 1;
 	resources[2].end   = base_addr + 1;
 
-	/* The driver core will probe for us.  We know sl811-hcd has been
+	/* The driver core will probe for us.  We kyesw sl811-hcd has been
 	 * initialized already because of the link order dependency created
 	 * by referencing "sl811h_driver".
 	 */

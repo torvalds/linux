@@ -50,7 +50,7 @@
 /* PHY Control 1 */
 #define	MII_KSZPHY_CTRL_1			0x1e
 
-/* PHY Control 2 / PHY Control (if no PHY Control 1) */
+/* PHY Control 2 / PHY Control (if yes PHY Control 1) */
 #define	MII_KSZPHY_CTRL_2			0x1f
 #define	MII_KSZPHY_CTRL				MII_KSZPHY_CTRL_2
 /* bitmap of PHY register to set interrupt mode */
@@ -228,7 +228,7 @@ out:
 }
 
 /* Disable PHY address 0 as the broadcast address, so that it can be used as a
- * unique (non-broadcast) address on a shared bus.
+ * unique (yesn-broadcast) address on a shared bus.
  */
 static int kszphy_broadcast_disable(struct phy_device *phydev)
 {
@@ -310,10 +310,10 @@ static int ksz8041_config_init(struct phy_device *phydev)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
-	struct device_node *of_node = phydev->mdio.dev.of_node;
+	struct device_yesde *of_yesde = phydev->mdio.dev.of_yesde;
 
 	/* Limit supported and advertised modes in fiber mode */
-	if (of_property_read_bool(of_node, "micrel,fiber-mode")) {
+	if (of_property_read_bool(of_yesde, "micrel,fiber-mode")) {
 		phydev->dev_flags |= MICREL_PHY_FXEN;
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mask);
 		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, mask);
@@ -356,7 +356,7 @@ static int ksz8051_ksz8795_match_phy_device(struct phy_device *phydev,
 	/* KSZ8051 PHY and KSZ8794/KSZ8795/KSZ8765 switch share the same
 	 * exact PHY ID. However, they can be told apart by the extended
 	 * capability registers presence. The KSZ8051 PHY has them while
-	 * the switch does not.
+	 * the switch does yest.
 	 */
 	ret &= BMSR_ERCAP;
 	if (ksz_phy_id == PHY_ID_KSZ8051)
@@ -399,7 +399,7 @@ static int ksz8795_match_phy_device(struct phy_device *phydev)
 }
 
 static int ksz9021_load_values_from_of(struct phy_device *phydev,
-				       const struct device_node *of_node,
+				       const struct device_yesde *of_yesde,
 				       u16 reg,
 				       const char *field1, const char *field2,
 				       const char *field3, const char *field4)
@@ -411,16 +411,16 @@ static int ksz9021_load_values_from_of(struct phy_device *phydev,
 	int newval;
 	int matches = 0;
 
-	if (!of_property_read_u32(of_node, field1, &val1))
+	if (!of_property_read_u32(of_yesde, field1, &val1))
 		matches++;
 
-	if (!of_property_read_u32(of_node, field2, &val2))
+	if (!of_property_read_u32(of_yesde, field2, &val2))
 		matches++;
 
-	if (!of_property_read_u32(of_node, field3, &val3))
+	if (!of_property_read_u32(of_yesde, field3, &val3))
 		matches++;
 
-	if (!of_property_read_u32(of_node, field4, &val4))
+	if (!of_property_read_u32(of_yesde, field4, &val4))
 		matches++;
 
 	if (!matches)
@@ -449,30 +449,30 @@ static int ksz9021_load_values_from_of(struct phy_device *phydev,
 static int ksz9021_config_init(struct phy_device *phydev)
 {
 	const struct device *dev = &phydev->mdio.dev;
-	const struct device_node *of_node = dev->of_node;
+	const struct device_yesde *of_yesde = dev->of_yesde;
 	const struct device *dev_walker;
 
 	/* The Micrel driver has a deprecated option to place phy OF
-	 * properties in the MAC node. Walk up the tree of devices to
-	 * find a device with an OF node.
+	 * properties in the MAC yesde. Walk up the tree of devices to
+	 * find a device with an OF yesde.
 	 */
 	dev_walker = &phydev->mdio.dev;
 	do {
-		of_node = dev_walker->of_node;
+		of_yesde = dev_walker->of_yesde;
 		dev_walker = dev_walker->parent;
 
-	} while (!of_node && dev_walker);
+	} while (!of_yesde && dev_walker);
 
-	if (of_node) {
-		ksz9021_load_values_from_of(phydev, of_node,
+	if (of_yesde) {
+		ksz9021_load_values_from_of(phydev, of_yesde,
 				    MII_KSZPHY_CLK_CONTROL_PAD_SKEW,
 				    "txen-skew-ps", "txc-skew-ps",
 				    "rxdv-skew-ps", "rxc-skew-ps");
-		ksz9021_load_values_from_of(phydev, of_node,
+		ksz9021_load_values_from_of(phydev, of_yesde,
 				    MII_KSZPHY_RX_DATA_PAD_SKEW,
 				    "rxd0-skew-ps", "rxd1-skew-ps",
 				    "rxd2-skew-ps", "rxd3-skew-ps");
-		ksz9021_load_values_from_of(phydev, of_node,
+		ksz9021_load_values_from_of(phydev, of_yesde,
 				    MII_KSZPHY_TX_DATA_PAD_SKEW,
 				    "txd0-skew-ps", "txd1-skew-ps",
 				    "txd2-skew-ps", "txd3-skew-ps");
@@ -498,7 +498,7 @@ static int ksz9021_config_init(struct phy_device *phydev)
 #define MII_KSZ9031RN_EDPD_ENABLE	BIT(0)
 
 static int ksz9031_of_load_skew_values(struct phy_device *phydev,
-				       const struct device_node *of_node,
+				       const struct device_yesde *of_yesde,
 				       u16 reg, size_t field_sz,
 				       const char *field[], u8 numfields)
 {
@@ -510,7 +510,7 @@ static int ksz9031_of_load_skew_values(struct phy_device *phydev,
 	int i;
 
 	for (i = 0; i < numfields; i++)
-		if (!of_property_read_u32(of_node, field[i], val + i))
+		if (!of_property_read_u32(of_yesde, field[i], val + i))
 			matches++;
 
 	if (!matches)
@@ -567,7 +567,7 @@ static int ksz9031_enable_edpd(struct phy_device *phydev)
 static int ksz9031_config_init(struct phy_device *phydev)
 {
 	const struct device *dev = &phydev->mdio.dev;
-	const struct device_node *of_node = dev->of_node;
+	const struct device_yesde *of_yesde = dev->of_yesde;
 	static const char *clk_skews[2] = {"rxc-skew-ps", "txc-skew-ps"};
 	static const char *rx_data_skews[4] = {
 		"rxd0-skew-ps", "rxd1-skew-ps",
@@ -586,29 +586,29 @@ static int ksz9031_config_init(struct phy_device *phydev)
 		return result;
 
 	/* The Micrel driver has a deprecated option to place phy OF
-	 * properties in the MAC node. Walk up the tree of devices to
-	 * find a device with an OF node.
+	 * properties in the MAC yesde. Walk up the tree of devices to
+	 * find a device with an OF yesde.
 	 */
 	dev_walker = &phydev->mdio.dev;
 	do {
-		of_node = dev_walker->of_node;
+		of_yesde = dev_walker->of_yesde;
 		dev_walker = dev_walker->parent;
-	} while (!of_node && dev_walker);
+	} while (!of_yesde && dev_walker);
 
-	if (of_node) {
-		ksz9031_of_load_skew_values(phydev, of_node,
+	if (of_yesde) {
+		ksz9031_of_load_skew_values(phydev, of_yesde,
 				MII_KSZ9031RN_CLK_PAD_SKEW, 5,
 				clk_skews, 2);
 
-		ksz9031_of_load_skew_values(phydev, of_node,
+		ksz9031_of_load_skew_values(phydev, of_yesde,
 				MII_KSZ9031RN_CONTROL_PAD_SKEW, 4,
 				control_skews, 2);
 
-		ksz9031_of_load_skew_values(phydev, of_node,
+		ksz9031_of_load_skew_values(phydev, of_yesde,
 				MII_KSZ9031RN_RX_DATA_PAD_SKEW, 4,
 				rx_data_skews, 4);
 
-		ksz9031_of_load_skew_values(phydev, of_node,
+		ksz9031_of_load_skew_values(phydev, of_yesde,
 				MII_KSZ9031RN_TX_DATA_PAD_SKEW, 4,
 				tx_data_skews, 4);
 
@@ -617,9 +617,9 @@ static int ksz9031_config_init(struct phy_device *phydev)
 		 * the optional 125MHz reference output clock (CLK125_NDO)
 		 * has wide duty cycle variation.
 		 *
-		 * The optional CLK125_NDO clock does not meet the RGMII
+		 * The optional CLK125_NDO clock does yest meet the RGMII
 		 * 45/55 percent (min/max) duty cycle requirement and therefore
-		 * cannot be used directly by the MAC side for clocking
+		 * canyest be used directly by the MAC side for clocking
 		 * applications that have setup/hold time requirements on
 		 * rising and falling clock edges.
 		 *
@@ -627,7 +627,7 @@ static int ksz9031_config_init(struct phy_device *phydev)
 		 * Force the phy to be the master to receive a stable clock
 		 * which meets the duty cycle requirement.
 		 */
-		if (of_property_read_bool(of_node, "micrel,force-master")) {
+		if (of_property_read_bool(of_yesde, "micrel,force-master")) {
 			result = phy_read(phydev, MII_CTRL1000);
 			if (result < 0)
 				goto err_force_master;
@@ -653,7 +653,7 @@ err_force_master:
 #define KSZ9131_STEP		100
 
 static int ksz9131_of_load_skew_values(struct phy_device *phydev,
-				       struct device_node *of_node,
+				       struct device_yesde *of_yesde,
 				       u16 reg, size_t field_sz,
 				       char *field[], u8 numfields)
 {
@@ -673,7 +673,7 @@ static int ksz9131_of_load_skew_values(struct phy_device *phydev,
 		skewmax = KSZ9131_SKEW_4BIT_MAX;
 
 	for (i = 0; i < numfields; i++)
-		if (!of_property_read_s32(of_node, field[i], &skewval)) {
+		if (!of_property_read_s32(of_yesde, field[i], &skewval)) {
 			if (skewval < -KSZ9131_OFFSET)
 				skewval = -KSZ9131_OFFSET;
 			else if (skewval > skewmax)
@@ -707,7 +707,7 @@ static int ksz9131_of_load_skew_values(struct phy_device *phydev,
 static int ksz9131_config_init(struct phy_device *phydev)
 {
 	const struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_yesde *of_yesde = dev->of_yesde;
 	char *clk_skews[2] = {"rxc-skew-psec", "txc-skew-psec"};
 	char *rx_data_skews[4] = {
 		"rxd0-skew-psec", "rxd1-skew-psec",
@@ -723,32 +723,32 @@ static int ksz9131_config_init(struct phy_device *phydev)
 
 	dev_walker = &phydev->mdio.dev;
 	do {
-		of_node = dev_walker->of_node;
+		of_yesde = dev_walker->of_yesde;
 		dev_walker = dev_walker->parent;
-	} while (!of_node && dev_walker);
+	} while (!of_yesde && dev_walker);
 
-	if (!of_node)
+	if (!of_yesde)
 		return 0;
 
-	ret = ksz9131_of_load_skew_values(phydev, of_node,
+	ret = ksz9131_of_load_skew_values(phydev, of_yesde,
 					  MII_KSZ9031RN_CLK_PAD_SKEW, 5,
 					  clk_skews, 2);
 	if (ret < 0)
 		return ret;
 
-	ret = ksz9131_of_load_skew_values(phydev, of_node,
+	ret = ksz9131_of_load_skew_values(phydev, of_yesde,
 					  MII_KSZ9031RN_CONTROL_PAD_SKEW, 4,
 					  control_skews, 2);
 	if (ret < 0)
 		return ret;
 
-	ret = ksz9131_of_load_skew_values(phydev, of_node,
+	ret = ksz9131_of_load_skew_values(phydev, of_yesde,
 					  MII_KSZ9031RN_RX_DATA_PAD_SKEW, 4,
 					  rx_data_skews, 4);
 	if (ret < 0)
 		return ret;
 
-	ret = ksz9131_of_load_skew_values(phydev, of_node,
+	ret = ksz9131_of_load_skew_values(phydev, of_yesde,
 					  MII_KSZ9031RN_TX_DATA_PAD_SKEW, 4,
 					  tx_data_skews, 4);
 	if (ret < 0)
@@ -800,7 +800,7 @@ static int ksz9031_get_features(struct phy_device *phydev)
 	 * The Errata Sheet is for ksz9031, but ksz9021 has the same issue
 	 *
 	 * Workaround:
-	 * Do not enable the Asymmetric Pause capability bit.
+	 * Do yest enable the Asymmetric Pause capability bit.
 	 */
 	linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, phydev->supported);
 
@@ -821,7 +821,7 @@ static int ksz9031_read_status(struct phy_device *phydev)
 	if (err)
 		return err;
 
-	/* Make sure the PHY is not broken. Read idle error count,
+	/* Make sure the PHY is yest broken. Read idle error count,
 	 * and reset the PHY if it is maxed out.
 	 */
 	regval = phy_read(phydev, MII_STAT1000);
@@ -919,7 +919,7 @@ static int kszphy_resume(struct phy_device *phydev)
 static int kszphy_probe(struct phy_device *phydev)
 {
 	const struct kszphy_type *type = phydev->drv->driver_data;
-	const struct device_node *np = phydev->mdio.dev.of_node;
+	const struct device_yesde *np = phydev->mdio.dev.of_yesde;
 	struct kszphy_priv *priv;
 	struct clk *clk;
 	int ret;

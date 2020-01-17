@@ -140,17 +140,17 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter,
 			     struct comedi_subdevice *s);
 void ni_tio_set_mite_channel(struct ni_gpct *counter,
 			     struct mite_channel *mite_chan);
-void ni_tio_acknowledge(struct ni_gpct *counter);
+void ni_tio_ackyeswledge(struct ni_gpct *counter);
 
 /*
  * Retrieves the register value of the current source of the output selector for
  * the given destination.
  *
- * If the terminal for the destination is not already configured as an output,
+ * If the terminal for the destination is yest already configured as an output,
  * this function returns -EINVAL as error.
  *
  * Return: the register value of the destination output selector;
- *         -EINVAL if terminal is not configured for output.
+ *         -EINVAL if terminal is yest configured for output.
  */
 int ni_tio_get_routing(struct ni_gpct_device *counter_dev,
 		       unsigned int destination);
@@ -173,7 +173,7 @@ int ni_tio_set_routing(struct ni_gpct_device *counter_dev,
 /*
  * Sets the given destination MUX to its default value or disable it.
  *
- * Return: 0 if successful; -EINVAL if terminal is unknown.
+ * Return: 0 if successful; -EINVAL if terminal is unkyeswn.
  */
 int ni_tio_unset_routing(struct ni_gpct_device *counter_dev,
 			 unsigned int destination);

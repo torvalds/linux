@@ -35,7 +35,7 @@
 static struct hard_trap_info
 {
 	unsigned int tt;		/* Trap type code for powerpc */
-	unsigned char signo;		/* Signal that we map this trap into */
+	unsigned char sigyes;		/* Signal that we map this trap into */
 } hard_trap_info[] = {
 	{ 0x0100, 0x02 /* SIGINT */  },		/* system reset */
 	{ 0x0200, 0x0b /* SIGSEGV */ },		/* machine check */
@@ -95,11 +95,11 @@ static int computeSignal(unsigned int tt)
 {
 	struct hard_trap_info *ht;
 
-	for (ht = hard_trap_info; ht->tt && ht->signo; ht++)
+	for (ht = hard_trap_info; ht->tt && ht->sigyes; ht++)
 		if (ht->tt == tt)
-			return ht->signo;
+			return ht->sigyes;
 
-	return SIGHUP;		/* default for things we don't know about */
+	return SIGHUP;		/* default for things we don't kyesw about */
 }
 
 /**
@@ -203,7 +203,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	for (reg = 0; reg < 3; reg++)
 		PACK64(ptr, regs->gpr[reg]);
 
-	/* Regs GPR3-13 are caller saved, not in regs->gpr[] */
+	/* Regs GPR3-13 are caller saved, yest in regs->gpr[] */
 	ptr += 11;
 
 	/* Regs GPR14-31 */
@@ -218,7 +218,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	ptr += 32;
 #endif
 #else
-	/* fp registers not used by kernel, leave zero */
+	/* fp registers yest used by kernel, leave zero */
 	ptr += 32 * 8 / sizeof(long);
 #endif
 
@@ -318,50 +318,50 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] =
 	{ "xer", GDB_SIZEOF_REG, offsetof(struct pt_regs, xer) },
 };
 
-char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+char *dbg_get_reg(int regyes, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (regyes >= DBG_MAX_REG_NUM || regyes < 0)
 		return NULL;
 
-	if (regno < 32 || regno >= 64)
+	if (regyes < 32 || regyes >= 64)
 		/* First 0 -> 31 gpr registers*/
 		/* pc, msr, ls... registers 64 -> 69 */
-		memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
-				dbg_reg_def[regno].size);
+		memcpy(mem, (void *)regs + dbg_reg_def[regyes].offset,
+				dbg_reg_def[regyes].size);
 
-	if (regno >= 32 && regno < 64) {
+	if (regyes >= 32 && regyes < 64) {
 		/* FP registers 32 -> 63 */
 #if defined(CONFIG_FSL_BOOKE) && defined(CONFIG_SPE)
 		if (current)
-			memcpy(mem, &current->thread.evr[regno-32],
-					dbg_reg_def[regno].size);
+			memcpy(mem, &current->thread.evr[regyes-32],
+					dbg_reg_def[regyes].size);
 #else
-		/* fp registers not used by kernel, leave zero */
-		memset(mem, 0, dbg_reg_def[regno].size);
+		/* fp registers yest used by kernel, leave zero */
+		memset(mem, 0, dbg_reg_def[regyes].size);
 #endif
 	}
 
-	return dbg_reg_def[regno].name;
+	return dbg_reg_def[regyes].name;
 }
 
-int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
+int dbg_set_reg(int regyes, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (regyes >= DBG_MAX_REG_NUM || regyes < 0)
 		return -EINVAL;
 
-	if (regno < 32 || regno >= 64)
+	if (regyes < 32 || regyes >= 64)
 		/* First 0 -> 31 gpr registers*/
 		/* pc, msr, ls... registers 64 -> 69 */
-		memcpy((void *)regs + dbg_reg_def[regno].offset, mem,
-				dbg_reg_def[regno].size);
+		memcpy((void *)regs + dbg_reg_def[regyes].offset, mem,
+				dbg_reg_def[regyes].size);
 
-	if (regno >= 32 && regno < 64) {
+	if (regyes >= 32 && regyes < 64) {
 		/* FP registers 32 -> 63 */
 #if defined(CONFIG_FSL_BOOKE) && defined(CONFIG_SPE)
-		memcpy(&current->thread.evr[regno-32], mem,
-				dbg_reg_def[regno].size);
+		memcpy(&current->thread.evr[regyes-32], mem,
+				dbg_reg_def[regyes].size);
 #else
-		/* fp registers not used by kernel, leave zero */
+		/* fp registers yest used by kernel, leave zero */
 		return 0;
 #endif
 	}
@@ -377,7 +377,7 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
 /*
  * This function does PowerPC specific procesing for interfacing to gdb.
  */
-int kgdb_arch_handle_exception(int vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int vector, int sigyes, int err_code,
 			       char *remcom_in_buffer, char *remcom_out_buffer,
 			       struct pt_regs *linux_regs)
 {
@@ -451,7 +451,7 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
  */
 const struct kgdb_arch arch_kgdb_ops;
 
-static int kgdb_not_implemented(struct pt_regs *regs)
+static int kgdb_yest_implemented(struct pt_regs *regs)
 {
 	return 0;
 }
@@ -480,7 +480,7 @@ int kgdb_arch_init(void)
 	__debugger_sstep = kgdb_singlestep;
 	__debugger_iabr_match = kgdb_iabr_match;
 	__debugger_break_match = kgdb_break_match;
-	__debugger_fault_handler = kgdb_not_implemented;
+	__debugger_fault_handler = kgdb_yest_implemented;
 
 	return 0;
 }

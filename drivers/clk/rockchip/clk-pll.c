@@ -28,7 +28,7 @@ struct rockchip_clk_pll {
 	struct clk_mux		pll_mux;
 	const struct clk_ops	*pll_mux_ops;
 
-	struct notifier_block	clk_nb;
+	struct yestifier_block	clk_nb;
 
 	void __iomem		*reg_base;
 	int			lock_offset;
@@ -214,7 +214,7 @@ static int rockchip_rk3036_pll_set_params(struct rockchip_clk_pll *pll,
 						  RK3036_PLLCON1_DSMPD_SHIFT),
 		       pll->reg_base + RK3036_PLLCON(1));
 
-	/* GPLL CON2 is not HIWORD_MASK */
+	/* GPLL CON2 is yest HIWORD_MASK */
 	pllcon = readl_relaxed(pll->reg_base + RK3036_PLLCON(2));
 	pllcon &= ~(RK3036_PLLCON2_FRAC_MASK << RK3036_PLLCON2_FRAC_SHIFT);
 	pllcon |= rate->frac << RK3036_PLLCON2_FRAC_SHIFT;
@@ -295,7 +295,7 @@ static void rockchip_rk3036_pll_init(struct clk_hw *hw)
 	drate = clk_hw_get_rate(hw);
 	rate = rockchip_get_pll_settings(pll, drate);
 
-	/* when no rate setting for the current rate, rely on clk_set_rate */
+	/* when yes rate setting for the current rate, rely on clk_set_rate */
 	if (!rate)
 		return;
 
@@ -317,18 +317,18 @@ static void rockchip_rk3036_pll_init(struct clk_hw *hw)
 		struct clk *parent = clk_get_parent(hw->clk);
 
 		if (!parent) {
-			pr_warn("%s: parent of %s not available\n",
+			pr_warn("%s: parent of %s yest available\n",
 				__func__, __clk_get_name(hw->clk));
 			return;
 		}
 
-		pr_debug("%s: pll %s: rate params do not match rate table, adjusting\n",
+		pr_debug("%s: pll %s: rate params do yest match rate table, adjusting\n",
 			 __func__, __clk_get_name(hw->clk));
 		rockchip_rk3036_pll_set_params(pll, rate);
 	}
 }
 
-static const struct clk_ops rockchip_rk3036_pll_clk_norate_ops = {
+static const struct clk_ops rockchip_rk3036_pll_clk_yesrate_ops = {
 	.recalc_rate = rockchip_rk3036_pll_recalc_rate,
 	.enable = rockchip_rk3036_pll_enable,
 	.disable = rockchip_rk3036_pll_disable,
@@ -372,7 +372,7 @@ static void rockchip_rk3066_pll_get_params(struct rockchip_clk_pll *pll,
 	pllcon = readl_relaxed(pll->reg_base + RK3066_PLLCON(0));
 	rate->nr = ((pllcon >> RK3066_PLLCON0_NR_SHIFT)
 				& RK3066_PLLCON0_NR_MASK) + 1;
-	rate->no = ((pllcon >> RK3066_PLLCON0_OD_SHIFT)
+	rate->yes = ((pllcon >> RK3066_PLLCON0_OD_SHIFT)
 				& RK3066_PLLCON0_OD_MASK) + 1;
 
 	pllcon = readl_relaxed(pll->reg_base + RK3066_PLLCON(1));
@@ -403,7 +403,7 @@ static unsigned long rockchip_rk3066_pll_recalc_rate(struct clk_hw *hw,
 
 	rate64 *= cur.nf;
 	do_div(rate64, cur.nr);
-	do_div(rate64, cur.no);
+	do_div(rate64, cur.yes);
 
 	return (unsigned long)rate64;
 }
@@ -418,8 +418,8 @@ static int rockchip_rk3066_pll_set_params(struct rockchip_clk_pll *pll,
 	int cur_parent;
 	int ret;
 
-	pr_debug("%s: rate settings for %lu (nr, no, nf): (%d, %d, %d)\n",
-		 __func__, rate->rate, rate->nr, rate->no, rate->nf);
+	pr_debug("%s: rate settings for %lu (nr, yes, nf): (%d, %d, %d)\n",
+		 __func__, rate->rate, rate->nr, rate->yes, rate->nf);
 
 	rockchip_rk3066_pll_get_params(pll, &cur);
 	cur.rate = 0;
@@ -437,7 +437,7 @@ static int rockchip_rk3066_pll_set_params(struct rockchip_clk_pll *pll,
 	/* update pll values */
 	writel(HIWORD_UPDATE(rate->nr - 1, RK3066_PLLCON0_NR_MASK,
 					   RK3066_PLLCON0_NR_SHIFT) |
-	       HIWORD_UPDATE(rate->no - 1, RK3066_PLLCON0_OD_MASK,
+	       HIWORD_UPDATE(rate->yes - 1, RK3066_PLLCON0_OD_MASK,
 					   RK3066_PLLCON0_OD_SHIFT),
 	       pll->reg_base + RK3066_PLLCON(0));
 
@@ -528,24 +528,24 @@ static void rockchip_rk3066_pll_init(struct clk_hw *hw)
 	drate = clk_hw_get_rate(hw);
 	rate = rockchip_get_pll_settings(pll, drate);
 
-	/* when no rate setting for the current rate, rely on clk_set_rate */
+	/* when yes rate setting for the current rate, rely on clk_set_rate */
 	if (!rate)
 		return;
 
 	rockchip_rk3066_pll_get_params(pll, &cur);
 
-	pr_debug("%s: pll %s@%lu: nr (%d:%d); no (%d:%d); nf(%d:%d), nb(%d:%d)\n",
+	pr_debug("%s: pll %s@%lu: nr (%d:%d); yes (%d:%d); nf(%d:%d), nb(%d:%d)\n",
 		 __func__, clk_hw_get_name(hw), drate, rate->nr, cur.nr,
-		 rate->no, cur.no, rate->nf, cur.nf, rate->nb, cur.nb);
-	if (rate->nr != cur.nr || rate->no != cur.no || rate->nf != cur.nf
+		 rate->yes, cur.yes, rate->nf, cur.nf, rate->nb, cur.nb);
+	if (rate->nr != cur.nr || rate->yes != cur.yes || rate->nf != cur.nf
 						     || rate->nb != cur.nb) {
-		pr_debug("%s: pll %s: rate params do not match rate table, adjusting\n",
+		pr_debug("%s: pll %s: rate params do yest match rate table, adjusting\n",
 			 __func__, clk_hw_get_name(hw));
 		rockchip_rk3066_pll_set_params(pll, rate);
 	}
 }
 
-static const struct clk_ops rockchip_rk3066_pll_clk_norate_ops = {
+static const struct clk_ops rockchip_rk3066_pll_clk_yesrate_ops = {
 	.recalc_rate = rockchip_rk3066_pll_recalc_rate,
 	.enable = rockchip_rk3066_pll_enable,
 	.disable = rockchip_rk3066_pll_disable,
@@ -689,7 +689,7 @@ static int rockchip_rk3399_pll_set_params(struct rockchip_clk_pll *pll,
 						     RK3399_PLLCON1_POSTDIV2_SHIFT),
 		       pll->reg_base + RK3399_PLLCON(1));
 
-	/* xPLL CON2 is not HIWORD_MASK */
+	/* xPLL CON2 is yest HIWORD_MASK */
 	pllcon = readl_relaxed(pll->reg_base + RK3399_PLLCON(2));
 	pllcon &= ~(RK3399_PLLCON2_FRAC_MASK << RK3399_PLLCON2_FRAC_SHIFT);
 	pllcon |= rate->frac << RK3399_PLLCON2_FRAC_SHIFT;
@@ -774,7 +774,7 @@ static void rockchip_rk3399_pll_init(struct clk_hw *hw)
 	drate = clk_hw_get_rate(hw);
 	rate = rockchip_get_pll_settings(pll, drate);
 
-	/* when no rate setting for the current rate, rely on clk_set_rate */
+	/* when yes rate setting for the current rate, rely on clk_set_rate */
 	if (!rate)
 		return;
 
@@ -796,18 +796,18 @@ static void rockchip_rk3399_pll_init(struct clk_hw *hw)
 		struct clk *parent = clk_get_parent(hw->clk);
 
 		if (!parent) {
-			pr_warn("%s: parent of %s not available\n",
+			pr_warn("%s: parent of %s yest available\n",
 				__func__, __clk_get_name(hw->clk));
 			return;
 		}
 
-		pr_debug("%s: pll %s: rate params do not match rate table, adjusting\n",
+		pr_debug("%s: pll %s: rate params do yest match rate table, adjusting\n",
 			 __func__, __clk_get_name(hw->clk));
 		rockchip_rk3399_pll_set_params(pll, rate);
 	}
 }
 
-static const struct clk_ops rockchip_rk3399_pll_clk_norate_ops = {
+static const struct clk_ops rockchip_rk3399_pll_clk_yesrate_ops = {
 	.recalc_rate = rockchip_rk3399_pll_recalc_rate,
 	.enable = rockchip_rk3399_pll_enable,
 	.disable = rockchip_rk3399_pll_disable,
@@ -893,10 +893,10 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 	if (IS_ERR(mux_clk))
 		goto err_mux;
 
-	/* now create the actual pll */
+	/* yesw create the actual pll */
 	init.name = pll_name;
 
-	/* keep all plls untouched for now */
+	/* keep all plls untouched for yesw */
 	init.flags = flags | CLK_IGNORE_UNUSED;
 
 	init.parent_names = &parent_names[0];
@@ -915,7 +915,7 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 					sizeof(struct rockchip_pll_rate_table),
 					GFP_KERNEL);
 		WARN(!pll->rate_table,
-			"%s: could not allocate rate table for %s\n",
+			"%s: could yest allocate rate table for %s\n",
 			__func__, name);
 	}
 
@@ -923,24 +923,24 @@ struct clk *rockchip_clk_register_pll(struct rockchip_clk_provider *ctx,
 	case pll_rk3036:
 	case pll_rk3328:
 		if (!pll->rate_table || IS_ERR(ctx->grf))
-			init.ops = &rockchip_rk3036_pll_clk_norate_ops;
+			init.ops = &rockchip_rk3036_pll_clk_yesrate_ops;
 		else
 			init.ops = &rockchip_rk3036_pll_clk_ops;
 		break;
 	case pll_rk3066:
 		if (!pll->rate_table || IS_ERR(ctx->grf))
-			init.ops = &rockchip_rk3066_pll_clk_norate_ops;
+			init.ops = &rockchip_rk3066_pll_clk_yesrate_ops;
 		else
 			init.ops = &rockchip_rk3066_pll_clk_ops;
 		break;
 	case pll_rk3399:
 		if (!pll->rate_table)
-			init.ops = &rockchip_rk3399_pll_clk_norate_ops;
+			init.ops = &rockchip_rk3399_pll_clk_yesrate_ops;
 		else
 			init.ops = &rockchip_rk3399_pll_clk_ops;
 		break;
 	default:
-		pr_warn("%s: Unknown pll type for pll clk %s\n",
+		pr_warn("%s: Unkyeswn pll type for pll clk %s\n",
 			__func__, name);
 	}
 

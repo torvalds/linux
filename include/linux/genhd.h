@@ -47,8 +47,8 @@ enum {
 	SOLARIS_X86_PARTITION =	LINUX_SWAP_PARTITION,
 	NEW_SOLARIS_X86_PARTITION = 0xbf,
 
-	DM6_AUX1PARTITION = 0x51,	/* no DDO:  use xlated geom */
-	DM6_AUX3PARTITION = 0x53,	/* no DDO:  use xlated geom */
+	DM6_AUX1PARTITION = 0x51,	/* yes DDO:  use xlated geom */
+	DM6_AUX3PARTITION = 0x53,	/* yes DDO:  use xlated geom */
 	DM6_PARTITION =	0x54,		/* has DDO: use xlated geom & offset */
 	EZD_PARTITION =	0x55,		/* EZ-DRIVE */
 
@@ -95,7 +95,7 @@ struct disk_stats {
 
 #define PARTITION_META_INFO_VOLNAMELTH	64
 /*
- * Enough for the string representation of any kind of UUID plus NULL.
+ * Eyesugh for the string representation of any kind of UUID plus NULL.
  * EFI UUID is 36 characters. MSDOS UUID is 11 characters.
  */
 #define PARTITION_META_INFO_UUIDLTH	(UUID_STRING_LEN + 1)
@@ -110,7 +110,7 @@ struct hd_struct {
 	/*
 	 * nr_sects is protected by sequence counter. One might extend a
 	 * partition while IO is happening to it and update of nr_sects
-	 * can be non-atomic on 32bit machines with 64bit sector_t.
+	 * can be yesn-atomic on 32bit machines with 64bit sector_t.
 	 */
 	sector_t nr_sects;
 	seqcount_t nr_sects_seq;
@@ -118,7 +118,7 @@ struct hd_struct {
 	unsigned int discard_alignment;
 	struct device __dev;
 	struct kobject *holder_dir;
-	int policy, partno;
+	int policy, partyes;
 	struct partition_meta_info *info;
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	int make_it_fail;
@@ -180,23 +180,23 @@ struct blk_integrity {
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
 
 struct gendisk {
-	/* major, first_minor and minors are input parameters only,
+	/* major, first_miyesr and miyesrs are input parameters only,
 	 * don't use directly.  Use disk_devt() and disk_max_parts().
 	 */
 	int major;			/* major number of driver */
-	int first_minor;
-	int minors;                     /* maximum number of minors, =1 for
+	int first_miyesr;
+	int miyesrs;                     /* maximum number of miyesrs, =1 for
                                          * disks that can't be partitioned. */
 
 	char disk_name[DISK_NAME_LEN];	/* name of major driver */
-	char *(*devnode)(struct gendisk *gd, umode_t *mode);
+	char *(*devyesde)(struct gendisk *gd, umode_t *mode);
 
 	unsigned short events;		/* supported events */
 	unsigned short event_flags;	/* flags related to event processing */
 
-	/* Array of pointers to partitions indexed by partno.
+	/* Array of pointers to partitions indexed by partyes.
 	 * Protected with matching bdev lock but stat and other
-	 * non-critical accesses use RCU.  Always access through
+	 * yesn-critical accesses use RCU.  Always access through
 	 * helpers.
 	 */
 	struct disk_part_tbl __rcu *part_tbl;
@@ -216,7 +216,7 @@ struct gendisk {
 #ifdef  CONFIG_BLK_DEV_INTEGRITY
 	struct kobject integrity_kobj;
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
-	int node_id;
+	int yesde_id;
 	struct badblocks *bb;
 	struct lockdep_map lockdep_map;
 };
@@ -224,7 +224,7 @@ struct gendisk {
 static inline struct gendisk *part_to_disk(struct hd_struct *part)
 {
 	if (likely(part)) {
-		if (part->partno)
+		if (part->partyes)
 			return dev_to_disk(part_to_dev(part)->parent);
 		else
 			return dev_to_disk(part_to_dev(part));
@@ -236,7 +236,7 @@ static inline int disk_max_parts(struct gendisk *disk)
 {
 	if (disk->flags & GENHD_FL_EXT_DEVT)
 		return DISK_MAX_PARTS;
-	return disk->minors;
+	return disk->miyesrs;
 }
 
 static inline bool disk_part_scan_enabled(struct gendisk *disk)
@@ -247,7 +247,7 @@ static inline bool disk_part_scan_enabled(struct gendisk *disk)
 
 static inline dev_t disk_devt(struct gendisk *disk)
 {
-	return MKDEV(disk->major, disk->first_minor);
+	return MKDEV(disk->major, disk->first_miyesr);
 }
 
 static inline dev_t part_devt(struct hd_struct *part)
@@ -255,8 +255,8 @@ static inline dev_t part_devt(struct hd_struct *part)
 	return part_to_dev(part)->devt;
 }
 
-extern struct hd_struct *__disk_get_part(struct gendisk *disk, int partno);
-extern struct hd_struct *disk_get_part(struct gendisk *disk, int partno);
+extern struct hd_struct *__disk_get_part(struct gendisk *disk, int partyes);
+extern struct hd_struct *disk_get_part(struct gendisk *disk, int partyes);
 
 static inline void disk_put_part(struct hd_struct *part)
 {
@@ -377,7 +377,7 @@ static inline void free_part_stats(struct hd_struct *part)
 
 #define part_stat_add(part, field, addnd)	do {			\
 	__part_stat_add((part), field, addnd);				\
-	if ((part)->partno)						\
+	if ((part)->partyes)						\
 		__part_stat_add(&part_to_disk((part))->part0,		\
 				field, addnd);				\
 } while (0)
@@ -409,8 +409,8 @@ void part_inc_in_flight(struct request_queue *q, struct hd_struct *part,
 static inline struct partition_meta_info *alloc_part_info(struct gendisk *disk)
 {
 	if (disk)
-		return kzalloc_node(sizeof(struct partition_meta_info),
-				    GFP_KERNEL, disk->node_id);
+		return kzalloc_yesde(sizeof(struct partition_meta_info),
+				    GFP_KERNEL, disk->yesde_id);
 	return kzalloc(sizeof(struct partition_meta_info), GFP_KERNEL);
 }
 
@@ -419,7 +419,7 @@ static inline void free_part_info(struct hd_struct *part)
 	kfree(part->info);
 }
 
-void update_io_ticks(struct hd_struct *part, unsigned long now);
+void update_io_ticks(struct hd_struct *part, unsigned long yesw);
 
 /* block/genhd.c */
 extern void device_add_disk(struct device *parent, struct gendisk *disk,
@@ -428,15 +428,15 @@ static inline void add_disk(struct gendisk *disk)
 {
 	device_add_disk(NULL, disk, NULL);
 }
-extern void device_add_disk_no_queue_reg(struct device *parent, struct gendisk *disk);
-static inline void add_disk_no_queue_reg(struct gendisk *disk)
+extern void device_add_disk_yes_queue_reg(struct device *parent, struct gendisk *disk);
+static inline void add_disk_yes_queue_reg(struct gendisk *disk)
 {
-	device_add_disk_no_queue_reg(NULL, disk);
+	device_add_disk_yes_queue_reg(NULL, disk);
 }
 
 extern void del_gendisk(struct gendisk *gp);
-extern struct gendisk *get_gendisk(dev_t dev, int *partno);
-extern struct block_device *bdget_disk(struct gendisk *disk, int partno);
+extern struct gendisk *get_gendisk(dev_t dev, int *partyes);
+extern struct block_device *bdget_disk(struct gendisk *disk, int partyes);
 
 extern void set_device_ro(struct block_device *bdev, int flag);
 extern void set_disk_ro(struct gendisk *disk, int flag);
@@ -476,7 +476,7 @@ static inline void set_capacity(struct gendisk *disk, sector_t size)
 struct solaris_x86_slice {
 	__le16 s_tag;		/* ID tag of partition */
 	__le16 s_flag;		/* permission flags */
-	__le32 s_start;		/* start sector no of partition */
+	__le32 s_start;		/* start sector yes of partition */
 	__le32 s_size;		/* # of blocks in partition */
 };
 
@@ -556,7 +556,7 @@ struct bsd_disklabel {
 #ifdef CONFIG_UNIXWARE_DISKLABEL
 /*
  * Unixware slices support by Andrzej Krzysztofowicz <ankry@mif.pg.gda.pl>
- * and Krzysztof G. Baranowski <kgb@knm.org.pl>
+ * and Krzysztof G. Barayeswski <kgb@knm.org.pl>
  */
 
 #define UNIXWARE_DISKMAGIC     (0xCA5E600DUL)	/* The disk magic number */
@@ -581,15 +581,15 @@ struct unixware_disklabel {
 	__le32   d_nsectors;             /* # of data sectors per track */
 	__le32   d_secsize;              /* # of bytes per sector */
 	__le32   d_part_start;           /* # of first sector of this partition */
-	__le32   d_unknown1[12];         /* ? */
+	__le32   d_unkyeswn1[12];         /* ? */
  	__le32	d_alt_tbl;              /* byte offset of alternate table */
  	__le32	d_alt_len;              /* byte length of alternate table */
  	__le32	d_phys_cyl;             /* # of physical cylinders per device */
  	__le32	d_phys_trk;             /* # of physical tracks per cylinder */
  	__le32	d_phys_sec;             /* # of physical sectors per track */
  	__le32	d_phys_bytes;           /* # of physical bytes per sector */
- 	__le32	d_unknown2;             /* ? */
-	__le32   d_unknown3;             /* ? */
+ 	__le32	d_unkyeswn2;             /* ? */
+	__le32   d_unkyeswn3;             /* ? */
 	__le32	d_pad[8];               /* pad */
 
 	struct unixware_vtoc {
@@ -597,7 +597,7 @@ struct unixware_disklabel {
 		__le32	v_version;		/* version number */
 		char	v_name[8];		/* volume name */
 		__le16	v_nslices;		/* # of slices */
-		__le16	v_unknown1;		/* ? */
+		__le16	v_unkyeswn1;		/* ? */
 		__le32	v_reserved[10];		/* reserved */
 		struct unixware_slice
 			v_slice[UNIXWARE_NUMSLICE];	/* slice headers */
@@ -618,15 +618,15 @@ struct unixware_disklabel {
 extern int blk_alloc_devt(struct hd_struct *part, dev_t *devt);
 extern void blk_free_devt(dev_t devt);
 extern void blk_invalidate_devt(dev_t devt);
-extern dev_t blk_lookup_devt(const char *name, int partno);
-extern char *disk_name (struct gendisk *hd, int partno, char *buf);
+extern dev_t blk_lookup_devt(const char *name, int partyes);
+extern char *disk_name (struct gendisk *hd, int partyes, char *buf);
 
 int bdev_disk_changed(struct block_device *bdev, bool invalidate);
 int blk_add_partitions(struct gendisk *disk, struct block_device *bdev);
 int blk_drop_partitions(struct gendisk *disk, struct block_device *bdev);
 extern int disk_expand_part_tbl(struct gendisk *disk, int target);
 extern struct hd_struct * __must_check add_partition(struct gendisk *disk,
-						     int partno, sector_t start,
+						     int partyes, sector_t start,
 						     sector_t len, int flags,
 						     struct partition_meta_info
 						       *info);
@@ -634,7 +634,7 @@ extern void __delete_partition(struct percpu_ref *);
 extern void delete_partition(struct gendisk *, int);
 extern void printk_all_partitions(void);
 
-extern struct gendisk *__alloc_disk_node(int minors, int node_id);
+extern struct gendisk *__alloc_disk_yesde(int miyesrs, int yesde_id);
 extern struct kobject *get_disk_and_module(struct gendisk *disk);
 extern void put_disk(struct gendisk *disk);
 extern void put_disk_and_module(struct gendisk *disk);
@@ -659,15 +659,15 @@ extern ssize_t part_fail_store(struct device *dev,
 			       const char *buf, size_t count);
 #endif /* CONFIG_FAIL_MAKE_REQUEST */
 
-#define alloc_disk_node(minors, node_id)				\
+#define alloc_disk_yesde(miyesrs, yesde_id)				\
 ({									\
 	static struct lock_class_key __key;				\
 	const char *__name;						\
 	struct gendisk *__disk;						\
 									\
-	__name = "(gendisk_completion)"#minors"("#node_id")";		\
+	__name = "(gendisk_completion)"#miyesrs"("#yesde_id")";		\
 									\
-	__disk = __alloc_disk_node(minors, node_id);			\
+	__disk = __alloc_disk_yesde(miyesrs, yesde_id);			\
 									\
 	if (__disk)							\
 		lockdep_init_map(&__disk->lockdep_map, __name, &__key, 0); \
@@ -675,7 +675,7 @@ extern ssize_t part_fail_store(struct device *dev,
 	__disk;								\
 })
 
-#define alloc_disk(minors) alloc_disk_node(minors, NUMA_NO_NODE)
+#define alloc_disk(miyesrs) alloc_disk_yesde(miyesrs, NUMA_NO_NODE)
 
 static inline int hd_ref_init(struct hd_struct *part)
 {
@@ -713,7 +713,7 @@ static inline void hd_free_part(struct hd_struct *part)
 }
 
 /*
- * Any access of part->nr_sects which is not protected by partition
+ * Any access of part->nr_sects which is yest protected by partition
  * bd_mutex or gendisk bdev bd_mutex, should be done using this
  * accessor function.
  *
@@ -775,7 +775,7 @@ static inline void blk_integrity_del(struct gendisk *disk) { }
 
 static inline void printk_all_partitions(void) { }
 
-static inline dev_t blk_lookup_devt(const char *name, int partno)
+static inline dev_t blk_lookup_devt(const char *name, int partyes)
 {
 	dev_t devt = MKDEV(0, 0);
 	return devt;

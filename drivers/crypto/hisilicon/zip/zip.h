@@ -64,7 +64,7 @@ struct hisi_zip_sqe {
 	u32 rsvd1[4];
 };
 
-struct hisi_zip *find_zip_device(int node);
+struct hisi_zip *find_zip_device(int yesde);
 int hisi_zip_register_to_crypto(void);
 void hisi_zip_unregister_from_crypto(void);
 #endif

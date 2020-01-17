@@ -9,7 +9,7 @@ static volatile const struct {
 	unsigned a[4];
 	/*
 	 * if the struct's size is multiple of 16, compiler will put it into
-	 * .rodata.cst16 section, which is not recognized by libbpf; work
+	 * .rodata.cst16 section, which is yest recognized by libbpf; work
 	 * around this by ensuring we don't have 16-aligned struct
 	 */
 	char _y;

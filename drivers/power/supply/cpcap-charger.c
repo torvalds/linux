@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -88,7 +88,7 @@
 /*
  * CPCAP_REG_CRM charge currents. These seem to match MC13783UG.pdf
  * values in "Table 8-3. Charge Path Regulator Current Limit
- * Characteristics" for the nominal values.
+ * Characteristics" for the yesminal values.
  */
 #define CPCAP_REG_CRM_ICHRG(val)	(((val) & 0xf) << 0)
 #define CPCAP_REG_CRM_ICHRG_0A000	CPCAP_REG_CRM_ICHRG(0x0)
@@ -151,7 +151,7 @@ struct cpcap_charger_ddata {
 
 struct cpcap_interrupt_desc {
 	int irq;
-	struct list_head node;
+	struct list_head yesde;
 	const char *name;
 };
 
@@ -476,7 +476,7 @@ static void cpcap_charger_vbus_work(struct work_struct *work)
 	return;
 
 out_err:
-	dev_err(ddata->dev, "%s could not %s vbus: %i\n", __func__,
+	dev_err(ddata->dev, "%s could yest %s vbus: %i\n", __func__,
 		ddata->vbus_enabled ? "enable" : "disable", error);
 }
 
@@ -533,7 +533,7 @@ static void cpcap_charger_update_state(struct cpcap_charger_ddata *ddata,
 	const char *status;
 
 	if (state > CPCAP_CHARGER_DONE) {
-		dev_warn(ddata->dev, "unknown state: %i\n", state);
+		dev_warn(ddata->dev, "unkyeswn state: %i\n", state);
 
 		return;
 	}
@@ -613,7 +613,7 @@ static void cpcap_usb_detect(struct work_struct *work)
 	if (error)
 		return;
 
-	/* Just init the state if a charger is connected with no chrg_det set */
+	/* Just init the state if a charger is connected with yes chrg_det set */
 	if (!s.chrg_det && s.chrgcurr1 && s.vbusvld) {
 		cpcap_charger_update_state(ddata, CPCAP_CHARGER_DETECTING);
 
@@ -711,7 +711,7 @@ static int cpcap_usb_init_irq(struct platform_device *pdev,
 					  IRQF_SHARED,
 					  name, ddata);
 	if (error) {
-		dev_err(ddata->dev, "could not get irq %s: %i\n",
+		dev_err(ddata->dev, "could yest get irq %s: %i\n",
 			name, error);
 
 		return error;
@@ -723,7 +723,7 @@ static int cpcap_usb_init_irq(struct platform_device *pdev,
 
 	d->name = name;
 	d->irq = irq;
-	list_add(&d->node, &ddata->irq_list);
+	list_add(&d->yesde, &ddata->irq_list);
 
 	return 0;
 }
@@ -761,7 +761,7 @@ static void cpcap_charger_init_optional_gpios(struct cpcap_charger_ddata *ddata)
 		ddata->gpio[i] = devm_gpiod_get_index(ddata->dev, "mode",
 						      i, GPIOD_OUT_HIGH);
 		if (IS_ERR(ddata->gpio[i])) {
-			dev_info(ddata->dev, "no mode change GPIO%i: %li\n",
+			dev_info(ddata->dev, "yes mode change GPIO%i: %li\n",
 				 i, PTR_ERR(ddata->gpio[i]));
 			ddata->gpio[i] = NULL;
 		}
@@ -793,7 +793,7 @@ static int cpcap_charger_init_iio(struct cpcap_charger_ddata *ddata)
 
 out_err:
 	if (error != -EPROBE_DEFER)
-		dev_err(ddata->dev, "could not initialize VBUS or ID IIO: %i\n",
+		dev_err(ddata->dev, "could yest initialize VBUS or ID IIO: %i\n",
 			error);
 
 	return error;
@@ -853,7 +853,7 @@ static int cpcap_charger_probe(struct platform_device *pdev)
 
 	atomic_set(&ddata->active, 1);
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_yesde = pdev->dev.of_yesde;
 	psy_cfg.drv_data = ddata;
 
 	ddata->usb = devm_power_supply_register(ddata->dev,
@@ -893,12 +893,12 @@ static int cpcap_charger_remove(struct platform_device *pdev)
 	atomic_set(&ddata->active, 0);
 	error = omap_usb2_set_comparator(NULL);
 	if (error)
-		dev_warn(ddata->dev, "could not clear USB comparator: %i\n",
+		dev_warn(ddata->dev, "could yest clear USB comparator: %i\n",
 			 error);
 
 	error = cpcap_charger_set_state(ddata, 0, 0, 0);
 	if (error)
-		dev_warn(ddata->dev, "could not clear charger: %i\n",
+		dev_warn(ddata->dev, "could yest clear charger: %i\n",
 			 error);
 	cancel_delayed_work_sync(&ddata->vbus_work);
 	cancel_delayed_work_sync(&ddata->detect_work);

@@ -2,7 +2,7 @@
     {
         "PEBS": "2",
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of instructions that retire execution. For instructions that consist of multiple uops, this event counts the retirement of the last uop of the instruction. The counter continues counting during hardware interrupts, traps, and inside interrupt handlers.  This event uses fixed counter 0.  You cannot collect a PEBs record for this event.",
+        "PublicDescription": "Counts the number of instructions that retire execution. For instructions that consist of multiple uops, this event counts the retirement of the last uop of the instruction. The counter continues counting during hardware interrupts, traps, and inside interrupt handlers.  This event uses fixed counter 0.  You canyest collect a PEBs record for this event.",
         "Counter": "Fixed counter 0",
         "UMask": "0x1",
         "PEBScounters": "32",
@@ -13,37 +13,37 @@
     },
     {
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of core cycles while the core is not in a halt state.  The core enters the halt state when it is running the HLT instruction. In mobile systems the core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time.  This event uses fixed counter 1.  You cannot collect a PEBs record for this event.",
+        "PublicDescription": "Counts the number of core cycles while the core is yest in a halt state.  The core enters the halt state when it is running the HLT instruction. In mobile systems the core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time.  This event uses fixed counter 1.  You canyest collect a PEBs record for this event.",
         "Counter": "Fixed counter 1",
         "UMask": "0x2",
         "PEBScounters": "33",
         "EventName": "CPU_CLK_UNHALTED.CORE",
         "PDIR_COUNTER": "na",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Core cycles when core is not halted  (Fixed event)"
+        "BriefDescription": "Core cycles when core is yest halted  (Fixed event)"
     },
     {
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of reference cycles that the core is not in a halt state. The core enters the halt state when it is running the HLT instruction.  In mobile systems the core frequency may change from time.  This event is not affected by core frequency changes but counts as if the core is running at the maximum frequency all the time.  This event uses fixed counter 2.  You cannot collect a PEBs record for this event.",
+        "PublicDescription": "Counts the number of reference cycles that the core is yest in a halt state. The core enters the halt state when it is running the HLT instruction.  In mobile systems the core frequency may change from time.  This event is yest affected by core frequency changes but counts as if the core is running at the maximum frequency all the time.  This event uses fixed counter 2.  You canyest collect a PEBs record for this event.",
         "Counter": "Fixed counter 2",
         "UMask": "0x3",
         "PEBScounters": "34",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
         "PDIR_COUNTER": "na",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Reference cycles when core is not halted  (Fixed event)"
+        "BriefDescription": "Reference cycles when core is yest halted  (Fixed event)"
     },
     {
         "PEBS": "2",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts a load blocked from using a store forward, but did not occur because the store data was not available at the right time.  The forward might occur subsequently when the data is available.",
+        "PublicDescription": "Counts a load blocked from using a store forward, but did yest occur because the store data was yest available at the right time.  The forward might occur subsequently when the data is available.",
         "EventCode": "0x03",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "PEBScounters": "0,1,2,3",
         "EventName": "LD_BLOCKS.DATA_UNKNOWN",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Loads blocked due to store data not ready (Precise event capable)"
+        "BriefDescription": "Loads blocked due to store data yest ready (Precise event capable)"
     },
     {
         "PEBS": "2",
@@ -79,7 +79,7 @@
         "PEBScounters": "0,1,2,3",
         "EventName": "LD_BLOCKS.UTLB_MISS",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Loads blocked because address in not in the UTLB (Precise event capable)"
+        "BriefDescription": "Loads blocked because address in yest in the UTLB (Precise event capable)"
     },
     {
         "PEBS": "2",
@@ -95,7 +95,7 @@
     },
     {
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts uops issued by the front end and allocated into the back end of the machine.  This event counts uops that retire as well as uops that were speculatively executed but didn't retire. The sort of speculative uops that might be counted includes, but is not limited to those uops issued in the shadow of a miss-predicted branch, those uops that are inserted during an assist (such as for a denormal floating point result), and (previously allocated) uops that might be canceled during a machine clear.",
+        "PublicDescription": "Counts uops issued by the front end and allocated into the back end of the machine.  This event counts uops that retire as well as uops that were speculatively executed but didn't retire. The sort of speculative uops that might be counted includes, but is yest limited to those uops issued in the shadow of a miss-predicted branch, those uops that are inserted during an assist (such as for a deyesrmal floating point result), and (previously allocated) uops that might be canceled during a machine clear.",
         "EventCode": "0x0E",
         "Counter": "0,1,2,3",
         "UMask": "0x0",
@@ -107,7 +107,7 @@
     },
     {
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Core cycles when core is not halted.  This event uses a (_P)rogrammable general purpose performance counter.",
+        "PublicDescription": "Core cycles when core is yest halted.  This event uses a (_P)rogrammable general purpose performance counter.",
         "EventCode": "0x3C",
         "Counter": "0,1,2,3",
         "UMask": "0x0",
@@ -115,11 +115,11 @@
         "EventName": "CPU_CLK_UNHALTED.CORE_P",
         "PDIR_COUNTER": "na",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Core cycles when core is not halted"
+        "BriefDescription": "Core cycles when core is yest halted"
     },
     {
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Reference cycles when core is not halted.  This event uses a (_P)rogrammable general purpose performance counter.",
+        "PublicDescription": "Reference cycles when core is yest halted.  This event uses a (_P)rogrammable general purpose performance counter.",
         "EventCode": "0x3C",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -127,11 +127,11 @@
         "EventName": "CPU_CLK_UNHALTED.REF",
         "PDIR_COUNTER": "na",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Reference cycles when core is not halted"
+        "BriefDescription": "Reference cycles when core is yest halted"
     },
     {
         "CollectPEBSRecord": "1",
-        "PublicDescription": "This event used to measure front-end inefficiencies. I.e. when front-end of the machine is not delivering uops to the back-end and the back-end has is not stalled. This event can be used to identify if the machine is truly front-end bound.  When this event occurs, it is an indication that the front-end of the machine is operating at less than its theoretical peak performance. Background: We can think of the processor pipeline as being divided into 2 broader parts: Front-end and Back-end. Front-end is responsible for fetching the instruction, decoding into uops in machine understandable format and putting them into a uop queue to be consumed by back end. The back-end then takes these uops, allocates the required resources.  When all resources are ready, uops are executed. If the back-end is not ready to accept uops from the front-end, then we do not want to count these as front-end bottlenecks.  However, whenever we have bottlenecks in the back-end, we will have allocation unit stalls and eventually forcing the front-end to wait until the back-end is ready to receive more uops. This event counts only when back-end is requesting more uops and front-end is not able to provide them. When 3 uops are requested and no uops are delivered, the event counts 3. When 3 are requested, and only 1 is delivered, the event counts 2. When only 2 are delivered, the event counts 1. Alternatively stated, the event will not count if 3 uops are delivered, or if the back end is stalled and not requesting any uops at all.  Counts indicate missed opportunities for the front-end to deliver a uop to the back end. Some examples of conditions that cause front-end efficiencies are: ICache misses, ITLB misses, and decoder restrictions that limit the front-end bandwidth. Known Issues: Some uops require multiple allocation slots.  These uops will not be charged as a front end 'not delivered' opportunity, and will be regarded as a back end problem. For example, the INC instruction has one uop that requires 2 issue slots.  A stream of INC instructions will not count as UOPS_NOT_DELIVERED, even though only one instruction can be issued per clock.  The low uop issue rate for a stream of INC instructions is considered to be a back end issue.",
+        "PublicDescription": "This event used to measure front-end inefficiencies. I.e. when front-end of the machine is yest delivering uops to the back-end and the back-end has is yest stalled. This event can be used to identify if the machine is truly front-end bound.  When this event occurs, it is an indication that the front-end of the machine is operating at less than its theoretical peak performance. Background: We can think of the processor pipeline as being divided into 2 broader parts: Front-end and Back-end. Front-end is responsible for fetching the instruction, decoding into uops in machine understandable format and putting them into a uop queue to be consumed by back end. The back-end then takes these uops, allocates the required resources.  When all resources are ready, uops are executed. If the back-end is yest ready to accept uops from the front-end, then we do yest want to count these as front-end bottlenecks.  However, whenever we have bottlenecks in the back-end, we will have allocation unit stalls and eventually forcing the front-end to wait until the back-end is ready to receive more uops. This event counts only when back-end is requesting more uops and front-end is yest able to provide them. When 3 uops are requested and yes uops are delivered, the event counts 3. When 3 are requested, and only 1 is delivered, the event counts 2. When only 2 are delivered, the event counts 1. Alternatively stated, the event will yest count if 3 uops are delivered, or if the back end is stalled and yest requesting any uops at all.  Counts indicate missed opportunities for the front-end to deliver a uop to the back end. Some examples of conditions that cause front-end efficiencies are: ICache misses, ITLB misses, and decoder restrictions that limit the front-end bandwidth. Kyeswn Issues: Some uops require multiple allocation slots.  These uops will yest be charged as a front end 'yest delivered' opportunity, and will be regarded as a back end problem. For example, the INC instruction has one uop that requires 2 issue slots.  A stream of INC instructions will yest count as UOPS_NOT_DELIVERED, even though only one instruction can be issued per clock.  The low uop issue rate for a stream of INC instructions is considered to be a back end issue.",
         "EventCode": "0x9C",
         "Counter": "0,1,2,3",
         "UMask": "0x0",
@@ -139,7 +139,7 @@
         "EventName": "UOPS_NOT_DELIVERED.ANY",
         "PDIR_COUNTER": "na",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Uops requested but not-delivered to the back-end per cycle"
+        "BriefDescription": "Uops requested but yest-delivered to the back-end per cycle"
     },
     {
         "PEBS": "2",
@@ -240,7 +240,7 @@
     },
     {
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts machine clears due to floating point (FP) operations needing assists.  For instance, if the result was a floating point denormal, the hardware clears the pipeline and reissues uops to produce the correct IEEE compliant denormal result.",
+        "PublicDescription": "Counts machine clears due to floating point (FP) operations needing assists.  For instance, if the result was a floating point deyesrmal, the hardware clears the pipeline and reissues uops to produce the correct IEEE compliant deyesrmal result.",
         "EventCode": "0xC3",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
@@ -252,7 +252,7 @@
     },
     {
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts machine clears due to memory disambiguation.  Memory disambiguation happens when a load which has been issued conflicts with a previous unretired store in the pipeline whose address was not known at issue time, but is later resolved to be the same as the load address.",
+        "PublicDescription": "Counts machine clears due to memory disambiguation.  Memory disambiguation happens when a load which has been issued conflicts with a previous unretired store in the pipeline whose address was yest kyeswn at issue time, but is later resolved to be the same as the load address.",
         "EventCode": "0xC3",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
@@ -264,7 +264,7 @@
     },
     {
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of times that the machines clears due to a page fault. Covers both I-side and D-side(Loads/Stores) page faults. A page fault occurs when either page is not present, or an access violation",
+        "PublicDescription": "Counts the number of times that the machines clears due to a page fault. Covers both I-side and D-side(Loads/Stores) page faults. A page fault occurs when either page is yest present, or an access violation",
         "EventCode": "0xC3",
         "Counter": "0,1,2,3",
         "UMask": "0x20",
@@ -289,7 +289,7 @@
     {
         "PEBS": "2",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts retired Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired, including both when the branch was taken and when it was not taken.",
+        "PublicDescription": "Counts retired Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired, including both when the branch was taken and when it was yest taken.",
         "EventCode": "0xC4",
         "Counter": "0,1,2,3",
         "UMask": "0x7e",
@@ -385,7 +385,7 @@
     {
         "PEBS": "2",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired that were taken and does not count when the Jcc branch instruction were not taken.",
+        "PublicDescription": "Counts Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired that were taken and does yest count when the Jcc branch instruction were yest taken.",
         "EventCode": "0xC4",
         "Counter": "0,1,2,3",
         "UMask": "0xfe",
@@ -409,7 +409,7 @@
     {
         "PEBS": "2",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts mispredicted retired Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired, including both when the branch was supposed to be taken and when it was not supposed to be taken (but the processor predicted the opposite condition).",
+        "PublicDescription": "Counts mispredicted retired Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired, including both when the branch was supposed to be taken and when it was yest supposed to be taken (but the processor predicted the opposite condition).",
         "EventCode": "0xC5",
         "Counter": "0,1,2,3",
         "UMask": "0x7e",
@@ -421,7 +421,7 @@
     {
         "PEBS": "2",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts mispredicted branch instructions retired that were near indirect call or near indirect jmp, where the target address taken was not what the processor predicted.",
+        "PublicDescription": "Counts mispredicted branch instructions retired that were near indirect call or near indirect jmp, where the target address taken was yest what the processor predicted.",
         "EventCode": "0xC5",
         "Counter": "0,1,2,3",
         "UMask": "0xeb",
@@ -433,7 +433,7 @@
     {
         "PEBS": "2",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts mispredicted near RET branch instructions retired, where the return address taken was not what the processor predicted.",
+        "PublicDescription": "Counts mispredicted near RET branch instructions retired, where the return address taken was yest what the processor predicted.",
         "EventCode": "0xC5",
         "Counter": "0,1,2,3",
         "UMask": "0xf7",
@@ -445,7 +445,7 @@
     {
         "PEBS": "2",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts mispredicted near indirect CALL branch instructions retired, where the target address taken was not what the processor predicted.",
+        "PublicDescription": "Counts mispredicted near indirect CALL branch instructions retired, where the target address taken was yest what the processor predicted.",
         "EventCode": "0xC5",
         "Counter": "0,1,2,3",
         "UMask": "0xfb",
@@ -457,7 +457,7 @@
     {
         "PEBS": "2",
         "CollectPEBSRecord": "2",
-        "PublicDescription": "Counts mispredicted retired Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired that were supposed to be taken but the processor predicted that it would not be taken.",
+        "PublicDescription": "Counts mispredicted retired Jcc (Jump on Conditional Code/Jump if Condition is Met) branch instructions retired that were supposed to be taken but the processor predicted that it would yest be taken.",
         "EventCode": "0xC5",
         "Counter": "0,1,2,3",
         "UMask": "0xfe",
@@ -504,7 +504,7 @@
     },
     {
         "CollectPEBSRecord": "1",
-        "PublicDescription": "Counts the number of times a BACLEAR is signaled for any reason, including, but not limited to indirect branch/call,  Jcc (Jump on Conditional Code/Jump if Condition is Met) branch, unconditional branch/call, and returns.",
+        "PublicDescription": "Counts the number of times a BACLEAR is signaled for any reason, including, but yest limited to indirect branch/call,  Jcc (Jump on Conditional Code/Jump if Condition is Met) branch, unconditional branch/call, and returns.",
         "EventCode": "0xE6",
         "Counter": "0,1,2,3",
         "UMask": "0x1",

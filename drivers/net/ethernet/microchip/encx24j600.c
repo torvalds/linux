@@ -7,7 +7,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/interrupt.h>
@@ -26,7 +26,7 @@
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 static int debug = -1;
 module_param(debug, int, 0000);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=yesne,...,16=all)");
 
 /* SRAM memory layout:
  *
@@ -88,7 +88,7 @@ static void encx24j600_dump_rsv(struct encx24j600_priv *priv, const char *msg,
 		   RSV_GETBIT(rsv->rxstat, RSV_RXBROADCAST),
 		   RSV_GETBIT(rsv->rxstat, RSV_RXLONGEVDROPEV),
 		   RSV_GETBIT(rsv->rxstat, RSV_CARRIEREV));
-	netdev_dbg(dev, "ControlFrame: %d, PauseFrame: %d, UnknownOp: %d, VLanTagFrame: %d\n",
+	netdev_dbg(dev, "ControlFrame: %d, PauseFrame: %d, UnkyeswnOp: %d, VLanTagFrame: %d\n",
 		   RSV_GETBIT(rsv->rxstat, RSV_RXCONTROLFRAME),
 		   RSV_GETBIT(rsv->rxstat, RSV_RXPAUSEFRAME),
 		   RSV_GETBIT(rsv->rxstat, RSV_RXUNKNOWNOPCODE),
@@ -229,7 +229,7 @@ static int encx24j600_wait_for_autoneg(struct encx24j600_priv *priv)
 		if (time_after(jiffies, timeout)) {
 			u16 phstat3;
 
-			netif_notice(priv, drv, dev, "timeout waiting for autoneg done\n");
+			netif_yestice(priv, drv, dev, "timeout waiting for autoneg done\n");
 
 			priv->autoneg = AUTONEG_DISABLE;
 			phstat3 = encx24j600_read_phy(priv, PHSTAT3);
@@ -237,7 +237,7 @@ static int encx24j600_wait_for_autoneg(struct encx24j600_priv *priv)
 				      ? SPEED_100 : SPEED_10;
 			priv->full_duplex = (phstat3 & PHY3DPX) ? 1 : 0;
 			encx24j600_update_phcon1(priv);
-			netif_notice(priv, drv, dev, "Using parallel detection: %s/%s",
+			netif_yestice(priv, drv, dev, "Using parallel detection: %s/%s",
 				     priv->speed == SPEED_100 ? "100" : "10",
 				     priv->full_duplex ? "Full" : "Half");
 
@@ -278,7 +278,7 @@ static void encx24j600_check_link_status(struct encx24j600_priv *priv)
 	} else {
 		netif_info(priv, ifdown, dev, "link down\n");
 
-		/* Re-enable autoneg since we won't know what we might be
+		/* Re-enable autoneg since we won't kyesw what we might be
 		 * connected to when the link is brought back up again.
 		 */
 		priv->autoneg  = AUTONEG_ENABLE;
@@ -687,7 +687,7 @@ static int encx24j600_setlink(struct net_device *dev, u8 autoneg, u16 speed,
 	int ret = 0;
 
 	if (!priv->hw_enabled) {
-		/* link is in low power mode now; duplex setting
+		/* link is in low power mode yesw; duplex setting
 		 * will take effect on next encx24j600_hw_init()
 		 */
 		if (speed == SPEED_10 || speed == SPEED_100) {
@@ -697,7 +697,7 @@ static int encx24j600_setlink(struct net_device *dev, u8 autoneg, u16 speed,
 		} else {
 			netif_warn(priv, link, dev, "unsupported link speed setting\n");
 			/*speeds other than SPEED_10 and SPEED_100 */
-			/*are not supported by chip */
+			/*are yest supported by chip */
 			ret = -EOPNOTSUPP;
 		}
 	} else {
@@ -822,7 +822,7 @@ static void encx24j600_set_multicast_list(struct net_device *dev)
 			  (dev->flags & IFF_ALLMULTI) ? "all-" : "");
 		priv->rxfilter = RXFILTER_MULTI;
 	} else {
-		netif_dbg(priv, link, dev, "normal mode\n");
+		netif_dbg(priv, link, dev, "yesrmal mode\n");
 		priv->rxfilter = RXFILTER_NORMAL;
 	}
 
@@ -919,7 +919,7 @@ static void encx24j600_get_regs(struct net_device *dev,
 	mutex_lock(&priv->lock);
 	for (reg = 0; reg < SFR_REG_COUNT; reg += 2) {
 		unsigned int val = 0;
-		/* ignore errors for unreadable registers */
+		/* igyesre errors for unreadable registers */
 		regmap_read(priv->ctx.regmap, reg, &val);
 		buff[reg] = val & 0xffff;
 	}
@@ -1036,7 +1036,7 @@ static int encx24j600_spi_probe(struct spi_device *spi)
 	/* Reset device and check if it is connected */
 	if (encx24j600_hw_reset(priv)) {
 		netif_err(priv, probe, ndev,
-			  DRV_NAME ": Chip is not detected\n");
+			  DRV_NAME ": Chip is yest detected\n");
 		ret = -EIO;
 		goto out_free;
 	}

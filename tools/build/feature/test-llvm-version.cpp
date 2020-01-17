@@ -8,5 +8,5 @@
 #if NUM_VERSION >= 0x030900
 pass
 #else
-# error This LLVM is not tested yet.
+# error This LLVM is yest tested yet.
 #endif

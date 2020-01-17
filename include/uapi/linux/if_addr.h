@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __LINUX_IF_ADDR_H
 #define __LINUX_IF_ADDR_H
 
@@ -16,12 +16,12 @@ struct ifaddrmsg {
 /*
  * Important comment:
  * IFA_ADDRESS is prefix address, rather than local interface address.
- * It makes no difference for normally configured broadcast interfaces,
+ * It makes yes difference for yesrmally configured broadcast interfaces,
  * but for point-to-point IFA_ADDRESS is DESTINATION address,
  * local address is supplied in IFA_LOCAL attribute.
  *
  * IFA_FLAGS is a u32 attribute that extends the u8 field ifa_flags.
- * If present, the value from struct ifaddrmsg will be ignored.
+ * If present, the value from struct ifaddrmsg will be igyesred.
  */
 enum {
 	IFA_UNSPEC,

@@ -45,7 +45,7 @@ config IPMI_PANIC_STRING
 	  by default, generate IPMI OEM type f0 events holding the IPMB
 	  address of the panic generator (byte 4 of the event), a sequence
 	  number for the string (byte 5 of the event) and part of the
-	  string (the rest of the event).  Bytes 1, 2, and 3 are the normal
+	  string (the rest of the event).  Bytes 1, 2, and 3 are the yesrmal
 	  usage for an OEM event.  You can fetch these events and use the
 	  sequence numbers to piece the string together.  This config
 	  parameter sets the default value to generate these events,

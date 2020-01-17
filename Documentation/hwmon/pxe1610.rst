@@ -9,7 +9,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: Datasheet is not publicly available.
+    Datasheet: Datasheet is yest publicly available.
 
   * Infineon PXE1110
 
@@ -17,7 +17,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: Datasheet is not publicly available.
+    Datasheet: Datasheet is yest publicly available.
 
   * Infineon PXM1310
 
@@ -25,7 +25,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: Datasheet is not publicly available.
+    Datasheet: Datasheet is yest publicly available.
 
 Author: Vijay Khemka <vijaykhemka@fb.com>
 
@@ -55,7 +55,7 @@ IMVP8 based systems
 Usage Notes
 -----------
 
-This driver does not probe for PMBus devices. You will have
+This driver does yest probe for PMBus devices. You will have
 to instantiate devices explicitly.
 
 Example: the following commands will load the driver for an PXE1610

@@ -73,7 +73,7 @@ config CAN_PLX_PCI
 	---help---
 	  This driver is for CAN interface cards based on
 	  the PLX90xx PCI bridge.
-	  Driver supports now:
+	  Driver supports yesw:
 	   - Adlink PCI-7841/cPCI-7841 card (http://www.adlinktech.com/)
 	   - Adlink PCI-7841/cPCI-7841 SE card
 	   - esd CAN-PCI/CPCI/PCI104/200 (http://www.esd.eu/)
@@ -106,7 +106,7 @@ config CAN_TSCAN1
 	tristate "TS-CAN1 PC104 boards"
 	depends on ISA
 	help
-	  This driver is for Technologic Systems' TSCAN-1 PC104 boards.
+	  This driver is for Techyeslogic Systems' TSCAN-1 PC104 boards.
 	  http://www.embeddedarm.com/products/board-detail.php?product=TS-CAN1
 	  The driver supports multiple boards and automatically configures them:
 	  PLD IO base addresses are read from jumpers JP1 and JP2,

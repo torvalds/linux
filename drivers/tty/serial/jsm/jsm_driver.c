@@ -30,7 +30,7 @@ struct uart_driver jsm_uart_driver = {
 	.driver_name	= JSM_DRIVER_NAME,
 	.dev_name	= "ttyn",
 	.major		= 0,
-	.minor		= JSM_MINOR_START,
+	.miyesr		= JSM_MINOR_START,
 	.nr		= NR_PORTS,
 };
 
@@ -157,7 +157,7 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 						pci_resource_len(pdev, 4));
 		if (!brd->re_map_membase) {
 			dev_err(&pdev->dev,
-				"Card has no PCI Memory resources, failing board.\n");
+				"Card has yes PCI Memory resources, failing board.\n");
 			rc = -ENOMEM;
 			goto out_kfree_brd;
 		}
@@ -205,7 +205,7 @@ static int jsm_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 						pci_resource_len(pdev, 0));
 		if (!brd->re_map_membase) {
 			dev_err(&pdev->dev,
-				"Card has no PCI Memory resources, failing board.\n");
+				"Card has yes PCI Memory resources, failing board.\n");
 			rc = -ENOMEM;
 			goto out_kfree_brd;
 		}
@@ -269,7 +269,7 @@ static void jsm_remove_one(struct pci_dev *pdev)
 	case PCI_DEVICE_ID_CLASSIC_4_422:
 	case PCI_DEVICE_ID_CLASSIC_8:
 	case PCI_DEVICE_ID_CLASSIC_8_422:
-		/* Tell card not to interrupt anymore. */
+		/* Tell card yest to interrupt anymore. */
 		outb(0x0, brd->iobase + 0x4c);
 		break;
 	default:

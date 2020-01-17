@@ -87,7 +87,7 @@ class SmokeTest(unittest.TestCase):
 
         blob = self.client.seal(self.root_key, data, auth, policy_dig)
 
-        # Extend first a PCR that is not part of the policy and try to unseal.
+        # Extend first a PCR that is yest part of the policy and try to unseal.
         # This should succeed.
 
         ds = tpm2.get_digest_size(tpm2.TPM2_ALG_SHA1)

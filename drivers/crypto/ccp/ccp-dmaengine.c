@@ -38,7 +38,7 @@ MODULE_PARM_DESC(dma_chan_attr, "Set DMA channel visibility: 0 (default) = devic
 
 static unsigned int dmaengine = 1;
 module_param(dmaengine, uint, 0444);
-MODULE_PARM_DESC(dmaengine, "Register services with the DMA subsystem (any non-zero value, default: 1)");
+MODULE_PARM_DESC(dmaengine, "Register services with the DMA subsystem (any yesn-zero value, default: 1)");
 
 static unsigned int ccp_get_dma_chan_attr(struct ccp_device *ccp)
 {
@@ -280,7 +280,7 @@ static void ccp_cmd_callback(void *data, int err)
 		/* Check for DMA descriptor completion */
 		desc = ccp_handle_active_desc(chan, desc);
 
-		/* Don't submit cmd if no descriptor or DMA is paused */
+		/* Don't submit cmd if yes descriptor or DMA is paused */
 		if (!desc || (chan->status == DMA_PAUSED))
 			break;
 
@@ -363,7 +363,7 @@ static struct ccp_dma_desc *ccp_create_desc(struct dma_chan *dma_chan,
 	struct ccp_dma_desc *desc;
 	struct ccp_dma_cmd *cmd;
 	struct ccp_cmd *ccp_cmd;
-	struct ccp_passthru_nomap_engine *ccp_pt;
+	struct ccp_passthru_yesmap_engine *ccp_pt;
 	unsigned int src_offset, src_len;
 	unsigned int dst_offset, dst_len;
 	unsigned int len;
@@ -425,7 +425,7 @@ static struct ccp_dma_desc *ccp_create_desc(struct dma_chan *dma_chan,
 
 		ccp_cmd = &cmd->ccp_cmd;
 		ccp_cmd->ccp = chan->ccp;
-		ccp_pt = &ccp_cmd->u.passthru_nomap;
+		ccp_pt = &ccp_cmd->u.passthru_yesmap;
 		ccp_cmd->flags = CCP_CMD_MAY_BACKLOG;
 		ccp_cmd->flags |= CCP_CMD_PASSTHRU_NO_DMA_MAP;
 		ccp_cmd->engine = CCP_ENGINE_PASSTHRU;
@@ -533,7 +533,7 @@ static void ccp_issue_pending(struct dma_chan *dma_chan)
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 
-	/* If there was nothing active, start processing */
+	/* If there was yesthing active, start processing */
 	if (desc)
 		ccp_cmd_callback(desc, 0);
 }
@@ -718,7 +718,7 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 		dma_chan->device = dma_dev;
 		dma_cookie_init(dma_chan);
 
-		list_add_tail(&dma_chan->device_node, &dma_dev->channels);
+		list_add_tail(&dma_chan->device_yesde, &dma_dev->channels);
 	}
 
 	dma_dev->device_free_chan_resources = ccp_free_chan_resources;

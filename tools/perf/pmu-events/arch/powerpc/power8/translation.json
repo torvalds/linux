@@ -26,13 +26,13 @@
   {
     "EventCode": "0x4e048",
     "EventName": "PM_DPTEG_FROM_DL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from ayesther chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x3e048",
     "EventName": "PM_DPTEG_FROM_DL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from ayesther chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a data side request",
     "PublicDescription": ""
   },
   {
@@ -104,31 +104,31 @@
   {
     "EventCode": "0x4e04a",
     "EventName": "PM_DPTEG_FROM_OFF_CHIP_CACHE",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from ayesther core's L2/L3 on a different chip (remote or distant) due to a data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x1e048",
     "EventName": "PM_DPTEG_FROM_ON_CHIP_CACHE",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on the same chip due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from ayesther core's L2/L3 on the same chip due to a data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2e046",
     "EventName": "PM_DPTEG_FROM_RL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from ayesther chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x1e04a",
     "EventName": "PM_DPTEG_FROM_RL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from ayesther chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a data side request",
     "PublicDescription": ""
   },
   {
     "EventCode": "0x2e04a",
     "EventName": "PM_DPTEG_FROM_RL4",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on the same Node or Group ( Remote) due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from ayesther chip's L4 on the same Node or Group ( Remote) due to a data side request",
     "PublicDescription": ""
   },
   {

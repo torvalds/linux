@@ -18,7 +18,7 @@
 #include <linux/string.h>
 #include <linux/bio.h>
 
-struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
+struct fileIdentDesc *udf_fileident_read(struct iyesde *dir, loff_t *nf_pos,
 					 struct udf_fileident_bh *fibh,
 					 struct fileIdentDesc *cfi,
 					 struct extent_position *epos,
@@ -29,7 +29,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 	int i, num;
 	udf_pblk_t block;
 	struct buffer_head *tmp, *bha[16];
-	struct udf_inode_info *iinfo = UDF_I(dir);
+	struct udf_iyesde_info *iinfo = UDF_I(dir);
 
 	fibh->soffset = fibh->eoffset;
 

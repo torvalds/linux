@@ -179,7 +179,7 @@ static int stm32_usbphyc_pll_enable(struct stm32_usbphyc *usbphyc)
 	udelay(PLL_LOCK_TIME_US);
 
 	if (!(readl_relaxed(pll_reg) & PLLEN)) {
-		dev_err(usbphyc->dev, "PLLEN not set\n");
+		dev_err(usbphyc->dev, "PLLEN yest set\n");
 		return -EIO;
 	}
 
@@ -199,7 +199,7 @@ static int stm32_usbphyc_pll_disable(struct stm32_usbphyc *usbphyc)
 	udelay(PLL_PWR_DOWN_TIME_US);
 
 	if (readl_relaxed(pll_reg) & PLLEN) {
-		dev_err(usbphyc->dev, "PLL not reset\n");
+		dev_err(usbphyc->dev, "PLL yest reset\n");
 		return -EIO;
 	}
 
@@ -270,11 +270,11 @@ static struct phy *stm32_usbphyc_of_xlate(struct device *dev,
 {
 	struct stm32_usbphyc *usbphyc = dev_get_drvdata(dev);
 	struct stm32_usbphyc_phy *usbphyc_phy = NULL;
-	struct device_node *phynode = args->np;
+	struct device_yesde *phyyesde = args->np;
 	int port = 0;
 
 	for (port = 0; port < usbphyc->nphys; port++) {
-		if (phynode == usbphyc->phys[port]->phy->dev.of_node) {
+		if (phyyesde == usbphyc->phys[port]->phy->dev.of_yesde) {
 			usbphyc_phy = usbphyc->phys[port];
 			break;
 		}
@@ -310,7 +310,7 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 {
 	struct stm32_usbphyc *usbphyc;
 	struct device *dev = &pdev->dev;
-	struct device_node *child, *np = dev->of_node;
+	struct device_yesde *child, *np = dev->of_yesde;
 	struct resource *res;
 	struct phy_provider *phy_provider;
 	u32 version;
@@ -356,7 +356,7 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 		goto clk_disable;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		struct stm32_usbphyc_phy *usbphyc_phy;
 		struct phy *phy;
 		u32 index;
@@ -423,7 +423,7 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 	return 0;
 
 put_child:
-	of_node_put(child);
+	of_yesde_put(child);
 clk_disable:
 	clk_disable_unprepare(usbphyc->clk);
 

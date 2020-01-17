@@ -99,7 +99,7 @@ static int aic32x4_set_mfp2_gpio(struct snd_kcontrol *kcontrol,
 	val = snd_soc_component_read32(component, AIC32X4_DOUTCTL);
 	gpio_check = (val & AIC32X4_MFP_GPIO_ENABLED);
 	if (gpio_check != AIC32X4_MFP_GPIO_ENABLED) {
-		printk(KERN_ERR "%s: MFP2 is not configure as a GPIO output\n",
+		printk(KERN_ERR "%s: MFP2 is yest configure as a GPIO output\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -140,7 +140,7 @@ static int aic32x4_set_mfp4_gpio(struct snd_kcontrol *kcontrol,
 	val = snd_soc_component_read32(component, AIC32X4_MISOCTL);
 	gpio_check = (val & AIC32X4_MFP_GPIO_ENABLED);
 	if (gpio_check != AIC32X4_MFP_GPIO_ENABLED) {
-		printk(KERN_ERR "%s: MFP4 is not configure as a GPIO output\n",
+		printk(KERN_ERR "%s: MFP4 is yest configure as a GPIO output\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -180,7 +180,7 @@ static int aic32x4_set_mfp5_gpio(struct snd_kcontrol *kcontrol,
 	val = snd_soc_component_read32(component, AIC32X4_GPIOCTL);
 	gpio_check = (val & AIC32X4_MFP5_GPIO_OUTPUT);
 	if (gpio_check != AIC32X4_MFP5_GPIO_OUTPUT) {
-		printk(KERN_ERR "%s: MFP5 is not configure as a GPIO output\n",
+		printk(KERN_ERR "%s: MFP5 is yest configure as a GPIO output\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -707,7 +707,7 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 		dosr_increment = 2;
 		aic32x4_set_processing_blocks(component, 13, 19);
 	} else {
-		dev_err(component->dev, "Sampling rate not supported\n");
+		dev_err(component->dev, "Sampling rate yest supported\n");
 		return -EINVAL;
 	}
 
@@ -762,7 +762,7 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 	}
 
 	dev_err(component->dev,
-		"Could not set clocks to support sample rate.\n");
+		"Could yest set clocks to support sample rate.\n");
 	return -EINVAL;
 }
 
@@ -1000,9 +1000,9 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 				AIC32X4_RMICPGANIN_CM1R_10K);
 
 	/*
-	 * Workaround: for an unknown reason, the ADC needs to be powered up
+	 * Workaround: for an unkyeswn reason, the ADC needs to be powered up
 	 * and down for the first capture to work properly. It seems related to
-	 * a HW BUG or some kind of behavior not documented in the datasheet.
+	 * a HW BUG or some kind of behavior yest documented in the datasheet.
 	 */
 	tmp_reg = snd_soc_component_read32(component, AIC32X4_ADCSETUP);
 	snd_soc_component_write(component, AIC32X4_ADCSETUP, tmp_reg |
@@ -1025,11 +1025,11 @@ static const struct snd_soc_component_driver soc_component_dev_aic32x4 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int aic32x4_parse_dt(struct aic32x4_priv *aic32x4,
-		struct device_node *np)
+		struct device_yesde *np)
 {
 	struct aic32x4_setup_data *aic32x4_setup;
 	int ret;
@@ -1158,7 +1158,7 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 {
 	struct aic32x4_priv *aic32x4;
 	struct aic32x4_pdata *pdata = dev->platform_data;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int ret;
 
 	if (IS_ERR(regmap))
@@ -1181,7 +1181,7 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap)
 	} else if (np) {
 		ret = aic32x4_parse_dt(aic32x4, np);
 		if (ret) {
-			dev_err(dev, "Failed to parse DT node\n");
+			dev_err(dev, "Failed to parse DT yesde\n");
 			return ret;
 		}
 	} else {

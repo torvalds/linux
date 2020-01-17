@@ -17,12 +17,12 @@
  *
  * We rely on the hardware to broadcast the TLB invalidation to all CPUs
  * inside the inner-shareable domain (which is the case for all v7
- * implementations).  If we come across a non-IS SMP implementation, we'll
+ * implementations).  If we come across a yesn-IS SMP implementation, we'll
  * have to use an IPI based mechanism. Until then, we stick to the simple
  * hardware assisted version.
  *
- * As v7 does not support flushing per IPA, just nuke the whole TLB
- * instead, ignoring the ipa value.
+ * As v7 does yest support flushing per IPA, just nuke the whole TLB
+ * instead, igyesring the ipa value.
  */
 void __hyp_text __kvm_tlb_flush_vmid(struct kvm *kvm)
 {

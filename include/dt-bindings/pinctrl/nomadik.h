@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * nomadik.h
+ * yesmadik.h
  *
  * Copyright (C) ST-Ericsson SA 2013
  * Author: Gabriel Fernandez <gabriel.fernandez@st.com> for ST-Ericsson.

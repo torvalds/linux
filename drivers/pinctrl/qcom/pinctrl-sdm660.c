@@ -12,7 +12,7 @@
 #include "pinctrl-msm.h"
 
 static const char * const sdm660_tiles[] = {
-	"north",
+	"yesrth",
 	"center",
 	"south"
 };

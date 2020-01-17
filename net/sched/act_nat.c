@@ -5,7 +5,7 @@
  * Copyright (c) 2007 Herbert Xu <herbert@gondor.apana.org.au>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -114,7 +114,7 @@ static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,
 	int egress;
 	int action;
 	int ihl;
-	int noff;
+	int yesff;
 
 	spin_lock(&p->tcf_lock);
 
@@ -132,8 +132,8 @@ static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,
 	if (unlikely(action == TC_ACT_SHOT))
 		goto drop;
 
-	noff = skb_network_offset(skb);
-	if (!pskb_may_pull(skb, sizeof(*iph) + noff))
+	yesff = skb_network_offset(skb);
+	if (!pskb_may_pull(skb, sizeof(*iph) + yesff))
 		goto drop;
 
 	iph = ip_hdr(skb);
@@ -144,7 +144,7 @@ static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,
 		addr = iph->daddr;
 
 	if (!((old_addr ^ addr) & mask)) {
-		if (skb_try_make_writable(skb, sizeof(*iph) + noff))
+		if (skb_try_make_writable(skb, sizeof(*iph) + yesff))
 			goto drop;
 
 		new_addr &= mask;
@@ -171,8 +171,8 @@ static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,
 	{
 		struct tcphdr *tcph;
 
-		if (!pskb_may_pull(skb, ihl + sizeof(*tcph) + noff) ||
-		    skb_try_make_writable(skb, ihl + sizeof(*tcph) + noff))
+		if (!pskb_may_pull(skb, ihl + sizeof(*tcph) + yesff) ||
+		    skb_try_make_writable(skb, ihl + sizeof(*tcph) + yesff))
 			goto drop;
 
 		tcph = (void *)(skb_network_header(skb) + ihl);
@@ -184,8 +184,8 @@ static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,
 	{
 		struct udphdr *udph;
 
-		if (!pskb_may_pull(skb, ihl + sizeof(*udph) + noff) ||
-		    skb_try_make_writable(skb, ihl + sizeof(*udph) + noff))
+		if (!pskb_may_pull(skb, ihl + sizeof(*udph) + yesff) ||
+		    skb_try_make_writable(skb, ihl + sizeof(*udph) + yesff))
 			goto drop;
 
 		udph = (void *)(skb_network_header(skb) + ihl);
@@ -201,7 +201,7 @@ static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,
 	{
 		struct icmphdr *icmph;
 
-		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + noff))
+		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + yesff))
 			goto drop;
 
 		icmph = (void *)(skb_network_header(skb) + ihl);
@@ -210,7 +210,7 @@ static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,
 			break;
 
 		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + sizeof(*iph) +
-					noff))
+					yesff))
 			goto drop;
 
 		icmph = (void *)(skb_network_header(skb) + ihl);
@@ -224,7 +224,7 @@ static int tcf_nat_act(struct sk_buff *skb, const struct tc_action *a,
 			break;
 
 		if (skb_try_make_writable(skb, ihl + sizeof(*icmph) +
-					  sizeof(*iph) + noff))
+					  sizeof(*iph) + yesff))
 			goto drop;
 
 		icmph = (void *)(skb_network_header(skb) + ihl);

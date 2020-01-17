@@ -38,9 +38,9 @@ edge.
 		    in mailbox/mailbox.txt
 
 = GLINK DEVICES
-Each subnode of the GLINK node represent function tied to a virtual
-communication channel. The name of the nodes are not important. The properties
-of these nodes are defined by the individual bindings for the specific function
+Each subyesde of the GLINK yesde represent function tied to a virtual
+communication channel. The name of the yesdes are yest important. The properties
+of these yesdes are defined by the individual bindings for the specific function
 - but must contain the following property:
 
 - qcom,glink-channels:
@@ -58,7 +58,7 @@ of these nodes are defined by the individual bindings for the specific function
 		    meet expectations of the remote.
 
 = EXAMPLE
-The following example represents the GLINK RPM node on a MSM8996 device, with
+The following example represents the GLINK RPM yesde on a MSM8996 device, with
 the function for the "rpm_request" channel defined, which is used for
 regulators and root clocks.
 

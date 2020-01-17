@@ -17,7 +17,7 @@ i2400m-$(CONFIG_DEBUG_FS) += debugfs.o
 
 i2400m-usb-y :=			\
 	usb-fw.o		\
-	usb-notif.o		\
+	usb-yestif.o		\
 	usb-tx.o		\
 	usb-rx.o		\
 	usb.o

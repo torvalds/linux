@@ -103,8 +103,8 @@ void vpss_set_pg_frame_size(struct vpss_pg_frame_size frame_size);
  *
  * Following return values used:-
  * 0 - interrupt occurred and cleared
- * 1 - interrupt not occurred
- * 2 - interrupt status not available
+ * 1 - interrupt yest occurred
+ * 2 - interrupt status yest available
  */
 int vpss_dma_complete_interrupt(void);
 

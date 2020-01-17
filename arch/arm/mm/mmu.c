@@ -6,10 +6,10 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/mman.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/memblock.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
@@ -145,13 +145,13 @@ void __init init_default_cache_policy(unsigned long pmd)
 		}
 
 	if (i == ARRAY_SIZE(cache_policies))
-		pr_err("ERROR: could not find cache policy\n");
+		pr_err("ERROR: could yest find cache policy\n");
 }
 
 /*
  * These are useful for identifying cache coherency problems by allowing
  * the cache or the cache and writebuffer to be turned off.  (Note: the
- * write buffer should not be on and the cache off).
+ * write buffer should yest be on and the cache off).
  */
 static int __init early_cachepolicy(char *p)
 {
@@ -167,12 +167,12 @@ static int __init early_cachepolicy(char *p)
 	}
 
 	if (selected == -1)
-		pr_err("ERROR: unknown or unsupported cache policy\n");
+		pr_err("ERROR: unkyeswn or unsupported cache policy\n");
 
 	/*
 	 * This restriction is partly to do with the way we boot; it is
 	 * unpredictable to have memory mapped using two different sets of
-	 * memory attributes (shared, type, and cache attribs).  We can not
+	 * memory attributes (shared, type, and cache attribs).  We can yest
 	 * change these attributes once the initial assembly has setup the
 	 * page tables.
 	 */
@@ -192,23 +192,23 @@ static int __init early_cachepolicy(char *p)
 }
 early_param("cachepolicy", early_cachepolicy);
 
-static int __init early_nocache(char *__unused)
+static int __init early_yescache(char *__unused)
 {
 	char *p = "buffered";
-	pr_warn("nocache is deprecated; use cachepolicy=%s\n", p);
+	pr_warn("yescache is deprecated; use cachepolicy=%s\n", p);
 	early_cachepolicy(p);
 	return 0;
 }
-early_param("nocache", early_nocache);
+early_param("yescache", early_yescache);
 
-static int __init early_nowrite(char *__unused)
+static int __init early_yeswrite(char *__unused)
 {
 	char *p = "uncached";
-	pr_warn("nowb is deprecated; use cachepolicy=%s\n", p);
+	pr_warn("yeswb is deprecated; use cachepolicy=%s\n", p);
 	early_cachepolicy(p);
 	return 0;
 }
-early_param("nowb", early_nowrite);
+early_param("yeswb", early_yeswrite);
 
 #ifndef CONFIG_ARM_LPAE
 static int __init early_ecc(char *p)
@@ -226,15 +226,15 @@ early_param("ecc", early_ecc);
 
 static int __init early_cachepolicy(char *p)
 {
-	pr_warn("cachepolicy kernel parameter not supported without cp15\n");
+	pr_warn("cachepolicy kernel parameter yest supported without cp15\n");
 }
 early_param("cachepolicy", early_cachepolicy);
 
-static int __init noalign_setup(char *__unused)
+static int __init yesalign_setup(char *__unused)
 {
-	pr_warn("noalign kernel parameter not supported without cp15\n");
+	pr_warn("yesalign kernel parameter yest supported without cp15\n");
 }
-__setup("noalign", noalign_setup);
+__setup("yesalign", yesalign_setup);
 
 #endif /* ifdef CONFIG_CPU_CP15 / else */
 
@@ -253,7 +253,7 @@ static struct mem_type mem_types[] __ro_after_init = {
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_S,
 		.domain		= DOMAIN_IO,
 	},
-	[MT_DEVICE_NONSHARED] = { /* ARMv6 non-shared device */
+	[MT_DEVICE_NONSHARED] = { /* ARMv6 yesn-shared device */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_NONSHARED,
 		.prot_l1	= PMD_TYPE_TABLE,
 		.prot_sect	= PROT_SECT_DEVICE,
@@ -387,7 +387,7 @@ void __init early_fixmap_init(void)
 
 	/*
 	 * The early fixmap range spans multiple pmds, for which
-	 * we are not prepared:
+	 * we are yest prepared:
 	 */
 	BUILD_BUG_ON((__fix_to_virt(__end_of_early_ioremap_region) >> PMD_SHIFT)
 		     != FIXADDR_TOP >> PMD_SHIFT);
@@ -408,7 +408,7 @@ void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot)
 	unsigned long vaddr = __fix_to_virt(idx);
 	pte_t *pte = pte_offset_fixmap(pmd_off_k(vaddr), vaddr);
 
-	/* Make sure fixmap region does not exceed available allocation. */
+	/* Make sure fixmap region does yest exceed available allocation. */
 	BUILD_BUG_ON(FIXADDR_START + (__end_of_fixed_addresses * PAGE_SIZE) >
 		     FIXADDR_END);
 	BUG_ON(idx >= __end_of_fixed_addresses);
@@ -465,7 +465,7 @@ static void __init build_mem_type_table(void)
 	}
 
 	/*
-	 * Strip out features not present on earlier architectures.
+	 * Strip out features yest present on earlier architectures.
 	 * Pre-ARMv5 CPUs don't have TEX bits.  Pre-ARMv6 CPUs or those
 	 * without extended page tables don't have the 'Shared' bit.
 	 */
@@ -516,7 +516,7 @@ static void __init build_mem_type_table(void)
 			/*
 			 * For ARMv7 with TEX remapping,
 			 * - shared device is SXCB=1100
-			 * - nonshared device is SXCB=0100
+			 * - yesnshared device is SXCB=0100
 			 * - write combine device mem is SXCB=0001
 			 * (Uncached Normal memory)
 			 */
@@ -527,7 +527,7 @@ static void __init build_mem_type_table(void)
 			/*
 			 * For Xscale3,
 			 * - shared device is TEXCB=00101
-			 * - nonshared device is TEXCB=01000
+			 * - yesnshared device is TEXCB=01000
 			 * - write combine device mem is TEXCB=00100
 			 * (Inner/Outer Uncacheable in xsc3 parlance)
 			 */
@@ -538,7 +538,7 @@ static void __init build_mem_type_table(void)
 			/*
 			 * For ARMv6 and ARMv7 without TEX remapping,
 			 * - shared device is TEXCB=00001
-			 * - nonshared device is TEXCB=01000
+			 * - yesnshared device is TEXCB=01000
 			 * - write combine device mem is TEXCB=00100
 			 * (Uncached Normal in ARMv6 parlance).
 			 */
@@ -588,7 +588,7 @@ static void __init build_mem_type_table(void)
 #ifndef CONFIG_ARM_LPAE
 		/*
 		 * Mark cache clean areas and XIP ROM read only
-		 * from SVC mode and no access from userspace.
+		 * from SVC mode and yes access from userspace.
 		 */
 		mem_types[MT_ROM].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
 		mem_types[MT_MINICLEAN].prot_sect |= PMD_SECT_APX|PMD_SECT_AP_WRITE;
@@ -621,7 +621,7 @@ static void __init build_mem_type_table(void)
 
 	/*
 	 * Non-cacheable Normal - intended for memory areas that must
-	 * not cause dirty cache line writebacks when used
+	 * yest cause dirty cache line writebacks when used
 	 */
 	if (cpu_arch >= CPU_ARCH_ARMv6) {
 		if (cpu_arch >= CPU_ARCH_ARMv7 && (cr & CR_TRE)) {
@@ -629,7 +629,7 @@ static void __init build_mem_type_table(void)
 			mem_types[MT_MEMORY_RWX_NONCACHED].prot_sect |=
 				PMD_SECT_BUFFERED;
 		} else {
-			/* For both ARMv6 and non-TEX-remapping ARMv7 */
+			/* For both ARMv6 and yesn-TEX-remapping ARMv7 */
 			mem_types[MT_MEMORY_RWX_NONCACHED].prot_sect |=
 				PMD_SECT_TEX(1);
 		}
@@ -639,7 +639,7 @@ static void __init build_mem_type_table(void)
 
 #ifdef CONFIG_ARM_LPAE
 	/*
-	 * Do not generate access flag faults for the kernel mappings.
+	 * Do yest generate access flag faults for the kernel mappings.
 	 */
 	for (i = 0; i < ARRAY_SIZE(mem_types); i++) {
 		mem_types[i].prot_pte |= PTE_EXT_AF;
@@ -706,7 +706,7 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
 {
 	if (!pfn_valid(pfn))
-		return pgprot_noncached(vma_prot);
+		return pgprot_yesncached(vma_prot);
 	else if (file->f_flags & O_SYNC)
 		return pgprot_writecombine(vma_prot);
 	return vma_prot;
@@ -740,7 +740,7 @@ static pte_t * __init arm_pte_alloc(pmd_t *pmd, unsigned long addr,
 				unsigned long prot,
 				void *(*alloc)(unsigned long sz))
 {
-	if (pmd_none(*pmd)) {
+	if (pmd_yesne(*pmd)) {
 		pte_t *pte = alloc(PTE_HWTABLE_OFF + PTE_HWTABLE_SIZE);
 		__pmd_populate(pmd, __pa(pte), prot);
 	}
@@ -857,7 +857,7 @@ static void __init create_36bit_mapping(struct mm_struct *mm,
 	length = PAGE_ALIGN(md->length);
 
 	if (!(cpu_architecture() >= CPU_ARCH_ARMv6 || cpu_is_xsc3())) {
-		pr_err("MM: CPU does not support supersection mapping for 0x%08llx at 0x%08lx\n",
+		pr_err("MM: CPU does yest support supersection mapping for 0x%08llx at 0x%08lx\n",
 		       (long long)__pfn_to_phys((u64)md->pfn), addr);
 		return;
 	}
@@ -875,7 +875,7 @@ static void __init create_36bit_mapping(struct mm_struct *mm,
 	}
 
 	if ((addr | length | __pfn_to_phys(md->pfn)) & ~SUPERSECTION_MASK) {
-		pr_err("MM: cannot create mapping for 0x%08llx at 0x%08lx invalid alignment\n",
+		pr_err("MM: canyest create mapping for 0x%08llx at 0x%08lx invalid alignment\n",
 		       (long long)__pfn_to_phys((u64)md->pfn), addr);
 		return;
 	}
@@ -930,7 +930,7 @@ static void __init __create_mapping(struct mm_struct *mm, struct map_desc *md,
 	length = PAGE_ALIGN(md->length + (md->virtual & ~PAGE_MASK));
 
 	if (type->prot_l1 == 0 && ((addr | phys | length) & ~SECTION_MASK)) {
-		pr_warn("BUG: map for 0x%08llx at 0x%08lx can not be mapped using pages, ignoring.\n",
+		pr_warn("BUG: map for 0x%08llx at 0x%08lx can yest be mapped using pages, igyesring.\n",
 			(long long)__pfn_to_phys(md->pfn), addr);
 		return;
 	}
@@ -957,7 +957,7 @@ static void __init __create_mapping(struct mm_struct *mm, struct map_desc *md,
 static void __init create_mapping(struct map_desc *md)
 {
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
-		pr_warn("BUG: not creating mapping for 0x%08llx at 0x%08lx in user region\n",
+		pr_warn("BUG: yest creating mapping for 0x%08llx at 0x%08lx in user region\n",
 			(long long)__pfn_to_phys((u64)md->pfn), md->virtual);
 		return;
 	}
@@ -996,10 +996,10 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 	if (!nr)
 		return;
 
-	svm = memblock_alloc(sizeof(*svm) * nr, __alignof__(*svm));
+	svm = memblock_alloc(sizeof(*svm) * nr, __aligyesf__(*svm));
 	if (!svm)
 		panic("%s: Failed to allocate %zu bytes align=0x%zx\n",
-		      __func__, sizeof(*svm) * nr, __alignof__(*svm));
+		      __func__, sizeof(*svm) * nr, __aligyesf__(*svm));
 
 	for (md = io_desc; nr; md++, nr--) {
 		create_mapping(md);
@@ -1021,10 +1021,10 @@ void __init vm_reserve_area_early(unsigned long addr, unsigned long size,
 	struct vm_struct *vm;
 	struct static_vm *svm;
 
-	svm = memblock_alloc(sizeof(*svm), __alignof__(*svm));
+	svm = memblock_alloc(sizeof(*svm), __aligyesf__(*svm));
 	if (!svm)
 		panic("%s: Failed to allocate %zu bytes align=0x%zx\n",
-		      __func__, sizeof(*svm), __alignof__(*svm));
+		      __func__, sizeof(*svm), __aligyesf__(*svm));
 
 	vm = &svm->vm;
 	vm->addr = (void *)addr;
@@ -1074,7 +1074,7 @@ static void __init fill_pmd_gaps(void)
 		 */
 		if ((addr & ~PMD_MASK) == SECTION_SIZE) {
 			pmd = pmd_off_k(addr);
-			if (pmd_none(*pmd))
+			if (pmd_yesne(*pmd))
 				pmd_empty_section_gap(addr & PMD_MASK);
 		}
 
@@ -1086,11 +1086,11 @@ static void __init fill_pmd_gaps(void)
 		addr += vm->size;
 		if ((addr & ~PMD_MASK) == SECTION_SIZE) {
 			pmd = pmd_off_k(addr) + 1;
-			if (pmd_none(*pmd))
+			if (pmd_yesne(*pmd))
 				pmd_empty_section_gap(addr);
 		}
 
-		/* no need to look at any vm entry until we hit the next PMD */
+		/* yes need to look at any vm entry until we hit the next PMD */
 		next = (addr + PMD_SIZE - 1) & PMD_MASK;
 	}
 }
@@ -1169,8 +1169,8 @@ void __init adjust_lowmem_bounds(void)
 	phys_addr_t lowmem_limit = 0;
 
 	/*
-	 * Let's use our own (unoptimized) equivalent of __pa() that is
-	 * not affected by wrap-arounds when sizeof(phys_addr_t) == 4.
+	 * Let's use our own (uyesptimized) equivalent of __pa() that is
+	 * yest affected by wrap-arounds when sizeof(phys_addr_t) == 4.
 	 * The result is used as the upper bound on physical memory address
 	 * and may itself be outside the valid range for which phys_addr_t
 	 * and therefore __pa() is defined.
@@ -1182,12 +1182,12 @@ void __init adjust_lowmem_bounds(void)
 	 * as MEMBLOCK_NOMAP if it isn't
 	 */
 	for_each_memblock(memory, reg) {
-		if (!memblock_is_nomap(reg)) {
+		if (!memblock_is_yesmap(reg)) {
 			if (!IS_ALIGNED(reg->base, PMD_SIZE)) {
 				phys_addr_t len;
 
 				len = round_up(reg->base, PMD_SIZE) - reg->base;
-				memblock_mark_nomap(reg->base, len);
+				memblock_mark_yesmap(reg->base, len);
 			}
 			break;
 		}
@@ -1197,15 +1197,15 @@ void __init adjust_lowmem_bounds(void)
 		phys_addr_t block_start = reg->base;
 		phys_addr_t block_end = reg->base + reg->size;
 
-		if (memblock_is_nomap(reg))
+		if (memblock_is_yesmap(reg))
 			continue;
 
 		if (reg->base < vmalloc_limit) {
 			if (block_end > lowmem_limit)
 				/*
 				 * Compare as u64 to ensure vmalloc_limit does
-				 * not get truncated. block_end should always
-				 * fit in phys_addr_t so there should be no
+				 * yest get truncated. block_end should always
+				 * fit in phys_addr_t so there should be yes
 				 * issue with assignment.
 				 */
 				lowmem_limit = min_t(u64,
@@ -1213,13 +1213,13 @@ void __init adjust_lowmem_bounds(void)
 							 block_end);
 
 			/*
-			 * Find the first non-pmd-aligned page, and point
+			 * Find the first yesn-pmd-aligned page, and point
 			 * memblock_limit at it. This relies on rounding the
 			 * limit down to be pmd-aligned, which happens at the
 			 * end of this function.
 			 *
 			 * With this algorithm, the start or end of almost any
-			 * bank can be non-pmd-aligned. The only exception is
+			 * bank can be yesn-pmd-aligned. The only exception is
 			 * that the start of the bank 0 must be section-
 			 * aligned, since otherwise memory would need to be
 			 * allocated when mapping the start of bank 0, which
@@ -1253,9 +1253,9 @@ void __init adjust_lowmem_bounds(void)
 		if (memblock_end_of_DRAM() > arm_lowmem_limit) {
 			phys_addr_t end = memblock_end_of_DRAM();
 
-			pr_notice("Ignoring RAM at %pa-%pa\n",
+			pr_yestice("Igyesring RAM at %pa-%pa\n",
 				  &memblock_limit, &end);
-			pr_notice("Consider using a HIGHMEM enabled kernel.\n");
+			pr_yestice("Consider using a HIGHMEM enabled kernel.\n");
 
 			memblock_remove(memblock_limit, end - memblock_limit);
 		}
@@ -1313,7 +1313,7 @@ void __init arm_mm_memblock_reserve(void)
 {
 	/*
 	 * Reserve the page tables.  These are already in use,
-	 * and can only be in node 0.
+	 * and can only be in yesde 0.
 	 */
 	memblock_reserve(__pa(swapper_pg_dir), SWAPPER_PG_DIR_SIZE);
 
@@ -1432,7 +1432,7 @@ static void __init devicemaps_init(const struct machine_desc *mdesc)
 	local_flush_tlb_all();
 	flush_cache_all();
 
-	/* Enable asynchronous aborts */
+	/* Enable asynchroyesus aborts */
 	early_abt_enable();
 }
 
@@ -1459,7 +1459,7 @@ static void __init map_lowmem(void)
 		phys_addr_t end = start + reg->size;
 		struct map_desc map;
 
-		if (memblock_is_nomap(reg))
+		if (memblock_is_yesmap(reg))
 			continue;
 
 		if (end > arm_lowmem_limit)
@@ -1558,10 +1558,10 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 		(&__pv_table_end - &__pv_table_begin) << 2);
 
 	/*
-	 * We changing not only the virtual to physical mapping, but also
+	 * We changing yest only the virtual to physical mapping, but also
 	 * the physical addresses used to access memory.  We need to flush
 	 * all levels of cache in the system with caching disabled to
-	 * ensure that all data is written back, and nothing is prefetched
+	 * ensure that all data is written back, and yesthing is prefetched
 	 * into the caches.  We also need to prevent the TLB walkers
 	 * allocating into the caches too.  Note that this is ARMv7 LPAE
 	 * specific.
@@ -1601,7 +1601,7 @@ static void __init early_paging_init(const struct machine_desc *mdesc)
 
 	pr_crit("Physical address space modification is only to support Keystone2.\n");
 	pr_crit("Please enable ARM_LPAE and ARM_PATCH_PHYS_VIRT support to use this\n");
-	pr_crit("feature. Your kernel may crash now, have a good day.\n");
+	pr_crit("feature. Your kernel may crash yesw, have a good day.\n");
 	add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
 }
 
@@ -1624,7 +1624,7 @@ static void __init early_fixmap_shutdown(void)
 		pte = pte_offset_early_fixmap(pmd_off_k(map.virtual), map.virtual);
 
 		/* Only i/o device mappings are supported ATM */
-		if (pte_none(*pte) ||
+		if (pte_yesne(*pte) ||
 		    (pte_val(*pte) & L_PTE_MT_MASK) != L_PTE_MT_DEV_SHARED)
 			continue;
 

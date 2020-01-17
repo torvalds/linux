@@ -91,7 +91,7 @@ static void process_frame(struct camera_data *cam)
 		frame_count++;
 	} else {
 		cam->workbuff->status = FRAME_ERROR;
-		DBG("Start of frame not found\n");
+		DBG("Start of frame yest found\n");
 		return;
 	}
 
@@ -117,14 +117,14 @@ static void process_frame(struct camera_data *cam)
 		cam->workbuff->status = FRAME_READY;
 
 		if(!cam->mmapped && cam->num_frames > 2) {
-			/* During normal reading, the most recent
+			/* During yesrmal reading, the most recent
 			 * frame will be read.  If the current frame
 			 * hasn't started reading yet, it will never
 			 * be read, so mark it empty.  If the buffer is
 			 * mmapped, or we have few buffers, we need to
 			 * wait for the user to free the buffer.
 			 *
-			 * NOTE: This is not entirely foolproof with 3
+			 * NOTE: This is yest entirely foolproof with 3
 			 * buffers, but it would take an EXTREMELY
 			 * overloaded system to cause problems (possible
 			 * image data corruption).  Basically, it would
@@ -141,7 +141,7 @@ static void process_frame(struct camera_data *cam)
 		    cam->workbuff->num, cam->curbuff->num);
 		return;
 	} else {
-		DBG("Not enough data for an image.\n");
+		DBG("Not eyesugh data for an image.\n");
 	}
 
 	cam->workbuff->status = FRAME_ERROR;
@@ -211,7 +211,7 @@ static void cpia2_usb_complete(struct urb *urb)
 	}
 
 	if (!cam->streaming || !video_is_registered(&cam->vdev)) {
-		LOG("Will now stop the streaming: streaming = %d, present=%d\n",
+		LOG("Will yesw stop the streaming: streaming = %d, present=%d\n",
 		    cam->streaming, video_is_registered(&cam->vdev));
 		return;
 	}
@@ -288,7 +288,7 @@ static void cpia2_usb_complete(struct urb *urb)
 				 * frame count anyway */
 				cam->frame_count++;
 			}
-			DBG("workbuff not reading, status=%d\n",
+			DBG("workbuff yest reading, status=%d\n",
 			    cam->workbuff->status);
 			continue;
 		}
@@ -311,7 +311,7 @@ static void cpia2_usb_complete(struct urb *urb)
 				  && (0xFF == cdata[2])) {
 				data_offset = 2;
 			} else {
-				DBG("Ignoring packet, not beginning!\n");
+				DBG("Igyesring packet, yest beginning!\n");
 				continue;
 			}
 			DBG("Start of frame pattern found\n");
@@ -500,7 +500,7 @@ static int set_alternate(struct camera_data *cam, unsigned int alt)
  *
  * free_sbufs
  *
- * Free all cam->sbuf[]. All non-NULL .data and .urb members that are non-NULL
+ * Free all cam->sbuf[]. All yesn-NULL .data and .urb members that are yesn-NULL
  * are assumed to be allocated. Non-NULL .urb members are also assumed to be
  * submitted (and must therefore be killed before they are freed).
  *****************************************************************************/
@@ -665,7 +665,7 @@ static int submit_urbs(struct camera_data *cam)
 		}
 	}
 
-	/* We double buffer the Isoc lists, and also know the polling
+	/* We double buffer the Isoc lists, and also kyesw the polling
 	 * interval is every frame (1 == (1 << (bInterval -1))).
 	 */
 	for(i=0; i<NUM_SBUF; ++i) {

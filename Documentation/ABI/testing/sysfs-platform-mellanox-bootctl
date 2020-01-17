@@ -1,19 +1,19 @@
 What:		/sys/bus/platform/devices/MLNXBF04:00/lifecycle_state
 Date:		Oct 2019
 KernelVersion:	5.5
-Contact:	"Liming Sun <lsun@mellanox.com>"
+Contact:	"Liming Sun <lsun@mellayesx.com>"
 Description:
 		The Life-cycle state of the SoC, which could be one of the
 		following values.
 		  Production - Production state and can be updated to secure
-		  GA Secured - Secure chip and not able to change state
-		  GA Non-Secured - Non-Secure chip and not able to change state
+		  GA Secured - Secure chip and yest able to change state
+		  GA Non-Secured - Non-Secure chip and yest able to change state
 		  RMA - Return Merchandise Authorization
 
 What:		/sys/bus/platform/devices/MLNXBF04:00/post_reset_wdog
 Date:		Oct 2019
 KernelVersion:	5.5
-Contact:	"Liming Sun <lsun@mellanox.com>"
+Contact:	"Liming Sun <lsun@mellayesx.com>"
 Description:
 		The watchdog setting in seconds for the next booting. It's used
 		to reboot the chip and recover it to the old state if the new
@@ -22,7 +22,7 @@ Description:
 What:		/sys/bus/platform/devices/MLNXBF04:00/reset_action
 Date:		Oct 2019
 KernelVersion:	5.5
-Contact:	"Liming Sun <lsun@mellanox.com>"
+Contact:	"Liming Sun <lsun@mellayesx.com>"
 Description:
 		The source of the boot stream for the next reset. It could be
 		one of the following values.
@@ -33,7 +33,7 @@ Description:
 What:		/sys/bus/platform/devices/MLNXBF04:00/second_reset_action
 Date:		Oct 2019
 KernelVersion:	5.5
-Contact:	"Liming Sun <lsun@mellanox.com>"
+Contact:	"Liming Sun <lsun@mellayesx.com>"
 Description:
 		Update the source of the boot stream after next reset. It could
 		be one of the following values and will be applied after next
@@ -42,17 +42,17 @@ Description:
 		  emmc - boot from the onchip eMMC
 		  emmc_legacy - boot from the onchip eMMC in legacy (slow) mode
 		  swap_emmc - swap the primary / secondary boot partition
-		  none - cancel the action
+		  yesne - cancel the action
 
 What:		/sys/bus/platform/devices/MLNXBF04:00/secure_boot_fuse_state
 Date:		Oct 2019
 KernelVersion:	5.5
-Contact:	"Liming Sun <lsun@mellanox.com>"
+Contact:	"Liming Sun <lsun@mellayesx.com>"
 Description:
 		The state of eFuse versions with the following values.
 		  InUse - burnt, valid and currently in use
 		  Used - burnt and valid
-		  Free - not burnt and free to use
-		  Skipped - not burnt but not free (skipped)
+		  Free - yest burnt and free to use
+		  Skipped - yest burnt but yest free (skipped)
 		  Wasted - burnt and invalid
-		  Invalid - not burnt but marked as valid (error state).
+		  Invalid - yest burnt but marked as valid (error state).

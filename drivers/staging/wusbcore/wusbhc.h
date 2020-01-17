@@ -51,7 +51,7 @@
 /*
  * Time from a WUSB channel stop request to the last transmitted MMC.
  *
- * This needs to be > 4.096 ms in case no MMCs can be transmitted in
+ * This needs to be > 4.096 ms in case yes MMCs can be transmitted in
  * zone 0.
  */
 #define WUSB_CHANNEL_STOP_DELAY_MS 8
@@ -67,9 +67,9 @@
  *
  * Note this "complements" the 'struct usb_device' that the usb_hcd
  * keeps for each connected USB device. However, it extends some
- * information that is not available (there is no hcpriv ptr in it!)
+ * information that is yest available (there is yes hcpriv ptr in it!)
  * *and* most importantly, it's life cycle is different. It is created
- * as soon as we get a DN_Connect (connect request notification) from
+ * as soon as we get a DN_Connect (connect request yestification) from
  * the device through the WUSB host controller; the USB stack doesn't
  * create the device until we authenticate it. FIXME: this will
  * change.
@@ -82,8 +82,8 @@
 struct wusb_dev {
 	struct kref refcnt;
 	struct wusbhc *wusbhc;
-	struct list_head cack_node;	/* Connect-Ack list */
-	struct list_head rekey_node;	/* GTK rekey list */
+	struct list_head cack_yesde;	/* Connect-Ack list */
+	struct list_head rekey_yesde;	/* GTK rekey list */
 	u8 port_idx;
 	u8 addr;
 	u8 beacon_type:4;
@@ -102,7 +102,7 @@ struct wusb_dev {
 static inline void wusb_dev_init(struct wusb_dev *wusb_dev)
 {
 	kref_init(&wusb_dev->refcnt);
-	/* no need to init the cack_node */
+	/* yes need to init the cack_yesde */
 }
 
 extern void wusb_dev_destroy(struct kref *_wusb_dev);
@@ -122,7 +122,7 @@ static inline void wusb_dev_put(struct wusb_dev *wusb_dev)
  * Wireless USB Host Controller root hub "fake" ports
  * (state and device information)
  *
- * Wireless USB is wireless, so there are no ports; but we
+ * Wireless USB is wireless, so there are yes ports; but we
  * fake'em. Each RC can connect a max of devices at the same time
  * (given in the Wireless Adapter descriptor, bNumPorts or WHCI's
  * caps), referred to in wusbhc->ports_max.
@@ -166,7 +166,7 @@ struct wusb_port {
  *
  * @chid           WUSB Cluster Host ID: this is supposed to be a
  *                 unique value that doesn't change across reboots (so
- *                 that your devices do not require re-association).
+ *                 that your devices do yest require re-association).
  *
  *                 Read/Write protected by @mutex
  *
@@ -211,19 +211,19 @@ struct wusb_port {
  *
  * NOTE:
  *
- *  - If wusb_dev->usb_dev is not NULL, then usb_dev is valid
+ *  - If wusb_dev->usb_dev is yest NULL, then usb_dev is valid
  *    (wusb_dev has a refcount on it). Likewise, if usb_dev->wusb_dev
- *    is not NULL, usb_dev->wusb_dev is valid (usb_dev keeps a
+ *    is yest NULL, usb_dev->wusb_dev is valid (usb_dev keeps a
  *    refcount on it).
  *
- *    Most of the times when you need to use it, it will be non-NULL,
- *    so there is no real need to check for it (wusb_dev will
+ *    Most of the times when you need to use it, it will be yesn-NULL,
+ *    so there is yes real need to check for it (wusb_dev will
  *    disappear before usb_dev).
  *
  *  - The following fields need to be filled out before calling
  *    wusbhc_create(): ports_max, mmcies_max, mmcie_{add,rm}.
  *
- *  - there is no wusbhc_init() method, we do everything in
+ *  - there is yes wusbhc_init() method, we do everything in
  *    wusbhc_create().
  *
  *  - Creation is done in two phases, wusbhc_create() and
@@ -252,7 +252,7 @@ struct wusbhc {
 	unsigned active:1;			/* currently xmit'ing MMCs */
 	struct wuie_keep_alive keep_alive_ie;	/* protected by mutex */
 	struct delayed_work keep_alive_timer;
-	struct list_head cack_list;		/* Connect acknowledging */
+	struct list_head cack_list;		/* Connect ackyeswledging */
 	size_t cack_count;			/* protected by 'mutex' */
 	struct wuie_connect_ack cack_ie;
 	struct uwb_rsv *rsv;		/* cluster bandwidth reservation */
@@ -381,7 +381,7 @@ extern void wusbhc_devconnect_stop(struct wusbhc *wusbhc);
 extern void wusbhc_handle_dn(struct wusbhc *, u8 srcaddr,
 			     struct wusb_dn_hdr *dn_hdr, size_t size);
 extern void __wusbhc_dev_disable(struct wusbhc *wusbhc, u8 port);
-extern int wusb_usb_ncb(struct notifier_block *nb, unsigned long val,
+extern int wusb_usb_ncb(struct yestifier_block *nb, unsigned long val,
 			void *priv);
 extern int wusb_set_dev_addr(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev,
 			     u8 addr);
@@ -444,16 +444,16 @@ static inline struct wusb_port *wusb_port_by_idx(struct wusbhc *wusbhc,
 }
 
 /*
- * wusb_port_no_to_idx - Convert port number (per usb_dev->portnum) to
+ * wusb_port_yes_to_idx - Convert port number (per usb_dev->portnum) to
  * a port_idx.
  *
  * USB stack USB ports are 1 based!!
  *
  * NOTE: only valid for WUSB devices!!!
  */
-static inline u8 wusb_port_no_to_idx(u8 port_no)
+static inline u8 wusb_port_yes_to_idx(u8 port_yes)
 {
-	return port_no - 1;
+	return port_yes - 1;
 }
 
 extern struct wusb_dev *__wusb_dev_get_by_usb_dev(struct wusbhc *,

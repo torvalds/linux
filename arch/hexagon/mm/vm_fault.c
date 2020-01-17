@@ -22,7 +22,7 @@
 
 /*
  * Decode of hardware exception sends us to one of several
- * entry points.  At each, we generate canonical arguments
+ * entry points.  At each, we generate cayesnical arguments
  * for handling by the abstract memory management code.
  */
 #define FLT_IFETCH     -1
@@ -31,24 +31,24 @@
 
 
 /*
- * Canonical page fault handler
+ * Cayesnical page fault handler
  */
 void do_page_fault(unsigned long address, long cause, struct pt_regs *regs)
 {
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
-	int si_signo;
+	int si_sigyes;
 	int si_code = SEGV_MAPERR;
 	vm_fault_t fault;
 	const struct exception_table_entry *fixup;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
 	/*
-	 * If we're in an interrupt or have no user context,
-	 * then must not take the fault.
+	 * If we're in an interrupt or have yes user context,
+	 * then must yest take the fault.
 	 */
 	if (unlikely(in_interrupt() || !mm))
-		goto no_context;
+		goto yes_context;
 
 	local_irq_enable();
 
@@ -116,7 +116,7 @@ good_area:
 
 	/* Handle copyin/out exception cases */
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 
 	if (fault & VM_FAULT_OOM) {
 		pagefault_out_of_memory();
@@ -127,15 +127,15 @@ good_area:
 	 * unable to fix up the page fault.
 	 */
 	if (fault & VM_FAULT_SIGBUS) {
-		si_signo = SIGBUS;
+		si_sigyes = SIGBUS;
 		si_code = BUS_ADRERR;
 	}
-	/* Address is not in the memory map */
+	/* Address is yest in the memory map */
 	else {
-		si_signo = SIGSEGV;
+		si_sigyes = SIGSEGV;
 		si_code  = SEGV_ACCERR;
 	}
-	force_sig_fault(si_signo, si_code, (void __user *)address);
+	force_sig_fault(si_sigyes, si_code, (void __user *)address);
 	return;
 
 bad_area:
@@ -147,14 +147,14 @@ bad_area:
 	}
 	/* Kernel-mode fault falls through */
 
-no_context:
+yes_context:
 	fixup = search_exception_tables(pt_elr(regs));
 	if (fixup) {
 		pt_set_elr(regs, fixup->fixup);
 		return;
 	}
 
-	/* Things are looking very, very bad now */
+	/* Things are looking very, very bad yesw */
 	bust_spinlocks(1);
 	printk(KERN_EMERG "Unable to handle kernel paging request at "
 		"virtual address 0x%08lx, regs %p\n", address, regs);

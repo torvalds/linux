@@ -30,7 +30,7 @@
  * Determine initial path cost based on speed.
  * using recommendations from 802.1d standard
  *
- * Since driver might sleep need to not be holding any locks.
+ * Since driver might sleep need to yest be holding any locks.
  */
 static int port_cost(struct net_device *dev)
 {
@@ -61,7 +61,7 @@ static int port_cost(struct net_device *dev)
 
 
 /* Check for port carrier transitions. */
-void br_port_carrier_check(struct net_bridge_port *p, bool *notified)
+void br_port_carrier_check(struct net_bridge_port *p, bool *yestified)
 {
 	struct net_device *dev = p->dev;
 	struct net_bridge *br = p->br;
@@ -70,7 +70,7 @@ void br_port_carrier_check(struct net_bridge_port *p, bool *notified)
 	    netif_running(dev) && netif_oper_up(dev))
 		p->path_cost = port_cost(dev);
 
-	*notified = false;
+	*yestified = false;
 	if (!netif_running(br->dev))
 		return;
 
@@ -78,12 +78,12 @@ void br_port_carrier_check(struct net_bridge_port *p, bool *notified)
 	if (netif_running(dev) && netif_oper_up(dev)) {
 		if (p->state == BR_STATE_DISABLED) {
 			br_stp_enable_port(p);
-			*notified = true;
+			*yestified = true;
 		}
 	} else {
 		if (p->state != BR_STATE_DISABLED) {
 			br_stp_disable_port(p);
-			*notified = true;
+			*yestified = true;
 		}
 	}
 	spin_unlock_bh(&br->lock);
@@ -108,7 +108,7 @@ static void br_port_clear_promisc(struct net_bridge_port *p)
 {
 	int err;
 
-	/* Check if the port is already non-promisc or if it doesn't
+	/* Check if the port is already yesn-promisc or if it doesn't
 	 * support UNICAST filtering.  Without unicast filtering support
 	 * we'll end up re-enabling promisc mode anyway, so just check for
 	 * it here.
@@ -151,9 +151,9 @@ void br_manage_promisc(struct net_bridge *br)
 			 * ports will have their output configuration
 			 * statically specified through fdbs.  Since ingress
 			 * on the auto-port becomes forwarding/egress to other
-			 * ports and egress configuration is statically known,
+			 * ports and egress configuration is statically kyeswn,
 			 * we can say that ingress configuration of the
-			 * auto-port is also statically known.
+			 * auto-port is also statically kyeswn.
 			 * This lets us disable promiscuous mode and write
 			 * this config to hw.
 			 */
@@ -333,7 +333,7 @@ static void del_nbp(struct net_bridge_port *p)
 	br_stp_disable_port(p);
 	spin_unlock_bh(&br->lock);
 
-	br_ifinfo_notify(RTM_DELLINK, NULL, p);
+	br_ifinfo_yestify(RTM_DELLINK, NULL, p);
 
 	list_del_rcu(&p->list);
 	if (netdev_get_fwd_headroom(dev) == br->dev->needed_headroom)
@@ -384,7 +384,7 @@ void br_dev_delete(struct net_device *dev, struct list_head *head)
 }
 
 /* find an available port number */
-static int find_portno(struct net_bridge *br)
+static int find_portyes(struct net_bridge *br)
 {
 	int index;
 	struct net_bridge_port *p;
@@ -396,7 +396,7 @@ static int find_portno(struct net_bridge *br)
 
 	set_bit(0, inuse);	/* zero is reserved */
 	list_for_each_entry(p, &br->port_list, list) {
-		set_bit(p->port_no, inuse);
+		set_bit(p->port_yes, inuse);
 	}
 	index = find_first_zero_bit(inuse, BR_MAX_PORTS);
 	bitmap_free(inuse);
@@ -411,7 +411,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	struct net_bridge_port *p;
 	int index, err;
 
-	index = find_portno(br);
+	index = find_portyes(br);
 	if (index < 0)
 		return ERR_PTR(index);
 
@@ -424,7 +424,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->dev = dev;
 	p->path_cost = port_cost(dev);
 	p->priority = 0x8000 >> BR_PORT_BITS;
-	p->port_no = index;
+	p->port_yes = index;
 	p->flags = BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD;
 	br_init_port(p);
 	br_set_state(p, BR_STATE_DISABLED);
@@ -467,10 +467,10 @@ int br_del_bridge(struct net *net, const char *name)
 	rtnl_lock();
 	dev = __dev_get_by_name(net, name);
 	if (dev == NULL)
-		ret =  -ENXIO; 	/* Could not find device */
+		ret =  -ENXIO; 	/* Could yest find device */
 
 	else if (!(dev->priv_flags & IFF_EBRIDGE)) {
-		/* Attempt to delete non bridge device! */
+		/* Attempt to delete yesn bridge device! */
 		ret = -EPERM;
 	}
 
@@ -561,9 +561,9 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	unsigned br_hr, dev_hr;
 	bool changed_addr;
 
-	/* Don't allow bridging non-ethernet like devices, or DSA-enabled
+	/* Don't allow bridging yesn-ethernet like devices, or DSA-enabled
 	 * master network devices since the bridge layer rx_handler prevents
-	 * the DSA fake ethertype handler to be invoked, so we do not strip off
+	 * the DSA fake ethertype handler to be invoked, so we do yest strip off
 	 * the DSA switch tag protocol header and the bridge layer just return
 	 * RX_HANDLER_CONSUMED, stopping RX processing for these frames.
 	 */
@@ -576,7 +576,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	/* No bridging of bridges */
 	if (dev->netdev_ops->ndo_start_xmit == br_dev_xmit) {
 		NL_SET_ERR_MSG(extack,
-			       "Can not enslave a bridge to a bridge");
+			       "Can yest enslave a bridge to a bridge");
 		return -ELOOP;
 	}
 
@@ -587,7 +587,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	/* No bridging devices that dislike that (e.g. wireless) */
 	if (dev->priv_flags & IFF_DONT_BRIDGE) {
 		NL_SET_ERR_MSG(extack,
-			       "Device does not allow enslaving to a bridge");
+			       "Device does yest allow enslaving to a bridge");
 		return -EOPNOTSUPP;
 	}
 
@@ -595,11 +595,11 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
-	call_netdevice_notifiers(NETDEV_JOIN, dev);
+	call_netdevice_yestifiers(NETDEV_JOIN, dev);
 
 	err = dev_set_allmulti(dev, 1);
 	if (err) {
-		kfree(p);	/* kobject not yet init'd, manually free */
+		kfree(p);	/* kobject yest yet init'd, manually free */
 		goto err1;
 	}
 
@@ -649,10 +649,10 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 		netdev_err(dev, "failed insert local address bridge forwarding table\n");
 
 	if (br->dev->addr_assign_type != NET_ADDR_SET) {
-		/* Ask for permission to use this MAC address now, even if we
+		/* Ask for permission to use this MAC address yesw, even if we
 		 * don't end up choosing it below.
 		 */
-		err = dev_pre_changeaddr_notify(br->dev, dev->dev_addr, extack);
+		err = dev_pre_changeaddr_yestify(br->dev, dev->dev_addr, extack);
 		if (err)
 			goto err7;
 	}
@@ -671,10 +671,10 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 		br_stp_enable_port(p);
 	spin_unlock_bh(&br->lock);
 
-	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+	br_ifinfo_yestify(RTM_NEWLINK, NULL, p);
 
 	if (changed_addr)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
+		call_netdevice_yestifiers(NETDEV_CHANGEADDR, br->dev);
 
 	br_mtu_auto_adjust(br);
 	br_set_gso_limits(br);
@@ -716,7 +716,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 
 	/* Since more than one interface can be attached to a bridge,
 	 * there still maybe an alternate path for netconsole to use;
-	 * therefore there is no reason for a NETDEV_RELEASE event.
+	 * therefore there is yes reason for a NETDEV_RELEASE event.
 	 */
 	del_nbp(p);
 
@@ -728,7 +728,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	spin_unlock_bh(&br->lock);
 
 	if (changed_addr)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
+		call_netdevice_yestifiers(NETDEV_CHANGEADDR, br->dev);
 
 	netdev_update_features(br->dev);
 

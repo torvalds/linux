@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -40,7 +40,7 @@
 #include <linux/pci.h>
 #include <linux/aer.h>
 #include <linux/mm.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kdebug.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
@@ -64,7 +64,7 @@ static ssize_t
 csio_mem_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	loff_t pos = *ppos;
-	loff_t avail = file_inode(file)->i_size;
+	loff_t avail = file_iyesde(file)->i_size;
 	unsigned int mem = (uintptr_t)file->private_data & 3;
 	struct csio_hw *hw = file->private_data - mem;
 
@@ -472,9 +472,9 @@ csio_resource_alloc(struct csio_hw *hw)
 	if (!hw->mb_mempool)
 		goto err;
 
-	hw->rnode_mempool = mempool_create_kmalloc_pool(CSIO_MIN_MEMPOOL_SZ,
-						     sizeof(struct csio_rnode));
-	if (!hw->rnode_mempool)
+	hw->ryesde_mempool = mempool_create_kmalloc_pool(CSIO_MIN_MEMPOOL_SZ,
+						     sizeof(struct csio_ryesde));
+	if (!hw->ryesde_mempool)
 		goto err_free_mb_mempool;
 
 	hw->scsi_dma_pool = dma_pool_create("csio_scsi_dma_pool",
@@ -486,8 +486,8 @@ csio_resource_alloc(struct csio_hw *hw)
 	return 0;
 
 err_free_rn_pool:
-	mempool_destroy(hw->rnode_mempool);
-	hw->rnode_mempool = NULL;
+	mempool_destroy(hw->ryesde_mempool);
+	hw->ryesde_mempool = NULL;
 err_free_mb_mempool:
 	mempool_destroy(hw->mb_mempool);
 	hw->mb_mempool = NULL;
@@ -500,8 +500,8 @@ csio_resource_free(struct csio_hw *hw)
 {
 	dma_pool_destroy(hw->scsi_dma_pool);
 	hw->scsi_dma_pool = NULL;
-	mempool_destroy(hw->rnode_mempool);
-	hw->rnode_mempool = NULL;
+	mempool_destroy(hw->ryesde_mempool);
+	hw->ryesde_mempool = NULL;
 	mempool_destroy(hw->mb_mempool);
 	hw->mb_mempool = NULL;
 }
@@ -529,10 +529,10 @@ static struct csio_hw *csio_hw_alloc(struct pci_dev *pdev)
 		goto err_free_hw;
 
 	/* Get the start address of registers from BAR 0 */
-	hw->regstart = ioremap_nocache(pci_resource_start(pdev, 0),
+	hw->regstart = ioremap_yescache(pci_resource_start(pdev, 0),
 				       pci_resource_len(pdev, 0));
 	if (!hw->regstart) {
-		csio_err(hw, "Could not map BAR 0, regstart = %p\n",
+		csio_err(hw, "Could yest map BAR 0, regstart = %p\n",
 			 hw->regstart);
 		goto err_resource_free;
 	}
@@ -578,23 +578,23 @@ csio_hw_free(struct csio_hw *hw)
 }
 
 /**
- * csio_shost_init - Create and initialize the lnode module.
+ * csio_shost_init - Create and initialize the lyesde module.
  * @hw:		The HW module.
  * @dev:	The device associated with this invocation.
- * @probe:	Called from probe context or not?
- * @os_pln:	Parent lnode if any.
+ * @probe:	Called from probe context or yest?
+ * @os_pln:	Parent lyesde if any.
  *
- * Allocates lnode structure via scsi_host_alloc, initializes
- * shost, initializes lnode module and registers with SCSI ML
+ * Allocates lyesde structure via scsi_host_alloc, initializes
+ * shost, initializes lyesde module and registers with SCSI ML
  * via scsi_host_add. This function is shared between physical and
- * virtual node ports.
+ * virtual yesde ports.
  */
-struct csio_lnode *
+struct csio_lyesde *
 csio_shost_init(struct csio_hw *hw, struct device *dev,
-		  bool probe, struct csio_lnode *pln)
+		  bool probe, struct csio_lyesde *pln)
 {
 	struct Scsi_Host  *shost = NULL;
-	struct csio_lnode *ln;
+	struct csio_lyesde *ln;
 
 	csio_fcoe_shost_template.cmd_per_lun = csio_lun_qdepth;
 	csio_fcoe_shost_vport_template.cmd_per_lun = csio_lun_qdepth;
@@ -606,26 +606,26 @@ csio_shost_init(struct csio_hw *hw, struct device *dev,
 	if (dev == &hw->pdev->dev)
 		shost = scsi_host_alloc(
 				&csio_fcoe_shost_template,
-				sizeof(struct csio_lnode));
+				sizeof(struct csio_lyesde));
 	else
 		shost = scsi_host_alloc(
 				&csio_fcoe_shost_vport_template,
-				sizeof(struct csio_lnode));
+				sizeof(struct csio_lyesde));
 
 	if (!shost)
 		goto err;
 
 	ln = shost_priv(shost);
-	memset(ln, 0, sizeof(struct csio_lnode));
+	memset(ln, 0, sizeof(struct csio_lyesde));
 
-	/* Link common lnode to this lnode */
-	ln->dev_num = (shost->host_no << 16);
+	/* Link common lyesde to this lyesde */
+	ln->dev_num = (shost->host_yes << 16);
 
 	shost->can_queue = CSIO_MAX_QUEUE;
 	shost->this_id = -1;
-	shost->unique_id = shost->host_no;
+	shost->unique_id = shost->host_yes;
 	shost->max_cmd_len = 16; /* Max CDB length supported */
-	shost->max_id = min_t(uint32_t, csio_fcoe_rnodes,
+	shost->max_id = min_t(uint32_t, csio_fcoe_ryesdes,
 			      hw->fres_info.max_ssns);
 	shost->max_lun = CSIO_MAX_LUN;
 	if (dev == &hw->pdev->dev)
@@ -633,21 +633,21 @@ csio_shost_init(struct csio_hw *hw, struct device *dev,
 	else
 		shost->transportt = csio_fcoe_transport_vport;
 
-	/* root lnode */
+	/* root lyesde */
 	if (!hw->rln)
 		hw->rln = ln;
 
 	/* Other initialization here: Common, Transport specific */
-	if (csio_lnode_init(ln, hw, pln))
+	if (csio_lyesde_init(ln, hw, pln))
 		goto err_shost_put;
 
 	if (scsi_add_host_with_dma(shost, dev, &hw->pdev->dev))
-		goto err_lnode_exit;
+		goto err_lyesde_exit;
 
 	return ln;
 
-err_lnode_exit:
-	csio_lnode_exit(ln);
+err_lyesde_exit:
+	csio_lyesde_exit(ln);
 err_shost_put:
 	scsi_host_put(shost);
 err:
@@ -656,14 +656,14 @@ err:
 
 /**
  * csio_shost_exit - De-instantiate the shost.
- * @ln:		The lnode module corresponding to the shost.
+ * @ln:		The lyesde module corresponding to the shost.
  *
  */
 void
-csio_shost_exit(struct csio_lnode *ln)
+csio_shost_exit(struct csio_lyesde *ln)
 {
 	struct Scsi_Host *shost = csio_ln_to_shost(ln);
-	struct csio_hw *hw = csio_lnode_to_hw(ln);
+	struct csio_hw *hw = csio_lyesde_to_hw(ln);
 
 	/* Inform transport */
 	fc_remove_host(shost);
@@ -671,246 +671,246 @@ csio_shost_exit(struct csio_lnode *ln)
 	/* Inform SCSI ML */
 	scsi_remove_host(shost);
 
-	/* Flush all the events, so that any rnode removal events
-	 * already queued are all handled, before we remove the lnode.
+	/* Flush all the events, so that any ryesde removal events
+	 * already queued are all handled, before we remove the lyesde.
 	 */
 	spin_lock_irq(&hw->lock);
 	csio_evtq_flush(hw);
 	spin_unlock_irq(&hw->lock);
 
-	csio_lnode_exit(ln);
+	csio_lyesde_exit(ln);
 	scsi_host_put(shost);
 }
 
-struct csio_lnode *
-csio_lnode_alloc(struct csio_hw *hw)
+struct csio_lyesde *
+csio_lyesde_alloc(struct csio_hw *hw)
 {
 	return csio_shost_init(hw, &hw->pdev->dev, false, NULL);
 }
 
 void
-csio_lnodes_block_request(struct csio_hw *hw)
+csio_lyesdes_block_request(struct csio_hw *hw)
 {
 	struct Scsi_Host  *shost;
-	struct csio_lnode *sln;
-	struct csio_lnode *ln;
+	struct csio_lyesde *sln;
+	struct csio_lyesde *ln;
 	struct list_head *cur_ln, *cur_cln;
-	struct csio_lnode **lnode_list;
+	struct csio_lyesde **lyesde_list;
 	int cur_cnt = 0, ii;
 
-	lnode_list = kzalloc((sizeof(struct csio_lnode *) * hw->num_lns),
+	lyesde_list = kzalloc((sizeof(struct csio_lyesde *) * hw->num_lns),
 			GFP_KERNEL);
-	if (!lnode_list) {
-		csio_err(hw, "Failed to allocate lnodes_list");
+	if (!lyesde_list) {
+		csio_err(hw, "Failed to allocate lyesdes_list");
 		return;
 	}
 
 	spin_lock_irq(&hw->lock);
-	/* Traverse sibling lnodes */
+	/* Traverse sibling lyesdes */
 	list_for_each(cur_ln, &hw->sln_head) {
-		sln = (struct csio_lnode *) cur_ln;
-		lnode_list[cur_cnt++] = sln;
+		sln = (struct csio_lyesde *) cur_ln;
+		lyesde_list[cur_cnt++] = sln;
 
-		/* Traverse children lnodes */
+		/* Traverse children lyesdes */
 		list_for_each(cur_cln, &sln->cln_head)
-			lnode_list[cur_cnt++] = (struct csio_lnode *) cur_cln;
+			lyesde_list[cur_cnt++] = (struct csio_lyesde *) cur_cln;
 	}
 	spin_unlock_irq(&hw->lock);
 
 	for (ii = 0; ii < cur_cnt; ii++) {
-		csio_dbg(hw, "Blocking IOs on lnode: %p\n", lnode_list[ii]);
-		ln = lnode_list[ii];
+		csio_dbg(hw, "Blocking IOs on lyesde: %p\n", lyesde_list[ii]);
+		ln = lyesde_list[ii];
 		shost = csio_ln_to_shost(ln);
 		scsi_block_requests(shost);
 
 	}
-	kfree(lnode_list);
+	kfree(lyesde_list);
 }
 
 void
-csio_lnodes_unblock_request(struct csio_hw *hw)
+csio_lyesdes_unblock_request(struct csio_hw *hw)
 {
-	struct csio_lnode *ln;
+	struct csio_lyesde *ln;
 	struct Scsi_Host  *shost;
-	struct csio_lnode *sln;
+	struct csio_lyesde *sln;
 	struct list_head *cur_ln, *cur_cln;
-	struct csio_lnode **lnode_list;
+	struct csio_lyesde **lyesde_list;
 	int cur_cnt = 0, ii;
 
-	lnode_list = kzalloc((sizeof(struct csio_lnode *) * hw->num_lns),
+	lyesde_list = kzalloc((sizeof(struct csio_lyesde *) * hw->num_lns),
 			GFP_KERNEL);
-	if (!lnode_list) {
-		csio_err(hw, "Failed to allocate lnodes_list");
+	if (!lyesde_list) {
+		csio_err(hw, "Failed to allocate lyesdes_list");
 		return;
 	}
 
 	spin_lock_irq(&hw->lock);
-	/* Traverse sibling lnodes */
+	/* Traverse sibling lyesdes */
 	list_for_each(cur_ln, &hw->sln_head) {
-		sln = (struct csio_lnode *) cur_ln;
-		lnode_list[cur_cnt++] = sln;
+		sln = (struct csio_lyesde *) cur_ln;
+		lyesde_list[cur_cnt++] = sln;
 
-		/* Traverse children lnodes */
+		/* Traverse children lyesdes */
 		list_for_each(cur_cln, &sln->cln_head)
-			lnode_list[cur_cnt++] = (struct csio_lnode *) cur_cln;
+			lyesde_list[cur_cnt++] = (struct csio_lyesde *) cur_cln;
 	}
 	spin_unlock_irq(&hw->lock);
 
 	for (ii = 0; ii < cur_cnt; ii++) {
-		csio_dbg(hw, "unblocking IOs on lnode: %p\n", lnode_list[ii]);
-		ln = lnode_list[ii];
+		csio_dbg(hw, "unblocking IOs on lyesde: %p\n", lyesde_list[ii]);
+		ln = lyesde_list[ii];
 		shost = csio_ln_to_shost(ln);
 		scsi_unblock_requests(shost);
 	}
-	kfree(lnode_list);
+	kfree(lyesde_list);
 }
 
 void
-csio_lnodes_block_by_port(struct csio_hw *hw, uint8_t portid)
+csio_lyesdes_block_by_port(struct csio_hw *hw, uint8_t portid)
 {
-	struct csio_lnode *ln;
+	struct csio_lyesde *ln;
 	struct Scsi_Host  *shost;
-	struct csio_lnode *sln;
+	struct csio_lyesde *sln;
 	struct list_head *cur_ln, *cur_cln;
-	struct csio_lnode **lnode_list;
+	struct csio_lyesde **lyesde_list;
 	int cur_cnt = 0, ii;
 
-	lnode_list = kzalloc((sizeof(struct csio_lnode *) * hw->num_lns),
+	lyesde_list = kzalloc((sizeof(struct csio_lyesde *) * hw->num_lns),
 			GFP_KERNEL);
-	if (!lnode_list) {
-		csio_err(hw, "Failed to allocate lnodes_list");
+	if (!lyesde_list) {
+		csio_err(hw, "Failed to allocate lyesdes_list");
 		return;
 	}
 
 	spin_lock_irq(&hw->lock);
-	/* Traverse sibling lnodes */
+	/* Traverse sibling lyesdes */
 	list_for_each(cur_ln, &hw->sln_head) {
-		sln = (struct csio_lnode *) cur_ln;
+		sln = (struct csio_lyesde *) cur_ln;
 		if (sln->portid != portid)
 			continue;
 
-		lnode_list[cur_cnt++] = sln;
+		lyesde_list[cur_cnt++] = sln;
 
-		/* Traverse children lnodes */
+		/* Traverse children lyesdes */
 		list_for_each(cur_cln, &sln->cln_head)
-			lnode_list[cur_cnt++] = (struct csio_lnode *) cur_cln;
+			lyesde_list[cur_cnt++] = (struct csio_lyesde *) cur_cln;
 	}
 	spin_unlock_irq(&hw->lock);
 
 	for (ii = 0; ii < cur_cnt; ii++) {
-		csio_dbg(hw, "Blocking IOs on lnode: %p\n", lnode_list[ii]);
-		ln = lnode_list[ii];
+		csio_dbg(hw, "Blocking IOs on lyesde: %p\n", lyesde_list[ii]);
+		ln = lyesde_list[ii];
 		shost = csio_ln_to_shost(ln);
 		scsi_block_requests(shost);
 	}
-	kfree(lnode_list);
+	kfree(lyesde_list);
 }
 
 void
-csio_lnodes_unblock_by_port(struct csio_hw *hw, uint8_t portid)
+csio_lyesdes_unblock_by_port(struct csio_hw *hw, uint8_t portid)
 {
-	struct csio_lnode *ln;
+	struct csio_lyesde *ln;
 	struct Scsi_Host  *shost;
-	struct csio_lnode *sln;
+	struct csio_lyesde *sln;
 	struct list_head *cur_ln, *cur_cln;
-	struct csio_lnode **lnode_list;
+	struct csio_lyesde **lyesde_list;
 	int cur_cnt = 0, ii;
 
-	lnode_list = kzalloc((sizeof(struct csio_lnode *) * hw->num_lns),
+	lyesde_list = kzalloc((sizeof(struct csio_lyesde *) * hw->num_lns),
 			GFP_KERNEL);
-	if (!lnode_list) {
-		csio_err(hw, "Failed to allocate lnodes_list");
+	if (!lyesde_list) {
+		csio_err(hw, "Failed to allocate lyesdes_list");
 		return;
 	}
 
 	spin_lock_irq(&hw->lock);
-	/* Traverse sibling lnodes */
+	/* Traverse sibling lyesdes */
 	list_for_each(cur_ln, &hw->sln_head) {
-		sln = (struct csio_lnode *) cur_ln;
+		sln = (struct csio_lyesde *) cur_ln;
 		if (sln->portid != portid)
 			continue;
-		lnode_list[cur_cnt++] = sln;
+		lyesde_list[cur_cnt++] = sln;
 
-		/* Traverse children lnodes */
+		/* Traverse children lyesdes */
 		list_for_each(cur_cln, &sln->cln_head)
-			lnode_list[cur_cnt++] = (struct csio_lnode *) cur_cln;
+			lyesde_list[cur_cnt++] = (struct csio_lyesde *) cur_cln;
 	}
 	spin_unlock_irq(&hw->lock);
 
 	for (ii = 0; ii < cur_cnt; ii++) {
-		csio_dbg(hw, "unblocking IOs on lnode: %p\n", lnode_list[ii]);
-		ln = lnode_list[ii];
+		csio_dbg(hw, "unblocking IOs on lyesde: %p\n", lyesde_list[ii]);
+		ln = lyesde_list[ii];
 		shost = csio_ln_to_shost(ln);
 		scsi_unblock_requests(shost);
 	}
-	kfree(lnode_list);
+	kfree(lyesde_list);
 }
 
 void
-csio_lnodes_exit(struct csio_hw *hw, bool npiv)
+csio_lyesdes_exit(struct csio_hw *hw, bool npiv)
 {
-	struct csio_lnode *sln;
-	struct csio_lnode *ln;
+	struct csio_lyesde *sln;
+	struct csio_lyesde *ln;
 	struct list_head *cur_ln, *cur_cln;
-	struct csio_lnode **lnode_list;
+	struct csio_lyesde **lyesde_list;
 	int cur_cnt = 0, ii;
 
-	lnode_list = kzalloc((sizeof(struct csio_lnode *) * hw->num_lns),
+	lyesde_list = kzalloc((sizeof(struct csio_lyesde *) * hw->num_lns),
 			GFP_KERNEL);
-	if (!lnode_list) {
-		csio_err(hw, "lnodes_exit: Failed to allocate lnodes_list.\n");
+	if (!lyesde_list) {
+		csio_err(hw, "lyesdes_exit: Failed to allocate lyesdes_list.\n");
 		return;
 	}
 
-	/* Get all child lnodes(NPIV ports) */
+	/* Get all child lyesdes(NPIV ports) */
 	spin_lock_irq(&hw->lock);
 	list_for_each(cur_ln, &hw->sln_head) {
-		sln = (struct csio_lnode *) cur_ln;
+		sln = (struct csio_lyesde *) cur_ln;
 
-		/* Traverse children lnodes */
+		/* Traverse children lyesdes */
 		list_for_each(cur_cln, &sln->cln_head)
-			lnode_list[cur_cnt++] = (struct csio_lnode *) cur_cln;
+			lyesde_list[cur_cnt++] = (struct csio_lyesde *) cur_cln;
 	}
 	spin_unlock_irq(&hw->lock);
 
-	/* Delete NPIV lnodes */
+	/* Delete NPIV lyesdes */
 	for (ii = 0; ii < cur_cnt; ii++) {
-		csio_dbg(hw, "Deleting child lnode: %p\n", lnode_list[ii]);
-		ln = lnode_list[ii];
+		csio_dbg(hw, "Deleting child lyesde: %p\n", lyesde_list[ii]);
+		ln = lyesde_list[ii];
 		fc_vport_terminate(ln->fc_vport);
 	}
 
-	/* Delete only npiv lnodes */
+	/* Delete only npiv lyesdes */
 	if (npiv)
-		goto free_lnodes;
+		goto free_lyesdes;
 
 	cur_cnt = 0;
-	/* Get all physical lnodes */
+	/* Get all physical lyesdes */
 	spin_lock_irq(&hw->lock);
-	/* Traverse sibling lnodes */
+	/* Traverse sibling lyesdes */
 	list_for_each(cur_ln, &hw->sln_head) {
-		sln = (struct csio_lnode *) cur_ln;
-		lnode_list[cur_cnt++] = sln;
+		sln = (struct csio_lyesde *) cur_ln;
+		lyesde_list[cur_cnt++] = sln;
 	}
 	spin_unlock_irq(&hw->lock);
 
-	/* Delete physical lnodes */
+	/* Delete physical lyesdes */
 	for (ii = 0; ii < cur_cnt; ii++) {
-		csio_dbg(hw, "Deleting parent lnode: %p\n", lnode_list[ii]);
-		csio_shost_exit(lnode_list[ii]);
+		csio_dbg(hw, "Deleting parent lyesde: %p\n", lyesde_list[ii]);
+		csio_shost_exit(lyesde_list[ii]);
 	}
 
-free_lnodes:
-	kfree(lnode_list);
+free_lyesdes:
+	kfree(lyesde_list);
 }
 
 /*
- * csio_lnode_init_post: Set lnode attributes after starting HW.
- * @ln: lnode.
+ * csio_lyesde_init_post: Set lyesde attributes after starting HW.
+ * @ln: lyesde.
  *
  */
 static void
-csio_lnode_init_post(struct csio_lnode *ln)
+csio_lyesde_init_post(struct csio_lyesde *ln)
 {
 	struct Scsi_Host  *shost = csio_ln_to_shost(ln);
 
@@ -929,8 +929,8 @@ csio_lnode_init_post(struct csio_lnode *ln)
  *   mastership and setting DMA mask.
  * - Allocates HW structure, DMA, memory resources, maps BARS to
  *   host memory and initializes HW module.
- * - Allocates lnode structure via scsi_host_alloc, initializes
- *   shost, initialized lnode module and registers with SCSI ML
+ * - Allocates lyesde structure via scsi_host_alloc, initializes
+ *   shost, initialized lyesde module and registers with SCSI ML
  *   via scsi_host_add.
  * - Enables interrupts, and starts the chip by kicking off the
  *   HW state machine.
@@ -943,7 +943,7 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	int bars;
 	int i;
 	struct csio_hw *hw;
-	struct csio_lnode *ln;
+	struct csio_lyesde *ln;
 
 	/* probe only T5 and T6 cards */
 	if (!csio_is_t5((pdev->device & CSIO_HW_CHIP_MASK)) &&
@@ -972,7 +972,7 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 				"Failed to start FW, continuing in debug mode.\n");
 			return 0;
 		}
-		goto err_lnode_exit;
+		goto err_lyesde_exit;
 	}
 
 	sprintf(hw->fwrev_str, "%u.%u.%u.%u\n",
@@ -991,28 +991,28 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ln->portid = hw->pport[i].portid;
 
 		spin_lock_irq(&hw->lock);
-		if (csio_lnode_start(ln) != 0)
+		if (csio_lyesde_start(ln) != 0)
 			rv = -ENODEV;
 		spin_unlock_irq(&hw->lock);
 
 		if (rv)
 			break;
 
-		csio_lnode_init_post(ln);
+		csio_lyesde_init_post(ln);
 	}
 
 	if (rv)
-		goto err_lnode_exit;
+		goto err_lyesde_exit;
 
 	return 0;
 
-err_lnode_exit:
-	csio_lnodes_block_request(hw);
+err_lyesde_exit:
+	csio_lyesdes_block_request(hw);
 	spin_lock_irq(&hw->lock);
 	csio_hw_stop(hw);
 	spin_unlock_irq(&hw->lock);
-	csio_lnodes_unblock_request(hw);
-	csio_lnodes_exit(hw, 0);
+	csio_lyesdes_unblock_request(hw);
+	csio_lyesdes_exit(hw, 0);
 	csio_hw_free(hw);
 err_pci_exit:
 	csio_pci_exit(pdev, &bars);
@@ -1032,18 +1032,18 @@ static void csio_remove_one(struct pci_dev *pdev)
 	struct csio_hw *hw = pci_get_drvdata(pdev);
 	int bars = pci_select_bars(pdev, IORESOURCE_MEM);
 
-	csio_lnodes_block_request(hw);
+	csio_lyesdes_block_request(hw);
 	spin_lock_irq(&hw->lock);
 
-	/* Stops lnode, Rnode s/m
+	/* Stops lyesde, Ryesde s/m
 	 * Quiesce IOs.
 	 * All sessions with remote ports are unregistered.
 	 */
 	csio_hw_stop(hw);
 	spin_unlock_irq(&hw->lock);
-	csio_lnodes_unblock_request(hw);
+	csio_lyesdes_unblock_request(hw);
 
-	csio_lnodes_exit(hw, 0);
+	csio_lyesdes_exit(hw, 0);
 	csio_hw_free(hw);
 	csio_pci_exit(pdev, &bars);
 }
@@ -1058,7 +1058,7 @@ csio_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 {
 	struct csio_hw *hw = pci_get_drvdata(pdev);
 
-	csio_lnodes_block_request(hw);
+	csio_lyesdes_block_request(hw);
 	spin_lock_irq(&hw->lock);
 
 	/* Post PCI error detected evt to HW s/m
@@ -1067,8 +1067,8 @@ csio_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	 */
 	csio_post_event(&hw->sm, CSIO_HWE_PCIERR_DETECTED);
 	spin_unlock_irq(&hw->lock);
-	csio_lnodes_unblock_request(hw);
-	csio_lnodes_exit(hw, 0);
+	csio_lyesdes_unblock_request(hw);
+	csio_lyesdes_exit(hw, 0);
 	csio_intr_disable(hw, true);
 	pci_disable_device(pdev);
 	return state == pci_channel_io_perm_failure ?
@@ -1087,7 +1087,7 @@ csio_pci_slot_reset(struct pci_dev *pdev)
 	int ready;
 
 	if (pci_enable_device(pdev)) {
-		dev_err(&pdev->dev, "cannot re-enable device in slot reset\n");
+		dev_err(&pdev->dev, "canyest re-enable device in slot reset\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
@@ -1112,7 +1112,7 @@ csio_pci_slot_reset(struct pci_dev *pdev)
 }
 
 /*
- * csio_pci_resume - Resume normal operations
+ * csio_pci_resume - Resume yesrmal operations
  * @pdev: PCI device
  *
  */
@@ -1120,7 +1120,7 @@ static void
 csio_pci_resume(struct pci_dev *pdev)
 {
 	struct csio_hw *hw = pci_get_drvdata(pdev);
-	struct csio_lnode *ln;
+	struct csio_lyesde *ln;
 	int rv = 0;
 	int i;
 
@@ -1136,14 +1136,14 @@ csio_pci_resume(struct pci_dev *pdev)
 		ln->portid = hw->pport[i].portid;
 
 		spin_lock_irq(&hw->lock);
-		if (csio_lnode_start(ln) != 0)
+		if (csio_lyesde_start(ln) != 0)
 			rv = -ENODEV;
 		spin_unlock_irq(&hw->lock);
 
 		if (rv)
 			break;
 
-		csio_lnode_init_post(ln);
+		csio_lyesde_init_post(ln);
 	}
 
 	if (rv)
@@ -1152,12 +1152,12 @@ csio_pci_resume(struct pci_dev *pdev)
 	return;
 
 err_resume_exit:
-	csio_lnodes_block_request(hw);
+	csio_lyesdes_block_request(hw);
 	spin_lock_irq(&hw->lock);
 	csio_hw_stop(hw);
 	spin_unlock_irq(&hw->lock);
-	csio_lnodes_unblock_request(hw);
-	csio_lnodes_exit(hw, 0);
+	csio_lyesdes_unblock_request(hw);
+	csio_lyesdes_exit(hw, 0);
 	csio_hw_free(hw);
 	dev_err(&pdev->dev, "resume of device failed: %d\n", rv);
 }

@@ -21,7 +21,7 @@
 #include "sysfs.h"
 
 static struct kernfs_root *sysfs_root;
-struct kernfs_node *sysfs_root_kn;
+struct kernfs_yesde *sysfs_root_kn;
 
 static int sysfs_get_tree(struct fs_context *fc)
 {

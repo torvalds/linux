@@ -72,7 +72,7 @@
 extern __iomem void *ltq_cgu_membase;
 
 /*
- * during early_printk no ioremap is possible
+ * during early_printk yes ioremap is possible
  * let's use KSEG1 instead
  */
 #define LTQ_ASC1_BASE_ADDR	0x1E100C00
@@ -97,7 +97,7 @@ extern __iomem void *ltq_cgu_membase;
 /* allow booting xrx200 phys */
 int xrx200_gphy_boot(struct device *dev, unsigned int id, dma_addr_t dev_addr);
 
-/* request a non-gpio and set the PIO config */
+/* request a yesn-gpio and set the PIO config */
 #define PMU_PPE			 BIT(13)
 extern void ltq_pmu_enable(unsigned int module);
 extern void ltq_pmu_disable(unsigned int module);

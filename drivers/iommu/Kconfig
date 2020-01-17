@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# The IOVA library may also be used by non-IOMMU_API users
+# The IOVA library may also be used by yesn-IOMMU_API users
 config IOMMU_IOVA
 	tristate
 
-# The IOASID library may also be used by non-IOMMU_API users
+# The IOASID library may also be used by yesn-IOMMU_API users
 config IOASID
 	tristate
 
@@ -86,7 +86,7 @@ config IOMMU_DEFAULT_PASSTHROUGH
 	  Enable passthrough by default, removing the need to pass in
 	  iommu.passthrough=on or iommu=pt through command line. If this
 	  is enabled, you can still disable with iommu.passthrough=off
-	  or iommu=nopt depending on the architecture.
+	  or iommu=yespt depending on the architecture.
 
 	  If unsure, say N here.
 
@@ -94,7 +94,7 @@ config OF_IOMMU
        def_bool y
        depends on OF && IOMMU_API
 
-# IOMMU-agnostic DMA-mapping layer
+# IOMMU-agyesstic DMA-mapping layer
 config IOMMU_DMA
 	bool
 	select IOMMU_API
@@ -174,7 +174,7 @@ config AMD_IOMMU_DEBUGFS
 	  Exposes AMD IOMMU device internals in DebugFS.
 
 	  This option is -NOT- intended for production environments, and should
-	  not generally be enabled.
+	  yest generally be enabled.
 
 # Intel IOMMU support
 config DMAR_TABLE
@@ -225,7 +225,7 @@ config INTEL_IOMMU_DEFAULT_ON
 	depends on INTEL_IOMMU
 	help
 	  Selecting this option will enable a DMAR device at boot time if
-	  one is found. If this option is not selected, DMAR support can
+	  one is found. If this option is yest selected, DMAR support can
 	  be enabled by passing intel_iommu=on to the kernel.
 
 config INTEL_IOMMU_BROKEN_GFX_WA
@@ -243,7 +243,7 @@ config INTEL_IOMMU_FLOPPY_WA
 	def_bool y
 	depends on INTEL_IOMMU && X86
 	---help---
-	  Floppy disk drivers are known to bypass DMA API calls
+	  Floppy disk drivers are kyeswn to bypass DMA API calls
 	  thereby failing to work when IOMMU is enabled. This
 	  workaround will setup a 1:1 mapping for the first
 	  16MiB to make floppy (an ISA device) work.
@@ -274,7 +274,7 @@ config OMAP_IOMMU_DEBUG
 	  Select this to see extensive information about
 	  the internal state of OMAP IOMMU in debugfs.
 
-	  Say N unless you know you need this.
+	  Say N unless you kyesw you need this.
 
 config ROCKCHIP_IOMMU
 	bool "Rockchip IOMMU Support"
@@ -311,21 +311,21 @@ config TEGRA_IOMMU_SMMU
 	  SoCs (Tegra30 up to Tegra210).
 
 config EXYNOS_IOMMU
-	bool "Exynos IOMMU Support"
+	bool "Exyyess IOMMU Support"
 	depends on ARCH_EXYNOS && MMU
 	depends on !CPU_BIG_ENDIAN # revisit driver if we can enable big-endian ptes
 	select IOMMU_API
 	select ARM_DMA_USE_IOMMU
 	help
-	  Support for the IOMMU (System MMU) of Samsung Exynos application
+	  Support for the IOMMU (System MMU) of Samsung Exyyess application
 	  processor family. This enables H/W multimedia accelerators to see
-	  non-linear physical memory chunks as linear memory in their
+	  yesn-linear physical memory chunks as linear memory in their
 	  address space.
 
 	  If unsure, say N here.
 
 config EXYNOS_IOMMU_DEBUG
-	bool "Debugging log for Exynos IOMMU"
+	bool "Debugging log for Exyyess IOMMU"
 	depends on EXYNOS_IOMMU
 	help
 	  Select this to see the detailed log message that shows what
@@ -352,7 +352,7 @@ config SPAPR_TCE_IOMMU
 	select IOMMU_API
 	help
 	  Enables bits of IOMMU API required by VFIO. The iommu_ops
-	  is not implemented as it is not necessary for VFIO.
+	  is yest implemented as it is yest necessary for VFIO.
 
 # ARM IOMMU support
 config ARM_SMMU
@@ -374,9 +374,9 @@ config ARM_SMMU_DISABLE_BYPASS_BY_DEFAULT
 	default y
 	help
 	  Say Y here to (by default) disable bypass streams such that
-	  incoming transactions from devices that are not attached to
+	  incoming transactions from devices that are yest attached to
 	  an iommu domain will report an abort back to the device and
-	  will not be allowed to pass through the SMMU.
+	  will yest be allowed to pass through the SMMU.
 
 	  Any old kernels that existed before this KConfig was
 	  introduced would default to _allowing_ bypass (AKA the
@@ -419,7 +419,7 @@ config S390_CCW_IOMMU
 	select IOMMU_API
 	help
 	  Enables bits of IOMMU API required by VFIO. The iommu_ops
-	  is not implemented as it is not necessary for VFIO.
+	  is yest implemented as it is yest necessary for VFIO.
 
 config S390_AP_IOMMU
 	bool "S390 AP IOMMU Support"
@@ -427,7 +427,7 @@ config S390_AP_IOMMU
 	select IOMMU_API
 	help
 	  Enables bits of IOMMU API required by VFIO. The iommu_ops
-	  is not implemented as it is not necessary for VFIO.
+	  is yest implemented as it is yest necessary for VFIO.
 
 config MTK_IOMMU
 	bool "MTK IOMMU Support"
@@ -462,7 +462,7 @@ config MTK_IOMMU_V1
 	  if unsure, say N here.
 
 config QCOM_IOMMU
-	# Note: iommu drivers cannot (yet?) be built as modules
+	# Note: iommu drivers canyest (yet?) be built as modules
 	bool "Qualcomm IOMMU Support"
 	depends on ARCH_QCOM || (COMPILE_TEST && !GENERIC_ATOMIC64)
 	select IOMMU_API

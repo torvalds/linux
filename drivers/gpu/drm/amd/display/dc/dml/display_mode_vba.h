@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -45,11 +45,11 @@ dml_get_attr_decl(wm_stutter_enter_exit);
 dml_get_attr_decl(wm_dram_clock_change);
 dml_get_attr_decl(wm_writeback_dram_clock_change);
 dml_get_attr_decl(wm_xfc_underflow);
-dml_get_attr_decl(stutter_efficiency_no_vblank);
+dml_get_attr_decl(stutter_efficiency_yes_vblank);
 dml_get_attr_decl(stutter_efficiency);
 dml_get_attr_decl(urgent_latency);
 dml_get_attr_decl(urgent_extra_latency);
-dml_get_attr_decl(nonurgent_latency);
+dml_get_attr_decl(yesnurgent_latency);
 dml_get_attr_decl(dram_clock_change_latency);
 dml_get_attr_decl(dispclk_calculated);
 dml_get_attr_decl(total_data_read_bw);
@@ -350,7 +350,7 @@ struct vba_vars_st {
 	unsigned int MaxPrefetchMode;
 	bool AnyLinesForVMOrRowTooLarge;
 	double MaxVStartup;
-	bool IgnoreViewportPositioning;
+	bool IgyesreViewportPositioning;
 	bool ErrorResult[DC__NUM_DPP__MAX];
 	//
 	// Calculated dml_ml->vba.Outputs
@@ -368,7 +368,7 @@ struct vba_vars_st {
 	double NonUrgentLatencyTolerance;
 	double MinActiveDRAMClockChangeLatencySupported;
 
-	// These are the clocks calcuated by the library but they are not actually
+	// These are the clocks calcuated by the library but they are yest actually
 	// used explicitly. They are fetched by tests and then possibly used. The
 	// ultimate values to use are the ones specified by the parameters to DML
 	double DISPCLK_calculated;
@@ -483,7 +483,7 @@ struct vba_vars_st {
 	double MaximumReadBandwidthWithPrefetch;
 	double MaximumReadBandwidthWithoutPrefetch;
 	double total_dcn_read_bw_with_flip;
-	double total_dcn_read_bw_with_flip_no_urgent_burst;
+	double total_dcn_read_bw_with_flip_yes_urgent_burst;
 	double FractionOfUrgentBandwidth;
 	double FractionOfUrgentBandwidthImmediateFlip; // Mode Support debugging output
 
@@ -516,7 +516,7 @@ struct vba_vars_st {
 	bool ModeSupport[DC__VOLTAGE_STATES + 1][2];
 	double ReturnBWPerState[DC__VOLTAGE_STATES + 1];
 	bool DIOSupport[DC__VOLTAGE_STATES + 1];
-	bool NotEnoughDSCUnits[DC__VOLTAGE_STATES + 1];
+	bool NotEyesughDSCUnits[DC__VOLTAGE_STATES + 1];
 	bool DSCCLKRequiredMoreThanSupported[DC__VOLTAGE_STATES + 1];
 	bool DTBCLKRequiredMoreThanSupported[DC__VOLTAGE_STATES + 1];
 	double UrgentRoundTripAndOutOfOrderLatencyPerState[DC__VOLTAGE_STATES + 1];
@@ -570,7 +570,7 @@ struct vba_vars_st {
 	double MaximumSwathWidth[DC__NUM_DPP__MAX];
 	double cursor_bw[DC__NUM_DPP__MAX];
 	double cursor_bw_pre[DC__NUM_DPP__MAX];
-	double Tno_bw[DC__NUM_DPP__MAX];
+	double Tyes_bw[DC__NUM_DPP__MAX];
 	double prefetch_vmrow_bw[DC__NUM_DPP__MAX];
 	double DestinationLinesToRequestVMInImmediateFlip[DC__NUM_DPP__MAX];
 	double DestinationLinesToRequestRowInImmediateFlip[DC__NUM_DPP__MAX];
@@ -651,8 +651,8 @@ struct vba_vars_st {
 	double         AlignedDCCMetaPitchY[DC__NUM_DPP__MAX];
 	double         AlignedDCCMetaPitchC[DC__NUM_DPP__MAX];
 
-	unsigned int NotEnoughUrgentLatencyHiding;
-	unsigned int NotEnoughUrgentLatencyHidingPre;
+	unsigned int NotEyesughUrgentLatencyHiding;
+	unsigned int NotEyesughUrgentLatencyHidingPre;
 	long PTEBufferSizeInRequestsForLuma;
 	long PTEBufferSizeInRequestsForChroma;
 
@@ -661,7 +661,7 @@ struct vba_vars_st {
 	unsigned int vm_group_bytes_chroma;
 	double dst_x_after_scaler;
 	double dst_y_after_scaler;
-	unsigned int VStartupRequiredWhenNotEnoughTimeForDynamicMetadata;
+	unsigned int VStartupRequiredWhenNotEyesughTimeForDynamicMetadata;
 
 	/* perf locals*/
 	double PrefetchBandwidth[DC__NUM_DPP__MAX];
@@ -739,8 +739,8 @@ struct vba_vars_st {
 	unsigned int PixelPTEReqWidthC[DC__NUM_DPP__MAX];
 	unsigned int PixelPTEReqHeightC[DC__NUM_DPP__MAX];
 	unsigned int PTERequestSizeC[DC__NUM_DPP__MAX];
-	double time_per_pte_group_nom_luma[DC__NUM_DPP__MAX];
-	double time_per_pte_group_nom_chroma[DC__NUM_DPP__MAX];
+	double time_per_pte_group_yesm_luma[DC__NUM_DPP__MAX];
+	double time_per_pte_group_yesm_chroma[DC__NUM_DPP__MAX];
 	double time_per_pte_group_vblank_luma[DC__NUM_DPP__MAX];
 	double time_per_pte_group_vblank_chroma[DC__NUM_DPP__MAX];
 	double time_per_pte_group_flip_luma[DC__NUM_DPP__MAX];

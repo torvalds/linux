@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * dlmconvert.c
  *
@@ -24,7 +24,7 @@
 
 
 #include "cluster/heartbeat.h"
-#include "cluster/nodemanager.h"
+#include "cluster/yesdemanager.h"
 #include "cluster/tcp.h"
 
 #include "dlmapi.h"
@@ -38,7 +38,7 @@
 /* NOTE: __dlmconvert_master is the only function in here that
  * needs a spinlock held on entry (res->spinlock) and it is the
  * only one that holds a lock on exit (res->spinlock).
- * All other functions in here need no locks and drop all of
+ * All other functions in here need yes locks and drop all of
  * the locks that they acquire. */
 static enum dlm_status __dlmconvert_master(struct dlm_ctxt *dlm,
 					   struct dlm_lock_resource *res,
@@ -51,11 +51,11 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 
 /*
  * this is only called directly by dlmlock(), and only when the
- * local node is the owner of the lockres
+ * local yesde is the owner of the lockres
  * locking:
- *   caller needs:  none
+ *   caller needs:  yesne
  *   taken:         takes and drops res->spinlock
- *   held on exit:  none
+ *   held on exit:  yesne
  * returns: see __dlmconvert_master
  */
 enum dlm_status dlmconvert_master(struct dlm_ctxt *dlm,
@@ -66,7 +66,7 @@ enum dlm_status dlmconvert_master(struct dlm_ctxt *dlm,
 	enum dlm_status status;
 
 	spin_lock(&res->spinlock);
-	/* we are not in a network handler, this is fine */
+	/* we are yest in a network handler, this is fine */
 	__dlm_wait_on_lockres(res);
 	__dlm_lockres_reserve_ast(res);
 	res->state |= DLM_LOCK_RES_IN_PROGRESS;
@@ -127,7 +127,7 @@ static enum dlm_status __dlmconvert_master(struct dlm_ctxt *dlm,
 
 	/* must be on grant queue to convert */
 	if (!dlm_lock_on_list(&res->granted, lock)) {
-		mlog(ML_ERROR, "attempted to convert a lock not on grant "
+		mlog(ML_ERROR, "attempted to convert a lock yest on grant "
 		     "queue\n");
 		status = DLM_DENIED;
 		goto unlock_exit;
@@ -144,7 +144,7 @@ static enum dlm_status __dlmconvert_master(struct dlm_ctxt *dlm,
 				break;
 			case LKM_PRMODE:
 			case LKM_NLMODE:
-				/* refetch if new level is not NL */
+				/* refetch if new level is yest NL */
 				if (type > LKM_NLMODE) {
 					mlog(0, "will fetch new value into "
 					     "lvb: converting %s->%s\n",
@@ -191,8 +191,8 @@ grant:
 	     res->lockname.name, dlm_lock_mode_name(type));
 	/* immediately grant the new lock type */
 	lock->lksb->status = DLM_NORMAL;
-	if (lock->ml.node == dlm->node_num)
-		mlog(0, "doing in-place convert for nonlocal lock\n");
+	if (lock->ml.yesde == dlm->yesde_num)
+		mlog(0, "doing in-place convert for yesnlocal lock\n");
 	lock->ml.type = type;
 	if (lock->lksb->flags & DLM_LKSB_PUT_LVB)
 		memcpy(res->lvb, lock->lksb->lvb, DLM_LVB_LEN);
@@ -219,7 +219,7 @@ switch_queues:
 	     res->lockname.name);
 
 	lock->ml.convert_type = type;
-	/* do not alter lock refcount.  switching lists. */
+	/* do yest alter lock refcount.  switching lists. */
 	list_move_tail(&lock->list, &res->converting);
 
 unlock_exit:
@@ -235,7 +235,7 @@ unlock_exit:
 void dlm_revert_pending_convert(struct dlm_lock_resource *res,
 				struct dlm_lock *lock)
 {
-	/* do not alter lock refcount.  switching lists. */
+	/* do yest alter lock refcount.  switching lists. */
 	list_move_tail(&lock->list, &res->granted);
 	lock->ml.convert_type = LKM_IVMODE;
 	lock->lksb->flags &= ~(DLM_LKSB_GET_LVB|DLM_LKSB_PUT_LVB);
@@ -243,10 +243,10 @@ void dlm_revert_pending_convert(struct dlm_lock_resource *res,
 
 /* messages the master site to do lock conversion
  * locking:
- *   caller needs:  none
+ *   caller needs:  yesne
  *   taken:         takes and drops res->spinlock, uses DLM_LOCK_RES_IN_PROGRESS
- *   held on exit:  none
- * returns: DLM_NORMAL, DLM_RECOVERING, status from remote node
+ *   held on exit:  yesne
+ * returns: DLM_NORMAL, DLM_RECOVERING, status from remote yesde
  */
 enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 				  struct dlm_lock_resource *res,
@@ -272,7 +272,7 @@ enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 		__dlm_print_one_lock_resource(res);
 		mlog(ML_ERROR, "converting a remote lock that is already "
 		     "converting! (cookie=%u:%llu, conv=%d)\n",
-		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_yesde(be64_to_cpu(lock->ml.cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		     lock->ml.convert_type);
 		status = DLM_DENIED;
@@ -284,7 +284,7 @@ enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 		     "owner has already queued and sent ast to me. res %.*s, "
 		     "(cookie=%u:%llu, type=%d, conv=%d)\n",
 		     res->lockname.len, res->lockname.name,
-		     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+		     dlm_get_lock_cookie_yesde(be64_to_cpu(lock->ml.cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
 		     lock->ml.type, lock->ml.convert_type);
 		status = DLM_NORMAL;
@@ -293,7 +293,7 @@ enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 
 	res->state |= DLM_LOCK_RES_IN_PROGRESS;
 	/* move lock to local convert queue */
-	/* do not alter lock refcount.  switching lists. */
+	/* do yest alter lock refcount.  switching lists. */
 	list_move_tail(&lock->list, &res->converting);
 	lock->convert_pending = 1;
 	lock->ml.convert_type = type;
@@ -313,8 +313,8 @@ enum dlm_status dlmconvert_remote(struct dlm_ctxt *dlm,
 	}
 	spin_unlock(&res->spinlock);
 
-	/* no locks held here.
-	 * need to wait for a reply as to whether it got queued or not. */
+	/* yes locks held here.
+	 * need to wait for a reply as to whether it got queued or yest. */
 	status = dlm_send_remote_convert_request(dlm, res, lock, flags, type);
 
 	spin_lock(&res->spinlock);
@@ -347,10 +347,10 @@ bail:
 
 /* sends DLM_CONVERT_LOCK_MSG to master site
  * locking:
- *   caller needs:  none
- *   taken:         none
- *   held on exit:  none
- * returns: DLM_NOLOCKMGR, status from remote node
+ *   caller needs:  yesne
+ *   taken:         yesne
+ *   held on exit:  yesne
+ * returns: DLM_NOLOCKMGR, status from remote yesde
  */
 static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 					   struct dlm_lock_resource *res,
@@ -366,7 +366,7 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 	mlog(0, "%.*s\n", res->lockname.len, res->lockname.name);
 
 	memset(&convert, 0, sizeof(struct dlm_convert_lock));
-	convert.node_idx = dlm->node_num;
+	convert.yesde_idx = dlm->yesde_num;
 	convert.requested_type = type;
 	convert.cookie = lock->ml.cookie;
 	convert.namelen = res->lockname.len;
@@ -389,28 +389,28 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 		// successfully sent and received
 		ret = status;  // this is already a dlm_status
 		if (ret == DLM_RECOVERING) {
-			mlog(0, "node %u returned DLM_RECOVERING from convert "
+			mlog(0, "yesde %u returned DLM_RECOVERING from convert "
 			     "message!\n", res->owner);
 		} else if (ret == DLM_MIGRATING) {
-			mlog(0, "node %u returned DLM_MIGRATING from convert "
+			mlog(0, "yesde %u returned DLM_MIGRATING from convert "
 			     "message!\n", res->owner);
 		} else if (ret == DLM_FORWARD) {
-			mlog(0, "node %u returned DLM_FORWARD from convert "
+			mlog(0, "yesde %u returned DLM_FORWARD from convert "
 			     "message!\n", res->owner);
 		} else if (ret != DLM_NORMAL && ret != DLM_NOTQUEUED)
 			dlm_error(ret);
 	} else {
 		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
-		     "node %u\n", tmpret, DLM_CONVERT_LOCK_MSG, dlm->key,
+		     "yesde %u\n", tmpret, DLM_CONVERT_LOCK_MSG, dlm->key,
 		     res->owner);
 		if (dlm_is_host_down(tmpret)) {
 			/* instead of logging the same network error over
 			 * and over, sleep here and wait for the heartbeat
-			 * to notice the node is dead.  times out after 5s. */
-			dlm_wait_for_node_death(dlm, res->owner,
+			 * to yestice the yesde is dead.  times out after 5s. */
+			dlm_wait_for_yesde_death(dlm, res->owner,
 						DLM_NODE_DEATH_WAIT_MAX);
 			ret = DLM_RECOVERING;
-			mlog(0, "node %u died so returning DLM_RECOVERING "
+			mlog(0, "yesde %u died so returning DLM_RECOVERING "
 			     "from convert message!\n", res->owner);
 		} else {
 			ret = dlm_err_to_dlm_status(tmpret);
@@ -422,9 +422,9 @@ static enum dlm_status dlm_send_remote_convert_request(struct dlm_ctxt *dlm,
 
 /* handler for DLM_CONVERT_LOCK_MSG on master site
  * locking:
- *   caller needs:  none
+ *   caller needs:  yesne
  *   taken:         takes and drop res->spinlock
- *   held on exit:  none
+ *   held on exit:  yesne
  * returns: DLM_NORMAL, DLM_IVLOCKID, DLM_BADARGS,
  *          status from __dlmconvert_master
  */
@@ -447,7 +447,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	mlog_bug_on_msg(!dlm_domain_fully_joined(dlm),
-			"Domain %s not fully joined!\n", dlm->name);
+			"Domain %s yest fully joined!\n", dlm->name);
 
 	if (cnv->namelen > DLM_LOCKID_NAME_MAX) {
 		status = DLM_IVBUFLEN;
@@ -465,7 +465,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	mlog(0, "lvb: %s\n", flags & LKM_PUT_LVB ? "put lvb" :
-	     (flags & LKM_GET_LVB ? "get lvb" : "none"));
+	     (flags & LKM_GET_LVB ? "get lvb" : "yesne"));
 
 	status = DLM_IVLOCKID;
 	res = dlm_lookup_lockres(dlm, cnv->name, cnv->namelen);
@@ -483,7 +483,7 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 	list_for_each_entry(tmp_lock, &res->granted, list) {
 		if (tmp_lock->ml.cookie == cnv->cookie &&
-		    tmp_lock->ml.node == cnv->node_idx) {
+		    tmp_lock->ml.yesde == cnv->yesde_idx) {
 			lock = tmp_lock;
 			dlm_lock_get(lock);
 			break;
@@ -492,9 +492,9 @@ int dlm_convert_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	spin_unlock(&res->spinlock);
 	if (!lock) {
 		status = DLM_IVLOCKID;
-		mlog(ML_ERROR, "did not find lock to convert on grant queue! "
+		mlog(ML_ERROR, "did yest find lock to convert on grant queue! "
 			       "cookie=%u:%llu\n",
-		     dlm_get_lock_cookie_node(be64_to_cpu(cnv->cookie)),
+		     dlm_get_lock_cookie_yesde(be64_to_cpu(cnv->cookie)),
 		     dlm_get_lock_cookie_seq(be64_to_cpu(cnv->cookie)));
 		dlm_print_one_lock_resource(res);
 		goto leave;

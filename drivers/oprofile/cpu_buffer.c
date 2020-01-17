@@ -9,19 +9,19 @@
  * @author Robert Richter <robert.richter@amd.com>
  *
  * Each CPU has a local buffer that stores PC value/event
- * pairs. We also log context switches when we notice them.
+ * pairs. We also log context switches when we yestice them.
  * Eventually each CPU's buffer is processed into the global
  * event buffer by sync_buffer().
  *
  * We use a local buffer for two reasons: an NMI or similar
- * interrupt cannot synchronise, and high sampling rates
+ * interrupt canyest synchronise, and high sampling rates
  * would lead to catastrophic global synchronisation if
  * a global buffer was used.
  */
 
 #include <linux/sched.h>
 #include <linux/oprofile.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <asm/ptrace.h>
 
@@ -123,7 +123,7 @@ void flush_cpu_work(void)
 	for_each_online_cpu(i) {
 		struct oprofile_cpu_buffer *b = &per_cpu(op_cpu_buffer, i);
 
-		/* these works are per-cpu, no need for flush_sync */
+		/* these works are per-cpu, yes need for flush_sync */
 		flush_delayed_work(&b->work);
 	}
 }
@@ -194,7 +194,7 @@ op_add_code(struct oprofile_cpu_buffer *cpu_buf, unsigned long backtrace,
 	if (backtrace)
 		flags |= TRACE_BEGIN;
 
-	/* notice a switch from user->kernel or vice versa */
+	/* yestice a switch from user->kernel or vice versa */
 	is_kernel = !!is_kernel;
 	if (cpu_buf->last_is_kernel != is_kernel) {
 		cpu_buf->last_is_kernel = is_kernel;
@@ -203,14 +203,14 @@ op_add_code(struct oprofile_cpu_buffer *cpu_buf, unsigned long backtrace,
 			flags |= IS_KERNEL;
 	}
 
-	/* notice a task switch */
+	/* yestice a task switch */
 	if (cpu_buf->last_task != task) {
 		cpu_buf->last_task = task;
 		flags |= USER_CTX_SWITCH;
 	}
 
 	if (!flags)
-		/* nothing to do */
+		/* yesthing to do */
 		return 0;
 
 	if (flags & USER_CTX_SWITCH)
@@ -253,7 +253,7 @@ op_add_sample(struct oprofile_cpu_buffer *cpu_buf,
 /*
  * This must be safe from any context.
  *
- * is_kernel is needed because on some architectures you cannot
+ * is_kernel is needed because on some architectures you canyest
  * tell if you are in kernel or user space simply by looking at
  * pc. We tag this in the buffer by generating kernel enter/exit
  * events whenever is_kernel changes
@@ -340,7 +340,7 @@ void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 		is_kernel = !user_mode(regs);
 		pc = profile_pc(regs);
 	} else {
-		is_kernel = 0;    /* This value will not be used */
+		is_kernel = 0;    /* This value will yest be used */
 		pc = ESCAPE_CODE; /* as this causes an early return. */
 	}
 
@@ -363,7 +363,7 @@ oprofile_write_reserve(struct op_entry *entry, struct pt_regs * const regs,
 
 	cpu_buf->sample_received++;
 
-	/* no backtraces for samples with data */
+	/* yes backtraces for samples with data */
 	if (op_add_code(cpu_buf, 0, is_kernel, current))
 		goto fail;
 
@@ -371,7 +371,7 @@ oprofile_write_reserve(struct op_entry *entry, struct pt_regs * const regs,
 	if (!sample)
 		goto fail;
 	sample->eip = ESCAPE_CODE;
-	sample->event = 0;		/* no flags */
+	sample->event = 0;		/* yes flags */
 
 	op_cpu_buffer_add_data(entry, code);
 	op_cpu_buffer_add_data(entry, pc);

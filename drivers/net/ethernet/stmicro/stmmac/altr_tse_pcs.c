@@ -81,7 +81,7 @@ static int tse_pcs_reset(void __iomem *base, struct tse_pcs *pcs)
 		udelay(1);
 	}
 	if (counter >= TSE_PCS_SW_RESET_TIMEOUT) {
-		dev_err(pcs->dev, "PCS could not get out of sw reset\n");
+		dev_err(pcs->dev, "PCS could yest get out of sw reset\n");
 		return -ETIMEDOUT;
 	}
 
@@ -158,15 +158,15 @@ static void auto_nego_timer_callback(struct tse_pcs *pcs)
 		else if (speed == TSE_PCS_PARTNER_SPEED_10 &&
 			 duplex == TSE_PCS_PARTNER_DUPLEX_HALF)
 			dev_err(pcs->dev,
-				"Adapter does not support Half Duplex\n");
+				"Adapter does yest support Half Duplex\n");
 		else if (speed == TSE_PCS_PARTNER_SPEED_100 &&
 			 duplex == TSE_PCS_PARTNER_DUPLEX_HALF)
 			dev_err(pcs->dev,
-				"Adapter does not support Half Duplex\n");
+				"Adapter does yest support Half Duplex\n");
 		else if (speed == TSE_PCS_PARTNER_SPEED_1000 &&
 			 duplex == TSE_PCS_PARTNER_DUPLEX_HALF)
 			dev_err(pcs->dev,
-				"Adapter does not support Half Duplex\n");
+				"Adapter does yest support Half Duplex\n");
 		else
 			dev_err(pcs->dev,
 				"Adapter: Invalid Partner Speed and Duplex\n");

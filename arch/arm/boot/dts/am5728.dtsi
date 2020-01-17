@@ -10,7 +10,7 @@
 };
 
 /*
- * These modules are not present on AM5728
+ * These modules are yest present on AM5728
  *
  * EVE1, EVE2
  * ATL

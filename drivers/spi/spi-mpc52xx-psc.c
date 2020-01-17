@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -167,7 +167,7 @@ static int mpc52xx_psc_spi_transfer_rxtx(struct spi_device *spi,
 
 
 		/* enable interrupts and wait for wake up
-		 * if just one byte is expected the Rx FIFO genererates no
+		 * if just one byte is expected the Rx FIFO genererates yes
 		 * FFULL interrupt, so activate the RxRDY interrupt
 		 */
 		out_8(&psc->command, MPC52xx_PSC_SEL_MODE_REG_1);
@@ -317,7 +317,7 @@ static int mpc52xx_psc_spi_port_config(int psc_id, struct mpc52xx_psc_spi *mps)
 	if (ret)
 		return ret;
 
-	/* Reset the PSC into a known state */
+	/* Reset the PSC into a kyeswn state */
 	out_8(&psc->command, MPC52xx_PSC_RST_RX);
 	out_8(&psc->command, MPC52xx_PSC_RST_TX);
 	out_8(&psc->command, MPC52xx_PSC_TX_DISABLE | MPC52xx_PSC_RX_DISABLE);
@@ -378,7 +378,7 @@ static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	mps->irq = irq;
 	if (pdata == NULL) {
 		dev_warn(dev,
-			 "probe called without platform data, no cs_control function will be called\n");
+			 "probe called without platform data, yes cs_control function will be called\n");
 		mps->cs_control = NULL;
 		mps->sysclk = 0;
 		master->bus_num = bus_num;
@@ -392,11 +392,11 @@ static int mpc52xx_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	master->setup = mpc52xx_psc_spi_setup;
 	master->transfer = mpc52xx_psc_spi_transfer;
 	master->cleanup = mpc52xx_psc_spi_cleanup;
-	master->dev.of_node = dev->of_node;
+	master->dev.of_yesde = dev->of_yesde;
 
 	mps->psc = ioremap(regaddr, size);
 	if (!mps->psc) {
-		dev_err(dev, "could not ioremap I/O port range\n");
+		dev_err(dev, "could yest ioremap I/O port range\n");
 		ret = -EFAULT;
 		goto free_master;
 	}
@@ -441,18 +441,18 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *op)
 	u64 regaddr64, size64;
 	s16 id = -1;
 
-	regaddr_p = of_get_address(op->dev.of_node, 0, &size64, NULL);
+	regaddr_p = of_get_address(op->dev.of_yesde, 0, &size64, NULL);
 	if (!regaddr_p) {
 		dev_err(&op->dev, "Invalid PSC address\n");
 		return -EINVAL;
 	}
-	regaddr64 = of_translate_address(op->dev.of_node, regaddr_p);
+	regaddr64 = of_translate_address(op->dev.of_yesde, regaddr_p);
 
 	/* get PSC id (1..6, used by port_config) */
 	if (op->dev.platform_data == NULL) {
 		const u32 *psc_nump;
 
-		psc_nump = of_get_property(op->dev.of_node, "cell-index", NULL);
+		psc_nump = of_get_property(op->dev.of_yesde, "cell-index", NULL);
 		if (!psc_nump || *psc_nump > 5) {
 			dev_err(&op->dev, "Invalid cell-index property\n");
 			return -EINVAL;
@@ -461,7 +461,7 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *op)
 	}
 
 	return mpc52xx_psc_spi_do_probe(&op->dev, (u32)regaddr64, (u32)size64,
-				irq_of_parse_and_map(op->dev.of_node, 0), id);
+				irq_of_parse_and_map(op->dev.of_yesde, 0), id);
 }
 
 static int mpc52xx_psc_spi_of_remove(struct platform_device *op)

@@ -14,7 +14,7 @@
 #ifdef CONFIG_CRASH_DUMP
 
 #
-# kdump entry (new kernel - not yet relocated)
+# kdump entry (new kernel - yest yet relocated)
 #
 # Note: This code has to be position independent
 #

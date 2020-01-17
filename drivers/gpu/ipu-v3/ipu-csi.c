@@ -6,7 +6,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/err.h>
@@ -199,7 +199,7 @@ static int ipu_csi_set_testgen_mclk(struct ipu_csi *csi, u32 pixel_clk,
 
 	if (div_ratio > 0xFF || div_ratio < 0) {
 		dev_err(csi->ipu->dev,
-			"value of pixel_clk extends normal range\n");
+			"value of pixel_clk extends yesrmal range\n");
 		return -EINVAL;
 	}
 
@@ -361,8 +361,8 @@ static int fill_csi_bus_cfg(struct ipu_csi_bus_config *csicfg,
 		break;
 	case V4L2_MBUS_CSI2_DPHY:
 		/*
-		 * MIPI CSI-2 requires non gated clock mode, all other
-		 * parameters are not applicable for MIPI CSI-2 bus.
+		 * MIPI CSI-2 requires yesn gated clock mode, all other
+		 * parameters are yest applicable for MIPI CSI-2 bus.
 		 */
 		csicfg->clk_mode = IPU_CSI_CLK_MODE_NONGATED_CLK;
 		break;
@@ -391,7 +391,7 @@ ipu_csi_set_bt_interlaced_codes(struct ipu_csi *csi,
 	 * Write the H-V-F codes the CSI will match against the
 	 * incoming data for start/end of active and blanking
 	 * field intervals. If input and output field types are
-	 * sequential but not the same (one is SEQ_BT and the other
+	 * sequential but yest the same (one is SEQ_BT and the other
 	 * is SEQ_TB), swap the F-bit so that the CSI will capture
 	 * field 1 lines before field 0 lines.
 	 */

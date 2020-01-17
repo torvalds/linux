@@ -17,9 +17,9 @@
 /* Command/Response Queues (CRQs) and sub CRQs (sCRQs). CRQs are used to  */
 /* issue and receive commands that initiate communication with the server */
 /* on driver initialization. Sub CRQs (sCRQs) are similar to CRQs, but    */
-/* are used by the driver to notify the server that a packet is           */
+/* are used by the driver to yestify the server that a packet is           */
 /* ready for transmission or that a buffer has been added to receive a    */
-/* packet. Subsequently, sCRQs are used by the server to notify the       */
+/* packet. Subsequently, sCRQs are used by the server to yestify the       */
 /* driver that a packet transmission has been completed or that a packet  */
 /* has been received and placed in a waiting buffer.                      */
 /*                                                                        */
@@ -35,7 +35,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/completion.h>
 #include <linux/ioport.h>
 #include <linux/dma-mapping.h>
@@ -330,7 +330,7 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 		skb = alloc_skb(pool->buff_size, GFP_ATOMIC);
 		if (!skb) {
 			dev_err(dev, "Couldn't replenish rx buff\n");
-			adapter->replenish_no_mem++;
+			adapter->replenish_yes_mem++;
 			break;
 		}
 
@@ -1020,7 +1020,7 @@ static int ibmvnic_get_vpd(struct ibmvnic_adapter *adapter)
 
 	rc = ibmvnic_wait_for_completion(adapter, &adapter->fw_done, 10000);
 	if (rc) {
-		dev_err(dev, "Could not retrieve VPD size, rc = %d\n", rc);
+		dev_err(dev, "Could yest retrieve VPD size, rc = %d\n", rc);
 		mutex_unlock(&adapter->fw_lock);
 		return rc;
 	}
@@ -1045,7 +1045,7 @@ static int ibmvnic_get_vpd(struct ibmvnic_adapter *adapter)
 		dma_map_single(dev, adapter->vpd->buff, adapter->vpd->len,
 			       DMA_FROM_DEVICE);
 	if (dma_mapping_error(dev, adapter->vpd->dma_addr)) {
-		dev_err(dev, "Could not map VPD buffer\n");
+		dev_err(dev, "Could yest map VPD buffer\n");
 		kfree(adapter->vpd->buff);
 		adapter->vpd->buff = NULL;
 		return -ENOMEM;
@@ -1480,7 +1480,7 @@ static int ibmvnic_xmit_workarounds(struct sk_buff *skb,
 {
 	/* For some backing devices, mishandling of small packets
 	 * can result in a loss of connection or TX stall. Device
-	 * architects recommend that no packet should be smaller
+	 * architects recommend that yes packet should be smaller
 	 * than the minimum MTU value provided to the driver, so
 	 * pad any packets to that length
 	 */
@@ -1818,7 +1818,7 @@ static int ibmvnic_set_mac(struct net_device *netdev, void *p)
 
 /**
  * do_change_param_reset returns zero if we are able to keep processing reset
- * events, or non-zero if we hit a fatal error and must halt.
+ * events, or yesn-zero if we hit a fatal error and must halt.
  */
 static int do_change_param_reset(struct ibmvnic_adapter *adapter,
 				 struct ibmvnic_rwi *rwi,
@@ -1898,7 +1898,7 @@ static int do_change_param_reset(struct ibmvnic_adapter *adapter,
 
 /**
  * do_reset returns zero if we are able to keep processing reset events, or
- * non-zero if we hit a fatal error and must halt.
+ * yesn-zero if we hit a fatal error and must halt.
  */
 static int do_reset(struct ibmvnic_adapter *adapter,
 		    struct ibmvnic_rwi *rwi, u32 reset_state)
@@ -2035,7 +2035,7 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		napi_schedule(&adapter->napi[i]);
 
 	if (adapter->reset_reason != VNIC_RESET_FAILOVER)
-		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, netdev);
+		call_netdevice_yestifiers(NETDEV_NOTIFY_PEERS, netdev);
 
 	rc = 0;
 
@@ -2465,7 +2465,7 @@ static netdev_features_t ibmvnic_features_check(struct sk_buff *skb,
 						struct net_device *dev,
 						netdev_features_t features)
 {
-	/* Some backing hardware adapters can not
+	/* Some backing hardware adapters can yest
 	 * handle packets with a MSS less than 224
 	 * or with only one segment.
 	 */
@@ -2583,7 +2583,7 @@ static int ibmvnic_set_ringparam(struct net_device *netdev,
 	    (adapter->req_rx_add_entries_per_subcrq != ring->rx_pending ||
 	     adapter->req_tx_entries_per_subcrq != ring->tx_pending))
 		netdev_info(netdev,
-			    "Could not match full ringsize request. Requested: RX %d, TX %d; Allowed: RX %llu, TX %llu\n",
+			    "Could yest match full ringsize request. Requested: RX %d, TX %d; Allowed: RX %llu, TX %llu\n",
 			    ring->rx_pending, ring->tx_pending,
 			    adapter->req_rx_add_entries_per_subcrq,
 			    adapter->req_tx_entries_per_subcrq);
@@ -2627,7 +2627,7 @@ static int ibmvnic_set_channels(struct net_device *netdev,
 	    (adapter->req_rx_queues != channels->rx_count ||
 	     adapter->req_tx_queues != channels->tx_count))
 		netdev_info(netdev,
-			    "Could not match full channels request. Requested: RX %d, TX %d; Allowed: RX %llu, TX %llu\n",
+			    "Could yest match full channels request. Requested: RX %d, TX %d; Allowed: RX %llu, TX %llu\n",
 			    channels->rx_count, channels->tx_count,
 			    adapter->req_rx_queues, adapter->req_tx_queues);
 	return ret;
@@ -2833,7 +2833,7 @@ static void release_sub_crq_queue(struct ibmvnic_adapter *adapter,
 	if (do_h_free) {
 		/* Close the sub-crqs */
 		do {
-			rc = plpar_hcall_norets(H_FREE_SUB_CRQ,
+			rc = plpar_hcall_yesrets(H_FREE_SUB_CRQ,
 						adapter->vdev->unit_address,
 						scrq->crq_num);
 		} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
@@ -2883,7 +2883,7 @@ static struct ibmvnic_sub_crq_queue *init_sub_crq_queue(struct ibmvnic_adapter
 		rc = ibmvnic_reset_crq(adapter);
 
 	if (rc == H_CLOSED) {
-		dev_warn(dev, "Partner adapter not ready, waiting.\n");
+		dev_warn(dev, "Partner adapter yest ready, waiting.\n");
 	} else if (rc) {
 		dev_warn(dev, "Error %d registering sub-crq\n", rc);
 		goto reg_failed;
@@ -2967,7 +2967,7 @@ static int disable_scrq_irq(struct ibmvnic_adapter *adapter,
 	struct device *dev = &adapter->vdev->dev;
 	unsigned long rc;
 
-	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
+	rc = plpar_hcall_yesrets(H_VIOCTL, adapter->vdev->unit_address,
 				H_DISABLE_VIO_INTERRUPT, scrq->hw_irq, 0, 0);
 	if (rc)
 		dev_err(dev, "Couldn't disable scrq irq 0x%lx. rc=%ld\n",
@@ -2990,16 +2990,16 @@ static int enable_scrq_irq(struct ibmvnic_adapter *adapter,
 	    adapter->reset_reason == VNIC_RESET_MOBILITY) {
 		u64 val = (0xff000000) | scrq->hw_irq;
 
-		rc = plpar_hcall_norets(H_EOI, val);
+		rc = plpar_hcall_yesrets(H_EOI, val);
 		/* H_EOI would fail with rc = H_FUNCTION when running
-		 * in XIVE mode which is expected, but not an error.
+		 * in XIVE mode which is expected, but yest an error.
 		 */
 		if (rc && (rc != H_FUNCTION))
 			dev_err(dev, "H_EOI FAILED irq 0x%llx. rc=%ld\n",
 				val, rc);
 	}
 
-	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
+	rc = plpar_hcall_yesrets(H_VIOCTL, adapter->vdev->unit_address,
 				H_ENABLE_VIO_INTERRUPT, scrq->hw_irq, 0, 0);
 	if (rc)
 		dev_err(dev, "Couldn't enable scrq irq 0x%lx. rc=%ld\n",
@@ -3479,7 +3479,7 @@ static int send_subcrq(struct ibmvnic_adapter *adapter, u64 remote_handle,
 	/* Make sure the hypervisor sees the complete request */
 	mb();
 
-	rc = plpar_hcall_norets(H_SEND_SUB_CRQ, ua,
+	rc = plpar_hcall_yesrets(H_SEND_SUB_CRQ, ua,
 				cpu_to_be64(remote_handle),
 				cpu_to_be64(u64_crq[0]),
 				cpu_to_be64(u64_crq[1]),
@@ -3501,7 +3501,7 @@ static int send_subcrq_indirect(struct ibmvnic_adapter *adapter,
 
 	/* Make sure the hypervisor sees the complete request */
 	mb();
-	rc = plpar_hcall_norets(H_SEND_SUB_CRQ_INDIRECT, ua,
+	rc = plpar_hcall_yesrets(H_SEND_SUB_CRQ_INDIRECT, ua,
 				cpu_to_be64(remote_handle),
 				ioba, num_entries);
 
@@ -3532,7 +3532,7 @@ static int ibmvnic_send_crq(struct ibmvnic_adapter *adapter,
 	/* Make sure the hypervisor sees the complete request */
 	mb();
 
-	rc = plpar_hcall_norets(H_SEND_CRQ, ua,
+	rc = plpar_hcall_yesrets(H_SEND_CRQ, ua,
 				cpu_to_be64(u64_crq[0]),
 				cpu_to_be64(u64_crq[1]));
 
@@ -3589,7 +3589,7 @@ static int vnic_client_data_len(struct ibmvnic_adapter *adapter)
 	 */
 	len = 4 * sizeof(struct vnic_login_client_data);
 	len += 6; /* "Linux" plus NULL */
-	len += strlen(utsname()->nodename) + 1;
+	len += strlen(utsname()->yesdename) + 1;
 	len += strlen(adapter->netdev->name) + 1;
 
 	return len;
@@ -3610,9 +3610,9 @@ static void vnic_add_client_data(struct ibmvnic_adapter *adapter,
 
 	/* Type 2 - LPAR name */
 	vlcd->type = 2;
-	len = strlen(utsname()->nodename) + 1;
+	len = strlen(utsname()->yesdename) + 1;
 	vlcd->len = cpu_to_be16(len);
-	strncpy(vlcd->name, utsname()->nodename, len);
+	strncpy(vlcd->name, utsname()->yesdename, len);
 	vlcd = (struct vnic_login_client_data *)(vlcd->name + len);
 
 	/* Type 3 - device name */
@@ -3640,7 +3640,7 @@ static int send_login(struct ibmvnic_adapter *adapter)
 
 	if (!adapter->tx_scrq || !adapter->rx_scrq) {
 		netdev_err(adapter->netdev,
-			   "RX or TX queues are not allocated, device login failed\n");
+			   "RX or TX queues are yest allocated, device login failed\n");
 		return -1;
 	}
 
@@ -4047,7 +4047,7 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 	adapter->ip_offload_ctrl.large_tx_ipv4 = buf->large_tx_ipv4;
 	adapter->ip_offload_ctrl.large_tx_ipv6 = buf->large_tx_ipv6;
 
-	/* large_rx disabled for now, additional features needed */
+	/* large_rx disabled for yesw, additional features needed */
 	adapter->ip_offload_ctrl.large_rx_ipv4 = 0;
 	adapter->ip_offload_ctrl.large_rx_ipv6 = 0;
 
@@ -4078,9 +4078,9 @@ static void handle_query_ip_offload_rsp(struct ibmvnic_adapter *adapter)
 	} else if (old_hw_features != adapter->netdev->hw_features) {
 		netdev_features_t tmp = 0;
 
-		/* disable features no longer supported */
+		/* disable features yes longer supported */
 		adapter->netdev->features &= adapter->netdev->hw_features;
-		/* turn on features now supported if previously enabled */
+		/* turn on features yesw supported if previously enabled */
 		tmp = (old_hw_features ^ adapter->netdev->hw_features) &
 			adapter->netdev->hw_features;
 		adapter->netdev->features |=
@@ -4114,7 +4114,7 @@ static const char *ibmvnic_fw_err_cause(u16 cause)
 	case LOW_MEMORY:
 		return "low Memory";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -4211,7 +4211,7 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 
 		if (be16_to_cpu(crq->request_capability_rsp.capability) ==
 		    REQ_MTU) {
-			pr_err("mtu of %llu is not supported. Reverting.\n",
+			pr_err("mtu of %llu is yest supported. Reverting.\n",
 			       *req_value);
 			*req_value = adapter->fallback.mtu;
 		} else {
@@ -4578,7 +4578,7 @@ static int handle_query_phys_parms_rsp(union ibmvnic_crq *crq,
 		break;
 	default:
 		if (netif_carrier_ok(netdev))
-			netdev_warn(netdev, "Unknown speed 0x%08x\n", rspeed);
+			netdev_warn(netdev, "Unkyeswn speed 0x%08x\n", rspeed);
 		adapter->speed = SPEED_UNKNOWN;
 	}
 	if (crq->query_phys_parms_rsp.flags1 & IBMVNIC_FULL_DUPLEX)
@@ -4622,7 +4622,7 @@ static void ibmvnic_handle_crq(union ibmvnic_crq *crq,
 			send_version_xchg(adapter);
 			break;
 		default:
-			dev_err(dev, "Unknown crq cmd: %d\n", gen_crq->cmd);
+			dev_err(dev, "Unkyeswn crq cmd: %d\n", gen_crq->cmd);
 		}
 		return;
 	case IBMVNIC_CRQ_XPORT_EVENT:
@@ -4806,7 +4806,7 @@ static int ibmvnic_reenable_crq_queue(struct ibmvnic_adapter *adapter)
 	int rc;
 
 	do {
-		rc = plpar_hcall_norets(H_ENABLE_CRQ, vdev->unit_address);
+		rc = plpar_hcall_yesrets(H_ENABLE_CRQ, vdev->unit_address);
 	} while (rc == H_IN_PROGRESS || rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
 	if (rc)
@@ -4824,7 +4824,7 @@ static int ibmvnic_reset_crq(struct ibmvnic_adapter *adapter)
 
 	/* Close the CRQ */
 	do {
-		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
+		rc = plpar_hcall_yesrets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
 	/* Clean out the queue */
@@ -4833,12 +4833,12 @@ static int ibmvnic_reset_crq(struct ibmvnic_adapter *adapter)
 	crq->active = false;
 
 	/* And re-open it again */
-	rc = plpar_hcall_norets(H_REG_CRQ, vdev->unit_address,
+	rc = plpar_hcall_yesrets(H_REG_CRQ, vdev->unit_address,
 				crq->msg_token, PAGE_SIZE);
 
 	if (rc == H_CLOSED)
-		/* Adapter is good, but other end is not ready */
-		dev_warn(dev, "Partner adapter not ready\n");
+		/* Adapter is good, but other end is yest ready */
+		dev_warn(dev, "Partner adapter yest ready\n");
 	else if (rc != 0)
 		dev_warn(dev, "Couldn't register crq (rc=%d)\n", rc);
 
@@ -4858,7 +4858,7 @@ static void release_crq_queue(struct ibmvnic_adapter *adapter)
 	free_irq(vdev->irq, adapter);
 	tasklet_kill(&adapter->tasklet);
 	do {
-		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
+		rc = plpar_hcall_yesrets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
 	dma_unmap_single(&vdev->dev, crq->msg_token, PAGE_SIZE,
@@ -4890,7 +4890,7 @@ static int init_crq_queue(struct ibmvnic_adapter *adapter)
 	if (dma_mapping_error(dev, crq->msg_token))
 		goto map_failed;
 
-	rc = plpar_hcall_norets(H_REG_CRQ, vdev->unit_address,
+	rc = plpar_hcall_yesrets(H_REG_CRQ, vdev->unit_address,
 				crq->msg_token, PAGE_SIZE);
 
 	if (rc == H_RESOURCE)
@@ -4899,7 +4899,7 @@ static int init_crq_queue(struct ibmvnic_adapter *adapter)
 	retrc = rc;
 
 	if (rc == H_CLOSED) {
-		dev_warn(dev, "Partner adapter not ready\n");
+		dev_warn(dev, "Partner adapter yest ready\n");
 	} else if (rc) {
 		dev_warn(dev, "Error %d opening adapter\n", rc);
 		goto reg_crq_failed;
@@ -4934,7 +4934,7 @@ static int init_crq_queue(struct ibmvnic_adapter *adapter)
 req_irq_failed:
 	tasklet_kill(&adapter->tasklet);
 	do {
-		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
+		rc = plpar_hcall_yesrets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 reg_crq_failed:
 	dma_unmap_single(dev, crq->msg_token, PAGE_SIZE, DMA_BIDIRECTIONAL);
@@ -5209,7 +5209,7 @@ static ssize_t failover_store(struct device *dev, struct device_attribute *attr,
 	session_token = (__be64)retbuf[0];
 	netdev_dbg(netdev, "Initiating client failover, session id %llx\n",
 		   be64_to_cpu(session_token));
-	rc = plpar_hcall_norets(H_VIOCTL, adapter->vdev->unit_address,
+	rc = plpar_hcall_yesrets(H_VIOCTL, adapter->vdev->unit_address,
 				H_SESSION_ERR_DETECTED, session_token, 0, 0);
 	if (rc) {
 		netdev_err(netdev, "Client initiated failover failed, rc %ld\n",

@@ -30,7 +30,7 @@ struct sram_bank_info {
 	void __iomem *sram_virt;
 	u32 sram_size;
 
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static DEFINE_MUTEX(sram_lock);
@@ -45,13 +45,13 @@ struct gen_pool *sram_get_gpool(char *pool_name)
 
 	mutex_lock(&sram_lock);
 
-	list_for_each_entry(info, &sram_bank_list, node)
+	list_for_each_entry(info, &sram_bank_list, yesde)
 		if (!strcmp(pool_name, info->pool_name))
 			break;
 
 	mutex_unlock(&sram_lock);
 
-	if (&info->node == &sram_bank_list)
+	if (&info->yesde == &sram_bank_list)
 		return NULL;
 
 	return info->gpool;
@@ -74,7 +74,7 @@ static int sram_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
+		dev_err(&pdev->dev, "yes memory resource defined\n");
 		ret = -ENODEV;
 		goto out;
 	}
@@ -104,7 +104,7 @@ static int sram_probe(struct platform_device *pdev)
 	}
 
 	mutex_lock(&sram_lock);
-	list_add(&info->node, &sram_bank_list);
+	list_add(&info->yesde, &sram_bank_list);
 	mutex_unlock(&sram_lock);
 
 	platform_set_drvdata(pdev, info);
@@ -131,7 +131,7 @@ static int sram_remove(struct platform_device *pdev)
 		return -ENODEV;
 
 	mutex_lock(&sram_lock);
-	list_del(&info->node);
+	list_del(&info->yesde);
 	mutex_unlock(&sram_lock);
 
 	gen_pool_destroy(info->gpool);

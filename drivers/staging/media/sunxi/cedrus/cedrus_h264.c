@@ -264,8 +264,8 @@ static void cedrus_write_pred_weight_table(struct cedrus_ctx *ctx,
 	int i, j, k;
 
 	cedrus_write(dev, VE_H264_SHS_WP,
-		     ((pred_weight->chroma_log2_weight_denom & 0x7) << 4) |
-		     ((pred_weight->luma_log2_weight_denom & 0x7) << 0));
+		     ((pred_weight->chroma_log2_weight_deyesm & 0x7) << 4) |
+		     ((pred_weight->luma_log2_weight_deyesm & 0x7) << 0));
 
 	cedrus_write(dev, VE_AVC_SRAM_PORT_OFFSET,
 		     CEDRUS_SRAM_H264_PRED_WEIGHT_TABLE << 2);
@@ -295,8 +295,8 @@ static void cedrus_write_pred_weight_table(struct cedrus_ctx *ctx,
 }
 
 /*
- * It turns out that using VE_H264_VLD_OFFSET to skip bits is not reliable. In
- * rare cases frame is not decoded correctly. However, setting offset to 0 and
+ * It turns out that using VE_H264_VLD_OFFSET to skip bits is yest reliable. In
+ * rare cases frame is yest decoded correctly. However, setting offset to 0 and
  * skipping appropriate amount of bits with flush bits trigger always works.
  */
 static void cedrus_skip_bits(struct cedrus_dev *dev, int num)
@@ -530,7 +530,7 @@ static int cedrus_h264_start(struct cedrus_ctx *ctx)
 
 	/*
 	 * FIXME: If V4L2_H264_SPS_FLAG_FRAME_MBS_ONLY is set,
-	 * there is no need to multiply by 2.
+	 * there is yes need to multiply by 2.
 	 */
 	pic_info_size += ctx->src_fmt.height * 2 * 64;
 
@@ -566,7 +566,7 @@ static int cedrus_h264_start(struct cedrus_ctx *ctx)
 
 	/*
 	 * FIXME: This is actually conditional to
-	 * V4L2_H264_SPS_FLAG_DIRECT_8X8_INFERENCE not being set, we
+	 * V4L2_H264_SPS_FLAG_DIRECT_8X8_INFERENCE yest being set, we
 	 * might have to rework this if memory efficiency ever is
 	 * something we need to work on.
 	 */
@@ -574,7 +574,7 @@ static int cedrus_h264_start(struct cedrus_ctx *ctx)
 
 	/*
 	 * FIXME: This is actually conditional to
-	 * V4L2_H264_SPS_FLAG_FRAME_MBS_ONLY not being set, we might
+	 * V4L2_H264_SPS_FLAG_FRAME_MBS_ONLY yest being set, we might
 	 * have to rework this if memory efficiency ever is something
 	 * we need to work on.
 	 */

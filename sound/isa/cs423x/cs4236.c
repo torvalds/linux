@@ -50,7 +50,7 @@ MODULE_SUPPORTED_DEVICE("{{Turtle Beach,TBS-2000},"
 		"{TerraTec,AudioSystem EWS64L/XL},"
 		"{Typhoon Soundsystem,CS4236B},"
 		"{Turtle Beach,Malibu},"
-		"{Unknown,Digital PC 5000 Onboard}}");
+		"{Unkyeswn,Digital PC 5000 Onboard}}");
 
 MODULE_ALIAS("snd_cs4232");
 
@@ -155,13 +155,13 @@ static const struct pnp_card_device_id snd_cs423x_pnpids[] = {
 	{ .id = "CSC0225", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
 	/* Intel Marlin Spike Motherboard (#2) - CS4235 */
 	{ .id = "CSC0225", .devs = { { "CSC0100" }, { "CSC0110" }, { "CSC0103" } } },
-	/* Unknown Intel mainboard - CS4235 */
+	/* Unkyeswn Intel mainboard - CS4235 */
 	{ .id = "CSC0225", .devs = { { "CSC0100" }, { "CSC0110" } } },
 	/* Genius Sound Maker 3DJ - CS4237B */
 	{ .id = "CSC0437", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
 	/* Digital PC 5000 Onboard - CS4236B */
 	{ .id = "CSC0735", .devs = { { "CSC0000" }, { "CSC0010" } } },
-	/* some unknown CS4236B */
+	/* some unkyeswn CS4236B */
 	{ .id = "CSC0b35", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
 	/* Intel PR440FX Onboard sound */
 	{ .id = "CSC0b36", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
@@ -217,13 +217,13 @@ static const struct pnp_card_device_id snd_cs423x_pnpids[] = {
 	{ .id = "CSCd937", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
 	/* CS4235 without MPU401 */
 	{ .id = "CSCe825", .devs = { { "CSC0100" }, { "CSC0110" } } },
-	/* Unknown SiS530 - CS4235 */
+	/* Unkyeswn SiS530 - CS4235 */
 	{ .id = "CSC4825", .devs = { { "CSC0100" }, { "CSC0110" } } },
 	/* IBM IntelliStation M Pro 6898 11U - CS4236B */
 	{ .id = "CSCe835", .devs = { { "CSC0000" }, { "CSC0010" } } },
 	/* IBM PC 300PL Onboard - CS4236B */
 	{ .id = "CSCe836", .devs = { { "CSC0000" }, { "CSC0010" } } },
-	/* Some noname CS4236 based card */
+	/* Some yesname CS4236 based card */
 	{ .id = "CSCe936", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
 	/* CS4236B */
 	{ .id = "CSCf235", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
@@ -425,7 +425,7 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 		if (snd_opl3_create(card,
 				    fm_port[dev], fm_port[dev] + 2,
 				    OPL3_HW_OPL3_CS, 0, &opl3) < 0) {
-			printk(KERN_WARNING IDENT ": OPL3 not detected\n");
+			printk(KERN_WARNING IDENT ": OPL3 yest detected\n");
 		} else {
 			if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0)
 				return err;
@@ -438,7 +438,7 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_CS4232,
 					mpu_port[dev], 0,
 					mpu_irq[dev], NULL) < 0)
-			printk(KERN_WARNING IDENT ": MPU401 not detected\n");
+			printk(KERN_WARNING IDENT ": MPU401 yest detected\n");
 	}
 
 	return snd_card_register(card);
@@ -548,7 +548,7 @@ static int snd_cs423x_pnpbios_detect(struct pnp_dev *pdev,
 	char cid[PNP_ID_LEN];
 
 	if (pnp_device_is_isapnp(pdev))
-		return -ENOENT;	/* we have another procedure - card */
+		return -ENOENT;	/* we have ayesther procedure - card */
 	for (; dev < SNDRV_CARDS; dev++) {
 		if (enable[dev] && isapnp[dev])
 			break;
@@ -629,7 +629,7 @@ static int snd_cs423x_pnpc_detect(struct pnp_card_link *pcard,
 		return res;
 	if ((res = snd_card_cs423x_pnpc(dev, card->private_data, pcard, pid)) < 0) {
 		printk(KERN_ERR "isapnp detection failed and probing for " IDENT
-		       " is not supported\n");
+		       " is yest supported\n");
 		snd_card_free(card);
 		return res;
 	}

@@ -220,8 +220,8 @@ static void send_close_req(struct cxgbi_sock *csk)
 /*
  * CPL connection abort request: host ->
  *
- * Send an ABORT_REQ message. Makes sure we do not send multiple ABORT_REQs
- * for the same connection and also that we do not try to send a message
+ * Send an ABORT_REQ message. Makes sure we do yest send multiple ABORT_REQs
+ * for the same connection and also that we do yest try to send a message
  * after the connection has closed.
  */
 static void abort_arp_failure(struct t3cdev *tdev, struct sk_buff *skb)
@@ -378,7 +378,7 @@ static inline void make_tx_data_wr(struct cxgbi_sock *csk, struct sk_buff *skb,
 /**
  * push_tx_frames -- start transmit
  * @c3cn: the offloaded connection
- * @req_completion: request wr_ack or not
+ * @req_completion: request wr_ack or yest
  *
  * Prepends TX_DATA_WR or CPL_CLOSE_CON_REQ headers to buffers waiting in a
  * connection's send queue and sends them on to T3.  Must be called with the
@@ -527,7 +527,7 @@ static int do_act_establish(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
  * Process a CPL_ACT_OPEN_RPL message: -> host
  * Handle active open failures.
  */
-static int act_open_rpl_status_to_errno(int status)
+static int act_open_rpl_status_to_erryes(int status)
 {
 	switch (status) {
 	case CPL_ERR_CONN_RESET:
@@ -591,7 +591,7 @@ static int do_act_open_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		mod_timer(&csk->retry_timer, jiffies + HZ / 2);
 	} else
 		cxgbi_sock_fail_act_open(csk,
-				act_open_rpl_status_to_errno(rpl->status));
+				act_open_rpl_status_to_erryes(rpl->status));
 
 	spin_unlock_bh(&csk->lock);
 	cxgbi_sock_put(csk);
@@ -637,11 +637,11 @@ static int do_close_con_rpl(struct t3cdev *cdev, struct sk_buff *skb,
 
 /*
  * Process ABORT_REQ_RSS CPL message: -> host
- * Process abort requests.  If we are waiting for an ABORT_RPL we ignore this
+ * Process abort requests.  If we are waiting for an ABORT_RPL we igyesre this
  * request except that we need to reply to it.
  */
 
-static int abort_status_to_errno(struct cxgbi_sock *csk, int abort_reason,
+static int abort_status_to_erryes(struct cxgbi_sock *csk, int abort_reason,
 				 int *need_rst)
 {
 	switch (abort_reason) {
@@ -686,7 +686,7 @@ static int do_abort_req(struct t3cdev *cdev, struct sk_buff *skb, void *ctx)
 	send_abort_rpl(csk, rst_status);
 
 	if (!cxgbi_sock_flag(csk, CTPF_ABORT_RPL_PENDING)) {
-		csk->err = abort_status_to_errno(csk, req->status, &rst_status);
+		csk->err = abort_status_to_erryes(csk, req->status, &rst_status);
 		cxgbi_sock_closed(csk);
 	}
 
@@ -715,10 +715,10 @@ static int do_abort_rpl(struct t3cdev *cdev, struct sk_buff *skb, void *ctx)
 		rpl->status, csk, csk ? csk->state : 0,
 		csk ? csk->flags : 0UL);
 	/*
-	 * Ignore replies to post-close aborts indicating that the abort was
+	 * Igyesre replies to post-close aborts indicating that the abort was
 	 * requested too late.  These connections are terminated when we get
 	 * PEER_CLOSE or CLOSE_CON_RPL and by the time the abort_rpl_rss
-	 * arrives the TID is either no longer used or it has been recycled.
+	 * arrives the TID is either yes longer used or it has been recycled.
 	 */
 	if (rpl->status == CPL_ERR_ABORT_FAILED)
 		goto rel_skb;
@@ -727,7 +727,7 @@ static int do_abort_rpl(struct t3cdev *cdev, struct sk_buff *skb, void *ctx)
 	 * abort races with ABORT_REQ_RSS, the latter frees the connection
 	 * expecting the ABORT_REQ will fail with CPL_ERR_ABORT_FAILED,
 	 * but FW turns the ABORT_REQ into a regular one and so we get
-	 * ABORT_RPL_RSS with status 0 and no connection.
+	 * ABORT_RPL_RSS with status 0 and yes connection.
 	 */
 	if (csk)
 		cxgbi_sock_rcv_abort_rpl(csk);
@@ -738,15 +738,15 @@ rel_skb:
 
 /*
  * Process RX_ISCSI_HDR CPL message: -> host
- * Handle received PDUs, the payload could be DDP'ed. If not, the payload
+ * Handle received PDUs, the payload could be DDP'ed. If yest, the payload
  * follow after the bhs.
  */
 static int do_iscsi_hdr(struct t3cdev *t3dev, struct sk_buff *skb, void *ctx)
 {
 	struct cxgbi_sock *csk = ctx;
 	struct cpl_iscsi_hdr *hdr_cpl = cplhdr(skb);
-	struct cpl_iscsi_hdr_norss data_cpl;
-	struct cpl_rx_data_ddp_norss ddp_cpl;
+	struct cpl_iscsi_hdr_yesrss data_cpl;
+	struct cpl_rx_data_ddp_yesrss ddp_cpl;
 	unsigned int hdr_len, data_len, status;
 	unsigned int len;
 	int err;
@@ -774,7 +774,7 @@ static int do_iscsi_hdr(struct t3cdev *t3dev, struct sk_buff *skb, void *ctx)
 	__skb_pull(skb, sizeof(struct cpl_iscsi_hdr));
 
 	len = hdr_len = ntohs(hdr_cpl->len);
-	/* msg coalesce is off or not enough data received */
+	/* msg coalesce is off or yest eyesugh data received */
 	if (skb->len <= hdr_len) {
 		pr_err("%s: tid %u, CPL_ISCSI_HDR, skb len %u < %u.\n",
 			csk->cdev->ports[csk->port_id]->name, csk->tid,
@@ -818,7 +818,7 @@ static int do_iscsi_hdr(struct t3cdev *t3dev, struct sk_buff *skb, void *ctx)
 		}
 		data_len = ntohs(data_cpl.len);
 		log_debug(1 << CXGBI_DBG_DDP | 1 << CXGBI_DBG_PDU_RX,
-			"skb 0x%p, pdu not ddp'ed %u/%u, status 0x%x.\n",
+			"skb 0x%p, pdu yest ddp'ed %u/%u, status 0x%x.\n",
 			skb, data_len, cxgbi_skcb_rx_pdulen(skb), status);
 		len += sizeof(data_cpl) + data_len;
 	} else if (status & (1 << CPL_RX_DDP_STATUS_DDP_SHIFT))
@@ -842,7 +842,7 @@ discard:
 
 /*
  * Process TX_DATA_ACK CPL messages: -> host
- * Process an acknowledgment of WR completion.  Advance snd_una and send the
+ * Process an ackyeswledgment of WR completion.  Advance snd_una and send the
  * next batch of work requests from the write queue.
  */
 static int do_wr_ack(struct t3cdev *cdev, struct sk_buff *skb, void *ctx)
@@ -1317,7 +1317,7 @@ static void cxgb3i_dev_open(struct t3cdev *t3dev)
 	cdev->nmtus = NMTUS;
 	cdev->rx_credit_thres = cxgb3i_rx_credit_thres;
 	cdev->skb_tx_rsvd = CXGB3I_TX_HEADER_LEN;
-	cdev->skb_rx_extra = sizeof(struct cpl_iscsi_hdr_norss);
+	cdev->skb_rx_extra = sizeof(struct cpl_iscsi_hdr_yesrss);
 	cdev->itp = &cxgb3i_iscsi_transport;
 
 	err = cxgb3i_ddp_init(cdev);

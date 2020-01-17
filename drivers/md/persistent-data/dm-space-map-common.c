@@ -76,7 +76,7 @@ static void dm_bitmap_prepare_for_write(struct dm_block_validator *v,
 	struct disk_bitmap_header *disk_header = dm_block_data(b);
 
 	disk_header->blocknr = cpu_to_le64(dm_block_location(b));
-	disk_header->csum = cpu_to_le32(dm_bm_checksum(&disk_header->not_used,
+	disk_header->csum = cpu_to_le32(dm_bm_checksum(&disk_header->yest_used,
 						       block_size - sizeof(__le32),
 						       BITMAP_CSUM_XOR));
 }
@@ -94,7 +94,7 @@ static int dm_bitmap_check(struct dm_block_validator *v,
 		return -ENOTBLK;
 	}
 
-	csum_disk = cpu_to_le32(dm_bm_checksum(&disk_header->not_used,
+	csum_disk = cpu_to_le32(dm_bm_checksum(&disk_header->yest_used,
 					       block_size - sizeof(__le32),
 					       BITMAP_CSUM_XOR));
 	if (csum_disk != disk_header->csum) {
@@ -264,7 +264,7 @@ int sm_ll_extend(struct ll_disk *ll, dm_block_t extra_blocks)
 		dm_tm_unlock(ll->tm, b);
 
 		idx.nr_free = cpu_to_le32(ll->entries_per_block);
-		idx.none_free_before = 0;
+		idx.yesne_free_before = 0;
 
 		r = ll->save_ie(ll, i, &idx);
 		if (r < 0)
@@ -360,7 +360,7 @@ int sm_ll_find_free_block(struct ll_disk *ll, dm_block_t begin,
 		bit_end = (i == index_end - 1) ?  end : ll->entries_per_block;
 
 		r = sm_find_free(dm_bitmap_data(blk),
-				 max_t(unsigned, begin, le32_to_cpu(ie_disk.none_free_before)),
+				 max_t(unsigned, begin, le32_to_cpu(ie_disk.yesne_free_before)),
 				 bit_end, &position);
 		if (r == -ENOSPC) {
 			/*
@@ -454,14 +454,14 @@ static int sm_ll_mutate(struct ll_disk *ll, dm_block_t b,
 		*ev = SM_ALLOC;
 		ll->nr_allocated++;
 		le32_add_cpu(&ie_disk.nr_free, -1);
-		if (le32_to_cpu(ie_disk.none_free_before) == bit)
-			ie_disk.none_free_before = cpu_to_le32(bit + 1);
+		if (le32_to_cpu(ie_disk.yesne_free_before) == bit)
+			ie_disk.yesne_free_before = cpu_to_le32(bit + 1);
 
 	} else if (old && !ref_count) {
 		*ev = SM_FREE;
 		ll->nr_allocated--;
 		le32_add_cpu(&ie_disk.nr_free, 1);
-		ie_disk.none_free_before = cpu_to_le32(min(le32_to_cpu(ie_disk.none_free_before), bit));
+		ie_disk.yesne_free_before = cpu_to_le32(min(le32_to_cpu(ie_disk.yesne_free_before), bit));
 	} else
 		*ev = SM_NONE;
 
@@ -632,7 +632,7 @@ int sm_ll_open_metadata(struct ll_disk *ll, struct dm_transaction_manager *tm,
 	}
 
 	/*
-	 * We don't know the alignment of the root_le buffer, so need to
+	 * We don't kyesw the alignment of the root_le buffer, so need to
 	 * copy into a new structure.
 	 */
 	memcpy(&smr, root_le, sizeof(smr));
@@ -679,7 +679,7 @@ static int disk_ll_init_index(struct ll_disk *ll)
 
 static int disk_ll_open(struct ll_disk *ll)
 {
-	/* nothing to do */
+	/* yesthing to do */
 	return 0;
 }
 

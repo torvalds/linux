@@ -155,7 +155,7 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 	}
 
 	range->avg_qual.level = range->max_qual.level / 2;
-	range->avg_qual.noise = range->max_qual.noise / 2;
+	range->avg_qual.yesise = range->max_qual.yesise / 2;
 	range->avg_qual.updated = range->max_qual.updated;
 
 	for (i = 0; i < wdev->wiphy->n_cipher_suites; i++) {
@@ -219,7 +219,7 @@ EXPORT_WEXT_HANDLER(cfg80211_wext_giwrange);
 
 
 /**
- * cfg80211_wext_freq - get wext frequency for non-"auto"
+ * cfg80211_wext_freq - get wext frequency for yesn-"auto"
  * @dev: the net device
  * @freq: the wext freq encoding
  *
@@ -515,7 +515,7 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 	    (tx_key || (!addr && wdev->wext.default_key == -1))) {
 		if (wdev->current_bss) {
 			/*
-			 * If we are getting a new TX key from not having
+			 * If we are getting a new TX key from yest having
 			 * had one before we need to join a new IBSS with
 			 * the privacy bit set.
 			 */
@@ -575,7 +575,7 @@ static int cfg80211_wext_siwencode(struct net_device *dev,
 	    wdev->iftype != NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
 
-	/* no use -- only MFP (set_default_mgmt_key) is optional */
+	/* yes use -- only MFP (set_default_mgmt_key) is optional */
 	if (!rdev->ops->del_key ||
 	    !rdev->ops->add_key ||
 	    !rdev->ops->set_default_key)
@@ -638,7 +638,7 @@ static int cfg80211_wext_siwencodeext(struct net_device *dev,
 	    wdev->iftype != NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
 
-	/* no use -- only MFP (set_default_mgmt_key) is optional */
+	/* yes use -- only MFP (set_default_mgmt_key) is optional */
 	if (!rdev->ops->del_key ||
 	    !rdev->ops->add_key ||
 	    !rdev->ops->set_default_key)
@@ -838,7 +838,7 @@ static int cfg80211_wext_siwtxpower(struct net_device *dev,
 	if (!rdev->ops->set_tx_power)
 		return -EOPNOTSUPP;
 
-	/* only change when not disabling */
+	/* only change when yest disabling */
 	if (!data->txpower.disabled) {
 		rfkill_set_sw_state(rdev->rfkill, false);
 
@@ -1113,12 +1113,12 @@ static int cfg80211_wext_siwpower(struct net_device *dev,
 		ps = false;
 	} else {
 		switch (wrq->flags & IW_POWER_MODE) {
-		case IW_POWER_ON:       /* If not specified */
+		case IW_POWER_ON:       /* If yest specified */
 		case IW_POWER_MODE:     /* If set all mask */
 		case IW_POWER_ALL_R:    /* If explicitely state all */
 			ps = true;
 			break;
-		default:                /* Otherwise we ignore */
+		default:                /* Otherwise we igyesre */
 			return -EINVAL;
 		}
 
@@ -1215,7 +1215,7 @@ static int cfg80211_wext_siwrate(struct net_device *dev,
 	maxrate = (u32)-1;
 
 	if (rate->value < 0) {
-		/* nothing */
+		/* yesthing */
 	} else if (rate->fixed) {
 		fixed = rate->value / 100000;
 	} else {

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) */
+/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-yeste) */
 /* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
@@ -15,7 +15,7 @@
  * batadv_tp_is_error() - Check throughput meter return code for error
  * @n: throughput meter return code
  *
- * Return: 0 when not error was detected, != 0 otherwise
+ * Return: 0 when yest error was detected, != 0 otherwise
  */
 #define batadv_tp_is_error(n) ((__u8)(n) > 127 ? 1 : 0)
 
@@ -87,7 +87,7 @@ enum batadv_iv_flags {
 /**
  * enum batadv_icmp_packettype - ICMP message types
  * @BATADV_ECHO_REPLY: success reply to BATADV_ECHO_REQUEST
- * @BATADV_DESTINATION_UNREACHABLE: failure when route to destination not found
+ * @BATADV_DESTINATION_UNREACHABLE: failure when route to destination yest found
  * @BATADV_ECHO_REQUEST: request BATADV_ECHO_REPLY from destination
  * @BATADV_TTL_EXCEEDED: error after BATADV_ECHO_REQUEST traversed too many hops
  * @BATADV_PARAMETER_PROBLEM: return code for malformed messages
@@ -110,9 +110,9 @@ enum batadv_icmp_packettype {
  *  (both link-local and routable ones)
  * @BATADV_MCAST_WANT_ALL_IPV6: we want all IPv6 multicast packets
  *  (both link-local and routable ones)
- * @BATADV_MCAST_WANT_NO_RTR4: we have no IPv4 multicast router and therefore
+ * @BATADV_MCAST_WANT_NO_RTR4: we have yes IPv4 multicast router and therefore
  * only need routable IPv4 multicast packets we signed up for explicitly
- * @BATADV_MCAST_WANT_NO_RTR6: we have no IPv6 multicast router and therefore
+ * @BATADV_MCAST_WANT_NO_RTR6: we have yes IPv6 multicast router and therefore
  * only need routable IPv6 multicast packets we signed up for explicitly
  */
 enum batadv_mcast_flags {
@@ -142,7 +142,7 @@ enum batadv_tt_data_flags {
 
 /**
  * enum batadv_vlan_flags - flags for the four MSB of any vlan ID field
- * @BATADV_VLAN_HAS_TAG: whether the field contains a valid vlan tag or not
+ * @BATADV_VLAN_HAS_TAG: whether the field contains a valid vlan tag or yest
  */
 enum batadv_vlan_flags {
 	BATADV_VLAN_HAS_TAG	= 1UL << 15,
@@ -152,7 +152,7 @@ enum batadv_vlan_flags {
  * enum batadv_bla_claimframe - claim frame types for the bridge loop avoidance
  * @BATADV_CLAIM_TYPE_CLAIM: claim of a client mac address
  * @BATADV_CLAIM_TYPE_UNCLAIM: unclaim of a client mac address
- * @BATADV_CLAIM_TYPE_ANNOUNCE: announcement of backbone with current crc
+ * @BATADV_CLAIM_TYPE_ANNOUNCE: anyesuncement of backbone with current crc
  * @BATADV_CLAIM_TYPE_REQUEST: request of full claim table
  * @BATADV_CLAIM_TYPE_LOOPDETECT: mesh-traversing loop detect packet
  */
@@ -198,8 +198,8 @@ struct batadv_bla_claim_dst {
  * @version: batman-adv protocol version, part of the genereal header
  * @ttl: time to live for this packet, part of the genereal header
  * @flags: contains routing relevant flags - see enum batadv_iv_flags
- * @seqno: sequence identification
- * @orig: address of the source node
+ * @seqyes: sequence identification
+ * @orig: address of the source yesde
  * @prev_sender: address of the previous sender
  * @reserved: reserved byte for alignment
  * @tq: transmission quality
@@ -210,7 +210,7 @@ struct batadv_ogm_packet {
 	__u8   version;
 	__u8   ttl;
 	__u8   flags;
-	__be32 seqno;
+	__be32 seqyes;
 	__u8   orig[ETH_ALEN];
 	__u8   prev_sender[ETH_ALEN];
 	__u8   reserved;
@@ -226,7 +226,7 @@ struct batadv_ogm_packet {
  * @version: batman-adv protocol version, part of the general header
  * @ttl: time to live for this packet, part of the general header
  * @flags: reserved for routing relevant flags - currently always 0
- * @seqno: sequence number
+ * @seqyes: sequence number
  * @orig: originator mac address
  * @tvlv_len: length of the appended tvlv buffer (in bytes)
  * @throughput: the currently flooded path throughput
@@ -236,7 +236,7 @@ struct batadv_ogm2_packet {
 	__u8   version;
 	__u8   ttl;
 	__u8   flags;
-	__be32 seqno;
+	__be32 seqyes;
 	__u8   orig[ETH_ALEN];
 	__be16 tvlv_len;
 	__be32 throughput;
@@ -249,14 +249,14 @@ struct batadv_ogm2_packet {
  * @packet_type: batman-adv packet type, part of the general header
  * @version: batman-adv protocol version, part of the genereal header
  * @orig: originator mac address
- * @seqno: sequence number
+ * @seqyes: sequence number
  * @elp_interval: currently used ELP sending interval in ms
  */
 struct batadv_elp_packet {
 	__u8   packet_type;
 	__u8   version;
 	__u8   orig[ETH_ALEN];
-	__be32 seqno;
+	__be32 seqyes;
 	__be32 elp_interval;
 };
 
@@ -268,10 +268,10 @@ struct batadv_elp_packet {
  * @version: batman-adv protocol version, part of the genereal header
  * @ttl: time to live for this packet, part of the genereal header
  * @msg_type: ICMP packet type
- * @dst: address of the destination node
- * @orig: address of the source node
+ * @dst: address of the destination yesde
+ * @orig: address of the source yesde
  * @uid: local ICMP socket identifier
- * @align: not used - useful for alignment purposes only
+ * @align: yest used - useful for alignment purposes only
  *
  * This structure is used for ICMP packets parsing only and it is never sent
  * over the wire. The alignment field at the end is there to ensure that
@@ -294,11 +294,11 @@ struct batadv_icmp_header {
  * @version: batman-adv protocol version, part of the genereal header
  * @ttl: time to live for this packet, part of the genereal header
  * @msg_type: ICMP packet type
- * @dst: address of the destination node
- * @orig: address of the source node
+ * @dst: address of the destination yesde
+ * @orig: address of the source yesde
  * @uid: local ICMP socket identifier
- * @reserved: not used - useful for alignment
- * @seqno: ICMP sequence number
+ * @reserved: yest used - useful for alignment
+ * @seqyes: ICMP sequence number
  */
 struct batadv_icmp_packet {
 	__u8   packet_type;
@@ -309,7 +309,7 @@ struct batadv_icmp_packet {
 	__u8   orig[ETH_ALEN];
 	__u8   uid;
 	__u8   reserved;
-	__be16 seqno;
+	__be16 seqyes;
 };
 
 /**
@@ -318,15 +318,15 @@ struct batadv_icmp_packet {
  * @version: batman-adv protocol version, part of the genereal header
  * @ttl: time to live for this packet, part of the genereal header
  * @msg_type: ICMP packet type
- * @dst: address of the destination node
- * @orig: address of the source node
+ * @dst: address of the destination yesde
+ * @orig: address of the source yesde
  * @uid: local ICMP socket identifier
  * @subtype: TP packet subtype (see batadv_icmp_tp_subtype)
  * @session: TP session identifier
- * @seqno: the TP sequence number
+ * @seqyes: the TP sequence number
  * @timestamp: time when the packet has been sent. This value is filled in a
  *  TP_MSG and echoed back in the next TP_ACK so that the sender can compute the
- *  RTT. Since it is read only by the host which wrote it, there is no need to
+ *  RTT. Since it is read only by the host which wrote it, there is yes need to
  *  store it using network order
  */
 struct batadv_icmp_tp_packet {
@@ -339,14 +339,14 @@ struct batadv_icmp_tp_packet {
 	__u8   uid;
 	__u8   subtype;
 	__u8   session[2];
-	__be32 seqno;
+	__be32 seqyes;
 	__be32 timestamp;
 };
 
 /**
  * enum batadv_icmp_tp_subtype - ICMP TP Meter packet subtypes
  * @BATADV_TP_MSG: Msg from sender to receiver
- * @BATADV_TP_ACK: acknowledgment from receiver to sender
+ * @BATADV_TP_ACK: ackyeswledgment from receiver to sender
  */
 enum batadv_icmp_tp_subtype {
 	BATADV_TP_MSG	= 0,
@@ -361,11 +361,11 @@ enum batadv_icmp_tp_subtype {
  * @version: batman-adv protocol version, part of the genereal header
  * @ttl: time to live for this packet, part of the genereal header
  * @msg_type: ICMP packet type
- * @dst: address of the destination node
- * @orig: address of the source node
+ * @dst: address of the destination yesde
+ * @orig: address of the source yesde
  * @uid: local ICMP socket identifier
  * @rr_cur: number of entries the rr array
- * @seqno: ICMP sequence number
+ * @seqyes: ICMP sequence number
  * @rr: route record array
  */
 struct batadv_icmp_packet_rr {
@@ -377,21 +377,21 @@ struct batadv_icmp_packet_rr {
 	__u8   orig[ETH_ALEN];
 	__u8   uid;
 	__u8   rr_cur;
-	__be16 seqno;
+	__be16 seqyes;
 	__u8   rr[BATADV_RR_LEN][ETH_ALEN];
 };
 
 #define BATADV_ICMP_MAX_PACKET_SIZE	sizeof(struct batadv_icmp_packet_rr)
 
 /* All packet headers in front of an ethernet header have to be completely
- * divisible by 2 but not by 4 to make the payload after the ethernet
+ * divisible by 2 but yest by 4 to make the payload after the ethernet
  * header again 4 bytes boundary aligned.
  *
  * A packing of 2 is necessary to avoid extra padding at the end of the struct
  * caused by a structure member which is larger than two bytes. Otherwise
- * the structure would not fulfill the previously mentioned rule to avoid the
+ * the structure would yest fulfill the previously mentioned rule to avoid the
  * misalignment of the payload after the ethernet header. It may also lead to
- * leakage of information when the padding it not initialized before sending.
+ * leakage of information when the padding it yest initialized before sending.
  */
 
 /**
@@ -437,10 +437,10 @@ struct batadv_unicast_4addr_packet {
  * @ttl: time to live for this packet, part of the genereal header
  * @dest: final destination used when routing fragments
  * @orig: originator of the fragment used when merging the packet
- * @no: fragment number within this sequence
+ * @yes: fragment number within this sequence
  * @priority: priority of frame, from ToS IP precedence or 802.1p
  * @reserved: reserved byte for alignment
- * @seqno: sequence identification
+ * @seqyes: sequence identification
  * @total_size: size of the merged packet
  */
 struct batadv_frag_packet {
@@ -448,19 +448,19 @@ struct batadv_frag_packet {
 	__u8   version;  /* batman version field */
 	__u8   ttl;
 #if defined(__BIG_ENDIAN_BITFIELD)
-	__u8   no:4;
+	__u8   yes:4;
 	__u8   priority:3;
 	__u8   reserved:1;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8   reserved:1;
 	__u8   priority:3;
-	__u8   no:4;
+	__u8   yes:4;
 #else
-#error "unknown bitfield endianness"
+#error "unkyeswn bitfield endianness"
 #endif
 	__u8   dest[ETH_ALEN];
 	__u8   orig[ETH_ALEN];
-	__be16 seqno;
+	__be16 seqyes;
 	__be16 total_size;
 };
 
@@ -470,7 +470,7 @@ struct batadv_frag_packet {
  * @version: batman-adv protocol version, part of the genereal header
  * @ttl: time to live for this packet, part of the genereal header
  * @reserved: reserved byte for alignment
- * @seqno: sequence identification
+ * @seqyes: sequence identification
  * @orig: originator of the broadcast packet
  */
 struct batadv_bcast_packet {
@@ -478,7 +478,7 @@ struct batadv_bcast_packet {
 	__u8   version;  /* batman version field */
 	__u8   ttl;
 	__u8   reserved;
-	__be32 seqno;
+	__be32 seqyes;
 	__u8   orig[ETH_ALEN];
 	/* "4 bytes boundary + 2 bytes" long to make the payload after the
 	 * following ethernet header again 4 bytes boundary aligned
@@ -569,8 +569,8 @@ struct batadv_tvlv_gateway_data {
  * struct batadv_tvlv_tt_data - tt data propagated through the tt tvlv container
  * @flags: translation table flags (see batadv_tt_data_flags)
  * @ttvn: translation table version number
- * @num_vlan: number of announced VLANs. In the TVLV this struct is followed by
- *  one batadv_tvlv_tt_vlan_data object per announced vlan
+ * @num_vlan: number of anyesunced VLANs. In the TVLV this struct is followed by
+ *  one batadv_tvlv_tt_vlan_data object per anyesunced vlan
  */
 struct batadv_tvlv_tt_data {
 	__u8   flags;
@@ -593,10 +593,10 @@ struct batadv_tvlv_tt_vlan_data {
 
 /**
  * struct batadv_tvlv_tt_change - translation table diff data
- * @flags: status indicators concerning the non-mesh client (see
+ * @flags: status indicators concerning the yesn-mesh client (see
  *  batadv_tt_client_flags)
  * @reserved: reserved field - useful for alignment purposes only
- * @addr: mac address of non-mesh client that triggered this tt change
+ * @addr: mac address of yesn-mesh client that triggered this tt change
  * @vid: VLAN identifier
  */
 struct batadv_tvlv_tt_change {
@@ -618,7 +618,7 @@ struct batadv_tvlv_roam_adv {
 
 /**
  * struct batadv_tvlv_mcast_data - payload of a multicast tvlv
- * @flags: multicast flags announced by the orig node
+ * @flags: multicast flags anyesunced by the orig yesde
  * @reserved: reserved field
  */
 struct batadv_tvlv_mcast_data {

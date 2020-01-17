@@ -121,7 +121,7 @@ struct slim_framer {
  * @la: Logical address of the device this message is going to.
  *	(Not used when destination type is broadcast.)
  * @msg: Elemental access message to be read/written
- * @comp: completion if read/write is synchronous, used internally
+ * @comp: completion if read/write is synchroyesus, used internally
  *	for tid based transactions.
  */
 struct slim_msg_txn {
@@ -293,17 +293,17 @@ struct slim_port {
 /**
  * enum slim_transport_protocol: SLIMbus Transport protocol list from
  *	Table 47 of SLIMbus 2.0 specs.
- * @SLIM_PROTO_ISO: Isochronous Protocol, no flow control as data rate match
+ * @SLIM_PROTO_ISO: Isochroyesus Protocol, yes flow control as data rate match
  *		channel rate flow control embedded in the data.
  * @SLIM_PROTO_PUSH: Pushed Protocol, includes flow control, Used to carry
  *		data whose rate	is equal to, or lower than the channel rate.
  * @SLIM_PROTO_PULL: Pulled Protocol, similar usage as pushed protocol
  *		but pull is a unicast.
  * @SLIM_PROTO_LOCKED: Locked Protocol
- * @SLIM_PROTO_ASYNC_SMPLX: Asynchronous Protocol-Simplex
- * @SLIM_PROTO_ASYNC_HALF_DUP: Asynchronous Protocol-Half-duplex
- * @SLIM_PROTO_EXT_SMPLX: Extended Asynchronous Protocol-Simplex
- * @SLIM_PROTO_EXT_HALF_DUP: Extended Asynchronous Protocol-Half-duplex
+ * @SLIM_PROTO_ASYNC_SMPLX: Asynchroyesus Protocol-Simplex
+ * @SLIM_PROTO_ASYNC_HALF_DUP: Asynchroyesus Protocol-Half-duplex
+ * @SLIM_PROTO_EXT_SMPLX: Extended Asynchroyesus Protocol-Simplex
+ * @SLIM_PROTO_EXT_HALF_DUP: Extended Asynchroyesus Protocol-Half-duplex
  */
 enum slim_transport_protocol {
 	SLIM_PROTO_ISO = 0,
@@ -328,7 +328,7 @@ enum slim_transport_protocol {
  * @ratem: rate multipler which is super frame rate/data rate
  * @num_ports: number of ports
  * @ports: pointer to instance of ports
- * @node: list head for stream associated with slim device.
+ * @yesde: list head for stream associated with slim device.
  */
 struct slim_stream_runtime {
 	const char *name;
@@ -340,7 +340,7 @@ struct slim_stream_runtime {
 	unsigned int ratem;
 	int num_ports;
 	struct slim_port *ports;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 /**
@@ -387,7 +387,7 @@ struct slim_stream_runtime {
  *	the bus at (in steps of 'clock-gear', 1 through 10, each clock gear
  *	representing twice the frequency than the previous gear).
  *	Manager is also responsible for entering (and exiting) low-power-mode
- *	(known as 'clock pause').
+ *	(kyeswn as 'clock pause').
  *	Manager can do handover of framer if there are multiple framers on the
  *	bus and a certain usecase warrants using certain framer to avoid keeping
  *	previous framer being powered-on.

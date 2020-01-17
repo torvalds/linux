@@ -202,7 +202,7 @@ int br_ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 slow_path:
 	/* This is a linearized skbuff, the original geometry is lost for us.
 	 * This may also be a clone skbuff, we could preserve the geometry for
-	 * the copies but probably not worth the effort.
+	 * the copies but probably yest worth the effort.
 	 */
 	ip6_frag_init(skb, hlen, mtu, skb->dev->needed_tailroom,
 		      LL_RESERVED_SPACE(skb->dev), prevhdr, nexthdr, frag_id,
@@ -259,7 +259,7 @@ int __init ipv6_netfilter_init(void)
 	return 0;
 }
 
-/* This can be called from inet6_init() on errors, so it cannot
+/* This can be called from inet6_init() on errors, so it canyest
  * be marked __exit. -DaveM
  */
 void ipv6_netfilter_fini(void)

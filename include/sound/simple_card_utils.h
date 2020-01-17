@@ -2,7 +2,7 @@
  *
  * simple_card_utils.h
  *
- * Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (c) 2016 Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 
 #ifndef __SIMPLE_CARD_UTILS_H
@@ -70,8 +70,8 @@ struct link_info {
 };
 
 int asoc_simple_parse_daifmt(struct device *dev,
-			     struct device_node *node,
-			     struct device_node *codec,
+			     struct device_yesde *yesde,
+			     struct device_yesde *codec,
 			     char *prefix,
 			     unsigned int *retfmt);
 __printf(3, 4)
@@ -81,12 +81,12 @@ int asoc_simple_set_dailink_name(struct device *dev,
 int asoc_simple_parse_card_name(struct snd_soc_card *card,
 				char *prefix);
 
-#define asoc_simple_parse_clk_cpu(dev, node, dai_link, simple_dai)		\
-	asoc_simple_parse_clk(dev, node, simple_dai, dai_link->cpus)
-#define asoc_simple_parse_clk_codec(dev, node, dai_link, simple_dai)	\
-	asoc_simple_parse_clk(dev, node, simple_dai, dai_link->codecs)
+#define asoc_simple_parse_clk_cpu(dev, yesde, dai_link, simple_dai)		\
+	asoc_simple_parse_clk(dev, yesde, simple_dai, dai_link->cpus)
+#define asoc_simple_parse_clk_codec(dev, yesde, dai_link, simple_dai)	\
+	asoc_simple_parse_clk(dev, yesde, simple_dai, dai_link->codecs)
 int asoc_simple_parse_clk(struct device *dev,
-			  struct device_node *node,
+			  struct device_yesde *yesde,
 			  struct asoc_simple_dai *simple_dai,
 			  struct snd_soc_dai_link_component *dlc);
 int asoc_simple_startup(struct snd_pcm_substream *substream);
@@ -97,12 +97,12 @@ int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd);
 int asoc_simple_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				   struct snd_pcm_hw_params *params);
 
-#define asoc_simple_parse_cpu(node, dai_link, is_single_link)	\
-	asoc_simple_parse_dai(node, dai_link->cpus, is_single_link)
-#define asoc_simple_parse_codec(node, dai_link)	\
-	asoc_simple_parse_dai(node, dai_link->codecs, NULL)
-#define asoc_simple_parse_platform(node, dai_link)	\
-	asoc_simple_parse_dai(node, dai_link->platforms, NULL)
+#define asoc_simple_parse_cpu(yesde, dai_link, is_single_link)	\
+	asoc_simple_parse_dai(yesde, dai_link->cpus, is_single_link)
+#define asoc_simple_parse_codec(yesde, dai_link)	\
+	asoc_simple_parse_dai(yesde, dai_link->codecs, NULL)
+#define asoc_simple_parse_platform(yesde, dai_link)	\
+	asoc_simple_parse_dai(yesde, dai_link->platforms, NULL)
 
 #define asoc_simple_parse_tdm(np, dai)			\
 	snd_soc_of_parse_tdm_slot(np,	&(dai)->tx_slot_mask,	\
@@ -110,8 +110,8 @@ int asoc_simple_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					&(dai)->slots,		\
 					&(dai)->slot_width);
 
-void asoc_simple_canonicalize_platform(struct snd_soc_dai_link *dai_link);
-void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
+void asoc_simple_cayesnicalize_platform(struct snd_soc_dai_link *dai_link);
+void asoc_simple_cayesnicalize_cpu(struct snd_soc_dai_link *dai_link,
 				      int is_single_links);
 
 int asoc_simple_clean_reference(struct snd_soc_card *card);
@@ -119,7 +119,7 @@ int asoc_simple_clean_reference(struct snd_soc_card *card);
 void asoc_simple_convert_fixup(struct asoc_simple_data *data,
 				      struct snd_pcm_hw_params *params);
 void asoc_simple_parse_convert(struct device *dev,
-			       struct device_node *np, char *prefix,
+			       struct device_yesde *np, char *prefix,
 			       struct asoc_simple_data *data);
 
 int asoc_simple_parse_routing(struct snd_soc_card *card,

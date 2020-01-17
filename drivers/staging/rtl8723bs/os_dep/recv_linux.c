@@ -112,7 +112,7 @@ void rtw_os_recv_indicate_pkt(struct adapter *padapter, _pkt *pkt, struct rx_pkt
 			/* DBG_871X("bmcast =%d\n", bmcast); */
 
 			if (memcmp(pattrib->dst, myid(&padapter->eeprompriv), ETH_ALEN)) {
-				/* DBG_871X("not ap psta =%p, addr =%pM\n", psta, pattrib->dst); */
+				/* DBG_871X("yest ap psta =%p, addr =%pM\n", psta, pattrib->dst); */
 
 				if (bmcast) {
 					psta = rtw_get_bcmc_stainfo(padapter);

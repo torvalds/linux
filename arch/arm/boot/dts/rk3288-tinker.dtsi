@@ -353,7 +353,7 @@
 };
 
 &pinctrl {
-	pcfg_pull_none_drv_8ma: pcfg-pull-none-drv-8ma {
+	pcfg_pull_yesne_drv_8ma: pcfg-pull-yesne-drv-8ma {
 		drive-strength = <8>;
 	};
 
@@ -364,7 +364,7 @@
 
 	backlight {
 		bl_en: bl-en {
-			rockchip,pins = <7 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -376,7 +376,7 @@
 
 	eth_phy {
 		eth_phy_pwr: eth-phy-pwr {
-			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -403,7 +403,7 @@
 		};
 
 		sdmmc_clk: sdmmc-clk {
-			rockchip,pins = <6 RK_PC4 1 &pcfg_pull_none_drv_8ma>;
+			rockchip,pins = <6 RK_PC4 1 &pcfg_pull_yesne_drv_8ma>;
 		};
 
 		sdmmc_cmd: sdmmc-cmd {
@@ -411,24 +411,24 @@
 		};
 
 		sdmmc_pwr: sdmmc-pwr {
-			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	usb {
 		host_vbus_drv: host-vbus-drv {
-			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		pwr_3g: pwr-3g {
-			rockchip,pins = <7 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PB0 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	sdio {
 		wifi_enable: wifi-enable {
-			rockchip,pins = <4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>,
-					<4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_yesne>,
+					<4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };
@@ -447,7 +447,7 @@
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	broken-cd;
-	disable-wp;			/* wp not hooked up */
+	disable-wp;			/* wp yest hooked up */
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
 	status = "okay";
@@ -462,7 +462,7 @@
 	keep-power-in-suspend;
 	max-frequency = <50000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	yesn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4>, <&sdio0_cmd>, <&sdio0_clk>, <&sdio0_int>;
 	sd-uhs-sdr12;

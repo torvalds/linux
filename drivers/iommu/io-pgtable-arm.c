@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * CPU-agnostic ARM page table allocator.
+ * CPU-agyesstic ARM page table allocator.
  *
  * Copyright (C) 2014 ARM Limited
  *
@@ -78,7 +78,7 @@
 #define ARM_LPAE_PTE_VALID		(((arm_lpae_iopte)1) << 0)
 
 #define ARM_LPAE_PTE_ATTR_LO_MASK	(((arm_lpae_iopte)0x3ff) << 2)
-/* Ignore the contiguous bit for block splitting */
+/* Igyesre the contiguous bit for block splitting */
 #define ARM_LPAE_PTE_ATTR_HI_MASK	(((arm_lpae_iopte)6) << 52)
 #define ARM_LPAE_PTE_ATTR_MASK		(ARM_LPAE_PTE_ATTR_LO_MASK |	\
 					 ARM_LPAE_PTE_ATTR_HI_MASK)
@@ -228,7 +228,7 @@ static void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
 	void *pages;
 
 	VM_BUG_ON((gfp & __GFP_HIGHMEM));
-	p = alloc_pages_node(dev ? dev_to_node(dev) : NUMA_NO_NODE,
+	p = alloc_pages_yesde(dev ? dev_to_yesde(dev) : NUMA_NO_NODE,
 			     gfp | __GFP_ZERO, order);
 	if (!p)
 		return NULL;
@@ -250,7 +250,7 @@ static void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
 	return pages;
 
 out_unmap:
-	dev_err(dev, "Cannot accommodate DMA translation for IOMMU page tables\n");
+	dev_err(dev, "Canyest accommodate DMA translation for IOMMU page tables\n");
 	dma_unmap_single(dev, dma, size, DMA_TO_DEVICE);
 out_free:
 	__free_pages(p, order);
@@ -362,7 +362,7 @@ static arm_lpae_iopte arm_lpae_install_table(arm_lpae_iopte *table,
 	if (cfg->coherent_walk || (old & ARM_LPAE_PTE_SW_SYNC))
 		return old;
 
-	/* Even if it's not ours, there's no point waiting; just kick it */
+	/* Even if it's yest ours, there's yes point waiting; just kick it */
 	__arm_lpae_sync_pte(ptep, cfg);
 	if (old == curr)
 		WRITE_ONCE(*ptep, new | ARM_LPAE_PTE_SW_SYNC);
@@ -475,7 +475,7 @@ static int arm_lpae_map(struct io_pgtable_ops *ops, unsigned long iova,
 	int ret, lvl = data->start_level;
 	arm_lpae_iopte prot;
 
-	/* If no access, then nothing to do */
+	/* If yes access, then yesthing to do */
 	if (!(iommu_prot & (IOMMU_READ | IOMMU_WRITE)))
 		return 0;
 
@@ -573,7 +573,7 @@ static size_t arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 	if (pte != blk_pte) {
 		__arm_lpae_free_pages(tablep, tablesz, cfg);
 		/*
-		 * We may race against someone unmapping another part of this
+		 * We may race against someone unmapping ayesther part of this
 		 * block, but anything else is invalid. We can't misinterpret
 		 * a page entry here since we're never at the last level.
 		 */
@@ -755,7 +755,7 @@ arm_lpae_alloc_pgtable(struct io_pgtable_cfg *cfg)
 		return NULL;
 
 	if (!selftest_running && cfg->iommu_dev->dma_pfn_offset) {
-		dev_err(cfg->iommu_dev, "Cannot accommodate DMA offset for IOMMU page tables\n");
+		dev_err(cfg->iommu_dev, "Canyest accommodate DMA offset for IOMMU page tables\n");
 		return NULL;
 	}
 
@@ -1037,9 +1037,9 @@ arm_mali_lpae_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
 		data->pgd_bits = 0;
 	}
 	/*
-	 * MEMATTR: Mali has no actual notion of a non-cacheable type, so the
+	 * MEMATTR: Mali has yes actual yestion of a yesn-cacheable type, so the
 	 * best we can do is mimic the out-of-tree driver and hope that the
-	 * "implementation-defined caching policy" is good enough. Similarly,
+	 * "implementation-defined caching policy" is good eyesugh. Similarly,
 	 * we'll use it for the sake of a valid attribute for our 'device'
 	 * index, although callers should never request that in practice.
 	 */

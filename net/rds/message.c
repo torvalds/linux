@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -67,12 +67,12 @@ static inline bool rds_zcookie_add(struct rds_msg_zcopy_info *info, u32 cookie)
 	return true;
 }
 
-static struct rds_msg_zcopy_info *rds_info_from_znotifier(struct rds_znotifier *znotif)
+static struct rds_msg_zcopy_info *rds_info_from_zyestifier(struct rds_zyestifier *zyestif)
 {
-	return container_of(znotif, struct rds_msg_zcopy_info, znotif);
+	return container_of(zyestif, struct rds_msg_zcopy_info, zyestif);
 }
 
-void rds_notify_msg_zcopy_purge(struct rds_msg_zcopy_queue *q)
+void rds_yestify_msg_zcopy_purge(struct rds_msg_zcopy_queue *q)
 {
 	unsigned long flags;
 	LIST_HEAD(copy);
@@ -90,16 +90,16 @@ void rds_notify_msg_zcopy_purge(struct rds_msg_zcopy_queue *q)
 }
 
 static void rds_rm_zerocopy_callback(struct rds_sock *rs,
-				     struct rds_znotifier *znotif)
+				     struct rds_zyestifier *zyestif)
 {
 	struct rds_msg_zcopy_info *info;
 	struct rds_msg_zcopy_queue *q;
-	u32 cookie = znotif->z_cookie;
+	u32 cookie = zyestif->z_cookie;
 	struct rds_zcopy_cookies *ck;
 	struct list_head *head;
 	unsigned long flags;
 
-	mm_unaccount_pinned_pages(&znotif->z_mmp);
+	mm_unaccount_pinned_pages(&zyestif->z_mmp);
 	q = &rs->rs_zcookie_queue;
 	spin_lock_irqsave(&q->lock, flags);
 	head = &q->zcookie_head;
@@ -108,13 +108,13 @@ static void rds_rm_zerocopy_callback(struct rds_sock *rs,
 				  rs_zcookie_next);
 		if (info && rds_zcookie_add(info, cookie)) {
 			spin_unlock_irqrestore(&q->lock, flags);
-			kfree(rds_info_from_znotifier(znotif));
+			kfree(rds_info_from_zyestifier(zyestif));
 			/* caller invokes rds_wake_sk_sleep() */
 			return;
 		}
 	}
 
-	info = rds_info_from_znotifier(znotif);
+	info = rds_info_from_zyestifier(zyestif);
 	ck = &info->zcookies;
 	memset(ck, 0, sizeof(*ck));
 	WARN_ON(!rds_zcookie_add(info, cookie));
@@ -125,7 +125,7 @@ static void rds_rm_zerocopy_callback(struct rds_sock *rs,
 }
 
 /*
- * This relies on dma_map_sg() not touching sg[].page during merging.
+ * This relies on dma_map_sg() yest touching sg[].page during merging.
  */
 static void rds_message_purge(struct rds_message *rm)
 {
@@ -139,11 +139,11 @@ static void rds_message_purge(struct rds_message *rm)
 	if (rm->m_rs) {
 		struct rds_sock *rs = rm->m_rs;
 
-		if (rm->data.op_mmp_znotifier) {
+		if (rm->data.op_mmp_zyestifier) {
 			zcopy = true;
-			rds_rm_zerocopy_callback(rs, rm->data.op_mmp_znotifier);
+			rds_rm_zerocopy_callback(rs, rm->data.op_mmp_zyestifier);
 			rds_wake_sk_sleep(rs);
-			rm->data.op_mmp_znotifier = NULL;
+			rm->data.op_mmp_zyestifier = NULL;
 		}
 		sock_put(rds_rs_to_sk(rs));
 		rm->m_rs = NULL;
@@ -201,7 +201,7 @@ int rds_message_add_extension(struct rds_header *hdr, unsigned int type,
 	unsigned int ext_len = sizeof(u8) + len;
 	unsigned char *dst;
 
-	/* For now, refuse to add more than one extension header */
+	/* For yesw, refuse to add more than one extension header */
 	if (hdr->h_exthdr[0] != RDS_EXTHDR_NONE)
 		return 0;
 
@@ -242,17 +242,17 @@ int rds_message_next_extension(struct rds_header *hdr,
 
 	offset = *pos;
 	if (offset >= RDS_HEADER_EXT_SPACE)
-		goto none;
+		goto yesne;
 
-	/* Get the extension type and length. For now, the
+	/* Get the extension type and length. For yesw, the
 	 * length is implied by the extension type. */
 	ext_type = src[offset++];
 
 	if (ext_type == RDS_EXTHDR_NONE || ext_type >= __RDS_EXTHDR_MAX)
-		goto none;
+		goto yesne;
 	ext_len = rds_exthdr_size[ext_type];
 	if (offset + ext_len > RDS_HEADER_EXT_SPACE)
-		goto none;
+		goto yesne;
 
 	*pos = offset + ext_len;
 	if (ext_len < *buflen)
@@ -260,7 +260,7 @@ int rds_message_next_extension(struct rds_header *hdr,
 	memcpy(buf, src + offset, *buflen);
 	return ext_type;
 
-none:
+yesne:
 	*pos = RDS_HEADER_EXT_SPACE;
 	*buflen = 0;
 	return RDS_EXTHDR_NONE;
@@ -378,7 +378,7 @@ static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(iov_iter_count(from));
 
 	/*
-	 * now allocate and copy in the data payload.
+	 * yesw allocate and copy in the data payload.
 	 */
 	sg = rm->data.op_sg;
 
@@ -386,8 +386,8 @@ static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *
 	if (!info)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&info->rs_zcookie_next);
-	rm->data.op_mmp_znotifier = &info->znotif;
-	if (mm_account_pinned_pages(&rm->data.op_mmp_znotifier->z_mmp,
+	rm->data.op_mmp_zyestifier = &info->zyestif;
+	if (mm_account_pinned_pages(&rm->data.op_mmp_zyestifier->z_mmp,
 				    length)) {
 		ret = -ENOMEM;
 		goto err;
@@ -405,7 +405,7 @@ static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *
 
 			for (i = 0; i < rm->data.op_nents; i++)
 				put_page(sg_page(&rm->data.op_sg[i]));
-			mmp = &rm->data.op_mmp_znotifier->z_mmp;
+			mmp = &rm->data.op_mmp_zyestifier->z_mmp;
 			mm_unaccount_pinned_pages(mmp);
 			ret = -EFAULT;
 			goto err;
@@ -421,7 +421,7 @@ static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *
 	return ret;
 err:
 	kfree(info);
-	rm->data.op_mmp_znotifier = NULL;
+	rm->data.op_mmp_zyestifier = NULL;
 	return ret;
 }
 
@@ -435,7 +435,7 @@ int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from,
 
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(iov_iter_count(from));
 
-	/* now allocate and copy in the data payload.  */
+	/* yesw allocate and copy in the data payload.  */
 	sg = rm->data.op_sg;
 	sg_off = 0; /* Dear gcc, sg->page will be null from kzalloc. */
 

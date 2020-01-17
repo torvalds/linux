@@ -210,9 +210,9 @@ static int kabylake_rt5663_fe_init(struct snd_soc_pcm_runtime *rtd)
 	int ret;
 
 	dapm = snd_soc_component_get_dapm(component);
-	ret = snd_soc_dapm_ignore_suspend(dapm, "Reference Capture");
+	ret = snd_soc_dapm_igyesre_suspend(dapm, "Reference Capture");
 	if (ret)
-		dev_err(rtd->dev, "Ref Cap -Ignore suspend failed = %d\n", ret);
+		dev_err(rtd->dev, "Ref Cap -Igyesre suspend failed = %d\n", ret);
 
 	return ret;
 }
@@ -245,9 +245,9 @@ static int kabylake_rt5663_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 	snd_soc_component_set_jack(component, &ctx->kabylake_headset, NULL);
 
-	ret = snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "DMIC");
+	ret = snd_soc_dapm_igyesre_suspend(&rtd->card->dapm, "DMIC");
 	if (ret)
-		dev_err(rtd->dev, "DMIC - Ignore suspend failed = %d\n", ret);
+		dev_err(rtd->dev, "DMIC - Igyesre suspend failed = %d\n", ret);
 
 	return ret;
 }
@@ -349,7 +349,7 @@ static int kabylake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
 	    !strcmp(fe_dai_link->name, "Kbl Audio Capture Port")) {
 		rate->min = rate->max = 48000;
 		channels->min = channels->max = 2;
-		snd_mask_none(fmt);
+		snd_mask_yesne(fmt);
 		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
 	} else if (!strcmp(fe_dai_link->name, "Kbl Audio DMIC cap")) {
 		if (params_channels(params) == 2 ||
@@ -359,7 +359,7 @@ static int kabylake_ssp_fixup(struct snd_soc_pcm_runtime *rtd,
 			channels->min = channels->max = 4;
 	}
 	/*
-	 * The speaker on the SSP0 supports S16_LE and not S24_LE.
+	 * The speaker on the SSP0 supports S16_LE and yest S24_LE.
 	 * thus changing the mask here
 	 */
 	if (!strcmp(be_dai_link->name, "SSP0-Codec"))
@@ -535,7 +535,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.name = "Kbl Audio Port",
 		.stream_name = "Audio",
 		.dynamic = 1,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.init = kabylake_rt5663_fe_init,
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
@@ -547,7 +547,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.name = "Kbl Audio Capture Port",
 		.stream_name = "Audio Record",
 		.dynamic = 1,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_capture = 1,
@@ -558,7 +558,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.name = "Kbl Audio Headset Playback",
 		.stream_name = "Headset Audio",
 		.dpcm_playback = 1,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		SND_SOC_DAILINK_REG(system2, dummy, platform),
 	},
@@ -567,7 +567,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.stream_name = "Echoreference Capture",
 		.init = NULL,
 		.capture_only = 1,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		SND_SOC_DAILINK_REG(echoref, dummy, platform),
 	},
 	[KBL_DPCM_AUDIO_RT5514_DSP] = {
@@ -580,7 +580,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.stream_name = "dmiccap",
 		.init = NULL,
 		.dpcm_capture = 1,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		.ops = &kabylake_dmic_ops,
 		SND_SOC_DAILINK_REG(dmic, dummy, platform),
@@ -592,7 +592,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.init = NULL,
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		SND_SOC_DAILINK_REG(hdmi1, dummy, platform),
 	},
@@ -603,7 +603,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.init = NULL,
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		SND_SOC_DAILINK_REG(hdmi2, dummy, platform),
 	},
@@ -613,11 +613,11 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		/* SSP0 - Codec */
 		.name = "SSP0-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_DSP_B |
 			SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
-		.ignore_pmdown_time = 1,
+		.igyesre_pmdown_time = 1,
 		.be_hw_params_fixup = kabylake_ssp_fixup,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -627,11 +627,11 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 	{
 		.name = "SSP1-Codec",
 		.id = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.init = kabylake_rt5663_codec_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
-		.ignore_pmdown_time = 1,
+		.igyesre_pmdown_time = 1,
 		.be_hw_params_fixup = kabylake_ssp_fixup,
 		.ops = &kabylake_rt5663_ops,
 		.dpcm_playback = 1,
@@ -643,7 +643,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.id = 3,
 		.dpcm_playback = 1,
 		.init = kabylake_hdmi1_init,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp1_pin, idisp1_codec, platform),
 	},
 	{
@@ -651,7 +651,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.id = 4,
 		.init = kabylake_hdmi2_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp2_pin, idisp2_codec, platform),
 	},
 };

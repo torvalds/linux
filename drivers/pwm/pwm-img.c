@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Imagination Technologies Pulse Width Modulator driver
+ * Imagination Techyeslogies Pulse Width Modulator driver
  *
- * Copyright (c) 2014-2015, Imagination Technologies
+ * Copyright (c) 2014-2015, Imagination Techyeslogies
  *
  * Based on drivers/pwm/pwm-tegra.c, Copyright (c) 2010, NVIDIA Corporation
  */
@@ -100,7 +100,7 @@ static int img_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (period_ns < pwm_chip->min_period_ns ||
 	    period_ns > pwm_chip->max_period_ns) {
-		dev_err(chip->dev, "configured period not in range\n");
+		dev_err(chip->dev, "configured period yest in range\n");
 		return -ERANGE;
 	}
 
@@ -219,13 +219,13 @@ static int img_pwm_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(pwm_chip->sys_clk);
 	if (ret < 0) {
-		dev_err(dev, "could not prepare or enable sys clock\n");
+		dev_err(dev, "could yest prepare or enable sys clock\n");
 		return ret;
 	}
 
 	ret = clk_prepare_enable(pwm_chip->pwm_clk);
 	if (ret < 0) {
-		dev_err(dev, "could not prepare or enable pwm clock\n");
+		dev_err(dev, "could yest prepare or enable pwm clock\n");
 		clk_disable_unprepare(pwm_chip->sys_clk);
 		return ret;
 	}
@@ -258,7 +258,7 @@ static int img_pwm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	pwm->data = of_dev_id->data;
 
-	pwm->periph_regs = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	pwm->periph_regs = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							   "img,cr-periph");
 	if (IS_ERR(pwm->periph_regs))
 		return PTR_ERR(pwm->periph_regs);
@@ -286,7 +286,7 @@ static int img_pwm_probe(struct platform_device *pdev)
 
 	clk_rate = clk_get_rate(pwm->pwm_clk);
 	if (!clk_rate) {
-		dev_err(&pdev->dev, "pwm clock has no frequency\n");
+		dev_err(&pdev->dev, "pwm clock has yes frequency\n");
 		ret = -EINVAL;
 		goto err_suspend;
 	}
@@ -421,5 +421,5 @@ static struct platform_driver img_pwm_driver = {
 module_platform_driver(img_pwm_driver);
 
 MODULE_AUTHOR("Sai Masarapu <Sai.Masarapu@imgtec.com>");
-MODULE_DESCRIPTION("Imagination Technologies PWM DAC driver");
+MODULE_DESCRIPTION("Imagination Techyeslogies PWM DAC driver");
 MODULE_LICENSE("GPL v2");

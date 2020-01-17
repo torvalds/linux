@@ -35,15 +35,15 @@ xrep_superblock(
 {
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_buf		*bp;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agyes;
 	int			error;
 
 	/* Don't try to repair AG 0's sb; let xfs_repair deal with it. */
-	agno = sc->sm->sm_agno;
-	if (agno == 0)
+	agyes = sc->sm->sm_agyes;
+	if (agyes == 0)
 		return -EOPNOTSUPP;
 
-	error = xfs_sb_get_secondary(mp, sc->tp, agno, &bp);
+	error = xfs_sb_get_secondary(mp, sc->tp, agyes, &bp);
 	if (error)
 		return error;
 
@@ -88,12 +88,12 @@ xrep_agf_walk_allocbt(
 STATIC int
 xrep_agf_check_agfl_block(
 	struct xfs_mount	*mp,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbyes,
 	void			*priv)
 {
 	struct xfs_scrub	*sc = priv;
 
-	if (!xfs_verify_agbno(mp, sc->sa.agno, agbno))
+	if (!xfs_verify_agbyes(mp, sc->sa.agyes, agbyes))
 		return -EFSCORRUPTED;
 	return 0;
 }
@@ -118,9 +118,9 @@ xrep_check_btree_root(
 	struct xrep_find_ag_btree	*fab)
 {
 	struct xfs_mount		*mp = sc->mp;
-	xfs_agnumber_t			agno = sc->sm->sm_agno;
+	xfs_agnumber_t			agyes = sc->sm->sm_agyes;
 
-	return xfs_verify_agbno(mp, agno, fab->root) &&
+	return xfs_verify_agbyes(mp, agyes, fab->root) &&
 	       fab->height <= XFS_BTREE_MAXLEVELS;
 }
 
@@ -129,7 +129,7 @@ xrep_check_btree_root(
  * sanity, and pass the root data back out via *fab.
  *
  * This is /also/ a chicken and egg problem because we have to use the rmapbt
- * (rooted in the AGF) to find the btrees rooted in the AGF.  We also have no
+ * (rooted in the AGF) to find the btrees rooted in the AGF.  We also have yes
  * idea if the btrees make any sense.  If we hit obvious corruptions in those
  * btrees we'll bail out.
  */
@@ -148,7 +148,7 @@ xrep_agf_find_btrees(
 	if (error)
 		return error;
 
-	/* We must find the bnobt, cntbt, and rmapbt roots. */
+	/* We must find the byesbt, cntbt, and rmapbt roots. */
 	if (!xrep_check_btree_root(sc, &fab[XREP_AGF_BNOBT]) ||
 	    !xrep_check_btree_root(sc, &fab[XREP_AGF_CNTBT]) ||
 	    !xrep_check_btree_root(sc, &fab[XREP_AGF_RMAPBT]))
@@ -172,7 +172,7 @@ xrep_agf_find_btrees(
 
 /*
  * Reinitialize the AGF header, making an in-core copy of the old contents so
- * that we know which in-core state needs to be reinitialized.
+ * that we kyesw which in-core state needs to be reinitialized.
  */
 STATIC void
 xrep_agf_init_header(
@@ -187,8 +187,8 @@ xrep_agf_init_header(
 	memset(agf, 0, BBTOB(agf_bp->b_length));
 	agf->agf_magicnum = cpu_to_be32(XFS_AGF_MAGIC);
 	agf->agf_versionnum = cpu_to_be32(XFS_AGF_VERSION);
-	agf->agf_seqno = cpu_to_be32(sc->sa.agno);
-	agf->agf_length = cpu_to_be32(xfs_ag_block_count(mp, sc->sa.agno));
+	agf->agf_seqyes = cpu_to_be32(sc->sa.agyes);
+	agf->agf_length = cpu_to_be32(xfs_ag_block_count(mp, sc->sa.agyes));
 	agf->agf_flfirst = old_agf->agf_flfirst;
 	agf->agf_fllast = old_agf->agf_fllast;
 	agf->agf_flcount = old_agf->agf_flcount;
@@ -244,8 +244,8 @@ xrep_agf_calc_from_btrees(
 	xfs_agblock_t		blocks;
 	int			error;
 
-	/* Update the AGF counters from the bnobt. */
-	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno,
+	/* Update the AGF counters from the byesbt. */
+	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agyes,
 			XFS_BTNUM_BNO);
 	error = xfs_alloc_query_all(cur, xrep_agf_walk_allocbt, &raa);
 	if (error)
@@ -259,7 +259,7 @@ xrep_agf_calc_from_btrees(
 	agf->agf_longest = cpu_to_be32(raa.longest);
 
 	/* Update the AGF counters from the cntbt. */
-	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno,
+	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agyes,
 			XFS_BTNUM_CNT);
 	error = xfs_btree_count_blocks(cur, &blocks);
 	if (error)
@@ -268,7 +268,7 @@ xrep_agf_calc_from_btrees(
 	btreeblks += blocks - 1;
 
 	/* Update the AGF counters from the rmapbt. */
-	cur = xfs_rmapbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno);
+	cur = xfs_rmapbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agyes);
 	error = xfs_btree_count_blocks(cur, &blocks);
 	if (error)
 		goto err;
@@ -281,7 +281,7 @@ xrep_agf_calc_from_btrees(
 	/* Update the AGF counters from the refcountbt. */
 	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
 		cur = xfs_refcountbt_init_cursor(mp, sc->tp, agf_bp,
-				sc->sa.agno);
+				sc->sa.agyes);
 		error = xfs_btree_count_blocks(cur, &blocks);
 		if (error)
 			goto err;
@@ -336,7 +336,7 @@ xrep_agf(
 	struct xrep_find_ag_btree	fab[XREP_AGF_MAX] = {
 		[XREP_AGF_BNOBT] = {
 			.rmap_owner = XFS_RMAP_OWN_AG,
-			.buf_ops = &xfs_bnobt_buf_ops,
+			.buf_ops = &xfs_byesbt_buf_ops,
 		},
 		[XREP_AGF_CNTBT] = {
 			.rmap_owner = XFS_RMAP_OWN_AG,
@@ -371,7 +371,7 @@ xrep_agf(
 	 * was corrupt after xfs_alloc_read_agf failed with -EFSCORRUPTED.
 	 */
 	error = xfs_trans_read_buf(mp, sc->tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, sc->sa.agno, XFS_AGF_DADDR(mp)),
+			XFS_AG_DADDR(mp, sc->sa.agyes, XFS_AGF_DADDR(mp)),
 			XFS_FSS_TO_BB(mp, 1), 0, &agf_bp, NULL);
 	if (error)
 		return error;
@@ -380,20 +380,20 @@ xrep_agf(
 
 	/*
 	 * Load the AGFL so that we can screen out OWN_AG blocks that are on
-	 * the AGFL now; these blocks might have once been part of the
-	 * bno/cnt/rmap btrees but are not now.  This is a chicken and egg
+	 * the AGFL yesw; these blocks might have once been part of the
+	 * byes/cnt/rmap btrees but are yest yesw.  This is a chicken and egg
 	 * problem: the AGF is corrupt, so we have to trust the AGFL contents
 	 * because we can't do any serious cross-referencing with any of the
 	 * btrees rooted in the AGF.  If the AGFL contents are obviously bad
 	 * then we'll bail out.
 	 */
-	error = xfs_alloc_read_agfl(mp, sc->tp, sc->sa.agno, &agfl_bp);
+	error = xfs_alloc_read_agfl(mp, sc->tp, sc->sa.agyes, &agfl_bp);
 	if (error)
 		return error;
 
 	/*
 	 * Spot-check the AGFL blocks; if they're obviously corrupt then
-	 * there's nothing we can do but bail out.
+	 * there's yesthing we can do but bail out.
 	 */
 	error = xfs_agfl_walk(sc->mp, XFS_BUF_TO_AGF(agf_bp), agfl_bp,
 			xrep_agf_check_agfl_block, sc);
@@ -453,7 +453,7 @@ xrep_agfl_walk_rmap(
 
 	/* Record all the OWN_AG blocks. */
 	if (rec->rm_owner == XFS_RMAP_OWN_AG) {
-		fsb = XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_private.a.agno,
+		fsb = XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_private.a.agyes,
 				rec->rm_startblock);
 		error = xfs_bitmap_set(ra->freesp, fsb, rec->rm_blockcount);
 		if (error)
@@ -464,11 +464,11 @@ xrep_agfl_walk_rmap(
 }
 
 /*
- * Map out all the non-AGFL OWN_AG space in this AG so that we can deduce
+ * Map out all the yesn-AGFL OWN_AG space in this AG so that we can deduce
  * which blocks belong to the AGFL.
  *
  * Compute the set of old AGFL blocks by subtracting from the list of OWN_AG
- * blocks the list of blocks owned by all other OWN_AG metadata (bnobt, cntbt,
+ * blocks the list of blocks owned by all other OWN_AG metadata (byesbt, cntbt,
  * rmapbt).  These are the old AGFL blocks, so return that list and the number
  * of blocks we're actually going to put back on the AGFL.
  */
@@ -491,14 +491,14 @@ xrep_agfl_collect_blocks(
 	xfs_bitmap_init(&ra.agmetablocks);
 
 	/* Find all space used by the free space btrees & rmapbt. */
-	cur = xfs_rmapbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno);
+	cur = xfs_rmapbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agyes);
 	error = xfs_rmap_query_all(cur, xrep_agfl_walk_rmap, &ra);
 	if (error)
 		goto err;
 	xfs_btree_del_cursor(cur, error);
 
-	/* Find all blocks currently being used by the bnobt. */
-	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno,
+	/* Find all blocks currently being used by the byesbt. */
+	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agyes,
 			XFS_BTNUM_BNO);
 	error = xfs_bitmap_set_btblocks(&ra.agmetablocks, cur);
 	if (error)
@@ -506,7 +506,7 @@ xrep_agfl_collect_blocks(
 	xfs_btree_del_cursor(cur, error);
 
 	/* Find all blocks currently being used by the cntbt. */
-	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agno,
+	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.agyes,
 			XFS_BTNUM_CNT);
 	error = xfs_bitmap_set_btblocks(&ra.agmetablocks, cur);
 	if (error)
@@ -577,23 +577,23 @@ xrep_agfl_init_header(
 	xfs_agblock_t		flcount)
 {
 	struct xfs_mount	*mp = sc->mp;
-	__be32			*agfl_bno;
+	__be32			*agfl_byes;
 	struct xfs_bitmap_range	*br;
 	struct xfs_bitmap_range	*n;
 	struct xfs_agfl		*agfl;
-	xfs_agblock_t		agbno;
+	xfs_agblock_t		agbyes;
 	unsigned int		fl_off;
 
 	ASSERT(flcount <= xfs_agfl_size(mp));
 
 	/*
-	 * Start rewriting the header by setting the bno[] array to
+	 * Start rewriting the header by setting the byes[] array to
 	 * NULLAGBLOCK, then setting AGFL header fields.
 	 */
 	agfl = XFS_BUF_TO_AGFL(agfl_bp);
 	memset(agfl, 0xFF, BBTOB(agfl_bp->b_length));
 	agfl->agfl_magicnum = cpu_to_be32(XFS_AGFL_MAGIC);
-	agfl->agfl_seqno = cpu_to_be32(sc->sa.agno);
+	agfl->agfl_seqyes = cpu_to_be32(sc->sa.agyes);
 	uuid_copy(&agfl->agfl_uuid, &mp->m_sb.sb_meta_uuid);
 
 	/*
@@ -602,19 +602,19 @@ xrep_agfl_init_header(
 	 * step.
 	 */
 	fl_off = 0;
-	agfl_bno = XFS_BUF_TO_AGFL_BNO(mp, agfl_bp);
+	agfl_byes = XFS_BUF_TO_AGFL_BNO(mp, agfl_bp);
 	for_each_xfs_bitmap_extent(br, n, agfl_extents) {
-		agbno = XFS_FSB_TO_AGBNO(mp, br->start);
+		agbyes = XFS_FSB_TO_AGBNO(mp, br->start);
 
-		trace_xrep_agfl_insert(mp, sc->sa.agno, agbno, br->len);
+		trace_xrep_agfl_insert(mp, sc->sa.agyes, agbyes, br->len);
 
 		while (br->len > 0 && fl_off < flcount) {
-			agfl_bno[fl_off] = cpu_to_be32(agbno);
+			agfl_byes[fl_off] = cpu_to_be32(agbyes);
 			fl_off++;
-			agbno++;
+			agbyes++;
 
 			/*
-			 * We've now used br->start by putting it in the AGFL,
+			 * We've yesw used br->start by putting it in the AGFL,
 			 * so bump br so that we don't reap the block later.
 			 */
 			br->start++;
@@ -653,10 +653,10 @@ xrep_agfl(
 
 	/*
 	 * Read the AGF so that we can query the rmapbt.  We hope that there's
-	 * nothing wrong with the AGF, but all the AG header repair functions
+	 * yesthing wrong with the AGF, but all the AG header repair functions
 	 * have this chicken-and-egg problem.
 	 */
-	error = xfs_alloc_read_agf(mp, sc->tp, sc->sa.agno, 0, &agf_bp);
+	error = xfs_alloc_read_agf(mp, sc->tp, sc->sa.agyes, 0, &agf_bp);
 	if (error)
 		return error;
 	if (!agf_bp)
@@ -667,7 +667,7 @@ xrep_agfl(
 	 * was corrupt after xfs_alloc_read_agfl failed with -EFSCORRUPTED.
 	 */
 	error = xfs_trans_read_buf(mp, sc->tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, sc->sa.agno, XFS_AGFL_DADDR(mp)),
+			XFS_AG_DADDR(mp, sc->sa.agyes, XFS_AGFL_DADDR(mp)),
 			XFS_FSS_TO_BB(mp, 1), 0, &agfl_bp, NULL);
 	if (error)
 		return error;
@@ -681,13 +681,13 @@ xrep_agfl(
 	/*
 	 * Update AGF and AGFL.  We reset the global free block counter when
 	 * we adjust the AGF flcount (which can fail) so avoid updating any
-	 * buffers until we know that part works.
+	 * buffers until we kyesw that part works.
 	 */
 	xrep_agfl_update_agf(sc, agf_bp, flcount);
 	xrep_agfl_init_header(sc, agfl_bp, &agfl_extents, flcount);
 
 	/*
-	 * Ok, the AGFL should be ready to go now.  Roll the transaction to
+	 * Ok, the AGFL should be ready to go yesw.  Roll the transaction to
 	 * make the new AGFL permanent before we start using it to return
 	 * freespace overflow to the freespace btrees.
 	 */
@@ -719,7 +719,7 @@ enum {
 };
 
 /*
- * Given the inode btree roots described by *fab, find the roots, check them
+ * Given the iyesde btree roots described by *fab, find the roots, check them
  * for sanity, and pass the root data back out via *fab.
  */
 STATIC int
@@ -732,7 +732,7 @@ xrep_agi_find_btrees(
 	int				error;
 
 	/* Read the AGF. */
-	error = xfs_alloc_read_agf(mp, sc->tp, sc->sa.agno, 0, &agf_bp);
+	error = xfs_alloc_read_agf(mp, sc->tp, sc->sa.agyes, 0, &agf_bp);
 	if (error)
 		return error;
 	if (!agf_bp)
@@ -743,12 +743,12 @@ xrep_agi_find_btrees(
 	if (error)
 		return error;
 
-	/* We must find the inobt root. */
+	/* We must find the iyesbt root. */
 	if (!xrep_check_btree_root(sc, &fab[XREP_AGI_INOBT]))
 		return -EFSCORRUPTED;
 
-	/* We must find the finobt root if that feature is enabled. */
-	if (xfs_sb_version_hasfinobt(&mp->m_sb) &&
+	/* We must find the fiyesbt root if that feature is enabled. */
+	if (xfs_sb_version_hasfiyesbt(&mp->m_sb) &&
 	    !xrep_check_btree_root(sc, &fab[XREP_AGI_FINOBT]))
 		return -EFSCORRUPTED;
 
@@ -757,7 +757,7 @@ xrep_agi_find_btrees(
 
 /*
  * Reinitialize the AGI header, making an in-core copy of the old contents so
- * that we know which in-core state needs to be reinitialized.
+ * that we kyesw which in-core state needs to be reinitialized.
  */
 STATIC void
 xrep_agi_init_header(
@@ -772,14 +772,14 @@ xrep_agi_init_header(
 	memset(agi, 0, BBTOB(agi_bp->b_length));
 	agi->agi_magicnum = cpu_to_be32(XFS_AGI_MAGIC);
 	agi->agi_versionnum = cpu_to_be32(XFS_AGI_VERSION);
-	agi->agi_seqno = cpu_to_be32(sc->sa.agno);
-	agi->agi_length = cpu_to_be32(xfs_ag_block_count(mp, sc->sa.agno));
-	agi->agi_newino = cpu_to_be32(NULLAGINO);
-	agi->agi_dirino = cpu_to_be32(NULLAGINO);
+	agi->agi_seqyes = cpu_to_be32(sc->sa.agyes);
+	agi->agi_length = cpu_to_be32(xfs_ag_block_count(mp, sc->sa.agyes));
+	agi->agi_newiyes = cpu_to_be32(NULLAGINO);
+	agi->agi_diriyes = cpu_to_be32(NULLAGINO);
 	if (xfs_sb_version_hascrc(&mp->m_sb))
 		uuid_copy(&agi->agi_uuid, &mp->m_sb.sb_meta_uuid);
 
-	/* We don't know how to fix the unlinked list yet. */
+	/* We don't kyesw how to fix the unlinked list yet. */
 	memcpy(&agi->agi_unlinked, &old_agi->agi_unlinked,
 			sizeof(agi->agi_unlinked));
 
@@ -798,7 +798,7 @@ xrep_agi_set_roots(
 	agi->agi_root = cpu_to_be32(fab[XREP_AGI_INOBT].root);
 	agi->agi_level = cpu_to_be32(fab[XREP_AGI_INOBT].height);
 
-	if (xfs_sb_version_hasfinobt(&sc->mp->m_sb)) {
+	if (xfs_sb_version_hasfiyesbt(&sc->mp->m_sb)) {
 		agi->agi_free_root = cpu_to_be32(fab[XREP_AGI_FINOBT].root);
 		agi->agi_free_level = cpu_to_be32(fab[XREP_AGI_FINOBT].height);
 	}
@@ -813,13 +813,13 @@ xrep_agi_calc_from_btrees(
 	struct xfs_btree_cur	*cur;
 	struct xfs_agi		*agi = XFS_BUF_TO_AGI(agi_bp);
 	struct xfs_mount	*mp = sc->mp;
-	xfs_agino_t		count;
-	xfs_agino_t		freecount;
+	xfs_agiyes_t		count;
+	xfs_agiyes_t		freecount;
 	int			error;
 
-	cur = xfs_inobt_init_cursor(mp, sc->tp, agi_bp, sc->sa.agno,
+	cur = xfs_iyesbt_init_cursor(mp, sc->tp, agi_bp, sc->sa.agyes,
 			XFS_BTNUM_INO);
-	error = xfs_ialloc_count_inodes(cur, &count, &freecount);
+	error = xfs_ialloc_count_iyesdes(cur, &count, &freecount);
 	if (error)
 		goto err;
 	xfs_btree_del_cursor(cur, error);
@@ -841,7 +841,7 @@ xrep_agi_commit_new(
 	struct xfs_perag	*pag;
 	struct xfs_agi		*agi = XFS_BUF_TO_AGI(agi_bp);
 
-	/* Trigger inode count recalculation */
+	/* Trigger iyesde count recalculation */
 	xfs_force_summary_recalc(sc->mp);
 
 	/* Write this to disk. */
@@ -865,11 +865,11 @@ xrep_agi(
 	struct xrep_find_ag_btree	fab[XREP_AGI_MAX] = {
 		[XREP_AGI_INOBT] = {
 			.rmap_owner = XFS_RMAP_OWN_INOBT,
-			.buf_ops = &xfs_inobt_buf_ops,
+			.buf_ops = &xfs_iyesbt_buf_ops,
 		},
 		[XREP_AGI_FINOBT] = {
 			.rmap_owner = XFS_RMAP_OWN_INOBT,
-			.buf_ops = &xfs_finobt_buf_ops,
+			.buf_ops = &xfs_fiyesbt_buf_ops,
 		},
 		[XREP_AGI_END] = {
 			.buf_ops = NULL
@@ -891,7 +891,7 @@ xrep_agi(
 	 * was corrupt after xfs_ialloc_read_agi failed with -EFSCORRUPTED.
 	 */
 	error = xfs_trans_read_buf(mp, sc->tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, sc->sa.agno, XFS_AGI_DADDR(mp)),
+			XFS_AG_DADDR(mp, sc->sa.agyes, XFS_AGI_DADDR(mp)),
 			XFS_FSS_TO_BB(mp, 1), 0, &agi_bp, NULL);
 	if (error)
 		return error;

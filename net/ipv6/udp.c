@@ -13,11 +13,11 @@
  *	YOSHIFUJI Hideaki @USAGI and:	Support IPV6_V6ONLY socket option, which
  *	Alexey Kuznetsov		allow both IPv4 and IPv6 sockets to bind
  *					a single port at the same time.
- *      Kazunori MIYAZAWA @USAGI:       change process style to use ip6_append_data
+ *      Kazuyesri MIYAZAWA @USAGI:       change process style to use ip6_append_data
  *      YOSHIFUJI Hideaki @USAGI:	convert /proc/net/udp6 to seq_file.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -243,15 +243,15 @@ struct sock *udp6_lib_lookup(struct net *net, const struct in6_addr *saddr, __be
 
 	sk =  __udp6_lib_lookup(net, saddr, sport, daddr, dport,
 				dif, 0, &udp_table, NULL);
-	if (sk && !refcount_inc_not_zero(&sk->sk_refcnt))
+	if (sk && !refcount_inc_yest_zero(&sk->sk_refcnt))
 		sk = NULL;
 	return sk;
 }
 EXPORT_SYMBOL_GPL(udp6_lib_lookup);
 #endif
 
-/* do not use the scratch area len for jumbogram: their length execeeds the
- * scratch area space; note that the IP6CB flags is still in the first
+/* do yest use the scratch area len for jumbogram: their length execeeds the
+ * scratch area space; yeste that the IP6CB flags is still in the first
  * cacheline, so checking for jumbograms is cheap
  */
 static int udp6_skb_len(struct sk_buff *skb)
@@ -265,7 +265,7 @@ static int udp6_skb_len(struct sk_buff *skb)
  */
 
 int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-		  int noblock, int flags, int *addr_len)
+		  int yesblock, int flags, int *addr_len)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
@@ -285,7 +285,7 @@ int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 
 try_again:
 	off = sk_peek_offset(sk, flags);
-	skb = __skb_recv_udp(sk, flags, noblock, &off, &err);
+	skb = __skb_recv_udp(sk, flags, yesblock, &off, &err);
 	if (!skb)
 		return err;
 
@@ -403,10 +403,10 @@ void udpv6_encap_enable(void)
 }
 EXPORT_SYMBOL(udpv6_encap_enable);
 
-/* Handler for tunnels with arbitrary destination ports: no socket lookup, go
+/* Handler for tunnels with arbitrary destination ports: yes socket lookup, go
  * through error handlers in encapsulations looking for a match.
  */
-static int __udp6_lib_err_encap_no_sk(struct sk_buff *skb,
+static int __udp6_lib_err_encap_yes_sk(struct sk_buff *skb,
 				      struct inet6_skb_parm *opt,
 				      u8 type, u8 code, int offset, __be32 info)
 {
@@ -478,7 +478,7 @@ static struct sock *__udp6_lib_err_encap(struct net *net,
 	}
 
 	if (!sk) {
-		sk = ERR_PTR(__udp6_lib_err_encap_no_sk(skb, opt, type, code,
+		sk = ERR_PTR(__udp6_lib_err_encap_yes_sk(skb, opt, type, code,
 							offset, info));
 	}
 
@@ -641,7 +641,7 @@ static int udpv6_queue_rcv_one_skb(struct sock *sk, struct sk_buff *skb)
 	}
 
 	/*
-	 * UDP-Lite specific tests, ignored on UDP sockets (see net/ipv4/udp.c).
+	 * UDP-Lite specific tests, igyesred on UDP sockets (see net/ipv4/udp.c).
 	 */
 	if ((is_udplite & UDPLITE_RECV_CC)  &&  UDP_SKB_CB(skb)->partial_cov) {
 
@@ -748,11 +748,11 @@ static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 	const struct udphdr *uh = udp_hdr(skb);
 	unsigned short hnum = ntohs(uh->dest);
 	struct udp_hslot *hslot = udp_hashslot(udptable, net, hnum);
-	unsigned int offset = offsetof(typeof(*sk), sk_node);
+	unsigned int offset = offsetof(typeof(*sk), sk_yesde);
 	unsigned int hash2 = 0, hash2_any = 0, use_hash2 = (hslot->count > 10);
 	int dif = inet6_iif(skb);
 	int sdif = inet6_sdif(skb);
-	struct hlist_node *node;
+	struct hlist_yesde *yesde;
 	struct sk_buff *nskb;
 
 	if (use_hash2) {
@@ -761,18 +761,18 @@ static int __udp6_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 		hash2 = ipv6_portaddr_hash(net, daddr, hnum) & udptable->mask;
 start_lookup:
 		hslot = &udptable->hash2[hash2];
-		offset = offsetof(typeof(*sk), __sk_common.skc_portaddr_node);
+		offset = offsetof(typeof(*sk), __sk_common.skc_portaddr_yesde);
 	}
 
-	sk_for_each_entry_offset_rcu(sk, node, &hslot->head, offset) {
+	sk_for_each_entry_offset_rcu(sk, yesde, &hslot->head, offset) {
 		if (!__udp_v6_is_mcast_sock(net, sk, uh->dest, daddr,
 					    uh->source, saddr, dif, sdif,
 					    hnum))
 			continue;
-		/* If zero checksum and no_check is not on for
+		/* If zero checksum and yes_check is yest on for
 		 * the socket then skip it.
 		 */
-		if (!uh->check && !udp_sk(sk)->no_check6_rx)
+		if (!uh->check && !udp_sk(sk)->yes_check6_rx)
 			continue;
 		if (!first) {
 			first = sk;
@@ -888,7 +888,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		if (unlikely(sk->sk_rx_dst != dst))
 			udp6_sk_rx_dst_set(sk, dst);
 
-		if (!uh->check && !udp_sk(sk)->no_check6_rx) {
+		if (!uh->check && !udp_sk(sk)->yes_check6_rx) {
 			sock_put(sk);
 			goto report_csum_error;
 		}
@@ -908,7 +908,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	/* Unicast */
 	sk = __udp6_lib_lookup_skb(skb, uh->source, uh->dest, udptable);
 	if (sk) {
-		if (!uh->check && !udp_sk(sk)->no_check6_rx)
+		if (!uh->check && !udp_sk(sk)->yes_check6_rx)
 			goto report_csum_error;
 		return udp6_unicast_rcv_skb(sk, skb, uh);
 	}
@@ -992,7 +992,7 @@ INDIRECT_CALLABLE_SCOPE void udp_v6_early_demux(struct sk_buff *skb)
 	else
 		return;
 
-	if (!sk || !refcount_inc_not_zero(&sk->sk_refcnt))
+	if (!sk || !refcount_inc_yest_zero(&sk->sk_refcnt))
 		return;
 
 	skb->sk = sk;
@@ -1002,11 +1002,11 @@ INDIRECT_CALLABLE_SCOPE void udp_v6_early_demux(struct sk_buff *skb)
 	if (dst)
 		dst = dst_check(dst, inet6_sk(sk)->rx_dst_cookie);
 	if (dst) {
-		/* set noref for now.
+		/* set yesref for yesw.
 		 * any place which wants to hold dst has to call
 		 * dst_hold_safe()
 		 */
-		skb_dst_set_noref(skb, dst);
+		skb_dst_set_yesref(skb, dst);
 	}
 }
 
@@ -1132,7 +1132,7 @@ static int udp_v6_send_skb(struct sk_buff *skb, struct flowi6 *fl6,
 			kfree_skb(skb);
 			return -EINVAL;
 		}
-		if (udp_sk(sk)->no_check6_tx) {
+		if (udp_sk(sk)->yes_check6_tx) {
 			kfree_skb(skb);
 			return -EINVAL;
 		}
@@ -1153,7 +1153,7 @@ static int udp_v6_send_skb(struct sk_buff *skb, struct flowi6 *fl6,
 
 	if (is_udplite)
 		csum = udplite_csum(skb);
-	else if (udp_sk(sk)->no_check6_tx) {   /* UDP csum disabled */
+	else if (udp_sk(sk)->yes_check6_tx) {   /* UDP csum disabled */
 		skb->ip_summed = CHECKSUM_NONE;
 		goto send;
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) { /* UDP hardware csum */
@@ -1404,19 +1404,19 @@ do_udp_sendmsg:
 		err = BPF_CGROUP_RUN_PROG_UDP6_SENDMSG_LOCK(sk,
 					   (struct sockaddr *)sin6, &fl6.saddr);
 		if (err)
-			goto out_no_dst;
+			goto out_yes_dst;
 		if (sin6) {
 			if (ipv6_addr_v4mapped(&sin6->sin6_addr)) {
 				/* BPF program rewrote IPv6-only by IPv4-mapped
 				 * IPv6. It's currently unsupported.
 				 */
 				err = -ENOTSUPP;
-				goto out_no_dst;
+				goto out_yes_dst;
 			}
 			if (sin6->sin6_port == 0) {
 				/* BPF program set invalid port. Reject it. */
 				err = -EINVAL;
-				goto out_no_dst;
+				goto out_yes_dst;
 			}
 			fl6.fl6_dport = sin6->sin6_port;
 			fl6.daddr = sin6->sin6_addr;
@@ -1457,7 +1457,7 @@ do_udp_sendmsg:
 		goto do_confirm;
 back_from_confirm:
 
-	/* Lockless fast path for the non-corking case */
+	/* Lockless fast path for the yesn-corking case */
 	if (!corkreq) {
 		struct inet_cork_full cork;
 		struct sk_buff *skb;
@@ -1500,21 +1500,21 @@ do_append_data:
 		up->pending = 0;
 
 	if (err > 0)
-		err = np->recverr ? net_xmit_errno(err) : 0;
+		err = np->recverr ? net_xmit_erryes(err) : 0;
 	release_sock(sk);
 
 out:
 	dst_release(dst);
-out_no_dst:
+out_yes_dst:
 	fl6_sock_release(flowlabel);
 	txopt_put(opt_to_free);
 	if (!err)
 		return len;
 	/*
-	 * ENOBUFS = no kernel mem, SOCK_NOSPACE = no sndbuf space.  Reporting
-	 * ENOBUFS might not be good (it's not tunable per se), but otherwise
+	 * ENOBUFS = yes kernel mem, SOCK_NOSPACE = yes sndbuf space.  Reporting
+	 * ENOBUFS might yest be good (it's yest tunable per se), but otherwise
 	 * we don't have a good statistic (IpOutDiscards but it can be too many
-	 * things).  We could add another new stat but at least for now that
+	 * things).  We could add ayesther new stat but at least for yesw that
 	 * seems like overkill.
 	 */
 	if (err == -ENOBUFS || test_bit(SOCK_NOSPACE, &sk->sk_socket->flags)) {

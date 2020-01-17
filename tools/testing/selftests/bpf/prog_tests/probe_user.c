@@ -21,7 +21,7 @@ void test_probe_user(void)
 
 	kprobe_prog = bpf_object__find_program_by_title(obj, prog_name);
 	if (CHECK(!kprobe_prog, "find_probe",
-		  "prog '%s' not found\n", prog_name))
+		  "prog '%s' yest found\n", prog_name))
 		goto cleanup;
 
 	err = bpf_object__load(obj);

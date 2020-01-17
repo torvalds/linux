@@ -9,7 +9,7 @@
 
 #include <linux/compiler.h>
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/eventpoll.h>
 #include <linux/export.h>
 #include <linux/fcntl.h>
@@ -82,7 +82,7 @@ static int batadv_fdebug_log(struct batadv_priv_debug_log *debug_log,
 	return 0;
 }
 
-static int batadv_log_open(struct inode *inode, struct file *file)
+static int batadv_log_open(struct iyesde *iyesde, struct file *file)
 {
 	if (!try_module_get(THIS_MODULE))
 		return -EBUSY;
@@ -90,12 +90,12 @@ static int batadv_log_open(struct inode *inode, struct file *file)
 	batadv_debugfs_deprecated(file,
 				  "Use tracepoint batadv:batadv_dbg instead\n");
 
-	stream_open(inode, file);
-	file->private_data = inode->i_private;
+	stream_open(iyesde, file);
+	file->private_data = iyesde->i_private;
 	return 0;
 }
 
-static int batadv_log_release(struct inode *inode, struct file *file)
+static int batadv_log_release(struct iyesde *iyesde, struct file *file)
 {
 	module_put(THIS_MODULE);
 	return 0;
@@ -179,7 +179,7 @@ static const struct file_operations batadv_log_fops = {
 	.release        = batadv_log_release,
 	.read           = batadv_log_read,
 	.poll           = batadv_log_poll,
-	.llseek         = no_llseek,
+	.llseek         = yes_llseek,
 };
 
 /**

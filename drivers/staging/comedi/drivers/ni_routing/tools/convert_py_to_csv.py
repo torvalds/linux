@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0+
-# vim: ts=2:sw=2:et:tw=80:nowrap
+# vim: ts=2:sw=2:et:tw=80:yeswrap
 
 from os import path
 import os, csv
@@ -37,7 +37,7 @@ def create_csv(name, D, src_iter):
     dR = csv.DictWriter(F_csv, fieldnames, delimiter=';', quotechar='"')
     dR.writeheader()
 
-    # now change the json back into the csv dictionaries
+    # yesw change the json back into the csv dictionaries
     rows = [
       dict(chain(
         ((CSVCollection.source_column_name,value_to_name[src]),),

@@ -95,7 +95,7 @@ static inline u32 brcm_sata_readreg(void __iomem *addr)
 	 * bus endianness (i.e., big-endian CPU + big endian bus ==> native
 	 * endian I/O).
 	 *
-	 * Other architectures (e.g., ARM) either do not support big endian, or
+	 * Other architectures (e.g., ARM) either do yest support big endian, or
 	 * else leave I/O in little endian mode.
 	 */
 	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
@@ -223,7 +223,7 @@ static u32 brcm_ahci_get_portmask(struct ahci_host_priv *hpriv,
 		dev_warn(priv->dev, "warning: more ports than PHYs (%#x)\n",
 			 impl);
 	else if (!impl)
-		dev_info(priv->dev, "no ports found\n");
+		dev_info(priv->dev, "yes ports found\n");
 
 	return impl;
 }
@@ -272,7 +272,7 @@ static unsigned int brcm_ahci_read_id(struct ata_device *dev,
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	/* Perform the SATA PHY reset sequence */
-	brcm_sata_phy_disable(priv, ap->port_no);
+	brcm_sata_phy_disable(priv, ap->port_yes);
 
 	/* Reset the SATA clock */
 	ahci_platform_disable_clks(hpriv);
@@ -282,7 +282,7 @@ static unsigned int brcm_ahci_read_id(struct ata_device *dev,
 	msleep(10);
 
 	/* Bring the PHY back on */
-	brcm_sata_phy_enable(priv, ap->port_no);
+	brcm_sata_phy_enable(priv, ap->port_yes);
 
 	/* Re-initialize and calibrate the PHY */
 	for (i = 0; i < hpriv->nports; i++) {
@@ -365,7 +365,7 @@ static int brcm_ahci_resume(struct device *dev)
 	brcm_sata_phys_enable(priv);
 	brcm_sata_alpm_init(hpriv);
 
-	/* Since we had to enable clocks earlier on, we cannot use
+	/* Since we had to enable clocks earlier on, we canyest use
 	 * ahci_platform_resume() as-is since a second call to
 	 * ahci_platform_enable_resources() would bump up the resources
 	 * (regulators, clocks, PHYs) count artificially so we copy the part
@@ -421,7 +421,7 @@ static int brcm_ahci_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	of_id = of_match_node(ahci_of_match, pdev->dev.of_node);
+	of_id = of_match_yesde(ahci_of_match, pdev->dev.of_yesde);
 	if (!of_id)
 		return -ENODEV;
 

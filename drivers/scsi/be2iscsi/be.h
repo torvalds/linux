@@ -48,7 +48,7 @@ static inline void index_inc(u16 *index, u16 limit)
 	*index = MODULO((*index + 1), limit);
 }
 
-static inline void *queue_head_node(struct be_queue_info *q)
+static inline void *queue_head_yesde(struct be_queue_info *q)
 {
 	return q->dma_mem.va + q->head * q->entry_size;
 }
@@ -58,7 +58,7 @@ static inline void *queue_get_wrb(struct be_queue_info *q, unsigned int wrb_num)
 	return q->dma_mem.va + wrb_num * q->entry_size;
 }
 
-static inline void *queue_tail_node(struct be_queue_info *q)
+static inline void *queue_tail_yesde(struct be_queue_info *q)
 {
 	return q->dma_mem.va + q->tail * q->entry_size;
 }

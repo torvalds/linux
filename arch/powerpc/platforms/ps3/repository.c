@@ -36,9 +36,9 @@ static void _dump_field(const char *hdr, u64 n, const char *func, int line)
 #endif
 }
 
-#define dump_node_name(_a, _b, _c, _d, _e) \
-	_dump_node_name(_a, _b, _c, _d, _e, __func__, __LINE__)
-static void _dump_node_name(unsigned int lpar_id, u64 n1, u64 n2, u64 n3,
+#define dump_yesde_name(_a, _b, _c, _d, _e) \
+	_dump_yesde_name(_a, _b, _c, _d, _e, __func__, __LINE__)
+static void _dump_yesde_name(unsigned int lpar_id, u64 n1, u64 n2, u64 n3,
 	u64 n4, const char *func, int line)
 {
 	pr_devel("%s:%d: lpar: %u\n", func, line, lpar_id);
@@ -48,9 +48,9 @@ static void _dump_node_name(unsigned int lpar_id, u64 n1, u64 n2, u64 n3,
 	_dump_field("n4: ", n4, func, line);
 }
 
-#define dump_node(_a, _b, _c, _d, _e, _f, _g) \
-	_dump_node(_a, _b, _c, _d, _e, _f, _g, __func__, __LINE__)
-static void _dump_node(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
+#define dump_yesde(_a, _b, _c, _d, _e, _f, _g) \
+	_dump_yesde(_a, _b, _c, _d, _e, _f, _g, __func__, __LINE__)
+static void _dump_yesde(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
 	u64 v1, u64 v2, const char *func, int line)
 {
 	pr_devel("%s:%d: lpar: %u\n", func, line, lpar_id);
@@ -63,11 +63,11 @@ static void _dump_node(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
 }
 
 /**
- * make_first_field - Make the first field of a repository node name.
+ * make_first_field - Make the first field of a repository yesde name.
  * @text: Text portion of the field.
  * @index: Numeric index portion of the field.  Use zero for 'don't care'.
  *
- * This routine sets the vendor id to zero (non-vendor specific).
+ * This routine sets the vendor id to zero (yesn-vendor specific).
  * Returns field value.
  */
 
@@ -80,7 +80,7 @@ static u64 make_first_field(const char *text, u64 index)
 }
 
 /**
- * make_field - Make subsequent fields of a repository node name.
+ * make_field - Make subsequent fields of a repository yesde name.
  * @text: Text portion of the field.  Use "" for 'don't care'.
  * @index: Numeric index portion of the field.  Use zero for 'don't care'.
  *
@@ -96,17 +96,17 @@ static u64 make_field(const char *text, u64 index)
 }
 
 /**
- * read_node - Read a repository node from raw fields.
- * @n1: First field of node name.
- * @n2: Second field of node name.  Use zero for 'don't care'.
- * @n3: Third field of node name.  Use zero for 'don't care'.
- * @n4: Fourth field of node name.  Use zero for 'don't care'.
+ * read_yesde - Read a repository yesde from raw fields.
+ * @n1: First field of yesde name.
+ * @n2: Second field of yesde name.  Use zero for 'don't care'.
+ * @n3: Third field of yesde name.  Use zero for 'don't care'.
+ * @n4: Fourth field of yesde name.  Use zero for 'don't care'.
  * @v1: First repository value (high word).
  * @v2: Second repository value (low word).  Optional parameter, use zero
  *      for 'don't care'.
  */
 
-static int read_node(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
+static int read_yesde(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
 	u64 *_v1, u64 *_v2)
 {
 	int result;
@@ -119,17 +119,17 @@ static int read_node(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
 		lpar_id = id;
 	}
 
-	result = lv1_read_repository_node(lpar_id, n1, n2, n3, n4, &v1,
+	result = lv1_read_repository_yesde(lpar_id, n1, n2, n3, n4, &v1,
 		&v2);
 
 	if (result) {
-		pr_warn("%s:%d: lv1_read_repository_node failed: %s\n",
+		pr_warn("%s:%d: lv1_read_repository_yesde failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
-		dump_node_name(lpar_id, n1, n2, n3, n4);
+		dump_yesde_name(lpar_id, n1, n2, n3, n4);
 		return -ENOENT;
 	}
 
-	dump_node(lpar_id, n1, n2, n3, n4, v1, v2);
+	dump_yesde(lpar_id, n1, n2, n3, n4, v1, v2);
 
 	if (_v1)
 		*_v1 = v1;
@@ -137,10 +137,10 @@ static int read_node(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
 		*_v2 = v2;
 
 	if (v1 && !_v1)
-		pr_devel("%s:%d: warning: discarding non-zero v1: %016llx\n",
+		pr_devel("%s:%d: warning: discarding yesn-zero v1: %016llx\n",
 			__func__, __LINE__, v1);
 	if (v2 && !_v2)
-		pr_devel("%s:%d: warning: discarding non-zero v2: %016llx\n",
+		pr_devel("%s:%d: warning: discarding yesn-zero v2: %016llx\n",
 			__func__, __LINE__, v2);
 
 	return 0;
@@ -149,7 +149,7 @@ static int read_node(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
 int ps3_repository_read_bus_str(unsigned int bus_index, const char *bus_str,
 	u64 *value)
 {
-	return read_node(PS3_LPAR_ID_PME,
+	return read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field(bus_str, 0),
 		0, 0,
@@ -158,7 +158,7 @@ int ps3_repository_read_bus_str(unsigned int bus_index, const char *bus_str,
 
 int ps3_repository_read_bus_id(unsigned int bus_index, u64 *bus_id)
 {
-	return read_node(PS3_LPAR_ID_PME, make_first_field("bus", bus_index),
+	return read_yesde(PS3_LPAR_ID_PME, make_first_field("bus", bus_index),
 			 make_field("id", 0), 0, 0, bus_id, NULL);
 }
 
@@ -168,7 +168,7 @@ int ps3_repository_read_bus_type(unsigned int bus_index,
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_PME,
+	result = read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("type", 0),
 		0, 0,
@@ -183,7 +183,7 @@ int ps3_repository_read_bus_num_dev(unsigned int bus_index,
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_PME,
+	result = read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("num_dev", 0),
 		0, 0,
@@ -195,7 +195,7 @@ int ps3_repository_read_bus_num_dev(unsigned int bus_index,
 int ps3_repository_read_dev_str(unsigned int bus_index,
 	unsigned int dev_index, const char *dev_str, u64 *value)
 {
-	return read_node(PS3_LPAR_ID_PME,
+	return read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field(dev_str, 0),
@@ -206,7 +206,7 @@ int ps3_repository_read_dev_str(unsigned int bus_index,
 int ps3_repository_read_dev_id(unsigned int bus_index, unsigned int dev_index,
 	u64 *dev_id)
 {
-	return read_node(PS3_LPAR_ID_PME, make_first_field("bus", bus_index),
+	return read_yesde(PS3_LPAR_ID_PME, make_first_field("bus", bus_index),
 			 make_field("dev", dev_index), make_field("id", 0), 0,
 			 dev_id, NULL);
 }
@@ -217,7 +217,7 @@ int ps3_repository_read_dev_type(unsigned int bus_index,
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_PME,
+	result = read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("type", 0),
@@ -235,7 +235,7 @@ int ps3_repository_read_dev_intr(unsigned int bus_index,
 	u64 v1 = 0;
 	u64 v2 = 0;
 
-	result = read_node(PS3_LPAR_ID_PME,
+	result = read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("intr", intr_index),
@@ -253,7 +253,7 @@ int ps3_repository_read_dev_reg_type(unsigned int bus_index,
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_PME,
+	result = read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("reg", reg_index),
@@ -266,7 +266,7 @@ int ps3_repository_read_dev_reg_type(unsigned int bus_index,
 int ps3_repository_read_dev_reg_addr(unsigned int bus_index,
 	unsigned int dev_index, unsigned int reg_index, u64 *bus_addr, u64 *len)
 {
-	return read_node(PS3_LPAR_ID_PME,
+	return read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("reg", reg_index),
@@ -308,7 +308,7 @@ int ps3_repository_find_device(struct ps3_repository_device *repo)
 		num_dev);
 
 	if (tmp.dev_index >= num_dev) {
-		pr_devel("%s:%d: no device found\n", __func__, __LINE__);
+		pr_devel("%s:%d: yes device found\n", __func__, __LINE__);
 		return -ENODEV;
 	}
 
@@ -361,7 +361,7 @@ int ps3_repository_find_device_by_id(struct ps3_repository_device *repo,
 		pr_devel("%s:%u: skip, bus_id %llu\n", __func__, __LINE__,
 			 tmp.bus_id);
 	}
-	pr_devel(" <- %s:%u: bus not found\n", __func__, __LINE__);
+	pr_devel(" <- %s:%u: bus yest found\n", __func__, __LINE__);
 	return result;
 
 found_bus:
@@ -395,7 +395,7 @@ found_bus:
 		pr_devel("%s:%u: skip, dev_id %llu\n", __func__, __LINE__,
 			 tmp.dev_id);
 	}
-	pr_devel(" <- %s:%u: dev not found\n", __func__, __LINE__);
+	pr_devel(" <- %s:%u: dev yest found\n", __func__, __LINE__);
 	return result;
 
 found_dev:
@@ -424,7 +424,7 @@ int ps3_repository_find_devices(enum ps3_bus_type bus_type,
 	repo.bus_type = bus_type;
 	result = ps3_repository_find_bus(repo.bus_type, 0, &repo.bus_index);
 	if (result) {
-		pr_devel(" <- %s:%u: bus not found\n", __func__, __LINE__);
+		pr_devel(" <- %s:%u: bus yest found\n", __func__, __LINE__);
 		return result;
 	}
 
@@ -560,7 +560,7 @@ int ps3_repository_find_reg(const struct ps3_repository_device *repo,
 int ps3_repository_read_stor_dev_port(unsigned int bus_index,
 	unsigned int dev_index, u64 *port)
 {
-	return read_node(PS3_LPAR_ID_PME,
+	return read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("port", 0),
@@ -570,7 +570,7 @@ int ps3_repository_read_stor_dev_port(unsigned int bus_index,
 int ps3_repository_read_stor_dev_blk_size(unsigned int bus_index,
 	unsigned int dev_index, u64 *blk_size)
 {
-	return read_node(PS3_LPAR_ID_PME,
+	return read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("blk_size", 0),
@@ -580,7 +580,7 @@ int ps3_repository_read_stor_dev_blk_size(unsigned int bus_index,
 int ps3_repository_read_stor_dev_num_blocks(unsigned int bus_index,
 	unsigned int dev_index, u64 *num_blocks)
 {
-	return read_node(PS3_LPAR_ID_PME,
+	return read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("n_blocks", 0),
@@ -593,7 +593,7 @@ int ps3_repository_read_stor_dev_num_regions(unsigned int bus_index,
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_PME,
+	result = read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("n_regs", 0),
@@ -609,7 +609,7 @@ int ps3_repository_read_stor_dev_region_id(unsigned int bus_index,
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_PME,
+	result = read_yesde(PS3_LPAR_ID_PME,
 	    make_first_field("bus", bus_index),
 	    make_field("dev", dev_index),
 	    make_field("region", region_index),
@@ -622,7 +622,7 @@ int ps3_repository_read_stor_dev_region_id(unsigned int bus_index,
 int ps3_repository_read_stor_dev_region_size(unsigned int bus_index,
 	unsigned int dev_index,	unsigned int region_index, u64 *region_size)
 {
-	return read_node(PS3_LPAR_ID_PME,
+	return read_yesde(PS3_LPAR_ID_PME,
 	    make_first_field("bus", bus_index),
 	    make_field("dev", dev_index),
 	    make_field("region", region_index),
@@ -633,7 +633,7 @@ int ps3_repository_read_stor_dev_region_size(unsigned int bus_index,
 int ps3_repository_read_stor_dev_region_start(unsigned int bus_index,
 	unsigned int dev_index, unsigned int region_index, u64 *region_start)
 {
-	return read_node(PS3_LPAR_ID_PME,
+	return read_yesde(PS3_LPAR_ID_PME,
 	    make_first_field("bus", bus_index),
 	    make_field("dev", dev_index),
 	    make_field("region", region_index),
@@ -694,7 +694,7 @@ int ps3_repository_read_stor_dev_region(unsigned int bus_index,
 int ps3_repository_read_num_pu(u64 *num_pu)
 {
 	*num_pu = 0;
-	return read_node(PS3_LPAR_ID_CURRENT,
+	return read_yesde(PS3_LPAR_ID_CURRENT,
 			   make_first_field("bi", 0),
 			   make_field("pun", 0),
 			   0, 0,
@@ -709,7 +709,7 @@ int ps3_repository_read_num_pu(u64 *num_pu)
 
 int ps3_repository_read_pu_id(unsigned int pu_index, u64 *pu_id)
 {
-	return read_node(PS3_LPAR_ID_CURRENT,
+	return read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("bi", 0),
 		make_field("pu", pu_index),
 		0, 0,
@@ -718,7 +718,7 @@ int ps3_repository_read_pu_id(unsigned int pu_index, u64 *pu_id)
 
 int ps3_repository_read_rm_size(unsigned int ppe_id, u64 *rm_size)
 {
-	return read_node(PS3_LPAR_ID_CURRENT,
+	return read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("bi", 0),
 		make_field("pu", 0),
 		ppe_id,
@@ -728,7 +728,7 @@ int ps3_repository_read_rm_size(unsigned int ppe_id, u64 *rm_size)
 
 int ps3_repository_read_region_total(u64 *region_total)
 {
-	return read_node(PS3_LPAR_ID_CURRENT,
+	return read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("bi", 0),
 		make_field("rgntotal", 0),
 		0, 0,
@@ -757,7 +757,7 @@ int ps3_repository_read_mm_info(u64 *rm_base, u64 *rm_size, u64 *region_total)
 /**
  * ps3_repository_read_highmem_region_count - Read the number of highmem regions
  *
- * Bootloaders must arrange the repository nodes such that regions are indexed
+ * Bootloaders must arrange the repository yesdes such that regions are indexed
  * with a region_index from 0 to region_count-1.
  */
 
@@ -766,7 +766,7 @@ int ps3_repository_read_highmem_region_count(unsigned int *region_count)
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_CURRENT,
+	result = read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("highmem", 0),
 		make_field("region", 0),
 		make_field("count", 0),
@@ -780,7 +780,7 @@ int ps3_repository_read_highmem_region_count(unsigned int *region_count)
 int ps3_repository_read_highmem_base(unsigned int region_index,
 	u64 *highmem_base)
 {
-	return read_node(PS3_LPAR_ID_CURRENT,
+	return read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("highmem", 0),
 		make_field("region", region_index),
 		make_field("base", 0),
@@ -791,7 +791,7 @@ int ps3_repository_read_highmem_base(unsigned int region_index,
 int ps3_repository_read_highmem_size(unsigned int region_index,
 	u64 *highmem_size)
 {
-	return read_node(PS3_LPAR_ID_CURRENT,
+	return read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("highmem", 0),
 		make_field("region", region_index),
 		make_field("size", 0),
@@ -806,7 +806,7 @@ int ps3_repository_read_highmem_size(unsigned int region_index,
  * @highmem_size: High memory size.
  *
  * Bootloaders that preallocate highmem regions must place the
- * region info into the repository at these well known nodes.
+ * region info into the repository at these well kyeswn yesdes.
  */
 
 int ps3_repository_read_highmem_info(unsigned int region_index,
@@ -830,7 +830,7 @@ int ps3_repository_read_num_spu_reserved(unsigned int *num_spu_reserved)
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_CURRENT,
+	result = read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("bi", 0),
 		make_field("spun", 0),
 		0, 0,
@@ -849,7 +849,7 @@ int ps3_repository_read_num_spu_resource_id(unsigned int *num_resource_id)
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_CURRENT,
+	result = read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("bi", 0),
 		make_field("spursvn", 0),
 		0, 0,
@@ -872,7 +872,7 @@ int ps3_repository_read_spu_resource_id(unsigned int res_index,
 	u64 v1 = 0;
 	u64 v2 = 0;
 
-	result = read_node(PS3_LPAR_ID_CURRENT,
+	result = read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("bi", 0),
 		make_field("spursv", 0),
 		res_index,
@@ -885,7 +885,7 @@ int ps3_repository_read_spu_resource_id(unsigned int res_index,
 
 static int ps3_repository_read_boot_dat_address(u64 *address)
 {
-	return read_node(PS3_LPAR_ID_CURRENT,
+	return read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("bi", 0),
 		make_field("boot_dat", 0),
 		make_field("address", 0),
@@ -898,7 +898,7 @@ int ps3_repository_read_boot_dat_size(unsigned int *size)
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_CURRENT,
+	result = read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("bi", 0),
 		make_field("boot_dat", 0),
 		make_field("size", 0),
@@ -913,7 +913,7 @@ int ps3_repository_read_vuart_av_port(unsigned int *port)
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_CURRENT,
+	result = read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("bi", 0),
 		make_field("vir_uart", 0),
 		make_field("port", 0),
@@ -928,7 +928,7 @@ int ps3_repository_read_vuart_sysmgr_port(unsigned int *port)
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_CURRENT,
+	result = read_yesde(PS3_LPAR_ID_CURRENT,
 		make_first_field("bi", 0),
 		make_field("vir_uart", 0),
 		make_field("port", 0),
@@ -963,7 +963,7 @@ int ps3_repository_read_num_be(unsigned int *num_be)
 	int result;
 	u64 v1 = 0;
 
-	result = read_node(PS3_LPAR_ID_PME,
+	result = read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("ben", 0),
 		0,
 		0,
@@ -974,42 +974,42 @@ int ps3_repository_read_num_be(unsigned int *num_be)
 }
 
 /**
- * ps3_repository_read_be_node_id - Read the physical BE processor node id.
+ * ps3_repository_read_be_yesde_id - Read the physical BE processor yesde id.
  * @be_index: Zero based index.
- * @node_id: The BE processor node id.
+ * @yesde_id: The BE processor yesde id.
  */
 
-int ps3_repository_read_be_node_id(unsigned int be_index, u64 *node_id)
+int ps3_repository_read_be_yesde_id(unsigned int be_index, u64 *yesde_id)
 {
-	return read_node(PS3_LPAR_ID_PME,
+	return read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("be", be_index),
 		0,
 		0,
 		0,
-		node_id, NULL);
+		yesde_id, NULL);
 }
 
 /**
  * ps3_repository_read_be_id - Read the physical BE processor id.
- * @node_id: The BE processor node id.
+ * @yesde_id: The BE processor yesde id.
  * @be_id: The BE processor id.
  */
 
-int ps3_repository_read_be_id(u64 node_id, u64 *be_id)
+int ps3_repository_read_be_id(u64 yesde_id, u64 *be_id)
 {
-	return read_node(PS3_LPAR_ID_PME,
+	return read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("be", 0),
-		node_id,
+		yesde_id,
 		0,
 		0,
 		be_id, NULL);
 }
 
-int ps3_repository_read_tb_freq(u64 node_id, u64 *tb_freq)
+int ps3_repository_read_tb_freq(u64 yesde_id, u64 *tb_freq)
 {
-	return read_node(PS3_LPAR_ID_PME,
+	return read_yesde(PS3_LPAR_ID_PME,
 		make_first_field("be", 0),
-		node_id,
+		yesde_id,
 		make_field("clock", 0),
 		0,
 		tb_freq, NULL);
@@ -1018,27 +1018,27 @@ int ps3_repository_read_tb_freq(u64 node_id, u64 *tb_freq)
 int ps3_repository_read_be_tb_freq(unsigned int be_index, u64 *tb_freq)
 {
 	int result;
-	u64 node_id;
+	u64 yesde_id;
 
 	*tb_freq = 0;
-	result = ps3_repository_read_be_node_id(be_index, &node_id);
+	result = ps3_repository_read_be_yesde_id(be_index, &yesde_id);
 	return result ? result
-		: ps3_repository_read_tb_freq(node_id, tb_freq);
+		: ps3_repository_read_tb_freq(yesde_id, tb_freq);
 }
 
 int ps3_repository_read_lpm_privileges(unsigned int be_index, u64 *lpar,
 	u64 *rights)
 {
 	int result;
-	u64 node_id;
+	u64 yesde_id;
 
 	*lpar = 0;
 	*rights = 0;
-	result = ps3_repository_read_be_node_id(be_index, &node_id);
+	result = ps3_repository_read_be_yesde_id(be_index, &yesde_id);
 	return result ? result
-		: read_node(PS3_LPAR_ID_PME,
+		: read_yesde(PS3_LPAR_ID_PME,
 			    make_first_field("be", 0),
-			    node_id,
+			    yesde_id,
 			    make_field("lpm", 0),
 			    make_field("priv", 0),
 			    lpar, rights);
@@ -1046,16 +1046,16 @@ int ps3_repository_read_lpm_privileges(unsigned int be_index, u64 *lpar,
 
 #if defined(CONFIG_PS3_REPOSITORY_WRITE)
 
-static int create_node(u64 n1, u64 n2, u64 n3, u64 n4, u64 v1, u64 v2)
+static int create_yesde(u64 n1, u64 n2, u64 n3, u64 n4, u64 v1, u64 v2)
 {
 	int result;
 
-	dump_node(0, n1, n2, n3, n4, v1, v2);
+	dump_yesde(0, n1, n2, n3, n4, v1, v2);
 
-	result = lv1_create_repository_node(n1, n2, n3, n4, v1, v2);
+	result = lv1_create_repository_yesde(n1, n2, n3, n4, v1, v2);
 
 	if (result) {
-		pr_devel("%s:%d: lv1_create_repository_node failed: %s\n",
+		pr_devel("%s:%d: lv1_create_repository_yesde failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 		return -ENOENT;
 	}
@@ -1063,16 +1063,16 @@ static int create_node(u64 n1, u64 n2, u64 n3, u64 n4, u64 v1, u64 v2)
 	return 0;
 }
 
-static int delete_node(u64 n1, u64 n2, u64 n3, u64 n4)
+static int delete_yesde(u64 n1, u64 n2, u64 n3, u64 n4)
 {
 	int result;
 
-	dump_node(0, n1, n2, n3, n4, 0, 0);
+	dump_yesde(0, n1, n2, n3, n4, 0, 0);
 
-	result = lv1_delete_repository_node(n1, n2, n3, n4);
+	result = lv1_delete_repository_yesde(n1, n2, n3, n4);
 
 	if (result) {
-		pr_devel("%s:%d: lv1_delete_repository_node failed: %s\n",
+		pr_devel("%s:%d: lv1_delete_repository_yesde failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 		return -ENOENT;
 	}
@@ -1080,19 +1080,19 @@ static int delete_node(u64 n1, u64 n2, u64 n3, u64 n4)
 	return 0;
 }
 
-static int write_node(u64 n1, u64 n2, u64 n3, u64 n4, u64 v1, u64 v2)
+static int write_yesde(u64 n1, u64 n2, u64 n3, u64 n4, u64 v1, u64 v2)
 {
 	int result;
 
-	result = create_node(n1, n2, n3, n4, v1, v2);
+	result = create_yesde(n1, n2, n3, n4, v1, v2);
 
 	if (!result)
 		return 0;
 
-	result = lv1_write_repository_node(n1, n2, n3, n4, v1, v2);
+	result = lv1_write_repository_yesde(n1, n2, n3, n4, v1, v2);
 
 	if (result) {
-		pr_devel("%s:%d: lv1_write_repository_node failed: %s\n",
+		pr_devel("%s:%d: lv1_write_repository_yesde failed: %s\n",
 			__func__, __LINE__, ps3_result(result));
 		return -ENOENT;
 	}
@@ -1105,7 +1105,7 @@ int ps3_repository_write_highmem_region_count(unsigned int region_count)
 	int result;
 	u64 v1 = (u64)region_count;
 
-	result = write_node(
+	result = write_yesde(
 		make_first_field("highmem", 0),
 		make_field("region", 0),
 		make_field("count", 0),
@@ -1117,7 +1117,7 @@ int ps3_repository_write_highmem_region_count(unsigned int region_count)
 int ps3_repository_write_highmem_base(unsigned int region_index,
 	u64 highmem_base)
 {
-	return write_node(
+	return write_yesde(
 		make_first_field("highmem", 0),
 		make_field("region", region_index),
 		make_field("base", 0),
@@ -1128,7 +1128,7 @@ int ps3_repository_write_highmem_base(unsigned int region_index,
 int ps3_repository_write_highmem_size(unsigned int region_index,
 	u64 highmem_size)
 {
-	return write_node(
+	return write_yesde(
 		make_first_field("highmem", 0),
 		make_field("region", region_index),
 		make_field("size", 0),
@@ -1148,7 +1148,7 @@ int ps3_repository_write_highmem_info(unsigned int region_index,
 
 static int ps3_repository_delete_highmem_base(unsigned int region_index)
 {
-	return delete_node(
+	return delete_yesde(
 		make_first_field("highmem", 0),
 		make_field("region", region_index),
 		make_field("base", 0),
@@ -1157,7 +1157,7 @@ static int ps3_repository_delete_highmem_base(unsigned int region_index)
 
 static int ps3_repository_delete_highmem_size(unsigned int region_index)
 {
-	return delete_node(
+	return delete_yesde(
 		make_first_field("highmem", 0),
 		make_field("region", region_index),
 		make_field("size", 0),

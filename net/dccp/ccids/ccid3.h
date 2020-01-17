@@ -75,9 +75,9 @@ enum ccid3_hc_tx_states {
  * @tx_last_win_count:	  Last window counter sent
  * @tx_t_last_win_count:  Timestamp of earliest packet
  *			  with last_win_count value sent
- * @tx_no_feedback_timer: Handle to no feedback timer
+ * @tx_yes_feedback_timer: Handle to yes feedback timer
  * @tx_t_ld:		  Time last doubled during slow start
- * @tx_t_nom:		  Nominal send time of next packet
+ * @tx_t_yesm:		  Nominal send time of next packet
  * @tx_hist:		  Packet history
  */
 struct ccid3_hc_tx_sock {
@@ -92,10 +92,10 @@ struct ccid3_hc_tx_sock {
 	enum ccid3_hc_tx_states		tx_state:8;
 	u8				tx_last_win_count;
 	ktime_t				tx_t_last_win_count;
-	struct timer_list		tx_no_feedback_timer;
+	struct timer_list		tx_yes_feedback_timer;
 	struct sock			*sk;
 	ktime_t				tx_t_ld;
-	ktime_t				tx_t_nom;
+	ktime_t				tx_t_yesm;
 	struct tfrc_tx_hist_entry	*tx_hist;
 };
 

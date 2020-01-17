@@ -72,7 +72,7 @@ enum command_message_id {
 	CMD_DISEQC_MSG2		= 0x21,		/* cmd.len = d->msg_len + 6; */
 	CMD_SETVOLTAGE		= 0x22,		/* cmd.len = 2; */
 	CMD_SETTONE		= 0x23,		/* cmd.len = 4; */
-	CMD_DISEQC_BURST	= 0x24,		/* cmd.len not used !!! */
+	CMD_DISEQC_BURST	= 0x24,		/* cmd.len yest used !!! */
 
 	CMD_READ_SNR		= 0x1a,		/* Read signal strength */
 	CMD_START_TUNER		= 0x1b,		/* ??? */
@@ -838,7 +838,7 @@ static void cx24120_calculate_ber_window(struct cx24120_state *state, u32 rate)
 
 	/*
 	 * Calculate bitrate from rate in the clock ratios table.
-	 * This isn't *exactly* right but close enough.
+	 * This isn't *exactly* right but close eyesugh.
 	 */
 	tmp = (u64)c->symbol_rate * rate;
 	do_div(tmp, 256);
@@ -937,7 +937,7 @@ static void cx24120_set_clock_ratios(struct dvb_frontend *fe)
 	}
 
 	if (idx >= ARRAY_SIZE(clock_ratios_table)) {
-		info("Clock ratio not found - data reception in danger\n");
+		info("Clock ratio yest found - data reception in danger\n");
 		return;
 	}
 
@@ -1144,7 +1144,7 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 		break;
 	default:
 		dev_dbg(&state->i2c->dev,
-			"delivery system(%d) not supported\n",
+			"delivery system(%d) yest supported\n",
 			c->delivery_system);
 		return -EINVAL;
 	}
@@ -1316,7 +1316,7 @@ static int cx24120_init(struct dvb_frontend *fe)
 
 	ret = state->config->request_firmware(fe, &fw, CX24120_FIRMWARE);
 	if (ret) {
-		err("Could not load firmware (%s): %d\n", CX24120_FIRMWARE,
+		err("Could yest load firmware (%s): %d\n", CX24120_FIRMWARE,
 		    ret);
 		return ret;
 	}
@@ -1502,7 +1502,7 @@ static int cx24120_get_frontend(struct dvb_frontend *fe,
 
 	dev_dbg(&state->i2c->dev, "\n");
 
-	/* don't return empty data if we're not tuned in */
+	/* don't return empty data if we're yest tuned in */
 	status = cx24120_readreg(state, CX24120_REG_STATUS);
 	if (!(status & CX24120_HAS_LOCK))
 		return 0;

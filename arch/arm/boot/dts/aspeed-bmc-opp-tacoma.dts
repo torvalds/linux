@@ -26,7 +26,7 @@
 		ranges;
 
 		flash_memory: region@ba000000 {
-			no-map;
+			yes-map;
 			reg = <0xb8000000 0x4000000>; /* 64M */
 		};
 	};
@@ -117,7 +117,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "pyesr";
 		spi-max-frequency = <100000000>;
 	};
 };
@@ -148,7 +148,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "pyesr";
 		spi-max-frequency = <100000000>;
 	};
 };
@@ -263,7 +263,7 @@
 			#address-cells = <2>;
 			#size-cells = <0>;
 
-			no-scan-on-init;
+			yes-scan-on-init;
 		};
 	};
 };
@@ -364,7 +364,7 @@
 			#address-cells = <2>;
 			#size-cells = <0>;
 
-			no-scan-on-init;
+			yes-scan-on-init;
 		};
 	};
 };
@@ -448,8 +448,8 @@
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
 			maxim,fan-dual-tach;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -461,8 +461,8 @@
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
 			maxim,fan-dual-tach;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -474,8 +474,8 @@
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
 			maxim,fan-dual-tach;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -487,8 +487,8 @@
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
 			maxim,fan-dual-tach;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -807,7 +807,7 @@
 };
 
 &wdt1 {
-	aspeed,reset-type = "none";
+	aspeed,reset-type = "yesne";
 	aspeed,external-signal;
 	aspeed,ext-push-pull;
 	aspeed,ext-active-high;
@@ -854,8 +854,8 @@
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
 			maxim,fan-dual-tach;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -867,8 +867,8 @@
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
 			maxim,fan-dual-tach;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -880,8 +880,8 @@
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
 			maxim,fan-dual-tach;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -893,8 +893,8 @@
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
 			maxim,fan-dual-tach;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -1188,7 +1188,7 @@
 };
 
 &pinctrl {
-	/* Hog these as no driver is probed for the entire LPC block */
+	/* Hog these as yes driver is probed for the entire LPC block */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpc_default>,
 		    <&pinctrl_lsirq_default>;

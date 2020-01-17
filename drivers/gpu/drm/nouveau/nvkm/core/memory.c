@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -78,7 +78,7 @@ nvkm_memory_tags_get(struct nvkm_memory *memory, struct nvkm_device *device,
 		if (clr)
 			clr(device, tags->mn->offset, tags->mn->length);
 	} else {
-		/* Failure to allocate HW comptags is not an error, the
+		/* Failure to allocate HW comptags is yest an error, the
 		 * caller should fall back to an uncompressed map.
 		 *
 		 * As memory can be mapped in multiple places, we still

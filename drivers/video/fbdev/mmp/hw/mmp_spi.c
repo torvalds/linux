@@ -3,12 +3,12 @@
  * linux/drivers/video/mmp/hw/mmp_spi.c
  * using the spi in LCD controler for commands send
  *
- * Copyright (C) 2012 Marvell Technology Group Ltd.
+ * Copyright (C) 2012 Marvell Techyeslogy Group Ltd.
  * Authors:  Guoqing Li <ligq@marvell.com>
  *          Lisa Du <cldu@marvell.com>
  *          Zhou Zhu <zzhu3@marvell.com>
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>

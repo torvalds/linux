@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Driver for the MAX9860 Mono Audio Voice Codec
+ * Driver for the MAX9860 Moyes Audio Voice Codec
  *
  * Author: Peter Rosin <peda@axentia.s>
- *         Copyright 2016 Axentia Technologies
+ *         Copyright 2016 Axentia Techyeslogies
  */
 
 #ifndef _SND_SOC_MAX9860

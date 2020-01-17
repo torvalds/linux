@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -117,17 +117,17 @@ static int perf_session__open(struct perf_session *session)
 		return 0;
 
 	if (!perf_evlist__valid_sample_type(session->evlist)) {
-		pr_err("non matching sample_type\n");
+		pr_err("yesn matching sample_type\n");
 		return -1;
 	}
 
 	if (!perf_evlist__valid_sample_id_all(session->evlist)) {
-		pr_err("non matching sample_id_all\n");
+		pr_err("yesn matching sample_id_all\n");
 		return -1;
 	}
 
 	if (!perf_evlist__valid_read_format(session->evlist)) {
-		pr_err("non matching read_format\n");
+		pr_err("yesn matching read_format\n");
 		return -1;
 	}
 
@@ -215,7 +215,7 @@ struct perf_session *perf_session__new(struct perf_data *data,
 
 			/*
 			 * set session attributes that are present in perf.data
-			 * but not in pipe-mode.
+			 * but yest in pipe-mode.
 			 */
 			if (!data->is_pipe) {
 				perf_session__set_id_hdr_size(session);
@@ -248,16 +248,16 @@ struct perf_session *perf_session__new(struct perf_data *data,
 		 * kernel MMAP event, in perf_event__process_mmap().
 		 */
 		if (perf_session__create_kernel_maps(session) < 0)
-			pr_warning("Cannot read kernel map\n");
+			pr_warning("Canyest read kernel map\n");
 	}
 
 	/*
 	 * In pipe-mode, evlist is empty until PERF_RECORD_HEADER_ATTR is
-	 * processed, so perf_evlist__sample_id_all is not meaningful here.
+	 * processed, so perf_evlist__sample_id_all is yest meaningful here.
 	 */
 	if ((!data || !data->is_pipe) && tool && tool->ordering_requires_timestamps &&
 	    tool->ordered_events && !perf_evlist__sample_id_all(session->evlist)) {
-		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
+		dump_printf("WARNING: No sample_id_all support, falling back to uyesrdered processing\n");
 		tool->ordered_events = false;
 	}
 
@@ -591,7 +591,7 @@ static void perf_event__mmap2_swap(union perf_event *event,
 	event->mmap2.pgoff = bswap_64(event->mmap2.pgoff);
 	event->mmap2.maj   = bswap_32(event->mmap2.maj);
 	event->mmap2.min   = bswap_32(event->mmap2.min);
-	event->mmap2.ino   = bswap_64(event->mmap2.ino);
+	event->mmap2.iyes   = bswap_64(event->mmap2.iyes);
 
 	if (sample_id_all) {
 		void *data = &event->mmap2.filename;
@@ -682,7 +682,7 @@ static void perf_event__namespaces_swap(union perf_event *event,
 		struct perf_ns_link_info *ns = &event->namespaces.link_info[i];
 
 		ns->dev = bswap_64(ns->dev);
-		ns->ino = bswap_64(ns->ino);
+		ns->iyes = bswap_64(ns->iyes);
 	}
 
 	if (sample_id_all)
@@ -709,7 +709,7 @@ static u8 revbyte(u8 b)
  * byte of the bitfield. 'Internet' also says this might be implementation
  * specific and we probably need proper fix and carry perf_event_attr
  * bitfield flags in separate data file FEAT_ section. Thought this seems
- * to work for now.
+ * to work for yesw.
  */
 static void swap_bitfield(u8 *p, unsigned len)
 {
@@ -953,7 +953,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
  * When perf record finishes a pass on every buffers, it records this pseudo
  * event.
  * We record the max timestamp t found in the pass n.
- * Assuming these timestamps are monotonic across cpus, we know that if
+ * Assuming these timestamps are moyestonic across cpus, we kyesw that if
  * a buffer still has events with timestamps below t, they will be all
  * available and then read in the pass n + 1.
  * Hence when we start to read the pass n + 2, we can safely flush every
@@ -1106,7 +1106,7 @@ static void regs_dump__printf(u64 mask, u64 *regs)
 }
 
 static const char *regs_abi[] = {
-	[PERF_SAMPLE_REGS_ABI_NONE] = "none",
+	[PERF_SAMPLE_REGS_ABI_NONE] = "yesne",
 	[PERF_SAMPLE_REGS_ABI_32] = "32-bit",
 	[PERF_SAMPLE_REGS_ABI_64] = "64-bit",
 };
@@ -1114,7 +1114,7 @@ static const char *regs_abi[] = {
 static inline const char *regs_dump_abi(struct regs_dump *d)
 {
 	if (d->abi > PERF_SAMPLE_REGS_ABI_64)
-		return "unknown";
+		return "unkyeswn";
 
 	return regs_abi[d->abi];
 }
@@ -1337,12 +1337,12 @@ static int deliver_sample_value(struct evlist *evlist,
 	}
 
 	if (!sid || sid->evsel == NULL) {
-		++evlist->stats.nr_unknown_id;
+		++evlist->stats.nr_unkyeswn_id;
 		return 0;
 	}
 
 	/*
-	 * There's no reason to deliver sample
+	 * There's yes reason to deliver sample
 	 * for zero period, bail out.
 	 */
 	if (!sample->period)
@@ -1380,7 +1380,7 @@ static int
 			     struct evsel *evsel,
 			     struct machine *machine)
 {
-	/* We know evsel != NULL. */
+	/* We kyesw evsel != NULL. */
 	u64 sample_type = evsel->core.attr.sample_type;
 	u64 read_format = evsel->core.attr.read_format;
 
@@ -1415,7 +1415,7 @@ static int machines__deliver_event(struct machines *machines,
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
 		if (evsel == NULL) {
-			++evlist->stats.nr_unknown_id;
+			++evlist->stats.nr_unkyeswn_id;
 			return 0;
 		}
 		dump_sample(evsel, event, sample);
@@ -1471,7 +1471,7 @@ static int machines__deliver_event(struct machines *machines,
 	case PERF_RECORD_BPF_EVENT:
 		return tool->bpf(tool, event, sample, machine);
 	default:
-		++evlist->stats.nr_unknown_events;
+		++evlist->stats.nr_unkyeswn_events;
 		return -1;
 	}
 }
@@ -1774,8 +1774,8 @@ perf_session__warn_order(const struct perf_session *session)
 
 	if (!should_warn)
 		return;
-	if (oe->nr_unordered_events != 0)
-		ui__warning("%u out of order events recorded.\n", oe->nr_unordered_events);
+	if (oe->nr_uyesrdered_events != 0)
+		ui__warning("%u out of order events recorded.\n", oe->nr_uyesrdered_events);
 }
 
 static void perf_session__warn_about_errors(const struct perf_session *session)
@@ -1826,18 +1826,18 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 			    "");
 	}
 
-	if (stats->nr_unknown_events != 0) {
-		ui__warning("Found %u unknown events!\n\n"
+	if (stats->nr_unkyeswn_events != 0) {
+		ui__warning("Found %u unkyeswn events!\n\n"
 			    "Is this an older tool processing a perf.data "
 			    "file generated by a more recent tool?\n\n"
-			    "If that is not the case, consider "
+			    "If that is yest the case, consider "
 			    "reporting to linux-kernel@vger.kernel.org.\n\n",
-			    stats->nr_unknown_events);
+			    stats->nr_unkyeswn_events);
 	}
 
-	if (stats->nr_unknown_id != 0) {
-		ui__warning("%u samples with id not present in the header\n",
-			    stats->nr_unknown_id);
+	if (stats->nr_unkyeswn_id != 0) {
+		ui__warning("%u samples with id yest present in the header\n",
+			    stats->nr_unkyeswn_id);
 	}
 
 	if (stats->nr_invalid_chains != 0) {
@@ -1850,7 +1850,7 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 
 	if (stats->nr_unprocessable_samples != 0) {
 		ui__warning("%u unprocessable samples recorded.\n"
-			    "Do you have a KVM guest running and not using 'perf kvm'?\n",
+			    "Do you have a KVM guest running and yest using 'perf kvm'?\n",
 			    stats->nr_unprocessable_samples);
 	}
 
@@ -1860,8 +1860,8 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 
 	if (stats->nr_proc_map_timeout != 0) {
 		ui__warning("%d map information files for pre-existing threads were\n"
-			    "not processed, if there are samples for addresses they\n"
-			    "will not be resolved, you may find out which are these\n"
+			    "yest processed, if there are samples for addresses they\n"
+			    "will yest be resolved, you may find out which are these\n"
 			    "threads by running with -v and redirecting the output\n"
 			    "to a file.\n"
 			    "The time limit to process proc map is too short?\n"
@@ -1907,7 +1907,7 @@ static int __perf_session__process_pipe_events(struct perf_session *session)
 
 	buf = malloc(cur_size);
 	if (!buf)
-		return -errno;
+		return -erryes;
 	ordered_events__set_copy_on_queue(oe, true);
 more:
 	event = buf;
@@ -1984,7 +1984,7 @@ done:
 	err = perf_session__flush_thread_stacks(session);
 out_err:
 	free(buf);
-	if (!tool->no_warn)
+	if (!tool->yes_warn)
 		perf_session__warn_about_errors(session);
 	ordered_events__free(&session->ordered_events);
 	auxtrace__free_events(session);
@@ -1998,7 +1998,7 @@ prefetch_event(char *buf, u64 head, size_t mmap_size,
 	union perf_event *event;
 
 	/*
-	 * Ensure we have enough space remaining to read
+	 * Ensure we have eyesugh space remaining to read
 	 * the size of the event in the headers.
 	 */
 	if (head + sizeof(event->header) > mmap_size)
@@ -2011,7 +2011,7 @@ prefetch_event(char *buf, u64 head, size_t mmap_size,
 	if (head + event->header.size <= mmap_size)
 		return event;
 
-	/* We're not fetching the event so swap back again */
+	/* We're yest fetching the event so swap back again */
 	if (needs_swap)
 		perf_event_header__bswap(&event->header);
 
@@ -2132,7 +2132,7 @@ remap:
 		   file_offset);
 	if (buf == MAP_FAILED) {
 		pr_err("failed to mmap file\n");
-		err = -errno;
+		err = -erryes;
 		goto out;
 	}
 	mmaps[map_idx] = buf;
@@ -2235,7 +2235,7 @@ static int __perf_session__process_events(struct perf_session *session)
 	err = perf_session__flush_thread_stacks(session);
 out_err:
 	ui_progress__finish();
-	if (!tool->no_warn)
+	if (!tool->yes_warn)
 		perf_session__warn_about_errors(session);
 	/*
 	 * We may switching perf.data output, make ordered_events
@@ -2329,7 +2329,7 @@ size_t perf_session__fprintf(struct perf_session *session, FILE *fp)
 {
 	/*
 	 * FIXME: Here we have to actually print all the machines in this
-	 * session, not just the host...
+	 * session, yest just the host...
 	 */
 	return machine__fprintf(&session->machines.host, fp);
 }
@@ -2361,7 +2361,7 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 			continue;
 
 		if (!(evsel->core.attr.sample_type & PERF_SAMPLE_CPU)) {
-			pr_err("File does not contain CPU events. "
+			pr_err("File does yest contain CPU events. "
 			       "Remove -C option to proceed.\n");
 			return -1;
 		}

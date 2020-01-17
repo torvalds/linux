@@ -37,7 +37,7 @@ static inline int ufs_match(struct super_block *sb, int len,
 {
 	if (len != ufs_get_de_namlen(sb, de))
 		return 0;
-	if (!de->d_ino)
+	if (!de->d_iyes)
 		return 0;
 	return !memcmp(name, de->d_name, len);
 }
@@ -45,14 +45,14 @@ static inline int ufs_match(struct super_block *sb, int len,
 static int ufs_commit_chunk(struct page *page, loff_t pos, unsigned len)
 {
 	struct address_space *mapping = page->mapping;
-	struct inode *dir = mapping->host;
+	struct iyesde *dir = mapping->host;
 	int err = 0;
 
-	inode_inc_iversion(dir);
+	iyesde_inc_iversion(dir);
 	block_write_end(NULL, mapping, pos, len, len, page, NULL);
 	if (pos+len > dir->i_size) {
 		i_size_write(dir, pos+len);
-		mark_inode_dirty(dir);
+		mark_iyesde_dirty(dir);
 	}
 	if (IS_DIRSYNC(dir))
 		err = write_one_page(page);
@@ -67,15 +67,15 @@ static inline void ufs_put_page(struct page *page)
 	put_page(page);
 }
 
-ino_t ufs_inode_by_name(struct inode *dir, const struct qstr *qstr)
+iyes_t ufs_iyesde_by_name(struct iyesde *dir, const struct qstr *qstr)
 {
-	ino_t res = 0;
+	iyes_t res = 0;
 	struct ufs_dir_entry *de;
 	struct page *page;
 	
 	de = ufs_find_entry(dir, qstr, &page);
 	if (de) {
-		res = fs32_to_cpu(dir->i_sb, de->d_ino);
+		res = fs32_to_cpu(dir->i_sb, de->d_iyes);
 		ufs_put_page(page);
 	}
 	return res;
@@ -83,8 +83,8 @@ ino_t ufs_inode_by_name(struct inode *dir, const struct qstr *qstr)
 
 
 /* Releases the page */
-void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
-		  struct page *page, struct inode *inode,
+void ufs_set_link(struct iyesde *dir, struct ufs_dir_entry *de,
+		  struct page *page, struct iyesde *iyesde,
 		  bool update_times)
 {
 	loff_t pos = page_offset(page) +
@@ -96,20 +96,20 @@ void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
 	err = ufs_prepare_chunk(page, pos, len);
 	BUG_ON(err);
 
-	de->d_ino = cpu_to_fs32(dir->i_sb, inode->i_ino);
-	ufs_set_de_type(dir->i_sb, de, inode->i_mode);
+	de->d_iyes = cpu_to_fs32(dir->i_sb, iyesde->i_iyes);
+	ufs_set_de_type(dir->i_sb, de, iyesde->i_mode);
 
 	err = ufs_commit_chunk(page, pos, len);
 	ufs_put_page(page);
 	if (update_times)
 		dir->i_mtime = dir->i_ctime = current_time(dir);
-	mark_inode_dirty(dir);
+	mark_iyesde_dirty(dir);
 }
 
 
 static bool ufs_check_page(struct page *page)
 {
-	struct inode *dir = page->mapping->host;
+	struct iyesde *dir = page->mapping->host;
 	struct super_block *sb = dir->i_sb;
 	char *kaddr = page_address(page);
 	unsigned offs, rec_len;
@@ -137,7 +137,7 @@ static bool ufs_check_page(struct page *page)
 			goto Enamelen;
 		if (((offs + rec_len - 1) ^ offs) & ~chunk_mask)
 			goto Espan;
-		if (fs32_to_cpu(sb, p->d_ino) > (UFS_SB(sb)->s_uspi->s_ipg *
+		if (fs32_to_cpu(sb, p->d_iyes) > (UFS_SB(sb)->s_uspi->s_ipg *
 						  UFS_SB(sb)->s_uspi->s_ncg))
 			goto Einumber;
 	}
@@ -151,8 +151,8 @@ out:
 
 Ebadsize:
 	ufs_error(sb, "ufs_check_page",
-		  "size of directory #%lu is not a multiple of chunk size",
-		  dir->i_ino
+		  "size of directory #%lu is yest a multiple of chunk size",
+		  dir->i_iyes
 	);
 	goto fail;
 Eshort:
@@ -168,11 +168,11 @@ Espan:
 	error = "directory entry across blocks";
 	goto bad_entry;
 Einumber:
-	error = "inode out of bounds";
+	error = "iyesde out of bounds";
 bad_entry:
 	ufs_error (sb, "ufs_check_page", "bad entry in directory #%lu: %s - "
 		   "offset=%lu, rec_len=%d, name_len=%d",
-		   dir->i_ino, error, (page->index<<PAGE_SHIFT)+offs,
+		   dir->i_iyes, error, (page->index<<PAGE_SHIFT)+offs,
 		   rec_len, ufs_get_de_namlen(sb, p));
 	goto fail;
 Eend:
@@ -180,13 +180,13 @@ Eend:
 	ufs_error(sb, __func__,
 		   "entry in directory #%lu spans the page boundary"
 		   "offset=%lu",
-		   dir->i_ino, (page->index<<PAGE_SHIFT)+offs);
+		   dir->i_iyes, (page->index<<PAGE_SHIFT)+offs);
 fail:
 	SetPageError(page);
 	return false;
 }
 
-static struct page *ufs_get_page(struct inode *dir, unsigned long n)
+static struct page *ufs_get_page(struct iyesde *dir, unsigned long n)
 {
 	struct address_space *mapping = dir->i_mapping;
 	struct page *page = read_mapping_page(mapping, n, NULL);
@@ -209,9 +209,9 @@ fail:
  * byte in that page, plus one.
  */
 static unsigned
-ufs_last_byte(struct inode *inode, unsigned long page_nr)
+ufs_last_byte(struct iyesde *iyesde, unsigned long page_nr)
 {
-	unsigned last_byte = inode->i_size;
+	unsigned last_byte = iyesde->i_size;
 
 	last_byte -= page_nr << PAGE_SHIFT;
 	if (last_byte > PAGE_SIZE)
@@ -226,7 +226,7 @@ ufs_next_entry(struct super_block *sb, struct ufs_dir_entry *p)
 					fs16_to_cpu(sb, p->d_reclen));
 }
 
-struct ufs_dir_entry *ufs_dotdot(struct inode *dir, struct page **p)
+struct ufs_dir_entry *ufs_dotdot(struct iyesde *dir, struct page **p)
 {
 	struct page *page = ufs_get_page(dir, 0);
 	struct ufs_dir_entry *de = NULL;
@@ -247,7 +247,7 @@ struct ufs_dir_entry *ufs_dotdot(struct inode *dir, struct page **p)
  * (as a parameter - res_dir). Page is returned mapped and unlocked.
  * Entry is guaranteed to be valid.
  */
-struct ufs_dir_entry *ufs_find_entry(struct inode *dir, const struct qstr *qstr,
+struct ufs_dir_entry *ufs_find_entry(struct iyesde *dir, const struct qstr *qstr,
 				     struct page **res_page)
 {
 	struct super_block *sb = dir->i_sb;
@@ -257,10 +257,10 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *dir, const struct qstr *qstr,
 	unsigned long start, n;
 	unsigned long npages = dir_pages(dir);
 	struct page *page = NULL;
-	struct ufs_inode_info *ui = UFS_I(dir);
+	struct ufs_iyesde_info *ui = UFS_I(dir);
 	struct ufs_dir_entry *de;
 
-	UFSD("ENTER, dir_ino %lu, name %s, namlen %u\n", dir->i_ino, name, namelen);
+	UFSD("ENTER, dir_iyes %lu, name %s, namlen %u\n", dir->i_iyes, name, namelen);
 
 	if (npages == 0 || namelen > UFS_MAXNAMLEN)
 		goto out;
@@ -302,9 +302,9 @@ found:
 /*
  *	Parent is locked.
  */
-int ufs_add_link(struct dentry *dentry, struct inode *inode)
+int ufs_add_link(struct dentry *dentry, struct iyesde *iyesde)
 {
-	struct inode *dir = d_inode(dentry->d_parent);
+	struct iyesde *dir = d_iyesde(dentry->d_parent);
 	const unsigned char *name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
 	struct super_block *sb = dir->i_sb;
@@ -344,7 +344,7 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 				name_len = 0;
 				rec_len = chunk_size;
 				de->d_reclen = cpu_to_fs16(sb, chunk_size);
-				de->d_ino = 0;
+				de->d_iyes = 0;
 				goto got_it;
 			}
 			if (de->d_reclen == 0) {
@@ -358,7 +358,7 @@ int ufs_add_link(struct dentry *dentry, struct inode *inode)
 				goto out_unlock;
 			name_len = UFS_DIR_REC_LEN(ufs_get_de_namlen(sb, de));
 			rec_len = fs16_to_cpu(sb, de->d_reclen);
-			if (!de->d_ino && rec_len >= reclen)
+			if (!de->d_iyes && rec_len >= reclen)
 				goto got_it;
 			if (rec_len >= name_len + reclen)
 				goto got_it;
@@ -376,7 +376,7 @@ got_it:
 	err = ufs_prepare_chunk(page, pos, rec_len);
 	if (err)
 		goto out_unlock;
-	if (de->d_ino) {
+	if (de->d_iyes) {
 		struct ufs_dir_entry *de1 =
 			(struct ufs_dir_entry *) ((char *) de + name_len);
 		de1->d_reclen = cpu_to_fs16(sb, rec_len - name_len);
@@ -387,13 +387,13 @@ got_it:
 
 	ufs_set_de_namlen(sb, de, namelen);
 	memcpy(de->d_name, name, namelen + 1);
-	de->d_ino = cpu_to_fs32(sb, inode->i_ino);
-	ufs_set_de_type(sb, de, inode->i_mode);
+	de->d_iyes = cpu_to_fs32(sb, iyesde->i_iyes);
+	ufs_set_de_type(sb, de, iyesde->i_mode);
 
 	err = ufs_commit_chunk(page, pos, rec_len);
 	dir->i_mtime = dir->i_ctime = current_time(dir);
 
-	mark_inode_dirty(dir);
+	mark_iyesde_dirty(dir);
 	/* OFFSET_CACHE */
 out_put:
 	ufs_put_page(page);
@@ -423,30 +423,30 @@ static int
 ufs_readdir(struct file *file, struct dir_context *ctx)
 {
 	loff_t pos = ctx->pos;
-	struct inode *inode = file_inode(file);
-	struct super_block *sb = inode->i_sb;
+	struct iyesde *iyesde = file_iyesde(file);
+	struct super_block *sb = iyesde->i_sb;
 	unsigned int offset = pos & ~PAGE_MASK;
 	unsigned long n = pos >> PAGE_SHIFT;
-	unsigned long npages = dir_pages(inode);
+	unsigned long npages = dir_pages(iyesde);
 	unsigned chunk_mask = ~(UFS_SB(sb)->s_uspi->s_dirblksize - 1);
-	bool need_revalidate = !inode_eq_iversion(inode, file->f_version);
+	bool need_revalidate = !iyesde_eq_iversion(iyesde, file->f_version);
 	unsigned flags = UFS_SB(sb)->s_flags;
 
 	UFSD("BEGIN\n");
 
-	if (pos > inode->i_size - UFS_DIR_REC_LEN(1))
+	if (pos > iyesde->i_size - UFS_DIR_REC_LEN(1))
 		return 0;
 
 	for ( ; n < npages; n++, offset = 0) {
 		char *kaddr, *limit;
 		struct ufs_dir_entry *de;
 
-		struct page *page = ufs_get_page(inode, n);
+		struct page *page = ufs_get_page(iyesde, n);
 
 		if (IS_ERR(page)) {
 			ufs_error(sb, __func__,
 				  "bad page in #%lu",
-				  inode->i_ino);
+				  iyesde->i_iyes);
 			ctx->pos += PAGE_SIZE - offset;
 			return -EIO;
 		}
@@ -456,17 +456,17 @@ ufs_readdir(struct file *file, struct dir_context *ctx)
 				offset = ufs_validate_entry(sb, kaddr, offset, chunk_mask);
 				ctx->pos = (n<<PAGE_SHIFT) + offset;
 			}
-			file->f_version = inode_query_iversion(inode);
+			file->f_version = iyesde_query_iversion(iyesde);
 			need_revalidate = false;
 		}
 		de = (struct ufs_dir_entry *)(kaddr+offset);
-		limit = kaddr + ufs_last_byte(inode, n) - UFS_DIR_REC_LEN(1);
+		limit = kaddr + ufs_last_byte(iyesde, n) - UFS_DIR_REC_LEN(1);
 		for ( ;(char*)de <= limit; de = ufs_next_entry(sb, de)) {
-			if (de->d_ino) {
+			if (de->d_iyes) {
 				unsigned char d_type = DT_UNKNOWN;
 
 				UFSD("filldir(%s,%u)\n", de->d_name,
-				      fs32_to_cpu(sb, de->d_ino));
+				      fs32_to_cpu(sb, de->d_iyes));
 				UFSD("namlen %u\n", ufs_get_de_namlen(sb, de));
 
 				if ((flags & UFS_DE_MASK) == UFS_DE_44BSD)
@@ -474,7 +474,7 @@ ufs_readdir(struct file *file, struct dir_context *ctx)
 
 				if (!dir_emit(ctx, de->d_name,
 					       ufs_get_de_namlen(sb, de),
-					       fs32_to_cpu(sb, de->d_ino),
+					       fs32_to_cpu(sb, de->d_iyes),
 					       d_type)) {
 					ufs_put_page(page);
 					return 0;
@@ -492,10 +492,10 @@ ufs_readdir(struct file *file, struct dir_context *ctx)
  * ufs_delete_entry deletes a directory entry by merging it with the
  * previous entry.
  */
-int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
+int ufs_delete_entry(struct iyesde *iyesde, struct ufs_dir_entry *dir,
 		     struct page * page)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	char *kaddr = page_address(page);
 	unsigned from = ((char*)dir - kaddr) & ~(UFS_SB(sb)->s_uspi->s_dirblksize - 1);
 	unsigned to = ((char*)dir - kaddr) + fs16_to_cpu(sb, dir->d_reclen);
@@ -506,14 +506,14 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 
 	UFSD("ENTER\n");
 
-	UFSD("ino %u, reclen %u, namlen %u, name %s\n",
-	      fs32_to_cpu(sb, de->d_ino),
+	UFSD("iyes %u, reclen %u, namlen %u, name %s\n",
+	      fs32_to_cpu(sb, de->d_iyes),
 	      fs16_to_cpu(sb, de->d_reclen),
 	      ufs_get_de_namlen(sb, de), de->d_name);
 
 	while ((char*)de < (char*)dir) {
 		if (de->d_reclen == 0) {
-			ufs_error(inode->i_sb, __func__,
+			ufs_error(iyesde->i_sb, __func__,
 				  "zero-length directory entry");
 			err = -EIO;
 			goto out;
@@ -530,20 +530,20 @@ int ufs_delete_entry(struct inode *inode, struct ufs_dir_entry *dir,
 	BUG_ON(err);
 	if (pde)
 		pde->d_reclen = cpu_to_fs16(sb, to - from);
-	dir->d_ino = 0;
+	dir->d_iyes = 0;
 	err = ufs_commit_chunk(page, pos, to - from);
-	inode->i_ctime = inode->i_mtime = current_time(inode);
-	mark_inode_dirty(inode);
+	iyesde->i_ctime = iyesde->i_mtime = current_time(iyesde);
+	mark_iyesde_dirty(iyesde);
 out:
 	ufs_put_page(page);
 	UFSD("EXIT\n");
 	return err;
 }
 
-int ufs_make_empty(struct inode * inode, struct inode *dir)
+int ufs_make_empty(struct iyesde * iyesde, struct iyesde *dir)
 {
 	struct super_block * sb = dir->i_sb;
-	struct address_space *mapping = inode->i_mapping;
+	struct address_space *mapping = iyesde->i_mapping;
 	struct page *page = grab_cache_page(mapping, 0);
 	const unsigned int chunk_size = UFS_SB(sb)->s_uspi->s_dirblksize;
 	struct ufs_dir_entry * de;
@@ -565,14 +565,14 @@ int ufs_make_empty(struct inode * inode, struct inode *dir)
 
 	de = (struct ufs_dir_entry *) base;
 
-	de->d_ino = cpu_to_fs32(sb, inode->i_ino);
-	ufs_set_de_type(sb, de, inode->i_mode);
+	de->d_iyes = cpu_to_fs32(sb, iyesde->i_iyes);
+	ufs_set_de_type(sb, de, iyesde->i_mode);
 	ufs_set_de_namlen(sb, de, 1);
 	de->d_reclen = cpu_to_fs16(sb, UFS_DIR_REC_LEN(1));
 	strcpy (de->d_name, ".");
 	de = (struct ufs_dir_entry *)
 		((char *)de + fs16_to_cpu(sb, de->d_reclen));
-	de->d_ino = cpu_to_fs32(sb, dir->i_ino);
+	de->d_iyes = cpu_to_fs32(sb, dir->i_iyes);
 	ufs_set_de_type(sb, de, dir->i_mode);
 	de->d_reclen = cpu_to_fs16(sb, chunk_size - UFS_DIR_REC_LEN(1));
 	ufs_set_de_namlen(sb, de, 2);
@@ -588,44 +588,44 @@ fail:
 /*
  * routine to check that the specified directory is empty (for rmdir)
  */
-int ufs_empty_dir(struct inode * inode)
+int ufs_empty_dir(struct iyesde * iyesde)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct page *page = NULL;
-	unsigned long i, npages = dir_pages(inode);
+	unsigned long i, npages = dir_pages(iyesde);
 
 	for (i = 0; i < npages; i++) {
 		char *kaddr;
 		struct ufs_dir_entry *de;
-		page = ufs_get_page(inode, i);
+		page = ufs_get_page(iyesde, i);
 
 		if (IS_ERR(page))
 			continue;
 
 		kaddr = page_address(page);
 		de = (struct ufs_dir_entry *)kaddr;
-		kaddr += ufs_last_byte(inode, i) - UFS_DIR_REC_LEN(1);
+		kaddr += ufs_last_byte(iyesde, i) - UFS_DIR_REC_LEN(1);
 
 		while ((char *)de <= kaddr) {
 			if (de->d_reclen == 0) {
-				ufs_error(inode->i_sb, __func__,
+				ufs_error(iyesde->i_sb, __func__,
 					"zero-length directory entry: "
 					"kaddr=%p, de=%p\n", kaddr, de);
-				goto not_empty;
+				goto yest_empty;
 			}
-			if (de->d_ino) {
+			if (de->d_iyes) {
 				u16 namelen=ufs_get_de_namlen(sb, de);
 				/* check for . and .. */
 				if (de->d_name[0] != '.')
-					goto not_empty;
+					goto yest_empty;
 				if (namelen > 2)
-					goto not_empty;
+					goto yest_empty;
 				if (namelen < 2) {
-					if (inode->i_ino !=
-					    fs32_to_cpu(sb, de->d_ino))
-						goto not_empty;
+					if (iyesde->i_iyes !=
+					    fs32_to_cpu(sb, de->d_iyes))
+						goto yest_empty;
 				} else if (de->d_name[1] != '.')
-					goto not_empty;
+					goto yest_empty;
 			}
 			de = ufs_next_entry(sb, de);
 		}
@@ -633,7 +633,7 @@ int ufs_empty_dir(struct inode * inode)
 	}
 	return 1;
 
-not_empty:
+yest_empty:
 	ufs_put_page(page);
 	return 0;
 }

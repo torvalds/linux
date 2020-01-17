@@ -51,7 +51,7 @@ static int rtw_hw_suspend(struct adapter *padapter)
 
 			rtw_os_indicate_disconnect(padapter);
 
-			/* donnot enqueue cmd */
+			/* donyest enqueue cmd */
 			rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_DISCONNECT, 0);
 		}
 	}
@@ -138,7 +138,7 @@ void ips_enter(struct adapter *padapter)
 	DBG_88E("==>%s:%d\n", __func__, pwrpriv->ips_enter_cnts);
 	if (rf_off == pwrpriv->change_rfpwrstate) {
 		pwrpriv->bpower_saving = true;
-		DBG_88E_LEVEL(_drv_info_, "nolinked power save enter\n");
+		DBG_88E_LEVEL(_drv_info_, "yeslinked power save enter\n");
 
 		if (pwrpriv->ips_mode == IPS_LEVEL_2)
 			pwrpriv->bkeepfwalive = true;
@@ -171,7 +171,7 @@ int ips_leave(struct adapter *padapter)
 		if (result == _SUCCESS)
 			pwrpriv->rf_pwrstate = rf_on;
 
-		DBG_88E_LEVEL(_drv_info_, "nolinked power save leave\n");
+		DBG_88E_LEVEL(_drv_info_, "yeslinked power save leave\n");
 
 		if ((_WEP40_ == psecuritypriv->dot11PrivacyAlgrthm) || (_WEP104_ == psecuritypriv->dot11PrivacyAlgrthm)) {
 			DBG_88E("==>%s, channel(%d), processing(%x)\n", __func__, padapter->mlmeextpriv.cur_channel, pwrpriv->bips_processing);
@@ -321,7 +321,7 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 	}
 
 	rpwm = pslv | pwrpriv->tog;
-	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
+	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_yestice_,
 		 ("%s: rpwm=0x%02x cpwm=0x%02x\n", __func__, rpwm, pwrpriv->cpwm));
 
 	pwrpriv->rpwm = pslv;
@@ -364,7 +364,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
-	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
+	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_yestice_,
 		 ("%s: PowerMode=%d Smart_PS=%d\n",
 		  __func__, ps_mode, smart_ps));
 
@@ -564,7 +564,7 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 			DBG_88E("%s wait ps_processing done\n", __func__);
 	}
 
-	/* System suspend is not allowed to wakeup */
+	/* System suspend is yest allowed to wakeup */
 	if ((!pwrpriv->bInternalAutoSuspend) && (pwrpriv->bInSuspend)) {
 		ret = _FAIL;
 		goto exit;

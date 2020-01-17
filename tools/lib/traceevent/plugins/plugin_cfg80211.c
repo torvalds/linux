@@ -6,7 +6,7 @@
 #include "event-parse.h"
 
 /*
- * From glibc endian.h, for older systems where it is not present, e.g.: RHEL5,
+ * From glibc endian.h, for older systems where it is yest present, e.g.: RHEL5,
  * Fedora6.
  */
 #ifndef le16toh

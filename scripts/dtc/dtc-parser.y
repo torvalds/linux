@@ -22,7 +22,7 @@ extern bool treesource_error;
 %}
 
 %union {
-	char *propnodename;
+	char *propyesdename;
 	char *labelref;
 	uint8_t byte;
 	struct data data;
@@ -34,8 +34,8 @@ extern bool treesource_error;
 
 	struct property *prop;
 	struct property *proplist;
-	struct node *node;
-	struct node *nodelist;
+	struct yesde *yesde;
+	struct yesde *yesdelist;
 	struct reserve_info *re;
 	uint64_t integer;
 	unsigned int flags;
@@ -49,7 +49,7 @@ extern bool treesource_error;
 %token DT_DEL_PROP
 %token DT_DEL_NODE
 %token DT_OMIT_NO_REF
-%token <propnodename> DT_PROPNODENAME
+%token <propyesdename> DT_PROPNODENAME
 %token <integer> DT_LITERAL
 %token <integer> DT_CHAR_LITERAL
 %token <byte> DT_BYTE
@@ -71,10 +71,10 @@ extern bool treesource_error;
 %type <proplist> proplist
 %type <labelref> dt_ref
 
-%type <node> devicetree
-%type <node> nodedef
-%type <node> subnode
-%type <nodelist> subnodes
+%type <yesde> devicetree
+%type <yesde> yesdedef
+%type <yesde> subyesde
+%type <yesdelist> subyesdes
 
 %type <integer> integer_prim
 %type <integer> integer_unary
@@ -148,15 +148,15 @@ memreserve:
 dt_ref: DT_LABEL_REF | DT_PATH_REF;
 
 devicetree:
-	  '/' nodedef
+	  '/' yesdedef
 		{
-			$$ = name_node($2, "");
+			$$ = name_yesde($2, "");
 		}
-	| devicetree '/' nodedef
+	| devicetree '/' yesdedef
 		{
-			$$ = merge_nodes($1, $3);
+			$$ = merge_yesdes($1, $3);
 		}
-	| dt_ref nodedef
+	| dt_ref yesdedef
 		{
 			/*
 			 * We rely on the rule being always:
@@ -164,24 +164,24 @@ devicetree:
 			 * so $-1 is what we want (plugindecl)
 			 */
 			if (!($<flags>-1 & DTSF_PLUGIN))
-				ERROR(&@2, "Label or path %s not found", $1);
-			$$ = add_orphan_node(
-					name_node(build_node(NULL, NULL, NULL),
+				ERROR(&@2, "Label or path %s yest found", $1);
+			$$ = add_orphan_yesde(
+					name_yesde(build_yesde(NULL, NULL, NULL),
 						  ""),
 					$2, $1);
 		}
-	| devicetree DT_LABEL dt_ref nodedef
+	| devicetree DT_LABEL dt_ref yesdedef
 		{
-			struct node *target = get_node_by_ref($1, $3);
+			struct yesde *target = get_yesde_by_ref($1, $3);
 
 			if (target) {
 				add_label(&target->labels, $2);
-				merge_nodes(target, $4);
+				merge_yesdes(target, $4);
 			} else
-				ERROR(&@3, "Label or path %s not found", $3);
+				ERROR(&@3, "Label or path %s yest found", $3);
 			$$ = $1;
 		}
-	| devicetree DT_PATH_REF nodedef
+	| devicetree DT_PATH_REF yesdedef
 		{
 			/*
 			 * We rely on the rule being always:
@@ -189,23 +189,23 @@ devicetree:
 			 * so $-1 is what we want (plugindecl)
 			 */
 			if ($<flags>-1 & DTSF_PLUGIN) {
-				add_orphan_node($1, $3, $2);
+				add_orphan_yesde($1, $3, $2);
 			} else {
-				struct node *target = get_node_by_ref($1, $2);
+				struct yesde *target = get_yesde_by_ref($1, $2);
 
 				if (target)
-					merge_nodes(target, $3);
+					merge_yesdes(target, $3);
 				else
-					ERROR(&@2, "Label or path %s not found", $2);
+					ERROR(&@2, "Label or path %s yest found", $2);
 			}
 			$$ = $1;
 		}
-	| devicetree DT_LABEL_REF nodedef
+	| devicetree DT_LABEL_REF yesdedef
 		{
-			struct node *target = get_node_by_ref($1, $2);
+			struct yesde *target = get_yesde_by_ref($1, $2);
 
 			if (target) {
-				merge_nodes(target, $3);
+				merge_yesdes(target, $3);
 			} else {
 				/*
 				 * We rely on the rule being always:
@@ -213,42 +213,42 @@ devicetree:
 				 * so $-1 is what we want (plugindecl)
 				 */
 				if ($<flags>-1 & DTSF_PLUGIN)
-					add_orphan_node($1, $3, $2);
+					add_orphan_yesde($1, $3, $2);
 				else
-					ERROR(&@2, "Label or path %s not found", $2);
+					ERROR(&@2, "Label or path %s yest found", $2);
 			}
 			$$ = $1;
 		}
 	| devicetree DT_DEL_NODE dt_ref ';'
 		{
-			struct node *target = get_node_by_ref($1, $3);
+			struct yesde *target = get_yesde_by_ref($1, $3);
 
 			if (target)
-				delete_node(target);
+				delete_yesde(target);
 			else
-				ERROR(&@3, "Label or path %s not found", $3);
+				ERROR(&@3, "Label or path %s yest found", $3);
 
 
 			$$ = $1;
 		}
 	| devicetree DT_OMIT_NO_REF dt_ref ';'
 		{
-			struct node *target = get_node_by_ref($1, $3);
+			struct yesde *target = get_yesde_by_ref($1, $3);
 
 			if (target)
-				omit_node_if_unused(target);
+				omit_yesde_if_unused(target);
 			else
-				ERROR(&@3, "Label or path %s not found", $3);
+				ERROR(&@3, "Label or path %s yest found", $3);
 
 
 			$$ = $1;
 		}
 	;
 
-nodedef:
-	  '{' proplist subnodes '}' ';'
+yesdedef:
+	  '{' proplist subyesdes '}' ';'
 		{
-			$$ = build_node($2, $3, &@$);
+			$$ = build_yesde($2, $3, &@$);
 		}
 	;
 
@@ -310,7 +310,7 @@ propdata:
 				if (fseek(f, $6, SEEK_SET) != 0)
 					die("Couldn't seek to offset %llu in \"%s\": %s",
 					    (unsigned long long)$6, $4.val,
-					    strerror(errno));
+					    strerror(erryes));
 
 			d = data_copy_file(f, $8);
 
@@ -528,36 +528,36 @@ bytestring:
 		}
 	;
 
-subnodes:
+subyesdes:
 	  /* empty */
 		{
 			$$ = NULL;
 		}
-	| subnode subnodes
+	| subyesde subyesdes
 		{
-			$$ = chain_node($1, $2);
+			$$ = chain_yesde($1, $2);
 		}
-	| subnode propdef
+	| subyesde propdef
 		{
-			ERROR(&@2, "Properties must precede subnodes");
+			ERROR(&@2, "Properties must precede subyesdes");
 			YYERROR;
 		}
 	;
 
-subnode:
-	  DT_PROPNODENAME nodedef
+subyesde:
+	  DT_PROPNODENAME yesdedef
 		{
-			$$ = name_node($2, $1);
+			$$ = name_yesde($2, $1);
 		}
 	| DT_DEL_NODE DT_PROPNODENAME ';'
 		{
-			$$ = name_node(build_node_delete(&@$), $2);
+			$$ = name_yesde(build_yesde_delete(&@$), $2);
 		}
-	| DT_OMIT_NO_REF subnode
+	| DT_OMIT_NO_REF subyesde
 		{
-			$$ = omit_node_if_unused($2);
+			$$ = omit_yesde_if_unused($2);
 		}
-	| DT_LABEL subnode
+	| DT_LABEL subyesde
 		{
 			add_label(&$2->labels, $1);
 			$$ = $2;

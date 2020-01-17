@@ -5,7 +5,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License and no later version.
+ * Free Software Foundation; version 2 of the License and yes later version.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -14,7 +14,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Maintained by: Jim Gill <jgill@vmware.com>
@@ -38,7 +38,7 @@
  * host adapter status/error codes
  */
 enum HostBusAdapterStatus {
-	BTSTAT_SUCCESS       = 0x00,  /* CCB complete normally with no errors */
+	BTSTAT_SUCCESS       = 0x00,  /* CCB complete yesrmally with yes errors */
 	BTSTAT_LINKED_COMMAND_COMPLETED           = 0x0a,
 	BTSTAT_LINKED_COMMAND_COMPLETED_WITH_FLAG = 0x0b,
 	BTSTAT_DATA_UNDERRUN = 0x0c,
@@ -57,7 +57,7 @@ enum HostBusAdapterStatus {
 	BTSTAT_BADMSG        = 0x1d,  /* unsupported message received by the
 				       * host adapter */
 	BTSTAT_HAHARDWARE    = 0x20,  /* host adapter hardware failed */
-	BTSTAT_NORESPONSE    = 0x21,  /* target did not respond to SCSI ATN,
+	BTSTAT_NORESPONSE    = 0x21,  /* target did yest respond to SCSI ATN,
 				       * sent a SCSI RST */
 	BTSTAT_SENTRST       = 0x22,  /* host adapter asserted a SCSI RST */
 	BTSTAT_RECVRST       = 0x23,  /* other SCSI devices asserted a SCSI
@@ -164,7 +164,7 @@ enum PVSCSIConfigPageAddressType {
 /*
  * Command descriptor for PVSCSI_CMD_ABORT_CMD --
  *
- * - currently does not support specifying the LUN.
+ * - currently does yest support specifying the LUN.
  * - _pad should be 0.
  */
 
@@ -197,7 +197,7 @@ struct PVSCSICmdDescSetupRings {
  * Command descriptor for PVSCSI_CMD_SETUP_MSG_RING --
  *
  * Notes:
- * - this command was not supported in the initial revision of the h/w
+ * - this command was yest supported in the initial revision of the h/w
  *   interface. Before using it, you need to check that it is supported by
  *   writing PVSCSI_CMD_SETUP_MSG_RING to the 'command' register, then
  *   immediately after read the 'command status' register:
@@ -206,7 +206,7 @@ struct PVSCSICmdDescSetupRings {
  *   If it's supported the 'command status' register should return:
  *      sizeof(PVSCSICmdDescSetupMsgRing) / sizeof(u32).
  * - this command should be issued _after_ the usual SETUP_RINGS so that the
- *   RingsState page is already setup. If not, the command is a nop.
+ *   RingsState page is already setup. If yest, the command is a yesp.
  * - numPages needs to be a power of two,
  * - numPages needs to be different from 0,
  * - _pad should be zero.
@@ -283,7 +283,7 @@ struct PVSCSIRingsState {
  *
  * sizeof(RingReqDesc) = 128
  *
- * - context: is a unique identifier of a command. It could normally be any
+ * - context: is a unique identifier of a command. It could yesrmally be any
  *   64bit value, however we currently store it in the serialNumber variable
  *   of struct SCSI_Command, so we have the following restrictions due to the
  *   way this field is handled in the vmkernel storage stack:
@@ -299,7 +299,7 @@ struct PVSCSIRingsState {
  *     the buffer used for the DMA transfer,
  * - flags:
  *   * PVSCSI_FLAG_CMD_WITH_SG_LIST: see dataAddr above,
- *   * PVSCSI_FLAG_CMD_DIR_NONE: no DMA involved,
+ *   * PVSCSI_FLAG_CMD_DIR_NONE: yes DMA involved,
  *   * PVSCSI_FLAG_CMD_DIR_TOHOST: transfer from device to main memory,
  *   * PVSCSI_FLAG_CMD_DIR_TODEVICE: transfer from main memory to device,
  *   * PVSCSI_FLAG_CMD_OUT_OF_BAND_CDB: reserved to handle CDBs larger than
@@ -307,10 +307,10 @@ struct PVSCSIRingsState {
  * - vcpuHint: vcpuId of the processor that will be most likely waiting for the
  *   completion of the i/o. For guest OSes that use lowest priority message
  *   delivery mode (such as windows), we use this "hint" to deliver the
- *   completion action to the proper vcpu. For now, we can use the vcpuId of
+ *   completion action to the proper vcpu. For yesw, we can use the vcpuId of
  *   the processor that initiated the i/o as a likely candidate for the vcpu
  *   that will be waiting for the completion..
- * - bus should be 0: we currently only support bus 0 for now.
+ * - bus should be 0: we currently only support bus 0 for yesw.
  * - unused should be zero'd.
  */
 
@@ -392,7 +392,7 @@ struct PVSCSIConfigPageHeader {
 
 struct PVSCSIConfigPageController {
 	struct PVSCSIConfigPageHeader header;
-	u64 nodeWWN; /* Device name as defined in the SAS spec. */
+	u64 yesdeWWN; /* Device name as defined in the SAS spec. */
 	u16 manufacturer[64];
 	u16 serialNumber[64];
 	u16 opromVersion[32];

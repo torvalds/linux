@@ -10,7 +10,7 @@ Required properties:
 - interrupts[-extended]: configuration for charger INT pin.
 
 Optional properties:
-- monitored-battery: phandle of battery characteristics devicetree node
+- monitored-battery: phandle of battery characteristics devicetree yesde
   The charger uses the following battery properties:
     + precharge-current-microamp: maximum charge current during precharge
       phase (typically 20% of battery capacity).
@@ -21,7 +21,7 @@ Optional properties:
 - ti,system-minimum-microvolt: when power is connected and the battery is below
   minimum system voltage, the system will be regulated above this setting.
 
-child nodes:
+child yesdes:
 - usb-otg-vbus:
   Usage: optional
   Description: Regulator that is used to control the VBUS voltage direction for

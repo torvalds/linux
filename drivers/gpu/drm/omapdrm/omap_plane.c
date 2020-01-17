@@ -54,14 +54,14 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	info.rotation_type = OMAP_DSS_ROT_NONE;
 	info.rotation = DRM_MODE_ROTATE_0;
 	info.global_alpha = state->alpha >> 8;
-	info.zorder = state->normalized_zpos;
+	info.zorder = state->yesrmalized_zpos;
 	if (state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI)
 		info.pre_mult_alpha = 1;
 	else
 		info.pre_mult_alpha = 0;
 
-	/* update scanout: */
-	omap_framebuffer_update_scanout(state->fb, state, &info);
+	/* update scayesut: */
+	omap_framebuffer_update_scayesut(state->fb, state, &info);
 
 	DBG("%dx%d -> %dx%d (%d)", info.width, info.height,
 			info.out_width, info.out_height,
@@ -296,7 +296,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	return plane;
 
 error:
-	dev_err(dev->dev, "%s(): could not create plane: %s\n",
+	dev_err(dev->dev, "%s(): could yest create plane: %s\n",
 		__func__, plane_id_to_name[id]);
 
 	kfree(omap_plane);

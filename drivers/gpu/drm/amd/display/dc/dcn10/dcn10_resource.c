@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -1347,7 +1347,7 @@ static bool construct(
 	dc->caps.post_blend_color_processing = false;
 	dc->caps.extended_aux_timeout_support = false;
 
-	/* Raven DP PHY HBR2 eye diagram pattern is not stable. Use TP4 */
+	/* Raven DP PHY HBR2 eye diagram pattern is yest stable. Use TP4 */
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
@@ -1387,7 +1387,7 @@ static bool construct(
 	pool->base.dp_clock_source =
 			dcn10_clock_source_create(ctx, ctx->dc_bios,
 				CLOCK_SOURCE_ID_DP_DTO,
-				/* todo: not reuse phy_pll registers */
+				/* todo: yest reuse phy_pll registers */
 				&clk_src_regs[0], true);
 
 	for (i = 0; i < pool->base.clk_src_count; i++) {
@@ -1446,7 +1446,7 @@ static bool construct(
 
 	if (dc->dcn_soc->number_of_channels == 1) {
 		dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 = 19.2f;
-		dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 = 17.066f;
+		dc->dcn_soc->fabric_and_dram_bandwidth_vyesm0p8 = 17.066f;
 		dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 = 14.933f;
 		dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 = 12.8f;
 		if (ASICREV_IS_RV1_F0(dc->ctx->asic_id.hw_internal_rev)) {
@@ -1457,7 +1457,7 @@ static bool construct(
 	pool->base.pp_smu = dcn10_pp_smu_create(ctx);
 
 	/*
-	 * Right now SMU/PPLIB and DAL all have the AZ D3 force PME notification *
+	 * Right yesw SMU/PPLIB and DAL all have the AZ D3 force PME yestification *
 	 * implemented. So AZ D3 should work.For issue 197007.                   *
 	 */
 	if (pool->base.pp_smu != NULL
@@ -1469,7 +1469,7 @@ static bool construct(
 	dcn_bw_sync_calcs_and_dml(dc);
 	if (!dc->debug.disable_pplib_wm_range) {
 		dc->res_pool = &pool->base;
-		dcn_bw_notify_pplib_of_wm_ranges(dc);
+		dcn_bw_yestify_pplib_of_wm_ranges(dc);
 	}
 
 	{

@@ -36,7 +36,7 @@ int spi_frm_align = 2;
 
 /*
  * SPI padding options.
- * Warning: must be a base of 2 (& operation used) and can not be zero !
+ * Warning: must be a base of 2 (& operation used) and can yest be zero !
  */
 int spi_up_head_align   = 1 << 1;
 int spi_up_tail_align   = 1 << 0;
@@ -233,7 +233,7 @@ void cfspi_xfer(struct work_struct *work)
 		 * Check whether we need to clear the xfer bit.
 		 * Spin lock needed for packet insertion.
 		 * Test and clear of different bits
-		 * are not supported.
+		 * are yest supported.
 		 */
 		spin_lock_irqsave(&cfspi->lock, flags);
 		if (cfspi->cmd == SPI_CMD_EOT && !cfspi_xmitlen(cfspi)

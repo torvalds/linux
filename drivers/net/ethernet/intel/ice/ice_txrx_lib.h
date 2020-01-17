@@ -40,7 +40,7 @@ build_ctob(u64 td_cmd, u64 td_offset, unsigned int size, u64 td_tag)
 static inline void ice_xdp_ring_update_tail(struct ice_ring *xdp_ring)
 {
 	/* Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.
+	 * kyesw there are new descriptors to fetch.
 	 */
 	wmb();
 	writel_relaxed(xdp_ring->next_to_use, xdp_ring->tail);

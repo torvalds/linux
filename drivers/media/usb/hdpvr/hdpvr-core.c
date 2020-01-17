@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -160,7 +160,7 @@ static int device_authorization(struct hdpvr_device *dev)
 		dev->flags |= HDPVR_FLAG_AC3_CAP;
 		break;
 	default:
-		v4l2_info(&dev->v4l2_dev, "untested firmware, the driver might not work.\n");
+		v4l2_info(&dev->v4l2_dev, "untested firmware, the driver might yest work.\n");
 		if (dev->fw_ver >= HDPVR_FIRMWARE_VERSION_AC3)
 			dev->flags |= HDPVR_FLAG_AC3_CAP;
 		else
@@ -336,7 +336,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 
 	}
 	if (!dev->bulk_in_endpointAddr) {
-		v4l2_err(&dev->v4l2_dev, "Could not find bulk-in endpoint\n");
+		v4l2_err(&dev->v4l2_dev, "Could yest find bulk-in endpoint\n");
 		goto error_put_usb;
 	}
 
@@ -386,9 +386,9 @@ static int hdpvr_probe(struct usb_interface *interface,
 		goto reg_fail;
 	}
 
-	/* let the user know what node this device is now attached to */
-	v4l2_info(&dev->v4l2_dev, "device now attached to %s\n",
-		  video_device_node_name(&dev->video_dev));
+	/* let the user kyesw what yesde this device is yesw attached to */
+	v4l2_info(&dev->v4l2_dev, "device yesw attached to %s\n",
+		  video_device_yesde_name(&dev->video_dev));
 	return 0;
 
 reg_fail:
@@ -413,7 +413,7 @@ static void hdpvr_disconnect(struct usb_interface *interface)
 	struct hdpvr_device *dev = to_hdpvr_dev(usb_get_intfdata(interface));
 
 	v4l2_info(&dev->v4l2_dev, "device %s disconnected\n",
-		  video_device_node_name(&dev->video_dev));
+		  video_device_yesde_name(&dev->video_dev));
 	/* prevent more I/O from starting and stop any ongoing */
 	mutex_lock(&dev->io_mutex);
 	dev->status = STATUS_DISCONNECTED;

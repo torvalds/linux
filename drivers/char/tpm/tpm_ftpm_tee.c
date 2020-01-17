@@ -39,7 +39,7 @@ static const uuid_t ftpm_ta_uuid =
  *
  * Return:
  *	In case of success the number of bytes received.
- *	On failure, -errno.
+ *	On failure, -erryes.
  */
 static int ftpm_tee_tpm_op_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
@@ -68,7 +68,7 @@ static int ftpm_tee_tpm_op_recv(struct tpm_chip *chip, u8 *buf, size_t count)
  *
  * Return:
  *	In case of success, returns 0.
- *	On failure, -errno
+ *	On failure, -erryes
  */
 static int ftpm_tee_tpm_op_send(struct tpm_chip *chip, u8 *buf, size_t len)
 {
@@ -167,7 +167,7 @@ static int ftpm_tee_tpm_op_send(struct tpm_chip *chip, u8 *buf, size_t len)
 
 static void ftpm_tee_tpm_op_cancel(struct tpm_chip *chip)
 {
-	/* not supported */
+	/* yest supported */
 }
 
 static u8 ftpm_tee_tpm_op_status(struct tpm_chip *chip)
@@ -212,7 +212,7 @@ static int ftpm_tee_match(struct tee_ioctl_version_data *ver, const void *data)
  * @pdev: the platform_device description.
  *
  * Return:
- *	On success, 0. On failure, -errno.
+ *	On success, 0. On failure, -erryes.
  */
 static int ftpm_tee_probe(struct platform_device *pdev)
 {

@@ -26,7 +26,7 @@
 
 /* This function checks if particular RA list has packets more than low bridge
  * packet threshold and then deletes packet from this RA list.
- * Function deletes packets from such RA list and returns true. If no such list
+ * Function deletes packets from such RA list and returns true. If yes such list
  * is found, false is returned.
  */
 static bool
@@ -100,7 +100,7 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	struct mwifiex_txinfo *tx_info;
 	int hdr_chop;
 	struct ethhdr *p_ethhdr;
-	struct mwifiex_sta_node *src_node;
+	struct mwifiex_sta_yesde *src_yesde;
 	int index;
 
 	uap_rx_pd = (struct uap_rxpd *)(skb->data);
@@ -166,7 +166,7 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 			skb_realloc_headroom(skb, MWIFIEX_MIN_DATA_HEADER_LEN);
 		if (unlikely(!new_skb)) {
 			mwifiex_dbg(priv->adapter, ERROR,
-				    "Tx: cannot allocate new_skb\n");
+				    "Tx: canyest allocate new_skb\n");
 			kfree_skb(skb);
 			priv->stats.tx_dropped++;
 			return;
@@ -185,18 +185,18 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	tx_info->bss_type = priv->bss_type;
 	tx_info->flags |= MWIFIEX_BUF_FLAG_BRIDGED_PKT;
 
-	src_node = mwifiex_get_sta_entry(priv, rx_pkt_hdr->eth803_hdr.h_source);
-	if (src_node) {
-		src_node->stats.last_rx = jiffies;
-		src_node->stats.rx_bytes += skb->len;
-		src_node->stats.rx_packets++;
-		src_node->stats.last_tx_rate = uap_rx_pd->rx_rate;
-		src_node->stats.last_tx_htinfo = uap_rx_pd->ht_info;
+	src_yesde = mwifiex_get_sta_entry(priv, rx_pkt_hdr->eth803_hdr.h_source);
+	if (src_yesde) {
+		src_yesde->stats.last_rx = jiffies;
+		src_yesde->stats.rx_bytes += skb->len;
+		src_yesde->stats.rx_packets++;
+		src_yesde->stats.last_tx_rate = uap_rx_pd->rx_rate;
+		src_yesde->stats.last_tx_htinfo = uap_rx_pd->ht_info;
 	}
 
 	if (is_unicast_ether_addr(rx_pkt_hdr->eth803_hdr.h_dest)) {
 		/* Update bridge packet statistics as the
-		 * packet is not going to kernel/upper layer.
+		 * packet is yest going to kernel/upper layer.
 		 */
 		priv->stats.rx_bytes += skb->len;
 		priv->stats.rx_packets++;
@@ -228,7 +228,7 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
  * associated stations.
  * If a packet is unicast and RA is present in associated station list,
  * it is again requeued into AP TX queue.
- * If a packet is unicast and RA is not in associated station list,
+ * If a packet is unicast and RA is yest in associated station list,
  * packet is forwarded to kernel to handle routing logic.
  */
 int mwifiex_handle_uap_rx_forward(struct mwifiex_private *priv,
@@ -272,7 +272,7 @@ int mwifiex_uap_recv_packet(struct mwifiex_private *priv,
 			    struct sk_buff *skb)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct mwifiex_sta_node *src_node;
+	struct mwifiex_sta_yesde *src_yesde;
 	struct ethhdr *p_ethhdr;
 	struct sk_buff *skb_uap;
 	struct mwifiex_txinfo *tx_info;
@@ -281,11 +281,11 @@ int mwifiex_uap_recv_packet(struct mwifiex_private *priv,
 		return -1;
 
 	p_ethhdr = (void *)skb->data;
-	src_node = mwifiex_get_sta_entry(priv, p_ethhdr->h_source);
-	if (src_node) {
-		src_node->stats.last_rx = jiffies;
-		src_node->stats.rx_bytes += skb->len;
-		src_node->stats.rx_packets++;
+	src_yesde = mwifiex_get_sta_entry(priv, p_ethhdr->h_source);
+	if (src_yesde) {
+		src_yesde->stats.last_rx = jiffies;
+		src_yesde->stats.rx_bytes += skb->len;
+		src_yesde->stats.rx_packets++;
 	}
 
 	if (is_multicast_ether_addr(p_ethhdr->h_dest) ||
@@ -330,7 +330,7 @@ int mwifiex_uap_recv_packet(struct mwifiex_private *priv,
 	/* This is required only in case of 11n and USB/PCIE as we alloc
 	 * a buffer of 4K only if its 11N (to be able to receive 4K
 	 * AMSDU packets). In case of SD we allocate buffers based
-	 * on the size of packet and hence this is not needed.
+	 * on the size of packet and hence this is yest needed.
 	 *
 	 * Modifying the truesize here as our allocation for each
 	 * skb is 4K but we only receive 2K packets and this cause
@@ -377,7 +377,7 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 	struct rx_packet_hdr *rx_pkt_hdr;
 	u16 rx_pkt_type;
 	u8 ta[ETH_ALEN], pkt_type;
-	struct mwifiex_sta_node *node;
+	struct mwifiex_sta_yesde *yesde;
 
 	uap_rx_pd = (struct uap_rxpd *)(skb->data);
 	rx_pkt_type = le16_to_cpu(uap_rx_pd->rx_pkt_type);
@@ -393,9 +393,9 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 			    le16_to_cpu(uap_rx_pd->rx_pkt_length));
 		priv->stats.rx_dropped++;
 
-		node = mwifiex_get_sta_entry(priv, ta);
-		if (node)
-			node->stats.tx_failed++;
+		yesde = mwifiex_get_sta_entry(priv, ta);
+		if (yesde)
+			yesde->stats.tx_failed++;
 
 		dev_kfree_skb_any(skb);
 		return 0;
@@ -412,9 +412,9 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 
 	if (rx_pkt_type != PKT_TYPE_BAR && uap_rx_pd->priority < MAX_NUM_TID) {
 		spin_lock_bh(&priv->sta_list_spinlock);
-		node = mwifiex_get_sta_entry(priv, ta);
-		if (node)
-			node->rx_seq[uap_rx_pd->priority] =
+		yesde = mwifiex_get_sta_entry(priv, ta);
+		if (yesde)
+			yesde->rx_seq[uap_rx_pd->priority] =
 						le16_to_cpu(uap_rx_pd->seq_num);
 		spin_unlock_bh(&priv->sta_list_spinlock);
 	}

@@ -280,7 +280,7 @@ static int cx22702_set_tps(struct dvb_frontend *fe)
 	}
 	cx22702_writereg(state, 0x0C, val);
 
-	p->code_rate_LP = FEC_AUTO; /* temp hack as manual not working */
+	p->code_rate_LP = FEC_AUTO; /* temp hack as manual yest working */
 
 	/* use auto configuration? */
 	if ((p->hierarchy == HIERARCHY_AUTO) ||
@@ -496,7 +496,7 @@ static int cx22702_read_signal_strength(struct dvb_frontend *fe,
 	 * Experience suggests that the strength signal register works as
 	 * follows:
 	 * - In the absence of signal, value is 0xff.
-	 * - In the presence of a weak signal, bit 7 is set, not sure what
+	 * - In the presence of a weak signal, bit 7 is set, yest sure what
 	 *   the lower 7 bits mean.
 	 * - In the presence of a strong signal, the register holds a 7-bit
 	 *   value (bit 7 is cleared), with greater values standing for

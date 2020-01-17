@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -157,7 +157,7 @@ struct cgs_device
 };
 
 /* Convenience macros that make CGS indirect function calls look like
- * normal function calls */
+ * yesrmal function calls */
 #define CGS_CALL(func,dev,...) \
 	(((struct cgs_device *)dev)->ops->func(dev, ##__VA_ARGS__))
 #define CGS_OS_CALL(func,dev,...) \

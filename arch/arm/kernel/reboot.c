@@ -25,7 +25,7 @@ EXPORT_SYMBOL(pm_power_off);
 /*
  * A temporary stack to use for CPU reset. This is static so that we
  * don't clobber it with the identity mapping. When running with this
- * stack, any references to the current task *will not work* so you
+ * stack, any references to the current task *will yest work* so you
  * should really do as little as possible before jumping to your reset
  * code.
  */
@@ -85,14 +85,14 @@ void soft_restart(unsigned long addr)
  * Called by kexec, immediately prior to machine_kexec().
  *
  * This must completely disable all secondary CPUs; simply causing those CPUs
- * to execute e.g. a RAM-based pin loop is not sufficient. This allows the
+ * to execute e.g. a RAM-based pin loop is yest sufficient. This allows the
  * kexec'd kernel to use any and all RAM as it sees fit, without having to
  * avoid any code or data used by any SW CPU pin loop. The CPU hotplug
- * functionality embodied in disable_nonboot_cpus() to achieve this.
+ * functionality embodied in disable_yesnboot_cpus() to achieve this.
  */
 void machine_shutdown(void)
 {
-	disable_nonboot_cpus();
+	disable_yesnboot_cpus();
 }
 
 /*

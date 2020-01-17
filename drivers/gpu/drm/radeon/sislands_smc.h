@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -239,7 +239,7 @@ typedef struct SISLANDS_SMC_STATETABLE SISLANDS_SMC_STATETABLE;
 #define SI_SMC_SOFT_REGISTER_crtc_index               0xC4
 #define SI_SMC_SOFT_REGISTER_mclk_change_block_cp_min 0xC8
 #define SI_SMC_SOFT_REGISTER_mclk_change_block_cp_max 0xCC
-#define SI_SMC_SOFT_REGISTER_non_ulv_pcie_link_width  0xF4
+#define SI_SMC_SOFT_REGISTER_yesn_ulv_pcie_link_width  0xF4
 #define SI_SMC_SOFT_REGISTER_tdr_is_about_to_happen   0xFC
 #define SI_SMC_SOFT_REGISTER_vr_hot_gpio              0x100
 #define SI_SMC_SOFT_REGISTER_svi_rework_plat_type     0x118

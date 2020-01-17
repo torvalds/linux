@@ -58,7 +58,7 @@ static int ebook_send_state(struct acpi_device *device)
 	return 0;
 }
 
-static void ebook_switch_notify(struct acpi_device *device, u32 event)
+static void ebook_switch_yestify(struct acpi_device *device, u32 event)
 {
 	switch (event) {
 	case ACPI_FIXED_HARDWARE_EVENT:
@@ -161,7 +161,7 @@ static struct acpi_driver xo15_ebook_driver = {
 	.ops = {
 		.add = ebook_switch_add,
 		.remove = ebook_switch_remove,
-		.notify = ebook_switch_notify,
+		.yestify = ebook_switch_yestify,
 	},
 	.drv.pm = &ebook_switch_pm,
 };

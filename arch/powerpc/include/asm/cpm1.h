@@ -6,7 +6,7 @@
  * This file contains structures and information for the communication
  * processor channels.  Some CPM control and status is available
  * through the MPC8xx internal memory map.  See immap.h for details.
- * This file only contains what I need for the moment, not the total
+ * This file only contains what I need for the moment, yest the total
  * CPM capabilities.  I (or someone else) will add definitions as they
  * are needed.  -- Dan
  *
@@ -71,7 +71,7 @@ extern void cpm_reset(void);
 #define PROFF_SCC4	((uint)0x0300)
 #define PROFF_SMC2	((uint)0x0380)
 
-/* Define enough so I can at least use the serial port as a UART.
+/* Define eyesugh so I can at least use the serial port as a UART.
  * The MBX uses SMC1 as the host serial port.
  */
 typedef struct smc_uart {
@@ -399,7 +399,7 @@ typedef struct scc_uart {
 	ushort	scc_brkcr;	/* Break count register */
 	ushort	scc_parec;	/* receive parity error counter */
 	ushort	scc_frmec;	/* receive framing error counter */
-	ushort	scc_nosec;	/* receive noise counter */
+	ushort	scc_yessec;	/* receive yesise counter */
 	ushort	scc_brkec;	/* receive break condition counter */
 	ushort	scc_brkln;	/* last received break length */
 	ushort	scc_uaddr1;	/* UART address character 1 */
@@ -485,7 +485,7 @@ typedef struct iic {
  */
 #define RCCR_TIME	0x8000			/* RISC Timer Enable */
 #define RCCR_TIMEP(t)	(((t) & 0x3F)<<8)	/* RISC Timer Period */
-#define RCCR_TIME_MASK	0x00FF			/* not RISC Timer related bits */
+#define RCCR_TIME_MASK	0x00FF			/* yest RISC Timer related bits */
 
 /* RISC Timer Parameter RAM offset */
 #define PROFF_RTMR	((uint)0x01B0)
@@ -510,7 +510,7 @@ typedef struct risc_timer_pram {
  * channels or devices.  All of these are presented to the PPC core
  * as a single interrupt.  The CPM interrupt handler dispatches its
  * own handlers, in a similar fashion to the PPC core handler.  We
- * use the table as defined in the manuals (i.e. no special high
+ * use the table as defined in the manuals (i.e. yes special high
  * priority and SCC1 == SCCa, etc...).
  */
 #define CPMVEC_NR		32

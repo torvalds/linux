@@ -7,7 +7,7 @@
  * the Free Software Foundation.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -145,7 +145,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	rcu_read_unlock();
 
 	tx_avail = bnxt_tx_avail(bp, txr);
-	/* If the tx ring is not full, we must not update the rx producer yet
+	/* If the tx ring is yest full, we must yest update the rx producer yet
 	 * because we may still be transmitting on some BDs.
 	 */
 	if (tx_avail != bp->tx_ring_size)
@@ -175,7 +175,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 		bnxt_reuse_rx_data(rxr, cons, page);
 		return true;
 	case XDP_REDIRECT:
-		/* if we are calling this here then we know that the
+		/* if we are calling this here then we kyesw that the
 		 * redirect is coming from a frame received by the
 		 * bnxt_en driver.
 		 */
@@ -286,7 +286,7 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	rc = bnxt_check_rings(bp, bp->tx_nr_rings_per_tc, bp->rx_nr_rings,
 			      true, tc, tx_xdp);
 	if (rc) {
-		netdev_warn(dev, "Unable to reserve enough TX rings to support XDP.\n");
+		netdev_warn(dev, "Unable to reserve eyesugh TX rings to support XDP.\n");
 		return rc;
 	}
 	if (netif_running(dev))

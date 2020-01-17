@@ -15,7 +15,7 @@
 #define SQUASHFS_MINOR			0
 #define SQUASHFS_START			0
 
-/* size of metadata (inode and directory) blocks */
+/* size of metadata (iyesde and directory) blocks */
 #define SQUASHFS_METADATA_SIZE		8192
 
 /* default size of block device I/O */
@@ -28,7 +28,7 @@
 #define SQUASHFS_FILE_MAX_SIZE		1048576
 #define SQUASHFS_FILE_MAX_LOG		20
 
-/* Max length of filename (not 255) */
+/* Max length of filename (yest 255) */
 #define SQUASHFS_NAME_LEN		256
 
 /* Max value for directory header count*/
@@ -74,7 +74,7 @@
 #define SQUASHFS_COMP_OPTS(flags)		SQUASHFS_BIT(flags, \
 						SQUASHFS_COMP_OPT)
 
-/* Inode types including extended types */
+/* Iyesde types including extended types */
 #define SQUASHFS_DIR_TYPE		1
 #define SQUASHFS_REG_TYPE		2
 #define SQUASHFS_SYMLINK_TYPE		3
@@ -123,7 +123,7 @@ static inline int squashfs_block_size(__le32 raw)
 }
 
 /*
- * Inode number ops.  Inodes consist of a compressed block number, and an
+ * Iyesde number ops.  Iyesdes consist of a compressed block number, and an
  * uncompressed offset within that block
  */
 #define SQUASHFS_INODE_BLK(A)		((unsigned int) ((A) >> 16))
@@ -150,7 +150,7 @@ static inline int squashfs_block_size(__le32 raw)
 #define SQUASHFS_FRAGMENT_INDEX_BYTES(A)	(SQUASHFS_FRAGMENT_INDEXES(A) *\
 						sizeof(u64))
 
-/* inode lookup table defines */
+/* iyesde lookup table defines */
 #define SQUASHFS_LOOKUP_BYTES(A)	((A) * sizeof(u64))
 
 #define SQUASHFS_LOOKUP_BLOCK(A)	(SQUASHFS_LOOKUP_BYTES(A) / \
@@ -216,7 +216,7 @@ struct meta_entry {
 };
 
 struct meta_index {
-	unsigned int		inode_number;
+	unsigned int		iyesde_number;
 	unsigned int		offset;
 	unsigned short		entries;
 	unsigned short		skip;
@@ -238,21 +238,21 @@ struct meta_index {
 
 struct squashfs_super_block {
 	__le32			s_magic;
-	__le32			inodes;
+	__le32			iyesdes;
 	__le32			mkfs_time;
 	__le32			block_size;
 	__le32			fragments;
 	__le16			compression;
 	__le16			block_log;
 	__le16			flags;
-	__le16			no_ids;
+	__le16			yes_ids;
 	__le16			s_major;
-	__le16			s_minor;
-	__le64			root_inode;
+	__le16			s_miyesr;
+	__le64			root_iyesde;
 	__le64			bytes_used;
 	__le64			id_table_start;
 	__le64			xattr_id_table_start;
-	__le64			inode_table_start;
+	__le64			iyesde_table_start;
 	__le64			directory_table_start;
 	__le64			fragment_table_start;
 	__le64			lookup_table_start;
@@ -265,78 +265,78 @@ struct squashfs_dir_index {
 	unsigned char		name[0];
 };
 
-struct squashfs_base_inode {
-	__le16			inode_type;
+struct squashfs_base_iyesde {
+	__le16			iyesde_type;
 	__le16			mode;
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32			inode_number;
+	__le32			iyesde_number;
 };
 
-struct squashfs_ipc_inode {
-	__le16			inode_type;
+struct squashfs_ipc_iyesde {
+	__le16			iyesde_type;
 	__le16			mode;
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32			inode_number;
+	__le32			iyesde_number;
 	__le32			nlink;
 };
 
-struct squashfs_lipc_inode {
-	__le16			inode_type;
+struct squashfs_lipc_iyesde {
+	__le16			iyesde_type;
 	__le16			mode;
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32			inode_number;
+	__le32			iyesde_number;
 	__le32			nlink;
 	__le32			xattr;
 };
 
-struct squashfs_dev_inode {
-	__le16			inode_type;
+struct squashfs_dev_iyesde {
+	__le16			iyesde_type;
 	__le16			mode;
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32			inode_number;
+	__le32			iyesde_number;
 	__le32			nlink;
 	__le32			rdev;
 };
 
-struct squashfs_ldev_inode {
-	__le16			inode_type;
+struct squashfs_ldev_iyesde {
+	__le16			iyesde_type;
 	__le16			mode;
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32			inode_number;
+	__le32			iyesde_number;
 	__le32			nlink;
 	__le32			rdev;
 	__le32			xattr;
 };
 
-struct squashfs_symlink_inode {
-	__le16			inode_type;
+struct squashfs_symlink_iyesde {
+	__le16			iyesde_type;
 	__le16			mode;
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32			inode_number;
+	__le32			iyesde_number;
 	__le32			nlink;
 	__le32			symlink_size;
 	char			symlink[0];
 };
 
-struct squashfs_reg_inode {
-	__le16			inode_type;
+struct squashfs_reg_iyesde {
+	__le16			iyesde_type;
 	__le16			mode;
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32			inode_number;
+	__le32			iyesde_number;
 	__le32			start_block;
 	__le32			fragment;
 	__le32			offset;
@@ -344,13 +344,13 @@ struct squashfs_reg_inode {
 	__le16			block_list[0];
 };
 
-struct squashfs_lreg_inode {
-	__le16			inode_type;
+struct squashfs_lreg_iyesde {
+	__le16			iyesde_type;
 	__le16			mode;
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32			inode_number;
+	__le32			iyesde_number;
 	__le64			start_block;
 	__le64			file_size;
 	__le64			sparse;
@@ -361,53 +361,53 @@ struct squashfs_lreg_inode {
 	__le16			block_list[0];
 };
 
-struct squashfs_dir_inode {
-	__le16			inode_type;
+struct squashfs_dir_iyesde {
+	__le16			iyesde_type;
 	__le16			mode;
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32			inode_number;
+	__le32			iyesde_number;
 	__le32			start_block;
 	__le32			nlink;
 	__le16			file_size;
 	__le16			offset;
-	__le32			parent_inode;
+	__le32			parent_iyesde;
 };
 
-struct squashfs_ldir_inode {
-	__le16			inode_type;
+struct squashfs_ldir_iyesde {
+	__le16			iyesde_type;
 	__le16			mode;
 	__le16			uid;
 	__le16			guid;
 	__le32			mtime;
-	__le32			inode_number;
+	__le32			iyesde_number;
 	__le32			nlink;
 	__le32			file_size;
 	__le32			start_block;
-	__le32			parent_inode;
+	__le32			parent_iyesde;
 	__le16			i_count;
 	__le16			offset;
 	__le32			xattr;
 	struct squashfs_dir_index	index[0];
 };
 
-union squashfs_inode {
-	struct squashfs_base_inode		base;
-	struct squashfs_dev_inode		dev;
-	struct squashfs_ldev_inode		ldev;
-	struct squashfs_symlink_inode		symlink;
-	struct squashfs_reg_inode		reg;
-	struct squashfs_lreg_inode		lreg;
-	struct squashfs_dir_inode		dir;
-	struct squashfs_ldir_inode		ldir;
-	struct squashfs_ipc_inode		ipc;
-	struct squashfs_lipc_inode		lipc;
+union squashfs_iyesde {
+	struct squashfs_base_iyesde		base;
+	struct squashfs_dev_iyesde		dev;
+	struct squashfs_ldev_iyesde		ldev;
+	struct squashfs_symlink_iyesde		symlink;
+	struct squashfs_reg_iyesde		reg;
+	struct squashfs_lreg_iyesde		lreg;
+	struct squashfs_dir_iyesde		dir;
+	struct squashfs_ldir_iyesde		ldir;
+	struct squashfs_ipc_iyesde		ipc;
+	struct squashfs_lipc_iyesde		lipc;
 };
 
 struct squashfs_dir_entry {
 	__le16			offset;
-	__le16			inode_number;
+	__le16			iyesde_number;
 	__le16			type;
 	__le16			size;
 	char			name[0];
@@ -416,7 +416,7 @@ struct squashfs_dir_entry {
 struct squashfs_dir_header {
 	__le32			count;
 	__le32			start_block;
-	__le32			inode_number;
+	__le32			iyesde_number;
 };
 
 struct squashfs_fragment_entry {

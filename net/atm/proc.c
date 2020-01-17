@@ -17,7 +17,7 @@
 #include <linux/stat.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
 #include <linux/netdevice.h>
@@ -38,7 +38,7 @@ static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 
 static const struct file_operations proc_atm_dev_ops = {
 	.read =		proc_dev_atm_read,
-	.llseek =	noop_llseek,
+	.llseek =	yesop_llseek,
 };
 
 static void add_stats(struct seq_file *seq, const char *aal,
@@ -108,7 +108,7 @@ out:
 static inline void *vcc_walk(struct seq_file *seq, loff_t l)
 {
 	struct vcc_state *state = seq->private;
-	int family = (uintptr_t)(PDE_DATA(file_inode(seq->file)));
+	int family = (uintptr_t)(PDE_DATA(file_iyesde(seq->file)));
 
 	return __vcc_walk(&state->sk, family, &state->bucket, l) ?
 	       state : NULL;
@@ -162,7 +162,7 @@ static void pvc_info(struct seq_file *seq, struct atm_vcc *vcc)
 
 		dev = clip_vcc->entry ? clip_vcc->entry->neigh->dev : NULL;
 		seq_printf(seq, "CLIP, Itf:%s, Encap:",
-		    dev ? dev->name : "none?");
+		    dev ? dev->name : "yesne?");
 		seq_printf(seq, "%s", clip_vcc->encap ? "LLC/SNAP" : "None");
 	}
 	seq_putc(seq, '\n');
@@ -325,7 +325,7 @@ static ssize_t proc_dev_atm_read(struct file *file, char __user *buf,
 	page = get_zeroed_page(GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
-	dev = PDE_DATA(file_inode(file));
+	dev = PDE_DATA(file_iyesde(file));
 	if (!dev->ops->proc_read)
 		length = -EINVAL;
 	else {

@@ -19,9 +19,9 @@
  *
  * There are two different blink rates that can be programmed, each
  * with separate time for rise, on, fall, off and second-off.  Thus if
- * 3 or more different non-trivial rates are required, software must
+ * 3 or more different yesn-trivial rates are required, software must
  * be used for the extra rates. The two different blink rates must
- * align with the two levels BANK0 and BANK1.  This driver does not
+ * align with the two levels BANK0 and BANK1.  This driver does yest
  * support double-blink so 'second-off' always matches 'off'.
  *
  * Only 16 different times can be programmed in a roughly logarithmic
@@ -29,10 +29,10 @@
  *    0, 64, 128, 192, 256, 384, 512, 768,
  *    1024, 1536, 2048, 3072, 4096, 5760, 8128, 16320
  *
- * Times that cannot be closely matched with these must be handled in
+ * Times that canyest be closely matched with these must be handled in
  * software.  This driver allows 12.5% error in matching.
  *
- * This driver does not allow rise/fall rates to be set explicitly.
+ * This driver does yest allow rise/fall rates to be set explicitly.
  * When trying to match a given 'on' or 'off' period, an appropriate
  * pair of 'change' and 'hold' times are chosen to get a close match.
  * If the target delay is even, the 'change' number will be the
@@ -44,7 +44,7 @@
  * 26% of the achievable sums can be matched by multiple pairings.
  * For example 1536 == 1536+0, 1024+512, or 768+768.
  * This driver will always choose the pairing with the least
- * maximum - 768+768 in this case.  Other pairings are not available.
+ * maximum - 768+768 in this case.  Other pairings are yest available.
  *
  * Access to the 3 levels and 2 blinks are on a first-come,
  * first-served basis.  Access can be shared by multiple leds if they
@@ -52,12 +52,12 @@
  * blink.  When a led changes, it relinquishes access and tries again,
  * so it might lose access to hardware blink.
  *
- * If a blink engine cannot be allocated, software blink is used.  If
- * the desired brightness cannot be allocated, the closest available
- * non-zero brightness is used.  As 'full' is always available, the
+ * If a blink engine canyest be allocated, software blink is used.  If
+ * the desired brightness canyest be allocated, the closest available
+ * yesn-zero brightness is used.  As 'full' is always available, the
  * worst case would be to have two different blink rates at '1', with
  * Max at '2', then other leds will have to choose between '2' and
- * '16'.  Hopefully this is not likely.
+ * '16'.  Hopefully this is yest likely.
  *
  * Each bank (BANK0 and BANK1) has two usage counts - LEDs using the
  * brightness and LEDs using the blink.  It can only be reprogrammed
@@ -66,9 +66,9 @@
  *
  * Each LED has programmable 'on' and 'off' time as milliseconds.
  * With each there is a flag saying if it was explicitly requested or
- * defaulted.  Similarly the banks know if each time was explicit or a
+ * defaulted.  Similarly the banks kyesw if each time was explicit or a
  * default.  Defaults are permitted to be changed freely - they are
- * not recognised when matching.
+ * yest recognised when matching.
  *
  *
  * An led-tca6507 device must be provided with platform data or
@@ -100,7 +100,7 @@
 
 /* LED select registers determine the source that drives LED outputs */
 #define TCA6507_LS_LED_OFF	0x0	/* Output HI-Z (off) */
-#define TCA6507_LS_LED_OFF1	0x1	/* Output HI-Z (off) - not used */
+#define TCA6507_LS_LED_OFF1	0x1	/* Output HI-Z (off) - yest used */
 #define TCA6507_LS_LED_PWM0	0x2	/* Output LOW with Bank0 rate */
 #define TCA6507_LS_LED_PWM1	0x3	/* Output LOW with Bank1 rate */
 #define TCA6507_LS_LED_ON	0x4	/* Output LOW (on) */
@@ -206,10 +206,10 @@ static int choose_times(int msec, int *c1p, int *c2p)
 	 * Choose two timecodes which add to 'msec' as near as
 	 * possible.  The first returned is the 'on' or 'off' time.
 	 * The second is to be used as a 'fade-on' or 'fade-off' time.
-	 * If 'msec' is even, the first will not be smaller than the
-	 * second.  If 'msec' is odd, the first will not be larger
+	 * If 'msec' is even, the first will yest be smaller than the
+	 * second.  If 'msec' is odd, the first will yest be larger
 	 * than the second.
-	 * If we cannot get a sum within 1/8 of 'msec' fail with
+	 * If we canyest get a sum within 1/8 of 'msec' fail with
 	 * -EINVAL, otherwise return the sum that was achieved, plus 1
 	 * if the first is smaller.
 	 * If two possibilities are equally good (e.g. 512+0,
@@ -407,7 +407,7 @@ static int led_prepare(struct tca6507_led *led)
 	if (led->ontime == 0 || led->offtime == 0) {
 		/*
 		 * Just set the brightness, choosing first usable
-		 * bank.  If none perfect, choose best.  Count
+		 * bank.  If yesne perfect, choose best.  Count
 		 * backwards so we check MASTER bank first to avoid
 		 * wasting a timer.
 		 */
@@ -452,7 +452,7 @@ static int led_prepare(struct tca6507_led *led)
 	/*
 	 * We have on/off time so we need to try to allocate a timing
 	 * bank.  First check if times are compatible with hardware
-	 * and give up if not.
+	 * and give up if yest.
 	 */
 	if (choose_times(led->ontime, &c1, &c2) < 0)
 		return -EINVAL;
@@ -461,7 +461,7 @@ static int led_prepare(struct tca6507_led *led)
 
 	for (i = BANK0; i <= BANK1; i++) {
 		if (tca->bank[i].level_use == 0)
-			/* not in use - it is ours! */
+			/* yest in use - it is ours! */
 			break;
 		if (tca->bank[i].level != level)
 			/* Incompatible level - skip */
@@ -471,7 +471,7 @@ static int led_prepare(struct tca6507_led *led)
 			continue;
 
 		if (tca->bank[i].time_use == 0)
-			/* Timer not in use, and level matches - use it */
+			/* Timer yest in use, and level matches - use it */
 			break;
 
 		if (!(tca->bank[i].on_dflt ||
@@ -656,7 +656,7 @@ static int tca6507_probe_gpios(struct i2c_client *client,
 	tca->gpio.set = tca6507_gpio_set_value;
 	tca->gpio.parent = &client->dev;
 #ifdef CONFIG_OF_GPIO
-	tca->gpio.of_node = of_node_get(client->dev.of_node);
+	tca->gpio.of_yesde = of_yesde_get(client->dev.of_yesde);
 #endif
 	err = gpiochip_add_data(&tca->gpio, tca);
 	if (err) {
@@ -689,7 +689,7 @@ static void tca6507_remove_gpio(struct tca6507_chip *tca)
 static struct tca6507_platform_data *
 tca6507_led_dt_init(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node, *child;
+	struct device_yesde *np = client->dev.of_yesde, *child;
 	struct tca6507_platform_data *pdata;
 	struct led_info *tca_leds;
 	int count;
@@ -703,7 +703,7 @@ tca6507_led_dt_init(struct i2c_client *client)
 	if (!tca_leds)
 		return ERR_PTR(-ENOMEM);
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		struct led_info led;
 		u32 reg;
 		int ret;
@@ -802,7 +802,7 @@ static int tca6507_probe(struct i2c_client *client,
 	err = tca6507_probe_gpios(client, tca, pdata);
 	if (err)
 		goto exit;
-	/* set all registers to known state - zero */
+	/* set all registers to kyeswn state - zero */
 	tca->reg_set = 0x7f;
 	schedule_work(&tca->work);
 

@@ -398,7 +398,7 @@ static int ns2_drd_phy_probe(struct platform_device *pdev)
 	writel(val, driver->crmu_usb2_ctrl);
 
 	data = driver->data;
-	data->phy = devm_phy_create(dev, dev->of_node, &ops);
+	data->phy = devm_phy_create(dev, dev->of_yesde, &ops);
 	if (IS_ERR(data->phy)) {
 		dev_err(dev, "Failed to create usb drd phy\n");
 		return PTR_ERR(data->phy);

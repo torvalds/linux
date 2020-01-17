@@ -6,7 +6,7 @@
  * Copyright (C) 1996, 1997, 1998, 1999, 2000, 03, 04 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2007  Maciej W. Rozycki
- * Copyright (C) 2014, Imagination Technologies Ltd.
+ * Copyright (C) 2014, Imagination Techyeslogies Ltd.
  */
 #ifndef _ASM_UACCESS_H
 #define _ASM_UACCESS_H
@@ -18,7 +18,7 @@
 
 /*
  * The fs value determines whether argument validity checking should be
- * performed or not.  If get_fs() == USER_DS, checking is performed, with
+ * performed or yest.  If get_fs() == USER_DS, checking is performed, with
  * get_fs() == KERNEL_DS, checking is bypassed.
  *
  * For historical reasons, these macros are grossly misnamed.
@@ -54,11 +54,11 @@ extern u64 __ua_limit;
 #endif /* CONFIG_64BIT */
 
 /*
- * USER_DS is a bitmask that has the bits set that may not be set in a valid
+ * USER_DS is a bitmask that has the bits set that may yest be set in a valid
  * userspace address.  Note that we limit 32-bit userspace to 0x7fff8000 but
  * the arithmetic we're doing only works if the limit is a power of two, so
  * we use 0x80000000 here on 32-bit kernels.  If a process passes an invalid
- * address in this range it's the process's problem, not ours :-)
+ * address in this range it's the process's problem, yest ours :-)
  */
 
 #ifdef CONFIG_KVM_GUEST
@@ -101,7 +101,7 @@ static inline bool eva_kernel_access(void)
  *  - OR we are in kernel mode.
  *
  * __ua_size() is a trick to avoid runtime checking of positive constant
- * sizes; for those we already know at compile time that the size is ok.
+ * sizes; for those we already kyesw at compile time that the size is ok.
  */
 #define __ua_size(size)							\
 	((__builtin_constant_p(size) && (signed long) (size) > 0) ? 0 : (size))
@@ -116,7 +116,7 @@ static inline bool eva_kernel_access(void)
  *
  * Checks if a pointer to a block of memory in user space is valid.
  *
- * Returns true (nonzero) if the memory block may be valid, false (zero)
+ * Returns true (yesnzero) if the memory block may be valid, false (zero)
  * if it is definitely invalid.
  *
  * Note that, depending on architecture, this function probably just
@@ -142,7 +142,7 @@ static inline int __access_ok(const void __user *p, unsigned long size)
  *          enabled.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -162,7 +162,7 @@ static inline int __access_ok(const void __user *p, unsigned long size)
  *          enabled.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -183,7 +183,7 @@ static inline int __access_ok(const void __user *p, unsigned long size)
  *          enabled.
  *
  * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and @x must be assignable
@@ -195,7 +195,7 @@ static inline int __access_ok(const void __user *p, unsigned long size)
  * Returns zero on success, or -EFAULT on error.
  */
 #define __put_user(x,ptr) \
-	__put_user_nocheck((x), (ptr), sizeof(*(ptr)))
+	__put_user_yescheck((x), (ptr), sizeof(*(ptr)))
 
 /*
  * __get_user: - Get a simple variable from user space, with less checking.
@@ -206,7 +206,7 @@ static inline int __access_ok(const void __user *p, unsigned long size)
  *          enabled.
  *
  * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
+ * space.  It supports simple types like char and int, but yest larger
  * data types like structures or arrays.
  *
  * @ptr must have pointer-to-simple-variable type, and the result of
@@ -219,7 +219,7 @@ static inline int __access_ok(const void __user *p, unsigned long size)
  * On error, the variable @x is set to zero.
  */
 #define __get_user(x,ptr) \
-	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
+	__get_user_yescheck((x), (ptr), sizeof(*(ptr)))
 
 struct __large_struct { unsigned long buf[100]; };
 #define __m(x) (*(struct __large_struct __user *)(x))
@@ -232,7 +232,7 @@ struct __large_struct { unsigned long buf[100]; };
 #define __get_kernel_common(val, size, ptr) __get_user_common(val, size, ptr)
 #else
 /*
- * Kernel specific functions for EVA. We need to use normal load instructions
+ * Kernel specific functions for EVA. We need to use yesrmal load instructions
  * to read data from kernel when operating in EVA mode. We use these macros to
  * avoid redefining __get_user_asm for EVA.
  */
@@ -256,7 +256,7 @@ do {									\
 	case 2: __get_data_asm(val, _loadh, ptr); break;		\
 	case 4: __get_data_asm(val, _loadw, ptr); break;		\
 	case 8: __GET_DW(val, _loadd, ptr); break;			\
-	default: __get_user_unknown(); break;				\
+	default: __get_user_unkyeswn(); break;				\
 	}								\
 } while (0)
 #endif
@@ -268,7 +268,7 @@ do {									\
 #define __GET_DW(val, insn, ptr) __get_data_asm(val, insn, ptr)
 #endif
 
-extern void __get_user_unknown(void);
+extern void __get_user_unkyeswn(void);
 
 #define __get_user_common(val, size, ptr)				\
 do {									\
@@ -277,11 +277,11 @@ do {									\
 	case 2: __get_data_asm(val, user_lh, ptr); break;		\
 	case 4: __get_data_asm(val, user_lw, ptr); break;		\
 	case 8: __GET_DW(val, user_ld, ptr); break;			\
-	default: __get_user_unknown(); break;				\
+	default: __get_user_unkyeswn(); break;				\
 	}								\
 } while (0)
 
-#define __get_user_nocheck(x, ptr, size)				\
+#define __get_user_yescheck(x, ptr, size)				\
 ({									\
 	int __gu_err;							\
 									\
@@ -368,7 +368,7 @@ do {									\
 #define __put_kernel_common(ptr, size) __put_user_common(ptr, size)
 #else
 /*
- * Kernel specific functions for EVA. We need to use normal load instructions
+ * Kernel specific functions for EVA. We need to use yesrmal load instructions
  * to read data from kernel when operating in EVA mode. We use these macros to
  * avoid redefining __get_data_asm for EVA.
  */
@@ -393,7 +393,7 @@ do {									\
 	case 2: __put_data_asm(_storeh, ptr); break;			\
 	case 4: __put_data_asm(_storew, ptr); break;			\
 	case 8: __PUT_DW(_stored, ptr); break;				\
-	default: __put_user_unknown(); break;				\
+	default: __put_user_unkyeswn(); break;				\
 	}								\
 } while(0)
 #endif
@@ -416,11 +416,11 @@ do {									\
 	case 2: __put_data_asm(user_sh, ptr); break;			\
 	case 4: __put_data_asm(user_sw, ptr); break;			\
 	case 8: __PUT_DW(user_sd, ptr); break;				\
-	default: __put_user_unknown(); break;				\
+	default: __put_user_unkyeswn(); break;				\
 	}								\
 } while (0)
 
-#define __put_user_nocheck(x, ptr, size)				\
+#define __put_user_yescheck(x, ptr, size)				\
 ({									\
 	__typeof__(*(ptr)) __pu_val;					\
 	int __pu_err = 0;						\
@@ -490,7 +490,7 @@ do {									\
 	  "i" (-EFAULT));						\
 }
 
-extern void __put_user_unknown(void);
+extern void __put_user_unkyeswn(void);
 
 /*
  * We're generating jump to subroutines which will be outside the range of
@@ -498,7 +498,7 @@ extern void __put_user_unknown(void);
  */
 #ifdef MODULE
 #define __MODULE_JAL(destination)					\
-	".set\tnoat\n\t"						\
+	".set\tyesat\n\t"						\
 	__UA_LA "\t$1, " #destination "\n\t"				\
 	"jalr\t$1\n\t"							\
 	".set\tat\n\t"
@@ -526,9 +526,9 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 	__cu_from_r = (from);						\
 	__cu_len_r = (n);						\
 	__asm__ __volatile__(						\
-	".set\tnoreorder\n\t"						\
+	".set\tyesreorder\n\t"						\
 	__MODULE_JAL(func)						\
-	".set\tnoat\n\t"						\
+	".set\tyesat\n\t"						\
 	__UA_ADDU "\t$1, %1, %2\n\t"					\
 	".set\tat\n\t"							\
 	".set\treorder"							\
@@ -642,7 +642,7 @@ extern __kernel_size_t __bzero(void __user *addr, __kernel_size_t size);
  * Zero a block of memory in user space.  Caller must check
  * the specified block with access_ok() before calling this function.
  *
- * Returns number of bytes that could not be cleared.
+ * Returns number of bytes that could yest be cleared.
  * On success, this will be zero.
  */
 static inline __kernel_size_t
@@ -704,7 +704,7 @@ extern long __strncpy_from_user_asm(char *__to, const char __user *__from, long 
  *
  * Copies a NUL-terminated string from userspace to kernel space.
  *
- * On success, returns the length of the string (not including the trailing
+ * On success, returns the length of the string (yest including the trailing
  * NUL).
  *
  * If access to userspace fails, returns -EFAULT (some data may have been

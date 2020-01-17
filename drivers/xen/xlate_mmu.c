@@ -16,7 +16,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -131,7 +131,7 @@ static int remap_pte_fn(pte_t *ptep, unsigned long addr, void *data)
 
 	/*
 	 * Note: The hypercall will return 0 in most of the case if even if
-	 * all the fgmfn are not mapped. We still have to update the pte
+	 * all the fgmfn are yest mapped. We still have to update the pte
 	 * as the userspace may decide to continue.
 	 */
 	if (!rc)

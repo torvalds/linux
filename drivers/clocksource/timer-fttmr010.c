@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Faraday Technology FTTMR010 timer driver
+ * Faraday Techyeslogy FTTMR010 timer driver
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  *
  * Based on a rewrite of arch/arm/mach-gemini/timer.c:
@@ -71,7 +71,7 @@
 /*
  * Interrupt status/mask register definitions for fttmr010/gemini/moxart
  * timers.
- * The registers don't exist and they are not needed on aspeed timers
+ * The registers don't exist and they are yest needed on aspeed timers
  * because:
  *   - aspeed timer overflow interrupt is controlled by bits in Control
  *     Register (TMC30).
@@ -123,12 +123,12 @@ static unsigned long fttmr010_read_current_timer_down(void)
 	return ~readl(local_fttmr->base + TIMER2_COUNT);
 }
 
-static u64 notrace fttmr010_read_sched_clock_up(void)
+static u64 yestrace fttmr010_read_sched_clock_up(void)
 {
 	return fttmr010_read_current_timer_up();
 }
 
-static u64 notrace fttmr010_read_sched_clock_down(void)
+static u64 yestrace fttmr010_read_sched_clock_down(void)
 {
 	return fttmr010_read_current_timer_down();
 }
@@ -249,7 +249,7 @@ static irqreturn_t fttmr010_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init fttmr010_common_init(struct device_node *np, bool is_aspeed)
+static int __init fttmr010_common_init(struct device_yesde *np, bool is_aspeed)
 {
 	struct fttmr010 *fttmr010;
 	int irq;
@@ -260,11 +260,11 @@ static int __init fttmr010_common_init(struct device_node *np, bool is_aspeed)
 	/*
 	 * These implementations require a clock reference.
 	 * FIXME: we currently only support clocking using PCLK
-	 * and using EXTCLK is not supported in the driver.
+	 * and using EXTCLK is yest supported in the driver.
 	 */
 	clk = of_clk_get_by_name(np, "PCLK");
 	if (IS_ERR(clk)) {
-		pr_err("could not get PCLK\n");
+		pr_err("could yest get PCLK\n");
 		return PTR_ERR(clk);
 	}
 	ret = clk_prepare_enable(clk);
@@ -360,7 +360,7 @@ static int __init fttmr010_common_init(struct device_node *np, bool is_aspeed)
 	ret = request_irq(irq, fttmr010_timer_interrupt, IRQF_TIMER,
 			  "FTTMR010-TIMER1", &fttmr010->clkevt);
 	if (ret) {
-		pr_err("FTTMR010-TIMER1 no IRQ\n");
+		pr_err("FTTMR010-TIMER1 yes IRQ\n");
 		goto out_unmap;
 	}
 
@@ -404,12 +404,12 @@ out_disable_clock:
 	return ret;
 }
 
-static __init int aspeed_timer_init(struct device_node *np)
+static __init int aspeed_timer_init(struct device_yesde *np)
 {
 	return fttmr010_common_init(np, true);
 }
 
-static __init int fttmr010_timer_init(struct device_node *np)
+static __init int fttmr010_timer_init(struct device_yesde *np)
 {
 	return fttmr010_common_init(np, false);
 }

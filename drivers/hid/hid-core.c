@@ -46,9 +46,9 @@ module_param_named(debug, hid_debug, int, 0600);
 MODULE_PARM_DESC(debug, "toggle HID debugging messages");
 EXPORT_SYMBOL_GPL(hid_debug);
 
-static int hid_ignore_special_drivers = 0;
-module_param_named(ignore_special_drivers, hid_ignore_special_drivers, int, 0600);
-MODULE_PARM_DESC(ignore_special_drivers, "Ignore any special drivers and handle all devices by generic driver");
+static int hid_igyesre_special_drivers = 0;
+module_param_named(igyesre_special_drivers, hid_igyesre_special_drivers, int, 0600);
+MODULE_PARM_DESC(igyesre_special_drivers, "Igyesre any special drivers and handle all devices by generic driver");
 
 /*
  * Register a new report for a device.
@@ -208,7 +208,7 @@ static unsigned hid_lookup_collection(struct hid_parser *parser, unsigned type)
 		if (collection[index].type == type)
 			return collection[index].usage;
 	}
-	return 0; /* we know nothing about this usage type */
+	return 0; /* we kyesw yesthing about this usage type */
 }
 
 /*
@@ -294,7 +294,7 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 		return -1;
 	}
 
-	if (!parser->local.usage_index) /* Ignore padding fields */
+	if (!parser->local.usage_index) /* Igyesre padding fields */
 		return 0;
 
 	usages = max_t(unsigned, parser->local.usage_index,
@@ -461,7 +461,7 @@ static int hid_parser_global(struct hid_parser *parser, struct hid_item *item)
 		return 0;
 
 	default:
-		hid_err(parser->device, "unknown global tag 0x%x\n", item->tag);
+		hid_err(parser->device, "unkyeswn global tag 0x%x\n", item->tag);
 		return -1;
 	}
 }
@@ -506,7 +506,7 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 	case HID_LOCAL_ITEM_TAG_USAGE:
 
 		if (parser->local.delimiter_branch > 1) {
-			dbg_hid("alternative usage ignored\n");
+			dbg_hid("alternative usage igyesred\n");
 			return 0;
 		}
 
@@ -515,7 +515,7 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 	case HID_LOCAL_ITEM_TAG_USAGE_MINIMUM:
 
 		if (parser->local.delimiter_branch > 1) {
-			dbg_hid("alternative usage ignored\n");
+			dbg_hid("alternative usage igyesred\n");
 			return 0;
 		}
 
@@ -525,24 +525,24 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 	case HID_LOCAL_ITEM_TAG_USAGE_MAXIMUM:
 
 		if (parser->local.delimiter_branch > 1) {
-			dbg_hid("alternative usage ignored\n");
+			dbg_hid("alternative usage igyesred\n");
 			return 0;
 		}
 
 		count = data - parser->local.usage_minimum;
 		if (count + parser->local.usage_index >= HID_MAX_USAGES) {
 			/*
-			 * We do not warn if the name is not set, we are
+			 * We do yest warn if the name is yest set, we are
 			 * actually pre-scanning the device.
 			 */
 			if (dev_name(&parser->device->dev))
 				hid_warn(parser->device,
-					 "ignoring exceeding usage max\n");
+					 "igyesring exceeding usage max\n");
 			data = HID_MAX_USAGES - parser->local.usage_index +
 				parser->local.usage_minimum - 1;
 			if (data <= 0) {
 				hid_err(parser->device,
-					"no more usage index available\n");
+					"yes more usage index available\n");
 				return -1;
 			}
 		}
@@ -556,7 +556,7 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 
 	default:
 
-		dbg_hid("unknown local item tag 0x%x\n", item->tag);
+		dbg_hid("unkyeswn local item tag 0x%x\n", item->tag);
 		return 0;
 	}
 	return 0;
@@ -582,11 +582,11 @@ static void hid_concatenate_last_usage_page(struct hid_parser *parser)
 
 	/*
 	 * Concatenate usage page again only if last declared Usage Page
-	 * has not been already used in previous usages concatenation
+	 * has yest been already used in previous usages concatenation
 	 */
 	for (i = parser->local.usage_index - 1; i >= 0; i--) {
 		if (parser->local.usage_size[i] > 2)
-			/* Ignore extended usages */
+			/* Igyesre extended usages */
 			continue;
 
 		current_page = parser->local.usage[i] >> 16;
@@ -627,7 +627,7 @@ static int hid_parser_main(struct hid_parser *parser, struct hid_item *item)
 		ret = hid_add_field(parser, HID_FEATURE_REPORT, data);
 		break;
 	default:
-		hid_warn(parser->device, "unknown main item tag 0x%x\n", item->tag);
+		hid_warn(parser->device, "unkyeswn main item tag 0x%x\n", item->tag);
 		ret = 0;
 	}
 
@@ -709,7 +709,7 @@ static void hid_device_release(struct device *dev)
 
 /*
  * Fetch a report description item from the data stream. We support long
- * items, though they are not used yet.
+ * items, though they are yest used yet.
  */
 
 static u8 *fetch_item(__u8 *start, __u8 *end, struct hid_item *item)
@@ -832,7 +832,7 @@ static int hid_scan_main(struct hid_parser *parser, struct hid_item *item)
 	case HID_MAIN_ITEM_TAG_END_COLLECTION:
 		break;
 	case HID_MAIN_ITEM_TAG_INPUT:
-		/* ignore constant inputs, they will be ignored by hid-input */
+		/* igyesre constant inputs, they will be igyesred by hid-input */
 		if (data & HID_MAIN_ITEM_CONSTANT)
 			break;
 		for (i = 0; i < parser->local.usage_index; i++)
@@ -906,7 +906,7 @@ static int hid_scan_report(struct hid_device *hid)
 			    && (parser->scan_flags & HID_SCAN_FLAG_GD_POINTER))
 				/*
 				 * hid-rmi should take care of them,
-				 * not hid-generic
+				 * yest hid-generic
 				 */
 				hid->group = HID_GROUP_RMI;
 		break;
@@ -972,8 +972,8 @@ struct hid_report *hid_validate_values(struct hid_device *hid,
 	}
 
 	/*
-	 * Explicitly not using hid_get_report() here since it depends on
-	 * ->numbered being checked, which may not always be the case when
+	 * Explicitly yest using hid_get_report() here since it depends on
+	 * ->numbered being checked, which may yest always be the case when
 	 * drivers go to access report values.
 	 */
 	if (id == 0) {
@@ -992,12 +992,12 @@ struct hid_report *hid_validate_values(struct hid_device *hid,
 		return NULL;
 	}
 	if (report->maxfield <= field_index) {
-		hid_err(hid, "not enough fields in %s %u\n",
+		hid_err(hid, "yest eyesugh fields in %s %u\n",
 			hid_report_names[type], id);
 		return NULL;
 	}
 	if (report->field[field_index]->report_count < report_counts) {
-		hid_err(hid, "not enough values in %s %u field %u\n",
+		hid_err(hid, "yest eyesugh values in %s %u field %u\n",
 			hid_report_names[type], id, field_index);
 		return NULL;
 	}
@@ -1018,7 +1018,7 @@ static int hid_calculate_multiplier(struct hid_device *hid,
 	/*
 	 * "Because OS implementations will generally divide the control's
 	 * reported count by the Effective Resolution Multiplier, designers
-	 * should take care not to establish a potential Effective
+	 * should take care yest to establish a potential Effective
 	 * Resolution Multiplier of zero."
 	 * HID Usage Table, v1.12, Section 4.3.1, p31
 	 */
@@ -1026,7 +1026,7 @@ static int hid_calculate_multiplier(struct hid_device *hid,
 		return 1;
 	/*
 	 * Handling the unit exponent is left as an exercise to whoever
-	 * finds a device where that exponent is not 0.
+	 * finds a device where that exponent is yest 0.
 	 */
 	m = ((v - lmin)/(lmax - lmin) * (pmax - pmin) + pmin);
 	if (unlikely(multiplier->unit_exponent != 0)) {
@@ -1035,7 +1035,7 @@ static int hid_calculate_multiplier(struct hid_device *hid,
 			 multiplier->unit_exponent);
 	}
 
-	/* There are no devices with an effective multiplier > 255 */
+	/* There are yes devices with an effective multiplier > 255 */
 	if (unlikely(m == 0 || m > 255 || m < -255)) {
 		hid_warn(hid, "unsupported Resolution Multiplier %d\n", m);
 		m = 1;
@@ -1087,10 +1087,10 @@ static void hid_apply_multiplier(struct hid_device *hid,
 	/*
 	 * "The Resolution Multiplier control must be contained in the same
 	 * Logical Collection as the control(s) to which it is to be applied.
-	 * If no Resolution Multiplier is defined, then the Resolution
+	 * If yes Resolution Multiplier is defined, then the Resolution
 	 * Multiplier defaults to 1.  If more than one control exists in a
 	 * Logical Collection, the Resolution Multiplier is associated with
-	 * all controls in the collection. If no Logical Collection is
+	 * all controls in the collection. If yes Logical Collection is
 	 * defined, the Resolution Multiplier is associated with all
 	 * controls in the report."
 	 * HID Usage Table, v1.12, Section 4.3.1, p30
@@ -1153,7 +1153,7 @@ void hid_setup_resolution_multiplier(struct hid_device *hid)
 	rep_enum = &hid->report_enum[HID_FEATURE_REPORT];
 	list_for_each_entry(rep, &rep_enum->report_list, list) {
 		for (i = 0; i < rep->maxfield; i++) {
-			/* Ignore if report count is out of bounds. */
+			/* Igyesre if report count is out of bounds. */
 			if (rep->field[i]->report_count < 1)
 				continue;
 
@@ -1175,7 +1175,7 @@ EXPORT_SYMBOL_GPL(hid_setup_resolution_multiplier);
  *
  * Parse a report description into a hid_device structure. Reports are
  * enumerated, fields are attached to these reports.
- * 0 returned on success, otherwise nonzero error value.
+ * 0 returned on success, otherwise yesnzero error value.
  *
  * This function (or the equivalent hid_parse() macro) should only be
  * called from probe() in drivers, before starting the device.
@@ -1542,7 +1542,7 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 			       size), size) :
 			hid_field_extract(hid, data, offset + n * size, size);
 
-		/* Ignore report if ErrorRollOver */
+		/* Igyesre report if ErrorRollOver */
 		if (!(field->flags & HID_MAIN_ITEM_VARIABLE) &&
 		    value[n] >= min && value[n] <= max &&
 		    value[n] - min < field->maxusage &&
@@ -1940,10 +1940,10 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 	if (connect_mask & HID_CONNECT_DRIVER)
 		hdev->claimed |= HID_CLAIMED_DRIVER;
 
-	/* Drivers with the ->raw_event callback set are not required to connect
+	/* Drivers with the ->raw_event callback set are yest required to connect
 	 * to any other listener. */
 	if (!hdev->claimed && !hdev->driver->raw_event) {
-		hid_err(hdev, "device has no listeners, quitting\n");
+		hid_err(hdev, "device has yes listeners, quitting\n");
 		return -ENODEV;
 	}
 
@@ -1956,10 +1956,10 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 		len += sprintf(buf + len, "input");
 	if (hdev->claimed & HID_CLAIMED_HIDDEV)
 		len += sprintf(buf + len, "%shiddev%d", len ? "," : "",
-				((struct hiddev *)hdev->hiddev)->minor);
+				((struct hiddev *)hdev->hiddev)->miyesr);
 	if (hdev->claimed & HID_CLAIMED_HIDRAW)
 		len += sprintf(buf + len, "%shidraw%d", len ? "," : "",
-				((struct hidraw *)hdev->hidraw)->minor);
+				((struct hidraw *)hdev->hidraw)->miyesr);
 
 	type = "Device";
 	for (i = 0; i < hdev->maxcollection; i++) {
@@ -2018,7 +2018,7 @@ EXPORT_SYMBOL_GPL(hid_disconnect);
  * @connect_mask: which outputs to connect, see HID_CONNECT_*
  *
  * Call this in probe function *after* hid_parse. This will setup HW
- * buffers and start the device (if not defeirred to device open).
+ * buffers and start the device (if yest defeirred to device open).
  * hid_hw_stop must be called if this was successful.
  */
 int hid_hw_start(struct hid_device *hdev, unsigned int connect_mask)
@@ -2087,8 +2087,8 @@ EXPORT_SYMBOL_GPL(hid_hw_open);
  *
  * @hdev: hid device
  *
- * This function indicates that we are not interested in the events
- * from this device anymore. Delivery of events may or may not stop,
+ * This function indicates that we are yest interested in the events
+ * from this device anymore. Delivery of events may or may yest stop,
  * depending on the number of users still outstanding.
  */
 void hid_hw_close(struct hid_device *hdev)
@@ -2238,17 +2238,17 @@ static int hid_device_probe(struct device *dev)
 		}
 
 		if (hdrv->match) {
-			if (!hdrv->match(hdev, hid_ignore_special_drivers)) {
+			if (!hdrv->match(hdev, hid_igyesre_special_drivers)) {
 				ret = -ENODEV;
 				goto unlock;
 			}
 		} else {
 			/*
 			 * hid-generic implements .match(), so if
-			 * hid_ignore_special_drivers is set, we can safely
+			 * hid_igyesre_special_drivers is set, we can safely
 			 * return.
 			 */
-			if (hid_ignore_special_drivers) {
+			if (hid_igyesre_special_drivers) {
 				ret = -ENODEV;
 				goto unlock;
 			}
@@ -2375,7 +2375,7 @@ int hid_add_device(struct hid_device *hdev)
 
 	/* we need to kill them here, otherwise they will stay allocated to
 	 * wait for coming driver */
-	if (hid_ignore(hdev))
+	if (hid_igyesre(hdev))
 		return -ENODEV;
 
 	/*
@@ -2399,7 +2399,7 @@ int hid_add_device(struct hid_device *hdev)
 	/*
 	 * Scan generic devices for group information
 	 */
-	if (hid_ignore_special_drivers) {
+	if (hid_igyesre_special_drivers) {
 		hdev->group = HID_GROUP_GENERIC;
 	} else if (!hdev->group &&
 		   !(hdev->quirks & HID_QUIRK_HAVE_SPECIAL_DRIVER)) {
@@ -2493,7 +2493,7 @@ static int __hid_bus_reprobe_drivers(struct device *dev, void *data)
 	struct hid_device *hdev = to_hid_device(dev);
 
 	if (hdev->driver == hdrv &&
-	    !hdrv->match(hdev, hid_ignore_special_drivers) &&
+	    !hdrv->match(hdev, hid_igyesre_special_drivers) &&
 	    !test_and_set_bit(ffs(HID_STAT_REPROBED), &hdev->status))
 		return device_reprobe(dev);
 
@@ -2573,8 +2573,8 @@ static int __init hid_init(void)
 	int ret;
 
 	if (hid_debug)
-		pr_warn("hid_debug is now used solely for parser and driver debugging.\n"
-			"debugfs is now used for inspecting the device (report descriptor, reports)\n");
+		pr_warn("hid_debug is yesw used solely for parser and driver debugging.\n"
+			"debugfs is yesw used for inspecting the device (report descriptor, reports)\n");
 
 	ret = bus_register(&hid_bus_type);
 	if (ret) {

@@ -104,12 +104,12 @@ int cpu_fpu_mask = DEC_CPU_IRQ_MASK(DEC_CPU_INR_FPU);
 int *fpu_kstat_irq;
 
 static struct irqaction ioirq = {
-	.handler = no_action,
+	.handler = yes_action,
 	.name = "cascade",
 	.flags = IRQF_NO_THREAD,
 };
 static struct irqaction fpuirq = {
-	.handler = no_action,
+	.handler = yes_action,
 	.name = "fpu",
 	.flags = IRQF_NO_THREAD,
 };
@@ -738,18 +738,18 @@ void __init arch_init_irq(void)
 		dec_init_kn02ca();
 		break;
 	case MACH_DS5800:	/* DS5800 Isis */
-		panic("Don't know how to set this up!");
+		panic("Don't kyesw how to set this up!");
 		break;
 	case MACH_DS5400:	/* DS5400 MIPSfair */
-		panic("Don't know how to set this up!");
+		panic("Don't kyesw how to set this up!");
 		break;
 	case MACH_DS5500:	/* DS5500 MIPSfair-2 */
-		panic("Don't know how to set this up!");
+		panic("Don't kyesw how to set this up!");
 		break;
 	}
 
 	/* Free the FPU interrupt if the exception is present. */
-	if (!cpu_has_nofpuex) {
+	if (!cpu_has_yesfpuex) {
 		cpu_fpu_mask = 0;
 		dec_interrupt[DEC_IRQ_FPU] = -1;
 	}

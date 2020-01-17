@@ -303,7 +303,7 @@
 		((address) & ~((pagesize) - 1))
 /*
  * Creates an IOMMU PTE for an address and a given pagesize
- * The PTE has no permission bits set
+ * The PTE has yes permission bits set
  * Pagesize is expected to be a power-of-two larger than 4096
  */
 #define PAGE_SIZE_PTE(address, pagesize)		\
@@ -390,7 +390,7 @@
 #define PD_DMA_OPS_MASK		(1UL << 0) /* domain used for dma_ops */
 #define PD_DEFAULT_MASK		(1UL << 1) /* domain is a default dma_ops
 					      domain for an IOMMU */
-#define PD_PASSTHROUGH_MASK	(1UL << 2) /* domain has no page
+#define PD_PASSTHROUGH_MASK	(1UL << 2) /* domain has yes page
 					      translation */
 #define PD_IOMMUV2_MASK		(1UL << 3) /* domain has gcr3 table */
 
@@ -401,7 +401,7 @@ extern bool amd_iommu_dump;
 			printk(KERN_INFO "AMD-Vi: " format, ## arg);	\
 	} while(0);
 
-/* global flag if IOMMUs cache non-present entries */
+/* global flag if IOMMUs cache yesn-present entries */
 extern bool amd_iommu_np_cache;
 /* Only true if all IOMMUs support device IOTLBs */
 extern bool amd_iommu_iotlb_sup;
@@ -597,8 +597,8 @@ struct amd_iommu {
 	/* DebugFS Info */
 	struct dentry *debugfs;
 #endif
-	/* IRQ notifier for IntCapXT interrupt */
-	struct irq_affinity_notify intcapxt_notify;
+	/* IRQ yestifier for IntCapXT interrupt */
+	struct irq_affinity_yestify intcapxt_yestify;
 };
 
 static inline struct amd_iommu *dev_to_amd_iommu(struct device *dev)
@@ -636,7 +636,7 @@ struct iommu_dev_data {
 	spinlock_t lock;
 
 	struct list_head list;		  /* For domain->dev_list */
-	struct llist_node dev_data_list;  /* For global dev_data_list */
+	struct llist_yesde dev_data_list;  /* For global dev_data_list */
 	struct protection_domain *domain; /* Domain the device is bound to */
 	struct pci_dev *pdev;
 	u16 devid;			  /* PCI Device ID */
@@ -661,7 +661,7 @@ extern struct list_head hpet_map;
 extern struct list_head acpihid_map;
 
 /*
- * List with all IOMMUs in the system. This list is not locked because it is
+ * List with all IOMMUs in the system. This list is yest locked because it is
  * only written and read at driver initialization or suspend time
  */
 extern struct list_head amd_iommu_list;
@@ -700,7 +700,7 @@ struct unity_map_entry {
 };
 
 /*
- * List of all unity mappings. It is not locked because as runtime it is only
+ * List of all unity mappings. It is yest locked because as runtime it is only
  * read. It is created at ACPI table parsing time.
  */
 extern struct list_head amd_iommu_unity_map;
@@ -736,7 +736,7 @@ extern u16 amd_iommu_last_bdf;
 extern unsigned long *amd_iommu_pd_alloc_bitmap;
 
 /*
- * If true, the addresses will be flushed on unmap time, not when
+ * If true, the addresses will be flushed on unmap time, yest when
  * they are reused
  */
 extern bool amd_iommu_unmap_flush;
@@ -784,8 +784,8 @@ static inline int get_hpet_devid(int id)
 enum amd_iommu_intr_mode_type {
 	AMD_IOMMU_GUEST_IR_LEGACY,
 
-	/* This mode is not visible to users. It is used when
-	 * we cannot fully enable vAPIC and fallback to only support
+	/* This mode is yest visible to users. It is used when
+	 * we canyest fully enable vAPIC and fallback to only support
 	 * legacy interrupt remapping via 128-bit IRTE.
 	 */
 	AMD_IOMMU_GUEST_IR_LEGACY_GA,
@@ -801,7 +801,7 @@ union irte {
 	u32 val;
 	struct {
 		u32 valid	: 1,
-		    no_fault	: 1,
+		    yes_fault	: 1,
 		    int_type	: 3,
 		    rq_eoi	: 1,
 		    dm		: 1,
@@ -821,7 +821,7 @@ union irte_ga_lo {
 	/* For int remapping */
 	struct {
 		u64 valid	: 1,
-		    no_fault	: 1,
+		    yes_fault	: 1,
 		    /* ------ */
 		    int_type	: 3,
 		    rq_eoi	: 1,
@@ -835,7 +835,7 @@ union irte_ga_lo {
 	/* For guest vAPIC */
 	struct {
 		u64 valid	: 1,
-		    no_fault	: 1,
+		    yes_fault	: 1,
 		    /* ------ */
 		    ga_log_intr	: 1,
 		    rsvd1	: 3,

@@ -38,7 +38,7 @@ ath10k_usb_alloc_urb_from_pipe(struct ath10k_usb_pipe *pipe)
 	struct ath10k_urb_context *urb_context = NULL;
 	unsigned long flags;
 
-	/* bail if this pipe is not initialized */
+	/* bail if this pipe is yest initialized */
 	if (!pipe->ar_usb)
 		return NULL;
 
@@ -59,7 +59,7 @@ static void ath10k_usb_free_urb_to_pipe(struct ath10k_usb_pipe *pipe,
 {
 	unsigned long flags;
 
-	/* bail if this pipe is not initialized */
+	/* bail if this pipe is yest initialized */
 	if (!pipe->ar_usb)
 		return;
 
@@ -85,7 +85,7 @@ static void ath10k_usb_free_pipe_resources(struct ath10k *ar,
 	struct ath10k_urb_context *urb_context;
 
 	if (!pipe->ar_usb) {
-		/* nothing allocated for this pipe */
+		/* yesthing allocated for this pipe */
 		return;
 	}
 
@@ -141,7 +141,7 @@ static void ath10k_usb_recv_complete(struct urb *urb)
 		case -ECONNRESET:
 		case -ENOENT:
 		case -ESHUTDOWN:
-			/* no need to spew these errors when device
+			/* yes need to spew these errors when device
 			 * removed or urb killed due to driver shutdown
 			 */
 			status = -ECANCELED;
@@ -165,7 +165,7 @@ static void ath10k_usb_recv_complete(struct urb *urb)
 	urb_context->skb = NULL;
 	skb_put(skb, urb->actual_length);
 
-	/* note: queue implements a lock */
+	/* yeste: queue implements a lock */
 	skb_queue_tail(&pipe->io_comp_queue, skb);
 	schedule_work(&pipe->io_complete_work);
 
@@ -196,7 +196,7 @@ static void ath10k_usb_transmit_complete(struct urb *urb)
 	urb_context->skb = NULL;
 	ath10k_usb_free_urb_to_pipe(urb_context->pipe, urb_context);
 
-	/* note: queue implements a lock */
+	/* yeste: queue implements a lock */
 	skb_queue_tail(&pipe->io_comp_queue, skb);
 	schedule_work(&pipe->io_complete_work);
 }
@@ -285,8 +285,8 @@ static void ath10k_usb_tx_complete(struct ath10k *ar, struct sk_buff *skb)
 
 	htc_hdr = (struct ath10k_htc_hdr *)skb->data;
 	ep = &ar->htc.endpoint[htc_hdr->eid];
-	ath10k_htc_notify_tx_completion(ep, skb);
-	/* The TX complete handler now owns the skb... */
+	ath10k_htc_yestify_tx_completion(ep, skb);
+	/* The TX complete handler yesw owns the skb... */
 }
 
 static void ath10k_usb_rx_complete(struct ath10k *ar, struct sk_buff *skb)
@@ -304,7 +304,7 @@ static void ath10k_usb_rx_complete(struct ath10k *ar, struct sk_buff *skb)
 	ep = &ar->htc.endpoint[eid];
 
 	if (ep->service_id == 0) {
-		ath10k_warn(ar, "ep %d is not connected\n", eid);
+		ath10k_warn(ar, "ep %d is yest connected\n", eid);
 		goto out_free_skb;
 	}
 
@@ -335,7 +335,7 @@ static void ath10k_usb_rx_complete(struct ath10k *ar, struct sk_buff *skb)
 		if (is_trailer_only_msg(htc_hdr))
 			goto out_free_skb;
 
-		/* strip off the trailer from the skb since it should not
+		/* strip off the trailer from the skb since it should yest
 		 * be passed on to upper layers
 		 */
 		skb_trim(skb, skb->len - htc_hdr->trailer_len);
@@ -343,7 +343,7 @@ static void ath10k_usb_rx_complete(struct ath10k *ar, struct sk_buff *skb)
 
 	skb_pull(skb, sizeof(*htc_hdr));
 	ep->ep_ops.ep_rx_complete(ar, skb);
-	/* The RX complete handler now owns the skb... */
+	/* The RX complete handler yesw owns the skb... */
 
 	return;
 
@@ -485,7 +485,7 @@ static int ath10k_usb_submit_ctrl_out(struct ath10k *ar,
 			return -ENOMEM;
 	}
 
-	/* note: if successful returns number of bytes transferred */
+	/* yeste: if successful returns number of bytes transferred */
 	ret = usb_control_msg(ar_usb->udev,
 			      usb_sndctrlpipe(ar_usb->udev, 0),
 			      req,
@@ -519,7 +519,7 @@ static int ath10k_usb_submit_ctrl_in(struct ath10k *ar,
 			return -ENOMEM;
 	}
 
-	/* note: if successful returns number of bytes transferred */
+	/* yeste: if successful returns number of bytes transferred */
 	ret = usb_control_msg(ar_usb->udev,
 			      usb_rcvctrlpipe(ar_usb->udev, 0),
 			      req,
@@ -694,9 +694,9 @@ static int ath10k_usb_hif_map_service_to_pipe(struct ath10k *ar, u16 svc_id,
 }
 
 /* This op is currently only used by htc_wait_target if the HTC ready
- * message times out. It is not applicable for USB since there is nothing
- * we can do if the HTC ready message does not arrive in time.
- * TODO: Make this op non mandatory by introducing a NULL check in the
+ * message times out. It is yest applicable for USB since there is yesthing
+ * we can do if the HTC ready message does yest arrive in time.
+ * TODO: Make this op yesn mandatory by introducing a NULL check in the
  * hif op wrapper.
  */
 static void ath10k_usb_hif_send_complete_check(struct ath10k *ar,
@@ -785,7 +785,7 @@ static u8 ath10k_usb_get_logical_pipe_num(u8 ep_address, int *urb_count)
 		*urb_count = TX_URB_COUNT;
 		break;
 	default:
-		/* note: there may be endpoints not currently used */
+		/* yeste: there may be endpoints yest currently used */
 		break;
 	}
 
@@ -985,9 +985,9 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 	struct ath10k_bus_params bus_params = {};
 
 	/* Assumption: All USB based chipsets (so far) are QCA9377 based.
-	 * If there will be newer chipsets that does not use the hw reg
+	 * If there will be newer chipsets that does yest use the hw reg
 	 * setup as defined in qca6174_regs and qca6174_values, this
-	 * assumption is no longer valid and hw_rev must be setup differently
+	 * assumption is yes longer valid and hw_rev must be setup differently
 	 * depending on chipset.
 	 */
 	hw_rev = ATH10K_HW_QCA9377;
@@ -1016,7 +1016,7 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 	ar->id.device = product_id;
 
 	bus_params.dev_type = ATH10K_DEV_TYPE_HL;
-	/* TODO: don't know yet how to get chip_id with USB */
+	/* TODO: don't kyesw yet how to get chip_id with USB */
 	bus_params.chip_id = 0;
 	ret = ath10k_core_register(ar, &bus_params);
 	if (ret) {

@@ -3,7 +3,7 @@
  */
 
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include "reiserfs.h"
 #include <linux/stat.h>
@@ -31,18 +31,18 @@ const struct file_operations reiserfs_dir_operations = {
 static int reiserfs_dir_fsync(struct file *filp, loff_t start, loff_t end,
 			      int datasync)
 {
-	struct inode *inode = filp->f_mapping->host;
+	struct iyesde *iyesde = filp->f_mapping->host;
 	int err;
 
 	err = file_write_and_wait_range(filp, start, end);
 	if (err)
 		return err;
 
-	inode_lock(inode);
-	reiserfs_write_lock(inode->i_sb);
-	err = reiserfs_commit_for_inode(inode);
-	reiserfs_write_unlock(inode->i_sb);
-	inode_unlock(inode);
+	iyesde_lock(iyesde);
+	reiserfs_write_lock(iyesde->i_sb);
+	err = reiserfs_commit_for_iyesde(iyesde);
+	reiserfs_write_unlock(iyesde->i_sb);
+	iyesde_unlock(iyesde);
 	if (err < 0)
 		return err;
 	return 0;
@@ -50,14 +50,14 @@ static int reiserfs_dir_fsync(struct file *filp, loff_t start, loff_t end,
 
 #define store_ih(where,what) copy_item_head (where, what)
 
-static inline bool is_privroot_deh(struct inode *dir, struct reiserfs_de_head *deh)
+static inline bool is_privroot_deh(struct iyesde *dir, struct reiserfs_de_head *deh)
 {
 	struct dentry *privroot = REISERFS_SB(dir->i_sb)->priv_root;
 	return (d_really_is_positive(privroot) &&
-	        deh->deh_objectid == INODE_PKEY(d_inode(privroot))->k_objectid);
+	        deh->deh_objectid == INODE_PKEY(d_iyesde(privroot))->k_objectid);
 }
 
-int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
+int reiserfs_readdir_iyesde(struct iyesde *iyesde, struct dir_context *ctx)
 {
 
 	/* key of current position in the directory (key of directory entry) */
@@ -76,15 +76,15 @@ int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 	int ret = 0;
 	int depth;
 
-	reiserfs_write_lock(inode->i_sb);
+	reiserfs_write_lock(iyesde->i_sb);
 
-	reiserfs_check_lock_depth(inode->i_sb, "readdir");
+	reiserfs_check_lock_depth(iyesde->i_sb, "readdir");
 
 	/*
 	 * form key for search the next directory entry using
 	 * f_pos field of file structure
 	 */
-	make_cpu_key(&pos_key, inode, ctx->pos ?: DOT_OFFSET, TYPE_DIRENTRY, 3);
+	make_cpu_key(&pos_key, iyesde, ctx->pos ?: DOT_OFFSET, TYPE_DIRENTRY, 3);
 	next_pos = cpu_key_k_offset(&pos_key);
 
 	path_to_entry.reada = PATH_READA;
@@ -95,12 +95,12 @@ research:
 		 * specified key
 		 */
 		search_res =
-		    search_by_entry_key(inode->i_sb, &pos_key, &path_to_entry,
+		    search_by_entry_key(iyesde->i_sb, &pos_key, &path_to_entry,
 					&de);
 		if (search_res == IO_ERROR) {
 			/*
 			 * FIXME: we could just skip part of directory
-			 * which could not be read
+			 * which could yest be read
 			 */
 			ret = -EIO;
 			goto out;
@@ -113,14 +113,14 @@ research:
 
 		/* we must have found item, that is item of this directory, */
 		RFALSE(COMP_SHORT_KEYS(&ih->ih_key, &pos_key),
-		       "vs-9000: found item %h does not match to dir we readdir %K",
+		       "vs-9000: found item %h does yest match to dir we readdir %K",
 		       ih, &pos_key);
 		RFALSE(item_num > B_NR_ITEMS(bh) - 1,
 		       "vs-9005 item_num == %d, item amount == %d",
 		       item_num, B_NR_ITEMS(bh));
 
 		/*
-		 * and entry must be not more than number of entries
+		 * and entry must be yest more than number of entries
 		 * in the item
 		 */
 		RFALSE(ih_entry_count(ih) < entry_num,
@@ -140,7 +140,7 @@ research:
 			     entry_num++, deh++) {
 				int d_reclen;
 				char *d_name;
-				ino_t d_ino;
+				iyes_t d_iyes;
 				loff_t cur_pos = deh_offset(deh);
 
 				/* it is hidden entry */
@@ -165,17 +165,17 @@ research:
 
 				/* too big to send back to VFS */
 				if (d_reclen >
-				    REISERFS_MAX_NAME(inode->i_sb->
+				    REISERFS_MAX_NAME(iyesde->i_sb->
 						      s_blocksize)) {
 					continue;
 				}
 
-				/* Ignore the .reiserfs_priv entry */
-				if (is_privroot_deh(inode, deh))
+				/* Igyesre the .reiserfs_priv entry */
+				if (is_privroot_deh(iyesde, deh))
 					continue;
 
 				ctx->pos = deh_offset(deh);
-				d_ino = deh_objectid(deh);
+				d_iyes = deh_objectid(deh);
 				if (d_reclen <= 32) {
 					local_buf = small_buf;
 				} else {
@@ -205,22 +205,22 @@ research:
 				 * Since filldir might sleep, we can release
 				 * the write lock here for other waiters
 				 */
-				depth = reiserfs_write_unlock_nested(inode->i_sb);
+				depth = reiserfs_write_unlock_nested(iyesde->i_sb);
 				if (!dir_emit
-				    (ctx, local_buf, d_reclen, d_ino,
+				    (ctx, local_buf, d_reclen, d_iyes,
 				     DT_UNKNOWN)) {
-					reiserfs_write_lock_nested(inode->i_sb, depth);
+					reiserfs_write_lock_nested(iyesde->i_sb, depth);
 					if (local_buf != small_buf) {
 						kfree(local_buf);
 					}
 					goto end;
 				}
-				reiserfs_write_lock_nested(inode->i_sb, depth);
+				reiserfs_write_lock_nested(iyesde->i_sb, depth);
 				if (local_buf != small_buf) {
 					kfree(local_buf);
 				}
 
-				/* deh_offset(deh) may be invalid now. */
+				/* deh_offset(deh) may be invalid yesw. */
 				next_pos = cur_pos + 1;
 
 				if (item_moved(&tmp_ih, &path_to_entry)) {
@@ -236,10 +236,10 @@ research:
 			goto end;
 
 		/*
-		 * item we went through is last item of node. Using right
+		 * item we went through is last item of yesde. Using right
 		 * delimiting key check is it directory end
 		 */
-		rkey = get_rkey(&path_to_entry, inode->i_sb);
+		rkey = get_rkey(&path_to_entry, iyesde->i_sb);
 		if (!comp_le_keys(rkey, &MIN_KEY)) {
 			/*
 			 * set pos_key to key, that is the smallest and greater
@@ -265,18 +265,18 @@ end:
 	pathrelse(&path_to_entry);
 	reiserfs_check_path(&path_to_entry);
 out:
-	reiserfs_write_unlock(inode->i_sb);
+	reiserfs_write_unlock(iyesde->i_sb);
 	return ret;
 }
 
 static int reiserfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	return reiserfs_readdir_inode(file_inode(file), ctx);
+	return reiserfs_readdir_iyesde(file_iyesde(file), ctx);
 }
 
 /*
  * compose directory item containing "." and ".." entries (entries are
- * not aligned to 4 byte boundary)
+ * yest aligned to 4 byte boundary)
  */
 void make_empty_dir_item_v1(char *body, __le32 dirid, __le32 objid,
 			    __le32 par_dirid, __le32 par_objid)
@@ -299,7 +299,7 @@ void make_empty_dir_item_v1(char *body, __le32 dirid, __le32 objid,
 	/* direntry header of ".." */
 	put_deh_offset(dotdot, DOT_DOT_OFFSET);
 	/* key of ".." for the root directory */
-	/* these two are from the inode, and are are LE */
+	/* these two are from the iyesde, and are are LE */
 	dotdot->deh_dir_id = par_dirid;
 	dotdot->deh_objectid = par_objid;
 	dotdot->deh_state = 0;	/* Endian safe if 0 */
@@ -333,7 +333,7 @@ void make_empty_dir_item(char *body, __le32 dirid, __le32 objid,
 	/* direntry header of ".." */
 	put_deh_offset(dotdot, DOT_DOT_OFFSET);
 	/* key of ".." for the root directory */
-	/* these two are from the inode, and are are LE */
+	/* these two are from the iyesde, and are are LE */
 	dotdot->deh_dir_id = par_dirid;
 	dotdot->deh_objectid = par_objid;
 	dotdot->deh_state = 0;	/* Endian safe if 0 */

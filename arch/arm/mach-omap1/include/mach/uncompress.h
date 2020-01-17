@@ -6,7 +6,7 @@
  * Initially based on:
  * linux-2.4.15-rmk1-dsplinux1.6/arch/arm/plat-omap/include/mach1510/uncompress.h
  * Copyright (C) 2000 RidgeRun, Inc.
- * Author: Greg Lonnon <glonnon@ridgerun.com>
+ * Author: Greg Lonyesn <glonyesn@ridgerun.com>
  *
  * Rewritten by:
  * Author: <source@mvista.com>
@@ -91,7 +91,7 @@ static inline void arch_decomp_setup(void)
 	 * Initialize the port based on the machine ID from the bootloader.
 	 * Note that we're using macros here instead of switch statement
 	 * as machine_is functions are optimized out for the boards that
-	 * are not selected.
+	 * are yest selected.
 	 */
 	do {
 		/* omap7xx/8xx based boards using UART1 with shift 0 */
@@ -100,10 +100,10 @@ static inline void arch_decomp_setup(void)
 
 		/* omap15xx/16xx based boards using UART1 */
 		DEBUG_LL_OMAP1(1, ams_delta);
-		DEBUG_LL_OMAP1(1, nokia770);
+		DEBUG_LL_OMAP1(1, yeskia770);
 		DEBUG_LL_OMAP1(1, omap_h2);
 		DEBUG_LL_OMAP1(1, omap_h3);
-		DEBUG_LL_OMAP1(1, omap_innovator);
+		DEBUG_LL_OMAP1(1, omap_inyesvator);
 		DEBUG_LL_OMAP1(1, omap_osk);
 		DEBUG_LL_OMAP1(1, omap_palmte);
 		DEBUG_LL_OMAP1(1, omap_palmz71);

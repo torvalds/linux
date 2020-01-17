@@ -7,7 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/serio.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include "rmi_driver.h"
 
 #define RMI_F03_RX_DATA_OFB		0x01
@@ -147,7 +147,7 @@ static int rmi_f03_pt_open(struct serio *serio)
 
 	/*
 	 * Consume any pending data. Some devices like to spam with
-	 * 0xaa 0x00 announcements which may confuse us as we try to
+	 * 0xaa 0x00 anyesuncements which may confuse us as we try to
 	 * probe the device.
 	 */
 	error = rmi_read_block(fn->rmi_dev, data_addr, &obs, ob_len);

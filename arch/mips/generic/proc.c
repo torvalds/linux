@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techyeslogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -21,5 +21,5 @@ const char *get_system_type(void)
 	if (!err)
 		return str;
 
-	return "Unknown";
+	return "Unkyeswn";
 }

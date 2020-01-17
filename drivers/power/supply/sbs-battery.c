@@ -226,7 +226,7 @@ static int sbs_read_string_data(struct i2c_client *client, u8 address,
 		return ret;
 	}
 
-	/* block_length does not include NULL terminator */
+	/* block_length does yest include NULL terminator */
 	block_length = ret;
 	if (block_length > I2C_SMBUS_BLOCK_MAX) {
 		dev_err(&client->dev,
@@ -293,7 +293,7 @@ static int sbs_status_correct(struct i2c_client *client, int *intval)
 
 	ret = (s16)ret;
 
-	/* Not drawing current means full (cannot be not charging) */
+	/* Not drawing current means full (canyest be yest charging) */
 	if (ret == 0)
 		*intval = POWER_SUPPLY_STATUS_FULL;
 
@@ -317,7 +317,7 @@ static int sbs_get_battery_presence_and_health(
 	/* Dummy command; if it succeeds, battery is present. */
 	ret = sbs_read_word_data(client, sbs_data[REG_STATUS].addr);
 
-	if (ret < 0) { /* battery not present*/
+	if (ret < 0) { /* battery yest present*/
 		if (psp == POWER_SUPPLY_PROP_PRESENT) {
 			val->intval = 0;
 			return 0;
@@ -514,7 +514,7 @@ static void  sbs_unit_adjustment(struct i2c_client *client,
 
 	default:
 		dev_dbg(&client->dev,
-			"%s: no need for unit conversion %d\n", __func__, psp);
+			"%s: yes need for unit conversion %d\n", __func__, psp);
 	}
 }
 
@@ -632,7 +632,7 @@ static int sbs_get_property(struct power_supply *psy,
 			ret = sbs_get_battery_presence_and_health(client, psp,
 								  val);
 
-		/* this can only be true if no gpio is used */
+		/* this can only be true if yes gpio is used */
 		if (psp == POWER_SUPPLY_PROP_PRESENT)
 			return 0;
 		break;
@@ -729,7 +729,7 @@ done:
 	if (ret && chip->is_present)
 		return ret;
 
-	/* battery not present, so return NODATA for properties */
+	/* battery yest present, so return NODATA for properties */
 	if (ret)
 		return -ENODATA;
 
@@ -841,20 +841,20 @@ static int sbs_probe(struct i2c_client *client,
 	chip->flags = (u32)(uintptr_t)of_device_get_match_data(&client->dev);
 	chip->client = client;
 	chip->enable_detection = false;
-	psy_cfg.of_node = client->dev.of_node;
+	psy_cfg.of_yesde = client->dev.of_yesde;
 	psy_cfg.drv_data = chip;
 	chip->last_state = POWER_SUPPLY_STATUS_UNKNOWN;
 	mutex_init(&chip->mode_lock);
 
 	/* use pdata if available, fall back to DT properties,
-	 * or hardcoded defaults if not
+	 * or hardcoded defaults if yest
 	 */
-	rc = of_property_read_u32(client->dev.of_node, "sbs,i2c-retry-count",
+	rc = of_property_read_u32(client->dev.of_yesde, "sbs,i2c-retry-count",
 				  &chip->i2c_retry_count);
 	if (rc)
 		chip->i2c_retry_count = 0;
 
-	rc = of_property_read_u32(client->dev.of_node, "sbs,poll-retry-count",
+	rc = of_property_read_u32(client->dev.of_yesde, "sbs,poll-retry-count",
 				  &chip->poll_retry_count);
 	if (rc)
 		chip->poll_retry_count = 0;
@@ -1003,4 +1003,4 @@ MODULE_LICENSE("GPL");
 
 module_param(force_load, bool, S_IRUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(force_load,
-		 "Attempt to load the driver even if no battery is connected");
+		 "Attempt to load the driver even if yes battery is connected");

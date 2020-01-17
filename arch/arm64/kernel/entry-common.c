@@ -17,7 +17,7 @@
 #include <asm/mmu.h>
 #include <asm/sysreg.h>
 
-static void notrace el1_abort(struct pt_regs *regs, unsigned long esr)
+static void yestrace el1_abort(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
@@ -27,7 +27,7 @@ static void notrace el1_abort(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el1_abort);
 
-static void notrace el1_pc(struct pt_regs *regs, unsigned long esr)
+static void yestrace el1_pc(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
@@ -50,7 +50,7 @@ static void el1_inv(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el1_inv);
 
-static void notrace el1_dbg(struct pt_regs *regs, unsigned long esr)
+static void yestrace el1_dbg(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
@@ -66,7 +66,7 @@ static void notrace el1_dbg(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el1_dbg);
 
-asmlinkage void notrace el1_sync_handler(struct pt_regs *regs)
+asmlinkage void yestrace el1_sync_handler(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
 
@@ -98,7 +98,7 @@ asmlinkage void notrace el1_sync_handler(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(el1_sync_handler);
 
-static void notrace el0_da(struct pt_regs *regs, unsigned long esr)
+static void yestrace el0_da(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
@@ -109,12 +109,12 @@ static void notrace el0_da(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el0_da);
 
-static void notrace el0_ia(struct pt_regs *regs, unsigned long esr)
+static void yestrace el0_ia(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
 	/*
-	 * We've taken an instruction abort from userspace and not yet
+	 * We've taken an instruction abort from userspace and yest yet
 	 * re-enabled IRQs. If the address is a kernel address, apply
 	 * BP hardening prior to enabling IRQs and pre-emption.
 	 */
@@ -127,7 +127,7 @@ static void notrace el0_ia(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el0_ia);
 
-static void notrace el0_fpsimd_acc(struct pt_regs *regs, unsigned long esr)
+static void yestrace el0_fpsimd_acc(struct pt_regs *regs, unsigned long esr)
 {
 	user_exit_irqoff();
 	local_daif_restore(DAIF_PROCCTX);
@@ -135,7 +135,7 @@ static void notrace el0_fpsimd_acc(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el0_fpsimd_acc);
 
-static void notrace el0_sve_acc(struct pt_regs *regs, unsigned long esr)
+static void yestrace el0_sve_acc(struct pt_regs *regs, unsigned long esr)
 {
 	user_exit_irqoff();
 	local_daif_restore(DAIF_PROCCTX);
@@ -143,7 +143,7 @@ static void notrace el0_sve_acc(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el0_sve_acc);
 
-static void notrace el0_fpsimd_exc(struct pt_regs *regs, unsigned long esr)
+static void yestrace el0_fpsimd_exc(struct pt_regs *regs, unsigned long esr)
 {
 	user_exit_irqoff();
 	local_daif_restore(DAIF_PROCCTX);
@@ -151,7 +151,7 @@ static void notrace el0_fpsimd_exc(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el0_fpsimd_exc);
 
-static void notrace el0_sys(struct pt_regs *regs, unsigned long esr)
+static void yestrace el0_sys(struct pt_regs *regs, unsigned long esr)
 {
 	user_exit_irqoff();
 	local_daif_restore(DAIF_PROCCTX);
@@ -159,7 +159,7 @@ static void notrace el0_sys(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el0_sys);
 
-static void notrace el0_pc(struct pt_regs *regs, unsigned long esr)
+static void yestrace el0_pc(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
@@ -172,7 +172,7 @@ static void notrace el0_pc(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el0_pc);
 
-static void notrace el0_sp(struct pt_regs *regs, unsigned long esr)
+static void yestrace el0_sp(struct pt_regs *regs, unsigned long esr)
 {
 	user_exit_irqoff();
 	local_daif_restore(DAIF_PROCCTX_NOIRQ);
@@ -180,7 +180,7 @@ static void notrace el0_sp(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el0_sp);
 
-static void notrace el0_undef(struct pt_regs *regs)
+static void yestrace el0_undef(struct pt_regs *regs)
 {
 	user_exit_irqoff();
 	local_daif_restore(DAIF_PROCCTX);
@@ -188,7 +188,7 @@ static void notrace el0_undef(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(el0_undef);
 
-static void notrace el0_inv(struct pt_regs *regs, unsigned long esr)
+static void yestrace el0_inv(struct pt_regs *regs, unsigned long esr)
 {
 	user_exit_irqoff();
 	local_daif_restore(DAIF_PROCCTX);
@@ -196,7 +196,7 @@ static void notrace el0_inv(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el0_inv);
 
-static void notrace el0_dbg(struct pt_regs *regs, unsigned long esr)
+static void yestrace el0_dbg(struct pt_regs *regs, unsigned long esr)
 {
 	/* Only watchpoints write FAR_EL1, otherwise its UNKNOWN */
 	unsigned long far = read_sysreg(far_el1);
@@ -210,7 +210,7 @@ static void notrace el0_dbg(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el0_dbg);
 
-static void notrace el0_svc(struct pt_regs *regs)
+static void yestrace el0_svc(struct pt_regs *regs)
 {
 	if (system_uses_irq_prio_masking())
 		gic_write_pmr(GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET);
@@ -219,7 +219,7 @@ static void notrace el0_svc(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(el0_svc);
 
-asmlinkage void notrace el0_sync_handler(struct pt_regs *regs)
+asmlinkage void yestrace el0_sync_handler(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
 
@@ -268,7 +268,7 @@ asmlinkage void notrace el0_sync_handler(struct pt_regs *regs)
 NOKPROBE_SYMBOL(el0_sync_handler);
 
 #ifdef CONFIG_COMPAT
-static void notrace el0_cp15(struct pt_regs *regs, unsigned long esr)
+static void yestrace el0_cp15(struct pt_regs *regs, unsigned long esr)
 {
 	user_exit_irqoff();
 	local_daif_restore(DAIF_PROCCTX);
@@ -276,7 +276,7 @@ static void notrace el0_cp15(struct pt_regs *regs, unsigned long esr)
 }
 NOKPROBE_SYMBOL(el0_cp15);
 
-static void notrace el0_svc_compat(struct pt_regs *regs)
+static void yestrace el0_svc_compat(struct pt_regs *regs)
 {
 	if (system_uses_irq_prio_masking())
 		gic_write_pmr(GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET);
@@ -285,7 +285,7 @@ static void notrace el0_svc_compat(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(el0_svc_compat);
 
-asmlinkage void notrace el0_sync_compat_handler(struct pt_regs *regs)
+asmlinkage void yestrace el0_sync_compat_handler(struct pt_regs *regs)
 {
 	unsigned long esr = read_sysreg(esr_el1);
 

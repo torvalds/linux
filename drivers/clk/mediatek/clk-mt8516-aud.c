@@ -28,7 +28,7 @@ static const struct mtk_gate_regs aud_cg_regs = {
 		.parent_name = _parent,		\
 		.regs = &aud_cg_regs,		\
 		.shift = _shift,		\
-		.ops = &mtk_clk_gate_ops_no_setclr,		\
+		.ops = &mtk_clk_gate_ops_yes_setclr,		\
 	}
 
 static const struct mtk_gate aud_clks[] __initconst = {
@@ -47,18 +47,18 @@ static const struct mtk_gate aud_clks[] __initconst = {
 	GATE_AUD(CLK_AUD_TML, "aud_tml", "aud_afe", 27),
 };
 
-static void __init mtk_audsys_init(struct device_node *node)
+static void __init mtk_audsys_init(struct device_yesde *yesde)
 {
 	struct clk_onecell_data *clk_data;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_AUD_NR_CLK);
 
-	mtk_clk_register_gates(node, aud_clks, ARRAY_SIZE(aud_clks), clk_data);
+	mtk_clk_register_gates(yesde, aud_clks, ARRAY_SIZE(aud_clks), clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 
 }

@@ -33,14 +33,14 @@
 struct spufs_attr {
 	int (*get)(void *, u64 *);
 	int (*set)(void *, u64);
-	char get_buf[24];       /* enough to store a u64 and "\n\0" */
+	char get_buf[24];       /* eyesugh to store a u64 and "\n\0" */
 	char set_buf[24];
 	void *data;
 	const char *fmt;        /* format for read operation */
 	struct mutex mutex;     /* protects access to these buffers */
 };
 
-static int spufs_attr_open(struct inode *inode, struct file *file,
+static int spufs_attr_open(struct iyesde *iyesde, struct file *file,
 		int (*get)(void *, u64 *), int (*set)(void *, u64),
 		const char *fmt)
 {
@@ -52,15 +52,15 @@ static int spufs_attr_open(struct inode *inode, struct file *file,
 
 	attr->get = get;
 	attr->set = set;
-	attr->data = inode->i_private;
+	attr->data = iyesde->i_private;
 	attr->fmt = fmt;
 	mutex_init(&attr->mutex);
 	file->private_data = attr;
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
-static int spufs_attr_release(struct inode *inode, struct file *file)
+static int spufs_attr_release(struct iyesde *iyesde, struct file *file)
 {
        kfree(file->private_data);
 	return 0;
@@ -130,10 +130,10 @@ out:
 }
 
 #define DEFINE_SPUFS_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt)	\
-static int __fops ## _open(struct inode *inode, struct file *file)	\
+static int __fops ## _open(struct iyesde *iyesde, struct file *file)	\
 {									\
 	__simple_attr_check_format(__fmt, 0ull);			\
-	return spufs_attr_open(inode, file, __get, __set, __fmt);	\
+	return spufs_attr_open(iyesde, file, __get, __set, __fmt);	\
 }									\
 static const struct file_operations __fops = {				\
 	.open	 = __fops ## _open,					\
@@ -145,23 +145,23 @@ static const struct file_operations __fops = {				\
 
 
 static int
-spufs_mem_open(struct inode *inode, struct file *file)
+spufs_mem_open(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	mutex_lock(&ctx->mapping_lock);
 	file->private_data = ctx;
 	if (!i->i_openers++)
-		ctx->local_store = inode->i_mapping;
+		ctx->local_store = iyesde->i_mapping;
 	mutex_unlock(&ctx->mapping_lock);
 	return 0;
 }
 
 static int
-spufs_mem_release(struct inode *inode, struct file *file)
+spufs_mem_release(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	mutex_lock(&ctx->mapping_lock);
@@ -241,7 +241,7 @@ spufs_mem_mmap_fault(struct vm_fault *vmf)
 		vma->vm_page_prot = pgprot_cached(vma->vm_page_prot);
 		pfn = vmalloc_to_pfn(ctx->csa.lscsa->ls + offset);
 	} else {
-		vma->vm_page_prot = pgprot_noncached_wc(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_yesncached_wc(vma->vm_page_prot);
 		pfn = (ctx->spu->local_store_phys + offset) >> PAGE_SHIFT;
 	}
 	ret = vmf_insert_pfn(vma, vmf->address, pfn);
@@ -285,7 +285,7 @@ static int spufs_mem_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP;
-	vma->vm_page_prot = pgprot_noncached_wc(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached_wc(vma->vm_page_prot);
 
 	vma->vm_ops = &spufs_mem_mmap_vmops;
 	return 0;
@@ -309,7 +309,7 @@ static vm_fault_t spufs_ps_fault(struct vm_fault *vmf,
 	int err = 0;
 	vm_fault_t ret = VM_FAULT_NOPAGE;
 
-	spu_context_nospu_trace(spufs_ps_fault__enter, ctx);
+	spu_context_yesspu_trace(spufs_ps_fault__enter, ctx);
 
 	if (offset >= ps_size)
 		return VM_FAULT_SIGBUS;
@@ -337,7 +337,7 @@ static vm_fault_t spufs_ps_fault(struct vm_fault *vmf,
 
 	if (ctx->state == SPU_STATE_SAVED) {
 		up_read(&current->mm->mmap_sem);
-		spu_context_nospu_trace(spufs_ps_fault__sleep, ctx);
+		spu_context_yesspu_trace(spufs_ps_fault__sleep, ctx);
 		err = spufs_wait(ctx->run_wq, ctx->state == SPU_STATE_RUNNABLE);
 		spu_context_trace(spufs_ps_fault__wake, ctx, ctx->spu);
 		down_read(&current->mm->mmap_sem);
@@ -375,7 +375,7 @@ static int spufs_cntl_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	vma->vm_ops = &spufs_cntl_mmap_vmops;
 	return 0;
@@ -412,27 +412,27 @@ static int spufs_cntl_set(void *data, u64 val)
 	return 0;
 }
 
-static int spufs_cntl_open(struct inode *inode, struct file *file)
+static int spufs_cntl_open(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	mutex_lock(&ctx->mapping_lock);
 	file->private_data = ctx;
 	if (!i->i_openers++)
-		ctx->cntl = inode->i_mapping;
+		ctx->cntl = iyesde->i_mapping;
 	mutex_unlock(&ctx->mapping_lock);
-	return simple_attr_open(inode, file, spufs_cntl_get,
+	return simple_attr_open(iyesde, file, spufs_cntl_get,
 					spufs_cntl_set, "0x%08lx");
 }
 
 static int
-spufs_cntl_release(struct inode *inode, struct file *file)
+spufs_cntl_release(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
-	simple_attr_release(inode, file);
+	simple_attr_release(iyesde, file);
 
 	mutex_lock(&ctx->mapping_lock);
 	if (!--i->i_openers)
@@ -446,14 +446,14 @@ static const struct file_operations spufs_cntl_fops = {
 	.release = spufs_cntl_release,
 	.read = simple_attr_read,
 	.write = simple_attr_write,
-	.llseek	= no_llseek,
+	.llseek	= yes_llseek,
 	.mmap = spufs_cntl_mmap,
 };
 
 static int
-spufs_regs_open(struct inode *inode, struct file *file)
+spufs_regs_open(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	file->private_data = i->i_ctx;
 	return 0;
 }
@@ -474,7 +474,7 @@ spufs_regs_read(struct file *file, char __user *buffer,
 	int ret;
 	struct spu_context *ctx = file->private_data;
 
-	/* pre-check for file position: if we'd return EOF, there's no point
+	/* pre-check for file position: if we'd return EOF, there's yes point
 	 * causing a deschedule */
 	if (*pos >= sizeof(ctx->csa.lscsa->gprs))
 		return 0;
@@ -570,19 +570,19 @@ static const struct file_operations spufs_fpcr_fops = {
 };
 
 /* generic open function for all pipe-like files */
-static int spufs_pipe_open(struct inode *inode, struct file *file)
+static int spufs_pipe_open(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	file->private_data = i->i_ctx;
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
 /*
  * Read as many bytes from the mailbox as possible, until
  * one of the conditions becomes true:
  *
- * - no more data available in the mailbox
+ * - yes more data available in the mailbox
  * - end of the user provided buffer
  * - end of the mapped area
  */
@@ -634,7 +634,7 @@ static ssize_t spufs_mbox_read(struct file *file, char __user *buf,
 static const struct file_operations spufs_mbox_fops = {
 	.open	= spufs_pipe_open,
 	.read	= spufs_mbox_read,
-	.llseek	= no_llseek,
+	.llseek	= yes_llseek,
 };
 
 static ssize_t spufs_mbox_stat_read(struct file *file, char __user *buf,
@@ -664,7 +664,7 @@ static ssize_t spufs_mbox_stat_read(struct file *file, char __user *buf,
 static const struct file_operations spufs_mbox_stat_fops = {
 	.open	= spufs_pipe_open,
 	.read	= spufs_mbox_stat_read,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 /* low-level ibox access function */
@@ -686,7 +686,7 @@ void spufs_ibox_callback(struct spu *spu)
  * Read as many bytes from the interrupt mailbox as possible, until
  * one of the conditions becomes true:
  *
- * - no more data available in the mailbox
+ * - yes more data available in the mailbox
  * - end of the user provided buffer
  * - end of the mapped area
  *
@@ -760,8 +760,8 @@ static __poll_t spufs_ibox_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &ctx->ibox_wq, wait);
 
 	/*
-	 * For now keep this uninterruptible and also ignore the rule
-	 * that poll should not sleep.  Will be fixed later.
+	 * For yesw keep this uninterruptible and also igyesre the rule
+	 * that poll should yest sleep.  Will be fixed later.
 	 */
 	mutex_lock(&ctx->state_mutex);
 	mask = ctx->ops->mbox_stat_poll(ctx, EPOLLIN | EPOLLRDNORM);
@@ -774,7 +774,7 @@ static const struct file_operations spufs_ibox_fops = {
 	.open	= spufs_pipe_open,
 	.read	= spufs_ibox_read,
 	.poll	= spufs_ibox_poll,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static ssize_t spufs_ibox_stat_read(struct file *file, char __user *buf,
@@ -802,7 +802,7 @@ static ssize_t spufs_ibox_stat_read(struct file *file, char __user *buf,
 static const struct file_operations spufs_ibox_stat_fops = {
 	.open	= spufs_pipe_open,
 	.read	= spufs_ibox_stat_read,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 /* low-level mailbox write */
@@ -896,8 +896,8 @@ static __poll_t spufs_wbox_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &ctx->wbox_wq, wait);
 
 	/*
-	 * For now keep this uninterruptible and also ignore the rule
-	 * that poll should not sleep.  Will be fixed later.
+	 * For yesw keep this uninterruptible and also igyesre the rule
+	 * that poll should yest sleep.  Will be fixed later.
 	 */
 	mutex_lock(&ctx->state_mutex);
 	mask = ctx->ops->mbox_stat_poll(ctx, EPOLLOUT | EPOLLWRNORM);
@@ -910,7 +910,7 @@ static const struct file_operations spufs_wbox_fops = {
 	.open	= spufs_pipe_open,
 	.write	= spufs_wbox_write,
 	.poll	= spufs_wbox_poll,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static ssize_t spufs_wbox_stat_read(struct file *file, char __user *buf,
@@ -938,26 +938,26 @@ static ssize_t spufs_wbox_stat_read(struct file *file, char __user *buf,
 static const struct file_operations spufs_wbox_stat_fops = {
 	.open	= spufs_pipe_open,
 	.read	= spufs_wbox_stat_read,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
-static int spufs_signal1_open(struct inode *inode, struct file *file)
+static int spufs_signal1_open(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	mutex_lock(&ctx->mapping_lock);
 	file->private_data = ctx;
 	if (!i->i_openers++)
-		ctx->signal1 = inode->i_mapping;
+		ctx->signal1 = iyesde->i_mapping;
 	mutex_unlock(&ctx->mapping_lock);
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
 static int
-spufs_signal1_release(struct inode *inode, struct file *file)
+spufs_signal1_release(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	mutex_lock(&ctx->mapping_lock);
@@ -1055,7 +1055,7 @@ static int spufs_signal1_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	vma->vm_ops = &spufs_signal1_mmap_vmops;
 	return 0;
@@ -1067,34 +1067,34 @@ static const struct file_operations spufs_signal1_fops = {
 	.read = spufs_signal1_read,
 	.write = spufs_signal1_write,
 	.mmap = spufs_signal1_mmap,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
-static const struct file_operations spufs_signal1_nosched_fops = {
+static const struct file_operations spufs_signal1_yessched_fops = {
 	.open = spufs_signal1_open,
 	.release = spufs_signal1_release,
 	.write = spufs_signal1_write,
 	.mmap = spufs_signal1_mmap,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
-static int spufs_signal2_open(struct inode *inode, struct file *file)
+static int spufs_signal2_open(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	mutex_lock(&ctx->mapping_lock);
 	file->private_data = ctx;
 	if (!i->i_openers++)
-		ctx->signal2 = inode->i_mapping;
+		ctx->signal2 = iyesde->i_mapping;
 	mutex_unlock(&ctx->mapping_lock);
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
 static int
-spufs_signal2_release(struct inode *inode, struct file *file)
+spufs_signal2_release(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	mutex_lock(&ctx->mapping_lock);
@@ -1193,7 +1193,7 @@ static int spufs_signal2_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	vma->vm_ops = &spufs_signal2_mmap_vmops;
 	return 0;
@@ -1208,20 +1208,20 @@ static const struct file_operations spufs_signal2_fops = {
 	.read = spufs_signal2_read,
 	.write = spufs_signal2_write,
 	.mmap = spufs_signal2_mmap,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
-static const struct file_operations spufs_signal2_nosched_fops = {
+static const struct file_operations spufs_signal2_yessched_fops = {
 	.open = spufs_signal2_open,
 	.release = spufs_signal2_release,
 	.write = spufs_signal2_write,
 	.mmap = spufs_signal2_mmap,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 /*
  * This is a wrapper around DEFINE_SIMPLE_ATTRIBUTE which does the
- * work of acquiring (or not) the SPU context before calling through
+ * work of acquiring (or yest) the SPU context before calling through
  * to the actual get routine. The set routine is called directly.
  */
 #define SPU_ATTR_NOACQUIRE	0
@@ -1316,7 +1316,7 @@ static int spufs_mss_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	vma->vm_ops = &spufs_mss_mmap_vmops;
 	return 0;
@@ -1325,24 +1325,24 @@ static int spufs_mss_mmap(struct file *file, struct vm_area_struct *vma)
 #define spufs_mss_mmap NULL
 #endif /* !SPUFS_MMAP_4K */
 
-static int spufs_mss_open(struct inode *inode, struct file *file)
+static int spufs_mss_open(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	file->private_data = i->i_ctx;
 
 	mutex_lock(&ctx->mapping_lock);
 	if (!i->i_openers++)
-		ctx->mss = inode->i_mapping;
+		ctx->mss = iyesde->i_mapping;
 	mutex_unlock(&ctx->mapping_lock);
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
 static int
-spufs_mss_release(struct inode *inode, struct file *file)
+spufs_mss_release(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	mutex_lock(&ctx->mapping_lock);
@@ -1356,7 +1356,7 @@ static const struct file_operations spufs_mss_fops = {
 	.open	 = spufs_mss_open,
 	.release = spufs_mss_release,
 	.mmap	 = spufs_mss_mmap,
-	.llseek  = no_llseek,
+	.llseek  = yes_llseek,
 };
 
 static vm_fault_t
@@ -1378,29 +1378,29 @@ static int spufs_psmap_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	vma->vm_ops = &spufs_psmap_mmap_vmops;
 	return 0;
 }
 
-static int spufs_psmap_open(struct inode *inode, struct file *file)
+static int spufs_psmap_open(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	mutex_lock(&ctx->mapping_lock);
 	file->private_data = i->i_ctx;
 	if (!i->i_openers++)
-		ctx->psmap = inode->i_mapping;
+		ctx->psmap = iyesde->i_mapping;
 	mutex_unlock(&ctx->mapping_lock);
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
 static int
-spufs_psmap_release(struct inode *inode, struct file *file)
+spufs_psmap_release(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	mutex_lock(&ctx->mapping_lock);
@@ -1414,7 +1414,7 @@ static const struct file_operations spufs_psmap_fops = {
 	.open	 = spufs_psmap_open,
 	.release = spufs_psmap_release,
 	.mmap	 = spufs_psmap_mmap,
-	.llseek  = no_llseek,
+	.llseek  = yes_llseek,
 };
 
 
@@ -1438,7 +1438,7 @@ static int spufs_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_PFNMAP;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	vma->vm_ops = &spufs_mfc_mmap_vmops;
 	return 0;
@@ -1447,30 +1447,30 @@ static int spufs_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 #define spufs_mfc_mmap NULL
 #endif /* !SPUFS_MMAP_4K */
 
-static int spufs_mfc_open(struct inode *inode, struct file *file)
+static int spufs_mfc_open(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	/* we don't want to deal with DMA into other processes */
 	if (ctx->owner != current->mm)
 		return -EINVAL;
 
-	if (atomic_read(&inode->i_count) != 1)
+	if (atomic_read(&iyesde->i_count) != 1)
 		return -EBUSY;
 
 	mutex_lock(&ctx->mapping_lock);
 	file->private_data = ctx;
 	if (!i->i_openers++)
-		ctx->mfc = inode->i_mapping;
+		ctx->mfc = iyesde->i_mapping;
 	mutex_unlock(&ctx->mapping_lock);
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
 static int
-spufs_mfc_release(struct inode *inode, struct file *file)
+spufs_mfc_release(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 
 	mutex_lock(&ctx->mapping_lock);
@@ -1604,7 +1604,7 @@ static int spufs_check_valid_dma(struct mfc_dma_command *cmd)
 	}
 
 	if (cmd->class) {
-		/* not supported in this version */
+		/* yest supported in this version */
 		pr_debug("invalid DMA class\n");
 		return -EIO;
 	}
@@ -1689,8 +1689,8 @@ static __poll_t spufs_mfc_poll(struct file *file,poll_table *wait)
 	poll_wait(file, &ctx->mfc_wq, wait);
 
 	/*
-	 * For now keep this uninterruptible and also ignore the rule
-	 * that poll should not sleep.  Will be fixed later.
+	 * For yesw keep this uninterruptible and also igyesre the rule
+	 * that poll should yest sleep.  Will be fixed later.
 	 */
 	mutex_lock(&ctx->state_mutex);
 	ctx->ops->set_mfc_query(ctx, ctx->tagwait, 2);
@@ -1738,12 +1738,12 @@ out:
 
 static int spufs_mfc_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	int err = file_write_and_wait_range(file, start, end);
 	if (!err) {
-		inode_lock(inode);
+		iyesde_lock(iyesde);
 		err = spufs_mfc_flush(file, NULL);
-		inode_unlock(inode);
+		iyesde_unlock(iyesde);
 	}
 	return err;
 }
@@ -1757,7 +1757,7 @@ static const struct file_operations spufs_mfc_fops = {
 	.flush	 = spufs_mfc_flush,
 	.fsync	 = spufs_mfc_fsync,
 	.mmap	 = spufs_mfc_mmap,
-	.llseek  = no_llseek,
+	.llseek  = yes_llseek,
 };
 
 static int spufs_npc_set(void *data, u64 val)
@@ -1908,7 +1908,7 @@ DEFINE_SPUFS_ATTRIBUTE(spufs_id_ops, spufs_id_get, NULL, "0x%llx\n",
 
 static u64 spufs_object_id_get(struct spu_context *ctx)
 {
-	/* FIXME: Should there really be no locking here? */
+	/* FIXME: Should there really be yes locking here? */
 	return ctx->object_id;
 }
 
@@ -1930,9 +1930,9 @@ static u64 spufs_lslr_get(struct spu_context *ctx)
 DEFINE_SPUFS_ATTRIBUTE(spufs_lslr_ops, spufs_lslr_get, NULL, "0x%llx\n",
 		       SPU_ATTR_ACQUIRE_SAVED);
 
-static int spufs_info_open(struct inode *inode, struct file *file)
+static int spufs_info_open(struct iyesde *iyesde, struct file *file)
 {
-	struct spufs_inode_info *i = SPUFS_I(inode);
+	struct spufs_iyesde_info *i = SPUFS_I(iyesde);
 	struct spu_context *ctx = i->i_ctx;
 	file->private_data = ctx;
 	return 0;
@@ -1949,9 +1949,9 @@ static int spufs_caps_show(struct seq_file *s, void *private)
 	return 0;
 }
 
-static int spufs_caps_open(struct inode *inode, struct file *file)
+static int spufs_caps_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, spufs_caps_show, SPUFS_I(inode)->i_ctx);
+	return single_open(file, spufs_caps_show, SPUFS_I(iyesde)->i_ctx);
 }
 
 static const struct file_operations spufs_caps_fops = {
@@ -1966,7 +1966,7 @@ static ssize_t __spufs_mbox_info_read(struct spu_context *ctx,
 {
 	u32 data;
 
-	/* EOF if there's no entry in the mbox */
+	/* EOF if there's yes entry in the mbox */
 	if (!(ctx->csa.prob.mb_stat_R & 0x0000ff))
 		return 0;
 
@@ -2006,7 +2006,7 @@ static ssize_t __spufs_ibox_info_read(struct spu_context *ctx,
 {
 	u32 data;
 
-	/* EOF if there's no entry in the ibox */
+	/* EOF if there's yes entry in the ibox */
 	if (!(ctx->csa.prob.mb_stat_R & 0xff0000))
 		return 0;
 
@@ -2094,7 +2094,7 @@ static ssize_t __spufs_dma_info_read(struct spu_context *ctx,
 	info.dma_info_type = ctx->csa.priv2.spu_tag_status_query_RW;
 	info.dma_info_mask = ctx->csa.lscsa->tag_mask.slot[0];
 	info.dma_info_status = ctx->csa.spu_chnldata_RW[24];
-	info.dma_info_stall_and_notify = ctx->csa.spu_chnldata_RW[25];
+	info.dma_info_stall_and_yestify = ctx->csa.spu_chnldata_RW[25];
 	info.dma_info_atomic_command_status = ctx->csa.spu_chnldata_RW[27];
 	for (i = 0; i < 16; i++) {
 		qp = &info.dma_info_command_data[i];
@@ -2133,7 +2133,7 @@ static ssize_t spufs_dma_info_read(struct file *file, char __user *buf,
 static const struct file_operations spufs_dma_info_fops = {
 	.open = spufs_info_open,
 	.read = spufs_dma_info_read,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static ssize_t __spufs_proxydma_info_read(struct spu_context *ctx,
@@ -2187,7 +2187,7 @@ static ssize_t spufs_proxydma_info_read(struct file *file, char __user *buf,
 static const struct file_operations spufs_proxydma_info_fops = {
 	.open = spufs_info_open,
 	.read = spufs_proxydma_info_read,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static int spufs_show_tid(struct seq_file *s, void *private)
@@ -2198,9 +2198,9 @@ static int spufs_show_tid(struct seq_file *s, void *private)
 	return 0;
 }
 
-static int spufs_tid_open(struct inode *inode, struct file *file)
+static int spufs_tid_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, spufs_show_tid, SPUFS_I(inode)->i_ctx);
+	return single_open(file, spufs_show_tid, SPUFS_I(iyesde)->i_ctx);
 }
 
 static const struct file_operations spufs_tid_fops = {
@@ -2223,8 +2223,8 @@ static unsigned long long spufs_acct_time(struct spu_context *ctx,
 	 * In general, utilization statistics are updated by the controlling
 	 * thread as the spu context moves through various well defined
 	 * state transitions, but if the context is lazily loaded its
-	 * utilization statistics are not updated as the controlling thread
-	 * is not tightly coupled with the execution of the spu context.  We
+	 * utilization statistics are yest updated as the controlling thread
+	 * is yest tightly coupled with the execution of the spu context.  We
 	 * calculate and apply the time delta from the last recorded state
 	 * of the spu context.
 	 */
@@ -2288,9 +2288,9 @@ static int spufs_show_stat(struct seq_file *s, void *private)
 	return 0;
 }
 
-static int spufs_stat_open(struct inode *inode, struct file *file)
+static int spufs_stat_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, spufs_show_stat, SPUFS_I(inode)->i_ctx);
+	return single_open(file, spufs_show_stat, SPUFS_I(iyesde)->i_ctx);
 }
 
 static const struct file_operations spufs_stat_fops = {
@@ -2311,9 +2311,9 @@ static inline int spufs_switch_log_avail(struct spu_context *ctx)
 	return SWITCH_LOG_BUFSIZE - spufs_switch_log_used(ctx);
 }
 
-static int spufs_switch_log_open(struct inode *inode, struct file *file)
+static int spufs_switch_log_open(struct iyesde *iyesde, struct file *file)
 {
-	struct spu_context *ctx = SPUFS_I(inode)->i_ctx;
+	struct spu_context *ctx = SPUFS_I(iyesde)->i_ctx;
 	int rc;
 
 	rc = spu_acquire(ctx);
@@ -2342,9 +2342,9 @@ out:
 	return rc;
 }
 
-static int spufs_switch_log_release(struct inode *inode, struct file *file)
+static int spufs_switch_log_release(struct iyesde *iyesde, struct file *file)
 {
-	struct spu_context *ctx = SPUFS_I(inode)->i_ctx;
+	struct spu_context *ctx = SPUFS_I(iyesde)->i_ctx;
 	int rc;
 
 	rc = spu_acquire(ctx);
@@ -2376,8 +2376,8 @@ static int switch_log_sprint(struct spu_context *ctx, char *tbuf, int n)
 static ssize_t spufs_switch_log_read(struct file *file, char __user *buf,
 			     size_t len, loff_t *ppos)
 {
-	struct inode *inode = file_inode(file);
-	struct spu_context *ctx = SPUFS_I(inode)->i_ctx;
+	struct iyesde *iyesde = file_iyesde(file);
+	struct spu_context *ctx = SPUFS_I(iyesde)->i_ctx;
 	int error = 0, cnt = 0;
 
 	if (!buf)
@@ -2404,7 +2404,7 @@ static ssize_t spufs_switch_log_read(struct file *file, char __user *buf,
 			} else {
 				/* spufs_wait will drop the mutex and
 				 * re-acquire, but since we're in read(), the
-				 * file cannot be _released (and so
+				 * file canyest be _released (and so
 				 * ctx->switch_log is stable).
 				 */
 				error = spufs_wait(ctx->switch_log->wait,
@@ -2446,8 +2446,8 @@ static ssize_t spufs_switch_log_read(struct file *file, char __user *buf,
 
 static __poll_t spufs_switch_log_poll(struct file *file, poll_table *wait)
 {
-	struct inode *inode = file_inode(file);
-	struct spu_context *ctx = SPUFS_I(inode)->i_ctx;
+	struct iyesde *iyesde = file_iyesde(file);
+	struct spu_context *ctx = SPUFS_I(iyesde)->i_ctx;
 	__poll_t mask = 0;
 	int rc;
 
@@ -2470,7 +2470,7 @@ static const struct file_operations spufs_switch_log_fops = {
 	.read		= spufs_switch_log_read,
 	.poll		= spufs_switch_log_poll,
 	.release	= spufs_switch_log_release,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 /**
@@ -2478,7 +2478,7 @@ static const struct file_operations spufs_switch_log_fops = {
  *
  * Must be called with ctx->state_mutex held.
  */
-void spu_switch_log_notify(struct spu *spu, struct spu_context *ctx,
+void spu_switch_log_yestify(struct spu *spu, struct spu_context *ctx,
 		u32 type, u32 val)
 {
 	if (!ctx->switch_log)
@@ -2541,9 +2541,9 @@ static int spufs_show_ctx(struct seq_file *s, void *private)
 	return 0;
 }
 
-static int spufs_ctx_open(struct inode *inode, struct file *file)
+static int spufs_ctx_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, spufs_show_ctx, SPUFS_I(inode)->i_ctx);
+	return single_open(file, spufs_show_ctx, SPUFS_I(iyesde)->i_ctx);
 }
 
 static const struct file_operations spufs_ctx_fops = {
@@ -2594,7 +2594,7 @@ const struct spufs_tree_descr spufs_dir_contents[] = {
 	{},
 };
 
-const struct spufs_tree_descr spufs_dir_nosched_contents[] = {
+const struct spufs_tree_descr spufs_dir_yessched_contents[] = {
 	{ "capabilities", &spufs_caps_fops, 0444, },
 	{ "mem",  &spufs_mem_fops,  0666, LS_SIZE, },
 	{ "mbox", &spufs_mbox_fops, 0444, },
@@ -2603,8 +2603,8 @@ const struct spufs_tree_descr spufs_dir_nosched_contents[] = {
 	{ "mbox_stat", &spufs_mbox_stat_fops, 0444, sizeof(u32), },
 	{ "ibox_stat", &spufs_ibox_stat_fops, 0444, sizeof(u32), },
 	{ "wbox_stat", &spufs_wbox_stat_fops, 0444, sizeof(u32), },
-	{ "signal1", &spufs_signal1_nosched_fops, 0222, },
-	{ "signal2", &spufs_signal2_nosched_fops, 0222, },
+	{ "signal1", &spufs_signal1_yessched_fops, 0222, },
+	{ "signal2", &spufs_signal2_yessched_fops, 0222, },
 	{ "signal1_type", &spufs_signal1_type, 0666, },
 	{ "signal2_type", &spufs_signal2_type, 0666, },
 	{ "mss", &spufs_mss_fops, 0666, },

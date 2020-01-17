@@ -15,8 +15,8 @@ GPIO reports "active" when the output is asserted, so if the pins have been
 connected directly, the GPIO flags should be set to active low also.
 
 The driver will attempt to aquire interrupts for all GPIOs to detect changes in
-line state. If the system is not capabale of providing interrupts, the driver
-cannot report changes and userspace will need to periodically read the sysfs
+line state. If the system is yest capabale of providing interrupts, the driver
+canyest report changes and userspace will need to periodically read the sysfs
 attributes to detect changes.
 
 Example:

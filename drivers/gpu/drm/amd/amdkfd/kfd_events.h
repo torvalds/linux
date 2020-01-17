@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -32,17 +32,17 @@
 #include <uapi/linux/kfd_ioctl.h>
 
 /*
- * IDR supports non-negative integer IDs. Small IDs are used for
+ * IDR supports yesn-negative integer IDs. Small IDs are used for
  * signal events to match their signal slot. Use the upper half of the
- * ID space for non-signal events.
+ * ID space for yesn-signal events.
  */
 #define KFD_FIRST_NONSIGNAL_EVENT_ID ((INT_MAX >> 1) + 1)
 #define KFD_LAST_NONSIGNAL_EVENT_ID INT_MAX
 
 /*
- * Written into kfd_signal_slot_t to indicate that the event is not signaled.
+ * Written into kfd_signal_slot_t to indicate that the event is yest signaled.
  * Since the event protocol may need to write the event ID into memory, this
- * must not be a valid event ID.
+ * must yest be a valid event ID.
  * For the sake of easy memset-ing, this must be a byte pattern.
  */
 #define UNSIGNALED_EVENT_SLOT ((uint64_t)-1)

@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -42,8 +42,8 @@ struct bpf_align_test {
 };
 
 static struct bpf_align_test tests[] = {
-	/* Four tests of known constants.  These aren't staggeringly
-	 * interesting since we track exact values now.
+	/* Four tests of kyeswn constants.  These aren't staggeringly
+	 * interesting since we track exact values yesw.
 	 */
 	{
 		.descr = "mov",
@@ -146,7 +146,7 @@ static struct bpf_align_test tests[] = {
 		},
 	},
 
-	/* Tests using unknown values */
+	/* Tests using unkyeswn values */
 #define PREP_PKT_POINTERS \
 	BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, \
 		    offsetof(struct __sk_buff, data)), \
@@ -162,7 +162,7 @@ static struct bpf_align_test tests[] = {
 	BPF_LDX_MEM(BPF_B, DST_REG, BPF_REG_2, 0)
 
 	{
-		.descr = "unknown shift",
+		.descr = "unkyeswn shift",
 		.insns = {
 			LOAD_UNKNOWN(BPF_REG_3),
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_3, 1),
@@ -196,7 +196,7 @@ static struct bpf_align_test tests[] = {
 		},
 	},
 	{
-		.descr = "unknown mul",
+		.descr = "unkyeswn mul",
 		.insns = {
 			LOAD_UNKNOWN(BPF_REG_3),
 			BPF_MOV64_REG(BPF_REG_4, BPF_REG_3),
@@ -270,7 +270,7 @@ static struct bpf_align_test tests[] = {
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_6, 2),
 
 			/* First, add a constant to the R5 packet pointer,
-			 * then a variable with a known alignment.
+			 * then a variable with a kyeswn alignment.
 			 */
 			BPF_MOV64_REG(BPF_REG_5, BPF_REG_2),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_5, 14),
@@ -293,7 +293,7 @@ static struct bpf_align_test tests[] = {
 			BPF_EXIT_INSN(),
 			BPF_LDX_MEM(BPF_W, BPF_REG_4, BPF_REG_5, 0),
 
-			/* Test multiple accumulations of unknown values
+			/* Test multiple accumulations of unkyeswn values
 			 * into a packet pointer.
 			 */
 			BPF_MOV64_REG(BPF_REG_5, BPF_REG_2),
@@ -312,13 +312,13 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			/* Calculated offset in R6 has unknown value, but known
+			/* Calculated offset in R6 has unkyeswn value, but kyeswn
 			 * alignment of 4.
 			 */
 			{8, "R2_w=pkt(id=0,off=0,r=8,imm=0)"},
 			{8, "R6_w=inv(id=0,umax_value=1020,var_off=(0x0; 0x3fc))"},
 			/* Offset is added to packet pointer R5, resulting in
-			 * known fixed offset, and variable offset from R6.
+			 * kyeswn fixed offset, and variable offset from R6.
 			 */
 			{11, "R5_w=pkt(id=1,off=14,r=0,umax_value=1020,var_off=(0x0; 0x3fc))"},
 			/* At the time the word size load is performed from R5,
@@ -356,7 +356,7 @@ static struct bpf_align_test tests[] = {
 			/* Constant is added to R5 again, setting reg->off to 18. */
 			{28, "R5_w=pkt(id=3,off=18,r=0,umax_value=1020,var_off=(0x0; 0x3fc))"},
 			/* And once more we add a variable; resulting var_off
-			 * is still (4n), fixed offset is not changed.
+			 * is still (4n), fixed offset is yest changed.
 			 * Also, we create a new reg->id.
 			 */
 			{29, "R5_w=pkt(id=4,off=18,r=0,umax_value=2040,var_off=(0x0; 0x7fc))"},
@@ -373,7 +373,7 @@ static struct bpf_align_test tests[] = {
 	{
 		.descr = "packet variable offset 2",
 		.insns = {
-			/* Create an unknown offset, (4n+2)-aligned */
+			/* Create an unkyeswn offset, (4n+2)-aligned */
 			LOAD_UNKNOWN(BPF_REG_6),
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_6, 2),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, 14),
@@ -402,7 +402,7 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			/* Calculated offset in R6 has unknown value, but known
+			/* Calculated offset in R6 has unkyeswn value, but kyeswn
 			 * alignment of 4.
 			 */
 			{8, "R2_w=pkt(id=0,off=0,r=8,imm=0)"},
@@ -420,11 +420,11 @@ static struct bpf_align_test tests[] = {
 			 */
 			{15, "R5=pkt(id=1,off=0,r=4,umin_value=14,umax_value=1034,var_off=(0x2; 0x7fc))"},
 			/* Newly read value in R6 was shifted left by 2, so has
-			 * known alignment of 4.
+			 * kyeswn alignment of 4.
 			 */
 			{18, "R6_w=inv(id=0,umax_value=1020,var_off=(0x0; 0x3fc))"},
 			/* Added (4n) to packet pointer's (4n+2) var_off, giving
-			 * another (4n+2).
+			 * ayesther (4n+2).
 			 */
 			{19, "R5_w=pkt(id=2,off=0,r=0,umin_value=14,umax_value=2054,var_off=(0x2; 0xffc))"},
 			{21, "R4=pkt(id=2,off=4,r=0,umin_value=14,umax_value=2054,var_off=(0x2; 0xffc))"},
@@ -450,7 +450,7 @@ static struct bpf_align_test tests[] = {
 			 * out of it.  First add 14, to make it a (4n+2)
 			 */
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_5, 14),
-			/* Then make sure it's nonnegative */
+			/* Then make sure it's yesnnegative */
 			BPF_JMP_IMM(BPF_JSGE, BPF_REG_5, 0, 1),
 			BPF_EXIT_INSN(),
 			/* Add it to packet pointer */
@@ -468,7 +468,7 @@ static struct bpf_align_test tests[] = {
 		.result = REJECT,
 		.matches = {
 			{4, "R5_w=pkt_end(id=0,off=0,imm=0)"},
-			/* (ptr - ptr) << 2 == unknown, (4n) */
+			/* (ptr - ptr) << 2 == unkyeswn, (4n) */
 			{6, "R5_w=inv(id=0,smax_value=9223372036854775804,umax_value=18446744073709551612,var_off=(0x0; 0xfffffffffffffffc))"},
 			/* (4n) + 14 == (4n+2).  We blow our bounds, because
 			 * the add could overflow.
@@ -476,14 +476,14 @@ static struct bpf_align_test tests[] = {
 			{7, "R5_w=inv(id=0,var_off=(0x2; 0xfffffffffffffffc))"},
 			/* Checked s>=0 */
 			{9, "R5=inv(id=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
-			/* packet pointer + nonnegative (4n+2) */
+			/* packet pointer + yesnnegative (4n+2) */
 			{11, "R6_w=pkt(id=1,off=0,r=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
 			{13, "R4_w=pkt(id=1,off=4,r=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
 			/* NET_IP_ALIGN + (4n+2) == (4n), alignment is fine.
 			 * We checked the bounds, but it might have been able
 			 * to overflow if the packet pointer started in the
 			 * upper half of the address space.
-			 * So we did not get a 'range' on R6, and the access
+			 * So we did yest get a 'range' on R6, and the access
 			 * attempt will fail.
 			 */
 			{15, "R6_w=pkt(id=1,off=0,r=0,umin_value=2,umax_value=9223372036854775806,var_off=(0x2; 0x7ffffffffffffffc))"},
@@ -492,12 +492,12 @@ static struct bpf_align_test tests[] = {
 	{
 		.descr = "variable subtraction",
 		.insns = {
-			/* Create an unknown offset, (4n+2)-aligned */
+			/* Create an unkyeswn offset, (4n+2)-aligned */
 			LOAD_UNKNOWN(BPF_REG_6),
 			BPF_MOV64_REG(BPF_REG_7, BPF_REG_6),
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_6, 2),
 			BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, 14),
-			/* Create another unknown, (4n)-aligned, and subtract
+			/* Create ayesther unkyeswn, (4n)-aligned, and subtract
 			 * it from the first one
 			 */
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_7, 2),
@@ -518,14 +518,14 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			/* Calculated offset in R6 has unknown value, but known
+			/* Calculated offset in R6 has unkyeswn value, but kyeswn
 			 * alignment of 4.
 			 */
 			{7, "R2_w=pkt(id=0,off=0,r=8,imm=0)"},
 			{9, "R6_w=inv(id=0,umax_value=1020,var_off=(0x0; 0x3fc))"},
 			/* Adding 14 makes R6 be (4n+2) */
 			{10, "R6_w=inv(id=0,umin_value=14,umax_value=1034,var_off=(0x2; 0x7fc))"},
-			/* New unknown value in R7 is (4n) */
+			/* New unkyeswn value in R7 is (4n) */
 			{11, "R7_w=inv(id=0,umax_value=1020,var_off=(0x0; 0x3fc))"},
 			/* Subtracting it from R6 blows our unsigned bounds */
 			{12, "R6=inv(id=0,smin_value=-1006,smax_value=1034,var_off=(0x2; 0xfffffffffffffffc))"},
@@ -543,7 +543,7 @@ static struct bpf_align_test tests[] = {
 	{
 		.descr = "pointer variable subtraction",
 		.insns = {
-			/* Create an unknown offset, (4n+2)-aligned and bounded
+			/* Create an unkyeswn offset, (4n+2)-aligned and bounded
 			 * to [14,74]
 			 */
 			LOAD_UNKNOWN(BPF_REG_6),
@@ -554,7 +554,7 @@ static struct bpf_align_test tests[] = {
 			/* Subtract it from the packet pointer */
 			BPF_MOV64_REG(BPF_REG_5, BPF_REG_2),
 			BPF_ALU64_REG(BPF_SUB, BPF_REG_5, BPF_REG_6),
-			/* Create another unknown, (4n)-aligned and >= 74.
+			/* Create ayesther unkyeswn, (4n)-aligned and >= 74.
 			 * That in fact means >= 76, since 74 % 4 == 2
 			 */
 			BPF_ALU64_IMM(BPF_LSH, BPF_REG_7, 2),
@@ -571,7 +571,7 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			/* Calculated offset in R6 has unknown value, but known
+			/* Calculated offset in R6 has unkyeswn value, but kyeswn
 			 * alignment of 4.
 			 */
 			{7, "R2_w=pkt(id=0,off=0,r=8,imm=0)"},
@@ -580,7 +580,7 @@ static struct bpf_align_test tests[] = {
 			{11, "R6_w=inv(id=0,umin_value=14,umax_value=74,var_off=(0x2; 0x7c))"},
 			/* Subtracting from packet pointer overflows ubounds */
 			{13, "R5_w=pkt(id=1,off=0,r=8,umin_value=18446744073709551542,umax_value=18446744073709551602,var_off=(0xffffffffffffff82; 0x7c))"},
-			/* New unknown value in R7 is (4n), >= 76 */
+			/* New unkyeswn value in R7 is (4n), >= 76 */
 			{15, "R7_w=inv(id=0,umin_value=76,umax_value=1096,var_off=(0x0; 0x7fc))"},
 			/* Adding it to packet pointer gives nice bounds again */
 			{16, "R5_w=pkt(id=2,off=0,r=0,umin_value=2,umax_value=1082,var_off=(0x2; 0x7fc))"},

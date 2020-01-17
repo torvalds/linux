@@ -104,11 +104,11 @@ static const struct sec_hw_error sec_hw_errors[] = {
 	{ /* sentinel */ }
 };
 
-struct sec_dev *sec_find_device(int node)
+struct sec_dev *sec_find_device(int yesde)
 {
 #define SEC_NUMA_MAX_DISTANCE	100
 	int min_distance = SEC_NUMA_MAX_DISTANCE;
-	int dev_node = 0, free_qp_num = 0;
+	int dev_yesde = 0, free_qp_num = 0;
 	struct sec_dev *sec, *ret = NULL;
 	struct hisi_qm *qm;
 	struct device *dev;
@@ -118,15 +118,15 @@ struct sec_dev *sec_find_device(int node)
 		qm = &sec->qm;
 		dev = &qm->pdev->dev;
 #ifdef CONFIG_NUMA
-		dev_node = dev->numa_node;
-		if (dev_node < 0)
-			dev_node = 0;
+		dev_yesde = dev->numa_yesde;
+		if (dev_yesde < 0)
+			dev_yesde = 0;
 #endif
-		if (node_distance(dev_node, node) < min_distance) {
+		if (yesde_distance(dev_yesde, yesde) < min_distance) {
 			free_qp_num = hisi_qm_get_free_qp_num(qm);
 			if (free_qp_num >= sec->ctx_q_num) {
 				ret = sec;
-				min_distance = node_distance(dev_node, node);
+				min_distance = yesde_distance(dev_yesde, yesde);
 			}
 		}
 	}
@@ -269,7 +269,7 @@ static u8 sec_get_endian(struct sec_dev *sec)
 	 */
 	if (qm->pdev->is_virtfn) {
 		dev_err_ratelimited(&qm->pdev->dev,
-				    "cannot access a register in VF!\n");
+				    "canyest access a register in VF!\n");
 		return SEC_LE;
 	}
 	reg = readl_relaxed(qm->io_base + SEC_ENGINE_PF_CFG_OFF +
@@ -390,7 +390,7 @@ static void sec_hw_error_enable(struct sec_dev *sec)
 
 	if (qm->ver == QM_HW_V1) {
 		writel(SEC_CORE_INT_DISABLE, qm->io_base + SEC_CORE_INT_MASK);
-		dev_info(&qm->pdev->dev, "V1 not support hw error handle\n");
+		dev_info(&qm->pdev->dev, "V1 yest support hw error handle\n");
 		return;
 	}
 
@@ -757,10 +757,10 @@ static int sec_probe_init(struct hisi_qm *qm, struct sec_dev *sec)
 		return sec_pf_probe_init(sec);
 	} else if (qm->fun_type == QM_HW_VF) {
 		/*
-		 * have no way to get qm configure in VM in v1 hardware,
+		 * have yes way to get qm configure in VM in v1 hardware,
 		 * so currently force PF to uses SEC_PF_DEF_Q_NUM, and force
 		 * to trigger only one VF in v1 hardware.
-		 * v2 hardware has no such problem.
+		 * v2 hardware has yes such problem.
 		 */
 		if (qm->ver == QM_HW_V1) {
 			qm->qp_base = SEC_PF_DEF_Q_NUM;
@@ -843,7 +843,7 @@ err_qm_uninit:
 	return ret;
 }
 
-/* now we only support equal assignment */
+/* yesw we only support equal assignment */
 static int sec_vf_q_assign(struct sec_dev *sec, u32 num_vfs)
 {
 	struct hisi_qm *qm = &sec->qm;

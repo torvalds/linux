@@ -2,7 +2,7 @@
 /*
  * Pin controller and GPIO driver for Amlogic Meson8 and Meson8m2.
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamiyes Galvani <b.galvani@gmail.com>
  */
 
 #include <dt-bindings/gpio/meson8-gpio.h>
@@ -357,10 +357,10 @@ static const unsigned int nand_dqs_pins[]	= { BOOT_15 };
 static const unsigned int nand_ce2_pins[]	= { BOOT_16 };
 static const unsigned int nand_ce3_pins[]	= { BOOT_17 };
 
-static const unsigned int nor_d_pins[]		= { BOOT_11 };
-static const unsigned int nor_q_pins[]		= { BOOT_12 };
-static const unsigned int nor_c_pins[]		= { BOOT_13 };
-static const unsigned int nor_cs_pins[]		= { BOOT_18 };
+static const unsigned int yesr_d_pins[]		= { BOOT_11 };
+static const unsigned int yesr_q_pins[]		= { BOOT_12 };
+static const unsigned int yesr_c_pins[]		= { BOOT_13 };
+static const unsigned int yesr_cs_pins[]		= { BOOT_18 };
 
 /* bank CARD */
 static const unsigned int sd_d1_b_pins[]	= { CARD_0 };
@@ -726,10 +726,10 @@ static struct meson_pmx_group meson8_cbus_groups[] = {
 	GROUP(nand_ce2,		2,	23),
 	GROUP(nand_ce3,		2,	22),
 
-	GROUP(nor_d,		5,	1),
-	GROUP(nor_q,		5,	3),
-	GROUP(nor_c,		5,	2),
-	GROUP(nor_cs,		5,	0),
+	GROUP(yesr_d,		5,	1),
+	GROUP(yesr_q,		5,	3),
+	GROUP(yesr_c,		5,	2),
+	GROUP(yesr_cs,		5,	0),
 
 	/* bank CARD */
 	GROUP(sd_d1_b,		2,	14),
@@ -945,8 +945,8 @@ static const char * const nand_groups[] = {
 	"nand_ce2", "nand_ce3"
 };
 
-static const char * const nor_groups[] = {
-	"nor_d", "nor_q", "nor_c", "nor_cs"
+static const char * const yesr_groups[] = {
+	"yesr_d", "yesr_q", "yesr_c", "yesr_cs"
 };
 
 static const char * const pwm_a_groups[] = {
@@ -1039,7 +1039,7 @@ static struct meson_pmx_func meson8_cbus_functions[] = {
 	FUNCTION(sd_c),
 	FUNCTION(sdxc_c),
 	FUNCTION(nand),
-	FUNCTION(nor),
+	FUNCTION(yesr),
 	FUNCTION(sd_b),
 	FUNCTION(sdxc_b),
 	FUNCTION(pwm_a),

@@ -26,7 +26,7 @@
 #define NUL_REPLYSLACK	(2)
 
 /*
- * Size of the nodename buffer. RFC1831 specifies a hard limit of 255 bytes,
+ * Size of the yesdename buffer. RFC1831 specifies a hard limit of 255 bytes,
  * but Linux hostnames are actually limited to __NEW_UTS_LEN bytes.
  */
 #define UNX_MAXNODENAME	__NEW_UTS_LEN
@@ -46,7 +46,7 @@ struct auth_cred {
 struct rpc_auth;
 struct rpc_credops;
 struct rpc_cred {
-	struct hlist_node	cr_hash;	/* hash chain */
+	struct hlist_yesde	cr_hash;	/* hash chain */
 	struct list_head	cr_lru;		/* lru garbage collection */
 	struct rcu_head		cr_rcu;
 	struct rpc_auth *	cr_auth;
@@ -78,7 +78,7 @@ struct rpc_auth {
 
 	unsigned int		au_flags;
 	const struct rpc_authops *au_ops;
-	rpc_authflavor_t	au_flavor;	/* pseudoflavor (note may
+	rpc_authflavor_t	au_flavor;	/* pseudoflavor (yeste may
 						 * differ from the flavor in
 						 * au_ops->au_flavor in gss
 						 * case) */
@@ -187,7 +187,7 @@ char *			rpcauth_stringify_acceptor(struct rpc_cred *);
 static inline
 struct rpc_cred *get_rpccred(struct rpc_cred *cred)
 {
-	if (cred != NULL && refcount_inc_not_zero(&cred->cr_count))
+	if (cred != NULL && refcount_inc_yest_zero(&cred->cr_count))
 		return cred;
 	return NULL;
 }

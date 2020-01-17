@@ -65,7 +65,7 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, const void *data,
 		memcpy(seg_ptr, data, (u32)frag_length);
 
 		if (type == DESC_PACKET_TYPE_INIT &&
-		    (!priv->rtllib->check_nic_enough_desc(dev, TXCMD_QUEUE) ||
+		    (!priv->rtllib->check_nic_eyesugh_desc(dev, TXCMD_QUEUE) ||
 		     (!skb_queue_empty(&priv->rtllib->skb_waitQ[TXCMD_QUEUE])) ||
 		     (priv->rtllib->queue_stop))) {
 			skb_queue_tail(&priv->rtllib->skb_waitQ[TXCMD_QUEUE],

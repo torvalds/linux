@@ -8,7 +8,7 @@ Required properties:
 
 Optional properties:
 - interrupts: Interrupt mapping for GPIO IRQ. Use in conjunction with
-    "interrupt-parent". If an interrupt is not provided the driver will switch
+    "interrupt-parent". If an interrupt is yest provided the driver will switch
     automatically to polling.
 
 Example:

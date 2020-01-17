@@ -67,7 +67,7 @@ acpi_status acpi_ut_create_caches(void)
 
 	status =
 	    acpi_os_create_cache("Acpi-Namespace",
-				 sizeof(struct acpi_namespace_node),
+				 sizeof(struct acpi_namespace_yesde),
 				 ACPI_MAX_NAMESPACE_CACHE_DEPTH,
 				 &acpi_gbl_namespace_cache);
 	if (ACPI_FAILURE(status)) {
@@ -86,7 +86,7 @@ acpi_status acpi_ut_create_caches(void)
 	    acpi_os_create_cache("Acpi-Parse",
 				 sizeof(struct acpi_parse_obj_common),
 				 ACPI_MAX_PARSE_CACHE_DEPTH,
-				 &acpi_gbl_ps_node_cache);
+				 &acpi_gbl_ps_yesde_cache);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -95,7 +95,7 @@ acpi_status acpi_ut_create_caches(void)
 	    acpi_os_create_cache("Acpi-ParseExt",
 				 sizeof(struct acpi_parse_obj_named),
 				 ACPI_MAX_EXTPARSE_CACHE_DEPTH,
-				 &acpi_gbl_ps_node_ext_cache);
+				 &acpi_gbl_ps_yesde_ext_cache);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -115,7 +115,7 @@ acpi_status acpi_ut_create_caches(void)
 	 */
 	status =
 	    acpi_os_create_cache("Acpi-Comment",
-				 sizeof(struct acpi_comment_node),
+				 sizeof(struct acpi_comment_yesde),
 				 ACPI_MAX_COMMENT_CACHE_DEPTH,
 				 &acpi_gbl_reg_comment_cache);
 	if (ACPI_FAILURE(status)) {
@@ -128,7 +128,7 @@ acpi_status acpi_ut_create_caches(void)
 	 */
 	status =
 	    acpi_os_create_cache("Acpi-Comment-Addr",
-				 sizeof(struct acpi_comment_addr_node),
+				 sizeof(struct acpi_comment_addr_yesde),
 				 ACPI_MAX_COMMENT_CACHE_DEPTH,
 				 &acpi_gbl_comment_addr_cache);
 	if (ACPI_FAILURE(status)) {
@@ -136,10 +136,10 @@ acpi_status acpi_ut_create_caches(void)
 	}
 
 	/*
-	 * This cache will be used for nodes that represent files.
+	 * This cache will be used for yesdes that represent files.
 	 */
 	status =
-	    acpi_os_create_cache("Acpi-File", sizeof(struct acpi_file_node),
+	    acpi_os_create_cache("Acpi-File", sizeof(struct acpi_file_yesde),
 				 ACPI_MAX_COMMENT_CACHE_DEPTH,
 				 &acpi_gbl_file_cache);
 	if (ACPI_FAILURE(status)) {
@@ -158,8 +158,8 @@ acpi_status acpi_ut_create_caches(void)
 
 	status =
 	    acpi_ut_create_list("Acpi-Namespace",
-				sizeof(struct acpi_namespace_node),
-				&acpi_gbl_ns_node_list);
+				sizeof(struct acpi_namespace_yesde),
+				&acpi_gbl_ns_yesde_list);
 	if (ACPI_FAILURE(status)) {
 		return (status);
 	}
@@ -200,11 +200,11 @@ acpi_status acpi_ut_delete_caches(void)
 	(void)acpi_os_delete_cache(acpi_gbl_operand_cache);
 	acpi_gbl_operand_cache = NULL;
 
-	(void)acpi_os_delete_cache(acpi_gbl_ps_node_cache);
-	acpi_gbl_ps_node_cache = NULL;
+	(void)acpi_os_delete_cache(acpi_gbl_ps_yesde_cache);
+	acpi_gbl_ps_yesde_cache = NULL;
 
-	(void)acpi_os_delete_cache(acpi_gbl_ps_node_ext_cache);
-	acpi_gbl_ps_node_ext_cache = NULL;
+	(void)acpi_os_delete_cache(acpi_gbl_ps_yesde_ext_cache);
+	acpi_gbl_ps_yesde_ext_cache = NULL;
 
 #ifdef ACPI_ASL_COMPILER
 	(void)acpi_os_delete_cache(acpi_gbl_reg_comment_cache);
@@ -228,8 +228,8 @@ acpi_status acpi_ut_delete_caches(void)
 	acpi_os_free(acpi_gbl_global_list);
 	acpi_gbl_global_list = NULL;
 
-	acpi_os_free(acpi_gbl_ns_node_list);
-	acpi_gbl_ns_node_list = NULL;
+	acpi_os_free(acpi_gbl_ns_yesde_list);
+	acpi_gbl_ns_yesde_list = NULL;
 #endif
 
 	return (AE_OK);

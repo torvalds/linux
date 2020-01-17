@@ -107,7 +107,7 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* enable PCI DMA */
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
-		printk(KERN_ERR "%s: 32-bit PCI DMA not supported", DRV_NAME);
+		printk(KERN_ERR "%s: 32-bit PCI DMA yest supported", DRV_NAME);
 		goto do_pci_disable_device;
         }
 
@@ -117,7 +117,7 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 *	Master, will perform before abandoning a cycle. The default value for
 	 *	RETRY_TIMEOUT is 0x80, which far exceeds the PCI 2.1 requirement for new
 	 *	devices. A write of zero to the RETRY_TIMEOUT register disables this
-	 *	function to allow use with any non-compliant legacy devices that may
+	 *	function to allow use with any yesn-compliant legacy devices that may
 	 *	execute more retries.
 	 *
 	 *	Writing zero to both these two registers will disable both timeouts and
@@ -142,7 +142,7 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* check if the memory window is indeed set */
 	rvalue = pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &mem_addr);
 	if (rvalue || !mem_addr) {
-		printk(KERN_ERR "%s: PCI device memory region not configured; fix your BIOS or CardBus bridge/drivers\n",
+		printk(KERN_ERR "%s: PCI device memory region yest configured; fix your BIOS or CardBus bridge/drivers\n",
 		       DRV_NAME);
 		goto do_pci_release_regions;
 	}
@@ -157,7 +157,7 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* setup the network device interface and its structure */
 	if (!(ndev = islpci_setup(pdev))) {
 		/* error configuring the driver as a network device */
-		printk(KERN_ERR "%s: could not configure network device\n",
+		printk(KERN_ERR "%s: could yest configure network device\n",
 		       DRV_NAME);
 		goto do_pci_clear_mwi;
 	}
@@ -165,7 +165,7 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	priv = netdev_priv(ndev);
 	islpci_set_state(priv, PRV_STATE_PREBOOT); /* we are attempting to boot */
 
-	/* card is in unknown state yet, might have some interrupts pending */
+	/* card is in unkyeswn state yet, might have some interrupts pending */
 	isl38xx_disable_interrupts(priv->device_base);
 
 	/* request for the interrupt before uploading the firmware */
@@ -173,8 +173,8 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			     IRQF_SHARED, ndev->name, priv);
 
 	if (rvalue) {
-		/* error, could not hook the handler to the irq */
-		printk(KERN_ERR "%s: could not install IRQ handler\n",
+		/* error, could yest hook the handler to the irq */
+		printk(KERN_ERR "%s: could yest install IRQ handler\n",
 		       ndev->name);
 		goto do_unregister_netdev;
 	}
@@ -253,10 +253,10 @@ prism54_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	pci_save_state(pdev);
 
-	/* tell the device not to trigger interrupts for now... */
+	/* tell the device yest to trigger interrupts for yesw... */
 	isl38xx_disable_interrupts(priv->device_base);
 
-	/* from now on assume the hardware was already powered down
+	/* from yesw on assume the hardware was already powered down
 	   and don't touch it anymore */
 	islpci_set_state(priv, PRV_STATE_OFF);
 

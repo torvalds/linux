@@ -41,7 +41,7 @@ static uint32_t float_to_u32_mul_1000000(struct i2c_client *client,
 		return ~0; /* larger than 4294967295 */
 
 	/*
-	 * Unbias exponent (note how phloat is now guaranteed to
+	 * Unbias exponent (yeste how phloat is yesw guaranteed to
 	 * have 0 in the high bit)
 	 */
 	exp = ((int32_t)phloat >> 23) - 127;
@@ -62,7 +62,7 @@ static uint32_t float_to_u32_mul_1000000(struct i2c_client *client,
 
 /*
  * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or yesn-zero otherwise.
  */
 static int ____smiapp_read(struct smiapp_sensor *sensor, u16 reg,
 			   u16 len, u32 *val)
@@ -145,7 +145,7 @@ static int ____smiapp_read_8only(struct smiapp_sensor *sensor, u16 reg,
 
 /*
  * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or yesn-zero otherwise.
  */
 static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 			 bool only8)
@@ -172,7 +172,7 @@ static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 	return 0;
 }
 
-int smiapp_read_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val)
+int smiapp_read_yes_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val)
 {
 	return __smiapp_read(
 		sensor, reg, val,
@@ -195,7 +195,7 @@ static int smiapp_read_quirk(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 	if (force8)
 		return __smiapp_read(sensor, reg, val, true);
 
-	return smiapp_read_no_quirk(sensor, reg, val);
+	return smiapp_read_yes_quirk(sensor, reg, val);
 }
 
 int smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val)
@@ -208,7 +208,7 @@ int smiapp_read_8only(struct smiapp_sensor *sensor, u32 reg, u32 *val)
 	return smiapp_read_quirk(sensor, reg, val, true);
 }
 
-int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
+int smiapp_write_yes_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct i2c_msg msg;
@@ -255,7 +255,7 @@ int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 
 	for (retries = 0; retries < 5; retries++) {
 		/*
-		 * Due to unknown reason sensor stops responding. This
+		 * Due to unkyeswn reason sensor stops responding. This
 		 * loop is a temporaty solution until the root cause
 		 * is found.
 		 */
@@ -279,7 +279,7 @@ int smiapp_write_no_quirk(struct smiapp_sensor *sensor, u32 reg, u32 val)
 
 /*
  * Write to a 8/16-bit register.
- * Returns zero if successful, or non-zero otherwise.
+ * Returns zero if successful, or yesn-zero otherwise.
  */
 int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val)
 {
@@ -291,5 +291,5 @@ int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val)
 	if (rval < 0)
 		return rval;
 
-	return smiapp_write_no_quirk(sensor, reg, val);
+	return smiapp_write_yes_quirk(sensor, reg, val);
 }

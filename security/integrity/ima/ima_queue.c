@@ -33,7 +33,7 @@ static unsigned long binary_runtime_size;
 static unsigned long binary_runtime_size = ULONG_MAX;
 #endif
 
-/* key: inode (before secure-hashing a file) */
+/* key: iyesde (before secure-hashing a file) */
 struct ima_h_table ima_htable = {
 	.len = ATOMIC_LONG_INIT(0),
 	.violations = ATOMIC_LONG_INIT(0),
@@ -162,7 +162,7 @@ static int ima_pcr_extend(const u8 *hash, int pcr)
  * binary_runtime_measurements.
  */
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
-			   const char *op, struct inode *inode,
+			   const char *op, struct iyesde *iyesde,
 			   const unsigned char *filename)
 {
 	u8 digest[TPM_DIGEST_SIZE];
@@ -200,7 +200,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 	}
 out:
 	mutex_unlock(&ima_extend_list_mutex);
-	integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
+	integrity_audit_msg(AUDIT_INTEGRITY_PCR, iyesde, filename,
 			    op, audit_cause, result, audit_info);
 	return result;
 }

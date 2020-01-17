@@ -26,7 +26,7 @@ Optional properties:
 - nvidia,invert-interrupt : If present, inverts the PMU interrupt signal.
   The PMU is an external Power Management Unit, whose interrupt output
   signal is fed into the PMC. This signal is optionally inverted, and then
-  fed into the ARM GIC. The PMC is not involved in the detection or
+  fed into the ARM GIC. The PMC is yest involved in the detection or
   handling of this interrupt signal, merely its inversion.
 - nvidia,suspend-mode : The suspend mode that the platform should use.
   Valid values are 0, 1 and 2:
@@ -56,7 +56,7 @@ Required properties when nvidia,suspend-mode=<0>:
   bring up CPU0 for resuming the system.
 
 Hardware-triggered thermal reset:
-On Tegra30, Tegra114 and Tegra124, if the 'i2c-thermtrip' subnode exists,
+On Tegra30, Tegra114 and Tegra124, if the 'i2c-thermtrip' subyesde exists,
 hardware-triggered thermal reset will be enabled.
 
 Required properties for hardware-triggered thermal reset (inside 'i2c-thermtrip'):
@@ -72,8 +72,8 @@ Optional properties for hardware-triggered thermal reset (inside 'i2c-thermtrip'
                      Defaults to 0. Valid values are described in section 12.5.2
                      "Pinmux Support" of the Tegra4 Technical Reference Manual.
 
-Optional nodes:
-- powergates : This node contains a hierarchy of power domain nodes, which
+Optional yesdes:
+- powergates : This yesde contains a hierarchy of power domain yesdes, which
 	       should match the powergates on the Tegra SoC. See "Powergate
 	       Nodes" below.
 
@@ -126,9 +126,9 @@ pmc@7000f400 {
 
 == Powergate Nodes ==
 
-Each of the powergate nodes represents a power-domain on the Tegra SoC
-that can be power-gated by the Tegra PMC. The name of the powergate node
-should be one of the below. Note that not every powergate is applicable
+Each of the powergate yesdes represents a power-domain on the Tegra SoC
+that can be power-gated by the Tegra PMC. The name of the powergate yesde
+should be one of the below. Note that yest every powergate is applicable
 to all Tegra devices and the following list shows which powergates are
 applicable to which devices. Please refer to the Tegra TRM for more
 details on the various powergates.
@@ -186,7 +186,7 @@ Example:
 == Powergate Clients ==
 
 Hardware blocks belonging to a power domain should contain a "power-domains"
-property that is a phandle pointing to the corresponding powergate node.
+property that is a phandle pointing to the corresponding powergate yesde.
 
 Example:
 
@@ -206,11 +206,11 @@ voltage configuration varies depending on the pad in question. 3.3 V and
 1.8 V signaling voltages are supported on pins where software
 controllable signaling voltage switching is available.
 
-The pad configuration state nodes are placed under the pmc node and they
+The pad configuration state yesdes are placed under the pmc yesde and they
 are referred to by the pinctrl client properties. For more information
 see Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt.
 The pad name should be used as the value of the pins property in pin
-configuration nodes.
+configuration yesdes.
 
 The following pads are present on Tegra124 and Tegra132:
 audio		bb		cam		comp
@@ -225,7 +225,7 @@ usb2		usb_bias
 The following pads are present on Tegra210:
 audio		audio-hv	cam		csia
 csib		csic		csid		csie
-csif		dbg		debug-nonao	dmic
+csif		dbg		debug-yesnao	dmic
 dp		dsi		dsib		dsic
 dsid		emmc		emmc2		gpio
 hdmi		hsic		lvds		mipi-bias

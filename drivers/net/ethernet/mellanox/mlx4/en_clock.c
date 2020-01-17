@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2012 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -131,7 +131,7 @@ static int mlx4_en_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 		neg_adj = 1;
 		delta = -delta;
 	}
-	mult = mdev->nominal_c_mult;
+	mult = mdev->yesminal_c_mult;
 	adj = mult;
 	adj *= delta;
 	diff = div_u64(adj, 1000000000ULL);
@@ -147,7 +147,7 @@ static int mlx4_en_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 /**
  * mlx4_en_phc_adjtime - Shift the time of the hardware clock
  * @ptp: ptp clock structure
- * @delta: Desired change in nanoseconds
+ * @delta: Desired change in nayesseconds
  *
  * Adjust the timer by resetting the timecounter structure.
  **/
@@ -220,7 +220,7 @@ static int mlx4_en_phc_settime(struct ptp_clock_info *ptp,
  * @on: Caller passes one to enable or zero to disable
  *
  * Enable (or disable) ancillary features of the PHC subsystem.
- * Currently, no ancillary features are supported.
+ * Currently, yes ancillary features are supported.
  **/
 static int mlx4_en_phc_enable(struct ptp_clock_info __always_unused *ptp,
 			      struct ptp_clock_request __always_unused *request,
@@ -280,7 +280,7 @@ void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev)
 	mdev->cycles.shift = freq_to_shift(dev->caps.hca_core_clock);
 	mdev->cycles.mult =
 		clocksource_khz2mult(1000 * dev->caps.hca_core_clock, mdev->cycles.shift);
-	mdev->nominal_c_mult = mdev->cycles.mult;
+	mdev->yesminal_c_mult = mdev->cycles.mult;
 
 	write_seqlock_irqsave(&mdev->clock_lock, flags);
 	timecounter_init(&mdev->clock, &mdev->cycles,

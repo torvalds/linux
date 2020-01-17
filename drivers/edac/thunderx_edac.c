@@ -190,7 +190,7 @@ struct thunderx_lmc {
 	u64 mask0;
 	u64 mask2;
 	u64 parity_test;
-	u64 node;
+	u64 yesde;
 
 	int xbits;
 	int bank_width;
@@ -415,7 +415,7 @@ static ssize_t thunderx_lmc_inject_ecc_write(struct file *file,
 
 	atomic_set(&lmc->ecc_int, 0);
 
-	lmc->mem = alloc_pages_node(lmc->node, GFP_KERNEL, 0);
+	lmc->mem = alloc_pages_yesde(lmc->yesde, GFP_KERNEL, 0);
 	if (!lmc->mem)
 		return -ENOMEM;
 
@@ -463,7 +463,7 @@ struct debugfs_entry *lmc_dfs_ents[] = {
 	&debugfs_int_w1c,
 };
 
-static int thunderx_create_debugfs_nodes(struct dentry *parent,
+static int thunderx_create_debugfs_yesdes(struct dentry *parent,
 					  struct debugfs_entry *attrs[],
 					  void *data,
 					  size_t num)
@@ -493,7 +493,7 @@ static phys_addr_t thunderx_faddr_to_phys(u64 faddr, struct thunderx_lmc *lmc)
 	phys_addr_t addr = 0;
 	int bank, xbits;
 
-	addr |= lmc->node << 40;
+	addr |= lmc->yesde << 40;
 	addr |= LMC_FADR_FDIMM(faddr) << lmc->dimm_lsb;
 	addr |= LMC_FADR_FBUNK(faddr) << lmc->rank_lsb;
 	addr |= LMC_FADR_FROW(faddr) << lmc->row_lsb;
@@ -517,7 +517,7 @@ static phys_addr_t thunderx_faddr_to_phys(u64 faddr, struct thunderx_lmc *lmc)
 	return addr;
 }
 
-static unsigned int thunderx_get_num_lmcs(unsigned int node)
+static unsigned int thunderx_get_num_lmcs(unsigned int yesde)
 {
 	unsigned int number = 0;
 	struct pci_dev *pdev = NULL;
@@ -528,7 +528,7 @@ static unsigned int thunderx_get_num_lmcs(unsigned int node)
 				      pdev);
 		if (pdev) {
 #ifdef CONFIG_NUMA
-			if (pdev->dev.numa_node == node)
+			if (pdev->dev.numa_yesde == yesde)
 				number++;
 #else
 			number++;
@@ -650,10 +650,10 @@ static const struct pci_device_id thunderx_lmc_pci_tbl[] = {
 
 static inline int pci_dev_to_mc_idx(struct pci_dev *pdev)
 {
-	int node = dev_to_node(&pdev->dev);
+	int yesde = dev_to_yesde(&pdev->dev);
 	int ret = PCI_FUNC(pdev->devfn);
 
-	ret += max(node, 0) << 3;
+	ret += max(yesde, 0) << 3;
 
 	return ret;
 }
@@ -675,13 +675,13 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable PCI device: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest enable PCI device: %d\n", ret);
 		return ret;
 	}
 
 	ret = pcim_iomap_regions(pdev, BIT(0), "thunderx_lmc");
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot map PCI resources: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest map PCI resources: %d\n", ret);
 		return ret;
 	}
 
@@ -727,7 +727,7 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 
 	ret = pci_enable_msix_exact(pdev, &lmc->msix_ent, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable interrupt: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest enable interrupt: %d\n", ret);
 		goto err_free;
 	}
 
@@ -736,13 +736,13 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 					thunderx_lmc_threaded_isr, 0,
 					"[EDAC] ThunderX LMC", mci);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot set ISR: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest set ISR: %d\n", ret);
 		goto err_free;
 	}
 
-	lmc->node = FIELD_GET(THUNDERX_NODE, pci_resource_start(pdev, 0));
+	lmc->yesde = FIELD_GET(THUNDERX_NODE, pci_resource_start(pdev, 0));
 
-	lmc->xbits = thunderx_get_num_lmcs(lmc->node) >> 1;
+	lmc->xbits = thunderx_get_num_lmcs(lmc->yesde) >> 1;
 	lmc->bank_width = (FIELD_GET(LMC_DDR_PLL_CTL_DDR4, lmc_ddr_pll_ctl) &&
 			   FIELD_GET(LMC_CONFIG_BG2, lmc_config)) ? 4 : 3;
 
@@ -757,9 +757,9 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 
 	lmc->xor_bank = lmc_control & LMC_CONTROL_XOR_BANK;
 
-	l2c_ioaddr = ioremap(L2C_CTL | FIELD_PREP(THUNDERX_NODE, lmc->node), PAGE_SIZE);
+	l2c_ioaddr = ioremap(L2C_CTL | FIELD_PREP(THUNDERX_NODE, lmc->yesde), PAGE_SIZE);
 	if (!l2c_ioaddr) {
-		dev_err(&pdev->dev, "Cannot map L2C_CTL\n");
+		dev_err(&pdev->dev, "Canyest map L2C_CTL\n");
 		ret = -ENOMEM;
 		goto err_free;
 	}
@@ -770,7 +770,7 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 
 	ret = edac_mc_add_mc(mci);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot add the MC: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest add the MC: %d\n", ret);
 		goto err_free;
 	}
 
@@ -780,7 +780,7 @@ static int thunderx_lmc_probe(struct pci_dev *pdev,
 	writeq(LMC_INT_ENA_ALL, lmc->regs + LMC_INT_ENA_W1S);
 
 	if (IS_ENABLED(CONFIG_EDAC_DEBUG)) {
-		ret = thunderx_create_debugfs_nodes(mci->debugfs,
+		ret = thunderx_create_debugfs_yesdes(mci->debugfs,
 						    lmc_dfs_ents,
 						    lmc,
 						    ARRAY_SIZE(lmc_dfs_ents));
@@ -851,22 +851,22 @@ static const struct error_descr ocx_com_errors[] = {
 	{
 		.type  = ERR_CORRECTED,
 		.mask  = OCX_COM_IO_BADID,
-		.descr = "Invalid IO transaction node ID",
+		.descr = "Invalid IO transaction yesde ID",
 	},
 	{
 		.type  = ERR_CORRECTED,
 		.mask  = OCX_COM_MEM_BADID,
-		.descr = "Invalid memory transaction node ID",
+		.descr = "Invalid memory transaction yesde ID",
 	},
 	{
 		.type  = ERR_CORRECTED,
 		.mask  = OCX_COM_COPR_BADID,
-		.descr = "Invalid coprocessor transaction node ID",
+		.descr = "Invalid coprocessor transaction yesde ID",
 	},
 	{
 		.type  = ERR_CORRECTED,
 		.mask  = OCX_COM_WIN_REQ_BADID,
-		.descr = "Invalid SLI transaction node ID",
+		.descr = "Invalid SLI transaction yesde ID",
 	},
 	{
 		.type  = ERR_CORRECTED,
@@ -1010,7 +1010,7 @@ static const struct error_descr ocx_lane_errors[] = {
 	{
 		.type  = ERR_CORRECTED,
 		.mask  = OCX_LANE_UKWN_CNTL_WORD,
-		.descr = "Unknown control word",
+		.descr = "Unkyeswn control word",
 	},
 	{
 		.type  = ERR_CORRECTED,
@@ -1352,13 +1352,13 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable PCI device: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest enable PCI device: %d\n", ret);
 		return ret;
 	}
 
 	ret = pcim_iomap_regions(pdev, BIT(0), "thunderx_ocx");
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot map PCI resources: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest map PCI resources: %d\n", ret);
 		return ret;
 	}
 
@@ -1368,7 +1368,7 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 					      name, 1, "CCPI", 1,
 					      0, NULL, 0, idx);
 	if (!edac_dev) {
-		dev_err(&pdev->dev, "Cannot allocate EDAC device: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest allocate EDAC device: %d\n", ret);
 		return -ENOMEM;
 	}
 	ocx = edac_dev->pvt_info;
@@ -1380,7 +1380,7 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 
 	ocx->regs = pcim_iomap_table(pdev)[0];
 	if (!ocx->regs) {
-		dev_err(&pdev->dev, "Cannot map PCI resources: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest map PCI resources: %d\n", ret);
 		ret = -ENODEV;
 		goto err_free;
 	}
@@ -1394,7 +1394,7 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 
 	ret = pci_enable_msix_exact(pdev, ocx->msix_ent, OCX_INTS);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable interrupt: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest enable interrupt: %d\n", ret);
 		goto err_free;
 	}
 
@@ -1420,14 +1420,14 @@ static int thunderx_ocx_probe(struct pci_dev *pdev,
 
 	ret = edac_device_add_device(edac_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot add EDAC device: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest add EDAC device: %d\n", ret);
 		goto err_free;
 	}
 
 	if (IS_ENABLED(CONFIG_EDAC_DEBUG)) {
 		ocx->debugfs = edac_debugfs_create_dir(pdev->dev.kobj.name);
 
-		ret = thunderx_create_debugfs_nodes(ocx->debugfs,
+		ret = thunderx_create_debugfs_yesdes(ocx->debugfs,
 						    ocx_dfs_ents,
 						    ocx,
 						    ARRAY_SIZE(ocx_dfs_ents));
@@ -1958,13 +1958,13 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 
 	ret = pcim_enable_device(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable PCI device: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest enable PCI device: %d\n", ret);
 		return ret;
 	}
 
 	ret = pcim_iomap_regions(pdev, BIT(0), "thunderx_l2c");
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot map PCI resources: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest map PCI resources: %d\n", ret);
 		return ret;
 	}
 
@@ -2007,7 +2007,7 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 					      name, 1, "L2C", 1, 0,
 					      NULL, 0, idx);
 	if (!edac_dev) {
-		dev_err(&pdev->dev, "Cannot allocate EDAC device\n");
+		dev_err(&pdev->dev, "Canyest allocate EDAC device\n");
 		return -ENOMEM;
 	}
 
@@ -2016,7 +2016,7 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 
 	l2c->regs = pcim_iomap_table(pdev)[0];
 	if (!l2c->regs) {
-		dev_err(&pdev->dev, "Cannot map PCI resources\n");
+		dev_err(&pdev->dev, "Canyest map PCI resources\n");
 		ret = -ENODEV;
 		goto err_free;
 	}
@@ -2031,7 +2031,7 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 
 	ret = pci_enable_msix_exact(pdev, &l2c->msix_ent, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable interrupt: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest enable interrupt: %d\n", ret);
 		goto err_free;
 	}
 
@@ -2050,14 +2050,14 @@ static int thunderx_l2c_probe(struct pci_dev *pdev,
 
 	ret = edac_device_add_device(edac_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot add EDAC device: %d\n", ret);
+		dev_err(&pdev->dev, "Canyest add EDAC device: %d\n", ret);
 		goto err_free;
 	}
 
 	if (IS_ENABLED(CONFIG_EDAC_DEBUG)) {
 		l2c->debugfs = edac_debugfs_create_dir(pdev->dev.kobj.name);
 
-		ret = thunderx_create_debugfs_nodes(l2c->debugfs, l2c_devattr,
+		ret = thunderx_create_debugfs_yesdes(l2c->debugfs, l2c_devattr,
 					      l2c, dfs_entries);
 
 		if (ret != dfs_entries) {

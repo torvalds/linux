@@ -82,14 +82,14 @@ static int kimage_alloc_init(struct kimage **rimage, unsigned long entry,
 	image->control_code_page = kimage_alloc_control_pages(image,
 					   get_order(KEXEC_CONTROL_PAGE_SIZE));
 	if (!image->control_code_page) {
-		pr_err("Could not allocate control_code_buffer\n");
+		pr_err("Could yest allocate control_code_buffer\n");
 		goto out_free_image;
 	}
 
 	if (!kexec_on_panic) {
 		image->swap_page = kimage_alloc_control_pages(image, 0);
 		if (!image->swap_page) {
-			pr_err("Could not allocate swap buffer\n");
+			pr_err("Could yest allocate swap buffer\n");
 			goto out_free_control_pages;
 		}
 	}
@@ -125,7 +125,7 @@ static int do_kexec_load(unsigned long entry, unsigned long nr_segments,
 	}
 	if (flags & KEXEC_ON_CRASH) {
 		/*
-		 * Loading another kernel to switch to if this one
+		 * Loading ayesther kernel to switch to if this one
 		 * crashes.  Free any current crash dump kernel before
 		 * we corrupt it.
 		 */
@@ -187,7 +187,7 @@ out:
  *   and then copies the image to it's final destination.  And
  *   jumps into the image at entry.
  *
- * kexec does not sync, or unmount filesystems so if you need
+ * kexec does yest sync, or unmount filesystems so if you need
  * that to happen you need to do that yourself.
  */
 

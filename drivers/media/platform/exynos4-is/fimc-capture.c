@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bug.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
@@ -75,7 +75,7 @@ static int fimc_capture_hw_init(struct fimc_dev *fimc)
 /*
  * Reinitialize the driver so it is ready to start the streaming again.
  * Set fimc->state to indicate stream off and the hardware shut down state.
- * If not suspending (@suspend is false), return any buffers to videobuf2.
+ * If yest suspending (@suspend is false), return any buffers to videobuf2.
  * Otherwise put any owned buffers onto the pending buffers queue, so they
  * can be re-spun when the device is being resumed. Also perform FIMC
  * software reset and disable streaming on the whole pipeline if required.
@@ -312,7 +312,7 @@ static void buffer_queue(struct vb2_buffer *vb);
 int fimc_capture_resume(struct fimc_dev *fimc)
 {
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
-	struct exynos_video_entity *ve = &vid_cap->ve;
+	struct exyyess_video_entity *ve = &vid_cap->ve;
 	struct fimc_vid_buffer *buf;
 	int i;
 
@@ -404,7 +404,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	struct fimc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
-	struct exynos_video_entity *ve = &vid_cap->ve;
+	struct exyyess_video_entity *ve = &vid_cap->ve;
 	unsigned long flags;
 	int min_bufs;
 
@@ -466,7 +466,7 @@ static int fimc_capture_open(struct file *file)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_vid_cap *vc = &fimc->vid_cap;
-	struct exynos_video_entity *ve = &vc->ve;
+	struct exyyess_video_entity *ve = &vc->ve;
 	int ret = -EBUSY;
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
@@ -494,7 +494,7 @@ static int fimc_capture_open(struct file *file)
 
 		if (ret == 0 && vc->user_subdev_api && vc->inh_sensor_ctrls) {
 			/*
-			 * Recreate controls of the the video node to drop
+			 * Recreate controls of the the video yesde to drop
 			 * any controls inherited from the sensor subdev.
 			 */
 			fimc_ctrls_delete(vc->ctx);
@@ -582,7 +582,7 @@ static struct fimc_fmt *fimc_capture_try_format(struct fimc_ctx *ctx,
 	u32 mask = FMT_FLAGS_CAM;
 	struct fimc_fmt *ffmt;
 
-	/* Conversion from/to JPEG or User Defined format is not supported */
+	/* Conversion from/to JPEG or User Defined format is yest supported */
 	if (code && ctx->s_frame.fmt && pad == FIMC_SD_PAD_SOURCE &&
 	    fimc_fmt_is_user_defined(ctx->s_frame.fmt->color))
 		*code = ctx->s_frame.fmt->mbus_code;
@@ -659,7 +659,7 @@ static void fimc_capture_try_selection(struct fimc_ctx *ctx,
 	u32 align_sz = 0, align_h = 4;
 	u32 max_sc_h, max_sc_v;
 
-	/* In JPEG transparent transfer mode cropping is not supported */
+	/* In JPEG transparent transfer mode cropping is yest supported */
 	if (fimc_fmt_is_user_defined(ctx->d_frame.fmt->color)) {
 		r->width  = sink->f_width;
 		r->height = sink->f_height;
@@ -686,7 +686,7 @@ static void fimc_capture_try_selection(struct fimc_ctx *ctx,
 	 * For the compose rectangle the following constraints must be met:
 	 * - it must fit in the sink pad format rectangle (f_width/f_height);
 	 * - maximum downscaling ratio is 64;
-	 * - maximum crop size depends if the rotator is used or not;
+	 * - maximum crop size depends if the rotator is used or yest;
 	 * - the sink pad format width/height must be 4 multiple of the
 	 *   prescaler ratios determined by sink pad size and source pad crop,
 	 *   the prescaler ratio is returned by fimc_get_scaler_factor().
@@ -718,7 +718,7 @@ static void fimc_capture_try_selection(struct fimc_ctx *ctx,
 }
 
 /*
- * The video node ioctl operations
+ * The video yesde ioctl operations
  */
 static int fimc_cap_querycap(struct file *file, void *priv,
 					struct v4l2_capability *cap)
@@ -796,7 +796,7 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
 		if (ffmt == NULL) {
 			/*
 			 * Notify user-space if common pixel code for
-			 * host and sensor does not exist.
+			 * host and sensor does yest exist.
 			 */
 			return -EINVAL;
 		}
@@ -906,9 +906,9 @@ static int fimc_cap_g_fmt_mplane(struct file *file, void *fh,
 }
 
 /*
- * Try or set format on the fimc.X.capture video node and additionally
+ * Try or set format on the fimc.X.capture video yesde and additionally
  * on the whole pipeline if @try is false.
- * Locking: the caller must _not_ hold the graph mutex.
+ * Locking: the caller must _yest_ hold the graph mutex.
  */
 static int __video_try_or_set_format(struct fimc_dev *fimc,
 				     struct v4l2_format *f, bool try,
@@ -917,7 +917,7 @@ static int __video_try_or_set_format(struct fimc_dev *fimc,
 {
 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
 	struct fimc_vid_cap *vc = &fimc->vid_cap;
-	struct exynos_video_entity *ve = &vc->ve;
+	struct exyyess_video_entity *ve = &vc->ve;
 	struct fimc_ctx *ctx = vc->ctx;
 	unsigned int width = 0, height = 0;
 	int ret = 0;
@@ -943,7 +943,7 @@ static int __video_try_or_set_format(struct fimc_dev *fimc,
 	if (*out_fmt == NULL)
 		return -EINVAL;
 
-	/* Restore image width/height for JPEG (no resizing supported). */
+	/* Restore image width/height for JPEG (yes resizing supported). */
 	if (try && fimc_jpeg_fourcc(pix->pixelformat)) {
 		pix->width = width;
 		pix->height = height;
@@ -1040,7 +1040,7 @@ static int __fimc_capture_set_format(struct fimc_dev *fimc,
 	}
 
 	set_frame_bounds(ff, pix->width, pix->height);
-	/* Reset the composition rectangle if not yet configured */
+	/* Reset the composition rectangle if yest yet configured */
 	if (!(ctx->state & FIMC_COMPOSE))
 		set_frame_crop(ff, 0, 0, pix->width, pix->height);
 
@@ -1068,7 +1068,7 @@ static int fimc_cap_enum_input(struct file *file, void *priv,
 			       struct v4l2_input *i)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	struct exynos_video_entity *ve = &fimc->vid_cap.ve;
+	struct exyyess_video_entity *ve = &fimc->vid_cap.ve;
 	struct v4l2_subdev *sd;
 
 	if (i->index != 0)
@@ -1115,8 +1115,8 @@ static int fimc_pipeline_validate(struct fimc_dev *fimc)
 	while (1) {
 		/*
 		 * Find current entity sink pad and any remote sink pad linked
-		 * to it. We stop if there is no sink pad in current entity or
-		 * it is not linked to any other remote entity.
+		 * to it. We stop if there is yes sink pad in current entity or
+		 * it is yest linked to any other remote entity.
 		 */
 		src_pad = NULL;
 
@@ -1425,19 +1425,19 @@ static const struct media_entity_operations fimc_sd_media_ops = {
 };
 
 /**
- * fimc_sensor_notify - v4l2_device notification from a sensor subdev
- * @sd: pointer to a subdev generating the notification
- * @notification: the notification type, must be S5P_FIMC_TX_END_NOTIFY
+ * fimc_sensor_yestify - v4l2_device yestification from a sensor subdev
+ * @sd: pointer to a subdev generating the yestification
+ * @yestification: the yestification type, must be S5P_FIMC_TX_END_NOTIFY
  * @arg: pointer to an u32 type integer that stores the frame payload value
  *
- * The End Of Frame notification sent by sensor subdev in its still capture
+ * The End Of Frame yestification sent by sensor subdev in its still capture
  * mode. If there is only a single VSYNC generated by the sensor at the
- * beginning of a frame transmission, FIMC does not issue the LastIrq
- * (end of frame) interrupt. And this notification is used to complete the
+ * beginning of a frame transmission, FIMC does yest issue the LastIrq
+ * (end of frame) interrupt. And this yestification is used to complete the
  * frame capture and returning a buffer to user-space. Subdev drivers should
- * call this notification from their last 'End of frame capture' interrupt.
+ * call this yestification from their last 'End of frame capture' interrupt.
  */
-void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
+void fimc_sensor_yestify(struct v4l2_subdev *sd, unsigned int yestification,
 			void *arg)
 {
 	struct fimc_source_info	*si;
@@ -1456,7 +1456,7 @@ void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
 
 	fimc = si ? source_to_sensor_info(si)->host : NULL;
 
-	if (fimc && arg && notification == S5P_FIMC_TX_END_NOTIFY &&
+	if (fimc && arg && yestification == S5P_FIMC_TX_END_NOTIFY &&
 	    test_bit(ST_CAPT_PEND, &fimc->state)) {
 		unsigned long irq_flags;
 		spin_lock_irqsave(&fimc->slock, irq_flags);
@@ -1754,7 +1754,7 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	vfd->fops	= &fimc_capture_fops;
 	vfd->ioctl_ops	= &fimc_capture_ioctl_ops;
 	vfd->v4l2_dev	= v4l2_dev;
-	vfd->minor	= -1;
+	vfd->miyesr	= -1;
 	vfd->release	= video_device_release_empty;
 	vfd->queue	= q;
 	vfd->lock	= &fimc->lock;
@@ -1813,7 +1813,7 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 		goto err_ctrl_free;
 
 	v4l2_info(v4l2_dev, "Registered %s as /dev/%s\n",
-		  vfd->name, video_device_node_name(vfd));
+		  vfd->name, video_device_yesde_name(vfd));
 
 	vfd->ctrl_handler = &ctx->ctrls.handler;
 	return 0;

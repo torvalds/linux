@@ -323,7 +323,7 @@ struct cif_read_dbg_t {
 	u32 dly_second_rd_fetch_trig     : 1;
 	u32 rst_rd_burst_id              : 1;
 	u32 dis_rd_burst_id              : 1;
-	u32 en_block_rd_when_packer_is_not_emp : 1;
+	u32 en_block_rd_when_packer_is_yest_emp : 1;
 	u32 dis_pre_fetch_cntl_sm        : 1;
 	u32 rbbm_chrncy_dis              : 1;
 	u32 rbbm_rd_after_wr_lat         : 2;
@@ -767,10 +767,10 @@ struct pwrmgt_cntl_t {
 	u32                      : 1;
 	u32 pwm_mode_req         : 2;
 	u32 pwm_wakeup_cond      : 2;
-	u32 pwm_fast_noml_hw_en  : 1;
-	u32 pwm_noml_fast_hw_en  : 1;
-	u32 pwm_fast_noml_cond   : 4;
-	u32 pwm_noml_fast_cond   : 4;
+	u32 pwm_fast_yesml_hw_en  : 1;
+	u32 pwm_yesml_fast_hw_en  : 1;
+	u32 pwm_fast_yesml_cond   : 4;
+	u32 pwm_yesml_fast_cond   : 4;
 	u32 pwm_idle_timer       : 8;
 	u32 pwm_busy_timer       : 8;
 } __attribute__((packed));

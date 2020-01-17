@@ -6,11 +6,11 @@
 #include <linux/crc32.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 /* Convenience wrappers over the generic packing functions. These take into
  * account the SJA1105 memory layout quirks and provide some level of
- * programmer protection against incorrect API use. The errors are not expected
+ * programmer protection against incorrect API use. The errors are yest expected
  * to occur durring runtime, therefore printing and swallowing them here is
  * appropriate instead of clutterring up higher-level code.
  */
@@ -30,7 +30,7 @@ void sja1105_pack(void *buf, const u64 *val, int start, int end, size_t len)
 			pr_err("Field %d-%d too large for 64 bits!\n",
 			       start, end);
 		else
-			pr_err("Cannot store %llx inside bits %d-%d (would truncate)\n",
+			pr_err("Canyest store %llx inside bits %d-%d (would truncate)\n",
 			       *val, start, end);
 	}
 	dump_stack();
@@ -69,7 +69,7 @@ void sja1105_packing(void *buf, u64 *val, int start, int end,
 			pr_err("Field %d-%d too large for 64 bits!\n",
 			       start, end);
 		else
-			pr_err("Cannot store %llx inside bits %d-%d (would truncate)\n",
+			pr_err("Canyest store %llx inside bits %d-%d (would truncate)\n",
 			       *val, start, end);
 	}
 	dump_stack();
@@ -137,7 +137,7 @@ static size_t sja1105et_general_params_entry_packing(void *buf, void *entry_ptr,
 	sja1105_packing(buf, &entry->vlmarker,    106,  75, size, op);
 	sja1105_packing(buf, &entry->vlmask,       74,  43, size, op);
 	sja1105_packing(buf, &entry->tpid,         42,  27, size, op);
-	sja1105_packing(buf, &entry->ignore2stf,   26,  26, size, op);
+	sja1105_packing(buf, &entry->igyesre2stf,   26,  26, size, op);
 	sja1105_packing(buf, &entry->tpid2,        25,  10, size, op);
 	return size;
 }
@@ -170,7 +170,7 @@ sja1105pqrs_general_params_entry_packing(void *buf, void *entry_ptr,
 	sja1105_packing(buf, &entry->vlmarker,    138, 107, size, op);
 	sja1105_packing(buf, &entry->vlmask,      106,  75, size, op);
 	sja1105_packing(buf, &entry->tpid2,        74,  59, size, op);
-	sja1105_packing(buf, &entry->ignore2stf,   58,  58, size, op);
+	sja1105_packing(buf, &entry->igyesre2stf,   58,  58, size, op);
 	sja1105_packing(buf, &entry->tpid,         57,  42, size, op);
 	sja1105_packing(buf, &entry->queue_ts,     41,  41, size, op);
 	sja1105_packing(buf, &entry->egrmirrvid,   40,  29, size, op);
@@ -222,8 +222,8 @@ sja1105et_l2_lookup_params_entry_packing(void *buf, void *entry_ptr,
 	sja1105_packing(buf, &entry->dyn_tbsz,       16, 14, size, op);
 	sja1105_packing(buf, &entry->poly,           13,  6, size, op);
 	sja1105_packing(buf, &entry->shared_learn,    5,  5, size, op);
-	sja1105_packing(buf, &entry->no_enf_hostprt,  4,  4, size, op);
-	sja1105_packing(buf, &entry->no_mgmt_learn,   3,  3, size, op);
+	sja1105_packing(buf, &entry->yes_enf_hostprt,  4,  4, size, op);
+	sja1105_packing(buf, &entry->yes_mgmt_learn,   3,  3, size, op);
 	return size;
 }
 
@@ -240,10 +240,10 @@ sja1105pqrs_l2_lookup_params_entry_packing(void *buf, void *entry_ptr,
 				offset + 10, offset + 0, size, op);
 	sja1105_packing(buf, &entry->maxage,         57,  43, size, op);
 	sja1105_packing(buf, &entry->start_dynspc,   42,  33, size, op);
-	sja1105_packing(buf, &entry->drpnolearn,     32,  28, size, op);
+	sja1105_packing(buf, &entry->drpyeslearn,     32,  28, size, op);
 	sja1105_packing(buf, &entry->shared_learn,   27,  27, size, op);
-	sja1105_packing(buf, &entry->no_enf_hostprt, 26,  26, size, op);
-	sja1105_packing(buf, &entry->no_mgmt_learn,  25,  25, size, op);
+	sja1105_packing(buf, &entry->yes_enf_hostprt, 26,  26, size, op);
+	sja1105_packing(buf, &entry->yes_mgmt_learn,  25,  25, size, op);
 	sja1105_packing(buf, &entry->use_static,     24,  24, size, op);
 	sja1105_packing(buf, &entry->owr_dyn,        23,  23, size, op);
 	sja1105_packing(buf, &entry->learn_once,     22,  22, size, op);
@@ -330,7 +330,7 @@ static size_t sja1105et_mac_config_entry_packing(void *buf, void *entry_ptr,
 	sja1105_packing(buf, &entry->vlanid,    21, 10, size, op);
 	sja1105_packing(buf, &entry->ing_mirr,   9,  9, size, op);
 	sja1105_packing(buf, &entry->egr_mirr,   8,  8, size, op);
-	sja1105_packing(buf, &entry->drpnona664, 7,  7, size, op);
+	sja1105_packing(buf, &entry->drpyesna664, 7,  7, size, op);
 	sja1105_packing(buf, &entry->drpdtag,    6,  6, size, op);
 	sja1105_packing(buf, &entry->drpuntag,   5,  5, size, op);
 	sja1105_packing(buf, &entry->retag,      4,  4, size, op);
@@ -364,7 +364,7 @@ size_t sja1105pqrs_mac_config_entry_packing(void *buf, void *entry_ptr,
 	sja1105_packing(buf, &entry->vlanid,     53, 42, size, op);
 	sja1105_packing(buf, &entry->ing_mirr,   41, 41, size, op);
 	sja1105_packing(buf, &entry->egr_mirr,   40, 40, size, op);
-	sja1105_packing(buf, &entry->drpnona664, 39, 39, size, op);
+	sja1105_packing(buf, &entry->drpyesna664, 39, 39, size, op);
 	sja1105_packing(buf, &entry->drpdtag,    38, 38, size, op);
 	sja1105_packing(buf, &entry->drpuntag,   35, 35, size, op);
 	sja1105_packing(buf, &entry->retag,      34, 34, size, op);
@@ -474,7 +474,7 @@ size_t sja1105_table_header_packing(void *buf, void *entry_ptr,
 	return size;
 }
 
-/* WARNING: the *hdr pointer is really non-const, because it is
+/* WARNING: the *hdr pointer is really yesn-const, because it is
  * modifying the CRC of the header for a 2-stage packing operation
  */
 void
@@ -549,7 +549,7 @@ const char *sja1105_static_config_error_msg[] = {
 	[SJA1105_OVERCOMMITTED_FRAME_MEMORY] =
 		"Not allowed to overcommit frame memory. L2 memory partitions "
 		"and VL memory partitions share the same space. The sum of all "
-		"16 memory partitions is not allowed to be larger than 929 "
+		"16 memory partitions is yest allowed to be larger than 929 "
 		"128-byte blocks (or 910 with retagging). Please adjust "
 		"l2-forwarding-parameters-table.part_spc and/or "
 		"vl-forwarding-parameters-table.partspc.",
@@ -656,7 +656,7 @@ sja1105_static_config_pack(void *buf, struct sja1105_static_config *config)
 		p += 4;
 	}
 	/* Final header:
-	 * Block ID does not matter
+	 * Block ID does yest matter
 	 * Length of 0 marks that header is final
 	 * CRC will be replaced on-the-fly on "config upload"
 	 */
@@ -690,7 +690,7 @@ sja1105_static_config_get_length(const struct sja1105_static_config *config)
 	}
 	/* Headers have an additional CRC at the end */
 	sum += header_count * (SJA1105_SIZE_TABLE_HEADER + 4);
-	/* Last header does not have an extra CRC because there is no data */
+	/* Last header does yest have an extra CRC because there is yes data */
 	sum -= 4;
 
 	return sum;
@@ -698,7 +698,7 @@ sja1105_static_config_get_length(const struct sja1105_static_config *config)
 
 /* Compatibility matrices */
 
-/* SJA1105E: First generation, no TTEthernet */
+/* SJA1105E: First generation, yes TTEthernet */
 struct sja1105_table_ops sja1105e_table_ops[BLK_IDX_MAX] = {
 	[BLK_IDX_SCHEDULE] = {0},
 	[BLK_IDX_SCHEDULE_ENTRY_POINTS] = {0},
@@ -854,7 +854,7 @@ struct sja1105_table_ops sja1105t_table_ops[BLK_IDX_MAX] = {
 	},
 };
 
-/* SJA1105P: Second generation, no TTEthernet, no SGMII */
+/* SJA1105P: Second generation, yes TTEthernet, yes SGMII */
 struct sja1105_table_ops sja1105p_table_ops[BLK_IDX_MAX] = {
 	[BLK_IDX_SCHEDULE] = {0},
 	[BLK_IDX_SCHEDULE_ENTRY_POINTS] = {0},
@@ -922,7 +922,7 @@ struct sja1105_table_ops sja1105p_table_ops[BLK_IDX_MAX] = {
 	},
 };
 
-/* SJA1105Q: Second generation, TTEthernet, no SGMII */
+/* SJA1105Q: Second generation, TTEthernet, yes SGMII */
 struct sja1105_table_ops sja1105q_table_ops[BLK_IDX_MAX] = {
 	[BLK_IDX_SCHEDULE] = {
 		.packing = sja1105_schedule_entry_packing,
@@ -1010,7 +1010,7 @@ struct sja1105_table_ops sja1105q_table_ops[BLK_IDX_MAX] = {
 	},
 };
 
-/* SJA1105R: Second generation, no TTEthernet, SGMII */
+/* SJA1105R: Second generation, yes TTEthernet, SGMII */
 struct sja1105_table_ops sja1105r_table_ops[BLK_IDX_MAX] = {
 	[BLK_IDX_SCHEDULE] = {0},
 	[BLK_IDX_SCHEDULE_ENTRY_POINTS] = {0},

@@ -3,7 +3,7 @@
 #
 # Run herd7 tests on all .litmus files in the litmus-tests directory
 # and check each file's result against a "Result:" comment within that
-# litmus test.  If the verification result does not match that specified
+# litmus test.  If the verification result does yest match that specified
 # in the litmus test, this script prints an error message prefixed with
 # "^^^".  It also outputs verification results to a file whose name is
 # that of the specified litmus test, but with ".out" appended.
@@ -13,7 +13,7 @@
 #
 # Run this in the directory containing the memory model.
 #
-# This script makes no attempt to run the litmus tests concurrently.
+# This script makes yes attempt to run the litmus tests concurrently.
 #
 # Copyright IBM Corporation, 2018
 #
@@ -26,7 +26,7 @@ if test -d "$litmusdir" -a -r "$litmusdir" -a -x "$litmusdir"
 then
 	:
 else
-	echo ' --- ' error: $litmusdir is not an accessible directory
+	echo ' --- ' error: $litmusdir is yest an accessible directory
 	exit 255
 fi
 
@@ -38,7 +38,7 @@ then
 	( cd "$LKMM_DESTDIR"; sed -e 's/^/mkdir -p /' | sh )
 fi
 
-# Find the checklitmus script.  If it is not where we expect it, then
+# Find the checklitmus script.  If it is yest where we expect it, then
 # assume that the caller has the PATH environment variable set
 # appropriately.
 if test -x scripts/checklitmus.sh

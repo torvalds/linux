@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -47,12 +47,12 @@ enum {
 	L2T_STATE_VALID,      /* entry is up to date */
 	L2T_STATE_STALE,      /* entry may be used but needs revalidation */
 	L2T_STATE_RESOLVING,  /* entry needs address resolution */
-	L2T_STATE_SYNC_WRITE, /* synchronous write of entry underway */
+	L2T_STATE_SYNC_WRITE, /* synchroyesus write of entry underway */
 	L2T_STATE_NOARP,      /* Netdev down or removed*/
 
-	/* when state is one of the below the entry is not hashed */
+	/* when state is one of the below the entry is yest hashed */
 	L2T_STATE_SWITCHING,  /* entry is being used by a switching filter */
-	L2T_STATE_UNUSED      /* entry not in use */
+	L2T_STATE_UNUSED      /* entry yest in use */
 };
 
 struct adapter;
@@ -65,9 +65,9 @@ struct cpl_l2t_write_rpl;
 /*
  * Each L2T entry plays multiple roles.  First of all, it keeps state for the
  * corresponding entry of the HW L2 table and maintains a queue of offload
- * packets awaiting address resolution.  Second, it is a node of a hash table
- * chain, where the nodes of the chain are linked together through their next
- * pointer.  Finally, each node is a bucket of a hash table, pointing to the
+ * packets awaiting address resolution.  Second, it is a yesde of a hash table
+ * chain, where the yesdes of the chain are linked together through their next
+ * pointer.  Finally, each yesde is a bucket of a hash table, pointing to the
  * first element in its chain through its first pointer.
  */
 struct l2t_entry {

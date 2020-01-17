@@ -26,13 +26,13 @@ static const struct xattr_handler *squashfs_xattr_handler(int);
 ssize_t squashfs_listxattr(struct dentry *d, char *buffer,
 	size_t buffer_size)
 {
-	struct inode *inode = d_inode(d);
-	struct super_block *sb = inode->i_sb;
+	struct iyesde *iyesde = d_iyesde(d);
+	struct super_block *sb = iyesde->i_sb;
 	struct squashfs_sb_info *msblk = sb->s_fs_info;
-	u64 start = SQUASHFS_XATTR_BLK(squashfs_i(inode)->xattr)
+	u64 start = SQUASHFS_XATTR_BLK(squashfs_i(iyesde)->xattr)
 						 + msblk->xattr_table;
-	int offset = SQUASHFS_XATTR_OFFSET(squashfs_i(inode)->xattr);
-	int count = squashfs_i(inode)->xattr_count;
+	int offset = SQUASHFS_XATTR_OFFSET(squashfs_i(iyesde)->xattr);
+	int count = squashfs_i(iyesde)->xattr_count;
 	size_t rest = buffer_size;
 	int err;
 
@@ -76,7 +76,7 @@ ssize_t squashfs_listxattr(struct dentry *d, char *buffer,
 			}
 			rest -= prefix_size + name_size + 1;
 		} else  {
-			/* no handler or insuffficient privileges, so skip */
+			/* yes handler or insuffficient privileges, so skip */
 			err = squashfs_read_metadata(sb, NULL, &start,
 				&offset, name_size);
 			if (err < 0)
@@ -102,15 +102,15 @@ failed:
 }
 
 
-static int squashfs_xattr_get(struct inode *inode, int name_index,
+static int squashfs_xattr_get(struct iyesde *iyesde, int name_index,
 	const char *name, void *buffer, size_t buffer_size)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct squashfs_sb_info *msblk = sb->s_fs_info;
-	u64 start = SQUASHFS_XATTR_BLK(squashfs_i(inode)->xattr)
+	u64 start = SQUASHFS_XATTR_BLK(squashfs_i(iyesde)->xattr)
 						 + msblk->xattr_table;
-	int offset = SQUASHFS_XATTR_OFFSET(squashfs_i(inode)->xattr);
-	int count = squashfs_i(inode)->xattr_count;
+	int offset = SQUASHFS_XATTR_OFFSET(squashfs_i(iyesde)->xattr);
+	int count = squashfs_i(iyesde)->xattr_count;
 	int name_len = strlen(name);
 	int err, vsize;
 	char *target = kmalloc(name_len, GFP_KERNEL);
@@ -182,7 +182,7 @@ static int squashfs_xattr_get(struct inode *inode, int name_index,
 			break;
 		}
 
-		/* no match, skip remaining xattr entry */
+		/* yes match, skip remaining xattr entry */
 		err = squashfs_read_metadata(sb, &val, &start, &offset,
 							sizeof(val));
 		if (err < 0)
@@ -202,11 +202,11 @@ failed:
 
 static int squashfs_xattr_handler_get(const struct xattr_handler *handler,
 				      struct dentry *unused,
-				      struct inode *inode,
+				      struct iyesde *iyesde,
 				      const char *name,
 				      void *buffer, size_t size)
 {
-	return squashfs_xattr_get(inode, handler->flags, name,
+	return squashfs_xattr_get(iyesde, handler->flags, name,
 		buffer, size);
 }
 
@@ -246,7 +246,7 @@ static const struct xattr_handler squashfs_xattr_security_handler = {
 static const struct xattr_handler *squashfs_xattr_handler(int type)
 {
 	if (type & ~(SQUASHFS_XATTR_PREFIX_MASK | SQUASHFS_XATTR_VALUE_OOL))
-		/* ignore unrecognised type */
+		/* igyesre unrecognised type */
 		return NULL;
 
 	switch (type & SQUASHFS_XATTR_PREFIX_MASK) {
@@ -257,7 +257,7 @@ static const struct xattr_handler *squashfs_xattr_handler(int type)
 	case SQUASHFS_XATTR_SECURITY:
 		return &squashfs_xattr_security_handler;
 	default:
-		/* ignore unrecognised type */
+		/* igyesre unrecognised type */
 		return NULL;
 	}
 }

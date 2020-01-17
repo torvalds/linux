@@ -152,11 +152,11 @@ void i40e_dcbnl_set_all(struct i40e_vsi *vsi)
 	u8 prio, tc_map;
 	int i;
 
-	/* DCB not enabled */
+	/* DCB yest enabled */
 	if (!(pf->flags & I40E_FLAG_DCB_ENABLED))
 		return;
 
-	/* MFP mode but not an iSCSI PF so return */
+	/* MFP mode but yest an iSCSI PF so return */
 	if ((pf->flags & I40E_FLAG_MFP_ENABLED) && !(pf->hw.func_caps.iscsi))
 		return;
 
@@ -177,7 +177,7 @@ void i40e_dcbnl_set_all(struct i40e_vsi *vsi)
 	}
 
 	/* Notify user-space of the changes */
-	dcbnl_ieee_notify(dev, RTM_SETDCB, DCB_CMD_IEEE_SET, 0, 0);
+	dcbnl_ieee_yestify(dev, RTM_SETDCB, DCB_CMD_IEEE_SET, 0, 0);
 }
 
 /**
@@ -253,7 +253,7 @@ static bool i40e_dcbnl_find_app(struct i40e_dcbx_config *cfg,
  * @old_cfg: old DCBX configuration data
  * @new_cfg: new DCBX configuration data
  *
- * Find and delete all APPs that are not present in the passed
+ * Find and delete all APPs that are yest present in the passed
  * DCB configuration
  **/
 void i40e_dcbnl_flush_apps(struct i40e_pf *pf,
@@ -263,13 +263,13 @@ void i40e_dcbnl_flush_apps(struct i40e_pf *pf,
 	struct i40e_dcb_app_priority_table app;
 	int i;
 
-	/* MFP mode but not an iSCSI PF so return */
+	/* MFP mode but yest an iSCSI PF so return */
 	if ((pf->flags & I40E_FLAG_MFP_ENABLED) && !(pf->hw.func_caps.iscsi))
 		return;
 
 	for (i = 0; i < old_cfg->numapps; i++) {
 		app = old_cfg->app[i];
-		/* The APP is not available anymore delete it */
+		/* The APP is yest available anymore delete it */
 		if (!i40e_dcbnl_find_app(new_cfg, &app))
 			i40e_dcbnl_del_app(pf, &app);
 	}

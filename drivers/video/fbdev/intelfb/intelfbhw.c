@@ -21,7 +21,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -184,7 +184,7 @@ int intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 	bridge_dev = pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus), 0,
 						 PCI_DEVFN(0, 0));
 	if (!bridge_dev) {
-		ERR_MSG("cannot find bridge device\n");
+		ERR_MSG("canyest find bridge device\n");
 		return 1;
 	}
 
@@ -279,7 +279,7 @@ int intelfbhw_get_memory(struct pci_dev *pdev, int *aperture_size,
 	}
 }
 
-int intelfbhw_check_non_crt(struct intelfb_info *dinfo)
+int intelfbhw_check_yesn_crt(struct intelfb_info *dinfo)
 {
 	int dvo = 0;
 
@@ -324,10 +324,10 @@ int intelfbhw_validate_mode(struct intelfb_info *dinfo,
 	if (bytes_per_pixel == 3)
 		bytes_per_pixel = 4;
 
-	/* Check if enough video memory. */
+	/* Check if eyesugh video memory. */
 	tmp = var->yres_virtual * var->xres_virtual * bytes_per_pixel;
 	if (tmp > dinfo->fb.size) {
-		WRN_MSG("Not enough video ram for mode "
+		WRN_MSG("Not eyesugh video ram for mode "
 			"(%d KByte vs %d KByte).\n",
 			BtoKB(tmp), BtoKB(dinfo->fb.size));
 		return 1;
@@ -488,7 +488,7 @@ int intelfbhw_active_pipe(const struct intelfb_hwstate *hw)
 		if (likely(pipe == PIPE_A))
 			return PIPE_A;
 	}
-	/* Impossible that no pipe is selected - return PIPE_A */
+	/* Impossible that yes pipe is selected - return PIPE_A */
 	WARN_ON(pipe == -1);
 	if (unlikely(pipe == -1))
 		pipe = PIPE_A;
@@ -496,7 +496,7 @@ int intelfbhw_active_pipe(const struct intelfb_hwstate *hw)
 	return pipe;
 }
 
-void intelfbhw_setcolreg(struct intelfb_info *dinfo, unsigned regno,
+void intelfbhw_setcolreg(struct intelfb_info *dinfo, unsigned regyes,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp)
 {
@@ -505,10 +505,10 @@ void intelfbhw_setcolreg(struct intelfb_info *dinfo, unsigned regno,
 
 #if VERBOSE > 0
 	DBG_MSG("intelfbhw_setcolreg: %d: (%d, %d, %d)\n",
-		regno, red, green, blue);
+		regyes, red, green, blue);
 #endif
 
-	OUTREG(palette_reg + (regno << 2),
+	OUTREG(palette_reg + (regyes << 2),
 	       (red << PALETTE_8_RED_SHIFT) |
 	       (green << PALETTE_8_GREEN_SHIFT) |
 	       (blue << PALETTE_8_BLUE_SHIFT));
@@ -884,7 +884,7 @@ static int splitm(int index, unsigned int m, unsigned int *retm1,
 	int testm;
 	struct pll_min_max *pll = &plls[index];
 
-	/* no point optimising too much - brute force m */
+	/* yes point optimising too much - brute force m */
 	for (m1 = pll->min_m1; m1 < pll->max_m1 + 1; m1++) {
 		for (m2 = pll->min_m2; m2 < pll->max_m2 + 1; m2++) {
 			testm = (5 * (m1 + 2)) + (m2 + 2);
@@ -961,7 +961,7 @@ static int calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2,
 	p = p_min;
 	do {
 		if (splitp(index, p, &p1, &p2)) {
-			WRN_MSG("cannot split p = %d\n", p);
+			WRN_MSG("canyest split p = %d\n", p);
 			p += p_inc;
 			continue;
 		}
@@ -977,7 +977,7 @@ static int calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2,
 			for (testm = m - 1; testm <= m; testm++) {
 				f_out = calc_vclock3(index, testm, n, p);
 				if (splitm(index, testm, &m1, &m2)) {
-					WRN_MSG("cannot split m = %d\n",
+					WRN_MSG("canyest split m = %d\n",
 						testm);
 					continue;
 				}
@@ -999,7 +999,7 @@ static int calc_pll_params(int index, int clock, u32 *retm1, u32 *retm2,
 	} while ((p <= p_max));
 
 	if (!m_best) {
-		WRN_MSG("cannot find parameters for clock %d\n", clock);
+		WRN_MSG("canyest find parameters for clock %d\n", clock);
 		return 1;
 	}
 	m = m_best;
@@ -1273,7 +1273,7 @@ int intelfbhw_mode_to_hw(struct intelfb_info *dinfo,
 	return 0;
 }
 
-/* Program a (non-VGA) video mode. */
+/* Program a (yesn-VGA) video mode. */
 int intelfbhw_program_mode(struct intelfb_info *dinfo,
 			   const struct intelfb_hwstate *hw, int blank)
 {
@@ -1378,7 +1378,7 @@ int intelfbhw_program_mode(struct intelfb_info *dinfo,
 	tmp &= ~DISPPLANE_PLANE_ENABLE;
 	OUTREG(DSPBCNTR, tmp);
 
-	/* Wait for vblank. For now, just wait for a 50Hz cycle (20ms)) */
+	/* Wait for vblank. For yesw, just wait for a 50Hz cycle (20ms)) */
 	mdelay(20);
 
 	OUTREG(DVOB, INREG(DVOB) & ~PORT_ENABLE);
@@ -1434,7 +1434,7 @@ int intelfbhw_program_mode(struct intelfb_info *dinfo,
 	case FB_VMODE_INTERLACED: /* even lines first */
 		OUTREG(pipe_stat_reg, 0xFFFF | PIPESTAT_FLD_EVT_EVEN_EN);
 		break;
-	default:		/* non-interlaced */
+	default:		/* yesn-interlaced */
 		OUTREG(pipe_stat_reg, 0xFFFF); /* clear all status bits only */
 	}
 	/* Enable pipe */
@@ -2013,11 +2013,11 @@ static irqreturn_t intelfbhw_irq(int irq, void *dev_id)
 	if (dinfo->info->var.vmode & FB_VMODE_INTERLACED)
 		tmp &= PIPE_A_EVENT_INTERRUPT;
 	else
-		tmp &= VSYNC_PIPE_A_INTERRUPT; /* non-interlaced */
+		tmp &= VSYNC_PIPE_A_INTERRUPT; /* yesn-interlaced */
 
 	if (tmp == 0) {
 		spin_unlock(&dinfo->int_lock);
-		return IRQ_RETVAL(0); /* not us */
+		return IRQ_RETVAL(0); /* yest us */
 	}
 
 	/* clear status bits 0-15 ASAP and don't touch bits 16-31 */
@@ -2056,7 +2056,7 @@ int intelfbhw_enable_irq(struct intelfb_info *dinfo)
 	if (dinfo->info->var.vmode & FB_VMODE_INTERLACED)
 		tmp = PIPE_A_EVENT_INTERRUPT;
 	else
-		tmp = VSYNC_PIPE_A_INTERRUPT; /* non-interlaced */
+		tmp = VSYNC_PIPE_A_INTERRUPT; /* yesn-interlaced */
 	if (tmp != INREG16(IER)) {
 		DBG_MSG("changing IER to 0x%X\n", tmp);
 		OUTREG16(IER, tmp);

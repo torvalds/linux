@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,7 +24,7 @@
 #ifndef __NI_REG_H__
 #define __NI_REG_H__
 
-/* northern islands - DCE5 */
+/* yesrthern islands - DCE5 */
 
 #define NI_INPUT_GAMMA_CONTROL                         0x6840
 #       define NI_GRPH_INPUT_GAMMA_MODE(x)             (((x) & 0x3) << 0)

@@ -41,7 +41,7 @@
 
 /* chip params default values */
 #define AL3320A_DEFAULT_MEAN_TIME	4
-#define AL3320A_DEFAULT_WAIT_TIME	0 /* no waiting */
+#define AL3320A_DEFAULT_WAIT_TIME	0 /* yes waiting */
 
 #define AL3320A_SCALE_AVAILABLE "0.512 0.128 0.032 0.01"
 

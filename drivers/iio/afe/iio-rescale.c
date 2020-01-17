@@ -2,7 +2,7 @@
 /*
  * IIO rescale driver
  *
- * Copyright (C) 2018 Axentia Technologies AB
+ * Copyright (C) 2018 Axentia Techyeslogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */
@@ -30,7 +30,7 @@ struct rescale {
 	struct iio_chan_spec chan;
 	struct iio_chan_spec_ext_info *ext_info;
 	s32 numerator;
-	s32 denominator;
+	s32 deyesminator;
 };
 
 static int rescale_read_raw(struct iio_dev *indio_dev,
@@ -50,17 +50,17 @@ static int rescale_read_raw(struct iio_dev *indio_dev,
 		switch (ret) {
 		case IIO_VAL_FRACTIONAL:
 			*val *= rescale->numerator;
-			*val2 *= rescale->denominator;
+			*val2 *= rescale->deyesminator;
 			return ret;
 		case IIO_VAL_INT:
 			*val *= rescale->numerator;
-			if (rescale->denominator == 1)
+			if (rescale->deyesminator == 1)
 				return ret;
-			*val2 = rescale->denominator;
+			*val2 = rescale->deyesminator;
 			return IIO_VAL_FRACTIONAL;
 		case IIO_VAL_FRACTIONAL_LOG2:
 			tmp = *val * 1000000000LL;
-			do_div(tmp, rescale->denominator);
+			do_div(tmp, rescale->deyesminator);
 			tmp *= rescale->numerator;
 			do_div(tmp, 1000000000LL);
 			*val = tmp;
@@ -132,7 +132,7 @@ static int rescale_configure_channel(struct device *dev,
 
 	if (!iio_channel_has_info(schan, IIO_CHAN_INFO_RAW) ||
 	    !iio_channel_has_info(schan, IIO_CHAN_INFO_SCALE)) {
-		dev_err(dev, "source channel does not support raw/scale\n");
+		dev_err(dev, "source channel does yest support raw/scale\n");
 		return -EINVAL;
 	}
 
@@ -167,19 +167,19 @@ static int rescale_current_sense_amplifier_props(struct device *dev,
 	/*
 	 * Calculate the scaling factor, 1 / (gain * sense), or
 	 * gain_div / (gain_mult * sense), while trying to keep the
-	 * numerator/denominator from overflowing.
+	 * numerator/deyesminator from overflowing.
 	 */
 	factor = gcd(sense, 1000000);
 	rescale->numerator = 1000000 / factor;
-	rescale->denominator = sense / factor;
+	rescale->deyesminator = sense / factor;
 
 	factor = gcd(rescale->numerator, gain_mult);
 	rescale->numerator /= factor;
-	rescale->denominator *= gain_mult / factor;
+	rescale->deyesminator *= gain_mult / factor;
 
-	factor = gcd(rescale->denominator, gain_div);
+	factor = gcd(rescale->deyesminator, gain_div);
 	rescale->numerator *= gain_div / factor;
-	rescale->denominator /= factor;
+	rescale->deyesminator /= factor;
 
 	return 0;
 }
@@ -200,7 +200,7 @@ static int rescale_current_sense_shunt_props(struct device *dev,
 
 	factor = gcd(shunt, 1000000);
 	rescale->numerator = 1000000 / factor;
-	rescale->denominator = shunt / factor;
+	rescale->deyesminator = shunt / factor;
 
 	return 0;
 }
@@ -212,7 +212,7 @@ static int rescale_voltage_divider_props(struct device *dev,
 	u32 factor;
 
 	ret = device_property_read_u32(dev, "output-ohms",
-				       &rescale->denominator);
+				       &rescale->deyesminator);
 	if (ret) {
 		dev_err(dev, "failed to read output-ohms: %d\n", ret);
 		return ret;
@@ -225,9 +225,9 @@ static int rescale_voltage_divider_props(struct device *dev,
 		return ret;
 	}
 
-	factor = gcd(rescale->numerator, rescale->denominator);
+	factor = gcd(rescale->numerator, rescale->deyesminator);
 	rescale->numerator /= factor;
-	rescale->denominator /= factor;
+	rescale->deyesminator /= factor;
 
 	return 0;
 }
@@ -298,13 +298,13 @@ static int rescale_probe(struct platform_device *pdev)
 
 	rescale->cfg = of_device_get_match_data(dev);
 	rescale->numerator = 1;
-	rescale->denominator = 1;
+	rescale->deyesminator = 1;
 
 	ret = rescale->cfg->props(dev, rescale);
 	if (ret)
 		return ret;
 
-	if (!rescale->numerator || !rescale->denominator) {
+	if (!rescale->numerator || !rescale->deyesminator) {
 		dev_err(dev, "invalid scaling factor.\n");
 		return -EINVAL;
 	}

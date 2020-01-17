@@ -8,7 +8,7 @@
  *     Arjan van de Ven <arjan@linux.intel.com>
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 
 #include "builtin.h"
@@ -78,7 +78,7 @@ struct io_sample;
 
 /*
  * Datastructure layout:
- * We keep an list of "pid"s, matching the kernels notion of a task struct.
+ * We keep an list of "pid"s, matching the kernels yestion of a task struct.
  * Each "pid" entry, has a list of "comm"s.
  *	this is because we want to track different programs different, while
  *	exec will reuse the original pid (by design).
@@ -739,7 +739,7 @@ static int pid_begin_io_sample(struct timechart *tchart, int pid, int type,
 			   "previous event already started!\n");
 
 		/* remove previous event that has been started,
-		 * we are not sure we will ever get an end for it */
+		 * we are yest sure we will ever get an end for it */
 		c->io_samples = prev->next;
 		free(prev);
 		return 0;
@@ -1344,7 +1344,7 @@ static int determine_display_tasks_filtered(struct timechart *tchart)
 		if (p->start_time == 1)
 			p->start_time = tchart->first_time;
 
-		/* no exit marker, task kept running to the end */
+		/* yes exit marker, task kept running to the end */
 		if (p->end_time == 0)
 			p->end_time = tchart->last_time;
 
@@ -1384,7 +1384,7 @@ static int determine_display_tasks(struct timechart *tchart, u64 threshold)
 		if (p->start_time == 1)
 			p->start_time = tchart->first_time;
 
-		/* no exit marker, task kept running to the end */
+		/* yes exit marker, task kept running to the end */
 		if (p->end_time == 0)
 			p->end_time = tchart->last_time;
 		if (p->total_time >= threshold)
@@ -1421,7 +1421,7 @@ static int determine_display_io_tasks(struct timechart *timechart, u64 threshold
 
 	p = timechart->all_data;
 	while (p) {
-		/* no exit marker, task kept running to the end */
+		/* yes exit marker, task kept running to the end */
 		if (p->end_time == 0)
 			p->end_time = timechart->last_time;
 
@@ -1788,7 +1788,7 @@ static int timechart__record(struct timechart *tchart, int argc, const char **ar
 	const char * const backtrace_args[] = {
 		"-g",
 	};
-	unsigned int backtrace_args_no = ARRAY_SIZE(backtrace_args);
+	unsigned int backtrace_args_yes = ARRAY_SIZE(backtrace_args);
 
 	const char * const power_args[] = {
 		"-e", "power:cpu_frequency",
@@ -1830,10 +1830,10 @@ static int timechart__record(struct timechart *tchart, int argc, const char **ar
 	}
 
 	if (!tchart->with_backtrace)
-		backtrace_args_no = 0;
+		backtrace_args_yes = 0;
 
 	record_elems = common_args_nr + tasks_args_nr +
-		power_args_nr + old_power_args_nr + backtrace_args_no;
+		power_args_nr + old_power_args_nr + backtrace_args_yes;
 
 	rec_argc = record_elems + argc;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
@@ -1845,7 +1845,7 @@ static int timechart__record(struct timechart *tchart, int argc, const char **ar
 	for (i = 0; i < common_args_nr; i++)
 		*p++ = strdup(common_args[i]);
 
-	for (i = 0; i < backtrace_args_no; i++)
+	for (i = 0; i < backtrace_args_yes; i++)
 		*p++ = strdup(backtrace_args[i]);
 
 	for (i = 0; i < tasks_args_nr; i++)
@@ -1980,7 +1980,7 @@ int cmd_timechart(int argc, const char **argv)
 			timechart_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (tchart.power_only && tchart.tasks_only) {
-		pr_err("-P and -T options cannot be used at the same time.\n");
+		pr_err("-P and -T options canyest be used at the same time.\n");
 		return -1;
 	}
 
@@ -1990,7 +1990,7 @@ int cmd_timechart(int argc, const char **argv)
 				     PARSE_OPT_STOP_AT_NON_OPTION);
 
 		if (tchart.power_only && tchart.tasks_only) {
-			pr_err("-P and -T options cannot be used at the same time.\n");
+			pr_err("-P and -T options canyest be used at the same time.\n");
 			return -1;
 		}
 

@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <os.h>
 
 struct dog_data {
@@ -59,7 +59,7 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 		args = mconsole_args;
 	}
 	else {
-		/* XXX The os_getpid() is not SMP correct */
+		/* XXX The os_getpid() is yest SMP correct */
 		sprintf(pid_buf, "%d", os_getpid());
 		args = pid_args;
 	}
@@ -71,7 +71,7 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 
 	if (pid < 0) {
 		err = -pid;
-		printk("harddog_open - run_helper failed, errno = %d\n", -err);
+		printk("harddog_open - run_helper failed, erryes = %d\n", -err);
 		goto out_close_out;
 	}
 
@@ -84,7 +84,7 @@ int start_watchdog(int *in_fd_ret, int *out_fd_ret, char *sock)
 	}
 	else if (n < 0) {
 		printk("harddog_open - read of watchdog pipe failed, "
-		       "err = %d\n", errno);
+		       "err = %d\n", erryes);
 		helper_wait(pid);
 		err = n;
 		goto out_close_out;
@@ -117,7 +117,7 @@ int ping_watchdog(int fd)
 	n = write(fd, &c, sizeof(c));
 	if (n != sizeof(c)) {
 		printk("ping_watchdog - write failed, ret = %d, err = %d\n",
-		       n, errno);
+		       n, erryes);
 		if (n < 0)
 			return n;
 		return -EIO;

@@ -54,7 +54,7 @@ typedef u32 unative_t;
  */
 
 /*
- * The SHLBYTE() operation shifts each byte left by 1, *not*
+ * The SHLBYTE() operation shifts each byte left by 1, *yest*
  * rolling over into the next byte
  */
 static inline __attribute_const__ unative_t SHLBYTE(unative_t v)

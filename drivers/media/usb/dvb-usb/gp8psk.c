@@ -132,7 +132,7 @@ static int gp8psk_load_bcm4500fw(struct dvb_usb_device *d)
 	u8 *buf;
 	if ((ret = request_firmware(&fw, bcm4500_firmware,
 					&d->udev->dev)) != 0) {
-		err("did not find the bcm4500 firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware",
+		err("did yest find the bcm4500 firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware",
 			bcm4500_firmware,ret);
 		return ret;
 	}
@@ -180,12 +180,12 @@ out_rel_fw:
 	return ret;
 }
 
-static int gp8psk_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int gp8psk_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
 	u8 status, buf;
 	int gp_product_id = le16_to_cpu(d->udev->descriptor.idProduct);
 
-	if (onoff) {
+	if (oyesff) {
 		gp8psk_usb_in_op(d, GET_8PSK_CONFIG,0,0,&status,1);
 		if (! (status & bm8pskStarted)) {  /* started */
 			if(gp_product_id == USB_PID_GENPIX_SKYWALKER_CW3K)
@@ -245,9 +245,9 @@ static int gp8psk_bcm4500_reload(struct dvb_usb_device *d)
 	return 0;
 }
 
-static int gp8psk_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int gp8psk_streaming_ctrl(struct dvb_usb_adapter *adap, int oyesff)
 {
-	return gp8psk_usb_out_op(adap->dev, ARM_TRANSFER, onoff, 0 , NULL, 0);
+	return gp8psk_usb_out_op(adap->dev, ARM_TRANSFER, oyesff, 0 , NULL, 0);
 }
 
 /* Callbacks for gp8psk-fe.c */

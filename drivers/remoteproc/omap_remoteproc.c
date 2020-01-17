@@ -65,7 +65,7 @@ static void omap_rproc_mbox_callback(struct mbox_client *client, void *data)
 
 	switch (msg) {
 	case RP_MBOX_CRASH:
-		/* just log this for now. later, we'll also do recovery */
+		/* just log this for yesw. later, we'll also do recovery */
 		dev_err(dev, "omap rproc %s crashed\n", name);
 		break;
 	case RP_MBOX_ECHO_REPLY:
@@ -74,7 +74,7 @@ static void omap_rproc_mbox_callback(struct mbox_client *client, void *data)
 	default:
 		/* msg contains the index of the triggered vring */
 		if (rproc_vq_interrupt(oproc->rproc, msg) == IRQ_NONE)
-			dev_dbg(dev, "no message was found in vqid %d\n", msg);
+			dev_dbg(dev, "yes message was found in vqid %d\n", msg);
 	}
 }
 
@@ -115,7 +115,7 @@ static int omap_rproc_start(struct rproc *rproc)
 	client->tx_done = NULL;
 	client->rx_callback = omap_rproc_mbox_callback;
 	client->tx_block = false;
-	client->knows_txdone = false;
+	client->kyesws_txdone = false;
 
 	oproc->mbox = omap_mbox_request_channel(client, pdata->mbox_name);
 	if (IS_ERR(oproc->mbox)) {
@@ -127,9 +127,9 @@ static int omap_rproc_start(struct rproc *rproc)
 
 	/*
 	 * Ping the remote processor. this is only for sanity-sake;
-	 * there is no functional effect whatsoever.
+	 * there is yes functional effect whatsoever.
 	 *
-	 * Note that the reply will _not_ arrive immediately: this message
+	 * Note that the reply will _yest_ arrive immediately: this message
 	 * will wait in the mailbox fifo until the remote processor is booted.
 	 */
 	ret = mbox_send_message(oproc->mbox, (void *)RP_MBOX_ECHO_REQUEST);

@@ -38,12 +38,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -72,9 +72,9 @@
  *
  * Use iwl_write32() and iwl_read32() family to access these registers;
  * these provide simple PCI bus access, without waking up the MAC.
- * Do not use iwl_write_direct32() family for these registers;
- * no need to "grab nic access" via CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ.
- * The MAC (uCode processor, etc.) does not need to be powered up for accessing
+ * Do yest use iwl_write_direct32() family for these registers;
+ * yes need to "grab nic access" via CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ.
+ * The MAC (uCode processor, etc.) does yest need to be powered up for accessing
  * the CSR registers.
  *
  * NOTE:  Device does need to be awake in order to read this memory
@@ -91,7 +91,7 @@
 #define CSR_RESET               (CSR_BASE+0x020) /* busmaster enable, NMI, etc*/
 #define CSR_GP_CNTRL            (CSR_BASE+0x024)
 
-/* 2nd byte of CSR_INT_COALESCING, not accessible via iwl_write32()! */
+/* 2nd byte of CSR_INT_COALESCING, yest accessible via iwl_write32()! */
 #define CSR_INT_PERIODIC_REG	(CSR_BASE+0x005)
 
 /*
@@ -210,7 +210,7 @@
 #define CSR_INT_PERIODIC_ENA			(0xFF) /* 255*32 usec ~ 8 msec*/
 
 /* interrupt flags in INTA, set by uCode or hardware (e.g. dma),
- * acknowledged (reset) by host writing "1" to flagged bits. */
+ * ackyeswledged (reset) by host writing "1" to flagged bits. */
 #define CSR_INT_BIT_FH_RX        (1 << 31) /* Rx DMA, cmd responses, FH_INT[17:16] */
 #define CSR_INT_BIT_HW_ERR       (1 << 29) /* DMA hardware error FH_INT[31] */
 #define CSR_INT_BIT_RX_PERIODIC	 (1 << 28) /* Rx periodic */
@@ -391,7 +391,7 @@ enum {
  *         sending CARD_STATE command with "halt" bit set.
  *     3:  CT_KILL_EXIT
  *         Host sets this to request exit from CT_KILL state, i.e. host thinks
- *         device temperature is low enough to continue normal operation.
+ *         device temperature is low eyesugh to continue yesrmal operation.
  *     2:  CMD_BLOCKED
  *         Host sets this during RF KILL power-down sequence (HW, SW, CT KILL)
  *         to release uCode to clear all Tx and command queues, enter
@@ -406,8 +406,8 @@ enum {
  *         NOTE:  device saves internal SRAM data to host when powering down,
  *                and must restore this data after powering back up.
  *                MAC_SLEEP is the best indication that restore is complete.
- *                Later devices (5xxx/6xxx/1xxx) use non-volatile SRAM, and
- *                do not need to save/restore it.
+ *                Later devices (5xxx/6xxx/1xxx) use yesn-volatile SRAM, and
+ *                do yest need to save/restore it.
  */
 #define CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP             (0x00000001)
 #define CSR_UCODE_SW_BIT_RFKILL                     (0x00000002)
@@ -454,7 +454,7 @@ enum {
  * HEEP_CTRL_WRD_PCIEX_DATA (0xF4) registers.
  *
  * Use iwl_write32()/iwl_read32() family to access these registers. The MAC HW
- * need not be powered up so no "grab inc access" is required.
+ * need yest be powered up so yes "grab inc access" is required.
  */
 
 /*
@@ -485,7 +485,7 @@ enum {
  * to make sure the MAC (uCode processor, etc.) is powered up for accessing
  * internal resources.
  *
- * Do not use iwl_write32()/iwl_read32() family to access these registers;
+ * Do yest use iwl_write32()/iwl_read32() family to access these registers;
  * these provide only simple PCI bus access, without waking up the MAC.
  */
 #define HBUS_BASE	(0x400)

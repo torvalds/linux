@@ -203,7 +203,7 @@ EXPORT_SYMBOL(iosf_mbi_available);
 #define PUNIT_SEMAPHORE_ACQUIRE		BIT(1)
 
 static DEFINE_MUTEX(iosf_mbi_pmic_access_mutex);
-static BLOCKING_NOTIFIER_HEAD(iosf_mbi_pmic_bus_access_notifier);
+static BLOCKING_NOTIFIER_HEAD(iosf_mbi_pmic_bus_access_yestifier);
 static DECLARE_WAIT_QUEUE_HEAD(iosf_mbi_pmic_access_waitq);
 static u32 iosf_mbi_pmic_punit_access_count;
 static u32 iosf_mbi_pmic_i2c_access_count;
@@ -222,7 +222,7 @@ void iosf_mbi_punit_acquire(void)
 		mutex_lock(&iosf_mbi_pmic_access_mutex);
 	}
 	/*
-	 * We do not need to do anything to allow the PUNIT to safely access
+	 * We do yest need to do anything to allow the PUNIT to safely access
 	 * the PMIC, other then block in kernel accesses to the PMIC.
 	 */
 	iosf_mbi_pmic_punit_access_count++;
@@ -267,7 +267,7 @@ static void iosf_mbi_reset_semaphore(void)
 
 	pm_qos_update_request(&iosf_mbi_pm_qos, PM_QOS_DEFAULT_VALUE);
 
-	blocking_notifier_call_chain(&iosf_mbi_pmic_bus_access_notifier,
+	blocking_yestifier_call_chain(&iosf_mbi_pmic_bus_access_yestifier,
 				     MBI_PMIC_BUS_ACCESS_END, NULL);
 }
 
@@ -282,19 +282,19 @@ static void iosf_mbi_reset_semaphore(void)
  * To allow safe PMIC i2c bus accesses this function takes the following steps:
  *
  * 1) Some code sends request to the P-Unit which make it access the PMIC
- *    I2C bus. Testing has shown that the P-Unit does not check its internal
+ *    I2C bus. Testing has shown that the P-Unit does yest check its internal
  *    PMIC bus semaphore for these requests. Callers of these requests call
  *    iosf_mbi_punit_acquire()/_release() around their P-Unit accesses, these
  *    functions increase/decrease iosf_mbi_pmic_punit_access_count, so first
  *    we wait for iosf_mbi_pmic_punit_access_count to become 0.
  *
  * 2) Check iosf_mbi_pmic_i2c_access_count, if access has already
- *    been blocked by another caller, we only need to increment
+ *    been blocked by ayesther caller, we only need to increment
  *    iosf_mbi_pmic_i2c_access_count and we can skip the other steps.
  *
  * 3) Some code makes such P-Unit requests from atomic contexts where it
- *    cannot call iosf_mbi_punit_acquire() as that may sleep.
- *    As the second step we call a notifier chain which allows any code
+ *    canyest call iosf_mbi_punit_acquire() as that may sleep.
+ *    As the second step we call a yestifier chain which allows any code
  *    needing P-Unit resources from atomic context to acquire them before
  *    we take control over the PMIC I2C bus.
  *
@@ -305,9 +305,9 @@ static void iosf_mbi_reset_semaphore(void)
  *    to enter C6 or C7.
  *
  * 5) The P-Unit has a PMIC bus semaphore which we can request to stop
- *    autonomous P-Unit tasks from accessing the PMIC I2C bus while we hold it.
+ *    autoyesmous P-Unit tasks from accessing the PMIC I2C bus while we hold it.
  *    As the fourth and final step we request this semaphore and wait for our
- *    request to be acknowledged.
+ *    request to be ackyeswledged.
  */
 int iosf_mbi_block_punit_i2c_access(void)
 {
@@ -330,7 +330,7 @@ int iosf_mbi_block_punit_i2c_access(void)
 	if (iosf_mbi_pmic_i2c_access_count > 0)
 		goto success;
 
-	blocking_notifier_call_chain(&iosf_mbi_pmic_bus_access_notifier,
+	blocking_yestifier_call_chain(&iosf_mbi_pmic_bus_access_yestifier,
 				     MBI_PMIC_BUS_ACCESS_BEGIN, NULL);
 
 	/*
@@ -398,42 +398,42 @@ void iosf_mbi_unblock_punit_i2c_access(void)
 }
 EXPORT_SYMBOL(iosf_mbi_unblock_punit_i2c_access);
 
-int iosf_mbi_register_pmic_bus_access_notifier(struct notifier_block *nb)
+int iosf_mbi_register_pmic_bus_access_yestifier(struct yestifier_block *nb)
 {
 	int ret;
 
 	/* Wait for the bus to go inactive before registering */
 	iosf_mbi_punit_acquire();
-	ret = blocking_notifier_chain_register(
-				&iosf_mbi_pmic_bus_access_notifier, nb);
+	ret = blocking_yestifier_chain_register(
+				&iosf_mbi_pmic_bus_access_yestifier, nb);
 	iosf_mbi_punit_release();
 
 	return ret;
 }
-EXPORT_SYMBOL(iosf_mbi_register_pmic_bus_access_notifier);
+EXPORT_SYMBOL(iosf_mbi_register_pmic_bus_access_yestifier);
 
-int iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
-	struct notifier_block *nb)
+int iosf_mbi_unregister_pmic_bus_access_yestifier_unlocked(
+	struct yestifier_block *nb)
 {
 	iosf_mbi_assert_punit_acquired();
 
-	return blocking_notifier_chain_unregister(
-				&iosf_mbi_pmic_bus_access_notifier, nb);
+	return blocking_yestifier_chain_unregister(
+				&iosf_mbi_pmic_bus_access_yestifier, nb);
 }
-EXPORT_SYMBOL(iosf_mbi_unregister_pmic_bus_access_notifier_unlocked);
+EXPORT_SYMBOL(iosf_mbi_unregister_pmic_bus_access_yestifier_unlocked);
 
-int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb)
+int iosf_mbi_unregister_pmic_bus_access_yestifier(struct yestifier_block *nb)
 {
 	int ret;
 
 	/* Wait for the bus to go inactive before unregistering */
 	iosf_mbi_punit_acquire();
-	ret = iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(nb);
+	ret = iosf_mbi_unregister_pmic_bus_access_yestifier_unlocked(nb);
 	iosf_mbi_punit_release();
 
 	return ret;
 }
-EXPORT_SYMBOL(iosf_mbi_unregister_pmic_bus_access_notifier);
+EXPORT_SYMBOL(iosf_mbi_unregister_pmic_bus_access_yestifier);
 
 void iosf_mbi_assert_punit_acquired(void)
 {
@@ -518,7 +518,7 @@ static int iosf_mbi_probe(struct pci_dev *pdev,
 
 	ret = pci_enable_device(pdev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "error: could not enable device\n");
+		dev_err(&pdev->dev, "error: could yest enable device\n");
 		return ret;
 	}
 

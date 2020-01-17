@@ -69,7 +69,7 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 	int mtu, ret = 0;
 	struct dst_entry *dst = skb_dst(skb);
 
-	if (skb->ignore_df)
+	if (skb->igyesre_df)
 		goto out;
 
 	mtu = dst_mtu(dst);
@@ -170,7 +170,7 @@ static int __xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 		xfrm6_local_rxpmtu(skb, mtu);
 		kfree_skb(skb);
 		return -EMSGSIZE;
-	} else if (!skb->ignore_df && toobig && skb->sk) {
+	} else if (!skb->igyesre_df && toobig && skb->sk) {
 		xfrm_local_error(skb, mtu);
 		kfree_skb(skb);
 		return -EMSGSIZE;

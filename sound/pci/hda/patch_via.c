@@ -4,7 +4,7 @@
  *
  * HD audio interface patch for VIA VT17xx/VT18xx/VT20xx codec
  *
- *  (C) 2006-2009 VIA Technology, Inc.
+ *  (C) 2006-2009 VIA Techyeslogy, Inc.
  *  (C) 2006-2008 Takashi Iwai <tiwai@suse.de>
  */
 
@@ -115,7 +115,7 @@ static struct via_spec *via_new_spec(struct hda_codec *codec)
 	spec->gen.keep_eapd_on = 1;
 	spec->gen.pcm_playback_hook = via_playback_pcm_hook;
 	spec->gen.add_stereo_mix_input = HDA_HINT_STEREO_MIX_AUTO;
-	codec->power_save_node = 1;
+	codec->power_save_yesde = 1;
 	spec->gen.power_down_unused = 1;
 	codec->patch_ops = via_patch_ops;
 	return spec;
@@ -234,7 +234,7 @@ static int via_pin_power_ctl_put(struct snd_kcontrol *kcontrol,
 
 	if (val == spec->gen.power_down_unused)
 		return 0;
-	/* codec->power_save_node = val; */ /* widget PM seems yet broken */
+	/* codec->power_save_yesde = val; */ /* widget PM seems yet broken */
 	spec->gen.power_down_unused = val;
 	analog_low_current_mode(codec);
 	return 1;
@@ -278,7 +278,7 @@ static int auto_parse_beep(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	hda_nid_t nid;
 
-	for_each_hda_codec_node(nid, codec)
+	for_each_hda_codec_yesde(nid, codec)
 		if (get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_BEEP)
 			return set_beep_amp(spec, nid, 0, HDA_OUTPUT);
 	return 0;
@@ -315,7 +315,7 @@ static void __analog_low_current_mode(struct hda_codec *codec, bool force)
 	bool enable;
 	unsigned int verb, parm;
 
-	if (!codec->power_save_node)
+	if (!codec->power_save_yesde)
 		enable = false;
 	else
 		enable = is_aa_path_mute(codec) && !spec->gen.active_streams;
@@ -352,7 +352,7 @@ static void __analog_low_current_mode(struct hda_codec *codec, bool force)
 		parm = enable ? 0x00 : 0xe0;  /* 0x00: 4/40x, 0xe0: 1x */
 		break;
 	default:
-		return;		/* other codecs are not supported */
+		return;		/* other codecs are yest supported */
 	}
 	/* send verb */
 	snd_hda_codec_write(codec, codec->core.afg, 0, verb, parm);
@@ -384,7 +384,7 @@ static int via_suspend(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	vt1708_stop_hp_work(codec);
 
-	/* Fix pop noise on headphones */
+	/* Fix pop yesise on headphones */
 	if (spec->codec_type == VT1802)
 		snd_hda_shutup_pins(codec);
 
@@ -485,22 +485,22 @@ static const struct snd_kcontrol_new vt1708_jack_detect_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Jack Detect",
 	.count = 1,
-	.info = snd_ctl_boolean_mono_info,
+	.info = snd_ctl_boolean_moyes_info,
 	.get = vt1708_jack_detect_get,
 	.put = vt1708_jack_detect_put,
 };
 
 static const struct badness_table via_main_out_badness = {
-	.no_primary_dac = 0x10000,
-	.no_dac = 0x4000,
+	.yes_primary_dac = 0x10000,
+	.yes_dac = 0x4000,
 	.shared_primary = 0x10000,
 	.shared_surr = 0x20,
 	.shared_clfe = 0x20,
 	.shared_surr_main = 0x20,
 };
 static const struct badness_table via_extra_out_badness = {
-	.no_primary_dac = 0x4000,
-	.no_dac = 0x4000,
+	.yes_primary_dac = 0x4000,
+	.yes_dac = 0x4000,
 	.shared_primary = 0x12,
 	.shared_surr = 0x20,
 	.shared_clfe = 0x20,
@@ -531,7 +531,7 @@ static int via_parse_auto_config(struct hda_codec *codec)
 		return -ENOMEM;
 
 	/* disable widget PM at start for compatibility */
-	codec->power_save_node = 0;
+	codec->power_save_yesde = 0;
 	spec->gen.power_down_unused = 0;
 	return 0;
 }
@@ -550,7 +550,7 @@ static int via_init(struct hda_codec *codec)
 
 static int vt1708_build_controls(struct hda_codec *codec)
 {
-	/* In order not to create "Phantom Jack" controls,
+	/* In order yest to create "Phantom Jack" controls,
 	   temporary enable jackpoll */
 	int err;
 	int old_interval = codec->jackpoll_interval;
@@ -569,7 +569,7 @@ static int vt1708_build_pcms(struct hda_codec *codec)
 	if (err < 0 || codec->core.vendor_id != 0x11061708)
 		return err;
 
-	/* We got noisy outputs on the right channel on VT1708 when
+	/* We got yesisy outputs on the right channel on VT1708 when
 	 * 24bit samples are used.  Until any workaround is found,
 	 * disable the 24bit format, so far.
 	 */
@@ -826,7 +826,7 @@ static int add_secret_dac_path(struct hda_codec *codec)
 	}
 
 	/* find the primary DAC and add to the connection list */
-	for_each_hda_codec_node(nid, codec) {
+	for_each_hda_codec_yesde(nid, codec) {
 		unsigned int caps = get_wcaps(codec, nid);
 		if (get_wcaps_type(caps) == AC_WID_AUD_OUT &&
 		    !(caps & AC_WCAP_DIGITAL)) {
@@ -923,16 +923,16 @@ static const struct snd_kcontrol_new vt1716s_dmic_mixer_sw = {
 };
 
 
-/* mono-out mixer elements */
-static const struct snd_kcontrol_new vt1716S_mono_out_mixer =
-	HDA_CODEC_MUTE("Mono Playback Switch", 0x2a, 0x0, HDA_OUTPUT);
+/* moyes-out mixer elements */
+static const struct snd_kcontrol_new vt1716S_moyes_out_mixer =
+	HDA_CODEC_MUTE("Moyes Playback Switch", 0x2a, 0x0, HDA_OUTPUT);
 
 static const struct hda_verb vt1716S_init_verbs[] = {
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xf8a, 0x80},
 	/* don't bybass mixer */
 	{0x1, 0xf88, 0xc0},
-	/* Enable mono output */
+	/* Enable moyes output */
 	{0x1, 0xf90, 0x08},
 	{ }
 };
@@ -962,7 +962,7 @@ static int patch_vt1716S(struct hda_codec *codec)
 
 	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716s_dmic_mixer_vol) ||
 	    !snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716s_dmic_mixer_sw) ||
-	    !snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716S_mono_out_mixer)) {
+	    !snd_hda_gen_add_kctl(&spec->gen, NULL, &vt1716S_moyes_out_mixer)) {
 		err = -ENOMEM;
 		goto error;
 	}
@@ -1033,7 +1033,7 @@ static const struct snd_pci_quirk vt2002p_fixups[] = {
 	{}
 };
 
-/* NIDs 0x24 and 0x33 on VT1802 have connections to non-existing NID 0x3e
+/* NIDs 0x24 and 0x33 on VT1802 have connections to yesn-existing NID 0x3e
  * Replace this with mixer NID 0x1c
  */
 static void fix_vt1802_connections(struct hda_codec *codec)

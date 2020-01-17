@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 Nuvoton Technology corporation.
+// Copyright (c) 2018 Nuvoton Techyeslogy corporation.
 
 #include <linux/kernel.h>
 #include <linux/bitfield.h>
@@ -341,7 +341,7 @@ static int npcm_pspi_probe(struct platform_device *pdev)
 	struct npcm_pspi *priv;
 	struct spi_master *master;
 	unsigned long clk_hz;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int num_cs, i;
 	int csgpio;
 	int irq;
@@ -413,7 +413,7 @@ static int npcm_pspi_probe(struct platform_device *pdev)
 	master->max_speed_hz = DIV_ROUND_UP(clk_hz, NPCM_PSPI_MIN_CLK_DIVIDER);
 	master->min_speed_hz = DIV_ROUND_UP(clk_hz, NPCM_PSPI_MAX_CLK_DIVIDER);
 	master->mode_bits = SPI_CPHA | SPI_CPOL;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->bus_num = pdev->id;
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 	master->transfer_one = npcm_pspi_transfer_one;

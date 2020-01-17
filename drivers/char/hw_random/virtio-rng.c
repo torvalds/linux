@@ -179,7 +179,7 @@ static int virtrng_restore(struct virtio_device *vdev)
 
 		/*
 		 * Set hwrng_removed to ensure that virtio_read()
-		 * does not block waiting for data before the
+		 * does yest block waiting for data before the
 		 * registration is complete.
 		 */
 		vi->hwrng_removed = true;

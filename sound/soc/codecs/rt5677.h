@@ -449,7 +449,7 @@
 #define RT5677_STO1_ADC_R_VOL_MASK		(0x3f << 1)
 #define RT5677_STO1_ADC_R_VOL_SFT		1
 
-/* Mono ADC Digital Volume Control (0x1d) */
+/* Moyes ADC Digital Volume Control (0x1d) */
 #define RT5677_MONO_ADC_L_VOL_MASK		(0x3f << 9)
 #define RT5677_MONO_ADC_L_VOL_SFT		9
 #define RT5677_MONO_ADC_R_VOL_MASK		(0x3f << 1)
@@ -577,7 +577,7 @@
 #define RT5677_M_STO1_ADC_R2			(0x1 << 6)
 #define RT5677_M_STO1_ADC_R2_SFT		6
 
-/* Mono ADC Mixer control (0x28) */
+/* Moyes ADC Mixer control (0x28) */
 #define RT5677_M_MONO_ADC_L2			(0x1 << 15)
 #define RT5677_M_MONO_ADC_L2_SFT		15
 #define RT5677_M_MONO_ADC_L1			(0x1 << 14)
@@ -643,7 +643,7 @@
 #define RT5677_DAC1_L_STO_R_VOL_MASK		(0x1 << 0)
 #define RT5677_DAC1_L_STO_R_VOL_SFT		0
 
-/* Mono DAC Mixer L/R Control (0x2b) */
+/* Moyes DAC Mixer L/R Control (0x2b) */
 #define RT5677_M_ST_DAC2_L			(0x1 << 15)
 #define RT5677_M_ST_DAC2_L_SFT			15
 #define RT5677_M_DAC2_L_MONO_L			(0x1 << 13)

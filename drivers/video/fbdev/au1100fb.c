@@ -38,13 +38,13 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/fb.h>
@@ -133,7 +133,7 @@ static int au1100fb_fb_blank(int blank_mode, struct fb_info *fbi)
 
 /*
  * Set hardware with var settings. This will enable the controller with a specific
- * mode, normally validated with the fb_check_var method
+ * mode, yesrmally validated with the fb_check_var method
 	 */
 int au1100fb_setmode(struct au1100fb_device *fbdev)
 {
@@ -168,7 +168,7 @@ int au1100fb_setmode(struct au1100fb_device *fbdev)
 			info->fix.line_length = info->var.xres_virtual /
 							(8/info->var.bits_per_pixel);
 		} else {
-			/* non-palettized */
+			/* yesn-palettized */
 			index = (fbdev->panel->control_base & LCD_CONTROL_SBPPF_MASK) >> LCD_CONTROL_SBPPF_BIT;
 			info->var.red = rgb_bitfields[index][0];
 			info->var.green = rgb_bitfields[index][1];
@@ -179,7 +179,7 @@ int au1100fb_setmode(struct au1100fb_device *fbdev)
 			info->fix.line_length = info->var.xres_virtual << 1; /* depth=16 */
 		}
 	} else {
-		/* mono */
+		/* moyes */
 		info->fix.visual = FB_VISUAL_MONO10;
 		info->fix.line_length = info->var.xres_virtual / 8;
 	}
@@ -232,7 +232,7 @@ int au1100fb_setmode(struct au1100fb_device *fbdev)
 /* fb_setcolreg
  * Set color in LCD palette.
  */
-int au1100fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned blue, unsigned transp, struct fb_info *fbi)
+int au1100fb_fb_setcolreg(unsigned regyes, unsigned red, unsigned green, unsigned blue, unsigned transp, struct fb_info *fbi)
 {
 	struct au1100fb_device *fbdev;
 	u32 *palette;
@@ -241,7 +241,7 @@ int au1100fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned
 	fbdev = to_au1100fb_device(fbi);
 	palette = fbdev->regs->lcd_pallettebase;
 
-	if (regno > (AU1100_LCD_NBR_PALETTE_ENTRIES - 1))
+	if (regyes > (AU1100_LCD_NBR_PALETTE_ENTRIES - 1))
 		return -EINVAL;
 
 	if (fbi->var.grayscale) {
@@ -252,7 +252,7 @@ int au1100fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned
 
 	if (fbi->fix.visual == FB_VISUAL_TRUECOLOR) {
 		/* Place color in the pseudopalette */
-		if (regno > 16)
+		if (regyes > 16)
 			return -EINVAL;
 
 		palette = (u32*)fbi->pseudo_palette;
@@ -283,7 +283,7 @@ int au1100fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green, unsigned
 		value &= 0xF;
 	}
 
-	palette[regno] = value;
+	palette[regyes] = value;
 
 	return 0;
 }
@@ -305,7 +305,7 @@ int au1100fb_fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *fbi)
 	}
 
 	if (var->xoffset - fbi->var.xoffset) {
-		/* No support for X panning for now! */
+		/* No support for X panning for yesw! */
 		return -EINVAL;
 	}
 
@@ -366,7 +366,7 @@ static struct fb_ops au1100fb_ops =
 static int au1100fb_setup(struct au1100fb_device *fbdev)
 {
 	char *this_opt, *options;
-	int num_panels = ARRAY_SIZE(known_lcd_panels);
+	int num_panels = ARRAY_SIZE(kyeswn_lcd_panels);
 
 	if (num_panels <= 0) {
 		print_err("No LCD panels supported by driver!");
@@ -384,15 +384,15 @@ static int au1100fb_setup(struct au1100fb_device *fbdev)
 			int i;
 			this_opt += 6;
 			for (i = 0; i < num_panels; i++) {
-				if (!strncmp(this_opt, known_lcd_panels[i].name,
+				if (!strncmp(this_opt, kyeswn_lcd_panels[i].name,
 					     strlen(this_opt))) {
-					fbdev->panel = &known_lcd_panels[i];
+					fbdev->panel = &kyeswn_lcd_panels[i];
 					fbdev->panel_idx = i;
 					break;
 				}
 			}
 			if (i >= num_panels) {
-				print_warn("Panel '%s' not supported!", this_opt);
+				print_warn("Panel '%s' yest supported!", this_opt);
 				return -ENODEV;
 			}
 		}
@@ -502,7 +502,7 @@ static int au1100fb_drv_probe(struct platform_device *dev)
 
 	/* Register new framebuffer */
 	if (register_framebuffer(&fbdev->info) < 0) {
-		print_err("cannot register new framebuffer");
+		print_err("canyest register new framebuffer");
 		goto failed;
 	}
 

@@ -717,7 +717,7 @@ s16 rtw_camid_alloc(struct adapter *adapter, struct sta_info *sta, u8 kid)
 
 		if (!sta) {
 			if (!(mlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)) {
-				/* bypass STA mode group key setting before connected(ex:WEP) because bssid is not ready */
+				/* bypass STA mode group key setting before connected(ex:WEP) because bssid is yest ready */
 				goto bitmap_handle;
 			}
 
@@ -741,10 +741,10 @@ s16 rtw_camid_alloc(struct adapter *adapter, struct sta_info *sta, u8 kid)
 
 		if (i == TOTAL_CAM_ENTRY) {
 			if (sta)
-				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" pairwise key with "MAC_FMT" id:%u no room\n"
+				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" pairwise key with "MAC_FMT" id:%u yes room\n"
 				, FUNC_ADPT_ARG(adapter), MAC_ARG(sta->hwaddr), kid);
 			else
-				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" group key id:%u no room\n"
+				DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" group key id:%u yes room\n"
 				, FUNC_ADPT_ARG(adapter), kid);
 			rtw_warn_on(1);
 			goto bitmap_handle;
@@ -1336,7 +1336,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 	}
 	if (ht_cap_info != cur_network->BcnInfo.ht_cap_info ||
 		((ht_info_infos_0&0x03) != (cur_network->BcnInfo.ht_info_infos_0&0x03))) {
-			DBG_871X("%s bcn now: ht_cap_info:%x ht_info_infos_0:%x\n", __func__,
+			DBG_871X("%s bcn yesw: ht_cap_info:%x ht_info_infos_0:%x\n", __func__,
 							ht_cap_info, ht_info_infos_0);
 			DBG_871X("%s bcn link: ht_cap_info:%x ht_info_infos_0:%x\n", __func__,
 							cur_network->BcnInfo.ht_cap_info, cur_network->BcnInfo.ht_info_infos_0);
@@ -1345,7 +1345,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 				/* bcn_info_update */
 				cur_network->BcnInfo.ht_cap_info = ht_cap_info;
 				cur_network->BcnInfo.ht_info_infos_0 = ht_info_infos_0;
-				/* to do : need to check that whether modify related register of BB or not */
+				/* to do : need to check that whether modify related register of BB or yest */
 			}
 			/* goto _mismatch; */
 	}
@@ -1354,7 +1354,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 	p = rtw_get_ie(bssid->IEs + _FIXED_IE_LENGTH_, _DSSET_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);
 	if (p) {
 			bcn_channel = *(p + 2);
-	} else {/* In 5G, some ap do not have DSSET IE checking HT info for channel */
+	} else {/* In 5G, some ap do yest have DSSET IE checking HT info for channel */
 			rtw_get_ie(bssid->IEs + _FIXED_IE_LENGTH_, _HT_ADD_INFO_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);
 			if (pht_info) {
 					bcn_channel = pht_info->primary_channel;
@@ -1372,7 +1372,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 	/* checking SSID */
 	p = rtw_get_ie(bssid->IEs + _FIXED_IE_LENGTH_, _SSID_IE_, &len, bssid->IELength - _FIXED_IE_LENGTH_);
 	if (!p) {
-		DBG_871X("%s marc: cannot find SSID for survey event\n", __func__);
+		DBG_871X("%s marc: canyest find SSID for survey event\n", __func__);
 		hidden_ssid = true;
 	} else {
 		hidden_ssid = false;
@@ -1393,8 +1393,8 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 
 	if (memcmp(bssid->Ssid.Ssid, cur_network->network.Ssid.Ssid, 32) ||
 			bssid->Ssid.SsidLength != cur_network->network.Ssid.SsidLength) {
-		if (bssid->Ssid.Ssid[0] != '\0' && bssid->Ssid.SsidLength != 0) { /* not hidden ssid */
-			DBG_871X("%s(), SSID is not match\n", __func__);
+		if (bssid->Ssid.Ssid[0] != '\0' && bssid->Ssid.SsidLength != 0) { /* yest hidden ssid */
+			DBG_871X("%s(), SSID is yest match\n", __func__);
 			goto _mismatch;
 		}
 	}
@@ -1411,7 +1411,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 			("%s(): cur_network->network.Privacy is %d, bssid.Privacy is %d\n",
 			 __func__, cur_network->network.Privacy, bssid->Privacy));
 	if (cur_network->network.Privacy != bssid->Privacy) {
-		DBG_871X("%s(), privacy is not match\n", __func__);
+		DBG_871X("%s(), privacy is yest match\n", __func__);
 		goto _mismatch;
 	}
 
@@ -1427,7 +1427,7 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 	}
 
 	if (cur_network->BcnInfo.encryp_protocol != encryp_protocol) {
-		DBG_871X("%s(): enctyp is not match\n", __func__);
+		DBG_871X("%s(): enctyp is yest match\n", __func__);
 		goto _mismatch;
 	}
 
@@ -1454,14 +1454,14 @@ int rtw_check_bcn_info(struct adapter *Adapter, u8 *pframe, u32 packet_len)
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
 				("%s cur_network->group_cipher is %d: %d\n", __func__, cur_network->BcnInfo.group_cipher, group_cipher));
 		if (pairwise_cipher != cur_network->BcnInfo.pairwise_cipher || group_cipher != cur_network->BcnInfo.group_cipher) {
-			DBG_871X("%s pairwise_cipher(%x:%x) or group_cipher(%x:%x) is not match\n", __func__,
+			DBG_871X("%s pairwise_cipher(%x:%x) or group_cipher(%x:%x) is yest match\n", __func__,
 					pairwise_cipher, cur_network->BcnInfo.pairwise_cipher,
 					group_cipher, cur_network->BcnInfo.group_cipher);
 			goto _mismatch;
 		}
 
 		if (is_8021x != cur_network->BcnInfo.is_8021x) {
-			DBG_871X("%s authentication is not match\n", __func__);
+			DBG_871X("%s authentication is yest match\n", __func__);
 			goto _mismatch;
 		}
 	}
@@ -2006,7 +2006,7 @@ void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta)
 
 	if (i > (NUM_STA-1)) {
 		psta->mac_id = NUM_STA;
-		DBG_871X("  no room for more MACIDs\n");
+		DBG_871X("  yes room for more MACIDs\n");
 	} else {
 		psta->mac_id = i;
 		DBG_871X("%s = %d\n", __func__, psta->mac_id);
@@ -2096,7 +2096,7 @@ int  rtw_set_gpio_output_value(struct net_device *netdev, int gpio_num, bool isH
 
 	/* Check GPIO is 4~7 */
 	if (gpio_num > 7 || gpio_num < 4) {
-		DBG_871X("%s The gpio number does not included 4~7.\n", __func__);
+		DBG_871X("%s The gpio number does yest included 4~7.\n", __func__);
 		return -1;
 	}
 
@@ -2117,7 +2117,7 @@ int  rtw_set_gpio_output_value(struct net_device *netdev, int gpio_num, bool isH
 		DBG_871X("%s Set gpio %x[%d]=%d\n", __func__, REG_GPIO_PIN_CTRL+1, gpio_num, isHigh);
 		res = 0;
 	} else {
-		DBG_871X("%s The gpio is input, not be set!\n", __func__);
+		DBG_871X("%s The gpio is input, yest be set!\n", __func__);
 		res = -1;
 	}
 
@@ -2131,7 +2131,7 @@ int rtw_config_gpio(struct net_device *netdev, int gpio_num, bool isOutput)
 	struct adapter *adapter = (struct adapter *)rtw_netdev_priv(netdev);
 
 	if (gpio_num > 7 || gpio_num < 4) {
-		DBG_871X("%s The gpio number does not included 4~7.\n", __func__);
+		DBG_871X("%s The gpio number does yest included 4~7.\n", __func__);
 		return -1;
 	}
 

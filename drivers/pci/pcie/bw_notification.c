@@ -5,19 +5,19 @@
  *
  * Copyright (C) 2019, Dell Inc
  *
- * The PCIe Link Bandwidth Notification provides a way to notify the
+ * The PCIe Link Bandwidth Notification provides a way to yestify the
  * operating system when the link width or data rate changes.  This
  * capability is required for all root ports and downstream ports
  * supporting links wider than x1 and/or multiple link speeds.
  *
- * This service port driver hooks into the bandwidth notification interrupt
+ * This service port driver hooks into the bandwidth yestification interrupt
  * and warns when links become degraded in operation.
  */
 
 #include "../pci.h"
 #include "portdrv.h"
 
-static bool pcie_link_bandwidth_notification_supported(struct pci_dev *dev)
+static bool pcie_link_bandwidth_yestification_supported(struct pci_dev *dev)
 {
 	int ret;
 	u32 lnk_cap;
@@ -26,7 +26,7 @@ static bool pcie_link_bandwidth_notification_supported(struct pci_dev *dev)
 	return (ret == PCIBIOS_SUCCESSFUL) && (lnk_cap & PCI_EXP_LNKCAP_LBNC);
 }
 
-static void pcie_enable_link_bandwidth_notification(struct pci_dev *dev)
+static void pcie_enable_link_bandwidth_yestification(struct pci_dev *dev)
 {
 	u16 lnk_ctl;
 
@@ -37,7 +37,7 @@ static void pcie_enable_link_bandwidth_notification(struct pci_dev *dev)
 	pcie_capability_write_word(dev, PCI_EXP_LNKCTL, lnk_ctl);
 }
 
-static void pcie_disable_link_bandwidth_notification(struct pci_dev *dev)
+static void pcie_disable_link_bandwidth_yestification(struct pci_dev *dev)
 {
 	u16 lnk_ctl;
 
@@ -46,7 +46,7 @@ static void pcie_disable_link_bandwidth_notification(struct pci_dev *dev)
 	pcie_capability_write_word(dev, PCI_EXP_LNKCTL, lnk_ctl);
 }
 
-static irqreturn_t pcie_bw_notification_irq(int irq, void *context)
+static irqreturn_t pcie_bw_yestification_irq(int irq, void *context)
 {
 	struct pcie_device *srv = context;
 	struct pci_dev *port = srv->port;
@@ -64,14 +64,14 @@ static irqreturn_t pcie_bw_notification_irq(int irq, void *context)
 	return IRQ_WAKE_THREAD;
 }
 
-static irqreturn_t pcie_bw_notification_handler(int irq, void *context)
+static irqreturn_t pcie_bw_yestification_handler(int irq, void *context)
 {
 	struct pcie_device *srv = context;
 	struct pci_dev *port = srv->port;
 	struct pci_dev *dev;
 
 	/*
-	 * Print status from downstream devices, not this root port or
+	 * Print status from downstream devices, yest this root port or
 	 * downstream switch port.
 	 */
 	down_read(&pci_bus_sem);
@@ -82,54 +82,54 @@ static irqreturn_t pcie_bw_notification_handler(int irq, void *context)
 	return IRQ_HANDLED;
 }
 
-static int pcie_bandwidth_notification_probe(struct pcie_device *srv)
+static int pcie_bandwidth_yestification_probe(struct pcie_device *srv)
 {
 	int ret;
 
-	/* Single-width or single-speed ports do not have to support this. */
-	if (!pcie_link_bandwidth_notification_supported(srv->port))
+	/* Single-width or single-speed ports do yest have to support this. */
+	if (!pcie_link_bandwidth_yestification_supported(srv->port))
 		return -ENODEV;
 
-	ret = request_threaded_irq(srv->irq, pcie_bw_notification_irq,
-				   pcie_bw_notification_handler,
-				   IRQF_SHARED, "PCIe BW notif", srv);
+	ret = request_threaded_irq(srv->irq, pcie_bw_yestification_irq,
+				   pcie_bw_yestification_handler,
+				   IRQF_SHARED, "PCIe BW yestif", srv);
 	if (ret)
 		return ret;
 
-	pcie_enable_link_bandwidth_notification(srv->port);
+	pcie_enable_link_bandwidth_yestification(srv->port);
 
 	return 0;
 }
 
-static void pcie_bandwidth_notification_remove(struct pcie_device *srv)
+static void pcie_bandwidth_yestification_remove(struct pcie_device *srv)
 {
-	pcie_disable_link_bandwidth_notification(srv->port);
+	pcie_disable_link_bandwidth_yestification(srv->port);
 	free_irq(srv->irq, srv);
 }
 
-static int pcie_bandwidth_notification_suspend(struct pcie_device *srv)
+static int pcie_bandwidth_yestification_suspend(struct pcie_device *srv)
 {
-	pcie_disable_link_bandwidth_notification(srv->port);
+	pcie_disable_link_bandwidth_yestification(srv->port);
 	return 0;
 }
 
-static int pcie_bandwidth_notification_resume(struct pcie_device *srv)
+static int pcie_bandwidth_yestification_resume(struct pcie_device *srv)
 {
-	pcie_enable_link_bandwidth_notification(srv->port);
+	pcie_enable_link_bandwidth_yestification(srv->port);
 	return 0;
 }
 
-static struct pcie_port_service_driver pcie_bandwidth_notification_driver = {
-	.name		= "pcie_bw_notification",
+static struct pcie_port_service_driver pcie_bandwidth_yestification_driver = {
+	.name		= "pcie_bw_yestification",
 	.port_type	= PCIE_ANY_PORT,
 	.service	= PCIE_PORT_SERVICE_BWNOTIF,
-	.probe		= pcie_bandwidth_notification_probe,
-	.suspend	= pcie_bandwidth_notification_suspend,
-	.resume		= pcie_bandwidth_notification_resume,
-	.remove		= pcie_bandwidth_notification_remove,
+	.probe		= pcie_bandwidth_yestification_probe,
+	.suspend	= pcie_bandwidth_yestification_suspend,
+	.resume		= pcie_bandwidth_yestification_resume,
+	.remove		= pcie_bandwidth_yestification_remove,
 };
 
-int __init pcie_bandwidth_notification_init(void)
+int __init pcie_bandwidth_yestification_init(void)
 {
-	return pcie_port_service_register(&pcie_bandwidth_notification_driver);
+	return pcie_port_service_register(&pcie_bandwidth_yestification_driver);
 }

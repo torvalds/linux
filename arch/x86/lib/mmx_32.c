@@ -10,11 +10,11 @@
  *	We also want to clobber the filler register so we don't get any
  *		register forwarding stalls on the filler.
  *
- *	Add *user handling. Checksums are not a win with MMX on any CPU
+ *	Add *user handling. Checksums are yest a win with MMX on any CPU
  *	tested so far for any MMX solution figured.
  *
  *	22/09/2000 - Arjan van de Ven
- *		Improved for non-egineering-sample Athlons
+ *		Improved for yesn-egineering-sample Athlons
  *
  */
 #include <linux/hardirq.h>
@@ -120,7 +120,7 @@ EXPORT_SYMBOL(_mmx_memcpy);
 
 /*
  *	The K7 has streaming cache bypass load/store. The Cyrix III, K6 and
- *	other MMX using processors do not.
+ *	other MMX using processors do yest.
  */
 
 static void fast_clear_page(void *page)

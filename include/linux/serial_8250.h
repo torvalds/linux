@@ -91,7 +91,7 @@ struct uart_8250_em485 {
 
 struct uart_8250_port {
 	struct uart_port	port;
-	struct timer_list	timer;		/* "no irq" timer */
+	struct timer_list	timer;		/* "yes irq" timer */
 	struct list_head	list;		/* ports on this IRQ */
 	u32			capabilities;	/* port capabilities */
 	unsigned short		bugs;		/* port bugs */
@@ -106,8 +106,8 @@ struct uart_8250_port {
 	unsigned char		mcr_force;	/* mask of forced bits */
 	unsigned char		cur_iotype;	/* Running I/O type */
 	unsigned int		rpm_tx_active;
-	unsigned char		canary;		/* non-zero during system sleep
-						 *   if no_console_suspend
+	unsigned char		canary;		/* yesn-zero during system sleep
+						 *   if yes_console_suspend
 						 */
 	unsigned char		probe;
 	struct mctrl_gpios	*gpios;
@@ -115,7 +115,7 @@ struct uart_8250_port {
 
 	/*
 	 * Some bits in registers are cleared on a read, so they must
-	 * be saved whenever the register is read but the bits will not
+	 * be saved whenever the register is read but the bits will yest
 	 * be immediately processed.
 	 */
 #define LSR_SAVE_FLAGS UART_LSR_BRK_ERROR_BITS

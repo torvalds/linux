@@ -30,7 +30,7 @@ char __initdata cmd_line[COMMAND_LINE_SIZE];
 
 int __initdata of_ioapic;
 
-void __init early_init_dt_scan_chosen_arch(unsigned long node)
+void __init early_init_dt_scan_chosen_arch(unsigned long yesde)
 {
 	BUG();
 }
@@ -65,11 +65,11 @@ static int __init add_bus_probe(void)
 device_initcall(add_bus_probe);
 
 #ifdef CONFIG_PCI
-struct device_node *pcibios_get_phb_of_node(struct pci_bus *bus)
+struct device_yesde *pcibios_get_phb_of_yesde(struct pci_bus *bus)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	for_each_node_by_type(np, "pci") {
+	for_each_yesde_by_type(np, "pci") {
 		const void *prop;
 		unsigned int bus_min;
 
@@ -116,11 +116,11 @@ void x86_of_pci_init(void)
 static void __init dtb_setup_hpet(void)
 {
 #ifdef CONFIG_HPET_TIMER
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct resource r;
 	int ret;
 
-	dn = of_find_compatible_node(NULL, NULL, "intel,ce4100-hpet");
+	dn = of_find_compatible_yesde(NULL, NULL, "intel,ce4100-hpet");
 	if (!dn)
 		return;
 	ret = of_address_to_resource(dn, 0, &r);
@@ -136,12 +136,12 @@ static void __init dtb_setup_hpet(void)
 
 static void __init dtb_cpu_setup(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	u32 apic_id, version;
 	int ret;
 
 	version = GET_APIC_VERSION(apic_read(APIC_LVR));
-	for_each_of_cpu_node(dn) {
+	for_each_of_cpu_yesde(dn) {
 		ret = of_property_read_u32(dn, "reg", &apic_id);
 		if (ret < 0) {
 			pr_warn("%pOF: missing local APIC ID\n", dn);
@@ -153,12 +153,12 @@ static void __init dtb_cpu_setup(void)
 
 static void __init dtb_lapic_setup(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct resource r;
 	unsigned long lapic_addr = APIC_DEFAULT_PHYS_BASE;
 	int ret;
 
-	dn = of_find_compatible_node(NULL, NULL, "intel,ce4100-lapic");
+	dn = of_find_compatible_yesde(NULL, NULL, "intel,ce4100-lapic");
 	if (dn) {
 		ret = of_address_to_resource(dn, 0, &r);
 		if (WARN_ON(ret))
@@ -241,7 +241,7 @@ static const struct irq_domain_ops ioapic_irq_domain_ops = {
 	.deactivate	= mp_irqdomain_deactivate,
 };
 
-static void __init dtb_add_ioapic(struct device_node *dn)
+static void __init dtb_add_ioapic(struct device_yesde *dn)
 {
 	struct resource r;
 	int ret;
@@ -253,7 +253,7 @@ static void __init dtb_add_ioapic(struct device_node *dn)
 
 	ret = of_address_to_resource(dn, 0, &r);
 	if (ret) {
-		printk(KERN_ERR "Can't obtain address from device node %pOF.\n", dn);
+		printk(KERN_ERR "Can't obtain address from device yesde %pOF.\n", dn);
 		return;
 	}
 	mp_register_ioapic(++ioapic_id, r.start, gsi_top, &cfg);
@@ -261,9 +261,9 @@ static void __init dtb_add_ioapic(struct device_node *dn)
 
 static void __init dtb_ioapic_setup(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
-	for_each_compatible_node(dn, NULL, "intel,ce4100-ioapic")
+	for_each_compatible_yesde(dn, NULL, "intel,ce4100-ioapic")
 		dtb_add_ioapic(dn);
 
 	if (nr_ioapics) {

@@ -63,7 +63,7 @@ static const char *pci_bus_speed_strings[] = {
 	"66 MHz PCI-X 266",	/* 0x09 */
 	"100 MHz PCI-X 266",	/* 0x0a */
 	"133 MHz PCI-X 266",	/* 0x0b */
-	"Unknown AGP",		/* 0x0c */
+	"Unkyeswn AGP",		/* 0x0c */
 	"1x AGP",		/* 0x0d */
 	"2x AGP",		/* 0x0e */
 	"4x AGP",		/* 0x0f */
@@ -85,7 +85,7 @@ static ssize_t bus_speed_read(enum pci_bus_speed speed, char *buf)
 	if (speed < ARRAY_SIZE(pci_bus_speed_strings))
 		speed_string = pci_bus_speed_strings[speed];
 	else
-		speed_string = "Unknown";
+		speed_string = "Unkyeswn";
 
 	return sprintf(buf, "%s\n", speed_string);
 }
@@ -151,7 +151,7 @@ static char *make_slot_name(const char *name)
 	/*
 	 * Make sure we hit the realloc case the first time through the
 	 * loop.  'len' will be strlen(name) + 3 at that point which is
-	 * enough space for "name-X" and the trailing NUL.
+	 * eyesugh space for "name-X" and the trailing NUL.
 	 */
 	len = strlen(name) + 2;
 	max = 1;
@@ -234,7 +234,7 @@ static struct pci_slot *get_slot(struct pci_bus *parent, int slot_nr)
  *
  * Slots are uniquely identified by a @pci_bus, @slot_nr tuple.
  *
- * There are known platforms with broken firmware that assign the same
+ * There are kyeswn platforms with broken firmware that assign the same
  * name to multiple slots. Workaround these broken platforms by renaming
  * the slots on behalf of the caller. If firmware assigns name N to
  * multiple slots:
@@ -246,17 +246,17 @@ static struct pci_slot *get_slot(struct pci_bus *parent, int slot_nr)
  *
  * Placeholder slots:
  * In most cases, @pci_bus, @slot_nr will be sufficient to uniquely identify
- * a slot. There is one notable exception - pSeries (rpaphp), where the
- * @slot_nr cannot be determined until a device is actually inserted into
+ * a slot. There is one yestable exception - pSeries (rpaphp), where the
+ * @slot_nr canyest be determined until a device is actually inserted into
  * the slot. In this scenario, the caller may pass -1 for @slot_nr.
  *
  * The following semantics are imposed when the caller passes @slot_nr ==
- * -1. First, we no longer check for an existing %struct pci_slot, as there
+ * -1. First, we yes longer check for an existing %struct pci_slot, as there
  * may be many slots with @slot_nr of -1.  The other change in semantics is
  * user-visible, which is the 'address' parameter presented in sysfs will
  * consist solely of a dddd:bb tuple, where dddd is the PCI domain of the
  * %struct pci_bus and bb is the bus number. In other words, the devfn of
- * the 'placeholder' slot will not be displayed.
+ * the 'placeholder' slot will yest be displayed.
  */
 struct pci_slot *pci_create_slot(struct pci_bus *parent, int slot_nr,
 				 const char *name,
@@ -274,7 +274,7 @@ struct pci_slot *pci_create_slot(struct pci_bus *parent, int slot_nr,
 
 	/*
 	 * Hotplug drivers are allowed to rename an existing slot,
-	 * but only if not already claimed.
+	 * but only if yest already claimed.
 	 */
 	slot = get_slot(parent, slot_nr);
 	if (slot) {

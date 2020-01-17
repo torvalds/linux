@@ -102,7 +102,7 @@ static void __blkg_release(struct rcu_head *rcu)
 }
 
 /*
- * A group is RCU protected, but having an rcu lock does not mean that one
+ * A group is RCU protected, but having an rcu lock does yest mean that one
  * can access all the fields of blkg and assume these are valid.  For
  * example, don't try to follow throtl_data and request queue links.
  *
@@ -148,7 +148,7 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 	int i, cpu;
 
 	/* alloc and init base part */
-	blkg = kzalloc_node(sizeof(*blkg), gfp_mask, q->node);
+	blkg = kzalloc_yesde(sizeof(*blkg), gfp_mask, q->yesde);
 	if (!blkg)
 		return NULL;
 
@@ -160,7 +160,7 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 		goto err_free;
 
 	blkg->q = q;
-	INIT_LIST_HEAD(&blkg->q_node);
+	INIT_LIST_HEAD(&blkg->q_yesde);
 	spin_lock_init(&blkg->async_bio_lock);
 	bio_list_init(&blkg->async_bios);
 	INIT_WORK(&blkg->async_bio_work, blkg_async_bio_workfn);
@@ -233,7 +233,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	lockdep_assert_held(&q->queue_lock);
 
-	/* request_queue is dying, do not create/recreate a blkg */
+	/* request_queue is dying, do yest create/recreate a blkg */
 	if (blk_queue_dying(q)) {
 		ret = -ENODEV;
 		goto err_free_blkg;
@@ -286,8 +286,8 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	spin_lock(&blkcg->lock);
 	ret = radix_tree_insert(&blkcg->blkg_tree, q->id, blkg);
 	if (likely(!ret)) {
-		hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
-		list_add(&blkg->q_node, &q->blkg_list);
+		hlist_add_head_rcu(&blkg->blkcg_yesde, &blkcg->blkg_list);
+		list_add(&blkg->q_yesde, &q->blkg_list);
 
 		for (i = 0; i < BLKCG_MAX_POLS; i++) {
 			struct blkcg_policy *pol = blkcg_policy[i];
@@ -316,13 +316,13 @@ err_free_blkg:
 }
 
 /**
- * __blkg_lookup_create - lookup blkg, try to create one if not there
+ * __blkg_lookup_create - lookup blkg, try to create one if yest there
  * @blkcg: blkcg of interest
  * @q: request_queue of interest
  *
  * Lookup blkg for the @blkcg - @q pair.  If it doesn't exist, try to
  * create one.  blkg creation is performed recursively from blkcg_root such
- * that all non-root blkg's have access to the parent blkg.  This function
+ * that all yesn-root blkg's have access to the parent blkg.  This function
  * should be called under RCU read lock and @q->queue_lock.
  *
  * Returns the blkg or the closest blkg if blkg_create() fails as it walks
@@ -342,7 +342,7 @@ struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
 
 	/*
 	 * Create blkgs walking down from blkcg_root to @blkcg, so that all
-	 * non-root blkgs have access to their parents.  Returns the closest
+	 * yesn-root blkgs have access to their parents.  Returns the closest
 	 * blkg to the intended blkg should blkg_create() fail.
 	 */
 	while (true) {
@@ -402,8 +402,8 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 	lockdep_assert_held(&blkcg->lock);
 
 	/* Something wrong if we are trying to remove same group twice */
-	WARN_ON_ONCE(list_empty(&blkg->q_node));
-	WARN_ON_ONCE(hlist_unhashed(&blkg->blkcg_node));
+	WARN_ON_ONCE(list_empty(&blkg->q_yesde));
+	WARN_ON_ONCE(hlist_unhashed(&blkg->blkcg_yesde));
 
 	for (i = 0; i < BLKCG_MAX_POLS; i++) {
 		struct blkcg_policy *pol = blkcg_policy[i];
@@ -415,12 +415,12 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 	blkg->online = false;
 
 	radix_tree_delete(&blkcg->blkg_tree, blkg->q->id);
-	list_del_init(&blkg->q_node);
-	hlist_del_init_rcu(&blkg->blkcg_node);
+	list_del_init(&blkg->q_yesde);
+	hlist_del_init_rcu(&blkg->blkcg_yesde);
 
 	/*
 	 * Both setting lookup hint to and clearing it from @blkg are done
-	 * under queue_lock.  If it's not pointing to @blkg now, it never
+	 * under queue_lock.  If it's yest pointing to @blkg yesw, it never
 	 * will.  Hint assignment itself can race safely.
 	 */
 	if (rcu_access_pointer(blkcg->blkg_hint) == blkg)
@@ -444,7 +444,7 @@ static void blkg_destroy_all(struct request_queue *q)
 	struct blkcg_gq *blkg, *n;
 
 	spin_lock_irq(&q->queue_lock);
-	list_for_each_entry_safe(blkg, n, &q->blkg_list, q_node) {
+	list_for_each_entry_safe(blkg, n, &q->blkg_list, q_yesde) {
 		struct blkcg *blkcg = blkg->blkcg;
 
 		spin_lock(&blkcg->lock);
@@ -471,7 +471,7 @@ static int blkcg_reset_stats(struct cgroup_subsys_state *css,
 	 * stat updates.  This is a debug feature which shouldn't exist
 	 * anyway.  If you get hit by a race, retry.
 	 */
-	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
+	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_yesde) {
 		for_each_possible_cpu(cpu) {
 			struct blkg_iostat_set *bis =
 				per_cpu_ptr(blkg->iostat_cpu, cpu);
@@ -507,7 +507,7 @@ const char *blkg_dev_name(struct blkcg_gq *blkg)
  * @prfill: fill function to print out a blkg
  * @pol: policy in question
  * @data: data to be passed to @prfill
- * @show_total: to print out sum of prfill return values or not
+ * @show_total: to print out sum of prfill return values or yest
  *
  * This function invokes @prfill on each blkg of @blkcg if pd for the
  * policy specified by @pol exists.  @prfill is invoked with @sf, the
@@ -528,7 +528,7 @@ void blkcg_print_blkgs(struct seq_file *sf, struct blkcg *blkcg,
 	u64 total = 0;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
+	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_yesde) {
 		spin_lock_irq(&blkg->q->queue_lock);
 		if (blkcg_policy_enabled(blkg->q, pol))
 			total += prfill(sf, blkg->pd[pol->plid], data);
@@ -578,9 +578,9 @@ static struct blkcg_gq *blkg_lookup_check(struct blkcg *blkcg,
  * blkg_conf_prep - parse and prepare for per-blkg config update
  * @inputp: input string pointer
  *
- * Parse the device node prefix part, MAJ:MIN, of per-blkg config update
+ * Parse the device yesde prefix part, MAJ:MIN, of per-blkg config update
  * from @input and get and return the matching gendisk.  *@inputp is
- * updated to point past the device node prefix.  Returns an ERR_PTR()
+ * updated to point past the device yesde prefix.  Returns an ERR_PTR()
  * value on error.
  *
  * Use this function iff blkg_conf_prep() can't be used for some reason.
@@ -588,11 +588,11 @@ static struct blkcg_gq *blkg_lookup_check(struct blkcg *blkcg,
 struct gendisk *blkcg_conf_get_disk(char **inputp)
 {
 	char *input = *inputp;
-	unsigned int major, minor;
+	unsigned int major, miyesr;
 	struct gendisk *disk;
 	int key_len, part;
 
-	if (sscanf(input, "%u:%u%n", &major, &minor, &key_len) != 2)
+	if (sscanf(input, "%u:%u%n", &major, &miyesr, &key_len) != 2)
 		return ERR_PTR(-EINVAL);
 
 	input += key_len;
@@ -600,7 +600,7 @@ struct gendisk *blkcg_conf_get_disk(char **inputp)
 		return ERR_PTR(-EINVAL);
 	input = skip_spaces(input);
 
-	disk = get_gendisk(MKDEV(major, minor), &part);
+	disk = get_gendisk(MKDEV(major, miyesr), &part);
 	if (!disk)
 		return ERR_PTR(-ENODEV);
 	if (part) {
@@ -653,7 +653,7 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 
 	/*
 	 * Create blkgs walking down from blkcg_root to @blkcg, so that all
-	 * non-root blkgs have access to their parents.
+	 * yesn-root blkgs have access to their parents.
 	 */
 	while (true) {
 		struct blkcg *pos = blkcg;
@@ -747,7 +747,7 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 	cgroup_rstat_flush(blkcg->css.cgroup);
 	rcu_read_lock();
 
-	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
+	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_yesde) {
 		struct blkg_iostat_set *bis = &blkg->iostat;
 		const char *dname;
 		char *buf;
@@ -768,7 +768,7 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 
 		/*
 		 * Hooray string manipulation, count is the size written NOT
-		 * INCLUDING THE \0, so size is now count+1 less than what we
+		 * INCLUDING THE \0, so size is yesw count+1 less than what we
 		 * had before, but we want to start writing the next bit from
 		 * the \0 so we only add count to buf.
 		 */
@@ -904,7 +904,7 @@ void blkcg_destroy_blkgs(struct blkcg *blkcg)
 
 	while (!hlist_empty(&blkcg->blkg_list)) {
 		struct blkcg_gq *blkg = hlist_entry(blkcg->blkg_list.first,
-						struct blkcg_gq, blkcg_node);
+						struct blkcg_gq, blkcg_yesde);
 		struct request_queue *q = blkg->q;
 
 		if (spin_trylock(&q->queue_lock)) {
@@ -927,7 +927,7 @@ static void blkcg_css_free(struct cgroup_subsys_state *css)
 
 	mutex_lock(&blkcg_pol_mutex);
 
-	list_del(&blkcg->all_blkcgs_node);
+	list_del(&blkcg->all_blkcgs_yesde);
 
 	for (i = 0; i < BLKCG_MAX_POLS; i++)
 		if (blkcg->cpd[i])
@@ -989,7 +989,7 @@ blkcg_css_alloc(struct cgroup_subsys_state *parent_css)
 	INIT_LIST_HEAD(&blkcg->cgwb_list);
 	refcount_set(&blkcg->cgwb_refcnt, 1);
 #endif
-	list_add_tail(&blkcg->all_blkcgs_node, &all_blkcgs);
+	list_add_tail(&blkcg->all_blkcgs_yesde, &all_blkcgs);
 
 	mutex_unlock(&blkcg_pol_mutex);
 	return &blkcg->css;
@@ -1010,11 +1010,11 @@ unlock:
  * blkcg_init_queue - initialize blkcg part of request queue
  * @q: request_queue to initialize
  *
- * Called from blk_alloc_queue_node(). Responsible for initializing blkcg
+ * Called from blk_alloc_queue_yesde(). Responsible for initializing blkcg
  * part of new request_queue @q.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -erryes on failure.
  */
 int blkcg_init_queue(struct request_queue *q)
 {
@@ -1074,9 +1074,9 @@ void blkcg_exit_queue(struct request_queue *q)
 }
 
 /*
- * We cannot support shared io contexts, as we have no mean to support
+ * We canyest support shared io contexts, as we have yes mean to support
  * two tasks with the same ioc in two different groups without major rework
- * of the main cic data structures.  For now we allow a task to change
+ * of the main cic data structures.  For yesw we allow a task to change
  * its cgroup only if it's the only owner of its ioc.
  */
 static int blkcg_can_attach(struct cgroup_taskset *tset)
@@ -1136,7 +1136,7 @@ static void blkcg_rstat_flush(struct cgroup_subsys_state *css, int cpu)
 
 	rcu_read_lock();
 
-	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
+	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_yesde) {
 		struct blkcg_gq *parent = blkg->parent;
 		struct blkg_iostat_set *bisc = per_cpu_ptr(blkg->iostat_cpu, cpu);
 		struct blkg_iostat cur, delta;
@@ -1183,7 +1183,7 @@ static void blkcg_bind(struct cgroup_subsys_state *root_css)
 		if (!pol || !pol->cpd_bind_fn)
 			continue;
 
-		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node)
+		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_yesde)
 			if (blkcg->cpd[pol->plid])
 				pol->cpd_bind_fn(blkcg->cpd[pol->plid]);
 	}
@@ -1227,13 +1227,13 @@ EXPORT_SYMBOL_GPL(io_cgrp_subsys);
  * Activate @pol on @q.  Requires %GFP_KERNEL context.  @q goes through
  * bypass mode to populate its blkgs with policy_data for @pol.
  *
- * Activation happens with @q bypassed, so nobody would be accessing blkgs
+ * Activation happens with @q bypassed, so yesbody would be accessing blkgs
  * from IO path.  Update of each blkg is protected by both queue and blkcg
  * locks so that holding either lock and testing blkcg_policy_enabled() is
- * always enough for dereferencing policy data.
+ * always eyesugh for dereferencing policy data.
  *
  * The caller is responsible for synchronizing [de]activations and policy
- * [un]registerations.  Returns 0 on success, -errno on failure.
+ * [un]registerations.  Returns 0 on success, -erryes on failure.
  */
 int blkcg_activate_policy(struct request_queue *q,
 			  const struct blkcg_policy *pol)
@@ -1251,7 +1251,7 @@ retry:
 	spin_lock_irq(&q->queue_lock);
 
 	/* blkg_list is pushed at the head, reverse walk to allocate parents first */
-	list_for_each_entry_reverse(blkg, &q->blkg_list, q_node) {
+	list_for_each_entry_reverse(blkg, &q->blkg_list, q_yesde) {
 		struct blkg_policy_data *pd;
 
 		if (blkg->pd[pol->plid])
@@ -1285,7 +1285,7 @@ retry:
 			if (pd_prealloc)
 				goto retry;
 			else
-				goto enomem;
+				goto eyesmem;
 		}
 
 		blkg->pd[pol->plid] = pd;
@@ -1295,7 +1295,7 @@ retry:
 
 	/* all allocated, init in the same order */
 	if (pol->pd_init_fn)
-		list_for_each_entry_reverse(blkg, &q->blkg_list, q_node)
+		list_for_each_entry_reverse(blkg, &q->blkg_list, q_yesde)
 			pol->pd_init_fn(blkg->pd[pol->plid]);
 
 	__set_bit(pol->plid, q->blkcg_pols);
@@ -1311,10 +1311,10 @@ out:
 		pol->pd_free_fn(pd_prealloc);
 	return ret;
 
-enomem:
-	/* alloc failed, nothing's initialized yet, free everything */
+eyesmem:
+	/* alloc failed, yesthing's initialized yet, free everything */
 	spin_lock_irq(&q->queue_lock);
-	list_for_each_entry(blkg, &q->blkg_list, q_node) {
+	list_for_each_entry(blkg, &q->blkg_list, q_yesde) {
 		if (blkg->pd[pol->plid]) {
 			pol->pd_free_fn(blkg->pd[pol->plid]);
 			blkg->pd[pol->plid] = NULL;
@@ -1349,7 +1349,7 @@ void blkcg_deactivate_policy(struct request_queue *q,
 
 	__clear_bit(pol->plid, q->blkcg_pols);
 
-	list_for_each_entry(blkg, &q->blkg_list, q_node) {
+	list_for_each_entry(blkg, &q->blkg_list, q_yesde) {
 		if (blkg->pd[pol->plid]) {
 			if (pol->pd_offline_fn)
 				pol->pd_offline_fn(blkg->pd[pol->plid]);
@@ -1370,7 +1370,7 @@ EXPORT_SYMBOL_GPL(blkcg_deactivate_policy);
  * @pol: blkcg policy to register
  *
  * Register @pol with blkcg core.  Might sleep and @pol may be modified on
- * successful registration.  Returns 0 on success and -errno on failure.
+ * successful registration.  Returns 0 on success and -erryes on failure.
  */
 int blkcg_policy_register(struct blkcg_policy *pol)
 {
@@ -1401,7 +1401,7 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 
 	/* allocate and install cpd's */
 	if (pol->cpd_alloc_fn) {
-		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
+		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_yesde) {
 			struct blkcg_policy_data *cpd;
 
 			cpd = pol->cpd_alloc_fn(GFP_KERNEL);
@@ -1430,7 +1430,7 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 
 err_free_cpds:
 	if (pol->cpd_free_fn) {
-		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
+		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_yesde) {
 			if (blkcg->cpd[pol->plid]) {
 				pol->cpd_free_fn(blkcg->cpd[pol->plid]);
 				blkcg->cpd[pol->plid] = NULL;
@@ -1470,7 +1470,7 @@ void blkcg_policy_unregister(struct blkcg_policy *pol)
 	mutex_lock(&blkcg_pol_mutex);
 
 	if (pol->cpd_free_fn) {
-		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_node) {
+		list_for_each_entry(blkcg, &all_blkcgs, all_blkcgs_yesde) {
 			if (blkcg->cpd[pol->plid]) {
 				pol->cpd_free_fn(blkcg->cpd[pol->plid]);
 				blkcg->cpd[pol->plid] = NULL;
@@ -1510,7 +1510,7 @@ bool __blkcg_punt_bio_submit(struct bio *bio)
  * while since we added delay, and when we are checking to see if we need to
  * delay a task, to account for any delays that may have occurred.
  */
-static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 now)
+static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 yesw)
 {
 	u64 old = atomic64_read(&blkg->delay_start);
 
@@ -1520,17 +1520,17 @@ static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 now)
 	 * time window.  We only want to throttle tasks for recent delay that
 	 * has occurred, in 1 second time windows since that's the maximum
 	 * things can be throttled.  We save the current delay window in
-	 * blkg->last_delay so we know what amount is still left to be charged
+	 * blkg->last_delay so we kyesw what amount is still left to be charged
 	 * to the blkg from this point onward.  blkg->last_use keeps track of
 	 * the use_delay counter.  The idea is if we're unthrottling the blkg we
-	 * are ok with whatever is happening now, and we can take away more of
-	 * the accumulated delay as we've already throttled enough that
+	 * are ok with whatever is happening yesw, and we can take away more of
+	 * the accumulated delay as we've already throttled eyesugh that
 	 * everybody is happy with their IO latencies.
 	 */
-	if (time_before64(old + NSEC_PER_SEC, now) &&
-	    atomic64_cmpxchg(&blkg->delay_start, old, now) == old) {
+	if (time_before64(old + NSEC_PER_SEC, yesw) &&
+	    atomic64_cmpxchg(&blkg->delay_start, old, yesw) == old) {
 		u64 cur = atomic64_read(&blkg->delay_nsec);
-		u64 sub = min_t(u64, blkg->last_delay, now - old);
+		u64 sub = min_t(u64, blkg->last_delay, yesw - old);
 		int cur_use = atomic_read(&blkg->use_delay);
 
 		/*
@@ -1543,8 +1543,8 @@ static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 now)
 		/*
 		 * This shouldn't happen, but handle it anyway.  Our delay_nsec
 		 * should only ever be growing except here where we subtract out
-		 * min(last_delay, 1 second), but lord knows bugs happen and I'd
-		 * rather not end up with negative numbers.
+		 * min(last_delay, 1 second), but lord kyesws bugs happen and I'd
+		 * rather yest end up with negative numbers.
 		 */
 		if (unlikely(cur < sub)) {
 			atomic64_set(&blkg->delay_nsec, 0);
@@ -1561,19 +1561,19 @@ static void blkcg_scale_delay(struct blkcg_gq *blkg, u64 now)
  * This is called when we want to actually walk up the hierarchy and check to
  * see if we need to throttle, and then actually throttle if there is some
  * accumulated delay.  This should only be called upon return to user space so
- * we're not holding some lock that would induce a priority inversion.
+ * we're yest holding some lock that would induce a priority inversion.
  */
 static void blkcg_maybe_throttle_blkg(struct blkcg_gq *blkg, bool use_memdelay)
 {
 	unsigned long pflags;
-	u64 now = ktime_to_ns(ktime_get());
+	u64 yesw = ktime_to_ns(ktime_get());
 	u64 exp;
 	u64 delay_nsec = 0;
 	int tok;
 
 	while (blkg->parent) {
 		if (atomic_read(&blkg->use_delay)) {
-			blkcg_scale_delay(blkg, now);
+			blkcg_scale_delay(blkg, yesw);
 			delay_nsec = max_t(u64, delay_nsec,
 					   atomic64_read(&blkg->delay_nsec));
 		}
@@ -1584,7 +1584,7 @@ static void blkcg_maybe_throttle_blkg(struct blkcg_gq *blkg, bool use_memdelay)
 		return;
 
 	/*
-	 * Let's not sleep for all eternity if we've amassed a huge delay.
+	 * Let's yest sleep for all eternity if we've amassed a huge delay.
 	 * Swapping or metadata IO can accumulate 10's of seconds worth of
 	 * delay, and we want userspace to be able to do _something_ so cap the
 	 * delays at 1 second.  If there's 10's of seconds worth of delay then
@@ -1595,7 +1595,7 @@ static void blkcg_maybe_throttle_blkg(struct blkcg_gq *blkg, bool use_memdelay)
 	if (use_memdelay)
 		psi_memstall_enter(&pflags);
 
-	exp = ktime_add_ns(now, delay_nsec);
+	exp = ktime_add_ns(yesw, delay_nsec);
 	tok = io_schedule_prepare();
 	do {
 		__set_current_state(TASK_KILLABLE);
@@ -1611,10 +1611,10 @@ static void blkcg_maybe_throttle_blkg(struct blkcg_gq *blkg, bool use_memdelay)
 /**
  * blkcg_maybe_throttle_current - throttle the current task if it has been marked
  *
- * This is only called if we've been marked with set_notify_resume().  Obviously
- * we can be set_notify_resume() for reasons other than blkcg throttling, so we
- * check to see if current->throttle_queue is set and if not this doesn't do
- * anything.  This should only ever be called by the resume code, it's not meant
+ * This is only called if we've been marked with set_yestify_resume().  Obviously
+ * we can be set_yestify_resume() for reasons other than blkcg throttling, so we
+ * check to see if current->throttle_queue is set and if yest this doesn't do
+ * anything.  This should only ever be called by the resume code, it's yest meant
  * to be called by people willy-nilly as it will actually do the work to
  * throttle the task if it is setup for throttling.
  */
@@ -1662,11 +1662,11 @@ out:
  * @q: the request queue IO was submitted on
  * @use_memdelay: do we charge this to memory delay for PSI
  *
- * This is called by the IO controller when we know there's delay accumulated
- * for the blkg for this task.  We do not pass the blkg because there are places
- * we call this that may not have that information, the swapping code for
+ * This is called by the IO controller when we kyesw there's delay accumulated
+ * for the blkg for this task.  We do yest pass the blkg because there are places
+ * we call this that may yest have that information, the swapping code for
  * instance will only have a request_queue at that point.  This set's the
- * notify_resume for the task to check and see if it requires throttling before
+ * yestify_resume for the task to check and see if it requires throttling before
  * returning to user space.
  *
  * We will only schedule once per syscall.  You can call this over and over
@@ -1687,21 +1687,21 @@ void blkcg_schedule_throttle(struct request_queue *q, bool use_memdelay)
 	current->throttle_queue = q;
 	if (use_memdelay)
 		current->use_memdelay = use_memdelay;
-	set_notify_resume(current);
+	set_yestify_resume(current);
 }
 
 /**
  * blkcg_add_delay - add delay to this blkg
  * @blkg: blkg of interest
- * @now: the current time in nanoseconds
- * @delta: how many nanoseconds of delay to add
+ * @yesw: the current time in nayesseconds
+ * @delta: how many nayesseconds of delay to add
  *
  * Charge @delta to the blkg's current delay accumulation.  This is used to
  * throttle tasks if an IO controller thinks we need more throttling.
  */
-void blkcg_add_delay(struct blkcg_gq *blkg, u64 now, u64 delta)
+void blkcg_add_delay(struct blkcg_gq *blkg, u64 yesw, u64 delta)
 {
-	blkcg_scale_delay(blkg, now);
+	blkcg_scale_delay(blkg, yesw);
 	atomic64_add(delta, &blkg->delay_nsec);
 }
 
@@ -1717,4 +1717,4 @@ static int __init blkcg_init(void)
 subsys_initcall(blkcg_init);
 
 module_param(blkcg_debug_stats, bool, 0644);
-MODULE_PARM_DESC(blkcg_debug_stats, "True if you want debug stats, false if not");
+MODULE_PARM_DESC(blkcg_debug_stats, "True if you want debug stats, false if yest");

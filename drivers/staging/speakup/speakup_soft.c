@@ -6,7 +6,7 @@
  * Copyright (C) 2003  Kirk Reiser.
  *
  * this code is specificly written as a driver for the speakup screenreview
- * package and is not a general device driver.
+ * package and is yest a general device driver.
  */
 
 #include <linux/unistd.h>
@@ -166,7 +166,7 @@ static char *get_initstring(void)
 	return buf;
 }
 
-static int softsynth_open(struct inode *inode, struct file *fp)
+static int softsynth_open(struct iyesde *iyesde, struct file *fp)
 {
 	unsigned long flags;
 	/*if ((fp->f_flags & O_ACCMODE) != O_RDONLY) */
@@ -181,7 +181,7 @@ static int softsynth_open(struct inode *inode, struct file *fp)
 	return 0;
 }
 
-static int softsynth_close(struct inode *inode, struct file *fp)
+static int softsynth_close(struct iyesde *iyesde, struct file *fp)
 {
 	unsigned long flags;
 
@@ -215,7 +215,7 @@ static ssize_t softsynthx_read(struct file *fp, char __user *buf, size_t count,
 		prepare_to_wait(&speakup_event, &wait, TASK_INTERRUPTIBLE);
 		if (synth_current() == &synth_soft) {
 			if (!unicode)
-				synth_buffer_skip_nonlatin1();
+				synth_buffer_skip_yesnlatin1();
 			if (!synth_buffer_empty() || speakup_info.flushing)
 				break;
 		}
@@ -247,7 +247,7 @@ static ssize_t softsynthx_read(struct file *fp, char __user *buf, size_t count,
 			ch = init[init_pos++];
 		} else {
 			if (!unicode)
-				synth_buffer_skip_nonlatin1();
+				synth_buffer_skip_yesnlatin1();
 			if (synth_buffer_empty())
 				break;
 			ch = synth_buffer_getc();
@@ -375,7 +375,7 @@ static int softsynth_probe(struct spk_synth *synth)
 	if (misc_registered != 0)
 		return 0;
 	memset(&synth_device, 0, sizeof(synth_device));
-	synth_device.minor = SOFTSYNTH_MINOR;
+	synth_device.miyesr = SOFTSYNTH_MINOR;
 	synth_device.name = "softsynth";
 	synth_device.fops = &softsynth_fops;
 	if (misc_register(&synth_device)) {
@@ -384,7 +384,7 @@ static int softsynth_probe(struct spk_synth *synth)
 	}
 
 	memset(&synthu_device, 0, sizeof(synthu_device));
-	synthu_device.minor = SOFTSYNTHU_MINOR;
+	synthu_device.miyesr = SOFTSYNTHU_MINOR;
 	synthu_device.name = "softsynthu";
 	synthu_device.fops = &softsynthu_fops;
 	if (misc_register(&synthu_device)) {
@@ -393,8 +393,8 @@ static int softsynth_probe(struct spk_synth *synth)
 	}
 
 	misc_registered = 1;
-	pr_info("initialized device: /dev/softsynth, node (MAJOR 10, MINOR 26)\n");
-	pr_info("initialized device: /dev/softsynthu, node (MAJOR 10, MINOR 27)\n");
+	pr_info("initialized device: /dev/softsynth, yesde (MAJOR 10, MINOR 26)\n");
+	pr_info("initialized device: /dev/softsynthu, yesde (MAJOR 10, MINOR 27)\n");
 	return 0;
 }
 

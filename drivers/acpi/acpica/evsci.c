@@ -139,7 +139,7 @@ u32 ACPI_SYSTEM_XFACE acpi_ev_gpe_xrupt_handler(void *context)
  *
  * FUNCTION:    acpi_ev_install_sci_handler
  *
- * PARAMETERS:  none
+ * PARAMETERS:  yesne
  *
  * RETURN:      Status
  *
@@ -164,9 +164,9 @@ u32 acpi_ev_install_sci_handler(void)
  *
  * FUNCTION:    acpi_ev_remove_all_sci_handlers
  *
- * PARAMETERS:  none
+ * PARAMETERS:  yesne
  *
- * RETURN:      AE_OK if handler uninstalled, AE_ERROR if handler was not
+ * RETURN:      AE_OK if handler uninstalled, AE_ERROR if handler was yest
  *              installed to begin with
  *
  * DESCRIPTION: Remove the SCI interrupt handler. No further SCIs will be
@@ -174,7 +174,7 @@ u32 acpi_ev_install_sci_handler(void)
  *
  * Note:  It doesn't seem important to disable all events or set the event
  *        enable registers to their original values. The OS should disable
- *        the SCI interrupt level when the handler is removed, so no more
+ *        the SCI interrupt level when the handler is removed, so yes more
  *        events will come in.
  *
  ******************************************************************************/

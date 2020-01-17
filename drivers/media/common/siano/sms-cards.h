@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  Card-specific functions for the Siano SMS1xxx USB dongle
+ *  Card-specific functions for the Siayes SMS1xxx USB dongle
  *
  *  Copyright (c) 2008 Michael Krufky <mkrufky@linuxtv.org>
  */
@@ -119,8 +119,8 @@ int sms_board_setup(struct smscore_device_t *coredev);
 #define SMS_LED_LO  1
 #define SMS_LED_HI  2
 int sms_board_led_feedback(struct smscore_device_t *coredev, int led);
-int sms_board_power(struct smscore_device_t *coredev, int onoff);
-int sms_board_lna_control(struct smscore_device_t *coredev, int onoff);
+int sms_board_power(struct smscore_device_t *coredev, int oyesff);
+int sms_board_lna_control(struct smscore_device_t *coredev, int oyesff);
 
 extern int sms_board_load_modules(int id);
 

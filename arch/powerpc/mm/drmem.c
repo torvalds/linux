@@ -58,7 +58,7 @@ static struct property *clone_property(struct property *prop, u32 prop_sz)
 	return new_prop;
 }
 
-static int drmem_update_dt_v1(struct device_node *memory,
+static int drmem_update_dt_v1(struct device_yesde *memory,
 			      struct property *prop)
 {
 	struct property *new_prop;
@@ -97,7 +97,7 @@ static void init_drconf_v2_cell(struct of_drconf_cell_v2 *dr_cell,
 	dr_cell->flags = cpu_to_be32(drmem_lmb_flags(lmb));
 }
 
-static int drmem_update_dt_v2(struct device_node *memory,
+static int drmem_update_dt_v2(struct device_yesde *memory,
 			      struct property *prop)
 {
 	struct property *new_prop;
@@ -147,7 +147,7 @@ static int drmem_update_dt_v2(struct device_node *memory,
 
 		if (prev_lmb->aa_index != lmb->aa_index ||
 		    drmem_lmb_flags(prev_lmb) != drmem_lmb_flags(lmb)) {
-			/* end of one set, start of another */
+			/* end of one set, start of ayesther */
 			dr_cell->seq_lmbs = cpu_to_be32(seq_lmbs);
 			dr_cell++;
 
@@ -168,11 +168,11 @@ static int drmem_update_dt_v2(struct device_node *memory,
 
 int drmem_update_dt(void)
 {
-	struct device_node *memory;
+	struct device_yesde *memory;
 	struct property *prop;
 	int rc = -1;
 
-	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	memory = of_find_yesde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (!memory)
 		return -1;
 
@@ -185,7 +185,7 @@ int drmem_update_dt(void)
 			rc = drmem_update_dt_v2(memory, prop);
 	}
 
-	of_node_put(memory);
+	of_yesde_put(memory);
 	return rc;
 }
 
@@ -265,25 +265,25 @@ static void __init __walk_drmem_v2_lmbs(const __be32 *prop, const __be32 *usm,
 }
 
 #ifdef CONFIG_PPC_PSERIES
-void __init walk_drmem_lmbs_early(unsigned long node,
+void __init walk_drmem_lmbs_early(unsigned long yesde,
 			void (*func)(struct drmem_lmb *, const __be32 **))
 {
 	const __be32 *prop, *usm;
 	int len;
 
-	prop = of_get_flat_dt_prop(node, "ibm,lmb-size", &len);
+	prop = of_get_flat_dt_prop(yesde, "ibm,lmb-size", &len);
 	if (!prop || len < dt_root_size_cells * sizeof(__be32))
 		return;
 
 	drmem_info->lmb_size = dt_mem_next_cell(dt_root_size_cells, &prop);
 
-	usm = of_get_flat_dt_prop(node, "linux,drconf-usable-memory", &len);
+	usm = of_get_flat_dt_prop(yesde, "linux,drconf-usable-memory", &len);
 
-	prop = of_get_flat_dt_prop(node, "ibm,dynamic-memory", &len);
+	prop = of_get_flat_dt_prop(yesde, "ibm,dynamic-memory", &len);
 	if (prop) {
 		__walk_drmem_v1_lmbs(prop, usm, func);
 	} else {
-		prop = of_get_flat_dt_prop(node, "ibm,dynamic-memory-v2",
+		prop = of_get_flat_dt_prop(yesde, "ibm,dynamic-memory-v2",
 					   &len);
 		if (prop)
 			__walk_drmem_v2_lmbs(prop, usm, func);
@@ -294,7 +294,7 @@ void __init walk_drmem_lmbs_early(unsigned long node,
 
 #endif
 
-static int __init init_drmem_lmb_size(struct device_node *dn)
+static int __init init_drmem_lmb_size(struct device_yesde *dn)
 {
 	const __be32 *prop;
 	int len;
@@ -304,7 +304,7 @@ static int __init init_drmem_lmb_size(struct device_node *dn)
 
 	prop = of_get_property(dn, "ibm,lmb-size", &len);
 	if (!prop || len < dt_root_size_cells * sizeof(__be32)) {
-		pr_info("Could not determine LMB size\n");
+		pr_info("Could yest determine LMB size\n");
 		return -1;
 	}
 
@@ -317,7 +317,7 @@ static int __init init_drmem_lmb_size(struct device_node *dn)
  * it exists (the property exists only in kexec/kdump kernels,
  * added by kexec-tools)
  */
-static const __be32 *of_get_usable_memory(struct device_node *dn)
+static const __be32 *of_get_usable_memory(struct device_yesde *dn)
 {
 	const __be32 *prop;
 	u32 len;
@@ -329,7 +329,7 @@ static const __be32 *of_get_usable_memory(struct device_node *dn)
 	return prop;
 }
 
-void __init walk_drmem_lmbs(struct device_node *dn,
+void __init walk_drmem_lmbs(struct device_yesde *dn,
 			    void (*func)(struct drmem_lmb *, const __be32 **))
 {
 	const __be32 *prop, *usm;
@@ -418,17 +418,17 @@ static void __init init_drmem_v2_lmbs(const __be32 *prop)
 
 static int __init drmem_init(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	const __be32 *prop;
 
-	dn = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	dn = of_find_yesde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (!dn) {
 		pr_info("No dynamic reconfiguration memory found\n");
 		return 0;
 	}
 
 	if (init_drmem_lmb_size(dn)) {
-		of_node_put(dn);
+		of_yesde_put(dn);
 		return 0;
 	}
 
@@ -441,7 +441,7 @@ static int __init drmem_init(void)
 			init_drmem_v2_lmbs(prop);
 	}
 
-	of_node_put(dn);
+	of_yesde_put(dn);
 	return 0;
 }
 late_initcall(drmem_init);

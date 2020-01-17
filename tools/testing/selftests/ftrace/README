@@ -30,7 +30,7 @@ extension) and rewrite the test description line.
 
  * Take care with side effects as the tests are run with root privilege.
 
- * The tests should not run for a long period of time (more than 1 min.)
+ * The tests should yest run for a long period of time (more than 1 min.)
    These are to be unit tests.
 
  * You can add a directory for your testcases under test.d/ if needed.
@@ -61,7 +61,7 @@ Ftracetest supports following result codes.
                        or the test was set up incorrectly
              The test which is in above situation, must call exit_unresolved.
 
- * UNTESTED: The test was not run, currently just a placeholder.
+ * UNTESTED: The test was yest run, currently just a placeholder.
              In this case, the test must call exit_untested.
 
  * UNSUPPORTED: The test failed because of lack of feature.

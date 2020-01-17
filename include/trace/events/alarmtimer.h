@@ -44,51 +44,51 @@ TRACE_EVENT(alarmtimer_suspend,
 
 DECLARE_EVENT_CLASS(alarm_class,
 
-	TP_PROTO(struct alarm *alarm, ktime_t now),
+	TP_PROTO(struct alarm *alarm, ktime_t yesw),
 
-	TP_ARGS(alarm, now),
+	TP_ARGS(alarm, yesw),
 
 	TP_STRUCT__entry(
 		__field(void *,	alarm)
 		__field(unsigned char, alarm_type)
 		__field(s64, expires)
-		__field(s64, now)
+		__field(s64, yesw)
 	),
 
 	TP_fast_assign(
 		__entry->alarm = alarm;
 		__entry->alarm_type = alarm->type;
-		__entry->expires = alarm->node.expires;
-		__entry->now = now;
+		__entry->expires = alarm->yesde.expires;
+		__entry->yesw = yesw;
 	),
 
-	TP_printk("alarmtimer:%p type:%s expires:%llu now:%llu",
+	TP_printk("alarmtimer:%p type:%s expires:%llu yesw:%llu",
 		  __entry->alarm,
 		  show_alarm_type((1 << __entry->alarm_type)),
 		  __entry->expires,
-		  __entry->now
+		  __entry->yesw
 	)
 );
 
 DEFINE_EVENT(alarm_class, alarmtimer_fired,
 
-	TP_PROTO(struct alarm *alarm, ktime_t now),
+	TP_PROTO(struct alarm *alarm, ktime_t yesw),
 
-	TP_ARGS(alarm, now)
+	TP_ARGS(alarm, yesw)
 );
 
 DEFINE_EVENT(alarm_class, alarmtimer_start,
 
-	TP_PROTO(struct alarm *alarm, ktime_t now),
+	TP_PROTO(struct alarm *alarm, ktime_t yesw),
 
-	TP_ARGS(alarm, now)
+	TP_ARGS(alarm, yesw)
 );
 
 DEFINE_EVENT(alarm_class, alarmtimer_cancel,
 
-	TP_PROTO(struct alarm *alarm, ktime_t now),
+	TP_PROTO(struct alarm *alarm, ktime_t yesw),
 
-	TP_ARGS(alarm, now)
+	TP_ARGS(alarm, yesw)
 );
 
 #endif /* _TRACE_ALARMTIMER_H */

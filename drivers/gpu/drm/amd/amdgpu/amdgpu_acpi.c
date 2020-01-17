@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -35,12 +35,12 @@
 #include "amd_acpi.h"
 #include "atom.h"
 
-struct amdgpu_atif_notification_cfg {
+struct amdgpu_atif_yestification_cfg {
 	bool enabled;
 	int command_code;
 };
 
-struct amdgpu_atif_notifications {
+struct amdgpu_atif_yestifications {
 	bool thermal_state;
 	bool forced_power_state;
 	bool system_power_state;
@@ -61,9 +61,9 @@ struct amdgpu_atif_functions {
 struct amdgpu_atif {
 	acpi_handle handle;
 
-	struct amdgpu_atif_notifications notifications;
+	struct amdgpu_atif_yestifications yestifications;
 	struct amdgpu_atif_functions functions;
-	struct amdgpu_atif_notification_cfg notification_cfg;
+	struct amdgpu_atif_yestification_cfg yestification_cfg;
 	struct amdgpu_encoder *encoder_for_bl;
 	struct amdgpu_dm_backlight_caps backlight_caps;
 };
@@ -120,16 +120,16 @@ static union acpi_object *amdgpu_atif_call(struct amdgpu_atif *atif,
 }
 
 /**
- * amdgpu_atif_parse_notification - parse supported notifications
+ * amdgpu_atif_parse_yestification - parse supported yestifications
  *
- * @n: supported notifications struct
- * @mask: supported notifications mask from ATIF
+ * @n: supported yestifications struct
+ * @mask: supported yestifications mask from ATIF
  *
- * Use the supported notifications mask from ATIF function
- * ATIF_FUNCTION_VERIFY_INTERFACE to determine what notifications
+ * Use the supported yestifications mask from ATIF function
+ * ATIF_FUNCTION_VERIFY_INTERFACE to determine what yestifications
  * are supported (all asics).
  */
-static void amdgpu_atif_parse_notification(struct amdgpu_atif_notifications *n, u32 mask)
+static void amdgpu_atif_parse_yestification(struct amdgpu_atif_yestifications *n, u32 mask)
 {
 	n->thermal_state = mask & ATIF_THERMAL_STATE_CHANGE_REQUEST_SUPPORTED;
 	n->forced_power_state = mask & ATIF_FORCED_POWER_STATE_CHANGE_REQUEST_SUPPORTED;
@@ -197,7 +197,7 @@ static int amdgpu_atif_verify_interface(struct amdgpu_atif *atif)
 	/* TODO: check version? */
 	DRM_DEBUG_DRIVER("ATIF version %u\n", output.version);
 
-	amdgpu_atif_parse_notification(&atif->notifications, output.notification_mask);
+	amdgpu_atif_parse_yestification(&atif->yestifications, output.yestification_mask);
 	amdgpu_atif_parse_functions(&atif->functions, output.function_bits);
 
 out:
@@ -235,21 +235,21 @@ out:
 }
 
 /**
- * amdgpu_atif_get_notification_params - determine notify configuration
+ * amdgpu_atif_get_yestification_params - determine yestify configuration
  *
  * @handle: acpi handle
- * @n: atif notification configuration struct
+ * @n: atif yestification configuration struct
  *
  * Execute the ATIF_FUNCTION_GET_SYSTEM_PARAMETERS ATIF function
- * to determine if a notifier is used and if so which one
+ * to determine if a yestifier is used and if so which one
  * (all asics).  This is either Notify(VGA, 0x81) or Notify(VGA, n)
- * where n is specified in the result if a notifier is used.
+ * where n is specified in the result if a yestifier is used.
  * Returns 0 on success, error on failure.
  */
-static int amdgpu_atif_get_notification_params(struct amdgpu_atif *atif)
+static int amdgpu_atif_get_yestification_params(struct amdgpu_atif *atif)
 {
 	union acpi_object *info;
-	struct amdgpu_atif_notification_cfg *n = &atif->notification_cfg;
+	struct amdgpu_atif_yestification_cfg *n = &atif->yestification_cfg;
 	struct atif_system_params params;
 	size_t size;
 	int err = 0;
@@ -399,7 +399,7 @@ out:
 }
 
 /**
- * amdgpu_atif_handler - handle ATIF notify requests
+ * amdgpu_atif_handler - handle ATIF yestify requests
  *
  * @adev: amdgpu_device pointer
  * @event: atif sbios request struct
@@ -424,8 +424,8 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 
 	/* Is this actually our event? */
 	if (!atif ||
-	    !atif->notification_cfg.enabled ||
-	    event->type != atif->notification_cfg.command_code) {
+	    !atif->yestification_cfg.enabled ||
+	    event->type != atif->yestification_cfg.command_code) {
 		/* These events will generate keypresses otherwise */
 		if (event->type == ACPI_VIDEO_NOTIFY_PROBE)
 			return NOTIFY_BAD;
@@ -475,7 +475,7 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 		/* TODO: check other events */
 	}
 
-	/* We've handled the event, stop the notifier chain. The ACPI interface
+	/* We've handled the event, stop the yestifier chain. The ACPI interface
 	 * overloads ACPI_VIDEO_NOTIFY_PROBE, we don't want to send that to
 	 * userspace if the event was generated only to signal a SBIOS
 	 * request.
@@ -602,7 +602,7 @@ out:
  *
  * Check if the ATCS pcie_perf_req and pcie_dev_rdy methods
  * are supported (all asics).
- * returns true if supported, false if not.
+ * returns true if supported, false if yest.
  */
 bool amdgpu_acpi_is_pcie_performance_request_supported(struct amdgpu_device *adev)
 {
@@ -615,7 +615,7 @@ bool amdgpu_acpi_is_pcie_performance_request_supported(struct amdgpu_device *ade
 }
 
 /**
- * amdgpu_acpi_pcie_notify_device_ready
+ * amdgpu_acpi_pcie_yestify_device_ready
  *
  * @adev: amdgpu_device pointer
  *
@@ -623,7 +623,7 @@ bool amdgpu_acpi_is_pcie_performance_request_supported(struct amdgpu_device *ade
  * (all asics).
  * returns 0 on success, error on failure.
  */
-int amdgpu_acpi_pcie_notify_device_ready(struct amdgpu_device *adev)
+int amdgpu_acpi_pcie_yestify_device_ready(struct amdgpu_device *adev)
 {
 	acpi_handle handle;
 	union acpi_object *info;
@@ -669,7 +669,7 @@ int amdgpu_acpi_pcie_performance_request(struct amdgpu_device *adev,
 	size_t size;
 	u32 retry = 3;
 
-	if (amdgpu_acpi_pcie_notify_device_ready(adev))
+	if (amdgpu_acpi_pcie_yestify_device_ready(adev))
 		return -EINVAL;
 
 	/* Get the device handle */
@@ -728,9 +728,9 @@ int amdgpu_acpi_pcie_performance_request(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_acpi_event - handle notify events
+ * amdgpu_acpi_event - handle yestify events
  *
- * @nb: notifier block
+ * @nb: yestifier block
  * @val: val
  * @data: acpi event
  *
@@ -738,7 +738,7 @@ int amdgpu_acpi_pcie_performance_request(struct amdgpu_device *adev,
  * acpi events.
  * Returns NOTIFY code
  */
-static int amdgpu_acpi_event(struct notifier_block *nb,
+static int amdgpu_acpi_event(struct yestifier_block *nb,
 			     unsigned long val,
 			     void *data)
 {
@@ -765,7 +765,7 @@ static int amdgpu_acpi_event(struct notifier_block *nb,
  * @adev: amdgpu_device pointer
  *
  * Verifies the AMD ACPI interfaces and registers with the acpi
- * notifier chain (all asics).
+ * yestifier chain (all asics).
  * Returns 0 on success, error on failure.
  */
 int amdgpu_acpi_init(struct amdgpu_device *adev)
@@ -794,7 +794,7 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 
 	atif = kzalloc(sizeof(*atif), GFP_KERNEL);
 	if (!atif) {
-		DRM_WARN("Not enough memory to initialize ATIF\n");
+		DRM_WARN("Not eyesugh memory to initialize ATIF\n");
 		goto out;
 	}
 	atif->handle = atif_handle;
@@ -808,7 +808,7 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 	}
 	adev->atif = atif;
 
-	if (atif->notifications.brightness_change) {
+	if (atif->yestifications.brightness_change) {
 		struct drm_encoder *tmp;
 
 		/* Find the encoder controlling the brightness */
@@ -836,12 +836,12 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 	}
 
 	if (atif->functions.system_params) {
-		ret = amdgpu_atif_get_notification_params(atif);
+		ret = amdgpu_atif_get_yestification_params(atif);
 		if (ret) {
 			DRM_DEBUG_DRIVER("Call to GET_SYSTEM_PARAMS failed: %d\n",
 					ret);
-			/* Disable notification */
-			atif->notification_cfg.enabled = false;
+			/* Disable yestification */
+			atif->yestification_cfg.enabled = false;
 		}
 	}
 
@@ -857,8 +857,8 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 	}
 
 out:
-	adev->acpi_nb.notifier_call = amdgpu_acpi_event;
-	register_acpi_notifier(&adev->acpi_nb);
+	adev->acpi_nb.yestifier_call = amdgpu_acpi_event;
+	register_acpi_yestifier(&adev->acpi_nb);
 
 	return ret;
 }
@@ -880,10 +880,10 @@ void amdgpu_acpi_get_backlight_caps(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  *
- * Unregisters with the acpi notifier chain (all asics).
+ * Unregisters with the acpi yestifier chain (all asics).
  */
 void amdgpu_acpi_fini(struct amdgpu_device *adev)
 {
-	unregister_acpi_notifier(&adev->acpi_nb);
+	unregister_acpi_yestifier(&adev->acpi_nb);
 	kfree(adev->atif);
 }

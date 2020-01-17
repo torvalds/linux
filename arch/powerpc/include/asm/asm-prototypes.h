@@ -37,9 +37,9 @@ void __trace_hcall_exit(long opcode, long retval, unsigned long *retbuf);
 
 /* Ultravisor */
 #if defined(CONFIG_PPC_POWERNV) || defined(CONFIG_PPC_SVM)
-long ucall_norets(unsigned long opcode, ...);
+long ucall_yesrets(unsigned long opcode, ...);
 #else
-static inline long ucall_norets(unsigned long opcode, ...)
+static inline long ucall_yesrets(unsigned long opcode, ...)
 {
 	return U_NOT_AVAILABLE;
 }
@@ -101,8 +101,8 @@ void __init machine_init(u64 dt_ptr);
 long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
 		      u32 len_high, u32 len_low);
 long sys_switch_endian(void);
-notrace unsigned int __check_irq_replay(void);
-void notrace restore_interrupts(void);
+yestrace unsigned int __check_irq_replay(void);
+void yestrace restore_interrupts(void);
 
 /* ptrace */
 long do_syscall_trace_enter(struct pt_regs *regs);
@@ -155,7 +155,7 @@ extern s32 patch__call_flush_count_cache;
 extern s32 patch__flush_count_cache_return;
 extern s32 patch__flush_link_stack_return;
 extern s32 patch__call_kvm_flush_link_stack;
-extern s32 patch__memset_nocache, patch__memcpy_nocache;
+extern s32 patch__memset_yescache, patch__memcpy_yescache;
 
 extern long flush_count_cache;
 extern long kvm_flush_link_stack;

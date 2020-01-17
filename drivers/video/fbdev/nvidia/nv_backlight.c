@@ -2,7 +2,7 @@
 /*
  * Backlight code for nVidia based graphic cards
  *
- * Copyright 2004 Antonino Daplas <adaplas@pol.net>
+ * Copyright 2004 Antoniyes Daplas <adaplas@pol.net>
  * Copyright (c) 2006 Michael Hanselmann <linux-kernel@hansmi.ch>
  */
 
@@ -18,7 +18,7 @@
 #include "nv_type.h"
 #include "nv_proto.h"
 
-/* We do not have any information about which values are allowed, thus
+/* We do yest have any information about which values are allowed, thus
  * we used safe values.
  */
 #define MIN_LEVEL 0x158
@@ -99,7 +99,7 @@ void nvidia_bl_init(struct nvidia_par *par)
 		return;
 #endif
 
-	snprintf(name, sizeof(name), "nvidiabl%d", info->node);
+	snprintf(name, sizeof(name), "nvidiabl%d", info->yesde);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;

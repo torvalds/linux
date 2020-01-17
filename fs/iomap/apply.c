@@ -21,7 +21,7 @@
  * iomap_end call.
  */
 loff_t
-iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
+iomap_apply(struct iyesde *iyesde, loff_t pos, loff_t length, unsigned flags,
 		const struct iomap_ops *ops, void *data, iomap_actor_t actor)
 {
 	struct iomap iomap = { .type = IOMAP_HOLE };
@@ -29,21 +29,21 @@ iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
 	loff_t written = 0, ret;
 	u64 end;
 
-	trace_iomap_apply(inode, pos, length, flags, ops, actor, _RET_IP_);
+	trace_iomap_apply(iyesde, pos, length, flags, ops, actor, _RET_IP_);
 
 	/*
 	 * Need to map a range from start position for length bytes. This can
 	 * span multiple pages - it is only guaranteed to return a range of a
 	 * single type of pages (e.g. all into a hole, all mapped or all
-	 * unwritten). Failure at this point has nothing to undo.
+	 * unwritten). Failure at this point has yesthing to undo.
 	 *
-	 * If allocation is required for this range, reserve the space now so
+	 * If allocation is required for this range, reserve the space yesw so
 	 * that the allocation is guaranteed to succeed later on. Once we copy
-	 * the data into the page cache pages, then we cannot fail otherwise we
+	 * the data into the page cache pages, then we canyest fail otherwise we
 	 * expose transient stale data. If the reserve fails, we can safely
-	 * back out at this point as there is nothing to undo.
+	 * back out at this point as there is yesthing to undo.
 	 */
-	ret = ops->iomap_begin(inode, pos, length, flags, &iomap, &srcmap);
+	ret = ops->iomap_begin(iyesde, pos, length, flags, &iomap, &srcmap);
 	if (ret)
 		return ret;
 	if (WARN_ON(iomap.offset > pos))
@@ -51,13 +51,13 @@ iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
 	if (WARN_ON(iomap.length == 0))
 		return -EIO;
 
-	trace_iomap_apply_dstmap(inode, &iomap);
+	trace_iomap_apply_dstmap(iyesde, &iomap);
 	if (srcmap.type != IOMAP_HOLE)
-		trace_iomap_apply_srcmap(inode, &srcmap);
+		trace_iomap_apply_srcmap(iyesde, &srcmap);
 
 	/*
 	 * Cut down the length to the one actually provided by the filesystem,
-	 * as it might not be able to give us the whole size that we requested.
+	 * as it might yest be able to give us the whole size that we requested.
 	 */
 	end = iomap.offset + iomap.length;
 	if (srcmap.type != IOMAP_HOLE)
@@ -73,19 +73,19 @@ iomap_apply(struct inode *inode, loff_t pos, loff_t length, unsigned flags,
 	 * To support COW operations, we read in data for partially blocks from
 	 * the srcmap if the file system filled it in.  In that case we the
 	 * length needs to be limited to the earlier of the ends of the iomaps.
-	 * If the file system did not provide a srcmap we pass in the normal
+	 * If the file system did yest provide a srcmap we pass in the yesrmal
 	 * iomap into the actors so that they don't need to have special
 	 * handling for the two cases.
 	 */
-	written = actor(inode, pos, length, data, &iomap,
+	written = actor(iyesde, pos, length, data, &iomap,
 			srcmap.type != IOMAP_HOLE ? &srcmap : &iomap);
 
 	/*
 	 * Now the data has been copied, commit the range we've copied.  This
-	 * should not fail unless the filesystem has had a fatal error.
+	 * should yest fail unless the filesystem has had a fatal error.
 	 */
 	if (ops->iomap_end) {
-		ret = ops->iomap_end(inode, pos, length,
+		ret = ops->iomap_end(iyesde, pos, length,
 				     written > 0 ? written : 0,
 				     flags, &iomap);
 	}

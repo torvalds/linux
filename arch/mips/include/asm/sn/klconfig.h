@@ -19,12 +19,12 @@
 
 /*
  * WARNING:
- *	Certain assembly language routines (notably xxxxx.s) in the IP27PROM
+ *	Certain assembly language routines (yestably xxxxx.s) in the IP27PROM
  *	will depend on the format of the data structures in this file.	In
  *	most cases, rearranging the fields can seriously break things.
  *	Adding fields in the beginning or middle can also break things.
  *	Add fields if necessary, to the end of a struct in such a way
- *	that offsets of existing fields do not change.
+ *	that offsets of existing fields do yest change.
  */
 
 #include <linux/types.h>
@@ -74,11 +74,11 @@ typedef s32 klconf_off_t;
 #define SIZE_PAD		4096 /* 4k padding for structures */
 /*
  * 1 NODE brd, 2 Router brd (1 8p, 1 meta), 6 Widgets,
- * 2 Midplanes assuming no pci card cages
+ * 2 Midplanes assuming yes pci card cages
  */
 #define MAX_SLOTS_PER_NODE	(1 + 2 + 6 + 2)
 
-/* XXX if each node is guaranteed to have some memory */
+/* XXX if each yesde is guaranteed to have some memory */
 
 #define MAX_PCI_DEVS		8
 
@@ -91,7 +91,7 @@ typedef s32 klconf_off_t;
 #define DUPLICATE_BOARD		0x04	/* Boards like midplanes/routers which
 					   are discovered twice. Use one of them */
 #define VISITED_BOARD		0x08	/* Used for compact hub numbering. */
-#define LOCAL_MASTER_IO6	0x10	/* master io6 for that node */
+#define LOCAL_MASTER_IO6	0x10	/* master io6 for that yesde */
 #define GLOBAL_MASTER_IO6	0x20
 #define THIRD_NIC_PRESENT	0x40	/* for future use */
 #define SECOND_NIC_PRESENT	0x80	/* addons like MIO are present */
@@ -218,26 +218,26 @@ typedef struct kl_config_hdr {
  * The KLCONFIG area is organized as a LINKED LIST of BOARDs. A BOARD
  * can be either 'LOCAL' or 'REMOTE'. LOCAL means it is attached to
  * the LOCAL/current NODE. REMOTE means it is attached to a different
- * node.(TBD - Need a way to treat ROUTER boards.)
+ * yesde.(TBD - Need a way to treat ROUTER boards.)
  *
  * There are 2 different structures to represent these boards -
  * lboard - Local board, rboard - remote board. These 2 structures
  * can be arbitrarily mixed in the LINKED LIST of BOARDs. (Refer
  * Figure below). The first byte of the rboard or lboard structure
- * is used to find out its type - no unions are used.
+ * is used to find out its type - yes unions are used.
  * If it is a lboard, then the config info of this board will be found
- * on the local node. (LOCAL NODE BASE + offset value gives pointer to
+ * on the local yesde. (LOCAL NODE BASE + offset value gives pointer to
  * the structure.
- * If it is a rboard, the local structure contains the node number
- * and the offset of the beginning of the LINKED LIST on the remote node.
- * The details of the hardware on a remote node can be built locally,
- * if required, by reading the LINKED LIST on the remote node and
- * ignoring all the rboards on that node.
+ * If it is a rboard, the local structure contains the yesde number
+ * and the offset of the beginning of the LINKED LIST on the remote yesde.
+ * The details of the hardware on a remote yesde can be built locally,
+ * if required, by reading the LINKED LIST on the remote yesde and
+ * igyesring all the rboards on that yesde.
  *
- * The local node uses the REMOTE NODE NUMBER + OFFSET to point to the
- * First board info on the remote node. The remote node list is
- * traversed as the local list, using the REMOTE BASE ADDRESS and not
- * the local base address and ignoring all rboard values.
+ * The local yesde uses the REMOTE NODE NUMBER + OFFSET to point to the
+ * First board info on the remote yesde. The remote yesde list is
+ * traversed as the local list, using the REMOTE BASE ADDRESS and yest
+ * the local base address and igyesring all rboard values.
  *
  *
  KLCONFIG
@@ -282,23 +282,23 @@ typedef struct kl_config_hdr {
  * BOARD has pointers(offset) to the ERRORINFO structure. The rboard
  * structure also has a pointer to the ERRORINFO structure. This is
  * the place to store ERRORINFO about a REMOTE NODE, if the HUB on
- * that NODE is not working or if the REMOTE MEMORY is BAD. In cases where
+ * that NODE is yest working or if the REMOTE MEMORY is BAD. In cases where
  * only the CPU of the REMOTE NODE is disabled, the ERRORINFO pointer can
  * be a NODE NUMBER, REMOTE OFFSET combination, pointing to error info
  * which is present on the REMOTE NODE.(TBD)
- * REMOTE ERRINFO can be stored on any of the nearest nodes
- * or on all the nearest nodes.(TBD)
+ * REMOTE ERRINFO can be stored on any of the nearest yesdes
+ * or on all the nearest yesdes.(TBD)
  * Like BOARD structures, REMOTE ERRINFO structures can be built locally
  * using the rboard errinfo pointer.
  *
  * In order to get useful information from this Data organization, a set of
  * interface routines are provided (TBD). The important thing to remember while
  * manipulating the structures, is that, the NODE number information should
- * be used. If the NODE is non-zero (remote) then each offset should
+ * be used. If the NODE is yesn-zero (remote) then each offset should
  * be added to the REMOTE BASE ADDR else it should be added to the LOCAL BASE ADDR.
  * This includes offsets for BOARDS, COMPONENTS and ERRORINFO.
  *
- * Note that these structures do not provide much info about connectivity.
+ * Note that these structures do yest provide much info about connectivity.
  * That info will be part of HWGRAPH, which is an extension of the cfg_t
  * data structure. (ref IP27prom/cfg.h) It has to be extended to include
  * the IO part of the Network(TBD).
@@ -312,7 +312,7 @@ typedef struct kl_config_hdr {
 #define KL_CPU_R4000		0x1	/* Standard R4000 */
 #define KL_CPU_TFP		0x2	/* TFP processor */
 #define KL_CPU_R10000		0x3	/* R10000 (T5) */
-#define KL_CPU_NONE		(-1)	/* no cpu present in slot */
+#define KL_CPU_NONE		(-1)	/* yes cpu present in slot */
 
 /*
  * IP27 BOARD classes
@@ -323,14 +323,14 @@ typedef struct kl_config_hdr {
 #define KLCLASS_NODE	0x10		 /* CPU, Memory and HUB board */
 #define KLCLASS_CPU	KLCLASS_NODE
 #define KLCLASS_IO	0x20		 /* BaseIO, 4 ch SCSI, ethernet, FDDI
-					    and the non-graphics widget boards */
+					    and the yesn-graphics widget boards */
 #define KLCLASS_ROUTER	0x30		 /* Router board */
 #define KLCLASS_MIDPLANE 0x40		 /* We need to treat this as a board
 					    so that we can record error info */
 #define KLCLASS_GFX	0x50		/* graphics boards */
 
 #define KLCLASS_PSEUDO_GFX	0x60	/* HDTV type cards that use a gfx
-					 * hw ifc to xtalk and are not gfx
+					 * hw ifc to xtalk and are yest gfx
 					 * class for sw purposes */
 
 #define KLCLASS_MAX	7		/* Bump this if a new CLASS is added */
@@ -370,7 +370,7 @@ typedef struct kl_config_hdr {
 #define KLTYPE_GSN_A	(KLCLASS_IO  | 0xC) /* Main GSN board */
 #define KLTYPE_GSN_B	(KLCLASS_IO  | 0xD) /* Auxiliary GSN board */
 
-#define KLTYPE_GFX	(KLCLASS_GFX | 0x0) /* unknown graphics type */
+#define KLTYPE_GFX	(KLCLASS_GFX | 0x0) /* unkyeswn graphics type */
 #define KLTYPE_GFX_KONA (KLCLASS_GFX | 0x1) /* KONA graphics on IP27 */
 #define KLTYPE_GFX_MGRA (KLCLASS_GFX | 0x3) /* MGRAS graphics on IP27 */
 
@@ -395,7 +395,7 @@ typedef struct kl_config_hdr {
 /* The value of type should be more than 8 so that hinv prints
  * out the board name from the NIC string. For values less than
  * 8 the name of the board needs to be hard coded in a few places.
- * When bringup started nic names had not standardized and so we
+ * When bringup started nic names had yest standardized and so we
  * had to hard code. (For people interested in history.)
  */
 #define KLTYPE_XTHD	(KLCLASS_PSEUDO_GFX | 0x9)
@@ -430,8 +430,8 @@ typedef struct lboard_s {
 	unsigned short	brd_debugsw;	  /* Debug switches */
 	moduleid_t	brd_module;	  /* module to which it belongs */
 	partid_t	brd_partition;	  /* Partition number */
-	unsigned short	brd_diagval;	  /* diagnostic value */
-	unsigned short	brd_diagparm;	  /* diagnostic parameter */
+	unsigned short	brd_diagval;	  /* diagyesstic value */
+	unsigned short	brd_diagparm;	  /* diagyesstic parameter */
 	unsigned char	brd_inventory;	  /* inventory history */
 	unsigned char	brd_numcompts;	  /* Number of components */
 	nic_t		brd_nic;	  /* Number in CAN */
@@ -486,14 +486,14 @@ typedef struct klinfo_s {		   /* Generic info */
 	unsigned char	struct_version;	   /* version of this structure */
 	unsigned char	flags;		  /* Enabled, disabled etc */
 	unsigned char	revision;	  /* component revision */
-	unsigned short	diagval;	  /* result of diagnostics */
-	unsigned short	diagparm;	  /* diagnostic parameter */
+	unsigned short	diagval;	  /* result of diagyesstics */
+	unsigned short	diagparm;	  /* diagyesstic parameter */
 	unsigned char	inventory;	  /* previous inventory status */
 	nic_t		nic;		  /* MUst be aligned properly */
 	unsigned char	physid;		  /* physical id of component */
 	unsigned int	virtid;		  /* virtual id as seen by system */
 	unsigned char	widid;		  /* Widget id - if applicable */
-	nasid_t		nasid;		  /* node number - from parent */
+	nasid_t		nasid;		  /* yesde number - from parent */
 	char		pad1;		  /* pad out structure. */
 	char		pad2;		  /* pad out structure. */
 	COMPONENT	*arcs_compt;	  /* ptr to the arcs struct for ease*/
@@ -581,7 +581,7 @@ typedef u64 *router_t;
 
 /*
  * The port info in ip27_cfg area translates to a lboart_t in the
- * KLCONFIG area. But since KLCONFIG does not use pointers, lboart_t
+ * KLCONFIG area. But since KLCONFIG does yest use pointers, lboart_t
  * is stored in terms of a nasid and a offset from start of KLCONFIG
  * area	 on that nasid.
  */
@@ -646,7 +646,7 @@ typedef struct klmod_serial_num_s {
 } klmod_serial_num_t;
 
 /* Macros needed to access serial number structure in lboard_t.
-   Hard coded values are necessary since we cannot treat
+   Hard coded values are necessary since we canyest treat
    serial number struct as a component without losing compatibility
    between prom versions. */
 
@@ -716,7 +716,7 @@ typedef struct klrou_s {			  /* ROUTER */
 	nic_t		rou_box_nic ;	      /* nic of the containing module */
 	klport_t	rou_port[MAX_ROUTER_PORTS + 1] ; /* array index 1 to 6 */
 	klconf_off_t	rou_mfg_nic ;	  /* MFG NIC string */
-	u64	rou_vector;	  /* vector from master node */
+	u64	rou_vector;	  /* vector from master yesde */
 } klrou_t ;
 
 /*
@@ -844,7 +844,7 @@ typedef union kldev_s {	     /* for device structure allocation */
 
 /*
  * TBD - Can the ARCS and device driver related info also be included in the
- * KLCONFIG area. On the IO4PROM, prom device driver info is part of cfgnode_t
+ * KLCONFIG area. On the IO4PROM, prom device driver info is part of cfgyesde_t
  * structure, viz private to the IO4prom.
  */
 
@@ -856,7 +856,7 @@ typedef union kldev_s {	     /* for device structure allocation */
  * structures from it. Debug is easier in the former method since we can
  * dump all similar structs in one command, but there will be lots of holes,
  * in memory and max limits are needed for number of structures.
- * Another way to make it organized, is to have a union of all components
+ * Ayesther way to make it organized, is to have a union of all components
  * and allocate a aligned chunk of memory greater than the biggest
  * component.
  */

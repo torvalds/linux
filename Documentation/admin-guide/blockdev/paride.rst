@@ -10,7 +10,7 @@ PARIDE v1.03   (c) 1997-8  Grant Guenther <grant@torque.net>
 Owing to the simplicity and near universality of the parallel port interface
 to personal computers, many external devices such as portable hard-disk,
 CD-ROM, LS-120 and tape drives use the parallel port to connect to their
-host computer.  While some devices (notably scanners) use ad-hoc methods
+host computer.  While some devices (yestably scanners) use ad-hoc methods
 to pass commands and data through the parallel port interface, most
 external devices are actually identical to an internal model, but with
 a parallel-port adapter chip added in.  Some of the original parallel port
@@ -24,8 +24,8 @@ the device being addressed via the parallel cable is a standard SCSI
 controller like an NCR 5380.  The "ditto" family of external tape
 drives use the ISA replicator to interface a floppy disk controller,
 which is then connected to a floppy-tape mechanism.  The vast majority
-of external parallel port devices, however, are now based on standard
-IDE type devices, which require no intermediate controller.  If one
+of external parallel port devices, however, are yesw based on standard
+IDE type devices, which require yes intermediate controller.  If one
 were to open up a parallel port CD-ROM drive, for instance, one would
 find a standard ATAPI CD-ROM drive, a power supply, and a single adapter
 that interconnected a standard PC parallel port cable and a standard
@@ -33,7 +33,7 @@ IDE cable.  It is usually possible to exchange the CD-ROM device with
 any other device using the IDE interface.
 
 The document describes the support in Linux for parallel port IDE
-devices.  It does not cover parallel port SCSI devices, "ditto" tape
+devices.  It does yest cover parallel port SCSI devices, "ditto" tape
 drives or scanners.  Many different devices are supported by the
 parallel port IDE subsystem, including:
 
@@ -49,7 +49,7 @@ parallel port IDE subsystem, including:
 	- Hewlett-Packard 5GB and 8GB tape drives
 	- Hewlett-Packard 7100 and 7200 CD-RW drives
 
-as well as most of the clone and no-name products on the market.
+as well as most of the clone and yes-name products on the market.
 
 To support such a wide range of devices, PARIDE, the parallel port IDE
 subsystem, is actually structured in three parts.   There is a base
@@ -71,7 +71,7 @@ The high-level drivers function according to the relevant standards.
 The third component of PARIDE is a set of low-level protocol drivers
 for each of the parallel port IDE adapter chips.  Thanks to the interest
 and encouragement of Linux users from many parts of the world,
-support is available for almost all known adapter protocols:
+support is available for almost all kyeswn adapter protocols:
 
 	====    ====================================== ====
         aten    ATEN EH-100                            (HK)
@@ -85,7 +85,7 @@ support is available for almost all known adapter protocols:
 	friq    Freecom IQ cable                       (DE)
         frpw    Freecom Power                          (DE)
         kbic    KingByte KBIC-951A and KBIC-971A       (TW)
-	ktti    KT Technology PHd adapter              (SG)
+	ktti    KT Techyeslogy PHd adapter              (SG)
         on20    OnSpec 90c20                           (US)
         on26    OnSpec 90c26                           (US)
 	====    ====================================== ====
@@ -99,7 +99,7 @@ the PARIDE drivers into your kernel, or to build them as modules.
 
 In either case, you will need to select "Parallel port IDE device support"
 as well as at least one of the high-level drivers and at least one
-of the parallel port communication protocols.  If you do not know
+of the parallel port communication protocols.  If you do yest kyesw
 what kind of parallel port adapter is used in your drive, you could
 begin by checking the file names and any text files on your DOS
 installation floppy.  Alternatively, you can look at the markings on
@@ -132,7 +132,7 @@ and high-level drivers that you would use:
 2.1  Configuring built-in drivers
 ---------------------------------
 
-We recommend that you get to know how the drivers work and how to
+We recommend that you get to kyesw how the drivers work and how to
 configure them as loadable modules, before attempting to compile a
 kernel with the drivers built-in.
 
@@ -159,11 +159,11 @@ some lines like::
 	paride: epat registered as protocol 1
 
 The numbers will always be the same until you build a new kernel with
-different protocol selections.  You should note these numbers as you
+different protocol selections.  You should yeste these numbers as you
 will need them to identify the devices.
 
 If you happen to be using a MicroSolutions backpack device, you will
-also need to know the unit ID number for each drive.  This is usually
+also need to kyesw the unit ID number for each drive.  This is usually
 the last two digits of the drive's serial number (but read MicroSolutions'
 documentation about this).
 
@@ -179,7 +179,7 @@ In the last option, pf.drive1 configures device /dev/pf1, the 0x378
 is the parallel port base address, the 0 is the protocol registration
 number and 36 is the chain ID.
 
-Please note:  while PARIDE will work both with and without the
+Please yeste:  while PARIDE will work both with and without the
 PARPORT parallel port sharing system that is included by the
 "Parallel port support" option, PARPORT must be included and enabled
 if you want to use chains of devices on the same parallel port.
@@ -192,7 +192,7 @@ if you use them as loadable kernel modules.
 
 Note 1:
 	using these drivers with the "kerneld" automatic module loading
-	system is not recommended for beginners, and is not documented here.
+	system is yest recommended for beginners, and is yest documented here.
 
 Note 2:
 	if you build PARPORT support as a loadable module, PARIDE must
@@ -222,7 +222,7 @@ you have connected.  By default, each driver will autoprobe for a single
 device, but you can support up to four similar devices by giving their
 individual co-ordinates when you load the driver.
 
-For example, if you had two no-name CD-ROM drives both using the
+For example, if you had two yes-name CD-ROM drives both using the
 KingByte KBIC-951A adapter, one on port 0x378 and the other on 0x3bc
 you could give the following command::
 
@@ -232,7 +232,7 @@ For most adapters, giving a port address and protocol number is sufficient,
 but check the source files in linux/drivers/block/paride for more
 information.  (Hopefully someone will write some man pages one day !).
 
-As another example, here's what happens when PARPORT is installed, and
+As ayesther example, here's what happens when PARPORT is installed, and
 a SyQuest EZ-135 is attached to port 0x378::
 
 	# insmod paride
@@ -262,7 +262,7 @@ cut to a file and execute::
   # mkd -- a script to create the device special files for the PARIDE subsystem
   #
   function mkdev {
-    mknod $1 $2 $3 $4 ; chmod 0660 $1 ; chown root:disk $1
+    mkyesd $1 $2 $3 $4 ; chmod 0660 $1 ; chown root:disk $1
   }
   #
   function pd {
@@ -302,7 +302,7 @@ might do something like::
 	mount /dev/pda1 /shark
 
 Devices like the Imation superdisk work in the same way, except that
-they do not have a partition table.  For example to make a 120MB
+they do yest have a partition table.  For example to make a 120MB
 floppy that you could share with a DOS system::
 
 	mkdosfs /dev/pf0
@@ -314,15 +314,15 @@ floppy that you could share with a DOS system::
 
 The pf driver is intended for use with parallel port ATAPI disk
 devices.  The most common devices in this category are PD drives
-and LS-120 drives.  Traditionally, media for these devices are not
-partitioned.  Consequently, the pf driver does not support partitioned
+and LS-120 drives.  Traditionally, media for these devices are yest
+partitioned.  Consequently, the pf driver does yest support partitioned
 media.  This may be changed in a future version of the driver.
 
 2.5  Using the pt driver
 ------------------------
 
 The pt driver for parallel port ATAPI tape drives is a minimal driver.
-It does not yet support many of the standard tape ioctl operations.
+It does yest yet support many of the standard tape ioctl operations.
 For best performance, a block size of 32KB should be used.  You will
 probably want to set the parallel port delay to 0, if you can.
 
@@ -334,7 +334,7 @@ to create CD-ROMs.  Please get cdrecord version 1.6.1 or later
 from ftp://ftp.fokus.gmd.de/pub/unix/cdrecord/ .  To record CD-R media
 your parallel port should ideally be set to EPP mode, and the "port delay"
 should be set to 0.  With those settings it is possible to record at 2x
-speed without any buffer underruns.  If you cannot get the driver to work
+speed without any buffer underruns.  If you canyest get the driver to work
 in EPP mode, try to use "bidirectional" or "PS/2" mode and 1x speeds only.
 
 
@@ -345,7 +345,7 @@ in EPP mode, try to use "bidirectional" or "PS/2" mode and 1x speeds only.
 ----------------------------
 
 The most common problems that people report with the PARIDE drivers
-concern the parallel port CMOS settings.  At this time, none of the
+concern the parallel port CMOS settings.  At this time, yesne of the
 PARIDE protocol modules support ECP mode, or any ECP combination modes.
 If you are able to do so, please set your parallel port into EPP mode
 using your CMOS setup procedure.
@@ -353,28 +353,28 @@ using your CMOS setup procedure.
 3.2  Check the port delay
 -------------------------
 
-Some parallel ports cannot reliably transfer data at full speed.  To
+Some parallel ports canyest reliably transfer data at full speed.  To
 offset the errors, the PARIDE protocol modules introduce a "port
 delay" between each access to the i/o ports.  Each protocol sets
 a default value for this delay.  In most cases, the user can override
 the default and set it to 0 - resulting in somewhat higher transfer
 rates.  In some rare cases (especially with older 486 systems) the
-default delays are not long enough.  if you experience corrupt data
+default delays are yest long eyesugh.  if you experience corrupt data
 transfers, or unexpected failures, you may wish to increase the
 port delay.   The delay can be programmed using the "driveN" parameters
-to each of the high-level drivers.  Please see the notes above, or
+to each of the high-level drivers.  Please see the yestes above, or
 read the comments at the beginning of the driver source files in
 linux/drivers/block/paride.
 
 3.3  Some drives need a printer reset
 -------------------------------------
 
-There appear to be a number of "noname" external drives on the market
-that do not always power up correctly.  We have noticed this with some
+There appear to be a number of "yesname" external drives on the market
+that do yest always power up correctly.  We have yesticed this with some
 drives based on OnSpec and older Freecom adapters.  In these rare cases,
 the adapter can often be reinitialised by issuing a "printer reset" on
 the parallel port.  As the reset operation is potentially disruptive in
-multiple device environments, the PARIDE drivers will not do it
+multiple device environments, the PARIDE drivers will yest do it
 automatically.  You can however, force a printer reset by doing::
 
 	insmod lp reset=1
@@ -392,7 +392,7 @@ as smoothly as possible, problems will arise.  If you do have problems,
 please check all the obvious things first:  does the drive work in
 DOS with the manufacturer's drivers ?  If that doesn't yield any useful
 clues, then please make sure that only one drive is hooked to your system,
-and that either (a) PARPORT is enabled or (b) no other device driver
+and that either (a) PARPORT is enabled or (b) yes other device driver
 is using your parallel port (check in /proc/ioports).  Then, load the
 appropriate drivers (you can load several protocol modules if you want)
 as in::
@@ -427,13 +427,13 @@ with the single word::
 
 		subscribe
 
-in the body of the mail message (not in the subject line).   Please be
+in the body of the mail message (yest in the subject line).   Please be
 sure that your mail program is correctly set up when you do this,  as
 the list manager is a robot that will subscribe you using the reply
 address in your mail headers.  REMOVE any anti-spam gimmicks you may
 have in your mail headers, when sending mail to the list server.
 
 You might also find some useful information on the linux-parport
-web pages (although they are not always up to date) at
+web pages (although they are yest always up to date) at
 
 	http://web.archive.org/web/%2E/http://www.torque.net/parport/

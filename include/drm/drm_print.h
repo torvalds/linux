@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -68,7 +68,7 @@ extern unsigned int drm_debug;
 /**
  * struct drm_printer - drm output "stream"
  *
- * Do not use struct members directly.  Use drm_printer_seq_file(),
+ * Do yest use struct members directly.  Use drm_printer_seq_file(),
  * drm_printer_info(), etc to initialize.  And drm_printf() for output.
  */
 struct drm_printer {
@@ -279,7 +279,7 @@ static inline struct drm_printer drm_err_printer(const char *prefix)
  * drm.debug=0x3f will enable all messages
  *
  * An interesting feature is that it's possible to enable verbose logging at
- * run-time by echoing the debug value in its sysfs node:
+ * run-time by echoing the debug value in its sysfs yesde:
  *   # echo 0xf > /sys/module/drm/parameters/debug
  */
 #define DRM_UT_NONE		0x00

@@ -83,7 +83,7 @@ out:
  * gss_mech_register - register a GSS mechanism
  * @gm: GSS mechanism handle
  *
- * Returns zero if successful, or a negative errno.
+ * Returns zero if successful, or a negative erryes.
  */
 int gss_mech_register(struct gss_api_mech *gm)
 {
@@ -224,9 +224,9 @@ gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
  * @array_ptr: array to fill in
  * @size: size of "array"
  *
- * Returns the number of array items filled in, or a negative errno.
+ * Returns the number of array items filled in, or a negative erryes.
  *
- * The returned array is not sorted by any policy.  Callers should not
+ * The returned array is yest sorted by any policy.  Callers should yest
  * rely on the order of the items in the returned array.
  */
 int gss_mech_list_pseudoflavors(rpc_authflavor_t *array_ptr, int size)
@@ -254,7 +254,7 @@ int gss_mech_list_pseudoflavors(rpc_authflavor_t *array_ptr, int size)
  * @qop: GSS quality-of-protection value
  * @service: GSS service value
  *
- * Returns a matching security flavor, or RPC_AUTH_MAXFLAVOR if none is found.
+ * Returns a matching security flavor, or RPC_AUTH_MAXFLAVOR if yesne is found.
  */
 rpc_authflavor_t gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 qop,
 					 u32 service)
@@ -275,7 +275,7 @@ rpc_authflavor_t gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 qop,
  * @info: a GSS mech OID, quality of protection, and service value
  *
  * Returns a matching pseudoflavor, or RPC_AUTH_MAXFLAVOR if the tuple is
- * not supported.
+ * yest supported.
  */
 rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *info)
 {
@@ -298,7 +298,7 @@ rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *info)
  * @info: rpcsec_gss_info structure to fill in
  *
  * Returns zero and fills in "info" if pseudoflavor matches a
- * supported mechanism.  Otherwise a negative errno is returned.
+ * supported mechanism.  Otherwise a negative erryes is returned.
  */
 int gss_mech_flavor2info(rpc_authflavor_t pseudoflavor,
 			 struct rpcsec_gss_info *info)
@@ -371,7 +371,7 @@ gss_mech_put(struct gss_api_mech * gm)
 EXPORT_SYMBOL(gss_mech_put);
 
 /* The mech could probably be determined from the token instead, but it's just
- * as easy for now to pass it in. */
+ * as easy for yesw to pass it in. */
 int
 gss_import_sec_context(const void *input_token, size_t bufsize,
 		       struct gss_api_mech	*mech,
@@ -423,7 +423,7 @@ gss_verify_mic(struct gss_ctx		*context_handle,
  * space in both the head and tail which is available for use by
  * the wrap function.
  *
- * Underlying functions should verify they do not use more than
+ * Underlying functions should verify they do yest use more than
  * RPC_MAX_AUTH_SIZE of extra space in either the head or tail
  * when performing the wrap.
  */

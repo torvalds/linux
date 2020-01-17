@@ -22,11 +22,11 @@
 #include "selftest.h"
 #include "workarounds.h"
 
-/* IRQ latency can be enormous because:
+/* IRQ latency can be eyesrmous because:
  * - All IRQs may be disabled on a CPU for a *long* time by e.g. a
  *   slow serial console or an old IDE driver doing error recovery
  * - The PREEMPT_RT patches mostly deal with this, but also allow a
- *   tasklet or normal task to be given higher priority than our IRQ
+ *   tasklet or yesrmal task to be given higher priority than our IRQ
  *   threads
  * Try to avoid blaming the hardware for this.
  */
@@ -140,7 +140,7 @@ static int ef4_test_interrupts(struct ef4_nic *efx,
 	rc = ef4_nic_irq_test_start(efx);
 	if (rc == -ENOTSUPP) {
 		netif_dbg(efx, drv, efx->net_dev,
-			  "direct interrupt testing not supported\n");
+			  "direct interrupt testing yest supported\n");
 		tests->interrupt = 0;
 		return 0;
 	}
@@ -190,7 +190,7 @@ static int ef4_test_eventq_irq(struct ef4_nic *efx,
 	wait = 1;
 
 	/* Wait for arrival of interrupts.  NAPI processing may or may
-	 * not complete in time, but we can cope in any case.
+	 * yest complete in time, but we can cope in any case.
 	 */
 	do {
 		schedule_timeout_uninterruptible(wait);
@@ -311,7 +311,7 @@ void ef4_loopback_rx_packet(struct ef4_nic *efx,
 	/* Check that the ethernet header exists */
 	if (memcmp(&received->header, &payload->header, ETH_HLEN) != 0) {
 		netif_err(efx, drv, efx->net_dev,
-			  "saw non-loopback RX packet in %s loopback test\n",
+			  "saw yesn-loopback RX packet in %s loopback test\n",
 			  LOOPBACK_MODE(efx));
 		goto err;
 	}
@@ -395,7 +395,7 @@ static void ef4_iterate_state(struct ef4_nic *efx)
 	payload->udp.source = 0;
 	payload->udp.len = htons(sizeof(*payload) - sizeof(struct ethhdr) -
 				 sizeof(struct iphdr));
-	payload->udp.check = 0;	/* checksum ignored */
+	payload->udp.check = 0;	/* checksum igyesred */
 
 	/* Fill out payload */
 	payload->iteration = htons(ntohs(payload->iteration) + 1);
@@ -442,7 +442,7 @@ static int ef4_begin_loopback(struct ef4_tx_queue *tx_queue)
 
 		if (rc != NETDEV_TX_OK) {
 			netif_err(efx, drv, efx->net_dev,
-				  "TX queue %d could not transmit packet %d of "
+				  "TX queue %d could yest transmit packet %d of "
 				  "%d in %s loopback test\n", tx_queue->queue,
 				  i + 1, state->packet_count,
 				  LOOPBACK_MODE(efx));
@@ -475,7 +475,7 @@ static int ef4_end_loopback(struct ef4_tx_queue *tx_queue,
 	netif_tx_lock_bh(efx->net_dev);
 
 	/* Count the number of tx completions, and decrement the refcnt. Any
-	 * skbs not already completed will be free'd when the queue is flushed */
+	 * skbs yest already completed will be free'd when the queue is flushed */
 	for (i = 0; i < state->packet_count; i++) {
 		skb = state->skbs[i];
 		if (skb && !skb_shared(skb))
@@ -547,7 +547,7 @@ ef4_test_loopback(struct ef4_tx_queue *tx_queue,
 		ef4_iterate_state(efx);
 		begin_rc = ef4_begin_loopback(tx_queue);
 
-		/* This will normally complete very quickly, but be
+		/* This will yesrmally complete very quickly, but be
 		 * prepared to wait much longer. */
 		msleep(1);
 		if (!ef4_poll_loopback(efx)) {
@@ -559,7 +559,7 @@ ef4_test_loopback(struct ef4_tx_queue *tx_queue,
 		kfree(state->skbs);
 
 		if (begin_rc || end_rc) {
-			/* Wait a while to ensure there are no packets
+			/* Wait a while to ensure there are yes packets
 			 * floating around after a failure. */
 			schedule_timeout_uninterruptible(HZ / 10);
 			return begin_rc ? begin_rc : end_rc;
@@ -695,7 +695,7 @@ int ef4_selftest(struct ef4_nic *efx, struct ef4_self_tests *tests,
 
 	ef4_selftest_async_cancel(efx);
 
-	/* Online (i.e. non-disruptive) testing
+	/* Online (i.e. yesn-disruptive) testing
 	 * This checks interrupt generation, event delivery and PHY presence. */
 
 	rc = ef4_test_phy_alive(efx, tests);

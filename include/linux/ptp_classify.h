@@ -13,7 +13,7 @@
 #include <linux/ip.h>
 #include <linux/skbuff.h>
 
-#define PTP_CLASS_NONE  0x00 /* not a PTP event message */
+#define PTP_CLASS_NONE  0x00 /* yest a PTP event message */
 #define PTP_CLASS_V1    0x01 /* protocol version 1 */
 #define PTP_CLASS_V2    0x02 /* protocol version 2 */
 #define PTP_CLASS_VMASK 0x0f /* max protocol version is 15 */
@@ -50,7 +50,7 @@
  * @skb: buffer
  *
  * Runs a minimal BPF dissector to classify a network packet to
- * determine the PTP class. In case the skb does not contain any
+ * determine the PTP class. In case the skb does yest contain any
  * PTP protocol data, PTP_CLASS_NONE will be returned, otherwise
  * PTP_CLASS_V1_IPV{4,6}, PTP_CLASS_V2_IPV{4,6} or
  * PTP_CLASS_V2_{L2,VLAN}, depending on the packet content.

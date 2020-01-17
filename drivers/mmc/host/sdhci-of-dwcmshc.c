@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Driver for Synopsys DesignWare Cores Mobile Storage Host Controller
+ * Driver for Syyespsys DesignWare Cores Mobile Storage Host Controller
  *
  * Copyright (C) 2018 Synaptics Incorporated
  *
@@ -150,6 +150,6 @@ static struct platform_driver sdhci_dwcmshc_driver = {
 };
 module_platform_driver(sdhci_dwcmshc_driver);
 
-MODULE_DESCRIPTION("SDHCI platform driver for Synopsys DWC MSHC");
+MODULE_DESCRIPTION("SDHCI platform driver for Syyespsys DWC MSHC");
 MODULE_AUTHOR("Jisheng Zhang <jszhang@kernel.org>");
 MODULE_LICENSE("GPL v2");

@@ -91,7 +91,7 @@ int omap2_prcm_base_init(void);
  * OMAP_UNKNOWN_RST_SRC_ID_SHIFT is a special value, used whenever
  * there are any bits remaining in the global PRM_RSTST register that
  * haven't been identified, or when the PRM code for the current SoC
- * doesn't know how to interpret the register.
+ * doesn't kyesw how to interpret the register.
  */
 #define OMAP_GLOBAL_COLD_RST_SRC_ID_SHIFT			0
 #define OMAP_GLOBAL_WARM_RST_SRC_ID_SHIFT			1

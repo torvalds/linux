@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -75,7 +75,7 @@ enum mod_hdcp_status mod_hdcp_add_display_topology(struct mod_hdcp *hdcp)
 	uint8_t i;
 
 	if (!psp->dtm_context.dtm_initialized) {
-		DRM_ERROR("Failed to add display topology, DTM TA is not initialized.");
+		DRM_ERROR("Failed to add display topology, DTM TA is yest initialized.");
 		return MOD_HDCP_STATUS_FAILURE;
 	}
 
@@ -120,7 +120,7 @@ enum mod_hdcp_status mod_hdcp_hdcp1_create_session(struct mod_hdcp *hdcp)
 	struct ta_hdcp_shared_memory *hdcp_cmd;
 
 	if (!psp->hdcp_context.hdcp_initialized) {
-		DRM_ERROR("Failed to create hdcp session. HDCP TA is not initialized.");
+		DRM_ERROR("Failed to create hdcp session. HDCP TA is yest initialized.");
 		return MOD_HDCP_STATUS_FAILURE;
 	}
 

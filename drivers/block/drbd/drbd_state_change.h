@@ -6,7 +6,7 @@ struct drbd_resource_state_change {
 	struct drbd_resource *resource;
 	enum drbd_role role[2];
 	bool susp[2];
-	bool susp_nod[2];
+	bool susp_yesd[2];
 	bool susp_fen[2];
 };
 
@@ -44,21 +44,21 @@ extern struct drbd_state_change *remember_old_state(struct drbd_resource *, gfp_
 extern void copy_old_to_new_state_change(struct drbd_state_change *);
 extern void forget_state_change(struct drbd_state_change *);
 
-extern void notify_resource_state_change(struct sk_buff *,
+extern void yestify_resource_state_change(struct sk_buff *,
 					 unsigned int,
 					 struct drbd_resource_state_change *,
-					 enum drbd_notification_type type);
-extern void notify_connection_state_change(struct sk_buff *,
+					 enum drbd_yestification_type type);
+extern void yestify_connection_state_change(struct sk_buff *,
 					   unsigned int,
 					   struct drbd_connection_state_change *,
-					   enum drbd_notification_type type);
-extern void notify_device_state_change(struct sk_buff *,
+					   enum drbd_yestification_type type);
+extern void yestify_device_state_change(struct sk_buff *,
 				       unsigned int,
 				       struct drbd_device_state_change *,
-				       enum drbd_notification_type type);
-extern void notify_peer_device_state_change(struct sk_buff *,
+				       enum drbd_yestification_type type);
+extern void yestify_peer_device_state_change(struct sk_buff *,
 					    unsigned int,
 					    struct drbd_peer_device_state_change *,
-					    enum drbd_notification_type type);
+					    enum drbd_yestification_type type);
 
 #endif  /* DRBD_STATE_CHANGE_H */

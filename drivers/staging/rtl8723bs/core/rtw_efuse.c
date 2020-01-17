@@ -339,7 +339,7 @@ bool		bPseudoTest)
 	efuseValue |= ((addr<<8 | data) & 0x3FFFF);
 
 
-	/*  <20130227, Kordan> 8192E MP chip A-cut had better not set 0x34[11] until B-Cut. */
+	/*  <20130227, Kordan> 8192E MP chip A-cut had better yest set 0x34[11] until B-Cut. */
 
 	/*  <20130121, Kordan> For SMIC EFUSE specificatoin. */
 	/* 0x34[11]: SW force PGMEN input of efuse to high. (for the bank selected by 0x34[9:8]) */

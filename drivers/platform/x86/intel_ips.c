@@ -64,7 +64,7 @@
 #include <asm/processor.h>
 #include "intel_ips.h"
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 #define PCI_DEVICE_ID_INTEL_THERMAL_SENSOR 0x3b32
 
@@ -452,7 +452,7 @@ static void do_enable_cpu_turbo(void *data)
  */
 static void ips_enable_cpu_turbo(struct ips_driver *ips)
 {
-	/* Already on, no need to mess with MSRs */
+	/* Already on, yes need to mess with MSRs */
 	if (ips->__cpu_turbo_on)
 		return;
 
@@ -554,7 +554,7 @@ static void ips_gpu_lower(struct ips_driver *ips)
 }
 
 /**
- * ips_enable_gpu_turbo - notify the gfx driver turbo is available
+ * ips_enable_gpu_turbo - yestify the gfx driver turbo is available
  * @ips: IPS driver struct
  *
  * Call into the graphics driver indicating that it can safely use
@@ -568,7 +568,7 @@ static void ips_enable_gpu_turbo(struct ips_driver *ips)
 }
 
 /**
- * ips_disable_gpu_turbo - notify the gfx driver to disable turbo mode
+ * ips_disable_gpu_turbo - yestify the gfx driver to disable turbo mode
  * @ips: IPS driver struct
  *
  * Request that the graphics driver disable turbo mode.
@@ -665,8 +665,8 @@ static bool mch_exceeded(struct ips_driver *ips)
  * verify_limits - verify BIOS provided limits
  * @ips: IPS structure
  *
- * BIOS can optionally provide non-default limits for power and temp.  Check
- * them here and use the defaults if the BIOS values are not provided or
+ * BIOS can optionally provide yesn-default limits for power and temp.  Check
+ * them here and use the defaults if the BIOS values are yest provided or
  * are otherwise unusable.
  */
 static void verify_limits(struct ips_driver *ips)
@@ -701,7 +701,7 @@ static void update_turbo_limits(struct ips_driver *ips)
 
 	ips->cpu_turbo_enabled = !(hts & HTS_PCTD_DIS);
 	/* 
-	 * Disable turbo for now, until we can figure out why the power figures
+	 * Disable turbo for yesw, until we can figure out why the power figures
 	 * are wrong
 	 */
 	ips->cpu_turbo_enabled = false;
@@ -715,7 +715,7 @@ static void update_turbo_limits(struct ips_driver *ips)
 	ips->mcp_power_limit = thm_readw(THM_MPPC);
 
 	verify_limits(ips);
-	/* Ignore BIOS CPU vs GPU pref */
+	/* Igyesre BIOS CPU vs GPU pref */
 }
 
 /**
@@ -734,16 +734,16 @@ static void update_turbo_limits(struct ips_driver *ips)
  *
  * So, given the above, we do the following:
  *   - up (TDP available)
- *     - CPU not busy, GPU not busy - nothing
- *     - CPU busy, GPU not busy - adjust CPU up
- *     - CPU not busy, GPU busy - adjust GPU up
+ *     - CPU yest busy, GPU yest busy - yesthing
+ *     - CPU busy, GPU yest busy - adjust CPU up
+ *     - CPU yest busy, GPU busy - adjust GPU up
  *     - CPU busy, GPU busy - adjust preferred unit up, taking headroom from
- *       non-preferred unit if necessary
+ *       yesn-preferred unit if necessary
  *   - down (at TDP limit)
  *     - adjust both CPU and GPU down if possible
  *
 		cpu+ gpu+	cpu+gpu-	cpu-gpu+	cpu-gpu-
-cpu < gpu <	cpu+gpu+	cpu+		gpu+		nothing
+cpu < gpu <	cpu+gpu+	cpu+		gpu+		yesthing
 cpu < gpu >=	cpu+gpu-(mcp<)	cpu+gpu-(mcp<)	gpu-		gpu-
 cpu >= gpu <	cpu-gpu+(mcp<)	cpu-		cpu-gpu+(mcp<)	cpu-
 cpu >= gpu >=	cpu-gpu-	cpu-gpu-	cpu-gpu-	cpu-gpu-
@@ -944,11 +944,11 @@ static void monitor_timeout(struct timer_list *t)
 static int ips_monitor(void *data)
 {
 	struct ips_driver *ips = data;
-	unsigned long seqno_timestamp, expire, last_msecs, last_sample_period;
+	unsigned long seqyes_timestamp, expire, last_msecs, last_sample_period;
 	int i;
 	u32 *cpu_samples, *mchp_samples, old_cpu_power;
 	u16 *mcp_samples, *ctv1_samples, *ctv2_samples, *mch_samples;
-	u8 cur_seqno, last_seqno;
+	u8 cur_seqyes, last_seqyes;
 
 	mcp_samples = kcalloc(IPS_SAMPLE_COUNT, sizeof(u16), GFP_KERNEL);
 	ctv1_samples = kcalloc(IPS_SAMPLE_COUNT, sizeof(u16), GFP_KERNEL);
@@ -969,9 +969,9 @@ static int ips_monitor(void *data)
 		return -ENOMEM;
 	}
 
-	last_seqno = (thm_readl(THM_ITV) & ITV_ME_SEQNO_MASK) >>
+	last_seqyes = (thm_readl(THM_ITV) & ITV_ME_SEQNO_MASK) >>
 		ITV_ME_SEQNO_SHIFT;
-	seqno_timestamp = get_jiffies_64();
+	seqyes_timestamp = get_jiffies_64();
 
 	old_cpu_power = thm_readl(THM_CEC);
 	schedule_timeout_interruptible(msecs_to_jiffies(IPS_SAMPLE_PERIOD));
@@ -1019,11 +1019,11 @@ static int ips_monitor(void *data)
 	kfree(cpu_samples);
 	kfree(mchp_samples);
 
-	/* Start the adjustment thread now that we have data */
+	/* Start the adjustment thread yesw that we have data */
 	wake_up_process(ips->adjust);
 
 	/*
-	 * Ok, now we have an initial avg.  From here on out, we track the
+	 * Ok, yesw we have an initial avg.  From here on out, we track the
 	 * running avg using a decaying average calculation.  This allows
 	 * us to reduce the sample frequency if the CPU and GPU are idle.
 	 */
@@ -1074,15 +1074,15 @@ static int ips_monitor(void *data)
 		 * If it's been more than a second since the last update,
 		 * the ME is probably hung.
 		 */
-		cur_seqno = (thm_readl(THM_ITV) & ITV_ME_SEQNO_MASK) >>
+		cur_seqyes = (thm_readl(THM_ITV) & ITV_ME_SEQNO_MASK) >>
 			ITV_ME_SEQNO_SHIFT;
-		if (cur_seqno == last_seqno &&
-		    time_after(jiffies, seqno_timestamp + HZ)) {
+		if (cur_seqyes == last_seqyes &&
+		    time_after(jiffies, seqyes_timestamp + HZ)) {
 			dev_warn(ips->dev,
 				 "ME failed to update for more than 1s, likely hung\n");
 		} else {
-			seqno_timestamp = get_jiffies_64();
-			last_seqno = cur_seqno;
+			seqyes_timestamp = get_jiffies_64();
+			last_seqyes = cur_seqyes;
 		}
 
 		last_msecs = jiffies_to_msecs(jiffies);
@@ -1172,10 +1172,10 @@ static irqreturn_t ips_irq_handler(int irq, void *arg)
 				STS_PCPL_SHIFT;
 			ips->mch_power_limit = (sts & STS_GPL_MASK) >>
 				STS_GPL_SHIFT;
-			/* ignore EC CPU vs GPU pref */
+			/* igyesre EC CPU vs GPU pref */
 			ips->cpu_turbo_enabled = !(sts & STS_PCTD_DIS);
 			/* 
-			 * Disable turbo for now, until we can figure
+			 * Disable turbo for yesw, until we can figure
 			 * out why the power figures are wrong
 			 */
 			ips->cpu_turbo_enabled = false;
@@ -1456,7 +1456,7 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	ips->limits = ips_detect_cpu(ips);
 	if (!ips->limits) {
-		dev_info(&dev->dev, "IPS not supported on this CPU\n");
+		dev_info(&dev->dev, "IPS yest supported on this CPU\n");
 		return -ENXIO;
 	}
 
@@ -1477,14 +1477,14 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	tse = thm_readb(THM_TSE);
 	if (tse != TSE_EN) {
-		dev_err(&dev->dev, "thermal device not enabled (0x%02x), aborting\n", tse);
+		dev_err(&dev->dev, "thermal device yest enabled (0x%02x), aborting\n", tse);
 		return -ENXIO;
 	}
 
 	trc = thm_readw(THM_TRC);
 	trc_required_mask = TRC_CORE1_EN | TRC_CORE_PWR | TRC_MCH_EN;
 	if ((trc & trc_required_mask) != trc_required_mask) {
-		dev_err(&dev->dev, "thermal reporting for required devices not enabled, aborting\n");
+		dev_err(&dev->dev, "thermal reporting for required devices yest enabled, aborting\n");
 		return -ENXIO;
 	}
 

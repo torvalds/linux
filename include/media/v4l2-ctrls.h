@@ -101,11 +101,11 @@ static inline union v4l2_ctrl_ptr v4l2_ctrl_ptr_create(void *ptr)
  *		for volatile (and usually read-only) controls such as a control
  *		that returns the current signal strength which changes
  *		continuously.
- *		If not set, then the currently cached value will be returned.
+ *		If yest set, then the currently cached value will be returned.
  * @try_ctrl:	Test whether the control's value is valid. Only relevant when
- *		the usual min/max/step checks are not sufficient.
+ *		the usual min/max/step checks are yest sufficient.
  * @s_ctrl:	Actually set the new control value. s_ctrl is compulsory. The
- *		ctrl->handler->lock is held when these ops are called, so no
+ *		ctrl->handler->lock is held when these ops are called, so yes
  *		one else can access controls owned by that handler.
  */
 struct v4l2_ctrl_ops {
@@ -136,21 +136,21 @@ struct v4l2_ctrl_type_ops {
 };
 
 /**
- * typedef v4l2_ctrl_notify_fnc - typedef for a notify argument with a function
+ * typedef v4l2_ctrl_yestify_fnc - typedef for a yestify argument with a function
  *	that should be called when a control value has changed.
  *
  * @ctrl: pointer to struct &v4l2_ctrl
  * @priv: control private data
  *
- * This typedef definition is used as an argument to v4l2_ctrl_notify()
+ * This typedef definition is used as an argument to v4l2_ctrl_yestify()
  * and as an argument at struct &v4l2_ctrl_handler.
  */
-typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
+typedef void (*v4l2_ctrl_yestify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
 
 /**
  * struct v4l2_ctrl - The control structure.
  *
- * @node:	The list node.
+ * @yesde:	The list yesde.
  * @ev_subs:	The list of control event subscriptions.
  * @handler:	The handler that owns the control.
  * @cluster:	Point to start of cluster array.
@@ -162,7 +162,7 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  * @has_changed: Set when the current value differs from the new value. Drivers
  *		should never use this flag.
  * @is_private: If set, then this control is private to its handler and it
- *		will not be added to any other handlers. Drivers can set
+ *		will yest be added to any other handlers. Drivers can set
  *		this flag.
  * @is_auto:   If set, then this control selects whether the other cluster
  *		members are in 'automatic' mode or 'manual' mode. This is
@@ -178,7 +178,7 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  * @is_array: If set, then this control contains an N-dimensional array.
  * @has_volatiles: If set, then one or more members of the cluster are volatile.
  *		Drivers should never touch this flag.
- * @call_notify: If set, then call the handler's notify function whenever the
+ * @call_yestify: If set, then call the handler's yestify function whenever the
  *		control's value changes.
  * @manual_mode_value: If the is_auto flag is set, then this is the value
  *		of the auto control that determines if that control is in
@@ -193,19 +193,19 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  * @minimum:	The control's minimum value.
  * @maximum:	The control's maximum value.
  * @default_value: The control's default value.
- * @step:	The control's step value for non-menu controls.
+ * @step:	The control's step value for yesn-menu controls.
  * @elems:	The number of elements in the N-dimensional array.
  * @elem_size:	The size in bytes of the control.
  * @dims:	The size of each dimension.
  * @nr_of_dims:The number of dimensions in @dims.
  * @menu_skip_mask: The control's skip mask for menu controls. This makes it
- *		easy to skip menu items that are not valid. If bit X is set,
+ *		easy to skip menu items that are yest valid. If bit X is set,
  *		then menu item X is skipped. Of course, this only works for
- *		menus with <= 32 menu items. There are no menus that come
+ *		menus with <= 32 menu items. There are yes menus that come
  *		close to that number, so this is OK. Should we ever need more,
  *		then this will have to be extended to a u64 or a bit array.
  * @qmenu:	A const char * array for all menu items. Array entries that are
- *		empty strings ("") correspond to non-existing menu items (this
+ *		empty strings ("") correspond to yesn-existing menu items (this
  *		is in addition to the menu_skip_mask above). The last entry
  *		must be NULL.
  *		Used only if the @type is %V4L2_CTRL_TYPE_MENU.
@@ -220,7 +220,7 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  * @val:	The control's new s32 value.
  * @priv:	The control's private pointer. For use by the driver. It is
  *		untouched by the control framework. Note that this pointer is
- *		not freed when the control is deleted. Should this be needed
+ *		yest freed when the control is deleted. Should this be needed
  *		then a new internal bitfield can be added to tell the framework
  *		to free this pointer.
  * @p_def:	The control's default value represented via a union which
@@ -235,7 +235,7 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  */
 struct v4l2_ctrl {
 	/* Administrative fields */
-	struct list_head node;
+	struct list_head yesde;
 	struct list_head ev_subs;
 	struct v4l2_ctrl_handler *handler;
 	struct v4l2_ctrl **cluster;
@@ -252,7 +252,7 @@ struct v4l2_ctrl {
 	unsigned int is_ptr:1;
 	unsigned int is_array:1;
 	unsigned int has_volatiles:1;
-	unsigned int call_notify:1;
+	unsigned int call_yestify:1;
 	unsigned int manual_mode_value:8;
 
 	const struct v4l2_ctrl_ops *ops;
@@ -288,19 +288,19 @@ struct v4l2_ctrl {
 /**
  * struct v4l2_ctrl_ref - The control reference.
  *
- * @node:	List node for the sorted list.
- * @next:	Single-link list node for the hash.
+ * @yesde:	List yesde for the sorted list.
+ * @next:	Single-link list yesde for the hash.
  * @ctrl:	The actual control information.
  * @helper:	Pointer to helper struct. Used internally in
  *		``prepare_ext_ctrls`` function at ``v4l2-ctrl.c``.
- * @from_other_dev: If true, then @ctrl was defined in another
+ * @from_other_dev: If true, then @ctrl was defined in ayesther
  *		device than the &struct v4l2_ctrl_handler.
  * @req_done:	Internal flag: if the control handler containing this control
  *		reference is bound to a media request, then this is set when
  *		the control has been applied. This prevents applying controls
  *		from a cluster with multiple controls twice (when the first
  *		control of a cluster is applied, they all are).
- * @req:	If set, this refers to another request that sets this control.
+ * @req:	If set, this refers to ayesther request that sets this control.
  * @p_req:	If the control handler containing this control reference
  *		is bound to a media request, then this points to the
  *		value of the control that should be applied when the request
@@ -312,7 +312,7 @@ struct v4l2_ctrl {
  * is used to link the control in the hash's bucket.
  */
 struct v4l2_ctrl_ref {
-	struct list_head node;
+	struct list_head yesde;
 	struct v4l2_ctrl_ref *next;
 	struct v4l2_ctrl *ctrl;
 	struct v4l2_ctrl_helper *helper;
@@ -336,11 +336,11 @@ struct v4l2_ctrl_ref {
  *		control is needed multiple times, so this is a simple
  *		optimization.
  * @buckets:	Buckets for the hashing. Allows for quick control lookup.
- * @notify:	A notify callback that is called whenever the control changes
+ * @yestify:	A yestify callback that is called whenever the control changes
  *		value.
- *		Note that the handler's lock is held when the notify function
+ *		Note that the handler's lock is held when the yestify function
  *		is called!
- * @notify_priv: Passed as argument to the v4l2_ctrl notify callback.
+ * @yestify_priv: Passed as argument to the v4l2_ctrl yestify callback.
  * @nr_of_buckets: Total number of buckets in the array.
  * @error:	The error code of the first failed control addition.
  * @request_is_queued: True if the request was queued.
@@ -362,8 +362,8 @@ struct v4l2_ctrl_handler {
 	struct list_head ctrl_refs;
 	struct v4l2_ctrl_ref *cached;
 	struct v4l2_ctrl_ref **buckets;
-	v4l2_ctrl_notify_fnc notify;
-	void *notify_priv;
+	v4l2_ctrl_yestify_fnc yestify;
+	void *yestify_priv;
 	u16 nr_of_buckets;
 	int error;
 	bool request_is_queued;
@@ -382,26 +382,26 @@ struct v4l2_ctrl_handler {
  * @type:	The control type.
  * @min:	The control's minimum value.
  * @max:	The control's maximum value.
- * @step:	The control's step value for non-menu controls.
+ * @step:	The control's step value for yesn-menu controls.
  * @def:	The control's default value.
  * @p_def:	The control's default value for compound controls.
  * @dims:	The size of each dimension.
  * @elem_size:	The size in bytes of the control.
  * @flags:	The control's flags.
  * @menu_skip_mask: The control's skip mask for menu controls. This makes it
- *		easy to skip menu items that are not valid. If bit X is set,
+ *		easy to skip menu items that are yest valid. If bit X is set,
  *		then menu item X is skipped. Of course, this only works for
- *		menus with <= 64 menu items. There are no menus that come
+ *		menus with <= 64 menu items. There are yes menus that come
  *		close to that number, so this is OK. Should we ever need more,
  *		then this will have to be extended to a bit array.
  * @qmenu:	A const char * array for all menu items. Array entries that are
- *		empty strings ("") correspond to non-existing menu items (this
+ *		empty strings ("") correspond to yesn-existing menu items (this
  *		is in addition to the menu_skip_mask above). The last entry
  *		must be NULL.
  * @qmenu_int:	A const s64 integer array for all menu items of the type
  *		V4L2_CTRL_TYPE_INTEGER_MENU.
  * @is_private: If set, then this control is private to its handler and it
- *		will not be added to any other handlers.
+ *		will yest be added to any other handlers.
  */
 struct v4l2_ctrl_config {
 	const struct v4l2_ctrl_ops *ops;
@@ -436,18 +436,18 @@ struct v4l2_ctrl_config {
  * @flags: pointer for storing the flags to be used on the control
  *
  * This works for all standard V4L2 controls.
- * For non-standard controls it will only fill in the given arguments
+ * For yesn-standard controls it will only fill in the given arguments
  * and @name content will be set to %NULL.
  *
  * This function will overwrite the contents of @name, @type and @flags.
  * The contents of @min, @max, @step and @def may be modified depending on
  * the type.
  *
- * .. note::
+ * .. yeste::
  *
- *    Do not use in drivers! It is used internally for backwards compatibility
+ *    Do yest use in drivers! It is used internally for backwards compatibility
  *    control handling only. Once all drivers are converted to use the new
- *    control framework this function will no longer be exported.
+ *    control framework this function will yes longer be exported.
  */
 void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		    s64 *min, s64 *max, u64 *step, s64 *def, u32 *flags);
@@ -460,7 +460,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
  *		expected to refer to. This is the total number, so including
  *		any inherited controls. It doesn't have to be precise, but if
  *		it is way off, then you either waste memory (too many buckets
- *		are allocated) or the control lookup becomes slower (not enough
+ *		are allocated) or the control lookup becomes slower (yest eyesugh
  *		buckets are allocated, so there are more slow list lookups).
  *		It will always work, though.
  * @key:	Used by the lock validator if CONFIG_LOCKDEP is set.
@@ -471,7 +471,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
  *    Never use this call directly, always use the v4l2_ctrl_handler_init()
  *    macro that hides the @key and @name arguments.
  *
- * Return: returns an error if the buckets could not be allocated. This
+ * Return: returns an error if the buckets could yest be allocated. This
  * error will also be stored in @hdl->error.
  */
 int v4l2_ctrl_handler_init_class(struct v4l2_ctrl_handler *hdl,
@@ -489,7 +489,7 @@ int v4l2_ctrl_handler_init_class(struct v4l2_ctrl_handler *hdl,
  *		expected to refer to. This is the total number, so including
  *		any inherited controls. It doesn't have to be precise, but if
  *		it is way off, then you either waste memory (too many buckets
- *		are allocated) or the control lookup becomes slower (not enough
+ *		are allocated) or the control lookup becomes slower (yest eyesugh
  *		buckets are allocated, so there are more slow list lookups).
  *		It will always work, though.
  *
@@ -520,7 +520,7 @@ int v4l2_ctrl_handler_init_class(struct v4l2_ctrl_handler *hdl,
  * the control list.
  * @hdl:	The control handler.
  *
- * Does nothing if @hdl == NULL.
+ * Does yesthing if @hdl == NULL.
  */
 void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl);
 
@@ -572,13 +572,13 @@ int v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl);
  * v4l2_ctrl_handler_log_status() - Log all controls owned by the handler.
  * @hdl:	The control handler.
  * @prefix:	The prefix to use when logging the control values. If the
- *		prefix does not end with a space, then ": " will be added
- *		after the prefix. If @prefix == NULL, then no prefix will be
+ *		prefix does yest end with a space, then ": " will be added
+ *		after the prefix. If @prefix == NULL, then yes prefix will be
  *		used.
  *
  * For use with VIDIOC_LOG_STATUS.
  *
- * Does nothing if @hdl == NULL.
+ * Does yesthing if @hdl == NULL.
  */
 void v4l2_ctrl_handler_log_status(struct v4l2_ctrl_handler *hdl,
 				  const char *prefix);
@@ -591,7 +591,7 @@ void v4l2_ctrl_handler_log_status(struct v4l2_ctrl_handler *hdl,
  * @cfg:	The control's configuration data.
  * @priv:	The control's driver-specific private data.
  *
- * If the &v4l2_ctrl struct could not be allocated then NULL is returned
+ * If the &v4l2_ctrl struct could yest be allocated then NULL is returned
  * and @hdl->error is set to the error code (if it wasn't set already).
  */
 struct v4l2_ctrl *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
@@ -599,7 +599,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
 				       void *priv);
 
 /**
- * v4l2_ctrl_new_std() - Allocate and initialize a new standard V4L2 non-menu
+ * v4l2_ctrl_new_std() - Allocate and initialize a new standard V4L2 yesn-menu
  *	control.
  *
  * @hdl:	The control handler.
@@ -610,8 +610,8 @@ struct v4l2_ctrl *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
  * @step:	The control's step value
  * @def:	The control's default value.
  *
- * If the &v4l2_ctrl struct could not be allocated, or the control
- * ID is not known, then NULL is returned and @hdl->error is set to the
+ * If the &v4l2_ctrl struct could yest be allocated, or the control
+ * ID is yest kyeswn, then NULL is returned and @hdl->error is set to the
  * appropriate error code (if it wasn't set already).
  *
  * If @id refers to a menu control, then this function will return NULL.
@@ -632,9 +632,9 @@ struct v4l2_ctrl *v4l2_ctrl_new_std(struct v4l2_ctrl_handler *hdl,
  * @id:		The control ID.
  * @max:	The control's maximum value.
  * @mask:	The control's skip mask for menu controls. This makes it
- *		easy to skip menu items that are not valid. If bit X is set,
+ *		easy to skip menu items that are yest valid. If bit X is set,
  *		then menu item X is skipped. Of course, this only works for
- *		menus with <= 64 menu items. There are no menus that come
+ *		menus with <= 64 menu items. There are yes menus that come
  *		close to that number, so this is OK. Should we ever need more,
  *		then this will have to be extended to a bit array.
  * @def:	The control's default value.
@@ -642,7 +642,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_std(struct v4l2_ctrl_handler *hdl,
  * Same as v4l2_ctrl_new_std(), but @min is set to 0 and the @mask value
  * determines which menu items are to be skipped.
  *
- * If @id refers to a non-menu control, then this function will return NULL.
+ * If @id refers to a yesn-menu control, then this function will return NULL.
  */
 struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
 					 const struct v4l2_ctrl_ops *ops,
@@ -657,9 +657,9 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_menu(struct v4l2_ctrl_handler *hdl,
  * @id:	The control ID.
  * @max:	The control's maximum value.
  * @mask:	The control's skip mask for menu controls. This makes it
- *		easy to skip menu items that are not valid. If bit X is set,
+ *		easy to skip menu items that are yest valid. If bit X is set,
  *		then menu item X is skipped. Of course, this only works for
- *		menus with <= 64 menu items. There are no menus that come
+ *		menus with <= 64 menu items. There are yes menus that come
  *		close to that number, so this is OK. Should we ever need more,
  *		then this will have to be extended to a bit array.
  * @def:	The control's default value.
@@ -706,7 +706,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_std_compound(struct v4l2_ctrl_handler *hdl,
  * Same as v4l2_ctrl_new_std_menu(), but @mask is set to 0 and it additionally
  * takes as an argument an array of integers determining the menu items.
  *
- * If @id refers to a non-integer-menu control, then this function will
+ * If @id refers to a yesn-integer-menu control, then this function will
  * return %NULL.
  */
 struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
@@ -731,10 +731,10 @@ typedef bool (*v4l2_ctrl_filter)(const struct v4l2_ctrl *ctrl);
  * @add:	The control handler whose controls you want to add to
  *		the @hdl control handler.
  * @filter:	This function will filter which controls should be added.
- * @from_other_dev: If true, then the controls in @add were defined in another
+ * @from_other_dev: If true, then the controls in @add were defined in ayesther
  *		device than @hdl.
  *
- * Does nothing if either of the two handlers is a NULL pointer.
+ * Does yesthing if either of the two handlers is a NULL pointer.
  * If @filter is NULL, then all controls are added. Otherwise only those
  * controls for which @filter returns true will be added.
  * In case of an error @hdl->error will be set to the error code (if it
@@ -751,7 +751,7 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
  * @ctrl:	The control that is filtered.
  *
  * This will return true for any controls that are valid for radio device
- * nodes. Those are all of the V4L2_CID_AUDIO_* user controls and all FM
+ * yesdes. Those are all of the V4L2_CID_AUDIO_* user controls and all FM
  * transmitter class controls.
  *
  * This function is to be used with v4l2_ctrl_add_handler().
@@ -811,7 +811,7 @@ void v4l2_ctrl_auto_cluster(unsigned int ncontrols,
  * @id:	The control ID to find.
  *
  * If @hdl == NULL this will return NULL as well. Will lock the handler so
- * do not use from inside &v4l2_ctrl_ops.
+ * do yest use from inside &v4l2_ctrl_ops.
  */
 struct v4l2_ctrl *v4l2_ctrl_find(struct v4l2_ctrl_handler *hdl, u32 id);
 
@@ -821,7 +821,7 @@ struct v4l2_ctrl *v4l2_ctrl_find(struct v4l2_ctrl_handler *hdl, u32 id);
  * @active:	True if the control should become active.
  *
  * This sets or clears the V4L2_CTRL_FLAG_INACTIVE flag atomically.
- * Does nothing if @ctrl == NULL.
+ * Does yesthing if @ctrl == NULL.
  * This will usually be called from within the s_ctrl op.
  * The V4L2_EVENT_CTRL event will be generated afterwards.
  *
@@ -836,7 +836,7 @@ void v4l2_ctrl_activate(struct v4l2_ctrl *ctrl, bool active);
  * @grabbed:	True if the control should become grabbed.
  *
  * This sets or clears the V4L2_CTRL_FLAG_GRABBED flag atomically.
- * Does nothing if @ctrl == NULL.
+ * Does yesthing if @ctrl == NULL.
  * The V4L2_EVENT_CTRL event will be generated afterwards.
  * This will usually be called when starting or stopping streaming in the
  * driver.
@@ -846,18 +846,18 @@ void v4l2_ctrl_activate(struct v4l2_ctrl *ctrl, bool active);
 void __v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed);
 
 /**
- * v4l2_ctrl_grab() - Mark the control as grabbed or not grabbed.
+ * v4l2_ctrl_grab() - Mark the control as grabbed or yest grabbed.
  *
  * @ctrl:	The control to (de)activate.
  * @grabbed:	True if the control should become grabbed.
  *
  * This sets or clears the V4L2_CTRL_FLAG_GRABBED flag atomically.
- * Does nothing if @ctrl == NULL.
+ * Does yesthing if @ctrl == NULL.
  * The V4L2_EVENT_CTRL event will be generated afterwards.
  * This will usually be called when starting or stopping streaming in the
  * driver.
  *
- * This function assumes that the control handler is not locked and will
+ * This function assumes that the control handler is yest locked and will
  * take the lock itself.
  */
 static inline void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed)
@@ -908,7 +908,7 @@ int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
  * An error is returned if one of the range arguments is invalid for this
  * control type.
  *
- * This function assumes that the control handler is not locked and will
+ * This function assumes that the control handler is yest locked and will
  * take the lock itself.
  */
 static inline int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
@@ -924,20 +924,20 @@ static inline int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 }
 
 /**
- * v4l2_ctrl_notify() - Function to set a notify callback for a control.
+ * v4l2_ctrl_yestify() - Function to set a yestify callback for a control.
  *
  * @ctrl:	The control.
- * @notify:	The callback function.
+ * @yestify:	The callback function.
  * @priv:	The callback private handle, passed as argument to the callback.
  *
  * This function sets a callback function for the control. If @ctrl is NULL,
- * then it will do nothing. If @notify is NULL, then the notify callback will
+ * then it will do yesthing. If @yestify is NULL, then the yestify callback will
  * be removed.
  *
- * There can be only one notify. If another already exists, then a WARN_ON
- * will be issued and the function will do nothing.
+ * There can be only one yestify. If ayesther already exists, then a WARN_ON
+ * will be issued and the function will do yesthing.
  */
-void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify,
+void v4l2_ctrl_yestify(struct v4l2_ctrl *ctrl, v4l2_ctrl_yestify_fnc yestify,
 		      void *priv);
 
 /**
@@ -946,7 +946,7 @@ void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify,
  * @id:		The control ID.
  *
  * This function returns the name of the given control ID or NULL if it isn't
- * a known control.
+ * a kyeswn control.
  */
 const char *v4l2_ctrl_get_name(u32 id);
 
@@ -956,7 +956,7 @@ const char *v4l2_ctrl_get_name(u32 id);
  * @id:		The control ID.
  *
  * This function returns the NULL-terminated menu string array name of the
- * given control ID or NULL if it isn't a known menu control.
+ * given control ID or NULL if it isn't a kyeswn menu control.
  */
 const char * const *v4l2_ctrl_get_menu(u32 id);
 
@@ -967,7 +967,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id);
  * @len:	The size of the integer array.
  *
  * This function returns the integer array of the given control ID or NULL if it
- * if it isn't a known integer menu control.
+ * if it isn't a kyeswn integer menu control.
  */
 const s64 *v4l2_ctrl_get_int_menu(u32 id, u32 *len);
 
@@ -978,7 +978,7 @@ const s64 *v4l2_ctrl_get_int_menu(u32 id, u32 *len);
  * @ctrl:	The control.
  *
  * This returns the control's value safely by going through the control
- * framework. This function will lock the control's handler, so it cannot be
+ * framework. This function will lock the control's handler, so it canyest be
  * used from within the &v4l2_ctrl_ops functions.
  *
  * This function is for integer type controls only.
@@ -1006,7 +1006,7 @@ int __v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
  * @val:	The new value.
  *
  * This sets the control's new value safely by going through the control
- * framework. This function will lock the control's handler, so it cannot be
+ * framework. This function will lock the control's handler, so it canyest be
  * used from within the &v4l2_ctrl_ops functions.
  *
  * This function is for integer type controls only.
@@ -1029,7 +1029,7 @@ static inline int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
  * @ctrl:	The control.
  *
  * This returns the control's value safely by going through the control
- * framework. This function will lock the control's handler, so it cannot be
+ * framework. This function will lock the control's handler, so it canyest be
  * used from within the &v4l2_ctrl_ops functions.
  *
  * This function is for 64-bit integer type controls only.
@@ -1058,7 +1058,7 @@ int __v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val);
  * @val:	The new value.
  *
  * This sets the control's new value safely by going through the control
- * framework. This function will lock the control's handler, so it cannot be
+ * framework. This function will lock the control's handler, so it canyest be
  * used from within the &v4l2_ctrl_ops functions.
  *
  * This function is for 64-bit integer type controls only.
@@ -1096,7 +1096,7 @@ int __v4l2_ctrl_s_ctrl_string(struct v4l2_ctrl *ctrl, const char *s);
  * @s:		The new string.
  *
  * This sets the control's new string safely by going through the control
- * framework. This function will lock the control's handler, so it cannot be
+ * framework. This function will lock the control's handler, so it canyest be
  * used from within the &v4l2_ctrl_ops functions.
  *
  * This function is for string type controls only.
@@ -1135,7 +1135,7 @@ int __v4l2_ctrl_s_ctrl_area(struct v4l2_ctrl *ctrl,
  * @area:	The new area.
  *
  * This sets the control's new area safely by going through the control
- * framework. This function will lock the control's handler, so it cannot be
+ * framework. This function will lock the control's handler, so it canyest be
  * used from within the &v4l2_ctrl_ops functions.
  *
  * This function is for area type controls only.
@@ -1218,7 +1218,7 @@ __poll_t v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait);
  * @parent: The parent control handler ('priv' in media_request_object_find())
  *
  * This is a helper function to call the control handler's s_ctrl callback with
- * the control values contained in the request. Do note that this approach of
+ * the control values contained in the request. Do yeste that this approach of
  * applying control values in a request is only applicable to memory-to-memory
  * devices.
  */
@@ -1249,14 +1249,14 @@ void v4l2_ctrl_request_complete(struct media_request *req,
  * @parent: The parent control handler ('priv' in media_request_object_find())
  *
  * This function finds the control handler in the request. It may return
- * NULL if not found. When done, you must call v4l2_ctrl_request_put_hdl()
+ * NULL if yest found. When done, you must call v4l2_ctrl_request_put_hdl()
  * with the returned handler pointer.
  *
- * If the request is not in state VALIDATING or QUEUED, then this function
+ * If the request is yest in state VALIDATING or QUEUED, then this function
  * will always return NULL.
  *
  * Note that in state VALIDATING the req_queue_mutex is held, so
- * no objects can be added or deleted from the request.
+ * yes objects can be added or deleted from the request.
  *
  * In state QUEUED it is the driver that will have to ensure this.
  */

@@ -2,7 +2,7 @@
 #include <config.h>
 
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <pthread.h>
 #include <stddef.h>

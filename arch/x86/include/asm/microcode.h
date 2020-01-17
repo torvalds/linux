@@ -92,7 +92,7 @@ static inline void __exit exit_amd_microcode(void) {}
 		(!((ebx ^ (a))|(edx ^ (b))|(ecx ^ (c))))
 
 /*
- * In early loading microcode phase on BSP, boot_cpu_data is not set up yet.
+ * In early loading microcode phase on BSP, boot_cpu_data is yest set up yet.
  * x86_cpuid_vendor() gets vendor id for BSP.
  *
  * In 32 bit AP case, accessing boot_cpu_data needs linear address. To simplify

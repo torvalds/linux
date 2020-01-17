@@ -122,9 +122,9 @@ static int xrx200_open(struct net_device *net_dev)
 
 	napi_enable(&priv->chan_rx.napi);
 	ltq_dma_open(&priv->chan_rx.dma);
-	/* The boot loader does not always deactivate the receiving of frames
+	/* The boot loader does yest always deactivate the receiving of frames
 	 * on the ports and then some packets queue up in the PPE buffers.
-	 * They already passed the PMAC so they do not have the tags
+	 * They already passed the PMAC so they do yest have the tags
 	 * configured here. Read the these packets here and drop them.
 	 * The HW should have written them into memory after 10us
 	 */
@@ -423,7 +423,7 @@ static void xrx200_hw_cleanup(struct xrx200_priv *priv)
 static int xrx200_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct resource *res;
 	struct xrx200_priv *priv;
 	struct net_device *net_dev;

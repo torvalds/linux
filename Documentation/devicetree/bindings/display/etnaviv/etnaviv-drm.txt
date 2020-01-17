@@ -3,7 +3,7 @@ Vivante GPU core devices
 
 Required properties:
 - compatible: Should be "vivante,gc"
-  A more specific compatible is not needed, as the cores contain chip
+  A more specific compatible is yest needed, as the cores contain chip
   identification registers at fixed locations, which provide all the
   necessary information to the driver.
 - reg: should be register base and length as documented in the

@@ -164,8 +164,8 @@ TRACE_EVENT(snd_soc_dapm_path,
 	TP_STRUCT__entry(
 		__string(	wname,	widget->name		)
 		__string(	pname,	path->name ? path->name : DAPM_DIRECT)
-		__string(	pnname,	path->node[dir]->name	)
-		__field(	int,	path_node		)
+		__string(	pnname,	path->yesde[dir]->name	)
+		__field(	int,	path_yesde		)
 		__field(	int,	path_connect		)
 		__field(	int,	path_dir		)
 	),
@@ -173,14 +173,14 @@ TRACE_EVENT(snd_soc_dapm_path,
 	TP_fast_assign(
 		__assign_str(wname, widget->name);
 		__assign_str(pname, path->name ? path->name : DAPM_DIRECT);
-		__assign_str(pnname, path->node[dir]->name);
+		__assign_str(pnname, path->yesde[dir]->name);
 		__entry->path_connect = path->connect;
-		__entry->path_node = (long)path->node[dir];
+		__entry->path_yesde = (long)path->yesde[dir];
 		__entry->path_dir = dir;
 	),
 
 	TP_printk("%c%s %s %s %s %s",
-		(int) __entry->path_node &&
+		(int) __entry->path_yesde &&
 		(int) __entry->path_connect ? '*' : ' ',
 		__get_str(wname), DAPM_ARROW(__entry->path_dir),
 		__get_str(pname), DAPM_ARROW(__entry->path_dir),
@@ -246,7 +246,7 @@ TRACE_EVENT(snd_soc_jack_report,
 		  (int)__entry->mask)
 );
 
-TRACE_EVENT(snd_soc_jack_notify,
+TRACE_EVENT(snd_soc_jack_yestify,
 
 	TP_PROTO(struct snd_soc_jack *jack, int val),
 

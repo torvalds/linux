@@ -201,16 +201,16 @@
         "UMask": "0x1",
         "EventName": "NO_ALLOC_CYCLES.ROB_FULL",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated and the ROB is full"
+        "BriefDescription": "Counts the number of core cycles when yes micro-ops are allocated and the ROB is full"
     },
     {
-        "PublicDescription": "This event counts the number of core cycles when no uops are allocated and the alloc pipe is stalled waiting for a mispredicted branch to retire.",
+        "PublicDescription": "This event counts the number of core cycles when yes uops are allocated and the alloc pipe is stalled waiting for a mispredicted branch to retire.",
         "EventCode": "0xCA",
         "Counter": "0,1",
         "UMask": "0x4",
         "EventName": "NO_ALLOC_CYCLES.MISPREDICTS",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated and the alloc pipe is stalled waiting for a mispredicted branch to retire."
+        "BriefDescription": "Counts the number of core cycles when yes micro-ops are allocated and the alloc pipe is stalled waiting for a mispredicted branch to retire."
     },
     {
         "EventCode": "0xCA",
@@ -218,16 +218,16 @@
         "UMask": "0x20",
         "EventName": "NO_ALLOC_CYCLES.RAT_STALL",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated and a RATstall (caused by reservation station full) is asserted."
+        "BriefDescription": "Counts the number of core cycles when yes micro-ops are allocated and a RATstall (caused by reservation station full) is asserted."
     },
     {
-        "PublicDescription": "This event counts the number of core cycles when no uops are allocated, the instruction queue is empty and the alloc pipe is stalled waiting for instructions to be fetched.",
+        "PublicDescription": "This event counts the number of core cycles when yes uops are allocated, the instruction queue is empty and the alloc pipe is stalled waiting for instructions to be fetched.",
         "EventCode": "0xCA",
         "Counter": "0,1",
         "UMask": "0x90",
         "EventName": "NO_ALLOC_CYCLES.NOT_DELIVERED",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of core cycles when no micro-ops are allocated, the IQ is empty, and no other condition is blocking allocation."
+        "BriefDescription": "Counts the number of core cycles when yes micro-ops are allocated, the IQ is empty, and yes other condition is blocking allocation."
     },
     {
         "EventCode": "0xCA",
@@ -235,7 +235,7 @@
         "UMask": "0x7f",
         "EventName": "NO_ALLOC_CYCLES.ALL",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the total number of core cycles when no micro-ops are allocated for any reason."
+        "BriefDescription": "Counts the total number of core cycles when yes micro-ops are allocated for any reason."
     },
     {
         "EventCode": "0xCB",
@@ -262,13 +262,13 @@
         "BriefDescription": "Counts the total number of instructions retired"
     },
     {
-        "PublicDescription": "This event counts cycles when the divider is busy. More specifically cycles when the divide unit is unable to accept a new divide uop because it is busy processing a previously dispatched uop. The cycles will be counted irrespective of whether or not another divide uop is waiting to enter the divide unit (from the RS). This event counts integer divides, x87 divides, divss, divsd, sqrtss, sqrtsd event and does not count vector divides.",
+        "PublicDescription": "This event counts cycles when the divider is busy. More specifically cycles when the divide unit is unable to accept a new divide uop because it is busy processing a previously dispatched uop. The cycles will be counted irrespective of whether or yest ayesther divide uop is waiting to enter the divide unit (from the RS). This event counts integer divides, x87 divides, divss, divsd, sqrtss, sqrtsd event and does yest count vector divides.",
         "EventCode": "0xCD",
         "Counter": "0,1",
         "UMask": "0x1",
         "EventName": "CYCLES_DIV_BUSY.ALL",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles the number of core cycles when divider is busy.  Does not imply a stall waiting for the divider."
+        "BriefDescription": "Cycles the number of core cycles when divider is busy.  Does yest imply a stall waiting for the divider."
     },
     {
         "PublicDescription": "This event counts the number of instructions that retire.  For instructions that consist of multiple micro-ops, this event counts exactly once, as the last micro-op of the instruction retires.  The event continues counting while instructions retire, including during interrupt service routines caused by hardware interrupts, faults or traps.",
@@ -295,7 +295,7 @@
         "BriefDescription": "Counts the number of unhalted reference clock cycles"
     },
     {
-        "PublicDescription": "This event counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter",
+        "PublicDescription": "This event counts the number of core cycles while the thread is yest in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Techyeslogy or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was yest in the halt state. It is counted on a dedicated fixed counter",
         "Counter": "Fixed counter 2",
         "UMask": "0x2",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
@@ -315,7 +315,7 @@
         "UMask": "0x1",
         "EventName": "BACLEARS.ALL",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of times the front end resteers for any branch as a result of another branch handling mechanism in the front end."
+        "BriefDescription": "Counts the number of times the front end resteers for any branch as a result of ayesther branch handling mechanism in the front end."
     },
     {
         "EventCode": "0xE6",
@@ -323,7 +323,7 @@
         "UMask": "0x8",
         "EventName": "BACLEARS.RETURN",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of times the front end resteers for RET branches as a result of another branch handling mechanism in the front end."
+        "BriefDescription": "Counts the number of times the front end resteers for RET branches as a result of ayesther branch handling mechanism in the front end."
     },
     {
         "EventCode": "0xE6",
@@ -331,7 +331,7 @@
         "UMask": "0x10",
         "EventName": "BACLEARS.COND",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of times the front end resteers for conditional branches as a result of another branch handling mechanism in the front end."
+        "BriefDescription": "Counts the number of times the front end resteers for conditional branches as a result of ayesther branch handling mechanism in the front end."
     },
     {
         "PEBS": "1",
@@ -349,7 +349,7 @@
         "UMask": "0x2",
         "EventName": "RECYCLEQ.LD_BLOCK_STD_NOTREADY",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of occurences a retired load gets blocked because its address overlaps with a store whose data is not ready"
+        "BriefDescription": "Counts the number of occurences a retired load gets blocked because its address overlaps with a store whose data is yest ready"
     },
     {
         "PublicDescription": "This event counts the number of retired store that experienced a cache line boundary split(Precise Event). Note that each spilt should be counted only once.",
@@ -376,7 +376,7 @@
         "UMask": "0x10",
         "EventName": "RECYCLEQ.LOCK",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts all the retired locked loads. It does not include stores because we would double count if we count stores"
+        "BriefDescription": "Counts all the retired locked loads. It does yest include stores because we would double count if we count stores"
     },
     {
         "EventCode": "0x03",

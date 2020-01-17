@@ -39,15 +39,15 @@ static DECLARE_RWSEM(alg_types_sem);
 static const struct af_alg_type *alg_get_type(const char *name)
 {
 	const struct af_alg_type *type = ERR_PTR(-ENOENT);
-	struct alg_type_list *node;
+	struct alg_type_list *yesde;
 
 	down_read(&alg_types_sem);
-	list_for_each_entry(node, &alg_types, list) {
-		if (strcmp(node->type->name, name))
+	list_for_each_entry(yesde, &alg_types, list) {
+		if (strcmp(yesde->type->name, name))
 			continue;
 
-		if (try_module_get(node->type->owner))
-			type = node->type;
+		if (try_module_get(yesde->type->owner))
+			type = yesde->type;
 		break;
 	}
 	up_read(&alg_types_sem);
@@ -57,25 +57,25 @@ static const struct af_alg_type *alg_get_type(const char *name)
 
 int af_alg_register_type(const struct af_alg_type *type)
 {
-	struct alg_type_list *node;
+	struct alg_type_list *yesde;
 	int err = -EEXIST;
 
 	down_write(&alg_types_sem);
-	list_for_each_entry(node, &alg_types, list) {
-		if (!strcmp(node->type->name, type->name))
+	list_for_each_entry(yesde, &alg_types, list) {
+		if (!strcmp(yesde->type->name, type->name))
 			goto unlock;
 	}
 
-	node = kmalloc(sizeof(*node), GFP_KERNEL);
+	yesde = kmalloc(sizeof(*yesde), GFP_KERNEL);
 	err = -ENOMEM;
-	if (!node)
+	if (!yesde)
 		goto unlock;
 
 	type->ops->owner = THIS_MODULE;
-	if (type->ops_nokey)
-		type->ops_nokey->owner = THIS_MODULE;
-	node->type = type;
-	list_add(&node->list, &alg_types);
+	if (type->ops_yeskey)
+		type->ops_yeskey->owner = THIS_MODULE;
+	yesde->type = type;
+	list_add(&yesde->list, &alg_types);
 	err = 0;
 
 unlock:
@@ -87,16 +87,16 @@ EXPORT_SYMBOL_GPL(af_alg_register_type);
 
 int af_alg_unregister_type(const struct af_alg_type *type)
 {
-	struct alg_type_list *node;
+	struct alg_type_list *yesde;
 	int err = -ENOENT;
 
 	down_write(&alg_types_sem);
-	list_for_each_entry(node, &alg_types, list) {
-		if (strcmp(node->type->name, type->name))
+	list_for_each_entry(yesde, &alg_types, list) {
+		if (strcmp(yesde->type->name, type->name))
 			continue;
 
-		list_del(&node->list);
-		kfree(node);
+		list_del(&yesde->list);
+		kfree(yesde);
 		err = 0;
 		break;
 	}
@@ -128,14 +128,14 @@ EXPORT_SYMBOL_GPL(af_alg_release);
 void af_alg_release_parent(struct sock *sk)
 {
 	struct alg_sock *ask = alg_sk(sk);
-	unsigned int nokey = ask->nokey_refcnt;
-	bool last = nokey && !ask->refcnt;
+	unsigned int yeskey = ask->yeskey_refcnt;
+	bool last = yeskey && !ask->refcnt;
 
 	sk = ask->parent;
 	ask = alg_sk(sk);
 
 	lock_sock(sk);
-	ask->nokey_refcnt -= nokey;
+	ask->yeskey_refcnt -= yeskey;
 	if (!last)
 		last = !--ask->refcnt;
 	release_sock(sk);
@@ -161,7 +161,7 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (addr_len < sizeof(*sa))
 		return -EINVAL;
 
-	/* If caller uses non-allowed flag, return error. */
+	/* If caller uses yesn-allowed flag, return error. */
 	if ((sa->salg_feat & ~allowed) || (sa->salg_mask & ~allowed))
 		return -EINVAL;
 
@@ -185,7 +185,7 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	err = -EBUSY;
 	lock_sock(sk);
-	if (ask->refcnt | ask->nokey_refcnt)
+	if (ask->refcnt | ask->yeskey_refcnt)
 		goto unlock;
 
 	swap(ask->type, type);
@@ -271,7 +271,7 @@ int af_alg_accept(struct sock *sk, struct socket *newsock, bool kern)
 	struct alg_sock *ask = alg_sk(sk);
 	const struct af_alg_type *type;
 	struct sock *sk2;
-	unsigned int nokey;
+	unsigned int yeskey;
 	int err;
 
 	lock_sock(sk);
@@ -292,25 +292,25 @@ int af_alg_accept(struct sock *sk, struct socket *newsock, bool kern)
 
 	err = type->accept(ask->private, sk2);
 
-	nokey = err == -ENOKEY;
-	if (nokey && type->accept_nokey)
-		err = type->accept_nokey(ask->private, sk2);
+	yeskey = err == -ENOKEY;
+	if (yeskey && type->accept_yeskey)
+		err = type->accept_yeskey(ask->private, sk2);
 
 	if (err)
 		goto unlock;
 
-	if (nokey || !ask->refcnt++)
+	if (yeskey || !ask->refcnt++)
 		sock_hold(sk);
-	ask->nokey_refcnt += nokey;
+	ask->yeskey_refcnt += yeskey;
 	alg_sk(sk2)->parent = sk;
 	alg_sk(sk2)->type = type;
-	alg_sk(sk2)->nokey_refcnt = nokey;
+	alg_sk(sk2)->yeskey_refcnt = yeskey;
 
 	newsock->ops = type->ops;
 	newsock->state = SS_CONNECTED;
 
-	if (nokey)
-		newsock->ops = type->ops_nokey;
+	if (yeskey)
+		newsock->ops = type->ops_yeskey;
 
 	err = 0;
 
@@ -331,17 +331,17 @@ static const struct proto_ops alg_proto_ops = {
 	.family		=	PF_ALG,
 	.owner		=	THIS_MODULE,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
-	.mmap		=	sock_no_mmap,
-	.sendpage	=	sock_no_sendpage,
-	.sendmsg	=	sock_no_sendmsg,
-	.recvmsg	=	sock_no_recvmsg,
+	.connect	=	sock_yes_connect,
+	.socketpair	=	sock_yes_socketpair,
+	.getname	=	sock_yes_getname,
+	.ioctl		=	sock_yes_ioctl,
+	.listen		=	sock_yes_listen,
+	.shutdown	=	sock_yes_shutdown,
+	.getsockopt	=	sock_yes_getsockopt,
+	.mmap		=	sock_yes_mmap,
+	.sendpage	=	sock_yes_sendpage,
+	.sendmsg	=	sock_yes_sendmsg,
+	.recvmsg	=	sock_yes_recvmsg,
 
 	.bind		=	alg_bind,
 	.release	=	af_alg_release,
@@ -566,14 +566,14 @@ EXPORT_SYMBOL_GPL(af_alg_count_tsgl);
 /**
  * aead_pull_tsgl - Release the specified buffers from TX SGL
  *
- * If @dst is non-null, reassign the pages to dst. The caller must release
+ * If @dst is yesn-null, reassign the pages to dst. The caller must release
  * the pages. If @dst_offset is given only reassign the pages to @dst starting
  * at the @dst_offset (byte). The caller must ensure that @dst is large
- * enough (e.g. by using af_alg_count_tsgl with the same offset).
+ * eyesugh (e.g. by using af_alg_count_tsgl with the same offset).
  *
  * @sk socket of connection to user space
  * @used Number of bytes to pull from TX SGL
- * @dst If non-NULL, buffer is reassigned to dst SGL instead of releasing. The
+ * @dst If yesn-NULL, buffer is reassigned to dst SGL instead of releasing. The
  *	caller must release the buffers in dst.
  * @dst_offset Reassign the TX SGL from given offset. All buffers before
  *	       reaching the offset is released.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2016 Avago Technologies.  All rights reserved.
+ * Copyright (c) 2016 Avago Techyeslogies.  All rights reserved.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -106,7 +106,7 @@ fcloop_parse_options(struct fcloop_ctrl_options *opts,
 			opts->lpwwpn = token64;
 			break;
 		default:
-			pr_warn("unknown parameter or missing value '%s'\n", p);
+			pr_warn("unkyeswn parameter or missing value '%s'\n", p);
 			ret = -EINVAL;
 			goto out_free_options;
 		}
@@ -155,7 +155,7 @@ fcloop_parse_nm_options(struct device *dev, u64 *nname, u64 *pname,
 			*pname = token64;
 			break;
 		default:
-			pr_warn("unknown parameter or missing value '%s'\n", p);
+			pr_warn("unkyeswn parameter or missing value '%s'\n", p);
 			ret = -EINVAL;
 			goto out_free_options;
 		}
@@ -217,7 +217,7 @@ struct fcloop_nport {
 	struct fcloop_lport *lport;
 	struct list_head nport_list;
 	struct kref ref;
-	u64 node_name;
+	u64 yesde_name;
 	u64 port_name;
 	u32 port_role;
 	u32 port_id;
@@ -722,7 +722,7 @@ fcloop_tgt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	tfcp_req->status = NVME_SC_INTERNAL;
 
 	/*
-	 * nothing more to do. If io wasn't active, the transport should
+	 * yesthing more to do. If io wasn't active, the transport should
 	 * immediately call the req_release. If it was active, the op
 	 * will complete, and the lldd should call req_release.
 	 */
@@ -787,7 +787,7 @@ fcloop_fcp_abort(struct nvme_fc_local_port *localport,
 	else  {
 		/*
 		 * as the io has already had the done callback made,
-		 * nothing more to do. So release the reference taken above
+		 * yesthing more to do. So release the reference taken above
 		 */
 		fcloop_tfcp_req_put(tfcp_req);
 	}
@@ -918,7 +918,7 @@ fcloop_create_local_port(struct device *dev, struct device_attribute *attr,
 	}
 
 	memset(&pinfo, 0, sizeof(pinfo));
-	pinfo.node_name = opts->wwnn;
+	pinfo.yesde_name = opts->wwnn;
 	pinfo.port_name = opts->wwpn;
 	pinfo.port_role = opts->roles;
 	pinfo.port_id = opts->fcaddr;
@@ -976,18 +976,18 @@ fcloop_delete_local_port(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct fcloop_lport *tlport, *lport = NULL;
-	u64 nodename, portname;
+	u64 yesdename, portname;
 	unsigned long flags;
 	int ret;
 
-	ret = fcloop_parse_nm_options(dev, &nodename, &portname, buf);
+	ret = fcloop_parse_nm_options(dev, &yesdename, &portname, buf);
 	if (ret)
 		return ret;
 
 	spin_lock_irqsave(&fcloop_lock, flags);
 
 	list_for_each_entry(tlport, &fcloop_lports, lport_list) {
-		if (tlport->localport->node_name == nodename &&
+		if (tlport->localport->yesde_name == yesdename &&
 		    tlport->localport->port_name == portname) {
 			lport = tlport;
 			__unlink_local_port(lport);
@@ -1033,7 +1033,7 @@ fcloop_alloc_nport(const char *buf, size_t count, bool remoteport)
 		goto out_free_opts;
 
 	INIT_LIST_HEAD(&newnport->nport_list);
-	newnport->node_name = opts->wwnn;
+	newnport->yesde_name = opts->wwnn;
 	newnport->port_name = opts->wwpn;
 	if (opts->mask & NVMF_OPT_ROLES)
 		newnport->port_role = opts->roles;
@@ -1044,11 +1044,11 @@ fcloop_alloc_nport(const char *buf, size_t count, bool remoteport)
 	spin_lock_irqsave(&fcloop_lock, flags);
 
 	list_for_each_entry(tmplport, &fcloop_lports, lport_list) {
-		if (tmplport->localport->node_name == opts->wwnn &&
+		if (tmplport->localport->yesde_name == opts->wwnn &&
 		    tmplport->localport->port_name == opts->wwpn)
 			goto out_invalid_opts;
 
-		if (tmplport->localport->node_name == opts->lpwwnn &&
+		if (tmplport->localport->yesde_name == opts->lpwwnn &&
 		    tmplport->localport->port_name == opts->lpwwpn)
 			lport = tmplport;
 	}
@@ -1060,7 +1060,7 @@ fcloop_alloc_nport(const char *buf, size_t count, bool remoteport)
 	}
 
 	list_for_each_entry(nport, &fcloop_nports, nport_list) {
-		if (nport->node_name == opts->wwnn &&
+		if (nport->yesde_name == opts->wwnn &&
 		    nport->port_name == opts->wwpn) {
 			if ((remoteport && nport->rport) ||
 			    (!remoteport && nport->tport)) {
@@ -1113,7 +1113,7 @@ fcloop_create_remote_port(struct device *dev, struct device_attribute *attr,
 		return -EIO;
 
 	memset(&pinfo, 0, sizeof(pinfo));
-	pinfo.node_name = nport->node_name;
+	pinfo.yesde_name = nport->yesde_name;
 	pinfo.port_name = nport->port_name;
 	pinfo.port_role = nport->port_role;
 	pinfo.port_id = nport->port_id;
@@ -1168,18 +1168,18 @@ fcloop_delete_remote_port(struct device *dev, struct device_attribute *attr,
 {
 	struct fcloop_nport *nport = NULL, *tmpport;
 	static struct fcloop_rport *rport;
-	u64 nodename, portname;
+	u64 yesdename, portname;
 	unsigned long flags;
 	int ret;
 
-	ret = fcloop_parse_nm_options(dev, &nodename, &portname, buf);
+	ret = fcloop_parse_nm_options(dev, &yesdename, &portname, buf);
 	if (ret)
 		return ret;
 
 	spin_lock_irqsave(&fcloop_lock, flags);
 
 	list_for_each_entry(tmpport, &fcloop_nports, nport_list) {
-		if (tmpport->node_name == nodename &&
+		if (tmpport->yesde_name == yesdename &&
 		    tmpport->port_name == portname && tmpport->rport) {
 			nport = tmpport;
 			rport = __unlink_remote_port(nport);
@@ -1211,7 +1211,7 @@ fcloop_create_target_port(struct device *dev, struct device_attribute *attr,
 	if (!nport)
 		return -EIO;
 
-	tinfo.node_name = nport->node_name;
+	tinfo.yesde_name = nport->yesde_name;
 	tinfo.port_name = nport->port_name;
 	tinfo.port_id = nport->port_id;
 
@@ -1263,18 +1263,18 @@ fcloop_delete_target_port(struct device *dev, struct device_attribute *attr,
 {
 	struct fcloop_nport *nport = NULL, *tmpport;
 	struct fcloop_tport *tport = NULL;
-	u64 nodename, portname;
+	u64 yesdename, portname;
 	unsigned long flags;
 	int ret;
 
-	ret = fcloop_parse_nm_options(dev, &nodename, &portname, buf);
+	ret = fcloop_parse_nm_options(dev, &yesdename, &portname, buf);
 	if (ret)
 		return ret;
 
 	spin_lock_irqsave(&fcloop_lock, flags);
 
 	list_for_each_entry(tmpport, &fcloop_nports, nport_list) {
-		if (tmpport->node_name == nodename &&
+		if (tmpport->yesde_name == yesdename &&
 		    tmpport->port_name == portname && tmpport->tport) {
 			nport = tmpport;
 			tport = __unlink_target_port(nport);

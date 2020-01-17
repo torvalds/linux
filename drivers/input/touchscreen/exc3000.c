@@ -127,7 +127,7 @@ static irqreturn_t exc3000_interrupt(int irq, void *dev_id)
 	}
 
 	/*
-	 * We read full state successfully, no contacts will be "stuck".
+	 * We read full state successfully, yes contacts will be "stuck".
 	 */
 	del_timer_sync(&data->timer);
 

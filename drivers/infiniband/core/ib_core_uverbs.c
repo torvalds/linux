@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
  * Copyright 2019 Marvell. All rights reserved.
  */
@@ -56,7 +56,7 @@ EXPORT_SYMBOL(rdma_umap_priv_init);
  * @size: size to map
  * @prot: pgprot to use in remap call
  * @entry: mmap_entry retrieved from rdma_user_mmap_entry_get(), or NULL
- *         if mmap_entry is not used by the driver
+ *         if mmap_entry is yest used by the driver
  *
  * This is to be called by drivers as part of their mmap() functions if they
  * wish to send something like PCI-E BAR memory to userspace.
@@ -110,7 +110,7 @@ EXPORT_SYMBOL(rdma_user_mmap_io);
  * rdma_user_mmap_entry_insert().  This function increases the refcnt of the
  * entry so that it won't be deleted from the xarray in the meantime.
  *
- * Return an reference to an entry if exists or NULL if there is no
+ * Return an reference to an entry if exists or NULL if there is yes
  * match. rdma_user_mmap_entry_put() must be called to put the reference.
  */
 struct rdma_user_mmap_entry *
@@ -128,7 +128,7 @@ rdma_user_mmap_entry_get_pgoff(struct ib_ucontext *ucontext,
 
 	/*
 	 * If refcount is zero, entry is already being deleted, driver_removed
-	 * indicates that the no further mmaps are possible and we waiting for
+	 * indicates that the yes further mmaps are possible and we waiting for
 	 * the active VMAs to be closed.
 	 */
 	if (!entry || entry->start_pgoff != pgoff || entry->driver_removed ||
@@ -208,7 +208,7 @@ static void rdma_user_mmap_entry_free(struct kref *kref)
  * an io mapping or when the driver is done with the entry for
  * some other reason.
  * Should be called after rdma_user_mmap_entry_get was called
- * and entry is no longer needed. This function will erase the
+ * and entry is yes longer needed. This function will erase the
  * entry and free it if its refcnt reaches zero.
  */
 void rdma_user_mmap_entry_put(struct rdma_user_mmap_entry *entry)
@@ -225,7 +225,7 @@ EXPORT_SYMBOL(rdma_user_mmap_entry_put);
  *
  * Drivers can call this to prevent userspace from creating more mappings for
  * entry, however existing mmaps continue to exist and ops->mmap_free() will
- * not be called until all user mmaps are destroyed.
+ * yest be called until all user mmaps are destroyed.
  */
 void rdma_user_mmap_entry_remove(struct rdma_user_mmap_entry *entry)
 {
@@ -278,7 +278,7 @@ int rdma_user_mmap_entry_insert_range(struct ib_ucontext *ucontext,
 	 * We want the whole allocation to be done without interruption from a
 	 * different thread. The allocation requires finding a free range and
 	 * storing. During the xa_insert the lock could be released, possibly
-	 * allowing another thread to choose the same range.
+	 * allowing ayesther thread to choose the same range.
 	 */
 	mutex_lock(&ufile->umap_lock);
 
@@ -290,12 +290,12 @@ int rdma_user_mmap_entry_insert_range(struct ib_ucontext *ucontext,
 	while (true) {
 		/* First find an empty index */
 		xas_find_marked(&xas, max_pgoff, XA_FREE_MARK);
-		if (xas.xa_node == XAS_RESTART)
+		if (xas.xa_yesde == XAS_RESTART)
 			goto err_unlock;
 
 		xa_first = xas.xa_index;
 
-		/* Is there enough room to have the range? */
+		/* Is there eyesugh room to have the range? */
 		if (check_add_overflow(xa_first, npages, &xa_last))
 			goto err_unlock;
 
@@ -304,7 +304,7 @@ int rdma_user_mmap_entry_insert_range(struct ib_ucontext *ucontext,
 		 * exist, we found an empty range and can proceed.
 		 */
 		xas_next_entry(&xas, xa_last - 1);
-		if (xas.xa_node == XAS_BOUNDS || xas.xa_index >= xa_last)
+		if (xas.xa_yesde == XAS_BOUNDS || xas.xa_index >= xa_last)
 			break;
 	}
 
@@ -316,7 +316,7 @@ int rdma_user_mmap_entry_insert_range(struct ib_ucontext *ucontext,
 
 	/*
 	 * Internally the kernel uses a page offset, in libc this is a byte
-	 * offset. Drivers should not return pgoff to userspace.
+	 * offset. Drivers should yest return pgoff to userspace.
 	 */
 	entry->start_pgoff = xa_first;
 	xa_unlock(&ucontext->mmap_xa);

@@ -19,7 +19,7 @@
 #define XEN_EFLAGS_NMI  0x80000000
 
 /*
- * This is run where a normal iret would be run, with the same stack setup:
+ * This is run where a yesrmal iret would be run, with the same stack setup:
  *	8: eflags
  *	4: cs
  *	esp-> 0: eip
@@ -28,17 +28,17 @@
  * on return to usermode, but there is a small window in which an
  * event can happen just before entering usermode.  If the nested
  * interrupt ends up setting one of the TIF_WORK_MASK pending work
- * flags, they will not be tested again before returning to
+ * flags, they will yest be tested again before returning to
  * usermode. This means that a process can end up with pending work,
  * which will be unprocessed until the process enters and leaves the
  * kernel again, which could be an unbounded amount of time.  This
  * means that a pending signal or reschedule event could be
  * indefinitely delayed.
  *
- * The fix is to notice a nested interrupt in the critical window, and
+ * The fix is to yestice a nested interrupt in the critical window, and
  * if one occurs, then fold the nested interrupt into the current
  * interrupt stack frame, and re-process it iteratively rather than
- * recursively.  This means that it will exit via the normal path, and
+ * recursively.  This means that it will exit via the yesrmal path, and
  * all pending work will be dealt with appropriately.
  *
  * Because the nested interrupt handler needs to deal with the current
@@ -83,7 +83,7 @@ SYM_CODE_START(xen_iret)
 	 * recursive event, so the critical region starts immediately
 	 * afterwards.  However, if that happens we don't end up
 	 * resuming the code, so we don't have to be worried about
-	 * being preempted to another CPU.
+	 * being preempted to ayesther CPU.
 	 */
 	setz %ss:XEN_vcpu_info_mask(%eax)
 xen_iret_start_crit:
@@ -93,7 +93,7 @@ xen_iret_start_crit:
 
 	/*
 	 * If there's something pending, mask events again so we can
-	 * jump back into xen_hypervisor_callback. Otherwise do not
+	 * jump back into xen_hypervisor_callback. Otherwise do yest
 	 * touch XEN_vcpu_info_mask.
 	 */
 	jne 1f
@@ -155,7 +155,7 @@ SYM_CODE_END(xen_iret)
  */
 SYM_CODE_START(xen_iret_crit_fixup)
 	/*
-	 * Paranoia: Make sure we're really coming from kernel space.
+	 * Parayesia: Make sure we're really coming from kernel space.
 	 * One could imagine a case where userspace jumps into the
 	 * critical range address, but just before the CPU delivers a
 	 * PF, it decides to deliver an interrupt instead.  Unlikely?

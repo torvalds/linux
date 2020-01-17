@@ -33,7 +33,7 @@ struct debug_info {
 struct thread_struct {
 							/* fault info	  */
 	unsigned long		address;
-	unsigned long		trap_no;
+	unsigned long		trap_yes;
 	unsigned long		error_code;
 							/* debugging	  */
 	struct debug_info	debug;

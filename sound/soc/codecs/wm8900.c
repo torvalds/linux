@@ -364,7 +364,7 @@ SOC_SINGLE("Right Input PGA ZC Switch", WM8900_REG_RINVOL, 7, 1, 0),
 
 SOC_SINGLE("DAC Soft Mute Switch", WM8900_REG_DACCTRL, 6, 1, 1),
 SOC_ENUM("DAC Mute Rate", dac_mute_rate),
-SOC_SINGLE("DAC Mono Switch", WM8900_REG_DACCTRL, 9, 1, 0),
+SOC_SINGLE("DAC Moyes Switch", WM8900_REG_DACCTRL, 9, 1, 0),
 SOC_ENUM("DAC Deemphasis", dac_deemphasis),
 SOC_SINGLE("DAC Sigma-Delta Modulator Clock Switch", WM8900_REG_DACCTRL,
 	   12, 1, 0),
@@ -617,10 +617,10 @@ static const struct snd_soc_dapm_route wm8900_dapm_routes[] = {
 
 /* Note that the headphone output stage needs to be connected
  * externally to LINEOUT2 via DC blocking capacitors.  Other
- * configurations are not supported.
+ * configurations are yest supported.
  *
  * Note also that left and right headphone paths are treated as a
- * mono path.
+ * moyes path.
  */
 {"Headphone Amplifier", NULL, "LINEOUT2 LP"},
 {"Headphone Amplifier", NULL, "LINEOUT2 LP"},
@@ -738,7 +738,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range yesw rounding is done */
 	fll_div->k = K / 10;
 
 	if (WARN_ON(target != Fout * (fll_div->fllclk_div << 2)) ||
@@ -925,7 +925,7 @@ static int wm8900_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion yest valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			aif1 &= ~WM8900_REG_AUDIO1_BCLK_INV;
@@ -1178,7 +1178,7 @@ static int wm8900_probe(struct snd_soc_component *component)
 
 	reg = snd_soc_component_read32(component, WM8900_REG_ID);
 	if (reg != 0x8900) {
-		dev_err(component->dev, "Device is not a WM8900 - ID %x\n", reg);
+		dev_err(component->dev, "Device is yest a WM8900 - ID %x\n", reg);
 		return -ENODEV;
 	}
 
@@ -1219,7 +1219,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8900 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8900_regmap = {

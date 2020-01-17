@@ -89,7 +89,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 	default:
 		/*
-		 * Op is not a constant or string, append each argument to the Op
+		 * Op is yest a constant or string, append each argument to the Op
 		 */
 		while (GET_CURRENT_ARG_TYPE(walk_state->arg_types) &&
 		       !walk_state->arg_count) {
@@ -136,7 +136,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		switch (op->common.aml_opcode) {
 		case AML_METHOD_OP:
 			/*
-			 * Skip parsing of control method because we don't have enough
+			 * Skip parsing of control method because we don't have eyesugh
 			 * info in the first pass to parse it correctly.
 			 *
 			 * Save the length and address of the body
@@ -169,7 +169,7 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 				/*
 				 * Skip parsing of Buffers and Packages because we don't have
-				 * enough info in the first pass to parse them correctly.
+				 * eyesugh info in the first pass to parse them correctly.
 				 */
 				op->named.data = aml_op_start;
 				op->named.length = (u32)
@@ -268,7 +268,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 					AE_CODE_CONTROL)) {
 					if (status == AE_AML_NO_RETURN_VALUE) {
 						ACPI_EXCEPTION((AE_INFO, status,
-								"Invoked method did not return a value"));
+								"Invoked method did yest return a value"));
 					}
 
 					ACPI_EXCEPTION((AE_INFO, status,
@@ -343,7 +343,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 					/*
 					 * If the scope/device op fails to parse, skip the body of
 					 * the scope op because the parse failure indicates that
-					 * the device may not exist.
+					 * the device may yest exist.
 					 */
 					ACPI_INFO(("Skipping parse of AML opcode: %s (0x%4.4X)", acpi_ps_get_opcode_name(walk_state->opcode), walk_state->opcode));
 
@@ -373,7 +373,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 		}
 
 		/*
-		 * Start arg_count at zero because we don't know if there are
+		 * Start arg_count at zero because we don't kyesw if there are
 		 * any args yet
 		 */
 		walk_state->arg_count = 0;
@@ -485,11 +485,11 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			    op->common.aml_opcode == AML_DATA_REGION_OP) {
 				/*
 				 * Skip parsing of control method or opregion body,
-				 * because we don't have enough info in the first pass
+				 * because we don't have eyesugh info in the first pass
 				 * to parse them correctly.
 				 *
-				 * Completed parsing an op_region declaration, we now
-				 * know the length.
+				 * Completed parsing an op_region declaration, we yesw
+				 * kyesw the length.
 				 */
 				op->named.length =
 				    (u32) (parser_state->aml - op->named.data);
@@ -501,7 +501,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			 * Backup to beginning of create_XXXfield declaration (1 for
 			 * Opcode)
 			 *
-			 * body_length is unknown until we parse the body
+			 * body_length is unkyeswn until we parse the body
 			 */
 			op->named.length =
 			    (u32) (parser_state->aml - op->named.data);
@@ -511,13 +511,13 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			/*
 			 * Backup to beginning of bank_field declaration
 			 *
-			 * body_length is unknown until we parse the body
+			 * body_length is unkyeswn until we parse the body
 			 */
 			op->named.length =
 			    (u32) (parser_state->aml - op->named.data);
 		}
 
-		/* This op complete, notify the dispatcher */
+		/* This op complete, yestify the dispatcher */
 
 		if (walk_state->ascending_callback != NULL) {
 			walk_state->op = op;

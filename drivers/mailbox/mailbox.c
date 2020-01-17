@@ -131,7 +131,7 @@ static enum hrtimer_restart txdone_hrtimer(struct hrtimer *hrtimer)
 	}
 
 	if (resched) {
-		hrtimer_forward_now(hrtimer, ms_to_ktime(mbox->txpoll_period));
+		hrtimer_forward_yesw(hrtimer, ms_to_ktime(mbox->txpoll_period));
 		return HRTIMER_RESTART;
 	}
 	return HRTIMER_NORESTART;
@@ -156,7 +156,7 @@ void mbox_chan_received_data(struct mbox_chan *chan, void *mssg)
 EXPORT_SYMBOL_GPL(mbox_chan_received_data);
 
 /**
- * mbox_chan_txdone - A way for controller driver to notify the
+ * mbox_chan_txdone - A way for controller driver to yestify the
  *			framework that the last TX has completed.
  * @chan: Pointer to the mailbox chan on which TX happened.
  * @r: Status of last TX - OK or ERROR
@@ -182,7 +182,7 @@ EXPORT_SYMBOL_GPL(mbox_chan_txdone);
  * @chan: Mailbox channel assigned to this client.
  * @r: Success status of last transmission.
  *
- * The client/protocol had received some 'ACK' packet and it notifies
+ * The client/protocol had received some 'ACK' packet and it yestifies
  * the API that the last packet was sent successfully. This only works
  * if the controller can't sense TX-Done.
  */
@@ -206,7 +206,7 @@ EXPORT_SYMBOL_GPL(mbox_client_txdone);
  * The data is actually passed onto client via the
  * mbox_chan_received_data()
  * The call can be made from atomic context, so the controller's
- * implementation of peek_data() must not sleep.
+ * implementation of peek_data() must yest sleep.
  *
  * Return: True, if controller has, and is going to push after this,
  *          some data.
@@ -231,19 +231,19 @@ EXPORT_SYMBOL_GPL(mbox_client_peek_data);
  * processor. If the client had set 'tx_block', the call will return
  * either when the remote receives the data or when 'tx_tout' millisecs
  * run out.
- *  In non-blocking mode, the requests are buffered by the API and a
- * non-negative token is returned for each queued request. If the request
- * is not queued, a negative token is returned. Upon failure or successful
+ *  In yesn-blocking mode, the requests are buffered by the API and a
+ * yesn-negative token is returned for each queued request. If the request
+ * is yest queued, a negative token is returned. Upon failure or successful
  * TX, the API calls 'tx_done' from atomic context, from which the client
- * could submit yet another request.
+ * could submit yet ayesther request.
  * The pointer to message should be preserved until it is sent
  * over the chan, i.e, tx_done() is made.
  * This function could be called from atomic context as it simply
  * queues the data and returns a token against the request.
  *
- * Return: Non-negative integer for successful submission (non-blocking mode)
+ * Return: Non-negative integer for successful submission (yesn-blocking mode)
  *	or transmission over chan (blocking mode).
- *	Negative value denotes failure.
+ *	Negative value deyestes failure.
  */
 int mbox_send_message(struct mbox_chan *chan, void *mssg)
 {
@@ -316,7 +316,7 @@ EXPORT_SYMBOL_GPL(mbox_flush);
  *
  * The Client specifies its requirements and capabilities while asking for
  * a mailbox channel. It can't be called from atomic context.
- * The channel is exclusively allocated and can't be used by another
+ * The channel is exclusively allocated and can't be used by ayesther
  * client before the owner calls mbox_free_channel.
  * After assignment, any packet received on this channel will be
  * handed over to the client via the 'rx_callback'.
@@ -335,14 +335,14 @@ struct mbox_chan *mbox_request_channel(struct mbox_client *cl, int index)
 	unsigned long flags;
 	int ret;
 
-	if (!dev || !dev->of_node) {
-		pr_debug("%s: No owner device node\n", __func__);
+	if (!dev || !dev->of_yesde) {
+		pr_debug("%s: No owner device yesde\n", __func__);
 		return ERR_PTR(-ENODEV);
 	}
 
 	mutex_lock(&con_mutex);
 
-	if (of_parse_phandle_with_args(dev->of_node, "mboxes",
+	if (of_parse_phandle_with_args(dev->of_yesde, "mboxes",
 				       "#mbox-cells", index, &spec)) {
 		dev_dbg(dev, "%s: can't parse \"mboxes\" property\n", __func__);
 		mutex_unlock(&con_mutex);
@@ -350,14 +350,14 @@ struct mbox_chan *mbox_request_channel(struct mbox_client *cl, int index)
 	}
 
 	chan = ERR_PTR(-EPROBE_DEFER);
-	list_for_each_entry(mbox, &mbox_cons, node)
-		if (mbox->dev->of_node == spec.np) {
+	list_for_each_entry(mbox, &mbox_cons, yesde)
+		if (mbox->dev->of_yesde == spec.np) {
 			chan = mbox->of_xlate(mbox, &spec);
 			if (!IS_ERR(chan))
 				break;
 		}
 
-	of_node_put(spec.np);
+	of_yesde_put(spec.np);
 
 	if (IS_ERR(chan)) {
 		mutex_unlock(&con_mutex);
@@ -365,7 +365,7 @@ struct mbox_chan *mbox_request_channel(struct mbox_client *cl, int index)
 	}
 
 	if (chan->cl || !try_module_get(mbox->dev->driver->owner)) {
-		dev_dbg(dev, "%s: mailbox not free\n", __func__);
+		dev_dbg(dev, "%s: mailbox yest free\n", __func__);
 		mutex_unlock(&con_mutex);
 		return ERR_PTR(-EBUSY);
 	}
@@ -377,7 +377,7 @@ struct mbox_chan *mbox_request_channel(struct mbox_client *cl, int index)
 	chan->cl = cl;
 	init_completion(&chan->tx_complete);
 
-	if (chan->txdone_method	== TXDONE_BY_POLL && cl->knows_txdone)
+	if (chan->txdone_method	== TXDONE_BY_POLL && cl->kyesws_txdone)
 		chan->txdone_method = TXDONE_BY_ACK;
 
 	spin_unlock_irqrestore(&chan->lock, flags);
@@ -400,7 +400,7 @@ EXPORT_SYMBOL_GPL(mbox_request_channel);
 struct mbox_chan *mbox_request_channel_byname(struct mbox_client *cl,
 					      const char *name)
 {
-	struct device_node *np = cl->dev->of_node;
+	struct device_yesde *np = cl->dev->of_yesde;
 	struct property *prop;
 	const char *mbox_name;
 	int index = 0;
@@ -422,7 +422,7 @@ struct mbox_chan *mbox_request_channel_byname(struct mbox_client *cl,
 		index++;
 	}
 
-	dev_err(cl->dev, "%s() could not locate channel named \"%s\"\n",
+	dev_err(cl->dev, "%s() could yest locate channel named \"%s\"\n",
 		__func__, name);
 	return ERR_PTR(-EINVAL);
 }
@@ -443,7 +443,7 @@ void mbox_free_channel(struct mbox_chan *chan)
 	if (chan->mbox->ops->shutdown)
 		chan->mbox->ops->shutdown(chan);
 
-	/* The queued TX requests are simply aborted, no callbacks are made */
+	/* The queued TX requests are simply aborted, yes callbacks are made */
 	spin_lock_irqsave(&chan->lock, flags);
 	chan->cl = NULL;
 	chan->active_req = NULL;
@@ -513,7 +513,7 @@ int mbox_controller_register(struct mbox_controller *mbox)
 		mbox->of_xlate = of_mbox_index_xlate;
 
 	mutex_lock(&con_mutex);
-	list_add_tail(&mbox->node, &mbox_cons);
+	list_add_tail(&mbox->yesde, &mbox_cons);
 	mutex_unlock(&con_mutex);
 
 	return 0;
@@ -533,7 +533,7 @@ void mbox_controller_unregister(struct mbox_controller *mbox)
 
 	mutex_lock(&con_mutex);
 
-	list_del(&mbox->node);
+	list_del(&mbox->yesde);
 
 	for (i = 0; i < mbox->num_chans; i++)
 		mbox_free_channel(&mbox->chans[i]);
@@ -605,7 +605,7 @@ EXPORT_SYMBOL_GPL(devm_mbox_controller_register);
  *
  * This function unregisters the mailbox controller and removes the device-
  * managed resource that was set up to automatically unregister the mailbox
- * controller on driver probe failure or driver removal. It's typically not
+ * controller on driver probe failure or driver removal. It's typically yest
  * necessary to call this function.
  */
 void devm_mbox_controller_unregister(struct device *dev, struct mbox_controller *mbox)

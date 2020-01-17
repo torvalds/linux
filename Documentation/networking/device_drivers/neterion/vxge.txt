@@ -47,7 +47,7 @@ v)   Offloads supported: (Enabled by default)
        Generic Receive Offload (GRO) on receive path
 
 vi)  MSI-X: (Enabled by default)
-       Resulting in noticeable performance improvement (up to 7% on certain
+       Resulting in yesticeable performance improvement (up to 7% on certain
        platforms).
 
 vii) NAPI: (Enabled by default)
@@ -82,7 +82,7 @@ iii)max_config_vpath
 
 iv) vlan_tag_strip
        Enables/disables vlan tag stripping from all received tagged frames that
-       are not replicated at the internal L2 switch.
+       are yest replicated at the internal L2 switch.
        Valid range: 0,1 (disabled, enabled respectively)
        Default: 1
 

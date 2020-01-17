@@ -397,7 +397,7 @@ struct ring_stats {
 			u64 l2_err;
 			u64 l3l4_csum_err;
 			u64 rx_multicast;
-			u64 non_reuse_pg;
+			u64 yesn_reuse_pg;
 		};
 	};
 };
@@ -435,7 +435,7 @@ struct hns3_enet_ring {
 	int pending_buf;
 	struct sk_buff *skb;
 	struct sk_buff *tail_skb;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 enum hns3_flow_level_range {
 	HNS3_FLOW_LOW = 0,
@@ -483,12 +483,12 @@ struct hns3_enet_tqp_vector {
 
 	cpumask_t affinity_mask;
 	u16 num_tqps;	/* total number of tqps in TQP vector */
-	struct irq_affinity_notify affinity_notify;
+	struct irq_affinity_yestify affinity_yestify;
 
 	char name[HNAE3_INT_NAME_LEN];
 
 	unsigned long last_jiffies;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 enum hns3_udp_tnl_type {
 	HNS3_UDP_TNL_VXLAN,
@@ -526,7 +526,7 @@ struct hns3_nic_priv {
 
 	struct work_struct service_task;
 
-	struct notifier_block notifier_block;
+	struct yestifier_block yestifier_block;
 	/* Vxlan/Geneve information */
 	struct hns3_udp_tunnel udp_tnl[HNS3_UDP_TNL_MAX];
 	struct hns3_enet_coalesce tx_coal;

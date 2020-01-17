@@ -3,25 +3,25 @@
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
-exynosdrm-y := exynos_drm_drv.o exynos_drm_crtc.o exynos_drm_fb.o \
-		exynos_drm_gem.o exynos_drm_plane.o exynos_drm_dma.o
+exyyessdrm-y := exyyess_drm_drv.o exyyess_drm_crtc.o exyyess_drm_fb.o \
+		exyyess_drm_gem.o exyyess_drm_plane.o exyyess_drm_dma.o
 
-exynosdrm-$(CONFIG_DRM_FBDEV_EMULATION) += exynos_drm_fbdev.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_FIMD)	+= exynos_drm_fimd.o
-exynosdrm-$(CONFIG_DRM_EXYNOS5433_DECON)	+= exynos5433_drm_decon.o
-exynosdrm-$(CONFIG_DRM_EXYNOS7_DECON)	+= exynos7_drm_decon.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_DPI)	+= exynos_drm_dpi.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_DSI)	+= exynos_drm_dsi.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_DP)	+= exynos_dp.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_MIXER)	+= exynos_mixer.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_HDMI)	+= exynos_hdmi.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_VIDI)	+= exynos_drm_vidi.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_G2D)	+= exynos_drm_g2d.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_IPP)	+= exynos_drm_ipp.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_FIMC)	+= exynos_drm_fimc.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_ROTATOR)	+= exynos_drm_rotator.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_SCALER)	+= exynos_drm_scaler.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_GSC)	+= exynos_drm_gsc.o
-exynosdrm-$(CONFIG_DRM_EXYNOS_MIC)     += exynos_drm_mic.o
+exyyessdrm-$(CONFIG_DRM_FBDEV_EMULATION) += exyyess_drm_fbdev.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_FIMD)	+= exyyess_drm_fimd.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS5433_DECON)	+= exyyess5433_drm_decon.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS7_DECON)	+= exyyess7_drm_decon.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_DPI)	+= exyyess_drm_dpi.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_DSI)	+= exyyess_drm_dsi.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_DP)	+= exyyess_dp.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_MIXER)	+= exyyess_mixer.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_HDMI)	+= exyyess_hdmi.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_VIDI)	+= exyyess_drm_vidi.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_G2D)	+= exyyess_drm_g2d.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_IPP)	+= exyyess_drm_ipp.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_FIMC)	+= exyyess_drm_fimc.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_ROTATOR)	+= exyyess_drm_rotator.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_SCALER)	+= exyyess_drm_scaler.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_GSC)	+= exyyess_drm_gsc.o
+exyyessdrm-$(CONFIG_DRM_EXYNOS_MIC)     += exyyess_drm_mic.o
 
-obj-$(CONFIG_DRM_EXYNOS)		+= exynosdrm.o
+obj-$(CONFIG_DRM_EXYNOS)		+= exyyessdrm.o

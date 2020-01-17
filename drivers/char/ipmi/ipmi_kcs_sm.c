@@ -26,7 +26,7 @@
 #include "ipmi_si_sm.h"
 
 /* kcs_debug is a bit-field
- *	KCS_DEBUG_ENABLE -	turned on for now
+ *	KCS_DEBUG_ENABLE -	turned on for yesw
  *	KCS_DEBUG_MSG    -	commands and their responses
  *	KCS_DEBUG_STATES -	state machine
  */
@@ -40,12 +40,12 @@ MODULE_PARM_DESC(kcs_debug, "debug bitmask, 1=enable, 2=messages, 4=states");
 
 /* The states the KCS driver may be in. */
 enum kcs_states {
-	/* The KCS interface is currently doing nothing. */
+	/* The KCS interface is currently doing yesthing. */
 	KCS_IDLE,
 
 	/*
 	 * We are starting an operation.  The data is in the output
-	 * buffer, but nothing has been done to the interface yet.  This
+	 * buffer, but yesthing has been done to the interface yet.  This
 	 * was added to the state machine in the spec to wait for the
 	 * initial IBF.
 	 */
@@ -215,7 +215,7 @@ static inline int check_ibf(struct si_sm_data *kcs, unsigned char status,
 	if (GET_STATUS_IBF(status)) {
 		kcs->ibf_timeout -= time;
 		if (kcs->ibf_timeout < 0) {
-			start_error_recovery(kcs, "IBF not ready in time");
+			start_error_recovery(kcs, "IBF yest ready in time");
 			kcs->ibf_timeout = IBF_RETRY_TIMEOUT;
 			return 1;
 		}
@@ -232,7 +232,7 @@ static inline int check_obf(struct si_sm_data *kcs, unsigned char status,
 		kcs->obf_timeout -= time;
 		if (kcs->obf_timeout < 0) {
 			kcs->obf_timeout = OBF_RETRY_TIMEOUT;
-			start_error_recovery(kcs, "OBF not ready in time");
+			start_error_recovery(kcs, "OBF yest ready in time");
 			return 1;
 		}
 		return 0;
@@ -308,8 +308,8 @@ static int get_kcs_result(struct si_sm_data *kcs, unsigned char *data,
 	if (kcs->truncated) {
 		/*
 		 * Report a truncated error.  We might overwrite
-		 * another error, but that's too bad, the user needs
-		 * to know it was truncated.
+		 * ayesther error, but that's too bad, the user needs
+		 * to kyesw it was truncated.
 		 */
 		data[2] = IPMI_ERR_MSG_TRUNCATED;
 		kcs->truncated = 0;
@@ -353,7 +353,7 @@ static enum si_sm_result kcs_event(struct si_sm_data *kcs, long time)
 	case KCS_START_OP:
 		if (state != KCS_IDLE_STATE) {
 			start_error_recovery(kcs,
-					     "State machine not idle at start");
+					     "State machine yest idle at start");
 			break;
 		}
 
@@ -422,7 +422,7 @@ static enum si_sm_result kcs_event(struct si_sm_data *kcs, long time)
 			/*
 			 * We don't implement this exactly like the state
 			 * machine in the spec.  Some broken hardware
-			 * does not write the final dummy byte to the
+			 * does yest write the final dummy byte to the
 			 * read register.  Thus obf will never go high
 			 * here.  We just go straight to idle, and we
 			 * handle clearing out obf in idle state if it

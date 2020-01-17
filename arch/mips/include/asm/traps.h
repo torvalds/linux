@@ -10,7 +10,7 @@
 /*
  * Possible status responses for a board_be_handler backend.
  */
-#define MIPS_BE_DISCARD 0		/* return with no action */
+#define MIPS_BE_DISCARD 0		/* return with yes action */
 #define MIPS_BE_FIXUP	1		/* return to the fixup code */
 #define MIPS_BE_FATAL	2		/* treat as an unrecoverable error */
 
@@ -23,16 +23,16 @@ extern void (*board_bind_eic_interrupt)(int irq, int regset);
 extern void (*board_ebase_setup)(void);
 extern void (*board_cache_error_setup)(void);
 
-extern int register_nmi_notifier(struct notifier_block *nb);
+extern int register_nmi_yestifier(struct yestifier_block *nb);
 
-#define nmi_notifier(fn, pri)						\
+#define nmi_yestifier(fn, pri)						\
 ({									\
-	static struct notifier_block fn##_nb = {			\
-		.notifier_call = fn,					\
+	static struct yestifier_block fn##_nb = {			\
+		.yestifier_call = fn,					\
 		.priority = pri						\
 	};								\
 									\
-	register_nmi_notifier(&fn##_nb);				\
+	register_nmi_yestifier(&fn##_nb);				\
 })
 
 #endif /* _ASM_TRAPS_H */

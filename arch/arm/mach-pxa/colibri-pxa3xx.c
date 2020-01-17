@@ -56,7 +56,7 @@ void __init colibri_pxa3xx_init_eth(struct ax_plat_data *plat_data)
 			__func__);
 	} else {
 		plat_data->flags |= AXFLG_MAC_FROMDEV;
-		printk(KERN_INFO "%s(): no valid serial boot tag found, "
+		printk(KERN_INFO "%s(): yes valid serial boot tag found, "
 			"taking MAC from device\n", __func__);
 	}
 }

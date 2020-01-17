@@ -222,7 +222,7 @@ static struct irq_chip pcimt_irq_type = {
  */
 static void pcimt_hwint0(void)
 {
-	panic("Received int0 but no handler yet ...");
+	panic("Received int0 but yes handler yet ...");
 }
 
 /*
@@ -238,7 +238,7 @@ static void pcimt_hwint1(void)
 	if (pend & IT_EISA) {
 		int irq;
 		/*
-		 * Note: ASIC PCI's builtin interrupt acknowledge feature is
+		 * Note: ASIC PCI's builtin interrupt ackyeswledge feature is
 		 * broken.  Using it may result in loss of some or all i8259
 		 * interrupts, so don't use PCIMT_INT_ACKNOWLEDGE ...
 		 */

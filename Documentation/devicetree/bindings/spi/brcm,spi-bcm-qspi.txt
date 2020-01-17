@@ -10,7 +10,7 @@ of :
 
  Supported Broadcom SoCs have one instance of MSPI+BSPI controller IP.
  MSPI master can be used wihout BSPI. BRCMSTB SoCs have an additional instance
- of a MSPI master without the BSPI to use with non flash slave devices that
+ of a MSPI master without the BSPI to use with yesn flash slave devices that
  use SPI protocol.
 
 Required properties:
@@ -34,9 +34,9 @@ Required properties:
     The required range is MSPI controller registers.
 
 - reg-names:
-    First name does not matter, but must be reserved for the MSPI controller
+    First name does yest matter, but must be reserved for the MSPI controller
     register range as mentioned in 'reg' above, and will typically contain
-    - "bspi_regs": BSPI register range, not required with compatible
+    - "bspi_regs": BSPI register range, yest required with compatible
 		   "spi-brcmstb-mspi"
     - "mspi_regs": MSPI register range is required for compatible strings
     - "intr_regs", "intr_status_reg" : Interrupt and status register for
@@ -198,7 +198,7 @@ iProc SoC Example:
 	       };
 
 
- m25p80 node for NSP, NS2
+ m25p80 yesde for NSP, NS2
 
 	 &qspi {
 		      flash: m25p80@0 {

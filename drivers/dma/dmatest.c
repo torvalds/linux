@@ -64,13 +64,13 @@ module_param(timeout, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), "
 		 "Pass 0xFFFFFFFF (4294967295) for maximum timeout");
 
-static bool noverify;
-module_param(noverify, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(noverify, "Disable data verification (default: verify)");
+static bool yesverify;
+module_param(yesverify, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(yesverify, "Disable data verification (default: verify)");
 
-static bool norandom;
-module_param(norandom, bool, 0644);
-MODULE_PARM_DESC(norandom, "Disable random offset setup (default: random)");
+static bool yesrandom;
+module_param(yesrandom, bool, 0644);
+MODULE_PARM_DESC(yesrandom, "Disable random offset setup (default: random)");
 
 static bool polled;
 module_param(polled, bool, S_IRUGO | S_IWUSR);
@@ -82,11 +82,11 @@ MODULE_PARM_DESC(verbose, "Enable \"success\" result messages (default: off)");
 
 static int alignment = -1;
 module_param(alignment, int, 0644);
-MODULE_PARM_DESC(alignment, "Custom data address alignment taken as 2^(alignment) (default: not used (-1))");
+MODULE_PARM_DESC(alignment, "Custom data address alignment taken as 2^(alignment) (default: yest used (-1))");
 
 static unsigned int transfer_size;
 module_param(transfer_size, uint, 0644);
-MODULE_PARM_DESC(transfer_size, "Optional custom transfer size in bytes (default: not used (0))");
+MODULE_PARM_DESC(transfer_size, "Optional custom transfer size in bytes (default: yest used (0))");
 
 /**
  * struct dmatest_params - test parameters.
@@ -110,8 +110,8 @@ struct dmatest_params {
 	unsigned int	xor_sources;
 	unsigned int	pq_sources;
 	unsigned int	timeout;
-	bool		noverify;
-	bool		norandom;
+	bool		yesverify;
+	bool		yesrandom;
 	int		alignment;
 	unsigned int	transfer_size;
 	bool		polled;
@@ -210,7 +210,7 @@ struct dmatest_data {
 };
 
 struct dmatest_thread {
-	struct list_head	node;
+	struct list_head	yesde;
 	struct dmatest_info	*info;
 	struct task_struct	*task;
 	struct dma_chan		*chan;
@@ -224,7 +224,7 @@ struct dmatest_thread {
 };
 
 struct dmatest_chan {
-	struct list_head	node;
+	struct list_head	yesde;
 	struct dma_chan		*chan;
 	struct list_head	threads;
 };
@@ -236,10 +236,10 @@ static bool is_threaded_test_run(struct dmatest_info *info)
 {
 	struct dmatest_chan *dtc;
 
-	list_for_each_entry(dtc, &info->channels, node) {
+	list_for_each_entry(dtc, &info->channels, yesde) {
 		struct dmatest_thread *thread;
 
-		list_for_each_entry(thread, &dtc->threads, node) {
+		list_for_each_entry(thread, &dtc->threads, yesde) {
 			if (!thread->done)
 				return true;
 		}
@@ -252,10 +252,10 @@ static bool is_threaded_test_pending(struct dmatest_info *info)
 {
 	struct dmatest_chan *dtc;
 
-	list_for_each_entry(dtc, &info->channels, node) {
+	list_for_each_entry(dtc, &info->channels, yesde) {
 		struct dmatest_thread *thread;
 
-		list_for_each_entry(thread, &dtc->threads, node) {
+		list_for_each_entry(thread, &dtc->threads, yesde) {
 			if (thread->pending)
 				return true;
 		}
@@ -369,7 +369,7 @@ static void dmatest_mismatch(u8 actual, u8 pattern, unsigned int index,
 			thread_name, index, expected, actual);
 	else if ((pattern & PATTERN_COPY)
 			&& (diff & (PATTERN_COPY | PATTERN_OVERWRITE)))
-		pr_warn("%s: dstbuf[0x%x] not copied! Expected %02x, got %02x\n",
+		pr_warn("%s: dstbuf[0x%x] yest copied! Expected %02x, got %02x\n",
 			thread_name, index, expected, actual);
 	else if (diff & PATTERN_SRC)
 		pr_warn("%s: dstbuf[0x%x] was copied! Expected %02x, got %02x\n",
@@ -428,7 +428,7 @@ static void dmatest_callback(void *arg)
 		 * after the parent thread has cleaned up. This can
 		 * happen in the case that driver doesn't implement
 		 * the terminate_all() functionality and a dma operation
-		 * did not occur within the timeout period
+		 * did yest occur within the timeout period
 		 */
 		WARN(1, "dmatest: Kernel memory may be corrupted!!\n");
 	}
@@ -543,11 +543,11 @@ err:
  * being tested in parallel.
  *
  * Before each test, the source and destination buffer is initialized
- * with a known pattern. This pattern is different depending on
+ * with a kyeswn pattern. This pattern is different depending on
  * whether it's in an area which is supposed to be copied or
  * overwritten, and different in the source and destination buffers.
  * So if the DMA engine doesn't copy exactly what we tell it to copy,
- * we'll notice.
+ * we'll yestice.
  */
 static int dmatest_func(void *data)
 {
@@ -678,13 +678,13 @@ static int dmatest_func(void *data)
 				break;
 			}
 			len = params->transfer_size;
-		} else if (params->norandom) {
+		} else if (params->yesrandom) {
 			len = buf_size;
 		} else {
 			len = dmatest_random() % buf_size + 1;
 		}
 
-		/* Do not alter transfer size explicitly defined by user */
+		/* Do yest alter transfer size explicitly defined by user */
 		if (!params->transfer_size) {
 			len = (len >> align) << align;
 			if (!len)
@@ -692,7 +692,7 @@ static int dmatest_func(void *data)
 		}
 		total_len += len;
 
-		if (params->norandom) {
+		if (params->yesrandom) {
 			src->off = 0;
 			dst->off = 0;
 		} else {
@@ -703,7 +703,7 @@ static int dmatest_func(void *data)
 			dst->off = (dst->off >> align) << align;
 		}
 
-		if (!params->noverify) {
+		if (!params->yesverify) {
 			start = ktime_get();
 			dmatest_init_srcs(src->aligned, src->off, len,
 					  buf_size, is_memset);
@@ -831,7 +831,7 @@ static int dmatest_func(void *data)
 
 		dmaengine_unmap_put(um);
 
-		if (params->noverify) {
+		if (params->yesverify) {
 			verbose_result("test passed", total_tests, src->off,
 				       dst->off, len, 0);
 			continue;
@@ -916,11 +916,11 @@ static void dmatest_cleanup_channel(struct dmatest_chan *dtc)
 	struct dmatest_thread	*_thread;
 	int			ret;
 
-	list_for_each_entry_safe(thread, _thread, &dtc->threads, node) {
+	list_for_each_entry_safe(thread, _thread, &dtc->threads, yesde) {
 		ret = kthread_stop(thread->task);
 		pr_debug("thread %s exited with status %d\n",
 			 thread->task->comm, ret);
-		list_del(&thread->node);
+		list_del(&thread->yesde);
 		put_task_struct(thread->task);
 		kfree(thread);
 	}
@@ -975,7 +975,7 @@ static int dmatest_add_threads(struct dmatest_info *info,
 
 		/* srcbuf and dstbuf are allocated by the thread itself */
 		get_task_struct(thread->task);
-		list_add_tail(&thread->node, &dtc->threads);
+		list_add_tail(&thread->yesde, &dtc->threads);
 		thread->pending = true;
 	}
 
@@ -1025,7 +1025,7 @@ static int dmatest_add_channel(struct dmatest_info *info,
 	pr_info("Added %u threads using %s\n",
 		thread_count, dma_chan_name(chan));
 
-	list_add_tail(&dtc->node, &info->channels);
+	list_add_tail(&dtc->yesde, &info->channels);
 	info->nr_channels++;
 
 	return 0;
@@ -1060,7 +1060,7 @@ static void request_channels(struct dmatest_info *info,
 				break; /* add_channel failed, punt */
 			}
 		} else
-			break; /* no more channels available */
+			break; /* yes more channels available */
 		if (params->max_channels &&
 		    info->nr_channels >= params->max_channels)
 			break; /* we have all we need */
@@ -1081,8 +1081,8 @@ static void add_threaded_test(struct dmatest_info *info)
 	params->xor_sources = xor_sources;
 	params->pq_sources = pq_sources;
 	params->timeout = timeout;
-	params->noverify = noverify;
-	params->norandom = norandom;
+	params->yesverify = yesverify;
+	params->yesrandom = yesrandom;
 	params->alignment = alignment;
 	params->transfer_size = transfer_size;
 	params->polled = polled;
@@ -1098,11 +1098,11 @@ static void run_pending_tests(struct dmatest_info *info)
 	struct dmatest_chan *dtc;
 	unsigned int thread_count = 0;
 
-	list_for_each_entry(dtc, &info->channels, node) {
+	list_for_each_entry(dtc, &info->channels, yesde) {
 		struct dmatest_thread *thread;
 
 		thread_count = 0;
-		list_for_each_entry(thread, &dtc->threads, node) {
+		list_for_each_entry(thread, &dtc->threads, yesde) {
 			wake_up_process(thread->task);
 			thread_count++;
 		}
@@ -1116,8 +1116,8 @@ static void stop_threaded_test(struct dmatest_info *info)
 	struct dmatest_chan *dtc, *_dtc;
 	struct dma_chan *chan;
 
-	list_for_each_entry_safe(dtc, _dtc, &info->channels, node) {
-		list_del(&dtc->node);
+	list_for_each_entry_safe(dtc, _dtc, &info->channels, yesde) {
+		list_del(&dtc->yesde);
 		chan = dtc->chan;
 		dmatest_cleanup_channel(dtc);
 		pr_debug("dropped channel %s\n", dma_chan_name(chan));
@@ -1169,7 +1169,7 @@ static int dmatest_run_set(const char *val, const struct kernel_param *kp)
 		if (is_threaded_test_pending(info))
 			start_threaded_tests(info);
 		else
-			pr_info("Could not start test, no channels configured\n");
+			pr_info("Could yest start test, yes channels configured\n");
 	} else {
 		stop_threaded_test(info);
 	}
@@ -1197,12 +1197,12 @@ static int dmatest_chan_set(const char *val, const struct kernel_param *kp)
 		stop_threaded_test(info);
 	/* Reject channels that are already registered */
 	if (is_threaded_test_pending(info)) {
-		list_for_each_entry(dtc, &info->channels, node) {
+		list_for_each_entry(dtc, &info->channels, yesde) {
 			if (strcmp(dma_chan_name(dtc->chan),
 				   strim(test_channel)) == 0) {
 				dtc = list_last_entry(&info->channels,
 						      struct dmatest_chan,
-						      node);
+						      yesde);
 				strlcpy(chan_reset_val,
 					dma_chan_name(dtc->chan),
 					sizeof(chan_reset_val));
@@ -1215,11 +1215,11 @@ static int dmatest_chan_set(const char *val, const struct kernel_param *kp)
 	add_threaded_test(info);
 
 	/* Check if channel was added successfully */
-	dtc = list_last_entry(&info->channels, struct dmatest_chan, node);
+	dtc = list_last_entry(&info->channels, struct dmatest_chan, yesde);
 
 	if (dtc->chan) {
 		/*
-		 * if new channel was not successfully added, revert the
+		 * if new channel was yest successfully added, revert the
 		 * "test_channel" string to the name of the last successfully
 		 * added channel. exception for when users issues empty string
 		 * to channel parameter.
@@ -1233,7 +1233,7 @@ static int dmatest_chan_set(const char *val, const struct kernel_param *kp)
 		}
 
 	} else {
-		/* Clear test_channel if no channels were added successfully */
+		/* Clear test_channel if yes channels were added successfully */
 		strlcpy(chan_reset_val, "", sizeof(chan_reset_val));
 		ret = -EBUSY;
 		goto add_chan_err;
@@ -1270,11 +1270,11 @@ static int dmatest_test_list_get(char *val, const struct kernel_param *kp)
 	struct dmatest_chan *dtc;
 	unsigned int thread_count = 0;
 
-	list_for_each_entry(dtc, &info->channels, node) {
+	list_for_each_entry(dtc, &info->channels, yesde) {
 		struct dmatest_thread *thread;
 
 		thread_count = 0;
-		list_for_each_entry(thread, &dtc->threads, node) {
+		list_for_each_entry(thread, &dtc->threads, yesde) {
 			thread_count++;
 		}
 		pr_info("%u threads using %s\n",

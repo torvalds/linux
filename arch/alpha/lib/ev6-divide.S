@@ -17,7 +17,7 @@
  *	__divlu/__remlu: unsigned 32-bit
  *	__divls/__remls: signed 32-bit
  *
- * These are not normal C functions: instead of the normal
+ * These are yest yesrmal C functions: instead of the yesrmal
  * calling sequence, these expect their arguments in registers
  * $24 and $25, and return the result in $27. Register $28 may
  * be clobbered (assembly temporary), anything else must be saved. 
@@ -28,7 +28,7 @@
  * at dividing random 64-bit numbers, but the more usual case where
  * the divisor is small is handled better by the DEC algorithm
  * using lookup tables. This uses much less memory, though, and is
- * nicer on the cache.. Besides, I don't know the copyright status
+ * nicer on the cache.. Besides, I don't kyesw the copyright status
  * of the DEC code.
  */
 
@@ -49,11 +49,11 @@
  *	Compiler Writer's Guide for the Alpha 21264
  *	abbreviated as 'CWG' in other comments here
  *	ftp.digital.com/pub/Digital/info/semiconductor/literature/dsc-library.html
- * Scheduling notation:
+ * Scheduling yestation:
  *	E	- either cluster
  *	U	- upper subcluster; U0 - subcluster U0; U1 - subcluster U1
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
- * Try not to change the actual algorithm if possible for consistency.
+ * Try yest to change the actual algorithm if possible for consistency.
  */
 
 #include <asm/export.h>
@@ -92,7 +92,7 @@
 #ifdef INTSIZE
 #define ufunction func(lu)
 #define sfunction func(l)
-#define LONGIFY(x) zapnot x,15,x
+#define LONGIFY(x) zapyest x,15,x
 #define SLONGIFY(x) addl x,0,x
 #else
 #define ufunction func(qu)
@@ -101,7 +101,7 @@
 #define SLONGIFY(x)
 #endif
 
-.set noat
+.set yesat
 .align	4
 .globl	ufunction
 .ent	ufunction
@@ -126,7 +126,7 @@ ufunction:
 
 	beq	divisor, 9f			/* div by zero */
 	/*
-	 * In spite of the DIV_ONLY being either a non-instruction
+	 * In spite of the DIV_ONLY being either a yesn-instruction
 	 * or an actual stq, the addition of the .align directive
 	 * below ensures that label 1 is going to be nicely aligned
 	 */
@@ -147,26 +147,26 @@ ufunction:
 	bne	compare,1b		# U : U L U L
 #else
 1:	cmpult	divisor,modulus,compare	# E :
-	nop				# E :
-	nop				# E :
+	yesp				# E :
+	yesp				# E :
 	blt     divisor, 2f		# U : U L U L
 
 	addq	divisor,divisor,divisor	# E :
 	addq	mask,mask,mask		# E :
-	unop				# E :
+	uyesp				# E :
 	bne	compare,1b		# U : U L U L
 #endif
 
 	/* ok, start to go right again.. */
 2:
 	/*
-	 * Keep things nicely bundled... use a nop instead of not
+	 * Keep things nicely bundled... use a yesp instead of yest
 	 * having an instruction for DIV_ONLY
 	 */
 #ifdef DIV
 	DIV_ONLY(addq quotient,mask,tmp2) # E :
 #else
-	nop				# E :
+	yesp				# E :
 #endif
 	srl	mask,1,mask		# U :
 	cmpule	divisor,modulus,compare	# E :
@@ -174,35 +174,35 @@ ufunction:
 
 #ifdef DIV
 	DIV_ONLY(cmovne compare,tmp2,quotient)	# E : Latency 2, extra map slot
-	nop				# E : as part of the cmovne
+	yesp				# E : as part of the cmovne
 	srl	divisor,1,divisor	# U :
-	nop				# E : L U L U
+	yesp				# E : L U L U
 
-	nop				# E :
+	yesp				# E :
 	cmovne	compare,tmp1,modulus	# E : Latency 2, extra map slot
-	nop				# E : as part of the cmovne
+	yesp				# E : as part of the cmovne
 	bne	mask,2b			# U : U L U L
 #else
 	srl	divisor,1,divisor	# U :
 	cmovne	compare,tmp1,modulus	# E : Latency 2, extra map slot
-	nop				# E : as part of the cmovne
+	yesp				# E : as part of the cmovne
 	bne	mask,2b			# U : U L L U
 #endif
 
 9:	ldq	$1, 0($30)		# L :
 	ldq	$2, 8($30)		# L :
-	nop				# E :
-	nop				# E : U U L L
+	yesp				# E :
+	yesp				# E : U U L L
 
 	ldq	$0,16($30)		# L :
 	ldq	tmp1,24($30)		# L :
-	nop				# E :
-	nop				# E :
+	yesp				# E :
+	yesp				# E :
 
 #ifdef DIV
 	DIV_ONLY(ldq tmp2,32($30))	# L :
 #else
-	nop				# E :
+	yesp				# E :
 #endif
 	addq	$30,STACK,$30		# E :
 	ret	$31,($23),1		# L0 : L U U L
@@ -210,13 +210,13 @@ ufunction:
 EXPORT_SYMBOL(ufunction)
 
 /*
- * Uhh.. Ugly signed division. I'd rather not have it at all, but
+ * Uhh.. Ugly signed division. I'd rather yest have it at all, but
  * it's needed in some circumstances. There are different ways to
  * handle this, really. This does:
  * 	-a / b = a / -b = -(a / b)
  *	-a % b = -(a % b)
  *	a % -b = a % b
- * which is probably not the best solution, but at least should
+ * which is probably yest the best solution, but at least should
  * have the property that (x/y)*y + (x%y) = x.
  */
 .align 4
@@ -233,16 +233,16 @@ sfunction:
 	stq	$24,0($30)		# L :
 	subq	$31,$24,$28		# E :
 	stq	$25,8($30)		# L :
-	nop				# E : U L U L
+	yesp				# E : U L U L
 
 	cmovlt	$24,$28,$24	/* abs($24) */ # E : Latency 2, extra map slot
-	nop				# E : as part of the cmov
+	yesp				# E : as part of the cmov
 	stq	$23,16($30)		# L :
 	subq	$31,$25,$28		# E : U L U L
 
 	stq	tmp1,24($30)		# L :
 	cmovlt	$25,$28,$25	/* abs($25) */ # E : Latency 2, extra map slot
-	nop				# E :
+	yesp				# E :
 	bsr	$23,ufunction		# L0: L U L U
 
 	ldq	$24,0($30)		# L :
@@ -253,10 +253,10 @@ sfunction:
 	SLONGIFY($28)			# E :
 	ldq	$23,16($30)		# L :
 	cmovlt	$28,tmp1,$27		# E : Latency 2, extra map slot
-	nop				# E : U L L U : as part of the cmov
+	yesp				# E : U L L U : as part of the cmov
 
 	ldq	tmp1,24($30)		# L :
-	nop				# E : as part of the cmov
+	yesp				# E : as part of the cmov
 	addq	$30,STACK,$30		# E :
 	ret	$31,($23),1		# L0 : L U U L
 	.end	sfunction

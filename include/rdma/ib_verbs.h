@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2004 Mellayesx Techyeslogies Ltd.  All rights reserved.
  * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
@@ -18,11 +18,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -56,7 +56,7 @@
 #include <linux/refcount.h>
 #include <linux/if_link.h>
 #include <linux/atomic.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/uaccess.h>
 #include <linux/cgroup_rdma.h>
 #include <linux/irqflags.h>
@@ -91,7 +91,7 @@ void ibdev_err(const struct ib_device *ibdev, const char *format, ...);
 __printf(2, 3) __cold
 void ibdev_warn(const struct ib_device *ibdev, const char *format, ...);
 __printf(2, 3) __cold
-void ibdev_notice(const struct ib_device *ibdev, const char *format, ...);
+void ibdev_yestice(const struct ib_device *ibdev, const char *format, ...);
 __printf(2, 3) __cold
 void ibdev_info(const struct ib_device *ibdev, const char *format, ...);
 
@@ -123,8 +123,8 @@ do {                                                                    \
 	ibdev_level_ratelimited(ibdev_err, ibdev, fmt, ##__VA_ARGS__)
 #define ibdev_warn_ratelimited(ibdev, fmt, ...) \
 	ibdev_level_ratelimited(ibdev_warn, ibdev, fmt, ##__VA_ARGS__)
-#define ibdev_notice_ratelimited(ibdev, fmt, ...) \
-	ibdev_level_ratelimited(ibdev_notice, ibdev, fmt, ##__VA_ARGS__)
+#define ibdev_yestice_ratelimited(ibdev, fmt, ...) \
+	ibdev_level_ratelimited(ibdev_yestice, ibdev, fmt, ##__VA_ARGS__)
 #define ibdev_info_ratelimited(ibdev, fmt, ...) \
 	ibdev_level_ratelimited(ibdev_info, ibdev, fmt, ##__VA_ARGS__)
 
@@ -195,7 +195,7 @@ enum rdma_protocol_type {
 };
 
 __attribute_const__ enum rdma_transport_type
-rdma_node_get_transport(unsigned int node_type);
+rdma_yesde_get_transport(unsigned int yesde_type);
 
 enum rdma_network_type {
 	RDMA_NETWORK_IB,
@@ -535,7 +535,7 @@ enum ib_port_speed {
 /**
  * struct rdma_hw_stats
  * @lock - Mutex to protect parallel write access to lifespan and values
- *    of counters, which are 64bits and not guaranteeed to be written
+ *    of counters, which are 64bits and yest guaranteeed to be written
  *    atomicaly on 32bits systems.
  * @timestamp - Used by the core code to track when the last update was
  * @lifespan - Used by the core code to determine how old the counters
@@ -676,7 +676,7 @@ enum ib_device_modify_flags {
 
 struct ib_device_modify {
 	u64	sys_image_guid;
-	char	node_desc[IB_DEVICE_NODE_DESC_MAX];
+	char	yesde_desc[IB_DEVICE_NODE_DESC_MAX];
 };
 
 enum ib_port_modify_flags {
@@ -828,10 +828,10 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate);
 /**
  * enum ib_mr_type - memory region type
  * @IB_MR_TYPE_MEM_REG:       memory region that is used for
- *                            normal registration
+ *                            yesrmal registration
  * @IB_MR_TYPE_SG_GAPS:       memory region that is capable to
  *                            register any arbitrary sg lists (without
- *                            the normal mr constraints - see
+ *                            the yesrmal mr constraints - see
  *                            ib_map_mr_sg)
  * @IB_MR_TYPE_DM:            memory region that is used for device
  *                            memory registration
@@ -993,7 +993,7 @@ struct ib_wc {
 	u8			network_hdr_type;
 };
 
-enum ib_cq_notify_flags {
+enum ib_cq_yestify_flags {
 	IB_CQ_SOLICITED			= 1 << 0,
 	IB_CQ_NEXT_COMP			= 1 << 1,
 	IB_CQ_SOLICITED_MASK		= IB_CQ_SOLICITED | IB_CQ_NEXT_COMP,
@@ -1083,8 +1083,8 @@ enum ib_qp_type {
 	IB_QPT_MAX,
 	IB_QPT_DRIVER = 0xFF,
 	/* Reserve a range for qp types internal to the low level driver.
-	 * These qp types will not be visible at the IB core layer, so the
-	 * IB_QPT_MAX usages should not be affected in the core layer
+	 * These qp types will yest be visible at the IB core layer, so the
+	 * IB_QPT_MAX usages should yest be affected in the core layer
 	 */
 	IB_QPT_RESERVED1 = 0x1000,
 	IB_QPT_RESERVED2,
@@ -1117,12 +1117,12 @@ enum ib_qp_create_flags {
 };
 
 /*
- * Note: users may not call ib_close_qp or ib_destroy_qp from the event_handler
+ * Note: users may yest call ib_close_qp or ib_destroy_qp from the event_handler
  * callback to destroy the passed in QP.
  */
 
 struct ib_qp_init_attr {
-	/* Consumer's event_handler callback must not block */
+	/* Consumer's event_handler callback must yest block */
 	void                  (*event_handler)(struct ib_event *, void *);
 
 	void		       *qp_context;
@@ -1250,7 +1250,7 @@ struct ib_qp_attr {
 	struct rdma_ah_attr	alt_ah_attr;
 	u16			pkey_index;
 	u16			alt_pkey_index;
-	u8			en_sqd_async_notify;
+	u8			en_sqd_async_yestify;
 	u8			sq_draining;
 	u8			max_rd_atomic;
 	u8			max_dest_rd_atomic;
@@ -1282,12 +1282,12 @@ enum ib_wr_opcode {
 	IB_WR_MASKED_ATOMIC_FETCH_AND_ADD =
 		IB_UVERBS_WR_MASKED_ATOMIC_FETCH_AND_ADD,
 
-	/* These are kernel only and can not be issued by userspace */
+	/* These are kernel only and can yest be issued by userspace */
 	IB_WR_REG_MR = 0x20,
 	IB_WR_REG_MR_INTEGRITY,
 
 	/* reserve values for low level drivers' internal use.
-	 * These values will not be used at all in the ib core layer.
+	 * These values will yest be used at all in the ib core layer.
 	 */
 	IB_WR_RESERVED1 = 0xf0,
 	IB_WR_RESERVED2,
@@ -1418,7 +1418,7 @@ enum ib_access_flags {
 };
 
 /*
- * XXX: these are apparently used for ->rereg_user_mr, no idea why they
+ * XXX: these are apparently used for ->rereg_user_mr, yes idea why they
  * are hidden here instead of a uapi header!
  */
 enum ib_mr_rereg_flags {
@@ -1519,7 +1519,7 @@ struct ib_pd {
 struct ib_xrcd {
 	struct ib_device       *device;
 	atomic_t		usecnt; /* count all exposed resources */
-	struct inode	       *inode;
+	struct iyesde	       *iyesde;
 
 	struct mutex		tgt_qp_mutex;
 	struct list_head	tgt_qp_list;
@@ -1536,7 +1536,7 @@ struct ib_ah {
 typedef void (*ib_comp_handler)(struct ib_cq *cq, void *cq_context);
 
 enum ib_poll_context {
-	IB_POLL_DIRECT,		   /* caller context, no hw completions */
+	IB_POLL_DIRECT,		   /* caller context, yes hw completions */
 	IB_POLL_SOFTIRQ,	   /* poll from softirq context */
 	IB_POLL_WORKQUEUE,	   /* poll from workqueue */
 	IB_POLL_UNBOUND_WORKQUEUE, /* poll from unbound workqueue */
@@ -1594,7 +1594,7 @@ enum ib_raw_packet_caps {
 	IB_RAW_PACKET_CAP_SCATTER_FCS		= (1 << 1),
 	/* Checksum offloads are supported (for both send and receive). */
 	IB_RAW_PACKET_CAP_IP_CSUM		= (1 << 2),
-	/* When a packet is received for an RQ with no receive WQEs, the
+	/* When a packet is received for an RQ with yes receive WQEs, the
 	 * packet processing is delayed.
 	 */
 	IB_RAW_PACKET_CAP_DELAY_DROP		= (1 << 3),
@@ -1852,7 +1852,7 @@ enum ib_flow_domain {
 };
 
 enum ib_flow_flags {
-	IB_FLOW_ATTR_FLAGS_DONT_TRAP = 1UL << 1, /* Continue match, no steal */
+	IB_FLOW_ATTR_FLAGS_DONT_TRAP = 1UL << 1, /* Continue match, yes steal */
 	IB_FLOW_ATTR_FLAGS_EGRESS = 1UL << 2, /* Egress flow */
 	IB_FLOW_ATTR_FLAGS_RESERVED  = 1UL << 3  /* Must be last */
 };
@@ -2171,7 +2171,7 @@ struct ib_port_data {
 
 	spinlock_t netdev_lock;
 	struct net_device __rcu *netdev;
-	struct hlist_node ndev_hash_link;
+	struct hlist_yesde ndev_hash_link;
 	struct rdma_port_counter port_counter;
 	struct rdma_hw_stats *hw_stats;
 };
@@ -2283,7 +2283,7 @@ struct ib_device_ops {
 	struct module *owner;
 	enum rdma_driver_id driver_id;
 	u32 uverbs_abi_ver;
-	unsigned int uverbs_no_driver_id_binding:1;
+	unsigned int uverbs_yes_driver_id_binding:1;
 
 	int (*post_send)(struct ib_qp *qp, const struct ib_send_wr *send_wr,
 			 const struct ib_send_wr **bad_send_wr);
@@ -2293,8 +2293,8 @@ struct ib_device_ops {
 	void (*drain_sq)(struct ib_qp *qp);
 	int (*poll_cq)(struct ib_cq *cq, int num_entries, struct ib_wc *wc);
 	int (*peek_cq)(struct ib_cq *cq, int wc_cnt);
-	int (*req_notify_cq)(struct ib_cq *cq, enum ib_cq_notify_flags flags);
-	int (*req_ncomp_notif)(struct ib_cq *cq, int wc_cnt);
+	int (*req_yestify_cq)(struct ib_cq *cq, enum ib_cq_yestify_flags flags);
+	int (*req_ncomp_yestif)(struct ib_cq *cq, int wc_cnt);
 	int (*post_srq_recv)(struct ib_srq *srq,
 			     const struct ib_recv_wr *recv_wr,
 			     const struct ib_recv_wr **bad_recv_wr);
@@ -2351,7 +2351,7 @@ struct ib_device_ops {
 				      struct rdma_netdev_alloc_params *params);
 	/**
 	 * query_gid should be return GID value for @device, when @port_num
-	 * link layer is either IB or iWarp. It is no-op if @port_num port
+	 * link layer is either IB or iWarp. It is yes-op if @port_num port
 	 * is RoCE link layer.
 	 */
 	int (*query_gid)(struct ib_device *device, u8 port_num, int index,
@@ -2476,7 +2476,7 @@ struct ib_device_ops {
 	int (*get_vf_stats)(struct ib_device *device, int vf, u8 port,
 			    struct ifla_vf_stats *stats);
 	int (*get_vf_guid)(struct ib_device *device, int vf, u8 port,
-			    struct ifla_vf_guid *node_guid,
+			    struct ifla_vf_guid *yesde_guid,
 			    struct ifla_vf_guid *port_guid);
 	int (*set_vf_guid)(struct ib_device *device, int vf, u8 port, u64 guid,
 			   int type);
@@ -2523,7 +2523,7 @@ struct ib_device_ops {
 	 * @index - The index in the value array we wish to have updated, or
 	 *   num_counters if we want all stats updated
 	 * Return codes -
-	 *   < 0 - Error, no counters updated
+	 *   < 0 - Error, yes counters updated
 	 *   index - Updated the single counter pointed to by index
 	 *   num_counters - Updated all counters (will reset the timestamp
 	 *     and prevent further calls for lifespan milliseconds)
@@ -2620,7 +2620,7 @@ struct ib_core_device {
 
 struct rdma_restrack_root;
 struct ib_device {
-	/* Do not access @dma_device directly from ULP nor from HW drivers. */
+	/* Do yest access @dma_device directly from ULP yesr from HW drivers. */
 	struct device                *dma_device;
 	struct ib_device_ops	     ops;
 	char                          name[IB_DEVICE_NAME_MAX];
@@ -2655,15 +2655,15 @@ struct ib_device {
 	u64			     uverbs_cmd_mask;
 	u64			     uverbs_ex_cmd_mask;
 
-	char			     node_desc[IB_DEVICE_NODE_DESC_MAX];
-	__be64			     node_guid;
+	char			     yesde_desc[IB_DEVICE_NODE_DESC_MAX];
+	__be64			     yesde_guid;
 	u32			     local_dma_lkey;
 	u16                          is_switch:1;
-	/* Indicates kernel verbs support, should not be used in drivers */
+	/* Indicates kernel verbs support, should yest be used in drivers */
 	u16                          kverbs_provider:1;
 	/* CQ adaptive moderation (RDMA DIM) */
 	u16                          use_cq_dim:1;
-	u8                           node_type;
+	u8                           yesde_type;
 	u8                           phys_port_cnt;
 	struct ib_device_attr        attrs;
 	struct attribute_group	     *hw_stats_ag;
@@ -2680,7 +2680,7 @@ struct ib_device {
 
 	/*
 	 * Positive refcount indicates that the device is currently
-	 * registered and cannot be unregistered.
+	 * registered and canyest be unregistered.
 	 */
 	refcount_t refcount;
 	struct completion unreg_completion;
@@ -2735,8 +2735,8 @@ struct ib_client {
 	struct completion uses_zero;
 	u32 client_id;
 
-	/* kverbs are not required by the client */
-	u8 no_kverbs_req:1;
+	/* kverbs are yest required by the client */
+	u8 yes_kverbs_req:1;
 };
 
 /*
@@ -2814,7 +2814,7 @@ rdma_block_iter_dma_address(struct ib_block_iter *biter)
  * ib_get_client_data() returns the client context data set with
  * ib_set_client_data(). This can only be called while the client is
  * registered to the device, once the ib_client remove() callback returns this
- * cannot be called.
+ * canyest be called.
  */
 static inline void *ib_get_client_data(struct ib_device *device,
 				       struct ib_client *client)
@@ -2924,7 +2924,7 @@ static inline int ib_destroy_usecnt(atomic_t *usecnt,
 
 /**
  * ib_modify_qp_is_ok - Check that the supplied attribute mask
- * contains all required attributes and no attributes not allowed for
+ * contains all required attributes and yes attributes yest allowed for
  * the given QP state transition.
  * @cur_state: Current QP state
  * @next_state: Next QP state
@@ -3087,7 +3087,7 @@ static inline bool rdma_cap_ib_mad(const struct ib_device *device, u8 port_num)
  * @port_num: Port number to check
  *
  * Intel OmniPath devices extend and/or replace the InfiniBand Management
- * datagrams with their own versions.  These OPA MADs share many but not all of
+ * datagrams with their own versions.  These OPA MADs share many but yest all of
  * the characteristics of InfiniBand MADs.
  *
  * OPA MADs differ in the following ways:
@@ -3111,15 +3111,15 @@ static inline bool rdma_cap_opa_mad(struct ib_device *device, u8 port_num)
  * @device: Device to check
  * @port_num: Port number to check
  *
- * Each InfiniBand node is required to provide a Subnet Management Agent
+ * Each InfiniBand yesde is required to provide a Subnet Management Agent
  * that the subnet manager can access.  Prior to the fabric being fully
- * configured by the subnet manager, the SMA is accessed via a well known
+ * configured by the subnet manager, the SMA is accessed via a well kyeswn
  * interface called the Subnet Management Interface (SMI).  This interface
  * uses directed route packets to communicate with the SM to get around the
- * chicken and egg problem of the SM needing to know what's on the fabric
+ * chicken and egg problem of the SM needing to kyesw what's on the fabric
  * in order to configure the fabric, and needing to configure the fabric in
  * order to send packets to the devices on the fabric.  These directed
- * route packets do not need the fabric fully configured in order to reach
+ * route packets do yest need the fabric fully configured in order to reach
  * their destination.  The SMI is the only method allowed to send
  * directed route packets on an InfiniBand fabric.
  *
@@ -3140,10 +3140,10 @@ static inline bool rdma_cap_ib_smi(const struct ib_device *device, u8 port_num)
  * The InfiniBand Communication Manager is one of many pre-defined General
  * Service Agents (GSA) that are accessed via the General Service
  * Interface (GSI).  It's role is to facilitate establishment of connections
- * between nodes as well as other management related tasks for established
+ * between yesdes as well as other management related tasks for established
  * connections.
  *
- * Return: true if the port supports an IB CM (this does not guarantee that
+ * Return: true if the port supports an IB CM (this does yest guarantee that
  * a CM is actually running however).
  */
 static inline bool rdma_cap_ib_cm(const struct ib_device *device, u8 port_num)
@@ -3161,7 +3161,7 @@ static inline bool rdma_cap_ib_cm(const struct ib_device *device, u8 port_num)
  * Similar to above, but specific to iWARP connections which have a different
  * managment protocol than InfiniBand.
  *
- * Return: true if the port supports an iWARP CM (this does not guarantee that
+ * Return: true if the port supports an iWARP CM (this does yest guarantee that
  * a CM is actually running however).
  */
 static inline bool rdma_cap_iw_cm(const struct ib_device *device, u8 port_num)
@@ -3182,7 +3182,7 @@ static inline bool rdma_cap_iw_cm(const struct ib_device *device, u8 port_num)
  * SA to query the proper route.
  *
  * Return: true if the port should act as a client to the fabric Subnet
- * Administration interface.  This does not imply that the SA service is
+ * Administration interface.  This does yest imply that the SA service is
  * running locally.
  */
 static inline bool rdma_cap_ib_sa(const struct ib_device *device, u8 port_num)
@@ -3197,7 +3197,7 @@ static inline bool rdma_cap_ib_sa(const struct ib_device *device, u8 port_num)
  * @device: Device to check
  * @port_num: Port number to check
  *
- * InfiniBand multicast registration is more complex than normal IPv4 or
+ * InfiniBand multicast registration is more complex than yesrmal IPv4 or
  * IPv6 multicast registration.  Each Host Channel Adapter must register
  * with the Subnet Manager when it wishes to join a multicast group.  It
  * should do so only once regardless of how many queue pairs it subscribes
@@ -3279,7 +3279,7 @@ static inline bool rdma_cap_opa_ah(struct ib_device *device, u8 port_num)
  * are included.
  *
  * Return the max MAD size required by the Port.  Will return 0 if the port
- * does not support MADs
+ * does yest support MADs
  */
 static inline size_t rdma_max_mad_size(const struct ib_device *device, u8 port_num)
 {
@@ -3349,7 +3349,7 @@ int ib_get_vf_config(struct ib_device *device, int vf, u8 port,
 int ib_get_vf_stats(struct ib_device *device, int vf, u8 port,
 		    struct ifla_vf_stats *stats);
 int ib_get_vf_guid(struct ib_device *device, int vf, u8 port,
-		    struct ifla_vf_guid *node_guid,
+		    struct ifla_vf_guid *yesde_guid,
 		    struct ifla_vf_guid *port_guid);
 int ib_set_vf_guid(struct ib_device *device, int vf, u8 port, u64 guid,
 		   int type);
@@ -3465,7 +3465,7 @@ int ib_get_rdma_header_version(const union rdma_network_hdr *hdr);
  * @port_num: Port on which the received message arrived.
  * @wc: Work completion associated with the received message.
  * @grh: References the received global route header.  This parameter is
- *   ignored unless the work completion indicates that the GRH is valid.
+ *   igyesred unless the work completion indicates that the GRH is valid.
  * @ah_attr: Returned attributes that can be used when creating an address
  *   handle for replying to the message.
  * When ib_init_ah_attr_from_wc() returns success,
@@ -3486,7 +3486,7 @@ int ib_init_ah_attr_from_wc(struct ib_device *device, u8 port_num,
  * @pd: The protection domain associated with the address handle.
  * @wc: Work completion information associated with a received message.
  * @grh: References the received global route header.  This parameter is
- *   ignored unless the work completion indicates that the GRH is valid.
+ *   igyesred unless the work completion indicates that the GRH is valid.
  * @port_num: The outbound port number to associate with the address.
  *
  * The address handle is used to reference a local or global destination
@@ -3563,7 +3563,7 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
  *   are being modified.
  *
  * The mask may contain IB_SRQ_MAX_WR to resize the SRQ and/or
- * IB_SRQ_LIMIT to set the SRQ's limit and request notification when
+ * IB_SRQ_LIMIT to set the SRQ's limit and request yestification when
  * the number of receives queued drops below the limit.
  */
 int ib_modify_srq(struct ib_srq *srq,
@@ -3722,7 +3722,7 @@ struct ib_qp *ib_open_qp(struct ib_xrcd *xrcd,
  * @qp: The QP handle to release
  *
  * The opened QP handle is released by the caller.  The underlying
- * shared QP is not destroyed until all internal references are released.
+ * shared QP is yest destroyed until all internal references are released.
  */
 int ib_close_qp(struct ib_qp *qp);
 
@@ -3735,7 +3735,7 @@ int ib_close_qp(struct ib_qp *qp);
  *   the work request that failed to be posted on the QP.
  *
  * While IBA Vol. 1 section 11.4.1.1 specifies that if an immediate
- * error is returned, the QP state shall not be affected,
+ * error is returned, the QP state shall yest be affected,
  * ib_post_send() will return an immediate error after queueing any
  * earlier work requests in the list.
  */
@@ -3852,7 +3852,7 @@ int ib_process_cq_direct(struct ib_cq *cq, int budget);
  * @comp_handler: A user-specified callback that is invoked when a
  *   completion event occurs on the CQ.
  * @event_handler: A user-specified callback that is invoked when an
- *   asynchronous event not associated with a completion occurs on the CQ.
+ *   asynchroyesus event yest associated with a completion occurs on the CQ.
  * @cq_context: Context associated with the CQ returned to the user via
  *   the associated completion and event handlers.
  * @cq_attr: The attributes the CQ should be created upon.
@@ -3914,7 +3914,7 @@ static inline void ib_destroy_cq(struct ib_cq *cq)
  * Poll a CQ for (possibly multiple) completions.  If the return value
  * is < 0, an error occurred.  If the return value is >= 0, it is the
  * number of completions returned.  If the return value is
- * non-negative and < num_entries, then the CQ was emptied.
+ * yesn-negative and < num_entries, then the CQ was emptied.
  */
 static inline int ib_poll_cq(struct ib_cq *cq, int num_entries,
 			     struct ib_wc *wc)
@@ -3923,7 +3923,7 @@ static inline int ib_poll_cq(struct ib_cq *cq, int num_entries,
 }
 
 /**
- * ib_req_notify_cq - Request completion notification on a CQ.
+ * ib_req_yestify_cq - Request completion yestification on a CQ.
  * @cq: The CQ to generate an event for.
  * @flags:
  *   Must contain exactly one of %IB_CQ_SOLICITED or %IB_CQ_NEXT_COMP
@@ -3933,39 +3933,39 @@ static inline int ib_poll_cq(struct ib_cq *cq, int num_entries,
  *   described below.
  *
  * Return Value:
- *    < 0 means an error occurred while requesting notification
- *   == 0 means notification was requested successfully, and if
- *        IB_CQ_REPORT_MISSED_EVENTS was passed in, then no events
- *        were missed and it is safe to wait for another event.  In
+ *    < 0 means an error occurred while requesting yestification
+ *   == 0 means yestification was requested successfully, and if
+ *        IB_CQ_REPORT_MISSED_EVENTS was passed in, then yes events
+ *        were missed and it is safe to wait for ayesther event.  In
  *        this case is it guaranteed that any work completions added
  *        to the CQ since the last CQ poll will trigger a completion
- *        notification event.
+ *        yestification event.
  *    > 0 is only returned if IB_CQ_REPORT_MISSED_EVENTS was passed
  *        in.  It means that the consumer must poll the CQ again to
  *        make sure it is empty to avoid missing an event because of a
- *        race between requesting notification and an entry being
+ *        race between requesting yestification and an entry being
  *        added to the CQ.  This return value means it is possible
- *        (but not guaranteed) that a work completion has been added
+ *        (but yest guaranteed) that a work completion has been added
  *        to the CQ since the last poll without triggering a
- *        completion notification event.
+ *        completion yestification event.
  */
-static inline int ib_req_notify_cq(struct ib_cq *cq,
-				   enum ib_cq_notify_flags flags)
+static inline int ib_req_yestify_cq(struct ib_cq *cq,
+				   enum ib_cq_yestify_flags flags)
 {
-	return cq->device->ops.req_notify_cq(cq, flags);
+	return cq->device->ops.req_yestify_cq(cq, flags);
 }
 
 /**
- * ib_req_ncomp_notif - Request completion notification when there are
+ * ib_req_ncomp_yestif - Request completion yestification when there are
  *   at least the specified number of unreaped completions on the CQ.
  * @cq: The CQ to generate an event for.
  * @wc_cnt: The number of unreaped completions that should be on the
  *   CQ before an event is generated.
  */
-static inline int ib_req_ncomp_notif(struct ib_cq *cq, int wc_cnt)
+static inline int ib_req_ncomp_yestif(struct ib_cq *cq, int wc_cnt)
 {
-	return cq->device->ops.req_ncomp_notif ?
-		cq->device->ops.req_ncomp_notif(cq, wc_cnt) :
+	return cq->device->ops.req_ncomp_yestif ?
+		cq->device->ops.req_ncomp_yestif(cq, wc_cnt) :
 		-ENOSYS;
 }
 
@@ -4336,7 +4336,7 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
  * ib_device_try_get: Hold a registration lock
  * device: The device to lock
  *
- * A device under an active registration lock cannot become unregistered. It
+ * A device under an active registration lock canyest become unregistered. It
  * is only possible to obtain a registration lock on a device that is fully
  * registered, otherwise this function returns false.
  *
@@ -4347,7 +4347,7 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
  */
 static inline bool ib_device_try_get(struct ib_device *dev)
 {
-	return refcount_inc_not_zero(&dev->refcount);
+	return refcount_inc_yest_zero(&dev->refcount);
 }
 
 void ib_device_put(struct ib_device *device);
@@ -4663,7 +4663,7 @@ int rdma_init_netdev(struct ib_device *device, u8 port_num,
  * rdma_set_device_sysfs_group() allows existing drivers to expose one
  * group per device to have sysfs attributes.
  *
- * NOTE: New drivers should not make use of this API; instead new device
+ * NOTE: New drivers should yest make use of this API; instead new device
  * parameter should be exposed via netlink command. This API and mechanism
  * exist only for existing drivers.
  */
@@ -4694,7 +4694,7 @@ static inline struct ib_device *rdma_device_to_ibdev(struct device *device)
  * rdma_device_to_drv_device - Helper macro to reach back to driver's
  *			       ib_device holder structure from device pointer.
  *
- * NOTE: New drivers should not make use of this API; This API is only for
+ * NOTE: New drivers should yest make use of this API; This API is only for
  * existing drivers who have exposed sysfs entries using
  * rdma_set_device_sysfs_group().
  */

@@ -10,7 +10,7 @@
 
 /*
  * This file contains journal replay code. It runs when the file-system is being
- * mounted and requires no locking.
+ * mounted and requires yes locking.
  *
  * The larger is the journal, the longer it takes to scan it, so the longer it
  * takes to mount UBIFS. This is why the journal has limited size which may be
@@ -27,19 +27,19 @@
 
 /**
  * struct replay_entry - replay list entry.
- * @lnum: logical eraseblock number of the node
- * @offs: node offset
- * @len: node length
- * @deletion: non-zero if this entry corresponds to a node deletion
- * @sqnum: node sequence number
+ * @lnum: logical eraseblock number of the yesde
+ * @offs: yesde offset
+ * @len: yesde length
+ * @deletion: yesn-zero if this entry corresponds to a yesde deletion
+ * @sqnum: yesde sequence number
  * @list: links the replay list
- * @key: node key
+ * @key: yesde key
  * @nm: directory entry name
  * @old_size: truncation old size
  * @new_size: truncation new size
  *
  * The replay process first scans all buds and builds the replay list, then
- * sorts the replay list in nodes sequence number order, and then inserts all
+ * sorts the replay list in yesdes sequence number order, and then inserts all
  * the replay entries to the TNC.
  */
 struct replay_entry {
@@ -64,7 +64,7 @@ struct replay_entry {
  * struct bud_entry - entry in the list of buds to replay.
  * @list: next bud in the list
  * @bud: bud description object
- * @sqnum: reference node sequence number
+ * @sqnum: reference yesde sequence number
  * @free: free bytes in the bud
  * @dirty: dirty bytes in the bud
  */
@@ -104,14 +104,14 @@ static int set_bud_lprops(struct ubifs_info *c, struct bud_entry *b)
 		 * The LEB was added to the journal with a starting offset of
 		 * zero which means the LEB must have been empty. The LEB
 		 * property values should be @lp->free == @c->leb_size and
-		 * @lp->dirty == 0, but that is not the case. The reason is that
+		 * @lp->dirty == 0, but that is yest the case. The reason is that
 		 * the LEB had been garbage collected before it became the bud,
-		 * and there was not commit inbetween. The garbage collector
+		 * and there was yest commit inbetween. The garbage collector
 		 * resets the free and dirty space without recording it
-		 * anywhere except lprops, so if there was no commit then
-		 * lprops does not have that information.
+		 * anywhere except lprops, so if there was yes commit then
+		 * lprops does yest have that information.
 		 *
-		 * We do not need to adjust free space because the scan has told
+		 * We do yest need to adjust free space because the scan has told
 		 * us the exact value which is recorded in the replay entry as
 		 * @b->free.
 		 *
@@ -125,9 +125,9 @@ static int set_bud_lprops(struct ubifs_info *c, struct bud_entry *b)
 			lp->free, lp->dirty);
 		dirty -= c->leb_size - lp->free;
 		/*
-		 * If the replay order was perfect the dirty space would now be
-		 * zero. The order is not perfect because the journal heads
-		 * race with each other. This is not a problem but is does mean
+		 * If the replay order was perfect the dirty space would yesw be
+		 * zero. The order is yest perfect because the journal heads
+		 * race with each other. This is yest a problem but is does mean
 		 * that the dirty space may temporarily exceed c->leb_size
 		 * during the replay.
 		 */
@@ -144,7 +144,7 @@ static int set_bud_lprops(struct ubifs_info *c, struct bud_entry *b)
 	}
 
 	/* Make sure the journal head points to the latest bud */
-	err = ubifs_wbuf_seek_nolock(&c->jheads[b->bud->jhead].wbuf,
+	err = ubifs_wbuf_seek_yeslock(&c->jheads[b->bud->jhead].wbuf,
 				     b->bud->lnum, c->leb_size - b->free);
 
 out:
@@ -182,7 +182,7 @@ static int trun_remove_range(struct ubifs_info *c, struct replay_entry *r)
 {
 	unsigned min_blk, max_blk;
 	union ubifs_key min_key, max_key;
-	ino_t ino;
+	iyes_t iyes;
 
 	min_blk = r->new_size / UBIFS_BLOCK_SIZE;
 	if (r->new_size & (UBIFS_BLOCK_SIZE - 1))
@@ -192,38 +192,38 @@ static int trun_remove_range(struct ubifs_info *c, struct replay_entry *r)
 	if ((r->old_size & (UBIFS_BLOCK_SIZE - 1)) == 0)
 		max_blk -= 1;
 
-	ino = key_inum(c, &r->key);
+	iyes = key_inum(c, &r->key);
 
-	data_key_init(c, &min_key, ino, min_blk);
-	data_key_init(c, &max_key, ino, max_blk);
+	data_key_init(c, &min_key, iyes, min_blk);
+	data_key_init(c, &max_key, iyes, max_blk);
 
 	return ubifs_tnc_remove_range(c, &min_key, &max_key);
 }
 
 /**
- * inode_still_linked - check whether inode in question will be re-linked.
+ * iyesde_still_linked - check whether iyesde in question will be re-linked.
  * @c: UBIFS file-system description object
- * @rino: replay entry to test
+ * @riyes: replay entry to test
  *
  * O_TMPFILE files can be re-linked, this means link count goes from 0 to 1.
- * This case needs special care, otherwise all references to the inode will
- * be removed upon the first replay entry of an inode with link count 0
+ * This case needs special care, otherwise all references to the iyesde will
+ * be removed upon the first replay entry of an iyesde with link count 0
  * is found.
  */
-static bool inode_still_linked(struct ubifs_info *c, struct replay_entry *rino)
+static bool iyesde_still_linked(struct ubifs_info *c, struct replay_entry *riyes)
 {
 	struct replay_entry *r;
 
-	ubifs_assert(c, rino->deletion);
-	ubifs_assert(c, key_type(c, &rino->key) == UBIFS_INO_KEY);
+	ubifs_assert(c, riyes->deletion);
+	ubifs_assert(c, key_type(c, &riyes->key) == UBIFS_INO_KEY);
 
 	/*
-	 * Find the most recent entry for the inode behind @rino and check
+	 * Find the most recent entry for the iyesde behind @riyes and check
 	 * whether it is a deletion.
 	 */
 	list_for_each_entry_reverse(r, &c->replay_list, list) {
-		ubifs_assert(c, r->sqnum >= rino->sqnum);
-		if (key_inum(c, &r->key) == key_inum(c, &rino->key))
+		ubifs_assert(c, r->sqnum >= riyes->sqnum);
+		if (key_inum(c, &r->key) == key_inum(c, &riyes->key))
 			return r->deletion == 0;
 
 	}
@@ -257,14 +257,14 @@ static int apply_replay_entry(struct ubifs_info *c, struct replay_entry *r)
 			switch (key_type(c, &r->key)) {
 			case UBIFS_INO_KEY:
 			{
-				ino_t inum = key_inum(c, &r->key);
+				iyes_t inum = key_inum(c, &r->key);
 
-				if (inode_still_linked(c, r)) {
+				if (iyesde_still_linked(c, r)) {
 					err = 0;
 					break;
 				}
 
-				err = ubifs_tnc_remove_ino(c, inum);
+				err = ubifs_tnc_remove_iyes(c, inum);
 				break;
 			}
 			case UBIFS_TRUN_KEY:
@@ -360,26 +360,26 @@ static void destroy_replay_list(struct ubifs_info *c)
 }
 
 /**
- * insert_node - insert a node to the replay list
+ * insert_yesde - insert a yesde to the replay list
  * @c: UBIFS file-system description object
- * @lnum: node logical eraseblock number
- * @offs: node offset
- * @len: node length
- * @key: node key
+ * @lnum: yesde logical eraseblock number
+ * @offs: yesde offset
+ * @len: yesde length
+ * @key: yesde key
  * @sqnum: sequence number
- * @deletion: non-zero if this is a deletion
+ * @deletion: yesn-zero if this is a deletion
  * @used: number of bytes in use in a LEB
  * @old_size: truncation old size
  * @new_size: truncation new size
  *
- * This function inserts a scanned non-direntry node to the replay list. The
+ * This function inserts a scanned yesn-direntry yesde to the replay list. The
  * replay list contains @struct replay_entry elements, and we sort this list in
  * sequence number order before applying it. The replay list is applied at the
  * very end of the replay process. Since the list is sorted in sequence number
  * order, the older modifications are applied first. This function returns zero
  * in case of success and a negative error code in case of failure.
  */
-static int insert_node(struct ubifs_info *c, int lnum, int offs, int len,
+static int insert_yesde(struct ubifs_info *c, int lnum, int offs, int len,
 		       const u8 *hash, union ubifs_key *key,
 		       unsigned long long sqnum, int deletion, int *used,
 		       loff_t old_size, loff_t new_size)
@@ -412,19 +412,19 @@ static int insert_node(struct ubifs_info *c, int lnum, int offs, int len,
 }
 
 /**
- * insert_dent - insert a directory entry node into the replay list.
+ * insert_dent - insert a directory entry yesde into the replay list.
  * @c: UBIFS file-system description object
- * @lnum: node logical eraseblock number
- * @offs: node offset
- * @len: node length
- * @key: node key
+ * @lnum: yesde logical eraseblock number
+ * @offs: yesde offset
+ * @len: yesde length
+ * @key: yesde key
  * @name: directory entry name
  * @nlen: directory entry name length
  * @sqnum: sequence number
- * @deletion: non-zero if this is a deletion
+ * @deletion: yesn-zero if this is a deletion
  * @used: number of bytes in use in a LEB
  *
- * This function inserts a scanned directory entry node or an extended
+ * This function inserts a scanned directory entry yesde or an extended
  * attribute entry to the replay list. Returns zero in case of success and a
  * negative error code in case of failure.
  */
@@ -469,15 +469,15 @@ static int insert_dent(struct ubifs_info *c, int lnum, int offs, int len,
 }
 
 /**
- * ubifs_validate_entry - validate directory or extended attribute entry node.
+ * ubifs_validate_entry - validate directory or extended attribute entry yesde.
  * @c: UBIFS file-system description object
- * @dent: the node to validate
+ * @dent: the yesde to validate
  *
- * This function validates directory or extended attribute entry node @dent.
- * Returns zero if the node is all right and a %-EINVAL if not.
+ * This function validates directory or extended attribute entry yesde @dent.
+ * Returns zero if the yesde is all right and a %-EINVAL if yest.
  */
 int ubifs_validate_entry(struct ubifs_info *c,
-			 const struct ubifs_dent_node *dent)
+			 const struct ubifs_dent_yesde *dent)
 {
 	int key_type = key_type_flash(c, dent->key);
 	int nlen = le16_to_cpu(dent->nlen);
@@ -487,7 +487,7 @@ int ubifs_validate_entry(struct ubifs_info *c,
 	    nlen > UBIFS_MAX_NLEN || dent->name[nlen] != 0 ||
 	    (key_type == UBIFS_XENT_KEY && strnlen(dent->name, nlen) != nlen) ||
 	    le64_to_cpu(dent->inum) > MAX_INUM) {
-		ubifs_err(c, "bad %s node", key_type == UBIFS_DENT_KEY ?
+		ubifs_err(c, "bad %s yesde", key_type == UBIFS_DENT_KEY ?
 			  "directory entry" : "extended attribute entry");
 		return -EINVAL;
 	}
@@ -507,8 +507,8 @@ int ubifs_validate_entry(struct ubifs_info *c,
  *
  * This function checks if bud @bud is the last bud in its journal head. This
  * information is then used by 'replay_bud()' to decide whether the bud can
- * have corruptions or not. Indeed, only last buds can be corrupted by power
- * cuts. Returns %1 if this is the last bud, and %0 if not.
+ * have corruptions or yest. Indeed, only last buds can be corrupted by power
+ * cuts. Returns %1 if this is the last bud, and %0 if yest.
  */
 static int is_last_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 {
@@ -531,10 +531,10 @@ static int is_last_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 	 * try to mount this image with new UBIFS.
 	 *
 	 * The exception is: it is possible to have 2 buds A and B, A goes
-	 * before B, and B is the last, bud B is contains no data, and bud A is
+	 * before B, and B is the last, bud B is contains yes data, and bud A is
 	 * corrupted at the end. The reason is that in older versions when the
 	 * journal code switched the next bud (from A to B), it first added a
-	 * log reference node for the new bud (B), and only after this it
+	 * log reference yesde for the new bud (B), and only after this it
 	 * synchronized the write-buffer of current bud (A). But later this was
 	 * changed and UBIFS started to always synchronize the write-buffer of
 	 * the bud (A) before writing the log reference for the new bud (B).
@@ -586,25 +586,25 @@ static int authenticate_sleb_hmac(struct ubifs_info *c, u8 *hash, u8 *hmac)
  * @is_last: if true, this is is the last LEB
  *
  * This function iterates over the buds of a single LEB authenticating all buds
- * with the authentication nodes on this LEB. Authentication nodes are written
- * after some buds and contain a HMAC covering the authentication node itself
- * and the buds between the last authentication node and the current
- * authentication node. It can happen that the last buds cannot be authenticated
- * because a powercut happened when some nodes were written but not the
- * corresponding authentication node. This function returns the number of nodes
+ * with the authentication yesdes on this LEB. Authentication yesdes are written
+ * after some buds and contain a HMAC covering the authentication yesde itself
+ * and the buds between the last authentication yesde and the current
+ * authentication yesde. It can happen that the last buds canyest be authenticated
+ * because a powercut happened when some yesdes were written but yest the
+ * corresponding authentication yesde. This function returns the number of yesdes
  * that could be authenticated or a negative error code.
  */
 static int authenticate_sleb(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 			     struct shash_desc *log_hash, int is_last)
 {
-	int n_not_auth = 0;
-	struct ubifs_scan_node *snod;
-	int n_nodes = 0;
+	int n_yest_auth = 0;
+	struct ubifs_scan_yesde *syesd;
+	int n_yesdes = 0;
 	int err;
 	u8 *hash, *hmac;
 
 	if (!ubifs_authenticated(c))
-		return sleb->nodes_cnt;
+		return sleb->yesdes_cnt;
 
 	hash = kmalloc(crypto_shash_descsize(c->hash_tfm), GFP_NOFS);
 	hmac = kmalloc(c->hmac_desc_len, GFP_NOFS);
@@ -613,12 +613,12 @@ static int authenticate_sleb(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		goto out;
 	}
 
-	list_for_each_entry(snod, &sleb->nodes, list) {
+	list_for_each_entry(syesd, &sleb->yesdes, list) {
 
-		n_nodes++;
+		n_yesdes++;
 
-		if (snod->type == UBIFS_AUTH_NODE) {
-			struct ubifs_auth_node *auth = snod->node;
+		if (syesd->type == UBIFS_AUTH_NODE) {
+			struct ubifs_auth_yesde *auth = syesd->yesde;
 
 			err = authenticate_sleb_hash(c, log_hash, hash);
 			if (err)
@@ -633,29 +633,29 @@ static int authenticate_sleb(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 				err = -EPERM;
 				goto out;
 			}
-			n_not_auth = 0;
+			n_yest_auth = 0;
 		} else {
-			err = crypto_shash_update(log_hash, snod->node,
-						  snod->len);
+			err = crypto_shash_update(log_hash, syesd->yesde,
+						  syesd->len);
 			if (err)
 				goto out;
-			n_not_auth++;
+			n_yest_auth++;
 		}
 	}
 
 	/*
-	 * A powercut can happen when some nodes were written, but not yet
-	 * the corresponding authentication node. This may only happen on
+	 * A powercut can happen when some yesdes were written, but yest yet
+	 * the corresponding authentication yesde. This may only happen on
 	 * the last bud though.
 	 */
-	if (n_not_auth) {
+	if (n_yest_auth) {
 		if (is_last) {
-			dbg_mnt("%d unauthenticated nodes found on LEB %d, Ignoring them",
-				n_not_auth, sleb->lnum);
+			dbg_mnt("%d unauthenticated yesdes found on LEB %d, Igyesring them",
+				n_yest_auth, sleb->lnum);
 			err = 0;
 		} else {
-			dbg_mnt("%d unauthenticated nodes found on non-last LEB %d",
-				n_not_auth, sleb->lnum);
+			dbg_mnt("%d unauthenticated yesdes found on yesn-last LEB %d",
+				n_yest_auth, sleb->lnum);
 			err = -EPERM;
 		}
 	} else {
@@ -665,7 +665,7 @@ out:
 	kfree(hash);
 	kfree(hmac);
 
-	return err ? err : n_nodes - n_not_auth;
+	return err ? err : n_yesdes - n_yest_auth;
 }
 
 /**
@@ -673,7 +673,7 @@ out:
  * @c: UBIFS file-system description object
  * @b: bud entry which describes the bud
  *
- * This function replays bud @bud, recovers it if needed, and adds all nodes
+ * This function replays bud @bud, recovers it if needed, and adds all yesdes
  * from this bud to the replay list. Returns zero in case of success and a
  * negative error code in case of failure.
  */
@@ -681,9 +681,9 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 {
 	int is_last = is_last_bud(c, b->bud);
 	int err = 0, used = 0, lnum = b->bud->lnum, offs = b->bud->start;
-	int n_nodes, n = 0;
+	int n_yesdes, n = 0;
 	struct ubifs_scan_leb *sleb;
-	struct ubifs_scan_node *snod;
+	struct ubifs_scan_yesde *syesd;
 
 	dbg_mnt("replay bud LEB %d, head %d, offs %d, is_last %d",
 		lnum, b->bud->jhead, offs, is_last);
@@ -701,9 +701,9 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 	if (IS_ERR(sleb))
 		return PTR_ERR(sleb);
 
-	n_nodes = authenticate_sleb(c, sleb, b->bud->log_hash, is_last);
-	if (n_nodes < 0) {
-		err = n_nodes;
+	n_yesdes = authenticate_sleb(c, sleb, b->bud->log_hash, is_last);
+	if (n_yesdes < 0) {
+		err = n_yesdes;
 		goto out;
 	}
 
@@ -711,7 +711,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 			       c->jheads[b->bud->jhead].log_hash);
 
 	/*
-	 * The bud does not have to start from offset zero - the beginning of
+	 * The bud does yest have to start from offset zero - the beginning of
 	 * the 'lnum' LEB may contain previously committed data. One of the
 	 * things we have to do in replay is to correctly update lprops with
 	 * newer information about this LEB.
@@ -720,104 +720,104 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 	 * bytes of free space because it only contain information about
 	 * committed data.
 	 *
-	 * But we know that real amount of free space is 'c->leb_size -
+	 * But we kyesw that real amount of free space is 'c->leb_size -
 	 * sleb->endpt', and the space in the 'lnum' LEB between 'offs' and
 	 * 'sleb->endpt' is used by bud data. We have to correctly calculate
 	 * how much of these data are dirty and update lprops with this
 	 * information.
 	 *
-	 * The dirt in that LEB region is comprised of padding nodes, deletion
-	 * nodes, truncation nodes and nodes which are obsoleted by subsequent
-	 * nodes in this LEB. So instead of calculating clean space, we
+	 * The dirt in that LEB region is comprised of padding yesdes, deletion
+	 * yesdes, truncation yesdes and yesdes which are obsoleted by subsequent
+	 * yesdes in this LEB. So instead of calculating clean space, we
 	 * calculate used space ('used' variable).
 	 */
 
-	list_for_each_entry(snod, &sleb->nodes, list) {
+	list_for_each_entry(syesd, &sleb->yesdes, list) {
 		u8 hash[UBIFS_HASH_ARR_SZ];
 		int deletion = 0;
 
 		cond_resched();
 
-		if (snod->sqnum >= SQNUM_WATERMARK) {
+		if (syesd->sqnum >= SQNUM_WATERMARK) {
 			ubifs_err(c, "file system's life ended");
 			goto out_dump;
 		}
 
-		ubifs_node_calc_hash(c, snod->node, hash);
+		ubifs_yesde_calc_hash(c, syesd->yesde, hash);
 
-		if (snod->sqnum > c->max_sqnum)
-			c->max_sqnum = snod->sqnum;
+		if (syesd->sqnum > c->max_sqnum)
+			c->max_sqnum = syesd->sqnum;
 
-		switch (snod->type) {
+		switch (syesd->type) {
 		case UBIFS_INO_NODE:
 		{
-			struct ubifs_ino_node *ino = snod->node;
-			loff_t new_size = le64_to_cpu(ino->size);
+			struct ubifs_iyes_yesde *iyes = syesd->yesde;
+			loff_t new_size = le64_to_cpu(iyes->size);
 
-			if (le32_to_cpu(ino->nlink) == 0)
+			if (le32_to_cpu(iyes->nlink) == 0)
 				deletion = 1;
-			err = insert_node(c, lnum, snod->offs, snod->len, hash,
-					  &snod->key, snod->sqnum, deletion,
+			err = insert_yesde(c, lnum, syesd->offs, syesd->len, hash,
+					  &syesd->key, syesd->sqnum, deletion,
 					  &used, 0, new_size);
 			break;
 		}
 		case UBIFS_DATA_NODE:
 		{
-			struct ubifs_data_node *dn = snod->node;
+			struct ubifs_data_yesde *dn = syesd->yesde;
 			loff_t new_size = le32_to_cpu(dn->size) +
-					  key_block(c, &snod->key) *
+					  key_block(c, &syesd->key) *
 					  UBIFS_BLOCK_SIZE;
 
-			err = insert_node(c, lnum, snod->offs, snod->len, hash,
-					  &snod->key, snod->sqnum, deletion,
+			err = insert_yesde(c, lnum, syesd->offs, syesd->len, hash,
+					  &syesd->key, syesd->sqnum, deletion,
 					  &used, 0, new_size);
 			break;
 		}
 		case UBIFS_DENT_NODE:
 		case UBIFS_XENT_NODE:
 		{
-			struct ubifs_dent_node *dent = snod->node;
+			struct ubifs_dent_yesde *dent = syesd->yesde;
 
 			err = ubifs_validate_entry(c, dent);
 			if (err)
 				goto out_dump;
 
-			err = insert_dent(c, lnum, snod->offs, snod->len, hash,
-					  &snod->key, dent->name,
-					  le16_to_cpu(dent->nlen), snod->sqnum,
+			err = insert_dent(c, lnum, syesd->offs, syesd->len, hash,
+					  &syesd->key, dent->name,
+					  le16_to_cpu(dent->nlen), syesd->sqnum,
 					  !le64_to_cpu(dent->inum), &used);
 			break;
 		}
 		case UBIFS_TRUN_NODE:
 		{
-			struct ubifs_trun_node *trun = snod->node;
+			struct ubifs_trun_yesde *trun = syesd->yesde;
 			loff_t old_size = le64_to_cpu(trun->old_size);
 			loff_t new_size = le64_to_cpu(trun->new_size);
 			union ubifs_key key;
 
-			/* Validate truncation node */
-			if (old_size < 0 || old_size > c->max_inode_sz ||
-			    new_size < 0 || new_size > c->max_inode_sz ||
+			/* Validate truncation yesde */
+			if (old_size < 0 || old_size > c->max_iyesde_sz ||
+			    new_size < 0 || new_size > c->max_iyesde_sz ||
 			    old_size <= new_size) {
-				ubifs_err(c, "bad truncation node");
+				ubifs_err(c, "bad truncation yesde");
 				goto out_dump;
 			}
 
 			/*
 			 * Create a fake truncation key just to use the same
-			 * functions which expect nodes to have keys.
+			 * functions which expect yesdes to have keys.
 			 */
 			trun_key_init(c, &key, le32_to_cpu(trun->inum));
-			err = insert_node(c, lnum, snod->offs, snod->len, hash,
-					  &key, snod->sqnum, 1, &used,
+			err = insert_yesde(c, lnum, syesd->offs, syesd->len, hash,
+					  &key, syesd->sqnum, 1, &used,
 					  old_size, new_size);
 			break;
 		}
 		case UBIFS_AUTH_NODE:
 			break;
 		default:
-			ubifs_err(c, "unexpected node type %d in bud LEB %d:%d",
-				  snod->type, lnum, snod->offs);
+			ubifs_err(c, "unexpected yesde type %d in bud LEB %d:%d",
+				  syesd->type, lnum, syesd->offs);
 			err = -EINVAL;
 			goto out_dump;
 		}
@@ -825,7 +825,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 			goto out;
 
 		n++;
-		if (n == n_nodes)
+		if (n == n_yesdes)
 			break;
 	}
 
@@ -843,8 +843,8 @@ out:
 	return err;
 
 out_dump:
-	ubifs_err(c, "bad node is at LEB %d:%d", lnum, snod->offs);
-	ubifs_dump_node(c, snod->node);
+	ubifs_err(c, "bad yesde is at LEB %d:%d", lnum, syesd->offs);
+	ubifs_dump_yesde(c, syesd->yesde);
 	ubifs_scan_destroy(sleb);
 	return -EINVAL;
 }
@@ -895,7 +895,7 @@ static void destroy_bud_list(struct ubifs_info *c)
  * @lnum: bud logical eraseblock number to replay
  * @offs: bud start offset
  * @jhead: journal head to which this bud belongs
- * @sqnum: reference node sequence number
+ * @sqnum: reference yesde sequence number
  *
  * This function returns zero in case of success and a negative error code in
  * case of failure.
@@ -945,17 +945,17 @@ out:
 }
 
 /**
- * validate_ref - validate a reference node.
+ * validate_ref - validate a reference yesde.
  * @c: UBIFS file-system description object
- * @ref: the reference node to validate
- * @ref_lnum: LEB number of the reference node
- * @ref_offs: reference node offset
+ * @ref: the reference yesde to validate
+ * @ref_lnum: LEB number of the reference yesde
+ * @ref_offs: reference yesde offset
  *
  * This function returns %1 if a bud reference already exists for the LEB. %0 is
- * returned if the reference node is new, otherwise %-EINVAL is returned if
+ * returned if the reference yesde is new, otherwise %-EINVAL is returned if
  * validation failed.
  */
-static int validate_ref(struct ubifs_info *c, const struct ubifs_ref_node *ref)
+static int validate_ref(struct ubifs_info *c, const struct ubifs_ref_yesde *ref)
 {
 	struct ubifs_bud *bud;
 	int lnum = le32_to_cpu(ref->lnum);
@@ -964,7 +964,7 @@ static int validate_ref(struct ubifs_info *c, const struct ubifs_ref_node *ref)
 
 	/*
 	 * ref->offs may point to the end of LEB when the journal head points
-	 * to the end of LEB and we write reference node for it during commit.
+	 * to the end of LEB and we write reference yesde for it during commit.
 	 * So this is why we require 'offs > c->leb_size'.
 	 */
 	if (jhead >= c->jhead_cnt || lnum >= c->leb_cnt ||
@@ -972,7 +972,7 @@ static int validate_ref(struct ubifs_info *c, const struct ubifs_ref_node *ref)
 	    offs & (c->min_io_size - 1))
 		return -EINVAL;
 
-	/* Make sure we have not already looked at this bud */
+	/* Make sure we have yest already looked at this bud */
 	bud = ubifs_search_bud(c, lnum);
 	if (bud) {
 		if (bud->jhead == jhead && bud->start <= offs)
@@ -999,8 +999,8 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 {
 	int err;
 	struct ubifs_scan_leb *sleb;
-	struct ubifs_scan_node *snod;
-	const struct ubifs_cs_node *node;
+	struct ubifs_scan_yesde *syesd;
+	const struct ubifs_cs_yesde *yesde;
 
 	dbg_mnt("replay log LEB %d:%d", lnum, offs);
 	sleb = ubifs_scan(c, lnum, offs, sbuf, c->need_recovery);
@@ -1017,51 +1017,51 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 			return PTR_ERR(sleb);
 	}
 
-	if (sleb->nodes_cnt == 0) {
+	if (sleb->yesdes_cnt == 0) {
 		err = 1;
 		goto out;
 	}
 
-	node = sleb->buf;
-	snod = list_entry(sleb->nodes.next, struct ubifs_scan_node, list);
+	yesde = sleb->buf;
+	syesd = list_entry(sleb->yesdes.next, struct ubifs_scan_yesde, list);
 	if (c->cs_sqnum == 0) {
 		/*
 		 * This is the first log LEB we are looking at, make sure that
-		 * the first node is a commit start node. Also record its
+		 * the first yesde is a commit start yesde. Also record its
 		 * sequence number so that UBIFS can determine where the log
-		 * ends, because all nodes which were have higher sequence
+		 * ends, because all yesdes which were have higher sequence
 		 * numbers.
 		 */
-		if (snod->type != UBIFS_CS_NODE) {
-			ubifs_err(c, "first log node at LEB %d:%d is not CS node",
+		if (syesd->type != UBIFS_CS_NODE) {
+			ubifs_err(c, "first log yesde at LEB %d:%d is yest CS yesde",
 				  lnum, offs);
 			goto out_dump;
 		}
-		if (le64_to_cpu(node->cmt_no) != c->cmt_no) {
-			ubifs_err(c, "first CS node at LEB %d:%d has wrong commit number %llu expected %llu",
+		if (le64_to_cpu(yesde->cmt_yes) != c->cmt_yes) {
+			ubifs_err(c, "first CS yesde at LEB %d:%d has wrong commit number %llu expected %llu",
 				  lnum, offs,
-				  (unsigned long long)le64_to_cpu(node->cmt_no),
-				  c->cmt_no);
+				  (unsigned long long)le64_to_cpu(yesde->cmt_yes),
+				  c->cmt_yes);
 			goto out_dump;
 		}
 
-		c->cs_sqnum = le64_to_cpu(node->ch.sqnum);
+		c->cs_sqnum = le64_to_cpu(yesde->ch.sqnum);
 		dbg_mnt("commit start sqnum %llu", c->cs_sqnum);
 
 		err = ubifs_shash_init(c, c->log_hash);
 		if (err)
 			goto out;
 
-		err = ubifs_shash_update(c, c->log_hash, node, UBIFS_CS_NODE_SZ);
+		err = ubifs_shash_update(c, c->log_hash, yesde, UBIFS_CS_NODE_SZ);
 		if (err < 0)
 			goto out;
 	}
 
-	if (snod->sqnum < c->cs_sqnum) {
+	if (syesd->sqnum < c->cs_sqnum) {
 		/*
-		 * This means that we reached end of log and now
+		 * This means that we reached end of log and yesw
 		 * look to the older log data, which was already
-		 * committed but the eraseblock was not erased (UBIFS
+		 * committed but the eraseblock was yest erased (UBIFS
 		 * only un-maps it). So this basically means we have to
 		 * exit with "end of log" code.
 		 */
@@ -1069,32 +1069,32 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 		goto out;
 	}
 
-	/* Make sure the first node sits at offset zero of the LEB */
-	if (snod->offs != 0) {
-		ubifs_err(c, "first node is not at zero offset");
+	/* Make sure the first yesde sits at offset zero of the LEB */
+	if (syesd->offs != 0) {
+		ubifs_err(c, "first yesde is yest at zero offset");
 		goto out_dump;
 	}
 
-	list_for_each_entry(snod, &sleb->nodes, list) {
+	list_for_each_entry(syesd, &sleb->yesdes, list) {
 		cond_resched();
 
-		if (snod->sqnum >= SQNUM_WATERMARK) {
+		if (syesd->sqnum >= SQNUM_WATERMARK) {
 			ubifs_err(c, "file system's life ended");
 			goto out_dump;
 		}
 
-		if (snod->sqnum < c->cs_sqnum) {
+		if (syesd->sqnum < c->cs_sqnum) {
 			ubifs_err(c, "bad sqnum %llu, commit sqnum %llu",
-				  snod->sqnum, c->cs_sqnum);
+				  syesd->sqnum, c->cs_sqnum);
 			goto out_dump;
 		}
 
-		if (snod->sqnum > c->max_sqnum)
-			c->max_sqnum = snod->sqnum;
+		if (syesd->sqnum > c->max_sqnum)
+			c->max_sqnum = syesd->sqnum;
 
-		switch (snod->type) {
+		switch (syesd->type) {
 		case UBIFS_REF_NODE: {
-			const struct ubifs_ref_node *ref = snod->node;
+			const struct ubifs_ref_yesde *ref = syesd->yesde;
 
 			err = validate_ref(c, ref);
 			if (err == 1)
@@ -1110,7 +1110,7 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 			err = add_replay_bud(c, le32_to_cpu(ref->lnum),
 					     le32_to_cpu(ref->offs),
 					     le32_to_cpu(ref->jhead),
-					     snod->sqnum);
+					     syesd->sqnum);
 			if (err)
 				goto out;
 
@@ -1118,13 +1118,13 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 		}
 		case UBIFS_CS_NODE:
 			/* Make sure it sits at the beginning of LEB */
-			if (snod->offs != 0) {
-				ubifs_err(c, "unexpected node in log");
+			if (syesd->offs != 0) {
+				ubifs_err(c, "unexpected yesde in log");
 				goto out_dump;
 			}
 			break;
 		default:
-			ubifs_err(c, "unexpected node in log");
+			ubifs_err(c, "unexpected yesde in log");
 			goto out_dump;
 		}
 	}
@@ -1141,8 +1141,8 @@ out:
 
 out_dump:
 	ubifs_err(c, "log error detected while replaying the log at LEB %d:%d",
-		  lnum, offs + snod->offs);
-	ubifs_dump_node(c, snod->node);
+		  lnum, offs + syesd->offs);
+	ubifs_dump_yesde(c, syesd->yesde);
 	ubifs_scan_destroy(sleb);
 	return -EINVAL;
 }
@@ -1220,12 +1220,12 @@ int ubifs_replay_journal(struct ubifs_info *c)
 
 			/*
 			 * The head of the log must always start with the
-			 * "commit start" node on a properly formatted UBIFS.
-			 * But we found no nodes at all, which means that
-			 * something went wrong and we cannot proceed mounting
+			 * "commit start" yesde on a properly formatted UBIFS.
+			 * But we found yes yesdes at all, which means that
+			 * something went wrong and we canyest proceed mounting
 			 * the file-system.
 			 */
-			ubifs_err(c, "no UBIFS nodes found at the log head LEB %d:%d, possibly corrupted",
+			ubifs_err(c, "yes UBIFS yesdes found at the log head LEB %d:%d, possibly corrupted",
 				  lnum, 0);
 			err = -EINVAL;
 		}
@@ -1253,7 +1253,7 @@ int ubifs_replay_journal(struct ubifs_info *c)
 	 * budgeting works properly.
 	 */
 	c->bi.uncommitted_idx = atomic_long_read(&c->dirty_zn_cnt);
-	c->bi.uncommitted_idx *= c->max_idx_node_sz;
+	c->bi.uncommitted_idx *= c->max_idx_yesde_sz;
 
 	ubifs_assert(c, c->bud_bytes <= c->max_bud_bytes || c->need_recovery);
 	dbg_mnt("finished, log head LEB %d:%d, max_sqnum %llu, highest_inum %lu",

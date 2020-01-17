@@ -64,7 +64,7 @@
 /* Pattern flags */
 #define PATFG                   0x00000000  /* foreground color */
 #define PATPATREG               0x00000040  /* pattern in pattern buffer (0x8300) */
-#define PATMONO                 0x00000080  /* mono pattern */
+#define PATMONO                 0x00000080  /* moyes pattern */
 
 /* blitting direction (300 series only) */
 #define X_INC                   0x00010000
@@ -145,7 +145,7 @@
   	while((MMIO_IN16(ivideo->mmio_vbase, BR(16)+2) & 0xE000) != 0xE000){}; \
   	CmdQueLen = MMIO_IN16(ivideo->mmio_vbase, 0x8240); \
   }
-/* (do three times, because 2D engine seems quite unsure about whether or not it's idle) */
+/* (do three times, because 2D engine seems quite unsure about whether or yest it's idle) */
 
 #define SiS300SetupSRCBase(base) \
 	if(CmdQueLen <= 0) SiS300Idle;\

@@ -244,8 +244,8 @@ static const struct regmap_range qca8k_readable_ranges[] = {
 };
 
 static const struct regmap_access_table qca8k_readable_table = {
-	.yes_ranges = qca8k_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(qca8k_readable_ranges),
+	.no_ranges = qca8k_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(qca8k_readable_ranges),
 };
 
 static struct regmap_config qca8k_regmap_config = {
@@ -440,7 +440,7 @@ qca8k_set_pad_ctrl(struct qca8k_priv *priv, int port, int mode)
 	 */
 	switch (mode) {
 	case PHY_INTERFACE_MODE_RGMII:
-		/* RGMII mode means no delay so don't enable the delay */
+		/* RGMII mode means yes delay so don't enable the delay */
 		val = QCA8K_PORT_PAD_RGMII_EN;
 		qca8k_write(priv, reg, val);
 		break;
@@ -460,7 +460,7 @@ qca8k_set_pad_ctrl(struct qca8k_priv *priv, int port, int mode)
 		qca8k_write(priv, reg, QCA8K_PORT_PAD_SGMII_EN);
 		break;
 	default:
-		pr_err("xMII mode %d not supported\n", mode);
+		pr_err("xMII mode %d yest supported\n", mode);
 		return -EINVAL;
 	}
 
@@ -472,7 +472,7 @@ qca8k_port_set_status(struct qca8k_priv *priv, int port, int enable)
 {
 	u32 mask = QCA8K_PORT_STATUS_TXMAC | QCA8K_PORT_STATUS_RXMAC;
 
-	/* Port 0 and 6 have no internal PHY */
+	/* Port 0 and 6 have yes internal PHY */
 	if (port > 0 && port < 6)
 		mask |= QCA8K_PORT_STATUS_LINK_AUTO;
 
@@ -486,12 +486,12 @@ static u32
 qca8k_port_to_phy(int port)
 {
 	/* From Andrew Lunn:
-	 * Port 0 has no internal phy.
+	 * Port 0 has yes internal phy.
 	 * Port 1 has an internal PHY at MDIO address 0.
 	 * Port 2 has an internal PHY at MDIO address 1.
 	 * ...
 	 * Port 5 has an internal PHY at MDIO address 4.
-	 * Port 6 has no internal PHY.
+	 * Port 6 has yes internal PHY.
 	 */
 
 	return port - 1;
@@ -505,7 +505,7 @@ qca8k_mdio_write(struct qca8k_priv *priv, int port, u32 regnum, u16 data)
 	if (regnum >= QCA8K_MDIO_MASTER_MAX_REG)
 		return -EINVAL;
 
-	/* callee is responsible for not passing bad ports,
+	/* callee is responsible for yest passing bad ports,
 	 * but we still would like to make spills impossible.
 	 */
 	phy = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
@@ -528,7 +528,7 @@ qca8k_mdio_read(struct qca8k_priv *priv, int port, u32 regnum)
 	if (regnum >= QCA8K_MDIO_MASTER_MAX_REG)
 		return -EINVAL;
 
-	/* callee is responsible for not passing bad ports,
+	/* callee is responsible for yest passing bad ports,
 	 * but we still would like to make spills impossible.
 	 */
 	phy = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
@@ -574,18 +574,18 @@ static int
 qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 {
 	u32 internal_mdio_mask = 0, external_mdio_mask = 0, reg;
-	struct device_node *ports, *port;
+	struct device_yesde *ports, *port;
 	int err;
 
-	ports = of_get_child_by_name(priv->dev->of_node, "ports");
+	ports = of_get_child_by_name(priv->dev->of_yesde, "ports");
 	if (!ports)
 		return -EINVAL;
 
-	for_each_available_child_of_node(ports, port) {
+	for_each_available_child_of_yesde(ports, port) {
 		err = of_property_read_u32(port, "reg", &reg);
 		if (err) {
-			of_node_put(port);
-			of_node_put(ports);
+			of_yesde_put(port);
+			of_yesde_put(ports);
 			return err;
 		}
 
@@ -598,15 +598,15 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 			internal_mdio_mask |= BIT(reg);
 	}
 
-	of_node_put(ports);
+	of_yesde_put(ports);
 	if (!external_mdio_mask && !internal_mdio_mask) {
-		dev_err(priv->dev, "no PHYs are defined.\n");
+		dev_err(priv->dev, "yes PHYs are defined.\n");
 		return -EINVAL;
 	}
 
 	/* The QCA8K_MDIO_MASTER_EN Bit, which grants access to PHYs through
 	 * the MDIO_MASTER register also _disconnects_ the external MDC
-	 * passthrough to the internal PHYs. It's not possible to use both
+	 * passthrough to the internal PHYs. It's yest possible to use both
 	 * configurations at the same time!
 	 *
 	 * Because this came up during the review process:
@@ -645,7 +645,7 @@ qca8k_setup(struct dsa_switch *ds)
 
 	/* Make sure that port 0 is the cpu port */
 	if (!dsa_is_cpu_port(ds, 0)) {
-		pr_err("port 0 is not the CPU port\n");
+		pr_err("port 0 is yest the CPU port\n");
 		return -EINVAL;
 	}
 
@@ -698,7 +698,7 @@ qca8k_setup(struct dsa_switch *ds)
 		if (dsa_is_user_port(ds, i))
 			qca8k_port_set_status(priv, i, 0);
 
-	/* Forward all unknown frames to CPU port for Linux processing */
+	/* Forward all unkyeswn frames to CPU port for Linux processing */
 	qca8k_write(priv, QCA8K_REG_GLOBAL_FW_CTRL1,
 		    BIT(0) << QCA8K_GLOBAL_FW_CTRL1_IGMP_DP_S |
 		    BIT(0) << QCA8K_GLOBAL_FW_CTRL1_BC_DP_S |
@@ -764,7 +764,7 @@ qca8k_adjust_link(struct dsa_switch *ds, int port, struct phy_device *phy)
 		reg = QCA8K_PORT_STATUS_SPEED_1000;
 		break;
 	default:
-		dev_dbg(priv->dev, "port%d link speed %dMbps not supported.\n",
+		dev_dbg(priv->dev, "port%d link speed %dMbps yest supported.\n",
 			port, phy->speed);
 		return;
 	}
@@ -961,7 +961,7 @@ static int
 qca8k_port_fdb_insert(struct qca8k_priv *priv, const u8 *addr,
 		      u16 port_mask, u16 vid)
 {
-	/* Set the vid to the port vlan id if no vid is set */
+	/* Set the vid to the port vlan id if yes vid is set */
 	if (!vid)
 		vid = 1;
 

@@ -19,12 +19,12 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <sound/aess.h>
 
@@ -44,7 +44,7 @@
  * omap_hwmod_aess_preprogram - enable AESS internal autogating
  * @oh: struct omap_hwmod *
  *
- * The AESS will not IdleAck to the PRCM until its internal autogating
+ * The AESS will yest IdleAck to the PRCM until its internal autogating
  * is enabled.  Since internal autogating is disabled by default after
  * AESS reset, we must enable autogating after the hwmod code resets
  * the AESS.  Returns 0.
@@ -63,7 +63,7 @@ int omap_hwmod_aess_preprogram(struct omap_hwmod *oh)
 }
 
 /**
- * omap_rtc_wait_not_busy - Wait for the RTC BUSY flag
+ * omap_rtc_wait_yest_busy - Wait for the RTC BUSY flag
  * @oh: struct omap_hwmod *
  *
  * For updating certain RTC registers, the MPU must wait
@@ -71,14 +71,14 @@ int omap_hwmod_aess_preprogram(struct omap_hwmod *oh)
  * Once the BUSY status is zero, there is a 15 microseconds access
  * period in which the MPU can program.
  */
-static void omap_rtc_wait_not_busy(struct omap_hwmod *oh)
+static void omap_rtc_wait_yest_busy(struct omap_hwmod *oh)
 {
 	int i;
 
 	/* BUSY may stay active for 1/32768 second (~30 usec) */
 	omap_test_timeout(omap_hwmod_read(oh, OMAP_RTC_STATUS_REG)
 			  & OMAP_RTC_STATUS_BUSY, OMAP_RTC_MAX_READY_TIME, i);
-	/* now we have ~15 microseconds to read/write various registers */
+	/* yesw we have ~15 microseconds to read/write various registers */
 }
 
 /**
@@ -95,7 +95,7 @@ void omap_hwmod_rtc_unlock(struct omap_hwmod *oh)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	omap_rtc_wait_not_busy(oh);
+	omap_rtc_wait_yest_busy(oh);
 	omap_hwmod_write(OMAP_RTC_KICK0_VALUE, oh, OMAP_RTC_KICK0_REG);
 	omap_hwmod_write(OMAP_RTC_KICK1_VALUE, oh, OMAP_RTC_KICK1_REG);
 	local_irq_restore(flags);
@@ -115,7 +115,7 @@ void omap_hwmod_rtc_lock(struct omap_hwmod *oh)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	omap_rtc_wait_not_busy(oh);
+	omap_rtc_wait_yest_busy(oh);
 	omap_hwmod_write(0x0, oh, OMAP_RTC_KICK0_REG);
 	omap_hwmod_write(0x0, oh, OMAP_RTC_KICK1_REG);
 	local_irq_restore(flags);

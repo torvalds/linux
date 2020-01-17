@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -47,7 +47,7 @@ typedef void (*mlx5_fpga_tls_command_complete)
 
 struct mlx5_fpga_tls_command_context {
 	struct list_head list;
-	/* There is no guarantee on the order between the TX completion
+	/* There is yes guarantee on the order between the TX completion
 	 * and the command response.
 	 * The TX completion is going to touch cmd->buf even in
 	 * the case of successful transmission.
@@ -134,7 +134,7 @@ static int mlx5_fpga_tls_alloc_swid(struct idr *idr, spinlock_t *idr_spinlock,
 
 	/* TLS metadata format is 1 byte for syndrome followed
 	 * by 3 bytes of swid (software ID)
-	 * swid must not exceed 3 bytes.
+	 * swid must yest exceed 3 bytes.
 	 * See tls_rxtx.c:insert_pet() for details
 	 */
 	BUILD_BUG_ON((SWID_END - 1) & 0xFF000000);
@@ -331,7 +331,7 @@ mlx5_fpga_tls_setup_completion(struct mlx5_fpga_conn *conn,
 		/* The process was killed while waiting for the context to be
 		 * added, and the add completed successfully.
 		 * We need to destroy the HW context, and we can't can't reuse
-		 * the command context because we might not have received
+		 * the command context because we might yest have received
 		 * the tx completion yet.
 		 */
 		mlx5_fpga_tls_del_flow(fdev->mdev,

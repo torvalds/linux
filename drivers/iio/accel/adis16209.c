@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * ADIS16209 Dual-Axis Digital Inclinometer and Accelerometer
+ * ADIS16209 Dual-Axis Digital Incliyesmeter and Accelerometer
  *
  * Copyright 2010 Analog Devices Inc.
  */
@@ -250,7 +250,7 @@ static const struct adis_data adis16209_data = {
 	.diag_stat_reg = ADIS16209_STAT_REG,
 
 	.self_test_mask = ADIS16209_MSC_CTRL_SELF_TEST_EN,
-	.self_test_no_autoclear = true,
+	.self_test_yes_autoclear = true,
 	.startup_delay = ADIS16209_STARTUP_DELAY_MS,
 
 	.status_error_msgs = adis16209_status_error_msgs,
@@ -324,6 +324,6 @@ static struct spi_driver adis16209_driver = {
 module_spi_driver(adis16209_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
-MODULE_DESCRIPTION("Analog Devices ADIS16209 Dual-Axis Digital Inclinometer and Accelerometer");
+MODULE_DESCRIPTION("Analog Devices ADIS16209 Dual-Axis Digital Incliyesmeter and Accelerometer");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("spi:adis16209");

@@ -3,7 +3,7 @@
 Hardware supported by the linuxtv.org DVB drivers
 =================================================
 
-.. note::
+.. yeste::
 
    This documentation is outdated. Please check at the DVB wiki
    at https://linuxtv.org/wiki for more updated info.
@@ -18,13 +18,13 @@ changing the product name, revision number or specs. Some cards
 are also available in versions with different frontends for
 DVB-S/DVB-C/DVB-T. Thus the frontend drivers are listed separately.
 
-.. note::
+.. yeste::
 
-  #) There is no guarantee that every frontend driver works
+  #) There is yes guarantee that every frontend driver works
      out of the box with every card, because of different wiring.
 
   #) The demodulator chips can be used with a variety of
-     tuner/PLL chips, and not all combinations are supported. Often
+     tuner/PLL chips, and yest all combinations are supported. Often
      the demodulator and tuner/PLL chip are inside a metal box for
      shielding, and the whole metal box has its own part number.
 
@@ -69,11 +69,11 @@ DVB-S/DVB-C/DVB-T. Thus the frontend drivers are listed separately.
 - Cards based on the Phillips saa7146 multimedia PCI bridge chip:
 
   - TI AV7110 based cards (i.e. with hardware MPEG decoder):
-    - Siemens/Technotrend/Hauppauge PCI DVB card revision 1.1, 1.3, 1.5, 1.6, 2.1 (aka Hauppauge Nexus)
+    - Siemens/Techyestrend/Hauppauge PCI DVB card revision 1.1, 1.3, 1.5, 1.6, 2.1 (aka Hauppauge Nexus)
   - "budget" cards (i.e. without hardware MPEG decoder):
-    - Technotrend Budget / Hauppauge WinTV-Nova PCI Cards
+    - Techyestrend Budget / Hauppauge WinTV-Nova PCI Cards
     - SATELCO Multimedia PCI
-    - KNC1 DVB-S, Typhoon DVB-S, Terratec Cinergy 1200 DVB-S (no CI support)
+    - KNC1 DVB-S, Typhoon DVB-S, Terratec Cinergy 1200 DVB-S (yes CI support)
     - Typhoon DVB-S budget
     - Fujitsu-Siemens Activy DVB-S budget card
 
@@ -92,7 +92,7 @@ DVB-S/DVB-C/DVB-T. Thus the frontend drivers are listed separately.
   - DViCO FusionHDTV DVB-T Lite
   - DViCO FusionHDTV5 Lite
 
-- Technotrend / Hauppauge DVB USB devices:
+- Techyestrend / Hauppauge DVB USB devices:
 
   - Nova USB
   - DEC 2000-T, 3000-S, 2540-T
@@ -109,9 +109,9 @@ DVB-S/DVB-C/DVB-T. Thus the frontend drivers are listed separately.
   - Compro Videomate DVB-U2000 - DVB-T USB
   - Grandtec USB DVB-T
   - Avermedia AverTV DVBT USB
-  - DiBcom USB DVB-T reference device (non-public)
+  - DiBcom USB DVB-T reference device (yesn-public)
   - Yakumo DVB-T mobile USB2.0
-  - DiBcom USB2.0 DVB-T reference device (non-public)
+  - DiBcom USB2.0 DVB-T reference device (yesn-public)
 
 - Experimental support for the analog module of the Siemens DVB-C PCI card
 
@@ -119,7 +119,7 @@ DVB-S/DVB-C/DVB-T. Thus the frontend drivers are listed separately.
 
   - ADS Tech Instant TV DVB-T PCI
   - ATI HDTV Wonder
-  - digitalnow DNTV Live! DVB-T
+  - digitalyesw DNTV Live! DVB-T
   - DViCO FusionHDTV DVB-T1
   - DViCO FusionHDTV DVB-T Plus
   - DViCO FusionHDTV3 Gold-Q

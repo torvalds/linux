@@ -71,7 +71,7 @@ hypersparc_flush_cache_mm:
 	 sta	%g0, [%o0 + %o4] ASI_M_FLUSH_USER
 hypersparc_flush_cache_mm_out:
 	retl
-	 nop
+	 yesp
 
 	/* The things we do for performance... */
 hypersparc_flush_cache_range:
@@ -104,7 +104,7 @@ hypersparc_flush_cache_range:
 	 add	%o4, %g4, %g5
 	add	%o4, %g5, %g7
 
-	/* Flush entire user space, believe it or not this is quicker
+	/* Flush entire user space, believe it or yest this is quicker
 	 * than page at a time flushings for range > (cache_size<<2).
 	 */
 1:
@@ -119,7 +119,7 @@ hypersparc_flush_cache_range:
 	bne	1b
 	 sta	%g0, [%o3 + %g5] ASI_M_FLUSH_USER
 	retl
-	 nop
+	 yesp
 
 	/* Below our threshold, flush one page at a time. */
 0:
@@ -157,7 +157,7 @@ hypersparc_flush_cache_range:
 	sta	%o3, [%g7] ASI_M_MMUREGS
 hypersparc_flush_cache_range_out:
 	retl
-	 nop
+	 yesp
 
 	/* HyperSparc requires a valid mapping where we are about to flush
 	 * in order to check for a physical tag match during the flush.
@@ -211,7 +211,7 @@ hypersparc_flush_cache_page:
 	sta	%o2, [%g4] ASI_M_MMUREGS
 hypersparc_flush_cache_page_out:
 	retl
-	 nop
+	 yesp
 
 hypersparc_flush_sig_insns:
 	flush	%o1
@@ -257,9 +257,9 @@ hypersparc_flush_page_to_ram:
 	/* HyperSparc is IO cache coherent. */
 hypersparc_flush_page_for_dma:
 	retl
-	 nop
+	 yesp
 
-	/* It was noted that at boot time a TLB flush all in a delay slot
+	/* It was yested that at boot time a TLB flush all in a delay slot
 	 * can deliver an illegal instruction to the processor if the timing
 	 * is just right...
 	 */
@@ -267,7 +267,7 @@ hypersparc_flush_tlb_all:
 	mov	0x400, %g1
 	sta	%g0, [%g1] ASI_M_FLUSH_PROBE
 	retl
-	 nop
+	 yesp
 
 hypersparc_flush_tlb_mm:
 	mov	SRMMU_CTX_REG, %g1
@@ -351,7 +351,7 @@ hypersparc_bzero_1page:
 	 add	%o0, 256, %o0
 
 	retl
-	 nop
+	 yesp
 
 hypersparc_copy_1page:
 /* NOTE: This routine has to be shorter than 70insns --jj */
@@ -378,7 +378,7 @@ hypersparc_copy_1page:
 	 add	%o0, 32, %o0
 
 	retl
-	 nop
+	 yesp
 
 	.globl	hypersparc_setup_blockops
 hypersparc_setup_blockops:
@@ -410,4 +410,4 @@ hypersparc_setup_blockops:
 	 ld	[%o1], %o4
 	sta	%g0, [%g0] ASI_M_FLUSH_IWHOLE
 	retl
-	 nop
+	 yesp

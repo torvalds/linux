@@ -4,7 +4,7 @@
  *  Broadcom B43legacy wireless driver
  *
  *  Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>
- *  Copyright (c) 2005-2008 Stefano Brivio <stefano.brivio@polimi.it>
+ *  Copyright (c) 2005-2008 Stefayes Brivio <stefayes.brivio@polimi.it>
  *  Copyright (c) 2005, 2006 Michael Buesch <m@bues.ch>
  *  Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
  *  Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -42,7 +42,7 @@
 
 MODULE_DESCRIPTION("Broadcom B43legacy wireless driver");
 MODULE_AUTHOR("Martin Langer");
-MODULE_AUTHOR("Stefano Brivio");
+MODULE_AUTHOR("Stefayes Brivio");
 MODULE_AUTHOR("Michael Buesch");
 MODULE_LICENSE("GPL");
 
@@ -582,7 +582,7 @@ static void b43legacy_short_slot_timing_disable(struct b43legacy_wldev *dev)
 
 /* Synchronize IRQ top- and bottom-half.
  * IRQs must be masked before calling this.
- * This must not be called with the irq_lock held.
+ * This must yest be called with the irq_lock held.
  */
 static void b43legacy_synchronize_irq(struct b43legacy_wldev *dev)
 {
@@ -766,13 +766,13 @@ static void b43legacy_jssi_write(struct b43legacy_wldev *dev, u32 jssi)
 			      (jssi & 0xFFFF0000) >> 16);
 }
 
-static void b43legacy_generate_noise_sample(struct b43legacy_wldev *dev)
+static void b43legacy_generate_yesise_sample(struct b43legacy_wldev *dev)
 {
 	b43legacy_jssi_write(dev, 0x7F7F7F7F);
 	b43legacy_write32(dev, B43legacy_MMIO_MACCMD,
 			  b43legacy_read32(dev, B43legacy_MMIO_MACCMD)
 			  | B43legacy_MACCMD_BGNOISE);
-	B43legacy_WARN_ON(dev->noisecalc.channel_at_start !=
+	B43legacy_WARN_ON(dev->yesisecalc.channel_at_start !=
 			    dev->phy.channel);
 }
 
@@ -780,52 +780,52 @@ static void b43legacy_calculate_link_quality(struct b43legacy_wldev *dev)
 {
 	/* Top half of Link Quality calculation. */
 
-	if (dev->noisecalc.calculation_running)
+	if (dev->yesisecalc.calculation_running)
 		return;
-	dev->noisecalc.channel_at_start = dev->phy.channel;
-	dev->noisecalc.calculation_running = true;
-	dev->noisecalc.nr_samples = 0;
+	dev->yesisecalc.channel_at_start = dev->phy.channel;
+	dev->yesisecalc.calculation_running = true;
+	dev->yesisecalc.nr_samples = 0;
 
-	b43legacy_generate_noise_sample(dev);
+	b43legacy_generate_yesise_sample(dev);
 }
 
-static void handle_irq_noise(struct b43legacy_wldev *dev)
+static void handle_irq_yesise(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_phy *phy = &dev->phy;
 	u16 tmp;
-	u8 noise[4];
+	u8 yesise[4];
 	u8 i;
 	u8 j;
 	s32 average;
 
 	/* Bottom half of Link Quality calculation. */
 
-	B43legacy_WARN_ON(!dev->noisecalc.calculation_running);
-	if (dev->noisecalc.channel_at_start != phy->channel)
+	B43legacy_WARN_ON(!dev->yesisecalc.calculation_running);
+	if (dev->yesisecalc.channel_at_start != phy->channel)
 		goto drop_calculation;
-	*((__le32 *)noise) = cpu_to_le32(b43legacy_jssi_read(dev));
-	if (noise[0] == 0x7F || noise[1] == 0x7F ||
-	    noise[2] == 0x7F || noise[3] == 0x7F)
+	*((__le32 *)yesise) = cpu_to_le32(b43legacy_jssi_read(dev));
+	if (yesise[0] == 0x7F || yesise[1] == 0x7F ||
+	    yesise[2] == 0x7F || yesise[3] == 0x7F)
 		goto generate_new;
 
-	/* Get the noise samples. */
-	B43legacy_WARN_ON(dev->noisecalc.nr_samples >= 8);
-	i = dev->noisecalc.nr_samples;
-	noise[0] = clamp_val(noise[0], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
-	noise[1] = clamp_val(noise[1], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
-	noise[2] = clamp_val(noise[2], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
-	noise[3] = clamp_val(noise[3], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
-	dev->noisecalc.samples[i][0] = phy->nrssi_lt[noise[0]];
-	dev->noisecalc.samples[i][1] = phy->nrssi_lt[noise[1]];
-	dev->noisecalc.samples[i][2] = phy->nrssi_lt[noise[2]];
-	dev->noisecalc.samples[i][3] = phy->nrssi_lt[noise[3]];
-	dev->noisecalc.nr_samples++;
-	if (dev->noisecalc.nr_samples == 8) {
-		/* Calculate the Link Quality by the noise samples. */
+	/* Get the yesise samples. */
+	B43legacy_WARN_ON(dev->yesisecalc.nr_samples >= 8);
+	i = dev->yesisecalc.nr_samples;
+	yesise[0] = clamp_val(yesise[0], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
+	yesise[1] = clamp_val(yesise[1], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
+	yesise[2] = clamp_val(yesise[2], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
+	yesise[3] = clamp_val(yesise[3], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
+	dev->yesisecalc.samples[i][0] = phy->nrssi_lt[yesise[0]];
+	dev->yesisecalc.samples[i][1] = phy->nrssi_lt[yesise[1]];
+	dev->yesisecalc.samples[i][2] = phy->nrssi_lt[yesise[2]];
+	dev->yesisecalc.samples[i][3] = phy->nrssi_lt[yesise[3]];
+	dev->yesisecalc.nr_samples++;
+	if (dev->yesisecalc.nr_samples == 8) {
+		/* Calculate the Link Quality by the yesise samples. */
 		average = 0;
 		for (i = 0; i < 8; i++) {
 			for (j = 0; j < 4; j++)
-				average += dev->noisecalc.samples[i][j];
+				average += dev->yesisecalc.samples[i][j];
 		}
 		average /= (8 * 4);
 		average *= 125;
@@ -843,13 +843,13 @@ static void handle_irq_noise(struct b43legacy_wldev *dev)
 		else
 			average -= 48;
 
-		dev->stats.link_noise = average;
+		dev->stats.link_yesise = average;
 drop_calculation:
-		dev->noisecalc.calculation_running = false;
+		dev->yesisecalc.calculation_running = false;
 		return;
 	}
 generate_new:
-	b43legacy_generate_noise_sample(dev);
+	b43legacy_generate_yesise_sample(dev);
 }
 
 static void handle_irq_tbtt_indication(struct b43legacy_wldev *dev)
@@ -1009,7 +1009,7 @@ static void b43legacy_write_beacon_template(struct b43legacy_wldev *dev,
 		i += ie_len + 2;
 	}
 	if (!tim_found) {
-		b43legacywarn(dev->wl, "Did not find a valid TIM IE in the "
+		b43legacywarn(dev->wl, "Did yest find a valid TIM IE in the "
 			      "beacon template packet. AP or IBSS operation "
 			      "may be broken.\n");
 	} else
@@ -1167,9 +1167,9 @@ static void handle_irq_beacon(struct b43legacy_wldev *dev)
 	if (!b43legacy_is_mode(wl, NL80211_IFTYPE_AP))
 		return;
 
-	/* This is the bottom half of the asynchronous beacon update. */
+	/* This is the bottom half of the asynchroyesus beacon update. */
 
-	/* Ignore interrupt in the future. */
+	/* Igyesre interrupt in the future. */
 	dev->irq_mask &= ~B43legacy_IRQ_BEACON;
 
 	cmd = b43legacy_read32(dev, B43legacy_MMIO_MACCMD);
@@ -1185,7 +1185,7 @@ static void handle_irq_beacon(struct b43legacy_wldev *dev)
 
 	if (unlikely(wl->beacon_templates_virgin)) {
 		/* We never uploaded a beacon before.
-		 * Upload both templates now, but only mark one valid. */
+		 * Upload both templates yesw, but only mark one valid. */
 		wl->beacon_templates_virgin = false;
 		b43legacy_upload_beacon0(dev);
 		b43legacy_upload_beacon1(dev);
@@ -1227,13 +1227,13 @@ static void b43legacy_beacon_update_trigger_work(struct work_struct *work)
 	mutex_unlock(&wl->mutex);
 }
 
-/* Asynchronously update the packet templates in template RAM.
+/* Asynchroyesusly update the packet templates in template RAM.
  * Locking: Requires wl->irq_lock to be locked. */
 static void b43legacy_update_templates(struct b43legacy_wl *wl)
 {
 	struct sk_buff *beacon;
-	/* This is the top half of the ansynchronous beacon update. The bottom
-	 * half is the beacon IRQ. Beacon update must be asynchronous to avoid
+	/* This is the top half of the ansynchroyesus beacon update. The bottom
+	 * half is the beacon IRQ. Beacon update must be asynchroyesus to avoid
 	 * sending an invalid beacon. This can happen for example, if the
 	 * firmware transmits a beacon while we are updating it. */
 
@@ -1342,7 +1342,7 @@ static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
 	if (reason & B43legacy_IRQ_TXFIFO_FLUSH_OK)
 		;/*TODO*/
 	if (reason & B43legacy_IRQ_NOISESAMPLE_OK)
-		handle_irq_noise(dev);
+		handle_irq_yesise(dev);
 
 	/* Check the DMA reason registers for received data. */
 	if (dma_reason[0] & B43legacy_DMAIRQ_RX_DONE) {
@@ -1507,7 +1507,7 @@ static int do_request_fw(struct b43legacy_wldev *dev,
 	b43legacyinfo(dev->wl, "Loading firmware %s\n", path);
 	if (async) {
 		init_completion(&dev->fw_load_complete);
-		err = request_firmware_nowait(THIS_MODULE, 1, path,
+		err = request_firmware_yeswait(THIS_MODULE, 1, path,
 					      dev->dev->dev, GFP_KERNEL,
 					      dev, b43legacy_fw_cb);
 		if (err) {
@@ -1523,7 +1523,7 @@ static int do_request_fw(struct b43legacy_wldev *dev,
 		err = request_firmware(fw, path, dev->dev->dev);
 	}
 	if (err) {
-		b43legacyerr(dev->wl, "Firmware file \"%s\" not found "
+		b43legacyerr(dev->wl, "Firmware file \"%s\" yest found "
 		       "or load failed.\n", path);
 		return err;
 	}
@@ -1595,10 +1595,10 @@ static void b43legacy_request_firmware(struct work_struct *work)
 			else if (rev == 2 || rev == 4)
 				filename = "b0g0initvals2";
 			else
-				goto err_no_initvals;
+				goto err_yes_initvals;
 			break;
 		default:
-			goto err_no_initvals;
+			goto err_yes_initvals;
 		}
 		err = do_request_fw(dev, filename, &fw->initvals, false);
 		if (err)
@@ -1615,10 +1615,10 @@ static void b43legacy_request_firmware(struct work_struct *work)
 			else if (rev == 2 || rev == 4)
 				filename = NULL;
 			else
-				goto err_no_initvals;
+				goto err_yes_initvals;
 			break;
 		default:
-			goto err_no_initvals;
+			goto err_yes_initvals;
 		}
 		err = do_request_fw(dev, filename, &fw->initvals_band, false);
 		if (err)
@@ -1637,7 +1637,7 @@ err_load:
 	b43legacy_print_fw_helptext(dev->wl);
 	goto error;
 
-err_no_initvals:
+err_yes_initvals:
 	err = -ENODEV;
 	b43legacyerr(dev->wl, "No Initial Values firmware file for PHY %u, "
 	       "core rev %u\n", dev->phy.type, rev);
@@ -1718,7 +1718,7 @@ static int b43legacy_upload_microcode(struct b43legacy_wldev *dev)
 			break;
 		i++;
 		if (i >= B43legacy_IRQWAIT_MAX_RETRIES) {
-			b43legacyerr(dev->wl, "Microcode not responding\n");
+			b43legacyerr(dev->wl, "Microcode yest responding\n");
 			b43legacy_print_fw_helptext(dev->wl);
 			err = -ENODEV;
 			goto error;
@@ -2306,7 +2306,7 @@ static void do_periodic_work(struct b43legacy_wldev *dev)
 
 /* Periodic work locking policy:
  * 	The whole periodic work handler is protected by
- * 	wl->mutex. If another lock is needed somewhere in the
+ * 	wl->mutex. If ayesther lock is needed somewhere in the
  * 	pwork callchain, it's acquired in-place, where it's needed.
  */
 static void b43legacy_periodic_work_handler(struct work_struct *work)
@@ -2400,7 +2400,7 @@ static int b43legacy_rng_read(struct hwrng *rng, u32 *data)
 	unsigned long flags;
 
 	/* Don't take wl->mutex here, as it could deadlock with
-	 * hwrng internal locking. It's not needed to take
+	 * hwrng internal locking. It's yest needed to take
 	 * wl->mutex here, anyway. */
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
@@ -2587,7 +2587,7 @@ static int b43legacy_switch_phymode(struct b43legacy_wl *wl,
 
 	err = find_wldev_for_phymode(wl, new_mode, &up_dev, &gmode);
 	if (err) {
-		b43legacyerr(wl, "Could not find a device for %s-PHY mode\n",
+		b43legacyerr(wl, "Could yest find a device for %s-PHY mode\n",
 		       phymode_to_string(new_mode));
 		return err;
 	}
@@ -2616,7 +2616,7 @@ static int b43legacy_switch_phymode(struct b43legacy_wl *wl,
 	if (prev_status >= B43legacy_STAT_INITIALIZED) {
 		err = b43legacy_wireless_core_init(up_dev);
 		if (err) {
-			b43legacyerr(wl, "Fatal: Could not initialize device"
+			b43legacyerr(wl, "Fatal: Could yest initialize device"
 				     " for newly selected %s-PHY mode\n",
 				     phymode_to_string(new_mode));
 			goto init_failure;
@@ -2625,7 +2625,7 @@ static int b43legacy_switch_phymode(struct b43legacy_wl *wl,
 	if (prev_status >= B43legacy_STAT_STARTED) {
 		err = b43legacy_wireless_core_start(up_dev);
 		if (err) {
-			b43legacyerr(wl, "Fatal: Could not start device for "
+			b43legacyerr(wl, "Fatal: Could yest start device for "
 			       "newly selected %s-PHY mode\n",
 			       phymode_to_string(new_mode));
 			b43legacy_wireless_core_exit(up_dev);
@@ -2640,7 +2640,7 @@ static int b43legacy_switch_phymode(struct b43legacy_wl *wl,
 
 	return 0;
 init_failure:
-	/* Whoops, failed to init the new core. No core is operating now. */
+	/* Whoops, failed to init the new core. No core is operating yesw. */
 	wl->current_dev = NULL;
 	return err;
 }
@@ -2957,7 +2957,7 @@ static int b43legacy_wireless_core_start(struct b43legacy_wldev *dev)
 	err = request_irq(dev->dev->irq, b43legacy_interrupt_handler,
 			  IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (err) {
-		b43legacyerr(dev->wl, "Cannot request IRQ-%d\n",
+		b43legacyerr(dev->wl, "Canyest request IRQ-%d\n",
 		       dev->dev->irq);
 		goto out;
 	}
@@ -3081,7 +3081,7 @@ static void setup_struct_phy_for_init(struct b43legacy_wldev *dev,
 	memset(phy->minlowsig, 0xFF, sizeof(phy->minlowsig));
 	memset(phy->minlowsigpos, 0, sizeof(phy->minlowsigpos));
 
-	/* Assume the radio is enabled. If it's not enabled, the state will
+	/* Assume the radio is enabled. If it's yest enabled, the state will
 	 * immediately get fixed on the first periodic work run. */
 	dev->radio_hw_enable = true;
 
@@ -3135,7 +3135,7 @@ static void setup_struct_wldev_for_init(struct b43legacy_wldev *dev)
 	dev->mac_suspended = 1;
 
 	/* Noise calculation context */
-	memset(&dev->noisecalc, 0, sizeof(dev->noisecalc));
+	memset(&dev->yesisecalc, 0, sizeof(dev->yesisecalc));
 }
 
 static void b43legacy_set_synth_pu_delay(struct b43legacy_wldev *dev,
@@ -3523,7 +3523,7 @@ static int b43legacy_op_get_survey(struct ieee80211_hw *hw, int idx,
 
 	survey->channel = conf->chandef.chan;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
-	survey->noise = dev->stats.link_noise;
+	survey->yesise = dev->stats.link_yesise;
 
 	return 0;
 }
@@ -3544,7 +3544,7 @@ static const struct ieee80211_ops b43legacy_hw_ops = {
 	.rfkill_poll		= b43legacy_rfkill_poll,
 };
 
-/* Hard-reset the chip. Do not call this directly.
+/* Hard-reset the chip. Do yest call this directly.
  * Use b43legacy_controller_restart()
  */
 static void b43legacy_chip_reset(struct work_struct *work)
@@ -3612,7 +3612,7 @@ static int b43legacy_setup_modes(struct b43legacy_wldev *dev,
 
 static void b43legacy_wireless_core_detach(struct b43legacy_wldev *dev)
 {
-	/* We release firmware that late to not be required to re-request
+	/* We release firmware that late to yest be required to re-request
 	 * is all the time when we reinit the core. */
 	b43legacy_release_firmware(dev);
 }
@@ -3713,7 +3713,7 @@ static void b43legacy_one_core_detach(struct ssb_device *dev)
 	struct b43legacy_wldev *wldev;
 	struct b43legacy_wl *wl;
 
-	/* Do not cancel ieee80211-workqueue based work here.
+	/* Do yest cancel ieee80211-workqueue based work here.
 	 * See comment in b43legacy_remove(). */
 
 	wldev = ssb_get_drvdata(dev);
@@ -3793,7 +3793,7 @@ static int b43legacy_wireless_init(struct ssb_device *dev)
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &b43legacy_hw_ops);
 	if (!hw) {
-		b43legacyerr(NULL, "Could not allocate ieee80211 device\n");
+		b43legacyerr(NULL, "Could yest allocate ieee80211 device\n");
 		goto out;
 	}
 

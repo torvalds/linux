@@ -47,20 +47,20 @@ static const struct clk_ops periclk_ops = {
 	.get_parent = clk_periclk_get_parent,
 };
 
-static __init void __socfpga_periph_init(struct device_node *node,
+static __init void __socfpga_periph_init(struct device_yesde *yesde,
 	const struct clk_ops *ops)
 {
 	u32 reg;
 	struct clk *clk;
 	struct socfpga_periph_clk *periph_clk;
-	const char *clk_name = node->name;
+	const char *clk_name = yesde->name;
 	const char *parent_name[SOCFPGA_MAX_PARENTS];
 	struct clk_init_data init;
 	int rc;
 	u32 fixed_div;
 	u32 div_reg[3];
 
-	of_property_read_u32(node, "reg", &reg);
+	of_property_read_u32(yesde, "reg", &reg);
 
 	periph_clk = kzalloc(sizeof(*periph_clk), GFP_KERNEL);
 	if (WARN_ON(!periph_clk))
@@ -68,7 +68,7 @@ static __init void __socfpga_periph_init(struct device_node *node,
 
 	periph_clk->hw.reg = clk_mgr_base_addr + reg;
 
-	rc = of_property_read_u32_array(node, "div-reg", div_reg, 3);
+	rc = of_property_read_u32_array(yesde, "div-reg", div_reg, 3);
 	if (!rc) {
 		periph_clk->div_reg = clk_mgr_base_addr + div_reg[0];
 		periph_clk->shift = div_reg[1];
@@ -77,19 +77,19 @@ static __init void __socfpga_periph_init(struct device_node *node,
 		periph_clk->div_reg = NULL;
 	}
 
-	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);
+	rc = of_property_read_u32(yesde, "fixed-divider", &fixed_div);
 	if (rc)
 		periph_clk->fixed_div = 0;
 	else
 		periph_clk->fixed_div = fixed_div;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(yesde, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
 	init.ops = ops;
 	init.flags = 0;
 
-	init.num_parents = of_clk_parent_fill(node, parent_name,
+	init.num_parents = of_clk_parent_fill(yesde, parent_name,
 					      SOCFPGA_MAX_PARENTS);
 	init.parent_names = parent_name;
 
@@ -100,10 +100,10 @@ static __init void __socfpga_periph_init(struct device_node *node,
 		kfree(periph_clk);
 		return;
 	}
-	rc = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	rc = of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 }
 
-void __init socfpga_periph_init(struct device_node *node)
+void __init socfpga_periph_init(struct device_yesde *yesde)
 {
-	__socfpga_periph_init(node, &periclk_ops);
+	__socfpga_periph_init(yesde, &periclk_ops);
 }

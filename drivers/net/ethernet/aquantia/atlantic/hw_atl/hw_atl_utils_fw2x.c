@@ -188,7 +188,7 @@ static void aq_fw2x_upd_flow_control_bits(struct aq_hw_s *self,
 			HW_ATL_FW2X_CTRL_ASYMMETRIC_PAUSE);
 
 	switch (fc) {
-	/* There is not explicit mode of RX only pause frames,
+	/* There is yest explicit mode of RX only pause frames,
 	 * thus, we join this mode with FC full.
 	 * FC full is either Rx, either Tx, or both.
 	 */

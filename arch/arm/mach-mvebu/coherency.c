@@ -91,7 +91,7 @@ static void armada_xp_clear_shared_l2(void)
 	writel(reg, cpu_config_base);
 }
 
-static int mvebu_hwcc_notifier(struct notifier_block *nb,
+static int mvebu_hwcc_yestifier(struct yestifier_block *nb,
 			       unsigned long event, void *__dev)
 {
 	struct device *dev = __dev;
@@ -103,12 +103,12 @@ static int mvebu_hwcc_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block mvebu_hwcc_nb = {
-	.notifier_call = mvebu_hwcc_notifier,
+static struct yestifier_block mvebu_hwcc_nb = {
+	.yestifier_call = mvebu_hwcc_yestifier,
 };
 
-static struct notifier_block mvebu_hwcc_pci_nb __maybe_unused = {
-	.notifier_call = mvebu_hwcc_notifier,
+static struct yestifier_block mvebu_hwcc_pci_nb __maybe_unused = {
+	.yestifier_call = mvebu_hwcc_yestifier,
 };
 
 static int armada_xp_clear_l2_starting(unsigned int cpu)
@@ -117,10 +117,10 @@ static int armada_xp_clear_l2_starting(unsigned int cpu)
 	return 0;
 }
 
-static void __init armada_370_coherency_init(struct device_node *np)
+static void __init armada_370_coherency_init(struct device_yesde *np)
 {
 	struct resource res;
-	struct device_node *cpu_config_np;
+	struct device_yesde *cpu_config_np;
 
 	of_address_to_resource(np, 0, &res);
 	coherency_phys_base = res.start;
@@ -134,20 +134,20 @@ static void __init armada_370_coherency_init(struct device_node *np)
 	coherency_base = of_iomap(np, 0);
 	coherency_cpu_base = of_iomap(np, 1);
 
-	cpu_config_np = of_find_compatible_node(NULL, NULL,
+	cpu_config_np = of_find_compatible_yesde(NULL, NULL,
 						"marvell,armada-xp-cpu-config");
 	if (!cpu_config_np)
 		goto exit;
 
 	cpu_config_base = of_iomap(cpu_config_np, 0);
 	if (!cpu_config_base) {
-		of_node_put(cpu_config_np);
+		of_yesde_put(cpu_config_np);
 		goto exit;
 	}
 
-	of_node_put(cpu_config_np);
+	of_yesde_put(cpu_config_np);
 
-	cpuhp_setup_state_nocalls(CPUHP_AP_ARM_MVEBU_COHERENCY,
+	cpuhp_setup_state_yescalls(CPUHP_AP_ARM_MVEBU_COHERENCY,
 				  "arm/mvebu/coherency:starting",
 				  armada_xp_clear_l2_starting, NULL);
 exit:
@@ -168,9 +168,9 @@ armada_wa_ioremap_caller(phys_addr_t phys_addr, size_t size,
 	return __arm_ioremap_caller(phys_addr, size, mtype, caller);
 }
 
-static void __init armada_375_380_coherency_init(struct device_node *np)
+static void __init armada_375_380_coherency_init(struct device_yesde *np)
 {
-	struct device_node *cache_dn;
+	struct device_yesde *cache_dn;
 
 	coherency_cpu_base = of_iomap(np, 0);
 	arch_ioremap_caller = armada_wa_ioremap_caller;
@@ -185,12 +185,12 @@ static void __init armada_375_380_coherency_init(struct device_node *np)
 
 	/*
 	 * Add the PL310 property "arm,io-coherent". This makes sure the
-	 * outer sync operation is not used, which allows to
+	 * outer sync operation is yest used, which allows to
 	 * workaround the system erratum that causes deadlocks when
 	 * doing PCIe in an SMP situation on Armada 375 and Armada
 	 * 38x.
 	 */
-	for_each_compatible_node(cache_dn, NULL, "arm,pl310-cache") {
+	for_each_compatible_yesde(cache_dn, NULL, "arm,pl310-cache") {
 		struct property *p;
 
 		p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -201,7 +201,7 @@ static void __init armada_375_380_coherency_init(struct device_node *np)
 
 static int coherency_type(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id *match;
 	int type;
 
@@ -215,7 +215,7 @@ static int coherency_type(void)
 	 *   are only meant in SMP situations.
 	 *
 	 * Note that this means that on Armada 370, there is currently
-	 * no way to use hardware I/O coherency, because even when
+	 * yes way to use hardware I/O coherency, because even when
 	 * CONFIG_SMP is enabled, is_smp() returns false due to the
 	 * Armada 370 being a single-core processor. To lift this
 	 * limitation, we would have to find a way to make the cache
@@ -223,19 +223,19 @@ static int coherency_type(void)
 	 * set the shareable attribute in page tables (on all Armada
 	 * SoCs except the Armada 370). Unfortunately, such decisions
 	 * are taken very early in the kernel boot process, at a point
-	 * where we don't know yet on which SoC we are running.
+	 * where we don't kyesw yet on which SoC we are running.
 
 	 */
 	if (!is_smp())
 		return COHERENCY_FABRIC_TYPE_NONE;
 
-	np = of_find_matching_node_and_match(NULL, of_coherency_table, &match);
+	np = of_find_matching_yesde_and_match(NULL, of_coherency_table, &match);
 	if (!np)
 		return COHERENCY_FABRIC_TYPE_NONE;
 
 	type = (int) match->data;
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return type;
 }
@@ -247,7 +247,7 @@ int set_cpu_coherent(void)
 	if (type == COHERENCY_FABRIC_TYPE_ARMADA_370_XP) {
 		if (!coherency_base) {
 			pr_warn("Can't make current CPU cache coherent.\n");
-			pr_warn("Coherency fabric is not initialized\n");
+			pr_warn("Coherency fabric is yest initialized\n");
 			return 1;
 		}
 
@@ -267,9 +267,9 @@ int coherency_available(void)
 int __init coherency_init(void)
 {
 	int type = coherency_type();
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_matching_node(NULL, of_coherency_table);
+	np = of_find_matching_yesde(NULL, of_coherency_table);
 
 	if (type == COHERENCY_FABRIC_TYPE_ARMADA_370_XP)
 		armada_370_coherency_init(np);
@@ -277,7 +277,7 @@ int __init coherency_init(void)
 		 type == COHERENCY_FABRIC_TYPE_ARMADA_380)
 		armada_375_380_coherency_init(np);
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return 0;
 }
@@ -285,7 +285,7 @@ int __init coherency_init(void)
 static int __init coherency_late_init(void)
 {
 	if (coherency_available())
-		bus_register_notifier(&platform_bus_type,
+		bus_register_yestifier(&platform_bus_type,
 				      &mvebu_hwcc_nb);
 	return 0;
 }
@@ -296,7 +296,7 @@ postcore_initcall(coherency_late_init);
 static int __init coherency_pci_init(void)
 {
 	if (coherency_available())
-		bus_register_notifier(&pci_bus_type,
+		bus_register_yestifier(&pci_bus_type,
 				       &mvebu_hwcc_pci_nb);
 	return 0;
 }

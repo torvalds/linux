@@ -117,7 +117,7 @@ int acpi_bus_get_status(struct acpi_device *device)
 
 	if (device->status.functional && !device->status.present) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] status [%08x]: "
-		       "functional but not present;\n",
+		       "functional but yest present;\n",
 			device->pnp.bus_id, (u32)sta));
 	}
 
@@ -232,7 +232,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 		status = AE_TYPE;
 		goto out_kfree;
 	}
-	/* Need to ignore the bit0 in result code */
+	/* Need to igyesre the bit0 in result code */
 	errors = *((u32 *)out_obj->buffer.pointer) & ~(1 << 0);
 	if (errors) {
 		if (errors & OSC_REQUEST_ERROR)
@@ -327,7 +327,7 @@ static void acpi_bus_osc_support(void)
 		}
 		kfree(context.ret.pointer);
 	}
-	/* do we need to check other returned cap? Sounds no */
+	/* do we need to check other returned cap? Sounds yes */
 }
 
 /* --------------------------------------------------------------------------
@@ -335,11 +335,11 @@ static void acpi_bus_osc_support(void)
    -------------------------------------------------------------------------- */
 
 /**
- * acpi_bus_notify
+ * acpi_bus_yestify
  * ---------------
- * Callback for all 'system-level' device notifications (values 0x00-0x7F).
+ * Callback for all 'system-level' device yestifications (values 0x00-0x7F).
  */
-static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
+static void acpi_bus_yestify(acpi_handle handle, u32 type, void *data)
 {
 	struct acpi_device *adev;
 	struct acpi_driver *driver;
@@ -372,12 +372,12 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 
 	case ACPI_NOTIFY_FREQUENCY_MISMATCH:
-		acpi_handle_err(handle, "Device cannot be configured due "
+		acpi_handle_err(handle, "Device canyest be configured due "
 				"to a frequency mismatch\n");
 		break;
 
 	case ACPI_NOTIFY_BUS_MODE_MISMATCH:
-		acpi_handle_err(handle, "Device cannot be configured due "
+		acpi_handle_err(handle, "Device canyest be configured due "
 				"to a bus mode mismatch\n");
 		break;
 
@@ -386,7 +386,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 
 	default:
-		acpi_handle_debug(handle, "Unknown event type 0x%x\n", type);
+		acpi_handle_debug(handle, "Unkyeswn event type 0x%x\n", type);
 		break;
 	}
 
@@ -395,9 +395,9 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		goto err;
 
 	driver = adev->driver;
-	if (driver && driver->ops.notify &&
+	if (driver && driver->ops.yestify &&
 	    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
-		driver->ops.notify(adev, type);
+		driver->ops.yestify(adev, type);
 
 	if (!hotplug_event) {
 		acpi_bus_put_acpi_device(adev);
@@ -413,28 +413,28 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 	acpi_evaluate_ost(handle, type, ost_code, NULL);
 }
 
-static void acpi_device_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_device_yestify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *device = data;
 
-	device->driver->ops.notify(device, event);
+	device->driver->ops.yestify(device, event);
 }
 
-static void acpi_device_notify_fixed(void *data)
+static void acpi_device_yestify_fixed(void *data)
 {
 	struct acpi_device *device = data;
 
-	/* Fixed hardware devices have no handles */
-	acpi_device_notify(NULL, ACPI_FIXED_HARDWARE_EVENT, device);
+	/* Fixed hardware devices have yes handles */
+	acpi_device_yestify(NULL, ACPI_FIXED_HARDWARE_EVENT, device);
 }
 
 static u32 acpi_device_fixed_event(void *data)
 {
-	acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_device_notify_fixed, data);
+	acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_device_yestify_fixed, data);
 	return ACPI_INTERRUPT_HANDLED;
 }
 
-static int acpi_device_install_notify_handler(struct acpi_device *device)
+static int acpi_device_install_yestify_handler(struct acpi_device *device)
 {
 	acpi_status status;
 
@@ -449,9 +449,9 @@ static int acpi_device_install_notify_handler(struct acpi_device *device)
 						     acpi_device_fixed_event,
 						     device);
 	else
-		status = acpi_install_notify_handler(device->handle,
+		status = acpi_install_yestify_handler(device->handle,
 						     ACPI_DEVICE_NOTIFY,
-						     acpi_device_notify,
+						     acpi_device_yestify,
 						     device);
 
 	if (ACPI_FAILURE(status))
@@ -459,7 +459,7 @@ static int acpi_device_install_notify_handler(struct acpi_device *device)
 	return 0;
 }
 
-static void acpi_device_remove_notify_handler(struct acpi_device *device)
+static void acpi_device_remove_yestify_handler(struct acpi_device *device)
 {
 	if (device->device_type == ACPI_BUS_TYPE_POWER_BUTTON)
 		acpi_remove_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
@@ -468,8 +468,8 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device)
 		acpi_remove_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
 						acpi_device_fixed_event);
 	else
-		acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-					   acpi_device_notify);
+		acpi_remove_yestify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+					   acpi_device_yestify);
 }
 
 /* Handle events targeting \_SB device (at present only graceful shutdown) */
@@ -477,7 +477,7 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device)
 #define ACPI_SB_NOTIFY_SHUTDOWN_REQUEST 0x81
 #define ACPI_SB_INDICATE_INTERVAL	10000
 
-static void sb_notify_work(struct work_struct *dummy)
+static void sb_yestify_work(struct work_struct *dummy)
 {
 	acpi_handle sb_handle;
 
@@ -497,26 +497,26 @@ static void sb_notify_work(struct work_struct *dummy)
 	}
 }
 
-static void acpi_sb_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_sb_yestify(acpi_handle handle, u32 event, void *data)
 {
-	static DECLARE_WORK(acpi_sb_work, sb_notify_work);
+	static DECLARE_WORK(acpi_sb_work, sb_yestify_work);
 
 	if (event == ACPI_SB_NOTIFY_SHUTDOWN_REQUEST) {
 		if (!work_busy(&acpi_sb_work))
 			schedule_work(&acpi_sb_work);
 	} else
-		pr_warn("event %x is not supported by \\_SB device\n", event);
+		pr_warn("event %x is yest supported by \\_SB device\n", event);
 }
 
-static int __init acpi_setup_sb_notify_handler(void)
+static int __init acpi_setup_sb_yestify_handler(void)
 {
 	acpi_handle sb_handle;
 
 	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB", &sb_handle)))
 		return -ENXIO;
 
-	if (ACPI_FAILURE(acpi_install_notify_handler(sb_handle, ACPI_DEVICE_NOTIFY,
-						acpi_sb_notify, NULL)))
+	if (ACPI_FAILURE(acpi_install_yestify_handler(sb_handle, ACPI_DEVICE_NOTIFY,
+						acpi_sb_yestify, NULL)))
 		return -EINVAL;
 
 	return 0;
@@ -527,41 +527,41 @@ static int __init acpi_setup_sb_notify_handler(void)
    -------------------------------------------------------------------------- */
 
 /**
- * acpi_get_first_physical_node - Get first physical node of an ACPI device
+ * acpi_get_first_physical_yesde - Get first physical yesde of an ACPI device
  * @adev:	ACPI device in question
  *
- * Return: First physical node of ACPI device @adev
+ * Return: First physical yesde of ACPI device @adev
  */
-struct device *acpi_get_first_physical_node(struct acpi_device *adev)
+struct device *acpi_get_first_physical_yesde(struct acpi_device *adev)
 {
-	struct mutex *physical_node_lock = &adev->physical_node_lock;
+	struct mutex *physical_yesde_lock = &adev->physical_yesde_lock;
 	struct device *phys_dev;
 
-	mutex_lock(physical_node_lock);
-	if (list_empty(&adev->physical_node_list)) {
+	mutex_lock(physical_yesde_lock);
+	if (list_empty(&adev->physical_yesde_list)) {
 		phys_dev = NULL;
 	} else {
-		const struct acpi_device_physical_node *node;
+		const struct acpi_device_physical_yesde *yesde;
 
-		node = list_first_entry(&adev->physical_node_list,
-					struct acpi_device_physical_node, node);
+		yesde = list_first_entry(&adev->physical_yesde_list,
+					struct acpi_device_physical_yesde, yesde);
 
-		phys_dev = node->dev;
+		phys_dev = yesde->dev;
 	}
-	mutex_unlock(physical_node_lock);
+	mutex_unlock(physical_yesde_lock);
 	return phys_dev;
 }
 
 static struct acpi_device *acpi_primary_dev_companion(struct acpi_device *adev,
 						      const struct device *dev)
 {
-	const struct device *phys_dev = acpi_get_first_physical_node(adev);
+	const struct device *phys_dev = acpi_get_first_physical_yesde(adev);
 
 	return phys_dev && phys_dev == dev ? adev : NULL;
 }
 
 /**
- * acpi_device_is_first_physical_node - Is given dev first physical node
+ * acpi_device_is_first_physical_yesde - Is given dev first physical yesde
  * @adev: ACPI companion device
  * @dev: Physical device to check
  *
@@ -571,7 +571,7 @@ static struct acpi_device *acpi_primary_dev_companion(struct acpi_device *adev,
  *
  * Note that the caller have to provide valid @adev pointer.
  */
-bool acpi_device_is_first_physical_node(struct acpi_device *adev,
+bool acpi_device_is_first_physical_yesde(struct acpi_device *adev,
 					const struct device *dev)
 {
 	return !!acpi_primary_dev_companion(adev, dev);
@@ -595,7 +595,7 @@ bool acpi_device_is_first_physical_node(struct acpi_device *adev,
  * IDs.
  *
  * Additional physical devices sharing the ACPI companion can still use
- * resources available from it but they will be matched normally using functions
+ * resources available from it but they will be matched yesrmally using functions
  * provided by their bus types (and analogously for their modalias).
  */
 struct acpi_device *acpi_companion_match(const struct device *dev)
@@ -684,11 +684,11 @@ static bool acpi_of_modalias(struct acpi_device *adev,
 /**
  * acpi_set_modalias - Set modalias using "compatible" property or supplied ID
  * @adev:	ACPI device object to match
- * @default_id:	ID string to use as default if no compatible string found
+ * @default_id:	ID string to use as default if yes compatible string found
  * @modalias:   Pointer to buffer that modalias value will be copied into
  * @len:	Length of modalias buffer
  *
- * This is a counterpart of of_modalias_node() for struct acpi_device objects.
+ * This is a counterpart of of_modalias_yesde() for struct acpi_device objects.
  * If there is a compatible string for @adev, it will be copied to @modalias
  * with the vendor prefix stripped; otherwise, @default_id will be used.
  */
@@ -733,7 +733,7 @@ static bool __acpi_match_device(struct acpi_device *device,
 	struct acpi_hardware_id *hwid;
 
 	/*
-	 * If the device is not present, it is unnecessary to load device
+	 * If the device is yest present, it is unnecessary to load device
 	 * driver for it.
 	 */
 	if (!device || !device->status.present)
@@ -914,8 +914,8 @@ static int acpi_device_probe(struct device *dev)
 			  "Driver [%s] successfully bound to device [%s]\n",
 			  acpi_drv->name, acpi_dev->pnp.bus_id));
 
-	if (acpi_drv->ops.notify) {
-		ret = acpi_device_install_notify_handler(acpi_dev);
+	if (acpi_drv->ops.yestify) {
+		ret = acpi_device_install_yestify_handler(acpi_dev);
 		if (ret) {
 			if (acpi_drv->ops.remove)
 				acpi_drv->ops.remove(acpi_dev);
@@ -938,8 +938,8 @@ static int acpi_device_remove(struct device *dev)
 	struct acpi_driver *acpi_drv = acpi_dev->driver;
 
 	if (acpi_drv) {
-		if (acpi_drv->ops.notify)
-			acpi_device_remove_notify_handler(acpi_dev);
+		if (acpi_drv->ops.yestify)
+			acpi_device_remove_yestify_handler(acpi_dev);
 		if (acpi_drv->ops.remove)
 			acpi_drv->ops.remove(acpi_dev);
 	}
@@ -969,7 +969,7 @@ static int __init acpi_bus_init_irq(void)
 
 
 	/*
-	 * Let the system know what interrupt model we are using by
+	 * Let the system kyesw what interrupt model we are using by
 	 * evaluating the \_PIC object, if exists.
 	 */
 
@@ -990,7 +990,7 @@ static int __init acpi_bus_init_irq(void)
 		message = "platform specific model";
 		break;
 	default:
-		printk(KERN_WARNING PREFIX "Unknown interrupt routing model\n");
+		printk(KERN_WARNING PREFIX "Unkyeswn interrupt routing model\n");
 		return -ENODEV;
 	}
 
@@ -1008,8 +1008,8 @@ static int __init acpi_bus_init_irq(void)
 /**
  * acpi_early_init - Initialize ACPICA and populate the ACPI namespace.
  *
- * The ACPI tables are accessible after this, but the handling of events has not
- * been initialized and the global lock is not available yet, so AML should not
+ * The ACPI tables are accessible after this, but the handling of events has yest
+ * been initialized and the global lock is yest available yet, so AML should yest
  * be executed at this point.
  *
  * Doing this before switching the EFI runtime services to virtual mode allows
@@ -1035,8 +1035,8 @@ void __init acpi_early_init(void)
 	 * If the machine falls into the DMI check table,
 	 * DSDT will be copied to memory.
 	 * Note that calling dmi_check_system() here on other architectures
-	 * would not be OK because only x86 initializes dmi early enough.
-	 * Thankfully only x86 systems need such quirks for now.
+	 * would yest be OK because only x86 initializes dmi early eyesugh.
+	 * Thankfully only x86 systems need such quirks for yesw.
 	 */
 	dmi_check_system(dsdt_dmi_table);
 #endif
@@ -1067,7 +1067,7 @@ void __init acpi_early_init(void)
 					 (acpi_sci_flags & ACPI_MADT_TRIGGER_MASK) >> 2);
 	} else {
 		/*
-		 * now that acpi_gbl_FADT is initialized,
+		 * yesw that acpi_gbl_FADT is initialized,
 		 * update it with result from INT_SRC_OVR parsing
 		 */
 		acpi_gbl_FADT.sci_interrupt = acpi_sci_override_gsi;
@@ -1104,7 +1104,7 @@ void __init acpi_subsystem_init(void)
 		 * If the system is using ACPI then we can be reasonably
 		 * confident that any regulators are managed by the firmware
 		 * so tell the regulator core it has everything it needs to
-		 * know.
+		 * kyesw.
 		 */
 		regulator_has_full_constraints();
 	}
@@ -1194,14 +1194,14 @@ static int __init acpi_bus_init(void)
 		goto error1;
 
 	/*
-	 * Register the for all standard device notifications.
+	 * Register the for all standard device yestifications.
 	 */
 	status =
-	    acpi_install_notify_handler(ACPI_ROOT_OBJECT, ACPI_SYSTEM_NOTIFY,
-					&acpi_bus_notify, NULL);
+	    acpi_install_yestify_handler(ACPI_ROOT_OBJECT, ACPI_SYSTEM_NOTIFY,
+					&acpi_bus_yestify, NULL);
 	if (ACPI_FAILURE(status)) {
 		printk(KERN_ERR PREFIX
-		       "Unable to register for device notifications\n");
+		       "Unable to register for device yestifications\n");
 		goto error1;
 	}
 
@@ -1252,7 +1252,7 @@ static int __init acpi_init(void)
 	acpi_sleep_proc_init();
 	acpi_wakeup_device_init();
 	acpi_debugger_init();
-	acpi_setup_sb_notify_handler();
+	acpi_setup_sb_yestify_handler();
 	return 0;
 }
 

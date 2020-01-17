@@ -16,7 +16,7 @@
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/kallsyms.h>
 #include <linux/proc_fs.h>
@@ -68,7 +68,7 @@ static int puv3_gpio_type(struct irq_data *d, unsigned int type)
 }
 
 /*
- * GPIO IRQs must be acknowledged.  This is for IRQs from 0 to 7.
+ * GPIO IRQs must be ackyeswledged.  This is for IRQs from 0 to 7.
  */
 static void puv3_low_gpio_ack(struct irq_data *d)
 {
@@ -210,7 +210,7 @@ static int puv3_set_wake(struct irq_data *d, unsigned int on)
 	return -EINVAL;
 }
 
-static struct irq_chip puv3_normal_chip = {
+static struct irq_chip puv3_yesrmal_chip = {
 	.name		= "PKUnity-v3",
 	.irq_ack	= puv3_mask_irq,
 	.irq_mask	= puv3_mask_irq,
@@ -296,7 +296,7 @@ void __init init_IRQ(void)
 	/* disable all IRQs */
 	writel(0, INTC_ICMR);
 
-	/* all IRQs are IRQ, not REAL */
+	/* all IRQs are IRQ, yest REAL */
 	writel(0, INTC_ICLR);
 
 	/* clear all GPIO edge detects */
@@ -316,7 +316,7 @@ void __init init_IRQ(void)
 	}
 
 	for (irq = IRQ_GPIOHIGH + 1; irq < IRQ_GPIO0; irq++) {
-		irq_set_chip(irq, &puv3_normal_chip);
+		irq_set_chip(irq, &puv3_yesrmal_chip);
 		irq_set_handler(irq, handle_level_irq);
 		irq_modify_status(irq,
 			IRQ_NOREQUEST | IRQ_NOAUTOEN,
@@ -334,7 +334,7 @@ void __init init_IRQ(void)
 	/*
 	 * Install handler for GPIO 0-27 edge detect interrupts
 	 */
-	irq_set_chip(IRQ_GPIOHIGH, &puv3_normal_chip);
+	irq_set_chip(IRQ_GPIOHIGH, &puv3_yesrmal_chip);
 	irq_set_chained_handler(IRQ_GPIOHIGH, puv3_gpio_handler);
 
 #ifdef CONFIG_PUV3_GPIO
@@ -343,7 +343,7 @@ void __init init_IRQ(void)
 }
 
 /*
- * do_IRQ handles all hardware IRQ's.  Decoded IRQs should not
+ * do_IRQ handles all hardware IRQ's.  Decoded IRQs should yest
  * come via this function.  Instead, they should provide their
  * own 'handler'
  */

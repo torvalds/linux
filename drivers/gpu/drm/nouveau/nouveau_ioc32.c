@@ -18,7 +18,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -36,7 +36,7 @@
 #include <drm/drm.h>
 #include <drm/drm_ioctl.h>
 
-#include "nouveau_ioctl.h"
+#include "yesuveau_ioctl.h"
 
 /**
  * Called whenever a 32-bit process running under a 64-bit kernel
@@ -47,7 +47,7 @@
  * \param arg user argument.
  * \return zero on success or negative number on failure.
  */
-long nouveau_compat_ioctl(struct file *filp, unsigned int cmd,
+long yesuveau_compat_ioctl(struct file *filp, unsigned int cmd,
 			 unsigned long arg)
 {
 	unsigned int nr = DRM_IOCTL_NR(cmd);
@@ -59,12 +59,12 @@ long nouveau_compat_ioctl(struct file *filp, unsigned int cmd,
 
 #if 0
 	if (nr < DRM_COMMAND_BASE + ARRAY_SIZE(mga_compat_ioctls))
-		fn = nouveau_compat_ioctls[nr - DRM_COMMAND_BASE];
+		fn = yesuveau_compat_ioctls[nr - DRM_COMMAND_BASE];
 #endif
 	if (fn != NULL)
 		ret = (*fn)(filp, cmd, arg);
 	else
-		ret = nouveau_drm_ioctl(filp, cmd, arg);
+		ret = yesuveau_drm_ioctl(filp, cmd, arg);
 
 	return ret;
 }

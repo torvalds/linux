@@ -307,7 +307,7 @@ static int amd_core_hw_config(struct perf_event *event)
 		/*
 		 * When HO == GO == 1 the hardware treats that as GO == HO == 0
 		 * and will count in both modes. We don't want to count in that
-		 * case so we emulate no-counting by setting US = OS = 0.
+		 * case so we emulate yes-counting by setting US = OS = 0.
 		 */
 		event->hw.config &= ~(ARCH_PERFMON_EVENTSEL_USR |
 				      ARCH_PERFMON_EVENTSEL_OS);
@@ -367,10 +367,10 @@ static void __amd_put_nb_event_constraints(struct cpu_hw_events *cpuc,
 	int i;
 
 	/*
-	 * need to scan whole list because event may not have
+	 * need to scan whole list because event may yest have
 	 * been assigned during scheduling
 	 *
-	 * no race condition possible because event can only
+	 * yes race condition possible because event can only
 	 * be removed on one CPU at a time AND PMU is disabled
 	 * when we come here
 	 */
@@ -394,7 +394,7 @@ static void __amd_put_nb_event_constraints(struct cpu_hw_events *cpuc,
   * counter. Thus, access to those counters needs to be
   * synchronized.
   *
-  * We implement the synchronization such that no two cores
+  * We implement the synchronization such that yes two cores
   * can be measuring NB events using the same counters. Thus,
   * we maintain a per-NB allocation table. The available slot
   * is propagated using the event_constraint structure.
@@ -402,7 +402,7 @@ static void __amd_put_nb_event_constraints(struct cpu_hw_events *cpuc,
   * We provide only one choice for each NB event based on
   * the fact that only NB events have restrictions. Consequently,
   * if a counter is available, there is a guarantee the NB event
-  * will be assigned to it. If no slot is available, an empty
+  * will be assigned to it. If yes slot is available, an empty
   * constraint is returned and scheduling will eventually fail
   * for this event.
   *
@@ -414,7 +414,7 @@ static void __amd_put_nb_event_constraints(struct cpu_hw_events *cpuc,
   * eventually freed for others to use. This is accomplished by
   * calling __amd_put_nb_event_constraints()
   *
-  * Non NB events are not impacted by this restriction.
+  * Non NB events are yest impacted by this restriction.
   */
 static struct event_constraint *
 __amd_get_nb_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
@@ -434,10 +434,10 @@ __amd_get_nb_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *ev
 	/*
 	 * detect if already present, if so reuse
 	 *
-	 * cannot merge with actual allocation
+	 * canyest merge with actual allocation
 	 * because of possible holes
 	 *
-	 * event can already be present yet not assigned (in hwc->idx)
+	 * event can already be present yet yest assigned (in hwc->idx)
 	 * because of successive calls to x86_schedule_events() from
 	 * hw_perf_group_sched_in() without hw_perf_enable()
 	 */
@@ -475,7 +475,7 @@ static struct amd_nb *amd_alloc_nb(int cpu)
 	struct amd_nb *nb;
 	int i;
 
-	nb = kzalloc_node(sizeof(struct amd_nb), GFP_KERNEL, cpu_to_node(cpu));
+	nb = kzalloc_yesde(sizeof(struct amd_nb), GFP_KERNEL, cpu_to_yesde(cpu));
 	if (!nb)
 		return NULL;
 
@@ -638,7 +638,7 @@ static void amd_pmu_disable_event(struct perf_event *event)
  * PMC counters outside of the NMI associated with the PMC overflow. If the NMI
  * doesn't arrive at the LAPIC in time to become a pending NMI, then the kernel
  * back-to-back NMI support won't be active. This PMC handler needs to take into
- * account that this can occur, otherwise this could result in unknown NMI
+ * account that this can occur, otherwise this could result in unkyeswn NMI
  * messages being issued. Examples of this is PMC overflow while in the NMI
  * handler when multiple PMCs are active or PMC overflow while handling some
  * other source of an NMI.
@@ -678,7 +678,7 @@ amd_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 			  struct perf_event *event)
 {
 	/*
-	 * if not NB event or no NB, then no constraints
+	 * if yest NB event or yes NB, then yes constraints
 	 */
 	if (!(amd_has_nb(cpuc) && amd_is_nb_event(&event->hw)))
 		return &unconstrained;
@@ -912,7 +912,7 @@ static int __init amd_core_pmu_init(void)
 	case 0x17:
 		pr_cont("Fam17h ");
 		/*
-		 * In family 17h, there are no event constraints in the PMC hardware.
+		 * In family 17h, there are yes event constraints in the PMC hardware.
 		 * We fallback to using default amd_get_event_constraints.
 		 */
 		break;
@@ -921,7 +921,7 @@ static int __init amd_core_pmu_init(void)
 		/* Using default amd_get_event_constraints. */
 		break;
 	default:
-		pr_err("core perfctr but no constraints; unknown hardware!\n");
+		pr_err("core perfctr but yes constraints; unkyeswn hardware!\n");
 		return -ENODEV;
 	}
 
@@ -993,7 +993,7 @@ void amd_pmu_disable_virt(void)
 	 * We only mask out the Host-only bit so that host-only counting works
 	 * when SVM is disabled. If someone sets up a guest-only counter when
 	 * SVM is disabled the Guest-only bits still gets set and the counter
-	 * will not count anything.
+	 * will yest count anything.
 	 */
 	cpuc->perf_ctr_virt_mask = AMD64_EVENTSEL_HOSTONLY;
 

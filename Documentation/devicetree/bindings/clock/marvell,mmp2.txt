@@ -15,7 +15,7 @@ Required Properties:
 - #clock-cells: should be 1.
 - #reset-cells: should be 1.
 
-Each clock is assigned an identifier and client nodes use this identifier
+Each clock is assigned an identifier and client yesdes use this identifier
 to specify the clock which they consume.
 
 All these identifiers could be found in <dt-bindings/clock/marvell,mmp2.h>.

@@ -22,9 +22,9 @@ Specifying reset lines connected to IP modules
 ==============================================
 
 The reset controller(rstc) manages various reset sources. This module provides
-reset signals for most blocks in system. Those device nodes should specify the
+reset signals for most blocks in system. Those device yesdes should specify the
 reset line on the rstc in their resets property, containing a phandle to the
-rstc device node and a RESET_INDEX specifying which module to reset, as described
+rstc device yesde and a RESET_INDEX specifying which module to reset, as described
 in reset.txt.
 
 For SiRFSoC, RESET_INDEX is just reset_bit defined in SW_RST0 and SW_RST1 registers.

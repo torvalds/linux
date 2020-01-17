@@ -2,10 +2,10 @@
 /*
  * max77693.h - Driver for the Maxim 77693
  *
- *  Copyright (C) 2012 Samsung Electrnoics
+ *  Copyright (C) 2012 Samsung Electryesics
  *  SangYoung Son <hello.son@samsung.com>
  *
- * This program is not provided / owned by Maxim Integrated Products.
+ * This program is yest provided / owned by Maxim Integrated Products.
  *
  * This driver is based on max8997.h
  *

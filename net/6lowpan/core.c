@@ -88,7 +88,7 @@ int addrconf_ifid_802154_6lowpan(u8 *eui, struct net_device *dev)
 	    wpan_dev->short_addr == cpu_to_le16(0x0000))
 		return -1;
 
-	/* Alternatively, if no PAN ID is known, 16 zero bits may be used */
+	/* Alternatively, if yes PAN ID is kyeswn, 16 zero bits may be used */
 	if (wpan_dev->pan_id == cpu_to_le16(IEEE802154_PAN_ID_BROADCAST))
 		memset(eui, 0, 2);
 	else
@@ -104,10 +104,10 @@ int addrconf_ifid_802154_6lowpan(u8 *eui, struct net_device *dev)
 	return 0;
 }
 
-static int lowpan_event(struct notifier_block *unused,
+static int lowpan_event(struct yestifier_block *unused,
 			unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct inet6_dev *idev;
 	struct in6_addr addr;
 	int i;
@@ -142,8 +142,8 @@ static int lowpan_event(struct notifier_block *unused,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block lowpan_notifier = {
-	.notifier_call = lowpan_event,
+static struct yestifier_block lowpan_yestifier = {
+	.yestifier_call = lowpan_event,
 };
 
 static int __init lowpan_module_init(void)
@@ -152,19 +152,19 @@ static int __init lowpan_module_init(void)
 
 	lowpan_debugfs_init();
 
-	ret = register_netdevice_notifier(&lowpan_notifier);
+	ret = register_netdevice_yestifier(&lowpan_yestifier);
 	if (ret < 0) {
 		lowpan_debugfs_exit();
 		return ret;
 	}
 
-	request_module_nowait("nhc_dest");
-	request_module_nowait("nhc_fragment");
-	request_module_nowait("nhc_hop");
-	request_module_nowait("nhc_ipv6");
-	request_module_nowait("nhc_mobility");
-	request_module_nowait("nhc_routing");
-	request_module_nowait("nhc_udp");
+	request_module_yeswait("nhc_dest");
+	request_module_yeswait("nhc_fragment");
+	request_module_yeswait("nhc_hop");
+	request_module_yeswait("nhc_ipv6");
+	request_module_yeswait("nhc_mobility");
+	request_module_yeswait("nhc_routing");
+	request_module_yeswait("nhc_udp");
 
 	return 0;
 }
@@ -172,7 +172,7 @@ static int __init lowpan_module_init(void)
 static void __exit lowpan_module_exit(void)
 {
 	lowpan_debugfs_exit();
-	unregister_netdevice_notifier(&lowpan_notifier);
+	unregister_netdevice_yestifier(&lowpan_yestifier);
 }
 
 module_init(lowpan_module_init);

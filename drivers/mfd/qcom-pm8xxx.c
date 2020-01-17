@@ -131,7 +131,7 @@ static int pm8xxx_irq_block_handler(struct pm_irq_chip *chip, int block)
 		return ret;
 	}
 	if (!bits) {
-		pr_err("block bit set in master but no irqs: %d", block);
+		pr_err("block bit set in master but yes irqs: %d", block);
 		return 0;
 	}
 
@@ -158,7 +158,7 @@ static int pm8xxx_irq_master_handler(struct pm_irq_chip *chip, int master)
 		return ret;
 	}
 	if (!blockbits) {
-		pr_err("master bit set in root but no blocks: %d", master);
+		pr_err("master bit set in root but yes blocks: %d", master);
 		return 0;
 	}
 
@@ -374,7 +374,7 @@ static void pm8xxx_irq_domain_map(struct pm_irq_chip *chip,
 {
 	irq_domain_set_info(domain, irq, hwirq, chip->pm_irq_data->irq_chip,
 			    chip, handle_level_irq, NULL, NULL);
-	irq_set_noprobe(irq);
+	irq_set_yesprobe(irq);
 }
 
 static int pm8xxx_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
@@ -569,7 +569,7 @@ static int pm8xxx_probe(struct platform_device *pdev)
 	chip->pm_irq_data = data;
 	spin_lock_init(&chip->pm_irq_lock);
 
-	chip->irqdomain = irq_domain_add_linear(pdev->dev.of_node,
+	chip->irqdomain = irq_domain_add_linear(pdev->dev.of_yesde,
 						data->num_irqs,
 						&pm8xxx_irq_domain_ops,
 						chip);
@@ -579,7 +579,7 @@ static int pm8xxx_probe(struct platform_device *pdev)
 	irq_set_chained_handler_and_data(irq, data->irq_handler, chip);
 	irq_set_irq_wake(irq, 1);
 
-	rc = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	rc = of_platform_populate(pdev->dev.of_yesde, NULL, NULL, &pdev->dev);
 	if (rc) {
 		irq_set_chained_handler_and_data(irq, NULL, NULL);
 		irq_domain_remove(chip->irqdomain);

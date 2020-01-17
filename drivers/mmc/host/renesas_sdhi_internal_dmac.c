@@ -10,7 +10,7 @@
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-yesnatomic-hi-lo.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
 #include <linux/mod_devicetable.h>
@@ -67,14 +67,14 @@ static unsigned long global_flags;
 /*
  * Workaround for avoiding to use RX DMAC by multiple channels.
  * On R-Car H3 ES1.* and M3-W ES1.0, when multiple SDHI channels use
- * RX DMAC simultaneously, sometimes hundreds of bytes data are not
+ * RX DMAC simultaneously, sometimes hundreds of bytes data are yest
  * stored into the system memory even if the DMAC interrupt happened.
  * So, this driver then uses one RX DMAC channel only.
  */
 #define SDHI_INTERNAL_DMAC_ONE_RX_ONLY	0
 #define SDHI_INTERNAL_DMAC_RX_IN_USE	1
 
-/* RZ/A2 does not have the ADRR_MODE bit */
+/* RZ/A2 does yest have the ADRR_MODE bit */
 #define SDHI_INTERNAL_DMAC_ADDR_MODE_FIXED_ONLY 2
 
 /* Definitions for sampling clocks */
@@ -186,7 +186,7 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 			mmc_get_dma_dir(data)))
 		goto force_pio;
 
-	/* This DMAC cannot handle if buffer is not 8-bytes alignment */
+	/* This DMAC canyest handle if buffer is yest 8-bytes alignment */
 	if (!IS_ALIGNED(sg_dma_address(sg), 8))
 		goto force_pio_with_unmap;
 
@@ -267,7 +267,7 @@ renesas_sdhi_internal_dmac_request_dma(struct tmio_mmc_host *host,
 	renesas_sdhi_internal_dmac_dm_write(host, DM_CM_INFO2_MASK,
 					    INFO2_MASK_CLEAR);
 
-	/* Each value is set to non-zero to assume "enabling" each DMA */
+	/* Each value is set to yesn-zero to assume "enabling" each DMA */
 	host->chan_rx = host->chan_tx = (void *)0xdeadbeaf;
 
 	tasklet_init(&priv->dma_priv.dma_complete,

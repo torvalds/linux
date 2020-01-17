@@ -11,7 +11,7 @@
 
 /*
  * To avoid memory-attribute aliasing issues, we require that the AGPGART engine operate
- * in coherent mode, which lets us map the AGP memory as normal (write-back) memory
+ * in coherent mode, which lets us map the AGP memory as yesrmal (write-back) memory
  * (unlike x86, where it gets mapped "write-coalescing").
  */
 #define map_page_into_agp(page)		do { } while (0)

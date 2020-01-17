@@ -426,7 +426,7 @@ static int mvs_94xx_init(struct mvs_info *mvi)
 	/* init phys */
 	mvs_phy_hacks(mvi);
 
-	/* disable non data frame retry */
+	/* disable yesn data frame retry */
 	tmp = mvs_cr32(mvi, CMD_SAS_CTL1);
 	if ((revision == VANIR_A0_REV) ||
 		(revision == VANIR_B0_REV) ||
@@ -555,7 +555,7 @@ static int mvs_94xx_init(struct mvs_info *mvi)
 	 * set bit8 to 1 for performance tuning */
 	tmp = mvs_cr32(mvi, CMD_SL_MODE0);
 	tmp |= 0x00000300;
-	/* set bit0 to 0 to enable retry for no_dest reject case */
+	/* set bit0 to 0 to enable retry for yes_dest reject case */
 	tmp &= 0xFFFFFFFE;
 	mvs_cw32(mvi, CMD_SL_MODE0, tmp);
 
@@ -709,7 +709,7 @@ static void mvs_94xx_issue_stop(struct mvs_info *mvi, enum mvs_port_type type,
 	mw32(MVS_PCS, tmp);
 }
 
-static void mvs_94xx_non_spec_ncq_error(struct mvs_info *mvi)
+static void mvs_94xx_yesn_spec_ncq_error(struct mvs_info *mvi)
 {
 	void __iomem *regs = mvi->regs;
 	u32 err_0, err_1;
@@ -719,7 +719,7 @@ static void mvs_94xx_non_spec_ncq_error(struct mvs_info *mvi)
 	err_0 = mr32(MVS_NON_NCQ_ERR_0);
 	err_1 = mr32(MVS_NON_NCQ_ERR_1);
 
-	mv_dprintk("non specific ncq error err_0:%x,err_1:%x.\n",
+	mv_dprintk("yesn specific ncq error err_0:%x,err_1:%x.\n",
 			err_0, err_1);
 	for (i = 0; i < 32; i++) {
 		if (err_0 & bit(i)) {
@@ -1176,7 +1176,7 @@ const struct mvs_dispatch mvs_94xx_dispatch = {
 	mvs_94xx_spi_waitdataready,
 	mvs_94xx_fix_dma,
 	mvs_94xx_tune_interrupt,
-	mvs_94xx_non_spec_ncq_error,
+	mvs_94xx_yesn_spec_ncq_error,
 	mvs_94xx_gpio_write,
 };
 

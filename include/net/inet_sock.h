@@ -31,7 +31,7 @@
  * @nexthop - Saved nexthop address in LSRR and SSRR
  * @is_strictroute - Strict source route
  * @srr_is_hit - Packet destination addr was our one
- * @is_changed - IP checksum more not valid
+ * @is_changed - IP checksum more yest valid
  * @rr_needaddr - Need to record addr of outgoing dev
  * @ts_needtime - Need to record timestamp
  * @ts_needaddr - Need to record addr of outgoing dev
@@ -86,7 +86,7 @@ struct inet_request_sock {
 				wscale_ok  : 1,
 				ecn_ok	   : 1,
 				acked	   : 1,
-				no_srccheck: 1,
+				yes_srccheck: 1,
 				smc_ok	   : 1;
 	u32                     ir_mark;
 	union {
@@ -223,8 +223,8 @@ struct inet_sock {
 				mc_loop:1,
 				transparent:1,
 				mc_all:1,
-				nodefrag:1;
-	__u8			bind_address_no_port:1,
+				yesdefrag:1;
+	__u8			bind_address_yes_port:1,
 				defer_connect:1; /* Indicates that fastopen_connect is set
 						  * and cookie exists so we defer connect
 						  * until first data frame is written
@@ -239,7 +239,7 @@ struct inet_sock {
 };
 
 #define IPCORK_OPT	1	/* ip-options has been held in ipcork.opt */
-#define IPCORK_ALLFRAG	2	/* always fragment (for ipv6 for now) */
+#define IPCORK_ALLFRAG	2	/* always fragment (for ipv6 for yesw) */
 
 /* cmsg flags for inet */
 #define IP_CMSG_PKTINFO		BIT(0)
@@ -372,10 +372,10 @@ static inline bool inet_get_convert_csum(struct sock *sk)
 }
 
 
-static inline bool inet_can_nonlocal_bind(struct net *net,
+static inline bool inet_can_yesnlocal_bind(struct net *net,
 					  struct inet_sock *inet)
 {
-	return net->ipv4.sysctl_ip_nonlocal_bind ||
+	return net->ipv4.sysctl_ip_yesnlocal_bind ||
 		inet->freebind || inet->transparent;
 }
 

@@ -198,7 +198,7 @@ static int hva_open_encoder(struct hva_ctx *ctx, u32 streamformat,
 	enc = (struct hva_enc *)hva_find_encoder(ctx, pixelformat,
 						 streamformat);
 	if (!enc) {
-		dev_err(dev, "%s no encoder found matching %4.4s => %4.4s\n",
+		dev_err(dev, "%s yes encoder found matching %4.4s => %4.4s\n",
 			ctx->name, (char *)&pixelformat, (char *)&streamformat);
 		return -EINVAL;
 	}
@@ -525,8 +525,8 @@ static int hva_g_parm(struct file *file, void *fh, struct v4l2_streamparm *sp)
 
 	sp->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 	sp->parm.output.timeperframe.numerator = time_per_frame->numerator;
-	sp->parm.output.timeperframe.denominator =
-		time_per_frame->denominator;
+	sp->parm.output.timeperframe.deyesminator =
+		time_per_frame->deyesminator;
 
 	return 0;
 }
@@ -540,13 +540,13 @@ static int hva_s_parm(struct file *file, void *fh, struct v4l2_streamparm *sp)
 		return -EINVAL;
 
 	if (!sp->parm.output.timeperframe.numerator ||
-	    !sp->parm.output.timeperframe.denominator)
+	    !sp->parm.output.timeperframe.deyesminator)
 		return hva_g_parm(file, fh, sp);
 
 	sp->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 	time_per_frame->numerator = sp->parm.output.timeperframe.numerator;
-	time_per_frame->denominator =
-		sp->parm.output.timeperframe.denominator;
+	time_per_frame->deyesminator =
+		sp->parm.output.timeperframe.deyesminator;
 
 	return 0;
 }
@@ -793,7 +793,7 @@ static int hva_ctrls_setup(struct hva_ctx *ctx)
 
 	/* set default time per frame */
 	ctx->ctrls.time_per_frame.numerator = HVA_DEFAULT_FRAME_NUM;
-	ctx->ctrls.time_per_frame.denominator = HVA_DEFAULT_FRAME_DEN;
+	ctx->ctrls.time_per_frame.deyesminator = HVA_DEFAULT_FRAME_DEN;
 
 	return 0;
 }
@@ -876,19 +876,19 @@ static int hva_job_ready(void *priv)
 	struct device *dev = ctx_to_dev(ctx);
 
 	if (!v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx)) {
-		dev_dbg(dev, "%s job not ready: no frame buffers\n",
+		dev_dbg(dev, "%s job yest ready: yes frame buffers\n",
 			ctx->name);
 		return 0;
 	}
 
 	if (!v4l2_m2m_num_dst_bufs_ready(ctx->fh.m2m_ctx)) {
-		dev_dbg(dev, "%s job not ready: no stream buffers\n",
+		dev_dbg(dev, "%s job yest ready: yes stream buffers\n",
 			ctx->name);
 		return 0;
 	}
 
 	if (ctx->aborting) {
-		dev_dbg(dev, "%s job not ready: aborting\n", ctx->name);
+		dev_dbg(dev, "%s job yest ready: aborting\n", ctx->name);
 		return 0;
 	}
 
@@ -943,7 +943,7 @@ static int hva_buf_prepare(struct vb2_buffer *vb)
 			vbuf->field = V4L2_FIELD_NONE;
 		if (vbuf->field != V4L2_FIELD_NONE) {
 			dev_dbg(dev,
-				"%s frame[%d] prepare: %d field not supported\n",
+				"%s frame[%d] prepare: %d field yest supported\n",
 				ctx->name, vb->index, vbuf->field);
 			return -EINVAL;
 		}
@@ -1454,7 +1454,7 @@ static const struct of_device_id hva_match_types[] = {
 	{
 	 .compatible = "st,st-hva",
 	},
-	{ /* end node */ }
+	{ /* end yesde */ }
 };
 
 MODULE_DEVICE_TABLE(of, hva_match_types);

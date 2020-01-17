@@ -278,7 +278,7 @@ u8 *acpi_db_encode_pld_buffer(struct acpi_pld_info *pld_info)
 
 	dword = 0;
 	ACPI_PLD_SET_REVISION(&dword, pld_info->revision);
-	ACPI_PLD_SET_IGNORE_COLOR(&dword, pld_info->ignore_color);
+	ACPI_PLD_SET_IGNORE_COLOR(&dword, pld_info->igyesre_color);
 	ACPI_PLD_SET_RED(&dword, pld_info->red);
 	ACPI_PLD_SET_GREEN(&dword, pld_info->green);
 	ACPI_PLD_SET_BLUE(&dword, pld_info->blue);
@@ -384,7 +384,7 @@ void acpi_db_dump_pld_buffer(union acpi_object *obj_desc)
 	if (memcmp(new_buffer, buffer_desc->buffer.pointer,
 		   buffer_desc->buffer.length)) {
 		acpi_os_printf
-		    ("Converted _PLD buffer does not compare. New:\n");
+		    ("Converted _PLD buffer does yest compare. New:\n");
 
 		acpi_ut_dump_buffer(new_buffer,
 				    buffer_desc->buffer.length, DB_BYTE_DISPLAY,
@@ -394,8 +394,8 @@ void acpi_db_dump_pld_buffer(union acpi_object *obj_desc)
 	/* First 32-bit dword */
 
 	acpi_os_printf(ACPI_PLD_OUTPUT, "PLD_Revision", pld_info->revision);
-	acpi_os_printf(ACPI_PLD_OUTPUT, "PLD_IgnoreColor",
-		       pld_info->ignore_color);
+	acpi_os_printf(ACPI_PLD_OUTPUT, "PLD_IgyesreColor",
+		       pld_info->igyesre_color);
 	acpi_os_printf(ACPI_PLD_OUTPUT, "PLD_Red", pld_info->red);
 	acpi_os_printf(ACPI_PLD_OUTPUT, "PLD_Green", pld_info->green);
 	acpi_os_printf(ACPI_PLD_OUTPUT, "PLD_Blue", pld_info->blue);

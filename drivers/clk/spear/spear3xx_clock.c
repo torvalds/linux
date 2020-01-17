@@ -134,7 +134,7 @@ static const char *gpt0_parents[] = { "pll3_clk", "gpt0_syn_clk", };
 static const char *gpt1_parents[] = { "pll3_clk", "gpt1_syn_clk", };
 static const char *gpt2_parents[] = { "pll3_clk", "gpt2_syn_clk", };
 static const char *gen2_3_parents[] = { "pll1_clk", "pll2_clk", };
-static const char *ddr_parents[] = { "ahb_clk", "ahbmult2_clk", "none",
+static const char *ddr_parents[] = { "ahb_clk", "ahbmult2_clk", "yesne",
 	"pll2_clk", };
 
 #ifdef CONFIG_MACH_SPEAR300

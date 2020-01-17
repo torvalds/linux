@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -86,7 +86,7 @@ nv40_temp_get(struct nvkm_therm *therm)
 	} else
 		return -ENODEV;
 
-	/* if the slope or the offset is unset, do no use the sensor */
+	/* if the slope or the offset is unset, do yes use the sensor */
 	if (!sensor->slope_div || !sensor->slope_mult ||
 	    !sensor->offset_num || !sensor->offset_den)
 	    return -ENODEV;
@@ -111,7 +111,7 @@ nv40_fan_pwm_ctrl(struct nvkm_therm *therm, int line, bool enable)
 	if      (line == 2) nvkm_mask(device, 0x0010f0, 0x80000000, mask);
 	else if (line == 9) nvkm_mask(device, 0x0015f4, 0x80000000, mask);
 	else {
-		nvkm_error(subdev, "unknown pwm ctrl for gpio %d\n", line);
+		nvkm_error(subdev, "unkyeswn pwm ctrl for gpio %d\n", line);
 		return -ENODEV;
 	}
 	return 0;
@@ -138,7 +138,7 @@ nv40_fan_pwm_get(struct nvkm_therm *therm, int line, u32 *divs, u32 *duty)
 			return 0;
 		}
 	} else {
-		nvkm_error(subdev, "unknown pwm ctrl for gpio %d\n", line);
+		nvkm_error(subdev, "unkyeswn pwm ctrl for gpio %d\n", line);
 		return -ENODEV;
 	}
 
@@ -157,7 +157,7 @@ nv40_fan_pwm_set(struct nvkm_therm *therm, int line, u32 divs, u32 duty)
 		nvkm_wr32(device, 0x0015f8, divs);
 		nvkm_mask(device, 0x0015f4, 0x7fffffff, duty);
 	} else {
-		nvkm_error(subdev, "unknown pwm ctrl for gpio %d\n", line);
+		nvkm_error(subdev, "unkyeswn pwm ctrl for gpio %d\n", line);
 		return -ENODEV;
 	}
 

@@ -185,7 +185,7 @@ static int tango_ir_probe(struct platform_device *pdev)
 	if (!rc)
 		return -ENOMEM;
 
-	of_property_read_string(dev->of_node, "linux,rc-map-name", &map_name);
+	of_property_read_string(dev->of_yesde, "linux,rc-map-name", &map_name);
 
 	rc->device_name = DRIVER_NAME;
 	rc->driver_name = DRIVER_NAME;

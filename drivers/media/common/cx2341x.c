@@ -7,7 +7,7 @@
 
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -76,7 +76,7 @@ static const char **cx2341x_get_menu(u32 id)
 		"1D Horizontal",
 		"1D Vertical",
 		"2D H/V Separable",
-		"2D Symmetric non-separable",
+		"2D Symmetric yesn-separable",
 		NULL
 	};
 
@@ -261,7 +261,7 @@ static const struct cx2341x_mpeg_params default_params = {
 	.video_chroma_median_filter_bottom = 0,
 };
 /* Map the control ID to the correct field in the cx2341x_mpeg_params
-   struct. Return -EINVAL if the ID is unknown, else return 0. */
+   struct. Return -EINVAL if the ID is unkyeswn, else return 0. */
 static int cx2341x_get_ctrl(const struct cx2341x_mpeg_params *params,
 		struct v4l2_ext_control *ctrl)
 {
@@ -375,7 +375,7 @@ static int cx2341x_get_ctrl(const struct cx2341x_mpeg_params *params,
 }
 
 /* Map the control ID to the correct field in the cx2341x_mpeg_params
-   struct. Return -EINVAL if the ID is unknown, else return 0. */
+   struct. Return -EINVAL if the ID is unkyeswn, else return 0. */
 static int cx2341x_set_ctrl(struct cx2341x_mpeg_params *params, int busy,
 		struct v4l2_ext_control *ctrl)
 {
@@ -920,7 +920,7 @@ static void cx2341x_calc_audio_properties(struct cx2341x_mpeg_params *params)
 
 /* Check for correctness of the ctrl's value based on the data from
    struct v4l2_queryctrl and the available menu items. Note that
-   menu_items may be NULL, in that case it is ignored. */
+   menu_items may be NULL, in that case it is igyesred. */
 static int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
 		const char * const *menu_items)
 {
@@ -1349,7 +1349,7 @@ static int cx2341x_try_ctrl(struct v4l2_ctrl *ctrl)
 			/* MPEG-1 implies CBR */
 			hdl->video_bitrate_mode->val =
 				V4L2_MPEG_VIDEO_BITRATE_MODE_CBR;
-		/* peak bitrate shall be >= normal bitrate */
+		/* peak bitrate shall be >= yesrmal bitrate */
 		if (hdl->video_bitrate_mode->val == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR &&
 		    hdl->video_bitrate_peak->val < hdl->video_bitrate->val)
 			hdl->video_bitrate_peak->val = hdl->video_bitrate->val;

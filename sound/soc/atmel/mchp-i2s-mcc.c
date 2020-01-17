@@ -2,7 +2,7 @@
 //
 // Driver for Microchip I2S Multi-channel controller
 //
-// Copyright (C) 2018 Microchip Technology Inc. and its subsidiaries
+// Copyright (C) 2018 Microchip Techyeslogy Inc. and its subsidiaries
 //
 // Author: Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
 
@@ -176,8 +176,8 @@
 #define MCHP_I2SMCC_MRB_FIFOEN			BIT(1)
 
 #define MCHP_I2SMCC_MRB_DMACHUNK_MASK		GENMASK(9, 8)
-#define MCHP_I2SMCC_MRB_DMACHUNK(no_words) \
-	(((fls(no_words) - 1) << 8) & MCHP_I2SMCC_MRB_DMACHUNK_MASK)
+#define MCHP_I2SMCC_MRB_DMACHUNK(yes_words) \
+	(((fls(yes_words) - 1) << 8) & MCHP_I2SMCC_MRB_DMACHUNK_MASK)
 
 #define MCHP_I2SMCC_MRB_CLKSEL_MASK		GENMASK(16, 16)
 #define MCHP_I2SMCC_MRB_CLKSEL_EXT		(0 << 16)
@@ -296,7 +296,7 @@ static int mchp_i2s_mcc_set_sysclk(struct snd_soc_dai *dai,
 	dev_dbg(dev->dev, "%s() clk_id=%d freq=%u dir=%d\n",
 		__func__, clk_id, freq, dir);
 
-	/* We do not need SYSCLK */
+	/* We do yest need SYSCLK */
 	if (dir == SND_SOC_CLOCK_IN)
 		return 0;
 
@@ -356,7 +356,7 @@ static int mchp_i2s_mcc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 		return -EINVAL;
 
 	if (slots) {
-		/* We do not support daisy chain */
+		/* We do yest support daisy chain */
 		if (rx_mask != GENMASK(slots - 1, 0) ||
 		    rx_mask != tx_mask)
 			return -EINVAL;
@@ -504,14 +504,14 @@ static int mchp_i2s_mcc_hw_params(struct snd_pcm_substream *substream,
 	switch (dev->fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		if (dev->tdm_slots) {
-			dev_err(dev->dev, "I2S with TDM is not supported\n");
+			dev_err(dev->dev, "I2S with TDM is yest supported\n");
 			return -EINVAL;
 		}
 		mra |= MCHP_I2SMCC_MRA_FORMAT_I2S;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
 		if (dev->tdm_slots) {
-			dev_err(dev->dev, "Left-Justified with TDM is not supported\n");
+			dev_err(dev->dev, "Left-Justified with TDM is yest supported\n");
 			return -EINVAL;
 		}
 		mra |= MCHP_I2SMCC_MRA_FORMAT_LJ;
@@ -670,7 +670,7 @@ static int mchp_i2s_mcc_hw_params(struct snd_pcm_substream *substream,
 		dev->gclk_use = 1;
 	}
 
-	/* Save the number of channels to know what interrupts to enable */
+	/* Save the number of channels to kyesw what interrupts to enable */
 	dev->channels = channels;
 
 	ret = regmap_write(dev->regmap, MCHP_I2SMCC_MRA, mra);
@@ -798,7 +798,7 @@ static int mchp_i2s_mcc_startup(struct snd_pcm_substream *substream,
 {
 	struct mchp_i2s_mcc_dev *dev = snd_soc_dai_get_drvdata(dai);
 
-	/* Software reset the IP if it's not running */
+	/* Software reset the IP if it's yest running */
 	if (!mchp_i2s_mcc_is_running(dev)) {
 		return regmap_write(dev->regmap, MCHP_I2SMCC_CR,
 				    MCHP_I2SMCC_CR_SWRST);
@@ -925,7 +925,7 @@ static int mchp_i2s_mcc_probe(struct platform_device *pdev)
 		if (PTR_ERR(dev->gclk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 		dev_warn(&pdev->dev,
-			 "generated clock not found: %d\n", err);
+			 "generated clock yest found: %d\n", err);
 		dev->gclk = NULL;
 	}
 

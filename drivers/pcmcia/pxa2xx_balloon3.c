@@ -14,7 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/gpio.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
@@ -75,9 +75,9 @@ static void balloon3_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 
 	state->ready	= !!(status & BALLOON3_CF_nIRQ);
 	state->bvd1	= !!(status & BALLOON3_CF_nSTSCHG_BVD1);
-	state->bvd2	= 0;	/* not available */
+	state->bvd2	= 0;	/* yest available */
 	state->vs_3v	= 1;	/* Always true its a CF card */
-	state->vs_Xv	= 0;	/* not available */
+	state->vs_Xv	= 0;	/* yest available */
 }
 
 static int balloon3_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,

@@ -96,7 +96,7 @@ static inline struct inet_sock *inet_sk(const struct sock *sk)
 }
 
 /* Define various data structures for state recording.
- * Some fields are not used due to test simplification.
+ * Some fields are yest used due to test simplification.
  */
 enum tcp_estats_addrtype {
 	TCP_ESTATS_ADDRTYPE_IPV4 = 1,
@@ -255,4 +255,4 @@ int _dummy_tracepoint(struct dummy_tracepoint_args *arg)
 }
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = 1; /* ignored by tracepoints, required by libbpf.a */
+__u32 _version SEC("version") = 1; /* igyesred by tracepoints, required by libbpf.a */

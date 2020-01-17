@@ -42,7 +42,7 @@
  * where 'xxxx' is decided by the connections of pin AD2/AD0.  The
  * address used also affects the initial state of output signals.
  *
- * Within each group of ports, there are five known combinations of
+ * Within each group of ports, there are five kyeswn combinations of
  * I/O ports: 4I4O, 4P4O, 8I, 8P, 8O, see the definitions below for
  * the detailed organization of these ports. Only Goup A is interrupt
  * capable.
@@ -52,7 +52,7 @@
  * (if there are two groups).
  *
  * NOTE: MAX7328/MAX7329 are drop-in replacements for PCF8574/a, so
- * they are not supported by this driver.
+ * they are yest supported by this driver.
  */
 
 #define PORT_NONE	0x0	/* '/' No Port */
@@ -70,7 +70,7 @@
 #define GROUP_B(x)	((x) << 16)	/* I2C Addr: 0b'101xxxx */
 
 #define INT_NONE	0x0	/* No interrupt capability */
-#define INT_NO_MASK	0x1	/* Has interrupts, no mask */
+#define INT_NO_MASK	0x1	/* Has interrupts, yes mask */
 #define INT_INDEP_MASK	0x2	/* Has interrupts, independent mask */
 #define INT_MERGED_MASK 0x3	/* Has interrupts, merged mask */
 
@@ -524,7 +524,7 @@ static int max732x_irq_setup(struct max732x_chip *chip,
 						   IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(&client->dev,
-				"could not connect irqchip to gpiochip\n");
+				"could yest connect irqchip to gpiochip\n");
 			return ret;
 		}
 		gpiochip_set_nested_irqchip(&chip->gpio_chip,
@@ -544,7 +544,7 @@ static int max732x_irq_setup(struct max732x_chip *chip,
 	int has_irq = max732x_features[id->driver_data] >> 32;
 
 	if (((pdata && pdata->irq_base) || client->irq) && has_irq != INT_NONE)
-		dev_warn(&client->dev, "interrupt support not compiled in\n");
+		dev_warn(&client->dev, "interrupt support yest compiled in\n");
 
 	return 0;
 }
@@ -617,20 +617,20 @@ static int max732x_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct max732x_platform_data *pdata;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct max732x_chip *chip;
 	struct i2c_client *c;
 	uint16_t addr_a, addr_b;
 	int ret, nr_port;
 
 	pdata = dev_get_platdata(&client->dev);
-	node = client->dev.of_node;
+	yesde = client->dev.of_yesde;
 
-	if (!pdata && node)
+	if (!pdata && yesde)
 		pdata = of_gpio_max732x(&client->dev);
 
 	if (!pdata) {
-		dev_dbg(&client->dev, "no platform data\n");
+		dev_dbg(&client->dev, "yes platform data\n");
 		return -EINVAL;
 	}
 

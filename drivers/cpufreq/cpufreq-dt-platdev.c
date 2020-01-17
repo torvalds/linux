@@ -42,11 +42,11 @@ static const struct of_device_id whitelist[] __initconst = {
 	{ .compatible = "marvell,pxa250", },
 	{ .compatible = "marvell,pxa270", },
 
-	{ .compatible = "samsung,exynos3250", },
-	{ .compatible = "samsung,exynos4210", },
-	{ .compatible = "samsung,exynos5250", },
+	{ .compatible = "samsung,exyyess3250", },
+	{ .compatible = "samsung,exyyess4210", },
+	{ .compatible = "samsung,exyyess5250", },
 #ifndef CONFIG_BL_SWITCHER
-	{ .compatible = "samsung,exynos5800", },
+	{ .compatible = "samsung,exyyess5800", },
 #endif
 
 	{ .compatible = "renesas,emev2", },
@@ -77,7 +77,7 @@ static const struct of_device_id whitelist[] __initconst = {
 	{ .compatible = "rockchip,rk3368", },
 	{ .compatible = "rockchip,rk3399",
 	  .data = &(struct cpufreq_dt_platform_data)
-		{ .have_governor_per_policy = true, },
+		{ .have_goveryesr_per_policy = true, },
 	},
 
 	{ .compatible = "st-ericsson,u8500", },
@@ -96,7 +96,7 @@ static const struct of_device_id whitelist[] __initconst = {
 };
 
 /*
- * Machines for which the cpufreq device is *not* created, mostly used for
+ * Machines for which the cpufreq device is *yest* created, mostly used for
  * platforms using "operating-points-v2" property.
  */
 static const struct of_device_id blacklist[] __initconst = {
@@ -143,41 +143,41 @@ static const struct of_device_id blacklist[] __initconst = {
 	{ }
 };
 
-static bool __init cpu0_node_has_opp_v2_prop(void)
+static bool __init cpu0_yesde_has_opp_v2_prop(void)
 {
-	struct device_node *np = of_cpu_device_node_get(0);
+	struct device_yesde *np = of_cpu_device_yesde_get(0);
 	bool ret = false;
 
 	if (of_get_property(np, "operating-points-v2", NULL))
 		ret = true;
 
-	of_node_put(np);
+	of_yesde_put(np);
 	return ret;
 }
 
 static int __init cpufreq_dt_platdev_init(void)
 {
-	struct device_node *np = of_find_node_by_path("/");
+	struct device_yesde *np = of_find_yesde_by_path("/");
 	const struct of_device_id *match;
 	const void *data = NULL;
 
 	if (!np)
 		return -ENODEV;
 
-	match = of_match_node(whitelist, np);
+	match = of_match_yesde(whitelist, np);
 	if (match) {
 		data = match->data;
 		goto create_pdev;
 	}
 
-	if (cpu0_node_has_opp_v2_prop() && !of_match_node(blacklist, np))
+	if (cpu0_yesde_has_opp_v2_prop() && !of_match_yesde(blacklist, np))
 		goto create_pdev;
 
-	of_node_put(np);
+	of_yesde_put(np);
 	return -ENODEV;
 
 create_pdev:
-	of_node_put(np);
+	of_yesde_put(np);
 	return PTR_ERR_OR_ZERO(platform_device_register_data(NULL, "cpufreq-dt",
 			       -1, data,
 			       sizeof(struct cpufreq_dt_platform_data)));

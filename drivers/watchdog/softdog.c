@@ -5,9 +5,9 @@
  *	(c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *							All Rights Reserved.
  *
- *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
+ *	Neither Alan Cox yesr CymruNet Ltd. admit liability yesr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at yes charge.
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
@@ -33,16 +33,16 @@ MODULE_PARM_DESC(soft_margin,
 	"Watchdog soft_margin in seconds. (0 < soft_margin < 65536, default="
 					__MODULE_STRING(TIMER_MARGIN) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-static int soft_noboot;
-module_param(soft_noboot, int, 0);
-MODULE_PARM_DESC(soft_noboot,
-	"Softdog action, set to 1 to ignore reboots, 0 to reboot (default=0)");
+static int soft_yesboot;
+module_param(soft_yesboot, int, 0);
+MODULE_PARM_DESC(soft_yesboot,
+	"Softdog action, set to 1 to igyesre reboots, 0 to reboot (default=0)");
 
 static int soft_panic;
 module_param(soft_panic, int, 0);
@@ -55,8 +55,8 @@ static struct hrtimer softdog_preticktock;
 static enum hrtimer_restart softdog_fire(struct hrtimer *timer)
 {
 	module_put(THIS_MODULE);
-	if (soft_noboot) {
-		pr_crit("Triggered - Reboot ignored\n");
+	if (soft_yesboot) {
+		pr_crit("Triggered - Reboot igyesred\n");
 	} else if (soft_panic) {
 		pr_crit("Initiating panic\n");
 		panic("Software Watchdog Timer expired");
@@ -73,7 +73,7 @@ static struct watchdog_device softdog_dev;
 
 static enum hrtimer_restart softdog_pretimeout(struct hrtimer *timer)
 {
-	watchdog_notify_pretimeout(&softdog_dev);
+	watchdog_yestify_pretimeout(&softdog_dev);
 
 	return HRTIMER_NORESTART;
 }
@@ -132,7 +132,7 @@ static int __init softdog_init(void)
 	int ret;
 
 	watchdog_init_timeout(&softdog_dev, soft_margin, NULL);
-	watchdog_set_nowayout(&softdog_dev, nowayout);
+	watchdog_set_yeswayout(&softdog_dev, yeswayout);
 	watchdog_stop_on_reboot(&softdog_dev);
 
 	hrtimer_init(&softdog_ticktock, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -149,8 +149,8 @@ static int __init softdog_init(void)
 	if (ret)
 		return ret;
 
-	pr_info("initialized. soft_noboot=%d soft_margin=%d sec soft_panic=%d (nowayout=%d)\n",
-		soft_noboot, softdog_dev.timeout, soft_panic, nowayout);
+	pr_info("initialized. soft_yesboot=%d soft_margin=%d sec soft_panic=%d (yeswayout=%d)\n",
+		soft_yesboot, softdog_dev.timeout, soft_panic, yeswayout);
 
 	return 0;
 }

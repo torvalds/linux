@@ -384,7 +384,7 @@ static int sh_mobile_lcdc_setup_clocks(struct sh_mobile_lcdc_priv *priv,
 
 	clk = clk_get(priv->dev, str);
 	if (IS_ERR(clk)) {
-		dev_err(priv->dev, "cannot get dot clock %s\n", str);
+		dev_err(priv->dev, "canyest get dot clock %s\n", str);
 		return PTR_ERR(clk);
 	}
 
@@ -644,7 +644,7 @@ static irqreturn_t sh_mobile_lcdc_irq(int irq, void *data)
 	int is_sub;
 	int k;
 
-	/* Acknowledge interrupts and disable further VSYNC End IRQs. */
+	/* Ackyeswledge interrupts and disable further VSYNC End IRQs. */
 	ldintr = lcdc_read(priv, _LDINTR);
 	lcdc_write(priv, _LDINTR, (ldintr ^ LDINTR_STATUS_MASK) & ~LDINTR_VEE);
 
@@ -681,7 +681,7 @@ static int sh_mobile_lcdc_wait_for_vsync(struct sh_mobile_lcdc_chan *ch)
 	unsigned long ldintr;
 	int ret;
 
-	/* Enable VSync End interrupt and be careful not to acknowledge any
+	/* Enable VSync End interrupt and be careful yest to ackyeswledge any
 	 * pending interrupt.
 	 */
 	ldintr = lcdc_read(ch->lcdc, _LDINTR);
@@ -872,7 +872,7 @@ static void sh_mobile_lcdc_overlay_setup(struct sh_mobile_lcdc_overlay *ovl)
  * @priv: LCDC device
  *
  * Configure all enabled channels and start the LCDC device. All external
- * devices (clocks, MERAM, panels, ...) are not touched by this function.
+ * devices (clocks, MERAM, panels, ...) are yest touched by this function.
  */
 static void __sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 {
@@ -881,7 +881,7 @@ static void __sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	int k, m;
 
 	/* Enable LCDC channels. Read data from external memory, avoid using the
-	 * BEU for now.
+	 * BEU for yesw.
 	 */
 	lcdc_write(priv, _LDCNT2R, priv->ch[0].enabled | priv->ch[1].enabled);
 
@@ -904,7 +904,7 @@ static void __sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			continue;
 
 		/* FIXME: sh7724 can only use 42, 48, 54 and 60 for the divider
-		 * denominator.
+		 * deyesminator.
 		 */
 		lcdc_write_chan(ch, LDDCKPAT1R, 0);
 		lcdc_write_chan(ch, LDDCKPAT2R, (1 << (m/2)) - 1);
@@ -1390,7 +1390,7 @@ static int sh_mobile_lcdc_overlay_pan(struct fb_var_screeninfo *var,
 	}
 
 	/* If the Y offset hasn't changed, the C offset hasn't either. There's
-	 * nothing to do in that case.
+	 * yesthing to do in that case.
 	 */
 	if (y_offset == ovl->pan_y_offset)
 		return 0;
@@ -1476,7 +1476,7 @@ static int sh_mobile_lcdc_overlay_blank(int blank, struct fb_info *info)
 	sh_mobile_lcdc_overlay_setup(ovl);
 
 	/* Prevent the backlight from receiving a blanking event by returning
-	 * a non-zero value.
+	 * a yesn-zero value.
 	 */
 	return 1;
 }
@@ -1624,13 +1624,13 @@ sh_mobile_lcdc_overlay_fb_init(struct sh_mobile_lcdc_overlay *ovl)
  * Frame buffer operations - main frame buffer
  */
 
-static int sh_mobile_lcdc_setcolreg(u_int regno,
+static int sh_mobile_lcdc_setcolreg(u_int regyes,
 				    u_int red, u_int green, u_int blue,
 				    u_int transp, struct fb_info *info)
 {
 	u32 *palette = info->pseudo_palette;
 
-	if (regno >= PALETTE_NR)
+	if (regyes >= PALETTE_NR)
 		return -EINVAL;
 
 	/* only FB_VISUAL_TRUECOLOR supported */
@@ -1640,7 +1640,7 @@ static int sh_mobile_lcdc_setcolreg(u_int regno,
 	blue >>= 16 - info->var.blue.length;
 	transp >>= 16 - info->var.transp.length;
 
-	palette[regno] = (red << info->var.red.offset) |
+	palette[regyes] = (red << info->var.red.offset) |
 	  (green << info->var.green.offset) |
 	  (blue << info->var.blue.offset) |
 	  (transp << info->var.transp.offset);
@@ -1704,7 +1704,7 @@ static int sh_mobile_lcdc_pan(struct fb_var_screeninfo *var,
 	}
 
 	/* If the Y offset hasn't changed, the C offset hasn't either. There's
-	 * nothing to do in that case.
+	 * yesthing to do in that case.
 	 */
 	if (y_offset == ch->pan_y_offset)
 		return 0;
@@ -1767,7 +1767,7 @@ static void sh_mobile_fb_reconfig(struct fb_info *info)
 	if (fb_mode_is_equal(&ch->display.mode, &mode))
 		return;
 
-	/* Display has been re-plugged, framebuffer is free now, reconfigure */
+	/* Display has been re-plugged, framebuffer is free yesw, reconfigure */
 	var = info->var;
 	fb_videomode_to_var(&var, &ch->display.mode);
 	var.width = ch->display.width;
@@ -1833,7 +1833,7 @@ static int sh_mobile_lcdc_check_var(struct fb_var_screeninfo *var,
 	/* If board code provides us with a list of available modes, make sure
 	 * we use one of them. Find the mode closest to the requested one. The
 	 * distance between two modes is defined as the size of the
-	 * non-overlapping parts of the two rectangles.
+	 * yesn-overlapping parts of the two rectangles.
 	 */
 	for (i = 0; i < ch->cfg->num_modes; ++i) {
 		const struct fb_videomode *mode = &ch->cfg->lcd_modes[i];
@@ -1854,7 +1854,7 @@ static int sh_mobile_lcdc_check_var(struct fb_var_screeninfo *var,
 		}
 	}
 
-	/* If no available mode can be used, return an error. */
+	/* If yes available mode can be used, return an error. */
 	if (ch->cfg->num_modes != 0) {
 		if (best_dist == (unsigned int)-1)
 			return -EINVAL;
@@ -1940,10 +1940,10 @@ static int sh_mobile_lcdc_blank(int blank, struct fb_info *info)
 	/* turn clocks off? */
 	if (blank > FB_BLANK_NORMAL && ch->blank_status <= FB_BLANK_NORMAL) {
 		/* make sure the screen is updated with the black fill before
-		 * switching the clocks off. one vsync is not enough since
+		 * switching the clocks off. one vsync is yest eyesugh since
 		 * blanking may occur in the middle of a refresh. deferred io
 		 * mode will reenable the clocks and update the screen in time,
-		 * so it does not need this. */
+		 * so it does yest need this. */
 		if (!info->fbdefio) {
 			sh_mobile_lcdc_wait_for_vsync(ch);
 			sh_mobile_lcdc_wait_for_vsync(ch);
@@ -2225,7 +2225,7 @@ static const struct dev_pm_ops sh_mobile_lcdc_dev_pm_ops = {
 };
 
 /* -----------------------------------------------------------------------------
- * Framebuffer notifier
+ * Framebuffer yestifier
  */
 
 /* -----------------------------------------------------------------------------
@@ -2515,14 +2515,14 @@ static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 	int irq, i;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data defined\n");
+		dev_err(&pdev->dev, "yes platform data defined\n");
 		return -EINVAL;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
 	if (!res || irq < 0) {
-		dev_err(&pdev->dev, "cannot get platform resources\n");
+		dev_err(&pdev->dev, "canyest get platform resources\n");
 		return -ENOENT;
 	}
 
@@ -2579,7 +2579,7 @@ static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 	}
 
 	if (!num_channels) {
-		dev_err(&pdev->dev, "no channels defined\n");
+		dev_err(&pdev->dev, "yes channels defined\n");
 		error = -EINVAL;
 		goto err1;
 	}
@@ -2588,7 +2588,7 @@ static int sh_mobile_lcdc_probe(struct platform_device *pdev)
 	if (num_channels == 2)
 		priv->forced_fourcc = pdata->ch[0].fourcc;
 
-	priv->base = ioremap_nocache(res->start, resource_size(res));
+	priv->base = ioremap_yescache(res->start, resource_size(res));
 	if (!priv->base) {
 		error = -ENOMEM;
 		goto err1;

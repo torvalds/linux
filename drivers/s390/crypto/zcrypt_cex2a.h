@@ -26,7 +26,7 @@ struct type50_hdr {
 	unsigned char	msg_type_code;	/* 0x50 */
 	unsigned short	msg_len;
 	unsigned char	reserved2;
-	unsigned char	ignored;
+	unsigned char	igyesred;
 	unsigned short	reserved3;
 } __packed;
 

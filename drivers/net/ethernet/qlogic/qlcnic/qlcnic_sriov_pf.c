@@ -423,7 +423,7 @@ static int qlcnic_sriov_pf_create_flr_queue(struct qlcnic_adapter *adapter)
 
 	wq = create_singlethread_workqueue("qlcnic-flr");
 	if (wq == NULL) {
-		dev_err(&adapter->pdev->dev, "Cannot create FLR workqueue\n");
+		dev_err(&adapter->pdev->dev, "Canyest create FLR workqueue\n");
 		return -ENOMEM;
 	}
 
@@ -468,7 +468,7 @@ static int qlcnic_pci_sriov_disable(struct qlcnic_adapter *adapter)
 
 	if (pci_vfs_assigned(adapter->pdev)) {
 		netdev_err(adapter->netdev,
-			   "SR-IOV VFs belonging to port %d are assigned to VMs. SR-IOV can not be disabled on this port\n",
+			   "SR-IOV VFs belonging to port %d are assigned to VMs. SR-IOV can yest be disabled on this port\n",
 			   adapter->portnum);
 		netdev_info(adapter->netdev,
 			    "Please detach SR-IOV VFs belonging to port %d from VMs, and then try to disable SR-IOV on this port\n",
@@ -621,7 +621,7 @@ static int qlcnic_pci_sriov_enable(struct qlcnic_adapter *adapter, int num_vfs)
 
 	if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
 		netdev_err(netdev,
-			   "SR-IOV cannot be enabled, when legacy interrupts are enabled\n");
+			   "SR-IOV canyest be enabled, when legacy interrupts are enabled\n");
 		return -EIO;
 	}
 

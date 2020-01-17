@@ -122,7 +122,7 @@ static void uniphier_spi_set_mode(struct spi_device *spi)
 	 * clock setting
 	 * CKPHS    capture timing. 0:rising edge, 1:falling edge
 	 * CKINIT   clock initial level. 0:low, 1:high
-	 * CKDLY    clock delay. 0:no delay, 1:delay depending on FSTRT
+	 * CKDLY    clock delay. 0:yes delay, 1:delay depending on FSTRT
 	 *          (FSTRT=0: 1 clock, FSTRT=1: 0.5 clock)
 	 *
 	 * frame setting
@@ -528,7 +528,7 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 	master->max_speed_hz = DIV_ROUND_UP(clk_rate, SSI_MIN_CLK_DIVIDER);
 	master->min_speed_hz = DIV_ROUND_UP(clk_rate, SSI_MAX_CLK_DIVIDER);
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->bus_num = pdev->id;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 

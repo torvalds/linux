@@ -57,12 +57,12 @@ report::
 	the PMU name to simplify creation of events across multiple instances
 	of the same type of PMU in large systems (e.g. memory controller PMUs).
 	Multiple PMU instances are typical for uncore PMUs, so the prefix
-	'uncore_' is also ignored when performing this match.
+	'uncore_' is also igyesred when performing this match.
 
 
 -i::
---no-inherit::
-        child tasks do not inherit counters
+--yes-inherit::
+        child tasks do yest inherit counters
 -p::
 --pid=<pid>::
         stat events on existing process id (comma separated list)
@@ -74,10 +74,10 @@ report::
 
 -a::
 --all-cpus::
-        system-wide collection from all CPUs (default if no target is specified)
+        system-wide collection from all CPUs (default if yes target is specified)
 
---no-scale::
-	Don't scale/normalize counter values
+--yes-scale::
+	Don't scale/yesrmalize counter values
 
 -d::
 --detailed::
@@ -98,13 +98,13 @@ report::
 -C::
 --cpu=::
 Count only on the list of CPUs provided. Multiple CPUs can be provided as a
-comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
-In per-thread mode, this option is ignored. The -a option is still necessary
+comma-separated list with yes space: 0,1. Ranges of CPUs are specified with -: 0-2.
+In per-thread mode, this option is igyesred. The -a option is still necessary
 to activate system-wide monitoring. Default is to count on all CPUs.
 
 -A::
---no-aggr::
-Do not aggregate counts across all monitored CPUs.
+--yes-aggr::
+Do yest aggregate counts across all monitored CPUs.
 
 -n::
 --null::
@@ -155,7 +155,7 @@ command line can be used: 'perf stat -e cycles -G cgroup_name -a -e cycles'.
 Print the output into the designated file.
 
 --append::
-Append to the output file designated with the -o option. Ignored if -o is not specified.
+Append to the output file designated with the -o option. Igyesred if -o is yest specified.
 
 --log-fd::
 
@@ -186,7 +186,7 @@ Clear the screen before next interval.
 
 --timeout msecs::
 Stop the 'perf stat' session and print count deltas after N milliseconds (minimum: 10 ms).
-This option is not supported with the "-I" option.
+This option is yest supported with the "-I" option.
 	example: 'perf stat --time 2000 -e cycles -a'
 
 --metric-only::
@@ -217,10 +217,10 @@ core number and the number of online logical processors on that physical process
 Aggregate counts per monitored threads, when monitoring threads (-t option)
 or processes (-p option).
 
---per-node::
-Aggregate counts per NUMA nodes for system-wide mode measurements. This
-is a useful mode to detect imbalance between NUMA nodes. To enable this
-mode, use --per-node in addition to -a. (system-wide).
+--per-yesde::
+Aggregate counts per NUMA yesdes for system-wide mode measurements. This
+is a useful mode to detect imbalance between NUMA yesdes. To enable this
+mode, use --per-yesde in addition to -a. (system-wide).
 
 -D msecs::
 --delay msecs::
@@ -265,8 +265,8 @@ The events from the metrics are automatically measured.
 See perf list output for the possble metrics and metricgroups.
 
 -A::
---no-aggr::
-Do not aggregate counts across all monitored CPUs.
+--yes-aggr::
+Do yest aggregate counts across all monitored CPUs.
 
 --topdown::
 Print top down level 1 metrics if supported by the CPU. This allows to
@@ -274,12 +274,12 @@ determine bottle necks in the CPU pipeline for CPU bound workloads,
 by breaking the cycles consumed down into frontend bound, backend bound,
 bad speculation and retiring.
 
-Frontend bound means that the CPU cannot fetch and decode instructions fast
-enough. Backend bound means that computation or memory access is the bottle
+Frontend bound means that the CPU canyest fetch and decode instructions fast
+eyesugh. Backend bound means that computation or memory access is the bottle
 neck. Bad Speculation means that the CPU wasted cycles due to branch
 mispredictions and similar issues. Retiring means that the CPU computed without
 an apparently bottleneck. The bottleneck is only the real bottleneck
-if the workload is actually bound by the CPU and not by something else.
+if the workload is actually bound by the CPU and yest by something else.
 
 For best results it is usually a good idea to use it with interval
 mode like -I 1000, as the bottleneck of workloads can change often.
@@ -287,7 +287,7 @@ mode like -I 1000, as the bottleneck of workloads can change often.
 The top down metrics are collected per core instead of per
 CPU thread. Per core mode is automatically enabled
 and -a (global monitoring) is needed, requiring root rights or
-perf.perf_event_paranoid=-1.
+perf.perf_event_parayesid=-1.
 
 Topdown uses the full Performance Monitoring Unit, and needs
 disabling of the NMI watchdog (as root):
@@ -295,14 +295,14 @@ echo 0 > /proc/sys/kernel/nmi_watchdog
 for best results. Otherwise the bottlenecks may be inconsistent
 on workload with changing phases.
 
-This enables --metric-only, unless overridden with --no-metric-only.
+This enables --metric-only, unless overridden with --yes-metric-only.
 
-To interpret the results it is usually needed to know on which
+To interpret the results it is usually needed to kyesw on which
 CPUs the workload runs on. If needed the CPUs can be forced using
 taskset.
 
---no-merge::
-Do not merge results from same PMUs.
+--yes-merge::
+Do yest merge results from same PMUs.
 
 When multiple events are created from a single event specification,
 stat will, by default, aggregate the event counts and show the result
@@ -319,14 +319,14 @@ Measure SMI cost if msr/aperf/ and msr/smi/ events are supported.
 
 During the measurement, the /sys/device/cpu/freeze_on_smi will be set to
 freeze core counters on SMI.
-The aperf counter will not be effected by the setting.
+The aperf counter will yest be effected by the setting.
 The cost of SMI can be measured by (aperf - unhalted core cycles).
 
 In practice, the percentages of SMI cycles is very useful for performance
 oriented analysis. --metric_only will be applied by default.
 The output is SMI cycles%, equals to (aperf - unhalted core cycles) / aperf
 
-Users who wants to get the actual value can apply --no-metric-only.
+Users who wants to get the actual value can apply --yes-metric-only.
 
 --all-kernel::
 Configure all used events to run in kernel space.
@@ -373,8 +373,8 @@ Those times are the very same as displayed by the 'time' tool.
 CSV FORMAT
 ----------
 
-With -x, perf stat is able to output a not-quite-CSV format output
-Commas in the output are not put into "". To make it easy to parse
+With -x, perf stat is able to output a yest-quite-CSV format output
+Commas in the output are yest put into "". To make it easy to parse
 it is recommended to use a different character like -x \;
 
 The fields are in this order:

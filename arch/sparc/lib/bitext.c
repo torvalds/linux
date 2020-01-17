@@ -6,7 +6,7 @@
  *
  * The algorithm to search a zero bit string is geared towards its application.
  * We expect a couple of fixed sizes of requests, so a rotating counter, reset
- * by align size, should provide fast enough search while maintaining low
+ * by align size, should provide fast eyesugh search while maintaining low
  * fragmentation.
  */
 

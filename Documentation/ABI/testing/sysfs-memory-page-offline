@@ -14,11 +14,11 @@ Description:
 		Normally it's the base page size of the kernel, but
 		this might change.
 
-		The page must be still accessible, not poisoned. The
+		The page must be still accessible, yest poisoned. The
 		kernel will never kill anything for this, but rather
 		fail the offline.  Return value is the size of the
 		number, or a error when the offlining failed.  Reading
-		the file is not allowed.
+		the file is yest allowed.
 
 What:		/sys/devices/system/memory/hard_offline_page
 Date:		Sep 2009
@@ -41,4 +41,4 @@ Description:
 
 		Return value is the size of the number, or a error when
 		the offlining failed.
-		Reading the file is not allowed.
+		Reading the file is yest allowed.

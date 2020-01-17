@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -45,9 +45,9 @@
 #define QIB_SRC_OUI_2 0x11
 #define QIB_SRC_OUI_3 0x75
 
-/* version of protocol header (known to chip also). In the long run,
+/* version of protocol header (kyeswn to chip also). In the long run,
  * we should be able to generate and accept a range of version numbers;
- * for now we only accept one, and it's compiled in.
+ * for yesw we only accept one, and it's compiled in.
  */
 #define IPS_PROTO_VERSION 2
 
@@ -170,7 +170,7 @@ struct qib_base_info {
 	/* base address of eager TID receive buffers used by hardware. */
 	__u64 spi_rcv_egrbufs;
 
-	/* Allocated by initialization code, not by protocol. */
+	/* Allocated by initialization code, yest by protocol. */
 
 	/*
 	 * Size of each TID buffer in host memory, starting at
@@ -185,9 +185,9 @@ struct qib_base_info {
 	__u32 spi_qpair;
 
 	/*
-	 * User register base for init code, not to be used directly by
+	 * User register base for init code, yest to be used directly by
 	 * protocol or applications.  Always points to chip registers,
-	 * for normal or shared context.
+	 * for yesrmal or shared context.
 	 */
 	__u64 spi_uregbase;
 	/*
@@ -204,7 +204,7 @@ struct qib_base_info {
 	__u32 spi_pioalign;
 	/*
 	 * The index of the first pio buffer available to this process;
-	 * needed to do lookup in spi_pioavailaddr; not added to
+	 * needed to do lookup in spi_pioavailaddr; yest added to
 	 * spi_piobufbase.
 	 */
 	__u32 spi_pioindex;
@@ -249,7 +249,7 @@ struct qib_base_info {
 	/*
 	 * shared memory pages for subctxts if ctxt is shared; these cover
 	 * all the processes in the group sharing a single context.
-	 * all have enough space for the num_subcontexts value on this job.
+	 * all have eyesugh space for the num_subcontexts value on this job.
 	 */
 	__u64 spi_subctxt_uregbase;
 	__u64 spi_subctxt_rcvegrbuf;
@@ -267,16 +267,16 @@ struct qib_base_info {
  * The major version changes when data structures
  * change in an incompatible way.  The driver must be the same or higher
  * for initialization to succeed.  In some cases, a higher version
- * driver will not interoperate with older software, and initialization
+ * driver will yest interoperate with older software, and initialization
  * will return an error.
  */
 #define QIB_USER_SWMAJOR 1
 
 /*
- * Minor version differences are always compatible
+ * Miyesr version differences are always compatible
  * a within a major version, however if user software is larger
  * than driver software, some new features and/or structure fields
- * may not be implemented; the user code must deal with this if it
+ * may yest be implemented; the user code must deal with this if it
  * cares, or it must abort after initialization reports the difference.
  */
 #define QIB_USER_SWMINOR 13
@@ -292,7 +292,7 @@ struct qib_base_info {
  * slightly different, in that we want to tell if the driver was built as
  * part of a QLogic release, or from the driver from openfabrics.org,
  * kernel.org, or a standard distribution, for support reasons.
- * The high bit is 0 for non-QLogic and 1 for QLogic-built/supplied.
+ * The high bit is 0 for yesn-QLogic and 1 for QLogic-built/supplied.
  *
  * It's returned by the driver to the user code during initialization in the
  * spi_sw_version field of qib_base_info, so the user code can in turn
@@ -302,7 +302,7 @@ struct qib_base_info {
 
 /*
  * Define the driver version number.  This is something that refers only
- * to the driver itself, not the software interfaces it supports.
+ * to the driver itself, yest the software interfaces it supports.
  */
 #define QIB_DRIVER_VERSION_BASE "1.11"
 
@@ -343,13 +343,13 @@ struct qib_user_info {
 	/* size of struct base_info to write to */
 	__u32 spu_base_info_size;
 
-	__u32 spu_port_alg; /* which QIB_PORT_ALG_*; unused user minor < 11 */
+	__u32 spu_port_alg; /* which QIB_PORT_ALG_*; unused user miyesr < 11 */
 
 	/*
 	 * If two or more processes wish to share a context, each process
 	 * must set the spu_subctxt_cnt and spu_subctxt_id to the same
 	 * values.  The only restriction on the spu_subctxt_id is that
-	 * it be unique for a given node.
+	 * it be unique for a given yesde.
 	 */
 	__u16 spu_subctxt_cnt;
 	__u16 spu_subctxt_id;
@@ -391,7 +391,7 @@ struct qib_user_info {
 /*
  * QIB_CMD_ACK_EVENT obsoletes QIB_CMD_DISARM_BUFS, but we keep it for
  * compatibility with libraries from previous release.   The ACK_EVENT
- * will take appropriate driver action (if any, just DISARM for now),
+ * will take appropriate driver action (if any, just DISARM for yesw),
  * then clear the bits passed in as part of the mask.  These bits are
  * in the first 64bit word at spi_sendbuf_status, and are passed to
  * the driver in the event_mask union as well.
@@ -424,7 +424,7 @@ struct qib_ctxt_info {
 	__u16 subctxt;          /* subctxt on unit assigned to caller */
 	__u16 num_ctxts;        /* number of ctxts available on unit */
 	__u16 num_subctxts;     /* number of subctxts opened on ctxt */
-	__u16 rec_cpu;          /* cpu # for affinity (ffff if none) */
+	__u16 rec_cpu;          /* cpu # for affinity (ffff if yesne) */
 };
 
 struct qib_tid_info {
@@ -438,7 +438,7 @@ struct qib_tid_info {
 
 	/*
 	 * pointer (same size 32/64 bit) to bitmap of TIDs used
-	 * for this call; checked for being large enough at open
+	 * for this call; checked for being large eyesugh at open
 	 */
 	__u64 tidmap;
 };
@@ -464,7 +464,7 @@ struct qib_cmd {
 		__u64 ctxt_info;
 		/* enable/disable receipt of packets */
 		__u32 recv_ctrl;
-		/* enable/disable armlaunch errors (non-zero to enable) */
+		/* enable/disable armlaunch errors (yesn-zero to enable) */
 		__u32 armlaunch_ctrl;
 		/* partition key to set */
 		__u16 part_key;
@@ -505,7 +505,7 @@ struct __qib_sendpkt {
 };
 
 /*
- * Diagnostics can send a packet by "writing" the following
+ * Diagyesstics can send a packet by "writing" the following
  * structs to the diag data special file.
  * This allows a custom
  * pbc (+ static rate) qword, so that special modes and deliberate

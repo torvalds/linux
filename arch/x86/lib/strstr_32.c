@@ -10,7 +10,7 @@ __asm__ __volatile__(
 	"movl %6,%%edi\n\t"
 	"repne\n\t"
 	"scasb\n\t"
-	"notl %%ecx\n\t"
+	"yestl %%ecx\n\t"
 	"decl %%ecx\n\t"	/* NOTE! This also sets Z if searchstring='' */
 	"movl %%ecx,%%edx\n"
 	"1:\tmovl %6,%%edi\n\t"

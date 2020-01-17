@@ -30,13 +30,13 @@ description: |+
   for properties of the display such as gamma correction and
   certain electrical driving levels.
 
-  The TPG110 does not know the physical dimensions of the panel
+  The TPG110 does yest kyesw the physical dimensions of the panel
   connected, so this needs to be specified in the device tree.
 
   It requires a GPIO line for control of its reset line.
 
   The serial protocol has line names that resemble I2C but the
-  protocol is not I2C but 3WIRE SPI.
+  protocol is yest I2C but 3WIRE SPI.
 
 
 allOf:
@@ -47,7 +47,7 @@ properties:
     oneOf:
       - items:
           - enum:
-              - ste,nomadik-nhk15-display
+              - ste,yesmadik-nhk15-display
           - const: tpo,tpg110
       - const: tpo,tpg110
 
@@ -91,7 +91,7 @@ examples:
         backlight = <&bl>;
 
         port {
-          nomadik_clcd_panel: endpoint {
+          yesmadik_clcd_panel: endpoint {
             remote-endpoint = <&foo>;
           };
         };

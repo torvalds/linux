@@ -109,7 +109,7 @@ struct key *find_asymmetric_key(struct key *keyring,
 			goto reject;
 		}
 		if (!asymmetric_key_id_same(id_1, kids->id[1])) {
-			pr_debug("First ID matches, but second does not\n");
+			pr_debug("First ID matches, but second does yest\n");
 			goto reject;
 		}
 	}
@@ -612,7 +612,7 @@ int register_asymmetric_key_parser(struct asymmetric_key_parser *parser)
 
 	list_add_tail(&parser->link, &asymmetric_key_parsers);
 
-	pr_notice("Asymmetric key parser '%s' registered\n", parser->name);
+	pr_yestice("Asymmetric key parser '%s' registered\n", parser->name);
 	ret = 0;
 
 out:
@@ -631,7 +631,7 @@ void unregister_asymmetric_key_parser(struct asymmetric_key_parser *parser)
 	list_del(&parser->link);
 	up_write(&asymmetric_key_parsers_sem);
 
-	pr_notice("Asymmetric key parser '%s' unregistered\n", parser->name);
+	pr_yestice("Asymmetric key parser '%s' unregistered\n", parser->name);
 }
 EXPORT_SYMBOL_GPL(unregister_asymmetric_key_parser);
 

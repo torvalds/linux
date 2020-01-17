@@ -260,7 +260,7 @@ static void calculate_differed_part(struct snd_motu_packet_format *formats,
 		}
 	}
 
-	/* At mode x4, no data chunks are supported in this part. */
+	/* At mode x4, yes data chunks are supported in this part. */
 	formats->differed_part_pcm_chunks[0] = pcm_chunks[0];
 	formats->differed_part_pcm_chunks[1] = pcm_chunks[1];
 }

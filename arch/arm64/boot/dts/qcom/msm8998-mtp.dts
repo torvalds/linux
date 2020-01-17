@@ -6,7 +6,7 @@
 #include "msm8998-mtp.dtsi"
 
 / {
-	model = "Qualcomm Technologies, Inc. MSM8998 v1 MTP";
+	model = "Qualcomm Techyeslogies, Inc. MSM8998 v1 MTP";
 	compatible = "qcom,msm8998-mtp";
 
 	qcom,board-id = <8 0>;

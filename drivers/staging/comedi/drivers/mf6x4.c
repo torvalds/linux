@@ -13,7 +13,7 @@
  * Author: Rostislav Lisovy <lisovy@gmail.com>
  * Status: works
  * Updated:
- * Configuration Options: none
+ * Configuration Options: yesne
  */
 
 #include <linux/module.h>

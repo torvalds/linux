@@ -136,7 +136,7 @@ static int gpio_mouse_probe(struct platform_device *pdev)
 
 	error = input_register_device(input);
 	if (error) {
-		dev_err(dev, "could not register input device\n");
+		dev_err(dev, "could yest register input device\n");
 		return error;
 	}
 
@@ -164,7 +164,7 @@ static struct platform_driver gpio_mouse_device_driver = {
 };
 module_platform_driver(gpio_mouse_device_driver);
 
-MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
+MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.yes>");
 MODULE_DESCRIPTION("GPIO mouse driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:gpio_mouse"); /* work with hotplug and coldplug */

@@ -109,7 +109,7 @@ static bool verify_container(const u8 *buf, size_t buf_size, bool early)
 }
 
 /*
- * Check whether there is a valid, non-truncated CPU equivalence table at the
+ * Check whether there is a valid, yesn-truncated CPU equivalence table at the
  * beginning of @buf of size @buf_size. Set @early to use this function in the
  * early path.
  */
@@ -145,7 +145,7 @@ static bool verify_equivalence_table(const u8 *buf, size_t buf_size, bool early)
 }
 
 /*
- * Check whether there is a valid, non-truncated microcode patch section at the
+ * Check whether there is a valid, yesn-truncated microcode patch section at the
  * beginning of @buf of size @buf_size. Set @early to use this function in the
  * early path.
  *
@@ -190,8 +190,8 @@ __verify_patch_section(const u8 *buf, size_t buf_size, u32 *sh_psize, bool early
 }
 
 /*
- * Check whether the passed remaining file @buf_size is large enough to contain
- * a patch of the indicated @sh_psize (and also whether this size does not
+ * Check whether the passed remaining file @buf_size is large eyesugh to contain
+ * a patch of the indicated @sh_psize (and also whether this size does yest
  * exceed the per-family maximum). @sh_psize is the size read from the section
  * header.
  */
@@ -229,7 +229,7 @@ static unsigned int __verify_patch_size(u8 family, u32 sh_psize, size_t buf_size
  *
  * Returns:
  * negative: on error
- * positive: patch is not for this family, skip it
+ * positive: patch is yest for this family, skip it
  * 0: success
  */
 static int
@@ -245,14 +245,14 @@ verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size, bool ea
 		return -1;
 
 	/*
-	 * The section header length is not included in this indicated size
+	 * The section header length is yest included in this indicated size
 	 * but is present in the leftover file length so we need to subtract
 	 * it before passing this value to the function below.
 	 */
 	buf_size -= SECTION_HDR_SIZE;
 
 	/*
-	 * Check if the remaining buffer is big enough to contain a patch of
+	 * Check if the remaining buffer is big eyesugh to contain a patch of
 	 * size sh_psize, as the section claims.
 	 */
 	if (buf_size < sh_psize) {
@@ -289,7 +289,7 @@ verify_patch(u8 family, const u8 *buf, size_t buf_size, u32 *patch_size, bool ea
 /*
  * This scans the ucode blob for the proper container as we can have multiple
  * containers glued together. Returns the equivalence ID from the equivalence
- * table or 0 if none found.
+ * table or 0 if yesne found.
  * Returns the amount of bytes consumed while scanning. @desc contains all the
  * data we're going to use in later stages of the application.
  */
@@ -425,8 +425,8 @@ apply_microcode_early_amd(u32 cpuid_1_eax, void *ucode, size_t size, bool save_p
 	bool ret = false;
 
 #ifdef CONFIG_X86_32
-	new_rev = (u32 *)__pa_nodebug(&ucode_new_rev);
-	patch	= (u8 (*)[PATCH_MAX_SIZE])__pa_nodebug(&amd_ucode_patch);
+	new_rev = (u32 *)__pa_yesdebug(&ucode_new_rev);
+	patch	= (u8 (*)[PATCH_MAX_SIZE])__pa_yesdebug(&amd_ucode_patch);
 #else
 	new_rev = &ucode_new_rev;
 	patch	= &amd_ucode_patch;
@@ -478,8 +478,8 @@ static void __load_ucode_amd(unsigned int cpuid_1_eax, struct cpio_data *ret)
 	bool use_pa;
 
 	if (IS_ENABLED(CONFIG_X86_32)) {
-		uci	= (struct ucode_cpu_info *)__pa_nodebug(ucode_cpu_info);
-		path	= (const char *)__pa_nodebug(ucode_path);
+		uci	= (struct ucode_cpu_info *)__pa_yesdebug(ucode_cpu_info);
+		path	= (const char *)__pa_yesdebug(ucode_path);
 		use_pa	= true;
 	} else {
 		uci     = ucode_cpu_info;
@@ -514,8 +514,8 @@ void load_ucode_amd_ap(unsigned int cpuid_1_eax)
 	u32 *new_rev, rev, dummy;
 
 	if (IS_ENABLED(CONFIG_X86_32)) {
-		mc	= (struct microcode_amd *)__pa_nodebug(amd_ucode_patch);
-		new_rev = (u32 *)__pa_nodebug(&ucode_new_rev);
+		mc	= (struct microcode_amd *)__pa_yesdebug(amd_ucode_patch);
+		new_rev = (u32 *)__pa_yesdebug(&ucode_new_rev);
 	} else {
 		mc	= (struct microcode_amd *)amd_ucode_patch;
 		new_rev = &ucode_new_rev;
@@ -618,7 +618,7 @@ static void update_cache(struct ucode_patch *new_patch)
 			return;
 		}
 	}
-	/* no patch found, add it */
+	/* yes patch found, add it */
 	list_add_tail(&new_patch->plist, &microcode_cache);
 }
 
@@ -753,10 +753,10 @@ static void cleanup(void)
 }
 
 /*
- * Return a non-negative value even if some of the checks failed so that
+ * Return a yesn-negative value even if some of the checks failed so that
  * we can skip over the next patch. If we return a negative value, we
  * signal a grave error like a memory allocation has failed and the
- * driver cannot continue functioning normally. In such cases, we tear
+ * driver canyest continue functioning yesrmally. In such cases, we tear
  * down everything we've used up so far and exit.
  */
 static int verify_and_add_patch(u8 family, u8 *fw, unsigned int leftover,
@@ -945,7 +945,7 @@ struct microcode_ops * __init init_amd_microcode(void)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	if (c->x86_vendor != X86_VENDOR_AMD || c->x86 < 0x10) {
-		pr_warn("AMD CPU family 0x%x not supported\n", c->x86);
+		pr_warn("AMD CPU family 0x%x yest supported\n", c->x86);
 		return NULL;
 	}
 

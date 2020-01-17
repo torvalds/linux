@@ -59,7 +59,7 @@ struct rocket_version {
 #define ROCKET_MODE_RS422       0x00002000
 #define ROCKET_FLAGS		0x00003FFF
 
-#define ROCKET_USR_MASK 0x0071	/* Legal flags that non-privileged
+#define ROCKET_USR_MASK 0x0071	/* Legal flags that yesn-privileged
 				 * users can set or reset */
 
 /*

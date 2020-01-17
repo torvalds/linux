@@ -63,7 +63,7 @@ struct ipw2100_rx_packet;
  *
  * you simply need to add your entry to the ipw2100_debug_levels array.
  *
- * If you do not see debug_level in /proc/net/ipw2100 then you do not have
+ * If you do yest see debug_level in /proc/net/ipw2100 then you do yest have
  * CONFIG_IPW2100_DEBUG defined in your kernel configuration
  *
  */
@@ -277,8 +277,8 @@ struct ipw2100_data_header {
 	u32 host_command_reg1;
 	u8 encrypted;		// BOOLEAN in win! TRUE if frame is enc by driver
 	u8 needs_encryption;	// BOOLEAN in win! TRUE if frma need to be enc in NIC
-	u8 wep_index;		// 0 no key, 1-4 key index, 0xff immediate key
-	u8 key_size;		// 0 no imm key, 0x5 64bit encr, 0xd 128bit encr, 0x10 128bit encr and 128bit IV
+	u8 wep_index;		// 0 yes key, 1-4 key index, 0xff immediate key
+	u8 key_size;		// 0 yes imm key, 0x5 64bit encr, 0xd 128bit encr, 0x10 128bit encr and 128bit IV
 	u8 key[16];
 	u8 reserved[10];	// f/w reserved
 	u8 src_addr[ETH_ALEN];
@@ -354,8 +354,8 @@ struct ipw2100_ordinals {
 };
 
 /* Host Notification header */
-struct ipw2100_notification {
-	u32 hnhdr_subtype;	/* type of host notification */
+struct ipw2100_yestification {
+	u32 hnhdr_subtype;	/* type of host yestification */
 	u32 hnhdr_size;		/* size in bytes of data
 				   or number of entries, if table.
 				   Does NOT include header */
@@ -414,11 +414,11 @@ enum {
 
 #define STATUS_POWERED          (1<<0)
 #define STATUS_CMD_ACTIVE       (1<<1)	/**< host command in progress */
-#define STATUS_RUNNING          (1<<2)	/* Card initialized, but not enabled */
+#define STATUS_RUNNING          (1<<2)	/* Card initialized, but yest enabled */
 #define STATUS_ENABLED          (1<<3)	/* Card enabled -- can scan,Tx,Rx */
 #define STATUS_STOPPING         (1<<4)	/* Card is in shutdown phase */
 #define STATUS_INITIALIZED      (1<<5)	/* Card is ready for external calls */
-#define STATUS_ASSOCIATING      (1<<9)	/* Associated, but no BSSID yet */
+#define STATUS_ASSOCIATING      (1<<9)	/* Associated, but yes BSSID yet */
 #define STATUS_ASSOCIATED       (1<<10)	/* Associated and BSSID valid */
 #define STATUS_INT_ENABLED      (1<<11)
 #define STATUS_RF_KILL_HW       (1<<12)
@@ -787,7 +787,7 @@ struct ipw2100_rx {
 		unsigned char payload[IPW_RX_NIC_BUFFER_LENGTH];
 		struct libipw_hdr_4addr header;
 		u32 status;
-		struct ipw2100_notification notification;
+		struct ipw2100_yestification yestification;
 		struct ipw2100_cmd_header command;
 	} rx_data;
 } __packed;
@@ -927,11 +927,11 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_RX_DIR_DATA11,	// # of directed packets at 11MB
 	IPW_ORD_STAT_RX_DIR_DATA22,	// # of directed packets at 22MB
 
-	IPW_ORD_STAT_RX_NODIR_DATA = 71,	// # of nondirected packets
-	IPW_ORD_STAT_RX_NODIR_DATA1,	// # of nondirected packets at 1MB
-	IPW_ORD_STAT_RX_NODIR_DATA2,	// # of nondirected packets at 2MB
-	IPW_ORD_STAT_RX_NODIR_DATA5_5,	// # of nondirected packets at 5.5MB
-	IPW_ORD_STAT_RX_NODIR_DATA11,	// # of nondirected packets at 11MB
+	IPW_ORD_STAT_RX_NODIR_DATA = 71,	// # of yesndirected packets
+	IPW_ORD_STAT_RX_NODIR_DATA1,	// # of yesndirected packets at 1MB
+	IPW_ORD_STAT_RX_NODIR_DATA2,	// # of yesndirected packets at 2MB
+	IPW_ORD_STAT_RX_NODIR_DATA5_5,	// # of yesndirected packets at 5.5MB
+	IPW_ORD_STAT_RX_NODIR_DATA11,	// # of yesndirected packets at 11MB
 
 	IPW_ORD_STAT_RX_NULL_DATA = 80,	// # of null data rx's
 	IPW_ORD_STAT_RX_POLL,	//NS // # of poll rx
@@ -970,11 +970,11 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_PERS_DB_ADDR,	// # address of fw permanent  db
 	IPW_ORD_STAT_RX_INVALID_PROTOCOL,	// # of rx frames with invalid protocol
 	IPW_ORD_SYS_BOOT_TIME,	// # Boot time
-	IPW_ORD_STAT_RX_NO_BUFFER,	// # of rx frames rejected due to no buffer
+	IPW_ORD_STAT_RX_NO_BUFFER,	// # of rx frames rejected due to yes buffer
 	IPW_ORD_STAT_RX_ABORT_LATE_DMA,	//NS // # of rx frames rejected due to dma setup too late
 	IPW_ORD_STAT_RX_ABORT_AT_HOP,	//NS // # of rx frames aborted due to hop
 	IPW_ORD_STAT_RX_MISSING_FRAG,	// # of rx frames dropped due to missing fragment
-	IPW_ORD_STAT_RX_ORPHAN_FRAG,	// # of rx frames dropped due to non-sequential fragment
+	IPW_ORD_STAT_RX_ORPHAN_FRAG,	// # of rx frames dropped due to yesn-sequential fragment
 	IPW_ORD_STAT_RX_ORPHAN_FRAME,	// # of rx frames dropped due to unmatched 1st frame
 	IPW_ORD_STAT_RX_FRAG_AGEOUT,	// # of rx frames dropped due to uncompleted frame
 	IPW_ORD_STAT_RX_BAD_SSID,	//NS // Bad SSID (unused)
@@ -994,7 +994,7 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_PERCENT_MISSED_BCNS,	// current calculation of % missed beacons
 	IPW_ORD_STAT_PERCENT_RETRIES,	// current calculation of % missed tx retries
 	IPW_ORD_ASSOCIATED_AP_PTR,	// If associated, this is ptr to the associated
-	// AP table entry. set to 0 if not associated
+	// AP table entry. set to 0 if yest associated
 	IPW_ORD_AVAILABLE_AP_CNT,	// # of AP's described in the AP table
 	IPW_ORD_AP_LIST_PTR,	// Ptr to list of available APs
 	IPW_ORD_STAT_AP_ASSNS,	// # of associations
@@ -1006,8 +1006,8 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_ROAM_INHIBIT,	// # of times roaming was inhibited due to ongoing activity
 	IPW_FILLER_40,
 	IPW_ORD_RSSI_AT_ASSN = 160,	// RSSI of associated AP at time of association
-	IPW_ORD_STAT_ASSN_CAUSE1,	// # of reassociations due to no tx from AP in last N
-	// hops or no prob_ responses in last 3 minutes
+	IPW_ORD_STAT_ASSN_CAUSE1,	// # of reassociations due to yes tx from AP in last N
+	// hops or yes prob_ responses in last 3 minutes
 	IPW_ORD_STAT_ASSN_CAUSE2,	// # of reassociations due to poor tx/rx quality
 	IPW_ORD_STAT_ASSN_CAUSE3,	// # of reassociations due to tx/rx quality with excessive
 	// load at the AP
@@ -1033,7 +1033,7 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_COUNTRY_CHANNELS,	// channels supported by country
 // IPW_ORD_COUNTRY_CHANNELS:
 // For 11b the lower 2-byte are used for channels from 1-14
-//   and the higher 2-byte are not used.
+//   and the higher 2-byte are yest used.
 	IPW_ORD_RESET_CNT,	// # of adapter resets (warm)
 	IPW_ORD_BEACON_INTERVAL,	// Beacon interval
 

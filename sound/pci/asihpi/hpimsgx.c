@@ -160,15 +160,15 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr,
 	case HPI_SUBSYS_GET_VERSION:
 		hpi_init_response(phr, HPI_OBJ_SUBSYSTEM,
 			HPI_SUBSYS_GET_VERSION, 0);
-		phr->u.s.version = HPI_VER >> 8;	/* return major.minor */
-		phr->u.s.data = HPI_VER;	/* return major.minor.release */
+		phr->u.s.version = HPI_VER >> 8;	/* return major.miyesr */
+		phr->u.s.data = HPI_VER;	/* return major.miyesr.release */
 		break;
 	case HPI_SUBSYS_OPEN:
-		/*do not propagate the message down the chain */
+		/*do yest propagate the message down the chain */
 		hpi_init_response(phr, HPI_OBJ_SUBSYSTEM, HPI_SUBSYS_OPEN, 0);
 		break;
 	case HPI_SUBSYS_CLOSE:
-		/*do not propagate the message down the chain */
+		/*do yest propagate the message down the chain */
 		hpi_init_response(phr, HPI_OBJ_SUBSYSTEM, HPI_SUBSYS_CLOSE,
 			0);
 		HPIMSGX__cleanup(HPIMSGX_ALLADAPTERS, h_owner);
@@ -177,7 +177,7 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr,
 		/* Initialize this module's internal state */
 		hpios_msgxlock_init(&msgx_lock);
 		memset(&hpi_entry_points, 0, sizeof(hpi_entry_points));
-		/* Init subsys_findadapters response to no-adapters */
+		/* Init subsys_findadapters response to yes-adapters */
 		HPIMSGX__reset(HPIMSGX_ALLADAPTERS);
 		hpi_init_response(phr, HPI_OBJ_SUBSYSTEM,
 			HPI_SUBSYS_DRIVER_LOAD, 0);

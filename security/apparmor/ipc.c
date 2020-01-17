@@ -5,7 +5,7 @@
  * This file contains AppArmor ipc mediation
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2017 Canonical Ltd.
+ * Copyright 2009-2017 Cayesnical Ltd.
  */
 
 #include <linux/gfp.h>
@@ -172,7 +172,7 @@ static void audit_signal_cb(struct audit_buffer *ab, void *va)
 		}
 	}
 	if (aad(sa)->signal == SIGUNKNOWN)
-		audit_log_format(ab, "signal=unknown(%d)",
+		audit_log_format(ab, "signal=unkyeswn(%d)",
 				 aad(sa)->unmappedsig);
 	else if (aad(sa)->signal < MAXMAPPED_SIGNAME)
 		audit_log_format(ab, " signal=%s", sig_names[aad(sa)->signal]);

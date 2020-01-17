@@ -168,10 +168,10 @@ static int gpiochip_setup(struct device *dev, struct eqbr_gpio_ctrl *gctrl)
 	gc = &gctrl->chip;
 	gc->label = gctrl->name;
 #if defined(CONFIG_OF_GPIO)
-	gc->of_node = gctrl->node;
+	gc->of_yesde = gctrl->yesde;
 #endif
 
-	if (!of_property_read_bool(gctrl->node, "interrupt-controller")) {
+	if (!of_property_read_bool(gctrl->yesde, "interrupt-controller")) {
 		dev_dbg(dev, "gc %s: doesn't act as interrupt controller!\n",
 			gctrl->name);
 		return 0;
@@ -203,13 +203,13 @@ static int gpiolib_reg(struct eqbr_pinctrl_drv_data *drvdata)
 {
 	struct device *dev = drvdata->dev;
 	struct eqbr_gpio_ctrl *gctrl;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource res;
 	int i, ret;
 
 	for (i = 0; i < drvdata->nr_gpio_ctrls; i++) {
 		gctrl = drvdata->gpio_ctrls + i;
-		np = gctrl->node;
+		np = gctrl->yesde;
 
 		gctrl->name = devm_kasprintf(dev, GFP_KERNEL, "gpiochip%d", i);
 		if (!gctrl->name)
@@ -275,7 +275,7 @@ static const struct pinctrl_ops eqbr_pctl_ops = {
 	.get_groups_count	= pinctrl_generic_get_group_count,
 	.get_group_name		= pinctrl_generic_get_group_name,
 	.get_group_pins		= pinctrl_generic_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map		= pinconf_generic_dt_free_map,
 };
 
@@ -297,7 +297,7 @@ static int eqbr_set_pin_mux(struct eqbr_pinctrl_drv_data *pctl,
 
 	if (!(bank->aval_pinmap & BIT(offset))) {
 		dev_err(pctl->dev,
-			"PIN: %u is not valid, pinbase: %u, bitmap: %u\n",
+			"PIN: %u is yest valid, pinbase: %u, bitmap: %u\n",
 			pin, bank->pin_base, bank->aval_pinmap);
 		return -ENODEV;
 	}
@@ -394,7 +394,7 @@ static int eqbr_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	if (!(bank->aval_pinmap & BIT(offset))) {
 		dev_err(pctl->dev,
-			"PIN: %u is not valid, pinbase: %u, bitmap: %u\n",
+			"PIN: %u is yest valid, pinbase: %u, bitmap: %u\n",
 			pin, bank->pin_base, bank->aval_pinmap);
 		return -ENODEV;
 	}
@@ -582,22 +582,22 @@ static bool is_func_exist(struct eqbr_pmx_func *funcs, const char *name,
 static int funcs_utils(struct device *dev, struct eqbr_pmx_func *funcs,
 		       unsigned int *nr_funcs, funcs_util_ops op)
 {
-	struct device_node *node = dev->of_node;
-	struct device_node *np;
+	struct device_yesde *yesde = dev->of_yesde;
+	struct device_yesde *np;
 	struct property *prop;
 	const char *fn_name;
 	unsigned int fid;
 	int i, j;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_yesde(yesde, np) {
 		prop = of_find_property(np, "groups", NULL);
 		if (!prop)
 			continue;
 
 		if (of_property_read_string(np, "function", &fn_name)) {
-			/* some groups may not have function, it's OK */
-			dev_dbg(dev, "Group %s: not function binded!\n",
+			/* some groups may yest have function, it's OK */
+			dev_dbg(dev, "Group %s: yest function binded!\n",
 				(char *)prop->value);
 			continue;
 		}
@@ -692,14 +692,14 @@ static int eqbr_build_functions(struct eqbr_pinctrl_drv_data *drvdata)
 static int eqbr_build_groups(struct eqbr_pinctrl_drv_data *drvdata)
 {
 	struct device *dev = drvdata->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	unsigned int *pinmux, pin_id, pinmux_id;
 	struct group_desc group;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct property *prop;
 	int j, err;
 
-	for_each_child_of_node(node, np) {
+	for_each_child_of_yesde(yesde, np) {
 		prop = of_find_property(np, "groups", NULL);
 		if (!prop)
 			continue;
@@ -812,7 +812,7 @@ static int pinctrl_reg(struct eqbr_pinctrl_drv_data *drvdata)
 	return pinctrl_enable(drvdata->pctl_dev);
 }
 
-static int pinbank_init(struct device_node *np,
+static int pinbank_init(struct device_yesde *np,
 			struct eqbr_pinctrl_drv_data *drvdata,
 			struct eqbr_pin_bank *bank, unsigned int id)
 {
@@ -824,7 +824,7 @@ static int pinbank_init(struct device_node *np,
 
 	ret = of_parse_phandle_with_fixed_args(np, "gpio-ranges", 3, 0, &spec);
 	if (ret) {
-		dev_err(dev, "gpio-range not available!\n");
+		dev_err(dev, "gpio-range yest available!\n");
 		return ret;
 	}
 
@@ -844,14 +844,14 @@ static int pinbank_init(struct device_node *np,
 static int pinbank_probe(struct eqbr_pinctrl_drv_data *drvdata)
 {
 	struct device *dev = drvdata->dev;
-	struct device_node *np_gpio;
+	struct device_yesde *np_gpio;
 	struct eqbr_gpio_ctrl *gctrls;
 	struct eqbr_pin_bank *banks;
 	int i, nr_gpio;
 
 	/* Count gpio bank number */
 	nr_gpio = 0;
-	for_each_node_by_name(np_gpio, "gpio") {
+	for_each_yesde_by_name(np_gpio, "gpio") {
 		if (of_device_is_available(np_gpio))
 			nr_gpio++;
 	}
@@ -874,13 +874,13 @@ static int pinbank_probe(struct eqbr_pinctrl_drv_data *drvdata)
 
 	/* Initialize Pin bank */
 	i = 0;
-	for_each_node_by_name(np_gpio, "gpio") {
+	for_each_yesde_by_name(np_gpio, "gpio") {
 		if (!of_device_is_available(np_gpio))
 			continue;
 
 		pinbank_init(np_gpio, drvdata, banks + i, i);
 
-		gctrls[i].node = np_gpio;
+		gctrls[i].yesde = np_gpio;
 		gctrls[i].bank = banks + i;
 		i++;
 	}

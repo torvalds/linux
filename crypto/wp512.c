@@ -46,7 +46,7 @@ struct wp512_ctx {
 /*
  * Though Whirlpool is endianness-neutral, the encryption tables are listed
  * in BIG-ENDIAN format, which is adopted throughout this implementation
- * (but little-endian notation would be equally suitable if consistently
+ * (but little-endian yestation would be equally suitable if consistently
  * employed).
  */
 

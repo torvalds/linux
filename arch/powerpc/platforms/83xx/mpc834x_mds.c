@@ -10,7 +10,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/reboot.h>
 #include <linux/pci.h>
 #include <linux/kdev_t.h>
@@ -37,19 +37,19 @@
 #define BCSR5_INT_USB		0x02
 static int mpc834xemds_usb_cfg(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *bcsr_regs = NULL;
 	u8 bcsr5;
 
 	mpc834x_usb_cfg();
 	/* Map BCSR area */
-	np = of_find_node_by_name(NULL, "bcsr");
+	np = of_find_yesde_by_name(NULL, "bcsr");
 	if (np) {
 		struct resource res;
 
 		of_address_to_resource(np, 0, &res);
 		bcsr_regs = ioremap(res.start, resource_size(&res));
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 	if (!bcsr_regs)
 		return -1;

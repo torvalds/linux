@@ -394,7 +394,7 @@ void init_rtdif_task_context(struct rdif_task_context *rdif_context,
 			  RDIF_TASK_CONTEXT_REF_TAG_MASK,
 			  dif_task_params->ref_tag_mask);
 		SET_FIELD(rdif_context->state, RDIF_TASK_CONTEXT_IGNORE_APP_TAG,
-			  dif_task_params->ignore_app_tag);
+			  dif_task_params->igyesre_app_tag);
 	}
 
 	if (task_type == ISCSI_TASK_TYPE_TARGET_READ ||
@@ -466,7 +466,7 @@ void init_rtdif_task_context(struct rdif_task_context *rdif_context,
 			  dif_task_params->ref_tag_mask);
 		SET_FIELD(tdif_context->flags0,
 			  TDIF_TASK_CONTEXT_IGNORE_APP_TAG,
-			  dif_task_params->ignore_app_tag ? 1 : 0);
+			  dif_task_params->igyesre_app_tag ? 1 : 0);
 	}
 }
 
@@ -652,8 +652,8 @@ int init_initiator_login_request_task(struct iscsi_task_params *task_params,
 	return 0;
 }
 
-int init_initiator_nop_out_task(struct iscsi_task_params *task_params,
-				struct iscsi_nop_out_hdr *nop_out_pdu_header,
+int init_initiator_yesp_out_task(struct iscsi_task_params *task_params,
+				struct iscsi_yesp_out_hdr *yesp_out_pdu_header,
 				struct scsi_sgl_task_params *tx_sgl_task_params,
 				struct scsi_sgl_task_params *rx_sgl_task_params)
 {
@@ -662,10 +662,10 @@ int init_initiator_nop_out_task(struct iscsi_task_params *task_params,
 	cxt = task_params->context;
 
 	init_default_iscsi_task(task_params,
-				(struct data_hdr *)nop_out_pdu_header,
+				(struct data_hdr *)yesp_out_pdu_header,
 				ISCSI_TASK_TYPE_MIDPATH);
 
-	if (nop_out_pdu_header->itt == ISCSI_ITT_ALL_ONES)
+	if (yesp_out_pdu_header->itt == ISCSI_ITT_ALL_ONES)
 		set_local_completion_context(task_params->context);
 
 	if (task_params->tx_io_size)
@@ -692,7 +692,7 @@ int init_initiator_nop_out_task(struct iscsi_task_params *task_params,
 					0);
 
 	init_sqe(task_params, tx_sgl_task_params, NULL,
-		 (struct iscsi_common_hdr *)nop_out_pdu_header, NULL,
+		 (struct iscsi_common_hdr *)yesp_out_pdu_header, NULL,
 		 ISCSI_TASK_TYPE_MIDPATH, false);
 
 	return 0;

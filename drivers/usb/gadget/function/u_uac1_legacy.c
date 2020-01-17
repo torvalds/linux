@@ -45,7 +45,7 @@ static int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
 		struct snd_mask *m = hw_param_mask(params, var);
 		if (val == 0 && dir < 0) {
 			changed = -EINVAL;
-			snd_mask_none(m);
+			snd_mask_yesne(m);
 		} else {
 			if (dir > 0)
 				val++;
@@ -58,7 +58,7 @@ static int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
 		struct snd_interval *i = hw_param_interval(params, var);
 		if (val == 0 && dir < 0) {
 			changed = -EINVAL;
-			snd_interval_none(i);
+			snd_interval_yesne(i);
 		} else if (dir == 0)
 			changed = snd_interval_refine_set(i, val);
 		else {
@@ -280,7 +280,7 @@ static int gaudio_close_snd_dev(struct gaudio *gau)
  *
  * This sets up PCM, mixer or MIDI ALSA devices fore USB gadget using.
  *
- * Returns negative errno, or zero on success
+ * Returns negative erryes, or zero on success
  */
 int gaudio_setup(struct gaudio *card)
 {

@@ -6,7 +6,7 @@
 
 #include <linux/slab.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/dmapool.h>
 #include <linux/dmaengine.h>
 

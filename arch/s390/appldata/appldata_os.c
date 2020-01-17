@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel_stat.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>
@@ -57,7 +57,7 @@ struct appldata_os_data {
 	u64 timestamp;
 	u32 sync_count_1;	/* after VM collected the record data, */
 	u32 sync_count_2;	/* sync_count_1 and sync_count_2 should be the
-				   same. If not, the record has been updated on
+				   same. If yest, the record has been updated on
 				   the Linux side while VM was collecting the
 				   (possibly corrupt) data */
 

@@ -15,8 +15,8 @@
  * modify its behavior for each frame
  *
  * @HWSIM_TX_CTL_REQ_TX_STATUS: require TX status callback for this frame.
- * @HWSIM_TX_CTL_NO_ACK: tell the wmediumd not to wait for an ack
- * @HWSIM_TX_STAT_ACK: Frame was acknowledged
+ * @HWSIM_TX_CTL_NO_ACK: tell the wmediumd yest to wait for an ack
+ * @HWSIM_TX_STAT_ACK: Frame was ackyeswledged
  *
  */
 enum hwsim_tx_control_flags {
@@ -33,7 +33,7 @@ enum hwsim_tx_control_flags {
  * frames from a mac80211_hwsim radio device.
  *
  * This allow user space applications to decide if the frame should be
- * dropped or not and implement a wireless medium simulator at user space.
+ * dropped or yest and implement a wireless medium simulator at user space.
  *
  * Registration is done by sending a register message to the driver and
  * will be automatically unregistered if the user application doesn't
@@ -124,7 +124,7 @@ enum {
  * @HWSIM_ATTR_DESTROY_RADIO_ON_CLOSE: used with the %HWSIM_CMD_CREATE_RADIO
  *	command to force radio removal when process that created the radio dies
  * @HWSIM_ATTR_RADIO_NAME: Name of radio, e.g. phy666
- * @HWSIM_ATTR_NO_VIF:  Do not create vif (wlanX) when creating radio.
+ * @HWSIM_ATTR_NO_VIF:  Do yest create vif (wlanX) when creating radio.
  * @HWSIM_ATTR_FREQ: Frequency at which packet is transmitted or received.
  * @HWSIM_ATTR_TX_INFO_FLAGS: additional flags for corresponding
  *	rates of %HWSIM_ATTR_TX_INFO
@@ -172,7 +172,7 @@ enum {
  * @count: number of tries in this rate before going to the next rate
  *
  * A value of -1 for @idx indicates an invalid rate and, if used
- * in an array of retry rates, that no more rates should be tried.
+ * in an array of retry rates, that yes more rates should be tried.
  *
  * When used for transmit status reporting, the driver should
  * always report the rate and number of retries used.
@@ -186,7 +186,7 @@ struct hwsim_tx_rate {
 /**
  * enum hwsim_tx_rate_flags - per-rate flags set by the rate control algorithm.
  *	Inspired by structure mac80211_rate_control_flags. New flags may be
- *	appended, but old flags not deleted, to keep compatibility for
+ *	appended, but old flags yest deleted, to keep compatibility for
  *	userspace.
  *
  * These flags are set by the Rate control algorithm for each rate during tx,
@@ -235,7 +235,7 @@ enum hwsim_tx_rate_flags {
  * @count: number of tries in this rate before going to the next rate
  *
  * A value of -1 for @idx indicates an invalid rate and, if used
- * in an array of retry rates, that no more rates should be tried.
+ * in an array of retry rates, that yes more rates should be tried.
  *
  * When used for transmit status reporting, the driver should
  * always report the rate and number of retries used.

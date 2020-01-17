@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Linaro Ltd.
- * Author: Shannon Zhao <shannon.zhao@linaro.org>
+ * Author: Shanyesn Zhao <shanyesn.zhao@linaro.org>
  */
 
 #include <linux/cpu.h>
@@ -61,13 +61,13 @@ static bool kvm_pmu_idx_is_high_counter(u64 select_idx)
 }
 
 /**
- * kvm_pmu_get_canonical_pmc - obtain the canonical pmc
+ * kvm_pmu_get_cayesnical_pmc - obtain the cayesnical pmc
  * @pmc: The PMU counter pointer
  *
- * When a pair of PMCs are chained together we use the low counter (canonical)
+ * When a pair of PMCs are chained together we use the low counter (cayesnical)
  * to hold the underlying perf event.
  */
-static struct kvm_pmc *kvm_pmu_get_canonical_pmc(struct kvm_pmc *pmc)
+static struct kvm_pmc *kvm_pmu_get_cayesnical_pmc(struct kvm_pmc *pmc)
 {
 	if (kvm_pmu_pmc_is_chained(pmc) &&
 	    kvm_pmu_idx_is_high_counter(pmc->idx))
@@ -107,7 +107,7 @@ static u64 kvm_pmu_get_pair_counter_value(struct kvm_vcpu *vcpu,
 	u64 counter, counter_high, reg, enabled, running;
 
 	if (kvm_pmu_pmc_is_chained(pmc)) {
-		pmc = kvm_pmu_get_canonical_pmc(pmc);
+		pmc = kvm_pmu_get_cayesnical_pmc(pmc);
 		reg = PMEVCNTR0_EL0 + pmc->idx;
 
 		counter = __vcpu_sys_reg(vcpu, reg);
@@ -177,7 +177,7 @@ void kvm_pmu_set_counter_value(struct kvm_vcpu *vcpu, u64 select_idx, u64 val)
  */
 static void kvm_pmu_release_perf_event(struct kvm_pmc *pmc)
 {
-	pmc = kvm_pmu_get_canonical_pmc(pmc);
+	pmc = kvm_pmu_get_cayesnical_pmc(pmc);
 	if (pmc->perf_event) {
 		perf_event_disable(pmc->perf_event);
 		perf_event_release_kernel(pmc->perf_event);
@@ -195,7 +195,7 @@ static void kvm_pmu_stop_counter(struct kvm_vcpu *vcpu, struct kvm_pmc *pmc)
 {
 	u64 counter, reg, val;
 
-	pmc = kvm_pmu_get_canonical_pmc(pmc);
+	pmc = kvm_pmu_get_cayesnical_pmc(pmc);
 	if (!pmc->perf_event)
 		return;
 
@@ -304,7 +304,7 @@ void kvm_pmu_enable_counter_mask(struct kvm_vcpu *vcpu, u64 val)
 			continue;
 		}
 
-		/* At this point, pmc must be the canonical */
+		/* At this point, pmc must be the cayesnical */
 		if (pmc->perf_event) {
 			perf_event_enable(pmc->perf_event);
 			if (pmc->perf_event->state != PERF_EVENT_STATE_ACTIVE)
@@ -345,7 +345,7 @@ void kvm_pmu_disable_counter_mask(struct kvm_vcpu *vcpu, u64 val)
 			continue;
 		}
 
-		/* At this point, pmc must be the canonical */
+		/* At this point, pmc must be the cayesnical */
 		if (pmc->perf_event)
 			perf_event_disable(pmc->perf_event);
 	}
@@ -386,7 +386,7 @@ static void kvm_pmu_update_state(struct kvm_vcpu *vcpu)
 	}
 }
 
-bool kvm_pmu_should_notify_user(struct kvm_vcpu *vcpu)
+bool kvm_pmu_should_yestify_user(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 	struct kvm_sync_regs *sregs = &vcpu->run->s.regs;
@@ -554,7 +554,7 @@ static void kvm_pmu_create_perf_event(struct kvm_vcpu *vcpu, u64 select_idx)
 	 * obtained from the low/even counter. We also use this counter to
 	 * determine if the event is enabled/disabled.
 	 */
-	pmc = kvm_pmu_get_canonical_pmc(&pmu->pmc[select_idx]);
+	pmc = kvm_pmu_get_cayesnical_pmc(&pmu->pmc[select_idx]);
 
 	reg = (pmc->idx == ARMV8_PMU_CYCLE_IDX)
 	      ? PMCCFILTR_EL0 : PMEVTYPER0_EL0 + pmc->idx;
@@ -684,7 +684,7 @@ int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
 	/*
 	 * A valid interrupt configuration for the PMU is either to have a
 	 * properly configured interrupt number and using an in-kernel
-	 * irqchip, or to not have an in-kernel GIC and not set an IRQ.
+	 * irqchip, or to yest have an in-kernel GIC and yest set an IRQ.
 	 */
 	if (irqchip_in_kernel(vcpu->kvm)) {
 		int irq = vcpu->arch.pmu.irq_num;
@@ -692,7 +692,7 @@ int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
 			return -EINVAL;
 
 		/*
-		 * If we are using an in-kernel vgic, at this point we know
+		 * If we are using an in-kernel vgic, at this point we kyesw
 		 * the vgic will be initialized, so we can check the PMU irq
 		 * number against the dimensions of the vgic and make sure
 		 * it's valid.

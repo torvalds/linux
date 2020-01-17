@@ -134,7 +134,7 @@ struct cxusb_medion_dev {
 	u32 width, height;
 	u32 field_order;
 	struct cxusb_medion_auxbuf auxbuf;
-	v4l2_std_id norm;
+	v4l2_std_id yesrm;
 
 	struct urb *streamurbs[CXUSB_VIDEO_URBS];
 	unsigned long urbcomplete;

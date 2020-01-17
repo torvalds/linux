@@ -6,7 +6,7 @@ implementation can depend on the SoC secure ROM used.
 - compatible:
 	Usage: required
 	Value type: <string>
-	Definition: must be "nokia,n900-rom-rng"
+	Definition: must be "yeskia,n900-rom-rng"
 
 - clocks:
 	Usage: required
@@ -21,7 +21,7 @@ implementation can depend on the SoC secure ROM used.
 Example:
 
 	rom_rng: rng {
-		compatible = "nokia,n900-rom-rng";
+		compatible = "yeskia,n900-rom-rng";
 		clocks = <&rng_ick>;
 		clock-names = "ick";
 	};

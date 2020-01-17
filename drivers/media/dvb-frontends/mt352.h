@@ -30,10 +30,10 @@ struct mt352_config
 	int adc_clock;  // default: 20480
 	int if2;        // default: 36166
 
-	/* set if no pll is connected to the secondary i2c bus */
-	int no_tuner;
+	/* set if yes pll is connected to the secondary i2c bus */
+	int yes_tuner;
 
-	/* Initialise the demodulator and PLL. Cannot be NULL */
+	/* Initialise the demodulator and PLL. Canyest be NULL */
 	int (*demod_init)(struct dvb_frontend* fe);
 };
 

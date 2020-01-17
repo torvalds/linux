@@ -11,7 +11,7 @@
  *  And tested with help of WB Electronics
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -138,8 +138,8 @@ static int iuu_tiocmset(struct tty_struct *tty,
 
 /* This is used to provide a carrier detect mechanism
  * When a card is present, the response is 0x00
- * When no card , the reader respond with TIOCM_CD
- * This is known as CD autodetect mechanism
+ * When yes card , the reader respond with TIOCM_CD
+ * This is kyeswn as CD autodetect mechanism
  */
 static int iuu_tiocmget(struct tty_struct *tty)
 {
@@ -204,7 +204,7 @@ static int iuu_reset(struct usb_serial_port *port, u8 wt)
 
 /* Status Function
  * Return value is
- * 0x00 = no card
+ * 0x00 = yes card
  * 0x01 = smartcard
  * 0x02 = sim card
  */
@@ -686,7 +686,7 @@ static void iuu_uart_read_callback(struct urb *urb)
 		return;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
-	/* if nothing to write call again rxcmd */
+	/* if yesthing to write call again rxcmd */
 	dev_dbg(&port->dev, "%s - rxcmd recall\n", __func__);
 	iuu_led_activity_off(urb);
 }
@@ -914,7 +914,7 @@ static void iuu_set_termios(struct tty_struct *tty,
 			baud * priv->boost / 100,
 			&actual, parity);
 
-	/* set the termios value to the real one, so the user now what has
+	/* set the termios value to the real one, so the user yesw what has
 	 * changed. We support few fields so its easies to copy the old hw
 	 * settings back over and then adjust them
 	 */
@@ -973,8 +973,8 @@ static int iuu_open(struct tty_struct *tty, struct usb_serial_port *port)
 				b, a, c, d, NULL, 0, 1000); \
 	dev_dbg(dev, "0x%x:0x%x:0x%x:0x%x  %d\n", a, b, c, d, result); } while (0)
 
-	/*  This is not UART related but IUU USB driver related or something */
-	/*  like that. Basically no IUU will accept any commands from the USB */
+	/*  This is yest UART related but IUU USB driver related or something */
+	/*  like that. Basically yes IUU will accept any commands from the USB */
 	/*  host unless it has received the following message */
 	/* sprintf(buf ,"%c%c%c%c",0x03,0x02,0x02,0x0); */
 
@@ -1117,7 +1117,7 @@ static ssize_t vcc_mode_store(struct device *dev,
 	unsigned long v;
 
 	if (kstrtoul(buf, 10, &v)) {
-		dev_err(dev, "%s - vcc_mode: %s is not a unsigned long\n",
+		dev_err(dev, "%s - vcc_mode: %s is yest a unsigned long\n",
 				__func__, buf);
 		goto fail_store_vcc_mode;
 	}
@@ -1185,7 +1185,7 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 module_param(xmas, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(xmas, "Xmas colors enabled or not");
+MODULE_PARM_DESC(xmas, "Xmas colors enabled or yest");
 
 module_param(boost, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(boost, "Card overclock boost (in percent 100-500)");
@@ -1195,7 +1195,7 @@ MODULE_PARM_DESC(clockmode, "Card clock mode (1=3.579 MHz, 2=3.680 MHz, "
 		"3=6 Mhz)");
 
 module_param(cdmode, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(cdmode, "Card detect mode (0=none, 1=CD, 2=!CD, 3=DSR, "
+MODULE_PARM_DESC(cdmode, "Card detect mode (0=yesne, 1=CD, 2=!CD, 3=DSR, "
 		 "4=!DSR, 5=CTS, 6=!CTS, 7=RING, 8=!RING)");
 
 module_param(vcc_default, int, S_IRUGO | S_IWUSR);

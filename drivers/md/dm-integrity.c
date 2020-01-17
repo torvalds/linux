@@ -40,7 +40,7 @@
 
 /*
  * Warning - DEBUG_PRINT prints security-sensitive data to the log,
- * so it should not be enabled in the official kernel
+ * so it should yest be enabled in the official kernel
  */
 //#define DEBUG_PRINT
 //#define INTERNAL_VERIFY
@@ -136,8 +136,8 @@ static unsigned char next_commit_seq(unsigned char seq)
  * In-memory structures
  */
 
-struct journal_node {
-	struct rb_node node;
+struct journal_yesde {
+	struct rb_yesde yesde;
 	sector_t sector;
 };
 
@@ -169,8 +169,8 @@ struct dm_integrity_c {
 	struct page_list *may_write_bitmap;
 	struct bitmap_block_status *bbs;
 	unsigned bitmap_flush_interval;
-	int synchronous_mode;
-	struct bio_list synchronous_bios;
+	int synchroyesus_mode;
+	struct bio_list synchroyesus_bios;
 	struct delayed_work bitmap_flush_work;
 
 	struct crypto_skcipher *journal_crypt;
@@ -180,7 +180,7 @@ struct dm_integrity_c {
 
 	struct crypto_shash *journal_mac;
 
-	struct journal_node *journal_tree;
+	struct journal_yesde *journal_tree;
 	struct rb_root journal_tree_root;
 
 	sector_t provided_data_sectors;
@@ -260,7 +260,7 @@ struct dm_integrity_c {
 
 	atomic64_t number_of_mismatches;
 
-	struct notifier_block reboot_notifier;
+	struct yestifier_block reboot_yestifier;
 };
 
 struct dm_integrity_range {
@@ -268,7 +268,7 @@ struct dm_integrity_range {
 	sector_t n_sectors;
 	bool waiting;
 	union {
-		struct rb_node node;
+		struct rb_yesde yesde;
 		struct {
 			struct task_struct *task;
 			struct list_head wait_entry;
@@ -294,7 +294,7 @@ struct dm_integrity_io {
 	struct completion *completion;
 
 	struct gendisk *orig_bi_disk;
-	u8 orig_bi_partno;
+	u8 orig_bi_partyes;
 	bio_end_io_t *orig_bi_end_io;
 	struct bio_integrity_payload *orig_bi_integrity;
 	struct bvec_iter orig_bi_iter;
@@ -485,7 +485,7 @@ static int sync_rw_sb(struct dm_integrity_c *ic, int op, int op_flags)
 	io_req.bi_op_flags = op_flags;
 	io_req.mem.type = DM_IO_KMEM;
 	io_req.mem.ptr.addr = ic->sb;
-	io_req.notify.fn = NULL;
+	io_req.yestify.fn = NULL;
 	io_req.client = ic->io;
 	io_loc.bdev = ic->meta_dev ? ic->meta_dev->bdev : ic->dev->bdev;
 	io_loc.sector = ic->start;
@@ -849,7 +849,7 @@ static void complete_journal_encrypt(struct crypto_async_request *req, int err)
 			complete(&comp->ic->crypto_backoff);
 			return;
 		}
-		dm_integrity_io_error(comp->ic, "asynchronous encrypt", err);
+		dm_integrity_io_error(comp->ic, "asynchroyesus encrypt", err);
 	}
 	complete_journal_op(comp);
 }
@@ -963,10 +963,10 @@ static void rw_journal_sectors(struct dm_integrity_c *ic, int op, int op_flags,
 		io_req.mem.ptr.pl = &ic->journal[pl_index];
 	io_req.mem.offset = pl_offset;
 	if (likely(comp != NULL)) {
-		io_req.notify.fn = complete_journal_io;
-		io_req.notify.context = comp;
+		io_req.yestify.fn = complete_journal_io;
+		io_req.yestify.context = comp;
 	} else {
-		io_req.notify.fn = NULL;
+		io_req.yestify.fn = NULL;
 	}
 	io_req.client = ic->io;
 	io_loc.bdev = ic->meta_dev ? ic->meta_dev->bdev : ic->dev->bdev;
@@ -977,7 +977,7 @@ static void rw_journal_sectors(struct dm_integrity_c *ic, int op, int op_flags,
 	if (unlikely(r)) {
 		dm_integrity_io_error(ic, op == REQ_OP_READ ? "reading journal" : "writing journal", r);
 		if (comp) {
-			WARN_ONCE(1, "asynchronous dm_io failed: %d", r);
+			WARN_ONCE(1, "asynchroyesus dm_io failed: %d", r);
 			complete_journal_io(-1UL, comp);
 		}
 	}
@@ -1056,7 +1056,7 @@ static void write_journal(struct dm_integrity_c *ic, unsigned commit_start, unsi
 }
 
 static void copy_from_journal(struct dm_integrity_c *ic, unsigned section, unsigned offset,
-			      unsigned n_sectors, sector_t target, io_notify_fn fn, void *data)
+			      unsigned n_sectors, sector_t target, io_yestify_fn fn, void *data)
 {
 	struct dm_io_request io_req;
 	struct dm_io_region io_loc;
@@ -1080,8 +1080,8 @@ static void copy_from_journal(struct dm_integrity_c *ic, unsigned section, unsig
 	io_req.mem.type = DM_IO_PAGE_LIST;
 	io_req.mem.ptr.pl = &ic->journal[pl_index];
 	io_req.mem.offset = pl_offset;
-	io_req.notify.fn = fn;
-	io_req.notify.context = data;
+	io_req.yestify.fn = fn;
+	io_req.yestify.context = data;
 	io_req.client = ic->io;
 	io_loc.bdev = ic->dev->bdev;
 	io_loc.sector = target;
@@ -1089,7 +1089,7 @@ static void copy_from_journal(struct dm_integrity_c *ic, unsigned section, unsig
 
 	r = dm_io(&io_req, 1, &io_loc, NULL);
 	if (unlikely(r)) {
-		WARN_ONCE(1, "asynchronous dm_io failed: %d", r);
+		WARN_ONCE(1, "asynchroyesus dm_io failed: %d", r);
 		fn(-1UL, data);
 	}
 }
@@ -1102,8 +1102,8 @@ static bool ranges_overlap(struct dm_integrity_range *range1, struct dm_integrit
 
 static bool add_new_range(struct dm_integrity_c *ic, struct dm_integrity_range *new_range, bool check_waiting)
 {
-	struct rb_node **n = &ic->in_progress.rb_node;
-	struct rb_node *parent;
+	struct rb_yesde **n = &ic->in_progress.rb_yesde;
+	struct rb_yesde *parent;
 
 	BUG_ON((new_range->logical_sector | new_range->n_sectors) & (unsigned)(ic->sectors_per_block - 1));
 
@@ -1118,27 +1118,27 @@ static bool add_new_range(struct dm_integrity_c *ic, struct dm_integrity_range *
 	parent = NULL;
 
 	while (*n) {
-		struct dm_integrity_range *range = container_of(*n, struct dm_integrity_range, node);
+		struct dm_integrity_range *range = container_of(*n, struct dm_integrity_range, yesde);
 
 		parent = *n;
 		if (new_range->logical_sector + new_range->n_sectors <= range->logical_sector) {
-			n = &range->node.rb_left;
+			n = &range->yesde.rb_left;
 		} else if (new_range->logical_sector >= range->logical_sector + range->n_sectors) {
-			n = &range->node.rb_right;
+			n = &range->yesde.rb_right;
 		} else {
 			return false;
 		}
 	}
 
-	rb_link_node(&new_range->node, parent, n);
-	rb_insert_color(&new_range->node, &ic->in_progress);
+	rb_link_yesde(&new_range->yesde, parent, n);
+	rb_insert_color(&new_range->yesde, &ic->in_progress);
 
 	return true;
 }
 
 static void remove_range_unlocked(struct dm_integrity_c *ic, struct dm_integrity_range *range)
 {
-	rb_erase(&range->node, &ic->in_progress);
+	rb_erase(&range->yesde, &ic->in_progress);
 	while (unlikely(!list_empty(&ic->wait_list))) {
 		struct dm_integrity_range *last_range =
 			list_first_entry(&ic->wait_list, struct dm_integrity_range, wait_entry);
@@ -1183,106 +1183,106 @@ static void add_new_range_and_wait(struct dm_integrity_c *ic, struct dm_integrit
 		wait_and_add_new_range(ic, new_range);
 }
 
-static void init_journal_node(struct journal_node *node)
+static void init_journal_yesde(struct journal_yesde *yesde)
 {
-	RB_CLEAR_NODE(&node->node);
-	node->sector = (sector_t)-1;
+	RB_CLEAR_NODE(&yesde->yesde);
+	yesde->sector = (sector_t)-1;
 }
 
-static void add_journal_node(struct dm_integrity_c *ic, struct journal_node *node, sector_t sector)
+static void add_journal_yesde(struct dm_integrity_c *ic, struct journal_yesde *yesde, sector_t sector)
 {
-	struct rb_node **link;
-	struct rb_node *parent;
+	struct rb_yesde **link;
+	struct rb_yesde *parent;
 
-	node->sector = sector;
-	BUG_ON(!RB_EMPTY_NODE(&node->node));
+	yesde->sector = sector;
+	BUG_ON(!RB_EMPTY_NODE(&yesde->yesde));
 
-	link = &ic->journal_tree_root.rb_node;
+	link = &ic->journal_tree_root.rb_yesde;
 	parent = NULL;
 
 	while (*link) {
-		struct journal_node *j;
+		struct journal_yesde *j;
 		parent = *link;
-		j = container_of(parent, struct journal_node, node);
+		j = container_of(parent, struct journal_yesde, yesde);
 		if (sector < j->sector)
-			link = &j->node.rb_left;
+			link = &j->yesde.rb_left;
 		else
-			link = &j->node.rb_right;
+			link = &j->yesde.rb_right;
 	}
 
-	rb_link_node(&node->node, parent, link);
-	rb_insert_color(&node->node, &ic->journal_tree_root);
+	rb_link_yesde(&yesde->yesde, parent, link);
+	rb_insert_color(&yesde->yesde, &ic->journal_tree_root);
 }
 
-static void remove_journal_node(struct dm_integrity_c *ic, struct journal_node *node)
+static void remove_journal_yesde(struct dm_integrity_c *ic, struct journal_yesde *yesde)
 {
-	BUG_ON(RB_EMPTY_NODE(&node->node));
-	rb_erase(&node->node, &ic->journal_tree_root);
-	init_journal_node(node);
+	BUG_ON(RB_EMPTY_NODE(&yesde->yesde));
+	rb_erase(&yesde->yesde, &ic->journal_tree_root);
+	init_journal_yesde(yesde);
 }
 
 #define NOT_FOUND	(-1U)
 
-static unsigned find_journal_node(struct dm_integrity_c *ic, sector_t sector, sector_t *next_sector)
+static unsigned find_journal_yesde(struct dm_integrity_c *ic, sector_t sector, sector_t *next_sector)
 {
-	struct rb_node *n = ic->journal_tree_root.rb_node;
+	struct rb_yesde *n = ic->journal_tree_root.rb_yesde;
 	unsigned found = NOT_FOUND;
 	*next_sector = (sector_t)-1;
 	while (n) {
-		struct journal_node *j = container_of(n, struct journal_node, node);
+		struct journal_yesde *j = container_of(n, struct journal_yesde, yesde);
 		if (sector == j->sector) {
 			found = j - ic->journal_tree;
 		}
 		if (sector < j->sector) {
 			*next_sector = j->sector;
-			n = j->node.rb_left;
+			n = j->yesde.rb_left;
 		} else {
-			n = j->node.rb_right;
+			n = j->yesde.rb_right;
 		}
 	}
 
 	return found;
 }
 
-static bool test_journal_node(struct dm_integrity_c *ic, unsigned pos, sector_t sector)
+static bool test_journal_yesde(struct dm_integrity_c *ic, unsigned pos, sector_t sector)
 {
-	struct journal_node *node, *next_node;
-	struct rb_node *next;
+	struct journal_yesde *yesde, *next_yesde;
+	struct rb_yesde *next;
 
 	if (unlikely(pos >= ic->journal_entries))
 		return false;
-	node = &ic->journal_tree[pos];
-	if (unlikely(RB_EMPTY_NODE(&node->node)))
+	yesde = &ic->journal_tree[pos];
+	if (unlikely(RB_EMPTY_NODE(&yesde->yesde)))
 		return false;
-	if (unlikely(node->sector != sector))
+	if (unlikely(yesde->sector != sector))
 		return false;
 
-	next = rb_next(&node->node);
+	next = rb_next(&yesde->yesde);
 	if (unlikely(!next))
 		return true;
 
-	next_node = container_of(next, struct journal_node, node);
-	return next_node->sector != sector;
+	next_yesde = container_of(next, struct journal_yesde, yesde);
+	return next_yesde->sector != sector;
 }
 
-static bool find_newer_committed_node(struct dm_integrity_c *ic, struct journal_node *node)
+static bool find_newer_committed_yesde(struct dm_integrity_c *ic, struct journal_yesde *yesde)
 {
-	struct rb_node *next;
-	struct journal_node *next_node;
+	struct rb_yesde *next;
+	struct journal_yesde *next_yesde;
 	unsigned next_section;
 
-	BUG_ON(RB_EMPTY_NODE(&node->node));
+	BUG_ON(RB_EMPTY_NODE(&yesde->yesde));
 
-	next = rb_next(&node->node);
+	next = rb_next(&yesde->yesde);
 	if (unlikely(!next))
 		return false;
 
-	next_node = container_of(next, struct journal_node, node);
+	next_yesde = container_of(next, struct journal_yesde, yesde);
 
-	if (next_node->sector != node->sector)
+	if (next_yesde->sector != yesde->sector)
 		return false;
 
-	next_section = (unsigned)(next_node - ic->journal_tree) / ic->journal_section_entries;
+	next_section = (unsigned)(next_yesde - ic->journal_tree) / ic->journal_section_entries;
 	if (next_section >= ic->committed_section &&
 	    next_section < ic->committed_section + ic->n_committed_sections)
 		return true;
@@ -1398,11 +1398,11 @@ static void do_endio(struct dm_integrity_c *ic, struct bio *bio)
 {
 	int r = dm_integrity_failed(ic);
 	if (unlikely(r) && !bio->bi_status)
-		bio->bi_status = errno_to_blk_status(r);
-	if (unlikely(ic->synchronous_mode) && bio_op(bio) == REQ_OP_WRITE) {
+		bio->bi_status = erryes_to_blk_status(r);
+	if (unlikely(ic->synchroyesus_mode) && bio_op(bio) == REQ_OP_WRITE) {
 		unsigned long flags;
 		spin_lock_irqsave(&ic->endio_wait.lock, flags);
-		bio_list_add(&ic->synchronous_bios, bio);
+		bio_list_add(&ic->synchroyesus_bios, bio);
 		queue_delayed_work(ic->commit_wq, &ic->bitmap_flush_work, 0);
 		spin_unlock_irqrestore(&ic->endio_wait.lock, flags);
 		return;
@@ -1452,7 +1452,7 @@ static void integrity_end_io(struct bio *bio)
 
 	bio->bi_iter = dio->orig_bi_iter;
 	bio->bi_disk = dio->orig_bi_disk;
-	bio->bi_partno = dio->orig_bi_partno;
+	bio->bi_partyes = dio->orig_bi_partyes;
 	if (dio->orig_bi_integrity) {
 		bio->bi_integrity = dio->orig_bi_integrity;
 		bio->bi_opf |= REQ_INTEGRITY;
@@ -1506,7 +1506,7 @@ static void integrity_sector_checksum(struct dm_integrity_c *ic, sector_t sector
 	return;
 
 failed:
-	/* this shouldn't happen anyway, the hash functions have no reason to fail */
+	/* this shouldn't happen anyway, the hash functions have yes reason to fail */
 	get_random_bytes(result, ic->tag_size);
 }
 
@@ -1616,7 +1616,7 @@ skip_io:
 	dec_in_flight(dio);
 	return;
 error:
-	dio->bi_status = errno_to_blk_status(r);
+	dio->bi_status = erryes_to_blk_status(r);
 	dec_in_flight(dio);
 }
 
@@ -1653,7 +1653,7 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_KILL;
 	}
 	if (unlikely((dio->range.logical_sector | bio_sectors(bio)) & (unsigned)(ic->sectors_per_block - 1))) {
-		DMERR("Bio not aligned on %u sectors: 0x%llx, 0x%x",
+		DMERR("Bio yest aligned on %u sectors: 0x%llx, 0x%x",
 		      ic->sectors_per_block,
 		      (unsigned long long)dio->range.logical_sector, bio_sectors(bio));
 		return DM_MAPIO_KILL;
@@ -1664,7 +1664,7 @@ static int dm_integrity_map(struct dm_target *ti, struct bio *bio)
 		struct bio_vec bv;
 		bio_for_each_segment(bv, bio, iter) {
 			if (unlikely(bv.bv_len & ((ic->sectors_per_block << SECTOR_SHIFT) - 1))) {
-				DMERR("Bio vector (%u,%u) is not aligned on %u-sector boundary",
+				DMERR("Bio vector (%u,%u) is yest aligned on %u-sector boundary",
 					bv.bv_offset, bv.bv_len, ic->sectors_per_block);
 				return DM_MAPIO_KILL;
 			}
@@ -1771,17 +1771,17 @@ retry_kmap:
 
 				if (bip) do {
 					struct bio_vec biv = bvec_iter_bvec(bip->bip_vec, bip->bip_iter);
-					unsigned tag_now = min(biv.bv_len, tag_todo);
+					unsigned tag_yesw = min(biv.bv_len, tag_todo);
 					char *tag_addr;
 					BUG_ON(PageHighMem(biv.bv_page));
 					tag_addr = lowmem_page_address(biv.bv_page) + biv.bv_offset;
 					if (likely(dio->write))
-						memcpy(tag_ptr, tag_addr, tag_now);
+						memcpy(tag_ptr, tag_addr, tag_yesw);
 					else
-						memcpy(tag_addr, tag_ptr, tag_now);
-					bvec_iter_advance(bip->bip_vec, &bip->bip_iter, tag_now);
-					tag_ptr += tag_now;
-					tag_todo -= tag_now;
+						memcpy(tag_addr, tag_ptr, tag_yesw);
+					bvec_iter_advance(bip->bip_vec, &bip->bip_iter, tag_yesw);
+					tag_ptr += tag_yesw;
+					tag_todo -= tag_yesw;
 				} while (unlikely(tag_todo)); else {
 					if (likely(dio->write))
 						memset(tag_ptr, 0, tag_todo);
@@ -1910,7 +1910,7 @@ retry:
 			do {
 				struct journal_entry *je;
 
-				add_journal_node(ic, &ic->journal_tree[pos], dio->range.logical_sector + i);
+				add_journal_yesde(ic, &ic->journal_tree[pos], dio->range.logical_sector + i);
 				pos++;
 				if (unlikely(pos >= ic->journal_entries))
 					pos = 0;
@@ -1930,7 +1930,7 @@ retry:
 			goto journal_read_write;
 		} else {
 			sector_t next_sector;
-			journal_read_pos = find_journal_node(ic, dio->range.logical_sector, &next_sector);
+			journal_read_pos = find_journal_yesde(ic, dio->range.logical_sector, &next_sector);
 			if (likely(journal_read_pos == NOT_FOUND)) {
 				if (unlikely(dio->range.n_sectors > next_sector - dio->range.logical_sector))
 					dio->range.n_sectors = next_sector - dio->range.logical_sector;
@@ -1938,7 +1938,7 @@ retry:
 				unsigned i;
 				unsigned jp = journal_read_pos + 1;
 				for (i = ic->sectors_per_block; i < dio->range.n_sectors; i += ic->sectors_per_block, jp++) {
-					if (!test_journal_node(ic, jp, dio->range.logical_sector + i))
+					if (!test_journal_yesde(ic, jp, dio->range.logical_sector + i))
 						break;
 				}
 				dio->range.n_sectors = i;
@@ -1947,7 +1947,7 @@ retry:
 	}
 	if (unlikely(!add_new_range(ic, &dio->range, true))) {
 		/*
-		 * We must not sleep in the request routine because it could
+		 * We must yest sleep in the request routine because it could
 		 * stall bios on current->bio_list.
 		 * So, we offload the bio to a workqueue if we have to sleep.
 		 */
@@ -1968,7 +1968,7 @@ offload_to_thread:
 		 */
 		if (journal_read_pos != NOT_FOUND) {
 			sector_t next_sector;
-			unsigned new_pos = find_journal_node(ic, dio->range.logical_sector, &next_sector);
+			unsigned new_pos = find_journal_yesde(ic, dio->range.logical_sector, &next_sector);
 			if (unlikely(new_pos != journal_read_pos)) {
 				remove_range_unlocked(ic, &dio->range);
 				goto retry;
@@ -2008,7 +2008,7 @@ offload_to_thread:
 	dio->orig_bi_iter = bio->bi_iter;
 
 	dio->orig_bi_disk = bio->bi_disk;
-	dio->orig_bi_partno = bio->bi_partno;
+	dio->orig_bi_partyes = bio->bi_partyes;
 	bio_set_dev(bio, ic->dev->bdev);
 
 	dio->orig_bi_integrity = bio_integrity(bio);
@@ -2230,23 +2230,23 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned write_start,
 			add_new_range_and_wait(ic, &io->range);
 
 			if (likely(!from_replay)) {
-				struct journal_node *section_node = &ic->journal_tree[i * ic->journal_section_entries];
+				struct journal_yesde *section_yesde = &ic->journal_tree[i * ic->journal_section_entries];
 
 				/* don't write if there is newer committed sector */
-				while (j < k && find_newer_committed_node(ic, &section_node[j])) {
+				while (j < k && find_newer_committed_yesde(ic, &section_yesde[j])) {
 					struct journal_entry *je2 = access_journal_entry(ic, i, j);
 
 					journal_entry_set_unused(je2);
-					remove_journal_node(ic, &section_node[j]);
+					remove_journal_yesde(ic, &section_yesde[j]);
 					j++;
 					sec += ic->sectors_per_block;
 					offset += ic->sectors_per_block;
 				}
-				while (j < k && find_newer_committed_node(ic, &section_node[k - 1])) {
+				while (j < k && find_newer_committed_yesde(ic, &section_yesde[k - 1])) {
 					struct journal_entry *je2 = access_journal_entry(ic, i, k - 1);
 
 					journal_entry_set_unused(je2);
-					remove_journal_node(ic, &section_node[k - 1]);
+					remove_journal_yesde(ic, &section_yesde[k - 1]);
 					k--;
 				}
 				if (j == k) {
@@ -2256,7 +2256,7 @@ static void do_journal_write(struct dm_integrity_c *ic, unsigned write_start,
 					goto skip_io;
 				}
 				for (l = j; l < k; l++) {
-					remove_journal_node(ic, &section_node[l]);
+					remove_journal_yesde(ic, &section_yesde[l]);
 				}
 			}
 			spin_unlock_irq(&ic->endio_wait.lock);
@@ -2314,7 +2314,7 @@ static void integrity_writer(struct work_struct *w)
 
 	unsigned prev_free_sectors;
 
-	/* the following test is not needed, but it tests the replay code */
+	/* the following test is yest needed, but it tests the replay code */
 	if (READ_ONCE(ic->suspending) && !ic->meta_dev)
 		return;
 
@@ -2433,7 +2433,7 @@ next_chunk:
 	io_req.bi_op_flags = 0;
 	io_req.mem.type = DM_IO_VMA;
 	io_req.mem.ptr.addr = ic->recalc_buffer;
-	io_req.notify.fn = NULL;
+	io_req.yestify.fn = NULL;
 	io_req.client = ic->io;
 	io_loc.bdev = ic->dev->bdev;
 	io_loc.sector = get_data_sector(ic, area, offset);
@@ -2565,7 +2565,7 @@ static void bitmap_flush_work(struct work_struct *work)
 
 	spin_lock_irq(&ic->endio_wait.lock);
 	remove_range_unlocked(ic, &range);
-	while (unlikely((bio = bio_list_pop(&ic->synchronous_bios)) != NULL)) {
+	while (unlikely((bio = bio_list_pop(&ic->synchroyesus_bios)) != NULL)) {
 		bio_endio(bio);
 		spin_unlock_irq(&ic->endio_wait.lock);
 		spin_lock_irq(&ic->endio_wait.lock);
@@ -2767,16 +2767,16 @@ clear_journal:
 
 	ic->journal_tree_root = RB_ROOT;
 	for (i = 0; i < ic->journal_entries; i++)
-		init_journal_node(&ic->journal_tree[i]);
+		init_journal_yesde(&ic->journal_tree[i]);
 }
 
-static void dm_integrity_enter_synchronous_mode(struct dm_integrity_c *ic)
+static void dm_integrity_enter_synchroyesus_mode(struct dm_integrity_c *ic)
 {
-	DEBUG_print("dm_integrity_enter_synchronous_mode\n");
+	DEBUG_print("dm_integrity_enter_synchroyesus_mode\n");
 
 	if (ic->mode == 'B') {
 		ic->bitmap_flush_interval = msecs_to_jiffies(10) + 1;
-		ic->synchronous_mode = 1;
+		ic->synchroyesus_mode = 1;
 
 		cancel_delayed_work_sync(&ic->bitmap_flush_work);
 		queue_delayed_work(ic->commit_wq, &ic->bitmap_flush_work, 0);
@@ -2784,13 +2784,13 @@ static void dm_integrity_enter_synchronous_mode(struct dm_integrity_c *ic)
 	}
 }
 
-static int dm_integrity_reboot(struct notifier_block *n, unsigned long code, void *x)
+static int dm_integrity_reboot(struct yestifier_block *n, unsigned long code, void *x)
 {
-	struct dm_integrity_c *ic = container_of(n, struct dm_integrity_c, reboot_notifier);
+	struct dm_integrity_c *ic = container_of(n, struct dm_integrity_c, reboot_yestifier);
 
 	DEBUG_print("dm_integrity_reboot\n");
 
-	dm_integrity_enter_synchronous_mode(ic);
+	dm_integrity_enter_synchroyesus_mode(ic);
 
 	return NOTIFY_DONE;
 }
@@ -2800,7 +2800,7 @@ static void dm_integrity_postsuspend(struct dm_target *ti)
 	struct dm_integrity_c *ic = (struct dm_integrity_c *)ti->private;
 	int r;
 
-	WARN_ON(unregister_reboot_notifier(&ic->reboot_notifier));
+	WARN_ON(unregister_reboot_yestifier(&ic->reboot_yestifier));
 
 	del_timer_sync(&ic->autocommit_timer);
 
@@ -2861,7 +2861,7 @@ static void dm_integrity_resume(struct dm_target *ti)
 					ic->sb->recalc_sector = cpu_to_le64(0);
 				}
 			} else {
-				DEBUG_print("non-matching blocks_per_bitmap_bit: %u, %u\n",
+				DEBUG_print("yesn-matching blocks_per_bitmap_bit: %u, %u\n",
 					    ic->sb->log2_blocks_per_bitmap_bit, ic->log2_blocks_per_bitmap_bit);
 				ic->sb->log2_blocks_per_bitmap_bit = ic->log2_blocks_per_bitmap_bit;
 				block_bitmap_op(ic, ic->recalc_bitmap, 0, ic->provided_data_sectors, BITMAP_OP_SET);
@@ -2916,14 +2916,14 @@ static void dm_integrity_resume(struct dm_target *ti)
 		}
 	}
 
-	ic->reboot_notifier.notifier_call = dm_integrity_reboot;
-	ic->reboot_notifier.next = NULL;
-	ic->reboot_notifier.priority = INT_MAX - 1;	/* be notified after md and before hardware drivers */
-	WARN_ON(register_reboot_notifier(&ic->reboot_notifier));
+	ic->reboot_yestifier.yestifier_call = dm_integrity_reboot;
+	ic->reboot_yestifier.next = NULL;
+	ic->reboot_yestifier.priority = INT_MAX - 1;	/* be yestified after md and before hardware drivers */
+	WARN_ON(register_reboot_yestifier(&ic->reboot_yestifier));
 
 #if 0
-	/* set to 1 to stress test synchronous mode */
-	dm_integrity_enter_synchronous_mode(ic);
+	/* set to 1 to stress test synchroyesus mode */
+	dm_integrity_enter_synchroyesus_mode(ic);
 #endif
 }
 
@@ -3274,7 +3274,7 @@ static int get_alg_and_key(const char *arg, struct alg_spec *a, char **error, ch
 
 	a->alg_string = kstrdup(strchr(arg, ':') + 1, GFP_KERNEL);
 	if (!a->alg_string)
-		goto nomem;
+		goto yesmem;
 
 	k = strchr(a->alg_string, ':');
 	if (k) {
@@ -3286,7 +3286,7 @@ static int get_alg_and_key(const char *arg, struct alg_spec *a, char **error, ch
 		a->key_size = strlen(a->key_string) / 2;
 		a->key = kmalloc(a->key_size, GFP_KERNEL);
 		if (!a->key)
-			goto nomem;
+			goto yesmem;
 		if (hex2bin(a->key, a->key_string, a->key_size))
 			goto inval;
 	}
@@ -3295,7 +3295,7 @@ static int get_alg_and_key(const char *arg, struct alg_spec *a, char **error, ch
 inval:
 	*error = error_inval;
 	return -EINVAL;
-nomem:
+yesmem:
 	*error = "Out of memory for an argument";
 	return -ENOMEM;
 }
@@ -3354,7 +3354,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 
 	ic->journal = dm_integrity_alloc_page_list(ic->journal_pages);
 	if (!ic->journal) {
-		*error = "Could not allocate memory for journal";
+		*error = "Could yest allocate memory for journal";
 		r = -ENOMEM;
 		goto bad;
 	}
@@ -3386,7 +3386,7 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 
 		ic->journal_io = dm_integrity_alloc_page_list(ic->journal_pages);
 		if (!ic->journal_io) {
-			*error = "Could not allocate memory for journal io";
+			*error = "Could yest allocate memory for journal io";
 			r = -ENOMEM;
 			goto bad;
 		}
@@ -3396,21 +3396,21 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 
 			req = skcipher_request_alloc(ic->journal_crypt, GFP_KERNEL);
 			if (!req) {
-				*error = "Could not allocate crypt request";
+				*error = "Could yest allocate crypt request";
 				r = -ENOMEM;
 				goto bad;
 			}
 
 			crypt_iv = kzalloc(ivsize, GFP_KERNEL);
 			if (!crypt_iv) {
-				*error = "Could not allocate iv";
+				*error = "Could yest allocate iv";
 				r = -ENOMEM;
 				goto bad;
 			}
 
 			ic->journal_xor = dm_integrity_alloc_page_list(ic->journal_pages);
 			if (!ic->journal_xor) {
-				*error = "Could not allocate memory for journal xor";
+				*error = "Could yest allocate memory for journal xor";
 				r = -ENOMEM;
 				goto bad;
 			}
@@ -3452,14 +3452,14 @@ static int create_journal(struct dm_integrity_c *ic, char **error)
 
 			req = skcipher_request_alloc(ic->journal_crypt, GFP_KERNEL);
 			if (!req) {
-				*error = "Could not allocate crypt request";
+				*error = "Could yest allocate crypt request";
 				r = -ENOMEM;
 				goto bad;
 			}
 
 			crypt_iv = kmalloc(ivsize, GFP_KERNEL);
 			if (!crypt_iv) {
-				*error = "Could not allocate iv";
+				*error = "Could yest allocate iv";
 				r = -ENOMEM;
 				goto bad;
 			}
@@ -3547,7 +3547,7 @@ retest_commit_id:
 		DEBUG_print("commit id %u: %016llx\n", i, ic->commit_ids[i]);
 	}
 
-	journal_tree_size = (__u64)ic->journal_entries * sizeof(struct journal_node);
+	journal_tree_size = (__u64)ic->journal_entries * sizeof(struct journal_yesde);
 	if (journal_tree_size > ULONG_MAX) {
 		*error = "Journal doesn't fit into memory";
 		r = -ENOMEM;
@@ -3555,7 +3555,7 @@ retest_commit_id:
 	}
 	ic->journal_tree = kvmalloc(journal_tree_size, GFP_KERNEL);
 	if (!ic->journal_tree) {
-		*error = "Could not allocate memory for journal tree";
+		*error = "Could yest allocate memory for journal tree";
 		r = -ENOMEM;
 	}
 bad:
@@ -3618,7 +3618,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	ic = kzalloc(sizeof(struct dm_integrity_c), GFP_KERNEL);
 	if (!ic) {
-		ti->error = "Cannot allocate integrity context";
+		ti->error = "Canyest allocate integrity context";
 		return -ENOMEM;
 	}
 	ti->private = ic;
@@ -3683,7 +3683,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		opt_string = dm_shift_arg(&as);
 		if (!opt_string) {
 			r = -EINVAL;
-			ti->error = "Not enough feature arguments";
+			ti->error = "Not eyesugh feature arguments";
 			goto bad;
 		}
 		if (sscanf(opt_string, "journal_sectors:%u%c", &val, &dummy) == 1)
@@ -3750,11 +3750,11 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		}
 	}
 
-	ic->data_device_sectors = i_size_read(ic->dev->bdev->bd_inode) >> SECTOR_SHIFT;
+	ic->data_device_sectors = i_size_read(ic->dev->bdev->bd_iyesde) >> SECTOR_SHIFT;
 	if (!ic->meta_dev)
 		ic->meta_device_sectors = ic->data_device_sectors;
 	else
-		ic->meta_device_sectors = i_size_read(ic->meta_dev->bdev->bd_inode) >> SECTOR_SHIFT;
+		ic->meta_device_sectors = i_size_read(ic->meta_dev->bdev->bd_iyesde) >> SECTOR_SHIFT;
 
 	if (!journal_sectors) {
 		journal_sectors = min((sector_t)DEFAULT_MAX_JOURNAL_SECTORS,
@@ -3777,7 +3777,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	if (!ic->tag_size) {
 		if (!ic->internal_hash) {
-			ti->error = "Unknown tag size";
+			ti->error = "Unkyeswn tag size";
 			r = -EINVAL;
 			goto bad;
 		}
@@ -3807,20 +3807,20 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	if (IS_ERR(ic->io)) {
 		r = PTR_ERR(ic->io);
 		ic->io = NULL;
-		ti->error = "Cannot allocate dm io";
+		ti->error = "Canyest allocate dm io";
 		goto bad;
 	}
 
 	r = mempool_init_slab_pool(&ic->journal_io_mempool, JOURNAL_IO_MEMPOOL, journal_io_cache);
 	if (r) {
-		ti->error = "Cannot allocate mempool";
+		ti->error = "Canyest allocate mempool";
 		goto bad;
 	}
 
 	ic->metadata_wq = alloc_workqueue("dm-integrity-metadata",
 					  WQ_MEM_RECLAIM, METADATA_WORKQUEUE_MAX_ACTIVE);
 	if (!ic->metadata_wq) {
-		ti->error = "Cannot allocate workqueue";
+		ti->error = "Canyest allocate workqueue";
 		r = -ENOMEM;
 		goto bad;
 	}
@@ -3831,14 +3831,14 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	 */
 	ic->wait_wq = alloc_workqueue("dm-integrity-wait", WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
 	if (!ic->wait_wq) {
-		ti->error = "Cannot allocate workqueue";
+		ti->error = "Canyest allocate workqueue";
 		r = -ENOMEM;
 		goto bad;
 	}
 
 	ic->commit_wq = alloc_workqueue("dm-integrity-commit", WQ_MEM_RECLAIM, 1);
 	if (!ic->commit_wq) {
-		ti->error = "Cannot allocate workqueue";
+		ti->error = "Canyest allocate workqueue";
 		r = -ENOMEM;
 		goto bad;
 	}
@@ -3847,7 +3847,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	if (ic->mode == 'J' || ic->mode == 'B') {
 		ic->writer_wq = alloc_workqueue("dm-integrity-writer", WQ_MEM_RECLAIM, 1);
 		if (!ic->writer_wq) {
-			ti->error = "Cannot allocate workqueue";
+			ti->error = "Canyest allocate workqueue";
 			r = -ENOMEM;
 			goto bad;
 		}
@@ -3857,7 +3857,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	ic->sb = alloc_pages_exact(SB_SECTORS << SECTOR_SHIFT, GFP_KERNEL);
 	if (!ic->sb) {
 		r = -ENOMEM;
-		ti->error = "Cannot allocate superblock area";
+		ti->error = "Canyest allocate superblock area";
 		goto bad;
 	}
 
@@ -3871,14 +3871,14 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		if (ic->mode != 'R') {
 			if (memchr_inv(ic->sb, 0, SB_SECTORS << SECTOR_SHIFT)) {
 				r = -EINVAL;
-				ti->error = "The device is not initialized";
+				ti->error = "The device is yest initialized";
 				goto bad;
 			}
 		}
 
 		r = initialize_superblock(ic, journal_sectors, interleave_sectors);
 		if (r) {
-			ti->error = "Could not initialize superblock";
+			ti->error = "Could yest initialize superblock";
 			goto bad;
 		}
 		if (ic->mode != 'R')
@@ -3887,7 +3887,7 @@ static int dm_integrity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	if (!ic->sb->version || ic->sb->version > SB_VERSION_4) {
 		r = -EINVAL;
-		ti->error = "Unknown version";
+		ti->error = "Unkyeswn version";
 		goto bad;
 	}
 	if (le16_to_cpu(ic->sb->integrity_tag_size) != ic->tag_size) {
@@ -3971,7 +3971,7 @@ try_smaller_buffer:
 
 	if (ti->len > ic->provided_data_sectors) {
 		r = -EINVAL;
-		ti->error = "Not enough provided sectors for requested mapping size";
+		ti->error = "Not eyesugh provided sectors for requested mapping size";
 		goto bad;
 	}
 
@@ -3990,7 +3990,7 @@ try_smaller_buffer:
 	DEBUG_print("	journal_sections %u\n", (unsigned)le32_to_cpu(ic->sb->journal_sections));
 	DEBUG_print("	journal_entries %u\n", ic->journal_entries);
 	DEBUG_print("	log2_interleave_sectors %d\n", ic->sb->log2_interleave_sectors);
-	DEBUG_print("	data_device_sectors 0x%llx\n", i_size_read(ic->dev->bdev->bd_inode) >> SECTOR_SHIFT);
+	DEBUG_print("	data_device_sectors 0x%llx\n", i_size_read(ic->dev->bdev->bd_iyesde) >> SECTOR_SHIFT);
 	DEBUG_print("	initial_sectors 0x%x\n", ic->initial_sectors);
 	DEBUG_print("	metadata_run 0x%x\n", ic->metadata_run);
 	DEBUG_print("	log2_metadata_run %d\n", ic->log2_metadata_run);
@@ -4007,21 +4007,21 @@ try_smaller_buffer:
 	if (ic->internal_hash) {
 		ic->recalc_wq = alloc_workqueue("dm-integrity-recalc", WQ_MEM_RECLAIM, 1);
 		if (!ic->recalc_wq ) {
-			ti->error = "Cannot allocate workqueue";
+			ti->error = "Canyest allocate workqueue";
 			r = -ENOMEM;
 			goto bad;
 		}
 		INIT_WORK(&ic->recalc_work, integrity_recalc);
 		ic->recalc_buffer = vmalloc(RECALC_SECTORS << SECTOR_SHIFT);
 		if (!ic->recalc_buffer) {
-			ti->error = "Cannot allocate buffer for recalculating";
+			ti->error = "Canyest allocate buffer for recalculating";
 			r = -ENOMEM;
 			goto bad;
 		}
 		ic->recalc_tags = kvmalloc_array(RECALC_SECTORS >> ic->sb->log2_sectors_per_block,
 						 ic->tag_size, GFP_KERNEL);
 		if (!ic->recalc_tags) {
-			ti->error = "Cannot allocate tags for recalculating";
+			ti->error = "Canyest allocate tags for recalculating";
 			r = -ENOMEM;
 			goto bad;
 		}
@@ -4031,7 +4031,7 @@ try_smaller_buffer:
 			1U << (SECTOR_SHIFT + ic->log2_buffer_sectors), 1, 0, NULL, NULL);
 	if (IS_ERR(ic->bufio)) {
 		r = PTR_ERR(ic->bufio);
-		ti->error = "Cannot initialize dm-bufio";
+		ti->error = "Canyest initialize dm-bufio";
 		ic->bufio = NULL;
 		goto bad;
 	}

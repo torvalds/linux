@@ -10,7 +10,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/workqueue.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/list.h>
 #include <linux/backlight.h>
 #include <linux/slab.h>
@@ -21,7 +21,7 @@ struct fb_info;
 struct device;
 struct file;
 struct videomode;
-struct device_node;
+struct device_yesde;
 
 /* Definitions below are used in the parsed monitor specs */
 #define FB_DPMS_ACTIVE_OFF	1
@@ -65,7 +65,7 @@ struct fb_monspecs {
 	struct fb_videomode *modedb;	/* mode database */
 	__u8  manufacturer[4];		/* Manufacturer */
 	__u8  monitor[14];		/* Monitor String */
-	__u8  serial_no[14];		/* Serial Number */
+	__u8  serial_yes[14];		/* Serial Number */
 	__u8  ascii[14];		/* ? */
 	__u32 modedb_len;		/* mode database length */
 	__u32 model;			/* Monitor Model */
@@ -104,7 +104,7 @@ struct fb_image_user {
 	__u32 dy;
 	__u32 width;			/* Size of image */
 	__u32 height;
-	__u32 fg_color;			/* Only used when a mono bitmap */
+	__u32 fg_color;			/* Only used when a moyes bitmap */
 	__u32 bg_color;
 	__u8  depth;			/* Depth of the image */
 	const char __user *data;	/* Pointer to image data */
@@ -149,21 +149,21 @@ struct fb_blit_caps {
 };
 
 #ifdef CONFIG_FB_NOTIFY
-extern int fb_register_client(struct notifier_block *nb);
-extern int fb_unregister_client(struct notifier_block *nb);
-extern int fb_notifier_call_chain(unsigned long val, void *v);
+extern int fb_register_client(struct yestifier_block *nb);
+extern int fb_unregister_client(struct yestifier_block *nb);
+extern int fb_yestifier_call_chain(unsigned long val, void *v);
 #else
-static inline int fb_register_client(struct notifier_block *nb)
+static inline int fb_register_client(struct yestifier_block *nb)
 {
 	return 0;
 };
 
-static inline int fb_unregister_client(struct notifier_block *nb)
+static inline int fb_unregister_client(struct yestifier_block *nb)
 {
 	return 0;
 };
 
-static inline int fb_notifier_call_chain(unsigned long val, void *v)
+static inline int fb_yestifier_call_chain(unsigned long val, void *v)
 {
 	return 0;
 };
@@ -231,8 +231,8 @@ struct fb_ops {
 	int (*fb_open)(struct fb_info *info, int user);
 	int (*fb_release)(struct fb_info *info, int user);
 
-	/* For framebuffers with strange non linear layouts or that do not
-	 * work with normal memory mapped access
+	/* For framebuffers with strange yesn linear layouts or that do yest
+	 * work with yesrmal memory mapped access
 	 */
 	ssize_t (*fb_read)(struct fb_info *info, char __user *buf,
 			   size_t count, loff_t *ppos);
@@ -247,7 +247,7 @@ struct fb_ops {
 	int (*fb_set_par)(struct fb_info *info);
 
 	/* set color register */
-	int (*fb_setcolreg)(unsigned regno, unsigned red, unsigned green,
+	int (*fb_setcolreg)(unsigned regyes, unsigned red, unsigned green,
 			    unsigned blue, unsigned transp, struct fb_info *info);
 
 	/* set color registers in batch */
@@ -261,7 +261,7 @@ struct fb_ops {
 
 	/* Draws a rectangle */
 	void (*fb_fillrect) (struct fb_info *info, const struct fb_fillrect *rect);
-	/* Copy data from area to another */
+	/* Copy data from area to ayesther */
 	void (*fb_copyarea) (struct fb_info *info, const struct fb_copyarea *region);
 	/* Draws a image to the display */
 	void (*fb_imageblit) (struct fb_info *info, const struct fb_image *image);
@@ -358,7 +358,7 @@ struct fb_tile_ops {
 
 	/* all dimensions from hereon are in terms of tiles */
 
-	/* move a rectangular region of tiles from one area to another*/
+	/* move a rectangular region of tiles from one area to ayesther*/
 	void (*fb_tilecopy)(struct fb_info *info, struct fb_tilearea *area);
 	/* fill a rectangular region with a tile */
 	void (*fb_tilefill)(struct fb_info *info, struct fb_tilerect *rect);
@@ -381,15 +381,15 @@ struct fb_tile_ops {
 	 *  takes over; acceleration engine should be in a quiescent state */
 
 /* hints */
-#define FBINFO_VIRTFB		0x0004 /* FB is System RAM, not device. */
+#define FBINFO_VIRTFB		0x0004 /* FB is System RAM, yest device. */
 #define FBINFO_PARTIAL_PAN_OK	0x0040 /* otw use pan only for double-buffering */
 #define FBINFO_READS_FAST	0x0080 /* soft-copy faster than rendering */
 
 /* hardware supported ops */
 /*  semantics: when a bit is set, it indicates that the operation is
  *   accelerated by hardware.
- *  required functions will still work even if the bit is not set.
- *  optional functions may not even exist if the flag bit is not set.
+ *  required functions will still work even if the bit is yest set.
+ *  optional functions may yest even exist if the flag bit is yest set.
  */
 #define FBINFO_HWACCEL_NONE		0x0000
 #define FBINFO_HWACCEL_COPYAREA		0x0100 /* required */
@@ -425,7 +425,7 @@ struct fb_tile_ops {
 /*
  * Big endian math. This is the same flags as above, but with different
  * meaning, it is set by the fb subsystem depending FOREIGN_ENDIAN flag
- * and host endianness. Drivers should not use this flag.
+ * and host endianness. Drivers should yest use this flag.
  */
 #define FBINFO_BE_MATH  0x100000
 /*
@@ -438,11 +438,11 @@ struct fb_tile_ops {
 
 struct fb_info {
 	atomic_t count;
-	int node;
+	int yesde;
 	int flags;
 	/*
-	 * -1 by default, set to a FB_ROTATE_* value by the driver, if it knows
-	 * a lcd is not mounted upright and fbcon should rotate to compensate.
+	 * -1 by default, set to a FB_ROTATE_* value by the driver, if it kyesws
+	 * a lcd is yest mounted upright and fbcon should rotate to compensate.
 	 */
 	int fbcon_rotate_hint;
 	struct mutex lock;		/* Lock for open/release/ioctl funcs */
@@ -491,9 +491,9 @@ struct fb_info {
 	void *fbcon_par;                /* fbcon use-only private area */
 	/* From here on everything is device dependent */
 	void *par;
-	/* we need the PCI or similar aperture base/size not
+	/* we need the PCI or similar aperture base/size yest
 	   smem_start/size as smem_start may just be an object
-	   allocated inside the aperture so may not actually overlap */
+	   allocated inside the aperture so may yest actually overlap */
 	struct apertures_struct {
 		unsigned int count;
 		struct aperture {
@@ -502,7 +502,7 @@ struct fb_info {
 		} ranges[0];
 	} *apertures;
 
-	bool skip_vt_switch; /* no VT switch on suspend/resume required */
+	bool skip_vt_switch; /* yes VT switch on suspend/resume required */
 };
 
 static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
@@ -520,7 +520,7 @@ static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
  * fbset currently hacks in FB_ACCELF_TEXT into var.accel_flags
  * when it wants to turn the acceleration engine on.  This is
  * really a separate operation, and should be modified via sysfs.
- *  But for now, we leave it broken with the following define
+ *  But for yesw, we leave it broken with the following define
  */
 #define STUPID_ACCELF_TEXT_SHIT
 
@@ -661,7 +661,7 @@ static inline void __fb_pad_aligned_buffer(u8 *dst, u32 d_pitch,
 int fb_deferred_io_mmap(struct fb_info *info, struct vm_area_struct *vma);
 extern void fb_deferred_io_init(struct fb_info *info);
 extern void fb_deferred_io_open(struct fb_info *info,
-				struct inode *inode,
+				struct iyesde *iyesde,
 				struct file *file);
 extern void fb_deferred_io_cleanup(struct fb_info *info);
 extern int fb_deferred_io_fsync(struct file *file, loff_t start,
@@ -721,7 +721,7 @@ extern void fb_destroy_modedb(struct fb_videomode *modedb);
 extern int fb_find_mode_cvt(struct fb_videomode *mode, int margins, int rb);
 extern unsigned char *fb_ddc_read(struct i2c_adapter *adapter);
 
-extern int of_get_fb_videomode(struct device_node *np,
+extern int of_get_fb_videomode(struct device_yesde *np,
 			       struct fb_videomode *fb,
 			       int index);
 extern int fb_videomode_from_videomode(const struct videomode *vm,
@@ -806,14 +806,14 @@ extern int fb_find_mode(struct fb_var_screeninfo *var,
 
 /* Convenience logging macros */
 #define fb_err(fb_info, fmt, ...)					\
-	pr_err("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
-#define fb_notice(info, fmt, ...)					\
-	pr_notice("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+	pr_err("fb%d: " fmt, (fb_info)->yesde, ##__VA_ARGS__)
+#define fb_yestice(info, fmt, ...)					\
+	pr_yestice("fb%d: " fmt, (fb_info)->yesde, ##__VA_ARGS__)
 #define fb_warn(fb_info, fmt, ...)					\
-	pr_warn("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+	pr_warn("fb%d: " fmt, (fb_info)->yesde, ##__VA_ARGS__)
 #define fb_info(fb_info, fmt, ...)					\
-	pr_info("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+	pr_info("fb%d: " fmt, (fb_info)->yesde, ##__VA_ARGS__)
 #define fb_dbg(fb_info, fmt, ...)					\
-	pr_debug("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+	pr_debug("fb%d: " fmt, (fb_info)->yesde, ##__VA_ARGS__)
 
 #endif /* _LINUX_FB_H */

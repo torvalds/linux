@@ -11,7 +11,7 @@
 #elif defined(CONFIG_PARISC_PAGE_SIZE_64KB)
 # define PAGE_SHIFT	16
 #else
-# error "unknown default kernel page size"
+# error "unkyeswn default kernel page size"
 #endif
 #define PAGE_SIZE	(_AC(1,UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
@@ -48,7 +48,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #if CONFIG_PGTABLE_LEVELS == 3
 typedef struct { __u32 pmd; } pmd_t;
 #define __pmd(x)	((pmd_t) { (x) } )
-/* pXd_val() do not work as lvalues, so make sure we don't use them as such. */
+/* pXd_val() do yest work as lvalues, so make sure we don't use them as such. */
 #define pmd_val(x)	((x).pmd + 0)
 #endif
 

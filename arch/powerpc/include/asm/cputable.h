@@ -99,7 +99,7 @@ struct cpu_spec {
 
 	/* Processor specific machine check handling. Return negative
 	 * if the error is fatal, 1 if it was fully recovered and 0 to
-	 * pass up (not CPU originated) */
+	 * pass up (yest CPU originated) */
 	int		(*machine_check)(struct pt_regs *regs);
 
 	/*

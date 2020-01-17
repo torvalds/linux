@@ -14,7 +14,7 @@
 
 /*
  * MAXCPUS refers to the maximum number of CPUs in a single kernel.
- * This is not necessarily the same as MAXNODES * CPUS_PER_NODE
+ * This is yest necessarily the same as MAXNODES * CPUS_PER_NODE
  */
 #define MAXCPUS			(MAX_NUMNODES * CPUS_PER_NODE)
 
@@ -43,9 +43,9 @@
  * Slot constants for SN0
  */
 #ifdef CONFIG_SGI_SN_N_MODE
-#define MAX_MEM_SLOTS	16			/* max slots per node */
+#define MAX_MEM_SLOTS	16			/* max slots per yesde */
 #else /* !CONFIG_SGI_SN_N_MODE, assume CONFIG_SGI_SN_M_MODE */
-#define MAX_MEM_SLOTS	32			/* max slots per node */
+#define MAX_MEM_SLOTS	32			/* max slots per yesde */
 #endif /* CONFIG_SGI_SN_M_MODE */
 
 #define SLOT_SHIFT		(27)

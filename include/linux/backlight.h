@@ -12,12 +12,12 @@
 #include <linux/device.h>
 #include <linux/fb.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 /* Notes on locking:
  *
  * backlight_device->ops_lock is an internal backlight lock protecting the
- * ops pointer and no code outside the core should need to touch it.
+ * ops pointer and yes code outside the core should need to touch it.
  *
  * Access to update_status() is serialised by the update_lock mutex since
  * most drivers seem to need this and historically get it wrong.
@@ -41,7 +41,7 @@ enum backlight_type {
 	BACKLIGHT_TYPE_MAX,
 };
 
-enum backlight_notification {
+enum backlight_yestification {
 	BACKLIGHT_REGISTERED,
 	BACKLIGHT_UNREGISTERED,
 };
@@ -66,7 +66,7 @@ struct backlight_ops {
 	   fb_blank etc.) */
 	int (*get_brightness)(struct backlight_device *);
 	/* Check if given framebuffer device is the one bound to this backlight;
-	   return 0 if not, !=0 if it is. If NULL, backlight always matches the fb. */
+	   return 0 if yest, !=0 if it is. If NULL, backlight always matches the fb. */
 	int (*check_fb)(struct backlight_device *, struct fb_info *);
 };
 
@@ -86,7 +86,7 @@ struct backlight_properties {
 	enum backlight_type type;
 	/* Flags used to signal drivers of state changes */
 	unsigned int state;
-	/* Type of the brightness scale (linear, non-linear, ...) */
+	/* Type of the brightness scale (linear, yesn-linear, ...) */
 	enum backlight_scale scale;
 
 #define BL_CORE_SUSPENDED	(1 << 0)	/* backlight is suspended */
@@ -107,8 +107,8 @@ struct backlight_device {
 	struct mutex ops_lock;
 	const struct backlight_ops *ops;
 
-	/* The framebuffer notifier block */
-	struct notifier_block fb_notif;
+	/* The framebuffer yestifier block */
+	struct yestifier_block fb_yestif;
 
 	/* list entry of all registered backlight devices */
 	struct list_head entry;
@@ -187,8 +187,8 @@ extern void devm_backlight_device_unregister(struct device *dev,
 					struct backlight_device *bd);
 extern void backlight_force_update(struct backlight_device *bd,
 				   enum backlight_update_reason reason);
-extern int backlight_register_notifier(struct notifier_block *nb);
-extern int backlight_unregister_notifier(struct notifier_block *nb);
+extern int backlight_register_yestifier(struct yestifier_block *nb);
+extern int backlight_unregister_yestifier(struct yestifier_block *nb);
 extern struct backlight_device *backlight_device_get_by_type(enum backlight_type type);
 extern int backlight_device_set_brightness(struct backlight_device *bd, unsigned long brightness);
 
@@ -209,10 +209,10 @@ struct generic_bl_info {
 };
 
 #ifdef CONFIG_OF
-struct backlight_device *of_find_backlight_by_node(struct device_node *node);
+struct backlight_device *of_find_backlight_by_yesde(struct device_yesde *yesde);
 #else
 static inline struct backlight_device *
-of_find_backlight_by_node(struct device_node *node)
+of_find_backlight_by_yesde(struct device_yesde *yesde)
 {
 	return NULL;
 }

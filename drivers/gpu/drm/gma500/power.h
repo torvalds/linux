@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -56,7 +56,7 @@ void gma_power_end(struct drm_device *dev);
 
 /*
  * Use this function to do an instantaneous check for if the hw is on.
- * Only use this in cases where you know the mutex is already held such
+ * Only use this in cases where you kyesw the mutex is already held such
  * as in irq install/uninstall and you need to
  * prevent a deadlock situation.  Otherwise use gma_power_begin().
  */

@@ -54,7 +54,7 @@ static inline int smp_get_base_cpu(int cpu)
 }
 
 extern int smp_rescan_cpus(void);
-extern void __noreturn cpu_die(void);
+extern void __yesreturn cpu_die(void);
 extern void __cpu_die(unsigned int cpu);
 extern int __cpu_disable(void);
 

@@ -376,7 +376,7 @@ static int adv748x_hdmi_g_pixelaspect(struct v4l2_subdev *sd,
 				      struct v4l2_fract *aspect)
 {
 	aspect->numerator = 1;
-	aspect->denominator = 1;
+	aspect->deyesminator = 1;
 
 	return 0;
 }
@@ -526,7 +526,7 @@ static int adv748x_hdmi_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 
 		/* Fall back to a 16:9 aspect ratio */
 		hdmi->aspect_ratio.numerator = 16;
-		hdmi->aspect_ratio.denominator = 9;
+		hdmi->aspect_ratio.deyesminator = 9;
 
 		/* Disable the EDID */
 		repeater_write(state, ADV748X_REPEATER_EDID_SZ,
@@ -728,7 +728,7 @@ int adv748x_hdmi_init(struct adv748x_hdmi *hdmi)
 
 	/* Initialise a default 16:9 aspect ratio */
 	hdmi->aspect_ratio.numerator = 16;
-	hdmi->aspect_ratio.denominator = 9;
+	hdmi->aspect_ratio.deyesminator = 9;
 
 	adv748x_subdev_init(&hdmi->sd, state, &adv748x_ops_hdmi,
 			    MEDIA_ENT_F_IO_DTV, "hdmi");

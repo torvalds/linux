@@ -100,10 +100,10 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 	if (acard->wss == NULL)
 		return -EBUSY;
 
-	/* there is a game port at logical device 1, but we ignore it completely */
+	/* there is a game port at logical device 1, but we igyesre it completely */
 
-	/* the control interface is logical device 2, but we ignore it
-	   completely. in fact, nobody even seems to know what it
+	/* the control interface is logical device 2, but we igyesre it
+	   completely. in fact, yesbody even seems to kyesw what it
 	   does.
 	*/
 
@@ -127,7 +127,7 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 
 	pdev = acard->wss;
 
-	/* An interesting note from the Tropez+ FAQ:
+	/* An interesting yeste from the Tropez+ FAQ:
 
 	   Q. [Ports] Why is the base address of the WSS I/O ports off by 4?
 
@@ -166,7 +166,7 @@ snd_wavefront_pnp (int dev, snd_wavefront_card_t *acard, struct pnp_card_link *c
 
 	/* CS4232 MPU initialization. Configure this only if
 	   explicitly requested, since its physically inaccessible and
-	   consumes another IRQ.
+	   consumes ayesther IRQ.
 	*/
 
 	if (use_cs4232_midi[dev]) {
@@ -252,7 +252,7 @@ static struct snd_hwdep *snd_wavefront_new_fx(struct snd_card *card,
 	struct snd_hwdep *fx_processor;
 
 	if (snd_wavefront_fx_start (&acard->wavefront)) {
-		snd_printk (KERN_ERR "cannot initialize YSS225 FX processor");
+		snd_printk (KERN_ERR "canyest initialize YSS225 FX processor");
 		return NULL;
 	}
 
@@ -283,7 +283,7 @@ static struct snd_rawmidi *snd_wavefront_new_midi(struct snd_card *card,
 		first = 0;
 		acard->wavefront.midi.base = port;
 		if (snd_wavefront_midi_start (acard)) {
-			snd_printk (KERN_ERR "cannot initialize MIDI interface\n");
+			snd_printk (KERN_ERR "canyest initialize MIDI interface\n");
 			return NULL;
 		}
 	}

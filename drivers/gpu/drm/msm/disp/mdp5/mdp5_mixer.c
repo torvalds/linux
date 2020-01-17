@@ -6,7 +6,7 @@
 #include "mdp5_kms.h"
 
 /*
- * As of now, there are only 2 combinations possible for source split:
+ * As of yesw, there are only 2 combinations possible for source split:
  *
  * Left | Right
  * -----|------
@@ -91,7 +91,7 @@ int mdp5_mixer_assign(struct drm_atomic_state *s, struct drm_crtc *crtc,
 		 * result in the CRTC requiring a full modeset, even
 		 * if we have the LM resources to prevent it. For a platform
 		 * with a few displays, we don't run out of pair-able LMs
-		 * so easily. For now, ignore the possibility of requiring
+		 * so easily. For yesw, igyesre the possibility of requiring
 		 * a full modeset.
 		 */
 		if (!(*mixer) || cur->caps & MDP_LM_CAP_PAIR)

@@ -22,7 +22,7 @@
 
 /* pxa255 has this (move to include/asm-arm/arch-pxa/pxa-regs.h) */
 #define	UDCCFR		UDC_RES2	/* UDC Control Function Register */
-#define UDCCFR_AREN	(1 << 7)	/* ACK response enable (now) */
+#define UDCCFR_AREN	(1 << 7)	/* ACK response enable (yesw) */
 #define UDCCFR_ACM	(1 << 2)	/* ACK control mode (wait for AREN) */
 
 /* latest pxa255 errata define new "must be one" bits in UDCCFR */
@@ -136,8 +136,8 @@ static struct pxa25x_udc *the_controller;
 /*-------------------------------------------------------------------------*/
 
 /*
- * Debugging support vanishes in non-debug builds.  DBG_NORMAL should be
- * mostly silent during normal use/testing, with no timing side-effects.
+ * Debugging support vanishes in yesn-debug builds.  DBG_NORMAL should be
+ * mostly silent during yesrmal use/testing, with yes timing side-effects.
  */
 #define DBG_NORMAL	1	/* error paths, device state transitions */
 #define DBG_VERBOSE	2	/* add some success path trace info */
@@ -213,7 +213,7 @@ dump_state(struct pxa25x_udc *dev)
 	}
 
 	if (!dev->driver) {
-		DMSG("no gadget driver bound\n");
+		DMSG("yes gadget driver bound\n");
 		return;
 	} else
 		DMSG("ep0 driver '%s'\n", dev->driver->driver.name);

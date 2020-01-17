@@ -4,7 +4,7 @@
   Broadcom B43 wireless driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-  Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005-2007 Stefayes Brivio <stefayes.brivio@polimi.it>
   Copyright (c) 2006, 2006 Michael Buesch <m@bues.ch>
   Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -211,27 +211,27 @@ const u16 b43_tab_finefreqg[] = {
 	0x5EE0, 0x5FA0, 0x6080, 0x61C0,
 };
 
-const u16 b43_tab_noisea2[] = {
+const u16 b43_tab_yesisea2[] = {
 	0x0001, 0x0001, 0x0001, 0xFFFE,
 	0xFFFE, 0x3FFF, 0x1000, 0x0393,
 };
 
-const u16 b43_tab_noisea3[] = {
+const u16 b43_tab_yesisea3[] = {
 	0x5E5E, 0x5E5E, 0x5E5E, 0x3F48,
 	0x4C4C, 0x4C4C, 0x4C4C, 0x2D36,
 };
 
-const u16 b43_tab_noiseg1[] = {
+const u16 b43_tab_yesiseg1[] = {
 	0x013C, 0x01F5, 0x031A, 0x0631,
 	0x0001, 0x0001, 0x0001, 0x0001,
 };
 
-const u16 b43_tab_noiseg2[] = {
+const u16 b43_tab_yesiseg2[] = {
 	0x5484, 0x3C40, 0x0000, 0x0000,
 	0x0000, 0x0000, 0x0000, 0x0000,
 };
 
-const u16 b43_tab_noisescalea2[] = {
+const u16 b43_tab_yesisescalea2[] = {
 	0x6767, 0x6767, 0x6767, 0x6767, /* 0 */
 	0x6767, 0x6767, 0x6767, 0x6767,
 	0x6767, 0x6767, 0x6767, 0x6767,
@@ -241,7 +241,7 @@ const u16 b43_tab_noisescalea2[] = {
 	0x6767, 0x6767, 0x0067,
 };
 
-const u16 b43_tab_noisescalea3[] = {
+const u16 b43_tab_yesisescalea3[] = {
 	0x2323, 0x2323, 0x2323, 0x2323, /* 0 */
 	0x2323, 0x2323, 0x2323, 0x2323,
 	0x2323, 0x2323, 0x2323, 0x2323,
@@ -251,7 +251,7 @@ const u16 b43_tab_noisescalea3[] = {
 	0x2323, 0x2323, 0x0023,
 };
 
-const u16 b43_tab_noisescaleg1[] = {
+const u16 b43_tab_yesisescaleg1[] = {
 	0x6C77, 0x5162, 0x3B40, 0x3335,	/* 0 */
 	0x2F2D, 0x2A2A, 0x2527, 0x1F21,
 	0x1A1D, 0x1719, 0x1616, 0x1414,
@@ -261,7 +261,7 @@ const u16 b43_tab_noisescaleg1[] = {
 	0x5140, 0x6C62, 0x0077,
 };
 
-const u16 b43_tab_noisescaleg2[] = {
+const u16 b43_tab_yesisescaleg2[] = {
 	0xD8DD, 0xCBD4, 0xBCC0, 0xB6B7,	/* 0 */
 	0xB2B0, 0xADAD, 0xA7A9, 0x9FA1,
 	0x969B, 0x9195, 0x8F8F, 0x8A8A,
@@ -271,7 +271,7 @@ const u16 b43_tab_noisescaleg2[] = {
 	0xCBC0, 0xD8D4, 0x00DD,
 };
 
-const u16 b43_tab_noisescaleg3[] = {
+const u16 b43_tab_yesisescaleg3[] = {
 	0xA4A4, 0xA4A4, 0xA4A4, 0xA4A4,	/* 0 */
 	0xA4A4, 0xA4A4, 0xA4A4, 0xA4A4,
 	0xA4A4, 0xA4A4, 0xA4A4, 0xA4A4,
@@ -343,20 +343,20 @@ static inline void assert_sizes(void)
 	BUILD_BUG_ON(B43_TAB_RETARD_SIZE != ARRAY_SIZE(b43_tab_retard));
 	BUILD_BUG_ON(B43_TAB_FINEFREQA_SIZE != ARRAY_SIZE(b43_tab_finefreqa));
 	BUILD_BUG_ON(B43_TAB_FINEFREQG_SIZE != ARRAY_SIZE(b43_tab_finefreqg));
-	BUILD_BUG_ON(B43_TAB_NOISEA2_SIZE != ARRAY_SIZE(b43_tab_noisea2));
-	BUILD_BUG_ON(B43_TAB_NOISEA3_SIZE != ARRAY_SIZE(b43_tab_noisea3));
-	BUILD_BUG_ON(B43_TAB_NOISEG1_SIZE != ARRAY_SIZE(b43_tab_noiseg1));
-	BUILD_BUG_ON(B43_TAB_NOISEG2_SIZE != ARRAY_SIZE(b43_tab_noiseg2));
+	BUILD_BUG_ON(B43_TAB_NOISEA2_SIZE != ARRAY_SIZE(b43_tab_yesisea2));
+	BUILD_BUG_ON(B43_TAB_NOISEA3_SIZE != ARRAY_SIZE(b43_tab_yesisea3));
+	BUILD_BUG_ON(B43_TAB_NOISEG1_SIZE != ARRAY_SIZE(b43_tab_yesiseg1));
+	BUILD_BUG_ON(B43_TAB_NOISEG2_SIZE != ARRAY_SIZE(b43_tab_yesiseg2));
 	BUILD_BUG_ON(B43_TAB_NOISESCALE_SIZE !=
-		     ARRAY_SIZE(b43_tab_noisescalea2));
+		     ARRAY_SIZE(b43_tab_yesisescalea2));
 	BUILD_BUG_ON(B43_TAB_NOISESCALE_SIZE !=
-		     ARRAY_SIZE(b43_tab_noisescalea3));
+		     ARRAY_SIZE(b43_tab_yesisescalea3));
 	BUILD_BUG_ON(B43_TAB_NOISESCALE_SIZE !=
-		     ARRAY_SIZE(b43_tab_noisescaleg1));
+		     ARRAY_SIZE(b43_tab_yesisescaleg1));
 	BUILD_BUG_ON(B43_TAB_NOISESCALE_SIZE !=
-		     ARRAY_SIZE(b43_tab_noisescaleg2));
+		     ARRAY_SIZE(b43_tab_yesisescaleg2));
 	BUILD_BUG_ON(B43_TAB_NOISESCALE_SIZE !=
-		     ARRAY_SIZE(b43_tab_noisescaleg3));
+		     ARRAY_SIZE(b43_tab_yesisescaleg3));
 	BUILD_BUG_ON(B43_TAB_SIGMASQR_SIZE != ARRAY_SIZE(b43_tab_sigmasqr1));
 	BUILD_BUG_ON(B43_TAB_SIGMASQR_SIZE != ARRAY_SIZE(b43_tab_sigmasqr2));
 	BUILD_BUG_ON(B43_TAB_RSSIAGC1_SIZE != ARRAY_SIZE(b43_tab_rssiagc1));

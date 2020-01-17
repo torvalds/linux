@@ -134,7 +134,7 @@ static int sunxi_sc_nmi_set_type(struct irq_data *data, unsigned int flow_type)
 		break;
 	default:
 		irq_gc_unlock(gc);
-		pr_err("Cannot assign multiple trigger modes to IRQ %d.\n",
+		pr_err("Canyest assign multiple trigger modes to IRQ %d.\n",
 			data->irq);
 		return -EBADR;
 	}
@@ -156,7 +156,7 @@ static int sunxi_sc_nmi_set_type(struct irq_data *data, unsigned int flow_type)
 	return IRQ_SET_MASK_OK;
 }
 
-static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
+static int __init sunxi_sc_nmi_irq_init(struct device_yesde *yesde,
 					const struct sunxi_sc_nmi_reg_offs *reg_offs)
 {
 	struct irq_domain *domain;
@@ -166,9 +166,9 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 	int ret;
 
 
-	domain = irq_domain_add_linear(node, 1, &irq_generic_chip_ops, NULL);
+	domain = irq_domain_add_linear(yesde, 1, &irq_generic_chip_ops, NULL);
 	if (!domain) {
-		pr_err("Could not register interrupt domain.\n");
+		pr_err("Could yest register interrupt domain.\n");
 		return -ENOMEM;
 	}
 
@@ -176,11 +176,11 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 					     handle_fasteoi_irq, clr, 0,
 					     IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {
-		pr_err("Could not allocate generic interrupt chip.\n");
+		pr_err("Could yest allocate generic interrupt chip.\n");
 		goto fail_irqd_remove;
 	}
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (irq <= 0) {
 		pr_err("unable to parse irq\n");
 		ret = -EINVAL;
@@ -188,7 +188,7 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 	}
 
 	gc = irq_get_domain_generic_chip(domain, 0);
-	gc->reg_base = of_io_request_and_map(node, 0, of_node_full_name(node));
+	gc->reg_base = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(gc->reg_base)) {
 		pr_err("unable to map resource\n");
 		ret = PTR_ERR(gc->reg_base);
@@ -232,31 +232,31 @@ fail_irqd_remove:
 	return ret;
 }
 
-static int __init sun6i_r_intc_irq_init(struct device_node *node,
-					struct device_node *parent)
+static int __init sun6i_r_intc_irq_init(struct device_yesde *yesde,
+					struct device_yesde *parent)
 {
-	return sunxi_sc_nmi_irq_init(node, &sun6i_r_intc_reg_offs);
+	return sunxi_sc_nmi_irq_init(yesde, &sun6i_r_intc_reg_offs);
 }
 IRQCHIP_DECLARE(sun6i_r_intc, "allwinner,sun6i-a31-r-intc",
 		sun6i_r_intc_irq_init);
 
-static int __init sun6i_sc_nmi_irq_init(struct device_node *node,
-					struct device_node *parent)
+static int __init sun6i_sc_nmi_irq_init(struct device_yesde *yesde,
+					struct device_yesde *parent)
 {
-	return sunxi_sc_nmi_irq_init(node, &sun6i_reg_offs);
+	return sunxi_sc_nmi_irq_init(yesde, &sun6i_reg_offs);
 }
 IRQCHIP_DECLARE(sun6i_sc_nmi, "allwinner,sun6i-a31-sc-nmi", sun6i_sc_nmi_irq_init);
 
-static int __init sun7i_sc_nmi_irq_init(struct device_node *node,
-					struct device_node *parent)
+static int __init sun7i_sc_nmi_irq_init(struct device_yesde *yesde,
+					struct device_yesde *parent)
 {
-	return sunxi_sc_nmi_irq_init(node, &sun7i_reg_offs);
+	return sunxi_sc_nmi_irq_init(yesde, &sun7i_reg_offs);
 }
 IRQCHIP_DECLARE(sun7i_sc_nmi, "allwinner,sun7i-a20-sc-nmi", sun7i_sc_nmi_irq_init);
 
-static int __init sun9i_nmi_irq_init(struct device_node *node,
-				     struct device_node *parent)
+static int __init sun9i_nmi_irq_init(struct device_yesde *yesde,
+				     struct device_yesde *parent)
 {
-	return sunxi_sc_nmi_irq_init(node, &sun9i_reg_offs);
+	return sunxi_sc_nmi_irq_init(yesde, &sun9i_reg_offs);
 }
 IRQCHIP_DECLARE(sun9i_nmi, "allwinner,sun9i-a80-nmi", sun9i_nmi_irq_init);

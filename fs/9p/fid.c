@@ -7,7 +7,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -42,7 +42,7 @@ void v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
  * v9fs_fid_find - retrieve a fid that belongs to the specified uid
  * @dentry: dentry to look for fid in
  * @uid: return fid that belongs to the specified user
- * @any: if non-zero, return any fid associated with the dentry
+ * @any: if yesn-zero, return any fid associated with the dentry
  *
  */
 
@@ -130,7 +130,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 	/* start from the root and try to do a lookup */
 	fid = v9fs_fid_find(dentry->d_sb->s_root, uid, any);
 	if (!fid) {
-		/* the user is not attached to the fs yet */
+		/* the user is yest attached to the fs yet */
 		if (access == V9FS_ACCESS_SINGLE)
 			return ERR_PTR(-EPERM);
 
@@ -166,14 +166,14 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 		l = min(n - i, P9_MAXWELEM);
 		/*
 		 * We need to hold rename lock when doing a multipath
-		 * walk to ensure none of the patch component change
+		 * walk to ensure yesne of the patch component change
 		 */
 		fid = p9_client_walk(fid, l, &wnames[i], clone);
 		if (IS_ERR(fid)) {
 			if (old_fid) {
 				/*
 				 * If we fail, clunk fid which are mapping
-				 * to path component and not the last component
+				 * to path component and yest the last component
 				 * of the path.
 				 */
 				p9_client_clunk(old_fid);
@@ -204,13 +204,13 @@ err_out:
 }
 
 /**
- * v9fs_fid_lookup - lookup for a fid, try to walk if not found
+ * v9fs_fid_lookup - lookup for a fid, try to walk if yest found
  * @dentry: dentry to look for fid in
  *
  * Look for a fid in the specified dentry for the current user.
- * If no fid is found, try to create one walking from a fid from the parent
+ * If yes fid is found, try to create one walking from a fid from the parent
  * dentry (if it has one), or the root dentry. If the user haven't accessed
- * the fs yet, attach now and walk from the root.
+ * the fs yet, attach yesw and walk from the root.
  */
 
 struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)

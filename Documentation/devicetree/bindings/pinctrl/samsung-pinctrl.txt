@@ -13,15 +13,15 @@ Required Properties:
   - "samsung,s3c2450-pinctrl": for S3C2450-compatible pin-controller,
   - "samsung,s3c64xx-pinctrl": for S3C64xx-compatible pin-controller,
   - "samsung,s5pv210-pinctrl": for S5PV210-compatible pin-controller,
-  - "samsung,exynos3250-pinctrl": for Exynos3250 compatible pin-controller.
-  - "samsung,exynos4210-pinctrl": for Exynos4210 compatible pin-controller.
-  - "samsung,exynos4x12-pinctrl": for Exynos4x12 compatible pin-controller.
-  - "samsung,exynos5250-pinctrl": for Exynos5250 compatible pin-controller.
-  - "samsung,exynos5260-pinctrl": for Exynos5260 compatible pin-controller.
-  - "samsung,exynos5410-pinctrl": for Exynos5410 compatible pin-controller.
-  - "samsung,exynos5420-pinctrl": for Exynos5420 compatible pin-controller.
-  - "samsung,exynos5433-pinctrl": for Exynos5433 compatible pin-controller.
-  - "samsung,exynos7-pinctrl": for Exynos7 compatible pin-controller.
+  - "samsung,exyyess3250-pinctrl": for Exyyess3250 compatible pin-controller.
+  - "samsung,exyyess4210-pinctrl": for Exyyess4210 compatible pin-controller.
+  - "samsung,exyyess4x12-pinctrl": for Exyyess4x12 compatible pin-controller.
+  - "samsung,exyyess5250-pinctrl": for Exyyess5250 compatible pin-controller.
+  - "samsung,exyyess5260-pinctrl": for Exyyess5260 compatible pin-controller.
+  - "samsung,exyyess5410-pinctrl": for Exyyess5410 compatible pin-controller.
+  - "samsung,exyyess5420-pinctrl": for Exyyess5420 compatible pin-controller.
+  - "samsung,exyyess5433-pinctrl": for Exyyess5433 compatible pin-controller.
+  - "samsung,exyyess7-pinctrl": for Exyyess7 compatible pin-controller.
 
 - reg: Base address of the pin controller hardware module and length of
   the address space it occupies.
@@ -29,32 +29,32 @@ Required Properties:
   - reg: Second base address of the pin controller if the specific registers
   of the pin controller are separated into the different base address.
 
-	Eg: GPF[1-5] of Exynos5433 are separated into the two base address.
+	Eg: GPF[1-5] of Exyyess5433 are separated into the two base address.
 	- First base address is for GPAx and GPF[1-5] external interrupt
 	  registers.
 	- Second base address is for GPF[1-5] pinctrl registers.
 
 	pinctrl_0: pinctrl@10580000 {
-		compatible = "samsung,exynos5433-pinctrl";
+		compatible = "samsung,exyyess5433-pinctrl";
 		reg = <0x10580000 0x1a20>, <0x11090000 0x100>;
 
 		wakeup-interrupt-controller {
-			compatible = "samsung,exynos7-wakeup-eint";
+			compatible = "samsung,exyyess7-wakeup-eint";
 			interrupts = <0 16 0>;
 		};
 	};
 
-- Pin banks as child nodes: Pin banks of the controller are represented by child
-  nodes of the controller node. Bank name is taken from name of the node. Each
-  bank node must contain following properties:
+- Pin banks as child yesdes: Pin banks of the controller are represented by child
+  yesdes of the controller yesde. Bank name is taken from name of the yesde. Each
+  bank yesde must contain following properties:
 
-  - gpio-controller: identifies the node as a gpio controller and pin bank.
+  - gpio-controller: identifies the yesde as a gpio controller and pin bank.
   - #gpio-cells: number of cells in GPIO specifier. Since the generic GPIO
     binding is used, the amount of cells must be specified as 2. See the below
     mentioned gpio binding representation for description of particular cells.
 
 	Eg: <&gpx2 6 0>
-	<[phandle of the gpio controller node]
+	<[phandle of the gpio controller yesde]
 	[pin number within the gpio controller]
 	[flags]>
 
@@ -63,19 +63,19 @@ Required Properties:
 	- Flags: 0 - Active High
 		 1 - Active Low
 
-- Pin mux/config groups as child nodes: The pin mux (selecting pin function
+- Pin mux/config groups as child yesdes: The pin mux (selecting pin function
   mode) and pin config (pull up/down, driver strength) settings are represented
-  as child nodes of the pin-controller node. There should be atleast one
-  child node and there is no limit on the count of these child nodes. It is
-  also possible for a child node to consist of several further child nodes
+  as child yesdes of the pin-controller yesde. There should be atleast one
+  child yesde and there is yes limit on the count of these child yesdes. It is
+  also possible for a child yesde to consist of several further child yesdes
   to allow grouping multiple pinctrl groups into one. The format of second
-  level child nodes is exactly the same as for first level ones and is
+  level child yesdes is exactly the same as for first level ones and is
   described below.
 
-  The child node should contain a list of pin(s) on which a particular pin
+  The child yesde should contain a list of pin(s) on which a particular pin
   function selection or pin configuration (or both) have to applied. This
   list of pins is specified using the property name "samsung,pins". There
-  should be atleast one pin specfied for this property and there is no upper
+  should be atleast one pin specfied for this property and there is yes upper
   limit on the count of pins that can be specified. The pins are specified
   using pin names which are derived from the hardware manual of the SoC. As
   an example, the pins in GPA0 bank of the pin controller can be represented
@@ -84,17 +84,17 @@ Required Properties:
   "[pin bank name]-[pin number within the bank]".
 
   The pin function selection that should be applied on the pins listed in the
-  child node is specified using the "samsung,pin-function" property. The value
+  child yesde is specified using the "samsung,pin-function" property. The value
   of this property that should be applied to each of the pins listed in the
   "samsung,pins" property should be picked from the hardware manual of the SoC
-  for the specified pin group. This property is optional in the child node if
-  no specific function selection is desired for the pins listed in the child
-  node. The value of this property is used as-is to program the pin-controller
+  for the specified pin group. This property is optional in the child yesde if
+  yes specific function selection is desired for the pins listed in the child
+  yesde. The value of this property is used as-is to program the pin-controller
   function selector register of the pin-bank.
 
-  The child node can also optionally specify one or more of the pin
+  The child yesde can also optionally specify one or more of the pin
   configuration that should be applied on all the pins listed in the
-  "samsung,pins" property of the child node. The following pin configuration
+  "samsung,pins" property of the child yesde. The following pin configuration
   properties are supported.
 
   - samsung,pin-val: Initial value of pin output buffer.
@@ -110,7 +110,7 @@ Required Properties:
   Note: A child should include atleast a pin function selection property or
   pin configuration property (one or more) or both.
 
-  The client nodes that require a particular pin function selection and/or
+  The client yesdes that require a particular pin function selection and/or
   pin configuration should use the bindings listed in the "pinctrl-bindings.txt"
   file.
 
@@ -122,15 +122,15 @@ The difference between the two is that the external wakeup interrupts can be
 used as system wakeup events.
 
 A. External GPIO Interrupts: For supporting external gpio interrupts, the
-   following properties should be specified in the pin-controller device node.
+   following properties should be specified in the pin-controller device yesde.
 
    - interrupts: interrupt specifier for the controller. The format and value of
      the interrupt specifier depends on the interrupt parent for the controller.
 
-   In addition, following properties must be present in node of every bank
+   In addition, following properties must be present in yesde of every bank
    of pins supporting GPIO interrupts:
 
-   - interrupt-controller: identifies the controller node as interrupt-parent.
+   - interrupt-controller: identifies the controller yesde as interrupt-parent.
    - #interrupt-cells: the value of this property should be 2.
      - First Cell: represents the external gpio interrupt number local to the
        external gpio interrupt space of the controller.
@@ -142,14 +142,14 @@ A. External GPIO Interrupts: For supporting external gpio interrupts, the
        - 8 = low level triggered
 
 B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
-   child node representing the external wakeup interrupt controller should be
-   included in the pin-controller device node.
+   child yesde representing the external wakeup interrupt controller should be
+   included in the pin-controller device yesde.
 
-   Only one pin-controller device node can include external wakeup interrupts
-   child node (in other words, only one External Wakeup Interrupts
+   Only one pin-controller device yesde can include external wakeup interrupts
+   child yesde (in other words, only one External Wakeup Interrupts
    pin-controller is supported).
 
-   This child node should include following properties:
+   This child yesde should include following properties:
 
    - compatible: identifies the type of the external wakeup interrupt controller
      The possible values are:
@@ -161,16 +161,16 @@ B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
        found on Samsung S3C64xx SoCs,
      - samsung,s5pv210-wakeup-eint: represents wakeup interrupt controller
        found on Samsung S5Pv210 SoCs,
-     - samsung,exynos4210-wakeup-eint: represents wakeup interrupt controller
-       found on Samsung Exynos4210 and S5PC110/S5PV210 SoCs.
-     - samsung,exynos7-wakeup-eint: represents wakeup interrupt controller
-       found on Samsung Exynos7 SoC.
+     - samsung,exyyess4210-wakeup-eint: represents wakeup interrupt controller
+       found on Samsung Exyyess4210 and S5PC110/S5PV210 SoCs.
+     - samsung,exyyess7-wakeup-eint: represents wakeup interrupt controller
+       found on Samsung Exyyess7 SoC.
    - interrupts: interrupt used by multiplexed wakeup interrupts.
 
-   In addition, following properties must be present in node of every bank
+   In addition, following properties must be present in yesde of every bank
    of pins supporting wake-up interrupts:
 
-   - interrupt-controller: identifies the node as interrupt-parent.
+   - interrupt-controller: identifies the yesde as interrupt-parent.
    - #interrupt-cells: the value of this property should be 2
      - First Cell: represents the external wakeup interrupt number local to
        the external wakeup interrupt space of the controller.
@@ -190,10 +190,10 @@ B. External Wakeup Interrupts: For supporting external wakeup interrupts, a
 
 Aliases:
 
-All the pin controller nodes should be represented in the aliases node using
+All the pin controller yesdes should be represented in the aliases yesde using
 the following format 'pinctrl{n}' where n is a unique number for the alias.
 
-Aliases for controllers compatible with "samsung,exynos7-pinctrl":
+Aliases for controllers compatible with "samsung,exyyess7-pinctrl":
 - pinctrl0: pin controller of ALIVE block,
 - pinctrl1: pin controller of BUS0 block,
 - pinctrl2: pin controller of NFC block,
@@ -205,10 +205,10 @@ Aliases for controllers compatible with "samsung,exynos7-pinctrl":
 - pinctrl8: pin controller of BUS1 block,
 - pinctrl9: pin controller of AUDIO block,
 
-Example: A pin-controller node with pin banks:
+Example: A pin-controller yesde with pin banks:
 
 	pinctrl_0: pinctrl@11400000 {
-		compatible = "samsung,exynos4210-pinctrl";
+		compatible = "samsung,exyyess4210-pinctrl";
 		reg = <0x11400000 0x1000>;
 		interrupts = <0 47 0>;
 
@@ -248,12 +248,12 @@ Example: A pin-controller node with pin banks:
 		/* ... */
 	};
 
-Example 1: A pin-controller node with pin groups.
+Example 1: A pin-controller yesde with pin groups.
 
 	#include <dt-bindings/pinctrl/samsung.h>
 
 	pinctrl_0: pinctrl@11400000 {
-		compatible = "samsung,exynos4210-pinctrl";
+		compatible = "samsung,exyyess4210-pinctrl";
 		reg = <0x11400000 0x1000>;
 		interrupts = <0 47 0>;
 
@@ -312,26 +312,26 @@ Example 1: A pin-controller node with pin groups.
 		};
 	};
 
-Example 2: A pin-controller node with external wakeup interrupt controller node.
+Example 2: A pin-controller yesde with external wakeup interrupt controller yesde.
 
 	pinctrl_1: pinctrl@11000000 {
-		compatible = "samsung,exynos4210-pinctrl";
+		compatible = "samsung,exyyess4210-pinctrl";
 		reg = <0x11000000 0x1000>;
 		interrupts = <0 46 0>
 
 		/* ... */
 
 		wakeup-interrupt-controller {
-			compatible = "samsung,exynos4210-wakeup-eint";
+			compatible = "samsung,exyyess4210-wakeup-eint";
 			interrupt-parent = <&gic>;
 			interrupts = <0 32 0>;
 		};
 	};
 
-Example 3: A uart client node that supports 'default' and 'flow-control' states.
+Example 3: A uart client yesde that supports 'default' and 'flow-control' states.
 
 	uart@13800000 {
-		compatible = "samsung,exynos4210-uart";
+		compatible = "samsung,exyyess4210-uart";
 		reg = <0x13800000 0x100>;
 		interrupts = <0 52 0>;
 		pinctrl-names = "default", "flow-control;
@@ -349,7 +349,7 @@ Example 4: Set up the default pin state for uart controller.
 		pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	}
 
-Example 5: A display port client node that supports 'default' pinctrl state
+Example 5: A display port client yesde that supports 'default' pinctrl state
 	   and gpio binding.
 
 	display-port-controller {
@@ -362,15 +362,15 @@ Example 5: A display port client node that supports 'default' pinctrl state
 
 Example 6: Request the gpio for display port controller
 
-	static int exynos_dp_probe(struct platform_device *pdev)
+	static int exyyess_dp_probe(struct platform_device *pdev)
 	{
 		int hpd_gpio, ret;
 		struct device *dev = &pdev->dev;
-		struct device_node *dp_node = dev->of_node;
+		struct device_yesde *dp_yesde = dev->of_yesde;
 
 		/* ... */
 
-		hpd_gpio = of_get_named_gpio(dp_node, "samsung,hpd-gpio", 0);
+		hpd_gpio = of_get_named_gpio(dp_yesde, "samsung,hpd-gpio", 0);
 
 		/* ... */
 

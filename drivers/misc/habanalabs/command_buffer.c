@@ -200,7 +200,7 @@ int hl_cb_destroy(struct hl_device *hdev, struct hl_cb_mgr *mgr, u64 cb_handle)
 	} else {
 		spin_unlock(&mgr->cb_lock);
 		dev_err(hdev->dev,
-			"CB destroy failed, no match to handle 0x%x\n", handle);
+			"CB destroy failed, yes match to handle 0x%x\n", handle);
 		rc = -EINVAL;
 	}
 
@@ -278,7 +278,7 @@ int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 	cb = hl_cb_get(hdev, &hpriv->cb_mgr, handle);
 	if (!cb) {
 		dev_err(hdev->dev,
-			"CB mmap failed, no match to handle %d\n", handle);
+			"CB mmap failed, yes match to handle %d\n", handle);
 		return -EINVAL;
 	}
 
@@ -347,7 +347,7 @@ struct hl_cb *hl_cb_get(struct hl_device *hdev, struct hl_cb_mgr *mgr,
 	if (!cb) {
 		spin_unlock(&mgr->cb_lock);
 		dev_warn(hdev->dev,
-			"CB get failed, no match to handle %d\n", handle);
+			"CB get failed, yes match to handle %d\n", handle);
 		return NULL;
 	}
 

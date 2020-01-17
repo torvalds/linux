@@ -63,11 +63,11 @@ int vfio_ccw_register_async_dev_regions(struct vfio_ccw_private *private);
  * @completion: synchronization helper of the I/O completion
  * @avail: available for creating a mediated device
  * @mdev: pointer to the mediated device
- * @nb: notifier for vfio events
+ * @nb: yestifier for vfio events
  * @io_region: MMIO region to input/output I/O arguments/results
  * @io_mutex: protect against concurrent update of I/O regions
  * @region: additional regions for other subchannel operations
- * @cmd_region: MMIO region for asynchronous I/O commands other than START
+ * @cmd_region: MMIO region for asynchroyesus I/O commands other than START
  * @num_regions: number of additional regions
  * @cp: channel program for the current I/O operation
  * @irb: irb info received from interrupt
@@ -81,7 +81,7 @@ struct vfio_ccw_private {
 	struct completion	*completion;
 	atomic_t		avail;
 	struct mdev_device	*mdev;
-	struct notifier_block	nb;
+	struct yestifier_block	nb;
 	struct ccw_io_region	*io_region;
 	struct mutex		io_mutex;
 	struct vfio_ccw_region *region;
@@ -115,7 +115,7 @@ enum vfio_ccw_state {
 };
 
 /*
- * Asynchronous events of the device statemachine.
+ * Asynchroyesus events of the device statemachine.
  */
 enum vfio_ccw_event {
 	VFIO_CCW_EVENT_NOT_OPER,

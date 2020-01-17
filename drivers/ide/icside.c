@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 1996-2004 Russell King.
  *
- * Please note that this platform does not support 32-bit IDE IO.
+ * Please yeste that this platform does yest support 32-bit IDE IO.
  */
 
 #include <linux/string.h>
@@ -10,7 +10,7 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ide.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
@@ -195,7 +195,7 @@ static void icside_maskproc(ide_drive_t *drive, int mask)
 	local_irq_restore(flags);
 }
 
-static const struct ide_port_ops icside_v6_no_dma_port_ops = {
+static const struct ide_port_ops icside_v6_yes_dma_port_ops = {
 	.maskproc		= icside_maskproc,
 };
 
@@ -205,7 +205,7 @@ static const struct ide_port_ops icside_v6_no_dma_port_ops = {
  *
  * Similar to the BM-DMA, but we use the RiscPCs IOMD DMA controllers.
  * There is only one DMA controller per card, which means that only
- * one drive can be accessed at one time.  NOTE! We do not enforce that
+ * one drive can be accessed at one time.  NOTE! We do yest enforce that
  * here, but we rely on the main IDE driver spotting that both
  * interfaces use the same IRQ, which should guarantee this.
  */
@@ -265,7 +265,7 @@ static void icside_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 	/*
 	 * If we're going to be doing MW_DMA_1 or MW_DMA_2, we should
-	 * take care to note the values in the ID...
+	 * take care to yeste the values in the ID...
 	 */
 	if (use_dma_info && drive->id[ATA_ID_EIDE_DMA_TIME] > cycle_time)
 		cycle_time = drive->id[ATA_ID_EIDE_DMA_TIME];
@@ -301,7 +301,7 @@ static void icside_dma_start(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct expansion_card *ec = ECARD_DEV(hwif->dev);
 
-	/* We can not enable DMA on both channels simultaneously. */
+	/* We can yest enable DMA on both channels simultaneously. */
 	BUG_ON(dma_channel_active(ec->dma));
 	enable_dma(ec->dma);
 }
@@ -319,7 +319,7 @@ static int icside_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 		dma_mode = DMA_MODE_READ;
 
 	/*
-	 * We can not enable DMA on both channels.
+	 * We can yest enable DMA on both channels.
 	 */
 	BUG_ON(dma_channel_active(ec->dma));
 
@@ -454,7 +454,7 @@ err_free:
 
 static const struct ide_port_info icside_v6_port_info = {
 	.init_dma		= icside_dma_off_init,
-	.port_ops		= &icside_v6_no_dma_port_ops,
+	.port_ops		= &icside_v6_yes_dma_port_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE | IDE_HFLAG_MMIO,
 	.mwdma_mask		= ATA_MWDMA2,
 	.swdma_mask		= ATA_SWDMA2,
@@ -589,7 +589,7 @@ static int icside_probe(struct expansion_card *ec, const struct ecard_id *id)
 		break;
 
 	default:
-		dev_warn(&ec->dev, "unknown interface type\n");
+		dev_warn(&ec->dev, "unkyeswn interface type\n");
 		ret = -ENODEV;
 		break;
 	}

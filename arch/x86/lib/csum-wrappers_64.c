@@ -31,7 +31,7 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 		goto out_err;
 
 	/*
-	 * Why 6, not 7? To handle odd addresses aligned we
+	 * Why 6, yest 7? To handle odd addresses aligned we
 	 * would need to do considerable complications to fix the
 	 * checksum which is defined as an 16bit accumulator. The
 	 * fix alignment code is primarily for performance
@@ -119,7 +119,7 @@ csum_partial_copy_to_user(const void *src, void __user *dst,
 EXPORT_SYMBOL(csum_partial_copy_to_user);
 
 /**
- * csum_partial_copy_nocheck - Copy and checksum.
+ * csum_partial_copy_yescheck - Copy and checksum.
  * @src: source address
  * @dst: destination address
  * @len: number of bytes to be copied.
@@ -128,11 +128,11 @@ EXPORT_SYMBOL(csum_partial_copy_to_user);
  * Returns an 32bit unfolded checksum of the buffer.
  */
 __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
+csum_partial_copy_yescheck(const void *src, void *dst, int len, __wsum sum)
 {
 	return csum_partial_copy_generic(src, dst, len, sum, NULL, NULL);
 }
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
+EXPORT_SYMBOL(csum_partial_copy_yescheck);
 
 __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 			const struct in6_addr *daddr,

@@ -48,15 +48,15 @@ struct rdmacg_resource {
 /*
  * resource pool object which represents per cgroup, per device
  * resources. There are multiple instances of this object per cgroup,
- * therefore it cannot be embedded within rdma_cgroup structure. It
+ * therefore it canyest be embedded within rdma_cgroup structure. It
  * is maintained as list.
  */
 struct rdmacg_resource_pool {
 	struct rdmacg_device	*device;
 	struct rdmacg_resource	resources[RDMACG_RESOURCE_MAX];
 
-	struct list_head	cg_node;
-	struct list_head	dev_node;
+	struct list_head	cg_yesde;
+	struct list_head	dev_yesde;
 
 	/* count active user tasks of this pool */
 	u64			usage_sum;
@@ -104,8 +104,8 @@ static void free_cg_rpool_locked(struct rdmacg_resource_pool *rpool)
 {
 	lockdep_assert_held(&rdmacg_mutex);
 
-	list_del(&rpool->cg_node);
-	list_del(&rpool->dev_node);
+	list_del(&rpool->cg_yesde);
+	list_del(&rpool->dev_yesde);
 	kfree(rpool);
 }
 
@@ -118,7 +118,7 @@ find_cg_rpool_locked(struct rdma_cgroup *cg,
 
 	lockdep_assert_held(&rdmacg_mutex);
 
-	list_for_each_entry(pool, &cg->rpools, cg_node)
+	list_for_each_entry(pool, &cg->rpools, cg_yesde)
 		if (pool->device == device)
 			return pool;
 
@@ -141,10 +141,10 @@ get_cg_rpool_locked(struct rdma_cgroup *cg, struct rdmacg_device *device)
 	rpool->device = device;
 	set_all_resource_max_limit(rpool);
 
-	INIT_LIST_HEAD(&rpool->cg_node);
-	INIT_LIST_HEAD(&rpool->dev_node);
-	list_add_tail(&rpool->cg_node, &cg->rpools);
-	list_add_tail(&rpool->dev_node, &device->rpools);
+	INIT_LIST_HEAD(&rpool->cg_yesde);
+	INIT_LIST_HEAD(&rpool->dev_yesde);
+	list_add_tail(&rpool->cg_yesde, &cg->rpools);
+	list_add_tail(&rpool->dev_yesde, &device->rpools);
 	return rpool;
 }
 
@@ -155,7 +155,7 @@ get_cg_rpool_locked(struct rdma_cgroup *cg, struct rdmacg_device *device)
  * @index: index of the resource to uncharge in cg (resource pool)
  *
  * It also frees the resource pool which was created as part of
- * charging operation when there are no resources attached to
+ * charging operation when there are yes resources attached to
  * resource pool.
  */
 static void
@@ -168,7 +168,7 @@ uncharge_cg_locked(struct rdma_cgroup *cg,
 	rpool = find_cg_rpool_locked(cg, device);
 
 	/*
-	 * rpool cannot be null at this stage. Let kernel operate in case
+	 * rpool canyest be null at this stage. Let kernel operate in case
 	 * if there a bug in IB stack or rdma controller, instead of crashing
 	 * the system.
 	 */
@@ -313,11 +313,11 @@ EXPORT_SYMBOL(rdmacg_try_charge);
  */
 void rdmacg_register_device(struct rdmacg_device *device)
 {
-	INIT_LIST_HEAD(&device->dev_node);
+	INIT_LIST_HEAD(&device->dev_yesde);
 	INIT_LIST_HEAD(&device->rpools);
 
 	mutex_lock(&rdmacg_mutex);
-	list_add_tail(&device->dev_node, &rdmacg_devices);
+	list_add_tail(&device->dev_yesde, &rdmacg_devices);
 	mutex_unlock(&rdmacg_mutex);
 }
 EXPORT_SYMBOL(rdmacg_register_device);
@@ -328,7 +328,7 @@ EXPORT_SYMBOL(rdmacg_register_device);
  *          controller using rdmacg_register_device().
  *
  * IB stack must invoke this after all the resources of the IB device
- * are destroyed and after ensuring that no more resources will be created
+ * are destroyed and after ensuring that yes more resources will be created
  * when this API is invoked.
  */
 void rdmacg_unregister_device(struct rdmacg_device *device)
@@ -340,13 +340,13 @@ void rdmacg_unregister_device(struct rdmacg_device *device)
 	 * usage query happening via configfs.
 	 */
 	mutex_lock(&rdmacg_mutex);
-	list_del_init(&device->dev_node);
+	list_del_init(&device->dev_yesde);
 
 	/*
 	 * Now that this device is off the cgroup list, its safe to free
 	 * all the rpool resources.
 	 */
-	list_for_each_entry_safe(rpool, tmp, &device->rpools, dev_node)
+	list_for_each_entry_safe(rpool, tmp, &device->rpools, dev_yesde)
 		free_cg_rpool_locked(rpool);
 
 	mutex_unlock(&rdmacg_mutex);
@@ -415,7 +415,7 @@ static struct rdmacg_device *rdmacg_get_device_locked(const char *name)
 
 	lockdep_assert_held(&rdmacg_mutex);
 
-	list_for_each_entry(device, &rdmacg_devices, dev_node)
+	list_for_each_entry(device, &rdmacg_devices, dev_yesde)
 		if (!strcmp(name, device->name))
 			return device;
 
@@ -466,7 +466,7 @@ static ssize_t rdmacg_resource_set_max(struct kernfs_open_file *of,
 		goto dev_err;
 	}
 
-	/* now set the new limits of the rpool */
+	/* yesw set the new limits of the rpool */
 	for_each_set_bit(i, &enables, RDMACG_RESOURCE_MAX)
 		set_resource_limit(rpool, i, new_limits[i]);
 
@@ -529,7 +529,7 @@ static int rdmacg_resource_read(struct seq_file *sf, void *v)
 
 	mutex_lock(&rdmacg_mutex);
 
-	list_for_each_entry(device, &rdmacg_devices, dev_node) {
+	list_for_each_entry(device, &rdmacg_devices, dev_yesde) {
 		seq_printf(sf, "%s ", device->name);
 
 		rpool = find_cg_rpool_locked(cg, device);
@@ -595,7 +595,7 @@ static void rdmacg_css_offline(struct cgroup_subsys_state *css)
 
 	mutex_lock(&rdmacg_mutex);
 
-	list_for_each_entry(rpool, &cg->rpools, cg_node)
+	list_for_each_entry(rpool, &cg->rpools, cg_yesde)
 		set_all_resource_max_limit(rpool);
 
 	mutex_unlock(&rdmacg_mutex);

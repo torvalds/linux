@@ -473,7 +473,7 @@ static int dps310_calculate_pressure(struct dps310_data *data)
 	s64 pressure = 0ULL;
 	s64 p;
 	s64 t;
-	s64 denoms[7];
+	s64 deyesms[7];
 	s64 nums[7];
 	s64 rems[7];
 	s64 kp;
@@ -502,36 +502,36 @@ static int dps310_calculate_pressure(struct dps310_data *data)
 
 	/* Section 4.9.1 of the DPS310 spec; algebra'd to avoid underflow */
 	nums[0] = (s64)data->c00;
-	denoms[0] = 1LL;
+	deyesms[0] = 1LL;
 	nums[1] = p * (s64)data->c10;
-	denoms[1] = kp;
+	deyesms[1] = kp;
 	nums[2] = p * p * (s64)data->c20;
-	denoms[2] = kp * kp;
+	deyesms[2] = kp * kp;
 	nums[3] = p * p * p * (s64)data->c30;
-	denoms[3] = kp * kp * kp;
+	deyesms[3] = kp * kp * kp;
 	nums[4] = t * (s64)data->c01;
-	denoms[4] = kt;
+	deyesms[4] = kt;
 	nums[5] = t * p * (s64)data->c11;
-	denoms[5] = kp * kt;
+	deyesms[5] = kp * kt;
 	nums[6] = t * p * p * (s64)data->c21;
-	denoms[6] = kp * kp * kt;
+	deyesms[6] = kp * kp * kt;
 
-	/* Kernel lacks a div64_s64_rem function; denoms are all positive */
+	/* Kernel lacks a div64_s64_rem function; deyesms are all positive */
 	for (i = 0; i < 7; ++i) {
 		u64 irem;
 
 		if (nums[i] < 0LL) {
-			pressure -= div64_u64_rem(-nums[i], denoms[i], &irem);
+			pressure -= div64_u64_rem(-nums[i], deyesms[i], &irem);
 			rems[i] = -irem;
 		} else {
-			pressure += div64_u64_rem(nums[i], denoms[i], &irem);
+			pressure += div64_u64_rem(nums[i], deyesms[i], &irem);
 			rems[i] = (s64)irem;
 		}
 	}
 
 	/* Increase precision and calculate the remainder sum */
 	for (i = 0; i < 7; ++i)
-		rem += div64_s64((s64)rems[i] * 1000000000LL, denoms[i]);
+		rem += div64_s64((s64)rems[i] * 1000000000LL, deyesms[i]);
 
 	pressure += div_s64(rem, 1000000000LL);
 	if (pressure < 0LL)
@@ -692,7 +692,7 @@ static int dps310_temp_workaround(struct dps310_data *data)
 		return rc;
 
 	/*
-	 * If bit 1 is set then the device is okay, and the workaround does not
+	 * If bit 1 is set then the device is okay, and the workaround does yest
 	 * need to be applied
 	 */
 	if (reg & BIT(1))

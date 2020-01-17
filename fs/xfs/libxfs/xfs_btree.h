@@ -7,7 +7,7 @@
 #define	__XFS_BTREE_H__
 
 struct xfs_buf;
-struct xfs_inode;
+struct xfs_iyesde;
 struct xfs_mount;
 struct xfs_trans;
 
@@ -26,14 +26,14 @@ union xfs_btree_ptr {
 
 /*
  * The in-core btree key.  Overlapping btrees actually store two keys
- * per pointer, so we reserve enough memory to hold both.  The __*bigkey
+ * per pointer, so we reserve eyesugh memory to hold both.  The __*bigkey
  * items should never be accessed directly.
  */
 union xfs_btree_key {
 	struct xfs_bmbt_key		bmbt;
 	xfs_bmdr_key_t			bmbr;	/* bmbt root block */
 	xfs_alloc_key_t			alloc;
-	struct xfs_inobt_key		inobt;
+	struct xfs_iyesbt_key		iyesbt;
 	struct xfs_rmap_key		rmap;
 	struct xfs_rmap_key		__rmap_bigkey[2];
 	struct xfs_refcount_key		refc;
@@ -43,13 +43,13 @@ union xfs_btree_rec {
 	struct xfs_bmbt_rec		bmbt;
 	xfs_bmdr_rec_t			bmbr;	/* bmbt root block */
 	struct xfs_alloc_rec		alloc;
-	struct xfs_inobt_rec		inobt;
+	struct xfs_iyesbt_rec		iyesbt;
 	struct xfs_rmap_rec		rmap;
 	struct xfs_refcount_rec		refc;
 };
 
 /*
- * This nonsense is to make -wlint happy.
+ * This yesnsense is to make -wlint happy.
  */
 #define	XFS_LOOKUP_EQ	((xfs_lookup_t)XFS_LOOKUP_EQi)
 #define	XFS_LOOKUP_LE	((xfs_lookup_t)XFS_LOOKUP_LEi)
@@ -108,8 +108,8 @@ struct xfs_btree_ops {
 
 	/* block allocation / freeing */
 	int	(*alloc_block)(struct xfs_btree_cur *cur,
-			       union xfs_btree_ptr *start_bno,
-			       union xfs_btree_ptr *new_bno,
+			       union xfs_btree_ptr *start_byes,
+			       union xfs_btree_ptr *new_byes,
 			       int *stat);
 	int	(*free_block)(struct xfs_btree_cur *cur, struct xfs_buf *bp);
 
@@ -123,7 +123,7 @@ struct xfs_btree_ops {
 	int	(*get_minrecs)(struct xfs_btree_cur *cur, int level);
 	int	(*get_maxrecs)(struct xfs_btree_cur *cur, int level);
 
-	/* records on disk.  Matter for the root in inode case. */
+	/* records on disk.  Matter for the root in iyesde case. */
 	int	(*get_dmaxrecs)(struct xfs_btree_cur *cur, int level);
 
 	/* init values of btree structures */
@@ -151,12 +151,12 @@ struct xfs_btree_ops {
 	const struct xfs_buf_ops	*buf_ops;
 
 	/* check that k1 is lower than k2 */
-	int	(*keys_inorder)(struct xfs_btree_cur *cur,
+	int	(*keys_iyesrder)(struct xfs_btree_cur *cur,
 				union xfs_btree_key *k1,
 				union xfs_btree_key *k2);
 
 	/* check that r1 is lower than r2 */
-	int	(*recs_inorder)(struct xfs_btree_cur *cur,
+	int	(*recs_iyesrder)(struct xfs_btree_cur *cur,
 				union xfs_btree_rec *r1,
 				union xfs_btree_rec *r2);
 };
@@ -172,7 +172,7 @@ struct xfs_btree_ops {
 union xfs_btree_irec {
 	struct xfs_alloc_rec_incore	a;
 	struct xfs_bmbt_irec		b;
-	struct xfs_inobt_rec_incore	i;
+	struct xfs_iyesbt_rec_incore	i;
 	struct xfs_rmap_irec		r;
 	struct xfs_refcount_irec	rc;
 };
@@ -211,13 +211,13 @@ typedef struct xfs_btree_cur
 	union {
 		struct {			/* needed for BNO, CNT, INO */
 			struct xfs_buf	*agbp;	/* agf/agi buffer pointer */
-			xfs_agnumber_t	agno;	/* ag number */
+			xfs_agnumber_t	agyes;	/* ag number */
 			union xfs_btree_cur_private	priv;
 		} a;
 		struct {			/* needed for BMAP */
-			struct xfs_inode *ip;	/* pointer to our inode */
+			struct xfs_iyesde *ip;	/* pointer to our iyesde */
 			int		allocated;	/* count of alloced */
-			short		forksize;	/* fork's inode space */
+			short		forksize;	/* fork's iyesde space */
 			char		whichfork;	/* data or attr fork */
 			char		flags;		/* flags */
 #define	XFS_BTCUR_BPRV_WASDEL		(1<<0)		/* was delayed */
@@ -267,7 +267,7 @@ xfs_btree_check_block(
 bool					/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_lptr(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_fsblock_t		fsbno,	/* btree block disk address */
+	xfs_fsblock_t		fsbyes,	/* btree block disk address */
 	int			level);	/* btree block level */
 
 /*
@@ -276,7 +276,7 @@ xfs_btree_check_lptr(
 bool					/* error (0 or EFSCORRUPTED) */
 xfs_btree_check_sptr(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_agblock_t		agbno,	/* btree block disk address */
+	xfs_agblock_t		agbyes,	/* btree block disk address */
 	int			level);	/* btree block level */
 
 /*
@@ -297,25 +297,25 @@ xfs_btree_dup_cursor(
 	xfs_btree_cur_t		**ncur);/* output cursor */
 
 /*
- * Get a buffer for the block, return it with no data read.
+ * Get a buffer for the block, return it with yes data read.
  * Long-form addressing.
  */
-struct xfs_buf *				/* buffer for fsbno */
+struct xfs_buf *				/* buffer for fsbyes */
 xfs_btree_get_bufl(
 	struct xfs_mount	*mp,	/* file system mount point */
 	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_fsblock_t		fsbno);	/* file system block number */
+	xfs_fsblock_t		fsbyes);	/* file system block number */
 
 /*
- * Get a buffer for the block, return it with no data read.
+ * Get a buffer for the block, return it with yes data read.
  * Short-form addressing.
  */
-struct xfs_buf *				/* buffer for agno/agbno */
+struct xfs_buf *				/* buffer for agyes/agbyes */
 xfs_btree_get_bufs(
 	struct xfs_mount	*mp,	/* file system mount point */
 	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	xfs_agblock_t		agbno);	/* allocation group block number */
+	xfs_agnumber_t		agyes,	/* allocation group number */
+	xfs_agblock_t		agbyes);	/* allocation group block number */
 
 /*
  * Compute first and last byte offsets for the fields given.
@@ -337,8 +337,8 @@ int					/* error */
 xfs_btree_read_bufl(
 	struct xfs_mount	*mp,	/* file system mount point */
 	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_fsblock_t		fsbno,	/* file system block number */
-	struct xfs_buf		**bpp,	/* buffer for fsbno */
+	xfs_fsblock_t		fsbyes,	/* file system block number */
+	struct xfs_buf		**bpp,	/* buffer for fsbyes */
 	int			refval,	/* ref count value for buffer */
 	const struct xfs_buf_ops *ops);
 
@@ -349,7 +349,7 @@ xfs_btree_read_bufl(
 void					/* error */
 xfs_btree_reada_bufl(
 	struct xfs_mount	*mp,	/* file system mount point */
-	xfs_fsblock_t		fsbno,	/* file system block number */
+	xfs_fsblock_t		fsbyes,	/* file system block number */
 	xfs_extlen_t		count,	/* count of filesystem blocks */
 	const struct xfs_buf_ops *ops);
 
@@ -360,8 +360,8 @@ xfs_btree_reada_bufl(
 void					/* error */
 xfs_btree_reada_bufs(
 	struct xfs_mount	*mp,	/* file system mount point */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	xfs_agblock_t		agbno,	/* allocation group block number */
+	xfs_agnumber_t		agyes,	/* allocation group number */
+	xfs_agblock_t		agbyes,	/* allocation group block number */
 	xfs_extlen_t		count,	/* count of filesystem blocks */
 	const struct xfs_buf_ops *ops);
 
@@ -381,7 +381,7 @@ void
 xfs_btree_init_block_int(
 	struct xfs_mount	*mp,
 	struct xfs_btree_block	*buf,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkyes,
 	xfs_btnum_t		btnum,
 	__u16			level,
 	__u16			numrecs,
@@ -461,7 +461,7 @@ unsigned long long xfs_btree_calc_size(uint *limits, unsigned long long len);
 
 /*
  * Return codes for the query range iterator function are 0 to continue
- * iterating, and non-zero to stop iterating.  Any non-zero value will be
+ * iterating, and yesn-zero to stop iterating.  Any yesn-zero value will be
  * passed up to the _query_range caller.  The special value -ECANCELED can be
  * used to stop iteration, because _query_range never generates that error
  * code on its own.

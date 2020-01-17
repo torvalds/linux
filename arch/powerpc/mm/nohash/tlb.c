@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This file contains the routines for TLB flushing.
- * On machines where the MMU does not use a hash table to store virtual to
+ * On machines where the MMU does yest use a hash table to store virtual to
  * physical translations (ie, SW loaded TLBs or Book3E compilant processors,
- * this does -not- include 603 however which shares the implementation with
+ * this does -yest- include 603 however which shares the implementation with
  * hash based processors)
  *
  *  -- BenH
@@ -45,7 +45,7 @@
 
 /*
  * This struct lists the sw-supported page sizes.  The hardawre MMU may support
- * other sizes not listed here.   The .ind field is only used on MMUs that have
+ * other sizes yest listed here.   The .ind field is only used on MMUs that have
  * indirect page table entries.
  */
 #if defined(CONFIG_PPC_BOOK3E_MMU) || defined(CONFIG_PPC_8xx)
@@ -82,7 +82,7 @@ struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
 };
 #elif defined(CONFIG_PPC_8xx)
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
-	/* we only manage 4k and 16k pages as normal pages */
+	/* we only manage 4k and 16k pages as yesrmal pages */
 #ifdef CONFIG_PPC_4K_PAGES
 	[MMU_PAGE_4K] = {
 		.shift	= 12,
@@ -142,13 +142,13 @@ static inline int mmu_get_tsize(int psize)
 #else
 static inline int mmu_get_tsize(int psize)
 {
-	/* This isn't used on !Book3E for now */
+	/* This isn't used on !Book3E for yesw */
 	return 0;
 }
 #endif /* CONFIG_PPC_BOOK3E_MMU */
 
 /* The variables below are currently only used on 64-bit Book3E
- * though this will probably be made common with other nohash
+ * though this will probably be made common with other yeshash
  * implementations at some point
  */
 #ifdef CONFIG_PPC64
@@ -163,7 +163,7 @@ unsigned long linear_map_top;	/* Top of linear mapping */
 /*
  * Number of bytes to add to SPRN_SPRG_TLB_EXFRAME on crit/mcheck/debug
  * exceptions.  This is used for bolted and e6500 TLB miss handlers which
- * do not modify this SPRG in the TLB miss code; for other TLB miss handlers,
+ * do yest modify this SPRG in the TLB miss code; for other TLB miss handlers,
  * this is set to zero.
  */
 int extlb_level_exc;
@@ -189,7 +189,7 @@ EXPORT_PER_CPU_SYMBOL(next_tlbcam_idx);
  */
 
 /*
- * These are the base non-SMP variants of page and mm flushing
+ * These are the base yesn-SMP variants of page and mm flushing
  */
 void local_flush_tlb_mm(struct mm_struct *mm)
 {
@@ -223,7 +223,7 @@ void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 EXPORT_SYMBOL(local_flush_tlb_page);
 
 /*
- * And here are the SMP non-local implementations
+ * And here are the SMP yesn-local implementations
  */
 #ifdef CONFIG_SMP
 
@@ -255,9 +255,9 @@ static void do_flush_tlb_page_ipi(void *param)
  *
  * We snapshot the PID with preempt disabled. At this point, it can still
  * change either because:
- * - our context is being stolen (PID -> NO_CONTEXT) on another CPU
+ * - our context is being stolen (PID -> NO_CONTEXT) on ayesther CPU
  * - we are invaliating some target that isn't currently running here
- *   and is concurrently acquiring a new PID on another CPU
+ *   and is concurrently acquiring a new PID on ayesther CPU
  * - some other CPU is re-acquiring a lost PID for this mm
  * etc...
  *
@@ -274,15 +274,15 @@ void flush_tlb_mm(struct mm_struct *mm)
 	preempt_disable();
 	pid = mm->context.id;
 	if (unlikely(pid == MMU_NO_CONTEXT))
-		goto no_context;
+		goto yes_context;
 	if (!mm_is_core_local(mm)) {
 		struct tlb_flush_param p = { .pid = pid };
-		/* Ignores smp_processor_id() even if set. */
+		/* Igyesres smp_processor_id() even if set. */
 		smp_call_function_many(mm_cpumask(mm),
 				       do_flush_tlb_mm_ipi, &p, 1);
 	}
 	_tlbil_pid(pid);
- no_context:
+ yes_context:
 	preempt_enable();
 }
 EXPORT_SYMBOL(flush_tlb_mm);
@@ -322,7 +322,7 @@ void __flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 				.tsize = tsize,
 				.ind = ind,
 			};
-			/* Ignores smp_processor_id() even if set in cpu_mask */
+			/* Igyesres smp_processor_id() even if set in cpu_mask */
 			smp_call_function_many(cpu_mask,
 					       do_flush_tlb_page_ipi, &p, 1);
 		}
@@ -377,7 +377,7 @@ EXPORT_SYMBOL(flush_tlb_kernel_range);
  * Currently, for range flushing, we just do a full mm flush. This should
  * be optimized based on a threshold on the size of the range, since
  * some implementation can stack multiple tlbivax before a tlbsync but
- * for now, we keep it that way
+ * for yesw, we keep it that way
  */
 void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		     unsigned long end)
@@ -417,7 +417,7 @@ void tlb_flush_pgtable(struct mmu_gather *tlb, unsigned long address)
 
 		/* This isn't the most optimal, ideally we would factor out the
 		 * while preempt & CPU mask mucking around, or even the IPI but
-		 * it will do for now
+		 * it will do for yesw
 		 */
 		while (start < end) {
 			__flush_tlb_page(tlb->mm, start, tsize, 1);
@@ -593,7 +593,7 @@ static void setup_mmu_htw(void)
 #endif
 	}
 	pr_info("MMU: Book3E HW tablewalk %s\n",
-		book3e_htw_mode != PPC_HTW_NONE ? "enabled" : "not supported");
+		book3e_htw_mode != PPC_HTW_NONE ? "enabled" : "yest supported");
 }
 
 /*
@@ -659,7 +659,7 @@ static void early_init_this_mmu(void)
 static void __init early_init_mmu_global(void)
 {
 	/* XXX This will have to be decided at runtime, but right
-	 * now our boot and TLB miss code hard wires it. Ideally
+	 * yesw our boot and TLB miss code hard wires it. Ideally
 	 * we should find out a suitable page size and patch the
 	 * TLB miss code (either that or use the PACA to store
 	 * the value we want)
@@ -667,7 +667,7 @@ static void __init early_init_mmu_global(void)
 	mmu_linear_psize = MMU_PAGE_1G;
 
 	/* XXX This should be decided at runtime based on supported
-	 * page sizes in the TLB, but for now let's assume 16M is
+	 * page sizes in the TLB, but for yesw let's assume 16M is
 	 * always there and a good fit (which it probably is)
 	 *
 	 * Freescale booke only supports 4K pages in TLB0, so use that.
@@ -716,7 +716,7 @@ static void __init early_mmu_set_memory_limit(void)
 		 * Unlike memblock_set_current_limit, which limits
 		 * memory available during early boot, this permanently
 		 * reduces the memory available to Linux.  We need to
-		 * do this because highmem is not supported on 64-bit.
+		 * do this because highmem is yest supported on 64-bit.
 		 */
 		memblock_enforce_memory_limit(linear_map_top);
 	}
@@ -741,17 +741,17 @@ void early_init_mmu_secondary(void)
 void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
 {
-	/* On non-FSL Embedded 64-bit, we adjust the RMA size to match
-	 * the bolted TLB entry. We know for now that only 1G
+	/* On yesn-FSL Embedded 64-bit, we adjust the RMA size to match
+	 * the bolted TLB entry. We kyesw for yesw that only 1G
 	 * entries are supported though that may eventually
 	 * change.
 	 *
 	 * on FSL Embedded 64-bit, usually all RAM is bolted, but with
-	 * unusual memory sizes it's possible for some RAM to not be mapped
-	 * (such RAM is not used at all by Linux, since we don't support
+	 * unusual memory sizes it's possible for some RAM to yest be mapped
+	 * (such RAM is yest used at all by Linux, since we don't support
 	 * highmem on 64-bit).  We limit ppc64_rma_size to what would be
 	 * mappable if this memblock is the only one.  Additional memblocks
-	 * can only increase, not decrease, the amount that ends up getting
+	 * can only increase, yest decrease, the amount that ends up getting
 	 * mapped.  We still limit max to 1G even if we'll eventually map
 	 * more.  This is due to what the early init code is set up to do.
 	 *

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -136,7 +136,7 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 	mutex_unlock(&subdev->mutex);
 	while ((ret = nvkm_vmm_get(vmm, 12, size, &bar))) {
 		/* Evict unused mappings, and keep retrying until we either
-		 * succeed,or there's no more objects left on the LRU.
+		 * succeed,or there's yes more objects left on the LRU.
 		 */
 		mutex_lock(&subdev->mutex);
 		eobj = list_first_entry_or_null(&imem->lru, typeof(*eobj), lru);
@@ -162,7 +162,7 @@ nv50_instobj_kmap(struct nv50_instobj *iobj, struct nvkm_vmm *vmm)
 		ret = nvkm_memory_map(memory, 0, vmm, bar, NULL, 0);
 	mutex_lock(&subdev->mutex);
 	if (ret || iobj->bar) {
-		/* We either failed, or another thread beat us. */
+		/* We either failed, or ayesther thread beat us. */
 		mutex_unlock(&subdev->mutex);
 		nvkm_vmm_put(vmm, &bar);
 		mutex_lock(&subdev->mutex);
@@ -198,7 +198,7 @@ nv50_instobj_release(struct nvkm_memory *memory)
 	nvkm_bar_flush(subdev->device->bar);
 
 	if (refcount_dec_and_mutex_lock(&iobj->maps, &subdev->mutex)) {
-		/* Add the now-unused mapping to the LRU instead of directly
+		/* Add the yesw-unused mapping to the LRU instead of directly
 		 * unmapping it here, in case we need to map it again later.
 		 */
 		if (likely(iobj->lru.next) && iobj->map) {
@@ -221,14 +221,14 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 	void __iomem *map = NULL;
 
 	/* Already mapped? */
-	if (refcount_inc_not_zero(&iobj->maps))
+	if (refcount_inc_yest_zero(&iobj->maps))
 		return iobj->map;
 
-	/* Take the lock, and re-check that another thread hasn't
+	/* Take the lock, and re-check that ayesther thread hasn't
 	 * already mapped the object in the meantime.
 	 */
 	mutex_lock(&imem->subdev.mutex);
-	if (refcount_inc_not_zero(&iobj->maps)) {
+	if (refcount_inc_yest_zero(&iobj->maps)) {
 		mutex_unlock(&imem->subdev.mutex);
 		return iobj->map;
 	}
@@ -240,7 +240,7 @@ nv50_instobj_acquire(struct nvkm_memory *memory)
 		map = iobj->map;
 	}
 
-	if (!refcount_inc_not_zero(&iobj->maps)) {
+	if (!refcount_inc_yest_zero(&iobj->maps)) {
 		/* Exclude object from eviction while it's being accessed. */
 		if (likely(iobj->lru.next))
 			list_del_init(&iobj->lru);

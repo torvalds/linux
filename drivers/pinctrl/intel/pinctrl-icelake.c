@@ -33,7 +33,7 @@
 
 #define ICL_COMMUNITY(b, s, e, g)			\
 	{						\
-		.barno = (b),				\
+		.baryes = (b),				\
 		.padown_offset = ICL_PAD_OWN,		\
 		.padcfglock_offset = ICL_PADCFGLOCK,	\
 		.hostown_offset = ICL_HOSTSW_OWN,	\

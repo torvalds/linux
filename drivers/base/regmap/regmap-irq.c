@@ -158,7 +158,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		/*
 		 * Ack all the masked interrupts unconditionally,
 		 * OR if there is masked interrupt which hasn't been Acked,
-		 * it'll be ignored in irq handler, then may introduce irq storm
+		 * it'll be igyesred in irq handler, then may introduce irq storm
 		 */
 		if (d->mask_buf[i] && (d->chip->ack_base || d->chip->use_ack)) {
 			reg = d->chip->ack_base +
@@ -481,8 +481,8 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 	}
 
 	/*
-	 * Ignore masked IRQs and ack if we need to; we ack early so
-	 * there is no race between handling and acknowleding the
+	 * Igyesre masked IRQs and ack if we need to; we ack early so
+	 * there is yes race between handling and ackyeswleding the
 	 * interrupt.  We assume that typically few of the interrupts
 	 * will fire simultaneously so don't worry about overhead from
 	 * doing a write per register.
@@ -530,7 +530,7 @@ static int regmap_irq_map(struct irq_domain *h, unsigned int virq,
 	irq_set_chip(virq, &data->irq_chip);
 	irq_set_nested_thread(virq, 1);
 	irq_set_parent(virq, data->irq);
-	irq_set_noprobe(virq);
+	irq_set_yesprobe(virq);
 
 	return 0;
 }
@@ -550,7 +550,7 @@ static const struct irq_domain_ops regmap_domain_ops = {
  * @chip: Configuration for the interrupt controller.
  * @data: Runtime data structure for the controller, allocated on success.
  *
- * Returns 0 on success or an errno on failure.
+ * Returns 0 on success or an erryes on failure.
  *
  * In order for this to be efficient the chip really should use a
  * register cache.  The chip driver is responsible for restoring the
@@ -769,11 +769,11 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 	}
 
 	if (irq_base)
-		d->domain = irq_domain_add_legacy(map->dev->of_node,
+		d->domain = irq_domain_add_legacy(map->dev->of_yesde,
 						  chip->num_irqs, irq_base, 0,
 						  &regmap_domain_ops, d);
 	else
-		d->domain = irq_domain_add_linear(map->dev->of_node,
+		d->domain = irq_domain_add_linear(map->dev->of_yesde,
 						  chip->num_irqs,
 						  &regmap_domain_ops, d);
 	if (!d->domain) {
@@ -830,7 +830,7 @@ void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *d)
 
 	/* Dispose all virtual irq from irq domain before removing it */
 	for (hwirq = 0; hwirq < d->chip->num_irqs; hwirq++) {
-		/* Ignore hwirq if holes in the IRQ list */
+		/* Igyesre hwirq if holes in the IRQ list */
 		if (!d->chip->irqs[hwirq].mask)
 			continue;
 
@@ -885,7 +885,7 @@ static int devm_regmap_irq_chip_match(struct device *dev, void *res, void *data)
  * @chip: Configuration for the interrupt controller.
  * @data: Runtime data structure for the controller, allocated on success
  *
- * Returns 0 on success or an errno on failure.
+ * Returns 0 on success or an erryes on failure.
  *
  * The &regmap_irq_chip_data will be automatically released when the device is
  * unbound.
@@ -979,7 +979,7 @@ EXPORT_SYMBOL_GPL(regmap_irq_get_virq);
  *
  * Useful for drivers to request their own IRQs and for integration
  * with subsystems.  For ease of integration NULL is accepted as a
- * domain, allowing devices to just call this even if no domain is
+ * domain, allowing devices to just call this even if yes domain is
  * allocated.
  */
 struct irq_domain *regmap_irq_get_domain(struct regmap_irq_chip_data *data)

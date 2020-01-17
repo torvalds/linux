@@ -35,7 +35,7 @@ struct common_glue_func_entry {
 
 struct common_glue_ctx {
 	unsigned int num_funcs;
-	int fpu_blocks_limit; /* -1 means fpu not needed at all */
+	int fpu_blocks_limit; /* -1 means fpu yest needed at all */
 
 	/*
 	 * First funcs entry must have largest num_blocks and last funcs entry
@@ -56,7 +56,7 @@ static inline bool glue_fpu_begin(unsigned int bsize, int fpu_blocks_limit,
 
 	/*
 	 * Vector-registers are only used when chunk to be processed is large
-	 * enough, so do not enable FPU until it is necessary.
+	 * eyesugh, so do yest enable FPU until it is necessary.
 	 */
 	if (nbytes < bsize * (unsigned int)fpu_blocks_limit)
 		return false;

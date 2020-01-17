@@ -31,9 +31,9 @@
  *    EXTCON_USB_HOST and EXTCON_DISP_DP are both true, and
  *    EXTCON_PROP_USB_SS property is true.
  *
- * This Type-C PHY driver supports normal and flip orientation. The orientation
+ * This Type-C PHY driver supports yesrmal and flip orientation. The orientation
  * is reported by the EXTCON_PROP_USB_TYPEC_POLARITY property: true is flip
- * orientation, false is normal orientation.
+ * orientation, false is yesrmal orientation.
  */
 
 #include <linux/clk.h>
@@ -694,7 +694,7 @@ static void tcphy_dp_aux_calibration(struct rockchip_typec_phy *tcphy)
 
 	/*
 	 * Undo the work we did to set the LDO voltage.
-	 * This doesn't seem to help nor hurt, but it kinda goes with the
+	 * This doesn't seem to help yesr hurt, but it kinda goes with the
 	 * undocumented magic above.
 	 */
 	writel(0, tcphy->base + TX_ANA_CTRL_REG_4);
@@ -702,12 +702,12 @@ static void tcphy_dp_aux_calibration(struct rockchip_typec_phy *tcphy)
 	/* Don't set voltage swing to 400 mV peak to peak (differential) */
 	writel(0, tcphy->base + TXDA_COEFF_CALC_CTRL);
 
-	/* Init TXDA_CYA_AUXDA_CYA for unknown magic reasons */
+	/* Init TXDA_CYA_AUXDA_CYA for unkyeswn magic reasons */
 	writel(0, tcphy->base + TXDA_CYA_AUXDA_CYA);
 
 	/*
 	 * More undocumented magic, presumably the goal of which is to
-	 * make the "auxda_source_aux_oen" be ignored and instead to decide
+	 * make the "auxda_source_aux_oen" be igyesred and instead to decide
 	 * about "high impedance state" based on what software puts in the
 	 * register TXDA_COEFF_CALC_CTRL (see TX_HIGH_Z).  Since we only
 	 * program that register once and we don't set the bit TX_HIGH_Z,
@@ -966,7 +966,7 @@ static int rockchip_dp_phy_power_on(struct phy *phy)
 		goto unlock_ret;
 
 	/*
-	 * If the PHY has been power on, but the mode is not DP only mode,
+	 * If the PHY has been power on, but the mode is yest DP only mode,
 	 * re-init the PHY for setting all of 4 lanes to DP.
 	 */
 	if (new_mode == MODE_DFP_DP && tcphy->mode != MODE_DISCONNECT) {
@@ -1041,40 +1041,40 @@ static const struct phy_ops rockchip_dp_phy_ops = {
 static int tcphy_parse_dt(struct rockchip_typec_phy *tcphy,
 			  struct device *dev)
 {
-	tcphy->grf_regs = syscon_regmap_lookup_by_phandle(dev->of_node,
+	tcphy->grf_regs = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 							  "rockchip,grf");
 	if (IS_ERR(tcphy->grf_regs)) {
-		dev_err(dev, "could not find grf dt node\n");
+		dev_err(dev, "could yest find grf dt yesde\n");
 		return PTR_ERR(tcphy->grf_regs);
 	}
 
 	tcphy->clk_core = devm_clk_get(dev, "tcpdcore");
 	if (IS_ERR(tcphy->clk_core)) {
-		dev_err(dev, "could not get uphy core clock\n");
+		dev_err(dev, "could yest get uphy core clock\n");
 		return PTR_ERR(tcphy->clk_core);
 	}
 
 	tcphy->clk_ref = devm_clk_get(dev, "tcpdphy-ref");
 	if (IS_ERR(tcphy->clk_ref)) {
-		dev_err(dev, "could not get uphy ref clock\n");
+		dev_err(dev, "could yest get uphy ref clock\n");
 		return PTR_ERR(tcphy->clk_ref);
 	}
 
 	tcphy->uphy_rst = devm_reset_control_get(dev, "uphy");
 	if (IS_ERR(tcphy->uphy_rst)) {
-		dev_err(dev, "no uphy_rst reset control found\n");
+		dev_err(dev, "yes uphy_rst reset control found\n");
 		return PTR_ERR(tcphy->uphy_rst);
 	}
 
 	tcphy->pipe_rst = devm_reset_control_get(dev, "uphy-pipe");
 	if (IS_ERR(tcphy->pipe_rst)) {
-		dev_err(dev, "no pipe_rst reset control found\n");
+		dev_err(dev, "yes pipe_rst reset control found\n");
 		return PTR_ERR(tcphy->pipe_rst);
 	}
 
 	tcphy->tcphy_rst = devm_reset_control_get(dev, "uphy-tcphy");
 	if (IS_ERR(tcphy->tcphy_rst)) {
-		dev_err(dev, "no tcphy_rst reset control found\n");
+		dev_err(dev, "yes tcphy_rst reset control found\n");
 		return PTR_ERR(tcphy->tcphy_rst);
 	}
 
@@ -1099,8 +1099,8 @@ static void typec_phy_pre_init(struct rockchip_typec_phy *tcphy)
 static int rockchip_typec_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child_np;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *child_np;
 	struct rockchip_typec_phy *tcphy;
 	struct phy_provider *phy_provider;
 	struct resource *res;
@@ -1114,7 +1114,7 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 
 	match = of_match_device(dev->driver->of_match_table, dev);
 	if (!match || !match->data) {
-		dev_err(dev, "phy configs are not assigned!\n");
+		dev_err(dev, "phy configs are yest assigned!\n");
 		return -EINVAL;
 	}
 
@@ -1136,7 +1136,7 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 	}
 
 	if (!tcphy->port_cfgs) {
-		dev_err(dev, "no phy-config can be matched with %pOFn node\n",
+		dev_err(dev, "yes phy-config can be matched with %pOFn yesde\n",
 			np);
 		return -EINVAL;
 	}
@@ -1164,13 +1164,13 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	for_each_available_child_of_node(np, child_np) {
+	for_each_available_child_of_yesde(np, child_np) {
 		struct phy *phy;
 
-		if (of_node_name_eq(child_np, "dp-port"))
+		if (of_yesde_name_eq(child_np, "dp-port"))
 			phy = devm_phy_create(dev, child_np,
 					      &rockchip_dp_phy_ops);
-		else if (of_node_name_eq(child_np, "usb3-port"))
+		else if (of_yesde_name_eq(child_np, "usb3-port"))
 			phy = devm_phy_create(dev, child_np,
 					      &rockchip_usb3_phy_ops);
 		else

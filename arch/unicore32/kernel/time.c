@@ -8,7 +8,7 @@
  *	Copyright (C) 2001-2010 Guan Xuetao
  */
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/timex.h>

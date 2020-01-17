@@ -13,7 +13,7 @@
 
 /*
  * This flag is used to indicate that the page pointed to by a pte is clean
- * and does not require cleaning before returning it to the user.
+ * and does yest require cleaning before returning it to the user.
  */
 #define PG_dcache_clean PG_arch_1
 
@@ -26,8 +26,8 @@
  *	Start addresses are inclusive and end addresses are exclusive; start
  *	addresses should be rounded down, end addresses up.
  *
- *	See Documentation/core-api/cachetlb.rst for more information. Please note that
- *	the implementation assumes non-aliasing VIPT D-cache and (aliasing)
+ *	See Documentation/core-api/cachetlb.rst for more information. Please yeste that
+ *	the implementation assumes yesn-aliasing VIPT D-cache and (aliasing)
  *	VIPT I-cache.
  *
  *	flush_cache_mm(mm)
@@ -83,7 +83,7 @@ static inline void flush_icache_range(unsigned long start, unsigned long end)
 	/*
 	 * KGDB performs cache maintenance with interrupts disabled, so we
 	 * will deadlock trying to IPI the secondary CPUs. In theory, we can
-	 * set CACHE_FLUSH_IS_SAFE to 0 to avoid this known issue, but that
+	 * set CACHE_FLUSH_IS_SAFE to 0 to avoid this kyeswn issue, but that
 	 * just means that KGDB will elide the maintenance altogether! As it
 	 * turns out, KGDB uses IPIs to round-up the secondary CPUs during
 	 * the patching operation, so we don't need extra IPIs here anyway.
@@ -164,7 +164,7 @@ static inline void __flush_icache_all(void)
 #define flush_icache_page(vma,page)	do { } while (0)
 
 /*
- * Not required on AArch64 (PIPT or VIPT non-aliasing D-cache).
+ * Not required on AArch64 (PIPT or VIPT yesn-aliasing D-cache).
  */
 static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 {
@@ -176,7 +176,7 @@ static inline void flush_cache_vunmap(unsigned long start, unsigned long end)
 
 int set_memory_valid(unsigned long addr, int numpages, int enable);
 
-int set_direct_map_invalid_noflush(struct page *page);
-int set_direct_map_default_noflush(struct page *page);
+int set_direct_map_invalid_yesflush(struct page *page);
+int set_direct_map_default_yesflush(struct page *page);
 
 #endif

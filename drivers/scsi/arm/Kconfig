@@ -22,10 +22,10 @@ config SCSI_ACORNSCSI_TAGGED_QUEUE
 	  implement this properly, so the safe answer is N.
 
 config SCSI_ACORNSCSI_SYNC
-	bool "Support SCSI 2 Synchronous Transfers"
+	bool "Support SCSI 2 Synchroyesus Transfers"
 	depends on SCSI_ACORNSCSI_3
 	help
-	  Say Y here to enable synchronous transfer negotiation with all
+	  Say Y here to enable synchroyesus transfer negotiation with all
 	  targets on the Acorn SCSI card.
 
 	  In general, this improves performance; however some SCSI devices
@@ -64,7 +64,7 @@ config SCSI_POWERTECSCSI
 	  This enables support for the Powertec SCSI card on Acorn systems. If
 	  you have one of these, say Y. If unsure, say N.
 
-comment "The following drivers are not fully supported"
+comment "The following drivers are yest fully supported"
 	depends on ARCH_ACORN
 
 config SCSI_CUMANA_1

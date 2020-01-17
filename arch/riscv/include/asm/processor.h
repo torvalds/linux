@@ -73,8 +73,8 @@ static inline void wait_for_interrupt(void)
 	__asm__ __volatile__ ("wfi");
 }
 
-struct device_node;
-int riscv_of_processor_hartid(struct device_node *node);
+struct device_yesde;
+int riscv_of_processor_hartid(struct device_yesde *yesde);
 
 extern void riscv_fill_hwcap(void);
 

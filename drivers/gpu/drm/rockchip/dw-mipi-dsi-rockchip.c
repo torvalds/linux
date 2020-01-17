@@ -339,7 +339,7 @@ static void dw_mipi_dsi_phy_write(struct dw_mipi_dsi_rockchip *dsi,
 }
 
 /**
- * ns2bc - Nanoseconds to byte clock cycles
+ * ns2bc - Nayesseconds to byte clock cycles
  */
 static inline unsigned int ns2bc(struct dw_mipi_dsi_rockchip *dsi, int ns)
 {
@@ -347,7 +347,7 @@ static inline unsigned int ns2bc(struct dw_mipi_dsi_rockchip *dsi, int ns)
 }
 
 /**
- * ns2ui - Nanoseconds to UI time periods
+ * ns2ui - Nayesseconds to UI time periods
  */
 static inline unsigned int ns2ui(struct dw_mipi_dsi_rockchip *dsi, int ns)
 {
@@ -525,7 +525,7 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 		/*
 		 * Due to the use of a "by 2 pre-scaler," the range of the
 		 * feedback multiplication value M is limited to even division
-		 * numbers, and m must be greater than 6, not bigger than 512.
+		 * numbers, and m must be greater than 6, yest bigger than 512.
 		 */
 		if (_fbdiv < 6 || _fbdiv > 512)
 			continue;
@@ -552,7 +552,7 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 		dsi->input_div = best_prediv;
 		dsi->feedback_div = best_fbdiv;
 	} else {
-		DRM_DEV_ERROR(dsi->dev, "Can not find best_freq for DPHY\n");
+		DRM_DEV_ERROR(dsi->dev, "Can yest find best_freq for DPHY\n");
 		return -EINVAL;
 	}
 
@@ -619,7 +619,7 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct dw_mipi_dsi_rockchip *dsi = to_dsi(encoder);
 	int ret, mux;
 
-	mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_node,
+	mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_yesde,
 						&dsi->encoder);
 	if (mux < 0)
 		return;
@@ -673,7 +673,7 @@ static int rockchip_dsi_drm_create_encoder(struct dw_mipi_dsi_rockchip *dsi,
 	int ret;
 
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
-							     dsi->dev->of_node);
+							     dsi->dev->of_yesde);
 
 	ret = drm_encoder_init(drm_dev, encoder, &dw_mipi_dsi_encoder_funcs,
 			       DRM_MODE_ENCODER_DSI, NULL);
@@ -691,23 +691,23 @@ static struct device
 *dw_mipi_dsi_rockchip_find_second(struct dw_mipi_dsi_rockchip *dsi)
 {
 	const struct of_device_id *match;
-	struct device_node *node = NULL, *local;
+	struct device_yesde *yesde = NULL, *local;
 
 	match = of_match_device(dsi->dev->driver->of_match_table, dsi->dev);
 
-	local = of_graph_get_remote_node(dsi->dev->of_node, 1, 0);
+	local = of_graph_get_remote_yesde(dsi->dev->of_yesde, 1, 0);
 	if (!local)
 		return NULL;
 
-	while ((node = of_find_compatible_node(node, NULL,
+	while ((yesde = of_find_compatible_yesde(yesde, NULL,
 					       match->compatible))) {
-		struct device_node *remote;
+		struct device_yesde *remote;
 
 		/* found ourself */
-		if (node == dsi->dev->of_node)
+		if (yesde == dsi->dev->of_yesde)
 			continue;
 
-		remote = of_graph_get_remote_node(node, 1, 0);
+		remote = of_graph_get_remote_yesde(yesde, 1, 0);
 		if (!remote)
 			continue;
 
@@ -716,16 +716,16 @@ static struct device
 			struct dw_mipi_dsi_rockchip *dsi2;
 			struct platform_device *pdev;
 
-			pdev = of_find_device_by_node(node);
+			pdev = of_find_device_by_yesde(yesde);
 
 			/*
 			 * we have found the second, so will either return it
 			 * or return with an error. In any case won't need the
-			 * nodes anymore nor continue the loop.
+			 * yesdes anymore yesr continue the loop.
 			 */
-			of_node_put(remote);
-			of_node_put(node);
-			of_node_put(local);
+			of_yesde_put(remote);
+			of_yesde_put(yesde);
+			of_yesde_put(local);
 
 			if (!pdev)
 				return ERR_PTR(-EPROBE_DEFER);
@@ -739,10 +739,10 @@ static struct device
 			return &pdev->dev;
 		}
 
-		of_node_put(remote);
+		of_yesde_put(remote);
 	}
 
-	of_node_put(local);
+	of_yesde_put(local);
 
 	return NULL;
 }
@@ -762,9 +762,9 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 		return PTR_ERR(second);
 
 	if (second) {
-		master1 = of_property_read_bool(dsi->dev->of_node,
+		master1 = of_property_read_bool(dsi->dev->of_yesde,
 						"clock-master");
-		master2 = of_property_read_bool(second->of_node,
+		master2 = of_property_read_bool(second->of_yesde,
 						"clock-master");
 
 		if (master1 && master2) {
@@ -773,7 +773,7 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 		}
 
 		if (!master1 && !master2) {
-			DRM_DEV_ERROR(dsi->dev, "no clock-master defined\n");
+			DRM_DEV_ERROR(dsi->dev, "yes clock-master defined\n");
 			return -EINVAL;
 		}
 
@@ -785,7 +785,7 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 
 		dsi->slave = dev_get_drvdata(second);
 		if (!dsi->slave) {
-			DRM_DEV_ERROR(dev, "could not get slaves data\n");
+			DRM_DEV_ERROR(dev, "could yest get slaves data\n");
 			return -ENODEV;
 		}
 
@@ -887,7 +887,7 @@ static const struct dw_mipi_dsi_host_ops dw_mipi_dsi_rockchip_host_ops = {
 static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct dw_mipi_dsi_rockchip *dsi;
 	struct resource *res;
 	const struct rockchip_dw_dsi_chip_data *cdata =
@@ -916,7 +916,7 @@ static int dw_mipi_dsi_rockchip_probe(struct platform_device *pdev)
 	}
 
 	if (!dsi->cdata) {
-		dev_err(dev, "no dsi-config for %s node\n", np->name);
+		dev_err(dev, "yes dsi-config for %s yesde\n", np->name);
 		return -EINVAL;
 	}
 

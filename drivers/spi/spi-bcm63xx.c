@@ -332,7 +332,7 @@ static int bcm63xx_spi_transfer_one(struct spi_master *master,
 	bool can_use_prepend = false;
 
 	/*
-	 * This SPI controller does not support keeping CS active after a
+	 * This SPI controller does yest support keeping CS active after a
 	 * transfer.
 	 * Work around this by merging as many transfers we can into one big
 	 * full-duplex transfers.
@@ -494,15 +494,15 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	int ret;
 	u32 num_cs = BCM63XX_SPI_MAX_CS;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		const struct of_device_id *match;
 
-		match = of_match_node(bcm63xx_spi_of_match, dev->of_node);
+		match = of_match_yesde(bcm63xx_spi_of_match, dev->of_yesde);
 		if (!match)
 			return -EINVAL;
 		bcm63xx_spireg = match->data;
 
-		of_property_read_u32(dev->of_node, "num-cs", &num_cs);
+		of_property_read_u32(dev->of_yesde, "num-cs", &num_cs);
 		if (num_cs > BCM63XX_SPI_MAX_CS) {
 			dev_warn(dev, "unsupported number of cs (%i), reducing to 8\n",
 				 num_cs);
@@ -525,7 +525,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 
 	clk = devm_clk_get(dev, "spi");
 	if (IS_ERR(clk)) {
-		dev_err(dev, "no clock for device\n");
+		dev_err(dev, "yes clock for device\n");
 		return PTR_ERR(clk);
 	}
 
@@ -560,7 +560,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 		goto out_err;
 	}
 
-	master->dev.of_node = dev->of_node;
+	master->dev.of_yesde = dev->of_yesde;
 	master->bus_num = bus_num;
 	master->num_chipselect = num_cs;
 	master->transfer_one_message = bcm63xx_spi_transfer_one;

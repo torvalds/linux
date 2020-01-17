@@ -1,10 +1,10 @@
-<?xml version="1.0" standalone="no"?> <!--*- mode: xml -*-->
+<?xml version="1.0" standalone="yes"?> <!--*- mode: xml -*-->
 
 <glade-interface>
 
 <widget class="GtkWindow" id="window1">
   <property name="visible">True</property>
-  <property name="title" translatable="yes">Gtk Kernel Configurator</property>
+  <property name="title" translatable="no">Gtk Kernel Configurator</property>
   <property name="type">GTK_WINDOW_TOPLEVEL</property>
   <property name="window_position">GTK_WIN_POS_NONE</property>
   <property name="modal">False</property>
@@ -34,7 +34,7 @@
 	  <child>
 	    <widget class="GtkMenuItem" id="file1">
 	      <property name="visible">True</property>
-	      <property name="label" translatable="yes">_File</property>
+	      <property name="label" translatable="no">_File</property>
 	      <property name="use_underline">True</property>
 
 	      <child>
@@ -43,8 +43,8 @@
 		  <child>
 		    <widget class="GtkImageMenuItem" id="load1">
 		      <property name="visible">True</property>
-		      <property name="tooltip" translatable="yes">Load a config file</property>
-		      <property name="label" translatable="yes">_Load</property>
+		      <property name="tooltip" translatable="no">Load a config file</property>
+		      <property name="label" translatable="no">_Load</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_load1_activate"/>
 		      <accelerator key="L" modifiers="GDK_CONTROL_MASK" signal="activate"/>
@@ -66,8 +66,8 @@
 		  <child>
 		    <widget class="GtkImageMenuItem" id="save1">
 		      <property name="visible">True</property>
-		      <property name="tooltip" translatable="yes">Save the config in .config</property>
-		      <property name="label" translatable="yes">_Save</property>
+		      <property name="tooltip" translatable="no">Save the config in .config</property>
+		      <property name="label" translatable="no">_Save</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_save_activate"/>
 		      <accelerator key="S" modifiers="GDK_CONTROL_MASK" signal="activate"/>
@@ -89,8 +89,8 @@
 		  <child>
 		    <widget class="GtkImageMenuItem" id="save_as1">
 		      <property name="visible">True</property>
-		      <property name="tooltip" translatable="yes">Save the config in a file</property>
-		      <property name="label" translatable="yes">Save _as</property>
+		      <property name="tooltip" translatable="no">Save the config in a file</property>
+		      <property name="label" translatable="no">Save _as</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_save_as1_activate"/>
 
@@ -117,7 +117,7 @@
 		  <child>
 		    <widget class="GtkImageMenuItem" id="quit1">
 		      <property name="visible">True</property>
-		      <property name="label" translatable="yes">_Quit</property>
+		      <property name="label" translatable="no">_Quit</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_quit1_activate"/>
 		      <accelerator key="Q" modifiers="GDK_CONTROL_MASK" signal="activate"/>
@@ -143,7 +143,7 @@
 	  <child>
 	    <widget class="GtkMenuItem" id="options1">
 	      <property name="visible">True</property>
-	      <property name="label" translatable="yes">_Options</property>
+	      <property name="label" translatable="no">_Options</property>
 	      <property name="use_underline">True</property>
 
 	      <child>
@@ -152,8 +152,8 @@
 		  <child>
 		    <widget class="GtkCheckMenuItem" id="show_name1">
 		      <property name="visible">True</property>
-		      <property name="tooltip" translatable="yes">Show name</property>
-		      <property name="label" translatable="yes">Show _name</property>
+		      <property name="tooltip" translatable="no">Show name</property>
+		      <property name="label" translatable="no">Show _name</property>
 		      <property name="use_underline">True</property>
 		      <property name="active">False</property>
 		      <signal name="activate" handler="on_show_name1_activate"/>
@@ -163,8 +163,8 @@
 		  <child>
 		    <widget class="GtkCheckMenuItem" id="show_range1">
 		      <property name="visible">True</property>
-		      <property name="tooltip" translatable="yes">Show range (Y/M/N)</property>
-		      <property name="label" translatable="yes">Show _range</property>
+		      <property name="tooltip" translatable="no">Show range (Y/M/N)</property>
+		      <property name="label" translatable="no">Show _range</property>
 		      <property name="use_underline">True</property>
 		      <property name="active">False</property>
 		      <signal name="activate" handler="on_show_range1_activate"/>
@@ -174,8 +174,8 @@
 		  <child>
 		    <widget class="GtkCheckMenuItem" id="show_data1">
 		      <property name="visible">True</property>
-		      <property name="tooltip" translatable="yes">Show value of the option</property>
-		      <property name="label" translatable="yes">Show _data</property>
+		      <property name="tooltip" translatable="no">Show value of the option</property>
+		      <property name="label" translatable="no">Show _data</property>
 		      <property name="use_underline">True</property>
 		      <property name="active">False</property>
 		      <signal name="activate" handler="on_show_data1_activate"/>
@@ -191,8 +191,8 @@
 		  <child>
 		    <widget class="GtkRadioMenuItem" id="set_option_mode1">
 		      <property name="visible">True</property>
-		      <property name="tooltip" translatable="yes">Show normal options</property>
-		      <property name="label" translatable="yes">Show normal options</property>
+		      <property name="tooltip" translatable="no">Show yesrmal options</property>
+		      <property name="label" translatable="no">Show yesrmal options</property>
 		      <property name="use_underline">True</property>
 		      <property name="active">True</property>
 		      <signal name="activate" handler="on_set_option_mode1_activate"/>
@@ -202,8 +202,8 @@
 		  <child>
 		    <widget class="GtkRadioMenuItem" id="set_option_mode2">
 		      <property name="visible">True</property>
-		      <property name="tooltip" translatable="yes">Show all options</property>
-		      <property name="label" translatable="yes">Show all _options</property>
+		      <property name="tooltip" translatable="no">Show all options</property>
+		      <property name="label" translatable="no">Show all _options</property>
 		      <property name="use_underline">True</property>
 		      <property name="active">False</property>
 		      <property name="group">set_option_mode1</property>
@@ -214,8 +214,8 @@
 		  <child>
 		    <widget class="GtkRadioMenuItem" id="set_option_mode3">
 		      <property name="visible">True</property>
-		      <property name="tooltip" translatable="yes">Show all options with prompts</property>
-		      <property name="label" translatable="yes">Show all prompt options</property>
+		      <property name="tooltip" translatable="no">Show all options with prompts</property>
+		      <property name="label" translatable="no">Show all prompt options</property>
 		      <property name="use_underline">True</property>
 		      <property name="active">False</property>
 		      <property name="group">set_option_mode1</property>
@@ -231,7 +231,7 @@
 	  <child>
 	    <widget class="GtkMenuItem" id="help1">
 	      <property name="visible">True</property>
-	      <property name="label" translatable="yes">_Help</property>
+	      <property name="label" translatable="no">_Help</property>
 	      <property name="use_underline">True</property>
 
 	      <child>
@@ -240,7 +240,7 @@
 		  <child>
 		    <widget class="GtkImageMenuItem" id="introduction1">
 		      <property name="visible">True</property>
-		      <property name="label" translatable="yes">_Introduction</property>
+		      <property name="label" translatable="no">_Introduction</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_introduction1_activate" last_modification_time="Fri, 15 Nov 2002 20:26:30 GMT"/>
 		      <accelerator key="I" modifiers="GDK_CONTROL_MASK" signal="activate"/>
@@ -262,7 +262,7 @@
 		  <child>
 		    <widget class="GtkImageMenuItem" id="about1">
 		      <property name="visible">True</property>
-		      <property name="label" translatable="yes">_About</property>
+		      <property name="label" translatable="no">_About</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_about1_activate" last_modification_time="Fri, 15 Nov 2002 20:26:30 GMT"/>
 		      <accelerator key="A" modifiers="GDK_CONTROL_MASK" signal="activate"/>
@@ -284,7 +284,7 @@
 		  <child>
 		    <widget class="GtkImageMenuItem" id="license1">
 		      <property name="visible">True</property>
-		      <property name="label" translatable="yes">_License</property>
+		      <property name="label" translatable="no">_License</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_license1_activate" last_modification_time="Fri, 15 Nov 2002 20:26:30 GMT"/>
 
@@ -331,8 +331,8 @@
 	      <child>
 		<widget class="GtkToolButton" id="button1">
 		  <property name="visible">True</property>
-		  <property name="tooltip" translatable="yes">Goes up of one level (single view)</property>
-		  <property name="label" translatable="yes">Back</property>
+		  <property name="tooltip" translatable="no">Goes up of one level (single view)</property>
+		  <property name="label" translatable="no">Back</property>
 		  <property name="use_underline">True</property>
 		  <property name="stock_id">gtk-undo</property>
 		  <property name="visible_horizontal">True</property>
@@ -368,8 +368,8 @@
 	      <child>
 		<widget class="GtkToolButton" id="button2">
 		  <property name="visible">True</property>
-		  <property name="tooltip" translatable="yes">Load a config file</property>
-		  <property name="label" translatable="yes">Load</property>
+		  <property name="tooltip" translatable="no">Load a config file</property>
+		  <property name="label" translatable="no">Load</property>
 		  <property name="use_underline">True</property>
 		  <property name="stock_id">gtk-open</property>
 		  <property name="visible_horizontal">True</property>
@@ -386,8 +386,8 @@
 	      <child>
 		<widget class="GtkToolButton" id="button3">
 		  <property name="visible">True</property>
-		  <property name="tooltip" translatable="yes">Save a config file</property>
-		  <property name="label" translatable="yes">Save</property>
+		  <property name="tooltip" translatable="no">Save a config file</property>
+		  <property name="label" translatable="no">Save</property>
 		  <property name="use_underline">True</property>
 		  <property name="stock_id">gtk-save</property>
 		  <property name="visible_horizontal">True</property>
@@ -423,8 +423,8 @@
 	      <child>
 		<widget class="GtkToolButton" id="button4">
 		  <property name="visible">True</property>
-		  <property name="tooltip" translatable="yes">Single view</property>
-		  <property name="label" translatable="yes">Single</property>
+		  <property name="tooltip" translatable="no">Single view</property>
+		  <property name="label" translatable="no">Single</property>
 		  <property name="use_underline">True</property>
 		  <property name="stock_id">gtk-missing-image</property>
 		  <property name="visible_horizontal">True</property>
@@ -441,8 +441,8 @@
 	      <child>
 		<widget class="GtkToolButton" id="button5">
 		  <property name="visible">True</property>
-		  <property name="tooltip" translatable="yes">Split view</property>
-		  <property name="label" translatable="yes">Split</property>
+		  <property name="tooltip" translatable="no">Split view</property>
+		  <property name="label" translatable="no">Split</property>
 		  <property name="use_underline">True</property>
 		  <property name="stock_id">gtk-missing-image</property>
 		  <property name="visible_horizontal">True</property>
@@ -459,8 +459,8 @@
 	      <child>
 		<widget class="GtkToolButton" id="button6">
 		  <property name="visible">True</property>
-		  <property name="tooltip" translatable="yes">Full view</property>
-		  <property name="label" translatable="yes">Full</property>
+		  <property name="tooltip" translatable="no">Full view</property>
+		  <property name="label" translatable="no">Full</property>
 		  <property name="use_underline">True</property>
 		  <property name="stock_id">gtk-missing-image</property>
 		  <property name="visible_horizontal">True</property>
@@ -496,8 +496,8 @@
 	      <child>
 		<widget class="GtkToolButton" id="button7">
 		  <property name="visible">True</property>
-		  <property name="tooltip" translatable="yes">Collapse the whole tree in the right frame</property>
-		  <property name="label" translatable="yes">Collapse</property>
+		  <property name="tooltip" translatable="no">Collapse the whole tree in the right frame</property>
+		  <property name="label" translatable="no">Collapse</property>
 		  <property name="use_underline">True</property>
 		  <property name="stock_id">gtk-remove</property>
 		  <property name="visible_horizontal">True</property>
@@ -514,8 +514,8 @@
 	      <child>
 		<widget class="GtkToolButton" id="button8">
 		  <property name="visible">True</property>
-		  <property name="tooltip" translatable="yes">Expand the whole tree in the right frame</property>
-		  <property name="label" translatable="yes">Expand</property>
+		  <property name="tooltip" translatable="no">Expand the whole tree in the right frame</property>
+		  <property name="label" translatable="no">Expand</property>
 		  <property name="use_underline">True</property>
 		  <property name="stock_id">gtk-add</property>
 		  <property name="visible_horizontal">True</property>
@@ -632,7 +632,7 @@
 		      <property name="left_margin">0</property>
 		      <property name="right_margin">0</property>
 		      <property name="indent">0</property>
-		      <property name="text" translatable="yes">Sorry, no help available for this option yet.</property>
+		      <property name="text" translatable="no">Sorry, yes help available for this option yet.</property>
 		    </widget>
 		  </child>
 		</widget>

@@ -25,12 +25,12 @@
 #define NCR5380_read(reg)		inb(hostdata->base + (reg))
 #define NCR5380_write(reg, value)	outb(value, hostdata->base + (reg))
 
-#define NCR5380_dma_xfer_len		NCR5380_dma_xfer_none
-#define NCR5380_dma_recv_setup		NCR5380_dma_setup_none
-#define NCR5380_dma_send_setup		NCR5380_dma_setup_none
-#define NCR5380_dma_residual		NCR5380_dma_residual_none
+#define NCR5380_dma_xfer_len		NCR5380_dma_xfer_yesne
+#define NCR5380_dma_recv_setup		NCR5380_dma_setup_yesne
+#define NCR5380_dma_send_setup		NCR5380_dma_setup_yesne
+#define NCR5380_dma_residual		NCR5380_dma_residual_yesne
 
-#define NCR5380_implementation_fields	/* none */
+#define NCR5380_implementation_fields	/* yesne */
 
 #include "NCR5380.h"
 #include "NCR5380.c"
@@ -81,7 +81,7 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 	hostdata = shost_priv(shost);
 	hostdata->base = io;
 
-	/* This card does not seem to raise an interrupt on pdev->irq.
+	/* This card does yest seem to raise an interrupt on pdev->irq.
 	 * Steam-powered SCSI controllers run without an IRQ anyway.
 	 */
 	shost->irq = NO_IRQ;

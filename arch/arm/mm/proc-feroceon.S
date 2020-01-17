@@ -191,7 +191,7 @@ ENTRY(feroceon_flush_user_cache_range)
  *	coherent_kern_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start, end.  If you have non-snooping
+ *	region described by start, end.  If you have yesn-syesoping
  *	Harvard caches, you need to implement this function.
  *
  *	- start	- virtual start address
@@ -205,7 +205,7 @@ ENTRY(feroceon_coherent_kern_range)
  *	coherent_user_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start, end.  If you have non-snooping
+ *	region described by start, end.  If you have yesn-syesoping
  *	Harvard caches, you need to implement this function.
  *
  *	- start	- virtual start address
@@ -225,7 +225,7 @@ ENTRY(feroceon_coherent_user_range)
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
  *
- *	Ensure no D cache aliasing occurs, either with itself or
+ *	Ensure yes D cache aliasing occurs, either with itself or
  *	the I cache
  *
  *	- addr	- kernel address
@@ -261,8 +261,8 @@ ENTRY(feroceon_range_flush_kern_dcache_area)
  *	dma_inv_range(start, end)
  *
  *	Invalidate (discard) the specified virtual address range.
- *	May not write back any entries.  If 'start' or 'end'
- *	are not cache line aligned, those lines must be written
+ *	May yest write back any entries.  If 'start' or 'end'
+ *	are yest cache line aligned, those lines must be written
  *	back.
  *
  *	- start	- virtual start address
@@ -465,8 +465,8 @@ ENTRY(cpu_feroceon_switch_mm)
 	/*
 	 * Note: we wish to call __flush_whole_cache but we need to preserve
 	 * lr to do so.  The only way without touching main memory is to
-	 * use r2 which is normally used to test the VM_EXEC flag, and
-	 * compensate locally for the skipped ops if it is not set.
+	 * use r2 which is yesrmally used to test the VM_EXEC flag, and
+	 * compensate locally for the skipped ops if it is yest set.
 	 */
 	mov	r2, lr				@ abuse r2 to preserve lr
 	bl	__flush_whole_cache

@@ -57,7 +57,7 @@ MODULE_LICENSE("GPL");
 static char *adi_names[] = {	"WingMan Extreme Digital", "ThunderPad Digital", "SideCar", "CyberMan 2",
 				"WingMan Interceptor", "WingMan Formula", "WingMan GamePad",
 				"WingMan Extreme Digital 3D", "WingMan GamePad Extreme",
-				"WingMan GamePad USB", "Unknown Device %#x" };
+				"WingMan GamePad USB", "Unkyeswn Device %#x" };
 
 static char adi_wmgpe_abs[] =	{ ABS_X, ABS_Y, ABS_HAT0X, ABS_HAT0Y };
 static char adi_wmi_abs[] =	{ ABS_X, ABS_Y, ABS_THROTTLE, ABS_HAT0X, ABS_HAT0Y, ABS_HAT1X, ABS_HAT1Y, ABS_HAT2X, ABS_HAT2Y };
@@ -339,7 +339,7 @@ static void adi_id_decode(struct adi *adi, struct adi_port *port)
 	adi->buttons = adi_get_bits(adi, 6);
 
 	if (adi_get_bits(adi, 6) != 8 && adi->hats) {
-		printk(KERN_WARNING "adi: Other than 8-dir POVs not supported yet.\n");
+		printk(KERN_WARNING "adi: Other than 8-dir POVs yest supported yet.\n");
 		adi->length = 0;
 		return;
 	}

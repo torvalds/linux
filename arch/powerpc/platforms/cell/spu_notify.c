@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Move OProfile dependencies from spufs module to the kernel so it
- * can run on non-cell PPC.
+ * can run on yesn-cell PPC.
  *
  * Copyright (C) IBM 2005
  */
@@ -9,32 +9,32 @@
 #undef DEBUG
 
 #include <linux/export.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <asm/spu.h>
 #include "spufs/spufs.h"
 
-static BLOCKING_NOTIFIER_HEAD(spu_switch_notifier);
+static BLOCKING_NOTIFIER_HEAD(spu_switch_yestifier);
 
-void spu_switch_notify(struct spu *spu, struct spu_context *ctx)
+void spu_switch_yestify(struct spu *spu, struct spu_context *ctx)
 {
-	blocking_notifier_call_chain(&spu_switch_notifier,
+	blocking_yestifier_call_chain(&spu_switch_yestifier,
 				     ctx ? ctx->object_id : 0, spu);
 }
-EXPORT_SYMBOL_GPL(spu_switch_notify);
+EXPORT_SYMBOL_GPL(spu_switch_yestify);
 
-int spu_switch_event_register(struct notifier_block *n)
+int spu_switch_event_register(struct yestifier_block *n)
 {
 	int ret;
-	ret = blocking_notifier_chain_register(&spu_switch_notifier, n);
+	ret = blocking_yestifier_chain_register(&spu_switch_yestifier, n);
 	if (!ret)
-		notify_spus_active();
+		yestify_spus_active();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(spu_switch_event_register);
 
-int spu_switch_event_unregister(struct notifier_block *n)
+int spu_switch_event_unregister(struct yestifier_block *n)
 {
-	return blocking_notifier_chain_unregister(&spu_switch_notifier, n);
+	return blocking_yestifier_chain_unregister(&spu_switch_yestifier, n);
 }
 EXPORT_SYMBOL_GPL(spu_switch_event_unregister);
 

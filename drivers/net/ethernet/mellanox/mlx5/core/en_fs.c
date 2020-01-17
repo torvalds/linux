@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -62,8 +62,8 @@ enum {
 	MLX5E_ACTION_DEL  = 2,
 };
 
-struct mlx5e_l2_hash_node {
-	struct hlist_node          hlist;
+struct mlx5e_l2_hash_yesde {
+	struct hlist_yesde          hlist;
 	u8                         action;
 	struct mlx5e_l2_rule ai;
 	bool   mpfs;
@@ -76,7 +76,7 @@ static inline int mlx5e_hash_l2(u8 *addr)
 
 static void mlx5e_add_l2_to_hash(struct hlist_head *hash, u8 *addr)
 {
-	struct mlx5e_l2_hash_node *hn;
+	struct mlx5e_l2_hash_yesde *hn;
 	int ix = mlx5e_hash_l2(addr);
 	int found = 0;
 
@@ -101,7 +101,7 @@ static void mlx5e_add_l2_to_hash(struct hlist_head *hash, u8 *addr)
 	hlist_add_head(&hn->hlist, &hash[ix]);
 }
 
-static void mlx5e_del_l2_from_hash(struct mlx5e_l2_hash_node *hn)
+static void mlx5e_del_l2_from_hash(struct mlx5e_l2_hash_yesde *hn)
 {
 	hlist_del(&hn->hlist);
 	kfree(hn);
@@ -420,12 +420,12 @@ static void mlx5e_del_vlan_rules(struct mlx5e_priv *priv)
 		mlx5e_del_any_vid_rules(priv);
 }
 
-#define mlx5e_for_each_hash_node(hn, tmp, hash, i) \
+#define mlx5e_for_each_hash_yesde(hn, tmp, hash, i) \
 	for (i = 0; i < MLX5E_L2_ADDR_HASH_SIZE; i++) \
 		hlist_for_each_entry_safe(hn, tmp, &hash[i], hlist)
 
 static void mlx5e_execute_l2_action(struct mlx5e_priv *priv,
-				    struct mlx5e_l2_hash_node *hn)
+				    struct mlx5e_l2_hash_yesde *hn)
 {
 	u8 action = hn->action;
 	u8 mac_addr[ETH_ALEN];
@@ -480,9 +480,9 @@ static void mlx5e_fill_addr_array(struct mlx5e_priv *priv, int list_type,
 {
 	bool is_uc = (list_type == MLX5_NVPRT_LIST_TYPE_UC);
 	struct net_device *ndev = priv->netdev;
-	struct mlx5e_l2_hash_node *hn;
+	struct mlx5e_l2_hash_yesde *hn;
 	struct hlist_head *addr_list;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	int i = 0;
 	int hi;
 
@@ -493,7 +493,7 @@ static void mlx5e_fill_addr_array(struct mlx5e_priv *priv, int list_type,
 	else if (priv->fs.l2.broadcast_enabled)
 		ether_addr_copy(addr_array[i++], ndev->broadcast);
 
-	mlx5e_for_each_hash_node(hn, tmp, addr_list, hi) {
+	mlx5e_for_each_hash_yesde(hn, tmp, addr_list, hi) {
 		if (ether_addr_equal(ndev->dev_addr, hn->ai.addr))
 			continue;
 		if (i >= size)
@@ -506,10 +506,10 @@ static void mlx5e_vport_context_update_addr_list(struct mlx5e_priv *priv,
 						 int list_type)
 {
 	bool is_uc = (list_type == MLX5_NVPRT_LIST_TYPE_UC);
-	struct mlx5e_l2_hash_node *hn;
+	struct mlx5e_l2_hash_yesde *hn;
 	u8 (*addr_array)[ETH_ALEN] = NULL;
 	struct hlist_head *addr_list;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	int max_size;
 	int size;
 	int err;
@@ -521,7 +521,7 @@ static void mlx5e_vport_context_update_addr_list(struct mlx5e_priv *priv,
 		1 << MLX5_CAP_GEN(priv->mdev, log_max_current_mc_list);
 
 	addr_list = is_uc ? priv->fs.l2.netdev_uc : priv->fs.l2.netdev_mc;
-	mlx5e_for_each_hash_node(hn, tmp, addr_list, hi)
+	mlx5e_for_each_hash_yesde(hn, tmp, addr_list, hi)
 		size++;
 
 	if (size > max_size) {
@@ -562,26 +562,26 @@ static void mlx5e_vport_context_update(struct mlx5e_priv *priv)
 
 static void mlx5e_apply_netdev_addr(struct mlx5e_priv *priv)
 {
-	struct mlx5e_l2_hash_node *hn;
-	struct hlist_node *tmp;
+	struct mlx5e_l2_hash_yesde *hn;
+	struct hlist_yesde *tmp;
 	int i;
 
-	mlx5e_for_each_hash_node(hn, tmp, priv->fs.l2.netdev_uc, i)
+	mlx5e_for_each_hash_yesde(hn, tmp, priv->fs.l2.netdev_uc, i)
 		mlx5e_execute_l2_action(priv, hn);
 
-	mlx5e_for_each_hash_node(hn, tmp, priv->fs.l2.netdev_mc, i)
+	mlx5e_for_each_hash_yesde(hn, tmp, priv->fs.l2.netdev_mc, i)
 		mlx5e_execute_l2_action(priv, hn);
 }
 
 static void mlx5e_handle_netdev_addr(struct mlx5e_priv *priv)
 {
-	struct mlx5e_l2_hash_node *hn;
-	struct hlist_node *tmp;
+	struct mlx5e_l2_hash_yesde *hn;
+	struct hlist_yesde *tmp;
 	int i;
 
-	mlx5e_for_each_hash_node(hn, tmp, priv->fs.l2.netdev_uc, i)
+	mlx5e_for_each_hash_yesde(hn, tmp, priv->fs.l2.netdev_uc, i)
 		hn->action = MLX5E_ACTION_DEL;
-	mlx5e_for_each_hash_node(hn, tmp, priv->fs.l2.netdev_mc, i)
+	mlx5e_for_each_hash_yesde(hn, tmp, priv->fs.l2.netdev_mc, i)
 		hn->action = MLX5E_ACTION_DEL;
 
 	if (!test_bit(MLX5E_STATE_DESTROYING, &priv->state))

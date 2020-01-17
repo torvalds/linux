@@ -5,7 +5,7 @@
 
 #define pr_fmt(fmt) "kcs-bmc: " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/ipmi_bmc.h>
 #include <linux/module.h>
@@ -240,7 +240,7 @@ static inline struct kcs_bmc *to_kcs_bmc(struct file *filp)
 	return container_of(filp->private_data, struct kcs_bmc, miscdev);
 }
 
-static int kcs_bmc_open(struct inode *inode, struct file *filp)
+static int kcs_bmc_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct kcs_bmc *kcs_bmc = to_kcs_bmc(filp);
 	int ret = 0;
@@ -401,7 +401,7 @@ static long kcs_bmc_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
-static int kcs_bmc_release(struct inode *inode, struct file *filp)
+static int kcs_bmc_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct kcs_bmc *kcs_bmc = to_kcs_bmc(filp);
 
@@ -441,7 +441,7 @@ struct kcs_bmc *kcs_bmc_alloc(struct device *dev, int sizeof_priv, u32 channel)
 	kcs_bmc->data_out = devm_kmalloc(dev, KCS_MSG_BUFSIZ, GFP_KERNEL);
 	kcs_bmc->kbuffer = devm_kmalloc(dev, KCS_MSG_BUFSIZ, GFP_KERNEL);
 
-	kcs_bmc->miscdev.minor = MISC_DYNAMIC_MINOR;
+	kcs_bmc->miscdev.miyesr = MISC_DYNAMIC_MINOR;
 	kcs_bmc->miscdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s%u",
 					       DEVICE_NAME, channel);
 	if (!kcs_bmc->data_in || !kcs_bmc->data_out || !kcs_bmc->kbuffer ||

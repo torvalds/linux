@@ -36,8 +36,8 @@ Driver for the Intel Wireless Wimax Connection 2400m
    Networking Drivers > WiMAX device support. Enable all of them as
    modules (easier).
 
-   If USB or SDIO are not enabled in the kernel configuration, the options
-   to build the i2400m USB or SDIO drivers will not show. Enable said
+   If USB or SDIO are yest enabled in the kernel configuration, the options
+   to build the i2400m USB or SDIO drivers will yest show. Enable said
    subsystems and go back to the WiMAX menu to enable the drivers.
 
    Compile and install your kernel as usual.
@@ -59,8 +59,8 @@ Driver for the Intel Wireless Wimax Connection 2400m
 	$ make install
 	$ depmod -a
 
-   If your kernel development files are located in a non standard
-   directory or if you want to build for a kernel that is not the
+   If your kernel development files are located in a yesn standard
+   directory or if you want to build for a kernel that is yest the
    currently running one, set KDIR to the right location::
 
 	$ make KDIR=/path/to/kernel/dev/tree
@@ -78,10 +78,10 @@ Driver for the Intel Wireless Wimax Connection 2400m
 	$ cp FIRMWAREFILE.sbcf /lib/firmware/i2400m-fw-BUSTYPE-1.3.sbcf
 
      * NOTE: if your firmware came in an .rpm or .deb file, just install
-       it as normal, with the rpm (rpm -i FIRMWARE.rpm) or dpkg
+       it as yesrmal, with the rpm (rpm -i FIRMWARE.rpm) or dpkg
        (dpkg -i FIRMWARE.deb) commands. No further action is needed.
      * BUSTYPE will be usb or sdio, depending on the hardware you have.
-       Each hardware type comes with its own firmware and will not work
+       Each hardware type comes with its own firmware and will yest work
        with other types.
 
 4. Design
@@ -96,7 +96,7 @@ Driver for the Intel Wireless Wimax Connection 2400m
 
    The i2400m kernel driver is broken up in two main parts: the bus
    generic driver and the bus-specific drivers. The bus generic driver
-   forms the drivercore and contain no knowledge of the actual method we
+   forms the drivercore and contain yes kyeswledge of the actual method we
    use to connect to the device. The bus specific drivers are just the
    glue to connect the bus-generic driver and the device. Currently only
    USB and SDIO are supported. See drivers/net/wimax/i2400m/i2400m.h for
@@ -106,9 +106,9 @@ Driver for the Intel Wireless Wimax Connection 2400m
    hardware-glue. The OS-glue interfaces with Linux. The hardware-glue
    interfaces with the device on using an interface provided by the
    bus-specific driver. The reason for this breakup is to be able to
-   easily reuse the hardware-glue to write drivers for other OSes; note
-   the hardware glue part is written as a native Linux driver; no
-   abstraction layers are used, so to port to another OS, the Linux kernel
+   easily reuse the hardware-glue to write drivers for other OSes; yeste
+   the hardware glue part is written as a native Linux driver; yes
+   abstraction layers are used, so to port to ayesther OS, the Linux kernel
    API calls should be replaced with the target OS's.
 
 5. Usage
@@ -180,13 +180,13 @@ Driver for the Intel Wireless Wimax Connection 2400m
 5.2.1. Increasing debug output
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   The files named *dl_* indicate knobs for controlling the debug output
+   The files named *dl_* indicate kyesbs for controlling the debug output
    of different submodules::
 
 	# find /sys/kernel/debug/wimax\:wmx0 -name \*dl_\*
 	/sys/kernel/debug/wimax:wmx0/i2400m-usb/dl_tx
 	/sys/kernel/debug/wimax:wmx0/i2400m-usb/dl_rx
-	/sys/kernel/debug/wimax:wmx0/i2400m-usb/dl_notif
+	/sys/kernel/debug/wimax:wmx0/i2400m-usb/dl_yestif
 	/sys/kernel/debug/wimax:wmx0/i2400m-usb/dl_fw
 	/sys/kernel/debug/wimax:wmx0/i2400m-usb/dl_usb
 	/sys/kernel/debug/wimax:wmx0/i2400m/dl_tx
@@ -240,7 +240,7 @@ Driver for the Intel Wireless Wimax Connection 2400m
 
    Likewise for TX.
 
-   Note the packets this debug file refers to are not network packet, but
+   Note the packets this debug file refers to are yest network packet, but
    packets in the sense of the device-specific protocol for communication
    to the host. See drivers/net/wimax/i2400m/tx.c.
 
@@ -278,6 +278,6 @@ Driver for the Intel Wireless Wimax Connection 2400m
 
 	i2400m_usb 5-4:1.0: fw i2400m-fw-usb-1.3.sbcf: request failed: -2
 
-   This means that the driver cannot locate the firmware file named
+   This means that the driver canyest locate the firmware file named
    /lib/firmware/i2400m-fw-usb-1.2.sbcf. Check that the file is present in
    the right location.

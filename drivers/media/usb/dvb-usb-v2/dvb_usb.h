@@ -304,7 +304,7 @@ struct usb_data_stream {
  * @id: index of this adapter (starting with 0)
  * @ts_type: transport stream, input stream, type
  * @suspend_resume_active: set when there is ongoing suspend / resume
- * @pid_filtering: is hardware pid_filtering used or not
+ * @pid_filtering: is hardware pid_filtering used or yest
  * @feed_count: current feed count
  * @max_feed_count: maimum feed count device can handle
  * @dvb_adap: adapter dvb_adapter
@@ -351,7 +351,7 @@ struct dvb_usb_adapter {
  * @intf: pointer to the device's struct usb_interface
  * @udev: pointer to the device's struct usb_device
  * @rc: remote controller configuration
- * @powered: indicated whether the device is power or not
+ * @powered: indicated whether the device is power or yest
  * @usb_mutex: mutex for usb control messages
  * @i2c_mutex: mutex for i2c-transfers
  * @i2c_adap: device's i2c-adapter

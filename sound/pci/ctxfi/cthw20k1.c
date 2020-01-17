@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /**
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techyeslogy Ltd. All Rights Reserved.
  *
  * @File	cthw20k1.c
  *
@@ -608,7 +608,7 @@ static int amixer_set_mode(void *blk, unsigned int mode)
 
 static int amixer_set_iv(void *blk, unsigned int iv)
 {
-	/* 20k1 amixer does not have this field */
+	/* 20k1 amixer does yest have this field */
 	return 0;
 }
 
@@ -1772,7 +1772,7 @@ static struct capabilities hw_capabilities(struct hw *hw)
 {
 	struct capabilities cap;
 
-	/* SB073x and Vista compatible cards have no digit IO switch */
+	/* SB073x and Vista compatible cards have yes digit IO switch */
 	cap.digit_io_switch = !(hw->model == CTSB073X || hw->model == CTUAA);
 	cap.dedicated_mic = 0;
 	cap.output_switch = 0;
@@ -1933,7 +1933,7 @@ static int hw_card_start(struct hw *hw)
 				  KBUILD_MODNAME, hw);
 		if (err < 0) {
 			dev_err(hw->card->dev,
-				"XFi: Cannot get irq %d\n", pci->irq);
+				"XFi: Canyest get irq %d\n", pci->irq);
 			goto error2;
 		}
 		hw->irq = pci->irq;

@@ -199,7 +199,7 @@ static int vf610_dac_probe(struct platform_device *pdev)
 
 	indio_dev->name = dev_name(&pdev->dev);
 	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
 	indio_dev->info = &vf610_dac_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = vf610_dac_iio_channels;
@@ -208,7 +208,7 @@ static int vf610_dac_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(info->clk);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"Could not prepare or enable the clock\n");
+			"Could yest prepare or enable the clock\n");
 		return ret;
 	}
 

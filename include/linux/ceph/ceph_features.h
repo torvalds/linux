@@ -3,7 +3,7 @@
 #define __CEPH_FEATURES
 
 /*
- * Each time we reclaim bits for reuse we need to specify another bit
+ * Each time we reclaim bits for reuse we need to specify ayesther bit
  * that, if present, indicates we have the new incarnation of that
  * feature.  Base case is 1 (first use).
  */
@@ -15,14 +15,14 @@
 	static const uint64_t CEPH_FEATUREMASK_##name =			\
 		(1ULL<<bit | CEPH_FEATURE_INCARNATION_##incarnation);
 
-/* this bit is ignored but still advertised by release *when* */
+/* this bit is igyesred but still advertised by release *when* */
 #define DEFINE_CEPH_FEATURE_DEPRECATED(bit, incarnation, name, when) \
 	static const uint64_t DEPRECATED_CEPH_FEATURE_##name = (1ULL<<bit); \
 	static const uint64_t DEPRECATED_CEPH_FEATUREMASK_##name =		\
 		(1ULL<<bit | CEPH_FEATURE_INCARNATION_##incarnation);
 
 /*
- * this bit is ignored by release *unused* and not advertised by
+ * this bit is igyesred by release *unused* and yest advertised by
  * release *unadvertised*
  */
 #define DEFINE_CEPH_FEATURE_RETIRED(bit, inc, name, unused, unadvertised)
@@ -42,33 +42,33 @@
  * Notes on deprecation:
  *
  * A *major* release is a release through which all upgrades must pass
- * (e.g., jewel).  For example, no pre-jewel server will ever talk to
+ * (e.g., jewel).  For example, yes pre-jewel server will ever talk to
  * a post-jewel server (mon, osd, etc).
  *
  * For feature bits used *only* on the server-side:
  *
  *  - In the first phase we indicate that a feature is DEPRECATED as of
  *    a particular release.  This is the first major release X (say,
- *    jewel) that does not depend on its peers advertising the feature.
+ *    jewel) that does yest depend on its peers advertising the feature.
  *    That is, it safely assumes its peers all have the feature.  We
  *    indicate this with the DEPRECATED macro.  For example,
  *
  *      DEFINE_CEPH_FEATURE_DEPRECATED( 2, 1, MONCLOCKCHECK, JEWEL)
  *
- *    because 10.2.z (jewel) did not care if its peers advertised this
+ *    because 10.2.z (jewel) did yest care if its peers advertised this
  *    feature bit.
  *
  *  - In the second phase we stop advertising the the bit and call it
- *    RETIRED.  This can normally be done in the *next* major release
+ *    RETIRED.  This can yesrmally be done in the *next* major release
  *    following the one in which we marked the feature DEPRECATED.  In
- *    the above example, for 12.0.z (luminous) we can say:
+ *    the above example, for 12.0.z (lumiyesus) we can say:
  *
  *      DEFINE_CEPH_FEATURE_RETIRED( 2, 1, MONCLOCKCHECK, JEWEL, LUMINOUS)
  *
- *  - The bit can be reused in the first post-luminous release, 13.0.z
+ *  - The bit can be reused in the first post-lumiyesus release, 13.0.z
  *    (m).
  *
- * This ensures that no two versions who have different meanings for
+ * This ensures that yes two versions who have different meanings for
  * the bit ever speak to each other.
  */
 
@@ -165,10 +165,10 @@ DEFINE_CEPH_FEATURE(58, 1, FS_FILE_LAYOUT_V2) // overlap
 DEFINE_CEPH_FEATURE(59, 1, FS_BTIME)
 DEFINE_CEPH_FEATURE(59, 1, FS_CHANGE_ATTR) // overlap
 DEFINE_CEPH_FEATURE(59, 1, MSG_ADDR2) // overlap
-DEFINE_CEPH_FEATURE(60, 1, OSD_RECOVERY_DELETES) // *do not share this bit*
-DEFINE_CEPH_FEATURE(61, 1, CEPHX_V2)             // *do not share this bit*
+DEFINE_CEPH_FEATURE(60, 1, OSD_RECOVERY_DELETES) // *do yest share this bit*
+DEFINE_CEPH_FEATURE(61, 1, CEPHX_V2)             // *do yest share this bit*
 
-DEFINE_CEPH_FEATURE(62, 1, RESERVED)           // do not use; used as a sentinal
+DEFINE_CEPH_FEATURE(62, 1, RESERVED)           // do yest use; used as a sentinal
 DEFINE_CEPH_FEATURE_DEPRECATED(63, 1, RESERVED_BROKEN, LUMINOUS) // client-facing
 
 

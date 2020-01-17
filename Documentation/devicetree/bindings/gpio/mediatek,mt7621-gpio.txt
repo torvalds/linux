@@ -6,7 +6,7 @@ We load one GPIO controller instance per bank. Also the GPIO controller can rece
 interrupts on any of the GPIOs, either edge or level. It then interrupts the CPU
 using GIC INT12.
 
-Required properties for the top level node:
+Required properties for the top level yesde:
 - #gpio-cells : Should be two. The first cell is the GPIO pin number and the
    second cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>.
    Only the GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.
@@ -19,8 +19,8 @@ Required properties for the top level node:
 - reg : Physical base address and length of the controller's registers
 - interrupt-parent : phandle of the parent interrupt controller.
 - interrupts : Interrupt specifier for the controllers interrupt.
-- interrupt-controller : Mark the device node as an interrupt controller.
-- gpio-controller : Marks the device node as a GPIO controller.
+- interrupt-controller : Mark the device yesde as an interrupt controller.
+- gpio-controller : Marks the device yesde as a GPIO controller.
 
 Example:
 	gpio@600 {

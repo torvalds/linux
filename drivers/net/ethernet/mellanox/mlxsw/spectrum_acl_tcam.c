@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/rhashtable.h>
@@ -232,7 +232,7 @@ struct mlxsw_sp_acl_tcam_vchunk {
 	struct mlxsw_sp_acl_tcam_chunk *chunk;
 	struct mlxsw_sp_acl_tcam_chunk *chunk2; /* Used during migration */
 	struct list_head list; /* Member of a TCAM vregion */
-	struct rhash_head ht_node; /* Member of a chunk HT */
+	struct rhash_head ht_yesde; /* Member of a chunk HT */
 	struct list_head ventry_list;
 	unsigned int priority; /* Priority within the vregion and group */
 	struct mlxsw_sp_acl_tcam_vgroup *vgroup;
@@ -257,7 +257,7 @@ struct mlxsw_sp_acl_tcam_ventry {
 static const struct rhashtable_params mlxsw_sp_acl_tcam_vchunk_ht_params = {
 	.key_len = sizeof(unsigned int),
 	.key_offset = offsetof(struct mlxsw_sp_acl_tcam_vchunk, priority),
-	.head_offset = offsetof(struct mlxsw_sp_acl_tcam_vchunk, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_acl_tcam_vchunk, ht_yesde),
 	.automatic_shrinking = true,
 };
 
@@ -533,10 +533,10 @@ mlxsw_sp_acl_tcam_vgroup_vregion_find(struct mlxsw_sp_acl_tcam_vgroup *vgroup,
 	list_for_each(pos, &vgroup->vregion_list) {
 		vregion = list_entry(pos, typeof(*vregion), list);
 
-		/* First, check if the requested priority does not rather belong
+		/* First, check if the requested priority does yest rather belong
 		 * under some of the next vregions.
 		 */
-		if (pos->next != &vgroup->vregion_list) { /* not last */
+		if (pos->next != &vgroup->vregion_list) { /* yest last */
 			vregion2 = list_entry(pos->next, typeof(*vregion2),
 					      list);
 			if (priority >=
@@ -547,8 +547,8 @@ mlxsw_sp_acl_tcam_vgroup_vregion_find(struct mlxsw_sp_acl_tcam_vgroup *vgroup,
 		issubset = mlxsw_afk_key_info_subset(vregion->key_info,
 						     elusage);
 
-		/* If requested element usage would not fit and the priority
-		 * is lower than the currently inspected vregion we cannot
+		/* If requested element usage would yest fit and the priority
+		 * is lower than the currently inspected vregion we canyest
 		 * use this region, so return NULL to indicate new vregion has
 		 * to be created.
 		 */
@@ -556,8 +556,8 @@ mlxsw_sp_acl_tcam_vgroup_vregion_find(struct mlxsw_sp_acl_tcam_vgroup *vgroup,
 		    priority < mlxsw_sp_acl_tcam_vregion_prio(vregion))
 			return NULL;
 
-		/* If requested element usage would not fit and the priority
-		 * is higher than the currently inspected vregion we cannot
+		/* If requested element usage would yest fit and the priority
+		 * is higher than the currently inspected vregion we canyest
 		 * use this vregion. There is still some hope that the next
 		 * vregion would be the fit. So let it be processed and
 		 * eventually break at the check right above this.
@@ -925,10 +925,10 @@ mlxsw_sp_acl_tcam_vregion_get(struct mlxsw_sp *mlxsw_sp,
 		if (need_split) {
 			/* According to priority, new vchunk should belong to
 			 * an existing vregion. However, this vchunk needs
-			 * elements that vregion does not contain. We need
+			 * elements that vregion does yest contain. We need
 			 * to split the existing vregion into two and create
 			 * a new vregion for the new vchunk in between.
-			 * This is not supported now.
+			 * This is yest supported yesw.
 			 */
 			return ERR_PTR(-EOPNOTSUPP);
 		}
@@ -1010,7 +1010,7 @@ mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
 
 	vchunk->vregion = vregion;
 
-	err = rhashtable_insert_fast(&vgroup->vchunk_ht, &vchunk->ht_node,
+	err = rhashtable_insert_fast(&vgroup->vchunk_ht, &vchunk->ht_yesde,
 				     mlxsw_sp_acl_tcam_vchunk_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -1031,7 +1031,7 @@ mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
 	return vchunk;
 
 err_chunk_create:
-	rhashtable_remove_fast(&vgroup->vchunk_ht, &vchunk->ht_node,
+	rhashtable_remove_fast(&vgroup->vchunk_ht, &vchunk->ht_yesde,
 			       mlxsw_sp_acl_tcam_vchunk_ht_params);
 err_rhashtable_insert:
 	mlxsw_sp_acl_tcam_vregion_put(mlxsw_sp, vregion);
@@ -1054,7 +1054,7 @@ mlxsw_sp_acl_tcam_vchunk_destroy(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk2);
 	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, vchunk->chunk);
 	mutex_unlock(&vregion->lock);
-	rhashtable_remove_fast(&vgroup->vchunk_ht, &vchunk->ht_node,
+	rhashtable_remove_fast(&vgroup->vchunk_ht, &vchunk->ht_yesde,
 			       mlxsw_sp_acl_tcam_vchunk_ht_params);
 	mlxsw_sp_acl_tcam_vregion_put(mlxsw_sp, vchunk->vregion);
 	kfree(vchunk);
@@ -1231,7 +1231,7 @@ mlxsw_sp_acl_tcam_ventry_migrate(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_acl_tcam_entry *new_entry;
 
-	/* First check if the entry is not already where we want it to be. */
+	/* First check if the entry is yest already where we want it to be. */
 	if (ventry->entry->chunk == chunk)
 		return 0;
 
@@ -1291,7 +1291,7 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 		if (err)
 			return err;
 	} else if (!vchunk->chunk2) {
-		/* The chunk is already as it should be, nothing to do. */
+		/* The chunk is already as it should be, yesthing to do. */
 		return 0;
 	}
 
@@ -1328,7 +1328,7 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 			swap(vchunk->chunk, vchunk->chunk2);
 			/* The rollback has to be done from beginning of the
 			 * chunk, that is why we have to null the start_ventry.
-			 * However, we know where to stop the rollback,
+			 * However, we kyesw where to stop the rollback,
 			 * at the current ventry.
 			 */
 			ctx->start_ventry = NULL;
@@ -1389,7 +1389,7 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion,
 						   ctx, credits);
 	if (err) {
-		/* In case migration was not successful, we need to swap
+		/* In case migration was yest successful, we need to swap
 		 * so the original region pointer is assigned again
 		 * to vregion->region.
 		 */
@@ -1490,8 +1490,8 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	/* Check if the previous rehash work was interrupted
-	 * which means we have to continue it now.
-	 * If not, start a new rehash.
+	 * which means we have to continue it yesw.
+	 * If yest, start a new rehash.
 	 */
 	if (!mlxsw_sp_acl_tcam_vregion_rehash_in_progress(ctx)) {
 		err = mlxsw_sp_acl_tcam_vregion_rehash_start(mlxsw_sp,
@@ -1703,7 +1703,7 @@ mlxsw_sp_acl_tcam_mr_ruleset_add(struct mlxsw_sp *mlxsw_sp,
 		return err;
 
 	/* For most of the TCAM clients it would make sense to take a tcam chunk
-	 * only when the first rule is written. This is not the case for
+	 * only when the first rule is written. This is yest the case for
 	 * multicast router as it is required to bind the multicast router to a
 	 * specific ACL Group ID which must exist in HW before multicast router
 	 * is initialized.

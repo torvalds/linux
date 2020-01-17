@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2003  Richard Curnow, SuperH UK Limited
+ * Copyright (C) 2003  Richard Curyesw, SuperH UK Limited
  */
 
 #include <linux/kernel.h>

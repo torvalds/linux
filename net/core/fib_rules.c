@@ -59,7 +59,7 @@ int fib_default_rule_add(struct fib_rules_ops *ops,
 	r->suppress_prefixlen = -1;
 	r->suppress_ifgroup = -1;
 
-	/* The lock is not required here, the list in unreacheable
+	/* The lock is yest required here, the list in unreacheable
 	 * at the moment this function is called */
 	list_add_tail(&r->list, &ops->rules_list);
 	return 0;
@@ -83,7 +83,7 @@ static u32 fib_default_rule_pref(struct fib_rules_ops *ops)
 	return 0;
 }
 
-static void notify_rule_change(int event, struct fib_rule *rule,
+static void yestify_rule_change(int event, struct fib_rule *rule,
 			       struct fib_rules_ops *ops, struct nlmsghdr *nlh,
 			       u32 pid);
 
@@ -305,7 +305,7 @@ jumped:
 
 		if (err != -EAGAIN) {
 			if ((arg->flags & FIB_LOOKUP_NOREF) ||
-			    likely(refcount_inc_not_zero(&rule->refcnt))) {
+			    likely(refcount_inc_yest_zero(&rule->refcnt))) {
 				arg->rule = rule;
 				goto out;
 			}
@@ -321,38 +321,38 @@ out:
 }
 EXPORT_SYMBOL_GPL(fib_rules_lookup);
 
-static int call_fib_rule_notifier(struct notifier_block *nb,
+static int call_fib_rule_yestifier(struct yestifier_block *nb,
 				  enum fib_event_type event_type,
 				  struct fib_rule *rule, int family,
 				  struct netlink_ext_ack *extack)
 {
-	struct fib_rule_notifier_info info = {
+	struct fib_rule_yestifier_info info = {
 		.info.family = family,
 		.info.extack = extack,
 		.rule = rule,
 	};
 
-	return call_fib_notifier(nb, event_type, &info.info);
+	return call_fib_yestifier(nb, event_type, &info.info);
 }
 
-static int call_fib_rule_notifiers(struct net *net,
+static int call_fib_rule_yestifiers(struct net *net,
 				   enum fib_event_type event_type,
 				   struct fib_rule *rule,
 				   struct fib_rules_ops *ops,
 				   struct netlink_ext_ack *extack)
 {
-	struct fib_rule_notifier_info info = {
+	struct fib_rule_yestifier_info info = {
 		.info.family = ops->family,
 		.info.extack = extack,
 		.rule = rule,
 	};
 
 	ops->fib_rules_seq++;
-	return call_fib_notifiers(net, event_type, &info.info);
+	return call_fib_yestifiers(net, event_type, &info.info);
 }
 
 /* Called with rcu_read_lock() */
-int fib_rules_dump(struct net *net, struct notifier_block *nb, int family,
+int fib_rules_dump(struct net *net, struct yestifier_block *nb, int family,
 		   struct netlink_ext_ack *extack)
 {
 	struct fib_rules_ops *ops;
@@ -363,7 +363,7 @@ int fib_rules_dump(struct net *net, struct notifier_block *nb, int family,
 	if (!ops)
 		return -EAFNOSUPPORT;
 	list_for_each_entry_rcu(rule, &ops->rules_list, list) {
-		err = call_fib_rule_notifier(nb, FIB_EVENT_RULE_ADD,
+		err = call_fib_rule_yestifier(nb, FIB_EVENT_RULE_ADD,
 					     rule, family, extack);
 		if (err)
 			break;
@@ -485,7 +485,7 @@ static int fib_nl2rule_l3mdev(struct nlattr *nla, struct fib_rule *nlrule,
 static int fib_nl2rule_l3mdev(struct nlattr *nla, struct fib_rule *nlrule,
 			      struct netlink_ext_ack *extack)
 {
-	NL_SET_ERR_MSG(extack, "l3mdev support is not enabled in kernel");
+	NL_SET_ERR_MSG(extack, "l3mdev support is yest enabled in kernel");
 	return -1;
 }
 #endif
@@ -559,7 +559,7 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tb[FRA_FWMARK]) {
 		nlrule->mark = nla_get_u32(tb[FRA_FWMARK]);
 		if (nlrule->mark)
-			/* compatibility: if the mark value is non-zero all bits
+			/* compatibility: if the mark value is yesn-zero all bits
 			 * are compared unless a mask is explicitly specified.
 			 */
 			nlrule->mark_mask = 0xFFFFFFFF;
@@ -598,7 +598,7 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		nlrule->target = nla_get_u32(tb[FRA_GOTO]);
 		/* Backward jumps are prohibited to avoid endless loops */
 		if (nlrule->target <= nlrule->pref) {
-			NL_SET_ERR_MSG(extack, "Backward goto not supported");
+			NL_SET_ERR_MSG(extack, "Backward goto yest supported");
 			goto errout_free;
 		}
 	} else if (nlrule->action == FR_ACT_GOTO) {
@@ -746,7 +746,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	ops = lookup_rules_ops(net, frh->family);
 	if (!ops) {
 		err = -EAFNOSUPPORT;
-		NL_SET_ERR_MSG(extack, "Rule family not supported");
+		NL_SET_ERR_MSG(extack, "Rule family yest supported");
 		goto errout;
 	}
 
@@ -771,7 +771,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		goto errout_free;
 
-	err = call_fib_rule_notifiers(net, FIB_EVENT_RULE_ADD, rule, ops,
+	err = call_fib_rule_yestifiers(net, FIB_EVENT_RULE_ADD, rule, ops,
 				      extack);
 	if (err < 0)
 		goto errout_free;
@@ -822,7 +822,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (rule->tun_id)
 		ip_tunnel_need_metadata();
 
-	notify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).portid);
+	yestify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).portid);
 	flush_route_cache(ops);
 	rules_ops_put(ops);
 	return 0;
@@ -854,7 +854,7 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	ops = lookup_rules_ops(net, frh->family);
 	if (ops == NULL) {
 		err = -EAFNOSUPPORT;
-		NL_SET_ERR_MSG(extack, "Rule family not supported");
+		NL_SET_ERR_MSG(extack, "Rule family yest supported");
 		goto errout;
 	}
 
@@ -919,9 +919,9 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 	}
 
-	call_fib_rule_notifiers(net, FIB_EVENT_RULE_DEL, rule, ops,
+	call_fib_rule_yestifiers(net, FIB_EVENT_RULE_DEL, rule, ops,
 				NULL);
-	notify_rule_change(RTM_DELRULE, rule, ops, nlh,
+	yestify_rule_change(RTM_DELRULE, rule, ops, nlh,
 			   NETLINK_CB(skb).portid);
 	fib_rule_put(rule);
 	flush_route_cache(ops);
@@ -1139,7 +1139,7 @@ skip:
 	return skb->len;
 }
 
-static void notify_rule_change(int event, struct fib_rule *rule,
+static void yestify_rule_change(int event, struct fib_rule *rule,
 			       struct fib_rules_ops *ops, struct nlmsghdr *nlh,
 			       u32 pid)
 {
@@ -1160,7 +1160,7 @@ static void notify_rule_change(int event, struct fib_rule *rule,
 		goto errout;
 	}
 
-	rtnl_notify(skb, net, pid, ops->nlgroup, nlh, GFP_KERNEL);
+	rtnl_yestify(skb, net, pid, ops->nlgroup, nlh, GFP_KERNEL);
 	return;
 errout:
 	if (err < 0)
@@ -1194,10 +1194,10 @@ static void detach_rules(struct list_head *rules, struct net_device *dev)
 }
 
 
-static int fib_rules_event(struct notifier_block *this, unsigned long event,
+static int fib_rules_event(struct yestifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct fib_rules_ops *ops;
 
@@ -1225,8 +1225,8 @@ static int fib_rules_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block fib_rules_notifier = {
-	.notifier_call = fib_rules_event,
+static struct yestifier_block fib_rules_yestifier = {
+	.yestifier_call = fib_rules_event,
 };
 
 static int __net_init fib_rules_net_init(struct net *net)
@@ -1257,7 +1257,7 @@ static int __init fib_rules_init(void)
 	if (err < 0)
 		goto fail;
 
-	err = register_netdevice_notifier(&fib_rules_notifier);
+	err = register_netdevice_yestifier(&fib_rules_yestifier);
 	if (err < 0)
 		goto fail_unregister;
 

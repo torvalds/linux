@@ -3,7 +3,7 @@
  * Texas Instruments TLV320AIC26 low power audio CODEC
  * ALSA SoC CODEC driver
  *
- * Copyright (C) 2008 Secret Lab Technologies Ltd.
+ * Copyright (C) 2008 Secret Lab Techyeslogies Ltd.
  */
 
 #include <linux/module.h>
@@ -132,7 +132,7 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 }
 
 /**
- * aic26_mute - Mute control to reduce noise when changing audio format
+ * aic26_mute - Mute control to reduce yesise when changing audio format
  */
 static int aic26_mute(struct snd_soc_dai *dai, int mute)
 {
@@ -331,7 +331,7 @@ static const struct snd_soc_component_driver aic26_soc_component_dev = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config aic26_regmap = {

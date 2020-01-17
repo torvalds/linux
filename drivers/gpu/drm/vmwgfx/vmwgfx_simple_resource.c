@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -41,7 +41,7 @@ struct vmw_user_simple_resource {
 	struct vmw_simple_resource simple;
 /*
  * Nothing to be placed after @simple, since size of @simple is
- * unknown.
+ * unkyeswn.
  */
 };
 
@@ -151,7 +151,7 @@ vmw_simple_resource_create_ioctl(struct drm_device *dev, void *data,
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	size_t alloc_size;
 	size_t account_size;

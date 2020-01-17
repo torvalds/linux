@@ -35,14 +35,14 @@ The most important limitations are:
 
 - Lack of any type of acceleration.
 - A strict and limited set of supported video modes.  Often the native
-  or most optimal resolution/refresh rate for your setup will not work
+  or most optimal resolution/refresh rate for your setup will yest work
   with uvesafb, simply because the Video BIOS doesn't support the
   video mode you want to use.  This can be especially painful with
   widescreen panels, where native video modes don't have the 4:3 aspect
   ratio, which is what most BIOS-es are limited to.
 - Adjusting the refresh rate is only possible with a VBE 3.0 compliant
   Video BIOS.  Note that many nVidia Video BIOS-es claim to be VBE 3.0
-  compliant, while they simply ignore any refresh rate settings.
+  compliant, while they simply igyesre any refresh rate settings.
 
 3. Configuration
 ----------------
@@ -70,7 +70,7 @@ ywrap   Same as ypan, but assumes your gfx board can wrap-around
 	Available on x86 only.
 
 redraw  Scroll by redrawing the affected part of the screen, this
-	is the default on non-x86.
+	is the default on yesn-x86.
 ======= =========================================================
 
 (If you're using uvesafb as a module, the above three options are
@@ -86,16 +86,16 @@ pmipal      Use the protected mode interface for palette changes.
 mtrr:n      Setup memory type range registers for the framebuffer
             where n:
 
-                - 0 - disabled (equivalent to nomtrr)
+                - 0 - disabled (equivalent to yesmtrr)
                 - 3 - write-combining (default)
 
             Values other than 0 and 3 will result in a warning and will be
             treated just like 3.
 
-nomtrr      Do not use memory type range registers.
+yesmtrr      Do yest use memory type range registers.
 
 vremap:n
-            Remap 'n' MiB of video RAM.  If 0 or not specified, remap memory
+            Remap 'n' MiB of video RAM.  If 0 or yest specified, remap memory
             according to video mode.
 
 vtotal:n    If the video BIOS of your card incorrectly determines the total
@@ -109,25 +109,25 @@ vtotal:n    If the video BIOS of your card incorrectly determines the total
 vbemode:x   Force the use of VBE mode x.  The mode will only be set if it's
             found in the VBE-provided list of supported modes.
             NOTE: The mode number 'x' should be specified in VESA mode number
-            notation, not the Linux kernel one (eg. 257 instead of 769).
-            HINT: If you use this option because normal <mode> parameter does
-            not work for you and you use a X server, you'll probably want to
-            set the 'nocrtc' option to ensure that the video mode is properly
+            yestation, yest the Linux kernel one (eg. 257 instead of 769).
+            HINT: If you use this option because yesrmal <mode> parameter does
+            yest work for you and you use a X server, you'll probably want to
+            set the 'yescrtc' option to ensure that the video mode is properly
             restored after console <-> X switches.
 
-nocrtc      Do not use CRTC timings while setting the video mode.  This option
+yescrtc      Do yest use CRTC timings while setting the video mode.  This option
             has any effect only if the Video BIOS is VBE 3.0 compliant.  Use it
             if you have problems with modes set the standard way.  Note that
             using this option implies that any refresh rate adjustments will
-            be ignored and the refresh rate will stay at your BIOS default
+            be igyesred and the refresh rate will stay at your BIOS default
             (60 Hz).
 
-noedid      Do not try to fetch and use EDID-provided modes.
+yesedid      Do yest try to fetch and use EDID-provided modes.
 
-noblank     Disable hardware blanking.
+yesblank     Disable hardware blanking.
 
 v86d:path   Set path to the v86d executable. This option is only available as
-            a module parameter, and not as a part of the video= string.  If you
+            a module parameter, and yest as a part of the video= string.  If you
             need to use it and have uvesafb built into the kernel, use
             uvesafb.v86d="path".
 =========== ====================================================================
@@ -145,7 +145,7 @@ maxclk:n    Maximum pixel clock (in MHz).
 4. The sysfs interface
 ----------------------
 
-uvesafb provides several sysfs nodes for configurable parameters and
+uvesafb provides several sysfs yesdes for configurable parameters and
 additional information.
 
 Driver attributes:
@@ -160,7 +160,7 @@ Driver attributes:
 Device attributes:
 
 /sys/bus/platform/drivers/uvesafb/uvesafb.0
-  nocrtc
+  yescrtc
     Use the default refresh rate (60 Hz) if set to 1.
 
   oem_product_name, oem_product_rev, oem_string, oem_vendor

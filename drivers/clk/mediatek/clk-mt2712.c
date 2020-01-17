@@ -554,7 +554,7 @@ static const char * const rtc_parents[] = {
 	"univpll3_d8"
 };
 
-static const char * const spinor_parents[] = {
+static const char * const spiyesr_parents[] = {
 	"clk26m",
 	"clk26m_d2",
 	"syspll4_d4",
@@ -823,8 +823,8 @@ static struct mtk_composite top_muxes[] = {
 	MUX_GATE_FLAGS(CLK_TOP_RTC_SEL, "rtc_sel", rtc_parents, 0x0d0, 24, 2,
 		31, CLK_IS_CRITICAL),
 	/* CLK_CFG_10 */
-	MUX_GATE(CLK_TOP_SPINOR_SEL, "spinor_sel",
-		spinor_parents, 0x500, 0, 4, 7),
+	MUX_GATE(CLK_TOP_SPINOR_SEL, "spiyesr_sel",
+		spiyesr_parents, 0x500, 0, 4, 7),
 	MUX_GATE(CLK_TOP_APLL_SEL, "apll_sel",
 		apll_parents, 0x500, 8, 4, 15),
 	MUX_GATE(CLK_TOP_APLL2_SEL, "apll2_sel",
@@ -963,7 +963,7 @@ static const struct mtk_gate_regs top1_cg_regs = {
 		.parent_name = _parent,			\
 		.regs = &top0_cg_regs,			\
 		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr,	\
+		.ops = &mtk_clk_gate_ops_yes_setclr,	\
 	}
 
 #define GATE_TOP1(_id, _name, _parent, _shift) {	\
@@ -972,7 +972,7 @@ static const struct mtk_gate_regs top1_cg_regs = {
 		.parent_name = _parent,			\
 		.regs = &top1_cg_regs,			\
 		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
+		.ops = &mtk_clk_gate_ops_yes_setclr_inv,	\
 	}
 
 static const struct mtk_gate top_clks[] = {
@@ -1058,7 +1058,7 @@ static const struct mtk_gate_regs peri2_cg_regs = {
 		.parent_name = _parent,			\
 		.regs = &peri2_cg_regs,			\
 		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
+		.ops = &mtk_clk_gate_ops_yes_setclr_inv,	\
 	}
 
 static const struct mtk_gate peri_clks[] = {
@@ -1119,7 +1119,7 @@ static const struct mtk_gate peri_clks[] = {
 		"spi_sel", 30),
 	/* PERI1 */
 	GATE_PERI1(CLK_PERI_SPI, "per_spi",
-		"spinor_sel", 1),
+		"spiyesr_sel", 1),
 	GATE_PERI1(CLK_PERI_I2C5, "per_i2c5",
 		"axi_sel", 3),
 	GATE_PERI1(CLK_PERI_SPI2, "per_spi2",
@@ -1261,16 +1261,16 @@ static int clk_mt2712_apmixed_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
 	int r;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 
-	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+	mtk_clk_register_plls(yesde, plls, ARRAY_SIZE(plls), clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 
 	if (r != 0)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 
 	return r;
@@ -1278,7 +1278,7 @@ static int clk_mt2712_apmixed_probe(struct platform_device *pdev)
 
 static struct clk_onecell_data *top_clk_data;
 
-static void clk_mt2712_top_init_early(struct device_node *node)
+static void clk_mt2712_top_init_early(struct device_yesde *yesde)
 {
 	int r, i;
 
@@ -1292,9 +1292,9 @@ static void clk_mt2712_top_init_early(struct device_node *node)
 	mtk_clk_register_factors(top_early_divs, ARRAY_SIZE(top_early_divs),
 			top_clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, top_clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, top_clk_data);
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 }
 
@@ -1304,7 +1304,7 @@ CLK_OF_DECLARE_DRIVER(mt2712_topckgen, "mediatek,mt2712-topckgen",
 static int clk_mt2712_top_probe(struct platform_device *pdev)
 {
 	int r, i;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	void __iomem *base;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -1331,13 +1331,13 @@ static int clk_mt2712_top_probe(struct platform_device *pdev)
 			&mt2712_clk_lock, top_clk_data);
 	mtk_clk_register_dividers(top_adj_divs, ARRAY_SIZE(top_adj_divs), base,
 			&mt2712_clk_lock, top_clk_data);
-	mtk_clk_register_gates(node, top_clks, ARRAY_SIZE(top_clks),
+	mtk_clk_register_gates(yesde, top_clks, ARRAY_SIZE(top_clks),
 			top_clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, top_clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, top_clk_data);
 
 	if (r != 0)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 
 	return r;
@@ -1347,20 +1347,20 @@ static int clk_mt2712_infra_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
 	int r;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
 
-	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks),
+	mtk_clk_register_gates(yesde, infra_clks, ARRAY_SIZE(infra_clks),
 			clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 
 	if (r != 0)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 
-	mtk_register_reset_controller(node, 2, 0x30);
+	mtk_register_reset_controller(yesde, 2, 0x30);
 
 	return r;
 }
@@ -1369,20 +1369,20 @@ static int clk_mt2712_peri_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
 	int r;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_PERI_NR_CLK);
 
-	mtk_clk_register_gates(node, peri_clks, ARRAY_SIZE(peri_clks),
+	mtk_clk_register_gates(yesde, peri_clks, ARRAY_SIZE(peri_clks),
 			clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 
 	if (r != 0)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 
-	mtk_register_reset_controller(node, 2, 0);
+	mtk_register_reset_controller(yesde, 2, 0);
 
 	return r;
 }
@@ -1391,7 +1391,7 @@ static int clk_mt2712_mcu_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
 	int r;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	void __iomem *base;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -1405,10 +1405,10 @@ static int clk_mt2712_mcu_probe(struct platform_device *pdev)
 	mtk_clk_register_composites(mcu_muxes, ARRAY_SIZE(mcu_muxes), base,
 			&mt2712_clk_lock, clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 
 	if (r != 0)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 
 	return r;
@@ -1447,7 +1447,7 @@ static int clk_mt2712_probe(struct platform_device *pdev)
 	r = clk_probe(pdev);
 	if (r != 0)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could yest register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	return r;

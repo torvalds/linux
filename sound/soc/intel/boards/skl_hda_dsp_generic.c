@@ -74,7 +74,7 @@ skl_hda_add_dai_link(struct snd_soc_card *card, struct snd_soc_dai_link *link)
 
 	dev_dbg(card->dev, "%s: dai link name - %s\n", __func__, link->name);
 	link->platforms->name = ctx->platform_name;
-	link->nonatomic = 1;
+	link->yesnatomic = 1;
 
 	if (strstr(link->name, "HDMI")) {
 		ret = skl_hda_hdmi_add_pcm(card, ctx->pcm_count);

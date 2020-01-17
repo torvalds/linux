@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -55,7 +55,7 @@ struct gatt_mask {
 	u32 type;
 	/* totally device specific, for integrated chipsets that
 	 * might have different types of memory masks.  For other
-	 * devices this will probably be ignored */
+	 * devices this will probably be igyesred */
 };
 
 #define AGP_PAGE_DESTROY_UNMAP 1
@@ -147,7 +147,7 @@ struct agp_bridge_data {
 	int capndx;
 	int flags;
 	char major_version;
-	char minor_version;
+	char miyesr_version;
 	struct list_head list;
 	u32 apbase_config;
 	/* list of agp_memory mapped to the aperture */

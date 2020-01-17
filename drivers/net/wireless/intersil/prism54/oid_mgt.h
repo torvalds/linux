@@ -15,7 +15,7 @@ int mgt_init(islpci_private *);
 
 void mgt_clean(islpci_private *);
 
-/* I don't know where to put these 2 */
+/* I don't kyesw where to put these 2 */
 extern const int frequency_list_a[];
 int channel_of_freq(int);
 

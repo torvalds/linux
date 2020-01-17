@@ -2,7 +2,7 @@
 /*
  * RapidIO Tsi57x switch family support
  *
- * Copyright 2009-2010 Integrated Device Technology, Inc.
+ * Copyright 2009-2010 Integrated Device Techyeslogy, Inc.
  * Alexandre Bounine <alexandre.bounine@idt.com>
  *  - Added EM support
  *  - Modified switch operations initialization.
@@ -361,5 +361,5 @@ device_initcall(tsi57x_init);
 module_exit(tsi57x_exit);
 
 MODULE_DESCRIPTION("IDT Tsi57x Serial RapidIO switch family driver");
-MODULE_AUTHOR("Integrated Device Technology, Inc.");
+MODULE_AUTHOR("Integrated Device Techyeslogy, Inc.");
 MODULE_LICENSE("GPL");

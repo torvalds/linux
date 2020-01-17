@@ -5,21 +5,21 @@
  *                        device interface).
  *                       A longer backup resulted in major swapping, bad
  *                        overall Linux performance and eventually failed as
- *                        we received non serial read-ahead requests from the
+ *                        we received yesn serial read-ahead requests from the
  *                        buffer cache.
- * Ver 0.3   Nov 28 95   Long backups are now possible, thanks to the
+ * Ver 0.3   Nov 28 95   Long backups are yesw possible, thanks to the
  *                        character device interface. Linux's responsiveness
  *                        and performance doesn't seem to be much affected
  *                        from the background backup procedure.
  *                       Some general mtio.h magnetic tape operations are
- *                        now supported by our character device. As a result,
+ *                        yesw supported by our character device. As a result,
  *                        popular tape utilities are starting to work with
  *                        ide tapes :-)
  *                       The following configurations were tested:
  *                       1. An IDE ATAPI TAPE shares the same interface
  *                        and irq with an IDE ATAPI CDROM.
  *                       2. An IDE ATAPI TAPE shares the same interface
- *                        and irq with a normal IDE disk.
+ *                        and irq with a yesrmal IDE disk.
  *                        Both configurations seemed to work just fine !
  *                        However, to be on the safe side, it is meanwhile
  *                        recommended to give the IDE TAPE its own interface
@@ -30,20 +30,20 @@
  *                        performing a long media access (DSC) request (such
  *                        as a rewind) before we can access the other device
  *                        on the same interface. This effect doesn't disturb
- *                        normal operation most of the time because read/write
+ *                        yesrmal operation most of the time because read/write
  *                        requests are relatively fast, and once we are
  *                        performing one tape r/w request, a lot of requests
  *                        from the other device can be queued and ide.c will
  *			  service all of them after this single tape request.
  * Ver 1.0   Dec 11 95   Integrated into Linux 1.3.46 development tree.
- *                       On each read / write request, we now ask the drive
+ *                       On each read / write request, we yesw ask the drive
  *                        if we can transfer a constant number of bytes
  *                        (a parameter of the drive) only to its buffers,
  *                        without causing actual media access. If we can't,
  *                        we just wait until we can by polling the DSC bit.
- *                        This ensures that while we are not transferring
+ *                        This ensures that while we are yest transferring
  *                        more bytes than the constant referred to above, the
- *                        interrupt latency will not become too high and
+ *                        interrupt latency will yest become too high and
  *                        we won't cause an interrupt timeout, as happened
  *                        occasionally in the previous version.
  *                       While polling for DSC, the current request is
@@ -55,8 +55,8 @@
  *                        ide.c for use with atapi devices.
  *                        (Programming done by Mark Lord)
  *                       Few potential bug fixes (Again, suggested by Mark)
- *                       Single character device data transfers are now
- *                        not limited in size, as they were before.
+ *                       Single character device data transfers are yesw
+ *                        yest limited in size, as they were before.
  *                       We are asking the tape about its recommended
  *                        transfer unit and send a larger data transfer
  *                        as several transfers of the above size.
@@ -68,12 +68,12 @@
  *                        rather than before each data transfer. This should
  *                        ensure that we will indeed have a data buffer.
  * Ver 1.1   Dec 14 95   Fixed random problems which occurred when the tape
- *                        shared an interface with another device.
+ *                        shared an interface with ayesther device.
  *                        (poll_for_dsc was a complete mess).
- *                       Removed some old (non-active) code which had
+ *                       Removed some old (yesn-active) code which had
  *                        to do with supporting buffer cache originated
  *                        requests.
- *                       The block device interface can now be opened, so
+ *                       The block device interface can yesw be opened, so
  *                        that general ide driver features like the unmask
  *                        interrupts flag can be selected with an ioctl.
  *                        This is the only use of the block device interface.
@@ -89,7 +89,7 @@
  *                        is available below.
  * Ver 1.2   Jan  1 96   Eliminated pipelined mode race condition.
  *                       Added pipeline read mode. As a result, restores
- *                        are now as fast as backups.
+ *                        are yesw as fast as backups.
  *                       Optimized shared interface behavior. The new behavior
  *                        typically results in better IDE bus efficiency and
  *                        higher tape throughput.
@@ -102,10 +102,10 @@
  *                       Implemented additional mtio.h operations.
  *                       The recommended user block size is returned by
  *                        the MTIOCGET ioctl.
- *                       Additional minor changes.
+ *                       Additional miyesr changes.
  * Ver 1.3   Feb  9 96   Fixed pipelined read mode bug which prevented the
  *                        use of some block sizes during a restore procedure.
- *                       The character device interface will now present a
+ *                       The character device interface will yesw present a
  *                        continuous view of the media - any mix of block sizes
  *                        during a backup/restore procedure is supported. The
  *                        driver will buffer the requests internally and
@@ -114,7 +114,7 @@
  *                        chosen user block size.
  *                       Some improvements in error recovery.
  *                       By cooperating with ide-dma.c, bus mastering DMA can
- *                        now sometimes be used with IDE tape drives as well.
+ *                        yesw sometimes be used with IDE tape drives as well.
  *                        Bus mastering DMA has the potential to dramatically
  *                        reduce the CPU's overhead when accessing the device,
  *                        and can be enabled by using hdparm -d1 on the tape's
@@ -126,7 +126,7 @@
  *                       Fixed nasty null dereferencing bug.
  * Ver 1.6   Aug 16 96   Fixed FPU usage in the driver.
  *                       Fixed end of media bug.
- * Ver 1.7   Sep 10 96   Minor changes for the CONNER CTT8000-A model.
+ * Ver 1.7   Sep 10 96   Miyesr changes for the CONNER CTT8000-A model.
  * Ver 1.8   Sep 26 96   Attempt to find a better balance between good
  *                        interactive response and high system throughput.
  * Ver 1.9   Nov  5 96   Automatically cross encountered filemarks rather
@@ -144,14 +144,14 @@
  *                       Rewrote DSC handling.
  *                       Some portability fixes.
  *                       Removed ide-tape.h.
- *                       Additional minor changes.
+ *                       Additional miyesr changes.
  * Ver 1.11  Dec  2 96   Bug fix in previous DSC timeout handling.
  *                       Use ide_stall_queue() for DSC overlap.
  *                       Use the maximum speed rather than the current speed
  *                        to compute the request service time.
  * Ver 1.12  Dec  7 97   Fix random memory overwriting and/or last block data
  *                        corruption, which could occur if the total number
- *                        of bytes written to the tape was not an integral
+ *                        of bytes written to the tape was yest an integral
  *                        number of tape blocks.
  *                       Add support for INTERRUPT DRQ devices.
  * Ver 1.13  Jan  2 98   Add "speed == 0" work-around for HP COLORADO 5GB
@@ -166,12 +166,12 @@
  *                       Fix zero padding of the last written block in
  *                        case the tape block size is larger than PAGE_SIZE.
  *                       Decrease the default disconnection time to tn.
- * Ver 1.16e Oct  3 99   Minor fixes.
- * Ver 1.16e1 Oct 13 99  Patches by Arnold Niessen,
- *                          niessen@iae.nl / arnold.niessen@philips.com
+ * Ver 1.16e Oct  3 99   Miyesr fixes.
+ * Ver 1.16e1 Oct 13 99  Patches by Aryesld Niessen,
+ *                          niessen@iae.nl / aryesld.niessen@philips.com
  *                   GO-1)  Undefined code in idetape_read_position
  *				according to Gadi's email
- *                   AJN-1) Minor fix asc == 11 should be asc == 0x11
+ *                   AJN-1) Miyesr fix asc == 11 should be asc == 0x11
  *                               in idetape_issue_packet_command (did effect
  *                               debugging output only)
  *                   AJN-2) Added more debugging output, and
@@ -181,7 +181,7 @@
  *                              via /proc/ide/hdc/settings
  *				"debug_level" determines amount of debugging output;
  *				can be changed using /proc/ide/hdx/settings
- *				0 : almost no debugging output
+ *				0 : almost yes debugging output
  *				1 : 0+output errors only
  *				2 : 1+output all sensekey/asc
  *				3 : 2+follow all chrdev related procedures
@@ -201,12 +201,12 @@
  *			able to rmmod the idetape module;
  *			Also, sometimes an application finishes but the
  *			device remains `busy' for some time. Same cause ?
- *                   Proposed changes to release-notes:
+ *                   Proposed changes to release-yestes:
  *		     4) write a simple `quickstart' section in the
- *                      release notes; I volunteer if you don't want to
+ *                      release yestes; I volunteer if you don't want to
  *		     5) include a pointer to video4linux in the doc
  *                      to stimulate video applications
- *                   6) release notes lines 331 and 362: explain what happens
+ *                   6) release yestes lines 331 and 362: explain what happens
  *			if the application data rate is higher than 1100 KB/s;
  *			similar approach to lower-than-500 kB/s ?
  *		     7) 6.6 Comparison; wouldn't it be better to allow different
@@ -224,7 +224,7 @@
  *			- 'workaround' for read error/blank block around block 3000.
  *			- Implement Early warning for end of media for Onstream.
  *			- Cosmetic code changes for readability.
- *			- Idetape_position_tape should not use SKIP bit during
+ *			- Idetape_position_tape should yest use SKIP bit during
  *			  Onstream read recovery.
  *			- Add capacity, logical_blk_num and first/last_frame_position
  *			  to /proc/ide/hd?/settings.
@@ -239,12 +239,12 @@
  *			 instead of just changing the command code.
  *			Made the transfer byte count for Request Sense equal to the
  *			 actual length of the data transfer.
- *			Changed handling of partial data transfers: they do not
+ *			Changed handling of partial data transfers: they do yest
  *			 cause DMA errors.
  *			Moved initiation of DMA transfers to the correct place.
  *			Removed reference to unallocated memory.
  *			Made __idetape_discard_read_pipeline return the number of
- *			 sectors skipped, not the number of stages.
+ *			 sectors skipped, yest the number of stages.
  *			Replaced errant kfree() calls with __idetape_kfree_stage().
  *			Fixed off-by-one error in testing the pipeline length.
  *			Fixed handling of filemarks in the read pipeline.

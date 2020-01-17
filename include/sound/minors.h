@@ -9,11 +9,11 @@
 #define SNDRV_OS_MINORS			256
 
 #define SNDRV_MINOR_DEVICES		32
-#define SNDRV_MINOR_CARD(minor)		((minor) >> 5)
-#define SNDRV_MINOR_DEVICE(minor)	((minor) & 0x001f)
+#define SNDRV_MINOR_CARD(miyesr)		((miyesr) >> 5)
+#define SNDRV_MINOR_DEVICE(miyesr)	((miyesr) & 0x001f)
 #define SNDRV_MINOR(card, dev)		(((card) << 5) | (dev))
 
-/* these minors can still be used for autoloading devices (/dev/aload*) */
+/* these miyesrs can still be used for autoloading devices (/dev/aload*) */
 #define SNDRV_MINOR_CONTROL		0	/* 0 */
 #define SNDRV_MINOR_GLOBAL		1	/* 1 */
 #define SNDRV_MINOR_SEQUENCER		1	/* SNDRV_MINOR_GLOBAL + 0 * 32 */
@@ -26,7 +26,7 @@
 #define SNDRV_MINOR_PCM_PLAYBACK	16	/* 16 - 23 */
 #define SNDRV_MINOR_PCM_CAPTURE		24	/* 24 - 31 */
 
-/* same as first respective minor number to make minor allocation easier */
+/* same as first respective miyesr number to make miyesr allocation easier */
 #define SNDRV_DEVICE_TYPE_CONTROL	SNDRV_MINOR_CONTROL
 #define SNDRV_DEVICE_TYPE_HWDEP		SNDRV_MINOR_HWDEP
 #define SNDRV_DEVICE_TYPE_RAWMIDI	SNDRV_MINOR_RAWMIDI
@@ -59,8 +59,8 @@ enum {
 #ifdef CONFIG_SND_OSSEMUL
 
 #define SNDRV_MINOR_OSS_DEVICES		16
-#define SNDRV_MINOR_OSS_CARD(minor)	((minor) >> 4)
-#define SNDRV_MINOR_OSS_DEVICE(minor)	((minor) & 0x000f)
+#define SNDRV_MINOR_OSS_CARD(miyesr)	((miyesr) >> 4)
+#define SNDRV_MINOR_OSS_DEVICE(miyesr)	((miyesr) & 0x000f)
 #define SNDRV_MINOR_OSS(card, dev)	(((card) << 4) | (dev))
 
 #define SNDRV_MINOR_OSS_MIXER		0	/* /dev/mixer - OSS 3.XX compatible */
@@ -73,8 +73,8 @@ enum {
 #define SNDRV_MINOR_OSS_SNDSTAT		6	/* /dev/sndstat - for compatibility with OSS */
 #define SNDRV_MINOR_OSS_RESERVED7	7	/* reserved for future use */
 #define SNDRV_MINOR_OSS_MUSIC		8	/* /dev/music - OSS 3.XX compatible */
-#define SNDRV_MINOR_OSS_DMMIDI		9	/* /dev/dmmidi0 - this device can have another minor # with OSS */
-#define SNDRV_MINOR_OSS_DMFM		10	/* /dev/dmfm0 - this device can have another minor # with OSS */
+#define SNDRV_MINOR_OSS_DMMIDI		9	/* /dev/dmmidi0 - this device can have ayesther miyesr # with OSS */
+#define SNDRV_MINOR_OSS_DMFM		10	/* /dev/dmfm0 - this device can have ayesther miyesr # with OSS */
 #define SNDRV_MINOR_OSS_MIXER1		11	/* alternate mixer */
 #define SNDRV_MINOR_OSS_PCM1		12	/* alternate PCM (GF-A-1) */
 #define SNDRV_MINOR_OSS_MIDI1		13	/* alternate midi - SYNTH */

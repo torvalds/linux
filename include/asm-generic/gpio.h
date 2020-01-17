@@ -4,7 +4,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/of.h>
 
 #ifdef CONFIG_GPIOLIB
@@ -14,7 +14,7 @@
 #include <linux/gpio/consumer.h>
 
 /* Platforms may implement their GPIO interface with library code,
- * at a small performance cost for non-inlined operations and some
+ * at a small performance cost for yesn-inlined operations and some
  * extra memory (for code and for per-GPIO table entries).
  *
  * While the GPIO programming interface defines valid GPIO numbers
@@ -35,11 +35,11 @@
 #endif
 
 /*
- * "valid" GPIO numbers are nonnegative and may be passed to
+ * "valid" GPIO numbers are yesnnegative and may be passed to
  * setup routines like gpio_request().  only some valid numbers
  * can successfully be requested and used.
  *
- * Invalid GPIO numbers are useful for indicating no-such-GPIO in
+ * Invalid GPIO numbers are useful for indicating yes-such-GPIO in
  * platform data and other tables.
  */
 
@@ -52,7 +52,7 @@ struct device;
 struct gpio;
 struct seq_file;
 struct module;
-struct device_node;
+struct device_yesde;
 struct gpio_desc;
 
 /* caller holds gpio_lock *OR* gpio is marked as requested */
@@ -142,7 +142,7 @@ static inline void gpio_unexport(unsigned gpio)
 
 static inline bool gpio_is_valid(int number)
 {
-	/* only non-negative numbers are valid */
+	/* only yesn-negative numbers are valid */
 	return number >= 0;
 }
 

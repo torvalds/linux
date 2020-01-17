@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies inc.  All rights reserved.
  */
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/rdma_user_ioctl.h>
@@ -8,7 +8,7 @@
 #include "rdma_core.h"
 #include "uverbs.h"
 
-static int ib_uverbs_notsupp(struct uverbs_attr_bundle *attrs)
+static int ib_uverbs_yestsupp(struct uverbs_attr_bundle *attrs)
 {
 	return -EOPNOTSUPP;
 }
@@ -157,7 +157,7 @@ static int uapi_merge_method(struct uverbs_api *uapi,
 		attr_slot =
 			uapi_add_elm(uapi, method_key | uapi_key_attr(attr->id),
 				     sizeof(*attr_slot));
-		/* Attributes are not allowed to be modified by drivers */
+		/* Attributes are yest allowed to be modified by drivers */
 		if (IS_ERR(attr_slot))
 			return PTR_ERR(attr_slot);
 
@@ -195,7 +195,7 @@ static int uapi_merge_obj_tree(struct uverbs_api *uapi,
 		 * disassociation, and the FD types require the driver to use
 		 * struct file_operations.owner to prevent the driver module
 		 * code from unloading while the file is open. This provides
-		 * enough safety that uverbs_close_fd() will continue to work.
+		 * eyesugh safety that uverbs_close_fd() will continue to work.
 		 * Drivers using FD are responsible to handle disassociation of
 		 * the device on their own.
 		 */
@@ -445,13 +445,13 @@ static int uapi_finalize(struct uverbs_api *uapi)
 				    iter.index & UVERBS_API_ATTR_KEY_MASK);
 	}
 
-	uapi->notsupp_method.handler = ib_uverbs_notsupp;
+	uapi->yestsupp_method.handler = ib_uverbs_yestsupp;
 	uapi->num_write = max_write + 1;
 	uapi->num_write_ex = max_write_ex + 1;
 	data = kmalloc_array(uapi->num_write + uapi->num_write_ex,
 			     sizeof(*uapi->write_methods), GFP_KERNEL);
 	for (i = 0; i != uapi->num_write + uapi->num_write_ex; i++)
-		data[i] = &uapi->notsupp_method;
+		data[i] = &uapi->yestsupp_method;
 	uapi->write_methods = data;
 	uapi->write_ex_methods = data + uapi->num_write;
 
@@ -580,7 +580,7 @@ again:
 
 			/*
 			 * If the method has a mandatory object handle
-			 * attribute which relies on an object which is not
+			 * attribute which relies on an object which is yest
 			 * present then the entire method is uncallable.
 			 */
 			if (!attr_elm->spec.mandatory)
@@ -665,7 +665,7 @@ struct uverbs_api *uverbs_alloc_api(struct ib_device *ibdev)
 err:
 	if (rc != -ENOMEM)
 		dev_err(&ibdev->dev,
-			"Setup of uverbs_api failed, kernel parsing tree description is not valid (%d)??\n",
+			"Setup of uverbs_api failed, kernel parsing tree description is yest valid (%d)??\n",
 			rc);
 
 	uverbs_destroy_api(uapi);
@@ -716,7 +716,7 @@ void uverbs_disassociate_api(struct uverbs_api *uapi)
 			/*
 			 * Some type_attrs are in the driver module. We don't
 			 * bother to keep track of which since there should be
-			 * no use of this after disassociate.
+			 * yes use of this after disassociate.
 			 */
 			object_elm->type_attrs = NULL;
 		} else if (uapi_key_is_attr(iter.index)) {

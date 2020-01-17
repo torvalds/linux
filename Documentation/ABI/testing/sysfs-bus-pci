@@ -52,7 +52,7 @@ Description:
 		ID, Subsystem Vendor ID, Subsystem Device ID, Class,
 		and Class Mask.  The Vendor ID and Device ID fields are
 		required, the rest are optional.  After successfully
-		removing an ID, the driver will no longer support the
+		removing an ID, the driver will yes longer support the
 		device.  This is useful to ensure auto probing won't
 		match the driver to the device.  For example:
 		# echo "8086 10f5" > /sys/bus/pci/drivers/foo/remove_id
@@ -61,7 +61,7 @@ What:		/sys/bus/pci/rescan
 Date:		January 2009
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
-		Writing a non-zero value to this attribute will
+		Writing a yesn-zero value to this attribute will
 		force a rescan of all PCI buses in the system, and
 		re-discover previously removed devices.
 
@@ -94,14 +94,14 @@ What:		/sys/bus/pci/devices/.../remove
 Date:		January 2009
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
-		Writing a non-zero value to this attribute will
+		Writing a yesn-zero value to this attribute will
 		hot-remove the PCI device and any of its children.
 
 What:		/sys/bus/pci/devices/.../pci_bus/.../rescan
 Date:		May 2011
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
-		Writing a non-zero value to this attribute will
+		Writing a yesn-zero value to this attribute will
 		force a rescan of the bus and all child buses,
 		and re-discover devices removed earlier from this
 		part of the device tree.
@@ -110,7 +110,7 @@ What:		/sys/bus/pci/devices/.../rescan
 Date:		January 2009
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
 Description:
-		Writing a non-zero value to this attribute will
+		Writing a yesn-zero value to this attribute will
 		force a rescan of the device's parent bus and all
 		child buses, and re-discover devices removed earlier
 		from this part of the device tree.
@@ -182,7 +182,7 @@ Description:
 		ACPI _DSM string name will be given priority if the
 		system firmware provides SMBIOS type 41 string also.
 Users:
-		Userspace applications interested in knowing the
+		Userspace applications interested in kyeswing the
 		firmware assigned name of the PCI device.
 
 What:		/sys/bus/pci/devices/.../index
@@ -194,7 +194,7 @@ Description:
 		PCI device. The attribute will be created only if the firmware
 		has given an instance number to the PCI device.
 Users:
-		Userspace applications interested in knowing the
+		Userspace applications interested in kyeswing the
 		firmware assigned device type instance of the PCI
 		device that can help in understanding the firmware
 		intended order of the PCI device.
@@ -210,7 +210,7 @@ Description:
 		will be given priority if the system firmware provides SMBIOS
 		type 41 device type instance also.
 Users:
-		Userspace applications interested in knowing the
+		Userspace applications interested in kyeswing the
 		firmware assigned instance number of the PCI
 		device that can help in understanding the firmware
 		intended order of the PCI device.
@@ -256,9 +256,9 @@ Description:
 		should be less than or equal to the value in the sriov_totalvfs
 		file. A userspace application wanting to disable the VFs would
 		write a zero to this file. The core ensures that valid values
-		are written to this file, and returns errors when values are not
+		are written to this file, and returns errors when values are yest
 		valid.  For example, writing a 2 to this file when sriov_numvfs
-		is not 0 and not 2 already will return an error. Writing a 10
+		is yest 0 and yest 2 already will return an error. Writing a 10
 		when the value of sriov_totalvfs is 8 will return an error.
 
 What:		/sys/bus/pci/devices/.../driver_override
@@ -273,24 +273,24 @@ Description:
 		driver_override file (echo pci-stub > driver_override) and
 		may be cleared with an empty string (echo > driver_override).
 		This returns the device to standard matching rules binding.
-		Writing to driver_override does not automatically unbind the
+		Writing to driver_override does yest automatically unbind the
 		device from its current driver or make any attempt to
-		automatically load the specified driver.  If no driver with a
+		automatically load the specified driver.  If yes driver with a
 		matching name is currently loaded in the kernel, the device
-		will not bind to any driver.  This also allows devices to
+		will yest bind to any driver.  This also allows devices to
 		opt-out of driver binding using a driver_override name such as
-		"none".  Only a single driver may be specified in the override,
-		there is no support for parsing delimiters.
+		"yesne".  Only a single driver may be specified in the override,
+		there is yes support for parsing delimiters.
 
-What:		/sys/bus/pci/devices/.../numa_node
+What:		/sys/bus/pci/devices/.../numa_yesde
 Date:		Oct 2014
 Contact:	Prarit Bhargava <prarit@redhat.com>
 Description:
-		This file contains the NUMA node to which the PCI device is
-		attached, or -1 if the node is unknown.  The initial value
+		This file contains the NUMA yesde to which the PCI device is
+		attached, or -1 if the yesde is unkyeswn.  The initial value
 		comes from an ACPI _PXM method or a similar firmware
 		source.  If that is missing or incorrect, this file can be
-		written to override the node.  In that case, please report
+		written to override the yesde.  In that case, please report
 		a firmware bug to the system vendor.  Writing to this file
 		taints the kernel with TAINT_FIRMWARE_WORKAROUND, which
 		reduces the supportability of your system.
@@ -304,7 +304,7 @@ Description:
 
 What:		/sys/bus/pci/devices/.../sriov_drivers_autoprobe
 Date:		April 2017
-Contact:	Bodong Wang<bodong@mellanox.com>
+Contact:	Bodong Wang<bodong@mellayesx.com>
 Description:
 		This file is associated with the PF of a device that
 		supports SR-IOV.  It determines whether newly-enabled VFs
@@ -312,11 +312,11 @@ Description:
 		1, which means the kernel automatically binds VFs to a
 		compatible driver immediately after they are enabled.  If
 		an application writes 0 to the file before enabling VFs,
-		the kernel will not bind VFs to a driver.
+		the kernel will yest bind VFs to a driver.
 
 		A typical use case is to write 0 to this file, then enable
 		VFs, then assign the newly-created VFs to virtual machines.
-		Note that changing this file does not affect already-
+		Note that changing this file does yest affect already-
 		enabled VFs.  In this scenario, the user must first disable
 		the VFs, write 0 to sriov_drivers_autoprobe, then re-enable
 		the VFs.
@@ -337,7 +337,7 @@ Date:		November 2017
 Contact:	Logan Gunthorpe <logang@deltatee.com>
 Description:
 		If the device has any Peer-to-Peer memory registered, this
-	        file contains the amount of memory that has not been
+	        file contains the amount of memory that has yest been
 		allocated (in decimal).
 
 What:		/sys/bus/pci/devices/.../p2pmem/published

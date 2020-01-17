@@ -62,7 +62,7 @@ static int zx_vl_plane_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	/* nothing to check when disabling or disabled */
+	/* yesthing to check when disabling or disabled */
 	if (!crtc_state->enable)
 		return 0;
 
@@ -242,7 +242,7 @@ static void zx_vl_plane_atomic_update(struct drm_plane *plane,
 	if (fmt >= 0)
 		zx_writel(layer + VL_CTRL1, fmt);
 
-	/* Always use scaler since it exists (set for not bypass) */
+	/* Always use scaler since it exists (set for yest bypass) */
 	zx_writel_mask(layer + VL_CTRL2, VL_SCALER_BYPASS_MODE,
 		       VL_SCALER_BYPASS_MODE);
 
@@ -289,7 +289,7 @@ static int zx_gl_plane_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	/* nothing to check when disabling or disabled */
+	/* yesthing to check when disabling or disabled */
 	if (!crtc_state->enable)
 		return 0;
 
@@ -418,7 +418,7 @@ static void zx_gl_plane_atomic_update(struct drm_plane *plane,
 			       CSC_BT601_IMAGE_RGB2YCBCR << CSC_COV_MODE_SHIFT);
 	zx_writel_mask(csc + CSC_CTRL0, CSC_WORK_ENABLE, CSC_WORK_ENABLE);
 
-	/* Always use scaler since it exists (set for not bypass) */
+	/* Always use scaler since it exists (set for yest bypass) */
 	zx_writel_mask(layer + GL_CTRL3, GL_SCALER_BYPASS_MODE,
 		       GL_SCALER_BYPASS_MODE);
 
@@ -456,7 +456,7 @@ void zx_plane_set_update(struct drm_plane *plane)
 {
 	struct zx_plane *zplane = to_zx_plane(plane);
 
-	/* Do nothing if the plane is not enabled */
+	/* Do yesthing if the plane is yest enabled */
 	if (!plane->state->crtc)
 		return;
 

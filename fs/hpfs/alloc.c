@@ -9,7 +9,7 @@
 
 #include "hpfs_fn.h"
 
-static void hpfs_claim_alloc(struct super_block *s, secno sec)
+static void hpfs_claim_alloc(struct super_block *s, secyes sec)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	if (sbi->sb_n_free != (unsigned)-1) {
@@ -22,7 +22,7 @@ static void hpfs_claim_alloc(struct super_block *s, secno sec)
 	}
 }
 
-static void hpfs_claim_free(struct super_block *s, secno sec)
+static void hpfs_claim_free(struct super_block *s, secyes sec)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	if (sbi->sb_n_free != (unsigned)-1) {
@@ -35,29 +35,29 @@ static void hpfs_claim_free(struct super_block *s, secno sec)
 	}
 }
 
-static void hpfs_claim_dirband_alloc(struct super_block *s, secno sec)
+static void hpfs_claim_dirband_alloc(struct super_block *s, secyes sec)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
-	if (sbi->sb_n_free_dnodes != (unsigned)-1) {
-		if (unlikely(!sbi->sb_n_free_dnodes)) {
+	if (sbi->sb_n_free_dyesdes != (unsigned)-1) {
+		if (unlikely(!sbi->sb_n_free_dyesdes)) {
 			hpfs_error(s, "dirband free count underflow, allocating sector %08x", sec);
-			sbi->sb_n_free_dnodes = -1;
+			sbi->sb_n_free_dyesdes = -1;
 			return;
 		}
-		sbi->sb_n_free_dnodes--;
+		sbi->sb_n_free_dyesdes--;
 	}
 }
 
-static void hpfs_claim_dirband_free(struct super_block *s, secno sec)
+static void hpfs_claim_dirband_free(struct super_block *s, secyes sec)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
-	if (sbi->sb_n_free_dnodes != (unsigned)-1) {
-		if (unlikely(sbi->sb_n_free_dnodes >= sbi->sb_dirband_size / 4)) {
+	if (sbi->sb_n_free_dyesdes != (unsigned)-1) {
+		if (unlikely(sbi->sb_n_free_dyesdes >= sbi->sb_dirband_size / 4)) {
 			hpfs_error(s, "dirband free count overflow, freeing sector %08x", sec);
-			sbi->sb_n_free_dnodes = -1;
+			sbi->sb_n_free_dyesdes = -1;
 			return;
 		}
-		sbi->sb_n_free_dnodes++;
+		sbi->sb_n_free_dyesdes++;
 	}
 }
 
@@ -66,21 +66,21 @@ static void hpfs_claim_dirband_free(struct super_block *s, secno sec)
  * This is really slow. Turned on only if chk==2
  */
 
-static int chk_if_allocated(struct super_block *s, secno sec, char *msg)
+static int chk_if_allocated(struct super_block *s, secyes sec, char *msg)
 {
 	struct quad_buffer_head qbh;
 	__le32 *bmp;
 	if (!(bmp = hpfs_map_bitmap(s, sec >> 14, &qbh, "chk"))) goto fail;
 	if ((le32_to_cpu(bmp[(sec & 0x3fff) >> 5]) >> (sec & 0x1f)) & 1) {
-		hpfs_error(s, "sector '%s' - %08x not allocated in bitmap", msg, sec);
+		hpfs_error(s, "sector '%s' - %08x yest allocated in bitmap", msg, sec);
 		goto fail1;
 	}
 	hpfs_brelse4(&qbh);
 	if (sec >= hpfs_sb(s)->sb_dirband_start && sec < hpfs_sb(s)->sb_dirband_start + hpfs_sb(s)->sb_dirband_size) {
 		unsigned ssec = (sec - hpfs_sb(s)->sb_dirband_start) / 4;
-		if (!(bmp = hpfs_map_dnode_bitmap(s, &qbh))) goto fail;
+		if (!(bmp = hpfs_map_dyesde_bitmap(s, &qbh))) goto fail;
 		if ((le32_to_cpu(bmp[ssec >> 5]) >> (ssec & 0x1f)) & 1) {
-			hpfs_error(s, "sector '%s' - %08x not allocated in directory bitmap", msg, sec);
+			hpfs_error(s, "sector '%s' - %08x yest allocated in directory bitmap", msg, sec);
 			goto fail1;
 		}
 		hpfs_brelse4(&qbh);
@@ -97,7 +97,7 @@ static int chk_if_allocated(struct super_block *s, secno sec, char *msg)
  * allocated in bitmap.
  */
 	
-int hpfs_chk_sectors(struct super_block *s, secno start, int len, char *msg)
+int hpfs_chk_sectors(struct super_block *s, secyes start, int len, char *msg)
 {
 	if (start + len < start || start < 0x12 ||
 	    start + len > hpfs_sb(s)->sb_fs_size) {
@@ -112,7 +112,7 @@ int hpfs_chk_sectors(struct super_block *s, secno start, int len, char *msg)
 	return 0;
 }
 
-static secno alloc_in_bmp(struct super_block *s, secno near, unsigned n, unsigned forward)
+static secyes alloc_in_bmp(struct super_block *s, secyes near, unsigned n, unsigned forward)
 {
 	struct quad_buffer_head qbh;
 	__le32 *bmp;
@@ -121,7 +121,7 @@ static secno alloc_in_bmp(struct super_block *s, secno near, unsigned n, unsigne
 	/*unsigned mnr;*/
 	unsigned i, q;
 	int a, b;
-	secno ret = 0;
+	secyes ret = 0;
 	if (n != 1 && n != 4) {
 		hpfs_error(s, "Bad allocation size: %d", n);
 		return 0;
@@ -129,7 +129,7 @@ static secno alloc_in_bmp(struct super_block *s, secno near, unsigned n, unsigne
 	if (bs != ~0x3fff) {
 		if (!(bmp = hpfs_map_bitmap(s, near >> 14, &qbh, "aib"))) goto uls;
 	} else {
-		if (!(bmp = hpfs_map_dnode_bitmap(s, &qbh))) goto uls;
+		if (!(bmp = hpfs_map_dyesde_bitmap(s, &qbh))) goto uls;
 	}
 	if (!tstbits(bmp, nr, n + forward)) {
 		ret = bs + nr;
@@ -196,13 +196,13 @@ static secno alloc_in_bmp(struct super_block *s, secno near, unsigned n, unsigne
  * Allocation strategy:	1) search place near the sector specified
  *			2) search bitmap where free sectors last found
  *			3) search all bitmaps
- *			4) search all bitmaps ignoring number of pre-allocated
+ *			4) search all bitmaps igyesring number of pre-allocated
  *				sectors
  */
 
-secno hpfs_alloc_sector(struct super_block *s, secno near, unsigned n, int forward)
+secyes hpfs_alloc_sector(struct super_block *s, secyes near, unsigned n, int forward)
 {
-	secno sec;
+	secyes sec;
 	int i;
 	unsigned n_bmps;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
@@ -274,10 +274,10 @@ secno hpfs_alloc_sector(struct super_block *s, secno near, unsigned n, int forwa
 	return sec;
 }
 
-static secno alloc_in_dirband(struct super_block *s, secno near)
+static secyes alloc_in_dirband(struct super_block *s, secyes near)
 {
 	unsigned nr = near;
-	secno sec;
+	secyes sec;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
 	if (nr < sbi->sb_dirband_start)
 		nr = sbi->sb_dirband_start;
@@ -293,7 +293,7 @@ static secno alloc_in_dirband(struct super_block *s, secno near)
 
 /* Alloc sector if it's free */
 
-int hpfs_alloc_if_possible(struct super_block *s, secno sec)
+int hpfs_alloc_if_possible(struct super_block *s, secyes sec)
 {
 	struct quad_buffer_head qbh;
 	__le32 *bmp;
@@ -312,7 +312,7 @@ int hpfs_alloc_if_possible(struct super_block *s, secno sec)
 
 /* Free sectors in bitmaps */
 
-void hpfs_free_sectors(struct super_block *s, secno sec, unsigned n)
+void hpfs_free_sectors(struct super_block *s, secyes sec, unsigned n)
 {
 	struct quad_buffer_head qbh;
 	__le32 *bmp;
@@ -331,7 +331,7 @@ void hpfs_free_sectors(struct super_block *s, secno sec, unsigned n)
 	}	
 	new_tst:
 	if ((le32_to_cpu(bmp[(sec & 0x3fff) >> 5]) >> (sec & 0x1f) & 1)) {
-		hpfs_error(s, "sector %08x not allocated", sec);
+		hpfs_error(s, "sector %08x yest allocated", sec);
 		hpfs_brelse4(&qbh);
 		return;
 	}
@@ -351,19 +351,19 @@ void hpfs_free_sectors(struct super_block *s, secno sec, unsigned n)
 }
 
 /*
- * Check if there are at least n free dnodes on the filesystem.
- * Called before adding to dnode. If we run out of space while
- * splitting dnodes, it would corrupt dnode tree.
+ * Check if there are at least n free dyesdes on the filesystem.
+ * Called before adding to dyesde. If we run out of space while
+ * splitting dyesdes, it would corrupt dyesde tree.
  */
 
-int hpfs_check_free_dnodes(struct super_block *s, int n)
+int hpfs_check_free_dyesdes(struct super_block *s, int n)
 {
 	int n_bmps = (hpfs_sb(s)->sb_fs_size + 0x4000 - 1) >> 14;
 	int b = hpfs_sb(s)->sb_c_bitmap & 0x0fffffff;
 	int i, j;
 	__le32 *bmp;
 	struct quad_buffer_head qbh;
-	if ((bmp = hpfs_map_dnode_bitmap(s, &qbh))) {
+	if ((bmp = hpfs_map_dyesde_bitmap(s, &qbh))) {
 		for (j = 0; j < 512; j++) {
 			unsigned k;
 			if (!le32_to_cpu(bmp[j])) continue;
@@ -402,42 +402,42 @@ int hpfs_check_free_dnodes(struct super_block *s, int n)
 	goto chk_next;
 }
 
-void hpfs_free_dnode(struct super_block *s, dnode_secno dno)
+void hpfs_free_dyesde(struct super_block *s, dyesde_secyes dyes)
 {
-	if (hpfs_sb(s)->sb_chk) if (dno & 3) {
-		hpfs_error(s, "hpfs_free_dnode: dnode %08x not aligned", dno);
+	if (hpfs_sb(s)->sb_chk) if (dyes & 3) {
+		hpfs_error(s, "hpfs_free_dyesde: dyesde %08x yest aligned", dyes);
 		return;
 	}
-	if (dno < hpfs_sb(s)->sb_dirband_start ||
-	    dno >= hpfs_sb(s)->sb_dirband_start + hpfs_sb(s)->sb_dirband_size) {
-		hpfs_free_sectors(s, dno, 4);
+	if (dyes < hpfs_sb(s)->sb_dirband_start ||
+	    dyes >= hpfs_sb(s)->sb_dirband_start + hpfs_sb(s)->sb_dirband_size) {
+		hpfs_free_sectors(s, dyes, 4);
 	} else {
 		struct quad_buffer_head qbh;
 		__le32 *bmp;
-		unsigned ssec = (dno - hpfs_sb(s)->sb_dirband_start) / 4;
-		if (!(bmp = hpfs_map_dnode_bitmap(s, &qbh))) {
+		unsigned ssec = (dyes - hpfs_sb(s)->sb_dirband_start) / 4;
+		if (!(bmp = hpfs_map_dyesde_bitmap(s, &qbh))) {
 			return;
 		}
 		bmp[ssec >> 5] |= cpu_to_le32(1 << (ssec & 0x1f));
 		hpfs_mark_4buffers_dirty(&qbh);
 		hpfs_brelse4(&qbh);
-		hpfs_claim_dirband_free(s, dno);
+		hpfs_claim_dirband_free(s, dyes);
 	}
 }
 
-struct dnode *hpfs_alloc_dnode(struct super_block *s, secno near,
-			 dnode_secno *dno, struct quad_buffer_head *qbh)
+struct dyesde *hpfs_alloc_dyesde(struct super_block *s, secyes near,
+			 dyesde_secyes *dyes, struct quad_buffer_head *qbh)
 {
-	struct dnode *d;
-	if (hpfs_get_free_dnodes(s) > FREE_DNODES_ADD) {
-		if (!(*dno = alloc_in_dirband(s, near)))
-			if (!(*dno = hpfs_alloc_sector(s, near, 4, 0))) return NULL;
+	struct dyesde *d;
+	if (hpfs_get_free_dyesdes(s) > FREE_DNODES_ADD) {
+		if (!(*dyes = alloc_in_dirband(s, near)))
+			if (!(*dyes = hpfs_alloc_sector(s, near, 4, 0))) return NULL;
 	} else {
-		if (!(*dno = hpfs_alloc_sector(s, near, 4, 0)))
-			if (!(*dno = alloc_in_dirband(s, near))) return NULL;
+		if (!(*dyes = hpfs_alloc_sector(s, near, 4, 0)))
+			if (!(*dyes = alloc_in_dirband(s, near))) return NULL;
 	}
-	if (!(d = hpfs_get_4sectors(s, *dno, qbh))) {
-		hpfs_free_dnode(s, *dno);
+	if (!(d = hpfs_get_4sectors(s, *dyes, qbh))) {
+		hpfs_free_dyesde(s, *dyes);
 		return NULL;
 	}
 	memset(d, 0, 2048);
@@ -447,41 +447,41 @@ struct dnode *hpfs_alloc_dnode(struct super_block *s, secno near,
 	d->dirent[2] = 8;
 	d->dirent[30] = 1;
 	d->dirent[31] = 255;
-	d->self = cpu_to_le32(*dno);
+	d->self = cpu_to_le32(*dyes);
 	return d;
 }
 
-struct fnode *hpfs_alloc_fnode(struct super_block *s, secno near, fnode_secno *fno,
+struct fyesde *hpfs_alloc_fyesde(struct super_block *s, secyes near, fyesde_secyes *fyes,
 			  struct buffer_head **bh)
 {
-	struct fnode *f;
-	if (!(*fno = hpfs_alloc_sector(s, near, 1, FNODE_ALLOC_FWD))) return NULL;
-	if (!(f = hpfs_get_sector(s, *fno, bh))) {
-		hpfs_free_sectors(s, *fno, 1);
+	struct fyesde *f;
+	if (!(*fyes = hpfs_alloc_sector(s, near, 1, FNODE_ALLOC_FWD))) return NULL;
+	if (!(f = hpfs_get_sector(s, *fyes, bh))) {
+		hpfs_free_sectors(s, *fyes, 1);
 		return NULL;
 	}	
 	memset(f, 0, 512);
 	f->magic = cpu_to_le32(FNODE_MAGIC);
 	f->ea_offs = cpu_to_le16(0xc4);
-	f->btree.n_free_nodes = 8;
+	f->btree.n_free_yesdes = 8;
 	f->btree.first_free = cpu_to_le16(8);
 	return f;
 }
 
-struct anode *hpfs_alloc_anode(struct super_block *s, secno near, anode_secno *ano,
+struct ayesde *hpfs_alloc_ayesde(struct super_block *s, secyes near, ayesde_secyes *ayes,
 			  struct buffer_head **bh)
 {
-	struct anode *a;
-	if (!(*ano = hpfs_alloc_sector(s, near, 1, ANODE_ALLOC_FWD))) return NULL;
-	if (!(a = hpfs_get_sector(s, *ano, bh))) {
-		hpfs_free_sectors(s, *ano, 1);
+	struct ayesde *a;
+	if (!(*ayes = hpfs_alloc_sector(s, near, 1, ANODE_ALLOC_FWD))) return NULL;
+	if (!(a = hpfs_get_sector(s, *ayes, bh))) {
+		hpfs_free_sectors(s, *ayes, 1);
 		return NULL;
 	}
 	memset(a, 0, 512);
 	a->magic = cpu_to_le32(ANODE_MAGIC);
-	a->self = cpu_to_le32(*ano);
-	a->btree.n_free_nodes = 40;
-	a->btree.n_used_nodes = 0;
+	a->self = cpu_to_le32(*ayes);
+	a->btree.n_free_yesdes = 40;
+	a->btree.n_used_yesdes = 0;
 	a->btree.first_free = cpu_to_le16(8);
 	return a;
 }
@@ -500,10 +500,10 @@ static unsigned find_run(__le32 *bmp, unsigned *idx)
 	return len;
 }
 
-static int do_trim(struct super_block *s, secno start, unsigned len, secno limit_start, secno limit_end, unsigned minlen, unsigned *result)
+static int do_trim(struct super_block *s, secyes start, unsigned len, secyes limit_start, secyes limit_end, unsigned minlen, unsigned *result)
 {
 	int err;
-	secno end;
+	secyes end;
 	if (fatal_signal_pending(current))
 		return -EINTR;
 	end = start + len;
@@ -543,7 +543,7 @@ int hpfs_trim_fs(struct super_block *s, u64 start, u64 end, u64 minlen, unsigned
 			err = -EROFS;
 			goto unlock_1;
 		}
-		if (!(bmp = hpfs_map_dnode_bitmap(s, &qbh))) {
+		if (!(bmp = hpfs_map_dyesde_bitmap(s, &qbh))) {
 			err = -EIO;
 			goto unlock_1;
 		}

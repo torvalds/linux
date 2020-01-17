@@ -48,7 +48,7 @@ void xdp_del_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
 }
 
 /* The umem is stored both in the _rx struct and the _tx struct as we do
- * not know if the device has more tx queues than rx, or the opposite.
+ * yest kyesw if the device has more tx queues than rx, or the opposite.
  * This might also change during run time.
  */
 static int xdp_reg_umem_at_qid(struct net_device *dev, struct xdp_umem *umem,
@@ -115,7 +115,7 @@ int xdp_umem_assign_dev(struct xdp_umem *umem, struct net_device *dev,
 	if (flags & XDP_USE_NEED_WAKEUP) {
 		umem->flags |= XDP_UMEM_USES_NEED_WAKEUP;
 		/* Tx needs to be explicitly woken up the first time.
-		 * Also for supporting drivers that do not implement this
+		 * Also for supporting drivers that do yest implement this
 		 * feature. They will always have to call sendto().
 		 */
 		xsk_set_tx_need_wakeup(umem);
@@ -350,7 +350,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 		 * - huge pages, or*
 		 * - using an IOMMU, or
 		 * - making sure the memory area is consecutive
-		 * but for now, we simply say "computer says no".
+		 * but for yesw, we simply say "computer says yes".
 		 */
 		return -EINVAL;
 	}
@@ -391,7 +391,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 					    : ~((u64)chunk_size - 1);
 	umem->size = size;
 	umem->headroom = headroom;
-	umem->chunk_size_nohr = chunk_size - headroom;
+	umem->chunk_size_yeshr = chunk_size - headroom;
 	umem->npgs = size / PAGE_SIZE;
 	umem->pgs = NULL;
 	umem->user = NULL;

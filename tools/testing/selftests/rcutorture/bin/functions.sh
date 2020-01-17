@@ -12,12 +12,12 @@
 # Returns 1 if the specified boot-parameter string tells rcutorture to
 # test CPU-hotplug operations.
 bootparam_hotplug_cpu () {
-	echo "$1" | grep -q "rcutorture\.onoff_"
+	echo "$1" | grep -q "rcutorture\.oyesff_"
 }
 
-# checkarg --argname argtype $# arg mustmatch cannotmatch
+# checkarg --argname argtype $# arg mustmatch canyestmatch
 #
-# Checks the specified argument "arg" against the mustmatch and cannotmatch
+# Checks the specified argument "arg" against the mustmatch and canyestmatch
 # patterns.
 checkarg () {
 	if test $3 -le 1
@@ -34,7 +34,7 @@ checkarg () {
 	fi
 	if echo "$4" | grep -q -e "$6"
 	then
-		echo $1 $2 \"$4\" must not match \"$6\"
+		echo $1 $2 \"$4\" must yest match \"$6\"
 		usage
 	fi
 }
@@ -111,7 +111,7 @@ configfrag_hotplug_cpu () {
 # identify_boot_image qemu-cmd
 #
 # Returns the relative path to the kernel build image.  This will be
-# arch/<arch>/boot/bzImage or vmlinux if bzImage is not a target for the
+# arch/<arch>/boot/bzImage or vmlinux if bzImage is yest a target for the
 # architecture, unless overridden with the TORTURE_BOOT_IMAGE environment
 # variable.
 identify_boot_image () {
@@ -155,7 +155,7 @@ identify_qemu () {
 	then
 		echo qemu-system-ppc64
 	else
-		echo Cannot figure out what qemu command to use! 1>&2
+		echo Canyest figure out what qemu command to use! 1>&2
 		echo file $1 output: $u
 		# Usually this will be one of /usr/bin/qemu-system-*
 		# Use TORTURE_QEMU_CMD environment variable or appropriate
@@ -209,7 +209,7 @@ identify_qemu_args () {
 		echo -machine virt,gic-version=host -cpu host
 		;;
 	qemu-system-ppc64)
-		echo -enable-kvm -M pseries -nodefaults
+		echo -enable-kvm -M pseries -yesdefaults
 		echo -device spapr-vscsi
 		if test -n "$TORTURE_QEMU_INTERACTIVE" -a -n "$TORTURE_QEMU_MAC"
 		then
@@ -269,7 +269,7 @@ specify_qemu_cpus () {
 			echo $2 -smp $3
 			;;
 		qemu-system-ppc64)
-			nt="`lscpu | grep '^NUMA node0' | sed -e 's/^[^,]*,\([0-9]*\),.*$/\1/'`"
+			nt="`lscpu | grep '^NUMA yesde0' | sed -e 's/^[^,]*,\([0-9]*\),.*$/\1/'`"
 			echo $2 -smp cores=`expr \( $3 + $nt - 1 \) / $nt`,threads=$nt
 			;;
 		esac

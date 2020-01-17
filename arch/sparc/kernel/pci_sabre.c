@@ -65,7 +65,7 @@
 #define  SABRE_IOMMU_TSBSZ_64K  0x0000000000060000
 #define  SABRE_IOMMU_TSBSZ_128K 0x0000000000070000
 #define  SABRE_IOMMUCTRL_TBWSZ	 0x0000000000000004UL	/* TSB assumed page size */
-#define  SABRE_IOMMUCTRL_DENAB	 0x0000000000000002UL	/* Diagnostic Mode Enable */
+#define  SABRE_IOMMUCTRL_DENAB	 0x0000000000000002UL	/* Diagyesstic Mode Enable */
 #define  SABRE_IOMMUCTRL_ENAB	 0x0000000000000001UL	/* IOMMU Enable */
 #define SABRE_IOMMU_TSBBASE	0x0208UL
 #define SABRE_IOMMU_FLUSH	0x0210UL
@@ -132,7 +132,7 @@
 #define  SABRE_PCIDIAG_IPAPAR	 0x0000000000000008UL	/* Invert PIO Address Parity */
 #define  SABRE_PCIDIAG_IPDPAR	 0x0000000000000004UL	/* Invert PIO Data Parity */
 #define  SABRE_PCIDIAG_IDDPAR	 0x0000000000000002UL	/* Invert DMA Data Parity */
-#define  SABRE_PCIDIAG_ELPBK	 0x0000000000000001UL	/* Loopback Enable - not supported */
+#define  SABRE_PCIDIAG_ELPBK	 0x0000000000000001UL	/* Loopback Enable - yest supported */
 #define SABRE_PCITASR		0x2028UL
 #define  SABRE_PCITASR_EF	 0x0000000000000080UL	/* Respond to 0xe0000000-0xffffffff */
 #define  SABRE_PCITASR_CD	 0x0000000000000040UL	/* Respond to 0xc0000000-0xdfffffff */
@@ -245,7 +245,7 @@ static irqreturn_t sabre_ue_intr(int irq, void *dev_id)
 		printk("(Translation Error)");
 	}
 	if (!reported)
-		printk("(none)");
+		printk("(yesne)");
 	printk("]\n");
 
 	/* Interrogate IOMMU for error status. */
@@ -304,7 +304,7 @@ static irqreturn_t sabre_ce_intr(int irq, void *dev_id)
 		printk("(DMA Write)");
 	}
 	if (!reported)
-		printk("(none)");
+		printk("(yesne)");
 	printk("]\n");
 
 	return IRQ_HANDLED;
@@ -312,7 +312,7 @@ static irqreturn_t sabre_ce_intr(int irq, void *dev_id)
 
 static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct device_node *dp = pbm->op->dev.of_node;
+	struct device_yesde *dp = pbm->op->dev.of_yesde;
 	struct platform_device *op;
 	unsigned long base = pbm->controller_regs;
 	u64 tmp;
@@ -321,7 +321,7 @@ static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 	if (pbm->chip_type == PBM_CHIP_TYPE_SABRE)
 		dp = dp->parent;
 
-	op = of_find_device_by_node(dp);
+	op = of_find_device_by_yesde(dp);
 	if (!op)
 		return;
 
@@ -412,7 +412,7 @@ static void sabre_scan_bus(struct pci_pbm_info *pbm, struct device *parent)
 	 * at 66Mhz, but the front side of APB runs at 33Mhz
 	 * for both segments.
 	 *
-	 * Hummingbird systems do not use APB, so they run
+	 * Hummingbird systems do yest use APB, so they run
 	 * at 66MHZ.
 	 */
 	if (hummingbird_p)
@@ -420,10 +420,10 @@ static void sabre_scan_bus(struct pci_pbm_info *pbm, struct device *parent)
 	else
 		pbm->is_66mhz_capable = 0;
 
-	/* This driver has not been verified to handle
+	/* This driver has yest been verified to handle
 	 * multiple SABREs yet, so trap this.
 	 *
-	 * Also note that the SABRE host bridge is hardwired
+	 * Also yeste that the SABRE host bridge is hardwired
 	 * to live at bus 0.
 	 */
 	if (once != 0) {
@@ -458,7 +458,7 @@ static int sabre_probe(struct platform_device *op)
 {
 	const struct of_device_id *match;
 	const struct linux_prom64_registers *pr_regs;
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	struct pci_pbm_info *pbm;
 	u32 upa_portid, dma_mask;
 	struct iommu *iommu;
@@ -469,13 +469,13 @@ static int sabre_probe(struct platform_device *op)
 	match = of_match_device(sabre_match, &op->dev);
 	hummingbird_p = match && (match->data != NULL);
 	if (!hummingbird_p) {
-		struct device_node *cpu_dp;
+		struct device_yesde *cpu_dp;
 
 		/* Of course, Sun has to encode things a thousand
 		 * different ways, inconsistently.
 		 */
-		for_each_node_by_type(cpu_dp, "cpu") {
-			if (of_node_name_eq(cpu_dp, "SUNW,UltraSPARC-IIe"))
+		for_each_yesde_by_type(cpu_dp, "cpu") {
+			if (of_yesde_name_eq(cpu_dp, "SUNW,UltraSPARC-IIe"))
 				hummingbird_p = 1;
 		}
 	}
@@ -483,13 +483,13 @@ static int sabre_probe(struct platform_device *op)
 	err = -ENOMEM;
 	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
 	if (!pbm) {
-		printk(KERN_ERR PFX "Cannot allocate pci_pbm_info.\n");
+		printk(KERN_ERR PFX "Canyest allocate pci_pbm_info.\n");
 		goto out_err;
 	}
 
 	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
 	if (!iommu) {
-		printk(KERN_ERR PFX "Cannot allocate PBM iommu.\n");
+		printk(KERN_ERR PFX "Canyest allocate PBM iommu.\n");
 		goto out_free_controller;
 	}
 

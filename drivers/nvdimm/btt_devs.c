@@ -131,7 +131,7 @@ static ssize_t size_show(struct device *dev,
 	if (dev->driver)
 		rc = sprintf(buf, "%llu\n", nd_btt->size);
 	else {
-		/* no size to convey if the btt instance is disabled */
+		/* yes size to convey if the btt instance is disabled */
 		rc = -ENXIO;
 	}
 	nd_device_unlock(dev);
@@ -275,13 +275,13 @@ int nd_btt_version(struct nd_btt *nd_btt, struct nd_namespace_common *ndns,
 		/* Probe/setup for BTT v2.0 */
 		nd_btt->initial_offset = 0;
 		nd_btt->version_major = 2;
-		nd_btt->version_minor = 0;
+		nd_btt->version_miyesr = 0;
 		if (nvdimm_read_bytes(ndns, 0, btt_sb, sizeof(*btt_sb), 0))
 			return -ENXIO;
 		if (!nd_btt_arena_is_valid(nd_btt, btt_sb))
 			return -ENODEV;
 		if ((le16_to_cpu(btt_sb->version_major) != 2) ||
-				(le16_to_cpu(btt_sb->version_minor) != 0))
+				(le16_to_cpu(btt_sb->version_miyesr) != 0))
 			return -ENODEV;
 	} else {
 		/*
@@ -290,13 +290,13 @@ int nd_btt_version(struct nd_btt *nd_btt, struct nd_namespace_common *ndns,
 		 */
 		nd_btt->initial_offset = SZ_4K;
 		nd_btt->version_major = 1;
-		nd_btt->version_minor = 1;
+		nd_btt->version_miyesr = 1;
 		if (nvdimm_read_bytes(ndns, SZ_4K, btt_sb, sizeof(*btt_sb), 0))
 			return -ENXIO;
 		if (!nd_btt_arena_is_valid(nd_btt, btt_sb))
 			return -ENODEV;
 		if ((le16_to_cpu(btt_sb->version_major) != 1) ||
-				(le16_to_cpu(btt_sb->version_minor) != 1))
+				(le16_to_cpu(btt_sb->version_miyesr) != 1))
 			return -ENODEV;
 	}
 	return 0;
@@ -354,7 +354,7 @@ int nd_btt_probe(struct device *dev, struct nd_namespace_common *ndns)
 		return -ENOMEM;
 	btt_sb = devm_kzalloc(dev, sizeof(*btt_sb), GFP_KERNEL);
 	rc = __nd_btt_probe(to_nd_btt(btt_dev), ndns, btt_sb);
-	dev_dbg(dev, "btt: %s\n", rc == 0 ? dev_name(btt_dev) : "<none>");
+	dev_dbg(dev, "btt: %s\n", rc == 0 ? dev_name(btt_dev) : "<yesne>");
 	if (rc < 0) {
 		struct nd_btt *nd_btt = to_nd_btt(btt_dev);
 

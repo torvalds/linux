@@ -34,7 +34,7 @@
  * encryption or decryption operation. In case of an encryption, the associated
  * data memory is filled during the encryption operation. For decryption, the
  * associated data memory must contain data that is used to verify the integrity
- * of the decrypted data. Another deviation from the asynchronous block cipher
+ * of the decrypted data. Ayesther deviation from the asynchroyesus block cipher
  * operation is that the caller should explicitly check for -EBADMSG of the
  * crypto_aead_decrypt. That error indicates an authentication error, i.e.
  * a breach in the integrity of the message. In essence, that -EBADMSG error
@@ -56,13 +56,13 @@
  *   the IV. The API call of aead_request_set_crypt only points to the size of
  *   the input plaintext or ciphertext.
  *
- * * for "normal" AEAD ciphers, the concatenation of
+ * * for "yesrmal" AEAD ciphers, the concatenation of
  *   associated authentication data || plaintext or ciphertext.
  *
- * It is important to note that if multiple scatter gather list entries form
- * the input data mentioned above, the first entry must not point to a NULL
+ * It is important to yeste that if multiple scatter gather list entries form
+ * the input data mentioned above, the first entry must yest point to a NULL
  * buffer. If there is any potential where the AAD buffer can be NULL, the
- * calling code must contain a precaution to ensure that this does not result
+ * calling code must contain a precaution to ensure that this does yest result
  * in the first scatter gather list entry pointing to a NULL buffer.
  */
 
@@ -201,7 +201,7 @@ static inline unsigned int crypto_aead_alg_ivsize(struct aead_alg *alg)
  * @tfm: cipher handle
  *
  * The size of the IV for the aead referenced by the cipher handle is
- * returned. This IV size may be zero if the cipher does not need an IV.
+ * returned. This IV size may be zero if the cipher does yest need an IV.
  *
  * Return: IV size in bytes
  */
@@ -218,7 +218,7 @@ static inline unsigned int crypto_aead_ivsize(struct crypto_aead *tfm)
  * by the AEAD cipher handle is returned. The authentication data size may be
  * zero if the cipher implements a hard-coded maximum.
  *
- * The authentication data may also be known as "tag value".
+ * The authentication data may also be kyeswn as "tag value".
  *
  * Return: authentication data size / tag size in bytes
  */
@@ -344,12 +344,12 @@ int crypto_aead_encrypt(struct aead_request *req);
 int crypto_aead_decrypt(struct aead_request *req);
 
 /**
- * DOC: Asynchronous AEAD Request Handle
+ * DOC: Asynchroyesus AEAD Request Handle
  *
  * The aead_request data structure contains all pointers to data required for
  * the AEAD cipher operation. This includes the cipher handle (which can be
  * used by multiple aead_request instances), pointer to plaintext and
- * ciphertext, asynchronous callback function, etc. It acts as a handle to the
+ * ciphertext, asynchroyesus callback function, etc. It acts as a handle to the
  * aead_request_* API calls in a similar way as AEAD handle to the
  * crypto_aead_* API calls.
  */
@@ -413,17 +413,17 @@ static inline void aead_request_free(struct aead_request *req)
 }
 
 /**
- * aead_request_set_callback() - set asynchronous callback function
+ * aead_request_set_callback() - set asynchroyesus callback function
  * @req: request handle
  * @flags: specify zero or an ORing of the flags
  *	   CRYPTO_TFM_REQ_MAY_BACKLOG the request queue may back log and
  *	   increase the wait queue beyond the initial maximum size;
  *	   CRYPTO_TFM_REQ_MAY_SLEEP the request processing may sleep
  * @compl: callback function pointer to be registered with the request handle
- * @data: The data pointer refers to memory that is not used by the kernel
+ * @data: The data pointer refers to memory that is yest used by the kernel
  *	  crypto API, but provided to the callback function for it to use. Here,
  *	  the caller can provide a reference to memory the callback function can
- *	  operate on. As the callback function is invoked asynchronously to the
+ *	  operate on. As the callback function is invoked asynchroyesusly to the
  *	  related functionality, it may need to access data structures of the
  *	  related functionality which can be referenced using this pointer. The
  *	  callback function can access the memory via the "data" field in the
@@ -472,7 +472,7 @@ static inline void aead_request_set_callback(struct aead_request *req,
  * - AEAD decryption output: assoc data || plaintext
  *
  * Albeit the kernel requires the presence of the AAD buffer, however,
- * the kernel does not fill the AAD buffer in the output case. If the
+ * the kernel does yest fill the AAD buffer in the output case. If the
  * caller wants to have that data buffer filled, the caller must either
  * use an in-place cipher operation (i.e. same memory location for
  * input/output memory location).

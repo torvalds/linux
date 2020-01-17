@@ -9,7 +9,7 @@
 #ifdef CONFIG_CEPH_LIB_PRETTYDEBUG
 
 /*
- * wrap pr_debug to include a filename:lineno prefix on each line.
+ * wrap pr_debug to include a filename:lineyes prefix on each line.
  * this incurs some overhead (kernel size and execution time) due to
  * the extra function call at each call site.
  */

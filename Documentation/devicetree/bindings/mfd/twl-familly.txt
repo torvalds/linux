@@ -17,10 +17,10 @@ Required properties:
   it is considered as an interrupt controller cascaded to the SoC one.
 - #interrupt-cells = <1>;
 
-Optional node:
-- Child nodes contain in the twl. The twl family is made of several variants
+Optional yesde:
+- Child yesdes contain in the twl. The twl family is made of several variants
   that support a different number of features.
-  The children nodes will thus depend of the capability of the variant.
+  The children yesdes will thus depend of the capability of the variant.
 
 
 Example:

@@ -127,7 +127,7 @@
         "BriefDescription": "Number of X87 assists due to input value.",
         "Counter": "0,1,2,3",
         "EventName": "FP_ASSIST.X87_INPUT",
-        "PublicDescription": "This event counts x87 floating point (FP) micro-code assist (invalid operation, denormal operand, SNaN operand) when the input value (one of the source operands to an FP instruction) is invalid.",
+        "PublicDescription": "This event counts x87 floating point (FP) micro-code assist (invalid operation, deyesrmal operand, SNaN operand) when the input value (one of the source operands to an FP instruction) is invalid.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -147,7 +147,7 @@
         "BriefDescription": "Number of SIMD FP assists due to input values",
         "Counter": "0,1,2,3",
         "EventName": "FP_ASSIST.SIMD_INPUT",
-        "PublicDescription": "This event counts any input SSE* FP assist - invalid operation, denormal operand, dividing by zero, SNaN operand. Counting includes only cases involving penalties that required micro-code assist intervention.",
+        "PublicDescription": "This event counts any input SSE* FP assist - invalid operation, deyesrmal operand, dividing by zero, SNaN operand. Counting includes only cases involving penalties that required micro-code assist intervention.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },

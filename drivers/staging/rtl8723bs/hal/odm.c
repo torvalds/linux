@@ -400,7 +400,7 @@ void ODM_DMInit(PDM_ODM_T pDM_Odm)
 
 /*  */
 /*  2011/09/20 MH This is the entry pointer for all team to execute HW out source DM. */
-/*  You can not add any dummy function here, be care, you can only use DM structure */
+/*  You can yest add any dummy function here, be care, you can only use DM structure */
 /*  to perform any new ODM_DM. */
 /*  */
 void ODM_DMWatchdog(PDM_ODM_T pDM_Odm)
@@ -449,7 +449,7 @@ void ODM_DMWatchdog(PDM_ODM_T pDM_Odm)
 
 	/* odm_EdcaTurboCheck(pDM_Odm); */
 
-	/* 2010.05.30 LukeLee: For CE platform, files in IC subfolders may not be included to be compiled, */
+	/* 2010.05.30 LukeLee: For CE platform, files in IC subfolders may yest be included to be compiled, */
 	/*  so compile flags must be left here to prevent from compile errors */
 	pDM_Odm->PhyDbgInfo.NumQryBeaconPkt = 0;
 }
@@ -563,7 +563,7 @@ void ODM_CmnInfoInit(PDM_ODM_T pDM_Odm, ODM_CMNINFO_E CmnInfo, u32 Value)
 
 	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -691,7 +691,7 @@ void ODM_CmnInfoHook(PDM_ODM_T pDM_Odm, ODM_CMNINFO_E CmnInfo, void *pValue)
 	/* break; */
 	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -717,7 +717,7 @@ void ODM_CmnInfoPtrArrayHook(
 		break;
 	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -725,7 +725,7 @@ void ODM_CmnInfoPtrArrayHook(
 
 
 /*  */
-/*  Update Band/CHannel/.. The values are dynamic but non-per-packet. */
+/*  Update Band/CHannel/.. The values are dynamic but yesn-per-packet. */
 /*  */
 void ODM_CmnInfoUpdate(PDM_ODM_T pDM_Odm, u32 CmnInfo, u64 Value)
 {
@@ -834,7 +834,7 @@ void ODM_CmnInfoUpdate(PDM_ODM_T pDM_Odm, u32 CmnInfo, u64 Value)
 		break;
 */
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -1098,7 +1098,7 @@ void odm_RefreshRateAdaptiveMask(PDM_ODM_T pDM_Odm)
 
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_TRACE, ("odm_RefreshRateAdaptiveMask()---------->\n"));
 	if (!(pDM_Odm->SupportAbility & ODM_BB_RA_MASK)) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_TRACE, ("odm_RefreshRateAdaptiveMask(): Return cos not supported\n"));
+		ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_TRACE, ("odm_RefreshRateAdaptiveMask(): Return cos yest supported\n"));
 		return;
 	}
 	odm_RefreshRateAdaptiveMaskCE(pDM_Odm);
@@ -1115,7 +1115,7 @@ void odm_RefreshRateAdaptiveMaskCE(PDM_ODM_T pDM_Odm)
 	}
 
 	if (!pDM_Odm->bUseRAMask) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD, ("<---- odm_RefreshRateAdaptiveMask(): driver does not control rate adaptive mask\n"));
+		ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD, ("<---- odm_RefreshRateAdaptiveMask(): driver does yest control rate adaptive mask\n"));
 		return;
 	}
 
@@ -1156,7 +1156,7 @@ bool ODM_RAStateCheck(
 	u8 RATRState;
 
 	/*  Threshold Adjustment: */
-	/*  when RSSI state trends to go up one or two levels, make sure RSSI is high enough. */
+	/*  when RSSI state trends to go up one or two levels, make sure RSSI is high eyesugh. */
 	/*  Here GoUpGap is added to solve the boundary's level alternation issue. */
 	switch (*pRATRState) {
 	case DM_RATR_STA_INIT:

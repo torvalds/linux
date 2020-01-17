@@ -3,7 +3,7 @@
  * Mac80211 power management API for ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2011, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.yes>
  */
 
 #include <linux/module.h>
@@ -167,11 +167,11 @@ int cw1200_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	if (ret)
 		return -EAGAIN;
 
-	/* Do not suspend when datapath is not idle */
+	/* Do yest suspend when datapath is yest idle */
 	if (priv->tx_queue_stats.num_queued)
 		return -EBUSY;
 
-	/* Make sure there is no configuration requests in progress. */
+	/* Make sure there is yes configuration requests in progress. */
 	if (!mutex_trylock(&priv->conf_mutex))
 		return -EBUSY;
 
@@ -182,11 +182,11 @@ int cw1200_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	if (priv->channel_switch_in_progress)
 		goto revert1;
 
-	/* Do not suspend when join is pending */
+	/* Do yest suspend when join is pending */
 	if (priv->join_pending)
 		goto revert1;
 
-	/* Do not suspend when scanning */
+	/* Do yest suspend when scanning */
 	if (down_trylock(&priv->scan.lock))
 		goto revert1;
 
@@ -194,7 +194,7 @@ int cw1200_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	wsm_lock_tx_async(priv);
 
 	/* Wait to avoid possible race with bh code.
-	 * But do not wait too long...
+	 * But do yest wait too long...
 	 */
 	if (wait_event_timeout(priv->bh_evt_wq,
 			       !priv->hw_bufs_used, HZ / 10) <= 0)

@@ -20,8 +20,8 @@ static void a5xx_dump(struct msm_gpu *gpu);
 
 static void a5xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreyes_gpu);
 	uint32_t wptr;
 	unsigned long flags;
 
@@ -38,7 +38,7 @@ static void a5xx_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 	/* Make sure everything is posted before making a decision */
 	mb();
 
-	/* Update HW if this is the current ring and we are not in preempt */
+	/* Update HW if this is the current ring and we are yest in preempt */
 	if (a5xx_gpu->cur_ring == ring && !a5xx_in_preempt(a5xx_gpu))
 		gpu_write(gpu, REG_A5XX_CP_RB_WPTR, wptr);
 }
@@ -75,13 +75,13 @@ static void a5xx_submit_in_rb(struct msm_gpu *gpu, struct msm_gem_submit *submit
 				return;
 
 			for (i = 0; i < dwords; i++) {
-				/* normally the OUT_PKTn() would wait
+				/* yesrmally the OUT_PKTn() would wait
 				 * for space for the packet.  But since
 				 * we just OUT_RING() the whole thing,
-				 * need to call adreno_wait_ring()
+				 * need to call adreyes_wait_ring()
 				 * ourself:
 				 */
-				adreno_wait_ring(ring, 1);
+				adreyes_wait_ring(ring, 1);
 				OUT_RING(ring, ptr[i]);
 			}
 
@@ -94,20 +94,20 @@ static void a5xx_submit_in_rb(struct msm_gpu *gpu, struct msm_gem_submit *submit
 	a5xx_flush(gpu, ring);
 	a5xx_preempt_trigger(gpu);
 
-	/* we might not necessarily have a cmd from userspace to
-	 * trigger an event to know that submit has completed, so
+	/* we might yest necessarily have a cmd from userspace to
+	 * trigger an event to kyesw that submit has completed, so
 	 * do this manually:
 	 */
 	a5xx_idle(gpu, ring);
-	ring->memptrs->fence = submit->seqno;
+	ring->memptrs->fence = submit->seqyes;
 	msm_gpu_retire(gpu);
 }
 
 static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct msm_file_private *ctx)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreyes_gpu);
 	struct msm_drm_private *priv = gpu->dev->dev_private;
 	struct msm_ringbuffer *ring = submit->ring;
 	unsigned int i, ibs = 0;
@@ -179,7 +179,7 @@ static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 	/* Write the fence to the scratch register */
 	OUT_PKT4(ring, REG_A5XX_CP_SCRATCH_REG(2), 1);
-	OUT_RING(ring, submit->seqno);
+	OUT_RING(ring, submit->seqyes);
 
 	/*
 	 * Execute a CACHE_FLUSH_TS event. This will ensure that the
@@ -189,18 +189,18 @@ static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	OUT_RING(ring, CACHE_FLUSH_TS | (1 << 31));
 	OUT_RING(ring, lower_32_bits(rbmemptr(ring, fence)));
 	OUT_RING(ring, upper_32_bits(rbmemptr(ring, fence)));
-	OUT_RING(ring, submit->seqno);
+	OUT_RING(ring, submit->seqyes);
 
 	/* Yield the floor on command completion */
 	OUT_PKT7(ring, CP_CONTEXT_SWITCH_YIELD, 4);
 	/*
-	 * If dword[2:1] are non zero, they specify an address for the CP to
+	 * If dword[2:1] are yesn zero, they specify an address for the CP to
 	 * write the value of dword[3] to on preemption complete. Write 0 to
 	 * skip the write
 	 */
 	OUT_RING(ring, 0x00);
 	OUT_RING(ring, 0x00);
-	/* Data value - not used if the address above is 0 */
+	/* Data value - yest used if the address above is 0 */
 	OUT_RING(ring, 0x01);
 	/* Set bit 0 to trigger an interrupt on preempt complete */
 	OUT_RING(ring, 0x01);
@@ -311,14 +311,14 @@ static const struct {
 
 void a5xx_set_hwcg(struct msm_gpu *gpu, bool state)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(a5xx_hwcg); i++)
 		gpu_write(gpu, a5xx_hwcg[i].offset,
 			state ? a5xx_hwcg[i].value : 0);
 
-	if (adreno_is_a540(adreno_gpu)) {
+	if (adreyes_is_a540(adreyes_gpu)) {
 		gpu_write(gpu, REG_A5XX_RBBM_CLOCK_DELAY_GPMU, state ? 0x00000770 : 0);
 		gpu_write(gpu, REG_A5XX_RBBM_CLOCK_HYST_GPMU, state ? 0x00000004 : 0);
 	}
@@ -329,7 +329,7 @@ void a5xx_set_hwcg(struct msm_gpu *gpu, bool state)
 
 static int a5xx_me_init(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
 	struct msm_ringbuffer *ring = gpu->rb[0];
 
 	OUT_PKT7(ring, CP_ME_INIT, 8);
@@ -347,13 +347,13 @@ static int a5xx_me_init(struct msm_gpu *gpu)
 	OUT_RING(ring, 0x00000000);
 
 	/* Specify workarounds for various microcode issues */
-	if (adreno_is_a530(adreno_gpu)) {
+	if (adreyes_is_a530(adreyes_gpu)) {
 		/* Workaround for token end syncs
 		 * Force a WFI after every direct-render 3D mode draw and every
 		 * 2D mode 3 draw
 		 */
 		OUT_RING(ring, 0x0000000B);
-	} else if (adreno_is_a510(adreno_gpu)) {
+	} else if (adreyes_is_a510(adreyes_gpu)) {
 		/* Workaround for token and syncs */
 		OUT_RING(ring, 0x00000001);
 	} else {
@@ -370,8 +370,8 @@ static int a5xx_me_init(struct msm_gpu *gpu)
 
 static int a5xx_preempt_start(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreyes_gpu);
 	struct msm_ringbuffer *ring = gpu->rb[0];
 
 	if (gpu->nr_rings == 1)
@@ -413,19 +413,19 @@ static int a5xx_preempt_start(struct msm_gpu *gpu)
 
 static int a5xx_ucode_init(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreyes_gpu);
 	int ret;
 
 	if (!a5xx_gpu->pm4_bo) {
-		a5xx_gpu->pm4_bo = adreno_fw_create_bo(gpu,
-			adreno_gpu->fw[ADRENO_FW_PM4], &a5xx_gpu->pm4_iova);
+		a5xx_gpu->pm4_bo = adreyes_fw_create_bo(gpu,
+			adreyes_gpu->fw[ADRENO_FW_PM4], &a5xx_gpu->pm4_iova);
 
 
 		if (IS_ERR(a5xx_gpu->pm4_bo)) {
 			ret = PTR_ERR(a5xx_gpu->pm4_bo);
 			a5xx_gpu->pm4_bo = NULL;
-			DRM_DEV_ERROR(gpu->dev->dev, "could not allocate PM4: %d\n",
+			DRM_DEV_ERROR(gpu->dev->dev, "could yest allocate PM4: %d\n",
 				ret);
 			return ret;
 		}
@@ -434,13 +434,13 @@ static int a5xx_ucode_init(struct msm_gpu *gpu)
 	}
 
 	if (!a5xx_gpu->pfp_bo) {
-		a5xx_gpu->pfp_bo = adreno_fw_create_bo(gpu,
-			adreno_gpu->fw[ADRENO_FW_PFP], &a5xx_gpu->pfp_iova);
+		a5xx_gpu->pfp_bo = adreyes_fw_create_bo(gpu,
+			adreyes_gpu->fw[ADRENO_FW_PFP], &a5xx_gpu->pfp_iova);
 
 		if (IS_ERR(a5xx_gpu->pfp_bo)) {
 			ret = PTR_ERR(a5xx_gpu->pfp_bo);
 			a5xx_gpu->pfp_bo = NULL;
-			DRM_DEV_ERROR(gpu->dev->dev, "could not allocate PFP: %d\n",
+			DRM_DEV_ERROR(gpu->dev->dev, "could yest allocate PFP: %d\n",
 				ret);
 			return ret;
 		}
@@ -483,7 +483,7 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 	if (loaded)
 		return a5xx_zap_shader_resume(gpu);
 
-	ret = adreno_zap_shader_load(gpu, GPU_PAS_ID);
+	ret = adreyes_zap_shader_load(gpu, GPU_PAS_ID);
 
 	loaded = !ret;
 	return ret;
@@ -504,12 +504,12 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 
 static int a5xx_hw_init(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
 	int ret;
 
 	gpu_write(gpu, REG_A5XX_VBIF_ROUND_ROBIN_QOS_ARB, 0x00000003);
 
-	if (adreno_is_a540(adreno_gpu))
+	if (adreyes_is_a540(adreyes_gpu))
 		gpu_write(gpu, REG_A5XX_VBIF_GATE_OFF_WRREQ_EN, 0x00000009);
 
 	/* Make all blocks contribute to the GPU BUSY perf counter */
@@ -518,7 +518,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	/* Enable RBBM error reporting bits */
 	gpu_write(gpu, REG_A5XX_RBBM_AHB_CNTL0, 0x00000001);
 
-	if (adreno_gpu->info->quirks & ADRENO_QUIRK_FAULT_DETECT_MASK) {
+	if (adreyes_gpu->info->quirks & ADRENO_QUIRK_FAULT_DETECT_MASK) {
 		/*
 		 * Mask out the activity signals from RB1-3 to avoid false
 		 * positives
@@ -568,10 +568,10 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A5XX_UCHE_GMEM_RANGE_MIN_LO, 0x00100000);
 	gpu_write(gpu, REG_A5XX_UCHE_GMEM_RANGE_MIN_HI, 0x00000000);
 	gpu_write(gpu, REG_A5XX_UCHE_GMEM_RANGE_MAX_LO,
-		0x00100000 + adreno_gpu->gmem - 1);
+		0x00100000 + adreyes_gpu->gmem - 1);
 	gpu_write(gpu, REG_A5XX_UCHE_GMEM_RANGE_MAX_HI, 0x00000000);
 
-	if (adreno_is_a510(adreno_gpu)) {
+	if (adreyes_is_a510(adreyes_gpu)) {
 		gpu_write(gpu, REG_A5XX_CP_MEQ_THRESHOLDS, 0x20);
 		gpu_write(gpu, REG_A5XX_CP_MERCIU_SIZE, 0x20);
 		gpu_write(gpu, REG_A5XX_CP_ROQ_THRESHOLDS_2, 0x40000030);
@@ -580,9 +580,9 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 			  (0x200 << 11 | 0x200 << 22));
 	} else {
 		gpu_write(gpu, REG_A5XX_CP_MEQ_THRESHOLDS, 0x40);
-		if (adreno_is_a530(adreno_gpu))
+		if (adreyes_is_a530(adreyes_gpu))
 			gpu_write(gpu, REG_A5XX_CP_MERCIU_SIZE, 0x40);
-		if (adreno_is_a540(adreno_gpu))
+		if (adreyes_is_a540(adreyes_gpu))
 			gpu_write(gpu, REG_A5XX_CP_MERCIU_SIZE, 0x400);
 		gpu_write(gpu, REG_A5XX_CP_ROQ_THRESHOLDS_2, 0x80000060);
 		gpu_write(gpu, REG_A5XX_CP_ROQ_THRESHOLDS_1, 0x40201B16);
@@ -590,7 +590,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 			  (0x400 << 11 | 0x300 << 22));
 	}
 
-	if (adreno_gpu->info->quirks & ADRENO_QUIRK_TWO_PASS_USE_WFI)
+	if (adreyes_gpu->info->quirks & ADRENO_QUIRK_TWO_PASS_USE_WFI)
 		gpu_rmw(gpu, REG_A5XX_PC_DBG_ECO_CNTL, 0, (1 << 8));
 
 	gpu_write(gpu, REG_A5XX_PC_DBG_ECO_CNTL, 0xc0200100);
@@ -598,7 +598,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	/* Enable USE_RETENTION_FLOPS */
 	gpu_write(gpu, REG_A5XX_CP_CHICKEN_DBG, 0x02000000);
 
-	/* Enable ME/PFP split notification */
+	/* Enable ME/PFP split yestification */
 	gpu_write(gpu, REG_A5XX_RBBM_AHB_CNTL1, 0xA6FFFFFF);
 
 	/*
@@ -611,7 +611,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	 *  bit[11] of RB_DBG_ECO_CNTL need to be set to 0, default is 1
 	 *  (disable). For older A510 version this bit is unused.
 	 */
-	if (adreno_is_a510(adreno_gpu))
+	if (adreyes_is_a510(adreyes_gpu))
 		gpu_rmw(gpu, REG_A5XX_RB_DBG_ECO_CNTL, (1 << 11), 0);
 
 	/* Enable HWCG */
@@ -622,7 +622,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	/* Set the highest bank bit */
 	gpu_write(gpu, REG_A5XX_TPL1_MODE_CNTL, 2 << 7);
 	gpu_write(gpu, REG_A5XX_RB_MODE_CNTL, 2 << 1);
-	if (adreno_is_a540(adreno_gpu))
+	if (adreyes_is_a540(adreyes_gpu))
 		gpu_write(gpu, REG_A5XX_UCHE_DBG_ECO_CNTL_2, 2);
 
 	/* Protect registers from the CP */
@@ -660,7 +660,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	/* UCHE */
 	gpu_write(gpu, REG_A5XX_CP_PROTECT(16), ADRENO_PROTECT_RW(0xE80, 16));
 
-	if (adreno_is_a530(adreno_gpu) || adreno_is_a510(adreno_gpu))
+	if (adreyes_is_a530(adreyes_gpu) || adreyes_is_a510(adreyes_gpu))
 		gpu_write(gpu, REG_A5XX_CP_PROTECT(17),
 			ADRENO_PROTECT_RW(0x10000, 0x8000));
 
@@ -690,21 +690,21 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 
 	/*
 	 * VPC corner case with local memory load kill leads to corrupt
-	 * internal state. Normal Disable does not work for all a5x chips.
+	 * internal state. Normal Disable does yest work for all a5x chips.
 	 * So do the following setting to disable it.
 	 */
-	if (adreno_gpu->info->quirks & ADRENO_QUIRK_LMLOADKILL_DISABLE) {
+	if (adreyes_gpu->info->quirks & ADRENO_QUIRK_LMLOADKILL_DISABLE) {
 		gpu_rmw(gpu, REG_A5XX_VPC_DBG_ECO_CNTL, 0, BIT(23));
 		gpu_rmw(gpu, REG_A5XX_HLSQ_DBG_ECO_CNTL, BIT(18), 0);
 	}
 
-	ret = adreno_hw_init(gpu);
+	ret = adreyes_hw_init(gpu);
 	if (ret)
 		return ret;
 
 	a5xx_preempt_hw_init(gpu);
 
-	if (!adreno_is_a510(adreno_gpu))
+	if (!adreyes_is_a510(adreyes_gpu))
 		a5xx_gpmu_ucode_init(gpu);
 
 	ret = a5xx_ucode_init(gpu);
@@ -728,7 +728,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	 * Send a pipeline event stat to get misbehaving counters to start
 	 * ticking correctly
 	 */
-	if (adreno_is_a530(adreno_gpu)) {
+	if (adreyes_is_a530(adreyes_gpu)) {
 		OUT_PKT7(gpu->rb[0], CP_EVENT_WRITE, 1);
 		OUT_RING(gpu->rb[0], 0x0F);
 
@@ -740,8 +740,8 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	/*
 	 * If the chip that we are using does support loading one, then
 	 * try to load a zap shader into the secure world. If successful
-	 * we can use the CP to switch out of secure mode. If not then we
-	 * have no resource but to try to switch ourselves out manually. If we
+	 * we can use the CP to switch out of secure mode. If yest then we
+	 * have yes resource but to try to switch ourselves out manually. If we
 	 * guessed wrong then access to the RBBM_SECVID_TRUST_CNTL register will
 	 * be blocked and a permissions violation will soon follow.
 	 */
@@ -754,9 +754,9 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 		if (!a5xx_idle(gpu, gpu->rb[0]))
 			return -EINVAL;
 	} else {
-		/* Print a warning so if we die, we know why */
+		/* Print a warning so if we die, we kyesw why */
 		dev_warn_once(gpu->dev->dev,
-			"Zap shader not enabled - using SECVID_TRUST_CNTL instead\n");
+			"Zap shader yest enabled - using SECVID_TRUST_CNTL instead\n");
 		gpu_write(gpu, REG_A5XX_RBBM_SECVID_TRUST_CNTL, 0x0);
 	}
 
@@ -770,7 +770,7 @@ static void a5xx_recover(struct msm_gpu *gpu)
 {
 	int i;
 
-	adreno_dump_info(gpu);
+	adreyes_dump_info(gpu);
 
 	for (i = 0; i < 8; i++) {
 		printk("CP_SCRATCH_REG%d: %u\n", i,
@@ -783,13 +783,13 @@ static void a5xx_recover(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A5XX_RBBM_SW_RESET_CMD, 1);
 	gpu_read(gpu, REG_A5XX_RBBM_SW_RESET_CMD);
 	gpu_write(gpu, REG_A5XX_RBBM_SW_RESET_CMD, 0);
-	adreno_recover(gpu);
+	adreyes_recover(gpu);
 }
 
 static void a5xx_destroy(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreyes_gpu);
 
 	DBG("%s", gpu->name);
 
@@ -810,7 +810,7 @@ static void a5xx_destroy(struct msm_gpu *gpu)
 		drm_gem_object_put_unlocked(a5xx_gpu->gpmu_bo);
 	}
 
-	adreno_gpu_cleanup(adreno_gpu);
+	adreyes_gpu_cleanup(adreyes_gpu);
 	kfree(a5xx_gpu);
 }
 
@@ -820,7 +820,7 @@ static inline bool _a5xx_check_idle(struct msm_gpu *gpu)
 		return false;
 
 	/*
-	 * Nearly every abnormality ends up pausing the GPU and triggering a
+	 * Nearly every abyesrmality ends up pausing the GPU and triggering a
 	 * fault so we can safely just watch for this one interrupt to fire
 	 */
 	return !(gpu_read(gpu, REG_A5XX_RBBM_INT_0_STATUS) &
@@ -829,16 +829,16 @@ static inline bool _a5xx_check_idle(struct msm_gpu *gpu)
 
 bool a5xx_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreyes_gpu);
 
 	if (ring != a5xx_gpu->cur_ring) {
-		WARN(1, "Tried to idle a non-current ringbuffer\n");
+		WARN(1, "Tried to idle a yesn-current ringbuffer\n");
 		return false;
 	}
 
 	/* wait for CP to drain ringbuffer: */
-	if (!adreno_idle(gpu, ring))
+	if (!adreyes_idle(gpu, ring))
 		return false;
 
 	if (spin_until(_a5xx_check_idle(gpu))) {
@@ -981,7 +981,7 @@ static void a5xx_fault_detect_irq(struct msm_gpu *gpu)
 	struct msm_ringbuffer *ring = gpu->funcs->active_ring(gpu);
 
 	DRM_DEV_ERROR(dev->dev, "gpu fault ring %d fence %x status %8.8X rb %4.4x/%4.4x ib1 %16.16llX/%4.4x ib2 %16.16llX/%4.4x\n",
-		ring ? ring->id : -1, ring ? ring->seqno : 0,
+		ring ? ring->id : -1, ring ? ring->seqyes : 0,
 		gpu_read(gpu, REG_A5XX_RBBM_STATUS),
 		gpu_read(gpu, REG_A5XX_CP_RB_RPTR),
 		gpu_read(gpu, REG_A5XX_CP_RB_WPTR),
@@ -1088,12 +1088,12 @@ static void a5xx_dump(struct msm_gpu *gpu)
 {
 	DRM_DEV_INFO(gpu->dev->dev, "status:   %08x\n",
 		gpu_read(gpu, REG_A5XX_RBBM_STATUS));
-	adreno_dump(gpu);
+	adreyes_dump(gpu);
 }
 
 static int a5xx_pm_resume(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
 	int ret;
 
 	/* Turn on the core power */
@@ -1101,7 +1101,7 @@ static int a5xx_pm_resume(struct msm_gpu *gpu)
 	if (ret)
 		return ret;
 
-	if (adreno_is_a510(adreno_gpu)) {
+	if (adreyes_is_a510(adreyes_gpu)) {
 		/* Halt the sp_input_clk at HM level */
 		gpu_write(gpu, REG_A5XX_RBBM_CLOCK_CNTL, 0x00000055);
 		a5xx_set_hwcg(gpu, true);
@@ -1138,11 +1138,11 @@ static int a5xx_pm_resume(struct msm_gpu *gpu)
 
 static int a5xx_pm_suspend(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
 	u32 mask = 0xf;
 
 	/* A510 has 3 XIN ports in VBIF */
-	if (adreno_is_a510(adreno_gpu))
+	if (adreyes_is_a510(adreyes_gpu))
 		mask = 0x7;
 
 	/* Clear the VBIF pipe before shutting down */
@@ -1213,7 +1213,7 @@ static int a5xx_crashdumper_run(struct msm_gpu *gpu,
 
 /*
  * These are a list of the registers that need to be read through the HLSQ
- * aperture through the crashdumper.  These are not nominally accessible from
+ * aperture through the crashdumper.  These are yest yesminally accessible from
  * the CPU on a secure platform.
  */
 static const struct {
@@ -1221,17 +1221,17 @@ static const struct {
 	u32 regoffset;
 	u32 count;
 } a5xx_hlsq_aperture_regs[] = {
-	{ 0x35, 0xe00, 0x32 },   /* HSLQ non-context */
+	{ 0x35, 0xe00, 0x32 },   /* HSLQ yesn-context */
 	{ 0x31, 0x2080, 0x1 },   /* HLSQ 2D context 0 */
 	{ 0x33, 0x2480, 0x1 },   /* HLSQ 2D context 1 */
 	{ 0x32, 0xe780, 0x62 },  /* HLSQ 3D context 0 */
 	{ 0x34, 0xef80, 0x62 },  /* HLSQ 3D context 1 */
-	{ 0x3f, 0x0ec0, 0x40 },  /* SP non-context */
+	{ 0x3f, 0x0ec0, 0x40 },  /* SP yesn-context */
 	{ 0x3d, 0x2040, 0x1 },   /* SP 2D context 0 */
 	{ 0x3b, 0x2440, 0x1 },   /* SP 2D context 1 */
 	{ 0x3e, 0xe580, 0x170 }, /* SP 3D context 0 */
 	{ 0x3c, 0xed80, 0x170 }, /* SP 3D context 1 */
-	{ 0x3a, 0x0f00, 0x1c },  /* TP non-context */
+	{ 0x3a, 0x0f00, 0x1c },  /* TP yesn-context */
 	{ 0x38, 0x2000, 0xa },   /* TP 2D context 0 */
 	{ 0x36, 0x2400, 0xa },   /* TP 2D context 1 */
 	{ 0x39, 0xe700, 0x80 },  /* TP 3D context 0 */
@@ -1308,8 +1308,8 @@ static struct msm_gpu_state *a5xx_gpu_state_get(struct msm_gpu *gpu)
 	/* Temporarily disable hardware clock gating before reading the hw */
 	a5xx_set_hwcg(gpu, false);
 
-	/* First get the generic state from the adreno core */
-	adreno_gpu_state_get(gpu, &(a5xx_state->base));
+	/* First get the generic state from the adreyes core */
+	adreyes_gpu_state_get(gpu, &(a5xx_state->base));
 
 	a5xx_state->base.rbbm_status = gpu_read(gpu, REG_A5XX_RBBM_STATUS);
 
@@ -1330,7 +1330,7 @@ static void a5xx_gpu_state_destroy(struct kref *kref)
 
 	kfree(a5xx_state->hlsqregs);
 
-	adreno_gpu_state_destroy(state);
+	adreyes_gpu_state_destroy(state);
 	kfree(a5xx_state);
 }
 
@@ -1355,7 +1355,7 @@ static void a5xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 	if (IS_ERR_OR_NULL(state))
 		return;
 
-	adreno_show(gpu, state, p);
+	adreyes_show(gpu, state, p);
 
 	/* Dump the additional a5xx HLSQ registers */
 	if (!a5xx_state->hlsqregs)
@@ -1370,7 +1370,7 @@ static void a5xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 		for (j = 0; j < c; j++, pos++, o++) {
 			/*
 			 * To keep the crashdump simple we pull the entire range
-			 * for each register type but not all of the registers
+			 * for each register type but yest all of the registers
 			 * in the range are valid. Fortunately invalid registers
 			 * stick out like a sore thumb with a value of
 			 * 0xdeadbeef
@@ -1387,8 +1387,8 @@ static void a5xx_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 
 static struct msm_ringbuffer *a5xx_active_ring(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreyes_gpu);
 
 	return a5xx_gpu->cur_ring;
 }
@@ -1411,9 +1411,9 @@ static unsigned long a5xx_gpu_busy(struct msm_gpu *gpu)
 	return (unsigned long)busy_time;
 }
 
-static const struct adreno_gpu_funcs funcs = {
+static const struct adreyes_gpu_funcs funcs = {
 	.base = {
-		.get_param = adreno_get_param,
+		.get_param = adreyes_get_param,
 		.hw_init = a5xx_hw_init,
 		.pm_suspend = a5xx_pm_suspend,
 		.pm_resume = a5xx_pm_resume,
@@ -1443,7 +1443,7 @@ static void check_speed_bin(struct device *dev)
 
 	cell = nvmem_cell_get(dev, "speed_bin");
 
-	/* If a nvmem cell isn't defined, nothing to do */
+	/* If a nvmem cell isn't defined, yesthing to do */
 	if (IS_ERR(cell))
 		return;
 
@@ -1460,7 +1460,7 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
 	struct a5xx_gpu *a5xx_gpu = NULL;
-	struct adreno_gpu *adreno_gpu;
+	struct adreyes_gpu *adreyes_gpu;
 	struct msm_gpu *gpu;
 	int ret;
 
@@ -1473,17 +1473,17 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	if (!a5xx_gpu)
 		return ERR_PTR(-ENOMEM);
 
-	adreno_gpu = &a5xx_gpu->base;
-	gpu = &adreno_gpu->base;
+	adreyes_gpu = &a5xx_gpu->base;
+	gpu = &adreyes_gpu->base;
 
-	adreno_gpu->registers = a5xx_registers;
-	adreno_gpu->reg_offsets = a5xx_register_offsets;
+	adreyes_gpu->registers = a5xx_registers;
+	adreyes_gpu->reg_offsets = a5xx_register_offsets;
 
 	a5xx_gpu->lm_leakage = 0x4E001A;
 
 	check_speed_bin(&pdev->dev);
 
-	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 4);
+	ret = adreyes_gpu_init(dev, pdev, adreyes_gpu, &funcs, 4);
 	if (ret) {
 		a5xx_destroy(&(a5xx_gpu->base.base));
 		return ERR_PTR(ret);

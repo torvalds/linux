@@ -14,7 +14,7 @@
  */
 
 /* Shifted versions of the command enable bits are be used if the command
- * has no arguments (see kdb_check_flags). This allows commands, such as
+ * has yes arguments (see kdb_check_flags). This allows commands, such as
  * go, to have different permissions depending upon whether it is called
  * with an argument.
  */
@@ -117,13 +117,13 @@ extern const char *kdb_diemsg;
 #define KDB_FLAG_EARLYKDB	(1 << 0) /* set from boot parameter kdb=early */
 #define KDB_FLAG_CATASTROPHIC	(1 << 1) /* A catastrophic event has occurred */
 #define KDB_FLAG_CMD_INTERRUPT	(1 << 2) /* Previous command was interrupted */
-#define KDB_FLAG_NOIPI		(1 << 3) /* Do not send IPIs */
+#define KDB_FLAG_NOIPI		(1 << 3) /* Do yest send IPIs */
 #define KDB_FLAG_NO_CONSOLE	(1 << 5) /* No console is available,
 					  * kdb is disabled */
 #define KDB_FLAG_NO_VT_CONSOLE	(1 << 6) /* No VT console is available, do
-					  * not use keyboard */
+					  * yest use keyboard */
 #define KDB_FLAG_NO_I8042	(1 << 7) /* No i8042 chip is available, do
-					  * not use keyboard */
+					  * yest use keyboard */
 
 extern int kdb_flags;	/* Global flags, see kdb_state for per cpu state */
 

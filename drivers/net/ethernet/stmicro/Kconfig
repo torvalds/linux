@@ -8,7 +8,7 @@ config NET_VENDOR_STMICRO
 	default y
 	depends on HAS_IOMEM
 	---help---
-	  If you have a network (Ethernet) card based on Synopsys Ethernet IP
+	  If you have a network (Ethernet) card based on Syyespsys Ethernet IP
 	  Cores, say Y.
 
 	  Note that the answer to this question doesn't directly affect the

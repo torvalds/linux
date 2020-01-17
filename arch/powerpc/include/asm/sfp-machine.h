@@ -14,7 +14,7 @@
 
    You should have received a copy of the GNU Library General Public
    License along with the GNU C Library; see the file COPYING.LIB.  If
-   not, write to the Free Software Foundation, Inc.,
+   yest, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
    Actually, this is a PPC (32bit) version, written based on the
@@ -23,7 +23,7 @@
    Comments are by and large also mine, although they may be inaccurate.
 
    In picking out asm fragments I've gone with the lowest common
-   denominator, which also happens to be the hardware I have :->
+   deyesminator, which also happens to be the hardware I have :->
    That is, a SPARC without hardware multiply and divide.
  */
 
@@ -45,7 +45,7 @@
  * gcc's longlong.h is useful.
  */
 
-/* We need to know how to multiply and divide. If the host word size
+/* We need to kyesw how to multiply and divide. If the host word size
  * is >= 2*fracbits you can use FP_MUL_MEAT_n_imm(t,R,X,Y) which
  * codes the multiply with whatever gcc does to 'a * b'.
  * _FP_MUL_MEAT_n_wide(t,R,X,Y,f) is used when you have an asm
@@ -82,7 +82,7 @@
 #define _FP_MUL_MEAT_S(R,X,Y)   _FP_MUL_MEAT_1_wide(_FP_WFRACBITS_S,R,X,Y,umul_ppmm)
 #define _FP_MUL_MEAT_D(R,X,Y)   _FP_MUL_MEAT_2_wide(_FP_WFRACBITS_D,R,X,Y,umul_ppmm)
 
-#define _FP_DIV_MEAT_S(R,X,Y)	_FP_DIV_MEAT_1_udiv_norm(S,R,X,Y)
+#define _FP_DIV_MEAT_S(R,X,Y)	_FP_DIV_MEAT_1_udiv_yesrm(S,R,X,Y)
 #define _FP_DIV_MEAT_D(R,X,Y)	_FP_DIV_MEAT_2_udiv(D,R,X,Y)
 
 /* These macros define what NaN looks like. They're supposed to expand to
@@ -128,7 +128,7 @@
 #define __FPU_FPSCR	(current->thread.fp_state.fpscr)
 
 /* We only actually write to the destination register
- * if exceptions signalled (if any) will not trap.
+ * if exceptions signalled (if any) will yest trap.
  */
 #define __FPU_ENABLED_EXC \
 ({						\
@@ -138,7 +138,7 @@
 #endif
 
 /*
- * If one NaN is signaling and the other is not,
+ * If one NaN is signaling and the other is yest,
  * we choose that one, otherwise we choose X.
  */
 #define _FP_CHOOSENAN(fs, wc, R, X, Y, OP)			\
@@ -211,7 +211,7 @@
  * high_addend_2, low_addend_2) adds two UWtype integers, composed by
  * HIGH_ADDEND_1 and LOW_ADDEND_1, and HIGH_ADDEND_2 and LOW_ADDEND_2
  * respectively.  The result is placed in HIGH_SUM and LOW_SUM.  Overflow
- * (i.e. carry out) is not stored anywhere, and is lost.
+ * (i.e. carry out) is yest stored anywhere, and is lost.
  */
 #define add_ssaaaa(sh, sl, ah, al, bh, bl) \
   do {									\
@@ -233,7 +233,7 @@
  * high_subtrahend, low_subtrahend) subtracts two two-word UWtype integers,
  * composed by HIGH_MINUEND_1 and LOW_MINUEND_1, and HIGH_SUBTRAHEND_2 and
  * LOW_SUBTRAHEND_2 respectively.  The result is placed in HIGH_DIFFERENCE
- * and LOW_DIFFERENCE.  Overflow (i.e. carry out) is not stored anywhere,
+ * and LOW_DIFFERENCE.  Overflow (i.e. carry out) is yest stored anywhere,
  * and is lost.
  */
 #define sub_ddmmss(sh, sl, ah, al, bh, bl) \
@@ -270,7 +270,7 @@
   } while (0)
 
 /* udiv_qrnnd(quotient, remainder, high_numerator, low_numerator,
- * denominator) divides a UDWtype, composed by the UWtype integers
+ * deyesminator) divides a UDWtype, composed by the UWtype integers
  * HIGH_NUMERATOR and LOW_NUMERATOR, by DENOMINATOR and places the quotient
  * in QUOTIENT and the remainder in REMAINDER.  HIGH_NUMERATOR must be less
  * than DENOMINATOR for correct operation.  If, in addition, the most

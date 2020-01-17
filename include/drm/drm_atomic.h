@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -60,7 +60,7 @@
  * 	wait for flip_done		<----
  * 	clean up atomic state
  *
- * The important bit to know is that cleanup_done is the terminal event, but the
+ * The important bit to kyesw is that cleanup_done is the terminal event, but the
  * ordering between flip_done and hw_done is entirely up to the specific driver
  * and modeset state change.
  *
@@ -104,7 +104,7 @@ struct drm_crtc_commit {
 	 * screen goes black, whereas to fully shut down a pipe more register
 	 * I/O is required.
 	 *
-	 * Note that this does not need to include separately reference-counted
+	 * Note that this does yest need to include separately reference-counted
 	 * resources like backing storage buffer pinning, or runtime pm
 	 * management.
 	 */
@@ -204,7 +204,7 @@ struct drm_private_state_funcs {
 	 *
 	 * RETURNS:
 	 *
-	 * Duplicated atomic state or NULL when obj->state is not
+	 * Duplicated atomic state or NULL when obj->state is yest
 	 * initialized or allocation failed.
 	 */
 	struct drm_private_state *(*atomic_duplicate_state)(struct drm_private_obj *obj);
@@ -297,10 +297,10 @@ struct __drm_private_objs_state {
 
 /**
  * struct drm_atomic_state - the global state object for atomic updates
- * @ref: count of all references to this state (will not be freed until zero)
+ * @ref: count of all references to this state (will yest be freed until zero)
  * @dev: parent DRM device
  * @legacy_cursor_update: hint to enforce legacy cursor IOCTL semantics
- * @async_update: hint for asynchronous plane update
+ * @async_update: hint for asynchroyesus plane update
  * @planes: pointer to array of structures with per-plane data
  * @crtcs: pointer to array of CRTC pointers
  * @num_connector: size of the @connectors and @connector_states arrays
@@ -332,9 +332,9 @@ struct drm_atomic_state {
 	/**
 	 * @duplicated:
 	 *
-	 * Indicates whether or not this atomic state was duplicated using
+	 * Indicates whether or yest this atomic state was duplicated using
 	 * drm_atomic_helper_duplicate_state(). Drivers and atomic helpers
-	 * should use this to fixup normal  inconsistencies in duplicated
+	 * should use this to fixup yesrmal  inconsistencies in duplicated
 	 * states.
 	 */
 	bool duplicated : 1;
@@ -351,10 +351,10 @@ struct drm_atomic_state {
 	 * @fake_commit:
 	 *
 	 * Used for signaling unbound planes/connectors.
-	 * When a connector or plane is not bound to any CRTC, it's still important
+	 * When a connector or plane is yest bound to any CRTC, it's still important
 	 * to preserve linearity to prevent the atomic states from being freed to early.
 	 *
-	 * This commit (if set) is not bound to any crtc, but will be completed when
+	 * This commit (if set) is yest bound to any crtc, but will be completed when
 	 * drm_atomic_helper_commit_hw_done() is called.
 	 */
 	struct drm_crtc_commit *fake_commit;
@@ -472,7 +472,7 @@ drm_atomic_get_new_connector_for_encoder(struct drm_atomic_state *state,
  * @crtc: crtc to grab
  *
  * This function returns the crtc state for the given crtc, or NULL
- * if the crtc is not part of the global atomic state.
+ * if the crtc is yest part of the global atomic state.
  *
  * This function is deprecated, @drm_atomic_get_old_crtc_state or
  * @drm_atomic_get_new_crtc_state should be used instead.
@@ -490,7 +490,7 @@ drm_atomic_get_existing_crtc_state(struct drm_atomic_state *state,
  * @crtc: crtc to grab
  *
  * This function returns the old crtc state for the given crtc, or
- * NULL if the crtc is not part of the global atomic state.
+ * NULL if the crtc is yest part of the global atomic state.
  */
 static inline struct drm_crtc_state *
 drm_atomic_get_old_crtc_state(struct drm_atomic_state *state,
@@ -504,7 +504,7 @@ drm_atomic_get_old_crtc_state(struct drm_atomic_state *state,
  * @crtc: crtc to grab
  *
  * This function returns the new crtc state for the given crtc, or
- * NULL if the crtc is not part of the global atomic state.
+ * NULL if the crtc is yest part of the global atomic state.
  */
 static inline struct drm_crtc_state *
 drm_atomic_get_new_crtc_state(struct drm_atomic_state *state,
@@ -519,7 +519,7 @@ drm_atomic_get_new_crtc_state(struct drm_atomic_state *state,
  * @plane: plane to grab
  *
  * This function returns the plane state for the given plane, or NULL
- * if the plane is not part of the global atomic state.
+ * if the plane is yest part of the global atomic state.
  *
  * This function is deprecated, @drm_atomic_get_old_plane_state or
  * @drm_atomic_get_new_plane_state should be used instead.
@@ -537,7 +537,7 @@ drm_atomic_get_existing_plane_state(struct drm_atomic_state *state,
  * @plane: plane to grab
  *
  * This function returns the old plane state for the given plane, or
- * NULL if the plane is not part of the global atomic state.
+ * NULL if the plane is yest part of the global atomic state.
  */
 static inline struct drm_plane_state *
 drm_atomic_get_old_plane_state(struct drm_atomic_state *state,
@@ -552,7 +552,7 @@ drm_atomic_get_old_plane_state(struct drm_atomic_state *state,
  * @plane: plane to grab
  *
  * This function returns the new plane state for the given plane, or
- * NULL if the plane is not part of the global atomic state.
+ * NULL if the plane is yest part of the global atomic state.
  */
 static inline struct drm_plane_state *
 drm_atomic_get_new_plane_state(struct drm_atomic_state *state,
@@ -567,7 +567,7 @@ drm_atomic_get_new_plane_state(struct drm_atomic_state *state,
  * @connector: connector to grab
  *
  * This function returns the connector state for the given connector,
- * or NULL if the connector is not part of the global atomic state.
+ * or NULL if the connector is yest part of the global atomic state.
  *
  * This function is deprecated, @drm_atomic_get_old_connector_state or
  * @drm_atomic_get_new_connector_state should be used instead.
@@ -590,7 +590,7 @@ drm_atomic_get_existing_connector_state(struct drm_atomic_state *state,
  * @connector: connector to grab
  *
  * This function returns the old connector state for the given connector,
- * or NULL if the connector is not part of the global atomic state.
+ * or NULL if the connector is yest part of the global atomic state.
  */
 static inline struct drm_connector_state *
 drm_atomic_get_old_connector_state(struct drm_atomic_state *state,
@@ -610,7 +610,7 @@ drm_atomic_get_old_connector_state(struct drm_atomic_state *state,
  * @connector: connector to grab
  *
  * This function returns the new connector state for the given connector,
- * or NULL if the connector is not part of the global atomic state.
+ * or NULL if the connector is yest part of the global atomic state.
  */
 static inline struct drm_connector_state *
 drm_atomic_get_new_connector_state(struct drm_atomic_state *state,
@@ -632,7 +632,7 @@ drm_atomic_get_new_connector_state(struct drm_atomic_state *state,
  * This function returns the plane state for the given plane, either from
  * @state, or if the plane isn't part of the atomic state update, from @plane.
  * This is useful in atomic check callbacks, when drivers need to peek at, but
- * not change, state of other planes, since it avoids threading an error code
+ * yest change, state of other planes, since it avoids threading an error code
  * back up the call chain.
  *
  * WARNING:
@@ -640,7 +640,7 @@ drm_atomic_get_new_connector_state(struct drm_atomic_state *state,
  * Note that this function is in general unsafe since it doesn't check for the
  * required locking for access state structures. Drivers must ensure that it is
  * safe to access the returned state structure through other means. One common
- * example is when planes are fixed to a single CRTC, and the driver knows that
+ * example is when planes are fixed to a single CRTC, and the driver kyesws that
  * the CRTC lock is held already. In that case holding the CRTC lock gives a
  * read-lock on all planes connected to that CRTC. But if planes can be
  * reassigned things get more tricky. In that case it's better to use
@@ -669,7 +669,7 @@ drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 
 int __must_check drm_atomic_check_only(struct drm_atomic_state *state);
 int __must_check drm_atomic_commit(struct drm_atomic_state *state);
-int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
+int __must_check drm_atomic_yesnblocking_commit(struct drm_atomic_state *state);
 
 void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 
@@ -936,7 +936,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  * @state: &drm_crtc_state for the CRTC
  *
  * To give drivers flexibility &struct drm_crtc_state has 3 booleans to track
- * whether the state CRTC changed enough to need a full modeset cycle:
+ * whether the state CRTC changed eyesugh to need a full modeset cycle:
  * mode_changed, active_changed and connectors_changed. This helper simply
  * combines these three to compute the overall need for a modeset for @state.
  *

@@ -25,7 +25,7 @@
 
 /*
  * Define PASS, ERROR, and FAIL strings with and without color escape
- * sequences, default to no color.
+ * sequences, default to yes color.
  */
 #define ESC 0x1B, '['
 #define BRIGHT '1'
@@ -66,7 +66,7 @@ int _verbose = VCRITICAL;
 
 /**
  * log_color() - Use colored output for PASS, ERROR, and FAIL strings
- * @use_color:	use color (1) or not (0)
+ * @use_color:	use color (1) or yest (0)
  */
 void log_color(int use_color)
 {
@@ -83,7 +83,7 @@ void log_color(int use_color)
 
 /**
  * log_verbosity() - Set verbosity of test output
- * @verbose:	Enable (1) verbose output or not (0)
+ * @verbose:	Enable (1) verbose output or yest (0)
  *
  * Currently setting verbose=1 will enable INFO messages and 0 will disable
  * them. FAIL and ERROR messages are always displayed.

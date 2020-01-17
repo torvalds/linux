@@ -2,7 +2,7 @@
 /*
  * ci.h - common structures, functions, and macros of the ChipIdea driver
  *
- * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
+ * Copyright (C) 2008 Chipidea - MIPS Techyeslogies, Inc. All rights reserved.
  *
  * Author: David Lopo
  */
@@ -100,7 +100,7 @@ struct ci_hw_ep {
 	struct ci_hdrc				*ci;
 	spinlock_t				*lock;
 	struct dma_pool				*td_pool;
-	struct td_node				*pending_td;
+	struct td_yesde				*pending_td;
 };
 
 enum ci_role {
@@ -118,7 +118,7 @@ enum ci_revision {
 	CI_REVISION_24, /* Revision 2.4 */
 	CI_REVISION_25, /* Revision 2.5 */
 	CI_REVISION_25_PLUS, /* Revision above than 2.5 */
-	CI_REVISION_UNKNOWN = 99, /* Unknown Revision */
+	CI_REVISION_UNKNOWN = 99, /* Unkyeswn Revision */
 };
 
 /**

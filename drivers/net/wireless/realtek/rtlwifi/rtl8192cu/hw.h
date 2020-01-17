@@ -42,7 +42,7 @@
 #define BOARD_TYPE_NORMAL_MASK			0xE0
 #define BOARD_TYPE_TEST_MASK			0x0F
 
-/* should be renamed and moved to another file */
+/* should be renamed and moved to ayesther file */
 enum _BOARD_TYPE_8192CUSB {
 	BOARD_USB_DONGLE		= 0,	/* USB dongle */
 	BOARD_USB_HIGH_PA		= 1,	/* USB dongle - high power PA */

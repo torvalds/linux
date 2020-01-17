@@ -10,7 +10,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched/task_stack.h>
 
@@ -43,7 +43,7 @@ static void disable_runtime_instr(void)
 	preempt_enable();
 
 	/*
-	 * Make sure the RI bit is deleted from the PSW. If the user did not
+	 * Make sure the RI bit is deleted from the PSW. If the user did yest
 	 * switch off RI before the system call the process will get a
 	 * specification exception otherwise.
 	 */
@@ -93,7 +93,7 @@ SYSCALL_DEFINE2(s390_runtime_instr, int, command, int, signum)
 
 	init_runtime_instr_cb(cb);
 
-	/* now load the control block to make it available */
+	/* yesw load the control block to make it available */
 	preempt_disable();
 	current->thread.ri_cb = cb;
 	load_runtime_instr_cb(cb);

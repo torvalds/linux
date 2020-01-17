@@ -20,7 +20,7 @@
 
 #include <linux/compiler.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -95,13 +95,13 @@ static inline void gp0_write(struct pmagbbfb_par *par, u32 v)
 /*
  * Set the palette.
  */
-static int pmagbbfb_setcolreg(unsigned int regno, unsigned int red,
+static int pmagbbfb_setcolreg(unsigned int regyes, unsigned int red,
 			      unsigned int green, unsigned int blue,
 			      unsigned int transp, struct fb_info *info)
 {
 	struct pmagbbfb_par *par = info->par;
 
-	if (regno >= info->cmap.len)
+	if (regyes >= info->cmap.len)
 		return 1;
 
 	red   >>= 8;	/* The cmap fields are 16 bits    */
@@ -109,7 +109,7 @@ static int pmagbbfb_setcolreg(unsigned int regno, unsigned int red,
 	blue  >>= 8;	/* registers are only 8 bits wide */
 
 	mb();
-	dac_write(par, BT459_ADDR_LO, regno);
+	dac_write(par, BT459_ADDR_LO, regyes);
 	dac_write(par, BT459_ADDR_HI, 0x00);
 	wmb();
 	dac_write(par, BT459_CMAP, red);
@@ -196,7 +196,7 @@ static void pmagbbfb_osc_setup(struct fb_info *info)
 		mb();
 		sfb_write(par, SFB_REG_TCCLK_COUNT, 0);
 		mb();
-		for (i = 0; i < 100; i++) {	/* nominally max. 20.5us */
+		for (i = 0; i < 100; i++) {	/* yesminally max. 20.5us */
 			if (sfb_read(par, SFB_REG_TCCLK_COUNT) == 0)
 				break;
 			udelay(1);
@@ -209,7 +209,7 @@ static void pmagbbfb_osc_setup(struct fb_info *info)
 		mb();
 		sfb_write(par, SFB_REG_TCCLK_COUNT, 0);
 
-		for (i = 0; i < 100; i++) {	/* nominally max. 20.5us */
+		for (i = 0; i < 100; i++) {	/* yesminally max. 20.5us */
 			if (sfb_read(par, SFB_REG_TCCLK_COUNT) == 0)
 				break;
 			udelay(1);
@@ -264,7 +264,7 @@ static int pmagbbfb_probe(struct device *dev)
 	dev_set_drvdata(dev, info);
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0) < 0) {
-		printk(KERN_ERR "%s: Cannot allocate color map\n",
+		printk(KERN_ERR "%s: Canyest allocate color map\n",
 		       dev_name(dev));
 		err = -ENOMEM;
 		goto err_alloc;
@@ -279,7 +279,7 @@ static int pmagbbfb_probe(struct device *dev)
 	start = tdev->resource.start;
 	len = tdev->resource.end - start + 1;
 	if (!request_mem_region(start, len, dev_name(dev))) {
-		printk(KERN_ERR "%s: Cannot reserve FB region\n",
+		printk(KERN_ERR "%s: Canyest reserve FB region\n",
 		       dev_name(dev));
 		err = -EBUSY;
 		goto err_cmap;
@@ -287,9 +287,9 @@ static int pmagbbfb_probe(struct device *dev)
 
 	/* MMIO mapping setup.  */
 	info->fix.mmio_start = start;
-	par->mmio = ioremap_nocache(info->fix.mmio_start, info->fix.mmio_len);
+	par->mmio = ioremap_yescache(info->fix.mmio_start, info->fix.mmio_len);
 	if (!par->mmio) {
-		printk(KERN_ERR "%s: Cannot map MMIO\n", dev_name(dev));
+		printk(KERN_ERR "%s: Canyest map MMIO\n", dev_name(dev));
 		err = -ENOMEM;
 		goto err_resource;
 	}
@@ -298,9 +298,9 @@ static int pmagbbfb_probe(struct device *dev)
 
 	/* Frame buffer mapping setup.  */
 	info->fix.smem_start = start + PMAGB_B_FBMEM;
-	par->smem = ioremap_nocache(info->fix.smem_start, info->fix.smem_len);
+	par->smem = ioremap_yescache(info->fix.smem_start, info->fix.smem_len);
 	if (!par->smem) {
-		printk(KERN_ERR "%s: Cannot map FB\n", dev_name(dev));
+		printk(KERN_ERR "%s: Canyest map FB\n", dev_name(dev));
 		err = -ENOMEM;
 		goto err_mmio_map;
 	}
@@ -314,7 +314,7 @@ static int pmagbbfb_probe(struct device *dev)
 
 	err = register_framebuffer(info);
 	if (err < 0) {
-		printk(KERN_ERR "%s: Cannot register framebuffer\n",
+		printk(KERN_ERR "%s: Canyest register framebuffer\n",
 		       dev_name(dev));
 		goto err_smem_map;
 	}

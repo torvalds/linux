@@ -6,7 +6,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
-#include <uapi/asm-generic/errno-base.h>
+#include <uapi/asm-generic/erryes-base.h>
 
 struct clk;
 struct device;
@@ -34,7 +34,7 @@ int ingenic_ecc_correct(struct ingenic_ecc *ecc,
 			u8 *ecc_code);
 
 void ingenic_ecc_release(struct ingenic_ecc *ecc);
-struct ingenic_ecc *of_ingenic_ecc_get(struct device_node *np);
+struct ingenic_ecc *of_ingenic_ecc_get(struct device_yesde *np);
 #else /* CONFIG_MTD_NAND_INGENIC_ECC */
 int ingenic_ecc_calculate(struct ingenic_ecc *ecc,
 			  struct ingenic_ecc_params *params,
@@ -54,7 +54,7 @@ void ingenic_ecc_release(struct ingenic_ecc *ecc)
 {
 }
 
-struct ingenic_ecc *of_ingenic_ecc_get(struct device_node *np)
+struct ingenic_ecc *of_ingenic_ecc_get(struct device_yesde *np)
 {
 	return ERR_PTR(-ENODEV);
 }

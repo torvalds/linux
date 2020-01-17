@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *	copyright notice, this list of conditions and the following
+ *	copyright yestice, this list of conditions and the following
  *	disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *	copyright notice, this list of conditions and the following
+ *	copyright yestice, this list of conditions and the following
  *	disclaimer in the documentation and/or other materials
  *	provided with the distribution.
  *
@@ -44,7 +44,7 @@
 #include <linux/module.h>
 #include <linux/nsproxy.h>
 
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <rdma/rdma_user_cm.h>
 #include <rdma/ib_marshall.h>
@@ -367,7 +367,7 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 		ctx->backlog--;
 	} else if (!ctx->uid || ctx->cm_id != cm_id) {
 		/*
-		 * We ignore events for new connections until userspace has set
+		 * We igyesre events for new connections until userspace has set
 		 * their context.  This can only happen if an error occurs on a
 		 * new connection before the user accepts it.  This is okay,
 		 * since the accept will just fail later. However, we do need
@@ -399,7 +399,7 @@ static ssize_t ucma_get_event(struct ucma_file *file, const char __user *inbuf,
 	int ret = 0;
 
 	/*
-	 * Old 32 bit user space does not send the 4 byte padding in the
+	 * Old 32 bit user space does yest send the 4 byte padding in the
 	 * reserved field. We don't care, allow it to keep working.
 	 */
 	if (out_len < sizeof(uevent->resp) - sizeof(uevent->resp.reserved))
@@ -554,11 +554,11 @@ static void ucma_cleanup_mc_events(struct ucma_multicast *mc)
 
 /*
  * ucma_free_ctx is called after the underlying rdma CM-ID is destroyed. At
- * this point, no new events will be reported from the hardware. However, we
+ * this point, yes new events will be reported from the hardware. However, we
  * still need to cleanup the UCMA context for this ID. Specifically, there
- * might be events that have not yet been consumed by the user space software.
- * These might include pending connect requests which we have not completed
- * processing.  We cannot call rdma_destroy_id while holding the lock of the
+ * might be events that have yest yet been consumed by the user space software.
+ * These might include pending connect requests which we have yest completed
+ * processing.  We canyest call rdma_destroy_id while holding the lock of the
  * context (file->mut), as it might cause a deadlock. We therefore extract all
  * relevant events from the context pending events list while holding the
  * mutex. After that we release them as needed.
@@ -572,7 +572,7 @@ static int ucma_free_ctx(struct ucma_context *ctx)
 
 	ucma_cleanup_multicast(ctx);
 
-	/* Cleanup events not yet reported to the user. */
+	/* Cleanup events yest yet reported to the user. */
 	mutex_lock(&ctx->file->mut);
 	list_for_each_entry_safe(uevent, tmp, &ctx->file->event_list, list) {
 		if (uevent->ctx == ctx)
@@ -621,7 +621,7 @@ static ssize_t ucma_destroy_id(struct ucma_file *file, const char __user *inbuf,
 	mutex_unlock(&ctx->file->mut);
 
 	flush_workqueue(ctx->file->close_wq);
-	/* At this point it's guaranteed that there is no inflight
+	/* At this point it's guaranteed that there is yes inflight
 	 * closing task */
 	xa_lock(&ctx_table);
 	if (!ctx->closing) {
@@ -853,7 +853,7 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 	if (!ctx->cm_id->device)
 		goto out;
 
-	resp.node_guid = (__force __u64) ctx->cm_id->device->node_guid;
+	resp.yesde_guid = (__force __u64) ctx->cm_id->device->yesde_guid;
 	resp.port_num = ctx->cm_id->port_num;
 
 	if (rdma_cap_ib_sa(ctx->cm_id->device, ctx->cm_id->port_num))
@@ -878,7 +878,7 @@ static void ucma_query_device_addr(struct rdma_cm_id *cm_id,
 	if (!cm_id->device)
 		return;
 
-	resp->node_guid = (__force __u64) cm_id->device->node_guid;
+	resp->yesde_guid = (__force __u64) cm_id->device->yesde_guid;
 	resp->port_num = cm_id->port_num;
 	resp->pkey = (__force __u16) cpu_to_be16(
 		     ib_addr_get_pkey(&cm_id->route.addr.dev_addr));
@@ -1354,10 +1354,10 @@ out:
 	return ret;
 }
 
-static ssize_t ucma_notify(struct ucma_file *file, const char __user *inbuf,
+static ssize_t ucma_yestify(struct ucma_file *file, const char __user *inbuf,
 			   int in_len, int out_len)
 {
-	struct rdma_ucm_notify cmd;
+	struct rdma_ucm_yestify cmd;
 	struct ucma_context *ctx;
 	int ret = -EINVAL;
 
@@ -1369,7 +1369,7 @@ static ssize_t ucma_notify(struct ucma_file *file, const char __user *inbuf,
 		return PTR_ERR(ctx);
 
 	if (ctx->cm_id->device)
-		ret = rdma_notify(ctx->cm_id, (enum ib_event_type)cmd.event);
+		ret = rdma_yestify(ctx->cm_id, (enum ib_event_type)cmd.event);
 
 	ucma_put_ctx(ctx);
 	return ret;
@@ -1502,7 +1502,7 @@ static ssize_t ucma_leave_multicast(struct ucma_file *file,
 		mc = ERR_PTR(-ENOENT);
 	else if (mc->ctx->file != file)
 		mc = ERR_PTR(-EINVAL);
-	else if (!atomic_inc_not_zero(&mc->ctx->ref))
+	else if (!atomic_inc_yest_zero(&mc->ctx->ref))
 		mc = ERR_PTR(-ENXIO);
 	else
 		__xa_erase(&multicast_table, mc->id);
@@ -1642,7 +1642,7 @@ static ssize_t (*ucma_cmd_table[])(struct ucma_file *file,
 	[RDMA_USER_CM_CMD_GET_EVENT]	 = ucma_get_event,
 	[RDMA_USER_CM_CMD_GET_OPTION]	 = NULL,
 	[RDMA_USER_CM_CMD_SET_OPTION]	 = ucma_set_option,
-	[RDMA_USER_CM_CMD_NOTIFY]	 = ucma_notify,
+	[RDMA_USER_CM_CMD_NOTIFY]	 = ucma_yestify,
 	[RDMA_USER_CM_CMD_JOIN_IP_MCAST] = ucma_join_ip_multicast,
 	[RDMA_USER_CM_CMD_LEAVE_MCAST]	 = ucma_leave_multicast,
 	[RDMA_USER_CM_CMD_MIGRATE_ID]	 = ucma_migrate_id,
@@ -1660,7 +1660,7 @@ static ssize_t ucma_write(struct file *filp, const char __user *buf,
 	ssize_t ret;
 
 	if (!ib_safe_file_access(filp)) {
-		pr_err_once("ucma_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+		pr_err_once("ucma_write: process %d (%s) changed security contexts after opening file descriptor, this is yest allowed.\n",
 			    task_tgid_vnr(current), current->comm);
 		return -EACCES;
 	}
@@ -1673,7 +1673,7 @@ static ssize_t ucma_write(struct file *filp, const char __user *buf,
 
 	if (hdr.cmd >= ARRAY_SIZE(ucma_cmd_table))
 		return -EINVAL;
-	hdr.cmd = array_index_nospec(hdr.cmd, ARRAY_SIZE(ucma_cmd_table));
+	hdr.cmd = array_index_yesspec(hdr.cmd, ARRAY_SIZE(ucma_cmd_table));
 
 	if (hdr.in + sizeof(hdr) > len)
 		return -EINVAL;
@@ -1702,14 +1702,14 @@ static __poll_t ucma_poll(struct file *filp, struct poll_table_struct *wait)
 }
 
 /*
- * ucma_open() does not need the BKL:
+ * ucma_open() does yest need the BKL:
  *
- *  - no global state is referred to;
- *  - there is no ioctl method to race against;
- *  - no further module initialization is required for open to work
+ *  - yes global state is referred to;
+ *  - there is yes ioctl method to race against;
+ *  - yes further module initialization is required for open to work
  *    after the device is registered.
  */
-static int ucma_open(struct inode *inode, struct file *filp)
+static int ucma_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct ucma_file *file;
 
@@ -1732,10 +1732,10 @@ static int ucma_open(struct inode *inode, struct file *filp)
 	filp->private_data = file;
 	file->filp = filp;
 
-	return stream_open(inode, filp);
+	return stream_open(iyesde, filp);
 }
 
-static int ucma_close(struct inode *inode, struct file *filp)
+static int ucma_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct ucma_file *file = filp->private_data;
 	struct ucma_context *ctx, *tmp;
@@ -1756,7 +1756,7 @@ static int ucma_close(struct inode *inode, struct file *filp)
 			xa_unlock(&ctx_table);
 			ucma_put_ctx(ctx);
 			wait_for_completion(&ctx->comp);
-			/* rdma_destroy_id ensures that no event handlers are
+			/* rdma_destroy_id ensures that yes event handlers are
 			 * inflight for that id before releasing it.
 			 */
 			rdma_destroy_id(ctx->cm_id);
@@ -1779,13 +1779,13 @@ static const struct file_operations ucma_fops = {
 	.release = ucma_close,
 	.write	 = ucma_write,
 	.poll    = ucma_poll,
-	.llseek	 = no_llseek,
+	.llseek	 = yes_llseek,
 };
 
 static struct miscdevice ucma_misc = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.miyesr		= MISC_DYNAMIC_MINOR,
 	.name		= "rdma_cm",
-	.nodename	= "infiniband/rdma_cm",
+	.yesdename	= "infiniband/rdma_cm",
 	.mode		= 0666,
 	.fops		= &ucma_fops,
 };

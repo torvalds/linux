@@ -11,16 +11,16 @@
 ARCH_REL_TYPE_ABS := R_AARCH64_JUMP_SLOT|R_AARCH64_GLOB_DAT|R_AARCH64_ABS64
 include $(srctree)/lib/vdso/Makefile
 
-obj-vdso := vgettimeofday.o note.o sigreturn.o
+obj-vdso := vgettimeofday.o yeste.o sigreturn.o
 
 # Build rules
 targets := $(obj-vdso) vdso.so vdso.so.dbg
 obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
 
-ldflags-y := -shared -nostdlib -soname=linux-vdso.so.1 --hash-style=sysv \
+ldflags-y := -shared -yesstdlib -soname=linux-vdso.so.1 --hash-style=sysv \
 		--build-id -n -T
 
-ccflags-y := -fno-common -fno-builtin -fno-stack-protector -ffixed-x18
+ccflags-y := -fyes-common -fyes-builtin -fyes-stack-protector -ffixed-x18
 ccflags-y += -DDISABLE_BRANCH_PROFILING
 
 VDSO_LDFLAGS := -Bsymbolic
@@ -38,7 +38,7 @@ ifneq ($(c-gettimeofday-y),)
   CFLAGS_vgettimeofday.o += -include $(c-gettimeofday-y)
 endif
 
-# Clang versions less than 8 do not support -mcmodel=tiny
+# Clang versions less than 8 do yest support -mcmodel=tiny
 ifeq ($(CONFIG_CC_IS_CLANG), y)
   ifeq ($(shell test $(CONFIG_CLANG_VERSION) -lt 80000; echo $$?),0)
     CFLAGS_REMOVE_vgettimeofday.o += -mcmodel=tiny

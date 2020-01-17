@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/drivers/devfreq/governor_userspace.c
+ *  linux/drivers/devfreq/goveryesr_userspace.c
  *
  *  Copyright (C) 2011 Samsung Electronics
  *	MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -12,7 +12,7 @@
 #include <linux/pm.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
-#include "governor.h"
+#include "goveryesr.h"
 
 struct userspace_data {
 	unsigned long user_frequency;
@@ -130,7 +130,7 @@ static int devfreq_userspace_handler(struct devfreq *devfreq,
 	return ret;
 }
 
-static struct devfreq_governor devfreq_userspace = {
+static struct devfreq_goveryesr devfreq_userspace = {
 	.name = "userspace",
 	.get_target_freq = devfreq_userspace_func,
 	.event_handler = devfreq_userspace_handler,
@@ -138,7 +138,7 @@ static struct devfreq_governor devfreq_userspace = {
 
 static int __init devfreq_userspace_init(void)
 {
-	return devfreq_add_governor(&devfreq_userspace);
+	return devfreq_add_goveryesr(&devfreq_userspace);
 }
 subsys_initcall(devfreq_userspace_init);
 
@@ -146,9 +146,9 @@ static void __exit devfreq_userspace_exit(void)
 {
 	int ret;
 
-	ret = devfreq_remove_governor(&devfreq_userspace);
+	ret = devfreq_remove_goveryesr(&devfreq_userspace);
 	if (ret)
-		pr_err("%s: failed remove governor %d\n", __func__, ret);
+		pr_err("%s: failed remove goveryesr %d\n", __func__, ret);
 
 	return;
 }

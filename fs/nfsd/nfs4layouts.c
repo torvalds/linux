@@ -476,7 +476,7 @@ nfsd4_return_file_layout(struct nfs4_layout *lp, struct nfsd4_layout_seg *seg,
 	} else {
 		/* retain the whole layout segment on a split. */
 		if (layout_end(seg) < end) {
-			dprintk("%s: split not supported\n", __func__);
+			dprintk("%s: split yest supported\n", __func__);
 			return;
 		}
 		end = seg->offset;
@@ -654,7 +654,7 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 	struct nfs4_layout_stateid *ls =
 		container_of(cb, struct nfs4_layout_stateid, ls_recall);
 	struct nfsd_net *nn;
-	ktime_t now, cutoff;
+	ktime_t yesw, cutoff;
 	const struct nfsd4_layout_ops *ops;
 
 
@@ -662,29 +662,29 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 	case 0:
 	case -NFS4ERR_DELAY:
 		/*
-		 * Anything left? If not, then call it done. Note that we don't
-		 * take the spinlock since this is an optimization and nothing
+		 * Anything left? If yest, then call it done. Note that we don't
+		 * take the spinlock since this is an optimization and yesthing
 		 * should get added until the cb counter goes to zero.
 		 */
 		if (list_empty(&ls->ls_layouts))
 			return 1;
 
 		/* Poll the client until it's done with the layout */
-		now = ktime_get();
+		yesw = ktime_get();
 		nn = net_generic(ls->ls_stid.sc_client->net, nfsd_net_id);
 
 		/* Client gets 2 lease periods to return it */
 		cutoff = ktime_add_ns(task->tk_start,
 					 nn->nfsd4_lease * NSEC_PER_SEC * 2);
 
-		if (ktime_before(now, cutoff)) {
+		if (ktime_before(yesw, cutoff)) {
 			rpc_delay(task, HZ/100); /* 10 mili-seconds */
 			return 0;
 		}
 		/* Fallthrough */
 	default:
 		/*
-		 * Unknown error or non-responding client, we'll need to fence.
+		 * Unkyeswn error or yesn-responding client, we'll need to fence.
 		 */
 		trace_nfsd_layout_recall_fail(&ls->ls_stid.sc_stateid);
 

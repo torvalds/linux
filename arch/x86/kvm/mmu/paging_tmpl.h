@@ -106,7 +106,7 @@ static inline void FNAME(protect_clean_gpte)(struct kvm_mmu *mmu, unsigned *acce
 {
 	unsigned mask;
 
-	/* dirty bit is not supported, so no need to track it */
+	/* dirty bit is yest supported, so yes need to track it */
 	if (!PT_HAVE_ACCESSED_DIRTY(mmu))
 		return;
 
@@ -176,26 +176,26 @@ static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
 				  u64 gpte)
 {
 	if (is_rsvd_bits_set(vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
-		goto no_present;
+		goto yes_present;
 
 	if (!FNAME(is_present_gpte)(gpte))
-		goto no_present;
+		goto yes_present;
 
-	/* if accessed bit is not supported prefetch non accessed gpte */
+	/* if accessed bit is yest supported prefetch yesn accessed gpte */
 	if (PT_HAVE_ACCESSED_DIRTY(vcpu->arch.mmu) &&
 	    !(gpte & PT_GUEST_ACCESSED_MASK))
-		goto no_present;
+		goto yes_present;
 
 	return false;
 
-no_present:
+yes_present:
 	drop_spte(vcpu->kvm, spte);
 	return true;
 }
 
 /*
- * For PTTYPE_EPT, a page table can be executable but not readable
- * on supported processors. Therefore, set_spte does not automatically
+ * For PTTYPE_EPT, a page table can be executable but yest readable
+ * on supported processors. Therefore, set_spte does yest automatically
  * set bit 0 if execute only is supported. Here, we repurpose ACC_USER_MASK
  * to signify readability since it isn't used in the EPT case
  */
@@ -228,7 +228,7 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 	gfn_t table_gfn;
 	int ret;
 
-	/* dirty/accessed bits are not supported, so no need to update them */
+	/* dirty/accessed bits are yest supported, so yes need to update them */
 	if (!PT_HAVE_ACCESSED_DIRTY(mmu))
 		return 0;
 
@@ -254,13 +254,13 @@ static int FNAME(update_accessed_dirty_bits)(struct kvm_vcpu *vcpu,
 			continue;
 
 		/*
-		 * If the slot is read-only, simply do not process the accessed
+		 * If the slot is read-only, simply do yest process the accessed
 		 * and dirty bits.  This is the correct thing to do if the slot
 		 * is ROM, and page tables in read-as-ROM/write-as-MMIO slots
 		 * are only supported if the accessed and dirty bits are already
 		 * set in the ROM (so that MMIO writes are never needed).
 		 *
-		 * Note that NPT does not allow this at all and faults, since
+		 * Note that NPT does yest allow this at all and faults, since
 		 * it always wants nested page table entries for the guest
 		 * page tables to be writable.  And EPT works but will simply
 		 * overwrite the read-only memory to set the accessed and dirty
@@ -336,7 +336,7 @@ retry_walk:
 
 	/*
 	 * FIXME: on Intel processors, loads of the PDPTE registers for PAE paging
-	 * by the MOV to CR instruction are treated as reads and do not cause the
+	 * by the MOV to CR instruction are treated as reads and do yest cause the
 	 * processor to set the dirty flag in any EPT paging-structure entry.
 	 */
 	nested_access = (have_ad ? PFERR_WRITE_MASK : 0) | PFERR_USER_MASK;
@@ -370,7 +370,7 @@ retry_walk:
 		 * qualification / exit info field will incorrectly have
 		 * "guest page access" as the nested page fault's cause,
 		 * instead of "guest page structure access".  To fix this,
-		 * the x86_exception struct should be augmented with enough
+		 * the x86_exception struct should be augmented with eyesugh
 		 * information to fix the exit_qualification or exit_info_1
 		 * fields.
 		 */
@@ -514,7 +514,7 @@ static int FNAME(walk_addr_nested)(struct guest_walker *walker,
 
 static bool
 FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
-		     u64 *spte, pt_element_t gpte, bool no_dirty_log)
+		     u64 *spte, pt_element_t gpte, bool yes_dirty_log)
 {
 	unsigned pte_access;
 	gfn_t gfn;
@@ -529,7 +529,7 @@ FNAME(prefetch_gpte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	pte_access = sp->role.access & FNAME(gpte_access)(gpte);
 	FNAME(protect_clean_gpte)(vcpu->arch.mmu, &pte_access, gpte);
 	pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
-			no_dirty_log && (pte_access & ACC_WRITE_MASK));
+			yes_dirty_log && (pte_access & ACC_WRITE_MASK));
 	if (is_error_pfn(pfn))
 		return false;
 
@@ -630,8 +630,8 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		top_level = PT32_ROOT_LEVEL;
 	/*
 	 * Verify that the top-level gpte is still there.  Since the page
-	 * is a root page, it is either write protected (and cannot be
-	 * changed from now on) or it is invalid (in which case, we don't
+	 * is a root page, it is either write protected (and canyest be
+	 * changed from yesw on) or it is invalid (in which case, we don't
 	 * really care if it changes underneath us after this point).
 	 */
 	if (FNAME(gpte_changed)(vcpu, gw, top_level))
@@ -679,7 +679,7 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		clear_sp_write_flooding_count(it.sptep);
 
 		/*
-		 * We cannot overwrite existing page tables with an NX
+		 * We canyest overwrite existing page tables with an NX
 		 * large page, as the leaf could be executable.
 		 */
 		disallowed_hugepage_adjust(it, gfn, &pfn, &hlevel);
@@ -724,8 +724,8 @@ out_gpte_changed:
  * @write_fault_to_shadow_pgtable will return true if the fault gfn is
  * currently used as its page table.
  *
- * Note: the PDPT page table is not checked for PAE-32 bit guest. It is ok
- * since the PDPT is always shadowed, that means, we can not use large page
+ * Note: the PDPT page table is yest checked for PAE-32 bit guest. It is ok
+ * since the PDPT is always shadowed, that means, we can yest use large page
  * size to map the gfn which is used as PDPT.
  */
 static bool
@@ -753,14 +753,14 @@ FNAME(is_self_change_mapping)(struct kvm_vcpu *vcpu,
 
 /*
  * Page fault handler.  There are several causes for a page fault:
- *   - there is no shadow pte for the guest pte
+ *   - there is yes shadow pte for the guest pte
  *   - write access through a shadow pte marked read only so that we can set
  *     the dirty bit
  *   - write access to a shadow pte marked read only so we can update the page
  *     dirty bitmap, when userspace requests it
  *   - mmio access; in this case we will never install a present shadow pte
- *   - normal guest page fault due to the guest pte marked not present, not
- *     writable, or not executable
+ *   - yesrmal guest page fault due to the guest pte marked yest present, yest
+ *     writable, or yest executable
  *
  *  Returns: 1 if we need to emulate the instruction, 0 otherwise, or
  *           a negative value on error.
@@ -798,7 +798,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	r = FNAME(walk_addr)(&walker, vcpu, addr, error_code);
 
 	/*
-	 * The page is not mapped by the guest.  Let the guest handle it.
+	 * The page is yest mapped by the guest.  Let the guest handle it.
 	 */
 	if (!r) {
 		pgprintk("%s: guest page fault\n", __func__);
@@ -827,23 +827,23 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	} else
 		force_pt_level = true;
 
-	mmu_seq = vcpu->kvm->mmu_notifier_seq;
+	mmu_seq = vcpu->kvm->mmu_yestifier_seq;
 	smp_rmb();
 
 	if (try_async_pf(vcpu, prefault, walker.gfn, addr, &pfn, write_fault,
 			 &map_writable))
 		return RET_PF_RETRY;
 
-	if (handle_abnormal_pfn(vcpu, addr, walker.gfn, pfn, walker.pte_access, &r))
+	if (handle_abyesrmal_pfn(vcpu, addr, walker.gfn, pfn, walker.pte_access, &r))
 		return r;
 
 	/*
-	 * Do not change pte_access if the pfn is a mmio page, otherwise
+	 * Do yest change pte_access if the pfn is a mmio page, otherwise
 	 * we will cache the incorrect access into mmio spte.
 	 */
 	if (write_fault && !(walker.pte_access & ACC_WRITE_MASK) &&
 	     !is_write_protection(vcpu) && !user_fault &&
-	      !is_noslot_pfn(pfn)) {
+	      !is_yesslot_pfn(pfn)) {
 		walker.pte_access |= ACC_WRITE_MASK;
 		walker.pte_access &= ~ACC_USER_MASK;
 
@@ -859,7 +859,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 
 	r = RET_PF_RETRY;
 	spin_lock(&vcpu->kvm->mmu_lock);
-	if (mmu_notifier_retry(vcpu->kvm, mmu_seq))
+	if (mmu_yestifier_retry(vcpu->kvm, mmu_seq))
 		goto out_unlock;
 
 	kvm_mmu_audit(vcpu, AUDIT_PRE_PAGE_FAULT);
@@ -991,9 +991,9 @@ static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gva_t vaddr,
  *
  * Note:
  *   We should flush all tlbs if spte is dropped even though guest is
- *   responsible for it. Since if we don't, kvm_mmu_notifier_invalidate_page
- *   and kvm_mmu_notifier_invalidate_range_start detect the mapping page isn't
- *   used by guest then tlbs are not flushed, so guest is allowed to access the
+ *   responsible for it. Since if we don't, kvm_mmu_yestifier_invalidate_page
+ *   and kvm_mmu_yestifier_invalidate_range_start detect the mapping page isn't
+ *   used by guest then tlbs are yest flushed, so guest is allowed to access the
  *   freed pages.
  *   And we increase kvm->tlbs_dirty to delay tlbs flush in this case.
  */
@@ -1004,7 +1004,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	gpa_t first_pte_gpa;
 	int set_spte_ret = 0;
 
-	/* direct kvm_mmu_page can not be unsync. */
+	/* direct kvm_mmu_page can yest be unsync. */
 	BUG_ON(sp->role.direct);
 
 	first_pte_gpa = FNAME(get_level1_sp_gpa)(sp);
@@ -1027,7 +1027,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
 			/*
 			 * Update spte before increasing tlbs_dirty to make
-			 * sure no tlb flush is lost after spte is zapped; see
+			 * sure yes tlb flush is lost after spte is zapped; see
 			 * the comments in kvm_flush_remote_tlbs().
 			 */
 			smp_wmb();

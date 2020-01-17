@@ -131,7 +131,7 @@ static ssize_t mode_store(struct device *dev,
 
 	if (config->mode & ETM_MODE_STALL) {
 		if (!(drvdata->etmccr & ETMCCR_FIFOFULL)) {
-			dev_warn(dev, "stall mode not supported\n");
+			dev_warn(dev, "stall mode yest supported\n");
 			ret = -EINVAL;
 			goto err_unlock;
 		}
@@ -141,7 +141,7 @@ static ssize_t mode_store(struct device *dev,
 
 	if (config->mode & ETM_MODE_TIMESTAMP) {
 		if (!(drvdata->etmccer & ETMCCER_TIMESTAMP)) {
-			dev_warn(dev, "timestamp not supported\n");
+			dev_warn(dev, "timestamp yest supported\n");
 			ret = -EINVAL;
 			goto err_unlock;
 		}
@@ -398,7 +398,7 @@ static ssize_t addr_range_store(struct device *dev,
 
 	if (sscanf(buf, "%lx %lx", &val1, &val2) != 2)
 		return -EINVAL;
-	/* Lower address comparator cannot have a higher address value */
+	/* Lower address comparator canyest have a higher address value */
 	if (val1 > val2)
 		return -EINVAL;
 
@@ -1055,7 +1055,7 @@ static ssize_t ctxid_pid_store(struct device *dev,
 	 * a process is in a namespace the PID of that process as seen from the
 	 * namespace won't be what the kernel sees, something that makes the
 	 * feature confusing and can potentially leak kernel only information.
-	 * As such refuse to use the feature if @current is not in the initial
+	 * As such refuse to use the feature if @current is yest in the initial
 	 * PID namespace.
 	 */
 	if (task_active_pid_ns(current) != &init_pid_ns)

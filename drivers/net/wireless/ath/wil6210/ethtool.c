@@ -76,7 +76,7 @@ static int wil_ethtoolops_set_coalesce(struct net_device *ndev,
 	}
 
 	/* only @rx_coalesce_usecs and @tx_coalesce_usecs supported,
-	 * ignore other parameters
+	 * igyesre other parameters
 	 */
 
 	if (cp->rx_coalesce_usecs > WIL6210_ITR_TRSH_MAX ||

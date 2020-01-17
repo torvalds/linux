@@ -16,7 +16,7 @@
  * cases) SoC pin drivers, peripheral clock sources (internal or pin), etc.
  * In some cases, a configuration register is write once or the individual
  * bits are write once. That is, you may be able to enable a device, but
- * will not be able to disable it.
+ * will yest be able to disable it.
  *
  * In addition to device configuration, the DSCR block may provide registers
  * which are used to reset SoC peripherals, provide device ID information,
@@ -76,7 +76,7 @@ struct devstate_ctl_reg {
  * This describes a region of status bits indicating the state of
  * various devices. This is used internally to wait for status
  * change completion when enabling/disabling a device. Status is
- * optional and not all device controls will have a corresponding
+ * optional and yest all device controls will have a corresponding
  * status.
  */
 struct devstate_stat_reg {
@@ -96,7 +96,7 @@ struct devstate_info {
 
 /* These are callbacks to SOC-specific code. */
 struct dscr_ops {
-	void (*init)(struct device_node *node);
+	void (*init)(struct device_yesde *yesde);
 };
 
 struct dscr_regs {
@@ -139,7 +139,7 @@ static void dscr_write_locked1(u32 reg, u32 val,
 	 * the two stw instructions are in the same fetch packet.
 	 */
 	asm volatile ("b	.s2	0f\n"
-		      "nop	5\n"
+		      "yesp	5\n"
 		      "    .align 5\n"
 		      "0:\n"
 		      "stw	.D1T2	%3,*%2\n"
@@ -278,25 +278,25 @@ void dscr_rmii_reset(int id, int assert)
 }
 EXPORT_SYMBOL(dscr_rmii_reset);
 
-static void __init dscr_parse_devstat(struct device_node *node,
+static void __init dscr_parse_devstat(struct device_yesde *yesde,
 				      void __iomem *base)
 {
 	u32 val;
 	int err;
 
-	err = of_property_read_u32_array(node, "ti,dscr-devstat", &val, 1);
+	err = of_property_read_u32_array(yesde, "ti,dscr-devstat", &val, 1);
 	if (!err)
 		c6x_devstat = soc_readl(base + val);
 	printk(KERN_INFO "DEVSTAT: %08x\n", c6x_devstat);
 }
 
-static void __init dscr_parse_silicon_rev(struct device_node *node,
+static void __init dscr_parse_silicon_rev(struct device_yesde *yesde,
 					 void __iomem *base)
 {
 	u32 vals[3];
 	int err;
 
-	err = of_property_read_u32_array(node, "ti,dscr-silicon-rev", vals, 3);
+	err = of_property_read_u32_array(yesde, "ti,dscr-silicon-rev", vals, 3);
 	if (!err) {
 		c6x_silicon_rev = soc_readl(base + vals[0]);
 		c6x_silicon_rev >>= vals[1];
@@ -318,16 +318,16 @@ static void __init dscr_parse_silicon_rev(struct device_node *node,
  * b3 is the most significant byte and b0 is the least.
  * Allowable values for b3-b0 are:
  *
- *	  0 = fuse register byte not used in MAC address
+ *	  0 = fuse register byte yest used in MAC address
  *      1-6 = index+1 into c6x_fuse_mac[]
  */
-static void __init dscr_parse_mac_fuse(struct device_node *node,
+static void __init dscr_parse_mac_fuse(struct device_yesde *yesde,
 				       void __iomem *base)
 {
 	u32 vals[10], fuse;
 	int f, i, j, err;
 
-	err = of_property_read_u32_array(node, "ti,dscr-mac-fuse-regs",
+	err = of_property_read_u32_array(yesde, "ti,dscr-mac-fuse-regs",
 					 vals, 10);
 	if (err)
 		return;
@@ -340,14 +340,14 @@ static void __init dscr_parse_mac_fuse(struct device_node *node,
 	}
 }
 
-static void __init dscr_parse_rmii_resets(struct device_node *node,
+static void __init dscr_parse_rmii_resets(struct device_yesde *yesde,
 					  void __iomem *base)
 {
 	const __be32 *p;
 	int i, size;
 
 	/* look for RMII reset registers */
-	p = of_get_property(node, "ti,dscr-rmii-resets", &size);
+	p = of_get_property(yesde, "ti,dscr-rmii-resets", &size);
 	if (p) {
 		/* parse all the reg/mask pairs we can handle */
 		size /= (sizeof(*p) * 2);
@@ -362,13 +362,13 @@ static void __init dscr_parse_rmii_resets(struct device_node *node,
 }
 
 
-static void __init dscr_parse_privperm(struct device_node *node,
+static void __init dscr_parse_privperm(struct device_yesde *yesde,
 				       void __iomem *base)
 {
 	u32 vals[2];
 	int err;
 
-	err = of_property_read_u32_array(node, "ti,dscr-privperm", vals, 2);
+	err = of_property_read_u32_array(yesde, "ti,dscr-privperm", vals, 2);
 	if (err)
 		return;
 	dscr_write(vals[0], vals[1]);
@@ -390,14 +390,14 @@ static void __init dscr_parse_privperm(struct device_node *node,
  * key is the unlock key written to lockreg
  *
  */
-static void __init dscr_parse_locked_regs(struct device_node *node,
+static void __init dscr_parse_locked_regs(struct device_yesde *yesde,
 					  void __iomem *base)
 {
 	struct locked_reg *r;
 	const __be32 *p;
 	int i, size;
 
-	p = of_get_property(node, "ti,dscr-locked-regs", &size);
+	p = of_get_property(yesde, "ti,dscr-locked-regs", &size);
 	if (p) {
 		/* parse all the register descriptions we can handle */
 		size /= (sizeof(*p) * 3);
@@ -425,13 +425,13 @@ static void __init dscr_parse_locked_regs(struct device_node *node,
  * kickreg is the offset of the "kick" register
  * key is the value which unlocks writing for protected regs
  */
-static void __init dscr_parse_kick_regs(struct device_node *node,
+static void __init dscr_parse_kick_regs(struct device_yesde *yesde,
 					void __iomem *base)
 {
 	u32 vals[4];
 	int err;
 
-	err = of_property_read_u32_array(node, "ti,dscr-kick-regs", vals, 4);
+	err = of_property_read_u32_array(yesde, "ti,dscr-kick-regs", vals, 4);
 	if (!err) {
 		dscr.kick_reg[0] = vals[0];
 		dscr.kick_key[0] = vals[1];
@@ -459,18 +459,18 @@ static void __init dscr_parse_kick_regs(struct device_node *node,
  * num_ids is the number of device controls in the range
  * reg is the offset of the register holding the control bits
  * enable is the value to enable a device
- * disable is the value to disable a device (0xffffffff if cannot disable)
+ * disable is the value to disable a device (0xffffffff if canyest disable)
  * start_bit is the bit number of the first bit in the range
  * nbits is the number of bits per device control
  */
-static void __init dscr_parse_devstate_ctl_regs(struct device_node *node,
+static void __init dscr_parse_devstate_ctl_regs(struct device_yesde *yesde,
 						void __iomem *base)
 {
 	struct devstate_ctl_reg *r;
 	const __be32 *p;
 	int i, j, size;
 
-	p = of_get_property(node, "ti,dscr-devstate-ctl-regs", &size);
+	p = of_get_property(yesde, "ti,dscr-devstate-ctl-regs", &size);
 	if (p) {
 		/* parse all the ranges we can handle */
 		size /= (sizeof(*p) * 7);
@@ -519,14 +519,14 @@ static void __init dscr_parse_devstate_ctl_regs(struct device_node *node,
  * start_bit is the bit number of the first bit in the range
  * nbits is the number of bits per device status
  */
-static void __init dscr_parse_devstate_stat_regs(struct device_node *node,
+static void __init dscr_parse_devstate_stat_regs(struct device_yesde *yesde,
 						 void __iomem *base)
 {
 	struct devstate_stat_reg *r;
 	const __be32 *p;
 	int i, j, size;
 
-	p = of_get_property(node, "ti,dscr-devstate-stat-regs", &size);
+	p = of_get_property(yesde, "ti,dscr-devstate-stat-regs", &size);
 	if (p) {
 		/* parse all the ranges we can handle */
 		size /= (sizeof(*p) * 7);
@@ -566,30 +566,30 @@ static struct of_device_id dscr_ids[] __initdata = {
  */
 void __init dscr_probe(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	void __iomem *base;
 
 	spin_lock_init(&dscr.lock);
 
-	node = of_find_matching_node(NULL, dscr_ids);
-	if (!node)
+	yesde = of_find_matching_yesde(NULL, dscr_ids);
+	if (!yesde)
 		return;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	if (!base) {
-		of_node_put(node);
+		of_yesde_put(yesde);
 		return;
 	}
 
 	dscr.base = base;
 
-	dscr_parse_devstat(node, base);
-	dscr_parse_silicon_rev(node, base);
-	dscr_parse_mac_fuse(node, base);
-	dscr_parse_rmii_resets(node, base);
-	dscr_parse_locked_regs(node, base);
-	dscr_parse_kick_regs(node, base);
-	dscr_parse_devstate_ctl_regs(node, base);
-	dscr_parse_devstate_stat_regs(node, base);
-	dscr_parse_privperm(node, base);
+	dscr_parse_devstat(yesde, base);
+	dscr_parse_silicon_rev(yesde, base);
+	dscr_parse_mac_fuse(yesde, base);
+	dscr_parse_rmii_resets(yesde, base);
+	dscr_parse_locked_regs(yesde, base);
+	dscr_parse_kick_regs(yesde, base);
+	dscr_parse_devstate_ctl_regs(yesde, base);
+	dscr_parse_devstate_stat_regs(yesde, base);
+	dscr_parse_privperm(yesde, base);
 }

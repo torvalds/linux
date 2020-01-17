@@ -10,10 +10,10 @@ Last revised: June 21, 2011
 
 This document describes the frame buffer API used by applications to interact
 with frame buffer devices. In-kernel APIs between device drivers and the frame
-buffer core are not described.
+buffer core are yest described.
 
 Due to a lack of documentation in the original frame buffer API, drivers
-behaviours differ in subtle (and not so subtle) ways. This document describes
+behaviours differ in subtle (and yest so subtle) ways. This document describes
 the recommended API implementation, but applications should be prepared to
 deal with different behaviours.
 
@@ -58,7 +58,7 @@ types and visuals are supported.
 - FB_TYPE_PACKED_PIXELS
 
 Macropixels are stored contiguously in a single plane. If the number of bits
-per macropixel is not a multiple of 8, whether macropixels are padded to the
+per macropixel is yest a multiple of 8, whether macropixels are padded to the
 next multiple of 8 bits or packed together into bytes depends on the visual.
 
 Padding at end of lines may be present and is then reported through the fixed
@@ -114,7 +114,7 @@ FB_VISUAL_MONO01 is currently used with FB_TYPE_PACKED_PIXELS only.
 
 Pixels are broken into red, green and blue components, and each component
 indexes a read-only lookup table for the corresponding value. Lookup tables
-are device-dependent, and provide linear or non-linear ramps.
+are device-dependent, and provide linear or yesn-linear ramps.
 
 Each component is stored in a macropixel according to the variable screen
 information red, green, blue and transp fields.
@@ -162,9 +162,9 @@ application modifies the format::
 	__u32 type;			/* see FB_TYPE_*		*/
 	__u32 type_aux;			/* Interleave for interleaved Planes */
 	__u32 visual;			/* see FB_VISUAL_*		*/
-	__u16 xpanstep;			/* zero if no hardware panning  */
-	__u16 ypanstep;			/* zero if no hardware panning  */
-	__u16 ywrapstep;		/* zero if no hardware ywrap    */
+	__u16 xpanstep;			/* zero if yes hardware panning  */
+	__u16 ypanstep;			/* zero if yes hardware panning  */
+	__u16 ywrapstep;		/* zero if yes hardware ywrap    */
 	__u32 line_length;		/* length of a line in bytes    */
 	unsigned long mmio_start;	/* Start of Memory Mapped I/O   */
 					/* (physical address) */
@@ -195,7 +195,7 @@ other miscellaneous parameters::
 	struct fb_bitfield blue;
 	struct fb_bitfield transp;	/* transparency			*/
 
-	__u32 nonstd;			/* != 0 Non standard pixel format */
+	__u32 yesnstd;			/* != 0 Non standard pixel format */
 
 	__u32 activate;			/* see FB_ACTIVATE_*		*/
 
@@ -238,20 +238,20 @@ legacy API and the FOURCC-based API.
 The legacy API has been the only frame buffer format configuration API for a
 long time and is thus widely used by application. It is the recommended API
 for applications when using RGB and grayscale formats, as well as legacy
-non-standard formats.
+yesn-standard formats.
 
 To select a format, applications set the fb_var_screeninfo bits_per_pixel field
 to the desired frame buffer depth. Values up to 8 will usually map to
-monochrome, grayscale or pseudocolor visuals, although this is not required.
+moyeschrome, grayscale or pseudocolor visuals, although this is yest required.
 
 - For grayscale formats, applications set the grayscale field to one. The red,
-  blue, green and transp fields must be set to 0 by applications and ignored by
+  blue, green and transp fields must be set to 0 by applications and igyesred by
   drivers. Drivers must fill the red, blue and green offsets to 0 and lengths
   to the bits_per_pixel value.
 
 - For pseudocolor formats, applications set the grayscale field to zero. The
   red, blue, green and transp fields must be set to 0 by applications and
-  ignored by drivers. Drivers must fill the red, blue and green offsets to 0
+  igyesred by drivers. Drivers must fill the red, blue and green offsets to 0
   and lengths to the bits_per_pixel value.
 
 - For truecolor and directcolor formats, applications set the grayscale field
@@ -265,13 +265,13 @@ monochrome, grayscale or pseudocolor visuals, although this is not required.
 					/* right */
     };
 
-  Pixel values are bits_per_pixel wide and are split in non-overlapping red,
+  Pixel values are bits_per_pixel wide and are split in yesn-overlapping red,
   green, blue and alpha (transparency) components. Location and size of each
   component in the pixel value are described by the fb_bitfield offset and
   length fields. Offset are computed from the right.
 
   Pixels are always stored in an integer number of bytes. If the number of
-  bits per pixel is not a multiple of 8, pixel values are padded to the next
+  bits per pixel is yest a multiple of 8, pixel values are padded to the next
   multiple of 8 bits.
 
 Upon successful format configuration, drivers update the fb_fix_screeninfo
@@ -288,7 +288,7 @@ Drivers that support the FOURCC-based API report this capability by setting
 the FB_CAP_FOURCC bit in the fb_fix_screeninfo capabilities field.
 
 FOURCC definitions are located in the linux/videodev2.h header. However, and
-despite starting with the V4L2_PIX_FMT_prefix, they are not restricted to V4L2
+despite starting with the V4L2_PIX_FMT_prefix, they are yest restricted to V4L2
 and don't require usage of the V4L2 subsystem. FOURCC documentation is
 available in Documentation/media/uapi/v4l/pixfmt.rst.
 
@@ -297,9 +297,9 @@ For YUV formats, they should also select the appropriate colorspace by setting
 the colorspace field to one of the colorspaces listed in linux/videodev2.h and
 documented in Documentation/media/uapi/v4l/colorspaces.rst.
 
-The red, green, blue and transp fields are not used with the FOURCC-based API.
+The red, green, blue and transp fields are yest used with the FOURCC-based API.
 For forward compatibility reasons applications must zero those fields, and
-drivers must ignore them. Values other than 0 may get a meaning in future
+drivers must igyesre them. Values other than 0 may get a meaning in future
 extensions.
 
 Upon successful format configuration, drivers update the fb_fix_screeninfo

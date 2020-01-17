@@ -226,7 +226,7 @@ static int maya_vol_put(struct snd_kcontrol *kcontrol,
 #define GET_SW_VAL_REG(val)	(((val) >> 8) & 0xff)
 #define GET_SW_VAL_MASK(val)	(((val) >> 16) & 0xff)
 
-#define maya_sw_info	snd_ctl_boolean_mono_info
+#define maya_sw_info	snd_ctl_boolean_moyes_info
 
 static int maya_sw_get(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
@@ -265,7 +265,7 @@ static int maya_sw_put(struct snd_kcontrol *kcontrol,
 }
 
 /*
- * GPIO pins (known ones for maya44)
+ * GPIO pins (kyeswn ones for maya44)
  */
 #define GPIO_PHANTOM_OFF	2
 #define GPIO_MIC_RELAY		4
@@ -291,7 +291,7 @@ static int maya_set_gpio_bits(struct snd_ice1712 *ice, unsigned int mask,
 	return 1;
 }
 
-#define maya_gpio_sw_info	snd_ctl_boolean_mono_info
+#define maya_gpio_sw_info	snd_ctl_boolean_moyes_info
 
 static int maya_gpio_sw_get(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
@@ -330,7 +330,7 @@ static int maya_gpio_sw_put(struct snd_kcontrol *kcontrol,
  * capture source selection
  */
 
-/* known working input slots (0-4) */
+/* kyeswn working input slots (0-4) */
 #define MAYA_LINE_IN	1	/* in-2 */
 #define MAYA_MIC_IN	3	/* in-4 */
 
@@ -537,11 +537,11 @@ static void wm8776_init(struct snd_ice1712 *ice,
 	static const unsigned short inits_wm8776[] = {
 		0x02, 0x100, /* R2: headphone L+R muted + update */
 		0x05, 0x100, /* R5: DAC output L+R muted + update */
-		0x06, 0x000, /* R6: DAC output phase normal */
+		0x06, 0x000, /* R6: DAC output phase yesrmal */
 		0x07, 0x091, /* R7: DAC enable zero cross detection,
-				normal output */
+				yesrmal output */
 		0x08, 0x000, /* R8: DAC soft mute off */
-		0x09, 0x000, /* R9: no deemph, DAC zero detect disabled */
+		0x09, 0x000, /* R9: yes deemph, DAC zero detect disabled */
 		0x0a, 0x022, /* R10: DAC I2C mode, std polarities, 24bit */
 		0x0b, 0x022, /* R11: ADC I2C mode, std polarities, 24bit,
 				highpass filter enabled */
@@ -554,7 +554,7 @@ static void wm8776_init(struct snd_ice1712 *ice,
 			     /* R16: ALC...*/
 		0x11, 0x000, /* R17: disable ALC */
 			     /* R18: ALC...*/
-			     /* R19: noise gate...*/
+			     /* R19: yesise gate...*/
 		0x15, 0x000, /* R21: ADC input mux init, mute all inputs */
 		0x16, 0x001, /* R22: output mux, select DAC */
 		0xff, 0xff
@@ -613,7 +613,7 @@ static void set_rate(struct snd_ice1712 *ice, unsigned int rate)
 		ratio = WM8776_CLOCK_RATIO_768FS;
 		break;
 	case 0:
-		/* no hint - S/PDIF input is master, simply return */
+		/* yes hint - S/PDIF input is master, simply return */
 		return;
 	default:
 		snd_BUG();
@@ -624,7 +624,7 @@ static void set_rate(struct snd_ice1712 *ice, unsigned int rate)
 	 * this currently sets the same rate for ADC and DAC, but limits
 	 * ADC rate to 256X (96kHz). For 256X mode (96kHz), this sets ADC
 	 * oversampling to 64x, as recommended by WM8776 datasheet.
-	 * Setting the rate is not really necessary in slave mode.
+	 * Setting the rate is yest really necessary in slave mode.
 	 */
 	adc_ratio = ratio;
 	if (adc_ratio < WM8776_CLOCK_RATIO_256FS)
@@ -694,7 +694,7 @@ static int maya44_init(struct snd_ice1712 *ice)
 	/* set card specific rates */
 	ice->hw_rates = &dac_rates;
 
-	/* register change rate notifier */
+	/* register change rate yestifier */
 	ice->gpio.set_pro_rate = set_rate;
 
 	/* RDMA1 (2nd input channel) is used for ADC by default */

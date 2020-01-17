@@ -2,7 +2,7 @@
  * Xilinx pci external definitions
  *
  * Copyright 2009 Roderick Colenbrander
- * Copyright 2009 Secret Lab Technologies Ltd.
+ * Copyright 2009 Secret Lab Techyeslogies Ltd.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any

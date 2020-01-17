@@ -277,14 +277,14 @@ static const struct regmap_config rk_spdif_regmap_config = {
 
 static int rk_spdif_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct rk_spdif_dev *spdif;
 	const struct of_device_id *match;
 	struct resource *res;
 	void __iomem *regs;
 	int ret;
 
-	match = of_match_node(rk_spdif_match, np);
+	match = of_match_yesde(rk_spdif_match, np);
 	if (match->data == (void *)RK_SPDIF_RK3288) {
 		struct regmap *grf;
 
@@ -296,7 +296,7 @@ static int rk_spdif_probe(struct platform_device *pdev)
 		}
 
 		/* Select the 8 channel SPDIF solution on RK3288 as
-		 * the 2 channel one does not appear to work
+		 * the 2 channel one does yest appear to work
 		 */
 		regmap_write(grf, RK3288_GRF_SOC_CON2, BIT(1) << 16);
 	}
@@ -360,13 +360,13 @@ static int rk_spdif_probe(struct platform_device *pdev)
 					      &rk_spdif_component,
 					      &rk_spdif_dai, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI\n");
+		dev_err(&pdev->dev, "Could yest register DAI\n");
 		goto err_pm_runtime;
 	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM\n");
+		dev_err(&pdev->dev, "Could yest register PCM\n");
 		goto err_pm_runtime;
 	}
 

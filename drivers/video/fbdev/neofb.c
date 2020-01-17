@@ -32,12 +32,12 @@
  *
  * 0.3
  *  - hardware accelerated clear and move for 2200 and above (dok)
- *  - maximum allowed dotclock is handled now (dok)
+ *  - maximum allowed dotclock is handled yesw (dok)
  *
  * 0.2.1
  *  - correct panning after X usage (dok)
  *  - added module and kernel parameters (dok)
- *  - no stretching if external display is enabled (dok)
+ *  - yes stretching if external display is enabled (dok)
  *
  * 0.2
  *  - initial version (dok)
@@ -56,7 +56,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -81,8 +81,8 @@
 static bool internal;
 static bool external;
 static bool libretto;
-static bool nostretch;
-static bool nopciburst;
+static bool yesstretch;
+static bool yespciburst;
 static char *mode_option = NULL;
 
 #ifdef MODULE
@@ -96,11 +96,11 @@ module_param(external, bool, 0);
 MODULE_PARM_DESC(external, "Enable output on external CRT.");
 module_param(libretto, bool, 0);
 MODULE_PARM_DESC(libretto, "Force Libretto 100/110 800x480 LCD.");
-module_param(nostretch, bool, 0);
-MODULE_PARM_DESC(nostretch,
+module_param(yesstretch, bool, 0);
+MODULE_PARM_DESC(yesstretch,
 		 "Disable stretching of modes smaller than LCD.");
-module_param(nopciburst, bool, 0);
-MODULE_PARM_DESC(nopciburst, "Disable PCI burst mode.");
+module_param(yespciburst, bool, 0);
+MODULE_PARM_DESC(yespciburst, "Disable PCI burst mode.");
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Preferred video mode ('640x480-8@60', etc)");
 
@@ -235,14 +235,14 @@ static void neoCalcVCLK(const struct fb_info *info,
 	} else
 		par->VCLK3NumeratorLow = n_best | (f_best << 7);
 
-	par->VCLK3Denominator = d_best;
+	par->VCLK3Deyesminator = d_best;
 
 #ifdef NEOFB_DEBUG
 	printk(KERN_DEBUG "neoVCLK: f:%ld NumLow=%d NumHi=%d Den=%d Df=%ld\n",
 	       freq,
 	       par->VCLK3NumeratorLow,
 	       par->VCLK3NumeratorHigh,
-	       par->VCLK3Denominator, f_best_diff);
+	       par->VCLK3Deyesminator, f_best_diff);
 #endif
 }
 
@@ -425,7 +425,7 @@ static void vgaHWProtect(int on)
 		/*
 		 * Turn off screen and disable sequencer.
 		 */
-		vga_wseq(NULL, 0x00, 0x01);		/* Synchronous Reset */
+		vga_wseq(NULL, 0x00, 0x01);		/* Synchroyesus Reset */
 		vga_wseq(NULL, 0x01, tmp | 0x20);	/* disable the display */
 
 		VGAenablePalette();
@@ -434,7 +434,7 @@ static void vgaHWProtect(int on)
 		 * Reenable sequencer, then turn on screen.
 		 */
 		vga_wseq(NULL, 0x01, tmp & ~0x20);	/* reenable display */
-		vga_wseq(NULL, 0x00, 0x03);		/* clear synchronousreset */
+		vga_wseq(NULL, 0x00, 0x03);		/* clear synchroyesusreset */
 
 		VGAdisablePalette();
 	}
@@ -488,7 +488,7 @@ static inline void neo2200_wait_fifo(struct fb_info *info,
 	//  ndev->neo.waitfifo_calls++;
 	//  ndev->neo.waitfifo_sum += requested_fifo_space;
 
-	/* FIXME: does not work
+	/* FIXME: does yest work
 	   if (neo_fifo_space < requested_fifo_space)
 	   {
 	   neo_fifo_waitcycles++;
@@ -679,7 +679,7 @@ neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		break;
 #endif
 	default:
-		printk(KERN_WARNING "neofb: no support for %dbpp\n",
+		printk(KERN_WARNING "neofb: yes support for %dbpp\n",
 		       var->bits_per_pixel);
 		return -EINVAL;
 	}
@@ -709,7 +709,7 @@ neofb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	if (var->yoffset + var->yres > var->yres_virtual)
 		var->yoffset = var->yres_virtual - var->yres;
 
-	var->nonstd = 0;
+	var->yesnstd = 0;
 	var->height = -1;
 	var->width = -1;
 
@@ -746,7 +746,7 @@ static int neofb_set_par(struct fb_info *info)
 
 	/*
 	 * The default value assigned by vgaHW.c is 0x41, but this does
-	 * not work for NeoMagic.
+	 * yest work for NeoMagic.
 	 */
 	par->Attribute[16] = 0x01;
 
@@ -803,7 +803,7 @@ static int neofb_set_par(struct fb_info *info)
 	if (par->external_display)
 		par->PanelDispCntlReg1 |= 0x01;
 
-	/* If the user did not specify any display devices, then... */
+	/* If the user did yest specify any display devices, then... */
 	if (par->PanelDispCntlReg1 == 0x00) {
 		/* Default to internal (i.e., LCD) only. */
 		par->PanelDispCntlReg1 = vga_rgfx(NULL, 0x20) & 0x03;
@@ -902,7 +902,7 @@ static int neofb_set_par(struct fb_info *info)
 				    ((par->NeoPanelHeight -
 				      info->var.yres) >> 1) - 2;
 			} else {
-				/* Stretched modes cannot be centered. */
+				/* Stretched modes canyest be centered. */
 				hoffset = 0;
 				voffset = 0;
 			}
@@ -952,7 +952,7 @@ static int neofb_set_par(struct fb_info *info)
 	/* alread unlocked above */
 	/* BOGUS  vga_wgfx(NULL, 0x09, 0x26); */
 
-	/* don't know what this is, but it's 0 from bootup anyway */
+	/* don't kyesw what this is, but it's 0 from bootup anyway */
 	vga_wgfx(NULL, 0x15, 0x00);
 
 	/* was set to 0x01 by my bios in text and vesa modes */
@@ -1010,7 +1010,7 @@ static int neofb_set_par(struct fb_info *info)
 	 * This function handles restoring the generic VGA registers.  */
 	vgaHWRestore(info, par);
 
-	/* linear colormap for non palettized modes */
+	/* linear colormap for yesn palettized modes */
 	switch (info->var.bits_per_pixel) {
 	case 8:
 		/* PseudoColor, 256 */
@@ -1118,7 +1118,7 @@ static int neofb_set_par(struct fb_info *info)
 
 	/* Program VCLK3 if needed. */
 	if (par->ProgramVCLK && ((vga_rgfx(NULL, 0x9B) != par->VCLK3NumeratorLow)
-				 || (vga_rgfx(NULL, 0x9F) != par->VCLK3Denominator)
+				 || (vga_rgfx(NULL, 0x9F) != par->VCLK3Deyesminator)
 				 || (clock_hi && ((vga_rgfx(NULL, 0x8F) & ~0x0f)
 						  != (par->VCLK3NumeratorHigh &
 						      ~0x0F))))) {
@@ -1129,7 +1129,7 @@ static int neofb_set_par(struct fb_info *info)
 			temp |= (par->VCLK3NumeratorHigh & ~0x0F);
 			vga_wgfx(NULL, 0x8F, temp);
 		}
-		vga_wgfx(NULL, 0x9F, par->VCLK3Denominator);
+		vga_wgfx(NULL, 0x9F, par->VCLK3Deyesminator);
 	}
 
 	if (par->biosMode)
@@ -1203,33 +1203,33 @@ static int neofb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static int neofb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int neofb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			   u_int transp, struct fb_info *fb)
 {
-	if (regno >= fb->cmap.len || regno > 255)
+	if (regyes >= fb->cmap.len || regyes > 255)
 		return -EINVAL;
 
 	if (fb->var.bits_per_pixel <= 8) {
-		outb(regno, 0x3c8);
+		outb(regyes, 0x3c8);
 
 		outb(red >> 10, 0x3c9);
 		outb(green >> 10, 0x3c9);
 		outb(blue >> 10, 0x3c9);
-	} else if (regno < 16) {
+	} else if (regyes < 16) {
 		switch (fb->var.bits_per_pixel) {
 		case 16:
-			((u32 *) fb->pseudo_palette)[regno] =
+			((u32 *) fb->pseudo_palette)[regyes] =
 				((red & 0xf800)) | ((green & 0xfc00) >> 5) |
 				((blue & 0xf800) >> 11);
 			break;
 		case 24:
-			((u32 *) fb->pseudo_palette)[regno] =
+			((u32 *) fb->pseudo_palette)[regyes] =
 				((red & 0xff00) << 8) | ((green & 0xff00)) |
 				((blue & 0xff00) >> 8);
 			break;
 #ifdef NO_32BIT_SUPPORT_YET
 		case 32:
-			((u32 *) fb->pseudo_palette)[regno] =
+			((u32 *) fb->pseudo_palette)[regyes] =
 				((transp & 0xff00) << 16) | ((red & 0xff00) << 8) |
 				((green & 0xff00)) | ((blue & 0xff00) >> 8);
 			break;
@@ -1321,13 +1321,13 @@ static int neofb_blank(int blank_mode, struct fb_info *info)
 		 * of unblanking, and the LCD bit is unset in the driver but set in the
 		 * register, we must keep it.
 		 */
-		lcdflags = ((par->PanelDispCntlReg1 | tmpdisp) & 0x02); /* LCD normal */
-		dpmsflags = 0x00;	/* no hsync/vsync suppression */
+		lcdflags = ((par->PanelDispCntlReg1 | tmpdisp) & 0x02); /* LCD yesrmal */
+		dpmsflags = 0x00;	/* yes hsync/vsync suppression */
 		break;
 	case FB_BLANK_UNBLANK:		/* unblank */
 		seqflags = 0;			/* Enable sequencer */
-		lcdflags = ((par->PanelDispCntlReg1 | tmpdisp) & 0x02); /* LCD normal */
-		dpmsflags = 0x00;	/* no hsync/vsync suppression */
+		lcdflags = ((par->PanelDispCntlReg1 | tmpdisp) & 0x02); /* LCD yesrmal */
+		dpmsflags = 0x00;	/* yes hsync/vsync suppression */
 #ifdef CONFIG_TOSHIBA
 		/* Do we still need this ? */
 		/* attempt to re-enable backlight/external on toshiba */
@@ -1833,7 +1833,7 @@ static int neo_scan_monitor(struct fb_info *info)
 	printk(KERN_INFO "Panel is a %dx%d %s %s display\n",
 	       par->NeoPanelWidth,
 	       par->NeoPanelHeight,
-	       (type & 0x02) ? "color" : "monochrome",
+	       (type & 0x02) ? "color" : "moyeschrome",
 	       (type & 0x10) ? "TFT" : "dual scan");
 	return 0;
 }
@@ -1941,8 +1941,8 @@ static struct fb_info *neo_alloc_fb_info(struct pci_dev *dev,
 
 	info->fix.accel = id->driver_data;
 
-	par->pci_burst = !nopciburst;
-	par->lcd_stretch = !nostretch;
+	par->pci_burst = !yespciburst;
+	par->lcd_stretch = !yesstretch;
 	par->libretto = libretto;
 
 	par->internal_display = internal;
@@ -2191,10 +2191,10 @@ static int __init neofb_setup(char *options)
 			internal = 1;
 		else if (!strncmp(this_opt, "external", 8))
 			external = 1;
-		else if (!strncmp(this_opt, "nostretch", 9))
-			nostretch = 1;
-		else if (!strncmp(this_opt, "nopciburst", 10))
-			nopciburst = 1;
+		else if (!strncmp(this_opt, "yesstretch", 9))
+			yesstretch = 1;
+		else if (!strncmp(this_opt, "yespciburst", 10))
+			yespciburst = 1;
 		else if (!strncmp(this_opt, "libretto", 8))
 			libretto = 1;
 		else

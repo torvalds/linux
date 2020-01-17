@@ -14,7 +14,7 @@
 #include <linux/err.h>
 
 /*
- * DOC: basic adjustable multiplexer clock that cannot gate
+ * DOC: basic adjustable multiplexer clock that canyest gate
  *
  * Traits of this clock:
  * prepare - clk_prepare only ensures that parents are prepared

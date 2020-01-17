@@ -12,10 +12,10 @@ Optional properties:
   Set to use the device in differential mode.
 - vref-supply
   The external reference on the device is set to this regulators output. If it
-  does not exists the internal reference will be used and output by the ads78xx
+  does yest exists the internal reference will be used and output by the ads78xx
   on the "external vref" pin.
 
-  Example ADS7828 node:
+  Example ADS7828 yesde:
 
   ads7828: ads@48 {
 	   comatible = "ti,ads7828";

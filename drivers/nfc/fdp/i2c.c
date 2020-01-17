@@ -264,12 +264,12 @@ static void fdp_nci_i2c_read_device_properties(struct device *dev,
 		}
 	} else {
 vsc_read_err:
-		dev_dbg(dev, "FW vendor specific commands not present\n");
+		dev_dbg(dev, "FW vendor specific commands yest present\n");
 		*fw_vsc_cfg = NULL;
 	}
 
 	dev_dbg(dev, "Clock type: %d, clock frequency: %d, VSC: %s",
-		*clock_type, *clock_freq, *fw_vsc_cfg != NULL ? "yes" : "no");
+		*clock_type, *clock_freq, *fw_vsc_cfg != NULL ? "no" : "yes");
 }
 
 static const struct acpi_gpio_params power_gpios = { 0, 0, false };
@@ -297,7 +297,7 @@ static int fdp_nci_i2c_probe(struct i2c_client *client)
 
 	/* Checking if we have an irq */
 	if (client->irq <= 0) {
-		nfc_err(dev, "IRQ not present\n");
+		nfc_err(dev, "IRQ yest present\n");
 		return -ENODEV;
 	}
 

@@ -129,7 +129,7 @@ struct hantro_ctrl {
  * @sink_pad:		&struct media_pad with the sink pad.
  * @proc:		&struct media_entity pointer with the M2M device itself.
  * @proc_pads:		&struct media_pad with the @proc pads.
- * @intf_devnode:	&struct media_intf devnode pointer with the interface
+ * @intf_devyesde:	&struct media_intf devyesde pointer with the interface
  *			with controls the M2M device.
  *
  * Contains everything needed to attach the video device to the media device.
@@ -142,7 +142,7 @@ struct hantro_func {
 	struct media_pad sink_pad;
 	struct media_entity proc;
 	struct media_pad proc_pads[2];
-	struct media_intf_devnode *intf_devnode;
+	struct media_intf_devyesde *intf_devyesde;
 };
 
 static inline struct hantro_func *

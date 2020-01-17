@@ -93,7 +93,7 @@ static void qube_raq_galileo_fixup(struct pci_dev *dev)
 	 * --x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--
 	 *
 	 * On all machines prior to Q2, we had the STOP line disconnected
-	 * from Galileo to VIA on PCI.	The new Galileo does not function
+	 * from Galileo to VIA on PCI.	The new Galileo does yest function
 	 * correctly unless we have it connected.
 	 *
 	 * Therefore we must set the disconnect/retry cycle values to
@@ -135,7 +135,7 @@ static void qube_raq_via_board_id_fixup(struct pci_dev *dev)
 
 	retval = pci_read_config_byte(dev, VIA_COBALT_BRD_ID_REG, &id);
 	if (retval) {
-		panic("Cannot read board ID");
+		panic("Canyest read board ID");
 		return;
 	}
 

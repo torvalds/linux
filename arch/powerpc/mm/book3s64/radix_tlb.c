@@ -358,7 +358,7 @@ static inline void _tlbiel_pid_multicast(struct mm_struct *mm,
 	on_each_cpu_mask(cpus, do_tlbiel_pid, &t, 1);
 	/*
 	 * Always want the CPU translations to be invalidated with tlbiel in
-	 * these paths, so while coprocessors must use tlbie, we can not
+	 * these paths, so while coprocessors must use tlbie, we can yest
 	 * optimise away the tlbiel component.
 	 */
 	if (atomic_read(&mm->context.copros) > 0)
@@ -604,7 +604,7 @@ void radix__local_flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmadd
 void radix__local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 {
 #ifdef CONFIG_HUGETLB_PAGE
-	/* need the return fix for nohash.c */
+	/* need the return fix for yeshash.c */
 	if (is_vm_hugetlb_page(vma))
 		return radix__local_flush_hugetlb_page(vma, vmaddr);
 #endif
@@ -625,7 +625,7 @@ static bool mm_needs_flush_escalation(struct mm_struct *mm)
 {
 	/*
 	 * P9 nest MMU has issues with the page walk cache
-	 * caching PTEs and not flushing them properly when
+	 * caching PTEs and yest flushing them properly when
 	 * RIC = 0 for a PID/LPID invalidate
 	 */
 	if (atomic_read(&mm->context.copros) > 0)
@@ -659,10 +659,10 @@ static void exit_flush_lazy_tlbs(struct mm_struct *mm)
 {
 	/*
 	 * Would be nice if this was async so it could be run in
-	 * parallel with our local flush, but generic code does not
+	 * parallel with our local flush, but generic code does yest
 	 * give a good API for it. Could extend the generic code or
 	 * make a special powerpc IPI for flushing TLBs.
-	 * For now it's not too performance critical.
+	 * For yesw it's yest too performance critical.
 	 */
 	smp_call_function_many(mm_cpumask(mm), do_exit_flush_lazy_tlb,
 				(void *)mm, 1);
@@ -819,7 +819,7 @@ EXPORT_SYMBOL(radix__flush_tlb_kernel_range);
  * flush individual pages, for local and global flushes respectively.
  *
  * tlbie goes out to the interconnect and individual ops are more costly.
- * It also does not iterate over sets like the local tlbiel variant when
+ * It also does yest iterate over sets like the local tlbiel variant when
  * invalidating a full PID, so it has a far lower threshold to change from
  * individual page flushes to full-pid flushes.
  */
@@ -989,7 +989,7 @@ void radix__tlb_flush(struct mmu_gather *tlb)
 	unsigned long end = tlb->end;
 
 	/*
-	 * if page size is not something we understand, do a full mm flush
+	 * if page size is yest something we understand, do a full mm flush
 	 *
 	 * A "fullmm" flush must always do a flush_all_mm (RIC=2) flush
 	 * that flushes the process table entry cache upon process teardown.
@@ -1141,12 +1141,12 @@ void radix__flush_tlb_all(void)
 
 	asm volatile("ptesync": : :"memory");
 	/*
-	 * now flush guest entries by passing PRS = 1 and LPID != 0
+	 * yesw flush guest entries by passing PRS = 1 and LPID != 0
 	 */
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(1), "i"(ric), "r"(rs) : "memory");
 	/*
-	 * now flush host entires by passing PRS = 0 and LPID == 0
+	 * yesw flush host entires by passing PRS = 0 and LPID == 0
 	 */
 	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
 		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(0) : "memory");
@@ -1163,7 +1163,7 @@ extern void radix_kvm_prefetch_workaround(struct mm_struct *mm)
 
 	/*
 	 * If this context hasn't run on that CPU before and KVM is
-	 * around, there's a slim chance that the guest on another
+	 * around, there's a slim chance that the guest on ayesther
 	 * CPU just brought in obsolete translation into the TLB of
 	 * this CPU due to a bad prefetch using the guest PID on
 	 * the way into the hypervisor.
@@ -1174,7 +1174,7 @@ extern void radix_kvm_prefetch_workaround(struct mm_struct *mm)
 	 *
 	 * A potential future improvement would be to mark which PIDs
 	 * have never been used on the system and avoid it if the PID
-	 * is new and the process has no other cpumask bit set.
+	 * is new and the process has yes other cpumask bit set.
 	 */
 	if (cpu_has_feature(CPU_FTR_HVMODE) && radix_enabled()) {
 		int cpu = smp_processor_id();

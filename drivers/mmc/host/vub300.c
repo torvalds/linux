@@ -33,7 +33,7 @@
  *             u8, u16, u32
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -387,7 +387,7 @@ static void vub300_queue_cmnd_work(struct vub300_mmc_host *vub300)
 	kref_get(&vub300->kref);
 	if (queue_work(cmndworkqueue, &vub300->cmndwork)) {
 		/*
-		 * then the cmndworkqueue was not previously
+		 * then the cmndworkqueue was yest previously
 		 * running and the above get ref is obvious
 		 * required and will be put when the thread
 		 * terminates by a specific call
@@ -407,7 +407,7 @@ static void vub300_queue_poll_work(struct vub300_mmc_host *vub300, int delay)
 	kref_get(&vub300->kref);
 	if (queue_delayed_work(pollworkqueue, &vub300->pollwork, delay)) {
 		/*
-		 * then the pollworkqueue was not previously
+		 * then the pollworkqueue was yest previously
 		 * running and the above get ref is obvious
 		 * required and will be put when the thread
 		 * terminates by a specific call
@@ -427,7 +427,7 @@ static void vub300_queue_dead_work(struct vub300_mmc_host *vub300)
 	kref_get(&vub300->kref);
 	if (queue_work(deadworkqueue, &vub300->deadwork)) {
 		/*
-		 * then the deadworkqueue was not previously
+		 * then the deadworkqueue was yest previously
 		 * running and the above get ref is obvious
 		 * required and will be put when the thread
 		 * terminates by a specific call
@@ -522,7 +522,7 @@ static void new_system_port_status(struct vub300_mmc_host *vub300)
 		vub300->card_present = 0;
 		mmc_detect_change(vub300->mmc, 0);
 	} else {
-		/* no change */
+		/* yes change */
 	}
 }
 
@@ -661,7 +661,7 @@ static void __do_poll(struct vub300_mmc_host *vub300)
 	commretval = wait_for_completion_timeout(&vub300->irqpoll_complete,
 						 msecs_to_jiffies(500));
 	if (vub300->usb_transport_fail) {
-		/* no need to do anything */
+		/* yes need to do anything */
 	} else if (commretval == 0) {
 		vub300->usb_timed_out = 1;
 		usb_kill_urb(vub300->command_out_urb);
@@ -686,7 +686,7 @@ static void vub300_pollwork_thread(struct work_struct *work)
 	if (vub300->cmd) {
 		vub300_queue_poll_work(vub300, 1);
 	} else if (!vub300->card_present) {
-		/* no need to do anything */
+		/* yes need to do anything */
 	} else { /* vub300->card_present */
 		mutex_lock(&vub300->irq_mutex);
 		if (!vub300->irq_enabled) {
@@ -725,10 +725,10 @@ static void vub300_deadwork_thread(struct work_struct *work)
 		check_vub300_port_status(vub300);
 	} else if (vub300->mmc && vub300->mmc->card) {
 		/*
-		 * the MMC core must not have responded
+		 * the MMC core must yest have responded
 		 * to the previous indication - lets
 		 * hope that it eventually does so we
-		 * will just ignore this for now
+		 * will just igyesre this for yesw
 		 */
 	} else {
 		check_vub300_port_status(vub300);
@@ -839,7 +839,7 @@ static void command_out_completed(struct urb *urb)
 		} else {
 			/*
 			 * and thus we only call it directly
-			 * when it will not be called
+			 * when it will yest be called
 			 */
 			complete(&vub300->command_complete);
 		}
@@ -849,7 +849,7 @@ static void command_out_completed(struct urb *urb)
 /*
  * the STUFF bits are masked out for the comparisons
  */
-static void snoop_block_size_and_bus_width(struct vub300_mmc_host *vub300,
+static void syesop_block_size_and_bus_width(struct vub300_mmc_host *vub300,
 					   u32 cmd_arg)
 {
 	if ((0xFBFFFE00 & cmd_arg) == 0x80022200)
@@ -1037,7 +1037,7 @@ static void send_command(struct vub300_mmc_host *vub300)
 		case 52:
 			response_type = SDRT_5;
 			vub300->resp_len = 6;
-			snoop_block_size_and_bus_width(vub300, cmd->arg);
+			syesop_block_size_and_bus_width(vub300, cmd->arg);
 			break;
 		case 53:
 			response_type = SDRT_5;
@@ -1060,7 +1060,7 @@ static void send_command(struct vub300_mmc_host *vub300)
 		}
 	}
 	/*
-	 * it is a shame that we can not use "sizeof(struct sd_command_header)"
+	 * it is a shame that we can yest use "sizeof(struct sd_command_header)"
 	 * this is because the packet _must_ be padded to 64 bytes
 	 */
 	vub300->cmnd.head.header_size = 20;
@@ -1176,7 +1176,7 @@ static void send_command(struct vub300_mmc_host *vub300)
 
 /*
  * timer callback runs in atomic mode
- *       so it cannot call usb_kill_urb()
+ *       so it canyest call usb_kill_urb()
  */
 static void vub300_sg_timed_out(struct timer_list *t)
 {
@@ -1247,7 +1247,7 @@ static void __download_offload_pseudocode(struct vub300_mmc_host *vub300,
 				goto copy_error_message;
 		} else {
 			dev_err(&vub300->udev->dev,
-				"not enough memory for xfer buffer to send"
+				"yest eyesugh memory for xfer buffer to send"
 				" INTERRUPT_PSEUDOCODE for %s %s\n", fw->data,
 				vub300->vub_name);
 			strncpy(vub300->vub_name,
@@ -1290,7 +1290,7 @@ static void __download_offload_pseudocode(struct vub300_mmc_host *vub300,
 				goto copy_error_message;
 		} else {
 			dev_err(&vub300->udev->dev,
-				"not enough memory for xfer buffer to send"
+				"yest eyesugh memory for xfer buffer to send"
 				" TRANSFER_PSEUDOCODE for %s %s\n", fw->data,
 				vub300->vub_name);
 			strncpy(vub300->vub_name,
@@ -1349,7 +1349,7 @@ copy_error_message:
 }
 
 /*
- * if the binary containing the EMPTY PseudoCode can not be found
+ * if the binary containing the EMPTY PseudoCode can yest be found
  * vub300->vub_name is set anyway in order to prevent an automatic retry
  */
 static void download_offload_pseudocode(struct vub300_mmc_host *vub300)
@@ -1377,7 +1377,7 @@ static void download_offload_pseudocode(struct vub300_mmc_host *vub300)
 		retval = request_firmware(&fw, vub300->vub_name, &card->dev);
 		if (retval < 0) {
 			strncpy(vub300->vub_name,
-				"no SDIO offload firmware found",
+				"yes SDIO offload firmware found",
 				sizeof(vub300->vub_name));
 		} else {
 			__download_offload_pseudocode(vub300, fw);
@@ -1553,7 +1553,7 @@ static int __command_write_data(struct vub300_mmc_host *vub300,
 			cmd->error = -ENOMEM;
 			data->bytes_xfered = 0;
 		}
-	} else {		/* no data padding required */
+	} else {		/* yes data padding required */
 		int result;
 		unsigned char buf[64 * 4];
 		sg_copy_to_buffer(data->sg, data->sg_len, buf, sizeof(buf));
@@ -1598,7 +1598,7 @@ static void __vub300_command_response(struct vub300_mmc_host *vub300,
 		wait_for_completion_timeout(&vub300->command_complete,
 					    msecs_to_jiffies(msec_timeout));
 	if (respretval == 0) { /* TIMED OUT */
-		/* we don't know which of "out" and "res" if any failed */
+		/* we don't kyesw which of "out" and "res" if any failed */
 		int result;
 		vub300->usb_timed_out = 1;
 		usb_kill_urb(vub300->command_out_urb);
@@ -1611,7 +1611,7 @@ static void __vub300_command_response(struct vub300_mmc_host *vub300,
 			usb_unlock_device(vub300->udev);
 		}
 	} else if (respretval < 0) {
-		/* we don't know which of "out" and "res" if any failed */
+		/* we don't kyesw which of "out" and "res" if any failed */
 		usb_kill_urb(vub300->command_out_urb);
 		usb_kill_urb(vub300->command_res_urb);
 		cmd->error = respretval;
@@ -1631,7 +1631,7 @@ static void __vub300_command_response(struct vub300_mmc_host *vub300,
 	} else if (vub300->resp.common.header_type == 0x00) {
 		/*
 		 * the command completed successfully
-		 * and there was no piggybacked data
+		 * and there was yes piggybacked data
 		 */
 	} else if (vub300->resp.common.header_type == RESPONSE_ERROR) {
 		cmd->error =
@@ -1816,7 +1816,7 @@ static int examine_cyclic_buffer(struct vub300_mmc_host *vub300,
 		vub300->total_offload_count -= 1;
 		return 1;
 	} else {
-		int delta = 1;	/* because it does not match the first one */
+		int delta = 1;	/* because it does yest match the first one */
 		u8 register_count = vub300->fn[Function].offload_count - 1;
 		u32 register_point = vub300->fn[Function].offload_point + 1;
 		while (0 < register_count) {
@@ -1951,10 +1951,10 @@ static void vub300_mmc_request(struct mmc_host *mmc, struct mmc_request *req)
 			mutex_unlock(&vub300->cmd_mutex);
 			kref_put(&vub300->kref, vub300_delete);
 			/*
-			 * the kernel lock diagnostics complain
+			 * the kernel lock diagyesstics complain
 			 * if the cmd_mutex * is "passed on"
 			 * to the cmndwork thread,
-			 * so we must release it now
+			 * so we must release it yesw
 			 * and re-acquire it in the cmndwork thread
 			 */
 		}
@@ -1964,7 +1964,7 @@ static void vub300_mmc_request(struct mmc_host *mmc, struct mmc_request *req)
 static void __set_clock_speed(struct vub300_mmc_host *vub300, u8 buf[8],
 			      struct mmc_ios *ios)
 {
-	int buf_array_size = 8; /* ARRAY_SIZE(buf) does not work !!! */
+	int buf_array_size = 8; /* ARRAY_SIZE(buf) does yest work !!! */
 	int retval;
 	u32 kHzClock;
 	if (ios->clock >= 48000000)
@@ -2030,7 +2030,7 @@ static void vub300_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			kfree(buf);
 		}
 	} else {
-		/* this should mean no change of state */
+		/* this should mean yes change of state */
 	}
 	mutex_unlock(&vub300->cmd_mutex);
 	kref_put(&vub300->kref, vub300_delete);
@@ -2058,7 +2058,7 @@ static void vub300_enable_sdio_irq(struct mmc_host *mmc, int enable)
 			vub300->irq_enabled = 1;
 			vub300_queue_poll_work(vub300, 0);
 		} else if (vub300->irq_enabled) {
-			/* this should not happen, so we will just ignore it */
+			/* this should yest happen, so we will just igyesre it */
 		} else {
 			vub300->irq_enabled = 1;
 			vub300_queue_poll_work(vub300, 0);
@@ -2114,7 +2114,7 @@ static int vub300_probe(struct usb_interface *interface,
 	mmc = mmc_alloc_host(sizeof(struct vub300_mmc_host), &udev->dev);
 	if (!mmc) {
 		retval = -ENOMEM;
-		dev_err(&udev->dev, "not enough memory for the mmc_host\n");
+		dev_err(&udev->dev, "yest eyesugh memory for the mmc_host\n");
 		goto error4;
 	}
 	/* MMC core transfer sizes tunable parameters */
@@ -2234,7 +2234,7 @@ static int vub300_probe(struct usb_interface *interface,
 					endpoint->bEndpointAddress;
 			} else {
 				dev_warn(&vub300->udev->dev,
-					 "ignoring"
+					 "igyesring"
 					 " unexpected bulk_in endpoint");
 			}
 		} else if (usb_endpoint_is_bulk_out(endpoint)) {
@@ -2246,12 +2246,12 @@ static int vub300_probe(struct usb_interface *interface,
 					endpoint->bEndpointAddress;
 			} else {
 				dev_warn(&vub300->udev->dev,
-					 "ignoring"
+					 "igyesring"
 					 " unexpected bulk_out endpoint");
 			}
 		} else {
 			dev_warn(&vub300->udev->dev,
-				 "vub300 ignoring EndPoint(%d) %02X", i,
+				 "vub300 igyesring EndPoint(%d) %02X", i,
 				 endpoint->bEndpointAddress);
 		}
 	}
@@ -2266,7 +2266,7 @@ static int vub300_probe(struct usb_interface *interface,
 		/* we have the expected EndPoints */
 	} else {
 		dev_err(&vub300->udev->dev,
-		    "Could not find two sets of bulk-in/out endpoint pairs\n");
+		    "Could yest find two sets of bulk-in/out endpoint pairs\n");
 		retval = -EINVAL;
 		goto error5;
 	}
@@ -2327,7 +2327,7 @@ static int vub300_probe(struct usb_interface *interface,
 	else
 		dev_info(&vub300->udev->dev,
 			 "USB vub300 remote SDIO host controller[%d]"
-			 "connected with no SD/SDIO card inserted\n",
+			 "connected with yes SD/SDIO card inserted\n",
 			 interface_to_InterfaceNumber(interface));
 	mmc_add_host(mmc);
 	return 0;
@@ -2363,7 +2363,7 @@ static void vub300_disconnect(struct usb_interface *interface)
 			kref_put(&vub300->kref, vub300_delete);
 			mmc_remove_host(mmc);
 			pr_info("USB vub300 remote SDIO host controller[%d]"
-				" now disconnected", ifnum);
+				" yesw disconnected", ifnum);
 			return;
 		}
 	}
@@ -2393,7 +2393,7 @@ static int vub300_pre_reset(struct usb_interface *intf)
 static int vub300_post_reset(struct usb_interface *intf)
 {				/* NOT irq */
 	struct vub300_mmc_host *vub300 = usb_get_intfdata(intf);
-	/* we are sure no URBs are active - no locking needed */
+	/* we are sure yes URBs are active - yes locking needed */
 	vub300->errors = -EPIPE;
 	mutex_unlock(&vub300->cmd_mutex);
 	return 0;
@@ -2419,19 +2419,19 @@ static int __init vub300_init(void)
 		firmware_rom_wait_states, 0x0FFFF & firmware_irqpoll_timeout);
 	cmndworkqueue = create_singlethread_workqueue("kvub300c");
 	if (!cmndworkqueue) {
-		pr_err("not enough memory for the REQUEST workqueue");
+		pr_err("yest eyesugh memory for the REQUEST workqueue");
 		result = -ENOMEM;
 		goto out1;
 	}
 	pollworkqueue = create_singlethread_workqueue("kvub300p");
 	if (!pollworkqueue) {
-		pr_err("not enough memory for the IRQPOLL workqueue");
+		pr_err("yest eyesugh memory for the IRQPOLL workqueue");
 		result = -ENOMEM;
 		goto out2;
 	}
 	deadworkqueue = create_singlethread_workqueue("kvub300d");
 	if (!deadworkqueue) {
-		pr_err("not enough memory for the EXPIRED workqueue");
+		pr_err("yest eyesugh memory for the EXPIRED workqueue");
 		result = -ENOMEM;
 		goto out3;
 	}

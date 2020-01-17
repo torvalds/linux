@@ -7,7 +7,7 @@ Required properties:
 Optional property:
 - quartz-load-femtofarads: The capacitive load of the quartz(x-tal),
   expressed in femto Farad (fF). Valid values are 7000 and 12500.
-  Default value (if no value is specified) is 12500fF.
+  Default value (if yes value is specified) is 12500fF.
 
 Example:
 

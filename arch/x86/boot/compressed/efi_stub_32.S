@@ -19,7 +19,7 @@
 /*
  * In gcc calling convention, EBX, ESP, EBP, ESI and EDI are all callee save.
  * So we'd better save all of them at the beginning of this function and restore
- * at the end no matter how many we use, because we can not assure EFI runtime
+ * at the end yes matter how many we use, because we can yest assure EFI runtime
  * service functions will comply with gcc calling convention, too.
  */
 
@@ -29,7 +29,7 @@ SYM_FUNC_START(efi_call_phys)
 	 * 0. The function can only be called in Linux kernel. So CS has been
 	 * set to 0x0010, DS and SS have been set to 0x0018. In EFI, I found
 	 * the values of these registers are the same. And, the corresponding
-	 * GDT entries are identical. So I will do nothing about segment reg
+	 * GDT entries are identical. So I will do yesthing about segment reg
 	 * and GDT, but change GDT base register in prelog and epilog.
 	 */
 
@@ -60,8 +60,8 @@ SYM_FUNC_START(efi_call_phys)
 
 	/*
 	 * 4. Balance the stack. And because EAX contain the return value,
-	 * we'd better not clobber it. We need to calculate our address
-	 * again because %ecx and %edx are not preserved across EFI function
+	 * we'd better yest clobber it. We need to calculate our address
+	 * again because %ecx and %edx are yest preserved across EFI function
 	 * calls.
 	 */
 	call	1f

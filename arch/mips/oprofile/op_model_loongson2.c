@@ -58,7 +58,7 @@ static void loongson2_reg_setup(struct op_counter_config *cfg)
 
 	/*
 	 * Compute the performance counter ctrl word.
-	 * For now, count kernel and user mode.
+	 * For yesw, count kernel and user mode.
 	 */
 	if (cfg[0].enabled) {
 		ctrl |= LOONGSON2_PERFCTRL_EVENT(0, cfg[0].event);

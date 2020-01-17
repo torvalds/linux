@@ -118,11 +118,11 @@ config USB_GADGET_STORAGE_NUM_BUFFERS
 	range 2 256
 	default 2
 	help
-	   Usually 2 buffers are enough to establish a good buffering
+	   Usually 2 buffers are eyesugh to establish a good buffering
 	   pipeline. The number may be increased in order to compensate
 	   for a bursty VFS behaviour. For instance there may be CPU wake up
 	   latencies that makes the VFS to appear bursty in a system with
-	   an CPU on-demand governor. Especially if DMA is doing IO to
+	   an CPU on-demand goveryesr. Especially if DMA is doing IO to
 	   offload the CPU. In this case the CPU will go into power
 	   save often and spin up occasionally to move data within VFS.
 	   If selecting USB_GADGET_DEBUG_FILES this value may be set by
@@ -499,8 +499,8 @@ choice
 	  except that they sometimes must understand quirks or limitations
 	  of the particular controllers they work with.  For example, when
 	  a controller doesn't support alternate configurations or provide
-	  enough of the right types of endpoints, the gadget driver might
-	  not be able work with that controller, or might need to implement
+	  eyesugh of the right types of endpoints, the gadget driver might
+	  yest be able work with that controller, or might need to implement
 	  a less common variant of a device class protocol.
 
 	  The available choices each represent a single precomposed USB

@@ -9,7 +9,7 @@
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/ftrace.h>
-#include <asm/nospec-insn.h>
+#include <asm/yesspec-insn.h>
 #include <asm/ptrace.h>
 #include <asm/export.h>
 
@@ -61,7 +61,7 @@ ENTRY(ftrace_caller)
 	la	%r5,STACK_PTREGS(%r15)
 	BASR_EX	%r14,%r1
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-# The j instruction gets runtime patched to a nop instruction.
+# The j instruction gets runtime patched to a yesp instruction.
 # See ftrace_enable_ftrace_graph_caller.
 	.globl ftrace_graph_caller
 ftrace_graph_caller:

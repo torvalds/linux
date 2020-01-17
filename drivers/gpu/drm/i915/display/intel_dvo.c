@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -285,7 +285,7 @@ static void intel_dvo_pre_enable(struct intel_encoder *encoder,
 	i915_reg_t dvo_reg = intel_dvo->dev.dvo_reg;
 	i915_reg_t dvo_srcdim_reg = intel_dvo->dev.dvo_srcdim_reg;
 
-	/* Save the data order, since I don't know what it should be set to. */
+	/* Save the data order, since I don't kyesw what it should be set to. */
 	dvo_val = I915_READ(dvo_reg) &
 		  (DVO_PRESERVE_MASK | DVO_DATA_ORDER_GBRG);
 	dvo_val |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE |
@@ -326,8 +326,8 @@ static int intel_dvo_get_modes(struct drm_connector *connector)
 	/*
 	 * We should probably have an i2c driver get_modes function for those
 	 * devices which will have a fixed set of modes determined by the chip
-	 * (TV-out, for example), but for now with just TMDS and LVDS,
-	 * that's not the case.
+	 * (TV-out, for example), but for yesw with just TMDS and LVDS,
+	 * that's yest the case.
 	 */
 	intel_ddc_get_modes(connector,
 			    intel_gmbus_get_adapter(dev_priv, GMBUS_PIN_DPC));
@@ -470,7 +470,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 
 		/*
 		 * GMBUS NAK handling seems to be unstable, hence let the
-		 * transmitter detection run in bit banging mode for now.
+		 * transmitter detection run in bit banging mode for yesw.
 		 */
 		intel_gmbus_force_bit(i2c, true);
 
@@ -538,7 +538,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 			 * to dig the fixed panel mode out of the BIOS data.
 			 * However, it's in a different format from the BIOS
 			 * data on chipsets with integrated LVDS (stored in AIM
-			 * headers, likely), so for now, just get the current
+			 * headers, likely), so for yesw, just get the current
 			 * mode being output through DVO.
 			 */
 			intel_panel_init(&intel_connector->panel,

@@ -95,7 +95,7 @@ static int pm860x_led_set(struct led_classdev *cdev,
 		ret |= buf[1] & LED_PWM_MASK;
 		ret |= buf[2] & LED_PWM_MASK;
 		if (ret == 0) {
-			/* unset current since no led is lighting */
+			/* unset current since yes led is lighting */
 			pm860x_set_bits(led->i2c, led->reg_control,
 					LED_CURRENT_MASK, 0);
 			pm860x_set_bits(led->i2c, PM8606_WLED3B,
@@ -115,26 +115,26 @@ static int pm860x_led_set(struct led_classdev *cdev,
 static int pm860x_led_dt_init(struct platform_device *pdev,
 			      struct pm860x_led *data)
 {
-	struct device_node *nproot, *np;
+	struct device_yesde *nproot, *np;
 	int iset = 0;
 
-	if (!pdev->dev.parent->of_node)
+	if (!pdev->dev.parent->of_yesde)
 		return -ENODEV;
-	nproot = of_get_child_by_name(pdev->dev.parent->of_node, "leds");
+	nproot = of_get_child_by_name(pdev->dev.parent->of_yesde, "leds");
 	if (!nproot) {
-		dev_err(&pdev->dev, "failed to find leds node\n");
+		dev_err(&pdev->dev, "failed to find leds yesde\n");
 		return -ENODEV;
 	}
-	for_each_child_of_node(nproot, np) {
-		if (of_node_name_eq(np, data->name)) {
+	for_each_child_of_yesde(nproot, np) {
+		if (of_yesde_name_eq(np, data->name)) {
 			of_property_read_u32(np, "marvell,88pm860x-iset",
 					     &iset);
 			data->iset = PM8606_LED_CURRENT(iset);
-			of_node_put(np);
+			of_yesde_put(np);
 			break;
 		}
 	}
-	of_node_put(nproot);
+	of_yesde_put(nproot);
 	return 0;
 }
 #else

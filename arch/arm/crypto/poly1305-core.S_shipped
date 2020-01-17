@@ -41,7 +41,7 @@ poly1305_init:
 	it	eq
 #endif
 	moveq	r0,#0
-	beq	.Lno_key
+	beq	.Lyes_key
 
 #if	__ARM_MAX_ARCH__>=7
 	mov	r3,#-1
@@ -123,7 +123,7 @@ poly1305_init:
 #else
 	mov	r0,#0
 #endif
-.Lno_key:
+.Lyes_key:
 	ldmia	sp!,{r4-r11}
 #if	__ARM_ARCH__>=5
 	bx	lr				@ bx	lr
@@ -140,7 +140,7 @@ poly1305_blocks:
 	stmdb	sp!,{r3-r11,lr}
 
 	ands	r2,r2,#-16
-	beq	.Lno_data
+	beq	.Lyes_data
 
 	add	r2,r2,r1		@ end pointer
 	sub	sp,sp,#32
@@ -309,7 +309,7 @@ poly1305_blocks:
 	add	sp,sp,#32
 	stmdb	r0,{r4-r8}		@ store the result
 
-.Lno_data:
+.Lyes_data:
 #if	__ARM_ARCH__>=5
 	ldmia	sp!,{r3-r11,pc}
 #else
@@ -445,7 +445,7 @@ poly1305_init_neon:
 .Lpoly1305_init_neon:
 	ldr	r3,[r0,#48]		@ first table element
 	cmp	r3,#-1			@ is value impossible?
-	bne	.Lno_init_neon
+	bne	.Lyes_init_neon
 
 	ldr	r4,[r0,#20]		@ load key base 2^32
 	ldr	r5,[r0,#24]
@@ -535,12 +535,12 @@ poly1305_init_neon:
 	@ and so is sum of four. Sum of 2^m n-m-bit numbers and n-bit
 	@ one is n+1 bits wide.
 	@
-	@ >>+ denotes Hnext += Hn>>26, Hn &= 0x3ffffff. This means that
+	@ >>+ deyestes Hnext += Hn>>26, Hn &= 0x3ffffff. This means that
 	@ H0, H2, H3 are guaranteed to be 26 bits wide, while H1 and H4
 	@ can be 27. However! In cases when their width exceeds 26 bits
 	@ they are limited by 2^26+2^6. This in turn means that *sum*
 	@ of the products with these values can still be viewed as sum
-	@ of 52-bit numbers as long as the amount of addends is not a
+	@ of 52-bit numbers as long as the amount of addends is yest a
 	@ power of 2. For example,
 	@
 	@ H4 = H4*R0 + H3*R1 + H2*R2 + H1*R3 + H0 * R4,
@@ -562,7 +562,7 @@ poly1305_init_neon:
 	@ to minimize amount of instructions [as well as amount of
 	@ 128-bit instructions, which benefits low-end processors], but
 	@ one has to watch for H2 (which is narrower than H0) and 5*H4
-	@ not being wider than 58 bits, so that result of right shift
+	@ yest being wider than 58 bits, so that result of right shift
 	@ by 26 bits fits in 32 bits. This is also useful on x86,
 	@ because it allows to use paddd in place for paddq, which
 	@ benefits Atom, where paddq is ridiculously slow.
@@ -655,7 +655,7 @@ poly1305_init_neon:
 	vst1.32		{d8[0]},[r6]
 	vst1.32		{d8[1]},[r7]
 
-.Lno_init_neon:
+.Lyes_init_neon:
 	bx	lr				@ bx	lr
 .size	poly1305_init_neon,.-poly1305_init_neon
 
@@ -779,7 +779,7 @@ poly1305_blocks_neon:
 	it		lo
 	movlo		r4,r5
 
-	vmov.i32	q14,#1<<24		@ padbit, yes, always
+	vmov.i32	q14,#1<<24		@ padbit, no, always
 	vld4.32		{d20,d22,d24,d26},[r1]	@ inp[0:1]
 	add		r1,r1,#64
 	vld4.32		{d21,d23,d25,d27},[r4]	@ inp[2:3] (or 0)
@@ -913,7 +913,7 @@ poly1305_blocks_neon:
 	vmlal.u32	q7,d28,d6[0]
 	vmlal.u32	q5,d22,d8[0]
 	vmlal.u32	q9,d20,d7[0]
-	vmov.i32	q14,#1<<24		@ padbit, yes, always
+	vmov.i32	q14,#1<<24		@ padbit, no, always
 	vmlal.u32	q6,d24,d8[0]
 	vmlal.u32	q7,d26,d8[0]
 

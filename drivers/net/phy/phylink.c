@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * phylink models the MAC to optional PHY connection, supporting
- * technologies such as SFP cages where the PHY is hot-pluggable.
+ * techyeslogies such as SFP cages where the PHY is hot-pluggable.
  *
  * Copyright (C) 2015 Russell King
  */
@@ -49,7 +49,7 @@ struct phylink {
 	struct phy_device *phydev;
 	phy_interface_t link_interface;	/* PHY_INTERFACE_xxx */
 	u8 link_an_mode;		/* MLO_AN_xxx */
-	u8 link_port;			/* The current non-phy ethtool port */
+	u8 link_port;			/* The current yesn-phy ethtool port */
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
 
 	/* The link configuration settings */
@@ -144,7 +144,7 @@ static const char *phylink_an_mode_str(unsigned int mode)
 		[MLO_AN_INBAND] = "inband",
 	};
 
-	return mode < ARRAY_SIZE(modestr) ? modestr[mode] : "unknown";
+	return mode < ARRAY_SIZE(modestr) ? modestr[mode] : "unkyeswn";
 }
 
 static int phylink_validate(struct phylink *pl, unsigned long *supported,
@@ -156,33 +156,33 @@ static int phylink_validate(struct phylink *pl, unsigned long *supported,
 }
 
 static int phylink_parse_fixedlink(struct phylink *pl,
-				   struct fwnode_handle *fwnode)
+				   struct fwyesde_handle *fwyesde)
 {
-	struct fwnode_handle *fixed_node;
+	struct fwyesde_handle *fixed_yesde;
 	const struct phy_setting *s;
 	struct gpio_desc *desc;
 	u32 speed;
 	int ret;
 
-	fixed_node = fwnode_get_named_child_node(fwnode, "fixed-link");
-	if (fixed_node) {
-		ret = fwnode_property_read_u32(fixed_node, "speed", &speed);
+	fixed_yesde = fwyesde_get_named_child_yesde(fwyesde, "fixed-link");
+	if (fixed_yesde) {
+		ret = fwyesde_property_read_u32(fixed_yesde, "speed", &speed);
 
 		pl->link_config.speed = speed;
 		pl->link_config.duplex = DUPLEX_HALF;
 
-		if (fwnode_property_read_bool(fixed_node, "full-duplex"))
+		if (fwyesde_property_read_bool(fixed_yesde, "full-duplex"))
 			pl->link_config.duplex = DUPLEX_FULL;
 
-		/* We treat the "pause" and "asym-pause" terminology as
+		/* We treat the "pause" and "asym-pause" termiyeslogy as
 		 * defining the link partner's ability. */
-		if (fwnode_property_read_bool(fixed_node, "pause"))
+		if (fwyesde_property_read_bool(fixed_yesde, "pause"))
 			pl->link_config.pause |= MLO_PAUSE_SYM;
-		if (fwnode_property_read_bool(fixed_node, "asym-pause"))
+		if (fwyesde_property_read_bool(fixed_yesde, "asym-pause"))
 			pl->link_config.pause |= MLO_PAUSE_ASYM;
 
 		if (ret == 0) {
-			desc = fwnode_get_named_gpiod(fixed_node, "link-gpios",
+			desc = fwyesde_get_named_gpiod(fixed_yesde, "link-gpios",
 						      0, GPIOD_IN, "?");
 
 			if (!IS_ERR(desc))
@@ -190,21 +190,21 @@ static int phylink_parse_fixedlink(struct phylink *pl,
 			else if (desc == ERR_PTR(-EPROBE_DEFER))
 				ret = -EPROBE_DEFER;
 		}
-		fwnode_handle_put(fixed_node);
+		fwyesde_handle_put(fixed_yesde);
 
 		if (ret)
 			return ret;
 	} else {
 		u32 prop[5];
 
-		ret = fwnode_property_read_u32_array(fwnode, "fixed-link",
+		ret = fwyesde_property_read_u32_array(fwyesde, "fixed-link",
 						     NULL, 0);
 		if (ret != ARRAY_SIZE(prop)) {
 			phylink_err(pl, "broken fixed-link?\n");
 			return -EINVAL;
 		}
 
-		ret = fwnode_property_read_u32_array(fwnode, "fixed-link",
+		ret = fwyesde_property_read_u32_array(fwyesde, "fixed-link",
 						     prop, ARRAY_SIZE(prop));
 		if (!ret) {
 			pl->link_config.duplex = prop[1] ?
@@ -235,7 +235,7 @@ static int phylink_parse_fixedlink(struct phylink *pl,
 	if (s) {
 		__set_bit(s->bit, pl->supported);
 	} else {
-		phylink_warn(pl, "fixed link %s duplex %dMbps not recognised\n",
+		phylink_warn(pl, "fixed link %s duplex %dMbps yest recognised\n",
 			     pl->link_config.duplex == DUPLEX_FULL ? "full" : "half",
 			     pl->link_config.speed);
 	}
@@ -249,17 +249,17 @@ static int phylink_parse_fixedlink(struct phylink *pl,
 	return 0;
 }
 
-static int phylink_parse_mode(struct phylink *pl, struct fwnode_handle *fwnode)
+static int phylink_parse_mode(struct phylink *pl, struct fwyesde_handle *fwyesde)
 {
-	struct fwnode_handle *dn;
+	struct fwyesde_handle *dn;
 	const char *managed;
 
-	dn = fwnode_get_named_child_node(fwnode, "fixed-link");
-	if (dn || fwnode_property_present(fwnode, "fixed-link"))
+	dn = fwyesde_get_named_child_yesde(fwyesde, "fixed-link");
+	if (dn || fwyesde_property_present(fwyesde, "fixed-link"))
 		pl->link_an_mode = MLO_AN_FIXED;
-	fwnode_handle_put(dn);
+	fwyesde_handle_put(dn);
 
-	if (fwnode_property_read_string(fwnode, "managed", &managed) == 0 &&
+	if (fwyesde_property_read_string(fwyesde, "managed", &managed) == 0 &&
 	    strcmp(managed, "in-band-status") == 0) {
 		if (pl->link_an_mode == MLO_AN_FIXED) {
 			phylink_err(pl,
@@ -561,15 +561,15 @@ static void phylink_fixed_poll(struct timer_list *t)
 static const struct sfp_upstream_ops sfp_phylink_ops;
 
 static int phylink_register_sfp(struct phylink *pl,
-				struct fwnode_handle *fwnode)
+				struct fwyesde_handle *fwyesde)
 {
 	struct sfp_bus *bus;
 	int ret;
 
-	if (!fwnode)
+	if (!fwyesde)
 		return 0;
 
-	bus = sfp_bus_find_fwnode(fwnode);
+	bus = sfp_bus_find_fwyesde(fwyesde);
 	if (IS_ERR(bus)) {
 		ret = PTR_ERR(bus);
 		phylink_err(pl, "unable to attach SFP bus: %d\n", ret);
@@ -587,7 +587,7 @@ static int phylink_register_sfp(struct phylink *pl,
 /**
  * phylink_create() - create a phylink instance
  * @config: a pointer to the target &struct phylink_config
- * @fwnode: a pointer to a &struct fwnode_handle describing the network
+ * @fwyesde: a pointer to a &struct fwyesde_handle describing the network
  *	interface
  * @iface: the desired link mode defined by &typedef phy_interface_t
  * @ops: a pointer to a &struct phylink_mac_ops for the MAC.
@@ -595,13 +595,13 @@ static int phylink_register_sfp(struct phylink *pl,
  * Create a new phylink instance, and parse the link parameters found in @np.
  * This will parse in-band modes, fixed-link or SFP configuration.
  *
- * Note: the rtnl lock must not be held when calling this function.
+ * Note: the rtnl lock must yest be held when calling this function.
  *
  * Returns a pointer to a &struct phylink, or an error-pointer value. Users
  * must use IS_ERR() to check for errors from this function.
  */
 struct phylink *phylink_create(struct phylink_config *config,
-			       struct fwnode_handle *fwnode,
+			       struct fwyesde_handle *fwyesde,
 			       phy_interface_t iface,
 			       const struct phylink_mac_ops *ops)
 {
@@ -644,21 +644,21 @@ struct phylink *phylink_create(struct phylink_config *config,
 	linkmode_copy(pl->link_config.advertising, pl->supported);
 	phylink_validate(pl, pl->supported, &pl->link_config);
 
-	ret = phylink_parse_mode(pl, fwnode);
+	ret = phylink_parse_mode(pl, fwyesde);
 	if (ret < 0) {
 		kfree(pl);
 		return ERR_PTR(ret);
 	}
 
 	if (pl->link_an_mode == MLO_AN_FIXED) {
-		ret = phylink_parse_fixedlink(pl, fwnode);
+		ret = phylink_parse_fixedlink(pl, fwyesde);
 		if (ret < 0) {
 			kfree(pl);
 			return ERR_PTR(ret);
 		}
 	}
 
-	ret = phylink_register_sfp(pl, fwnode);
+	ret = phylink_register_sfp(pl, fwyesde);
 	if (ret < 0) {
 		kfree(pl);
 		return ERR_PTR(ret);
@@ -675,7 +675,7 @@ EXPORT_SYMBOL_GPL(phylink_create);
  * Destroy a phylink instance. Any PHY that has been attached must have been
  * cleaned up via phylink_disconnect_phy() prior to calling this function.
  *
- * Note: the rtnl lock must not be held when calling this function.
+ * Note: the rtnl lock must yest be held when calling this function.
  */
 void phylink_destroy(struct phylink *pl)
 {
@@ -722,7 +722,7 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 	/*
 	 * This is the new way of dealing with flow control for PHYs,
 	 * as described by Timur Tabi in commit 529ed1275263 ("net: phy:
-	 * phy drivers should not set SUPPORTED_[Asym_]Pause") except
+	 * phy drivers should yest set SUPPORTED_[Asym_]Pause") except
 	 * using our validate call to the MAC, we rely upon the MAC
 	 * clearing the bits from both supported and advertising fields.
 	 */
@@ -803,7 +803,7 @@ static int __phylink_connect_phy(struct phylink *pl, struct phy_device *phy,
  * This updates the phylink's ethtool supported and advertising link mode
  * masks.
  *
- * Returns 0 on success or a negative errno.
+ * Returns 0 on success or a negative erryes.
  */
 int phylink_connect_phy(struct phylink *pl, struct phy_device *phy)
 {
@@ -820,19 +820,19 @@ EXPORT_SYMBOL_GPL(phylink_connect_phy);
 /**
  * phylink_of_phy_connect() - connect the PHY specified in the DT mode.
  * @pl: a pointer to a &struct phylink returned from phylink_create()
- * @dn: a pointer to a &struct device_node.
+ * @dn: a pointer to a &struct device_yesde.
  * @flags: PHY-specific flags to communicate to the PHY device driver
  *
- * Connect the phy specified in the device node @dn to the phylink instance
+ * Connect the phy specified in the device yesde @dn to the phylink instance
  * specified by @pl. Actions specified in phylink_connect_phy() will be
  * performed.
  *
- * Returns 0 on success or a negative errno.
+ * Returns 0 on success or a negative erryes.
  */
-int phylink_of_phy_connect(struct phylink *pl, struct device_node *dn,
+int phylink_of_phy_connect(struct phylink *pl, struct device_yesde *dn,
 			   u32 flags)
 {
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 	struct phy_device *phy_dev;
 	int ret;
 
@@ -842,22 +842,22 @@ int phylink_of_phy_connect(struct phylink *pl, struct device_node *dn,
 	     phy_interface_mode_is_8023z(pl->link_interface)))
 		return 0;
 
-	phy_node = of_parse_phandle(dn, "phy-handle", 0);
-	if (!phy_node)
-		phy_node = of_parse_phandle(dn, "phy", 0);
-	if (!phy_node)
-		phy_node = of_parse_phandle(dn, "phy-device", 0);
+	phy_yesde = of_parse_phandle(dn, "phy-handle", 0);
+	if (!phy_yesde)
+		phy_yesde = of_parse_phandle(dn, "phy", 0);
+	if (!phy_yesde)
+		phy_yesde = of_parse_phandle(dn, "phy-device", 0);
 
-	if (!phy_node) {
+	if (!phy_yesde) {
 		if (pl->link_an_mode == MLO_AN_PHY)
 			return -ENODEV;
 		return 0;
 	}
 
-	phy_dev = of_phy_attach(pl->netdev, phy_node, flags,
+	phy_dev = of_phy_attach(pl->netdev, phy_yesde, flags,
 				pl->link_interface);
-	/* We're done with the phy_node handle */
-	of_node_put(phy_node);
+	/* We're done with the phy_yesde handle */
+	of_yesde_put(phy_yesde);
 
 	if (!phy_dev)
 		return -ENODEV;
@@ -909,7 +909,7 @@ int phylink_fixed_state_cb(struct phylink *pl,
 			   void (*cb)(struct net_device *dev,
 				      struct phylink_link_state *state))
 {
-	/* It does not make sense to let the link be overriden unless we use
+	/* It does yest make sense to let the link be overriden unless we use
 	 * MLO_AN_FIXED
 	 */
 	if (pl->link_an_mode != MLO_AN_FIXED)
@@ -924,7 +924,7 @@ int phylink_fixed_state_cb(struct phylink *pl,
 EXPORT_SYMBOL_GPL(phylink_fixed_state_cb);
 
 /**
- * phylink_mac_change() - notify phylink of a change in MAC state
+ * phylink_mac_change() - yestify phylink of a change in MAC state
  * @pl: a pointer to a &struct phylink returned from phylink_create()
  * @up: indicates whether the link is currently up.
  *
@@ -1015,7 +1015,7 @@ EXPORT_SYMBOL_GPL(phylink_start);
  *
  * Stop the phylink instance specified by @pl. This should be called from the
  * network device driver's &struct net_device_ops ndo_stop() method.  The
- * network device's carrier state should not be changed prior to calling this
+ * network device's carrier state should yest be changed prior to calling this
  * function.
  */
 void phylink_stop(struct phylink *pl)
@@ -1042,7 +1042,7 @@ EXPORT_SYMBOL_GPL(phylink_stop);
  * @wol: a pointer to &struct ethtool_wolinfo to hold the read parameters
  *
  * Read the wake on lan parameters from the PHY attached to the phylink
- * instance specified by @pl. If no PHY is currently attached, report no
+ * instance specified by @pl. If yes PHY is currently attached, report yes
  * support for wake on lan.
  */
 void phylink_ethtool_get_wol(struct phylink *pl, struct ethtool_wolinfo *wol)
@@ -1063,10 +1063,10 @@ EXPORT_SYMBOL_GPL(phylink_ethtool_get_wol);
  * @wol: a pointer to &struct ethtool_wolinfo for the desired parameters
  *
  * Set the wake on lan parameters for the PHY attached to the phylink
- * instance specified by @pl. If no PHY is attached, returns %EOPNOTSUPP
+ * instance specified by @pl. If yes PHY is attached, returns %EOPNOTSUPP
  * error.
  *
- * Returns zero on success or negative errno code.
+ * Returns zero on success or negative erryes code.
  */
 int phylink_ethtool_set_wol(struct phylink *pl, struct ethtool_wolinfo *wol)
 {
@@ -1130,7 +1130,7 @@ int phylink_ethtool_ksettings_get(struct phylink *pl,
 	switch (pl->link_an_mode) {
 	case MLO_AN_FIXED:
 		/* We are using fixed settings. Report these as the
-		 * current link settings - and note that these also
+		 * current link settings - and yeste that these also
 		 * represent the supported speeds/duplex/pause modes.
 		 */
 		phylink_get_fixed_state(pl, &link_state);
@@ -1139,7 +1139,7 @@ int phylink_ethtool_ksettings_get(struct phylink *pl,
 
 	case MLO_AN_INBAND:
 		/* If there is a phy attached, then use the reported
-		 * settings from the phy with no modification.
+		 * settings from the phy with yes modification.
 		 */
 		if (pl->phydev)
 			break;
@@ -1184,7 +1184,7 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	linkmode_and(config.advertising, kset->link_modes.advertising,
 		     support);
 
-	/* FIXME: should we reject autoneg if phy/mac does not support it? */
+	/* FIXME: should we reject autoneg if phy/mac does yest support it? */
 	if (kset->base.autoneg == AUTONEG_DISABLE) {
 		const struct phy_setting *s;
 
@@ -1596,7 +1596,7 @@ static int phylink_mii_write(struct phylink *pl, unsigned int phy_id,
  * @cmd: ioctl cmd to execute
  *
  * Perform the specified MII ioctl on the PHY attached to the phylink instance
- * specified by @pl. If no PHY is attached, emulate the presence of the PHY.
+ * specified by @pl. If yes PHY is attached, emulate the presence of the PHY.
  *
  * Returns: zero on success or negative error code.
  *
@@ -1706,7 +1706,7 @@ static int phylink_sfp_module_insert(void *upstream,
 	config.pause = MLO_PAUSE_AN;
 	config.an_enabled = pl->link_config.an_enabled;
 
-	/* Ignore errors if we're expecting a PHY to attach later */
+	/* Igyesre errors if we're expecting a PHY to attach later */
 	ret = phylink_validate(pl, support, &config);
 	if (ret) {
 		phylink_err(pl, "validation with support %*pb failed: %d\n",

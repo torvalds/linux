@@ -6,9 +6,9 @@ properties are needed by the Nokia modem HSI client:
 
 Required properties:
 - compatible:		Should be one of
-      "nokia,n900-modem"
-      "nokia,n950-modem"
-      "nokia,n9-modem"
+      "yeskia,n900-modem"
+      "yeskia,n950-modem"
+      "yeskia,n9-modem"
 - hsi-channel-names:	Should contain the following strings
       "mcsaab-control"
       "speech-control"
@@ -28,7 +28,7 @@ Example:
 
 &ssi_port {
 	modem: hsi-client {
-		compatible = "nokia,n900-modem";
+		compatible = "yeskia,n900-modem";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&modem_pins>;

@@ -312,7 +312,7 @@ static struct pxaficp_platform_data poodle_ficp_platform_data = {
  * USB Device Controller
  */
 static struct pxa2xx_udc_mach_info udc_info __initdata = {
-	/* no connect GPIO; poodle can't tell connection status */
+	/* yes connect GPIO; poodle can't tell connection status */
 	.gpio_pullup	= POODLE_GPIO_USB_PULLUP,
 };
 

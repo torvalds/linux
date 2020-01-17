@@ -4,16 +4,16 @@
  *
  * Author: Jacek Anaszewski <j.anaszewski@samsung.com>
  *
- * Register interface file for JPEG driver on Exynos4x12.
+ * Register interface file for JPEG driver on Exyyess4x12.
  */
 #include <linux/io.h>
 #include <linux/delay.h>
 
 #include "jpeg-core.h"
-#include "jpeg-hw-exynos4.h"
+#include "jpeg-hw-exyyess4.h"
 #include "jpeg-regs.h"
 
-void exynos4_jpeg_sw_reset(void __iomem *base)
+void exyyess4_jpeg_sw_reset(void __iomem *base)
 {
 	unsigned int reg;
 
@@ -29,12 +29,12 @@ void exynos4_jpeg_sw_reset(void __iomem *base)
 	writel(reg | EXYNOS4_SOFT_RESET_HI, base + EXYNOS4_JPEG_CNTL_REG);
 }
 
-void exynos4_jpeg_set_enc_dec_mode(void __iomem *base, unsigned int mode)
+void exyyess4_jpeg_set_enc_dec_mode(void __iomem *base, unsigned int mode)
 {
 	unsigned int reg;
 
 	reg = readl(base + EXYNOS4_JPEG_CNTL_REG);
-	/* set exynos4_jpeg mod register */
+	/* set exyyess4_jpeg mod register */
 	if (mode == S5P_JPEG_DECODE) {
 		writel((reg & EXYNOS4_ENC_DEC_MODE_MASK) |
 					EXYNOS4_DEC_MODE,
@@ -49,19 +49,19 @@ void exynos4_jpeg_set_enc_dec_mode(void __iomem *base, unsigned int mode)
 	}
 }
 
-void __exynos4_jpeg_set_img_fmt(void __iomem *base, unsigned int img_fmt,
+void __exyyess4_jpeg_set_img_fmt(void __iomem *base, unsigned int img_fmt,
 				unsigned int version)
 {
 	unsigned int reg;
-	unsigned int exynos4_swap_chroma_cbcr;
-	unsigned int exynos4_swap_chroma_crcb;
+	unsigned int exyyess4_swap_chroma_cbcr;
+	unsigned int exyyess4_swap_chroma_crcb;
 
 	if (version == SJPEG_EXYNOS4) {
-		exynos4_swap_chroma_cbcr = EXYNOS4_SWAP_CHROMA_CBCR;
-		exynos4_swap_chroma_crcb = EXYNOS4_SWAP_CHROMA_CRCB;
+		exyyess4_swap_chroma_cbcr = EXYNOS4_SWAP_CHROMA_CBCR;
+		exyyess4_swap_chroma_crcb = EXYNOS4_SWAP_CHROMA_CRCB;
 	} else {
-		exynos4_swap_chroma_cbcr = EXYNOS5433_SWAP_CHROMA_CBCR;
-		exynos4_swap_chroma_crcb = EXYNOS5433_SWAP_CHROMA_CRCB;
+		exyyess4_swap_chroma_cbcr = EXYNOS5433_SWAP_CHROMA_CBCR;
+		exyyess4_swap_chroma_crcb = EXYNOS5433_SWAP_CHROMA_CRCB;
 	}
 
 	reg = readl(base + EXYNOS4_IMG_FMT_REG) &
@@ -82,48 +82,48 @@ void __exynos4_jpeg_set_img_fmt(void __iomem *base, unsigned int img_fmt,
 	case V4L2_PIX_FMT_NV24:
 		reg = reg | EXYNOS4_ENC_YUV_444_IMG |
 				EXYNOS4_YUV_444_IP_YUV_444_2P_IMG |
-				exynos4_swap_chroma_cbcr;
+				exyyess4_swap_chroma_cbcr;
 		break;
 	case V4L2_PIX_FMT_NV42:
 		reg = reg | EXYNOS4_ENC_YUV_444_IMG |
 				EXYNOS4_YUV_444_IP_YUV_444_2P_IMG |
-				exynos4_swap_chroma_crcb;
+				exyyess4_swap_chroma_crcb;
 		break;
 	case V4L2_PIX_FMT_YUYV:
 		reg = reg | EXYNOS4_DEC_YUV_422_IMG |
 				EXYNOS4_YUV_422_IP_YUV_422_1P_IMG |
-				exynos4_swap_chroma_cbcr;
+				exyyess4_swap_chroma_cbcr;
 		break;
 
 	case V4L2_PIX_FMT_YVYU:
 		reg = reg | EXYNOS4_DEC_YUV_422_IMG |
 				EXYNOS4_YUV_422_IP_YUV_422_1P_IMG |
-				exynos4_swap_chroma_crcb;
+				exyyess4_swap_chroma_crcb;
 		break;
 	case V4L2_PIX_FMT_NV16:
 		reg = reg | EXYNOS4_DEC_YUV_422_IMG |
 				EXYNOS4_YUV_422_IP_YUV_422_2P_IMG |
-				exynos4_swap_chroma_cbcr;
+				exyyess4_swap_chroma_cbcr;
 		break;
 	case V4L2_PIX_FMT_NV61:
 		reg = reg | EXYNOS4_DEC_YUV_422_IMG |
 				EXYNOS4_YUV_422_IP_YUV_422_2P_IMG |
-				exynos4_swap_chroma_crcb;
+				exyyess4_swap_chroma_crcb;
 		break;
 	case V4L2_PIX_FMT_NV12:
 		reg = reg | EXYNOS4_DEC_YUV_420_IMG |
 				EXYNOS4_YUV_420_IP_YUV_420_2P_IMG |
-				exynos4_swap_chroma_cbcr;
+				exyyess4_swap_chroma_cbcr;
 		break;
 	case V4L2_PIX_FMT_NV21:
 		reg = reg | EXYNOS4_DEC_YUV_420_IMG |
 				EXYNOS4_YUV_420_IP_YUV_420_2P_IMG |
-				exynos4_swap_chroma_crcb;
+				exyyess4_swap_chroma_crcb;
 		break;
 	case V4L2_PIX_FMT_YUV420:
 		reg = reg | EXYNOS4_DEC_YUV_420_IMG |
 				EXYNOS4_YUV_420_IP_YUV_420_3P_IMG |
-				exynos4_swap_chroma_cbcr;
+				exyyess4_swap_chroma_cbcr;
 		break;
 	default:
 		break;
@@ -133,7 +133,7 @@ void __exynos4_jpeg_set_img_fmt(void __iomem *base, unsigned int img_fmt,
 	writel(reg, base + EXYNOS4_IMG_FMT_REG);
 }
 
-void __exynos4_jpeg_set_enc_out_fmt(void __iomem *base, unsigned int out_fmt,
+void __exyyess4_jpeg_set_enc_out_fmt(void __iomem *base, unsigned int out_fmt,
 				    unsigned int version)
 {
 	unsigned int reg;
@@ -166,7 +166,7 @@ void __exynos4_jpeg_set_enc_out_fmt(void __iomem *base, unsigned int out_fmt,
 	writel(reg, base + EXYNOS4_IMG_FMT_REG);
 }
 
-void exynos4_jpeg_set_interrupt(void __iomem *base, unsigned int version)
+void exyyess4_jpeg_set_interrupt(void __iomem *base, unsigned int version)
 {
 	unsigned int reg;
 
@@ -180,17 +180,17 @@ void exynos4_jpeg_set_interrupt(void __iomem *base, unsigned int version)
 	}
 }
 
-unsigned int exynos4_jpeg_get_int_status(void __iomem *base)
+unsigned int exyyess4_jpeg_get_int_status(void __iomem *base)
 {
 	return readl(base + EXYNOS4_INT_STATUS_REG);
 }
 
-unsigned int exynos4_jpeg_get_fifo_status(void __iomem *base)
+unsigned int exyyess4_jpeg_get_fifo_status(void __iomem *base)
 {
 	return readl(base + EXYNOS4_FIFO_STATUS_REG);
 }
 
-void exynos4_jpeg_set_huf_table_enable(void __iomem *base, int value)
+void exyyess4_jpeg_set_huf_table_enable(void __iomem *base, int value)
 {
 	unsigned int	reg;
 
@@ -204,7 +204,7 @@ void exynos4_jpeg_set_huf_table_enable(void __iomem *base, int value)
 					base + EXYNOS4_JPEG_CNTL_REG);
 }
 
-void exynos4_jpeg_set_sys_int_enable(void __iomem *base, int value)
+void exyyess4_jpeg_set_sys_int_enable(void __iomem *base, int value)
 {
 	unsigned int	reg;
 
@@ -216,13 +216,13 @@ void exynos4_jpeg_set_sys_int_enable(void __iomem *base, int value)
 		writel(reg & ~EXYNOS4_SYS_INT_EN, base + EXYNOS4_JPEG_CNTL_REG);
 }
 
-void exynos4_jpeg_set_stream_buf_address(void __iomem *base,
+void exyyess4_jpeg_set_stream_buf_address(void __iomem *base,
 					 unsigned int address)
 {
 	writel(address, base + EXYNOS4_OUT_MEM_BASE_REG);
 }
 
-void exynos4_jpeg_set_stream_size(void __iomem *base,
+void exyyess4_jpeg_set_stream_size(void __iomem *base,
 		unsigned int x_value, unsigned int y_value)
 {
 	writel(0x0, base + EXYNOS4_JPEG_IMG_SIZE_REG); /* clear */
@@ -230,16 +230,16 @@ void exynos4_jpeg_set_stream_size(void __iomem *base,
 			base + EXYNOS4_JPEG_IMG_SIZE_REG);
 }
 
-void exynos4_jpeg_set_frame_buf_address(void __iomem *base,
-				struct s5p_jpeg_addr *exynos4_jpeg_addr)
+void exyyess4_jpeg_set_frame_buf_address(void __iomem *base,
+				struct s5p_jpeg_addr *exyyess4_jpeg_addr)
 {
-	writel(exynos4_jpeg_addr->y, base + EXYNOS4_IMG_BA_PLANE_1_REG);
-	writel(exynos4_jpeg_addr->cb, base + EXYNOS4_IMG_BA_PLANE_2_REG);
-	writel(exynos4_jpeg_addr->cr, base + EXYNOS4_IMG_BA_PLANE_3_REG);
+	writel(exyyess4_jpeg_addr->y, base + EXYNOS4_IMG_BA_PLANE_1_REG);
+	writel(exyyess4_jpeg_addr->cb, base + EXYNOS4_IMG_BA_PLANE_2_REG);
+	writel(exyyess4_jpeg_addr->cr, base + EXYNOS4_IMG_BA_PLANE_3_REG);
 }
 
-void exynos4_jpeg_set_encode_tbl_select(void __iomem *base,
-		enum exynos4_jpeg_img_quality_level level)
+void exyyess4_jpeg_set_encode_tbl_select(void __iomem *base,
+		enum exyyess4_jpeg_img_quality_level level)
 {
 	unsigned int	reg;
 
@@ -252,7 +252,7 @@ void exynos4_jpeg_set_encode_tbl_select(void __iomem *base,
 	writel(reg, base + EXYNOS4_TBL_SEL_REG);
 }
 
-void exynos4_jpeg_set_dec_components(void __iomem *base, int n)
+void exyyess4_jpeg_set_dec_components(void __iomem *base, int n)
 {
 	unsigned int	reg;
 
@@ -262,7 +262,7 @@ void exynos4_jpeg_set_dec_components(void __iomem *base, int n)
 	writel(reg, base + EXYNOS4_TBL_SEL_REG);
 }
 
-void exynos4_jpeg_select_dec_q_tbl(void __iomem *base, char c, char x)
+void exyyess4_jpeg_select_dec_q_tbl(void __iomem *base, char c, char x)
 {
 	unsigned int	reg;
 
@@ -272,7 +272,7 @@ void exynos4_jpeg_select_dec_q_tbl(void __iomem *base, char c, char x)
 	writel(reg, base + EXYNOS4_TBL_SEL_REG);
 }
 
-void exynos4_jpeg_select_dec_h_tbl(void __iomem *base, char c, char x)
+void exyyess4_jpeg_select_dec_h_tbl(void __iomem *base, char c, char x)
 {
 	unsigned int	reg;
 
@@ -282,7 +282,7 @@ void exynos4_jpeg_select_dec_h_tbl(void __iomem *base, char c, char x)
 	writel(reg, base + EXYNOS4_TBL_SEL_REG);
 }
 
-void exynos4_jpeg_set_encode_hoff_cnt(void __iomem *base, unsigned int fmt)
+void exyyess4_jpeg_set_encode_hoff_cnt(void __iomem *base, unsigned int fmt)
 {
 	if (fmt == V4L2_PIX_FMT_GREY)
 		writel(0xd2, base + EXYNOS4_HUFF_CNT_REG);
@@ -290,17 +290,17 @@ void exynos4_jpeg_set_encode_hoff_cnt(void __iomem *base, unsigned int fmt)
 		writel(0x1a2, base + EXYNOS4_HUFF_CNT_REG);
 }
 
-unsigned int exynos4_jpeg_get_stream_size(void __iomem *base)
+unsigned int exyyess4_jpeg_get_stream_size(void __iomem *base)
 {
 	return readl(base + EXYNOS4_BITSTREAM_SIZE_REG);
 }
 
-void exynos4_jpeg_set_dec_bitstream_size(void __iomem *base, unsigned int size)
+void exyyess4_jpeg_set_dec_bitstream_size(void __iomem *base, unsigned int size)
 {
 	writel(size, base + EXYNOS4_BITSTREAM_SIZE_REG);
 }
 
-void exynos4_jpeg_get_frame_size(void __iomem *base,
+void exyyess4_jpeg_get_frame_size(void __iomem *base,
 			unsigned int *width, unsigned int *height)
 {
 	*width = (readl(base + EXYNOS4_DECODE_XY_SIZE_REG) &
@@ -309,13 +309,13 @@ void exynos4_jpeg_get_frame_size(void __iomem *base,
 				EXYNOS4_DECODED_SIZE_MASK;
 }
 
-unsigned int exynos4_jpeg_get_frame_fmt(void __iomem *base)
+unsigned int exyyess4_jpeg_get_frame_fmt(void __iomem *base)
 {
 	return readl(base + EXYNOS4_DECODE_IMG_FMT_REG) &
 				EXYNOS4_JPEG_DECODED_IMG_FMT_MASK;
 }
 
-void exynos4_jpeg_set_timer_count(void __iomem *base, unsigned int size)
+void exyyess4_jpeg_set_timer_count(void __iomem *base, unsigned int size)
 {
 	writel(size, base + EXYNOS4_INT_TIMER_COUNT_REG);
 }

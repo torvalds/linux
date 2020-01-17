@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause)
 /*
  * bcm.c - Broadcast Manager to filter/send (cyclic) CAN content
  *
@@ -9,21 +9,21 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this yestice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are yest restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -73,7 +73,7 @@
 
 /* use of last_frames[index].flags */
 #define RX_RECV    0x40 /* received data for this element */
-#define RX_THR     0x80 /* element not been sent due to throttle feature */
+#define RX_THR     0x80 /* element yest been sent due to throttle feature */
 #define BCM_CAN_FLAGS_MASK 0x3F /* to clean private flags after usage */
 
 /* get best masking value for can_rx_register() for a given single can_id */
@@ -125,12 +125,12 @@ struct bcm_sock {
 	struct sock sk;
 	int bound;
 	int ifindex;
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 	struct list_head rx_ops;
 	struct list_head tx_ops;
 	unsigned long dropped_usr_msgs;
 	struct proc_dir_entry *bcm_proc_read;
-	char procname [32]; /* inode number in decimal with \0 */
+	char procname [32]; /* iyesde number in decimal with \0 */
 };
 
 static inline struct bcm_sock *bcm_sk(const struct sock *sk)
@@ -189,7 +189,7 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 {
 	char ifname[IFNAMSIZ];
 	struct net *net = m->private;
-	struct sock *sk = (struct sock *)PDE_DATA(m->file->f_inode);
+	struct sock *sk = (struct sock *)PDE_DATA(m->file->f_iyesde);
 	struct bcm_sock *bo = bcm_sk(sk);
 	struct bcm_op *op;
 
@@ -270,7 +270,7 @@ static void bcm_can_tx(struct bcm_op *op)
 	struct net_device *dev;
 	struct canfd_frame *cf = op->frames + op->cfsiz * op->currframe;
 
-	/* no target device? => exit */
+	/* yes target device? => exit */
 	if (!op->ifindex)
 		return;
 
@@ -401,7 +401,7 @@ static enum hrtimer_restart bcm_tx_timeout_handler(struct hrtimer *hrtimer)
 		op->count--;
 		if (!op->count && (op->flags & TX_COUNTEVT)) {
 
-			/* create notification to user */
+			/* create yestification to user */
 			msg_head.opcode  = TX_EXPIRED;
 			msg_head.flags   = op->flags;
 			msg_head.count   = op->count;
@@ -423,7 +423,7 @@ static enum hrtimer_restart bcm_tx_timeout_handler(struct hrtimer *hrtimer)
 }
 
 /*
- * bcm_rx_changed - create a RX_CHANGED notification due to changed content
+ * bcm_rx_changed - create a RX_CHANGED yestification due to changed content
  */
 static void bcm_rx_changed(struct bcm_op *op, struct canfd_frame *data)
 {
@@ -436,7 +436,7 @@ static void bcm_rx_changed(struct bcm_op *op, struct canfd_frame *data)
 	if (op->frames_filtered > ULONG_MAX/100)
 		op->frames_filtered = op->frames_abs = 0;
 
-	/* this element is not throttled anymore */
+	/* this element is yest throttled anymore */
 	data->flags &= (BCM_CAN_FLAGS_MASK|RX_RECV);
 
 	head.opcode  = RX_CHANGED;
@@ -453,7 +453,7 @@ static void bcm_rx_changed(struct bcm_op *op, struct canfd_frame *data)
 /*
  * bcm_rx_update_and_send - process a detected relevant receive content change
  *                          1. update the last received data
- *                          2. send a notification to the user (if possible)
+ *                          2. send a yestification to the user (if possible)
  */
 static void bcm_rx_update_and_send(struct bcm_op *op,
 				   struct canfd_frame *lastdata,
@@ -482,14 +482,14 @@ static void bcm_rx_update_and_send(struct bcm_op *op,
 	/* got a second frame inside a potential throttle period? */
 	if (ktime_us_delta(ktime_get(), op->kt_lastmsg) <
 	    ktime_to_us(op->kt_ival2)) {
-		/* do not send the saved data - only start throttle timer */
+		/* do yest send the saved data - only start throttle timer */
 		hrtimer_start(&op->thrtimer,
 			      ktime_add(op->kt_lastmsg, op->kt_ival2),
 			      HRTIMER_MODE_ABS_SOFT);
 		return;
 	}
 
-	/* the gap was that big, that throttling was not needed here */
+	/* the gap was that big, that throttling was yest needed here */
 rx_changed_settime:
 	bcm_rx_changed(op, lastdata);
 	op->kt_lastmsg = ktime_get();
@@ -507,7 +507,7 @@ static void bcm_rx_cmp_to_index(struct bcm_op *op, unsigned int index,
 	int i;
 
 	/*
-	 * no one uses the MSBs of flags for comparison,
+	 * yes one uses the MSBs of flags for comparison,
 	 * so we use it here to detect the first time of reception
 	 */
 
@@ -555,11 +555,11 @@ static enum hrtimer_restart bcm_rx_timeout_handler(struct hrtimer *hrtimer)
 
 	/* if user wants to be informed, when cyclic CAN-Messages come back */
 	if ((op->flags & RX_ANNOUNCE_RESUME) && op->last_frames) {
-		/* clear received CAN frames to indicate 'nothing received' */
+		/* clear received CAN frames to indicate 'yesthing received' */
 		memset(op->last_frames, 0, op->nframes * op->cfsiz);
 	}
 
-	/* create notification to user */
+	/* create yestification to user */
 	msg_head.opcode  = RX_TIMEOUT;
 	msg_head.flags   = op->flags;
 	msg_head.count   = op->count;
@@ -610,7 +610,7 @@ static int bcm_rx_thr_flush(struct bcm_op *op)
 }
 
 /*
- * bcm_rx_thr_handler - the time for blocked content updates is over now:
+ * bcm_rx_thr_handler - the time for blocked content updates is over yesw:
  *                      Check for throttled data and send it to the userspace
  */
 static enum hrtimer_restart bcm_rx_thr_handler(struct hrtimer *hrtimer)
@@ -751,15 +751,15 @@ static int bcm_delete_rx_op(struct list_head *ops, struct bcm_msg_head *mh,
 		    (op->flags & CAN_FD_FRAME) == (mh->flags & CAN_FD_FRAME)) {
 
 			/*
-			 * Don't care if we're bound or not (due to netdev
+			 * Don't care if we're bound or yest (due to netdev
 			 * problems) can_rx_unregister() is always a save
 			 * thing to do here.
 			 */
 			if (op->ifindex) {
 				/*
-				 * Only remove subscriptions that had not
+				 * Only remove subscriptions that had yest
 				 * been removed due to NETDEV_UNREGISTER
-				 * in bcm_notifier()
+				 * in bcm_yestifier()
 				 */
 				if (op->rx_reg_dev) {
 					struct net_device *dev;
@@ -783,7 +783,7 @@ static int bcm_delete_rx_op(struct list_head *ops, struct bcm_msg_head *mh,
 		}
 	}
 
-	return 0; /* not found */
+	return 0; /* yest found */
 }
 
 /*
@@ -803,7 +803,7 @@ static int bcm_delete_tx_op(struct list_head *ops, struct bcm_msg_head *mh,
 		}
 	}
 
-	return 0; /* not found */
+	return 0; /* yest found */
 }
 
 /*
@@ -861,7 +861,7 @@ static int bcm_tx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 		/*
 		 * Do we need more space for the CAN frames than currently
 		 * allocated? -> This is a _really_ unusual use-case and
-		 * therefore (complexity / locking) it is not supported.
+		 * therefore (complexity / locking) it is yest supported.
 		 */
 		if (msg_head->nframes > op->nframes)
 			return -E2BIG;
@@ -1018,7 +1018,7 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 	if ((msg_head->flags & RX_FILTER_ID) || (!(msg_head->nframes))) {
 		/* be robust against wrong usage ... */
 		msg_head->flags |= RX_FILTER_ID;
-		/* ignore trailing garbage */
+		/* igyesre trailing garbage */
 		msg_head->nframes = 0;
 	}
 
@@ -1043,7 +1043,7 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 		/*
 		 * Do we need more space for the CAN frames than currently
 		 * allocated? -> This is a _really_ unusual use-case and
-		 * therefore (complexity / locking) it is not supported.
+		 * therefore (complexity / locking) it is yest supported.
 		 */
 		if (msg_head->nframes > op->nframes)
 			return -E2BIG;
@@ -1055,14 +1055,14 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 			if (err < 0)
 				return err;
 
-			/* clear last_frames to indicate 'nothing received' */
+			/* clear last_frames to indicate 'yesthing received' */
 			memset(op->last_frames, 0, msg_head->nframes * op->cfsiz);
 		}
 
 		op->nframes = msg_head->nframes;
 		op->flags = msg_head->flags;
 
-		/* Only an update -> do not call can_rx_register() */
+		/* Only an update -> do yest call can_rx_register() */
 		do_rx_register = 0;
 
 	} else {
@@ -1143,7 +1143,7 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 	if (op->flags & RX_RTR_FRAME) {
 		struct canfd_frame *frame0 = op->frames;
 
-		/* no timers in RTR-mode */
+		/* yes timers in RTR-mode */
 		hrtimer_cancel(&op->thrtimer);
 		hrtimer_cancel(&op->timer);
 
@@ -1183,7 +1183,7 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 				      HRTIMER_MODE_REL_SOFT);
 	}
 
-	/* now we can register for can_ids, if we added a new bcm_op */
+	/* yesw we can register for can_ids, if we added a new bcm_op */
 	if (do_rx_register) {
 		if (ifindex) {
 			struct net_device *dev;
@@ -1291,7 +1291,7 @@ static int bcm_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	/* check for alternative ifindex for this bcm_op */
 
 	if (!ifindex && msg->msg_name) {
-		/* no bound device as default => check msg_name */
+		/* yes bound device as default => check msg_name */
 		DECLARE_SOCKADDR(struct sockaddr_can *, addr, msg->msg_name);
 
 		if (msg->msg_namelen < CAN_REQUIRED_SIZE(*addr, can_ifindex))
@@ -1376,16 +1376,16 @@ static int bcm_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 }
 
 /*
- * notification handler for netdevice status changes
+ * yestification handler for netdevice status changes
  */
-static int bcm_notifier(struct notifier_block *nb, unsigned long msg,
+static int bcm_yestifier(struct yestifier_block *nb, unsigned long msg,
 			void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct bcm_sock *bo = container_of(nb, struct bcm_sock, notifier);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
+	struct bcm_sock *bo = container_of(nb, struct bcm_sock, yestifier);
 	struct sock *sk = &bo->sk;
 	struct bcm_op *op;
-	int notify_enodev = 0;
+	int yestify_eyesdev = 0;
 
 	if (!net_eq(dev_net(dev), sock_net(sk)))
 		return NOTIFY_DONE;
@@ -1407,12 +1407,12 @@ static int bcm_notifier(struct notifier_block *nb, unsigned long msg,
 		if (bo->bound && bo->ifindex == dev->ifindex) {
 			bo->bound   = 0;
 			bo->ifindex = 0;
-			notify_enodev = 1;
+			yestify_eyesdev = 1;
 		}
 
 		release_sock(sk);
 
-		if (notify_enodev) {
+		if (yestify_eyesdev) {
 			sk->sk_err = ENODEV;
 			if (!sock_flag(sk, SOCK_DEAD))
 				sk->sk_error_report(sk);
@@ -1445,10 +1445,10 @@ static int bcm_init(struct sock *sk)
 	INIT_LIST_HEAD(&bo->tx_ops);
 	INIT_LIST_HEAD(&bo->rx_ops);
 
-	/* set notifier */
-	bo->notifier.notifier_call = bcm_notifier;
+	/* set yestifier */
+	bo->yestifier.yestifier_call = bcm_yestifier;
 
-	register_netdevice_notifier(&bo->notifier);
+	register_netdevice_yestifier(&bo->yestifier);
 
 	return 0;
 }
@@ -1471,7 +1471,7 @@ static int bcm_release(struct socket *sock)
 
 	/* remove bcm_ops, timer, rx_unregister(), etc. */
 
-	unregister_netdevice_notifier(&bo->notifier);
+	unregister_netdevice_yestifier(&bo->yestifier);
 
 	lock_sock(sk);
 
@@ -1480,14 +1480,14 @@ static int bcm_release(struct socket *sock)
 
 	list_for_each_entry_safe(op, next, &bo->rx_ops, list) {
 		/*
-		 * Don't care if we're bound or not (due to netdev problems)
+		 * Don't care if we're bound or yest (due to netdev problems)
 		 * can_rx_unregister() is always a save thing to do here.
 		 */
 		if (op->ifindex) {
 			/*
-			 * Only remove subscriptions that had not
+			 * Only remove subscriptions that had yest
 			 * been removed due to NETDEV_UNREGISTER
-			 * in bcm_notifier()
+			 * in bcm_yestifier()
 			 */
 			if (op->rx_reg_dev) {
 				struct net_device *dev;
@@ -1565,14 +1565,14 @@ static int bcm_connect(struct socket *sock, struct sockaddr *uaddr, int len,
 		dev_put(dev);
 
 	} else {
-		/* no interface reference for ifindex = 0 ('any' CAN device) */
+		/* yes interface reference for ifindex = 0 ('any' CAN device) */
 		bo->ifindex = 0;
 	}
 
 #if IS_ENABLED(CONFIG_PROC_FS)
 	if (net->can.bcmproc_dir) {
 		/* unique socket address as filename */
-		sprintf(bo->procname, "%lu", sock_i_ino(sk));
+		sprintf(bo->procname, "%lu", sock_i_iyes(sk));
 		bo->bcm_proc_read = proc_create_net_single(bo->procname, 0644,
 						     net->can.bcmproc_dir,
 						     bcm_proc_show, sk);
@@ -1597,12 +1597,12 @@ static int bcm_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	int error = 0;
-	int noblock;
+	int yesblock;
 	int err;
 
-	noblock =  flags & MSG_DONTWAIT;
+	yesblock =  flags & MSG_DONTWAIT;
 	flags   &= ~MSG_DONTWAIT;
-	skb = skb_recv_datagram(sk, flags, noblock, &error);
+	skb = skb_recv_datagram(sk, flags, yesblock, &error);
 	if (!skb)
 		return error;
 
@@ -1628,32 +1628,32 @@ static int bcm_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	return size;
 }
 
-static int bcm_sock_no_ioctlcmd(struct socket *sock, unsigned int cmd,
+static int bcm_sock_yes_ioctlcmd(struct socket *sock, unsigned int cmd,
 				unsigned long arg)
 {
-	/* no ioctls for socket layer -> hand it down to NIC layer */
+	/* yes ioctls for socket layer -> hand it down to NIC layer */
 	return -ENOIOCTLCMD;
 }
 
 static const struct proto_ops bcm_ops = {
 	.family        = PF_CAN,
 	.release       = bcm_release,
-	.bind          = sock_no_bind,
+	.bind          = sock_yes_bind,
 	.connect       = bcm_connect,
-	.socketpair    = sock_no_socketpair,
-	.accept        = sock_no_accept,
-	.getname       = sock_no_getname,
+	.socketpair    = sock_yes_socketpair,
+	.accept        = sock_yes_accept,
+	.getname       = sock_yes_getname,
 	.poll          = datagram_poll,
-	.ioctl         = bcm_sock_no_ioctlcmd,
+	.ioctl         = bcm_sock_yes_ioctlcmd,
 	.gettstamp     = sock_gettstamp,
-	.listen        = sock_no_listen,
-	.shutdown      = sock_no_shutdown,
-	.setsockopt    = sock_no_setsockopt,
-	.getsockopt    = sock_no_getsockopt,
+	.listen        = sock_yes_listen,
+	.shutdown      = sock_yes_shutdown,
+	.setsockopt    = sock_yes_setsockopt,
+	.getsockopt    = sock_yes_getsockopt,
 	.sendmsg       = bcm_sendmsg,
 	.recvmsg       = bcm_recvmsg,
-	.mmap          = sock_no_mmap,
-	.sendpage      = sock_no_sendpage,
+	.mmap          = sock_yes_mmap,
+	.sendpage      = sock_yes_sendpage,
 };
 
 static struct proto bcm_proto __read_mostly = {

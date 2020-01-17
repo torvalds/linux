@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2001 PPC64 Team, IBM Corp
  *
@@ -6,7 +6,7 @@
  * kernel stack during a system call or other kernel entry.
  *
  * this should only contain volatile regs
- * since we can keep non-volatile in the thread_struct
+ * since we can keep yesn-volatile in the thread_struct
  * should set this up when only volatiles are saved
  * by intr code.
  *
@@ -46,7 +46,7 @@ struct pt_regs
 #ifdef __powerpc64__
 	unsigned long softe;		/* Soft enabled/disabled */
 #else
-	unsigned long mq;		/* 601 only (not used at present) */
+	unsigned long mq;		/* 601 only (yest used at present) */
 					/* Used on APUS to hold IPL value. */
 #endif
 	unsigned long trap;		/* Reason for being here */

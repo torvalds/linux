@@ -1,7 +1,7 @@
 Core dump limits :
 	soft - 0
 	hard - NONE
-Checking environment variables for a tempdir...none found
+Checking environment variables for a tempdir...yesne found
 Checking if /dev/shm is on tmpfs...OK
 Checking PROT_EXEC mmap in /dev/shm...OK
 Adding 24743936 bytes to physical memory to account for exec-shield gap
@@ -10,7 +10,7 @@ Built 1 zonelists in Zone order, mobility grouping on.  Total pages: 14038
 Kernel command line: root=98:0
 PID hash table entries: 256 (order: -1, 2048 bytes)
 Dentry cache hash table entries: 8192 (order: 4, 65536 bytes)
-Inode-cache hash table entries: 4096 (order: 3, 32768 bytes)
+Iyesde-cache hash table entries: 4096 (order: 3, 32768 bytes)
 Memory: 27868K/56932K available (1681K kernel code, 480K rwdata, 400K rodata, 89K init, 205K bss, 29064K reserved, 0K cma-reserved)
 SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
 NR_IRQS:15
@@ -30,7 +30,7 @@ mconsole (version 2) initialized on /usr/local/google/home/brendanhiggins/.uml/6
 Checking host MADV_REMOVE support...OK
 workingset: timestamp_bits=62 max_order=13 bucket_order=0
 Block layer SCSI generic (bsg) driver version 0.4 loaded (major 254)
-io scheduler noop registered
+io scheduler yesop registered
 io scheduler deadline registered
 io scheduler cfq registered (default)
 io scheduler mq-deadline registered
@@ -72,4 +72,4 @@ console [mc-1] enabled
 List of all partitions:
 No filesystem could mount root, tried:
 
-Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(98,0)
+Kernel panic - yest syncing: VFS: Unable to mount root fs on unkyeswn-block(98,0)

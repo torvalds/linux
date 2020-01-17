@@ -7,7 +7,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -81,7 +81,7 @@ enum wbscl_coef_filter_type_sel {
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 struct dwb_warmup_params {
-	bool	warmup_en;	/* false: normal mode, true: enable pattern generator */
+	bool	warmup_en;	/* false: yesrmal mode, true: enable pattern generator */
 	bool	warmup_mode;	/* false: 420, true: 444 */
 	bool	warmup_depth;	/* false: 8bit, true: 10bit */
 	int	warmup_data;	/* Data to be sent by pattern generator (same for each pixel component) */

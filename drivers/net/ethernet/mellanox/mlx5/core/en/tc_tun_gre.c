@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2018 Mellanox Technologies. */
+/* Copyright (c) 2018 Mellayesx Techyeslogies. */
 
 #include <net/gre.h>
 #include "en/tc_tun.h"
@@ -35,7 +35,7 @@ static int mlx5e_gen_ip_tunnel_header_gretap(char buf[],
 
 	*ip_proto = IPPROTO_GRE;
 
-	/* the HW does not calculate GRE csum or sequences */
+	/* the HW does yest calculate GRE csum or sequences */
 	if (tun_key->tun_flags & (TUNNEL_CSUM | TUNNEL_SEQ))
 		return -EOPNOTSUPP;
 

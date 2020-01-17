@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -86,7 +86,7 @@
 #define SPPCR_MOIFE		0x20	/* MOSI Idle Value Fixing Enable */
 #define SPPCR_MOIFV		0x10	/* MOSI Idle Fixed Value */
 #define SPPCR_SPOM		0x04
-#define SPPCR_SPLP2		0x02	/* Loopback Mode 2 (non-inverting) */
+#define SPPCR_SPLP2		0x02	/* Loopback Mode 2 (yesn-inverting) */
 #define SPPCR_SPLP		0x01	/* Loopback Mode (inverting) */
 
 #define SPPCR_IO3FV		0x04	/* Single-/Dual-SPI Mode IO3 Output Fixed Value */
@@ -365,7 +365,7 @@ static int qspi_set_config_register(struct rspi_data *rspi, int access_size)
 
 	/* Resets transmit and receive buffer */
 	rspi_write8(rspi, SPBFCR_TXRST | SPBFCR_RXRST, QSPI_SPBFCR);
-	/* Sets buffer to allow normal operation */
+	/* Sets buffer to allow yesrmal operation */
 	rspi_write8(rspi, 0x00, QSPI_SPBFCR);
 
 	/* Resets sequencer */
@@ -534,7 +534,7 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_rx) {
 			ret = -EAGAIN;
-			goto no_dma_rx;
+			goto yes_dma_rx;
 		}
 
 		desc_rx->callback = rspi_dma_complete;
@@ -542,7 +542,7 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 		cookie = dmaengine_submit(desc_rx);
 		if (dma_submit_error(cookie)) {
 			ret = cookie;
-			goto no_dma_rx;
+			goto yes_dma_rx;
 		}
 
 		irq_mask |= SPCR_SPRIE;
@@ -554,7 +554,7 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_tx) {
 			ret = -EAGAIN;
-			goto no_dma_tx;
+			goto yes_dma_tx;
 		}
 
 		if (rx) {
@@ -567,7 +567,7 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 		cookie = dmaengine_submit(desc_tx);
 		if (dma_submit_error(cookie)) {
 			ret = cookie;
-			goto no_dma_tx;
+			goto yes_dma_tx;
 		}
 
 		irq_mask |= SPCR_SPTIE;
@@ -615,12 +615,12 @@ static int rspi_dma_transfer(struct rspi_data *rspi, struct sg_table *tx,
 
 	return ret;
 
-no_dma_tx:
+yes_dma_tx:
 	if (rx)
 		dmaengine_terminate_all(rspi->ctlr->dma_rx);
-no_dma_rx:
+yes_dma_rx:
 	if (ret == -EAGAIN) {
-		pr_warn_once("%s %s: DMA not available, falling back to PIO\n",
+		pr_warn_once("%s %s: DMA yest available, falling back to PIO\n",
 			     dev_driver_string(&rspi->ctlr->dev),
 			     dev_name(&rspi->ctlr->dev));
 	}
@@ -1069,7 +1069,7 @@ static int rspi_request_dma(struct device *dev, struct spi_controller *ctlr,
 	const struct rspi_plat_data *rspi_pd = dev_get_platdata(dev);
 	unsigned int dma_tx_id, dma_rx_id;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		/* In the OF case we will get the slave IDs from the DT */
 		dma_tx_id = 0;
 		dma_rx_id = 0;
@@ -1077,7 +1077,7 @@ static int rspi_request_dma(struct device *dev, struct spi_controller *ctlr,
 		dma_tx_id = rspi_pd->dma_tx_id;
 		dma_rx_id = rspi_pd->dma_rx_id;
 	} else {
-		/* The driver assumes no error. */
+		/* The driver assumes yes error. */
 		return 0;
 	}
 
@@ -1162,7 +1162,7 @@ static int rspi_parse_dt(struct device *dev, struct spi_controller *ctlr)
 	int error;
 
 	/* Parse DT properties */
-	error = of_property_read_u32(dev->of_node, "num-cs", &num_cs);
+	error = of_property_read_u32(dev->of_yesde, "num-cs", &num_cs);
 	if (error) {
 		dev_err(dev, "of_property_read_u32 num-cs failed %d\n", error);
 		return error;
@@ -1220,7 +1220,7 @@ static int rspi_probe(struct platform_device *pdev)
 
 	/* ops parameter check */
 	if (!ops->set_config_register) {
-		dev_err(&pdev->dev, "there is no set_config_register\n");
+		dev_err(&pdev->dev, "there is yes set_config_register\n");
 		ret = -ENODEV;
 		goto error1;
 	}
@@ -1239,7 +1239,7 @@ static int rspi_probe(struct platform_device *pdev)
 
 	rspi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(rspi->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "canyest get clock\n");
 		ret = PTR_ERR(rspi->clk);
 		goto error1;
 	}
@@ -1255,7 +1255,7 @@ static int rspi_probe(struct platform_device *pdev)
 	ctlr->unprepare_message = rspi_unprepare_message;
 	ctlr->mode_bits = ops->mode_bits;
 	ctlr->flags = ops->flags;
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_yesde = pdev->dev.of_yesde;
 
 	ret = platform_get_irq_byname_optional(pdev, "rx");
 	if (ret < 0) {
@@ -1290,7 +1290,7 @@ static int rspi_probe(struct platform_device *pdev)
 
 	ret = rspi_request_dma(&pdev->dev, ctlr, res);
 	if (ret < 0)
-		dev_warn(&pdev->dev, "DMA not available, using PIO\n");
+		dev_warn(&pdev->dev, "DMA yest available, using PIO\n");
 
 	ret = devm_spi_register_controller(&pdev->dev, ctlr);
 	if (ret < 0) {

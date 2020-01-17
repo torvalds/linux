@@ -17,31 +17,31 @@ Use them.
 
 **recommended**
 
-New methods: ->alloc_inode() and ->destroy_inode().
+New methods: ->alloc_iyesde() and ->destroy_iyesde().
 
-Remove inode->u.foo_inode_i
+Remove iyesde->u.foo_iyesde_i
 
 Declare::
 
-	struct foo_inode_info {
+	struct foo_iyesde_info {
 		/* fs-private stuff */
-		struct inode vfs_inode;
+		struct iyesde vfs_iyesde;
 	};
-	static inline struct foo_inode_info *FOO_I(struct inode *inode)
+	static inline struct foo_iyesde_info *FOO_I(struct iyesde *iyesde)
 	{
-		return list_entry(inode, struct foo_inode_info, vfs_inode);
+		return list_entry(iyesde, struct foo_iyesde_info, vfs_iyesde);
 	}
 
-Use FOO_I(inode) instead of &inode->u.foo_inode_i;
+Use FOO_I(iyesde) instead of &iyesde->u.foo_iyesde_i;
 
-Add foo_alloc_inode() and foo_destroy_inode() - the former should allocate
-foo_inode_info and return the address of ->vfs_inode, the latter should free
-FOO_I(inode) (see in-tree filesystems for examples).
+Add foo_alloc_iyesde() and foo_destroy_iyesde() - the former should allocate
+foo_iyesde_info and return the address of ->vfs_iyesde, the latter should free
+FOO_I(iyesde) (see in-tree filesystems for examples).
 
-Make them ->alloc_inode and ->destroy_inode in your super_operations.
+Make them ->alloc_iyesde and ->destroy_iyesde in your super_operations.
 
-Keep in mind that now you need explicit initialization of private data
-typically between calling iget_locked() and unlocking the inode.
+Keep in mind that yesw you need explicit initialization of private data
+typically between calling iget_locked() and unlocking the iyesde.
 
 At some point that will become mandatory.
 
@@ -51,7 +51,7 @@ At some point that will become mandatory.
 
 Change of file_system_type method (->read_super to ->get_sb)
 
-->read_super() is no more.  Ditto for DECLARE_FSTYPE and DECLARE_FSTYPE_DEV.
+->read_super() is yes more.  Ditto for DECLARE_FSTYPE and DECLARE_FSTYPE_DEV.
 
 Turn your foo_read_super() into a function that would return 0 in case of
 success and negative number in case of error (-EINVAL unless you have more
@@ -64,7 +64,7 @@ informative error value to report).  Call it foo_fill_super().  Now declare::
 			   mnt);
   }
 
-(or similar with s/bdev/nodev/ or s/bdev/single/, depending on the kind of
+(or similar with s/bdev/yesdev/ or s/bdev/single/, depending on the kind of
 filesystem).
 
 Replace DECLARE_FSTYPE... with explicit initializer and have ->get_sb set as
@@ -75,7 +75,7 @@ foo_get_sb.
 **mandatory**
 
 Locking change: ->s_vfs_rename_sem is taken only by cross-directory renames.
-Most likely there is no need to change anything, but if you relied on
+Most likely there is yes need to change anything, but if you relied on
 global exclusion between renames for some internal purpose - you need to
 change your internal locking.  Otherwise exclusion warranties remain the
 same (i.e. parents and victim are locked, etc.).
@@ -93,11 +93,11 @@ can relax your locking.
 
 **mandatory**
 
-->lookup(), ->truncate(), ->create(), ->unlink(), ->mknod(), ->mkdir(),
+->lookup(), ->truncate(), ->create(), ->unlink(), ->mkyesd(), ->mkdir(),
 ->rmdir(), ->link(), ->lseek(), ->symlink(), ->rename()
-and ->readdir() are called without BKL now.  Grab it on entry, drop upon return
+and ->readdir() are called without BKL yesw.  Grab it on entry, drop upon return
 - that will guarantee the same locking you used to have.  If your method or its
-parts do not need BKL - better yet, now you can shift lock_kernel() and
+parts do yest need BKL - better yet, yesw you can shift lock_kernel() and
 unlock_kernel() so that they would protect exactly what needs to be
 protected.
 
@@ -112,7 +112,7 @@ individual fs sb_op functions.  If you don't need it, remove it.
 
 **informational**
 
-check for ->link() target not being a directory is done by callers.  Feel
+check for ->link() target yest being a directory is done by callers.  Feel
 free to drop it...
 
 ---
@@ -131,7 +131,7 @@ an existing filesystem, set it according to ->fs_flags::
 
 	FS_REQUIRES_DEV		-	kill_block_super
 	FS_LITTER		-	kill_litter_super
-	neither			-	kill_anon_super
+	neither			-	kill_ayesn_super
 
 FS_LITTER is gone - just remove it from fs_flags.
 
@@ -147,9 +147,9 @@ went in - and hadn't been documented ;-/).  Just remove it from fs_flags
 
 **mandatory**
 
-->setattr() is called without BKL now.  Caller _always_ holds ->i_mutex, so
+->setattr() is called without BKL yesw.  Caller _always_ holds ->i_mutex, so
 watch for ->i_mutex-grabbing code that might be used by your ->setattr().
-Callers of notify_change() need ->i_mutex now.
+Callers of yestify_change() need ->i_mutex yesw.
 
 ---
 
@@ -170,7 +170,7 @@ settles down a bit.
 
 **mandatory**
 
-s_export_op is now required for exporting a filesystem.
+s_export_op is yesw required for exporting a filesystem.
 isofs, ext2, ext3, resierfs, fat
 can be used as examples of very different filesystems.
 
@@ -178,44 +178,44 @@ can be used as examples of very different filesystems.
 
 **mandatory**
 
-iget4() and the read_inode2 callback have been superseded by iget5_locked()
+iget4() and the read_iyesde2 callback have been superseded by iget5_locked()
 which has the following prototype::
 
-    struct inode *iget5_locked(struct super_block *sb, unsigned long ino,
-				int (*test)(struct inode *, void *),
-				int (*set)(struct inode *, void *),
+    struct iyesde *iget5_locked(struct super_block *sb, unsigned long iyes,
+				int (*test)(struct iyesde *, void *),
+				int (*set)(struct iyesde *, void *),
 				void *data);
 
-'test' is an additional function that can be used when the inode
-number is not sufficient to identify the actual file object. 'set'
-should be a non-blocking function that initializes those parts of a
-newly created inode to allow the test function to succeed. 'data' is
+'test' is an additional function that can be used when the iyesde
+number is yest sufficient to identify the actual file object. 'set'
+should be a yesn-blocking function that initializes those parts of a
+newly created iyesde to allow the test function to succeed. 'data' is
 passed as an opaque value to both test and set functions.
 
-When the inode has been created by iget5_locked(), it will be returned with the
+When the iyesde has been created by iget5_locked(), it will be returned with the
 I_NEW flag set and will still be locked.  The filesystem then needs to finalize
-the initialization. Once the inode is initialized it must be unlocked by
-calling unlock_new_inode().
+the initialization. Once the iyesde is initialized it must be unlocked by
+calling unlock_new_iyesde().
 
-The filesystem is responsible for setting (and possibly testing) i_ino
+The filesystem is responsible for setting (and possibly testing) i_iyes
 when appropriate. There is also a simpler iget_locked function that
-just takes the superblock and inode number as arguments and does the
+just takes the superblock and iyesde number as arguments and does the
 test and set for you.
 
 e.g.::
 
-	inode = iget_locked(sb, ino);
-	if (inode->i_state & I_NEW) {
-		err = read_inode_from_disk(inode);
+	iyesde = iget_locked(sb, iyes);
+	if (iyesde->i_state & I_NEW) {
+		err = read_iyesde_from_disk(iyesde);
 		if (err < 0) {
-			iget_failed(inode);
+			iget_failed(iyesde);
 			return err;
 		}
-		unlock_new_inode(inode);
+		unlock_new_iyesde(iyesde);
 	}
 
-Note that if the process of setting up a new inode fails, then iget_failed()
-should be called on the inode to render it dead, and an appropriate error
+Note that if the process of setting up a new iyesde fails, then iget_failed()
+should be called on the iyesde to render it dead, and an appropriate error
 should be passed back to the caller.
 
 ---
@@ -236,17 +236,17 @@ had ->revalidate()) add calls in ->follow_link()/->readlink().
 
 **mandatory**
 
-->d_parent changes are not protected by BKL anymore.  Read access is safe
+->d_parent changes are yest protected by BKL anymore.  Read access is safe
 if at least one of the following is true:
 
-	* filesystem has no cross-directory rename()
-	* we know that parent had been locked (e.g. we are looking at
+	* filesystem has yes cross-directory rename()
+	* we kyesw that parent had been locked (e.g. we are looking at
 	  ->d_parent of ->lookup() argument).
 	* we are called from ->rename().
 	* the child's ->d_lock is held
 
 Audit your code and add locking if needed.  Notice that any place that is
-not protected by the conditions above is risky even in the old tree - you
+yest protected by the conditions above is risky even in the old tree - you
 had been relying on BKL and that's prone to screwups.  Old tree had quite
 a few holes of that kind - unprotected access to ->d_parent leading to
 anything from oops to silent memory corruption.
@@ -256,7 +256,7 @@ anything from oops to silent memory corruption.
 **mandatory**
 
 FS_NOMOUNT is gone.  If you use it - just set SB_NOUSER in flags
-(see rootfs for one kind of solution and bdev/socket/pipe for another).
+(see rootfs for one kind of solution and bdev/socket/pipe for ayesther).
 
 ---
 
@@ -270,9 +270,9 @@ As soon as it gets fixed is_read_only() will die.
 
 **mandatory**
 
-->permission() is called without BKL now. Grab it on entry, drop upon
+->permission() is called without BKL yesw. Grab it on entry, drop upon
 return - that will guarantee the same locking you used to have.  If
-your method or its parts do not need BKL - better yet, now you can
+your method or its parts do yest need BKL - better yet, yesw you can
 shift lock_kernel() and unlock_kernel() so that they would protect
 exactly what needs to be protected.
 
@@ -280,8 +280,8 @@ exactly what needs to be protected.
 
 **mandatory**
 
-->statfs() is now called without BKL held.  BKL should have been
-shifted into individual fs sb_op functions where it's not clear that
+->statfs() is yesw called without BKL held.  BKL should have been
+shifted into individual fs sb_op functions where it's yest clear that
 it's safe to remove it.  If you don't need it, remove it.
 
 ---
@@ -302,61 +302,61 @@ destroy_buffers() is gone; use invalidate_bdev().
 
 fsync_dev() is gone; use fsync_bdev().  NOTE: lvm breakage is
 deliberate; as soon as struct block_device * is propagated in a reasonable
-way by that code fixing will become trivial; until then nothing can be
+way by that code fixing will become trivial; until then yesthing can be
 done.
 
 **mandatory**
 
 block truncatation on error exit from ->write_begin, and ->direct_IO
 moved from generic methods (block_write_begin, cont_write_begin,
-nobh_write_begin, blockdev_direct_IO*) to callers.  Take a look at
+yesbh_write_begin, blockdev_direct_IO*) to callers.  Take a look at
 ext2_write_failed and callers for an example.
 
 **mandatory**
 
 ->truncate is gone.  The whole truncate sequence needs to be
-implemented in ->setattr, which is now mandatory for filesystems
-implementing on-disk size changes.  Start with a copy of the old inode_setattr
+implemented in ->setattr, which is yesw mandatory for filesystems
+implementing on-disk size changes.  Start with a copy of the old iyesde_setattr
 and vmtruncate, and the reorder the vmtruncate + foofs_vmtruncate sequence to
 be in order of zeroing blocks using block_truncate_page or similar helpers,
-size update and on finally on-disk truncation which should not fail.
-setattr_prepare (which used to be inode_change_ok) now includes the size checks
+size update and on finally on-disk truncation which should yest fail.
+setattr_prepare (which used to be iyesde_change_ok) yesw includes the size checks
 for ATTR_SIZE and must be called in the beginning of ->setattr unconditionally.
 
 **mandatory**
 
-->clear_inode() and ->delete_inode() are gone; ->evict_inode() should
-be used instead.  It gets called whenever the inode is evicted, whether it has
-remaining links or not.  Caller does *not* evict the pagecache or inode-associated
-metadata buffers; the method has to use truncate_inode_pages_final() to get rid
-of those. Caller makes sure async writeback cannot be running for the inode while
-(or after) ->evict_inode() is called.
+->clear_iyesde() and ->delete_iyesde() are gone; ->evict_iyesde() should
+be used instead.  It gets called whenever the iyesde is evicted, whether it has
+remaining links or yest.  Caller does *yest* evict the pagecache or iyesde-associated
+metadata buffers; the method has to use truncate_iyesde_pages_final() to get rid
+of those. Caller makes sure async writeback canyest be running for the iyesde while
+(or after) ->evict_iyesde() is called.
 
-->drop_inode() returns int now; it's called on final iput() with
-inode->i_lock held and it returns true if filesystems wants the inode to be
-dropped.  As before, generic_drop_inode() is still the default and it's been
-updated appropriately.  generic_delete_inode() is also alive and it consists
+->drop_iyesde() returns int yesw; it's called on final iput() with
+iyesde->i_lock held and it returns true if filesystems wants the iyesde to be
+dropped.  As before, generic_drop_iyesde() is still the default and it's been
+updated appropriately.  generic_delete_iyesde() is also alive and it consists
 simply of return 1.  Note that all actual eviction work is done by caller after
-->drop_inode() returns.
+->drop_iyesde() returns.
 
-As before, clear_inode() must be called exactly once on each call of
-->evict_inode() (as it used to be for each call of ->delete_inode()).  Unlike
-before, if you are using inode-associated metadata buffers (i.e.
-mark_buffer_dirty_inode()), it's your responsibility to call
-invalidate_inode_buffers() before clear_inode().
+As before, clear_iyesde() must be called exactly once on each call of
+->evict_iyesde() (as it used to be for each call of ->delete_iyesde()).  Unlike
+before, if you are using iyesde-associated metadata buffers (i.e.
+mark_buffer_dirty_iyesde()), it's your responsibility to call
+invalidate_iyesde_buffers() before clear_iyesde().
 
-NOTE: checking i_nlink in the beginning of ->write_inode() and bailing out
-if it's zero is not *and* *never* *had* *been* enough.  Final unlink() and iput()
-may happen while the inode is in the middle of ->write_inode(); e.g. if you blindly
-free the on-disk inode, you may end up doing that while ->write_inode() is writing
+NOTE: checking i_nlink in the beginning of ->write_iyesde() and bailing out
+if it's zero is yest *and* *never* *had* *been* eyesugh.  Final unlink() and iput()
+may happen while the iyesde is in the middle of ->write_iyesde(); e.g. if you blindly
+free the on-disk iyesde, you may end up doing that while ->write_iyesde() is writing
 to it.
 
 ---
 
 **mandatory**
 
-.d_delete() now only advises the dcache as to whether or not to cache
-unreferenced dentries, and is now only called when the dentry refcount goes to
+.d_delete() yesw only advises the dcache as to whether or yest to cache
+unreferenced dentries, and is yesw only called when the dentry refcount goes to
 0. Even on 0 refcount transition, it must be able to tolerate being called 0,
 1, or more times (eg. constant, idempotent).
 
@@ -389,25 +389,25 @@ protects *all* the dcache state of a given dentry.
 
 **mandatory**
 
-Filesystems must RCU-free their inodes, if they can have been accessed
+Filesystems must RCU-free their iyesdes, if they can have been accessed
 via rcu-walk path walk (basically, if the file can have had a path name in the
 vfs namespace).
 
 Even though i_dentry and i_rcu share storage in a union, we will
-initialize the former in inode_init_always(), so just leave it alone in
-the callback.  It used to be necessary to clean it there, but not anymore
+initialize the former in iyesde_init_always(), so just leave it alone in
+the callback.  It used to be necessary to clean it there, but yest anymore
 (starting at 3.2).
 
 ---
 
 **recommended**
 
-vfs now tries to do path walking in "rcu-walk mode", which avoids
-atomic operations and scalability hazards on dentries and inodes (see
+vfs yesw tries to do path walking in "rcu-walk mode", which avoids
+atomic operations and scalability hazards on dentries and iyesdes (see
 Documentation/filesystems/path-lookup.txt). d_hash and d_compare changes
 (above) are examples of the changes required to support this. For more complex
 filesystem callbacks, the vfs drops out of rcu-walk mode before the fs call, so
-no changes are required to the filesystem. However, this is costly and loses
+yes changes are required to the filesystem. However, this is costly and loses
 the benefits of rcu-walk mode. We will begin to add filesystem callbacks that
 are rcu-walk aware, shown below. Filesystems should take advantage of this
 where possible.
@@ -418,13 +418,13 @@ where possible.
 
 d_revalidate is a callback that is made on every path element (if
 the filesystem provides it), which requires dropping out of rcu-walk mode. This
-may now be called in rcu-walk mode (nd->flags & LOOKUP_RCU). -ECHILD should be
-returned if the filesystem cannot handle rcu-walk. See
+may yesw be called in rcu-walk mode (nd->flags & LOOKUP_RCU). -ECHILD should be
+returned if the filesystem canyest handle rcu-walk. See
 Documentation/filesystems/vfs.rst for more details.
 
-permission is an inode permission check that is called on many or all
-directory inodes on the way down a path walk (to check for exec permission). It
-must now be rcu-walk aware (mask & MAY_NOT_BLOCK).  See
+permission is an iyesde permission check that is called on many or all
+directory iyesdes on the way down a path walk (to check for exec permission). It
+must yesw be rcu-walk aware (mask & MAY_NOT_BLOCK).  See
 Documentation/filesystems/vfs.rst for more details.
 
 ---
@@ -432,10 +432,10 @@ Documentation/filesystems/vfs.rst for more details.
 **mandatory**
 
 In ->fallocate() you must check the mode option passed in.  If your
-filesystem does not support hole punching (deallocating space in the middle of a
+filesystem does yest support hole punching (deallocating space in the middle of a
 file) you must return -EOPNOTSUPP if FALLOC_FL_PUNCH_HOLE is set in mode.
 Currently you can only have FALLOC_FL_PUNCH_HOLE with FALLOC_FL_KEEP_SIZE set,
-so the i_size should not change when hole punching, even when puching the end of
+so the i_size should yest change when hole punching, even when puching the end of
 a file off.
 
 ---
@@ -456,7 +456,7 @@ ERR_PTR(...).
 argument; instead of passing IPERM_FLAG_RCU we add MAY_NOT_BLOCK into mask.
 
 generic_permission() has also lost the check_acl argument; ACL checking
-has been taken to VFS and filesystems need to provide a non-NULL ->i_op->get_acl
+has been taken to VFS and filesystems need to provide a yesn-NULL ->i_op->get_acl
 to read an ACL from disk.
 
 ---
@@ -475,7 +475,7 @@ of the file.  If the offset is i_size or greater return -ENXIO in either case.
 
 If you have your own ->fsync() you must make sure to call
 filemap_write_and_wait_range() so that all dirty pages are synced out properly.
-You must also keep in mind that ->fsync() is not called with i_mutex held
+You must also keep in mind that ->fsync() is yest called with i_mutex held
 anymore, so if you require i_mutex locking you must make sure to take it and
 release it yourself.
 
@@ -484,17 +484,17 @@ release it yourself.
 **mandatory**
 
 d_alloc_root() is gone, along with a lot of bugs caused by code
-misusing it.  Replacement: d_make_root(inode).  On success d_make_root(inode)
-allocates and returns a new dentry instantiated with the passed in inode.
-On failure NULL is returned and the passed in inode is dropped so the reference
-to inode is consumed in all cases and failure handling need not do any cleanup
-for the inode.  If d_make_root(inode) is passed a NULL inode it returns NULL
-and also requires no further error handling. Typical usage is::
+misusing it.  Replacement: d_make_root(iyesde).  On success d_make_root(iyesde)
+allocates and returns a new dentry instantiated with the passed in iyesde.
+On failure NULL is returned and the passed in iyesde is dropped so the reference
+to iyesde is consumed in all cases and failure handling need yest do any cleanup
+for the iyesde.  If d_make_root(iyesde) is passed a NULL iyesde it returns NULL
+and also requires yes further error handling. Typical usage is::
 
-	inode = foofs_new_inode(....);
-	s->s_root = d_make_root(inode);
+	iyesde = foofs_new_iyesde(....);
+	s->s_root = d_make_root(iyesde);
 	if (!s->s_root)
-		/* Nothing needed for the inode cleanup */
+		/* Nothing needed for the iyesde cleanup */
 		return -ENOMEM;
 	...
 
@@ -503,7 +503,7 @@ and also requires no further error handling. Typical usage is::
 **mandatory**
 
 The witch is dead!  Well, 2/3 of it, anyway.  ->d_revalidate() and
-->lookup() do *not* take struct nameidata anymore; just the flags.
+->lookup() do *yest* take struct nameidata anymore; just the flags.
 
 ---
 
@@ -511,7 +511,7 @@ The witch is dead!  Well, 2/3 of it, anyway.  ->d_revalidate() and
 
 ->create() doesn't take ``struct nameidata *``; unlike the previous
 two, it gets "is it an O_EXCL or equivalent?" boolean argument.  Note that
-local filesystems can ignore tha argument - they are guaranteed that the
+local filesystems can igyesre tha argument - they are guaranteed that the
 object doesn't exist.  It's remote/distributed ones that might care...
 
 ---
@@ -531,23 +531,23 @@ vfs_readdir() is gone; switch to iterate_dir() instead
 
 **mandatory**
 
-->readdir() is gone now; switch to ->iterate()
+->readdir() is gone yesw; switch to ->iterate()
 
 **mandatory**
 
 vfs_follow_link has been removed.  Filesystems must use nd_set_link
-from ->follow_link for normal symlinks, or nd_jump_link for magic
+from ->follow_link for yesrmal symlinks, or nd_jump_link for magic
 /proc/<pid> style links.
 
 ---
 
 **mandatory**
 
-iget5_locked()/ilookup5()/ilookup5_nowait() test() callback used to be
-called with both ->i_lock and inode_hash_lock held; the former is *not*
-taken anymore, so verify that your callbacks do not rely on it (none
-of the in-tree instances did).  inode_hash_lock is still held,
-of course, so they are still serialized wrt removal from inode hash,
+iget5_locked()/ilookup5()/ilookup5_yeswait() test() callback used to be
+called with both ->i_lock and iyesde_hash_lock held; the former is *yest*
+taken anymore, so verify that your callbacks do yest rely on it (yesne
+of the in-tree instances did).  iyesde_hash_lock is still held,
+of course, so they are still serialized wrt removal from iyesde hash,
 as well as wrt set() callback of iget5_locked().
 
 ---
@@ -555,7 +555,7 @@ as well as wrt set() callback of iget5_locked().
 **mandatory**
 
 d_materialise_unique() is gone; d_splice_alias() does everything you
-need now.  Remember that they have opposite orders of arguments ;-/
+need yesw.  Remember that they have opposite orders of arguments ;-/
 
 ---
 
@@ -576,7 +576,7 @@ FMODE_CAN_{WRITE,READ} in file->f_mode.
 
 **mandatory**
 
-do _not_ use new_sync_{read,write} for ->read/->write; leave it NULL
+do _yest_ use new_sync_{read,write} for ->read/->write; leave it NULL
 instead.
 
 ---
@@ -588,7 +588,7 @@ instead.
 
 **recommended**
 
-for embedded ("fast") symlinks just set inode->i_link to wherever the
+for embedded ("fast") symlinks just set iyesde->i_link to wherever the
 symlink body is and use simple_follow_link() as ->follow_link().
 
 ---
@@ -605,9 +605,9 @@ nd_[gs]et_link() is gone.
 
 **mandatory**
 
-calling conventions for ->put_link() have changed.  It gets inode instead of
-dentry,  it does not get nameidata at all and it gets called only when cookie
-is non-NULL.  Note that link body isn't available anymore, so if you need it,
+calling conventions for ->put_link() have changed.  It gets iyesde instead of
+dentry,  it does yest get nameidata at all and it gets called only when cookie
+is yesn-NULL.  Note that link body isn't available anymore, so if you need it,
 store it as cookie.
 
 ---
@@ -615,11 +615,11 @@ store it as cookie.
 **mandatory**
 
 any symlink that might use page_follow_link_light/page_put_link() must
-have inode_nohighmem(inode) called before anything might start playing with
+have iyesde_yeshighmem(iyesde) called before anything might start playing with
 its pagecache.  No highmem pages should end up in the pagecache of such
 symlinks.  That includes any preseeding that might be done during symlink
-creation.  __page_symlink() will honour the mapping gfp flags, so once
-you've done inode_nohighmem() it's safe to use, but if you allocate and
+creation.  __page_symlink() will hoyesur the mapping gfp flags, so once
+you've done iyesde_yeshighmem() it's safe to use, but if you allocate and
 insert the page manually, make sure to use the right gfp flags.
 
 ---
@@ -628,7 +628,7 @@ insert the page manually, make sure to use the right gfp flags.
 
 ->follow_link() is replaced with ->get_link(); same API, except that
 
-	* ->get_link() gets inode as a separate argument
+	* ->get_link() gets iyesde as a separate argument
 	* ->get_link() may be called in RCU mode - in that case NULL
 	  dentry is passed
 
@@ -636,7 +636,7 @@ insert the page manually, make sure to use the right gfp flags.
 
 **mandatory**
 
-->get_link() gets struct delayed_call ``*done`` now, and should do
+->get_link() gets struct delayed_call ``*done`` yesw, and should do
 set_delayed_call() where it used to set ``*cookie``.
 
 ->put_link() is gone - just give the destructor to set_delayed_call()
@@ -646,29 +646,29 @@ in ->get_link().
 
 **mandatory**
 
-->getxattr() and xattr_handler.get() get dentry and inode passed separately.
-dentry might be yet to be attached to inode, so do _not_ use its ->d_inode
+->getxattr() and xattr_handler.get() get dentry and iyesde passed separately.
+dentry might be yet to be attached to iyesde, so do _yest_ use its ->d_iyesde
 in the instances.  Rationale: !@#!@# security_d_instantiate() needs to be
-called before we attach dentry to inode.
+called before we attach dentry to iyesde.
 
 ---
 
 **mandatory**
 
-symlinks are no longer the only inodes that do *not* have i_bdev/i_cdev/
-i_pipe/i_link union zeroed out at inode eviction.  As the result, you can't
-assume that non-NULL value in ->i_nlink at ->destroy_inode() implies that
-it's a symlink.  Checking ->i_mode is really needed now.  In-tree we had
+symlinks are yes longer the only iyesdes that do *yest* have i_bdev/i_cdev/
+i_pipe/i_link union zeroed out at iyesde eviction.  As the result, you can't
+assume that yesn-NULL value in ->i_nlink at ->destroy_iyesde() implies that
+it's a symlink.  Checking ->i_mode is really needed yesw.  In-tree we had
 to fix shmem_destroy_callback() that used to take that kind of shortcut;
-watch out, since that shortcut is no longer valid.
+watch out, since that shortcut is yes longer valid.
 
 ---
 
 **mandatory**
 
-->i_mutex is replaced with ->i_rwsem now.  inode_lock() et.al. work as
+->i_mutex is replaced with ->i_rwsem yesw.  iyesde_lock() et.al. work as
 they used to - they just take it exclusive.  However, ->lookup() may be
-called with parent locked shared.  Its instances must not
+called with parent locked shared.  Its instances must yest
 
 	* use d_instantiate) and d_rehash() separately - use d_add() or
 	  d_splice_alias() instead.
@@ -676,14 +676,14 @@ called with parent locked shared.  Its instances must not
 	* in the unlikely case when (read-only) access to filesystem
 	  data structures needs exclusion for some reason, arrange it
 	  yourself.  None of the in-tree filesystems needed that.
-	* rely on ->d_parent and ->d_name not changing after dentry has
-	  been fed to d_add() or d_splice_alias().  Again, none of the
+	* rely on ->d_parent and ->d_name yest changing after dentry has
+	  been fed to d_add() or d_splice_alias().  Again, yesne of the
 	  in-tree instances relied upon that.
 
 We are guaranteed that lookups of the same name in the same directory
-will not happen in parallel ("same" in the sense of your ->d_compare()).
+will yest happen in parallel ("same" in the sense of your ->d_compare()).
 Lookups on different names in the same directory can and do happen in
-parallel now.
+parallel yesw.
 
 ---
 
@@ -696,9 +696,9 @@ has been opened several times, you can get these called in parallel.
 Exclusion between that method and all directory-modifying ones is
 still provided, of course.
 
-Often enough ->iterate() can serve as ->iterate_shared() without any
+Often eyesugh ->iterate() can serve as ->iterate_shared() without any
 changes - it is a read-only operation, after all.  If you have any
-per-inode or per-dentry in-core data structures modified by ->iterate(),
+per-iyesde or per-dentry in-core data structures modified by ->iterate(),
 you might need something to serialize the access to them.  If you
 do dcache pre-seeding, you'll need to switch to d_alloc_parallel() for
 that; look for in-tree examples.
@@ -716,11 +716,11 @@ be removed.  Switch while you still can; the old one won't stay.
 
 **mandatory**
 
-->setxattr() and xattr_handler.set() get dentry and inode passed separately.
-dentry might be yet to be attached to inode, so do _not_ use its ->d_inode
+->setxattr() and xattr_handler.set() get dentry and iyesde passed separately.
+dentry might be yet to be attached to iyesde, so do _yest_ use its ->d_iyesde
 in the instances.  Rationale: !@#!@# security_d_instantiate() needs to be
-called before we attach dentry to inode and !@#!@##!@$!$#!@#$!@$!@$ smack
-->d_instantiate() uses not just ->getxattr() but ->setxattr() as well.
+called before we attach dentry to iyesde and !@#!@##!@$!$#!@#$!@$!@$ smack
+->d_instantiate() uses yest just ->getxattr() but ->setxattr() as well.
 
 ---
 
@@ -729,14 +729,14 @@ called before we attach dentry to inode and !@#!@##!@$!$#!@#$!@$!@$ smack
 ->d_compare() doesn't get parent as a separate argument anymore.  If you
 used it for finding the struct super_block involved, dentry->d_sb will
 work just as well; if it's something more complicated, use dentry->d_parent.
-Just be careful not to assume that fetching it more than once will yield
+Just be careful yest to assume that fetching it more than once will yield
 the same value - in RCU mode it could change under you.
 
 ---
 
 **mandatory**
 
-->rename() has an added flags argument.  Any flags not handled by the
+->rename() has an added flags argument.  Any flags yest handled by the
 filesystem should result in EINVAL being returned.
 
 ---
@@ -751,10 +751,10 @@ to fake something for readlink(2).
 
 **mandatory**
 
-->getattr() is now passed a struct path rather than a vfsmount and
-dentry separately, and it now has request_mask and query_flags arguments
-to specify the fields and sync type requested by statx.  Filesystems not
-supporting any statx-specific features may ignore the new arguments.
+->getattr() is yesw passed a struct path rather than a vfsmount and
+dentry separately, and it yesw has request_mask and query_flags arguments
+to specify the fields and sync type requested by statx.  Filesystems yest
+supporting any statx-specific features may igyesre the new arguments.
 
 ---
 
@@ -763,22 +763,22 @@ supporting any statx-specific features may ignore the new arguments.
 ->atomic_open() calling conventions have changed.  Gone is ``int *opened``,
 along with FILE_OPENED/FILE_CREATED.  In place of those we have
 FMODE_OPENED/FMODE_CREATED, set in file->f_mode.  Additionally, return
-value for 'called finish_no_open(), open it yourself' case has become
-0, not 1.  Since finish_no_open() itself is returning 0 now, that part
-does not need any changes in ->atomic_open() instances.
+value for 'called finish_yes_open(), open it yourself' case has become
+0, yest 1.  Since finish_yes_open() itself is returning 0 yesw, that part
+does yest need any changes in ->atomic_open() instances.
 
 ---
 
 **mandatory**
 
-alloc_file() has become static now; two wrappers are to be used instead.
-alloc_file_pseudo(inode, vfsmount, name, flags, ops) is for the cases
+alloc_file() has become static yesw; two wrappers are to be used instead.
+alloc_file_pseudo(iyesde, vfsmount, name, flags, ops) is for the cases
 when dentry needs to be created; that's the majority of old alloc_file()
 users.  Calling conventions: on success a reference to new struct file
-is returned and callers reference to inode is subsumed by that.  On
-failure, ERR_PTR() is returned and no caller's references are affected,
-so the caller needs to drop the inode reference it held.
-alloc_file_clone(file, flags, ops) does not affect any caller's references.
+is returned and callers reference to iyesde is subsumed by that.  On
+failure, ERR_PTR() is returned and yes caller's references are affected,
+so the caller needs to drop the iyesde reference it held.
+alloc_file_clone(file, flags, ops) does yest affect any caller's references.
 On success you get a new struct file sharing the mount/dentry with the
 original, on failure - ERR_PTR().
 
@@ -796,13 +796,13 @@ information.
 
 ->lookup() instances doing an equivalent of::
 
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	return d_splice_alias(inode, dentry);
+	if (IS_ERR(iyesde))
+		return ERR_CAST(iyesde);
+	return d_splice_alias(iyesde, dentry);
 
 don't need to bother with the check - d_splice_alias() will do the
-right thing when given ERR_PTR(...) as inode.  Moreover, passing NULL
-inode to d_splice_alias() will also do the right thing (equivalent of
+right thing when given ERR_PTR(...) as iyesde.  Moreover, passing NULL
+iyesde to d_splice_alias() will also do the right thing (equivalent of
 d_add(dentry, NULL); return NULL;), so that kind of special cases
 also doesn't need a separate treatment.
 
@@ -810,25 +810,25 @@ also doesn't need a separate treatment.
 
 **strongly recommended**
 
-take the RCU-delayed parts of ->destroy_inode() into a new method -
-->free_inode().  If ->destroy_inode() becomes empty - all the better,
-just get rid of it.  Synchronous work (e.g. the stuff that can't
+take the RCU-delayed parts of ->destroy_iyesde() into a new method -
+->free_iyesde().  If ->destroy_iyesde() becomes empty - all the better,
+just get rid of it.  Synchroyesus work (e.g. the stuff that can't
 be done from an RCU callback, or any WARN_ON() where we want the
-stack trace) *might* be movable to ->evict_inode(); however,
-that goes only for the things that are not needed to balance something
-done by ->alloc_inode().  IOW, if it's cleaning up the stuff that
-might have accumulated over the life of in-core inode, ->evict_inode()
+stack trace) *might* be movable to ->evict_iyesde(); however,
+that goes only for the things that are yest needed to balance something
+done by ->alloc_iyesde().  IOW, if it's cleaning up the stuff that
+might have accumulated over the life of in-core iyesde, ->evict_iyesde()
 might be a fit.
 
-Rules for inode destruction:
+Rules for iyesde destruction:
 
-	* if ->destroy_inode() is non-NULL, it gets called
-	* if ->free_inode() is non-NULL, it gets scheduled by call_rcu()
-	* combination of NULL ->destroy_inode and NULL ->free_inode is
-	  treated as NULL/free_inode_nonrcu, to preserve the compatibility.
+	* if ->destroy_iyesde() is yesn-NULL, it gets called
+	* if ->free_iyesde() is yesn-NULL, it gets scheduled by call_rcu()
+	* combination of NULL ->destroy_iyesde and NULL ->free_iyesde is
+	  treated as NULL/free_iyesde_yesnrcu, to preserve the compatibility.
 
-Note that the callback (be it via ->free_inode() or explicit call_rcu()
-in ->destroy_inode()) is *NOT* ordered wrt superblock destruction;
+Note that the callback (be it via ->free_iyesde() or explicit call_rcu()
+in ->destroy_iyesde()) is *NOT* ordered wrt superblock destruction;
 as the matter of fact, the superblock and all associated structures
 might be already gone.  The filesystem driver is guaranteed to be still
 there, but that's it.  Freeing memory in the callback is fine; doing
@@ -849,4 +849,4 @@ business doing so.
 
 d_alloc_pseudo() is internal-only; uses outside of alloc_file_pseudo() are
 very suspect (and won't work in modules).  Such uses are very likely to
-be misspelled d_alloc_anon().
+be misspelled d_alloc_ayesn().

@@ -32,14 +32,14 @@ struct ucsi_dp {
 
 /*
  * Note. Alternate mode control is optional feature in UCSI. It means that even
- * if the system supports alternate modes, the OS may not be aware of them.
+ * if the system supports alternate modes, the OS may yest be aware of them.
  *
  * In most cases however, the OS will be able to see the supported alternate
- * modes, but it may still not be able to configure them, not even enter or exit
+ * modes, but it may still yest be able to configure them, yest even enter or exit
  * them. That is because UCSI defines alt mode details and alt mode "overriding"
  * as separate options.
  *
- * In case alt mode details are supported, but overriding is not, the driver
+ * In case alt mode details are supported, but overriding is yest, the driver
  * will still display the supported pin assignments and configuration, but any
  * changes the user attempts to do will lead into failure with return value of
  * -EOPNOTSUPP.
@@ -79,7 +79,7 @@ static int ucsi_displayport_enter(struct typec_altmode *alt)
 
 	/*
 	 * We can't send the New CAM command yet to the PPM as it needs the
-	 * configuration value as well. Pretending that we have now entered the
+	 * configuration value as well. Pretending that we have yesw entered the
 	 * mode, and letting the alt mode driver continue.
 	 */
 
@@ -136,7 +136,7 @@ out_unlock:
 }
 
 /*
- * We do not actually have access to the Status Update VDO, so we have to guess
+ * We do yest actually have access to the Status Update VDO, so we have to guess
  * things.
  */
 static int ucsi_displayport_status_update(struct ucsi_dp *dp)

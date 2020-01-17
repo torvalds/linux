@@ -2,12 +2,12 @@
 /*
  * Thunderbolt driver - path/tunnel functionality
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2019, Intel Corporation
  */
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/ktime.h>
 
@@ -27,8 +27,8 @@ static void tb_dump_hop(const struct tb_path_hop *hop, const struct tb_regs_hop 
 	tb_port_dbg(port, "  Flow Control (In/Eg): %d/%d Shared Buffer (In/Eg): %d/%d\n",
 		    regs->ingress_fc, regs->egress_fc,
 		    regs->ingress_shared_buffer, regs->egress_shared_buffer);
-	tb_port_dbg(port, "  Unknown1: %#x Unknown2: %#x Unknown3: %#x\n",
-		    regs->unknown1, regs->unknown2, regs->unknown3);
+	tb_port_dbg(port, "  Unkyeswn1: %#x Unkyeswn2: %#x Unkyeswn3: %#x\n",
+		    regs->unkyeswn1, regs->unkyeswn2, regs->unkyeswn3);
 }
 
 static struct tb_port *tb_path_find_dst_port(struct tb_port *src, int src_hopid,
@@ -83,16 +83,16 @@ static int tb_path_find_src_hopid(struct tb_port *src,
  * @src_hopid: Starting HopID of a path (%-1 if don't care)
  * @dst: Expected destination port of the path (%NULL if don't care)
  * @dst_hopid: HopID to the @dst (%-1 if don't care)
- * @last: Last port is filled here if not %NULL
+ * @last: Last port is filled here if yest %NULL
  * @name: Name of the path
  *
  * Follows a path starting from @src and @src_hopid to the last output
  * port of the path. Allocates HopIDs for the visited ports. Call
  * tb_path_free() to release the path and allocated HopIDs when the path
- * is not needed anymore.
+ * is yest needed anymore.
  *
  * Note function discovers also incomplete paths so caller should check
- * that the @dst port is the expected one. If it is not, the path can be
+ * that the @dst port is the expected one. If it is yest, the path can be
  * cleaned up by calling tb_path_deactivate() before tb_path_free().
  *
  * Return: Discovered path on success, %NULL in case of failure
@@ -135,7 +135,7 @@ struct tb_path *tb_path_discover(struct tb_port *src, int src_hopid,
 			return NULL;
 		}
 
-		/* If the hop is not enabled we got an incomplete path */
+		/* If the hop is yest enabled we got an incomplete path */
 		if (!hop.enable)
 			break;
 
@@ -275,21 +275,21 @@ struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 			goto err;
 
 		/*
-		 * Pick up right port when going from non-bonded to
-		 * bonded or from bonded to non-bonded.
+		 * Pick up right port when going from yesn-bonded to
+		 * bonded or from bonded to yesn-bonded.
 		 */
 		if (out_port->dual_link_port) {
 			if (!in_port->bonded && out_port->bonded &&
 			    out_port->link_nr) {
 				/*
 				 * Use primary link when going from
-				 * non-bonded to bonded.
+				 * yesn-bonded to bonded.
 				 */
 				out_port = out_port->dual_link_port;
 			} else if (!out_port->bonded &&
 				   out_port->link_nr != link_nr) {
 				/*
-				 * If out port is not bonded follow
+				 * If out port is yest bonded follow
 				 * link_nr.
 				 */
 				out_port = out_port->dual_link_port;
@@ -330,7 +330,7 @@ err:
  * tb_path_free() - free a path
  * @path: Path to free
  *
- * Frees a path. The path does not need to be deactivated.
+ * Frees a path. The path does yest need to be deactivated.
  */
 void tb_path_free(struct tb_path *path)
 {
@@ -480,7 +480,7 @@ int tb_path_activate(struct tb_path *path)
 			goto err;
 	}
 
-	/* Add non flow controlled credits. */
+	/* Add yesn flow controlled credits. */
 	for (i = path->path_length - 1; i >= 0; i--) {
 		res = tb_port_add_nfc_credits(path->hops[i].in_port,
 					      path->nfc_credits);
@@ -502,7 +502,7 @@ int tb_path_activate(struct tb_path *path)
 		hop.next_hop = path->hops[i].next_hop_index;
 		hop.out_port = path->hops[i].out_port->port;
 		hop.initial_credits = path->hops[i].initial_credits;
-		hop.unknown1 = 0;
+		hop.unkyeswn1 = 0;
 		hop.enable = 1;
 
 		/* dword 1 */
@@ -510,7 +510,7 @@ int tb_path_activate(struct tb_path *path)
 				TB_PATH_DESTINATION : TB_PATH_INTERNAL;
 		in_mask = (i == 0) ? TB_PATH_SOURCE : TB_PATH_INTERNAL;
 		hop.weight = path->weight;
-		hop.unknown2 = 0;
+		hop.unkyeswn2 = 0;
 		hop.priority = path->priority;
 		hop.drop_packages = path->drop_packages;
 		hop.counter = path->hops[i].in_counter_index;
@@ -521,7 +521,7 @@ int tb_path_activate(struct tb_path *path)
 					    & in_mask;
 		hop.egress_shared_buffer = path->egress_shared_buffer
 					    & out_mask;
-		hop.unknown3 = 0;
+		hop.unkyeswn3 = 0;
 
 		tb_port_dbg(path->hops[i].in_port, "Writing hop %d\n", i);
 		tb_dump_hop(&path->hops[i], &hop);
@@ -564,7 +564,7 @@ bool tb_path_is_invalid(struct tb_path *path)
  * @sw: Switch to check
  *
  * Goes over all hops on path and checks if @sw is any of them.
- * Direction does not matter.
+ * Direction does yest matter.
  */
 bool tb_path_switch_on_path(const struct tb_path *path,
 			    const struct tb_switch *sw)

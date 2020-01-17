@@ -20,7 +20,7 @@ Required properties:
 		 - param 3: size of the memory region.
 
 The Cortex-M remote processor accessed via the mlahb interconnect is described
-by a child node.
+by a child yesde.
 
 Example:
 mlahb {

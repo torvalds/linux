@@ -3,7 +3,7 @@
 // ASoC simple sound card support
 //
 // Copyright (C) 2012 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
 
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -28,21 +28,21 @@ static const struct snd_soc_ops simple_ops = {
 	.hw_params	= asoc_simple_hw_params,
 };
 
-static int asoc_simple_parse_dai(struct device_node *node,
+static int asoc_simple_parse_dai(struct device_yesde *yesde,
 				 struct snd_soc_dai_link_component *dlc,
 				 int *is_single_link)
 {
 	struct of_phandle_args args;
 	int ret;
 
-	if (!node)
+	if (!yesde)
 		return 0;
 
 	/*
-	 * Get node via "sound-dai = <&phandle port>"
-	 * it will be used as xxx_of_node on soc_bind_dai_link()
+	 * Get yesde via "sound-dai = <&phandle port>"
+	 * it will be used as xxx_of_yesde on soc_bind_dai_link()
 	 */
-	ret = of_parse_phandle_with_args(node, DAI, CELL, 0, &args);
+	ret = of_parse_phandle_with_args(yesde, DAI, CELL, 0, &args);
 	if (ret)
 		return ret;
 
@@ -50,7 +50,7 @@ static int asoc_simple_parse_dai(struct device_node *node,
 	 * FIXME
 	 *
 	 * Here, dlc->dai_name is pointer to CPU/Codec DAI name.
-	 * If user unbinded CPU or Codec driver, but not for Sound Card,
+	 * If user unbinded CPU or Codec driver, but yest for Sound Card,
 	 * dlc->dai_name is keeping unbinded CPU or Codec
 	 * driver's pointer.
 	 *
@@ -65,11 +65,11 @@ static int asoc_simple_parse_dai(struct device_node *node,
 	 * 2) user need to rebind Sound Card everytime
 	 *    if he unbinded CPU or Codec.
 	 */
-	ret = snd_soc_of_get_dai_name(node, &dlc->dai_name);
+	ret = snd_soc_of_get_dai_name(yesde, &dlc->dai_name);
 	if (ret < 0)
 		return ret;
 
-	dlc->of_node = args.np;
+	dlc->of_yesde = args.np;
 
 	if (is_single_link)
 		*is_single_link = !args.args_count;
@@ -78,43 +78,43 @@ static int asoc_simple_parse_dai(struct device_node *node,
 }
 
 static void simple_parse_convert(struct device *dev,
-				 struct device_node *np,
+				 struct device_yesde *np,
 				 struct asoc_simple_data *adata)
 {
-	struct device_node *top = dev->of_node;
-	struct device_node *node = of_get_parent(np);
+	struct device_yesde *top = dev->of_yesde;
+	struct device_yesde *yesde = of_get_parent(np);
 
 	asoc_simple_parse_convert(dev, top,  PREFIX, adata);
-	asoc_simple_parse_convert(dev, node, PREFIX, adata);
-	asoc_simple_parse_convert(dev, node, NULL,   adata);
+	asoc_simple_parse_convert(dev, yesde, PREFIX, adata);
+	asoc_simple_parse_convert(dev, yesde, NULL,   adata);
 	asoc_simple_parse_convert(dev, np,   NULL,   adata);
 
-	of_node_put(node);
+	of_yesde_put(yesde);
 }
 
-static void simple_parse_mclk_fs(struct device_node *top,
-				 struct device_node *cpu,
-				 struct device_node *codec,
+static void simple_parse_mclk_fs(struct device_yesde *top,
+				 struct device_yesde *cpu,
+				 struct device_yesde *codec,
 				 struct simple_dai_props *props,
 				 char *prefix)
 {
-	struct device_node *node = of_get_parent(cpu);
+	struct device_yesde *yesde = of_get_parent(cpu);
 	char prop[128];
 
 	snprintf(prop, sizeof(prop), "%smclk-fs", PREFIX);
 	of_property_read_u32(top,	prop, &props->mclk_fs);
 
 	snprintf(prop, sizeof(prop), "%smclk-fs", prefix);
-	of_property_read_u32(node,	prop, &props->mclk_fs);
+	of_property_read_u32(yesde,	prop, &props->mclk_fs);
 	of_property_read_u32(cpu,	prop, &props->mclk_fs);
 	of_property_read_u32(codec,	prop, &props->mclk_fs);
 
-	of_node_put(node);
+	of_yesde_put(yesde);
 }
 
 static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
-				   struct device_node *np,
-				   struct device_node *codec,
+				   struct device_yesde *np,
+				   struct device_yesde *codec,
 				   struct link_info *li,
 				   bool is_top)
 {
@@ -124,8 +124,8 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	struct asoc_simple_dai *dai;
 	struct snd_soc_dai_link_component *cpus = dai_link->cpus;
 	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
-	struct device_node *top = dev->of_node;
-	struct device_node *node = of_get_parent(np);
+	struct device_yesde *top = dev->of_yesde;
+	struct device_yesde *yesde = of_get_parent(np);
 	char *prefix = "";
 	int ret;
 
@@ -142,7 +142,7 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 	li->link++;
 
-	/* For single DAI link & old style of DT node */
+	/* For single DAI link & old style of DT yesde */
 	if (is_top)
 		prefix = PREFIX;
 
@@ -150,7 +150,7 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		int is_single_links = 0;
 
 		/* Codec is dummy */
-		codecs->of_node		= NULL;
+		codecs->of_yesde		= NULL;
 		codecs->dai_name	= "snd-soc-dummy-dai";
 		codecs->name		= "snd-soc-dummy";
 
@@ -163,29 +163,29 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 		ret = asoc_simple_parse_cpu(np, dai_link, &is_single_links);
 		if (ret)
-			goto out_put_node;
+			goto out_put_yesde;
 
 		ret = asoc_simple_parse_clk_cpu(dev, np, dai_link, dai);
 		if (ret < 0)
-			goto out_put_node;
+			goto out_put_yesde;
 
 		ret = asoc_simple_set_dailink_name(dev, dai_link,
 						   "fe.%s",
 						   cpus->dai_name);
 		if (ret < 0)
-			goto out_put_node;
+			goto out_put_yesde;
 
-		asoc_simple_canonicalize_cpu(dai_link, is_single_links);
+		asoc_simple_cayesnicalize_cpu(dai_link, is_single_links);
 	} else {
 		struct snd_soc_codec_conf *cconf;
 
 		/* CPU is dummy */
-		cpus->of_node		= NULL;
+		cpus->of_yesde		= NULL;
 		cpus->dai_name		= "snd-soc-dummy-dai";
 		cpus->name		= "snd-soc-dummy";
 
 		/* BE settings */
-		dai_link->no_pcm		= 1;
+		dai_link->yes_pcm		= 1;
 		dai_link->be_hw_params_fixup	= asoc_simple_be_hw_params_fixup;
 
 		dai =
@@ -196,54 +196,54 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 		ret = asoc_simple_parse_codec(np, dai_link);
 		if (ret < 0)
-			goto out_put_node;
+			goto out_put_yesde;
 
 		ret = asoc_simple_parse_clk_codec(dev, np, dai_link, dai);
 		if (ret < 0)
-			goto out_put_node;
+			goto out_put_yesde;
 
 		ret = asoc_simple_set_dailink_name(dev, dai_link,
 						   "be.%s",
 						   codecs->dai_name);
 		if (ret < 0)
-			goto out_put_node;
+			goto out_put_yesde;
 
-		/* check "prefix" from top node */
-		snd_soc_of_parse_node_prefix(top, cconf, codecs->of_node,
+		/* check "prefix" from top yesde */
+		snd_soc_of_parse_yesde_prefix(top, cconf, codecs->of_yesde,
 					      PREFIX "prefix");
-		snd_soc_of_parse_node_prefix(node, cconf, codecs->of_node,
+		snd_soc_of_parse_yesde_prefix(yesde, cconf, codecs->of_yesde,
 					     "prefix");
-		snd_soc_of_parse_node_prefix(np, cconf, codecs->of_node,
+		snd_soc_of_parse_yesde_prefix(np, cconf, codecs->of_yesde,
 					     "prefix");
 	}
 
 	simple_parse_convert(dev, np, &dai_props->adata);
 	simple_parse_mclk_fs(top, np, codec, dai_props, prefix);
 
-	asoc_simple_canonicalize_platform(dai_link);
+	asoc_simple_cayesnicalize_platform(dai_link);
 
 	ret = asoc_simple_parse_tdm(np, dai);
 	if (ret)
-		goto out_put_node;
+		goto out_put_yesde;
 
-	ret = asoc_simple_parse_daifmt(dev, node, codec,
+	ret = asoc_simple_parse_daifmt(dev, yesde, codec,
 				       prefix, &dai_link->dai_fmt);
 	if (ret < 0)
-		goto out_put_node;
+		goto out_put_yesde;
 
 	dai_link->dpcm_playback		= 1;
 	dai_link->dpcm_capture		= 1;
 	dai_link->ops			= &simple_ops;
 	dai_link->init			= asoc_simple_dai_init;
 
-out_put_node:
-	of_node_put(node);
+out_put_yesde:
+	of_yesde_put(yesde);
 	return ret;
 }
 
 static int simple_dai_link_of(struct asoc_simple_priv *priv,
-			      struct device_node *np,
-			      struct device_node *codec,
+			      struct device_yesde *np,
+			      struct device_yesde *codec,
 			      struct link_info *li,
 			      bool is_top)
 {
@@ -252,10 +252,10 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
 	struct asoc_simple_dai *cpu_dai;
 	struct asoc_simple_dai *codec_dai;
-	struct device_node *top = dev->of_node;
-	struct device_node *cpu = NULL;
-	struct device_node *node = NULL;
-	struct device_node *plat = NULL;
+	struct device_yesde *top = dev->of_yesde;
+	struct device_yesde *cpu = NULL;
+	struct device_yesde *yesde = NULL;
+	struct device_yesde *plat = NULL;
 	char prop[128];
 	char *prefix = "";
 	int ret, single_cpu;
@@ -270,24 +270,24 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 		return 0;
 
 	cpu  = np;
-	node = of_get_parent(np);
+	yesde = of_get_parent(np);
 	li->link++;
 
-	dev_dbg(dev, "link_of (%pOF)\n", node);
+	dev_dbg(dev, "link_of (%pOF)\n", yesde);
 
-	/* For single DAI link & old style of DT node */
+	/* For single DAI link & old style of DT yesde */
 	if (is_top)
 		prefix = PREFIX;
 
 	snprintf(prop, sizeof(prop), "%splat", prefix);
-	plat = of_get_child_by_name(node, prop);
+	plat = of_get_child_by_name(yesde, prop);
 
 	cpu_dai			=
 	dai_props->cpu_dai	= &priv->dais[li->dais++];
 	codec_dai		=
 	dai_props->codec_dai	= &priv->dais[li->dais++];
 
-	ret = asoc_simple_parse_daifmt(dev, node, codec,
+	ret = asoc_simple_parse_daifmt(dev, yesde, codec,
 				       prefix, &dai_link->dai_fmt);
 	if (ret < 0)
 		goto dai_link_of_err;
@@ -332,67 +332,67 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 	dai_link->ops = &simple_ops;
 	dai_link->init = asoc_simple_dai_init;
 
-	asoc_simple_canonicalize_cpu(dai_link, single_cpu);
-	asoc_simple_canonicalize_platform(dai_link);
+	asoc_simple_cayesnicalize_cpu(dai_link, single_cpu);
+	asoc_simple_cayesnicalize_platform(dai_link);
 
 dai_link_of_err:
-	of_node_put(plat);
-	of_node_put(node);
+	of_yesde_put(plat);
+	of_yesde_put(yesde);
 
 	return ret;
 }
 
 static int simple_for_each_link(struct asoc_simple_priv *priv,
 			struct link_info *li,
-			int (*func_noml)(struct asoc_simple_priv *priv,
-					 struct device_node *np,
-					 struct device_node *codec,
+			int (*func_yesml)(struct asoc_simple_priv *priv,
+					 struct device_yesde *np,
+					 struct device_yesde *codec,
 					 struct link_info *li, bool is_top),
 			int (*func_dpcm)(struct asoc_simple_priv *priv,
-					 struct device_node *np,
-					 struct device_node *codec,
+					 struct device_yesde *np,
+					 struct device_yesde *codec,
 					 struct link_info *li, bool is_top))
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *top = dev->of_node;
-	struct device_node *node;
+	struct device_yesde *top = dev->of_yesde;
+	struct device_yesde *yesde;
 	uintptr_t dpcm_selectable = (uintptr_t)of_device_get_match_data(dev);
 	bool is_top = 0;
 	int ret = 0;
 
 	/* Check if it has dai-link */
-	node = of_get_child_by_name(top, PREFIX "dai-link");
-	if (!node) {
-		node = of_node_get(top);
+	yesde = of_get_child_by_name(top, PREFIX "dai-link");
+	if (!yesde) {
+		yesde = of_yesde_get(top);
 		is_top = 1;
 	}
 
 	/* loop for all dai-link */
 	do {
 		struct asoc_simple_data adata;
-		struct device_node *codec;
-		struct device_node *plat;
-		struct device_node *np;
-		int num = of_get_child_count(node);
+		struct device_yesde *codec;
+		struct device_yesde *plat;
+		struct device_yesde *np;
+		int num = of_get_child_count(yesde);
 
 		/* get codec */
-		codec = of_get_child_by_name(node, is_top ?
+		codec = of_get_child_by_name(yesde, is_top ?
 					     PREFIX "codec" : "codec");
 		if (!codec) {
 			ret = -ENODEV;
 			goto error;
 		}
 		/* get platform */
-		plat = of_get_child_by_name(node, is_top ?
+		plat = of_get_child_by_name(yesde, is_top ?
 					    PREFIX "plat" : "plat");
 
 		/* get convert-xxx property */
 		memset(&adata, 0, sizeof(adata));
-		for_each_child_of_node(node, np)
+		for_each_child_of_yesde(yesde, np)
 			simple_parse_convert(dev, np, &adata);
 
-		/* loop for all CPU/Codec node */
-		for_each_child_of_node(node, np) {
+		/* loop for all CPU/Codec yesde */
+		for_each_child_of_yesde(yesde, np) {
 			if (plat == np)
 				continue;
 			/*
@@ -404,36 +404,36 @@ static int simple_for_each_link(struct asoc_simple_priv *priv,
 			    (num > 2 ||
 			     adata.convert_rate || adata.convert_channels))
 				ret = func_dpcm(priv, np, codec, li, is_top);
-			/* else normal sound */
+			/* else yesrmal sound */
 			else
-				ret = func_noml(priv, np, codec, li, is_top);
+				ret = func_yesml(priv, np, codec, li, is_top);
 
 			if (ret < 0) {
-				of_node_put(codec);
-				of_node_put(np);
+				of_yesde_put(codec);
+				of_yesde_put(np);
 				goto error;
 			}
 		}
 
-		of_node_put(codec);
-		node = of_get_next_child(top, node);
-	} while (!is_top && node);
+		of_yesde_put(codec);
+		yesde = of_get_next_child(top, yesde);
+	} while (!is_top && yesde);
 
  error:
-	of_node_put(node);
+	of_yesde_put(yesde);
 	return ret;
 }
 
-static int simple_parse_aux_devs(struct device_node *node,
+static int simple_parse_aux_devs(struct device_yesde *yesde,
 				 struct asoc_simple_priv *priv)
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *aux_node;
+	struct device_yesde *aux_yesde;
 	struct snd_soc_card *card = simple_priv_to_card(priv);
 	int i, n, len;
 
-	if (!of_find_property(node, PREFIX "aux-devs", &len))
-		return 0;		/* Ok to have no aux-devs */
+	if (!of_find_property(yesde, PREFIX "aux-devs", &len))
+		return 0;		/* Ok to have yes aux-devs */
 
 	n = len / sizeof(__be32);
 	if (n <= 0)
@@ -445,10 +445,10 @@ static int simple_parse_aux_devs(struct device_node *node,
 		return -ENOMEM;
 
 	for (i = 0; i < n; i++) {
-		aux_node = of_parse_phandle(node, PREFIX "aux-devs", i);
-		if (!aux_node)
+		aux_yesde = of_parse_phandle(yesde, PREFIX "aux-devs", i);
+		if (!aux_yesde)
 			return -EINVAL;
-		card->aux_dev[i].dlc.of_node = aux_node;
+		card->aux_dev[i].dlc.of_yesde = aux_yesde;
 	}
 
 	card->num_aux_devs = n;
@@ -458,7 +458,7 @@ static int simple_parse_aux_devs(struct device_node *node,
 static int simple_parse_of(struct asoc_simple_priv *priv)
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *top = dev->of_node;
+	struct device_yesde *top = dev->of_yesde;
 	struct snd_soc_card *card = simple_priv_to_card(priv);
 	struct link_info li;
 	int ret;
@@ -478,7 +478,7 @@ static int simple_parse_of(struct asoc_simple_priv *priv)
 	if (ret < 0)
 		return ret;
 
-	/* Single/Muti DAI link(s) & New style of DT node */
+	/* Single/Muti DAI link(s) & New style of DT yesde */
 	memset(&li, 0, sizeof(li));
 	for (li.cpu = 1; li.cpu >= 0; li.cpu--) {
 		/*
@@ -509,9 +509,9 @@ static int simple_parse_of(struct asoc_simple_priv *priv)
 	return ret;
 }
 
-static int simple_count_noml(struct asoc_simple_priv *priv,
-			     struct device_node *np,
-			     struct device_node *codec,
+static int simple_count_yesml(struct asoc_simple_priv *priv,
+			     struct device_yesde *np,
+			     struct device_yesde *codec,
 			     struct link_info *li, bool is_top)
 {
 	li->dais++; /* CPU or Codec */
@@ -522,8 +522,8 @@ static int simple_count_noml(struct asoc_simple_priv *priv,
 }
 
 static int simple_count_dpcm(struct asoc_simple_priv *priv,
-			     struct device_node *np,
-			     struct device_node *codec,
+			     struct device_yesde *np,
+			     struct device_yesde *codec,
 			     struct link_info *li, bool is_top)
 {
 	li->dais++; /* CPU or Codec */
@@ -538,7 +538,7 @@ static void simple_get_dais_count(struct asoc_simple_priv *priv,
 				  struct link_info *li)
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *top = dev->of_node;
+	struct device_yesde *top = dev->of_yesde;
 
 	/*
 	 * link_num :	number of links.
@@ -594,7 +594,7 @@ static void simple_get_dais_count(struct asoc_simple_priv *priv,
 	}
 
 	simple_for_each_link(priv, li,
-			     simple_count_noml,
+			     simple_count_yesml,
 			     simple_count_dpcm);
 
 	dev_dbg(dev, "link %d, dais %d, ccnf %d\n",
@@ -621,7 +621,7 @@ static int asoc_simple_probe(struct platform_device *pdev)
 {
 	struct asoc_simple_priv *priv;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct snd_soc_card *card;
 	struct link_info li;
 	int ret;
@@ -666,7 +666,7 @@ static int asoc_simple_probe(struct platform_device *pdev)
 
 		cinfo = dev->platform_data;
 		if (!cinfo) {
-			dev_err(dev, "no info for asoc-simple-card\n");
+			dev_err(dev, "yes info for asoc-simple-card\n");
 			return -EINVAL;
 		}
 
@@ -748,4 +748,4 @@ module_platform_driver(asoc_simple_card);
 MODULE_ALIAS("platform:asoc-simple-card");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("ASoC Simple Sound Card");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>");

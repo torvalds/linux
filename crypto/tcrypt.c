@@ -543,7 +543,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 
 	if (aad_size >= PAGE_SIZE) {
 		pr_err("associate data length (%u) too big\n", aad_size);
-		goto out_noxbuf;
+		goto out_yesxbuf;
 	}
 
 	if (enc == ENCRYPT)
@@ -552,15 +552,15 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 		e = "decryption";
 
 	if (testmgr_alloc_buf(xbuf))
-		goto out_noxbuf;
+		goto out_yesxbuf;
 	if (testmgr_alloc_buf(axbuf))
-		goto out_noaxbuf;
+		goto out_yesaxbuf;
 	if (testmgr_alloc_buf(xoutbuf))
-		goto out_nooutbuf;
+		goto out_yesoutbuf;
 
 	sg = kmalloc(sizeof(*sg) * 9 * 2, GFP_KERNEL);
 	if (!sg)
-		goto out_nosg;
+		goto out_yessg;
 	sgout = &sg[9];
 
 	tfm = crypto_alloc_aead(algo, 0, 0);
@@ -568,7 +568,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 	if (IS_ERR(tfm)) {
 		pr_err("alg: aead: Failed to load transform for %s: %ld\n", algo,
 		       PTR_ERR(tfm));
-		goto out_notfm;
+		goto out_yestfm;
 	}
 
 	crypto_init_wait(&wait);
@@ -579,7 +579,7 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 	if (!req) {
 		pr_err("alg: aead: Failed to allocate request for %s\n",
 		       algo);
-		goto out_noreq;
+		goto out_yesreq;
 	}
 
 	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
@@ -678,17 +678,17 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 
 out:
 	aead_request_free(req);
-out_noreq:
+out_yesreq:
 	crypto_free_aead(tfm);
-out_notfm:
+out_yestfm:
 	kfree(sg);
-out_nosg:
+out_yessg:
 	testmgr_free_buf(xoutbuf);
-out_nooutbuf:
+out_yesoutbuf:
 	testmgr_free_buf(axbuf);
-out_noaxbuf:
+out_yesaxbuf:
 	testmgr_free_buf(xbuf);
-out_noxbuf:
+out_yesxbuf:
 	kfree(iv);
 }
 
@@ -944,7 +944,7 @@ static int test_ahash_jiffies(struct ahash_request *req, int blen,
 			if (ret)
 				return ret;
 		}
-		/* we assume there is enough space in 'out' for the result */
+		/* we assume there is eyesugh space in 'out' for the result */
 		ret = do_one_ahash_op(req, crypto_ahash_final(req));
 		if (ret)
 			return ret;
@@ -1090,7 +1090,7 @@ static void test_ahash_speed_common(const char *algo, unsigned int secs,
 
 	output = kmalloc(MAX_DIGEST_SIZE, GFP_KERNEL);
 	if (!output)
-		goto out_nomem;
+		goto out_yesmem;
 
 	for (i = 0; speed[i].blen != 0; i++) {
 		if (speed[i].blen > TVMEMSIZE * PAGE_SIZE) {
@@ -1125,7 +1125,7 @@ static void test_ahash_speed_common(const char *algo, unsigned int secs,
 
 	kfree(output);
 
-out_nomem:
+out_yesmem:
 	ahash_request_free(req);
 
 out:
@@ -1639,7 +1639,7 @@ static void test_available(void)
 	while (*name) {
 		printk("alg %s ", *name);
 		printk(crypto_has_alg(*name, 0, 0) ?
-		       "found\n" : "not found\n");
+		       "found\n" : "yest found\n");
 		name++;
 	}
 }
@@ -1651,7 +1651,7 @@ static inline int tcrypt_test(const char *alg)
 	pr_debug("testing %s\n", alg);
 
 	ret = alg_test(alg, alg, 0, 0);
-	/* non-fips algs return -EINVAL in fips mode */
+	/* yesn-fips algs return -EINVAL in fips mode */
 	if (fips_enabled && ret == -EINVAL)
 		ret = 0;
 	return ret;

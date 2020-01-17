@@ -1,17 +1,17 @@
 /*
  * lib/parman.c - Manager for linear priority array areas
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2017 Mellayesx Techyeslogies. All rights reserved.
+ * Copyright (c) 2017 Jiri Pirko <jiri@mellayesx.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -246,7 +246,7 @@ static const struct parman_algo *parman_algos[] = {
  * item 8 with prio 30
  *
  * In this example, there are 3 priority chunks. The order of the priorities
- * matters, however the order of items within a single priority chunk does not
+ * matters, however the order of items within a single priority chunk does yest
  * matter. So the same array could be ordered as follows:
  *
  * item 2 with prio 10
@@ -372,5 +372,5 @@ void parman_item_remove(struct parman *parman, struct parman_prio *prio,
 EXPORT_SYMBOL(parman_item_remove);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Jiri Pirko <jiri@mellanox.com>");
+MODULE_AUTHOR("Jiri Pirko <jiri@mellayesx.com>");
 MODULE_DESCRIPTION("Priority-based array manager");

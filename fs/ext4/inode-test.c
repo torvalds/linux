@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * KUnit test of ext4 inode that verify the seconds part of [a/c/m]
- * timestamps in ext4 inode structs are decoded correctly.
+ * KUnit test of ext4 iyesde that verify the seconds part of [a/c/m]
+ * timestamps in ext4 iyesde structs are decoded correctly.
  */
 
 #include <kunit/test.h>
@@ -11,12 +11,12 @@
 #include "ext4.h"
 
 /*
- * For constructing the nonnegative timestamp lower bound value.
+ * For constructing the yesnnegative timestamp lower bound value.
  * binary: 00000000 00000000 00000000 00000000
  */
 #define LOWER_MSB_0 0L
 /*
- * For constructing the nonnegative timestamp upper bound value.
+ * For constructing the yesnnegative timestamp upper bound value.
  * binary: 01111111 11111111 11111111 11111111
  *
  */
@@ -32,7 +32,7 @@
  */
 #define UPPER_MSB_1 (-1L)
 /*
- * Upper bound for nanoseconds value supported by the encoding.
+ * Upper bound for nayesseconds value supported by the encoding.
  * binary: 00111111 11111111 11111111 11111111
  */
 #define MAX_NANOSECONDS ((1L << 30) - 1)
@@ -40,13 +40,13 @@
 #define CASE_NAME_FORMAT "%s: msb:%x lower_bound:%x extra_bits: %x"
 
 #define LOWER_BOUND_NEG_NO_EXTRA_BITS_CASE\
-	"1901-12-13 Lower bound of 32bit < 0 timestamp, no extra bits"
+	"1901-12-13 Lower bound of 32bit < 0 timestamp, yes extra bits"
 #define UPPER_BOUND_NEG_NO_EXTRA_BITS_CASE\
-	"1969-12-31 Upper bound of 32bit < 0 timestamp, no extra bits"
+	"1969-12-31 Upper bound of 32bit < 0 timestamp, yes extra bits"
 #define LOWER_BOUND_NONNEG_NO_EXTRA_BITS_CASE\
-	"1970-01-01 Lower bound of 32bit >=0 timestamp, no extra bits"
+	"1970-01-01 Lower bound of 32bit >=0 timestamp, yes extra bits"
 #define UPPER_BOUND_NONNEG_NO_EXTRA_BITS_CASE\
-	"2038-01-19 Upper bound of 32bit >=0 timestamp, no extra bits"
+	"2038-01-19 Upper bound of 32bit >=0 timestamp, yes extra bits"
 #define LOWER_BOUND_NEG_LO_1_CASE\
 	"2038-01-19 Lower bound of 32bit <0 timestamp, lo extra sec bit on"
 #define UPPER_BOUND_NEG_LO_1_CASE\
@@ -96,10 +96,10 @@ static time64_t get_32bit_time(const struct timestamp_expectation * const test)
 
 
 /*
- *  Test data is derived from the table in the Inode Timestamps section of
- *  Documentation/filesystems/ext4/inodes.rst.
+ *  Test data is derived from the table in the Iyesde Timestamps section of
+ *  Documentation/filesystems/ext4/iyesdes.rst.
  */
-static void inode_test_xtimestamp_decoding(struct kunit *test)
+static void iyesde_test_xtimestamp_decoding(struct kunit *test)
 {
 	const struct timestamp_expectation test_data[] = {
 		{
@@ -259,14 +259,14 @@ static void inode_test_xtimestamp_decoding(struct kunit *test)
 	}
 }
 
-static struct kunit_case ext4_inode_test_cases[] = {
-	KUNIT_CASE(inode_test_xtimestamp_decoding),
+static struct kunit_case ext4_iyesde_test_cases[] = {
+	KUNIT_CASE(iyesde_test_xtimestamp_decoding),
 	{}
 };
 
-static struct kunit_suite ext4_inode_test_suite = {
-	.name = "ext4_inode_test",
-	.test_cases = ext4_inode_test_cases,
+static struct kunit_suite ext4_iyesde_test_suite = {
+	.name = "ext4_iyesde_test",
+	.test_cases = ext4_iyesde_test_cases,
 };
 
-kunit_test_suite(ext4_inode_test_suite);
+kunit_test_suite(ext4_iyesde_test_suite);

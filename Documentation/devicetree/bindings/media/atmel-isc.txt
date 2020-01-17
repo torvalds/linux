@@ -21,8 +21,8 @@ Required properties for ISC:
 - pinctrl-names, pinctrl-0
 	Please refer to pinctrl-bindings.txt.
 
-ISC supports a single port node with parallel bus. It should contain one
-'port' child node with child 'endpoint' node. Please refer to the bindings
+ISC supports a single port yesde with parallel bus. It should contain one
+'port' child yesde with child 'endpoint' yesde. Please refer to the bindings
 defined in Documentation/devicetree/bindings/media/video-interfaces.txt.
 
 Example:

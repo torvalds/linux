@@ -108,7 +108,7 @@ static int __wrpll_calc_filter_range(unsigned long post_divr_freq)
  * @c: ptr to a struct wrpll_cfg record to read from
  *
  * The internal feedback path includes a fixed by-two divider; the
- * external feedback path does not.  Return the appropriate divider
+ * external feedback path does yest.  Return the appropriate divider
  * value (2 or 1) depending on whether internal or external feedback
  * is enabled.  This code doesn't test for invalid configurations
  * (e.g. both or neither of WRPLL_FLAGS_*_FEEDBACK are set); it relies
@@ -204,7 +204,7 @@ static int __wrpll_update_parent_rate(struct wrpll_cfg *c,
  * @parent_rate: PLL input refclk rate (pre-R-divider)
  *
  * Compute the appropriate PLL signal configuration values and store
- * in PLL context @c.  PLL reprogramming is not glitchless, so the
+ * in PLL context @c.  PLL reprogramming is yest glitchless, so the
  * caller should switch any downstream logic to a different clock
  * source or clock-gate it before presenting these values to the PLL
  * configuration signals.
@@ -324,7 +324,7 @@ int wrpll_configure_for_rate(struct wrpll_cfg *c, u32 target_rate,
  *
  * Return: the PLL's output clock rate, in Hz.  The return value from
  *         this function is intended to be convenient to pass directly
- *         to the Linux clock framework; thus there is no explicit
+ *         to the Linux clock framework; thus there is yes explicit
  *         error return value.
  */
 unsigned long wrpll_calc_output_rate(const struct wrpll_cfg *c,
@@ -334,7 +334,7 @@ unsigned long wrpll_calc_output_rate(const struct wrpll_cfg *c,
 	u64 n;
 
 	if (c->flags & WRPLL_FLAGS_EXT_FEEDBACK_MASK) {
-		WARN(1, "external feedback mode not yet supported");
+		WARN(1, "external feedback mode yest yet supported");
 		return ULONG_MAX;
 	}
 

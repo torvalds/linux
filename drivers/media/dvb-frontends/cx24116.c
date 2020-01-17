@@ -18,7 +18,7 @@
 	    Implement MPEG initialization parameter.
 	January, 17th 2009
 	    Fill set_voltage with actually control voltage code.
-	    Correct set tone to not affect voltage.
+	    Correct set tone to yest affect voltage.
 
 */
 
@@ -45,7 +45,7 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 #define CX24116_DEFAULT_FIRMWARE "dvb-fe-cx24116.fw"
 #define CX24116_SEARCH_RANGE_KHZ 5000
 
-/* known registers */
+/* kyeswn registers */
 #define CX24116_REG_COMMAND (0x00)      /* command args 0x00..0x1e */
 #define CX24116_REG_EXECUTE (0x1f)      /* execute command */
 #define CX24116_REG_MAILBOX (0x96)      /* FW or multipurpose mailbox? */
@@ -64,16 +64,16 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 #define CX24116_REG_CLKDIV  (0xf3)
 #define CX24116_REG_RATEDIV (0xf9)
 
-/* configured fec (not tuned) or actual FEC (tuned) 1=1/2 2=2/3 etc */
+/* configured fec (yest tuned) or actual FEC (tuned) 1=1/2 2=2/3 etc */
 #define CX24116_REG_FECSTATUS (0x9c)
 
 /* FECSTATUS bits */
-/* mask to determine configured fec (not tuned) or actual fec (tuned) */
+/* mask to determine configured fec (yest tuned) or actual fec (tuned) */
 #define CX24116_FEC_FECMASK   (0x1f)
 
 /* Select DVB-S demodulator, else DVB-S2 */
 #define CX24116_FEC_DVBS      (0x20)
-#define CX24116_FEC_UNKNOWN   (0x40)    /* Unknown/unused */
+#define CX24116_FEC_UNKNOWN   (0x40)    /* Unkyeswn/unused */
 
 /* Pilot mode requested when tuning else always reset when tuned */
 #define CX24116_FEC_PILOT     (0x80)
@@ -106,9 +106,9 @@ MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
 
 /* arg offset for DiSEqC */
 #define CX24116_DISEQC_BURST  (1)
-#define CX24116_DISEQC_ARG2_2 (2)   /* unknown value=2 */
-#define CX24116_DISEQC_ARG3_0 (3)   /* unknown value=0 */
-#define CX24116_DISEQC_ARG4_0 (4)   /* unknown value=0 */
+#define CX24116_DISEQC_ARG2_2 (2)   /* unkyeswn value=2 */
+#define CX24116_DISEQC_ARG3_0 (3)   /* unkyeswn value=0 */
+#define CX24116_DISEQC_ARG4_0 (4)   /* unkyeswn value=0 */
 #define CX24116_DISEQC_MSGLEN (5)
 #define CX24116_DISEQC_MSGOFS (6)
 
@@ -123,9 +123,9 @@ MODULE_PARM_DESC(toneburst, "DiSEqC toneburst 0=OFF, 1=TONE CACHE, "\
 	"2=MESSAGE CACHE (default:1)");
 
 /* SNR measurements */
-static int esno_snr;
-module_param(esno_snr, int, 0644);
-MODULE_PARM_DESC(esno_snr, "SNR return units, 0=PERCENTAGE 0-100, "\
+static int esyes_snr;
+module_param(esyes_snr, int, 0644);
+MODULE_PARM_DESC(esyes_snr, "SNR return units, 0=PERCENTAGE 0-100, "\
 	"1=ESNO(db * 10) (default:0)");
 
 enum cmds {
@@ -141,7 +141,7 @@ enum cmds {
 	CMD_SET_TONE    = 0x23,
 	CMD_UPDFWVERS   = 0x35,
 	CMD_TUNERSLEEP  = 0x36,
-	CMD_AGCCONTROL  = 0x3b, /* Unknown */
+	CMD_AGCCONTROL  = 0x3b, /* Unkyeswn */
 };
 
 /* The Demod/Tuner can't easily provide these, we cache them */
@@ -312,7 +312,7 @@ static int cx24116_set_inversion(struct cx24116_state *state,
  * and low byte selects the modulator. The high
  * byte is search range mask. Bit 5 may turn
  * on DVB-S and remaining bits represent some
- * kind of calibration (how/what i do not know).
+ * kind of calibration (how/what i do yest kyesw).
  *
  * Eg.(2/3) szap "Zone Horror"
  *
@@ -347,14 +347,14 @@ static int cx24116_set_inversion(struct cx24116_state *state,
  * and FEC. High byte is meaningless here. To
  * set pilot, bit 6 (0x40) is set. When inspecting
  * FECSTATUS bit 7 (0x80) represents the pilot
- * selection whilst not tuned. When tuned, actual FEC
+ * selection whilst yest tuned. When tuned, actual FEC
  * in use is found in FECSTATUS as per above. Pilot
  * value is reset.
  */
 
 /* A table of modulation, fec and configuration bytes for the demod.
- * Not all S2 mmodulation schemes are support and not all rates with
- * a scheme are support. Especially, no auto detect when in S2 mode.
+ * Not all S2 mmodulation schemes are support and yest all rates with
+ * a scheme are support. Especially, yes auto detect when in S2 mode.
  */
 static struct cx24116_modfec {
 	enum fe_delivery_system delivery_system;
@@ -363,7 +363,7 @@ static struct cx24116_modfec {
 	u8 mask;	/* In DVBS mode this is used to autodetect */
 	u8 val;		/* Passed to the firmware to indicate mode selection */
 } CX24116_MODFEC_MODES[] = {
- /* QPSK. For unknown rates we set hardware to auto detect 0xfe 0x30 */
+ /* QPSK. For unkyeswn rates we set hardware to auto detect 0xfe 0x30 */
 
  /*mod   fec       mask  val */
  { SYS_DVBS, QPSK, FEC_NONE, 0xfe, 0x30 },
@@ -482,7 +482,7 @@ static int cx24116_firmware_ondemand(struct dvb_frontend *fe)
 		printk(KERN_INFO "%s: Waiting for firmware upload(2)...\n",
 			__func__);
 		if (ret) {
-			printk(KERN_ERR "%s: No firmware uploaded (timeout or file not found?)\n",
+			printk(KERN_ERR "%s: No firmware uploaded (timeout or file yest found?)\n",
 			       __func__);
 			return ret;
 		}
@@ -538,8 +538,8 @@ static int cx24116_cmd_execute(struct dvb_frontend *fe, struct cx24116_cmd *cmd)
 		msleep(10);
 		if (i++ > 64) {
 			/* Avoid looping forever if the firmware does
-				not respond */
-			printk(KERN_WARNING "%s() Firmware not responding\n",
+				yest respond */
+			printk(KERN_WARNING "%s() Firmware yest responding\n",
 				__func__);
 			return -EREMOTEIO;
 		}
@@ -579,11 +579,11 @@ static int cx24116_load_firmware(struct dvb_frontend *fe,
 	cx24116_writereg(state, 0xe0, 0x03);
 	cx24116_writereg(state, 0xe0, 0x00);
 
-	/* Unknown */
+	/* Unkyeswn */
 	cx24116_writereg(state, CX24116_REG_CLKDIV, 0x46);
 	cx24116_writereg(state, CX24116_REG_RATEDIV, 0x00);
 
-	/* Unknown */
+	/* Unkyeswn */
 	cx24116_writereg(state, 0xF0, 0x03);
 	cx24116_writereg(state, 0xF4, 0x81);
 	cx24116_writereg(state, 0xF5, 0x00);
@@ -594,7 +594,7 @@ static int cx24116_load_firmware(struct dvb_frontend *fe,
 	if (state->config->i2c_wr_max)
 		max = state->config->i2c_wr_max;
 	else
-		max = INT_MAX; /* enough for 32k firmware */
+		max = INT_MAX; /* eyesugh for 32k firmware */
 
 	for (remaining = fw->size; remaining > 0; remaining -= max - 1) {
 		len = remaining;
@@ -767,7 +767,7 @@ static int cx24116_read_snr_pct(struct dvb_frontend *fe, u16 *snr)
  * ESNO, from 0->30db (values 0->300). We provide this value by
  * default.
  */
-static int cx24116_read_snr_esno(struct dvb_frontend *fe, u16 *snr)
+static int cx24116_read_snr_esyes(struct dvb_frontend *fe, u16 *snr)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
 
@@ -783,8 +783,8 @@ static int cx24116_read_snr_esno(struct dvb_frontend *fe, u16 *snr)
 
 static int cx24116_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	if (esno_snr == 1)
-		return cx24116_read_snr_esno(fe, snr);
+	if (esyes_snr == 1)
+		return cx24116_read_snr_esyes(fe, snr);
 	else
 		return cx24116_read_snr_pct(fe, snr);
 }
@@ -824,7 +824,7 @@ static int cx24116_wait_for_lnb(struct dvb_frontend *fe)
 		msleep(10);
 	}
 
-	dprintk("%s(): LNB not ready\n", __func__);
+	dprintk("%s(): LNB yest ready\n", __func__);
 
 	return -ETIMEDOUT; /* -EBUSY ? */
 }
@@ -927,7 +927,7 @@ static int cx24116_diseqc_init(struct dvb_frontend *fe)
 	/* DiSEqC burst */
 	state->dsec_cmd.args[CX24116_DISEQC_BURST]  = CX24116_DISEQC_MINI_A;
 
-	/* Unknown */
+	/* Unkyeswn */
 	state->dsec_cmd.args[CX24116_DISEQC_ARG2_2] = 0x02;
 	state->dsec_cmd.args[CX24116_DISEQC_ARG3_0] = 0x00;
 	/* Continuation flag? */
@@ -1123,7 +1123,7 @@ struct dvb_frontend *cx24116_attach(const struct cx24116_config *config,
 		cx24116_readreg(state, 0xFE);
 	if (ret != 0x0501) {
 		kfree(state);
-		printk(KERN_INFO "Invalid probe, probably not a CX24116 device\n");
+		printk(KERN_INFO "Invalid probe, probably yest a CX24116 device\n");
 		return NULL;
 	}
 
@@ -1237,7 +1237,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 
 		/*
 		 * NBC 8PSK/QPSK with DVB-S is supported for DVB-S2,
-		 * but not hardware auto detection
+		 * but yest hardware auto detection
 		 */
 		if (c->modulation != PSK_8 && c->modulation != QPSK) {
 			dprintk("%s: unsupported modulation selected (%d)\n",
@@ -1296,7 +1296,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 	if (ret !=  0)
 		return ret;
 
-	/* FEC_NONE/AUTO for DVB-S2 is not supported and detected here */
+	/* FEC_NONE/AUTO for DVB-S2 is yest supported and detected here */
 	ret = cx24116_set_fec(state, c->delivery_system, c->modulation, c->fec_inner);
 	if (ret !=  0)
 		return ret;
@@ -1322,7 +1322,7 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 	dprintk("%s:   Inversion   = %d (val = 0x%02x)\n", __func__,
 		state->dcur.inversion, state->dcur.inversion_val);
 
-	/* This is also done in advise/acquire on HVR4000 but not on LITE */
+	/* This is also done in advise/acquire on HVR4000 but yest on LITE */
 	if (state->config->set_ts_params)
 		state->config->set_ts_params(fe, 0);
 
@@ -1379,9 +1379,9 @@ static int cx24116_set_frontend(struct dvb_frontend *fe)
 
 	cmd.len = 0x13;
 
-	/* We need to support pilot and non-pilot tuning in the
+	/* We need to support pilot and yesn-pilot tuning in the
 	 * driver automatically. This is a workaround for because
-	 * the demod does not support autodetect.
+	 * the demod does yest support autodetect.
 	 */
 	do {
 		/* Reset status register */

@@ -12,14 +12,14 @@
  * as Documentation/driver-api/libata.rst
  *
  * AHCI hardware documentation:
- * http://www.intel.com/technology/serialata/pdf/rev1_0.pdf
- * http://www.intel.com/technology/serialata/pdf/rev1_1.pdf
+ * http://www.intel.com/techyeslogy/serialata/pdf/rev1_0.pdf
+ * http://www.intel.com/techyeslogy/serialata/pdf/rev1_1.pdf
  */
 
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/module.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -33,14 +33,14 @@
 #include "libata.h"
 
 static int ahci_skip_host_reset;
-int ahci_ignore_sss;
-EXPORT_SYMBOL_GPL(ahci_ignore_sss);
+int ahci_igyesre_sss;
+EXPORT_SYMBOL_GPL(ahci_igyesre_sss);
 
 module_param_named(skip_host_reset, ahci_skip_host_reset, int, 0444);
 MODULE_PARM_DESC(skip_host_reset, "skip global host reset (0=don't skip, 1=skip)");
 
-module_param_named(ignore_sss, ahci_ignore_sss, int, 0444);
-MODULE_PARM_DESC(ignore_sss, "Ignore staggered spinup flag (0=don't ignore, 1=ignore)");
+module_param_named(igyesre_sss, ahci_igyesre_sss, int, 0444);
+MODULE_PARM_DESC(igyesre_sss, "Igyesre staggered spinup flag (0=don't igyesre, 1=igyesre)");
 
 static int ahci_set_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 			unsigned hints);
@@ -215,7 +215,7 @@ static void ahci_enable_ahci(void __iomem *mmio)
  *	@ap: Port to power on
  *
  *	Whenever there is need to access the AHCI host registers outside of
- *	normal execution paths, call this function to make sure the host is
+ *	yesrmal execution paths, call this function to make sure the host is
  *	actually powered on.
  */
 static int ahci_rpm_get_port(struct ata_port *ap)
@@ -228,7 +228,7 @@ static int ahci_rpm_get_port(struct ata_port *ap)
  *	@ap: Port to power down
  *
  *	Undoes ahci_rpm_get_port() and possibly powers down the AHCI host
- *	if it has no more active users.
+ *	if it has yes more active users.
  */
 static void ahci_rpm_put_port(struct ata_port *ap)
 {
@@ -315,7 +315,7 @@ static ssize_t ahci_read_em_buffer(struct device *dev,
 
 	count = hpriv->em_buf_sz;
 
-	/* the count should not be larger than PAGE_SIZE */
+	/* the count should yest be larger than PAGE_SIZE */
 	if (count > PAGE_SIZE) {
 		if (printk_ratelimit())
 			ata_port_warn(ap,
@@ -415,7 +415,7 @@ static ssize_t ahci_show_em_supported(struct device *dev,
  *
  *	If inconsistent, config values are fixed up by this function.
  *
- *	If it is not set already this function sets hpriv->start_engine to
+ *	If it is yest set already this function sets hpriv->start_engine to
  *	ahci_start_engine.
  *
  *	LOCKING:
@@ -654,7 +654,7 @@ int ahci_stop_engine(struct ata_port *ap)
 
 	/*
 	 * Don't try to issue commands but return with ENODEV if the
-	 * AHCI controller not available anymore (e.g. due to PCIe hot
+	 * AHCI controller yest available anymore (e.g. due to PCIe hot
 	 * unplugging). Otherwise a 500ms delay for each port is added.
 	 */
 	if (tmp == 0xffffffff) {
@@ -863,7 +863,7 @@ static void ahci_start_port(struct ata_port *ap)
 							       emp->led_state,
 							       4);
 				/*
-				 * If busy, give a breather but do not
+				 * If busy, give a breather but do yest
 				 * release EH ownership by using msleep()
 				 * instead of ata_msleep().  EM Transmit
 				 * bit is busy for the whole host and
@@ -980,10 +980,10 @@ static void ahci_sw_activity_blink(struct timer_list *t)
 	unsigned long flags;
 
 	led_message &= EM_MSG_LED_VALUE;
-	led_message |= ap->port_no | (link->pmp << 8);
+	led_message |= ap->port_yes | (link->pmp << 8);
 
 	/* check to see if we've had activity.  If so,
-	 * toggle state of LED and reset timer.  If not,
+	 * toggle state of LED and reset timer.  If yest,
 	 * turn LED to desired idle state.
 	 */
 	spin_lock_irqsave(ap->lock, flags);
@@ -1068,7 +1068,7 @@ static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 
 	/*
 	 * if we are still busy transmitting a previous message,
-	 * do not allow
+	 * do yest allow
 	 */
 	em_ctl = readl(mmio + HOST_EM_CTL);
 	if (em_ctl & EM_CTL_TM) {
@@ -1084,8 +1084,8 @@ static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 		 */
 		message[0] |= (4 << 8);
 
-		/* ignore 0:4 of byte zero, fill in port info yourself */
-		message[1] = ((state & ~EM_MSG_LED_HBA_PORT) | ap->port_no);
+		/* igyesre 0:4 of byte zero, fill in port info yourself */
+		message[1] = ((state & ~EM_MSG_LED_HBA_PORT) | ap->port_yes);
 
 		/* write message to EM_LOC */
 		writel(message[0], mmio + hpriv->em_loc);
@@ -1134,7 +1134,7 @@ static ssize_t ahci_led_store(struct ata_port *ap, const char *buf,
 	/* get the slot number from the message */
 	pmp = (state & EM_MSG_LED_PMP_SLOT) >> 8;
 	if (pmp < EM_MAX_SLOTS) {
-		pmp = array_index_nospec(pmp, EM_MAX_SLOTS);
+		pmp = array_index_yesspec(pmp, EM_MAX_SLOTS);
 		emp = &pp->em_priv[pmp];
 	} else {
 		return -EINVAL;
@@ -1165,14 +1165,14 @@ static ssize_t ahci_activity_store(struct ata_device *dev, enum sw_activity val)
 
 		/* set the LED to OFF */
 		port_led_state &= EM_MSG_LED_VALUE_OFF;
-		port_led_state |= (ap->port_no | (link->pmp << 8));
+		port_led_state |= (ap->port_yes | (link->pmp << 8));
 		ap->ops->transmit_led_message(ap, port_led_state, 4);
 	} else {
 		link->flags |= ATA_LFLAG_SW_ACTIVITY;
 		if (val == BLINK_OFF) {
 			/* set LED to ON for idle */
 			port_led_state &= EM_MSG_LED_VALUE_OFF;
-			port_led_state |= (ap->port_no | (link->pmp << 8));
+			port_led_state |= (ap->port_yes | (link->pmp << 8));
 			port_led_state |= EM_MSG_LED_VALUE_ON; /* check this */
 			ap->ops->transmit_led_message(ap, port_led_state, 4);
 		}
@@ -1195,7 +1195,7 @@ static ssize_t ahci_activity_show(struct ata_device *dev, char *buf)
 }
 
 static void ahci_port_init(struct device *dev, struct ata_port *ap,
-			   int port_no, void __iomem *mmio,
+			   int port_yes, void __iomem *mmio,
 			   void __iomem *port_mmio)
 {
 	struct ahci_host_priv *hpriv = ap->host->private_data;
@@ -1203,7 +1203,7 @@ static void ahci_port_init(struct device *dev, struct ata_port *ap,
 	int rc;
 	u32 tmp;
 
-	/* make sure port is not active */
+	/* make sure port is yest active */
 	rc = ahci_deinit_port(ap, &emsg);
 	if (rc)
 		dev_warn(dev, "%s (%d)\n", emsg, rc);
@@ -1219,7 +1219,7 @@ static void ahci_port_init(struct device *dev, struct ata_port *ap,
 	if (tmp)
 		writel(tmp, port_mmio + PORT_IRQ_STAT);
 
-	writel(1 << port_no, mmio + HOST_IRQ_STAT);
+	writel(1 << port_yes, mmio + HOST_IRQ_STAT);
 
 	/* mark esata ports */
 	tmp = readl(port_mmio + PORT_CMD);
@@ -1386,7 +1386,7 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 	struct ahci_port_priv *pp = ap->private_data;
 	const char *reason = NULL;
-	unsigned long now, msecs;
+	unsigned long yesw, msecs;
 	struct ata_taskfile tf;
 	bool fbs_disabled = false;
 	int rc;
@@ -1396,7 +1396,7 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 	/* prepare for SRST (AHCI-1.1 10.4.1) */
 	rc = ahci_kick_engine(ap);
 	if (rc && rc != -EOPNOTSUPP)
-		ata_link_warn(link, "failed to reset engine (errno=%d)\n", rc);
+		ata_link_warn(link, "failed to reset engine (erryes=%d)\n", rc);
 
 	/*
 	 * According to AHCI-1.2 9.3.9: if FBS is enable, software shall
@@ -1412,9 +1412,9 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 
 	/* issue the first H2D Register FIS */
 	msecs = 0;
-	now = jiffies;
-	if (time_after(deadline, now))
-		msecs = jiffies_to_msecs(deadline - now);
+	yesw = jiffies;
+	if (time_after(deadline, yesw))
+		msecs = jiffies_to_msecs(deadline - yesw);
 
 	tf.ctl |= ATA_SRST;
 	if (ahci_exec_polled_cmd(ap, pmp, &tf, 0,
@@ -1439,11 +1439,11 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 		 * be trusted.  Treat device readiness timeout as link
 		 * offline.
 		 */
-		ata_link_info(link, "device not ready, treating as offline\n");
+		ata_link_info(link, "device yest ready, treating as offline\n");
 		*class = ATA_DEV_NONE;
 	} else if (rc) {
 		/* link occupied, -ENODEV too is an error */
-		reason = "device not ready";
+		reason = "device yest ready";
 		goto fail;
 	} else
 		*class = ahci_dev_classify(ap);
@@ -1487,7 +1487,7 @@ static int ahci_bad_pmp_check_ready(struct ata_link *link)
 	u32 irq_status = readl(port_mmio + PORT_IRQ_STAT);
 
 	/*
-	 * There is no need to check TFDATA if BAD PMP is found due to HW bug,
+	 * There is yes need to check TFDATA if BAD PMP is found due to HW bug,
 	 * which can save timeout delay.
 	 */
 	if (irq_status & PORT_IRQ_BAD_PMP)
@@ -1674,7 +1674,7 @@ static void ahci_fbs_dec_intr(struct ata_port *ap)
 	DPRINTK("ENTER\n");
 	BUG_ON(!pp->fbs_enabled);
 
-	/* time to wait for DEC is not specified by AHCI spec,
+	/* time to wait for DEC is yest specified by AHCI spec,
 	 * add a retry loop for safety.
 	 */
 	writel(fbs | PORT_FBS_DEC, port_mmio + PORT_FBS);
@@ -1730,13 +1730,13 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 	ahci_scr_write(&ap->link, SCR_ERROR, serror);
 	host_ehi->serror |= serror;
 
-	/* some controllers set IRQ_IF_ERR on device errors, ignore it */
+	/* some controllers set IRQ_IF_ERR on device errors, igyesre it */
 	if (hpriv->flags & AHCI_HFLAG_IGN_IRQ_IF_ERR)
 		irq_stat &= ~PORT_IRQ_IF_ERR;
 
 	if (irq_stat & PORT_IRQ_TF_ERR) {
 		/* If qc is active, charge it; otherwise, the active
-		 * link.  There's no active qc on NCQ errors.  It will
+		 * link.  There's yes active qc on NCQ errors.  It will
 		 * be determined by EH by reading log page 10h.
 		 */
 		if (active_qc)
@@ -1754,7 +1754,7 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 		active_ehi->err_mask |= AC_ERR_HSM;
 		active_ehi->action |= ATA_EH_RESET;
 		ata_ehi_push_desc(active_ehi,
-				  "unknown FIS %08x %08x %08x %08x" ,
+				  "unkyeswn FIS %08x %08x %08x %08x" ,
 				  unk[0], unk[1], unk[2], unk[3]);
 	}
 
@@ -1809,11 +1809,11 @@ static void ahci_handle_port_interrupt(struct ata_port *ap,
 	u32 qc_active = 0;
 	int rc;
 
-	/* ignore BAD_PMP while resetting */
+	/* igyesre BAD_PMP while resetting */
 	if (unlikely(resetting))
 		status &= ~PORT_IRQ_BAD_PMP;
 
-	if (sata_lpm_ignore_phy_events(&ap->link)) {
+	if (sata_lpm_igyesre_phy_events(&ap->link)) {
 		status &= ~PORT_IRQ_PHYRDY;
 		ahci_scr_write(&ap->link, SCR_ERROR, SERR_PHYRDY_CHG);
 	}
@@ -1824,23 +1824,23 @@ static void ahci_handle_port_interrupt(struct ata_port *ap,
 	}
 
 	if (status & PORT_IRQ_SDB_FIS) {
-		/* If SNotification is available, leave notification
-		 * handling to sata_async_notification().  If not,
-		 * emulate it by snooping SDB FIS RX area.
+		/* If SNotification is available, leave yestification
+		 * handling to sata_async_yestification().  If yest,
+		 * emulate it by syesoping SDB FIS RX area.
 		 *
-		 * Snooping FIS RX area is probably cheaper than
+		 * Syesoping FIS RX area is probably cheaper than
 		 * poking SNotification but some constrollers which
 		 * implement SNotification, ICH9 for example, don't
 		 * store AN SDB FIS into receive area.
 		 */
 		if (hpriv->cap & HOST_CAP_SNTF)
-			sata_async_notification(ap);
+			sata_async_yestification(ap);
 		else {
 			/* If the 'N' bit in word 0 of the FIS is set,
-			 * we just received asynchronous notification.
+			 * we just received asynchroyesus yestification.
 			 * Tell libata about it.
 			 *
-			 * Lack of SNotification should not appear in
+			 * Lack of SNotification should yest appear in
 			 * ahci 1.2, so the workaround is unnecessary
 			 * when FBS is enabled.
 			 */
@@ -1850,14 +1850,14 @@ static void ahci_handle_port_interrupt(struct ata_port *ap,
 				const __le32 *f = pp->rx_fis + RX_FIS_SDB;
 				u32 f0 = le32_to_cpu(f[0]);
 				if (f0 & (1 << 15))
-					sata_async_notification(ap);
+					sata_async_yestification(ap);
 			}
 		}
 	}
 
-	/* pp->active_link is not reliable once FBS is enabled, both
+	/* pp->active_link is yest reliable once FBS is enabled, both
 	 * PORT_SCR_ACT and PORT_CMD_ISSUE should be checked because
-	 * NCQ and non-NCQ commands may be in flight at the same time.
+	 * NCQ and yesn-NCQ commands may be in flight at the same time.
 	 */
 	if (pp->fbs_enabled) {
 		if (ap->qc_active) {
@@ -1929,7 +1929,7 @@ u32 ahci_handle_port_intr(struct ata_host *host, u32 irq_masked)
 			ahci_port_intr(ap);
 			VPRINTK("port %u\n", i);
 		} else {
-			VPRINTK("port %u (no irq)\n", i);
+			VPRINTK("port %u (yes irq)\n", i);
 			if (ata_ratelimit())
 				dev_warn(host->dev,
 					 "interrupt on disabled port %u\n", i);
@@ -2058,7 +2058,7 @@ static void ahci_thaw(struct ata_port *ap)
 	/* clear IRQ */
 	tmp = readl(port_mmio + PORT_IRQ_STAT);
 	writel(tmp, port_mmio + PORT_IRQ_STAT);
-	writel(1 << ap->port_no, mmio + HOST_IRQ_STAT);
+	writel(1 << ap->port_yes, mmio + HOST_IRQ_STAT);
 
 	/* turn IRQ back on */
 	writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
@@ -2101,7 +2101,7 @@ static void ahci_set_aggressive_devslp(struct ata_port *ap, bool sleep)
 
 	devslp = readl(port_mmio + PORT_DEVSLP);
 	if (!(devslp & PORT_DEVSLP_DSP)) {
-		dev_info(ap->host->dev, "port does not support device sleep\n");
+		dev_info(ap->host->dev, "port does yest support device sleep\n");
 		return;
 	}
 
@@ -2135,8 +2135,8 @@ static void ahci_set_aggressive_devslp(struct ata_port *ap, bool sleep)
 	if (rc)
 		return;
 
-	/* Use the nominal value 10 ms if the read MDAT is zero,
-	 * the nominal value of DETO is 20 ms.
+	/* Use the yesminal value 10 ms if the read MDAT is zero,
+	 * the yesminal value of DETO is 20 ms.
 	 */
 	if (dev->devslp_timing[ATA_LOG_DEVSLP_VALID] &
 	    ATA_LOG_DEVSLP_VALID_MASK) {
@@ -2252,12 +2252,12 @@ static void ahci_pmp_attach(struct ata_port *ap)
 	pp->intr_mask |= PORT_IRQ_BAD_PMP;
 
 	/*
-	 * We must not change the port interrupt mask register if the
+	 * We must yest change the port interrupt mask register if the
 	 * port is marked frozen, the value in pp->intr_mask will be
 	 * restored later when the port is thawed.
 	 *
 	 * Note that during initialization, the port is marked as
-	 * frozen since the irq handler is not yet registered.
+	 * frozen since the irq handler is yest yet registered.
 	 */
 	if (!(ap->pflags & ATA_PFLAG_FROZEN))
 		writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
@@ -2337,7 +2337,7 @@ static int ahci_port_start(struct ata_port *ap)
 			return -ENOMEM;
 		}
 		snprintf(pp->irq_desc, 8,
-			 "%s%d", dev_driver_string(dev), ap->port_no);
+			 "%s%d", dev_driver_string(dev), ap->port_yes);
 	}
 
 	/* check FBS capability */
@@ -2348,11 +2348,11 @@ static int ahci_port_start(struct ata_port *ap)
 			pp->fbs_supported = true;
 		else if (hpriv->flags & AHCI_HFLAG_YES_FBS) {
 			dev_info(dev, "port %d can do FBS, forcing FBSCP\n",
-				 ap->port_no);
+				 ap->port_yes);
 			pp->fbs_supported = true;
 		} else
-			dev_warn(dev, "port %d is not capable of FBS\n",
-				 ap->port_no);
+			dev_warn(dev, "port %d is yest capable of FBS\n",
+				 ap->port_yes);
 	}
 
 	if (pp->fbs_supported) {
@@ -2429,7 +2429,7 @@ static void ahci_port_stop(struct ata_port *ap)
 	 * Clear GHC.IS to prevent stuck INTx after disabling MSI and
 	 * re-enabling INTx.
 	 */
-	writel(1 << ap->port_no, host_mmio + HOST_IRQ_STAT);
+	writel(1 << ap->port_yes, host_mmio + HOST_IRQ_STAT);
 
 	ahci_rpm_put_port(ap);
 }
@@ -2548,7 +2548,7 @@ static int ahci_host_activate_multi_irqs(struct ata_host *host,
 		struct ahci_port_priv *pp = host->ports[i]->private_data;
 		int irq = hpriv->get_irq_vector(host, i);
 
-		/* Do not receive interrupts sent by dummy ports */
+		/* Do yest receive interrupts sent by dummy ports */
 		if (!pp) {
 			disable_irq(irq);
 			continue;
@@ -2574,7 +2574,7 @@ static int ahci_host_activate_multi_irqs(struct ata_host *host,
  *	Inherited from calling layer (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erryes otherwise.
  */
 int ahci_host_activate(struct ata_host *host, struct scsi_host_template *sht)
 {

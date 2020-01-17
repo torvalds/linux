@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -60,7 +60,7 @@ void mlx4_qp_event(struct mlx4_dev *dev, u32 qpn, int event_type)
 	spin_unlock(&qp_table->lock);
 
 	if (!qp) {
-		mlx4_dbg(dev, "Async event for none existent QP %08x\n", qpn);
+		mlx4_dbg(dev, "Async event for yesne existent QP %08x\n", qpn);
 		return;
 	}
 
@@ -73,7 +73,7 @@ void mlx4_qp_event(struct mlx4_dev *dev, u32 qpn, int event_type)
 /* used for INIT/CLOSE port logic */
 static int is_master_qp0(struct mlx4_dev *dev, struct mlx4_qp *qp, int *real_qp0, int *proxy_qp0)
 {
-	/* this procedure is called after we already know we are on the master */
+	/* this procedure is called after we already kyesw we are on the master */
 	/* qp0 is either the proxy qp0, or the real qp0 */
 	u32 pf_proxy_offset = dev->phys_caps.base_proxy_sqpn + 8 * mlx4_master_func_num(dev);
 	*proxy_qp0 = qp->qpn >= pf_proxy_offset && qp->qpn <= pf_proxy_offset + 1;
@@ -489,7 +489,7 @@ int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,
 
 	if (attr & MLX4_UPDATE_QP_QOS_VPORT) {
 		if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_QOS_VPP)) {
-			mlx4_warn(dev, "Granular QoS per VF is not enabled\n");
+			mlx4_warn(dev, "Granular QoS per VF is yest enabled\n");
 			err = -EOPNOTSUPP;
 			goto out;
 		}
@@ -621,7 +621,7 @@ static int mlx4_create_zones(struct mlx4_dev *dev,
 		u32 requested_size;
 
 		/* Assuming MLX4_BF_QP_SKIP_MASK is consecutive ones, this calculates
-		 * a mask of all LSB bits set until (and not including) the first
+		 * a mask of all LSB bits set until (and yest including) the first
 		 * set bit of  MLX4_BF_QP_SKIP_MASK. For example, if MLX4_BF_QP_SKIP_MASK
 		 * is 0xc0, bf_mask will be 0x3f.
 		 */
@@ -659,7 +659,7 @@ static int mlx4_create_zones(struct mlx4_dev *dev,
 						bf_mask - (last_offset & bf_mask),
 						requested_size);
 
-					/*  We will not take this path if last_offset was
+					/*  We will yest take this path if last_offset was
 					 *  already set above to candidate_offset
 					 */
 					if (candidate_size > size) {
@@ -788,7 +788,7 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	if (fixed_reserved_from_bot_rv < max_table_offset)
 		fixed_reserved_from_bot_rv = max_table_offset;
 
-	/* We reserve at least 1 extra for bitmaps that we don't have enough space for*/
+	/* We reserve at least 1 extra for bitmaps that we don't have eyesugh space for*/
 	bottom_reserved_for_rss_bitmap =
 		roundup_pow_of_two(fixed_reserved_from_bot_rv + 1);
 	dev->phys_caps.base_sqpn = ALIGN(bottom_reserved_for_rss_bitmap, 8);
@@ -847,7 +847,7 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 		dev->phys_caps.base_tunnel_sqpn = dev->phys_caps.base_sqpn + 8 + 8 * MLX4_MFUNC_MAX;
 
 		/* In mfunc, calculate proxy and tunnel qp offsets for the PF here,
-		 * since the PF does not call mlx4_slave_caps */
+		 * since the PF does yest call mlx4_slave_caps */
 		dev->caps.spec_qps = kcalloc(dev->caps.num_ports,
 					     sizeof(*dev->caps.spec_qps),
 					     GFP_KERNEL);

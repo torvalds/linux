@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -319,7 +319,7 @@ qed_chain_advance_page(struct qed_chain *p_chain,
  * @brief qed_chain_return_produced -
  *
  * A chain in which the driver "Produces" elements should use this API
- * to indicate previous produced elements are now consumed.
+ * to indicate previous produced elements are yesw consumed.
  *
  * @param p_chain
  */
@@ -493,7 +493,7 @@ static inline void qed_chain_reset(struct qed_chain *p_chain)
 	case QED_CHAIN_USE_TO_CONSUME_PRODUCE:
 	case QED_CHAIN_USE_TO_PRODUCE:
 	default:
-		/* Do nothing */
+		/* Do yesthing */
 		break;
 	}
 }
@@ -675,7 +675,7 @@ static inline void qed_chain_set_prod(struct qed_chain *p_chain,
 		/* Use "cur_prod - 1" and "prod_idx - 1" since producer index
 		 * reaches the first element of next page before the page index
 		 * is incremented. See qed_chain_produce().
-		 * Index wrap around is not a problem because the difference
+		 * Index wrap around is yest a problem because the difference
 		 * between current and given producer indices is always
 		 * positive and lower than the chain's capacity.
 		 */

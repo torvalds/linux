@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2000 MIPS Techyeslogies, Inc.  All rights reserved.
  * Copyright (C) 2008 Dmitri Vorobiev
  */
 #include <linux/cpu.h>
@@ -156,7 +156,7 @@ static void __init pci_clock_check(void)
 	char *optptr, *argptr = fw_getcmdline();
 
 	/*
-	 * If user passed a pci_clock= option, don't tack on another one
+	 * If user passed a pci_clock= option, don't tack on ayesther one
 	 */
 	optptr = strstr(argptr, "pci_clock=");
 	if (optptr && (optptr == argptr || optptr[-1] == ' '))

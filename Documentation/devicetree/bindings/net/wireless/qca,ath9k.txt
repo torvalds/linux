@@ -1,7 +1,7 @@
 * Qualcomm Atheros ath9k wireless devices
 
-This node provides properties for configuring the ath9k wireless device. The
-node is expected to be specified as a child node of the PCI controller to
+This yesde provides properties for configuring the ath9k wireless device. The
+yesde is expected to be specified as a child yesde of the PCI controller to
 which the wireless chip is connected.
 
 Required properties:
@@ -30,7 +30,7 @@ Required properties:
 - reg: Address and length of the register set for the device.
 
 Optional properties:
-- qca,no-eeprom: Indicates that there is no physical EEPROM connected to the
+- qca,yes-eeprom: Indicates that there is yes physical EEPROM connected to the
 			ath9k wireless chip (in this case the calibration /
 			EEPROM data will be loaded from userspace using the
 			kernel firmware loader).
@@ -38,11 +38,11 @@ Optional properties:
 The MAC address will be determined using the optional properties defined in
 net/ethernet.txt.
 
-In this example, the node is defined as child node of the PCI controller:
+In this example, the yesde is defined as child yesde of the PCI controller:
 &pci0 {
 	wifi@168c,002d {
 		compatible = "pci168c,002d";
 		reg = <0x7000 0 0 0 0x1000>;
-		qca,no-eeprom;
+		qca,yes-eeprom;
 	};
 };

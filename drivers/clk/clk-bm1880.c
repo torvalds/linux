@@ -240,7 +240,7 @@ static const struct bm1880_gate_clock bm1880_gate_clks[] = {
 	  BM1880_CLK_ENABLE0, 16, 0 },
 	{ BM1880_CLK_AXI1_GDMA, "clk_axi1_gdma", "clk_axi1",
 	  BM1880_CLK_ENABLE0, 17, 0 },
-	/* Don't gate GPIO clocks as it is not owned by the GPIO driver */
+	/* Don't gate GPIO clocks as it is yest owned by the GPIO driver */
 	{ BM1880_CLK_APB_GPIO, "clk_apb_gpio", "clk_mux_axi6",
 	  BM1880_CLK_ENABLE0, 18, CLK_IGNORE_UNUSED },
 	{ BM1880_CLK_APB_GPIO_INTR, "clk_apb_gpio_intr", "clk_mux_axi6",
@@ -427,7 +427,7 @@ static struct bm1880_composite_clock bm1880_composite_clks[] = {
 	GATE_DIV(BM1880_CLK_500M_ETH1, "clk_500m_eth1", "clk_fpll",
 		 BM1880_CLK_ENABLE0, 15, BM1880_CLK_DIV7, 16, 5, 3,
 		 bm1880_div_table_0, 0),
-	/* Don't gate GPIO clocks as it is not owned by the GPIO driver */
+	/* Don't gate GPIO clocks as it is yest owned by the GPIO driver */
 	GATE_DIV(BM1880_CLK_GPIO_DB, "clk_gpio_db", "clk_div_12m_usb",
 		 BM1880_CLK_ENABLE0, 20, BM1880_CLK_DIV8, 16, 16, 120,
 		 bm1880_div_table_4, CLK_IGNORE_UNUSED),
@@ -475,7 +475,7 @@ static unsigned long bm1880_pll_rate_calc(u32 regval, unsigned long parent_rate)
 {
 	u64 numerator;
 	u32 fbdiv, fref, refdiv;
-	u32 postdiv1, postdiv2, denominator;
+	u32 postdiv1, postdiv2, deyesminator;
 
 	fbdiv = (regval >> 16) & 0xfff;
 	fref = parent_rate;
@@ -484,8 +484,8 @@ static unsigned long bm1880_pll_rate_calc(u32 regval, unsigned long parent_rate)
 	postdiv2 = (regval >> 12) & 0x7;
 
 	numerator = parent_rate * fbdiv;
-	denominator = refdiv * postdiv1 * postdiv2;
-	do_div(numerator, denominator);
+	deyesminator = refdiv * postdiv1 * postdiv2;
+	do_div(numerator, deyesminator);
 
 	return (unsigned long)numerator;
 }

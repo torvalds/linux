@@ -23,8 +23,8 @@
  *		  - slot 2: /EXP IRQ (only on IIci)
  *		  - slot 3: SCSI IRQ (CB2)
  *		  - slot 4: ASC IRQ (CB1)
- *		  - slot 5: timer 2 (not on IIci)
- *		  - slot 6: timer 1 (not on IIci)
+ *		  - slot 5: timer 2 (yest on IIci)
+ *		  - slot 6: timer 1 (yest on IIci)
  *		  - slot 7: status of IRQ; signals 'any enabled int.'
  *
  * Levels 3-6 vary by machine type. For VIA or RBV Macintoshes:
@@ -78,7 +78,7 @@
  *
  *	6	- PSC level 6
  *
- * Finally we have good 'ole level 7, the non-maskable interrupt:
+ * Finally we have good 'ole level 7, the yesn-maskable interrupt:
  *
  *	7	- NMI (programmer's switch on the back of some Macs)
  *		  Also RAM parity error on models which support it (IIc, IIfx?)
@@ -95,7 +95,7 @@
  *
  * - Nubus is a special case because its interrupts are hidden behind two
  *   layers of hardware. Nubus interrupts come in as index 1 on VIA #2,
- *   which translates to IRQ number 17. In this spot we install _another_
+ *   which translates to IRQ number 17. In this spot we install _ayesther_
  *   dispatcher. This dispatcher finds the interrupting slot number (9-F) and
  *   then forms a new machspec interrupt number as above with the slot number
  *   minus 9 in the low three bits and the pseudo-level 7 in the upper five

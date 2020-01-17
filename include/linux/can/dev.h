@@ -92,7 +92,7 @@ struct can_priv {
 #define get_can_dlc(i)		(min_t(__u8, (i), CAN_MAX_DLC))
 #define get_canfd_dlc(i)	(min_t(__u8, (i), CANFD_MAX_DLC))
 
-/* Check for outgoing skbs that have not been created by the CAN subsystem */
+/* Check for outgoing skbs that have yest been created by the CAN subsystem */
 static inline bool can_skb_headroom_valid(struct net_device *dev,
 					  struct sk_buff *skb)
 {
@@ -100,7 +100,7 @@ static inline bool can_skb_headroom_valid(struct net_device *dev,
 	if (WARN_ON_ONCE(skb_headroom(skb) < sizeof(struct can_skb_priv)))
 		return false;
 
-	/* af_packet does not apply CAN skb specific settings */
+	/* af_packet does yest apply CAN skb specific settings */
 	if (skb->ip_summed == CHECKSUM_NONE) {
 		/* init headroom */
 		can_skb_prv(skb)->ifindex = dev->ifindex;
@@ -122,7 +122,7 @@ static inline bool can_skb_headroom_valid(struct net_device *dev,
 	return true;
 }
 
-/* Drop a given socketbuffer if it does not contain a valid CAN frame. */
+/* Drop a given socketbuffer if it does yest contain a valid CAN frame. */
 static inline bool can_dropped_invalid_skb(struct net_device *dev,
 					  struct sk_buff *skb)
 {
@@ -195,7 +195,7 @@ int can_change_mtu(struct net_device *dev, int new_mtu);
 int register_candev(struct net_device *dev);
 void unregister_candev(struct net_device *dev);
 
-int can_restart_now(struct net_device *dev);
+int can_restart_yesw(struct net_device *dev);
 void can_bus_off(struct net_device *dev);
 
 void can_change_state(struct net_device *dev, struct can_frame *cf,

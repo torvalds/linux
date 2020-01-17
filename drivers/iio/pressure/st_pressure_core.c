@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -78,14 +78,14 @@
  *     SCALE  = 10^3 / sensitivity                                           (4)
  *
  * st_press_read_raw() returns temperature scaling factor as an
- * IIO_VAL_FRACTIONAL with a 10^3 numerator and "gain2" as denominator.
+ * IIO_VAL_FRACTIONAL with a 10^3 numerator and "gain2" as deyesminator.
  * Therefore, from (3), "gain2" becomes :
  *     gain2 = sensitivity
  *
- * When declared within channel, i.e. for a non zero specified offset,
+ * When declared within channel, i.e. for a yesn zero specified offset,
  * st_press_read_raw() will return the latter as an IIO_VAL_FRACTIONAL such as :
  *     numerator = OFFSET * 10^3
- *     denominator = 10^3
+ *     deyesminator = 10^3
  * giving from (4):
  *     numerator = offset[Celsius] * 10^3 * sensitivity
  *               = offset[mCelsius] * gain2

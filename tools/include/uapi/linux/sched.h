@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_SCHED_H
 #define _UAPI_LINUX_SCHED_H
 
@@ -22,7 +22,7 @@
 #define CLONE_SETTLS	0x00080000	/* create a new TLS for the child */
 #define CLONE_PARENT_SETTID	0x00100000	/* set the TID in the parent */
 #define CLONE_CHILD_CLEARTID	0x00200000	/* clear the TID in the child */
-#define CLONE_DETACHED		0x00400000	/* Unused, ignored */
+#define CLONE_DETACHED		0x00400000	/* Unused, igyesred */
 #define CLONE_UNTRACED		0x00800000	/* set if the tracing process can't force CLONE_PTRACE on this clone */
 #define CLONE_CHILD_SETTID	0x01000000	/* set the TID in the child */
 #define CLONE_NEWCGROUP		0x02000000	/* New cgroup namespace */
@@ -73,7 +73,7 @@
  *                nested PID namespaces only the PIDs in the
  *                corresponding namespaces are set.
  * @set_tid_size: This defines the size of the array referenced
- *                in @set_tid. This cannot be larger than the
+ *                in @set_tid. This canyest be larger than the
  *                kernel's limit of nested PID namespaces.
  *
  * The structure is versioned by size and thus extensible.
@@ -104,7 +104,7 @@ struct clone_args {
 #define SCHED_FIFO		1
 #define SCHED_RR		2
 #define SCHED_BATCH		3
-/* SCHED_ISO: reserved but not implemented yet */
+/* SCHED_ISO: reserved but yest implemented yet */
 #define SCHED_IDLE		5
 #define SCHED_DEADLINE		6
 

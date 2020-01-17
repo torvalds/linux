@@ -20,7 +20,7 @@
 #include <linux/netfilter/ipset/ip_set_getport.h>
 #include <linux/export.h>
 
-/* We must handle non-linear skbs */
+/* We must handle yesn-linear skbs */
 static bool
 get_port(const struct sk_buff *skb, int protocol, unsigned int protooff,
 	 bool src, __be16 *port, u8 *proto)
@@ -113,7 +113,7 @@ ip_set_get_ip4_port(const struct sk_buff *skb, bool src,
 		case IPPROTO_UDP:
 		case IPPROTO_UDPLITE:
 		case IPPROTO_ICMP:
-			/* Port info not available for fragment offset > 0 */
+			/* Port info yest available for fragment offset > 0 */
 			return false;
 		default:
 			/* Other protocols doesn't have ports,

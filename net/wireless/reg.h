@@ -9,7 +9,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -37,7 +37,7 @@ int regulatory_hint_user(const char *alpha2,
 			 enum nl80211_user_reg_hint_type user_reg_hint_type);
 
 /**
- * regulatory_hint_indoor - hint operation in indoor env. or not
+ * regulatory_hint_indoor - hint operation in indoor env. or yest
  * @is_indoor: if true indicates that user space thinks that the
  * device is operating in an indoor environment.
  * @portid: the netlink port ID on which the hint was given.
@@ -45,10 +45,10 @@ int regulatory_hint_user(const char *alpha2,
 int regulatory_hint_indoor(bool is_indoor, u32 portid);
 
 /**
- * regulatory_netlink_notify - notify on released netlink socket
+ * regulatory_netlink_yestify - yestify on released netlink socket
  * @portid: the netlink socket port ID
  */
-void regulatory_netlink_notify(u32 portid);
+void regulatory_netlink_yestify(u32 portid);
 
 void wiphy_regulatory_register(struct wiphy *wiphy);
 void wiphy_regulatory_deregister(struct wiphy *wiphy);
@@ -74,13 +74,13 @@ const struct ieee80211_regdomain *get_wiphy_regdom(struct wiphy *wiphy);
  * This informs the wireless core that a beacon from an AP was found on
  * the channel provided. This allows the wireless core to make educated
  * guesses on regulatory to help with world roaming. This is only used for
- * world roaming -- when we do not know our current location. This is
+ * world roaming -- when we do yest kyesw our current location. This is
  * only useful on channels 12, 13 and 14 on the 2 GHz band as channels
  * 1-11 are already enabled by the world regulatory domain; and on
- * non-radar 5 GHz channels.
+ * yesn-radar 5 GHz channels.
  *
- * Drivers do not need to call this, cfg80211 will do it for after a scan
- * on a newly found BSS. If you cannot make use of this feature you can
+ * Drivers do yest need to call this, cfg80211 will do it for after a scan
+ * on a newly found BSS. If you canyest make use of this feature you can
  * set the wiphy->disable_beacon_hints to true.
  */
 int regulatory_hint_found_beacon(struct wiphy *wiphy,
@@ -105,8 +105,8 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
  * country IE triplets even for channels outside of the band they are
  * in but for that they would have to use the regulatory extension
  * in combination with a triplet but this behaviour is currently
- * not observed. For this reason if a triplet is seen with channel
- * information for a band the BSS is not present in it will be ignored.
+ * yest observed. For this reason if a triplet is seen with channel
+ * information for a band the BSS is yest present in it will be igyesred.
  */
 void regulatory_hint_country_ie(struct wiphy *wiphy,
 			 enum nl80211_band band,
@@ -118,11 +118,11 @@ void regulatory_hint_country_ie(struct wiphy *wiphy,
  *
  * Regulotory rules can be enhanced further upon scanning and upon
  * connection to an AP. These rules become stale if we disconnect
- * and go to another country, whether or not we suspend and resume.
- * If we suspend, go to another country and resume we'll automatically
+ * and go to ayesther country, whether or yest we suspend and resume.
+ * If we suspend, go to ayesther country and resume we'll automatically
  * get disconnected shortly after resuming and things will be reset as well.
  * This routine is a helper to restore regulatory settings to how they were
- * prior to our first connect attempt. This includes ignoring country IE and
+ * prior to our first connect attempt. This includes igyesring country IE and
  * beacon regulatory hints. The ieee80211_regdom module parameter will always
  * be respected but if a user had set the regulatory domain that will take
  * precedence.

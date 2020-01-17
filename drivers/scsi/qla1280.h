@@ -94,7 +94,7 @@ struct srb {
 	struct list_head list;		/* (8/16) LU queue */
 	struct scsi_cmnd *cmd;	/* (4/8) SCSI command block */
 	/* NOTE: the sp->cmd will be NULL when this completion is
-	 * called, so you should know the scsi_cmnd when using this */
+	 * called, so you should kyesw the scsi_cmnd when using this */
 	struct completion *wait;
 	dma_addr_t saved_dma_handle;	/* for unmap of single transfers */
 	uint8_t flags;		/* (1) Status flags. */
@@ -252,9 +252,9 @@ struct device_reg {
 #define MBS_CMD_PARAM_ERR	0x4006	/* Command Parameter Error. */
 
 /*
- * ISP mailbox asynchronous event status codes
+ * ISP mailbox asynchroyesus event status codes
  */
-#define MBA_ASYNC_EVENT		0x8000	/* Asynchronous event. */
+#define MBA_ASYNC_EVENT		0x8000	/* Asynchroyesus event. */
 #define MBA_BUS_RESET		0x8001	/* SCSI Bus Reset. */
 #define MBA_SYSTEM_ERR		0x8002	/* System Error. */
 #define MBA_REQ_TRANSFER_ERR	0x8003	/* Request Transfer Error. */
@@ -312,7 +312,7 @@ struct device_reg {
 #define TP_STOP_QUEUE           BIT_9	/* Stop que on check condition */
 #define TP_AUTO_REQUEST_SENSE   BIT_10	/* Automatic request sense. */
 #define TP_TAGGED_QUEUE         BIT_11	/* Tagged queuing. */
-#define TP_SYNC                 BIT_12	/* Synchronous data transfers. */
+#define TP_SYNC                 BIT_12	/* Synchroyesus data transfers. */
 #define TP_WIDE                 BIT_13	/* Wide data transfers. */
 #define TP_PARITY               BIT_14	/* Parity checking. */
 #define TP_DISCONNECT           BIT_15	/* Disconnect privilege. */
@@ -396,9 +396,9 @@ struct nvram {
 			uint16_t unused_2:1;
 			uint16_t unused_3:1;
 			uint16_t disable_iosbs_with_bus_reset_status:1;
-			uint16_t disable_synchronous_backoff:1;
+			uint16_t disable_synchroyesus_backoff:1;
 			uint16_t unused_6:1;
-			uint16_t synchronous_backoff_reporting:1;
+			uint16_t synchroyesus_backoff_reporting:1;
 			uint16_t disable_reselection_fairness:1;
 			uint16_t unused_9:1;
 			uint16_t unused_10:1;
@@ -680,7 +680,7 @@ struct elun_entry {
 #define ENABLE_LUN_TYPE 0xB	/* Enable LUN entry. */
 	uint8_t entry_count;	/* Entry count. */
 	uint8_t reserved_1;
-	uint8_t entry_status;	/* Entry Status not used. */
+	uint8_t entry_status;	/* Entry Status yest used. */
 	__le32 reserved_2;
 	__le16 lun;		/* Bit 15 is bus number. */
 	__le16 reserved_4;
@@ -688,7 +688,7 @@ struct elun_entry {
 	uint8_t status;
 	uint8_t reserved_5;
 	uint8_t command_count;	/* Number of ATIOs allocated. */
-	uint8_t immed_notify_count;	/* Number of Immediate Notify */
+	uint8_t immed_yestify_count;	/* Number of Immediate Notify */
 	/* entries allocated. */
 	uint8_t group_6_length;	/* SCSI CDB length for group 6 */
 	/* commands (2-26). */
@@ -718,7 +718,7 @@ struct modify_lun_entry {
 	uint8_t status;
 	uint8_t reserved_5;
 	uint8_t command_count;	/* Number of ATIOs allocated. */
-	uint8_t immed_notify_count;	/* Number of Immediate Notify */
+	uint8_t immed_yestify_count;	/* Number of Immediate Notify */
 	/* entries allocated. */
 	__le16 reserved_6;
 	__le16 timeout;		/* 0 = 30 seconds, 0xFFFF = disable */
@@ -726,11 +726,11 @@ struct modify_lun_entry {
 };
 
 /*
- * ISP queue - immediate notify entry structure definition.
+ * ISP queue - immediate yestify entry structure definition.
  */
-struct notify_entry {
+struct yestify_entry {
 	uint8_t entry_type;	/* Entry type. */
-#define IMMED_NOTIFY_TYPE 0xD	/* Immediate notify entry. */
+#define IMMED_NOTIFY_TYPE 0xD	/* Immediate yestify entry. */
 	uint8_t entry_count;	/* Entry count. */
 	uint8_t reserved_1;
 	uint8_t entry_status;	/* Entry Status. */
@@ -746,17 +746,17 @@ struct notify_entry {
 	uint8_t tag_type;	/* Received queue tag message type */
 	/* entries allocated. */
 	__le16 seq_id;
-	uint8_t scsi_msg[8];	/* SCSI message not handled by ISP */
+	uint8_t scsi_msg[8];	/* SCSI message yest handled by ISP */
 	__le16 reserved_5[8];
 	uint8_t sense_data[18];
 };
 
 /*
- * ISP queue - notify acknowledge entry structure definition.
+ * ISP queue - yestify ackyeswledge entry structure definition.
  */
 struct nack_entry {
 	uint8_t entry_type;	/* Entry type. */
-#define NOTIFY_ACK_TYPE 0xE	/* Notify acknowledge entry. */
+#define NOTIFY_ACK_TYPE 0xE	/* Notify ackyeswledge entry. */
 	uint8_t entry_count;	/* Entry count. */
 	uint8_t reserved_1;
 	uint8_t entry_status;	/* Entry Status. */
@@ -993,10 +993,10 @@ struct bus_param {
 
 
 struct qla_driver_setup {
-	uint32_t no_sync:1;
-	uint32_t no_wide:1;
-	uint32_t no_ppr:1;
-	uint32_t no_nvram:1;
+	uint32_t yes_sync:1;
+	uint32_t yes_wide:1;
+	uint32_t yes_ppr:1;
+	uint32_t yes_nvram:1;
 	uint16_t sync_mask;
 	uint16_t wide_mask;
 	uint16_t ppr_mask;
@@ -1013,7 +1013,7 @@ struct scsi_qla_host {
 	struct device_reg __iomem *iobase;	/* Base Memory-mapped I/O address */
 
 	unsigned char __iomem *mmpbase;	/* memory mapped address */
-	unsigned long host_no;
+	unsigned long host_yes;
 	struct pci_dev *pdev;
 	uint8_t devnum;
 	uint8_t revision;

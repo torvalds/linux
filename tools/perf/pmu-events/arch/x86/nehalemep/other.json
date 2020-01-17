@@ -181,7 +181,7 @@
         "UMask": "0x1",
         "EventName": "SNOOP_RESPONSE.HIT",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Thread responded HIT to snoop"
+        "BriefDescription": "Thread responded HIT to syesop"
     },
     {
         "EventCode": "0xB8",
@@ -189,7 +189,7 @@
         "UMask": "0x2",
         "EventName": "SNOOP_RESPONSE.HITE",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Thread responded HITE to snoop"
+        "BriefDescription": "Thread responded HITE to syesop"
     },
     {
         "EventCode": "0xB8",
@@ -197,7 +197,7 @@
         "UMask": "0x4",
         "EventName": "SNOOP_RESPONSE.HITM",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Thread responded HITM to snoop"
+        "BriefDescription": "Thread responded HITM to syesop"
     },
     {
         "EventCode": "0xF6",

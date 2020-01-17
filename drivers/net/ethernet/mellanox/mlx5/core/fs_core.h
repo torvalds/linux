@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -57,9 +57,9 @@ struct mlx5_pkt_reformat {
 };
 
 /* FS_TYPE_PRIO_CHAINS is a PRIO that will have namespaces only,
- * and those are in parallel to one another when going over them to connect
+ * and those are in parallel to one ayesther when going over them to connect
  * a new flow table. Meaning the last flow table in a TYPE_PRIO prio in one
- * parallel namespace will not automatically connect to the first flow table
+ * parallel namespace will yest automatically connect to the first flow table
  * found in any prio in any next namespace, but skip the entire containing
  * TYPE_PRIO_CHAINS prio.
  *
@@ -67,7 +67,7 @@ struct mlx5_pkt_reformat {
  * namespace inside a containing TYPE_PRIO_CHAINS prio.
  */
 
-enum fs_node_type {
+enum fs_yesde_type {
 	FS_TYPE_NAMESPACE,
 	FS_TYPE_PRIO,
 	FS_TYPE_PRIO_CHAINS,
@@ -119,23 +119,23 @@ struct mlx5_flow_steering {
 	struct mlx5_flow_root_namespace	*egress_root_ns;
 };
 
-struct fs_node {
+struct fs_yesde {
 	struct list_head	list;
 	struct list_head	children;
-	enum fs_node_type	type;
-	struct fs_node		*parent;
-	struct fs_node		*root;
-	/* lock the node for writing and traversing */
+	enum fs_yesde_type	type;
+	struct fs_yesde		*parent;
+	struct fs_yesde		*root;
+	/* lock the yesde for writing and traversing */
 	struct rw_semaphore	lock;
 	refcount_t		refcount;
 	bool			active;
-	void			(*del_hw_func)(struct fs_node *);
-	void			(*del_sw_func)(struct fs_node *);
+	void			(*del_hw_func)(struct fs_yesde *);
+	void			(*del_sw_func)(struct fs_yesde *);
 	atomic_t		version;
 };
 
 struct mlx5_flow_rule {
-	struct fs_node				node;
+	struct fs_yesde				yesde;
 	struct mlx5_flow_destination		dest_attr;
 	/* next_ft should be accessed under chain_lock and only of
 	 * destination type is FWD_NEXT_fT.
@@ -151,7 +151,7 @@ struct mlx5_flow_handle {
 
 /* Type of children is mlx5_flow_group */
 struct mlx5_flow_table {
-	struct fs_node			node;
+	struct fs_yesde			yesde;
 	struct mlx5_fs_dr_table		fs_dr_table;
 	u32				id;
 	u16				vport;
@@ -193,7 +193,7 @@ struct mlx5_ft_underlay_qp {
 
 /* Type of children is mlx5_flow_rule */
 struct fs_fte {
-	struct fs_node			node;
+	struct fs_yesde			yesde;
 	struct mlx5_fs_dr_rule		fs_dr_rule;
 	u32				val[MLX5_ST_SZ_DW_MATCH_PARAM];
 	u32				dests_size;
@@ -208,7 +208,7 @@ struct fs_fte {
 
 /* Type of children is mlx5_flow_table/namespace */
 struct fs_prio {
-	struct fs_node			node;
+	struct fs_yesde			yesde;
 	unsigned int			num_levels;
 	unsigned int			start_level;
 	unsigned int			prio;
@@ -218,7 +218,7 @@ struct fs_prio {
 /* Type of children is fs_prio */
 struct mlx5_flow_namespace {
 	/* parent == NULL => root ns */
-	struct	fs_node			node;
+	struct	fs_yesde			yesde;
 	enum mlx5_flow_table_miss_action def_miss_action;
 };
 
@@ -229,7 +229,7 @@ struct mlx5_flow_group_mask {
 
 /* Type of children is fs_fte */
 struct mlx5_flow_group {
-	struct fs_node			node;
+	struct fs_yesde			yesde;
 	struct mlx5_fs_dr_matcher	fs_dr_matcher;
 	struct mlx5_flow_group_mask	mask;
 	u32				start_index;
@@ -272,40 +272,40 @@ int mlx5_flow_namespace_set_mode(struct mlx5_flow_namespace *ns,
 int mlx5_init_fs(struct mlx5_core_dev *dev);
 void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
 
-#define fs_get_obj(v, _node)  {v = container_of((_node), typeof(*v), node); }
+#define fs_get_obj(v, _yesde)  {v = container_of((_yesde), typeof(*v), yesde); }
 
 #define fs_list_for_each_entry(pos, root)		\
-	list_for_each_entry(pos, root, node.list)
+	list_for_each_entry(pos, root, yesde.list)
 
 #define fs_list_for_each_entry_safe(pos, tmp, root)		\
-	list_for_each_entry_safe(pos, tmp, root, node.list)
+	list_for_each_entry_safe(pos, tmp, root, yesde.list)
 
 #define fs_for_each_ns_or_ft_reverse(pos, prio)				\
-	list_for_each_entry_reverse(pos, &(prio)->node.children, list)
+	list_for_each_entry_reverse(pos, &(prio)->yesde.children, list)
 
 #define fs_for_each_ns_or_ft(pos, prio)					\
-	list_for_each_entry(pos, (&(prio)->node.children), list)
+	list_for_each_entry(pos, (&(prio)->yesde.children), list)
 
 #define fs_for_each_prio(pos, ns)			\
-	fs_list_for_each_entry(pos, &(ns)->node.children)
+	fs_list_for_each_entry(pos, &(ns)->yesde.children)
 
 #define fs_for_each_ns(pos, prio)			\
-	fs_list_for_each_entry(pos, &(prio)->node.children)
+	fs_list_for_each_entry(pos, &(prio)->yesde.children)
 
 #define fs_for_each_ft(pos, prio)			\
-	fs_list_for_each_entry(pos, &(prio)->node.children)
+	fs_list_for_each_entry(pos, &(prio)->yesde.children)
 
 #define fs_for_each_ft_safe(pos, tmp, prio)			\
-	fs_list_for_each_entry_safe(pos, tmp, &(prio)->node.children)
+	fs_list_for_each_entry_safe(pos, tmp, &(prio)->yesde.children)
 
 #define fs_for_each_fg(pos, ft)			\
-	fs_list_for_each_entry(pos, &(ft)->node.children)
+	fs_list_for_each_entry(pos, &(ft)->yesde.children)
 
 #define fs_for_each_fte(pos, fg)			\
-	fs_list_for_each_entry(pos, &(fg)->node.children)
+	fs_list_for_each_entry(pos, &(fg)->yesde.children)
 
 #define fs_for_each_dst(pos, fte)			\
-	fs_list_for_each_entry(pos, &(fte)->node.children)
+	fs_list_for_each_entry(pos, &(fte)->yesde.children)
 
 #define MLX5_CAP_FLOWTABLE_TYPE(mdev, cap, type) (		\
 	(type == FS_FT_NIC_RX) ? MLX5_CAP_FLOWTABLE_NIC_RX(mdev, cap) :		\

@@ -193,7 +193,7 @@ static void vop_reg_set(struct vop *vop, const struct vop_reg *reg,
 	int offset, mask, shift;
 
 	if (!reg || !reg->mask) {
-		DRM_DEV_DEBUG(vop->dev, "Warning: not support %s\n", reg_name);
+		DRM_DEV_DEBUG(vop->dev, "Warning: yest support %s\n", reg_name);
 		return;
 	}
 
@@ -365,11 +365,11 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 	VOP_SCL_SET_EXT(vop, win, lb_mode, lb_mode);
 	if (lb_mode == LB_RGB_3840X2) {
 		if (yrgb_ver_scl_mode != SCALE_NONE) {
-			DRM_DEV_ERROR(vop->dev, "not allow yrgb ver scale\n");
+			DRM_DEV_ERROR(vop->dev, "yest allow yrgb ver scale\n");
 			return;
 		}
 		if (cbcr_ver_scl_mode != SCALE_NONE) {
-			DRM_DEV_ERROR(vop->dev, "not allow cbcr ver scale\n");
+			DRM_DEV_ERROR(vop->dev, "yest allow cbcr ver scale\n");
 			return;
 		}
 		vsu_mode = SCALE_UP_BIL;
@@ -667,7 +667,7 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	 * if dsp hold valid irq happen, it means standby complete.
 	 *
 	 * we must wait standby complete when we want to disable aclk,
-	 * if not, memory bus maybe dead.
+	 * if yest, memory bus maybe dead.
 	 */
 	reinit_completion(&vop->dsp_hold_completion);
 	vop_dsp_hold_valid_irq_enable(vop);
@@ -749,12 +749,12 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	 * need align with 2 pixel.
 	 */
 	if (fb->format->is_yuv && ((state->src.x1 >> 16) % 2)) {
-		DRM_ERROR("Invalid Source: Yuv format not support odd xpos\n");
+		DRM_ERROR("Invalid Source: Yuv format yest support odd xpos\n");
 		return -EINVAL;
 	}
 
 	if (fb->format->is_yuv && state->rotation & DRM_MODE_REFLECT_Y) {
-		DRM_ERROR("Invalid Source: Yuv format does not support this rotation\n");
+		DRM_ERROR("Invalid Source: Yuv format does yest support this rotation\n");
 		return -EINVAL;
 	}
 
@@ -892,9 +892,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 
 	/*
 	 * Blending win0 with the background color doesn't seem to work
-	 * correctly. We only get the background color, no matter the contents
+	 * correctly. We only get the background color, yes matter the contents
 	 * of the win0 framebuffer.  However, blending pre-multiplied color
-	 * with the default opaque black default background color is a no-op,
+	 * with the default opaque black default background color is a yes-op,
 	 * so we can just disable blending to get the correct result.
 	 */
 	if (fb->format->has_alpha && win_index > 0) {
@@ -938,7 +938,7 @@ static int vop_plane_atomic_async_check(struct drm_plane *plane,
 	if (state->state)
 		crtc_state = drm_atomic_get_existing_crtc_state(state->state,
 								state->crtc);
-	else /* Special case for asynchronous cursor updates. */
+	else /* Special case for asynchroyesus cursor updates. */
 		crtc_state = plane->crtc->state;
 
 	return drm_atomic_helper_check_plane_state(plane->state, crtc_state,
@@ -969,7 +969,7 @@ static void vop_plane_atomic_async_update(struct drm_plane *plane,
 		spin_unlock(&vop->reg_lock);
 
 		/*
-		 * A scanout can still be occurring, so we can't drop the
+		 * A scayesut can still be occurring, so we can't drop the
 		 * reference to the old framebuffer. To solve this we get a
 		 * reference to old_fb and set a worker to release it later.
 		 * FIXME: if we perform 500 async_update calls before the
@@ -1062,7 +1062,7 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 	 *
 	 *    NOTE: if the PLL (maybe through a divider) could actually make
 	 *    a clock rate 999 Hz higher instead of the one we want then this
-	 *    could be a problem.  Unfortunately there's not much we can do
+	 *    could be a problem.  Unfortunately there's yest much we can do
 	 *    since it's baked into DRM to use kHz.  It shouldn't matter in
 	 *    practice since Rockchip PLLs are controlled by tables and
 	 *    even if there is a divider in the middle I wouldn't expect PLL
@@ -1145,7 +1145,7 @@ static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
 	struct vop *vop = to_vop(crtc);
 
 	/*
-	 * Only update GAMMA if the 'active' flag is not changed,
+	 * Only update GAMMA if the 'active' flag is yest changed,
 	 * otherwise it's updated by .atomic_enable.
 	 */
 	if (crtc->state->color_mgmt_changed &&
@@ -1239,7 +1239,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	}
 
 	/*
-	 * if vop is not support RGB10 output, need force RGB10 to RGB888.
+	 * if vop is yest support RGB10 output, need force RGB10 to RGB888.
 	 */
 	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
 	    !(vop_data->feature & VOP_FEATURE_OUTPUT_RGB10))
@@ -1584,7 +1584,7 @@ static irqreturn_t vop_isr(int irq, void *data)
 
 	/* Unhandled irqs are spurious. */
 	if (active_irqs)
-		DRM_DEV_ERROR(vop->dev, "Unknown VOP IRQs: %#02x\n",
+		DRM_DEV_ERROR(vop->dev, "Unkyeswn VOP IRQs: %#02x\n",
 			      active_irqs);
 
 out_disable:
@@ -1613,7 +1613,7 @@ static int vop_create_crtc(struct vop *vop)
 	struct drm_device *drm_dev = vop->drm_dev;
 	struct drm_plane *primary = NULL, *cursor = NULL, *plane, *tmp;
 	struct drm_crtc *crtc = &vop->crtc;
-	struct device_node *port;
+	struct device_yesde *port;
 	int ret;
 	int i;
 
@@ -1688,10 +1688,10 @@ static int vop_create_crtc(struct vop *vop)
 		vop_plane_add_properties(&vop_win->base, win_data);
 	}
 
-	port = of_get_child_by_name(dev->of_node, "port");
+	port = of_get_child_by_name(dev->of_yesde, "port");
 	if (!port) {
-		DRM_DEV_ERROR(vop->dev, "no port node found in %pOF\n",
-			      dev->of_node);
+		DRM_DEV_ERROR(vop->dev, "yes port yesde found in %pOF\n",
+			      dev->of_yesde);
 		ret = -ENOENT;
 		goto err_cleanup_crtc;
 	}
@@ -1706,7 +1706,7 @@ static int vop_create_crtc(struct vop *vop)
 	ret = drm_self_refresh_helper_init(crtc);
 	if (ret)
 		DRM_DEV_DEBUG_KMS(vop->dev,
-			"Failed to init %s with SR helpers %d, ignoring\n",
+			"Failed to init %s with SR helpers %d, igyesring\n",
 			crtc->name, ret);
 
 	return 0;
@@ -1728,10 +1728,10 @@ static void vop_destroy_crtc(struct vop *vop)
 
 	drm_self_refresh_helper_cleanup(crtc);
 
-	of_node_put(crtc->port);
+	of_yesde_put(crtc->port);
 
 	/*
-	 * We need to cleanup the planes now.  Why?
+	 * We need to cleanup the planes yesw.  Why?
 	 *
 	 * The planes are "&vop->win[i].base".  That means the memory is
 	 * all part of the big "struct vop" chunk of memory.  That memory
@@ -1891,7 +1891,7 @@ static void vop_win_init(struct vop *vop)
  * Wait for vact_end line flag irq or timeout.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erryes on failure.
  */
 int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
 {
@@ -1967,7 +1967,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res) {
 		if (!vop_data->lut_size) {
-			DRM_DEV_ERROR(dev, "no gamma LUT size defined\n");
+			DRM_DEV_ERROR(dev, "yes gamma LUT size defined\n");
 			return -EINVAL;
 		}
 		vop->lut_regs = devm_ioremap_resource(dev, res);
@@ -1981,7 +1981,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		DRM_DEV_ERROR(dev, "cannot find irq for vop\n");
+		DRM_DEV_ERROR(dev, "canyest find irq for vop\n");
 		return irq;
 	}
 	vop->irq = (unsigned int)irq;
@@ -1999,7 +1999,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	ret = vop_initial(vop);
 	if (ret < 0) {
 		DRM_DEV_ERROR(&pdev->dev,
-			      "cannot initial vop dev - err %d\n", ret);
+			      "canyest initial vop dev - err %d\n", ret);
 		goto err_disable_pm_runtime;
 	}
 

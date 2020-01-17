@@ -16,38 +16,38 @@ struct xfs_alloc_arg;
  * Busy block/extent entry.  Indexed by a rbtree in perag to mark blocks that
  * have been freed but whose transactions aren't committed to disk yet.
  *
- * Note that we use the transaction ID to record the transaction, not the
+ * Note that we use the transaction ID to record the transaction, yest the
  * transaction structure itself. See xfs_extent_busy_insert() for details.
  */
 struct xfs_extent_busy {
-	struct rb_node	rb_node;	/* ag by-bno indexed search tree */
+	struct rb_yesde	rb_yesde;	/* ag by-byes indexed search tree */
 	struct list_head list;		/* transaction busy extent list */
-	xfs_agnumber_t	agno;
-	xfs_agblock_t	bno;
+	xfs_agnumber_t	agyes;
+	xfs_agblock_t	byes;
 	xfs_extlen_t	length;
 	unsigned int	flags;
 #define XFS_EXTENT_BUSY_DISCARDED	0x01	/* undergoing a discard op. */
-#define XFS_EXTENT_BUSY_SKIP_DISCARD	0x02	/* do not discard */
+#define XFS_EXTENT_BUSY_SKIP_DISCARD	0x02	/* do yest discard */
 };
 
 void
-xfs_extent_busy_insert(struct xfs_trans *tp, xfs_agnumber_t agno,
-	xfs_agblock_t bno, xfs_extlen_t len, unsigned int flags);
+xfs_extent_busy_insert(struct xfs_trans *tp, xfs_agnumber_t agyes,
+	xfs_agblock_t byes, xfs_extlen_t len, unsigned int flags);
 
 void
 xfs_extent_busy_clear(struct xfs_mount *mp, struct list_head *list,
 	bool do_discard);
 
 int
-xfs_extent_busy_search(struct xfs_mount *mp, xfs_agnumber_t agno,
-	xfs_agblock_t bno, xfs_extlen_t len);
+xfs_extent_busy_search(struct xfs_mount *mp, xfs_agnumber_t agyes,
+	xfs_agblock_t byes, xfs_extlen_t len);
 
 void
-xfs_extent_busy_reuse(struct xfs_mount *mp, xfs_agnumber_t agno,
-	xfs_agblock_t fbno, xfs_extlen_t flen, bool userdata);
+xfs_extent_busy_reuse(struct xfs_mount *mp, xfs_agnumber_t agyes,
+	xfs_agblock_t fbyes, xfs_extlen_t flen, bool userdata);
 
 bool
-xfs_extent_busy_trim(struct xfs_alloc_arg *args, xfs_agblock_t *bno,
+xfs_extent_busy_trim(struct xfs_alloc_arg *args, xfs_agblock_t *byes,
 		xfs_extlen_t *len, unsigned *busy_gen);
 
 void

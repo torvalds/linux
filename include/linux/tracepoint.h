@@ -7,14 +7,14 @@
  *
  * See Documentation/trace/tracepoints.rst.
  *
- * Copyright (C) 2008-2014 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * Copyright (C) 2008-2014 Mathieu Desyesyers <mathieu.desyesyers@efficios.com>
  *
  * Heavily inspired from the Linux Kernel Markers.
  */
 
 #include <linux/smp.h>
 #include <linux/srcu.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
 #include <linux/rcupdate.h>
@@ -22,7 +22,7 @@
 
 struct module;
 struct tracepoint;
-struct notifier_block;
+struct yestifier_block;
 
 struct trace_eval_map {
 	const char		*system;
@@ -52,20 +52,20 @@ struct tp_module {
 };
 
 bool trace_module_has_bad_taint(struct module *mod);
-extern int register_tracepoint_module_notifier(struct notifier_block *nb);
-extern int unregister_tracepoint_module_notifier(struct notifier_block *nb);
+extern int register_tracepoint_module_yestifier(struct yestifier_block *nb);
+extern int unregister_tracepoint_module_yestifier(struct yestifier_block *nb);
 #else
 static inline bool trace_module_has_bad_taint(struct module *mod)
 {
 	return false;
 }
 static inline
-int register_tracepoint_module_notifier(struct notifier_block *nb)
+int register_tracepoint_module_yestifier(struct yestifier_block *nb)
 {
 	return 0;
 }
 static inline
-int unregister_tracepoint_module_notifier(struct notifier_block *nb)
+int unregister_tracepoint_module_yestifier(struct yestifier_block *nb)
 {
 	return 0;
 }
@@ -73,7 +73,7 @@ int unregister_tracepoint_module_notifier(struct notifier_block *nb)
 
 /*
  * tracepoint_synchronize_unregister must be called between the last tracepoint
- * probe unregistration and the end of module exit to make sure there is no
+ * probe unregistration and the end of module exit to make sure there is yes
  * caller executing a probe when it is freed.
  */
 #ifdef CONFIG_TRACEPOINTS
@@ -151,7 +151,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 
 /*
  * it_func[0] is never NULL because there is at least one element in the array
- * when the array itself is non NULL.
+ * when the array itself is yesn NULL.
  *
  * Note, the proto and args passed in includes "__data" as the first parameter.
  * The reason for this is to handle the "void" prototype. If a tracepoint
@@ -173,14 +173,14 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 		WARN_ON_ONCE(rcuidle && in_nmi());			\
 									\
 		/* keep srcu and sched-rcu usage consistent */		\
-		preempt_disable_notrace();				\
+		preempt_disable_yestrace();				\
 									\
 		/*							\
 		 * For rcuidle callers, use srcu since sched-rcu	\
 		 * doesn't work from the idle path.			\
 		 */							\
 		if (rcuidle) {						\
-			__idx = srcu_read_lock_notrace(&tracepoint_srcu);\
+			__idx = srcu_read_lock_yestrace(&tracepoint_srcu);\
 			rcu_irq_enter_irqson();				\
 		}							\
 									\
@@ -196,10 +196,10 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 									\
 		if (rcuidle) {						\
 			rcu_irq_exit_irqson();				\
-			srcu_read_unlock_notrace(&tracepoint_srcu, __idx);\
+			srcu_read_unlock_yestrace(&tracepoint_srcu, __idx);\
 		}							\
 									\
-		preempt_enable_notrace();				\
+		preempt_enable_yestrace();				\
 	} while (0)
 
 #ifndef MODULE
@@ -218,14 +218,14 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 
 /*
  * Make sure the alignment of the structure in the __tracepoints section will
- * not add unwanted padding between the beginning of the section and the
+ * yest add unwanted padding between the beginning of the section and the
  * structure. Force alignment to the same alignment as the section start.
  *
  * When lockdep is enabled, we make sure to always do the RCU portions of
  * the tracepoint code, regardless of whether tracing is on. However,
  * don't check if the condition is false, due to interaction with idle
  * instrumentation. This lets us find RCU issues triggered with tracepoints
- * even when this tracepoint is off. This code has no purpose other than
+ * even when this tracepoint is off. This code has yes purpose other than
  * poking RCU a bit.
  */
 #define __DECLARE_TRACE(name, proto, args, cond, data_proto, data_args) \
@@ -238,9 +238,9 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 				TP_ARGS(data_args),			\
 				TP_CONDITION(cond), 0);			\
 		if (IS_ENABLED(CONFIG_LOCKDEP) && (cond)) {		\
-			rcu_read_lock_sched_notrace();			\
+			rcu_read_lock_sched_yestrace();			\
 			rcu_dereference_sched(__tracepoint_##name.funcs);\
-			rcu_read_unlock_sched_notrace();		\
+			rcu_read_unlock_sched_yestrace();		\
 		}							\
 	}								\
 	__DECLARE_TRACE_RCU(name, PARAMS(proto), PARAMS(args),		\
@@ -275,7 +275,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 	}
 
 /*
- * We have no guarantee that gcc and the linker won't up-align the tracepoint
+ * We have yes guarantee that gcc and the linker won't up-align the tracepoint
  * structures, so we create an array of pointers that will be used for iteration
  * on the tracepoints.
  */
@@ -340,8 +340,8 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * and wasting space and time.
  *
  * The problem with the above approach is that userspace tools that read
- * the binary output of the trace buffers do not have access to the string.
- * Instead they just show the address of the string which is not very
+ * the binary output of the trace buffers do yest have access to the string.
+ * Instead they just show the address of the string which is yest very
  * useful to users.
  *
  * With tracepoint_string(), the string will be registered to the tracing
@@ -350,11 +350,11 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * tools that read the binary buffers have a way to map the pointers to
  * the ASCII strings they represent.
  *
- * The @str used must be a constant string and persistent as it would not
- * make sense to show a string that no longer exists. But it is still fine
+ * The @str used must be a constant string and persistent as it would yest
+ * make sense to show a string that yes longer exists. But it is still fine
  * to be used with modules, because when modules are unloaded, if they
  * had tracepoints, the ring buffers are cleared too. As long as the string
- * does not change during the life of the module, it is fine to use
+ * does yest change during the life of the module, it is fine to use
  * tracepoint_string() within a module.
  */
 #define tracepoint_string(str)						\
@@ -366,7 +366,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 #else
 /*
  * tracepoint_string() is used to save the string address for userspace
- * tracing tools. When tracing isn't configured, there's no need to save
+ * tracing tools. When tracing isn't configured, there's yes need to save
  * anything.
  */
 # define tracepoint_string(str) str
@@ -376,7 +376,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 /*
  * The need for the DECLARE_TRACE_NOARGS() is to handle the prototype
  * (void). "void" is a special value in a function prototype and can
- * not be combined with other arguments. Since the DECLARE_TRACE()
+ * yest be combined with other arguments. Since the DECLARE_TRACE()
  * macro adds a data element at the beginning of the prototype,
  * we need a way to differentiate "(void *data, proto)" from
  * "(void *data, void)". The second prototype is invalid.
@@ -418,10 +418,10 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * and its 'fast binary record' layout.
  *
  * Firstly, name your tracepoint via TRACE_EVENT(name : the
- * 'subsystem_event' notation is fine.
+ * 'subsystem_event' yestation is fine.
  *
  * Think about this whole construct as the
- * 'trace_sched_switch() function' from now on.
+ * 'trace_sched_switch() function' from yesw on.
  *
  *
  *  TRACE_EVENT(sched_switch,
@@ -436,7 +436,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  *
  *	*
  *	* Define the call signature of the 'function'.
- *	* (Design sidenote: we use this instead of a
+ *	* (Design sideyeste: we use this instead of a
  *	*  TP_PROTO1/TP_PROTO2/TP_PROTO3 ugliness.)
  *	*
  *
@@ -561,4 +561,4 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 #define DEFINE_EVENT_NOP(template, name, proto, args)			\
 	DECLARE_EVENT_NOP(name, PARAMS(proto), PARAMS(args))
 
-#endif /* ifdef TRACE_EVENT (see note above) */
+#endif /* ifdef TRACE_EVENT (see yeste above) */

@@ -13,8 +13,8 @@ config SH_STANDARD_BIOS
 	  boot for various housekeeping tasks (including calls to read and
 	  write characters to a system console, get a MAC address from an
 	  on-board Ethernet interface, and shut down the hardware).  Note this
-	  does not work with machines with an existing operating system in
-	  mask ROM and no flash (WindowsCE machines fall in this category).
+	  does yest work with machines with an existing operating system in
+	  mask ROM and yes flash (WindowsCE machines fall in this category).
 	  If unsure, say N.
 
 config STACK_DEBUG

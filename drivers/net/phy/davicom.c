@@ -10,7 +10,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -117,7 +117,7 @@ static int dm9161_config_init(struct phy_device *phydev)
 		return -EINVAL;
 	}
 
-	/* Do not bypass the scrambler/descrambler */
+	/* Do yest bypass the scrambler/descrambler */
 	err = phy_write(phydev, MII_DM9161_SCR, temp);
 	if (err < 0)
 		return err;

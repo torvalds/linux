@@ -17,37 +17,37 @@
  *
  * raw_copy_{to,from}_user(to, from, size) should copy up to size bytes and
  * return the amount left to copy.  They should assume that access_ok() has
- * already been checked (and succeeded); they should *not* zero-pad anything.
+ * already been checked (and succeeded); they should *yest* zero-pad anything.
  * No KASAN or object size checks either - those belong here.
  *
  * Both of these functions should attempt to copy size bytes starting at from
- * into the area starting at to.  They must not fetch or store anything
+ * into the area starting at to.  They must yest fetch or store anything
  * outside of those areas.  Return value must be between 0 (everything
- * copied successfully) and size (nothing copied).
+ * copied successfully) and size (yesthing copied).
  *
  * If raw_copy_{to,from}_user(to, from, size) returns N, size - N bytes starting
  * at to must become equal to the bytes fetched from the corresponding area
  * starting at from.  All data past to + size - N must be left unmodified.
  *
- * If copying succeeds, the return value must be 0.  If some data cannot be
+ * If copying succeeds, the return value must be 0.  If some data canyest be
  * fetched, it is permitted to copy less than had been fetched; the only
- * hard requirement is that not storing anything at all (i.e. returning size)
- * should happen only when nothing could be copied.  In other words, you don't
- * have to squeeze as much as possible - it is allowed, but not necessary.
+ * hard requirement is that yest storing anything at all (i.e. returning size)
+ * should happen only when yesthing could be copied.  In other words, you don't
+ * have to squeeze as much as possible - it is allowed, but yest necessary.
  *
- * For raw_copy_from_user() to always points to kernel memory and no faults
+ * For raw_copy_from_user() to always points to kernel memory and yes faults
  * on store should happen.  Interpretation of from is affected by set_fs().
  * For raw_copy_to_user() it's the other way round.
  *
  * Both can be inlined - it's up to architectures whether it wants to bother
- * with that.  They should not be used directly; they are used to implement
+ * with that.  They should yest be used directly; they are used to implement
  * the 6 functions (copy_{to,from}_user(), __copy_{to,from}_user_inatomic())
  * that are used instead.  Out of those, __... ones are inlined.  Plain
- * copy_{to,from}_user() might or might not be inlined.  If you want them
+ * copy_{to,from}_user() might or might yest be inlined.  If you want them
  * inlined, have asm/uaccess.h define INLINE_COPY_{TO,FROM}_USER.
  *
  * NOTE: only copy_from_user() zero-pads the destination in case of short copy.
- * Neither __copy_from_user() nor __copy_from_user_inatomic() zero anything
+ * Neither __copy_from_user() yesr __copy_from_user_inatomic() zero anything
  * at all; their callers absolutely must check the return value.
  *
  * Biarch ones should also provide raw_copy_in_user() - similar to the above,
@@ -175,9 +175,9 @@ static __always_inline void pagefault_disabled_dec(void)
 
 /*
  * These routines enable/disable the pagefault handler. If disabled, it will
- * not take any locks and go straight to the fixup table.
+ * yest take any locks and go straight to the fixup table.
  *
- * User access methods will not sleep when called from a pagefault_disabled()
+ * User access methods will yest sleep when called from a pagefault_disabled()
  * environment.
  */
 static inline void pagefault_disable(void)
@@ -201,7 +201,7 @@ static inline void pagefault_enable(void)
 }
 
 /*
- * Is the pagefault handler disabled? If so, user access methods will not sleep.
+ * Is the pagefault handler disabled? If so, user access methods will yest sleep.
  */
 static inline bool pagefault_disabled(void)
 {
@@ -223,7 +223,7 @@ static inline bool pagefault_disabled(void)
 #ifndef ARCH_HAS_NOCACHE_UACCESS
 
 static inline __must_check unsigned long
-__copy_from_user_inatomic_nocache(void *to, const void __user *from,
+__copy_from_user_inatomic_yescache(void *to, const void __user *from,
 				  unsigned long n)
 {
 	return __copy_from_user_inatomic(to, from, n);
@@ -273,11 +273,11 @@ extern __must_check int check_zeroed_user(const void __user *from, size_t size);
  *    newer kernel. The rest of the trailing bytes in @dst (@ksize - @usize)
  *    are to be zero-filled.
  *  * If @usize > @ksize, then the userspace has passed a new struct to an
- *    older kernel. The trailing bytes unknown to the kernel (@usize - @ksize)
+ *    older kernel. The trailing bytes unkyeswn to the kernel (@usize - @ksize)
  *    are checked to ensure they are zeroed, otherwise -E2BIG is returned.
  *
  * Returns (in all cases, some data may have been copied):
- *  * -E2BIG:  (@usize > @ksize) and there are non-zero trailing bytes in @src.
+ *  * -E2BIG:  (@usize > @ksize) and there are yesn-zero trailing bytes in @src.
  *  * -EFAULT: access to userspace failed.
  */
 static __always_inline __must_check int
@@ -335,8 +335,8 @@ extern long __probe_user_read(void *dst, const void __user *src, size_t size);
  * Safely write to address @dst from the buffer at @src.  If a kernel fault
  * happens, handle that and return -EFAULT.
  */
-extern long notrace probe_kernel_write(void *dst, const void *src, size_t size);
-extern long notrace __probe_kernel_write(void *dst, const void *src, size_t size);
+extern long yestrace probe_kernel_write(void *dst, const void *src, size_t size);
+extern long yestrace __probe_kernel_write(void *dst, const void *src, size_t size);
 
 /*
  * probe_user_write(): safely attempt to write to a location in user space
@@ -347,8 +347,8 @@ extern long notrace __probe_kernel_write(void *dst, const void *src, size_t size
  * Safely write to address @dst from the buffer at @src.  If a kernel fault
  * happens, handle that and return -EFAULT.
  */
-extern long notrace probe_user_write(void __user *dst, const void *src, size_t size);
-extern long notrace __probe_user_write(void __user *dst, const void *src, size_t size);
+extern long yestrace probe_user_write(void __user *dst, const void *src, size_t size);
+extern long yestrace __probe_user_write(void __user *dst, const void *src, size_t size);
 
 extern long strncpy_from_unsafe(char *dst, const void *unsafe_addr, long count);
 extern long strncpy_from_unsafe_strict(char *dst, const void *unsafe_addr,
@@ -382,7 +382,7 @@ static inline void user_access_restore(unsigned long flags) { }
 #ifdef CONFIG_HARDENED_USERCOPY
 void usercopy_warn(const char *name, const char *detail, bool to_user,
 		   unsigned long offset, unsigned long len);
-void __noreturn usercopy_abort(const char *name, const char *detail,
+void __yesreturn usercopy_abort(const char *name, const char *detail,
 			       bool to_user, unsigned long offset,
 			       unsigned long len);
 #endif

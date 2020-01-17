@@ -217,7 +217,7 @@ static unsigned command_2_index(u8 c, u8 sc)
  * @cmd:	command number
  * @subcmd:	subcommand number
  *
- * Return value: static string, NULL if command/subcommand unknown
+ * Return value: static string, NULL if command/subcommand unkyeswn
  */
 
 static unsigned char *capi_cmd2par(u8 cmd, u8 subcmd)
@@ -816,7 +816,7 @@ _cdebbuf *capi_cmsg2str(_cmsg *cmsg)
 	_cdebbuf *cdb;
 
 	if (!cmsg->m)
-		return NULL;	/* no message */
+		return NULL;	/* yes message */
 	cdb = cdebbuf_alloc();
 	if (!cdb)
 		return NULL;
@@ -864,7 +864,7 @@ void __exit cdebug_exit(void)
 
 #else /* !CONFIG_CAPI_TRACE */
 
-static _cdebbuf g_debbuf = {"CONFIG_CAPI_TRACE not enabled", NULL, 0, 0};
+static _cdebbuf g_debbuf = {"CONFIG_CAPI_TRACE yest enabled", NULL, 0, 0};
 
 _cdebbuf *capi_message2str(u8 *msg)
 {

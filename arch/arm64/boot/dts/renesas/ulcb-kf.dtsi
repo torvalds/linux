@@ -341,8 +341,8 @@
 	vmmc-supply = <&wlan_en>;
 	vqmmc-supply = <&wlan_en>;
 	bus-width = <4>;
-	no-1-8-v;
-	non-removable;
+	yes-1-8-v;
+	yesn-removable;
 	cap-power-off-card;
 	keep-power-in-suspend;
 	max-frequency = <26000000>;

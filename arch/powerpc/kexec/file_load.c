@@ -45,7 +45,7 @@ int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
  * @kernel_load_addr:	Address where the kernel is loaded.
  * @fdt_load_addr:	Address where the flattened device tree is loaded.
  *
- * Return: 0 on success, or negative errno on error.
+ * Return: 0 on success, or negative erryes on error.
  */
 int setup_purgatory(struct kimage *image, const void *slave_code,
 		    const void *fdt, unsigned long kernel_load_addr,
@@ -90,7 +90,7 @@ int setup_purgatory(struct kimage *image, const void *slave_code,
 /**
  * delete_fdt_mem_rsv - delete memory reservation with given address and size
  *
- * Return: 0 on success, or negative errno on error.
+ * Return: 0 on success, or negative erryes on error.
  */
 int delete_fdt_mem_rsv(void *fdt, unsigned long start, unsigned long size)
 {
@@ -124,17 +124,17 @@ int delete_fdt_mem_rsv(void *fdt, unsigned long start, unsigned long size)
  * @image:		kexec image being loaded.
  * @fdt:		Flattened device tree for the next kernel.
  * @initrd_load_addr:	Address where the next initrd will be loaded.
- * @initrd_len:		Size of the next initrd, or 0 if there will be none.
+ * @initrd_len:		Size of the next initrd, or 0 if there will be yesne.
  * @cmdline:		Command line for the next kernel, or NULL if there will
- *			be none.
+ *			be yesne.
  *
- * Return: 0 on success, or negative errno on error.
+ * Return: 0 on success, or negative erryes on error.
  */
 int setup_new_fdt(const struct kimage *image, void *fdt,
 		  unsigned long initrd_load_addr, unsigned long initrd_len,
 		  const char *cmdline)
 {
-	int ret, chosen_node;
+	int ret, chosen_yesde;
 	const void *prop;
 
 	/* Remove memory reservation for the current device tree. */
@@ -145,27 +145,27 @@ int setup_new_fdt(const struct kimage *image, void *fdt,
 	else if (ret != -ENOENT)
 		return ret;
 
-	chosen_node = fdt_path_offset(fdt, "/chosen");
-	if (chosen_node == -FDT_ERR_NOTFOUND) {
-		chosen_node = fdt_add_subnode(fdt, fdt_path_offset(fdt, "/"),
+	chosen_yesde = fdt_path_offset(fdt, "/chosen");
+	if (chosen_yesde == -FDT_ERR_NOTFOUND) {
+		chosen_yesde = fdt_add_subyesde(fdt, fdt_path_offset(fdt, "/"),
 					      "chosen");
-		if (chosen_node < 0) {
+		if (chosen_yesde < 0) {
 			pr_err("Error creating /chosen.\n");
 			return -EINVAL;
 		}
-	} else if (chosen_node < 0) {
+	} else if (chosen_yesde < 0) {
 		pr_err("Malformed device tree: error reading /chosen.\n");
 		return -EINVAL;
 	}
 
 	/* Did we boot using an initrd? */
-	prop = fdt_getprop(fdt, chosen_node, "linux,initrd-start", NULL);
+	prop = fdt_getprop(fdt, chosen_yesde, "linux,initrd-start", NULL);
 	if (prop) {
 		uint64_t tmp_start, tmp_end, tmp_size;
 
 		tmp_start = fdt64_to_cpu(*((const fdt64_t *) prop));
 
-		prop = fdt_getprop(fdt, chosen_node, "linux,initrd-end", NULL);
+		prop = fdt_getprop(fdt, chosen_yesde, "linux,initrd-end", NULL);
 		if (!prop) {
 			pr_err("Malformed device tree.\n");
 			return -EINVAL;
@@ -186,16 +186,16 @@ int setup_new_fdt(const struct kimage *image, void *fdt,
 		else if (ret != -ENOENT)
 			return ret;
 
-		/* If there's no new initrd, delete the old initrd's info. */
+		/* If there's yes new initrd, delete the old initrd's info. */
 		if (initrd_len == 0) {
-			ret = fdt_delprop(fdt, chosen_node,
+			ret = fdt_delprop(fdt, chosen_yesde,
 					  "linux,initrd-start");
 			if (ret) {
 				pr_err("Error deleting linux,initrd-start.\n");
 				return -EINVAL;
 			}
 
-			ret = fdt_delprop(fdt, chosen_node, "linux,initrd-end");
+			ret = fdt_delprop(fdt, chosen_yesde, "linux,initrd-end");
 			if (ret) {
 				pr_err("Error deleting linux,initrd-end.\n");
 				return -EINVAL;
@@ -204,14 +204,14 @@ int setup_new_fdt(const struct kimage *image, void *fdt,
 	}
 
 	if (initrd_len) {
-		ret = fdt_setprop_u64(fdt, chosen_node,
+		ret = fdt_setprop_u64(fdt, chosen_yesde,
 				      "linux,initrd-start",
 				      initrd_load_addr);
 		if (ret < 0)
 			goto err;
 
 		/* initrd-end is the first address after the initrd image. */
-		ret = fdt_setprop_u64(fdt, chosen_node, "linux,initrd-end",
+		ret = fdt_setprop_u64(fdt, chosen_yesde, "linux,initrd-end",
 				      initrd_load_addr + initrd_len);
 		if (ret < 0)
 			goto err;
@@ -225,24 +225,24 @@ int setup_new_fdt(const struct kimage *image, void *fdt,
 	}
 
 	if (cmdline != NULL) {
-		ret = fdt_setprop_string(fdt, chosen_node, "bootargs", cmdline);
+		ret = fdt_setprop_string(fdt, chosen_yesde, "bootargs", cmdline);
 		if (ret < 0)
 			goto err;
 	} else {
-		ret = fdt_delprop(fdt, chosen_node, "bootargs");
+		ret = fdt_delprop(fdt, chosen_yesde, "bootargs");
 		if (ret && ret != -FDT_ERR_NOTFOUND) {
 			pr_err("Error deleting bootargs.\n");
 			return -EINVAL;
 		}
 	}
 
-	ret = setup_ima_buffer(image, fdt, chosen_node);
+	ret = setup_ima_buffer(image, fdt, chosen_yesde);
 	if (ret) {
 		pr_err("Error setting up the new device tree.\n");
 		return ret;
 	}
 
-	ret = fdt_setprop(fdt, chosen_node, "linux,booted-from-kexec", NULL, 0);
+	ret = fdt_setprop(fdt, chosen_yesde, "linux,booted-from-kexec", NULL, 0);
 	if (ret)
 		goto err;
 

@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
@@ -36,7 +36,7 @@ MODULE_AUTHOR("Utz Bacher <utz.bacher@de.ibm.com>");
 MODULE_DESCRIPTION("RTAS watchdog driver");
 MODULE_LICENSE("GPL");
 
-static bool wdrtas_nowayout = WATCHDOG_NOWAYOUT;
+static bool wdrtas_yeswayout = WATCHDOG_NOWAYOUT;
 static atomic_t wdrtas_miscdev_open = ATOMIC_INIT(0);
 static char wdrtas_expect_close;
 
@@ -115,7 +115,7 @@ static int wdrtas_get_interval(int fallback_value)
 	spin_unlock(&rtas_data_buf_lock);
 
 	if (value[0] != 0 || value[1] != 2 || value[3] != 0 || result < 0) {
-		pr_warn("could not get sp_spi watchdog timeout (%li). Continuing\n",
+		pr_warn("could yest get sp_spi watchdog timeout (%li). Continuing\n",
 			result);
 		return fallback_value;
 	}
@@ -240,7 +240,7 @@ static ssize_t wdrtas_write(struct file *file, const char __user *buf,
 	if (!len)
 		goto out;
 
-	if (!wdrtas_nowayout) {
+	if (!wdrtas_yeswayout) {
 		wdrtas_expect_close = 0;
 		/* look for 'V' */
 		for (i = 0; i < len; i++) {
@@ -310,7 +310,7 @@ static long wdrtas_ioctl(struct file *file, unsigned int cmd,
 			wdrtas_timer_keepalive();
 			wdrtas_timer_start();
 		}
-		/* not implemented. Done by H8
+		/* yest implemented. Done by H8
 		if (i & WDIOS_TEMPPANIC) {
 		} */
 		return 0;
@@ -344,7 +344,7 @@ static long wdrtas_ioctl(struct file *file, unsigned int cmd,
 
 /**
  * wdrtas_open - open function of watchdog device
- * @inode: inode structure
+ * @iyesde: iyesde structure
  * @file: file structure
  *
  * returns 0 on success, -EBUSY if the file has been opened already, <0 on
@@ -352,7 +352,7 @@ static long wdrtas_ioctl(struct file *file, unsigned int cmd,
  *
  * function called when watchdog device is opened
  */
-static int wdrtas_open(struct inode *inode, struct file *file)
+static int wdrtas_open(struct iyesde *iyesde, struct file *file)
 {
 	/* only open once */
 	if (atomic_inc_return(&wdrtas_miscdev_open) > 1) {
@@ -363,25 +363,25 @@ static int wdrtas_open(struct inode *inode, struct file *file)
 	wdrtas_timer_start();
 	wdrtas_timer_keepalive();
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
 /**
  * wdrtas_close - close function of watchdog device
- * @inode: inode structure
+ * @iyesde: iyesde structure
  * @file: file structure
  *
  * returns 0 on success
  *
  * close function. Always succeeds
  */
-static int wdrtas_close(struct inode *inode, struct file *file)
+static int wdrtas_close(struct iyesde *iyesde, struct file *file)
 {
-	/* only stop watchdog, if this was announced using 'V' before */
+	/* only stop watchdog, if this was anyesunced using 'V' before */
 	if (wdrtas_expect_close == WDRTAS_MAGIC_CHAR)
 		wdrtas_timer_stop();
 	else {
-		pr_warn("got unexpected close. Watchdog not stopped.\n");
+		pr_warn("got unexpected close. Watchdog yest stopped.\n");
 		wdrtas_timer_keepalive();
 	}
 
@@ -420,35 +420,35 @@ static ssize_t wdrtas_temp_read(struct file *file, char __user *buf,
 
 /**
  * wdrtas_temp_open - open function of temperature device
- * @inode: inode structure
+ * @iyesde: iyesde structure
  * @file: file structure
  *
  * returns 0 on success, <0 on failure
  *
  * function called when temperature device is opened
  */
-static int wdrtas_temp_open(struct inode *inode, struct file *file)
+static int wdrtas_temp_open(struct iyesde *iyesde, struct file *file)
 {
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
 /**
  * wdrtas_temp_close - close function of temperature device
- * @inode: inode structure
+ * @iyesde: iyesde structure
  * @file: file structure
  *
  * returns 0 on success
  *
  * close function. Always succeeds
  */
-static int wdrtas_temp_close(struct inode *inode, struct file *file)
+static int wdrtas_temp_close(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
 
 /**
- * wdrtas_reboot - reboot notifier function
- * @nb: notifier block structure
+ * wdrtas_reboot - reboot yestifier function
+ * @nb: yestifier block structure
  * @code: reboot code
  * @ptr: unused
  *
@@ -456,7 +456,7 @@ static int wdrtas_temp_close(struct inode *inode, struct file *file)
  *
  * wdrtas_reboot stops the watchdog in case of a reboot
  */
-static int wdrtas_reboot(struct notifier_block *this,
+static int wdrtas_reboot(struct yestifier_block *this,
 					unsigned long code, void *ptr)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
@@ -469,7 +469,7 @@ static int wdrtas_reboot(struct notifier_block *this,
 
 static const struct file_operations wdrtas_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= wdrtas_write,
 	.unlocked_ioctl	= wdrtas_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -478,27 +478,27 @@ static const struct file_operations wdrtas_fops = {
 };
 
 static struct miscdevice wdrtas_miscdev = {
-	.minor =	WATCHDOG_MINOR,
+	.miyesr =	WATCHDOG_MINOR,
 	.name =		"watchdog",
 	.fops =		&wdrtas_fops,
 };
 
 static const struct file_operations wdrtas_temp_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.read		= wdrtas_temp_read,
 	.open		= wdrtas_temp_open,
 	.release	= wdrtas_temp_close,
 };
 
 static struct miscdevice wdrtas_tempdev = {
-	.minor =	TEMP_MINOR,
+	.miyesr =	TEMP_MINOR,
 	.name =		"temperature",
 	.fops =		&wdrtas_temp_fops,
 };
 
-static struct notifier_block wdrtas_notifier = {
-	.notifier_call =	wdrtas_reboot,
+static struct yestifier_block wdrtas_yestifier = {
+	.yestifier_call =	wdrtas_reboot,
 };
 
 /**
@@ -508,7 +508,7 @@ static struct notifier_block wdrtas_notifier = {
  *
  * wdrtas_get_tokens reads in the tokens for the RTAS calls used in
  * this watchdog driver. It tolerates, if "get-sensor-state" and
- * "ibm,get-system-parameter" are not available.
+ * "ibm,get-system-parameter" are yest available.
  */
 static int wdrtas_get_tokens(void)
 {
@@ -585,7 +585,7 @@ static int wdrtas_register_devs(void)
  *
  * returns 0 on success, <0 on failure
  *
- * registers the file handlers and the reboot notifier
+ * registers the file handlers and the reboot yestifier
  */
 static int __init wdrtas_init(void)
 {
@@ -595,8 +595,8 @@ static int __init wdrtas_init(void)
 	if (wdrtas_register_devs())
 		return -ENODEV;
 
-	if (register_reboot_notifier(&wdrtas_notifier)) {
-		pr_err("could not register reboot notifier. Terminating watchdog code.\n");
+	if (register_reboot_yestifier(&wdrtas_yestifier)) {
+		pr_err("could yest register reboot yestifier. Terminating watchdog code.\n");
 		wdrtas_unregister_devs();
 		return -ENODEV;
 	}
@@ -612,16 +612,16 @@ static int __init wdrtas_init(void)
 /**
  * wdrtas_exit - exit function of the watchdog driver
  *
- * unregisters the file handlers and the reboot notifier
+ * unregisters the file handlers and the reboot yestifier
  */
 static void __exit wdrtas_exit(void)
 {
-	if (!wdrtas_nowayout)
+	if (!wdrtas_yeswayout)
 		wdrtas_timer_stop();
 
 	wdrtas_unregister_devs();
 
-	unregister_reboot_notifier(&wdrtas_notifier);
+	unregister_reboot_yestifier(&wdrtas_yestifier);
 }
 
 module_init(wdrtas_init);

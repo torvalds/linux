@@ -9,7 +9,7 @@
  * We used to warn all over the code: DO NOT USE prom_printf(),
  * and yet people do. Anton's banking code was outputting banks
  * with prom_printf for most of the 2.4 lifetime. Since an effective
- * stick is not available, we deployed a carrot: an early printk
+ * stick is yest available, we deployed a carrot: an early printk
  * through PROM by means of -p boot option. This ought to fix it.
  * USE printk; if you need, deploy -p.
  */
@@ -27,7 +27,7 @@ static char ppbuf[1024];
 static char console_write_buf[CONSOLE_WRITE_BUF_SIZE];
 static DEFINE_RAW_SPINLOCK(console_write_lock);
 
-void notrace prom_write(const char *buf, unsigned int n)
+void yestrace prom_write(const char *buf, unsigned int n)
 {
 	unsigned int dest_len;
 	unsigned long flags;
@@ -57,7 +57,7 @@ void notrace prom_write(const char *buf, unsigned int n)
 	raw_spin_unlock_irqrestore(&console_write_lock, flags);
 }
 
-void notrace prom_printf(const char *fmt, ...)
+void yestrace prom_printf(const char *fmt, ...)
 {
 	va_list args;
 	int i;

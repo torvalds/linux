@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  arch/arm/include/asm/page-nommu.h
+ *  arch/arm/include/asm/page-yesmmu.h
  *
  *  Copyright (C) 2004 Hyok S. Choi
  */

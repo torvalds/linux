@@ -19,10 +19,10 @@ static LIST_HEAD(gc_list);
 static DEFINE_RAW_SPINLOCK(gc_lock);
 
 /**
- * irq_gc_noop - NOOP function
+ * irq_gc_yesop - NOOP function
  * @d: irq_data
  */
-void irq_gc_noop(struct irq_data *d)
+void irq_gc_yesop(struct irq_data *d)
 {
 }
 
@@ -141,7 +141,7 @@ void irq_gc_ack_clr_bit(struct irq_data *d)
  *
  * This generic implementation of the irq_mask_ack method is for chips
  * with separate enable/disable registers instead of a single mask
- * register and where a pending interrupt is acknowledged by setting a
+ * register and where a pending interrupt is ackyeswledged by setting a
  * bit.
  *
  * Note: This is the only permutation currently used.  Similar generic
@@ -180,7 +180,7 @@ void irq_gc_eoi(struct irq_data *d)
  * @d:  irq_data
  * @on: Indicates whether the wake bit should be set or cleared
  *
- * For chips where the wake from suspend functionality is not
+ * For chips where the wake from suspend functionality is yest
  * configured in a separate register and the wakeup active state is
  * just stored in a bitmask.
  */
@@ -439,7 +439,7 @@ static void irq_unmap_generic_chip(struct irq_domain *d, unsigned int virq)
 	irq_idx = hw_irq % dgc->irqs_per_chip;
 
 	clear_bit(irq_idx, &gc->installed);
-	irq_domain_set_info(d, virq, hw_irq, &no_irq_chip, NULL, NULL, NULL,
+	irq_domain_set_info(d, virq, hw_irq, &yes_irq_chip, NULL, NULL, NULL,
 			    NULL);
 
 }
@@ -549,7 +549,7 @@ void irq_remove_generic_chip(struct irq_chip_generic *gc, u32 msk,
 
 		/* Remove handler first. That will mask the irq line */
 		irq_set_handler(i, NULL);
-		irq_set_chip(i, &no_irq_chip);
+		irq_set_chip(i, &yes_irq_chip);
 		irq_set_chip_data(i, NULL);
 		irq_modify_status(i, clr, set);
 	}
@@ -564,7 +564,7 @@ static struct irq_data *irq_gc_get_irq_data(struct irq_chip_generic *gc)
 		return irq_get_irq_data(gc->irq_base);
 
 	/*
-	 * We don't know which of the irqs has been actually
+	 * We don't kyesw which of the irqs has been actually
 	 * installed. Use the first one.
 	 */
 	if (!gc->installed)

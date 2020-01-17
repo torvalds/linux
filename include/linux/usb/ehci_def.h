@@ -13,7 +13,7 @@
  * for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
+ * along with this program; if yest, write to the Free Software Foundation,
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -78,12 +78,12 @@ struct ehci_regs {
 /* 23:16 is r/w intr rate, in microframes; default "8" == 1/msec */
 #define CMD_PARK	(1<<11)		/* enable "park" on async qh */
 #define CMD_PARK_CNT(c)	(((c)>>8)&3)	/* how many transfers to park for */
-#define CMD_LRESET	(1<<7)		/* partial reset (no ports, etc) */
+#define CMD_LRESET	(1<<7)		/* partial reset (yes ports, etc) */
 #define CMD_IAAD	(1<<6)		/* "doorbell" interrupt async advance */
 #define CMD_ASE		(1<<5)		/* async schedule enable */
 #define CMD_PSE		(1<<4)		/* periodic schedule enable */
 /* 3:2 is periodic frame list size */
-#define CMD_RESET	(1<<1)		/* reset HC not bus */
+#define CMD_RESET	(1<<1)		/* reset HC yest bus */
 #define CMD_RUN		(1<<0)		/* start/stop HC */
 
 	/* USBSTS: offset 0x04 */
@@ -100,7 +100,7 @@ struct ehci_regs {
 #define STS_FLR		(1<<3)		/* frame list rolled over */
 #define STS_PCD		(1<<2)		/* port change detect */
 #define STS_ERR		(1<<1)		/* "error" completion (overflow, ...) */
-#define STS_INT		(1<<0)		/* "normal" completion (short, ...) */
+#define STS_INT		(1<<0)		/* "yesrmal" completion (short, ...) */
 
 	/* USBINTR: offset 0x08 */
 	u32		intr_enable;
@@ -176,7 +176,7 @@ struct ehci_regs {
 
 	u32		reserved4[6];
 
-/* Moorestown has some non-standard registers, partially due to the fact that
+/* Moorestown has some yesn-standard registers, partially due to the fact that
  * its EHCI controller has both TT and LPM support. HOSTPCx are extensions to
  * PORTSCx
  */

@@ -15,7 +15,7 @@
 #include <linux/pci_ids.h>
 #include <linux/edac.h>
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include "edac_module.h"
 
 #define EDAC_MOD_STR		"x38_edac"
@@ -44,15 +44,15 @@
 #define X38_ERRSTS	0xc8	/* Error Status Register (16b)
 				 *
 				 * 15    reserved
-				 * 14    Isochronous TBWRR Run Behind FIFO Full
+				 * 14    Isochroyesus TBWRR Run Behind FIFO Full
 				 *       (ITCV)
-				 * 13    Isochronous TBWRR Run Behind FIFO Put
+				 * 13    Isochroyesus TBWRR Run Behind FIFO Put
 				 *       (ITSTV)
 				 * 12    reserved
 				 * 11    MCH Thermal Sensor Event
 				 *       for SMI/SCI/SERR (GTSE)
 				 * 10    reserved
-				 *  9    LOCK to non-DRAM Memory Flag (LCKF)
+				 *  9    LOCK to yesn-DRAM Memory Flag (LCKF)
 				 *  8    reserved
 				 *  7    DRAM Throttle Flag (DTF)
 				 *  6:2  reserved
@@ -170,7 +170,7 @@ static void x38_get_and_clear_error_info(struct mem_ctl_info *mci,
 	pdev = to_pci_dev(mci->pdev);
 
 	/*
-	 * This is a mess because there is no atomic way to read all the
+	 * This is a mess because there is yes atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
@@ -187,7 +187,7 @@ static void x38_get_and_clear_error_info(struct mem_ctl_info *mci,
 	/*
 	 * If the error is the same for both reads then the first set
 	 * of reads is valid.  If there is a change then there is a CE
-	 * with no info and the second set of reads is valid and
+	 * with yes info and the second set of reads is valid and
 	 * should be UE info.
 	 */
 	if ((info->errsts ^ info->errsts2) & X38_ERRSTS_BITS) {
@@ -266,9 +266,9 @@ static void __iomem *x38_map_mchbar(struct pci_dev *pdev)
 		return NULL;
 	}
 
-	window = ioremap_nocache(u.mchbar, X38_MMR_WINDOW_SIZE);
+	window = ioremap_yescache(u.mchbar, X38_MMR_WINDOW_SIZE);
 	if (!window)
-		printk(KERN_ERR "x38: cannot map mmio space at 0x%llx\n",
+		printk(KERN_ERR "x38: canyest map mmio space at 0x%llx\n",
 			(unsigned long long)u.mchbar);
 
 	return window;

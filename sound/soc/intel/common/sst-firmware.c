@@ -75,7 +75,7 @@ static int sst_dsp_dma_copy(struct sst_dsp *sst, dma_addr_t dest_addr,
 	struct sst_dma *dma = sst->dma;
 
 	if (dma->ch == NULL) {
-		dev_err(sst->dev, "error: no DMA channel\n");
+		dev_err(sst->dev, "error: yes DMA channel\n");
 		return -ENODEV;
 	}
 
@@ -269,7 +269,7 @@ static int sst_dma_new(struct sst_dsp *sst)
 	int ret = 0;
 
 	if (sst->pdata->resindex_dma_base == -1)
-		/* DMA is not used, return and squelsh error messages */
+		/* DMA is yest used, return and squelsh error messages */
 		return 0;
 
 	/* configure the correct platform data for whatever DMA engine
@@ -295,7 +295,7 @@ static int sst_dma_new(struct sst_dsp *sst)
 	mem.end   = sst->addr.lpe_base + sst_pdata->dma_base + sst_pdata->dma_size - 1;
 	mem.flags = IORESOURCE_MEM;
 
-	/* now register DMA engine device */
+	/* yesw register DMA engine device */
 	dma->chip = dw_probe(sst->dma_dev, &mem, sst_pdata->irq);
 	if (IS_ERR(dma->chip)) {
 		dev_err(sst->dev, "error: DMA device register failed\n");
@@ -429,7 +429,7 @@ void sst_fw_unload(struct sst_fw *sst_fw)
 				kfree(runtime);
 			}
 
-			/* now remove the module */
+			/* yesw remove the module */
 			block_list_remove(dsp, &module->block_list);
 			list_del(&module->list);
 			kfree(module);
@@ -622,7 +622,7 @@ static int block_alloc(struct sst_dsp *dsp, struct sst_block_allocator *ba,
 	/* find first free whole blocks that can hold module */
 	list_for_each_entry_safe(block, tmp, &dsp->free_block_list, list) {
 
-		/* ignore blocks with wrong type */
+		/* igyesre blocks with wrong type */
 		if (block->type != ba->type)
 			continue;
 
@@ -641,7 +641,7 @@ static int block_alloc(struct sst_dsp *dsp, struct sst_block_allocator *ba,
 	/* then find free multiple blocks that can hold module */
 	list_for_each_entry_safe(block, tmp, &dsp->free_block_list, list) {
 
-		/* ignore blocks with wrong type */
+		/* igyesre blocks with wrong type */
 		if (block->type != ba->type)
 			continue;
 
@@ -658,7 +658,7 @@ static int block_alloc(struct sst_dsp *dsp, struct sst_block_allocator *ba,
 		}
 	}
 
-	/* not enough free block space */
+	/* yest eyesugh free block space */
 	return -ENOMEM;
 }
 
@@ -714,7 +714,7 @@ static int block_alloc_fixed(struct sst_dsp *dsp, struct sst_block_allocator *ba
 	/* are blocks already attached to this module */
 	list_for_each_entry_safe(block, tmp, block_list, module_list) {
 
-		/* ignore blocks with wrong type */
+		/* igyesre blocks with wrong type */
 		if (block->type != ba->type)
 			continue;
 
@@ -743,7 +743,7 @@ static int block_alloc_fixed(struct sst_dsp *dsp, struct sst_block_allocator *ba
 	list_for_each_entry_safe(block, tmp, &dsp->free_block_list, list) {
 		block_end = block->offset + block->size;
 
-		/* ignore blocks with wrong type */
+		/* igyesre blocks with wrong type */
 		if (block->type != ba->type)
 			continue;
 
@@ -801,7 +801,7 @@ int sst_module_alloc_blocks(struct sst_module *module)
 	ret = block_alloc_fixed(dsp, &ba, &module->block_list);
 	if (ret < 0) {
 		dev_err(dsp->dev,
-			"error: no free blocks for section at offset 0x%x size 0x%x\n",
+			"error: yes free blocks for section at offset 0x%x size 0x%x\n",
 			module->offset, module->size);
 		mutex_unlock(&dsp->mutex);
 		return -ENOMEM;
@@ -887,7 +887,7 @@ int sst_module_runtime_alloc_blocks(struct sst_module_runtime *runtime,
 	}
 	if (ret < 0) {
 		dev_err(dsp->dev,
-		"error: no free blocks for runtime module size 0x%x\n",
+		"error: yes free blocks for runtime module size 0x%x\n",
 			module->persistent_size);
 		mutex_unlock(&dsp->mutex);
 		return -ENOMEM;
@@ -982,7 +982,7 @@ int sst_module_runtime_restore(struct sst_module_runtime *runtime,
 	mutex_lock(&dsp->mutex);
 
 	if (!context->buffer) {
-		dev_info(dsp->dev, "no context buffer need to restore!\n");
+		dev_info(dsp->dev, "yes context buffer need to restore!\n");
 		goto err;
 	}
 
@@ -1086,7 +1086,7 @@ int sst_block_alloc_scratch(struct sst_dsp *dsp)
 		dsp->scratch_size);
 
 	if (dsp->scratch_size == 0) {
-		dev_info(dsp->dev, "no modules need scratch buffer\n");
+		dev_info(dsp->dev, "yes modules need scratch buffer\n");
 		mutex_unlock(&dsp->mutex);
 		return 0;
 	}

@@ -60,7 +60,7 @@ struct arch_specific_insn {
 	kprobe_opcode_t *insn;
 	/*
 	 * Set in kprobes code, initially to 0. If the instruction can be
-	 * eumulated, this is set to 1, if not, to -1.
+	 * eumulated, this is set to 1, if yest, to -1.
 	 */
 	int boostable;
 };
@@ -84,7 +84,7 @@ struct arch_optimized_insn {
 	kprobe_opcode_t *insn;
 };
 
-extern int kprobe_exceptions_notify(struct notifier_block *self,
+extern int kprobe_exceptions_yestify(struct yestifier_block *self,
 					unsigned long val, void *data);
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 extern int kprobe_handler(struct pt_regs *regs);

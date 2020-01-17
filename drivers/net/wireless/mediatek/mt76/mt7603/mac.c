@@ -645,7 +645,7 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 	status->aggr = unicast &&
 		       !ieee80211_is_qos_nullfunc(hdr->frame_control);
 	status->tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
-	status->seqno = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+	status->seqyes = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 
 	return 0;
 }
@@ -896,7 +896,7 @@ mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
 	int tx_count = 8;
 	u8 frame_type, frame_subtype;
 	u16 fc = le16_to_cpu(hdr->frame_control);
-	u16 seqno = 0;
+	u16 seqyes = 0;
 	u8 vif_idx = 0;
 	u32 val;
 	u8 bw;
@@ -985,13 +985,13 @@ mt7603_mac_write_txwi(struct mt7603_dev *dev, __le32 *txwi,
 		  MT_TXD3_SN_VALID;
 
 	if (ieee80211_is_data_qos(hdr->frame_control))
-		seqno = le16_to_cpu(hdr->seq_ctrl);
+		seqyes = le16_to_cpu(hdr->seq_ctrl);
 	else if (ieee80211_is_back_req(hdr->frame_control))
-		seqno = le16_to_cpu(bar->start_seq_num);
+		seqyes = le16_to_cpu(bar->start_seq_num);
 	else
 		val &= ~MT_TXD3_SN_VALID;
 
-	val |= FIELD_PREP(MT_TXD3_SEQ, seqno >> 4);
+	val |= FIELD_PREP(MT_TXD3_SEQ, seqyes >> 4);
 
 	txwi[3] = cpu_to_le32(val);
 
@@ -1254,7 +1254,7 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
 		goto out;
 
 	if (mt7603_fill_txs(dev, msta, &info, txs_data))
-		ieee80211_tx_status_noskb(mt76_hw(dev), sta, &info);
+		ieee80211_tx_status_yesskb(mt76_hw(dev), sta, &info);
 
 out:
 	rcu_read_unlock();
@@ -1391,7 +1391,7 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 	ieee80211_stop_queues(dev->mt76.hw);
 	set_bit(MT76_RESET, &dev->mt76.state);
 
-	/* lock/unlock all queues to ensure that no tx is pending */
+	/* lock/unlock all queues to ensure that yes tx is pending */
 	mt76_txq_schedule_all(&dev->mt76);
 
 	tasklet_disable(&dev->mt76.tx_tasklet);
@@ -1588,7 +1588,7 @@ mt7603_edcca_set_strict(struct mt7603_dev *dev, bool val)
 
 	dev->ed_strict_mode = val;
 
-	/* Ensure that ED/CCA does not trigger if disabled */
+	/* Ensure that ED/CCA does yest trigger if disabled */
 	if (!dev->ed_monitor)
 		rxtd_6 |= FIELD_PREP(MT_RXTD_6_CCAED_TH, 0x34);
 	else

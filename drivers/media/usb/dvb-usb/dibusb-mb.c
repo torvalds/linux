@@ -120,7 +120,7 @@ static int dibusb_probe(struct usb_interface *intf,
 	return -EINVAL;
 }
 
-/* do not change the order of the ID table */
+/* do yest change the order of the ID table */
 static struct usb_device_id dibusb_dib3000mb_table [] = {
 /* 00 */	{ USB_DEVICE(USB_VID_WIDEVIEW,		USB_PID_AVERMEDIA_DVBT_USB_COLD) },
 /* 01 */	{ USB_DEVICE(USB_VID_WIDEVIEW,		USB_PID_AVERMEDIA_DVBT_USB_WARM) },
@@ -161,7 +161,7 @@ static struct usb_device_id dibusb_dib3000mb_table [] = {
  * XXX: As Artec just 'forgot' to program the EEPROM on some Artec T1 devices
  *      we don't catch these faulty IDs (namely 'Cypress FX1 USB controller') that
  *      have been left on the device. If you don't have such a device but an Artec
- *      device that's supposed to work with this driver but is not detected by it,
+ *      device that's supposed to work with this driver but is yest detected by it,
  *      free to enable CONFIG_DVB_USB_DIBUSB_MB_FAULTY via your kernel config.
  */
 
@@ -245,7 +245,7 @@ static struct dvb_usb_device_properties dibusb1_1_properties = {
 			{ &dibusb_dib3000mb_table[9],  &dibusb_dib3000mb_table[11], NULL },
 			{ &dibusb_dib3000mb_table[10], &dibusb_dib3000mb_table[12], NULL },
 		},
-		{	"Unknown USB1.1 DVB-T device ???? please report the name to the author",
+		{	"Unkyeswn USB1.1 DVB-T device ???? please report the name to the author",
 			{ &dibusb_dib3000mb_table[13], NULL },
 			{ &dibusb_dib3000mb_table[14], NULL },
 		},

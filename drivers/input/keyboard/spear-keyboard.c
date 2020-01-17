@@ -11,7 +11,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/io.h>
@@ -148,7 +148,7 @@ static void spear_kbd_close(struct input_dev *dev)
 static int spear_kbd_parse_dt(struct platform_device *pdev,
                                         struct spear_kbd *kbd)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int error;
 	u32 val, suspended_rate;
 
@@ -196,7 +196,7 @@ static int spear_kbd_probe(struct platform_device *pdev)
 
 	kbd = devm_kzalloc(&pdev->dev, sizeof(*kbd), GFP_KERNEL);
 	if (!kbd) {
-		dev_err(&pdev->dev, "not enough memory for driver data\n");
+		dev_err(&pdev->dev, "yest eyesugh memory for driver data\n");
 		return -ENOMEM;
 	}
 

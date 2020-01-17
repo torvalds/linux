@@ -51,7 +51,7 @@ config TI_AEMIF
 	depends on (ARCH_DAVINCI || ARCH_KEYSTONE) && OF
 	help
 	  This driver is for the AEMIF module available in Texas Instruments
-	  SoCs. AEMIF stands for Asynchronous External Memory Interface and
+	  SoCs. AEMIF stands for Asynchroyesus External Memory Interface and
 	  is intended to provide a glue-less interface to a variety of
 	  asynchronuous memory devices like ASRAM, NOR and NAND memory. A total
 	  of 256M bytes of any of these memories can be accessed at a given
@@ -76,7 +76,7 @@ config OMAP_GPMC
 	help
 	  This driver is for the General Purpose Memory Controller (GPMC)
 	  present on Texas Instruments SoCs (e.g. OMAP2+). GPMC allows
-	  interfacing to a variety of asynchronous as well as synchronous
+	  interfacing to a variety of asynchroyesus as well as synchroyesus
 	  memory drives like NOR, NAND, OneNAND, SRAM.
 
 config OMAP_GPMC_DEBUG
@@ -119,7 +119,7 @@ config FSL_CORENET_CF
 	help
 	  Say Y for reporting of errors from the Freescale CoreNet
 	  Coherency Fabric.  Errors reported include accesses to
-	  physical addresses that mapped by no local access window
+	  physical addresses that mapped by yes local access window
 	  (LAW) or an invalid LAW, as well as bad cache state that
 	  represents a coherency violation.
 

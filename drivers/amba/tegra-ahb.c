@@ -6,7 +6,7 @@
  * Author:
  *	Jay Cheng <jacheng@nvidia.com>
  *	James Wylder <james.wylder@motorola.com>
- *	Benoit Goby <benoit@android.com>
+ *	Beyesit Goby <beyesit@android.com>
  *	Colin Cross <ccross@android.com>
  *	Hiroshi DOYU <hdoyu@nvidia.com>
  */
@@ -134,13 +134,13 @@ static inline void gizmo_writel(struct tegra_ahb *ahb, u32 value, u32 offset)
 }
 
 #ifdef CONFIG_TEGRA_IOMMU_SMMU
-int tegra_ahb_enable_smmu(struct device_node *dn)
+int tegra_ahb_enable_smmu(struct device_yesde *dn)
 {
 	struct device *dev;
 	u32 val;
 	struct tegra_ahb *ahb;
 
-	dev = driver_find_device_by_of_node(&tegra_ahb_driver.driver, dn);
+	dev = driver_find_device_by_of_yesde(&tegra_ahb_driver.driver, dn);
 	if (!dev)
 		return -EPROBE_DEFER;
 	ahb = dev_get_drvdata(dev);

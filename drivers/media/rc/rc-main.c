@@ -26,7 +26,7 @@ static const struct {
 	unsigned int repeat_period;
 	unsigned int scancode_bits;
 } protocols[] = {
-	[RC_PROTO_UNKNOWN] = { .name = "unknown", .repeat_period = 125 },
+	[RC_PROTO_UNKNOWN] = { .name = "unkyeswn", .repeat_period = 125 },
 	[RC_PROTO_OTHER] = { .name = "other", .repeat_period = 125 },
 	[RC_PROTO_RC5] = { .name = "rc-5",
 		.scancode_bits = 0x1f7f, .repeat_period = 114 },
@@ -79,7 +79,7 @@ static const struct {
 	[RC_PROTO_XBOX_DVD] = { .name = "xbox-dvd", .repeat_period = 64 },
 };
 
-/* Used to keep track of known keymaps */
+/* Used to keep track of kyeswn keymaps */
 static LIST_HEAD(rc_map_list);
 static DEFINE_SPINLOCK(rc_map_lock);
 static struct led_trigger *led_feedback;
@@ -122,7 +122,7 @@ struct rc_map *rc_map_get(const char *name)
 	}
 #endif
 	if (!map) {
-		pr_err("IR keymap %s not found\n", name);
+		pr_err("IR keymap %s yest found\n", name);
 		return NULL;
 	}
 
@@ -302,7 +302,7 @@ static unsigned int ir_update_mapping(struct rc_dev *dev,
 	if (old_keycode != KEY_RESERVED) {
 		/* A previous mapping was updated... */
 		__clear_bit(old_keycode, dev->input_dev->keybit);
-		/* ... but another scancode might use the same keycode */
+		/* ... but ayesther scancode might use the same keycode */
 		for (i = 0; i < rc_map->len; i++) {
 			if (rc_map->scan[i].keycode == old_keycode) {
 				__set_bit(old_keycode, dev->input_dev->keybit);
@@ -310,7 +310,7 @@ static unsigned int ir_update_mapping(struct rc_dev *dev,
 			}
 		}
 
-		/* Possibly shrink the keytable, failure is not a problem */
+		/* Possibly shrink the keytable, failure is yest a problem */
 		ir_resize_table(dev, rc_map, GFP_ATOMIC);
 	}
 
@@ -323,10 +323,10 @@ static unsigned int ir_update_mapping(struct rc_dev *dev,
  * @rc_map:	scancode table to be searched
  * @scancode:	the desired scancode
  * @resize:	controls whether we allowed to resize the table to
- *		accommodate not yet present scancodes
+ *		accommodate yest yet present scancodes
  *
  * This routine is used to locate given scancode in rc_map.
- * If scancode is not yet present the routine will allocate a new slot
+ * If scancode is yest yet present the routine will allocate a new slot
  * for it.
  *
  * return:	index of the mapping containing scancode in question
@@ -343,7 +343,7 @@ static unsigned int ir_establish_scancode(struct rc_dev *dev,
 	 * Unfortunately, some hardware-based IR decoders don't provide
 	 * all bits for the complete IR code. In general, they provide only
 	 * the command part of the IR code. Yet, as it is possible to replace
-	 * the provided IR with another one, it is needed to allow loading
+	 * the provided IR with ayesther one, it is needed to allow loading
 	 * IR tables from other remotes. So, we support specifying a mask to
 	 * indicate the valid bits of the scancodes.
 	 */
@@ -385,7 +385,7 @@ static unsigned int ir_establish_scancode(struct rc_dev *dev,
  *
  * This routine is used to handle evdev EVIOCSKEY ioctl.
  *
- * return:	-EINVAL if the keycode could not be inserted, otherwise zero.
+ * return:	-EINVAL if the keycode could yest be inserted, otherwise zero.
  */
 static int ir_setkeycode(struct input_dev *idev,
 			 const struct input_keymap_entry *ke,
@@ -432,7 +432,7 @@ out:
  *
  * This routine is used to handle table initialization.
  *
- * return:	-ENOMEM if all keycodes could not be inserted, otherwise zero.
+ * return:	-ENOMEM if all keycodes could yest be inserted, otherwise zero.
  */
 static int ir_setkeytable(struct rc_dev *dev,
 			  const struct rc_map *from)
@@ -484,7 +484,7 @@ static int rc_map_cmp(const void *key, const void *elt)
  * This routine performs binary search in RC keykeymap table for
  * given scancode.
  *
- * return:	index in the table, -1U if not found
+ * return:	index in the table, -1U if yest found
  */
 static unsigned int ir_lookup_by_scancode(const struct rc_map *rc_map,
 					  unsigned int scancode)
@@ -541,9 +541,9 @@ static int ir_getkeycode(struct input_dev *idev,
 
 	} else if (!(ke->flags & INPUT_KEYMAP_BY_INDEX)) {
 		/*
-		 * We do not really know the valid range of scancodes
+		 * We do yest really kyesw the valid range of scancodes
 		 * so let's respond with KEY_RESERVED to anything we
-		 * do not have mapping for [yet].
+		 * do yest have mapping for [yet].
 		 */
 		ke->index = index;
 		ke->keycode = KEY_RESERVED;
@@ -565,7 +565,7 @@ out:
  * @scancode:	the scancode to look for
  *
  * This routine is used by drivers which need to convert a scancode to a
- * keycode. Normally it should not be used since drivers should have no
+ * keycode. Normally it should yest be used since drivers should have yes
  * interest in keycodes.
  *
  * return:	the corresponding keycode, or KEY_RESERVED
@@ -596,7 +596,7 @@ EXPORT_SYMBOL_GPL(rc_g_keycode_from_table);
 /**
  * ir_do_keyup() - internal function to signal the release of a keypress
  * @dev:	the struct rc_dev descriptor of the device
- * @sync:	whether or not to call input_sync
+ * @sync:	whether or yest to call input_sync
  *
  * This function is used internally to release a keypress, it must be
  * called with keylock held.
@@ -638,7 +638,7 @@ EXPORT_SYMBOL_GPL(rc_keyup);
  * @t:		a pointer to the struct timer_list
  *
  * This routine will generate a keyup event some time after a keydown event
- * is generated when no further activity has been detected.
+ * is generated when yes further activity has been detected.
  */
 static void ir_timer_keyup(struct timer_list *t)
 {
@@ -699,7 +699,7 @@ static unsigned int repeat_period(int protocol)
  * @dev:	the struct rc_dev descriptor of the device
  *
  * This routine is used by IR decoders when a repeat message which does
- * not include the necessary bits to reproduce the scancode has been
+ * yest include the necessary bits to reproduce the scancode has been
  * received.
  */
 void rc_repeat(struct rc_dev *dev)
@@ -782,7 +782,7 @@ static void ir_do_keydown(struct rc_dev *dev, enum rc_proto protocol,
 	/*
 	 * For CEC, start sending repeat messages as soon as the first
 	 * repeated message is sent, as long as REP_DELAY = 0 and REP_PERIOD
-	 * is non-zero. Otherwise, the input layer will generate repeat
+	 * is yesn-zero. Otherwise, the input layer will generate repeat
 	 * messages.
 	 */
 	if (!new_event && keycode != KEY_RESERVED &&
@@ -828,7 +828,7 @@ void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u32 scancode,
 EXPORT_SYMBOL_GPL(rc_keydown);
 
 /**
- * rc_keydown_notimeout() - generates input event for a key press without
+ * rc_keydown_yestimeout() - generates input event for a key press without
  *                          an automatic keyup event at a later time
  * @dev:	the struct rc_dev descriptor of the device
  * @protocol:	the protocol for the keypress
@@ -839,7 +839,7 @@ EXPORT_SYMBOL_GPL(rc_keydown);
  * This routine is used to signal that a key has been pressed on the
  * remote control. The driver must manually call rc_keyup() at a later stage.
  */
-void rc_keydown_notimeout(struct rc_dev *dev, enum rc_proto protocol,
+void rc_keydown_yestimeout(struct rc_dev *dev, enum rc_proto protocol,
 			  u32 scancode, u8 toggle)
 {
 	unsigned long flags;
@@ -849,7 +849,7 @@ void rc_keydown_notimeout(struct rc_dev *dev, enum rc_proto protocol,
 	ir_do_keydown(dev, protocol, scancode, keycode, toggle);
 	spin_unlock_irqrestore(&dev->keylock, flags);
 }
-EXPORT_SYMBOL_GPL(rc_keydown_notimeout);
+EXPORT_SYMBOL_GPL(rc_keydown_yestimeout);
 
 /**
  * rc_validate_scancode() - checks that a scancode is valid for a protocol.
@@ -902,7 +902,7 @@ bool rc_validate_scancode(enum rc_proto proto, u32 scancode)
  * @dev:	the struct rc_dev descriptor of the device
  * @filter:	the scancode and mask
  *
- * return:	0 or -EINVAL if the filter is not valid
+ * return:	0 or -EINVAL if the filter is yest valid
  */
 static int rc_validate_filter(struct rc_dev *dev,
 			      struct rc_scancode_filter *filter)
@@ -922,7 +922,7 @@ static int rc_validate_filter(struct rc_dev *dev,
 	filter->mask &= mask;
 
 	/*
-	 * If we have to raw encode the IR for wakeup, we cannot have a mask
+	 * If we have to raw encode the IR for wakeup, we canyest have a mask
 	 */
 	if (dev->encode_wakeup && filter->mask != 0 && filter->mask != mask)
 		return -EINVAL;
@@ -980,14 +980,14 @@ static void ir_close(struct input_dev *idev)
 }
 
 /* class for /sys/class/rc */
-static char *rc_devnode(struct device *dev, umode_t *mode)
+static char *rc_devyesde(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "rc/%s", dev_name(dev));
 }
 
 static struct class rc_class = {
 	.name		= "rc",
-	.devnode	= rc_devnode,
+	.devyesde	= rc_devyesde,
 };
 
 /*
@@ -1000,9 +1000,9 @@ static const struct {
 	const char	*name;
 	const char	*module_name;
 } proto_names[] = {
-	{ RC_PROTO_BIT_NONE,	"none",		NULL			},
+	{ RC_PROTO_BIT_NONE,	"yesne",		NULL			},
 	{ RC_PROTO_BIT_OTHER,	"other",	NULL			},
-	{ RC_PROTO_BIT_UNKNOWN,	"unknown",	NULL			},
+	{ RC_PROTO_BIT_UNKNOWN,	"unkyeswn",	NULL			},
 	{ RC_PROTO_BIT_RC5 |
 	  RC_PROTO_BIT_RC5X_20,	"rc-5",		"ir-rc5-decoder"	},
 	{ RC_PROTO_BIT_NEC |
@@ -1116,7 +1116,7 @@ static ssize_t show_protocols(struct device *device,
  * Writing "+proto" will add a protocol to the protocol mask.
  * Writing "-proto" will remove a protocol from protocol mask.
  * Writing "proto" will enable only "proto".
- * Writing "none" will disable all protocols.
+ * Writing "yesne" will disable all protocols.
  * Returns the number of changes performed or a negative error code.
  */
 static int parse_protocol_change(struct rc_dev *dev, u64 *protocols,
@@ -1156,7 +1156,7 @@ static int parse_protocol_change(struct rc_dev *dev, u64 *protocols,
 			if (!strcasecmp(tmp, "lirc"))
 				mask = 0;
 			else {
-				dev_dbg(&dev->dev, "Unknown protocol: '%s'\n",
+				dev_dbg(&dev->dev, "Unkyeswn protocol: '%s'\n",
 					tmp);
 				return -EINVAL;
 			}
@@ -1173,7 +1173,7 @@ static int parse_protocol_change(struct rc_dev *dev, u64 *protocols,
 	}
 
 	if (!count) {
-		dev_dbg(&dev->dev, "Protocol not specified\n");
+		dev_dbg(&dev->dev, "Protocol yest specified\n");
 		return -EINVAL;
 	}
 
@@ -1214,7 +1214,7 @@ void ir_raw_load_modules(u64 *protocols)
 		if (!(*protocols & proto_names[i].type & ~available))
 			continue;
 
-		pr_err("Loaded IR protocol module %s, but protocol %s still not available\n",
+		pr_err("Loaded IR protocol module %s, but protocol %s still yest available\n",
 		       proto_names[i].module_name,
 		       proto_names[i].name);
 		*protocols &= ~proto_names[i].type;
@@ -1251,7 +1251,7 @@ static ssize_t store_protocols(struct device *device,
 	filter = &dev->scancode_filter;
 
 	if (!dev->change_protocol) {
-		dev_dbg(&dev->dev, "Protocol switching not supported\n");
+		dev_dbg(&dev->dev, "Protocol switching yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1318,7 +1318,7 @@ out:
  * type in hexadecimal into @buf and returns the size of the buffer.
  *
  * Bits of the filter value corresponding to set bits in the filter mask are
- * compared against input scancodes and non-matching scancodes are discarded.
+ * compared against input scancodes and yesn-matching scancodes are discarded.
  *
  * dev->lock is taken to guard against races between
  * store_filter and show_filter.
@@ -1358,11 +1358,11 @@ static ssize_t show_filter(struct device *device,
  * This routine is for changing a scancode filter value or mask.
  * It is triggered by writing to /sys/class/rc/rc?/[wakeup_]filter[_mask].
  * Returns -EINVAL if an invalid filter value for the current protocol was
- * specified or if scancode filtering is not supported by the driver, otherwise
+ * specified or if scancode filtering is yest supported by the driver, otherwise
  * returns @len.
  *
  * Bits of the filter value corresponding to set bits in the filter mask are
- * compared against input scancodes and non-matching scancodes are discarded.
+ * compared against input scancodes and yesn-matching scancodes are discarded.
  *
  * dev->lock is taken to guard against races between
  * store_filter and show_filter.
@@ -1511,7 +1511,7 @@ static ssize_t store_wakeup_protocols(struct device *device,
 
 	allowed = dev->allowed_wakeup_protocols;
 
-	if (!sysfs_streq(buf, "none")) {
+	if (!sysfs_streq(buf, "yesne")) {
 		for (i = 0; i < ARRAY_SIZE(protocols); i++) {
 			if ((allowed & (1ULL << i)) &&
 			    sysfs_streq(buf, protocols[i].name)) {
@@ -1818,7 +1818,7 @@ static int rc_setup_rx_device(struct rc_dev *dev)
 
 	/*
 	 * As a repeat event on protocols like RC-5 and NEC take as long as
-	 * 110/114ms, using 33ms as a repeat period is not the right thing
+	 * 110/114ms, using 33ms as a repeat period is yest the right thing
 	 * to do.
 	 */
 	dev->input_dev->rep[REP_PERIOD] = 125;
@@ -1843,18 +1843,18 @@ int rc_register_device(struct rc_dev *dev)
 {
 	const char *path;
 	int attr = 0;
-	int minor;
+	int miyesr;
 	int rc;
 
 	if (!dev)
 		return -EINVAL;
 
-	minor = ida_simple_get(&rc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
-	if (minor < 0)
-		return minor;
+	miyesr = ida_simple_get(&rc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
+	if (miyesr < 0)
+		return miyesr;
 
-	dev->minor = minor;
-	dev_set_name(&dev->dev, "rc%u", dev->minor);
+	dev->miyesr = miyesr;
+	dev_set_name(&dev->dev, "rc%u", dev->miyesr);
 	dev_set_drvdata(&dev->dev, dev);
 
 	dev->dev.groups = dev->sysfs_groups;
@@ -1871,7 +1871,7 @@ int rc_register_device(struct rc_dev *dev)
 	if (dev->driver_type == RC_DRIVER_IR_RAW) {
 		rc = ir_raw_event_prepare(dev);
 		if (rc < 0)
-			goto out_minor;
+			goto out_miyesr;
 	}
 
 	if (dev->driver_type != RC_DRIVER_IR_RAW_TX) {
@@ -1910,8 +1910,8 @@ int rc_register_device(struct rc_dev *dev)
 			goto out_lirc;
 	}
 
-	dev_dbg(&dev->dev, "Registered rc%u (driver: %s)\n", dev->minor,
-		dev->driver_name ? dev->driver_name : "unknown");
+	dev_dbg(&dev->dev, "Registered rc%u (driver: %s)\n", dev->miyesr,
+		dev->driver_name ? dev->driver_name : "unkyeswn");
 
 	return 0;
 
@@ -1926,8 +1926,8 @@ out_rx_free:
 	ir_free_table(&dev->rc_map);
 out_raw:
 	ir_raw_event_free(dev);
-out_minor:
-	ida_simple_remove(&rc_ida, minor);
+out_miyesr:
+	ida_simple_remove(&rc_ida, miyesr);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(rc_register_device);
@@ -1980,14 +1980,14 @@ void rc_unregister_device(struct rc_dev *dev)
 
 	/*
 	 * lirc device should be freed with dev->registered = false, so
-	 * that userspace polling will get notified.
+	 * that userspace polling will get yestified.
 	 */
 	if (dev->allowed_protocols != RC_PROTO_BIT_CEC)
 		ir_lirc_unregister(dev);
 
 	device_del(&dev->dev);
 
-	ida_simple_remove(&rc_ida, dev->minor);
+	ida_simple_remove(&rc_ida, dev->miyesr);
 
 	if (!dev->managed_alloc)
 		rc_free_device(dev);

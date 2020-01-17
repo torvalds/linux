@@ -32,10 +32,10 @@ int bt_selftest(void);
 /* When CONFIG_BT_SELFTEST=y and CONFIG_BT=y, then the self testing
  * is run via late_initcall() to make sure that subsys_initcall() of
  * the Bluetooth subsystem and device_initcall() of the Crypto subsystem
- * do not clash.
+ * do yest clash.
  *
  * When CONFIG_BT_SELFTEST=n, then this turns into an empty call that
- * has no impact.
+ * has yes impact.
  */
 static inline int bt_selftest(void)
 {

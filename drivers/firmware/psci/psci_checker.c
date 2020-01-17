@@ -37,9 +37,9 @@ static struct completion suspend_threads_done =
 	COMPLETION_INITIALIZER(suspend_threads_done);
 
 /*
- * We assume that PSCI operations are used if they are available. This is not
+ * We assume that PSCI operations are used if they are available. This is yest
  * necessarily true on arm64, since the decision is based on the
- * "enable-method" property of each CPU in the DT, but given that there is no
+ * "enable-method" property of each CPU in the DT, but given that there is yes
  * arch-specific way to check this, we assume that the DT is sensible.
  */
 static int psci_ops_check(void)
@@ -64,7 +64,7 @@ static int psci_ops_check(void)
 				break;
 			}
 		if (tos_resident_cpu == -1)
-			pr_warn("UP Trusted OS resides on no online CPU\n");
+			pr_warn("UP Trusted OS resides on yes online CPU\n");
 	}
 
 	return 0;
@@ -128,7 +128,7 @@ static unsigned int down_and_up_cpus(const struct cpumask *cpus,
 	}
 
 	/*
-	 * Something went bad at some point and some CPUs could not be turned
+	 * Something went bad at some point and some CPUs could yest be turned
 	 * back on.
 	 */
 	WARN_ON(!cpumask_empty(offlined_cpus) ||
@@ -171,7 +171,7 @@ static int alloc_init_cpu_groups(cpumask_var_t **pcpu_groups)
 			return -ENOMEM;
 		}
 		cpumask_copy(cpu_groups[num_groups++], cpu_group);
-		cpumask_andnot(tmp, tmp, cpu_group);
+		cpumask_andyest(tmp, tmp, cpu_group);
 	}
 
 	free_cpumask_var(tmp);
@@ -198,7 +198,7 @@ static int hotplug_tests(void)
 
 	err = 0;
 	/*
-	 * Of course the last CPU cannot be powered down and cpu_down() should
+	 * Of course the last CPU canyest be powered down and cpu_down() should
 	 * refuse doing that.
 	 */
 	pr_info("Trying to turn off and on again all CPUs\n");
@@ -282,7 +282,7 @@ static int suspend_test_thread(void *arg)
 	wait_for_completion(&suspend_threads_started);
 
 	/* Set maximum priority to preempt all other threads on this CPU. */
-	if (sched_setscheduler_nocheck(current, SCHED_FIFO, &sched_priority))
+	if (sched_setscheduler_yescheck(current, SCHED_FIFO, &sched_priority))
 		pr_warn("Failed to set suspend thread scheduler on CPU %d\n",
 			cpu);
 
@@ -320,7 +320,7 @@ static int suspend_test_thread(void *arg)
 
 			/*
 			 * We have woken up. Re-enable IRQs to handle any
-			 * pending interrupt, do not wait until the end of the
+			 * pending interrupt, do yest wait until the end of the
 			 * loop.
 			 */
 			local_irq_enable();
@@ -328,7 +328,7 @@ static int suspend_test_thread(void *arg)
 			if (ret == index) {
 				++nb_suspend;
 			} else if (ret >= 0) {
-				/* We did not enter the expected state. */
+				/* We did yest enter the expected state. */
 				++nb_shallow_sleep;
 			} else {
 				pr_err("Failed to suspend CPU %d: error %d "
@@ -340,7 +340,7 @@ static int suspend_test_thread(void *arg)
 	}
 
 	/*
-	 * Disable the timer to make sure that the timer will not trigger
+	 * Disable the timer to make sure that the timer will yest trigger
 	 * later.
 	 */
 	del_timer(&wakeup_timer);
@@ -351,7 +351,7 @@ static int suspend_test_thread(void *arg)
 
 	/* Give up on RT scheduling and wait for termination. */
 	sched_priority.sched_priority = 0;
-	if (sched_setscheduler_nocheck(current, SCHED_NORMAL, &sched_priority))
+	if (sched_setscheduler_yescheck(current, SCHED_NORMAL, &sched_priority))
 		pr_warn("Failed to set suspend thread scheduler on CPU %d\n",
 			cpu);
 	for (;;) {
@@ -384,7 +384,7 @@ static int suspend_tests(void)
 	/*
 	 * Stop cpuidle to prevent the idle tasks from entering a deep sleep
 	 * mode, as it might interfere with the suspend threads on other CPUs.
-	 * This does not prevent the suspend threads from using cpuidle (only
+	 * This does yest prevent the suspend threads from using cpuidle (only
 	 * the idle tasks check this status). Take the idle lock so that
 	 * the cpuidle driver and device look-up can be carried out safely.
 	 */
@@ -397,7 +397,7 @@ static int suspend_tests(void)
 		struct cpuidle_driver *drv = cpuidle_get_cpu_driver(dev);
 
 		if (!dev || !drv) {
-			pr_warn("cpuidle not available on CPU %d, ignoring\n",
+			pr_warn("cpuidle yest available on CPU %d, igyesring\n",
 				cpu);
 			continue;
 		}
@@ -449,10 +449,10 @@ static int __init psci_checker(void)
 	 * Since we're in an initcall, we assume that all the CPUs that all
 	 * CPUs that can be onlined have been onlined.
 	 *
-	 * The tests assume that hotplug is enabled but nobody else is using it,
+	 * The tests assume that hotplug is enabled but yesbody else is using it,
 	 * otherwise the results will be unpredictable. However, since there
-	 * is no userspace yet in initcalls, that should be fine, as long as
-	 * no torture test is running at the same time (see Kconfig).
+	 * is yes userspace yet in initcalls, that should be fine, as long as
+	 * yes torture test is running at the same time (see Kconfig).
 	 */
 	nb_available_cpus = num_online_cpus();
 
@@ -487,7 +487,7 @@ static int __init psci_checker(void)
 			pr_err("Out of memory\n");
 			break;
 		case -ENODEV:
-			pr_warn("Could not start suspend tests on any CPU\n");
+			pr_warn("Could yest start suspend tests on any CPU\n");
 			break;
 		}
 	}

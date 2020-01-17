@@ -8,7 +8,7 @@
  *
  * This program is based on
  *
- * ne.c:       A general non-shared-memory NS8390 ethernet driver for linux
+ * ne.c:       A general yesn-shared-memory NS8390 ethernet driver for linux
  *             Written 1992-94 by Donald Becker.
  *
  * 8390.c:     A general NS8390 ethernet driver core for linux.
@@ -30,7 +30,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -163,7 +163,7 @@ struct net_device * __init apne_probe(int unit)
 #ifndef MANUAL_CONFIG
 	if ((pcmcia_copy_tuple(CISTPL_FUNCID, tuple, 8) < 3) ||
 		(tuple[2] != CISTPL_FUNCID_NETWORK)) {
-		pr_cont("not an ethernet card\n");
+		pr_cont("yest an ethernet card\n");
 		/* XXX: shouldn't we re-enable irq here? */
 		free_netdev(dev);
 		return ERR_PTR(-ENODEV);
@@ -218,14 +218,14 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
 
     netdev_info(dev, "PCMCIA NE*000 ethercard probe");
 
-    /* Reset card. Who knows what dain-bramaged state it was left in. */
+    /* Reset card. Who kyesws what dain-bramaged state it was left in. */
     {	unsigned long reset_start_time = jiffies;
 
 	outb(inb(ioaddr + NE_RESET), ioaddr + NE_RESET);
 
 	while ((inb(ioaddr + NE_EN0_ISR) & ENISR_RESET) == 0)
 		if (time_after(jiffies, reset_start_time + 2*HZ/100)) {
-			pr_cont(" not found (no reset ack).\n");
+			pr_cont(" yest found (yes reset ack).\n");
 			return -ENODEV;
 		}
 
@@ -267,7 +267,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     }
 
     /*	At this point, wordlength *only* tells us if the SA_prom is doubled
-	up or not because some broken PCI cards don't respect the byte-wide
+	up or yest because some broken PCI cards don't respect the byte-wide
 	request in program_seq above, and hence don't have doubled up values.
 	These broken cards would otherwise be detected as an ne1000.  */
 
@@ -296,7 +296,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
 	start_page = 0x01;
 	stop_page = (wordlength == 2) ? 0x40 : 0x20;
     } else {
-	pr_cont(" not found.\n");
+	pr_cont(" yest found.\n");
 	return -ENXIO;
 
     }
@@ -371,10 +371,10 @@ apne_reset_8390(struct net_device *dev)
     ei_status.txing = 0;
     ei_status.dmaing = 0;
 
-    /* This check _should_not_ be necessary, omit eventually. */
+    /* This check _should_yest_ be necessary, omit eventually. */
     while ((inb(NE_BASE+NE_EN0_ISR) & ENISR_RESET) == 0)
 	if (time_after(jiffies, reset_start_time + 2*HZ/100)) {
-		netdev_err(dev, "ne_reset_8390() did not complete.\n");
+		netdev_err(dev, "ne_reset_8390() did yest complete.\n");
 		break;
 	}
     outb(ENISR_RESET, NE_BASE + NE_EN0_ISR);	/* Ack intr. */
@@ -501,7 +501,7 @@ apne_block_output(struct net_device *dev, int count,
 
     outb(ENISR_RDC, nic_base + NE_EN0_ISR);
 
-   /* Now the normal output. */
+   /* Now the yesrmal output. */
     outb(count & 0xff, nic_base + NE_EN0_RCNTLO);
     outb(count >> 8,   nic_base + NE_EN0_RCNTHI);
     outb(0x00, nic_base + NE_EN0_RSARLO);

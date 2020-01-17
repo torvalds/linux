@@ -9,8 +9,8 @@
 |      -----
 |      Double-extended value Y is pointed to by address in register
 |      A0. Double-extended value X is located in -12(A0). The values
-|      of X and Y are both nonzero and finite; although either or both
-|      of them can be denormalized. The special cases of zeros, NaNs,
+|      of X and Y are both yesnzero and finite; although either or both
+|      of them can be deyesrmalized. The special cases of zeros, NaNs,
 |      and infinities are handled elsewhere.
 |
 |      OUTPUT
@@ -121,7 +121,7 @@ Mod_Rem:
 
    movel               #0x00003FFE,%d3	| ...$3FFD + 1
    tstl                %d4
-   bnes                HiY_not0
+   bnes                HiY_yest0
 
 HiY_0:
    movel               %d5,%d4
@@ -130,11 +130,11 @@ HiY_0:
    clrl                %d6
    bfffo                %d4{#0:#32},%d6
    lsll                %d6,%d4
-   subl                %d6,%d3           | ...(D3,D4,D5) is normalized
+   subl                %d6,%d3           | ...(D3,D4,D5) is yesrmalized
 |                                       ...with bias $7FFD
    bras                Chk_X
 
-HiY_not0:
+HiY_yest0:
    clrl                %d6
    bfffo                %d4{#0:#32},%d6
    subl                %d6,%d3
@@ -144,12 +144,12 @@ HiY_not0:
    negl                %d6
    addil               #32,%d6
    lsrl                %d6,%d7
-   orl                 %d7,%d4           | ...(D3,D4,D5) normalized
+   orl                 %d7,%d4           | ...(D3,D4,D5) yesrmalized
 |                                       ...with bias $7FFD
    bras                Chk_X
 
 Y_Normal:
-   addil               #0x00003FFE,%d3   | ...(D3,D4,D5) normalized
+   addil               #0x00003FFE,%d3   | ...(D3,D4,D5) yesrmalized
 |                                       ...with bias $7FFD
 
 Chk_X:
@@ -166,7 +166,7 @@ Chk_X:
    bnes                X_Normal
    movel               #0x00003FFE,%d0
    tstl                %d1
-   bnes                HiX_not0
+   bnes                HiX_yest0
 
 HiX_0:
    movel               %d2,%d1
@@ -175,11 +175,11 @@ HiX_0:
    clrl                %d6
    bfffo                %d1{#0:#32},%d6
    lsll                %d6,%d1
-   subl                %d6,%d0           | ...(D0,D1,D2) is normalized
+   subl                %d6,%d0           | ...(D0,D1,D2) is yesrmalized
 |                                       ...with bias $7FFD
    bras                Init
 
-HiX_not0:
+HiX_yest0:
    clrl                %d6
    bfffo                %d1{#0:#32},%d6
    subl                %d6,%d0
@@ -189,12 +189,12 @@ HiX_not0:
    negl                %d6
    addil               #32,%d6
    lsrl                %d6,%d7
-   orl                 %d7,%d1           | ...(D0,D1,D2) normalized
+   orl                 %d7,%d1           | ...(D0,D1,D2) yesrmalized
 |                                       ...with bias $7FFD
    bras                Init
 
 X_Normal:
-   addil               #0x00003FFE,%d0   | ...(D0,D1,D2) normalized
+   addil               #0x00003FFE,%d0   | ...(D0,D1,D2) yesrmalized
 |                                       ...with bias $7FFD
 
 Init:
@@ -262,10 +262,10 @@ R_LT_Y:
 PostLoop:
 |..k = L, j = 0, Carry = 0, R = (D1,D2) = X - QY, R < Y.
 
-|..normalize R.
+|..yesrmalize R.
    movel               L_SCR1(%a6),%d0           | ...new biased expo of R
    tstl                %d1
-   bnes                HiR_not0
+   bnes                HiR_yest0
 
 HiR_0:
    movel               %d2,%d1
@@ -274,14 +274,14 @@ HiR_0:
    clrl                %d6
    bfffo                %d1{#0:#32},%d6
    lsll                %d6,%d1
-   subl                %d6,%d0           | ...(D0,D1,D2) is normalized
+   subl                %d6,%d0           | ...(D0,D1,D2) is yesrmalized
 |                                       ...with bias $7FFD
    bras                Get_Mod
 
-HiR_not0:
+HiR_yest0:
    clrl                %d6
    bfffo                %d1{#0:#32},%d6
-   bmis                Get_Mod         | ...already normalized
+   bmis                Get_Mod         | ...already yesrmalized
    subl                %d6,%d0
    lsll                %d6,%d1
    movel               %d2,%d7           | ...a copy of D2
@@ -289,7 +289,7 @@ HiR_not0:
    negl                %d6
    addil               #32,%d6
    lsrl                %d6,%d7
-   orl                 %d7,%d1           | ...(D0,D1,D2) normalized
+   orl                 %d7,%d1           | ...(D0,D1,D2) yesrmalized
 
 |
 Get_Mod:
@@ -305,7 +305,7 @@ Do_Scale:
    clrw		Y+2(%a6)
    movel		%d4,Y_Hi(%a6)
    movel		%d5,Y_Lo(%a6)
-   fmovex		R(%a6),%fp0		| ...no exception
+   fmovex		R(%a6),%fp0		| ...yes exception
    movel		#1,Sc_Flag(%a6)
    bras		ModOrRem
 No_Scale:
@@ -347,7 +347,7 @@ Not_EQ:
 
 Last_Sub:
 |
-   fsubx		Y(%a6),%fp0		| ...no exceptions
+   fsubx		Y(%a6),%fp0		| ...yes exceptions
    addql               #1,%d3           | ...Q := Q + 1
 
 |
@@ -380,7 +380,7 @@ Restore:
    movel               Sc_Flag(%a6),%d0
    beqs                Finish
    fmulx		Scale(%pc),%fp0	| ...may cause underflow
-   bra			t_avoid_unsupp	|check for denorm as a
+   bra			t_avoid_unsupp	|check for deyesrm as a
 |					;result of the scaling
 
 Finish:

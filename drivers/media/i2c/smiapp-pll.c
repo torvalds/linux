@@ -115,7 +115,7 @@ static int check_all_bounds(struct device *dev,
 			"op_pix_clk_freq_hz");
 
 	/*
-	 * If there are no OP clocks, the VT clocks are contained in
+	 * If there are yes OP clocks, the VT clocks are contained in
 	 * the OP clock struct.
 	 */
 	if (pll->flags & SMIAPP_PLL_FLAG_NO_OP_CLOCKS)
@@ -276,7 +276,7 @@ static int __smiapp_pll_calculate(
 	 *
 	 * Horizontal binning can be used as a base for difference in
 	 * divisors. One must make sure that horizontal blanking is
-	 * enough to accommodate the CSI-2 sync codes.
+	 * eyesugh to accommodate the CSI-2 sync codes.
 	 *
 	 * Take scaling factor into account as well.
 	 *
@@ -338,7 +338,7 @@ static int __smiapp_pll_calculate(
 
 	/*
 	 * Find pix_div such that a legal pix_div * sys_div results
-	 * into a value which is not smaller than div, the desired
+	 * into a value which is yest smaller than div, the desired
 	 * divisor.
 	 */
 	for (vt_div = min_vt_div; vt_div <= max_vt_div;
@@ -398,8 +398,8 @@ int smiapp_pll_calculate(struct device *dev,
 
 	if (pll->flags & SMIAPP_PLL_FLAG_NO_OP_CLOCKS) {
 		/*
-		 * If there's no OP PLL at all, use the VT values
-		 * instead. The OP values are ignored for the rest of
+		 * If there's yes OP PLL at all, use the VT values
+		 * instead. The OP values are igyesred for the rest of
 		 * the PLL calculation.
 		 */
 		op_limits = &limits->vt;

@@ -238,7 +238,7 @@ enum dma_output_order {
 	/* only valid at DMA_OUTPUT_FORMAT_BAYER */
 };
 
-/* enum dma_output_notify_dma_done */
+/* enum dma_output_yestify_dma_done */
 #define DMA_OUTPUT_NOTIFY_DMA_DONE_DISABLE	0
 #define DMA_OUTPUT_NOTIFY_DMA_DONE_ENABLE	1
 
@@ -435,7 +435,7 @@ enum fd_config_yaw_angle {
 #define FD_CONFIG_BLINK_MODE_DISABLE		0
 #define FD_CONFIG_BLINK_MODE_ENABLE		1
 
-/* Eyes detection configuration */
+/* Eno detection configuration */
 #define FD_CONFIG_EYES_DETECT_DISABLE		0
 #define FD_CONFIG_EYES_DETECT_ENABLE		1
 
@@ -508,7 +508,7 @@ struct param_dma_output {
 	u32 order;
 	u32 buffer_number;
 	u32 buffer_address;
-	u32 notify_dma_done;
+	u32 yestify_dma_done;
 	u32 dma_out_mask;
 	u32 reserved[FIMC_IS_PARAM_MAX_ENTRIES - 12];
 	u32 err;
@@ -801,7 +801,7 @@ struct is_tune_isp {
 	/* Edge color supression: range -127...127, default 0. */
 	s32 edge_color_supression;
 	/* Noise reduction: range -127...127, default 0. */
-	s32 noise_reduction;
+	s32 yesise_reduction;
 	/* (32 * 4 + 9) * 4 = 548 bytes */
 } __packed;
 
@@ -946,10 +946,10 @@ struct is_share_region {
 	/* 1 : SIRC_ISP_CAMERA_AUTOFOCUSMESSAGE_REACHED */
 	/* 2 : SIRC_ISP_CAMERA_AUTOFOCUSMESSAGE_UNABLETOREACH */
 	/* 3 : SIRC_ISP_CAMERA_AUTOFOCUSMESSAGE_LOST */
-	/* default : unknown */
+	/* default : unkyeswn */
 	u32 af_scene_type;
 
-	u32 frame_descp_onoff_control;
+	u32 frame_descp_oyesff_control;
 	u32 frame_descp_update_done;
 	u32 frame_descp_idx;
 	u32 frame_descp_max_idx;
@@ -957,11 +957,11 @@ struct is_share_region {
 		dbg_frame_descp_ctx[MAX_FRAMEDESCRIPTOR_CONTEXT_NUM];
 
 	u32 chip_id;
-	u32 chip_rev_no;
-	u8 isp_fw_ver_no[MAX_VERSION_DISPLAY_BUF];
+	u32 chip_rev_yes;
+	u8 isp_fw_ver_yes[MAX_VERSION_DISPLAY_BUF];
 	u8 isp_fw_ver_date[MAX_VERSION_DISPLAY_BUF];
-	u8 sirc_sdk_ver_no[MAX_VERSION_DISPLAY_BUF];
-	u8 sirc_sdk_rev_no[MAX_VERSION_DISPLAY_BUF];
+	u8 sirc_sdk_ver_yes[MAX_VERSION_DISPLAY_BUF];
+	u8 sirc_sdk_rev_yes[MAX_VERSION_DISPLAY_BUF];
 	u8 sirc_sdk_rev_date[MAX_VERSION_DISPLAY_BUF];
 } __packed;
 
@@ -977,7 +977,7 @@ struct sensor_open_extended {
 	u32 mclk;
 	u32 mipi_lane_num;
 	u32 mipi_speed;
-	/* Skip setfile loading when fast_open_sensor is not 0 */
+	/* Skip setfile loading when fast_open_sensor is yest 0 */
 	u32 fast_open_sensor;
 	/* Activating sensor self calibration mode (6A3) */
 	u32 self_calibration_mode;

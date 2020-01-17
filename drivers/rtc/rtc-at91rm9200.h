@@ -51,7 +51,7 @@
 #define		AT91_RTC_DATEEN		(1 << 31)		/* Date Alarm Enable */
 
 #define	AT91_RTC_SR		0x18			/* Status Register */
-#define		AT91_RTC_ACKUPD		(1 <<  0)		/* Acknowledge for Update */
+#define		AT91_RTC_ACKUPD		(1 <<  0)		/* Ackyeswledge for Update */
 #define		AT91_RTC_ALARM		(1 <<  1)		/* Alarm Flag */
 #define		AT91_RTC_SECEV		(1 <<  2)		/* Second Event */
 #define		AT91_RTC_TIMEV		(1 <<  3)		/* Time Event */

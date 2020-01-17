@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_ENUM_FMT:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_ENUM_FMT - Enumerate image formats
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_ENUM_FMT, struct v4l2_fmtdesc *argp )
@@ -46,7 +46,7 @@ fill the rest of the structure or return an ``EINVAL`` error code. All
 formats are enumerable by beginning at index zero and incrementing by
 one until ``EINVAL`` is returned.
 
-.. note::
+.. yeste::
 
    After switching input or output the list of enumerated image
    formats may be different.
@@ -64,7 +64,7 @@ one until ``EINVAL`` is returned.
     * - __u32
       - ``index``
       - Number of the format in the enumeration, set by the application.
-	This is in no way related to the ``pixelformat`` field.
+	This is in yes way related to the ``pixelformat`` field.
     * - __u32
       - ``type``
       - Type of the data stream, set by the application. Only these types
@@ -101,7 +101,7 @@ one until ``EINVAL`` is returned.
 
 	.. attention::
 
-	   These codes are not the same as those used
+	   These codes are yest the same as those used
 	   in the Windows world.
     * - __u32
       - ``reserved``\ [4]
@@ -124,21 +124,21 @@ one until ``EINVAL`` is returned.
       - This is a compressed format.
     * - ``V4L2_FMT_FLAG_EMULATED``
       - 0x0002
-      - This format is not native to the device but emulated through
+      - This format is yest native to the device but emulated through
 	software (usually libv4l2), where possible try to use a native
 	format instead for better performance.
     * - ``V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM``
       - 0x0004
       - The hardware decoder for this compressed bytestream format (aka coded
 	format) is capable of parsing a continuous bytestream. Applications do
-	not need to parse the bytestream themselves to find the boundaries
+	yest need to parse the bytestream themselves to find the boundaries
 	between frames/fields. This flag can only be used in combination with
 	the ``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to compressed
 	formats only. This flag is valid for stateful decoders only.
     * - ``V4L2_FMT_FLAG_DYN_RESOLUTION``
       - 0x0008
       - Dynamic resolution switching is supported by the device for this
-	compressed bytestream format (aka coded format). It will notify the user
+	compressed bytestream format (aka coded format). It will yestify the user
 	via the event ``V4L2_EVENT_SOURCE_CHANGE`` when changes in the video
 	parameters are detected. This flag can only be used in combination
 	with the ``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to
@@ -148,10 +148,10 @@ one until ``EINVAL`` is returned.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The struct :c:type:`v4l2_fmtdesc` ``type`` is not
+    The struct :c:type:`v4l2_fmtdesc` ``type`` is yest
     supported or the ``index`` is out of bounds.

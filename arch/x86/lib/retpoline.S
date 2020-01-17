@@ -6,7 +6,7 @@
 #include <asm/cpufeatures.h>
 #include <asm/alternative-asm.h>
 #include <asm/export.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 .macro THUNK reg
 	.section .text.__x86.indirect_thunk

@@ -24,9 +24,9 @@ Optional properties:
     absent, the default is 100.
 
   - gpio-cfg : A list of GPIO configuration register values. The list must
-    be 5 entries long. If absent, no configuration of these registers is
+    be 5 entries long. If absent, yes configuration of these registers is
     performed. If any entry has the value 0xffffffff, that GPIO's
-    configuration will not be modified.
+    configuration will yest be modified.
 
   - AVDD-supply : Analog power supply regulator on the AVDD pin.
 

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #ifndef _NFP_APP_H
 #define _NFP_APP_H 1
@@ -69,7 +69,7 @@ extern const struct nfp_app_type app_abm;
  * @port_get_stats_strings:	get strings for extra statistics
  * @start:	start application logic
  * @stop:	stop application logic
- * @netdev_event:	Netdevice notifier event
+ * @netdev_event:	Netdevice yestifier event
  * @ctrl_msg_rx:    control message handler
  * @ctrl_msg_rx_raw:	handler for control messages from data queues
  * @setup_tc:	setup TC ndo
@@ -156,7 +156,7 @@ struct nfp_app_type {
  * @reprs:	array of pointers to representors
  * @type:	pointer to const application ops and info
  * @ctrl_mtu:	MTU to set on the control vNIC (set in .init())
- * @netdev_nb:	Netdevice notifier block
+ * @netdev_nb:	Netdevice yestifier block
  * @priv:	app-specific priv data
  */
 struct nfp_app {
@@ -170,7 +170,7 @@ struct nfp_app {
 	const struct nfp_app_type *type;
 	unsigned int ctrl_mtu;
 
-	struct notifier_block netdev_nb;
+	struct yestifier_block netdev_nb;
 
 	void *priv;
 };

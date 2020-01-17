@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -22,10 +22,10 @@
  * SOFTWARE.
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_reg.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_reg.h"
 #include "dispnv04/hw.h"
-#include "nouveau_encoder.h"
+#include "yesuveau_encoder.h"
 
 #include <linux/io-mapping.h>
 #include <linux/firmware.h>
@@ -93,20 +93,20 @@ static void
 run_digital_op_script(struct drm_device *dev, uint16_t scriptptr,
 		      struct dcb_output *dcbent, int head, bool dl)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 
 	NV_INFO(drm, "0x%04X: Parsing digital output script table\n",
 		 scriptptr);
 	NVWriteVgaCrtc(dev, 0, NV_CIO_CRE_44, head ? NV_CIO_CRE_44_HEADB :
 					         NV_CIO_CRE_44_HEADA);
-	nouveau_bios_run_init_table(dev, scriptptr, dcbent, head);
+	yesuveau_bios_run_init_table(dev, scriptptr, dcbent, head);
 
 	nv04_dfp_bind_head(dev, dcbent, head, dl);
 }
 
 static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_output *dcbent, int head, enum LVDS_script script)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvbios *bios = &drm->vbios;
 	uint8_t sub = bios->data[bios->fp.xlated_entry + script] + (bios->fp.link_c_increment && dcbent->or & DCB_OUTPUT_C ? 1 : 0);
 	uint16_t scriptofs = ROM16(bios->data[bios->init_script_tbls_ptr + sub * 2]);
@@ -137,19 +137,19 @@ static int run_lvds_table(struct drm_device *dev, struct dcb_output *dcbent, int
 	 * The BIT LVDS table's header has the information to setup the
 	 * necessary registers. Following the standard 4 byte header are:
 	 * A bitmask byte and a dual-link transition pxclk value for use in
-	 * selecting the init script when not using straps; 4 script pointers
+	 * selecting the init script when yest using straps; 4 script pointers
 	 * for panel power, selected by output and on/off; and 8 table pointers
 	 * for panel init, the needed one determined by output, and bits in the
 	 * conf byte. These tables are similar to the TMDS tables, consisting
 	 * of a list of pxclks and script pointers.
 	 */
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvbios *bios = &drm->vbios;
 	unsigned int outputset = (dcbent->or == 4) ? 1 : 0;
 	uint16_t scriptptr = 0, clktable;
 
 	/*
-	 * For now we assume version 3.0 table - g80 support will need some
+	 * For yesw we assume version 3.0 table - g80 support will need some
 	 * changes
 	 */
 
@@ -189,14 +189,14 @@ static int run_lvds_table(struct drm_device *dev, struct dcb_output *dcbent, int
 
 		clktable = ROM16(bios->data[clktable]);
 		if (!clktable) {
-			NV_ERROR(drm, "Pixel clock comparison table not found\n");
+			NV_ERROR(drm, "Pixel clock comparison table yest found\n");
 			return -ENOENT;
 		}
 		scriptptr = clkcmptable(bios, clktable, pxclk);
 	}
 
 	if (!scriptptr) {
-		NV_ERROR(drm, "LVDS output init script not found\n");
+		NV_ERROR(drm, "LVDS output init script yest found\n");
 		return -ENOENT;
 	}
 	run_digital_op_script(dev, scriptptr, dcbent, head, bios->fp.dual_link);
@@ -212,7 +212,7 @@ int call_lvds_script(struct drm_device *dev, struct dcb_output *dcbent, int head
 	 * This acts as the demux
 	 */
 
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvif_object *device = &drm->client.device.object;
 	struct nvbios *bios = &drm->vbios;
 	uint8_t lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
@@ -266,7 +266,7 @@ static int parse_lvds_manufacturer_table_header(struct drm_device *dev, struct n
 	 * the maximum number of records that can be held in the table.
 	 */
 
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	uint8_t lvds_ver, headerlen, recordlen;
 
 	memset(lth, 0, sizeof(struct lvdstableheader));
@@ -286,7 +286,7 @@ static int parse_lvds_manufacturer_table_header(struct drm_device *dev, struct n
 	case 0x30:	/* NV4x */
 		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
 		if (headerlen < 0x1f) {
-			NV_ERROR(drm, "LVDS table header not understood\n");
+			NV_ERROR(drm, "LVDS table header yest understood\n");
 			return -EINVAL;
 		}
 		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 2];
@@ -294,14 +294,14 @@ static int parse_lvds_manufacturer_table_header(struct drm_device *dev, struct n
 	case 0x40:	/* G80/G90 */
 		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
 		if (headerlen < 0x7) {
-			NV_ERROR(drm, "LVDS table header not understood\n");
+			NV_ERROR(drm, "LVDS table header yest understood\n");
 			return -EINVAL;
 		}
 		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 2];
 		break;
 	default:
 		NV_ERROR(drm,
-			 "LVDS table revision %d.%d not currently supported\n",
+			 "LVDS table revision %d.%d yest currently supported\n",
 			 lvds_ver >> 4, lvds_ver & 0xf);
 		return -ENOSYS;
 	}
@@ -316,14 +316,14 @@ static int parse_lvds_manufacturer_table_header(struct drm_device *dev, struct n
 static int
 get_fp_strap(struct drm_device *dev, struct nvbios *bios)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvif_object *device = &drm->client.device.object;
 
 	/*
-	 * The fp strap is normally dictated by the "User Strap" in
+	 * The fp strap is yesrmally dictated by the "User Strap" in
 	 * PEXTDEV_BOOT_0[20:16], but on BMP cards when bit 2 of the
 	 * Internal_Flags struct at 0x48 is set, the user strap gets overriden
-	 * by the PCI subsystem ID during POST, but not before the previous user
+	 * by the PCI subsystem ID during POST, but yest before the previous user
 	 * strap has been committed to CR58 for CR57=0xf on head A, which may be
 	 * read and used instead
 	 */
@@ -342,7 +342,7 @@ get_fp_strap(struct drm_device *dev, struct nvbios *bios)
 
 static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	uint8_t *fptable;
 	uint8_t fptable_ver, headerlen = 0, recordlen, fpentries = 0xf, fpindex;
 	int ret, ofs, fpstrapping;
@@ -360,9 +360,9 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 
 	switch (fptable_ver) {
 	/*
-	 * BMP version 0x5.0x11 BIOSen have version 1 like tables, but no
+	 * BMP version 0x5.0x11 BIOSen have version 1 like tables, but yes
 	 * version field, and miss one of the spread spectrum/PWM bytes.
-	 * This could affect early GF2Go parts (not seen any appropriate ROMs
+	 * This could affect early GF2Go parts (yest seen any appropriate ROMs
 	 * though). Here we assume that a version of 0x05 matches this case
 	 * (combining with a BMP version check would be better), as the
 	 * common case for the panel type field is 0x0005, and that is in
@@ -389,7 +389,7 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 		break;
 	default:
 		NV_ERROR(drm,
-			 "FP table revision %d.%d not currently supported\n",
+			 "FP table revision %d.%d yest currently supported\n",
 			 fptable_ver >> 4, fptable_ver & 0xf);
 		return -ENOSYS;
 	}
@@ -423,10 +423,10 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 
 	/* nv4x cards need both a strap value and fpindex of 0xf to use DDC */
 	if (lth.lvds_ver > 0x10)
-		bios->fp_no_ddc = fpstrapping != 0xf || fpindex != 0xf;
+		bios->fp_yes_ddc = fpstrapping != 0xf || fpindex != 0xf;
 
 	/*
-	 * If either the strap or xlated fpindex value are 0xf there is no
+	 * If either the strap or xlated fpindex value are 0xf there is yes
 	 * panel using a strap-derived bios mode present.  this condition
 	 * includes, but is different from, the DDC panel indicator above
 	 */
@@ -444,9 +444,9 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 	return 0;
 }
 
-bool nouveau_bios_fp_mode(struct drm_device *dev, struct drm_display_mode *mode)
+bool yesuveau_bios_fp_mode(struct drm_device *dev, struct drm_display_mode *mode)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvbios *bios = &drm->vbios;
 	uint8_t *mode_entry = &bios->data[bios->fp.mode_ptr];
 
@@ -456,7 +456,7 @@ bool nouveau_bios_fp_mode(struct drm_device *dev, struct drm_display_mode *mode)
 	memset(mode, 0, sizeof(struct drm_display_mode));
 	/*
 	 * For version 1.0 (version in byte 0):
-	 * bytes 1-2 are "panel type", including bits on whether Colour/mono,
+	 * bytes 1-2 are "panel type", including bits on whether Colour/moyes,
 	 * single/dual link, and type (TFT etc.)
 	 * bytes 3-6 are bits per colour in RGBX
 	 */
@@ -490,13 +490,13 @@ bool nouveau_bios_fp_mode(struct drm_device *dev, struct drm_display_mode *mode)
 	return bios->fp.mode_ptr;
 }
 
-int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, bool *if_is_24bit)
+int yesuveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, bool *if_is_24bit)
 {
 	/*
 	 * The LVDS table header is (mostly) described in
 	 * parse_lvds_manufacturer_table_header(): the BIT header additionally
 	 * contains the dual-link transition pxclk (in 10s kHz), at byte 5 - if
-	 * straps are not being used for the panel, this specifies the frequency
+	 * straps are yest being used for the panel, this specifies the frequency
 	 * at which modes should be set up in the dual link style.
 	 *
 	 * Following the header, the BMP (ver 0xa) table has several records,
@@ -512,12 +512,12 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 	 * two bytes - the first as a config byte, the second for indexing the
 	 * fp mode table pointed to by the BIT 'D' table
 	 *
-	 * DDC is not used until after card init, so selecting the correct table
+	 * DDC is yest used until after card init, so selecting the correct table
 	 * entry and setting the dual link flag for EDID equipped panels,
-	 * requiring tests against the native-mode pixel clock, cannot be done
-	 * until later, when this function should be called with non-zero pxclk
+	 * requiring tests against the native-mode pixel clock, canyest be done
+	 * until later, when this function should be called with yesn-zero pxclk
 	 */
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvbios *bios = &drm->vbios;
 	int fpstrapping = get_fp_strap(dev, bios), lvdsmanufacturerindex = 0;
 	struct lvdstableheader lth;
@@ -557,7 +557,7 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 			 * later attempting to match the EDID manufacturer and
 			 * product IDs in a table (signature 'pidt' (panel id
 			 * table?)), setting an lvdsmanufacturerindex of 0 and
-			 * an fp strap of the match index (or 0xf if none)
+			 * an fp strap of the match index (or 0xf if yesne)
 			 */
 			lvdsmanufacturerindex = 0;
 		} else {
@@ -579,7 +579,7 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 		lvdsmanufacturerindex = fpstrapping;
 		break;
 	default:
-		NV_ERROR(drm, "LVDS table revision not currently supported\n");
+		NV_ERROR(drm, "LVDS table revision yest currently supported\n");
 		return -ENOSYS;
 	}
 
@@ -632,7 +632,7 @@ int run_tmds_table(struct drm_device *dev, struct dcb_output *dcbent, int head, 
 	 * ffs(or) == 3, use the second.
 	 */
 
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvif_object *device = &drm->client.device.object;
 	struct nvbios *bios = &drm->vbios;
 	int cv = bios->chip_version;
@@ -655,14 +655,14 @@ int run_tmds_table(struct drm_device *dev, struct dcb_output *dcbent, int head, 
 	}
 
 	if (!clktable) {
-		NV_ERROR(drm, "Pixel clock comparison table not found\n");
+		NV_ERROR(drm, "Pixel clock comparison table yest found\n");
 		return -EINVAL;
 	}
 
 	scriptptr = clkcmptable(bios, clktable, pxclk);
 
 	if (!scriptptr) {
-		NV_ERROR(drm, "TMDS output init script not found\n");
+		NV_ERROR(drm, "TMDS output init script yest found\n");
 		return -ENOENT;
 	}
 
@@ -700,12 +700,12 @@ static int parse_bit_A_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	 * offset + 0 (16 bits): loadval table pointer
 	 */
 
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	uint16_t load_table_ptr;
 	uint8_t version, headerlen, entrylen, num_entries;
 
 	if (bitentry->length != 3) {
-		NV_ERROR(drm, "Do not understand BIT A table\n");
+		NV_ERROR(drm, "Do yest understand BIT A table\n");
 		return -EINVAL;
 	}
 
@@ -719,7 +719,7 @@ static int parse_bit_A_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	version = bios->data[load_table_ptr];
 
 	if (version != 0x10) {
-		NV_ERROR(drm, "BIT loadval table version %d.%d not supported\n",
+		NV_ERROR(drm, "BIT loadval table version %d.%d yest supported\n",
 			 version >> 4, version & 0xF);
 		return -ENOSYS;
 	}
@@ -729,11 +729,11 @@ static int parse_bit_A_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	num_entries = bios->data[load_table_ptr + 3];
 
 	if (headerlen != 4 || entrylen != 4 || num_entries != 2) {
-		NV_ERROR(drm, "Do not understand BIT loadval table\n");
+		NV_ERROR(drm, "Do yest understand BIT loadval table\n");
 		return -EINVAL;
 	}
 
-	/* First entry is normal dac, 2nd tv-out perhaps? */
+	/* First entry is yesrmal dac, 2nd tv-out perhaps? */
 	bios->dactestval = ROM32(bios->data[load_table_ptr + headerlen]) & 0x3ff;
 
 	return 0;
@@ -749,10 +749,10 @@ static int parse_bit_display_tbl_entry(struct drm_device *dev, struct nvbios *bi
 	 * records beginning with a freq.
 	 * offset + 2  (16 bits): mode table pointer
 	 */
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 
 	if (bitentry->length != 4) {
-		NV_ERROR(drm, "Do not understand BIT display table\n");
+		NV_ERROR(drm, "Do yest understand BIT display table\n");
 		return -EINVAL;
 	}
 
@@ -768,10 +768,10 @@ static int parse_bit_init_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	 *
 	 * See parse_script_table_pointers for layout
 	 */
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 
 	if (bitentry->length < 14) {
-		NV_ERROR(drm, "Do not understand init table\n");
+		NV_ERROR(drm, "Do yest understand init table\n");
 		return -EINVAL;
 	}
 
@@ -789,10 +789,10 @@ static int parse_bit_i_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	 * offset + 13 (16 bits): pointer to table containing DAC load
 	 * detection comparison values
 	 *
-	 * There's other things in the table, purpose unknown
+	 * There's other things in the table, purpose unkyeswn
 	 */
 
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	uint16_t daccmpoffset;
 	uint8_t dacver, dacheaderlen;
 
@@ -809,7 +809,7 @@ static int parse_bit_i_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	bios->is_mobile = bios->feature_byte & FEATURE_MOBILE;
 
 	if (bitentry->length < 15) {
-		NV_WARN(drm, "BIT i table not long enough for DAC load "
+		NV_WARN(drm, "BIT i table yest long eyesugh for DAC load "
 			       "detection comparison table\n");
 		return -EINVAL;
 	}
@@ -831,7 +831,7 @@ static int parse_bit_i_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 
 	if (dacver != 0x00 && dacver != 0x10) {
 		NV_WARN(drm, "DAC load detection comparison table version "
-			       "%d.%d not known\n", dacver >> 4, dacver & 0xf);
+			       "%d.%d yest kyeswn\n", dacver >> 4, dacver & 0xf);
 		return -ENOSYS;
 	}
 
@@ -850,16 +850,16 @@ static int parse_bit_lvds_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	 * offset + 0  (16 bits): LVDS strap xlate table pointer
 	 */
 
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 
 	if (bitentry->length != 2) {
-		NV_ERROR(drm, "Do not understand BIT LVDS table\n");
+		NV_ERROR(drm, "Do yest understand BIT LVDS table\n");
 		return -EINVAL;
 	}
 
 	/*
 	 * No idea if it's still called the LVDS manufacturer table, but
-	 * the concept's close enough.
+	 * the concept's close eyesugh.
 	 */
 	bios->fp.lvdsmanufacturerpointer = ROM16(bios->data[bitentry->offset]);
 
@@ -877,7 +877,7 @@ parse_bit_M_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	 * 	restrict option selection
 	 *
 	 * There's a bunch of bits in this table other than the RAM restrict
-	 * stuff that we don't use - their use currently unknown
+	 * stuff that we don't use - their use currently unkyeswn
 	 */
 
 	/*
@@ -911,9 +911,9 @@ static int parse_bit_tmds_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	 * characteristic signature of 0x11,0x13 (1.1 being version, 0x13 being
 	 * length?)
 	 *
-	 * At offset +7 is a pointer to a script, which I don't know how to
+	 * At offset +7 is a pointer to a script, which I don't kyesw how to
 	 * run yet.
-	 * At offset +9 is a pointer to another script, likewise
+	 * At offset +9 is a pointer to ayesther script, likewise
 	 * Offset +11 has a pointer to a table where the first word is a pxclk
 	 * frequency and the second word a pointer to a script, which should be
 	 * run if the comparison pxclk frequency is less than the pxclk desired.
@@ -923,17 +923,17 @@ static int parse_bit_tmds_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	 * "or" from the DCB.
 	 */
 
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	uint16_t tmdstableptr, script1, script2;
 
 	if (bitentry->length != 2) {
-		NV_ERROR(drm, "Do not understand BIT TMDS table\n");
+		NV_ERROR(drm, "Do yest understand BIT TMDS table\n");
 		return -EINVAL;
 	}
 
 	tmdstableptr = ROM16(bios->data[bitentry->offset]);
 	if (!tmdstableptr) {
-		NV_INFO(drm, "Pointer to TMDS table not found\n");
+		NV_INFO(drm, "Pointer to TMDS table yest found\n");
 		return -EINVAL;
 	}
 
@@ -946,12 +946,12 @@ static int parse_bit_tmds_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 
 	/*
 	 * These two scripts are odd: they don't seem to get run even when
-	 * they are not stubbed.
+	 * they are yest stubbed.
 	 */
 	script1 = ROM16(bios->data[tmdstableptr + 7]);
 	script2 = ROM16(bios->data[tmdstableptr + 9]);
 	if (bios->data[script1] != 'q' || bios->data[script2] != 'q')
-		NV_WARN(drm, "TMDS table script pointers not stubbed\n");
+		NV_WARN(drm, "TMDS table script pointers yest stubbed\n");
 
 	bios->tmds.output0_script_ptr = ROM16(bios->data[tmdstableptr + 11]);
 	bios->tmds.output1_script_ptr = ROM16(bios->data[tmdstableptr + 13]);
@@ -969,7 +969,7 @@ struct bit_table {
 int
 bit_table(struct drm_device *dev, u8 id, struct bit_entry *bit)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvbios *bios = &drm->vbios;
 	u8 entries, *entry;
 
@@ -999,13 +999,13 @@ parse_bit_table(struct nvbios *bios, const uint16_t bitoffset,
 		struct bit_table *table)
 {
 	struct drm_device *dev = bios->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct bit_entry bitentry;
 
 	if (bit_table(dev, table->id, &bitentry) == 0)
 		return table->parse_fn(dev, bios, &bitentry);
 
-	NV_INFO(drm, "BIT table '%c' not found\n", table->id);
+	NV_INFO(drm, "BIT table '%c' yest found\n", table->id);
 	return -ENOSYS;
 }
 
@@ -1018,7 +1018,7 @@ parse_bit_structure(struct nvbios *bios, const uint16_t bitoffset)
 	 * The only restriction on parsing order currently is having 'i' first
 	 * for use of bios->*_version or bios->feature_byte while parsing;
 	 * functions shouldn't be actually *doing* anything apart from pulling
-	 * data from the image into the bios struct, thus no interdependencies
+	 * data from the image into the bios struct, thus yes interdependencies
 	 */
 	ret = parse_bit_table(bios, bitoffset, &BIT_TABLE('i', i));
 	if (ret) /* info? */
@@ -1039,10 +1039,10 @@ parse_bit_structure(struct nvbios *bios, const uint16_t bitoffset)
 static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsigned int offset)
 {
 	/*
-	 * Parses the BMP structure for useful things, but does not act on them
+	 * Parses the BMP structure for useful things, but does yest act on them
 	 *
 	 * offset +   5: BMP major version
-	 * offset +   6: BMP minor version
+	 * offset +   6: BMP miyesr version
 	 * offset +   9: BMP feature byte
 	 * offset +  10: BCD encoded BIOS version
 	 *
@@ -1081,8 +1081,8 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	 * offset + 156: minimum pixel clock for LVDS dual link
 	 */
 
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	uint8_t *bmp = &bios->data[offset], bmp_version_major, bmp_version_minor;
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
+	uint8_t *bmp = &bios->data[offset], bmp_version_major, bmp_version_miyesr;
 	uint16_t bmplength;
 	uint16_t legacy_scripts_offset, legacy_i2c_offset;
 
@@ -1093,10 +1093,10 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	bios->fp.duallink_transition_clk = 90000;
 
 	bmp_version_major = bmp[5];
-	bmp_version_minor = bmp[6];
+	bmp_version_miyesr = bmp[6];
 
 	NV_INFO(drm, "BMP version %d.%d\n",
-		 bmp_version_major, bmp_version_minor);
+		 bmp_version_major, bmp_version_miyesr);
 
 	/*
 	 * Make sure that 0x36 is blank and can't be mistaken for a DCB
@@ -1106,18 +1106,18 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 		*(uint16_t *)&bios->data[0x36] = 0;
 
 	/*
-	 * Seems that the minor version was 1 for all major versions prior
+	 * Seems that the miyesr version was 1 for all major versions prior
 	 * to 5. Version 6 could theoretically exist, but I suspect BIT
 	 * happened instead.
 	 */
-	if ((bmp_version_major < 5 && bmp_version_minor != 1) || bmp_version_major > 5) {
+	if ((bmp_version_major < 5 && bmp_version_miyesr != 1) || bmp_version_major > 5) {
 		NV_ERROR(drm, "You have an unsupported BMP version. "
 				"Please send in your bios\n");
 		return -ENOSYS;
 	}
 
 	if (bmp_version_major == 0)
-		/* nothing that's currently useful in this version */
+		/* yesthing that's currently useful in this version */
 		return 0;
 	else if (bmp_version_major == 1)
 		bmplength = 44; /* exact for 1.01 */
@@ -1126,34 +1126,34 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	else if (bmp_version_major == 3)
 		bmplength = 54;
 		/* guessed - mem init tables added in this version */
-	else if (bmp_version_major == 4 || bmp_version_minor < 0x1)
-		/* don't know if 5.0 exists... */
+	else if (bmp_version_major == 4 || bmp_version_miyesr < 0x1)
+		/* don't kyesw if 5.0 exists... */
 		bmplength = 62;
 		/* guessed - BMP I2C indices added in version 4*/
-	else if (bmp_version_minor < 0x6)
+	else if (bmp_version_miyesr < 0x6)
 		bmplength = 67; /* exact for 5.01 */
-	else if (bmp_version_minor < 0x10)
+	else if (bmp_version_miyesr < 0x10)
 		bmplength = 75; /* exact for 5.06 */
-	else if (bmp_version_minor == 0x10)
+	else if (bmp_version_miyesr == 0x10)
 		bmplength = 89; /* exact for 5.10h */
-	else if (bmp_version_minor < 0x14)
+	else if (bmp_version_miyesr < 0x14)
 		bmplength = 118; /* exact for 5.11h */
-	else if (bmp_version_minor < 0x24)
+	else if (bmp_version_miyesr < 0x24)
 		/*
 		 * Not sure of version where pll limits came in;
 		 * certainly exist by 0x24 though.
 		 */
-		/* length not exact: this is long enough to get lvds members */
+		/* length yest exact: this is long eyesugh to get lvds members */
 		bmplength = 123;
-	else if (bmp_version_minor < 0x27)
+	else if (bmp_version_miyesr < 0x27)
 		/*
-		 * Length not exact: this is long enough to get pll limit
+		 * Length yest exact: this is long eyesugh to get pll limit
 		 * member
 		 */
 		bmplength = 144;
 	else
 		/*
-		 * Length not exact: this is long enough to get dual link
+		 * Length yest exact: this is long eyesugh to get dual link
 		 * transition clock.
 		 */
 		bmplength = 158;
@@ -1167,12 +1167,12 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	/*
 	 * Bit 4 seems to indicate either a mobile bios or a quadro card --
 	 * mobile behaviour consistent (nv11+), quadro only seen nv18gl-nv36gl
-	 * (not nv10gl), bit 5 that the flat panel tables are present, and
+	 * (yest nv10gl), bit 5 that the flat panel tables are present, and
 	 * bit 6 a tv bios.
 	 */
 	bios->feature_byte = bmp[9];
 
-	if (bmp_version_major < 5 || bmp_version_minor < 0x10)
+	if (bmp_version_major < 5 || bmp_version_miyesr < 0x10)
 		bios->old_style_init = true;
 	legacy_scripts_offset = 18;
 	if (bmp_version_major < 2)
@@ -1205,7 +1205,7 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 		/*
 		 * Never observed in use with lvds scripts, but is reused for
 		 * 18/24 bit panel interface default for EDID equipped panels
-		 * (if_is_24bit not set directly to avoid any oscillation).
+		 * (if_is_24bit yest set directly to avoid any oscillation).
 		 */
 		bios->legacy.lvds_single_a_script_ptr = ROM16(bmp[95]);
 	}
@@ -1247,7 +1247,7 @@ static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)
 void *
 olddcb_table(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	u8 *dcb = NULL;
 
 	if (drm->client.device.info.family > NV_DEVICE_INFO_V0_TNT)
@@ -1258,7 +1258,7 @@ olddcb_table(struct drm_device *dev)
 	}
 
 	if (dcb[0] >= 0x42) {
-		NV_WARN(drm, "DCB version 0x%02x unknown\n", dcb[0]);
+		NV_WARN(drm, "DCB version 0x%02x unkyeswn\n", dcb[0]);
 		return NULL;
 	} else
 	if (dcb[0] >= 0x30) {
@@ -1276,12 +1276,12 @@ olddcb_table(struct drm_device *dev)
 		/*
 		 * v1.4 (some NV15/16, NV11+) seems the same as v1.5, but
 		 * always has the same single (crt) entry, even when tv-out
-		 * present, so the conclusion is this version cannot really
+		 * present, so the conclusion is this version canyest really
 		 * be used.
 		 *
-		 * v1.2 tables (some NV6/10, and NV15+) normally have the
-		 * same 5 entries, which are not specific to the card and so
-		 * no use.
+		 * v1.2 tables (some NV6/10, and NV15+) yesrmally have the
+		 * same 5 entries, which are yest specific to the card and so
+		 * yes use.
 		 *
 		 * v1.2 does have an I2C table that read_dcb_i2c_table can
 		 * handle, but cards exist (nv11 in #14821) with a bad i2c
@@ -1395,7 +1395,7 @@ static bool
 parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		  uint32_t conn, uint32_t conf, struct dcb_output *entry)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	int link = 0;
 
 	entry->type = conn & 0xf;
@@ -1424,7 +1424,7 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		if (dcb->version < 0x22) {
 			mask = ~0xd;
 			/*
-			 * The laptop in bug 14567 lies and claims to not use
+			 * The laptop in bug 14567 lies and claims to yest use
 			 * straps when it does, so assume all DCB 2.0 laptops
 			 * use straps, until a broken EDID using one is produced
 			 */
@@ -1447,12 +1447,12 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		if (conf & mask) {
 			/*
 			 * Until we even try to use these on G8x, it's
-			 * useless reporting unknown bits.  They all are.
+			 * useless reporting unkyeswn bits.  They all are.
 			 */
 			if (dcb->version >= 0x40)
 				break;
 
-			NV_ERROR(drm, "Unknown LVDS configuration bits, "
+			NV_ERROR(drm, "Unkyeswn LVDS configuration bits, "
 				      "please report\n");
 		}
 		break;
@@ -1542,7 +1542,7 @@ static bool
 parse_dcb15_entry(struct drm_device *dev, struct dcb_table *dcb,
 		  uint32_t conn, uint32_t conf, struct dcb_output *entry)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 
 	switch (conn & 0x0000000f) {
 	case 0:
@@ -1562,13 +1562,13 @@ parse_dcb15_entry(struct drm_device *dev, struct dcb_table *dcb,
 		entry->type = DCB_OUTPUT_LVDS;
 		break;
 	default:
-		NV_ERROR(drm, "Unknown DCB type %d\n", conn & 0x0000000f);
+		NV_ERROR(drm, "Unkyeswn DCB type %d\n", conn & 0x0000000f);
 		return false;
 	}
 
 	entry->i2c_index = (conn & 0x0003c000) >> 14;
 	entry->heads = ((conn & 0x001c0000) >> 18) + 1;
-	entry->or = entry->heads; /* same as heads, hopefully safe enough */
+	entry->or = entry->heads; /* same as heads, hopefully safe eyesugh */
 	entry->location = (conn & 0x01e00000) >> 21;
 	entry->bus = (conn & 0x0e000000) >> 25;
 	entry->duallink_possible = false;
@@ -1601,7 +1601,7 @@ void merge_like_dcb_entries(struct drm_device *dev, struct dcb_table *dcb)
 	 * more options
 	 */
 
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	int i, newentries = 0;
 
 	for (i = 0; i < dcb->entries; i++) {
@@ -1645,7 +1645,7 @@ void merge_like_dcb_entries(struct drm_device *dev, struct dcb_table *dcb)
 static bool
 apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 
 	/* Dell Precision M6300
@@ -1653,11 +1653,11 @@ apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 	 *   DCB entry 3: 02026312 00000020
 	 *
 	 * Identical, except apparently a different connector on a
-	 * different SOR link.  Not a clue how we're supposed to know
+	 * different SOR link.  Not a clue how we're supposed to kyesw
 	 * which one is in use if it even shares an i2c line...
 	 *
-	 * Ignore the connector on the second SOR link to prevent
-	 * nasty problems until this is sorted (assuming it's not a
+	 * Igyesre the connector on the second SOR link to prevent
+	 * nasty problems until this is sorted (assuming it's yest a
 	 * VBIOS bug).
 	 */
 	if (nv_match_device(dev, 0x040d, 0x1028, 0x019b)) {
@@ -1783,7 +1783,7 @@ fabricate_dcb_encoder_table(struct drm_device *dev, struct nvbios *bios)
 static int
 parse_dcb_entry(struct drm_device *dev, void *data, int idx, u8 *outp)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	u32 conf = (dcb->version >= 0x20) ? ROM32(outp[4]) : ROM32(outp[6]);
 	u32 conn = ROM32(outp[0]);
@@ -1801,7 +1801,7 @@ parse_dcb_entry(struct drm_device *dev, void *data, int idx, u8 *outp)
 		if (!ret)
 			return 1; /* stop parsing */
 
-		/* Ignore the I2C index for on-chip TV-out, as there
+		/* Igyesre the I2C index for on-chip TV-out, as there
 		 * are cards with bogus values (nv31m in bug 23212),
 		 * and it's otherwise useless.
 		 */
@@ -1820,7 +1820,7 @@ dcb_fake_connectors(struct nvbios *bios)
 	u8 map[16] = { };
 	int i, idx = 0;
 
-	/* heuristic: if we ever get a non-zero connector field, assume
+	/* heuristic: if we ever get a yesn-zero connector field, assume
 	 * that all the indices are valid and we don't need fake them.
 	 *
 	 * and, as usual, a blacklist of boards with bad bios data..
@@ -1832,7 +1832,7 @@ dcb_fake_connectors(struct nvbios *bios)
 		}
 	}
 
-	/* no useful connector info available, we need to make it up
+	/* yes useful connector info available, we need to make it up
 	 * ourselves.  the rule here is: anything on the same i2c bus
 	 * is considered to be on the same connector.  any output
 	 * without an associated i2c bus is assigned its own unique
@@ -1862,7 +1862,7 @@ dcb_fake_connectors(struct nvbios *bios)
 static int
 parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct dcb_table *dcb = &bios->dcb;
 	u8 *dcbt, *conn;
 	int idx;
@@ -1884,7 +1884,7 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 	olddcb_outp_foreach(dev, NULL, parse_dcb_entry);
 
 	/*
-	 * apart for v2.1+ not being known for requiring merging, this
+	 * apart for v2.1+ yest being kyeswn for requiring merging, this
 	 * guarantees dcbent->index is the index of the entry in the rom image
 	 */
 	if (dcb->version < 0x21)
@@ -1917,7 +1917,7 @@ static int load_nv17_hwsq_ucode_entry(struct drm_device *dev, struct nvbios *bio
 	 * starting at reg 0x00001400
 	 */
 
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvif_object *device = &drm->client.device.object;
 	uint8_t bytes_to_write;
 	uint16_t hwsq_entry_offset;
@@ -1932,7 +1932,7 @@ static int load_nv17_hwsq_ucode_entry(struct drm_device *dev, struct nvbios *bio
 	bytes_to_write = bios->data[hwsq_offset + 1];
 
 	if (bytes_to_write != 36) {
-		NV_ERROR(drm, "Unknown HW sequencer entry size\n");
+		NV_ERROR(drm, "Unkyeswn HW sequencer entry size\n");
 		return -EINVAL;
 	}
 
@@ -1978,9 +1978,9 @@ static int load_nv17_hw_sequencer_ucode(struct drm_device *dev,
 	return load_nv17_hwsq_ucode_entry(dev, bios, hwsq_offset + sz, 0);
 }
 
-uint8_t *nouveau_bios_embedded_edid(struct drm_device *dev)
+uint8_t *yesuveau_bios_embedded_edid(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvbios *bios = &drm->vbios;
 	static const uint8_t edid_sig[] = {
 			0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00 };
@@ -2011,7 +2011,7 @@ uint8_t *nouveau_bios_embedded_edid(struct drm_device *dev)
 
 static bool NVInitVBIOS(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_bios *bios = nvxx_bios(&drm->client.device);
 	struct nvbios *legacy = &drm->vbios;
 
@@ -2038,9 +2038,9 @@ static bool NVInitVBIOS(struct drm_device *dev)
 }
 
 int
-nouveau_run_vbios_init(struct drm_device *dev)
+yesuveau_run_vbios_init(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvbios *bios = &drm->vbios;
 	int ret = 0;
 
@@ -2059,9 +2059,9 @@ nouveau_run_vbios_init(struct drm_device *dev)
 }
 
 static bool
-nouveau_bios_posted(struct drm_device *dev)
+yesuveau_bios_posted(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	unsigned htotal;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA)
@@ -2076,9 +2076,9 @@ nouveau_bios_posted(struct drm_device *dev)
 }
 
 int
-nouveau_bios_init(struct drm_device *dev)
+yesuveau_bios_init(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvbios *bios = &drm->vbios;
 	int ret;
 
@@ -2100,13 +2100,13 @@ nouveau_bios_init(struct drm_device *dev)
 	bios->execute = false;
 
 	/* ... unless card isn't POSTed already */
-	if (!nouveau_bios_posted(dev)) {
-		NV_INFO(drm, "Adaptor not initialised, "
+	if (!yesuveau_bios_posted(dev)) {
+		NV_INFO(drm, "Adaptor yest initialised, "
 			"running VBIOS init tables.\n");
 		bios->execute = true;
 	}
 
-	ret = nouveau_run_vbios_init(dev);
+	ret = yesuveau_run_vbios_init(dev);
 	if (ret)
 		return ret;
 
@@ -2125,6 +2125,6 @@ nouveau_bios_init(struct drm_device *dev)
 }
 
 void
-nouveau_bios_takedown(struct drm_device *dev)
+yesuveau_bios_takedown(struct drm_device *dev)
 {
 }

@@ -16,19 +16,19 @@ ENTRY(dcscb_power_up_setup)
 
 /*
  * Enable cluster-level coherency, in preparation for turning on the MMU.
- * The ACTLR SMP bit does not need to be set here, because cpu_resume()
+ * The ACTLR SMP bit does yest need to be set here, because cpu_resume()
  * already restores that.
  *
- * A15/A7 may not require explicit L2 invalidation on reset, dependent
+ * A15/A7 may yest require explicit L2 invalidation on reset, dependent
  * on hardware integration decisions.
- * For now, this code assumes that L2 is either already invalidated,
- * or invalidation is not required.
+ * For yesw, this code assumes that L2 is either already invalidated,
+ * or invalidation is yest required.
  */
 
 	b	cci_enable_port_for_self
 
 2:	@ Implementation-specific local CPU setup operations should go here,
-	@ if any.  In this case, there is nothing to do.
+	@ if any.  In this case, there is yesthing to do.
 
 	bx	lr
 

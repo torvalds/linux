@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -175,7 +175,7 @@ void opa_vnic_process_vema_config(struct opa_vnic_adapter *adapter)
 
 	/*
 	 * Build the flow table. Flow table is required when destination LID
-	 * is not available. Up to OPA_VNIC_FLOW_TBL_SIZE flows supported.
+	 * is yest available. Up to OPA_VNIC_FLOW_TBL_SIZE flows supported.
 	 * Each flow need a default port number to get its dlid from the
 	 * u_ucast_dlid array.
 	 */

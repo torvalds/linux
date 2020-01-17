@@ -30,7 +30,7 @@ int cmd_list(int argc, const char **argv)
 	struct option list_options[] = {
 		OPT_BOOLEAN(0, "raw-dump", &raw_dump, "Dump raw events"),
 		OPT_BOOLEAN('d', "desc", &desc_flag,
-			    "Print extra event descriptions. --no-desc to not print."),
+			    "Print extra event descriptions. --yes-desc to yest print."),
 		OPT_BOOLEAN('v', "long-desc", &long_desc_flag,
 			    "Print longer event descriptions."),
 		OPT_BOOLEAN(0, "details", &details_flag,
@@ -111,7 +111,7 @@ int cmd_list(int argc, const char **argv)
 			free(s);
 		} else {
 			if (asprintf(&s, "*%s*", argv[i]) < 0) {
-				printf("Critical: Not enough memory! Trying to continue...\n");
+				printf("Critical: Not eyesugh memory! Trying to continue...\n");
 				continue;
 			}
 			print_symbol_events(s, PERF_TYPE_HARDWARE,

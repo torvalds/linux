@@ -10,8 +10,8 @@
 
 #ifdef CONFIG_NUMA
 
-extern struct pglist_data *node_data[];
-#define NODE_DATA(nid) (node_data[nid])
+extern struct pglist_data *yesde_data[];
+#define NODE_DATA(nid) (yesde_data[nid])
 
 #endif /* CONFIG_NUMA */
 #endif /* _ASM_S390_MMZONE_H */

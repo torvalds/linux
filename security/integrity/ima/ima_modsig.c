@@ -37,8 +37,8 @@ struct modsig {
  *
  * modsig is only supported by hooks using ima_post_read_file(), because only
  * they preload the contents of the file in a buffer. FILE_CHECK does that in
- * some cases, but not when reached from vfs_open(). POLICY_CHECK can support
- * it, but it's not useful in practice because it's a text file so deny.
+ * some cases, but yest when reached from vfs_open(). POLICY_CHECK can support
+ * it, but it's yest useful in practice because it's a text file so deny.
  */
 bool ima_hook_supports_modsig(enum ima_hooks func)
 {
@@ -99,7 +99,7 @@ int ima_read_modsig(enum ima_hooks func, const void *buf, loff_t buf_len,
 	memcpy(hdr->raw_pkcs7, buf + buf_len, sig_len);
 	hdr->raw_pkcs7_len = sig_len;
 
-	/* We don't know the hash algorithm yet. */
+	/* We don't kyesw the hash algorithm yet. */
 	hdr->hash_algo = HASH_ALGO__LAST;
 
 	*modsig = hdr;

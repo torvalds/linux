@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -77,7 +77,7 @@ static void ath6kl_hif_dump_fw_crash(struct ath6kl *ar)
 	address = ath6kl_get_hi_item_addr(ar, HI_ITEM(hi_failure_state));
 	address = TARG_VTOP(ar->target_type, address);
 
-	/* read RAM location through diagnostic window */
+	/* read RAM location through diagyesstic window */
 	ret = ath6kl_diag_read32(ar, address, &regdump_addr);
 
 	if (ret || !regdump_addr) {
@@ -132,7 +132,7 @@ static int ath6kl_hif_proc_dbg_intr(struct ath6kl_device *dev)
 
 	ath6kl_hif_dump_fw_crash(dev->ar);
 	ath6kl_read_fwlogs(dev->ar);
-	ath6kl_recovery_err_notify(dev->ar, ATH6KL_FW_ASSERT);
+	ath6kl_recovery_err_yestify(dev->ar, ATH6KL_FW_ASSERT);
 
 	return ret;
 }
@@ -371,7 +371,7 @@ static int ath6kl_hif_proc_cpu_intr(struct ath6kl_device *dev)
 
 	/* set W1C value to clear the interrupt, this hits the register first */
 	reg_buf[0] = cpu_int_status;
-	/* the remaining are set to zero which have no-effect  */
+	/* the remaining are set to zero which have yes-effect  */
 	reg_buf[1] = 0;
 	reg_buf[2] = 0;
 	reg_buf[3] = 0;
@@ -384,7 +384,7 @@ static int ath6kl_hif_proc_cpu_intr(struct ath6kl_device *dev)
 	return status;
 }
 
-/* process pending interrupts synchronously */
+/* process pending interrupts synchroyesusly */
 static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 {
 	struct ath6kl_irq_proc_registers *rg;
@@ -481,13 +481,13 @@ static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 
 		if (!fetched)
 			/*
-			 * HTC could not pull any messages out due to lack
+			 * HTC could yest pull any messages out due to lack
 			 * of resources.
 			 */
 			dev->htc_cnxt->chk_irq_status_cnt = 0;
 	}
 
-	/* now handle the rest of them */
+	/* yesw handle the rest of them */
 	ath6kl_dbg(ATH6KL_DBG_IRQ,
 		   "valid interrupt source(s) for other interrupts: 0x%x\n",
 		   host_int_status);
@@ -515,11 +515,11 @@ out:
 	 * An optimization to bypass reading the IRQ status registers
 	 * unecessarily which can re-wake the target, if upper layers
 	 * determine that we are in a low-throughput mode, we can rely on
-	 * taking another interrupt rather than re-checking the status
+	 * taking ayesther interrupt rather than re-checking the status
 	 * registers which can re-wake the target.
 	 *
 	 * NOTE : for host interfaces that makes use of detecting pending
-	 * mbox messages at hif can not use this optimization due to
+	 * mbox messages at hif can yest use this optimization due to
 	 * possible side effects, SPI requires the host to drain all
 	 * messages from the mailbox before exiting the ISR routine.
 	 */
@@ -551,7 +551,7 @@ int ath6kl_hif_intr_bh_handler(struct ath6kl *ar)
 	dev->htc_cnxt->chk_irq_status_cnt = 0;
 
 	/*
-	 * IRQ processing is synchronous, interrupt status registers can be
+	 * IRQ processing is synchroyesus, interrupt status registers can be
 	 * re-read.
 	 */
 	timeout = jiffies + msecs_to_jiffies(ATH6KL_HIF_COMMUNICATION_TIMEOUT);
@@ -580,7 +580,7 @@ static int ath6kl_hif_enable_intrs(struct ath6kl_device *dev)
 
 	/*
 	 * NOTE: There are some cases where HIF can do detection of
-	 * pending mbox messages which is disabled now.
+	 * pending mbox messages which is disabled yesw.
 	 */
 	dev->irq_en_reg.int_status_en |= SM(INT_STATUS_ENABLE_MBOX_DATA, 0x01);
 

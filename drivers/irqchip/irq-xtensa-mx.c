@@ -43,7 +43,7 @@ static int xtensa_mx_irq_map(struct irq_domain *d, unsigned int irq,
  * internal (0).
  */
 static int xtensa_mx_irq_domain_xlate(struct irq_domain *d,
-		struct device_node *ctrlr,
+		struct device_yesde *ctrlr,
 		const u32 *intspec, unsigned int intsize,
 		unsigned long *out_hwirq, unsigned int *out_type)
 {
@@ -72,7 +72,7 @@ static void xtensa_mx_irq_mask(struct irq_data *d)
 
 	if (mask & (XCHAL_INTTYPE_MASK_EXTERN_EDGE |
 		    XCHAL_INTTYPE_MASK_EXTERN_LEVEL)) {
-		unsigned int ext_irq = xtensa_get_ext_irq_no(d->hwirq);
+		unsigned int ext_irq = xtensa_get_ext_irq_yes(d->hwirq);
 
 		if (ext_irq >= HW_IRQ_MX_BASE) {
 			set_er(1u << (ext_irq - HW_IRQ_MX_BASE), MIENG);
@@ -90,7 +90,7 @@ static void xtensa_mx_irq_unmask(struct irq_data *d)
 
 	if (mask & (XCHAL_INTTYPE_MASK_EXTERN_EDGE |
 		    XCHAL_INTTYPE_MASK_EXTERN_LEVEL)) {
-		unsigned int ext_irq = xtensa_get_ext_irq_no(d->hwirq);
+		unsigned int ext_irq = xtensa_get_ext_irq_yes(d->hwirq);
 
 		if (ext_irq >= HW_IRQ_MX_BASE) {
 			set_er(1u << (ext_irq - HW_IRQ_MX_BASE), MIENGSET);
@@ -151,7 +151,7 @@ static struct irq_chip xtensa_mx_irq_chip = {
 	.irq_set_affinity = xtensa_mx_irq_set_affinity,
 };
 
-int __init xtensa_mx_init_legacy(struct device_node *interrupt_parent)
+int __init xtensa_mx_init_legacy(struct device_yesde *interrupt_parent)
 {
 	struct irq_domain *root_domain =
 		irq_domain_add_legacy(NULL, NR_IRQS - 1, 1, 0,
@@ -162,8 +162,8 @@ int __init xtensa_mx_init_legacy(struct device_node *interrupt_parent)
 	return 0;
 }
 
-static int __init xtensa_mx_init(struct device_node *np,
-		struct device_node *interrupt_parent)
+static int __init xtensa_mx_init(struct device_yesde *np,
+		struct device_yesde *interrupt_parent)
 {
 	struct irq_domain *root_domain =
 		irq_domain_add_linear(np, NR_IRQS, &xtensa_mx_irq_domain_ops,

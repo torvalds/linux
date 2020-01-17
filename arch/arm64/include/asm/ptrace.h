@@ -26,15 +26,15 @@
  * To mask interrupts, we clear the most significant bit of PMR.
  *
  * Some code sections either automatically switch back to PSR.I or explicitly
- * require to not use priority masking. If bit GIC_PRIO_PSR_I_SET is included
+ * require to yest use priority masking. If bit GIC_PRIO_PSR_I_SET is included
  * in the  the priority mask, it indicates that PSR.I should be set and
- * interrupt disabling temporarily does not rely on IRQ priorities.
+ * interrupt disabling temporarily does yest rely on IRQ priorities.
  */
 #define GIC_PRIO_IRQON			0xe0
 #define GIC_PRIO_IRQOFF			(GIC_PRIO_IRQON & ~0x80)
 #define GIC_PRIO_PSR_I_SET		(1 << 4)
 
-/* Additional SPSR bits not exposed in the UABI */
+/* Additional SPSR bits yest exposed in the UABI */
 #define PSR_IL_BIT		(1 << 20)
 
 /* AArch32-specific ptrace requests */
@@ -90,9 +90,9 @@
 #define COMPAT_PT_TEXT_END_ADDR		0x10008
 
 /*
- * If pt_regs.syscallno == NO_SYSCALL, then the thread is not executing
+ * If pt_regs.syscallyes == NO_SYSCALL, then the thread is yest executing
  * a syscall -- i.e., its most recent entry into the kernel from
- * userspace was not via SVC, or otherwise a tracer cancelled the syscall.
+ * userspace was yest via SVC, or otherwise a tracer cancelled the syscall.
  *
  * This must have the value -1, for ABI compatibility with ptrace etc.
  */
@@ -169,9 +169,9 @@ struct pt_regs {
 	u64 orig_x0;
 #ifdef __AARCH64EB__
 	u32 unused2;
-	s32 syscallno;
+	s32 syscallyes;
 #else
-	s32 syscallno;
+	s32 syscallyes;
 	u32 unused2;
 #endif
 
@@ -183,12 +183,12 @@ struct pt_regs {
 
 static inline bool in_syscall(struct pt_regs const *regs)
 {
-	return regs->syscallno != NO_SYSCALL;
+	return regs->syscallyes != NO_SYSCALL;
 }
 
 static inline void forget_syscall(struct pt_regs *regs)
 {
-	regs->syscallno = NO_SYSCALL;
+	regs->syscallyes = NO_SYSCALL;
 }
 
 #define MAX_REG_OFFSET offsetof(struct pt_regs, pstate)
@@ -272,7 +272,7 @@ static inline u64 regs_get_register(struct pt_regs *regs, unsigned int offset)
 
 /*
  * Read a register given an architectural register index r.
- * This handles the common case where 31 means XZR, not SP.
+ * This handles the common case where 31 means XZR, yest SP.
  */
 static inline unsigned long pt_regs_read_reg(const struct pt_regs *regs, int r)
 {
@@ -281,7 +281,7 @@ static inline unsigned long pt_regs_read_reg(const struct pt_regs *regs, int r)
 
 /*
  * Write a register given an architectural register index r.
- * This handles the common case where 31 means XZR, not SP.
+ * This handles the common case where 31 means XZR, yest SP.
  */
 static inline void pt_regs_write_reg(struct pt_regs *regs, int r,
 				     unsigned long val)
@@ -314,8 +314,8 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
  * regs_get_argument() returns @n th argument of the function call.
  *
  * Note that this chooses the most likely register mapping. In very rare
- * cases this may not return correct data, for example, if one of the
- * function parameters is 16 bytes or bigger. In such cases, we cannot
+ * cases this may yest return correct data, for example, if one of the
+ * function parameters is 16 bytes or bigger. In such cases, we canyest
  * get access the parameter correctly and the register assignment of
  * subsequent parameters will be shifted.
  */

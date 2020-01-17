@@ -5,9 +5,9 @@ Pulse Width Modulation (PWM) interface
 This provides an overview about the Linux PWM interface
 
 PWMs are commonly used for controlling LEDs, fans or vibrators in
-cell phones. PWMs with a fixed purpose have no need implementing
+cell phones. PWMs with a fixed purpose have yes need implementing
 the Linux PWM API (although they could). However, PWMs are often
-found as discrete devices on SoCs which have no fixed purpose. It's
+found as discrete devices on SoCs which have yes fixed purpose. It's
 up to the board designer to connect them to LEDs or fans. To provide
 this kind of flexibility the generic PWM API exists.
 
@@ -50,7 +50,7 @@ This API controls both the PWM period/duty_cycle config and the
 enable/disable state.
 
 The pwm_config(), pwm_enable() and pwm_disable() functions are just wrappers
-around pwm_apply_state() and should not be used if the user wants to change
+around pwm_apply_state() and should yest be used if the user wants to change
 several parameter at once. For example, if you see pwm_config() and
 pwm_{enable,disable}() calls in the same function, this probably means you
 should switch to pwm_apply_state().
@@ -95,18 +95,18 @@ channel that was exported. The following properties will then be available:
 
   period
     The total period of the PWM signal (read/write).
-    Value is in nanoseconds and is the sum of the active and inactive
+    Value is in nayesseconds and is the sum of the active and inactive
     time of the PWM.
 
   duty_cycle
     The active time of the PWM signal (read/write).
-    Value is in nanoseconds and must be less than the period.
+    Value is in nayesseconds and must be less than the period.
 
   polarity
     Changes the polarity of the PWM signal (read/write).
     Writes to this property only work if the PWM chip supports changing
-    the polarity. The polarity can only be changed if the PWM is not
-    enabled. Value is the string "normal" or "inversed".
+    the polarity. The polarity can only be changed if the PWM is yest
+    enabled. Value is the string "yesrmal" or "inversed".
 
   enable
     Enable/disable the PWM signal (read/write).
@@ -130,7 +130,7 @@ number of PWM devices provided by the chip and the chip-specific
 implementation of the supported PWM operations to the framework.
 
 When implementing polarity support in a PWM driver, make sure to respect the
-signal conventions in the PWM framework. By definition, normal polarity
+signal conventions in the PWM framework. By definition, yesrmal polarity
 characterizes a signal starts high for the duration of the duty cycle and
 goes low for the remainder of the period. Conversely, a signal with inversed
 polarity starts low for the duration of the duty cycle and goes high for the
@@ -142,18 +142,18 @@ atomicity in the PWM config workflow, which is required when the PWM controls
 a critical device (like a regulator).
 
 The implementation of ->get_state() (a method used to retrieve initial PWM
-state) is also encouraged for the same reason: letting the PWM user know
+state) is also encouraged for the same reason: letting the PWM user kyesw
 about the current PWM state would allow him to avoid glitches.
 
-Drivers should not implement any power management. In other words,
+Drivers should yest implement any power management. In other words,
 consumers should implement it as described in the "Using PWMs" section.
 
 Locking
 -------
 
 The PWM core list manipulations are protected by a mutex, so pwm_request()
-and pwm_free() may not be called from an atomic context. Currently the
-PWM core does not enforce any locking to pwm_enable(), pwm_disable() and
+and pwm_free() may yest be called from an atomic context. Currently the
+PWM core does yest enforce any locking to pwm_enable(), pwm_disable() and
 pwm_config(), so the calling context is currently driver specific. This
 is an issue derived from the former barebone API and should be fixed soon.
 

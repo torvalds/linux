@@ -4,7 +4,7 @@
 
 #include "tool.h"
 #include "evswitch.h"
-#include "annotate.h"
+#include "anyestate.h"
 #include "ordered-events.h"
 #include "record.h"
 #include <linux/types.h>
@@ -20,7 +20,7 @@ struct perf_top {
 	struct perf_tool   tool;
 	struct evlist *evlist;
 	struct record_opts record_opts;
-	struct annotation_options annotation_opts;
+	struct anyestation_options anyestation_opts;
 	struct evswitch	   evswitch;
 	/*
 	 * Symbols will be added here in perf_event__process_sample and will

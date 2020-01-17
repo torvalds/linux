@@ -445,9 +445,9 @@
 #define		CODA_FIRMWARE_MAJOR(x)		(((x) >> 12) & 0x0f)
 #define		CODA_FIRMWARE_MINOR(x)		(((x) >> 8) & 0x0f)
 #define		CODA_FIRMWARE_RELEASE(x)	((x) & 0xff)
-#define		CODA_FIRMWARE_VERNUM(product, major, minor, release)	\
+#define		CODA_FIRMWARE_VERNUM(product, major, miyesr, release)	\
 			((product) << 16 | ((major) << 12) |		\
-			((minor) << 8) | (release))
+			((miyesr) << 8) | (release))
 #define CODA9_CMD_FIRMWARE_CODE_REV		0x1c4
 
 #define CODA9_GDMA_BASE				0x1000

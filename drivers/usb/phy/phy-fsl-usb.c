@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/timer.h>
@@ -441,7 +441,7 @@ static void fsl_otg_fsm_del_timer(struct otg_fsm *fsm, enum otg_fsm_timer t)
 	fsl_otg_del_timer(fsm, timer);
 }
 
-/* Reset controller, not reset the bus */
+/* Reset controller, yest reset the bus */
 void otg_reset_controller(void)
 {
 	u32 command;
@@ -700,7 +700,7 @@ static int fsl_otg_start_hnp(struct usb_otg *otg)
 /*
  * Interrupt handler.  OTG/host/peripheral share the same int line.
  * OTG driver clears OTGSC interrupts and leaves USB interrupts
- * intact.  It needs to have knowledge of some USB interrupts
+ * intact.  It needs to have kyeswledge of some USB interrupts
  * such as port change.
  */
 irqreturn_t fsl_otg_isr(int irq, void *dev_id)
@@ -715,7 +715,7 @@ irqreturn_t fsl_otg_isr(int irq, void *dev_id)
 	/* Only clear otg interrupts */
 	fsl_writel(otg_sc, &usb_dr_regs->otgsc);
 
-	/*FIXME: ID change not generate when init to 0 */
+	/*FIXME: ID change yest generate when init to 0 */
 	fsm->id = (otg_sc & OTGSC_STS_USB_ID) ? 1 : 0;
 	otg->default_a = (fsm->id == 0);
 
@@ -1090,12 +1090,12 @@ static long fsl_otg_ioctl(struct file *file, unsigned int cmd,
 	return retval;
 }
 
-static int fsl_otg_open(struct inode *inode, struct file *file)
+static int fsl_otg_open(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
 
-static int fsl_otg_release(struct inode *inode, struct file *file)
+static int fsl_otg_release(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }

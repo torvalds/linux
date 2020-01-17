@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -42,7 +42,7 @@
 #include <net/ipv6.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/etherdevice.h>
 #include <linux/io.h>
 #include <linux/list.h>
@@ -194,7 +194,7 @@ static void qed_ll2b_complete_rx_packet(void *cxt,
 		rc = qed_ll2_alloc_buffer(p_hwfn->cdev, &new_data,
 					  &new_phys_addr);
 
-	/* If need to reuse or there's no replacement buffer, repost this */
+	/* If need to reuse or there's yes replacement buffer, repost this */
 	if (rc)
 		goto out_post;
 	dma_unmap_single(&cdev->pdev->dev, buffer->phys_addr,
@@ -210,7 +210,7 @@ static void qed_ll2b_complete_rx_packet(void *cxt,
 	data->u.placement_offset += NET_SKB_PAD;
 	skb_reserve(skb, data->u.placement_offset);
 	skb_put(skb, data->length.packet_length);
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
 	/* Get parital ethernet information instead of eth_type_trans(),
 	 * Since we don't have an associated net_device.
@@ -377,7 +377,7 @@ static int qed_ll2_txq_completion(struct qed_hwfn *p_hwfn, void *p_cookie)
 
 		if (num_bds < num_bds_in_packet) {
 			DP_NOTICE(p_hwfn,
-				  "Rest of BDs does not cover whole packet\n");
+				  "Rest of BDs does yest cover whole packet\n");
 			goto out;
 		}
 
@@ -456,7 +456,7 @@ qed_ll2_handle_slowpath(struct qed_hwfn *p_hwfn,
 
 	if (!p_ll2_conn->cbs.slowpath_cb) {
 		DP_NOTICE(p_hwfn,
-			  "LL2 - received RX_QUEUE_FLUSH but no callback was provided\n");
+			  "LL2 - received RX_QUEUE_FLUSH but yes callback was provided\n");
 		return -EINVAL;
 	}
 
@@ -661,7 +661,7 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 
 		if (cqe_type != CORE_RX_CQE_TYPE_REGULAR) {
 			DP_NOTICE(p_hwfn,
-				  "Got a non-regular LB LL2 completion [type 0x%02x]\n",
+				  "Got a yesn-regular LB LL2 completion [type 0x%02x]\n",
 				  cqe_type);
 			return -EINVAL;
 		}
@@ -688,7 +688,7 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 		/* Now process create/add/join isles */
 		if (list_empty(&p_rx->active_descq)) {
 			DP_NOTICE(p_hwfn,
-				  "LL2 OOO RX chain has no submitted buffers\n"
+				  "LL2 OOO RX chain has yes submitted buffers\n"
 				  );
 			return -EIO;
 		}
@@ -703,7 +703,7 @@ static int qed_ll2_lb_rxq_handler(struct qed_hwfn *p_hwfn,
 		    (iscsi_ooo->ooo_opcode == TCP_EVENT_JOIN)) {
 			if (!p_pkt) {
 				DP_NOTICE(p_hwfn,
-					  "LL2 OOO RX packet is not valid\n");
+					  "LL2 OOO RX packet is yest valid\n");
 				return -EIO;
 			}
 			list_del(&p_pkt->list_entry);
@@ -1078,7 +1078,7 @@ static int qed_sp_ll2_tx_queue_start(struct qed_hwfn *p_hwfn,
 		break;
 	default:
 		p_ramrod->conn_type = PROTOCOLID_ETH;
-		DP_NOTICE(p_hwfn, "Unknown connection type: %d\n", conn_type);
+		DP_NOTICE(p_hwfn, "Unkyeswn connection type: %d\n", conn_type);
 	}
 
 	p_ramrod->gsi_offload_flag = p_ll2_conn->input.gsi_enable;
@@ -1457,7 +1457,7 @@ static int qed_ll2_establish_connection_rx(struct qed_hwfn *p_hwfn,
 	error_mode = qed_ll2_get_error_choice(error_input);
 	SET_FIELD(action_on_error,
 		  CORE_RX_ACTION_ON_ERROR_PACKET_TOO_BIG, error_mode);
-	error_input = p_ll2_conn->input.ai_err_no_buf;
+	error_input = p_ll2_conn->input.ai_err_yes_buf;
 	error_mode = qed_ll2_get_error_choice(error_input);
 	SET_FIELD(action_on_error, CORE_RX_ACTION_ON_ERROR_NO_BUFF, error_mode);
 
@@ -1585,13 +1585,13 @@ out:
 	return rc;
 }
 
-static void qed_ll2_post_rx_buffer_notify_fw(struct qed_hwfn *p_hwfn,
+static void qed_ll2_post_rx_buffer_yestify_fw(struct qed_hwfn *p_hwfn,
 					     struct qed_ll2_rx_queue *p_rx,
 					     struct qed_ll2_rx_packet *p_curp)
 {
 	struct qed_ll2_rx_packet *p_posting_packet = NULL;
 	struct core_ll2_rx_prod rx_prod = { 0, 0, 0 };
-	bool b_notify_fw = false;
+	bool b_yestify_fw = false;
 	u16 bd_prod, cq_prod;
 
 	/* This handles the flushing of already posted buffers */
@@ -1601,16 +1601,16 @@ static void qed_ll2_post_rx_buffer_notify_fw(struct qed_hwfn *p_hwfn,
 						    list_entry);
 		list_move_tail(&p_posting_packet->list_entry,
 			       &p_rx->active_descq);
-		b_notify_fw = true;
+		b_yestify_fw = true;
 	}
 
 	/* This handles the supplied packet [if there is one] */
 	if (p_curp) {
 		list_add_tail(&p_curp->list_entry, &p_rx->active_descq);
-		b_notify_fw = true;
+		b_yestify_fw = true;
 	}
 
-	if (!b_notify_fw)
+	if (!b_yestify_fw)
 		return;
 
 	bd_prod = qed_chain_get_prod_idx(&p_rx->rxq_chain);
@@ -1627,7 +1627,7 @@ static void qed_ll2_post_rx_buffer_notify_fw(struct qed_hwfn *p_hwfn,
 int qed_ll2_post_rx_buffer(void *cxt,
 			   u8 connection_handle,
 			   dma_addr_t addr,
-			   u16 buf_len, void *cookie, u8 notify_fw)
+			   u16 buf_len, void *cookie, u8 yestify_fw)
 {
 	struct qed_hwfn *p_hwfn = cxt;
 	struct core_rx_bd_with_buff_len *p_curb = NULL;
@@ -1660,7 +1660,7 @@ int qed_ll2_post_rx_buffer(void *cxt,
 	if (!p_curp || !p_curb) {
 		rc = -EBUSY;
 		p_curp = NULL;
-		goto out_notify;
+		goto out_yestify;
 	}
 
 	/* We have an Rx packet we can fill */
@@ -1673,13 +1673,13 @@ int qed_ll2_post_rx_buffer(void *cxt,
 	list_del(&p_curp->list_entry);
 
 	/* Check if we only want to enqueue this packet without informing FW */
-	if (!notify_fw) {
+	if (!yestify_fw) {
 		list_add_tail(&p_curp->list_entry, &p_rx->posting_descq);
 		goto out;
 	}
 
-out_notify:
-	qed_ll2_post_rx_buffer_notify_fw(p_hwfn, p_rx, p_curp);
+out_yestify:
+	qed_ll2_post_rx_buffer_yestify_fw(p_hwfn, p_rx, p_curp);
 out:
 	spin_unlock_irqrestore(&p_rx->lock, flags);
 	return rc;
@@ -1689,12 +1689,12 @@ static void qed_ll2_prepare_tx_packet_set(struct qed_hwfn *p_hwfn,
 					  struct qed_ll2_tx_queue *p_tx,
 					  struct qed_ll2_tx_packet *p_curp,
 					  struct qed_ll2_tx_pkt_info *pkt,
-					  u8 notify_fw)
+					  u8 yestify_fw)
 {
 	list_del(&p_curp->list_entry);
 	p_curp->cookie = pkt->cookie;
 	p_curp->bd_used = pkt->num_of_bds;
-	p_curp->notify_fw = notify_fw;
+	p_curp->yestify_fw = yestify_fw;
 	p_tx->cur_send_packet = p_curp;
 	p_tx->cur_send_frag_num = 0;
 
@@ -1792,15 +1792,15 @@ qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 }
 
 /* This should be called while the Txq spinlock is being held */
-static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
+static void qed_ll2_tx_packet_yestify(struct qed_hwfn *p_hwfn,
 				     struct qed_ll2_info *p_ll2_conn)
 {
-	bool b_notify = p_ll2_conn->tx_queue.cur_send_packet->notify_fw;
+	bool b_yestify = p_ll2_conn->tx_queue.cur_send_packet->yestify_fw;
 	struct qed_ll2_tx_queue *p_tx = &p_ll2_conn->tx_queue;
 	struct qed_ll2_tx_packet *p_pkt = NULL;
 	u16 bd_prod;
 
-	/* If there are missing BDs, don't do anything now */
+	/* If there are missing BDs, don't do anything yesw */
 	if (p_ll2_conn->tx_queue.cur_send_frag_num !=
 	    p_ll2_conn->tx_queue.cur_send_packet->bd_used)
 		return;
@@ -1812,7 +1812,7 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 	p_ll2_conn->tx_queue.cur_send_frag_num = 0;
 
 	/* Notify FW of packet only if requested to */
-	if (!b_notify)
+	if (!b_yestify)
 		return;
 
 	bd_prod = qed_chain_get_prod_idx(&p_ll2_conn->tx_queue.txq_chain);
@@ -1844,7 +1844,7 @@ static void qed_ll2_tx_packet_notify(struct qed_hwfn *p_hwfn,
 int qed_ll2_prepare_tx_packet(void *cxt,
 			      u8 connection_handle,
 			      struct qed_ll2_tx_pkt_info *pkt,
-			      bool notify_fw)
+			      bool yestify_fw)
 {
 	struct qed_hwfn *p_hwfn = cxt;
 	struct qed_ll2_tx_packet *p_curp = NULL;
@@ -1882,11 +1882,11 @@ int qed_ll2_prepare_tx_packet(void *cxt,
 	}
 
 	/* Prepare packet and BD, and perhaps send a doorbell to FW */
-	qed_ll2_prepare_tx_packet_set(p_hwfn, p_tx, p_curp, pkt, notify_fw);
+	qed_ll2_prepare_tx_packet_set(p_hwfn, p_tx, p_curp, pkt, yestify_fw);
 
 	qed_ll2_prepare_tx_packet_set_bd(p_hwfn, p_ll2_conn, p_curp, pkt);
 
-	qed_ll2_tx_packet_notify(p_hwfn, p_ll2_conn);
+	qed_ll2_tx_packet_yestify(p_hwfn, p_ll2_conn);
 
 out:
 	spin_unlock_irqrestore(&p_tx->lock, flags);
@@ -1917,7 +1917,7 @@ int qed_ll2_set_fragment_of_tx_packet(void *cxt,
 	if (cur_send_frag_num >= p_cur_send_packet->bd_used)
 		return -EINVAL;
 
-	/* Fill the BD information, and possibly notify FW */
+	/* Fill the BD information, and possibly yestify FW */
 	p_bd = p_cur_send_packet->bds_set[cur_send_frag_num].txq_bd;
 	DMA_REGPAIR_LE(p_bd->addr, addr);
 	p_bd->nbytes = cpu_to_le16(nbytes);
@@ -1927,7 +1927,7 @@ int qed_ll2_set_fragment_of_tx_packet(void *cxt,
 	p_ll2_conn->tx_queue.cur_send_frag_num++;
 
 	spin_lock_irqsave(&p_ll2_conn->tx_queue.lock, flags);
-	qed_ll2_tx_packet_notify(p_hwfn, p_ll2_conn);
+	qed_ll2_tx_packet_yestify(p_hwfn, p_ll2_conn);
 	spin_unlock_irqrestore(&p_ll2_conn->tx_queue.lock, flags);
 
 	return 0;
@@ -2109,7 +2109,7 @@ static void _qed_ll2_get_tstats(struct qed_hwfn *p_hwfn,
 
 	p_stats->packet_too_big_discard +=
 			HILO_64_REGPAIR(tstats.packet_too_big_discard);
-	p_stats->no_buff_discard += HILO_64_REGPAIR(tstats.no_buff_discard);
+	p_stats->yes_buff_discard += HILO_64_REGPAIR(tstats.yes_buff_discard);
 }
 
 static void _qed_ll2_get_ustats(struct qed_hwfn *p_hwfn,
@@ -2520,7 +2520,7 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 	u16 vlan = 0;
 
 	if (unlikely(skb->ip_summed != CHECKSUM_NONE)) {
-		DP_INFO(cdev, "Cannot transmit a checksummed packet\n");
+		DP_INFO(cdev, "Canyest transmit a checksummed packet\n");
 		return -EINVAL;
 	}
 
@@ -2530,7 +2530,7 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 	nr_frags = skb_shinfo(skb)->nr_frags;
 
 	if (1 + nr_frags > CORE_LL2_TX_MAX_BDS_PER_PACKET) {
-		DP_ERR(cdev, "Cannot transmit a packet with %d fragments\n",
+		DP_ERR(cdev, "Canyest transmit a packet with %d fragments\n",
 		       1 + nr_frags);
 		return -EINVAL;
 	}
@@ -2565,8 +2565,8 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 		pkt.remove_stag = true;
 
 	/* qed_ll2_prepare_tx_packet() may actually send the packet if
-	 * there are no fragments in the skb and subsequently the completion
-	 * routine may run and free the SKB, so no dereferencing the SKB
+	 * there are yes fragments in the skb and subsequently the completion
+	 * routine may run and free the SKB, so yes dereferencing the SKB
 	 * beyond this point unless skb has any fragments.
 	 */
 	rc = qed_ll2_prepare_tx_packet(p_hwfn, cdev->ll2->handle,
@@ -2592,7 +2592,7 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb,
 						       mapping,
 						       skb_frag_size(frag));
 
-		/* if failed not much to do here, partial packet has been posted
+		/* if failed yest much to do here, partial packet has been posted
 		 * we can't free memory, will need to wait for completion
 		 */
 		if (rc)

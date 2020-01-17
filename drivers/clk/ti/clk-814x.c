@@ -47,26 +47,26 @@ const struct omap_clkctrl_data dm814_clkctrl_data[] __initconst = {
 
 static struct ti_dt_clk dm814_clks[] = {
 	DT_CLK(NULL, "timer_sys_ck", "devosc_ck"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 static bool timer_clocks_initialized;
 
 static int __init dm814x_adpll_early_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	if (!timer_clocks_initialized)
 		return -ENODEV;
 
-	np = of_find_node_by_name(NULL, "pllss");
+	np = of_find_yesde_by_name(NULL, "pllss");
 	if (!np) {
-		pr_err("Could not find node for plls\n");
+		pr_err("Could yest find yesde for plls\n");
 		return -ENODEV;
 	}
 
 	of_platform_populate(np, NULL, NULL, NULL);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return 0;
 }
@@ -88,11 +88,11 @@ static int __init dm814x_adpll_enable_init_clocks(void)
 		struct clk *clock;
 
 		clock = clk_get(NULL, init_clocks[i]);
-		if (WARN(IS_ERR(clock), "could not find init clock %s\n",
+		if (WARN(IS_ERR(clock), "could yest find init clock %s\n",
 			 init_clocks[i]))
 			continue;
 		err = clk_prepare_enable(clock);
-		if (WARN(err, "could not enable init clock %s\n",
+		if (WARN(err, "could yest enable init clock %s\n",
 			 init_clocks[i]))
 			continue;
 	}

@@ -90,7 +90,7 @@ config IWLWIFI_BCAST_FILTERING
 	  patterns (e.g. incoming arp requests).
 
 	  If unsure, don't enable this option, as some programs might
-	  expect incoming broadcasts for their normal operations.
+	  expect incoming broadcasts for their yesrmal operations.
 
 menu "Debugging Options"
 
@@ -132,13 +132,13 @@ config IWLWIFI_DEVICE_TRACING
 	default y
 	help
 	  Say Y here to trace all commands, including TX frames and IO
-	  accesses, sent to the device. If you say yes, iwlwifi will
+	  accesses, sent to the device. If you say no, iwlwifi will
 	  register with the ftrace framework for event tracing and dump
 	  all this information to the ringbuffer, you may need to
 	  increase the ringbuffer size. See the ftrace documentation
 	  for more information.
 
-	  When tracing is not enabled, this option still has some
+	  When tracing is yest enabled, this option still has some
 	  (though rather small) overhead.
 
 	  If unsure, say Y so we can help you better when problems

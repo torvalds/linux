@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # rotate TFO keys for ipv4/ipv6 and verify that the client does
-# not present an invalid cookie.
+# yest present an invalid cookie.
 
 set +x
 set -e
@@ -31,7 +31,7 @@ do_test() {
 	val=$(ip netns exec "${NETNS}" nstat -az | \
 		grep TcpExtTCPFastOpenPassiveFail | awk '{print $2}')
 	if [ "$val" != 0 ]; then
-		echo "FAIL: TcpExtTCPFastOpenPassiveFail non-zero"
+		echo "FAIL: TcpExtTCPFastOpenPassiveFail yesn-zero"
 		return 1
 	fi
 }

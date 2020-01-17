@@ -34,7 +34,7 @@
 
 /* A2 MMUCR0 bits */
 #define MMUCR0_ECL	0x80000000	/* Extended Class for TLB fills */
-#define MMUCR0_TID_NZ	0x40000000	/* TID is non-zero */
+#define MMUCR0_TID_NZ	0x40000000	/* TID is yesn-zero */
 #define MMUCR0_TS	0x10000000	/* Translation space for TLB fills */
 #define MMUCR0_TGS	0x20000000	/* Guest space for TLB fills */
 #define MMUCR0_TLBSEL	0x0c000000	/* TLB or ERAT target for TLB fills */
@@ -56,7 +56,7 @@
 #define MMUCR1_ITTID		0x00040000	/* IERAT thdid field as TID */
 #define MMUCR1_DCTID		0x00020000	/* DERAT class field as TID */
 #define MMUCR1_DTTID		0x00010000	/* DERAT thdid field as TID */
-#define MMUCR1_DCCD		0x00008000	/* DERAT class ignore */
+#define MMUCR1_DCCD		0x00008000	/* DERAT class igyesre */
 #define MMUCR1_TLBWE_BINV	0x00004000	/* back invalidate on tlbwe */
 
 /* A2 MMUCR2 bits */

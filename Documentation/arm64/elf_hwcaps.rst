@@ -9,7 +9,7 @@ This document describes the usage and semantics of the arm64 ELF hwcaps.
 ---------------
 
 Some hardware or software features are only available on some CPU
-implementations, and/or with certain kernel configurations, but have no
+implementations, and/or with certain kernel configurations, but have yes
 architected discovery mechanism available to userspace code at EL0. The
 kernel exposes the presence of these features to userspace through a set
 of flags called hwcaps, exposed in the auxilliary vector.
@@ -31,9 +31,9 @@ Where software relies on a feature described by a hwcap, it should check
 the relevant hwcap flag to verify that the feature is present before
 attempting to make use of the feature.
 
-Features cannot be probed reliably through other means. When a feature
-is not available, attempting to use it may result in unpredictable
-behaviour, and is not guaranteed to result in any reliable indication
+Features canyest be probed reliably through other means. When a feature
+is yest available, attempting to use it may result in unpredictable
+behaviour, and is yest guaranteed to result in any reliable indication
 that the feature is unavailable, such as a SIGILL.
 
 
@@ -51,12 +51,12 @@ Such hwcaps are described below in the form::
     Functionality implied by idreg.field == val.
 
 Such hwcaps indicate the availability of functionality that the ARM ARM
-defines as being present when idreg.field has value val, but do not
-indicate that idreg.field is precisely equal to val, nor do they
+defines as being present when idreg.field has value val, but do yest
+indicate that idreg.field is precisely equal to val, yesr do they
 indicate the absence of functionality implied by other values of
 idreg.field.
 
-Other hwcaps may indicate the presence of features which cannot be
+Other hwcaps may indicate the presence of features which canyest be
 described by ID registers alone. These may be described without
 reference to ID registers, and may refer to other documentation.
 

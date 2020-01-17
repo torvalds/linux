@@ -525,7 +525,7 @@ ice_parse_cee_app_tlv(struct ice_cee_feat_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 			dcbcfg->app[i].selector = ICE_APP_SEL_TCPIP;
 			break;
 		default:
-			/* Keep selector as it is for unknown types */
+			/* Keep selector as it is for unkyeswn types */
 			dcbcfg->app[i].selector = selector;
 		}
 
@@ -554,7 +554,7 @@ ice_parse_cee_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 	ouisubtype = ntohl(tlv->ouisubtype);
 	subtype = (u8)((ouisubtype & ICE_LLDP_TLV_SUBTYPE_M) >>
 		       ICE_LLDP_TLV_SUBTYPE_S);
-	/* Return if not CEE DCBX */
+	/* Return if yest CEE DCBX */
 	if (subtype != ICE_CEE_DCBX_TYPE)
 		return;
 
@@ -562,7 +562,7 @@ ice_parse_cee_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 	tlvlen = ((typelen & ICE_LLDP_TLV_LEN_M) >> ICE_LLDP_TLV_LEN_S);
 	len = sizeof(tlv->typelen) + sizeof(ouisubtype) +
 		sizeof(struct ice_cee_ctrl_tlv);
-	/* Return if no CEE DCBX Feature TLVs */
+	/* Return if yes CEE DCBX Feature TLVs */
 	if (tlvlen <= len)
 		return;
 
@@ -931,7 +931,7 @@ enum ice_status ice_get_dcb_cfg(struct ice_port_info *pi)
 		ice_cee_to_dcb_cfg(&cee_cfg, dcbx_cfg);
 		ret = ice_get_ieee_or_cee_dcb_cfg(pi, ICE_DCBX_MODE_CEE);
 	} else if (pi->hw->adminq.sq_last_status == ICE_AQ_RC_ENOENT) {
-		/* CEE mode not enabled try querying IEEE data */
+		/* CEE mode yest enabled try querying IEEE data */
 		dcbx_cfg = &pi->local_dcbx_cfg;
 		dcbx_cfg->dcbx_mode = ICE_DCBX_MODE_IEEE;
 		ret = ice_get_ieee_or_cee_dcb_cfg(pi, ICE_DCBX_MODE_IEEE);
@@ -1344,7 +1344,7 @@ ice_aq_query_port_ets(struct ice_port_info *pi,
 		return ICE_ERR_PARAM;
 	cmd = &desc.params.port_ets;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_query_port_ets);
-	cmd->port_teid = pi->root->info.node_teid;
+	cmd->port_teid = pi->root->info.yesde_teid;
 
 	status = ice_aq_send_cmd(pi->hw, &desc, buf, buf_size, cd);
 	return status;
@@ -1361,7 +1361,7 @@ static enum ice_status
 ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 			    struct ice_aqc_port_ets_elem *buf)
 {
-	struct ice_sched_node *node, *tc_node;
+	struct ice_sched_yesde *yesde, *tc_yesde;
 	struct ice_aqc_get_elem elem;
 	enum ice_status status = 0;
 	u32 teid1, teid2;
@@ -1369,11 +1369,11 @@ ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 
 	if (!pi)
 		return ICE_ERR_PARAM;
-	/* suspend the missing TC nodes */
+	/* suspend the missing TC yesdes */
 	for (i = 0; i < pi->root->num_children; i++) {
-		teid1 = le32_to_cpu(pi->root->children[i]->info.node_teid);
+		teid1 = le32_to_cpu(pi->root->children[i]->info.yesde_teid);
 		ice_for_each_traffic_class(j) {
-			teid2 = le32_to_cpu(buf->tc_node_teid[j]);
+			teid2 = le32_to_cpu(buf->tc_yesde_teid[j]);
 			if (teid1 == teid2)
 				break;
 		}
@@ -1382,20 +1382,20 @@ ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 		/* TC is missing */
 		pi->root->children[i]->in_use = false;
 	}
-	/* add the new TC nodes */
+	/* add the new TC yesdes */
 	ice_for_each_traffic_class(j) {
-		teid2 = le32_to_cpu(buf->tc_node_teid[j]);
+		teid2 = le32_to_cpu(buf->tc_yesde_teid[j]);
 		if (teid2 == ICE_INVAL_TEID)
 			continue;
 		/* Is it already present in the tree ? */
 		for (i = 0; i < pi->root->num_children; i++) {
-			tc_node = pi->root->children[i];
-			if (!tc_node)
+			tc_yesde = pi->root->children[i];
+			if (!tc_yesde)
 				continue;
-			teid1 = le32_to_cpu(tc_node->info.node_teid);
+			teid1 = le32_to_cpu(tc_yesde->info.yesde_teid);
 			if (teid1 == teid2) {
-				tc_node->tc_num = j;
-				tc_node->in_use = true;
+				tc_yesde->tc_num = j;
+				tc_yesde->in_use = true;
 				break;
 			}
 		}
@@ -1404,13 +1404,13 @@ ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 		/* new TC */
 		status = ice_sched_query_elem(pi->hw, teid2, &elem);
 		if (!status)
-			status = ice_sched_add_node(pi, 1, &elem.generic[0]);
+			status = ice_sched_add_yesde(pi, 1, &elem.generic[0]);
 		if (status)
 			break;
 		/* update the TC number */
-		node = ice_sched_find_node_by_teid(pi->root, teid2);
-		if (node)
-			node->tc_num = j;
+		yesde = ice_sched_find_yesde_by_teid(pi->root, teid2);
+		if (yesde)
+			yesde->tc_num = j;
 	}
 	return status;
 }

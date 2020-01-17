@@ -138,7 +138,7 @@ static int detect_quirks(struct snd_oxfw *oxfw)
 		return snd_oxfw_add_spkr(oxfw, true);
 
 	/*
-	 * Stanton models supports asynchronous transactions for unique MIDI
+	 * Stanton models supports asynchroyesus transactions for unique MIDI
 	 * messages.
 	 */
 	if (oxfw->entry->vendor_id == OUI_STANTON) {
@@ -289,8 +289,8 @@ static void oxfw_remove(struct fw_unit *unit)
 
 	/*
 	 * Confirm to stop the work for registration before the sound card is
-	 * going to be released. The work is not scheduled again because bus
-	 * reset handler is not called anymore.
+	 * going to be released. The work is yest scheduled again because bus
+	 * reset handler is yest called anymore.
 	 */
 	cancel_delayed_work_sync(&oxfw->dwork);
 
@@ -350,10 +350,10 @@ static const struct ieee1394_device_id oxfw_id_table[] = {
 	 *  Onyx-i series (former models):	0x081216
 	 *  Mackie Onyx Satellite:		0x00200f
 	 *  Tapco LINK.firewire 4x6:		0x000460
-	 *  d.2 pro:				Unknown
-	 *  d.4 pro:				Unknown
-	 *  U.420:				Unknown
-	 *  U.420d:				Unknown
+	 *  d.2 pro:				Unkyeswn
+	 *  d.4 pro:				Unkyeswn
+	 *  U.420:				Unkyeswn
+	 *  U.420d:				Unkyeswn
 	 */
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |

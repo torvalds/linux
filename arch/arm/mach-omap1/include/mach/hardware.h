@@ -7,7 +7,7 @@
  *	 file for each driver.
  *
  * Copyright (C) 2001 RidgeRun, Inc.
- * Author: RidgeRun, Inc. Greg Lonnon <glonnon@ridgerun.com>
+ * Author: RidgeRun, Inc. Greg Lonyesn <glonyesn@ridgerun.com>
  *
  * Reorganized for Linux-2.6 by Tony Lindgren <tony@atomide.com>
  *                          and Dirk Behme <dirk.behme@de.bosch.com>
@@ -29,7 +29,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * with this program; if yest, write to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -138,7 +138,7 @@ static inline u32 omap_cs3_phys(void)
 #define ULPD_IT_STATUS		(ULPD_REG_BASE + 0x14)
 #define ULPD_SETUP_ANALOG_CELL_3	(ULPD_REG_BASE + 0x24)
 #define ULPD_CLOCK_CTRL		(ULPD_REG_BASE + 0x30)
-#	define DIS_USB_PVCI_CLK		(1 << 5)	/* no USB/FAC synch */
+#	define DIS_USB_PVCI_CLK		(1 << 5)	/* yes USB/FAC synch */
 #	define USB_MCLK_EN		(1 << 4)	/* enable W4_USB_CLKO */
 #define ULPD_SOFT_REQ		(ULPD_REG_BASE + 0x34)
 #	define SOFT_UDC_REQ		(1 << 4)

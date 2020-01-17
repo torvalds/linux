@@ -9,7 +9,7 @@
       This software may be used and distributed according to the terms
       of the GNU General Public License (GPL), incorporated herein by reference.
       Drivers based on this skeleton fall under the GPL and must retain
-      the authorship (implicit copyright) notice.
+      the authorship (implicit copyright) yestice.
 
       This program is distributed in the hope that it will be useful, but
       WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -27,7 +27,7 @@
           Modify the basic memory allocation and dma logic.
           Port the driver to the latest kernel from 2.0.46.
           Complete the ABR logic of the driver, and added the ABR work-
-              around for the hardware anormalies.
+              around for the hardware ayesrmalies.
           Add the CBR support.
 	  Add the flow control logic to the driver to allow rate-limit VC.
           Add 4K VC support to the board with 512K control memory.
@@ -459,7 +459,7 @@ struct rx_buf_desc {
 #define CELL_CTR_LO_AUTO 0x4a  
 #define CELL_CTR_LO_NOAUTO 0xca  
   
-/* Diagnostic registers */  
+/* Diagyesstic registers */  
 #define NEXTDESC 	0x59  
 #define NEXTVC		0x5a  
 #define PSLOTCNT	0x5d  
@@ -903,7 +903,7 @@ enum ia_suni {
 	SUNI_RSOP_SECTION_BIP8M	= 0x04c, /* RSOP Section BIP-8 MSB           */
 
 	SUNI_TSOP_CONTROL	= 0x050, /* TSOP Control                     */
-	SUNI_TSOP_DIAG		= 0x054, /* TSOP Disgnostics                 */
+	SUNI_TSOP_DIAG		= 0x054, /* TSOP Disgyesstics                 */
 					 /* Reserved (2)                     */
 	SUNI_RLOP_CS		= 0x060, /* RLOP Control/Status              */
 	SUNI_RLOP_INTR		= 0x064, /* RLOP Interrupt Enable/Status     */
@@ -915,7 +915,7 @@ enum ia_suni {
 	SUNI_RLOP_LINE_FEBEM	= 0x07c, /* RLOP Line FEBE MSB               */
 
 	SUNI_TLOP_CONTROL	= 0x080, /* TLOP Control                     */
-	SUNI_TLOP_DISG		= 0x084, /* TLOP Disgnostics                 */
+	SUNI_TLOP_DISG		= 0x084, /* TLOP Disgyesstics                 */
 					 /* Reserved (14)                    */
 	SUNI_RPOP_CS		= 0x0c0, /* RPOP Status/Control              */
 	SUNI_RPOP_INTR		= 0x0c4, /* RPOP Interrupt/Status            */
@@ -928,7 +928,7 @@ enum ia_suni {
 	SUNI_RPOP_FEBEL		= 0x0e8, /* RPOP Path FEBE LSB               */
 	SUNI_RPOP_FEBEM		= 0x0ec, /* RPOP Path FEBE MSB               */
 					 /* Reserved (4)                     */
-	SUNI_TPOP_CNTRL_DAIG	= 0x100, /* TPOP Control/Disgnostics         */
+	SUNI_TPOP_CNTRL_DAIG	= 0x100, /* TPOP Control/Disgyesstics         */
 	SUNI_TPOP_POINTER_CTRL	= 0x104, /* TPOP Pointer Control             */
 	SUNI_TPOP_SOURCER_CTRL	= 0x108, /* TPOP Source Control              */
 					 /* Reserved (2)                     */
@@ -1064,7 +1064,7 @@ typedef struct iadev_priv {
 enum ia_mb25 {
 	MB25_MASTER_CTRL	= 0x00, /* Master control		     */
 	MB25_INTR_STATUS	= 0x04,	/* Interrupt status		     */
-	MB25_DIAG_CONTROL	= 0x08,	/* Diagnostic control		     */
+	MB25_DIAG_CONTROL	= 0x08,	/* Diagyesstic control		     */
 	MB25_LED_HEC		= 0x0c,	/* LED driver and HEC status/control */
 	MB25_LOW_BYTE_COUNTER	= 0x10,
 	MB25_HIGH_BYTE_COUNTER	= 0x14
@@ -1094,7 +1094,7 @@ enum ia_mb25 {
 #define	MB25_IS_RFIFOO	0x01		/* Received FIFO Overrun	     */
 
 /*
- * Diagnostic Control
+ * Diagyesstic Control
  */
 #define	MB25_DC_FTXCD	0x80		/* Force TxClav deassert	     */	
 #define	MB25_DC_RXCOS	0x40		/* RxClav operation select	     */
@@ -1241,7 +1241,7 @@ enum suni_pm7345 {
  */
 #define SUNI_PM7345_CLB         0x01    /* Cell loopback        */
 #define SUNI_PM7345_PLB         0x02    /* Payload loopback     */
-#define SUNI_PM7345_DLB         0x04    /* Diagnostic loopback  */
+#define SUNI_PM7345_DLB         0x04    /* Diagyesstic loopback  */
 #define SUNI_PM7345_LLB         0x80    /* Line loopback        */
 #define SUNI_PM7345_E3ENBL      0x40    /* E3 enable bit        */
 #define SUNI_PM7345_LOOPT       0x10    /* LOOPT enable bit     */
@@ -1356,7 +1356,7 @@ enum suni_pm7345 {
 
 /*
  * these bits duplicate the hw_flip.h register settings
- * note: how the data in / out bits are defined in the flipper specification 
+ * yeste: how the data in / out bits are defined in the flipper specification 
  */
 
 #define	NVCE	0x02

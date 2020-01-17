@@ -42,7 +42,7 @@ MODULE_PARM_DESC(extram_pool_sz, "external ram pool size to allocate");
 /*
  * Host event IRQ numbers from PRUSS - PRUSS can generate up to 8 interrupt
  * events to AINTC of ARM host processor - which can be used for IPC b/w PRUSS
- * firmware and user space application, async notification from PRU firmware
+ * firmware and user space application, async yestification from PRU firmware
  * to user space application
  * 3	PRU_EVTOUT0
  * 4	PRU_EVTOUT1
@@ -135,7 +135,7 @@ static int pruss_probe(struct platform_device *pdev)
 		goto err_free_gdev;
 	}
 
-	/* Power on PRU in case its not done as part of boot-loader */
+	/* Power on PRU in case its yest done as part of boot-loader */
 	gdev->pruss_clk = clk_get(dev, "pruss");
 	if (IS_ERR(gdev->pruss_clk)) {
 		dev_err(dev, "Failed to get clock\n");
@@ -168,7 +168,7 @@ static int pruss_probe(struct platform_device *pdev)
 			(unsigned long)gen_pool_dma_alloc(gdev->sram_pool,
 					sram_pool_sz, &gdev->sram_paddr);
 		if (!gdev->sram_vaddr) {
-			dev_err(dev, "Could not allocate SRAM pool\n");
+			dev_err(dev, "Could yest allocate SRAM pool\n");
 			ret = -ENOMEM;
 			goto err_clk_disable;
 		}
@@ -177,7 +177,7 @@ static int pruss_probe(struct platform_device *pdev)
 	gdev->ddr_vaddr = dma_alloc_coherent(dev, extram_pool_sz,
 				&(gdev->ddr_paddr), GFP_KERNEL | GFP_DMA);
 	if (!gdev->ddr_vaddr) {
-		dev_err(dev, "Could not allocate external memory\n");
+		dev_err(dev, "Could yest allocate external memory\n");
 		ret = -ENOMEM;
 		goto err_free_sram;
 	}

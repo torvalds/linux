@@ -41,7 +41,7 @@ struct smt_debug debug;
 /*
  * Set OEM specific values
  *
- * Can not be called in smt_reset_defaults, because it is not sure that
+ * Can yest be called in smt_reset_defaults, because it is yest sure that
  * the OEM ID is already defined.
  */
 static void set_oem_spec_val(struct s_smc *smc)
@@ -62,7 +62,7 @@ static void set_oem_spec_val(struct s_smc *smc)
  * Init SMT
  */
 int init_smt(struct s_smc *smc, u_char *mac_addr)
-/* u_char *mac_addr;	canonical address or NULL */
+/* u_char *mac_addr;	cayesnical address or NULL */
 {
 	int	p ;
 
@@ -96,7 +96,7 @@ int init_smt(struct s_smc *smc, u_char *mac_addr)
 	ev_init(smc) ;			/* event queue */
 #ifndef	SLIM_SMT
 	smt_init_evc(smc) ;		/* evcs in MIB */
-#endif	/* no SLIM_SMT */
+#endif	/* yes SLIM_SMT */
 	smt_timer_init(smc) ;		/* timer package */
 	smt_agent_init(smc) ;		/* SMT frame manager */
 

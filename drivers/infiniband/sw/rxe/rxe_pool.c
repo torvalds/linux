@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *	   conditions are met:
  *
  *		- Redistributions of source code must retain the above
- *		  copyright notice, this list of conditions and the following
+ *		  copyright yestice, this list of conditions and the following
  *		  disclaimer.
  *
  *		- Redistributions in binary form must reproduce the above
- *		  copyright notice, this list of conditions and the following
+ *		  copyright yestice, this list of conditions and the following
  *		  disclaimer in the documentation and/or other materials
  *		  provided with the distribution.
  *
@@ -35,7 +35,7 @@
 #include "rxe_loc.h"
 
 /* info about object pools
- * note that mr and mw share a single index space
+ * yeste that mr and mw share a single index space
  * so that one can map an lkey to the correct type of object
  */
 struct rxe_type_info rxe_type_info[RXE_NUM_TYPES] = {
@@ -172,7 +172,7 @@ static int rxe_pool_init_index(struct rxe_pool *pool, u32 max, u32 min)
 	size_t size;
 
 	if ((max - min + 1) < pool->max_elem) {
-		pr_warn("not enough indices for max_elem\n");
+		pr_warn("yest eyesugh indices for max_elem\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -282,13 +282,13 @@ static u32 alloc_index(struct rxe_pool *pool)
 
 static void insert_index(struct rxe_pool *pool, struct rxe_pool_entry *new)
 {
-	struct rb_node **link = &pool->tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **link = &pool->tree.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct rxe_pool_entry *elem;
 
 	while (*link) {
 		parent = *link;
-		elem = rb_entry(parent, struct rxe_pool_entry, node);
+		elem = rb_entry(parent, struct rxe_pool_entry, yesde);
 
 		if (elem->index == new->index) {
 			pr_warn("element already exists!\n");
@@ -301,22 +301,22 @@ static void insert_index(struct rxe_pool *pool, struct rxe_pool_entry *new)
 			link = &(*link)->rb_right;
 	}
 
-	rb_link_node(&new->node, parent, link);
-	rb_insert_color(&new->node, &pool->tree);
+	rb_link_yesde(&new->yesde, parent, link);
+	rb_insert_color(&new->yesde, &pool->tree);
 out:
 	return;
 }
 
 static void insert_key(struct rxe_pool *pool, struct rxe_pool_entry *new)
 {
-	struct rb_node **link = &pool->tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **link = &pool->tree.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct rxe_pool_entry *elem;
 	int cmp;
 
 	while (*link) {
 		parent = *link;
-		elem = rb_entry(parent, struct rxe_pool_entry, node);
+		elem = rb_entry(parent, struct rxe_pool_entry, yesde);
 
 		cmp = memcmp((u8 *)elem + pool->key_offset,
 			     (u8 *)new + pool->key_offset, pool->key_size);
@@ -332,8 +332,8 @@ static void insert_key(struct rxe_pool *pool, struct rxe_pool_entry *new)
 			link = &(*link)->rb_right;
 	}
 
-	rb_link_node(&new->node, parent, link);
-	rb_insert_color(&new->node, &pool->tree);
+	rb_link_yesde(&new->yesde, parent, link);
+	rb_insert_color(&new->yesde, &pool->tree);
 out:
 	return;
 }
@@ -357,7 +357,7 @@ void rxe_drop_key(void *arg)
 	unsigned long flags;
 
 	write_lock_irqsave(&pool->pool_lock, flags);
-	rb_erase(&elem->node, &pool->tree);
+	rb_erase(&elem->yesde, &pool->tree);
 	write_unlock_irqrestore(&pool->pool_lock, flags);
 }
 
@@ -381,7 +381,7 @@ void rxe_drop_index(void *arg)
 
 	write_lock_irqsave(&pool->pool_lock, flags);
 	clear_bit(elem->index - pool->min_index, pool->table);
-	rb_erase(&elem->node, &pool->tree);
+	rb_erase(&elem->yesde, &pool->tree);
 	write_unlock_irqrestore(&pool->pool_lock, flags);
 }
 
@@ -476,7 +476,7 @@ void rxe_elem_release(struct kref *kref)
 
 void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 {
-	struct rb_node *node = NULL;
+	struct rb_yesde *yesde = NULL;
 	struct rxe_pool_entry *elem = NULL;
 	unsigned long flags;
 
@@ -485,15 +485,15 @@ void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 	if (pool->state != RXE_POOL_STATE_VALID)
 		goto out;
 
-	node = pool->tree.rb_node;
+	yesde = pool->tree.rb_yesde;
 
-	while (node) {
-		elem = rb_entry(node, struct rxe_pool_entry, node);
+	while (yesde) {
+		elem = rb_entry(yesde, struct rxe_pool_entry, yesde);
 
 		if (elem->index > index)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (elem->index < index)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else {
 			kref_get(&elem->ref_cnt);
 			break;
@@ -502,12 +502,12 @@ void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 
 out:
 	read_unlock_irqrestore(&pool->pool_lock, flags);
-	return node ? elem : NULL;
+	return yesde ? elem : NULL;
 }
 
 void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
 {
-	struct rb_node *node = NULL;
+	struct rb_yesde *yesde = NULL;
 	struct rxe_pool_entry *elem = NULL;
 	int cmp;
 	unsigned long flags;
@@ -517,26 +517,26 @@ void *rxe_pool_get_key(struct rxe_pool *pool, void *key)
 	if (pool->state != RXE_POOL_STATE_VALID)
 		goto out;
 
-	node = pool->tree.rb_node;
+	yesde = pool->tree.rb_yesde;
 
-	while (node) {
-		elem = rb_entry(node, struct rxe_pool_entry, node);
+	while (yesde) {
+		elem = rb_entry(yesde, struct rxe_pool_entry, yesde);
 
 		cmp = memcmp((u8 *)elem + pool->key_offset,
 			     key, pool->key_size);
 
 		if (cmp > 0)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (cmp < 0)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			break;
 	}
 
-	if (node)
+	if (yesde)
 		kref_get(&elem->ref_cnt);
 
 out:
 	read_unlock_irqrestore(&pool->pool_lock, flags);
-	return node ? elem : NULL;
+	return yesde ? elem : NULL;
 }

@@ -16,8 +16,8 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
-static int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc);
-static void nfs4_evict_inode(struct inode *inode);
+static int nfs4_write_iyesde(struct iyesde *iyesde, struct writeback_control *wbc);
+static void nfs4_evict_iyesde(struct iyesde *iyesde);
 static struct dentry *nfs4_remote_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data);
 static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
@@ -50,12 +50,12 @@ struct file_system_type nfs4_referral_fs_type = {
 };
 
 static const struct super_operations nfs4_sops = {
-	.alloc_inode	= nfs_alloc_inode,
-	.free_inode	= nfs_free_inode,
-	.write_inode	= nfs4_write_inode,
-	.drop_inode	= nfs_drop_inode,
+	.alloc_iyesde	= nfs_alloc_iyesde,
+	.free_iyesde	= nfs_free_iyesde,
+	.write_iyesde	= nfs4_write_iyesde,
+	.drop_iyesde	= nfs_drop_iyesde,
 	.statfs		= nfs_statfs,
-	.evict_inode	= nfs4_evict_inode,
+	.evict_iyesde	= nfs4_evict_iyesde,
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
 	.show_devname	= nfs_show_devname,
@@ -73,12 +73,12 @@ struct nfs_subversion nfs_v4 = {
 	.xattr    = nfs4_xattr_handlers,
 };
 
-static int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc)
+static int nfs4_write_iyesde(struct iyesde *iyesde, struct writeback_control *wbc)
 {
-	int ret = nfs_write_inode(inode, wbc);
+	int ret = nfs_write_iyesde(iyesde, wbc);
 
 	if (ret == 0)
-		ret = pnfs_layoutcommit_inode(inode,
+		ret = pnfs_layoutcommit_iyesde(iyesde,
 				wbc->sync_mode == WB_SYNC_ALL);
 	return ret;
 }
@@ -88,17 +88,17 @@ static int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc)
  * to open() calls that passed nfs_atomic_lookup, but failed to call
  * nfs_open().
  */
-static void nfs4_evict_inode(struct inode *inode)
+static void nfs4_evict_iyesde(struct iyesde *iyesde)
 {
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
+	truncate_iyesde_pages_final(&iyesde->i_data);
+	clear_iyesde(iyesde);
 	/* If we are holding a delegation, return and free it */
-	nfs_inode_evict_delegation(inode);
+	nfs_iyesde_evict_delegation(iyesde);
 	/* Note that above delegreturn would trigger pnfs return-on-close */
-	pnfs_return_layout(inode);
-	pnfs_destroy_layout(NFS_I(inode));
-	/* First call standard NFS clear_inode() code */
-	nfs_clear_inode(inode);
+	pnfs_return_layout(iyesde);
+	pnfs_destroy_layout(NFS_I(iyesde));
+	/* First call standard NFS clear_iyesde() code */
+	nfs_clear_iyesde(iyesde);
 }
 
 /*

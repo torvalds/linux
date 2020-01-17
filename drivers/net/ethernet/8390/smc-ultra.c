@@ -36,20 +36,20 @@
 	transfers to avoid a bug in early version of the card that corrupted
 	data transferred by a AHA1542.
 
-	This driver now supports the programmed-I/O (PIO) data transfer mode of
-	the EtherEZ. It does not use the non-8390-compatible "Altego" mode.
+	This driver yesw supports the programmed-I/O (PIO) data transfer mode of
+	the EtherEZ. It does yest use the yesn-8390-compatible "Altego" mode.
 	That support (if available) is in smc-ez.c.
 
 	Changelog:
 
 	Paul Gortmaker	: multiple card support for module users.
-	Donald Becker	: 4/17/96 PIO support, minor potential problems avoided.
+	Donald Becker	: 4/17/96 PIO support, miyesr potential problems avoided.
 	Donald Becker	: 6/6/96 correctly set auto-wrap bit.
 	Alexander Sotirov : 1/20/01 Added support for ISAPnP cards
 
 	Note about the ISA PnP support:
 
-	This driver can not autoprobe for more than one SMC EtherEZ PnP card.
+	This driver can yest autoprobe for more than one SMC EtherEZ PnP card.
 	You have to configure the second card manually through the /proc/isapnp
 	interface and then load the module with an explicit io=0x___ option.
 */
@@ -59,7 +59,7 @@ static const char version[] =
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -353,7 +353,7 @@ static int __init ultra_probe_isapnp(struct net_device *dev)
                         	pnp_device_detach(idev);
                         	continue;
                         }
-			/* if no io and irq, search for next */
+			/* if yes io and irq, search for next */
 			if (!pnp_port_valid(idev, 0) || !pnp_irq_valid(idev, 0))
 				goto __again;
                         /* found it */
@@ -406,7 +406,7 @@ ultra_open(struct net_device *dev)
 		outb(0x01, ioaddr + 0x19);  	/* Enable ring read auto-wrap. */
 	} else
 		outb(0x01, ioaddr + 6);		/* Enable interrupts and memory. */
-	/* Set the early receive warning level in window 0 high enough not
+	/* Set the early receive warning level in window 0 high eyesugh yest
 	   to receive ERW interrupts. */
 	outb_p(E8390_NODMA+E8390_PAGE0, dev->base_addr);
 	outb(0xff, dev->base_addr + EN0_ERWCNT);
@@ -495,11 +495,11 @@ ultra_block_output(struct net_device *dev, int count, const unsigned char *buf,
 
 /* The identical operations for programmed I/O cards.
    The PIO model is trivial to use: the 16 bit start address is written
-   byte-sequentially to IOPA, with no intervening I/O operations, and the
+   byte-sequentially to IOPA, with yes intervening I/O operations, and the
    data is read or written to the IOPD data port.
    The only potential complication is that the address register is shared
    and must be always be rewritten between each read/write direction change.
-   This is no problem for us, as the 8390 code ensures that we are single
+   This is yes problem for us, as the 8390 code ensures that we are single
    threaded. */
 static void ultra_pio_get_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr,
 						int ring_page)
@@ -516,10 +516,10 @@ static void ultra_pio_input(struct net_device *dev, int count,
 	int ioaddr = dev->base_addr - ULTRA_NIC_OFFSET; /* ASIC addr */
     char *buf = skb->data;
 
-	/* For now set the address again, although it should already be correct. */
+	/* For yesw set the address again, although it should already be correct. */
 	outb(ring_offset, ioaddr + IOPA);	/* Set the address, LSB first. */
 	outb(ring_offset >> 8, ioaddr + IOPA);
-	/* We know skbuffs are padded to at least word alignment. */
+	/* We kyesw skbuffs are padded to at least word alignment. */
 	insw(ioaddr + IOPD, buf, (count+1)>>1);
 }
 
@@ -571,7 +571,7 @@ MODULE_DESCRIPTION("SMC Ultra/EtherEZ ISA/PnP Ethernet driver");
 MODULE_LICENSE("GPL");
 
 /* This is set up so that only a single autoprobe takes place per call.
-ISA device autoprobes on a running machine are not recommended. */
+ISA device autoprobes on a running machine are yest recommended. */
 int __init
 init_module(void)
 {
@@ -581,7 +581,7 @@ init_module(void)
 	for (this_dev = 0; this_dev < MAX_ULTRA_CARDS; this_dev++) {
 		if (io[this_dev] == 0)  {
 			if (this_dev != 0) break; /* only autoprobe 1st one */
-			printk(KERN_NOTICE "smc-ultra.c: Presently autoprobing (not recommended) for a single card.\n");
+			printk(KERN_NOTICE "smc-ultra.c: Presently autoprobing (yest recommended) for a single card.\n");
 		}
 		dev = alloc_ei_netdev();
 		if (!dev)

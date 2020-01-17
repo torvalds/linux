@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Mellanox Technology Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Mellayesx Techyeslogy Inc.  All rights reserved.
  * Copyright (C) 2008 - 2011 Bart Van Assche <bvanassche@acm.org>.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -86,7 +86,7 @@ static int srpt_get_u64_x(char *buffer, const struct kernel_param *kp)
 module_param_call(srpt_service_guid, NULL, srpt_get_u64_x, &srpt_service_guid,
 		  0444);
 MODULE_PARM_DESC(srpt_service_guid,
-		 "Using this value for ioc_guid, id_ext, and cm_listen_id instead of using the node_guid of the first HCA.");
+		 "Using this value for ioc_guid, id_ext, and cm_listen_id instead of using the yesde_guid of the first HCA.");
 
 static struct ib_client srpt_client;
 /* Protects both rdma_cm_port and rdma_cm_id. */
@@ -123,13 +123,13 @@ static bool srpt_set_ch_state(struct srpt_rdma_ch *ch, enum rdma_ch_state new)
 }
 
 /**
- * srpt_event_handler - asynchronous IB event callback function
+ * srpt_event_handler - asynchroyesus IB event callback function
  * @handler: IB event handler registered by ib_register_event_handler().
  * @event: Description of the event that occurred.
  *
- * Callback function called by the InfiniBand core when an asynchronous IB
+ * Callback function called by the InfiniBand core when an asynchroyesus IB
  * event occurs. This callback may occur in interrupt context. See also
- * section 11.5.2, Set Asynchronous Event Handler in the InfiniBand
+ * section 11.5.2, Set Asynchroyesus Event Handler in the InfiniBand
  * Architecture Specification.
  */
 static void srpt_event_handler(struct ib_event_handler *handler,
@@ -165,7 +165,7 @@ static void srpt_event_handler(struct ib_event_handler *handler,
 	case IB_EVENT_SM_CHANGE:
 	case IB_EVENT_CLIENT_REREGISTER:
 	case IB_EVENT_GID_CHANGE:
-		/* Refresh port data asynchronously. */
+		/* Refresh port data asynchroyesusly. */
 		port_num = event->element.port_num - 1;
 		if (port_num < sdev->device->phys_port_cnt) {
 			sport = &sdev->port[port_num];
@@ -223,9 +223,9 @@ static void srpt_qp_event(struct ib_event *event, struct srpt_rdma_ch *ch)
 	switch (event->event) {
 	case IB_EVENT_COMM_EST:
 		if (ch->using_rdma_cm)
-			rdma_notify(ch->rdma_cm.cm_id, event->event);
+			rdma_yestify(ch->rdma_cm.cm_id, event->event);
 		else
-			ib_cm_notify(ch->ib_cm.cm_id, event->event);
+			ib_cm_yestify(ch->ib_cm.cm_id, event->event);
 		break;
 	case IB_EVENT_QP_LAST_WQE_REACHED:
 		pr_debug("%s-%d, state %s: received Last WQE event.\n",
@@ -770,7 +770,7 @@ static void srpt_free_ioctx_ring(struct srpt_ioctx **ioctx_ring,
  * @ioctx: Send I/O context.
  * @new: New I/O context state.
  *
- * Does not modify the state of aborted commands. Returns the previous command
+ * Does yest modify the state of aborted commands. Returns the previous command
  * state.
  */
 static enum srpt_command_state srpt_set_cmd_state(struct srpt_send_ioctx *ioctx,
@@ -845,7 +845,7 @@ static int srpt_post_recv(struct srpt_device *sdev, struct srpt_rdma_ch *ch,
  *
  * A quote from the InfiniBand specification: C9-88: For an HCA responder
  * using Reliable Connection service, for each zero-length RDMA READ or WRITE
- * request, the R_Key shall not be validated, even if the request includes
+ * request, the R_Key shall yest be validated, even if the request includes
  * Immediate data.
  */
 static int srpt_zerolength_write(struct srpt_rdma_ch *ch)
@@ -1084,7 +1084,7 @@ static int srpt_get_desc_tbl(struct srpt_recv_ioctx *recv_ioctx,
 		*data_len = len;
 		ioctx->recv_ioctx = recv_ioctx;
 		if ((uintptr_t)data & 511) {
-			pr_warn_once("Internal error - the receive buffers are not aligned properly.\n");
+			pr_warn_once("Internal error - the receive buffers are yest aligned properly.\n");
 			return -EINVAL;
 		}
 		sg_init_one(&ioctx->imm_sg, data, len);
@@ -1231,7 +1231,7 @@ static struct srpt_send_ioctx *srpt_get_send_ioctx(struct srpt_rdma_ch *ch)
 	ioctx->n_rw_ctx = 0;
 	ioctx->queue_status_only = false;
 	/*
-	 * transport_init_se_cmd() does not initialize all fields, so do it
+	 * transport_init_se_cmd() does yest initialize all fields, so do it
 	 * here.
 	 */
 	memset(&ioctx->cmd, 0, sizeof(ioctx->cmd));
@@ -1281,7 +1281,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 	case SRPT_STATE_MGMT:
 	case SRPT_STATE_DONE:
 		/*
-		 * Do nothing - defer abort processing until
+		 * Do yesthing - defer abort processing until
 		 * srpt_queue_response() is invoked.
 		 */
 		break;
@@ -1293,7 +1293,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 	case SRPT_STATE_CMD_RSP_SENT:
 		/*
 		 * SRP_RSP sending failed or the SRP_RSP send completion has
-		 * not been received in time.
+		 * yest been received in time.
 		 */
 		transport_generic_free_cmd(&ioctx->cmd, 0);
 		break;
@@ -1313,7 +1313,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
  * @cq: Completion queue.
  * @wc: Work completion.
  *
- * XXX: what is now target_execute_cmd used to be asynchronous, and unmapping
+ * XXX: what is yesw target_execute_cmd used to be asynchroyesus, and unmapping
  * the data that has been transferred via IB RDMA had to be postponed until the
  * check_stop_free() callback.  None of this is necessary anymore and needs to
  * be cleaned up.
@@ -1660,7 +1660,7 @@ srpt_handle_new_iu(struct srpt_rdma_ch *ch, struct srpt_recv_ioctx *recv_ioctx)
 		pr_err("Received SRP_RSP\n");
 		break;
 	default:
-		pr_err("received IU with unknown opcode 0x%x\n", opcode);
+		pr_err("received IU with unkyeswn opcode 0x%x\n", opcode);
 		break;
 	}
 
@@ -1728,7 +1728,7 @@ static void srpt_process_wait_list(struct srpt_rdma_ch *ch)
  * @cq: Completion queue.
  * @wc: Work completion.
  *
- * Note: Although this has not yet been observed during tests, at least in
+ * Note: Although this has yest yet been observed during tests, at least in
  * theory it is possible that the srpt_get_send_ioctx() call invoked by
  * srpt_handle_new_iu() fails. This is possible because the req_lim_delta
  * value in each response is set to one, and it is possible that this response
@@ -1924,10 +1924,10 @@ static bool srpt_close_ch(struct srpt_rdma_ch *ch)
 }
 
 /*
- * Change the channel state into CH_DISCONNECTING. If a channel has not yet
+ * Change the channel state into CH_DISCONNECTING. If a channel has yest yet
  * reached the connected state, close it. If a channel is in the connected
  * state, send a DREQ. If a DREQ has been received, send a DREP. Note: it is
- * the responsibility of the caller to ensure that this function is not
+ * the responsibility of the caller to ensure that this function is yest
  * invoked concurrently with the code that accepts a connection. This means
  * that this function must either be invoked from inside a CM callback
  * function or that it must be invoked with the srpt_port.mutex held.
@@ -1995,7 +1995,7 @@ static void __srpt_close_all_ch(struct srpt_port *sport)
 
 /*
  * Look up (i_port_id, t_port_id) in sport->nexus_list. Create an entry if
- * it does not yet exist.
+ * it does yest yet exist.
  */
 static struct srpt_nexus *srpt_get_nexus(struct srpt_port *sport,
 					 const u8 i_port_id[16],
@@ -2193,7 +2193,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 
 	if (!sport->enabled) {
 		rej->reason = cpu_to_be32(SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
-		pr_info("rejected SRP_LOGIN_REQ because target port %s_%d has not yet been enabled\n",
+		pr_info("rejected SRP_LOGIN_REQ because target port %s_%d has yest yet been enabled\n",
 			dev_name(&sport->sdev->device->dev), port_num);
 		goto reject;
 	}
@@ -2312,7 +2312,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 		 i_port_id);
 
 	tag_num = ch->rq_size;
-	tag_size = 1; /* ib_srpt does not use se_sess->sess_cmd_map */
+	tag_size = 1; /* ib_srpt does yest use se_sess->sess_cmd_map */
 
 	mutex_lock(&sport->port_guid_id.mutex);
 	list_for_each_entry(stpg, &sport->port_guid_id.tpg_list, entry) {
@@ -2354,7 +2354,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 
 	/*
 	 * Once a session has been created destruction of srpt_rdma_ch objects
-	 * will decrement sport->refcount. Hence increment sport->refcount now.
+	 * will decrement sport->refcount. Hence increment sport->refcount yesw.
 	 */
 	atomic_inc(&sport->refcount);
 
@@ -2379,7 +2379,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 	if (!sport->enabled) {
 		rej->reason = cpu_to_be32(
 				SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
-		pr_info("rejected SRP_LOGIN_REQ because target %s_%d is not enabled\n",
+		pr_info("rejected SRP_LOGIN_REQ because target %s_%d is yest enabled\n",
 			dev_name(&sdev->device->dev), port_num);
 		mutex_unlock(&sport->mutex);
 		goto reject;
@@ -2504,7 +2504,7 @@ reject:
 	if (ch && ch->sess) {
 		srpt_close_ch(ch);
 		/*
-		 * Tell the caller not to free cm_id since
+		 * Tell the caller yest to free cm_id since
 		 * srpt_release_channel_work() will do that.
 		 */
 		ret = 0;
@@ -2607,8 +2607,8 @@ static void srpt_cm_rtu_recv(struct srpt_rdma_ch *ch)
 
 	/*
 	 * Note: calling srpt_close_ch() if the transition to the LIVE state
-	 * fails is not necessary since that means that that function has
-	 * already been invoked from another thread.
+	 * fails is yest necessary since that means that that function has
+	 * already been invoked from ayesther thread.
 	 */
 	if (!srpt_set_ch_state(ch, CH_LIVE)) {
 		pr_err("%s-%d: channel transition to LIVE state failed\n",
@@ -2626,11 +2626,11 @@ static void srpt_cm_rtu_recv(struct srpt_rdma_ch *ch)
  * @cm_id: IB/CM connection identifier.
  * @event: IB/CM event.
  *
- * A non-zero return value will cause the caller destroy the CM ID.
+ * A yesn-zero return value will cause the caller destroy the CM ID.
  *
- * Note: srpt_cm_handler() must only return a non-zero value when transferring
+ * Note: srpt_cm_handler() must only return a yesn-zero value when transferring
  * ownership of the cm_id to a channel by srpt_cm_req_recv() failed. Returning
- * a non-zero value in any other case will trigger a race with the
+ * a yesn-zero value in any other case will trigger a race with the
  * ib_destroy_cm_id() call in srpt_release_channel().
  */
 static int srpt_cm_handler(struct ib_cm_id *cm_id,
@@ -2795,7 +2795,7 @@ static u8 tcm_to_srp_tsk_mgmt_status(const int tcm_mgmt_status)
  * srpt_queue_response - transmit the response to a SCSI command
  * @cmd: SCSI target command.
  *
- * Callback function called by the TCM core. Must not block since it can be
+ * Callback function called by the TCM core. Must yest block since it can be
  * invoked on the context of the IB completion handler.
  */
 static void srpt_queue_response(struct se_cmd *cmd)
@@ -2905,7 +2905,7 @@ static void srpt_queue_tm_rsp(struct se_cmd *cmd)
 }
 
 /*
- * This function is called for aborted commands if no response is sent to the
+ * This function is called for aborted commands if yes response is sent to the
  * initiator. Make sure that the credits freed by aborting a command are
  * returned to the initiator the next time a response is sent by incrementing
  * ch->req_lim_delta.
@@ -3133,7 +3133,7 @@ static void srpt_add_one(struct ib_device *device)
 	srpt_use_srq(sdev, sdev->port[0].port_attrib.use_srq);
 
 	if (!srpt_service_guid)
-		srpt_service_guid = be64_to_cpu(device->node_guid);
+		srpt_service_guid = be64_to_cpu(device->yesde_guid);
 
 	if (rdma_port_get_link_layer(device, 1) == IB_LINK_LAYER_INFINIBAND)
 		sdev->cm_id = ib_create_cm_id(device, srpt_cm_handler, sdev);
@@ -3150,7 +3150,7 @@ static void srpt_add_one(struct ib_device *device)
 		 srpt_service_guid, srpt_service_guid, srpt_service_guid);
 
 	/*
-	 * We do not have a consistent service_id (ie. also id_ext of target_id)
+	 * We do yest have a consistent service_id (ie. also id_ext of target_id)
 	 * to identify this target. We currently use the guid of the first HCA
 	 * in the system as service_id; therefore, the target_id will change
 	 * if this HCA is gone bad and replaced by different HCA
@@ -3227,7 +3227,7 @@ static void srpt_remove_one(struct ib_device *device, void *client_data)
 	int i;
 
 	if (!sdev) {
-		pr_info("%s(%s): nothing to do.\n", __func__,
+		pr_info("%s(%s): yesthing to do.\n", __func__,
 			dev_name(&device->dev));
 		return;
 	}
@@ -3247,7 +3247,7 @@ static void srpt_remove_one(struct ib_device *device, void *client_data)
 
 	/*
 	 * Unregistering a target must happen after destroying sdev->cm_id
-	 * such that no new SRP_LOGIN_REQ information units can arrive while
+	 * such that yes new SRP_LOGIN_REQ information units can arrive while
 	 * destroying the target.
 	 */
 	spin_lock(&srpt_dev_lock);
@@ -3343,7 +3343,7 @@ static void srpt_release_cmd(struct se_cmd *se_cmd)
  * @se_sess: SCSI target session.
  *
  * Callback function invoked by the TCM core to clean up sessions associated
- * with a node ACL when the user invokes
+ * with a yesde ACL when the user invokes
  * rmdir /sys/kernel/config/target/$driver/$port/$tpg/acls/$i_port_id
  */
 static void srpt_close_session(struct se_session *se_sess)
@@ -3367,7 +3367,7 @@ static u32 srpt_sess_get_index(struct se_session *se_sess)
 	return 0;
 }
 
-static void srpt_set_default_node_attrs(struct se_node_acl *nacl)
+static void srpt_set_default_yesde_attrs(struct se_yesde_acl *nacl)
 {
 }
 
@@ -3432,7 +3432,7 @@ out:
  * 5054:00ff:fe4a:0b7b
  * 192.168.122.76
  */
-static int srpt_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
+static int srpt_init_yesdeacl(struct se_yesde_acl *se_nacl, const char *name)
 {
 	struct sockaddr_storage sa;
 	u64 guid;
@@ -3846,7 +3846,7 @@ static const struct target_core_fabric_ops srpt_template = {
 	.sess_get_index			= srpt_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= srpt_write_pending,
-	.set_default_node_attributes	= srpt_set_default_node_attrs,
+	.set_default_yesde_attributes	= srpt_set_default_yesde_attrs,
 	.get_cmd_state			= srpt_get_tcm_cmd_state,
 	.queue_data_in			= srpt_queue_data_in,
 	.queue_status			= srpt_queue_status,
@@ -3860,7 +3860,7 @@ static const struct target_core_fabric_ops srpt_template = {
 	.fabric_drop_wwn		= srpt_drop_tport,
 	.fabric_make_tpg		= srpt_make_tpg,
 	.fabric_drop_tpg		= srpt_drop_tpg,
-	.fabric_init_nodeacl		= srpt_init_nodeacl,
+	.fabric_init_yesdeacl		= srpt_init_yesdeacl,
 
 	.tfc_discovery_attrs		= srpt_da_attrs,
 	.tfc_wwn_attrs			= srpt_wwn_attrs,

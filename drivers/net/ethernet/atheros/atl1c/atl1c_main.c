@@ -19,7 +19,7 @@ char atl1c_driver_version[] = ATL1C_DRV_VERSION;
  * Last entry must be all 0s
  *
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
- *   Class, Class Mask, private data (not used) }
+ *   Class, Class Mask, private data (yest used) }
  */
 static const struct pci_device_id atl1c_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L1C)},
@@ -98,7 +98,7 @@ static void atl1c_pcie_patch(struct atl1c_hw *hw)
 	}
 }
 
-/* FIXME: no need any more ? */
+/* FIXME: yes need any more ? */
 /*
  * atl1c_init_pcie - init PCIE module
  */
@@ -296,7 +296,7 @@ static void atl1c_link_chg_event(struct atl1c_adapter *adapter)
 	atl1c_read_phy_reg(&adapter->hw, MII_BMSR, &phy_data);
 	spin_unlock(&adapter->mdio_lock);
 	link_up = phy_data & BMSR_LSTATUS;
-	/* notify upper layer link down ASAP */
+	/* yestify upper layer link down ASAP */
 	if (!link_up) {
 		if (netif_carrier_ok(netdev)) {
 			/* old link state: Up */
@@ -482,7 +482,7 @@ static netdev_features_t atl1c_fix_features(struct net_device *netdev,
 	netdev_features_t features)
 {
 	/*
-	 * Since there is no support for separate rx/tx vlan accel
+	 * Since there is yes support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -942,7 +942,7 @@ static void atl1c_free_ring_resources(struct atl1c_adapter *adapter)
 	adapter->ring_header.desc = NULL;
 
 	/* Note: just free tdp_ring.buffer_info,
-	*  it contain rfd_ring.buffer_info, do not double free */
+	*  it contain rfd_ring.buffer_info, do yest double free */
 	if (adapter->tpd_ring[0].buffer_info) {
 		kfree(adapter->tpd_ring[0].buffer_info);
 		adapter->tpd_ring[0].buffer_info = NULL;
@@ -977,12 +977,12 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 		tpd_ring[i].count = tpd_ring[0].count;
 
 	/* 2 tpd queue, one high priority queue,
-	 * another normal priority queue */
+	 * ayesther yesrmal priority queue */
 	size = sizeof(struct atl1c_buffer) * (tpd_ring->count * 2 +
 		rfd_ring->count);
 	tpd_ring->buffer_info = kzalloc(size, GFP_KERNEL);
 	if (unlikely(!tpd_ring->buffer_info))
-		goto err_nomem;
+		goto err_yesmem;
 
 	for (i = 0; i < AT_MAX_TRANSMIT_QUEUE; i++) {
 		tpd_ring[i].buffer_info =
@@ -1009,8 +1009,8 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 	ring_header->desc = dma_alloc_coherent(&pdev->dev, ring_header->size,
 					       &ring_header->dma, GFP_KERNEL);
 	if (unlikely(!ring_header->desc)) {
-		dev_err(&pdev->dev, "could not get memory for DMA buffer\n");
-		goto err_nomem;
+		dev_err(&pdev->dev, "could yest get memory for DMA buffer\n");
+		goto err_yesmem;
 	}
 	/* init TPD ring */
 
@@ -1038,7 +1038,7 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 
 	return 0;
 
-err_nomem:
+err_yesmem:
 	kfree(tpd_ring->buffer_info);
 	return -ENOMEM;
 }
@@ -1053,11 +1053,11 @@ static void atl1c_configure_des_ring(struct atl1c_adapter *adapter)
 
 	/* TPD */
 	AT_WRITE_REG(hw, REG_TX_BASE_ADDR_HI,
-			(u32)((tpd_ring[atl1c_trans_normal].dma &
+			(u32)((tpd_ring[atl1c_trans_yesrmal].dma &
 				AT_DMA_HI_ADDR_MASK) >> 32));
-	/* just enable normal priority TX queue */
+	/* just enable yesrmal priority TX queue */
 	AT_WRITE_REG(hw, REG_TPD_PRI0_ADDR_LO,
-			(u32)(tpd_ring[atl1c_trans_normal].dma &
+			(u32)(tpd_ring[atl1c_trans_yesrmal].dma &
 				AT_DMA_LO_ADDR_MASK));
 	AT_WRITE_REG(hw, REG_TPD_PRI1_ADDR_LO,
 			(u32)(tpd_ring[atl1c_trans_high].dma &
@@ -1230,7 +1230,7 @@ static int atl1c_reset_mac(struct atl1c_hw *hw)
 	atl1c_stop_mac(hw);
 	/*
 	 * Issue Soft Reset to the MAC.  This will reset the chip's
-	 * transmit, receive, DMA.  It will not effect
+	 * transmit, receive, DMA.  It will yest effect
 	 * the current PCI configuration.  The global reset bit is self-
 	 * clearing, and should clear within a microsecond.
 	 */
@@ -1382,7 +1382,7 @@ static int atl1c_configure_mac(struct atl1c_adapter *adapter)
 	AT_WRITE_REG(hw, REG_WOL_CTRL, 0);
 	/* set Interrupt Clear Timer
 	 * HW will enable self to assert interrupt event to system after
-	 * waiting x-time for software to notify it accept interrupt.
+	 * waiting x-time for software to yestify it accept interrupt.
 	 */
 
 	data = CLK_GATING_EN_ALL;
@@ -1608,7 +1608,7 @@ static irqreturn_t atl1c_intr(int irq, void *data)
 			}
 		}
 		if (status & ISR_TX_PKT)
-			atl1c_clean_tx_irq(adapter, atl1c_trans_normal);
+			atl1c_clean_tx_irq(adapter, atl1c_trans_yesrmal);
 
 		handled = IRQ_HANDLED;
 		/* check if PCIE PHY Link down */
@@ -1646,11 +1646,11 @@ static inline void atl1c_rx_checksum(struct atl1c_adapter *adapter,
 		  struct sk_buff *skb, struct atl1c_recv_ret_status *prrs)
 {
 	/*
-	 * The pid field in RRS in not correct sometimes, so we
-	 * cannot figure out if the packet is fragmented or not,
+	 * The pid field in RRS in yest correct sometimes, so we
+	 * canyest figure out if the packet is fragmented or yest,
 	 * so we tell the KERNEL CHECKSUM_NONE
 	 */
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 }
 
 static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter)
@@ -1811,7 +1811,7 @@ static void atl1c_clean_rx_irq(struct atl1c_adapter *adapter,
 				/* TODO support mul rfd*/
 				if (netif_msg_rx_err(adapter))
 					dev_warn(&pdev->dev,
-						"Multi rfd not support yet!\n");
+						"Multi rfd yest support yet!\n");
 			goto rrs_checked;
 		} else {
 			break;
@@ -1841,7 +1841,7 @@ rrs_checked:
 			/* TODO */
 			if (netif_msg_rx_err(adapter))
 				dev_warn(&pdev->dev,
-					"Multi rfd not support yet!\n");
+					"Multi rfd yest support yet!\n");
 			break;
 		}
 		atl1c_clean_rfd(rfd_ring, rrs, rfd_num);
@@ -1892,7 +1892,7 @@ quit_polling:
 
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
+ * without having to re-enable interrupts. It's yest called while
  * the interrupt routine is executing.
  */
 static void atl1c_netpoll(struct net_device *netdev)
@@ -1922,7 +1922,7 @@ static inline u16 atl1c_tpd_avail(struct atl1c_adapter *adapter, enum atl1c_tran
 /*
  * get next usable tpd
  * Note: should call atl1c_tdp_avail to make sure
- * there is enough tpd to use
+ * there is eyesugh tpd to use
  */
 static struct atl1c_tpd_desc *atl1c_get_tpd(struct atl1c_adapter *adapter,
 	enum atl1c_trans_queue type)
@@ -2051,7 +2051,7 @@ check_sum:
 		if (unlikely(cso & 0x1)) {
 			if (netif_msg_tx_err(adapter))
 				dev_err(&adapter->pdev->dev,
-					"payload offset should not an event number\n");
+					"payload offset should yest an event number\n");
 			return -1;
 		} else {
 			css = cso + skb->csum_offset;
@@ -2201,7 +2201,7 @@ static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 	u16 tpd_req;
 	struct atl1c_tpd_desc *tpd;
-	enum atl1c_trans_queue type = atl1c_trans_normal;
+	enum atl1c_trans_queue type = atl1c_trans_yesrmal;
 
 	if (test_bit(__AT_DOWN, &adapter->flags)) {
 		dev_kfree_skb_any(skb);
@@ -2211,7 +2211,7 @@ static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,
 	tpd_req = atl1c_cal_tpd_req(skb);
 
 	if (atl1c_tpd_avail(adapter, type) < tpd_req) {
-		/* no enough descriptor, just stop queue */
+		/* yes eyesugh descriptor, just stop queue */
 		netif_stop_queue(netdev);
 		return NETDEV_TX_BUSY;
 	}
@@ -2300,7 +2300,7 @@ static int atl1c_request_irq(struct atl1c_adapter *adapter)
 static void atl1c_reset_dma_ring(struct atl1c_adapter *adapter)
 {
 	/* release tx-pending skbs and reset tx/rx ring index */
-	atl1c_clean_tx_ring(adapter, atl1c_trans_normal);
+	atl1c_clean_tx_ring(adapter, atl1c_trans_yesrmal);
 	atl1c_clean_tx_ring(adapter, atl1c_trans_high);
 	atl1c_clean_rx_ring(adapter);
 }
@@ -2338,7 +2338,7 @@ static void atl1c_down(struct atl1c_adapter *adapter)
 
 	atl1c_del_timer(adapter);
 	adapter->work_event = 0; /* clear all event */
-	/* signal that we're down so the interrupt handler does not
+	/* signal that we're down so the interrupt handler does yest
 	 * reschedule our watchdog timer */
 	set_bit(__AT_DOWN, &adapter->flags);
 	netif_carrier_off(netdev);
@@ -2366,7 +2366,7 @@ static void atl1c_down(struct atl1c_adapter *adapter)
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is yestified that the interface is ready.
  */
 static int atl1c_open(struct net_device *netdev)
 {
@@ -2399,7 +2399,7 @@ err_up:
  * atl1c_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is yest allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -2539,7 +2539,7 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "cannot enable PCI device\n");
+		dev_err(&pdev->dev, "canyest enable PCI device\n");
 		return err;
 	}
 
@@ -2561,7 +2561,7 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_request_regions(pdev, atl1c_driver_name);
 	if (err) {
-		dev_err(&pdev->dev, "cannot obtain PCI resources\n");
+		dev_err(&pdev->dev, "canyest obtain PCI resources\n");
 		goto err_pci_reg;
 	}
 
@@ -2587,7 +2587,7 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->hw.hw_addr = ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
 	if (!adapter->hw.hw_addr) {
 		err = -EIO;
-		dev_err(&pdev->dev, "cannot map device registers\n");
+		dev_err(&pdev->dev, "canyest map device registers\n");
 		goto err_ioremap;
 	}
 
@@ -2620,7 +2620,7 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* reset the controller to
-	 * put the device in a known good starting state */
+	 * put the device in a kyeswn good starting state */
 	err = atl1c_phy_init(&adapter->hw);
 	if (err) {
 		err = -EIO;
@@ -2733,7 +2733,7 @@ static pci_ers_result_t atl1c_io_slot_reset(struct pci_dev *pdev)
 	if (pci_enable_device(pdev)) {
 		if (netif_msg_hw(adapter))
 			dev_err(&pdev->dev,
-				"Cannot re-enable PCI device after reset\n");
+				"Canyest re-enable PCI device after reset\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 	pci_set_master(pdev);
@@ -2751,7 +2751,7 @@ static pci_ers_result_t atl1c_io_slot_reset(struct pci_dev *pdev)
  * @pdev: Pointer to PCI device
  *
  * This callback is called when the error recovery driver tells us that
- * its OK to resume normal operation. Implementation resembles the
+ * its OK to resume yesrmal operation. Implementation resembles the
  * second-half of the atl1c_resume routine.
  */
 static void atl1c_io_resume(struct pci_dev *pdev)
@@ -2763,7 +2763,7 @@ static void atl1c_io_resume(struct pci_dev *pdev)
 		if (atl1c_up(adapter)) {
 			if (netif_msg_hw(adapter))
 				dev_err(&pdev->dev,
-					"Cannot bring device back up after reset\n");
+					"Canyest bring device back up after reset\n");
 			return;
 		}
 	}

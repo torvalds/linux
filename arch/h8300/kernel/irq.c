@@ -2,7 +2,7 @@
 /*
  * linux/arch/h8300/kernel/irq.c
  *
- * Copyright 2014-2015 Yoshinori Sato <ysato@users.sourceforge.jp>
+ * Copyright 2014-2015 Yoshiyesri Sato <ysato@users.sourceforge.jp>
  */
 
 #include <linux/init.h>
@@ -29,14 +29,14 @@ static unsigned long __init *get_vector_address(void)
 {
 	unsigned long *rom_vector = CPU_VECTOR;
 	unsigned long base, tmp;
-	int vec_no;
+	int vec_yes;
 
 	base = rom_vector[EXT_IRQ0] & ADDR_MASK;
 
 	/* check romvector format */
-	for (vec_no = EXT_IRQ0 + 1; vec_no <= EXT_IRQ0+EXT_IRQS; vec_no++) {
-		if ((base+(vec_no - EXT_IRQ0)*4) !=
-		    (rom_vector[vec_no] & ADDR_MASK))
+	for (vec_yes = EXT_IRQ0 + 1; vec_yes <= EXT_IRQ0+EXT_IRQS; vec_yes++) {
+		if ((base+(vec_yes - EXT_IRQ0)*4) !=
+		    (rom_vector[vec_yes] & ADDR_MASK))
 			return NULL;
 	}
 
@@ -80,7 +80,7 @@ static void __init setup_vector(void)
 #else
 void setup_vector(void)
 {
-	/* noting do */
+	/* yesting do */
 }
 #endif
 

@@ -19,7 +19,7 @@ static struct regmap *regmap;
 /*
  * On Spreadtrum platform, we need power off system through external SC27xx
  * series PMICs, and it is one similar SPI bus mapped by regmap to access PMIC,
- * which is not fast io access.
+ * which is yest fast io access.
  *
  * So before stopping other cores, we need release other cores' resource by
  * taking cpus down to avoid racing regmap or spi mutex lock when poweroff

@@ -487,7 +487,7 @@ static ssize_t show_bl_curve(struct device *device,
 #endif
 
 /* When cmap is added back in it should be a binary attribute
- * not a text one. Consideration should also be given to converting
+ * yest a text one. Consideration should also be given to converting
  * fbdev to use configfs instead of sysfs */
 static struct device_attribute device_attrs[] = {
 	__ATTR(bits_per_pixel, S_IRUGO|S_IWUSR, show_bpp, store_bpp),

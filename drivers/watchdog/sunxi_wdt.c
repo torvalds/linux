@@ -34,7 +34,7 @@
 #define DRV_NAME		"sunxi-wdt"
 #define DRV_VERSION		"1.0"
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 static unsigned int timeout;
 
 /*
@@ -253,7 +253,7 @@ static int sunxi_wdt_probe(struct platform_device *pdev)
 	sunxi_wdt->wdt_dev.parent = dev;
 
 	watchdog_init_timeout(&sunxi_wdt->wdt_dev, timeout, dev);
-	watchdog_set_nowayout(&sunxi_wdt->wdt_dev, nowayout);
+	watchdog_set_yeswayout(&sunxi_wdt->wdt_dev, yeswayout);
 	watchdog_set_restart_priority(&sunxi_wdt->wdt_dev, 128);
 
 	watchdog_set_drvdata(&sunxi_wdt->wdt_dev, sunxi_wdt);
@@ -265,8 +265,8 @@ static int sunxi_wdt_probe(struct platform_device *pdev)
 	if (unlikely(err))
 		return err;
 
-	dev_info(dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)",
-		 sunxi_wdt->wdt_dev.timeout, nowayout);
+	dev_info(dev, "Watchdog enabled (timeout=%d sec, yeswayout=%d)",
+		 sunxi_wdt->wdt_dev.timeout, yeswayout);
 
 	return 0;
 }
@@ -284,12 +284,12 @@ module_platform_driver(sunxi_wdt_driver);
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Watchdog heartbeat in seconds");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started "
 		"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Carlo Caione <carlo.caione@gmail.com>");
-MODULE_AUTHOR("Henrik Nordstrom <henrik@henriknordstrom.net>");
+MODULE_AUTHOR("Henrik Nordstrom <henrik@henrikyesrdstrom.net>");
 MODULE_DESCRIPTION("sunxi WatchDog Timer Driver");
 MODULE_VERSION(DRV_VERSION);

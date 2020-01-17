@@ -17,12 +17,12 @@ OUTPUT
 
 The statistics output is as follows:
 
-	rcu-torture:--- Start of test: nreaders=16 nfakewriters=4 stat_interval=30 verbose=0 test_no_idle_hz=1 shuffle_interval=3 stutter=5 irqreader=1 fqs_duration=0 fqs_holdoff=0 fqs_stutter=3 test_boost=1/0 test_boost_interval=7 test_boost_duration=4
+	rcu-torture:--- Start of test: nreaders=16 nfakewriters=4 stat_interval=30 verbose=0 test_yes_idle_hz=1 shuffle_interval=3 stutter=5 irqreader=1 fqs_duration=0 fqs_holdoff=0 fqs_stutter=3 test_boost=1/0 test_boost_interval=7 test_boost_duration=4
 	rcu-torture: rtc:           (null) ver: 155441 tfle: 0 rta: 155441 rtaf: 8884 rtf: 155440 rtmbe: 0 rtbe: 0 rtbke: 0 rtbre: 0 rtbf: 0 rtb: 0 nt: 3055767
 	rcu-torture: Reader Pipe:  727860534 34213 0 0 0 0 0 0 0 0 0
 	rcu-torture: Reader Batch:  727877838 17003 0 0 0 0 0 0 0 0 0
 	rcu-torture: Free-Block Circulation:  155440 155440 155440 155440 155440 155440 155440 155440 155440 155440 0
-	rcu-torture:--- End of test: SUCCESS: nreaders=16 nfakewriters=4 stat_interval=30 verbose=0 test_no_idle_hz=1 shuffle_interval=3 stutter=5 irqreader=1 fqs_duration=0 fqs_holdoff=0 fqs_stutter=3 test_boost=1/0 test_boost_interval=7 test_boost_duration=4
+	rcu-torture:--- End of test: SUCCESS: nreaders=16 nfakewriters=4 stat_interval=30 verbose=0 test_yes_idle_hz=1 shuffle_interval=3 stutter=5 irqreader=1 fqs_duration=0 fqs_holdoff=0 fqs_stutter=3 test_boost=1/0 test_boost_interval=7 test_boost_duration=4
 
 The command "dmesg | grep torture:" will extract this information on
 most systems.  On more esoteric configurations, it may be necessary to
@@ -42,26 +42,26 @@ o	"rtc": The hexadecimal address of the structure currently visible
 o	"ver": The number of times since boot that the RCU writer task
 	has changed the structure visible to readers.
 
-o	"tfle": If non-zero, indicates that the "torture freelist"
+o	"tfle": If yesn-zero, indicates that the "torture freelist"
 	containing structures to be placed into the "rtc" area is empty.
 	This condition is important, since it can fool you into thinking
-	that RCU is working when it is not.  :-/
+	that RCU is working when it is yest.  :-/
 
 o	"rta": Number of structures allocated from the torture freelist.
 
 o	"rtaf": Number of allocations from the torture freelist that have
-	failed due to the list being empty.  It is not unusual for this
-	to be non-zero, but it is bad for it to be a large fraction of
+	failed due to the list being empty.  It is yest unusual for this
+	to be yesn-zero, but it is bad for it to be a large fraction of
 	the value indicated by "rta".
 
 o	"rtf": Number of frees into the torture freelist.
 
-o	"rtmbe": A non-zero value indicates that rcutorture believes that
-	rcu_assign_pointer() and rcu_dereference() are not working
+o	"rtmbe": A yesn-zero value indicates that rcutorture believes that
+	rcu_assign_pointer() and rcu_dereference() are yest working
 	correctly.  This value should be zero.
 
-o	"rtbe": A non-zero value indicates that one of the rcu_barrier()
-	family of functions is not working correctly.
+o	"rtbe": A yesn-zero value indicates that one of the rcu_barrier()
+	family of functions is yest working correctly.
 
 o	"rtbke": rcutorture was unable to create the real-time kthreads
 	used to force RCU priority inversion.  This value should be zero.
@@ -76,16 +76,16 @@ o	"rtbf": The number of times that RCU priority boosting failed
 o	"rtb": The number of times that rcutorture attempted to force
 	an RCU priority inversion condition.  If you are testing RCU
 	priority boosting via the "test_boost" module parameter, this
-	value should be non-zero.
+	value should be yesn-zero.
 
 o	"nt": The number of times rcutorture ran RCU read-side code from
-	within a timer handler.  This value should be non-zero only
+	within a timer handler.  This value should be yesn-zero only
 	if you specified the "irqreader" module parameter.
 
 o	"Reader Pipe": Histogram of "ages" of structures seen by readers.
-	If any entries past the first two are non-zero, RCU is broken.
+	If any entries past the first two are yesn-zero, RCU is broken.
 	And rcutorture prints the error flag string "!!!" to make sure
-	you notice.  The age of a newly allocated structure is zero,
+	you yestice.  The age of a newly allocated structure is zero,
 	it becomes one when removed from reader visibility, and is
 	incremented once per grace period subsequently -- and is freed
 	after passing through (RCU_TORTURE_PIPE_LEN-2) grace periods.
@@ -94,9 +94,9 @@ o	"Reader Pipe": Histogram of "ages" of structures seen by readers.
 	RCU.  If you want to see what it looks like when broken, break
 	it yourself.  ;-)
 
-o	"Reader Batch": Another histogram of "ages" of structures seen
+o	"Reader Batch": Ayesther histogram of "ages" of structures seen
 	by readers, but in terms of counter flips (or batches) rather
-	than in terms of grace periods.  The legal number of non-zero
+	than in terms of grace periods.  The legal number of yesn-zero
 	entries is again two.  The reason for this separate view is that
 	it is sometimes easier to get the third entry to show up in the
 	"Reader Batch" list than in the "Reader Pipe" list.
@@ -140,7 +140,7 @@ One could of course create a more elaborate script that automatically
 checked for such errors.  The "rmmod" command forces a "SUCCESS",
 "FAILURE", or "RCU_HOTPLUG" indication to be printk()ed.  The first
 two are self-explanatory, while the last indicates that while there
-were no RCU failures, CPU-hotplug problems were detected.
+were yes RCU failures, CPU-hotplug problems were detected.
 
 However, the tools/testing/selftests/rcutorture/bin/kvm.sh script
 provides better automation, including automatic failure analysis.

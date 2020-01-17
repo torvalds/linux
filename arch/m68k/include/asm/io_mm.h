@@ -8,7 +8,7 @@
  *            - added skeleton for GG-II and Amiga PCMCIA
  * 2/3/01 RZ: - moved a few more defs into raw_io.h
  *
- * inX/outX should not be used by any driver unless it does
+ * inX/outX should yest be used by any driver unless it does
  * ISA access. Other drivers should use function defined in raw_io.h
  * or define its own macros on top of these.
  *

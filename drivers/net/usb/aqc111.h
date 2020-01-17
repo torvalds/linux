@@ -167,7 +167,7 @@ struct aqc111_data {
 	u32 advertised_speed;
 	struct {
 		u8 major;
-		u8 minor;
+		u8 miyesr;
 		u8 rev;
 	} fw_ver;
 	u32 phy_cfg;

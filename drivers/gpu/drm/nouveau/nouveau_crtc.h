@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -29,13 +29,13 @@
 
 #include <drm/drm_crtc.h>
 
-#include <nvif/notify.h>
+#include <nvif/yestify.h>
 
-struct nouveau_crtc {
+struct yesuveau_crtc {
 	struct drm_crtc base;
 
 	int index;
-	struct nvif_notify vblank;
+	struct nvif_yestify vblank;
 
 	uint32_t dpms_saved_fp_control;
 	uint32_t fp_users;
@@ -53,12 +53,12 @@ struct nouveau_crtc {
 	} fb;
 
 	struct {
-		struct nouveau_bo *nvbo;
+		struct yesuveau_bo *nvbo;
 		uint32_t offset;
-		void (*set_offset)(struct nouveau_crtc *, uint32_t offset);
-		void (*set_pos)(struct nouveau_crtc *, int x, int y);
-		void (*hide)(struct nouveau_crtc *, bool update);
-		void (*show)(struct nouveau_crtc *, bool update);
+		void (*set_offset)(struct yesuveau_crtc *, uint32_t offset);
+		void (*set_pos)(struct yesuveau_crtc *, int x, int y);
+		void (*hide)(struct yesuveau_crtc *, bool update);
+		void (*show)(struct yesuveau_crtc *, bool update);
 	} cursor;
 
 	struct {
@@ -69,16 +69,16 @@ struct nouveau_crtc {
 	void (*restore)(struct drm_crtc *crtc);
 };
 
-static inline struct nouveau_crtc *nouveau_crtc(struct drm_crtc *crtc)
+static inline struct yesuveau_crtc *yesuveau_crtc(struct drm_crtc *crtc)
 {
-	return crtc ? container_of(crtc, struct nouveau_crtc, base) : NULL;
+	return crtc ? container_of(crtc, struct yesuveau_crtc, base) : NULL;
 }
 
-static inline struct drm_crtc *to_drm_crtc(struct nouveau_crtc *crtc)
+static inline struct drm_crtc *to_drm_crtc(struct yesuveau_crtc *crtc)
 {
 	return &crtc->base;
 }
 
-int nv04_cursor_init(struct nouveau_crtc *);
+int nv04_cursor_init(struct yesuveau_crtc *);
 
 #endif /* __NOUVEAU_CRTC_H__ */

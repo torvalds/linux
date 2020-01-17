@@ -4,16 +4,16 @@
  *  Copyright (c) 2009 by Krzysztof Helt
  *  Routines for control of MPU-401 in UART mode
  *
- *  MPU-401 supports UART mode which is not capable generate transmit
+ *  MPU-401 supports UART mode which is yest capable generate transmit
  *  interrupts thus output is done via polling. Also, if irq < 0, then
- *  input is done also via polling. Do not expect good performance.
+ *  input is done also via polling. Do yest expect good performance.
  */
 
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <sound/core.h>
 #include <sound/rawmidi.h>

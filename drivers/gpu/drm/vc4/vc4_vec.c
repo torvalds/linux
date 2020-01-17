@@ -304,7 +304,7 @@ static const struct vc4_vec_tv_mode vc4_vec_tv_modes[] = {
 static enum drm_connector_status
 vc4_vec_connector_detect(struct drm_connector *connector, bool force)
 {
-	return connector_status_unknown;
+	return connector_status_unkyeswn;
 }
 
 static void vc4_vec_connector_destroy(struct drm_connector *connector)
@@ -416,7 +416,7 @@ static void vc4_vec_encoder_enable(struct drm_encoder *encoder)
 	 * We need to set the clock rate each time we enable the encoder
 	 * because there's a chance we share the same parent with the HDMI
 	 * clock, and both drivers are requesting different rates.
-	 * The good news is, these 2 encoders cannot be enabled at the same
+	 * The good news is, these 2 encoders canyest be enabled at the same
 	 * time, thus preventing incompatible rate requests.
 	 */
 	ret = clk_set_rate(vec->clock, 108000000);

@@ -78,7 +78,7 @@ struct port_database_24xx {
 						/* Bits 15-0 of word 3 */
 
 	uint8_t port_name[WWN_SIZE];
-	uint8_t node_name[WWN_SIZE];
+	uint8_t yesde_name[WWN_SIZE];
 
 	uint8_t reserved_3[4];
 	uint16_t prli_nvme_svc_param_word_0;	/* Bits 15-0 of word 0 */
@@ -108,12 +108,12 @@ struct get_name_list_extended {
 	u8 prli_svc_param_word_0[2]; /* Bits 15-0 of word 0 */
 	u8 prli_svc_param_word_3[2]; /* Bits 15-0 of word 3 */
 	u8 port_name[WWN_SIZE];
-	u8 node_name[WWN_SIZE];
+	u8 yesde_name[WWN_SIZE];
 };
 
 /* MB 75h: This is the short version of the database */
 struct get_name_list {
-	u8 port_node_name[WWN_SIZE]; /* B7 most sig, B0 least sig */
+	u8 port_yesde_name[WWN_SIZE]; /* B7 most sig, B0 least sig */
 	__le16 nport_handle;
 	u8 reserved;
 };
@@ -123,7 +123,7 @@ struct vp_database_24xx {
 	uint8_t  options;
 	uint8_t  id;
 	uint8_t  port_name[WWN_SIZE];
-	uint8_t  node_name[WWN_SIZE];
+	uint8_t  yesde_name[WWN_SIZE];
 	uint16_t port_id_low;
 	uint16_t port_id_high;
 };
@@ -143,10 +143,10 @@ struct nvram_24xx {
 	uint16_t hard_address;
 
 	uint8_t port_name[WWN_SIZE];
-	uint8_t node_name[WWN_SIZE];
+	uint8_t yesde_name[WWN_SIZE];
 
 	uint16_t login_retry_count;
-	uint16_t link_down_on_nos;
+	uint16_t link_down_on_yess;
 	uint16_t interrupt_delay_timer;
 	uint16_t login_timeout;
 
@@ -218,7 +218,7 @@ struct nvram_24xx {
 	uint32_t host_p;
 
 	uint8_t alternate_port_name[WWN_SIZE];
-	uint8_t alternate_node_name[WWN_SIZE];
+	uint8_t alternate_yesde_name[WWN_SIZE];
 
 	uint8_t boot_port_name[WWN_SIZE];
 	uint16_t boot_lun_number;
@@ -269,18 +269,18 @@ struct nvram_24xx {
 	/* Offset 352. */
 	uint8_t prev_drv_ver_major;
 	uint8_t prev_drv_ver_submajob;
-	uint8_t prev_drv_ver_minor;
-	uint8_t prev_drv_ver_subminor;
+	uint8_t prev_drv_ver_miyesr;
+	uint8_t prev_drv_ver_submiyesr;
 
 	uint16_t prev_bios_ver_major;
-	uint16_t prev_bios_ver_minor;
+	uint16_t prev_bios_ver_miyesr;
 
 	uint16_t prev_efi_ver_major;
-	uint16_t prev_efi_ver_minor;
+	uint16_t prev_efi_ver_miyesr;
 
 	uint16_t prev_fw_ver_major;
-	uint8_t prev_fw_ver_minor;
-	uint8_t prev_fw_ver_subminor;
+	uint8_t prev_fw_ver_miyesr;
+	uint8_t prev_fw_ver_submiyesr;
 
 	uint16_t reserved_17[8];
 
@@ -311,7 +311,7 @@ struct nvram_24xx {
 
 /*
  * ISP Initialization Control Block.
- * Little endian except where noted.
+ * Little endian except where yested.
  */
 #define	ICB_VERSION 1
 struct init_cb_24xx {
@@ -325,7 +325,7 @@ struct init_cb_24xx {
 	uint16_t hard_address;
 
 	uint8_t port_name[WWN_SIZE];		/* Big endian. */
-	uint8_t node_name[WWN_SIZE];		/* Big endian. */
+	uint8_t yesde_name[WWN_SIZE];		/* Big endian. */
 
 	uint16_t response_q_inpointer;
 	uint16_t request_q_outpointer;
@@ -337,7 +337,7 @@ struct init_cb_24xx {
 	uint16_t response_q_length;
 	uint16_t request_q_length;
 
-	uint16_t link_down_on_nos;		/* Milliseconds. */
+	uint16_t link_down_on_yess;		/* Milliseconds. */
 
 	uint16_t prio_request_q_length;
 
@@ -364,7 +364,7 @@ struct init_cb_24xx {
 	 * BIT 4  = Enable Target Mode
 	 * BIT 5  = Disable Initiator Mode
 	 * BIT 6  = Acquire FA-WWN
-	 * BIT 7  = Enable D-port Diagnostics
+	 * BIT 7  = Enable D-port Diagyesstics
 	 *
 	 * BIT 8  = Reserved
 	 * BIT 9  = Non Participating LIP
@@ -843,7 +843,7 @@ struct logio_entry_24xx {
 #define LCF_NVME_PRLI		BIT_6   /* Perform NVME FC4 PRLI */
 #define LCF_SKIP_PRLI		BIT_5	/* Skip PRLI after PLOGI. */
 #define LCF_IMPL_LOGO_ALL	BIT_5	/* Implicit LOGO to all ports. */
-#define LCF_COND_PLOGI		BIT_4	/* PLOGI only if not logged-in. */
+#define LCF_COND_PLOGI		BIT_4	/* PLOGI only if yest logged-in. */
 #define LCF_IMPL_LOGO		BIT_4	/* Perform an implicit LOGO. */
 #define LCF_IMPL_PRLO		BIT_4	/* Perform an implicit PRLO. */
 					/* Commands. */
@@ -929,11 +929,11 @@ struct abort_entry_24xx {
 					/* or Completion status. */
 
 	uint16_t options;		/* Options. */
-#define AOF_NO_ABTS		BIT_0	/* Do not send any ABTS. */
+#define AOF_NO_ABTS		BIT_0	/* Do yest send any ABTS. */
 
 	uint32_t handle_to_abort;	/* System handle to abort. */
 
-	uint16_t req_que_no;
+	uint16_t req_que_yes;
 	uint8_t reserved_1[30];
 
 	uint8_t port_id[3];		/* PortID of destination port. */
@@ -1196,7 +1196,7 @@ struct mid_conf_entry_24xx {
 	/*
 	 * BIT 0  = Enable Hard Loop Id
 	 * BIT 1  = Acquire Loop ID in LIPA
-	 * BIT 2  = ID not Acquired
+	 * BIT 2  = ID yest Acquired
 	 * BIT 3  = Enable VP
 	 * BIT 4  = Enable Initiator Mode
 	 * BIT 5  = Disable Target Mode
@@ -1207,7 +1207,7 @@ struct mid_conf_entry_24xx {
 	uint8_t hard_address;
 
 	uint8_t port_name[WWN_SIZE];
-	uint8_t node_name[WWN_SIZE];
+	uint8_t yesde_name[WWN_SIZE];
 };
 
 struct mid_init_cb_24xx {
@@ -1230,7 +1230,7 @@ struct mid_db_entry_24xx {
 	uint8_t hard_address;
 
 	uint8_t port_name[WWN_SIZE];
-	uint8_t node_name[WWN_SIZE];
+	uint8_t yesde_name[WWN_SIZE];
 
 	uint8_t port_id[3];
 	uint8_t reserved_1;
@@ -1253,7 +1253,7 @@ struct vp_ctrl_entry_24xx {
 	uint16_t comp_status;		/* Completion status. */
 #define CS_VCE_IOCB_ERROR       0x01    /* Error processing IOCB */
 #define CS_VCE_ACQ_ID_ERROR	0x02	/* Error while acquireing ID. */
-#define CS_VCE_BUSY		0x05	/* Firmware not ready to accept cmd. */
+#define CS_VCE_BUSY		0x05	/* Firmware yest ready to accept cmd. */
 
 	uint16_t command;
 #define VCE_COMMAND_ENABLE_VPS	0x00	/* Enable VPs. */
@@ -1290,11 +1290,11 @@ struct vp_config_entry_24xx {
 #define CS_VF_SET_HOPS_OF_VPORTS        BIT_2
 
 	uint16_t comp_status;		/* Completion status. */
-#define CS_VCT_STS_ERROR	0x01	/* Specified VPs were not disabled. */
+#define CS_VCT_STS_ERROR	0x01	/* Specified VPs were yest disabled. */
 #define CS_VCT_CNT_ERROR	0x02	/* Invalid VP count. */
-#define CS_VCT_ERROR		0x03	/* Unknown error. */
+#define CS_VCT_ERROR		0x03	/* Unkyeswn error. */
 #define CS_VCT_IDX_ERROR	0x02	/* Invalid VP index. */
-#define CS_VCT_BUSY		0x05	/* Firmware not ready to accept cmd. */
+#define CS_VCT_BUSY		0x05	/* Firmware yest ready to accept cmd. */
 
 	uint8_t command;
 #define VCT_COMMAND_MOD_VPS     0x00    /* Modify VP configurations. */
@@ -1309,13 +1309,13 @@ struct vp_config_entry_24xx {
 	uint8_t hard_address_idx1;
 	uint16_t reserved_vp1;
 	uint8_t port_name_idx1[WWN_SIZE];
-	uint8_t node_name_idx1[WWN_SIZE];
+	uint8_t yesde_name_idx1[WWN_SIZE];
 
 	uint8_t options_idx2;
 	uint8_t hard_address_idx2;
 	uint16_t reserved_vp2;
 	uint8_t port_name_idx2[WWN_SIZE];
-	uint8_t node_name_idx2[WWN_SIZE];
+	uint8_t yesde_name_idx2[WWN_SIZE];
 	uint16_t id;
 	uint16_t reserved_4;
 	uint16_t hopct;
@@ -1377,7 +1377,7 @@ struct vp_rpt_id_entry_24xx {
 			uint8_t rsv3[5];
 
 			uint8_t port_name[8];
-			uint8_t node_name[8];
+			uint8_t yesde_name[8];
 			uint16_t bbcr;
 			uint8_t reserved_5[6];
 		} f1;
@@ -1393,7 +1393,7 @@ struct vp_rpt_id_entry_24xx {
 		    uint8_t rsv3[5];
 
 		    uint8_t port_name[8];
-		    uint8_t node_name[8];
+		    uint8_t yesde_name[8];
 		    uint8_t remote_nport_id[4];
 		    uint32_t reserved_5;
 		} f2;
@@ -1558,7 +1558,7 @@ struct qla_npiv_entry {
 	uint8_t f_qos;
 	uint16_t unused1;
 	uint8_t port_name[WWN_SIZE];
-	uint8_t node_name[WWN_SIZE];
+	uint8_t yesde_name[WWN_SIZE];
 };
 
 /* 84XX Support **************************************************************/
@@ -1747,7 +1747,7 @@ struct nvram_81xx {
 	uint16_t reserved_2;
 
 	uint8_t port_name[WWN_SIZE];
-	uint8_t node_name[WWN_SIZE];
+	uint8_t yesde_name[WWN_SIZE];
 
 	uint16_t login_retry_count;
 	uint16_t reserved_3;
@@ -1761,7 +1761,7 @@ struct nvram_81xx {
 	uint16_t reserved_4[4];
 
 	/* Offset 64. */
-	uint8_t enode_mac[6];
+	uint8_t eyesde_mac[6];
 	uint16_t reserved_5[5];
 
 	/* Offset 80. */
@@ -1797,7 +1797,7 @@ struct nvram_81xx {
 	 * BIT 10 = Enable lip full login
 	 * BIT 11 = Enable target reset
 	 * BIT 12 = Stop firmware
-	 * BIT 13 = Enable nodename option
+	 * BIT 13 = Enable yesdename option
 	 * BIT 14 = Default WWPN valid
 	 * BIT 15 = Enable alternate WWN
 	 *
@@ -1816,7 +1816,7 @@ struct nvram_81xx {
 	uint32_t host_p;
 
 	uint8_t alternate_port_name[WWN_SIZE];
-	uint8_t alternate_node_name[WWN_SIZE];
+	uint8_t alternate_yesde_name[WWN_SIZE];
 
 	uint8_t boot_port_name[WWN_SIZE];
 	uint16_t boot_lun_number;
@@ -1902,7 +1902,7 @@ struct nvram_81xx {
 
 /*
  * ISP Initialization Control Block.
- * Little endian except where noted.
+ * Little endian except where yested.
  */
 #define	ICB_VERSION 1
 struct init_cb_81xx {
@@ -1916,7 +1916,7 @@ struct init_cb_81xx {
 	uint16_t reserved_2;
 
 	uint8_t port_name[WWN_SIZE];		/* Big endian. */
-	uint8_t node_name[WWN_SIZE];		/* Big endian. */
+	uint8_t yesde_name[WWN_SIZE];		/* Big endian. */
 
 	uint16_t response_q_inpointer;
 	uint16_t request_q_outpointer;
@@ -1999,7 +1999,7 @@ struct init_cb_81xx {
 
 	uint8_t  reserved_5[8];
 
-	uint8_t enode_mac[6];
+	uint8_t eyesde_mac[6];
 
 	uint8_t reserved_6[10];
 };

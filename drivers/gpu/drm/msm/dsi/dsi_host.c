@@ -28,11 +28,11 @@
 
 #define DSI_RESET_TOGGLE_DELAY_MS 20
 
-static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
+static int dsi_get_version(const void __iomem *base, u32 *major, u32 *miyesr)
 {
 	u32 ver;
 
-	if (!major || !minor)
+	if (!major || !miyesr)
 		return -EINVAL;
 
 	/*
@@ -41,19 +41,19 @@ static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 	 *
 	 * In order to identify between DSI6G(v3) and beyond, and DSIv2 and
 	 * older, we read the DSI_VERSION register without any shift(offset
-	 * 0x1f0). In the case of DSIv2, this hast to be a non-zero value. In
+	 * 0x1f0). In the case of DSIv2, this hast to be a yesn-zero value. In
 	 * the case of DSI6G, this has to be zero (the offset points to a
 	 * scratch register which we never touch)
 	 */
 
 	ver = msm_readl(base + REG_DSI_VERSION);
 	if (ver) {
-		/* older dsi host, there is no register shift */
+		/* older dsi host, there is yes register shift */
 		ver = FIELD(ver, DSI_VERSION_MAJOR);
 		if (ver <= MSM_DSI_VER_MAJOR_V2) {
 			/* old versions */
 			*major = ver;
-			*minor = 0;
+			*miyesr = 0;
 			return 0;
 		} else {
 			return -EINVAL;
@@ -69,7 +69,7 @@ static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 		if (ver == MSM_DSI_VER_MAJOR_6G) {
 			/* 6G version */
 			*major = ver;
-			*minor = msm_readl(base + REG_DSI_6G_HW_VERSION);
+			*miyesr = msm_readl(base + REG_DSI_6G_HW_VERSION);
 			return 0;
 		} else {
 			return -EINVAL;
@@ -154,7 +154,7 @@ struct msm_dsi_host {
 	struct drm_display_mode *mode;
 
 	/* connected device info */
-	struct device_node *device_node;
+	struct device_yesde *device_yesde;
 	unsigned int channel;
 	unsigned int lanes;
 	enum mipi_dsi_pixel_format format;
@@ -203,17 +203,17 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 	struct regulator *gdsc_reg;
 	struct clk *ahb_clk;
 	int ret;
-	u32 major = 0, minor = 0;
+	u32 major = 0, miyesr = 0;
 
 	gdsc_reg = regulator_get(dev, "gdsc");
 	if (IS_ERR(gdsc_reg)) {
-		pr_err("%s: cannot get gdsc\n", __func__);
+		pr_err("%s: canyest get gdsc\n", __func__);
 		goto exit;
 	}
 
 	ahb_clk = msm_clk_get(msm_host->pdev, "iface");
 	if (IS_ERR(ahb_clk)) {
-		pr_err("%s: cannot get interface clock\n", __func__);
+		pr_err("%s: canyest get interface clock\n", __func__);
 		goto put_gdsc;
 	}
 
@@ -231,15 +231,15 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 		goto disable_gdsc;
 	}
 
-	ret = dsi_get_version(msm_host->ctrl_base, &major, &minor);
+	ret = dsi_get_version(msm_host->ctrl_base, &major, &miyesr);
 	if (ret) {
 		pr_err("%s: Invalid version\n", __func__);
 		goto disable_clks;
 	}
 
-	cfg_hnd = msm_dsi_cfg_get(major, minor);
+	cfg_hnd = msm_dsi_cfg_get(major, miyesr);
 
-	DBG("%s: Version %x:%x\n", __func__, major, minor);
+	DBG("%s: Version %x:%x\n", __func__, major, miyesr);
 
 disable_clks:
 	clk_disable_unprepare(ahb_clk);
@@ -702,7 +702,7 @@ static void dsi_calc_pclk(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 {
 	if (!msm_host->mode) {
-		pr_err("%s: mode not set\n", __func__);
+		pr_err("%s: mode yest set\n", __func__);
 		return -EINVAL;
 	}
 
@@ -739,7 +739,7 @@ int dsi_calc_clk_rate_v2(struct msm_dsi_host *msm_host, bool is_dual_dsi)
 		esc_div = DIV_ROUND_UP(byte_mhz, esc_mhz);
 
 		/*
-		 * TODO: Ideally, we shouldn't know what sort of divider
+		 * TODO: Ideally, we shouldn't kyesw what sort of divider
 		 * is available in mmss_cc, we're just assuming that
 		 * it'll always be a 4 bit divider. Need to come up with
 		 * a better way here.
@@ -844,11 +844,11 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 		data |= DSI_VID_CFG0_VIRT_CHANNEL(msm_host->channel);
 		dsi_write(msm_host, REG_DSI_VID_CFG0, data);
 
-		/* Do not swap RGB colors */
+		/* Do yest swap RGB colors */
 		data = DSI_VID_CFG1_RGB_SWAP(SWAP_RGB);
 		dsi_write(msm_host, REG_DSI_VID_CFG1, 0);
 	} else {
-		/* Do not swap RGB colors */
+		/* Do yest swap RGB colors */
 		data = DSI_CMD_CFG0_RGB_SWAP(SWAP_RGB);
 		data |= DSI_CMD_CFG0_DST_FORMAT(dsi_get_cmd_fmt(mipi_fmt));
 		dsi_write(msm_host, REG_DSI_CMD_CFG0, data);
@@ -872,7 +872,7 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	data |= DSI_TRIG_CTRL_DMA_TRIGGER(TRIGGER_SW);
 	data |= DSI_TRIG_CTRL_STREAM(msm_host->channel);
 	if ((cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) &&
-		(cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V1_2))
+		(cfg_hnd->miyesr >= MSM_DSI_6G_VER_MINOR_V1_2))
 		data |= DSI_TRIG_CTRL_BLOCK_DMA_WITHIN_FRAME;
 	dsi_write(msm_host, REG_DSI_TRIG_CTRL, data);
 
@@ -881,7 +881,7 @@ static void dsi_ctrl_config(struct msm_dsi_host *msm_host, bool enable,
 	dsi_write(msm_host, REG_DSI_CLKOUT_TIMING_CTRL, data);
 
 	if ((cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) &&
-	    (cfg_hnd->minor > MSM_DSI_6G_VER_MINOR_V1_0) &&
+	    (cfg_hnd->miyesr > MSM_DSI_6G_VER_MINOR_V1_0) &&
 	    phy_shared_timings->clk_pre_inc_by_2)
 		dsi_write(msm_host, REG_DSI_T_CLK_PRE_EXTEND,
 			  DSI_T_CLK_PRE_EXTEND_INC_BY_2_BYTECLK);
@@ -1204,7 +1204,7 @@ static int dsi_short_read1_resp(u8 *buf, const struct mipi_dsi_msg *msg)
 		*data = buf[1]; /* strip out dcs type */
 		return 1;
 	} else {
-		pr_err("%s: read data does not match with rx_buf len %zu\n",
+		pr_err("%s: read data does yest match with rx_buf len %zu\n",
 			__func__, msg->rx_len);
 		return -EINVAL;
 	}
@@ -1221,7 +1221,7 @@ static int dsi_short_read2_resp(u8 *buf, const struct mipi_dsi_msg *msg)
 		data[1] = buf[2];
 		return 2;
 	} else {
-		pr_err("%s: read data does not match with rx_buf len %zu\n",
+		pr_err("%s: read data does yest match with rx_buf len %zu\n",
 			__func__, msg->rx_len);
 		return -EINVAL;
 	}
@@ -1353,7 +1353,7 @@ static int dsi_cmds2buf_tx(struct msm_dsi_host *msm_host,
 		return -EINVAL;
 	}
 
-	/* for video mode, do not send cmds more than
+	/* for video mode, do yest send cmds more than
 	* one pixel line, since it only transmit it
 	* during BLLP.
 	*/
@@ -1363,7 +1363,7 @@ static int dsi_cmds2buf_tx(struct msm_dsi_host *msm_host,
 	 * command can be fit into one BLLP.
 	 */
 	if ((msm_host->mode_flags & MIPI_DSI_MODE_VIDEO) && (len > bllp_len)) {
-		pr_err("%s: cmd cannot fit into BLLP period, len=%d\n",
+		pr_err("%s: cmd canyest fit into BLLP period, len=%d\n",
 			__func__, len);
 		return -EINVAL;
 	}
@@ -1562,7 +1562,7 @@ static int dsi_host_init_panel_gpios(struct msm_dsi_host *msm_host,
 							 "disp-enable",
 							 GPIOD_OUT_LOW);
 	if (IS_ERR(msm_host->disp_en_gpio)) {
-		DBG("cannot get disp-enable-gpios %ld",
+		DBG("canyest get disp-enable-gpios %ld",
 				PTR_ERR(msm_host->disp_en_gpio));
 		return PTR_ERR(msm_host->disp_en_gpio);
 	}
@@ -1570,7 +1570,7 @@ static int dsi_host_init_panel_gpios(struct msm_dsi_host *msm_host,
 	msm_host->te_gpio = devm_gpiod_get_optional(panel_device, "disp-te",
 								GPIOD_IN);
 	if (IS_ERR(msm_host->te_gpio)) {
-		DBG("cannot get disp-te-gpios %ld", PTR_ERR(msm_host->te_gpio));
+		DBG("canyest get disp-te-gpios %ld", PTR_ERR(msm_host->te_gpio));
 		return PTR_ERR(msm_host->te_gpio);
 	}
 
@@ -1608,7 +1608,7 @@ static int dsi_host_detach(struct mipi_dsi_host *host,
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 
-	msm_host->device_node = NULL;
+	msm_host->device_yesde = NULL;
 
 	DBG("id=%d", msm_host->id);
 	if (msm_host->dev)
@@ -1657,7 +1657,7 @@ static const int supported_data_lane_swaps[][4] = {
 };
 
 static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
-				    struct device_node *ep)
+				    struct device_yesde *ep)
 {
 	struct device *dev = &msm_host->pdev->dev;
 	struct property *prop;
@@ -1723,19 +1723,19 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 {
 	struct device *dev = &msm_host->pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *endpoint, *device_node;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *endpoint, *device_yesde;
 	int ret = 0;
 
 	/*
 	 * Get the endpoint of the output port of the DSI host. In our case,
 	 * this is mapped to port number with reg = 1. Don't return an error if
 	 * the remote endpoint isn't defined. It's possible that there is
-	 * nothing connected to the dsi output.
+	 * yesthing connected to the dsi output.
 	 */
 	endpoint = of_graph_get_endpoint_by_regs(np, 1, -1);
 	if (!endpoint) {
-		DRM_DEV_DEBUG(dev, "%s: no endpoint\n", __func__);
+		DRM_DEV_DEBUG(dev, "%s: yes endpoint\n", __func__);
 		return 0;
 	}
 
@@ -1747,15 +1747,15 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 		goto err;
 	}
 
-	/* Get panel node from the output port's endpoint data */
-	device_node = of_graph_get_remote_node(np, 1, 0);
-	if (!device_node) {
-		DRM_DEV_DEBUG(dev, "%s: no valid device\n", __func__);
+	/* Get panel yesde from the output port's endpoint data */
+	device_yesde = of_graph_get_remote_yesde(np, 1, 0);
+	if (!device_yesde) {
+		DRM_DEV_DEBUG(dev, "%s: yes valid device\n", __func__);
 		ret = -ENODEV;
 		goto err;
 	}
 
-	msm_host->device_node = device_node;
+	msm_host->device_yesde = device_yesde;
 
 	if (of_property_read_bool(np, "syscon-sfpb")) {
 		msm_host->sfpb = syscon_regmap_lookup_by_phandle(np,
@@ -1767,10 +1767,10 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 		}
 	}
 
-	of_node_put(device_node);
+	of_yesde_put(device_yesde);
 
 err:
-	of_node_put(endpoint);
+	of_yesde_put(endpoint);
 
 	return ret;
 }
@@ -1802,7 +1802,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 
 	msm_host = devm_kzalloc(&pdev->dev, sizeof(*msm_host), GFP_KERNEL);
 	if (!msm_host) {
-		pr_err("%s: FAILED: cannot alloc dsi host\n",
+		pr_err("%s: FAILED: canyest alloc dsi host\n",
 		       __func__);
 		ret = -ENOMEM;
 		goto fail;
@@ -1908,7 +1908,7 @@ int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 	struct platform_device *pdev = msm_host->pdev;
 	int ret;
 
-	msm_host->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	msm_host->irq = irq_of_parse_and_map(pdev->dev.of_yesde, 0);
 	if (msm_host->irq < 0) {
 		ret = msm_host->irq;
 		DRM_DEV_ERROR(dev->dev, "failed to get irq: %d\n", ret);
@@ -1949,17 +1949,17 @@ int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer)
 
 		msm_host->registered = true;
 
-		/* If the panel driver has not been probed after host register,
+		/* If the panel driver has yest been probed after host register,
 		 * we should defer the host's probe.
 		 * It makes sure panel is connected when fbcon detects
 		 * connector status and gets the proper display mode to
 		 * create framebuffer.
-		 * Don't try to defer if there is nothing connected to the dsi
+		 * Don't try to defer if there is yesthing connected to the dsi
 		 * output
 		 */
-		if (check_defer && msm_host->device_node) {
-			if (IS_ERR(of_drm_find_panel(msm_host->device_node)))
-				if (!of_drm_find_bridge(msm_host->device_node))
+		if (check_defer && msm_host->device_yesde) {
+			if (IS_ERR(of_drm_find_panel(msm_host->device_yesde)))
+				if (!of_drm_find_bridge(msm_host->device_yesde))
 					return -EPROBE_DEFER;
 		}
 	}
@@ -1987,7 +1987,7 @@ int msm_dsi_host_xfer_prepare(struct mipi_dsi_host *host,
 
 	/* TODO: make sure dsi_cmd_mdp is idle.
 	 * Since DSI6G v1.2.0, we can set DSI_TRIG_CTRL.BLOCK_DMA_WITHIN_FRAME
-	 * to ask H/W to wait until cmd mdp is idle. S/W wait is not needed.
+	 * to ask H/W to wait until cmd mdp is idle. S/W wait is yest needed.
 	 * How to handle the old versions? Wait for mdp cmd done?
 	 */
 
@@ -2086,7 +2086,7 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 		}
 
 		if ((cfg_hnd->major == MSM_DSI_VER_MAJOR_6G) &&
-			(cfg_hnd->minor >= MSM_DSI_6G_VER_MINOR_V1_1)) {
+			(cfg_hnd->miyesr >= MSM_DSI_6G_VER_MINOR_V1_1)) {
 			/* Clear the RDBK_DATA registers */
 			dsi_write(msm_host, REG_DSI_RDBK_DATA_CTRL,
 					DSI_RDBK_DATA_CTRL_CLR);
@@ -2140,7 +2140,7 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 	/*
 	 * For single Long read, if the requested rlen < 10,
 	 * we need to shift the start position of rx
-	 * data buffer to skip the bytes which are not
+	 * data buffer to skip the bytes which are yest
 	 * updated.
 	 */
 	if (pkt_size < 10 && !short_response)
@@ -2426,7 +2426,7 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 
 	msm_host->mode = drm_mode_duplicate(msm_host->dev, mode);
 	if (!msm_host->mode) {
-		pr_err("%s: cannot duplicate mode\n", __func__);
+		pr_err("%s: canyest duplicate mode\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -2435,7 +2435,7 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 
 struct drm_panel *msm_dsi_host_get_panel(struct mipi_dsi_host *host)
 {
-	return of_drm_find_panel(to_msm_dsi_host(host)->device_node);
+	return of_drm_find_panel(to_msm_dsi_host(host)->device_yesde);
 }
 
 unsigned long msm_dsi_host_get_mode_flags(struct mipi_dsi_host *host)
@@ -2447,5 +2447,5 @@ struct drm_bridge *msm_dsi_host_get_bridge(struct mipi_dsi_host *host)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 
-	return of_drm_find_bridge(msm_host->device_node);
+	return of_drm_find_bridge(msm_host->device_yesde);
 }

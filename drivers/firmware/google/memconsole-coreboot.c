@@ -35,7 +35,7 @@ static u32 cbmem_console_size;
  * change at any time if runtime firmware logs new messages. This may rarely
  * lead to race conditions where the firmware overwrites the beginning of the
  * ring buffer with more lines after we have already read |cursor|. It should be
- * rare and harmless enough that we don't spend extra effort working around it.
+ * rare and harmless eyesugh that we don't spend extra effort working around it.
  */
 static ssize_t memconsole_coreboot_read(char *buf, loff_t pos, size_t count)
 {

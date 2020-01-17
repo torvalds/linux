@@ -24,7 +24,7 @@ struct mtk_smi_larb_iommu {
  * mtk_smi_larb_get: Enable the power domain and clocks for this local arbiter.
  *                   It also initialize some basic setting(like iommu).
  * mtk_smi_larb_put: Disable the power domain and clocks for this local arbiter.
- * Both should be called in non-atomic context.
+ * Both should be called in yesn-atomic context.
  *
  * Returns 0 if successful, negative on failure.
  */

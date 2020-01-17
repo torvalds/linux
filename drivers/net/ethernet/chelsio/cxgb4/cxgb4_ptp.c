@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -51,7 +51,7 @@
 #include "cxgb4_ptp.h"
 
 /**
- * cxgb4_ptp_is_ptp_tx - determine whether TX packet is PTP or not
+ * cxgb4_ptp_is_ptp_tx - determine whether TX packet is PTP or yest
  * @skb: skb of outgoing ptp request
  *
  */
@@ -77,7 +77,7 @@ bool is_ptp_enabled(struct sk_buff *skb, struct net_device *dev)
 }
 
 /**
- * cxgb4_ptp_is_ptp_rx - determine whether RX packet is PTP or not
+ * cxgb4_ptp_is_ptp_rx - determine whether RX packet is PTP or yest
  * @skb: skb of incoming ptp request
  *
  */
@@ -230,7 +230,7 @@ static int cxgb4_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 /**
  * cxgb4_ptp_fineadjtime - Shift the time of the hardware clock
  * @ptp: ptp clock structure
- * @delta: Desired change in nanoseconds
+ * @delta: Desired change in nayesseconds
  *
  * Adjust the timer by resetting the timecounter structure.
  */
@@ -258,7 +258,7 @@ static int  cxgb4_ptp_fineadjtime(struct adapter *adapter, s64 delta)
 /**
  * cxgb4_ptp_adjtime - Shift the time of the hardware clock
  * @ptp: ptp clock structure
- * @delta: Desired change in nanoseconds
+ * @delta: Desired change in nayesseconds
  *
  * Adjust the timer by resetting the timecounter structure.
  */
@@ -398,7 +398,7 @@ static void cxgb4_init_ptp_timer(struct adapter *adapter)
  * @on: Caller passes one to enable or zero to disable
  *
  * Enable (or disable) ancillary features of the PHC subsystem.
- * Currently, no ancillary features are supported.
+ * Currently, yes ancillary features are supported.
  */
 static int cxgb4_ptp_enable(struct ptp_clock_info __always_unused *ptp,
 			    struct ptp_clock_request __always_unused *request,
@@ -430,8 +430,8 @@ static const struct ptp_clock_info cxgb4_ptp_clock_info = {
  */
 void cxgb4_ptp_init(struct adapter *adapter)
 {
-	struct timespec64 now;
-	 /* no need to create a clock device if we already have one */
+	struct timespec64 yesw;
+	 /* yes need to create a clock device if we already have one */
 	if (!IS_ERR_OR_NULL(adapter->ptp_clock))
 		return;
 
@@ -448,9 +448,9 @@ void cxgb4_ptp_init(struct adapter *adapter)
 		return;
 	}
 
-	now = ktime_to_timespec64(ktime_get_real());
+	yesw = ktime_to_timespec64(ktime_get_real());
 	cxgb4_init_ptp_timer(adapter);
-	if (cxgb4_ptp_settime(&adapter->ptp_clock_info, &now) < 0) {
+	if (cxgb4_ptp_settime(&adapter->ptp_clock_info, &yesw) < 0) {
 		ptp_clock_unregister(adapter->ptp_clock);
 		adapter->ptp_clock = NULL;
 	}

@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - control channel and configuration commands
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
@@ -118,7 +118,7 @@ static inline struct tb_cfg_header tb_cfg_make_header(u64 route)
 		.route_hi = route >> 32,
 		.route_lo = route,
 	};
-	/* check for overflow, route_hi is not 32 bits! */
+	/* check for overflow, route_hi is yest 32 bits! */
 	WARN_ON(tb_cfg_get_route(&header) != route);
 	return header;
 }

@@ -9,7 +9,7 @@
 
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <asm/addrspace.h>
 

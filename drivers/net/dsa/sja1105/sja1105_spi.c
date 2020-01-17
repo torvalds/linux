@@ -90,7 +90,7 @@ static int sja1105_xfer(const struct sja1105_private *priv,
 		if (rw == SPI_READ)
 			msg.read_count = chunk.len / 4;
 		else
-			/* Ignored */
+			/* Igyesred */
 			msg.read_count = 0;
 		sja1105_spi_message_pack(hdr_buf, &msg);
 		hdr_xfer->tx_buf = hdr_buf;
@@ -261,7 +261,7 @@ struct sja1105_status {
 	u64 crcchkg;
 };
 
-/* This is not reading the entire General Status area, which is also
+/* This is yest reading the entire General Status area, which is also
  * divergent between E/T and P/Q/R/S, but only the relevant bits for
  * ensuring that the static config upload procedure was successful.
  */
@@ -321,7 +321,7 @@ static_config_buf_prepare_for_upload(struct sja1105_private *priv,
 
 	/* Write Device ID and config tables to config_buf */
 	sja1105_static_config_pack(config_buf, config);
-	/* Recalculate CRC of the last header (right now 0xDEADBEEF).
+	/* Recalculate CRC of the last header (right yesw 0xDEADBEEF).
 	 * Don't include the CRC field itself.
 	 */
 	crc_len = buf_len - 4;
@@ -356,7 +356,7 @@ int sja1105_static_config_upload(struct sja1105_private *priv)
 
 	rc = static_config_buf_prepare_for_upload(priv, config_buf, buf_len);
 	if (rc < 0) {
-		dev_err(dev, "Invalid config, cannot upload\n");
+		dev_err(dev, "Invalid config, canyest upload\n");
 		rc = -EINVAL;
 		goto out;
 	}
@@ -371,7 +371,7 @@ int sja1105_static_config_upload(struct sja1105_private *priv)
 		goto out;
 	}
 	/* Wait for an eventual egress packet to finish transmission
-	 * (reach IFG). It is guaranteed that a second one will not
+	 * (reach IFG). It is guaranteed that a second one will yest
 	 * follow, and that switch cold reset is thus safe
 	 */
 	usleep_range(500, 1000);
@@ -498,7 +498,7 @@ static struct sja1105_regs sja1105pqrs_regs = {
 
 struct sja1105_info sja1105e_info = {
 	.device_id		= SJA1105E_DEVICE_ID,
-	.part_no		= SJA1105ET_PART_NO,
+	.part_yes		= SJA1105ET_PART_NO,
 	.static_ops		= sja1105e_table_ops,
 	.dyn_ops		= sja1105et_dyn_ops,
 	.ptp_ts_bits		= 24,
@@ -512,7 +512,7 @@ struct sja1105_info sja1105e_info = {
 };
 struct sja1105_info sja1105t_info = {
 	.device_id		= SJA1105T_DEVICE_ID,
-	.part_no		= SJA1105ET_PART_NO,
+	.part_yes		= SJA1105ET_PART_NO,
 	.static_ops		= sja1105t_table_ops,
 	.dyn_ops		= sja1105et_dyn_ops,
 	.ptp_ts_bits		= 24,
@@ -526,7 +526,7 @@ struct sja1105_info sja1105t_info = {
 };
 struct sja1105_info sja1105p_info = {
 	.device_id		= SJA1105PR_DEVICE_ID,
-	.part_no		= SJA1105P_PART_NO,
+	.part_yes		= SJA1105P_PART_NO,
 	.static_ops		= sja1105p_table_ops,
 	.dyn_ops		= sja1105pqrs_dyn_ops,
 	.ptp_ts_bits		= 32,
@@ -541,7 +541,7 @@ struct sja1105_info sja1105p_info = {
 };
 struct sja1105_info sja1105q_info = {
 	.device_id		= SJA1105QS_DEVICE_ID,
-	.part_no		= SJA1105Q_PART_NO,
+	.part_yes		= SJA1105Q_PART_NO,
 	.static_ops		= sja1105q_table_ops,
 	.dyn_ops		= sja1105pqrs_dyn_ops,
 	.ptp_ts_bits		= 32,
@@ -556,7 +556,7 @@ struct sja1105_info sja1105q_info = {
 };
 struct sja1105_info sja1105r_info = {
 	.device_id		= SJA1105PR_DEVICE_ID,
-	.part_no		= SJA1105R_PART_NO,
+	.part_yes		= SJA1105R_PART_NO,
 	.static_ops		= sja1105r_table_ops,
 	.dyn_ops		= sja1105pqrs_dyn_ops,
 	.ptp_ts_bits		= 32,
@@ -571,7 +571,7 @@ struct sja1105_info sja1105r_info = {
 };
 struct sja1105_info sja1105s_info = {
 	.device_id		= SJA1105QS_DEVICE_ID,
-	.part_no		= SJA1105S_PART_NO,
+	.part_yes		= SJA1105S_PART_NO,
 	.static_ops		= sja1105s_table_ops,
 	.dyn_ops		= sja1105pqrs_dyn_ops,
 	.regs			= &sja1105pqrs_regs,

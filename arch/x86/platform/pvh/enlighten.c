@@ -38,7 +38,7 @@ static u64 pvh_get_root_pointer(void)
  */
 void __init __weak mem_map_via_hcall(struct boot_params *ptr __maybe_unused)
 {
-	xen_raw_printk("Error: Could not find memory map\n");
+	xen_raw_printk("Error: Could yest find memory map\n");
 	BUG();
 }
 
@@ -59,7 +59,7 @@ static void __init init_pvh_bootparams(bool xen_guest)
 	} else if (xen_guest) {
 		mem_map_via_hcall(&pvh_bootparams);
 	} else {
-		/* Non-xen guests are not supported by version 0 */
+		/* Non-xen guests are yest supported by version 0 */
 		BUG();
 	}
 
@@ -114,7 +114,7 @@ static void hypervisor_specific_init(bool xen_guest)
 }
 
 /*
- * This routine (and those that it might call) should not use
+ * This routine (and those that it might call) should yest use
  * anything that lives in .bss since that segment will be cleared later.
  */
 void __init xen_prepare_pvh(void)

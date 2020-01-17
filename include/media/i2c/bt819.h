@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-    bt819.h - bt819 notifications
+    bt819.h - bt819 yestifications
 
     Copyright (C) 2009 Hans Verkuil (hverkuil@xs4all.nl)
 
@@ -11,7 +11,7 @@
 
 #include <linux/ioctl.h>
 
-/* v4l2_device notifications. */
+/* v4l2_device yestifications. */
 
 /* Needed to reset the FIFO buffer when changing the input
    or the video standard.

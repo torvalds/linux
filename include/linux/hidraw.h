@@ -9,7 +9,7 @@
 
 
 struct hidraw {
-	unsigned int minor;
+	unsigned int miyesr;
 	int exist;
 	int open;
 	wait_queue_head_t wait;
@@ -30,7 +30,7 @@ struct hidraw_list {
 	int tail;
 	struct fasync_struct *fasync;
 	struct hidraw *hidraw;
-	struct list_head node;
+	struct list_head yesde;
 	struct mutex read_mutex;
 };
 

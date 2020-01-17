@@ -30,9 +30,9 @@
  * - On gen3 and gen4 platforms have a swizzling pattern for tiled objects which
  *   depends upon the physical page frame number. When swapping such objects the
  *   page frame number might change and the kernel must be able to fix this up
- *   and hence now the tiling. Note that on a subset of platforms with
+ *   and hence yesw the tiling. Note that on a subset of platforms with
  *   asymmetric memory channel population the swizzling pattern changes in an
- *   unknown way, and for those the kernel simply forbids swapping completely.
+ *   unkyeswn way, and for those the kernel simply forbids swapping completely.
  *
  * Since neither of this applies for new tiling layouts on modern platforms like
  * W, Ys and Yf tiling GEM only allows object tiling to be set to X or Y tiled.
@@ -166,11 +166,11 @@ static bool i915_vma_fence_prepare(struct i915_vma *vma,
 		return true;
 
 	size = i915_gem_fence_size(i915, vma->size, tiling_mode, stride);
-	if (vma->node.size < size)
+	if (vma->yesde.size < size)
 		return false;
 
 	alignment = i915_gem_fence_alignment(i915, vma->size, tiling_mode, stride);
-	if (!IS_ALIGNED(vma->node.start, alignment))
+	if (!IS_ALIGNED(vma->yesde.start, alignment))
 		return false;
 
 	return true;
@@ -223,7 +223,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 		return -EBUSY;
 
 	/* We need to rebind the object if its current allocation
-	 * no longer meets the alignment restrictions for its new
+	 * yes longer meets the alignment restrictions for its new
 	 * tiling mode. Otherwise we can just leave it alone, but
 	 * need to ensure that any fence register is updated before
 	 * the next fenced (either through the GTT or by the BLT unit
@@ -247,7 +247,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 		return err;
 	}
 
-	/* If the memory has unknown (i.e. varying) swizzling, we pin the
+	/* If the memory has unkyeswn (i.e. varying) swizzling, we pin the
 	 * pages to prevent them being swapped out and causing corruption
 	 * due to the change in swizzling.
 	 */
@@ -311,7 +311,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erryes on failure.
  */
 int
 i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
@@ -331,7 +331,7 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 
 	/*
 	 * The tiling mode of proxy objects is handled by its generator, and
-	 * not allowed to be changed by userspace.
+	 * yest allowed to be changed by userspace.
 	 */
 	if (i915_gem_object_is_proxy(obj)) {
 		err = -ENXIO;
@@ -394,7 +394,7 @@ err:
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erryes on failure.
  */
 int
 i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,

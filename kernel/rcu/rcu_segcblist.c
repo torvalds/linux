@@ -25,9 +25,9 @@ void rcu_cblist_init(struct rcu_cblist *rclp)
 
 /*
  * Enqueue an rcu_head structure onto the specified callback list.
- * This function assumes that the callback is non-lazy because it
- * is intended for use by no-CBs CPUs, which do not distinguish
- * between lazy and non-lazy RCU callbacks.
+ * This function assumes that the callback is yesn-lazy because it
+ * is intended for use by yes-CBs CPUs, which do yest distinguish
+ * between lazy and yesn-lazy RCU callbacks.
  */
 void rcu_cblist_enqueue(struct rcu_cblist *rclp, struct rcu_head *rhp)
 {
@@ -38,9 +38,9 @@ void rcu_cblist_enqueue(struct rcu_cblist *rclp, struct rcu_head *rhp)
 
 /*
  * Flush the second rcu_cblist structure onto the first one, obliterating
- * any contents of the first.  If rhp is non-NULL, enqueue it as the sole
+ * any contents of the first.  If rhp is yesn-NULL, enqueue it as the sole
  * element of the second rcu_cblist structure, but ensuring that the second
- * rcu_cblist structure, if initially non-empty, always appears non-empty
+ * rcu_cblist structure, if initially yesn-empty, always appears yesn-empty
  * throughout the process.  If rdp is NULL, the second rcu_cblist structure
  * is instead initialized to empty.
  */
@@ -68,7 +68,7 @@ void rcu_cblist_flush_enqueue(struct rcu_cblist *drclp,
 
 /*
  * Dequeue the oldest rcu_head structure from the specified callback
- * list.  This function assumes that the callback is non-lazy, but
+ * list.  This function assumes that the callback is yesn-lazy, but
  * the caller can later invoke rcu_cblist_dequeued_lazy() if it
  * finds otherwise (and if it cares about laziness).  This allows
  * different users to have different ways of determining laziness.
@@ -167,7 +167,7 @@ void rcu_segcblist_init(struct rcu_segcblist *rsclp)
 
 /*
  * Disable the specified rcu_segcblist structure, so that callbacks can
- * no longer be posted to it.  This structure must be empty.
+ * yes longer be posted to it.  This structure must be empty.
  */
 void rcu_segcblist_disable(struct rcu_segcblist *rsclp)
 {
@@ -198,7 +198,7 @@ bool rcu_segcblist_ready_cbs(struct rcu_segcblist *rsclp)
 
 /*
  * Does the specified rcu_segcblist structure contain callbacks that
- * are still pending, that is, not yet ready to be invoked?
+ * are still pending, that is, yest yet ready to be invoked?
  */
 bool rcu_segcblist_pend_cbs(struct rcu_segcblist *rsclp)
 {
@@ -208,7 +208,7 @@ bool rcu_segcblist_pend_cbs(struct rcu_segcblist *rsclp)
 
 /*
  * Return a pointer to the first callback in the specified rcu_segcblist
- * structure.  This is useful for diagnostics.
+ * structure.  This is useful for diagyesstics.
  */
 struct rcu_head *rcu_segcblist_first_cb(struct rcu_segcblist *rsclp)
 {
@@ -221,7 +221,7 @@ struct rcu_head *rcu_segcblist_first_cb(struct rcu_segcblist *rsclp)
  * Return a pointer to the first pending callback in the specified
  * rcu_segcblist structure.  This is useful just after posting a given
  * callback -- if that callback is the first pending callback, then
- * you cannot rely on someone else having already started up the required
+ * you canyest rely on someone else having already started up the required
  * grace period.
  */
 struct rcu_head *rcu_segcblist_first_pend_cb(struct rcu_segcblist *rsclp)
@@ -232,7 +232,7 @@ struct rcu_head *rcu_segcblist_first_pend_cb(struct rcu_segcblist *rsclp)
 }
 
 /*
- * Return false if there are no CBs awaiting grace periods, otherwise,
+ * Return false if there are yes CBs awaiting grace periods, otherwise,
  * return true and store the nearest waited-upon grace period into *lp.
  */
 bool rcu_segcblist_nextgp(struct rcu_segcblist *rsclp, unsigned long *lp)
@@ -250,7 +250,7 @@ bool rcu_segcblist_nextgp(struct rcu_segcblist *rsclp, unsigned long *lp)
  * The ->len field is used by rcu_barrier() and friends to determine
  * if it must post a callback on this structure, and it is OK
  * for rcu_barrier() to sometimes post callbacks needlessly, but
- * absolutely not OK for it to ever miss posting a callback.
+ * absolutely yest OK for it to ever miss posting a callback.
  */
 void rcu_segcblist_enqueue(struct rcu_segcblist *rsclp,
 			   struct rcu_head *rhp, bool lazy)
@@ -266,11 +266,11 @@ void rcu_segcblist_enqueue(struct rcu_segcblist *rsclp,
 
 /*
  * Entrain the specified callback onto the specified rcu_segcblist at
- * the end of the last non-empty segment.  If the entire rcu_segcblist
- * is empty, make no change, but return false.
+ * the end of the last yesn-empty segment.  If the entire rcu_segcblist
+ * is empty, make yes change, but return false.
  *
- * This is intended for use by rcu_barrier()-like primitives, -not-
- * for normal grace-period use.  IMPORTANT:  The callback you enqueue
+ * This is intended for use by rcu_barrier()-like primitives, -yest-
+ * for yesrmal grace-period use.  IMPORTANT:  The callback you enqueue
  * will wait for all prior callbacks, NOT necessarily for a grace
  * period.  You have been warned.
  */
@@ -334,7 +334,7 @@ void rcu_segcblist_extract_done_cbs(struct rcu_segcblist *rsclp,
 }
 
 /*
- * Extract only those callbacks still pending (not yet ready to be
+ * Extract only those callbacks still pending (yest yet ready to be
  * invoked) from the specified rcu_segcblist structure and place them in
  * the specified rcu_cblist structure.  Note that this loses information
  * about any callbacks that might have been partway done waiting for
@@ -426,7 +426,7 @@ void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
 		WRITE_ONCE(rsclp->tails[RCU_DONE_TAIL], rsclp->tails[i]);
 	}
 
-	/* If no callbacks moved, nothing more need be done. */
+	/* If yes callbacks moved, yesthing more need be done. */
 	if (i == RCU_WAIT_TAIL)
 		return;
 
@@ -436,9 +436,9 @@ void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
 
 	/*
 	 * Callbacks moved, so clean up the misordered ->tails[] pointers
-	 * that now point into the middle of the list of ready-to-invoke
+	 * that yesw point into the middle of the list of ready-to-invoke
 	 * callbacks.  The overall effect is to copy down the later pointers
-	 * into the gap that was created by the now-ready segments.
+	 * into the gap that was created by the yesw-ready segments.
 	 */
 	for (j = RCU_WAIT_TAIL; i < RCU_NEXT_TAIL; i++, j++) {
 		if (rsclp->tails[j] == rsclp->tails[RCU_NEXT_TAIL])
@@ -450,7 +450,7 @@ void rcu_segcblist_advance(struct rcu_segcblist *rsclp, unsigned long seq)
 
 /*
  * "Accelerate" callbacks based on more-accurate grace-period information.
- * The reason for this is that RCU does not synchronize the beginnings and
+ * The reason for this is that RCU does yest synchronize the beginnings and
  * ends of grace periods, and that callbacks are posted locally.  This in
  * turn means that the callbacks must be labelled conservatively early
  * on, as getting exact information would degrade both performance and
@@ -487,9 +487,9 @@ bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
 	/*
 	 * If all the segments contain callbacks that correspond to
 	 * earlier grace-period sequence numbers than "seq", leave.
-	 * Assuming that the rcu_segcblist structure has enough
+	 * Assuming that the rcu_segcblist structure has eyesugh
 	 * segments in its arrays, this can only happen if some of
-	 * the non-done segments contain callbacks that really are
+	 * the yesn-done segments contain callbacks that really are
 	 * ready to invoke.  This situation will get straightened
 	 * out by the next call to rcu_segcblist_advance().
 	 *
@@ -504,7 +504,7 @@ bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
 	 * Merge all later callbacks, including newly arrived callbacks,
 	 * into the segment located by the for-loop above.  Assign "seq"
 	 * as the ->gp_seq[] value in order to correctly handle the case
-	 * where there were no pending callbacks in the rcu_segcblist
+	 * where there were yes pending callbacks in the rcu_segcblist
 	 * structure other than in the RCU_NEXT_TAIL segment.
 	 */
 	for (; i < RCU_NEXT_TAIL; i++) {

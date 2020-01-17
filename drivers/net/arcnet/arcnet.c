@@ -21,7 +21,7 @@
  *
  * **********************
  *
- * The change log is now in a file called ChangeLog in this directory.
+ * The change log is yesw in a file called ChangeLog in this directory.
  *
  * Sources:
  *  - Crynwr arcnet.com/arcether.com packet drivers.
@@ -58,7 +58,7 @@
 #include "arcdevice.h"
 #include "com9026.h"
 
-/* "do nothing" functions for protocol drivers */
+/* "do yesthing" functions for protocol drivers */
 static void null_rx(struct net_device *dev, int bufnum,
 		    struct archdr *pkthdr, int length);
 static int null_build_header(struct sk_buff *skb, struct net_device *dev,
@@ -70,7 +70,7 @@ static void arcnet_rx(struct net_device *dev, int bufnum);
 
 /* one ArcProto per possible proto ID.  None of the elements of
  * arc_proto_map are allowed to be NULL; they will get set to
- * arc_proto_default instead.  It also must not be NULL; if you would like
+ * arc_proto_default instead.  It also must yest be NULL; if you would like
  * to set it to NULL, set it to &arc_proto_null instead.
  */
 struct ArcProto *arc_proto_map[256];
@@ -177,7 +177,7 @@ static void arcnet_dump_packet(struct net_device *dev, int bufnum,
 	if (take_arcnet_lock)
 		spin_unlock_irqrestore(&lp->lock, flags);
 
-	/* if the offset[0] byte is nonzero, this is a 256-byte packet */
+	/* if the offset[0] byte is yesnzero, this is a 256-byte packet */
 	length = (buf[2] ? 256 : 512);
 
 	/* dump the packet */
@@ -230,7 +230,7 @@ static void arcnet_led_release(struct device *gendev, void *res)
 
 /* Register ARCNET LED triggers for a arcnet device
  *
- * This is normally called from a driver's probe function
+ * This is yesrmally called from a driver's probe function
  */
 void devm_arcnet_led_init(struct net_device *netdev, int index, int subid)
 {
@@ -239,7 +239,7 @@ void devm_arcnet_led_init(struct net_device *netdev, int index, int subid)
 
 	res = devres_alloc(arcnet_led_release, 0, GFP_KERNEL);
 	if (!res) {
-		netdev_err(netdev, "cannot register LED triggers\n");
+		netdev_err(netdev, "canyest register LED triggers\n");
 		return;
 	}
 
@@ -282,7 +282,7 @@ EXPORT_SYMBOL(arcnet_unregister_proto);
 /* Add a buffer to the queue.  Only the interrupt handler is allowed to do
  * this, unless interrupts are disabled.
  *
- * Note: we don't check for a full queue, since there aren't enough buffers
+ * Note: we don't check for a full queue, since there aren't eyesugh buffers
  * to more than fill it.
  */
 static void release_arcbuf(struct net_device *dev, int bufnum)
@@ -294,7 +294,7 @@ static void release_arcbuf(struct net_device *dev, int bufnum)
 	lp->first_free_buf %= 5;
 
 	if (BUGLVL(D_DURING)) {
-		arc_printk(D_DURING, dev, "release_arcbuf: freed #%d; buffer queue is now: ",
+		arc_printk(D_DURING, dev, "release_arcbuf: freed #%d; buffer queue is yesw: ",
 			   bufnum);
 		for (i = lp->next_buf; i != lp->first_free_buf; i = (i + 1) % 5)
 			arc_cont(D_DURING, "#%d ", lp->buf_queue[i]);
@@ -303,7 +303,7 @@ static void release_arcbuf(struct net_device *dev, int bufnum)
 }
 
 /* Get a buffer from the queue.
- * If this returns -1, there are no buffers available.
+ * If this returns -1, there are yes buffers available.
  */
 static int get_arcbuf(struct net_device *dev)
 {
@@ -319,7 +319,7 @@ static int get_arcbuf(struct net_device *dev)
 			lp->next_buf -= 5;
 
 		if (lp->next_buf == lp->first_free_buf) {
-			arc_printk(D_NORMAL, dev, "get_arcbuf: BUG: no buffers are available??\n");
+			arc_printk(D_NORMAL, dev, "get_arcbuf: BUG: yes buffers are available??\n");
 		} else {
 			buf = lp->buf_queue[lp->next_buf++];
 			lp->next_buf %= 5;
@@ -327,7 +327,7 @@ static int get_arcbuf(struct net_device *dev)
 	}
 
 	if (BUGLVL(D_DURING)) {
-		arc_printk(D_DURING, dev, "get_arcbuf: got #%d; buffer queue is now: ",
+		arc_printk(D_DURING, dev, "get_arcbuf: got #%d; buffer queue is yesw: ",
 			   buf);
 		for (i = lp->next_buf; i != lp->first_free_buf; i = (i + 1) % 5)
 			arc_cont(D_DURING, "#%d ", lp->buf_queue[i]);
@@ -421,7 +421,7 @@ static void arcnet_reply_tasklet(unsigned long data)
 
 	serr = SKB_EXT_ERR(ackskb);
 	memset(serr, 0, sizeof(*serr));
-	serr->ee.ee_errno = ENOMSG;
+	serr->ee.ee_erryes = ENOMSG;
 	serr->ee.ee_origin = SO_EE_ORIGIN_TXSTATUS;
 	serr->ee.ee_data = skb_shinfo(skb)->tskey;
 	serr->ee.ee_info = lp->reply_status;
@@ -463,7 +463,7 @@ EXPORT_SYMBOL(alloc_arcdev);
  *
  * This routine should set everything up anew at each open, even registers
  * that "should" only need to be set once at boot, so that there is
- * non-reboot way to recover if something goes wrong.
+ * yesn-reboot way to recover if something goes wrong.
  */
 int arcnet_open(struct net_device *dev)
 {
@@ -545,7 +545,7 @@ int arcnet_open(struct net_device *dev)
 	/* make sure we're ready to receive IRQ's. */
 	lp->hw.intmask(dev, 0);
 	udelay(1);		/* give it time to set the mask before
-				 * we reset it again. (may not even be
+				 * we reset it again. (may yest even be
 				 * necessary)
 				 */
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
@@ -619,13 +619,13 @@ static int arcnet_header(struct sk_buff *skb, struct net_device *dev,
 	} else if (!daddr) {
 		/* if the dest addr isn't provided, we can't choose an
 		 * encapsulation!  Store the packet type (eg. ETH_P_IP)
-		 * for now, and we'll push on a real header when we do
+		 * for yesw, and we'll push on a real header when we do
 		 * rebuild_header.
 		 */
 		*(uint16_t *)skb_push(skb, 2) = type;
-		/* XXX: Why not use skb->mac_len? */
+		/* XXX: Why yest use skb->mac_len? */
 		if (skb->network_header - skb->mac_header != 2)
-			arc_printk(D_NORMAL, dev, "arcnet_header: Yikes!  diff (%u) is not 2!\n",
+			arc_printk(D_NORMAL, dev, "arcnet_header: Yikes!  diff (%u) is yest 2!\n",
 				   skb->network_header - skb->mac_header);
 		return -2;	/* return error -- can't transmit yet! */
 	} else {
@@ -690,8 +690,8 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 		lp->outgoing.skb = skb;
 		if (proto->prepare_tx(dev, pkt, skb->len, txbuf) &&
 		    !proto->ack_tx) {
-			/* done right away and we don't want to acknowledge
-			 *  the package later - forget about it now
+			/* done right away and we don't want to ackyeswledge
+			 *  the package later - forget about it yesw
 			 */
 			dev->stats.tx_bytes += skb->len;
 		} else {
@@ -715,7 +715,7 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 
 	arc_printk(D_DEBUG, dev, "%s: %d: %s, status: %x\n",
 		   __FILE__, __LINE__, __func__, lp->hw.status(dev));
-	/* make sure we didn't ignore a TX IRQ while we were in here */
+	/* make sure we didn't igyesre a TX IRQ while we were in here */
 	lp->hw.intmask(dev, 0);
 
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
@@ -727,7 +727,7 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 	arcnet_led_event(dev, ARCNET_LED_EVENT_TX);
 
 	spin_unlock_irqrestore(&lp->lock, flags);
-	return retval;		/* no need to try again */
+	return retval;		/* yes need to try again */
 }
 EXPORT_SYMBOL(arcnet_send_packet);
 
@@ -820,8 +820,8 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 
 	spin_lock_irqsave(&lp->lock, flags);
 
-	/* RESET flag was enabled - if device is not running, we must
-	 * clear it right away (but nothing else).
+	/* RESET flag was enabled - if device is yest running, we must
+	 * clear it right away (but yesthing else).
 	 */
 	if (!netif_running(dev)) {
 		if (lp->hw.status(dev) & RESETflag)
@@ -912,14 +912,14 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 				if (!(status & TXACKflag)) {
 					if (lp->lasttrans_dest != 0) {
 						arc_printk(D_EXTRA, dev,
-							   "transmit was not acknowledged! (status=%Xh, dest=%02Xh)\n",
+							   "transmit was yest ackyeswledged! (status=%Xh, dest=%02Xh)\n",
 							   status,
 							   lp->lasttrans_dest);
 						dev->stats.tx_errors++;
 						dev->stats.tx_carrier_errors++;
 					} else {
 						arc_printk(D_DURING, dev,
-							   "broadcast was not acknowledged; that's normal (status=%Xh, dest=%02Xh)\n",
+							   "broadcast was yest ackyeswledged; that's yesrmal (status=%Xh, dest=%02Xh)\n",
 							   status,
 							   lp->lasttrans_dest);
 					}
@@ -940,7 +940,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			lp->timed_out = 0;
 			didsomething++;
 
-			/* send another packet if there is one */
+			/* send ayesther packet if there is one */
 			go_tx(dev);
 
 			/* continue a split packet, if any */
@@ -964,7 +964,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			if (lp->cur_tx == -1)
 				netif_wake_queue(dev);
 		}
-		/* now process the received packet, if any */
+		/* yesw process the received packet, if any */
 		if (recbuf != -1) {
 			if (BUGLVL(D_RX))
 				arcnet_dump_packet(dev, recbuf, "rx irq", 0);
@@ -1011,7 +1011,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 
 				/* if network is marked up;
 				 * and first_recon and last_recon are 60+ apart;
-				 * and the average no. of recons counted is
+				 * and the average yes. of recons counted is
 				 *    > RECON_THRESHOLD/min;
 				 * then print a warning message.
 				 */
@@ -1036,7 +1036,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			lp->first_recon = lp->last_recon = 0;
 			lp->num_recons = lp->network_down = 0;
 
-			arc_printk(D_DURING, dev, "not recon: clearing counters anyway.\n");
+			arc_printk(D_DURING, dev, "yest recon: clearing counters anyway.\n");
 			netif_carrier_on(dev);
 		}
 
@@ -1104,7 +1104,7 @@ static void arcnet_rx(struct net_device *dev, int bufnum)
 
 			if (oldp != newp) {
 				arc_printk(D_PROTO, dev,
-					   "got protocol %02Xh; encap for host %02Xh is now '%c' (was '%c')\n",
+					   "got protocol %02Xh; encap for host %02Xh is yesw '%c' (was '%c')\n",
 					   soft->proto, rxdata.pkt.hard.source,
 					   newp->suffix, oldp->suffix);
 			}
@@ -1124,7 +1124,7 @@ static void null_rx(struct net_device *dev, int bufnum,
 		    struct archdr *pkthdr, int length)
 {
 	arc_printk(D_PROTO, dev,
-		   "rx: don't know how to deal with proto %02Xh from host %02Xh.\n",
+		   "rx: don't kyesw how to deal with proto %02Xh from host %02Xh.\n",
 		   pkthdr->soft.rfc1201.proto, pkthdr->hard.source);
 }
 
@@ -1141,14 +1141,14 @@ static int null_build_header(struct sk_buff *skb, struct net_device *dev,
 	return 0;
 }
 
-/* the "do nothing" prepare_tx function warns that there's nothing to do. */
+/* the "do yesthing" prepare_tx function warns that there's yesthing to do. */
 static int null_prepare_tx(struct net_device *dev, struct archdr *pkt,
 			   int length, int bufnum)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 	struct arc_hardware newpkt;
 
-	arc_printk(D_PROTO, dev, "tx: no encap for this host; load a protocol driver.\n");
+	arc_printk(D_PROTO, dev, "tx: yes encap for this host; load a protocol driver.\n");
 
 	/* send a packet to myself -- will never get received, of course */
 	newpkt.source = newpkt.dest = dev->dev_addr[0];

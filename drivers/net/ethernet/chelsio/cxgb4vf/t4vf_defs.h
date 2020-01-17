@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -61,7 +61,7 @@
 #define T4VF_REGMAP_SIZE	0x0400
 
 /*
- * There's no hardware limitation which requires that the addresses of the
+ * There's yes hardware limitation which requires that the addresses of the
  * Mailbox Data in the fixed CIM PF map and the programmable VF map must
  * match.  However, it's a useful convention ...
  */

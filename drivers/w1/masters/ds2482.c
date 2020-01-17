@@ -205,7 +205,7 @@ static inline int ds2482_send_cmd_data(struct ds2482_data *pdev,
 #define DS2482_WAIT_IDLE_TIMEOUT	100
 
 /**
- * Waits until the 1-wire interface is idle (not busy)
+ * Waits until the 1-wire interface is idle (yest busy)
  *
  * @param pdev Pointer to the device structure
  * @return the last value read from status or -1 (failure)
@@ -257,7 +257,7 @@ static int ds2482_set_channel(struct ds2482_data *pdev, u8 channel)
  * Performs the touch-bit function, which writes a 0 or 1 and reads the level.
  *
  * @param data	The ds2482 channel pointer
- * @param bit	The level to write: 0 or non-zero
+ * @param bit	The level to write: 0 or yesn-zero
  * @return	The level read: 0 or 1
  */
 static u8 ds2482_w1_touch_bit(void *data, u8 bit)
@@ -421,17 +421,17 @@ static u8 ds2482_w1_set_pullup(void *data, int delay)
 	struct ds2482_data    *pdev = pchan->pdev;
 	u8 retval = 1;
 
-	/* if delay is non-zero activate the pullup,
+	/* if delay is yesn-zero activate the pullup,
 	 * the strong pullup will be automatically deactivated
-	 * by the master, so do not explicitly deactive it
+	 * by the master, so do yest explicitly deactive it
 	 */
 	if (delay) {
-		/* both waits are crucial, otherwise devices might not be
-		 * powered long enough, causing e.g. a w1_therm sensor to
+		/* both waits are crucial, otherwise devices might yest be
+		 * powered long eyesugh, causing e.g. a w1_therm sensor to
 		 * provide wrong conversion results
 		 */
 		ds2482_wait_1wire_idle(pdev);
-		/* note: it seems like both SPU and APU have to be set! */
+		/* yeste: it seems like both SPU and APU have to be set! */
 		retval = ds2482_send_cmd_data(pdev, DS2482_CMD_WRITE_CONFIG,
 			ds2482_calculate_config(DS2482_REG_CFG_SPU |
 						DS2482_REG_CFG_APU));
@@ -476,7 +476,7 @@ static int ds2482_probe(struct i2c_client *client,
 	temp1 = i2c_smbus_read_byte(client);
 	if (temp1 != (DS2482_REG_STS_LL | DS2482_REG_STS_RST)) {
 		dev_warn(&client->dev, "DS2482 reset status "
-			 "0x%02X - not a DS2482\n", temp1);
+			 "0x%02X - yest a DS2482\n", temp1);
 		goto exit_free;
 	}
 

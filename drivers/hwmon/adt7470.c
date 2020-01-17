@@ -22,7 +22,7 @@
 #include <linux/util_macros.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2C, 0x2E, 0x2F, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2C, 0x2E, 0x2F, I2C_CLIENT_END };
 
 /* ADT7470 registers */
 #define ADT7470_REG_BASE_ADDR			0x20
@@ -198,7 +198,7 @@ static int adt7470_read_temperatures(struct i2c_client *client,
 	pwm_cfg[0] = i2c_smbus_read_byte_data(client, ADT7470_REG_PWM_CFG(0));
 	pwm_cfg[1] = i2c_smbus_read_byte_data(client, ADT7470_REG_PWM_CFG(2));
 
-	/* set manual pwm to whatever it is set to now */
+	/* set manual pwm to whatever it is set to yesw */
 	for (i = 0; i < ADT7470_FAN_COUNT; i++)
 		pwm[i] = i2c_smbus_read_byte_data(client, ADT7470_REG_PWM(i));
 
@@ -300,7 +300,7 @@ static struct adt7470_data *adt7470_update_device(struct device *dev)
 
 	mutex_lock(&data->lock);
 	if (!need_sensors)
-		goto no_sensor_update;
+		goto yes_sensor_update;
 
 	if (!data->temperatures_probed)
 		adt7470_read_temperatures(client, data);
@@ -355,7 +355,7 @@ static struct adt7470_data *adt7470_update_device(struct device *dev)
 	data->sensors_last_updated = local_jiffies;
 	data->sensors_valid = 1;
 
-no_sensor_update:
+yes_sensor_update:
 	if (!need_limits)
 		goto out;
 
@@ -1210,7 +1210,7 @@ static void adt7470_init_client(struct i2c_client *client)
 	int reg = i2c_smbus_read_byte_data(client, ADT7470_REG_CFG);
 
 	if (reg < 0) {
-		dev_err(&client->dev, "cannot read configuration register\n");
+		dev_err(&client->dev, "canyest read configuration register\n");
 	} else {
 		/* start monitoring (and do a self-test) */
 		i2c_smbus_write_byte_data(client, ADT7470_REG_CFG, reg | 3);
@@ -1280,7 +1280,7 @@ static struct i2c_driver adt7470_driver = {
 	.remove		= adt7470_remove,
 	.id_table	= adt7470_id,
 	.detect		= adt7470_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(adt7470_driver);

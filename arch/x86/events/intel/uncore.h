@@ -2,7 +2,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <asm/apicdef.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 #include <linux/perf_event.h>
 #include "../perf_event.h"
@@ -261,7 +261,7 @@ static inline unsigned uncore_msr_fixed_ctr(struct intel_uncore_box *box)
 
 
 /*
- * In the uncore document, there is no event-code assigned to free running
+ * In the uncore document, there is yes event-code assigned to free running
  * counters. Some events need to be defined to indicate the free running
  * counters. The events are encoded as event-code + umask-code.
  *

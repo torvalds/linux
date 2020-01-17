@@ -3,7 +3,7 @@
  * Framebuffer device registration for TI OMAP platforms
  *
  * Copyright (C) 2006 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  */
 
 #include <linux/module.h>

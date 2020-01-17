@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <signal.h>
@@ -46,39 +46,39 @@ static int test_pidfd_wait_simple(void)
 	int ret;
 	pid_t pid;
 	siginfo_t info = {
-		.si_signo = 0,
+		.si_sigyes = 0,
 	};
 
 	pidfd = open("/proc/self", O_DIRECTORY | O_RDONLY | O_CLOEXEC);
 	if (pidfd < 0)
 		ksft_exit_fail_msg("%s test: failed to open /proc/self %s\n",
-				   test_name, strerror(errno));
+				   test_name, strerror(erryes));
 
 	pid = sys_waitid(P_PIDFD, pidfd, &info, WEXITED, NULL);
 	if (pid == 0)
 		ksft_exit_fail_msg(
 			"%s test: succeeded to wait on invalid pidfd %s\n",
-			test_name, strerror(errno));
+			test_name, strerror(erryes));
 	close(pidfd);
 	pidfd = -1;
 
 	pidfd = open("/dev/null", O_RDONLY | O_CLOEXEC);
 	if (pidfd == 0)
 		ksft_exit_fail_msg("%s test: failed to open /dev/null %s\n",
-				   test_name, strerror(errno));
+				   test_name, strerror(erryes));
 
 	pid = sys_waitid(P_PIDFD, pidfd, &info, WEXITED, NULL);
 	if (pid == 0)
 		ksft_exit_fail_msg(
 			"%s test: succeeded to wait on invalid pidfd %s\n",
-			test_name, strerror(errno));
+			test_name, strerror(erryes));
 	close(pidfd);
 	pidfd = -1;
 
 	pid = sys_clone3(&args);
 	if (pid < 0)
 		ksft_exit_fail_msg("%s test: failed to create new process %s\n",
-				   test_name, strerror(errno));
+				   test_name, strerror(erryes));
 
 	if (pid == 0)
 		exit(EXIT_SUCCESS);
@@ -87,31 +87,31 @@ static int test_pidfd_wait_simple(void)
 	if (pid < 0)
 		ksft_exit_fail_msg(
 			"%s test: failed to wait on process with pid %d and pidfd %d: %s\n",
-			test_name, parent_tid, pidfd, strerror(errno));
+			test_name, parent_tid, pidfd, strerror(erryes));
 
 	if (!WIFEXITED(info.si_status) || WEXITSTATUS(info.si_status))
 		ksft_exit_fail_msg(
 			"%s test: unexpected status received after waiting on process with pid %d and pidfd %d: %s\n",
-			test_name, parent_tid, pidfd, strerror(errno));
+			test_name, parent_tid, pidfd, strerror(erryes));
 	close(pidfd);
 
-	if (info.si_signo != SIGCHLD)
+	if (info.si_sigyes != SIGCHLD)
 		ksft_exit_fail_msg(
-			"%s test: unexpected si_signo value %d received after waiting on process with pid %d and pidfd %d: %s\n",
-			test_name, info.si_signo, parent_tid, pidfd,
-			strerror(errno));
+			"%s test: unexpected si_sigyes value %d received after waiting on process with pid %d and pidfd %d: %s\n",
+			test_name, info.si_sigyes, parent_tid, pidfd,
+			strerror(erryes));
 
 	if (info.si_code != CLD_EXITED)
 		ksft_exit_fail_msg(
 			"%s test: unexpected si_code value %d received after waiting on process with pid %d and pidfd %d: %s\n",
 			test_name, info.si_code, parent_tid, pidfd,
-			strerror(errno));
+			strerror(erryes));
 
 	if (info.si_pid != parent_tid)
 		ksft_exit_fail_msg(
 			"%s test: unexpected si_pid value %d received after waiting on process with pid %d and pidfd %d: %s\n",
 			test_name, info.si_pid, parent_tid, pidfd,
-			strerror(errno));
+			strerror(erryes));
 
 	ksft_test_result_pass("%s test: Passed\n", test_name);
 	return 0;
@@ -131,13 +131,13 @@ static int test_pidfd_wait_states(void)
 	int ret;
 	pid_t pid;
 	siginfo_t info = {
-		.si_signo = 0,
+		.si_sigyes = 0,
 	};
 
 	pid = sys_clone3(&args);
 	if (pid < 0)
 		ksft_exit_fail_msg("%s test: failed to create new process %s\n",
-				   test_name, strerror(errno));
+				   test_name, strerror(erryes));
 
 	if (pid == 0) {
 		kill(getpid(), SIGSTOP);
@@ -149,109 +149,109 @@ static int test_pidfd_wait_states(void)
 	if (ret < 0)
 		ksft_exit_fail_msg(
 			"%s test: failed to wait on WSTOPPED process with pid %d and pidfd %d: %s\n",
-			test_name, parent_tid, pidfd, strerror(errno));
+			test_name, parent_tid, pidfd, strerror(erryes));
 
-	if (info.si_signo != SIGCHLD)
+	if (info.si_sigyes != SIGCHLD)
 		ksft_exit_fail_msg(
-			"%s test: unexpected si_signo value %d received after waiting on process with pid %d and pidfd %d: %s\n",
-			test_name, info.si_signo, parent_tid, pidfd,
-			strerror(errno));
+			"%s test: unexpected si_sigyes value %d received after waiting on process with pid %d and pidfd %d: %s\n",
+			test_name, info.si_sigyes, parent_tid, pidfd,
+			strerror(erryes));
 
 	if (info.si_code != CLD_STOPPED)
 		ksft_exit_fail_msg(
 			"%s test: unexpected si_code value %d received after waiting on process with pid %d and pidfd %d: %s\n",
 			test_name, info.si_code, parent_tid, pidfd,
-			strerror(errno));
+			strerror(erryes));
 
 	if (info.si_pid != parent_tid)
 		ksft_exit_fail_msg(
 			"%s test: unexpected si_pid value %d received after waiting on process with pid %d and pidfd %d: %s\n",
 			test_name, info.si_pid, parent_tid, pidfd,
-			strerror(errno));
+			strerror(erryes));
 
 	ret = sys_pidfd_send_signal(pidfd, SIGCONT, NULL, 0);
 	if (ret < 0)
 		ksft_exit_fail_msg(
 			"%s test: failed to send signal to process with pid %d and pidfd %d: %s\n",
-			test_name, parent_tid, pidfd, strerror(errno));
+			test_name, parent_tid, pidfd, strerror(erryes));
 
 	ret = sys_waitid(P_PIDFD, pidfd, &info, WCONTINUED, NULL);
 	if (ret < 0)
 		ksft_exit_fail_msg(
 			"%s test: failed to wait WCONTINUED on process with pid %d and pidfd %d: %s\n",
-			test_name, parent_tid, pidfd, strerror(errno));
+			test_name, parent_tid, pidfd, strerror(erryes));
 
-	if (info.si_signo != SIGCHLD)
+	if (info.si_sigyes != SIGCHLD)
 		ksft_exit_fail_msg(
-			"%s test: unexpected si_signo value %d received after waiting on process with pid %d and pidfd %d: %s\n",
-			test_name, info.si_signo, parent_tid, pidfd,
-			strerror(errno));
+			"%s test: unexpected si_sigyes value %d received after waiting on process with pid %d and pidfd %d: %s\n",
+			test_name, info.si_sigyes, parent_tid, pidfd,
+			strerror(erryes));
 
 	if (info.si_code != CLD_CONTINUED)
 		ksft_exit_fail_msg(
 			"%s test: unexpected si_code value %d received after waiting on process with pid %d and pidfd %d: %s\n",
 			test_name, info.si_code, parent_tid, pidfd,
-			strerror(errno));
+			strerror(erryes));
 
 	if (info.si_pid != parent_tid)
 		ksft_exit_fail_msg(
 			"%s test: unexpected si_pid value %d received after waiting on process with pid %d and pidfd %d: %s\n",
 			test_name, info.si_pid, parent_tid, pidfd,
-			strerror(errno));
+			strerror(erryes));
 
 	ret = sys_waitid(P_PIDFD, pidfd, &info, WUNTRACED, NULL);
 	if (ret < 0)
 		ksft_exit_fail_msg(
 			"%s test: failed to wait on WUNTRACED process with pid %d and pidfd %d: %s\n",
-			test_name, parent_tid, pidfd, strerror(errno));
+			test_name, parent_tid, pidfd, strerror(erryes));
 
-	if (info.si_signo != SIGCHLD)
+	if (info.si_sigyes != SIGCHLD)
 		ksft_exit_fail_msg(
-			"%s test: unexpected si_signo value %d received after waiting on process with pid %d and pidfd %d: %s\n",
-			test_name, info.si_signo, parent_tid, pidfd,
-			strerror(errno));
+			"%s test: unexpected si_sigyes value %d received after waiting on process with pid %d and pidfd %d: %s\n",
+			test_name, info.si_sigyes, parent_tid, pidfd,
+			strerror(erryes));
 
 	if (info.si_code != CLD_STOPPED)
 		ksft_exit_fail_msg(
 			"%s test: unexpected si_code value %d received after waiting on process with pid %d and pidfd %d: %s\n",
 			test_name, info.si_code, parent_tid, pidfd,
-			strerror(errno));
+			strerror(erryes));
 
 	if (info.si_pid != parent_tid)
 		ksft_exit_fail_msg(
 			"%s test: unexpected si_pid value %d received after waiting on process with pid %d and pidfd %d: %s\n",
 			test_name, info.si_pid, parent_tid, pidfd,
-			strerror(errno));
+			strerror(erryes));
 
 	ret = sys_pidfd_send_signal(pidfd, SIGKILL, NULL, 0);
 	if (ret < 0)
 		ksft_exit_fail_msg(
 			"%s test: failed to send SIGKILL to process with pid %d and pidfd %d: %s\n",
-			test_name, parent_tid, pidfd, strerror(errno));
+			test_name, parent_tid, pidfd, strerror(erryes));
 
 	ret = sys_waitid(P_PIDFD, pidfd, &info, WEXITED, NULL);
 	if (ret < 0)
 		ksft_exit_fail_msg(
 			"%s test: failed to wait on WEXITED process with pid %d and pidfd %d: %s\n",
-			test_name, parent_tid, pidfd, strerror(errno));
+			test_name, parent_tid, pidfd, strerror(erryes));
 
-	if (info.si_signo != SIGCHLD)
+	if (info.si_sigyes != SIGCHLD)
 		ksft_exit_fail_msg(
-			"%s test: unexpected si_signo value %d received after waiting on process with pid %d and pidfd %d: %s\n",
-			test_name, info.si_signo, parent_tid, pidfd,
-			strerror(errno));
+			"%s test: unexpected si_sigyes value %d received after waiting on process with pid %d and pidfd %d: %s\n",
+			test_name, info.si_sigyes, parent_tid, pidfd,
+			strerror(erryes));
 
 	if (info.si_code != CLD_KILLED)
 		ksft_exit_fail_msg(
 			"%s test: unexpected si_code value %d received after waiting on process with pid %d and pidfd %d: %s\n",
 			test_name, info.si_code, parent_tid, pidfd,
-			strerror(errno));
+			strerror(erryes));
 
 	if (info.si_pid != parent_tid)
 		ksft_exit_fail_msg(
 			"%s test: unexpected si_pid value %d received after waiting on process with pid %d and pidfd %d: %s\n",
 			test_name, info.si_pid, parent_tid, pidfd,
-			strerror(errno));
+			strerror(erryes));
 
 	close(pidfd);
 

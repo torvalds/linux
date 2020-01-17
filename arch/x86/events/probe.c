@@ -5,7 +5,7 @@
 #include "probe.h"
 
 static umode_t
-not_visible(struct kobject *kobj, struct attribute *attr, int i)
+yest_visible(struct kobject *kobj, struct attribute *attr, int i)
 {
 	return 0;
 }
@@ -21,14 +21,14 @@ perf_msr_probe(struct perf_msr *msr, int cnt, bool zero, void *data)
 		return 0;
 
 	for (bit = 0; bit < cnt; bit++) {
-		if (!msr[bit].no_check) {
+		if (!msr[bit].yes_check) {
 			struct attribute_group *grp = msr[bit].grp;
 
-			grp->is_visible = not_visible;
+			grp->is_visible = yest_visible;
 
 			if (msr[bit].test && !msr[bit].test(bit, data))
 				continue;
-			/* Virt sucks; you cannot tell if a R/O MSR is present :/ */
+			/* Virt sucks; you canyest tell if a R/O MSR is present :/ */
 			if (rdmsrl_safe(msr[bit].msr, &val))
 				continue;
 			/* Disable zero counters if requested. */

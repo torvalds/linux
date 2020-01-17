@@ -23,11 +23,11 @@ struct evrec_short {
 	unsigned char parm2;
 };
 	
-/* short note events (4bytes) */
-struct evrec_note {
+/* short yeste events (4bytes) */
+struct evrec_yeste {
 	unsigned char code;
 	unsigned char chn;
-	unsigned char note;
+	unsigned char yeste;
 	unsigned char vel;
 };
 	
@@ -64,7 +64,7 @@ struct evrec_voice {
 	unsigned char dev;
 	unsigned char cmd;
 	unsigned char chn;
-	unsigned char note, parm;
+	unsigned char yeste, parm;
 	unsigned short dummy;
 };
 
@@ -78,7 +78,7 @@ struct evrec_sysex {
 /* event record */
 union evrec {
 	struct evrec_short s;
-	struct evrec_note n;
+	struct evrec_yeste n;
 	struct evrec_long l;
 	struct evrec_voice v;
 	struct evrec_timer t;

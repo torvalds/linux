@@ -20,8 +20,8 @@ static int utimes_common(const struct path *path, struct timespec64 *times)
 {
 	int error;
 	struct iattr newattrs;
-	struct inode *inode = path->dentry->d_inode;
-	struct inode *delegated_inode = NULL;
+	struct iyesde *iyesde = path->dentry->d_iyesde;
+	struct iyesde *delegated_iyesde = NULL;
 
 	error = mnt_want_write(path->mnt);
 	if (error)
@@ -36,19 +36,19 @@ static int utimes_common(const struct path *path, struct timespec64 *times)
 		if (times[0].tv_nsec == UTIME_OMIT)
 			newattrs.ia_valid &= ~ATTR_ATIME;
 		else if (times[0].tv_nsec != UTIME_NOW) {
-			newattrs.ia_atime = timestamp_truncate(times[0], inode);
+			newattrs.ia_atime = timestamp_truncate(times[0], iyesde);
 			newattrs.ia_valid |= ATTR_ATIME_SET;
 		}
 
 		if (times[1].tv_nsec == UTIME_OMIT)
 			newattrs.ia_valid &= ~ATTR_MTIME;
 		else if (times[1].tv_nsec != UTIME_NOW) {
-			newattrs.ia_mtime = timestamp_truncate(times[1], inode);
+			newattrs.ia_mtime = timestamp_truncate(times[1], iyesde);
 			newattrs.ia_valid |= ATTR_MTIME_SET;
 		}
 		/*
 		 * Tell setattr_prepare(), that this is an explicit time
-		 * update, even if neither ATTR_ATIME_SET nor ATTR_MTIME_SET
+		 * update, even if neither ATTR_ATIME_SET yesr ATTR_MTIME_SET
 		 * were used.
 		 */
 		newattrs.ia_valid |= ATTR_TIMES_SET;
@@ -56,11 +56,11 @@ static int utimes_common(const struct path *path, struct timespec64 *times)
 		newattrs.ia_valid |= ATTR_TOUCH;
 	}
 retry_deleg:
-	inode_lock(inode);
-	error = notify_change(path->dentry, &newattrs, &delegated_inode);
-	inode_unlock(inode);
-	if (delegated_inode) {
-		error = break_deleg_wait(&delegated_inode);
+	iyesde_lock(iyesde);
+	error = yestify_change(path->dentry, &newattrs, &delegated_iyesde);
+	iyesde_unlock(iyesde);
+	if (delegated_iyesde) {
+		error = break_deleg_wait(&delegated_iyesde);
 		if (!error)
 			goto retry_deleg;
 	}
@@ -144,7 +144,7 @@ SYSCALL_DEFINE4(utimensat, int, dfd, const char __user *, filename,
 			get_timespec64(&tstimes[1], &utimes[1])))
 			return -EFAULT;
 
-		/* Nothing to do, we must not even check the path.  */
+		/* Nothing to do, we must yest even check the path.  */
 		if (tstimes[0].tv_nsec == UTIME_OMIT &&
 		    tstimes[1].tv_nsec == UTIME_OMIT)
 			return 0;

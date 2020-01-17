@@ -18,7 +18,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -115,7 +115,7 @@ int smb2_get_sign_key(__u64 ses_id, struct TCP_Server_Info *server, u8 *key)
 				goto found;
 		}
 	}
-	cifs_server_dbg(VFS, "%s: Could not find session 0x%llx\n",
+	cifs_server_dbg(VFS, "%s: Could yest find session 0x%llx\n",
 			__func__, ses_id);
 	rc = -ENOENT;
 	goto out;
@@ -144,7 +144,7 @@ found:
 	}
 
 	cifs_dbg(VFS,
-		 "%s: Could not find channel signing key for session 0x%llx\n",
+		 "%s: Could yest find channel signing key for session 0x%llx\n",
 		 __func__, ses_id);
 	rc = -ENOENT;
 
@@ -231,7 +231,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 
 	ses = smb2_find_smb_ses(server, shdr->SessionId);
 	if (!ses) {
-		cifs_server_dbg(VFS, "%s: Could not find session\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest find session\n", __func__);
 		return 0;
 	}
 
@@ -247,20 +247,20 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	rc = crypto_shash_setkey(server->secmech.hmacsha256,
 				 ses->auth_key.response, SMB2_NTLMV2_SESSKEY_SIZE);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with response\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest update with response\n", __func__);
 		return rc;
 	}
 
 	shash = &server->secmech.sdeschmacsha256->shash;
 	rc = crypto_shash_init(shash);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not init sha256", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest init sha256", __func__);
 		return rc;
 	}
 
 	/*
 	 * For SMB2+, __cifs_calc_signature() expects to sign only the actual
-	 * data, that is, iov[0] should not contain a rfc1002 length.
+	 * data, that is, iov[0] should yest contain a rfc1002 length.
 	 *
 	 * Sign the rfc1002 length prior to passing the data (iov[1-N]) down to
 	 * __cifs_calc_signature().
@@ -270,7 +270,7 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		rc = crypto_shash_update(shash, iov[0].iov_base,
 					 iov[0].iov_len);
 		if (rc) {
-			cifs_server_dbg(VFS, "%s: Could not update with payload\n",
+			cifs_server_dbg(VFS, "%s: Could yest update with payload\n",
 				 __func__);
 			return rc;
 		}
@@ -308,55 +308,55 @@ static int generate_key(struct cifs_ses *ses, struct kvec label,
 	rc = crypto_shash_setkey(server->secmech.hmacsha256,
 		ses->auth_key.response, SMB2_NTLMV2_SESSKEY_SIZE);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not set with session key\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest set with session key\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_init(&server->secmech.sdeschmacsha256->shash);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not init sign hmac\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest init sign hmac\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
 				i, 4);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with n\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest update with n\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
 				label.iov_base, label.iov_len);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with label\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest update with label\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
 				&zero, 1);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with zero\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest update with zero\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
 				context.iov_base, context.iov_len);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with context\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest update with context\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
 				L, 4);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not update with L\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest update with L\n", __func__);
 		goto smb3signkey_ret;
 	}
 
 	rc = crypto_shash_final(&server->secmech.sdeschmacsha256->shash,
 				hashptr);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not generate sha256 hash\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest generate sha256 hash\n", __func__);
 		goto smb3signkey_ret;
 	}
 
@@ -389,7 +389,7 @@ generate_smb3signingkey(struct cifs_ses *ses,
 	 *
 	 * When we generate the keys, check if it is for a new channel
 	 * (binding) in which case we only need to generate a signing
-	 * key and store it in the channel as to not overwrite the
+	 * key and store it in the channel as to yest overwrite the
 	 * master connection signing key stored in the session
 	 */
 
@@ -524,24 +524,24 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	rc = crypto_shash_setkey(server->secmech.cmacaes,
 				 key, SMB2_CMACAES_SIZE);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not set key for cmac aes\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest set key for cmac aes\n", __func__);
 		return rc;
 	}
 
 	/*
 	 * we already allocate sdesccmacaes when we init smb3 signing key,
-	 * so unlike smb2 case we do not have to check here if secmech are
+	 * so unlike smb2 case we do yest have to check here if secmech are
 	 * initialized
 	 */
 	rc = crypto_shash_init(shash);
 	if (rc) {
-		cifs_server_dbg(VFS, "%s: Could not init cmac aes\n", __func__);
+		cifs_server_dbg(VFS, "%s: Could yest init cmac aes\n", __func__);
 		return rc;
 	}
 
 	/*
 	 * For SMB2+, __cifs_calc_signature() expects to sign only the actual
-	 * data, that is, iov[0] should not contain a rfc1002 length.
+	 * data, that is, iov[0] should yest contain a rfc1002 length.
 	 *
 	 * Sign the rfc1002 length prior to passing the data (iov[1-N]) down to
 	 * __cifs_calc_signature().
@@ -551,7 +551,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		rc = crypto_shash_update(shash, iov[0].iov_base,
 					 iov[0].iov_len);
 		if (rc) {
-			cifs_server_dbg(VFS, "%s: Could not update with payload\n",
+			cifs_server_dbg(VFS, "%s: Could yest update with payload\n",
 				 __func__);
 			return rc;
 		}
@@ -608,16 +608,16 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	if ((shdr->Command == SMB2_NEGOTIATE) ||
 	    (shdr->Command == SMB2_SESSION_SETUP) ||
 	    (shdr->Command == SMB2_OPLOCK_BREAK) ||
-	    server->ignore_signature ||
+	    server->igyesre_signature ||
 	    (!server->session_estab))
 		return 0;
 
 	/*
 	 * BB what if signatures are supposed to be on for session but
-	 * server does not send one? BB
+	 * server does yest send one? BB
 	 */
 
-	/* Do not need to verify session setups with signature "BSRSPYL " */
+	/* Do yest need to verify session setups with signature "BSRSPYL " */
 	if (memcmp(shdr->Signature, "BSRSPYL ", 8) == 0)
 		cifs_dbg(FYI, "dummy signature received for smb command 0x%x\n",
 			 shdr->Command);
@@ -682,7 +682,7 @@ smb2_mid_entry_alloc(const struct smb2_sync_hdr *shdr,
 	temp->server = server;
 
 	/*
-	 * The default is for the mid to be synchronous, so the
+	 * The default is for the mid to be synchroyesus, so the
 	 * default callback just wakes up the current task.
 	 */
 	temp->callback = cifs_wake_up_task;

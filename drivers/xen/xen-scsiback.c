@@ -19,7 +19,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -324,7 +324,7 @@ static void scsiback_send_response(struct vscsibk_info *info,
 			uint16_t rqid)
 {
 	struct vscsiif_response *ring_res;
-	int notify;
+	int yestify;
 	struct scsi_sense_hdr sshdr;
 	unsigned long flags;
 	unsigned len;
@@ -338,7 +338,7 @@ static void scsiback_send_response(struct vscsibk_info *info,
 	ring_res->rqid   = rqid;
 
 	if (sense_buffer != NULL &&
-	    scsi_normalize_sense(sense_buffer, VSCSIIF_SENSE_BUFFERSIZE,
+	    scsi_yesrmalize_sense(sense_buffer, VSCSIIF_SENSE_BUFFERSIZE,
 				 &sshdr)) {
 		len = min_t(unsigned, 8 + sense_buffer[7],
 			    VSCSIIF_SENSE_BUFFERSIZE);
@@ -350,11 +350,11 @@ static void scsiback_send_response(struct vscsibk_info *info,
 
 	ring_res->residual_len = resid;
 
-	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&info->ring, notify);
+	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&info->ring, yestify);
 	spin_unlock_irqrestore(&info->ring_lock, flags);
 
-	if (notify)
-		notify_remote_via_irq(info->irq);
+	if (yestify)
+		yestify_remote_via_irq(info->irq);
 }
 
 static void scsiback_do_resp_with_sense(char *sense_buffer, int32_t result,
@@ -426,7 +426,7 @@ static int scsiback_gnttab_data_map_batch(struct gnttab_map_grant_ref *map,
 	BUG_ON(err);
 	for (i = 0; i < cnt; i++) {
 		if (unlikely(map[i].status != GNTST_okay)) {
-			pr_err("invalid buffer -- could not remap it\n");
+			pr_err("invalid buffer -- could yest remap it\n");
 			map[i].handle = SCSIBACK_INVALID_HANDLE;
 			err = -ENOMEM;
 		} else {
@@ -448,7 +448,7 @@ static int scsiback_gnttab_data_map_list(struct vscsibk_pend *pending_req,
 	for (i = 0; i < cnt; i++) {
 		if (get_free_page(pg + mapcount)) {
 			put_free_pages(pg, mapcount);
-			pr_err("no grant page\n");
+			pr_err("yes grant page\n");
 			return -ENOMEM;
 		}
 		gnttab_set_map_op(&map[mapcount], vaddr_page(pg[mapcount]),
@@ -910,7 +910,7 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	lunp++;
 	err = kstrtoull(lunp, 10, &unpacked_lun);
 	if (err < 0) {
-		pr_err("lun number not valid: %s\n", lunp);
+		pr_err("lun number yest valid: %s\n", lunp);
 		return err;
 	}
 
@@ -954,7 +954,7 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 
 	/* Check double assignment to identical virtual ID */
 	if (scsiback_chk_translation_entry(info, v)) {
-		pr_warn("Virtual ID is already used. Assignment was not performed.\n");
+		pr_warn("Virtual ID is already used. Assignment was yest performed.\n");
 		err = -EEXIST;
 		goto out;
 	}
@@ -1023,13 +1023,13 @@ static void scsiback_do_add_lun(struct vscsibk_info *info, const char *state,
 			return;
 	}
 	if (!scsiback_add_translation_entry(info, phy, vir)) {
-		if (xenbus_printf(XBT_NIL, info->dev->nodename, state,
+		if (xenbus_printf(XBT_NIL, info->dev->yesdename, state,
 				  "%d", XenbusStateInitialised)) {
 			pr_err("xenbus_printf error %s\n", state);
 			scsiback_del_translation_entry(info, vir);
 		}
 	} else if (!try) {
-		err = xenbus_printf(XBT_NIL, info->dev->nodename, state,
+		err = xenbus_printf(XBT_NIL, info->dev->yesdename, state,
 			      "%d", XenbusStateClosed);
 		if (err)
 			xenbus_dev_error(info->dev, err,
@@ -1041,7 +1041,7 @@ static void scsiback_do_del_lun(struct vscsibk_info *info, const char *state,
 				struct ids_tuple *vir)
 {
 	if (!scsiback_del_translation_entry(info, vir)) {
-		if (xenbus_printf(XBT_NIL, info->dev->nodename, state,
+		if (xenbus_printf(XBT_NIL, info->dev->yesdename, state,
 				  "%d", XenbusStateClosed))
 			pr_err("xenbus_printf error %s\n", state);
 	}
@@ -1064,15 +1064,15 @@ static void scsiback_do_1lun_hotplug(struct vscsibk_info *info, int op,
 
 	/* read status */
 	snprintf(state, sizeof(state), "vscsi-devs/%s/state", ent);
-	err = xenbus_scanf(XBT_NIL, dev->nodename, state, "%u", &device_state);
+	err = xenbus_scanf(XBT_NIL, dev->yesdename, state, "%u", &device_state);
 	if (XENBUS_EXIST_ERR(err))
 		return;
 
 	/* physical SCSI device */
 	snprintf(str, sizeof(str), "vscsi-devs/%s/p-dev", ent);
-	val = xenbus_read(XBT_NIL, dev->nodename, str, NULL);
+	val = xenbus_read(XBT_NIL, dev->yesdename, str, NULL);
 	if (IS_ERR(val)) {
-		err = xenbus_printf(XBT_NIL, dev->nodename, state,
+		err = xenbus_printf(XBT_NIL, dev->yesdename, state,
 			      "%d", XenbusStateClosed);
 		if (err)
 			xenbus_dev_error(info->dev, err,
@@ -1084,10 +1084,10 @@ static void scsiback_do_1lun_hotplug(struct vscsibk_info *info, int op,
 
 	/* virtual SCSI device */
 	snprintf(str, sizeof(str), "vscsi-devs/%s/v-dev", ent);
-	err = xenbus_scanf(XBT_NIL, dev->nodename, str, "%u:%u:%u:%u",
+	err = xenbus_scanf(XBT_NIL, dev->yesdename, str, "%u:%u:%u:%u",
 			   &vir.hst, &vir.chn, &vir.tgt, &vir.lun);
 	if (XENBUS_EXIST_ERR(err)) {
-		err = xenbus_printf(XBT_NIL, dev->nodename, state,
+		err = xenbus_printf(XBT_NIL, dev->yesdename, state,
 			      "%d", XenbusStateClosed);
 		if (err)
 			xenbus_dev_error(info->dev, err,
@@ -1115,11 +1115,11 @@ static void scsiback_do_1lun_hotplug(struct vscsibk_info *info, int op,
 	case VSCSIBACK_OP_UPDATEDEV_STATE:
 		if (device_state == XenbusStateInitialised) {
 			/* modify vscsi-devs/dev-x/state */
-			if (xenbus_printf(XBT_NIL, dev->nodename, state,
+			if (xenbus_printf(XBT_NIL, dev->yesdename, state,
 					  "%d", XenbusStateConnected)) {
 				pr_err("xenbus_printf error %s\n", str);
 				scsiback_del_translation_entry(info, &vir);
-				xenbus_printf(XBT_NIL, dev->nodename, state,
+				xenbus_printf(XBT_NIL, dev->yesdename, state,
 					      "%d", XenbusStateClosed);
 			}
 		}
@@ -1136,7 +1136,7 @@ static void scsiback_do_lun_hotplug(struct vscsibk_info *info, int op)
 	char **dir;
 	unsigned int ndir = 0;
 
-	dir = xenbus_directory(XBT_NIL, info->dev->nodename, "vscsi-devs",
+	dir = xenbus_directory(XBT_NIL, info->dev->yesdename, "vscsi-devs",
 			       &ndir);
 	if (IS_ERR(dir))
 		return;
@@ -1184,8 +1184,8 @@ static void scsiback_frontend_changed(struct xenbus_device *dev,
 		xenbus_switch_state(dev, XenbusStateClosed);
 		if (xenbus_dev_is_online(dev))
 			break;
-		/* fall through - if not online */
-	case XenbusStateUnknown:
+		/* fall through - if yest online */
+	case XenbusStateUnkyeswn:
 		device_unregister(&dev->dev);
 		break;
 
@@ -1260,7 +1260,7 @@ static int scsiback_probe(struct xenbus_device *dev,
 	INIT_LIST_HEAD(&info->v2p_entry_lists);
 	spin_lock_init(&info->v2p_lock);
 
-	err = xenbus_printf(XBT_NIL, dev->nodename, "feature-sg-grant", "%u",
+	err = xenbus_printf(XBT_NIL, dev->yesdename, "feature-sg-grant", "%u",
 			    SG_ALL);
 	if (err)
 		xenbus_dev_error(dev, err, "writing feature-sg-grant");
@@ -1291,7 +1291,7 @@ static char *scsiback_dump_proto_id(struct scsiback_tport *tport)
 		break;
 	}
 
-	return "Unknown";
+	return "Unkyeswn";
 }
 
 static char *scsiback_get_fabric_wwn(struct se_portal_group *se_tpg)
@@ -1404,7 +1404,7 @@ static int scsiback_write_pending(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static void scsiback_set_default_node_attrs(struct se_node_acl *nacl)
+static void scsiback_set_default_yesde_attrs(struct se_yesde_acl *nacl)
 {
 }
 
@@ -1576,7 +1576,7 @@ static int scsiback_drop_nexus(struct scsiback_tpg *tpg)
 
 	pr_debug("Removing I_T Nexus to emulated %s Initiator Port: %s\n",
 		scsiback_dump_proto_id(tpg->tport),
-		tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+		tv_nexus->tvn_se_sess->se_yesde_acl->initiatorname);
 
 	/*
 	 * Release the SCSI I_T Nexus to the emulated xen-pvscsi Target Port
@@ -1604,7 +1604,7 @@ static ssize_t scsiback_tpg_nexus_show(struct config_item *item, char *page)
 		return -ENODEV;
 	}
 	ret = snprintf(page, PAGE_SIZE, "%s\n",
-			tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+			tv_nexus->tvn_se_sess->se_yesde_acl->initiatorname);
 	mutex_unlock(&tpg->tv_tpg_mutex);
 
 	return ret;
@@ -1641,7 +1641,7 @@ static ssize_t scsiback_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "naa.");
 	if (ptr) {
 		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_SAS) {
-			pr_err("Passed SAS Initiator Port %s does not match target port protoid: %s\n",
+			pr_err("Passed SAS Initiator Port %s does yest match target port protoid: %s\n",
 				i_port, scsiback_dump_proto_id(tport_wwn));
 			return -EINVAL;
 		}
@@ -1651,7 +1651,7 @@ static ssize_t scsiback_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "fc.");
 	if (ptr) {
 		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_FCP) {
-			pr_err("Passed FCP Initiator Port %s does not match target port protoid: %s\n",
+			pr_err("Passed FCP Initiator Port %s does yest match target port protoid: %s\n",
 				i_port, scsiback_dump_proto_id(tport_wwn));
 			return -EINVAL;
 		}
@@ -1661,7 +1661,7 @@ static ssize_t scsiback_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "iqn.");
 	if (ptr) {
 		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_ISCSI) {
-			pr_err("Passed iSCSI Initiator Port %s does not match target port protoid: %s\n",
+			pr_err("Passed iSCSI Initiator Port %s does yest match target port protoid: %s\n",
 				i_port, scsiback_dump_proto_id(tport_wwn));
 			return -EINVAL;
 		}
@@ -1813,7 +1813,7 @@ static const struct target_core_fabric_ops scsiback_ops = {
 	.sess_get_index			= scsiback_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= scsiback_write_pending,
-	.set_default_node_attributes	= scsiback_set_default_node_attrs,
+	.set_default_yesde_attributes	= scsiback_set_default_yesde_attrs,
 	.get_cmd_state			= scsiback_get_cmd_state,
 	.queue_data_in			= scsiback_queue_data_in,
 	.queue_status			= scsiback_queue_status,

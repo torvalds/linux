@@ -152,7 +152,7 @@ static int mcf_startup(struct uart_port *port)
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	/* Reset UART, get it into known state... */
+	/* Reset UART, get it into kyeswn state... */
 	writeb(MCFUART_UCR_CMDRESETRX, port->membase + MCFUART_UCR);
 	writeb(MCFUART_UCR_CMDRESETTX, port->membase + MCFUART_UCR);
 
@@ -160,7 +160,7 @@ static int mcf_startup(struct uart_port *port)
 	writeb(MCFUART_UCR_RXENABLE | MCFUART_UCR_TXENABLE,
 		port->membase + MCFUART_UCR);
 
-	/* Enable RX interrupts now */
+	/* Enable RX interrupts yesw */
 	pp->imr = MCFUART_UIR_RXREADY;
 	writeb(pp->imr, port->membase + MCFUART_UIMR);
 
@@ -178,7 +178,7 @@ static void mcf_shutdown(struct uart_port *port)
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	/* Disable all interrupts now */
+	/* Disable all interrupts yesw */
 	pp->imr = 0;
 	writeb(pp->imr, port->membase + MCFUART_UIMR);
 
@@ -237,7 +237,7 @@ static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	/*
-	 * FIXME: port->read_status_mask and port->ignore_status_mask
+	 * FIXME: port->read_status_mask and port->igyesre_status_mask
 	 * need to be initialized based on termios settings for
 	 * INPCK, IGNBRK, IGNPAR, PARMRK, BRKINT
 	 */
@@ -392,7 +392,7 @@ static void mcf_config_port(struct uart_port *port, int flags)
 	port->type = PORT_MCF;
 	port->fifosize = MCFUART_TXFIFOSIZE;
 
-	/* Clear mask, so no surprise interrupts. */
+	/* Clear mask, so yes surprise interrupts. */
 	writeb(0, port->membase + MCFUART_UIMR);
 
 	if (request_irq(port->irq, mcf_interrupt, 0, "UART", port))
@@ -604,7 +604,7 @@ static struct uart_driver mcf_driver = {
 	.driver_name	= "mcf",
 	.dev_name	= "ttyS",
 	.major		= TTY_MAJOR,
-	.minor		= 64,
+	.miyesr		= 64,
 	.nr		= MCF_MAXPORTS,
 	.cons		= MCF_CONSOLE,
 };

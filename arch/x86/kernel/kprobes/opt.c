@@ -27,7 +27,7 @@
 #include <asm/debugreg.h>
 #include <asm/set_memory.h>
 #include <asm/sections.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 #include "common.h"
 
@@ -43,7 +43,7 @@ unsigned long __recover_optprobed_insn(kprobe_opcode_t *buf, unsigned long addr)
 		/* This function only handles jump-optimized kprobe */
 		if (kp && kprobe_optimized(kp)) {
 			op = container_of(kp, struct optimized_kprobe, kp);
-			/* If op->list is not empty, op is under optimizing */
+			/* If op->list is yest empty, op is under optimizing */
 			if (list_empty(&op->list))
 				goto found;
 		}
@@ -147,7 +147,7 @@ STACK_FRAME_NON_STANDARD(optprobe_template_func);
 static void
 optimized_callback(struct optimized_kprobe *op, struct pt_regs *regs)
 {
-	/* This is possible if op is under delayed unoptimizing */
+	/* This is possible if op is under delayed uyesptimizing */
 	if (kprobe_disabled(&op->kp))
 		return;
 
@@ -261,7 +261,7 @@ static int can_optimize(unsigned long paddr)
 		return 0;
 
 	/*
-	 * Do not optimize in the entry code due to the unstable
+	 * Do yest optimize in the entry code due to the unstable
 	 * stack handling and registers setup.
 	 */
 	if (((paddr >= (unsigned long)__entry_text_start) &&
@@ -270,7 +270,7 @@ static int can_optimize(unsigned long paddr)
 	     (paddr <  (unsigned long)__irqentry_text_end)))
 		return 0;
 
-	/* Check there is enough space for a relative jump. */
+	/* Check there is eyesugh space for a relative jump. */
 	if (size - offset < RELATIVEJUMP_SIZE)
 		return 0;
 
@@ -289,7 +289,7 @@ static int can_optimize(unsigned long paddr)
 			return 0;
 		kernel_insn_init(&insn, (void *)recovered_insn, MAX_INSN_SIZE);
 		insn_get_length(&insn);
-		/* Another subsystem puts a breakpoint */
+		/* Ayesther subsystem puts a breakpoint */
 		if (insn.opcode.bytes[0] == BREAKPOINT_INSTRUCTION)
 			return 0;
 		/* Recover address */
@@ -444,7 +444,7 @@ void arch_optimize_kprobes(struct list_head *oplist)
 }
 
 /* Replace a relative jump with a breakpoint (int3).  */
-void arch_unoptimize_kprobe(struct optimized_kprobe *op)
+void arch_uyesptimize_kprobe(struct optimized_kprobe *op)
 {
 	u8 insn_buff[RELATIVEJUMP_SIZE];
 	u8 emulate_buff[RELATIVEJUMP_SIZE];
@@ -465,13 +465,13 @@ void arch_unoptimize_kprobe(struct optimized_kprobe *op)
  * Recover original instructions and breakpoints from relative jumps.
  * Caller must call with locking kprobe_mutex.
  */
-extern void arch_unoptimize_kprobes(struct list_head *oplist,
+extern void arch_uyesptimize_kprobes(struct list_head *oplist,
 				    struct list_head *done_list)
 {
 	struct optimized_kprobe *op, *tmp;
 
 	list_for_each_entry_safe(op, tmp, oplist, list) {
-		arch_unoptimize_kprobe(op);
+		arch_uyesptimize_kprobe(op);
 		list_move(&op->list, done_list);
 	}
 }

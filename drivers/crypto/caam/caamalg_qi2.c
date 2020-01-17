@@ -31,8 +31,8 @@
  * can allocate short buffers. It's speedier than doing kmalloc on the hotpath.
  * NOTE: A more elegant solution would be to have some headroom in the frames
  *       being processed. This can be added by the dpaa2-eth driver. This would
- *       pose a problem for userspace application processing which cannot
- *       know of this limitation. So for now, this will work.
+ *       pose a problem for userspace application processing which canyest
+ *       kyesw of this limitation. So for yesw, this will work.
  * NOTE: The memcache is SMP-safe. No need to handle spinlocks in-here
  */
 static struct kmem_cache *qi_cache;
@@ -43,7 +43,7 @@ struct caam_alg_entry {
 	int class2_alg_type;
 	bool rfc3686;
 	bool geniv;
-	bool nodkp;
+	bool yesdkp;
 };
 
 struct caam_aead_alg {
@@ -171,7 +171,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	struct caam_flc *flc;
 	u32 *desc;
 	u32 ctx1_iv_off = 0;
-	u32 *nonce = NULL;
+	u32 *yesnce = NULL;
 	unsigned int data_len[2];
 	u32 inl_mask;
 	const bool ctr_mode = ((ctx->cdata.algtype & OP_ALG_AAI_MASK) ==
@@ -195,7 +195,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	 */
 	if (is_rfc3686) {
 		ctx1_iv_off = 16 + CTR_RFC3686_NONCE_SIZE;
-		nonce = (u32 *)((void *)ctx->key + ctx->adata.keylen_pad +
+		yesnce = (u32 *)((void *)ctx->key + ctx->adata.keylen_pad +
 				ctx->cdata.keylen - CTR_RFC3686_NONCE_SIZE);
 	}
 
@@ -231,11 +231,11 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	if (alg->caam.geniv)
 		cnstr_shdsc_aead_givencap(desc, &ctx->cdata, &ctx->adata,
 					  ivsize, ctx->authsize, is_rfc3686,
-					  nonce, ctx1_iv_off, true,
+					  yesnce, ctx1_iv_off, true,
 					  priv->sec_attr.era);
 	else
 		cnstr_shdsc_aead_encap(desc, &ctx->cdata, &ctx->adata,
-				       ivsize, ctx->authsize, is_rfc3686, nonce,
+				       ivsize, ctx->authsize, is_rfc3686, yesnce,
 				       ctx1_iv_off, true, priv->sec_attr.era);
 
 	flc->flc[1] = cpu_to_caam32(desc_len(desc)); /* SDL */
@@ -257,7 +257,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	desc = flc->sh_desc;
 	cnstr_shdsc_aead_decap(desc, &ctx->cdata, &ctx->adata,
 			       ivsize, ctx->authsize, alg->caam.geniv,
-			       is_rfc3686, nonce, ctx1_iv_off, true,
+			       is_rfc3686, yesnce, ctx1_iv_off, true,
 			       priv->sec_attr.era);
 	flc->flc[1] = cpu_to_caam32(desc_len(desc)); /* SDL */
 	dma_sync_single_for_device(dev, ctx->flc_dma[DECRYPT],
@@ -370,7 +370,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	/* allocate space for base edesc, link tables and IV */
 	edesc = qi_cache_zalloc(GFP_DMA | flags);
 	if (unlikely(!edesc)) {
-		dev_err(dev, "could not allocate extended descriptor\n");
+		dev_err(dev, "could yest allocate extended descriptor\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -445,7 +445,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 
 	/*
 	 * Create S/G table: req->assoclen, [IV,] req->src [, req->dst].
-	 * Input is not contiguous.
+	 * Input is yest contiguous.
 	 * HW reads 4 S/G entries at a time; make sure the reads don't go beyond
 	 * the end of the table by allocating more S/G entries. Logic:
 	 * if (src != dst && output S/G)
@@ -564,7 +564,7 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 		/*
 		 * crypto engine requires the output entry to be present when
 		 * "frame list" FD is used.
-		 * Since engine does not support FMT=2'b11 (unused entry type),
+		 * Since engine does yest support FMT=2'b11 (unused entry type),
 		 * leaving out_fle zeroized is the best option.
 		 */
 		goto skip_out_fle;
@@ -833,7 +833,7 @@ static int rfc4106_setkey(struct crypto_aead *aead,
 	memcpy(ctx->key, key, keylen);
 	/*
 	 * The last four bytes of the key material are used as the salt value
-	 * in the nonce. Update the AES key length.
+	 * in the yesnce. Update the AES key length.
 	 */
 	ctx->cdata.keylen = keylen - 4;
 	dma_sync_single_for_device(dev, ctx->key_dma, ctx->cdata.keylen,
@@ -934,7 +934,7 @@ static int rfc4543_setkey(struct crypto_aead *aead,
 	memcpy(ctx->key, key, keylen);
 	/*
 	 * The last four bytes of the key material are used as the salt value
-	 * in the nonce. Update the AES key length.
+	 * in the yesnce. Update the AES key length.
 	 */
 	ctx->cdata.keylen = keylen - 4;
 	dma_sync_single_for_device(dev, ctx->key_dma, ctx->cdata.keylen,
@@ -1198,7 +1198,7 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req)
 	/* allocate space for base edesc, link tables and IV */
 	edesc = qi_cache_zalloc(GFP_DMA | flags);
 	if (unlikely(!edesc)) {
-		dev_err(dev, "could not allocate extended descriptor\n");
+		dev_err(dev, "could yest allocate extended descriptor\n");
 		caam_unmap(dev, req->src, req->dst, src_nents, dst_nents, 0,
 			   0, DMA_NONE, 0, 0);
 		return ERR_PTR(-ENOMEM);
@@ -1576,7 +1576,7 @@ static int caam_cra_init_aead(struct crypto_aead *tfm)
 
 	crypto_aead_set_reqsize(tfm, sizeof(struct caam_request));
 	return caam_cra_init(crypto_aead_ctx(tfm), &caam_alg->caam,
-			     !caam_alg->caam.nodkp);
+			     !caam_alg->caam.yesdkp);
 }
 
 static void caam_exit_common(struct caam_ctx *ctx)
@@ -1737,7 +1737,7 @@ static struct caam_aead_alg driver_aeads[] = {
 		},
 		.caam = {
 			.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_GCM,
-			.nodkp = true,
+			.yesdkp = true,
 		},
 	},
 	{
@@ -1756,7 +1756,7 @@ static struct caam_aead_alg driver_aeads[] = {
 		},
 		.caam = {
 			.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_GCM,
-			.nodkp = true,
+			.yesdkp = true,
 		},
 	},
 	/* Galois Counter Mode */
@@ -1776,7 +1776,7 @@ static struct caam_aead_alg driver_aeads[] = {
 		},
 		.caam = {
 			.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_GCM,
-			.nodkp = true,
+			.yesdkp = true,
 		}
 	},
 	/* single-pass ipsec_esp descriptor */
@@ -2854,7 +2854,7 @@ static struct caam_aead_alg driver_aeads[] = {
 					   OP_ALG_AAI_AEAD,
 			.class2_alg_type = OP_ALG_ALGSEL_POLY1305 |
 					   OP_ALG_AAI_AEAD,
-			.nodkp = true,
+			.yesdkp = true,
 		},
 	},
 	{
@@ -2877,7 +2877,7 @@ static struct caam_aead_alg driver_aeads[] = {
 					   OP_ALG_AAI_AEAD,
 			.class2_alg_type = OP_ALG_ALGSEL_POLY1305 |
 					   OP_ALG_AAI_AEAD,
-			.nodkp = true,
+			.yesdkp = true,
 		},
 	},
 	{
@@ -3842,7 +3842,7 @@ unmap:
 	return ret;
 }
 
-static int ahash_final_no_ctx(struct ahash_request *req)
+static int ahash_final_yes_ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
@@ -3886,7 +3886,7 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 	/*
 	 * crypto engine requires the input entry to be present when
 	 * "frame list" FD is used.
-	 * Since engine does not support FMT=2'b11 (unused entry type), leaving
+	 * Since engine does yest support FMT=2'b11 (unused entry type), leaving
 	 * in_fle zeroized (except for "Final" flag) is the best option.
 	 */
 	if (buflen) {
@@ -3915,7 +3915,7 @@ unmap:
 	return ret;
 }
 
-static int ahash_update_no_ctx(struct ahash_request *req)
+static int ahash_update_yes_ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
@@ -4045,7 +4045,7 @@ unmap_ctx:
 	return ret;
 }
 
-static int ahash_finup_no_ctx(struct ahash_request *req)
+static int ahash_finup_yes_ctx(struct ahash_request *req)
 {
 	struct crypto_ahash *ahash = crypto_ahash_reqtfm(req);
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
@@ -4254,9 +4254,9 @@ static int ahash_update_first(struct ahash_request *req)
 		state->finup = ahash_finup_ctx;
 		state->final = ahash_final_ctx;
 	} else if (*next_buflen) {
-		state->update = ahash_update_no_ctx;
-		state->finup = ahash_finup_no_ctx;
-		state->final = ahash_final_no_ctx;
+		state->update = ahash_update_yes_ctx;
+		state->finup = ahash_finup_yes_ctx;
+		state->final = ahash_final_yes_ctx;
 		scatterwalk_map_and_copy(next_buf, req->src, 0,
 					 req->nbytes, 0);
 		switch_buf(state);
@@ -4284,7 +4284,7 @@ static int ahash_init(struct ahash_request *req)
 
 	state->update = ahash_update_first;
 	state->finup = ahash_finup_first;
-	state->final = ahash_final_no_ctx;
+	state->final = ahash_final_yes_ctx;
 
 	state->ctx_dma = 0;
 	state->ctx_dma_len = 0;
@@ -4623,7 +4623,7 @@ static struct caam_hash_alg *caam_hash_alloc(struct device *dev,
 	return t_alg;
 }
 
-static void dpaa2_caam_fqdan_cb(struct dpaa2_io_notification_ctx *nctx)
+static void dpaa2_caam_fqdan_cb(struct dpaa2_io_yestification_ctx *nctx)
 {
 	struct dpaa2_caam_priv_per_cpu *ppriv;
 
@@ -4634,7 +4634,7 @@ static void dpaa2_caam_fqdan_cb(struct dpaa2_io_notification_ctx *nctx)
 static int __cold dpaa2_dpseci_dpio_setup(struct dpaa2_caam_priv *priv)
 {
 	struct device *dev = priv->dev;
-	struct dpaa2_io_notification_ctx *nctx;
+	struct dpaa2_io_yestification_ctx *nctx;
 	struct dpaa2_caam_priv_per_cpu *ppriv;
 	int err, i = 0, cpu;
 
@@ -4647,15 +4647,15 @@ static int __cold dpaa2_dpseci_dpio_setup(struct dpaa2_caam_priv *priv)
 		nctx->desired_cpu = cpu;
 		nctx->cb = dpaa2_caam_fqdan_cb;
 
-		/* Register notification callbacks */
+		/* Register yestification callbacks */
 		ppriv->dpio = dpaa2_io_service_select(cpu);
 		err = dpaa2_io_service_register(ppriv->dpio, nctx, dev);
 		if (unlikely(err)) {
 			dev_dbg(dev, "No affine DPIO for cpu %d\n", cpu);
 			nctx->cb = NULL;
 			/*
-			 * If no affine DPIO for this core, there's probably
-			 * none available for next cores either. Signal we want
+			 * If yes affine DPIO for this core, there's probably
+			 * yesne available for next cores either. Signal we want
 			 * to retry later, in case the DPIO devices weren't
 			 * probed yet.
 			 */
@@ -4821,7 +4821,7 @@ static int dpaa2_caam_store_consume(struct dpaa2_caam_priv_per_cpu *ppriv)
 		if (unlikely(!dq)) {
 			if (unlikely(!is_last)) {
 				dev_dbg(ppriv->priv->dev,
-					"FQ %d returned no valid frames\n",
+					"FQ %d returned yes valid frames\n",
 					ppriv->rsp_fqid);
 				/*
 				 * MUST retry until we get some sort of
@@ -4881,7 +4881,7 @@ static int dpaa2_dpseci_poll(struct napi_struct *napi, int budget)
 static int dpaa2_dpseci_congestion_setup(struct dpaa2_caam_priv *priv,
 					 u16 token)
 {
-	struct dpseci_congestion_notification_cfg cong_notif_cfg = { 0 };
+	struct dpseci_congestion_yestification_cfg cong_yestif_cfg = { 0 };
 	struct device *dev = priv->dev;
 	int err;
 
@@ -4889,7 +4889,7 @@ static int dpaa2_dpseci_congestion_setup(struct dpaa2_caam_priv *priv,
 	 * Congestion group feature supported starting with DPSECI API v5.1
 	 * and only when object has been created with this capability.
 	 */
-	if ((DPSECI_VER(priv->major_ver, priv->minor_ver) < DPSECI_VER(5, 1)) ||
+	if ((DPSECI_VER(priv->major_ver, priv->miyesr_ver) < DPSECI_VER(5, 1)) ||
 	    !(priv->dpseci_attr.options & DPSECI_OPT_HAS_CG))
 		return 0;
 
@@ -4907,19 +4907,19 @@ static int dpaa2_dpseci_congestion_setup(struct dpaa2_caam_priv *priv,
 		goto err_dma_map;
 	}
 
-	cong_notif_cfg.units = DPSECI_CONGESTION_UNIT_BYTES;
-	cong_notif_cfg.threshold_entry = DPAA2_SEC_CONG_ENTRY_THRESH;
-	cong_notif_cfg.threshold_exit = DPAA2_SEC_CONG_EXIT_THRESH;
-	cong_notif_cfg.message_ctx = (uintptr_t)priv;
-	cong_notif_cfg.message_iova = priv->cscn_dma;
-	cong_notif_cfg.notification_mode = DPSECI_CGN_MODE_WRITE_MEM_ON_ENTER |
+	cong_yestif_cfg.units = DPSECI_CONGESTION_UNIT_BYTES;
+	cong_yestif_cfg.threshold_entry = DPAA2_SEC_CONG_ENTRY_THRESH;
+	cong_yestif_cfg.threshold_exit = DPAA2_SEC_CONG_EXIT_THRESH;
+	cong_yestif_cfg.message_ctx = (uintptr_t)priv;
+	cong_yestif_cfg.message_iova = priv->cscn_dma;
+	cong_yestif_cfg.yestification_mode = DPSECI_CGN_MODE_WRITE_MEM_ON_ENTER |
 					DPSECI_CGN_MODE_WRITE_MEM_ON_EXIT |
 					DPSECI_CGN_MODE_COHERENT_WRITE;
 
-	err = dpseci_set_congestion_notification(priv->mc_io, 0, token,
-						 &cong_notif_cfg);
+	err = dpseci_set_congestion_yestification(priv->mc_io, 0, token,
+						 &cong_yestif_cfg);
 	if (err) {
-		dev_err(dev, "dpseci_set_congestion_notification failed\n");
+		dev_err(dev, "dpseci_set_congestion_yestification failed\n");
 		goto err_set_cong;
 	}
 
@@ -4954,13 +4954,13 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 	}
 
 	err = dpseci_get_api_version(priv->mc_io, 0, &priv->major_ver,
-				     &priv->minor_ver);
+				     &priv->miyesr_ver);
 	if (err) {
 		dev_err(dev, "dpseci_get_api_version() failed\n");
 		goto err_get_vers;
 	}
 
-	dev_info(dev, "dpseci v%d.%d\n", priv->major_ver, priv->minor_ver);
+	dev_info(dev, "dpseci v%d.%d\n", priv->major_ver, priv->miyesr_ver);
 
 	err = dpseci_get_attributes(priv->mc_io, 0, ls_dev->mc_handle,
 				    &priv->dpseci_attr);
@@ -5102,8 +5102,8 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 	bool registered = false;
 
 	/*
-	 * There is no way to get CAAM endianness - there is no direct register
-	 * space access and MC f/w does not provide this attribute.
+	 * There is yes way to get CAAM endianness - there is yes direct register
+	 * space access and MC f/w does yest provide this attribute.
 	 * All DPAA2-based SoCs have little endian CAAM, thus hard-code this
 	 * property.
 	 */
@@ -5188,18 +5188,18 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 		struct caam_skcipher_alg *t_alg = driver_algs + i;
 		u32 alg_sel = t_alg->caam.class1_alg_type & OP_ALG_ALGSEL_MASK;
 
-		/* Skip DES algorithms if not supported by device */
+		/* Skip DES algorithms if yest supported by device */
 		if (!priv->sec_attr.des_acc_num &&
 		    (alg_sel == OP_ALG_ALGSEL_3DES ||
 		     alg_sel == OP_ALG_ALGSEL_DES))
 			continue;
 
-		/* Skip AES algorithms if not supported by device */
+		/* Skip AES algorithms if yest supported by device */
 		if (!priv->sec_attr.aes_acc_num &&
 		    alg_sel == OP_ALG_ALGSEL_AES)
 			continue;
 
-		/* Skip CHACHA20 algorithms if not supported by device */
+		/* Skip CHACHA20 algorithms if yest supported by device */
 		if (alg_sel == OP_ALG_ALGSEL_CHACHA20 &&
 		    !priv->sec_attr.ccha_acc_num)
 			continue;
@@ -5225,30 +5225,30 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 		u32 c2_alg_sel = t_alg->caam.class2_alg_type &
 				 OP_ALG_ALGSEL_MASK;
 
-		/* Skip DES algorithms if not supported by device */
+		/* Skip DES algorithms if yest supported by device */
 		if (!priv->sec_attr.des_acc_num &&
 		    (c1_alg_sel == OP_ALG_ALGSEL_3DES ||
 		     c1_alg_sel == OP_ALG_ALGSEL_DES))
 			continue;
 
-		/* Skip AES algorithms if not supported by device */
+		/* Skip AES algorithms if yest supported by device */
 		if (!priv->sec_attr.aes_acc_num &&
 		    c1_alg_sel == OP_ALG_ALGSEL_AES)
 			continue;
 
-		/* Skip CHACHA20 algorithms if not supported by device */
+		/* Skip CHACHA20 algorithms if yest supported by device */
 		if (c1_alg_sel == OP_ALG_ALGSEL_CHACHA20 &&
 		    !priv->sec_attr.ccha_acc_num)
 			continue;
 
-		/* Skip POLY1305 algorithms if not supported by device */
+		/* Skip POLY1305 algorithms if yest supported by device */
 		if (c2_alg_sel == OP_ALG_ALGSEL_POLY1305 &&
 		    !priv->sec_attr.ptha_acc_num)
 			continue;
 
 		/*
 		 * Skip algorithms requiring message digests
-		 * if MD not supported by device.
+		 * if MD yest supported by device.
 		 */
 		if ((c2_alg_sel & ~OP_ALG_ALGSEL_SUBMASK) == 0x40 &&
 		    !priv->sec_attr.md_acc_num)
@@ -5275,7 +5275,7 @@ static int dpaa2_caam_probe(struct fsl_mc_device *dpseci_dev)
 
 	/*
 	 * Skip registration of any hashing algorithms if MD block
-	 * is not present.
+	 * is yest present.
 	 */
 	if (!priv->sec_attr.md_acc_num)
 		return 0;

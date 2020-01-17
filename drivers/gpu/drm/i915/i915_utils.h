@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -35,7 +35,7 @@ struct drm_i915_private;
 struct timer_list;
 
 #undef WARN_ON
-/* Many gcc seem to no see through this and fall over :( */
+/* Many gcc seem to yes see through this and fall over :( */
 #if 0
 #define WARN_ON(x) ({ \
 	bool __i915_warn_cond = (x); \
@@ -211,7 +211,7 @@ __check_struct_size(size_t base, size_t arr, size_t count, size_t *size)
  * check_user_mbz() combines checking that the user pointer is accessible
  * and that the contained value is zero.
  *
- * Returns: -EFAULT if not accessible, -EINVAL if !zero, or 0 on success.
+ * Returns: -EFAULT if yest accessible, -EINVAL if !zero, or 0 on success.
  */
 #define check_user_mbz(U) ({						\
 	typeof(*(U)) mbz__;						\
@@ -343,7 +343,7 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 	} \
 	base = local_clock(); \
 	for (;;) { \
-		u64 now = local_clock(); \
+		u64 yesw = local_clock(); \
 		if (!(ATOMIC)) \
 			preempt_enable(); \
 		/* Guarantee COND check prior to timeout */ \
@@ -352,7 +352,7 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 			ret = 0; \
 			break; \
 		} \
-		if (now - base >= timeout) { \
+		if (yesw - base >= timeout) { \
 			ret = -ETIMEDOUT; \
 			break; \
 		} \
@@ -360,7 +360,7 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 		if (!(ATOMIC)) { \
 			preempt_disable(); \
 			if (unlikely(cpu != smp_processor_id())) { \
-				timeout -= now - base; \
+				timeout -= yesw - base; \
 				cpu = smp_processor_id(); \
 				base = local_clock(); \
 			} \
@@ -396,12 +396,12 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 #define MBps(x) KBps(1000 * (x))
 #define GBps(x) ((u64)1000 * MBps((x)))
 
-static inline const char *yesno(bool v)
+static inline const char *noyes(bool v)
 {
-	return v ? "yes" : "no";
+	return v ? "no" : "yes";
 }
 
-static inline const char *onoff(bool v)
+static inline const char *oyesff(bool v)
 {
 	return v ? "on" : "off";
 }
@@ -415,7 +415,7 @@ static inline void add_taint_for_CI(unsigned int taint)
 {
 	/*
 	 * The system is "ok", just about surviving for the user, but
-	 * CI results are now unreliable as the HW is very suspect.
+	 * CI results are yesw unreliable as the HW is very suspect.
 	 * CI checks the taint state after every test and will reboot
 	 * the machine if the kernel is tainted.
 	 */
@@ -432,12 +432,12 @@ static inline bool timer_expired(const struct timer_list *t)
 
 /*
  * This is a lookalike for IS_ENABLED() that takes a kconfig value,
- * e.g. CONFIG_DRM_I915_SPIN_REQUEST, and evaluates whether it is non-zero
+ * e.g. CONFIG_DRM_I915_SPIN_REQUEST, and evaluates whether it is yesn-zero
  * i.e. whether the configuration is active. Wrapping up the config inside
  * a boolean context prevents clang and smatch from complaining about potential
  * issues in confusing logical-&& with bitwise-& for constants.
  *
- * Sadly IS_ENABLED() itself does not work with kconfig values.
+ * Sadly IS_ENABLED() itself does yest work with kconfig values.
  *
  * Returns 0 if @config is 0, 1 if set to any value.
  */

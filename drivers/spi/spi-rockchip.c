@@ -151,7 +151,7 @@
 
 /*
  * SPI_CTRLR1 is 16-bits, so we should support lengths of 0xffff + 1. However,
- * the controller seems to hang when given 0x10000, so stick with this for now.
+ * the controller seems to hang when given 0x10000, so stick with this for yesw.
  */
 #define ROCKCHIP_SPI_MAX_TRANLEN		0xffff
 
@@ -223,7 +223,7 @@ static void rockchip_spi_set_cs(struct spi_device *spi, bool enable)
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
 	bool cs_asserted = !enable;
 
-	/* Return immediately for no-op */
+	/* Return immediately for yes-op */
 	if (cs_asserted == rs->cs_asserted[spi->chip_select])
 		return;
 
@@ -290,7 +290,7 @@ static void rockchip_spi_pio_reader(struct rockchip_spi *rs)
 
 	/* the hardware doesn't allow us to change fifo threshold
 	 * level while spi is enabled, so instead make sure to leave
-	 * enough words in the rx fifo to get the last interrupt
+	 * eyesugh words in the rx fifo to get the last interrupt
 	 * exactly when all words have been received
 	 */
 	if (rx_left) {
@@ -357,7 +357,7 @@ static void rockchip_spi_dma_rxcb(void *data)
 {
 	struct spi_master *master = data;
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
-	int state = atomic_fetch_andnot(RXDMA, &rs->state);
+	int state = atomic_fetch_andyest(RXDMA, &rs->state);
 
 	if (state & TXDMA)
 		return;
@@ -370,7 +370,7 @@ static void rockchip_spi_dma_txcb(void *data)
 {
 	struct spi_master *master = data;
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
-	int state = atomic_fetch_andnot(TXDMA, &rs->state);
+	int state = atomic_fetch_andyest(TXDMA, &rs->state);
 
 	if (state & RXDMA)
 		return;
@@ -646,7 +646,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	rs->dev = &pdev->dev;
 	rs->freq = clk_get_rate(rs->spiclk);
 
-	if (!of_property_read_u32(pdev->dev.of_node, "rx-sample-delay-ns",
+	if (!of_property_read_u32(pdev->dev.of_yesde, "rx-sample-delay-ns",
 				  &rsd_nsecs)) {
 		/* rx sample delay is expressed in parent clock cycles (max 3) */
 		u32 rsd = DIV_ROUND_CLOSEST(rsd_nsecs * (rs->freq >> 8),
@@ -677,7 +677,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	master->bus_num = pdev->id;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP | SPI_LSB_FIRST;
 	master->num_chipselect = ROCKCHIP_SPI_MAX_CS_NUM;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->bits_per_word_mask = SPI_BPW_MASK(16) | SPI_BPW_MASK(8) | SPI_BPW_MASK(4);
 	master->min_speed_hz = rs->freq / BAUDR_SCKDV_MAX;
 	master->max_speed_hz = min(rs->freq / BAUDR_SCKDV_MIN, MAX_SCLK_OUT);
@@ -751,7 +751,7 @@ static int rockchip_spi_remove(struct platform_device *pdev)
 	clk_disable_unprepare(rs->spiclk);
 	clk_disable_unprepare(rs->apb_pclk);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 

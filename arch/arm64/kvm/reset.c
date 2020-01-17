@@ -8,7 +8,7 @@
  * Author: Christoffer Dall <c.dall@virtualopensystems.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/kvm_host.h>
 #include <linux/kvm.h>
@@ -120,7 +120,7 @@ int kvm_arm_init_sve(void)
 
 		/*
 		 * Don't even try to make use of vector lengths that
-		 * aren't available on all CPUs, for now:
+		 * aren't available on all CPUs, for yesw:
 		 */
 		if (kvm_sve_max_vl < sve_max_vl)
 			pr_warn("KVM: SVE vector length for guests limited to %u bytes\n",
@@ -225,7 +225,7 @@ static int kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
 	    !system_supports_generic_auth())
 		return -EINVAL;
 	/*
-	 * For now make sure that both address/generic pointer authentication
+	 * For yesw make sure that both address/generic pointer authentication
 	 * features are requested by the userspace together.
 	 */
 	if (!test_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, vcpu->arch.features) ||
@@ -246,14 +246,14 @@ static int kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
  * kvm_arm_vcpu_finalize().
  *
  * Note: This function can be called from two paths: The KVM_ARM_VCPU_INIT
- * ioctl or as part of handling a request issued by another VCPU in the PSCI
- * handling code.  In the first case, the VCPU will not be loaded, and in the
+ * ioctl or as part of handling a request issued by ayesther VCPU in the PSCI
+ * handling code.  In the first case, the VCPU will yest be loaded, and in the
  * second case the VCPU will be loaded.  Because this function operates purely
  * on the memory-backed valus of system registers, we want to do a full put if
  * we were loaded (handling a request) and load the values back at the end of
  * the function.  Otherwise we leave the state alone.  In both cases, we
  * disable preemption around the vcpu reset as we would otherwise race with
- * preempt notifiers which also call put/load.
+ * preempt yestifiers which also call put/load.
  */
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 {
@@ -261,7 +261,7 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	int ret = -EINVAL;
 	bool loaded;
 
-	/* Reset PMU outside of the non-preemptible section */
+	/* Reset PMU outside of the yesn-preemptible section */
 	kvm_pmu_vcpu_reset(vcpu);
 
 	preempt_disable();
@@ -351,7 +351,7 @@ void kvm_set_ipa_limit(void)
 	ipa_max = (pa_max > PHYS_MASK_SHIFT) ? PHYS_MASK_SHIFT : pa_max;
 	/*
 	 * Since our stage2 table is dependent on the stage1 page table code,
-	 * we must always honor the following condition:
+	 * we must always hoyesr the following condition:
 	 *
 	 *  Number of levels in Stage1 >= Number of levels in Stage2.
 	 *
@@ -424,7 +424,7 @@ int kvm_arm_setup_stage2(struct kvm *kvm, unsigned long type)
 	/*
 	 * Enable the Hardware Access Flag management, unconditionally
 	 * on all CPUs. The features is RES0 on CPUs without the support
-	 * and must be ignored by the CPUs.
+	 * and must be igyesred by the CPUs.
 	 */
 	vtcr |= VTCR_EL2_HA;
 

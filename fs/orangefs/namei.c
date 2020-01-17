@@ -13,17 +13,17 @@
 #include "orangefs-kernel.h"
 
 /*
- * Get a newly allocated inode to go with a negative dentry.
+ * Get a newly allocated iyesde to go with a negative dentry.
  */
-static int orangefs_create(struct inode *dir,
+static int orangefs_create(struct iyesde *dir,
 			struct dentry *dentry,
 			umode_t mode,
 			bool exclusive)
 {
-	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_iyesde_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
 	struct orangefs_object_kref ref;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct iattr iattr;
 	int ret;
 
@@ -59,22 +59,22 @@ static int orangefs_create(struct inode *dir,
 
 	ref = new_op->downcall.resp.create.refn;
 
-	inode = orangefs_new_inode(dir->i_sb, dir, S_IFREG | mode, 0, &ref);
-	if (IS_ERR(inode)) {
-		gossip_err("%s: Failed to allocate inode for file :%pd:\n",
+	iyesde = orangefs_new_iyesde(dir->i_sb, dir, S_IFREG | mode, 0, &ref);
+	if (IS_ERR(iyesde)) {
+		gossip_err("%s: Failed to allocate iyesde for file :%pd:\n",
 			   __func__,
 			   dentry);
-		ret = PTR_ERR(inode);
+		ret = PTR_ERR(iyesde);
 		goto out;
 	}
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "%s: Assigned inode :%pU: for file :%pd:\n",
+		     "%s: Assigned iyesde :%pU: for file :%pd:\n",
 		     __func__,
-		     get_khandle_from_ino(inode),
+		     get_khandle_from_iyes(iyesde),
 		     dentry);
 
-	d_instantiate_new(dentry, inode);
+	d_instantiate_new(dentry, iyesde);
 	orangefs_set_timeout(dentry);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
@@ -101,12 +101,12 @@ out:
  * Attempt to resolve an object name (dentry->d_name), parent handle, and
  * fsid into a handle for the object.
  */
-static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
+static struct dentry *orangefs_lookup(struct iyesde *dir, struct dentry *dentry,
 				   unsigned int flags)
 {
-	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_iyesde_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int ret = -EINVAL;
 
 	/*
@@ -156,33 +156,33 @@ static struct dentry *orangefs_lookup(struct inode *dir, struct dentry *dentry,
 
 	if (ret == 0) {
 		orangefs_set_timeout(dentry);
-		inode = orangefs_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
+		iyesde = orangefs_iget(dir->i_sb, &new_op->downcall.resp.lookup.refn);
 	} else if (ret == -ENOENT) {
-		inode = NULL;
+		iyesde = NULL;
 	} else {
-		/* must be a non-recoverable error */
-		inode = ERR_PTR(ret);
+		/* must be a yesn-recoverable error */
+		iyesde = ERR_PTR(ret);
 	}
 
 	op_release(new_op);
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(iyesde, dentry);
 }
 
-/* return 0 on success; non-zero otherwise */
-static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
+/* return 0 on success; yesn-zero otherwise */
+static int orangefs_unlink(struct iyesde *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
-	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct iyesde *iyesde = dentry->d_iyesde;
+	struct orangefs_iyesde_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
 	struct iattr iattr;
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s: called on %pd\n"
-		     "  (inode %pU): Parent is %pU | fs_id %d\n",
+		     "  (iyesde %pU): Parent is %pU | fs_id %d\n",
 		     __func__,
 		     dentry,
-		     get_khandle_from_ino(inode),
+		     get_khandle_from_iyes(iyesde),
 		     &parent->refn.khandle,
 		     parent->refn.fs_id);
 
@@ -195,7 +195,7 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 		ORANGEFS_NAME_MAX - 1);
 
 	ret = service_operation(new_op, "orangefs_unlink",
-				get_interruptible_flag(inode));
+				get_interruptible_flag(iyesde));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s: service_operation returned:%d:\n",
@@ -205,7 +205,7 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	op_release(new_op);
 
 	if (!ret) {
-		drop_nlink(inode);
+		drop_nlink(iyesde);
 
 		memset(&iattr, 0, sizeof iattr);
 		iattr.ia_valid |= ATTR_MTIME | ATTR_CTIME;
@@ -215,14 +215,14 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	return ret;
 }
 
-static int orangefs_symlink(struct inode *dir,
+static int orangefs_symlink(struct iyesde *dir,
 			 struct dentry *dentry,
 			 const char *symname)
 {
-	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_iyesde_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
 	struct orangefs_object_kref ref;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct iattr iattr;
 	int mode = 0755;
 	int ret;
@@ -266,31 +266,31 @@ static int orangefs_symlink(struct inode *dir,
 
 	ref = new_op->downcall.resp.sym.refn;
 
-	inode = orangefs_new_inode(dir->i_sb, dir, S_IFLNK | mode, 0, &ref);
-	if (IS_ERR(inode)) {
+	iyesde = orangefs_new_iyesde(dir->i_sb, dir, S_IFLNK | mode, 0, &ref);
+	if (IS_ERR(iyesde)) {
 		gossip_err
-		    ("*** Failed to allocate orangefs symlink inode\n");
-		ret = PTR_ERR(inode);
+		    ("*** Failed to allocate orangefs symlink iyesde\n");
+		ret = PTR_ERR(iyesde);
 		goto out;
 	}
 	/*
-	 * This is necessary because orangefs_inode_getattr will not
+	 * This is necessary because orangefs_iyesde_getattr will yest
 	 * re-read symlink size as it is impossible for it to change.
-	 * Invalidating the cache does not help.  orangefs_new_inode
-	 * does not set the correct size (it does not know symname).
+	 * Invalidating the cache does yest help.  orangefs_new_iyesde
+	 * does yest set the correct size (it does yest kyesw symname).
 	 */
-	inode->i_size = strlen(symname);
+	iyesde->i_size = strlen(symname);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Assigned symlink inode new number of %pU\n",
-		     get_khandle_from_ino(inode));
+		     "Assigned symlink iyesde new number of %pU\n",
+		     get_khandle_from_iyes(iyesde));
 
-	d_instantiate_new(dentry, inode);
+	d_instantiate_new(dentry, iyesde);
 	orangefs_set_timeout(dentry);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Inode (Symlink) %pU -> %pd\n",
-		     get_khandle_from_ino(inode),
+		     "Iyesde (Symlink) %pU -> %pd\n",
+		     get_khandle_from_iyes(iyesde),
 		     dentry);
 
 	memset(&iattr, 0, sizeof iattr);
@@ -303,12 +303,12 @@ out:
 	return ret;
 }
 
-static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int orangefs_mkdir(struct iyesde *dir, struct dentry *dentry, umode_t mode)
 {
-	struct orangefs_inode_s *parent = ORANGEFS_I(dir);
+	struct orangefs_iyesde_s *parent = ORANGEFS_I(dir);
 	struct orangefs_kernel_op_s *new_op;
 	struct orangefs_object_kref ref;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct iattr iattr;
 	int ret;
 
@@ -340,27 +340,27 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 
 	ref = new_op->downcall.resp.mkdir.refn;
 
-	inode = orangefs_new_inode(dir->i_sb, dir, S_IFDIR | mode, 0, &ref);
-	if (IS_ERR(inode)) {
-		gossip_err("*** Failed to allocate orangefs dir inode\n");
-		ret = PTR_ERR(inode);
+	iyesde = orangefs_new_iyesde(dir->i_sb, dir, S_IFDIR | mode, 0, &ref);
+	if (IS_ERR(iyesde)) {
+		gossip_err("*** Failed to allocate orangefs dir iyesde\n");
+		ret = PTR_ERR(iyesde);
 		goto out;
 	}
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Assigned dir inode new number of %pU\n",
-		     get_khandle_from_ino(inode));
+		     "Assigned dir iyesde new number of %pU\n",
+		     get_khandle_from_iyes(iyesde));
 
-	d_instantiate_new(dentry, inode);
+	d_instantiate_new(dentry, iyesde);
 	orangefs_set_timeout(dentry);
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
-		     "Inode (Directory) %pU -> %pd\n",
-		     get_khandle_from_ino(inode),
+		     "Iyesde (Directory) %pU -> %pd\n",
+		     get_khandle_from_iyes(iyesde),
 		     dentry);
 
 	/*
-	 * NOTE: we have no good way to keep nlink consistent for directories
+	 * NOTE: we have yes good way to keep nlink consistent for directories
 	 * across clients; keep constant at 1.
 	 */
 	memset(&iattr, 0, sizeof iattr);
@@ -372,9 +372,9 @@ out:
 	return ret;
 }
 
-static int orangefs_rename(struct inode *old_dir,
+static int orangefs_rename(struct iyesde *old_dir,
 			struct dentry *old_dentry,
-			struct inode *new_dir,
+			struct iyesde *new_dir,
 			struct dentry *new_dentry,
 			unsigned int flags)
 {
@@ -410,21 +410,21 @@ static int orangefs_rename(struct inode *old_dir,
 
 	ret = service_operation(new_op,
 				"orangefs_rename",
-				get_interruptible_flag(old_dentry->d_inode));
+				get_interruptible_flag(old_dentry->d_iyesde));
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "orangefs_rename: got downcall status %d\n",
 		     ret);
 
-	if (new_dentry->d_inode)
-		new_dentry->d_inode->i_ctime = current_time(new_dentry->d_inode);
+	if (new_dentry->d_iyesde)
+		new_dentry->d_iyesde->i_ctime = current_time(new_dentry->d_iyesde);
 
 	op_release(new_op);
 	return ret;
 }
 
-/* ORANGEFS implementation of VFS inode operations for directories */
-const struct inode_operations orangefs_dir_inode_operations = {
+/* ORANGEFS implementation of VFS iyesde operations for directories */
+const struct iyesde_operations orangefs_dir_iyesde_operations = {
 	.lookup = orangefs_lookup,
 	.get_acl = orangefs_get_acl,
 	.set_acl = orangefs_set_acl,

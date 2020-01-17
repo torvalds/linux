@@ -10,7 +10,7 @@
 
 #include "util/config.h"
 
-#include "util/annotate.h"
+#include "util/anyestate.h"
 #include "util/color.h"
 #include "util/dso.h"
 #include <linux/list.h>
@@ -54,7 +54,7 @@
 #include "util/block-info.h"
 
 #include <dlfcn.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <regex.h>
 #include <linux/ctype.h>
@@ -82,11 +82,11 @@ struct report {
 	bool			mmaps_mode;
 	bool			header;
 	bool			header_only;
-	bool			nonany_branch_mode;
+	bool			yesnany_branch_mode;
 	bool			group_set;
 	int			max_stack;
 	struct perf_read_values	show_threads_values;
-	struct annotation_options annotation_opts;
+	struct anyestation_options anyestation_opts;
 	const char		*pretty_printing_style;
 	const char		*cpu_list;
 	const char		*symbol_filter_str;
@@ -148,7 +148,7 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 	struct mem_info *mi;
 	struct branch_info *bi;
 
-	if (!ui__has_annotation() && !rep->symbol_ipc)
+	if (!ui__has_anyestation() && !rep->symbol_ipc)
 		return 0;
 
 	if (sort__mode == SORT_MODE__BRANCH) {
@@ -190,7 +190,7 @@ static int hist_iter__branch_callback(struct hist_entry_iter *iter,
 	struct evsel *evsel = iter->evsel;
 	int err;
 
-	if (!ui__has_annotation() && !rep->symbol_ipc)
+	if (!ui__has_anyestation() && !rep->symbol_ipc)
 		return 0;
 
 	bi = he->branch_info;
@@ -230,7 +230,7 @@ static int process_feature_event(struct perf_session *session,
 
 	/*
 	 * (feat_id = HEADER_LAST_FEATURE) is the end marker which
-	 * means all features are received, now we can force the
+	 * means all features are received, yesw we can force the
 	 * group if needed.
 	 */
 	setup_forced_leader(rep, session->evlist);
@@ -275,7 +275,7 @@ static int process_sample_event(struct perf_tool *tool,
 
 	if (sort__mode == SORT_MODE__BRANCH) {
 		/*
-		 * A non-synthesized event might not have a branch stack if
+		 * A yesn-synthesized event might yest have a branch stack if
 		 * branch stacks have been synthesized (using itrace options).
 		 */
 		if (!sample->branch_stack)
@@ -288,15 +288,15 @@ static int process_sample_event(struct perf_tool *tool,
 	} else if (symbol_conf.cumulate_callchain) {
 		iter.ops = &hist_iter_cumulative;
 	} else {
-		iter.ops = &hist_iter_normal;
+		iter.ops = &hist_iter_yesrmal;
 	}
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
 
-	if (ui__has_annotation() || rep->symbol_ipc || rep->total_cycles_mode) {
+	if (ui__has_anyestation() || rep->symbol_ipc || rep->total_cycles_mode) {
 		hist__account_cycles(sample->branch_stack, &al, sample,
-				     rep->nonany_branch_mode,
+				     rep->yesnany_branch_mode,
 				     &rep->total_cycles);
 	}
 
@@ -331,7 +331,7 @@ static int process_read_event(struct perf_tool *tool,
 	return 0;
 }
 
-/* For pipe mode, sample_type is not currently set */
+/* For pipe mode, sample_type is yest currently set */
 static int report__setup_sample_type(struct report *rep)
 {
 	struct perf_session *session = rep->session;
@@ -349,7 +349,7 @@ static int report__setup_sample_type(struct report *rep)
 
 	if (!is_pipe && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (perf_hpp_list.parent) {
-			ui__error("Selected --sort parent, but no "
+			ui__error("Selected --sort parent, but yes "
 				    "callchain data. Did you call "
 				    "'perf record' without -g?\n");
 			return -EINVAL;
@@ -357,7 +357,7 @@ static int report__setup_sample_type(struct report *rep)
 		if (symbol_conf.use_callchain &&
 			!symbol_conf.show_branchflag_count) {
 			ui__error("Selected -g or --branch-history.\n"
-				  "But no callchain or branch data.\n"
+				  "But yes callchain or branch data.\n"
 				  "Did you call 'perf record' without -g or -b?\n");
 			return -1;
 		}
@@ -372,7 +372,7 @@ static int report__setup_sample_type(struct report *rep)
 	}
 
 	if (symbol_conf.cumulate_callchain) {
-		/* Silently ignore if callchain is missing */
+		/* Silently igyesre if callchain is missing */
 		if (!(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 			symbol_conf.cumulate_callchain = false;
 			perf_hpp__cancel_cumulate();
@@ -382,7 +382,7 @@ static int report__setup_sample_type(struct report *rep)
 	if (sort__mode == SORT_MODE__BRANCH) {
 		if (!is_pipe &&
 		    !(sample_type & PERF_SAMPLE_BRANCH_STACK)) {
-			ui__error("Selected -b but no branch data. "
+			ui__error("Selected -b but yes branch data. "
 				  "Did you call perf record without -b?\n");
 			return -1;
 		}
@@ -390,7 +390,7 @@ static int report__setup_sample_type(struct report *rep)
 
 	if (sort__mode == SORT_MODE__MEMORY) {
 		if (!is_pipe && !(sample_type & PERF_SAMPLE_DATA_SRC)) {
-			ui__error("Selected --mem-mode but no mem data. "
+			ui__error("Selected --mem-mode but yes mem data. "
 				  "Did you call perf record without -d?\n");
 			return -1;
 		}
@@ -410,7 +410,7 @@ static int report__setup_sample_type(struct report *rep)
 	/* ??? handle more cases than just ANY? */
 	if (!(perf_evlist__combined_branch_type(session->evlist) &
 				PERF_SAMPLE_BRANCH_ANY))
-		rep->nonany_branch_mode = true;
+		rep->yesnany_branch_mode = true;
 
 #ifndef HAVE_LIBUNWIND_SUPPORT
 	if (dwarf_callchain_users) {
@@ -443,8 +443,8 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 		return 0;
 
 	if (symbol_conf.filter_relative) {
-		nr_samples = hists->stats.nr_non_filtered_samples;
-		nr_events = hists->stats.total_non_filtered_period;
+		nr_samples = hists->stats.nr_yesn_filtered_samples;
+		nr_events = hists->stats.total_yesn_filtered_period;
 	}
 
 	if (perf_evsel__is_group_event(evsel)) {
@@ -457,8 +457,8 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 			const struct hists *pos_hists = evsel__hists(pos);
 
 			if (symbol_conf.filter_relative) {
-				nr_samples += pos_hists->stats.nr_non_filtered_samples;
-				nr_events += pos_hists->stats.total_non_filtered_period;
+				nr_samples += pos_hists->stats.nr_yesn_filtered_samples;
+				nr_events += pos_hists->stats.total_yesn_filtered_period;
 			} else {
 				nr_samples += pos_hists->stats.nr_events[PERF_RECORD_SAMPLE];
 				nr_events += pos_hists->stats.total_period;
@@ -477,7 +477,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 		ret += fprintf(fp, " (time slices: %s)", rep->time_str);
 
 	if (symbol_conf.show_ref_callgraph &&
-	    strstr(evname, "call-graph=no")) {
+	    strstr(evname, "call-graph=yes")) {
 		ret += fprintf(fp, ", show reference callgraph");
 	}
 
@@ -503,7 +503,7 @@ static int perf_evlist__tui_block_hists_browse(struct evlist *evlist,
 		ret = report__browse_block_hists(&rep->block_reports[i++].hist,
 						 rep->min_percent, pos,
 						 &rep->session->header.env,
-						 &rep->annotation_opts);
+						 &rep->anyestation_opts);
 		if (ret != 0)
 			return ret;
 	}
@@ -575,7 +575,7 @@ static void report__warn_kptr_restrict(const struct report *rep)
 	     (kernel_kmap->ref_reloc_sym == NULL ||
 	      kernel_kmap->ref_reloc_sym->addr == 0))) {
 		const char *desc =
-		    "As no suitable kallsyms nor vmlinux was found, kernel samples\n"
+		    "As yes suitable kallsyms yesr vmlinux was found, kernel samples\n"
 		    "can't be resolved.";
 
 		if (kernel_map && map__has_symbols(kernel_map)) {
@@ -599,7 +599,7 @@ static int report__gtk_browse_hists(struct report *rep, const char *help)
 	hist_browser = dlsym(perf_gtk_handle, "perf_evlist__gtk_browse_hists");
 
 	if (hist_browser == NULL) {
-		ui__error("GTK browser not found!\n");
+		ui__error("GTK browser yest found!\n");
 		return -1;
 	}
 
@@ -617,7 +617,7 @@ static int report__browse_hists(struct report *rep)
 		/* fallback for people who don't install perf ;-) */
 		help = perf_tip(DOCDIR);
 		if (help == NULL)
-			help = "Cannot load tips.txt file, please install perf!";
+			help = "Canyest load tips.txt file, please install perf!";
 	}
 
 	switch (use_browser) {
@@ -630,10 +630,10 @@ static int report__browse_hists(struct report *rep)
 		ret = perf_evlist__tui_browse_hists(evlist, help, NULL,
 						    rep->min_percent,
 						    &session->header.env,
-						    true, &rep->annotation_opts);
+						    true, &rep->anyestation_opts);
 		/*
 		 * Usually "ret" is the last pressed key, and we only
-		 * care if the key notifies us to switch data file.
+		 * care if the key yestifies us to switch data file.
 		 */
 		if (ret != K_SWITCH_INPUT_DATA)
 			ret = 0;
@@ -688,11 +688,11 @@ static int hists__resort_cb(struct hist_entry *he, void *arg)
 	struct report *rep = arg;
 	struct symbol *sym = he->ms.sym;
 
-	if (rep->symbol_ipc && sym && !sym->annotate2) {
+	if (rep->symbol_ipc && sym && !sym->anyestate2) {
 		struct evsel *evsel = hists_to_evsel(he->hists);
 
-		symbol__annotate2(&he->ms, evsel,
-				  &annotation__default_options, NULL);
+		symbol__anyestate2(&he->ms, evsel,
+				  &anyestation__default_options, NULL);
 	}
 
 	return 0;
@@ -716,7 +716,7 @@ static void report__output_resort(struct report *rep)
 static void stats_setup(struct report *rep)
 {
 	memset(&rep->tool, 0, sizeof(rep->tool));
-	rep->tool.no_warn = true;
+	rep->tool.yes_warn = true;
 }
 
 static int stats_print(struct report *rep)
@@ -738,7 +738,7 @@ static void tasks_setup(struct report *rep)
 	rep->tool.comm = perf_event__process_comm;
 	rep->tool.exit = perf_event__process_exit;
 	rep->tool.fork = perf_event__process_fork;
-	rep->tool.no_warn = true;
+	rep->tool.yes_warn = true;
 }
 
 struct task {
@@ -782,7 +782,7 @@ static size_t maps__fprintf_task(struct maps *maps, int indent, FILE *fp)
 				   map->prot & PROT_EXEC ? 'x' : '-',
 				   map->flags & MAP_SHARED ? 's' : 'p',
 				   map->pgoff,
-				   map->dso->id.ino, map->dso->name);
+				   map->dso->id.iyes, map->dso->name);
 	}
 
 	return printed;
@@ -812,7 +812,7 @@ static int tasks_print(struct report *rep, FILE *fp)
 	struct machine      *machine = &session->machines.host;
 	struct task *tasks, *task;
 	unsigned int nr = 0, itask = 0, i;
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	LIST_HEAD(list);
 
 	/*
@@ -835,7 +835,7 @@ static int tasks_print(struct report *rep, FILE *fp)
 		     nd = rb_next(nd)) {
 			task = tasks + itask++;
 
-			task->thread = rb_entry(nd, struct thread, rb_node);
+			task->thread = rb_entry(nd, struct thread, rb_yesde);
 			INIT_LIST_HEAD(&task->children);
 			INIT_LIST_HEAD(&task->list);
 			thread__set_priv(task->thread, task);
@@ -844,7 +844,7 @@ static int tasks_print(struct report *rep, FILE *fp)
 
 	/*
 	 * Iterate every task down to the unprocessed parent
-	 * and link all in task children list. Task with no
+	 * and link all in task children list. Task with yes
 	 * parent is added into 'list'.
 	 */
 	for (itask = 0; itask < nr; itask++) {
@@ -959,7 +959,7 @@ static int __cmd_report(struct report *rep)
 		rep->nr_entries += evsel__hists(pos)->nr_entries;
 
 	if (rep->nr_entries == 0) {
-		ui__error("The %s data has no samples!\n", data->path);
+		ui__error("The %s data has yes samples!\n", data->path);
 		return 0;
 	}
 
@@ -982,7 +982,7 @@ report_parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 
 	callchain->enabled = !unset;
 	/*
-	 * --no-call-graph
+	 * --yes-call-graph
 	 */
 	if (unset) {
 		symbol_conf.use_callchain = false;
@@ -1004,7 +1004,7 @@ parse_time_quantum(const struct option *opt, const char *arg,
 	if (end == arg)
 		goto parse_err;
 	if (*time_q == 0) {
-		pr_err("time quantum cannot be 0");
+		pr_err("time quantum canyest be 0");
 		return -1;
 	}
 	end = skip_spaces(end);
@@ -1025,23 +1025,23 @@ parse_time_quantum(const struct option *opt, const char *arg,
 	if (!strcmp(end, "ns"))
 		return 0;
 parse_err:
-	pr_err("Cannot parse time quantum `%s'\n", arg);
+	pr_err("Canyest parse time quantum `%s'\n", arg);
 	return -1;
 }
 
 int
-report_parse_ignore_callees_opt(const struct option *opt __maybe_unused,
+report_parse_igyesre_callees_opt(const struct option *opt __maybe_unused,
 				const char *arg, int unset __maybe_unused)
 {
 	if (arg) {
-		int err = regcomp(&ignore_callees_regex, arg, REG_EXTENDED);
+		int err = regcomp(&igyesre_callees_regex, arg, REG_EXTENDED);
 		if (err) {
 			char buf[BUFSIZ];
-			regerror(err, &ignore_callees_regex, buf, sizeof(buf));
-			pr_err("Invalid --ignore-callees regex: %s\n%s", arg, buf);
+			regerror(err, &igyesre_callees_regex, buf, sizeof(buf));
+			pr_err("Invalid --igyesre-callees regex: %s\n%s", arg, buf);
 			return -1;
 		}
-		have_ignore_callees = 1;
+		have_igyesre_callees = 1;
 	}
 
 	return 0;
@@ -1109,16 +1109,16 @@ int cmd_report(int argc, const char **argv)
 			.ordering_requires_timestamps = true,
 		},
 		.max_stack		 = PERF_MAX_STACK_DEPTH,
-		.pretty_printing_style	 = "normal",
+		.pretty_printing_style	 = "yesrmal",
 		.socket_filter		 = -1,
-		.annotation_opts	 = annotation__default_options,
+		.anyestation_opts	 = anyestation__default_options,
 	};
 	const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
-	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any message"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "Do yest show any message"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN(0, "stats", &report.stats_mode, "Display event stats"),
@@ -1126,7 +1126,7 @@ int cmd_report(int argc, const char **argv)
 	OPT_BOOLEAN(0, "mmaps", &report.mmaps_mode, "Display recorded tasks memory maps"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
-	OPT_BOOLEAN(0, "ignore-vmlinux", &symbol_conf.ignore_vmlinux,
+	OPT_BOOLEAN(0, "igyesre-vmlinux", &symbol_conf.igyesre_vmlinux,
                     "don't load vmlinux even if found"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
 		   "file", "kallsyms pathname"),
@@ -1138,7 +1138,7 @@ int cmd_report(int argc, const char **argv)
 	OPT_BOOLEAN('T', "threads", &report.show_threads,
 		    "Show per-thread event counters"),
 	OPT_STRING(0, "pretty", &report.pretty_printing_style, "key",
-		   "pretty printing style key: normal raw"),
+		   "pretty printing style key: yesrmal raw"),
 	OPT_BOOLEAN(0, "tui", &report.use_tui, "Use the TUI interface"),
 	OPT_BOOLEAN(0, "gtk", &report.use_gtk, "Use the GTK2 interface"),
 	OPT_BOOLEAN(0, "stdio", &report.use_stdio,
@@ -1166,13 +1166,13 @@ int cmd_report(int argc, const char **argv)
 		    "Accumulate callchains of children and show total overhead as well"),
 	OPT_INTEGER(0, "max-stack", &report.max_stack,
 		    "Set the maximum stack depth when parsing the callchain, "
-		    "anything beyond the specified depth will be ignored. "
+		    "anything beyond the specified depth will be igyesred. "
 		    "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN('G', "inverted", &report.inverted_callchain,
 		    "alias for inverted call graph"),
-	OPT_CALLBACK(0, "ignore-callees", NULL, "regex",
-		   "ignore callees of these functions in call graphs",
-		   report_parse_ignore_callees_opt),
+	OPT_CALLBACK(0, "igyesre-callees", NULL, "regex",
+		   "igyesre callees of these functions in call graphs",
+		   report_parse_igyesre_callees_opt),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
 	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
@@ -1189,7 +1189,7 @@ int cmd_report(int argc, const char **argv)
 		   "width[,width...]",
 		   "don't try to adjust column width, use these fixed values"),
 	OPT_STRING_NOEMPTY('t', "field-separator", &symbol_conf.field_sep, "separator",
-		   "separator for columns, no spaces will be added between "
+		   "separator for columns, yes spaces will be added between "
 		   "columns '.' is reserved."),
 	OPT_BOOLEAN('U', "hide-unresolved", &symbol_conf.hide_unresolved,
 		    "Only display entries resolved to a symbol"),
@@ -1200,11 +1200,11 @@ int cmd_report(int argc, const char **argv)
 		   "list of cpus to profile"),
 	OPT_BOOLEAN('I', "show-info", &report.show_full_info,
 		    "Display extended information about perf.data file"),
-	OPT_BOOLEAN(0, "source", &report.annotation_opts.annotate_src,
+	OPT_BOOLEAN(0, "source", &report.anyestation_opts.anyestate_src,
 		    "Interleave source code with assembly code (default)"),
-	OPT_BOOLEAN(0, "asm-raw", &report.annotation_opts.show_asm_raw,
+	OPT_BOOLEAN(0, "asm-raw", &report.anyestation_opts.show_asm_raw,
 		    "Display raw encoding of assembly instructions (default)"),
-	OPT_STRING('M', "disassembler-style", &report.annotation_opts.disassembler_style, "disassembler style",
+	OPT_STRING('M', "disassembler-style", &report.anyestation_opts.disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
@@ -1215,8 +1215,8 @@ int cmd_report(int argc, const char **argv)
 		    parse_branch_mode),
 	OPT_BOOLEAN(0, "branch-history", &branch_call_mode,
 		    "add last branch records to call history"),
-	OPT_STRING(0, "objdump", &report.annotation_opts.objdump_path, "path",
-		   "objdump binary to use for disassembly and annotations"),
+	OPT_STRING(0, "objdump", &report.anyestation_opts.objdump_path, "path",
+		   "objdump binary to use for disassembly and anyestations"),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
 		    "Disable symbol demangling"),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
@@ -1238,7 +1238,7 @@ int cmd_report(int argc, const char **argv)
 	OPT_INTEGER(0, "socket-filter", &report.socket_filter,
 		    "only show processor socket that match with this filter"),
 	OPT_BOOLEAN(0, "raw-trace", &symbol_conf.raw_trace,
-		    "Show raw trace event output (do not use print fmt or plugins)"),
+		    "Show raw trace event output (do yest use print fmt or plugins)"),
 	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
 		    "Show entries in a hierarchy"),
 	OPT_CALLBACK_DEFAULT(0, "stdio-color", NULL, "mode",
@@ -1248,10 +1248,10 @@ int cmd_report(int argc, const char **argv)
 		   "Time span of interest (start,stop)"),
 	OPT_BOOLEAN(0, "inline", &symbol_conf.inline_name,
 		    "Show inline function"),
-	OPT_CALLBACK(0, "percent-type", &report.annotation_opts, "local-period",
+	OPT_CALLBACK(0, "percent-type", &report.anyestation_opts, "local-period",
 		     "Set percent type local/global-period/hits",
-		     annotate_parse_percent_type),
-	OPT_BOOLEAN(0, "ns", &symbol_conf.nanosecs, "Show times in nanosecs"),
+		     anyestate_parse_percent_type),
+	OPT_BOOLEAN(0, "ns", &symbol_conf.nayessecs, "Show times in nayessecs"),
 	OPT_CALLBACK(0, "time-quantum", &symbol_conf.time_quantum, "time (ms|us|ns|s)",
 		     "Set time quantum for time sort key (default 100ms)",
 		     parse_time_quantum),
@@ -1390,7 +1390,7 @@ repeat:
 		symbol_conf.cumulate_callchain = false;
 
 		if (field_order) {
-			pr_err("Error: --hierarchy and --fields options cannot be used together\n");
+			pr_err("Error: --hierarchy and --fields options canyest be used together\n");
 			parse_options_usage(report_usage, options, "F", 1);
 			parse_options_usage(NULL, options, "hierarchy", 0);
 			goto error;
@@ -1473,18 +1473,18 @@ repeat:
 	}
 
 	/*
-	 * Only in the TUI browser we are doing integrated annotation,
+	 * Only in the TUI browser we are doing integrated anyestation,
 	 * so don't allocate extra space that won't be used in the stdio
 	 * implementation.
 	 */
-	if (ui__has_annotation() || report.symbol_ipc ||
+	if (ui__has_anyestation() || report.symbol_ipc ||
 	    report.total_cycles_mode) {
-		ret = symbol__annotation_init();
+		ret = symbol__anyestation_init();
 		if (ret < 0)
 			goto error;
 		/*
  		 * For searching by name on the "Browse map details".
- 		 * providing it only in verbose mode not to bloat too
+ 		 * providing it only in verbose mode yest to bloat too
  		 * much struct symbol.
  		 */
 		if (verbose > 0) {
@@ -1497,7 +1497,7 @@ repeat:
 			symbol_conf.priv_size += sizeof(u32);
 			symbol_conf.sort_by_name = true;
 		}
-		annotation_config__init();
+		anyestation_config__init();
 	}
 
 	if (symbol__init(&session->header.env) < 0)

@@ -382,12 +382,12 @@ static void ave_hw_write_macaddr(struct net_device *ndev,
 static void ave_hw_read_version(struct net_device *ndev, char *buf, int len)
 {
 	struct ave_private *priv = netdev_priv(ndev);
-	u32 major, minor, vr;
+	u32 major, miyesr, vr;
 
 	vr = readl(priv->base + AVE_VR);
 	major = (vr & GENMASK(15, 8)) >> 8;
-	minor = (vr & GENMASK(7, 0));
-	snprintf(buf, len, "v%u.%u", major, minor);
+	miyesr = (vr & GENMASK(7, 0));
+	snprintf(buf, len, "v%u.%u", major, miyesr);
 }
 
 static void ave_ethtool_get_drvinfo(struct net_device *ndev,
@@ -686,7 +686,7 @@ static int ave_tx_complete(struct net_device *ndev)
 	while (proc_idx != done_idx) {
 		cmdsts = ave_desc_read_cmdsts(ndev, AVE_DESCID_TX, done_idx);
 
-		/* do nothing if owner is HW (==1 for Tx) */
+		/* do yesthing if owner is HW (==1 for Tx) */
 		if (cmdsts & AVE_STS_OWN)
 			break;
 
@@ -754,7 +754,7 @@ static int ave_rx_receive(struct net_device *ndev, int num)
 
 		cmdsts = ave_desc_read_cmdsts(ndev, AVE_DESCID_RX, proc_idx);
 
-		/* do nothing if owner is HW (==0 for Rx) */
+		/* do yesthing if owner is HW (==0 for Rx) */
 		if (!(cmdsts & AVE_STS_OWN))
 			break;
 
@@ -1160,8 +1160,8 @@ static int ave_init(struct net_device *ndev)
 	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 	struct ave_private *priv = netdev_priv(ndev);
 	struct device *dev = ndev->dev.parent;
-	struct device_node *np = dev->of_node;
-	struct device_node *mdio_np;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *mdio_np;
 	struct phy_device *phydev;
 	int nc, nr, ret;
 
@@ -1191,12 +1191,12 @@ static int ave_init(struct net_device *ndev)
 
 	mdio_np = of_get_child_by_name(np, "mdio");
 	if (!mdio_np) {
-		dev_err(dev, "mdio node not found\n");
+		dev_err(dev, "mdio yesde yest found\n");
 		ret = -EINVAL;
 		goto out_reset_assert;
 	}
 	ret = of_mdiobus_register(priv->mdio, mdio_np);
-	of_node_put(mdio_np);
+	of_yesde_put(mdio_np);
 	if (ret) {
 		dev_err(dev, "failed to register mdiobus\n");
 		goto out_reset_assert;
@@ -1204,7 +1204,7 @@ static int ave_init(struct net_device *ndev)
 
 	phydev = of_phy_get_and_connect(ndev, np, ave_phy_adjust_link);
 	if (!phydev) {
-		dev_err(dev, "could not attach to PHY\n");
+		dev_err(dev, "could yest attach to PHY\n");
 		ret = -ENODEV;
 		goto out_mdio_unregister;
 	}
@@ -1400,7 +1400,7 @@ static int ave_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	ndesc = priv->tx.ndesc;
 	freepkt = ((done_idx + ndesc - 1) - proc_idx) % ndesc;
 
-	/* stop queue when not enough entry */
+	/* stop queue when yest eyesugh entry */
 	if (unlikely(freepkt < 1)) {
 		netif_stop_queue(ndev);
 		return NETDEV_TX_BUSY;
@@ -1552,7 +1552,7 @@ static int ave_probe(struct platform_device *pdev)
 	phy_interface_t phy_mode;
 	struct ave_private *priv;
 	struct net_device *ndev;
-	struct device_node *np;
+	struct device_yesde *np;
 	const void *mac_addr;
 	void __iomem *base;
 	const char *name;
@@ -1564,10 +1564,10 @@ static int ave_probe(struct platform_device *pdev)
 	if (WARN_ON(!data))
 		return -EINVAL;
 
-	np = dev->of_node;
+	np = dev->of_yesde;
 	ret = of_get_phy_mode(np, &phy_mode);
 	if (ret) {
-		dev_err(dev, "phy-mode not found\n");
+		dev_err(dev, "phy-mode yest found\n");
 		return ret;
 	}
 
@@ -1665,8 +1665,8 @@ static int ave_probe(struct platform_device *pdev)
 		dev_err(dev, "can't get syscon-phy-mode property\n");
 		goto out_free_netdev;
 	}
-	priv->regmap = syscon_node_to_regmap(args.np);
-	of_node_put(args.np);
+	priv->regmap = syscon_yesde_to_regmap(args.np);
+	of_yesde_put(args.np);
 	if (IS_ERR(priv->regmap)) {
 		dev_err(dev, "can't map syscon-phy-mode\n");
 		ret = PTR_ERR(priv->regmap);

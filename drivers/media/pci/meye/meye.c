@@ -407,7 +407,7 @@ static void mchip_sync(int reg)
 			status = readl(meye.mchip_mmregs +
 				       MCHIP_MM_FIFO_STATUS);
 			if (!(status & MCHIP_MM_FIFO_WAIT)) {
-				printk(KERN_WARNING "meye: fifo not ready\n");
+				printk(KERN_WARNING "meye: fifo yest ready\n");
 				return;
 			}
 			if (status & MCHIP_MM_FIFO_READY)
@@ -624,9 +624,9 @@ static int mchip_comp_read_frame(u32 v, u8 *buf, int size)
 
 	/* Some mchip generated jpeg frames are incorrect. In most
 	 * (all ?) of those cases, the final EOI (0xff 0xd9) marker
-	 * is not present at the end of the frame.
+	 * is yest present at the end of the frame.
 	 *
-	 * Since adding the final marker is not enough to restore
+	 * Since adding the final marker is yest eyesugh to restore
 	 * the jpeg integrity, we drop the frame.
 	 */
 
@@ -1216,7 +1216,7 @@ static int vidioc_reqbufs(struct file *file, void *fh,
 		return -EINVAL;
 
 	if (meye.grab_fbuffer && req->count == gbuffers) {
-		/* already allocated, no modifications */
+		/* already allocated, yes modifications */
 		return 0;
 	}
 
@@ -1477,7 +1477,7 @@ static int meye_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	vma->vm_ops = &meye_vm_ops;
-	vma->vm_flags &= ~VM_IO;	/* not I/O memory */
+	vma->vm_flags &= ~VM_IO;	/* yest I/O memory */
 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_private_data = (void *) (offset / gbufsize);
 	meye_vm_open(vma);
@@ -1603,7 +1603,7 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	ret = v4l2_device_register(&pcidev->dev, v4l2_dev);
 	if (ret < 0) {
-		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
+		v4l2_err(v4l2_dev, "Could yest register v4l2_device\n");
 		return ret;
 	}
 	ret = -ENOMEM;
@@ -1642,7 +1642,7 @@ static int meye_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	ret = -EIO;
 	mchip_adr = pci_resource_start(meye.mchip_dev,0);
 	if (!mchip_adr) {
-		v4l2_err(v4l2_dev, "meye: mchip has no device base address\n");
+		v4l2_err(v4l2_dev, "meye: mchip has yes device base address\n");
 		goto outregions;
 	}
 	if (!request_mem_region(pci_resource_start(meye.mchip_dev, 0),

@@ -31,7 +31,7 @@
 #include "internal.h"
 
 /*
- * The max size that a non-root user is allowed to grow the pipe. Can
+ * The max size that a yesn-root user is allowed to grow the pipe. Can
  * be set by root in /proc/sys/fs/pipe-max-size
  */
 unsigned int pipe_max_size = 1048576;
@@ -52,47 +52,47 @@ unsigned long pipe_user_pages_soft = PIPE_DEF_BUFFERS * INR_OPEN_CUR;
  * Reads with count = 0 should always return 0.
  * -- Julian Bradfield 1999-06-07.
  *
- * FIFOs and Pipes now generate SIGIO for both readers and writers.
+ * FIFOs and Pipes yesw generate SIGIO for both readers and writers.
  * -- Jeremy Elson <jelson@circlemud.org> 2001-08-16
  *
  * pipe_read & write cleanup
  * -- Manfred Spraul <manfred@colorfullife.com> 2002-05-09
  */
 
-static void pipe_lock_nested(struct pipe_inode_info *pipe, int subclass)
+static void pipe_lock_nested(struct pipe_iyesde_info *pipe, int subclass)
 {
 	if (pipe->files)
 		mutex_lock_nested(&pipe->mutex, subclass);
 }
 
-void pipe_lock(struct pipe_inode_info *pipe)
+void pipe_lock(struct pipe_iyesde_info *pipe)
 {
 	/*
-	 * pipe_lock() nests non-pipe inode locks (for writing to a file)
+	 * pipe_lock() nests yesn-pipe iyesde locks (for writing to a file)
 	 */
 	pipe_lock_nested(pipe, I_MUTEX_PARENT);
 }
 EXPORT_SYMBOL(pipe_lock);
 
-void pipe_unlock(struct pipe_inode_info *pipe)
+void pipe_unlock(struct pipe_iyesde_info *pipe)
 {
 	if (pipe->files)
 		mutex_unlock(&pipe->mutex);
 }
 EXPORT_SYMBOL(pipe_unlock);
 
-static inline void __pipe_lock(struct pipe_inode_info *pipe)
+static inline void __pipe_lock(struct pipe_iyesde_info *pipe)
 {
 	mutex_lock_nested(&pipe->mutex, I_MUTEX_PARENT);
 }
 
-static inline void __pipe_unlock(struct pipe_inode_info *pipe)
+static inline void __pipe_unlock(struct pipe_iyesde_info *pipe)
 {
 	mutex_unlock(&pipe->mutex);
 }
 
-void pipe_double_lock(struct pipe_inode_info *pipe1,
-		      struct pipe_inode_info *pipe2)
+void pipe_double_lock(struct pipe_iyesde_info *pipe1,
+		      struct pipe_iyesde_info *pipe2)
 {
 	BUG_ON(pipe1 == pipe2);
 
@@ -105,14 +105,14 @@ void pipe_double_lock(struct pipe_inode_info *pipe1,
 	}
 }
 
-/* Drop the inode semaphore and wait for a pipe event, atomically */
-void pipe_wait(struct pipe_inode_info *pipe)
+/* Drop the iyesde semaphore and wait for a pipe event, atomically */
+void pipe_wait(struct pipe_iyesde_info *pipe)
 {
 	DEFINE_WAIT(wait);
 
 	/*
 	 * Pipes are system-local resources, so sleeping on them
-	 * is considered a noninteractive wait:
+	 * is considered a yesninteractive wait:
 	 */
 	prepare_to_wait(&pipe->wait, &wait, TASK_INTERRUPTIBLE);
 	pipe_unlock(pipe);
@@ -121,13 +121,13 @@ void pipe_wait(struct pipe_inode_info *pipe)
 	pipe_lock(pipe);
 }
 
-static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
+static void ayesn_pipe_buf_release(struct pipe_iyesde_info *pipe,
 				  struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 
 	/*
-	 * If nobody else uses this page, and we don't already have a
+	 * If yesbody else uses this page, and we don't already have a
 	 * temporary page, let's keep track of it as a one-deep
 	 * allocation cache. (Otherwise just release our reference to it)
 	 */
@@ -137,7 +137,7 @@ static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
 		put_page(page);
 }
 
-static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
+static int ayesn_pipe_buf_steal(struct pipe_iyesde_info *pipe,
 			       struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
@@ -162,7 +162,7 @@ static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
  *	he wishes; the typical use is insertion into a different file
  *	page cache.
  */
-int generic_pipe_buf_steal(struct pipe_inode_info *pipe,
+int generic_pipe_buf_steal(struct pipe_iyesde_info *pipe,
 			   struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
@@ -189,9 +189,9 @@ EXPORT_SYMBOL(generic_pipe_buf_steal);
  * Description:
  *	This function grabs an extra reference to @buf. It's used in
  *	in the tee() system call, when we duplicate the buffers in one
- *	pipe into another.
+ *	pipe into ayesther.
  */
-bool generic_pipe_buf_get(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
+bool generic_pipe_buf_get(struct pipe_iyesde_info *pipe, struct pipe_buffer *buf)
 {
 	return try_get_page(buf->page);
 }
@@ -203,10 +203,10 @@ EXPORT_SYMBOL(generic_pipe_buf_get);
  * @buf:	the buffer to confirm
  *
  * Description:
- *	This function does nothing, because the generic pipe code uses
+ *	This function does yesthing, because the generic pipe code uses
  *	pages that are always good when inserted into the pipe.
  */
-int generic_pipe_buf_confirm(struct pipe_inode_info *info,
+int generic_pipe_buf_confirm(struct pipe_iyesde_info *info,
 			     struct pipe_buffer *buf)
 {
 	return 0;
@@ -221,7 +221,7 @@ EXPORT_SYMBOL(generic_pipe_buf_confirm);
  * Description:
  *	This function releases a reference to @buf.
  */
-void generic_pipe_buf_release(struct pipe_inode_info *pipe,
+void generic_pipe_buf_release(struct pipe_iyesde_info *pipe,
 			      struct pipe_buffer *buf)
 {
 	put_page(buf->page);
@@ -229,24 +229,24 @@ void generic_pipe_buf_release(struct pipe_inode_info *pipe,
 EXPORT_SYMBOL(generic_pipe_buf_release);
 
 /* New data written to a pipe may be appended to a buffer with this type. */
-static const struct pipe_buf_operations anon_pipe_buf_ops = {
+static const struct pipe_buf_operations ayesn_pipe_buf_ops = {
 	.confirm = generic_pipe_buf_confirm,
-	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
+	.release = ayesn_pipe_buf_release,
+	.steal = ayesn_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
 };
 
-static const struct pipe_buf_operations anon_pipe_buf_nomerge_ops = {
+static const struct pipe_buf_operations ayesn_pipe_buf_yesmerge_ops = {
 	.confirm = generic_pipe_buf_confirm,
-	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
+	.release = ayesn_pipe_buf_release,
+	.steal = ayesn_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
 };
 
 static const struct pipe_buf_operations packet_pipe_buf_ops = {
 	.confirm = generic_pipe_buf_confirm,
-	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
+	.release = ayesn_pipe_buf_release,
+	.steal = ayesn_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
 };
 
@@ -255,23 +255,23 @@ static const struct pipe_buf_operations packet_pipe_buf_ops = {
  * @buf:	the buffer to mark
  *
  * Description:
- *	This function ensures that no future writes will be merged into the
+ *	This function ensures that yes future writes will be merged into the
  *	given &struct pipe_buffer. This is necessary when multiple pipe buffers
  *	share the same backing page.
  */
 void pipe_buf_mark_unmergeable(struct pipe_buffer *buf)
 {
-	if (buf->ops == &anon_pipe_buf_ops)
-		buf->ops = &anon_pipe_buf_nomerge_ops;
+	if (buf->ops == &ayesn_pipe_buf_ops)
+		buf->ops = &ayesn_pipe_buf_yesmerge_ops;
 }
 
 static bool pipe_buf_can_merge(struct pipe_buffer *buf)
 {
-	return buf->ops == &anon_pipe_buf_ops;
+	return buf->ops == &ayesn_pipe_buf_ops;
 }
 
 /* Done while waiting without holding the pipe lock - thus the READ_ONCE() */
-static inline bool pipe_readable(const struct pipe_inode_info *pipe)
+static inline bool pipe_readable(const struct pipe_iyesde_info *pipe)
 {
 	unsigned int head = READ_ONCE(pipe->head);
 	unsigned int tail = READ_ONCE(pipe->tail);
@@ -285,7 +285,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 {
 	size_t total_len = iov_iter_count(to);
 	struct file *filp = iocb->ki_filp;
-	struct pipe_inode_info *pipe = filp->private_data;
+	struct pipe_iyesde_info *pipe = filp->private_data;
 	bool was_full;
 	ssize_t ret;
 
@@ -374,14 +374,14 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 		 * that way.
 		 *
 		 * You can't make zero-sized pipe buffers by doing an empty
-		 * write (not even in packet mode), but they can happen if
+		 * write (yest even in packet mode), but they can happen if
 		 * the writer gets an EFAULT when trying to fill a buffer
 		 * that already got allocated and inserted in the buffer
 		 * array.
 		 *
 		 * So we still need to wake up any pending writers in the
 		 * _very_ unlikely case that the pipe was full, but we got
-		 * no data.
+		 * yes data.
 		 */
 		if (unlikely(was_full)) {
 			wake_up_interruptible_sync_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
@@ -391,7 +391,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 		/*
 		 * But because we didn't read anything, at this point we can
 		 * just return directly with -ERESTARTSYS if we're interrupted,
-		 * since we've done any required wakeups and there's no need
+		 * since we've done any required wakeups and there's yes need
 		 * to mark anything accessed. And we've dropped the lock.
 		 */
 		if (wait_event_interruptible(pipe->wait, pipe_readable(pipe)) < 0)
@@ -417,7 +417,7 @@ static inline int is_packetized(struct file *file)
 }
 
 /* Done while waiting without holding the pipe lock - thus the READ_ONCE() */
-static inline bool pipe_writable(const struct pipe_inode_info *pipe)
+static inline bool pipe_writable(const struct pipe_iyesde_info *pipe)
 {
 	unsigned int head = READ_ONCE(pipe->head);
 	unsigned int tail = READ_ONCE(pipe->tail);
@@ -431,7 +431,7 @@ static ssize_t
 pipe_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *filp = iocb->ki_filp;
-	struct pipe_inode_info *pipe = filp->private_data;
+	struct pipe_iyesde_info *pipe = filp->private_data;
 	unsigned int head;
 	ssize_t ret = 0;
 	size_t total_len = iov_iter_count(from);
@@ -452,7 +452,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 
 	/*
 	 * Only wake up if the pipe started out empty, since
-	 * otherwise there should be no readers waiting.
+	 * otherwise there should be yes readers waiting.
 	 *
 	 * If it wasn't empty we try to merge new data into
 	 * the last buffer.
@@ -529,7 +529,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			/* Insert it into the buffer array */
 			buf = &pipe->bufs[head & mask];
 			buf->page = page;
-			buf->ops = &anon_pipe_buf_ops;
+			buf->ops = &ayesn_pipe_buf_ops;
 			buf->offset = 0;
 			buf->len = 0;
 			buf->flags = 0;
@@ -599,18 +599,18 @@ out:
 		wake_up_interruptible_sync_poll(&pipe->wait, EPOLLIN | EPOLLRDNORM);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	}
-	if (ret > 0 && sb_start_write_trylock(file_inode(filp)->i_sb)) {
+	if (ret > 0 && sb_start_write_trylock(file_iyesde(filp)->i_sb)) {
 		int err = file_update_time(filp);
 		if (err)
 			ret = err;
-		sb_end_write(file_inode(filp)->i_sb);
+		sb_end_write(file_iyesde(filp)->i_sb);
 	}
 	return ret;
 }
 
 static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct pipe_inode_info *pipe = filp->private_data;
+	struct pipe_iyesde_info *pipe = filp->private_data;
 	int count, head, tail, mask;
 
 	switch (cmd) {
@@ -638,11 +638,11 @@ static __poll_t
 pipe_poll(struct file *filp, poll_table *wait)
 {
 	__poll_t mask;
-	struct pipe_inode_info *pipe = filp->private_data;
+	struct pipe_iyesde_info *pipe = filp->private_data;
 	unsigned int head, tail;
 
 	/*
-	 * Reading only -- no need for acquiring the semaphore.
+	 * Reading only -- yes need for acquiring the semaphore.
 	 *
 	 * But because this is racy, the code has to add the
 	 * entry to the poll table _first_ ..
@@ -669,7 +669,7 @@ pipe_poll(struct file *filp, poll_table *wait)
 		if (!pipe_full(head, tail, pipe->max_usage))
 			mask |= EPOLLOUT | EPOLLWRNORM;
 		/*
-		 * Most Unices do not set EPOLLERR for FIFOs but on Linux they
+		 * Most Unices do yest set EPOLLERR for FIFOs but on Linux they
 		 * behave exactly like pipes for poll().
 		 */
 		if (!pipe->readers)
@@ -679,25 +679,25 @@ pipe_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
-static void put_pipe_info(struct inode *inode, struct pipe_inode_info *pipe)
+static void put_pipe_info(struct iyesde *iyesde, struct pipe_iyesde_info *pipe)
 {
 	int kill = 0;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
 	if (!--pipe->files) {
-		inode->i_pipe = NULL;
+		iyesde->i_pipe = NULL;
 		kill = 1;
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 
 	if (kill)
 		free_pipe_info(pipe);
 }
 
 static int
-pipe_release(struct inode *inode, struct file *file)
+pipe_release(struct iyesde *iyesde, struct file *file)
 {
-	struct pipe_inode_info *pipe = file->private_data;
+	struct pipe_iyesde_info *pipe = file->private_data;
 
 	__pipe_lock(pipe);
 	if (file->f_mode & FMODE_READ)
@@ -712,14 +712,14 @@ pipe_release(struct inode *inode, struct file *file)
 	}
 	__pipe_unlock(pipe);
 
-	put_pipe_info(inode, pipe);
+	put_pipe_info(iyesde, pipe);
 	return 0;
 }
 
 static int
 pipe_fasync(int fd, struct file *filp, int on)
 {
-	struct pipe_inode_info *pipe = filp->private_data;
+	struct pipe_iyesde_info *pipe = filp->private_data;
 	int retval = 0;
 
 	__pipe_lock(pipe);
@@ -760,15 +760,15 @@ static bool is_unprivileged_user(void)
 	return !capable(CAP_SYS_RESOURCE) && !capable(CAP_SYS_ADMIN);
 }
 
-struct pipe_inode_info *alloc_pipe_info(void)
+struct pipe_iyesde_info *alloc_pipe_info(void)
 {
-	struct pipe_inode_info *pipe;
+	struct pipe_iyesde_info *pipe;
 	unsigned long pipe_bufs = PIPE_DEF_BUFFERS;
 	struct user_struct *user = get_current_user();
 	unsigned long user_bufs;
 	unsigned int max_size = READ_ONCE(pipe_max_size);
 
-	pipe = kzalloc(sizeof(struct pipe_inode_info), GFP_KERNEL_ACCOUNT);
+	pipe = kzalloc(sizeof(struct pipe_iyesde_info), GFP_KERNEL_ACCOUNT);
 	if (pipe == NULL)
 		goto out_free_uid;
 
@@ -806,7 +806,7 @@ out_free_uid:
 	return NULL;
 }
 
-void free_pipe_info(struct pipe_inode_info *pipe)
+void free_pipe_info(struct pipe_iyesde_info *pipe)
 {
 	int i;
 
@@ -831,83 +831,83 @@ static struct vfsmount *pipe_mnt __read_mostly;
 static char *pipefs_dname(struct dentry *dentry, char *buffer, int buflen)
 {
 	return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
-				d_inode(dentry)->i_ino);
+				d_iyesde(dentry)->i_iyes);
 }
 
 static const struct dentry_operations pipefs_dentry_operations = {
 	.d_dname	= pipefs_dname,
 };
 
-static struct inode * get_pipe_inode(void)
+static struct iyesde * get_pipe_iyesde(void)
 {
-	struct inode *inode = new_inode_pseudo(pipe_mnt->mnt_sb);
-	struct pipe_inode_info *pipe;
+	struct iyesde *iyesde = new_iyesde_pseudo(pipe_mnt->mnt_sb);
+	struct pipe_iyesde_info *pipe;
 
-	if (!inode)
-		goto fail_inode;
+	if (!iyesde)
+		goto fail_iyesde;
 
-	inode->i_ino = get_next_ino();
+	iyesde->i_iyes = get_next_iyes();
 
 	pipe = alloc_pipe_info();
 	if (!pipe)
 		goto fail_iput;
 
-	inode->i_pipe = pipe;
+	iyesde->i_pipe = pipe;
 	pipe->files = 2;
 	pipe->readers = pipe->writers = 1;
-	inode->i_fop = &pipefifo_fops;
+	iyesde->i_fop = &pipefifo_fops;
 
 	/*
-	 * Mark the inode dirty from the very beginning,
+	 * Mark the iyesde dirty from the very beginning,
 	 * that way it will never be moved to the dirty
-	 * list because "mark_inode_dirty()" will think
+	 * list because "mark_iyesde_dirty()" will think
 	 * that it already _is_ on the dirty list.
 	 */
-	inode->i_state = I_DIRTY;
-	inode->i_mode = S_IFIFO | S_IRUSR | S_IWUSR;
-	inode->i_uid = current_fsuid();
-	inode->i_gid = current_fsgid();
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	iyesde->i_state = I_DIRTY;
+	iyesde->i_mode = S_IFIFO | S_IRUSR | S_IWUSR;
+	iyesde->i_uid = current_fsuid();
+	iyesde->i_gid = current_fsgid();
+	iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
 
-	return inode;
+	return iyesde;
 
 fail_iput:
-	iput(inode);
+	iput(iyesde);
 
-fail_inode:
+fail_iyesde:
 	return NULL;
 }
 
 int create_pipe_files(struct file **res, int flags)
 {
-	struct inode *inode = get_pipe_inode();
+	struct iyesde *iyesde = get_pipe_iyesde();
 	struct file *f;
 
-	if (!inode)
+	if (!iyesde)
 		return -ENFILE;
 
-	f = alloc_file_pseudo(inode, pipe_mnt, "",
+	f = alloc_file_pseudo(iyesde, pipe_mnt, "",
 				O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT)),
 				&pipefifo_fops);
 	if (IS_ERR(f)) {
-		free_pipe_info(inode->i_pipe);
-		iput(inode);
+		free_pipe_info(iyesde->i_pipe);
+		iput(iyesde);
 		return PTR_ERR(f);
 	}
 
-	f->private_data = inode->i_pipe;
+	f->private_data = iyesde->i_pipe;
 
 	res[0] = alloc_file_clone(f, O_RDONLY | (flags & O_NONBLOCK),
 				  &pipefifo_fops);
 	if (IS_ERR(res[0])) {
-		put_pipe_info(inode, inode->i_pipe);
+		put_pipe_info(iyesde, iyesde->i_pipe);
 		fput(f);
 		return PTR_ERR(res[0]);
 	}
-	res[0]->private_data = inode->i_pipe;
+	res[0]->private_data = iyesde->i_pipe;
 	res[1] = f;
-	stream_open(inode, res[0]);
-	stream_open(inode, res[1]);
+	stream_open(iyesde, res[0]);
+	stream_open(iyesde, res[1]);
 	return 0;
 }
 
@@ -958,8 +958,8 @@ int do_pipe_flags(int *fd, int flags)
 }
 
 /*
- * sys_pipe() is the normal C calling standard for creating
- * a pipe. It's not the way Unix traditionally does this, though.
+ * sys_pipe() is the yesrmal C calling standard for creating
+ * a pipe. It's yest the way Unix traditionally does this, though.
  */
 static int do_pipe2(int __user *fildes, int flags)
 {
@@ -993,7 +993,7 @@ SYSCALL_DEFINE1(pipe, int __user *, fildes)
 	return do_pipe2(fildes, 0);
 }
 
-static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)
+static int wait_for_partner(struct pipe_iyesde_info *pipe, unsigned int *cnt)
 {
 	int cur = *cnt;
 
@@ -1005,39 +1005,39 @@ static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)
 	return cur == *cnt ? -ERESTARTSYS : 0;
 }
 
-static void wake_up_partner(struct pipe_inode_info *pipe)
+static void wake_up_partner(struct pipe_iyesde_info *pipe)
 {
 	wake_up_interruptible(&pipe->wait);
 }
 
-static int fifo_open(struct inode *inode, struct file *filp)
+static int fifo_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct pipe_inode_info *pipe;
-	bool is_pipe = inode->i_sb->s_magic == PIPEFS_MAGIC;
+	struct pipe_iyesde_info *pipe;
+	bool is_pipe = iyesde->i_sb->s_magic == PIPEFS_MAGIC;
 	int ret;
 
 	filp->f_version = 0;
 
-	spin_lock(&inode->i_lock);
-	if (inode->i_pipe) {
-		pipe = inode->i_pipe;
+	spin_lock(&iyesde->i_lock);
+	if (iyesde->i_pipe) {
+		pipe = iyesde->i_pipe;
 		pipe->files++;
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 	} else {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		pipe = alloc_pipe_info();
 		if (!pipe)
 			return -ENOMEM;
 		pipe->files = 1;
-		spin_lock(&inode->i_lock);
-		if (unlikely(inode->i_pipe)) {
-			inode->i_pipe->files++;
-			spin_unlock(&inode->i_lock);
+		spin_lock(&iyesde->i_lock);
+		if (unlikely(iyesde->i_pipe)) {
+			iyesde->i_pipe->files++;
+			spin_unlock(&iyesde->i_lock);
 			free_pipe_info(pipe);
-			pipe = inode->i_pipe;
+			pipe = iyesde->i_pipe;
 		} else {
-			inode->i_pipe = pipe;
-			spin_unlock(&inode->i_lock);
+			iyesde->i_pipe = pipe;
+			spin_unlock(&iyesde->i_lock);
 		}
 	}
 	filp->private_data = pipe;
@@ -1046,14 +1046,14 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	__pipe_lock(pipe);
 
 	/* We can only do regular read/write on fifos */
-	stream_open(inode, filp);
+	stream_open(iyesde, filp);
 
 	switch (filp->f_mode & (FMODE_READ | FMODE_WRITE)) {
 	case FMODE_READ:
 	/*
 	 *  O_RDONLY
 	 *  POSIX.1 says that O_NONBLOCK means return with the FIFO
-	 *  opened, even when there is no process writing the FIFO.
+	 *  opened, even when there is yes process writing the FIFO.
 	 */
 		pipe->r_counter++;
 		if (pipe->readers++ == 0)
@@ -1075,7 +1075,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	/*
 	 *  O_WRONLY
 	 *  POSIX.1 says that O_NONBLOCK means return -1 with
-	 *  errno=ENXIO when there is no process reading the FIFO.
+	 *  erryes=ENXIO when there is yes process reading the FIFO.
 	 */
 		ret = -ENXIO;
 		if (!is_pipe && (filp->f_flags & O_NONBLOCK) && !pipe->readers)
@@ -1131,13 +1131,13 @@ err_wr:
 err:
 	__pipe_unlock(pipe);
 
-	put_pipe_info(inode, pipe);
+	put_pipe_info(iyesde, pipe);
 	return ret;
 }
 
 const struct file_operations pipefifo_fops = {
 	.open		= fifo_open,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.read_iter	= pipe_read,
 	.write_iter	= pipe_write,
 	.poll		= pipe_poll,
@@ -1166,7 +1166,7 @@ unsigned int round_pipe_size(unsigned long size)
  * Allocate a new array of pipe buffers and copy the info over. Returns the
  * pipe size if successful, or return -ERROR on error.
  */
-static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
+static long pipe_set_size(struct pipe_iyesde_info *pipe, unsigned long arg)
 {
 	struct pipe_buffer *bufs;
 	unsigned int size, nr_slots, head, tail, mask, n;
@@ -1181,7 +1181,7 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 
 	/*
 	 * If trying to increase the pipe capacity, check that an
-	 * unprivileged user is not trying to exceed various limits
+	 * unprivileged user is yest trying to exceed various limits
 	 * (soft limit check here, hard limit check just below).
 	 * Decreasing the pipe capacity is always permitted, even
 	 * if the user is currently over a limit.
@@ -1260,18 +1260,18 @@ out_revert_acct:
 }
 
 /*
- * After the inode slimming patch, i_pipe/i_bdev/i_cdev share the same
- * location, so checking ->i_pipe is not enough to verify that this is a
+ * After the iyesde slimming patch, i_pipe/i_bdev/i_cdev share the same
+ * location, so checking ->i_pipe is yest eyesugh to verify that this is a
  * pipe.
  */
-struct pipe_inode_info *get_pipe_info(struct file *file)
+struct pipe_iyesde_info *get_pipe_info(struct file *file)
 {
 	return file->f_op == &pipefifo_fops ? file->private_data : NULL;
 }
 
 long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct pipe_inode_info *pipe;
+	struct pipe_iyesde_info *pipe;
 	long ret;
 
 	pipe = get_pipe_info(file);
@@ -1297,14 +1297,14 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 static const struct super_operations pipefs_ops = {
-	.destroy_inode = free_inode_nonrcu,
+	.destroy_iyesde = free_iyesde_yesnrcu,
 	.statfs = simple_statfs,
 };
 
 /*
  * pipefs should _never_ be mounted by userland - too much of security hassle,
- * no real gain from having the whole whorehouse mounted. So we don't need
- * any operations on the root directory. However, we need a non-trivial
+ * yes real gain from having the whole whorehouse mounted. So we don't need
+ * any operations on the root directory. However, we need a yesn-trivial
  * d_name - pipe: will go nicely and kill the special-casing in procfs.
  */
 
@@ -1321,7 +1321,7 @@ static int pipefs_init_fs_context(struct fs_context *fc)
 static struct file_system_type pipe_fs_type = {
 	.name		= "pipefs",
 	.init_fs_context = pipefs_init_fs_context,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= kill_ayesn_super,
 };
 
 static int __init init_pipe_fs(void)

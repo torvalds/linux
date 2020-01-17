@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/poll.h>
 
@@ -304,7 +304,7 @@ static void vhci_open_timeout(struct work_struct *work)
 	vhci_create_device(data, amp ? HCI_AMP : HCI_PRIMARY);
 }
 
-static int vhci_open(struct inode *inode, struct file *file)
+static int vhci_open(struct iyesde *iyesde, struct file *file)
 {
 	struct vhci_data *data;
 
@@ -319,14 +319,14 @@ static int vhci_open(struct inode *inode, struct file *file)
 	INIT_DELAYED_WORK(&data->open_timeout, vhci_open_timeout);
 
 	file->private_data = data;
-	nonseekable_open(inode, file);
+	yesnseekable_open(iyesde, file);
 
 	schedule_delayed_work(&data->open_timeout, msecs_to_jiffies(1000));
 
 	return 0;
 }
 
-static int vhci_release(struct inode *inode, struct file *file)
+static int vhci_release(struct iyesde *iyesde, struct file *file)
 {
 	struct vhci_data *data = file->private_data;
 	struct hci_dev *hdev;
@@ -354,13 +354,13 @@ static const struct file_operations vhci_fops = {
 	.poll		= vhci_poll,
 	.open		= vhci_open,
 	.release	= vhci_release,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice vhci_miscdev = {
 	.name	= "vhci",
 	.fops	= &vhci_fops,
-	.minor	= VHCI_MINOR,
+	.miyesr	= VHCI_MINOR,
 };
 module_misc_device(vhci_miscdev);
 

@@ -12,7 +12,7 @@ This document describes a set of complementary techniques in the Linux
 networking stack to increase parallelism and improve performance for
 multi-processor systems.
 
-The following technologies are described:
+The following techyeslogies are described:
 
 - RSS: Receive Side Scaling
 - RPS: Receive Packet Steering
@@ -30,10 +30,10 @@ queues to distribute processing among CPUs. The NIC distributes packets by
 applying a filter to each packet that assigns it to one of a small number
 of logical flows. Packets for each flow are steered to a separate receive
 queue, which in turn can be processed by separate CPUs. This mechanism is
-generally known as “Receive-side Scaling” (RSS). The goal of RSS and
+generally kyeswn as “Receive-side Scaling” (RSS). The goal of RSS and
 the other scaling techniques is to increase performance uniformly.
 Multi-queue distribution can also be used for traffic prioritization, but
-that is not the focus of these techniques.
+that is yest the focus of these techniques.
 
 The filter used in RSS is typically a hash function over the network
 and/or transport layer headers-- for example, a 4-tuple hash over
@@ -57,9 +57,9 @@ The driver for a multi-queue capable NIC typically provides a kernel
 module parameter for specifying the number of hardware queues to
 configure. In the bnx2x driver, for instance, this parameter is called
 num_queues. A typical RSS configuration would be to have one receive queue
-for each CPU if the device supports enough queues, or otherwise at least
+for each CPU if the device supports eyesugh queues, or otherwise at least
 one for each memory domain, where a memory domain is a set of CPUs that
-share a particular memory level (L1, L2, NUMA node, etc.).
+share a particular memory level (L1, L2, NUMA yesde, etc.).
 
 The indirection table of an RSS device, which resolves a queue by masked
 hash, is usually programmed by the driver at initialization. The
@@ -74,11 +74,11 @@ RSS IRQ Configuration
 ~~~~~~~~~~~~~~~~~~~~~
 
 Each receive queue has a separate IRQ associated with it. The NIC triggers
-this to notify a CPU when new packets arrive on the given queue. The
+this to yestify a CPU when new packets arrive on the given queue. The
 signaling path for PCIe devices uses message signaled interrupts (MSI-X),
 that can route each interrupt to a particular CPU. The active mapping
 of queues to IRQs can be determined from /proc/interrupts. By default,
-an IRQ may be handled on any CPU. Because a non-negligible part of packet
+an IRQ may be handled on any CPU. Because a yesn-negligible part of packet
 processing takes place in receive interrupt handling, it is advantageous
 to spread receive interrupts between CPUs. To manually adjust the IRQ
 affinity of each interrupt see Documentation/IRQ-affinity.txt. Some systems
@@ -94,14 +94,14 @@ interrupt processing forms a bottleneck. Spreading load between CPUs
 decreases queue length. For low latency networking, the optimal setting
 is to allocate as many queues as there are CPUs in the system (or the
 NIC maximum, if lower). The most efficient high-rate configuration
-is likely the one with the smallest number of receive queues where no
+is likely the one with the smallest number of receive queues where yes
 receive queue overflows due to a saturated CPU, because in default
 mode with interrupt coalescing enabled, the aggregate number of
 interrupts (and thus work) grows with each additional queue.
 
-Per-cpu load can be observed using the mpstat utility, but note that on
+Per-cpu load can be observed using the mpstat utility, but yeste that on
 processors with hyperthreading (HT), each hyperthread is represented as
-a separate CPU. For interrupt handling, HT has shown no benefit in
+a separate CPU. For interrupt handling, HT has shown yes benefit in
 initial tests, so limit the number of queues to the number of CPU cores
 in the system.
 
@@ -119,7 +119,7 @@ RPS has some advantages over RSS:
 
 1) it can be used with any NIC
 2) software filters can easily be added to hash over new protocols
-3) it does not increase hardware device interrupt rate (although it does
+3) it does yest increase hardware device interrupt rate (although it does
    introduce inter-processor interrupts (IPIs))
 
 RPS is called during bottom half of the receive interrupt handler, when
@@ -169,7 +169,7 @@ Suggested Configuration
 
 For a single queue device, a typical RPS configuration would be to set
 the rps_cpus to the CPUs in the same memory domain of the interrupting
-CPU. If NUMA locality is not an issue, this could also be all CPUs in
+CPU. If NUMA locality is yest an issue, this could also be all CPUs in
 the system. At high interrupt rate, it might be wise to exclude the
 interrupting CPU from the map since that already performs much work.
 
@@ -202,14 +202,14 @@ default, half) of these packets when a new packet arrives, then the
 new packet is dropped. Packets from other flows are still only
 dropped once the input packet queue reaches netdev_max_backlog.
 No packets are dropped when the input packet queue length is below
-the threshold, so flow limit does not sever connections outright:
+the threshold, so flow limit does yest sever connections outright:
 even large flows maintain connectivity.
 
 
 Interface
 ~~~~~~~~~
 
-Flow limit is compiled in by default (CONFIG_NET_FLOW_LIMIT), but not
+Flow limit is compiled in by default (CONFIG_NET_FLOW_LIMIT), but yest
 turned on. It is implemented for each CPU independently (to avoid lock
 and cache contention) and toggled per CPU by setting the relevant bit
 in sysctl net.core.flow_limit_cpu_bitmap. It exposes the same CPU
@@ -227,7 +227,7 @@ table has 4096 buckets. This value can be modified through sysctl::
   net.core.flow_limit_table_len
 
 The value is only consulted when a new table is allocated. Modifying
-it does not update active tables.
+it does yest update active tables.
 
 
 Suggested Configuration
@@ -248,20 +248,20 @@ RFS: Receive Flow Steering
 ==========================
 
 While RPS steers packets solely based on hash, and thus generally
-provides good load distribution, it does not take into account
+provides good load distribution, it does yest take into account
 application locality. This is accomplished by Receive Flow Steering
 (RFS). The goal of RFS is to increase datacache hitrate by steering
 kernel processing of packets to the CPU where the application thread
 consuming the packet is running. RFS relies on the same RPS mechanisms
-to enqueue packets onto the backlog of another CPU and to wake up that
+to enqueue packets onto the backlog of ayesther CPU and to wake up that
 CPU.
 
-In RFS, packets are not forwarded directly by the value of their hash,
+In RFS, packets are yest forwarded directly by the value of their hash,
 but the hash is used as index into a flow lookup table. This table maps
 flows to the CPUs where those flows are being processed. The flow hash
 (see RPS section above) is used to calculate the index into this table.
 The CPU recorded in each entry is the one which last processed the flow.
-If an entry does not hold a valid CPU, then packets mapped to that entry
+If an entry does yest hold a valid CPU, then packets mapped to that entry
 are steered using plain RPS. Multiple table entries may point to the
 same CPU. Indeed, with many flows and few CPUs, it is very likely that
 a single application thread handles flows with many different flow hashes.
@@ -293,7 +293,7 @@ been enqueued onto the currently designated CPU for flow i (of course,
 entry i is actually selected by hash and multiple flows may hash to the
 same entry i).
 
-And now the trick for avoiding out of order packets: when selecting the
+And yesw the trick for avoiding out of order packets: when selecting the
 CPU for packet processing (from get_rps_cpu()) the rps_sock_flow table
 and the rps_dev_flow table of the queue that the packet was received on
 are compared. If the desired CPU for the flow (found in the
@@ -309,7 +309,7 @@ following is true:
 
 After this check, the packet is sent to the (possibly updated) current
 CPU. These rules aim to ensure that a flow only moves to a new CPU when
-there are no packets outstanding on the old CPU, as the outstanding
+there are yes packets outstanding on the old CPU, as the outstanding
 packets could arrive later than those about to be processed on the new
 CPU.
 
@@ -339,7 +339,7 @@ connections. We have found that a value of 32768 for rps_sock_flow_entries
 works fairly well on a moderately loaded server.
 
 For a single queue device, the rps_flow_cnt value for the single queue
-would normally be configured to the same value as rps_sock_flow_entries.
+would yesrmally be configured to the same value as rps_sock_flow_entries.
 For a multi-queue device, the rps_flow_cnt for each queue might be
 configured as rps_sock_flow_entries / N, where N is the number of
 queues. So for instance, if rps_sock_flow_entries is set to 32768 and there
@@ -381,7 +381,7 @@ Accelerated RFS is only available if the kernel is compiled with
 CONFIG_RFS_ACCEL and support is provided by the NIC device and driver.
 It also requires that ntuple filtering is enabled via ethtool. The map
 of CPU to queues is automatically deduced from the IRQ affinities
-configured for each receive queue by the driver, so no additional
+configured for each receive queue by the driver, so yes additional
 configuration should be necessary.
 
 
@@ -422,13 +422,13 @@ the common use case is a 1:1 mapping. This will enable sending packets
 on the same queue associations for transmit and receive. This is useful for
 busy polling multi-threaded workloads where there are challenges in
 associating a given CPU to a given application thread. The application
-threads are not pinned to CPUs and each thread handles packets
+threads are yest pinned to CPUs and each thread handles packets
 received on a single queue. The receive queue number is cached in the
 socket for the connection. In this model, sending the packets on the same
 transmit queue corresponding to the associated receive queue has benefits
 in keeping the CPU overhead low. Transmit completion work is locked into
 the same queue-association that a given application is polling on. This
-avoids the overhead of triggering an interrupt on another CPU. When the
+avoids the overhead of triggering an interrupt on ayesther CPU. When the
 application cleans up the packets during the busy poll, transmit completion
 may be processed along with it in the same thread context and so result in
 reduced latency.
@@ -445,7 +445,7 @@ running CPU as a key into the CPU-to-queue lookup table. If the
 ID matches a single queue, that is used for transmission. If multiple
 queues match, one is selected by using the flow hash to compute an index
 into the set. When selecting the transmit queue based on receive queue(s)
-map, the transmit device is not validated against the receive device as it
+map, the transmit device is yest validated against the receive device as it
 requires expensive lookup operation in the datapath.
 
 The queue chosen for transmitting a particular flow is saved in the
@@ -455,11 +455,11 @@ prevent out of order (ooo) packets. The choice also amortizes the cost
 of calling get_xps_queues() over all packets in the flow. To avoid
 ooo packets, the queue for a flow can subsequently only be changed if
 skb->ooo_okay is set for a packet in the flow. This flag indicates that
-there are no outstanding packets in the flow, so the transmit queue can
+there are yes outstanding packets in the flow, so the transmit queue can
 change without the risk of generating out of order packets. The
 transport layer is responsible for setting ooo_okay appropriately. TCP,
 for instance, sets the flag when all data for a connection has been
-acknowledged.
+ackyeswledged.
 
 XPS Configuration
 -----------------
@@ -482,18 +482,18 @@ Suggested Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 For a network device with a single transmission queue, XPS configuration
-has no effect, since there is no choice in this case. In a multi-queue
+has yes effect, since there is yes choice in this case. In a multi-queue
 system, XPS is preferably configured so that each CPU maps onto one queue.
 If there are as many queues as there are CPUs in the system, then each
 queue can also map onto one CPU, resulting in exclusive pairings that
-experience no contention. If there are fewer queues than CPUs, then the
+experience yes contention. If there are fewer queues than CPUs, then the
 best CPUs to share a given queue are probably those that share the cache
 with the CPU that processes transmit completions for that queue
 (transmit interrupts).
 
 For transmit queue selection based on receive queue(s), XPS has to be
 explicitly configured mapping receive-queue(s) to transmit queue(s). If the
-user configuration for receive-queue map does not apply, then the transmit
+user configuration for receive-queue map does yest apply, then the transmit
 queue is selected based on the CPUs map.
 
 

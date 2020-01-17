@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -31,8 +31,8 @@
 
 /* common var for all device */
 static int g_hwcursor = 1;
-static int g_noaccel;
-static int g_nomtrr;
+static int g_yesaccel;
+static int g_yesmtrr;
 static const char *g_fbmode[] = {NULL, NULL};
 static const char *g_def_fbmode = "1024x768-32@60";
 static char *g_settings;
@@ -101,7 +101,7 @@ static const struct fb_videomode lynx750_ext[] = {
 	 FB_VMODE_NONINTERLACED},
 };
 
-/* no hardware cursor supported under version 2.6.10, kernel bug */
+/* yes hardware cursor supported under version 2.6.10, kernel bug */
 static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 {
 	struct lynxfb_par *par;
@@ -184,7 +184,7 @@ static void lynxfb_ops_fillrect(struct fb_info *info,
 	rop = (region->rop != ROP_COPY) ? HW_ROP2_XOR : HW_ROP2_COPY;
 
 	/*
-	 * If not use spin_lock, system will die if user load driver
+	 * If yest use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 * since they fb_count could change during the lifetime of
 	 * this lock, we are holding it for all cases.
@@ -218,7 +218,7 @@ static void lynxfb_ops_copyarea(struct fb_info *info,
 	Bpp = info->var.bits_per_pixel >> 3;
 
 	/*
-	 * If not use spin_lock, system will die if user load driver
+	 * If yest use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 * since they fb_count could change during the lifetime of
 	 * this lock, we are holding it for all cases.
@@ -267,7 +267,7 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 	}
 
 	/*
-	 * If not use spin_lock, system will die if user load driver
+	 * If yest use spin_lock, system will die if user load driver
 	 * and immediately unload driver frequently (dual)
 	 * since they fb_count could change during the lifetime of
 	 * this lock, we are holding it for all cases.
@@ -317,7 +317,7 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 	var = &info->var;
 	fix = &info->fix;
 
-	/* fix structure is not so FIX ... */
+	/* fix structure is yest so FIX ... */
 	line_length = var->xres_virtual * var->bits_per_pixel / 8;
 	line_length = ALIGN(line_length, crtc->line_pad);
 	fix->line_length = line_length;
@@ -369,7 +369,7 @@ static int lynxfb_ops_set_par(struct fb_info *info)
 	var->accel_flags = 0;/*FB_ACCELF_TEXT;*/
 
 	if (ret) {
-		pr_err("pixel bpp format not satisfied\n.");
+		pr_err("pixel bpp format yest satisfied\n.");
 		return ret;
 	}
 	ret = hw_sm750_crtc_setMode(crtc, var, fix);
@@ -557,27 +557,27 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		break;
 	default:
-		pr_err("bpp %d not supported\n", var->bits_per_pixel);
+		pr_err("bpp %d yest supported\n", var->bits_per_pixel);
 		return -EINVAL;
 	}
 	var->height = var->width = -1;
 	var->accel_flags = 0;/* FB_ACCELF_TEXT; */
 
-	/* check if current fb's video memory big enought to hold the onscreen*/
+	/* check if current fb's video memory big eyesught to hold the onscreen*/
 	request = var->xres_virtual * (var->bits_per_pixel >> 3);
 	/* defaulty crtc->channel go with par->index */
 
 	request = ALIGN(request, crtc->line_pad);
 	request = request * var->yres_virtual;
 	if (crtc->vidmem_size < request) {
-		pr_err("not enough video memory for mode\n");
+		pr_err("yest eyesugh video memory for mode\n");
 		return -ENOMEM;
 	}
 
 	return hw_sm750_crtc_checkMode(crtc, var);
 }
 
-static int lynxfb_ops_setcolreg(unsigned int regno,
+static int lynxfb_ops_setcolreg(unsigned int regyes,
 				unsigned int red,
 				unsigned int green,
 				unsigned int blue,
@@ -594,8 +594,8 @@ static int lynxfb_ops_setcolreg(unsigned int regno,
 	var = &info->var;
 	ret = 0;
 
-	if (regno > 256) {
-		pr_err("regno = %d\n", regno);
+	if (regyes > 256) {
+		pr_err("regyes = %d\n", regyes);
 		return -EINVAL;
 	}
 
@@ -607,11 +607,11 @@ static int lynxfb_ops_setcolreg(unsigned int regno,
 		red >>= 8;
 		green >>= 8;
 		blue >>= 8;
-		ret = hw_sm750_setColReg(crtc, regno, red, green, blue);
+		ret = hw_sm750_setColReg(crtc, regyes, red, green, blue);
 		goto exit;
 	}
 
-	if (info->fix.visual == FB_VISUAL_TRUECOLOR && regno < 256) {
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR && regyes < 256) {
 		u32 val;
 
 		if (var->bits_per_pixel == 16 ||
@@ -620,7 +620,7 @@ static int lynxfb_ops_setcolreg(unsigned int regno,
 			val = chan_to_field(red, &var->red);
 			val |= chan_to_field(green, &var->green);
 			val |= chan_to_field(blue, &var->blue);
-			par->pseudo_palette[regno] = val;
+			par->pseudo_palette[regyes] = val;
 			goto exit;
 		}
 	}
@@ -686,7 +686,7 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 		crtc->oScreen = 0;
 		crtc->vScreen = sm750_dev->pvMem;
 		break;
-	case sm750_dual_normal:
+	case sm750_dual_yesrmal:
 		if (par->index == 0) {
 			output->paths = sm750_panel;
 			crtc->channel = sm750_primary;
@@ -695,7 +695,7 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 		} else {
 			output->paths = sm750_crt;
 			crtc->channel = sm750_secondary;
-			/* not consider of padding stuffs for oScreen,need fix */
+			/* yest consider of padding stuffs for oScreen,need fix */
 			crtc->oScreen = sm750_dev->vidmem_size >> 1;
 			crtc->vScreen = sm750_dev->pvMem + crtc->oScreen;
 		}
@@ -709,7 +709,7 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 		} else {
 			output->paths = sm750_crt;
 			crtc->channel = sm750_primary;
-			/* not consider of padding stuffs for oScreen,need fix */
+			/* yest consider of padding stuffs for oScreen,need fix */
 			crtc->oScreen = sm750_dev->vidmem_size >> 1;
 			crtc->vScreen = sm750_dev->pvMem + crtc->oScreen;
 		}
@@ -818,7 +818,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 				mdb_desc[i]);
 			break;
 		} else if (ret == 2) {
-			pr_warn("use specified mode:%s in %s,with an ignored refresh rate\n",
+			pr_warn("use specified mode:%s in %s,with an igyesred refresh rate\n",
 				g_fbmode[index],
 				mdb_desc[i]);
 			break;
@@ -880,9 +880,9 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	pr_info("fix->smem_start = %lx\n", fix->smem_start);
 	/*
 	 * according to mmap experiment from user space application,
-	 * fix->mmio_len should not larger than virtual size
+	 * fix->mmio_len should yest larger than virtual size
 	 * (xres_virtual x yres_virtual x ByPP)
-	 * Below line maybe buggy when user mmap fb dev node and write
+	 * Below line maybe buggy when user mmap fb dev yesde and write
 	 * data into the bound over virtual size
 	 */
 	fix->smem_len = crtc->vidmem_size;
@@ -915,7 +915,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret < 0) {
-		pr_err("Could not allocate memory for cmap.\n");
+		pr_err("Could yest allocate memory for cmap.\n");
 		goto exit;
 	}
 
@@ -948,7 +948,7 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 	g_hwcursor = 3;
 
 	if (!src || !*src) {
-		dev_warn(&sm750_dev->pdev->dev, "no specific g_option.\n");
+		dev_warn(&sm750_dev->pdev->dev, "yes specific g_option.\n");
 		goto NO_PARAM;
 	}
 
@@ -958,19 +958,19 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 
 		if (!strncmp(opt, "swap", strlen("swap"))) {
 			swap = 1;
-		} else if (!strncmp(opt, "nocrt", strlen("nocrt"))) {
-			sm750_dev->nocrt = 1;
+		} else if (!strncmp(opt, "yescrt", strlen("yescrt"))) {
+			sm750_dev->yescrt = 1;
 		} else if (!strncmp(opt, "36bit", strlen("36bit"))) {
 			sm750_dev->pnltype = sm750_doubleTFT;
 		} else if (!strncmp(opt, "18bit", strlen("18bit"))) {
 			sm750_dev->pnltype = sm750_dualTFT;
 		} else if (!strncmp(opt, "24bit", strlen("24bit"))) {
 			sm750_dev->pnltype = sm750_24TFT;
-		} else if (!strncmp(opt, "nohwc0", strlen("nohwc0"))) {
+		} else if (!strncmp(opt, "yeshwc0", strlen("yeshwc0"))) {
 			g_hwcursor &= ~0x1;
-		} else if (!strncmp(opt, "nohwc1", strlen("nohwc1"))) {
+		} else if (!strncmp(opt, "yeshwc1", strlen("yeshwc1"))) {
 			g_hwcursor &= ~0x2;
-		} else if (!strncmp(opt, "nohwc", strlen("nohwc"))) {
+		} else if (!strncmp(opt, "yeshwc", strlen("yeshwc"))) {
 			g_hwcursor = 0;
 		} else {
 			if (!g_fbmode[0]) {
@@ -993,7 +993,7 @@ NO_PARAM:
 			if (swap)
 				sm750_dev->dataflow = sm750_dual_swap;
 			else
-				sm750_dev->dataflow = sm750_dual_normal;
+				sm750_dev->dataflow = sm750_dual_yesrmal;
 		} else {
 			if (swap)
 				sm750_dev->dataflow = sm750_simul_sec;
@@ -1003,8 +1003,8 @@ NO_PARAM:
 	} else {
 		/* SM750LE only have one crt channel */
 		sm750_dev->dataflow = sm750_simul_sec;
-		/* sm750le do not have complex attributes */
-		sm750_dev->nocrt = 0;
+		/* sm750le do yest have complex attributes */
+		sm750_dev->yescrt = 0;
 	}
 }
 
@@ -1098,14 +1098,14 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	sm750_dev->devid = pdev->device;
 	sm750_dev->revid = pdev->revision;
 	sm750_dev->pdev = pdev;
-	sm750_dev->mtrr_off = g_nomtrr;
+	sm750_dev->mtrr_off = g_yesmtrr;
 	sm750_dev->mtrr.vram = 0;
-	sm750_dev->accel_off = g_noaccel;
+	sm750_dev->accel_off = g_yesaccel;
 	spin_lock_init(&sm750_dev->slock);
 
 	if (!sm750_dev->accel_off) {
 		/*
-		 * hook deInit and 2d routines, notes that below hw_xxx
+		 * hook deInit and 2d routines, yestes that below hw_xxx
 		 * routine can work on most of lynx chips
 		 * if some chip need specific function,
 		 * please hook it in smXXX_set_drv routine
@@ -1170,7 +1170,7 @@ static int __init lynxfb_setup(char *options)
 	char *opt, *tmp;
 
 	if (!options || !*options) {
-		pr_warn("no options.\n");
+		pr_warn("yes options.\n");
 		return 0;
 	}
 
@@ -1194,10 +1194,10 @@ static int __init lynxfb_setup(char *options)
 	 */
 	while ((opt = strsep(&options, ":")) != NULL) {
 		/* options that mean for any lynx chips are configured here */
-		if (!strncmp(opt, "noaccel", strlen("noaccel"))) {
-			g_noaccel = 1;
-		} else if (!strncmp(opt, "nomtrr", strlen("nomtrr"))) {
-			g_nomtrr = 1;
+		if (!strncmp(opt, "yesaccel", strlen("yesaccel"))) {
+			g_yesaccel = 1;
+		} else if (!strncmp(opt, "yesmtrr", strlen("yesmtrr"))) {
+			g_yesmtrr = 1;
 		} else if (!strncmp(opt, "dual", strlen("dual"))) {
 			g_dualview = 1;
 		} else {
@@ -1259,12 +1259,12 @@ module_param(g_option, charp, 0444);
 
 MODULE_PARM_DESC(g_option,
 		 "\n\t\tCommon options:\n"
-		 "\t\tnoaccel:disable 2d capabilities\n"
-		 "\t\tnomtrr:disable MTRR attribute for video memory\n"
+		 "\t\tyesaccel:disable 2d capabilities\n"
+		 "\t\tyesmtrr:disable MTRR attribute for video memory\n"
 		 "\t\tdualview:dual frame buffer feature enabled\n"
-		 "\t\tnohwc:disable hardware cursor\n"
+		 "\t\tyeshwc:disable hardware cursor\n"
 		 "\t\tUsual example:\n"
-		 "\t\tinsmod ./sm750fb.ko g_option=\"noaccel,nohwc,1280x1024-8@60\"\n"
+		 "\t\tinsmod ./sm750fb.ko g_option=\"yesaccel,yeshwc,1280x1024-8@60\"\n"
 		 );
 
 MODULE_AUTHOR("monk liu <monk.liu@siliconmotion.com>");

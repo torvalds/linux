@@ -30,7 +30,7 @@ their values which are then exported to userspace by this driver.
 Usage Notes
 -----------
 
-The driver relies on device tree node to indicate the presence of SCPI
+The driver relies on device tree yesde to indicate the presence of SCPI
 support in the kernel. See
 Documentation/devicetree/bindings/arm/arm,scpi.txt for details of the
-devicetree node.
+devicetree yesde.

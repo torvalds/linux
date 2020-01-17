@@ -61,7 +61,7 @@ static int dvb_dmxdev_buffer_write(struct dvb_ringbuffer *buf,
 }
 
 static ssize_t dvb_dmxdev_buffer_read(struct dvb_ringbuffer *src,
-				      int non_blocking, char __user *buf,
+				      int yesn_blocking, char __user *buf,
 				      size_t count, loff_t *ppos)
 {
 	size_t todo;
@@ -78,7 +78,7 @@ static ssize_t dvb_dmxdev_buffer_read(struct dvb_ringbuffer *src,
 	}
 
 	for (todo = count; todo > 0; todo -= ret) {
-		if (non_blocking && dvb_ringbuffer_empty(src)) {
+		if (yesn_blocking && dvb_ringbuffer_empty(src)) {
 			ret = -EWOULDBLOCK;
 			break;
 		}
@@ -123,7 +123,7 @@ static struct dmx_frontend *get_fe(struct dmx_demux *demux, int type)
 	return NULL;
 }
 
-static int dvb_dvr_open(struct inode *inode, struct file *file)
+static int dvb_dvr_open(struct iyesde *iyesde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
@@ -147,9 +147,9 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 	 *
 	 * The ringbuffer is used for both read and mmap.
 	 *
-	 * It is not needed, however, on two situations:
+	 * It is yest needed, however, on two situations:
 	 *	- Write devices (access with O_WRONLY);
-	 *	- For duplex device nodes, opened with O_RDWR.
+	 *	- For duplex device yesdes, opened with O_RDWR.
 	 */
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY)
@@ -207,7 +207,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int dvb_dvr_release(struct inode *inode, struct file *file)
+static int dvb_dvr_release(struct iyesde *iyesde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
@@ -310,7 +310,7 @@ static int dvb_dvr_set_buffer_size(struct dmxdev *dmxdev,
 	buf->data = newmem;
 	buf->size = size;
 
-	/* reset and not flush in case the buffer shrinks */
+	/* reset and yest flush in case the buffer shrinks */
 	dvb_ringbuffer_reset(buf);
 	spin_unlock_irq(&dmxdev->lock);
 
@@ -351,7 +351,7 @@ static int dvb_dmxdev_set_buffer_size(struct dmxdev_filter *dmxdevfilter,
 	buf->data = newmem;
 	buf->size = size;
 
-	/* reset and not flush in case the buffer shrinks */
+	/* reset and yest flush in case the buffer shrinks */
 	dvb_ringbuffer_reset(buf);
 	spin_unlock_irq(&dmxdevfilter->dev->lock);
 
@@ -715,13 +715,13 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 			}
 		}
 
-		/* if no feed found, try to allocate new one */
+		/* if yes feed found, try to allocate new one */
 		if (!*secfeed) {
 			ret = dmxdev->demux->allocate_section_feed(dmxdev->demux,
 								   secfeed,
 								   dvb_dmxdev_section_callback);
 			if (ret < 0) {
-				pr_err("DVB (%s): could not alloc feed\n",
+				pr_err("DVB (%s): could yest alloc feed\n",
 				       __func__);
 				return ret;
 			}
@@ -729,7 +729,7 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 			ret = (*secfeed)->set(*secfeed, para->pid,
 					      (para->flags & DMX_CHECK_CRC) ? 1 : 0);
 			if (ret < 0) {
-				pr_err("DVB (%s): could not set feed\n",
+				pr_err("DVB (%s): could yest set feed\n",
 				       __func__);
 				dvb_dmxdev_feed_restart(filter);
 				return ret;
@@ -742,7 +742,7 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 		if (ret < 0) {
 			dvb_dmxdev_feed_restart(filter);
 			filter->feed.sec->start_filtering(*secfeed);
-			dprintk("could not get filter\n");
+			dprintk("could yest get filter\n");
 			return ret;
 		}
 
@@ -787,7 +787,7 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 	return 0;
 }
 
-static int dvb_demux_open(struct inode *inode, struct file *file)
+static int dvb_demux_open(struct iyesde *iyesde, struct file *file)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dmxdev *dmxdev = dvbdev->priv;
@@ -1242,7 +1242,7 @@ static int dvb_demux_mmap(struct file *file, struct vm_area_struct *vma)
 }
 #endif
 
-static int dvb_demux_release(struct inode *inode, struct file *file)
+static int dvb_demux_release(struct iyesde *iyesde, struct file *file)
 {
 	struct dmxdev_filter *dmxdevfilter = file->private_data;
 	struct dmxdev *dmxdev = dmxdevfilter->dev;

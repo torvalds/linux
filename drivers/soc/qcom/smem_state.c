@@ -18,7 +18,7 @@ static DEFINE_MUTEX(list_lock);
  * @refcount:	refcount for the state
  * @orphan:	boolean indicator that this state has been unregistered
  * @list:	entry in smem_states list
- * @of_node:	of_node to use for matching the state in DT
+ * @of_yesde:	of_yesde to use for matching the state in DT
  * @priv:	implementation private data
  * @ops:	ops for the state
  */
@@ -27,7 +27,7 @@ struct qcom_smem_state {
 	bool orphan;
 
 	struct list_head list;
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 
 	void *priv;
 
@@ -40,7 +40,7 @@ struct qcom_smem_state {
  * @mask:	bit mask for the change
  * @value:	new value for the masked bits
  *
- * Returns 0 on success, otherwise negative errno.
+ * Returns 0 on success, otherwise negative erryes.
  */
 int qcom_smem_state_update_bits(struct qcom_smem_state *state,
 				u32 mask,
@@ -56,14 +56,14 @@ int qcom_smem_state_update_bits(struct qcom_smem_state *state,
 }
 EXPORT_SYMBOL_GPL(qcom_smem_state_update_bits);
 
-static struct qcom_smem_state *of_node_to_state(struct device_node *np)
+static struct qcom_smem_state *of_yesde_to_state(struct device_yesde *np)
 {
 	struct qcom_smem_state *state;
 
 	mutex_lock(&list_lock);
 
 	list_for_each_entry(state, &smem_states, list) {
-		if (state->of_node == np) {
+		if (state->of_yesde == np) {
 			kref_get(&state->refcount);
 			goto unlock;
 		}
@@ -95,7 +95,7 @@ struct qcom_smem_state *qcom_smem_state_get(struct device *dev,
 	int ret;
 
 	if (con_id) {
-		index = of_property_match_string(dev->of_node,
+		index = of_property_match_string(dev->of_yesde,
 						 "qcom,smem-state-names",
 						 con_id);
 		if (index < 0) {
@@ -104,7 +104,7 @@ struct qcom_smem_state *qcom_smem_state_get(struct device *dev,
 		}
 	}
 
-	ret = of_parse_phandle_with_args(dev->of_node,
+	ret = of_parse_phandle_with_args(dev->of_yesde,
 					 "qcom,smem-states",
 					 "#qcom,smem-state-cells",
 					 index,
@@ -119,14 +119,14 @@ struct qcom_smem_state *qcom_smem_state_get(struct device *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
-	state = of_node_to_state(args.np);
+	state = of_yesde_to_state(args.np);
 	if (IS_ERR(state))
 		goto put;
 
 	*bit = args.args[0];
 
 put:
-	of_node_put(args.np);
+	of_yesde_put(args.np);
 	return state;
 }
 EXPORT_SYMBOL_GPL(qcom_smem_state_get);
@@ -153,11 +153,11 @@ EXPORT_SYMBOL_GPL(qcom_smem_state_put);
 
 /**
  * qcom_smem_state_register() - register a new state
- * @of_node:	of_node used for matching client lookups
+ * @of_yesde:	of_yesde used for matching client lookups
  * @ops:	implementation ops
  * @priv:	implementation specific private data
  */
-struct qcom_smem_state *qcom_smem_state_register(struct device_node *of_node,
+struct qcom_smem_state *qcom_smem_state_register(struct device_yesde *of_yesde,
 						 const struct qcom_smem_state_ops *ops,
 						 void *priv)
 {
@@ -169,7 +169,7 @@ struct qcom_smem_state *qcom_smem_state_register(struct device_node *of_node,
 
 	kref_init(&state->refcount);
 
-	state->of_node = of_node;
+	state->of_yesde = of_yesde;
 	state->ops = *ops;
 	state->priv = priv;
 

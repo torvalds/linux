@@ -65,7 +65,7 @@ static umode_t soc_attribute_mode(struct kobject *kobj,
 	    && (soc_dev->attr->soc_id != NULL))
 		return attr->mode;
 
-	/* Unknown or unfilled attribute. */
+	/* Unkyeswn or unfilled attribute. */
 	return 0;
 }
 
@@ -229,14 +229,14 @@ static int soc_device_match_one(struct device *dev, void *arg)
  * @matches: zero-terminated array of possible matches
  *
  * returns the first matching entry of the argument array, or NULL
- * if none of them match.
+ * if yesne of them match.
  *
- * This function is meant as a helper in place of of_match_node()
- * in cases where either no device tree is available or the information
- * in a device node is insufficient to identify a particular variant
+ * This function is meant as a helper in place of of_match_yesde()
+ * in cases where either yes device tree is available or the information
+ * in a device yesde is insufficient to identify a particular variant
  * by its compatible strings or other properties. For new devices,
  * the DT binding should always provide unique compatible strings
- * that allow the use of of_match_node() instead.
+ * that allow the use of of_match_yesde() instead.
  *
  * The calling function can use the .data entry of the
  * soc_device_attribute to pass a structure or function pointer for

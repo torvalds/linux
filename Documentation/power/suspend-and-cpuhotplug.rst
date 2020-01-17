@@ -15,15 +15,15 @@ Well, a picture is worth a thousand words... So ASCII art follows :-)
 
 [This depicts the current design in the kernel, and focusses only on the
 interactions involving the freezer and CPU hotplug and also tries to explain
-the locking involved. It outlines the notifications involved as well.
-But please note that here, only the call paths are illustrated, with the aim
+the locking involved. It outlines the yestifications involved as well.
+But please yeste that here, only the call paths are illustrated, with the aim
 of describing where they take different paths and where they share code.
 What happens when regular CPU hotplug and Suspend-to-RAM race with each other
-is not depicted here.]
+is yest depicted here.]
 
 On a high level, the suspend-resume cycle goes like this::
 
-  |Freeze| -> |Disable nonboot| -> |Do suspend| -> |Enable nonboot| -> |Thaw |
+  |Freeze| -> |Disable yesnboot| -> |Do suspend| -> |Enable yesnboot| -> |Thaw |
   |tasks |    |     cpus      |    |          |    |     cpus     |    |tasks|
 
 
@@ -41,14 +41,14 @@ More details follow::
                                         |
                                         v
                              Send PM_SUSPEND_PREPARE
-                                   notifications
+                                   yestifications
                                         |
                                         v
                                    Freeze tasks
                                         |
                                         |
                                         v
-                              disable_nonboot_cpus()
+                              disable_yesnboot_cpus()
                                    /* start */
                                         |
                                         v
@@ -65,8 +65,8 @@ More details follow::
             |              [This takes cpuhotplug.lock             |
   Common    |               before taking down the CPU             |
    code     |               and releases it when done]             | O
-            |            While it is at it, notifications          |
-            |            are sent when notable events occur,       |
+            |            While it is at it, yestifications          |
+            |            are sent when yestable events occur,       |
              ======>     by running all registered callbacks.      |
                                         |                          | O
                                         |                          |
@@ -83,7 +83,7 @@ More details follow::
                             Release cpu_add_remove_lock
                                         |
                                         v
-                       /* disable_nonboot_cpus() complete */
+                       /* disable_yesnboot_cpus() complete */
                                         |
                                         v
                                    Do suspend
@@ -93,7 +93,7 @@ More details follow::
 Resuming back is likewise, with the counterparts being (in the order of
 execution during resume):
 
-* enable_nonboot_cpus() which involves::
+* enable_yesnboot_cpus() which involves::
 
    |  Acquire cpu_add_remove_lock
    |  Decrease cpu_hotplug_disabled, thereby enabling regular cpu hotplug
@@ -102,11 +102,11 @@ execution during resume):
    v
 
 * thaw tasks
-* send PM_POST_SUSPEND notifications
+* send PM_POST_SUSPEND yestifications
 * Release system_transition_mutex lock.
 
 
-It is to be noted here that the system_transition_mutex lock is acquired at the
+It is to be yested here that the system_transition_mutex lock is acquired at the
 very beginning, when we are just starting out to suspend, and then released only
 after the entire cycle is complete (i.e., suspend + resume).
 
@@ -138,8 +138,8 @@ after the entire cycle is complete (i.e., suspend + resume).
             |              [This takes cpuhotplug.lock
   Common    |               before taking down the CPU
    code     |               and releases it when done]
-            |            While it is at it, notifications
-            |           are sent when notable events occur,
+            |            While it is at it, yestifications
+            |           are sent when yestable events occur,
              ======>    by running all registered callbacks.
                                         |
                                         |
@@ -155,9 +155,9 @@ regular CPU hotplug and the suspend code path converge at the _cpu_down() and
 _cpu_up() functions. They differ in the arguments passed to these functions,
 in that during regular CPU hotplug, 0 is passed for the 'tasks_frozen'
 argument. But during suspend, since the tasks are already frozen by the time
-the non-boot CPUs are offlined or onlined, the _cpu_*() functions are called
+the yesn-boot CPUs are offlined or onlined, the _cpu_*() functions are called
 with the 'tasks_frozen' argument set to 1.
-[See below for some known issues regarding this.]
+[See below for some kyeswn issues regarding this.]
 
 
 Important files and functions/entry points:
@@ -166,7 +166,7 @@ Important files and functions/entry points:
 - kernel/power/process.c : freeze_processes(), thaw_processes()
 - kernel/power/suspend.c : suspend_prepare(), suspend_enter(), suspend_finish()
 - kernel/cpu.c: cpu_[up|down](), _cpu_[up|down](),
-  [disable|enable]_nonboot_cpus()
+  [disable|enable]_yesnboot_cpus()
 
 
 
@@ -188,7 +188,7 @@ a. When all the CPUs are identical:
    To give an example of x86, the collect_cpu_info() function defined in
    arch/x86/kernel/microcode_core.c helps in discovering the type of the CPU
    and thereby in applying the correct microcode revision to it.
-   But note that the kernel does not maintain a common microcode image for the
+   But yeste that the kernel does yest maintain a common microcode image for the
    all CPUs, in order to handle case 'b' described below.
 
 
@@ -204,7 +204,7 @@ c. When a CPU is physically hot-unplugged and a new (and possibly different
    type of) CPU is hot-plugged into the system:
 
    In the current design of the kernel, whenever a CPU is taken offline during
-   a regular CPU hotplug operation, upon receiving the CPU_DEAD notification
+   a regular CPU hotplug operation, upon receiving the CPU_DEAD yestification
    (which is sent by the CPU hotplug code), the microcode update driver's
    callback for that event reacts by freeing the kernel's copy of the
    microcode image for that CPU.
@@ -225,10 +225,10 @@ c. When a CPU is physically hot-unplugged and a new (and possibly different
 
 d. Handling microcode update during suspend/hibernate:
 
-   Strictly speaking, during a CPU hotplug operation which does not involve
-   physically removing or inserting CPUs, the CPUs are not actually powered
+   Strictly speaking, during a CPU hotplug operation which does yest involve
+   physically removing or inserting CPUs, the CPUs are yest actually powered
    off during a CPU offline. They are just put to the lowest C-states possible.
-   Hence, in such a case, it is not really necessary to re-apply microcode
+   Hence, in such a case, it is yest really necessary to re-apply microcode
    when the CPUs are brought back online, since they wouldn't have lost the
    image during the CPU offline operation.
 
@@ -237,35 +237,35 @@ d. Handling microcode update during suspend/hibernate:
    powered off, during restore it becomes necessary to apply the microcode
    images to all the CPUs.
 
-   [Note that we don't expect someone to physically pull out nodes and insert
-   nodes with a different type of CPUs in-between a suspend-resume or a
+   [Note that we don't expect someone to physically pull out yesdes and insert
+   yesdes with a different type of CPUs in-between a suspend-resume or a
    hibernate/restore cycle.]
 
    In the current design of the kernel however, during a CPU offline operation
    as part of the suspend/hibernate cycle (cpuhp_tasks_frozen is set),
-   the existing copy of microcode image in the kernel is not freed up.
+   the existing copy of microcode image in the kernel is yest freed up.
    And during the CPU online operations (during resume/restore), since the
    kernel finds that it already has copies of the microcode images for all the
    CPUs, it just applies them to the CPUs, avoiding any re-discovery of CPU
    type/model and the need for validating whether the microcode revisions are
-   right for the CPUs or not (due to the above assumption that physical CPU
-   hotplug will not be done in-between suspend/resume or hibernate/restore
+   right for the CPUs or yest (due to the above assumption that physical CPU
+   hotplug will yest be done in-between suspend/resume or hibernate/restore
    cycles).
 
 
-III. Known problems
+III. Kyeswn problems
 ===================
 
-Are there any known problems when regular CPU hotplug and suspend race
+Are there any kyeswn problems when regular CPU hotplug and suspend race
 with each other?
 
 Yes, they are listed below:
 
 1. When invoking regular CPU hotplug, the 'tasks_frozen' argument passed to
    the _cpu_down() and _cpu_up() functions is *always* 0.
-   This might not reflect the true current state of the system, since the
+   This might yest reflect the true current state of the system, since the
    tasks could have been frozen by an out-of-band event such as a suspend
-   operation in progress. Hence, the cpuhp_tasks_frozen variable will not
+   operation in progress. Hence, the cpuhp_tasks_frozen variable will yest
    reflect the frozen state and the CPU hotplug callbacks which evaluate
    that variable might execute the wrong code path.
 
@@ -274,10 +274,10 @@ Yes, they are listed below:
    situation described below:
 
     * A regular cpu online operation continues its journey from userspace
-      into the kernel, since the freezing has not yet begun.
+      into the kernel, since the freezing has yest yet begun.
     * Then freezer gets to work and freezes userspace.
-    * If cpu online has not yet completed the microcode update stuff by now,
-      it will now start waiting on the frozen userspace in the
+    * If cpu online has yest yet completed the microcode update stuff by yesw,
+      it will yesw start waiting on the frozen userspace in the
       TASK_UNINTERRUPTIBLE state, in order to get the microcode image.
     * Now the freezer continues and tries to freeze the remaining tasks. But
       due to this wait mentioned above, the freezer won't be able to freeze

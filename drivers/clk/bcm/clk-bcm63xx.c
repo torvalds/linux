@@ -15,8 +15,8 @@
 #include <linux/of.h>
 #include "clk-iproc.h"
 
-static void __init bcm63138_armpll_init(struct device_node *node)
+static void __init bcm63138_armpll_init(struct device_yesde *yesde)
 {
-	iproc_armpll_setup(node);
+	iproc_armpll_setup(yesde);
 }
 CLK_OF_DECLARE(bcm63138_armpll, "brcm,bcm63138-armpll", bcm63138_armpll_init);

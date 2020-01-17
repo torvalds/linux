@@ -24,5 +24,5 @@ config BCACHE_CLOSURES_DEBUG
 	select DEBUG_FS
 	help
 	Keeps all active closures in a linked list and provides a debugfs
-	interface to list them, which makes it possible to see asynchronous
+	interface to list them, which makes it possible to see asynchroyesus
 	operations that get stuck.

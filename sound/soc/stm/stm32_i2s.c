@@ -355,7 +355,7 @@ static int stm32_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_A:
 		cgfr = I2S_CGFR_I2SSTD_SET(I2S_STD_DSP);
 		break;
-	/* DSP_B not mapped on I2S PCM long format. 1 bit offset does not fit */
+	/* DSP_B yest mapped on I2S PCM long format. 1 bit offset does yest fit */
 	default:
 		dev_err(cpu_dai->dev, "Unsupported protocol %#x\n",
 			fmt & SND_SOC_DAIFMT_FORMAT_MASK);
@@ -456,7 +456,7 @@ static int stm32_i2s_configure_clock(struct snd_soc_dai *cpu_dai,
 		    SND_SOC_DAIFMT_DSP_A)
 			frame_len = 16;
 
-		/* master clock not enabled */
+		/* master clock yest enabled */
 		ret = regmap_read(i2s->regmap, STM32_I2S_CGFR_REG, &cgfr);
 		if (ret < 0)
 			return ret;
@@ -806,7 +806,7 @@ static const struct of_device_id stm32_i2s_ids[] = {
 static int stm32_i2s_parse_dt(struct platform_device *pdev,
 			      struct stm32_i2s_data *i2s)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *of_id;
 	struct reset_control *rst;
 	struct resource *res;
@@ -831,13 +831,13 @@ static int stm32_i2s_parse_dt(struct platform_device *pdev,
 	/* Get clocks */
 	i2s->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(i2s->pclk)) {
-		dev_err(&pdev->dev, "Could not get pclk\n");
+		dev_err(&pdev->dev, "Could yest get pclk\n");
 		return PTR_ERR(i2s->pclk);
 	}
 
 	i2s->i2sclk = devm_clk_get(&pdev->dev, "i2sclk");
 	if (IS_ERR(i2s->i2sclk)) {
-		dev_err(&pdev->dev, "Could not get i2sclk\n");
+		dev_err(&pdev->dev, "Could yest get i2sclk\n");
 		return PTR_ERR(i2s->i2sclk);
 	}
 
@@ -934,7 +934,7 @@ static int stm32_i2s_probe(struct platform_device *pdev)
 
 		if (!FIELD_GET(I2S_HWCFGR_I2S_SUPPORT_MASK, val)) {
 			dev_err(&pdev->dev,
-				"Device does not support i2s mode\n");
+				"Device does yest support i2s mode\n");
 			return -EPERM;
 		}
 

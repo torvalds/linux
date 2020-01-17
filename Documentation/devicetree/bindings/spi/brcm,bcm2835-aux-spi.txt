@@ -1,7 +1,7 @@
 Broadcom BCM2835 auxiliar SPI1/2 controller
 
-The BCM2835 contains two forms of SPI master controller, one known simply as
-SPI0, and the other known as the "Universal SPI Master"; part of the
+The BCM2835 contains two forms of SPI master controller, one kyeswn simply as
+SPI0, and the other kyeswn as the "Universal SPI Master"; part of the
 auxiliary block. This binding applies to the SPI1/2 controller.
 
 Required properties:

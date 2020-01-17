@@ -189,7 +189,7 @@ static bool uac_clock_source_is_valid(struct snd_usb_audio *chip,
 
 	if (err < 0) {
 		dev_warn(&dev->dev,
-			 "%s(): cannot get clock validity for id %d\n",
+			 "%s(): canyest get clock validity for id %d\n",
 			   __func__, source_id);
 		return false;
 	}
@@ -220,7 +220,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip, int entity_id,
 		if (validate && !uac_clock_source_is_valid(chip, UAC_VERSION_2,
 								entity_id)) {
 			usb_audio_err(chip,
-				"clock source %d is not valid, cannot use\n",
+				"clock source %d is yest valid, canyest use\n",
 				entity_id);
 			return -ENXIO;
 		}
@@ -278,7 +278,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip, int entity_id,
 		return -ENXIO;
 	}
 
-	/* FIXME: multipliers only act as pass-thru element for now */
+	/* FIXME: multipliers only act as pass-thru element for yesw */
 	multiplier = snd_usb_find_clock_multiplier(chip->ctrl_intf, entity_id);
 	if (multiplier)
 		return __uac_clock_find_source(chip, multiplier->bCSourceID,
@@ -310,7 +310,7 @@ static int __uac3_clock_find_source(struct snd_usb_audio *chip, int entity_id,
 		if (validate && !uac_clock_source_is_valid(chip, UAC_VERSION_3,
 								entity_id)) {
 			usb_audio_err(chip,
-				"clock source %d is not valid, cannot use\n",
+				"clock source %d is yest valid, canyest use\n",
 				entity_id);
 			return -ENXIO;
 		}
@@ -368,7 +368,7 @@ static int __uac3_clock_find_source(struct snd_usb_audio *chip, int entity_id,
 		return -ENXIO;
 	}
 
-	/* FIXME: multipliers only act as pass-thru element for now */
+	/* FIXME: multipliers only act as pass-thru element for yesw */
 	multiplier = snd_usb_find_clock_multiplier_v3(chip->ctrl_intf,
 						      entity_id);
 	if (multiplier)
@@ -432,12 +432,12 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 			      UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,
 			      data, sizeof(data));
 	if (err < 0) {
-		dev_err(&dev->dev, "%d:%d: cannot set freq %d to ep %#x\n",
+		dev_err(&dev->dev, "%d:%d: canyest set freq %d to ep %#x\n",
 			iface, fmt->altsetting, rate, ep);
 		return err;
 	}
 
-	/* Don't check the sample rate for devices which we know don't
+	/* Don't check the sample rate for devices which we kyesw don't
 	 * support reading */
 	if (snd_usb_get_sample_rate_quirk(chip))
 		return 0;
@@ -450,7 +450,7 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 			      UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,
 			      data, sizeof(data));
 	if (err < 0) {
-		dev_err(&dev->dev, "%d:%d: cannot get freq at ep %#x\n",
+		dev_err(&dev->dev, "%d:%d: canyest get freq at ep %#x\n",
 			iface, fmt->altsetting, ep);
 		chip->sample_rate_read_error++;
 		return 0; /* some devices don't support reading */
@@ -478,7 +478,7 @@ static int get_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
 			      snd_usb_ctrl_intf(chip) | (clock << 8),
 			      &data, sizeof(data));
 	if (err < 0) {
-		dev_warn(&dev->dev, "%d:%d: cannot get freq (v2/v3): err %d\n",
+		dev_warn(&dev->dev, "%d:%d: canyest get freq (v2/v3): err %d\n",
 			 iface, altsetting, err);
 		return 0;
 	}
@@ -498,16 +498,16 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
 	u32 bmControls;
 
 	/* First, try to find a valid clock. This may trigger
-	 * automatic clock selection if the current clock is not
+	 * automatic clock selection if the current clock is yest
 	 * valid.
 	 */
 	clock = snd_usb_clock_find_source(chip, fmt->protocol,
 					  fmt->clock, true);
 	if (clock < 0) {
-		/* We did not find a valid clock, but that might be
-		 * because the current sample rate does not match an
+		/* We did yest find a valid clock, but that might be
+		 * because the current sample rate does yest match an
 		 * external clock source. Try again without validation
-		 * and we will do another validation after setting the
+		 * and we will do ayesther validation after setting the
 		 * rate.
 		 */
 		clock = snd_usb_clock_find_source(chip, fmt->protocol,
@@ -543,7 +543,7 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
 				      &data, sizeof(data));
 		if (err < 0) {
 			usb_audio_err(chip,
-				"%d:%d: cannot set freq %d (v2/v3): err %d\n",
+				"%d:%d: canyest set freq %d (v2/v3): err %d\n",
 				iface, fmt->altsetting, rate, err);
 			return err;
 		}

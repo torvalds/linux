@@ -11,7 +11,7 @@
  * published by the Free Software Foundation.                                *
  *                                                                           *
  * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, see <http://www.gnu.org/licenses/>.            *
+ * with this program; if yest, see <http://www.gnu.org/licenses/>.            *
  *                                                                           *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
@@ -43,15 +43,15 @@
 #include <asm/byteorder.h>
 
 struct sge_intr_counts {
-	unsigned int rx_drops;        /* # of packets dropped due to no mem */
-	unsigned int pure_rsps;        /* # of non-payload responses */
+	unsigned int rx_drops;        /* # of packets dropped due to yes mem */
+	unsigned int pure_rsps;        /* # of yesn-payload responses */
 	unsigned int unhandled_irqs;   /* # of unhandled interrupts */
 	unsigned int respQ_empty;      /* # times respQ empty */
 	unsigned int respQ_overflow;   /* # respQ overflow (fatal) */
 	unsigned int freelistQ_empty;  /* # times freelist empty */
 	unsigned int pkt_too_big;      /* packet too large (fatal) */
 	unsigned int pkt_mismatch;
-	unsigned int cmdQ_full[3];     /* not HW IRQ, host cmdQ[] full */
+	unsigned int cmdQ_full[3];     /* yest HW IRQ, host cmdQ[] full */
 	unsigned int cmdQ_restarted[3];/* # of times cmdQ X was restarted */
 };
 

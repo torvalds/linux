@@ -3,7 +3,7 @@
  * copy_page, __copy_user_page, __copy_user implementation of SuperH
  *
  * Copyright (C) 2001  Niibe Yutaka & Kaz Kojima
- * Copyright (C) 2002  Toshinobu Sugioka
+ * Copyright (C) 2002  Toshiyesbu Sugioka
  * Copyright (C) 2006  Paul Mundt
  */
 #include <linux/linkage.h>
@@ -20,7 +20,7 @@
 /*
  * r0, r1, r2, r3, r4, r5, r6, r7 --- scratch 
  * r8 --- from + PAGE_SIZE
- * r9 --- not used
+ * r9 --- yest used
  * r10 --- to
  * r11 --- from
  */
@@ -65,7 +65,7 @@ ENTRY(copy_page)
 	mov.l	@r15+,r10
 	mov.l	@r15+,r8
 	rts
-	 nop
+	 yesp
 
 /*
  * __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n);
@@ -86,7 +86,7 @@ ENTRY(__copy_user)
 	mov	#11,r0
 	mov	r4,r3
 	cmp/gt	r0,r6		! r6 (len) > r0 (11)
-	bf/s	.L_cleanup_loop_no_pop
+	bf/s	.L_cleanup_loop_yes_pop
 	 add	r6,r3		! last destination address
 
 	! Calculate bytes needed to align to src
@@ -118,7 +118,7 @@ EX(	mov.b	r1,@r4		)
 	mova	.L_jump_tbl,r0
 	mov.l	@(r0,r1),r1
 	jmp	@r1
-	 nop
+	 yesp
 
 	.align 2
 .L_jump_tbl:
@@ -135,7 +135,7 @@ EX(	mov.b	r1,@r4		)
  * fast-path for small copies, the jump via the jump table will hit the
  * default slow-path cleanup. -PFM.
  */
-.L_cleanup_loop_no_pop:
+.L_cleanup_loop_yes_pop:
 	tst	r6,r6		! Check explicitly for zero
 	bt	1f
 
@@ -146,7 +146,7 @@ EX_NO_POP(	mov.b	r0,@r4		)
 	bf/s	2b
 	 add	#1,r4
 
-1:	mov	#0,r0		! normal return
+1:	mov	#0,r0		! yesrmal return
 5000:
 
 # Exception handler:
@@ -161,7 +161,7 @@ EX_NO_POP(	mov.b	r0,@r4		)
 
 .previous
 	rts
-	 nop
+	 yesp
 
 ! Destination = 00
 
@@ -226,7 +226,7 @@ EX(	mov.l	r1,@r4		)
 	 add	#4,r4
 
 	bra	.L_cleanup
-	 nop
+	 yesp
 
 ! Destination = 10
 
@@ -323,7 +323,7 @@ EX(	mov.w	r0,@r4		)
 	 add	#4,r4
 
 	bra	.L_cleanup
-	 nop
+	 yesp
 
 ! Destination = 01 or 11
 
@@ -368,7 +368,7 @@ EX(	mov.b	r0,@r4		)
 	 add	#1,r4
 
 .L_exit:
-	mov	#0,r0		! normal return
+	mov	#0,r0		! yesrmal return
 
 5000:
 

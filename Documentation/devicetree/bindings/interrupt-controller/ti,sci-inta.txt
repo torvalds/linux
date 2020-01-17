@@ -39,10 +39,10 @@ TISCI Interrupt Aggregator Node:
 -------------------------------
 - compatible:		Must be "ti,sci-inta".
 - reg:			Should contain registers location and length.
-- interrupt-controller:	Identifies the node as an interrupt controller
-- msi-controller:	Identifies the node as an MSI controller.
+- interrupt-controller:	Identifies the yesde as an interrupt controller
+- msi-controller:	Identifies the yesde as an MSI controller.
 - interrupt-parent:	phandle of irq parent.
-- ti,sci:		Phandle to TI-SCI compatible System controller node.
+- ti,sci:		Phandle to TI-SCI compatible System controller yesde.
 - ti,sci-dev-id:	TISCI device ID of the Interrupt Aggregator.
 - ti,sci-rm-range-vint:	Array of TISCI subtype ids representing vints(inta
 			outputs) range within this INTA, assigned to the

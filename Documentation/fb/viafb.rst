@@ -182,12 +182,12 @@ Using the viafb module
 	    modprobe viafb viafb_lcd_port=DVP0...
 
 Notes:
-    1. CRT may not display properly for DuoView CRT & DVI display at
+    1. CRT may yest display properly for DuoView CRT & DVI display at
        the "640x480" PAL mode with DVI overscan enabled.
     2. SAMM stands for single adapter multi monitors. It is different from
        multi-head since SAMM support multi monitor at driver layers, thus fbcon
-       layer doesn't even know about it; SAMM's second screen doesn't have a
-       device node file, thus a user mode application can't access it directly.
+       layer doesn't even kyesw about it; SAMM's second screen doesn't have a
+       device yesde file, thus a user mode application can't access it directly.
        When SAMM is enabled, viafb_mode and viafb_mode1, viafb_bpp and
        viafb_bpp1, viafb_refresh and viafb_refresh1 can be different.
     3. When console is depending on viafbinfo1, dynamically change resolution
@@ -235,7 +235,7 @@ Configure viafb via /proc
     supported_output_devices
 	This read-only file contains a full ',' separated list containing all
 	output devices that could be available on your platform. It is likely
-	that not all of those have a connector on your hardware but it should
+	that yest all of those have a connector on your hardware but it should
 	provide a good starting point to figure out which of those names match
 	a real connector.
 
@@ -253,7 +253,7 @@ Configure viafb via /proc
 
 		# cat /proc/viafb/iga1/output_devices
 
-	If there are no output devices printed the output of this iga is lost.
+	If there are yes output devices printed the output of this iga is lost.
 	This can happen for example if only one (the other) iga is used.
 	Writing to these files allows adjusting the output devices during
 	runtime. One can add new devices, remove existing ones or switch
@@ -262,7 +262,7 @@ Configure viafb via /proc
 	files. You can add a '+' or '-' as a prefix allowing simple addition
 	and removal of devices. So a prefix '+' adds the devices from your list
 	to the already existing ones, '-' removes the listed devices from the
-	existing ones and if no prefix is given it replaces all existing ones
+	existing ones and if yes prefix is given it replaces all existing ones
 	with the listed ones. If you remove devices they are expected to turn
 	off. If you add devices that are already part of the other iga they are
 	removed there and added to the new one.

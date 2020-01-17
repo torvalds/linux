@@ -114,7 +114,7 @@ static int rcar_lvds_connector_atomic_check(struct drm_connector *connector,
 	panel_mode = list_first_entry(&connector->modes,
 				      struct drm_display_mode, head);
 
-	/* We're not allowed to modify the resolution. */
+	/* We're yest allowed to modify the resolution. */
 	crtc_state = drm_atomic_get_crtc_state(state, conn_state->crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
@@ -204,7 +204,7 @@ static void rcar_lvds_d3_e3_pll_calc(struct rcar_lvds *lvds, struct clk *clk,
 
 	/*
 	 * The LVDS PLL is made of a pre-divider and a multiplier (strangely
-	 * enough called M and N respectively), followed by a post-divider E.
+	 * eyesugh called M and N respectively), followed by a post-divider E.
 	 *
 	 *         ,-----.         ,-----.     ,-----.         ,-----.
 	 * Fin --> | 1/M | -Fpdf-> | PFD | --> | VCO | -Fvco-> | 1/E | --> Fout
@@ -238,7 +238,7 @@ static void rcar_lvds_d3_e3_pll_calc(struct rcar_lvds *lvds, struct clk *clk,
 
 	/*
 	 * The comparison frequency range is 12 MHz to 24 MHz, which limits the
-	 * allowed values for the pre-divider M (normal range 1-8).
+	 * allowed values for the pre-divider M (yesrmal range 1-8).
 	 *
 	 * Fpfd = Fin / M
 	 */
@@ -253,7 +253,7 @@ static void rcar_lvds_d3_e3_pll_calc(struct rcar_lvds *lvds, struct clk *clk,
 
 		/*
 		 * The VCO operating range is 900 Mhz to 1800 MHz, which limits
-		 * the allowed values for the multiplier N (normal range
+		 * the allowed values for the multiplier N (yesrmal range
 		 * 60-120).
 		 *
 		 * Fvco = Fin * N / M
@@ -270,7 +270,7 @@ static void rcar_lvds_d3_e3_pll_calc(struct rcar_lvds *lvds, struct clk *clk,
 			/*
 			 * The output frequency is limited to 1039.5 MHz,
 			 * limiting again the allowed values for the
-			 * post-divider E (normal value 1, 2 or 4).
+			 * post-divider E (yesrmal value 1, 2 or 4).
 			 *
 			 * Fout = Fvco / E
 			 */
@@ -345,7 +345,7 @@ static void __rcar_lvds_pll_setup_d3_e3(struct rcar_lvds *lvds,
 
 	if (pll.div > 1)
 		/*
-		 * The DIVRESET bit is a misnomer, setting it to 1 deasserts the
+		 * The DIVRESET bit is a misyesmer, setting it to 1 deasserts the
 		 * divisor reset.
 		 */
 		rcar_lvds_write(lvds, LVDDIV, LVDDIV_DIVSEL |
@@ -419,7 +419,7 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 		lvds->companion->funcs->enable(lvds->companion);
 
 	/*
-	 * Hardcode the channels and control signals routing for now.
+	 * Hardcode the channels and control signals routing for yesw.
 	 *
 	 * HSYNC -> CTRL0
 	 * VSYNC -> CTRL1
@@ -490,7 +490,7 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 	}
 
 	if (lvds->info->quirks & RCAR_LVDS_QUIRK_PWD) {
-		/* Set LVDS normal mode. */
+		/* Set LVDS yesrmal mode. */
 		lvdcr0 |= LVDCR0_PWD;
 		rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 	}
@@ -564,14 +564,14 @@ static void rcar_lvds_get_lvds_mode(struct rcar_lvds *lvds)
 	enum rcar_lvds_mode mode;
 
 	/*
-	 * There is no API yet to retrieve LVDS mode from a bridge, only panels
+	 * There is yes API yet to retrieve LVDS mode from a bridge, only panels
 	 * are supported.
 	 */
 	if (!lvds->panel)
 		return;
 
 	if (!info->num_bus_formats || !info->bus_formats) {
-		dev_err(lvds->dev, "no LVDS bus format reported\n");
+		dev_err(lvds->dev, "yes LVDS bus format reported\n");
 		return;
 	}
 
@@ -668,12 +668,12 @@ EXPORT_SYMBOL_GPL(rcar_lvds_dual_link);
 static int rcar_lvds_parse_dt_companion(struct rcar_lvds *lvds)
 {
 	const struct of_device_id *match;
-	struct device_node *companion;
+	struct device_yesde *companion;
 	struct device *dev = lvds->dev;
 	int ret = 0;
 
 	/* Locate the companion LVDS encoder for dual-link operation, if any. */
-	companion = of_parse_phandle(dev->of_node, "renesas,companion", 0);
+	companion = of_parse_phandle(dev->of_yesde, "renesas,companion", 0);
 	if (!companion)
 		return 0;
 
@@ -697,21 +697,21 @@ static int rcar_lvds_parse_dt_companion(struct rcar_lvds *lvds)
 	dev_dbg(dev, "Found companion encoder %pOF\n", companion);
 
 done:
-	of_node_put(companion);
+	of_yesde_put(companion);
 
 	return ret;
 }
 
 static int rcar_lvds_parse_dt(struct rcar_lvds *lvds)
 {
-	struct device_node *local_output = NULL;
-	struct device_node *remote_input = NULL;
-	struct device_node *remote = NULL;
-	struct device_node *node;
+	struct device_yesde *local_output = NULL;
+	struct device_yesde *remote_input = NULL;
+	struct device_yesde *remote = NULL;
+	struct device_yesde *yesde;
 	bool is_bridge = false;
 	int ret = 0;
 
-	local_output = of_graph_get_endpoint_by_regs(lvds->dev->of_node, 1, 0);
+	local_output = of_graph_get_endpoint_by_regs(lvds->dev->of_yesde, 1, 0);
 	if (!local_output) {
 		dev_dbg(lvds->dev, "unconnected port@1\n");
 		ret = -ENODEV;
@@ -738,14 +738,14 @@ static int rcar_lvds_parse_dt(struct rcar_lvds *lvds)
 
 	remote_input = of_graph_get_remote_endpoint(local_output);
 
-	for_each_endpoint_of_node(remote, node) {
-		if (node != remote_input) {
+	for_each_endpoint_of_yesde(remote, yesde) {
+		if (yesde != remote_input) {
 			/*
 			 * We've found one endpoint other than the input, this
 			 * must be a bridge.
 			 */
 			is_bridge = true;
-			of_node_put(node);
+			of_yesde_put(yesde);
 			break;
 		}
 	}
@@ -773,13 +773,13 @@ static int rcar_lvds_parse_dt(struct rcar_lvds *lvds)
 		ret = rcar_lvds_parse_dt_companion(lvds);
 
 done:
-	of_node_put(local_output);
-	of_node_put(remote_input);
-	of_node_put(remote);
+	of_yesde_put(local_output);
+	of_yesde_put(remote_input);
+	of_yesde_put(remote);
 
 	/*
 	 * On D3/E3 the LVDS encoder provides a clock to the DU, which can be
-	 * used for the DPAD output even when the LVDS output is not connected.
+	 * used for the DPAD output even when the LVDS output is yest connected.
 	 * Don't fail probe in that case as the DU will need the bridge to
 	 * control the clock.
 	 */
@@ -815,7 +815,7 @@ static int rcar_lvds_get_clocks(struct rcar_lvds *lvds)
 		return PTR_ERR(lvds->clocks.mod);
 
 	/*
-	 * LVDS encoders without an extended PLL have no external clock inputs.
+	 * LVDS encoders without an extended PLL have yes external clock inputs.
 	 */
 	if (!(lvds->info->quirks & RCAR_LVDS_QUIRK_EXT_PLL))
 		return 0;
@@ -836,7 +836,7 @@ static int rcar_lvds_get_clocks(struct rcar_lvds *lvds)
 	if (!lvds->clocks.extal && !lvds->clocks.dotclkin[0] &&
 	    !lvds->clocks.dotclkin[1]) {
 		dev_err(lvds->dev,
-			"no input clock (extal, dclkin.0 or dclkin.1)\n");
+			"yes input clock (extal, dclkin.0 or dclkin.1)\n");
 		return -EINVAL;
 	}
 
@@ -883,7 +883,7 @@ static int rcar_lvds_probe(struct platform_device *pdev)
 
 	lvds->bridge.driver_private = lvds;
 	lvds->bridge.funcs = &rcar_lvds_bridge_ops;
-	lvds->bridge.of_node = pdev->dev.of_node;
+	lvds->bridge.of_yesde = pdev->dev.of_yesde;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	lvds->mmio = devm_ioremap_resource(&pdev->dev, mem);

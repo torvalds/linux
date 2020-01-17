@@ -78,10 +78,10 @@
         "BriefDescription": "Instruction fetch stall cycles"
     },
     {
-        "PublicDescription": "Instructions can receive, but not send",
+        "PublicDescription": "Instructions can receive, but yest send",
         "EventCode": "0x2014",
         "EventName": "FETCH_BUBBLE",
-        "BriefDescription": "Instructions can receive, but not send"
+        "BriefDescription": "Instructions can receive, but yest send"
     },
     {
         "PublicDescription": "Prefetch request from LSU",
@@ -102,10 +102,10 @@
         "BriefDescription": "Cycles of that the number of issue ups are less than 4"
     },
     {
-        "PublicDescription": "No any micro operation is issued and meanwhile any load operation is not resolved",
+        "PublicDescription": "No any micro operation is issued and meanwhile any load operation is yest resolved",
         "EventCode": "0x7004",
         "EventName": "MEM_STALL_ANYLOAD",
-        "BriefDescription": "No any micro operation is issued and meanwhile any load operation is not resolved"
+        "BriefDescription": "No any micro operation is issued and meanwhile any load operation is yest resolved"
     },
     {
         "PublicDescription": "No any micro operation is issued and meanwhile there is any load operation missing L1 cache and pending data refill",

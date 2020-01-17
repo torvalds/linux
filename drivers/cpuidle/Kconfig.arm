@@ -9,7 +9,7 @@ config ARM_CPUIDLE
 	help
 	  Select this to enable generic cpuidle driver for ARM.
 	  It provides a generic idle driver whose idle states are configured
-	  at run-time through DT nodes. The CPUidle suspend backend is
+	  at run-time through DT yesdes. The CPUidle suspend backend is
 	  initialized by calling the CPU operations init idle hook
 	  provided by architecture code.
 
@@ -75,11 +75,11 @@ config ARM_AT91_CPUIDLE
 	  Select this to enable cpuidle for AT91 processors.
 
 config ARM_EXYNOS_CPUIDLE
-	bool "Cpu Idle Driver for the Exynos processors"
+	bool "Cpu Idle Driver for the Exyyess processors"
 	depends on ARCH_EXYNOS && !ARM64
 	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
 	help
-	  Select this to enable cpuidle for Exynos processors.
+	  Select this to enable cpuidle for Exyyess processors.
 
 config ARM_MVEBU_V7_CPUIDLE
 	bool "CPU Idle Driver for mvebu v7 family processors"

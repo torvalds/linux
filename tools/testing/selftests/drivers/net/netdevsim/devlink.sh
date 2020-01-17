@@ -158,10 +158,10 @@ reload_test()
 	check_fail $? "Unexpected success of devlink reload"
 
 	echo "n"> $DEBUGFS_DIR/fail_reload
-	check_err $? "Failed to setup devlink reload not to fail"
+	check_err $? "Failed to setup devlink reload yest to fail"
 
 	devlink dev reload $DL_HANDLE
-	check_err $? "Failed to reload after set not to fail"
+	check_err $? "Failed to reload after set yest to fail"
 
 	echo "y"> $DEBUGFS_DIR/dont_allow_reload
 	check_err $? "Failed to forbid devlink reload"
@@ -237,7 +237,7 @@ resource_test()
 	local occ=$(res_val_get testns1 IPv4 fib occ)
 	local limit=$((occ+1))
 
-	# Set fib size limit to handle one another route only.
+	# Set fib size limit to handle one ayesther route only.
 
 	devlink -N testns1 resource set $DL_HANDLE path IPv4/fib size $limit
 	check_err $? "Failed to set IPv4/fib resource size"
@@ -260,7 +260,7 @@ resource_test()
 	ip -n testns1 r a 192.0.3.0/24 via 192.0.1.2
 	check_fail $? "Unexpected successful route add over limit"
 
-	# Now create another dummy in second network namespace and
+	# Now create ayesther dummy in second network namespace and
 	# insert two routes. That is over the limit of the netdevsim
 	# instance in the first namespace. Move the netdevsim instance
 	# into the second namespace and expect it to fail.
@@ -320,8 +320,8 @@ empty_reporter_test()
 	devlink health dump show $DL_HANDLE reporter empty >/dev/null
 	check_err $? "Failed show dump of empty reporter"
 
-	devlink health diagnose $DL_HANDLE reporter empty >/dev/null
-	check_err $? "Failed diagnose empty reporter"
+	devlink health diagyesse $DL_HANDLE reporter empty >/dev/null
+	check_err $? "Failed diagyesse empty reporter"
 
 	devlink health recover $DL_HANDLE reporter empty
 	check_err $? "Failed recover empty reporter"
@@ -400,10 +400,10 @@ dummy_reporter_test()
 
 	check_reporter_info dummy healthy 2 2 0 true
 
-	local diagnose=$(devlink health diagnose $DL_HANDLE reporter dummy -j -p)
-	check_err $? "Failed show diagnose of dummy reporter"
+	local diagyesse=$(devlink health diagyesse $DL_HANDLE reporter dummy -j -p)
+	check_err $? "Failed show diagyesse of dummy reporter"
 
-	local rcvrd_break_msg=$(echo $diagnose | jq -r ".recovered_break_message")
+	local rcvrd_break_msg=$(echo $diagyesse | jq -r ".recovered_break_message")
 	[ "$rcvrd_break_msg" == "$BREAK_MSG" ]
 	check_err $? "Unexpected recovered break message value (got $rcvrd_break_msg, expected $BREAK_MSG)"
 

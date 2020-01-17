@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdbool.h>
@@ -17,31 +17,31 @@
 #include <linux/android/binderfs.h>
 #include "../../kselftest.h"
 
-static ssize_t write_nointr(int fd, const void *buf, size_t count)
+static ssize_t write_yesintr(int fd, const void *buf, size_t count)
 {
 	ssize_t ret;
 again:
 	ret = write(fd, buf, count);
-	if (ret < 0 && errno == EINTR)
+	if (ret < 0 && erryes == EINTR)
 		goto again;
 
 	return ret;
 }
 
 static void write_to_file(const char *filename, const void *buf, size_t count,
-			  int allowed_errno)
+			  int allowed_erryes)
 {
-	int fd, saved_errno;
+	int fd, saved_erryes;
 	ssize_t ret;
 
 	fd = open(filename, O_WRONLY | O_CLOEXEC);
 	if (fd < 0)
 		ksft_exit_fail_msg("%s - Failed to open file %s\n",
-				   strerror(errno), filename);
+				   strerror(erryes), filename);
 
-	ret = write_nointr(fd, buf, count);
+	ret = write_yesintr(fd, buf, count);
 	if (ret < 0) {
-		if (allowed_errno && (errno == allowed_errno)) {
+		if (allowed_erryes && (erryes == allowed_erryes)) {
 			close(fd);
 			return;
 		}
@@ -56,13 +56,13 @@ static void write_to_file(const char *filename, const void *buf, size_t count,
 	return;
 
 on_error:
-	saved_errno = errno;
+	saved_erryes = erryes;
 	close(fd);
-	errno = saved_errno;
+	erryes = saved_erryes;
 
 	if (ret < 0)
 		ksft_exit_fail_msg("%s - Failed to write to file %s\n",
-				   strerror(errno), filename);
+				   strerror(erryes), filename);
 
 	ksft_exit_fail_msg("Failed to write to file %s\n", filename);
 }
@@ -81,33 +81,33 @@ static void change_to_userns(void)
 	ret = unshare(CLONE_NEWUSER);
 	if (ret < 0)
 		ksft_exit_fail_msg("%s - Failed to unshare user namespace\n",
-				   strerror(errno));
+				   strerror(erryes));
 
 	write_to_file("/proc/self/setgroups", "deny", strlen("deny"), ENOENT);
 
 	ret = snprintf(idmap, sizeof(idmap), "0 %d 1", uid);
 	if (ret < 0 || (size_t)ret >= sizeof(idmap))
 		ksft_exit_fail_msg("%s - Failed to prepare uid mapping\n",
-				   strerror(errno));
+				   strerror(erryes));
 
 	write_to_file("/proc/self/uid_map", idmap, strlen(idmap), 0);
 
 	ret = snprintf(idmap, sizeof(idmap), "0 %d 1", gid);
 	if (ret < 0 || (size_t)ret >= sizeof(idmap))
 		ksft_exit_fail_msg("%s - Failed to prepare uid mapping\n",
-				   strerror(errno));
+				   strerror(erryes));
 
 	write_to_file("/proc/self/gid_map", idmap, strlen(idmap), 0);
 
 	ret = setgid(0);
 	if (ret)
 		ksft_exit_fail_msg("%s - Failed to setgid(0)\n",
-				   strerror(errno));
+				   strerror(erryes));
 
 	ret = setuid(0);
 	if (ret)
 		ksft_exit_fail_msg("%s - Failed to setgid(0)\n",
-				   strerror(errno));
+				   strerror(erryes));
 }
 
 static void change_to_mountns(void)
@@ -117,24 +117,24 @@ static void change_to_mountns(void)
 	ret = unshare(CLONE_NEWNS);
 	if (ret < 0)
 		ksft_exit_fail_msg("%s - Failed to unshare mount namespace\n",
-				   strerror(errno));
+				   strerror(erryes));
 
 	ret = mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, 0);
 	if (ret < 0)
 		ksft_exit_fail_msg("%s - Failed to mount / as private\n",
-				   strerror(errno));
+				   strerror(erryes));
 }
 
-static void rmdir_protect_errno(const char *dir)
+static void rmdir_protect_erryes(const char *dir)
 {
-	int saved_errno = errno;
+	int saved_erryes = erryes;
 	(void)rmdir(dir);
-	errno = saved_errno;
+	erryes = saved_erryes;
 }
 
 static void __do_binderfs_test(void)
 {
-	int fd, ret, saved_errno;
+	int fd, ret, saved_erryes;
 	size_t len;
 	ssize_t wret;
 	bool keep = false;
@@ -145,23 +145,23 @@ static void __do_binderfs_test(void)
 
 	ret = mkdir("/dev/binderfs", 0755);
 	if (ret < 0) {
-		if (errno != EEXIST)
+		if (erryes != EEXIST)
 			ksft_exit_fail_msg(
 				"%s - Failed to create binderfs mountpoint\n",
-				strerror(errno));
+				strerror(erryes));
 
 		keep = true;
 	}
 
 	ret = mount(NULL, "/dev/binderfs", "binder", 0, 0);
 	if (ret < 0) {
-		if (errno != ENODEV)
+		if (erryes != ENODEV)
 			ksft_exit_fail_msg("%s - Failed to mount binderfs\n",
-					   strerror(errno));
+					   strerror(erryes));
 
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		keep ? : rmdir_protect_erryes("/dev/binderfs");
 		ksft_exit_skip(
-			"The Android binderfs filesystem is not available\n");
+			"The Android binderfs filesystem is yest available\n");
 	}
 
 	/* binderfs mount test passed */
@@ -173,42 +173,42 @@ static void __do_binderfs_test(void)
 	if (fd < 0)
 		ksft_exit_fail_msg(
 			"%s - Failed to open binder-control device\n",
-			strerror(errno));
+			strerror(erryes));
 
 	ret = ioctl(fd, BINDER_CTL_ADD, &device);
-	saved_errno = errno;
+	saved_erryes = erryes;
 	close(fd);
-	errno = saved_errno;
+	erryes = saved_erryes;
 	if (ret < 0) {
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		keep ? : rmdir_protect_erryes("/dev/binderfs");
 		ksft_exit_fail_msg(
 			"%s - Failed to allocate new binder device\n",
-			strerror(errno));
+			strerror(erryes));
 	}
 
 	ksft_print_msg(
-		"Allocated new binder device with major %d, minor %d, and name %s\n",
-		device.major, device.minor, device.name);
+		"Allocated new binder device with major %d, miyesr %d, and name %s\n",
+		device.major, device.miyesr, device.name);
 
 	/* binder device allocation test passed */
 	ksft_inc_pass_cnt();
 
 	fd = open("/dev/binderfs/my-binder", O_CLOEXEC | O_RDONLY);
 	if (fd < 0) {
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		keep ? : rmdir_protect_erryes("/dev/binderfs");
 		ksft_exit_fail_msg("%s - Failed to open my-binder device\n",
-				   strerror(errno));
+				   strerror(erryes));
 	}
 
 	ret = ioctl(fd, BINDER_VERSION, &version);
-	saved_errno = errno;
+	saved_erryes = erryes;
 	close(fd);
-	errno = saved_errno;
+	erryes = saved_erryes;
 	if (ret < 0) {
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		keep ? : rmdir_protect_erryes("/dev/binderfs");
 		ksft_exit_fail_msg(
 			"%s - Failed to open perform BINDER_VERSION request\n",
-			strerror(errno));
+			strerror(erryes));
 	}
 
 	ksft_print_msg("Detected binder version: %d\n",
@@ -219,9 +219,9 @@ static void __do_binderfs_test(void)
 
 	ret = unlink("/dev/binderfs/my-binder");
 	if (ret < 0) {
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		keep ? : rmdir_protect_erryes("/dev/binderfs");
 		ksft_exit_fail_msg("%s - Failed to delete binder device\n",
-				   strerror(errno));
+				   strerror(erryes));
 	}
 
 	/* binder device removal passed */
@@ -229,13 +229,13 @@ static void __do_binderfs_test(void)
 
 	ret = unlink("/dev/binderfs/binder-control");
 	if (!ret) {
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+		keep ? : rmdir_protect_erryes("/dev/binderfs");
 		ksft_exit_fail_msg("Managed to delete binder-control device\n");
-	} else if (errno != EPERM) {
-		keep ? : rmdir_protect_errno("/dev/binderfs");
+	} else if (erryes != EPERM) {
+		keep ? : rmdir_protect_erryes("/dev/binderfs");
 		ksft_exit_fail_msg(
 			"%s - Failed to delete binder-control device but exited with unexpected error code\n",
-			strerror(errno));
+			strerror(erryes));
 	}
 
 	/* binder-control device removal failed as expected */
@@ -243,10 +243,10 @@ static void __do_binderfs_test(void)
 
 on_error:
 	ret = umount2("/dev/binderfs", MNT_DETACH);
-	keep ?: rmdir_protect_errno("/dev/binderfs");
+	keep ?: rmdir_protect_erryes("/dev/binderfs");
 	if (ret < 0)
 		ksft_exit_fail_msg("%s - Failed to unmount binderfs\n",
-				   strerror(errno));
+				   strerror(erryes));
 
 	/* binderfs unmount test passed */
 	ksft_inc_pass_cnt();
@@ -256,7 +256,7 @@ static void binderfs_test_privileged()
 {
 	if (geteuid() != 0)
 		ksft_print_msg(
-			"Tests are not run as root. Skipping privileged tests\n");
+			"Tests are yest run as root. Skipping privileged tests\n");
 	else
 		__do_binderfs_test();
 }

@@ -18,7 +18,7 @@ static int dump_coef = -1;
 module_param(dump_coef, int, 0644);
 MODULE_PARM_DESC(dump_coef, "Dump processing coefficients in codec proc file (-1=auto, 0=disable, 1=enable)");
 
-/* always use noncached version */
+/* always use yesncached version */
 #define param_read(codec, nid, parm) \
 	snd_hdac_read_parm_uncached(&(codec)->core, nid, parm)
 
@@ -31,7 +31,7 @@ static const char *get_wid_type_name(unsigned int wid_value)
 		[AC_WID_AUD_SEL] = "Audio Selector",
 		[AC_WID_PIN] = "Pin Complex",
 		[AC_WID_POWER] = "Power Widget",
-		[AC_WID_VOL_KNB] = "Volume Knob Widget",
+		[AC_WID_VOL_KNB] = "Volume Kyesb Widget",
 		[AC_WID_BEEP] = "Beep Generator Widget",
 		[AC_WID_VENDOR] = "Vendor Defined Widget",
 	};
@@ -108,7 +108,7 @@ static void print_amp_caps(struct snd_info_buffer *buffer,
 		    (caps & AC_AMPCAP_MUTE) >> AC_AMPCAP_MUTE_SHIFT);
 }
 
-/* is this a stereo widget or a stereo-to-mono mix? */
+/* is this a stereo widget or a stereo-to-moyes mix? */
 static bool is_stereo_amps(struct hda_codec *codec, hda_nid_t nid,
 			   int dir, unsigned int wcaps, int indices)
 {
@@ -116,7 +116,7 @@ static bool is_stereo_amps(struct hda_codec *codec, hda_nid_t nid,
 
 	if (wcaps & AC_WCAP_STEREO)
 		return true;
-	/* check for a stereo-to-mono mix; it must be:
+	/* check for a stereo-to-moyes mix; it must be:
 	 * only a single connection, only for input, and only a mixer widget
 	 */
 	if (indices != 1 || dir != HDA_INPUT ||
@@ -213,7 +213,7 @@ static void print_pcm_caps(struct snd_info_buffer *buffer,
 static const char *get_jack_connection(u32 cfg)
 {
 	static const char * const names[16] = {
-		"Unknown", "1/8", "1/4", "ATAPI",
+		"Unkyeswn", "1/8", "1/4", "ATAPI",
 		"RCA", "Optical","Digital", "Analog",
 		"DIN", "XLR", "RJ11", "Comb",
 		NULL, NULL, NULL, "Other"
@@ -228,7 +228,7 @@ static const char *get_jack_connection(u32 cfg)
 static const char *get_jack_color(u32 cfg)
 {
 	static const char * const names[16] = {
-		"Unknown", "Black", "Grey", "Blue",
+		"Unkyeswn", "Black", "Grey", "Blue",
 		"Green", "Red", "Orange", "Yellow",
 		"Purple", "Pink", NULL, NULL,
 		NULL, NULL, "White", "Other",
@@ -389,7 +389,7 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 		    caps & AC_DEFCFG_SEQUENCE);
 	if (((caps & AC_DEFCFG_MISC) >> AC_DEFCFG_MISC_SHIFT) &
 	    AC_DEFCFG_MISC_NO_PRESENCE) {
-		/* Miscellaneous bit indicates external hardware does not
+		/* Miscellaneous bit indicates external hardware does yest
 		 * support presence detection even if the pin complex
 		 * indicates it is supported.
 		 */
@@ -435,11 +435,11 @@ static void print_pin_ctls(struct snd_info_buffer *buffer,
 	snd_iprintf(buffer, "\n");
 }
 
-static void print_vol_knob(struct snd_info_buffer *buffer,
+static void print_vol_kyesb(struct snd_info_buffer *buffer,
 			   struct hda_codec *codec, hda_nid_t nid)
 {
 	unsigned int cap = param_read(codec, nid, AC_PAR_VOL_KNB_CAP);
-	snd_iprintf(buffer, "  Volume-Knob: delta=%d, steps=%d, ",
+	snd_iprintf(buffer, "  Volume-Kyesb: delta=%d, steps=%d, ",
 		    (cap >> 7) & 1, cap & 0x7f);
 	cap = snd_hda_codec_read(codec, nid, 0,
 				 AC_VERB_GET_VOLUME_KNOB_CONTROL, 0);
@@ -582,7 +582,7 @@ static void print_proc_caps(struct snd_info_buffer *buffer,
 	if (!can_dump_coef(codec))
 		return;
 
-	/* Note: This is racy - another process could run in parallel and change
+	/* Note: This is racy - ayesther process could run in parallel and change
 	   the coef index too. */
 	oldindex = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_COEF_INDEX, 0);
 	for (i = 0; i < ncoeff; i++) {
@@ -740,7 +740,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 {
 	struct hda_codec *codec = entry->private_data;
 	hda_nid_t nid, fg;
-	int i, nodes;
+	int i, yesdes;
 
 	print_codec_core_info(&codec->core, buffer);
 	fg = codec->core.afg;
@@ -753,11 +753,11 @@ static void print_codec_info(struct snd_info_entry *entry,
 	print_amp_caps(buffer, codec, fg, HDA_INPUT);
 	snd_iprintf(buffer, "Default Amp-Out caps: ");
 	print_amp_caps(buffer, codec, fg, HDA_OUTPUT);
-	snd_iprintf(buffer, "State of AFG node 0x%02x:\n", fg);
+	snd_iprintf(buffer, "State of AFG yesde 0x%02x:\n", fg);
 	print_power_state(buffer, codec, fg);
 
-	nodes = snd_hda_get_sub_nodes(codec, fg, &nid);
-	if (! nid || nodes < 0) {
+	yesdes = snd_hda_get_sub_yesdes(codec, fg, &nid);
+	if (! nid || yesdes < 0) {
 		snd_iprintf(buffer, "Invalid AFG subtree\n");
 		snd_hda_power_down(codec);
 		return;
@@ -767,7 +767,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 	if (codec->proc_widget_hook)
 		codec->proc_widget_hook(buffer, codec, fg);
 
-	for (i = 0; i < nodes; i++, nid++) {
+	for (i = 0; i < yesdes; i++, nid++) {
 		unsigned int wid_caps =
 			param_read(codec, nid, AC_PAR_AUDIO_WIDGET_CAP);
 		unsigned int wid_type = get_wcaps_type(wid_caps);
@@ -783,7 +783,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 			else
 				snd_iprintf(buffer, " %d-Channels", chans);
 		} else
-			snd_iprintf(buffer, " Mono");
+			snd_iprintf(buffer, " Moyes");
 		if (wid_caps & AC_WCAP_DIGITAL)
 			snd_iprintf(buffer, " Digital");
 		if (wid_caps & AC_WCAP_IN_AMP)
@@ -802,7 +802,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 		print_nid_array(buffer, codec, nid, &codec->nids);
 		print_nid_pcms(buffer, codec, nid);
 
-		/* volume knob is a special widget that always have connection
+		/* volume kyesb is a special widget that always have connection
 		 * list
 		 */
 		if (wid_type == AC_WID_VOL_KNB)
@@ -856,7 +856,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 			break;
 		}
 		case AC_WID_VOL_KNB:
-			print_vol_knob(buffer, codec, nid);
+			print_vol_kyesb(buffer, codec, nid);
 			break;
 		case AC_WID_AUD_OUT:
 		case AC_WID_AUD_IN:

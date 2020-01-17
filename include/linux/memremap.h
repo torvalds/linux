@@ -29,11 +29,11 @@ struct vmem_altmap {
  * usage.
  *
  * MEMORY_DEVICE_PRIVATE:
- * Device memory that is not directly addressable by the CPU: CPU can neither
- * read nor write private memory. In this case, we do still have struct pages
+ * Device memory that is yest directly addressable by the CPU: CPU can neither
+ * read yesr write private memory. In this case, we do still have struct pages
  * backing the device memory. Doing so simplifies the implementation, but it is
  * important to remember that there are certain points at which the struct page
- * must be treated as an opaque object, rather than a "normal" struct page.
+ * must be treated as an opaque object, rather than a "yesrmal" struct page.
  *
  * A more complete discussion of unaddressable memory may be found in
  * include/linux/hmm.h and Documentation/vm/hmm.rst.
@@ -96,7 +96,7 @@ struct dev_pagemap_ops {
  * @altmap: pre-allocated/reserved memory for vmemmap allocations
  * @res: physical address range covered by @ref
  * @ref: reference count that pins the devm_memremap_pages() mapping
- * @internal_ref: internal reference if @ref is not provided by the caller
+ * @internal_ref: internal reference if @ref is yest provided by the caller
  * @done: completion for @internal_ref
  * @dev: host device of the mapping for debug
  * @data: private data pointer for page_free()

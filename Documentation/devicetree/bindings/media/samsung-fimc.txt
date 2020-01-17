@@ -1,16 +1,16 @@
 Samsung S5P/EXYNOS SoC Camera Subsystem (FIMC)
 ----------------------------------------------
 
-The S5P/Exynos SoC Camera subsystem comprises of multiple sub-devices
-represented by separate device tree nodes. Currently this includes: FIMC (in
-the S5P SoCs series known as CAMIF), MIPI CSIS, FIMC-LITE and FIMC-IS (ISP).
+The S5P/Exyyess SoC Camera subsystem comprises of multiple sub-devices
+represented by separate device tree yesdes. Currently this includes: FIMC (in
+the S5P SoCs series kyeswn as CAMIF), MIPI CSIS, FIMC-LITE and FIMC-IS (ISP).
 
-The sub-subdevices are defined as child nodes of the common 'camera' node which
-also includes common properties of the whole subsystem not really specific to
+The sub-subdevices are defined as child yesdes of the common 'camera' yesde which
+also includes common properties of the whole subsystem yest really specific to
 any single sub-device, like common camera port pins or the CAMCLK clock outputs
 for external image sensors attached to an SoC.
 
-Common 'camera' node
+Common 'camera' yesde
 --------------------
 
 Required properties:
@@ -22,7 +22,7 @@ Required properties:
   "pxl_async1" entries, matching entries in the clocks property.
 
 - #clock-cells: from the common clock bindings (../clock/clock-bindings.txt),
-  must be 1. A clock provider is associated with the 'camera' node and it should
+  must be 1. A clock provider is associated with the 'camera' yesde and it should
   be referenced by external sensors that use clocks provided by the SoC on
   CAM_*_CLKOUT pins. The clock specifier cell stores an index of a clock.
   The indices are 0, 1 for CAM_A_CLKOUT, CAM_B_CLKOUT clocks respectively.
@@ -40,16 +40,16 @@ should be inactive. For the "active-a" state the camera port A must be activated
 and the port B deactivated and for the state "active-b" it should be the other
 way around.
 
-The 'camera' node must include at least one 'fimc' child node.
+The 'camera' yesde must include at least one 'fimc' child yesde.
 
 
-'fimc' device nodes
+'fimc' device yesdes
 -------------------
 
 Required properties:
 
-- compatible: "samsung,s5pv210-fimc" for S5PV210, "samsung,exynos4210-fimc"
-  for Exynos4210 and "samsung,exynos4212-fimc" for Exynos4x12 SoCs;
+- compatible: "samsung,s5pv210-fimc" for S5PV210, "samsung,exyyess4210-fimc"
+  for Exyyess4210 and "samsung,exyyess4212-fimc" for Exyyess4x12 SoCs;
 - reg: physical base address and length of the registers set for the device;
 - interrupts: should contain FIMC interrupt;
 - clocks: list of clock specifiers, must contain an entry for each required
@@ -62,9 +62,9 @@ Required properties:
   1 - input horizontal size for the scaler bypassed,
   2 - REAL_WIDTH without input rotation,
   3 - REAL_HEIGHT with input rotation,
-- samsung,sysreg: a phandle to the SYSREG node.
+- samsung,sysreg: a phandle to the SYSREG yesde.
 
-Each FIMC device should have an alias in the aliases node, in the form of
+Each FIMC device should have an alias in the aliases yesde, in the form of
 fimc<n>, where <n> is an integer specifying the IP block instance.
 
 Optional properties:
@@ -72,16 +72,16 @@ Optional properties:
 - clock-frequency: maximum FIMC local clock (LCLK) frequency;
 - samsung,min-pix-sizes: an array specyfing minimum image size in pixels at
   the FIMC input and output DMA, in the first and second cell respectively.
-  Default value when this property is not present is <16 16>;
+  Default value when this property is yest present is <16 16>;
 - samsung,min-pix-alignment: minimum supported image height alignment (first
   cell) and the horizontal image offset (second cell). The values are in pixels
-  and default to <2 1> when this property is not present;
+  and default to <2 1> when this property is yest present;
 - samsung,mainscaler-ext: a boolean property indicating whether the FIMC IP
   supports extended image size and has CIEXTEN register;
 - samsung,rotators: a bitmask specifying whether this IP has the input and
   the output rotator. Bits 4 and 0 correspond to input and output rotator
   respectively. If a rotator is present its corresponding bit should be set.
-  Default value when this property is not specified is 0x11.
+  Default value when this property is yest specified is 0x11.
 - samsung,cam-if: a bolean property indicating whether the IP block includes
   the camera input interface.
 - samsung,isp-wb: this property must be present if the IP block has the ISP
@@ -90,23 +90,23 @@ Optional properties:
   writeback input.
 
 
-'parallel-ports' node
+'parallel-ports' yesde
 ---------------------
 
-This node should contain child 'port' nodes specifying active parallel video
+This yesde should contain child 'port' yesdes specifying active parallel video
 input ports. It includes camera A and camera B inputs. 'reg' property in the
-port nodes specifies data input - 0, 1 indicates input A, B respectively.
+port yesdes specifies data input - 0, 1 indicates input A, B respectively.
 
 Optional properties
 
 - samsung,camclk-out (deprecated) : specifies clock output for remote sensor,
   0 - CAM_A_CLKOUT, 1 - CAM_B_CLKOUT;
 
-Image sensor nodes
+Image sensor yesdes
 ------------------
 
-The sensor device nodes should be added to their control bus controller (e.g.
-I2C0) nodes and linked to a port node in the csis or the parallel-ports node,
+The sensor device yesdes should be added to their control bus controller (e.g.
+I2C0) yesdes and linked to a port yesde in the csis or the parallel-ports yesde,
 using the common video interfaces bindings, defined in video-interfaces.txt.
 
 Example:
@@ -185,13 +185,13 @@ Example:
 		};
 
 		fimc_0: fimc@11800000 {
-			compatible = "samsung,exynos4210-fimc";
+			compatible = "samsung,exyyess4210-fimc";
 			reg = <0x11800000 0x1000>;
 			interrupts = <0 85 0>;
 		};
 
 		csis_0: csis@11880000 {
-			compatible = "samsung,exynos4210-csis";
+			compatible = "samsung,exyyess4210-csis";
 			reg = <0x11880000 0x1000>;
 			interrupts = <0 78 0>;
 			/* camera C input */

@@ -53,7 +53,7 @@ acpi_ex_check_object_type(acpi_object_type type_needed,
 		/*
 		 * Allow the AML "Constant" opcodes (Zero, One, etc.) to be reference
 		 * objects and thus allow them to be targets. (As per the ACPI
-		 * specification, a store to a constant is a noop.)
+		 * specification, a store to a constant is a yesop.)
 		 */
 		if ((this_type == ACPI_TYPE_INTEGER) &&
 		    (((union acpi_operand_object *)object)->common.flags &
@@ -118,7 +118,7 @@ acpi_ex_resolve_operands(u16 opcode,
 
 	arg_types = op_info->runtime_args;
 	if (arg_types == ARGI_INVALID_OPCODE) {
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X", opcode));
+		ACPI_ERROR((AE_INFO, "Unkyeswn AML opcode 0x%X", opcode));
 
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
@@ -130,9 +130,9 @@ acpi_ex_resolve_operands(u16 opcode,
 	/*
 	 * Normal exit is with (arg_types == 0) at end of argument list.
 	 * Function will return an exception from within the loop upon
-	 * finding an entry which is not (or cannot be converted
+	 * finding an entry which is yest (or canyest be converted
 	 * to) the required type; if stack underflows; or upon
-	 * finding a NULL stack entry (which should not happen).
+	 * finding a NULL stack entry (which should yest happen).
 	 */
 	while (GET_CURRENT_ARG_TYPE(arg_types)) {
 		if (!stack_ptr || !*stack_ptr) {
@@ -154,21 +154,21 @@ acpi_ex_resolve_operands(u16 opcode,
 			/* Namespace Node */
 
 			object_type =
-			    ((struct acpi_namespace_node *)obj_desc)->type;
+			    ((struct acpi_namespace_yesde *)obj_desc)->type;
 
 			/*
 			 * Resolve an alias object. The construction of these objects
 			 * guarantees that there is only one level of alias indirection;
-			 * thus, the attached object is always the aliased namespace node
+			 * thus, the attached object is always the aliased namespace yesde
 			 */
 			if (object_type == ACPI_TYPE_LOCAL_ALIAS) {
 				obj_desc = acpi_ns_get_attached_object((struct
-									acpi_namespace_node
+									acpi_namespace_yesde
 									*)
 								       obj_desc);
 				*stack_ptr = obj_desc;
 				object_type =
-				    ((struct acpi_namespace_node *)obj_desc)->
+				    ((struct acpi_namespace_yesde *)obj_desc)->
 				    type;
 			}
 			break;
@@ -218,7 +218,7 @@ acpi_ex_resolve_operands(u16 opcode,
 				default:
 
 					ACPI_ERROR((AE_INFO,
-						    "Unknown Reference Class 0x%2.2X in %p",
+						    "Unkyeswn Reference Class 0x%2.2X in %p",
 						    obj_desc->reference.class,
 						    obj_desc));
 
@@ -244,7 +244,7 @@ acpi_ex_resolve_operands(u16 opcode,
 		INCREMENT_ARG_LIST(arg_types);
 
 		/*
-		 * Handle cases where the object does not need to be
+		 * Handle cases where the object does yest need to be
 		 * resolved to a value
 		 */
 		switch (this_arg_type) {
@@ -255,13 +255,13 @@ acpi_ex_resolve_operands(u16 opcode,
 			    (obj_desc->common.type == ACPI_TYPE_STRING)) {
 				/*
 				 * String found - the string references a named object and
-				 * must be resolved to a node
+				 * must be resolved to a yesde
 				 */
 				goto next_operand;
 			}
 
 			/*
-			 * Else not a string - fall through to the normal Reference
+			 * Else yest a string - fall through to the yesrmal Reference
 			 * case below
 			 */
 			/*lint -fallthrough */
@@ -272,7 +272,7 @@ acpi_ex_resolve_operands(u16 opcode,
 		case ARGI_DEVICE_REF:
 		case ARGI_TARGETREF:	/* Allows implicit conversion rules before store */
 		case ARGI_FIXED_TARGET:	/* No implicit conversion before store to target */
-		case ARGI_SIMPLE_TARGET:	/* Name, Local, or arg - no implicit conversion  */
+		case ARGI_SIMPLE_TARGET:	/* Name, Local, or arg - yes implicit conversion  */
 		case ARGI_STORE_TARGET:
 
 			/*
@@ -379,7 +379,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			 * Need an operand of type ACPI_TYPE_INTEGER, but we can
 			 * implicitly convert from a STRING or BUFFER.
 			 *
-			 * Known as "Implicit Source Operand Conversion"
+			 * Kyeswn as "Implicit Source Operand Conversion"
 			 */
 			status = acpi_ex_convert_to_integer(obj_desc, stack_ptr,
 							    ACPI_IMPLICIT_CONVERSION);
@@ -518,7 +518,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			 * Need a buffer, string, package, or ref_of reference.
 			 *
 			 * The only reference allowed here is a direct reference to
-			 * a namespace node.
+			 * a namespace yesde.
 			 */
 			switch (obj_desc->common.type) {
 			case ACPI_TYPE_PACKAGE:
@@ -612,7 +612,7 @@ acpi_ex_resolve_operands(u16 opcode,
 					/*
 					 * Enable original behavior of Store(), allowing any
 					 * and all objects as the source operand. The ACPI
-					 * spec does not allow this, however.
+					 * spec does yest allow this, however.
 					 */
 					break;
 				}
@@ -636,10 +636,10 @@ acpi_ex_resolve_operands(u16 opcode,
 
 		default:
 
-			/* Unknown type */
+			/* Unkyeswn type */
 
 			ACPI_ERROR((AE_INFO,
-				    "Internal - Unknown ARGI (required operand) type 0x%X",
+				    "Internal - Unkyeswn ARGI (required operand) type 0x%X",
 				    this_arg_type));
 
 			return_ACPI_STATUS(AE_BAD_PARAMETER);

@@ -16,7 +16,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/ftrace.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
@@ -57,7 +57,7 @@ static const struct irq_class irqclass_main_desc[NR_IRQS_BASE] = {
 /*
  * The list of split external and I/O interrupts that appear only in
  * /proc/interrupts.
- * In addition this list contains non external / I/O events like NMIs.
+ * In addition this list contains yesn external / I/O events like NMIs.
  */
 static const struct irq_class irqclass_sub_desc[] = {
 	{.irq = IRQEXT_CLK, .name = "CLK", .desc = "[EXT] Clock Comparator"},
@@ -194,7 +194,7 @@ unsigned int arch_dynirq_lower_bound(unsigned int from)
 }
 
 /*
- * Switch to the asynchronous interrupt stack for softirq execution.
+ * Switch to the asynchroyesus interrupt stack for softirq execution.
  */
 void do_softirq_own_stack(void)
 {
@@ -219,7 +219,7 @@ static struct hlist_head ext_int_hash[32] ____cacheline_aligned;
 
 struct ext_int_info {
 	ext_int_handler_t handler;
-	struct hlist_node entry;
+	struct hlist_yesde entry;
 	struct rcu_head rcu;
 	u16 code;
 };

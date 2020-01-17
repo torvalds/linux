@@ -8,7 +8,7 @@
 #define KMSG_COMPONENT "sclp_early"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/ctl_reg.h>
 #include <asm/sclp.h>
 #include <asm/ipl.h>
@@ -152,7 +152,7 @@ void __init sclp_early_detect(void)
 	sclp_early_init_core_info(sccb);
 
 	/*
-	 * Turn off SCLP event notifications.  Also save remote masks in the
+	 * Turn off SCLP event yestifications.  Also save remote masks in the
 	 * sccb.  These are sufficient to detect sclp console capabilities.
 	 */
 	sclp_early_set_event_mask(sccb, 0, 0);

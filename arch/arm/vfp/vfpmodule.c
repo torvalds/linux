@@ -10,7 +10,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/hardirq.h>
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/signal.h>
 #include <linux/sched/signal.h>
 #include <linux/smp.h>
@@ -22,7 +22,7 @@
 #include <asm/cp15.h>
 #include <asm/cputype.h>
 #include <asm/system_info.h>
-#include <asm/thread_notify.h>
+#include <asm/thread_yestify.h>
 #include <asm/vfp.h>
 
 #include "vfpinstr.h"
@@ -39,7 +39,7 @@ asmlinkage void (*vfp_vector)(void) = vfp_null_entry;
 
 /*
  * Dual-use variable.
- * Used in startup: set to non-zero if VFP checks fail
+ * Used in startup: set to yesn-zero if VFP checks fail
  * After startup, holds VFP architecture
  */
 unsigned int VFP_arch;
@@ -57,7 +57,7 @@ union vfp_state *vfp_current_hw_state[NR_CPUS];
 
 /*
  * Is 'thread's most up to date state stored in this CPUs hardware?
- * Must be called from non-preemptible context.
+ * Must be called from yesn-preemptible context.
  */
 static bool vfp_state_in_hw(unsigned int cpu, struct thread_info *thread)
 {
@@ -71,7 +71,7 @@ static bool vfp_state_in_hw(unsigned int cpu, struct thread_info *thread)
 /*
  * Force a reload of the VFP context from the thread structure.  We do
  * this by ensuring that access to the VFP hardware is disabled, and
- * clear vfp_current_hw_state.  Must be called from non-preemptible context.
+ * clear vfp_current_hw_state.  Must be called from yesn-preemptible context.
  */
 static void vfp_force_reload(unsigned int cpu, struct thread_info *thread)
 {
@@ -141,10 +141,10 @@ static void vfp_thread_copy(struct thread_info *thread)
  * When this function is called with the following 'cmd's, the following
  * is true while this function is being run:
  *  THREAD_NOFTIFY_SWTICH:
- *   - the previously running thread will not be scheduled onto another CPU.
- *   - the next thread to be run (v) will not be running on another CPU.
+ *   - the previously running thread will yest be scheduled onto ayesther CPU.
+ *   - the next thread to be run (v) will yest be running on ayesther CPU.
  *   - thread->cpu is the local CPU number
- *   - not preemptible as we're called in the middle of a thread switch
+ *   - yest preemptible as we're called in the middle of a thread switch
  *  THREAD_NOTIFY_FLUSH:
  *   - the thread (v) will be running on the local CPU, so
  *	v === current_thread_info()
@@ -156,7 +156,7 @@ static void vfp_thread_copy(struct thread_info *thread)
  *   - we could be preempted if tree preempt rcu is enabled, so
  *	it is unsafe to use thread->cpu.
  */
-static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
+static int vfp_yestifier(struct yestifier_block *self, unsigned long cmd, void *v)
 {
 	struct thread_info *thread = v;
 	u32 fpexc;
@@ -203,8 +203,8 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block vfp_notifier_block = {
-	.notifier_call	= vfp_notifier,
+static struct yestifier_block vfp_yestifier_block = {
+	.yestifier_call	= vfp_yestifier,
 };
 
 /*
@@ -214,11 +214,11 @@ static struct notifier_block vfp_notifier_block = {
 static void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
 {
 	/*
-	 * This is the same as NWFPE, because it's not clear what
+	 * This is the same as NWFPE, because it's yest clear what
 	 * this is used for
 	 */
 	current->thread.error_code = 0;
-	current->thread.trap_no = 6;
+	current->thread.trap_yes = 6;
 
 	send_sig_fault(SIGFPE, sicode,
 		       (void __user *)(instruction_pointer(regs) - 4),
@@ -302,15 +302,15 @@ static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
 			}
 		} else {
 			/*
-			 * A CPRT instruction can not appear in FPINST2, nor
-			 * can it cause an exception.  Therefore, we do not
+			 * A CPRT instruction can yest appear in FPINST2, yesr
+			 * can it cause an exception.  Therefore, we do yest
 			 * have to emulate it.
 			 */
 		}
 	} else {
 		/*
-		 * A CPDT instruction can not appear in FPINST2, nor can
-		 * it cause an exception.  Therefore, we do not have to
+		 * A CPDT instruction can yest appear in FPINST2, yesr can
+		 * it cause an exception.  Therefore, we do yest have to
 		 * emulate it.
 		 */
 	}
@@ -330,10 +330,10 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	 * At this point, FPEXC can have the following configuration:
 	 *
 	 *  EX DEX IXE
-	 *  0   1   x   - synchronous exception
-	 *  1   x   0   - asynchronous exception
-	 *  1   x   1   - sychronous on VFP subarch 1 and asynchronous on later
-	 *  0   0   1   - synchronous on VFP9 (non-standard subarch 1
+	 *  0   1   x   - synchroyesus exception
+	 *  1   x   0   - asynchroyesus exception
+	 *  1   x   1   - sychroyesus on VFP subarch 1 and asynchroyesus on later
+	 *  0   0   1   - synchroyesus on VFP9 (yesn-standard subarch 1
 	 *                implementation), undefined otherwise
 	 *
 	 * Clear various bits and enable access to the VFP so we can
@@ -350,7 +350,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	if ((fpsid & FPSID_ARCH_MASK) == (1 << FPSID_ARCH_BIT)
 	    && (fpscr & FPSCR_IXE)) {
 		/*
-		 * Synchronous exception, emulate the trigger instruction
+		 * Synchroyesus exception, emulate the trigger instruction
 		 */
 		goto emulate;
 	}
@@ -358,7 +358,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	if (fpexc & FPEXC_EX) {
 #ifndef CONFIG_CPU_FEROCEON
 		/*
-		 * Asynchronous exception. The instruction is read from FPINST
+		 * Asynchroyesus exception. The instruction is read from FPINST
 		 * and the interrupted instruction has to be restarted.
 		 */
 		trigger = fmrx(FPINST);
@@ -367,7 +367,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	} else if (!(fpexc & FPEXC_DEX)) {
 		/*
 		 * Illegal combination of bits. It can be caused by an
-		 * unallocated VFP instruction but with FPSCR.IXE set and not
+		 * unallocated VFP instruction but with FPSCR.IXE set and yest
 		 * on VFP subarch 1.
 		 */
 		 vfp_raise_exceptions(VFP_EXCEPTION_ERROR, trigger, fpscr, regs);
@@ -389,7 +389,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	}
 
 	/*
-	 * Handle the first FP instruction.  We used to take note of the
+	 * Handle the first FP instruction.  We used to take yeste of the
 	 * FPEXC bounce reason, but this appears to be unreliable.
 	 * Emulate the bounced instruction instead.
 	 */
@@ -398,7 +398,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 		vfp_raise_exceptions(exceptions, trigger, orig_fpscr, regs);
 
 	/*
-	 * If there isn't a second FP instruction, exit now. Note that
+	 * If there isn't a second FP instruction, exit yesw. Note that
 	 * the FPEXC.FP2V bit is valid only if FPEXC.EX is 1.
 	 */
 	if ((fpexc & (FPEXC_EX | FPEXC_FP2V)) != (FPEXC_EX | FPEXC_FP2V))
@@ -432,7 +432,7 @@ static void vfp_enable(void *unused)
 	set_copro_access(access | CPACC_FULL(10) | CPACC_FULL(11));
 }
 
-/* Called by platforms on which we want to disable VFP because it may not be
+/* Called by platforms on which we want to disable VFP because it may yest be
  * present on all CPUs within a SMP complex. Needs to be called prior to
  * vfp_init().
  */
@@ -481,7 +481,7 @@ static void vfp_pm_resume(void)
 	fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
 }
 
-static int vfp_cpu_pm_notifier(struct notifier_block *self, unsigned long cmd,
+static int vfp_cpu_pm_yestifier(struct yestifier_block *self, unsigned long cmd,
 	void *v)
 {
 	switch (cmd) {
@@ -496,13 +496,13 @@ static int vfp_cpu_pm_notifier(struct notifier_block *self, unsigned long cmd,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block vfp_cpu_pm_notifier_block = {
-	.notifier_call = vfp_cpu_pm_notifier,
+static struct yestifier_block vfp_cpu_pm_yestifier_block = {
+	.yestifier_call = vfp_cpu_pm_yestifier,
 };
 
 static void vfp_pm_init(void)
 {
-	cpu_pm_register_notifier(&vfp_cpu_pm_notifier_block);
+	cpu_pm_register_yestifier(&vfp_cpu_pm_yestifier_block);
 }
 
 #else
@@ -648,7 +648,7 @@ void vfp_kmode_exception(void)
 	 * If we reach this point, a floating point exception has been raised
 	 * while running in kernel mode. If the NEON/VFP unit was enabled at the
 	 * time, it means a VFP instruction has been issued that requires
-	 * software assistance to complete, something which is not currently
+	 * software assistance to complete, something which is yest currently
 	 * supported in kernel mode.
 	 * If the NEON/VFP unit was disabled, and the location pointed to below
 	 * is properly preceded by a call to kernel_neon_begin(), something has
@@ -736,7 +736,7 @@ static int __init vfp_init(void)
 
 	pr_info("VFP support v0.3: ");
 	if (VFP_arch) {
-		pr_cont("not present\n");
+		pr_cont("yest present\n");
 		return 0;
 	/* Extract the architecture on CPUID scheme */
 	} else if ((read_cpuid_id() & 0x000f0000) == 0x000f0000) {
@@ -775,20 +775,20 @@ static int __init vfp_init(void)
 	/* Extract the architecture version on pre-cpuid scheme */
 	} else {
 		if (vfpsid & FPSID_NODOUBLE) {
-			pr_cont("no double precision support\n");
+			pr_cont("yes double precision support\n");
 			return 0;
 		}
 
 		VFP_arch = (vfpsid & FPSID_ARCH_MASK) >> FPSID_ARCH_BIT;
 	}
 
-	cpuhp_setup_state_nocalls(CPUHP_AP_ARM_VFP_STARTING,
+	cpuhp_setup_state_yescalls(CPUHP_AP_ARM_VFP_STARTING,
 				  "arm/vfp:starting", vfp_starting_cpu,
 				  vfp_dying_cpu);
 
 	vfp_vector = vfp_support_entry;
 
-	thread_register_notifier(&vfp_notifier_block);
+	thread_register_yestifier(&vfp_yestifier_block);
 	vfp_pm_init();
 
 	/*

@@ -158,7 +158,7 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 
 		spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
 
-		/* There's no hardware to shutdown, but the driver
+		/* There's yes hardware to shutdown, but the driver
 		 * might have some tasks or tasklets that must be
 		 * stopped before we can tear everything down.
 		 */
@@ -188,14 +188,14 @@ static void prism2sta_disconnect_usb(struct usb_interface *interface)
 		list_for_each_entry(ctlx, &cleanlist, list)
 			complete(&ctlx->done);
 
-		/* Give any outstanding synchronous commands
+		/* Give any outstanding synchroyesus commands
 		 * a chance to complete. All they need to do
 		 * is "wake up", so that's easy.
 		 * (I'd like a better way to do this, really.)
 		 */
 		msleep(100);
 
-		/* Now delete the CTLXs, because no-one else can now. */
+		/* Now delete the CTLXs, because yes-one else can yesw. */
 		list_for_each_entry_safe(ctlx, temp, &cleanlist, list)
 			kfree(ctlx);
 
@@ -286,7 +286,7 @@ static struct usb_driver prism2_usb_driver = {
 	.suspend = prism2sta_suspend,
 	.resume = prism2sta_resume,
 	.reset_resume = prism2sta_resume,
-	/* fops, minor? */
+	/* fops, miyesr? */
 };
 
 module_usb_driver(prism2_usb_driver);

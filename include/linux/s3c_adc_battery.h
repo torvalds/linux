@@ -17,8 +17,8 @@ struct s3c_adc_bat_pdata {
 	int gpio_charge_finished;
 	int gpio_inverted;
 
-	const struct s3c_adc_bat_thresh *lut_noac;
-	unsigned int lut_noac_cnt;
+	const struct s3c_adc_bat_thresh *lut_yesac;
+	unsigned int lut_yesac_cnt;
 	const struct s3c_adc_bat_thresh *lut_acin;
 	unsigned int lut_acin_cnt;
 

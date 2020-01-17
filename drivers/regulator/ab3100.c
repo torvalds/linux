@@ -169,7 +169,7 @@ static int ab3100_enable_regulator(struct regulator_dev *reg)
 		return err;
 	}
 
-	/* The regulator is already on, no reason to go further */
+	/* The regulator is already on, yes reason to go further */
 	if (regval & AB3100_REG_ON_MASK)
 		return 0;
 
@@ -380,7 +380,7 @@ static const struct regulator_ops regulator_ops_variable_sleepable = {
 
 /*
  * LDO EXT is an external regulator so it is really
- * not possible to set any voltage locally here, AB3100
+ * yest possible to set any voltage locally here, AB3100
  * is an on/off switch plain an simple. The external
  * voltage is defined in the board set-up if any.
  */
@@ -495,7 +495,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 static int ab3100_regulator_register(struct platform_device *pdev,
 				     struct ab3100_platform_data *plfdata,
 				     struct regulator_init_data *init_data,
-				     struct device_node *np,
+				     struct device_yesde *np,
 				     unsigned long id)
 {
 	const struct regulator_desc *desc;
@@ -527,7 +527,7 @@ static int ab3100_regulator_register(struct platform_device *pdev,
 		reg->plfdata = plfdata;
 		config.init_data = &plfdata->reg_constraints[i];
 	} else if (np) {
-		config.of_node = np;
+		config.of_yesde = np;
 		config.init_data = init_data;
 	}
 	config.dev = &pdev->dev;
@@ -569,11 +569,11 @@ static struct of_regulator_match ab3100_regulator_matches[] = {
 #define LDO_A_SETTING		0x16
 /* LDO_C 0x10: 2.65V, ON, SLEEP_A or B, SLEEP full power */
 #define LDO_C_SETTING		0x10
-/* LDO_D 0x10: 2.65V, ON, sleep mode not used */
+/* LDO_D 0x10: 2.65V, ON, sleep mode yest used */
 #define LDO_D_SETTING		0x10
 /* LDO_E 0x10: 1.8V, ON, SLEEP_A or B, SLEEP full power */
 #define LDO_E_SETTING		0x10
-/* LDO_E SLEEP 0x00: 1.8V, not used, SLEEP_A or B, not used */
+/* LDO_E SLEEP 0x00: 1.8V, yest used, SLEEP_A or B, yest used */
 #define LDO_E_SLEEP_SETTING	0x00
 /* LDO_F 0xD0: 2.5V, ON, SLEEP_A or B, SLEEP full power */
 #define LDO_F_SETTING		0xD0
@@ -583,7 +583,7 @@ static struct of_regulator_match ab3100_regulator_matches[] = {
 #define LDO_H_SETTING		0x18
 /* LDO_K 0x00: 2.75V, OFF, SLEEP_A or B, SLEEP full power */
 #define LDO_K_SETTING		0x00
-/* LDO_EXT 0x00: Voltage not set, OFF, not used, not used */
+/* LDO_EXT 0x00: Voltage yest set, OFF, yest used, yest used */
 #define LDO_EXT_SETTING		0x00
 /* BUCK 0x7D: 1.2V, ON, SLEEP_A and B, SLEEP low power */
 #define BUCK_SETTING	0x7D
@@ -606,7 +606,7 @@ static const u8 ab3100_reg_initvals[] = {
 };
 
 static int
-ab3100_regulator_of_probe(struct platform_device *pdev, struct device_node *np)
+ab3100_regulator_of_probe(struct platform_device *pdev, struct device_yesde *np)
 {
 	int err, i;
 
@@ -629,7 +629,7 @@ ab3100_regulator_of_probe(struct platform_device *pdev, struct device_node *np)
 	for (i = 0; i < ARRAY_SIZE(ab3100_regulator_matches); i++) {
 		err = ab3100_regulator_register(
 			pdev, NULL, ab3100_regulator_matches[i].init_data,
-			ab3100_regulator_matches[i].of_node,
+			ab3100_regulator_matches[i].of_yesde,
 			(unsigned long)ab3100_regulator_matches[i].driver_data);
 		if (err)
 			return err;
@@ -642,7 +642,7 @@ ab3100_regulator_of_probe(struct platform_device *pdev, struct device_node *np)
 static int ab3100_regulators_probe(struct platform_device *pdev)
 {
 	struct ab3100_platform_data *plfdata = dev_get_platdata(&pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int err = 0;
 	u8 data;
 	int i;
@@ -651,14 +651,14 @@ static int ab3100_regulators_probe(struct platform_device *pdev)
 	err = abx500_get_register_interruptible(&pdev->dev, 0,
 						AB3100_LDO_D, &data);
 	if (err) {
-		dev_err(&pdev->dev, "could not read initial status of LDO_D\n");
+		dev_err(&pdev->dev, "could yest read initial status of LDO_D\n");
 		return err;
 	}
 	if (data & 0x10)
-		dev_notice(&pdev->dev,
+		dev_yestice(&pdev->dev,
 			   "chip is already in active mode (Warm start)\n");
 	else
-		dev_notice(&pdev->dev,
+		dev_yestice(&pdev->dev,
 			   "chip is in inactive mode (Cold start)\n");
 
 	if (np) {

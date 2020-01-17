@@ -301,7 +301,7 @@ static inline void clear_imask(struct s3cmci_host *host)
  * see if it is low and if so, signal a SDIO interrupt.
  *
  * This is currently called if a request is finished (we assume that the
- * bus is now idle) and when the SDIO IRQ is enabled in case the IRQ is
+ * bus is yesw idle) and when the SDIO IRQ is enabled in case the IRQ is
  * already being indicated.
 */
 static void s3cmci_check_sdio_irq(struct s3cmci_host *host)
@@ -326,7 +326,7 @@ static inline int get_data_buffer(struct s3cmci_host *host,
 		return -EINVAL;
 
 	if (host->pio_sgptr >= host->mrq->data->sg_len) {
-		dbg(host, dbg_debug, "no more buffers (%i/%i)\n",
+		dbg(host, dbg_debug, "yes more buffers (%i/%i)\n",
 		      host->pio_sgptr, host->mrq->data->sg_len);
 		return -EBUSY;
 	}
@@ -439,7 +439,7 @@ static void do_pio_read(struct s3cmci_host *host)
 				host->complete_what = COMPLETION_FINALIZE;
 
 				dbg(host, dbg_pio, "pio_read(): "
-				    "complete (no more data).\n");
+				    "complete (yes more data).\n");
 				return;
 			}
 
@@ -488,7 +488,7 @@ static void do_pio_read(struct s3cmci_host *host)
 		res = get_data_buffer(host, &host->pio_bytes, &host->pio_ptr);
 		if (res) {
 			dbg(host, dbg_pio,
-			    "pio_read(): complete (no more buffers).\n");
+			    "pio_read(): complete (yes more buffers).\n");
 			host->pio_active = XFER_NONE;
 			host->complete_what = COMPLETION_FINALIZE;
 
@@ -515,7 +515,7 @@ static void do_pio_write(struct s3cmci_host *host)
 							&host->pio_ptr);
 			if (res) {
 				dbg(host, dbg_pio,
-				    "pio_write(): complete (no more data).\n");
+				    "pio_write(): complete (yes more data).\n");
 				host->pio_active = XFER_NONE;
 
 				return;
@@ -636,13 +636,13 @@ static irqreturn_t s3cmci_irq(int irq, void *dev_id)
 
 	if ((host->complete_what == COMPLETION_NONE) ||
 	    (host->complete_what == COMPLETION_FINALIZE)) {
-		host->status = "nothing to complete";
+		host->status = "yesthing to complete";
 		clear_imask(host);
 		goto irq_out;
 	}
 
 	if (!host->mrq) {
-		host->status = "no active mrq";
+		host->status = "yes active mrq";
 		clear_imask(host);
 		goto irq_out;
 	}
@@ -650,7 +650,7 @@ static irqreturn_t s3cmci_irq(int irq, void *dev_id)
 	cmd = host->cmd_is_stop ? host->mrq->stop : host->mrq->cmd;
 
 	if (!cmd) {
-		host->status = "no active cmd";
+		host->status = "yes active cmd";
 		clear_imask(host);
 		goto irq_out;
 	}
@@ -696,9 +696,9 @@ static irqreturn_t s3cmci_irq(int irq, void *dev_id)
 		if (cmd->flags & MMC_RSP_CRC) {
 			if (host->mrq->cmd->flags & MMC_RSP_136) {
 				dbg(host, dbg_irq,
-				    "fixup: ignore CRC fail with long rsp\n");
+				    "fixup: igyesre CRC fail with long rsp\n");
 			} else {
-				/* note, we used to fail the transfer
+				/* yeste, we used to fail the transfer
 				 * here, but it seems that this is just
 				 * the hardware getting it wrong.
 				 *
@@ -880,11 +880,11 @@ static void finalize_request(struct s3cmci_host *host)
 		return;
 	}
 
-	/* If we have no data transfer we are finished here */
+	/* If we have yes data transfer we are finished here */
 	if (!mrq->data)
 		goto request_done;
 
-	/* Calculate the amout of bytes transfer if there was no error */
+	/* Calculate the amout of bytes transfer if there was yes error */
 	if (mrq->data->error == 0) {
 		mrq->data->bytes_xfered =
 			(mrq->data->blocks * mrq->data->blksz);
@@ -966,11 +966,11 @@ static int s3cmci_setup_data(struct s3cmci_host *host, struct mmc_data *data)
 	}
 
 	if ((data->blksz & 3) != 0) {
-		/* We cannot deal with unaligned blocks with more than
+		/* We canyest deal with unaligned blocks with more than
 		 * one block being transferred. */
 
 		if (data->blocks > 1) {
-			pr_warn("%s: can't do non-word sized block transfers (blksz %d)\n",
+			pr_warn("%s: can't do yesn-word sized block transfers (blksz %d)\n",
 				__func__, data->blksz);
 			return -EINVAL;
 		}
@@ -1171,7 +1171,7 @@ static void s3cmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->mrq = mrq;
 
 	if (mmc_gpio_get_cd(mmc) == 0) {
-		dbg(host, dbg_err, "%s: no medium present\n", __func__);
+		dbg(host, dbg_err, "%s: yes medium present\n", __func__);
 		host->mrq->cmd->error = -ENOMEDIUM;
 		mmc_request_done(mmc, mrq);
 	} else
@@ -1214,7 +1214,7 @@ static void s3cmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_ON:
 	case MMC_POWER_UP:
 		/* Configure GPE5...GPE10 pins in SD mode */
-		if (!host->pdev->dev.of_node)
+		if (!host->pdev->dev.of_yesde)
 			s3c_gpio_cfgall_range(S3C2410_GPE(5), 6, S3C_GPIO_SFN(2),
 					      S3C_GPIO_PULL_NONE);
 
@@ -1228,7 +1228,7 @@ static void s3cmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	case MMC_POWER_OFF:
 	default:
-		if (!host->pdev->dev.of_node)
+		if (!host->pdev->dev.of_yesde)
 			gpio_direction_output(S3C2410_GPE(5), 0);
 
 		if (host->is2440)
@@ -1296,7 +1296,7 @@ static void s3cmci_enable_sdio_irq(struct mmc_host *mmc, int enable)
 		con &= ~S3C2410_SDICON_SDIOIRQ;
 
 		if (!host->irq_enabled && host->irq_state) {
-			disable_irq_nosync(host->irq);
+			disable_irq_yessync(host->irq);
 			host->irq_state = false;
 		}
 	}
@@ -1320,13 +1320,13 @@ static const struct mmc_host_ops s3cmci_ops = {
 static struct s3c24xx_mci_pdata s3cmci_def_pdata = {
 	/* This is currently here to avoid a number of if (host->pdata)
 	 * checks. Any zero fields to ensure reasonable defaults are picked. */
-	 .no_wprotect = 1,
-	 .no_detect = 1,
+	 .yes_wprotect = 1,
+	 .yes_detect = 1,
 };
 
 #ifdef CONFIG_ARM_S3C24XX_CPUFREQ
 
-static int s3cmci_cpufreq_transition(struct notifier_block *nb,
+static int s3cmci_cpufreq_transition(struct yestifier_block *nb,
 				     unsigned long val, void *data)
 {
 	struct s3cmci_host *host;
@@ -1356,15 +1356,15 @@ static int s3cmci_cpufreq_transition(struct notifier_block *nb,
 
 static inline int s3cmci_cpufreq_register(struct s3cmci_host *host)
 {
-	host->freq_transition.notifier_call = s3cmci_cpufreq_transition;
+	host->freq_transition.yestifier_call = s3cmci_cpufreq_transition;
 
-	return cpufreq_register_notifier(&host->freq_transition,
+	return cpufreq_register_yestifier(&host->freq_transition,
 					 CPUFREQ_TRANSITION_NOTIFIER);
 }
 
 static inline void s3cmci_cpufreq_deregister(struct s3cmci_host *host)
 {
-	cpufreq_unregister_notifier(&host->freq_transition,
+	cpufreq_unregister_yestifier(&host->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
 }
 
@@ -1495,16 +1495,16 @@ static int s3cmci_probe_pdata(struct s3cmci_host *host)
 
 	pdata = pdev->dev.platform_data;
 
-	if (pdata->no_wprotect)
+	if (pdata->yes_wprotect)
 		mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
 
-	if (pdata->no_detect)
+	if (pdata->yes_detect)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	if (pdata->wprotect_invert)
 		mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
-	/* If we get -ENOENT we have no card detect GPIO line */
+	/* If we get -ENOENT we have yes card detect GPIO line */
 	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
 	if (ret != -ENOENT) {
 		dev_err(&pdev->dev, "error requesting GPIO for CD %d\n",
@@ -1561,7 +1561,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 	host->mmc 	= mmc;
 	host->pdev	= pdev;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		ret = s3cmci_probe_dt(host);
 	else
 		ret = s3cmci_probe_pdata(host);
@@ -1625,7 +1625,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 	}
 
 	/* We get spurious interrupts even when we have set the IMSK
-	 * register to ignore everything, so use disable_irq() to make
+	 * register to igyesre everything, so use disable_irq() to make
 	 * ensure we don't lock the system with un-serviceable requests. */
 
 	disable_irq(host->irq);
@@ -1637,7 +1637,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 		host->dma = dma_request_chan(&pdev->dev, "rx-tx");
 		ret = PTR_ERR_OR_ZERO(host->dma);
 		if (ret) {
-			dev_err(&pdev->dev, "cannot get DMA channel.\n");
+			dev_err(&pdev->dev, "canyest get DMA channel.\n");
 			goto probe_free_irq;
 		}
 	}
@@ -1727,7 +1727,7 @@ static int s3cmci_probe(struct platform_device *pdev)
 	release_mem_region(host->mem->start, resource_size(host->mem));
 
  probe_free_gpio:
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		for (i = S3C2410_GPE(5); i <= S3C2410_GPE(10); i++)
 			gpio_free(i);
 
@@ -1769,7 +1769,7 @@ static int s3cmci_remove(struct platform_device *pdev)
 
 	free_irq(host->irq, host);
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		for (i = S3C2410_GPE(5); i <= S3C2410_GPE(10); i++)
 			gpio_free(i);
 

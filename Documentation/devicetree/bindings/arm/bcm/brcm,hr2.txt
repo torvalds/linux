@@ -8,7 +8,7 @@ flash and a PCIe attached integrated switching engine.
 
 Boards with Hurricane SoCs shall have the following properties:
 
-Required root node property:
+Required root yesde property:
 
 BCM53342
 compatible = "brcm,bcm53342", "brcm,hr2";

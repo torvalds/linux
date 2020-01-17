@@ -20,7 +20,7 @@
 		ethernet0 = &ethmac;
 	};
 
-	mono_dac: audio-codec-0 {
+	moyes_dac: audio-codec-0 {
 		compatible = "maxim,max98357a";
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "U16";
@@ -185,7 +185,7 @@
 		/* TEE Reserved Memory */
 		bl32_reserved: bl32@5000000 {
 			reg = <0x0 0x05300000 0x0 0x2000000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -268,7 +268,7 @@
 			mclk-fs = <256>;
 
 			codec-0 {
-				sound-dai = <&mono_dac>;
+				sound-dai = <&moyes_dac>;
 			};
 
 			codec-1 {
@@ -459,7 +459,7 @@
 	sd-uhs-sdr50;
 	max-frequency = <100000000>;
 
-	non-removable;
+	yesn-removable;
 	disable-wp;
 
 	/* WiFi firmware requires power to be kept while in suspend */
@@ -505,7 +505,7 @@
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	max-frequency = <200000000>;
-	non-removable;
+	yesn-removable;
 	disable-wp;
 
 	mmc-pwrseq = <&emmc_pwrseq>;

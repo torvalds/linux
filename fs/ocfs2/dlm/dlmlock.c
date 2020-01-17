@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * dlmlock.c
  *
@@ -26,7 +26,7 @@
 
 
 #include "cluster/heartbeat.h"
-#include "cluster/nodemanager.h"
+#include "cluster/yesdemanager.h"
 #include "cluster/tcp.h"
 
 #include "dlmapi.h"
@@ -46,7 +46,7 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 					       struct dlm_lock_resource *res,
 					       struct dlm_lock *lock, int flags);
 static void dlm_init_lock(struct dlm_lock *newlock, int type,
-			  u8 node, u64 cookie);
+			  u8 yesde, u64 cookie);
 static void dlm_lock_release(struct kref *kref);
 static void dlm_lock_detach_lockres(struct dlm_lock *lock);
 
@@ -68,8 +68,8 @@ void dlm_destroy_lock_cache(void)
 /* Tell us whether we can grant a new lock request.
  * locking:
  *   caller needs:  res->spinlock
- *   taken:         none
- *   held on exit:  none
+ *   taken:         yesne
+ *   held on exit:  yesne
  * returns: 1 if the lock can be granted, 0 otherwise.
  */
 static int dlm_can_grant_new_lock(struct dlm_lock_resource *res,
@@ -95,9 +95,9 @@ static int dlm_can_grant_new_lock(struct dlm_lock_resource *res,
 
 /* performs lock creation at the lockres master site
  * locking:
- *   caller needs:  none
+ *   caller needs:  yesne
  *   taken:         takes and drops res->spinlock
- *   held on exit:  none
+ *   held on exit:  yesne
  * returns: DLM_NORMAL, DLM_NOTQUEUED
  */
 static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
@@ -111,10 +111,10 @@ static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
 
 	spin_lock(&res->spinlock);
 	/* if called from dlm_create_lock_handler, need to
-	 * ensure it will not sleep in dlm_wait_on_lockres */
+	 * ensure it will yest sleep in dlm_wait_on_lockres */
 	status = __dlm_lockres_state_to_status(res);
 	if (status != DLM_NORMAL &&
-	    lock->ml.node != dlm->node_num) {
+	    lock->ml.yesde != dlm->yesde_num) {
 		/* erf.  state changed after lock was dropped. */
 		spin_unlock(&res->spinlock);
 		dlm_error(status);
@@ -134,7 +134,7 @@ static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
 		/* for the recovery lock, we can't allow the ast
 		 * to be queued since the dlmthread is already
 		 * frozen.  but the recovery lock is always locked
-		 * with LKM_NOQUEUE so we do not need the ast in
+		 * with LKM_NOQUEUE so we do yest need the ast in
 		 * this special case */
 		if (!dlm_is_recovery_lock(res->lockname.name,
 					  res->lockname.len)) {
@@ -142,8 +142,8 @@ static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
 			call_ast = 1;
 		} else {
 			mlog(0, "%s: returning DLM_NORMAL to "
-			     "node %u for reco lock\n", dlm->name,
-			     lock->ml.node);
+			     "yesde %u for reco lock\n", dlm->name,
+			     lock->ml.yesde);
 		}
 	} else {
 		/* for NOQUEUE request, unless we get the
@@ -153,8 +153,8 @@ static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
 			if (dlm_is_recovery_lock(res->lockname.name,
 						 res->lockname.len)) {
 				mlog(0, "%s: returning NOTQUEUED to "
-				     "node %u for reco lock\n", dlm->name,
-				     lock->ml.node);
+				     "yesde %u for reco lock\n", dlm->name,
+				     lock->ml.yesde);
 			}
 		} else {
 			status = DLM_NORMAL;
@@ -191,9 +191,9 @@ void dlm_revert_pending_lock(struct dlm_lock_resource *res,
 
 /*
  * locking:
- *   caller needs:  none
+ *   caller needs:  yesne
  *   taken:         takes and drops res->spinlock
- *   held on exit:  none
+ *   held on exit:  yesne
  * returns: DLM_DENIED, DLM_RECOVERING, or net status
  */
 static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
@@ -213,7 +213,7 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 	 */
 	spin_lock(&res->spinlock);
 	__dlm_wait_on_lockres(res);
-	if (res->owner == dlm->node_num) {
+	if (res->owner == dlm->yesde_num) {
 		spin_unlock(&res->spinlock);
 		return DLM_RECOVERING;
 	}
@@ -236,11 +236,11 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 		if (status == DLM_RECOVERING &&
 		    dlm_is_recovery_lock(res->lockname.name,
 					 res->lockname.len)) {
-			/* recovery lock was mastered by dead node.
+			/* recovery lock was mastered by dead yesde.
 			 * we need to have calc_usage shoot down this
 			 * lockres and completely remaster it. */
 			mlog(0, "%s: recovery lock was owned by "
-			     "dead node %u, remaster it now.\n",
+			     "dead yesde %u, remaster it yesw.\n",
 			     dlm->name, res->owner);
 		} else if (status != DLM_NOTQUEUED) {
 			/*
@@ -260,9 +260,9 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 		 * there will never be an AST delivered to put
 		 * this lock on the proper secondary queue
 		 * (granted), so do it manually. */
-		mlog(0, "%s: $RECOVERY lock for this node (%u) is "
-		     "mastered by %u; got lock, manually granting (no ast)\n",
-		     dlm->name, dlm->node_num, res->owner);
+		mlog(0, "%s: $RECOVERY lock for this yesde (%u) is "
+		     "mastered by %u; got lock, manually granting (yes ast)\n",
+		     dlm->name, dlm->yesde_num, res->owner);
 		list_move_tail(&lock->list, &res->granted);
 	}
 	spin_unlock(&res->spinlock);
@@ -277,9 +277,9 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 
 /* for remote lock creation.
  * locking:
- *   caller needs:  none, but need res->state & DLM_LOCK_RES_IN_PROGRESS
- *   taken:         none
- *   held on exit:  none
+ *   caller needs:  yesne, but need res->state & DLM_LOCK_RES_IN_PROGRESS
+ *   taken:         yesne
+ *   held on exit:  yesne
  * returns: DLM_NOLOCKMGR, or net status
  */
 static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
@@ -291,7 +291,7 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 	enum dlm_status ret;
 
 	memset(&create, 0, sizeof(create));
-	create.node_idx = dlm->node_num;
+	create.yesde_idx = dlm->yesde_num;
 	create.requested_type = lock->ml.type;
 	create.cookie = lock->ml.cookie;
 	create.namelen = res->lockname.len;
@@ -303,8 +303,8 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 	if (tmpret >= 0) {
 		ret = status;
 		if (ret == DLM_REJECTED) {
-			mlog(ML_ERROR, "%s: res %.*s, Stale lockres no longer "
-			     "owned by node %u. That node is coming back up "
+			mlog(ML_ERROR, "%s: res %.*s, Stale lockres yes longer "
+			     "owned by yesde %u. That yesde is coming back up "
 			     "currently.\n", dlm->name, create.namelen,
 			     create.name, res->owner);
 			dlm_print_one_lock_resource(res);
@@ -312,7 +312,7 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 		}
 	} else {
 		mlog(ML_ERROR, "%s: res %.*s, Error %d send CREATE LOCK to "
-		     "node %u\n", dlm->name, create.namelen, create.name,
+		     "yesde %u\n", dlm->name, create.namelen, create.name,
 		     tmpret, res->owner);
 		if (dlm_is_host_down(tmpret))
 			ret = DLM_RECOVERING;
@@ -376,7 +376,7 @@ static void dlm_lock_detach_lockres(struct dlm_lock *lock)
 }
 
 static void dlm_init_lock(struct dlm_lock *newlock, int type,
-			  u8 node, u64 cookie)
+			  u8 yesde, u64 cookie)
 {
 	INIT_LIST_HEAD(&newlock->list);
 	INIT_LIST_HEAD(&newlock->ast_list);
@@ -385,7 +385,7 @@ static void dlm_init_lock(struct dlm_lock *newlock, int type,
 	newlock->ml.type = type;
 	newlock->ml.convert_type = LKM_IVMODE;
 	newlock->ml.highest_blocked = LKM_IVMODE;
-	newlock->ml.node = node;
+	newlock->ml.yesde = yesde;
 	newlock->ml.pad1 = 0;
 	newlock->ml.list = 0;
 	newlock->ml.flags = 0;
@@ -404,7 +404,7 @@ static void dlm_init_lock(struct dlm_lock *newlock, int type,
 	kref_init(&newlock->lock_refs);
 }
 
-struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
+struct dlm_lock * dlm_new_lock(int type, u8 yesde, u64 cookie,
 			       struct dlm_lockstatus *lksb)
 {
 	struct dlm_lock *lock;
@@ -424,7 +424,7 @@ struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
 		kernel_allocated = 1;
 	}
 
-	dlm_init_lock(lock, type, node, cookie);
+	dlm_init_lock(lock, type, yesde, cookie);
 	if (kernel_allocated)
 		lock->lksb_kernel_allocated = 1;
 	lock->lksb = lksb;
@@ -434,9 +434,9 @@ struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
 
 /* handler for lock creation net message
  * locking:
- *   caller needs:  none
+ *   caller needs:  yesne
  *   taken:         takes and drops res->spinlock
- *   held on exit:  none
+ *   held on exit:  yesne
  * returns: DLM_NORMAL, DLM_SYSERR, DLM_IVLOCKID, DLM_NOTQUEUED
  */
 int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data,
@@ -460,9 +460,9 @@ int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 	namelen = create->namelen;
 	status = DLM_REJECTED;
 	if (!dlm_domain_fully_joined(dlm)) {
-		mlog(ML_ERROR, "Domain %s not fully joined, but node %u is "
+		mlog(ML_ERROR, "Domain %s yest fully joined, but yesde %u is "
 		     "sending a create_lock message for lock %.*s!\n",
-		     dlm->name, create->node_idx, namelen, name);
+		     dlm->name, create->yesde_idx, namelen, name);
 		dlm_error(status);
 		goto leave;
 	}
@@ -475,7 +475,7 @@ int dlm_create_lock_handler(struct o2net_msg *msg, u32 len, void *data,
 
 	status = DLM_SYSERR;
 	newlock = dlm_new_lock(create->requested_type,
-			       create->node_idx,
+			       create->yesde_idx,
 			       be64_to_cpu(create->cookie), NULL);
 	if (!newlock) {
 		dlm_error(status);
@@ -522,18 +522,18 @@ leave:
 }
 
 
-/* fetch next node-local (u8 nodenum + u56 cookie) into u64 */
-static inline void dlm_get_next_cookie(u8 node_num, u64 *cookie)
+/* fetch next yesde-local (u8 yesdenum + u56 cookie) into u64 */
+static inline void dlm_get_next_cookie(u8 yesde_num, u64 *cookie)
 {
-	u64 tmpnode = node_num;
+	u64 tmpyesde = yesde_num;
 
-	/* shift single byte of node num into top 8 bits */
-	tmpnode <<= 56;
+	/* shift single byte of yesde num into top 8 bits */
+	tmpyesde <<= 56;
 
 	spin_lock(&dlm_cookie_lock);
-	*cookie = (dlm_next_cookie | tmpnode);
+	*cookie = (dlm_next_cookie | tmpyesde);
 	if (++dlm_next_cookie & 0xff00000000000000ull) {
-		mlog(0, "This node's cookie will now wrap!\n");
+		mlog(0, "This yesde's cookie will yesw wrap!\n");
 		dlm_next_cookie = 1;
 	}
 	spin_unlock(&dlm_cookie_lock);
@@ -549,7 +549,7 @@ enum dlm_status dlmlock(struct dlm_ctxt *dlm, int mode,
 	struct dlm_lock *lock = NULL;
 	int convert = 0, recovery = 0;
 
-	/* yes this function is a mess.
+	/* no this function is a mess.
 	 * TODO: clean this up.  lots of common code in the
 	 *       lock and convert paths, especially in the retry blocks */
 	if (!lksb) {
@@ -618,16 +618,16 @@ enum dlm_status dlmlock(struct dlm_ctxt *dlm, int mode,
 retry_convert:
 		dlm_wait_for_recovery(dlm);
 
-		if (res->owner == dlm->node_num)
+		if (res->owner == dlm->yesde_num)
 			status = dlmconvert_master(dlm, res, lock, flags, mode);
 		else
 			status = dlmconvert_remote(dlm, res, lock, flags, mode);
 		if (status == DLM_RECOVERING || status == DLM_MIGRATING ||
 		    status == DLM_FORWARD) {
-			/* for now, see how this works without sleeping
+			/* for yesw, see how this works without sleeping
 			 * and just retry right away.  I suspect the reco
-			 * or migration will complete fast enough that
-			 * no waiting will be necessary */
+			 * or migration will complete fast eyesugh that
+			 * yes waiting will be necessary */
 			mlog(0, "retrying convert with migration/recovery/"
 			     "in-progress\n");
 			msleep(100);
@@ -649,8 +649,8 @@ retry_convert:
 			goto error;
 		}
 
-		dlm_get_next_cookie(dlm->node_num, &tmpcookie);
-		lock = dlm_new_lock(mode, dlm->node_num, tmpcookie, lksb);
+		dlm_get_next_cookie(dlm->yesde_num, &tmpcookie);
+		lock = dlm_new_lock(mode, dlm->yesde_num, tmpcookie, lksb);
 		if (!lock) {
 			dlm_error(status);
 			goto error;
@@ -679,8 +679,8 @@ retry_lock:
 		if (flags & LKM_VALBLK) {
 			mlog(0, "LKM_VALBLK passed by caller\n");
 
-			/* LVB requests for non PR, PW or EX locks are
-			 * ignored. */
+			/* LVB requests for yesn PR, PW or EX locks are
+			 * igyesred. */
 			if (mode < LKM_PRMODE)
 				flags &= ~LKM_VALBLK;
 			else {
@@ -689,7 +689,7 @@ retry_lock:
 			}
 		}
 
-		if (res->owner == dlm->node_num)
+		if (res->owner == dlm->yesde_num)
 			status = dlmlock_master(dlm, res, lock, flags);
 		else
 			status = dlmlock_remote(dlm, res, lock, flags);
@@ -700,10 +700,10 @@ retry_lock:
 			if (recovery) {
 				if (status != DLM_RECOVERING)
 					goto retry_lock;
-				/* wait to see the node go down, then
+				/* wait to see the yesde go down, then
 				 * drop down and allow the lockres to
 				 * get cleaned up.  need to remaster. */
-				dlm_wait_for_node_death(dlm, res->owner,
+				dlm_wait_for_yesde_death(dlm, res->owner,
 						DLM_NODE_DEATH_WAIT_MAX);
 			} else {
 				dlm_wait_for_recovery(dlm);

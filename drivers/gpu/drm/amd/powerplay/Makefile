@@ -8,7 +8,7 @@
 # and/or sell copies of the Software, and to permit persons to whom the
 # Software is furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in
+# The above copyright yestice and this permission yestice shall be included in
 # all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -35,7 +35,7 @@ AMD_POWERPLAY = $(addsuffix /Makefile,$(addprefix $(FULL_AMD_PATH)/powerplay/,$(
 
 include $(AMD_POWERPLAY)
 
-POWER_MGR = amd_powerplay.o amdgpu_smu.o smu_v11_0.o smu_v12_0.o vega20_ppt.o arcturus_ppt.o navi10_ppt.o renoir_ppt.o
+POWER_MGR = amd_powerplay.o amdgpu_smu.o smu_v11_0.o smu_v12_0.o vega20_ppt.o arcturus_ppt.o navi10_ppt.o reyesir_ppt.o
 
 AMD_PP_POWER = $(addprefix $(AMD_PP_PATH)/,$(POWER_MGR))
 

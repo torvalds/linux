@@ -9,7 +9,7 @@
  * that for a reset.
  *
  * The counters can't be individually enabled or disabled so when we remove
- * one event and replace it with another we could get spurious counts from the
+ * one event and replace it with ayesther we could get spurious counts from the
  * wrong event. However, we can take advantage of the fact that the
  * performance counters can export events to the event bus, and the event bus
  * itself can be monitored. This requires that we *don't* export the events to
@@ -27,7 +27,7 @@
  * Note: the dedicated cycle counter only counts cycles and can't be
  * enabled/disabled independently of the others. When we want to disable the
  * cycle counter, we have to just disable the interrupt reporting and start
- * ignoring that counter. When re-enabling, we have to reset the value and
+ * igyesring that counter. When re-enabling, we have to reset the value and
  * enable the interrupt.
  */
 
@@ -70,7 +70,7 @@ enum armv6_counters {
 
 /*
  * The hardware events that we support. We do support cache operations but
- * we have harvard caches and no way to combine instruction and data
+ * we have harvard caches and yes way to combine instruction and data
  * accesses/misses in hardware.
  */
 static const unsigned armv6_perf_map[PERF_COUNT_HW_MAX] = {
@@ -138,7 +138,7 @@ enum armv6mpcore_perf_types {
 
 /*
  * The hardware events that we support. We do support cache operations but
- * we have harvard caches and no way to combine instruction and data
+ * we have harvard caches and yes way to combine instruction and data
  * accesses/misses in hardware.
  */
 static const unsigned armv6mpcore_perf_map[PERF_COUNT_HW_MAX] = {
@@ -327,7 +327,7 @@ armv6pmu_handle_irq(struct arm_pmu *cpu_pmu)
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
-		/* Ignore if we don't have an event. */
+		/* Igyesre if we don't have an event. */
 		if (!event)
 			continue;
 
@@ -353,7 +353,7 @@ armv6pmu_handle_irq(struct arm_pmu *cpu_pmu)
 	 *
 	 * Note: this call *must* be run with interrupts disabled. For
 	 * platforms that can have the PMU interrupts raised as an NMI, this
-	 * will not work.
+	 * will yest work.
 	 */
 	irq_work_run();
 
@@ -527,7 +527,7 @@ static int armv6_1176_pmu_init(struct arm_pmu *cpu_pmu)
 
 /*
  * ARMv6mpcore is almost identical to single core ARMv6 with the exception
- * that some of the events have different enumerations and that there is no
+ * that some of the events have different enumerations and that there is yes
  * *hack* to stop the programmable counters. To stop the counters we simply
  * disable the interrupt reporting and update the event. When unthrottling we
  * reset the period and enable the interrupt reporting.

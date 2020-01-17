@@ -314,7 +314,7 @@ s32 e1000_set_mac_type(struct e1000_hw *hw)
 		break;
 	}
 
-	/* The 82543 chip does not count tx_carrier_errors properly in
+	/* The 82543 chip does yest count tx_carrier_errors properly in
 	 * FD mode
 	 */
 	if (hw->mac_type == e1000_82543)
@@ -357,7 +357,7 @@ void e1000_set_media_type(struct e1000_hw *hw)
 			status = er32(STATUS);
 			if (status & E1000_STATUS_TBIMODE) {
 				hw->media_type = e1000_media_type_fiber;
-				/* tbi_compatibility not valid on fiber */
+				/* tbi_compatibility yest valid on fiber */
 				hw->tbi_compatibility_en = false;
 			} else {
 				hw->media_type = e1000_media_type_copper;
@@ -418,7 +418,7 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
 	}
 
 	/* Issue a global reset to the MAC.  This will reset the chip's
-	 * transmit, receive, DMA, and link units.  It will not effect
+	 * transmit, receive, DMA, and link units.  It will yest effect
 	 * the current PCI configuration.  The global reset bit is self-
 	 * clearing, and should clear within a microsecond.
 	 */
@@ -620,7 +620,7 @@ s32 e1000_init_hw(struct e1000_hw *hw)
 	/* Clear all of the statistics registers (clear on read).  It is
 	 * important that we do this after we have tried to establish link
 	 * because the symbol error count will increment wildly if there
-	 * is no link.
+	 * is yes link.
 	 */
 	e1000_clear_hw_cntrs(hw);
 
@@ -682,7 +682,7 @@ static s32 e1000_adjust_serdes_amplitude(struct e1000_hw *hw)
  * specific link configuration function. Configures the flow control settings.
  * Assuming the adapter has a valid link partner, a valid link should be
  * established. Assumes the hardware has previously been reset and the
- * transmitter and receiver are not enabled.
+ * transmitter and receiver are yest enabled.
  */
 s32 e1000_setup_link(struct e1000_hw *hw)
 {
@@ -694,7 +694,7 @@ s32 e1000_setup_link(struct e1000_hw *hw)
 	 * that determine the hardware's default PAUSE (flow control) mode,
 	 * a bit that determines whether the HW defaults to enabling or
 	 * disabling auto-negotiation, and the direction of the
-	 * SW defined pins. If there is no SW over-ride of the flow
+	 * SW defined pins. If there is yes SW over-ride of the flow
 	 * control setting, then the variable hw->fc will
 	 * be initialized based on a value in the EEPROM.
 	 */
@@ -726,7 +726,7 @@ s32 e1000_setup_link(struct e1000_hw *hw)
 
 	hw->original_fc = hw->fc;
 
-	e_dbg("After fix-ups FlowControl is now = %x\n", hw->fc);
+	e_dbg("After fix-ups FlowControl is yesw = %x\n", hw->fc);
 
 	/* Take the 4 bits from EEPROM word 0x0F that determine the initial
 	 * polarity value for the SW controlled pins, and setup the
@@ -753,7 +753,7 @@ s32 e1000_setup_link(struct e1000_hw *hw)
 
 	/* Initialize the flow control address, type, and PAUSE timer
 	 * registers to their default values.  This is done even if flow
-	 * control is disabled, because it does not hurt anything to
+	 * control is disabled, because it does yest hurt anything to
 	 * initialize these registers.
 	 */
 	e_dbg("Initializing the Flow Control address, type and timer regs\n");
@@ -767,7 +767,7 @@ s32 e1000_setup_link(struct e1000_hw *hw)
 	/* Set the flow control receive threshold registers.  Normally,
 	 * these registers will be set to a default threshold that may be
 	 * adjusted later by the driver's runtime code.  However, if the
-	 * ability to transmit pause frames in not enabled, then these
+	 * ability to transmit pause frames in yest enabled, then these
 	 * registers will be set to 0.
 	 */
 	if (!(hw->fc & E1000_FC_TX_PAUSE)) {
@@ -795,7 +795,7 @@ s32 e1000_setup_link(struct e1000_hw *hw)
  *
  * Manipulates Physical Coding Sublayer functions in order to configure
  * link. Assumes the hardware has been previously reset and the transmitter
- * and receiver are not enabled.
+ * and receiver are yest enabled.
  */
 static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
 {
@@ -841,9 +841,9 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *  0:  Flow control is completely disabled
 	 *  1:  Rx flow control is enabled (we can receive pause frames, but
-	 *      not send pause frames).
+	 *      yest send pause frames).
 	 *  2:  Tx flow control is enabled (we can send pause frames but we do
-	 *      not support receiving pause frames).
+	 *      yest support receiving pause frames).
 	 *  3:  Both Rx and TX flow control (symmetric) are enabled.
 	 */
 	switch (hw->fc) {
@@ -915,7 +915,7 @@ static s32 e1000_setup_fiber_serdes_link(struct e1000_hw *hw)
 			/* AutoNeg failed to achieve a link, so we'll call
 			 * e1000_check_for_link. This routine will force the
 			 * link up if we detect a signal. This will allow us to
-			 * communicate with non-autonegotiating link partners.
+			 * communicate with yesn-autonegotiating link partners.
 			 */
 			ret_val = e1000_check_for_link(hw);
 			if (ret_val) {
@@ -1027,7 +1027,7 @@ static s32 e1000_copper_link_preconfig(struct e1000_hw *hw)
 	/* Make sure we have a valid PHY */
 	ret_val = e1000_detect_gig_phy(hw);
 	if (ret_val) {
-		e_dbg("Error, did not detect valid phy.\n");
+		e_dbg("Error, did yest detect valid phy.\n");
 		return ret_val;
 	}
 	e_dbg("Phy ID = %x\n", hw->phy_id);
@@ -1316,7 +1316,7 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 	 */
 	hw->autoneg_advertised &= AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
-	/* If autoneg_advertised is zero, we assume it was not defaulted
+	/* If autoneg_advertised is zero, we assume it was yest defaulted
 	 * by the calling code so we set to advertise full capability.
 	 */
 	if (hw->autoneg_advertised == 0)
@@ -1550,7 +1550,7 @@ s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 		mii_autoneg_adv_reg |= NWAY_AR_100TX_FD_CAPS;
 	}
 
-	/* We do not allow the Phy to advertise 1000 Mb Half Duplex */
+	/* We do yest allow the Phy to advertise 1000 Mb Half Duplex */
 	if (hw->autoneg_advertised & ADVERTISE_1000_HALF) {
 		e_dbg
 		    ("Advertise 1000mb Half duplex requested, request denied!\n");
@@ -1572,9 +1572,9 @@ s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause frames
-	 *          but not send pause frames).
+	 *          but yest send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames
-	 *          but we do not support receiving pause frames).
+	 *          but we do yest support receiving pause frames).
 	 *      3:  Both Rx and TX flow control (symmetric) are enabled.
 	 *  other:  No software override.  The flow control configuration
 	 *          in the EEPROM is used.
@@ -1729,7 +1729,7 @@ static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 
 		e_dbg("M88E1000 PSCR: %x\n", phy_data);
 
-		/* Need to reset the PHY or these changes will be ignored */
+		/* Need to reset the PHY or these changes will be igyesred */
 		mii_ctrl_reg |= MII_CR_RESET;
 
 		/* Disable MDI-X support for 10/100 */
@@ -1759,7 +1759,7 @@ static s32 e1000_phy_force_speed_duplex(struct e1000_hw *hw)
 	udelay(1);
 
 	/* The wait_autoneg_complete flag may be a little misleading here.
-	 * Since we are forcing speed and duplex, Auto-Neg is not enabled.
+	 * Since we are forcing speed and duplex, Auto-Neg is yest enabled.
 	 * But we do want to delay for a period while forcing only so we
 	 * don't generate false No Link messages.  So we will wait here
 	 * only if the user has set wait_autoneg_complete to 1, which is
@@ -2000,9 +2000,9 @@ s32 e1000_force_mac_fc(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause
-	 *          frames but not send pause frames).
+	 *          frames but yest send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames
-	 *          frames but we do not receive pause frames).
+	 *          frames but we do yest receive pause frames).
 	 *      3:  Both Rx and TX flow control (symmetric) is enabled.
 	 *  other:  No other values should be possible at this point.
 	 */
@@ -2090,7 +2090,7 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 			return ret_val;
 
 		if (mii_status_reg & MII_SR_AUTONEG_COMPLETE) {
-			/* The AutoNeg process has completed, so we now need to
+			/* The AutoNeg process has completed, so we yesw need to
 			 * read both the Auto Negotiation Advertisement Register
 			 * (Address 4) and the Auto_Negotiation Base Page
 			 * Ability Register (Address 5) to determine how flow
@@ -2145,8 +2145,8 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 				/* Now we need to check if the user selected Rx
 				 * ONLY of pause frames.  In this case, we had
 				 * to advertise FULL flow control because we
-				 * could not advertise Rx ONLY. Hence, we must
-				 * now check to see if we need to turn OFF the
+				 * could yest advertise Rx ONLY. Hence, we must
+				 * yesw check to see if we need to turn OFF the
 				 * TRANSMISSION of PAUSE frames.
 				 */
 				if (hw->original_fc == E1000_FC_FULL) {
@@ -2194,21 +2194,21 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 			 * be disabled.  However, we want to consider that we
 			 * could be connected to a legacy switch that doesn't
 			 * advertise desired flow control, but can be forced on
-			 * the link partner.  So if we advertised no flow
+			 * the link partner.  So if we advertised yes flow
 			 * control, that is what we will resolve to.  If we
 			 * advertised some kind of receive capability (Rx Pause
 			 * Only or Full Flow Control) and the link partner
-			 * advertised none, we will configure ourselves to
+			 * advertised yesne, we will configure ourselves to
 			 * enable Rx Flow Control only.  We can do this safely
 			 * for two reasons:  If the link partner really
 			 * didn't want flow control enabled, and we enable Rx,
-			 * no harm done since we won't be receiving any PAUSE
+			 * yes harm done since we won't be receiving any PAUSE
 			 * frames anyway.  If the intent on the link partner was
 			 * to have flow control enabled, then by us enabling Rx
 			 * only, we can at least receive pause frames and
 			 * process them. This is a good idea because in most
 			 * cases, since we are predominantly a server NIC, more
-			 * times than not we will be asked to delay transmission
+			 * times than yest we will be asked to delay transmission
 			 * of packets than asking our link partner to pause
 			 * transmission of frames.
 			 */
@@ -2224,7 +2224,7 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 			}
 
 			/* Now we need to do one last check...  If we auto-
-			 * negotiated to HALF DUPLEX, flow control should not be
+			 * negotiated to HALF DUPLEX, flow control should yest be
 			 * enabled per IEEE 802.3 spec.
 			 */
 			ret_val =
@@ -2249,7 +2249,7 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
 			}
 		} else {
 			e_dbg
-			    ("Copper PHY and Auto Neg has not completed.\n");
+			    ("Copper PHY and Auto Neg has yest completed.\n");
 		}
 	}
 	return E1000_SUCCESS;
@@ -2259,7 +2259,7 @@ static s32 e1000_config_fc_after_link_up(struct e1000_hw *hw)
  * e1000_check_for_serdes_link_generic - Check for link (Serdes)
  * @hw: pointer to the HW structure
  *
- * Checks for link up on the hardware.  If link is not up and we have
+ * Checks for link up on the hardware.  If link is yest up and we have
  * a signal, then we need to force link up.
  */
 static s32 e1000_check_for_serdes_link_generic(struct e1000_hw *hw)
@@ -2274,7 +2274,7 @@ static s32 e1000_check_for_serdes_link_generic(struct e1000_hw *hw)
 	rxcw = er32(RXCW);
 
 	/* If we don't have link (auto-negotiation failed or link partner
-	 * cannot auto-negotiate), and our link partner is not trying to
+	 * canyest auto-negotiate), and our link partner is yest trying to
 	 * auto-negotiate with us (we are receiving idles or data),
 	 * we need to force link up. We also need to give auto-negotiation
 	 * time to complete.
@@ -2313,7 +2313,7 @@ static s32 e1000_check_for_serdes_link_generic(struct e1000_hw *hw)
 
 		hw->serdes_has_link = true;
 	} else if (!(E1000_TXCW_ANE & er32(TXCW))) {
-		/* If we force link for non-auto-negotiation switch, check
+		/* If we force link for yesn-auto-negotiation switch, check
 		 * link status based on MAC synchronization for internal
 		 * serdes media type.
 		 */
@@ -2349,7 +2349,7 @@ static s32 e1000_check_for_serdes_link_generic(struct e1000_hw *hw)
 				}
 			} else {
 				hw->serdes_has_link = false;
-				e_dbg("SERDES: Link down - no sync.\n");
+				e_dbg("SERDES: Link down - yes sync.\n");
 			}
 		} else {
 			hw->serdes_has_link = false;
@@ -2454,7 +2454,7 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
 		}
 
 		/* If we are forcing speed/duplex, then we simply return since
-		 * we have already determined whether we have link or not.
+		 * we have already determined whether we have link or yest.
 		 */
 		if (!hw->autoneg)
 			return -E1000_ERR_CONFIG;
@@ -2482,7 +2482,7 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
 			}
 		}
 
-		/* Configure Flow Control now that Auto-Neg has completed.
+		/* Configure Flow Control yesw that Auto-Neg has completed.
 		 * First, we need to restore the desired flow control settings
 		 * because we may have had to re-autoneg with a different link
 		 * partner.
@@ -2493,12 +2493,12 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
 			return ret_val;
 		}
 
-		/* At this point we know that we are on copper and we have
+		/* At this point we kyesw that we are on copper and we have
 		 * auto-negotiated link.  These are conditions for checking the
 		 * link partner capability register.  We use the link speed to
 		 * determine if TBI compatibility needs to be turned on or off.
-		 * If the link is not at gigabit speed, then TBI compatibility
-		 * is not needed.  If we are at gigabit speed, we turn on TBI
+		 * If the link is yest at gigabit speed, then TBI compatibility
+		 * is yest needed.  If we are at gigabit speed, we turn on TBI
 		 * compatibility.
 		 */
 		if (hw->tbi_compatibility_en) {
@@ -2513,8 +2513,8 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
 				return ret_val;
 			}
 			if (speed != SPEED_1000) {
-				/* If link speed is not set to gigabit speed, we
-				 * do not need to enable TBI compatibility.
+				/* If link speed is yest set to gigabit speed, we
+				 * do yest need to enable TBI compatibility.
 				 */
 				if (hw->tbi_compatibility_on) {
 					/* If we previously were in the mode,
@@ -2742,7 +2742,7 @@ static u16 e1000_shift_in_mdi_bits(struct e1000_hw *hw)
 	/* In order to read a register from the PHY, we need to shift in a total
 	 * of 18 bits from the PHY. The first two bit (turnaround) times are
 	 * used to avoid contention on the MDIO pin when a read operation is
-	 * performed. These two bits are ignored by us and thrown away. Bits are
+	 * performed. These two bits are igyesred by us and thrown away. Bits are
 	 * "shifted in" by raising the input to the Management Data Clock
 	 * (setting the MDC bit), and then reading the value of the MDIO bit.
 	 */
@@ -2786,7 +2786,7 @@ static u16 e1000_shift_in_mdi_bits(struct e1000_hw *hw)
  * @reg_addr: address of the PHY register to read
  * @phy_data: pointer to the value on the PHY register
  *
- * Reads the value from a PHY register, if the value is on a specific non zero
+ * Reads the value from a PHY register, if the value is on a specific yesn zero
  * page, sets the page first.
  */
 s32 e1000_read_phy_reg(struct e1000_hw *hw, u32 reg_addr, u16 *phy_data)
@@ -2848,7 +2848,7 @@ static s32 e1000_read_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
 			}
 
 			if (mdic & INTEL_CE_GBE_MDIC_GO) {
-				e_dbg("MDI Read did not complete\n");
+				e_dbg("MDI Read did yest complete\n");
 				return -E1000_ERR_PHY;
 			}
 
@@ -2875,7 +2875,7 @@ static s32 e1000_read_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
 					break;
 			}
 			if (!(mdic & E1000_MDIC_READY)) {
-				e_dbg("MDI Read did not complete\n");
+				e_dbg("MDI Read did yest complete\n");
 				return -E1000_ERR_PHY;
 			}
 			if (mdic & E1000_MDIC_ERROR) {
@@ -2987,7 +2987,7 @@ static s32 e1000_write_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
 					break;
 			}
 			if (mdic & INTEL_CE_GBE_MDIC_GO) {
-				e_dbg("MDI Write did not complete\n");
+				e_dbg("MDI Write did yest complete\n");
 				return -E1000_ERR_PHY;
 			}
 		} else {
@@ -3008,7 +3008,7 @@ static s32 e1000_write_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
 					break;
 			}
 			if (!(mdic & E1000_MDIC_READY)) {
-				e_dbg("MDI Write did not complete\n");
+				e_dbg("MDI Write did yest complete\n");
 				return -E1000_ERR_PHY;
 			}
 		}
@@ -3136,7 +3136,7 @@ s32 e1000_phy_reset(struct e1000_hw *hw)
  * e1000_detect_gig_phy - check the phy type
  * @hw: Struct containing variables accessed by shared code
  *
- * Probes the expected PHY address for known PHY IDs
+ * Probes the expected PHY address for kyeswn PHY IDs
  */
 static s32 e1000_detect_gig_phy(struct e1000_hw *hw)
 {
@@ -3250,8 +3250,8 @@ static s32 e1000_phy_igp_get_info(struct e1000_hw *hw,
 	 */
 	phy_info->downshift = (e1000_downshift) hw->speed_downgraded;
 
-	/* IGP01E1000 does not need to support it. */
-	phy_info->extended_10bt_distance = e1000_10bt_ext_dist_enable_normal;
+	/* IGP01E1000 does yest need to support it. */
+	phy_info->extended_10bt_distance = e1000_10bt_ext_dist_enable_yesrmal;
 
 	/* IGP01E1000 always correct polarity reversal */
 	phy_info->polarity_correction = e1000_polarity_reversal_enabled;
@@ -3282,10 +3282,10 @@ static s32 e1000_phy_igp_get_info(struct e1000_hw *hw,
 
 		phy_info->local_rx = ((phy_data & SR_1000T_LOCAL_RX_STATUS) >>
 				      SR_1000T_LOCAL_RX_STATUS_SHIFT) ?
-		    e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
+		    e1000_1000t_rx_status_ok : e1000_1000t_rx_status_yest_ok;
 		phy_info->remote_rx = ((phy_data & SR_1000T_REMOTE_RX_STATUS) >>
 				       SR_1000T_REMOTE_RX_STATUS_SHIFT) ?
-		    e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
+		    e1000_1000t_rx_status_ok : e1000_1000t_rx_status_yest_ok;
 
 		/* Get cable length */
 		ret_val = e1000_get_cable_length(hw, &min_length, &max_length);
@@ -3337,7 +3337,7 @@ static s32 e1000_phy_m88_get_info(struct e1000_hw *hw,
 	    ((phy_data & M88E1000_PSCR_10BT_EXT_DIST_ENABLE) >>
 	     M88E1000_PSCR_10BT_EXT_DIST_ENABLE_SHIFT) ?
 	    e1000_10bt_ext_dist_enable_lower :
-	    e1000_10bt_ext_dist_enable_normal;
+	    e1000_10bt_ext_dist_enable_yesrmal;
 
 	phy_info->polarity_correction =
 	    ((phy_data & M88E1000_PSCR_POLARITY_REVERSAL) >>
@@ -3373,10 +3373,10 @@ static s32 e1000_phy_m88_get_info(struct e1000_hw *hw,
 
 		phy_info->local_rx = ((phy_data & SR_1000T_LOCAL_RX_STATUS) >>
 				      SR_1000T_LOCAL_RX_STATUS_SHIFT) ?
-		    e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
+		    e1000_1000t_rx_status_ok : e1000_1000t_rx_status_yest_ok;
 		phy_info->remote_rx = ((phy_data & SR_1000T_REMOTE_RX_STATUS) >>
 				       SR_1000T_REMOTE_RX_STATUS_SHIFT) ?
-		    e1000_1000t_rx_status_ok : e1000_1000t_rx_status_not_ok;
+		    e1000_1000t_rx_status_ok : e1000_1000t_rx_status_yest_ok;
 	}
 
 	return E1000_SUCCESS;
@@ -3524,7 +3524,7 @@ s32 e1000_init_eeprom_params(struct e1000_hw *hw)
 			return ret_val;
 		eeprom_size =
 		    (eeprom_size & EEPROM_SIZE_MASK) >> EEPROM_SIZE_SHIFT;
-		/* 256B eeprom size was not supported in earlier hardware, so we
+		/* 256B eeprom size was yest supported in earlier hardware, so we
 		 * bump eeprom_size up one to ensure that "1" (which maps to
 		 * 256B) is never the result used in the shifting logic below.
 		 */
@@ -3687,7 +3687,7 @@ static s32 e1000_acquire_eeprom(struct e1000_hw *hw)
 		if (!(eecd & E1000_EECD_GNT)) {
 			eecd &= ~E1000_EECD_REQ;
 			ew32(EECD, eecd);
-			e_dbg("Could not acquire EEPROM grant\n");
+			e_dbg("Could yest acquire EEPROM grant\n");
 			return -E1000_ERR_EEPROM;
 		}
 	}
@@ -3819,7 +3819,7 @@ static s32 e1000_spi_eeprom_ready(struct e1000_hw *hw)
 
 	/* Read "Status Register" repeatedly until the LSB is cleared.  The
 	 * EEPROM will signal that the command has been completed by clearing
-	 * bit 0 of the internal status register.  If it's not cleared within
+	 * bit 0 of the internal status register.  If it's yest cleared within
 	 * 5 milliseconds, then error out.
 	 */
 	retry_count = 0;
@@ -3877,7 +3877,7 @@ static s32 e1000_do_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 	}
 
 	/* A check for invalid values:  offset too large, too many words, and
-	 * not enough words.
+	 * yest eyesugh words.
 	 */
 	if ((offset >= eeprom->word_size) ||
 	    (words > eeprom->word_size - offset) ||
@@ -3889,7 +3889,7 @@ static s32 e1000_do_read_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 
 	/* EEPROM's that don't use EERD to read require us to bit-bang the SPI
 	 * directly. In this case, we need to acquire the EEPROM so that
-	 * FW or other port software does not interrupt.
+	 * FW or other port software does yest interrupt.
 	 */
 	/* Prepare the EEPROM for bit-bang reading */
 	if (e1000_acquire_eeprom(hw) != E1000_SUCCESS)
@@ -3977,7 +3977,7 @@ s32 e1000_validate_eeprom_checksum(struct e1000_hw *hw)
 	}
 
 #ifdef CONFIG_PARISC
-	/* This is a signature and not a checksum on HP c8000 */
+	/* This is a signature and yest a checksum on HP c8000 */
 	if ((hw->subsystem_vendor_id == 0x103C) && (eeprom_data == 0x16d6))
 		return E1000_SUCCESS;
 
@@ -4024,7 +4024,7 @@ s32 e1000_update_eeprom_checksum(struct e1000_hw *hw)
  * @words: number of words to write
  * @data: 16 bit word to be written to the EEPROM
  *
- * If e1000_update_eeprom_checksum is not called after this function, the
+ * If e1000_update_eeprom_checksum is yest called after this function, the
  * EEPROM will most likely contain an invalid checksum.
  */
 s32 e1000_write_eeprom(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
@@ -4050,7 +4050,7 @@ static s32 e1000_do_write_eeprom(struct e1000_hw *hw, u16 offset, u16 words,
 	}
 
 	/* A check for invalid values:  offset too large, too many words, and
-	 * not enough words.
+	 * yest eyesugh words.
 	 */
 	if ((offset >= eeprom->word_size) ||
 	    (words > eeprom->word_size - offset) ||
@@ -4190,7 +4190,7 @@ static s32 e1000_write_eeprom_microwire(struct e1000_hw *hw, u16 offset,
 
 		/* Read DO repeatedly until it is high (equal to '1').  The
 		 * EEPROM will signal that the command has been completed by
-		 * raising the DO signal. If DO does not go high in 10
+		 * raising the DO signal. If DO does yest go high in 10
 		 * milliseconds, then error out.
 		 */
 		for (i = 0; i < 200; i++) {
@@ -4200,7 +4200,7 @@ static s32 e1000_write_eeprom_microwire(struct e1000_hw *hw, u16 offset,
 			udelay(50);
 		}
 		if (i == 200) {
-			e_dbg("EEPROM Write did not complete\n");
+			e_dbg("EEPROM Write did yest complete\n");
 			return -E1000_ERR_EEPROM;
 		}
 
@@ -4364,7 +4364,7 @@ void e1000_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 	 * while we work.  Then, we clear the Address Valid AV bit for all MAC
 	 * addresses and undo the re-direction to manageability.
 	 * Now, frames are coming in again, but the MAC won't accept them, so
-	 * far so good.  We now proceed to initialize RSS (if necessary) and
+	 * far so good.  We yesw proceed to initialize RSS (if necessary) and
 	 * configure the Rx unit.  Last, we re-enable the AV bits and continue
 	 * on our merry way.
 	 */
@@ -4470,7 +4470,7 @@ static s32 e1000_id_led_init(struct e1000_hw *hw)
 			hw->ledctl_mode1 |= ledctl_off << (i << 3);
 			break;
 		default:
-			/* Do nothing */
+			/* Do yesthing */
 			break;
 		}
 		switch (temp) {
@@ -4487,7 +4487,7 @@ static s32 e1000_id_led_init(struct e1000_hw *hw)
 			hw->ledctl_mode2 |= ledctl_off << (i << 3);
 			break;
 		default:
-			/* Do nothing */
+			/* Do yesthing */
 			break;
 		}
 	}
@@ -4827,8 +4827,8 @@ void e1000_get_bus_info(struct e1000_hw *hw)
 	case e1000_82542_rev2_0:
 	case e1000_82542_rev2_1:
 		hw->bus_type = e1000_bus_type_pci;
-		hw->bus_speed = e1000_bus_speed_unknown;
-		hw->bus_width = e1000_bus_width_unknown;
+		hw->bus_speed = e1000_bus_speed_unkyeswn;
+		hw->bus_width = e1000_bus_width_unkyeswn;
 		break;
 	default:
 		status = er32(STATUS);
@@ -4997,7 +4997,7 @@ static s32 e1000_get_cable_length(struct e1000_hw *hw, u16 *min_length,
 /**
  * e1000_check_polarity - Check the cable polarity
  * @hw: Struct containing variables accessed by shared code
- * @polarity: output parameter : 0 - Polarity is not reversed
+ * @polarity: output parameter : 0 - Polarity is yest reversed
  *                               1 - Polarity is reversed.
  *
  * returns: - E1000_ERR_XXX
@@ -5005,7 +5005,7 @@ static s32 e1000_get_cable_length(struct e1000_hw *hw, u16 *min_length,
  *
  * For phy's older than IGP, this function simply reads the polarity bit in the
  * Phy Status register.  For IGP phy's, this bit is valid only if link speed is
- * 10 Mbps.  If the link speed is 100 Mbps there is no polarity so this bit will
+ * 10 Mbps.  If the link speed is 100 Mbps there is yes polarity so this bit will
  * return 0.  If the link speed is 1000 Mbps the polarity status is in the
  * IGP01E1000_PHY_PCS_INIT_REG.
  */
@@ -5023,7 +5023,7 @@ static s32 e1000_check_polarity(struct e1000_hw *hw,
 			return ret_val;
 		*polarity = ((phy_data & M88E1000_PSSR_REV_POLARITY) >>
 			     M88E1000_PSSR_REV_POLARITY_SHIFT) ?
-		    e1000_rev_polarity_reversed : e1000_rev_polarity_normal;
+		    e1000_rev_polarity_reversed : e1000_rev_polarity_yesrmal;
 
 	} else if (hw->phy_type == e1000_phy_igp) {
 		/* Read the Status register to check the speed */
@@ -5047,7 +5047,7 @@ static s32 e1000_check_polarity(struct e1000_hw *hw,
 			/* Check the polarity bits */
 			*polarity = (phy_data & IGP01E1000_PHY_POLARITY_MASK) ?
 			    e1000_rev_polarity_reversed :
-			    e1000_rev_polarity_normal;
+			    e1000_rev_polarity_yesrmal;
 		} else {
 			/* For 10 Mbps, read the polarity bit in the status
 			 * register. (for 100 Mbps this bit is always 0)
@@ -5055,7 +5055,7 @@ static s32 e1000_check_polarity(struct e1000_hw *hw,
 			*polarity =
 			    (phy_data & IGP01E1000_PSSR_POLARITY_REVERSED) ?
 			    e1000_rev_polarity_reversed :
-			    e1000_rev_polarity_normal;
+			    e1000_rev_polarity_yesrmal;
 		}
 	}
 	return E1000_SUCCESS;
@@ -5358,7 +5358,7 @@ static s32 e1000_set_phy_mode(struct e1000_hw *hw)
  *
  * This function sets the lplu state according to the active flag.  When
  * activating lplu this function also disables smart speed and vise versa.
- * lplu will not be activated unless the device autonegotiation advertisement
+ * lplu will yest be activated unless the device autonegotiation advertisement
  * meets standards of either 10 or 10/100 or 10/100/1000 at all duplexes.
  *
  * returns: - E1000_ERR_PHY if fail to read/write the PHY
@@ -5372,7 +5372,7 @@ static s32 e1000_set_d3_lplu_state(struct e1000_hw *hw, bool active)
 	if (hw->phy_type != e1000_phy_igp)
 		return E1000_SUCCESS;
 
-	/* During driver activity LPLU should not be used or it will attain link
+	/* During driver activity LPLU should yest be used or it will attain link
 	 * from the lowest speeds starting from 10Mbps. The capability is used
 	 * for Dx transitions and states
 	 */

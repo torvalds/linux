@@ -32,7 +32,7 @@ static int trace_fill_id(struct sk_buff *nlskb, struct sk_buff *skb)
 	/* using skb address as ID results in a limited number of
 	 * values (and quick reuse).
 	 *
-	 * So we attempt to use as many skb members that will not
+	 * So we attempt to use as many skb members that will yest
 	 * change while skb is with netfilter.
 	 */
 	id = (__be32)jhash_2words(hash32_ptr(skb), skb_get_hash(skb),
@@ -148,7 +148,7 @@ static int nf_trace_fill_rule_info(struct sk_buff *nlskb,
 	/* a continue verdict with ->type == RETURN means that this is
 	 * an implicit return (end of chain reached).
 	 *
-	 * Since no rule matched, the ->rule pointer is invalid.
+	 * Since yes rule matched, the ->rule pointer is invalid.
 	 */
 	if (info->type == NFT_TRACETYPE_RETURN &&
 	    info->verdict->code == NFT_CONTINUE)
@@ -180,7 +180,7 @@ static bool nft_trace_have_verdict_chain(struct nft_traceinfo *info)
 	return true;
 }
 
-void nft_trace_notify(struct nft_traceinfo *info)
+void nft_trace_yestify(struct nft_traceinfo *info)
 {
 	const struct nft_pktinfo *pkt = info->pkt;
 	struct nfgenmsg *nfmsg;

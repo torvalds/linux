@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
@@ -188,7 +188,7 @@ static int monwrite_new_data(struct mon_private *monpriv)
  * file operations
  */
 
-static int monwrite_open(struct inode *inode, struct file *filp)
+static int monwrite_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct mon_private *monpriv;
 
@@ -200,10 +200,10 @@ static int monwrite_open(struct inode *inode, struct file *filp)
 	mutex_init(&monpriv->thread_mutex);
 	filp->private_data = monpriv;
 	list_add_tail(&monpriv->priv_list, &mon_priv_list);
-	return nonseekable_open(inode, filp);
+	return yesnseekable_open(iyesde, filp);
 }
 
-static int monwrite_close(struct inode *inode, struct file *filp)
+static int monwrite_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct mon_private *monpriv = filp->private_data;
 	struct mon_buf *entry, *next;
@@ -284,13 +284,13 @@ static const struct file_operations monwrite_fops = {
 	.open	 = &monwrite_open,
 	.release = &monwrite_close,
 	.write	 = &monwrite_write,
-	.llseek  = noop_llseek,
+	.llseek  = yesop_llseek,
 };
 
 static struct miscdevice mon_dev = {
 	.name	= "monwriter",
 	.fops	= &monwrite_fops,
-	.minor	= MISC_DYNAMIC_MINOR,
+	.miyesr	= MISC_DYNAMIC_MINOR,
 };
 
 /*

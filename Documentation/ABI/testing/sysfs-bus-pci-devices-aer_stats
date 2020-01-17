@@ -5,7 +5,7 @@ These attributes show up under all the devices that are AER capable. These
 statistical counters indicate the errors "as seen/reported by the device".
 Note that this may mean that if an endpoint is causing problems, the AER
 counters may increment at its link partner (e.g. root port) because the
-errors may be "seen" / reported by the link partner and not the
+errors may be "seen" / reported by the link partner and yest the
 problematic endpoint itself (which may report all counters as 0 as it never
 saw any problems).
 
@@ -16,7 +16,7 @@ Contact:	linux-pci@vger.kernel.org, rajatja@google.com
 Description:	List of correctable errors seen and reported by this
 		PCI device using ERR_COR. Note that since multiple errors may
 		be reported using a single ERR_COR message, thus
-		TOTAL_ERR_COR at the end of the file may not match the actual
+		TOTAL_ERR_COR at the end of the file may yest match the actual
 		total of all the errors in the file. Sample output:
 -------------------------------------------------------------------------
 localhost /sys/devices/pci0000:00/0000:00:1c.0 # cat aer_dev_correctable
@@ -38,7 +38,7 @@ Contact:	linux-pci@vger.kernel.org, rajatja@google.com
 Description:	List of uncorrectable fatal errors seen and reported by this
 		PCI device using ERR_FATAL. Note that since multiple errors may
 		be reported using a single ERR_FATAL message, thus
-		TOTAL_ERR_FATAL at the end of the file may not match the actual
+		TOTAL_ERR_FATAL at the end of the file may yest match the actual
 		total of all the errors in the file. Sample output:
 -------------------------------------------------------------------------
 localhost /sys/devices/pci0000:00/0000:00:1c.0 # cat aer_dev_fatal
@@ -62,17 +62,17 @@ TLP Prefix Blocked Error 0
 TOTAL_ERR_FATAL 0
 -------------------------------------------------------------------------
 
-What:		/sys/bus/pci/devices/<dev>/aer_dev_nonfatal
+What:		/sys/bus/pci/devices/<dev>/aer_dev_yesnfatal
 Date:		July 2018
 KernelVersion: 4.19.0
 Contact:	linux-pci@vger.kernel.org, rajatja@google.com
-Description:	List of uncorrectable nonfatal errors seen and reported by this
+Description:	List of uncorrectable yesnfatal errors seen and reported by this
 		PCI device using ERR_NONFATAL. Note that since multiple errors
 		may be reported using a single ERR_FATAL message, thus
-		TOTAL_ERR_NONFATAL at the end of the file may not match the
+		TOTAL_ERR_NONFATAL at the end of the file may yest match the
 		actual total of all the errors in the file. Sample output:
 -------------------------------------------------------------------------
-localhost /sys/devices/pci0000:00/0000:00:1c.0 # cat aer_dev_nonfatal
+localhost /sys/devices/pci0000:00/0000:00:1c.0 # cat aer_dev_yesnfatal
 Undefined 0
 Data Link Protocol 0
 Surprise Down Error 0
@@ -98,7 +98,7 @@ PCIe Rootport AER statistics
 ============================
 These attributes show up under only the rootports (or root complex event
 collectors) that are AER capable. These indicate the number of error messages as
-"reported to" the rootport. Please note that the rootports also transmit
+"reported to" the rootport. Please yeste that the rootports also transmit
 (internally) the ERR_* messages for errors seen by the internal rootport PCI
 device, so these counters include them and are thus cumulative of all the error
 messages on the PCI hierarchy originating at that root port.
@@ -115,7 +115,7 @@ KernelVersion: 4.19.0
 Contact:	linux-pci@vger.kernel.org, rajatja@google.com
 Description:	Total number of ERR_FATAL messages reported to rootport.
 
-What:	    /sys/bus/pci/devices/<dev>/aer_stats/aer_rootport_total_err_nonfatal
+What:	    /sys/bus/pci/devices/<dev>/aer_stats/aer_rootport_total_err_yesnfatal
 Date:		July 2018
 KernelVersion: 4.19.0
 Contact:	linux-pci@vger.kernel.org, rajatja@google.com

@@ -1,4 +1,4 @@
-Qualcomm Technologies Inc. adreno/snapdragon eDP output
+Qualcomm Techyeslogies Inc. adreyes/snapdragon eDP output
 
 Required properties:
 - compatible:
@@ -18,8 +18,8 @@ Required properties:
   * "pixel"
   * "link"
 - #clock-cells: The value should be 1.
-- vdda-supply: phandle to vdda regulator device node
-- lvl-vdd-supply: phandle to regulator device node which is used to supply power
+- vdda-supply: phandle to vdda regulator device yesde
+- lvl-vdd-supply: phandle to regulator device yesde which is used to supply power
   to HPD receiving chip
 - panel-en-gpios: GPIO pin to supply power to panel.
 - panel-hpd-gpios: GPIO pin used for eDP hpd.

@@ -47,7 +47,7 @@
  * Hi3660 mailbox channel information
  *
  * A channel can be used for TX or RX, it can trigger remote
- * processor interrupt to notify remote processor and can receive
+ * processor interrupt to yestify remote processor and can receive
  * interrupt if has incoming message.
  *
  * @dst_irq:	Interrupt vector for remote processor
@@ -96,7 +96,7 @@ static int hi3660_mbox_check_state(struct mbox_chan *chan)
 	if (readl(base + MBOX_MODE_REG) & MBOX_STATE_READY)
 		return 0;
 
-	/* Wait for acknowledge from remote */
+	/* Wait for ackyeswledge from remote */
 	ret = readx_poll_timeout_atomic(readl, base + MBOX_MODE_REG,
 			val, (val & MBOX_STATE_ACK), 1000, 300000);
 	if (ret) {
@@ -192,7 +192,7 @@ static int hi3660_mbox_send_data(struct mbox_chan *chan, void *msg)
 	/* Config destination for interrupt vector */
 	writel_relaxed(BIT(mchan->dst_irq), base + MBOX_DST_REG);
 
-	/* Automatic acknowledge mode */
+	/* Automatic ackyeswledge mode */
 	writel_relaxed(MBOX_AUTOMATIC_ACK, base + MBOX_MODE_REG);
 
 	/* Fill message data */

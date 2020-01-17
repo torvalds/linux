@@ -82,7 +82,7 @@ static inline void kvmppc_xive_select_irq(struct kvmppc_xive_irq_state *state,
 }
 
 /*
- * This corresponds to an "ICS" in XICS terminology, we use it
+ * This corresponds to an "ICS" in XICS termiyeslogy, we use it
  * as a mean to break up source information into multiple structures.
  */
 struct kvmppc_xive_src_block {
@@ -239,7 +239,7 @@ static inline bool kvmppc_xive_vp_in_use(struct kvm *kvm, u32 vp_id)
  * Mapping between guest priorities and host priorities
  * is as follow.
  *
- * Guest request for 0...6 are honored. Guest request for anything
+ * Guest request for 0...6 are hoyesred. Guest request for anything
  * higher results in a priority of 6 being applied.
  *
  * Similar mapping is done for CPPR values

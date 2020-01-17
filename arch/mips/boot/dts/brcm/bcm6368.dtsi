@@ -123,7 +123,7 @@
 			compatible = "brcm,bcm6368-ohci", "generic-ohci";
 			reg = <0x10001600 0x100>;
 			big-endian;
-			no-big-frame-no;
+			yes-big-frame-yes;
 			interrupt-parent = <&periph_intc>;
 			interrupts = <5>;
 			status = "disabled";

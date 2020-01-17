@@ -45,11 +45,11 @@
  *   PCI-7296, PCI-DIO96H, PCI-DIO-96, PCI-DIO-96B, PXI-6508
  *
  * Some of these boards also have an 8254 programmable timer/counter
- * chip.  This chip is not currently supported by this driver.
+ * chip.  This chip is yest currently supported by this driver.
  *
- * Interrupt support for these boards is also not currently supported.
+ * Interrupt support for these boards is also yest currently supported.
  *
- * Configuration Options: not applicable, uses PCI auto config.
+ * Configuration Options: yest applicable, uses PCI auto config.
  */
 
 #include <linux/module.h>

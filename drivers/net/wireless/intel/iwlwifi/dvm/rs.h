@@ -387,7 +387,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta,
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks
  *
- * Since the rate control algorithm is hardware specific, there is no need
+ * Since the rate control algorithm is hardware specific, there is yes need
  * or reason to place it as a stand alone module.  The driver can call
  * iwl_rate_control_register in order to register the rate control callbacks
  * with the mac80211 subsystem.  This should be performed prior to calling

@@ -123,7 +123,7 @@ struct bus_speed_cfg {
 	uint8_t time_n;		/* Number of cycles for hold time */
 	uint8_t prescale;	/* Prescale divider */
 	uint8_t time_p;		/* Timing coefficient */
-	uint8_t no_div;		/* Disable clock divider */
+	uint8_t yes_div;		/* Disable clock divider */
 	uint8_t time_div;	/* Post-prescale divider */
 };
 
@@ -137,7 +137,7 @@ struct hs_bus_speed_cfg {
 				   before it rises  */
 	uint8_t prescale;	/* Prescale divider */
 	uint8_t time_p;		/* Timing coefficient */
-	uint8_t no_div;		/* Disable clock divider */
+	uint8_t yes_div;		/* Disable clock divider */
 	uint8_t time_div;	/* Post-prescale divider */
 };
 
@@ -199,7 +199,7 @@ static void bcm_kona_i2c_send_cmd_to_ctrl(struct bcm_kona_i2c_dev *dev,
 		break;
 
 	default:
-		dev_err(dev->device, "Unknown command %d\n", cmd);
+		dev_err(dev->device, "Unkyeswn command %d\n", cmd);
 	}
 }
 
@@ -419,7 +419,7 @@ static int bcm_kona_i2c_write_fifo_single(struct bcm_kona_i2c_dev *dev,
 	for (k = 0; k < len; k++)
 		writel(buf[k], (dev->base + DAT_OFFSET));
 
-	/* Enable IRQ now that data has been loaded */
+	/* Enable IRQ yesw that data has been loaded */
 	enable_irq(dev->irq);
 
 	/* Wait for FIFO to empty */
@@ -523,7 +523,7 @@ static void bcm_kona_i2c_config_timing(struct bcm_kona_i2c_dev *dev)
 
 	writel((dev->std_cfg->prescale << TIM_PRESCALE_SHIFT) |
 	       (dev->std_cfg->time_p << TIM_P_SHIFT) |
-	       (dev->std_cfg->no_div << TIM_NO_DIV_SHIFT) |
+	       (dev->std_cfg->yes_div << TIM_NO_DIV_SHIFT) |
 	       (dev->std_cfg->time_div	<< TIM_DIV_SHIFT),
 	       dev->base + TIM_OFFSET);
 
@@ -537,7 +537,7 @@ static void bcm_kona_i2c_config_timing_hs(struct bcm_kona_i2c_dev *dev)
 {
 	writel((dev->hs_cfg->prescale << TIM_PRESCALE_SHIFT) |
 	       (dev->hs_cfg->time_p << TIM_P_SHIFT) |
-	       (dev->hs_cfg->no_div << TIM_NO_DIV_SHIFT) |
+	       (dev->hs_cfg->yes_div << TIM_NO_DIV_SHIFT) |
 	       (dev->hs_cfg->time_div << TIM_DIV_SHIFT),
 	       dev->base + TIM_OFFSET);
 
@@ -714,7 +714,7 @@ static const struct i2c_algorithm bcm_algo = {
 static int bcm_kona_i2c_assign_bus_speed(struct bcm_kona_i2c_dev *dev)
 {
 	unsigned int bus_speed;
-	int ret = of_property_read_u32(dev->device->of_node, "clock-frequency",
+	int ret = of_property_read_u32(dev->device->of_yesde, "clock-frequency",
 				       &bus_speed);
 	if (ret < 0) {
 		dev_err(dev->device, "missing clock-frequency property\n");
@@ -737,7 +737,7 @@ static int bcm_kona_i2c_assign_bus_speed(struct bcm_kona_i2c_dev *dev)
 		dev->hs_cfg = &hs_cfg_table[BCM_SPD_3P4MHZ];
 		break;
 	default:
-		pr_err("%d hz bus speed not supported\n", bus_speed);
+		pr_err("%d hz bus speed yest supported\n", bus_speed);
 		pr_err("Valid speeds are 100khz, 400khz, 1mhz, and 3.4mhz\n");
 		return -EINVAL;
 	}
@@ -823,7 +823,7 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	/* Get the interrupt number */
 	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq < 0) {
-		dev_err(dev->device, "no irq resource\n");
+		dev_err(dev->device, "yes irq resource\n");
 		rc = -ENODEV;
 		goto probe_disable_clk;
 	}
@@ -855,7 +855,7 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	strlcpy(adap->name, "Broadcom I2C adapter", sizeof(adap->name));
 	adap->algo = &bcm_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 
 	rc = i2c_add_adapter(adap);
 	if (rc)

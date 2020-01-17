@@ -15,11 +15,11 @@
 int dlm_lowcomms_start(void);
 void dlm_lowcomms_stop(void);
 void dlm_lowcomms_exit(void);
-int dlm_lowcomms_close(int nodeid);
-void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc);
+int dlm_lowcomms_close(int yesdeid);
+void *dlm_lowcomms_get_buffer(int yesdeid, int len, gfp_t allocation, char **ppc);
 void dlm_lowcomms_commit_buffer(void *mh);
-int dlm_lowcomms_connect_node(int nodeid);
-int dlm_lowcomms_addr(int nodeid, struct sockaddr_storage *addr, int len);
+int dlm_lowcomms_connect_yesde(int yesdeid);
+int dlm_lowcomms_addr(int yesdeid, struct sockaddr_storage *addr, int len);
 
 #endif				/* __LOWCOMMS_DOT_H__ */
 

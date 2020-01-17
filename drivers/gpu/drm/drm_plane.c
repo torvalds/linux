@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -38,7 +38,7 @@
  * DOC: overview
  *
  * A plane represents an image source that can be blended with or overlayed on
- * top of a CRTC during the scanout process. Planes take their input data from a
+ * top of a CRTC during the scayesut process. Planes take their input data from a
  * &drm_framebuffer object. The plane itself specifies the cropping and scaling
  * of that image, and where it is placed on the visible are of a display
  * pipeline, represented by &drm_crtc. A plane can also have additional
@@ -349,7 +349,7 @@ EXPORT_SYMBOL(drm_plane_init);
  * @plane: plane to cleanup
  *
  * This function cleans up @plane and removes it from the DRM mode setting
- * core. Note that the function does *not* free the plane structure itself,
+ * core. Note that the function does *yest* free the plane structure itself,
  * this is the responsibility of the caller.
  */
 void drm_plane_cleanup(struct drm_plane *plane)
@@ -412,7 +412,7 @@ EXPORT_SYMBOL(drm_plane_from_index);
  * Used when the plane's current framebuffer is destroyed,
  * and when restoring fbdev mode.
  *
- * Note that this function is not suitable for atomic drivers, since it doesn't
+ * Note that this function is yest suitable for atomic drivers, since it doesn't
  * wire through the lock acquisition context properly and hence can't handle
  * retries or driver private locks. You probably want to use
  * drm_atomic_helper_disable_plane() or
@@ -800,12 +800,12 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 		return -EOPNOTSUPP;
 
 	/*
-	 * First, find the plane, crtc, and fb objects.  If not available,
+	 * First, find the plane, crtc, and fb objects.  If yest available,
 	 * we don't bother to call the driver.
 	 */
 	plane = drm_plane_find(dev, file_priv, plane_req->plane_id);
 	if (!plane) {
-		DRM_DEBUG_KMS("Unknown plane ID %d\n",
+		DRM_DEBUG_KMS("Unkyeswn plane ID %d\n",
 			      plane_req->plane_id);
 		return -ENOENT;
 	}
@@ -813,7 +813,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	if (plane_req->fb_id) {
 		fb = drm_framebuffer_lookup(dev, file_priv, plane_req->fb_id);
 		if (!fb) {
-			DRM_DEBUG_KMS("Unknown framebuffer ID %d\n",
+			DRM_DEBUG_KMS("Unkyeswn framebuffer ID %d\n",
 				      plane_req->fb_id);
 			return -ENOENT;
 		}
@@ -821,7 +821,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 		crtc = drm_crtc_find(dev, file_priv, plane_req->crtc_id);
 		if (!crtc) {
 			drm_framebuffer_put(fb);
-			DRM_DEBUG_KMS("Unknown crtc ID %d\n",
+			DRM_DEBUG_KMS("Unkyeswn crtc ID %d\n",
 				      plane_req->crtc_id);
 			return -ENOENT;
 		}
@@ -942,7 +942,7 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 
 	crtc = drm_crtc_find(dev, file_priv, req->crtc_id);
 	if (!crtc) {
-		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", req->crtc_id);
+		DRM_DEBUG_KMS("Unkyeswn CRTC ID %d\n", req->crtc_id);
 		return -ENOENT;
 	}
 
@@ -1125,7 +1125,7 @@ retry:
 
 	if (old_fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
-		 * due to a hotplug event, that userspace has not
+		 * due to a hotplug event, that userspace has yest
 		 * yet discovered.
 		 */
 		ret = -EBUSY;
@@ -1154,7 +1154,7 @@ retry:
 		goto out;
 
 	if (old_fb->format != fb->format) {
-		DRM_DEBUG_KMS("Page flip is not allowed to change frame buffer format.\n");
+		DRM_DEBUG_KMS("Page flip is yest allowed to change frame buffer format.\n");
 		ret = -EINVAL;
 		goto out;
 	}

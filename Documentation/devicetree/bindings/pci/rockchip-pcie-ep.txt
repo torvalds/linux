@@ -30,7 +30,7 @@ Required properties:
   them won't be used for your cases. Entries are of the form "pcie-phy-N":
   where N ranges from 0 to 3.
   (see example below and you MUST also refer to ../phy/rockchip-pcie-phy.txt
-  for changing the #phy-cells of phy node to support it)
+  for changing the #phy-cells of phy yesde to support it)
 - rockchip,max-outbound-regions: Maximum number of outbound regions
 
 Optional Property:

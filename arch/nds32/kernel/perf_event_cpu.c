@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2008-2017 Andes Technology Corporation
+ * Copyright (C) 2008-2017 Andes Techyeslogy Corporation
  *
  * Reference ARMv7: Jean Pihet <jpihet@mvista.com>
  * 2010 (c) MontaVista Software, LLC.
@@ -27,7 +27,7 @@
 #include <asm/perf_event.h>
 #include <nds32_intrinsic.h>
 
-/* Set at runtime when we know what CPU type we are. */
+/* Set at runtime when we kyesw what CPU type we are. */
 static struct nds32_pmu *cpu_pmu;
 
 static DEFINE_PER_CPU(struct pmu_hw_events, cpu_hw_events);
@@ -251,7 +251,7 @@ static irqreturn_t nds32_pmu_handle_irq(int irq_num, void *dev)
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
-		/* Ignore if we don't have an event. */
+		/* Igyesre if we don't have an event. */
 		if (!event)
 			continue;
 
@@ -277,7 +277,7 @@ static irqreturn_t nds32_pmu_handle_irq(int irq_num, void *dev)
 	 *
 	 * Note: this call *must* be run with interrupts disabled. For
 	 * platforms that can have the PMU interrupts raised as an NMI, this
-	 * will not work.
+	 * will yest work.
 	 */
 	irq_work_run();
 
@@ -309,22 +309,22 @@ static int nds32_pmu_set_event_filter(struct hw_perf_event *event,
 {
 	unsigned long config_base = 0;
 	int idx = event->idx;
-	unsigned long no_kernel_tracing = 0;
-	unsigned long no_user_tracing = 0;
-	/* If index is -1, do not do anything */
+	unsigned long yes_kernel_tracing = 0;
+	unsigned long yes_user_tracing = 0;
+	/* If index is -1, do yest do anything */
 	if (idx == -1)
 		return 0;
 
-	no_kernel_tracing = PFM_CTL_KS[idx];
-	no_user_tracing = PFM_CTL_KU[idx];
+	yes_kernel_tracing = PFM_CTL_KS[idx];
+	yes_user_tracing = PFM_CTL_KU[idx];
 	/*
 	 * Default: enable both kernel and user mode tracing.
 	 */
 	if (attr->exclude_user)
-		config_base |= no_user_tracing;
+		config_base |= yes_user_tracing;
 
 	if (attr->exclude_kernel)
-		config_base |= no_kernel_tracing;
+		config_base |= yes_kernel_tracing;
 
 	/*
 	 * Install the filter into config_base as this is used to
@@ -339,21 +339,21 @@ static inline void nds32_pfm_write_evtsel(int idx, u32 evnum)
 	u32 offset = 0;
 	u32 ori_val = __nds32__mfsr(NDS32_SR_PFM_CTL);
 	u32 ev_mask = 0;
-	u32 no_kernel_mask = 0;
-	u32 no_user_mask = 0;
+	u32 yes_kernel_mask = 0;
+	u32 yes_user_mask = 0;
 	u32 val;
 
 	offset = PFM_CTL_OFFSEL[idx];
 	/* Clear previous mode selection, and write new one */
-	no_kernel_mask = PFM_CTL_KS[idx];
-	no_user_mask = PFM_CTL_KU[idx];
-	ori_val &= ~no_kernel_mask;
-	ori_val &= ~no_user_mask;
-	if (evnum & no_kernel_mask)
-		ori_val |= no_kernel_mask;
+	yes_kernel_mask = PFM_CTL_KS[idx];
+	yes_user_mask = PFM_CTL_KU[idx];
+	ori_val &= ~yes_kernel_mask;
+	ori_val &= ~yes_user_mask;
+	if (evnum & yes_kernel_mask)
+		ori_val |= yes_kernel_mask;
 
-	if (evnum & no_user_mask)
-		ori_val |= no_user_mask;
+	if (evnum & yes_user_mask)
+		ori_val |= yes_user_mask;
 
 	/* Clear previous event selection */
 	ev_mask = PFM_CTL_SEL[idx];
@@ -405,7 +405,7 @@ static inline int nds32_pfm_disable_intens(int idx)
 
 static int event_requires_mode_exclusion(struct perf_event_attr *attr)
 {
-	/* Other modes NDS32 does not support */
+	/* Other modes NDS32 does yest support */
 	return attr->exclude_user || attr->exclude_kernel;
 }
 
@@ -440,8 +440,8 @@ static void nds32_pmu_enable_event(struct perf_event *event)
 	if ((!cpu_pmu->set_event_filter ||
 	     cpu_pmu->set_event_filter(hwc, &event->attr)) &&
 	     event_requires_mode_exclusion(&event->attr)) {
-		pr_notice
-		("NDS32 performance counters do not support mode exclusion\n");
+		pr_yestice
+		("NDS32 performance counters do yest support mode exclusion\n");
 		hwc->config_base = 0;
 	}
 	/* Write event */
@@ -514,7 +514,7 @@ static inline u32 nds32_pmu_read_counter(struct perf_event *event)
 			break;
 		default:
 			pr_err
-			    ("%s: CPU has no performance counters %d\n",
+			    ("%s: CPU has yes performance counters %d\n",
 			     __func__, idx);
 		}
 	}
@@ -542,7 +542,7 @@ static inline void nds32_pmu_write_counter(struct perf_event *event, u32 value)
 			break;
 		default:
 			pr_err
-			    ("%s: CPU has no performance counters %d\n",
+			    ("%s: CPU has yes performance counters %d\n",
 			     __func__, idx);
 		}
 	}
@@ -561,7 +561,7 @@ static int nds32_pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	 *
 	 * SOFTWARE_EVENT_MASK mask for getting event num ,
 	 * This is defined by Jia-Rung, you can change the polocies.
-	 * However, do not exceed 8 bits. This is hardware specific.
+	 * However, do yest exceed 8 bits. This is hardware specific.
 	 * The last number is SPAv3_2_SEL_LAST.
 	 */
 	unsigned long evtype = hwc->config_base & SOFTWARE_EVENT_MASK;
@@ -802,7 +802,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	mapping = nds32_pmu->map_event(event);
 
 	if (mapping < 0) {
-		pr_debug("event %x:%llx not supported\n", event->attr.type,
+		pr_debug("event %x:%llx yest supported\n", event->attr.type,
 			 event->attr.config);
 		return mapping;
 	}
@@ -825,7 +825,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	     nds32_pmu->set_event_filter(hwc, &event->attr)) &&
 	    event_requires_mode_exclusion(&event->attr)) {
 		pr_debug
-			("NDS performance counters do not support mode exclusion\n");
+			("NDS performance counters do yest support mode exclusion\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -836,7 +836,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 	if (!hwc->sample_period) {
 		/*
-		 * For non-sampling runs, limit the sample_period to half
+		 * For yesn-sampling runs, limit the sample_period to half
 		 * of the counter width. That way, the new counter value
 		 * is far less likely to overtake the previous one unless
 		 * you have some serious IRQ latency issues.
@@ -860,14 +860,14 @@ static int nds32_pmu_event_init(struct perf_event *event)
 	int err = 0;
 	atomic_t *active_events = &nds32_pmu->active_events;
 
-	/* does not support taken branch sampling */
+	/* does yest support taken branch sampling */
 	if (has_branch_stack(event))
 		return -EOPNOTSUPP;
 
 	if (nds32_pmu->map_event(event) == -ENOENT)
 		return -ENOENT;
 
-	if (!atomic_inc_not_zero(active_events)) {
+	if (!atomic_inc_yest_zero(active_events)) {
 		if (atomic_read(active_events) == 0) {
 			/* Register irq handler */
 			err = nds32_pmu_reserve_hardware(nds32_pmu);
@@ -890,7 +890,7 @@ static void nds32_start(struct perf_event *event, int flags)
 	struct nds32_pmu *nds32_pmu = to_nds32_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	/*
-	 * NDS pmu always has to reprogram the period, so ignore
+	 * NDS pmu always has to reprogram the period, so igyesre
 	 * PERF_EF_RELOAD, see the comment below.
 	 */
 	if (flags & PERF_EF_RELOAD)
@@ -955,7 +955,7 @@ again:
 		goto again;
 	}
 	/*
-	 * Whether overflow or not, "unsigned substraction"
+	 * Whether overflow or yest, "unsigned substraction"
 	 * will always get their delta
 	 */
 	delta = (new_raw_count - prev_raw_count) & nds32_pmu->max_period;
@@ -971,7 +971,7 @@ static void nds32_stop(struct perf_event *event, int flags)
 	struct nds32_pmu *nds32_pmu = to_nds32_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	/*
-	 * NDS pmu always has to update the counter, so ignore
+	 * NDS pmu always has to update the counter, so igyesre
 	 * PERF_EF_UPDATE, see comments in nds32_start().
 	 */
 	if (!(hwc->state & PERF_HES_STOPPED)) {
@@ -1078,7 +1078,7 @@ static int cpu_pmu_request_irq(struct nds32_pmu *cpu_pmu, irq_handler_t handler)
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
 	if (irqs < 1) {
-		pr_err("no irqs for PMUs defined\n");
+		pr_err("yes irqs for PMUs defined\n");
 		return -ENODEV;
 	}
 
@@ -1129,12 +1129,12 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id;
 	int (*init_fn)(struct nds32_pmu *nds32_pmu);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct nds32_pmu *pmu;
 	int ret = -ENODEV;
 
 	if (cpu_pmu) {
-		pr_notice("[perf] attempt to register multiple PMU devices!\n");
+		pr_yestice("[perf] attempt to register multiple PMU devices!\n");
 		return -ENOSPC;
 	}
 
@@ -1142,8 +1142,8 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 	if (!pmu)
 		return -ENOMEM;
 
-	of_id = of_match_node(cpu_pmu_of_device_ids, pdev->dev.of_node);
-	if (node && of_id) {
+	of_id = of_match_yesde(cpu_pmu_of_device_ids, pdev->dev.of_yesde);
+	if (yesde && of_id) {
 		init_fn = of_id->data;
 		ret = init_fn(pmu);
 	} else {
@@ -1151,7 +1151,7 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 	}
 
 	if (ret) {
-		pr_notice("[perf] failed to probe PMU!\n");
+		pr_yestice("[perf] failed to probe PMU!\n");
 		goto out_free;
 	}
 
@@ -1164,7 +1164,7 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 		return 0;
 
 out_free:
-	pr_notice("[perf] failed to register PMU devices!\n");
+	pr_yestice("[perf] failed to register PMU devices!\n");
 	kfree(pmu);
 	return ret;
 }
@@ -1184,9 +1184,9 @@ static int __init register_pmu_driver(void)
 
 	err = platform_driver_register(&cpu_pmu_driver);
 	if (err)
-		pr_notice("[perf] PMU initialization failed\n");
+		pr_yestice("[perf] PMU initialization failed\n");
 	else
-		pr_notice("[perf] PMU initialization done\n");
+		pr_yestice("[perf] PMU initialization done\n");
 
 	return err;
 }
@@ -1195,7 +1195,7 @@ device_initcall(register_pmu_driver);
 
 /*
  * References: arch/nds32/kernel/traps.c:__dump()
- * You will need to know the NDS ABI first.
+ * You will need to kyesw the NDS ABI first.
  */
 static int unwind_frame_kernel(struct stackframe *frame)
 {
@@ -1235,7 +1235,7 @@ static int unwind_frame_kernel(struct stackframe *frame)
 	/*
 	 * You can refer to arch/nds32/kernel/traps.c:__dump()
 	 * Treat "sp" as "fp", but the "sp" is one frame ahead of "fp".
-	 * And, the "sp" is not always correct.
+	 * And, the "sp" is yest always correct.
 	 *
 	 *   Stack                                 Relative Address
 	 *   |  |                                          0
@@ -1248,7 +1248,7 @@ static int unwind_frame_kernel(struct stackframe *frame)
 	if (!kstack_end((void *)frame->sp)) {
 		frame->lp = ((unsigned long *)frame->sp)[1];
 		/* TODO: How to deal with the value in first
-		 * "sp" is not correct?
+		 * "sp" is yest correct?
 		 */
 		if (__kernel_text_address(frame->lp))
 			frame->lp = ftrace_graph_ret_addr
@@ -1263,7 +1263,7 @@ static int unwind_frame_kernel(struct stackframe *frame)
 #endif
 }
 
-static void notrace
+static void yestrace
 walk_stackframe(struct stackframe *frame,
 		int (*fn_record)(struct stackframe *, void *),
 		void *data)
@@ -1372,7 +1372,7 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 	leaf_fp = 0;
 
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		/* We don't support guest os callchain now */
+		/* We don't support guest os callchain yesw */
 		return;
 	}
 
@@ -1395,7 +1395,7 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 
 		if (leaf_fp == lp) {
 			/*
-			 * Maybe this is non leaf function
+			 * Maybe this is yesn leaf function
 			 * with optimize for size,
 			 * or maybe this is the function
 			 * with optimize for size
@@ -1414,7 +1414,7 @@ perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 				return;
 
 			if (buftail.stack_fp == gp) {
-				/* non leaf function with optimize
+				/* yesn leaf function with optimize
 				 * for size condition
 				 */
 				struct frame_tail_opt_size buftail_opt_size;
@@ -1482,7 +1482,7 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 	struct stackframe fr;
 
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		/* We don't support guest os callchain now */
+		/* We don't support guest os callchain yesw */
 		return;
 	}
 	fr.fp = regs->fp;
@@ -1493,7 +1493,7 @@ perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 
 unsigned long perf_instruction_pointer(struct pt_regs *regs)
 {
-	/* However, NDS32 does not support virtualization */
+	/* However, NDS32 does yest support virtualization */
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest())
 		return perf_guest_cbs->get_guest_ip();
 
@@ -1504,7 +1504,7 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
 {
 	int misc = 0;
 
-	/* However, NDS32 does not support virtualization */
+	/* However, NDS32 does yest support virtualization */
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
 		if (perf_guest_cbs->is_user_mode())
 			misc |= PERF_RECORD_MISC_GUEST_USER;

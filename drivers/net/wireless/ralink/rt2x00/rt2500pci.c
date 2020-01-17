@@ -257,7 +257,7 @@ static void rt2500pci_config_filter(struct rt2x00_dev *rt2x00dev,
 	 * Start configuration steps.
 	 * Note that the version error will always be dropped
 	 * and broadcast frames will always be accepted since
-	 * there is no filter for it at this time.
+	 * there is yes filter for it at this time.
 	 */
 	reg = rt2x00mmio_register_read(rt2x00dev, RXCSR0);
 	rt2x00_set_field32(&reg, RXCSR0_DROP_CRC,
@@ -450,7 +450,7 @@ static void rt2500pci_config_ant(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, BBPCSR1_OFDM_FLIP, 1);
 
 		/*
-		 * RT2525E does not need RX I/Q Flip.
+		 * RT2525E does yest need RX I/Q Flip.
 		 */
 		if (rt2x00_rf(rt2x00dev, RF2525E))
 			rt2x00_set_field8(&r14, BBP_R14_RX_IQ_FLIP, 0);
@@ -476,7 +476,7 @@ static void rt2500pci_config_channel(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Switch on tuning bits.
-	 * For RT2523 devices we do not need to update the R1 register.
+	 * For RT2523 devices we do yest need to update the R1 register.
 	 */
 	if (!rt2x00_rf(rt2x00dev, RF2523))
 		rt2x00_set_field32(&rf->rf1, RF1_TUNER, 1);
@@ -517,7 +517,7 @@ static void rt2500pci_config_channel(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Switch off tuning bits.
-	 * For RT2523 devices we do not need to update the R1 register.
+	 * For RT2523 devices we do yest need to update the R1 register.
 	 */
 	if (!rt2x00_rf(rt2x00dev, RF2523)) {
 		rt2x00_set_field32(&rf->rf1, RF1_TUNER, 0);
@@ -656,7 +656,7 @@ static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev,
 	 * Chipset versions C and lower should directly continue
 	 * to the dynamic CCA tuning. Chipset version D and higher
 	 * should go straight to dynamic CCA tuning when they
-	 * are not associated.
+	 * are yest associated.
 	 */
 	if (rt2x00_rev(rt2x00dev) < RT2560_VERSION_D ||
 	    !rt2x00dev->intf_associated)
@@ -665,7 +665,7 @@ static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * A too low RSSI will cause too much false CCA which will
 	 * then corrupt the R17 tuning. To remidy this the tuning should
-	 * be stopped (While making sure the R17 value will not exceed limits)
+	 * be stopped (While making sure the R17 value will yest exceed limits)
 	 */
 	if (qual->rssi < -80 && count > 20) {
 		if (qual->vgc_level_reg >= 0x41)
@@ -1190,7 +1190,7 @@ static int rt2500pci_set_state(struct rt2x00_dev *rt2x00dev,
 	rt2x00mmio_register_write(rt2x00dev, PWRCSR1, reg);
 
 	/*
-	 * Device is not guaranteed to be in the requested state yet.
+	 * Device is yest guaranteed to be in the requested state yet.
 	 * We must wait until the register indicates that the
 	 * device has entered the correct state.
 	 */
@@ -1534,7 +1534,7 @@ static irqreturn_t rt2500pci_interrupt(int irq, void *dev_instance)
 	}
 
 	/*
-	 * Disable all interrupts for which a tasklet was scheduled right now,
+	 * Disable all interrupts for which a tasklet was scheduled right yesw,
 	 * the tasklet will reenable the appropriate interrupts.
 	 */
 	spin_lock(&rt2x00dev->irqmask_lock);
@@ -1673,7 +1673,7 @@ static int rt2500pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO)) {
 		__set_bit(CAPABILITY_HW_BUTTON, &rt2x00dev->cap_flags);
 		/*
-		 * On this device RFKILL initialized during probe does not work.
+		 * On this device RFKILL initialized during probe does yest work.
 		 */
 		__set_bit(REQUIRE_DELAYED_RFKILL, &rt2x00dev->cap_flags);
 	}

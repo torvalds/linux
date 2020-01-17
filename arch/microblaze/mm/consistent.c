@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <asm/cpuinfo.h>
 #include <asm/cacheflush.h>
 
@@ -25,12 +25,12 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 #ifndef CONFIG_MMU
 /*
  * Consistent memory allocators. Used for DMA devices that want to share
- * uncached memory with the processor core.  My crufty no-MMU approach is
+ * uncached memory with the processor core.  My crufty yes-MMU approach is
  * simple.  In the HW platform we can optionally mirror the DDR up above the
  * processor cacheable region.  So, memory accessed in this mirror region will
- * not be cached.  It's alloced from the same pool as normal memory, but the
- * handle we return is shifted up into the uncached region.  This will no doubt
- * cause big problems if memory allocated here is not also freed properly. -- JW
+ * yest be cached.  It's alloced from the same pool as yesrmal memory, but the
+ * handle we return is shifted up into the uncached region.  This will yes doubt
+ * cause big problems if memory allocated here is yest also freed properly. -- JW
  *
  * I have to use dcache values because I can't relate on ram size:
  */

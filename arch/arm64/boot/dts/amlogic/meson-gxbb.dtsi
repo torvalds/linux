@@ -411,13 +411,13 @@
 			};
 		};
 
-		nor_pins: nor {
+		yesr_pins: yesr {
 			mux {
-				groups = "nor_d",
-				       "nor_q",
-				       "nor_c",
-				       "nor_cs";
-				function = "nor";
+				groups = "yesr_d",
+				       "yesr_q",
+				       "yesr_c",
+				       "yesr_cs";
+				function = "yesr";
 				bias-disable;
 			};
 		};

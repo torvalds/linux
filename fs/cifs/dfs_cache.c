@@ -34,7 +34,7 @@ struct dfs_cache_tgt {
 };
 
 struct dfs_cache_entry {
-	struct hlist_node ce_hlist;
+	struct hlist_yesde ce_hlist;
 	const char *ce_path;
 	int ce_ttl;
 	int ce_srvtype;
@@ -81,7 +81,7 @@ static inline bool is_path_valid(const char *path)
 	return path && (strchr(path + 1, '\\') || strchr(path + 1, '/'));
 }
 
-static inline int get_normalized_path(const char *path, char **npath)
+static inline int get_yesrmalized_path(const char *path, char **npath)
 {
 	if (*path == '\\') {
 		*npath = (char *)path;
@@ -94,7 +94,7 @@ static inline int get_normalized_path(const char *path, char **npath)
 	return 0;
 }
 
-static inline void free_normalized_path(const char *path, char *npath)
+static inline void free_yesrmalized_path(const char *path, char *npath)
 {
 	if (path != npath)
 		kfree(npath);
@@ -174,9 +174,9 @@ static int dfscache_proc_show(struct seq_file *m, void *v)
 			   ce->ce_path,
 			   ce->ce_srvtype == DFS_TYPE_ROOT ? "root" : "link",
 			   ce->ce_ttl, ce->ce_etime.tv_nsec,
-			   IS_INTERLINK_SET(ce->ce_flags) ? "yes" : "no",
+			   IS_INTERLINK_SET(ce->ce_flags) ? "no" : "yes",
 			   ce->ce_path_consumed,
-			   cache_entry_expired(ce) ? "yes" : "no");
+			   cache_entry_expired(ce) ? "no" : "yes");
 
 		list_for_each_entry(t, &ce->ce_tlist, t_list) {
 			seq_printf(m, "  %s%s\n",
@@ -212,7 +212,7 @@ static ssize_t dfscache_proc_write(struct file *file, const char __user *buffer,
 	return count;
 }
 
-static int dfscache_proc_open(struct inode *inode, struct file *file)
+static int dfscache_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, dfscache_proc_show, NULL);
 }
@@ -243,9 +243,9 @@ static inline void dump_ce(const struct dfs_cache_entry *ce)
 		 "interlink=%s,path_consumed=%d,expired=%s\n", ce->ce_path,
 		 ce->ce_srvtype == DFS_TYPE_ROOT ? "root" : "link", ce->ce_ttl,
 		 ce->ce_etime.tv_nsec,
-		 IS_INTERLINK_SET(ce->ce_flags) ? "yes" : "no",
+		 IS_INTERLINK_SET(ce->ce_flags) ? "no" : "yes",
 		 ce->ce_path_consumed,
-		 cache_entry_expired(ce) ? "yes" : "no");
+		 cache_entry_expired(ce) ? "no" : "yes");
 	dump_tgts(ce);
 }
 
@@ -264,10 +264,10 @@ static inline void dump_refs(const struct dfs_info3_param *refs, int numrefs)
 			 "server_type:   0x%x\n"
 			 "ref_flag:      0x%x\n"
 			 "path_name:     %s\n"
-			 "node_name:     %s\n"
+			 "yesde_name:     %s\n"
 			 "ttl:           %d (%dm)\n",
 			 ref->flags, ref->path_consumed, ref->server_type,
-			 ref->ref_flag, ref->path_name, ref->node_name,
+			 ref->ref_flag, ref->path_name, ref->yesde_name,
 			 ref->ttl, ref->ttl / 60);
 	}
 }
@@ -280,7 +280,7 @@ static inline void dump_refs(const struct dfs_info3_param *refs, int numrefs)
 /**
  * dfs_cache_init - Initialize DFS referral cache.
  *
- * Return zero if initialized successfully, otherwise non-zero.
+ * Return zero if initialized successfully, otherwise yesn-zero.
  */
 int dfs_cache_init(void)
 {
@@ -339,10 +339,10 @@ static inline struct timespec64 get_expire_time(int ttl)
 		.tv_sec = ttl,
 		.tv_nsec = 0,
 	};
-	struct timespec64 now;
+	struct timespec64 yesw;
 
-	ktime_get_coarse_real_ts64(&now);
-	return timespec64_add(now, ts);
+	ktime_get_coarse_real_ts64(&yesw);
+	return timespec64_add(yesw, ts);
 }
 
 /* Allocate a new DFS target */
@@ -380,7 +380,7 @@ static int copy_ref_data(const struct dfs_info3_param *refs, int numrefs,
 	for (i = 0; i < numrefs; i++) {
 		struct dfs_cache_tgt *t;
 
-		t = alloc_tgt(refs[i].node_name);
+		t = alloc_tgt(refs[i].yesde_name);
 		if (IS_ERR(t)) {
 			free_tgts(ce);
 			return PTR_ERR(t);
@@ -442,7 +442,7 @@ static void remove_oldest_entry(void)
 			to_del = ce;
 	}
 	if (!to_del) {
-		cifs_dbg(FYI, "%s: no entry to remove", __func__);
+		cifs_dbg(FYI, "%s: yes entry to remove", __func__);
 		goto out;
 	}
 	cifs_dbg(FYI, "%s: removing entry", __func__);
@@ -511,7 +511,7 @@ static struct dfs_cache_entry *__find_cache_entry(unsigned int hash,
  * Find a DFS cache entry in hash table and optionally check prefix path against
  * @path.
  * Use whole path components in the match.
- * Return ERR_PTR(-ENOENT) if the entry is not found.
+ * Return ERR_PTR(-ENOENT) if the entry is yest found.
  */
 static inline struct dfs_cache_entry *find_cache_entry(const char *path,
 						       unsigned int *hash)
@@ -604,7 +604,7 @@ update_cache_entry(const unsigned int xid, struct cifs_ses *ses,
 
 	cifs_dbg(FYI, "%s: update expired cache entry\n", __func__);
 	/*
-	 * Check if caller provided enough parameters to update an expired
+	 * Check if caller provided eyesugh parameters to update an expired
 	 * entry.
 	 */
 	if (!ses || !ses->server || !ses->server->ops->get_dfs_refer)
@@ -639,7 +639,7 @@ update_cache_entry(const unsigned int xid, struct cifs_ses *ses,
 static struct dfs_cache_entry *
 do_dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
 		  const struct nls_table *nls_codepage, int remap,
-		  const char *path, bool noreq)
+		  const char *path, bool yesreq)
 {
 	int rc;
 	unsigned int h;
@@ -653,10 +653,10 @@ do_dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
 	if (IS_ERR(ce)) {
 		cifs_dbg(FYI, "%s: cache miss\n", __func__);
 		/*
-		 * If @noreq is set, no requests will be sent to the server for
+		 * If @yesreq is set, yes requests will be sent to the server for
 		 * either updating or getting a new DFS referral.
 		 */
-		if (noreq)
+		if (yesreq)
 			return ce;
 		/*
 		 * No cache entry was found, so check for valid parameters that
@@ -706,8 +706,8 @@ do_dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
 
 	dump_ce(ce);
 
-	/* Just return the found cache entry in case @noreq is set */
-	if (noreq)
+	/* Just return the found cache entry in case @yesreq is set */
+	if (yesreq)
 		return ce;
 
 	if (cache_entry_expired(ce)) {
@@ -738,8 +738,8 @@ static int setup_ref(const char *path, const struct dfs_cache_entry *ce,
 
 	ref->path_consumed = ce->ce_path_consumed;
 
-	ref->node_name = kstrndup(tgt, strlen(tgt), GFP_KERNEL);
-	if (!ref->node_name) {
+	ref->yesde_name = kstrndup(tgt, strlen(tgt), GFP_KERNEL);
+	if (!ref->yesde_name) {
 		rc = -ENOMEM;
 		goto err_free_path;
 	}
@@ -817,10 +817,10 @@ err_free_it:
  * @remap: path character remapping type
  * @path: path to lookup in DFS referral cache.
  *
- * @ref: when non-NULL, store single DFS referral result in it.
- * @tgt_list: when non-NULL, store complete DFS target list in it.
+ * @ref: when yesn-NULL, store single DFS referral result in it.
+ * @tgt_list: when yesn-NULL, store complete DFS target list in it.
  *
- * Return zero if the target was found, otherwise non-zero.
+ * Return zero if the target was found, otherwise yesn-zero.
  */
 int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
 		   const struct nls_table *nls_codepage, int remap,
@@ -834,7 +834,7 @@ int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
 	if (unlikely(!is_path_valid(path)))
 		return -EINVAL;
 
-	rc = get_normalized_path(path, &npath);
+	rc = get_yesrmalized_path(path, &npath);
 	if (rc)
 		return rc;
 
@@ -851,27 +851,27 @@ int dfs_cache_find(const unsigned int xid, struct cifs_ses *ses,
 		rc = PTR_ERR(ce);
 	}
 	mutex_unlock(&dfs_cache_list_lock);
-	free_normalized_path(path, npath);
+	free_yesrmalized_path(path, npath);
 	return rc;
 }
 
 /**
- * dfs_cache_noreq_find - find a DFS cache entry without sending any requests to
+ * dfs_cache_yesreq_find - find a DFS cache entry without sending any requests to
  * the currently connected server.
  *
  * NOTE: This function will neither update a cache entry in case it was
- * expired, nor create a new cache entry if @path hasn't been found. It heavily
+ * expired, yesr create a new cache entry if @path hasn't been found. It heavily
  * relies on an existing cache entry.
  *
  * @path: path to lookup in the DFS referral cache.
- * @ref: when non-NULL, store single DFS referral result in it.
- * @tgt_list: when non-NULL, store complete DFS target list in it.
+ * @ref: when yesn-NULL, store single DFS referral result in it.
+ * @tgt_list: when yesn-NULL, store complete DFS target list in it.
  *
  * Return 0 if successful.
- * Return -ENOENT if the entry was not found.
- * Return non-zero for other errors.
+ * Return -ENOENT if the entry was yest found.
+ * Return yesn-zero for other errors.
  */
-int dfs_cache_noreq_find(const char *path, struct dfs_info3_param *ref,
+int dfs_cache_yesreq_find(const char *path, struct dfs_info3_param *ref,
 			 struct dfs_cache_tgt_list *tgt_list)
 {
 	int rc;
@@ -881,7 +881,7 @@ int dfs_cache_noreq_find(const char *path, struct dfs_info3_param *ref,
 	if (unlikely(!is_path_valid(path)))
 		return -EINVAL;
 
-	rc = get_normalized_path(path, &npath);
+	rc = get_yesrmalized_path(path, &npath);
 	if (rc)
 		return rc;
 
@@ -900,7 +900,7 @@ int dfs_cache_noreq_find(const char *path, struct dfs_info3_param *ref,
 		rc = get_tgt_list(ce, tgt_list);
 out:
 	mutex_unlock(&dfs_cache_list_lock);
-	free_normalized_path(path, npath);
+	free_yesrmalized_path(path, npath);
 	return rc;
 }
 
@@ -920,7 +920,7 @@ out:
  * @path: path to lookup in DFS referral cache.
  * @it: DFS target iterator
  *
- * Return zero if the target hint was updated successfully, otherwise non-zero.
+ * Return zero if the target hint was updated successfully, otherwise yesn-zero.
  */
 int dfs_cache_update_tgthint(const unsigned int xid, struct cifs_ses *ses,
 			     const struct nls_table *nls_codepage, int remap,
@@ -935,7 +935,7 @@ int dfs_cache_update_tgthint(const unsigned int xid, struct cifs_ses *ses,
 	if (unlikely(!is_path_valid(path)))
 		return -EINVAL;
 
-	rc = get_normalized_path(path, &npath);
+	rc = get_yesrmalized_path(path, &npath);
 	if (rc)
 		return rc;
 
@@ -966,25 +966,25 @@ int dfs_cache_update_tgthint(const unsigned int xid, struct cifs_ses *ses,
 
 out:
 	mutex_unlock(&dfs_cache_list_lock);
-	free_normalized_path(path, npath);
+	free_yesrmalized_path(path, npath);
 	return rc;
 }
 
 /**
- * dfs_cache_noreq_update_tgthint - update target hint of a DFS cache entry
+ * dfs_cache_yesreq_update_tgthint - update target hint of a DFS cache entry
  * without sending any requests to the currently connected server.
  *
  * NOTE: This function will neither update a cache entry in case it was
- * expired, nor create a new cache entry if @path hasn't been found. It heavily
+ * expired, yesr create a new cache entry if @path hasn't been found. It heavily
  * relies on an existing cache entry.
  *
  * @path: path to lookup in DFS referral cache.
  * @it: target iterator which contains the target hint to update the cache
  * entry with.
  *
- * Return zero if the target hint was updated successfully, otherwise non-zero.
+ * Return zero if the target hint was updated successfully, otherwise yesn-zero.
  */
-int dfs_cache_noreq_update_tgthint(const char *path,
+int dfs_cache_yesreq_update_tgthint(const char *path,
 				   const struct dfs_cache_tgt_iterator *it)
 {
 	int rc;
@@ -995,7 +995,7 @@ int dfs_cache_noreq_update_tgthint(const char *path,
 	if (unlikely(!is_path_valid(path)) || !it)
 		return -EINVAL;
 
-	rc = get_normalized_path(path, &npath);
+	rc = get_yesrmalized_path(path, &npath);
 	if (rc)
 		return rc;
 
@@ -1027,7 +1027,7 @@ int dfs_cache_noreq_update_tgthint(const char *path,
 
 out:
 	mutex_unlock(&dfs_cache_list_lock);
-	free_normalized_path(path, npath);
+	free_yesrmalized_path(path, npath);
 	return rc;
 }
 
@@ -1039,7 +1039,7 @@ out:
  * @it: DFS target iterator.
  * @ref: DFS referral pointer to set up the gathered information.
  *
- * Return zero if the DFS referral was set up correctly, otherwise non-zero.
+ * Return zero if the DFS referral was set up correctly, otherwise yesn-zero.
  */
 int dfs_cache_get_tgt_referral(const char *path,
 			       const struct dfs_cache_tgt_iterator *it,
@@ -1055,7 +1055,7 @@ int dfs_cache_get_tgt_referral(const char *path,
 	if (unlikely(!is_path_valid(path)))
 		return -EINVAL;
 
-	rc = get_normalized_path(path, &npath);
+	rc = get_yesrmalized_path(path, &npath);
 	if (rc)
 		return rc;
 
@@ -1075,7 +1075,7 @@ int dfs_cache_get_tgt_referral(const char *path,
 
 out:
 	mutex_unlock(&dfs_cache_list_lock);
-	free_normalized_path(path, npath);
+	free_yesrmalized_path(path, npath);
 	return rc;
 }
 
@@ -1145,7 +1145,7 @@ err_free_username:
  * @vol: cifs volume.
  * @fullpath: origin full path.
  *
- * Return zero if volume was set up correctly, otherwise non-zero.
+ * Return zero if volume was set up correctly, otherwise yesn-zero.
  */
 int dfs_cache_add_vol(char *mntdata, struct smb_vol *vol, const char *fullpath)
 {
@@ -1204,7 +1204,7 @@ static inline struct dfs_cache_vol_info *find_vol(const char *fullpath)
  * @fullpath: fullpath to look up in volume list.
  * @server: TCP ses pointer.
  *
- * Return zero if volume was updated, otherwise non-zero.
+ * Return zero if volume was updated, otherwise yesn-zero.
  */
 int dfs_cache_update_vol(const char *fullpath, struct TCP_Server_Info *server)
 {
@@ -1327,7 +1327,7 @@ static struct cifs_ses *find_root_ses(struct dfs_cache_vol_info *vi,
 
 	memset(&vol, 0, sizeof(vol));
 
-	rc = dfs_cache_noreq_find(rpath, &ref, NULL);
+	rc = dfs_cache_yesreq_find(rpath, &ref, NULL);
 	if (rc) {
 		ses = ERR_PTR(rc);
 		goto out;
@@ -1389,7 +1389,7 @@ static void do_refresh_tcon(struct dfs_cache *dc, struct dfs_cache_vol_info *vi,
 
 	path = tcon->dfs_path + 1;
 
-	rc = get_normalized_path(path, &npath);
+	rc = get_yesrmalized_path(path, &npath);
 	if (rc)
 		goto out;
 
@@ -1439,7 +1439,7 @@ out:
 		cifs_put_smb_ses(root_ses);
 
 	free_xid(xid);
-	free_normalized_path(path, npath);
+	free_yesrmalized_path(path, npath);
 }
 
 /*

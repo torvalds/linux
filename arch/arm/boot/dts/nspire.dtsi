@@ -51,7 +51,7 @@
 	};
 
 	usb_phy: usb_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-yesp-xceiv";
 		#phy-cells = <0>;
 	};
 

@@ -24,7 +24,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-mediabus.h>
-#include <media/drv-intf/exynos-fimc.h>
+#include <media/drv-intf/exyyess-fimc.h>
 
 #define dbg(fmt, args...) \
 	pr_debug("%s:%d: " fmt "\n", __func__, __LINE__, ##args)
@@ -32,7 +32,7 @@
 /* Time to wait for next frame VSYNC interrupt while stopping operation. */
 #define FIMC_SHUTDOWN_TIMEOUT	((100*HZ)/1000)
 #define MAX_FIMC_CLOCKS		2
-#define FIMC_DRIVER_NAME	"exynos4-fimc"
+#define FIMC_DRIVER_NAME	"exyyess4-fimc"
 #define FIMC_MAX_DEVS		4
 #define FIMC_MAX_OUT_BUFS	4
 #define SCALER_MAX_HRATIO	64
@@ -56,12 +56,12 @@ enum {
 
 enum fimc_dev_flags {
 	ST_LPM,
-	/* m2m node */
+	/* m2m yesde */
 	ST_M2M_RUN,
 	ST_M2M_PEND,
 	ST_M2M_SUSPENDING,
 	ST_M2M_SUSPENDED,
-	/* capture node */
+	/* capture yesde */
 	ST_CAPT_PEND,
 	ST_CAPT_RUN,
 	ST_CAPT_STREAM,
@@ -170,7 +170,7 @@ struct fimc_effect {
  * struct fimc_scaler - the configuration data for FIMC inetrnal scaler
  * @scaleup_h:		flag indicating scaling up horizontally
  * @scaleup_v:		flag indicating scaling up vertically
- * @copy_mode:		flag indicating transparent DMA transfer (no scaling
+ * @copy_mode:		flag indicating transparent DMA transfer (yes scaling
  *			and color format conversion)
  * @enabled:		flag indicating if the scaler is used
  * @hfactor:		horizontal shift factor
@@ -262,7 +262,7 @@ struct fimc_frame {
 
 /**
  * struct fimc_m2m_device - v4l2 memory-to-memory device data
- * @vfd: the video device node for v4l2 m2m mode
+ * @vfd: the video device yesde for v4l2 m2m mode
  * @m2m_dev: v4l2 memory-to-memory device data
  * @ctx: hardware context data
  * @refcnt: the reference counter
@@ -283,8 +283,8 @@ struct fimc_m2m_device {
  * struct fimc_vid_cap - camera capture device information
  * @ctx: hardware context data
  * @subdev: subdev exposing the FIMC processing block
- * @ve: exynos video device entity structure
- * @vd_pad: fimc video capture node pad
+ * @ve: exyyess video device entity structure
+ * @vd_pad: fimc video capture yesde pad
  * @sd_pads: fimc video processing block pads
  * @ci_fmt: image format at the FIMC camera input (and the scaler output)
  * @wb_fmt: image format at the FIMC ISP Writeback input
@@ -298,14 +298,14 @@ struct fimc_m2m_device {
  * @reqbufs_count: the number of buffers requested in REQBUFS ioctl
  * @input_index: input (camera sensor) index
  * @input: capture input type, grp_id of the attached subdev
- * @user_subdev_api: true if subdevs are not configured by the host driver
+ * @user_subdev_api: true if subdevs are yest configured by the host driver
  * @inh_sensor_ctrls: a flag indicating v4l2 controls are inherited from
  *		      an image sensor subdev
  */
 struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
 	struct v4l2_subdev		subdev;
-	struct exynos_video_entity	ve;
+	struct exyyess_video_entity	ve;
 	struct media_pad		vd_pad;
 	struct media_pad		sd_pads[FIMC_SD_PADS_NUM];
 	struct v4l2_mbus_framefmt	ci_fmt;
@@ -643,12 +643,12 @@ int fimc_register_driver(void);
 void fimc_unregister_driver(void);
 
 #ifdef CONFIG_MFD_SYSCON
-static inline struct regmap * fimc_get_sysreg_regmap(struct device_node *node)
+static inline struct regmap * fimc_get_sysreg_regmap(struct device_yesde *yesde)
 {
-	return syscon_regmap_lookup_by_phandle(node, "samsung,sysreg");
+	return syscon_regmap_lookup_by_phandle(yesde, "samsung,sysreg");
 }
 #else
-#define fimc_get_sysreg_regmap(node) (NULL)
+#define fimc_get_sysreg_regmap(yesde) (NULL)
 #endif
 
 /* -----------------------------------------------------*/
@@ -660,7 +660,7 @@ void fimc_m2m_job_finish(struct fimc_ctx *ctx, int vb_state);
 int fimc_initialize_capture_subdev(struct fimc_dev *fimc);
 void fimc_unregister_capture_subdev(struct fimc_dev *fimc);
 int fimc_capture_ctrls_create(struct fimc_dev *fimc);
-void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
+void fimc_sensor_yestify(struct v4l2_subdev *sd, unsigned int yestification,
 			void *arg);
 int fimc_capture_suspend(struct fimc_dev *fimc);
 int fimc_capture_resume(struct fimc_dev *fimc);
@@ -683,7 +683,7 @@ static inline void fimc_active_queue_add(struct fimc_vid_cap *vid_cap,
 /**
  * fimc_active_queue_pop - pop buffer from the capture active buffers queue
  *
- * The caller must assure the active_buf_q list is not empty.
+ * The caller must assure the active_buf_q list is yest empty.
  */
 static inline struct fimc_vid_buffer *fimc_active_queue_pop(
 				    struct fimc_vid_cap *vid_cap)
@@ -709,7 +709,7 @@ static inline void fimc_pending_queue_add(struct fimc_vid_cap *vid_cap,
 /**
  * fimc_pending_queue_pop - pop buffer from the capture pending buffers queue
  *
- * The caller must assure the pending_buf_q list is not empty.
+ * The caller must assure the pending_buf_q list is yest empty.
  */
 static inline struct fimc_vid_buffer *fimc_pending_queue_pop(
 				     struct fimc_vid_cap *vid_cap)

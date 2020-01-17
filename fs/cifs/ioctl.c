@@ -17,7 +17,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -38,8 +38,8 @@
 static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
 				  unsigned long p)
 {
-	struct inode *inode = file_inode(filep);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct iyesde *iyesde = file_iyesde(filep);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(iyesde->i_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	struct dentry *dentry = filep->f_path.dentry;
 	unsigned char *path;
@@ -82,12 +82,12 @@ static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
 {
 	int rc;
 	struct fd src_file;
-	struct inode *src_inode;
+	struct iyesde *src_iyesde;
 
 	cifs_dbg(FYI, "ioctl copychunk range\n");
 	/* the destination must be opened for writing */
 	if (!(dst_file->f_mode & FMODE_WRITE)) {
-		cifs_dbg(FYI, "file target not open for write\n");
+		cifs_dbg(FYI, "file target yest open for write\n");
 		return -EINVAL;
 	}
 
@@ -110,13 +110,13 @@ static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
 		goto out_fput;
 	}
 
-	src_inode = file_inode(src_file.file);
+	src_iyesde = file_iyesde(src_file.file);
 	rc = -EINVAL;
-	if (S_ISDIR(src_inode->i_mode))
+	if (S_ISDIR(src_iyesde->i_mode))
 		goto out_fput;
 
 	rc = cifs_file_copychunk_range(xid, src_file.file, 0, dst_file, 0,
-					src_inode->i_size, 0);
+					src_iyesde->i_size, 0);
 	if (rc > 0)
 		rc = 0;
 out_fput:
@@ -163,7 +163,7 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 
 long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 {
-	struct inode *inode = file_inode(filep);
+	struct iyesde *iyesde = file_iyesde(filep);
 	struct smb3_key_debug_info pkey_inf;
 	int rc = -ENOTTY; /* strange error - but the precedent */
 	unsigned int xid;
@@ -196,7 +196,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			}
 #endif /* CONFIG_CIFS_POSIX */
 			rc = 0;
-			if (CIFS_I(inode)->cifsAttrs & ATTR_COMPRESSED) {
+			if (CIFS_I(iyesde)->cifsAttrs & ATTR_COMPRESSED) {
 				/* add in the compressed bit */
 				ExtAttrBits = FS_COMPR_FL;
 				rc = put_user(ExtAttrBits & FS_FL_USER_VISIBLE,

@@ -319,7 +319,7 @@ static int ilo_ccb_setup(struct ilo_hwinfo *hw, struct ccb_data *data, int slot)
 	ilo_ccb->channel = slot;
 
 	driver_ccb->ccb_u5.db_base = hw->db_vaddr + (slot << L2_DB_SIZE);
-	ilo_ccb->ccb_u5.db_base = NULL; /* hw ccb's doorbell is not used */
+	ilo_ccb->ccb_u5.db_base = NULL; /* hw ccb's doorbell is yest used */
 
 	return 0;
 }
@@ -362,7 +362,7 @@ static int ilo_ccb_verify(struct ilo_hwinfo *hw, struct ccb_data *data)
 	}
 
 	if (i == 0) {
-		dev_err(&hw->ilo_dev->dev, "Open could not dequeue a packet\n");
+		dev_err(&hw->ilo_dev->dev, "Open could yest dequeue a packet\n");
 		return -EBUSY;
 	}
 
@@ -455,7 +455,7 @@ static ssize_t ilo_read(struct file *fp, char __user *buf,
 
 	/*
 	 * This function is to be called when data is expected
-	 * in the channel, and will return an error if no packet is found
+	 * in the channel, and will return an error if yes packet is found
 	 * during the loop below.  The sleep/retry logic is to allow
 	 * applications to call read() immediately post write(),
 	 * and give iLO some time to process the sent packet.
@@ -533,14 +533,14 @@ static __poll_t ilo_poll(struct file *fp, poll_table *wait)
 	return 0;
 }
 
-static int ilo_close(struct inode *ip, struct file *fp)
+static int ilo_close(struct iyesde *ip, struct file *fp)
 {
 	int slot;
 	struct ccb_data *data;
 	struct ilo_hwinfo *hw;
 	unsigned long flags;
 
-	slot = iminor(ip) % max_ccb;
+	slot = imiyesr(ip) % max_ccb;
 	hw = container_of(ip->i_cdev, struct ilo_hwinfo, cdev);
 
 	spin_lock(&hw->open_lock);
@@ -564,14 +564,14 @@ static int ilo_close(struct inode *ip, struct file *fp)
 	return 0;
 }
 
-static int ilo_open(struct inode *ip, struct file *fp)
+static int ilo_open(struct iyesde *ip, struct file *fp)
 {
 	int slot, error;
 	struct ccb_data *data;
 	struct ilo_hwinfo *hw;
 	unsigned long flags;
 
-	slot = iminor(ip) % max_ccb;
+	slot = imiyesr(ip) % max_ccb;
 	hw = container_of(ip->i_cdev, struct ilo_hwinfo, cdev);
 
 	/* new ccb allocation */
@@ -583,7 +583,7 @@ static int ilo_open(struct inode *ip, struct file *fp)
 
 	/* each fd private_data holds sw/hw view of ccb */
 	if (hw->ccb_alloc[slot] == NULL) {
-		/* create a channel control block for this minor */
+		/* create a channel control block for this miyesr */
 		error = ilo_ccb_setup(hw, data, slot);
 		if (error) {
 			kfree(data);
@@ -645,7 +645,7 @@ static const struct file_operations ilo_fops = {
 	.poll		= ilo_poll,
 	.open 		= ilo_open,
 	.release 	= ilo_close,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static irqreturn_t ilo_isr(int irq, void *data)
@@ -735,7 +735,7 @@ out:
 
 static void ilo_remove(struct pci_dev *pdev)
 {
-	int i, minor;
+	int i, miyesr;
 	struct ilo_hwinfo *ilo_hw = pci_get_drvdata(pdev);
 
 	if (!ilo_hw)
@@ -743,8 +743,8 @@ static void ilo_remove(struct pci_dev *pdev)
 
 	clear_device(ilo_hw);
 
-	minor = MINOR(ilo_hw->cdev.dev);
-	for (i = minor; i < minor + max_ccb; i++)
+	miyesr = MINOR(ilo_hw->cdev.dev);
+	for (i = miyesr; i < miyesr + max_ccb; i++)
 		device_destroy(ilo_class, MKDEV(ilo_major, i));
 
 	cdev_del(&ilo_hw->cdev);
@@ -757,17 +757,17 @@ static void ilo_remove(struct pci_dev *pdev)
 	 * two functions with interrupt lines connected to a single pin. The
 	 * other one is a USB host controller. So when we disable the PIN here
 	 * e.g. by rmmod hpilo, the controller stops working. It is because
-	 * the interrupt link is disabled in ACPI since it is not refcounted
+	 * the interrupt link is disabled in ACPI since it is yest refcounted
 	 * yet. See acpi_pci_link_free_irq called from acpi_pci_irq_disable.
 	 */
 	kfree(ilo_hw);
-	ilo_hwdev[(minor / max_ccb)] = 0;
+	ilo_hwdev[(miyesr / max_ccb)] = 0;
 }
 
 static int ilo_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
-	int devnum, minor, start, error = 0;
+	int devnum, miyesr, start, error = 0;
 	struct ilo_hwinfo *ilo_hw;
 
 	if (pci_match_id(ilo_blacklist, pdev)) {
@@ -832,17 +832,17 @@ static int ilo_probe(struct pci_dev *pdev,
 	start = devnum * max_ccb;
 	error = cdev_add(&ilo_hw->cdev, MKDEV(ilo_major, start), max_ccb);
 	if (error) {
-		dev_err(&pdev->dev, "Could not add cdev\n");
+		dev_err(&pdev->dev, "Could yest add cdev\n");
 		goto remove_isr;
 	}
 
-	for (minor = 0 ; minor < max_ccb; minor++) {
+	for (miyesr = 0 ; miyesr < max_ccb; miyesr++) {
 		struct device *dev;
 		dev = device_create(ilo_class, &pdev->dev,
-				    MKDEV(ilo_major, minor), NULL,
-				    "hpilo!d%dccb%d", devnum, minor);
+				    MKDEV(ilo_major, miyesr), NULL,
+				    "hpilo!d%dccb%d", devnum, miyesr);
 		if (IS_ERR(dev))
-			dev_err(&pdev->dev, "Could not create files\n");
+			dev_err(&pdev->dev, "Could yest create files\n");
 	}
 
 	return 0;

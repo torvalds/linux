@@ -157,13 +157,13 @@ static int copy_sc_from_user(struct pt_regs *regs,
 	int err, pid;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	err = copy_from_user(&sc, from, sizeof(sc));
 	if (err)
 		return err;
 
-#define GETREG(regno, regname) regs->regs.gp[HOST_##regno] = sc.regname
+#define GETREG(regyes, regname) regs->regs.gp[HOST_##regyes] = sc.regname
 
 #ifdef CONFIG_X86_32
 	GETREG(GS, gs);
@@ -218,7 +218,7 @@ static int copy_sc_from_user(struct pt_regs *regs,
 		err = restore_fpx_registers(pid, (unsigned long *) &fpx);
 		if (err < 0) {
 			printk(KERN_ERR "copy_sc_from_user - "
-			       "restore_fpx_registers failed, errno = %d\n",
+			       "restore_fpx_registers failed, erryes = %d\n",
 			       -err);
 			return 1;
 		}
@@ -242,7 +242,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	int err, pid;
 	memset(&sc, 0, sizeof(struct sigcontext));
 
-#define PUTREG(regno, regname) sc.regname = regs->regs.gp[HOST_##regno]
+#define PUTREG(regyes, regname) sc.regname = regs->regs.gp[HOST_##regyes]
 
 #ifdef CONFIG_X86_32
 	PUTREG(GS, gs);
@@ -271,7 +271,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 
 	sc.cr2 = fi->cr2;
 	sc.err = fi->error_code;
-	sc.trapno = fi->trap_no;
+	sc.trapyes = fi->trap_yes;
 	PUTREG(IP, ip);
 	PUTREG(CS, cs);
 	PUTREG(EFLAGS, flags);
@@ -296,7 +296,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 		err = save_fpx_registers(pid, (unsigned long *) &fpx);
 		if (err < 0){
 			printk(KERN_ERR "copy_sc_to_user - save_fpx_registers "
-			       "failed, errno = %d\n", err);
+			       "failed, erryes = %d\n", err);
 			return 1;
 		}
 
@@ -385,7 +385,7 @@ int setup_signal_stack_sc(unsigned long stack_top, struct ksignal *ksig,
 	 * This is popl %eax ; movl $,%eax ; int $0x80
 	 *
 	 * WE DO NOT USE IT ANY MORE! It's only left here for historical
-	 * reasons and because gdb uses it as a signature to notice
+	 * reasons and because gdb uses it as a signature to yestice
 	 * signal handler stack frames.
 	 */
 	err |= __put_user(0xb858, (short __user *)(frame->retcode+0));
@@ -431,7 +431,7 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	 * This is movl $,%eax ; int $0x80
 	 *
 	 * WE DO NOT USE IT ANY MORE! It's only left here for historical
-	 * reasons and because gdb uses it as a signature to notice
+	 * reasons and because gdb uses it as a signature to yestice
 	 * signal handler stack frames.
 	 */
 	err |= __put_user(0xb8, (char __user *)(frame->retcode+0));
@@ -545,7 +545,7 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	PT_REGS_AX(regs) = 0;
 
 	/*
-	 * This also works for non SA_SIGINFO handlers because they expect the
+	 * This also works for yesn SA_SIGINFO handlers because they expect the
 	 * next argument after the signal number on the stack.
 	 */
 	PT_REGS_SI(regs) = (unsigned long) &frame->info;

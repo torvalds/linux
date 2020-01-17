@@ -12,7 +12,7 @@ maintainers:
 allOf:
   - $ref: "spi-controller.yaml#"
 
-# We need a select here so we don't match all nodes with 'arm,primecell'
+# We need a select here so we don't match all yesdes with 'arm,primecell'
 select:
   properties:
     compatible:
@@ -46,7 +46,7 @@ properties:
   pl022,autosuspend-delay:
     description: delay in ms following transfer completion before the
       runtime power management system suspends the device. A setting of 0
-      indicates no delay and the device will be suspended immediately.
+      indicates yes delay and the device will be suspended immediately.
     $ref: "/schemas/types.yaml#/definitions/uint32"
 
   pl022,rt:
@@ -75,7 +75,7 @@ properties:
 patternProperties:
   "^[a-zA-Z][a-zA-Z0-9,+\\-._]{0,63}@[0-9a-f]+$":
     type: object
-    # SPI slave nodes must be children of the SPI master node and can
+    # SPI slave yesdes must be children of the SPI master yesde and can
     # contain the following properties.
     properties:
       pl022,interface:
@@ -84,7 +84,7 @@ patternProperties:
           - $ref: "/schemas/types.yaml#/definitions/uint32"
           - enum:
               - 0  # SPI
-              - 1  # Texas Instruments Synchronous Serial Frame Format
+              - 1  # Texas Instruments Synchroyesus Serial Frame Format
               - 2  # Microwire (Half Duplex)
 
       pl022,com-mode:

@@ -539,7 +539,7 @@
 #define MVPP2_RX_COAL_USEC		64
 
 /* The two bytes Marvell header. Either contains a special value used
- * by Marvell switches when a specific hardware mode is enabled (not
+ * by Marvell switches when a specific hardware mode is enabled (yest
  * supported by this driver) or is filled automatically by zeroes on
  * the RX side. Those two bytes being at the front of the Ethernet
  * header, they allow to have the IP header aligned on a 4 bytes
@@ -864,7 +864,7 @@ struct mvpp2_rfs_rule {
 	/* Header fields that needs to be extracted to match this flow */
 	u16 hek_fields;
 
-	/* CLS engine : only c2 is supported for now. */
+	/* CLS engine : only c2 is supported for yesw. */
 	u8 engine;
 
 	/* TCAM key and mask for C2-based steering. These fields should be
@@ -893,8 +893,8 @@ struct mvpp2_port {
 
 	struct mvpp2 *priv;
 
-	/* Firmware node associated to the port */
-	struct fwnode_handle *fwnode;
+	/* Firmware yesde associated to the port */
+	struct fwyesde_handle *fwyesde;
 
 	/* Is a PHY always connected to the port */
 	bool has_phy;
@@ -932,7 +932,7 @@ struct mvpp2_port {
 	struct mutex gather_stats_lock;
 	struct delayed_work stats_work;
 
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 
 	phy_interface_t phy_interface;
 	struct phylink *phylink;

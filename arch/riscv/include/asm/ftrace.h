@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2017 Andes Technology Corporation */
+/* Copyright (C) 2017 Andes Techyeslogy Corporation */
 
 #ifndef _ASM_RISCV_FTRACE_H
 #define _ASM_RISCV_FTRACE_H
 
 /*
- * The graph frame test is not possible if CONFIG_FRAME_POINTER is not enabled.
+ * The graph frame test is yest possible if CONFIG_FRAME_POINTER is yest enabled.
  * Check arch/riscv/kernel/mcount.S for detail.
  */
 #if defined(CONFIG_FUNCTION_GRAPH_TRACER) && defined(CONFIG_FRAME_POINTER)

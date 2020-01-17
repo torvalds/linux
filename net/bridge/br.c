@@ -25,21 +25,21 @@
  * Note: don't care about up/down if bridge itself is down, because
  *     port state is checked when bridge is brought up.
  */
-static int br_device_event(struct notifier_block *unused, unsigned long event, void *ptr)
+static int br_device_event(struct yestifier_block *unused, unsigned long event, void *ptr)
 {
-	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
-	struct netdev_notifier_pre_changeaddr_info *prechaddr_info;
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct netlink_ext_ack *extack = netdev_yestifier_info_to_extack(ptr);
+	struct netdev_yestifier_pre_changeaddr_info *prechaddr_info;
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct net_bridge_port *p;
 	struct net_bridge *br;
-	bool notified = false;
+	bool yestified = false;
 	bool changed_addr;
 	int err;
 
 	if (dev->priv_flags & IFF_EBRIDGE) {
 		err = br_vlan_bridge_event(dev, event, ptr);
 		if (err)
-			return notifier_from_errno(err);
+			return yestifier_from_erryes(err);
 
 		if (event == NETDEV_REGISTER) {
 			/* register of bridge completed, add sysfs entries */
@@ -48,7 +48,7 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		}
 	}
 
-	/* not a port of a bridge */
+	/* yest a port of a bridge */
 	p = br_port_get_rtnl(dev);
 	if (!p)
 		return NOTIFY_DONE;
@@ -64,11 +64,11 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		if (br->dev->addr_assign_type == NET_ADDR_SET)
 			break;
 		prechaddr_info = ptr;
-		err = dev_pre_changeaddr_notify(br->dev,
+		err = dev_pre_changeaddr_yestify(br->dev,
 						prechaddr_info->dev_addr,
 						extack);
 		if (err)
-			return notifier_from_errno(err);
+			return yestifier_from_erryes(err);
 		break;
 
 	case NETDEV_CHANGEADDR:
@@ -78,12 +78,12 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		spin_unlock_bh(&br->lock);
 
 		if (changed_addr)
-			call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
+			call_netdevice_yestifiers(NETDEV_CHANGEADDR, br->dev);
 
 		break;
 
 	case NETDEV_CHANGE:
-		br_port_carrier_check(p, &notified);
+		br_port_carrier_check(p, &yestified);
 		break;
 
 	case NETDEV_FEAT_CHANGE:
@@ -94,7 +94,7 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		spin_lock_bh(&br->lock);
 		if (br->dev->flags & IFF_UP) {
 			br_stp_disable_port(p);
-			notified = true;
+			yestified = true;
 		}
 		spin_unlock_bh(&br->lock);
 		break;
@@ -103,7 +103,7 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		if (netif_running(br->dev) && netif_oper_up(dev)) {
 			spin_lock_bh(&br->lock);
 			br_stp_enable_port(p);
-			notified = true;
+			yestified = true;
 			spin_unlock_bh(&br->lock);
 		}
 		break;
@@ -115,7 +115,7 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	case NETDEV_CHANGENAME:
 		err = br_sysfs_renameif(p);
 		if (err)
-			return notifier_from_errno(err);
+			return yestifier_from_erryes(err);
 		break;
 
 	case NETDEV_PRE_TYPE_CHANGE:
@@ -124,7 +124,7 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 
 	case NETDEV_RESEND_IGMP:
 		/* Propagate to master device */
-		call_netdevice_notifiers(event, br->dev);
+		call_netdevice_yestifiers(event, br->dev);
 		break;
 	}
 
@@ -132,25 +132,25 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		br_vlan_port_event(p, event);
 
 	/* Events that may cause spanning tree to refresh */
-	if (!notified && (event == NETDEV_CHANGEADDR || event == NETDEV_UP ||
+	if (!yestified && (event == NETDEV_CHANGEADDR || event == NETDEV_UP ||
 			  event == NETDEV_CHANGE || event == NETDEV_DOWN))
-		br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+		br_ifinfo_yestify(RTM_NEWLINK, NULL, p);
 
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block br_device_notifier = {
-	.notifier_call = br_device_event
+static struct yestifier_block br_device_yestifier = {
+	.yestifier_call = br_device_event
 };
 
 /* called with RTNL or RCU */
-static int br_switchdev_event(struct notifier_block *unused,
+static int br_switchdev_event(struct yestifier_block *unused,
 			      unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_yestifier_info_to_dev(ptr);
 	struct net_bridge_port *p;
 	struct net_bridge *br;
-	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_yestifier_fdb_info *fdb_info;
 	int err = NOTIFY_DONE;
 
 	p = br_port_get_rtnl_rcu(dev);
@@ -165,7 +165,7 @@ static int br_switchdev_event(struct notifier_block *unused,
 		err = br_fdb_external_learn_add(br, p, fdb_info->addr,
 						fdb_info->vid, false);
 		if (err) {
-			err = notifier_from_errno(err);
+			err = yestifier_from_erryes(err);
 			break;
 		}
 		br_fdb_offloaded_set(br, p, fdb_info->addr,
@@ -176,7 +176,7 @@ static int br_switchdev_event(struct notifier_block *unused,
 		err = br_fdb_external_learn_del(br, p, fdb_info->addr,
 						fdb_info->vid, false);
 		if (err)
-			err = notifier_from_errno(err);
+			err = yestifier_from_erryes(err);
 		break;
 	case SWITCHDEV_FDB_OFFLOADED:
 		fdb_info = ptr;
@@ -189,8 +189,8 @@ out:
 	return err;
 }
 
-static struct notifier_block br_switchdev_notifier = {
-	.notifier_call = br_switchdev_event,
+static struct yestifier_block br_switchdev_yestifier = {
+	.yestifier_call = br_switchdev_event,
 };
 
 /* br_boolopt_toggle - change user-controlled boolean option
@@ -332,11 +332,11 @@ static int __init br_init(void)
 	if (err)
 		goto err_out2;
 
-	err = register_netdevice_notifier(&br_device_notifier);
+	err = register_netdevice_yestifier(&br_device_yestifier);
 	if (err)
 		goto err_out3;
 
-	err = register_switchdev_notifier(&br_switchdev_notifier);
+	err = register_switchdev_yestifier(&br_switchdev_yestifier);
 	if (err)
 		goto err_out4;
 
@@ -351,7 +351,7 @@ static int __init br_init(void)
 #endif
 
 #if IS_MODULE(CONFIG_BRIDGE_NETFILTER)
-	pr_info("bridge: filtering via arp/ip/ip6tables is no longer available "
+	pr_info("bridge: filtering via arp/ip/ip6tables is yes longer available "
 		"by default. Update your scripts to load br_netfilter if you "
 		"need this.\n");
 #endif
@@ -359,9 +359,9 @@ static int __init br_init(void)
 	return 0;
 
 err_out5:
-	unregister_switchdev_notifier(&br_switchdev_notifier);
+	unregister_switchdev_yestifier(&br_switchdev_yestifier);
 err_out4:
-	unregister_netdevice_notifier(&br_device_notifier);
+	unregister_netdevice_yestifier(&br_device_yestifier);
 err_out3:
 	br_nf_core_fini();
 err_out2:
@@ -377,8 +377,8 @@ static void __exit br_deinit(void)
 {
 	stp_proto_unregister(&br_stp_proto);
 	br_netlink_fini();
-	unregister_switchdev_notifier(&br_switchdev_notifier);
-	unregister_netdevice_notifier(&br_device_notifier);
+	unregister_switchdev_yestifier(&br_switchdev_yestifier);
+	unregister_netdevice_yestifier(&br_device_yestifier);
 	brioctl_set(NULL);
 	unregister_pernet_subsys(&br_net_ops);
 

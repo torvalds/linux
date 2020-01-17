@@ -449,8 +449,8 @@
 			dma-coherent;
 			interrupts = <0 13 4>, /* global secure fault */
 				     <0 14 4>, /* combined secure interrupt */
-				     <0 15 4>, /* global non-secure fault */
-				     <0 16 4>, /* combined non-secure interrupt */
+				     <0 15 4>, /* global yesn-secure fault */
+				     <0 16 4>, /* combined yesn-secure interrupt */
 				/* performance counter interrupts 0-7 */
 				     <0 211 4>, <0 212 4>,
 				     <0 213 4>, <0 214 4>,

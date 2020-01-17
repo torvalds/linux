@@ -6,24 +6,24 @@
 //
 // Copyright 2007-2010 Freescale Semiconductor, Inc.
 //
-// Some notes why imx-pcm-fiq is used instead of DMA on some boards:
+// Some yestes why imx-pcm-fiq is used instead of DMA on some boards:
 //
 // The i.MX SSI core has some nasty limitations in AC97 mode. While most
 // sane processor vendors have a FIFO per AC97 slot, the i.MX has only
-// one FIFO which combines all valid receive slots. We cannot even select
+// one FIFO which combines all valid receive slots. We canyest even select
 // which slots we want to receive. The WM9712 with which this driver
 // was developed with always sends GPIO status data in slot 12 which
 // we receive in our (PCM-) data stream. The only chance we have is to
 // manually skip this data in the FIQ handler. With sampling rates different
-// from 48000Hz not every frame has valid receive data, so the ratio
-// between pcm data and GPIO status data changes. Our FIQ handler is not
+// from 48000Hz yest every frame has valid receive data, so the ratio
+// between pcm data and GPIO status data changes. Our FIQ handler is yest
 // able to handle this, hence this driver only works with 48000Hz sampling
 // rate.
-// Reading and writing AC97 registers is another challenge. The core
-// provides us status bits when the read register is updated with *another*
+// Reading and writing AC97 registers is ayesther challenge. The core
+// provides us status bits when the read register is updated with *ayesther*
 // value. When we read the same register two times (and the register still
-// contains the same value) these status bits are not set. We work
-// around this by not polling these bits but only wait a fixed delay.
+// contains the same value) these status bits are yest set. We work
+// around this by yest polling these bits but only wait a fixed delay.
 
 #include <linux/init.h>
 #include <linux/io.h>
@@ -88,7 +88,7 @@
 /*
  * In AC97 mode, TXDIR bit is forced to 0 and TFDIR bit is forced to 1:
  *  - SSI inputs external bit clock and outputs frame sync clock -- CBM_CFS
- *  - Also have NB_NF to mark these two clocks will not be inverted
+ *  - Also have NB_NF to mark these two clocks will yest be inverted
  */
 #define FSLSSI_AC97_DAIFMT \
 	(SND_SOC_DAIFMT_AC97 | \
@@ -197,7 +197,7 @@ static const struct regmap_config fsl_ssi_regconfig = {
 
 struct fsl_ssi_soc_data {
 	bool imx;
-	bool imx21regs; /* imx21-class SSI - no SACC{ST,EN,DIS} regs */
+	bool imx21regs; /* imx21-class SSI - yes SACC{ST,EN,DIS} regs */
 	bool offline_config;
 	u32 sisr_write_mask;
 };
@@ -213,7 +213,7 @@ struct fsl_ssi_soc_data {
  * @streams: Mask of current active streams: BIT(TX) and BIT(RX)
  * @i2s_net: I2S and Network mode configurations of SCR register
  *           (this is the initial settings based on the DAI format)
- * @synchronous: Use synchronous mode - both of TX and RX use STCK and SFCK
+ * @synchroyesus: Use synchroyesus mode - both of TX and RX use STCK and SFCK
  * @use_dma: DMA is used or FIQ with stream filter
  * @use_dual_fifo: DMA with support for dual FIFO mode
  * @has_ipg_clk_name: If "ipg" is in the clock name list of device tree
@@ -263,7 +263,7 @@ struct fsl_ssi {
 	unsigned int dai_fmt;
 	u8 streams;
 	u8 i2s_net;
-	bool synchronous;
+	bool synchroyesus;
 	bool use_dma;
 	bool use_dual_fifo;
 	bool has_ipg_clk_name;
@@ -305,10 +305,10 @@ struct fsl_ssi {
  *
  * Notes:
  * 1) SSI in earlier SoCS has critical bits in control registers that
- *    cannot be changed after SSI starts running -- a software reset
+ *    canyest be changed after SSI starts running -- a software reset
  *    (set SSIEN to 0) is required to change their values. So adding
  *    an offline_config flag for these SoCs.
- * 2) SDMA is available since imx35. However, imx35 does not support
+ * 2) SDMA is available since imx35. However, imx35 does yest support
  *    DMA bits changing when SSI is running, so set offline_config.
  * 3) imx51 and later versions support register configurations when
  *    SSI is running (SSIEN); For these versions, DMA needs to be
@@ -399,7 +399,7 @@ static irqreturn_t fsl_ssi_isr(int irq, void *dev_id)
  *
  * Notes:
  * 1) For offline_config SoCs, enable all necessary bits of both streams
- *    when 1st stream starts, even if the opposite stream will not start
+ *    when 1st stream starts, even if the opposite stream will yest start
  * 2) It also clears FIFO before setting regvals; SOR is safe to set online
  */
 static void fsl_ssi_config_enable(struct fsl_ssi *ssi, bool tx)
@@ -422,7 +422,7 @@ static void fsl_ssi_config_enable(struct fsl_ssi *ssi, bool tx)
 
 	if (ssi->soc->offline_config) {
 		/*
-		 * Online reconfiguration not supported, so enable all bits for
+		 * Online reconfiguration yest supported, so enable all bits for
 		 * both streams at once to avoid necessity of reconfigurations
 		 */
 		srcr = vals[RX].srcr | vals[TX].srcr;
@@ -455,7 +455,7 @@ enable_scr:
 		regmap_update_bits(ssi->regs, REG_SSI_SCR,
 				   SSI_SCR_SSIEN, SSI_SCR_SSIEN);
 
-		/* Busy wait until TX FIFO not empty -- DMA working */
+		/* Busy wait until TX FIFO yest empty -- DMA working */
 		do {
 			regmap_read(ssi->regs, REG_SSI_SFCSR, &sfcsr);
 			if (SSI_SFCSR_TFCNT0(sfcsr))
@@ -485,7 +485,7 @@ enable_scr:
  * @aactive: active state of the opposite stream
  *
  *  1) XOR vals and avals to get the differences if the other stream is active;
- *     Otherwise, return current vals if the other stream is not active
+ *     Otherwise, return current vals if the other stream is yest active
  *  2) AND the result of 1) with the current vals
  */
 #define _ssi_xor_shared_bits(vals, avals, aactive) \
@@ -567,7 +567,7 @@ static void fsl_ssi_tx_ac97_saccst_setup(struct fsl_ssi *ssi)
 {
 	struct regmap *regs = ssi->regs;
 
-	/* no SACC{ST,EN,DIS} regs on imx21-class SSI */
+	/* yes SACC{ST,EN,DIS} regs on imx21-class SSI */
 	if (!ssi->soc->imx21regs) {
 		/* Disable all channel slots */
 		regmap_write(regs, REG_SSI_SACCDIS, 0xff);
@@ -590,7 +590,7 @@ static void fsl_ssi_setup_regvals(struct fsl_ssi *ssi)
 	vals[TX].stcr = SSI_STCR_TFEN0;
 	vals[TX].scr = SSI_SCR_SSIEN | SSI_SCR_TE;
 
-	/* AC97 has already enabled SSIEN, RE and TE, so ignore them */
+	/* AC97 has already enabled SSIEN, RE and TE, so igyesre them */
 	if (fsl_ssi_is_ac97(ssi))
 		vals[RX].scr = vals[TX].scr = 0;
 
@@ -695,7 +695,7 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 	/* Generate bit clock based on the slot number and slot width */
 	freq = slots * slot_width * params_rate(hw_params);
 
-	/* Don't apply it to any non-baudclk circumstance */
+	/* Don't apply it to any yesn-baudclk circumstance */
 	if (IS_ERR(ssi->baudclk))
 		return -EINVAL;
 
@@ -710,7 +710,7 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 
 	baudclk_is_used = ssi->baudclk_streams & ~(BIT(substream->stream));
 
-	/* It should be already enough to divide clock by setting pm alone */
+	/* It should be already eyesugh to divide clock by setting pm alone */
 	psr = 0;
 	div2 = 0;
 
@@ -761,8 +761,8 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 		(psr ? SSI_SxCCR_PSR : 0);
 	mask = SSI_SxCCR_PM_MASK | SSI_SxCCR_DIV2 | SSI_SxCCR_PSR;
 
-	/* STCCR is used for RX in synchronous mode */
-	tx2 = tx || ssi->synchronous;
+	/* STCCR is used for RX in synchroyesus mode */
+	tx2 = tx || ssi->synchroyesus;
 	regmap_update_bits(regs, REG_SSI_SxCCR(tx2), mask, stccr);
 
 	if (!baudclk_is_used) {
@@ -782,7 +782,7 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
  * Notes:
  * 1) SxCCR.WL bits are critical bits that require SSI to be temporarily
  *    disabled on offline_config SoCs. Even for online configurable SoCs
- *    running in synchronous mode (both TX and RX use STCCR), it is not
+ *    running in synchroyesus mode (both TX and RX use STCCR), it is yest
  *    safe to re-configure them when both two streams start running.
  * 2) SxCCR.PM, SxCCR.DIV2 and SxCCR.PSR bits will be configured in the
  *    fsl_ssi_set_bclk() if SSI is the DAI clock master.
@@ -804,7 +804,7 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 		if (ret)
 			return ret;
 
-		/* Do not enable the clock if it is already enabled */
+		/* Do yest enable the clock if it is already enabled */
 		if (!(ssi->baudclk_streams & BIT(substream->stream))) {
 			ret = clk_prepare_enable(ssi->baudclk);
 			if (ret)
@@ -816,11 +816,11 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 
 	/*
 	 * SSI is properly configured if it is enabled and running in
-	 * the synchronous mode; Note that AC97 mode is an exception
+	 * the synchroyesus mode; Note that AC97 mode is an exception
 	 * that should set separate configurations for STCCR and SRCCR
-	 * despite running in the synchronous mode.
+	 * despite running in the synchroyesus mode.
 	 */
-	if (ssi->streams && ssi->synchronous)
+	if (ssi->streams && ssi->synchroyesus)
 		return 0;
 
 	if (!fsl_ssi_is_ac97(ssi)) {
@@ -835,7 +835,7 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 		if (fsl_ssi_is_i2s_cbm_cfs(ssi) && sample_size == 16)
 			i2s_net = SSI_SCR_I2S_MODE_NORMAL | SSI_SCR_NET;
 
-		/* Use Normal mode to send mono data at 1st slot of 2 slots */
+		/* Use Normal mode to send moyes data at 1st slot of 2 slots */
 		if (channels == 1)
 			i2s_net = SSI_SCR_I2S_MODE_NORMAL;
 
@@ -843,8 +843,8 @@ static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
 				   SSI_SCR_I2S_NET_MASK, i2s_net);
 	}
 
-	/* In synchronous mode, the SSI uses STCCR for capture */
-	tx2 = tx || ssi->synchronous;
+	/* In synchroyesus mode, the SSI uses STCCR for capture */
+	tx2 = tx || ssi->synchroyesus;
 	regmap_update_bits(regs, REG_SSI_SxCCR(tx2), SSI_SxCCR_WL_MASK, wl);
 
 	return 0;
@@ -932,7 +932,7 @@ static int _fsl_ssi_set_dai_fmt(struct fsl_ssi *ssi, unsigned int fmt)
 	/* DAI clock inversion */
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
-		/* Nothing to do for both normal cases */
+		/* Nothing to do for both yesrmal cases */
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
 		/* Invert bit clock */
@@ -973,7 +973,7 @@ static int _fsl_ssi_set_dai_fmt(struct fsl_ssi *ssi, unsigned int fmt)
 	srcr = strcr;
 
 	/* Set SYN mode and clear RXDIR bit when using SYN or AC97 mode */
-	if (ssi->synchronous || fsl_ssi_is_ac97(ssi)) {
+	if (ssi->synchroyesus || fsl_ssi_is_ac97(ssi)) {
 		srcr &= ~SSI_SRCR_RXDIR;
 		scr |= SSI_SCR_SYN;
 	}
@@ -1069,7 +1069,7 @@ static int fsl_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 		/*
 		 * SACCST might be modified via AC Link by a CODEC if it sends
 		 * extra bits in their SLOTREQ requests, which'll accidentally
-		 * send valid data to slots other than normal playback slots.
+		 * send valid data to slots other than yesrmal playback slots.
 		 *
 		 * To be safe, configure SACCST right before TX starts.
 		 */
@@ -1309,7 +1309,7 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 		return ret;
 	}
 
-	/* Enable the clock since regmap will not handle it in this case */
+	/* Enable the clock since regmap will yest handle it in this case */
 	if (!ssi->has_ipg_clk_name) {
 		ret = clk_prepare_enable(ssi->clk);
 		if (ret) {
@@ -1318,7 +1318,7 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 		}
 	}
 
-	/* Do not error out for slave cases that live without a baud clock */
+	/* Do yest error out for slave cases that live without a baud clock */
 	ssi->baudclk = devm_clk_get(dev, "baud");
 	if (IS_ERR(ssi->baudclk))
 		dev_dbg(dev, "failed to get baud clock: %ld\n",
@@ -1338,7 +1338,7 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 	if (!ssi->use_dma) {
 		/*
 		 * Some boards use an incompatible codec. Use imx-fiq-pcm-audio
-		 * to get it working, as DMA is not possible in this situation.
+		 * to get it working, as DMA is yest possible in this situation.
 		 */
 		ssi->fiq_params.irq = ssi->irq;
 		ssi->fiq_params.base = iomem;
@@ -1374,7 +1374,7 @@ static void fsl_ssi_imx_clean(struct platform_device *pdev, struct fsl_ssi *ssi)
 static int fsl_ssi_probe_from_dt(struct fsl_ssi *ssi)
 {
 	struct device *dev = ssi->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct of_device_id *of_id;
 	const char *p, *sprop;
 	const __be32 *iprop;
@@ -1388,7 +1388,7 @@ static int fsl_ssi_probe_from_dt(struct fsl_ssi *ssi)
 	ssi->soc = of_id->data;
 
 	ret = of_property_match_string(np, "clock-names", "ipg");
-	/* Get error code if not found */
+	/* Get error code if yest found */
 	ssi->has_ipg_clk_name = ret >= 0;
 
 	/* Check if being used in AC97 mode */
@@ -1402,17 +1402,17 @@ static int fsl_ssi_probe_from_dt(struct fsl_ssi *ssi)
 			return -EINVAL;
 		}
 		strcpy(ssi->card_name, "ac97-codec");
-	} else if (!of_find_property(np, "fsl,ssi-asynchronous", NULL)) {
+	} else if (!of_find_property(np, "fsl,ssi-asynchroyesus", NULL)) {
 		/*
-		 * In synchronous mode, STCK and STFS ports are used by RX
+		 * In synchroyesus mode, STCK and STFS ports are used by RX
 		 * as well. So the software should limit the sample rates,
 		 * sample bits and channels to be symmetric.
 		 *
 		 * This is exclusive with FSLSSI_AC97_FORMATS as AC97 runs
-		 * in the SSI synchronous mode however it does not have to
+		 * in the SSI synchroyesus mode however it does yest have to
 		 * limit symmetric sample rates and sample bits.
 		 */
-		ssi->synchronous = true;
+		ssi->synchroyesus = true;
 	}
 
 	/* Select DMA or FIQ */
@@ -1439,10 +1439,10 @@ static int fsl_ssi_probe_from_dt(struct fsl_ssi *ssi)
 	 * different name to register the device.
 	 */
 	if (!ssi->card_name[0] && of_get_property(np, "codec-handle", NULL)) {
-		struct device_node *root = of_find_node_by_path("/");
+		struct device_yesde *root = of_find_yesde_by_path("/");
 
 		sprop = of_get_property(root, "compatible", NULL);
-		of_node_put(root);
+		of_yesde_put(root);
 		/* Strip "fsl," in the compatible name if applicable */
 		p = strrchr(sprop, ',');
 		if (p)
@@ -1513,8 +1513,8 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	if (ssi->irq < 0)
 		return ssi->irq;
 
-	/* Set software limitations for synchronous mode except AC97 */
-	if (ssi->synchronous && !fsl_ssi_is_ac97(ssi)) {
+	/* Set software limitations for synchroyesus mode except AC97 */
+	if (ssi->synchroyesus && !fsl_ssi_is_ac97(ssi)) {
 		ssi->cpu_dai_drv.symmetric_rates = 1;
 		ssi->cpu_dai_drv.symmetric_channels = 1;
 		ssi->cpu_dai_drv.symmetric_samplebits = 1;
@@ -1589,9 +1589,9 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	if (ssi->card_name[0]) {
 		struct device *parent = dev;
 		/*
-		 * Do not set SSI dev as the parent of AC97 CODEC device since
-		 * it does not have a DT node. Otherwise ASoC core will assume
-		 * CODEC has the same DT node as the SSI, so it may bypass the
+		 * Do yest set SSI dev as the parent of AC97 CODEC device since
+		 * it does yest have a DT yesde. Otherwise ASoC core will assume
+		 * CODEC has the same DT yesde as the SSI, so it may bypass the
 		 * dai_probe() of SSI and then cause NULL DMA data pointers.
 		 */
 		if (fsl_ssi_is_ac97(ssi))
@@ -1697,5 +1697,5 @@ module_platform_driver(fsl_ssi_driver);
 
 MODULE_ALIAS("platform:fsl-ssi-dai");
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
-MODULE_DESCRIPTION("Freescale Synchronous Serial Interface (SSI) ASoC Driver");
+MODULE_DESCRIPTION("Freescale Synchroyesus Serial Interface (SSI) ASoC Driver");
 MODULE_LICENSE("GPL v2");

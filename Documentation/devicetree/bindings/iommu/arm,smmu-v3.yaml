@@ -17,7 +17,7 @@ description: |+
   the PCIe specification.
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^iommu@[0-9a-f]*"
   compatible:
     const: arm,smmu-v3
@@ -40,9 +40,9 @@ properties:
       - minItems: 2
         maxItems: 4
         items:
-          - const: eventq     # Event Queue not empty
+          - const: eventq     # Event Queue yest empty
           - const: gerror     # Global Error activated
-          - const: priq       # PRI Queue not empty
+          - const: priq       # PRI Queue yest empty
           - const: cmdq-sync  # CMD_SYNC complete
 
   '#iommu-cells':
@@ -53,7 +53,7 @@ properties:
       Present if page table walks made by the SMMU are cache coherent with the
       CPU.
 
-      NOTE: this only applies to the SMMU itself, not masters connected
+      NOTE: this only applies to the SMMU itself, yest masters connected
       upstream of the SMMU.
 
   msi-parent: true

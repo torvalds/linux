@@ -35,7 +35,7 @@ struct qtnf_wmac *qtnf_core_get_mac(const struct qtnf_bus *bus, u8 macid)
 	mac = bus->mac[macid];
 
 	if (unlikely(!mac)) {
-		pr_err("MAC%u: not initialized\n", macid);
+		pr_err("MAC%u: yest initialized\n", macid);
 		return NULL;
 	}
 
@@ -86,7 +86,7 @@ qtnf_netdev_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	if (unlikely(vif->wdev.iftype == NL80211_IFTYPE_UNSPECIFIED)) {
-		pr_err_ratelimited("%s: VIF not initialized\n", ndev->name);
+		pr_err_ratelimited("%s: VIF yest initialized\n", ndev->name);
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -569,7 +569,7 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 	int ret;
 
 	if (!(bus->hw_info.mac_bitmap & BIT(macid))) {
-		pr_info("MAC%u is not active in FW\n", macid);
+		pr_info("MAC%u is yest active in FW\n", macid);
 		return 0;
 	}
 
@@ -591,7 +591,7 @@ static int qtnf_core_mac_attach(struct qtnf_bus *bus, unsigned int macid)
 
 	vif = qtnf_mac_get_base_vif(mac);
 	if (!vif) {
-		pr_err("MAC%u: primary VIF is not ready\n", macid);
+		pr_err("MAC%u: primary VIF is yest ready\n", macid);
 		ret = -EFAULT;
 		goto error;
 	}
@@ -656,11 +656,11 @@ bool qtnf_netdev_is_qtn(const struct net_device *ndev)
 	return ndev->netdev_ops == &qtnf_netdev_ops;
 }
 
-static int qtnf_core_netdevice_event(struct notifier_block *nb,
+static int qtnf_core_netdevice_event(struct yestifier_block *nb,
 				     unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
-	const struct netdev_notifier_changeupper_info *info;
+	struct net_device *ndev = netdev_yestifier_info_to_dev(ptr);
+	const struct netdev_yestifier_changeupper_info *info;
 	struct qtnf_vif *vif;
 	int br_domain;
 	int ret = 0;
@@ -696,7 +696,7 @@ static int qtnf_core_netdevice_event(struct notifier_block *nb,
 		break;
 	}
 
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 
 int qtnf_core_attach(struct qtnf_bus *bus)
@@ -748,7 +748,7 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 		bus->bus_ops->data_tx_use_meta_set(bus, true);
 
 	if (bus->hw_info.num_mac > QTNF_MAX_MAC) {
-		pr_err("no support for number of MACs=%u\n",
+		pr_err("yes support for number of MACs=%u\n",
 		       bus->hw_info.num_mac);
 		ret = -ERANGE;
 		goto error;
@@ -764,10 +764,10 @@ int qtnf_core_attach(struct qtnf_bus *bus)
 	}
 
 	if (bus->hw_info.hw_capab & QLINK_HW_CAPAB_HW_BRIDGE) {
-		bus->netdev_nb.notifier_call = qtnf_core_netdevice_event;
-		ret = register_netdevice_notifier(&bus->netdev_nb);
+		bus->netdev_nb.yestifier_call = qtnf_core_netdevice_event;
+		ret = register_netdevice_yestifier(&bus->netdev_nb);
 		if (ret) {
-			pr_err("failed to register netdev notifier: %d\n", ret);
+			pr_err("failed to register netdev yestifier: %d\n", ret);
 			goto error;
 		}
 	}
@@ -785,7 +785,7 @@ void qtnf_core_detach(struct qtnf_bus *bus)
 {
 	unsigned int macid;
 
-	unregister_netdevice_notifier(&bus->netdev_nb);
+	unregister_netdevice_yestifier(&bus->netdev_nb);
 	qtnf_bus_data_rx_stop(bus);
 
 	for (macid = 0; macid < QTNF_MAX_MAC; macid++)
@@ -850,21 +850,21 @@ struct net_device *qtnf_classify_skb(struct qtnf_bus *bus, struct sk_buff *skb)
 	mac = bus->mac[meta->macid];
 
 	if (unlikely(!mac)) {
-		pr_err_ratelimited("mac(%d) does not exist\n", meta->macid);
+		pr_err_ratelimited("mac(%d) does yest exist\n", meta->macid);
 		goto out;
 	}
 
 	vif = &mac->iflist[meta->ifidx];
 
 	if (unlikely(vif->wdev.iftype == NL80211_IFTYPE_UNSPECIFIED)) {
-		pr_err_ratelimited("vif(%u) does not exists\n", meta->ifidx);
+		pr_err_ratelimited("vif(%u) does yest exists\n", meta->ifidx);
 		goto out;
 	}
 
 	ndev = vif->netdev;
 
 	if (unlikely(!ndev)) {
-		pr_err_ratelimited("netdev for wlan%u.%u does not exists\n",
+		pr_err_ratelimited("netdev for wlan%u.%u does yest exists\n",
 				   meta->macid, meta->ifidx);
 		goto out;
 	}

@@ -28,7 +28,7 @@ struct kstatfs {
  * which doesn't make any sense for statfs.
  */
 #define ST_RDONLY	0x0001	/* mount read-only */
-#define ST_NOSUID	0x0002	/* ignore suid and sgid bits */
+#define ST_NOSUID	0x0002	/* igyesre suid and sgid bits */
 #define ST_NODEV	0x0004	/* disallow access to device special files */
 #define ST_NOEXEC	0x0008	/* disallow program execution */
 #define ST_SYNCHRONOUS	0x0010	/* writes are synced at once */
@@ -37,8 +37,8 @@ struct kstatfs {
 /* 0x0080 used for ST_WRITE in glibc */
 /* 0x0100 used for ST_APPEND in glibc */
 /* 0x0200 used for ST_IMMUTABLE in glibc */
-#define ST_NOATIME	0x0400	/* do not update access times */
-#define ST_NODIRATIME	0x0800	/* do not update directory access times */
+#define ST_NOATIME	0x0400	/* do yest update access times */
+#define ST_NODIRATIME	0x0800	/* do yest update directory access times */
 #define ST_RELATIME	0x1000	/* update atime relative to mtime/ctime */
 
 struct dentry;

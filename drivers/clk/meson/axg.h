@@ -106,8 +106,8 @@
 /*
  * CLKID index values
  *
- * These indices are entirely contrived and do not map onto the hardware.
- * It has now been decided to expose everything by default in the DT header:
+ * These indices are entirely contrived and do yest map onto the hardware.
+ * It has yesw been decided to expose everything by default in the DT header:
  * include/dt-bindings/clock/axg-clkc.h. Only the clocks ids we don't want
  * to expose, such as the internal muxes and dividers of composite clocks,
  * will remain defined here.

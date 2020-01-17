@@ -218,7 +218,7 @@ static const struct rk808_reg_data rk818_pre_init_reg[] = {
 	/* close charger when usb lower then 3.4V */
 	{ RK818_USB_CTRL_REG,	  RK818_USB_CHG_SD_VSEL_MASK,
 						    (0x7 << 4) },
-	/* no action when vref */
+	/* yes action when vref */
 	{ RK818_H5V_EN_REG,	  BIT(1),	    RK818_REF_RDY_CTRL },
 	/* enable HDMI 5V */
 	{ RK818_H5V_EN_REG,	  BIT(0),	    RK818_H5V_EN },
@@ -522,7 +522,7 @@ static void rk8xx_syscore_shutdown(void)
 					 SLPPIN_DN_FUN);
 		if (ret) {
 			dev_warn(&rk808_i2c_client->dev,
-				 "Cannot switch to power down function\n");
+				 "Canyest switch to power down function\n");
 		}
 	}
 }
@@ -544,7 +544,7 @@ MODULE_DEVICE_TABLE(of, rk808_of_match);
 static int rk808_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	struct rk808 *rk808;
 	const struct rk808_reg_data *pre_init_reg;
 	const struct mfd_cell *cells;
@@ -641,7 +641,7 @@ static int rk808_probe(struct i2c_client *client,
 	}
 
 	if (!client->irq) {
-		dev_err(&client->dev, "No interrupt support, no core IRQ\n");
+		dev_err(&client->dev, "No interrupt support, yes core IRQ\n");
 		return -EINVAL;
 	}
 
@@ -701,7 +701,7 @@ static int rk808_remove(struct i2c_client *client)
 	regmap_del_irq_chip(client->irq, rk808->irq_data);
 
 	/**
-	 * pm_power_off may points to a function from another module.
+	 * pm_power_off may points to a function from ayesther module.
 	 * Check if the pointer is set by us and only then overwrite it.
 	 */
 	if (rk808->pm_pwroff_fn && pm_power_off == rk808->pm_pwroff_fn)

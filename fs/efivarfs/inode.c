@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Red Hat, Inc.
- * Copyright (C) 2012 Jeremy Kerr <jeremy.kerr@canonical.com>
+ * Copyright (C) 2012 Jeremy Kerr <jeremy.kerr@cayesnical.com>
  */
 
 #include <linux/efi.h>
@@ -12,29 +12,29 @@
 
 #include "internal.h"
 
-struct inode *efivarfs_get_inode(struct super_block *sb,
-				const struct inode *dir, int mode,
+struct iyesde *efivarfs_get_iyesde(struct super_block *sb,
+				const struct iyesde *dir, int mode,
 				dev_t dev, bool is_removable)
 {
-	struct inode *inode = new_inode(sb);
+	struct iyesde *iyesde = new_iyesde(sb);
 
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		inode->i_mode = mode;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
-		inode->i_flags = is_removable ? 0 : S_IMMUTABLE;
+	if (iyesde) {
+		iyesde->i_iyes = get_next_iyes();
+		iyesde->i_mode = mode;
+		iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
+		iyesde->i_flags = is_removable ? 0 : S_IMMUTABLE;
 		switch (mode & S_IFMT) {
 		case S_IFREG:
-			inode->i_fop = &efivarfs_file_operations;
+			iyesde->i_fop = &efivarfs_file_operations;
 			break;
 		case S_IFDIR:
-			inode->i_op = &efivarfs_dir_inode_operations;
-			inode->i_fop = &simple_dir_operations;
-			inc_nlink(inode);
+			iyesde->i_op = &efivarfs_dir_iyesde_operations;
+			iyesde->i_fop = &simple_dir_operations;
+			inc_nlink(iyesde);
 			break;
 		}
 	}
-	return inode;
+	return iyesde;
 }
 
 /*
@@ -65,10 +65,10 @@ bool efivarfs_valid_name(const char *str, int len)
 	return uuid_is_valid(s);
 }
 
-static int efivarfs_create(struct inode *dir, struct dentry *dentry,
+static int efivarfs_create(struct iyesde *dir, struct dentry *dentry,
 			  umode_t mode, bool excl)
 {
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	struct efivar_entry *var;
 	int namelen, i = 0, err = 0;
 	bool is_removable = false;
@@ -91,8 +91,8 @@ static int efivarfs_create(struct inode *dir, struct dentry *dentry,
 					 dentry->d_name.name, namelen))
 		is_removable = true;
 
-	inode = efivarfs_get_inode(dir->i_sb, dir, mode, 0, is_removable);
-	if (!inode) {
+	iyesde = efivarfs_get_iyesde(dir->i_sb, dir, mode, 0, is_removable);
+	if (!iyesde) {
 		err = -ENOMEM;
 		goto out;
 	}
@@ -102,36 +102,36 @@ static int efivarfs_create(struct inode *dir, struct dentry *dentry,
 
 	var->var.VariableName[i] = '\0';
 
-	inode->i_private = var;
+	iyesde->i_private = var;
 
 	err = efivar_entry_add(var, &efivarfs_list);
 	if (err)
 		goto out;
 
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 	dget(dentry);
 out:
 	if (err) {
 		kfree(var);
-		if (inode)
-			iput(inode);
+		if (iyesde)
+			iput(iyesde);
 	}
 	return err;
 }
 
-static int efivarfs_unlink(struct inode *dir, struct dentry *dentry)
+static int efivarfs_unlink(struct iyesde *dir, struct dentry *dentry)
 {
-	struct efivar_entry *var = d_inode(dentry)->i_private;
+	struct efivar_entry *var = d_iyesde(dentry)->i_private;
 
 	if (efivar_entry_delete(var))
 		return -EINVAL;
 
-	drop_nlink(d_inode(dentry));
+	drop_nlink(d_iyesde(dentry));
 	dput(dentry);
 	return 0;
 };
 
-const struct inode_operations efivarfs_dir_inode_operations = {
+const struct iyesde_operations efivarfs_dir_iyesde_operations = {
 	.lookup = simple_lookup,
 	.unlink = efivarfs_unlink,
 	.create = efivarfs_create,

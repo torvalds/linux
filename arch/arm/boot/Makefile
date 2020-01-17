@@ -54,7 +54,7 @@ $(obj)/Image $(obj)/zImage: FORCE
 else
 
 $(obj)/xipImage: FORCE
-	@echo 'Kernel not configured for XIP (CONFIG_XIP_KERNEL!=y)'
+	@echo 'Kernel yest configured for XIP (CONFIG_XIP_KERNEL!=y)'
 	@false
 
 $(obj)/Image: vmlinux FORCE
@@ -80,7 +80,7 @@ endif
 
 check_for_multiple_loadaddr = \
 if [ $(words $(UIMAGE_LOADADDR)) -ne 1 ]; then \
-	echo 'multiple (or no) load addresses: $(UIMAGE_LOADADDR)'; \
+	echo 'multiple (or yes) load addresses: $(UIMAGE_LOADADDR)'; \
 	echo 'This is incompatible with uImages'; \
 	echo 'Specify LOADADDR on the commandline to build an uImage'; \
 	false; \
@@ -99,7 +99,7 @@ $(obj)/bootpImage: $(obj)/bootp/bootp FORCE
 PHONY += initrd install zinstall uinstall
 initrd:
 	@test "$(INITRD_PHYS)" != "" || \
-	(echo This machine does not support INITRD; exit -1)
+	(echo This machine does yest support INITRD; exit -1)
 	@test "$(INITRD)" != "" || \
 	(echo You must specify INITRD; exit -1)
 

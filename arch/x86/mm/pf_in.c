@@ -35,7 +35,7 @@ static unsigned int mw8[] = { 0x88, 0x8A, 0xC6, 0xB60F, 0xBE0F, 0xAA };
 static unsigned int mw16[] = { 0xB70F, 0xBF0F };
 static unsigned int mw32[] = { 0x89, 0x8B, 0xC7, 0xAB };
 static unsigned int mw64[] = {};
-#else /* not __i386__ */
+#else /* yest __i386__ */
 static unsigned char prefix_codes[] = {
 	0x66, 0x67, 0x2E, 0x3E, 0x26, 0x64, 0x65, 0x36,
 	0xF0, 0xF3, 0xF2,
@@ -61,7 +61,7 @@ static unsigned int mw16[] = { 0xB70F, 0xBF0F };
 static unsigned int mw32[] = { 0xC7 };
 /* 16, 32 or 64 bit */
 static unsigned int mw64[] = { 0x89, 0x8B, 0xAB };
-#endif /* not __i386__ */
+#endif /* yest __i386__ */
 
 struct prefix_bits {
 	unsigned shorted:1;
@@ -164,7 +164,7 @@ static unsigned int get_ins_reg_width(unsigned long ins_addr)
 		if (rw32[i] == opcode)
 			return prf.shorted ? 2 : (prf.enlarged ? 8 : 4);
 
-	printk(KERN_ERR "mmiotrace: Unknown opcode 0x%02x\n", opcode);
+	printk(KERN_ERR "mmiotrace: Unkyeswn opcode 0x%02x\n", opcode);
 	return 0;
 }
 
@@ -195,7 +195,7 @@ unsigned int get_ins_mem_width(unsigned long ins_addr)
 		if (mw64[i] == opcode)
 			return prf.shorted ? 2 : (prf.enlarged ? 8 : 4);
 
-	printk(KERN_ERR "mmiotrace: Unknown opcode 0x%02x\n", opcode);
+	printk(KERN_ERR "mmiotrace: Unkyeswn opcode 0x%02x\n", opcode);
 	return 0;
 }
 
@@ -233,11 +233,11 @@ enum {
 #endif
 };
 
-static unsigned char *get_reg_w8(int no, int rex, struct pt_regs *regs)
+static unsigned char *get_reg_w8(int yes, int rex, struct pt_regs *regs)
 {
 	unsigned char *rv = NULL;
 
-	switch (no) {
+	switch (yes) {
 	case arg_AL:
 		rv = (unsigned char *)&regs->ax;
 		break;
@@ -288,7 +288,7 @@ static unsigned char *get_reg_w8(int no, int rex, struct pt_regs *regs)
 		 * If REX prefix exists, access low bytes of SI etc.
 		 * instead of AH etc.
 		 */
-		switch (no) {
+		switch (yes) {
 		case arg_SI:
 			rv = (unsigned char *)&regs->si;
 			break;
@@ -305,7 +305,7 @@ static unsigned char *get_reg_w8(int no, int rex, struct pt_regs *regs)
 			break;
 		}
 	} else {
-		switch (no) {
+		switch (yes) {
 		case arg_AH:
 			rv = 1 + (unsigned char *)&regs->ax;
 			break;
@@ -324,16 +324,16 @@ static unsigned char *get_reg_w8(int no, int rex, struct pt_regs *regs)
 	}
 
 	if (!rv)
-		printk(KERN_ERR "mmiotrace: Error reg no# %d\n", no);
+		printk(KERN_ERR "mmiotrace: Error reg yes# %d\n", yes);
 
 	return rv;
 }
 
-static unsigned long *get_reg_w32(int no, struct pt_regs *regs)
+static unsigned long *get_reg_w32(int yes, struct pt_regs *regs)
 {
 	unsigned long *rv = NULL;
 
-	switch (no) {
+	switch (yes) {
 	case arg_AX:
 		rv = &regs->ax;
 		break;
@@ -385,7 +385,7 @@ static unsigned long *get_reg_w32(int no, struct pt_regs *regs)
 		break;
 #endif
 	default:
-		printk(KERN_ERR "mmiotrace: Error reg no# %d\n", no);
+		printk(KERN_ERR "mmiotrace: Error reg yes# %d\n", yes);
 	}
 
 	return rv;
@@ -487,7 +487,7 @@ do_work:
 
 	case 3:
 	default:
-		printk(KERN_ERR "mmiotrace: not a memory access instruction "
+		printk(KERN_ERR "mmiotrace: yest a memory access instruction "
 						"at 0x%lx, rm_mod=0x%02x\n",
 						ins_addr, mod_rm);
 	}

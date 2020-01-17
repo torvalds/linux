@@ -38,7 +38,7 @@
 #define AGP8X_MODE_BIT		3
 #define AGP8X_MODE		(1 << AGP8X_MODE_BIT)
 
-/* AGP bridge need not be PCI device, but DRM thinks it is. */
+/* AGP bridge need yest be PCI device, but DRM thinks it is. */
 static struct pci_dev fake_bridge_dev;
 
 static int hp_zx1_gart_found;
@@ -109,7 +109,7 @@ static int __init hp_zx1_ioc_shared(void)
 	hp->gatt = &hp->io_pdir[HP_ZX1_IOVA_TO_PDIR(hp->gart_base)];
 
 	if (hp->gatt[0] != HP_ZX1_SBA_IOMMU_COOKIE) {
-		/* Normal case when no AGP device in system */
+		/* Normal case when yes AGP device in system */
 		hp->gatt = NULL;
 		hp->gatt_entries = 0;
 		printk(KERN_ERR PFX "No reserved IO PDIR entry found; "
@@ -128,7 +128,7 @@ hp_zx1_ioc_owner (void)
 	printk(KERN_INFO PFX "HP ZX1 IOC: IOPDIR dedicated to GART\n");
 
 	/*
-	 * Select an IOV page size no larger than system page size.
+	 * Select an IOV page size yes larger than system page size.
 	 */
 	if (PAGE_SIZE >= KB(64)) {
 		hp->io_tlb_shift = 16;
@@ -482,7 +482,7 @@ zx1_gart_probe (acpi_handle obj, u32 depth, void *context, void **ret)
 
 	status = hp_acpi_csr_space(obj, &lba_hpa, &length);
 	if (ACPI_FAILURE(status))
-		return AE_OK; /* keep looking for another bridge */
+		return AE_OK; /* keep looking for ayesther bridge */
 
 	/* Look for an enclosing IOC scope and find its CSR space */
 	handle = obj;
@@ -498,7 +498,7 @@ zx1_gart_probe (acpi_handle obj, u32 depth, void *context, void **ret)
 					break;
 				else {
 					printk(KERN_ERR PFX "Detected HP ZX1 "
-					       "AGP LBA but no IOC.\n");
+					       "AGP LBA but yes IOC.\n");
 					return AE_OK;
 				}
 			}
@@ -509,7 +509,7 @@ zx1_gart_probe (acpi_handle obj, u32 depth, void *context, void **ret)
 	} while (ACPI_SUCCESS(status));
 
 	if (ACPI_FAILURE(status))
-		return AE_OK;	/* found no enclosing IOC */
+		return AE_OK;	/* found yes enclosing IOC */
 
 	if (hp_zx1_setup(sba_hpa + HP_ZX1_IOC_OFFSET, lba_hpa))
 		return AE_OK;

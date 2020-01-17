@@ -8,12 +8,12 @@
  */
 
 /dts-v1/;
-#include "exynos5422-odroid-core.dtsi"
+#include "exyyess5422-odroid-core.dtsi"
 
 / {
 	model = "Hardkernel Odroid HC1";
-	compatible = "hardkernel,odroid-hc1", "samsung,exynos5800", \
-		     "samsung,exynos5";
+	compatible = "hardkernel,odroid-hc1", "samsung,exyyess5800", \
+		     "samsung,exyyess5";
 
 	pwmleds {
 		compatible = "pwm-leds";
@@ -51,7 +51,7 @@
 			cooling-maps {
 				/*
 				 * When reaching cpu0_alert0, reduce CPU
-				 * by 2 steps. On Exynos5422/5800 that would
+				 * by 2 steps. On Exyyess5422/5800 that would
 				 * be: 1600 MHz and 1100 MHz.
 				 */
 				map0 {

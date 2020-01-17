@@ -38,7 +38,7 @@
 #include "common-smdk.h"
 
 static struct map_desc smdk2410_iodesc[] __initdata = {
-  /* nothing here yet */
+  /* yesthing here yet */
 };
 
 #define UCON S3C2410_UCON_DEFAULT

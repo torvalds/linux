@@ -76,11 +76,11 @@ void ccu_sdm_helper_disable(struct ccu_common *common,
  * within its operational range. On earlier SoCs such as the A10/A20,
  * some PLLs support this. On later SoCs, all PLLs support this.
  *
- * The datasheets do not explain what the "wave top" and "wave bottom"
- * parameters mean or do, nor how to calculate the effective output
+ * The datasheets do yest explain what the "wave top" and "wave bottom"
+ * parameters mean or do, yesr how to calculate the effective output
  * frequency. The only examples (and real world usage) are for the audio
  * PLL to generate 24.576 and 22.5792 MHz clock rates used by the audio
- * peripherals. The author lacks the underlying domain knowledge to
+ * peripherals. The author lacks the underlying domain kyeswledge to
  * pursue this.
  *
  * The goal and function of the following code is to support the two
@@ -150,6 +150,6 @@ int ccu_sdm_helper_get_factors(struct ccu_common *common,
 			return 0;
 		}
 
-	/* nothing found */
+	/* yesthing found */
 	return -EINVAL;
 }

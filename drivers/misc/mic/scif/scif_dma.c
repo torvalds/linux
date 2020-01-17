@@ -80,10 +80,10 @@ int scif_reserve_dma_chan(struct scif_endpt *ep)
 	struct scif_hw_dev *sdev;
 	struct dma_chan *chan;
 
-	/* Loopback DMAs are not supported on the management node */
-	if (!scif_info.nodeid && scifdev_self(ep->remote_dev))
+	/* Loopback DMAs are yest supported on the management yesde */
+	if (!scif_info.yesdeid && scifdev_self(ep->remote_dev))
 		return 0;
-	if (scif_info.nodeid)
+	if (scif_info.yesdeid)
 		scifdev = &scif_dev[0];
 	else
 		scifdev = ep->remote_dev;
@@ -105,7 +105,7 @@ int scif_reserve_dma_chan(struct scif_endpt *ep)
  * This routine destroys temporary cached windows
  */
 static
-void __scif_rma_destroy_tcw(struct scif_mmu_notif *mmn,
+void __scif_rma_destroy_tcw(struct scif_mmu_yestif *mmn,
 			    u64 start, u64 len)
 {
 	struct list_head *item, *tmp;
@@ -130,7 +130,7 @@ void __scif_rma_destroy_tcw(struct scif_mmu_notif *mmn,
 	}
 }
 
-static void scif_rma_destroy_tcw(struct scif_mmu_notif *mmn, u64 start, u64 len)
+static void scif_rma_destroy_tcw(struct scif_mmu_yestif *mmn, u64 start, u64 len)
 {
 	struct scif_endpt *ep = mmn->ep;
 
@@ -142,10 +142,10 @@ static void scif_rma_destroy_tcw(struct scif_mmu_notif *mmn, u64 start, u64 len)
 static void scif_rma_destroy_tcw_ep(struct scif_endpt *ep)
 {
 	struct list_head *item, *tmp;
-	struct scif_mmu_notif *mmn;
+	struct scif_mmu_yestif *mmn;
 
 	list_for_each_safe(item, tmp, &ep->rma_info.mmn_list) {
-		mmn = list_entry(item, struct scif_mmu_notif, list);
+		mmn = list_entry(item, struct scif_mmu_yestif, list);
 		scif_rma_destroy_tcw(mmn, 0, ULONG_MAX);
 	}
 }
@@ -153,11 +153,11 @@ static void scif_rma_destroy_tcw_ep(struct scif_endpt *ep)
 static void __scif_rma_destroy_tcw_ep(struct scif_endpt *ep)
 {
 	struct list_head *item, *tmp;
-	struct scif_mmu_notif *mmn;
+	struct scif_mmu_yestif *mmn;
 
 	spin_lock(&ep->rma_info.tc_lock);
 	list_for_each_safe(item, tmp, &ep->rma_info.mmn_list) {
-		mmn = list_entry(item, struct scif_mmu_notif, list);
+		mmn = list_entry(item, struct scif_mmu_yestif, list);
 		__scif_rma_destroy_tcw(mmn, 0, ULONG_MAX);
 	}
 	spin_unlock(&ep->rma_info.tc_lock);
@@ -181,29 +181,29 @@ static bool scif_rma_tc_can_cache(struct scif_endpt *ep, size_t cur_bytes)
 	return true;
 }
 
-static void scif_mmu_notifier_release(struct mmu_notifier *mn,
+static void scif_mmu_yestifier_release(struct mmu_yestifier *mn,
 				      struct mm_struct *mm)
 {
-	struct scif_mmu_notif	*mmn;
+	struct scif_mmu_yestif	*mmn;
 
-	mmn = container_of(mn, struct scif_mmu_notif, ep_mmu_notifier);
+	mmn = container_of(mn, struct scif_mmu_yestif, ep_mmu_yestifier);
 	scif_rma_destroy_tcw(mmn, 0, ULONG_MAX);
 	schedule_work(&scif_info.misc_work);
 }
 
-static int scif_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
-					const struct mmu_notifier_range *range)
+static int scif_mmu_yestifier_invalidate_range_start(struct mmu_yestifier *mn,
+					const struct mmu_yestifier_range *range)
 {
-	struct scif_mmu_notif	*mmn;
+	struct scif_mmu_yestif	*mmn;
 
-	mmn = container_of(mn, struct scif_mmu_notif, ep_mmu_notifier);
+	mmn = container_of(mn, struct scif_mmu_yestif, ep_mmu_yestifier);
 	scif_rma_destroy_tcw(mmn, range->start, range->end - range->start);
 
 	return 0;
 }
 
-static void scif_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
-			const struct mmu_notifier_range *range)
+static void scif_mmu_yestifier_invalidate_range_end(struct mmu_yestifier *mn,
+			const struct mmu_yestifier_range *range)
 {
 	/*
 	 * Nothing to do here, everything needed was done in
@@ -211,42 +211,42 @@ static void scif_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
 	 */
 }
 
-static const struct mmu_notifier_ops scif_mmu_notifier_ops = {
-	.release = scif_mmu_notifier_release,
+static const struct mmu_yestifier_ops scif_mmu_yestifier_ops = {
+	.release = scif_mmu_yestifier_release,
 	.clear_flush_young = NULL,
-	.invalidate_range_start = scif_mmu_notifier_invalidate_range_start,
-	.invalidate_range_end = scif_mmu_notifier_invalidate_range_end};
+	.invalidate_range_start = scif_mmu_yestifier_invalidate_range_start,
+	.invalidate_range_end = scif_mmu_yestifier_invalidate_range_end};
 
-static void scif_ep_unregister_mmu_notifier(struct scif_endpt *ep)
+static void scif_ep_unregister_mmu_yestifier(struct scif_endpt *ep)
 {
 	struct scif_endpt_rma_info *rma = &ep->rma_info;
-	struct scif_mmu_notif *mmn = NULL;
+	struct scif_mmu_yestif *mmn = NULL;
 	struct list_head *item, *tmp;
 
 	mutex_lock(&ep->rma_info.mmn_lock);
 	list_for_each_safe(item, tmp, &rma->mmn_list) {
-		mmn = list_entry(item, struct scif_mmu_notif, list);
-		mmu_notifier_unregister(&mmn->ep_mmu_notifier, mmn->mm);
+		mmn = list_entry(item, struct scif_mmu_yestif, list);
+		mmu_yestifier_unregister(&mmn->ep_mmu_yestifier, mmn->mm);
 		list_del(item);
 		kfree(mmn);
 	}
 	mutex_unlock(&ep->rma_info.mmn_lock);
 }
 
-static void scif_init_mmu_notifier(struct scif_mmu_notif *mmn,
+static void scif_init_mmu_yestifier(struct scif_mmu_yestif *mmn,
 				   struct mm_struct *mm, struct scif_endpt *ep)
 {
 	mmn->ep = ep;
 	mmn->mm = mm;
-	mmn->ep_mmu_notifier.ops = &scif_mmu_notifier_ops;
+	mmn->ep_mmu_yestifier.ops = &scif_mmu_yestifier_ops;
 	INIT_LIST_HEAD(&mmn->list);
 	INIT_LIST_HEAD(&mmn->tc_reg_list);
 }
 
-static struct scif_mmu_notif *
-scif_find_mmu_notifier(struct mm_struct *mm, struct scif_endpt_rma_info *rma)
+static struct scif_mmu_yestif *
+scif_find_mmu_yestifier(struct mm_struct *mm, struct scif_endpt_rma_info *rma)
 {
-	struct scif_mmu_notif *mmn;
+	struct scif_mmu_yestif *mmn;
 
 	list_for_each_entry(mmn, &rma->mmn_list, list)
 		if (mmn->mm == mm)
@@ -254,17 +254,17 @@ scif_find_mmu_notifier(struct mm_struct *mm, struct scif_endpt_rma_info *rma)
 	return NULL;
 }
 
-static struct scif_mmu_notif *
-scif_add_mmu_notifier(struct mm_struct *mm, struct scif_endpt *ep)
+static struct scif_mmu_yestif *
+scif_add_mmu_yestifier(struct mm_struct *mm, struct scif_endpt *ep)
 {
-	struct scif_mmu_notif *mmn
+	struct scif_mmu_yestif *mmn
 		 = kzalloc(sizeof(*mmn), GFP_KERNEL);
 
 	if (!mmn)
 		return ERR_PTR(-ENOMEM);
 
-	scif_init_mmu_notifier(mmn, current->mm, ep);
-	if (mmu_notifier_register(&mmn->ep_mmu_notifier, current->mm)) {
+	scif_init_mmu_yestifier(mmn, current->mm, ep);
+	if (mmu_yestifier_register(&mmn->ep_mmu_yestifier, current->mm)) {
 		kfree(mmn);
 		return ERR_PTR(-EBUSY);
 	}
@@ -274,21 +274,21 @@ scif_add_mmu_notifier(struct mm_struct *mm, struct scif_endpt *ep)
 
 /*
  * Called from the misc thread to destroy temporary cached windows and
- * unregister the MMU notifier for the SCIF endpoint.
+ * unregister the MMU yestifier for the SCIF endpoint.
  */
-void scif_mmu_notif_handler(struct work_struct *work)
+void scif_mmu_yestif_handler(struct work_struct *work)
 {
 	struct list_head *pos, *tmpq;
 	struct scif_endpt *ep;
 restart:
 	scif_rma_destroy_tcw_invalid();
 	spin_lock(&scif_info.rmalock);
-	list_for_each_safe(pos, tmpq, &scif_info.mmu_notif_cleanup) {
+	list_for_each_safe(pos, tmpq, &scif_info.mmu_yestif_cleanup) {
 		ep = list_entry(pos, struct scif_endpt, mmu_list);
 		list_del(&ep->mmu_list);
 		spin_unlock(&scif_info.rmalock);
 		scif_rma_destroy_tcw_ep(ep);
-		scif_ep_unregister_mmu_notifier(ep);
+		scif_ep_unregister_mmu_yestifier(ep);
 		goto restart;
 	}
 	spin_unlock(&scif_info.rmalock);
@@ -299,20 +299,20 @@ static bool scif_is_set_reg_cache(int flags)
 	return !!(flags & SCIF_RMA_USECACHE);
 }
 #else
-static struct scif_mmu_notif *
-scif_find_mmu_notifier(struct mm_struct *mm,
+static struct scif_mmu_yestif *
+scif_find_mmu_yestifier(struct mm_struct *mm,
 		       struct scif_endpt_rma_info *rma)
 {
 	return NULL;
 }
 
-static struct scif_mmu_notif *
-scif_add_mmu_notifier(struct mm_struct *mm, struct scif_endpt *ep)
+static struct scif_mmu_yestif *
+scif_add_mmu_yestifier(struct mm_struct *mm, struct scif_endpt *ep)
 {
 	return NULL;
 }
 
-void scif_mmu_notif_handler(struct work_struct *work)
+void scif_mmu_yestif_handler(struct work_struct *work)
 {
 }
 
@@ -335,7 +335,7 @@ static bool scif_rma_tc_can_cache(struct scif_endpt *ep, size_t cur_bytes)
  * @out_offset: computed offset returned by reference.
  * @out_window: allocated registered window returned by reference.
  *
- * Create a temporary registered window. The peer will not know about this
+ * Create a temporary registered window. The peer will yest kyesw about this
  * window. This API is used for scif_vreadfrom()/scif_vwriteto() API's.
  */
 static int
@@ -404,7 +404,7 @@ error_unpin:
  * @chan - DMA channel to be used.
  * @sync_wait: Wait for DMA to complete?
  *
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erryes on error.
  */
 static int scif_sync_dma(struct scif_hw_dev *sdev, struct dma_chan *chan,
 			 bool sync_wait)
@@ -470,7 +470,7 @@ static void scif_dma_callback(void *arg)
  * @dev - The address of the pointer to the device instance used
  * for DMA registration.
  * @chan - DMA channel to be used.
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erryes on error.
  */
 static int scif_async_dma(struct scif_hw_dev *sdev, struct dma_chan *chan)
 {
@@ -535,7 +535,7 @@ release:
  *
  * @sdev - The SCIF device
  * @chan - DMA channel
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erryes on error.
  */
 static int scif_drain_dma_poll(struct scif_hw_dev *sdev, struct dma_chan *chan)
 {
@@ -550,7 +550,7 @@ static int scif_drain_dma_poll(struct scif_hw_dev *sdev, struct dma_chan *chan)
  *
  * @sdev - The SCIF device
  * @chan - DMA channel
- * Return 0 on success and -errno on error.
+ * Return 0 on success and -erryes on error.
  */
 int scif_drain_dma_intr(struct scif_hw_dev *sdev, struct dma_chan *chan)
 {
@@ -665,7 +665,7 @@ void *ioremap_remote(off_t off, struct scif_window *window,
 	dma_addr_t phys = scif_off_to_dma_addr(window, off, NULL, iter);
 
 	/*
-	 * If the DMA address is not card relative then we need the DMA
+	 * If the DMA address is yest card relative then we need the DMA
 	 * addresses to be an offset into the bar. The aperture base was already
 	 * added so subtract it here since scif_ioremap is going to add it again
 	 */
@@ -683,10 +683,10 @@ iounmap_remote(void *virt, size_t size, struct scif_copy_work *work)
 
 /*
  * Takes care of ordering issue caused by
- * 1. Hardware:  Only in the case of cpu copy from mgmt node to card
+ * 1. Hardware:  Only in the case of cpu copy from mgmt yesde to card
  * because of WC memory.
  * 2. Software: If memcpy reorders copy instructions for optimization.
- * This could happen at both mgmt node and card.
+ * This could happen at both mgmt yesde and card.
  */
 static inline void
 scif_ordered_memcpy_toio(char *dst, const char *src, size_t count)
@@ -780,7 +780,7 @@ dma_addr_t scif_off_to_dma_addr(struct scif_window *window, s64 off,
 		start += (window->num_pages[i] << PAGE_SHIFT);
 	}
 	dev_err(scif_info.mdev.this_device,
-		"%s %d BUG. Addr not found? window %p off 0x%llx\n",
+		"%s %d BUG. Addr yest found? window %p off 0x%llx\n",
 		__func__, __LINE__, window, off);
 	return SCIF_RMA_ERROR_CODE;
 }
@@ -928,7 +928,7 @@ scif_rma_list_dma_copy_unaligned(struct scif_copy_work *work,
 			end_offset = window->offset +
 				(window->nr_pages << PAGE_SHIFT);
 		}
-		if (scif_is_mgmt_node())
+		if (scif_is_mgmt_yesde())
 			temp_dma_addr = temp_phys;
 		else
 			/* Fix if we ever enable IOMMU on the card */
@@ -943,7 +943,7 @@ scif_rma_list_dma_copy_unaligned(struct scif_copy_work *work,
 			    loop_len != L1_CACHE_BYTES) {
 				/*
 				 * Break up the last chunk of the transfer into
-				 * two steps. if there is no tail to guarantee
+				 * two steps. if there is yes tail to guarantee
 				 * DMA ordering. SCIF_DMA_POLLING inserts
 				 * a status update descriptor in step 1 which
 				 * acts as a double sided synchronization fence
@@ -1304,7 +1304,7 @@ static int scif_rma_list_dma_copy_aligned(struct scif_copy_work *work,
 		    !(remaining_len - loop_len)) {
 			/*
 			 * Break up the last chunk of the transfer into two
-			 * steps. if there is no tail to gurantee DMA ordering.
+			 * steps. if there is yes tail to gurantee DMA ordering.
 			 * Passing SCIF_DMA_POLLING inserts a status update
 			 * descriptor in step 1 which acts as a double sided
 			 * synchronization fence for the DMA engine to ensure
@@ -1571,7 +1571,7 @@ static int scif_rma_list_dma_copy_wrapper(struct scif_endpt *epd,
 		if (!temp)
 			goto free_comp_cb;
 		comp_cb->temp_buf_to_free = temp;
-		/* kmalloc(..) does not guarantee cache line alignment */
+		/* kmalloc(..) does yest guarantee cache line alignment */
 		if (!IS_ALIGNED((u64)temp, L1_CACHE_BYTES))
 			temp = PTR_ALIGN(temp, L1_CACHE_BYTES);
 	} else {
@@ -1644,7 +1644,7 @@ static int scif_rma_copy(scif_epd_t epd, off_t loffset, unsigned long addr,
 	bool loopback;
 	int err = 0;
 	struct dma_chan *chan;
-	struct scif_mmu_notif *mmn = NULL;
+	struct scif_mmu_yestif *mmn = NULL;
 	bool cache = false;
 	struct device *spdev;
 
@@ -1661,8 +1661,8 @@ static int scif_rma_copy(scif_epd_t epd, off_t loffset, unsigned long addr,
 				SCIF_DMA_POLL : 0;
 	copy_work.ordered = !!((flags & SCIF_RMA_ORDERED) && last_chunk);
 
-	/* Use CPU for Mgmt node <-> Mgmt node copies */
-	if (loopback && scif_is_mgmt_node()) {
+	/* Use CPU for Mgmt yesde <-> Mgmt yesde copies */
+	if (loopback && scif_is_mgmt_yesde()) {
 		flags |= SCIF_RMA_USECPU;
 		copy_work.fence_type = 0x0;
 	}
@@ -1688,9 +1688,9 @@ static int scif_rma_copy(scif_epd_t epd, off_t loffset, unsigned long addr,
 
 	if (addr && cache) {
 		mutex_lock(&ep->rma_info.mmn_lock);
-		mmn = scif_find_mmu_notifier(current->mm, &ep->rma_info);
+		mmn = scif_find_mmu_yestifier(current->mm, &ep->rma_info);
 		if (!mmn)
-			mmn = scif_add_mmu_notifier(current->mm, ep);
+			mmn = scif_add_mmu_yestifier(current->mm, ep);
 		mutex_unlock(&ep->rma_info.mmn_lock);
 		if (IS_ERR(mmn)) {
 			scif_put_peer_dev(spdev);

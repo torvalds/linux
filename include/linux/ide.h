@@ -26,7 +26,7 @@
 #include <asm/io.h>
 
 /*
- * Probably not wise to fiddle with these
+ * Probably yest wise to fiddle with these
  */
 #define SUPPORT_VLB_SYNC 1
 #define IDE_DEFAULT_MAX_FAILURES	1
@@ -138,16 +138,16 @@ struct ide_io_ports {
 #define SATA_CONTROL_OFFSET	(2)
 
 /*
- * Our Physical Region Descriptor (PRD) table should be large enough
+ * Our Physical Region Descriptor (PRD) table should be large eyesugh
  * to handle the biggest I/O request we are likely to see.  Since requests
- * can have no more than 256 sectors, and since the typical blocksize is
+ * can have yes more than 256 sectors, and since the typical blocksize is
  * two or more sectors, we could get by with a limit of 128 entries here for
  * the usual worst case.  Most requests seem to include some contiguous blocks,
  * further reducing the number of table entries required.
  *
  * The driver reverts to PIO mode for individual requests that exceed
  * this limit (possible with 512 byte blocksizes, eg. MSDOS f/s), so handling
- * 100% of all crazy scenarios here is not necessary.
+ * 100% of all crazy scenarios here is yest necessary.
  *
  * As it turns out though, we must allocate a full 4KB page for this,
  * so the two PRD tables (ide0 & ide1) will each get half of that,
@@ -159,7 +159,7 @@ struct ide_io_ports {
 /*
  * Some more useful definitions
  */
-#define PARTN_BITS	6	/* number of minor dev bits for partitions */
+#define PARTN_BITS	6	/* number of miyesr dev bits for partitions */
 #define MAX_DRIVES	2	/* per interface; 2 assumed by lots of code */
 
 /*
@@ -199,9 +199,9 @@ enum {
 
 /*
  * hwif_chipset_t is used to keep track of the specific hardware
- * chipset used by each IDE interface, if known.
+ * chipset used by each IDE interface, if kyeswn.
  */
-enum {		ide_unknown,	ide_generic,	ide_pci,
+enum {		ide_unkyeswn,	ide_generic,	ide_pci,
 		ide_cmd640,	ide_dtc2278,	ide_ali14xx,
 		ide_qd65xx,	ide_umc8672,	ide_ht6560b,
 		ide_4drives,	ide_pmac,	ide_acorn,
@@ -262,7 +262,7 @@ enum {
  * Status returned from various ide_ functions
  */
 typedef enum {
-	ide_stopped,	/* no drive operation was started */
+	ide_stopped,	/* yes drive operation was started */
 	ide_started,	/* a drive operation was started, handler was set */
 } ide_startstop_t;
 
@@ -356,7 +356,7 @@ struct ide_cmd {
 
 /* ATAPI packet command flags */
 enum {
-	/* set when an error is considered normal - no retry (ide-tape) */
+	/* set when an error is considered yesrmal - yes retry (ide-tape) */
 	PC_FLAG_ABORT			= BIT(0),
 	PC_FLAG_SUPPRESS_ERROR		= BIT(1),
 	PC_FLAG_WAIT_FOR_DSC		= BIT(2),
@@ -420,7 +420,7 @@ enum {
 	IDE_AFLAG_DRQ_INTERRUPT		= BIT(0),
 
 	/* ide-cd */
-	/* Drive cannot eject the disc. */
+	/* Drive canyest eject the disc. */
 	IDE_AFLAG_NO_EJECT		= BIT(1),
 	/* Drive is a pre ATAPI 1.2 drive. */
 	IDE_AFLAG_PRE_ATAPI12		= BIT(2),
@@ -442,7 +442,7 @@ enum {
 	IDE_AFLAG_LE_SPEED_FIELDS	= BIT(14),
 
 	/* ide-floppy */
-	/* Avoid commands not supported in Clik drive */
+	/* Avoid commands yest supported in Clik drive */
 	IDE_AFLAG_CLIK_DRIVE		= BIT(15),
 	/* Requires BH algorithm for packets */
 	IDE_AFLAG_ZIP_DRIVE		= BIT(16),
@@ -451,7 +451,7 @@ enum {
 
 	/* ide-tape */
 	IDE_AFLAG_IGNORE_DSC		= BIT(18),
-	/* 0 When the tape position is unknown */
+	/* 0 When the tape position is unkyeswn */
 	IDE_AFLAG_ADDRESS_VALID		= BIT(19),
 	/* Device already opened */
 	IDE_AFLAG_BUSY			= BIT(20),
@@ -459,7 +459,7 @@ enum {
 	IDE_AFLAG_DETECT_BS		= BIT(21),
 	/* Currently on a filemark */
 	IDE_AFLAG_FILEMARK		= BIT(22),
-	/* 0 = no tape is loaded, so we don't rewind after ejecting */
+	/* 0 = yes tape is loaded, so we don't rewind after ejecting */
 	IDE_AFLAG_MEDIUM_PRESENT	= BIT(23),
 
 	IDE_AFLAG_NO_AUTOCLOSE		= BIT(24),
@@ -483,7 +483,7 @@ enum {
 	IDE_DFLAG_PRESENT		= BIT(6),
 	/* disable Host Protected Area */
 	IDE_DFLAG_NOHPA			= BIT(7),
-	/* id read from device (synthetic if not set) */
+	/* id read from device (synthetic if yest set) */
 	IDE_DFLAG_ID_READ		= BIT(8),
 	IDE_DFLAG_NOPROBE		= BIT(9),
 	/* need to do check_media_change() */
@@ -499,7 +499,7 @@ enum {
 	IDE_DFLAG_DOORLOCKING		= BIT(15),
 	/* disallow DMA */
 	IDE_DFLAG_NODMA			= BIT(16),
-	/* powermanagement told us not to do anything, so sleep nicely */
+	/* powermanagement told us yest to do anything, so sleep nicely */
 	IDE_DFLAG_BLOCKED		= BIT(17),
 	/* sleeping & sleep field valid */
 	IDE_DFLAG_SLEEPING		= BIT(18),
@@ -508,7 +508,7 @@ enum {
 	IDE_DFLAG_LBA48			= BIT(21),
 	/* status of write cache */
 	IDE_DFLAG_WCACHE		= BIT(22),
-	/* used for ignoring ATA_DF */
+	/* used for igyesring ATA_DF */
 	IDE_DFLAG_NOWERR		= BIT(23),
 	/* retrying in PIO */
 	IDE_DFLAG_DMA_PIO_RETRY		= BIT(24),
@@ -562,14 +562,14 @@ struct ide_drive_s {
 	u8	desired_speed;	/* desired transfer rate set */
 	u8	pio_mode;	/* for ->set_pio_mode _only_ */
 	u8	dma_mode;	/* for ->set_dma_mode _only_ */
-	u8	dn;		/* now wide spread use */
+	u8	dn;		/* yesw wide spread use */
 	u8	acoustic;	/* acoustic management */
 	u8	media;		/* disk, cdrom, tape, floppy, ... */
 	u8	ready_stat;	/* min status value for drive ready */
 	u8	mult_count;	/* current multiple sector setting */
 	u8	mult_req;	/* requested multiple sector setting */
 	u8	io_32bit;	/* 0=16-bit, 1=32-bit, 2/3=32bit+sync */
-	u8	bad_wstat;	/* used for ignoring ATA_DF */
+	u8	bad_wstat;	/* used for igyesring ATA_DF */
 	u8	head;		/* "real" number of heads */
 	u8	sect;		/* "real" sectors per track */
 	u8	bios_head;	/* BIOS/fdisk/LILO number of heads */
@@ -818,7 +818,7 @@ typedef struct hwif_s {
 	int req_gen_timer;
 
 	spinlock_t lock;
-} ____cacheline_internodealigned_in_smp ide_hwif_t;
+} ____cacheline_interyesdealigned_in_smp ide_hwif_t;
 
 #define MAX_HOST_PORTS 4
 
@@ -1033,7 +1033,7 @@ enum {
  *
  * Upon reception of the interrupt, the core will call ide_complete_power_step()
  * with the error code if any. This routine should update the step value
- * and return. It should not start a new request. The core will call
+ * and return. It should yest start a new request. The core will call
  * ide_start_power_step() for the new step value, unless step have been
  * set to IDE_PM_COMPLETED.
  */
@@ -1202,7 +1202,7 @@ void ide_pio_bytes(ide_drive_t *, struct ide_cmd *, unsigned int, unsigned int);
 void ide_finish_cmd(ide_drive_t *, struct ide_cmd *, u8);
 
 int ide_raw_taskfile(ide_drive_t *, struct ide_cmd *, u8 *, u16);
-int ide_no_data_taskfile(ide_drive_t *, struct ide_cmd *);
+int ide_yes_data_taskfile(ide_drive_t *, struct ide_cmd *);
 
 int ide_taskfile_ioctl(ide_drive_t *, unsigned long);
 
@@ -1213,7 +1213,7 @@ extern int ide_config_drive_speed(ide_drive_t *, u8);
 extern u8 eighty_ninty_three (ide_drive_t *);
 extern int taskfile_lib_get_identify(ide_drive_t *drive, u8 *);
 
-extern int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout);
+extern int ide_wait_yest_busy(ide_hwif_t *hwif, unsigned long timeout);
 
 extern void ide_stall_queue(ide_drive_t *drive, unsigned long timeout);
 
@@ -1241,7 +1241,7 @@ static inline int ide_pci_is_in_compatibility_mode(struct pci_dev *dev)
 
 void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *,
 			 struct ide_hw *, struct ide_hw **);
-void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
+void ide_setup_pci_yesise(struct pci_dev *, const struct ide_port_info *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
 int ide_pci_set_master(struct pci_dev *, const char *);
@@ -1263,7 +1263,7 @@ struct ide_pci_enablebit {
 };
 
 enum {
-	/* Uses ISA control ports not PCI ones. */
+	/* Uses ISA control ports yest PCI ones. */
 	IDE_HFLAG_ISA_PORTS		= BIT(0),
 	/* single port device */
 	IDE_HFLAG_SINGLE		= BIT(1),
@@ -1292,7 +1292,7 @@ enum {
 	IDE_HFLAG_CS5520		= BIT(11),
 	/* ATAPI DMA is unsupported */
 	IDE_HFLAG_NO_ATAPI_DMA		= BIT(12),
-	/* set if host is a "non-bootable" controller */
+	/* set if host is a "yesn-bootable" controller */
 	IDE_HFLAG_NON_BOOTABLE		= BIT(13),
 	/* host doesn't support DMA */
 	IDE_HFLAG_NO_DMA		= BIT(14),
@@ -1300,9 +1300,9 @@ enum {
 	IDE_HFLAG_NO_AUTODMA		= BIT(15),
 	/* host uses MMIO */
 	IDE_HFLAG_MMIO			= BIT(16),
-	/* no LBA48 */
+	/* yes LBA48 */
 	IDE_HFLAG_NO_LBA48		= BIT(17),
-	/* no LBA48 DMA */
+	/* yes LBA48 DMA */
 	IDE_HFLAG_NO_LBA48_DMA		= BIT(18),
 	/* data FIFO is cleared by an error */
 	IDE_HFLAG_ERROR_STOPS_FIFO	= BIT(19),
@@ -1586,9 +1586,9 @@ static inline void ide_dump_identify(u8 *id)
 	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 16, 2, id, 512, 0);
 }
 
-static inline int hwif_to_node(ide_hwif_t *hwif)
+static inline int hwif_to_yesde(ide_hwif_t *hwif)
 {
-	return hwif->dev ? dev_to_node(hwif->dev) : -1;
+	return hwif->dev ? dev_to_yesde(hwif->dev) : -1;
 }
 
 static inline ide_drive_t *ide_get_pair_dev(ide_drive_t *drive)

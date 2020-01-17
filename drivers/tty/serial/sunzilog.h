@@ -146,7 +146,7 @@ struct zilog_layout {
 #define	DLC	4	/* Disable Lower Chain */
 #define	MIE	8	/* Master Interrupt Enable */
 #define	STATHI	0x10	/* Status high */
-#define	SWIACK  0x20    /* Software Interrupt Ack (not on NMOS) */
+#define	SWIACK  0x20    /* Software Interrupt Ack (yest on NMOS) */
 #define	NORESET	0	/* No reset on write to R9 */
 #define	CHRB	0x40	/* Reset channel B */
 #define	CHRA	0x80	/* Reset channel A */

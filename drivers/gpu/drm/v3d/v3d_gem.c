@@ -116,7 +116,7 @@ v3d_reset(struct v3d_dev *v3d)
 		      V3D_CORE_READ(0, V3D_ERR_STAT));
 	trace_v3d_reset_begin(dev);
 
-	/* XXX: only needed for safe powerdown, not reset. */
+	/* XXX: only needed for safe powerdown, yest reset. */
 	if (false)
 		v3d_idle_axi(v3d, 0);
 
@@ -168,7 +168,7 @@ v3d_flush_l2t(struct v3d_dev *v3d, int core)
 	 * L2T accesses will be stalled until the flush has completed.
 	 * However, we do need to make sure we don't try to trigger a
 	 * new flush while the L2_CLEAN queue is trying to
-	 * synchronously clean after a job.
+	 * synchroyesusly clean after a job.
 	 */
 	mutex_lock(&v3d->cache_clean_lock);
 	V3D_CORE_WRITE(core, V3D_CTL_L2TCACTL,
@@ -181,7 +181,7 @@ v3d_flush_l2t(struct v3d_dev *v3d, int core)
  *
  * For cleaning, which happens from the CACHE_CLEAN queue after CSD has
  * executed, we need to make sure that the clean is done before
- * signaling job completion.  So, we synchronously wait before
+ * signaling job completion.  So, we synchroyesusly wait before
  * returning, and we make sure that L2 invalidates don't happen in the
  * meantime to confuse our are-we-done checks.
  */
@@ -229,7 +229,7 @@ void
 v3d_invalidate_caches(struct v3d_dev *v3d)
 {
 	/* Invalidate the caches from the outside in.  That way if
-	 * another CL's concurrent use of nearby memory were to pull
+	 * ayesther CL's concurrent use of nearby memory were to pull
 	 * an invalidated cacheline back in, we wouldn't leave stale
 	 * data in the inner cache.
 	 */
@@ -786,7 +786,7 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 	trace_v3d_submit_csd_ioctl(&v3d->drm, args->cfg[5], args->cfg[6]);
 
 	if (!v3d_has_csd(v3d)) {
-		DRM_DEBUG("Attempting CSD submit on non-CSD hardware\n");
+		DRM_DEBUG("Attempting CSD submit on yesn-CSD hardware\n");
 		return -EINVAL;
 	}
 

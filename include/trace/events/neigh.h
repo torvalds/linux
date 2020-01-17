@@ -17,7 +17,7 @@
 		{ NUD_DELAY, "delay" },			\
 		{ NUD_PROBE, "probe" },			\
 		{ NUD_FAILED, "failed" },		\
-		{ NUD_NOARP, "noarp" },			\
+		{ NUD_NOARP, "yesarp" },			\
 		{ NUD_PERMANENT, "permanent"})
 
 TRACE_EVENT(neigh_create,

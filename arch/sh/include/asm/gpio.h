@@ -10,7 +10,7 @@
 #define __ASM_SH_GPIO_H
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #if defined(CONFIG_CPU_SH3)
 #include <cpu/gpio.h>

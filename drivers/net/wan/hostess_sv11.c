@@ -2,8 +2,8 @@
 /*
  *	Comtrol SV11 card driver
  *
- *	This is a slightly odd Z85230 synchronous driver. All you need to
- *	know basically is
+ *	This is a slightly odd Z85230 synchroyesus driver. All you need to
+ *	kyesw basically is
  *
  *	Its a genuine Z85230
  *
@@ -55,19 +55,19 @@ static inline struct z8530_dev* dev_to_sv(struct net_device *dev)
 
 /*
  *	Frame receive. Simple for our card as we do HDLC and there
- *	is no funny garbage involved
+ *	is yes funny garbage involved
  */
 
 static void hostess_input(struct z8530_channel *c, struct sk_buff *skb)
 {
-	/* Drop the CRC - it's not a good idea to try and negotiate it ;) */
+	/* Drop the CRC - it's yest a good idea to try and negotiate it ;) */
 	skb_trim(skb, skb->len - 2);
 	skb->protocol = hdlc_type_trans(skb, c->netdevice);
 	skb_reset_mac_header(skb);
 	skb->dev = c->netdevice;
 	/*
 	 *	Send it to the PPP layer. We don't have time to process
-	 *	it right now.
+	 *	it right yesw.
 	 */
 	netif_rx(skb);
 }
@@ -212,8 +212,8 @@ static struct z8530_dev *sv11_init(int iobase, int irq)
 	sv->chanA.dataio = iobase + 3;
 	sv->chanB.ctrlio = -1;
 	sv->chanB.dataio = -1;
-	sv->chanA.irqs = &z8530_nop;
-	sv->chanB.irqs = &z8530_nop;
+	sv->chanA.irqs = &z8530_yesp;
+	sv->chanB.irqs = &z8530_yesp;
 
 	outb(0, iobase + 4);		/* DMA off */
 
@@ -252,11 +252,11 @@ static struct z8530_dev *sv11_init(int iobase, int irq)
 	disable_irq(irq);
 
 	/*
-	 *	Begin normal initialise
+	 *	Begin yesrmal initialise
 	 */
 
 	if (z8530_init(sv)) {
-		pr_err("Z8530 series device not found\n");
+		pr_err("Z8530 series device yest found\n");
 		enable_irq(irq);
 		goto free_dma;
 	}

@@ -15,7 +15,7 @@
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/crc32.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/netdevice.h>
@@ -91,7 +91,7 @@ static int qec_global_reset(void __iomem *gregs)
 	}
 	if (tries)
 		return 0;
-	printk(KERN_ERR "BigMAC: Cannot reset the QEC.\n");
+	printk(KERN_ERR "BigMAC: Canyest reset the QEC.\n");
 	return -1;
 }
 
@@ -102,8 +102,8 @@ static void qec_init(struct bigmac *bp)
 	u8 bsizes = bp->bigmac_bursts;
 	u32 regval;
 
-	/* 64byte bursts do not work at the moment, do
-	 * not even try to enable them.  -DaveM
+	/* 64byte bursts do yest work at the moment, do
+	 * yest even try to enable them.  -DaveM
 	 */
 	if (bsizes & DMA_BURST32)
 		regval = GLOB_CTRL_B32;
@@ -133,14 +133,14 @@ static void bigmac_tx_reset(void __iomem *bregs)
 	sbus_writel(0, bregs + BMAC_TXCFG);
 
 	/* The fifo threshold bit is read-only and does
-	 * not clear.  -DaveM
+	 * yest clear.  -DaveM
 	 */
 	while ((sbus_readl(bregs + BMAC_TXCFG) & ~(BIGMAC_TXCFG_FIFO)) != 0 &&
 	       --tries != 0)
 		udelay(20);
 
 	if (!tries) {
-		printk(KERN_ERR "BIGMAC: Transmitter will not reset.\n");
+		printk(KERN_ERR "BIGMAC: Transmitter will yest reset.\n");
 		printk(KERN_ERR "BIGMAC: tx_cfg is %08x\n",
 		       sbus_readl(bregs + BMAC_TXCFG));
 	}
@@ -155,7 +155,7 @@ static void bigmac_rx_reset(void __iomem *bregs)
 		udelay(20);
 
 	if (!tries) {
-		printk(KERN_ERR "BIGMAC: Receiver will not reset.\n");
+		printk(KERN_ERR "BIGMAC: Receiver will yest reset.\n");
 		printk(KERN_ERR "BIGMAC: rx_cfg is %08x\n",
 		       sbus_readl(bregs + BMAC_RXCFG));
 	}
@@ -284,7 +284,7 @@ static void write_tcvr_bit(struct bigmac *bp, void __iomem *tregs, int bit)
 			    tregs + TCVR_MPAL);
 		sbus_readl(tregs + TCVR_MPAL);
 	} else {
-		printk(KERN_ERR "write_tcvr_bit: No transceiver type known!\n");
+		printk(KERN_ERR "write_tcvr_bit: No transceiver type kyeswn!\n");
 	}
 }
 
@@ -306,7 +306,7 @@ static int read_tcvr_bit(struct bigmac *bp, void __iomem *tregs)
 		sbus_readl(tregs + TCVR_MPAL);
 		retval = (sbus_readl(tregs + TCVR_MPAL) & MGMT_PAL_EXT_MDIO) >> 2;
 	} else {
-		printk(KERN_ERR "read_tcvr_bit: No transceiver type known!\n");
+		printk(KERN_ERR "read_tcvr_bit: No transceiver type kyeswn!\n");
 	}
 	return retval;
 }
@@ -328,7 +328,7 @@ static int read_tcvr_bit2(struct bigmac *bp, void __iomem *tregs)
 		sbus_writel(MGMT_PAL_INT_MDIO | MGMT_PAL_DCLOCK, tregs + TCVR_MPAL);
 		sbus_readl(tregs + TCVR_MPAL);
 	} else {
-		printk(KERN_ERR "read_tcvr_bit2: No transceiver type known!\n");
+		printk(KERN_ERR "read_tcvr_bit2: No transceiver type kyeswn!\n");
 	}
 	return retval;
 }
@@ -358,7 +358,7 @@ static void bigmac_tcvr_write(struct bigmac *bp, void __iomem *tregs,
 		break;
 
 	default:
-		printk(KERN_ERR "bigmac_tcvr_read: Whoops, no known transceiver type.\n");
+		printk(KERN_ERR "bigmac_tcvr_read: Whoops, yes kyeswn transceiver type.\n");
 		return;
 	}
 
@@ -397,7 +397,7 @@ static unsigned short bigmac_tcvr_read(struct bigmac *bp,
 		break;
 
 	default:
-		printk(KERN_ERR "bigmac_tcvr_read: Whoops, no known transceiver type.\n");
+		printk(KERN_ERR "bigmac_tcvr_read: Whoops, yes kyeswn transceiver type.\n");
 		return 0xffff;
 	}
 
@@ -481,7 +481,7 @@ static void bigmac_tcvr_init(struct bigmac *bp)
 			    tregs + TCVR_TPAL);
 		sbus_readl(tregs + TCVR_TPAL);
 	} else {
-		printk(KERN_ERR "BIGMAC: AIEEE, neither internal nor "
+		printk(KERN_ERR "BIGMAC: AIEEE, neither internal yesr "
 		       "external MDIO available!\n");
 		printk(KERN_ERR "BIGMAC: mgmt_pal[%08x] tcvr_pal[%08x]\n",
 		       sbus_readl(tregs + TCVR_MPAL),
@@ -535,7 +535,7 @@ static void bigmac_timer(struct timer_list *t)
 		bp->sw_bmsr = bigmac_tcvr_read(bp, tregs, MII_BMSR);
 		bp->sw_bmcr = bigmac_tcvr_read(bp, tregs, MII_BMCR);
 		if (bp->sw_bmsr & BMSR_LSTATUS) {
-			printk(KERN_INFO "%s: Link is now up at %s.\n",
+			printk(KERN_INFO "%s: Link is yesw up at %s.\n",
 			       bp->dev->name,
 			       (bp->sw_bmcr & BMCR_SPEED100) ?
 			       "100baseT" : "10baseT");
@@ -551,7 +551,7 @@ static void bigmac_timer(struct timer_list *t)
 					       bp->dev->name);
 					ret = bigmac_init_hw(bp, 0);
 					if (ret) {
-						printk(KERN_ERR "%s: Error, cannot re-init the "
+						printk(KERN_ERR "%s: Error, canyest re-init the "
 						       "BigMAC.\n", bp->dev->name);
 					}
 					return;
@@ -666,7 +666,7 @@ static int bigmac_init_hw(struct bigmac *bp, int from_irq)
 	sbus_writel(((e[5] | e[4] << 8) & 0x3ff),
 		    bregs + BMAC_RSEED);
 
-	/* Enable the output drivers no matter what. */
+	/* Enable the output drivers yes matter what. */
 	sbus_writel(BIGMAC_XCFG_ODENABLE | BIGMAC_XCFG_RESV,
 		    bregs + BMAC_XIFCFG);
 
@@ -806,7 +806,7 @@ static void bigmac_rx(struct bigmac *bp)
 	this = &rxbase[elem];
 	while (!((flags = this->rx_flags) & RXD_OWN)) {
 		struct sk_buff *skb;
-		int len = (flags & RXD_LENGTH); /* FCS not included */
+		int len = (flags & RXD_LENGTH); /* FCS yest included */
 
 		/* Check for errors. */
 		if (len < ETH_ZLEN) {
@@ -892,7 +892,7 @@ static irqreturn_t bigmac_interrupt(int irq, void *dev_id)
 
 	DIRQ(("bigmac_interrupt: "));
 
-	/* Latch status registers now. */
+	/* Latch status registers yesw. */
 	bmac_status = sbus_readl(bp->creg + CREG_STAT);
 	qec_status = sbus_readl(bp->gregs + GLOB_STAT);
 
@@ -1102,13 +1102,13 @@ static int bigmac_ether_init(struct platform_device *op,
 	bp->gregs = of_ioremap(&qec_op->resource[0], 0,
 			       GLOB_REG_SIZE, "BigMAC QEC GLobal Regs");
 	if (!bp->gregs) {
-		printk(KERN_ERR "BIGMAC: Cannot map QEC global registers.\n");
+		printk(KERN_ERR "BIGMAC: Canyest map QEC global registers.\n");
 		goto fail_and_cleanup;
 	}
 
 	/* Make sure QEC is in BigMAC mode. */
 	if ((sbus_readl(bp->gregs + GLOB_CTRL) & 0xf0000000) != GLOB_CTRL_BMODE) {
-		printk(KERN_ERR "BigMAC: AIEEE, QEC is not in BigMAC mode!\n");
+		printk(KERN_ERR "BigMAC: AIEEE, QEC is yest in BigMAC mode!\n");
 		goto fail_and_cleanup;
 	}
 
@@ -1117,8 +1117,8 @@ static int bigmac_ether_init(struct platform_device *op,
 		goto fail_and_cleanup;
 
 	/* Get supported SBUS burst sizes. */
-	bsizes = of_getintprop_default(qec_op->dev.of_node, "burst-sizes", 0xff);
-	bsizes_more = of_getintprop_default(qec_op->dev.of_node, "burst-sizes", 0xff);
+	bsizes = of_getintprop_default(qec_op->dev.of_yesde, "burst-sizes", 0xff);
+	bsizes_more = of_getintprop_default(qec_op->dev.of_yesde, "burst-sizes", 0xff);
 
 	bsizes &= 0xff;
 	if (bsizes_more != 0xff)
@@ -1135,7 +1135,7 @@ static int bigmac_ether_init(struct platform_device *op,
 	bp->creg = of_ioremap(&op->resource[0], 0,
 			      CREG_REG_SIZE, "BigMAC QEC Channel Regs");
 	if (!bp->creg) {
-		printk(KERN_ERR "BIGMAC: Cannot map QEC channel registers.\n");
+		printk(KERN_ERR "BIGMAC: Canyest map QEC channel registers.\n");
 		goto fail_and_cleanup;
 	}
 
@@ -1143,7 +1143,7 @@ static int bigmac_ether_init(struct platform_device *op,
 	bp->bregs = of_ioremap(&op->resource[1], 0,
 			       BMAC_REG_SIZE, "BigMAC Primary Regs");
 	if (!bp->bregs) {
-		printk(KERN_ERR "BIGMAC: Cannot map BigMAC primary registers.\n");
+		printk(KERN_ERR "BIGMAC: Canyest map BigMAC primary registers.\n");
 		goto fail_and_cleanup;
 	}
 
@@ -1153,7 +1153,7 @@ static int bigmac_ether_init(struct platform_device *op,
 	bp->tregs = of_ioremap(&op->resource[2], 0,
 			       TCVR_REG_SIZE, "BigMAC Transceiver Regs");
 	if (!bp->tregs) {
-		printk(KERN_ERR "BIGMAC: Cannot map BigMAC transceiver registers.\n");
+		printk(KERN_ERR "BIGMAC: Canyest map BigMAC transceiver registers.\n");
 		goto fail_and_cleanup;
 	}
 
@@ -1168,7 +1168,7 @@ static int bigmac_ether_init(struct platform_device *op,
 		goto fail_and_cleanup;
 
 	/* Get the board revision of this BigMAC. */
-	bp->board_rev = of_getintprop_default(bp->bigmac_op->dev.of_node,
+	bp->board_rev = of_getintprop_default(bp->bigmac_op->dev.of_yesde,
 					      "board-version", 1);
 
 	/* Init auto-negotiation timer state. */
@@ -1189,7 +1189,7 @@ static int bigmac_ether_init(struct platform_device *op,
 	dev->dma = 0;
 
 	if (register_netdev(dev)) {
-		printk(KERN_ERR "BIGMAC: Cannot register device.\n");
+		printk(KERN_ERR "BIGMAC: Canyest register device.\n");
 		goto fail_and_cleanup;
 	}
 

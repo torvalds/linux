@@ -11,7 +11,7 @@
 // Common Codes for S3C64XX machines
 
 /*
- * NOTE: Code in this file is not used when booting with Device Tree support.
+ * NOTE: Code in this file is yest used when booting with Device Tree support.
  */
 
 #include <linux/kernel.h>
@@ -67,9 +67,9 @@ void __init s3c64xx_set_xusbxti_freq(unsigned long freq)
 
 /* uart registration process */
 
-static void __init s3c64xx_init_uarts(struct s3c2410_uartcfg *cfg, int no)
+static void __init s3c64xx_init_uarts(struct s3c2410_uartcfg *cfg, int yes)
 {
-	s3c24xx_init_uartdevs("s3c6400-uart", s3c64xx_uart_resources, cfg, no);
+	s3c24xx_init_uartdevs("s3c6400-uart", s3c64xx_uart_resources, cfg, yes);
 }
 
 /* table of supported CPUs */
@@ -97,7 +97,7 @@ static struct cpu_table cpu_ids[] __initdata = {
 
 /* minimal IO mapping */
 
-/* see notes on uart map in arch/arm/mach-s3c64xx/include/mach/debug-macro.S */
+/* see yestes on uart map in arch/arm/mach-s3c64xx/include/mach/debug-macro.S */
 #define UART_OFFS (S3C_PA_UART & 0xfffff)
 
 static struct map_desc s3c_iodesc[] __initdata = {
@@ -216,7 +216,7 @@ core_initcall(s3c64xx_dev_init);
 
 /*
  * setup the sources the vic should advertise resume
- * for, even though it is not doing the wake
+ * for, even though it is yest doing the wake
  * (set_irq_wake needs to be valid)
  */
 #define IRQ_VIC0_RESUME (1 << (IRQ_RTC_TIC - IRQ_VIC0_BASE))
@@ -229,7 +229,7 @@ core_initcall(s3c64xx_dev_init);
 void __init s3c64xx_init_irq(u32 vic0_valid, u32 vic1_valid)
 {
 	/*
-	 * FIXME: there is no better place to put this at the moment
+	 * FIXME: there is yes better place to put this at the moment
 	 * (s3c64xx_clk_init needs ioremap and must happen before init_time
 	 * samsung_wdt_reset_init needs clocks)
 	 */

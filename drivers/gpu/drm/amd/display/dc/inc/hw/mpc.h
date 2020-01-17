@@ -7,7 +7,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -84,14 +84,14 @@ struct mpcc_sm_cfg {
 	bool frame_alt;
 	/* 0- disable field alternate, 1- enable field alternate */
 	bool field_alt;
-	/* 0-no force,2-force frame polarity from top,3-force frame polarity from bottom */
+	/* 0-yes force,2-force frame polarity from top,3-force frame polarity from bottom */
 	int force_next_frame_porlarity;
-	/* 0-no force,2-force field polarity from top,3-force field polarity from bottom */
+	/* 0-yes force,2-force field polarity from top,3-force field polarity from bottom */
 	int force_next_field_polarity;
 };
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-struct mpc_denorm_clamp {
+struct mpc_deyesrm_clamp {
 	int clamp_max_r_cr;
 	int clamp_min_r_cr;
 	int clamp_max_g_y;
@@ -103,12 +103,12 @@ struct mpc_denorm_clamp {
 
 /*
  * MPCC connection and blending configuration for a single MPCC instance.
- * This struct is used as a node in an MPC tree.
+ * This struct is used as a yesde in an MPC tree.
  */
 struct mpcc {
 	int mpcc_id;			/* MPCC physical instance */
 	int dpp_id;			/* DPP input to this MPCC */
-	struct mpcc *mpcc_bot;		/* pointer to bottom layer MPCC.  NULL when not connected */
+	struct mpcc *mpcc_bot;		/* pointer to bottom layer MPCC.  NULL when yest connected */
 	struct mpcc_blnd_cfg blnd_cfg;	/* The blending configuration for this MPCC */
 	struct mpcc_sm_cfg sm_cfg;	/* stereo mix setting for this MPCC */
 };
@@ -231,14 +231,14 @@ struct mpc_funcs {
 		struct mpc_tree *tree);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-	void (*set_denorm)(struct mpc *mpc,
+	void (*set_deyesrm)(struct mpc *mpc,
 			int opp_id,
 			enum dc_color_depth output_depth);
 
-	void (*set_denorm_clamp)(
+	void (*set_deyesrm_clamp)(
 			struct mpc *mpc,
 			int opp_id,
-			struct mpc_denorm_clamp denorm_clamp);
+			struct mpc_deyesrm_clamp deyesrm_clamp);
 
 	void (*set_output_csc)(struct mpc *mpc,
 			int opp_id,

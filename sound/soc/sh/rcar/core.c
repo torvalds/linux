@@ -3,10 +3,10 @@
 // Renesas R-Car SRU/SCU/SSIU/SSI support
 //
 // Copyright (C) 2013 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
 //
 // Based on fsi.c
-// Kuninori Morimoto <morimoto.kuninori@renesas.com>
+// Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
 
 /*
  * Renesas R-Car sound device structure
@@ -125,7 +125,7 @@ void rsnd_mod_make_sure(struct rsnd_mod *mod, enum rsnd_mod_type type)
 		struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 		struct device *dev = rsnd_priv_to_dev(priv);
 
-		dev_warn(dev, "%s is not your expected module\n",
+		dev_warn(dev, "%s is yest your expected module\n",
 			 rsnd_mod_name(mod));
 	}
 }
@@ -300,7 +300,7 @@ int rsnd_runtime_channel_after_ctu_with_params(struct rsnd_dai_stream *io,
 	return chan;
 }
 
-int rsnd_channel_normalization(int chan)
+int rsnd_channel_yesrmalization(int chan)
 {
 	if (WARN_ON((chan > 8) || (chan < 0)))
 		return 0;
@@ -324,7 +324,7 @@ int rsnd_runtime_channel_for_ssi_with_params(struct rsnd_dai_stream *io,
 	if (rsnd_runtime_is_multi_ssi(io))
 		chan /= rsnd_rdai_ssi_lane_get(rdai);
 
-	return rsnd_channel_normalization(chan);
+	return rsnd_channel_yesrmalization(chan);
 }
 
 int rsnd_runtime_is_multi_ssi(struct rsnd_dai_stream *io)
@@ -366,7 +366,7 @@ u32 rsnd_get_adinr_bit(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 		return 0 << 16;
 	}
 
-	dev_warn(dev, "not supported sample bits\n");
+	dev_warn(dev, "yest supported sample bits\n");
 
 	return 0;
 }
@@ -425,7 +425,7 @@ u32 rsnd_get_dalign(struct rsnd_mod *mod, struct rsnd_dai_stream *io)
 	if (mod == ssiu)
 		id = rsnd_mod_id_sub(mod);
 
-	/* Non target mod or non 16bit needs normal DALIGN */
+	/* Non target mod or yesn 16bit needs yesrmal DALIGN */
 	if ((snd_pcm_format_width(runtime->format) != 16) ||
 	    (mod != target))
 		inv = 0;
@@ -1060,11 +1060,11 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 
 static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 				      struct rsnd_dai_stream *io,
-				      struct device_node *dai_np)
+				      struct device_yesde *dai_np)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *ssiu_np = rsnd_ssiu_of_node(priv);
-	struct device_node *np;
+	struct device_yesde *ssiu_np = rsnd_ssiu_of_yesde(priv);
+	struct device_yesde *np;
 	int is_play = rsnd_io_is_play(io);
 	int i, j;
 
@@ -1073,34 +1073,34 @@ static void rsnd_parse_tdm_split_mode(struct rsnd_priv *priv,
 
 	/*
 	 * This driver assumes that it is TDM Split mode
-	 * if it includes ssiu node
+	 * if it includes ssiu yesde
 	 */
 	for (i = 0;; i++) {
-		struct device_node *node = is_play ?
+		struct device_yesde *yesde = is_play ?
 			of_parse_phandle(dai_np, "playback", i) :
 			of_parse_phandle(dai_np, "capture",  i);
 
-		if (!node)
+		if (!yesde)
 			break;
 
 		j = 0;
-		for_each_child_of_node(ssiu_np, np) {
-			if (np == node) {
+		for_each_child_of_yesde(ssiu_np, np) {
+			if (np == yesde) {
 				rsnd_flags_set(io, RSND_STREAM_TDM_SPLIT);
 				dev_dbg(dev, "%s is part of TDM Split\n", io->name);
 			}
 			j++;
 		}
 
-		of_node_put(node);
+		of_yesde_put(yesde);
 	}
 
-	of_node_put(ssiu_np);
+	of_yesde_put(ssiu_np);
 }
 
 static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
 				      struct rsnd_dai_stream *io,
-				      struct device_node *dai_np)
+				      struct device_yesde *dai_np)
 {
 	if (!rsnd_io_to_mod_ssi(io))
 		return;
@@ -1110,49 +1110,49 @@ static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
 
 static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
 				     struct rsnd_dai_stream *io,
-				     struct device_node *endpoint)
+				     struct device_yesde *endpoint)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *remote_node;
+	struct device_yesde *remote_yesde;
 
 	if (!rsnd_io_to_mod_ssi(io))
 		return;
 
-	remote_node = of_graph_get_remote_port_parent(endpoint);
+	remote_yesde = of_graph_get_remote_port_parent(endpoint);
 
 	/* HDMI0 */
-	if (strstr(remote_node->full_name, "hdmi@fead0000")) {
+	if (strstr(remote_yesde->full_name, "hdmi@fead0000")) {
 		rsnd_flags_set(io, RSND_STREAM_HDMI0);
 		dev_dbg(dev, "%s connected to HDMI0\n", io->name);
 	}
 
 	/* HDMI1 */
-	if (strstr(remote_node->full_name, "hdmi@feae0000")) {
+	if (strstr(remote_yesde->full_name, "hdmi@feae0000")) {
 		rsnd_flags_set(io, RSND_STREAM_HDMI1);
 		dev_dbg(dev, "%s connected to HDMI1\n", io->name);
 	}
 
 	rsnd_parse_tdm_split_mode(priv, io, endpoint);
 
-	of_node_put(remote_node);
+	of_yesde_put(remote_yesde);
 }
 
 void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 		struct rsnd_mod* (*mod_get)(struct rsnd_priv *priv, int id),
-		struct device_node *node,
-		struct device_node *playback,
-		struct device_node *capture)
+		struct device_yesde *yesde,
+		struct device_yesde *playback,
+		struct device_yesde *capture)
 {
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
-	struct device_node *np;
+	struct device_yesde *np;
 	struct rsnd_mod *mod;
 	int i;
 
-	if (!node)
+	if (!yesde)
 		return;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_yesde(yesde, np) {
 		mod = mod_get(priv, i);
 		if (np == playback)
 			rsnd_dai_connect(mod, &rdai->playback, mod->type);
@@ -1161,16 +1161,16 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 		i++;
 	}
 
-	of_node_put(node);
+	of_yesde_put(yesde);
 }
 
-static struct device_node *rsnd_dai_of_node(struct rsnd_priv *priv,
+static struct device_yesde *rsnd_dai_of_yesde(struct rsnd_priv *priv,
 					    int *is_graph)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *np = dev->of_node;
-	struct device_node *dai_node;
-	struct device_node *ret;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *dai_yesde;
+	struct device_yesde *ret;
 
 	*is_graph = 0;
 
@@ -1178,24 +1178,24 @@ static struct device_node *rsnd_dai_of_node(struct rsnd_priv *priv,
 	 * parse both previous dai (= rcar_sound,dai), and
 	 * graph dai (= ports/port)
 	 */
-	dai_node = of_get_child_by_name(np, RSND_NODE_DAI);
-	if (dai_node) {
-		ret = dai_node;
-		goto of_node_compatible;
+	dai_yesde = of_get_child_by_name(np, RSND_NODE_DAI);
+	if (dai_yesde) {
+		ret = dai_yesde;
+		goto of_yesde_compatible;
 	}
 
 	ret = np;
 
-	dai_node = of_graph_get_next_endpoint(np, NULL);
-	if (dai_node)
-		goto of_node_graph;
+	dai_yesde = of_graph_get_next_endpoint(np, NULL);
+	if (dai_yesde)
+		goto of_yesde_graph;
 
 	return NULL;
 
-of_node_graph:
+of_yesde_graph:
 	*is_graph = 1;
-of_node_compatible:
-	of_node_put(dai_node);
+of_yesde_compatible:
+	of_yesde_put(dai_yesde);
 
 	return ret;
 }
@@ -1260,10 +1260,10 @@ static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd,
 }
 
 static void __rsnd_dai_probe(struct rsnd_priv *priv,
-			     struct device_node *dai_np,
+			     struct device_yesde *dai_np,
 			     int dai_i)
 {
-	struct device_node *playback, *capture;
+	struct device_yesde *playback, *capture;
 	struct rsnd_dai_stream *io_playback;
 	struct rsnd_dai_stream *io_capture;
 	struct snd_soc_dai_driver *drv;
@@ -1319,8 +1319,8 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 		rsnd_parse_connect_mix(rdai, playback, capture);
 		rsnd_parse_connect_dvc(rdai, playback, capture);
 
-		of_node_put(playback);
-		of_node_put(capture);
+		of_yesde_put(playback);
+		of_yesde_put(capture);
 	}
 
 	if (rsnd_ssi_is_pin_sharing(io_capture) ||
@@ -1336,8 +1336,8 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 
 static int rsnd_dai_probe(struct rsnd_priv *priv)
 {
-	struct device_node *dai_node;
-	struct device_node *dai_np;
+	struct device_yesde *dai_yesde;
+	struct device_yesde *dai_np;
 	struct snd_soc_dai_driver *rdrv;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_dai *rdai;
@@ -1345,11 +1345,11 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	int is_graph;
 	int dai_i;
 
-	dai_node = rsnd_dai_of_node(priv, &is_graph);
+	dai_yesde = rsnd_dai_of_yesde(priv, &is_graph);
 	if (is_graph)
-		nr = of_graph_get_endpoint_count(dai_node);
+		nr = of_graph_get_endpoint_count(dai_yesde);
 	else
-		nr = of_get_child_count(dai_node);
+		nr = of_get_child_count(dai_yesde);
 
 	if (!nr)
 		return -EINVAL;
@@ -1368,7 +1368,7 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	 */
 	dai_i = 0;
 	if (is_graph) {
-		for_each_endpoint_of_node(dai_node, dai_np) {
+		for_each_endpoint_of_yesde(dai_yesde, dai_np) {
 			__rsnd_dai_probe(priv, dai_np, dai_i);
 			if (rsnd_is_gen3(priv)) {
 				struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
@@ -1379,7 +1379,7 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 			dai_i++;
 		}
 	} else {
-		for_each_child_of_node(dai_node, dai_np) {
+		for_each_child_of_yesde(dai_yesde, dai_np) {
 			__rsnd_dai_probe(priv, dai_np, dai_i);
 			if (rsnd_is_gen3(priv)) {
 				struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
@@ -1713,7 +1713,7 @@ static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 
 		/*
 		 * retry to "probe".
-		 * DAI has SSI which is PIO mode only now.
+		 * DAI has SSI which is PIO mode only yesw.
 		 */
 		ret = rsnd_dai_call(probe, io, priv);
 	}
@@ -1782,7 +1782,7 @@ static int rsnd_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_component(dev, &rsnd_soc_component,
 					 priv->daidrv, rsnd_rdai_nr(priv));
 	if (ret < 0) {
-		dev_err(dev, "cannot snd dai register\n");
+		dev_err(dev, "canyest snd dai register\n");
 		goto exit_snd_probe;
 	}
 
@@ -1874,5 +1874,5 @@ module_platform_driver(rsnd_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Renesas R-Car audio driver");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>");
 MODULE_ALIAS("platform:rcar-pcm-audio");

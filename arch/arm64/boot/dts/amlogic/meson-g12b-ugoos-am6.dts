@@ -451,7 +451,7 @@
 	sd-uhs-sdr50;
 	max-frequency = <100000000>;
 
-	non-removable;
+	yesn-removable;
 	disable-wp;
 
 	mmc-pwrseq = <&sdio_pwrseq>;

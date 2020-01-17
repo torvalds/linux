@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -61,7 +61,7 @@
  * This library also provides implementations for all the legacy driver
  * interfaces on top of the atomic interface. See drm_atomic_helper_set_config(),
  * drm_atomic_helper_disable_plane(), drm_atomic_helper_disable_plane() and the
- * various functions to implement set_property callbacks. New drivers must not
+ * various functions to implement set_property callbacks. New drivers must yest
  * implement these functions themselves but must use the provided helpers.
  *
  * The atomic helper uses the same function table structures as all other
@@ -144,14 +144,14 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 		return 0;
 
 	/*
-	 * Second loop, iterate over all connectors not part of the state.
+	 * Second loop, iterate over all connectors yest part of the state.
 	 *
 	 * If a conflicting encoder is found and disable_conflicting_encoders
-	 * is not set, an error is returned. Userspace can provide a solution
+	 * is yest set, an error is returned. Userspace can provide a solution
 	 * through the atomic ioctl.
 	 *
 	 * If the flag is set conflicting connectors are removed from the crtc
-	 * and the crtc is disabled if no encoder is left. This preserves
+	 * and the crtc is disabled if yes encoder is left. This preserves
 	 * compatibility with the legacy set_config behavior.
 	 */
 	drm_connector_list_iter_begin(state->dev, &conn_iter);
@@ -325,18 +325,18 @@ update_connector_routing(struct drm_atomic_state *state,
 	 * Since the connector can be unregistered at any point during an
 	 * atomic check or commit, this is racy. But that's OK: all we care
 	 * about is ensuring that userspace can't do anything but shut off the
-	 * display on a connector that was destroyed after it's been notified,
-	 * not before.
+	 * display on a connector that was destroyed after it's been yestified,
+	 * yest before.
 	 *
-	 * Additionally, we also want to ignore connector registration when
+	 * Additionally, we also want to igyesre connector registration when
 	 * we're trying to restore an atomic state during system resume since
 	 * there's a chance the connector may have been destroyed during the
-	 * process, but it's better to ignore that then cause
+	 * process, but it's better to igyesre that then cause
 	 * drm_atomic_helper_resume() to fail.
 	 */
 	if (!state->duplicated && drm_connector_is_unregistered(connector) &&
 	    crtc_state->active) {
-		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] is not registered\n",
+		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] is yest registered\n",
 				 connector->base.id, connector->name);
 		return -EINVAL;
 	}
@@ -370,7 +370,7 @@ update_connector_routing(struct drm_atomic_state *state,
 	if (new_encoder == new_connector_state->best_encoder) {
 		set_best_encoder(state, new_connector_state, new_encoder);
 
-		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] keeps [ENCODER:%d:%s], now on [CRTC:%d:%s]\n",
+		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] keeps [ENCODER:%d:%s], yesw on [CRTC:%d:%s]\n",
 				 connector->base.id,
 				 connector->name,
 				 new_encoder->base.id,
@@ -569,7 +569,7 @@ mode_valid(struct drm_atomic_state *state)
  * 5. &drm_bridge_funcs.mode_fixup is called on all encoder bridges.
  * 6. &drm_encoder_helper_funcs.atomic_check is called to validate any encoder state.
  *    This function is only called when the encoder will be part of a configured crtc,
- *    it must not be used for implementing connector property validation.
+ *    it must yest be used for implementing connector property validation.
  *    If this function is NULL, &drm_atomic_encoder_helper_funcs.mode_fixup is called
  *    instead.
  * 7. &drm_crtc_helper_funcs.mode_fixup is called last, to fix up the mode with crtc constraints.
@@ -591,7 +591,7 @@ mode_valid(struct drm_atomic_state *state)
  * computation.
  *
  * RETURNS:
- * Zero for success or -errno
+ * Zero for success or -erryes
  */
 int
 drm_atomic_helper_check_modeset(struct drm_device *dev,
@@ -622,7 +622,7 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 			/*
 			 * For clarity this assignment is done here, but
-			 * enable == 0 is only true when there are no
+			 * enable == 0 is only true when there are yes
 			 * connectors and a NULL mode.
 			 *
 			 * The other way around is true as well. enable != 0
@@ -785,7 +785,7 @@ int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 	}
 
 	if (!crtc_state->enable && !can_update_disabled) {
-		DRM_DEBUG_KMS("Cannot update plane of a disabled CRTC.\n");
+		DRM_DEBUG_KMS("Canyest update plane of a disabled CRTC.\n");
 		return -EINVAL;
 	}
 
@@ -843,7 +843,7 @@ EXPORT_SYMBOL(drm_atomic_helper_check_plane_state);
  * updated planes.
  *
  * RETURNS:
- * Zero for success or -errno
+ * Zero for success or -erryes
  */
 int
 drm_atomic_helper_check_planes(struct drm_device *dev,
@@ -915,13 +915,13 @@ EXPORT_SYMBOL(drm_atomic_helper_check_planes);
  * functions depend upon an updated adjusted_mode.clock to e.g. properly compute
  * watermarks.
  *
- * Note that zpos normalization will add all enable planes to the state which
- * might not desired for some drivers.
+ * Note that zpos yesrmalization will add all enable planes to the state which
+ * might yest desired for some drivers.
  * For example enable/disable of a cursor plane which have fixed zpos value
  * would trigger all other enabled planes to be forced to the state change.
  *
  * RETURNS:
- * Zero for success or -errno
+ * Zero for success or -erryes
  */
 int drm_atomic_helper_check(struct drm_device *dev,
 			    struct drm_atomic_state *state)
@@ -932,8 +932,8 @@ int drm_atomic_helper_check(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	if (dev->mode_config.normalize_zpos) {
-		ret = drm_atomic_normalize_zpos(dev, state);
+	if (dev->mode_config.yesrmalize_zpos) {
+		ret = drm_atomic_yesrmalize_zpos(dev, state);
 		if (ret)
 			return ret;
 	}
@@ -1087,7 +1087,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
  * Drivers can use this for building their own atomic commit if they don't have
  * a pure helper-based modeset implementation.
  *
- * Since these updates are not synchronized with lockings, only code paths
+ * Since these updates are yest synchronized with lockings, only code paths
  * called from &drm_mode_config_helper_funcs.atomic_commit_tail can look at the
  * legacy state filled out by this helper. Defacto this means this helper and
  * the legacy state pointers are only really useful for transitioning an
@@ -1176,11 +1176,11 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 		funcs = crtc->helper_private;
 
-		if (new_crtc_state->enable && funcs->mode_set_nofb) {
+		if (new_crtc_state->enable && funcs->mode_set_yesfb) {
 			DRM_DEBUG_ATOMIC("modeset on [CRTC:%d:%s]\n",
 					 crtc->base.id, crtc->name);
 
-			funcs->mode_set_nofb(crtc);
+			funcs->mode_set_yesfb(crtc);
 		}
 	}
 
@@ -1364,7 +1364,7 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_enables);
  *
  * Note that @pre_swap is needed since the point where we block for fences moves
  * around depending upon whether an atomic commit is blocking or
- * non-blocking. For non-blocking commit all waiting needs to happen after
+ * yesn-blocking. For yesn-blocking commit all waiting needs to happen after
  * drm_atomic_helper_swap_state() is called, but for blocking commits we want
  * to wait **before** we do anything that can't be easily rolled back. That is
  * before we call drm_atomic_helper_swap_state().
@@ -1386,7 +1386,7 @@ int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
 		WARN_ON(!new_plane_state->fb);
 
 		/*
-		 * If waiting for fences pre-swap (ie: nonblock), userspace can
+		 * If waiting for fences pre-swap (ie: yesnblock), userspace can
 		 * still interrupt the operation. Instead of blocking until the
 		 * timer expires, make the wait interruptible.
 		 */
@@ -1413,7 +1413,7 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_fences);
  * framebuffers have actually changed to optimize for the legacy cursor and
  * plane update use-case.
  *
- * Drivers using the nonblocking commit tracking support initialized by calling
+ * Drivers using the yesnblocking commit tracking support initialized by calling
  * drm_atomic_helper_setup_commit() should look at
  * drm_atomic_helper_wait_for_flip_done() as an alternative.
  */
@@ -1474,7 +1474,7 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_vblanks);
  * CRTCs, assuming that cursors-only updates are signalling their completion
  * immediately (or using a different path).
  *
- * This requires that drivers use the nonblocking commit tracking support
+ * This requires that drivers use the yesnblocking commit tracking support
  * initialized using drm_atomic_helper_setup_commit().
  */
 void drm_atomic_helper_wait_for_flip_done(struct drm_device *dev,
@@ -1509,7 +1509,7 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_flip_done);
  *
  * This is the default implementation for the
  * &drm_mode_config_helper_funcs.atomic_commit_tail hook, for drivers
- * that do not support runtime_pm or do not need the CRTC to be
+ * that do yest support runtime_pm or do yest need the CRTC to be
  * enabled to perform a commit. Otherwise, see
  * drm_atomic_helper_commit_tail_rpm().
  *
@@ -1596,7 +1596,7 @@ static void commit_tail(struct drm_atomic_state *old_state)
 	drm_atomic_helper_wait_for_dependencies(old_state);
 
 	/*
-	 * We cannot safely access new_crtc_state after
+	 * We canyest safely access new_crtc_state after
 	 * drm_atomic_helper_commit_hw_done() so figure out which crtc's have
 	 * self-refresh active beforehand:
 	 */
@@ -1629,17 +1629,17 @@ static void commit_work(struct work_struct *work)
 }
 
 /**
- * drm_atomic_helper_async_check - check if state can be commited asynchronously
+ * drm_atomic_helper_async_check - check if state can be commited asynchroyesusly
  * @dev: DRM device
  * @state: the driver state object
  *
- * This helper will check if it is possible to commit the state asynchronously.
- * Async commits are not supposed to swap the states like normal sync commits
+ * This helper will check if it is possible to commit the state asynchroyesusly.
+ * Async commits are yest supposed to swap the states like yesrmal sync commits
  * but just do in-place changes on the current state.
  *
- * It will return 0 if the commit can happen in an asynchronous fashion or error
- * if not. Note that error just mean it can't be commited asynchronously, if it
- * fails the commit should be treated like a normal synchronous commit.
+ * It will return 0 if the commit can happen in an asynchroyesus fashion or error
+ * if yest. Note that error just mean it can't be commited asynchroyesusly, if it
+ * fails the commit should be treated like a yesrmal synchroyesus commit.
  */
 int drm_atomic_helper_async_check(struct drm_device *dev,
 				   struct drm_atomic_state *state)
@@ -1660,7 +1660,7 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i)
 		n_planes++;
 
-	/* FIXME: we support only single plane updates for now */
+	/* FIXME: we support only single plane updates for yesw */
 	if (n_planes != 1)
 		return -EINVAL;
 
@@ -1678,7 +1678,7 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 	/*
 	 * Don't do an async update if there is an outstanding commit modifying
 	 * the plane.  This prevents our async update's changes from getting
-	 * overridden by a previous synchronous update's state.
+	 * overridden by a previous synchroyesus update's state.
 	 */
 	if (old_plane_state->commit &&
 	    !try_wait_for_completion(&old_plane_state->commit->hw_done))
@@ -1689,14 +1689,14 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 EXPORT_SYMBOL(drm_atomic_helper_async_check);
 
 /**
- * drm_atomic_helper_async_commit - commit state asynchronously
+ * drm_atomic_helper_async_commit - commit state asynchroyesusly
  * @dev: DRM device
  * @state: the driver state object
  *
- * This function commits a state asynchronously, i.e., not vblank
+ * This function commits a state asynchroyesusly, i.e., yest vblank
  * synchronized. It should be used on a state only when
- * drm_atomic_async_check() succeeds. Async commits are not supposed to swap
- * the states like normal sync commits, but just do in-place changes on the
+ * drm_atomic_async_check() succeeds. Async commits are yest supposed to swap
+ * the states like yesrmal sync commits, but just do in-place changes on the
  * current state.
  *
  * TODO: Implement full swap instead of doing in-place changes.
@@ -1740,11 +1740,11 @@ EXPORT_SYMBOL(drm_atomic_helper_async_commit);
  * drm_atomic_helper_commit - commit validated state object
  * @dev: DRM device
  * @state: the driver state object
- * @nonblock: whether nonblocking behavior is requested.
+ * @yesnblock: whether yesnblocking behavior is requested.
  *
  * This function commits a with drm_atomic_helper_check() pre-validated state
  * object. This can still fail when e.g. the framebuffer reservation fails. This
- * function implements nonblocking commits, using
+ * function implements yesnblocking commits, using
  * drm_atomic_helper_setup_commit() and related functions.
  *
  * Committing the actual hardware state is done through the
@@ -1752,11 +1752,11 @@ EXPORT_SYMBOL(drm_atomic_helper_async_commit);
  * implementation drm_atomic_helper_commit_tail().
  *
  * RETURNS:
- * Zero for success or -errno.
+ * Zero for success or -erryes.
  */
 int drm_atomic_helper_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
-			     bool nonblock)
+			     bool yesnblock)
 {
 	int ret;
 
@@ -1771,7 +1771,7 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 		return 0;
 	}
 
-	ret = drm_atomic_helper_setup_commit(state, nonblock);
+	ret = drm_atomic_helper_setup_commit(state, yesnblock);
 	if (ret)
 		return ret;
 
@@ -1781,16 +1781,16 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	if (!nonblock) {
+	if (!yesnblock) {
 		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
 		if (ret)
 			goto err;
 	}
 
 	/*
-	 * This is the point of no return - everything below never fails except
+	 * This is the point of yes return - everything below never fails except
 	 * when the hw goes bonghits. Which means we can commit the new state on
-	 * the software side now.
+	 * the software side yesw.
 	 */
 
 	ret = drm_atomic_helper_swap_state(state, true);
@@ -1798,27 +1798,27 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 		goto err;
 
 	/*
-	 * Everything below can be run asynchronously without the need to grab
+	 * Everything below can be run asynchroyesusly without the need to grab
 	 * any modeset locks at all under one condition: It must be guaranteed
-	 * that the asynchronous work has either been cancelled (if the driver
+	 * that the asynchroyesus work has either been cancelled (if the driver
 	 * supports it, which at least requires that the framebuffers get
 	 * cleaned up with drm_atomic_helper_cleanup_planes()) or completed
 	 * before the new state gets committed on the software side with
 	 * drm_atomic_helper_swap_state().
 	 *
 	 * This scheme allows new atomic state updates to be prepared and
-	 * checked in parallel to the asynchronous completion of the previous
+	 * checked in parallel to the asynchroyesus completion of the previous
 	 * update. Which is important since compositors need to figure out the
 	 * composition of the next frame right after having submitted the
 	 * current layout.
 	 *
 	 * NOTE: Commit work has multiple phases, first hardware commit, then
 	 * cleanup. We want them to overlap, hence need system_unbound_wq to
-	 * make sure work items don't artificially stall on each another.
+	 * make sure work items don't artificially stall on each ayesther.
 	 */
 
 	drm_atomic_state_get(state);
-	if (nonblock)
+	if (yesnblock)
 		queue_work(system_unbound_wq, &state->commit_work);
 	else
 		commit_tail(state);
@@ -1832,39 +1832,39 @@ err:
 EXPORT_SYMBOL(drm_atomic_helper_commit);
 
 /**
- * DOC: implementing nonblocking commit
+ * DOC: implementing yesnblocking commit
  *
  * Nonblocking atomic commits have to be implemented in the following sequence:
  *
  * 1. Run drm_atomic_helper_prepare_planes() first. This is the only function
  * which commit needs to call which can fail, so we want to run it first and
- * synchronously.
+ * synchroyesusly.
  *
- * 2. Synchronize with any outstanding nonblocking commit worker threads which
+ * 2. Synchronize with any outstanding yesnblocking commit worker threads which
  * might be affected the new state update. This can be done by either cancelling
  * or flushing the work items, depending upon whether the driver can deal with
  * cancelled updates. Note that it is important to ensure that the framebuffer
  * cleanup is still done when cancelling.
  *
- * Asynchronous workers need to have sufficient parallelism to be able to run
+ * Asynchroyesus workers need to have sufficient parallelism to be able to run
  * different atomic commits on different CRTCs in parallel. The simplest way to
  * achieve this is by running them on the &system_unbound_wq work queue. Note
- * that drivers are not required to split up atomic commits and run an
+ * that drivers are yest required to split up atomic commits and run an
  * individual commit in parallel - userspace is supposed to do that if it cares.
  * But it might be beneficial to do that for modesets, since those necessarily
  * must be done as one global operation, and enabling or disabling a CRTC can
- * take a long time. But even that is not required.
+ * take a long time. But even that is yest required.
  *
- * 3. The software state is updated synchronously with
+ * 3. The software state is updated synchroyesusly with
  * drm_atomic_helper_swap_state(). Doing this under the protection of all modeset
  * locks means concurrent callers never see inconsistent state. And doing this
- * while it's guaranteed that no relevant nonblocking worker runs means that
- * nonblocking workers do not need grab any locks. Actually they must not grab
+ * while it's guaranteed that yes relevant yesnblocking worker runs means that
+ * yesnblocking workers do yest need grab any locks. Actually they must yest grab
  * locks, for otherwise the work flushing will deadlock.
  *
  * 4. Schedule a work item to do all subsequent steps, using the split-out
  * commit helpers: a) pre-plane commit b) plane commit c) post-plane commit and
- * then cleaning up the framebuffers after the old framebuffer is no longer
+ * then cleaning up the framebuffers after the old framebuffer is yes longer
  * being displayed.
  *
  * The above scheme is implemented in the atomic helper libraries in
@@ -1872,7 +1872,7 @@ EXPORT_SYMBOL(drm_atomic_helper_commit);
  * drm_atomic_helper_setup_commit() for a starting point.
  */
 
-static int stall_checks(struct drm_crtc *crtc, bool nonblock)
+static int stall_checks(struct drm_crtc *crtc, bool yesnblock)
 {
 	struct drm_crtc_commit *commit, *stall_commit = NULL;
 	bool completed = true;
@@ -1884,9 +1884,9 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
 	list_for_each_entry(commit, &crtc->commit_list, commit_entry) {
 		if (i == 0) {
 			completed = try_wait_for_completion(&commit->flip_done);
-			/* Userspace is not allowed to get ahead of the previous
-			 * commit with nonblocking ones. */
-			if (!completed && nonblock) {
+			/* Userspace is yest allowed to get ahead of the previous
+			 * commit with yesnblocking ones. */
+			if (!completed && yesnblock) {
 				spin_unlock(&crtc->commit_lock);
 				return -EBUSY;
 			}
@@ -1958,24 +1958,24 @@ crtc_or_fake_commit(struct drm_atomic_state *state, struct drm_crtc *crtc)
 }
 
 /**
- * drm_atomic_helper_setup_commit - setup possibly nonblocking commit
+ * drm_atomic_helper_setup_commit - setup possibly yesnblocking commit
  * @state: new modeset state to be committed
- * @nonblock: whether nonblocking behavior is requested.
+ * @yesnblock: whether yesnblocking behavior is requested.
  *
  * This function prepares @state to be used by the atomic helper's support for
- * nonblocking commits. Drivers using the nonblocking commit infrastructure
+ * yesnblocking commits. Drivers using the yesnblocking commit infrastructure
  * should always call this function from their
  * &drm_mode_config_funcs.atomic_commit hook.
  *
  * To be able to use this support drivers need to use a few more helper
  * functions. drm_atomic_helper_wait_for_dependencies() must be called before
- * actually committing the hardware state, and for nonblocking commits this call
+ * actually committing the hardware state, and for yesnblocking commits this call
  * must be placed in the async worker. See also drm_atomic_helper_swap_state()
  * and its stall parameter, for when a driver's commit hooks look at the
  * &drm_crtc.state, &drm_plane.state or &drm_connector.state pointer directly.
  *
  * Completion of the hardware commit step must be signalled using
- * drm_atomic_helper_commit_hw_done(). After this step the driver is not allowed
+ * drm_atomic_helper_commit_hw_done(). After this step the driver is yest allowed
  * to read or change any permanent software or hardware modeset state. The only
  * exception is state protected by other means than &drm_modeset_lock locks.
  * Only the free standing @state with pointers to the old state structures can
@@ -1988,20 +1988,20 @@ crtc_or_fake_commit(struct drm_atomic_state *state, struct drm_crtc *crtc)
  * This is all implemented by in drm_atomic_helper_commit(), giving drivers a
  * complete and easy-to-use default implementation of the atomic_commit() hook.
  *
- * The tracking of asynchronously executed and still pending commits is done
+ * The tracking of asynchroyesusly executed and still pending commits is done
  * using the core structure &drm_crtc_commit.
  *
- * By default there's no need to clean up resources allocated by this function
+ * By default there's yes need to clean up resources allocated by this function
  * explicitly: drm_atomic_state_default_clear() will take care of that
  * automatically.
  *
  * Returns:
  *
- * 0 on success. -EBUSY when userspace schedules nonblocking commits too fast,
+ * 0 on success. -EBUSY when userspace schedules yesnblocking commits too fast,
  * -ENOMEM on allocation failures and -EINTR when a signal is pending.
  */
 int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
-				   bool nonblock)
+				   bool yesnblock)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
@@ -2021,7 +2021,7 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 
 		new_crtc_state->commit = commit;
 
-		ret = stall_checks(crtc, nonblock);
+		ret = stall_checks(crtc, yesnblock);
 		if (ret)
 			return ret;
 
@@ -2059,9 +2059,9 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 	}
 
 	for_each_oldnew_connector_in_state(state, conn, old_conn_state, new_conn_state, i) {
-		/* Userspace is not allowed to get ahead of the previous
-		 * commit with nonblocking ones. */
-		if (nonblock && old_conn_state->commit &&
+		/* Userspace is yest allowed to get ahead of the previous
+		 * commit with yesnblocking ones. */
+		if (yesnblock && old_conn_state->commit &&
 		    !try_wait_for_completion(&old_conn_state->commit->flip_done))
 			return -EBUSY;
 
@@ -2074,9 +2074,9 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 	}
 
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
-		/* Userspace is not allowed to get ahead of the previous
-		 * commit with nonblocking ones. */
-		if (nonblock && old_plane_state->commit &&
+		/* Userspace is yest allowed to get ahead of the previous
+		 * commit with yesnblocking ones. */
+		if (yesnblock && old_plane_state->commit &&
 		    !try_wait_for_completion(&old_plane_state->commit->flip_done))
 			return -EBUSY;
 
@@ -2101,7 +2101,7 @@ EXPORT_SYMBOL(drm_atomic_helper_setup_commit);
  * drm_atomic_helper_commit_hw_done) and executed by the hardware (as signalled
  * by calling drm_crtc_send_vblank_event() on the &drm_crtc_state.event).
  *
- * This is part of the atomic helper support for nonblocking commits, see
+ * This is part of the atomic helper support for yesnblocking commits, see
  * drm_atomic_helper_setup_commit() for an overview.
  */
 void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
@@ -2128,7 +2128,7 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 			DRM_ERROR("[CRTC:%d:%s] hw_done timed out\n",
 				  crtc->base.id, crtc->name);
 
-		/* Currently no support for overwriting flips, hence
+		/* Currently yes support for overwriting flips, hence
 		 * stall for previous one to execute completely. */
 		ret = wait_for_completion_timeout(&commit->flip_done,
 						  10*HZ);
@@ -2149,7 +2149,7 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 			DRM_ERROR("[CONNECTOR:%d:%s] hw_done timed out\n",
 				  conn->base.id, conn->name);
 
-		/* Currently no support for overwriting flips, hence
+		/* Currently yes support for overwriting flips, hence
 		 * stall for previous one to execute completely. */
 		ret = wait_for_completion_timeout(&commit->flip_done,
 						  10*HZ);
@@ -2170,7 +2170,7 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 			DRM_ERROR("[PLANE:%d:%s] hw_done timed out\n",
 				  plane->base.id, plane->name);
 
-		/* Currently no support for overwriting flips, hence
+		/* Currently yes support for overwriting flips, hence
 		 * stall for previous one to execute completely. */
 		ret = wait_for_completion_timeout(&commit->flip_done,
 						  10*HZ);
@@ -2186,15 +2186,15 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_dependencies);
  * @old_state: atomic state object with old state structures
  *
  * This function walks all CRTCs and fake VBLANK events on those with
- * &drm_crtc_state.no_vblank set to true and &drm_crtc_state.event != NULL.
+ * &drm_crtc_state.yes_vblank set to true and &drm_crtc_state.event != NULL.
  * The primary use of this function is writeback connectors working in oneshot
  * mode and faking VBLANK events. In this case they only fake the VBLANK event
- * when a job is queued, and any change to the pipeline that does not touch the
+ * when a job is queued, and any change to the pipeline that does yest touch the
  * connector is leading to timeouts when calling
  * drm_atomic_helper_wait_for_vblanks() or
  * drm_atomic_helper_wait_for_flip_done().
  *
- * This is part of the atomic helper support for nonblocking commits, see
+ * This is part of the atomic helper support for yesnblocking commits, see
  * drm_atomic_helper_setup_commit() for an overview.
  */
 void drm_atomic_helper_fake_vblank(struct drm_atomic_state *old_state)
@@ -2206,7 +2206,7 @@ void drm_atomic_helper_fake_vblank(struct drm_atomic_state *old_state)
 	for_each_new_crtc_in_state(old_state, crtc, new_crtc_state, i) {
 		unsigned long flags;
 
-		if (!new_crtc_state->no_vblank)
+		if (!new_crtc_state->yes_vblank)
 			continue;
 
 		spin_lock_irqsave(&old_state->dev->event_lock, flags);
@@ -2221,18 +2221,18 @@ void drm_atomic_helper_fake_vblank(struct drm_atomic_state *old_state)
 EXPORT_SYMBOL(drm_atomic_helper_fake_vblank);
 
 /**
- * drm_atomic_helper_commit_hw_done - setup possible nonblocking commit
+ * drm_atomic_helper_commit_hw_done - setup possible yesnblocking commit
  * @old_state: atomic state object with old state structures
  *
  * This function is used to signal completion of the hardware commit step. After
- * this step the driver is not allowed to read or change any permanent software
+ * this step the driver is yest allowed to read or change any permanent software
  * or hardware modeset state. The only exception is state protected by other
  * means than &drm_modeset_lock locks.
  *
  * Drivers should try to postpone any expensive or delayed cleanup work after
  * this function is called.
  *
- * This is part of the atomic helper support for nonblocking commits, see
+ * This is part of the atomic helper support for yesnblocking commits, see
  * drm_atomic_helper_setup_commit() for an overview.
  */
 void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *old_state)
@@ -2257,7 +2257,7 @@ void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *old_state)
 
 		old_crtc_state->commit = drm_crtc_commit_get(commit);
 
-		/* backend must have consumed any event by now */
+		/* backend must have consumed any event by yesw */
 		WARN_ON(new_crtc_state->event);
 		complete_all(&commit->hw_done);
 	}
@@ -2277,7 +2277,7 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_hw_done);
  * cleanup work. If used, it must be called right before calling
  * drm_atomic_state_put().
  *
- * This is part of the atomic helper support for nonblocking commits, see
+ * This is part of the atomic helper support for yesnblocking commits, see
  * drm_atomic_helper_setup_commit() for an overview.
  */
 void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *old_state)
@@ -2382,10 +2382,10 @@ static bool plane_crtc_active(const struct drm_plane_state *state)
  *
  * This function commits the new plane state using the plane and atomic helper
  * functions for planes and crtcs. It assumes that the atomic state has already
- * been pushed into the relevant object state pointers, since this step can no
+ * been pushed into the relevant object state pointers, since this step can yes
  * longer fail.
  *
- * It still requires the global state object @old_state to know which planes and
+ * It still requires the global state object @old_state to kyesw which planes and
  * crtcs need to be updated though.
  *
  * Note that this function does all plane updates across all CRTCs in one step.
@@ -2395,12 +2395,12 @@ static bool plane_crtc_active(const struct drm_plane_state *state)
  * Plane parameters can be updated by applications while the associated CRTC is
  * disabled. The DRM/KMS core will store the parameters in the plane state,
  * which will be available to the driver when the CRTC is turned on. As a result
- * most drivers don't need to be immediately notified of plane updates for a
+ * most drivers don't need to be immediately yestified of plane updates for a
  * disabled CRTC.
  *
  * Unless otherwise needed, drivers are advised to set the ACTIVE_ONLY flag in
- * @flags in order not to receive plane update notifications related to a
- * disabled CRTC. This avoids the need to manually ignore plane updates in
+ * @flags in order yest to receive plane update yestifications related to a
+ * disabled CRTC. This avoids the need to manually igyesre plane updates in
  * driver code when the driver and/or hardware can't or just don't need to deal
  * with updates on disabled CRTCs, for example when supporting runtime PM.
  *
@@ -2409,11 +2409,11 @@ static bool plane_crtc_active(const struct drm_plane_state *state)
  * disabled. This function would skip the &drm_plane_helper_funcs.atomic_disable
  * call for a plane if the CRTC of the old plane state needs a modesetting
  * operation. Of course, the drivers need to disable the planes in their CRTC
- * disable callbacks since no one else would do that.
+ * disable callbacks since yes one else would do that.
  *
  * The drm_atomic_helper_commit() default implementation doesn't set the
  * ACTIVE_ONLY flag to most closely match the behaviour of the legacy helpers.
- * This should not be copied blindly by drivers.
+ * This should yest be copied blindly by drivers.
  */
 void drm_atomic_helper_commit_planes(struct drm_device *dev,
 				     struct drm_atomic_state *old_state,
@@ -2425,7 +2425,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	int i;
 	bool active_only = flags & DRM_PLANE_COMMIT_ACTIVE_ONLY;
-	bool no_disable = flags & DRM_PLANE_COMMIT_NO_DISABLE_AFTER_MODESET;
+	bool yes_disable = flags & DRM_PLANE_COMMIT_NO_DISABLE_AFTER_MODESET;
 
 	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state, new_crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
@@ -2476,7 +2476,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 			crtc_state = old_plane_state->crtc->state;
 
 			if (drm_atomic_crtc_needs_modeset(crtc_state) &&
-			    no_disable)
+			    yes_disable)
 				continue;
 
 			funcs->atomic_disable(plane, old_plane_state);
@@ -2508,14 +2508,14 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_planes);
  * This function commits the new plane state using the plane and atomic helper
  * functions for planes on the specific crtc. It assumes that the atomic state
  * has already been pushed into the relevant object state pointers, since this
- * step can no longer fail.
+ * step can yes longer fail.
  *
  * This function is useful when plane updates should be done crtc-by-crtc
  * instead of one global step like drm_atomic_helper_commit_planes() does.
  *
- * This function can only be savely used when planes are not allowed to move
+ * This function can only be savely used when planes are yest allowed to move
  * between different CRTCs because this function doesn't handle inter-CRTC
- * depencies. Callers need to ensure that either no such depencies exist,
+ * depencies. Callers need to ensure that either yes such depencies exist,
  * resolve them through ordering of commit calls or through some other means.
  */
 void
@@ -2674,7 +2674,7 @@ EXPORT_SYMBOL(drm_atomic_helper_cleanup_planes);
  * 5. Call drm_atomic_helper_cleanup_planes() with @state, which since step 3
  * contains the old state. Also do any other cleanup required with that state.
  *
- * @stall must be set when nonblocking commits for this driver directly access
+ * @stall must be set when yesnblocking commits for this driver directly access
  * the &drm_plane.state, &drm_crtc.state or &drm_connector.state pointer. With
  * the current atomic helpers this is almost always the case, since the helpers
  * don't pass the right state structures to the callbacks.
@@ -2702,7 +2702,7 @@ int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 		/*
 		 * We have to stall for hw_done here before
 		 * drm_atomic_helper_wait_for_dependencies() because flip
-		 * depth > 1 is not yet supported by all drivers. As long as
+		 * depth > 1 is yest yet supported by all drivers. As long as
 		 * obj->state is directly dereferenced anywhere in the drivers
 		 * atomic_commit_tail function, then it's unsafe to swap state
 		 * before drm_atomic_helper_commit_hw_done() is called.
@@ -2913,12 +2913,12 @@ EXPORT_SYMBOL(drm_atomic_helper_disable_plane);
  *
  * NOTE: For backwards compatibility with old userspace this automatically
  * resets the "link-status" property to GOOD, to force any link
- * re-training. The SETCRTC ioctl does not define whether an update does
+ * re-training. The SETCRTC ioctl does yest define whether an update does
  * need a full modeset or just a plane update, hence we're allowed to do
  * that. See also drm_connector_set_link_status_property().
  *
  * Returns:
- * Returns 0 on success, negative errno numbers on failure.
+ * Returns 0 on success, negative erryes numbers on failure.
  */
 int drm_atomic_helper_set_config(struct drm_mode_set *set,
 				 struct drm_modeset_acquire_ctx *ctx)
@@ -3159,7 +3159,7 @@ EXPORT_SYMBOL(drm_atomic_helper_duplicate_state);
  * Note that it is potentially unsafe to use this. The atomic state object
  * returned by this function is assumed to be persistent. Drivers must ensure
  * that this holds true. Before calling this function, drivers must make sure
- * to suspend fbdev emulation so that nothing can be using the device.
+ * to suspend fbdev emulation so that yesthing can be using the device.
  *
  * Returns:
  * A pointer to a copy of the state before suspend on success or an ERR_PTR()-
@@ -3325,14 +3325,14 @@ static int page_flip_common(struct drm_atomic_state *state,
  * @crtc: DRM crtc
  * @fb: DRM framebuffer
  * @event: optional DRM event to signal upon completion
- * @flags: flip flags for non-vblank sync'ed updates
+ * @flags: flip flags for yesn-vblank sync'ed updates
  * @ctx: lock acquisition context
  *
  * Provides a default &drm_crtc_funcs.page_flip implementation
  * using the atomic driver interface.
  *
  * Returns:
- * Returns 0 on success, negative errno numbers on failure.
+ * Returns 0 on success, negative erryes numbers on failure.
  *
  * See also:
  * drm_atomic_helper_page_flip_target()
@@ -3357,7 +3357,7 @@ int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 	if (ret != 0)
 		goto fail;
 
-	ret = drm_atomic_nonblocking_commit(state);
+	ret = drm_atomic_yesnblocking_commit(state);
 fail:
 	drm_atomic_state_put(state);
 	return ret;
@@ -3369,7 +3369,7 @@ EXPORT_SYMBOL(drm_atomic_helper_page_flip);
  * @crtc: DRM crtc
  * @fb: DRM framebuffer
  * @event: optional DRM event to signal upon completion
- * @flags: flip flags for non-vblank sync'ed updates
+ * @flags: flip flags for yesn-vblank sync'ed updates
  * @target: specifying the target vblank period when the flip to take effect
  * @ctx: lock acquisition context
  *
@@ -3378,7 +3378,7 @@ EXPORT_SYMBOL(drm_atomic_helper_page_flip);
  * target vblank period to flip.
  *
  * Returns:
- * Returns 0 on success, negative errno numbers on failure.
+ * Returns 0 on success, negative erryes numbers on failure.
  */
 int drm_atomic_helper_page_flip_target(struct drm_crtc *crtc,
 				       struct drm_framebuffer *fb,
@@ -3409,7 +3409,7 @@ int drm_atomic_helper_page_flip_target(struct drm_crtc *crtc,
 	}
 	crtc_state->target_vblank = target;
 
-	ret = drm_atomic_nonblocking_commit(state);
+	ret = drm_atomic_yesnblocking_commit(state);
 fail:
 	drm_atomic_state_put(state);
 	return ret;

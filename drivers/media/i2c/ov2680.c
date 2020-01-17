@@ -785,7 +785,7 @@ static int ov2680_enum_frame_interval(struct v4l2_subdev *sd,
 	    fie->which > V4L2_SUBDEV_FORMAT_ACTIVE)
 		return -EINVAL;
 
-	tpf.denominator = OV2680_FRAME_RATE;
+	tpf.deyesminator = OV2680_FRAME_RATE;
 	tpf.numerator = 1;
 
 	fie->interval = tpf;
@@ -903,7 +903,7 @@ static int ov2680_mode_init(struct ov2680_dev *sensor)
 	sensor->fmt.field = V4L2_FIELD_NONE;
 	sensor->fmt.colorspace = V4L2_COLORSPACE_SRGB;
 
-	sensor->frame_interval.denominator = OV2680_FRAME_RATE;
+	sensor->frame_interval.deyesminator = OV2680_FRAME_RATE;
 	sensor->frame_interval.numerator = 1;
 
 	init_mode = &ov2680_mode_init_data;
@@ -1012,7 +1012,7 @@ static int ov2680_check_id(struct ov2680_dev *sensor)
 	}
 
 	if (chip_id != OV2680_CHIP_ID) {
-		dev_err(dev, "chip id: 0x%04x does not match expected 0x%04x\n",
+		dev_err(dev, "chip id: 0x%04x does yest match expected 0x%04x\n",
 			chip_id, OV2680_CHIP_ID);
 		return -ENODEV;
 	}

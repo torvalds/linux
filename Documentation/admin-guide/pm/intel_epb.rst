@@ -28,7 +28,7 @@ is allocated at the system initialization time:
 
 	In order to update the EPB value for the CPU, this attribute can be
 	written to, either with a number in the 0 - 15 sliding scale above, or
-	with one of the strings: "performance", "balance-performance", "normal",
+	with one of the strings: "performance", "balance-performance", "yesrmal",
 	"balance-power", "power" that represent values reflected by their
 	meaning.
 

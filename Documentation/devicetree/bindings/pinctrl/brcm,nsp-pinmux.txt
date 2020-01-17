@@ -11,7 +11,7 @@ Required properties:
     Should contain the register physical address and length for each of
     GPIO_CONTROL0, GP_AUX_SEL and IPROC_CONFIG IOMUX registers
 
-Properties in subnodes:
+Properties in subyesdes:
 - function:
     The mux function to select
 

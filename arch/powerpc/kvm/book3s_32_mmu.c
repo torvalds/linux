@@ -164,7 +164,7 @@ static int kvmppc_mmu_book3s_32_xlate_bat(struct kvm_vcpu *vcpu, gva_t eaddr,
 			pte->may_write = bat->pp > 1;
 			pte->may_execute = true;
 			if (!pte->may_read) {
-				printk(KERN_INFO "BAT is not readable!\n");
+				printk(KERN_INFO "BAT is yest readable!\n");
 				continue;
 			}
 			if (iswrite && !pte->may_write) {
@@ -201,7 +201,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 	ptegp = kvmppc_mmu_book3s_32_get_pteg(vcpu, sre, eaddr, primary);
 	if (kvm_is_error_hva(ptegp)) {
 		printk(KERN_INFO "KVM: Invalid PTEG!\n");
-		goto no_page_found;
+		goto yes_page_found;
 	}
 
 	ptem = kvmppc_mmu_book3s_32_get_ptem(sre, eaddr, primary);
@@ -209,7 +209,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 	if(copy_from_user(pteg, (void __user *)ptegp, sizeof(pteg))) {
 		printk_ratelimited(KERN_ERR
 			"KVM: Can't copy data from 0x%lx!\n", ptegp);
-		goto no_page_found;
+		goto yes_page_found;
 	}
 
 	for (i=0; i<16; i+=2) {
@@ -249,7 +249,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 		}
 	}
 
-	/* Update PTE C and A bits, so the guest's swapper knows we used the
+	/* Update PTE C and A bits, so the guest's swapper kyesws we used the
 	   page */
 	if (found) {
 		u32 pte_r = pte1;
@@ -272,7 +272,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 		return 0;
 	}
 
-no_page_found:
+yes_page_found:
 
 	if (check_debug_ip(vcpu)) {
 		dprintk_pte("KVM MMU: No PTE found (sdr1=0x%llx ptegp=0x%lx)\n",

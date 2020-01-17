@@ -33,7 +33,7 @@ nfsacl_size(struct posix_acl *acl_access, struct posix_acl *acl_default)
 }
 
 extern int
-nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
+nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct iyesde *iyesde,
 	      struct posix_acl *acl, int encode_entries, int typeflag);
 extern int
 nfsacl_decode(struct xdr_buf *buf, unsigned int base, unsigned int *aclcnt,

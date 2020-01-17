@@ -78,7 +78,7 @@ struct doublefault_stack {
  * to avoid circular header dependencies.
  *
  * Every field is a virtual alias of some other allocated backing store.
- * There is no direct allocation of a struct cpu_entry_area.
+ * There is yes direct allocation of a struct cpu_entry_area.
  */
 struct cpu_entry_area {
 	char gdt[PAGE_SIZE];
@@ -117,7 +117,7 @@ struct cpu_entry_area {
 	struct debug_store cpu_debug_store;
 	/*
 	 * The actual PEBS/BTS buffers must be mapped to user space
-	 * Reserve enough fixmap PTEs.
+	 * Reserve eyesugh fixmap PTEs.
 	 */
 	struct debug_store_buffers cpu_debug_buffers;
 };

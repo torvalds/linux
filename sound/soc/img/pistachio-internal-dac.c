@@ -2,7 +2,7 @@
 /*
  * Pistachio internal dac driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techyeslogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -138,7 +138,7 @@ static const struct snd_soc_component_driver pistachio_internal_dac_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(pistachio_internal_dac_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int pistachio_internal_dac_probe(struct platform_device *pdev)
@@ -155,7 +155,7 @@ static int pistachio_internal_dac_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dac);
 
-	dac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	dac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							    "img,cr-top");
 	if (IS_ERR(dac->regmap))
 		return PTR_ERR(dac->regmap);

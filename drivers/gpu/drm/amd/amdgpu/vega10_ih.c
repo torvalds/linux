@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -258,7 +258,7 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 		|| adev->asic_type == CHIP_RENOIR)
 		WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
 
-	/* set the writeback address whether it's enabled or not */
+	/* set the writeback address whether it's enabled or yest */
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_LO,
 		     lower_32_bits(ih->wptr_addr));
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_HI,
@@ -356,7 +356,7 @@ static void vega10_ih_irq_disable(struct amdgpu_device *adev)
 {
 	vega10_ih_disable_interrupts(adev);
 
-	/* Wait and acknowledge irq */
+	/* Wait and ackyeswledge irq */
 	mdelay(1);
 }
 
@@ -398,7 +398,7 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev,
 	wptr = REG_SET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW, 0);
 
 	/* When a ring buffer overflow happen start parsing interrupt
-	 * from the last not overwritten vector (wptr + 32). Hopefully
+	 * from the last yest overwritten vector (wptr + 32). Hopefully
 	 * this should allow us to catchup.
 	 */
 	tmp = (wptr + 32) & ih->ptr_mask;
@@ -684,7 +684,7 @@ static void vega10_ih_update_clockgating_state(struct amdgpu_device *adev,
 		def = data = RREG32_SOC15(OSSSYS, 0, mmIH_CLK_CTRL);
 		field_val = enable ? 0 : 1;
 		/**
-		 * Vega10 does not have IH_RETRY_INT_CAM_MEM_CLK_SOFT_OVERRIDE
+		 * Vega10 does yest have IH_RETRY_INT_CAM_MEM_CLK_SOFT_OVERRIDE
 		 * and IH_BUFFER_MEM_CLK_SOFT_OVERRIDE field.
 		 */
 		if (adev->asic_type > CHIP_VEGA10) {
@@ -758,7 +758,7 @@ const struct amdgpu_ip_block_version vega10_ih_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_IH,
 	.major = 4,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &vega10_ih_ip_funcs,
 };

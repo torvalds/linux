@@ -14,7 +14,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
@@ -87,7 +87,7 @@ void aic_common_set_priority(int priority, unsigned *val)
 }
 
 int aic_common_irq_domain_xlate(struct irq_domain *d,
-				struct device_node *ctrlr,
+				struct device_yesde *ctrlr,
 				const u32 *intspec,
 				unsigned int intsize,
 				irq_hw_number_t *out_hwirq,
@@ -108,7 +108,7 @@ int aic_common_irq_domain_xlate(struct irq_domain *d,
 
 static void __init aic_common_ext_irq_of_init(struct irq_domain *domain)
 {
-	struct device_node *node = irq_domain_get_of_node(domain);
+	struct device_yesde *yesde = irq_domain_get_of_yesde(domain);
 	struct irq_chip_generic *gc;
 	struct aic_chip_data *aic;
 	struct property *prop;
@@ -120,7 +120,7 @@ static void __init aic_common_ext_irq_of_init(struct irq_domain *domain)
 	aic = gc->private;
 	aic->ext_irqs |= 1;
 
-	of_property_for_each_u32(node, "atmel,external-irqs", prop, p, hwirq) {
+	of_property_for_each_u32(yesde, "atmel,external-irqs", prop, p, hwirq) {
 		gc = irq_get_domain_generic_chip(domain, hwirq);
 		if (!gc) {
 			pr_warn("AIC: external irq %d >= %d skip it\n",
@@ -139,19 +139,19 @@ static void __init aic_common_ext_irq_of_init(struct irq_domain *domain)
 
 void __init aic_common_rtc_irq_fixup(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *regs;
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,at91rm9200-rtc");
+	np = of_find_compatible_yesde(NULL, NULL, "atmel,at91rm9200-rtc");
 	if (!np)
-		np = of_find_compatible_node(NULL, NULL,
+		np = of_find_compatible_yesde(NULL, NULL,
 					     "atmel,at91sam9x5-rtc");
 
 	if (!np)
 		return;
 
 	regs = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (!regs)
 		return;
@@ -167,14 +167,14 @@ void __init aic_common_rtc_irq_fixup(void)
 
 void __init aic_common_rtt_irq_fixup(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *regs;
 
 	/*
 	 * The at91sam9263 SoC has 2 instances of the RTT block, hence we
 	 * iterate over the DT to find each occurrence.
 	 */
-	for_each_compatible_node(np, NULL, "atmel,at91sam9260-rtt") {
+	for_each_compatible_yesde(np, NULL, "atmel,at91sam9260-rtt") {
 		regs = of_iomap(np, 0);
 		if (!regs)
 			continue;
@@ -189,23 +189,23 @@ void __init aic_common_rtt_irq_fixup(void)
 
 static void __init aic_common_irq_fixup(const struct of_device_id *matches)
 {
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_yesde *root = of_find_yesde_by_path("/");
 	const struct of_device_id *match;
 
 	if (!root)
 		return;
 
-	match = of_match_node(matches, root);
+	match = of_match_yesde(matches, root);
 
 	if (match) {
 		void (*fixup)(void) = match->data;
 		fixup();
 	}
 
-	of_node_put(root);
+	of_yesde_put(root);
 }
 
-struct irq_domain *__init aic_common_of_init(struct device_node *node,
+struct irq_domain *__init aic_common_of_init(struct device_yesde *yesde,
 					     const struct irq_domain_ops *ops,
 					     const char *name, int nirqs,
 					     const struct of_device_id *matches)
@@ -220,7 +220,7 @@ struct irq_domain *__init aic_common_of_init(struct device_node *node,
 
 	nchips = DIV_ROUND_UP(nirqs, 32);
 
-	reg_base = of_iomap(node, 0);
+	reg_base = of_iomap(yesde, 0);
 	if (!reg_base)
 		return ERR_PTR(-ENOMEM);
 
@@ -230,7 +230,7 @@ struct irq_domain *__init aic_common_of_init(struct device_node *node,
 		goto err_iounmap;
 	}
 
-	domain = irq_domain_add_linear(node, nchips * 32, ops, aic);
+	domain = irq_domain_add_linear(yesde, nchips * 32, ops, aic);
 	if (!domain) {
 		ret = -ENOMEM;
 		goto err_free_aic;

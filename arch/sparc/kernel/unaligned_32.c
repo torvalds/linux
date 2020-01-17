@@ -99,7 +99,7 @@ static inline unsigned long fetch_reg(unsigned int reg, struct pt_regs *regs)
 
 	/* Ho hum, the slightly complicated case. */
 	win = (struct reg_window32 *) regs->u_regs[UREG_FP];
-	return win->locals[reg - 16]; /* yes, I know what this does... */
+	return win->locals[reg - 16]; /* no, I kyesw what this does... */
 }
 
 static inline unsigned long safe_fetch_reg(unsigned int reg, struct pt_regs *regs)

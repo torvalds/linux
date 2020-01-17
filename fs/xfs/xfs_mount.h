@@ -7,7 +7,7 @@
 #define	__XFS_MOUNT_H__
 
 struct xlog;
-struct xfs_inode;
+struct xfs_iyesde;
 struct xfs_mru_cache;
 struct xfs_ail;
 struct xfs_quotainfo;
@@ -44,7 +44,7 @@ enum {
 #define XFS_ERR_RETRY_FOREVER	-1
 
 /*
- * Although retry_timeout is in jiffies which is normally an unsigned long,
+ * Although retry_timeout is in jiffies which is yesrmally an unsigned long,
  * we limit the retry timeout to 86400 seconds, or one day.  So even a
  * signed 32-bit long is sufficient for a HZ value up to 24855.  Making it
  * signed lets us store the special "-1" value, meaning retry forever.
@@ -75,12 +75,12 @@ typedef struct xfs_mount {
 
 	struct xfs_sb		m_sb;		/* copy of fs superblock */
 	spinlock_t		m_sb_lock;	/* sb counter lock */
-	struct percpu_counter	m_icount;	/* allocated inodes counter */
-	struct percpu_counter	m_ifree;	/* free inodes counter */
+	struct percpu_counter	m_icount;	/* allocated iyesdes counter */
+	struct percpu_counter	m_ifree;	/* free iyesdes counter */
 	struct percpu_counter	m_fdblocks;	/* free block counter */
 	/*
 	 * Count of data device blocks reserved for delayed allocations,
-	 * including indlen blocks.  Does not include allocated CoW staging
+	 * including indlen blocks.  Does yest include allocated CoW staging
 	 * extents or anything related to the rt device.
 	 */
 	struct percpu_counter	m_delalloc_blks;
@@ -90,36 +90,36 @@ typedef struct xfs_mount {
 	char			*m_logname;	/* external log device name */
 	int			m_bsize;	/* fs logical block size */
 	xfs_agnumber_t		m_agfrotor;	/* last ag where space found */
-	xfs_agnumber_t		m_agirotor;	/* last ag dir inode alloced */
+	xfs_agnumber_t		m_agirotor;	/* last ag dir iyesde alloced */
 	spinlock_t		m_agirotor_lock;/* .. and lock protecting it */
-	xfs_agnumber_t		m_maxagi;	/* highest inode alloc group */
+	xfs_agnumber_t		m_maxagi;	/* highest iyesde alloc group */
 	uint			m_allocsize_log;/* min write size log bytes */
 	uint			m_allocsize_blocks; /* min write size blocks */
 	struct xfs_da_geometry	*m_dir_geo;	/* directory block geometry */
 	struct xfs_da_geometry	*m_attr_geo;	/* attribute block geometry */
 	struct xlog		*m_log;		/* log specific stuff */
-	struct xfs_ino_geometry	m_ino_geo;	/* inode geometry */
+	struct xfs_iyes_geometry	m_iyes_geo;	/* iyesde geometry */
 	int			m_logbufs;	/* number of log buffers */
 	int			m_logbsize;	/* size of each log buffer */
 	uint			m_rsumlevels;	/* rt summary levels */
 	uint			m_rsumsize;	/* size of rt summary, bytes */
 	/*
 	 * Optional cache of rt summary level per bitmap block with the
-	 * invariant that m_rsum_cache[bbno] <= the minimum i for which
-	 * rsum[i][bbno] != 0. Reads and writes are serialized by the rsumip
-	 * inode lock.
+	 * invariant that m_rsum_cache[bbyes] <= the minimum i for which
+	 * rsum[i][bbyes] != 0. Reads and writes are serialized by the rsumip
+	 * iyesde lock.
 	 */
 	uint8_t			*m_rsum_cache;
-	struct xfs_inode	*m_rbmip;	/* pointer to bitmap inode */
-	struct xfs_inode	*m_rsumip;	/* pointer to summary inode */
-	struct xfs_inode	*m_rootip;	/* pointer to root directory */
+	struct xfs_iyesde	*m_rbmip;	/* pointer to bitmap iyesde */
+	struct xfs_iyesde	*m_rsumip;	/* pointer to summary iyesde */
+	struct xfs_iyesde	*m_rootip;	/* pointer to root directory */
 	struct xfs_quotainfo	*m_quotainfo;	/* disk quota information */
 	xfs_buftarg_t		*m_ddev_targp;	/* saves taking the address */
 	xfs_buftarg_t		*m_logdev_targp;/* ptr to log device */
 	xfs_buftarg_t		*m_rtdev_targp;	/* ptr to rt device */
 	uint8_t			m_blkbit_log;	/* blocklog + NBBY */
 	uint8_t			m_blkbb_log;	/* blocklog - BBSHIFT */
-	uint8_t			m_agno_log;	/* log #ag's */
+	uint8_t			m_agyes_log;	/* log #ag's */
 	uint			m_blockmask;	/* sb_blocksize-1 */
 	uint			m_blockwsize;	/* sb_blocksize in words */
 	uint			m_blockwmask;	/* blockwsize-1 */
@@ -143,7 +143,7 @@ typedef struct xfs_mount {
 	struct mutex		m_growlock;	/* growfs mutex */
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint64_t		m_flags;	/* global mount flags */
-	bool			m_finobt_nores; /* no per-AG finobt resv. */
+	bool			m_fiyesbt_yesres; /* yes per-AG fiyesbt resv. */
 	uint			m_qflags;	/* quota status flags */
 	struct xfs_trans_resv	m_resv;		/* precomputed res values */
 	uint64_t		m_resblks;	/* total reserved blocks */
@@ -154,7 +154,7 @@ typedef struct xfs_mount {
 	uint8_t			m_sectbb_log;	/* sectlog - BBSHIFT */
 	atomic_t		m_active_trans;	/* number trans frozen */
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
-	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
+	struct delayed_work	m_reclaim_work;	/* background iyesde reclaim */
 	struct delayed_work	m_eofblocks_work; /* background eof blocks
 						     trimming */
 	struct delayed_work	m_cowblocks_work; /* background cow blocks
@@ -179,7 +179,7 @@ typedef struct xfs_mount {
 	 * Generation of the filesysyem layout.  This is incremented by each
 	 * growfs, and used by the pNFS server to ensure the client updates
 	 * its view of the block device once it gets a layout that might
-	 * reference the newly added blocks.  Does not need to be persistent
+	 * reference the newly added blocks.  Does yest need to be persistent
 	 * as long as we only allow file system size increments, but if we
 	 * ever support shrinks it would have to be persisted in addition
 	 * to various other kinds of pain inflicted on the pNFS server.
@@ -199,13 +199,13 @@ typedef struct xfs_mount {
 #endif
 } xfs_mount_t;
 
-#define M_IGEO(mp)		(&(mp)->m_ino_geo)
+#define M_IGEO(mp)		(&(mp)->m_iyes_geo)
 
 /*
  * Flags for m_flags.
  */
 #define XFS_MOUNT_WSYNC		(1ULL << 0)	/* for nfs - all metadata ops
-						   must be synchronous except
+						   must be synchroyesus except
 						   for space allocations */
 #define XFS_MOUNT_UNMOUNTING	(1ULL << 1)	/* filesystem is unmounting */
 #define XFS_MOUNT_WAS_CLEAN	(1ULL << 3)
@@ -217,16 +217,16 @@ typedef struct xfs_mount {
 						   allocations */
 #define XFS_MOUNT_ATTR2		(1ULL << 8)	/* allow use of attr2 format */
 #define XFS_MOUNT_GRPID		(1ULL << 9)	/* group-ID assigned from directory */
-#define XFS_MOUNT_NORECOVERY	(1ULL << 10)	/* no recovery - dirty fs */
+#define XFS_MOUNT_NORECOVERY	(1ULL << 10)	/* yes recovery - dirty fs */
 #define XFS_MOUNT_ALLOCSIZE	(1ULL << 12)	/* specified allocation size */
-#define XFS_MOUNT_SMALL_INUMS	(1ULL << 14)	/* user wants 32bit inodes */
-#define XFS_MOUNT_32BITINODES	(1ULL << 15)	/* inode32 allocator active */
-#define XFS_MOUNT_NOUUID	(1ULL << 16)	/* ignore uuid during mount */
-#define XFS_MOUNT_IKEEP		(1ULL << 18)	/* keep empty inode clusters*/
+#define XFS_MOUNT_SMALL_INUMS	(1ULL << 14)	/* user wants 32bit iyesdes */
+#define XFS_MOUNT_32BITINODES	(1ULL << 15)	/* iyesde32 allocator active */
+#define XFS_MOUNT_NOUUID	(1ULL << 16)	/* igyesre uuid during mount */
+#define XFS_MOUNT_IKEEP		(1ULL << 18)	/* keep empty iyesde clusters*/
 #define XFS_MOUNT_SWALLOC	(1ULL << 19)	/* turn on stripe width
 						 * allocation */
 #define XFS_MOUNT_RDONLY	(1ULL << 20)	/* read-only fs */
-#define XFS_MOUNT_DIRSYNC	(1ULL << 21)	/* synchronous directory ops */
+#define XFS_MOUNT_DIRSYNC	(1ULL << 21)	/* synchroyesus directory ops */
 #define XFS_MOUNT_LARGEIO	(1ULL << 22)	/* report large preferred
 						 * I/O size in stat() */
 #define XFS_MOUNT_FILESTREAMS	(1ULL << 24)	/* enable the filestreams
@@ -263,7 +263,7 @@ void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 #define XFS_MFSI_QUIET		0x40	/* Be silent if mount errors found */
 
 static inline xfs_agnumber_t
-xfs_daddr_to_agno(struct xfs_mount *mp, xfs_daddr_t d)
+xfs_daddr_to_agyes(struct xfs_mount *mp, xfs_daddr_t d)
 {
 	xfs_rfsblock_t ld = XFS_BB_TO_FSBT(mp, d);
 	do_div(ld, mp->m_sb.sb_agblocks);
@@ -271,7 +271,7 @@ xfs_daddr_to_agno(struct xfs_mount *mp, xfs_daddr_t d)
 }
 
 static inline xfs_agblock_t
-xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
+xfs_daddr_to_agbyes(struct xfs_mount *mp, xfs_daddr_t d)
 {
 	xfs_rfsblock_t ld = XFS_BB_TO_FSBT(mp, d);
 	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
@@ -293,30 +293,30 @@ struct xfs_ag_resv {
  */
 typedef struct xfs_perag {
 	struct xfs_mount *pag_mount;	/* owner filesystem */
-	xfs_agnumber_t	pag_agno;	/* AG this structure belongs to */
+	xfs_agnumber_t	pag_agyes;	/* AG this structure belongs to */
 	atomic_t	pag_ref;	/* perag reference count */
 	char		pagf_init;	/* this agf's entry is initialized */
 	char		pagi_init;	/* this agi's entry is initialized */
 	char		pagf_metadata;	/* the agf is preferred to be metadata */
-	char		pagi_inodeok;	/* The agi is ok for inodes */
+	char		pagi_iyesdeok;	/* The agi is ok for iyesdes */
 	uint8_t		pagf_levels[XFS_BTNUM_AGF];
-					/* # of levels in bno & cnt btree */
+					/* # of levels in byes & cnt btree */
 	bool		pagf_agflreset; /* agfl requires reset before use */
 	uint32_t	pagf_flcount;	/* count of blocks in freelist */
 	xfs_extlen_t	pagf_freeblks;	/* total free blocks */
 	xfs_extlen_t	pagf_longest;	/* longest free space */
 	uint32_t	pagf_btreeblks;	/* # of blocks held in AGF btrees */
-	xfs_agino_t	pagi_freecount;	/* number of free inodes */
-	xfs_agino_t	pagi_count;	/* number of allocated inodes */
+	xfs_agiyes_t	pagi_freecount;	/* number of free iyesdes */
+	xfs_agiyes_t	pagi_count;	/* number of allocated iyesdes */
 
 	/*
-	 * Inode allocation search lookup optimisation.
-	 * If the pagino matches, the search for new inodes
+	 * Iyesde allocation search lookup optimisation.
+	 * If the pagiyes matches, the search for new iyesdes
 	 * doesn't need to search the near ones again straight away
 	 */
-	xfs_agino_t	pagl_pagino;
-	xfs_agino_t	pagl_leftrec;
-	xfs_agino_t	pagl_rightrec;
+	xfs_agiyes_t	pagl_pagiyes;
+	xfs_agiyes_t	pagl_leftrec;
+	xfs_agiyes_t	pagl_rightrec;
 
 	/*
 	 * Bitsets of per-ag metadata that have been checked and/or are sick.
@@ -333,9 +333,9 @@ typedef struct xfs_perag {
 
 	atomic_t        pagf_fstrms;    /* # of filestreams active in this AG */
 
-	spinlock_t	pag_ici_lock;	/* incore inode cache lock */
-	struct radix_tree_root pag_ici_root;	/* incore inode cache root */
-	int		pag_ici_reclaimable;	/* reclaimable inodes */
+	spinlock_t	pag_ici_lock;	/* incore iyesde cache lock */
+	struct radix_tree_root pag_ici_root;	/* incore iyesde cache root */
+	int		pag_ici_reclaimable;	/* reclaimable iyesdes */
 	struct mutex	pag_ici_reclaim_lock;	/* serialisation point */
 	unsigned long	pag_ici_reclaim_cursor;	/* reclaim restart point */
 
@@ -356,7 +356,7 @@ typedef struct xfs_perag {
 	uint8_t			pagf_refcount_level;
 
 	/*
-	 * Unlinked inode information.  This incore information reflects
+	 * Unlinked iyesde information.  This incore information reflects
 	 * data stored in the AGI, so callers must hold the AGI buffer lock
 	 * or have some other means to control concurrency.
 	 */
@@ -405,7 +405,7 @@ extern int	xfs_dev_is_read_only(struct xfs_mount *, char *);
 
 extern void	xfs_set_low_space_thresholds(struct xfs_mount *);
 
-int	xfs_zero_extent(struct xfs_inode *ip, xfs_fsblock_t start_fsb,
+int	xfs_zero_extent(struct xfs_iyesde *ip, xfs_fsblock_t start_fsb,
 			xfs_off_t count_fsb);
 
 struct xfs_error_cfg * xfs_error_get_cfg(struct xfs_mount *mp,

@@ -30,7 +30,7 @@ static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 /*
  * dma_to_pfn/pfn_to_dma/dma_to_virt/virt_to_dma are architecture private
  * functions used internally by the DMA-mapping API to provide DMA
- * addresses. They must not be used by drivers.
+ * addresses. They must yest be used by drivers.
  */
 #ifndef __arch_pfn_to_dma
 static inline dma_addr_t pfn_to_dma(struct device *dev, unsigned long pfn)
@@ -132,7 +132,7 @@ extern void arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
  * @attrs: optinal attributes that specific mapping properties
  *
  * Map a coherent DMA buffer previously allocated by dma_alloc_coherent
- * into user space.  The coherent DMA buffer must not be freed by the
+ * into user space.  The coherent DMA buffer must yest be freed by the
  * driver until the user space mapping has been released.
  */
 extern int arm_dma_mmap(struct device *dev, struct vm_area_struct *vma,

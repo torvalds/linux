@@ -12,9 +12,9 @@
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
 /*
- * The minimum number of msix vectors required for normal operation.
+ * The minimum number of msix vectors required for yesrmal operation.
  * 3 for virtio network, console and block devices.
- * 1 for card shutdown notifications.
+ * 1 for card shutdown yestifications.
  * 4 for host owned DMA channels.
  * 1 for SCIF
  */

@@ -20,7 +20,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-dv-timings.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/i2c/tda1997x.h>
 
 #include <sound/core.h>
@@ -802,7 +802,7 @@ tda1997x_configure_vhref(struct v4l2_subdev *sd)
 	/*
 	 * Configure the VHRef timing values. In case the VHREF generator has
 	 * been configured in manual mode, this will allow to manually set all
-	 * horiz and vert ref values (non-active pixel areas) of the generator
+	 * horiz and vert ref values (yesn-active pixel areas) of the generator
 	 * and allows setting the frame reference params.
 	 */
 	/* horizontal reference start/end */
@@ -984,7 +984,7 @@ tda1997x_configure_audout(struct v4l2_subdev *sd, u8 channel_assignment)
 			reg |= AUDIO_OUT_ENABLE_AP2;
 		if (channel_assignment >= 0x0c)
 			reg |= AUDIO_OUT_ENABLE_AP3;
-		/* specific cases where AP1 is not used */
+		/* specific cases where AP1 is yest used */
 		if ((channel_assignment == 0x04)
 		 || (channel_assignment == 0x08)
 		 || (channel_assignment == 0x0c)
@@ -993,7 +993,7 @@ tda1997x_configure_audout(struct v4l2_subdev *sd, u8 channel_assignment)
 		 || (channel_assignment == 0x18)
 		 || (channel_assignment == 0x1c))
 			reg &= ~AUDIO_OUT_ENABLE_AP1;
-		/* specific cases where AP2 is not used */
+		/* specific cases where AP2 is yest used */
 		if ((channel_assignment >= 0x14)
 		 && (channel_assignment <= 0x17))
 			reg &= ~AUDIO_OUT_ENABLE_AP2;
@@ -1007,7 +1007,7 @@ tda1997x_configure_audout(struct v4l2_subdev *sd, u8 channel_assignment)
 		reg |= (AUDIO_OUT_ENABLE_ACLK | AUDIO_OUT_ENABLE_WS);
 	io_write(sd, REG_AUDIO_OUT_ENABLE, reg);
 
-	/* reset test mode to normal audio freq auto selection */
+	/* reset test mode to yesrmal audio freq auto selection */
 	io_write(sd, REG_TEST_MODE, 0x00);
 
 	return 0;
@@ -1149,7 +1149,7 @@ tda1997x_detect_std(struct tda1997x_state *state,
 		}
 	}
 
-	v4l_err(state->client, "no resolution match for timings: %d/%d/%d\n",
+	v4l_err(state->client, "yes resolution match for timings: %d/%d/%d\n",
 		vper, hper, hsper);
 	return -ERANGE;
 }
@@ -1178,10 +1178,10 @@ static void tda1997x_reset_n1(struct tda1997x_state *state)
 }
 
 /*
- * Activity detection must only be notified when stable_clk_x AND active_x
- * bits are set to 1. If only stable_clk_x bit is set to 1 but not
- * active_x, it means that the TMDS clock is not in the defined range
- * and activity detection must not be notified.
+ * Activity detection must only be yestified when stable_clk_x AND active_x
+ * bits are set to 1. If only stable_clk_x bit is set to 1 but yest
+ * active_x, it means that the TMDS clock is yest in the defined range
+ * and activity detection must yest be yestified.
  */
 static u8
 tda1997x_read_activity_status_regs(struct v4l2_subdev *sd)
@@ -1190,14 +1190,14 @@ tda1997x_read_activity_status_regs(struct v4l2_subdev *sd)
 
 	/* Read CLK_A_STATUS register */
 	reg = io_read(sd, REG_CLK_A_STATUS);
-	/* ignore if not active */
+	/* igyesre if yest active */
 	if ((reg & MASK_CLK_STABLE) && !(reg & MASK_CLK_ACTIVE))
 		reg &= ~MASK_CLK_STABLE;
 	status |= ((reg & MASK_CLK_STABLE) >> 2);
 
 	/* Read CLK_B_STATUS register */
 	reg = io_read(sd, REG_CLK_B_STATUS);
-	/* ignore if not active */
+	/* igyesre if yest active */
 	if ((reg & MASK_CLK_STABLE) && !(reg & MASK_CLK_ACTIVE))
 		reg &= ~MASK_CLK_STABLE;
 	status |= ((reg & MASK_CLK_STABLE) >> 1);
@@ -1388,8 +1388,8 @@ static void tda1997x_irq_sus(struct tda1997x_state *state, u8 *flags)
 		}
 		if (debug)
 			tda1997x_detect_std(state, NULL);
-		/* notify user of change in resolution */
-		v4l2_subdev_notify_event(&state->sd, &tda1997x_ev_fmt);
+		/* yestify user of change in resolution */
+		v4l2_subdev_yestify_event(&state->sd, &tda1997x_ev_fmt);
 	}
 }
 
@@ -1461,7 +1461,7 @@ static void tda1997x_irq_rate(struct tda1997x_state *state, u8 *flags)
 					tda1997x_reset_n1(state);
 
 				state->input_detect[input] = 0;
-				v4l2_subdev_notify_event(sd, &tda1997x_ev_fmt);
+				v4l2_subdev_yestify_event(sd, &tda1997x_ev_fmt);
 			}
 
 			/* activity detected */
@@ -1636,7 +1636,7 @@ tda1997x_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	 *
 	 * The vper/hper/hsper registers provide the frame period, line period
 	 * and horiz sync period (units of MCLK clock cycles (27MHz)) and
-	 * testing shows these values to be random if no signal is present
+	 * testing shows these values to be random if yes signal is present
 	 * or locked.
 	 */
 	v4l2_dbg(1, debug, sd, "inputs:%d/%d timings:%d/%d/%d\n",
@@ -1661,7 +1661,7 @@ static int tda1997x_s_dv_timings(struct v4l2_subdev *sd,
 	v4l_dbg(1, debug, state->client, "%s\n", __func__);
 
 	if (v4l2_match_dv_timings(&state->timings, timings, 0, false))
-		return 0; /* no changes */
+		return 0; /* yes changes */
 
 	if (!v4l2_valid_dv_timings(timings, &tda1997x_dv_timings_cap,
 				   NULL, NULL))
@@ -1953,13 +1953,13 @@ static int tda1997x_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "-----Chip status-----\n");
 	v4l2_info(sd, "Chip: %s N%d\n", state->info->name,
 		  state->chip_revision + 1);
-	v4l2_info(sd, "EDID Enabled: %s\n", state->edid.present ? "yes" : "no");
+	v4l2_info(sd, "EDID Enabled: %s\n", state->edid.present ? "no" : "yes");
 
 	v4l2_info(sd, "-----Signal status-----\n");
 	v4l2_info(sd, "Cable detected (+5V power): %s\n",
-		  tda1997x_detect_tx_5v(sd) ? "yes" : "no");
+		  tda1997x_detect_tx_5v(sd) ? "no" : "yes");
 	v4l2_info(sd, "HPD detected: %s\n",
-		  tda1997x_detect_tx_hpd(sd) ? "yes" : "no");
+		  tda1997x_detect_tx_hpd(sd) ? "no" : "yes");
 
 	v4l2_info(sd, "-----Video Timings-----\n");
 	switch (tda1997x_detect_std(state, &timings)) {
@@ -1989,7 +1989,7 @@ static int tda1997x_log_status(struct v4l2_subdev *sd)
 		v4l2_info(sd, "audio: %dch %dHz\n", state->audio_channels,
 			  state->audio_samplerate);
 	} else {
-		v4l2_info(sd, "audio: none\n");
+		v4l2_info(sd, "audio: yesne\n");
 	}
 
 	v4l2_info(sd, "-----Infoframes-----\n");
@@ -2161,7 +2161,7 @@ static int tda1997x_core_init(struct v4l2_subdev *sd)
 		tda1997x_reset_n1(state);
 
 	/*
-	 * No HDCP acknowledge when HDCP is disabled
+	 * No HDCP ackyeswledge when HDCP is disabled
 	 * and reset SUS to force format detection
 	 */
 	tda1997x_hdmi_info_reset(sd, NACK_HDCP, true);
@@ -2269,9 +2269,9 @@ MODULE_DEVICE_TABLE(of, tda1997x_of_id);
 static int tda1997x_parse_dt(struct tda1997x_state *state)
 {
 	struct tda1997x_platform_data *pdata = &state->pdata;
-	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-	struct device_node *ep;
-	struct device_node *np;
+	struct v4l2_fwyesde_endpoint bus_cfg = { .bus_type = 0 };
+	struct device_yesde *ep;
+	struct device_yesde *np;
 	unsigned int flags;
 	const char *str;
 	int ret;
@@ -2288,17 +2288,17 @@ static int tda1997x_parse_dt(struct tda1997x_state *state)
 	pdata->vidout_sel_vs = VS_VREF_SEL_VREF_HDMI;
 	pdata->vidout_sel_de = DE_FREF_SEL_DE_VHREF;
 
-	np = state->client->dev.of_node;
+	np = state->client->dev.of_yesde;
 	ep = of_graph_get_next_endpoint(np, NULL);
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &bus_cfg);
+	ret = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(ep), &bus_cfg);
 	if (ret) {
-		of_node_put(ep);
+		of_yesde_put(ep);
 		return ret;
 	}
-	of_node_put(ep);
+	of_yesde_put(ep);
 	pdata->vidout_bus_type = bus_cfg.bus_type;
 
 	/* polarity of HS/VS/DE */
@@ -2498,7 +2498,7 @@ static struct snd_soc_component_driver tda1997x_codec_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int tda1997x_probe(struct i2c_client *client,
@@ -2524,10 +2524,10 @@ static int tda1997x_probe(struct i2c_client *client,
 
 	state->client = client;
 	pdata = &state->pdata;
-	if (IS_ENABLED(CONFIG_OF) && client->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && client->dev.of_yesde) {
 		const struct of_device_id *oid;
 
-		oid = of_match_node(tda1997x_of_id, client->dev.of_node);
+		oid = of_match_yesde(tda1997x_of_id, client->dev.of_yesde);
 		state->info = oid->data;
 
 		ret = tda1997x_parse_dt(state);

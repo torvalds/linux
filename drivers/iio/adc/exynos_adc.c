@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  exynos_adc.c - Support for ADC in EXYNOS SoCs
+ *  exyyess_adc.c - Support for ADC in EXYNOS SoCs
  *
  *  8 ~ 10 channel, 10/12-bit ADC
  *
@@ -11,7 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -117,8 +117,8 @@
 #define EXYNOS_ADCV1_PHY_OFFSET	0x0718
 #define EXYNOS_ADCV2_PHY_OFFSET	0x0720
 
-struct exynos_adc {
-	struct exynos_adc_data	*data;
+struct exyyess_adc {
+	struct exyyess_adc_data	*data;
 	struct device		*dev;
 	struct input_dev	*input;
 	void __iomem		*regs;
@@ -140,27 +140,27 @@ struct exynos_adc {
 	u32			ts_y;
 };
 
-struct exynos_adc_data {
+struct exyyess_adc_data {
 	int num_channels;
 	bool needs_sclk;
 	bool needs_adc_phy;
 	int phy_offset;
 	u32 mask;
 
-	void (*init_hw)(struct exynos_adc *info);
-	void (*exit_hw)(struct exynos_adc *info);
-	void (*clear_irq)(struct exynos_adc *info);
-	void (*start_conv)(struct exynos_adc *info, unsigned long addr);
+	void (*init_hw)(struct exyyess_adc *info);
+	void (*exit_hw)(struct exyyess_adc *info);
+	void (*clear_irq)(struct exyyess_adc *info);
+	void (*start_conv)(struct exyyess_adc *info, unsigned long addr);
 };
 
-static void exynos_adc_unprepare_clk(struct exynos_adc *info)
+static void exyyess_adc_unprepare_clk(struct exyyess_adc *info)
 {
 	if (info->data->needs_sclk)
 		clk_unprepare(info->sclk);
 	clk_unprepare(info->clk);
 }
 
-static int exynos_adc_prepare_clk(struct exynos_adc *info)
+static int exyyess_adc_prepare_clk(struct exyyess_adc *info)
 {
 	int ret;
 
@@ -183,14 +183,14 @@ static int exynos_adc_prepare_clk(struct exynos_adc *info)
 	return 0;
 }
 
-static void exynos_adc_disable_clk(struct exynos_adc *info)
+static void exyyess_adc_disable_clk(struct exyyess_adc *info)
 {
 	if (info->data->needs_sclk)
 		clk_disable(info->sclk);
 	clk_disable(info->clk);
 }
 
-static int exynos_adc_enable_clk(struct exynos_adc *info)
+static int exyyess_adc_enable_clk(struct exyyess_adc *info)
 {
 	int ret;
 
@@ -213,7 +213,7 @@ static int exynos_adc_enable_clk(struct exynos_adc *info)
 	return 0;
 }
 
-static void exynos_adc_v1_init_hw(struct exynos_adc *info)
+static void exyyess_adc_v1_init_hw(struct exyyess_adc *info)
 {
 	u32 con1;
 
@@ -231,7 +231,7 @@ static void exynos_adc_v1_init_hw(struct exynos_adc *info)
 	writel(info->delay, ADC_V1_DLY(info->regs));
 }
 
-static void exynos_adc_v1_exit_hw(struct exynos_adc *info)
+static void exyyess_adc_v1_exit_hw(struct exyyess_adc *info)
 {
 	u32 con;
 
@@ -243,12 +243,12 @@ static void exynos_adc_v1_exit_hw(struct exynos_adc *info)
 	writel(con, ADC_V1_CON(info->regs));
 }
 
-static void exynos_adc_v1_clear_irq(struct exynos_adc *info)
+static void exyyess_adc_v1_clear_irq(struct exyyess_adc *info)
 {
 	writel(1, ADC_V1_INTCLR(info->regs));
 }
 
-static void exynos_adc_v1_start_conv(struct exynos_adc *info,
+static void exyyess_adc_v1_start_conv(struct exyyess_adc *info,
 				     unsigned long addr)
 {
 	u32 con1;
@@ -259,42 +259,42 @@ static void exynos_adc_v1_start_conv(struct exynos_adc *info,
 	writel(con1 | ADC_CON_EN_START, ADC_V1_CON(info->regs));
 }
 
-/* Exynos4212 and 4412 is like ADCv1 but with four channels only */
-static const struct exynos_adc_data exynos4212_adc_data = {
+/* Exyyess4212 and 4412 is like ADCv1 but with four channels only */
+static const struct exyyess_adc_data exyyess4212_adc_data = {
 	.num_channels	= MAX_EXYNOS4212_ADC_CHANNELS,
 	.mask		= ADC_DATX_MASK,	/* 12 bit ADC resolution */
 	.needs_adc_phy	= true,
 	.phy_offset	= EXYNOS_ADCV1_PHY_OFFSET,
 
-	.init_hw	= exynos_adc_v1_init_hw,
-	.exit_hw	= exynos_adc_v1_exit_hw,
-	.clear_irq	= exynos_adc_v1_clear_irq,
-	.start_conv	= exynos_adc_v1_start_conv,
+	.init_hw	= exyyess_adc_v1_init_hw,
+	.exit_hw	= exyyess_adc_v1_exit_hw,
+	.clear_irq	= exyyess_adc_v1_clear_irq,
+	.start_conv	= exyyess_adc_v1_start_conv,
 };
 
-static const struct exynos_adc_data exynos_adc_v1_data = {
+static const struct exyyess_adc_data exyyess_adc_v1_data = {
 	.num_channels	= MAX_ADC_V1_CHANNELS,
 	.mask		= ADC_DATX_MASK,	/* 12 bit ADC resolution */
 	.needs_adc_phy	= true,
 	.phy_offset	= EXYNOS_ADCV1_PHY_OFFSET,
 
-	.init_hw	= exynos_adc_v1_init_hw,
-	.exit_hw	= exynos_adc_v1_exit_hw,
-	.clear_irq	= exynos_adc_v1_clear_irq,
-	.start_conv	= exynos_adc_v1_start_conv,
+	.init_hw	= exyyess_adc_v1_init_hw,
+	.exit_hw	= exyyess_adc_v1_exit_hw,
+	.clear_irq	= exyyess_adc_v1_clear_irq,
+	.start_conv	= exyyess_adc_v1_start_conv,
 };
 
-static const struct exynos_adc_data exynos_adc_s5pv210_data = {
+static const struct exyyess_adc_data exyyess_adc_s5pv210_data = {
 	.num_channels	= MAX_S5PV210_ADC_CHANNELS,
 	.mask		= ADC_DATX_MASK,	/* 12 bit ADC resolution */
 
-	.init_hw	= exynos_adc_v1_init_hw,
-	.exit_hw	= exynos_adc_v1_exit_hw,
-	.clear_irq	= exynos_adc_v1_clear_irq,
-	.start_conv	= exynos_adc_v1_start_conv,
+	.init_hw	= exyyess_adc_v1_init_hw,
+	.exit_hw	= exyyess_adc_v1_exit_hw,
+	.clear_irq	= exyyess_adc_v1_clear_irq,
+	.start_conv	= exyyess_adc_v1_start_conv,
 };
 
-static void exynos_adc_s3c2416_start_conv(struct exynos_adc *info,
+static void exyyess_adc_s3c2416_start_conv(struct exyyess_adc *info,
 					  unsigned long addr)
 {
 	u32 con1;
@@ -311,16 +311,16 @@ static void exynos_adc_s3c2416_start_conv(struct exynos_adc *info,
 	writel(con1 | ADC_CON_EN_START, ADC_V1_CON(info->regs));
 }
 
-static struct exynos_adc_data const exynos_adc_s3c2416_data = {
+static struct exyyess_adc_data const exyyess_adc_s3c2416_data = {
 	.num_channels	= MAX_ADC_V1_CHANNELS,
 	.mask		= ADC_DATX_MASK,	/* 12 bit ADC resolution */
 
-	.init_hw	= exynos_adc_v1_init_hw,
-	.exit_hw	= exynos_adc_v1_exit_hw,
-	.start_conv	= exynos_adc_s3c2416_start_conv,
+	.init_hw	= exyyess_adc_v1_init_hw,
+	.exit_hw	= exyyess_adc_v1_exit_hw,
+	.start_conv	= exyyess_adc_s3c2416_start_conv,
 };
 
-static void exynos_adc_s3c2443_start_conv(struct exynos_adc *info,
+static void exyyess_adc_s3c2443_start_conv(struct exyyess_adc *info,
 					  unsigned long addr)
 {
 	u32 con1;
@@ -332,16 +332,16 @@ static void exynos_adc_s3c2443_start_conv(struct exynos_adc *info,
 	writel(con1 | ADC_CON_EN_START, ADC_V1_CON(info->regs));
 }
 
-static struct exynos_adc_data const exynos_adc_s3c2443_data = {
+static struct exyyess_adc_data const exyyess_adc_s3c2443_data = {
 	.num_channels	= MAX_ADC_V1_CHANNELS,
 	.mask		= ADC_S3C2410_DATX_MASK, /* 10 bit ADC resolution */
 
-	.init_hw	= exynos_adc_v1_init_hw,
-	.exit_hw	= exynos_adc_v1_exit_hw,
-	.start_conv	= exynos_adc_s3c2443_start_conv,
+	.init_hw	= exyyess_adc_v1_init_hw,
+	.exit_hw	= exyyess_adc_v1_exit_hw,
+	.start_conv	= exyyess_adc_s3c2443_start_conv,
 };
 
-static void exynos_adc_s3c64xx_start_conv(struct exynos_adc *info,
+static void exyyess_adc_s3c64xx_start_conv(struct exyyess_adc *info,
 					  unsigned long addr)
 {
 	u32 con1;
@@ -352,26 +352,26 @@ static void exynos_adc_s3c64xx_start_conv(struct exynos_adc *info,
 	writel(con1 | ADC_CON_EN_START, ADC_V1_CON(info->regs));
 }
 
-static struct exynos_adc_data const exynos_adc_s3c24xx_data = {
+static struct exyyess_adc_data const exyyess_adc_s3c24xx_data = {
 	.num_channels	= MAX_ADC_V1_CHANNELS,
 	.mask		= ADC_S3C2410_DATX_MASK, /* 10 bit ADC resolution */
 
-	.init_hw	= exynos_adc_v1_init_hw,
-	.exit_hw	= exynos_adc_v1_exit_hw,
-	.start_conv	= exynos_adc_s3c64xx_start_conv,
+	.init_hw	= exyyess_adc_v1_init_hw,
+	.exit_hw	= exyyess_adc_v1_exit_hw,
+	.start_conv	= exyyess_adc_s3c64xx_start_conv,
 };
 
-static struct exynos_adc_data const exynos_adc_s3c64xx_data = {
+static struct exyyess_adc_data const exyyess_adc_s3c64xx_data = {
 	.num_channels	= MAX_ADC_V1_CHANNELS,
 	.mask		= ADC_DATX_MASK,	/* 12 bit ADC resolution */
 
-	.init_hw	= exynos_adc_v1_init_hw,
-	.exit_hw	= exynos_adc_v1_exit_hw,
-	.clear_irq	= exynos_adc_v1_clear_irq,
-	.start_conv	= exynos_adc_s3c64xx_start_conv,
+	.init_hw	= exyyess_adc_v1_init_hw,
+	.exit_hw	= exyyess_adc_v1_exit_hw,
+	.clear_irq	= exyyess_adc_v1_clear_irq,
+	.start_conv	= exyyess_adc_s3c64xx_start_conv,
 };
 
-static void exynos_adc_v2_init_hw(struct exynos_adc *info)
+static void exyyess_adc_v2_init_hw(struct exyyess_adc *info)
 {
 	u32 con1, con2;
 
@@ -389,7 +389,7 @@ static void exynos_adc_v2_init_hw(struct exynos_adc *info)
 	writel(1, ADC_V2_INT_EN(info->regs));
 }
 
-static void exynos_adc_v2_exit_hw(struct exynos_adc *info)
+static void exyyess_adc_v2_exit_hw(struct exyyess_adc *info)
 {
 	u32 con;
 
@@ -401,12 +401,12 @@ static void exynos_adc_v2_exit_hw(struct exynos_adc *info)
 	writel(con, ADC_V2_CON1(info->regs));
 }
 
-static void exynos_adc_v2_clear_irq(struct exynos_adc *info)
+static void exyyess_adc_v2_clear_irq(struct exyyess_adc *info)
 {
 	writel(1, ADC_V2_INT_ST(info->regs));
 }
 
-static void exynos_adc_v2_start_conv(struct exynos_adc *info,
+static void exyyess_adc_v2_start_conv(struct exyyess_adc *info,
 				     unsigned long addr)
 {
 	u32 con1, con2;
@@ -420,32 +420,32 @@ static void exynos_adc_v2_start_conv(struct exynos_adc *info,
 	writel(con1 | ADC_CON_EN_START, ADC_V2_CON1(info->regs));
 }
 
-static const struct exynos_adc_data exynos_adc_v2_data = {
+static const struct exyyess_adc_data exyyess_adc_v2_data = {
 	.num_channels	= MAX_ADC_V2_CHANNELS,
 	.mask		= ADC_DATX_MASK, /* 12 bit ADC resolution */
 	.needs_adc_phy	= true,
 	.phy_offset	= EXYNOS_ADCV2_PHY_OFFSET,
 
-	.init_hw	= exynos_adc_v2_init_hw,
-	.exit_hw	= exynos_adc_v2_exit_hw,
-	.clear_irq	= exynos_adc_v2_clear_irq,
-	.start_conv	= exynos_adc_v2_start_conv,
+	.init_hw	= exyyess_adc_v2_init_hw,
+	.exit_hw	= exyyess_adc_v2_exit_hw,
+	.clear_irq	= exyyess_adc_v2_clear_irq,
+	.start_conv	= exyyess_adc_v2_start_conv,
 };
 
-static const struct exynos_adc_data exynos3250_adc_data = {
+static const struct exyyess_adc_data exyyess3250_adc_data = {
 	.num_channels	= MAX_EXYNOS3250_ADC_CHANNELS,
 	.mask		= ADC_DATX_MASK, /* 12 bit ADC resolution */
 	.needs_sclk	= true,
 	.needs_adc_phy	= true,
 	.phy_offset	= EXYNOS_ADCV1_PHY_OFFSET,
 
-	.init_hw	= exynos_adc_v2_init_hw,
-	.exit_hw	= exynos_adc_v2_exit_hw,
-	.clear_irq	= exynos_adc_v2_clear_irq,
-	.start_conv	= exynos_adc_v2_start_conv,
+	.init_hw	= exyyess_adc_v2_init_hw,
+	.exit_hw	= exyyess_adc_v2_exit_hw,
+	.clear_irq	= exyyess_adc_v2_clear_irq,
+	.start_conv	= exyyess_adc_v2_start_conv,
 };
 
-static void exynos_adc_exynos7_init_hw(struct exynos_adc *info)
+static void exyyess_adc_exyyess7_init_hw(struct exyyess_adc *info)
 {
 	u32 con1, con2;
 
@@ -464,70 +464,70 @@ static void exynos_adc_exynos7_init_hw(struct exynos_adc *info)
 	writel(1, ADC_V2_INT_EN(info->regs));
 }
 
-static const struct exynos_adc_data exynos7_adc_data = {
+static const struct exyyess_adc_data exyyess7_adc_data = {
 	.num_channels	= MAX_ADC_V1_CHANNELS,
 	.mask		= ADC_DATX_MASK, /* 12 bit ADC resolution */
 
-	.init_hw	= exynos_adc_exynos7_init_hw,
-	.exit_hw	= exynos_adc_v2_exit_hw,
-	.clear_irq	= exynos_adc_v2_clear_irq,
-	.start_conv	= exynos_adc_v2_start_conv,
+	.init_hw	= exyyess_adc_exyyess7_init_hw,
+	.exit_hw	= exyyess_adc_v2_exit_hw,
+	.clear_irq	= exyyess_adc_v2_clear_irq,
+	.start_conv	= exyyess_adc_v2_start_conv,
 };
 
-static const struct of_device_id exynos_adc_match[] = {
+static const struct of_device_id exyyess_adc_match[] = {
 	{
 		.compatible = "samsung,s3c2410-adc",
-		.data = &exynos_adc_s3c24xx_data,
+		.data = &exyyess_adc_s3c24xx_data,
 	}, {
 		.compatible = "samsung,s3c2416-adc",
-		.data = &exynos_adc_s3c2416_data,
+		.data = &exyyess_adc_s3c2416_data,
 	}, {
 		.compatible = "samsung,s3c2440-adc",
-		.data = &exynos_adc_s3c24xx_data,
+		.data = &exyyess_adc_s3c24xx_data,
 	}, {
 		.compatible = "samsung,s3c2443-adc",
-		.data = &exynos_adc_s3c2443_data,
+		.data = &exyyess_adc_s3c2443_data,
 	}, {
 		.compatible = "samsung,s3c6410-adc",
-		.data = &exynos_adc_s3c64xx_data,
+		.data = &exyyess_adc_s3c64xx_data,
 	}, {
 		.compatible = "samsung,s5pv210-adc",
-		.data = &exynos_adc_s5pv210_data,
+		.data = &exyyess_adc_s5pv210_data,
 	}, {
-		.compatible = "samsung,exynos4212-adc",
-		.data = &exynos4212_adc_data,
+		.compatible = "samsung,exyyess4212-adc",
+		.data = &exyyess4212_adc_data,
 	}, {
-		.compatible = "samsung,exynos-adc-v1",
-		.data = &exynos_adc_v1_data,
+		.compatible = "samsung,exyyess-adc-v1",
+		.data = &exyyess_adc_v1_data,
 	}, {
-		.compatible = "samsung,exynos-adc-v2",
-		.data = &exynos_adc_v2_data,
+		.compatible = "samsung,exyyess-adc-v2",
+		.data = &exyyess_adc_v2_data,
 	}, {
-		.compatible = "samsung,exynos3250-adc",
-		.data = &exynos3250_adc_data,
+		.compatible = "samsung,exyyess3250-adc",
+		.data = &exyyess3250_adc_data,
 	}, {
-		.compatible = "samsung,exynos7-adc",
-		.data = &exynos7_adc_data,
+		.compatible = "samsung,exyyess7-adc",
+		.data = &exyyess7_adc_data,
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_adc_match);
+MODULE_DEVICE_TABLE(of, exyyess_adc_match);
 
-static struct exynos_adc_data *exynos_adc_get_data(struct platform_device *pdev)
+static struct exyyess_adc_data *exyyess_adc_get_data(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 
-	match = of_match_node(exynos_adc_match, pdev->dev.of_node);
-	return (struct exynos_adc_data *)match->data;
+	match = of_match_yesde(exyyess_adc_match, pdev->dev.of_yesde);
+	return (struct exyyess_adc_data *)match->data;
 }
 
-static int exynos_read_raw(struct iio_dev *indio_dev,
+static int exyyess_read_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *chan,
 				int *val,
 				int *val2,
 				long mask)
 {
-	struct exynos_adc *info = iio_priv(indio_dev);
+	struct exyyess_adc *info = iio_priv(indio_dev);
 	unsigned long timeout;
 	int ret;
 
@@ -559,9 +559,9 @@ static int exynos_read_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int exynos_read_s3c64xx_ts(struct iio_dev *indio_dev, int *x, int *y)
+static int exyyess_read_s3c64xx_ts(struct iio_dev *indio_dev, int *x, int *y)
 {
-	struct exynos_adc *info = iio_priv(indio_dev);
+	struct exyyess_adc *info = iio_priv(indio_dev);
 	unsigned long timeout;
 	int ret;
 
@@ -595,9 +595,9 @@ static int exynos_read_s3c64xx_ts(struct iio_dev *indio_dev, int *x, int *y)
 	return ret;
 }
 
-static irqreturn_t exynos_adc_isr(int irq, void *dev_id)
+static irqreturn_t exyyess_adc_isr(int irq, void *dev_id)
 {
-	struct exynos_adc *info = dev_id;
+	struct exyyess_adc *info = dev_id;
 	u32 mask = info->data->mask;
 
 	/* Read value */
@@ -625,16 +625,16 @@ static irqreturn_t exynos_adc_isr(int irq, void *dev_id)
  * next timer tick. This mirrors the behavior of the old
  * driver, with much less code.
  */
-static irqreturn_t exynos_ts_isr(int irq, void *dev_id)
+static irqreturn_t exyyess_ts_isr(int irq, void *dev_id)
 {
-	struct exynos_adc *info = dev_id;
+	struct exyyess_adc *info = dev_id;
 	struct iio_dev *dev = dev_get_drvdata(info->dev);
 	u32 x, y;
 	bool pressed;
 	int ret;
 
 	while (info->input->users) {
-		ret = exynos_read_s3c64xx_ts(dev, &x, &y);
+		ret = exyyess_read_s3c64xx_ts(dev, &x, &y);
 		if (ret == -ETIMEDOUT)
 			break;
 
@@ -658,11 +658,11 @@ static irqreturn_t exynos_ts_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int exynos_adc_reg_access(struct iio_dev *indio_dev,
+static int exyyess_adc_reg_access(struct iio_dev *indio_dev,
 			      unsigned reg, unsigned writeval,
 			      unsigned *readval)
 {
-	struct exynos_adc *info = iio_priv(indio_dev);
+	struct exyyess_adc *info = iio_priv(indio_dev);
 
 	if (readval == NULL)
 		return -EINVAL;
@@ -672,9 +672,9 @@ static int exynos_adc_reg_access(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static const struct iio_info exynos_adc_iio_info = {
-	.read_raw = &exynos_read_raw,
-	.debugfs_reg_access = &exynos_adc_reg_access,
+static const struct iio_info exyyess_adc_iio_info = {
+	.read_raw = &exyyess_read_raw,
+	.debugfs_reg_access = &exyyess_adc_reg_access,
 };
 
 #define ADC_CHANNEL(_index, _id) {			\
@@ -686,7 +686,7 @@ static const struct iio_info exynos_adc_iio_info = {
 	.datasheet_name = _id,				\
 }
 
-static const struct iio_chan_spec exynos_adc_iio_channels[] = {
+static const struct iio_chan_spec exyyess_adc_iio_channels[] = {
 	ADC_CHANNEL(0, "adc0"),
 	ADC_CHANNEL(1, "adc1"),
 	ADC_CHANNEL(2, "adc2"),
@@ -699,7 +699,7 @@ static const struct iio_chan_spec exynos_adc_iio_channels[] = {
 	ADC_CHANNEL(9, "adc9"),
 };
 
-static int exynos_adc_remove_devices(struct device *dev, void *c)
+static int exyyess_adc_remove_devices(struct device *dev, void *c)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 
@@ -708,23 +708,23 @@ static int exynos_adc_remove_devices(struct device *dev, void *c)
 	return 0;
 }
 
-static int exynos_adc_ts_open(struct input_dev *dev)
+static int exyyess_adc_ts_open(struct input_dev *dev)
 {
-	struct exynos_adc *info = input_get_drvdata(dev);
+	struct exyyess_adc *info = input_get_drvdata(dev);
 
 	enable_irq(info->tsirq);
 
 	return 0;
 }
 
-static void exynos_adc_ts_close(struct input_dev *dev)
+static void exyyess_adc_ts_close(struct input_dev *dev)
 {
-	struct exynos_adc *info = input_get_drvdata(dev);
+	struct exyyess_adc *info = input_get_drvdata(dev);
 
 	disable_irq(info->tsirq);
 }
 
-static int exynos_adc_ts_init(struct exynos_adc *info)
+static int exyyess_adc_ts_init(struct exyyess_adc *info)
 {
 	int ret;
 
@@ -743,8 +743,8 @@ static int exynos_adc_ts_init(struct exynos_adc *info)
 
 	info->input->name = "S3C24xx TouchScreen";
 	info->input->id.bustype = BUS_HOST;
-	info->input->open = exynos_adc_ts_open;
-	info->input->close = exynos_adc_ts_close;
+	info->input->open = exyyess_adc_ts_open;
+	info->input->close = exyyess_adc_ts_close;
 
 	input_set_drvdata(info->input, info);
 
@@ -755,7 +755,7 @@ static int exynos_adc_ts_init(struct exynos_adc *info)
 	}
 
 	disable_irq(info->tsirq);
-	ret = request_threaded_irq(info->tsirq, NULL, exynos_ts_isr,
+	ret = request_threaded_irq(info->tsirq, NULL, exyyess_ts_isr,
 				   IRQF_ONESHOT, "touchscreen", info);
 	if (ret)
 		input_unregister_device(info->input);
@@ -763,17 +763,17 @@ static int exynos_adc_ts_init(struct exynos_adc *info)
 	return ret;
 }
 
-static int exynos_adc_probe(struct platform_device *pdev)
+static int exyyess_adc_probe(struct platform_device *pdev)
 {
-	struct exynos_adc *info = NULL;
-	struct device_node *np = pdev->dev.of_node;
+	struct exyyess_adc *info = NULL;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct s3c2410_ts_mach_info *pdata = dev_get_platdata(&pdev->dev);
 	struct iio_dev *indio_dev = NULL;
 	bool has_ts = false;
 	int ret = -ENODEV;
 	int irq;
 
-	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(struct exynos_adc));
+	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(struct exyyess_adc));
 	if (!indio_dev) {
 		dev_err(&pdev->dev, "failed allocating iio device\n");
 		return -ENOMEM;
@@ -781,9 +781,9 @@ static int exynos_adc_probe(struct platform_device *pdev)
 
 	info = iio_priv(indio_dev);
 
-	info->data = exynos_adc_get_data(pdev);
+	info->data = exyyess_adc_get_data(pdev);
 	if (!info->data) {
-		dev_err(&pdev->dev, "failed getting exynos_adc_data\n");
+		dev_err(&pdev->dev, "failed getting exyyess_adc_data\n");
 		return -EINVAL;
 	}
 
@@ -794,7 +794,7 @@ static int exynos_adc_probe(struct platform_device *pdev)
 
 	if (info->data->needs_adc_phy) {
 		info->pmu_map = syscon_regmap_lookup_by_phandle(
-					pdev->dev.of_node,
+					pdev->dev.of_yesde,
 					"samsung,syscon-phandle");
 		if (IS_ERR(info->pmu_map)) {
 			dev_err(&pdev->dev, "syscon regmap lookup failed.\n");
@@ -845,11 +845,11 @@ static int exynos_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = exynos_adc_prepare_clk(info);
+	ret = exyyess_adc_prepare_clk(info);
 	if (ret)
 		goto err_disable_reg;
 
-	ret = exynos_adc_enable_clk(info);
+	ret = exyyess_adc_enable_clk(info);
 	if (ret)
 		goto err_unprepare_clk;
 
@@ -857,13 +857,13 @@ static int exynos_adc_probe(struct platform_device *pdev)
 
 	indio_dev->name = dev_name(&pdev->dev);
 	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
-	indio_dev->info = &exynos_adc_iio_info;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
+	indio_dev->info = &exyyess_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = exynos_adc_iio_channels;
+	indio_dev->channels = exyyess_adc_iio_channels;
 	indio_dev->num_channels = info->data->num_channels;
 
-	ret = request_irq(info->irq, exynos_adc_isr,
+	ret = request_irq(info->irq, exyyess_adc_isr,
 					0, dev_name(&pdev->dev), info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed requesting irq, irq = %d\n",
@@ -880,7 +880,7 @@ static int exynos_adc_probe(struct platform_device *pdev)
 
 	/* leave out any TS related code if unreachable */
 	if (IS_REACHABLE(CONFIG_INPUT)) {
-		has_ts = of_property_read_bool(pdev->dev.of_node,
+		has_ts = of_property_read_bool(pdev->dev.of_yesde,
 					       "has-touchscreen") || pdata;
 	}
 
@@ -890,13 +890,13 @@ static int exynos_adc_probe(struct platform_device *pdev)
 		info->delay = 10000;
 
 	if (has_ts)
-		ret = exynos_adc_ts_init(info);
+		ret = exyyess_adc_ts_init(info);
 	if (ret)
 		goto err_iio;
 
-	ret = of_platform_populate(np, exynos_adc_match, NULL, &indio_dev->dev);
+	ret = of_platform_populate(np, exyyess_adc_match, NULL, &indio_dev->dev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed adding child nodes\n");
+		dev_err(&pdev->dev, "failed adding child yesdes\n");
 		goto err_of_populate;
 	}
 
@@ -904,7 +904,7 @@ static int exynos_adc_probe(struct platform_device *pdev)
 
 err_of_populate:
 	device_for_each_child(&indio_dev->dev, NULL,
-				exynos_adc_remove_devices);
+				exyyess_adc_remove_devices);
 	if (has_ts) {
 		input_unregister_device(info->input);
 		free_irq(info->tsirq, info);
@@ -916,61 +916,61 @@ err_irq:
 err_disable_clk:
 	if (info->data->exit_hw)
 		info->data->exit_hw(info);
-	exynos_adc_disable_clk(info);
+	exyyess_adc_disable_clk(info);
 err_unprepare_clk:
-	exynos_adc_unprepare_clk(info);
+	exyyess_adc_unprepare_clk(info);
 err_disable_reg:
 	regulator_disable(info->vdd);
 	return ret;
 }
 
-static int exynos_adc_remove(struct platform_device *pdev)
+static int exyyess_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct exynos_adc *info = iio_priv(indio_dev);
+	struct exyyess_adc *info = iio_priv(indio_dev);
 
 	if (IS_REACHABLE(CONFIG_INPUT) && info->input) {
 		free_irq(info->tsirq, info);
 		input_unregister_device(info->input);
 	}
 	device_for_each_child(&indio_dev->dev, NULL,
-				exynos_adc_remove_devices);
+				exyyess_adc_remove_devices);
 	iio_device_unregister(indio_dev);
 	free_irq(info->irq, info);
 	if (info->data->exit_hw)
 		info->data->exit_hw(info);
-	exynos_adc_disable_clk(info);
-	exynos_adc_unprepare_clk(info);
+	exyyess_adc_disable_clk(info);
+	exyyess_adc_unprepare_clk(info);
 	regulator_disable(info->vdd);
 
 	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int exynos_adc_suspend(struct device *dev)
+static int exyyess_adc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct exynos_adc *info = iio_priv(indio_dev);
+	struct exyyess_adc *info = iio_priv(indio_dev);
 
 	if (info->data->exit_hw)
 		info->data->exit_hw(info);
-	exynos_adc_disable_clk(info);
+	exyyess_adc_disable_clk(info);
 	regulator_disable(info->vdd);
 
 	return 0;
 }
 
-static int exynos_adc_resume(struct device *dev)
+static int exyyess_adc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct exynos_adc *info = iio_priv(indio_dev);
+	struct exyyess_adc *info = iio_priv(indio_dev);
 	int ret;
 
 	ret = regulator_enable(info->vdd);
 	if (ret)
 		return ret;
 
-	ret = exynos_adc_enable_clk(info);
+	ret = exyyess_adc_enable_clk(info);
 	if (ret)
 		return ret;
 
@@ -981,21 +981,21 @@ static int exynos_adc_resume(struct device *dev)
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(exynos_adc_pm_ops,
-			exynos_adc_suspend,
-			exynos_adc_resume);
+static SIMPLE_DEV_PM_OPS(exyyess_adc_pm_ops,
+			exyyess_adc_suspend,
+			exyyess_adc_resume);
 
-static struct platform_driver exynos_adc_driver = {
-	.probe		= exynos_adc_probe,
-	.remove		= exynos_adc_remove,
+static struct platform_driver exyyess_adc_driver = {
+	.probe		= exyyess_adc_probe,
+	.remove		= exyyess_adc_remove,
 	.driver		= {
-		.name	= "exynos-adc",
-		.of_match_table = exynos_adc_match,
-		.pm	= &exynos_adc_pm_ops,
+		.name	= "exyyess-adc",
+		.of_match_table = exyyess_adc_match,
+		.pm	= &exyyess_adc_pm_ops,
 	},
 };
 
-module_platform_driver(exynos_adc_driver);
+module_platform_driver(exyyess_adc_driver);
 
 MODULE_AUTHOR("Naveen Krishna Chatradhi <ch.naveen@samsung.com>");
 MODULE_DESCRIPTION("Samsung EXYNOS5 ADC driver");

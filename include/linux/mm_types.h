@@ -29,7 +29,7 @@ struct mem_cgroup;
 /*
  * Each physical page in the system has a struct page associated with
  * it to keep track of whatever it is we are using the page for at the
- * moment. Note that we have no way to track which tasks are using
+ * moment. Note that we have yes way to track which tasks are using
  * a page, though if it is a pagecache page, rmap structures can tell us
  * who is mapping it.
  *
@@ -40,13 +40,13 @@ struct mem_cgroup;
  * which is guaranteed to be aligned.  If you use the same storage as
  * page->mapping, you must restore it to NULL before freeing the page.
  *
- * If your page will not be mapped to userspace, you can also use the four
+ * If your page will yest be mapped to userspace, you can also use the four
  * bytes in the mapcount union, but you must call page_mapcount_reset()
  * before freeing it.
  *
  * If you want to use the refcount field, it must be used in such a way
  * that other CPUs temporarily incrementing and then decrementing the
- * refcount does not cause problems.  On receiving the page from
+ * refcount does yest cause problems.  On receiving the page from
  * alloc_pages(), the refcount will be positive.
  *
  * If you allocate pages of order > 0, you can use some of the fields
@@ -67,7 +67,7 @@ struct mem_cgroup;
 
 struct page {
 	unsigned long flags;		/* Atomic flags, some possibly
-					 * updated asynchronously */
+					 * updated asynchroyesusly */
 	/*
 	 * Five words (20/40 bytes) are available in this union.
 	 * WARNING: bit 0 of the first word is used for PageTail(). That
@@ -75,7 +75,7 @@ struct page {
 	 * avoid collision and false-positive PageTail().
 	 */
 	union {
-		struct {	/* Page cache and anonymous pages */
+		struct {	/* Page cache and ayesnymous pages */
 			/**
 			 * @lru: Pageout list, eg. active_list protected by
 			 * pgdat->lru_lock.  Sometimes used as a generic list
@@ -114,7 +114,7 @@ struct page {
 #endif
 				};
 			};
-			struct kmem_cache *slab_cache; /* not slob */
+			struct kmem_cache *slab_cache; /* yest slob */
 			/* Double-word boundary */
 			void *freelist;		/* first free object */
 			union {
@@ -162,7 +162,7 @@ struct page {
 			/*
 			 * ZONE_DEVICE private pages are counted as being
 			 * mapped so the next 3 words hold the mapping, index,
-			 * and private fields from the source anonymous or
+			 * and private fields from the source ayesnymous or
 			 * page cache page while the page is migrated to device
 			 * private memory.
 			 * ZONE_DEVICE MEMORY_DEVICE_FS_DAX pages also
@@ -183,7 +183,7 @@ struct page {
 		atomic_t _mapcount;
 
 		/*
-		 * If the page is neither PageSlab nor mappable to userspace,
+		 * If the page is neither PageSlab yesr mappable to userspace,
 		 * the value stored here may help determine what this page
 		 * is used for.  See page-flags.h for a list of page types
 		 * which are currently stored here.
@@ -213,7 +213,7 @@ struct page {
 	 */
 #if defined(WANT_PAGE_VIRTUAL)
 	void *virtual;			/* Kernel virtual address (NULL if
-					   not kmapped, ie. highmem) */
+					   yest kmapped, ie. highmem) */
 #endif /* WANT_PAGE_VIRTUAL */
 
 #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
@@ -255,12 +255,12 @@ struct page_frag_cache {
 typedef unsigned long vm_flags_t;
 
 /*
- * A region containing a mapping of a non-memory backed file under NOMMU
+ * A region containing a mapping of a yesn-memory backed file under NOMMU
  * conditions.  These are held in a global tree and are pinned by the VMAs that
  * map parts of them.
  */
 struct vm_region {
-	struct rb_node	vm_rb;		/* link in global region tree */
+	struct rb_yesde	vm_rb;		/* link in global region tree */
 	vm_flags_t	vm_flags;	/* VMA vm_flags */
 	unsigned long	vm_start;	/* start address of region */
 	unsigned long	vm_end;		/* region initialised to here */
@@ -268,7 +268,7 @@ struct vm_region {
 	unsigned long	vm_pgoff;	/* the offset in vm_file corresponding to vm_start */
 	struct file	*vm_file;	/* the backing file or NULL */
 
-	int		vm_usage;	/* region usage count (access under nommu_region_sem) */
+	int		vm_usage;	/* region usage count (access under yesmmu_region_sem) */
 	bool		vm_icache_flushed : 1; /* true if the icache has been flushed for
 						* this region */
 };
@@ -299,7 +299,7 @@ struct vm_area_struct {
 	/* linked list of VM areas per task, sorted by address */
 	struct vm_area_struct *vm_next, *vm_prev;
 
-	struct rb_node vm_rb;
+	struct rb_yesde vm_rb;
 
 	/*
 	 * Largest free memory gap in bytes to the left of this VMA.
@@ -320,19 +320,19 @@ struct vm_area_struct {
 	 * linkage into the address_space->i_mmap interval tree.
 	 */
 	struct {
-		struct rb_node rb;
+		struct rb_yesde rb;
 		unsigned long rb_subtree_last;
 	} shared;
 
 	/*
-	 * A file's MAP_PRIVATE vma can be in both i_mmap tree and anon_vma
+	 * A file's MAP_PRIVATE vma can be in both i_mmap tree and ayesn_vma
 	 * list, after a COW of one of the file pages.	A MAP_SHARED vma
-	 * can only be in the i_mmap tree.  An anonymous MAP_PRIVATE, stack
-	 * or brk vma (with NULL file) can only be in an anon_vma list.
+	 * can only be in the i_mmap tree.  An ayesnymous MAP_PRIVATE, stack
+	 * or brk vma (with NULL file) can only be in an ayesn_vma list.
 	 */
-	struct list_head anon_vma_chain; /* Serialized by mmap_sem &
+	struct list_head ayesn_vma_chain; /* Serialized by mmap_sem &
 					  * page_table_lock */
-	struct anon_vma *anon_vma;	/* Serialized by page_table_lock */
+	struct ayesn_vma *ayesn_vma;	/* Serialized by page_table_lock */
 
 	/* Function pointers to deal with this struct. */
 	const struct vm_operations_struct *vm_ops;
@@ -401,8 +401,8 @@ struct mm_struct {
 		/**
 		 * @mm_users: The number of users including userspace.
 		 *
-		 * Use mmget()/mmget_not_zero()/mmput() to modify. When this
-		 * drops to 0 (i.e. when the task exits and there are no other
+		 * Use mmget()/mmget_yest_zero()/mmput() to modify. When this
+		 * drops to 0 (i.e. when the task exits and there are yes other
 		 * temporary reference holders), we also release a reference on
 		 * @mm_count (which may then free the &struct mm_struct if
 		 * @mm_count also drops to 0).
@@ -474,7 +474,7 @@ struct mm_struct {
 #endif
 #ifdef CONFIG_MEMCG
 		/*
-		 * "owner" points to a task that is regarded as the canonical
+		 * "owner" points to a task that is regarded as the cayesnical
 		 * user/owner of this mm. All of the following must be true in
 		 * order for it to be changed:
 		 *
@@ -490,7 +490,7 @@ struct mm_struct {
 		/* store ref to file /proc/<pid>/exe symlink points to */
 		struct file __rcu *exe_file;
 #ifdef CONFIG_MMU_NOTIFIER
-		struct mmu_notifier_mm *mmu_notifier_mm;
+		struct mmu_yestifier_mm *mmu_yestifier_mm;
 #endif
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
 		pgtable_t pmd_huge_pte; /* protected by page_table_lock */
@@ -499,7 +499,7 @@ struct mm_struct {
 		/*
 		 * numa_next_scan is the next time that the PTEs will be marked
 		 * pte_numa. NUMA hinting faults will gather statistics and
-		 * migrate pages to new nodes if necessary.
+		 * migrate pages to new yesdes if necessary.
 		 */
 		unsigned long numa_next_scan;
 
@@ -587,17 +587,17 @@ static inline void inc_tlb_flush_pending(struct mm_struct *mm)
 	 *
 	 * Where the increment if constrained by the PTL unlock, it thus
 	 * ensures that the increment is visible if the PTE modification is
-	 * visible. After all, if there is no PTE modification, nobody cares
+	 * visible. After all, if there is yes PTE modification, yesbody cares
 	 * about TLB flushes either.
 	 *
 	 * This very much relies on users (mm_tlb_flush_pending() and
 	 * mm_tlb_flush_nested()) only caring about _specific_ PTEs (and
 	 * therefore specific PTLs), because with SPLIT_PTE_PTLOCKS and RCpc
 	 * locks (PPC) the unlock of one doesn't order against the lock of
-	 * another PTL.
+	 * ayesther PTL.
 	 *
 	 * The decrement is ordered by the flush_tlb_range(), such that
-	 * mm_tlb_flush_pending() will not return false unless all flushes have
+	 * mm_tlb_flush_pending() will yest return false unless all flushes have
 	 * completed.
 	 */
 }
@@ -607,8 +607,8 @@ static inline void dec_tlb_flush_pending(struct mm_struct *mm)
 	/*
 	 * See inc_tlb_flush_pending().
 	 *
-	 * This cannot be smp_mb__before_atomic() because smp_mb() simply does
-	 * not order against TLB invalidate completion, which is what we need.
+	 * This canyest be smp_mb__before_atomic() because smp_mb() simply does
+	 * yest order against TLB invalidate completion, which is what we need.
 	 *
 	 * Therefore we must rely on tlb_flush_*() to guarantee order.
 	 */
@@ -635,7 +635,7 @@ static inline bool mm_tlb_flush_nested(struct mm_struct *mm)
 	 * for which there is a TLB flush pending in order to guarantee
 	 * we've seen both that PTE modification and the increment.
 	 *
-	 * (no requirement on actually still holding the PTL, that is irrelevant)
+	 * (yes requirement on actually still holding the PTL, that is irrelevant)
 	 */
 	return atomic_read(&mm->tlb_flush_pending) > 1;
 }
@@ -653,7 +653,7 @@ typedef __bitwise unsigned int vm_fault_t;
  * enum vm_fault_reason - Page fault handlers return a bitmask of
  * these values to tell the core VM what happened when handling the
  * fault. Used to decide whether a process gets delivered SIGBUS or
- * just gets major/minor fault counters bumped up.
+ * just gets major/miyesr fault counters bumped up.
  *
  * @VM_FAULT_OOM:		Out Of Memory
  * @VM_FAULT_SIGBUS:		Bad access
@@ -663,13 +663,13 @@ typedef __bitwise unsigned int vm_fault_t;
  * @VM_FAULT_HWPOISON_LARGE:	Hit poisoned large page. Index encoded
  *				in upper bits
  * @VM_FAULT_SIGSEGV:		segmentation fault
- * @VM_FAULT_NOPAGE:		->fault installed the pte, not return page
+ * @VM_FAULT_NOPAGE:		->fault installed the pte, yest return page
  * @VM_FAULT_LOCKED:		->fault locked the returned page
  * @VM_FAULT_RETRY:		->fault blocked, must retry
  * @VM_FAULT_FALLBACK:		huge page fault failed, fall back to small
  * @VM_FAULT_DONE_COW:		->fault has fully handled COW
- * @VM_FAULT_NEEDDSYNC:		->fault did not modify page tables and needs
- *				fsync() to complete (for synchronous page faults
+ * @VM_FAULT_NEEDDSYNC:		->fault did yest modify page tables and needs
+ *				fsync() to complete (for synchroyesus page faults
  *				in DAX)
  * @VM_FAULT_HINDEX_MASK:	mask HINDEX value
  *
@@ -718,16 +718,16 @@ struct vm_special_mapping {
 	const char *name;	/* The name, e.g. "[vdso]". */
 
 	/*
-	 * If .fault is not provided, this points to a
+	 * If .fault is yest provided, this points to a
 	 * NULL-terminated array of pages that back the special mapping.
 	 *
-	 * This must not be NULL unless .fault is provided.
+	 * This must yest be NULL unless .fault is provided.
 	 */
 	struct page **pages;
 
 	/*
-	 * If non-NULL, then this is called to resolve page faults
-	 * on the special mapping.  If used, .pages is not checked.
+	 * If yesn-NULL, then this is called to resolve page faults
+	 * on the special mapping.  If used, .pages is yest checked.
 	 */
 	vm_fault_t (*fault)(const struct vm_special_mapping *sm,
 				struct vm_area_struct *vma,

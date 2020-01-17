@@ -10,7 +10,7 @@
  */
 #include <linux/module.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
@@ -285,9 +285,9 @@ static const struct dev_pm_ops mcp_sa11x0_pm_ops = {
 	.suspend = mcp_sa11x0_suspend,
 	.freeze = mcp_sa11x0_suspend,
 	.poweroff = mcp_sa11x0_suspend,
-	.resume_noirq = mcp_sa11x0_resume,
-	.thaw_noirq = mcp_sa11x0_resume,
-	.restore_noirq = mcp_sa11x0_resume,
+	.resume_yesirq = mcp_sa11x0_resume,
+	.thaw_yesirq = mcp_sa11x0_resume,
+	.restore_yesirq = mcp_sa11x0_resume,
 #endif
 };
 

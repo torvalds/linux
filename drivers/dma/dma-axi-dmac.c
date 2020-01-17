@@ -38,11 +38,11 @@
  * interconnect, which allows access to system memory, or it can be connected to
  * a dedicated bus which is directly connected to a data port on a peripheral.
  * Given that those are configuration options of the core that are selected when
- * it is instantiated this means that they can not be changed by software at
+ * it is instantiated this means that they can yest be changed by software at
  * runtime. By extension this means that each channel is uni-directional. It can
- * either be device to memory or memory to device, but not both. Also since the
+ * either be device to memory or memory to device, but yest both. Also since the
  * device side is a dedicated data bus only connected to a single peripheral
- * there is no address than can or needs to be configured for the device side.
+ * there is yes address than can or needs to be configured for the device side.
  */
 
 #define AXI_DMAC_REG_IRQ_MASK		0x80
@@ -210,7 +210,7 @@ static void axi_dmac_start_transfer(struct axi_dmac_chan *chan)
 		vdesc = vchan_next_desc(&chan->vchan);
 		if (!vdesc)
 			return;
-		list_move_tail(&vdesc->node, &chan->active_descs);
+		list_move_tail(&vdesc->yesde, &chan->active_descs);
 		desc = to_axi_dmac_desc(vdesc);
 	}
 	sg = &desc->sg[desc->num_submitted];
@@ -246,7 +246,7 @@ static void axi_dmac_start_transfer(struct axi_dmac_chan *chan)
 	}
 
 	/*
-	 * If the hardware supports cyclic transfers and there is no callback to
+	 * If the hardware supports cyclic transfers and there is yes callback to
 	 * call and only a single segment, enable hw cyclic mode to avoid
 	 * unnecessary interrupts.
 	 */
@@ -266,7 +266,7 @@ static void axi_dmac_start_transfer(struct axi_dmac_chan *chan)
 static struct axi_dmac_desc *axi_dmac_active_desc(struct axi_dmac_chan *chan)
 {
 	return list_first_entry_or_null(&chan->active_descs,
-		struct axi_dmac_desc, vdesc.node);
+		struct axi_dmac_desc, vdesc.yesde);
 }
 
 static inline unsigned int axi_dmac_total_sg_bytes(struct axi_dmac_chan *chan,
@@ -291,7 +291,7 @@ static void axi_dmac_dequeue_partial_xfers(struct axi_dmac_chan *chan)
 		id  = axi_dmac_read(dmac, AXI_DMAC_REG_PARTIAL_XFER_ID);
 
 		found_sg = false;
-		list_for_each_entry(desc, &chan->active_descs, vdesc.node) {
+		list_for_each_entry(desc, &chan->active_descs, vdesc.yesde) {
 			for (i = 0; i < desc->num_sgs; i++) {
 				sg = &desc->sg[i];
 				if (sg->id == AXI_DMAC_SG_UNUSED)
@@ -385,7 +385,7 @@ static bool axi_dmac_transfer_done(struct axi_dmac_chan *chan,
 			if (active->cyclic) {
 				active->num_completed = 0; /* wrap around */
 			} else {
-				list_del(&active->vdesc.node);
+				list_del(&active->vdesc.yesde);
 				vchan_cookie_complete(&active->vdesc);
 				active = axi_dmac_active_desc(chan);
 			}
@@ -719,10 +719,10 @@ static const struct regmap_config axi_dmac_regmap_config = {
 
 /*
  * The configuration stored in the devicetree matches the configuration
- * parameters of the peripheral instance and allows the driver to know which
+ * parameters of the peripheral instance and allows the driver to kyesw which
  * features are implemented and how it should behave.
  */
-static int axi_dmac_parse_chan_dt(struct device_node *of_chan,
+static int axi_dmac_parse_chan_dt(struct device_yesde *of_chan,
 	struct axi_dmac_chan *chan)
 {
 	u32 val;
@@ -732,7 +732,7 @@ static int axi_dmac_parse_chan_dt(struct device_node *of_chan,
 	if (ret)
 		return ret;
 
-	/* We only support 1 channel for now */
+	/* We only support 1 channel for yesw */
 	if (val != 0)
 		return -EINVAL;
 
@@ -798,7 +798,7 @@ static int axi_dmac_detect_caps(struct axi_dmac *dmac)
 	if (axi_dmac_read(dmac, AXI_DMAC_REG_DEST_ADDRESS) == 0 &&
 	    chan->dest_type == AXI_DMAC_BUS_TYPE_AXI_MM) {
 		dev_err(dmac->dma_dev.dev,
-			"Destination memory-mapped interface not supported.");
+			"Destination memory-mapped interface yest supported.");
 		return -ENODEV;
 	}
 
@@ -806,7 +806,7 @@ static int axi_dmac_detect_caps(struct axi_dmac *dmac)
 	if (axi_dmac_read(dmac, AXI_DMAC_REG_SRC_ADDRESS) == 0 &&
 	    chan->src_type == AXI_DMAC_BUS_TYPE_AXI_MM) {
 		dev_err(dmac->dma_dev.dev,
-			"Source memory-mapped interface not supported.");
+			"Source memory-mapped interface yest supported.");
 		return -ENODEV;
 	}
 
@@ -826,7 +826,7 @@ static int axi_dmac_detect_caps(struct axi_dmac *dmac)
 
 static int axi_dmac_probe(struct platform_device *pdev)
 {
-	struct device_node *of_channels, *of_chan;
+	struct device_yesde *of_channels, *of_chan;
 	struct dma_device *dma_dev;
 	struct axi_dmac *dmac;
 	struct resource *res;
@@ -853,19 +853,19 @@ static int axi_dmac_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&dmac->chan.active_descs);
 
-	of_channels = of_get_child_by_name(pdev->dev.of_node, "adi,channels");
+	of_channels = of_get_child_by_name(pdev->dev.of_yesde, "adi,channels");
 	if (of_channels == NULL)
 		return -ENODEV;
 
-	for_each_child_of_node(of_channels, of_chan) {
+	for_each_child_of_yesde(of_channels, of_chan) {
 		ret = axi_dmac_parse_chan_dt(of_chan, &dmac->chan);
 		if (ret) {
-			of_node_put(of_chan);
-			of_node_put(of_channels);
+			of_yesde_put(of_chan);
+			of_yesde_put(of_channels);
 			return -EINVAL;
 		}
 	}
-	of_node_put(of_channels);
+	of_yesde_put(of_channels);
 
 	pdev->dev.dma_parms = &dmac->dma_parms;
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
@@ -909,7 +909,7 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk_disable;
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_yesde,
 		of_dma_xlate_by_chan_id, dma_dev);
 	if (ret)
 		goto err_unregister_device;
@@ -926,7 +926,7 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	return 0;
 
 err_unregister_of:
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 err_unregister_device:
 	dma_async_device_unregister(&dmac->dma_dev);
 err_clk_disable:
@@ -939,7 +939,7 @@ static int axi_dmac_remove(struct platform_device *pdev)
 {
 	struct axi_dmac *dmac = platform_get_drvdata(pdev);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	free_irq(dmac->irq, dmac);
 	tasklet_kill(&dmac->chan.vchan.task);
 	dma_async_device_unregister(&dmac->dma_dev);

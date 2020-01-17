@@ -39,7 +39,7 @@
 #define QMP_MAGIC			0x4d41494c /* mail */
 #define QMP_VERSION			1
 
-/* 64 bytes is enough to store the requests and provides padding to 4 bytes */
+/* 64 bytes is eyesugh to store the requests and provides padding to 4 bytes */
 #define QMP_MSG_LEN			64
 
 #define QMP_NUM_COOLING_RESOURCES	2
@@ -216,11 +216,11 @@ static bool qmp_message_empty(struct qmp *qmp)
  * @data: message to be sent
  * @len: length of the message
  *
- * Transmit @data to AOSS and wait for the AOSS to acknowledge the message.
- * @len must be a multiple of 4 and not longer than the mailbox size. Access is
+ * Transmit @data to AOSS and wait for the AOSS to ackyeswledge the message.
+ * @len must be a multiple of 4 and yest longer than the mailbox size. Access is
  * synchronized by this implementation.
  *
- * Return: 0 on success, negative errno on failure
+ * Return: 0 on success, negative erryes on failure
  */
 static int qmp_send(struct qmp *qmp, const void *data, size_t len)
 {
@@ -244,7 +244,7 @@ static int qmp_send(struct qmp *qmp, const void *data, size_t len)
 	time_left = wait_event_interruptible_timeout(qmp->event,
 						     qmp_message_empty(qmp), HZ);
 	if (!time_left) {
-		dev_err(qmp->dev, "ucore did not ack channel\n");
+		dev_err(qmp->dev, "ucore did yest ack channel\n");
 		ret = -ETIMEDOUT;
 
 		/* Clear message from buffer */
@@ -294,7 +294,7 @@ static int qmp_qdss_clk_add(struct qmp *qmp)
 		return ret;
 	}
 
-	ret = of_clk_add_hw_provider(qmp->dev->of_node, of_clk_hw_simple_get,
+	ret = of_clk_add_hw_provider(qmp->dev->of_yesde, of_clk_hw_simple_get,
 				     &qmp->qdss_clk);
 	if (ret < 0) {
 		dev_err(qmp->dev, "unable to register of clk hw provider\n");
@@ -306,7 +306,7 @@ static int qmp_qdss_clk_add(struct qmp *qmp)
 
 static void qmp_qdss_clk_remove(struct qmp *qmp)
 {
-	of_clk_del_provider(qmp->dev->of_node);
+	of_clk_del_provider(qmp->dev->of_yesde);
 	clk_hw_unregister(&qmp->qdss_clk);
 }
 
@@ -374,7 +374,7 @@ static int qmp_pd_add(struct qmp *qmp)
 
 	data->num_domains = i;
 
-	ret = of_genpd_add_provider_onecell(dev->of_node, data);
+	ret = of_genpd_add_provider_onecell(dev->of_yesde, data);
 	if (ret < 0)
 		goto unroll_genpds;
 
@@ -393,7 +393,7 @@ static void qmp_pd_remove(struct qmp *qmp)
 	struct device *dev = qmp->dev;
 	int i;
 
-	of_genpd_del_provider(dev->of_node);
+	of_genpd_del_provider(dev->of_yesde);
 
 	for (i = 0; i < data->num_domains; i++)
 		pm_genpd_remove(data->domains[i]);
@@ -450,15 +450,15 @@ static struct thermal_cooling_device_ops qmp_cooling_device_ops = {
 
 static int qmp_cooling_device_add(struct qmp *qmp,
 				  struct qmp_cooling_device *qmp_cdev,
-				  struct device_node *node)
+				  struct device_yesde *yesde)
 {
-	char *cdev_name = (char *)node->name;
+	char *cdev_name = (char *)yesde->name;
 
 	qmp_cdev->qmp = qmp;
 	qmp_cdev->state = !qmp_cdev_max_state;
 	qmp_cdev->name = cdev_name;
 	qmp_cdev->cdev = devm_thermal_of_cooling_device_register
-				(qmp->dev, node,
+				(qmp->dev, yesde,
 				cdev_name,
 				qmp_cdev, &qmp_cooling_device_ops);
 
@@ -471,11 +471,11 @@ static int qmp_cooling_device_add(struct qmp *qmp,
 
 static int qmp_cooling_devices_register(struct qmp *qmp)
 {
-	struct device_node *np, *child;
+	struct device_yesde *np, *child;
 	int count = QMP_NUM_COOLING_RESOURCES;
 	int ret;
 
-	np = qmp->dev->of_node;
+	np = qmp->dev->of_yesde;
 
 	qmp->cooling_devs = devm_kcalloc(qmp->dev, count,
 					 sizeof(*qmp->cooling_devs),
@@ -484,7 +484,7 @@ static int qmp_cooling_devices_register(struct qmp *qmp)
 	if (!qmp->cooling_devs)
 		return -ENOMEM;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		if (!of_find_property(child, "#cooling-cells", NULL))
 			continue;
 		ret = qmp_cooling_device_add(qmp, &qmp->cooling_devs[count++],
@@ -532,7 +532,7 @@ static int qmp_probe(struct platform_device *pdev)
 		return PTR_ERR(qmp->msgram);
 
 	qmp->mbox_client.dev = &pdev->dev;
-	qmp->mbox_client.knows_txdone = true;
+	qmp->mbox_client.kyesws_txdone = true;
 	qmp->mbox_chan = mbox_request_channel(&qmp->mbox_client, 0);
 	if (IS_ERR(qmp->mbox_chan)) {
 		dev_err(&pdev->dev, "failed to acquire ipc mailbox\n");

@@ -75,7 +75,7 @@ void *bpf_internal_load_pointer_neg_helper(const struct sk_buff *skb, int k, uns
 	return NULL;
 }
 
-struct bpf_prog *bpf_prog_alloc_no_stats(unsigned int size, gfp_t gfp_extra_flags)
+struct bpf_prog *bpf_prog_alloc_yes_stats(unsigned int size, gfp_t gfp_extra_flags)
 {
 	gfp_t gfp_flags = GFP_KERNEL | __GFP_ZERO | gfp_extra_flags;
 	struct bpf_prog_aux *aux;
@@ -97,7 +97,7 @@ struct bpf_prog *bpf_prog_alloc_no_stats(unsigned int size, gfp_t gfp_extra_flag
 	fp->aux->prog = fp;
 	fp->jit_requested = ebpf_jit_enabled();
 
-	INIT_LIST_HEAD_RCU(&fp->aux->ksym_lnode);
+	INIT_LIST_HEAD_RCU(&fp->aux->ksym_lyesde);
 
 	return fp;
 }
@@ -108,7 +108,7 @@ struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 	struct bpf_prog *prog;
 	int cpu;
 
-	prog = bpf_prog_alloc_no_stats(size, gfp_extra_flags);
+	prog = bpf_prog_alloc_yes_stats(size, gfp_extra_flags);
 	if (!prog)
 		return NULL;
 
@@ -187,7 +187,7 @@ void bpf_prog_fill_jited_linfo(struct bpf_prog *prog,
 	void **jited_linfo;
 
 	if (!prog->aux->jited_linfo)
-		/* Userspace did not provide linfo */
+		/* Userspace did yest provide linfo */
 		return;
 
 	linfo_idx = prog->aux->linfo_idx;
@@ -450,15 +450,15 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 	/* Reject anything that would potentially let the insn->off
 	 * target overflow when we have excessive program expansions.
 	 * We need to probe here before we do any reallocation where
-	 * we afterwards may not fail anymore.
+	 * we afterwards may yest fail anymore.
 	 */
 	if (insn_adj_cnt > cnt_max &&
 	    (err = bpf_adj_branches(prog, off, off + 1, off + len, true)))
 		return ERR_PTR(err);
 
 	/* Several new instructions need to be inserted. Make room
-	 * for them. Likely, there's no need for a new allocation as
-	 * last page could have large enough tailroom.
+	 * for them. Likely, there's yes need for a new allocation as
+	 * last page could have large eyesugh tailroom.
 	 */
 	prog_adj = bpf_prog_realloc(prog, bpf_prog_size(insn_adj_cnt),
 				    GFP_USER);
@@ -481,9 +481,9 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 		sizeof(*patch) * insn_rest);
 	memcpy(prog_adj->insnsi + off, patch, sizeof(*patch) * len);
 
-	/* We are guaranteed to not fail at this point, otherwise
+	/* We are guaranteed to yest fail at this point, otherwise
 	 * the ship has sailed to reverse to the original state. An
-	 * overflow cannot happen at this point.
+	 * overflow canyest happen at this point.
 	 */
 	BUG_ON(bpf_adj_branches(prog_adj, off, off + 1, off + len, false));
 
@@ -494,7 +494,7 @@ struct bpf_prog *bpf_patch_insn_single(struct bpf_prog *prog, u32 off,
 
 int bpf_remove_insns(struct bpf_prog *prog, u32 off, u32 cnt)
 {
-	/* Branch offsets can't overflow when program is shrinking, no need
+	/* Branch offsets can't overflow when program is shrinking, yes need
 	 * to call bpf_adj_branches(..., true) here
 	 */
 	memmove(prog->insnsi + off, prog->insnsi + off + cnt,
@@ -519,7 +519,7 @@ void bpf_prog_kallsyms_del_all(struct bpf_prog *fp)
 }
 
 #ifdef CONFIG_BPF_JIT
-/* All BPF JIT sysctl knobs here. */
+/* All BPF JIT sysctl kyesbs here. */
 int bpf_jit_enable   __read_mostly = IS_BUILTIN(CONFIG_BPF_JIT_ALWAYS_ON);
 int bpf_jit_harden   __read_mostly;
 int bpf_jit_kallsyms __read_mostly;
@@ -559,7 +559,7 @@ void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
 	sym += snprintf(sym, KSYM_NAME_LEN, "bpf_prog_");
 	sym  = bin2hex(sym, prog->tag, sizeof(prog->tag));
 
-	/* prog->aux->name will be ignored if full btf name is available */
+	/* prog->aux->name will be igyesred if full btf name is available */
 	if (prog->aux->func_info_cnt) {
 		type = btf_type_by_id(prog->aux->btf,
 				      prog->aux->func_info[prog->aux->func_idx].type_id);
@@ -575,30 +575,30 @@ void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
 }
 
 static __always_inline unsigned long
-bpf_get_prog_addr_start(struct latch_tree_node *n)
+bpf_get_prog_addr_start(struct latch_tree_yesde *n)
 {
 	unsigned long symbol_start, symbol_end;
 	const struct bpf_prog_aux *aux;
 
-	aux = container_of(n, struct bpf_prog_aux, ksym_tnode);
+	aux = container_of(n, struct bpf_prog_aux, ksym_tyesde);
 	bpf_get_prog_addr_region(aux->prog, &symbol_start, &symbol_end);
 
 	return symbol_start;
 }
 
-static __always_inline bool bpf_tree_less(struct latch_tree_node *a,
-					  struct latch_tree_node *b)
+static __always_inline bool bpf_tree_less(struct latch_tree_yesde *a,
+					  struct latch_tree_yesde *b)
 {
 	return bpf_get_prog_addr_start(a) < bpf_get_prog_addr_start(b);
 }
 
-static __always_inline int bpf_tree_comp(void *key, struct latch_tree_node *n)
+static __always_inline int bpf_tree_comp(void *key, struct latch_tree_yesde *n)
 {
 	unsigned long val = (unsigned long)key;
 	unsigned long symbol_start, symbol_end;
 	const struct bpf_prog_aux *aux;
 
-	aux = container_of(n, struct bpf_prog_aux, ksym_tnode);
+	aux = container_of(n, struct bpf_prog_aux, ksym_tyesde);
 	bpf_get_prog_addr_region(aux->prog, &symbol_start, &symbol_end);
 
 	if (val < symbol_start)
@@ -618,20 +618,20 @@ static DEFINE_SPINLOCK(bpf_lock);
 static LIST_HEAD(bpf_kallsyms);
 static struct latch_tree_root bpf_tree __cacheline_aligned;
 
-static void bpf_prog_ksym_node_add(struct bpf_prog_aux *aux)
+static void bpf_prog_ksym_yesde_add(struct bpf_prog_aux *aux)
 {
-	WARN_ON_ONCE(!list_empty(&aux->ksym_lnode));
-	list_add_tail_rcu(&aux->ksym_lnode, &bpf_kallsyms);
-	latch_tree_insert(&aux->ksym_tnode, &bpf_tree, &bpf_tree_ops);
+	WARN_ON_ONCE(!list_empty(&aux->ksym_lyesde));
+	list_add_tail_rcu(&aux->ksym_lyesde, &bpf_kallsyms);
+	latch_tree_insert(&aux->ksym_tyesde, &bpf_tree, &bpf_tree_ops);
 }
 
-static void bpf_prog_ksym_node_del(struct bpf_prog_aux *aux)
+static void bpf_prog_ksym_yesde_del(struct bpf_prog_aux *aux)
 {
-	if (list_empty(&aux->ksym_lnode))
+	if (list_empty(&aux->ksym_lyesde))
 		return;
 
-	latch_tree_erase(&aux->ksym_tnode, &bpf_tree, &bpf_tree_ops);
-	list_del_rcu(&aux->ksym_lnode);
+	latch_tree_erase(&aux->ksym_tyesde, &bpf_tree, &bpf_tree_ops);
+	list_del_rcu(&aux->ksym_lyesde);
 }
 
 static bool bpf_prog_kallsyms_candidate(const struct bpf_prog *fp)
@@ -641,8 +641,8 @@ static bool bpf_prog_kallsyms_candidate(const struct bpf_prog *fp)
 
 static bool bpf_prog_kallsyms_verify_off(const struct bpf_prog *fp)
 {
-	return list_empty(&fp->aux->ksym_lnode) ||
-	       fp->aux->ksym_lnode.prev == LIST_POISON2;
+	return list_empty(&fp->aux->ksym_lyesde) ||
+	       fp->aux->ksym_lyesde.prev == LIST_POISON2;
 }
 
 void bpf_prog_kallsyms_add(struct bpf_prog *fp)
@@ -652,7 +652,7 @@ void bpf_prog_kallsyms_add(struct bpf_prog *fp)
 		return;
 
 	spin_lock_bh(&bpf_lock);
-	bpf_prog_ksym_node_add(fp->aux);
+	bpf_prog_ksym_yesde_add(fp->aux);
 	spin_unlock_bh(&bpf_lock);
 }
 
@@ -662,17 +662,17 @@ void bpf_prog_kallsyms_del(struct bpf_prog *fp)
 		return;
 
 	spin_lock_bh(&bpf_lock);
-	bpf_prog_ksym_node_del(fp->aux);
+	bpf_prog_ksym_yesde_del(fp->aux);
 	spin_unlock_bh(&bpf_lock);
 }
 
 static struct bpf_prog *bpf_prog_kallsyms_find(unsigned long addr)
 {
-	struct latch_tree_node *n;
+	struct latch_tree_yesde *n;
 
 	n = latch_tree_find((void *)addr, &bpf_tree, &bpf_tree_ops);
 	return n ?
-	       container_of(n, struct bpf_prog_aux, ksym_tnode)->prog :
+	       container_of(n, struct bpf_prog_aux, ksym_tyesde)->prog :
 	       NULL;
 }
 
@@ -740,7 +740,7 @@ int bpf_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 		return ret;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(aux, &bpf_kallsyms, ksym_lnode) {
+	list_for_each_entry_rcu(aux, &bpf_kallsyms, ksym_lyesde) {
 		if (it++ != symnum)
 			continue;
 
@@ -892,7 +892,7 @@ void bpf_jit_binary_free(struct bpf_binary_header *hdr)
 
 /* This symbol is only overridden by archs that have different
  * requirements than the usual eBPF JITs, f.e. when they only
- * implement cBPF JIT, do not set images read-only, etc.
+ * implement cBPF JIT, do yest set images read-only, etc.
  */
 void __weak bpf_jit_free(struct bpf_prog *fp)
 {
@@ -958,16 +958,16 @@ static int bpf_jit_blind_insn(const struct bpf_insn *from,
 	 * AX register is inaccessible from user space. It is mapped in
 	 * all JITs, and used here for constant blinding rewrites. It is
 	 * typically "stateless" meaning its contents are only valid within
-	 * the executed instruction, but not across several instructions.
+	 * the executed instruction, but yest across several instructions.
 	 * There are a few exceptions however which are further detailed
 	 * below.
 	 *
-	 * Constant blinding is only used by JITs, not in the interpreter.
+	 * Constant blinding is only used by JITs, yest in the interpreter.
 	 * The interpreter uses AX in some occasions as a local temporary
 	 * register e.g. in DIV or MOD instructions.
 	 *
 	 * In restricted circumstances, the verifier can also use the AX
-	 * register for rewrites as long as they do not interfere with
+	 * register for rewrites as long as they do yest interfere with
 	 * the above cases!
 	 */
 	if (from->dst_reg == BPF_REG_AX || from->src_reg == BPF_REG_AX)
@@ -1097,12 +1097,12 @@ static struct bpf_prog *bpf_prog_clone_create(struct bpf_prog *fp_other,
 
 static void bpf_prog_clone_free(struct bpf_prog *fp)
 {
-	/* aux was stolen by the other clone, so we cannot free
+	/* aux was stolen by the other clone, so we canyest free
 	 * it from this path! It will be freed eventually by the
 	 * other program on release.
 	 *
 	 * At this point, we don't need a deferred release since
-	 * clone is guaranteed to not be locked.
+	 * clone is guaranteed to yest be locked.
 	 */
 	fp->aux = NULL;
 	__bpf_prog_free(fp);
@@ -1111,7 +1111,7 @@ static void bpf_prog_clone_free(struct bpf_prog *fp)
 void bpf_jit_prog_release_other(struct bpf_prog *fp, struct bpf_prog *fp_other)
 {
 	/* We have to repoint aux->prog to self, as we don't
-	 * know whether fp here is the clone or the original.
+	 * kyesw whether fp here is the clone or the original.
 	 */
 	fp->aux->prog = fp;
 	bpf_prog_clone_free(fp_other);
@@ -1174,12 +1174,12 @@ struct bpf_prog *bpf_jit_blind_constants(struct bpf_prog *prog)
 #endif /* CONFIG_BPF_JIT */
 
 /* Base function for offset calculation. Needs to go into .text section,
- * therefore keeping it non-static as well; will also be used by JITs
- * anyway later on, so do not let the compiler omit it. This also needs
+ * therefore keeping it yesn-static as well; will also be used by JITs
+ * anyway later on, so do yest let the compiler omit it. This also needs
  * to go into kallsyms for correlation from e.g. bpftool, so naming
- * must not change.
+ * must yest change.
  */
-noinline u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
+yesinline u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
 {
 	return 0;
 }
@@ -1328,7 +1328,7 @@ bool bpf_opcode_in_insntable(u8 code)
 #define BPF_INSN_3_TBL(x, y, z) [BPF_##x | BPF_##y | BPF_##z] = true
 	static const bool public_insntable[256] = {
 		[0 ... 255] = false,
-		/* Now overwrite non-defaults ... */
+		/* Now overwrite yesn-defaults ... */
 		BPF_INSN_MAP(BPF_INSN_2_TBL, BPF_INSN_3_TBL),
 		/* UAPI exposed, but rewritten opcodes. cBPF carry-over. */
 		[BPF_LD | BPF_ABS | BPF_B] = true,
@@ -1358,13 +1358,13 @@ u64 __weak bpf_probe_read_kernel(void *dst, u32 size, const void *unsafe_ptr)
  *
  * Decode and execute eBPF instructions.
  */
-static u64 __no_fgcse ___bpf_prog_run(u64 *regs, const struct bpf_insn *insn, u64 *stack)
+static u64 __yes_fgcse ___bpf_prog_run(u64 *regs, const struct bpf_insn *insn, u64 *stack)
 {
 #define BPF_INSN_2_LBL(x, y)    [BPF_##x | BPF_##y] = &&x##_##y
 #define BPF_INSN_3_LBL(x, y, z) [BPF_##x | BPF_##y | BPF_##z] = &&x##_##y##_##z
-	static const void * const jumptable[256] __annotate_jump_table = {
+	static const void * const jumptable[256] __anyestate_jump_table = {
 		[0 ... 255] = &&default_label,
-		/* Now overwrite non-defaults ... */
+		/* Now overwrite yesn-defaults ... */
 		BPF_INSN_MAP(BPF_INSN_2_LBL, BPF_INSN_3_LBL),
 		/* Non-UAPI available opcodes. */
 		[BPF_JMP | BPF_CALL_ARGS] = &&JMP_CALL_ARGS,
@@ -1627,11 +1627,11 @@ out:
 	default_label:
 		/* If we ever reach this, we have a bug somewhere. Die hard here
 		 * instead of just returning 0; we could be somewhere in a subprog,
-		 * so execution could continue otherwise which we do /not/ want.
+		 * so execution could continue otherwise which we do /yest/ want.
 		 *
 		 * Note, verifier whitelists all opcodes in bpf_opcode_in_insntable().
 		 */
-		pr_warn("BPF interpreter: unknown opcode %02x\n", insn->code);
+		pr_warn("BPF interpreter: unkyeswn opcode %02x\n", insn->code);
 		BUG_ON(1);
 		return 0;
 }
@@ -1712,7 +1712,7 @@ static unsigned int __bpf_prog_ret0_warn(const void *ctx,
 					 const struct bpf_insn *insn)
 {
 	/* If this handler ever gets executed, then BPF_JIT_ALWAYS_ON
-	 * is not working properly, so warn about it!
+	 * is yest working properly, so warn about it!
 	 */
 	WARN_ON_ONCE(1);
 	return 0;
@@ -1726,7 +1726,7 @@ bool bpf_prog_array_compatible(struct bpf_array *array,
 		return false;
 
 	if (!array->aux->type) {
-		/* There's no owner yet where we could check for
+		/* There's yes owner yet where we could check for
 		 * compatibility.
 		 */
 		array->aux->type  = fp->type;
@@ -1774,7 +1774,7 @@ static void bpf_prog_select_func(struct bpf_prog *fp)
  *	@fp: bpf_prog populated with internal BPF program
  *	@err: pointer to error variable
  *
- * Try to JIT eBPF program, if JIT is not available, use interpreter.
+ * Try to JIT eBPF program, if JIT is yest available, use interpreter.
  * The BPF program will be executed via BPF_PROG_RUN() macro.
  */
 struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
@@ -1790,7 +1790,7 @@ struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 	/* eBPF JITs can rewrite the program in case constant
 	 * blinding is active. However, in case of error during
 	 * blinding, bpf_int_jit_compile() must always return a
-	 * valid program, which in this case would simply not
+	 * valid program, which in this case would simply yest
 	 * be JITed, but falls back to the interpreter.
 	 */
 	if (!bpf_prog_is_dev_bound(fp->aux)) {
@@ -1819,7 +1819,7 @@ finalize:
 
 	/* The tail call compatibility check can only be done at
 	 * this late stage as we need to determine, if we deal
-	 * with JITed or non JITed program concatenations and not
+	 * with JITed or yesn JITed program concatenations and yest
 	 * all eBPF JITs might immediately support all features.
 	 */
 	*err = bpf_check_tail_call(fp);
@@ -1844,7 +1844,7 @@ static struct bpf_prog_dummy {
 
 /* to avoid allocating empty bpf_prog_array for cgroups that
  * don't have bpf program attached use one global 'empty_prog_array'
- * It will not be modified the caller of bpf_prog_array_alloc()
+ * It will yest be modified the caller of bpf_prog_array_alloc()
  * (since caller requested prog_cnt == 0)
  * that pointer should be 'freed' by bpf_prog_array_free()
  */
@@ -1918,7 +1918,7 @@ int bpf_prog_array_copy_to_user(struct bpf_prog_array *array,
 				__u32 __user *prog_ids, u32 cnt)
 {
 	unsigned long err = 0;
-	bool nospc;
+	bool yesspc;
 	u32 *ids;
 
 	/* users of this function are doing:
@@ -1930,12 +1930,12 @@ int bpf_prog_array_copy_to_user(struct bpf_prog_array *array,
 	ids = kcalloc(cnt, sizeof(u32), GFP_USER | __GFP_NOWARN);
 	if (!ids)
 		return -ENOMEM;
-	nospc = bpf_prog_array_copy_core(array, ids, cnt);
+	yesspc = bpf_prog_array_copy_core(array, ids, cnt);
 	err = copy_to_user(prog_ids, ids, cnt * sizeof(u32));
 	kfree(ids);
 	if (err)
 		return -EFAULT;
-	if (nospc)
+	if (yesspc)
 		return -ENOSPC;
 	return 0;
 }
@@ -1983,12 +1983,12 @@ int bpf_prog_array_copy(struct bpf_prog_array *old_array,
 	if (exclude_prog && !found_exclude)
 		return -ENOENT;
 
-	/* How many progs (not NULL) will be in the new array? */
+	/* How many progs (yest NULL) will be in the new array? */
 	new_prog_cnt = carry_prog_cnt;
 	if (include_prog)
 		new_prog_cnt += 1;
 
-	/* Do we have any prog (not NULL) in the new array? */
+	/* Do we have any prog (yest NULL) in the new array? */
 	if (!new_prog_cnt) {
 		*new_array = NULL;
 		return 0;
@@ -2027,7 +2027,7 @@ int bpf_prog_array_copy_info(struct bpf_prog_array *array,
 
 	*prog_cnt = cnt;
 
-	/* return early if user requested only program count or nothing to copy */
+	/* return early if user requested only program count or yesthing to copy */
 	if (!request_cnt || !cnt)
 		return 0;
 
@@ -2115,7 +2115,7 @@ void bpf_user_rnd_init_once(void)
 BPF_CALL_0(bpf_user_rnd_u32)
 {
 	/* Should someone ever have the rather unwise idea to use some
-	 * of the registers passed into this function, then note that
+	 * of the registers passed into this function, then yeste that
 	 * this function is called from native eBPF and classic-to-eBPF
 	 * transformations. Register assignments from both sides are
 	 * different, f.e. classic always sets fn(ctx, A, X) here.
@@ -2142,7 +2142,7 @@ const struct bpf_func_proto bpf_spin_unlock_proto __weak;
 
 const struct bpf_func_proto bpf_get_prandom_u32_proto __weak;
 const struct bpf_func_proto bpf_get_smp_processor_id_proto __weak;
-const struct bpf_func_proto bpf_get_numa_node_id_proto __weak;
+const struct bpf_func_proto bpf_get_numa_yesde_id_proto __weak;
 const struct bpf_func_proto bpf_ktime_get_ns_proto __weak;
 
 const struct bpf_func_proto bpf_get_current_pid_tgid_proto __weak;

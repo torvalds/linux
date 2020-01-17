@@ -15,7 +15,7 @@
  *		Alan Cox	:	EMSGSIZE if you send too big a packet
  *		Alan Cox	: 	Now uses generic datagrams and shared
  *					skbuff library. No more peek crashes,
- *					no more backlogs
+ *					yes more backlogs
  *		Alan Cox	:	Checks sk->broadcast.
  *		Alan Cox	:	Uses skb_free_datagram/skb_copy_datagram
  *		Alan Cox	:	Raw passes ip options too
@@ -41,7 +41,7 @@
 #include <asm/ioctls.h>
 #include <linux/stddef.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
@@ -98,7 +98,7 @@ int raw_hash_sk(struct sock *sk)
 	head = &h->ht[inet_sk(sk)->inet_num & (RAW_HTABLE_SIZE - 1)];
 
 	write_lock_bh(&h->lock);
-	sk_add_node(sk, head);
+	sk_add_yesde(sk, head);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	write_unlock_bh(&h->lock);
 
@@ -111,7 +111,7 @@ void raw_unhash_sk(struct sock *sk)
 	struct raw_hashinfo *h = sk->sk_prot->h.raw_hash;
 
 	write_lock_bh(&h->lock);
-	if (sk_del_node_init(sk))
+	if (sk_del_yesde_init(sk))
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	write_unlock_bh(&h->lock);
 }
@@ -156,7 +156,7 @@ static int icmp_filter(const struct sock *sk, const struct sk_buff *skb)
 		return ((1U << hdr->type) & data) != 0;
 	}
 
-	/* Do not block unknown ICMP types */
+	/* Do yest block unkyeswn ICMP types */
 	return 0;
 }
 
@@ -164,7 +164,7 @@ static int icmp_filter(const struct sock *sk, const struct sk_buff *skb)
  * Caller owns SKB, so we must make clones.
  *
  * RFC 1122: SHOULD pass TOS value up to the transport layer.
- * -> It does. And not only TOS, but all IP header.
+ * -> It does. And yest only TOS, but all IP header.
  */
 static int raw_v4_input(struct sk_buff *skb, const struct iphdr *iph, int hash)
 {
@@ -212,7 +212,7 @@ int raw_local_deliver(struct sk_buff *skb, int protocol)
 	hash = protocol & (RAW_HTABLE_SIZE - 1);
 	raw_sk = sk_head(&raw_v4_hashinfo.ht[hash]);
 
-	/* If there maybe a raw socket we must check - if not we
+	/* If there maybe a raw socket we must check - if yest we
 	 * don't care less
 	 */
 	if (raw_sk && !raw_v4_input(skb, ip_hdr(skb), hash))
@@ -260,7 +260,7 @@ static void raw_err(struct sock *sk, struct sk_buff *skb, u32 info)
 		err = EHOSTUNREACH;
 		if (code > NR_ICMP_UNREACH)
 			break;
-		err = icmp_err_convert[code].errno;
+		err = icmp_err_convert[code].erryes;
 		harderr = icmp_err_convert[code].fatal;
 		if (code == ICMP_FRAG_NEEDED) {
 			harderr = inet->pmtudisc != IP_PMTUDISC_DONT;
@@ -429,7 +429,7 @@ static int raw_send_hdrinc(struct sock *sk, struct flowi4 *fl4,
 		      net, sk, skb, NULL, rt->dst.dev,
 		      dst_output);
 	if (err > 0)
-		err = net_xmit_errno(err);
+		err = net_xmit_erryes(err);
 	if (err)
 		goto error;
 out:
@@ -477,7 +477,7 @@ static int raw_getfrag(void *from, char *to, int offset, int len, int odd,
 		else
 			skb->csum = csum_block_add(
 				skb->csum,
-				csum_partial_copy_nocheck(rfv->hdr.c + offset,
+				csum_partial_copy_yescheck(rfv->hdr.c + offset,
 							  to, copy, 0),
 				odd);
 
@@ -546,8 +546,8 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 				goto out;
 		}
 		daddr = usin->sin_addr.s_addr;
-		/* ANK: I did not forget to get protocol from port field.
-		 * I just do not know, who uses this weirdness.
+		/* ANK: I did yest forget to get protocol from port field.
+		 * I just do yest kyesw, who uses this weirdness.
 		 * IP_HDRINCL is much more convenient.
 		 */
 	} else {
@@ -587,8 +587,8 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	if (ipc.opt) {
 		err = -EINVAL;
-		/* Linux does not mangle headers on raw sockets,
-		 * so that IP options + IP_HDRINCL is non-sense.
+		/* Linux does yest mangle headers on raw sockets,
+		 * so that IP options + IP_HDRINCL is yesn-sense.
 		 */
 		if (hdrincl)
 			goto done;
@@ -748,7 +748,7 @@ out:	return ret;
  */
 
 static int raw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-		       int noblock, int flags, int *addr_len)
+		       int yesblock, int flags, int *addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	size_t copied = 0;
@@ -764,7 +764,7 @@ static int raw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		goto out;
 	}
 
-	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	skb = skb_recv_datagram(sk, flags, yesblock, &err);
 	if (!skb)
 		goto out;
 
@@ -991,7 +991,7 @@ struct proto raw_prot = {
 static struct sock *raw_get_first(struct seq_file *seq)
 {
 	struct sock *sk;
-	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+	struct raw_hashinfo *h = PDE_DATA(file_iyesde(seq->file));
 	struct raw_iter_state *state = raw_seq_private(seq);
 
 	for (state->bucket = 0; state->bucket < RAW_HTABLE_SIZE;
@@ -1007,7 +1007,7 @@ found:
 
 static struct sock *raw_get_next(struct seq_file *seq, struct sock *sk)
 {
-	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+	struct raw_hashinfo *h = PDE_DATA(file_iyesde(seq->file));
 	struct raw_iter_state *state = raw_seq_private(seq);
 
 	do {
@@ -1035,7 +1035,7 @@ static struct sock *raw_get_idx(struct seq_file *seq, loff_t pos)
 
 void *raw_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+	struct raw_hashinfo *h = PDE_DATA(file_iyesde(seq->file));
 
 	read_lock(&h->lock);
 	return *pos ? raw_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
@@ -1057,7 +1057,7 @@ EXPORT_SYMBOL_GPL(raw_seq_next);
 
 void raw_seq_stop(struct seq_file *seq, void *v)
 {
-	struct raw_hashinfo *h = PDE_DATA(file_inode(seq->file));
+	struct raw_hashinfo *h = PDE_DATA(file_iyesde(seq->file));
 
 	read_unlock(&h->lock);
 }
@@ -1078,7 +1078,7 @@ static void raw_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 		sk_rmem_alloc_get(sp),
 		0, 0L, 0,
 		from_kuid_munged(seq_user_ns(seq), sock_i_uid(sp)),
-		0, sock_i_ino(sp),
+		0, sock_i_iyes(sp),
 		refcount_read(&sp->sk_refcnt), sp, atomic_read(&sp->sk_drops));
 }
 
@@ -1087,7 +1087,7 @@ static int raw_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_printf(seq, "  sl  local_address rem_address   st tx_queue "
 				"rx_queue tr tm->when retrnsmt   uid  timeout "
-				"inode ref pointer drops\n");
+				"iyesde ref pointer drops\n");
 	else
 		raw_sock_seq_show(seq, v, raw_seq_private(seq)->bucket);
 	return 0;

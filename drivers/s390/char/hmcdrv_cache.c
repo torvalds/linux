@@ -24,7 +24,7 @@
  * @id: FTP command ID
  * @content: kernel-space buffer, 4k aligned
  * @len: size of @content cache (0 if caching disabled)
- * @ofs: start of content within file (-1 if no cached content)
+ * @ofs: start of content within file (-1 if yes cached content)
  * @fname: file name
  * @fsize: file size
  * @timeout: cache timeout in jiffies
@@ -56,7 +56,7 @@ static struct hmcdrv_cache_entry hmcdrv_cache_file = {
  * hmcdrv_cache_get() - looks for file data/content in read cache
  * @ftp: pointer to FTP command specification
  *
- * Return: number of bytes read from cache or a negative number if nothing
+ * Return: number of bytes read from cache or a negative number if yesthing
  * in content cache (for the file/cmd specified in @ftp)
  */
 static ssize_t hmcdrv_cache_get(const struct hmcdrv_ftp_cmdspec *ftp)
@@ -117,13 +117,13 @@ static ssize_t hmcdrv_cache_do(const struct hmcdrv_ftp_cmdspec *ftp,
 	ssize_t len;
 
 	/* only cache content if the read/dir cache really exists
-	 * (hmcdrv_cache_file.len > 0), is large enough to handle the
+	 * (hmcdrv_cache_file.len > 0), is large eyesugh to handle the
 	 * request (hmcdrv_cache_file.len >= ftp->len) and there is a need
 	 * to do so (ftp->len > 0)
 	 */
 	if ((ftp->len > 0) && (hmcdrv_cache_file.len >= ftp->len)) {
 
-		/* because the cache is not located at ftp->buf, we have to
+		/* because the cache is yest located at ftp->buf, we have to
 		 * assemble a new HMC drive FTP cmd specification (pointing
 		 * to our cache, and using the increased size)
 		 */
@@ -131,7 +131,7 @@ static ssize_t hmcdrv_cache_do(const struct hmcdrv_ftp_cmdspec *ftp,
 		cftp.buf = hmcdrv_cache_file.content;  /* and update */
 		cftp.len = hmcdrv_cache_file.len;      /* buffer data */
 
-		len = func(&cftp, &hmcdrv_cache_file.fsize); /* now do */
+		len = func(&cftp, &hmcdrv_cache_file.fsize); /* yesw do */
 
 		if (len > 0) {
 			pr_debug("caching %zd bytes content for '%s'\n",
@@ -169,7 +169,7 @@ static ssize_t hmcdrv_cache_do(const struct hmcdrv_ftp_cmdspec *ftp,
  * @ftp: pointer to FTP command specification
  * @func: FTP transfer function to be used
  *
- * Attention: Notice that this function is not reentrant - so the caller
+ * Attention: Notice that this function is yest reentrant - so the caller
  * must ensure exclusive execution.
  *
  * Return: number of bytes read/written or a (negative) error code
@@ -186,7 +186,7 @@ ssize_t hmcdrv_cache_cmd(const struct hmcdrv_ftp_cmdspec *ftp,
 		len = hmcdrv_cache_get(ftp);
 
 		if (len >= 0) /* got it from cache ? */
-			return len; /* yes */
+			return len; /* no */
 
 		len = hmcdrv_cache_do(ftp, func);
 
@@ -249,5 +249,5 @@ void hmcdrv_cache_shutdown(void)
 	hmcdrv_cache_file.id = HMCDRV_FTP_NOOP;
 	hmcdrv_cache_file.fsize = LLONG_MAX;
 	hmcdrv_cache_file.ofs = -1;
-	hmcdrv_cache_file.len = 0; /* no cache */
+	hmcdrv_cache_file.len = 0; /* yes cache */
 }

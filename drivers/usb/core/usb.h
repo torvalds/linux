@@ -95,8 +95,8 @@ extern int usb_runtime_idle(struct device *dev);
 extern int usb_enable_usb2_hardware_lpm(struct usb_device *udev);
 extern int usb_disable_usb2_hardware_lpm(struct usb_device *udev);
 
-extern void usbfs_notify_suspend(struct usb_device *udev);
-extern void usbfs_notify_resume(struct usb_device *udev);
+extern void usbfs_yestify_suspend(struct usb_device *udev);
+extern void usbfs_yestify_resume(struct usb_device *udev);
 
 #else
 
@@ -169,7 +169,7 @@ static inline int is_usb_device_driver(struct device_driver *drv)
 			for_devices;
 }
 
-/* for labeling diagnostics */
+/* for labeling diagyesstics */
 extern const char *usbcore_name;
 
 /* sysfs stuff */
@@ -186,16 +186,16 @@ extern int usb_devio_init(void);
 extern void usb_devio_cleanup(void);
 
 /*
- * Firmware specific cookie identifying a port's location. '0' == no location
+ * Firmware specific cookie identifying a port's location. '0' == yes location
  * data available
  */
 typedef u32 usb_port_location_t;
 
-/* internal notify stuff */
-extern void usb_notify_add_device(struct usb_device *udev);
-extern void usb_notify_remove_device(struct usb_device *udev);
-extern void usb_notify_add_bus(struct usb_bus *ubus);
-extern void usb_notify_remove_bus(struct usb_bus *ubus);
+/* internal yestify stuff */
+extern void usb_yestify_add_device(struct usb_device *udev);
+extern void usb_yestify_remove_device(struct usb_device *udev);
+extern void usb_yestify_add_bus(struct usb_bus *ubus);
+extern void usb_yestify_remove_bus(struct usb_bus *ubus);
 extern void usb_hub_adjust_deviceremovable(struct usb_device *hdev,
 		struct usb_hub_descriptor *desc);
 

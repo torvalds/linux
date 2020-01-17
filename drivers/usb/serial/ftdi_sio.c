@@ -28,7 +28,7 @@
    assimilated :-) */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -61,13 +61,13 @@ struct ftdi_private {
 	int flags;		/* some ASYNC_xxxx flags are supported */
 	unsigned long last_dtr_rts;	/* saved modem control outputs */
 	char prev_status;        /* Used for TIOCMIWAIT */
-	char transmit_empty;	/* If transmitter is empty or not */
+	char transmit_empty;	/* If transmitter is empty or yest */
 	u16 interface;		/* FT2232C, FT2232H or FT4232H port interface
 				   (0 for FT232/245) */
 
-	speed_t force_baud;	/* if non-zero, force the baud rate to
+	speed_t force_baud;	/* if yesn-zero, force the baud rate to
 				   this value */
-	int force_rtscts;	/* if non-zero, force RTS-CTS to always
+	int force_rtscts;	/* if yesn-zero, force RTS-CTS to always
 				   be enabled */
 
 	unsigned int latency;		/* latency setting in use */
@@ -132,16 +132,16 @@ static const struct ftdi_sio_quirk ftdi_8u2232c_quirk = {
  * - it returns characters every 16ms (the FTDI does it every 40ms)
  *
  * the bcdDevice value is used to differentiate FT232BM and FT245BM from
- * the earlier FT8U232AM and FT8U232BM.  For now, include all known VID/PID
+ * the earlier FT8U232AM and FT8U232BM.  For yesw, include all kyeswn VID/PID
  * combinations in both tables.
  * FIXME: perhaps bcdDevice can also identify 12MHz FT8U232AM devices,
- * but I don't know if those ever went into mass production. [Ian Abbott]
+ * but I don't kyesw if those ever went into mass production. [Ian Abbott]
  */
 
 
 
 /*
- * Device ID not listed? Test it using
+ * Device ID yest listed? Test it using
  * /sys/bus/usb-serial/drivers/ftdi_sio/new_id and send a patch or report.
  */
 static const struct usb_device_id id_table_combined[] = {
@@ -1201,7 +1201,7 @@ static u32 ftdi_2232h_baud_base_to_divisor(int baud, int base)
 		divisor = 1;
 	/*
 	 * Set this bit to turn off a divide by 2.5 on baud rate generator
-	 * This enables baud rates up to 12Mbaud but cannot reach below 1200
+	 * This enables baud rates up to 12Mbaud but canyest reach below 1200
 	 * baud with this bit set
 	 */
 	divisor |= 0x00020000;
@@ -1225,8 +1225,8 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set,
 	int rv;
 
 	if (((set | clear) & (TIOCM_DTR | TIOCM_RTS)) == 0) {
-		dev_dbg(dev, "%s - DTR|RTS not being set|cleared\n", __func__);
-		return 0;	/* no change */
+		dev_dbg(dev, "%s - DTR|RTS yest being set|cleared\n", __func__);
+		return 0;	/* yes change */
 	}
 
 	clear &= ~set;	/* 'set' takes precedence over 'clear' */
@@ -1303,7 +1303,7 @@ static u32 get_ftdi_divisor(struct tty_struct *tty,
 		case 115200: div_value = ftdi_sio_b115200; break;
 		} /* baud */
 		if (div_value == 0) {
-			dev_dbg(dev, "%s - Baudrate (%d) requested is not supported\n",
+			dev_dbg(dev, "%s - Baudrate (%d) requested is yest supported\n",
 				__func__,  baud);
 			div_value = ftdi_sio_b9600;
 			baud = 9600;
@@ -1557,7 +1557,7 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 	unsigned version;
 	unsigned interfaces;
 
-	/* Assume it is not the original SIO device for now. */
+	/* Assume it is yest the original SIO device for yesw. */
 	priv->baud_base = 48000000 / 2;
 
 	version = le16_to_cpu(udev->descriptor.bcdDevice);
@@ -1612,7 +1612,7 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 		if (udev->descriptor.iSerialNumber == 0 &&
 				_read_latency_timer(port) >= 0) {
 			dev_dbg(&port->dev,
-				"%s: has latency timer so not an AM type\n",
+				"%s: has latency timer so yest an AM type\n",
 				__func__);
 			priv->chip_type = FT232BM;
 		}
@@ -1653,7 +1653,7 @@ static void ftdi_set_max_packet_size(struct usb_serial_port *port)
 
 	/*
 	 * NOTE: Some customers have programmed FT232R/FT245R devices
-	 * with an endpoint size of 0 - not good. In this case, we
+	 * with an endpoint size of 0 - yest good. In this case, we
 	 * want to override the endpoint descriptor setting and use a
 	 * value of 64 for wMaxPacketSize.
 	 */
@@ -1745,7 +1745,7 @@ static int create_sysfs_attrs(struct usb_serial_port *port)
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	int retval = 0;
 
-	/* XXX I've no idea if the original SIO supports the event_char
+	/* XXX I've yes idea if the original SIO supports the event_char
 	 * sysfs parameter, so I'm playing it safe.  */
 	if (priv->chip_type != SIO) {
 		dev_dbg(&port->dev, "sysfs attributes for %s\n", ftdi_chip_name[priv->chip_type]);
@@ -1840,7 +1840,7 @@ static int ftdi_gpio_request(struct gpio_chip *gc, unsigned int offset)
 
 	mutex_lock(&priv->gpio_lock);
 	if (!priv->gpio_used) {
-		/* Set default pin states, as we cannot get them from device */
+		/* Set default pin states, as we canyest get them from device */
 		priv->gpio_output = 0x00;
 		priv->gpio_value = 0x00;
 		result = ftdi_set_cbus_pins(port);
@@ -2193,7 +2193,7 @@ static void ftdi_gpio_remove(struct usb_serial_port *port)
 	}
 
 	if (priv->gpio_used) {
-		/* Exiting CBUS-mode does not reset pin states. */
+		/* Exiting CBUS-mode does yest reset pin states. */
 		ftdi_exit_cbus_mode(port);
 		priv->gpio_used = false;
 	}
@@ -2291,7 +2291,7 @@ static void ftdi_HE_TIRA1_setup(struct ftdi_private *priv)
 
 /*
  * Module parameter to control latency timer for NDI FTDI-based USB devices.
- * If this value is not set in /etc/modprobe.d/ its value will be set
+ * If this value is yest set in /etc/modprobe.d/ its value will be set
  * to 1ms.
  */
 static int ndi_latency_timer = 1;
@@ -2314,7 +2314,7 @@ static int ftdi_NDI_device_setup(struct usb_serial *serial)
 	dev_dbg(&udev->dev, "%s setting NDI device latency to %d\n", __func__, latency);
 	dev_info(&udev->dev, "NDI device with a latency value of %d\n", latency);
 
-	/* FIXME: errors are not returned */
+	/* FIXME: errors are yest returned */
 	usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				FTDI_SIO_SET_LATENCY_TIMER_REQUEST,
 				FTDI_SIO_SET_LATENCY_TIMER_REQUEST_TYPE,
@@ -2325,7 +2325,7 @@ static int ftdi_NDI_device_setup(struct usb_serial *serial)
 /*
  * First port on JTAG adaptors such as Olimex arm-usb-ocd or the FIC/OpenMoko
  * Neo1973 Debug Board is reserved for JTAG interface and can be accessed from
- * userspace using openocd.
+ * userspace using opeyescd.
  */
 static int ftdi_jtag_probe(struct usb_serial *serial)
 {
@@ -2334,7 +2334,7 @@ static int ftdi_jtag_probe(struct usb_serial *serial)
 
 	if (interface == udev->actconfig->interface[0]) {
 		dev_info(&udev->dev,
-			 "Ignoring serial port reserved for JTAG\n");
+			 "Igyesring serial port reserved for JTAG\n");
 		return -ENODEV;
 	}
 
@@ -2359,7 +2359,7 @@ static int ftdi_8u2232c_probe(struct usb_serial *serial)
 
 /*
  * First two ports on JTAG adaptors using an FT4232 such as STMicroelectronics's
- * ST Micro Connect Lite are reserved for JTAG or other non-UART interfaces and
+ * ST Micro Connect Lite are reserved for JTAG or other yesn-UART interfaces and
  * can be accessed from userspace.
  * The next two ports are enabled as UARTs by default, where port 2 is
  * a conventional RS-232 UART.
@@ -2371,7 +2371,7 @@ static int ftdi_stmclite_probe(struct usb_serial *serial)
 
 	if (interface == udev->actconfig->interface[0] ||
 	    interface == udev->actconfig->interface[1]) {
-		dev_info(&udev->dev, "Ignoring serial port reserved for JTAG\n");
+		dev_info(&udev->dev, "Igyesring serial port reserved for JTAG\n");
 		return -ENODEV;
 	}
 
@@ -2441,7 +2441,7 @@ static void ftdi_dtr_rts(struct usb_serial_port *port, int on)
  *  B1 0
  *  B2..7 length of message excluding byte 0
  *
- * The new devices do not require this byte
+ * The new devices do yest require this byte
  */
 static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
 						void *dest, size_t size)
@@ -2520,7 +2520,7 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 		priv->prev_status = status;
 	}
 
-	/* save if the transmitter is empty or not */
+	/* save if the transmitter is empty or yest */
 	if (packet[1] & FTDI_RS_TEMT)
 		priv->transmit_empty = 1;
 	else
@@ -2549,7 +2549,7 @@ static int ftdi_process_packet(struct usb_serial_port *port,
 			flag = TTY_FRAME;
 			port->icount.frame++;
 		}
-		/* Overrun is special, not associated with a char */
+		/* Overrun is special, yest associated with a char */
 		if (packet[1] & FTDI_RS_OE) {
 			port->icount.overrun++;
 			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
@@ -2671,13 +2671,13 @@ static void ftdi_set_termios(struct tty_struct *tty,
 	 * eight data bits.
 	 *
 	 * TODO: Implement a quirk to only allow this with mentioned
-	 *       readers. One I know of (Argolis Smartreader V1)
+	 *       readers. One I kyesw of (Argolis Smartreader V1)
 	 *       returns "USB smartcard server" as iInterface string.
 	 *       The vendor didn't bother with a custom VID/PID of
 	 *       course.
 	 */
 	if (C_CSIZE(tty) == CS6) {
-		dev_warn(ddev, "requested CSIZE setting not supported\n");
+		dev_warn(ddev, "requested CSIZE setting yest supported\n");
 
 		termios->c_cflag &= ~CSIZE;
 		if (old_termios)
@@ -2689,12 +2689,12 @@ static void ftdi_set_termios(struct tty_struct *tty,
 	cflag = termios->c_cflag;
 
 	if (!old_termios)
-		goto no_skip;
+		goto yes_skip;
 
 	if (old_termios->c_cflag == termios->c_cflag
 	    && old_termios->c_ispeed == termios->c_ispeed
 	    && old_termios->c_ospeed == termios->c_ospeed)
-		goto no_c_cflag_changes;
+		goto yes_c_cflag_changes;
 
 	/* NOTE These routines can get interrupted by
 	   ftdi_sio_read_bulk_callback  - need to examine what this means -
@@ -2702,9 +2702,9 @@ static void ftdi_set_termios(struct tty_struct *tty,
 
 	if ((old_termios->c_cflag & (CSIZE|PARODD|PARENB|CMSPAR|CSTOPB)) ==
 	    (termios->c_cflag & (CSIZE|PARODD|PARENB|CMSPAR|CSTOPB)))
-		goto no_data_parity_stop_changes;
+		goto yes_data_parity_stop_changes;
 
-no_skip:
+yes_skip:
 	/* Set number of data bits, parity, stop bits */
 
 	value = 0;
@@ -2751,7 +2751,7 @@ no_skip:
 	}
 
 	/* Now do the baudrate */
-no_data_parity_stop_changes:
+yes_data_parity_stop_changes:
 	if ((cflag & CBAUD) == B0) {
 		/* Disable flow control */
 		if (usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
@@ -2775,7 +2775,7 @@ no_data_parity_stop_changes:
 			set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 	}
 
-no_c_cflag_changes:
+yes_c_cflag_changes:
 	/* Set hardware-assisted flow control */
 	value = 0;
 

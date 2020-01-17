@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techyeslogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -151,7 +151,7 @@ int __init apply_mips_fdt_fixups(void *fdt_out, size_t fdt_out_size,
 
 void __init plat_time_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct clk *clk;
 
 	of_clk_init(NULL);
@@ -161,9 +161,9 @@ void __init plat_time_init(void)
 	} else if (mach && mach->measure_hpt_freq) {
 		mips_hpt_frequency = mach->measure_hpt_freq();
 	} else {
-		np = of_get_cpu_node(0, NULL);
+		np = of_get_cpu_yesde(0, NULL);
 		if (!np) {
-			pr_err("Failed to get CPU node\n");
+			pr_err("Failed to get CPU yesde\n");
 			return;
 		}
 
@@ -193,13 +193,13 @@ void __init plat_time_init(void)
 
 void __init arch_init_irq(void)
 {
-	struct device_node *intc_node;
+	struct device_yesde *intc_yesde;
 
-	intc_node = of_find_compatible_node(NULL, NULL,
+	intc_yesde = of_find_compatible_yesde(NULL, NULL,
 					    "mti,cpu-interrupt-controller");
-	if (!cpu_has_veic && !intc_node)
+	if (!cpu_has_veic && !intc_yesde)
 		mips_cpu_irq_init();
-	of_node_put(intc_node);
+	of_yesde_put(intc_yesde);
 
 	irqchip_init();
 }

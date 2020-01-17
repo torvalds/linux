@@ -89,7 +89,7 @@ void integrator_impd1_clk_init(void __iomem *base, unsigned int id)
 	int i;
 
 	if (id > 3) {
-		pr_crit("no more than 4 LMs can be attached\n");
+		pr_crit("yes more than 4 LMs can be attached\n");
 		return;
 	}
 	imc = &impd1_clks[id];

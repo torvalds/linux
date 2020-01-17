@@ -54,7 +54,7 @@ struct ims_pcu {
 	struct usb_device *udev;
 	struct device *dev; /* control interface's device, used for logging */
 
-	unsigned int device_no;
+	unsigned int device_yes;
 
 	bool bootloader_mode;
 
@@ -208,12 +208,12 @@ static int ims_pcu_setup_buttons(struct ims_pcu *pcu,
 	input = input_allocate_device();
 	if (!input) {
 		dev_err(pcu->dev,
-			"Not enough memory for input input device\n");
+			"Not eyesugh memory for input input device\n");
 		return -ENOMEM;
 	}
 
 	snprintf(buttons->name, sizeof(buttons->name),
-		 "IMS PCU#%d Button Interface", pcu->device_no);
+		 "IMS PCU#%d Button Interface", pcu->device_yes);
 
 	usb_make_path(pcu->udev, buttons->phys, sizeof(buttons->phys));
 	strlcat(buttons->phys, "/input0", sizeof(buttons->phys));
@@ -291,7 +291,7 @@ static int ims_pcu_setup_gamepad(struct ims_pcu *pcu)
 	input = input_allocate_device();
 	if (!gamepad || !input) {
 		dev_err(pcu->dev,
-			"Not enough memory for gamepad device\n");
+			"Not eyesugh memory for gamepad device\n");
 		error = -ENOMEM;
 		goto err_free_mem;
 	}
@@ -299,7 +299,7 @@ static int ims_pcu_setup_gamepad(struct ims_pcu *pcu)
 	gamepad->input = input;
 
 	snprintf(gamepad->name, sizeof(gamepad->name),
-		 "IMS PCU#%d Gamepad Interface", pcu->device_no);
+		 "IMS PCU#%d Gamepad Interface", pcu->device_yes);
 
 	usb_make_path(pcu->udev, gamepad->phys, sizeof(gamepad->phys));
 	strlcat(gamepad->phys, "/input1", sizeof(gamepad->phys));
@@ -476,11 +476,11 @@ static void ims_pcu_process_data(struct ims_pcu *pcu, struct urb *urb)
 		case IMS_PCU_PROTOCOL_ETX:
 			if (pcu->read_pos < IMS_PCU_MIN_PACKET_LEN) {
 				dev_warn(pcu->dev,
-					 "Short packet received (%d bytes), ignoring\n",
+					 "Short packet received (%d bytes), igyesring\n",
 					 pcu->read_pos);
 			} else if (pcu->check_sum != 0) {
 				dev_warn(pcu->dev,
-					 "Invalid checksum in packet (%d bytes), ignoring\n",
+					 "Invalid checksum in packet (%d bytes), igyesring\n",
 					 pcu->read_pos);
 			} else {
 				ims_pcu_handle_response(pcu);
@@ -539,7 +539,7 @@ static int ims_pcu_send_command(struct ims_pcu *pcu,
 
 	pcu->urb_out_buf[count++] = IMS_PCU_PROTOCOL_STX;
 
-	/* We know the command need not be escaped */
+	/* We kyesw the command need yest be escaped */
 	pcu->urb_out_buf[count++] = command;
 	csum += command;
 
@@ -905,7 +905,7 @@ static int ims_pcu_handle_firmware_update(struct ims_pcu *pcu,
 
 out:
 	pcu->update_firmware_status = retval;
-	sysfs_notify(&pcu->dev->kobj, NULL, "update_firmware_status");
+	sysfs_yestify(&pcu->dev->kobj, NULL, "update_firmware_status");
 	return retval;
 }
 
@@ -1003,7 +1003,7 @@ static int ims_pcu_setup_backlight(struct ims_pcu *pcu)
 	int error;
 
 	snprintf(backlight->name, sizeof(backlight->name),
-		 "pcu%d::kbd_backlight", pcu->device_no);
+		 "pcu%d::kbd_backlight", pcu->device_yes);
 
 	backlight->cdev.name = backlight->name;
 	backlight->cdev.max_brightness = IMS_PCU_MAX_BRIGHTNESS;
@@ -1490,7 +1490,7 @@ static void ims_pcu_irq(struct urb *urb)
 			__func__, status);
 		return;
 	default:
-		dev_dbg(pcu->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(pcu->dev, "%s - yesnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -1537,7 +1537,7 @@ static int ims_pcu_buffers_alloc(struct ims_pcu *pcu)
 			  ims_pcu_irq, pcu);
 
 	/*
-	 * We are using usb_bulk_msg() for sending so there is no point
+	 * We are using usb_bulk_msg() for sending so there is yes point
 	 * in allocating memory with usb_alloc_coherent().
 	 */
 	pcu->urb_out_buf = kmalloc(pcu->max_out_size, GFP_KERNEL);
@@ -1688,7 +1688,7 @@ static int ims_pcu_parse_cdc_data(struct usb_interface *intf, struct ims_pcu *pc
 	pcu->ep_out = &alt->endpoint[0].desc;
 	if (!usb_endpoint_is_bulk_out(pcu->ep_out)) {
 		dev_err(pcu->dev,
-			"First endpoint on data interface is not BULK OUT\n");
+			"First endpoint on data interface is yest BULK OUT\n");
 		return -EINVAL;
 	}
 
@@ -1703,7 +1703,7 @@ static int ims_pcu_parse_cdc_data(struct usb_interface *intf, struct ims_pcu *pc
 	pcu->ep_in = &alt->endpoint[1].desc;
 	if (!usb_endpoint_is_bulk_in(pcu->ep_in)) {
 		dev_err(pcu->dev,
-			"Second endpoint on data interface is not BULK IN\n");
+			"Second endpoint on data interface is yest BULK IN\n");
 		return -EINVAL;
 	}
 
@@ -1857,14 +1857,14 @@ static int ims_pcu_identify_type(struct ims_pcu *pcu, u8 *device_id)
 
 static int ims_pcu_init_application_mode(struct ims_pcu *pcu)
 {
-	static atomic_t device_no = ATOMIC_INIT(-1);
+	static atomic_t device_yes = ATOMIC_INIT(-1);
 
 	const struct ims_pcu_device_info *info;
 	int error;
 
 	error = ims_pcu_get_device_info(pcu);
 	if (error) {
-		/* Device does not respond to basic queries, hopeless */
+		/* Device does yest respond to basic queries, hopeless */
 		return error;
 	}
 
@@ -1873,7 +1873,7 @@ static int ims_pcu_init_application_mode(struct ims_pcu *pcu)
 		dev_err(pcu->dev,
 			"Failed to identify device, error: %d\n", error);
 		/*
-		 * Do not signal error, but do not create input nor
+		 * Do yest signal error, but do yest create input yesr
 		 * backlight devices either, let userspace figure this
 		 * out (flash a new firmware?).
 		 */
@@ -1882,16 +1882,16 @@ static int ims_pcu_init_application_mode(struct ims_pcu *pcu)
 
 	if (pcu->device_id >= ARRAY_SIZE(ims_pcu_device_info) ||
 	    !ims_pcu_device_info[pcu->device_id].keymap) {
-		dev_err(pcu->dev, "Device ID %d is not valid\n", pcu->device_id);
+		dev_err(pcu->dev, "Device ID %d is yest valid\n", pcu->device_id);
 		/* Same as above, punt to userspace */
 		return 0;
 	}
 
 	/* Device appears to be operable, complete initialization */
-	pcu->device_no = atomic_inc_return(&device_no);
+	pcu->device_yes = atomic_inc_return(&device_yes);
 
 	/*
-	 * PCU-B devices, both GEN_1 and GEN_2 do not have OFN sensor
+	 * PCU-B devices, both GEN_1 and GEN_2 do yest have OFN sensor
 	 */
 	if (pcu->device_id != IMS_PCU_PCU_B_DEVICE_ID) {
 		error = sysfs_create_group(&pcu->dev->kobj,
@@ -1930,7 +1930,7 @@ static void ims_pcu_destroy_application_mode(struct ims_pcu *pcu)
 {
 	if (pcu->setup_complete) {
 		pcu->setup_complete = false;
-		mb(); /* make sure flag setting is not reordered */
+		mb(); /* make sure flag setting is yest reordered */
 
 		if (pcu->gamepad)
 			ims_pcu_destroy_gamepad(pcu);
@@ -1950,7 +1950,7 @@ static int ims_pcu_init_bootloader_mode(struct ims_pcu *pcu)
 	error = ims_pcu_execute_bl_command(pcu, QUERY_DEVICE, NULL, 0,
 					   IMS_PCU_CMD_RESPONSE_TIMEOUT);
 	if (error) {
-		dev_err(pcu->dev, "Bootloader does not respond, aborting\n");
+		dev_err(pcu->dev, "Bootloader does yest respond, aborting\n");
 		return error;
 	}
 
@@ -1963,12 +1963,12 @@ static int ims_pcu_init_bootloader_mode(struct ims_pcu *pcu)
 		 "Device is in bootloader mode (addr 0x%08x-0x%08x), requesting firmware\n",
 		 pcu->fw_start_addr, pcu->fw_end_addr);
 
-	error = request_firmware_nowait(THIS_MODULE, true,
+	error = request_firmware_yeswait(THIS_MODULE, true,
 					IMS_PCU_FIRMWARE_NAME,
 					pcu->dev, GFP_KERNEL, pcu,
 					ims_pcu_process_async_firmware);
 	if (error) {
-		/* This error is not fatal, let userspace have another chance */
+		/* This error is yest fatal, let userspace have ayesther chance */
 		complete(&pcu->async_firmware_done);
 	}
 

@@ -55,7 +55,7 @@
 #define UARTn_RXDATAX_PERR		0x4000
 #define UARTn_RXDATAX_FERR		0x8000
 /*
- * This is a software only flag used for ignore_status_mask and
+ * This is a software only flag used for igyesre_status_mask and
  * read_status_mask! It's used for breaks that the hardware doesn't report
  * explicitly.
  */
@@ -114,12 +114,12 @@ static unsigned int efm32_uart_tx_empty(struct uart_port *port)
 
 static void efm32_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	/* sorry, neither handshaking lines nor loop functionallity */
+	/* sorry, neither handshaking lines yesr loop functionallity */
 }
 
 static unsigned int efm32_uart_get_mctrl(struct uart_port *port)
 {
-	/* sorry, no handshaking lines available */
+	/* sorry, yes handshaking lines available */
 	return TIOCM_CAR | TIOCM_CTS | TIOCM_DSR;
 }
 
@@ -189,7 +189,7 @@ static void efm32_uart_stop_rx(struct uart_port *port)
 
 static void efm32_uart_break_ctl(struct uart_port *port, int ctl)
 {
-	/* not possible without fiddling with gpios */
+	/* yest possible without fiddling with gpios */
 }
 
 static void efm32_uart_rx_chars(struct efm32_uart_port *efm_port)
@@ -203,7 +203,7 @@ static void efm32_uart_rx_chars(struct efm32_uart_port *efm_port)
 
 		/*
 		 * This is a reserved bit and I only saw it read as 0. But to be
-		 * sure not to be confused too much by new devices adhere to the
+		 * sure yest to be confused too much by new devices adhere to the
 		 * warning in the reference manual that reserverd bits might
 		 * read as 1 in the future.
 		 */
@@ -234,7 +234,7 @@ static void efm32_uart_rx_chars(struct efm32_uart_port *efm_port)
 					rxdata & UARTn_RXDATAX_RXDATA__MASK))
 			continue;
 
-		if ((rxdata & port->ignore_status_mask) == 0)
+		if ((rxdata & port->igyesre_status_mask) == 0)
 			tty_insert_flip_char(&port->state->port,
 					rxdata & UARTn_RXDATAX_RXDATA__MASK, flag);
 	}
@@ -353,7 +353,7 @@ static void efm32_uart_set_termios(struct uart_port *port,
 	u32 clkdiv;
 	u32 frame = 0;
 
-	/* no modem control lines */
+	/* yes modem control lines */
 	new->c_cflag &= ~(CRTSCTS | CMSPAR);
 
 	baud = uart_get_baud_rate(port, new, old,
@@ -407,12 +407,12 @@ static void efm32_uart_set_termios(struct uart_port *port,
 	if (new->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= SW_UARTn_RXDATAX_BERR;
 
-	port->ignore_status_mask = 0;
+	port->igyesre_status_mask = 0;
 	if (new->c_iflag & IGNPAR)
-		port->ignore_status_mask |=
+		port->igyesre_status_mask |=
 			UARTn_RXDATAX_FERR | UARTn_RXDATAX_PERR;
 	if (new->c_iflag & IGNBRK)
-		port->ignore_status_mask |= SW_UARTn_RXDATAX_BERR;
+		port->igyesre_status_mask |= SW_UARTn_RXDATAX_BERR;
 
 	uart_update_timeout(port, new->c_cflag, baud);
 
@@ -560,12 +560,12 @@ static void efm32_uart_console_get_options(struct efm32_uart_port *efm_port,
 	u32 route, clkdiv, frame;
 
 	if (ctrl & UARTn_CTRL_SYNC)
-		/* not operating in async mode */
+		/* yest operating in async mode */
 		return;
 
 	route = efm32_uart_read32(efm_port, UARTn_ROUTE);
 	if (!(route & UARTn_ROUTE_TXPEN))
-		/* tx pin not routed */
+		/* tx pin yest routed */
 		return;
 
 	clkdiv = efm32_uart_read32(efm_port, UARTn_CLKDIV);
@@ -664,7 +664,7 @@ static struct uart_driver efm32_uart_reg = {
 static int efm32_uart_probe_dt(struct platform_device *pdev,
 		struct efm32_uart_port *efm_port)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	u32 location;
 	int ret;
 
@@ -753,7 +753,7 @@ static int efm32_uart_probe(struct platform_device *pdev)
 
 	ret = efm32_uart_probe_dt(pdev, efm_port);
 	if (ret > 0) {
-		/* not created by device tree */
+		/* yest created by device tree */
 		const struct efm32_uart_pdata *pdata = dev_get_platdata(&pdev->dev);
 
 		efm_port->port.line = pdev->id;

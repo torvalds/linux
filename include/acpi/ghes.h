@@ -29,8 +29,8 @@ struct ghes {
 	};
 };
 
-struct ghes_estatus_node {
-	struct llist_node llnode;
+struct ghes_estatus_yesde {
+	struct llist_yesde llyesde;
 	struct acpi_hest_generic *generic;
 	struct ghes *ghes;
 };
@@ -119,9 +119,9 @@ static inline void *acpi_hest_get_next(struct acpi_hest_generic_data *gdata)
 	     section = acpi_hest_get_next(section))
 
 #ifdef CONFIG_ACPI_APEI_SEA
-int ghes_notify_sea(void);
+int ghes_yestify_sea(void);
 #else
-static inline int ghes_notify_sea(void) { return -ENOENT; }
+static inline int ghes_yestify_sea(void) { return -ENOENT; }
 #endif
 
 #endif /* GHES_H */

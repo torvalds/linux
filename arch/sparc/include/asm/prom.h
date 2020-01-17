@@ -22,17 +22,17 @@
 
 #define of_compat_cmp(s1, s2, l)	strncmp((s1), (s2), (l))
 #define of_prop_cmp(s1, s2)		strcasecmp((s1), (s2))
-#define of_node_cmp(s1, s2)		strcmp((s1), (s2))
+#define of_yesde_cmp(s1, s2)		strcmp((s1), (s2))
 
 struct of_irq_controller {
-	unsigned int	(*irq_build)(struct device_node *, unsigned int, void *);
+	unsigned int	(*irq_build)(struct device_yesde *, unsigned int, void *);
 	void		*data;
 };
 
-struct device_node *of_find_node_by_cpuid(int cpuid);
-int of_set_property(struct device_node *node, const char *name, void *val, int len);
+struct device_yesde *of_find_yesde_by_cpuid(int cpuid);
+int of_set_property(struct device_yesde *yesde, const char *name, void *val, int len);
 extern struct mutex of_set_property_mutex;
-int of_getintprop_default(struct device_node *np,
+int of_getintprop_default(struct device_yesde *np,
 			  const char *name,
 				 int def);
 int of_find_in_proplist(const char *list, const char *match, int len);
@@ -45,12 +45,12 @@ struct resource;
 void __iomem *of_ioremap(struct resource *res, unsigned long offset, unsigned long size, char *name);
 void of_iounmap(struct resource *res, void __iomem *base, unsigned long size);
 
-extern struct device_node *of_console_device;
+extern struct device_yesde *of_console_device;
 extern char *of_console_path;
 extern char *of_console_options;
 
-void irq_trans_init(struct device_node *dp);
-char *build_path_component(struct device_node *dp);
+void irq_trans_init(struct device_yesde *dp);
+char *build_path_component(struct device_yesde *dp);
 
 #endif /* __KERNEL__ */
 #endif /* _SPARC_PROM_H */

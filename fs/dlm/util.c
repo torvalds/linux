@@ -24,7 +24,7 @@ static void header_out(struct dlm_header *hd)
 {
 	hd->h_version		= cpu_to_le32(hd->h_version);
 	hd->h_lockspace		= cpu_to_le32(hd->h_lockspace);
-	hd->h_nodeid		= cpu_to_le32(hd->h_nodeid);
+	hd->h_yesdeid		= cpu_to_le32(hd->h_yesdeid);
 	hd->h_length		= cpu_to_le16(hd->h_length);
 }
 
@@ -32,14 +32,14 @@ static void header_in(struct dlm_header *hd)
 {
 	hd->h_version		= le32_to_cpu(hd->h_version);
 	hd->h_lockspace		= le32_to_cpu(hd->h_lockspace);
-	hd->h_nodeid		= le32_to_cpu(hd->h_nodeid);
+	hd->h_yesdeid		= le32_to_cpu(hd->h_yesdeid);
 	hd->h_length		= le16_to_cpu(hd->h_length);
 }
 
-/* higher errno values are inconsistent across architectures, so select
+/* higher erryes values are inconsistent across architectures, so select
    one set of values for on the wire */
 
-static int to_dlm_errno(int err)
+static int to_dlm_erryes(int err)
 {
 	switch (err) {
 	case -EDEADLK:
@@ -60,7 +60,7 @@ static int to_dlm_errno(int err)
 	return err;
 }
 
-static int from_dlm_errno(int err)
+static int from_dlm_erryes(int err)
 {
 	switch (err) {
 	case -DLM_ERRNO_EDEADLK:
@@ -86,7 +86,7 @@ void dlm_message_out(struct dlm_message *ms)
 	header_out(&ms->m_header);
 
 	ms->m_type		= cpu_to_le32(ms->m_type);
-	ms->m_nodeid		= cpu_to_le32(ms->m_nodeid);
+	ms->m_yesdeid		= cpu_to_le32(ms->m_yesdeid);
 	ms->m_pid		= cpu_to_le32(ms->m_pid);
 	ms->m_lkid		= cpu_to_le32(ms->m_lkid);
 	ms->m_remid		= cpu_to_le32(ms->m_remid);
@@ -102,7 +102,7 @@ void dlm_message_out(struct dlm_message *ms)
 	ms->m_rqmode		= cpu_to_le32(ms->m_rqmode);
 	ms->m_bastmode		= cpu_to_le32(ms->m_bastmode);
 	ms->m_asts		= cpu_to_le32(ms->m_asts);
-	ms->m_result		= cpu_to_le32(to_dlm_errno(ms->m_result));
+	ms->m_result		= cpu_to_le32(to_dlm_erryes(ms->m_result));
 }
 
 void dlm_message_in(struct dlm_message *ms)
@@ -110,7 +110,7 @@ void dlm_message_in(struct dlm_message *ms)
 	header_in(&ms->m_header);
 
 	ms->m_type		= le32_to_cpu(ms->m_type);
-	ms->m_nodeid		= le32_to_cpu(ms->m_nodeid);
+	ms->m_yesdeid		= le32_to_cpu(ms->m_yesdeid);
 	ms->m_pid		= le32_to_cpu(ms->m_pid);
 	ms->m_lkid		= le32_to_cpu(ms->m_lkid);
 	ms->m_remid		= le32_to_cpu(ms->m_remid);
@@ -126,7 +126,7 @@ void dlm_message_in(struct dlm_message *ms)
 	ms->m_rqmode		= le32_to_cpu(ms->m_rqmode);
 	ms->m_bastmode		= le32_to_cpu(ms->m_bastmode);
 	ms->m_asts		= le32_to_cpu(ms->m_asts);
-	ms->m_result		= from_dlm_errno(le32_to_cpu(ms->m_result));
+	ms->m_result		= from_dlm_erryes(le32_to_cpu(ms->m_result));
 }
 
 void dlm_rcom_out(struct dlm_rcom *rc)

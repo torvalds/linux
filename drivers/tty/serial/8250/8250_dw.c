@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Synopsys DesignWare 8250 driver.
+ * Syyespsys DesignWare 8250 driver.
  *
  * Copyright 2011 Picochip, Jamie Iles.
  * Copyright 2013 Intel Corporation
  *
- * The Synopsys DesignWare 8250 has an extra feature whereby it detects if the
+ * The Syyespsys DesignWare 8250 has an extra feature whereby it detects if the
  * LCR is written whilst busy.  If it is, then a busy detect interrupt is
  * raised, the LCR needs to be rewritten and the uart status register read.
  */
@@ -80,7 +80,7 @@ static void dw8250_check_lcr(struct uart_port *p, int value)
 	void __iomem *offset = p->membase + (UART_LCR << p->regshift);
 	int tries = 1000;
 
-	/* Make sure LCR write wasn't ignored */
+	/* Make sure LCR write wasn't igyesred */
 	while (tries--) {
 		unsigned int lcr = p->serial_in(p, UART_LCR);
 
@@ -121,7 +121,7 @@ static void dw8250_tx_wait_empty(struct uart_port *p)
 
 		/* The device is first given a chance to empty without delay,
 		 * to avoid slowdowns at high bitrates. If after 1000 tries
-		 * the buffer has still not emptied, allow more time for low-
+		 * the buffer has still yest emptied, allow more time for low-
 		 * speed links. */
 		if (tries < delay_threshold)
 			udelay (1);
@@ -229,13 +229,13 @@ static int dw8250_handle_irq(struct uart_port *p)
 
 	/*
 	 * There are ways to get Designware-based UARTs into a state where
-	 * they are asserting UART_IIR_RX_TIMEOUT but there is no actual
+	 * they are asserting UART_IIR_RX_TIMEOUT but there is yes actual
 	 * data available.  If we see such a case then we'll do a bogus
 	 * read.  If we don't do this then the "RX TIMEOUT" interrupt will
 	 * fire forever.
 	 *
-	 * This problem has only been observed so far when not in DMA mode
-	 * so we limit the workaround only to non-DMA mode.
+	 * This problem has only been observed so far when yest in DMA mode
+	 * so we limit the workaround only to yesn-DMA mode.
 	 */
 	if (!up->dma && ((iir & 0x3f) == UART_IIR_RX_TIMEOUT)) {
 		spin_lock_irqsave(&p->lock, flags);
@@ -325,7 +325,7 @@ static void dw8250_set_ldisc(struct uart_port *p, struct ktermios *termios)
  * assigned to the UART.
  *
  * REVISIT: This is a work around for limitation in the DMA Engine API. Once the
- * core problem is fixed, this function is no longer needed.
+ * core problem is fixed, this function is yes longer needed.
  */
 static bool dw8250_fallback_dma_filter(struct dma_chan *chan, void *param)
 {
@@ -339,8 +339,8 @@ static bool dw8250_idma_filter(struct dma_chan *chan, void *param)
 
 static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 {
-	if (p->dev->of_node) {
-		struct device_node *np = p->dev->of_node;
+	if (p->dev->of_yesde) {
+		struct device_yesde *np = p->dev->of_yesde;
 		int id;
 
 		/* get index of serial line, if found in DT aliases */
@@ -357,7 +357,7 @@ static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 			data->skip_autocfg = true;
 		}
 #endif
-		if (of_device_is_big_endian(p->dev->of_node)) {
+		if (of_device_is_big_endian(p->dev->of_yesde)) {
 			p->iotype = UPIO_MEM32BE;
 			p->serial_in = dw8250_serial_in32be;
 			p->serial_out = dw8250_serial_out32be;
@@ -393,7 +393,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	u32 val;
 
 	if (!regs) {
-		dev_err(dev, "no registers defined\n");
+		dev_err(dev, "yes registers defined\n");
 		return -EINVAL;
 	}
 
@@ -477,14 +477,14 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	err = clk_prepare_enable(data->clk);
 	if (err)
-		dev_warn(dev, "could not enable optional baudclk: %d\n", err);
+		dev_warn(dev, "could yest enable optional baudclk: %d\n", err);
 
 	if (data->clk)
 		p->uartclk = clk_get_rate(data->clk);
 
-	/* If no clock rate is defined, fail. */
+	/* If yes clock rate is defined, fail. */
 	if (!p->uartclk) {
-		dev_err(dev, "clock rate not defined\n");
+		dev_err(dev, "clock rate yest defined\n");
 		err = -EINVAL;
 		goto err_clk;
 	}
@@ -497,7 +497,7 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	err = clk_prepare_enable(data->pclk);
 	if (err) {
-		dev_err(dev, "could not enable apb_pclk\n");
+		dev_err(dev, "could yest enable apb_pclk\n");
 		goto err_clk;
 	}
 
@@ -510,7 +510,7 @@ static int dw8250_probe(struct platform_device *pdev)
 
 	dw8250_quirks(p, data);
 
-	/* If the Busy Functionality is not implemented, don't handle it */
+	/* If the Busy Functionality is yest implemented, don't handle it */
 	if (data->uart_16550_compatible)
 		p->handle_irq = NULL;
 
@@ -565,7 +565,7 @@ static int dw8250_remove(struct platform_device *pdev)
 	clk_disable_unprepare(data->clk);
 
 	pm_runtime_disable(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 
 	return 0;
 }
@@ -659,5 +659,5 @@ module_platform_driver(dw8250_platform_driver);
 
 MODULE_AUTHOR("Jamie Iles");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Synopsys DesignWare 8250 serial port driver");
+MODULE_DESCRIPTION("Syyespsys DesignWare 8250 serial port driver");
 MODULE_ALIAS("platform:dw-apb-uart");

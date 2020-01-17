@@ -111,7 +111,7 @@ struct pi433_rx_cfg {
 	enum threshold_decrement threshold_decrement;
 	enum antenna_impedance	antenna_impedance;
 	enum lna_gain		lna_gain;
-	enum mantisse		bw_mantisse;	/* normal: 0x50 */
+	enum mantisse		bw_mantisse;	/* yesrmal: 0x50 */
 	__u8			bw_exponent;	/* during AFC: 0x8b */
 	enum dagc		dagc;
 
@@ -126,7 +126,7 @@ struct pi433_rx_cfg {
 	__u32			bytes_to_drop;
 
 	__u8			sync_pattern[8];
-	__u8			node_address;
+	__u8			yesde_address;
 	__u8			broadcast_address;
 };
 

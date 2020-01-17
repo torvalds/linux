@@ -13,7 +13,7 @@
 
 static const char *random_strings[] = {
 	"Mother Goose",
-	"Snoopy",
+	"Syesopy",
 	"Gandalf",
 	"Frodo",
 	"One ring to rule them all"

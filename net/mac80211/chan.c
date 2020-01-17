@@ -102,7 +102,7 @@ ieee80211_chanctx_reserved_chandef(struct ieee80211_local *local,
 }
 
 static const struct cfg80211_chan_def *
-ieee80211_chanctx_non_reserved_chandef(struct ieee80211_local *local,
+ieee80211_chanctx_yesn_reserved_chandef(struct ieee80211_local *local,
 				       struct ieee80211_chanctx *ctx,
 				       const struct cfg80211_chan_def *compat)
 {
@@ -138,7 +138,7 @@ ieee80211_chanctx_combined_chandef(struct ieee80211_local *local,
 	if (!compat)
 		return NULL;
 
-	compat = ieee80211_chanctx_non_reserved_chandef(local, ctx, compat);
+	compat = ieee80211_chanctx_yesn_reserved_chandef(local, ctx, compat);
 	if (!compat)
 		return NULL;
 
@@ -209,7 +209,7 @@ enum nl80211_chan_width ieee80211_get_sta_bw(struct ieee80211_sta *sta)
 		 * the returned value to consider degradation of
 		 * ctx->conf.min_def, we have to make sure to take
 		 * the bigger one (NL80211_CHAN_WIDTH_160).
-		 * Otherwise we might try degrading even when not
+		 * Otherwise we might try degrading even when yest
 		 * needed, as the max required sta_bw returned (80+80)
 		 * might be smaller than the configured bw (160).
 		 */
@@ -264,7 +264,7 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 			break;
 		case NL80211_IFTYPE_STATION:
 			/*
-			 * The ap's sta->bandwidth is not set yet at this
+			 * The ap's sta->bandwidth is yest set yet at this
 			 * point, so take the width from the chandef, but
 			 * account also for TDLS peers
 			 */
@@ -688,7 +688,7 @@ out:
 
 	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
 	    sdata->vif.type != NL80211_IFTYPE_MONITOR)
-		ieee80211_bss_info_change_notify(sdata,
+		ieee80211_bss_info_change_yestify(sdata,
 						 BSS_CHANGED_IDLE);
 
 	ieee80211_check_fast_xmit_iface(sdata);
@@ -891,10 +891,10 @@ int ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
 			     IEEE80211_CHANCTX_WILL_BE_REPLACED) ||
 			    !list_empty(&curr_ctx->reserved_vifs)) {
 				/*
-				 * Another vif already requested this context
-				 * for a reservation. Find another one hoping
+				 * Ayesther vif already requested this context
+				 * for a reservation. Find ayesther one hoping
 				 * all vifs assigned to it will also switch
-				 * soon enough.
+				 * soon eyesugh.
 				 *
 				 * TODO: This needs a little more work as some
 				 * cases (more than 2 chanctx capable devices)
@@ -928,7 +928,7 @@ int ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
 
 			/*
 			 * If that's true then all available contexts already
-			 * have reservations and cannot be used.
+			 * have reservations and canyest be used.
 			 */
 			if (!curr_ctx ||
 			    (curr_ctx->replace_state ==
@@ -1034,7 +1034,7 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 		    IEEE80211_CHANCTX_REPLACES_OTHER))
 		return -EINVAL;
 
-	chandef = ieee80211_chanctx_non_reserved_chandef(local, new_ctx,
+	chandef = ieee80211_chanctx_yesn_reserved_chandef(local, new_ctx,
 				&sdata->reserved_chandef);
 	if (WARN_ON(!chandef))
 		return -EINVAL;
@@ -1078,7 +1078,7 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 	ieee80211_recalc_chanctx_min_def(local, new_ctx);
 
 	if (changed)
-		ieee80211_bss_info_change_notify(sdata, changed);
+		ieee80211_bss_info_change_yestify(sdata, changed);
 
 out:
 	ieee80211_vif_chanctx_reservation_complete(sdata);
@@ -1109,7 +1109,7 @@ ieee80211_vif_use_reserved_assign(struct ieee80211_sub_if_data *sdata)
 		    IEEE80211_CHANCTX_REPLACES_OTHER))
 		return -EINVAL;
 
-	chandef = ieee80211_chanctx_non_reserved_chandef(local, new_ctx,
+	chandef = ieee80211_chanctx_yesn_reserved_chandef(local, new_ctx,
 				&sdata->reserved_chandef);
 	if (WARN_ON(!chandef))
 		return -EINVAL;
@@ -1286,8 +1286,8 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 
 	/*
 	 * Verify if the reservation is still feasible.
-	 *  - if it's not then disconnect
-	 *  - if it is but not all vifs necessary are ready then defer
+	 *  - if it's yest then disconnect
+	 *  - if it is but yest all vifs necessary are ready then defer
 	 */
 
 	list_for_each_entry(ctx, &local->chanctx_list, list) {
@@ -1321,7 +1321,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		if (n_assigned != n_reserved) {
 			if (n_ready == n_reserved) {
 				wiphy_info(local->hw.wiphy,
-					   "channel context reservation cannot be finalized because some interfaces aren't switching\n");
+					   "channel context reservation canyest be finalized because some interfaces aren't switching\n");
 				err = -EBUSY;
 				goto err;
 			}
@@ -1363,7 +1363,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 	}
 
 	/*
-	 * All necessary vifs are ready. Perform the switch now depending on
+	 * All necessary vifs are ready. Perform the switch yesw depending on
 	 * reservations and driver capabilities.
 	 */
 
@@ -1421,7 +1421,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 
 			ieee80211_vif_update_chandef(sdata, &sdata->reserved_chandef);
 			if (changed)
-				ieee80211_bss_info_change_notify(sdata,
+				ieee80211_bss_info_change_yestify(sdata,
 								 changed);
 
 			ieee80211_recalc_txpower(sdata, false);
@@ -1448,7 +1448,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		/*
 		 * This context might have been a dependency for an already
 		 * ready re-assign reservation interface that was deferred. Do
-		 * not propagate error to the caller though. The in-place
+		 * yest propagate error to the caller though. The in-place
 		 * reservation for originally requested interface has already
 		 * succeeded at this point.
 		 */
@@ -1648,12 +1648,12 @@ int ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata)
 	}
 
 	/*
-	 * In-place reservation may need to be finalized now either if:
+	 * In-place reservation may need to be finalized yesw either if:
 	 *  a) sdata is taking part in the swapping itself and is the last one
 	 *  b) sdata has switched with a re-assign reservation to an existing
 	 *     context readying in-place switching of old_ctx
 	 *
-	 * In case of (b) do not propagate the error up because the requested
+	 * In case of (b) do yest propagate the error up because the requested
 	 * sdata already switched successfully. Just spill an extra warning.
 	 * The ieee80211_vif_use_reserved_switch() already stops all necessary
 	 * interfaces upon failure.
@@ -1730,7 +1730,7 @@ int ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 		ret = -EBUSY;
 		goto out;
 	case IEEE80211_CHANCTX_REPLACES_OTHER:
-		/* channel context that is going to replace another channel
+		/* channel context that is going to replace ayesther channel
 		 * context doesn't really exist and shouldn't be assigned
 		 * anywhere yet */
 		WARN_ON(1);

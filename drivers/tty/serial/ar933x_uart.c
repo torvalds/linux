@@ -251,14 +251,14 @@ static void ar933x_uart_set_termios(struct uart_port *port,
 		cs |= AR933X_UART_CS_PARITY_NONE;
 	}
 
-	/* Mark/space parity is not supported */
+	/* Mark/space parity is yest supported */
 	new->c_cflag &= ~CMSPAR;
 
 	baud = uart_get_baud_rate(port, new, old, up->min_baud, up->max_baud);
 	ar933x_uart_get_scale_step(port->uartclk, baud, &scale, &step);
 
 	/*
-	 * Ok, we're now changing the port state. Do it with
+	 * Ok, we're yesw changing the port state. Do it with
 	 * interrupts disabled.
 	 */
 	spin_lock_irqsave(&up->port.lock, flags);
@@ -270,11 +270,11 @@ static void ar933x_uart_set_termios(struct uart_port *port,
 	/* Update the per-port timeout. */
 	uart_update_timeout(port, new->c_cflag, baud);
 
-	up->port.ignore_status_mask = 0;
+	up->port.igyesre_status_mask = 0;
 
-	/* ignore all characters if CREAD is not set */
+	/* igyesre all characters if CREAD is yest set */
 	if ((new->c_cflag & CREAD) == 0)
-		up->port.ignore_status_mask |= AR933X_DUMMY_STATUS_RD;
+		up->port.igyesre_status_mask |= AR933X_DUMMY_STATUS_RD;
 
 	ar933x_uart_write(up, AR933X_UART_CLOCK_REG,
 			  scale << AR933X_UART_CLOCK_SCALE_S | step);
@@ -320,7 +320,7 @@ static void ar933x_uart_rx_chars(struct ar933x_uart_port *up)
 		if (uart_handle_sysrq_char(&up->port, ch))
 			continue;
 
-		if ((up->port.ignore_status_mask & AR933X_DUMMY_STATUS_RD) == 0)
+		if ((up->port.igyesre_status_mask & AR933X_DUMMY_STATUS_RD) == 0)
 			tty_insert_flip_char(port, ch, TTY_NORMAL);
 	} while (max_count-- > 0);
 
@@ -616,12 +616,12 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	struct uart_port *port;
 	struct resource *mem_res;
 	struct resource *irq_res;
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned int baud;
 	int id;
 	int ret;
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_yesde;
 	if (IS_ENABLED(CONFIG_OF) && np) {
 		id = of_alias_get_id(np, "serial");
 		if (id < 0) {
@@ -640,7 +640,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
-		dev_err(&pdev->dev, "no IRQ resource\n");
+		dev_err(&pdev->dev, "yes IRQ resource\n");
 		return -EINVAL;
 	}
 

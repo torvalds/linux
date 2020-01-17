@@ -10,7 +10,7 @@
  *  Edited comment from original sources:
  *
  *  This driver programs the PCX-U/PCX-W performance counters
- *  on the PA-RISC 2.0 chips.  The driver keeps all images now
+ *  on the PA-RISC 2.0 chips.  The driver keeps all images yesw
  *  internally to the kernel to hopefully eliminate the possibility
  *  of a bad image halting the CPU.  Also, there are different
  *  images for the PCX-W and later chips vs the PCX-U chips.
@@ -140,7 +140,7 @@ static const struct rdr_tbl_ent perf_rdr_tbl_U[] = {
 };
 
 /*
- * A non-zero write_control in the above tables is a byte offset into
+ * A yesn-zero write_control in the above tables is a byte offset into
  * this array.
  */
 static const uint64_t perf_bitmasks[] = {
@@ -179,8 +179,8 @@ static const uint64_t *bitmask_array;   /* array of bitmasks to use */
  * Function Prototypes
  *****************************************************************************/
 static int perf_config(uint32_t *image_ptr);
-static int perf_release(struct inode *inode, struct file *file);
-static int perf_open(struct inode *inode, struct file *file);
+static int perf_release(struct iyesde *iyesde, struct file *file);
+static int perf_open(struct iyesde *iyesde, struct file *file);
 static ssize_t perf_read(struct file *file, char __user *buf, size_t cnt, loff_t *ppos);
 static ssize_t perf_write(struct file *file, const char __user *buf,
 	size_t count, loff_t *ppos);
@@ -242,10 +242,10 @@ printk("Preparing to start counters\n");
 
 /*
  * Open the device and initialize all of its memory.  The device is only
- * opened once, but can be "queried" by multiple processes that know its
+ * opened once, but can be "queried" by multiple processes that kyesw its
  * file descriptor.
  */
-static int perf_open(struct inode *inode, struct file *file)
+static int perf_open(struct iyesde *iyesde, struct file *file)
 {
 	spin_lock(&perf_lock);
 	if (perf_enabled) {
@@ -261,7 +261,7 @@ static int perf_open(struct inode *inode, struct file *file)
 /*
  * Close the device.
  */
-static int perf_release(struct inode *inode, struct file *file)
+static int perf_release(struct iyesde *iyesde, struct file *file)
 {
 	spin_lock(&perf_lock);
 	perf_enabled = 0;
@@ -271,7 +271,7 @@ static int perf_release(struct inode *inode, struct file *file)
 }
 
 /*
- * Read does nothing for this driver
+ * Read does yesthing for this driver
  */
 static ssize_t perf_read(struct file *file, char __user *buf, size_t cnt, loff_t *ppos)
 {
@@ -341,7 +341,7 @@ static ssize_t perf_write(struct file *file, const char __user *buf,
 }
 
 /*
- * Patch the images that need to know the IVA addresses.
+ * Patch the images that need to kyesw the IVA addresses.
  */
 static void perf_patch_images(void)
 {
@@ -412,7 +412,7 @@ static void perf_patch_images(void)
 			((dtlb_addr << 24)&0xff000000) | ((itlb_addr >> 16)&0x000000ff);
 		cuda_images[BIG_CPI][18] = (itlb_addr << 16)&0xffff0000;
 	} else {
-		/* Unknown type */
+		/* Unkyeswn type */
 	}
 #endif
 }
@@ -466,7 +466,7 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations perf_fops = {
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.read = perf_read,
 	.write = perf_write,
 	.unlocked_ioctl = perf_ioctl,
@@ -506,14 +506,14 @@ static int __init perf_init(void)
 			bitmask_array = perf_bitmasks_piranha;
 	} else {
 		perf_processor_interface = UNKNOWN_INTF;
-		printk("Performance monitoring counters not supported on this processor\n");
+		printk("Performance monitoring counters yest supported on this processor\n");
 		return -ENODEV;
 	}
 
 	ret = misc_register(&perf_dev);
 	if (ret) {
 		printk(KERN_ERR "Performance monitoring counters: "
-			"cannot register misc device.\n");
+			"canyest register misc device.\n");
 		return ret;
 	}
 
@@ -783,16 +783,16 @@ static int perf_write_image(uint64_t *memaddr)
 	}
 
 	/*
-	 * Now copy out the Runway stuff which is not in RDRs
+	 * Now copy out the Runway stuff which is yest in RDRs
 	 */
 
 	if (cpu_device == NULL)
 	{
-		printk(KERN_ERR "write_image: cpu_device not yet initialized!\n");
+		printk(KERN_ERR "write_image: cpu_device yest yet initialized!\n");
 		return -1;
 	}
 
-	runway = ioremap_nocache(cpu_device->hpa.start, 4096);
+	runway = ioremap_yescache(cpu_device->hpa.start, 4096);
 	if (!runway) {
 		pr_err("perf_write_image: ioremap failed!\n");
 		return -ENOMEM;

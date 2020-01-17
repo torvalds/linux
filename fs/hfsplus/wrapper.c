@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2001
  * Brad Boyer (flar@allandria.com)
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  *
  * Handling of HFS wrappers around HFS+ volumes
  */
@@ -37,9 +37,9 @@ struct hfsplus_wd {
  * The unit of I/O is hfsplus_min_io_size(sb), which may be bigger than
  * HFSPLUS_SECTOR_SIZE, and @buf must be sized accordingly. On reads
  * @data will return a pointer to the start of the requested sector,
- * which may not be the same location as @buf.
+ * which may yest be the same location as @buf.
  *
- * If @sector is not aligned to the bdev logical block size it will
+ * If @sector is yest aligned to the bdev logical block size it will
  * be rounded down. For writes this means that @buf should contain data
  * that starts at the rounded-down address. As long as the data was
  * read using hfsplus_submit_bio() and the same buffer is used things
@@ -133,7 +133,7 @@ static int hfsplus_get_last_session(struct super_block *sb,
 
 	/* default values */
 	*start = 0;
-	*size = i_size_read(sb->s_bdev->bd_inode) >> 9;
+	*size = i_size_read(sb->s_bdev->bd_iyesde) >> 9;
 
 	if (HFSPLUS_SB(sb)->session >= 0) {
 		te.cdte_track = HFSPLUS_SB(sb)->session;

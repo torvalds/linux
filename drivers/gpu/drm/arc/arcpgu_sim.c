@@ -2,7 +2,7 @@
 /*
  * ARC PGU DRM driver.
  *
- * Copyright (C) 2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2016 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <drm/drm_atomic_helper.h>
@@ -26,7 +26,7 @@ static int arcpgu_drm_connector_get_modes(struct drm_connector *connector)
 {
 	int count;
 
-	count = drm_add_modes_noedid(connector, XRES_MAX, YRES_MAX);
+	count = drm_add_modes_yesedid(connector, XRES_MAX, YRES_MAX);
 	drm_set_preferred_mode(connector, XRES_DEF, YRES_DEF);
 	return count;
 }
@@ -54,7 +54,7 @@ static struct drm_encoder_funcs arcpgu_drm_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-int arcpgu_drm_sim_init(struct drm_device *drm, struct device_node *np)
+int arcpgu_drm_sim_init(struct drm_device *drm, struct device_yesde *np)
 {
 	struct arcpgu_drm_connector *arcpgu_connector;
 	struct drm_encoder *encoder;
@@ -92,7 +92,7 @@ int arcpgu_drm_sim_init(struct drm_device *drm, struct device_node *np)
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0) {
-		dev_err(drm->dev, "could not attach connector to encoder\n");
+		dev_err(drm->dev, "could yest attach connector to encoder\n");
 		drm_connector_unregister(connector);
 		goto error_connector_cleanup;
 	}

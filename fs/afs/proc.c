@@ -29,7 +29,7 @@ static inline struct afs_net *afs_seq2net_single(struct seq_file *m)
 }
 
 /*
- * Display the list of cells known to the namespace.
+ * Display the list of cells kyeswn to the namespace.
  */
 static int afs_proc_cells_show(struct seq_file *m, void *v)
 {
@@ -204,11 +204,11 @@ static const char afs_vol_types[3][3] = {
 };
 
 /*
- * Display the list of volumes known to a cell.
+ * Display the list of volumes kyeswn to a cell.
  */
 static int afs_proc_cell_volumes_show(struct seq_file *m, void *v)
 {
-	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+	struct afs_cell *cell = PDE_DATA(file_iyesde(m->file));
 	struct afs_volume *vol = list_entry(v, struct afs_volume, proc_link);
 
 	/* Display header on line 1 */
@@ -228,7 +228,7 @@ static int afs_proc_cell_volumes_show(struct seq_file *m, void *v)
 static void *afs_proc_cell_volumes_start(struct seq_file *m, loff_t *_pos)
 	__acquires(cell->proc_lock)
 {
-	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+	struct afs_cell *cell = PDE_DATA(file_iyesde(m->file));
 
 	read_lock(&cell->proc_lock);
 	return seq_list_start_head(&cell->proc_volumes, *_pos);
@@ -237,7 +237,7 @@ static void *afs_proc_cell_volumes_start(struct seq_file *m, loff_t *_pos)
 static void *afs_proc_cell_volumes_next(struct seq_file *m, void *v,
 					loff_t *_pos)
 {
-	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+	struct afs_cell *cell = PDE_DATA(file_iyesde(m->file));
 
 	return seq_list_next(v, &cell->proc_volumes, _pos);
 }
@@ -245,7 +245,7 @@ static void *afs_proc_cell_volumes_next(struct seq_file *m, void *v,
 static void afs_proc_cell_volumes_stop(struct seq_file *m, void *v)
 	__releases(cell->proc_lock)
 {
-	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+	struct afs_cell *cell = PDE_DATA(file_iyesde(m->file));
 
 	read_unlock(&cell->proc_lock);
 }
@@ -268,11 +268,11 @@ static const char *const dns_record_sources[NR__dns_record_source + 1] = {
 };
 
 static const char *const dns_lookup_statuses[NR__dns_lookup_status + 1] = {
-	[DNS_LOOKUP_NOT_DONE]		= "no-lookup",
+	[DNS_LOOKUP_NOT_DONE]		= "yes-lookup",
 	[DNS_LOOKUP_GOOD]		= "good",
 	[DNS_LOOKUP_GOOD_WITH_BAD]	= "good/bad",
 	[DNS_LOOKUP_BAD]		= "bad",
-	[DNS_LOOKUP_GOT_NOT_FOUND]	= "not-found",
+	[DNS_LOOKUP_GOT_NOT_FOUND]	= "yest-found",
 	[DNS_LOOKUP_GOT_LOCAL_FAILURE]	= "local-failure",
 	[DNS_LOOKUP_GOT_TEMP_FAILURE]	= "temp-failure",
 	[DNS_LOOKUP_GOT_NS_FAILURE]	= "ns-failure",
@@ -320,7 +320,7 @@ static void *afs_proc_cell_vlservers_start(struct seq_file *m, loff_t *_pos)
 {
 	struct afs_vl_seq_net_private *priv = m->private;
 	struct afs_vlserver_list *vllist;
-	struct afs_cell *cell = PDE_DATA(file_inode(m->file));
+	struct afs_cell *cell = PDE_DATA(file_iyesde(m->file));
 	loff_t pos = *_pos;
 
 	rcu_read_lock();

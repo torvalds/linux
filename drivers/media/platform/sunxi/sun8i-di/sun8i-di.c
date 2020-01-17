@@ -609,7 +609,7 @@ static int deinterlace_start_streaming(struct vb2_queue *vq, unsigned int count)
 		if (!ctx->flag1_buf) {
 			ret = -ENOMEM;
 
-			goto err_no_mem1;
+			goto err_yes_mem1;
 		}
 
 		ctx->flag2_buf = dma_alloc_coherent(dev, FLAG_SIZE,
@@ -618,16 +618,16 @@ static int deinterlace_start_streaming(struct vb2_queue *vq, unsigned int count)
 		if (!ctx->flag2_buf) {
 			ret = -ENOMEM;
 
-			goto err_no_mem2;
+			goto err_yes_mem2;
 		}
 	}
 
 	return 0;
 
-err_no_mem2:
+err_yes_mem2:
 	dma_free_coherent(dev, FLAG_SIZE, ctx->flag1_buf,
 			  ctx->flag1_buf_dma);
-err_no_mem1:
+err_yes_mem1:
 	pm_runtime_put(dev);
 err_runtime_get:
 	deinterlace_queue_cleanup(vq, VB2_BUF_STATE_QUEUED);
@@ -788,7 +788,7 @@ static const struct video_device deinterlace_video_device = {
 	.vfl_dir	= VFL_DIR_M2M,
 	.fops		= &deinterlace_fops,
 	.ioctl_ops	= &deinterlace_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= video_device_release_empty,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
 };
@@ -828,7 +828,7 @@ static int deinterlace_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_dma_configure(dev->dev, dev->dev->of_node, true);
+	ret = of_dma_configure(dev->dev, dev->dev->of_yesde, true);
 	if (ret)
 		return ret;
 

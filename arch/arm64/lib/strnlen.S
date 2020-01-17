@@ -54,12 +54,12 @@ WEAK(strnlen)
 	ands	tmp1, srcin, #15
 	b.ne	.Lmisaligned
 	/* Calculate the number of full and partial words -1.  */
-	sub	limit_wd, limit, #1 /* Limit != 0, so no underflow.  */
+	sub	limit_wd, limit, #1 /* Limit != 0, so yes underflow.  */
 	lsr	limit_wd, limit_wd, #4  /* Convert to Qwords.  */
 
 	/*
 	* NUL detection works on the principle that (X - 1) & (~X) & 0x80
-	* (=> (X - 1) & ~(X | 0x7f)) is non-zero iff a byte is zero, and
+	* (=> (X - 1) & ~(X | 0x7f)) is yesn-zero iff a byte is zero, and
 	* can be done in parallel across the entire word.
 	*/
 	/*
@@ -85,8 +85,8 @@ WEAK(strnlen)
 	cbz	tmp1, .Lhit_limit   /* No null in final Qword.  */
 
 	/*
-	* We know there's a null in the final Qword. The easiest thing
-	* to do now is work out the length of the string and return
+	* We kyesw there's a null in the final Qword. The easiest thing
+	* to do yesw is work out the length of the string and return
 	* MIN (len, limit).
 	*/
 	sub	len, src, srcin
@@ -98,7 +98,7 @@ CPU_BE( mov	data2, data1 )	/*perpare data to re-calculate the syndrome*/
 .Lnul_in_data2:
 	/*
 	* For big-endian, carry propagation (if the final byte in the
-	* string is 0x01) means we cannot use has_nul directly.  The
+	* string is 0x01) means we canyest use has_nul directly.  The
 	* easiest way to get the correct byte is to byte-swap the data
 	* and calculate the syndrome a second time.
 	*/
@@ -124,7 +124,7 @@ CPU_BE( bic	has_nul2, tmp1, tmp2 )
 	* limit + tmp1 - 1 as a 65-bit value before shifting it;
 	* 2) Load and mask the initial data words - we force the bytes
 	* before the ones we are interested in to 0xff - this ensures
-	* early bytes will not hit any zero detection.
+	* early bytes will yest hit any zero detection.
 	*/
 	ldp	data1, data2, [src], #16
 

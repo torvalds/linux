@@ -4,7 +4,7 @@
 * Author: Tiffany Lin <tiffany.lin@mediatek.com>
 */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 
 #include "mtk_vcodec_drv.h"

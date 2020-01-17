@@ -90,7 +90,7 @@ struct musb_ep {
 
 	u8				wedged;
 
-	/* true if lock must be dropped but req_list may not be advanced */
+	/* true if lock must be dropped but req_list may yest be advanced */
 	u8				busy;
 
 	u8				hb_mult;

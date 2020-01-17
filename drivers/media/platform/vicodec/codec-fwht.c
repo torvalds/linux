@@ -16,7 +16,7 @@
 #define OVERFLOW_BIT BIT(14)
 
 /*
- * Note: bit 0 of the header must always be 0. Otherwise it cannot
+ * Note: bit 0 of the header must always be 0. Otherwise it canyest
  * be guaranteed that the magic 8 byte sequence (see below) can
  * never occur in the rlc output.
  */
@@ -47,10 +47,10 @@ static const uint8_t zigzag[64] = {
 };
 
 /*
- * noinline_for_stack to work around
+ * yesinline_for_stack to work around
  * https://bugs.llvm.org/show_bug.cgi?id=38809
  */
-static int noinline_for_stack
+static int yesinline_for_stack
 rlc(const s16 *in, __be16 *output, int blocktype)
 {
 	s16 block[8 * 8];
@@ -110,7 +110,7 @@ rlc(const s16 *in, __be16 *output, int blocktype)
  * This function will worst-case increase rlc_in by 65*2 bytes:
  * one s16 value for the header and 8 * 8 coefficients of type s16.
  */
-static noinline_for_stack u16
+static yesinline_for_stack u16
 derlc(const __be16 **rlc_in, s16 *dwht_out, const __be16 *end_of_input)
 {
 	/* header */
@@ -244,7 +244,7 @@ static void dequantize_inter(s16 *coeff)
 			*coeff <<= *quant;
 }
 
-static void noinline_for_stack fwht(const u8 *block, s16 *output_block,
+static void yesinline_for_stack fwht(const u8 *block, s16 *output_block,
 				    unsigned int stride,
 				    unsigned int input_step, bool intra)
 {
@@ -378,7 +378,7 @@ static void noinline_for_stack fwht(const u8 *block, s16 *output_block,
  * Furthermore values can be negative... This is just a version that
  * works with 16 signed data
  */
-static void noinline_for_stack
+static void yesinline_for_stack
 fwht16(const s16 *block, s16 *output_block, int stride, int intra)
 {
 	/* we'll need more than 8 bits for the transformed coefficients */
@@ -462,7 +462,7 @@ fwht16(const s16 *block, s16 *output_block, int stride, int intra)
 	}
 }
 
-static noinline_for_stack void
+static yesinline_for_stack void
 ifwht(const s16 *block, s16 *output_block, int intra)
 {
 	/*
@@ -611,7 +611,7 @@ static int var_inter(const s16 *old, const s16 *new)
 	return ret;
 }
 
-static noinline_for_stack int
+static yesinline_for_stack int
 decide_blocktype(const u8 *cur, const u8 *reference, s16 *deltablock,
 		 unsigned int stride, unsigned int input_step)
 {

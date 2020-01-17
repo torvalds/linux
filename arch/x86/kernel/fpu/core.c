@@ -20,7 +20,7 @@
 #include <asm/trace/fpu.h>
 
 /*
- * Represents the initial FPU state. It's mostly (but not completely) zeroes,
+ * Represents the initial FPU state. It's mostly (but yest completely) zeroes,
  * depending on the FPU hardware format:
  */
 union fpregs_state init_fpstate __read_mostly;
@@ -71,7 +71,7 @@ static bool interrupted_user_mode(void)
  * Can we use the FPU in kernel mode with the
  * whole "kernel_fpu_begin/end()" sequence?
  *
- * It's always ok in process context (ie "not interrupt")
+ * It's always ok in process context (ie "yest interrupt")
  * but it is sometimes ok even from an irq.
  */
 bool irq_fpu_usable(void)
@@ -95,7 +95,7 @@ void kernel_fpu_begin(void)
 	    !test_thread_flag(TIF_NEED_FPU_LOAD)) {
 		set_thread_flag(TIF_NEED_FPU_LOAD);
 		/*
-		 * Ignore return value -- we don't care if reg state
+		 * Igyesre return value -- we don't care if reg state
 		 * is clobbered.
 		 */
 		copy_fpregs_to_fpstate(&current->thread.fpu);
@@ -183,7 +183,7 @@ int fpu__copy(struct task_struct *dst, struct task_struct *src)
 	memset(&dst_fpu->state.xsave, 0, fpu_kernel_xstate_size);
 
 	/*
-	 * If the FPU registers are not current just memcpy() the state.
+	 * If the FPU registers are yest current just memcpy() the state.
 	 * Otherwise save current FPU registers directly into the child's FPU
 	 * context, without any memory-to-memory copying.
 	 *
@@ -209,7 +209,7 @@ int fpu__copy(struct task_struct *dst, struct task_struct *src)
 
 /*
  * Activate the current task's in-memory FPU context,
- * if it has not been used before:
+ * if it has yest been used before:
  */
 static void fpu__initialize(struct fpu *fpu)
 {
@@ -269,7 +269,7 @@ void fpu__prepare_write(struct fpu *fpu)
  * the fpstate. NOTE: it still leaves previous contents
  * in the fpregs in the eager-FPU case.
  *
- * This function can be used in cases where we know that
+ * This function can be used in cases where we kyesw that
  * a state-restore is coming: either an explicit one,
  * or a reschedule.
  */
@@ -278,7 +278,7 @@ void fpu__drop(struct fpu *fpu)
 	preempt_disable();
 
 	if (fpu == &current->thread.fpu) {
-		/* Ignore delayed exceptions from user space */
+		/* Igyesre delayed exceptions from user space */
 		asm volatile("1: fwait\n"
 			     "2:\n"
 			     _ASM_EXTABLE(1b, 2b));
@@ -320,7 +320,7 @@ static inline void copy_init_fpstate_to_fpregs(void)
  */
 void fpu__clear(struct fpu *fpu)
 {
-	WARN_ON_FPU(fpu != &current->thread.fpu); /* Almost certainly an anomaly */
+	WARN_ON_FPU(fpu != &current->thread.fpu); /* Almost certainly an ayesmaly */
 
 	fpu__drop(fpu);
 
@@ -347,7 +347,7 @@ EXPORT_SYMBOL_GPL(switch_fpu_return);
 #ifdef CONFIG_X86_DEBUG_FPU
 /*
  * If current FPU state according to its tracking (loaded FPU context on this
- * CPU) is not valid then we must have TIF_NEED_FPU_LOAD set so the context is
+ * CPU) is yest valid then we must have TIF_NEED_FPU_LOAD set so the context is
  * loaded on return to userland.
  */
 void fpregs_assert_state_consistent(void)
@@ -383,7 +383,7 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
 	if (trap_nr == X86_TRAP_MF) {
 		unsigned short cwd, swd;
 		/*
-		 * (~cwd & swd) will mask out exceptions that are not set to unmasked
+		 * (~cwd & swd) will mask out exceptions that are yest set to unmasked
 		 * status.  0x3f is the exception bits in these regs, 0x200 is the
 		 * C1 reg you need in case of a stack fault, 0x040 is the stack
 		 * fault bit.  We should only be taking one exception at a time,
@@ -427,7 +427,7 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
 		return FPE_FLTDIV;
 	} else if (err & 0x008) { /* Overflow */
 		return FPE_FLTOVF;
-	} else if (err & 0x012) { /* Denormal, Underflow */
+	} else if (err & 0x012) { /* Deyesrmal, Underflow */
 		return FPE_FLTUND;
 	} else if (err & 0x020) { /* Precision */
 		return FPE_FLTRES;
@@ -436,7 +436,7 @@ int fpu__exception_code(struct fpu *fpu, int trap_nr)
 	/*
 	 * If we're using IRQ 13, or supposedly even some trap
 	 * X86_TRAP_MF implementations, it's possible
-	 * we get a spurious trap, which is not an error.
+	 * we get a spurious trap, which is yest an error.
 	 */
 	return 0;
 }

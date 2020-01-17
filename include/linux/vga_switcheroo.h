@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -59,7 +59,7 @@ enum vga_switcheroo_handler_flags_t {
  * enum vga_switcheroo_state - client power state
  * @VGA_SWITCHEROO_OFF: off
  * @VGA_SWITCHEROO_ON: on
- * @VGA_SWITCHEROO_NOT_FOUND: client has not registered with vga_switcheroo.
+ * @VGA_SWITCHEROO_NOT_FOUND: client has yest registered with vga_switcheroo.
  * 	Only used in vga_switcheroo_get_client_state() which in turn is only
  * 	called from hda_intel.c
  *
@@ -79,7 +79,7 @@ enum vga_switcheroo_state {
  * 	true id in a delayed fashion in vga_switcheroo_enable()
  * @VGA_SWITCHEROO_IGD: integrated graphics device
  * @VGA_SWITCHEROO_DIS: discrete graphics device
- * @VGA_SWITCHEROO_MAX_CLIENTS: currently no more than two GPUs are supported
+ * @VGA_SWITCHEROO_MAX_CLIENTS: currently yes more than two GPUs are supported
  *
  * Client identifier. Audio clients use the same identifier & 0x100.
  */
@@ -97,16 +97,16 @@ enum vga_switcheroo_client_id {
  * 	two vga clients have registered. It allows the handler to perform
  * 	some delayed initialization that depends on the existence of the
  * 	vga clients. Currently only the radeon and amdgpu drivers use this.
- * 	The return value is ignored
+ * 	The return value is igyesred
  * @switchto: switch outputs to given client.
- * 	Mandatory. For muxless machines this should be a no-op. Returning 0
- * 	denotes success, anything else failure (in which case the switch is
+ * 	Mandatory. For muxless machines this should be a yes-op. Returning 0
+ * 	deyestes success, anything else failure (in which case the switch is
  * 	aborted)
  * @switch_ddc: switch DDC lines to given client.
  * 	Optional. Should return the previous DDC owner on success or a
  * 	negative int on failure
  * @power_state: cut or reinstate power of given client.
- * 	Optional. The return value is ignored
+ * 	Optional. The return value is igyesred
  * @get_client_id: determine if given pci device is integrated or discrete GPU.
  * 	Mandatory
  *
@@ -125,20 +125,20 @@ struct vga_switcheroo_handler {
 /**
  * struct vga_switcheroo_client_ops - client callbacks
  * @set_gpu_state: do the equivalent of suspend/resume for the card.
- * 	Mandatory. This should not cut power to the discrete GPU,
+ * 	Mandatory. This should yest cut power to the discrete GPU,
  * 	which is the job of the handler
  * @reprobe: poll outputs.
  * 	Optional. This gets called after waking the GPU and switching
  * 	the outputs to it
- * @can_switch: check if the device is in a position to switch now.
+ * @can_switch: check if the device is in a position to switch yesw.
  * 	Mandatory. The client should return false if a user space process
  * 	has one of its device files open
- * @gpu_bound: notify the client id to audio client when the GPU is bound.
+ * @gpu_bound: yestify the client id to audio client when the GPU is bound.
  *
  * Client callbacks. A client can be either a GPU or an audio device on a GPU.
  * The @set_gpu_state and @can_switch methods are mandatory, @reprobe may be
  * set to NULL. For audio clients, the @reprobe member is bogus.
- * OTOH, @gpu_bound is only for audio clients, and not used for GPU clients.
+ * OTOH, @gpu_bound is only for audio clients, and yest used for GPU clients.
  */
 struct vga_switcheroo_client_ops {
 	void (*set_gpu_state)(struct pci_dev *dev, enum vga_switcheroo_state);

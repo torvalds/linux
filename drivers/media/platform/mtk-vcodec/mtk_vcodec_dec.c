@@ -109,7 +109,7 @@ static struct vb2_buffer *get_display_buffer(struct mtk_vcodec_ctx *ctx)
 	if (vdec_if_get_param(ctx,
 			GET_PARAM_DISP_FRAME_BUFFER,
 			&disp_frame_buffer)) {
-		mtk_v4l2_err("[%d]Cannot get param : GET_PARAM_DISP_FRAME_BUFFER",
+		mtk_v4l2_err("[%d]Canyest get param : GET_PARAM_DISP_FRAME_BUFFER",
 			ctx->id);
 		return NULL;
 	}
@@ -143,11 +143,11 @@ static struct vb2_buffer *get_display_buffer(struct mtk_vcodec_ctx *ctx)
 }
 
 /*
- * This function tries to clean all capture buffers that are not used as
+ * This function tries to clean all capture buffers that are yest used as
  * reference buffers by codec driver any more
  * In this case, we need re-queue buffer to vb2 buffer if user space
  * already returns this buffer to v4l2 or this buffer is just the output of
- * previous sps/pps/resolution change decode, or do nothing if user
+ * previous sps/pps/resolution change decode, or do yesthing if user
  * space still owns this buffer
  */
 static struct vb2_buffer *get_free_buffer(struct mtk_vcodec_ctx *ctx)
@@ -158,7 +158,7 @@ static struct vb2_buffer *get_free_buffer(struct mtk_vcodec_ctx *ctx)
 	if (vdec_if_get_param(ctx,
 				GET_PARAM_FREE_FRAME_BUFFER,
 				&free_frame_buffer)) {
-		mtk_v4l2_err("[%d] Error!! Cannot get param", ctx->id);
+		mtk_v4l2_err("[%d] Error!! Canyest get param", ctx->id);
 		return NULL;
 	}
 	if (free_frame_buffer == NULL) {
@@ -178,7 +178,7 @@ static struct vb2_buffer *get_free_buffer(struct mtk_vcodec_ctx *ctx)
 		    (dstbuf->queued_in_v4l2) &&
 		    (free_frame_buffer->status == FB_ST_FREE)) {
 			/*
-			 * After decode sps/pps or non-display buffer, we don't
+			 * After decode sps/pps or yesn-display buffer, we don't
 			 * need to return capture buffer to user space, but
 			 * just re-queue this capture buffer to vb2 queue.
 			 * This reduce overheads that dq/q unused capture
@@ -193,13 +193,13 @@ static struct vb2_buffer *get_free_buffer(struct mtk_vcodec_ctx *ctx)
 		} else if ((dstbuf->queued_in_vb2 == false) &&
 			   (dstbuf->queued_in_v4l2 == true)) {
 			/*
-			 * If buffer in v4l2 driver but not in vb2 queue yet,
+			 * If buffer in v4l2 driver but yest in vb2 queue yet,
 			 * and we get this buffer from free_list, it means
-			 * that codec driver do not use this buffer as
+			 * that codec driver do yest use this buffer as
 			 * reference buffer anymore. We should q buffer to vb2
 			 * queue, so later work thread could get this buffer
 			 * for decode. In this case, queued_in_vb2 = false
-			 * means this buffer is not from previous decode
+			 * means this buffer is yest from previous decode
 			 * output.
 			 */
 			mtk_v4l2_debug(2,
@@ -210,8 +210,8 @@ static struct vb2_buffer *get_free_buffer(struct mtk_vcodec_ctx *ctx)
 			dstbuf->queued_in_vb2 = true;
 		} else {
 			/*
-			 * Codec driver do not need to reference this capture
-			 * buffer and this buffer is not in v4l2 driver.
+			 * Codec driver do yest need to reference this capture
+			 * buffer and this buffer is yest in v4l2 driver.
 			 * Then we don't need to do any thing, just add log when
 			 * we need to debug buffer flow.
 			 * When this buffer q from user space, it could
@@ -290,7 +290,7 @@ static void mtk_vdec_update_fmt(struct mtk_vcodec_ctx *ctx,
 		}
 	}
 
-	mtk_v4l2_err("Cannot get fourcc(%d), using init value", pixelformat);
+	mtk_v4l2_err("Canyest get fourcc(%d), using init value", pixelformat);
 }
 
 static int mtk_vdec_pic_info_update(struct mtk_vcodec_ctx *ctx)
@@ -301,7 +301,7 @@ static int mtk_vdec_pic_info_update(struct mtk_vcodec_ctx *ctx)
 	if (vdec_if_get_param(ctx,
 				GET_PARAM_PIC_INFO,
 				&ctx->last_decoded_picinfo)) {
-		mtk_v4l2_err("[%d]Error!! Cannot get param : GET_PARAM_PICTURE_INFO ERR",
+		mtk_v4l2_err("[%d]Error!! Canyest get param : GET_PARAM_PICTURE_INFO ERR",
 				ctx->id);
 		return -EINVAL;
 	}
@@ -310,7 +310,7 @@ static int mtk_vdec_pic_info_update(struct mtk_vcodec_ctx *ctx)
 		ctx->last_decoded_picinfo.pic_h == 0 ||
 		ctx->last_decoded_picinfo.buf_w == 0 ||
 		ctx->last_decoded_picinfo.buf_h == 0) {
-		mtk_v4l2_err("Cannot get correct pic info");
+		mtk_v4l2_err("Canyest get correct pic info");
 		return -EINVAL;
 	}
 
@@ -780,7 +780,7 @@ static int vidioc_vdec_g_selection(struct file *file, void *priv,
 		break;
 	case V4L2_SEL_TGT_COMPOSE:
 		if (vdec_if_get_param(ctx, GET_PARAM_CROP_INFO, &(s->r))) {
-			/* set to default value if header info not ready yet*/
+			/* set to default value if header info yest ready yet*/
 			s->r.left = 0;
 			s->r.top = 0;
 			s->r.width = q_data->visible_width;
@@ -792,7 +792,7 @@ static int vidioc_vdec_g_selection(struct file *file, void *priv,
 	}
 
 	if (ctx->state < MTK_STATE_HEADER) {
-		/* set to default value if header info not ready yet*/
+		/* set to default value if header info yest ready yet*/
 		s->r.left = 0;
 		s->r.top = 0;
 		s->r.width = q_data->visible_width;
@@ -988,7 +988,7 @@ static int vidioc_vdec_g_fmt(struct file *file, void *priv,
 
 	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, f->type);
 	if (!vq) {
-		mtk_v4l2_err("no vb2 queue for type=%d", f->type);
+		mtk_v4l2_err("yes vb2 queue for type=%d", f->type);
 		return -EINVAL;
 	}
 
@@ -1003,7 +1003,7 @@ static int vidioc_vdec_g_fmt(struct file *file, void *priv,
 	if ((f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) &&
 	    (ctx->state >= MTK_STATE_HEADER)) {
 		/* Until STREAMOFF is called on the CAPTURE queue
-		 * (acknowledging the event), the driver operates as if
+		 * (ackyeswledging the event), the driver operates as if
 		 * the resolution hasn't changed yet.
 		 * So we just return picinfo yet, and update picinfo in
 		 * stop_streaming hook function
@@ -1040,7 +1040,7 @@ static int vidioc_vdec_g_fmt(struct file *file, void *priv,
 		/*
 		 * This is run on OUTPUT
 		 * The buffer contains compressed image
-		 * so width and height have no meaning.
+		 * so width and height have yes meaning.
 		 * Assign value here to pass v4l2-compliance test
 		 */
 		pix_mp->width = q_data->visible_width;
@@ -1059,7 +1059,7 @@ static int vidioc_vdec_g_fmt(struct file *file, void *priv,
 		pix_mp->plane_fmt[1].bytesperline = q_data->bytesperline[1];
 		pix_mp->plane_fmt[1].sizeimage = q_data->sizeimage[1];
 
-		mtk_v4l2_debug(1, "[%d] type=%d state=%d Format information could not be read, not ready yet!",
+		mtk_v4l2_debug(1, "[%d] type=%d state=%d Format information could yest be read, yest ready yet!",
 				ctx->id, f->type, ctx->state);
 	}
 
@@ -1119,7 +1119,7 @@ static int vb2ops_vdec_buf_prepare(struct vb2_buffer *vb)
 
 	for (i = 0; i < q_data->fmt->num_planes; i++) {
 		if (vb2_plane_size(vb, i) < q_data->sizeimage[i]) {
-			mtk_v4l2_err("data will not fit into plane %d (%lu < %d)",
+			mtk_v4l2_err("data will yest fit into plane %d (%lu < %d)",
 				i, vb2_plane_size(vb, i),
 				q_data->sizeimage[i]);
 		}
@@ -1197,7 +1197,7 @@ static void vb2ops_vdec_buf_queue(struct vb2_buffer *vb)
 		/*
 		 * fb == NULL means to parse SPS/PPS header or
 		 * resolution info in src_mem. Decode can fail
-		 * if there is no SPS header or picture info
+		 * if there is yes SPS header or picture info
 		 * in bs
 		 */
 
@@ -1218,7 +1218,7 @@ static void vb2ops_vdec_buf_queue(struct vb2_buffer *vb)
 	}
 
 	if (vdec_if_get_param(ctx, GET_PARAM_PIC_INFO, &ctx->picinfo)) {
-		mtk_v4l2_err("[%d]Error!! Cannot get param : GET_PARAM_PICTURE_INFO ERR",
+		mtk_v4l2_err("[%d]Error!! Canyest get param : GET_PARAM_PICTURE_INFO ERR",
 				ctx->id);
 		return;
 	}
@@ -1320,7 +1320,7 @@ static void vb2ops_vdec_stop_streaming(struct vb2_queue *q)
 	if (ctx->state >= MTK_STATE_HEADER) {
 
 		/* Until STREAMOFF is called on the CAPTURE queue
-		 * (acknowledging the event), the driver operates
+		 * (ackyeswledging the event), the driver operates
 		 * as if the resolution hasn't changed yet, i.e.
 		 * VIDIOC_G_FMT< etc. return previous resolution.
 		 * So we update picinfo here
@@ -1392,7 +1392,7 @@ static int mtk_vdec_g_v_ctrl(struct v4l2_ctrl *ctrl)
 		if (ctx->state >= MTK_STATE_HEADER) {
 			ctrl->val = ctx->dpb_size;
 		} else {
-			mtk_v4l2_debug(0, "Seqinfo not ready");
+			mtk_v4l2_debug(0, "Seqinfo yest ready");
 			ctrl->val = 0;
 		}
 		break;

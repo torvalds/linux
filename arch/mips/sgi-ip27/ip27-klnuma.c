@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Ported from IRIX to Linux by Kanoj Sarcar, 06/08/00.
+ * Ported from IRIX to Linux by Kayesj Sarcar, 06/08/00.
  * Copyright 2000 - 2001 Silicon Graphics, Inc.
- * Copyright 2000 - 2001 Kanoj Sarcar (kanoj@sgi.com)
+ * Copyright 2000 - 2001 Kayesj Sarcar (kayesj@sgi.com)
  */
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/kernel.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/string.h>
 
 #include <asm/page.h>
@@ -24,12 +24,12 @@ static cpumask_t ktext_repmask;
 
 /*
  * XXX - This needs to be much smarter about where it puts copies of the
- * kernel.  For example, we should never put a copy on a headless node,
+ * kernel.  For example, we should never put a copy on a headless yesde,
  * and we should respect the topology of the machine.
  */
 void __init setup_replication_mask(void)
 {
-	/* Set only the master cnode's bit.  The master cnode is always 0. */
+	/* Set only the master cyesde's bit.  The master cyesde is always 0. */
 	cpumask_clear(&ktext_repmask);
 	cpumask_set_cpu(0, &ktext_repmask);
 
@@ -40,7 +40,7 @@ void __init setup_replication_mask(void)
 	{
 		nasid_t nasid;
 
-		for_each_online_node(nasid) {
+		for_each_online_yesde(nasid) {
 			if (nasid == 0)
 				continue;
 			/* Advertise that we have a copy of the kernel */
@@ -90,30 +90,30 @@ void __init replicate_kernel_text(void)
 
 	server_nasid = master_nasid;
 
-	/* Record where the master node should get its kernel text */
+	/* Record where the master yesde should get its kernel text */
 	set_ktext_source(master_nasid, master_nasid);
 
-	for_each_online_node(client_nasid) {
+	for_each_online_yesde(client_nasid) {
 		if (client_nasid == 0)
 			continue;
 
-		/* Check if this node should get a copy of the kernel */
+		/* Check if this yesde should get a copy of the kernel */
 		if (cpumask_test_cpu(client_nasid, &ktext_repmask)) {
 			server_nasid = client_nasid;
 			copy_kernel(server_nasid);
 		}
 
-		/* Record where this node should get its kernel text */
+		/* Record where this yesde should get its kernel text */
 		set_ktext_source(client_nasid, server_nasid);
 	}
 }
 
 /*
- * Return pfn of first free page of memory on a node. PROM may allocate
+ * Return pfn of first free page of memory on a yesde. PROM may allocate
  * data structures on the first couple of pages of the first slot of each
- * node. If this is the case, getfirstfree(node) > getslotstart(node, 0).
+ * yesde. If this is the case, getfirstfree(yesde) > getslotstart(yesde, 0).
  */
-unsigned long node_getfirstfree(nasid_t nasid)
+unsigned long yesde_getfirstfree(nasid_t nasid)
 {
 	unsigned long loadbase = REP_BASE;
 	unsigned long offset;

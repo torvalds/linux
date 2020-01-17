@@ -177,13 +177,13 @@ struct snd_soc_acpi_mach  snd_soc_acpi_intel_cherrytrail_machines[] = {
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_BYT_CHT_NOCODEC_MACH)
 	/*
 	 * This is always last in the table so that it is selected only when
-	 * enabled explicitly and there is no codec-related information in SSDT
+	 * enabled explicitly and there is yes codec-related information in SSDT
 	 */
 	{
 		.id = "808622A8",
-		.drv_name = "bytcht_nocodec",
+		.drv_name = "bytcht_yescodec",
 		.fw_filename = "intel/fw_sst_22a8.bin",
-		.board = "bytcht_nocodec",
+		.board = "bytcht_yescodec",
 	},
 #endif
 	{},

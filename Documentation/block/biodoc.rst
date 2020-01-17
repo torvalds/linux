@@ -2,7 +2,7 @@
 Notes on the Generic Block Layer Rewrite in Linux 2.5
 =====================================================
 
-.. note::
+.. yeste::
 
 	It seems that there are lot of outdated stuff here. This seems
 	to be written somewhat as a task list. Yet, eventually, something
@@ -21,7 +21,7 @@ September 2003: Updated I/O Scheduler portions
 Introduction
 ============
 
-These are some notes describing some aspects of the 2.5 block layer in the
+These are some yestes describing some aspects of the 2.5 block layer in the
 context of the bio rewrite. The idea is to bring out some of the key
 changes and a glimpse of the rationale behind those changes.
 
@@ -42,7 +42,7 @@ document:
 
 	- Christoph Hellwig <hch@infradead.org>
 	- Arjan van de Ven <arjanv@redhat.com>
-	- Randy Dunlap <rdunlap@xenotime.net>
+	- Randy Dunlap <rdunlap@xeyestime.net>
 	- Andre Hedrick <andre@linux-ide.org>
 
 The following people helped with fixes/contributions to the bio patches
@@ -60,7 +60,7 @@ while it was still work-in-progress:
 	- I/O scheduler modularization
      1.2 Tuning based on high level requirements/capabilities
 	1.2.1 Request Priority/Latency
-     1.3 Direct access/bypass to lower layers for diagnostics and special
+     1.3 Direct access/bypass to lower layers for diagyesstics and special
 	 device operations
 	1.3.1 Pre-built commands
    2. New flexible and generic but minimalist i/o structure or descriptor
@@ -74,7 +74,7 @@ while it was still work-in-progress:
        3.2.1 Traversing segments and completion units in a request
        3.2.2 Setting up DMA scatterlists
        3.2.3 I/O completion
-       3.2.4 Implications for drivers that do not interpret bios (don't handle
+       3.2.4 Implications for drivers that do yest interpret bios (don't handle
 	  multiple segments)
      3.3 I/O submission
    4. The I/O scheduler
@@ -114,7 +114,7 @@ Sophisticated devices with large built-in caches, intelligent i/o scheduling
 optimizations, high memory DMA support, etc may find some of the
 generic processing an overhead, while for less capable devices the
 generic functionality is essential for performance or correctness reasons.
-Knowledge of some of the capabilities or parameters of the device should be
+Kyeswledge of some of the capabilities or parameters of the device should be
 used at the generic block layer to take the right decisions on
 behalf of the driver.
 
@@ -129,7 +129,7 @@ a per-queue level (e.g maximum request size, maximum number of segments in
 a scatter-gather list, logical block size)
 
 Some parameters that were earlier available as global arrays indexed by
-major/minor are now directly associated with the queue. Some of these may
+major/miyesr are yesw directly associated with the queue. Some of these may
 move into the block device structure in the future. Some characteristics
 have been incorporated into a queue flags field rather than separate fields
 in themselves.  There are blk_queue_xxx functions to set the parameters,
@@ -177,23 +177,23 @@ New queue flags:
 	- QUEUE_FLAG_QUEUED (see 3.2.4)
 
 
-ii. High-mem i/o capabilities are now considered the default
+ii. High-mem i/o capabilities are yesw considered the default
 
 The generic bounce buffer logic, present in 2.4, where the block layer would
 by default copyin/out i/o requests on high-memory buffers to low-memory buffers
 assuming that the driver wouldn't be able to handle it directly, has been
-changed in 2.5. The bounce logic is now applied only for memory ranges
-for which the device cannot handle i/o. A driver can specify this by
+changed in 2.5. The bounce logic is yesw applied only for memory ranges
+for which the device canyest handle i/o. A driver can specify this by
 setting the queue bounce limit for the request queue for the device
 (blk_queue_bounce_limit()). This avoids the inefficiencies of the copyin/out
 where a device is capable of handling high memory i/o.
 
 In order to enable high-memory i/o where the device is capable of supporting
-it, the pci dma mapping routines and associated data structures have now been
+it, the pci dma mapping routines and associated data structures have yesw been
 modified to accomplish a direct page -> bus translation, without requiring
 a virtual address mapping (unlike the earlier scheme of virtual address
 -> bus translation). So this works uniformly for high-memory pages (which
-do not have a corresponding kernel virtual address space mapping) and
+do yest have a corresponding kernel virtual address space mapping) and
 low-memory pages.
 
 Note: Please refer to Documentation/DMA-API-HOWTO.txt for a discussion
@@ -208,24 +208,24 @@ the type of the operation.  For example, in case of a read operation, the
 data read has to be copied to the original buffer on i/o completion, so a
 callback routine is set up to do this, while for write, the data is copied
 from the original buffer to the bounce buffer prior to issuing the
-operation. Since an original buffer may be in a high memory area that's not
+operation. Since an original buffer may be in a high memory area that's yest
 mapped in kernel virtual addr, a kmap operation may be required for
 performing the copy, and special care may be needed in the completion path
-as it may not be in irq context. Special care is also required (by way of
+as it may yest be in irq context. Special care is also required (by way of
 GFP flags) when allocating bounce buffers, to avoid certain highmem
 deadlock possibilities.
 
 It is also possible that a bounce buffer may be allocated from high-memory
-area that's not mapped in kernel virtual addr, but within the range that the
+area that's yest mapped in kernel virtual addr, but within the range that the
 device can use directly; so the bounce page may need to be kmapped during
-copy operations. [Note: This does not hold in the current implementation,
+copy operations. [Note: This does yest hold in the current implementation,
 though]
 
 There are some situations when pages from high memory may need to
-be kmapped, even if bounce buffers are not necessary. For example a device
+be kmapped, even if bounce buffers are yest necessary. For example a device
 may need to abort DMA operations and revert to PIO for the transfer, in
 which case a virtual mapping of the page is required. For SCSI it is also
-done in some scenarios where the low level driver cannot be trusted to
+done in some scenarios where the low level driver canyest be trusted to
 handle a single sg entry correctly. The driver is expected to perform the
 kmaps as needed on such occasions as appropriate. A driver could also use
 the blk_queue_bounce() routine on its own to bounce highmem i/o to low
@@ -289,7 +289,7 @@ Todo/Under discussion::
 1.3 Direct Access to Low level Device/Driver Capabilities (Bypass mode)
 -----------------------------------------------------------------------
 
-(e.g Diagnostics, Systems Management)
+(e.g Diagyesstics, Systems Management)
 
 There are situations where high-level code needs to have direct access to
 the low level device capabilities or requires the ability to issue commands
@@ -301,8 +301,8 @@ multiple levels without having to pass through upper layers makes
 it possible to perform bottom up validation of the i/o path, layer by
 layer, starting from the media.
 
-The normal i/o submission interfaces, e.g submit_bio, could be bypassed
-for specially crafted requests which such ioctl or diagnostics
+The yesrmal i/o submission interfaces, e.g submit_bio, could be bypassed
+for specially crafted requests which such ioctl or diagyesstics
 interfaces would typically use, and the elevator add_request routine
 can instead be used to directly insert such requests in the queue or preferably
 the blk_do_rq routine can be used to place the request on the queue and
@@ -320,7 +320,7 @@ representing the concerned memory buffer if the underlying driver interprets
 bio segments or uses the block layer end*request* functions for i/o
 completion. Alternatively one could directly use the request->buffer field to
 specify the virtual address of the buffer, if the driver expects buffer
-addresses passed in this way and ignores bio entries for the request type
+addresses passed in this way and igyesres bio entries for the request type
 involved. In the latter case, the driver would modify and manage the
 request->buffer, request->sector and request->nr_sectors or
 request->current_nr_sectors fields itself rather than using the block layer
@@ -336,7 +336,7 @@ the request structure fields)
   expect bios, a helper function could be provided for setting up a bio
   corresponding to a data buffer]
 
-  <JENS: I dont understand the above, why is end_that_request_first() not
+  <JENS: I dont understand the above, why is end_that_request_first() yest
   usable? Or _last for that matter. I must be missing something>
 
   <SUP: What I meant here was that if the request doesn't have a bio, then
@@ -345,8 +345,8 @@ the request structure fields)
    completion of partial transfers. The driver has to modify these fields
    directly by hand.
    This is because end_that_request_first only iterates over the bio list,
-   and always returns 0 if there are none associated with the request.
-   _last works OK in this case, and is not a problem, as I mentioned earlier
+   and always returns 0 if there are yesne associated with the request.
+   _last works OK in this case, and is yest a problem, as I mentioned earlier
   >
 
 1.3.1 Pre-built Commands
@@ -354,8 +354,8 @@ the request structure fields)
 
 A request can be created with a pre-built custom command  to be sent directly
 to the device. The cmd block in the request structure has room for filling
-in the command bytes. (i.e rq->cmd is now 16 bytes in size, and meant for
-command pre-building, and the type of the request is now indicated
+in the command bytes. (i.e rq->cmd is yesw 16 bytes in size, and meant for
+command pre-building, and the type of the request is yesw indicated
 through rq->flags instead of via rq->cmd)
 
 The request structure flags can be set up to indicate the type of request
@@ -363,11 +363,11 @@ in such cases (REQ_PC: direct packet command passed to driver, REQ_BLOCK_PC:
 packet command issued via blk_do_rq, REQ_SPECIAL: special request).
 
 It can help to pre-build device commands for requests in advance.
-Drivers can now specify a request prepare function (q->prep_rq_fn) that the
+Drivers can yesw specify a request prepare function (q->prep_rq_fn) that the
 block layer would invoke to pre-build device commands for a given request,
 or perform other preparatory processing for the request. This is routine is
 called by elv_next_request(), i.e. typically just before servicing a request.
-(The prepare function would not be called for requests that have RQF_DONTPREP
+(The prepare function would yest be called for requests that have RQF_DONTPREP
 enabled)
 
 Aside:
@@ -377,7 +377,7 @@ Aside:
   interrupt context or responsiveness in general. One way to add early
   pre-building would be to do it whenever we fail to merge on a request.
   Now REQ_NOMERGE is set in the request flags to skip this one in the future,
-  which means that it will not change before we feed it to the device. So
+  which means that it will yest change before we feed it to the device. So
   the pre-builder hook can be invoked there.
 
 
@@ -403,9 +403,9 @@ redesign of the block i/o data structure in 2.5.
 
 1.  Should be appropriate as a descriptor for both raw and buffered i/o  -
     avoid cache related fields which are irrelevant in the direct/page i/o path,
-    or filesystem block size alignment restrictions which may not be relevant
+    or filesystem block size alignment restrictions which may yest be relevant
     for raw i/o.
-2.  Ability to represent high-memory buffers (which do not have a virtual
+2.  Ability to represent high-memory buffers (which do yest have a virtual
     address mapping in kernel address space).
 3.  Ability to represent large i/os w/o unnecessarily breaking them up (i.e
     greater than PAGE_SIZE chunks in one shot)
@@ -413,7 +413,7 @@ redesign of the block i/o data structure in 2.5.
     different sources or i/o units requiring individual completion (e.g. for
     latency reasons)
 5.  Ability to represent an i/o involving multiple physical memory segments
-    (including non-page aligned page fragments, as specified via readv/writev)
+    (including yesn-page aligned page fragments, as specified via readv/writev)
     without unnecessarily breaking it up, if the underlying device is capable of
     handling it.
 6.  Preferably should be based on a memory descriptor structure that can be
@@ -438,7 +438,7 @@ of <page, offset, len> to describe the i/o buffer, and has various other
 fields describing i/o parameters and state that needs to be maintained for
 performing the i/o.
 
-Notice that this representation means that a bio has no virtual address
+Notice that this representation means that a bio has yes virtual address
 mapping at all (unlike buffer heads).
 
 ::
@@ -506,11 +506,11 @@ covers the range of pages (up to 16 contiguous pages could be covered this
 way). There is a helper routine (blk_rq_map_sg) which drivers can use to build
 the sg list.
 
-Note: Right now the only user of bios with more than one page is ll_rw_kio,
-which in turn means that only raw I/O uses it (direct i/o may not work
-right now). The intent however is to enable clustering of pages etc to
+Note: Right yesw the only user of bios with more than one page is ll_rw_kio,
+which in turn means that only raw I/O uses it (direct i/o may yest work
+right yesw). The intent however is to enable clustering of pages etc to
 become possible. The pagebuf abstraction layer from SGI also uses multi-page
-bios, but that is currently not included in the stock development kernels.
+bios, but that is currently yest included in the stock development kernels.
 The same is true of Andrew Morton's work-in-progress multipage bio writeout
 and readahead patches.
 
@@ -521,12 +521,12 @@ The request structure is the structure that gets passed down to low level
 drivers. The block layer make_request function builds up a request structure,
 places it on the queue and invokes the drivers request_fn. The driver makes
 use of block layer helper routine elv_next_request to pull the next request
-off the queue. Control or diagnostic functions might bypass block and directly
+off the queue. Control or diagyesstic functions might bypass block and directly
 invoke underlying driver entry points passing in a specially constructed
 request structure.
 
 Only some relevant fields (mainly those which changed or may be referred
-to in some of the discussion here) are listed below, not necessarily in
+to in some of the discussion here) are listed below, yest necessarily in
 the order in which they occur in the structure (see include/linux/blkdev.h)
 Refer to Documentation/block/request.rst for details about all the request
 structure fields and a quick reference about the layers which are
@@ -544,7 +544,7 @@ supposed to use or modify those fields::
 	unsigned long flags;   /* also includes earlier rq->cmd settings */
 	.
 	.
-	sector_t sector; /* this field is now of type sector_t instead of int
+	sector_t sector; /* this field is yesw of type sector_t instead of int
 			    preparation for 64 bit sectors */
 	.
 	.
@@ -562,9 +562,9 @@ supposed to use or modify those fields::
 	unsigned short nr_hw_segments;
 
 	/* Various sector counts */
-	unsigned long nr_sectors;  /* no. of sectors left: driver modifiable */
+	unsigned long nr_sectors;  /* yes. of sectors left: driver modifiable */
 	unsigned long hard_nr_sectors;  /* block internal copy of above */
-	unsigned int current_nr_sectors; /* no. of sectors left in the
+	unsigned int current_nr_sectors; /* yes. of sectors left in the
 					   current segment:driver modifiable */
 	unsigned long hard_cur_sectors; /* block internal copy of the above */
 	.
@@ -587,12 +587,12 @@ except that since we have multi-segment bios, current_nr_sectors refers
 to the numbers of sectors in the current segment being processed which could
 be one of the many segments in the current bio (i.e i/o completion unit).
 The nr_sectors value refers to the total number of sectors in the whole
-request that remain to be transferred (no change). The purpose of the
+request that remain to be transferred (yes change). The purpose of the
 hard_xxx values is for block to remember these counts every time it hands
 over the request to the driver. These values are updated by block on
 end_that_request_first, i.e. every time the driver completes a part of the
 transfer and invokes block end*request helpers to mark this. The
-driver should not modify these values. The block layer sets up the
+driver should yest modify these values. The block layer sets up the
 nr_sectors and current_nr_sectors fields (based on the corresponding
 hard_xxx values and the number of bytes transferred) and updates it on
 every transfer that invokes end_that_request_first. It does the same for the
@@ -600,7 +600,7 @@ buffer, bio, bio->bi_iter fields too.
 
 The buffer field is just a virtual address mapping of the current segment
 of the i/o buffer in cases where the buffer resides in low-memory. For high
-memory i/o, this field is not valid and must not be used by drivers.
+memory i/o, this field is yest valid and must yest be used by drivers.
 
 Code that sets up its own request structures and passes them down to
 a driver needs to be careful about interoperation with the block layer helper
@@ -621,17 +621,17 @@ deadlock-free allocations during extreme VM load. For example, the VM
 subsystem makes use of the block layer to writeout dirty pages in order to be
 able to free up memory space, a case which needs careful handling. The
 allocation logic draws from the preallocated emergency reserve in situations
-where it cannot allocate through normal means. If the pool is empty and it
+where it canyest allocate through yesrmal means. If the pool is empty and it
 can wait, then it would trigger action that would help free up memory or
 replenish the pool (without deadlocking) and wait for availability in the pool.
-If it is in IRQ context, and hence not in a position to do this, allocation
+If it is in IRQ context, and hence yest in a position to do this, allocation
 could fail if the pool is empty. In general mempool always first tries to
 perform allocation without having to wait, even if it means digging into the
-pool as long it is not less that 50% full.
+pool as long it is yest less that 50% full.
 
 On a free, memory is released to the pool or directly freed depending on
 the current availability in the pool. The mempool interface lets the
-subsystem specify the routines to be used for normal alloc and free. In the
+subsystem specify the routines to be used for yesrmal alloc and free. In the
 case of bio, these routines make use of the standard slab allocator.
 
 The caller of bio_alloc is expected to taken certain steps to avoid
@@ -654,7 +654,7 @@ or hierarchy of allocation needs to be consistent, just the way one deals
 with multiple locks.
 
 The bio_alloc routine also needs to allocate the bio_vec_list (bvec_alloc())
-for a non-clone bio. There are the 6 pools setup for different size biovecs,
+for a yesn-clone bio. There are the 6 pools setup for different size biovecs,
 so bio_alloc(gfp_mask, nr_iovecs) will allocate a vec_list of the
 given size from these slabs.
 
@@ -683,7 +683,7 @@ with block changes in the future.
 
 	struct req_iterator iter;
 	rq_for_each_segment(bio_vec, rq, iter)
-		/* bio_vec is now current segment */
+		/* bio_vec is yesw current segment */
 
 I/O completion callbacks are per-bio rather than per-segment, so drivers
 that traverse bio chains on completion need to keep that in mind. Drivers
@@ -694,7 +694,7 @@ need to be reorganized to support multi-segment bios.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The blk_rq_map_sg() helper routine would be used for setting up scatter
-gather lists from a request, so a driver need not do it on its own.
+gather lists from a request, so a driver need yest do it on its own.
 
 	nr_segments = blk_rq_map_sg(q, rq, scatterlist);
 
@@ -731,13 +731,13 @@ request can be kicked of) as before. With the introduction of multi-page
 bio support, end_that_request_first requires an additional argument indicating
 the number of sectors completed.
 
-3.2.4 Implications for drivers that do not interpret bios
+3.2.4 Implications for drivers that do yest interpret bios
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 (don't handle multiple segments)
 
-Drivers that do not interpret bios e.g those which do not handle multiple
-segments and do not support i/o into high memory addresses (require bounce
+Drivers that do yest interpret bios e.g those which do yest handle multiple
+segments and do yest support i/o into high memory addresses (require bounce
 buffers) and expect only virtually mapped buffers, can access the rq->buffer
 field. As before the driver should use current_nr_sectors to determine the
 size of remaining data in the current segment (that is the maximum it can
@@ -745,7 +745,7 @@ transfer in one go unless it interprets segments), and rely on the block layer
 end_request, or end_that_request_first/last to take care of all accounting
 and transparent mapping of the next bio segment when a segment boundary
 is crossed on completion of a transfer. (The end*request* functions should
-be used if only if the request has come down from block/bio path, not for
+be used if only if the request has come down from block/bio path, yest for
 direct access requests which only specify rq->buffer without a valid rq->bio)
 
 3.3 I/O Submission
@@ -765,7 +765,7 @@ The ll_rw_kio() routine breaks up the kiobuf into page sized chunks and
 maps the array to one or more multi-page bios, issuing submit_bio() to
 perform the i/o on each of these.
 
-The embedded bh array in the kiobuf structure has been removed and no
+The embedded bh array in the kiobuf structure has been removed and yes
 preallocation of bios is done for kiobufs. [The intent is to remove the
 blocks array as well, but it's currently in there to kludge around direct i/o.]
 Thus kiobuf allocation has switched back to using kmalloc rather than vmalloc.
@@ -774,7 +774,7 @@ Todo/Observation:
 
  A single kiobuf structure is assumed to correspond to a contiguous range
  of data, so brw_kiovec() invokes ll_rw_kio for each kiobuf in a kiovec.
- So right now it wouldn't work for direct i/o on non-contiguous blocks.
+ So right yesw it wouldn't work for direct i/o on yesn-contiguous blocks.
  This is to be resolved.  The eventual direction is to replace kiobuf
  by kvec's.
 
@@ -800,7 +800,7 @@ Todo/Under discussion:
 
 (d) Direct access i/o:
 
-Direct access requests that do not contain bios would be submitted differently
+Direct access requests that do yest contain bios would be submitted differently
 as discussed earlier in section 1.3.
 
 Aside:
@@ -819,7 +819,7 @@ Aside:
 
   TBD: In order for this to work, some changes are needed in the way multi-page
   bios are handled today. The values of the tuples in such a vector passed in
-  from higher level code should not be modified by the block layer in the course
+  from higher level code should yest be modified by the block layer in the course
   of its request processing, since that would make it hard for the higher layer
   to continue to use the vector descriptor (kvec) after i/o completes. Instead,
   all such transient state should either be maintained in the request structure,
@@ -834,20 +834,20 @@ queue and specific I/O schedulers.  Unless stated otherwise, elevator is used
 to refer to both parts and I/O scheduler to specific I/O schedulers.
 
 Block layer implements generic dispatch queue in `block/*.c`.
-The generic dispatch queue is responsible for requeueing, handling non-fs
+The generic dispatch queue is responsible for requeueing, handling yesn-fs
 requests and all other subtleties.
 
-Specific I/O schedulers are responsible for ordering normal filesystem
+Specific I/O schedulers are responsible for ordering yesrmal filesystem
 requests.  They can also choose to delay certain requests to improve
 throughput or whatever purpose.  As the plural form indicates, there are
 multiple I/O schedulers.  They can be built as modules but at least one should
 be built inside the kernel.  Each queue can choose different one and can also
-change to another one dynamically.
+change to ayesther one dynamically.
 
 A block layer call to the i/o scheduler follows the convention elv_xxx(). This
 calls elevator_xxx_fn in the elevator switch (block/elevator.c). Oh, xxx
-and xxx might not match exactly, but use your imagination. If an elevator
-doesn't implement a function, the switch does nothing or some minimal house
+and xxx might yest match exactly, but use your imagination. If an elevator
+doesn't implement a function, the switch does yesthing or some minimal house
 keeping work.
 
 4.1. I/O scheduler API
@@ -875,15 +875,15 @@ elevator_allow_merge_fn		called whenever the block layer determines
 				results in some sort of conflict internally,
 				this hook allows it to do that. Note however
 				that two *requests* can still be merged at later
-				time. Currently the io scheduler has no way to
+				time. Currently the io scheduler has yes way to
 				prevent that. It can only learn about the fact
 				from elevator_merge_req_fn callback.
 
 elevator_dispatch_fn*		fills the dispatch queue with ready requests.
 				I/O schedulers are free to postpone requests by
-				not filling the dispatch queue unless @force
-				is non-zero.  Once dispatched, I/O schedulers
-				are not allowed to manipulate the requests -
+				yest filling the dispatch queue unless @force
+				is yesn-zero.  Once dispatched, I/O schedulers
+				are yest allowed to manipulate the requests -
 				they belong to generic dispatch queue.
 
 elevator_add_req_fn*		called to add a new request into the scheduler
@@ -922,7 +922,7 @@ flows.
  i.   add_req_fn -> (merged_fn ->)* -> dispatch_fn -> activate_req_fn ->
       (deactivate_req_fn -> activate_req_fn ->)* -> completed_req_fn
  ii.  add_req_fn -> (merged_fn ->)* -> merge_req_fn
- iii. [none]
+ iii. [yesne]
 
  -> put_req_fn
 
@@ -946,7 +946,7 @@ gives good scalability and good availability of information. Requests are
 almost always dispatched in disk sort order, so a cache is kept of the next
 request in sort order to prevent binary tree lookups.
 
-This arrangement is not a generic block layer characteristic however, so
+This arrangement is yest a generic block layer characteristic however, so
 elevators may implement queues as they please.
 
 ii. Merge hash
@@ -962,7 +962,7 @@ iii. Plugging the queue to batch requests in anticipation of opportunities for
      merge/sort optimizations
 
 Plugging is an approach that the current i/o scheduling algorithm resorts to so
-that it collects up enough requests in the queue to be able to take
+that it collects up eyesugh requests in the queue to be able to take
 advantage of the sorting/merging logic in the elevator. If the
 queue is empty when a request comes in, then it plugs the request queue
 (sort of like plugging the bath tub of a vessel to get fluid to build up)
@@ -977,12 +977,12 @@ the queue gets explicitly unplugged as part of waiting for completion on that
 buffer.
 
 Aside:
-  This is kind of controversial territory, as it's not clear if plugging is
+  This is kind of controversial territory, as it's yest clear if plugging is
   always the right thing to do. Devices typically have their own queues,
   and allowing a big queue to build up in software, while letting the device be
-  idle for a while may not always make sense. The trick is to handle the fine
-  balance between when to plug and when to open up. Also now that we have
-  multi-page bios being queued in one shot, we may not need to wait to merge
+  idle for a while may yest always make sense. The trick is to handle the fine
+  balance between when to plug and when to open up. Also yesw that we have
+  multi-page bios being queued in one shot, we may yest need to wait to merge
   a big request from the broken up pieces coming by.
 
 4.4 I/O contexts
@@ -1003,7 +1003,7 @@ for an example of usage in an i/o scheduler.
 The global io_request_lock has been removed as of 2.5, to avoid
 the scalability bottleneck it was causing, and has been replaced by more
 granular locking. The request queue structure has a pointer to the
-lock to be used for that queue. As a result, locking can now be
+lock to be used for that queue. As a result, locking can yesw be
 per-queue, with a provision for sharing a lock across queues if
 necessary (e.g the scsi layer sets the queue lock pointers to the
 corresponding adapter lock, which results in a per host locking
@@ -1038,7 +1038,7 @@ having to take partition number into account in order to arrive at the true
 sector number. The routine blk_partition_remap() is invoked by
 generic_make_request even before invoking the queue specific make_request_fn,
 so the i/o scheduler also gets to operate on whole disk sector numbers. This
-should typically not require changes to block drivers, it just never gets
+should typically yest require changes to block drivers, it just never gets
 to invoke its own partition sector offset calculations since all bios
 sent are offset from the beginning of the device.
 
@@ -1046,8 +1046,8 @@ sent are offset from the beginning of the device.
 7. A Few Tips on Migration of older drivers
 ===========================================
 
-Old-style drivers that just use CURRENT and ignores clustered requests,
-may not need much change.  The generic layer will automatically handle
+Old-style drivers that just use CURRENT and igyesres clustered requests,
+may yest need much change.  The generic layer will automatically handle
 clustered requests, multi-page bios, etc for the driver.
 
 For a low performance driver or hardware that is PIO driven or just doesn't
@@ -1056,12 +1056,12 @@ support scatter-gather changes should be minimal too.
 The following are some points to keep in mind when converting old drivers
 to bio.
 
-Drivers should use elv_next_request to pick up requests and are no longer
+Drivers should use elv_next_request to pick up requests and are yes longer
 supposed to handle looping directly over the request list.
 (struct request->queue has been removed)
 
 Now end_that_request_first takes an additional number_of_sectors argument.
-It used to handle always just the first buffer_head in a request, now
+It used to handle always just the first buffer_head in a request, yesw
 it will loop and handle as many sectors (on a bio-segment granularity)
 as specified.
 
@@ -1072,24 +1072,24 @@ If the driver is dropping the io_request_lock from its request_fn strategy,
 then it just needs to replace that with q->queue_lock instead.
 
 As described in Sec 1.1, drivers can set max sector size, max segment size
-etc per queue now. Drivers that used to define their own merge functions i
-to handle things like this can now just use the blk_queue_* functions at
+etc per queue yesw. Drivers that used to define their own merge functions i
+to handle things like this can yesw just use the blk_queue_* functions at
 blk_init_queue time.
 
-Drivers no longer have to map a {partition, sector offset} into the
+Drivers yes longer have to map a {partition, sector offset} into the
 correct absolute location anymore, this is done by the block layer, so
 where a driver received a request ala this before::
 
 	rq->rq_dev = mk_kdev(3, 5);	/* /dev/hda5 */
 	rq->sector = 0;			/* first sector on hda5 */
 
-it will now see::
+it will yesw see::
 
 	rq->rq_dev = mk_kdev(3, 0);	/* /dev/hda */
 	rq->sector = 123128;		/* offset from start of disk */
 
-As mentioned, there is no virtual mapping of a bio. For DMA, this is
-not a problem as the driver probably never will need a virtual mapping.
+As mentioned, there is yes virtual mapping of a bio. For DMA, this is
+yest a problem as the driver probably never will need a virtual mapping.
 Instead it needs a bus mapping (dma_map_page for a single segment or
 use dma_map_sg for scatter gather) to be able to ship it to the driver. For
 PIO drivers (or drivers that need to revert to PIO transfer once in a
@@ -1105,8 +1105,8 @@ a bio into the virtual address space.
 8.1. Earlier kiobuf patches (sct/axboe/chait/hch/mkp)
 -----------------------------------------------------
 
-- orig kiobuf & raw i/o patches (now in 2.4 tree)
-- direct kiobuf based i/o to devices (no intermediate bh's)
+- orig kiobuf & raw i/o patches (yesw in 2.4 tree)
+- direct kiobuf based i/o to devices (yes intermediate bh's)
 - page i/o using kiobuf
 - kiobuf splitting for lvm (mkp)
 - elevator support for kiobuf request merging (axboe)
@@ -1133,7 +1133,7 @@ a bio into the virtual address space.
 ----------------------------------------
 8.10. Write clustering patches ? (Marcelo/Quintela/Riel ?)
 ----------------------------------------------------------
-8.11. Block device in page cache patch (Andrea Archangeli) - now in 2.4.10+
+8.11. Block device in page cache patch (Andrea Archangeli) - yesw in 2.4.10+
 ---------------------------------------------------------------------------
 8.12. Multiple block-size transfers for faster raw i/o (Shailabh Nagar, Badari)
 -------------------------------------------------------------------------------

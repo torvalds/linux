@@ -43,7 +43,7 @@ void signal_fpu_sig(int sig, siginfo_t *info, void *context)
 	ucontext_t *uc = context;
 	mcontext_t *mc = &uc->uc_mcontext;
 
-	/* Only the non volatiles were loaded up */
+	/* Only the yesn volatiles were loaded up */
 	for (i = 14; i < 32; i++) {
 		if (mc->fp_regs[i] != darray[i - 14]) {
 			bad_context = true;

@@ -55,7 +55,7 @@ int rpaphp_get_sensor_state(struct slot *slot, int *state)
  * @slot: target &slot
  *
  * Initialize values in the slot structure to indicate if there is a pci card
- * plugged into the slot. If the slot is not empty, run the pcibios routine
+ * plugged into the slot. If the slot is yest empty, run the pcibios routine
  * to get pcibios stuff correctly set up.
  */
 int rpaphp_enable_slot(struct slot *slot)
@@ -75,9 +75,9 @@ int rpaphp_enable_slot(struct slot *slot)
 	if (rc)
 		return rc;
 
-	bus = pci_find_bus_by_node(slot->dn);
+	bus = pci_find_bus_by_yesde(slot->dn);
 	if (!bus) {
-		err("%s: no pci_bus for dn %pOF\n", __func__, slot->dn);
+		err("%s: yes pci_bus for dn %pOF\n", __func__, slot->dn);
 		return -EINVAL;
 	}
 
@@ -88,9 +88,9 @@ int rpaphp_enable_slot(struct slot *slot)
 	if (state == PRESENT) {
 		slot->state = NOT_CONFIGURED;
 
-		/* non-empty slot has to have child */
+		/* yesn-empty slot has to have child */
 		if (!slot->dn->child) {
-			err("%s: slot[%s]'s device_node doesn't have child for adapter\n",
+			err("%s: slot[%s]'s device_yesde doesn't have child for adapter\n",
 			    __func__, slot->name);
 			return -EINVAL;
 		}

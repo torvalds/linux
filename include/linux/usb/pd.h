@@ -347,7 +347,7 @@ static inline unsigned int pdo_pps_apdo_max_current(u32 pdo)
 #define RDO_GIVE_BACK		BIT(27)	/* Supports reduced operating current */
 #define RDO_CAP_MISMATCH	BIT(26) /* Not satisfied by source caps */
 #define RDO_USB_COMM		BIT(25) /* USB communications capable */
-#define RDO_NO_SUSPEND		BIT(24) /* USB Suspend not supported */
+#define RDO_NO_SUSPEND		BIT(24) /* USB Suspend yest supported */
 
 #define RDO_PWR_MASK			0x3ff
 #define RDO_CURR_MASK			0x3ff

@@ -35,7 +35,7 @@
  * - setup hardware sampling period,
  * - at end of period, upon data ready interrupt: pop pressure samples out of
  *   hardware FIFO and fetch temperature sample
- * - when no longer needed, stop sampling process by putting device into
+ * - when yes longer needed, stop sampling process by putting device into
  *   low power mode.
  * This mode is used to implement %INDIO_BUFFER_TRIGGERED mode if device tree
  * declares a valid interrupt line. In this case, the internal hardware trigger
@@ -66,7 +66,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include "zpa2326.h"
 
-/* 200 ms should be enough for the longest conversion time in one-shot mode. */
+/* 200 ms should be eyesugh for the longest conversion time in one-shot mode. */
 #define ZPA2326_CONVERSION_JIFFIES (HZ / 5)
 
 /* There should be a 1 ms delay (Tpup) after getting out of reset. */
@@ -107,13 +107,13 @@ static const struct zpa2326_frequency *zpa2326_highest_frequency(void)
  * @regmap:     Underlying I2C / SPI bus adapter used to abstract slave register
  *              accesses.
  * @result:     Allows sampling logic to get completion status of operations
- *              that interrupt handlers perform asynchronously.
+ *              that interrupt handlers perform asynchroyesusly.
  * @data_ready: Interrupt handler uses this to wake user context up at sampling
  *              operation completion.
- * @trigger:    Optional hardware / interrupt driven trigger used to notify
+ * @trigger:    Optional hardware / interrupt driven trigger used to yestify
  *              external devices a new sample is ready.
- * @waken:      Flag indicating whether or not device has just been powered on.
- * @irq:        Optional interrupt line: negative or zero if not declared into
+ * @waken:      Flag indicating whether or yest device has just been powered on.
+ * @irq:        Optional interrupt line: negative or zero if yest declared into
  *              DT, in which case sampling logic keeps polling status register
  *              to detect completion.
  * @frequency:  Current hardware sampling frequency.
@@ -262,7 +262,7 @@ static int zpa2326_sleep(const struct iio_dev *indio_dev)
  * @indio_dev: The IIO device associated with the hardware to reset.
  *
  * Disable sampling and empty hardware FIFO.
- * Device must be enabled before reset, i.e. not in low power mode.
+ * Device must be enabled before reset, i.e. yest in low power mode.
  *
  * Return: Zero when successful, a negative error code otherwise.
  */
@@ -384,14 +384,14 @@ static void zpa2326_power_off(const struct iio_dev         *indio_dev,
 /**
  * zpa2326_config_oneshot() - Setup device for one shot / on demand mode.
  * @indio_dev: The IIO device associated with the sampling hardware.
- * @irq:       Optional interrupt line the hardware uses to notify new data
- *             samples are ready. Negative or zero values indicate no interrupts
+ * @irq:       Optional interrupt line the hardware uses to yestify new data
+ *             samples are ready. Negative or zero values indicate yes interrupts
  *             are available, meaning polling is required.
  *
  * Output Data Rate is configured for the highest possible rate so that
  * conversion time and power consumption are reduced to a minimum.
- * Note that hardware internal averaging machinery (not implemented in this
- * driver) is not applicable in this mode.
+ * Note that hardware internal averaging machinery (yest implemented in this
+ * driver) is yest applicable in this mode.
  *
  * Device must have been previously enabled before calling
  * zpa2326_config_oneshot().
@@ -433,9 +433,9 @@ static int zpa2326_config_oneshot(const struct iio_dev *indio_dev,
  * @indio_dev: The IIO device associated with the sampling hardware.
  * @min_count: Number of samples present within hardware FIFO.
  *
- * @min_count argument is a hint corresponding to the known minimum number of
+ * @min_count argument is a hint corresponding to the kyeswn minimum number of
  * samples currently living in the FIFO. This allows to reduce the number of bus
- * accesses by skipping status register read operation as long as we know for
+ * accesses by skipping status register read operation as long as we kyesw for
  * sure there are still entries left.
  *
  * Return: Zero when successful, a negative error code otherwise.
@@ -451,7 +451,7 @@ static int zpa2326_clear_fifo(const struct iio_dev *indio_dev,
 	if (!min_count) {
 		/*
 		 * No hint: read status register to determine whether FIFO is
-		 * empty or not.
+		 * empty or yest.
 		 */
 		err = regmap_read(regs, ZPA2326_STATUS_REG, &val);
 
@@ -459,14 +459,14 @@ static int zpa2326_clear_fifo(const struct iio_dev *indio_dev,
 			goto err;
 
 		if (val & ZPA2326_STATUS_FIFO_E)
-			/* Fifo is empty: nothing to trash. */
+			/* Fifo is empty: yesthing to trash. */
 			return 0;
 	}
 
 	/* Clear FIFO. */
 	do {
 		/*
-		 * A single fetch from pressure MSB register is enough to pop
+		 * A single fetch from pressure MSB register is eyesugh to pop
 		 * values out of FIFO.
 		 */
 		err = regmap_read(regs, ZPA2326_PRESS_OUT_H_REG, &val);
@@ -475,7 +475,7 @@ static int zpa2326_clear_fifo(const struct iio_dev *indio_dev,
 
 		if (min_count) {
 			/*
-			 * We know for sure there are at least min_count entries
+			 * We kyesw for sure there are at least min_count entries
 			 * left in FIFO. Skip status register read.
 			 */
 			min_count--;
@@ -536,14 +536,14 @@ static int zpa2326_dequeue_pressure(const struct iio_dev *indio_dev,
 			return err;
 
 #define ZPA2326_FIFO_DEPTH (16U)
-		/* Hardware FIFO may hold no more than 16 pressure samples. */
+		/* Hardware FIFO may hold yes more than 16 pressure samples. */
 		return zpa2326_clear_fifo(indio_dev, ZPA2326_FIFO_DEPTH - 1);
 	}
 
 	/*
-	 * Fifo has not overflown : retrieve newest sample. We need to pop
+	 * Fifo has yest overflown : retrieve newest sample. We need to pop
 	 * values out until FIFO is empty : last fetched pressure is the newest.
-	 * In nominal cases, we should find a single queued sample only.
+	 * In yesminal cases, we should find a single queued sample only.
 	 */
 	do {
 		err = regmap_bulk_read(regs, ZPA2326_PRESS_OUT_XL_REG, pressure,
@@ -561,7 +561,7 @@ static int zpa2326_dequeue_pressure(const struct iio_dev *indio_dev,
 	if (cleared)
 		/*
 		 * Samples were pushed by hardware during previous rounds but we
-		 * didn't consume them fast enough: inform user.
+		 * didn't consume them fast eyesugh: inform user.
 		 */
 		zpa2326_dbg(indio_dev, "cleared %d FIFO entries", cleared);
 
@@ -700,7 +700,7 @@ static void zpa2326_suspend(struct iio_dev *indio_dev)
 
 static void zpa2326_init_runtime(struct device *parent)
 {
-	pm_runtime_get_noresume(parent);
+	pm_runtime_get_yesresume(parent);
 	pm_runtime_set_active(parent);
 	pm_runtime_enable(parent);
 	pm_runtime_set_autosuspend_delay(parent, 1000);
@@ -733,7 +733,7 @@ static void zpa2326_suspend(struct iio_dev *indio_dev)
 
 /**
  * zpa2326_handle_irq() - Process hardware interrupts.
- * @irq:  Interrupt line the hardware uses to notify new data has arrived.
+ * @irq:  Interrupt line the hardware uses to yestify new data has arrived.
  * @data: The IIO device associated with the sampling hardware.
  *
  * Timestamp buffered samples as soon as possible then schedule threaded bottom
@@ -756,20 +756,20 @@ static irqreturn_t zpa2326_handle_irq(int irq, void *data)
 
 /**
  * zpa2326_handle_threaded_irq() - Interrupt bottom-half handler.
- * @irq:  Interrupt line the hardware uses to notify new data has arrived.
+ * @irq:  Interrupt line the hardware uses to yestify new data has arrived.
  * @data: The IIO device associated with the sampling hardware.
  *
  * Mainly ensures interrupt is caused by a real "new sample available"
  * condition. This relies upon the ability to perform blocking / sleeping bus
  * accesses to slave's registers. This is why zpa2326_handle_threaded_irq() is
- * called from within a thread, i.e. not called from hard interrupt context.
+ * called from within a thread, i.e. yest called from hard interrupt context.
  *
  * When device is using its own internal hardware trigger in continuous sampling
  * mode, data are available into hardware FIFO once interrupt has occurred. All
  * we have to do is to dispatch the trigger, which in turn will fetch data and
  * fill IIO buffer.
  *
- * When not using its own internal hardware trigger, the device has been
+ * When yest using its own internal hardware trigger, the device has been
  * configured in one-shot mode either by an external trigger or the IIO read_raw
  * hook. This means one of the latter is currently waiting for sampling
  * completion, in which case we must simply wake it up.
@@ -777,7 +777,7 @@ static irqreturn_t zpa2326_handle_irq(int irq, void *data)
  * See zpa2326_trigger_handler().
  *
  * Return:
- *   %IRQ_NONE - no consistent interrupt happened ;
+ *   %IRQ_NONE - yes consistent interrupt happened ;
  *   %IRQ_HANDLED - there was new samples available.
  */
 static irqreturn_t zpa2326_handle_threaded_irq(int irq, void *data)
@@ -810,7 +810,7 @@ static irqreturn_t zpa2326_handle_threaded_irq(int irq, void *data)
 	/* Data ready is the only interrupt source we requested. */
 	if (!(val & ZPA2326_INT_SOURCE_DATA_READY)) {
 		/*
-		 * Interrupt happened but no new sample available: likely caused
+		 * Interrupt happened but yes new sample available: likely caused
 		 * by spurious interrupts, in which case, returning IRQ_NONE
 		 * allows to benefit from the generic spurious interrupts
 		 * handling.
@@ -876,7 +876,7 @@ static int zpa2326_wait_oneshot_completion(const struct iio_dev   *indio_dev,
 
 	if (!timeout) {
 		/* Timed out. */
-		zpa2326_warn(indio_dev, "no one shot interrupt occurred (%ld)",
+		zpa2326_warn(indio_dev, "yes one shot interrupt occurred (%ld)",
 			     timeout);
 		return -ETIME;
 	}
@@ -896,10 +896,10 @@ static int zpa2326_init_managed_irq(struct device          *parent,
 
 	if (irq <= 0) {
 		/*
-		 * Platform declared no interrupt line: device will be polled
+		 * Platform declared yes interrupt line: device will be polled
 		 * for data availability.
 		 */
-		dev_info(parent, "no interrupt found, running in polling mode");
+		dev_info(parent, "yes interrupt found, running in polling mode");
 		return 0;
 	}
 
@@ -926,7 +926,7 @@ static int zpa2326_init_managed_irq(struct device          *parent,
  * @indio_dev: The IIO device associated with the sampling hardware.
  *
  * Loop over registers content to detect end of sampling cycle. Used when DT
- * declared no valid interrupt lines.
+ * declared yes valid interrupt lines.
  *
  * Return: Zero when successful, a negative error code otherwise.
  */
@@ -1136,7 +1136,7 @@ release:
  *
  * When using an external trigger, basically run the same sequence of operations
  * as for zpa2326_sample_oneshot() with the following hereafter. Hardware FIFO
- * is not cleared since already done at buffering enable time and samples
+ * is yest cleared since already done at buffering enable time and samples
  * dequeueing always retrieves the most recent value.
  *
  * Otherwise, when internal hardware trigger has dispatched us, just fetch data
@@ -1146,7 +1146,7 @@ release:
  * is delegated to userspace in buffered mode (endianness, etc...).
  *
  * Return:
- *   %IRQ_NONE - no consistent interrupt happened ;
+ *   %IRQ_NONE - yes consistent interrupt happened ;
  *   %IRQ_HANDLED - there was new samples available.
  */
 static irqreturn_t zpa2326_trigger_handler(int irq, void *data)
@@ -1192,7 +1192,7 @@ out:
 		zpa2326_sleep(indio_dev);
 
 	/* Inform attached trigger we are done. */
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1231,7 +1231,7 @@ static int zpa2326_preenable_buffer(struct iio_dev *indio_dev)
  * see zpa2326_set_trigger_state().
  *
  * If an error is returned, IIO layer will call our postdisable hook for us,
- * i.e. no need to explicitly power device off here.
+ * i.e. yes need to explicitly power device off here.
  * Called with IIO device's lock held.
  *
  * Called with IIO device's lock held.
@@ -1323,7 +1323,7 @@ static int zpa2326_set_trigger_state(struct iio_trigger *trig, bool state)
 		 * As device is working in continuous mode, handlers may be
 		 * accessing resources we are currently freeing...
 		 * Prevent this by disabling interrupt handlers and ensure
-		 * the device will generate no more interrupts unless explicitly
+		 * the device will generate yes more interrupts unless explicitly
 		 * required to, i.e. by restoring back to default one shot mode.
 		 */
 		disable_irq(priv->irq);
@@ -1339,7 +1339,7 @@ static int zpa2326_set_trigger_state(struct iio_trigger *trig, bool state)
 
 		/*
 		 * Now that device won't generate interrupts on its own,
-		 * acknowledge any currently active interrupts (may happen on
+		 * ackyeswledge any currently active interrupts (may happen on
 		 * rare occasions while stopping continuous mode).
 		 */
 		err = regmap_read(priv->regmap, ZPA2326_INT_SOURCE_REG, &val);
@@ -1348,7 +1348,7 @@ static int zpa2326_set_trigger_state(struct iio_trigger *trig, bool state)
 
 		/*
 		 * Re-enable interrupts only if we can guarantee the device will
-		 * generate no more interrupts to prevent handlers from
+		 * generate yes more interrupts to prevent handlers from
 		 * accessing released resources.
 		 */
 		enable_irq(priv->irq);
@@ -1389,13 +1389,13 @@ static const struct iio_trigger_ops zpa2326_trigger_ops = {
 
 /**
  * zpa2326_init_trigger() - Create an interrupt driven / hardware trigger
- *                          allowing to notify external devices a new sample is
+ *                          allowing to yestify external devices a new sample is
  *                          ready.
  * @parent:    Hardware sampling device @indio_dev is a child of.
  * @indio_dev: The IIO device associated with the sampling hardware.
  * @private:   Internal private state related to @indio_dev.
- * @irq:       Optional interrupt line the hardware uses to notify new data
- *             samples are ready. Negative or zero values indicate no interrupts
+ * @irq:       Optional interrupt line the hardware uses to yestify new data
+ *             samples are ready. Negative or zero values indicate yes interrupts
  *             are available, meaning polling is required.
  *
  * Only relevant when DT declares a valid interrupt line.
@@ -1600,7 +1600,7 @@ static struct iio_dev *zpa2326_create_managed_iiodev(struct device *device,
 	if (!indio_dev)
 		return NULL;
 
-	/* Setup for userspace synchronous on demand sampling. */
+	/* Setup for userspace synchroyesus on demand sampling. */
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->dev.parent = device;
 	indio_dev->channels = zpa2326_channels;
@@ -1642,7 +1642,7 @@ int zpa2326_probe(struct device *parent,
 	/*
 	 * Plug device's underlying bus abstraction : this MUST be set before
 	 * registering interrupt handlers since an interrupt might happen if
-	 * power up sequence is not properly applied.
+	 * power up sequence is yest properly applied.
 	 */
 	priv->regmap = regmap;
 

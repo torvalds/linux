@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * dlmglue.h
  *
@@ -53,7 +53,7 @@ struct ocfs2_qinfo_lvb {
 struct ocfs2_orphan_scan_lvb {
 	__u8	lvb_version;
 	__u8	lvb_reserved[3];
-	__be32	lvb_os_seqno;
+	__be32	lvb_os_seqyes;
 };
 
 #define OCFS2_TRIMFS_LVB_VERSION 1
@@ -62,7 +62,7 @@ struct ocfs2_trim_fs_lvb {
 	__u8	lvb_version;
 	__u8	lvb_success;
 	__u8	lvb_reserved[2];
-	__be32	lvb_nodenum;
+	__be32	lvb_yesdenum;
 	__be64	lvb_start;
 	__be64	lvb_len;
 	__be64	lvb_minlen;
@@ -70,9 +70,9 @@ struct ocfs2_trim_fs_lvb {
 };
 
 struct ocfs2_trim_fs_info {
-	u8	tf_valid;	/* lvb is valid, or not */
-	u8	tf_success;	/* trim is successful, or not */
-	u32	tf_nodenum;	/* osb node number */
+	u8	tf_valid;	/* lvb is valid, or yest */
+	u8	tf_success;	/* trim is successful, or yest */
+	u32	tf_yesdenum;	/* osb yesde number */
 	u64	tf_start;	/* trim start offset in clusters */
 	u64	tf_len;		/* trim end offset in clusters */
 	u64	tf_minlen;	/* trim minimum contiguous free clusters */
@@ -85,17 +85,17 @@ struct ocfs2_lock_holder {
 	int oh_ex;
 };
 
-/* ocfs2_inode_lock_full() 'arg_flags' flags */
+/* ocfs2_iyesde_lock_full() 'arg_flags' flags */
 /* don't wait on recovery. */
 #define OCFS2_META_LOCK_RECOVERY	(0x01)
-/* Instruct the dlm not to queue ourselves on the other node. */
+/* Instruct the dlm yest to queue ourselves on the other yesde. */
 #define OCFS2_META_LOCK_NOQUEUE		(0x02)
 /* don't block waiting for the downconvert thread, instead return -EAGAIN */
 #define OCFS2_LOCK_NONBLOCK		(0x04)
-/* just get back disk inode bh if we've got cluster lock. */
+/* just get back disk iyesde bh if we've got cluster lock. */
 #define OCFS2_META_LOCK_GETBH		(0x08)
 
-/* Locking subclasses of inode cluster lock */
+/* Locking subclasses of iyesde cluster lock */
 enum {
 	OI_LS_NORMAL = 0,
 	OI_LS_PARENT,
@@ -107,12 +107,12 @@ enum {
 int ocfs2_dlm_init(struct ocfs2_super *osb);
 void ocfs2_dlm_shutdown(struct ocfs2_super *osb, int hangup_pending);
 void ocfs2_lock_res_init_once(struct ocfs2_lock_res *res);
-void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
+void ocfs2_iyesde_lock_res_init(struct ocfs2_lock_res *res,
 			       enum ocfs2_lock_type type,
 			       unsigned int generation,
-			       struct inode *inode);
+			       struct iyesde *iyesde);
 void ocfs2_dentry_lock_res_init(struct ocfs2_dentry_lock *dl,
-				u64 parent, struct inode *inode);
+				u64 parent, struct iyesde *iyesde);
 struct ocfs2_file_private;
 void ocfs2_file_lock_res_init(struct ocfs2_lock_res *lockres,
 			      struct ocfs2_file_private *fp);
@@ -120,48 +120,48 @@ struct ocfs2_mem_dqinfo;
 void ocfs2_qinfo_lock_res_init(struct ocfs2_lock_res *lockres,
                                struct ocfs2_mem_dqinfo *info);
 void ocfs2_refcount_lock_res_init(struct ocfs2_lock_res *lockres,
-				  struct ocfs2_super *osb, u64 ref_blkno,
+				  struct ocfs2_super *osb, u64 ref_blkyes,
 				  unsigned int generation);
 void ocfs2_lock_res_free(struct ocfs2_lock_res *res);
-int ocfs2_create_new_inode_locks(struct inode *inode);
-int ocfs2_drop_inode_locks(struct inode *inode);
-int ocfs2_rw_lock(struct inode *inode, int write);
-int ocfs2_try_rw_lock(struct inode *inode, int write);
-void ocfs2_rw_unlock(struct inode *inode, int write);
-int ocfs2_open_lock(struct inode *inode);
-int ocfs2_try_open_lock(struct inode *inode, int write);
-void ocfs2_open_unlock(struct inode *inode);
-int ocfs2_inode_lock_atime(struct inode *inode,
+int ocfs2_create_new_iyesde_locks(struct iyesde *iyesde);
+int ocfs2_drop_iyesde_locks(struct iyesde *iyesde);
+int ocfs2_rw_lock(struct iyesde *iyesde, int write);
+int ocfs2_try_rw_lock(struct iyesde *iyesde, int write);
+void ocfs2_rw_unlock(struct iyesde *iyesde, int write);
+int ocfs2_open_lock(struct iyesde *iyesde);
+int ocfs2_try_open_lock(struct iyesde *iyesde, int write);
+void ocfs2_open_unlock(struct iyesde *iyesde);
+int ocfs2_iyesde_lock_atime(struct iyesde *iyesde,
 			  struct vfsmount *vfsmnt,
 			  int *level, int wait);
-int ocfs2_inode_lock_full_nested(struct inode *inode,
+int ocfs2_iyesde_lock_full_nested(struct iyesde *iyesde,
 			 struct buffer_head **ret_bh,
 			 int ex,
 			 int arg_flags,
 			 int subclass);
-int ocfs2_inode_lock_with_page(struct inode *inode,
+int ocfs2_iyesde_lock_with_page(struct iyesde *iyesde,
 			      struct buffer_head **ret_bh,
 			      int ex,
 			      struct page *page);
 /* Variants without special locking class or flags */
-#define ocfs2_inode_lock_full(i, r, e, f)\
-		ocfs2_inode_lock_full_nested(i, r, e, f, OI_LS_NORMAL)
-#define ocfs2_inode_lock_nested(i, b, e, s)\
-		ocfs2_inode_lock_full_nested(i, b, e, 0, s)
+#define ocfs2_iyesde_lock_full(i, r, e, f)\
+		ocfs2_iyesde_lock_full_nested(i, r, e, f, OI_LS_NORMAL)
+#define ocfs2_iyesde_lock_nested(i, b, e, s)\
+		ocfs2_iyesde_lock_full_nested(i, b, e, 0, s)
 /* 99% of the time we don't want to supply any additional flags --
  * those are for very specific cases only. */
-#define ocfs2_inode_lock(i, b, e) ocfs2_inode_lock_full_nested(i, b, e, 0, OI_LS_NORMAL)
-#define ocfs2_try_inode_lock(i, b, e)\
-		ocfs2_inode_lock_full_nested(i, b, e, OCFS2_META_LOCK_NOQUEUE,\
+#define ocfs2_iyesde_lock(i, b, e) ocfs2_iyesde_lock_full_nested(i, b, e, 0, OI_LS_NORMAL)
+#define ocfs2_try_iyesde_lock(i, b, e)\
+		ocfs2_iyesde_lock_full_nested(i, b, e, OCFS2_META_LOCK_NOQUEUE,\
 		OI_LS_NORMAL)
-void ocfs2_inode_unlock(struct inode *inode,
+void ocfs2_iyesde_unlock(struct iyesde *iyesde,
 		       int ex);
 int ocfs2_super_lock(struct ocfs2_super *osb,
 		     int ex);
 void ocfs2_super_unlock(struct ocfs2_super *osb,
 			int ex);
-int ocfs2_orphan_scan_lock(struct ocfs2_super *osb, u32 *seqno);
-void ocfs2_orphan_scan_unlock(struct ocfs2_super *osb, u32 seqno);
+int ocfs2_orphan_scan_lock(struct ocfs2_super *osb, u32 *seqyes);
+void ocfs2_orphan_scan_unlock(struct ocfs2_super *osb, u32 seqyes);
 
 int ocfs2_rename_lock(struct ocfs2_super *osb);
 void ocfs2_rename_unlock(struct ocfs2_super *osb);
@@ -199,11 +199,11 @@ void ocfs2_put_dlm_debug(struct ocfs2_dlm_debug *dlm_debug);
 void ocfs2_set_locking_protocol(void);
 
 /* The _tracker pair is used to avoid cluster recursive locking */
-int ocfs2_inode_lock_tracker(struct inode *inode,
+int ocfs2_iyesde_lock_tracker(struct iyesde *iyesde,
 			     struct buffer_head **ret_bh,
 			     int ex,
 			     struct ocfs2_lock_holder *oh);
-void ocfs2_inode_unlock_tracker(struct inode *inode,
+void ocfs2_iyesde_unlock_tracker(struct iyesde *iyesde,
 				int ex,
 				struct ocfs2_lock_holder *oh,
 				int had_lock);

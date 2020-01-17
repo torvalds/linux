@@ -12,7 +12,7 @@
 /*
  * Exact prototype of getcpu
  *
- * int __kernel_getcpu(unsigned *cpu, unsigned *node);
+ * int __kernel_getcpu(unsigned *cpu, unsigned *yesde);
  *
  */
 V_FUNCTION_BEGIN(__kernel_getcpu)

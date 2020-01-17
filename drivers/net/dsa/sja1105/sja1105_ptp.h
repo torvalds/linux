@@ -78,7 +78,7 @@ int sja1105_ptp_commit(struct dsa_switch *ds, struct sja1105_ptp_cmd *cmd,
 
 struct sja1105_ptp_cmd;
 
-/* Structures cannot be empty in C. Bah!
+/* Structures canyest be empty in C. Bah!
  * Keep the mutex as the only element, which is a bit more difficult to
  * refactor out of sja1105_main.c anyway.
  */

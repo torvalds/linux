@@ -15,7 +15,7 @@ multiple modules.
 modules.builtin
 ---------------
 This file lists all modules that are built into the kernel. This is used
-by modprobe to not fail when trying to load something builtin.
+by modprobe to yest fail when trying to load something builtin.
 
 modules.builtin.modinfo
 -----------------------
@@ -116,10 +116,10 @@ Setting "W=..." takes precedence over KBUILD_EXTRA_WARN.
 
 KBUILD_DEBARCH
 --------------
-For the deb-pkg target, allows overriding the normal heuristics deployed by
+For the deb-pkg target, allows overriding the yesrmal heuristics deployed by
 deb-pkg. Normally deb-pkg attempts to guess the right architecture based on
 the UTS_MACHINE variable, and on some architectures also the kernel config.
-The value of KBUILD_DEBARCH is assumed (not checked) to be a valid Debian
+The value of KBUILD_DEBARCH is assumed (yest checked) to be a valid Debian
 architecture.
 
 ARCH
@@ -180,12 +180,12 @@ The default value is::
 
      $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 
-The value can be overridden in which case the default value is ignored.
+The value can be overridden in which case the default value is igyesred.
 
 INSTALL_MOD_PATH
 ----------------
 INSTALL_MOD_PATH specifies a prefix to MODLIB for module directory
-relocations required by build roots.  This is not defined in the
+relocations required by build roots.  This is yest defined in the
 makefile but the argument can be passed to make if needed.
 
 INSTALL_MOD_STRIP
@@ -207,7 +207,7 @@ The default value is::
 $(objtree) is the directory where output files are saved.
 The output directory is often set using "O=..." on the commandline.
 
-The value can be overridden in which case the default value is ignored.
+The value can be overridden in which case the default value is igyesred.
 
 KBUILD_ABS_SRCTREE
 --------------------------------------------------

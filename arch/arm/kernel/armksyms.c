@@ -20,8 +20,8 @@
 
 /*
  * libgcc functions - functions that are used internally by the
- * compiler...  (prototypes are not correct though, but that
- * doesn't really matter since they're not versioned).
+ * compiler...  (prototypes are yest correct though, but that
+ * doesn't really matter since they're yest versioned).
  */
 extern void __ashldi3(void);
 extern void __ashrdi3(void);
@@ -57,7 +57,7 @@ EXPORT_SYMBOL(arm_delay_ops);
 	/* networking */
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_from_user);
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
+EXPORT_SYMBOL(csum_partial_copy_yescheck);
 EXPORT_SYMBOL(__csum_ipv6_magic);
 
 	/* io */

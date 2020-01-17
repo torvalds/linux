@@ -573,7 +573,7 @@ static int tgr192_final(struct shash_desc *desc, u8 * out)
 	}
 	msb += t >> 29;
 
-	if (tctx->count < 56) {	/* enough room */
+	if (tctx->count < 56) {	/* eyesugh room */
 		tctx->hash[tctx->count++] = 0x01;	/* pad */
 		while (tctx->count < 56) {
 			tctx->hash[tctx->count++] = 0;	/* pad */

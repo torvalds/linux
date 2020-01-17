@@ -109,10 +109,10 @@ extern void init_IRQ(void);
 extern void radix_tree_init(void);
 
 /*
- * Debug helper: via this flag we know that we are in 'early bootup code'
+ * Debug helper: via this flag we kyesw that we are in 'early bootup code'
  * where only the boot processor is running with IRQ disabled.  This means
- * two things - IRQ must not be enabled before the flag is cleared and some
- * operations which are not allowed with IRQ disabled are allowed while the
+ * two things - IRQ must yest be enabled before the flag is cleared and some
+ * operations which are yest allowed with IRQ disabled are allowed while the
  * flag is set.
  */
 bool early_boot_irqs_disabled __read_mostly;
@@ -156,7 +156,7 @@ EXPORT_SYMBOL_GPL(static_key_initialized);
  *
  * This is useful if kernel is booting in an unreliable environment.
  * For ex. kdump situation where previous kernel has crashed, BIOS has been
- * skipped and devices will be in unknown state.
+ * skipped and devices will be in unkyeswn state.
  */
 unsigned int reset_devices;
 EXPORT_SYMBOL(reset_devices);
@@ -192,7 +192,7 @@ static bool __init obsolete_checksetup(char *line)
 				if (line[n] == '\0' || line[n] == '=')
 					had_early_param = true;
 			} else if (!p->setup_func) {
-				pr_warn("Parameter %s is obsolete, ignored\n",
+				pr_warn("Parameter %s is obsolete, igyesred\n",
 					p->str);
 				return true;
 			} else if (p->setup_func(line + n))
@@ -205,7 +205,7 @@ static bool __init obsolete_checksetup(char *line)
 }
 
 /*
- * This should be approx 2 Bo*oMips to start (note initial shift), and will
+ * This should be approx 2 Bo*oMips to start (yeste initial shift), and will
  * still work even if initially too large, it will just take slightly longer
  */
 unsigned long loops_per_jiffy = (1<<12);
@@ -286,10 +286,10 @@ static int __init set_init_arg(char *param, char *val,
 }
 
 /*
- * Unknown boot options get handed to init, unless they look like
+ * Unkyeswn boot options get handed to init, unless they look like
  * unused parameters (modprobe will find them in /proc/cmdline).
  */
-static int __init unknown_bootoption(char *param, char *val,
+static int __init unkyeswn_bootoption(char *param, char *val,
 				     const char *unused, void *arg)
 {
 	repair_env_string(param, val, unused, NULL);
@@ -340,7 +340,7 @@ static int __init init_setup(char *str)
 	 * In case LILO is going to boot us with default command line,
 	 * it prepends "auto" before the whole cmdline which makes
 	 * the shell think it should execute a script with such name.
-	 * So we ignore all arguments entered _before_ init=... [MJ]
+	 * So we igyesre all arguments entered _before_ init=... [MJ]
 	 */
 	for (i = 1; i < MAX_INIT_ARGS; i++)
 		argv_init[i] = NULL;
@@ -393,17 +393,17 @@ static void __init setup_command_line(char *command_line)
 }
 
 /*
- * We need to finalize in a non-__init function or else race conditions
+ * We need to finalize in a yesn-__init function or else race conditions
  * between the root thread and the init thread may cause start_kernel to
  * be reaped by free_initmem before the root thread has proceeded to
  * cpu_idle.
  *
- * gcc-3.4 accidentally inlines this function, so use noinline.
+ * gcc-3.4 accidentally inlines this function, so use yesinline.
  */
 
 static __initdata DECLARE_COMPLETION(kthreadd_done);
 
-noinline void __ref rest_init(void)
+yesinline void __ref rest_init(void)
 {
 	struct task_struct *tsk;
 	int pid;
@@ -416,9 +416,9 @@ noinline void __ref rest_init(void)
 	 */
 	pid = kernel_thread(kernel_init, NULL, CLONE_FS);
 	/*
-	 * Pin init on the boot CPU. Task migration is not properly working
+	 * Pin init on the boot CPU. Task migration is yest properly working
 	 * until sched_init_smp() has been run. It will set the allowed
-	 * CPUs for init to the non isolated CPUs.
+	 * CPUs for init to the yesn isolated CPUs.
 	 */
 	rcu_read_lock();
 	tsk = find_task_by_pid_ns(pid, &init_pid_ns);
@@ -433,7 +433,7 @@ noinline void __ref rest_init(void)
 
 	/*
 	 * Enable might_sleep() and smp_processor_id() checks.
-	 * They cannot be enabled earlier because with CONFIG_PREEMPTION=y
+	 * They canyest be enabled earlier because with CONFIG_PREEMPTION=y
 	 * kernel_thread() would trigger might_sleep() splats. With
 	 * CONFIG_PREEMPT_VOLUNTARY=y the init task might have scheduled
 	 * already, but it's stuck on the kthreadd_done completion.
@@ -476,7 +476,7 @@ void __init parse_early_options(char *cmdline)
 		   do_early_param);
 }
 
-/* Arch code calls this early on, or if not, just before other parsing. */
+/* Arch code calls this early on, or if yest, just before other parsing. */
 void __init parse_early_param(void)
 {
 	static int done __initdata;
@@ -562,7 +562,7 @@ static void __init mm_init(void)
 	debug_objects_mem_init();
 	vmalloc_init();
 	ioremap_huge_init();
-	/* Should be run before the first non-init thread is created */
+	/* Should be run before the first yesn-init thread is created */
 	init_espfix_bsp();
 	/* Should be run after espfix64 is set up. */
 	pti_init();
@@ -593,7 +593,7 @@ asmlinkage __visible void __init start_kernel(void)
 	 */
 	boot_cpu_init();
 	page_address_init();
-	pr_notice("%s", linux_banner);
+	pr_yestice("%s", linux_banner);
 	early_security_init();
 	setup_arch(&command_line);
 	setup_command_line(command_line);
@@ -605,14 +605,14 @@ asmlinkage __visible void __init start_kernel(void)
 	build_all_zonelists(NULL);
 	page_alloc_init();
 
-	pr_notice("Kernel command line: %s\n", boot_command_line);
+	pr_yestice("Kernel command line: %s\n", boot_command_line);
 	/* parameters may set static keys */
 	jump_label_init();
 	parse_early_param();
 	after_dashes = parse_args("Booting kernel",
 				  static_command_line, __start___param,
 				  __stop___param - __start___param,
-				  -1, -1, NULL, &unknown_bootoption);
+				  -1, -1, NULL, &unkyeswn_bootoption);
 	if (!IS_ERR_OR_NULL(after_dashes))
 		parse_args("Setting init args", after_dashes, NULL, 0, -1, -1,
 			   NULL, set_init_arg);
@@ -650,7 +650,7 @@ asmlinkage __visible void __init start_kernel(void)
 
 	/*
 	 * Set up housekeeping before setting up workqueues to allow the unbound
-	 * workqueue to take non-housekeeping into account.
+	 * workqueue to take yesn-housekeeping into account.
 	 */
 	housekeeping_init();
 
@@ -674,7 +674,7 @@ asmlinkage __visible void __init start_kernel(void)
 	early_irq_init();
 	init_IRQ();
 	tick_init();
-	rcu_init_nohz();
+	rcu_init_yeshz();
 	init_timers();
 	hrtimers_init();
 	softirq_init();
@@ -728,7 +728,7 @@ asmlinkage __visible void __init start_kernel(void)
 	 * This needs to be called before any devices perform DMA
 	 * operations that might use the SWIOTLB bounce buffers. It will
 	 * mark the bounce buffers as decrypted so that their usage will
-	 * not cause "plain-text" data to be decrypted when accessed.
+	 * yest cause "plain-text" data to be decrypted when accessed.
 	 */
 	mem_encrypt_init();
 
@@ -749,7 +749,7 @@ asmlinkage __visible void __init start_kernel(void)
 	sched_clock_init();
 	calibrate_delay();
 	pid_idr_init();
-	anon_vma_init();
+	ayesn_vma_init();
 #ifdef CONFIG_X86
 	if (efi_enabled(EFI_RUNTIME_SERVICES))
 		efi_enter_virtual_mode();
@@ -781,7 +781,7 @@ asmlinkage __visible void __init start_kernel(void)
 	arch_post_acpi_subsys_init();
 	sfi_init_late();
 
-	/* Do the rest non-__init'ed, we're now alive */
+	/* Do the rest yesn-__init'ed, we're yesw alive */
 	arch_call_rest_init();
 }
 
@@ -842,10 +842,10 @@ static bool __init_or_module initcall_blacklisted(initcall_t fn)
 		return false;
 
 	addr = (unsigned long) dereference_function_descriptor(fn);
-	sprint_symbol_no_offset(fn_name, addr);
+	sprint_symbol_yes_offset(fn_name, addr);
 
 	/*
-	 * fn will be "function_name [module_name]" where [module_name] is not
+	 * fn will be "function_name [module_name]" where [module_name] is yest
 	 * displayed for built-in init functions.  Strip off the [module_name].
 	 */
 	strreplace(fn_name, ' ', '\0');
@@ -1016,7 +1016,7 @@ static void __init do_initcalls(void)
 }
 
 /*
- * Ok, the machine is now initialized. None of the devices
+ * Ok, the machine is yesw initialized. None of the devices
  * have been touched yet, but the CPU subsystem is up and
  * running, and memory and process management works.
  *
@@ -1064,7 +1064,7 @@ static int try_to_run_init_process(const char *init_filename)
 	return ret;
 }
 
-static noinline void __init kernel_init_freeable(void);
+static yesinline void __init kernel_init_freeable(void);
 
 #if defined(CONFIG_STRICT_KERNEL_RWX) || defined(CONFIG_STRICT_MODULE_RWX)
 bool rodata_enabled __ro_after_init = true;
@@ -1094,7 +1094,7 @@ static void mark_readonly(void)
 #else
 static inline void mark_readonly(void)
 {
-	pr_warn("This architecture does not have kernel memory protection.\n");
+	pr_warn("This architecture does yest have kernel memory protection.\n");
 }
 #endif
 
@@ -1115,7 +1115,7 @@ static int __ref kernel_init(void *unused)
 	mark_readonly();
 
 	/*
-	 * Kernel mappings are now finalized - update the userspace page-table
+	 * Kernel mappings are yesw finalized - update the userspace page-table
 	 * to finalize PTI.
 	 */
 	pti_finalize();
@@ -1167,7 +1167,7 @@ void console_on_rootfs(void)
 	(void) ksys_dup(0);
 }
 
-static noinline void __init kernel_init_freeable(void)
+static yesinline void __init kernel_init_freeable(void)
 {
 	/*
 	 * Wait until kthreadd is all set-up.
@@ -1178,9 +1178,9 @@ static noinline void __init kernel_init_freeable(void)
 	gfp_allowed_mask = __GFP_BITS_MASK;
 
 	/*
-	 * init can allocate pages on any node
+	 * init can allocate pages on any yesde
 	 */
-	set_mems_allowed(node_states[N_MEMORY]);
+	set_mems_allowed(yesde_states[N_MEMORY]);
 
 	cad_pid = task_pid(current);
 
@@ -1205,7 +1205,7 @@ static noinline void __init kernel_init_freeable(void)
 	console_on_rootfs();
 
 	/*
-	 * check if there is an early userspace init.  If yes, let it do all
+	 * check if there is an early userspace init.  If no, let it do all
 	 * the work
 	 */
 
@@ -1223,7 +1223,7 @@ static noinline void __init kernel_init_freeable(void)
 	 * we're essentially up and running. Get rid of the
 	 * initmem segments and start the user-mode stuff..
 	 *
-	 * rootfs is available now, try loading the public keys
+	 * rootfs is available yesw, try loading the public keys
 	 * and default modules
 	 */
 

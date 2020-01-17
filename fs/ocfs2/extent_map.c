@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * extent_map.c
  *
@@ -22,7 +22,7 @@
 #include "alloc.h"
 #include "dlmglue.h"
 #include "extent_map.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "super.h"
 #include "symlink.h"
 #include "aops.h"
@@ -34,14 +34,14 @@
  * The extent caching implementation is intentionally trivial.
  *
  * We only cache a small number of extents stored directly on the
- * inode, so linear order operations are acceptable. If we ever want
+ * iyesde, so linear order operations are acceptable. If we ever want
  * to increase the size of the extent map, then these algorithms must
  * get smarter.
  */
 
-void ocfs2_extent_map_init(struct inode *inode)
+void ocfs2_extent_map_init(struct iyesde *iyesde)
 {
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_iyesde_info *oi = OCFS2_I(iyesde);
 
 	oi->ip_extent_map.em_num_items = 0;
 	INIT_LIST_HEAD(&oi->ip_extent_map.em_list);
@@ -68,12 +68,12 @@ static void __ocfs2_extent_map_lookup(struct ocfs2_extent_map *em,
 	}
 }
 
-static int ocfs2_extent_map_lookup(struct inode *inode, unsigned int cpos,
+static int ocfs2_extent_map_lookup(struct iyesde *iyesde, unsigned int cpos,
 				   unsigned int *phys, unsigned int *len,
 				   unsigned int *flags)
 {
 	unsigned int coff;
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_iyesde_info *oi = OCFS2_I(iyesde);
 	struct ocfs2_extent_map_item *emi;
 
 	spin_lock(&oi->ip_lock);
@@ -99,10 +99,10 @@ static int ocfs2_extent_map_lookup(struct inode *inode, unsigned int cpos,
 /*
  * Forget about all clusters equal to or greater than cpos.
  */
-void ocfs2_extent_map_trunc(struct inode *inode, unsigned int cpos)
+void ocfs2_extent_map_trunc(struct iyesde *iyesde, unsigned int cpos)
 {
 	struct ocfs2_extent_map_item *emi, *n;
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_iyesde_info *oi = OCFS2_I(iyesde);
 	struct ocfs2_extent_map *em = &oi->ip_extent_map;
 	LIST_HEAD(tmp_list);
 	unsigned int range;
@@ -192,7 +192,7 @@ static int ocfs2_try_to_merge_extent_map(struct ocfs2_extent_map_item *emi,
 	/*
 	 * Overlapping extents - this shouldn't happen unless we've
 	 * split an extent to change it's flags. That is exceedingly
-	 * rare, so there's no sense in trying to optimize it yet.
+	 * rare, so there's yes sense in trying to optimize it yet.
 	 */
 	if (ocfs2_ei_is_contained(emi, ins) ||
 	    ocfs2_ei_is_contained(ins, emi)) {
@@ -212,17 +212,17 @@ static int ocfs2_try_to_merge_extent_map(struct ocfs2_extent_map_item *emi,
  * records have been deleted. This avoids inserting overlapping
  * records with different physical mappings.
  */
-void ocfs2_extent_map_insert_rec(struct inode *inode,
+void ocfs2_extent_map_insert_rec(struct iyesde *iyesde,
 				 struct ocfs2_extent_rec *rec)
 {
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_iyesde_info *oi = OCFS2_I(iyesde);
 	struct ocfs2_extent_map *em = &oi->ip_extent_map;
 	struct ocfs2_extent_map_item *emi, *new_emi = NULL;
 	struct ocfs2_extent_map_item ins;
 
 	ins.ei_cpos = le32_to_cpu(rec->e_cpos);
-	ins.ei_phys = ocfs2_blocks_to_clusters(inode->i_sb,
-					       le64_to_cpu(rec->e_blkno));
+	ins.ei_phys = ocfs2_blocks_to_clusters(iyesde->i_sb,
+					       le64_to_cpu(rec->e_blkyes));
 	ins.ei_clusters = le16_to_cpu(rec->e_leaf_clusters);
 	ins.ei_flags = rec->e_flags;
 
@@ -273,8 +273,8 @@ out:
 	kfree(new_emi);
 }
 
-static int ocfs2_last_eb_is_empty(struct inode *inode,
-				  struct ocfs2_dinode *di)
+static int ocfs2_last_eb_is_empty(struct iyesde *iyesde,
+				  struct ocfs2_diyesde *di)
 {
 	int ret, next_free;
 	u64 last_eb_blk = le64_to_cpu(di->i_last_eb_blk);
@@ -282,9 +282,9 @@ static int ocfs2_last_eb_is_empty(struct inode *inode,
 	struct ocfs2_extent_block *eb;
 	struct ocfs2_extent_list *el;
 
-	ret = ocfs2_read_extent_block(INODE_CACHE(inode), last_eb_blk, &eb_bh);
+	ret = ocfs2_read_extent_block(INODE_CACHE(iyesde), last_eb_blk, &eb_bh);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
@@ -292,9 +292,9 @@ static int ocfs2_last_eb_is_empty(struct inode *inode,
 	el = &eb->h_list;
 
 	if (el->l_tree_depth) {
-		ocfs2_error(inode->i_sb,
-			    "Inode %lu has non zero tree depth in leaf block %llu\n",
-			    inode->i_ino,
+		ocfs2_error(iyesde->i_sb,
+			    "Iyesde %lu has yesn zero tree depth in leaf block %llu\n",
+			    iyesde->i_iyes,
 			    (unsigned long long)eb_bh->b_blocknr);
 		ret = -EROFS;
 		goto out;
@@ -335,10 +335,10 @@ static int ocfs2_search_for_hole_index(struct ocfs2_extent_list *el,
  * Figure out the size of a hole which starts at v_cluster within the given
  * extent list.
  *
- * If there is no more allocation past v_cluster, we return the maximum
+ * If there is yes more allocation past v_cluster, we return the maximum
  * cluster size minus v_cluster.
  *
- * If we have in-inode extents, then el points to the dinode list and
+ * If we have in-iyesde extents, then el points to the diyesde list and
  * eb_bh is NULL. Otherwise, eb_bh should point to the extent block
  * containing el.
  */
@@ -362,13 +362,13 @@ int ocfs2_figure_hole_clusters(struct ocfs2_caching_info *ci,
 		 */
 
 		if (le64_to_cpu(eb->h_next_leaf_blk) == 0ULL)
-			goto no_more_extents;
+			goto yes_more_extents;
 
 		ret = ocfs2_read_extent_block(ci,
 					      le64_to_cpu(eb->h_next_leaf_blk),
 					      &next_eb_bh);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out;
 		}
 
@@ -377,7 +377,7 @@ int ocfs2_figure_hole_clusters(struct ocfs2_caching_info *ci,
 		i = ocfs2_search_for_hole_index(el, v_cluster);
 	}
 
-no_more_extents:
+yes_more_extents:
 	if (i == le16_to_cpu(el->l_next_free_rec)) {
 		/*
 		 * We're at the end of our existing allocation. Just
@@ -395,14 +395,14 @@ out:
 	return ret;
 }
 
-static int ocfs2_get_clusters_nocache(struct inode *inode,
+static int ocfs2_get_clusters_yescache(struct iyesde *iyesde,
 				      struct buffer_head *di_bh,
 				      u32 v_cluster, unsigned int *hole_len,
 				      struct ocfs2_extent_rec *ret_rec,
 				      unsigned int *is_last)
 {
 	int i, ret, tree_height, len;
-	struct ocfs2_dinode *di;
+	struct ocfs2_diyesde *di;
 	struct ocfs2_extent_block *uninitialized_var(eb);
 	struct ocfs2_extent_list *el;
 	struct ocfs2_extent_rec *rec;
@@ -412,15 +412,15 @@ static int ocfs2_get_clusters_nocache(struct inode *inode,
 	if (is_last)
 		*is_last = 0;
 
-	di = (struct ocfs2_dinode *) di_bh->b_data;
+	di = (struct ocfs2_diyesde *) di_bh->b_data;
 	el = &di->id2.i_list;
 	tree_height = le16_to_cpu(el->l_tree_depth);
 
 	if (tree_height > 0) {
-		ret = ocfs2_find_leaf(INODE_CACHE(inode), el, v_cluster,
+		ret = ocfs2_find_leaf(INODE_CACHE(iyesde), el, v_cluster,
 				      &eb_bh);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out;
 		}
 
@@ -428,9 +428,9 @@ static int ocfs2_get_clusters_nocache(struct inode *inode,
 		el = &eb->h_list;
 
 		if (el->l_tree_depth) {
-			ocfs2_error(inode->i_sb,
-				    "Inode %lu has non zero tree depth in leaf block %llu\n",
-				    inode->i_ino,
+			ocfs2_error(iyesde->i_sb,
+				    "Iyesde %lu has yesn zero tree depth in leaf block %llu\n",
+				    iyesde->i_iyes,
 				    (unsigned long long)eb_bh->b_blocknr);
 			ret = -EROFS;
 			goto out;
@@ -445,11 +445,11 @@ static int ocfs2_get_clusters_nocache(struct inode *inode,
 		 * field.
 		 */
 		if (hole_len) {
-			ret = ocfs2_figure_hole_clusters(INODE_CACHE(inode),
+			ret = ocfs2_figure_hole_clusters(INODE_CACHE(iyesde),
 							 el, eb_bh,
 							 v_cluster, &len);
 			if (ret) {
-				mlog_errno(ret);
+				mlog_erryes(ret);
 				goto out;
 			}
 
@@ -462,10 +462,10 @@ static int ocfs2_get_clusters_nocache(struct inode *inode,
 
 	BUG_ON(v_cluster < le32_to_cpu(rec->e_cpos));
 
-	if (!rec->e_blkno) {
-		ocfs2_error(inode->i_sb,
-			    "Inode %lu has bad extent record (%u, %u, 0)\n",
-			    inode->i_ino,
+	if (!rec->e_blkyes) {
+		ocfs2_error(iyesde->i_sb,
+			    "Iyesde %lu has bad extent record (%u, %u, 0)\n",
+			    iyesde->i_iyes,
 			    le32_to_cpu(rec->e_cpos),
 			    ocfs2_rec_clusters(el, rec));
 		ret = -EROFS;
@@ -485,7 +485,7 @@ static int ocfs2_get_clusters_nocache(struct inode *inode,
 	 *
 	 * If those hold true, then the extent is last if any of the
 	 * additional conditions hold true:
-	 *  - Extent list is in-inode
+	 *  - Extent list is in-iyesde
 	 *  - Extent list is right-most
 	 *  - Extent list is 2nd to rightmost, with empty right-most
 	 */
@@ -493,12 +493,12 @@ static int ocfs2_get_clusters_nocache(struct inode *inode,
 		if (i == (le16_to_cpu(el->l_next_free_rec) - 1)) {
 			if (tree_height == 0)
 				*is_last = 1;
-			else if (eb->h_blkno == di->i_last_eb_blk)
+			else if (eb->h_blkyes == di->i_last_eb_blk)
 				*is_last = 1;
 			else if (eb->h_next_leaf_blk == di->i_last_eb_blk) {
-				ret = ocfs2_last_eb_is_empty(inode, di);
+				ret = ocfs2_last_eb_is_empty(iyesde, di);
 				if (ret < 0) {
-					mlog_errno(ret);
+					mlog_erryes(ret);
 					goto out;
 				}
 				if (ret == 1)
@@ -522,14 +522,14 @@ static void ocfs2_relative_extent_offsets(struct super_block *sb,
 {
 	u32 coff = v_cluster - le32_to_cpu(rec->e_cpos);
 
-	*p_cluster = ocfs2_blocks_to_clusters(sb, le64_to_cpu(rec->e_blkno));
+	*p_cluster = ocfs2_blocks_to_clusters(sb, le64_to_cpu(rec->e_blkyes));
 	*p_cluster = *p_cluster + coff;
 
 	if (num_clusters)
 		*num_clusters = le16_to_cpu(rec->e_leaf_clusters) - coff;
 }
 
-int ocfs2_xattr_get_clusters(struct inode *inode, u32 v_cluster,
+int ocfs2_xattr_get_clusters(struct iyesde *iyesde, u32 v_cluster,
 			     u32 *p_cluster, u32 *num_clusters,
 			     struct ocfs2_extent_list *el,
 			     unsigned int *extent_flags)
@@ -541,10 +541,10 @@ int ocfs2_xattr_get_clusters(struct inode *inode, u32 v_cluster,
 	u32 coff;
 
 	if (el->l_tree_depth) {
-		ret = ocfs2_find_leaf(INODE_CACHE(inode), el, v_cluster,
+		ret = ocfs2_find_leaf(INODE_CACHE(iyesde), el, v_cluster,
 				      &eb_bh);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out;
 		}
 
@@ -552,9 +552,9 @@ int ocfs2_xattr_get_clusters(struct inode *inode, u32 v_cluster,
 		el = &eb->h_list;
 
 		if (el->l_tree_depth) {
-			ocfs2_error(inode->i_sb,
-				    "Inode %lu has non zero tree depth in xattr leaf block %llu\n",
-				    inode->i_ino,
+			ocfs2_error(iyesde->i_sb,
+				    "Iyesde %lu has yesn zero tree depth in xattr leaf block %llu\n",
+				    iyesde->i_iyes,
 				    (unsigned long long)eb_bh->b_blocknr);
 			ret = -EROFS;
 			goto out;
@@ -564,24 +564,24 @@ int ocfs2_xattr_get_clusters(struct inode *inode, u32 v_cluster,
 	i = ocfs2_search_extent_list(el, v_cluster);
 	if (i == -1) {
 		ret = -EROFS;
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	} else {
 		rec = &el->l_recs[i];
 		BUG_ON(v_cluster < le32_to_cpu(rec->e_cpos));
 
-		if (!rec->e_blkno) {
-			ocfs2_error(inode->i_sb,
-				    "Inode %lu has bad extent record (%u, %u, 0) in xattr\n",
-				    inode->i_ino,
+		if (!rec->e_blkyes) {
+			ocfs2_error(iyesde->i_sb,
+				    "Iyesde %lu has bad extent record (%u, %u, 0) in xattr\n",
+				    iyesde->i_iyes,
 				    le32_to_cpu(rec->e_cpos),
 				    ocfs2_rec_clusters(el, rec));
 			ret = -EROFS;
 			goto out;
 		}
 		coff = v_cluster - le32_to_cpu(rec->e_cpos);
-		*p_cluster = ocfs2_blocks_to_clusters(inode->i_sb,
-						    le64_to_cpu(rec->e_blkno));
+		*p_cluster = ocfs2_blocks_to_clusters(iyesde->i_sb,
+						    le64_to_cpu(rec->e_blkyes));
 		*p_cluster = *p_cluster + coff;
 		if (num_clusters)
 			*num_clusters = ocfs2_rec_clusters(el, rec) - coff;
@@ -594,7 +594,7 @@ out:
 	return ret;
 }
 
-int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
+int ocfs2_get_clusters(struct iyesde *iyesde, u32 v_cluster,
 		       u32 *p_cluster, u32 *num_clusters,
 		       unsigned int *extent_flags)
 {
@@ -603,31 +603,31 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 	struct buffer_head *di_bh = NULL;
 	struct ocfs2_extent_rec rec;
 
-	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+	if (OCFS2_I(iyesde)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
 		ret = -ERANGE;
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
-	ret = ocfs2_extent_map_lookup(inode, v_cluster, p_cluster,
+	ret = ocfs2_extent_map_lookup(iyesde, v_cluster, p_cluster,
 				      num_clusters, extent_flags);
 	if (ret == 0)
 		goto out;
 
-	ret = ocfs2_read_inode_block(inode, &di_bh);
+	ret = ocfs2_read_iyesde_block(iyesde, &di_bh);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
-	ret = ocfs2_get_clusters_nocache(inode, di_bh, v_cluster, &hole_len,
+	ret = ocfs2_get_clusters_yescache(iyesde, di_bh, v_cluster, &hole_len,
 					 &rec, NULL);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
-	if (rec.e_blkno == 0ULL) {
+	if (rec.e_blkyes == 0ULL) {
 		/*
 		 * A hole was found. Return some canned values that
 		 * callers can key on. If asked for, num_clusters will
@@ -638,11 +638,11 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 			*num_clusters = hole_len;
 		}
 	} else {
-		ocfs2_relative_extent_offsets(inode->i_sb, v_cluster, &rec,
+		ocfs2_relative_extent_offsets(iyesde->i_sb, v_cluster, &rec,
 					      p_cluster, num_clusters);
 		flags = rec.e_flags;
 
-		ocfs2_extent_map_insert_rec(inode, &rec);
+		ocfs2_extent_map_insert_rec(iyesde, &rec);
 	}
 
 	if (extent_flags)
@@ -654,23 +654,23 @@ out:
 }
 
 /*
- * This expects alloc_sem to be held. The allocation cannot change at
+ * This expects alloc_sem to be held. The allocation canyest change at
  * all while the map is in the process of being updated.
  */
-int ocfs2_extent_map_get_blocks(struct inode *inode, u64 v_blkno, u64 *p_blkno,
+int ocfs2_extent_map_get_blocks(struct iyesde *iyesde, u64 v_blkyes, u64 *p_blkyes,
 				u64 *ret_count, unsigned int *extent_flags)
 {
 	int ret;
-	int bpc = ocfs2_clusters_to_blocks(inode->i_sb, 1);
+	int bpc = ocfs2_clusters_to_blocks(iyesde->i_sb, 1);
 	u32 cpos, num_clusters, p_cluster;
 	u64 boff = 0;
 
-	cpos = ocfs2_blocks_to_clusters(inode->i_sb, v_blkno);
+	cpos = ocfs2_blocks_to_clusters(iyesde->i_sb, v_blkyes);
 
-	ret = ocfs2_get_clusters(inode, cpos, &p_cluster, &num_clusters,
+	ret = ocfs2_get_clusters(iyesde, cpos, &p_cluster, &num_clusters,
 				 extent_flags);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
@@ -678,15 +678,15 @@ int ocfs2_extent_map_get_blocks(struct inode *inode, u64 v_blkno, u64 *p_blkno,
 	 * p_cluster == 0 indicates a hole.
 	 */
 	if (p_cluster) {
-		boff = ocfs2_clusters_to_blocks(inode->i_sb, p_cluster);
-		boff += (v_blkno & (u64)(bpc - 1));
+		boff = ocfs2_clusters_to_blocks(iyesde->i_sb, p_cluster);
+		boff += (v_blkyes & (u64)(bpc - 1));
 	}
 
-	*p_blkno = boff;
+	*p_blkyes = boff;
 
 	if (ret_count) {
-		*ret_count = ocfs2_clusters_to_blocks(inode->i_sb, num_clusters);
-		*ret_count -= v_blkno & (u64)(bpc - 1);
+		*ret_count = ocfs2_clusters_to_blocks(iyesde->i_sb, num_clusters);
+		*ret_count -= v_blkyes & (u64)(bpc - 1);
 	}
 
 out:
@@ -695,33 +695,33 @@ out:
 
 /*
  * The ocfs2_fiemap_inline() may be a little bit misleading, since
- * it not only handles the fiemap for inlined files, but also deals
- * with the fast symlink, cause they have no difference for extent
+ * it yest only handles the fiemap for inlined files, but also deals
+ * with the fast symlink, cause they have yes difference for extent
  * mapping per se.
  */
-static int ocfs2_fiemap_inline(struct inode *inode, struct buffer_head *di_bh,
+static int ocfs2_fiemap_inline(struct iyesde *iyesde, struct buffer_head *di_bh,
 			       struct fiemap_extent_info *fieinfo,
 			       u64 map_start)
 {
 	int ret;
 	unsigned int id_count;
-	struct ocfs2_dinode *di;
+	struct ocfs2_diyesde *di;
 	u64 phys;
 	u32 flags = FIEMAP_EXTENT_DATA_INLINE|FIEMAP_EXTENT_LAST;
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_iyesde_info *oi = OCFS2_I(iyesde);
 
-	di = (struct ocfs2_dinode *)di_bh->b_data;
-	if (ocfs2_inode_is_fast_symlink(inode))
-		id_count = ocfs2_fast_symlink_chars(inode->i_sb);
+	di = (struct ocfs2_diyesde *)di_bh->b_data;
+	if (ocfs2_iyesde_is_fast_symlink(iyesde))
+		id_count = ocfs2_fast_symlink_chars(iyesde->i_sb);
 	else
 		id_count = le16_to_cpu(di->id2.i_data.id_count);
 
 	if (map_start < id_count) {
-		phys = oi->ip_blkno << inode->i_sb->s_blocksize_bits;
-		if (ocfs2_inode_is_fast_symlink(inode))
-			phys += offsetof(struct ocfs2_dinode, id2.i_symlink);
+		phys = oi->ip_blkyes << iyesde->i_sb->s_blocksize_bits;
+		if (ocfs2_iyesde_is_fast_symlink(iyesde))
+			phys += offsetof(struct ocfs2_diyesde, id2.i_symlink);
 		else
-			phys += offsetof(struct ocfs2_dinode,
+			phys += offsetof(struct ocfs2_diyesde,
 					 id2.i_data.id_data);
 
 		ret = fiemap_fill_next_extent(fieinfo, 0, phys, id_count,
@@ -735,13 +735,13 @@ static int ocfs2_fiemap_inline(struct inode *inode, struct buffer_head *di_bh,
 
 #define OCFS2_FIEMAP_FLAGS	(FIEMAP_FLAG_SYNC)
 
-int ocfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+int ocfs2_fiemap(struct iyesde *iyesde, struct fiemap_extent_info *fieinfo,
 		 u64 map_start, u64 map_len)
 {
 	int ret, is_last;
 	u32 mapping_end, cpos;
 	unsigned int hole_size;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 	u64 len_bytes, phys_bytes, virt_bytes;
 	struct buffer_head *di_bh = NULL;
 	struct ocfs2_extent_rec rec;
@@ -750,38 +750,38 @@ int ocfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	if (ret)
 		return ret;
 
-	ret = ocfs2_inode_lock(inode, &di_bh, 0);
+	ret = ocfs2_iyesde_lock(iyesde, &di_bh, 0);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
-	down_read(&OCFS2_I(inode)->ip_alloc_sem);
+	down_read(&OCFS2_I(iyesde)->ip_alloc_sem);
 
 	/*
 	 * Handle inline-data and fast symlink separately.
 	 */
-	if ((OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) ||
-	    ocfs2_inode_is_fast_symlink(inode)) {
-		ret = ocfs2_fiemap_inline(inode, di_bh, fieinfo, map_start);
+	if ((OCFS2_I(iyesde)->ip_dyn_features & OCFS2_INLINE_DATA_FL) ||
+	    ocfs2_iyesde_is_fast_symlink(iyesde)) {
+		ret = ocfs2_fiemap_inline(iyesde, di_bh, fieinfo, map_start);
 		goto out_unlock;
 	}
 
 	cpos = map_start >> osb->s_clustersize_bits;
-	mapping_end = ocfs2_clusters_for_bytes(inode->i_sb,
+	mapping_end = ocfs2_clusters_for_bytes(iyesde->i_sb,
 					       map_start + map_len);
 	is_last = 0;
 	while (cpos < mapping_end && !is_last) {
 		u32 fe_flags;
 
-		ret = ocfs2_get_clusters_nocache(inode, di_bh, cpos,
+		ret = ocfs2_get_clusters_yescache(iyesde, di_bh, cpos,
 						 &hole_size, &rec, &is_last);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out_unlock;
 		}
 
-		if (rec.e_blkno == 0ULL) {
+		if (rec.e_blkyes == 0ULL) {
 			cpos += hole_size;
 			continue;
 		}
@@ -794,7 +794,7 @@ int ocfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		if (is_last)
 			fe_flags |= FIEMAP_EXTENT_LAST;
 		len_bytes = (u64)le16_to_cpu(rec.e_leaf_clusters) << osb->s_clustersize_bits;
-		phys_bytes = le64_to_cpu(rec.e_blkno) << osb->sb->s_blocksize_bits;
+		phys_bytes = le64_to_cpu(rec.e_blkyes) << osb->sb->s_blocksize_bits;
 		virt_bytes = (u64)le32_to_cpu(rec.e_cpos) << osb->s_clustersize_bits;
 
 		ret = fiemap_fill_next_extent(fieinfo, virt_bytes, phys_bytes,
@@ -811,24 +811,24 @@ int ocfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 out_unlock:
 	brelse(di_bh);
 
-	up_read(&OCFS2_I(inode)->ip_alloc_sem);
+	up_read(&OCFS2_I(iyesde)->ip_alloc_sem);
 
-	ocfs2_inode_unlock(inode, 0);
+	ocfs2_iyesde_unlock(iyesde, 0);
 out:
 
 	return ret;
 }
 
 /* Is IO overwriting allocated blocks? */
-int ocfs2_overwrite_io(struct inode *inode, struct buffer_head *di_bh,
+int ocfs2_overwrite_io(struct iyesde *iyesde, struct buffer_head *di_bh,
 		       u64 map_start, u64 map_len)
 {
 	int ret = 0, is_last;
 	u32 mapping_end, cpos;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 	struct ocfs2_extent_rec rec;
 
-	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+	if (OCFS2_I(iyesde)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
 		if (ocfs2_size_fits_inline_data(di_bh, map_start + map_len))
 			return ret;
 		else
@@ -836,18 +836,18 @@ int ocfs2_overwrite_io(struct inode *inode, struct buffer_head *di_bh,
 	}
 
 	cpos = map_start >> osb->s_clustersize_bits;
-	mapping_end = ocfs2_clusters_for_bytes(inode->i_sb,
+	mapping_end = ocfs2_clusters_for_bytes(iyesde->i_sb,
 					       map_start + map_len);
 	is_last = 0;
 	while (cpos < mapping_end && !is_last) {
-		ret = ocfs2_get_clusters_nocache(inode, di_bh, cpos,
+		ret = ocfs2_get_clusters_yescache(iyesde, di_bh, cpos,
 						 NULL, &rec, &is_last);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out;
 		}
 
-		if (rec.e_blkno == 0ULL)
+		if (rec.e_blkyes == 0ULL)
 			break;
 
 		if (rec.e_flags & OCFS2_EXT_REFCOUNTED)
@@ -865,10 +865,10 @@ out:
 
 int ocfs2_seek_data_hole_offset(struct file *file, loff_t *offset, int whence)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct iyesde *iyesde = file->f_mapping->host;
 	int ret;
 	unsigned int is_last = 0, is_data = 0;
-	u16 cs_bits = OCFS2_SB(inode->i_sb)->s_clustersize_bits;
+	u16 cs_bits = OCFS2_SB(iyesde->i_sb)->s_clustersize_bits;
 	u32 cpos, cend, clen, hole_size;
 	u64 extoff, extlen;
 	struct buffer_head *di_bh = NULL;
@@ -876,41 +876,41 @@ int ocfs2_seek_data_hole_offset(struct file *file, loff_t *offset, int whence)
 
 	BUG_ON(whence != SEEK_DATA && whence != SEEK_HOLE);
 
-	ret = ocfs2_inode_lock(inode, &di_bh, 0);
+	ret = ocfs2_iyesde_lock(iyesde, &di_bh, 0);
 	if (ret) {
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
-	down_read(&OCFS2_I(inode)->ip_alloc_sem);
+	down_read(&OCFS2_I(iyesde)->ip_alloc_sem);
 
-	if (*offset >= i_size_read(inode)) {
+	if (*offset >= i_size_read(iyesde)) {
 		ret = -ENXIO;
 		goto out_unlock;
 	}
 
-	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+	if (OCFS2_I(iyesde)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
 		if (whence == SEEK_HOLE)
-			*offset = i_size_read(inode);
+			*offset = i_size_read(iyesde);
 		goto out_unlock;
 	}
 
 	clen = 0;
 	cpos = *offset >> cs_bits;
-	cend = ocfs2_clusters_for_bytes(inode->i_sb, i_size_read(inode));
+	cend = ocfs2_clusters_for_bytes(iyesde->i_sb, i_size_read(iyesde));
 
 	while (cpos < cend && !is_last) {
-		ret = ocfs2_get_clusters_nocache(inode, di_bh, cpos, &hole_size,
+		ret = ocfs2_get_clusters_yescache(iyesde, di_bh, cpos, &hole_size,
 						 &rec, &is_last);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out_unlock;
 		}
 
 		extoff = cpos;
 		extoff <<= cs_bits;
 
-		if (rec.e_blkno == 0ULL) {
+		if (rec.e_blkyes == 0ULL) {
 			clen = hole_size;
 			is_data = 0;
 		} else {
@@ -936,8 +936,8 @@ int ocfs2_seek_data_hole_offset(struct file *file, loff_t *offset, int whence)
 		extlen = clen;
 		extlen <<=  cs_bits;
 
-		if ((extoff + extlen) > i_size_read(inode))
-			extlen = i_size_read(inode) - extoff;
+		if ((extoff + extlen) > i_size_read(iyesde))
+			extlen = i_size_read(iyesde) - extoff;
 		extoff += extlen;
 		if (extoff > *offset)
 			*offset = extoff;
@@ -950,14 +950,14 @@ out_unlock:
 
 	brelse(di_bh);
 
-	up_read(&OCFS2_I(inode)->ip_alloc_sem);
+	up_read(&OCFS2_I(iyesde)->ip_alloc_sem);
 
-	ocfs2_inode_unlock(inode, 0);
+	ocfs2_iyesde_unlock(iyesde, 0);
 out:
 	return ret;
 }
 
-int ocfs2_read_virt_blocks(struct inode *inode, u64 v_block, int nr,
+int ocfs2_read_virt_blocks(struct iyesde *iyesde, u64 v_block, int nr,
 			   struct buffer_head *bhs[], int flags,
 			   int (*validate)(struct super_block *sb,
 					   struct buffer_head *bh))
@@ -967,32 +967,32 @@ int ocfs2_read_virt_blocks(struct inode *inode, u64 v_block, int nr,
 	int i, count, done = 0;
 
 	trace_ocfs2_read_virt_blocks(
-	     inode, (unsigned long long)v_block, nr, bhs, flags,
+	     iyesde, (unsigned long long)v_block, nr, bhs, flags,
 	     validate);
 
-	if (((v_block + nr - 1) << inode->i_sb->s_blocksize_bits) >=
-	    i_size_read(inode)) {
+	if (((v_block + nr - 1) << iyesde->i_sb->s_blocksize_bits) >=
+	    i_size_read(iyesde)) {
 		BUG_ON(!(flags & OCFS2_BH_READAHEAD));
 		goto out;
 	}
 
 	while (done < nr) {
-		down_read(&OCFS2_I(inode)->ip_alloc_sem);
-		rc = ocfs2_extent_map_get_blocks(inode, v_block + done,
+		down_read(&OCFS2_I(iyesde)->ip_alloc_sem);
+		rc = ocfs2_extent_map_get_blocks(iyesde, v_block + done,
 						 &p_block, &p_count, NULL);
-		up_read(&OCFS2_I(inode)->ip_alloc_sem);
+		up_read(&OCFS2_I(iyesde)->ip_alloc_sem);
 		if (rc) {
-			mlog_errno(rc);
+			mlog_erryes(rc);
 			break;
 		}
 
 		if (!p_block) {
 			rc = -EIO;
 			mlog(ML_ERROR,
-			     "Inode #%llu contains a hole at offset %llu\n",
-			     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+			     "Iyesde #%llu contains a hole at offset %llu\n",
+			     (unsigned long long)OCFS2_I(iyesde)->ip_blkyes,
 			     (unsigned long long)(v_block + done) <<
-			     inode->i_sb->s_blocksize_bits);
+			     iyesde->i_sb->s_blocksize_bits);
 			break;
 		}
 
@@ -1011,10 +1011,10 @@ int ocfs2_read_virt_blocks(struct inode *inode, u64 v_block, int nr,
 			BUG_ON(bhs[done + i]->b_blocknr != (p_block + i));
 		}
 
-		rc = ocfs2_read_blocks(INODE_CACHE(inode), p_block, count,
+		rc = ocfs2_read_blocks(INODE_CACHE(iyesde), p_block, count,
 				       bhs + done, flags, validate);
 		if (rc) {
-			mlog_errno(rc);
+			mlog_erryes(rc);
 			break;
 		}
 		done += count;

@@ -31,7 +31,7 @@ int nand_jedec_detect(struct nand_chip *chip)
 
 	memorg = nanddev_get_memorg(&chip->base);
 
-	/* Try JEDEC for unknown chip or LP */
+	/* Try JEDEC for unkyeswn chip or LP */
 	ret = nand_readid_op(chip, 0x40, id, sizeof(id));
 	if (ret || strncmp(id, "JEDEC", sizeof(id)))
 		return 0;
@@ -60,7 +60,7 @@ int nand_jedec_detect(struct nand_chip *chip)
 	}
 
 	if (i == 3) {
-		pr_err("Could not find valid JEDEC parameter page; aborting\n");
+		pr_err("Could yest find valid JEDEC parameter page; aborting\n");
 		goto free_jedec_param_page;
 	}
 

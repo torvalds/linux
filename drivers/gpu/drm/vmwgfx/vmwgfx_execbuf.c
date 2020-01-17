@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -36,15 +36,15 @@
 #define VMW_RES_HT_ORDER 12
 
 /*
- * Helper macro to get dx_ctx_node if available otherwise print an error
- * message. This is for use in command verifier function where if dx_ctx_node
- * is not set then command is invalid.
+ * Helper macro to get dx_ctx_yesde if available otherwise print an error
+ * message. This is for use in command verifier function where if dx_ctx_yesde
+ * is yest set then command is invalid.
  */
 #define VMW_GET_CTX_NODE(__sw_context)                                        \
 ({                                                                            \
-	__sw_context->dx_ctx_node ? __sw_context->dx_ctx_node : ({            \
-		VMW_DEBUG_USER("SM context is not set at %s\n", __func__);    \
-		__sw_context->dx_ctx_node;                                    \
+	__sw_context->dx_ctx_yesde ? __sw_context->dx_ctx_yesde : ({            \
+		VMW_DEBUG_USER("SM context is yest set at %s\n", __func__);    \
+		__sw_context->dx_ctx_yesde;                                    \
 	});                                                                   \
 })
 
@@ -74,17 +74,17 @@ struct vmw_relocation {
 /**
  * enum vmw_resource_relocation_type - Relocation type for resources
  *
- * @vmw_res_rel_normal: Traditional relocation. The resource id in the
+ * @vmw_res_rel_yesrmal: Traditional relocation. The resource id in the
  * command stream is replaced with the actual id after validation.
- * @vmw_res_rel_nop: NOP relocation. The command is unconditionally replaced
+ * @vmw_res_rel_yesp: NOP relocation. The command is unconditionally replaced
  * with a NOP.
- * @vmw_res_rel_cond_nop: Conditional NOP relocation. If the resource id after
- * validation is -1, the command is replaced with a NOP. Otherwise no action.
+ * @vmw_res_rel_cond_yesp: Conditional NOP relocation. If the resource id after
+ * validation is -1, the command is replaced with a NOP. Otherwise yes action.
  */
 enum vmw_resource_relocation_type {
-	vmw_res_rel_normal,
-	vmw_res_rel_nop,
-	vmw_res_rel_cond_nop,
+	vmw_res_rel_yesrmal,
+	vmw_res_rel_yesp,
+	vmw_res_rel_cond_yesp,
 	vmw_res_rel_max
 };
 
@@ -164,7 +164,7 @@ static size_t vmw_ptr_diff(void *a, void *b)
  *
  * @sw_context: The command submission context
  * @backoff: Whether this is part of the error path and binding state changes
- * should be ignored
+ * should be igyesred
  */
 static void vmw_execbuf_bindings_commit(struct vmw_sw_context *sw_context,
 					bool backoff)
@@ -203,12 +203,12 @@ static void vmw_bind_dx_query_mob(struct vmw_sw_context *sw_context)
  *
  * @dev_priv: Pointer to the device private:
  * @sw_context: The command submission context
- * @node: The validation node holding the context resource metadata
+ * @yesde: The validation yesde holding the context resource metadata
  */
 static int vmw_cmd_ctx_first_setup(struct vmw_private *dev_priv,
 				   struct vmw_sw_context *sw_context,
 				   struct vmw_resource *res,
-				   struct vmw_ctx_validation_info *node)
+				   struct vmw_ctx_validation_info *yesde)
 {
 	int ret;
 
@@ -226,20 +226,20 @@ static int vmw_cmd_ctx_first_setup(struct vmw_private *dev_priv,
 	}
 
 	if (sw_context->staged_bindings_inuse) {
-		node->staged = vmw_binding_state_alloc(dev_priv);
-		if (IS_ERR(node->staged)) {
-			ret = PTR_ERR(node->staged);
-			node->staged = NULL;
+		yesde->staged = vmw_binding_state_alloc(dev_priv);
+		if (IS_ERR(yesde->staged)) {
+			ret = PTR_ERR(yesde->staged);
+			yesde->staged = NULL;
 			goto out_err;
 		}
 	} else {
-		node->staged = sw_context->staged_bindings;
+		yesde->staged = sw_context->staged_bindings;
 		sw_context->staged_bindings_inuse = true;
 	}
 
-	node->ctx = res;
-	node->cur = vmw_context_binding_state(res);
-	list_add_tail(&node->head, &sw_context->ctx_list);
+	yesde->ctx = res;
+	yesde->cur = vmw_context_binding_state(res);
+	list_add_tail(&yesde->head, &sw_context->ctx_list);
 
 	return 0;
 
@@ -248,13 +248,13 @@ out_err:
 }
 
 /**
- * vmw_execbuf_res_size - calculate extra size fore the resource validation node
+ * vmw_execbuf_res_size - calculate extra size fore the resource validation yesde
  *
  * @dev_priv: Pointer to the device private struct.
  * @res_type: The resource type.
  *
  * Guest-backed contexts and DX contexts require extra size to store execbuf
- * private information in the validation node. Typically the binding manager
+ * private information in the validation yesde. Typically the binding manager
  * associated data structures.
  *
  * Returns: The extra size requirement based on resource type.
@@ -268,12 +268,12 @@ static unsigned int vmw_execbuf_res_size(struct vmw_private *dev_priv,
 }
 
 /**
- * vmw_execbuf_rcache_update - Update a resource-node cache entry
+ * vmw_execbuf_rcache_update - Update a resource-yesde cache entry
  *
  * @rcache: Pointer to the entry to update.
  * @res: Pointer to the resource.
  * @private: Pointer to the execbuf-private space in the resource validation
- * node.
+ * yesde.
  */
 static void vmw_execbuf_rcache_update(struct vmw_res_cache_entry *rcache,
 				      struct vmw_resource *res,
@@ -286,7 +286,7 @@ static void vmw_execbuf_rcache_update(struct vmw_res_cache_entry *rcache,
 }
 
 /**
- * vmw_execbuf_res_noref_val_add - Add a resource described by an unreferenced
+ * vmw_execbuf_res_yesref_val_add - Add a resource described by an unreferenced
  * rcu-protected pointer to the validation list.
  *
  * @sw_context: Pointer to the software context.
@@ -296,7 +296,7 @@ static void vmw_execbuf_rcache_update(struct vmw_res_cache_entry *rcache,
  * Returns: 0 on success. Negative error code on failure. Typical error codes
  * are %-EINVAL on inconsistency and %-ESRCH if the resource was doomed.
  */
-static int vmw_execbuf_res_noref_val_add(struct vmw_sw_context *sw_context,
+static int vmw_execbuf_res_yesref_val_add(struct vmw_sw_context *sw_context,
 					 struct vmw_resource *res,
 					 u32 dirty)
 {
@@ -313,7 +313,7 @@ static int vmw_execbuf_res_noref_val_add(struct vmw_sw_context *sw_context,
 		if (dirty)
 			vmw_validation_res_set_dirty(sw_context->ctx,
 						     rcache->private, dirty);
-		vmw_user_resource_noref_release();
+		vmw_user_resource_yesref_release();
 		return 0;
 	}
 
@@ -321,7 +321,7 @@ static int vmw_execbuf_res_noref_val_add(struct vmw_sw_context *sw_context,
 	ret = vmw_validation_add_resource(sw_context->ctx, res, priv_size,
 					  dirty, (void **)&ctx_info,
 					  &first_usage);
-	vmw_user_resource_noref_release();
+	vmw_user_resource_yesref_release();
 	if (ret)
 		return ret;
 
@@ -339,8 +339,8 @@ static int vmw_execbuf_res_noref_val_add(struct vmw_sw_context *sw_context,
 }
 
 /**
- * vmw_execbuf_res_noctx_val_add - Add a non-context resource to the resource
- * validation list if it's not already on it
+ * vmw_execbuf_res_yesctx_val_add - Add a yesn-context resource to the resource
+ * validation list if it's yest already on it
  *
  * @sw_context: Pointer to the software context.
  * @res: Pointer to the resource.
@@ -348,7 +348,7 @@ static int vmw_execbuf_res_noref_val_add(struct vmw_sw_context *sw_context,
  *
  * Returns: Zero on success. Negative error code on failure.
  */
-static int vmw_execbuf_res_noctx_val_add(struct vmw_sw_context *sw_context,
+static int vmw_execbuf_res_yesctx_val_add(struct vmw_sw_context *sw_context,
 					 struct vmw_resource *res,
 					 u32 dirty)
 {
@@ -393,12 +393,12 @@ static int vmw_view_res_val_add(struct vmw_sw_context *sw_context,
 	 * First add the resource the view is pointing to, otherwise it may be
 	 * swapped out when the view is validated.
 	 */
-	ret = vmw_execbuf_res_noctx_val_add(sw_context, vmw_view_srf(view),
+	ret = vmw_execbuf_res_yesctx_val_add(sw_context, vmw_view_srf(view),
 					    vmw_view_dirtying(view));
 	if (ret)
 		return ret;
 
-	return vmw_execbuf_res_noctx_val_add(sw_context, view,
+	return vmw_execbuf_res_yesctx_val_add(sw_context, view,
 					     VMW_RES_DIRTY_NONE);
 }
 
@@ -411,7 +411,7 @@ static int vmw_view_res_val_add(struct vmw_sw_context *sw_context,
  * @id: view id of the view.
  *
  * The view is represented by a view id and the DX context it's created on, or
- * scheduled for creation on. If there is no DX context set, the function will
+ * scheduled for creation on. If there is yes DX context set, the function will
  * return an -EINVAL error pointer.
  *
  * Returns: Unreferenced pointer to the resource on success, negative error
@@ -421,11 +421,11 @@ static struct vmw_resource *
 vmw_view_id_val_add(struct vmw_sw_context *sw_context,
 		    enum vmw_view_type view_type, u32 id)
 {
-	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_ctx_validation_info *ctx_yesde = sw_context->dx_ctx_yesde;
 	struct vmw_resource *view;
 	int ret;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return ERR_PTR(-EINVAL);
 
 	view = vmw_view_lookup(sw_context->man, view_type, id);
@@ -467,7 +467,7 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 			if (IS_ERR(res))
 				continue;
 
-			ret = vmw_execbuf_res_noctx_val_add(sw_context, res,
+			ret = vmw_execbuf_res_yesctx_val_add(sw_context, res,
 							    VMW_RES_DIRTY_SET);
 			if (unlikely(ret != 0))
 				return ret;
@@ -482,7 +482,7 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 		if (vmw_res_type(entry->res) == vmw_res_view)
 			ret = vmw_view_res_val_add(sw_context, entry->res);
 		else
-			ret = vmw_execbuf_res_noctx_val_add
+			ret = vmw_execbuf_res_yesctx_val_add
 				(sw_context, entry->res,
 				 vmw_binding_dirtying(entry->bt));
 		if (unlikely(ret != 0))
@@ -540,14 +540,14 @@ static int vmw_resource_relocation_add(struct vmw_sw_context *sw_context,
  */
 static void vmw_resource_relocations_free(struct list_head *list)
 {
-	/* Memory is validation context memory, so no need to free it */
+	/* Memory is validation context memory, so yes need to free it */
 	INIT_LIST_HEAD(list);
 }
 
 /**
  * vmw_resource_relocations_apply - Apply all relocations on a list
  *
- * @cb: Pointer to the start of the command buffer bein patch. This need not be
+ * @cb: Pointer to the start of the command buffer bein patch. This need yest be
  * the same buffer as the one being parsed when the relocation list was built,
  * but the contents must be the same modulo the resource ids.
  * @list: Pointer to the head of the relocation list.
@@ -564,10 +564,10 @@ static void vmw_resource_relocations_apply(uint32_t *cb,
 	list_for_each_entry(rel, list, head) {
 		u32 *addr = (u32 *)((unsigned long) cb + rel->offset);
 		switch (rel->rel_type) {
-		case vmw_res_rel_normal:
+		case vmw_res_rel_yesrmal:
 			*addr = rel->res->id;
 			break;
-		case vmw_res_rel_nop:
+		case vmw_res_rel_yesp:
 			*addr = SVGA_3D_CMD_NOP;
 			break;
 		default:
@@ -599,7 +599,7 @@ static int vmw_cmd_ok(struct vmw_private *dev_priv,
  * @sw_context: Pointer to the software context.
  *
  * Note that since vmware's command submission currently is protected by the
- * cmdbuf mutex, no fancy deadlock avoidance is required for resources, since
+ * cmdbuf mutex, yes fancy deadlock avoidance is required for resources, since
  * only a single thread at once will attempt this.
  */
 static int vmw_resources_reserve(struct vmw_sw_context *sw_context)
@@ -635,7 +635,7 @@ static int vmw_resources_reserve(struct vmw_sw_context *sw_context)
  * @converter: User-space visisble type specific information.
  * @id_loc: Pointer to the location in the command buffer currently being parsed
  * from where the user-space resource id handle is located.
- * @p_val: Pointer to pointer to resource validalidation node. Populated on
+ * @p_val: Pointer to pointer to resource validalidation yesde. Populated on
  * exit.
  */
 static int
@@ -674,15 +674,15 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 		if (ret)
 			return ret;
 
-		res = vmw_user_resource_noref_lookup_handle
+		res = vmw_user_resource_yesref_lookup_handle
 			(dev_priv, sw_context->fp->tfile, *id_loc, converter);
 		if (IS_ERR(res)) {
-			VMW_DEBUG_USER("Could not find/use resource 0x%08x.\n",
+			VMW_DEBUG_USER("Could yest find/use resource 0x%08x.\n",
 				       (unsigned int) *id_loc);
 			return PTR_ERR(res);
 		}
 
-		ret = vmw_execbuf_res_noref_val_add(sw_context, res, dirty);
+		ret = vmw_execbuf_res_yesref_val_add(sw_context, res, dirty);
 		if (unlikely(ret != 0))
 			return ret;
 
@@ -695,7 +695,7 @@ vmw_cmd_res_check(struct vmw_private *dev_priv,
 	ret = vmw_resource_relocation_add(sw_context, res,
 					  vmw_ptr_diff(sw_context->buf_start,
 						       id_loc),
-					  vmw_res_rel_normal);
+					  vmw_res_rel_yesrmal);
 	if (p_res)
 		*p_res = res;
 
@@ -785,10 +785,10 @@ static int vmw_view_bindings_add(struct vmw_sw_context *sw_context,
 				 uint32 view_ids[], u32 num_views,
 				 u32 first_slot)
 {
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 	u32 i;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
 	for (i = 0; i < num_views; ++i) {
@@ -799,16 +799,16 @@ static int vmw_view_bindings_add(struct vmw_sw_context *sw_context,
 			view = vmw_view_id_val_add(sw_context, view_type,
 						   view_ids[i]);
 			if (IS_ERR(view)) {
-				VMW_DEBUG_USER("View not found.\n");
+				VMW_DEBUG_USER("View yest found.\n");
 				return PTR_ERR(view);
 			}
 		}
-		binding.bi.ctx = ctx_node->ctx;
+		binding.bi.ctx = ctx_yesde->ctx;
 		binding.bi.res = view;
 		binding.bi.bt = binding_type;
 		binding.shader_slot = shader_slot;
 		binding.slot = first_slot + i;
-		vmw_binding_add(ctx_node->staged, &binding.bi,
+		vmw_binding_add(ctx_yesde->staged, &binding.bi,
 				shader_slot, binding.slot);
 	}
 
@@ -896,17 +896,17 @@ static int vmw_cmd_set_render_target_check(struct vmw_private *dev_priv,
 
 	if (dev_priv->has_mob) {
 		struct vmw_ctx_bindinfo_view binding;
-		struct vmw_ctx_validation_info *node;
+		struct vmw_ctx_validation_info *yesde;
 
-		node = vmw_execbuf_info_from_res(sw_context, ctx);
-		if (!node)
+		yesde = vmw_execbuf_info_from_res(sw_context, ctx);
+		if (!yesde)
 			return -EINVAL;
 
 		binding.bi.ctx = ctx;
 		binding.bi.res = res;
 		binding.bi.bt = vmw_ctx_binding_rt;
 		binding.slot = cmd->body.type;
-		vmw_binding_add(node->staged, &binding.bi, 0, binding.slot);
+		vmw_binding_add(yesde->staged, &binding.bi, 0, binding.slot);
 	}
 
 	return 0;
@@ -1021,7 +1021,7 @@ static int vmw_cmd_present_check(struct vmw_private *dev_priv,
  * @sw_context: The software context used for this command submission.
  *
  * This function checks whether @new_query_bo is suitable for holding query
- * results, and if another buffer currently is pinned for query results. If so,
+ * results, and if ayesther buffer currently is pinned for query results. If so,
  * the function prepares the state of @sw_context for switching pinned buffers
  * after successful submission of the current command batch.
  */
@@ -1074,7 +1074,7 @@ static int vmw_query_bo_switch_prepare(struct vmw_private *dev_priv,
  * object following that query wait has signaled, we are sure that all preceding
  * queries have finished, and the old query buffer can be unpinned. However,
  * since both the new query buffer and the old one are fenced with that fence,
- * we can do an asynchronus unpin now, and be sure that the old query buffer
+ * we can do an asynchronus unpin yesw, and be sure that the old query buffer
  * won't be moved until the fence has signaled.
  *
  * As mentioned above, both the new - and old query buffers need to be fenced
@@ -1139,11 +1139,11 @@ static void vmw_query_bo_switch_commit(struct vmw_private *dev_priv,
  * @sw_context: The software context used for this command batch validation.
  * @id: Pointer to the user-space handle to be translated.
  * @vmw_bo_p: Points to a location that, on successful return will carry a
- * non-reference-counted pointer to the buffer object identified by the
+ * yesn-reference-counted pointer to the buffer object identified by the
  * user-space handle in @id.
  *
  * This function saves information needed to translate a user-space buffer
- * handle to a MOB id. The translation does not take place immediately, but
+ * handle to a MOB id. The translation does yest take place immediately, but
  * during a call to vmw_apply_relocations().
  *
  * This function builds a relocation list and a list of buffers to validate. The
@@ -1162,14 +1162,14 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 	int ret;
 
 	vmw_validation_preload_bo(sw_context->ctx);
-	vmw_bo = vmw_user_bo_noref_lookup(sw_context->fp->tfile, handle);
+	vmw_bo = vmw_user_bo_yesref_lookup(sw_context->fp->tfile, handle);
 	if (IS_ERR(vmw_bo)) {
-		VMW_DEBUG_USER("Could not find or use MOB buffer.\n");
+		VMW_DEBUG_USER("Could yest find or use MOB buffer.\n");
 		return PTR_ERR(vmw_bo);
 	}
 
 	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo, true, false);
-	vmw_user_bo_noref_release();
+	vmw_user_bo_yesref_release();
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1194,11 +1194,11 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
  * @sw_context: The software context used for this command batch validation.
  * @ptr: Pointer to the user-space handle to be translated.
  * @vmw_bo_p: Points to a location that, on successful return will carry a
- * non-reference-counted pointer to the DMA buffer identified by the user-space
+ * yesn-reference-counted pointer to the DMA buffer identified by the user-space
  * handle in @id.
  *
  * This function saves information needed to translate a user-space buffer
- * handle to a valid SVGAGuestPtr. The translation does not take place
+ * handle to a valid SVGAGuestPtr. The translation does yest take place
  * immediately, but during a call to vmw_apply_relocations().
  *
  * This function builds a relocation list and a list of buffers to validate.
@@ -1217,14 +1217,14 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 	int ret;
 
 	vmw_validation_preload_bo(sw_context->ctx);
-	vmw_bo = vmw_user_bo_noref_lookup(sw_context->fp->tfile, handle);
+	vmw_bo = vmw_user_bo_yesref_lookup(sw_context->fp->tfile, handle);
 	if (IS_ERR(vmw_bo)) {
-		VMW_DEBUG_USER("Could not find or use GMR region.\n");
+		VMW_DEBUG_USER("Could yest find or use GMR region.\n");
 		return PTR_ERR(vmw_bo);
 	}
 
 	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo, false, false);
-	vmw_user_bo_noref_release();
+	vmw_user_bo_yesref_release();
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1254,11 +1254,11 @@ static int vmw_cmd_dx_define_query(struct vmw_private *dev_priv,
 				   SVGA3dCmdHeader *header)
 {
 	VMW_DECLARE_CMD_VAR(*cmd, SVGA3dCmdDXDefineQuery);
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_resource *cotable_res;
 	int ret;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
 	cmd = container_of(header, typeof(*cmd), header);
@@ -1267,8 +1267,8 @@ static int vmw_cmd_dx_define_query(struct vmw_private *dev_priv,
 	    cmd->body.type >= SVGA3D_QUERYTYPE_MAX)
 		return -EINVAL;
 
-	cotable_res = vmw_context_cotable(ctx_node->ctx, SVGA_COTABLE_DXQUERY);
-	ret = vmw_cotable_notify(cotable_res, cmd->body.queryId);
+	cotable_res = vmw_context_cotable(ctx_yesde->ctx, SVGA_COTABLE_DXQUERY);
+	ret = vmw_cotable_yestify(cotable_res, cmd->body.queryId);
 
 	return ret;
 }
@@ -1305,7 +1305,7 @@ static int vmw_cmd_dx_bind_query(struct vmw_private *dev_priv,
 		return ret;
 
 	sw_context->dx_query_mob = vmw_bo;
-	sw_context->dx_query_ctx = sw_context->dx_ctx_node->ctx;
+	sw_context->dx_query_ctx = sw_context->dx_ctx_yesde->ctx;
 	return 0;
 }
 
@@ -1554,13 +1554,13 @@ static int vmw_cmd_dma(struct vmw_private *dev_priv,
 				&cmd->body.host.sid, NULL);
 	if (unlikely(ret != 0)) {
 		if (unlikely(ret != -ERESTARTSYS))
-			VMW_DEBUG_USER("could not find surface for DMA.\n");
+			VMW_DEBUG_USER("could yest find surface for DMA.\n");
 		return ret;
 	}
 
 	srf = vmw_res_to_srf(sw_context->res_cache[vmw_res_surface].res);
 
-	vmw_kms_cursor_snoop(srf, sw_context->fp->tfile, &vmw_bo->base, header);
+	vmw_kms_cursor_syesop(srf, sw_context->fp->tfile, &vmw_bo->base, header);
 
 	return 0;
 }
@@ -1657,17 +1657,17 @@ static int vmw_cmd_tex_state(struct vmw_private *dev_priv,
 
 		if (dev_priv->has_mob) {
 			struct vmw_ctx_bindinfo_tex binding;
-			struct vmw_ctx_validation_info *node;
+			struct vmw_ctx_validation_info *yesde;
 
-			node = vmw_execbuf_info_from_res(sw_context, ctx);
-			if (!node)
+			yesde = vmw_execbuf_info_from_res(sw_context, ctx);
+			if (!yesde)
 				return -EINVAL;
 
 			binding.bi.ctx = ctx;
 			binding.bi.res = res;
 			binding.bi.bt = vmw_ctx_binding_tex;
 			binding.texture_stage = cur_state->stage;
-			vmw_binding_add(node->staged, &binding.bi, 0,
+			vmw_binding_add(yesde->staged, &binding.bi, 0,
 					binding.texture_stage);
 		}
 	}
@@ -1696,7 +1696,7 @@ static int vmw_cmd_check_define_gmrfb(struct vmw_private *dev_priv,
  *
  * @dev_priv: Pointer to a device private struct.
  * @sw_context: The software context being used for this batch.
- * @val_node: The validation node representing the resource.
+ * @val_yesde: The validation yesde representing the resource.
  * @buf_id: Pointer to the user-space backup buffer handle in the command
  * stream.
  * @backup_offset: Offset of backup into MOB.
@@ -1935,7 +1935,7 @@ static int vmw_cmd_shader_define(struct vmw_private *dev_priv,
 	return vmw_resource_relocation_add(sw_context, NULL,
 					   vmw_ptr_diff(sw_context->buf_start,
 							&cmd->header.id),
-					   vmw_res_rel_nop);
+					   vmw_res_rel_yesp);
 }
 
 /**
@@ -1972,7 +1972,7 @@ static int vmw_cmd_shader_destroy(struct vmw_private *dev_priv,
 	return vmw_resource_relocation_add(sw_context, NULL,
 					   vmw_ptr_diff(sw_context->buf_start,
 							&cmd->header.id),
-					   vmw_res_rel_nop);
+					   vmw_res_rel_yesp);
 }
 
 /**
@@ -2018,7 +2018,7 @@ static int vmw_cmd_set_shader(struct vmw_private *dev_priv,
 		res = vmw_shader_lookup(vmw_context_res_man(ctx),
 					cmd->body.shid, cmd->body.type);
 		if (!IS_ERR(res)) {
-			ret = vmw_execbuf_res_noctx_val_add(sw_context, res,
+			ret = vmw_execbuf_res_yesctx_val_add(sw_context, res,
 							    VMW_RES_DIRTY_NONE);
 			if (unlikely(ret != 0))
 				return ret;
@@ -2027,7 +2027,7 @@ static int vmw_cmd_set_shader(struct vmw_private *dev_priv,
 				(sw_context, res,
 				 vmw_ptr_diff(sw_context->buf_start,
 					      &cmd->body.shid),
-				 vmw_res_rel_normal);
+				 vmw_res_rel_yesrmal);
 			if (unlikely(ret != 0))
 				return ret;
 		}
@@ -2117,11 +2117,11 @@ vmw_cmd_dx_set_single_constant_buffer(struct vmw_private *dev_priv,
 {
 	VMW_DECLARE_CMD_VAR(*cmd, SVGA3dCmdDXSetSingleConstantBuffer);
 	struct vmw_resource *res = NULL;
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_ctx_bindinfo_cb binding;
 	int ret;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
 	cmd = container_of(header, typeof(*cmd), header);
@@ -2131,7 +2131,7 @@ vmw_cmd_dx_set_single_constant_buffer(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	binding.bi.ctx = ctx_node->ctx;
+	binding.bi.ctx = ctx_yesde->ctx;
 	binding.bi.res = res;
 	binding.bi.bt = vmw_ctx_binding_cb;
 	binding.shader_slot = cmd->body.type - SVGA3D_SHADERTYPE_MIN;
@@ -2147,7 +2147,7 @@ vmw_cmd_dx_set_single_constant_buffer(struct vmw_private *dev_priv,
 		return -EINVAL;
 	}
 
-	vmw_binding_add(ctx_node->staged, &binding.bi, binding.shader_slot,
+	vmw_binding_add(ctx_yesde->staged, &binding.bi, binding.shader_slot,
 			binding.slot);
 
 	return 0;
@@ -2197,11 +2197,11 @@ static int vmw_cmd_dx_set_shader(struct vmw_private *dev_priv,
 {
 	VMW_DECLARE_CMD_VAR(*cmd, SVGA3dCmdDXSetShader);
 	struct vmw_resource *res = NULL;
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_ctx_bindinfo_shader binding;
 	int ret = 0;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
 	cmd = container_of(header, typeof(*cmd), header);
@@ -2216,22 +2216,22 @@ static int vmw_cmd_dx_set_shader(struct vmw_private *dev_priv,
 	if (cmd->body.shaderId != SVGA3D_INVALID_ID) {
 		res = vmw_shader_lookup(sw_context->man, cmd->body.shaderId, 0);
 		if (IS_ERR(res)) {
-			VMW_DEBUG_USER("Could not find shader for binding.\n");
+			VMW_DEBUG_USER("Could yest find shader for binding.\n");
 			return PTR_ERR(res);
 		}
 
-		ret = vmw_execbuf_res_noctx_val_add(sw_context, res,
+		ret = vmw_execbuf_res_yesctx_val_add(sw_context, res,
 						    VMW_RES_DIRTY_NONE);
 		if (ret)
 			return ret;
 	}
 
-	binding.bi.ctx = ctx_node->ctx;
+	binding.bi.ctx = ctx_yesde->ctx;
 	binding.bi.res = res;
 	binding.bi.bt = vmw_ctx_binding_dx_shader;
 	binding.shader_slot = cmd->body.type - SVGA3D_SHADERTYPE_MIN;
 
-	vmw_binding_add(ctx_node->staged, &binding.bi, binding.shader_slot, 0);
+	vmw_binding_add(ctx_yesde->staged, &binding.bi, binding.shader_slot, 0);
 
 	return 0;
 }
@@ -2248,7 +2248,7 @@ static int vmw_cmd_dx_set_vertex_buffers(struct vmw_private *dev_priv,
 					 struct vmw_sw_context *sw_context,
 					 SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_ctx_bindinfo_vb binding;
 	struct vmw_resource *res;
 	struct {
@@ -2258,7 +2258,7 @@ static int vmw_cmd_dx_set_vertex_buffers(struct vmw_private *dev_priv,
 	} *cmd;
 	int i, ret, num;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
 	cmd = container_of(header, typeof(*cmd), header);
@@ -2278,14 +2278,14 @@ static int vmw_cmd_dx_set_vertex_buffers(struct vmw_private *dev_priv,
 		if (unlikely(ret != 0))
 			return ret;
 
-		binding.bi.ctx = ctx_node->ctx;
+		binding.bi.ctx = ctx_yesde->ctx;
 		binding.bi.bt = vmw_ctx_binding_vb;
 		binding.bi.res = res;
 		binding.offset = cmd->buf[i].offset;
 		binding.stride = cmd->buf[i].stride;
 		binding.slot = i + cmd->body.startBuffer;
 
-		vmw_binding_add(ctx_node->staged, &binding.bi, 0, binding.slot);
+		vmw_binding_add(ctx_yesde->staged, &binding.bi, 0, binding.slot);
 	}
 
 	return 0;
@@ -2303,13 +2303,13 @@ static int vmw_cmd_dx_set_index_buffer(struct vmw_private *dev_priv,
 				       struct vmw_sw_context *sw_context,
 				       SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_ctx_bindinfo_ib binding;
 	struct vmw_resource *res;
 	VMW_DECLARE_CMD_VAR(*cmd, SVGA3dCmdDXSetIndexBuffer);
 	int ret;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
 	cmd = container_of(header, typeof(*cmd), header);
@@ -2319,13 +2319,13 @@ static int vmw_cmd_dx_set_index_buffer(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	binding.bi.ctx = ctx_node->ctx;
+	binding.bi.ctx = ctx_yesde->ctx;
 	binding.bi.res = res;
 	binding.bi.bt = vmw_ctx_binding_ib;
 	binding.offset = cmd->body.offset;
 	binding.format = cmd->body.format;
 
-	vmw_binding_add(ctx_node->staged, &binding.bi, 0, 0);
+	vmw_binding_add(ctx_yesde->staged, &binding.bi, 0, 0);
 
 	return 0;
 }
@@ -2405,7 +2405,7 @@ static int vmw_cmd_dx_view_define(struct vmw_private *dev_priv,
 				  struct vmw_sw_context *sw_context,
 				  SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_resource *srf;
 	struct vmw_resource *res;
 	enum vmw_view_type view_type;
@@ -2420,7 +2420,7 @@ static int vmw_cmd_dx_view_define(struct vmw_private *dev_priv,
 		uint32 sid;
 	} *cmd;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
 	view_type = vmw_view_cmd_to_type(header->id);
@@ -2438,12 +2438,12 @@ static int vmw_cmd_dx_view_define(struct vmw_private *dev_priv,
 	if (unlikely(ret != 0))
 		return ret;
 
-	res = vmw_context_cotable(ctx_node->ctx, vmw_view_cotables[view_type]);
-	ret = vmw_cotable_notify(res, cmd->defined_id);
+	res = vmw_context_cotable(ctx_yesde->ctx, vmw_view_cotables[view_type]);
+	ret = vmw_cotable_yestify(res, cmd->defined_id);
 	if (unlikely(ret != 0))
 		return ret;
 
-	return vmw_view_add(sw_context->man, ctx_node->ctx, srf, view_type,
+	return vmw_view_add(sw_context->man, ctx_yesde->ctx, srf, view_type,
 			    cmd->defined_id, header,
 			    header->size + sizeof(*header),
 			    &sw_context->staged_cmd_res);
@@ -2460,7 +2460,7 @@ static int vmw_cmd_dx_set_so_targets(struct vmw_private *dev_priv,
 				     struct vmw_sw_context *sw_context,
 				     SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_ctx_bindinfo_so binding;
 	struct vmw_resource *res;
 	struct {
@@ -2470,7 +2470,7 @@ static int vmw_cmd_dx_set_so_targets(struct vmw_private *dev_priv,
 	} *cmd;
 	int i, ret, num;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
 	cmd = container_of(header, typeof(*cmd), header);
@@ -2489,14 +2489,14 @@ static int vmw_cmd_dx_set_so_targets(struct vmw_private *dev_priv,
 		if (unlikely(ret != 0))
 			return ret;
 
-		binding.bi.ctx = ctx_node->ctx;
+		binding.bi.ctx = ctx_yesde->ctx;
 		binding.bi.res = res;
 		binding.bi.bt = vmw_ctx_binding_so,
 		binding.offset = cmd->targets[i].offset;
 		binding.size = cmd->targets[i].sizeInBytes;
 		binding.slot = i;
 
-		vmw_binding_add(ctx_node->staged, &binding.bi, 0, binding.slot);
+		vmw_binding_add(ctx_yesde->staged, &binding.bi, 0, binding.slot);
 	}
 
 	return 0;
@@ -2506,7 +2506,7 @@ static int vmw_cmd_dx_so_define(struct vmw_private *dev_priv,
 				struct vmw_sw_context *sw_context,
 				SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_resource *res;
 	/*
 	 * This is based on the fact that all affected define commands have
@@ -2519,13 +2519,13 @@ static int vmw_cmd_dx_so_define(struct vmw_private *dev_priv,
 	enum vmw_so_type so_type;
 	int ret;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
 	so_type = vmw_so_cmd_to_type(header->id);
-	res = vmw_context_cotable(ctx_node->ctx, vmw_so_cotables[so_type]);
+	res = vmw_context_cotable(ctx_yesde->ctx, vmw_so_cotables[so_type]);
 	cmd = container_of(header, typeof(*cmd), header);
-	ret = vmw_cotable_notify(res, cmd->defined_id);
+	ret = vmw_cotable_yestify(res, cmd->defined_id);
 
 	return ret;
 }
@@ -2569,9 +2569,9 @@ static int vmw_cmd_dx_cid_check(struct vmw_private *dev_priv,
 				struct vmw_sw_context *sw_context,
 				SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
 	return 0;
@@ -2585,14 +2585,14 @@ static int vmw_cmd_dx_cid_check(struct vmw_private *dev_priv,
  * @sw_context: The software context being used for this batch.
  * @header: Pointer to the command header in the command stream.
  *
- * Check that the view exists, and if it was not created using this command
+ * Check that the view exists, and if it was yest created using this command
  * batch, conditionally make this command a NOP.
  */
 static int vmw_cmd_dx_view_remove(struct vmw_private *dev_priv,
 				  struct vmw_sw_context *sw_context,
 				  SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 	struct {
 		SVGA3dCmdHeader header;
 		union vmw_view_destroy body;
@@ -2601,7 +2601,7 @@ static int vmw_cmd_dx_view_remove(struct vmw_private *dev_priv,
 	struct vmw_resource *view;
 	int ret;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
 	ret = vmw_view_remove(sw_context->man, cmd->body.view_id, view_type,
@@ -2618,7 +2618,7 @@ static int vmw_cmd_dx_view_remove(struct vmw_private *dev_priv,
 	return vmw_resource_relocation_add(sw_context, view,
 					   vmw_ptr_diff(sw_context->buf_start,
 							&cmd->header.id),
-					   vmw_res_rel_cond_nop);
+					   vmw_res_rel_cond_yesp);
 }
 
 /**
@@ -2632,21 +2632,21 @@ static int vmw_cmd_dx_define_shader(struct vmw_private *dev_priv,
 				    struct vmw_sw_context *sw_context,
 				    SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 	struct vmw_resource *res;
 	VMW_DECLARE_CMD_VAR(*cmd, SVGA3dCmdDXDefineShader) =
 		container_of(header, typeof(*cmd), header);
 	int ret;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
-	res = vmw_context_cotable(ctx_node->ctx, SVGA_COTABLE_DXSHADER);
-	ret = vmw_cotable_notify(res, cmd->body.shaderId);
+	res = vmw_context_cotable(ctx_yesde->ctx, SVGA_COTABLE_DXSHADER);
+	ret = vmw_cotable_yestify(res, cmd->body.shaderId);
 	if (ret)
 		return ret;
 
-	return vmw_dx_shader_add(sw_context->man, ctx_node->ctx,
+	return vmw_dx_shader_add(sw_context->man, ctx_yesde->ctx,
 				 cmd->body.shaderId, cmd->body.type,
 				 &sw_context->staged_cmd_res);
 }
@@ -2662,12 +2662,12 @@ static int vmw_cmd_dx_destroy_shader(struct vmw_private *dev_priv,
 				     struct vmw_sw_context *sw_context,
 				     SVGA3dCmdHeader *header)
 {
-	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
+	struct vmw_ctx_validation_info *ctx_yesde = VMW_GET_CTX_NODE(sw_context);
 	VMW_DECLARE_CMD_VAR(*cmd, SVGA3dCmdDXDestroyShader) =
 		container_of(header, typeof(*cmd), header);
 	int ret;
 
-	if (!ctx_node)
+	if (!ctx_yesde)
 		return -EINVAL;
 
 	ret = vmw_shader_remove(sw_context->man, cmd->body.shaderId, 0,
@@ -2701,25 +2701,25 @@ static int vmw_cmd_dx_bind_shader(struct vmw_private *dev_priv,
 		if (ret)
 			return ret;
 	} else {
-		struct vmw_ctx_validation_info *ctx_node =
+		struct vmw_ctx_validation_info *ctx_yesde =
 			VMW_GET_CTX_NODE(sw_context);
 
-		if (!ctx_node)
+		if (!ctx_yesde)
 			return -EINVAL;
 
-		ctx = ctx_node->ctx;
+		ctx = ctx_yesde->ctx;
 	}
 
 	res = vmw_shader_lookup(vmw_context_res_man(ctx), cmd->body.shid, 0);
 	if (IS_ERR(res)) {
-		VMW_DEBUG_USER("Could not find shader to bind.\n");
+		VMW_DEBUG_USER("Could yest find shader to bind.\n");
 		return PTR_ERR(res);
 	}
 
-	ret = vmw_execbuf_res_noctx_val_add(sw_context, res,
+	ret = vmw_execbuf_res_yesctx_val_add(sw_context, res,
 					    VMW_RES_DIRTY_NONE);
 	if (ret) {
-		VMW_DEBUG_USER("Error creating resource validation node.\n");
+		VMW_DEBUG_USER("Error creating resource validation yesde.\n");
 		return ret;
 	}
 
@@ -2795,7 +2795,7 @@ static int vmw_cmd_intra_surface_copy(struct vmw_private *dev_priv,
 				 &cmd->body.surface.sid, NULL);
 }
 
-static int vmw_cmd_check_not_3d(struct vmw_private *dev_priv,
+static int vmw_cmd_check_yest_3d(struct vmw_private *dev_priv,
 				struct vmw_sw_context *sw_context,
 				void *buf, uint32_t *size)
 {
@@ -3209,9 +3209,9 @@ static int vmw_cmd_check(struct vmw_private *dev_priv,
 	bool gb = dev_priv->capabilities & SVGA_CAP_GBOBJECTS;
 
 	cmd_id = ((uint32_t *)buf)[0];
-	/* Handle any none 3D commands */
+	/* Handle any yesne 3D commands */
 	if (unlikely(cmd_id < SVGA_CMD_MAX))
-		return vmw_cmd_check_not_3d(dev_priv, sw_context, buf, size);
+		return vmw_cmd_check_yest_3d(dev_priv, sw_context, buf, size);
 
 
 	cmd_id = header->id;
@@ -3258,7 +3258,7 @@ out_old:
 		       cmd_id + SVGA_3D_CMD_BASE);
 	return -EINVAL;
 out_new:
-	VMW_DEBUG_USER("SVGA3D command: %d not supported by virtual device.\n",
+	VMW_DEBUG_USER("SVGA3D command: %d yest supported by virtual device.\n",
 		       cmd_id + SVGA_3D_CMD_BASE);
 	return -EINVAL;
 }
@@ -3291,7 +3291,7 @@ static int vmw_cmd_check_all(struct vmw_private *dev_priv,
 
 static void vmw_free_relocations(struct vmw_sw_context *sw_context)
 {
-	/* Memory is validation context memory, so no need to free it */
+	/* Memory is validation context memory, so yes need to free it */
 	INIT_LIST_HEAD(&sw_context->bo_relocations);
 }
 
@@ -3354,8 +3354,8 @@ static int vmw_resize_cmd_bounce(struct vmw_sw_context *sw_context,
  * If this fails for some reason, We sync the fifo and return NULL.
  * It is then safe to fence buffers with a NULL pointer.
  *
- * If @p_handle is not NULL @file_priv must also not be NULL. Creates a
- * userspace handle if @p_handle is not NULL, otherwise not.
+ * If @p_handle is yest NULL @file_priv must also yest be NULL. Creates a
+ * userspace handle if @p_handle is yest NULL, otherwise yest.
  */
 
 int vmw_execbuf_fence_commands(struct drm_file *file_priv,
@@ -3401,7 +3401,7 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
  * the information should be copied.
  * @fence: Pointer to the fenc object.
  * @fence_handle: User-space fence handle.
- * @out_fence_fd: exported file descriptor for the fence.  -1 if not used
+ * @out_fence_fd: exported file descriptor for the fence.  -1 if yest used
  * @sync_file:  Only used to clean up in case of an error in this function.
  *
  * This function copies fence information to user-space. If copying fails, the
@@ -3432,13 +3432,13 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 		BUG_ON(fence == NULL);
 
 		fence_rep.handle = fence_handle;
-		fence_rep.seqno = fence->base.seqno;
-		vmw_update_seqno(dev_priv, &dev_priv->fifo);
-		fence_rep.passed_seqno = dev_priv->last_read_seqno;
+		fence_rep.seqyes = fence->base.seqyes;
+		vmw_update_seqyes(dev_priv, &dev_priv->fifo);
+		fence_rep.passed_seqyes = dev_priv->last_read_seqyes;
 	}
 
 	/*
-	 * copy_to_user errors will be detected by user space not seeing
+	 * copy_to_user errors will be detected by user space yest seeing
 	 * fence_rep::error filled in. Typically user-space would have pre-set
 	 * that member to -EFAULT.
 	 */
@@ -3483,9 +3483,9 @@ static int vmw_execbuf_submit_fifo(struct vmw_private *dev_priv,
 {
 	void *cmd;
 
-	if (sw_context->dx_ctx_node)
+	if (sw_context->dx_ctx_yesde)
 		cmd = VMW_FIFO_RESERVE_DX(dev_priv, command_size,
-					  sw_context->dx_ctx_node->ctx->id);
+					  sw_context->dx_ctx_yesde->ctx->id);
 	else
 		cmd = VMW_FIFO_RESERVE(dev_priv, command_size);
 
@@ -3518,7 +3518,7 @@ static int vmw_execbuf_submit_cmdbuf(struct vmw_private *dev_priv,
 				     u32 command_size,
 				     struct vmw_sw_context *sw_context)
 {
-	u32 id = ((sw_context->dx_ctx_node) ? sw_context->dx_ctx_node->ctx->id :
+	u32 id = ((sw_context->dx_ctx_yesde) ? sw_context->dx_ctx_yesde->ctx->id :
 		  SVGA3D_INVALID_ID);
 	void *cmd = vmw_cmdbuf_reserve(dev_priv->cman, command_size, id, false,
 				       header);
@@ -3545,9 +3545,9 @@ static int vmw_execbuf_submit_cmdbuf(struct vmw_private *dev_priv,
  * the user data into that buffer.
  *
  * On successful return, the function returns a pointer to the data in the
- * command buffer and *@header is set to non-NULL.
+ * command buffer and *@header is set to yesn-NULL.
  *
- * If command buffers could not be used, the function will return the value of
+ * If command buffers could yest be used, the function will return the value of
  * @kernel_commands on function call. That value may be NULL. In that case, the
  * value of *@header will be set to NULL.
  *
@@ -3607,20 +3607,20 @@ static int vmw_execbuf_tie_context(struct vmw_private *dev_priv,
 	if (ret)
 		return ret;
 
-	res = vmw_user_resource_noref_lookup_handle
+	res = vmw_user_resource_yesref_lookup_handle
 		(dev_priv, sw_context->fp->tfile, handle,
 		 user_context_converter);
 	if (IS_ERR(res)) {
-		VMW_DEBUG_USER("Could not find or user DX context 0x%08x.\n",
+		VMW_DEBUG_USER("Could yest find or user DX context 0x%08x.\n",
 			       (unsigned int) handle);
 		return PTR_ERR(res);
 	}
 
-	ret = vmw_execbuf_res_noref_val_add(sw_context, res, VMW_RES_DIRTY_SET);
+	ret = vmw_execbuf_res_yesref_val_add(sw_context, res, VMW_RES_DIRTY_SET);
 	if (unlikely(ret != 0))
 		return ret;
 
-	sw_context->dx_ctx_node = vmw_execbuf_info_from_res(sw_context, res);
+	sw_context->dx_ctx_yesde = vmw_execbuf_info_from_res(sw_context, res);
 	sw_context->man = vmw_context_res_man(res);
 
 	return 0;
@@ -3699,7 +3699,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	sw_context->cur_query_bo = dev_priv->pinned_bo;
 	sw_context->last_query_ctx = NULL;
 	sw_context->needs_post_query_barrier = false;
-	sw_context->dx_ctx_node = NULL;
+	sw_context->dx_ctx_yesde = NULL;
 	sw_context->dx_query_mob = NULL;
 	sw_context->dx_query_ctx = NULL;
 	memset(sw_context->res_cache, 0, sizeof(sw_context->res_cache));
@@ -3721,20 +3721,20 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	sw_context->ctx = &val_ctx;
 	ret = vmw_execbuf_tie_context(dev_priv, sw_context, dx_context_handle);
 	if (unlikely(ret != 0))
-		goto out_err_nores;
+		goto out_err_yesres;
 
 	ret = vmw_cmd_check_all(dev_priv, sw_context, kernel_commands,
 				command_size);
 	if (unlikely(ret != 0))
-		goto out_err_nores;
+		goto out_err_yesres;
 
 	ret = vmw_resources_reserve(sw_context);
 	if (unlikely(ret != 0))
-		goto out_err_nores;
+		goto out_err_yesres;
 
 	ret = vmw_validation_bo_reserve(&val_ctx, true);
 	if (unlikely(ret != 0))
-		goto out_err_nores;
+		goto out_err_yesres;
 
 	ret = vmw_validation_bo_validate(&val_ctx, true);
 	if (unlikely(ret != 0))
@@ -3792,7 +3792,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 
 	/*
 	 * If anything fails here, give up trying to export the fence and do a
-	 * sync since the user mode will not be able to sync the fence itself.
+	 * sync since the user mode will yest be able to sync the fence itself.
 	 * This ensures we are still functionally correct.
 	 */
 	if (flags & DRM_VMW_EXECBUF_FLAG_EXPORT_FENCE_FD) {
@@ -3838,7 +3838,7 @@ out_unlock_binding:
 	mutex_unlock(&dev_priv->binding_mutex);
 out_err:
 	vmw_validation_bo_backoff(&val_ctx);
-out_err_nores:
+out_err_yesres:
 	vmw_execbuf_bindings_commit(sw_context, true);
 	vmw_validation_res_unreserve(&val_ctx, true);
 	vmw_resource_relocations_free(&sw_context->res_relocations);
@@ -3872,7 +3872,7 @@ out_free_fence_fd:
  * @dev_priv: The device private structure.
  *
  * This function is called to idle the fifo and unpin the query buffer if the
- * normal way to do this hits an error, which should typically be extremely
+ * yesrmal way to do this hits an error, which should typically be extremely
  * rare.
  */
 static void vmw_execbuf_unpin_panic(struct vmw_private *dev_priv)
@@ -3893,7 +3893,7 @@ static void vmw_execbuf_unpin_panic(struct vmw_private *dev_priv)
  * bo.
  *
  * @dev_priv: The device private structure.
- * @fence: If non-NULL should point to a struct vmw_fence_obj issued _after_ a
+ * @fence: If yesn-NULL should point to a struct vmw_fence_obj issued _after_ a
  * query barrier that flushes all queries touching the current buffer pointed to
  * by @dev_priv->pinned_bo
  *
@@ -3902,11 +3902,11 @@ static void vmw_execbuf_unpin_panic(struct vmw_private *dev_priv)
  * next fifo command. (For example on hardware context destructions where the
  * hardware may otherwise leak unfinished queries).
  *
- * This function does not return any failure codes, but make attempts to do safe
+ * This function does yest return any failure codes, but make attempts to do safe
  * unpinning in case of errors.
  *
  * The function will synchronize on the previous query barrier, and will thus
- * not finish until that barrier has executed.
+ * yest finish until that barrier has executed.
  *
  * the @dev_priv->cmdbuf_mutex needs to be held by the current thread before
  * calling this function.
@@ -3924,22 +3924,22 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 	ret = vmw_validation_add_bo(&val_ctx, dev_priv->pinned_bo, false,
 				    false);
 	if (ret)
-		goto out_no_reserve;
+		goto out_yes_reserve;
 
 	ret = vmw_validation_add_bo(&val_ctx, dev_priv->dummy_query_bo, false,
 				    false);
 	if (ret)
-		goto out_no_reserve;
+		goto out_yes_reserve;
 
 	ret = vmw_validation_bo_reserve(&val_ctx, false);
 	if (ret)
-		goto out_no_reserve;
+		goto out_yes_reserve;
 
 	if (dev_priv->query_cid_valid) {
 		BUG_ON(fence != NULL);
 		ret = vmw_fifo_emit_dummy_query(dev_priv, dev_priv->query_cid);
 		if (ret)
-			goto out_no_emit;
+			goto out_yes_emit;
 		dev_priv->query_cid_valid = false;
 	}
 
@@ -3962,9 +3962,9 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 
 out_unlock:
 	return;
-out_no_emit:
+out_yes_emit:
 	vmw_validation_bo_backoff(&val_ctx);
-out_no_reserve:
+out_yes_reserve:
 	vmw_validation_unref_lists(&val_ctx);
 	vmw_execbuf_unpin_panic(dev_priv);
 	vmw_bo_unreference(&dev_priv->pinned_bo);
@@ -3980,11 +3980,11 @@ out_no_reserve:
  * next fifo command. (For example on hardware context destructions where the
  * hardware may otherwise leak unfinished queries).
  *
- * This function does not return any failure codes, but make attempts to do safe
+ * This function does yest return any failure codes, but make attempts to do safe
  * unpinning in case of errors.
  *
  * The function will synchronize on the previous query barrier, and will thus
- * not finish until that barrier has executed.
+ * yest finish until that barrier has executed.
  */
 void vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv)
 {
@@ -4030,7 +4030,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 		in_fence = sync_file_get_fence(arg->imported_fence_fd);
 
 		if (!in_fence) {
-			VMW_DEBUG_USER("Cannot get imported fence\n");
+			VMW_DEBUG_USER("Canyest get imported fence\n");
 			return -EINVAL;
 		}
 

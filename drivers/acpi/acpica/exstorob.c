@@ -23,7 +23,7 @@ ACPI_MODULE_NAME("exstorob")
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Copy a buffer object to another buffer object.
+ * DESCRIPTION: Copy a buffer object to ayesther buffer object.
  *
  ******************************************************************************/
 acpi_status
@@ -41,7 +41,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* We know that source_desc is a buffer by now */
+	/* We kyesw that source_desc is a buffer by yesw */
 
 	buffer = ACPI_CAST_PTR(u8, source_desc->buffer.pointer);
 	length = source_desc->buffer.length;
@@ -76,14 +76,14 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
 		 * truncated if the string is smaller than the buffer. However, "other"
 		 * implementations of ACPI never did this and thus became the defacto
 		 * standard. ACPI 3.0A changes this behavior such that the buffer
-		 * is no longer truncated.
+		 * is yes longer truncated.
 		 */
 
 		/*
 		 * OBSOLETE BEHAVIOR:
 		 * If the original source was a string, we must truncate the buffer,
 		 * according to the ACPI spec. Integer-to-Buffer and Buffer-to-Buffer
-		 * copy must not truncate the original buffer.
+		 * copy must yest truncate the original buffer.
 		 */
 		if (original_src_type == ACPI_TYPE_STRING) {
 
@@ -119,7 +119,7 @@ acpi_ex_store_buffer_to_buffer(union acpi_operand_object *source_desc,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Copy a String object to another String object
+ * DESCRIPTION: Copy a String object to ayesther String object
  *
  ******************************************************************************/
 
@@ -138,19 +138,19 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* We know that source_desc is a string by now */
+	/* We kyesw that source_desc is a string by yesw */
 
 	buffer = ACPI_CAST_PTR(u8, source_desc->string.pointer);
 	length = source_desc->string.length;
 
 	/*
 	 * Replace existing string value if it will fit and the string
-	 * pointer is not a static pointer (part of an ACPI table)
+	 * pointer is yest a static pointer (part of an ACPI table)
 	 */
 	if ((length < target_desc->string.length) &&
 	    (!(target_desc->common.flags & AOPOBJ_STATIC_POINTER))) {
 		/*
-		 * String will fit in existing non-static buffer.
+		 * String will fit in existing yesn-static buffer.
 		 * Clear old string and copy in the new one
 		 */
 		memset(target_desc->string.pointer, 0,
@@ -159,12 +159,12 @@ acpi_ex_store_string_to_string(union acpi_operand_object *source_desc,
 	} else {
 		/*
 		 * Free the current buffer, then allocate a new buffer
-		 * large enough to hold the value
+		 * large eyesugh to hold the value
 		 */
 		if (target_desc->string.pointer &&
 		    (!(target_desc->common.flags & AOPOBJ_STATIC_POINTER))) {
 
-			/* Only free if not a pointer into the DSDT */
+			/* Only free if yest a pointer into the DSDT */
 
 			ACPI_FREE(target_desc->string.pointer);
 		}

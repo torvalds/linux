@@ -22,8 +22,8 @@ enum vpbe_enc_timings_type {
 /*
  * struct vpbe_enc_mode_info
  * @name: ptr to name string of the standard, "NTSC", "PAL" etc
- * @std: standard or non-standard mode. 1 - standard, 0 - nonstandard
- * @interlaced: 1 - interlaced, 0 - non interlaced/progressive
+ * @std: standard or yesn-standard mode. 1 - standard, 0 - yesnstandard
+ * @interlaced: 1 - interlaced, 0 - yesn interlaced/progressive
  * @xres: x or horizontal resolution of the display
  * @yres: y or vertical resolution of the display
  * @fps: frame per second
@@ -37,7 +37,7 @@ enum vpbe_enc_timings_type {
  *
  * Description:
  *  Structure holding timing and resolution information of a standard.
- * Used by vpbe_device to set required non-standard timing in the
+ * Used by vpbe_device to set required yesn-standard timing in the
  * venc when lcd controller output is connected to a external encoder.
  * A table of timings is maintained in vpbe device to set this in
  * venc when external encoder is connected to lcd controller output.

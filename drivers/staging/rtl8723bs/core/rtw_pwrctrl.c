@@ -26,7 +26,7 @@ void _ips_enter(struct adapter *padapter)
 
 	if (rf_off == pwrpriv->change_rfpwrstate) {
 		pwrpriv->bpower_saving = true;
-		DBG_871X("nolinked power save enter\n");
+		DBG_871X("yeslinked power save enter\n");
 
 		if (pwrpriv->ips_mode == IPS_LEVEL_2)
 			pwrpriv->bkeepfwalive = true;
@@ -65,7 +65,7 @@ int _ips_leave(struct adapter *padapter)
 		if (result == _SUCCESS) {
 			pwrpriv->rf_pwrstate = rf_on;
 		}
-		DBG_871X("nolinked power save leave\n");
+		DBG_871X("yeslinked power save leave\n");
 
 		DBG_871X("==> ips_leave.....LED(0x%08x)...\n", rtw_read32(padapter, 0x4c));
 		pwrpriv->bips_processing = false;
@@ -169,7 +169,7 @@ void rtw_ps_processor(struct adapter *padapter)
 
 	if (pwrpriv->bInSuspend) {/* system suspend or autosuspend */
 		pdbgpriv->dbg_ps_insuspend_cnt++;
-		DBG_871X("%s, pwrpriv->bInSuspend == true ignore this process\n", __func__);
+		DBG_871X("%s, pwrpriv->bInSuspend == true igyesre this process\n", __func__);
 		return;
 	}
 
@@ -300,7 +300,7 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 	/*  only when from PS_STATE S0/S1 to S2 and higher needs ACK */
 	if ((pwrpriv->cpwm < PS_STATE_S2) && (pslv >= PS_STATE_S2))
 		rpwm |= PS_ACK;
-	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
+	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_yestice_,
 			 ("rtw_set_rpwm: rpwm = 0x%02x cpwm = 0x%02x\n", rpwm, pwrpriv->cpwm));
 
 	pwrpriv->rpwm = pslv;
@@ -318,7 +318,7 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 	/*  No LPS 32K, No Ack */
 	if (rpwm & PS_ACK) {
 		unsigned long start_time;
-		u8 cpwm_now;
+		u8 cpwm_yesw;
 		u8 poll_cnt = 0;
 
 		start_time = jiffies;
@@ -327,15 +327,15 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 		do {
 			mdelay(1);
 			poll_cnt++;
-			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_now);
-			if ((cpwm_orig ^ cpwm_now) & 0x80) {
+			rtw_hal_get_hwreg(padapter, HW_VAR_CPWM, &cpwm_yesw);
+			if ((cpwm_orig ^ cpwm_yesw) & 0x80) {
 				pwrpriv->cpwm = PS_STATE_S4;
-				pwrpriv->cpwm_tog = cpwm_now & PS_TOGGLE;
+				pwrpriv->cpwm_tog = cpwm_yesw & PS_TOGGLE;
 				break;
 			}
 
 			if (jiffies_to_msecs(jiffies - start_time) > LPS_RPWM_WAIT_MS) {
-				DBG_871X("%s: polling cpwm timeout! poll_cnt =%d, cpwm_orig =%02x, cpwm_now =%02x\n", __func__, poll_cnt, cpwm_orig, cpwm_now);
+				DBG_871X("%s: polling cpwm timeout! poll_cnt =%d, cpwm_orig =%02x, cpwm_yesw =%02x\n", __func__, poll_cnt, cpwm_orig, cpwm_yesw);
 				_set_timer(&pwrpriv->pwr_rpwm_timer, 1);
 				break;
 			}
@@ -395,7 +395,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 	struct debug_priv *pdbgpriv = &padapter->dvobj->drv_dbg;
 #endif
 
-	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
+	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_yestice_,
 			 ("%s: PowerMode =%d Smart_PS =%d\n",
 			  __func__, ps_mode, smart_ps));
 
@@ -538,13 +538,13 @@ void LPS_Enter(struct adapter *padapter, const char *msg)
 	if (hal_btcoex_IsBtControlLps(padapter))
 		return;
 
-	/* Skip lps enter request if number of assocated adapters is not 1 */
+	/* Skip lps enter request if number of assocated adapters is yest 1 */
 	if (check_fwstate(&(dvobj->padapters->mlmepriv), WIFI_ASOC_STATE))
 		n_assoc_iface++;
 	if (n_assoc_iface != 1)
 		return;
 
-	/* Skip lps enter request for adapter not port0 */
+	/* Skip lps enter request for adapter yest port0 */
 	if (get_iface_type(padapter) != IFACE_PORT0)
 		return;
 
@@ -743,7 +743,7 @@ void cpwm_int_hdl(
 exit:
 	mutex_unlock(&pwrpriv->lock);
 
-	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
+	RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_yestice_,
 			 ("cpwm_int_hdl: cpwm = 0x%02x\n", pwrpriv->cpwm));
 }
 
@@ -792,7 +792,7 @@ static void rpwmtimeout_workitem_callback(struct work_struct *work)
 	mutex_lock(&pwrpriv->lock);
 
 	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2)) {
-		DBG_871X("%s: cpwm =%d, nothing to do!\n", __func__, pwrpriv->cpwm);
+		DBG_871X("%s: cpwm =%d, yesthing to do!\n", __func__, pwrpriv->cpwm);
 		goto exit;
 	}
 	pwrpriv->brpwmtimeout = true;
@@ -813,7 +813,7 @@ static void pwr_rpwm_timeout_handler(struct timer_list *t)
 	DBG_871X("+%s: rpwm = 0x%02X cpwm = 0x%02X\n", __func__, pwrpriv->rpwm, pwrpriv->cpwm);
 
 	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2)) {
-		DBG_871X("+%s: cpwm =%d, nothing to do!\n", __func__, pwrpriv->cpwm);
+		DBG_871X("+%s: cpwm =%d, yesthing to do!\n", __func__, pwrpriv->cpwm);
 		return;
 	}
 
@@ -834,7 +834,7 @@ static inline void unregister_task_alive(struct pwrctrl_priv *pwrctrl, u32 tag)
 /*
  * Description:
  *Check if the fw_pwrstate is okay for I/O.
- *If not (cpwm is less than S2), then the sub-routine
+ *If yest (cpwm is less than S2), then the sub-routine
  *will raise the cpwm to be greater than or equal to S2.
  *
  *Calling Context: Passive
@@ -844,7 +844,7 @@ static inline void unregister_task_alive(struct pwrctrl_priv *pwrctrl, u32 tag)
  *
  * Return Value:
  *_SUCCESS	hardware is ready for I/O
- *_FAIL		can't I/O right now
+ *_FAIL		can't I/O right yesw
  */
 s32 rtw_register_task_alive(struct adapter *padapter, u32 task)
 {
@@ -861,7 +861,7 @@ s32 rtw_register_task_alive(struct adapter *padapter, u32 task)
 	register_task_alive(pwrctrl, task);
 
 	if (pwrctrl->bFwCurrentInPSMode) {
-		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
+		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_yestice_,
 				 ("%s: task = 0x%x cpwm = 0x%02x alives = 0x%08x\n",
 				  __func__, task, pwrctrl->cpwm, pwrctrl->alives));
 
@@ -890,7 +890,7 @@ s32 rtw_register_task_alive(struct adapter *padapter, u32 task)
  *	1. this function will request pwrctrl->lock
  *
  * Return Value:
- *none
+ *yesne
  */
 void rtw_unregister_task_alive(struct adapter *padapter, u32 task)
 {
@@ -915,7 +915,7 @@ void rtw_unregister_task_alive(struct adapter *padapter, u32 task)
 
 	if ((pwrctrl->pwr_mode != PS_MODE_ACTIVE)
 	    && pwrctrl->bFwCurrentInPSMode) {
-		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
+		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_yestice_,
 				 ("%s: cpwm = 0x%02x alives = 0x%08x\n",
 				  __func__, pwrctrl->cpwm, pwrctrl->alives));
 
@@ -932,14 +932,14 @@ void rtw_unregister_task_alive(struct adapter *padapter, u32 task)
  * Caller: rtw_xmit_thread
  *
  * Check if the fw_pwrstate is okay for xmit.
- * If not (cpwm is less than S3), then the sub-routine
+ * If yest (cpwm is less than S3), then the sub-routine
  * will raise the cpwm to be greater than or equal to S3.
  *
  * Calling Context: Passive
  *
  * Return Value:
  * _SUCCESS	rtw_xmit_thread can write fifo/txcmd afterwards.
- * _FAIL		rtw_xmit_thread can not do anything.
+ * _FAIL		rtw_xmit_thread can yest do anything.
  */
 s32 rtw_register_tx_alive(struct adapter *padapter)
 {
@@ -956,7 +956,7 @@ s32 rtw_register_tx_alive(struct adapter *padapter)
 	register_task_alive(pwrctrl, XMIT_ALIVE);
 
 	if (pwrctrl->bFwCurrentInPSMode) {
-		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
+		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_yestice_,
 				 ("rtw_register_tx_alive: cpwm = 0x%02x alives = 0x%08x\n",
 				  pwrctrl->cpwm, pwrctrl->alives));
 
@@ -981,14 +981,14 @@ s32 rtw_register_tx_alive(struct adapter *padapter)
  * Caller: rtw_cmd_thread
  *
  * Check if the fw_pwrstate is okay for issuing cmd.
- * If not (cpwm should be is less than S2), then the sub-routine
+ * If yest (cpwm should be is less than S2), then the sub-routine
  * will raise the cpwm to be greater than or equal to S2.
  *
  * Calling Context: Passive
  *
  * Return Value:
  *_SUCCESS	rtw_cmd_thread can issue cmds to firmware afterwards.
- *_FAIL		rtw_cmd_thread can not do anything.
+ *_FAIL		rtw_cmd_thread can yest do anything.
  */
 s32 rtw_register_cmd_alive(struct adapter *padapter)
 {
@@ -1056,7 +1056,7 @@ void rtw_unregister_tx_alive(struct adapter *padapter)
 
 	if ((pwrctrl->pwr_mode != PS_MODE_ACTIVE)
 		&& pwrctrl->bFwCurrentInPSMode) {
-		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_notice_,
+		RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_yestice_,
 				 ("%s: cpwm = 0x%02x alives = 0x%08x\n",
 				  __func__, pwrctrl->cpwm, pwrctrl->alives));
 
@@ -1072,7 +1072,7 @@ void rtw_unregister_tx_alive(struct adapter *padapter)
  * Caller: ISR
  *
  * If all commands have been done,
- * and no more command to do,
+ * and yes more command to do,
  * then driver shall call this fun. to power down firmware again.
  */
 void rtw_unregister_cmd_alive(struct adapter *padapter)
@@ -1161,11 +1161,11 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	pwrctrlpriv->wowlan_ap_mode = false;
 
 #ifdef CONFIG_PNO_SUPPORT
-	pwrctrlpriv->pno_inited = false;
+	pwrctrlpriv->pyes_inited = false;
 	pwrctrlpriv->pnlo_info = NULL;
 	pwrctrlpriv->pscan_info = NULL;
-	pwrctrlpriv->pno_ssid_list = NULL;
-	pwrctrlpriv->pno_in_resume = true;
+	pwrctrlpriv->pyes_ssid_list = NULL;
+	pwrctrlpriv->pyes_in_resume = true;
 #endif
 }
 
@@ -1179,8 +1179,8 @@ void rtw_free_pwrctrl_priv(struct adapter *adapter)
 	if (pwrctrlpriv->pscan_info != NULL)
 		printk("****** pscan_info memory leak********\n");
 
-	if (pwrctrlpriv->pno_ssid_list != NULL)
-		printk("****** pno_ssid_list memory leak********\n");
+	if (pwrctrlpriv->pyes_ssid_list != NULL)
+		printk("****** pyes_ssid_list memory leak********\n");
 #endif
 }
 
@@ -1240,7 +1240,7 @@ int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *cal
 			DBG_871X("%s wait bInSuspend done\n", __func__);
 	}
 
-	/* System suspend is not allowed to wakeup */
+	/* System suspend is yest allowed to wakeup */
 	if (!(pwrpriv->bInternalAutoSuspend) && pwrpriv->bInSuspend) {
 		ret = _FAIL;
 		goto exit;

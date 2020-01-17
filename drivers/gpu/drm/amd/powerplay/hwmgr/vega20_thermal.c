@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -235,7 +235,7 @@ int vega20_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 * @param    hwmgr The address of the hardware manager.
 * @param    range Temperature range to be programmed for
 *           high and low alert signals
-* @exception PP_Result_BadInput if the input data is not valid.
+* @exception PP_Result_BadInput if the input data is yest valid.
 */
 static int vega20_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		struct PP_TemperatureRange *range)

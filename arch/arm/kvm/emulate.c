@@ -158,7 +158,7 @@ unsigned long *__vcpu_spsr(struct kvm_vcpu *vcpu)
  * @vcpu: The VCPU to receive the exception
  *
  * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
+ * VCPU therefore is yest currently executing guest code.
  */
 void kvm_inject_vabt(struct kvm_vcpu *vcpu)
 {

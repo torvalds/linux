@@ -15,8 +15,8 @@
  * Devices: [Measurement Computing] CIO-DAS16/M1 (das16m1)
  * Status: works
  *
- * This driver supports a single board - the CIO-DAS16/M1. As far as I know,
- * there are no other boards that have the same register layout. Even the
+ * This driver supports a single board - the CIO-DAS16/M1. As far as I kyesw,
+ * there are yes other boards that have the same register layout. Even the
  * CIO-DAS16/M1/16 is significantly different.
  *
  * I was _barely_ able to reach the full 1 MHz capability of this board, using
@@ -36,7 +36,7 @@
  *   [0] - base io address
  *   [1] - irq (optional, but you probably want it)
  *
- * irq can be omitted, although the cmd interface will not work without it.
+ * irq can be omitted, although the cmd interface will yest work without it.
  */
 
 #include <linux/module.h>
@@ -256,7 +256,7 @@ static int das16m1_ai_cmd(struct comedi_device *dev,
 	comedi_8254_write(devpriv->counter, 1, 0);
 
 	/*
-	 * Remember current reading of counter so we know when counter has
+	 * Remember current reading of counter so we kyesw when counter has
 	 * actually been loaded.
 	 */
 	devpriv->initial_hw_count = comedi_8254_read(devpriv->counter, 1);
@@ -383,8 +383,8 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 	/* figure out how many samples are in fifo */
 	hw_counter = comedi_8254_read(devpriv->counter, 1);
 	/*
-	 * Make sure hardware counter reading is not bogus due to initial
-	 * value not having been loaded yet.
+	 * Make sure hardware counter reading is yest bogus due to initial
+	 * value yest having been loaded yet.
 	 */
 	if (devpriv->adc_count == 0 &&
 	    hw_counter == devpriv->initial_hw_count) {

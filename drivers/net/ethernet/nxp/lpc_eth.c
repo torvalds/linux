@@ -314,8 +314,8 @@
 
 static phy_interface_t lpc_phy_interface_mode(struct device *dev)
 {
-	if (dev && dev->of_node) {
-		const char *mode = of_get_property(dev->of_node,
+	if (dev && dev->of_yesde) {
+		const char *mode = of_get_property(dev->of_yesde,
 						   "phy-mode", NULL);
 		if (mode && !strcmp(mode, "mii"))
 			return PHY_INTERFACE_MODE_MII;
@@ -325,8 +325,8 @@ static phy_interface_t lpc_phy_interface_mode(struct device *dev)
 
 static bool use_iram_for_net(struct device *dev)
 {
-	if (dev && dev->of_node)
-		return of_property_read_bool(dev->of_node, "use-iram");
+	if (dev && dev->of_yesde)
+		return of_property_read_bool(dev->of_yesde, "use-iram");
 	return false;
 }
 
@@ -392,7 +392,7 @@ struct rx_status_t {
 struct netdata_local {
 	struct platform_device	*pdev;
 	struct net_device	*ndev;
-	struct device_node	*phy_node;
+	struct device_yesde	*phy_yesde;
 	spinlock_t		lock;
 	void __iomem		*net_base;
 	u32			msg_enable;
@@ -759,12 +759,12 @@ static int lpc_mii_probe(struct net_device *ndev)
 	else
 		netdev_info(ndev, "using RMII interface\n");
 
-	if (pldat->phy_node)
-		phydev =  of_phy_find_device(pldat->phy_node);
+	if (pldat->phy_yesde)
+		phydev =  of_phy_find_device(pldat->phy_yesde);
 	else
 		phydev = phy_find_first(pldat->mii_bus);
 	if (!phydev) {
-		netdev_err(ndev, "no PHY found\n");
+		netdev_err(ndev, "yes PHY found\n");
 		return -ENODEV;
 	}
 
@@ -772,7 +772,7 @@ static int lpc_mii_probe(struct net_device *ndev)
 			     &lpc_handle_link_change,
 			     lpc_phy_interface_mode(&pldat->pdev->dev));
 	if (IS_ERR(phydev)) {
-		netdev_err(ndev, "Could not attach to PHY\n");
+		netdev_err(ndev, "Could yest attach to PHY\n");
 		return PTR_ERR(phydev);
 	}
 
@@ -789,7 +789,7 @@ static int lpc_mii_probe(struct net_device *ndev)
 
 static int lpc_mii_init(struct netdata_local *pldat)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int err = -ENXIO;
 
 	pldat->mii_bus = mdiobus_alloc();
@@ -817,9 +817,9 @@ static int lpc_mii_init(struct netdata_local *pldat)
 	pldat->mii_bus->priv = pldat;
 	pldat->mii_bus->parent = &pldat->pdev->dev;
 
-	node = of_get_child_by_name(pldat->pdev->dev.of_node, "mdio");
-	err = of_mdiobus_register(pldat->mii_bus, node);
-	of_node_put(node);
+	yesde = of_get_child_by_name(pldat->pdev->dev.of_yesde, "mdio");
+	err = of_mdiobus_register(pldat->mii_bus, yesde);
+	of_yesde_put(yesde);
 	if (err)
 		goto err_out_unregister_bus;
 
@@ -1041,11 +1041,11 @@ static int lpc_eth_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	spin_lock_irq(&pldat->lock);
 
 	if (pldat->num_used_tx_buffs >= (ENET_TX_DESC - 1)) {
-		/* This function should never be called when there are no
+		/* This function should never be called when there are yes
 		   buffers */
 		netif_stop_queue(ndev);
 		spin_unlock_irq(&pldat->lock);
-		WARN(1, "BUG! TX request when no free TX buffers!\n");
+		WARN(1, "BUG! TX request when yes free TX buffers!\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1072,7 +1072,7 @@ static int lpc_eth_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		txidx = 0;
 	writel(txidx, LPC_ENET_TXPRODUCEINDEX(pldat->net_base));
 
-	/* Stop queue if no more TX buffers */
+	/* Stop queue if yes more TX buffers */
 	if (pldat->num_used_tx_buffs >= (ENET_TX_DESC - 1))
 		netif_stop_queue(ndev);
 
@@ -1174,7 +1174,7 @@ static int lpc_eth_open(struct net_device *ndev)
 	if (ret)
 		return ret;
 
-	/* Suspended PHY makes LPC ethernet core block, so resume now */
+	/* Suspended PHY makes LPC ethernet core block, so resume yesw */
 	phy_resume(ndev->phydev);
 
 	/* Reset and initialize */
@@ -1237,7 +1237,7 @@ static const struct net_device_ops lpc_netdev_ops = {
 static int lpc_eth_drv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct netdata_local *pldat;
 	struct net_device *ndev;
 	dma_addr_t dma_handle;
@@ -1259,7 +1259,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	/* Allocate net driver data structure */
 	ndev = alloc_etherdev(sizeof(struct netdata_local));
 	if (!ndev) {
-		dev_err(dev, "could not allocate device.\n");
+		dev_err(dev, "could yest allocate device.\n");
 		ret = -ENOMEM;
 		goto err_exit;
 	}
@@ -1317,7 +1317,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 			pldat->dma_buff_base_v = NULL;
 			pldat->dma_buff_size = 0;
 			netdev_err(ndev,
-				"IRAM not big enough for net buffers, using SDRAM instead.\n");
+				"IRAM yest big eyesugh for net buffers, using SDRAM instead.\n");
 		}
 	}
 
@@ -1353,7 +1353,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	netdev_dbg(ndev, "DMA buffer V address :0x%p\n",
 			pldat->dma_buff_base_v);
 
-	pldat->phy_node = of_parse_phandle(np, "phy-handle", 0);
+	pldat->phy_yesde = of_parse_phandle(np, "phy-handle", 0);
 
 	/* Get MAC address from current HW setting (POR state is all zeros) */
 	__lpc_get_mac(pldat, ndev->dev_addr);
@@ -1386,7 +1386,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 
 	ret = register_netdev(ndev);
 	if (ret) {
-		dev_err(dev, "Cannot register net device, aborting.\n");
+		dev_err(dev, "Canyest register net device, aborting.\n");
 		goto err_out_dma_unmap;
 	}
 	platform_set_drvdata(pdev, ndev);
@@ -1422,7 +1422,7 @@ err_out_clk_put:
 err_out_free_dev:
 	free_netdev(ndev);
 err_exit:
-	pr_err("%s: not found (%d).\n", MODNAME, ret);
+	pr_err("%s: yest found (%d).\n", MODNAME, ret);
 	return ret;
 }
 
@@ -1466,7 +1466,7 @@ static int lpc_eth_drv_suspend(struct platform_device *pdev,
 			clk_disable_unprepare(pldat->clk);
 
 			/*
-			 * Reset again now clock is disable to be sure
+			 * Reset again yesw clock is disable to be sure
 			 * EMC_MDC is down
 			 */
 			__lpc_eth_reset(pldat);

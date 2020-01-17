@@ -22,7 +22,7 @@
 
 #include <linux/console.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -84,7 +84,7 @@ static void xenfb_send_event(struct xenfb_info *info,
 	wmb();			/* ensure ring contents visible */
 	info->page->out_prod = prod + 1;
 
-	notify_remote_via_irq(info->irq);
+	yestify_remote_via_irq(info->irq);
 }
 
 static void xenfb_do_update(struct xenfb_info *info,
@@ -162,7 +162,7 @@ static void xenfb_refresh(struct xenfb_info *info,
 		x2 = info->x2;
 
 	if (xenfb_queue_full(info)) {
-		/* Can't send right now, stash it in the dirty rectangle */
+		/* Can't send right yesw, stash it in the dirty rectangle */
 		info->x1 = x1;
 		info->x2 = x2;
 		info->y1 = y1;
@@ -211,13 +211,13 @@ static struct fb_deferred_io xenfb_defio = {
 	.deferred_io	= xenfb_deferred_io,
 };
 
-static int xenfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int xenfb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
 	u32 v;
 
-	if (regno > info->cmap.len)
+	if (regyes > info->cmap.len)
 		return 1;
 
 #define CNVT_TOHW(val, width) ((((val)<<(width))+0x7FFF-(val))>>16)
@@ -235,7 +235,7 @@ static int xenfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	case 16:
 	case 24:
 	case 32:
-		((u32 *)info->pseudo_palette)[regno] = v;
+		((u32 *)info->pseudo_palette)[regyes] = v;
 		break;
 	}
 
@@ -343,7 +343,7 @@ static struct fb_ops xenfb_fb_ops = {
 static irqreturn_t xenfb_event_handler(int rq, void *dev_id)
 {
 	/*
-	 * No in events recognized, simply ignore them all.
+	 * No in events recognized, simply igyesre them all.
 	 * If you need to recognize some, see xen-kbdfront's
 	 * input_handler() for how to do that.
 	 */
@@ -352,7 +352,7 @@ static irqreturn_t xenfb_event_handler(int rq, void *dev_id)
 
 	if (page->in_cons != page->in_prod) {
 		info->page->in_cons = info->page->in_prod;
-		notify_remote_via_irq(info->irq);
+		yestify_remote_via_irq(info->irq);
 	}
 
 	/* Flush dirty rectangle: */
@@ -387,7 +387,7 @@ static int xenfb_probe(struct xenbus_device *dev,
 	video[KPARAM_HEIGHT] = xenbus_read_unsigned(dev->otherend, "height",
 						    video[KPARAM_HEIGHT]);
 
-	/* If requested res does not fit in available memory, use default */
+	/* If requested res does yest fit in available memory, use default */
 	fb_size = video[KPARAM_MEM] * 1024 * 1024;
 	if (video[KPARAM_WIDTH] * video[KPARAM_HEIGHT] * XENFB_DEPTH / 8
 	    > fb_size) {
@@ -408,23 +408,23 @@ static int xenfb_probe(struct xenbus_device *dev,
 
 	info->fb = vzalloc(fb_size);
 	if (info->fb == NULL)
-		goto error_nomem;
+		goto error_yesmem;
 
 	info->nr_pages = (fb_size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 	info->gfns = vmalloc(array_size(sizeof(unsigned long), info->nr_pages));
 	if (!info->gfns)
-		goto error_nomem;
+		goto error_yesmem;
 
 	/* set up shared page */
 	info->page = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 	if (!info->page)
-		goto error_nomem;
+		goto error_yesmem;
 
 	/* abusing framebuffer_alloc() to allocate pseudo_palette */
 	fb_info = framebuffer_alloc(sizeof(u32) * 256, NULL);
 	if (fb_info == NULL)
-		goto error_nomem;
+		goto error_yesmem;
 
 	/* complete the abuse: */
 	fb_info->pseudo_palette = fb_info->par;
@@ -488,7 +488,7 @@ error_fb:
 	fb_deferred_io_cleanup(fb_info);
 	fb_dealloc_cmap(&fb_info->cmap);
 	framebuffer_release(fb_info);
-error_nomem:
+error_yesmem:
 	if (!ret) {
 		ret = -ENOMEM;
 		xenbus_dev_fatal(dev, ret, "allocating device memory");
@@ -595,19 +595,19 @@ static int xenfb_connect_backend(struct xenbus_device *dev,
 		xenbus_dev_fatal(dev, ret, "starting transaction");
 		goto unbind_irq;
 	}
-	ret = xenbus_printf(xbt, dev->nodename, "page-ref", "%lu",
+	ret = xenbus_printf(xbt, dev->yesdename, "page-ref", "%lu",
 			    virt_to_gfn(info->page));
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "event-channel", "%u",
+	ret = xenbus_printf(xbt, dev->yesdename, "event-channel", "%u",
 			    evtchn);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "protocol", "%s",
+	ret = xenbus_printf(xbt, dev->yesdename, "protocol", "%s",
 			    XEN_IO_PROTO_ABI_NATIVE);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "feature-update", "1");
+	ret = xenbus_printf(xbt, dev->yesdename, "feature-update", "1");
 	if (ret)
 		goto error_xenbus;
 	ret = xenbus_transaction_end(xbt, 0);
@@ -649,7 +649,7 @@ static void xenfb_backend_changed(struct xenbus_device *dev,
 	case XenbusStateInitialised:
 	case XenbusStateReconfiguring:
 	case XenbusStateReconfigured:
-	case XenbusStateUnknown:
+	case XenbusStateUnkyeswn:
 		break;
 
 	case XenbusStateInitWait:
@@ -659,11 +659,11 @@ static void xenfb_backend_changed(struct xenbus_device *dev,
 	case XenbusStateConnected:
 		/*
 		 * Work around xenbus race condition: If backend goes
-		 * through InitWait to Connected fast enough, we can
+		 * through InitWait to Connected fast eyesugh, we can
 		 * get Connected twice here.
 		 */
 		if (dev->state != XenbusStateConnected)
-			/* no InitWait seen yet, fudge it */
+			/* yes InitWait seen yet, fudge it */
 			xenbus_switch_state(dev, XenbusStateConnected);
 
 		if (xenbus_read_unsigned(info->xbdev->otherend,

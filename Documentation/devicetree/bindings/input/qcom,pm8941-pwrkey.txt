@@ -18,7 +18,7 @@ PROPERTIES
 	Usage: required
 	Value type: <prop-encoded-array>
 	Definition: key change interrupt; The format of the specifier is
-		    defined by the binding document describing the node's
+		    defined by the binding document describing the yesde's
 		    interrupt parent.
 
 - debounce:

@@ -410,7 +410,7 @@ static void rtw_phy_dig(struct rtw_dev *rtwdev)
 	/* test the false alarm count from the highest threshold level first,
 	 * and increase it by corresponding step size
 	 *
-	 * note that the step size is offset by -2, compensate it afterall
+	 * yeste that the step size is offset by -2, compensate it afterall
 	 */
 	cur_igi = pre_igi;
 	for (level = 0; level < 3; level++) {
@@ -423,7 +423,7 @@ static void rtw_phy_dig(struct rtw_dev *rtwdev)
 
 	/* calculate the upper/lower bound by the minimum rssi we have among
 	 * the peers connected with us, meanwhile make sure the igi value does
-	 * not beyond the hardware limitation
+	 * yest beyond the hardware limitation
 	 */
 	rtw_phy_dig_get_boundary(dm_info, &upper_bound, &lower_bound, linked);
 	cur_igi = clamp_t(u8, cur_igi, lower_bound, upper_bound);
@@ -1295,7 +1295,7 @@ static void rtw_phy_set_tx_power_limit(struct rtw_dev *rtwdev, u8 regd, u8 band,
 	}
 }
 
-/* cross-reference 5G power limits if values are not assigned */
+/* cross-reference 5G power limits if values are yest assigned */
 static void
 rtw_xref_5g_txpwr_lmt(struct rtw_dev *rtwdev, u8 regd,
 		      u8 bw, u8 ch_idx, u8 rs_ht, u8 rs_vht)
@@ -1820,7 +1820,7 @@ static void rtw_phy_set_tx_power_index_by_rs(struct rtw_dev *rtwdev,
 	}
 }
 
-/* set tx power level by path for each rates, note that the order of the rates
+/* set tx power level by path for each rates, yeste that the order of the rates
  * are *very* important, bacause 8822B/8821C combines every four bytes of tx
  * power index into a four-byte power index register, and calls set_tx_agc to
  * write these values into hardware
@@ -1831,7 +1831,7 @@ static void rtw_phy_set_tx_power_level_by_path(struct rtw_dev *rtwdev,
 	struct rtw_hal *hal = &rtwdev->hal;
 	u8 rs;
 
-	/* do not need cck rates if we are not in 2.4G */
+	/* do yest need cck rates if we are yest in 2.4G */
 	if (hal->current_band_type == RTW_BAND_2G)
 		rs = RTW_RATE_SECTION_CCK;
 	else
@@ -2060,7 +2060,7 @@ s8 rtw_phy_pwrtrack_get_pwridx(struct rtw_dev *rtwdev,
 	}
 
 	if (!swing_table) {
-		rtw_warn(rtwdev, "swing table not configured\n");
+		rtw_warn(rtwdev, "swing table yest configured\n");
 		return 0;
 	}
 

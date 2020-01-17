@@ -182,7 +182,7 @@ static const struct hid_device_id hid_quirks[] = {
 /*
  * A list of devices for which there is a specialized driver on HID bus.
  *
- * Please note that for multitouch devices (driven by hid-multitouch driver),
+ * Please yeste that for multitouch devices (driven by hid-multitouch driver),
  * there is a proper autodetection and autoloading in place (based on presence
  * of HID_DG_CONTACTID), so those devices don't need to be added to this list,
  * as we are doing the right thing in hid_scan_usage().
@@ -680,7 +680,7 @@ static const struct hid_device_id hid_have_special_driver[] = {
 };
 
 /* a list of devices that shouldn't be handled by HID core at all */
-static const struct hid_device_id hid_ignore_list[] = {
+static const struct hid_device_id hid_igyesre_list[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_FLAIR) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ACECAD, USB_DEVICE_ID_ACECAD_302) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ADS_TECH, USB_DEVICE_ID_ADS_TECH_RADIO_SI470X) },
@@ -847,13 +847,13 @@ static const struct hid_device_id hid_ignore_list[] = {
 };
 
 /*
- * hid_mouse_ignore_list - mouse devices which should not be handled by the hid layer
+ * hid_mouse_igyesre_list - mouse devices which should yest be handled by the hid layer
  *
- * There are composite devices for which we want to ignore only a certain
+ * There are composite devices for which we want to igyesre only a certain
  * interface. This is a list of devices for which only the mouse interface will
- * be ignored. This allows a dedicated driver to take care of the interface.
+ * be igyesred. This allows a dedicated driver to take care of the interface.
  */
-static const struct hid_device_id hid_mouse_ignore_list[] = {
+static const struct hid_device_id hid_mouse_igyesre_list[] = {
 	/* appletouch driver */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_ANSI) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_FOUNTAIN_ISO) },
@@ -913,7 +913,7 @@ static const struct hid_device_id hid_mouse_ignore_list[] = {
 	{ }
 };
 
-bool hid_ignore(struct hid_device *hdev)
+bool hid_igyesre(struct hid_device *hdev)
 {
 	int i;
 
@@ -924,7 +924,7 @@ bool hid_ignore(struct hid_device *hdev)
 
 	switch (hdev->vendor) {
 	case USB_VENDOR_ID_CODEMERCS:
-		/* ignore all Code Mercenaries IOWarrior devices */
+		/* igyesre all Code Mercenaries IOWarrior devices */
 		if (hdev->product >= USB_DEVICE_ID_CODEMERCS_IOW_FIRST &&
 		    hdev->product <= USB_DEVICE_ID_CODEMERCS_IOW_LAST)
 			return true;
@@ -935,7 +935,7 @@ bool hid_ignore(struct hid_device *hdev)
 			return true;
 		/*
 		 * The Keene FM transmitter USB device has the same USB ID as
-		 * the Logitech AudioHub Speaker, but it should ignore the hid.
+		 * the Logitech AudioHub Speaker, but it should igyesre the hid.
 		 * Check if the name is that of the Keene device.
 		 * For reference: the name of the AudioHub is
 		 * "HOLTEK  AudioHub Speaker".
@@ -960,7 +960,7 @@ bool hid_ignore(struct hid_device *hdev)
 			return true;
 		break;
 	case USB_VENDOR_ID_VELLEMAN:
-		/* These are not HID devices.  They are handled by comedi. */
+		/* These are yest HID devices.  They are handled by comedi. */
 		if ((hdev->product >= USB_DEVICE_ID_VELLEMAN_K8055_FIRST &&
 		     hdev->product <= USB_DEVICE_ID_VELLEMAN_K8055_LAST) ||
 		    (hdev->product >= USB_DEVICE_ID_VELLEMAN_K8061_FIRST &&
@@ -971,7 +971,7 @@ bool hid_ignore(struct hid_device *hdev)
 		/* Masterkit MA901 usb radio based on Atmel tiny85 chip and
 		 * it has the same USB ID as many Atmel V-USB devices. This
 		 * usb radio is handled by radio-ma901.c driver so we want
-		 * ignore the hid. Check the name, bus, product and ignore
+		 * igyesre the hid. Check the name, bus, product and igyesre
 		 * if we have MA901 usb radio.
 		 */
 		if (hdev->product == USB_DEVICE_ID_ATMEL_V_USB &&
@@ -994,17 +994,17 @@ bool hid_ignore(struct hid_device *hdev)
 	}
 
 	if (hdev->type == HID_TYPE_USBMOUSE &&
-	    hid_match_id(hdev, hid_mouse_ignore_list))
+	    hid_match_id(hdev, hid_mouse_igyesre_list))
 		return true;
 
-	return !!hid_match_id(hdev, hid_ignore_list);
+	return !!hid_match_id(hdev, hid_igyesre_list);
 }
-EXPORT_SYMBOL_GPL(hid_ignore);
+EXPORT_SYMBOL_GPL(hid_igyesre);
 
 /* Dynamic HID quirks list - specified at runtime */
 struct quirks_list_struct {
 	struct hid_device_id hid_bl_item;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static LIST_HEAD(dquirks_list);
@@ -1021,14 +1021,14 @@ static DEFINE_MUTEX(dquirks_lock);
  *         the pointer to the relevant struct hid_device_id if found.
  *         Must be called with a read lock held on dquirks_lock.
  *
- * Returns: NULL if no quirk found, struct hid_device_id * if found.
+ * Returns: NULL if yes quirk found, struct hid_device_id * if found.
  */
 static struct hid_device_id *hid_exists_dquirk(const struct hid_device *hdev)
 {
 	struct quirks_list_struct *q;
 	struct hid_device_id *bl_entry = NULL;
 
-	list_for_each_entry(q, &dquirks_list, node) {
+	list_for_each_entry(q, &dquirks_list, yesde) {
 		if (hid_match_one_id(hdev, &q->hid_bl_item)) {
 			bl_entry = &q->hid_bl_item;
 			break;
@@ -1082,11 +1082,11 @@ static int hid_modify_dquirk(const struct hid_device_id *id,
 
 	mutex_lock(&dquirks_lock);
 
-	list_for_each_entry(q, &dquirks_list, node) {
+	list_for_each_entry(q, &dquirks_list, yesde) {
 
 		if (hid_match_one_id(hdev, &q->hid_bl_item)) {
 
-			list_replace(&q->node, &q_new->node);
+			list_replace(&q->yesde, &q_new->yesde);
 			kfree(q);
 			list_edited = 1;
 			break;
@@ -1096,7 +1096,7 @@ static int hid_modify_dquirk(const struct hid_device_id *id,
 	}
 
 	if (!list_edited)
-		list_add_tail(&q_new->node, &dquirks_list);
+		list_add_tail(&q_new->yesde, &dquirks_list);
 
 	mutex_unlock(&dquirks_lock);
 
@@ -1119,9 +1119,9 @@ static void hid_remove_all_dquirks(__u16 bus)
 	struct quirks_list_struct *q, *temp;
 
 	mutex_lock(&dquirks_lock);
-	list_for_each_entry_safe(q, temp, &dquirks_list, node) {
+	list_for_each_entry_safe(q, temp, &dquirks_list, yesde) {
 		if (bus == HID_BUS_ANY || bus == q->hid_bl_item.bus) {
-			list_del(&q->node);
+			list_del(&q->yesde);
 			kfree(q);
 		}
 	}
@@ -1151,7 +1151,7 @@ int hid_quirks_init(char **quirks_param, __u16 bus, int count)
 
 		if (m != 3 ||
 		    hid_modify_dquirk(&id, quirks) != 0) {
-			pr_warn("Could not parse HID quirk module param %s\n",
+			pr_warn("Could yest parse HID quirk module param %s\n",
 				quirks_param[n]);
 		}
 	}
@@ -1169,7 +1169,7 @@ EXPORT_SYMBOL_GPL(hid_quirks_init);
  *     Called upon module unload.
  *     Use HID_BUS_ANY to remove all dynamic quirks.
  *
- * Returns: nothing
+ * Returns: yesthing
  */
 void hid_quirks_exit(__u16 bus)
 {
@@ -1192,7 +1192,7 @@ static unsigned long hid_gets_squirk(const struct hid_device *hdev)
 	const struct hid_device_id *bl_entry;
 	unsigned long quirks = 0;
 
-	if (hid_match_id(hdev, hid_ignore_list))
+	if (hid_match_id(hdev, hid_igyesre_list))
 		quirks |= HID_QUIRK_IGNORE;
 
 	if (hid_match_id(hdev, hid_have_special_driver))
@@ -1222,14 +1222,14 @@ unsigned long hid_lookup_quirk(const struct hid_device *hdev)
 	unsigned long quirks = 0;
 	const struct hid_device_id *quirk_entry = NULL;
 
-	/* NCR devices must not be queried for reports */
+	/* NCR devices must yest be queried for reports */
 	if (hdev->bus == BUS_USB &&
 	    hdev->vendor == USB_VENDOR_ID_NCR &&
 	    hdev->product >= USB_DEVICE_ID_NCR_FIRST &&
 	    hdev->product <= USB_DEVICE_ID_NCR_LAST)
 		return HID_QUIRK_NO_INIT_REPORTS;
 
-	/* These devices must be ignored if version (bcdDevice) is too old */
+	/* These devices must be igyesred if version (bcdDevice) is too old */
 	if (hdev->bus == BUS_USB && hdev->vendor == USB_VENDOR_ID_JABRA) {
 		switch (hdev->product) {
 		case USB_DEVICE_ID_JABRA_SPEAK_410:

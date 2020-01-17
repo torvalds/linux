@@ -58,7 +58,7 @@ static bool sdhci_wp_inverted(struct device *dev)
 static void sdhci_get_compatibility(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	if (!np)
 		return;
@@ -97,7 +97,7 @@ void sdhci_get_property(struct platform_device *pdev)
 	if (device_property_present(dev, "broken-cd"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 
-	if (device_property_present(dev, "no-1-8-v"))
+	if (device_property_present(dev, "yes-1-8-v"))
 		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
 
 	sdhci_get_compatibility(pdev);

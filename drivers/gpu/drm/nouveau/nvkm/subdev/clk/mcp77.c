@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -157,7 +157,7 @@ mcp77_clk_read(struct nvkm_clk *base, enum nv_clk_src src)
 		break;
 	}
 
-	nvkm_debug(subdev, "unknown clock source %d %08x\n", src, mast);
+	nvkm_debug(subdev, "unkyeswn clock source %d %08x\n", src, mast);
 	return 0;
 }
 
@@ -328,7 +328,7 @@ mcp77_clk_prog(struct nvkm_clk *base)
 		mast |= 0x00000003;
 		break;
 	default:
-		nvkm_warn(subdev, "Reclocking failed: unknown core clock\n");
+		nvkm_warn(subdev, "Reclocking failed: unkyeswn core clock\n");
 		goto resume;
 	}
 
@@ -349,7 +349,7 @@ mcp77_clk_prog(struct nvkm_clk *base)
 		mast |= 0x00000030;
 		break;
 	default:
-		nvkm_warn(subdev, "Reclocking failed: unknown sclk clock\n");
+		nvkm_warn(subdev, "Reclocking failed: unkyeswn sclk clock\n");
 		goto resume;
 	}
 

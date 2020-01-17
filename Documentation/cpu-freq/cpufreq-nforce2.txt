@@ -9,7 +9,7 @@ The module has two options:
 	fid: 	 multiplier * 10 (for example 8.5 = 85)
 	min_fsb: minimum FSB
 
-If not set, fid is calculated from the current CPU speed and the FSB.
+If yest set, fid is calculated from the current CPU speed and the FSB.
 min_fsb defaults to FSB at boot time - 50 MHz.
 
 IMPORTANT: The available range is limited downwards!

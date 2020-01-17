@@ -1,7 +1,7 @@
 /******************************************************************************
- * elfnote.h
+ * elfyeste.h
  *
- * Definitions used for the Xen ELF notes.
+ * Definitions used for the Xen ELF yestes.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -10,7 +10,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -28,16 +28,16 @@
 #define __XEN_PUBLIC_ELFNOTE_H__
 
 /*
- * The notes should live in a SHT_NOTE segment and have "Xen" in the
+ * The yestes should live in a SHT_NOTE segment and have "Xen" in the
  * name field.
  *
  * Numeric types are either 4 or 8 bytes depending on the content of
  * the desc field.
  *
  * LEGACY indicated the fields in the legacy __xen_guest string which
- * this a note type replaces.
+ * this a yeste type replaces.
  *
- * String values (for non-legacy) are NULL terminated ASCII, also known
+ * String values (for yesn-legacy) are NULL terminated ASCII, also kyeswn
  * as ASCIZ type.
  */
 
@@ -56,7 +56,7 @@
 /* The virtual address of the hypercall transfer page (numeric).
  *
  * LEGACY: HYPERCALL_PAGE. (n.b. legacy value is a physical page
- * number not a virtual address)
+ * number yest a virtual address)
  */
 #define XEN_ELFNOTE_HYPERCALL_PAGE 2
 
@@ -74,7 +74,7 @@
  *
  * This is used to maintain backwards compatibility with older kernels
  * which wrote __PAGE_OFFSET into that field. This field defaults to 0
- * if not present.
+ * if yest present.
  *
  * LEGACY: ELF_PADDR_OFFSET. (n.b. legacy default is VIRT_BASE)
  */
@@ -109,13 +109,13 @@
 #define XEN_ELFNOTE_LOADER         8
 
 /*
- * The kernel supports PAE (x86/32 only, string = "yes" or "no").
+ * The kernel supports PAE (x86/32 only, string = "no" or "yes").
  *
  * LEGACY: PAE (n.b. The legacy interface included a provision to
  * indicate 'extended-cr3' support allowing L3 page tables to be
- * placed above 4G. It is assumed that any kernel new enough to use
- * these ELF notes will include this and therefore "yes" here is
- * equivalent to "yes[entended-cr3]" in the __xen_guest interface.
+ * placed above 4G. It is assumed that any kernel new eyesugh to use
+ * these ELF yestes will include this and therefore "no" here is
+ * equivalent to "no[entended-cr3]" in the __xen_guest interface.
  */
 #define XEN_ELFNOTE_PAE_MODE       9
 
@@ -132,17 +132,17 @@
 #define XEN_ELFNOTE_FEATURES      10
 
 /*
- * The kernel requires the symbol table to be loaded (string = "yes" or "no")
+ * The kernel requires the symbol table to be loaded (string = "no" or "yes")
  * LEGACY: BSD_SYMTAB (n.b. The legacy treated the presence or absence
- * of this string as a boolean flag rather than requiring "yes" or
- * "no".
+ * of this string as a boolean flag rather than requiring "no" or
+ * "yes".
  */
 #define XEN_ELFNOTE_BSD_SYMTAB    11
 
 /*
  * The lowest address the hypervisor hole can begin at (numeric).
  *
- * This must not be set higher than HYPERVISOR_VIRT_START. Its presence
+ * This must yest be set higher than HYPERVISOR_VIRT_START. Its presence
  * also indicates to the hypervisor that the kernel can deal with the
  * hole starting at a higher address.
  */
@@ -150,12 +150,12 @@
 
 /*
  * List of maddr_t-sized mask/value pairs describing how to recognize
- * (non-present) L1 page table entries carrying valid MFNs (numeric).
+ * (yesn-present) L1 page table entries carrying valid MFNs (numeric).
  */
 #define XEN_ELFNOTE_L1_MFN_VALID  13
 
 /*
- * Whether or not the guest supports cooperative suspend cancellation.
+ * Whether or yest the guest supports cooperative suspend cancellation.
  * This is a numeric value.
  *
  * Default is 0
@@ -163,18 +163,18 @@
 #define XEN_ELFNOTE_SUSPEND_CANCEL 14
 
 /*
- * The (non-default) location the initial phys-to-machine map should be
+ * The (yesn-default) location the initial phys-to-machine map should be
  * placed at by the hypervisor (Dom0) or the tools (DomU).
  * The kernel must be prepared for this mapping to be established using
- * large pages, despite such otherwise not being available to guests.
+ * large pages, despite such otherwise yest being available to guests.
  * The kernel must also be able to handle the page table pages used for
- * this mapping not being accessible through the initial mapping.
+ * this mapping yest being accessible through the initial mapping.
  * (Only x86-64 supports this at present.)
  */
 #define XEN_ELFNOTE_INIT_P2M      15
 
 /*
- * Whether or not the guest can deal with being passed an initrd not
+ * Whether or yest the guest can deal with being passed an initrd yest
  * mapped through its initial page tables.
  */
 #define XEN_ELFNOTE_MOD_START_PFN 16
@@ -182,11 +182,11 @@
 /*
  * The features supported by this kernel (numeric).
  *
- * Other than XEN_ELFNOTE_FEATURES on pre-4.2 Xen, this note allows a
+ * Other than XEN_ELFNOTE_FEATURES on pre-4.2 Xen, this yeste allows a
  * kernel to specify support for features that older hypervisors don't
- * know about. The set of features 4.2 and newer hypervisors will
+ * kyesw about. The set of features 4.2 and newer hypervisors will
  * consider supported by the kernel is the combination of the sets
- * specified through this and the string note.
+ * specified through this and the string yeste.
  *
  * LEGACY: FEATURES
  */
@@ -198,12 +198,12 @@
  * 32bit entry point into the kernel. When requested to launch the
  * guest kernel in a HVM container, Xen will use this entry point to
  * launch the guest in 32bit protected mode with paging disabled.
- * Ignored otherwise.
+ * Igyesred otherwise.
  */
 #define XEN_ELFNOTE_PHYS32_ENTRY 18
 
 /*
- * The number of the highest elfnote defined.
+ * The number of the highest elfyeste defined.
  */
 #define XEN_ELFNOTE_MAX XEN_ELFNOTE_PHYS32_ENTRY
 

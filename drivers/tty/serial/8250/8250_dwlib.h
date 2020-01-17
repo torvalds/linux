@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/* Synopsys DesignWare 8250 library header file. */
+/* Syyespsys DesignWare 8250 library header file. */
 
 #include <linux/types.h>
 

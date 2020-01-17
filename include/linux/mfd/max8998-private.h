@@ -2,7 +2,7 @@
 /*
  * max8998-private.h - Voltage regulator driver for the Maxim 8998
  *
- *  Copyright (C) 2009-2010 Samsung Electrnoics
+ *  Copyright (C) 2009-2010 Samsung Electryesics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *  Marek Szyprowski <m.szyprowski@samsung.com>
  */
@@ -131,7 +131,7 @@ struct irq_domain;
  * @irqlock: mutex for buslock
  * @irq_base: base IRQ number for max8998, required for IRQs
  * @irq: generic IRQ number for max8998
- * @ono: power onoff IRQ number for max8998
+ * @oyes: power oyesff IRQ number for max8998
  * @irq_masks_cur: currently active value
  * @irq_masks_cache: cached hardware value
  * @type: indicate which max8998 "variant" is used
@@ -147,7 +147,7 @@ struct max8998_dev {
 	unsigned int irq_base;
 	struct irq_domain *irq_domain;
 	int irq;
-	int ono;
+	int oyes;
 	u8 irq_masks_cur[MAX8998_NUM_IRQ_REGS];
 	u8 irq_masks_cache[MAX8998_NUM_IRQ_REGS];
 	unsigned long type;

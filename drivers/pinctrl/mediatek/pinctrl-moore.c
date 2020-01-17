@@ -147,7 +147,7 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 		if (err)
 			return err;
 
-		/* HW takes input mode as zero; output mode as non-zero */
+		/* HW takes input mode as zero; output mode as yesn-zero */
 		if ((val && param == PIN_CONFIG_INPUT_ENABLE) ||
 		    (!val && param == PIN_CONFIG_OUTPUT_ENABLE))
 			return -EINVAL;
@@ -362,7 +362,7 @@ static int mtk_pinconf_group_get(struct pinctrl_dev *pctldev,
 		if (mtk_pinconf_get(pctldev, pins[i], config))
 			return -ENOTSUPP;
 
-		/* configs do not match between two pins */
+		/* configs do yest match between two pins */
 		if (i && old != *config)
 			return -ENOTSUPP;
 
@@ -397,7 +397,7 @@ static const struct pinctrl_ops mtk_pctlops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -501,7 +501,7 @@ static int mtk_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	return mtk_eint_set_debounce(hw->eint, desc->eint.eint_n, debounce);
 }
 
-static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
+static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_yesde *np)
 {
 	struct gpio_chip *chip = &hw->chip;
 	int ret;
@@ -518,14 +518,14 @@ static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
 	chip->set_config	= mtk_gpio_set_config,
 	chip->base		= -1;
 	chip->ngpio		= hw->soc->npins;
-	chip->of_node		= np;
+	chip->of_yesde		= np;
 	chip->of_gpio_n_cells	= 2;
 
 	ret = gpiochip_add_data(chip, hw);
 	if (ret < 0)
 		return ret;
 
-	/* Just for backward compatible for these old pinctrl nodes without
+	/* Just for backward compatible for these old pinctrl yesdes without
 	 * "gpio-ranges" property. Otherwise, called directly from a
 	 * DeviceTree-supported pinctrl driver is DEPRECATED.
 	 * Please see Section 2.1 of
@@ -665,7 +665,7 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 		return err;
 	}
 
-	/* For able to make pinctrl_claim_hogs, we must not enable pinctrl
+	/* For able to make pinctrl_claim_hogs, we must yest enable pinctrl
 	 * until all groups and functions are being added one.
 	 */
 	err = pinctrl_enable(hw->pctrl);
@@ -678,7 +678,7 @@ int mtk_moore_pinctrl_probe(struct platform_device *pdev,
 			 "Failed to add EINT, but pinctrl still can work\n");
 
 	/* Build gpiochip should be after pinctrl_enable is done */
-	err = mtk_build_gpiochip(hw, pdev->dev.of_node);
+	err = mtk_build_gpiochip(hw, pdev->dev.of_yesde);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add gpio_chip\n");
 		return err;

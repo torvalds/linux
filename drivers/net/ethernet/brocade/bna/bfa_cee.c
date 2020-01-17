@@ -208,13 +208,13 @@ bfa_cee_isr(void *cbarg, struct bfi_mbmsg *m)
 }
 
 /**
- * bfa_cee_notify - CEE module heart-beat failure handler.
+ * bfa_cee_yestify - CEE module heart-beat failure handler.
  *
  * @event: IOC event type
  */
 
 static void
-bfa_cee_notify(void *arg, enum bfa_ioc_event event)
+bfa_cee_yestify(void *arg, enum bfa_ioc_event event)
 {
 	struct bfa_cee *cee;
 	cee = (struct bfa_cee *) arg;
@@ -274,6 +274,6 @@ bfa_nw_cee_attach(struct bfa_cee *cee, struct bfa_ioc *ioc,
 	cee->ioc = ioc;
 
 	bfa_nw_ioc_mbox_regisr(cee->ioc, BFI_MC_CEE, bfa_cee_isr, cee);
-	bfa_ioc_notify_init(&cee->ioc_notify, bfa_cee_notify, cee);
-	bfa_nw_ioc_notify_register(cee->ioc, &cee->ioc_notify);
+	bfa_ioc_yestify_init(&cee->ioc_yestify, bfa_cee_yestify, cee);
+	bfa_nw_ioc_yestify_register(cee->ioc, &cee->ioc_yestify);
 }

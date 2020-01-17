@@ -60,7 +60,7 @@ static int dwc3_get_dr_mode(struct dwc3 *dwc)
 	case DWC3_GHWPARAMS0_MODE_GADGET:
 		if (IS_ENABLED(CONFIG_USB_DWC3_HOST)) {
 			dev_err(dev,
-				"Controller does not support host mode.\n");
+				"Controller does yest support host mode.\n");
 			return -EINVAL;
 		}
 		mode = USB_DR_MODE_PERIPHERAL;
@@ -68,7 +68,7 @@ static int dwc3_get_dr_mode(struct dwc3 *dwc)
 	case DWC3_GHWPARAMS0_MODE_HOST:
 		if (IS_ENABLED(CONFIG_USB_DWC3_GADGET)) {
 			dev_err(dev,
-				"Controller does not support device mode.\n");
+				"Controller does yest support device mode.\n");
 			return -EINVAL;
 		}
 		mode = USB_DR_MODE_HOST;
@@ -80,8 +80,8 @@ static int dwc3_get_dr_mode(struct dwc3 *dwc)
 			mode = USB_DR_MODE_PERIPHERAL;
 
 		/*
-		 * DWC_usb31 and DWC_usb3 v3.30a and higher do not support OTG
-		 * mode. If the controller supports DRD but the dr_mode is not
+		 * DWC_usb31 and DWC_usb3 v3.30a and higher do yest support OTG
+		 * mode. If the controller supports DRD but the dr_mode is yest
 		 * specified or set to OTG, then set the mode to peripheral.
 		 */
 		if (mode == USB_DR_MODE_OTG &&
@@ -336,7 +336,7 @@ static void dwc3_free_one_event_buffer(struct dwc3 *dwc,
  * @length: size of the event buffer
  *
  * Returns a pointer to the allocated event buffer structure on success
- * otherwise ERR_PTR(errno).
+ * otherwise ERR_PTR(erryes).
  */
 static struct dwc3_event_buffer *dwc3_alloc_one_event_buffer(struct dwc3 *dwc,
 		unsigned length)
@@ -379,8 +379,8 @@ static void dwc3_free_event_buffers(struct dwc3 *dwc)
  * @dwc: pointer to our controller context structure
  * @length: size of event buffer
  *
- * Returns 0 on success otherwise negative errno. In the error case, dwc
- * may contain some buffers allocated but not all which were requested.
+ * Returns 0 on success otherwise negative erryes. In the error case, dwc
+ * may contain some buffers allocated but yest all which were requested.
  */
 static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 {
@@ -400,7 +400,7 @@ static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
  * dwc3_event_buffers_setup - setup our allocated event buffers
  * @dwc: pointer to our controller context structure
  *
- * Returns 0 on success otherwise negative errno.
+ * Returns 0 on success otherwise negative erryes.
  */
 int dwc3_event_buffers_setup(struct dwc3 *dwc)
 {
@@ -560,7 +560,7 @@ static int dwc3_core_ulpi_init(struct dwc3 *dwc)
  * dwc3_phy_setup - Configure USB PHY Interface of DWC3 Core
  * @dwc: Pointer to our controller context structure
  *
- * Returns 0 on success. The USB PHY interfaces are configured but not
+ * Returns 0 on success. The USB PHY interfaces are configured but yest
  * initialized. The PHY interfaces and the PHYs get initialized together with
  * the core in dwc3_core_init.
  */
@@ -575,7 +575,7 @@ static int dwc3_phy_setup(struct dwc3 *dwc)
 
 	/*
 	 * Make sure UX_EXIT_PX is cleared as that causes issues with some
-	 * PHYs. Also, this bit is not supposed to be used in normal operation.
+	 * PHYs. Also, this bit is yest supposed to be used in yesrmal operation.
 	 */
 	reg &= ~DWC3_GUSB3PIPECTL_UX_EXIT_PX;
 
@@ -756,7 +756,7 @@ static void dwc3_core_setup_global_control(struct dwc3 *dwc)
 		 * WORKAROUND: DWC3 revisions between 2.10a and 2.50a have an
 		 * issue which would cause xHCI compliance tests to fail.
 		 *
-		 * Because of that we cannot enable clock gating on such
+		 * Because of that we canyest enable clock gating on such
 		 * configurations.
 		 *
 		 * Refers to:
@@ -778,12 +778,12 @@ static void dwc3_core_setup_global_control(struct dwc3 *dwc)
 
 		/*
 		 * REVISIT Enabling this bit so that host-mode hibernation
-		 * will work. Device-mode hibernation is not yet implemented.
+		 * will work. Device-mode hibernation is yest yet implemented.
 		 */
 		reg |= DWC3_GCTL_GBLHIBERNATIONEN;
 		break;
 	default:
-		/* nothing */
+		/* yesthing */
 		break;
 	}
 
@@ -794,7 +794,7 @@ static void dwc3_core_setup_global_control(struct dwc3 *dwc)
 	}
 
 	WARN_ONCE(dwc->disable_scramble_quirk && !dwc->is_fpga,
-			"disable_scramble cannot be used on non-FPGA builds\n");
+			"disable_scramble canyest be used on yesn-FPGA builds\n");
 
 	if (dwc->disable_scramble_quirk && dwc->is_fpga)
 		reg |= DWC3_GCTL_DISSCRAMBLE;
@@ -838,7 +838,7 @@ static void dwc3_set_incr_burst_type(struct dwc3 *dwc)
 	/*
 	 * Handle property "snps,incr-burst-type-adjustment".
 	 * Get the number of value from this property:
-	 * result <= 0, means this property is not supported.
+	 * result <= 0, means this property is yest supported.
 	 * result = 1, means INCRx burst mode supported.
 	 * result > 1, means undefined length burst mode supported.
 	 */
@@ -917,7 +917,7 @@ static void dwc3_set_incr_burst_type(struct dwc3 *dwc)
  * dwc3_core_init - Low-level initialization of DWC3 Core
  * @dwc: Pointer to our controller context structure
  *
- * Returns 0 on success otherwise negative errno.
+ * Returns 0 on success otherwise negative erryes.
  */
 static int dwc3_core_init(struct dwc3 *dwc)
 {
@@ -1040,7 +1040,7 @@ static int dwc3_core_init(struct dwc3 *dwc)
 		 * Enable Auto retry Feature to make the controller operating in
 		 * Host mode on seeing transaction errors(CRC errors or internal
 		 * overrun scenerios) on IN transfers to reply to the device
-		 * with a non-terminating retry ACK (i.e, an ACK transcation
+		 * with a yesn-terminating retry ACK (i.e, an ACK transcation
 		 * packet with Retry=1 & Nump != 0)
 		 */
 		reg |= DWC3_GUCTL_HSTINAUTORETRY;
@@ -1113,10 +1113,10 @@ err0:
 static int dwc3_core_get_phy(struct dwc3 *dwc)
 {
 	struct device		*dev = dwc->dev;
-	struct device_node	*node = dev->of_node;
+	struct device_yesde	*yesde = dev->of_yesde;
 	int ret;
 
-	if (node) {
+	if (yesde) {
 		dwc->usb2_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
 		dwc->usb3_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 1);
 	} else {
@@ -1131,7 +1131,7 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 		} else if (ret == -EPROBE_DEFER) {
 			return ret;
 		} else {
-			dev_err(dev, "no usb2 phy configured\n");
+			dev_err(dev, "yes usb2 phy configured\n");
 			return ret;
 		}
 	}
@@ -1143,7 +1143,7 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 		} else if (ret == -EPROBE_DEFER) {
 			return ret;
 		} else {
-			dev_err(dev, "no usb3 phy configured\n");
+			dev_err(dev, "yes usb3 phy configured\n");
 			return ret;
 		}
 	}
@@ -1156,7 +1156,7 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 		} else if (ret == -EPROBE_DEFER) {
 			return ret;
 		} else {
-			dev_err(dev, "no usb2 phy configured\n");
+			dev_err(dev, "yes usb2 phy configured\n");
 			return ret;
 		}
 	}
@@ -1169,7 +1169,7 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 		} else if (ret == -EPROBE_DEFER) {
 			return ret;
 		} else {
-			dev_err(dev, "no usb3 phy configured\n");
+			dev_err(dev, "yes usb3 phy configured\n");
 			return ret;
 		}
 	}
@@ -1243,7 +1243,7 @@ static void dwc3_core_exit_mode(struct dwc3 *dwc)
 		dwc3_drd_exit(dwc);
 		break;
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 }
@@ -1273,7 +1273,7 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 
 	dwc->maximum_speed = usb_get_maximum_speed(dev);
 	dwc->dr_mode = usb_get_dr_mode(dev);
-	dwc->hsphy_mode = of_usb_get_phy_mode(dev->of_node);
+	dwc->hsphy_mode = of_usb_get_phy_mode(dev->of_yesde);
 
 	dwc->sysdev_is_parent = device_property_read_bool(dev,
 				"linux,sysdev_is_parent");
@@ -1381,7 +1381,7 @@ static void dwc3_check_params(struct dwc3 *dwc)
 
 	/* Check for proper value of imod_interval */
 	if (dwc->imod_interval && !dwc3_has_imod(dwc)) {
-		dev_warn(dwc->dev, "Interrupt moderation not supported\n");
+		dev_warn(dwc->dev, "Interrupt moderation yest supported\n");
 		dwc->imod_interval = 0;
 	}
 
@@ -1477,7 +1477,7 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (IS_ERR(dwc->reset))
 		return PTR_ERR(dwc->reset);
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		dwc->num_clks = ARRAY_SIZE(dwc3_core_clks);
 
 		ret = devm_clk_bulk_get(dev, dwc->num_clks, dwc->clks);
@@ -1500,7 +1500,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		goto assert_reset;
 
 	if (!dwc3_core_is_valid(dwc)) {
-		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
+		dev_err(dwc->dev, "this is yest a DesignWare USB3 DRD Core\n");
 		ret = -ENODEV;
 		goto disable_clks;
 	}
@@ -1662,7 +1662,7 @@ static int dwc3_suspend_common(struct dwc3 *dwc, pm_message_t msg)
 		phy_pm_runtime_put_sync(dwc->usb3_generic_phy);
 		break;
 	case DWC3_GCTL_PRTCAP_OTG:
-		/* do nothing during runtime_suspend */
+		/* do yesthing during runtime_suspend */
 		if (PMSG_IS_AUTO(msg))
 			break;
 
@@ -1677,7 +1677,7 @@ static int dwc3_suspend_common(struct dwc3 *dwc, pm_message_t msg)
 		dwc3_core_exit(dwc);
 		break;
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -1723,7 +1723,7 @@ static int dwc3_resume_common(struct dwc3 *dwc, pm_message_t msg)
 		phy_pm_runtime_get_sync(dwc->usb3_generic_phy);
 		break;
 	case DWC3_GCTL_PRTCAP_OTG:
-		/* nothing to do on runtime_resume */
+		/* yesthing to do on runtime_resume */
 		if (PMSG_IS_AUTO(msg))
 			break;
 
@@ -1744,7 +1744,7 @@ static int dwc3_resume_common(struct dwc3 *dwc, pm_message_t msg)
 
 		break;
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -1760,7 +1760,7 @@ static int dwc3_runtime_checks(struct dwc3 *dwc)
 		break;
 	case DWC3_GCTL_PRTCAP_HOST:
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -1801,7 +1801,7 @@ static int dwc3_runtime_resume(struct device *dev)
 		break;
 	case DWC3_GCTL_PRTCAP_HOST:
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -1821,7 +1821,7 @@ static int dwc3_runtime_idle(struct device *dev)
 		break;
 	case DWC3_GCTL_PRTCAP_HOST:
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -1878,7 +1878,7 @@ static const struct of_device_id of_dwc3_match[] = {
 		.compatible = "snps,dwc3"
 	},
 	{
-		.compatible = "synopsys,dwc3"
+		.compatible = "syyespsys,dwc3"
 	},
 	{ },
 };

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015 Mellayesx Techyeslogies. All rights reserved.
  */
 
 #ifndef _LINUX_NVME_RDMA_H
@@ -35,7 +35,7 @@ static inline const char *nvme_rdma_cm_msg(enum nvme_rdma_cm_status status)
 	case NVME_RDMA_CM_INVALID_HRQSIZE:
 		return "invalid host RQ size";
 	case NVME_RDMA_CM_NO_RSC:
-		return "resource not found";
+		return "resource yest found";
 	case NVME_RDMA_CM_INVALID_IRD:
 		return "invalid IRD";
 	case NVME_RDMA_CM_INVALID_ORD:

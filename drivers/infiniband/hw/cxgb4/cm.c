@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -34,7 +34,7 @@
 #include <linux/workqueue.h>
 #include <linux/skbuff.h>
 #include <linux/timer.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/inetdevice.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -69,9 +69,9 @@ static char *states[] = {
 	NULL,
 };
 
-static int nocong;
-module_param(nocong, int, 0644);
-MODULE_PARM_DESC(nocong, "Turn of congestion control (default=0)");
+static int yescong;
+module_param(yescong, int, 0644);
+MODULE_PARM_DESC(yescong, "Turn of congestion control (default=0)");
 
 static int enable_ecn;
 module_param(enable_ecn, int, 0644);
@@ -420,7 +420,7 @@ static void release_ep_resources(struct c4iw_ep *ep)
 
 	/*
 	 * If we have a hwtid, then remove it from the idr table
-	 * so lookups will no longer find this endpoint.  Otherwise
+	 * so lookups will yes longer find this endpoint.  Otherwise
 	 * we have a race where one thread finds the ep ptr just
 	 * before the other thread is freeing the ep memory.
 	 */
@@ -429,7 +429,7 @@ static void release_ep_resources(struct c4iw_ep *ep)
 	c4iw_put_ep(&ep->com);
 }
 
-static int status2errno(int status)
+static int status2erryes(int status)
 {
 	switch (status) {
 	case CPL_ERR_NONE:
@@ -454,7 +454,7 @@ static int status2errno(int status)
  */
 static struct sk_buff *get_skb(struct sk_buff *skb, int len, gfp_t gfp)
 {
-	if (skb && !skb_is_nonlinear(skb) && !skb_cloned(skb)) {
+	if (skb && !skb_is_yesnlinear(skb) && !skb_cloned(skb)) {
 		skb_trim(skb, 0);
 		skb_get(skb);
 		skb_reset_transport_header(skb);
@@ -564,7 +564,7 @@ static void act_open_req_arp_failure(void *handle, struct sk_buff *skb)
 }
 
 /*
- * Handle an ARP failure for a CPL_ABORT_REQ.  Change it into a no RST variant
+ * Handle an ARP failure for a CPL_ABORT_REQ.  Change it into a yes RST variant
  * and send it along.
  */
 static void abort_arp_failure(void *handle, struct sk_buff *skb)
@@ -676,7 +676,7 @@ static void read_tcb(struct c4iw_ep *ep)
 	req->reply_ctrl = htons(REPLY_CHAN_V(0) | QUEUENO_V(ep->rss_qid));
 
 	/*
-	 * keep a ref on the ep so the tcb is not unlocked before this
+	 * keep a ref on the ep so the tcb is yest unlocked before this
 	 * cpl completes. The ref is released in read_tcb_rpl().
 	 */
 	c4iw_get_ep(&ep->com);
@@ -754,7 +754,7 @@ static int send_connect(struct c4iw_ep *ep)
 		sizev6 = sizeof(struct cpl_t6_act_open_req6);
 		break;
 	default:
-		pr_err("T%d Chip is not supported\n",
+		pr_err("T%d Chip is yest supported\n",
 		       CHELSIO_CHIP_VERSION(adapter_type));
 		return -EINVAL;
 	}
@@ -785,7 +785,7 @@ static int send_connect(struct c4iw_ep *ep)
 	if (win > RCV_BUFSIZ_M)
 		win = RCV_BUFSIZ_M;
 
-	opt0 = (nocong ? NO_CONG_F : 0) |
+	opt0 = (yescong ? NO_CONG_F : 0) |
 	       KEEP_ALIVE_F |
 	       DELACK_F |
 	       WND_SCALE_V(wscale) |
@@ -840,7 +840,7 @@ static int send_connect(struct c4iw_ep *ep)
 			t5req = (struct cpl_t5_act_open_req *)t6req;
 			break;
 		default:
-			pr_err("T%d Chip is not supported\n",
+			pr_err("T%d Chip is yest supported\n",
 			       CHELSIO_CHIP_VERSION(adapter_type));
 			ret = -EINVAL;
 			goto clip_release;
@@ -890,7 +890,7 @@ static int send_connect(struct c4iw_ep *ep)
 			t5req6 = (struct cpl_t5_act_open_req6 *)t6req6;
 			break;
 		default:
-			pr_err("T%d Chip is not supported\n",
+			pr_err("T%d Chip is yest supported\n",
 			       CHELSIO_CHIP_VERSION(adapter_type));
 			ret = -EINVAL;
 			goto clip_release;
@@ -1060,7 +1060,7 @@ static int send_mpa_reject(struct c4iw_ep *ep, const void *pdata, u8 plen)
 
 	skb = get_skb(NULL, wrlen, GFP_KERNEL);
 	if (!skb) {
-		pr_err("%s - cannot alloc skb!\n", __func__);
+		pr_err("%s - canyest alloc skb!\n", __func__);
 		return -ENOMEM;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
@@ -1140,7 +1140,7 @@ static int send_mpa_reply(struct c4iw_ep *ep, const void *pdata, u8 plen)
 
 	skb = get_skb(NULL, wrlen, GFP_KERNEL);
 	if (!skb) {
-		pr_err("%s - cannot alloc skb!\n", __func__);
+		pr_err("%s - canyest alloc skb!\n", __func__);
 		return -ENOMEM;
 	}
 	set_wr_txq(skb, CPL_PRIORITY_DATA, ep->txq_idx);
@@ -1420,7 +1420,7 @@ static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 		 ep, ep->hwtid, credits);
 	skb = get_skb(NULL, wrlen, GFP_KERNEL);
 	if (!skb) {
-		pr_err("update_rx_credits - cannot alloc skb!\n");
+		pr_err("update_rx_credits - canyest alloc skb!\n");
 		return 0;
 	}
 
@@ -1516,7 +1516,7 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	}
 
 	/*
-	 * If plen does not account for pkt size
+	 * If plen does yest account for pkt size
 	 */
 	if (ep->mpa_pkt_len > (sizeof(*mpa) + plen)) {
 		err = -EPROTO;
@@ -1539,7 +1539,7 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 
 	/*
 	 * Stop mpa timer.  If it expired, then
-	 * we ignore the MPA reply.  process_timeout()
+	 * we igyesre the MPA reply.  process_timeout()
 	 * will abort the connection.
 	 */
 	if (stop_ep_timer(ep))
@@ -1571,7 +1571,7 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 
 			/*
 			 * This is a double-check. Ideally, below checks are
-			 * not required since ird/ord stuff has been taken
+			 * yest required since ird/ord stuff has been taken
 			 * care of in c4iw_accept_cr
 			 */
 			if (ep->ird < resp_ord) {
@@ -1618,8 +1618,8 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 		 ep->mpa_attr.p2p_type, p2p_type);
 
 	/*
-	 * If responder's RTR does not match with that of initiator, assign
-	 * FW_RI_INIT_P2PTYPE_DISABLED in mpa attributes so that RTR is not
+	 * If responder's RTR does yest match with that of initiator, assign
+	 * FW_RI_INIT_P2PTYPE_DISABLED in mpa attributes so that RTR is yest
 	 * generated when moving QP to RTS state.
 	 * A TERM message will be sent after QP has moved to RTS state
 	 */
@@ -1646,7 +1646,7 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 		goto err;
 
 	/*
-	 * If responder's RTR requirement did not match with what initiator
+	 * If responder's RTR requirement did yest match with what initiator
 	 * supports, generate TERM message
 	 */
 	if (rtr_mismatch) {
@@ -1663,9 +1663,9 @@ static int process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	}
 
 	/*
-	 * Generate TERM if initiator IRD is not sufficient for responder
+	 * Generate TERM if initiator IRD is yest sufficient for responder
 	 * provided ORD. Currently, we do the same behaviour even when
-	 * responder provided IRD is also not sufficient as regards to
+	 * responder provided IRD is also yest sufficient as regards to
 	 * initiator ORD.
 	 */
 	if (insuff_ird) {
@@ -1757,7 +1757,7 @@ static int process_mpa_request(struct c4iw_ep *ep, struct sk_buff *skb)
 		goto err_stop_timer;
 
 	/*
-	 * If plen does not account for pkt size
+	 * If plen does yest account for pkt size
 	 */
 	if (ep->mpa_pkt_len > (sizeof(*mpa) + plen))
 		goto err_stop_timer;
@@ -1904,7 +1904,7 @@ static void complete_cached_srq_buffers(struct c4iw_ep *ep, u32 srqidx)
 	 * If this TCB had a srq buffer cached, then we must complete
 	 * it. For user mode, that means saving the srqidx in the
 	 * user/kernel status page for this qp.  For kernel mode, just
-	 * synthesize the CQE now.
+	 * synthesize the CQE yesw.
 	 */
 	if (CHELSIO_CHIP_VERSION(adapter_type) > CHELSIO_T5 && srqidx) {
 		if (ep->com.qp->ibqp.uobject)
@@ -1937,7 +1937,7 @@ static int abort_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	mutex_lock(&ep->com.mutex);
 	switch (ep->com.state) {
 	case ABORTING:
-		c4iw_wake_up_noref(ep->com.wr_waitp, -ECONNRESET);
+		c4iw_wake_up_yesref(ep->com.wr_waitp, -ECONNRESET);
 		__state_set(&ep->com, DEAD);
 		release = 1;
 		break;
@@ -1998,7 +1998,7 @@ static int send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 		win = RCV_BUFSIZ_M;
 
 	req->tcb.opt0 = (__force __be64) (TCAM_BYPASS_F |
-		(nocong ? NO_CONG_F : 0) |
+		(yescong ? NO_CONG_F : 0) |
 		KEEP_ALIVE_F |
 		DELACK_F |
 		WND_SCALE_V(wscale) |
@@ -2028,7 +2028,7 @@ static int send_fw_act_open_req(struct c4iw_ep *ep, unsigned int atid)
 }
 
 /*
- * Some of the error codes above implicitly indicate that there is no TID
+ * Some of the error codes above implicitly indicate that there is yes TID
  * allocated with the result of an ACT_OPEN.  We use this predicate to make
  * that explicit.
  */
@@ -2051,7 +2051,7 @@ static char *neg_adv_str(unsigned int status)
 	case CPL_ERR_KEEPALV_NEG_ADVICE:
 		return "Keepalive timeout";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -2166,7 +2166,7 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 	pr_debug("qp %p cm_id %p\n", ep->com.qp, ep->com.cm_id);
 	c4iw_init_wr_wait(ep->com.wr_waitp);
 
-	/* When MPA revision is different on nodes, the node with MPA_rev=2
+	/* When MPA revision is different on yesdes, the yesde with MPA_rev=2
 	 * tries to reconnect with MPA_rev 1 for the same EP through
 	 * c4iw_reconnect(), where the same EP is assigned with new tid for
 	 * further connection establishment. As we are using the same EP pointer
@@ -2186,7 +2186,7 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 	 */
 	ep->atid = cxgb4_alloc_atid(ep->com.dev->rdev.lldi.tids, ep);
 	if (ep->atid == -1) {
-		pr_err("%s - cannot alloc atid\n", __func__);
+		pr_err("%s - canyest alloc atid\n", __func__);
 		err = -ENOMEM;
 		goto fail2;
 	}
@@ -2216,7 +2216,7 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 		ra = (__u8 *)&raddr6->sin6_addr;
 	}
 	if (!ep->dst) {
-		pr_err("%s - cannot find route\n", __func__);
+		pr_err("%s - canyest find route\n", __func__);
 		err = -EHOSTUNREACH;
 		goto fail3;
 	}
@@ -2224,7 +2224,7 @@ static int c4iw_reconnect(struct c4iw_ep *ep)
 			ep->com.dev->rdev.lldi.adapter_type,
 			ep->com.cm_id->tos);
 	if (err) {
-		pr_err("%s - cannot alloc l2e\n", __func__);
+		pr_err("%s - canyest alloc l2e\n", __func__);
 		goto fail4;
 	}
 
@@ -2249,8 +2249,8 @@ fail2a:
 	cxgb4_free_atid(ep->com.dev->rdev.lldi.tids, ep->atid);
 fail2:
 	/*
-	 * remember to send notification to upper layer.
-	 * We are in here so the upper layer is not aware that this is
+	 * remember to send yestification to upper layer.
+	 * We are in here so the upper layer is yest aware that this is
 	 * re-connect attempt and so, upper layer is still waiting for
 	 * response of 1st connect request.
 	 */
@@ -2281,8 +2281,8 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	la6 = (struct sockaddr_in6 *)&ep->com.local_addr;
 	ra6 = (struct sockaddr_in6 *)&ep->com.remote_addr;
 
-	pr_debug("ep %p atid %u status %u errno %d\n", ep, atid,
-		 status, status2errno(status));
+	pr_debug("ep %p atid %u status %u erryes %d\n", ep, atid,
+		 status, status2erryes(status));
 
 	if (cxgb_is_neg_adv(status)) {
 		pr_debug("Connection problems for atid %u status %u (%s)\n",
@@ -2338,13 +2338,13 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		break;
 	default:
 		if (ep->com.local_addr.ss_family == AF_INET) {
-			pr_info("Active open failure - atid %u status %u errno %d %pI4:%u->%pI4:%u\n",
-				atid, status, status2errno(status),
+			pr_info("Active open failure - atid %u status %u erryes %d %pI4:%u->%pI4:%u\n",
+				atid, status, status2erryes(status),
 				&la->sin_addr.s_addr, ntohs(la->sin_port),
 				&ra->sin_addr.s_addr, ntohs(ra->sin_port));
 		} else {
-			pr_info("Active open failure - atid %u status %u errno %d %pI6:%u->%pI6:%u\n",
-				atid, status, status2errno(status),
+			pr_info("Active open failure - atid %u status %u erryes %d %pI6:%u->%pI6:%u\n",
+				atid, status, status2erryes(status),
 				la6->sin6_addr.s6_addr, ntohs(la6->sin6_port),
 				ra6->sin6_addr.s6_addr, ntohs(ra6->sin6_port));
 		}
@@ -2352,7 +2352,7 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 
 fail:
-	connect_reply_upcall(ep, status2errno(status));
+	connect_reply_upcall(ep, status2erryes(status));
 	state_set(&ep->com, DEAD);
 
 	if (ep->com.remote_addr.ss_family == AF_INET6) {
@@ -2385,8 +2385,8 @@ static int pass_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		goto out;
 	}
 	pr_debug("ep %p status %d error %d\n", ep,
-		 rpl->status, status2errno(rpl->status));
-	c4iw_wake_up_noref(ep->com.wr_waitp, status2errno(rpl->status));
+		 rpl->status, status2erryes(rpl->status));
+	c4iw_wake_up_yesref(ep->com.wr_waitp, status2erryes(rpl->status));
 	c4iw_put_ep(&ep->com);
 out:
 	return 0;
@@ -2403,7 +2403,7 @@ static int close_listsrv_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 		goto out;
 	}
 	pr_debug("ep %p\n", ep);
-	c4iw_wake_up_noref(ep->com.wr_waitp, status2errno(rpl->status));
+	c4iw_wake_up_yesref(ep->com.wr_waitp, status2erryes(rpl->status));
 	c4iw_put_ep(&ep->com);
 out:
 	return 0;
@@ -2434,7 +2434,7 @@ static int accept_cr(struct c4iw_ep *ep, struct sk_buff *skb,
 	win = ep->rcv_win >> 10;
 	if (win > RCV_BUFSIZ_M)
 		win = RCV_BUFSIZ_M;
-	opt0 = (nocong ? NO_CONG_F : 0) |
+	opt0 = (yescong ? NO_CONG_F : 0) |
 	       KEEP_ALIVE_F |
 	       DELACK_F |
 	       WND_SCALE_V(wscale) |
@@ -2535,7 +2535,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 
 	if (state_read(&parent_ep->com) != LISTEN) {
-		pr_err("%s - listening ep not in LISTEN\n", __func__);
+		pr_err("%s - listening ep yest in LISTEN\n", __func__);
 		goto reject;
 	}
 
@@ -2742,12 +2742,12 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 		 */
 		__state_set(&ep->com, CLOSING);
 		pr_debug("waking up ep %p tid %u\n", ep, ep->hwtid);
-		c4iw_wake_up_noref(ep->com.wr_waitp, -ECONNRESET);
+		c4iw_wake_up_yesref(ep->com.wr_waitp, -ECONNRESET);
 		break;
 	case MPA_REP_SENT:
 		__state_set(&ep->com, CLOSING);
 		pr_debug("waking up ep %p tid %u\n", ep, ep->hwtid);
-		c4iw_wake_up_noref(ep->com.wr_waitp, -ECONNRESET);
+		c4iw_wake_up_yesref(ep->com.wr_waitp, -ECONNRESET);
 		break;
 	case FPDU_MODE:
 		start_ep_timer(ep);
@@ -2845,11 +2845,11 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	/*
 	 * Wake up any threads in rdma_init() or rdma_fini().
-	 * However, this is not needed if com state is just
+	 * However, this is yest needed if com state is just
 	 * MPA_REQ_SENT
 	 */
 	if (ep->com.state != MPA_REQ_SENT)
-		c4iw_wake_up_noref(ep->com.wr_waitp, -ECONNRESET);
+		c4iw_wake_up_yesref(ep->com.wr_waitp, -ECONNRESET);
 
 	mutex_lock(&ep->com.mutex);
 	switch (ep->com.state) {
@@ -2866,9 +2866,9 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 			connect_reply_upcall(ep, -ECONNRESET);
 		else {
 			/*
-			 * we just don't send notification upwards because we
+			 * we just don't send yestification upwards because we
 			 * want to retry with mpa_v1 without upper layers even
-			 * knowing it.
+			 * kyeswing it.
 			 *
 			 * do some housekeeping so as to re-initiate the
 			 * connection
@@ -3038,14 +3038,14 @@ static int terminate(struct c4iw_dev *dev, struct sk_buff *skb)
 
 		c4iw_put_ep(&ep->com);
 	} else
-		pr_warn("TERM received tid %u no ep/qp\n", tid);
+		pr_warn("TERM received tid %u yes ep/qp\n", tid);
 
 	return 0;
 }
 
 /*
  * Upcall from the adapter indicating data has been transmitted.
- * For us its just the single MPA request or reply.  We can now free
+ * For us its just the single MPA request or reply.  We can yesw free
  * the skb holding the mpa message.
  */
 static int fw4_ack(struct c4iw_dev *dev, struct sk_buff *skb)
@@ -3310,7 +3310,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	}
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
 	if (!ep) {
-		pr_err("%s - cannot alloc ep\n", __func__);
+		pr_err("%s - canyest alloc ep\n", __func__);
 		err = -ENOMEM;
 		goto out;
 	}
@@ -3338,7 +3338,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->com.dev = dev;
 	ep->com.qp = get_qhp(dev, conn_param->qpn);
 	if (!ep->com.qp) {
-		pr_warn("%s qpn 0x%x not found!\n", __func__, conn_param->qpn);
+		pr_warn("%s qpn 0x%x yest found!\n", __func__, conn_param->qpn);
 		err = -EINVAL;
 		goto fail2;
 	}
@@ -3351,7 +3351,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	 */
 	ep->atid = cxgb4_alloc_atid(dev->rdev.lldi.tids, ep);
 	if (ep->atid == -1) {
-		pr_err("%s - cannot alloc atid\n", __func__);
+		pr_err("%s - canyest alloc atid\n", __func__);
 		err = -ENOMEM;
 		goto fail2;
 	}
@@ -3417,7 +3417,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 					   raddr6->sin6_scope_id);
 	}
 	if (!ep->dst) {
-		pr_err("%s - cannot find route\n", __func__);
+		pr_err("%s - canyest find route\n", __func__);
 		err = -EHOSTUNREACH;
 		goto fail3;
 	}
@@ -3425,7 +3425,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	err = import_ep(ep, iptype, ra, ep->dst, ep->com.dev, true,
 			ep->com.dev->rdev.lldi.adapter_type, cm_id->tos);
 	if (err) {
-		pr_err("%s - cannot alloc l2e\n", __func__);
+		pr_err("%s - canyest alloc l2e\n", __func__);
 		goto fail4;
 	}
 
@@ -3479,7 +3479,7 @@ static int create_server6(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 					  ep->com.wr_waitp,
 					  0, 0, __func__);
 	else if (err > 0)
-		err = net_xmit_errno(err);
+		err = net_xmit_erryes(err);
 	if (err) {
 		cxgb4_clip_release(ep->com.dev->rdev.lldi.ports[0],
 				   (const u32 *)&sin6->sin6_addr.s6_addr, 1);
@@ -3521,7 +3521,7 @@ static int create_server4(struct c4iw_dev *dev, struct c4iw_listen_ep *ep)
 						  ep->com.wr_waitp,
 						  0, 0, __func__);
 		else if (err > 0)
-			err = net_xmit_errno(err);
+			err = net_xmit_erryes(err);
 	}
 	if (err)
 		pr_err("cxgb4_create_server/filter failed err %d stid %d laddr %pI4 lport %d\n"
@@ -3540,7 +3540,7 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
 	if (!ep) {
-		pr_err("%s - cannot alloc ep\n", __func__);
+		pr_err("%s - canyest alloc ep\n", __func__);
 		err = -ENOMEM;
 		goto fail1;
 	}
@@ -3565,7 +3565,7 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 					    cm_id->m_local_addr.ss_family, ep);
 
 	if (ep->stid == -1) {
-		pr_err("%s - cannot alloc stid\n", __func__);
+		pr_err("%s - canyest alloc stid\n", __func__);
 		err = -ENOMEM;
 		goto fail2;
 	}
@@ -3694,7 +3694,7 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 	case MORIBUND:
 	case ABORTING:
 	case DEAD:
-		pr_debug("ignoring disconnect ep %p state %u\n",
+		pr_debug("igyesring disconnect ep %p state %u\n",
 			 ep, ep->com.state);
 		break;
 	default:
@@ -3774,7 +3774,7 @@ static void active_ofld_conn_reply(struct c4iw_dev *dev, struct sk_buff *skb,
 	mutex_lock(&dev->rdev.stats.lock);
 	dev->rdev.stats.act_ofld_conn_fails++;
 	mutex_unlock(&dev->rdev.stats.lock);
-	connect_reply_upcall(ep, status2errno(req->retval));
+	connect_reply_upcall(ep, status2erryes(req->retval));
 	state_set(&ep->com, DEAD);
 	if (ep->com.remote_addr.ss_family == AF_INET6) {
 		struct sockaddr_in6 *sin6 =
@@ -4027,7 +4027,7 @@ static void send_fw_pass_open_req(struct c4iw_dev *dev, struct sk_buff *skb,
 	 * We initialize the MSS index in TCB to 0xF.
 	 * So that when driver sends cpl_pass_accept_rpl
 	 * TCB picks up the correct value. If this was 0
-	 * TP will ignore any value > 0 for MSS index.
+	 * TP will igyesre any value > 0 for MSS index.
 	 */
 	req->tcb.opt0 = cpu_to_be64(MSS_IDX_V(0xF));
 	req->cookie = (uintptr_t)skb;
@@ -4070,12 +4070,12 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 	int step;
 	struct neighbour *neigh;
 
-	/* Drop all non-SYN packets */
+	/* Drop all yesn-SYN packets */
 	if (!(cpl->l2info & cpu_to_be32(RXF_SYN_F)))
 		goto reject;
 
 	/*
-	 * Drop all packets which did not hit the filter.
+	 * Drop all packets which did yest hit the filter.
 	 * Unlikely to happen.
 	 */
 	if (!(rss->filter_hit && rss->filter_tid))
@@ -4104,7 +4104,7 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 		eth_hdr_len = RX_T6_ETHHDR_LEN_G(be32_to_cpu(cpl->l2info));
 		break;
 	default:
-		pr_err("T%d Chip is not supported\n",
+		pr_err("T%d Chip is yest supported\n",
 		       CHELSIO_CHIP_VERSION(dev->rdev.lldi.adapter_type));
 		goto reject;
 	}
@@ -4248,8 +4248,8 @@ static void process_timeout(struct c4iw_ep *ep)
 
 		/*
 		 * These states are expected if the ep timed out at the same
-		 * time as another thread was calling stop_ep_timer().
-		 * So we silently do nothing for these states.
+		 * time as ayesther thread was calling stop_ep_timer().
+		 * So we silently do yesthing for these states.
 		 */
 		abort = 0;
 		break;
@@ -4321,7 +4321,7 @@ static void ep_timeout(struct timer_list *t)
 	spin_lock(&timeout_lock);
 	if (!test_and_set_bit(TIMEOUT, &ep->com.flags)) {
 		/*
-		 * Only insert if it is not already on the list.
+		 * Only insert if it is yest already on the list.
 		 */
 		if (!ep->entry.next) {
 			list_add_tail(&ep->entry, &timeout_list);
@@ -4403,7 +4403,7 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 	ep = get_ep_from_tid(dev, tid);
 	/* This EP will be dereferenced in peer_abort() */
 	if (!ep) {
-		pr_warn("Abort on non-existent endpoint, tid %d\n", tid);
+		pr_warn("Abort on yesn-existent endpoint, tid %d\n", tid);
 		kfree_skb(skb);
 		return 0;
 	}
@@ -4415,7 +4415,7 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	pr_debug("ep %p tid %u state %u\n", ep, ep->hwtid, ep->com.state);
 
-	c4iw_wake_up_noref(ep->com.wr_waitp, -ECONNRESET);
+	c4iw_wake_up_yesref(ep->com.wr_waitp, -ECONNRESET);
 out:
 	sched(dev, skb);
 	return 0;

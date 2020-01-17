@@ -159,7 +159,7 @@ static int lis3lv02d_dmi_matched(const struct dmi_system_id *dmi)
 #define DEFINE_CONV(name, x, y, z)			      \
 	static union axis_conversion lis3lv02d_axis_##name = \
 		{ .as_array = { x, y, z } }
-DEFINE_CONV(normal, 1, 2, 3);
+DEFINE_CONV(yesrmal, 1, 2, 3);
 DEFINE_CONV(y_inverted, 1, -2, 3);
 DEFINE_CONV(x_inverted, -1, 2, 3);
 DEFINE_CONV(x_inverted_usd, -1, 2, -3);
@@ -268,7 +268,7 @@ static void hpled_set(struct delayed_led_classdev *led_cdev, enum led_brightness
 static struct delayed_led_classdev hpled_led = {
 	.led_classdev = {
 		.name			= "hp::hddprotect",
-		.default_trigger	= "none",
+		.default_trigger	= "yesne",
 		.brightness_set		= delayed_sysfs_set,
 		.flags                  = LED_CORE_SUSPENDRESUME,
 	},
@@ -351,8 +351,8 @@ static int lis3lv02d_add(struct acpi_device *device)
 		pr_info("Using custom axes %d,%d,%d\n",
 			lis3_dev.ac.x, lis3_dev.ac.y, lis3_dev.ac.z);
 	} else if (dmi_check_system(lis3lv02d_dmi_ids) == 0) {
-		pr_info("laptop model unknown, using default axes configuration\n");
-		lis3_dev.ac = lis3lv02d_axis_normal;
+		pr_info("laptop model unkyeswn, using default axes configuration\n");
+		lis3_dev.ac = lis3lv02d_axis_yesrmal;
 	}
 
 	/* call the core layer do its init */

@@ -76,7 +76,7 @@ static int tusb1210_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 		ret &= ~ULPI_OTG_CTRL_DRVVBUS_EXT;
 		break;
 	default:
-		/* nothing */
+		/* yesthing */
 		return 0;
 	}
 

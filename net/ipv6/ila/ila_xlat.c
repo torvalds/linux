@@ -17,7 +17,7 @@ struct ila_xlat_params {
 
 struct ila_map {
 	struct ila_xlat_params xp;
-	struct rhash_head node;
+	struct rhash_head yesde;
 	struct ila_map __rcu *next;
 	struct rcu_head rcu;
 };
@@ -84,7 +84,7 @@ static inline int ila_order(struct ila_map *ila)
 
 static const struct rhashtable_params rht_params = {
 	.nelem_hint = 1024,
-	.head_offset = offsetof(struct ila_map, node),
+	.head_offset = offsetof(struct ila_map, yesde),
 	.key_offset = offsetof(struct ila_map, xp.ip.locator_match),
 	.key_len = sizeof(u64), /* identifier */
 	.max_size = 1048576,
@@ -164,7 +164,7 @@ static inline void ila_release(struct ila_map *ila)
 	kfree_rcu(ila, rcu);
 }
 
-static void ila_free_node(struct ila_map *ila)
+static void ila_free_yesde(struct ila_map *ila)
 {
 	struct ila_map *next;
 
@@ -178,7 +178,7 @@ static void ila_free_node(struct ila_map *ila)
 
 static void ila_free_cb(void *ptr, void *arg)
 {
-	ila_free_node((struct ila_map *)ptr);
+	ila_free_yesde((struct ila_map *)ptr);
 }
 
 static int ila_xlat_addr(struct sk_buff *skb, bool sir2ila);
@@ -238,7 +238,7 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *xp)
 	if (!head) {
 		/* New entry for the rhash_table */
 		err = rhashtable_lookup_insert_fast(&ilan->xlat.rhash_table,
-						    &ila->node, rht_params);
+						    &ila->yesde, rht_params);
 	} else {
 		struct ila_map *tila = head, *prev = NULL;
 
@@ -264,8 +264,8 @@ static int ila_add_mapping(struct net *net, struct ila_xlat_params *xp)
 			/* Make this ila new head */
 			RCU_INIT_POINTER(ila->next, head);
 			err = rhashtable_replace_fast(&ilan->xlat.rhash_table,
-						      &head->node,
-						      &ila->node, rht_params);
+						      &head->yesde,
+						      &ila->yesde, rht_params);
 			if (err)
 				goto out;
 		}
@@ -319,15 +319,15 @@ static int ila_del_mapping(struct net *net, struct ila_xlat_params *xp)
 				 * table
 				 */
 				err = rhashtable_replace_fast(
-					&ilan->xlat.rhash_table, &ila->node,
-					&head->node, rht_params);
+					&ilan->xlat.rhash_table, &ila->yesde,
+					&head->yesde, rht_params);
 				if (err)
 					goto out;
 			} else {
-				/* Entry no longer used */
+				/* Entry yes longer used */
 				err = rhashtable_remove_fast(
 						&ilan->xlat.rhash_table,
-						&ila->node, rht_params);
+						&ila->yesde, rht_params);
 			}
 		}
 
@@ -405,9 +405,9 @@ int ila_xlat_nl_cmd_flush(struct sk_buff *skb, struct genl_info *info)
 		spin_lock(lock);
 
 		ret = rhashtable_remove_fast(&ilan->xlat.rhash_table,
-					     &ila->node, rht_params);
+					     &ila->yesde, rht_params);
 		if (!ret)
-			ila_free_node(ila);
+			ila_free_yesde(ila);
 
 		spin_unlock(lock);
 

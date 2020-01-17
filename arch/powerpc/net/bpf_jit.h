@@ -20,7 +20,7 @@
 
 /*
  * 16-bit immediate helper macros: HA() is for use with sign-extending instrs
- * (e.g. LD, ADDI).  If the bottom 16 bits is "-ve", add another bit into the
+ * (e.g. LD, ADDI).  If the bottom 16 bits is "-ve", add ayesther bit into the
  * top half to negate the effect (i.e. 0xffff + 1 = 0x(1)0000).
  */
 #define IMM_H(i)		((uintptr_t)(i)>>16)

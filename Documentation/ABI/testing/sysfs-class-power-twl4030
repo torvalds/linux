@@ -6,7 +6,7 @@ Description:
 	Possible values are:
 		"auto" - draw power as appropriate for detected
 			 power source and battery status.
-		"off"  - do not draw any power.
+		"off"  - do yest draw any power.
 		"continuous"
 		       - activate mode described as "linear" in
 		         TWL data sheets.  This uses whatever
@@ -15,7 +15,7 @@ Description:
 
 			 This is useful for unstable power sources
 			 such as bicycle dynamo, but care should
-			 be taken that battery is not over-charged.
+			 be taken that battery is yest over-charged.
 
 What: /sys/class/power_supply/twl4030_ac/mode
 Description:
@@ -25,4 +25,4 @@ Description:
 	Possible values are:
 		"auto" - draw power as appropriate for detected
 			 power source and battery status.
-		"off"  - do not draw any power.
+		"off"  - do yest draw any power.

@@ -1,7 +1,7 @@
-/* orinoco_pci.c
+/* oriyesco_pci.c
  *
  * Driver for Prism 2.5/3 devices that have a direct PCI interface
- * (i.e. these are not PCMCIA cards in a PCMCIA-to-PCI bridge).
+ * (i.e. these are yest PCMCIA cards in a PCMCIA-to-PCI bridge).
  * The card contains only one PCI region, which contains all the usual
  * hermes registers, as well as the COR register.
  *
@@ -9,18 +9,18 @@
  *	Pavel Roskin <proski AT gnu.org>
  * and	David Gibson <hermes AT gibson.dropbear.id.au>
  *
- * Some of this code is borrowed from orinoco_plx.c
+ * Some of this code is borrowed from oriyesco_plx.c
  *	Copyright (C) 2001 Daniel Barlow <dan AT telent.net>
- * Some of this code is "inspired" by linux-wlan-ng-0.1.10, but nothing
+ * Some of this code is "inspired" by linux-wlan-ng-0.1.10, but yesthing
  * has been copied from it. linux-wlan-ng-0.1.10 is originally :
  *	Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
  * This file originally written by:
  *	Copyright (C) 2001 Jean Tourrilhes <jt AT hpl.hp.com>
- * And is now maintained by:
+ * And is yesw maintained by:
  *	(C) Copyright David Gibson, IBM Corp. 2002-2003.
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may yest use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -33,15 +33,15 @@
  * terms of the GNU General Public License version 2 (the "GPL"), in
  * which case the provisions of the GPL are applicable instead of the
  * above.  If you wish to allow the use of your version of this file
- * only under the terms of the GPL and not to allow others to use your
+ * only under the terms of the GPL and yest to allow others to use your
  * version of this file under the MPL, indicate your decision by
- * deleting the provisions above and replace them with the notice and
- * other provisions required by the GPL.  If you do not delete the
+ * deleting the provisions above and replace them with the yestice and
+ * other provisions required by the GPL.  If you do yest delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
  */
 
-#define DRIVER_NAME "orinoco_pci"
+#define DRIVER_NAME "oriyesco_pci"
 #define PFX DRIVER_NAME ": "
 
 #include <linux/module.h>
@@ -50,8 +50,8 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 
-#include "orinoco.h"
-#include "orinoco_pci.h"
+#include "oriyesco.h"
+#include "oriyesco_pci.h"
 
 /* Offset of the COR register of the PCI card */
 #define HERMES_PCI_COR		(0x26)
@@ -79,13 +79,13 @@
  * Note bis : Don't try to access HERMES_CMD during the reset phase.
  * It just won't work !
  */
-static int orinoco_pci_cor_reset(struct orinoco_private *priv)
+static int oriyesco_pci_cor_reset(struct oriyesco_private *priv)
 {
 	struct hermes *hw = &priv->hw;
 	unsigned long timeout;
 	u16 reg;
 
-	/* Assert the reset until the card notices */
+	/* Assert the reset until the card yestices */
 	hermes_write_regn(hw, PCI_COR, HERMES_PCI_COR_MASK);
 	mdelay(HERMES_PCI_COR_ONT);
 
@@ -93,7 +93,7 @@ static int orinoco_pci_cor_reset(struct orinoco_private *priv)
 	hermes_write_regn(hw, PCI_COR, 0x0000);
 	mdelay(HERMES_PCI_COR_OFFT);
 
-	/* The card is ready when it's no longer busy */
+	/* The card is ready when it's yes longer busy */
 	timeout = jiffies + msecs_to_jiffies(HERMES_PCI_COR_BUSYT);
 	reg = hermes_read_regn(hw, CMD);
 	while (time_before(jiffies, timeout) && (reg & HERMES_CMD_BUSY)) {
@@ -110,38 +110,38 @@ static int orinoco_pci_cor_reset(struct orinoco_private *priv)
 	return 0;
 }
 
-static int orinoco_pci_init_one(struct pci_dev *pdev,
+static int oriyesco_pci_init_one(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	int err;
-	struct orinoco_private *priv;
-	struct orinoco_pci_card *card;
+	struct oriyesco_private *priv;
+	struct oriyesco_pci_card *card;
 	void __iomem *hermes_io;
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot enable PCI device\n");
+		printk(KERN_ERR PFX "Canyest enable PCI device\n");
 		return err;
 	}
 
 	err = pci_request_regions(pdev, DRIVER_NAME);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot obtain PCI resources\n");
+		printk(KERN_ERR PFX "Canyest obtain PCI resources\n");
 		goto fail_resources;
 	}
 
 	hermes_io = pci_iomap(pdev, 0, 0);
 	if (!hermes_io) {
-		printk(KERN_ERR PFX "Cannot remap chipset registers\n");
+		printk(KERN_ERR PFX "Canyest remap chipset registers\n");
 		err = -EIO;
 		goto fail_map_hermes;
 	}
 
 	/* Allocate network device */
-	priv = alloc_orinocodev(sizeof(*card), &pdev->dev,
-				orinoco_pci_cor_reset, NULL);
+	priv = alloc_oriyescodev(sizeof(*card), &pdev->dev,
+				oriyesco_pci_cor_reset, NULL);
 	if (!priv) {
-		printk(KERN_ERR PFX "Cannot allocate network device\n");
+		printk(KERN_ERR PFX "Canyest allocate network device\n");
 		err = -ENOMEM;
 		goto fail_alloc;
 	}
@@ -150,29 +150,29 @@ static int orinoco_pci_init_one(struct pci_dev *pdev,
 
 	hermes_struct_init(&priv->hw, hermes_io, HERMES_32BIT_REGSPACING);
 
-	err = request_irq(pdev->irq, orinoco_interrupt, IRQF_SHARED,
+	err = request_irq(pdev->irq, oriyesco_interrupt, IRQF_SHARED,
 			  DRIVER_NAME, priv);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot allocate IRQ %d\n", pdev->irq);
+		printk(KERN_ERR PFX "Canyest allocate IRQ %d\n", pdev->irq);
 		err = -EBUSY;
 		goto fail_irq;
 	}
 
-	err = orinoco_pci_cor_reset(priv);
+	err = oriyesco_pci_cor_reset(priv);
 	if (err) {
 		printk(KERN_ERR PFX "Initial reset failed\n");
 		goto fail;
 	}
 
-	err = orinoco_init(priv);
+	err = oriyesco_init(priv);
 	if (err) {
-		printk(KERN_ERR PFX "orinoco_init() failed\n");
+		printk(KERN_ERR PFX "oriyesco_init() failed\n");
 		goto fail;
 	}
 
-	err = orinoco_if_add(priv, 0, 0, NULL);
+	err = oriyesco_if_add(priv, 0, 0, NULL);
 	if (err) {
-		printk(KERN_ERR PFX "orinoco_if_add() failed\n");
+		printk(KERN_ERR PFX "oriyesco_if_add() failed\n");
 		goto fail_wiphy;
 	}
 
@@ -186,7 +186,7 @@ static int orinoco_pci_init_one(struct pci_dev *pdev,
 	free_irq(pdev->irq, priv);
 
  fail_irq:
-	free_orinocodev(priv);
+	free_oriyescodev(priv);
 
  fail_alloc:
 	pci_iounmap(pdev, hermes_io);
@@ -200,20 +200,20 @@ static int orinoco_pci_init_one(struct pci_dev *pdev,
 	return err;
 }
 
-static void orinoco_pci_remove_one(struct pci_dev *pdev)
+static void oriyesco_pci_remove_one(struct pci_dev *pdev)
 {
-	struct orinoco_private *priv = pci_get_drvdata(pdev);
+	struct oriyesco_private *priv = pci_get_drvdata(pdev);
 
-	orinoco_if_del(priv);
+	oriyesco_if_del(priv);
 	wiphy_unregister(priv_to_wiphy(priv));
 	free_irq(pdev->irq, priv);
-	free_orinocodev(priv);
+	free_oriyescodev(priv);
 	pci_iounmap(pdev, priv->hw.iobase);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }
 
-static const struct pci_device_id orinoco_pci_id_table[] = {
+static const struct pci_device_id oriyesco_pci_id_table[] = {
 	/* Intersil Prism 3 */
 	{0x1260, 0x3872, PCI_ANY_ID, PCI_ANY_ID,},
 	/* Intersil Prism 2.5 */
@@ -223,15 +223,15 @@ static const struct pci_device_id orinoco_pci_id_table[] = {
 	{0,},
 };
 
-MODULE_DEVICE_TABLE(pci, orinoco_pci_id_table);
+MODULE_DEVICE_TABLE(pci, oriyesco_pci_id_table);
 
-static struct pci_driver orinoco_pci_driver = {
+static struct pci_driver oriyesco_pci_driver = {
 	.name		= DRIVER_NAME,
-	.id_table	= orinoco_pci_id_table,
-	.probe		= orinoco_pci_init_one,
-	.remove		= orinoco_pci_remove_one,
-	.suspend	= orinoco_pci_suspend,
-	.resume		= orinoco_pci_resume,
+	.id_table	= oriyesco_pci_id_table,
+	.probe		= oriyesco_pci_init_one,
+	.remove		= oriyesco_pci_remove_one,
+	.suspend	= oriyesco_pci_suspend,
+	.resume		= oriyesco_pci_resume,
 };
 
 static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
@@ -243,19 +243,19 @@ MODULE_AUTHOR("Pavel Roskin <proski@gnu.org> &"
 MODULE_DESCRIPTION("Driver for wireless LAN cards using direct PCI interface");
 MODULE_LICENSE("Dual MPL/GPL");
 
-static int __init orinoco_pci_init(void)
+static int __init oriyesco_pci_init(void)
 {
 	printk(KERN_DEBUG "%s\n", version);
-	return pci_register_driver(&orinoco_pci_driver);
+	return pci_register_driver(&oriyesco_pci_driver);
 }
 
-static void __exit orinoco_pci_exit(void)
+static void __exit oriyesco_pci_exit(void)
 {
-	pci_unregister_driver(&orinoco_pci_driver);
+	pci_unregister_driver(&oriyesco_pci_driver);
 }
 
-module_init(orinoco_pci_init);
-module_exit(orinoco_pci_exit);
+module_init(oriyesco_pci_init);
+module_exit(oriyesco_pci_exit);
 
 /*
  * Local variables:

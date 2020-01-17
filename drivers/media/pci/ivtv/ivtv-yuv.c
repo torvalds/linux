@@ -99,7 +99,7 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 			 * Inherit the -EFAULT from rc's
 			 * initialization, but allow it to be
 			 * overridden by uv_pages above if it was an
-			 * actual errno.
+			 * actual erryes.
 			 */
 		} else {
 			rc = y_pages;
@@ -111,7 +111,7 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 
 	/* Fill & map SG List */
 	if (ivtv_udma_fill_sg_list (dma, &uv_dma, ivtv_udma_fill_sg_list (dma, &y_dma, 0)) < 0) {
-		IVTV_DEBUG_WARN("could not allocate bounce buffers for highmem userspace buffers\n");
+		IVTV_DEBUG_WARN("could yest allocate bounce buffers for highmem userspace buffers\n");
 		for (i = 0; i < dma->page_count; i++) {
 			put_page(dma->map[i]);
 		}
@@ -146,7 +146,7 @@ int ivtv_yuv_filter_check(struct ivtv *itv)
 	for (i = 0, y = 16, uv = 4; i < 16; i++, y += 24, uv += 12) {
 		if ((read_dec(IVTV_YUV_HORIZONTAL_FILTER_OFFSET + y) != i << 16) ||
 		    (read_dec(IVTV_YUV_VERTICAL_FILTER_OFFSET + uv) != i << 16)) {
-			IVTV_WARN ("YUV filter table not found in firmware.\n");
+			IVTV_WARN ("YUV filter table yest found in firmware.\n");
 			return -1;
 		}
 	}
@@ -241,7 +241,7 @@ static void ivtv_yuv_handle_horizontal(struct ivtv *itv, struct yuv_frame_info *
 	/* Index into the image horizontally */
 	reg_2870 = 0;
 
-	/* 2870 is normally fudged to align video coords with osd coords.
+	/* 2870 is yesrmally fudged to align video coords with osd coords.
 	   If running full screen, it causes an unwanted left shift
 	   Remove the fudge if we almost fill the screen.
 	   Gradually adjust the offset to avoid the video 'snapping'
@@ -385,8 +385,8 @@ static void ivtv_yuv_handle_vertical(struct ivtv *itv, struct yuv_frame_info *f)
 	u32 reg_2950, reg_2954, reg_2958, reg_295c;
 	u32 reg_2960, reg_2964, reg_2968, reg_296c;
 	u32 reg_289c;
-	u32 src_major_y, src_minor_y;
-	u32 src_major_uv, src_minor_uv;
+	u32 src_major_y, src_miyesr_y;
+	u32 src_major_uv, src_miyesr_uv;
 	u32 reg_2964_base, reg_2968_base;
 	int v_filter_1, v_filter_2;
 
@@ -408,31 +408,31 @@ static void ivtv_yuv_handle_vertical(struct ivtv *itv, struct yuv_frame_info *f)
 	/* We offset into the image using two different index methods, so split
 	   the y source coord into two parts. */
 	if (f->src_y < 8) {
-		src_minor_uv = f->src_y;
+		src_miyesr_uv = f->src_y;
 		src_major_uv = 0;
 	} else {
-		src_minor_uv = 8;
+		src_miyesr_uv = 8;
 		src_major_uv = f->src_y - 8;
 	}
 
-	src_minor_y = src_minor_uv;
+	src_miyesr_y = src_miyesr_uv;
 	src_major_y = src_major_uv;
 
 	if (f->offset_y)
-		src_minor_y += 16;
+		src_miyesr_y += 16;
 
 	if (f->interlaced_y)
-		reg_2918 = (f->dst_h << 16) | (f->src_h + src_minor_y);
+		reg_2918 = (f->dst_h << 16) | (f->src_h + src_miyesr_y);
 	else
-		reg_2918 = (f->dst_h << 16) | ((f->src_h + src_minor_y) << 1);
+		reg_2918 = (f->dst_h << 16) | ((f->src_h + src_miyesr_y) << 1);
 
 	if (f->interlaced_uv)
-		reg_291c = (f->dst_h << 16) | ((f->src_h + src_minor_uv) >> 1);
+		reg_291c = (f->dst_h << 16) | ((f->src_h + src_miyesr_uv) >> 1);
 	else
-		reg_291c = (f->dst_h << 16) | (f->src_h + src_minor_uv);
+		reg_291c = (f->dst_h << 16) | (f->src_h + src_miyesr_uv);
 
-	reg_2964_base = (src_minor_y * ((f->dst_h << 16) / f->src_h)) >> 14;
-	reg_2968_base = (src_minor_uv * ((f->dst_h << 16) / f->src_h)) >> 14;
+	reg_2964_base = (src_miyesr_y * ((f->dst_h << 16) / f->src_h)) >> 14;
+	reg_2968_base = (src_miyesr_uv * ((f->dst_h << 16) / f->src_h)) >> 14;
 
 	if (f->dst_h / 2 >= f->src_h && !f->interlaced_y) {
 		master_height = (f->src_h * 0x00400000) / f->dst_h;
@@ -528,8 +528,8 @@ static void ivtv_yuv_handle_vertical(struct ivtv *itv, struct yuv_frame_info *f)
 
 	/* How much of the source to decode.
 	   Take into account the source offset */
-	reg_2960 = ((src_minor_y + f->src_h + src_major_y) - 1) |
-		(((src_minor_uv + f->src_h + src_major_uv - 1) & ~1) << 15);
+	reg_2960 = ((src_miyesr_y + f->src_h + src_major_y) - 1) |
+		(((src_miyesr_uv + f->src_h + src_major_uv - 1) & ~1) << 15);
 
 	/* Calculate correct value for register 2964 */
 	if (f->src_h == f->dst_h) {
@@ -661,7 +661,7 @@ static u32 ivtv_yuv_window_setup(struct ivtv *itv, struct yuv_frame_info *f)
 	u32 osd_scale;
 	u32 yuv_update = 0;
 
-	/* Sorry, but no negative coords for src */
+	/* Sorry, but yes negative coords for src */
 	if (f->src_x < 0)
 		f->src_x = 0;
 	if (f->src_y < 0)
@@ -690,7 +690,7 @@ static u32 ivtv_yuv_window_setup(struct ivtv *itv, struct yuv_frame_info *f)
 		}
 	}
 
-	/* If there's nothing to safe to display, we may as well stop now */
+	/* If there's yesthing to safe to display, we may as well stop yesw */
 	if ((int)f->dst_w <= 2 || (int)f->dst_h <= 2 ||
 	    (int)f->src_w <= 2 || (int)f->src_h <= 2) {
 		return IVTV_YUV_UPDATE_INVALID;
@@ -773,7 +773,7 @@ static u32 ivtv_yuv_window_setup(struct ivtv *itv, struct yuv_frame_info *f)
 		f->dst_h += f->dst_h & 1;
 	}
 
-	/* Check again. If there's nothing to safe to display, stop now */
+	/* Check again. If there's yesthing to safe to display, stop yesw */
 	if ((int)f->dst_w <= 2 || (int)f->dst_h <= 2 ||
 	    (int)f->src_w <= 2 || (int)f->src_h <= 2) {
 		return IVTV_YUV_UPDATE_INVALID;
@@ -823,7 +823,7 @@ void ivtv_yuv_work_handler(struct ivtv *itv)
 		f.vis_h = yi->decode_height;
 	}
 
-	/* Calculate the display window coordinates. Exit if nothing left */
+	/* Calculate the display window coordinates. Exit if yesthing left */
 	if (!(yuv_update = ivtv_yuv_window_setup(itv, &f)))
 		return;
 
@@ -906,7 +906,7 @@ static void ivtv_yuv_init(struct ivtv *itv)
 		yi->osd_vis_w = 720 - yi->osd_x_offset;
 		yi->osd_vis_h = yi->decode_height - yi->osd_y_offset;
 	} else {
-		/* If no visible size set, assume full size */
+		/* If yes visible size set, assume full size */
 		if (!yi->osd_vis_w)
 			yi->osd_vis_w = 720 - yi->osd_x_offset;
 
@@ -914,7 +914,7 @@ static void ivtv_yuv_init(struct ivtv *itv)
 			yi->osd_vis_h = yi->decode_height - yi->osd_y_offset;
 		} else if (yi->osd_vis_h + yi->osd_y_offset > yi->decode_height) {
 			/* If output video standard has changed, requested height may
-			   not be legal */
+			   yest be legal */
 			IVTV_DEBUG_WARN("Clipping yuv output - fb size (%d) exceeds video standard limit (%d)\n",
 					yi->osd_vis_h + yi->osd_y_offset,
 					yi->decode_height);
@@ -922,7 +922,7 @@ static void ivtv_yuv_init(struct ivtv *itv)
 		}
 	}
 
-	/* We need a buffer for blanking when Y plane is offset - non-fatal if we can't get one */
+	/* We need a buffer for blanking when Y plane is offset - yesn-fatal if we can't get one */
 	yi->blanking_ptr = kzalloc(720 * 16, GFP_ATOMIC|__GFP_NOWARN);
 	if (yi->blanking_ptr) {
 		yi->blanking_dmaptr = pci_map_single(itv->pdev, yi->blanking_ptr, 720*16, PCI_DMA_TODEVICE);
@@ -1076,7 +1076,7 @@ static int ivtv_yuv_udma_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 
 	ivtv_udma_prepare(itv);
 	prepare_to_wait(&itv->dma_waitq, &wait, TASK_INTERRUPTIBLE);
-	/* if no UDMA is pending and no UDMA is in progress, then the DMA
+	/* if yes UDMA is pending and yes UDMA is in progress, then the DMA
 	   is finished */
 	while (test_bit(IVTV_F_I_UDMA_PENDING, &itv->i_flags) ||
 	       test_bit(IVTV_F_I_UDMA, &itv->i_flags)) {
@@ -1187,7 +1187,7 @@ void ivtv_yuv_close(struct ivtv *itv)
 
 	/* If we fully restore this register, the display may remain active.
 	   Restore, but set one bit to blank the video. Firmware will always
-	   clear this bit when needed, so not a problem. */
+	   clear this bit when needed, so yest a problem. */
 	write_reg(yi->reg_2898 | 0x01000000, 0x2898);
 
 	write_reg(yi->reg_2834, 0x02834);

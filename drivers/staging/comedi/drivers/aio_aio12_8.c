@@ -2,13 +2,13 @@
 /*
  * aio_aio12_8.c
  * Driver for Access I/O Products PC-104 AIO12-8 Analog I/O Board
- * Copyright (C) 2006 C&C Technologies, Inc.
+ * Copyright (C) 2006 C&C Techyeslogies, Inc.
  */
 
 /*
  * Driver: aio_aio12_8
  * Description: Access I/O Products PC-104 AIO12-8 Analog I/O Board
- * Author: Pablo Mejia <pablo.mejia@cctechnol.com>
+ * Author: Pablo Mejia <pablo.mejia@cctechyesl.com>
  * Devices: [Access I/O] PC-104 AIO12-8 (aio_aio12_8),
  *   [Access I/O] PC-104 AI12-8 (aio_ai12_8),
  *   [Access I/O] PC-104 AO12-4 (aio_ao12_4)
@@ -18,7 +18,7 @@
  *   [0] - I/O port base address
  *
  * Notes:
- * Only synchronous operations are supported.
+ * Only synchroyesus operations are supported.
  */
 
 #include <linux/module.h>

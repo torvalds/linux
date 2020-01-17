@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset:8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * configfs_internal.h - Internal stuff for configfs
  *
@@ -65,8 +65,8 @@ extern struct kmem_cache *configfs_dir_cachep;
 
 extern int configfs_is_root(struct config_item *item);
 
-extern struct inode * configfs_new_inode(umode_t mode, struct configfs_dirent *, struct super_block *);
-extern struct inode *configfs_create(struct dentry *, umode_t mode);
+extern struct iyesde * configfs_new_iyesde(umode_t mode, struct configfs_dirent *, struct super_block *);
+extern struct iyesde *configfs_create(struct dentry *, umode_t mode);
 
 extern int configfs_create_file(struct config_item *, const struct configfs_attribute *);
 extern int configfs_create_bin_file(struct config_item *,
@@ -87,14 +87,14 @@ extern void configfs_release_fs(void);
 extern const struct file_operations configfs_dir_operations;
 extern const struct file_operations configfs_file_operations;
 extern const struct file_operations configfs_bin_file_operations;
-extern const struct inode_operations configfs_dir_inode_operations;
-extern const struct inode_operations configfs_root_inode_operations;
-extern const struct inode_operations configfs_symlink_inode_operations;
+extern const struct iyesde_operations configfs_dir_iyesde_operations;
+extern const struct iyesde_operations configfs_root_iyesde_operations;
+extern const struct iyesde_operations configfs_symlink_iyesde_operations;
 extern const struct dentry_operations configfs_dentry_ops;
 
-extern int configfs_symlink(struct inode *dir, struct dentry *dentry,
+extern int configfs_symlink(struct iyesde *dir, struct dentry *dentry,
 			    const char *symname);
-extern int configfs_unlink(struct inode *dir, struct dentry *dentry);
+extern int configfs_unlink(struct iyesde *dir, struct dentry *dentry);
 
 int configfs_create_link(struct configfs_dirent *target, struct dentry *parent,
 		struct dentry *dentry, char *body);

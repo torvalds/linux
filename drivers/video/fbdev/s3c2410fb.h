@@ -33,7 +33,7 @@ struct s3c2410fb_info {
 	unsigned int		palette_ready;
 
 #ifdef CONFIG_ARM_S3C24XX_CPUFREQ
-	struct notifier_block	freq_transition;
+	struct yestifier_block	freq_transition;
 #endif
 
 	/* keep these registers in case we need to re-write palette */

@@ -21,17 +21,17 @@ struct rxrpc_call;
  */
 extern atomic_t rxrpc_debug_id;
 
-typedef void (*rxrpc_notify_rx_t)(struct sock *, struct rxrpc_call *,
+typedef void (*rxrpc_yestify_rx_t)(struct sock *, struct rxrpc_call *,
 				  unsigned long);
-typedef void (*rxrpc_notify_end_tx_t)(struct sock *, struct rxrpc_call *,
+typedef void (*rxrpc_yestify_end_tx_t)(struct sock *, struct rxrpc_call *,
 				      unsigned long);
-typedef void (*rxrpc_notify_new_call_t)(struct sock *, struct rxrpc_call *,
+typedef void (*rxrpc_yestify_new_call_t)(struct sock *, struct rxrpc_call *,
 					unsigned long);
 typedef void (*rxrpc_discard_new_call_t)(struct rxrpc_call *, unsigned long);
 typedef void (*rxrpc_user_attach_call_t)(struct rxrpc_call *, unsigned long);
 
-void rxrpc_kernel_new_call_notification(struct socket *,
-					rxrpc_notify_new_call_t,
+void rxrpc_kernel_new_call_yestification(struct socket *,
+					rxrpc_yestify_new_call_t,
 					rxrpc_discard_new_call_t);
 struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *,
 					   struct sockaddr_rxrpc *,
@@ -39,13 +39,13 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *,
 					   unsigned long,
 					   s64,
 					   gfp_t,
-					   rxrpc_notify_rx_t,
+					   rxrpc_yestify_rx_t,
 					   bool,
 					   bool,
 					   unsigned int);
 int rxrpc_kernel_send_data(struct socket *, struct rxrpc_call *,
 			   struct msghdr *, size_t,
-			   rxrpc_notify_end_tx_t);
+			   rxrpc_yestify_end_tx_t);
 int rxrpc_kernel_recv_data(struct socket *, struct rxrpc_call *,
 			   struct iov_iter *, bool, u32 *, u16 *);
 bool rxrpc_kernel_abort_call(struct socket *, struct rxrpc_call *,
@@ -54,7 +54,7 @@ void rxrpc_kernel_end_call(struct socket *, struct rxrpc_call *);
 void rxrpc_kernel_get_peer(struct socket *, struct rxrpc_call *,
 			   struct sockaddr_rxrpc *);
 u64 rxrpc_kernel_get_rtt(struct socket *, struct rxrpc_call *);
-int rxrpc_kernel_charge_accept(struct socket *, rxrpc_notify_rx_t,
+int rxrpc_kernel_charge_accept(struct socket *, rxrpc_yestify_rx_t,
 			       rxrpc_user_attach_call_t, unsigned long, gfp_t,
 			       unsigned int);
 void rxrpc_kernel_set_tx_length(struct socket *, struct rxrpc_call *, s64);

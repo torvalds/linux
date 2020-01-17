@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -45,8 +45,8 @@
 #define QIB_6120_Revision_R_Arch_RMASK 0xFF
 #define QIB_6120_Revision_R_ChipRevMajor_LSB 0x8
 #define QIB_6120_Revision_R_ChipRevMajor_RMASK 0xFF
-#define QIB_6120_Revision_R_ChipRevMinor_LSB 0x0
-#define QIB_6120_Revision_R_ChipRevMinor_RMASK 0xFF
+#define QIB_6120_Revision_R_ChipRevMiyesr_LSB 0x0
+#define QIB_6120_Revision_R_ChipRevMiyesr_RMASK 0xFF
 
 #define QIB_6120_Control_OFFS 0x8
 #define QIB_6120_Control_TxLatency_LSB 0x4

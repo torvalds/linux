@@ -6,24 +6,24 @@
  * Copyright (C) 2010		Tejun Heo <tj@kernel.org>
  *
  * Chunks are allocated as a contiguous kernel memory using gfp
- * allocation.  This is to be used on nommu architectures.
+ * allocation.  This is to be used on yesmmu architectures.
  *
  * To use percpu-km,
  *
  * - define CONFIG_NEED_PER_CPU_KM from the arch Kconfig.
  *
- * - CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK must not be defined.  It's
- *   not compatible with PER_CPU_KM.  EMBED_FIRST_CHUNK should work
+ * - CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK must yest be defined.  It's
+ *   yest compatible with PER_CPU_KM.  EMBED_FIRST_CHUNK should work
  *   fine.
  *
- * - NUMA is not supported.  When setting up the first chunk,
+ * - NUMA is yest supported.  When setting up the first chunk,
  *   @cpu_distance_fn should be NULL or report all CPUs to be nearer
  *   than or at LOCAL_DISTANCE.
  *
  * - It's best if the chunk size is power of two multiple of
  *   PAGE_SIZE.  Because each chunk is allocated as a contiguous
  *   kernel memory block using alloc_pages(), memory will be wasted if
- *   chunk size is not aligned.  percpu-km code will whine about it.
+ *   chunk size is yest aligned.  percpu-km code will whine about it.
  */
 
 #if defined(CONFIG_SMP) && defined(CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK)

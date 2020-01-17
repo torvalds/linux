@@ -1,5 +1,5 @@
 =====================
-Kernel driver nouveau
+Kernel driver yesuveau
 =====================
 
 Supported chips:
@@ -15,9 +15,9 @@ This driver allows to read the GPU core temperature, drive the GPU fan and
 set temperature alarms.
 
 Currently, due to the absence of in-kernel API to access HWMON drivers, Nouveau
-cannot access any of the i2c external monitoring chips it may find. If you
+canyest access any of the i2c external monitoring chips it may find. If you
 have one of those, temperature and/or fan management through Nouveau's HWMON
-interface is likely not to work. This document may then not cover your situation
+interface is likely yest to work. This document may then yest cover your situation
 entirely.
 
 Temperature management
@@ -38,7 +38,7 @@ temperature thresholds:
 	Shut the computer down to protect your GPU.
 
 WARNING:
-	Some of these thresholds may not be used by Nouveau depending
+	Some of these thresholds may yest be used by Nouveau depending
 	on your chipset.
 
 The default value for these thresholds comes from the GPU's vbios. These
@@ -83,14 +83,14 @@ NOTE:
 
 NOTE2:
   When operating in manual mode outside the vbios-defined
-  [PWM_min, PWM_max] range, the reported fan speed (RPM) may not be accurate
+  [PWM_min, PWM_max] range, the reported fan speed (RPM) may yest be accurate
   depending on your hardware.
 
 Bug reports
 -----------
 
-Thermal management on Nouveau is new and may not work on all cards. If you have
-inquiries, please ping mupuf on IRC (#nouveau, freenode).
+Thermal management on Nouveau is new and may yest work on all cards. If you have
+inquiries, please ping mupuf on IRC (#yesuveau, freeyesde).
 
 Bug reports should be filled on Freedesktop's bug tracker. Please follow
-http://nouveau.freedesktop.org/wiki/Bugs
+http://yesuveau.freedesktop.org/wiki/Bugs

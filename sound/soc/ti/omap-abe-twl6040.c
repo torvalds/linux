@@ -210,15 +210,15 @@ static int omap_abe_dmic_init(struct snd_soc_pcm_runtime *rtd)
 
 static int omap_abe_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct snd_soc_card *card;
-	struct device_node *dai_node;
+	struct device_yesde *dai_yesde;
 	struct abe_twl6040 *priv;
 	int num_links = 0;
 	int ret = 0;
 
-	if (!node) {
-		dev_err(&pdev->dev, "of node is missing.\n");
+	if (!yesde) {
+		dev_err(&pdev->dev, "of yesde is missing.\n");
 		return -ENODEV;
 	}
 
@@ -235,7 +235,7 @@ static int omap_abe_probe(struct platform_device *pdev)
 	card->num_dapm_routes = ARRAY_SIZE(audio_map);
 
 	if (snd_soc_of_parse_card_name(card, "ti,model")) {
-		dev_err(&pdev->dev, "Card name is not provided\n");
+		dev_err(&pdev->dev, "Card name is yest provided\n");
 		return -ENODEV;
 	}
 
@@ -245,9 +245,9 @@ static int omap_abe_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dai_node = of_parse_phandle(node, "ti,mcpdm", 0);
-	if (!dai_node) {
-		dev_err(&pdev->dev, "McPDM node is not provided\n");
+	dai_yesde = of_parse_phandle(yesde, "ti,mcpdm", 0);
+	if (!dai_yesde) {
+		dev_err(&pdev->dev, "McPDM yesde is yest provided\n");
 		return -EINVAL;
 	}
 
@@ -255,26 +255,26 @@ static int omap_abe_probe(struct platform_device *pdev)
 	priv->dai_links[0].stream_name = "TWL6040";
 	priv->dai_links[0].cpus = link0_cpus;
 	priv->dai_links[0].num_cpus = 1;
-	priv->dai_links[0].cpus->of_node = dai_node;
+	priv->dai_links[0].cpus->of_yesde = dai_yesde;
 	priv->dai_links[0].platforms = link0_platforms;
 	priv->dai_links[0].num_platforms = 1;
-	priv->dai_links[0].platforms->of_node = dai_node;
+	priv->dai_links[0].platforms->of_yesde = dai_yesde;
 	priv->dai_links[0].codecs = link0_codecs;
 	priv->dai_links[0].num_codecs = 1;
 	priv->dai_links[0].init = omap_abe_twl6040_init;
 	priv->dai_links[0].ops = &omap_abe_ops;
 
-	dai_node = of_parse_phandle(node, "ti,dmic", 0);
-	if (dai_node) {
+	dai_yesde = of_parse_phandle(yesde, "ti,dmic", 0);
+	if (dai_yesde) {
 		num_links = 2;
 		priv->dai_links[1].name = "TWL6040";
 		priv->dai_links[1].stream_name = "DMIC Capture";
 		priv->dai_links[1].cpus = link1_cpus;
 		priv->dai_links[1].num_cpus = 1;
-		priv->dai_links[1].cpus->of_node = dai_node;
+		priv->dai_links[1].cpus->of_yesde = dai_yesde;
 		priv->dai_links[1].platforms = link1_platforms;
 		priv->dai_links[1].num_platforms = 1;
-		priv->dai_links[1].platforms->of_node = dai_node;
+		priv->dai_links[1].platforms->of_yesde = dai_yesde;
 		priv->dai_links[1].codecs = link1_codecs;
 		priv->dai_links[1].num_codecs = 1;
 		priv->dai_links[1].init = omap_abe_dmic_init;
@@ -283,10 +283,10 @@ static int omap_abe_probe(struct platform_device *pdev)
 		num_links = 1;
 	}
 
-	priv->jack_detection = of_property_read_bool(node, "ti,jack-detection");
-	of_property_read_u32(node, "ti,mclk-freq", &priv->mclk_freq);
+	priv->jack_detection = of_property_read_bool(yesde, "ti,jack-detection");
+	of_property_read_u32(yesde, "ti,mclk-freq", &priv->mclk_freq);
 	if (!priv->mclk_freq) {
-		dev_err(&pdev->dev, "MCLK frequency not provided\n");
+		dev_err(&pdev->dev, "MCLK frequency yest provided\n");
 		return -EINVAL;
 	}
 

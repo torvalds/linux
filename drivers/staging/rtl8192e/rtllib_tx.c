@@ -3,7 +3,7 @@
  * Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ * James P. Ketreyess <ipw2100-admin@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * Few modifications for Realtek's Wi-Fi drivers by
@@ -12,7 +12,7 @@
  * A special thanks goes to Realtek for their support !
  */
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
 #include <linux/in.h>
@@ -57,7 +57,7 @@
  * Desc. | ctrl | dura |  DA/RA  |   TA    |    SA   | Sequ |  Frame  |  fcs |
  *       |      | tion | (BSSID) |         |         | ence |  data   |      |
  *       `--------------------------------------------------|         |------'
- * Total: 28 non-data bytes                                 `----.----'
+ * Total: 28 yesn-data bytes                                 `----.----'
  *                                                               |
  *        .- 'Frame data' expands to <---------------------------'
  *        |
@@ -69,7 +69,7 @@
  *       | DSAP | SSAP |         |          |      | Packet  |
  *       | 0xAA | 0xAA |0x03 (UI)|0x00-00-F8|      |         |
  *       `-----------------------------------------|         |
- * Total: 8 non-data bytes                         `----.----'
+ * Total: 8 yesn-data bytes                         `----.----'
  *                                                      |
  *        .- 'IP Packet' expands, if WEP enabled, to <--'
  *        |
@@ -80,7 +80,7 @@
  * Desc. | IV  | Encrypted | ICV |
  *       |     | IP Packet |     |
  *       `-----------------------'
- * Total: 8 non-data bytes
+ * Total: 8 yesn-data bytes
  *
  *
  * 802.3 Ethernet Data Frame
@@ -91,13 +91,13 @@
  * Desc. | Dest. | Source| Type | IP Packet |  fcs |
  *       |  MAC  |  MAC  |      |	   |      |
  *       `-----------------------------------------'
- * Total: 18 non-data bytes
+ * Total: 18 yesn-data bytes
  *
  * In the event that fragmentation is required, the incoming payload is split
  * into N parts of size ieee->fts.  The first fragment contains the SNAP header
  * and the remaining packets are just data.
  *
- * If encryption is enabled, each fragment payload size is reduced by enough
+ * If encryption is enabled, each fragment payload size is reduced by eyesugh
  * space to add the prefix and postfix (IV and ICV totalling 8 bytes in
  * the case of WEP) So if you have 1500 bytes of payload with ieee->fts set to
  * 500 without encryption it will take 3 frames.  With WEP it will take 4 frames
@@ -171,7 +171,7 @@ int rtllib_encrypt_fragment(struct rtllib_device *ieee, struct sk_buff *frag,
 	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes)
 	 */
 
-	/* Host-based IEEE 802.11 fragmentation for TX is not yet supported, so
+	/* Host-based IEEE 802.11 fragmentation for TX is yest yet supported, so
 	 * call both MSDU and MPDU encryption functions from here.
 	 */
 	atomic_inc(&crypt->refcnt);
@@ -573,7 +573,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	/* If there is no driver handler to take the TXB, don't bother
+	/* If there is yes driver handler to take the TXB, don't bother
 	 * creating it...
 	 */
 	if ((!ieee->hard_start_xmit && !(ieee->softmac_features &
@@ -602,7 +602,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			txb = rtllib_alloc_txb(1, skb->len, GFP_ATOMIC);
 			if (unlikely(!txb)) {
 				netdev_warn(ieee->dev,
-					    "Could not allocate TXB\n");
+					    "Could yest allocate TXB\n");
 				goto failed;
 			}
 
@@ -687,7 +687,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			else
 				ether_addr_copy(header.addr3, dest);
 		} else if (ieee->iw_mode == IW_MODE_ADHOC) {
-			/* not From/To DS: Addr1 = DA, Addr2 = SA,
+			/* yest From/To DS: Addr1 = DA, Addr2 = SA,
 			 * Addr3 = BSSID
 			 */
 			ether_addr_copy(header.addr1, dest);
@@ -701,7 +701,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		header.frame_ctl = cpu_to_le16(fc);
 
 		/* Determine fragmentation size based on destination (multicast
-		 * and broadcast are not fragmented)
+		 * and broadcast are yest fragmented)
 		 */
 		if (bIsMulticast) {
 			frag_size = MAX_FRAG_THRESHOLD;
@@ -714,7 +714,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		if (qos_activated) {
 			hdr_len = RTLLIB_3ADDR_LEN + 2;
 
-			/* in case we are a client verify acm is not set for this ac */
+			/* in case we are a client verify acm is yest set for this ac */
 			while (unlikely(ieee->wmm_acm & (0x01 << skb->priority))) {
 				netdev_info(ieee->dev, "skb->priority = %x\n",
 						skb->priority);
@@ -759,14 +759,14 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		else
 			bytes_last_frag = bytes_per_frag;
 
-		/* When we allocate the TXB we allocate enough space for the
+		/* When we allocate the TXB we allocate eyesugh space for the
 		 * reserve and full fragment bytes (bytes_per_frag doesn't
 		 * include prefix, postfix, header, FCS, etc.)
 		 */
 		txb = rtllib_alloc_txb(nr_frags, frag_size +
 				       ieee->tx_headroom, GFP_ATOMIC);
 		if (unlikely(!txb)) {
-			netdev_warn(ieee->dev, "Could not allocate TXB\n");
+			netdev_warn(ieee->dev, "Could yest allocate TXB\n");
 			goto failed;
 		}
 		txb->encrypted = encrypt;
@@ -803,7 +803,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			}
 			frag_hdr = skb_put_data(skb_frag, &header, hdr_len);
 
-			/* If this is not the last fragment, then add the
+			/* If this is yest the last fragment, then add the
 			 * MOREFRAGS bit to the frame control
 			 */
 			if (i != nr_frags - 1) {
@@ -870,7 +870,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 
 		txb = rtllib_alloc_txb(1, skb->len, GFP_ATOMIC);
 		if (!txb) {
-			netdev_warn(ieee->dev, "Could not allocate TXB\n");
+			netdev_warn(ieee->dev, "Could yest allocate TXB\n");
 			goto failed;
 		}
 

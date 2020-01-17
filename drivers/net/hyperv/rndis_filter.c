@@ -34,7 +34,7 @@ struct rndis_request {
 	/*
 	 * The buffer for extended info after the RNDIS response message. It's
 	 * referenced based on the data offset in the RNDIS message. Its size
-	 * is enough for current needs, and should be sufficient for the near
+	 * is eyesugh for current needs, and should be sufficient for the near
 	 * future.
 	 */
 	u8 response_ext[RNDIS_EXT_LEN];
@@ -146,14 +146,14 @@ static void dump_rndis_message(struct net_device *netdev,
 
 	case RNDIS_MSG_INIT_C:
 		netdev_dbg(netdev, "RNDIS_MSG_INIT_C "
-			"(len %u, id 0x%x, status 0x%x, major %d, minor %d, "
+			"(len %u, id 0x%x, status 0x%x, major %d, miyesr %d, "
 			"device flags %d, max xfer size 0x%x, max pkts %u, "
 			"pkt aligned %u)\n",
 			rndis_msg->msg_len,
 			rndis_msg->msg.init_complete.req_id,
 			rndis_msg->msg.init_complete.status,
 			rndis_msg->msg.init_complete.major_ver,
-			rndis_msg->msg.init_complete.minor_ver,
+			rndis_msg->msg.init_complete.miyesr_ver,
 			rndis_msg->msg.init_complete.dev_flags,
 			rndis_msg->msg.init_complete.max_xfer_size,
 			rndis_msg->msg.init_complete.
@@ -307,7 +307,7 @@ static void rndis_filter_receive_response(struct net_device *ndev,
 
 			if (resp->ndis_msg_type ==
 			    RNDIS_MSG_RESET_C) {
-				/* does not have a request id field */
+				/* does yest have a request id field */
 				request->response_msg.msg.reset_complete.
 					status = RNDIS_STATUS_BUFFER_OVERFLOW;
 			} else {
@@ -320,7 +320,7 @@ static void rndis_filter_receive_response(struct net_device *ndev,
 		complete(&request->wait_event);
 	} else {
 		netdev_err(ndev,
-			"no rndis request found for this response "
+			"yes rndis request found for this response "
 			"(id 0x%x res type 0x%x)\n",
 			resp->msg.init_complete.req_id,
 			resp->ndis_msg_type);
@@ -329,7 +329,7 @@ static void rndis_filter_receive_response(struct net_device *ndev,
 
 /*
  * Get the Per-Packet-Info with the specified type
- * return NULL if not found.
+ * return NULL if yest found.
  */
 static inline void *rndis_get_ppi(struct rndis_packet *rpkt,
 				  u32 type, u8 internal)
@@ -399,7 +399,7 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 	data_buflen -= data_offset;
 
 	/*
-	 * Make sure we got a valid RNDIS message, now total_data_buflen
+	 * Make sure we got a valid RNDIS message, yesw total_data_buflen
 	 * should be the data packet size plus the trailer padding size
 	 */
 	if (unlikely(data_buflen < rndis_pkt->data_len)) {
@@ -486,7 +486,7 @@ int rndis_filter_receive(struct net_device *ndev,
 		break;
 
 	case RNDIS_MSG_INDICATE:
-		/* notification msgs */
+		/* yestification msgs */
 		netvsc_linkstatus_callback(ndev, rndis_msg);
 		break;
 	default:
@@ -727,7 +727,7 @@ rndis_filter_set_offload_params(struct net_device *ndev,
 
 	if (vsp_version <= NVSP_PROTOCOL_VERSION_4) {
 		extlen = VERSION_4_OFFLOAD_SIZE;
-		/* On NVSP_PROTOCOL_VERSION_4 and below, we do not support
+		/* On NVSP_PROTOCOL_VERSION_4 and below, we do yest support
 		 * UDP checksum offload.
 		 */
 		req_offloads->udp_ip_v4_csum = 0;
@@ -967,7 +967,7 @@ static int rndis_filter_init_device(struct rndis_device *dev,
 	/* Setup the rndis set */
 	init = &request->request_msg.msg.init_req;
 	init->major_ver = RNDIS_MAJOR_VERSION;
-	init->minor_ver = RNDIS_MINOR_VERSION;
+	init->miyesr_ver = RNDIS_MINOR_VERSION;
 	init->max_xfer_size = 0x4000;
 
 	dev->state = RNDIS_DEV_INITIALIZING;
@@ -1032,7 +1032,7 @@ static void rndis_filter_halt_device(struct netvsc_device *nvdev,
 	halt = &request->request_msg.msg.halt_req;
 	halt->req_id = atomic_inc_return(&dev->new_req_id);
 
-	/* Ignore return since this msg is optional. */
+	/* Igyesre return since this msg is optional. */
 	rndis_filter_send_request(dev, request);
 
 	dev->state = RNDIS_DEV_UNINITIALIZED;
@@ -1107,7 +1107,7 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 	nvchan = nvscdev->chan_table + chn_index;
 
 	/* Because the device uses NAPI, all the interrupt batching and
-	 * control is done via Net softirq, not the channel handling
+	 * control is done via Net softirq, yest the channel handling
 	 */
 	set_channel_read_mode(new_sc, HV_CALL_ISR);
 
@@ -1120,7 +1120,7 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 	if (ret == 0)
 		napi_enable(&nvchan->napi);
 	else
-		netdev_notice(ndev, "sub channel open failed: %d\n", ret);
+		netdev_yestice(ndev, "sub channel open failed: %d\n", ret);
 
 	if (atomic_inc_return(&nvscdev->open_chn) == nvscdev->num_chn)
 		wake_up(&nvscdev->subchan_open);
@@ -1175,7 +1175,7 @@ int rndis_set_subchannel(struct net_device *ndev,
 	for (i = 0; i < VRSS_SEND_TAB_SIZE; i++)
 		ndev_ctx->tx_table[i] = i % nvdev->num_chn;
 
-	/* ignore failures from setting rss parameters, still have channels */
+	/* igyesre failures from setting rss parameters, still have channels */
 	if (dev_info)
 		rndis_filter_set_rss_param(rdev, dev_info->rss_key);
 	else
@@ -1202,10 +1202,10 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 	if (ret != 0)
 		return ret;
 
-	/* A value of zero means "no change"; now turn on what we want. */
+	/* A value of zero means "yes change"; yesw turn on what we want. */
 	memset(&offloads, 0, sizeof(struct ndis_offload_params));
 
-	/* Linux does not care about IP checksum, always does in kernel */
+	/* Linux does yest care about IP checksum, always does in kernel */
 	offloads.ip_v4_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_DISABLED;
 
 	/* Reset previously set hw_features flags */
@@ -1272,7 +1272,7 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 	}
 
 	/* In case some hw_features disappeared we need to remove them from
-	 * net->features list as they're no longer supported.
+	 * net->features list as they're yes longer supported.
 	 */
 	net->features &= ~NETVSC_SUPPORTED_HW_FEATURES | net->hw_features;
 
@@ -1296,15 +1296,15 @@ static void rndis_get_friendly_name(struct net_device *net,
 	if (rndis_filter_query_device(rndis_device, net_device,
 				      RNDIS_OID_GEN_FRIENDLY_NAME,
 				      wname, &size) != 0)
-		return;	/* ignore if host does not support */
+		return;	/* igyesre if host does yest support */
 
 	if (size == 0)
-		return;	/* name not set */
+		return;	/* name yest set */
 
 	/* Convert Windows Unicode string to UTF-8 */
 	len = ucs2_as_utf8(ifalias, wname, sizeof(ifalias));
 
-	/* ignore the default value from host */
+	/* igyesre the default value from host */
 	if (strcmp(ifalias, "Network Adapter") != 0)
 		dev_set_alias(net, ifalias, len);
 }

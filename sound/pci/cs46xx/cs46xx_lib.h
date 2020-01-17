@@ -164,9 +164,9 @@ cs46xx_dsp_create_mix_to_ostream_scb(struct snd_cs46xx * chip, char * scb_name,
 				     struct dsp_scb_descriptor * parent_scb,
 				     int scb_child_type);
 struct dsp_scb_descriptor *
-cs46xx_dsp_create_magic_snoop_scb(struct snd_cs46xx * chip, char * scb_name,
-				  u32 dest, u16 snoop_buffer_address,
-				  struct dsp_scb_descriptor * snoop_scb,
+cs46xx_dsp_create_magic_syesop_scb(struct snd_cs46xx * chip, char * scb_name,
+				  u32 dest, u16 syesop_buffer_address,
+				  struct dsp_scb_descriptor * syesop_scb,
 				  struct dsp_scb_descriptor * parent_scb,
 				  int scb_child_type);
 struct dsp_pcm_channel_descriptor *

@@ -70,7 +70,7 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
  * This routine is called when the serial port gets closed.  First, we
  * wait for the last remaining data to be sent.  Then, we unlink its
  * async structure from the interrupt chain if necessary, and we free
- * that IRQ if nothing is left in the chain.
+ * that IRQ if yesthing is left in the chain.
  * ------------------------------------------------------------
  */
 static void rs_close(struct tty_struct *tty, struct file * filp)
@@ -179,7 +179,7 @@ int __init rs_init(void)
 	serial_driver->driver_name = "iss_serial";
 	serial_driver->name = "ttyS";
 	serial_driver->major = TTY_MAJOR;
-	serial_driver->minor_start = 64;
+	serial_driver->miyesr_start = 64;
 	serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	serial_driver->subtype = SERIAL_TYPE_NORMAL;
 	serial_driver->init_termios = tty_std_termios;
@@ -211,7 +211,7 @@ static __exit void rs_exit(void)
 /* We use `late_initcall' instead of just `__initcall' as a workaround for
  * the fact that (1) simcons_tty_init can't be called before tty_init,
  * (2) tty_init is called via `module_init', (3) if statically linked,
- * module_init == device_init, and (4) there's no ordering of init lists.
+ * module_init == device_init, and (4) there's yes ordering of init lists.
  * We can do this easily because simcons is always statically linked, but
  * other tty drivers that depend on tty_init and which must use
  * `module_init' to declare their init routines are likely to be broken.

@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -92,7 +92,7 @@ struct ath6kl_urb_context {
 #define ATH6KL_USB_EP_ADDR_APP_DATA_MP_OUT      0x03
 #define ATH6KL_USB_EP_ADDR_APP_DATA_HP_OUT      0x04
 
-/* diagnostic command defnitions */
+/* diagyesstic command defnitions */
 #define ATH6KL_USB_CONTROL_REQ_SEND_BMI_CMD        1
 #define ATH6KL_USB_CONTROL_REQ_RECV_BMI_RESP       2
 #define ATH6KL_USB_CONTROL_REQ_DIAG_CMD            3
@@ -132,7 +132,7 @@ ath6kl_usb_alloc_urb_from_pipe(struct ath6kl_usb_pipe *pipe)
 	struct ath6kl_urb_context *urb_context = NULL;
 	unsigned long flags;
 
-	/* bail if this pipe is not initialized */
+	/* bail if this pipe is yest initialized */
 	if (!pipe->ar_usb)
 		return NULL;
 
@@ -154,7 +154,7 @@ static void ath6kl_usb_free_urb_to_pipe(struct ath6kl_usb_pipe *pipe,
 {
 	unsigned long flags;
 
-	/* bail if this pipe is not initialized */
+	/* bail if this pipe is yest initialized */
 	if (!pipe->ar_usb)
 		return;
 
@@ -220,7 +220,7 @@ static void ath6kl_usb_free_pipe_resources(struct ath6kl_usb_pipe *pipe)
 	struct ath6kl_urb_context *urb_context;
 
 	if (pipe->ar_usb == NULL) {
-		/* nothing allocated for this pipe */
+		/* yesthing allocated for this pipe */
 		return;
 	}
 
@@ -293,7 +293,7 @@ static u8 ath6kl_usb_get_logical_pipe_num(struct ath6kl_usb *ar_usb,
 		*urb_count = TX_URB_COUNT;
 		break;
 	default:
-		/* note: there may be endpoints not currently used */
+		/* yeste: there may be endpoints yest currently used */
 		break;
 	}
 
@@ -479,7 +479,7 @@ static void ath6kl_usb_flush_all(struct ath6kl_usb *ar_usb)
 static void ath6kl_usb_start_recv_pipes(struct ath6kl_usb *ar_usb)
 {
 	/*
-	 * note: control pipe is no longer used
+	 * yeste: control pipe is yes longer used
 	 * ar_usb->pipes[ATH6KL_USB_PIPE_RX_CTRL].urb_cnt_thresh =
 	 *      ar_usb->pipes[ATH6KL_USB_PIPE_RX_CTRL].urb_alloc/2;
 	 * ath6kl_usb_post_recv_transfers(&ar_usb->
@@ -513,7 +513,7 @@ static void ath6kl_usb_recv_complete(struct urb *urb)
 		case -ENOENT:
 		case -ESHUTDOWN:
 			/*
-			 * no need to spew these errors when device
+			 * yes need to spew these errors when device
 			 * removed or urb killed due to driver shutdown
 			 */
 			status = -ECANCELED;
@@ -537,7 +537,7 @@ static void ath6kl_usb_recv_complete(struct urb *urb)
 	urb_context->skb = NULL;
 	skb_put(skb, urb->actual_length);
 
-	/* note: queue implements a lock */
+	/* yeste: queue implements a lock */
 	skb_queue_tail(&pipe->io_comp_queue, skb);
 	schedule_work(&pipe->io_complete_work);
 
@@ -572,7 +572,7 @@ static void ath6kl_usb_usb_transmit_complete(struct urb *urb)
 	urb_context->skb = NULL;
 	ath6kl_usb_free_urb_to_pipe(urb_context->pipe, urb_context);
 
-	/* note: queue implements a lock */
+	/* yeste: queue implements a lock */
 	skb_queue_tail(&pipe->io_comp_queue, skb);
 	schedule_work(&pipe->io_complete_work);
 }
@@ -719,7 +719,7 @@ static int ath6kl_usb_send(struct ath6kl *ar, u8 PipeID,
 		 * 2 endpoints map to the same pipe ID
 		 */
 		ath6kl_dbg(ATH6KL_DBG_USB_BULK,
-			   "%s pipe:%d no urbs left. URB Cnt : %d\n",
+			   "%s pipe:%d yes urbs left. URB Cnt : %d\n",
 			   __func__, PipeID, pipe->urb_cnt);
 		status = -ENOMEM;
 		goto fail_hif_send;
@@ -869,7 +869,7 @@ static int ath6kl_usb_submit_ctrl_out(struct ath6kl_usb *ar_usb,
 			return -ENOMEM;
 	}
 
-	/* note: if successful returns number of bytes transfered */
+	/* yeste: if successful returns number of bytes transfered */
 	ret = usb_control_msg(ar_usb->udev,
 			      usb_sndctrlpipe(ar_usb->udev, 0),
 			      req,
@@ -901,7 +901,7 @@ static int ath6kl_usb_submit_ctrl_in(struct ath6kl_usb *ar_usb,
 			return -ENOMEM;
 	}
 
-	/* note: if successful returns number of bytes transfered */
+	/* yeste: if successful returns number of bytes transfered */
 	ret = usb_control_msg(ar_usb->udev,
 				 usb_rcvctrlpipe(ar_usb->udev, 0),
 				 req,
@@ -936,7 +936,7 @@ static int ath6kl_usb_ctrl_msg_exchange(struct ath6kl_usb *ar_usb,
 		return ret;
 
 	if (resp_buf == NULL) {
-		/* no expected response */
+		/* yes expected response */
 		return ret;
 	}
 
@@ -1072,7 +1072,7 @@ static void ath6kl_usb_cleanup_scatter(struct ath6kl *ar)
 static int ath6kl_usb_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 {
 	/*
-	 * cfg80211 suspend/WOW currently not supported for USB.
+	 * cfg80211 suspend/WOW currently yest supported for USB.
 	 */
 	return 0;
 }
@@ -1080,7 +1080,7 @@ static int ath6kl_usb_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 static int ath6kl_usb_resume(struct ath6kl *ar)
 {
 	/*
-	 * cfg80211 resume currently not supported for USB.
+	 * cfg80211 resume currently yest supported for USB.
 	 */
 	return 0;
 }

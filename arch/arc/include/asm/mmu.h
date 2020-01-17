@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef _ASM_ARC_MMU_H
@@ -83,9 +83,9 @@ typedef struct {
 } mm_context_t;
 
 #ifdef CONFIG_ARC_DBG_TLB_PARANOIA
-void tlb_paranoid_check(unsigned int mm_asid, unsigned long address);
+void tlb_parayesid_check(unsigned int mm_asid, unsigned long address);
 #else
-#define tlb_paranoid_check(a, b)
+#define tlb_parayesid_check(a, b)
 #endif
 
 void arc_mmu_init(void);
@@ -97,7 +97,7 @@ static inline int is_pae40_enabled(void)
 	return IS_ENABLED(CONFIG_ARC_HAS_PAE40);
 }
 
-extern int pae40_exist_but_not_enab(void);
+extern int pae40_exist_but_yest_enab(void);
 
 #endif	/* !__ASSEMBLY__ */
 

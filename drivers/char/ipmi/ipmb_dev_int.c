@@ -3,13 +3,13 @@
 /*
  * IPMB driver to receive a request and send a response
  *
- * Copyright (C) 2019 Mellanox Techologies, Ltd.
+ * Copyright (C) 2019 Mellayesx Techologies, Ltd.
  *
  * This was inspired by Brendan Higgins' ipmi-bmc-bt-i2c driver.
  */
 
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
@@ -214,7 +214,7 @@ static bool is_ipmb_msg(struct ipmb_dev *ipmb_dev, u8 rs_sa)
 }
 
 /*
- * The IPMB protocol only supports I2C Writes so there is no need
+ * The IPMB protocol only supports I2C Writes so there is yes need
  * to support I2C_SLAVE_READ* events.
  * This i2c callback function only monitors IPMB request messages
  * and adds them in a queue, so that they can be handled by
@@ -235,12 +235,12 @@ static int ipmb_slave_cb(struct i2c_client *client,
 
 		/*
 		 * At index 0, ipmb_msg stores the length of msg,
-		 * skip it for now.
+		 * skip it for yesw.
 		 * The len will be populated once the whole
 		 * buf is populated.
 		 *
 		 * The I2C bus driver's responsibility is to pass the
-		 * data bytes to the backend driver; it does not
+		 * data bytes to the backend driver; it does yest
 		 * forward the i2c slave address.
 		 * Since the first byte in the IPMB message is the
 		 * address of the responder, it is the responsibility
@@ -291,7 +291,7 @@ static int ipmb_probe(struct i2c_client *client,
 
 	mutex_init(&ipmb_dev->file_mutex);
 
-	ipmb_dev->miscdev.minor = MISC_DYNAMIC_MINOR;
+	ipmb_dev->miscdev.miyesr = MISC_DYNAMIC_MINOR;
 
 	ipmb_dev->miscdev.name = devm_kasprintf(&client->dev, GFP_KERNEL,
 						"%s%d", "ipmb-",
@@ -346,6 +346,6 @@ static struct i2c_driver ipmb_driver = {
 };
 module_i2c_driver(ipmb_driver);
 
-MODULE_AUTHOR("Mellanox Technologies");
+MODULE_AUTHOR("Mellayesx Techyeslogies");
 MODULE_DESCRIPTION("IPMB driver");
 MODULE_LICENSE("GPL v2");

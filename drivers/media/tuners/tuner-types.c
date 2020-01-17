@@ -15,7 +15,7 @@
 /*
  *	The floats in the tuner struct are computed at compile time
  *	by gcc and cast back to integers. Thus we don't violate the
- *	"no float in kernel" rule.
+ *	"yes float in kernel" rule.
  *
  *	A tuner_range may be referenced by multiple tuner_params structs.
  *	There are many duplicates in here. Reusing tuner_range structs,
@@ -29,7 +29,7 @@
  *	set this for all tuners that contain a tda988x chip, and then we
  *	can remove this setting from the various card structs.
  *
- *	FIXME: Right now, all tuners are using the first tuner_params[]
+ *	FIXME: Right yesw, all tuners are using the first tuner_params[]
  *	array element for analog mode. In the future, we will be merging
  *	similar tuner definitions together, such that each tuner definition
  *	will have a tuner_params struct for each available video standard.
@@ -711,7 +711,7 @@ static struct tuner_params tuner_microtune_4049_fm5_params[] = {
 		.has_tda9887 = 1,
 		.port1_invert_for_secam_lc = 1,
 		.default_pll_gating_18 = 1,
-		.fm_gain_normal=1,
+		.fm_gain_yesrmal=1,
 		.radio_if = 1, /* 33.3 MHz */
 	},
 };
@@ -946,7 +946,7 @@ static struct tuner_params tuner_thomson_dtt761x_params[] = {
 		.ranges = tuner_thomson_dtt761x_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_thomson_dtt761x_ntsc_ranges),
 		.has_tda9887 = 1,
-		.fm_gain_normal = 1,
+		.fm_gain_yesrmal = 1,
 		.radio_if = 2, /* 41.3 MHz */
 	},
 	{
@@ -1017,7 +1017,7 @@ static struct tuner_params tuner_philips_fmd1216me_mk3_params[] = {
 		.port2_active = 1,
 		.port2_fm_high_sensitivity = 1,
 		.port2_invert_for_secam_lc = 1,
-		.port1_set_for_fm_mono = 1,
+		.port1_set_for_fm_moyes = 1,
 	},
 	{
 		.type   = TUNER_PARAM_TYPE_DIGITAL,
@@ -1037,9 +1037,9 @@ static struct tuner_params tuner_philips_fmd1216mex_mk3_params[] = {
 		.port2_active = 1,
 		.port2_fm_high_sensitivity = 1,
 		.port2_invert_for_secam_lc = 1,
-		.port1_set_for_fm_mono = 1,
+		.port1_set_for_fm_moyes = 1,
 		.radio_if = 1,
-		.fm_gain_normal = 1,
+		.fm_gain_yesrmal = 1,
 	},
 	{
 		.type   = TUNER_PARAM_TYPE_DIGITAL,
@@ -1182,7 +1182,7 @@ static struct tuner_params tuner_tuv1236d_params[] = {
 };
 
 /* ------------ TUNER_TNF_xxx5  - Texas Instruments--------- */
-/* This is known to work with Tenna TVF58t5-MFF and TVF5835 MFF
+/* This is kyeswn to work with Tenna TVF58t5-MFF and TVF5835 MFF
  *	but it is expected to work also with other Tenna/Ymec
  *	models based on TI SN 761677 chip on both PAL and NTSC
  */
@@ -1298,14 +1298,14 @@ static struct tuner_params tuner_tcl_mf02gip_5n_params[] = {
 };
 
 /* 80-89 */
-/* --------- TUNER_PHILIPS_FQ1216LME_MK3 -- active loopthrough, no FM ------- */
+/* --------- TUNER_PHILIPS_FQ1216LME_MK3 -- active loopthrough, yes FM ------- */
 
 static struct tuner_params tuner_fq1216lme_mk3_params[] = {
 	{
 		.type   = TUNER_PARAM_TYPE_PAL,
 		.ranges = tuner_fm1216me_mk3_pal_ranges,
 		.count  = ARRAY_SIZE(tuner_fm1216me_mk3_pal_ranges),
-		.cb_first_if_lower_freq = 1, /* not specified, but safe to do */
+		.cb_first_if_lower_freq = 1, /* yest specified, but safe to do */
 		.has_tda9887 = 1, /* TDA9886 */
 		.port1_active = 1,
 		.port2_active = 1,
@@ -1334,7 +1334,7 @@ static struct tuner_params tuner_partsnic_pti_5nf05_params[] = {
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_partsnic_pti_5nf05_ranges,
 		.count  = ARRAY_SIZE(tuner_partsnic_pti_5nf05_ranges),
-		.cb_first_if_lower_freq = 1, /* not specified but safe to do */
+		.cb_first_if_lower_freq = 1, /* yest specified but safe to do */
 	},
 };
 
@@ -1378,7 +1378,7 @@ static struct tuner_params tuner_philips_fq1236_mk5_params[] = {
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_fm1236_mk3_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_fm1236_mk3_ntsc_ranges),
-		.has_tda9887 = 1, /* TDA9885, no FM radio */
+		.has_tda9887 = 1, /* TDA9885, yes FM radio */
 	},
 };
 
@@ -1885,7 +1885,7 @@ struct tunertype tuners[] = {
 	},
 
 	/* 80-89 */
-	[TUNER_PHILIPS_FQ1216LME_MK3] = { /* PAL/SECAM, Loop-thru, no FM */
+	[TUNER_PHILIPS_FQ1216LME_MK3] = { /* PAL/SECAM, Loop-thru, yes FM */
 		.name = "Philips FQ1216LME MK3 PAL/SECAM w/active loopthrough",
 		.params = tuner_fq1216lme_mk3_params,
 		.count  = ARRAY_SIZE(tuner_fq1216lme_mk3_params),
@@ -1911,7 +1911,7 @@ struct tunertype tuners[] = {
 		.params = tuner_sony_btf_pxn01z_params,
 		.count  = ARRAY_SIZE(tuner_sony_btf_pxn01z_params),
 	},
-	[TUNER_PHILIPS_FQ1236_MK5] = { /* NTSC, TDA9885, no FM radio */
+	[TUNER_PHILIPS_FQ1236_MK5] = { /* NTSC, TDA9885, yes FM radio */
 		.name   = "Philips FQ1236 MK5",
 		.params = tuner_philips_fq1236_mk5_params,
 		.count  = ARRAY_SIZE(tuner_philips_fq1236_mk5_params),
@@ -1949,5 +1949,5 @@ unsigned const int tuner_count = ARRAY_SIZE(tuners);
 EXPORT_SYMBOL(tuner_count);
 
 MODULE_DESCRIPTION("Simple tuner device type database");
-MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");
+MODULE_AUTHOR("Ralph Metzler, Gerd Kyesrr, Gunther Mayer");
 MODULE_LICENSE("GPL");

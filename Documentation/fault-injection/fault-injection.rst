@@ -41,7 +41,7 @@ Available fault injection capabilities
 
   inject NVMe status code and retry flag on devices permitted by setting
   debugfs entries under /sys/kernel/debug/nvme*/fault_inject. The default
-  status code is NVME_SC_INVALID_OPCODE with no retry. The status code and
+  status code is NVME_SC_INVALID_OPCODE with yes retry. The status code and
   retry flag can be set via the debugfs.
 
 
@@ -75,7 +75,7 @@ configuration of fault-injection capabilities.
 - /sys/kernel/debug/fail*/times:
 
 	specifies how many times failures may happen at most.
-	A value of -1 means "no limit".
+	A value of -1 means "yes limit".
 
 - /sys/kernel/debug/fail*/space:
 
@@ -88,7 +88,7 @@ configuration of fault-injection capabilities.
 	Format: { 0 | 1 | 2 }
 
 	specifies the verbosity of the messages when failure is
-	injected.  '0' means no messages; '1' will print only a single
+	injected.  '0' means yes messages; '1' will print only a single
 	log line per failure; '2' will print a call trace too -- useful
 	to debug the problems revealed by fault injection.
 
@@ -108,7 +108,7 @@ configuration of fault-injection capabilities.
 	specifies the range of virtual addresses tested during
 	stacktrace walking.  Failure is injected only if some caller
 	in the walked stacktrace lies within the required range, and
-	none lies within the rejected range.
+	yesne lies within the rejected range.
 	Default required range is [0,ULONG_MAX) (whole of virtual address space).
 	Default rejected range is [0,0).
 
@@ -118,27 +118,27 @@ configuration of fault-injection capabilities.
 	for a caller within [require-start,require-end) OR
 	[reject-start,reject-end).
 
-- /sys/kernel/debug/fail_page_alloc/ignore-gfp-highmem:
+- /sys/kernel/debug/fail_page_alloc/igyesre-gfp-highmem:
 
 	Format: { 'Y' | 'N' }
 
 	default is 'N', setting it to 'Y' won't inject failures into
 	highmem/user allocations.
 
-- /sys/kernel/debug/failslab/ignore-gfp-wait:
-- /sys/kernel/debug/fail_page_alloc/ignore-gfp-wait:
+- /sys/kernel/debug/failslab/igyesre-gfp-wait:
+- /sys/kernel/debug/fail_page_alloc/igyesre-gfp-wait:
 
 	Format: { 'Y' | 'N' }
 
 	default is 'N', setting it to 'Y' will inject failures
-	only into non-sleep allocations (GFP_ATOMIC allocations).
+	only into yesn-sleep allocations (GFP_ATOMIC allocations).
 
 - /sys/kernel/debug/fail_page_alloc/min-order:
 
 	specifies the minimum page allocation order to be injected
 	failures.
 
-- /sys/kernel/debug/fail_futex/ignore-private:
+- /sys/kernel/debug/fail_futex/igyesre-private:
 
 	Format: { 'Y' | 'N' }
 
@@ -151,7 +151,7 @@ configuration of fault-injection capabilities.
 
 	specifies the target function of error injection by name.
 	If the function name leads '!' prefix, given function is
-	removed from injection list. If nothing specified ('')
+	removed from injection list. If yesthing specified ('')
 	injection list is cleared.
 
 - /sys/kernel/debug/fail_function/injectable:
@@ -172,7 +172,7 @@ configuration of fault-injection capabilities.
 Boot option
 ^^^^^^^^^^^
 
-In order to inject faults while debugfs is not available (early boot time),
+In order to inject faults while debugfs is yest available (early boot time),
 use the boot option::
 
 	failslab=
@@ -194,7 +194,7 @@ proc entries
 	Note that this file enables all types of faults (slab, futex, etc).
 	This setting takes precedence over all other generic debugfs settings
 	like probability, interval, times, etc. But per-capability settings
-	(e.g. fail_futex/ignore-private) take precedence over it.
+	(e.g. fail_futex/igyesre-private) take precedence over it.
 
 	This feature is intended for systematic testing of faults in a single
 	system call. See an example below.
@@ -253,7 +253,7 @@ Application Examples
     echo -1 > /sys/kernel/debug/$FAILTYPE/times
     echo 0 > /sys/kernel/debug/$FAILTYPE/space
     echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
-    echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
+    echo 1 > /sys/kernel/debug/$FAILTYPE/igyesre-gfp-wait
 
     faulty_system()
     {
@@ -294,7 +294,7 @@ Application Examples
 
     if [ ! -d /sys/module/$module/sections ]
     then
-	echo Module $module is not loaded
+	echo Module $module is yest loaded
 	exit 1
     fi
 
@@ -307,8 +307,8 @@ Application Examples
     echo -1 > /sys/kernel/debug/$FAILTYPE/times
     echo 0 > /sys/kernel/debug/$FAILTYPE/space
     echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
-    echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
-    echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-highmem
+    echo 1 > /sys/kernel/debug/$FAILTYPE/igyesre-gfp-wait
+    echo 1 > /sys/kernel/debug/$FAILTYPE/igyesre-gfp-highmem
     echo 10 > /sys/kernel/debug/$FAILTYPE/stacktrace-depth
 
     trap "echo 0 > /sys/kernel/debug/$FAILTYPE/probability" SIGINT SIGTERM EXIT
@@ -398,21 +398,21 @@ capabilities in the socketpair() system call::
   #include <string.h>
   #include <stdlib.h>
   #include <stdio.h>
-  #include <errno.h>
+  #include <erryes.h>
 
   int main()
   {
 	int i, err, res, fail_nth, fds[2];
 	char buf[128];
 
-	system("echo N > /sys/kernel/debug/failslab/ignore-gfp-wait");
+	system("echo N > /sys/kernel/debug/failslab/igyesre-gfp-wait");
 	sprintf(buf, "/proc/self/task/%ld/fail-nth", syscall(SYS_gettid));
 	fail_nth = open(buf, O_RDWR);
 	for (i = 1;; i++) {
 		sprintf(buf, "%d", i);
 		write(fail_nth, buf, strlen(buf));
 		res = socketpair(AF_LOCAL, SOCK_STREAM, 0, fds);
-		err = errno;
+		err = erryes;
 		pread(fail_nth, buf, sizeof(buf), 0);
 		if (res == 0) {
 			close(fds[0]);

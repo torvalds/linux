@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -31,7 +31,7 @@ pwm_info(struct nvkm_therm *therm, int line)
 	u32 gpio = nvkm_rd32(device, 0x00d610 + (line * 0x04));
 
 	switch (gpio & 0x000000c0) {
-	case 0x00000000: /* normal mode, possibly pwm forced off by us */
+	case 0x00000000: /* yesrmal mode, possibly pwm forced off by us */
 	case 0x00000040: /* nvio special */
 		switch (gpio & 0x0000001f) {
 		case 0x00: return 2;
@@ -45,7 +45,7 @@ pwm_info(struct nvkm_therm *therm, int line)
 		break;
 	}
 
-	nvkm_error(subdev, "GPIO %d unknown PWM: %08x\n", line, gpio);
+	nvkm_error(subdev, "GPIO %d unkyeswn PWM: %08x\n", line, gpio);
 	return -ENODEV;
 }
 
@@ -59,7 +59,7 @@ gf119_fan_pwm_ctrl(struct nvkm_therm *therm, int line, bool enable)
 		return indx;
 	else if (indx < 2)
 		nvkm_mask(device, 0x00d610 + (line * 0x04), 0x000000c0, data);
-	/* nothing to do for indx == 2, it seems hardwired to PTHERM */
+	/* yesthing to do for indx == 2, it seems hardwired to PTHERM */
 	return 0;
 }
 

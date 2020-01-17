@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*  Syslog internals
  *
- *  Copyright 2010 Canonical, Ltd.
- *  Author: Kees Cook <kees.cook@canonical.com>
+ *  Copyright 2010 Cayesnical, Ltd.
+ *  Author: Kees Cook <kees.cook@cayesnical.com>
  */
 
 #ifndef _LINUX_SYSLOG_H

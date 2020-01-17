@@ -7,7 +7,7 @@
  * Copyright 2003 ICT CAS
  * Author: Michael Guo <guoyi@ict.ac.cn>
  *
- * Copyright (C) 2007 Lemote Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote Inc. & Institute of Computing Techyeslogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  *
  * Copyright (C) 2009 Lemote Inc.
@@ -61,7 +61,7 @@ void __init prom_init_env(void)
 	switch (ecpu->cputype) {
 	case Legacy_3A:
 	case Loongson_3A:
-		loongson_sysconf.cores_per_node = 4;
+		loongson_sysconf.cores_per_yesde = 4;
 		loongson_sysconf.cores_per_package = 4;
 		smp_group[0] = 0x900000003ff01000;
 		smp_group[1] = 0x900010003ff01000;
@@ -84,7 +84,7 @@ void __init prom_init_env(void)
 		break;
 	case Legacy_3B:
 	case Loongson_3B:
-		loongson_sysconf.cores_per_node = 4; /* One chip has 2 nodes */
+		loongson_sysconf.cores_per_yesde = 4; /* One chip has 2 yesdes */
 		loongson_sysconf.cores_per_package = 8;
 		smp_group[0] = 0x900000003ff01000;
 		smp_group[1] = 0x900010003ff05000;
@@ -106,7 +106,7 @@ void __init prom_init_env(void)
 		loongson_sysconf.workarounds = WORKAROUND_CPUHOTPLUG;
 		break;
 	default:
-		loongson_sysconf.cores_per_node = 1;
+		loongson_sysconf.cores_per_yesde = 1;
 		loongson_sysconf.cores_per_package = 1;
 		loongson_chipcfg[0] = 0x900000001fe00180;
 	}
@@ -116,9 +116,9 @@ void __init prom_init_env(void)
 	loongson_sysconf.reserved_cpus_mask = ecpu->reserved_cores_mask;
 	if (ecpu->nr_cpus > NR_CPUS || ecpu->nr_cpus == 0)
 		loongson_sysconf.nr_cpus = NR_CPUS;
-	loongson_sysconf.nr_nodes = (loongson_sysconf.nr_cpus +
-		loongson_sysconf.cores_per_node - 1) /
-		loongson_sysconf.cores_per_node;
+	loongson_sysconf.nr_yesdes = (loongson_sysconf.nr_cpus +
+		loongson_sysconf.cores_per_yesde - 1) /
+		loongson_sysconf.cores_per_yesde;
 
 	loongson_sysconf.pci_mem_start_addr = eirq_source->pci_mem_start_addr;
 	loongson_sysconf.pci_mem_end_addr = eirq_source->pci_mem_end_addr;

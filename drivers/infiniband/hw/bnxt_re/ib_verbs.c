@@ -15,9 +15,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -262,7 +262,7 @@ int bnxt_re_query_pkey(struct ib_device *ibdev, u8 port_num,
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 
-	/* Ignore port_num */
+	/* Igyesre port_num */
 
 	memset(pkey, 0, sizeof(*pkey));
 	return bnxt_qplib_get_pkey(&rdev->qplib_res,
@@ -275,7 +275,7 @@ int bnxt_re_query_gid(struct ib_device *ibdev, u8 port_num,
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 	int rc = 0;
 
-	/* Ignore port_num */
+	/* Igyesre port_num */
 	memset(gid, 0, sizeof(*gid));
 	rc = bnxt_qplib_get_sgid(&rdev->qplib_res,
 				 &rdev->qplib_res.sgid_tbl, index,
@@ -304,7 +304,7 @@ int bnxt_re_del_gid(const struct ib_gid_attr *attr, void **context)
 		vlan_id = sgid_tbl->tbl[ctx->idx].vlan_id;
 		/* DEL_GID is called in WQ context(netdevice_event_work_handler)
 		 * or via the ib_unregister_device path. In the former case QP1
-		 * may not be destroyed yet, in which case just return as FW
+		 * may yest be destroyed yet, in which case just return as FW
 		 * needs that entry to be present and will fail it's deletion.
 		 * We could get invoked again after QP1 is destroyed OR get an
 		 * ADD_GID call with a different GID value for the same index
@@ -402,7 +402,7 @@ static void bnxt_re_create_fence_wqe(struct bnxt_re_pd *pd)
 	wqe->bind.access_cntl = __from_ib_access_flags(IB_ACCESS_REMOTE_READ);
 	wqe->bind.mw_type = SQ_BIND_MW_TYPE_TYPE1;
 
-	/* Save the initial rkey in fence structure for now;
+	/* Save the initial rkey in fence structure for yesw;
 	 * wqe->bind.r_key will be set at (re)bind time.
 	 */
 	fence->bind_rkey = ib_inc_rkey(fence->mw->rkey);
@@ -644,7 +644,7 @@ int bnxt_re_create_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr,
 	int rc;
 
 	if (!(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH)) {
-		dev_err(rdev_to_dev(rdev), "Failed to alloc AH: GRH not set");
+		dev_err(rdev_to_dev(rdev), "Failed to alloc AH: GRH yest set");
 		return -EINVAL;
 	}
 
@@ -1013,7 +1013,7 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 	    bnxt_qplib_is_chip_gen_p5(&rdev->chip_ctx))
 		qp->qplib_qp.type = CMDQ_CREATE_QP_TYPE_GSI;
 	if (qp->qplib_qp.type == IB_QPT_MAX) {
-		dev_err(rdev_to_dev(rdev), "QP type 0x%x not supported",
+		dev_err(rdev_to_dev(rdev), "QP type 0x%x yest supported",
 			qp->qplib_qp.type);
 		rc = -EINVAL;
 		goto fail;
@@ -1031,7 +1031,7 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 		cq = container_of(qp_init_attr->send_cq, struct bnxt_re_cq,
 				  ib_cq);
 		if (!cq) {
-			dev_err(rdev_to_dev(rdev), "Send CQ not found");
+			dev_err(rdev_to_dev(rdev), "Send CQ yest found");
 			rc = -EINVAL;
 			goto fail;
 		}
@@ -1043,7 +1043,7 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 		cq = container_of(qp_init_attr->recv_cq, struct bnxt_re_cq,
 				  ib_cq);
 		if (!cq) {
-			dev_err(rdev_to_dev(rdev), "Receive CQ not found");
+			dev_err(rdev_to_dev(rdev), "Receive CQ yest found");
 			rc = -EINVAL;
 			goto fail;
 		}
@@ -1055,7 +1055,7 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 		srq = container_of(qp_init_attr->srq, struct bnxt_re_srq,
 				   ib_srq);
 		if (!srq) {
-			dev_err(rdev_to_dev(rdev), "SRQ not found");
+			dev_err(rdev_to_dev(rdev), "SRQ yest found");
 			rc = -EINVAL;
 			goto fail;
 		}
@@ -1406,7 +1406,7 @@ int bnxt_re_modify_srq(struct ib_srq *ib_srq, struct ib_srq_attr *srq_attr,
 
 	switch (srq_attr_mask) {
 	case IB_SRQ_MAX_WR:
-		/* SRQ resize is not supported */
+		/* SRQ resize is yest supported */
 		break;
 	case IB_SRQ_LIMIT:
 		/* Change the SRQ threshold */
@@ -1567,7 +1567,7 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 	if (qp_attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY) {
 		qp->qplib_qp.modify_flags |=
 				CMDQ_MODIFY_QP_MODIFY_MASK_EN_SQD_ASYNC_NOTIFY;
-		qp->qplib_qp.en_sqd_async_notify = true;
+		qp->qplib_qp.en_sqd_async_yestify = true;
 	}
 	if (qp_attr_mask & IB_QP_ACCESS_FLAGS) {
 		qp->qplib_qp.modify_flags |= CMDQ_MODIFY_QP_MODIFY_MASK_ACCESS;
@@ -1575,7 +1575,7 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 			__from_ib_access_flags(qp_attr->qp_access_flags);
 		/* LOCAL_WRITE access must be set to allow RC receive */
 		qp->qplib_qp.access |= BNXT_QPLIB_ACCESS_LOCAL_WRITE;
-		/* Temp: Set all params on QP as of now */
+		/* Temp: Set all params on QP as of yesw */
 		qp->qplib_qp.access |= CMDQ_MODIFY_QP_ACCESS_REMOTE_WRITE;
 		qp->qplib_qp.access |= CMDQ_MODIFY_QP_ACCESS_REMOTE_READ;
 	}
@@ -1736,7 +1736,7 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 						       qp_attr->cap.max_recv_wr;
 			qp->qplib_qp.rq.max_sge = qp_attr->cap.max_recv_sge;
 		} else {
-			/* SRQ was used prior, just ignore the RQ caps */
+			/* SRQ was used prior, just igyesre the RQ caps */
 		}
 	}
 	if (qp_attr_mask & IB_QP_DEST_QPN) {
@@ -1775,7 +1775,7 @@ int bnxt_re_query_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		goto out;
 	}
 	qp_attr->qp_state = __to_ib_qp_state(qplib_qp->state);
-	qp_attr->en_sqd_async_notify = qplib_qp->en_sqd_async_notify ? 1 : 0;
+	qp_attr->en_sqd_async_yestify = qplib_qp->en_sqd_async_yestify ? 1 : 0;
 	qp_attr->qp_access_flags = __to_ib_access_flags(qplib_qp->access);
 	qp_attr->pkey_index = qplib_qp->pkey_index;
 	qp_attr->qkey = qplib_qp->qkey;
@@ -1966,7 +1966,7 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 		if (!is_udp)
 			sge.size -= 8;
 
-		/* Subtract 4 bytes for non vlan packets */
+		/* Subtract 4 bytes for yesn vlan packets */
 		if (!is_vlan)
 			sge.size -= 4;
 
@@ -1984,8 +1984,8 @@ static int bnxt_re_build_qp1_send_v2(struct bnxt_re_qp *qp,
 
 /* For the MAD layer, it only provides the recv SGE the size of
  * ib_grh + MAD datagram.  No Ethernet headers, Ethertype, BTH, DETH,
- * nor RoCE iCRC.  The Cu+ solution must provide buffer for the entire
- * receive packet (334 bytes) with no VLAN and then copy the GRH
+ * yesr RoCE iCRC.  The Cu+ solution must provide buffer for the entire
+ * receive packet (334 bytes) with yes VLAN and then copy the GRH
  * and the MAD datagram out to the provided SGE.
  */
 static int bnxt_re_build_qp1_shadow_qp_recv(struct bnxt_re_qp *qp,
@@ -2366,7 +2366,7 @@ int bnxt_re_post_send(struct ib_qp *ib_qp, const struct ib_send_wr *wr,
 			break;
 		case IB_WR_RDMA_READ_WITH_INV:
 			dev_err(rdev_to_dev(qp->rdev),
-				"RDMA Read with Invalidate is not supported");
+				"RDMA Read with Invalidate is yest supported");
 			rc = -EINVAL;
 			goto bad;
 		case IB_WR_LOCAL_INV:
@@ -2378,7 +2378,7 @@ int bnxt_re_post_send(struct ib_qp *ib_qp, const struct ib_send_wr *wr,
 		default:
 			/* Unsupported WRs */
 			dev_err(rdev_to_dev(qp->rdev),
-				"WR (%#x) is not supported", wr->opcode);
+				"WR (%#x) is yest supported", wr->opcode);
 			rc = -EINVAL;
 			goto bad;
 		}
@@ -2795,7 +2795,7 @@ static bool bnxt_re_is_loopback_packet(struct bnxt_re_dev *rdev,
 
 	tmp_buf = (u8 *)rq_hdr_buf;
 	/*
-	 * If dest mac is not same as I/F mac, this could be a
+	 * If dest mac is yest same as I/F mac, this could be a
 	 * loopback address or multicast address, check whether
 	 * it is a loopback packet
 	 */
@@ -3109,7 +3109,7 @@ int bnxt_re_poll_cq(struct ib_cq *ib_cq, int num_entries, struct ib_wc *wc)
 	budget = min_t(u32, num_entries, cq->max_cql);
 	num_entries = budget;
 	if (!cq->cql) {
-		dev_err(rdev_to_dev(cq->rdev), "POLL CQ : no CQL to use");
+		dev_err(rdev_to_dev(cq->rdev), "POLL CQ : yes CQL to use");
 		goto exit;
 	}
 	cqe = &cq->cql[0];
@@ -3182,7 +3182,7 @@ int bnxt_re_poll_cq(struct ib_cq *ib_cq, int num_entries, struct ib_wc *wc)
 					}
 					cqe->status = -1;
 				}
-				/* Errors need not be looped back.
+				/* Errors need yest be looped back.
 				 * But change the wr_id to the one
 				 * stored in the table
 				 */
@@ -3212,7 +3212,7 @@ int bnxt_re_poll_cq(struct ib_cq *ib_cq, int num_entries, struct ib_wc *wc)
 				break;
 			default:
 				dev_err(rdev_to_dev(cq->rdev),
-					"POLL CQ : type 0x%x not handled",
+					"POLL CQ : type 0x%x yest handled",
 					cqe->opcode);
 				continue;
 			}
@@ -3225,8 +3225,8 @@ exit:
 	return num_entries - budget;
 }
 
-int bnxt_re_req_notify_cq(struct ib_cq *ib_cq,
-			  enum ib_cq_notify_flags ib_cqn_flags)
+int bnxt_re_req_yestify_cq(struct ib_cq *ib_cq,
+			  enum ib_cq_yestify_flags ib_cqn_flags)
 {
 	struct bnxt_re_cq *cq = container_of(ib_cq, struct bnxt_re_cq, ib_cq);
 	int type = 0, rc = 0;
@@ -3246,7 +3246,7 @@ int bnxt_re_req_notify_cq(struct ib_cq *ib_cq,
 		rc = 1;
 		goto exit;
 	}
-	bnxt_qplib_req_notify_cq(&cq->qplib_cq, type);
+	bnxt_qplib_req_yestify_cq(&cq->qplib_cq, type);
 
 exit:
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
@@ -3353,7 +3353,7 @@ struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
 	int rc;
 
 	if (type != IB_MR_TYPE_MEM_REG) {
-		dev_dbg(rdev_to_dev(rdev), "MR type 0x%x not supported", type);
+		dev_dbg(rdev_to_dev(rdev), "MR type 0x%x yest supported", type);
 		return ERR_PTR(-EINVAL);
 	}
 	if (max_num_sg > MAX_PBL_LVL_1_PGS)
@@ -3677,7 +3677,7 @@ int bnxt_re_mmap(struct ib_ucontext *ib_uctx, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	if (vma->vm_pgoff) {
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 		if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 				       PAGE_SIZE, vma->vm_page_prot)) {
 			dev_err(rdev_to_dev(rdev), "Failed to map DPI");

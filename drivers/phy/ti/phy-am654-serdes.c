@@ -105,7 +105,7 @@ struct serdes_am654 {
 	struct mux_control	*control;
 	bool			busy;
 	u32			type;
-	struct device_node	*of_node;
+	struct device_yesde	*of_yesde;
 	struct clk_onecell_data	clk_data;
 	struct clk		*clks[SERDES_NUM_CLOCKS];
 };
@@ -394,10 +394,10 @@ static const struct clk_ops serdes_am654_clk_mux_ops = {
 static int serdes_am654_clk_register(struct serdes_am654 *am654_phy,
 				     const char *clock_name, int clock_num)
 {
-	struct device_node *node = am654_phy->of_node;
+	struct device_yesde *yesde = am654_phy->of_yesde;
 	struct device *dev = am654_phy->dev;
 	struct serdes_am654_clk_mux *mux;
-	struct device_node *regmap_node;
+	struct device_yesde *regmap_yesde;
 	const char **parent_names;
 	struct clk_init_data *init;
 	unsigned int num_parents;
@@ -413,40 +413,40 @@ static int serdes_am654_clk_register(struct serdes_am654 *am654_phy,
 
 	init = &mux->clk_data;
 
-	regmap_node = of_parse_phandle(node, "ti,serdes-clk", 0);
-	if (!regmap_node) {
-		dev_err(dev, "Fail to get serdes-clk node\n");
+	regmap_yesde = of_parse_phandle(yesde, "ti,serdes-clk", 0);
+	if (!regmap_yesde) {
+		dev_err(dev, "Fail to get serdes-clk yesde\n");
 		ret = -ENODEV;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
-	regmap = syscon_node_to_regmap(regmap_node->parent);
+	regmap = syscon_yesde_to_regmap(regmap_yesde->parent);
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "Fail to get Syscon regmap\n");
 		ret = PTR_ERR(regmap);
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
-	num_parents = of_clk_get_parent_count(node);
+	num_parents = of_clk_get_parent_count(yesde);
 	if (num_parents < 2) {
 		dev_err(dev, "SERDES clock must have parents\n");
 		ret = -EINVAL;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	parent_names = devm_kzalloc(dev, (sizeof(char *) * num_parents),
 				    GFP_KERNEL);
 	if (!parent_names) {
 		ret = -ENOMEM;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
-	of_clk_parent_fill(node, parent_names, num_parents);
+	of_clk_parent_fill(yesde, parent_names, num_parents);
 
-	addr = of_get_address(regmap_node, 0, NULL, NULL);
+	addr = of_get_address(regmap_yesde, 0, NULL, NULL);
 	if (!addr) {
 		ret = -EINVAL;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	reg = be32_to_cpu(*addr);
@@ -465,13 +465,13 @@ static int serdes_am654_clk_register(struct serdes_am654 *am654_phy,
 	clk = devm_clk_register(dev, &mux->hw);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	am654_phy->clks[clock_num] = clk;
 
-out_put_node:
-	of_node_put(regmap_node);
+out_put_yesde:
+	of_yesde_put(regmap_yesde);
 	return ret;
 }
 
@@ -556,7 +556,7 @@ static int serdes_am654_probe(struct platform_device *pdev)
 {
 	struct phy_provider *phy_provider;
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct clk_onecell_data *clk_data;
 	struct serdes_am654 *am654_phy;
 	struct mux_control *control;
@@ -586,7 +586,7 @@ static int serdes_am654_probe(struct platform_device *pdev)
 		return PTR_ERR(control);
 
 	am654_phy->dev = dev;
-	am654_phy->of_node = node;
+	am654_phy->of_yesde = yesde;
 	am654_phy->regmap = regmap;
 	am654_phy->control = control;
 	am654_phy->type = PHY_NONE;
@@ -600,7 +600,7 @@ static int serdes_am654_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, am654_phy);
 
 	for (i = 0; i < SERDES_NUM_CLOCKS; i++) {
-		ret = of_property_read_string_index(node, "clock-output-names",
+		ret = of_property_read_string_index(yesde, "clock-output-names",
 						    i, &clock_name);
 		if (ret) {
 			dev_err(dev, "Failed to get clock name\n");
@@ -618,7 +618,7 @@ static int serdes_am654_probe(struct platform_device *pdev)
 	clk_data = &am654_phy->clk_data;
 	clk_data->clks = am654_phy->clks;
 	clk_data->clk_num = SERDES_NUM_CLOCKS;
-	ret = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	ret = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (ret)
 		return ret;
 
@@ -638,7 +638,7 @@ static int serdes_am654_probe(struct platform_device *pdev)
 	return 0;
 
 clk_err:
-	of_clk_del_provider(node);
+	of_clk_del_provider(yesde);
 
 	return ret;
 }
@@ -646,10 +646,10 @@ clk_err:
 static int serdes_am654_remove(struct platform_device *pdev)
 {
 	struct serdes_am654 *am654_phy = platform_get_drvdata(pdev);
-	struct device_node *node = am654_phy->of_node;
+	struct device_yesde *yesde = am654_phy->of_yesde;
 
 	pm_runtime_disable(&pdev->dev);
-	of_clk_del_provider(node);
+	of_clk_del_provider(yesde);
 
 	return 0;
 }

@@ -28,7 +28,7 @@
  *		}
  *	};
  *
- * 2. Device Tree node, eg.:
+ * 2. Device Tree yesde, eg.:
  *
  *		virtio_block@1e000 {
  *			compatible = "virtio,mmio";
@@ -96,8 +96,8 @@ struct virtio_mmio_vq_info {
 	/* the actual virtqueue */
 	struct virtqueue *vq;
 
-	/* the list node for the virtqueues list */
-	struct list_head node;
+	/* the list yesde for the virtqueues list */
+	struct list_head yesde;
 };
 
 
@@ -126,7 +126,7 @@ static int vm_finalize_features(struct virtio_device *vdev)
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
 
-	/* Make sure there is are no mixed devices */
+	/* Make sure there is are yes mixed devices */
 	if (vm_dev->version == 2 &&
 			!__virtio_test_bit(vdev, VIRTIO_F_VERSION_1)) {
 		dev_err(&vdev->dev, "New virtio-mmio devices (version 2) must provide VIRTIO_F_VERSION_1 feature!\n");
@@ -268,12 +268,12 @@ static void vm_reset(struct virtio_device *vdev)
 
 /* Transport interface */
 
-/* the notify function used when creating a virt queue */
-static bool vm_notify(struct virtqueue *vq)
+/* the yestify function used when creating a virt queue */
+static bool vm_yestify(struct virtqueue *vq)
 {
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vq->vdev);
 
-	/* We write the queue's selector into the notification register to
+	/* We write the queue's selector into the yestification register to
 	 * signal the other end */
 	writel(vq->index, vm_dev->base + VIRTIO_MMIO_QUEUE_NOTIFY);
 	return true;
@@ -288,7 +288,7 @@ static irqreturn_t vm_interrupt(int irq, void *opaque)
 	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
 
-	/* Read and acknowledge interrupts */
+	/* Read and ackyeswledge interrupts */
 	status = readl(vm_dev->base + VIRTIO_MMIO_INTERRUPT_STATUS);
 	writel(status, vm_dev->base + VIRTIO_MMIO_INTERRUPT_ACK);
 
@@ -299,7 +299,7 @@ static irqreturn_t vm_interrupt(int irq, void *opaque)
 
 	if (likely(status & VIRTIO_MMIO_INT_VRING)) {
 		spin_lock_irqsave(&vm_dev->lock, flags);
-		list_for_each_entry(info, &vm_dev->virtqueues, node)
+		list_for_each_entry(info, &vm_dev->virtqueues, yesde)
 			ret |= vring_interrupt(irq, info->vq);
 		spin_unlock_irqrestore(&vm_dev->lock, flags);
 	}
@@ -317,7 +317,7 @@ static void vm_del_vq(struct virtqueue *vq)
 	unsigned int index = vq->index;
 
 	spin_lock_irqsave(&vm_dev->lock, flags);
-	list_del(&info->node);
+	list_del(&info->yesde);
 	spin_unlock_irqrestore(&vm_dev->lock, flags);
 
 	/* Select and deactivate the queue */
@@ -384,7 +384,7 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 
 	/* Create the vring */
 	vq = vring_create_virtqueue(index, num, VIRTIO_MMIO_VRING_ALIGN, vdev,
-				 true, true, ctx, vm_notify, callback, name);
+				 true, true, ctx, vm_yestify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
 		goto error_new_virtqueue;
@@ -402,7 +402,7 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 		 */
 		if (q_pfn >> 32) {
 			dev_err(&vdev->dev,
-				"platform bug: legacy virtio-mmio must not be used with RAM above 0x%llxGB\n",
+				"platform bug: legacy virtio-mmio must yest be used with RAM above 0x%llxGB\n",
 				0x1ULL << (32 + PAGE_SHIFT - 30));
 			err = -E2BIG;
 			goto error_bad_pfn;
@@ -435,7 +435,7 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 	info->vq = vq;
 
 	spin_lock_irqsave(&vm_dev->lock, flags);
-	list_add(&info->node, &vm_dev->virtqueues);
+	list_add(&info->yesde, &vm_dev->virtqueues);
 	spin_unlock_irqrestore(&vm_dev->lock, flags);
 
 	return vq;
@@ -467,7 +467,7 @@ static int vm_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	int i, err, queue_idx = 0;
 
 	if (irq < 0) {
-		dev_err(&vdev->dev, "Cannot get IRQ resource\n");
+		dev_err(&vdev->dev, "Canyest get IRQ resource\n");
 		return irq;
 	}
 
@@ -568,7 +568,7 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 	/* Check device version */
 	vm_dev->version = readl(vm_dev->base + VIRTIO_MMIO_VERSION);
 	if (vm_dev->version < 1 || vm_dev->version > 2) {
-		dev_err(&pdev->dev, "Version %ld not supported!\n",
+		dev_err(&pdev->dev, "Version %ld yest supported!\n",
 				vm_dev->version);
 		return -ENXIO;
 	}
@@ -577,7 +577,7 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 	if (vm_dev->vdev.id.device == 0) {
 		/*
 		 * virtio-mmio device with an ID 0 is a (dummy) placeholder
-		 * with no function. End probing now with no error reported.
+		 * with yes function. End probing yesw with yes error reported.
 		 */
 		return -ENODEV;
 	}
@@ -600,7 +600,7 @@ static int virtio_mmio_probe(struct platform_device *pdev)
 	if (rc)
 		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (rc)
-		dev_warn(&pdev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might not work.\n");
+		dev_warn(&pdev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might yest work.\n");
 
 	platform_set_drvdata(pdev, vm_dev);
 
@@ -653,7 +653,7 @@ static int vm_cmdline_set(const char *device,
 
 	/*
 	 * sscanf() must processes at least 2 chunks; also there
-	 * must be no extra characters after the last chunk, so
+	 * must be yes extra characters after the last chunk, so
 	 * str[consumed] must be '\0'
 	 */
 	if (processed < 2 || str[consumed])

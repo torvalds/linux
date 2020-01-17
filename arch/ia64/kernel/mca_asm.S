@@ -53,7 +53,7 @@
 /*
  * Just the TLB purge part is moved to a separate function
  * so we can re-use the code for cpu hotplug code as well
- * Caller should now setup b1, so we can branch once the
+ * Caller should yesw setup b1, so we can branch once the
  * tlb flush is complete.
  */
 
@@ -141,8 +141,8 @@ ia64_do_tlb_purge:
 ia64_os_mca_dispatch:
 	mov r3=IA64_MCA_CPU_MCA_STACK_OFFSET	// use the MCA stack
 	LOAD_PHYSICAL(p0,r2,1f)			// return address
-	mov r19=1				// All MCA events are treated as monarch (for now)
-	br.sptk ia64_state_save			// save the state that is not in minstate
+	mov r19=1				// All MCA events are treated as monarch (for yesw)
+	br.sptk ia64_state_save			// save the state that is yest in minstate
 1:
 
 	GET_IA64_MCA_DATA(r2)
@@ -237,7 +237,7 @@ done_tlb_purge_and_reload:
 	br.sptk ia64_new_stack
 1:
 
-	// everything saved, now we can set the kernel registers
+	// everything saved, yesw we can set the kernel registers
 	mov r3=IA64_MCA_CPU_MCA_STACK_OFFSET	// use the MCA stack
 	LOAD_PHYSICAL(p0,r2,1f)			// return address
 	br.sptk ia64_set_kernel_registers
@@ -251,7 +251,7 @@ done_tlb_purge_and_reload:
         // Enter virtual mode from physical mode
 	VIRTUAL_MODE_ENTER(r2, r3, ia64_os_mca_virtual_begin, r4)
 
-	// This code returns to SAL via SOS r2, in general SAL has no unwind
+	// This code returns to SAL via SOS r2, in general SAL has yes unwind
 	// data.  To get a clean termination when backtracing the C MCA/INIT
 	// handler, set a dummy return address of 0 in this routine.  That
 	// requires that ia64_os_mca_virtual_begin be a global function.
@@ -303,10 +303,10 @@ END(ia64_os_mca_virtual_begin)
 //
 // NOP init handler for kdump.  In panic situation, we may receive INIT
 // while kernel transition.  Since we initialize registers on leave from
-// current kernel, no longer monarch/slave handlers of current kernel in
+// current kernel, yes longer monarch/slave handlers of current kernel in
 // virtual mode are called safely.
 // We can unregister these init handlers from SAL, however then the INIT
-// will result in warmboot by SAL and we cannot retrieve the crashdump.
+// will result in warmboot by SAL and we canyest retrieve the crashdump.
 // Therefore register this NOP function to SAL, to prevent entering virtual
 // mode and resulting warmboot by SAL.
 //
@@ -337,7 +337,7 @@ ia64_os_init_dispatch:
 
 	mov r3=IA64_MCA_CPU_INIT_STACK_OFFSET	// use the INIT stack
 	LOAD_PHYSICAL(p0,r2,1f)			// return address
-	br.sptk ia64_state_save			// save the state that is not in minstate
+	br.sptk ia64_state_save			// save the state that is yest in minstate
 1:
 
 	// switch to per cpu INIT stack
@@ -346,7 +346,7 @@ ia64_os_init_dispatch:
 	br.sptk ia64_new_stack
 1:
 
-	// everything saved, now we can set the kernel registers
+	// everything saved, yesw we can set the kernel registers
 	mov r3=IA64_MCA_CPU_INIT_STACK_OFFSET	// use the INIT stack
 	LOAD_PHYSICAL(p0,r2,1f)			// return address
 	br.sptk ia64_set_kernel_registers
@@ -360,7 +360,7 @@ ia64_os_init_dispatch:
         // Enter virtual mode from physical mode
 	VIRTUAL_MODE_ENTER(r2, r3, ia64_os_init_virtual_begin, r4)
 
-	// This code returns to SAL via SOS r2, in general SAL has no unwind
+	// This code returns to SAL via SOS r2, in general SAL has yes unwind
 	// data.  To get a clean termination when backtracing the C MCA/INIT
 	// handler, set a dummy return address of 0 in this routine.  That
 	// requires that ia64_os_init_virtual_begin be a global function.
@@ -421,7 +421,7 @@ END(ia64_os_init_virtual_begin)
 //
 // Stub Description:
 //
-//	Save the state that is not in minstate.  This is sensitive to the layout of
+//	Save the state that is yest in minstate.  This is sensitive to the layout of
 //	struct ia64_sal_os_state in mca.h.
 //
 //	r2 contains the return address, r3 contains either
@@ -511,7 +511,7 @@ ia64_state_save:
 	;;
 	st8 [temp2]=r6		// context, default is same context
 
-	// Save the pt_regs data that is not in minstate.  The previous code
+	// Save the pt_regs data that is yest in minstate.  The previous code
 	// left regs at sos.
 	add regs=MCA_PT_REGS_OFFSET-MCA_SOS_OFFSET, regs
 	;;
@@ -560,7 +560,7 @@ ia64_state_save:
 	;;
 	stf.spill [temp1]=f11
 
-	// Save the switch_stack data that is not in minstate nor pt_regs.  The
+	// Save the switch_stack data that is yest in minstate yesr pt_regs.  The
 	// previous code left regs at pt_regs.
 	add regs=MCA_SWITCH_STACK_OFFSET-MCA_PT_REGS_OFFSET, regs
 	;;
@@ -618,7 +618,7 @@ ia64_state_save:
 
 	// FIXME: Some proms are incorrectly accessing the minstate area as
 	// cached data.  The C code uses region 6, uncached virtual.  Ensure
-	// that there is no cache data lying around for the first 1K of the
+	// that there is yes cache data lying around for the first 1K of the
 	// minstate area.
 	// Remove this code in September 2006, that gives platforms a year to
 	// fix their proms and get their customers updated.
@@ -715,7 +715,7 @@ ia64_state_save:
 //--
 
 ia64_state_restore:
-	// Restore the switch_stack data that is not in minstate nor pt_regs.
+	// Restore the switch_stack data that is yest in minstate yesr pt_regs.
 	add regs=MCA_SWITCH_STACK_OFFSET, r3
 	mov b0=r2		// save return address
 	;;
@@ -776,7 +776,7 @@ ia64_state_restore:
 	;;
 	mov ar.lc=temp3
 
-	// Restore the pt_regs data that is not in minstate.  The previous code
+	// Restore the pt_regs data that is yest in minstate.  The previous code
 	// left regs at switch_stack.
 	add regs=MCA_PT_REGS_OFFSET-MCA_SWITCH_STACK_OFFSET, regs
 	;;
@@ -857,7 +857,7 @@ ia64_state_restore:
 	 *
 	 * r16 contains prev_IA64_KR_CURRENT_STACK, r13 contains
 	 * prev_IA64_KR_CURRENT, these values may have been changed by the C
-	 * code.  Do not use r8, r9, r10, r22, they contain values ready for
+	 * code.  Do yest use r8, r9, r10, r22, they contain values ready for
 	 * the return to SAL.
 	 */
 
@@ -960,7 +960,7 @@ ia64_new_stack:
 //
 //	The psr is set to all zeroes.  SAL return requires either all zeroes or
 //	just psr.mc set.  Leaving psr.mc off allows INIT to be issued if this
-//	code does not perform correctly.
+//	code does yest perform correctly.
 //
 //	The dirty registers at the time of the event were flushed to the
 //	MCA/INIT stack in ia64_pt_regs_save().  Restore the dirty registers

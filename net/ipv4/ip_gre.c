@@ -54,50 +54,50 @@
    would be "resolved" by stack overflow or, if queueing is enabled,
    with infinite looping in net_bh.
 
-   We cannot track such dead loops during route installation,
+   We canyest track such dead loops during route installation,
    it is infeasible task. The most general solutions would be
    to keep skb->encapsulation counter (sort of local ttl),
    and silently drop packet when it expires. It is a good
    solution, but it supposes maintaining new variable in ALL
-   skb, even if no tunneling is used.
+   skb, even if yes tunneling is used.
 
    Current solution: xmit_recursion breaks dead loops. This is a percpu
    counter, since when we enter the first ndo_xmit(), cpu migration is
    forbidden. We force an exit if this counter reaches RECURSION_LIMIT
 
-   2. Networking dead loops would not kill routers, but would really
+   2. Networking dead loops would yest kill routers, but would really
    kill network. IP hop limit plays role of "t->recursion" in this case,
    if we copy it from packet being encapsulated to upper header.
    It is very good solution, but it introduces two problems:
 
    - Routing protocols, using packets with ttl=1 (OSPF, RIP2),
-     do not work over tunnels.
-   - traceroute does not work. I planned to relay ICMP from tunnel,
+     do yest work over tunnels.
+   - traceroute does yest work. I planned to relay ICMP from tunnel,
      so that this problem would be solved and traceroute output
      would even more informative. This idea appeared to be wrong:
-     only Linux complies to rfc1812 now (yes, guys, Linux is the only
-     true router now :-)), all routers (at least, in neighbourhood of mine)
+     only Linux complies to rfc1812 yesw (no, guys, Linux is the only
+     true router yesw :-)), all routers (at least, in neighbourhood of mine)
      return only 8 bytes of payload. It is the end.
 
    Hence, if we want that OSPF worked or traceroute said something reasonable,
-   we should search for another solution.
+   we should search for ayesther solution.
 
    One of them is to parse packet trying to detect inner encapsulation
-   made by our node. It is difficult or even impossible, especially,
-   taking into account fragmentation. TO be short, ttl is not solution at all.
+   made by our yesde. It is difficult or even impossible, especially,
+   taking into account fragmentation. TO be short, ttl is yest solution at all.
 
    Current solution: The solution was UNEXPECTEDLY SIMPLE.
    We force DF flag on tunnels with preconfigured hop limit,
-   that is ALL. :-) Well, it does not remove the problem completely,
+   that is ALL. :-) Well, it does yest remove the problem completely,
    but exponential growth of network traffic is changed to linear
    (branches, that exceed pmtu are pruned) and tunnel mtu
    rapidly degrades to value <68, where looping stops.
-   Yes, it is not good if there exists a router in the loop,
-   which does not force DF, even when encapsulating packets have DF set.
-   But it is not our problem! Nobody could accuse us, we made
+   Yes, it is yest good if there exists a router in the loop,
+   which does yest force DF, even when encapsulating packets have DF set.
+   But it is yest our problem! Nobody could accuse us, we made
    all that we could make. Even if it is your gated who injected
    fatal route to network, even if it were you who configured
-   fatal static route: you are innocent. :-)
+   fatal static route: you are inyescent. :-)
 
    Alexey Kuznetsov.
  */
@@ -299,7 +299,7 @@ static int erspan_rcv(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 				return PACKET_REJECT;
 
 			/* skb can be uncloned in __iptunnel_pull_header, so
-			 * old pkt_md is no longer valid and we need to reset
+			 * old pkt_md is yes longer valid and we need to reset
 			 * it
 			 */
 			gh = skb_network_header(skb) +
@@ -438,12 +438,12 @@ static void __gre_xmit(struct sk_buff *skb, struct net_device *dev,
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 
 	if (tunnel->parms.o_flags & TUNNEL_SEQ)
-		tunnel->o_seqno++;
+		tunnel->o_seqyes++;
 
 	/* Push GRE header. */
 	gre_build_header(skb, tunnel->tun_hlen,
 			 tunnel->parms.o_flags, proto, tunnel->parms.o_key,
-			 htonl(tunnel->o_seqno));
+			 htonl(tunnel->o_seqyes));
 
 	ip_tunnel_xmit(skb, dev, tnl_params, tnl_params->protocol);
 }
@@ -481,7 +481,7 @@ static void gre_fb_xmit(struct sk_buff *skb, struct net_device *dev,
 		(TUNNEL_CSUM | TUNNEL_KEY | TUNNEL_SEQ);
 	gre_build_header(skb, tunnel_hlen, flags, proto,
 			 tunnel_id_to_key32(tun_info->key.tun_id),
-			 (flags & TUNNEL_SEQ) ? htonl(tunnel->o_seqno++) : 0);
+			 (flags & TUNNEL_SEQ) ? htonl(tunnel->o_seqyes++) : 0);
 
 	ip_md_tunnel_xmit(skb, dev, IPPROTO_GRE, tunnel_hlen);
 
@@ -558,7 +558,7 @@ static void erspan_fb_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	gre_build_header(skb, 8, TUNNEL_SEQ,
-			 proto, 0, htonl(tunnel->o_seqno++));
+			 proto, 0, htonl(tunnel->o_seqyes++));
 
 	ip_md_tunnel_xmit(skb, dev, IPPROTO_GRE, tunnel_hlen);
 
@@ -794,7 +794,7 @@ static int ipgre_tunnel_ioctl(struct net_device *dev,
    over the Internet, provided multicast routing is tuned.
 
 
-   I have no idea was this bicycle invented before me,
+   I have yes idea was this bicycle invented before me,
    so that I had to set ARPHRD_IPGRE to a random value.
    I have an impression, that Cisco could make something similar,
    but this feature is apparently missing in IOS<=11.2(8).
@@ -804,7 +804,7 @@ static int ipgre_tunnel_ioctl(struct net_device *dev,
 
    ping -t 255 224.66.66.66
 
-   If nobody answers, mbone does not work.
+   If yesbody answers, mbone does yest work.
 
    ip tunnel add Universe mode gre remote 224.66.66.66 local <Your_real_addr> ttl 255
    ip addr add 10.66.66.<somewhat>/24 dev Universe
@@ -935,7 +935,7 @@ static void __gre_tunnel_init(struct net_device *dev)
 	dev->hw_features	|= GRE_FEATURES;
 
 	if (!(tunnel->parms.o_flags & TUNNEL_SEQ)) {
-		/* TCP offload with GRE SEQ is not supported, nor
+		/* TCP offload with GRE SEQ is yest supported, yesr
 		 * can we support 2 levels of outer headers requiring
 		 * an update.
 		 */
@@ -1132,7 +1132,7 @@ static int ipgre_netlink_parms(struct net_device *dev,
 		parms->iph.tos = nla_get_u8(data[IFLA_GRE_TOS]);
 
 	if (!data[IFLA_GRE_PMTUDISC] || nla_get_u8(data[IFLA_GRE_PMTUDISC])) {
-		if (t->ignore_df)
+		if (t->igyesre_df)
 			return -EINVAL;
 		parms->iph.frag_off = htons(IP_DF);
 	}
@@ -1147,7 +1147,7 @@ static int ipgre_netlink_parms(struct net_device *dev,
 		if (nla_get_u8(data[IFLA_GRE_IGNORE_DF])
 		  && (parms->iph.frag_off & htons(IP_DF)))
 			return -EINVAL;
-		t->ignore_df = !!nla_get_u8(data[IFLA_GRE_IGNORE_DF]);
+		t->igyesre_df = !!nla_get_u8(data[IFLA_GRE_IGNORE_DF]);
 	}
 
 	if (data[IFLA_GRE_FWMARK])
@@ -1431,7 +1431,7 @@ static int ipgre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			t->encap.flags))
 		goto nla_put_failure;
 
-	if (nla_put_u8(skb, IFLA_GRE_IGNORE_DF, t->ignore_df))
+	if (nla_put_u8(skb, IFLA_GRE_IGNORE_DF, t->igyesre_df))
 		goto nla_put_failure;
 
 	if (t->collect_md) {

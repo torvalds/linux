@@ -4,7 +4,7 @@
 	;; This function also computes the remainder and stores it in er3.
 	.global	__udivsi3
 __udivsi3:
-	mov.w	A1E,A1E		; denominator top word 0?
+	mov.w	A1E,A1E		; deyesminator top word 0?
 	bne	DenHighNonZero
 
 	; do it the easy way, see page 107 in manual
@@ -56,7 +56,7 @@ divmod_L24:
 	;;  er1 contains divisor
 	;;  er2 contains shifted divisor
 	;;  er3 contains dividend, later remainder
-	divxu.w	r2,er0		; r0 now contains the approximate quotient (AQ)
+	divxu.w	r2,er0		; r0 yesw contains the approximate quotient (AQ)
 	extu.l	er0
 	beq	divmod_L25
 	subs	#1,er0		; er0 = AQ - 1

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Resource Director Technology(RDT)
+ * Resource Director Techyeslogy(RDT)
  * - Cache Allocation code.
  *
  * Copyright (C) 2016 Intel Corporation
@@ -31,7 +31,7 @@ DEFINE_MUTEX(rdtgroup_mutex);
 /*
  * The cached resctrl_pqr_state is strictly per CPU and can never be
  * updated from a remote CPU. Functions which modify the state
- * are called with interrupts disabled and no preemption, which
+ * are called with interrupts disabled and yes preemption, which
  * is sufficient for the protection.
  */
 DEFINE_PER_CPU(struct resctrl_pqr_state, pqr_state);
@@ -180,8 +180,8 @@ static unsigned int cbm_idx(struct rdt_resource *r, unsigned int closid)
 
 /*
  * cache_alloc_hsw_probe() - Have to probe for Intel haswell server CPUs
- * as they do not have CPUID enumeration support for Cache allocation.
- * The check for Vendor/Family/Model is not enough to guarantee that
+ * as they do yest have CPUID enumeration support for Cache allocation.
+ * The check for Vendor/Family/Model is yest eyesugh to guarantee that
  * the MSRs won't #GP fault because only the following SKUs support
  * CAT:
  *	Intel(R) Xeon(R)  CPU E5-2658  v3  @  2.20GHz
@@ -233,8 +233,8 @@ bool is_mba_sc(struct rdt_resource *r)
  * rdt_get_mb_table() - get a mapping of bandwidth(b/w) percentage values
  * exposed to user interface and the h/w understandable delay values.
  *
- * The non-linear delay values have the granularity of power of two
- * and also the h/w does not guarantee a curve for configured delay
+ * The yesn-linear delay values have the granularity of power of two
+ * and also the h/w does yest guarantee a curve for configured delay
  * values vs. actual b/w enforced.
  * Hence we need a mapping that is pre calibrated so the user can
  * express the memory b/w as a percentage value.
@@ -242,9 +242,9 @@ bool is_mba_sc(struct rdt_resource *r)
 static inline bool rdt_get_mb_table(struct rdt_resource *r)
 {
 	/*
-	 * There are no Intel SKUs as of now to support non-linear delay.
+	 * There are yes Intel SKUs as of yesw to support yesn-linear delay.
 	 */
-	pr_info("MBA b/w map not implemented for cpu:%d, model:%d",
+	pr_info("MBA b/w map yest implemented for cpu:%d, model:%d",
 		boot_cpu_data.x86, boot_cpu_data.x86_model);
 
 	return false;
@@ -286,7 +286,7 @@ static bool __rdt_get_mem_config_amd(struct rdt_resource *r)
 	r->num_closid = edx.split.cos_max + 1;
 	r->default_ctrl = MAX_MBA_BW_AMD;
 
-	/* AMD does not use delay */
+	/* AMD does yest use delay */
 	r->membw.delay_linear = false;
 
 	r->membw.min_bw = 0;
@@ -371,14 +371,14 @@ mba_wrmsr_amd(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
 /*
  * Map the memory b/w percentage value to delay values
  * that can be written to QOS_MSRs.
- * There are currently no SKUs which support non linear delay values.
+ * There are currently yes SKUs which support yesn linear delay values.
  */
 u32 delay_bw_map(unsigned long bw, struct rdt_resource *r)
 {
 	if (r->membw.delay_linear)
 		return MAX_MBA_BW - bw;
 
-	pr_warn_once("Non Linear delay-bw map not supported but queried\n");
+	pr_warn_once("Non Linear delay-bw map yest supported but queried\n");
 	return r->default_ctrl;
 }
 
@@ -427,7 +427,7 @@ void rdt_ctrl_update(void *arg)
 		r->msr_update(d, m, r);
 		return;
 	}
-	pr_warn_once("cpu %d not found in any domain for resource %s\n",
+	pr_warn_once("cpu %d yest found in any domain for resource %s\n",
 		     cpu, r->name);
 }
 
@@ -469,7 +469,7 @@ void setup_default_ctrlval(struct rdt_resource *r, u32 *dc, u32 *dm)
 	int i;
 
 	/*
-	 * Initialize the Control MSRs to having no control.
+	 * Initialize the Control MSRs to having yes control.
 	 * For Cache Allocation: Set all bits in cbm
 	 * For Memory Allocation: Set b/w requested to 100%
 	 * and the bandwidth in MBps to U32_MAX
@@ -571,7 +571,7 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 		return;
 	}
 
-	d = kzalloc_node(sizeof(*d), GFP_KERNEL, cpu_to_node(cpu));
+	d = kzalloc_yesde(sizeof(*d), GFP_KERNEL, cpu_to_yesde(cpu));
 	if (!d)
 		return;
 
@@ -623,7 +623,7 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 		if (is_llc_occupancy_enabled() &&  has_busy_rmid(r, d)) {
 			/*
 			 * When a package is going down, forcefully
-			 * decrement rmid->ebusy. There is no way to know
+			 * decrement rmid->ebusy. There is yes way to kyesw
 			 * that the L3 was flushed and hence may lead to
 			 * incorrect counts in rare scenarios, but leaving
 			 * the RMID as busy creates RMID leaks if the

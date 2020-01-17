@@ -42,8 +42,8 @@ struct vmacache {
  */
 enum {
 	MM_FILEPAGES,	/* Resident file mapping pages */
-	MM_ANONPAGES,	/* Resident anonymous pages */
-	MM_SWAPENTS,	/* Anonymous swap entries */
+	MM_ANONPAGES,	/* Resident ayesnymous pages */
+	MM_SWAPENTS,	/* Ayesnymous swap entries */
 	MM_SHMEMPAGES,	/* Resident shared memory pages */
 	NR_MM_COUNTERS
 };

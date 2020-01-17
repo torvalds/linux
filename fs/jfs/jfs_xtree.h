@@ -54,7 +54,7 @@ struct xadlist {
 #define XAD_NEW		0x01	/* new */
 #define XAD_EXTENDED	0x02	/* extended */
 #define XAD_COMPRESSED	0x04	/* compressed with recorded length */
-#define XAD_NOTRECORDED 0x08	/* allocated but not recorded */
+#define XAD_NOTRECORDED 0x08	/* allocated but yest recorded */
 #define XAD_COW		0x10	/* copy-on-write */
 
 
@@ -88,25 +88,25 @@ typedef union {
 /*
  *	external declaration
  */
-extern int xtLookup(struct inode *ip, s64 lstart, s64 llen,
+extern int xtLookup(struct iyesde *ip, s64 lstart, s64 llen,
 		    int *pflag, s64 * paddr, int *plen, int flag);
-extern void xtInitRoot(tid_t tid, struct inode *ip);
-extern int xtInsert(tid_t tid, struct inode *ip,
+extern void xtInitRoot(tid_t tid, struct iyesde *ip);
+extern int xtInsert(tid_t tid, struct iyesde *ip,
 		    int xflag, s64 xoff, int xlen, s64 * xaddrp, int flag);
-extern int xtExtend(tid_t tid, struct inode *ip, s64 xoff, int xlen,
+extern int xtExtend(tid_t tid, struct iyesde *ip, s64 xoff, int xlen,
 		    int flag);
 #ifdef _NOTYET
-extern int xtTailgate(tid_t tid, struct inode *ip,
+extern int xtTailgate(tid_t tid, struct iyesde *ip,
 		      s64 xoff, int xlen, s64 xaddr, int flag);
 #endif
-extern int xtUpdate(tid_t tid, struct inode *ip, struct xad *nxad);
-extern int xtDelete(tid_t tid, struct inode *ip, s64 xoff, int xlen,
+extern int xtUpdate(tid_t tid, struct iyesde *ip, struct xad *nxad);
+extern int xtDelete(tid_t tid, struct iyesde *ip, s64 xoff, int xlen,
 		    int flag);
-extern s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int type);
-extern s64 xtTruncate_pmap(tid_t tid, struct inode *ip, s64 committed_size);
-extern int xtRelocate(tid_t tid, struct inode *ip,
+extern s64 xtTruncate(tid_t tid, struct iyesde *ip, s64 newsize, int type);
+extern s64 xtTruncate_pmap(tid_t tid, struct iyesde *ip, s64 committed_size);
+extern int xtRelocate(tid_t tid, struct iyesde *ip,
 		      xad_t * oxad, s64 nxaddr, int xtype);
 extern int xtAppend(tid_t tid,
-		    struct inode *ip, int xflag, s64 xoff, int maxblocks,
+		    struct iyesde *ip, int xflag, s64 xoff, int maxblocks,
 		    int *xlenp, s64 * xaddrp, int flag);
 #endif				/* !_H_JFS_XTREE */

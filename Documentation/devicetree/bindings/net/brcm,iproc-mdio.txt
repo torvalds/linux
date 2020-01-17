@@ -6,8 +6,8 @@ Required properties:
 - #size-cells: must be 1
 - #address-cells: must be 0
 
-Child nodes of this MDIO bus controller node are standard Ethernet PHY device
-nodes as described in Documentation/devicetree/bindings/net/phy.txt
+Child yesdes of this MDIO bus controller yesde are standard Ethernet PHY device
+yesdes as described in Documentation/devicetree/bindings/net/phy.txt
 
 Example:
 

@@ -41,7 +41,7 @@
 	status = "okay";
 
 	m25p80: flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 		status = "disabled";
@@ -182,7 +182,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	vmmc-supply = <&vdd_emmc_1p8>;
 	status = "disabled";
 };

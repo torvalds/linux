@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * alloc.c - NILFS dat/inode allocator
+ * alloc.c - NILFS dat/iyesde allocator
  *
  * Copyright (C) 2006-2008 Nippon Telegraph and Telephone Corporation.
  *
@@ -20,33 +20,33 @@
 /**
  * nilfs_palloc_groups_per_desc_block - get the number of groups that a group
  *					descriptor block can maintain
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  */
 static inline unsigned long
-nilfs_palloc_groups_per_desc_block(const struct inode *inode)
+nilfs_palloc_groups_per_desc_block(const struct iyesde *iyesde)
 {
-	return i_blocksize(inode) /
+	return i_blocksize(iyesde) /
 		sizeof(struct nilfs_palloc_group_desc);
 }
 
 /**
  * nilfs_palloc_groups_count - get maximum number of groups
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  */
 static inline unsigned long
-nilfs_palloc_groups_count(const struct inode *inode)
+nilfs_palloc_groups_count(const struct iyesde *iyesde)
 {
-	return 1UL << (BITS_PER_LONG - (inode->i_blkbits + 3 /* log2(8) */));
+	return 1UL << (BITS_PER_LONG - (iyesde->i_blkbits + 3 /* log2(8) */));
 }
 
 /**
  * nilfs_palloc_init_blockgroup - initialize private variables for allocator
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @entry_size: size of the persistent object
  */
-int nilfs_palloc_init_blockgroup(struct inode *inode, unsigned int entry_size)
+int nilfs_palloc_init_blockgroup(struct iyesde *iyesde, unsigned int entry_size)
 {
-	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
+	struct nilfs_mdt_info *mi = NILFS_MDT(iyesde);
 
 	mi->mi_bgl = kmalloc(sizeof(*mi->mi_bgl), GFP_NOFS);
 	if (!mi->mi_bgl)
@@ -54,17 +54,17 @@ int nilfs_palloc_init_blockgroup(struct inode *inode, unsigned int entry_size)
 
 	bgl_lock_init(mi->mi_bgl);
 
-	nilfs_mdt_set_entry_size(inode, entry_size, 0);
+	nilfs_mdt_set_entry_size(iyesde, entry_size, 0);
 
 	mi->mi_blocks_per_group =
-		DIV_ROUND_UP(nilfs_palloc_entries_per_group(inode),
+		DIV_ROUND_UP(nilfs_palloc_entries_per_group(iyesde),
 			     mi->mi_entries_per_block) + 1;
 		/*
 		 * Number of blocks in a group including entry blocks
 		 * and a bitmap block
 		 */
 	mi->mi_blocks_per_desc_block =
-		nilfs_palloc_groups_per_desc_block(inode) *
+		nilfs_palloc_groups_per_desc_block(iyesde) *
 		mi->mi_blocks_per_group + 1;
 		/*
 		 * Number of blocks per descriptor including the
@@ -75,50 +75,50 @@ int nilfs_palloc_init_blockgroup(struct inode *inode, unsigned int entry_size)
 
 /**
  * nilfs_palloc_group - get group number and offset from an entry number
- * @inode: inode of metadata file using this allocator
- * @nr: serial number of the entry (e.g. inode number)
+ * @iyesde: iyesde of metadata file using this allocator
+ * @nr: serial number of the entry (e.g. iyesde number)
  * @offset: pointer to store offset number in the group
  */
-static unsigned long nilfs_palloc_group(const struct inode *inode, __u64 nr,
+static unsigned long nilfs_palloc_group(const struct iyesde *iyesde, __u64 nr,
 					unsigned long *offset)
 {
 	__u64 group = nr;
 
-	*offset = do_div(group, nilfs_palloc_entries_per_group(inode));
+	*offset = do_div(group, nilfs_palloc_entries_per_group(iyesde));
 	return group;
 }
 
 /**
  * nilfs_palloc_desc_blkoff - get block offset of a group descriptor block
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @group: group number
  *
  * nilfs_palloc_desc_blkoff() returns block offset of the descriptor
  * block which contains a descriptor of the specified group.
  */
 static unsigned long
-nilfs_palloc_desc_blkoff(const struct inode *inode, unsigned long group)
+nilfs_palloc_desc_blkoff(const struct iyesde *iyesde, unsigned long group)
 {
 	unsigned long desc_block =
-		group / nilfs_palloc_groups_per_desc_block(inode);
-	return desc_block * NILFS_MDT(inode)->mi_blocks_per_desc_block;
+		group / nilfs_palloc_groups_per_desc_block(iyesde);
+	return desc_block * NILFS_MDT(iyesde)->mi_blocks_per_desc_block;
 }
 
 /**
  * nilfs_palloc_bitmap_blkoff - get block offset of a bitmap block
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @group: group number
  *
  * nilfs_palloc_bitmap_blkoff() returns block offset of the bitmap
  * block used to allocate/deallocate entries in the specified group.
  */
 static unsigned long
-nilfs_palloc_bitmap_blkoff(const struct inode *inode, unsigned long group)
+nilfs_palloc_bitmap_blkoff(const struct iyesde *iyesde, unsigned long group)
 {
 	unsigned long desc_offset =
-		group % nilfs_palloc_groups_per_desc_block(inode);
-	return nilfs_palloc_desc_blkoff(inode, group) + 1 +
-		desc_offset * NILFS_MDT(inode)->mi_blocks_per_group;
+		group % nilfs_palloc_groups_per_desc_block(iyesde);
+	return nilfs_palloc_desc_blkoff(iyesde, group) + 1 +
+		desc_offset * NILFS_MDT(iyesde)->mi_blocks_per_group;
 }
 
 /**
@@ -159,43 +159,43 @@ nilfs_palloc_group_desc_add_entries(struct nilfs_palloc_group_desc *desc,
 
 /**
  * nilfs_palloc_entry_blkoff - get block offset of an entry block
- * @inode: inode of metadata file using this allocator
- * @nr: serial number of the entry (e.g. inode number)
+ * @iyesde: iyesde of metadata file using this allocator
+ * @nr: serial number of the entry (e.g. iyesde number)
  */
 static unsigned long
-nilfs_palloc_entry_blkoff(const struct inode *inode, __u64 nr)
+nilfs_palloc_entry_blkoff(const struct iyesde *iyesde, __u64 nr)
 {
 	unsigned long group, group_offset;
 
-	group = nilfs_palloc_group(inode, nr, &group_offset);
+	group = nilfs_palloc_group(iyesde, nr, &group_offset);
 
-	return nilfs_palloc_bitmap_blkoff(inode, group) + 1 +
-		group_offset / NILFS_MDT(inode)->mi_entries_per_block;
+	return nilfs_palloc_bitmap_blkoff(iyesde, group) + 1 +
+		group_offset / NILFS_MDT(iyesde)->mi_entries_per_block;
 }
 
 /**
  * nilfs_palloc_desc_block_init - initialize buffer of a group descriptor block
- * @inode: inode of metadata file
+ * @iyesde: iyesde of metadata file
  * @bh: buffer head of the buffer to be initialized
  * @kaddr: kernel address mapped for the page including the buffer
  */
-static void nilfs_palloc_desc_block_init(struct inode *inode,
+static void nilfs_palloc_desc_block_init(struct iyesde *iyesde,
 					 struct buffer_head *bh, void *kaddr)
 {
 	struct nilfs_palloc_group_desc *desc = kaddr + bh_offset(bh);
-	unsigned long n = nilfs_palloc_groups_per_desc_block(inode);
+	unsigned long n = nilfs_palloc_groups_per_desc_block(iyesde);
 	__le32 nfrees;
 
-	nfrees = cpu_to_le32(nilfs_palloc_entries_per_group(inode));
+	nfrees = cpu_to_le32(nilfs_palloc_entries_per_group(iyesde));
 	while (n-- > 0) {
 		desc->pg_nfrees = nfrees;
 		desc++;
 	}
 }
 
-static int nilfs_palloc_get_block(struct inode *inode, unsigned long blkoff,
+static int nilfs_palloc_get_block(struct iyesde *iyesde, unsigned long blkoff,
 				  int create,
-				  void (*init_block)(struct inode *,
+				  void (*init_block)(struct iyesde *,
 						     struct buffer_head *,
 						     void *),
 				  struct buffer_head **bhp,
@@ -213,7 +213,7 @@ static int nilfs_palloc_get_block(struct inode *inode, unsigned long blkoff,
 	}
 	spin_unlock(lock);
 
-	ret = nilfs_mdt_get_block(inode, blkoff, create, init_block, bhp);
+	ret = nilfs_mdt_get_block(iyesde, blkoff, create, init_block, bhp);
 	if (!ret) {
 		spin_lock(lock);
 		/*
@@ -231,12 +231,12 @@ static int nilfs_palloc_get_block(struct inode *inode, unsigned long blkoff,
 
 /**
  * nilfs_palloc_delete_block - delete a block on the persistent allocator file
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @blkoff: block offset
  * @prev: nilfs_bh_assoc struct of the last used buffer
  * @lock: spin lock protecting @prev
  */
-static int nilfs_palloc_delete_block(struct inode *inode, unsigned long blkoff,
+static int nilfs_palloc_delete_block(struct iyesde *iyesde, unsigned long blkoff,
 				     struct nilfs_bh_assoc *prev,
 				     spinlock_t *lock)
 {
@@ -246,128 +246,128 @@ static int nilfs_palloc_delete_block(struct inode *inode, unsigned long blkoff,
 		prev->bh = NULL;
 	}
 	spin_unlock(lock);
-	return nilfs_mdt_delete_block(inode, blkoff);
+	return nilfs_mdt_delete_block(iyesde, blkoff);
 }
 
 /**
  * nilfs_palloc_get_desc_block - get buffer head of a group descriptor block
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @group: group number
  * @create: create flag
  * @bhp: pointer to store the resultant buffer head
  */
-static int nilfs_palloc_get_desc_block(struct inode *inode,
+static int nilfs_palloc_get_desc_block(struct iyesde *iyesde,
 				       unsigned long group,
 				       int create, struct buffer_head **bhp)
 {
-	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+	struct nilfs_palloc_cache *cache = NILFS_MDT(iyesde)->mi_palloc_cache;
 
-	return nilfs_palloc_get_block(inode,
-				      nilfs_palloc_desc_blkoff(inode, group),
+	return nilfs_palloc_get_block(iyesde,
+				      nilfs_palloc_desc_blkoff(iyesde, group),
 				      create, nilfs_palloc_desc_block_init,
 				      bhp, &cache->prev_desc, &cache->lock);
 }
 
 /**
  * nilfs_palloc_get_bitmap_block - get buffer head of a bitmap block
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @group: group number
  * @create: create flag
  * @bhp: pointer to store the resultant buffer head
  */
-static int nilfs_palloc_get_bitmap_block(struct inode *inode,
+static int nilfs_palloc_get_bitmap_block(struct iyesde *iyesde,
 					 unsigned long group,
 					 int create, struct buffer_head **bhp)
 {
-	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+	struct nilfs_palloc_cache *cache = NILFS_MDT(iyesde)->mi_palloc_cache;
 
-	return nilfs_palloc_get_block(inode,
-				      nilfs_palloc_bitmap_blkoff(inode, group),
+	return nilfs_palloc_get_block(iyesde,
+				      nilfs_palloc_bitmap_blkoff(iyesde, group),
 				      create, NULL, bhp,
 				      &cache->prev_bitmap, &cache->lock);
 }
 
 /**
  * nilfs_palloc_delete_bitmap_block - delete a bitmap block
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @group: group number
  */
-static int nilfs_palloc_delete_bitmap_block(struct inode *inode,
+static int nilfs_palloc_delete_bitmap_block(struct iyesde *iyesde,
 					    unsigned long group)
 {
-	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+	struct nilfs_palloc_cache *cache = NILFS_MDT(iyesde)->mi_palloc_cache;
 
-	return nilfs_palloc_delete_block(inode,
-					 nilfs_palloc_bitmap_blkoff(inode,
+	return nilfs_palloc_delete_block(iyesde,
+					 nilfs_palloc_bitmap_blkoff(iyesde,
 								    group),
 					 &cache->prev_bitmap, &cache->lock);
 }
 
 /**
  * nilfs_palloc_get_entry_block - get buffer head of an entry block
- * @inode: inode of metadata file using this allocator
- * @nr: serial number of the entry (e.g. inode number)
+ * @iyesde: iyesde of metadata file using this allocator
+ * @nr: serial number of the entry (e.g. iyesde number)
  * @create: create flag
  * @bhp: pointer to store the resultant buffer head
  */
-int nilfs_palloc_get_entry_block(struct inode *inode, __u64 nr,
+int nilfs_palloc_get_entry_block(struct iyesde *iyesde, __u64 nr,
 				 int create, struct buffer_head **bhp)
 {
-	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+	struct nilfs_palloc_cache *cache = NILFS_MDT(iyesde)->mi_palloc_cache;
 
-	return nilfs_palloc_get_block(inode,
-				      nilfs_palloc_entry_blkoff(inode, nr),
+	return nilfs_palloc_get_block(iyesde,
+				      nilfs_palloc_entry_blkoff(iyesde, nr),
 				      create, NULL, bhp,
 				      &cache->prev_entry, &cache->lock);
 }
 
 /**
  * nilfs_palloc_delete_entry_block - delete an entry block
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @nr: serial number of the entry
  */
-static int nilfs_palloc_delete_entry_block(struct inode *inode, __u64 nr)
+static int nilfs_palloc_delete_entry_block(struct iyesde *iyesde, __u64 nr)
 {
-	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+	struct nilfs_palloc_cache *cache = NILFS_MDT(iyesde)->mi_palloc_cache;
 
-	return nilfs_palloc_delete_block(inode,
-					 nilfs_palloc_entry_blkoff(inode, nr),
+	return nilfs_palloc_delete_block(iyesde,
+					 nilfs_palloc_entry_blkoff(iyesde, nr),
 					 &cache->prev_entry, &cache->lock);
 }
 
 /**
  * nilfs_palloc_block_get_group_desc - get kernel address of a group descriptor
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @group: group number
  * @bh: buffer head of the buffer storing the group descriptor block
  * @kaddr: kernel address mapped for the page including the buffer
  */
 static struct nilfs_palloc_group_desc *
-nilfs_palloc_block_get_group_desc(const struct inode *inode,
+nilfs_palloc_block_get_group_desc(const struct iyesde *iyesde,
 				  unsigned long group,
 				  const struct buffer_head *bh, void *kaddr)
 {
 	return (struct nilfs_palloc_group_desc *)(kaddr + bh_offset(bh)) +
-		group % nilfs_palloc_groups_per_desc_block(inode);
+		group % nilfs_palloc_groups_per_desc_block(iyesde);
 }
 
 /**
  * nilfs_palloc_block_get_entry - get kernel address of an entry
- * @inode: inode of metadata file using this allocator
- * @nr: serial number of the entry (e.g. inode number)
+ * @iyesde: iyesde of metadata file using this allocator
+ * @nr: serial number of the entry (e.g. iyesde number)
  * @bh: buffer head of the buffer storing the entry block
  * @kaddr: kernel address mapped for the page including the buffer
  */
-void *nilfs_palloc_block_get_entry(const struct inode *inode, __u64 nr,
+void *nilfs_palloc_block_get_entry(const struct iyesde *iyesde, __u64 nr,
 				   const struct buffer_head *bh, void *kaddr)
 {
 	unsigned long entry_offset, group_offset;
 
-	nilfs_palloc_group(inode, nr, &group_offset);
-	entry_offset = group_offset % NILFS_MDT(inode)->mi_entries_per_block;
+	nilfs_palloc_group(iyesde, nr, &group_offset);
+	entry_offset = group_offset % NILFS_MDT(iyesde)->mi_entries_per_block;
 
 	return kaddr + bh_offset(bh) +
-		entry_offset * NILFS_MDT(inode)->mi_entry_size;
+		entry_offset * NILFS_MDT(iyesde)->mi_entry_size;
 }
 
 /**
@@ -412,75 +412,75 @@ static int nilfs_palloc_find_available_slot(unsigned char *bitmap,
 /**
  * nilfs_palloc_rest_groups_in_desc_block - get the remaining number of groups
  *					    in a group descriptor block
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @curr: current group number
  * @max: maximum number of groups
  */
 static unsigned long
-nilfs_palloc_rest_groups_in_desc_block(const struct inode *inode,
+nilfs_palloc_rest_groups_in_desc_block(const struct iyesde *iyesde,
 				       unsigned long curr, unsigned long max)
 {
 	return min_t(unsigned long,
-		     nilfs_palloc_groups_per_desc_block(inode) -
-		     curr % nilfs_palloc_groups_per_desc_block(inode),
+		     nilfs_palloc_groups_per_desc_block(iyesde) -
+		     curr % nilfs_palloc_groups_per_desc_block(iyesde),
 		     max - curr + 1);
 }
 
 /**
  * nilfs_palloc_count_desc_blocks - count descriptor blocks number
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @desc_blocks: descriptor blocks number [out]
  */
-static int nilfs_palloc_count_desc_blocks(struct inode *inode,
+static int nilfs_palloc_count_desc_blocks(struct iyesde *iyesde,
 					    unsigned long *desc_blocks)
 {
 	__u64 blknum;
 	int ret;
 
-	ret = nilfs_bmap_last_key(NILFS_I(inode)->i_bmap, &blknum);
+	ret = nilfs_bmap_last_key(NILFS_I(iyesde)->i_bmap, &blknum);
 	if (likely(!ret))
 		*desc_blocks = DIV_ROUND_UP(
 			(unsigned long)blknum,
-			NILFS_MDT(inode)->mi_blocks_per_desc_block);
+			NILFS_MDT(iyesde)->mi_blocks_per_desc_block);
 	return ret;
 }
 
 /**
  * nilfs_palloc_mdt_file_can_grow - check potential opportunity for
  *					MDT file growing
- * @inode: inode of metadata file using this allocator
- * @desc_blocks: known current descriptor blocks count
+ * @iyesde: iyesde of metadata file using this allocator
+ * @desc_blocks: kyeswn current descriptor blocks count
  */
-static inline bool nilfs_palloc_mdt_file_can_grow(struct inode *inode,
+static inline bool nilfs_palloc_mdt_file_can_grow(struct iyesde *iyesde,
 						    unsigned long desc_blocks)
 {
-	return (nilfs_palloc_groups_per_desc_block(inode) * desc_blocks) <
-			nilfs_palloc_groups_count(inode);
+	return (nilfs_palloc_groups_per_desc_block(iyesde) * desc_blocks) <
+			nilfs_palloc_groups_count(iyesde);
 }
 
 /**
  * nilfs_palloc_count_max_entries - count max number of entries that can be
  *					described by descriptor blocks count
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @nused: current number of used entries
  * @nmaxp: max number of entries [out]
  */
-int nilfs_palloc_count_max_entries(struct inode *inode, u64 nused, u64 *nmaxp)
+int nilfs_palloc_count_max_entries(struct iyesde *iyesde, u64 nused, u64 *nmaxp)
 {
 	unsigned long desc_blocks = 0;
 	u64 entries_per_desc_block, nmax;
 	int err;
 
-	err = nilfs_palloc_count_desc_blocks(inode, &desc_blocks);
+	err = nilfs_palloc_count_desc_blocks(iyesde, &desc_blocks);
 	if (unlikely(err))
 		return err;
 
-	entries_per_desc_block = (u64)nilfs_palloc_entries_per_group(inode) *
-				nilfs_palloc_groups_per_desc_block(inode);
+	entries_per_desc_block = (u64)nilfs_palloc_entries_per_group(iyesde) *
+				nilfs_palloc_groups_per_desc_block(iyesde);
 	nmax = entries_per_desc_block * desc_blocks;
 
 	if (nused == nmax &&
-			nilfs_palloc_mdt_file_can_grow(inode, desc_blocks))
+			nilfs_palloc_mdt_file_can_grow(iyesde, desc_blocks))
 		nmax += entries_per_desc_block;
 
 	if (nused > nmax)
@@ -492,10 +492,10 @@ int nilfs_palloc_count_max_entries(struct inode *inode, u64 nused, u64 *nmaxp)
 
 /**
  * nilfs_palloc_prepare_alloc_entry - prepare to allocate a persistent object
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @req: nilfs_palloc_req structure exchanged for the allocation
  */
-int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
+int nilfs_palloc_prepare_alloc_entry(struct iyesde *iyesde,
 				     struct nilfs_palloc_req *req)
 {
 	struct buffer_head *desc_bh, *bitmap_bh;
@@ -509,31 +509,31 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 	spinlock_t *lock;
 	int pos, ret;
 
-	ngroups = nilfs_palloc_groups_count(inode);
+	ngroups = nilfs_palloc_groups_count(iyesde);
 	maxgroup = ngroups - 1;
-	group = nilfs_palloc_group(inode, req->pr_entry_nr, &group_offset);
-	entries_per_group = nilfs_palloc_entries_per_group(inode);
+	group = nilfs_palloc_group(iyesde, req->pr_entry_nr, &group_offset);
+	entries_per_group = nilfs_palloc_entries_per_group(iyesde);
 
 	for (i = 0; i < ngroups; i += n) {
 		if (group >= ngroups) {
 			/* wrap around */
 			group = 0;
-			maxgroup = nilfs_palloc_group(inode, req->pr_entry_nr,
+			maxgroup = nilfs_palloc_group(iyesde, req->pr_entry_nr,
 						      &maxgroup_offset) - 1;
 		}
-		ret = nilfs_palloc_get_desc_block(inode, group, 1, &desc_bh);
+		ret = nilfs_palloc_get_desc_block(iyesde, group, 1, &desc_bh);
 		if (ret < 0)
 			return ret;
 		desc_kaddr = kmap(desc_bh->b_page);
 		desc = nilfs_palloc_block_get_group_desc(
-			inode, group, desc_bh, desc_kaddr);
-		n = nilfs_palloc_rest_groups_in_desc_block(inode, group,
+			iyesde, group, desc_bh, desc_kaddr);
+		n = nilfs_palloc_rest_groups_in_desc_block(iyesde, group,
 							   maxgroup);
 		for (j = 0; j < n; j++, desc++, group++) {
-			lock = nilfs_mdt_bgl_lock(inode, group);
+			lock = nilfs_mdt_bgl_lock(iyesde, group);
 			if (nilfs_palloc_group_desc_nfrees(desc, lock) > 0) {
 				ret = nilfs_palloc_get_bitmap_block(
-					inode, group, 1, &bitmap_bh);
+					iyesde, group, 1, &bitmap_bh);
 				if (ret < 0)
 					goto out_desc;
 				bitmap_kaddr = kmap(bitmap_bh->b_page);
@@ -565,7 +565,7 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 		brelse(desc_bh);
 	}
 
-	/* no entries left */
+	/* yes entries left */
 	return -ENOSPC;
 
  out_desc:
@@ -576,15 +576,15 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 
 /**
  * nilfs_palloc_commit_alloc_entry - finish allocation of a persistent object
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @req: nilfs_palloc_req structure exchanged for the allocation
  */
-void nilfs_palloc_commit_alloc_entry(struct inode *inode,
+void nilfs_palloc_commit_alloc_entry(struct iyesde *iyesde,
 				     struct nilfs_palloc_req *req)
 {
 	mark_buffer_dirty(req->pr_bitmap_bh);
 	mark_buffer_dirty(req->pr_desc_bh);
-	nilfs_mdt_mark_dirty(inode);
+	nilfs_mdt_mark_dirty(iyesde);
 
 	brelse(req->pr_bitmap_bh);
 	brelse(req->pr_desc_bh);
@@ -592,10 +592,10 @@ void nilfs_palloc_commit_alloc_entry(struct inode *inode,
 
 /**
  * nilfs_palloc_commit_free_entry - finish deallocating a persistent object
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @req: nilfs_palloc_req structure exchanged for the removal
  */
-void nilfs_palloc_commit_free_entry(struct inode *inode,
+void nilfs_palloc_commit_free_entry(struct iyesde *iyesde,
 				    struct nilfs_palloc_req *req)
 {
 	struct nilfs_palloc_group_desc *desc;
@@ -604,18 +604,18 @@ void nilfs_palloc_commit_free_entry(struct inode *inode,
 	void *desc_kaddr, *bitmap_kaddr;
 	spinlock_t *lock;
 
-	group = nilfs_palloc_group(inode, req->pr_entry_nr, &group_offset);
+	group = nilfs_palloc_group(iyesde, req->pr_entry_nr, &group_offset);
 	desc_kaddr = kmap(req->pr_desc_bh->b_page);
-	desc = nilfs_palloc_block_get_group_desc(inode, group,
+	desc = nilfs_palloc_block_get_group_desc(iyesde, group,
 						 req->pr_desc_bh, desc_kaddr);
 	bitmap_kaddr = kmap(req->pr_bitmap_bh->b_page);
 	bitmap = bitmap_kaddr + bh_offset(req->pr_bitmap_bh);
-	lock = nilfs_mdt_bgl_lock(inode, group);
+	lock = nilfs_mdt_bgl_lock(iyesde, group);
 
 	if (!nilfs_clear_bit_atomic(lock, group_offset, bitmap))
-		nilfs_msg(inode->i_sb, KERN_WARNING,
-			  "%s (ino=%lu): entry number %llu already freed",
-			  __func__, inode->i_ino,
+		nilfs_msg(iyesde->i_sb, KERN_WARNING,
+			  "%s (iyes=%lu): entry number %llu already freed",
+			  __func__, iyesde->i_iyes,
 			  (unsigned long long)req->pr_entry_nr);
 	else
 		nilfs_palloc_group_desc_add_entries(desc, lock, 1);
@@ -625,7 +625,7 @@ void nilfs_palloc_commit_free_entry(struct inode *inode,
 
 	mark_buffer_dirty(req->pr_desc_bh);
 	mark_buffer_dirty(req->pr_bitmap_bh);
-	nilfs_mdt_mark_dirty(inode);
+	nilfs_mdt_mark_dirty(iyesde);
 
 	brelse(req->pr_bitmap_bh);
 	brelse(req->pr_desc_bh);
@@ -633,10 +633,10 @@ void nilfs_palloc_commit_free_entry(struct inode *inode,
 
 /**
  * nilfs_palloc_abort_alloc_entry - cancel allocation of a persistent object
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @req: nilfs_palloc_req structure exchanged for the allocation
  */
-void nilfs_palloc_abort_alloc_entry(struct inode *inode,
+void nilfs_palloc_abort_alloc_entry(struct iyesde *iyesde,
 				    struct nilfs_palloc_req *req)
 {
 	struct nilfs_palloc_group_desc *desc;
@@ -645,18 +645,18 @@ void nilfs_palloc_abort_alloc_entry(struct inode *inode,
 	unsigned long group, group_offset;
 	spinlock_t *lock;
 
-	group = nilfs_palloc_group(inode, req->pr_entry_nr, &group_offset);
+	group = nilfs_palloc_group(iyesde, req->pr_entry_nr, &group_offset);
 	desc_kaddr = kmap(req->pr_desc_bh->b_page);
-	desc = nilfs_palloc_block_get_group_desc(inode, group,
+	desc = nilfs_palloc_block_get_group_desc(iyesde, group,
 						 req->pr_desc_bh, desc_kaddr);
 	bitmap_kaddr = kmap(req->pr_bitmap_bh->b_page);
 	bitmap = bitmap_kaddr + bh_offset(req->pr_bitmap_bh);
-	lock = nilfs_mdt_bgl_lock(inode, group);
+	lock = nilfs_mdt_bgl_lock(iyesde, group);
 
 	if (!nilfs_clear_bit_atomic(lock, group_offset, bitmap))
-		nilfs_msg(inode->i_sb, KERN_WARNING,
-			  "%s (ino=%lu): entry number %llu already freed",
-			  __func__, inode->i_ino,
+		nilfs_msg(iyesde->i_sb, KERN_WARNING,
+			  "%s (iyes=%lu): entry number %llu already freed",
+			  __func__, iyesde->i_iyes,
 			  (unsigned long long)req->pr_entry_nr);
 	else
 		nilfs_palloc_group_desc_add_entries(desc, lock, 1);
@@ -674,21 +674,21 @@ void nilfs_palloc_abort_alloc_entry(struct inode *inode,
 
 /**
  * nilfs_palloc_prepare_free_entry - prepare to deallocate a persistent object
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @req: nilfs_palloc_req structure exchanged for the removal
  */
-int nilfs_palloc_prepare_free_entry(struct inode *inode,
+int nilfs_palloc_prepare_free_entry(struct iyesde *iyesde,
 				    struct nilfs_palloc_req *req)
 {
 	struct buffer_head *desc_bh, *bitmap_bh;
 	unsigned long group, group_offset;
 	int ret;
 
-	group = nilfs_palloc_group(inode, req->pr_entry_nr, &group_offset);
-	ret = nilfs_palloc_get_desc_block(inode, group, 1, &desc_bh);
+	group = nilfs_palloc_group(iyesde, req->pr_entry_nr, &group_offset);
+	ret = nilfs_palloc_get_desc_block(iyesde, group, 1, &desc_bh);
 	if (ret < 0)
 		return ret;
-	ret = nilfs_palloc_get_bitmap_block(inode, group, 1, &bitmap_bh);
+	ret = nilfs_palloc_get_bitmap_block(iyesde, group, 1, &bitmap_bh);
 	if (ret < 0) {
 		brelse(desc_bh);
 		return ret;
@@ -701,10 +701,10 @@ int nilfs_palloc_prepare_free_entry(struct inode *inode,
 
 /**
  * nilfs_palloc_abort_free_entry - cancel deallocating a persistent object
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @req: nilfs_palloc_req structure exchanged for the removal
  */
-void nilfs_palloc_abort_free_entry(struct inode *inode,
+void nilfs_palloc_abort_free_entry(struct iyesde *iyesde,
 				   struct nilfs_palloc_req *req)
 {
 	brelse(req->pr_bitmap_bh);
@@ -717,11 +717,11 @@ void nilfs_palloc_abort_free_entry(struct inode *inode,
 
 /**
  * nilfs_palloc_freev - deallocate a set of persistent objects
- * @inode: inode of metadata file using this allocator
+ * @iyesde: iyesde of metadata file using this allocator
  * @entry_nrs: array of entry numbers to be deallocated
  * @nitems: number of entries stored in @entry_nrs
  */
-int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
+int nilfs_palloc_freev(struct iyesde *iyesde, __u64 *entry_nrs, size_t nitems)
 {
 	struct buffer_head *desc_bh, *bitmap_bh;
 	struct nilfs_palloc_group_desc *desc;
@@ -729,8 +729,8 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 	void *desc_kaddr, *bitmap_kaddr;
 	unsigned long group, group_offset;
 	__u64 group_min_nr, last_nrs[8];
-	const unsigned long epg = nilfs_palloc_entries_per_group(inode);
-	const unsigned int epb = NILFS_MDT(inode)->mi_entries_per_block;
+	const unsigned long epg = nilfs_palloc_entries_per_group(iyesde);
+	const unsigned int epb = NILFS_MDT(iyesde)->mi_entries_per_block;
 	unsigned int entry_start, end, pos;
 	spinlock_t *lock;
 	int i, j, k, ret;
@@ -740,11 +740,11 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 		int change_group = false;
 		int nempties = 0, n = 0;
 
-		group = nilfs_palloc_group(inode, entry_nrs[i], &group_offset);
-		ret = nilfs_palloc_get_desc_block(inode, group, 0, &desc_bh);
+		group = nilfs_palloc_group(iyesde, entry_nrs[i], &group_offset);
+		ret = nilfs_palloc_get_desc_block(iyesde, group, 0, &desc_bh);
 		if (ret < 0)
 			return ret;
-		ret = nilfs_palloc_get_bitmap_block(inode, group, 0,
+		ret = nilfs_palloc_get_bitmap_block(iyesde, group, 0,
 						    &bitmap_bh);
 		if (ret < 0) {
 			brelse(desc_bh);
@@ -756,16 +756,16 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 
 		bitmap_kaddr = kmap(bitmap_bh->b_page);
 		bitmap = bitmap_kaddr + bh_offset(bitmap_bh);
-		lock = nilfs_mdt_bgl_lock(inode, group);
+		lock = nilfs_mdt_bgl_lock(iyesde, group);
 
 		j = i;
 		entry_start = rounddown(group_offset, epb);
 		do {
 			if (!nilfs_clear_bit_atomic(lock, group_offset,
 						    bitmap)) {
-				nilfs_msg(inode->i_sb, KERN_WARNING,
-					  "%s (ino=%lu): entry number %llu already freed",
-					  __func__, inode->i_ino,
+				nilfs_msg(iyesde->i_sb, KERN_WARNING,
+					  "%s (iyes=%lu): entry number %llu already freed",
+					  __func__, iyesde->i_iyes,
 					  (unsigned long long)entry_nrs[j]);
 			} else {
 				n++;
@@ -784,7 +784,7 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 				}
 			}
 
-			/* Test if the entry block is empty or not */
+			/* Test if the entry block is empty or yest */
 			end = entry_start + epb;
 			pos = nilfs_find_next_bit(bitmap, end, entry_start);
 			if (pos >= end) {
@@ -805,45 +805,45 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 		brelse(bitmap_bh);
 
 		for (k = 0; k < nempties; k++) {
-			ret = nilfs_palloc_delete_entry_block(inode,
+			ret = nilfs_palloc_delete_entry_block(iyesde,
 							      last_nrs[k]);
 			if (ret && ret != -ENOENT)
-				nilfs_msg(inode->i_sb, KERN_WARNING,
-					  "error %d deleting block that object (entry=%llu, ino=%lu) belongs to",
+				nilfs_msg(iyesde->i_sb, KERN_WARNING,
+					  "error %d deleting block that object (entry=%llu, iyes=%lu) belongs to",
 					  ret, (unsigned long long)last_nrs[k],
-					  inode->i_ino);
+					  iyesde->i_iyes);
 		}
 
 		desc_kaddr = kmap_atomic(desc_bh->b_page);
 		desc = nilfs_palloc_block_get_group_desc(
-			inode, group, desc_bh, desc_kaddr);
+			iyesde, group, desc_bh, desc_kaddr);
 		nfree = nilfs_palloc_group_desc_add_entries(desc, lock, n);
 		kunmap_atomic(desc_kaddr);
 		mark_buffer_dirty(desc_bh);
-		nilfs_mdt_mark_dirty(inode);
+		nilfs_mdt_mark_dirty(iyesde);
 		brelse(desc_bh);
 
-		if (nfree == nilfs_palloc_entries_per_group(inode)) {
-			ret = nilfs_palloc_delete_bitmap_block(inode, group);
+		if (nfree == nilfs_palloc_entries_per_group(iyesde)) {
+			ret = nilfs_palloc_delete_bitmap_block(iyesde, group);
 			if (ret && ret != -ENOENT)
-				nilfs_msg(inode->i_sb, KERN_WARNING,
-					  "error %d deleting bitmap block of group=%lu, ino=%lu",
-					  ret, group, inode->i_ino);
+				nilfs_msg(iyesde->i_sb, KERN_WARNING,
+					  "error %d deleting bitmap block of group=%lu, iyes=%lu",
+					  ret, group, iyesde->i_iyes);
 		}
 	}
 	return 0;
 }
 
-void nilfs_palloc_setup_cache(struct inode *inode,
+void nilfs_palloc_setup_cache(struct iyesde *iyesde,
 			      struct nilfs_palloc_cache *cache)
 {
-	NILFS_MDT(inode)->mi_palloc_cache = cache;
+	NILFS_MDT(iyesde)->mi_palloc_cache = cache;
 	spin_lock_init(&cache->lock);
 }
 
-void nilfs_palloc_clear_cache(struct inode *inode)
+void nilfs_palloc_clear_cache(struct iyesde *iyesde)
 {
-	struct nilfs_palloc_cache *cache = NILFS_MDT(inode)->mi_palloc_cache;
+	struct nilfs_palloc_cache *cache = NILFS_MDT(iyesde)->mi_palloc_cache;
 
 	spin_lock(&cache->lock);
 	brelse(cache->prev_desc.bh);
@@ -855,8 +855,8 @@ void nilfs_palloc_clear_cache(struct inode *inode)
 	spin_unlock(&cache->lock);
 }
 
-void nilfs_palloc_destroy_cache(struct inode *inode)
+void nilfs_palloc_destroy_cache(struct iyesde *iyesde)
 {
-	nilfs_palloc_clear_cache(inode);
-	NILFS_MDT(inode)->mi_palloc_cache = NULL;
+	nilfs_palloc_clear_cache(iyesde);
+	NILFS_MDT(iyesde)->mi_palloc_cache = NULL;
 }

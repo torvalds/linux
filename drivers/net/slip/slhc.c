@@ -6,12 +6,12 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
- * provided that the above copyright notice and this paragraph are
+ * provided that the above copyright yestice and this paragraph are
  * duplicated in all such forms and that any documentation,
  * advertising materials, and other materials related to such
- * distribution and use acknowledge that the software was developed
+ * distribution and use ackyeswledge that the software was developed
  * by the University of California, Berkeley.  The name of the
- * University may not be used to endorse or promote products derived
+ * University may yest be used to endorse or promote products derived
  * from this software without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
@@ -54,7 +54,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <net/slhc_vj.h>
 
@@ -85,7 +85,7 @@ static unsigned char * put16(unsigned char *cp, unsigned short x);
 static unsigned short pull16(unsigned char **cpp);
 
 /* Allocate compression data structure
- *	slots must be in range 0 to 255 (zero meaning no compression)
+ *	slots must be in range 0 to 255 (zero meaning yes compression)
  * Returns pointer to structure or ERR_PTR() on error.
  */
 struct slcompress *
@@ -253,7 +253,7 @@ slhc_compress(struct slcompress *comp, unsigned char *icp, int isize,
 	if (ip->protocol != IPPROTO_TCP || (ntohs(ip->frag_off) & 0x3fff)) {
 		/* Send as regular IP */
 		if(ip->protocol != IPPROTO_TCP)
-			comp->sls_o_nontcp++;
+			comp->sls_o_yesntcp++;
 		else
 			comp->sls_o_tcp++;
 		return isize;
@@ -365,7 +365,7 @@ found:
 		cp = encode(cp,deltaS);
 		changes |= NEW_U;
 	} else if(th->urg_ptr != oth->urg_ptr){
-		/* argh! URG not set but urp changed -- a sensible
+		/* argh! URG yest set but urp changed -- a sensible
 		 * implementation should never do this but RFC793
 		 * doesn't prohibit the change so we have to deal
 		 * with it. */
@@ -391,7 +391,7 @@ found:
 	switch(changes){
 	case 0:	/* Nothing changed. If this packet contains data and the
 		 * last one didn't, this is probably a data packet following
-		 * an ack (normal on an interactive connection) and we send
+		 * an ack (yesrmal on an interactive connection) and we send
 		 * it compressed.  Otherwise it's probably a retransmit,
 		 * retransmitted ack or window probe.  Send it uncompressed
 		 * in case the other side missed the compressed version.
@@ -455,7 +455,7 @@ found:
 	}
 	*(__sum16 *)cp = csum;
 	cp += 2;
-/* deltaS is now the size of the change section of the compressed header */
+/* deltaS is yesw the size of the change section of the compressed header */
 	memcpy(cp,new_seq,deltaS);	/* Write list of deltas */
 	memcpy(cp+deltaS,icp+hlen,isize-hlen);
 	comp->sls_o_compressed++;
@@ -595,7 +595,7 @@ slhc_uncompress(struct slcompress *comp, unsigned char *icp, int isize)
 	/*
 	 * At this point, cp points to the first byte of data in the
 	 * packet.  Put the reconstructed TCP and IP headers back on the
-	 * packet.  Recalculate IP checksum (but not TCP checksum).
+	 * packet.  Recalculate IP checksum (but yest TCP checksum).
 	 */
 
 	len = isize - (cp - icp);
@@ -700,39 +700,39 @@ slhc_toss(struct slcompress *comp)
 int
 slhc_toss(struct slcompress *comp)
 {
-  printk(KERN_DEBUG "Called IP function on non IP-system: slhc_toss");
+  printk(KERN_DEBUG "Called IP function on yesn IP-system: slhc_toss");
   return -EINVAL;
 }
 int
 slhc_uncompress(struct slcompress *comp, unsigned char *icp, int isize)
 {
-  printk(KERN_DEBUG "Called IP function on non IP-system: slhc_uncompress");
+  printk(KERN_DEBUG "Called IP function on yesn IP-system: slhc_uncompress");
   return -EINVAL;
 }
 int
 slhc_compress(struct slcompress *comp, unsigned char *icp, int isize,
 	unsigned char *ocp, unsigned char **cpp, int compress_cid)
 {
-  printk(KERN_DEBUG "Called IP function on non IP-system: slhc_compress");
+  printk(KERN_DEBUG "Called IP function on yesn IP-system: slhc_compress");
   return -EINVAL;
 }
 
 int
 slhc_remember(struct slcompress *comp, unsigned char *icp, int isize)
 {
-  printk(KERN_DEBUG "Called IP function on non IP-system: slhc_remember");
+  printk(KERN_DEBUG "Called IP function on yesn IP-system: slhc_remember");
   return -EINVAL;
 }
 
 void
 slhc_free(struct slcompress *comp)
 {
-  printk(KERN_DEBUG "Called IP function on non IP-system: slhc_free");
+  printk(KERN_DEBUG "Called IP function on yesn IP-system: slhc_free");
 }
 struct slcompress *
 slhc_init(int rslots, int tslots)
 {
-  printk(KERN_DEBUG "Called IP function on non IP-system: slhc_init");
+  printk(KERN_DEBUG "Called IP function on yesn IP-system: slhc_init");
   return NULL;
 }
 

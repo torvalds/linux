@@ -74,15 +74,15 @@ struct coeff_ram {
 
 static inline void init_coeff_ram_cache(u8 *cache)
 {
-	static const u8 norm_addrs[] = { 0x00, 0x05, 0x0a, 0x0f, 0x14, 0x19,
+	static const u8 yesrm_addrs[] = { 0x00, 0x05, 0x0a, 0x0f, 0x14, 0x19,
 		0x1f, 0x20, 0x25, 0x2a, 0x2f, 0x34, 0x39, 0x3f, 0x40, 0x45,
 		0x4a, 0x4f, 0x54, 0x59, 0x5f, 0x60, 0x65, 0x6a, 0x6f, 0x74,
 		0x79, 0x7f, 0x80, 0x85, 0x8c, 0x91, 0x96, 0x97, 0x9c, 0xa3,
 		0xa8, 0xad, 0xaf, 0xb0, 0xb5, 0xba, 0xbf, 0xc4, 0xc9};
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(norm_addrs); i++)
-		cache[((norm_addrs[i] + 1) * COEFF_SIZE) - 1] = 0x40;
+	for (i = 0; i < ARRAY_SIZE(yesrm_addrs); i++)
+		cache[((yesrm_addrs[i] + 1) * COEFF_SIZE) - 1] = 0x40;
 }
 
 static inline void coeff_ram_init(struct coeff_ram *ram)
@@ -781,7 +781,7 @@ static inline int aif_set_master(struct snd_soc_component *component,
 		break;
 	default:
 		ret = -ENODEV;
-		dev_err(component->dev, "Unknown DAI %d (%d)\n", aif_id, ret);
+		dev_err(component->dev, "Unkyeswn DAI %d (%d)\n", aif_id, ret);
 		return ret;
 	}
 	mask = FM_I2SPCTL_PORTMS;
@@ -1070,8 +1070,8 @@ static struct soc_enum const in_pol_ch0_enum =
 				ARRAY_SIZE(pol_txt), pol_txt);
 
 static char const * const in_proc_ch_sel_txt[] = {
-		"Normal", "Mono Mix to Channel 0",
-		"Mono Mix to Channel 1", "Add"};
+		"Normal", "Moyes Mix to Channel 0",
+		"Moyes Mix to Channel 1", "Add"};
 
 static struct soc_enum const in_proc_ch01_sel_enum =
 		SOC_ENUM_SINGLE(R_ICTL0, FB_ICTL0_INPCH10SEL,
@@ -1155,12 +1155,12 @@ static struct soc_enum const ngate_type_enum =
 				ARRAY_SIZE(ngate_type_txt), ngate_type_txt);
 
 /* R_DMICCTL PG 1 ADDR 0x22 */
-static char const * const dmic_mono_sel_txt[] = {
-		"Stereo", "Mono"};
+static char const * const dmic_moyes_sel_txt[] = {
+		"Stereo", "Moyes"};
 
-static struct soc_enum const dmic_mono_sel_enum =
+static struct soc_enum const dmic_moyes_sel_enum =
 		SOC_ENUM_SINGLE(R_DMICCTL, FB_DMICCTL_DMONO,
-			ARRAY_SIZE(dmic_mono_sel_txt), dmic_mono_sel_txt);
+			ARRAY_SIZE(dmic_moyes_sel_txt), dmic_moyes_sel_txt);
 
 /* R_DACCTL PG 2 ADDR 0x01 */
 static struct soc_enum const dac_pol_r_enum =
@@ -1708,7 +1708,7 @@ static struct snd_kcontrol_new const tscs454_snd_controls[] = {
 	/* R_DMICCTL PG 1 ADDR 0x22 */
 	SOC_SINGLE("Digital Mic 2 Switch", R_DMICCTL, FB_DMICCTL_DMIC2EN, 1, 0),
 	SOC_SINGLE("Digital Mic 1 Switch", R_DMICCTL, FB_DMICCTL_DMIC1EN, 1, 0),
-	SOC_ENUM("Digital Mic Mono Select", dmic_mono_sel_enum),
+	SOC_ENUM("Digital Mic Moyes Select", dmic_moyes_sel_enum),
 	/* R_DACCTL PG 2 ADDR 0x01 */
 	SOC_ENUM("DAC Polarity Left", dac_pol_r_enum),
 	SOC_ENUM("DAC Polarity Right", dac_pol_l_enum),
@@ -2685,7 +2685,7 @@ static int tscs454_set_bclk_ratio(struct snd_soc_dai *dai,
 		break;
 	default:
 		ret = -EINVAL;
-		dev_err(component->dev, "Unknown audio interface (%d)\n", ret);
+		dev_err(component->dev, "Unkyeswn audio interface (%d)\n", ret);
 		return ret;
 	}
 
@@ -2756,7 +2756,7 @@ static inline int set_aif_tdm_delay(struct snd_soc_component *component,
 	default:
 		ret = -EINVAL;
 		dev_err(component->dev,
-				"DAI %d unknown (%d)\n", dai_id + 1, ret);
+				"DAI %d unkyeswn (%d)\n", dai_id + 1, ret);
 		return ret;
 	}
 	ret = snd_soc_component_update_bits(component,
@@ -2790,7 +2790,7 @@ static inline int set_aif_format_from_fmt(struct snd_soc_component *component,
 	default:
 		ret = -EINVAL;
 		dev_err(component->dev,
-				"DAI %d unknown (%d)\n", dai_id + 1, ret);
+				"DAI %d unkyeswn (%d)\n", dai_id + 1, ret);
 		return ret;
 	}
 
@@ -2854,7 +2854,7 @@ set_aif_clock_format_from_fmt(struct snd_soc_component *component,
 	default:
 		ret = -EINVAL;
 		dev_err(component->dev,
-				"DAI %d unknown (%d)\n", dai_id + 1, ret);
+				"DAI %d unkyeswn (%d)\n", dai_id + 1, ret);
 		return ret;
 	}
 
@@ -2873,7 +2873,7 @@ set_aif_clock_format_from_fmt(struct snd_soc_component *component,
 		break;
 	default:
 		ret = -EINVAL;
-		dev_err(component->dev, "Format unknown (%d)\n", ret);
+		dev_err(component->dev, "Format unkyeswn (%d)\n", ret);
 		return ret;
 	}
 
@@ -3105,7 +3105,7 @@ static int set_aif_fs(struct snd_soc_component *component,
 		break;
 	default:
 		ret = -EINVAL;
-		dev_err(component->dev, "DAI ID not recognized (%d)\n", ret);
+		dev_err(component->dev, "DAI ID yest recognized (%d)\n", ret);
 		return ret;
 	}
 
@@ -3160,7 +3160,7 @@ static int set_aif_sample_format(struct snd_soc_component *component,
 		break;
 	default:
 		ret = -EINVAL;
-		dev_err(component->dev, "AIF ID not recognized (%d)\n", ret);
+		dev_err(component->dev, "AIF ID yest recognized (%d)\n", ret);
 		return ret;
 	}
 

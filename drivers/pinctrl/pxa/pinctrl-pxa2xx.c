@@ -52,7 +52,7 @@ static int pxa2xx_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 
 static const struct pinctrl_ops pxa2xx_pctl_ops = {
 #ifdef CONFIG_OF
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map		= pinctrl_utils_free_map,
 #endif
 	.get_groups_count	= pxa2xx_pctrl_get_groups_count,

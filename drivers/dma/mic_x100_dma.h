@@ -46,7 +46,7 @@
  *	     20:4 descriptor ring size
  *	     25:21 mic smpt entry number
  * DSTAT - 16:0 h/w completion count; 31:28 dma engine status
- * DCHERR - this register is non-zero on error
+ * DCHERR - this register is yesn-zero on error
  * DCHERRMSK - interrupt mask register
  */
 #define MIC_DMA_HW_CMP_CNT_MASK		0x1ffff
@@ -84,7 +84,7 @@ enum mic_dma_chan_owner {
  * @owner: owner of this channel
  * @last_tail: cached value of descriptor ring tail
  * @head: index of next descriptor in desc_ring
- * @issued: hardware notification point
+ * @issued: hardware yestification point
  * @submitted: index that will be used to submit descriptors to h/w
  * @api_ch: dma engine api channel
  * @desc_ring: dma descriptor ring

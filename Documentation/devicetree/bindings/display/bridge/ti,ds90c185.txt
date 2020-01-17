@@ -15,7 +15,7 @@ Optional properties:
 
 - powerdown-gpios: Power down control GPIO (the PDB pin, active-low)
 
-Required nodes:
+Required yesdes:
 
 The devices have two video ports. Their connections are modeled using the OF
 graph bindings specified in Documentation/devicetree/bindings/graph.txt.

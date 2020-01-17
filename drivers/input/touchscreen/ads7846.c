@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2005 David Brownell
  * Copyright (c) 2006 Nokia Corporation
- * Various changes: Imre Deak <imre.deak@nokia.com>
+ * Various changes: Imre Deak <imre.deak@yeskia.com>
  *
  * Using code from:
  *  - corgi_ts.c
@@ -48,11 +48,11 @@
  * have to maintain our own SW IRQ disabled status. This should be
  * removed as soon as the affected platform's IRQ handling is fixed.
  *
- * App note sbaa036 talks in more detail about accurate sampling...
- * that ought to help in situations like LCDs inducing noise (which
+ * App yeste sbaa036 talks in more detail about accurate sampling...
+ * that ought to help in situations like LCDs inducing yesise (which
  * can also be helped by using synch signals) and more generally.
  * This driver tries to utilize the measures described in the app
- * note. The strength of filtering can be set in the board-* specific
+ * yeste. The strength of filtering can be set in the board-* specific
  * files.
  */
 
@@ -72,7 +72,7 @@ struct ts_event {
 	u16	x;
 	u16	y;
 	u16	z1, z2;
-	bool	ignore;
+	bool	igyesre;
 	u8	x_buf[3];
 	u8	y_buf[3];
 };
@@ -80,7 +80,7 @@ struct ts_event {
 /*
  * We allocate this separately to avoid cache line sharing issues when
  * driver is used with DMA-based SPI controllers (like atmel_spi) on
- * systems where main memory is not DMA-coherent (most non-x86 boards).
+ * systems where main memory is yest DMA-coherent (most yesn-x86 boards).
  */
 struct ads7846_packet {
 	u8			read_x, read_y, read_z1, read_z2, pwrdown;
@@ -163,13 +163,13 @@ struct ads7846 {
 #define	ADS_A2A1A0_d_z1		(3 << 4)	/* differential */
 #define	ADS_A2A1A0_d_z2		(4 << 4)	/* differential */
 #define	ADS_A2A1A0_d_x		(5 << 4)	/* differential */
-#define	ADS_A2A1A0_temp0	(0 << 4)	/* non-differential */
-#define	ADS_A2A1A0_vbatt	(2 << 4)	/* non-differential */
-#define	ADS_A2A1A0_vaux		(6 << 4)	/* non-differential */
-#define	ADS_A2A1A0_temp1	(7 << 4)	/* non-differential */
+#define	ADS_A2A1A0_temp0	(0 << 4)	/* yesn-differential */
+#define	ADS_A2A1A0_vbatt	(2 << 4)	/* yesn-differential */
+#define	ADS_A2A1A0_vaux		(6 << 4)	/* yesn-differential */
+#define	ADS_A2A1A0_temp1	(7 << 4)	/* yesn-differential */
 #define	ADS_8_BIT		(1 << 3)
 #define	ADS_12_BIT		(0 << 3)
-#define	ADS_SER			(1 << 2)	/* non-differential */
+#define	ADS_SER			(1 << 2)	/* yesn-differential */
 #define	ADS_DFR			(0 << 2)	/* differential */
 #define	ADS_PD10_PDOWN		(0 << 0)	/* low power mode + penirq */
 #define	ADS_PD10_ADC_ON		(1 << 0)	/* ADC on */
@@ -229,7 +229,7 @@ static void __ads7846_disable(struct ads7846 *ts)
 	regulator_disable(ts->reg);
 
 	/*
-	 * We know the chip's in low power mode since we always
+	 * We kyesw the chip's in low power mode since we always
 	 * leave it that way after every request
 	 */
 }
@@ -332,7 +332,7 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 		req->xfer[1].rx_buf = &req->scratch;
 		req->xfer[1].len = 2;
 
-		/* for 1uF, settle for 800 usec; no cap, 100 usec.  */
+		/* for 1uF, settle for 800 usec; yes cap, 100 usec.  */
 		req->xfer[1].delay_usecs = ts->vref_delay_usecs;
 		spi_message_add_tail(&req->xfer[1], &req->msg);
 
@@ -373,7 +373,7 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 	mutex_unlock(&ts->lock);
 
 	if (status == 0) {
-		/* on-wire is a must-ignore bit, a BE12 value, then padding */
+		/* on-wire is a must-igyesre bit, a BE12 value, then padding */
 		status = be16_to_cpu(req->sample);
 		status = status >> 3;
 		status &= 0x0fff;
@@ -436,7 +436,7 @@ static DEVICE_ATTR(name, S_IRUGO, name ## _show, NULL);
 
 /* Sysfs conventions report temperatures in millidegrees Celsius.
  * ADS7846 could use the low-accuracy two-sample scheme, but can't do the high
- * accuracy scheme without calibration data.  For now we won't try either;
+ * accuracy scheme without calibration data.  For yesw we won't try either;
  * userspace sees raw sensor values, and must scale/calibrate appropriately.
  */
 static inline unsigned null_adjust(struct ads7846 *ts, ssize_t v)
@@ -449,7 +449,7 @@ SHOW(temp1, temp1, null_adjust)		/* temp2_input */
 
 
 /* sysfs conventions report voltages in millivolts.  We can convert voltages
- * if we know vREF.  userspace may need to scale vAUX to match the board's
+ * if we kyesw vREF.  userspace may need to scale vAUX to match the board's
  * external resistors; we assume that vBATT only uses the internal ones.
  */
 static inline unsigned vaux_adjust(struct ads7846 *ts, ssize_t v)
@@ -520,7 +520,7 @@ static int ads784x_hwmon_register(struct spi_device *spi, struct ads7846 *ts)
 	case 7843:
 		if (!ts->vref_mv) {
 			dev_warn(&spi->dev,
-				"external vREF for ADS%d not specified\n",
+				"external vREF for ADS%d yest specified\n",
 				ts->model);
 			return 0;
 		}
@@ -626,7 +626,7 @@ static int ads7846_debounce_filter(void *ads, int data_idx, int *val)
 		ts->read_rep = 0;
 		/*
 		 * Repeat it, if this was the first read or the read
-		 * wasn't consistent enough.
+		 * wasn't consistent eyesugh.
 		 */
 		if (ts->read_cnt < ts->debounce_max) {
 			ts->last_read = *val;
@@ -635,7 +635,7 @@ static int ads7846_debounce_filter(void *ads, int data_idx, int *val)
 		} else {
 			/*
 			 * Maximum number of debouncing reached and still
-			 * not enough number of consistent readings. Abort
+			 * yest eyesugh number of consistent readings. Abort
 			 * the whole sample, repeat it in the next sampling
 			 * period.
 			 */
@@ -659,7 +659,7 @@ static int ads7846_debounce_filter(void *ads, int data_idx, int *val)
 	}
 }
 
-static int ads7846_no_filter(void *ads, int data_idx, int *val)
+static int ads7846_yes_filter(void *ads, int data_idx, int *val)
 {
 	return ADS7846_FILTER_OK;
 }
@@ -674,7 +674,7 @@ static int ads7846_get_value(struct ads7846 *ts, struct spi_message *m)
 		value = be16_to_cpup((__be16 *)&(((char *)t->rx_buf)[1]));
 	} else {
 		/*
-		 * adjust:  on-wire is a must-ignore bit, a BE12 value, then
+		 * adjust:  on-wire is a must-igyesre bit, a BE12 value, then
 		 * padding; built from two 8 bit values written msb-first.
 		 */
 		value = be16_to_cpup((__be16 *)t->rx_buf);
@@ -709,12 +709,12 @@ static void ads7846_read_state(struct ads7846 *ts)
 		error = spi_sync(ts->spi, m);
 		if (error) {
 			dev_err(&ts->spi->dev, "spi_sync --> %d\n", error);
-			packet->tc.ignore = true;
+			packet->tc.igyesre = true;
 			return;
 		}
 
 		/*
-		 * Last message is power down request, no need to convert
+		 * Last message is power down request, yes need to convert
 		 * or filter the value.
 		 */
 		if (msg_idx < ts->msg_count - 1) {
@@ -727,13 +727,13 @@ static void ads7846_read_state(struct ads7846 *ts)
 				continue;
 
 			case ADS7846_FILTER_IGNORE:
-				packet->tc.ignore = true;
+				packet->tc.igyesre = true;
 				msg_idx = ts->msg_count - 1;
 				continue;
 
 			case ADS7846_FILTER_OK:
 				ads7846_update_value(m, val);
-				packet->tc.ignore = false;
+				packet->tc.igyesre = false;
 				msg_idx++;
 				break;
 
@@ -798,9 +798,9 @@ static void ads7846_report_state(struct ads7846 *ts)
 	 * the maximum. Don't report it to user space, repeat at least
 	 * once more the measurement
 	 */
-	if (packet->tc.ignore || Rt > ts->pressure_max) {
-		dev_vdbg(&ts->spi->dev, "ignored %d pressure %d\n",
-			 packet->tc.ignore, Rt);
+	if (packet->tc.igyesre || Rt > ts->pressure_max) {
+		dev_vdbg(&ts->spi->dev, "igyesred %d pressure %d\n",
+			 packet->tc.igyesre, Rt);
 		return;
 	}
 
@@ -818,7 +818,7 @@ static void ads7846_report_state(struct ads7846 *ts)
 	 * NOTE: We can't rely on the pressure to determine the pen down
 	 * state, even this controller has a pressure sensor. The pressure
 	 * value can fluctuate for quite a while after lifting the pen and
-	 * in some cases may not even settle at the expected value.
+	 * in some cases may yest even settle at the expected value.
 	 *
 	 * The only safe way to check for the pen up condition is in the
 	 * timer by reading the pen signal state (it's a GPIO _and_ IRQ).
@@ -958,7 +958,7 @@ static int ads7846_setup_pendown(struct spi_device *spi,
 			gpio_set_debounce(pdata->gpio_pendown,
 					  pdata->gpio_pendown_debounce);
 	} else {
-		dev_err(&spi->dev, "no get_pendown_state nor gpio_pendown?\n");
+		dev_err(&spi->dev, "yes get_pendown_state yesr gpio_pendown?\n");
 		return -EINVAL;
 	}
 
@@ -967,7 +967,7 @@ static int ads7846_setup_pendown(struct spi_device *spi,
 
 /*
  * Set up the transfers to read touchscreen state; this assumes we
- * use formula #2 for pressure, not #3.
+ * use formula #2 for pressure, yest #3.
  */
 static void ads7846_setup_spi_msg(struct ads7846 *ts,
 				  const struct ads7846_platform_data *pdata)
@@ -1015,7 +1015,7 @@ static void ads7846_setup_spi_msg(struct ads7846 *ts,
 	/*
 	 * The first sample after switching drivers can be low quality;
 	 * optionally discard it, using a second one after the signals
-	 * have had enough time to stabilize.
+	 * have had eyesugh time to stabilize.
 	 */
 	if (pdata->settle_delay_usecs) {
 		x->delay_usecs = pdata->settle_delay_usecs;
@@ -1182,18 +1182,18 @@ MODULE_DEVICE_TABLE(of, ads7846_dt_ids);
 static const struct ads7846_platform_data *ads7846_probe_dt(struct device *dev)
 {
 	struct ads7846_platform_data *pdata;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	const struct of_device_id *match;
 	u32 value;
 
-	if (!node) {
-		dev_err(dev, "Device does not have associated DT data\n");
+	if (!yesde) {
+		dev_err(dev, "Device does yest have associated DT data\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	match = of_match_device(ads7846_dt_ids, dev);
 	if (!match) {
-		dev_err(dev, "Unknown device model\n");
+		dev_err(dev, "Unkyeswn device model\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1203,55 +1203,55 @@ static const struct ads7846_platform_data *ads7846_probe_dt(struct device *dev)
 
 	pdata->model = (unsigned long)match->data;
 
-	of_property_read_u16(node, "ti,vref-delay-usecs",
+	of_property_read_u16(yesde, "ti,vref-delay-usecs",
 			     &pdata->vref_delay_usecs);
-	of_property_read_u16(node, "ti,vref-mv", &pdata->vref_mv);
-	pdata->keep_vref_on = of_property_read_bool(node, "ti,keep-vref-on");
+	of_property_read_u16(yesde, "ti,vref-mv", &pdata->vref_mv);
+	pdata->keep_vref_on = of_property_read_bool(yesde, "ti,keep-vref-on");
 
-	pdata->swap_xy = of_property_read_bool(node, "ti,swap-xy");
+	pdata->swap_xy = of_property_read_bool(yesde, "ti,swap-xy");
 
-	of_property_read_u16(node, "ti,settle-delay-usec",
+	of_property_read_u16(yesde, "ti,settle-delay-usec",
 			     &pdata->settle_delay_usecs);
-	of_property_read_u16(node, "ti,penirq-recheck-delay-usecs",
+	of_property_read_u16(yesde, "ti,penirq-recheck-delay-usecs",
 			     &pdata->penirq_recheck_delay_usecs);
 
-	of_property_read_u16(node, "ti,x-plate-ohms", &pdata->x_plate_ohms);
-	of_property_read_u16(node, "ti,y-plate-ohms", &pdata->y_plate_ohms);
+	of_property_read_u16(yesde, "ti,x-plate-ohms", &pdata->x_plate_ohms);
+	of_property_read_u16(yesde, "ti,y-plate-ohms", &pdata->y_plate_ohms);
 
-	of_property_read_u16(node, "ti,x-min", &pdata->x_min);
-	of_property_read_u16(node, "ti,y-min", &pdata->y_min);
-	of_property_read_u16(node, "ti,x-max", &pdata->x_max);
-	of_property_read_u16(node, "ti,y-max", &pdata->y_max);
+	of_property_read_u16(yesde, "ti,x-min", &pdata->x_min);
+	of_property_read_u16(yesde, "ti,y-min", &pdata->y_min);
+	of_property_read_u16(yesde, "ti,x-max", &pdata->x_max);
+	of_property_read_u16(yesde, "ti,y-max", &pdata->y_max);
 
 	/*
 	 * touchscreen-max-pressure gets parsed during
 	 * touchscreen_parse_properties()
 	 */
-	of_property_read_u16(node, "ti,pressure-min", &pdata->pressure_min);
-	if (!of_property_read_u32(node, "touchscreen-min-pressure", &value))
+	of_property_read_u16(yesde, "ti,pressure-min", &pdata->pressure_min);
+	if (!of_property_read_u32(yesde, "touchscreen-min-pressure", &value))
 		pdata->pressure_min = (u16) value;
-	of_property_read_u16(node, "ti,pressure-max", &pdata->pressure_max);
+	of_property_read_u16(yesde, "ti,pressure-max", &pdata->pressure_max);
 
-	of_property_read_u16(node, "ti,debounce-max", &pdata->debounce_max);
-	if (!of_property_read_u32(node, "touchscreen-average-samples", &value))
+	of_property_read_u16(yesde, "ti,debounce-max", &pdata->debounce_max);
+	if (!of_property_read_u32(yesde, "touchscreen-average-samples", &value))
 		pdata->debounce_max = (u16) value;
-	of_property_read_u16(node, "ti,debounce-tol", &pdata->debounce_tol);
-	of_property_read_u16(node, "ti,debounce-rep", &pdata->debounce_rep);
+	of_property_read_u16(yesde, "ti,debounce-tol", &pdata->debounce_tol);
+	of_property_read_u16(yesde, "ti,debounce-rep", &pdata->debounce_rep);
 
-	of_property_read_u32(node, "ti,pendown-gpio-debounce",
+	of_property_read_u32(yesde, "ti,pendown-gpio-debounce",
 			     &pdata->gpio_pendown_debounce);
 
-	pdata->wakeup = of_property_read_bool(node, "wakeup-source") ||
-			of_property_read_bool(node, "linux,wakeup");
+	pdata->wakeup = of_property_read_bool(yesde, "wakeup-source") ||
+			of_property_read_bool(yesde, "linux,wakeup");
 
-	pdata->gpio_pendown = of_get_named_gpio(dev->of_node, "pendown-gpio", 0);
+	pdata->gpio_pendown = of_get_named_gpio(dev->of_yesde, "pendown-gpio", 0);
 
 	return pdata;
 }
 #else
 static const struct ads7846_platform_data *ads7846_probe_dt(struct device *dev)
 {
-	dev_err(dev, "no platform data defined\n");
+	dev_err(dev, "yes platform data defined\n");
 	return ERR_PTR(-EINVAL);
 }
 #endif
@@ -1266,7 +1266,7 @@ static int ads7846_probe(struct spi_device *spi)
 	int err;
 
 	if (!spi->irq) {
-		dev_dbg(&spi->dev, "no IRQ?\n");
+		dev_dbg(&spi->dev, "yes IRQ?\n");
 		return -EINVAL;
 	}
 
@@ -1280,7 +1280,7 @@ static int ads7846_probe(struct spi_device *spi)
 	/*
 	 * We'd set TX word size 8 bits and RX word size to 13 bits ... except
 	 * that even if the hardware can do that, the SPI controller driver
-	 * may not.  So we stick to very-portable 8 bit words, both RX and TX.
+	 * may yest.  So we stick to very-portable 8 bit words, both RX and TX.
 	 */
 	spi->bits_per_word = 8;
 	spi->mode = SPI_MODE_0;
@@ -1336,7 +1336,7 @@ static int ads7846_probe(struct spi_device *spi)
 		ts->filter = ads7846_debounce_filter;
 		ts->filter_data = ts;
 	} else {
-		ts->filter = ads7846_no_filter;
+		ts->filter = ads7846_yes_filter;
 	}
 
 	err = ads7846_setup_pendown(spi, ts, pdata);
@@ -1428,7 +1428,7 @@ static int ads7846_probe(struct spi_device *spi)
 
 	/*
 	 * Take a first sample, leaving nPENIRQ active and vREF off; avoid
-	 * the touchscreen, in case it's not connected.
+	 * the touchscreen, in case it's yest connected.
 	 */
 	if (ts->model == 7845)
 		ads7845_read12_ser(&spi->dev, PWRDOWN);
@@ -1446,7 +1446,7 @@ static int ads7846_probe(struct spi_device *spi)
 	device_init_wakeup(&spi->dev, pdata->wakeup);
 
 	/*
-	 * If device does not carry platform data we must have allocated it
+	 * If device does yest carry platform data we must have allocated it
 	 * when parsing DT data.
 	 */
 	if (!dev_get_platdata(&spi->dev))
@@ -1494,7 +1494,7 @@ static int ads7846_remove(struct spi_device *spi)
 
 	if (!ts->get_pendown_state) {
 		/*
-		 * If we are not using specialized pendown method we must
+		 * If we are yest using specialized pendown method we must
 		 * have been relying on gpio we set up ourselves.
 		 */
 		gpio_free(ts->gpio_pendown);

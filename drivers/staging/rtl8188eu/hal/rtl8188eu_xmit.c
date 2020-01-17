@@ -43,7 +43,7 @@ static void rtl8188eu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 }
 
 /*
- * In normal chip, we should send some packet to Hw which will be used by Fw
+ * In yesrmal chip, we should send some packet to Hw which will be used by Fw
  * in FW LPS mode. The function is to fill the Tx descriptor of this packets,
  * then Fw can tell Hw to send these packet derectly.
  */
@@ -308,12 +308,12 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	}
 
 	/*  2009.11.05. tynli_test. Suggested by SD4 Filen for FW LPS. */
-	/*  (1) The sequence number of each non-Qos frame / broadcast / multicast / */
+	/*  (1) The sequence number of each yesn-Qos frame / broadcast / multicast / */
 	/*  mgnt frame should be controlled by Hw because Fw will also send null data */
-	/*  which we cannot control when Fw LPS enable. */
-	/*  --> default enable non-Qos data sequense number. 2010.06.23. by tynli. */
+	/*  which we canyest control when Fw LPS enable. */
+	/*  --> default enable yesn-Qos data sequense number. 2010.06.23. by tynli. */
 	/*  (2) Enable HW SEQ control for beacon packet, because we use Hw beacon. */
-	/*  (3) Use HW Qos SEQ to control the seq num of Ext port non-Qos packets. */
+	/*  (3) Use HW Qos SEQ to control the seq num of Ext port yesn-Qos packets. */
 	/*  2010.06.23. Added by tynli. */
 	if (!pattrib->qos_en) {
 		ptxdesc->txdw3 |= cpu_to_le32(EN_HWSEQ); /*  Hw set sequence number */
@@ -327,7 +327,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	return pull;
 }
 
-/* for non-agg data frame or management frame */
+/* for yesn-agg data frame or management frame */
 static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 {
 	s32 ret = _SUCCESS;
@@ -359,7 +359,7 @@ static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 			sz = pxmitpriv->frag_len;
 			sz = sz - 4 - pattrib->icv_len;
 		} else {
-			/* no frag */
+			/* yes frag */
 			sz = pattrib->last_txcmdsz;
 		}
 
@@ -399,7 +399,7 @@ static u32 xmitframe_need_length(struct xmit_frame *pxmitframe)
 
 	u32 len;
 
-	/*  no consider fragement */
+	/*  yes consider fragement */
 	len = pattrib->hdrlen + pattrib->iv_len +
 		SNAP_SIZE + sizeof(u16) +
 		pattrib->pktlen +
@@ -447,7 +447,7 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt,
 
 	pxmitframe = rtw_dequeue_xframe(pxmitpriv, pxmitpriv->hwxmits, pxmitpriv->hwxmit_entry);
 	if (!pxmitframe) {
-		/*  no more xmit frame, release xmit buffer */
+		/*  yes more xmit frame, release xmit buffer */
 		rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
 		return false;
 	}
@@ -514,8 +514,8 @@ bool rtl8188eu_xmitframe_complete(struct adapter *adapt,
 		pxmitframe = container_of(xmitframe_plist, struct xmit_frame, list);
 		xmitframe_plist = xmitframe_plist->next;
 
-		pxmitframe->agg_num = 0; /*  not first frame of aggregation */
-		pxmitframe->pkt_offset = 0; /*  not first frame of aggregation, no need to reserve offset */
+		pxmitframe->agg_num = 0; /*  yest first frame of aggregation */
+		pxmitframe->pkt_offset = 0; /*  yest first frame of aggregation, yes need to reserve offset */
 
 		len = xmitframe_need_length(pxmitframe) + TXDESC_SIZE + (pxmitframe->pkt_offset*PACKET_OFFSET_SZ);
 

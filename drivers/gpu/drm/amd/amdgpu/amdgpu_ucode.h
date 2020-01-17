@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -29,29 +29,29 @@ struct common_firmware_header {
 	uint32_t size_bytes; /* size of the entire header+image(s) in bytes */
 	uint32_t header_size_bytes; /* size of just the header in bytes */
 	uint16_t header_version_major; /* header version */
-	uint16_t header_version_minor; /* header version */
+	uint16_t header_version_miyesr; /* header version */
 	uint16_t ip_version_major; /* IP version */
-	uint16_t ip_version_minor; /* IP version */
+	uint16_t ip_version_miyesr; /* IP version */
 	uint32_t ucode_version;
 	uint32_t ucode_size_bytes; /* size of ucode in bytes */
 	uint32_t ucode_array_offset_bytes; /* payload offset from the start of the header */
 	uint32_t crc32;  /* crc32 checksum of the payload */
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct mc_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t io_debug_size_bytes; /* size of debug array in dwords */
 	uint32_t io_debug_array_offset_bytes; /* payload offset from the start of the header */
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct smc_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_start_addr;
 };
 
-/* version_major=2, version_minor=0 */
+/* version_major=2, version_miyesr=0 */
 struct smc_firmware_header_v2_0 {
 	struct smc_firmware_header_v1_0 v1_0;
 	uint32_t ppt_offset_bytes; /* soft pptable offset */
@@ -64,14 +64,14 @@ struct smc_soft_pptable_entry {
         uint32_t ppt_size_bytes;
 };
 
-/* version_major=2, version_minor=1 */
+/* version_major=2, version_miyesr=1 */
 struct smc_firmware_header_v2_1 {
         struct smc_firmware_header_v1_0 v1_0;
         uint32_t pptable_count;
         uint32_t pptable_entry_offset;
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct psp_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_feature_version;
@@ -79,7 +79,7 @@ struct psp_firmware_header_v1_0 {
 	uint32_t sos_size_bytes;
 };
 
-/* version_major=1, version_minor=1 */
+/* version_major=1, version_miyesr=1 */
 struct psp_firmware_header_v1_1 {
 	struct psp_firmware_header_v1_0 v1_0;
 	uint32_t toc_header_version;
@@ -90,7 +90,7 @@ struct psp_firmware_header_v1_1 {
 	uint32_t kdb_size_bytes;
 };
 
-/* version_major=1, version_minor=2 */
+/* version_major=1, version_miyesr=2 */
 struct psp_firmware_header_v1_2 {
 	struct psp_firmware_header_v1_0 v1_0;
 	uint32_t reserve[3];
@@ -99,7 +99,7 @@ struct psp_firmware_header_v1_2 {
 	uint32_t kdb_size_bytes;
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct ta_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ta_xgmi_ucode_version;
@@ -116,7 +116,7 @@ struct ta_firmware_header_v1_0 {
 	uint32_t ta_dtm_size_bytes;
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct gfx_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_feature_version;
@@ -124,7 +124,7 @@ struct gfx_firmware_header_v1_0 {
 	uint32_t jt_size;  /* size of jt */
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct mes_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t mes_ucode_version;
@@ -139,7 +139,7 @@ struct mes_firmware_header_v1_0 {
 	uint32_t mes_data_start_addr_hi;
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct rlc_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_feature_version;
@@ -149,7 +149,7 @@ struct rlc_firmware_header_v1_0 {
 	uint32_t master_pkt_description_offset;
 };
 
-/* version_major=2, version_minor=0 */
+/* version_major=2, version_miyesr=0 */
 struct rlc_firmware_header_v2_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_feature_version;
@@ -172,7 +172,7 @@ struct rlc_firmware_header_v2_0 {
 	uint32_t reg_list_separate_array_offset_bytes; /* payload offset from the start of the header */
 };
 
-/* version_major=2, version_minor=1 */
+/* version_major=2, version_miyesr=1 */
 struct rlc_firmware_header_v2_1 {
 	struct rlc_firmware_header_v2_0 v2_0;
 	uint32_t reg_list_format_direct_reg_list_length; /* length of direct reg list format array */
@@ -190,7 +190,7 @@ struct rlc_firmware_header_v2_1 {
 	uint32_t save_restore_list_srm_offset_bytes;
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct sdma_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_feature_version;
@@ -199,7 +199,7 @@ struct sdma_firmware_header_v1_0 {
 	uint32_t jt_size; /* size of jt */
 };
 
-/* version_major=1, version_minor=1 */
+/* version_major=1, version_miyesr=1 */
 struct sdma_firmware_header_v1_1 {
 	struct sdma_firmware_header_v1_0 v1_0;
 	uint32_t digest_size;
@@ -231,20 +231,20 @@ struct gpu_info_firmware_v1_1 {
 };
 
 /* gpu info payload
- * version_major=1, version_minor=1 */
+ * version_major=1, version_miyesr=1 */
 struct gpu_info_firmware_v1_2 {
 	struct gpu_info_firmware_v1_1 v1_1;
 	struct gpu_info_soc_bounding_box_v1_0 soc_bounding_box;
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct gpu_info_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint16_t version_major; /* version */
-	uint16_t version_minor; /* version */
+	uint16_t version_miyesr; /* version */
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct dmcu_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t intv_offset_bytes; /* interrupt vectors offset from end of header, in bytes */
@@ -378,7 +378,7 @@ void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr);
 int amdgpu_ucode_validate(const struct firmware *fw);
 bool amdgpu_ucode_hdr_version(union amdgpu_firmware_header *hdr,
-				uint16_t hdr_major, uint16_t hdr_minor);
+				uint16_t hdr_major, uint16_t hdr_miyesr);
 
 int amdgpu_ucode_init_bo(struct amdgpu_device *adev);
 int amdgpu_ucode_create_bo(struct amdgpu_device *adev);

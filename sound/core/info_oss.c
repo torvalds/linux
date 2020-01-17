@@ -9,7 +9,7 @@
 #include <linux/string.h>
 #include <linux/export.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 #include <sound/info.h>
 #include <linux/utsname.h>
 #include <linux/mutex.h>
@@ -77,7 +77,7 @@ static void snd_sndstat_proc_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "Sound Driver:3.8.1a-980706 (ALSA emulation code)\n");
 	snd_iprintf(buffer, "Kernel: %s %s %s %s %s\n",
 		    init_utsname()->sysname,
-		    init_utsname()->nodename,
+		    init_utsname()->yesdename,
 		    init_utsname()->release,
 		    init_utsname()->version,
 		    init_utsname()->machine);
@@ -93,7 +93,7 @@ static void snd_sndstat_proc_read(struct snd_info_entry *entry,
 	snd_sndstat_show_strings(buffer, "Mixers", SNDRV_OSS_INFO_DEV_MIXERS);
 }
 
-int __init snd_info_minor_register(void)
+int __init snd_info_miyesr_register(void)
 {
 	struct snd_info_entry *entry;
 

@@ -35,7 +35,7 @@
 
 /* XXX Could be per-controller, but I don't think we risk anything by
  * assuming we won't have both UniNorth and Bandit */
-static int has_uninorth;
+static int has_uniyesrth;
 #ifdef CONFIG_PPC64
 static struct pci_controller *u3_agp;
 #else
@@ -44,7 +44,7 @@ static int has_second_ohare;
 
 extern int pcibios_assign_bus_offset;
 
-struct device_node *k2_skiplist[2];
+struct device_yesde *k2_skiplist[2];
 
 /*
  * Magic constants for enabling cache coherency in the bandit/PSX bridge.
@@ -56,24 +56,24 @@ struct device_node *k2_skiplist[2];
 #define BANDIT_MAGIC	0x50
 #define BANDIT_COHERENT	0x40
 
-static int __init fixup_one_level_bus_range(struct device_node *node, int higher)
+static int __init fixup_one_level_bus_range(struct device_yesde *yesde, int higher)
 {
-	for (; node; node = node->sibling) {
+	for (; yesde; yesde = yesde->sibling) {
 		const int * bus_range;
 		const unsigned int *class_code;
 		int len;
 
 		/* For PCI<->PCI bridges or CardBus bridges, we go down */
-		class_code = of_get_property(node, "class-code", NULL);
+		class_code = of_get_property(yesde, "class-code", NULL);
 		if (!class_code || ((*class_code >> 8) != PCI_CLASS_BRIDGE_PCI &&
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS))
 			continue;
-		bus_range = of_get_property(node, "bus-range", &len);
+		bus_range = of_get_property(yesde, "bus-range", &len);
 		if (bus_range != NULL && len > 2 * sizeof(int)) {
 			if (bus_range[1] > higher)
 				higher = bus_range[1];
 		}
-		higher = fixup_one_level_bus_range(node->child, higher);
+		higher = fixup_one_level_bus_range(yesde->child, higher);
 	}
 	return higher;
 }
@@ -82,9 +82,9 @@ static int __init fixup_one_level_bus_range(struct device_node *node, int higher
  * system since they tend to have their "last" member wrong on macs
  *
  * Note that the bus numbers manipulated here are OF bus numbers, they
- * are not Linux bus numbers.
+ * are yest Linux bus numbers.
  */
-static void __init fixup_bus_range(struct device_node *bridge)
+static void __init fixup_bus_range(struct device_yesde *bridge)
 {
 	int *bus_range, len;
 	struct property *prop;
@@ -107,7 +107,7 @@ static void __init fixup_bus_range(struct device_node *bridge)
  *
  * "Chaos" is used in some "Bandit"-type machines as a bridge
  * for the separate display bus. It is accessed the same
- * way as bandit, but cannot be probed for devices. It therefore
+ * way as bandit, but canyest be probed for devices. It therefore
  * has its own config access functions.
  *
  * The "UniNorth" version is present in all Core99 machines
@@ -142,19 +142,19 @@ static void __iomem *macrisc_cfg_map_bus(struct pci_bus *bus,
 	if (hose == NULL)
 		return NULL;
 
-	if (bus->number == hose->first_busno) {
+	if (bus->number == hose->first_busyes) {
 		if (dev_fn < (11 << 3))
 			return NULL;
 		caddr = MACRISC_CFA0(dev_fn, offset);
 	} else
 		caddr = MACRISC_CFA1(bus->number, dev_fn, offset);
 
-	/* Uninorth will return garbage if we don't read back the value ! */
+	/* Uniyesrth will return garbage if we don't read back the value ! */
 	do {
 		out_le32(hose->cfg_addr, caddr);
 	} while (in_le32(hose->cfg_addr) != caddr);
 
-	offset &= has_uninorth ? 0x07 : 0x03;
+	offset &= has_uniyesrth ? 0x07 : 0x03;
 	return hose->cfg_data + offset;
 }
 
@@ -172,12 +172,12 @@ static struct pci_ops macrisc_pci_ops =
 static void __iomem *chaos_map_bus(struct pci_bus *bus, unsigned int devfn,
 				   int offset)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const u32 *vendor, *device;
 
 	if (offset >= 0x100)
 		return NULL;
-	np = of_pci_find_child_device(bus->dev.of_node, devfn);
+	np = of_pci_find_child_device(bus->dev.of_yesde, devfn);
 	if (np == NULL)
 		return NULL;
 
@@ -212,7 +212,7 @@ static void __init setup_chaos(struct pci_controller *hose,
 
 #ifdef CONFIG_PPC64
 /*
- * These versions of U3 HyperTransport config space access ops do not
+ * These versions of U3 HyperTransport config space access ops do yest
  * implement self-view of the HT host yet
  */
 
@@ -228,16 +228,16 @@ static void __init setup_chaos(struct pci_controller *hose,
 static int u3_ht_skip_device(struct pci_controller *hose,
 			     struct pci_bus *bus, unsigned int devfn)
 {
-	struct device_node *busdn, *dn;
+	struct device_yesde *busdn, *dn;
 	int i;
 
 	/* We only allow config cycles to devices that are in OF device-tree
 	 * as we are apparently having some weird things going on with some
 	 * revs of K2 on recent G5s, except for the host bridge itself, which
-	 * is missing from the tree but we know we can probe.
+	 * is missing from the tree but we kyesw we can probe.
 	 */
 	if (bus->self)
-		busdn = pci_device_to_OF_node(bus->self);
+		busdn = pci_device_to_OF_yesde(bus->self);
 	else if (devfn == 0)
 		return 0;
 	else
@@ -270,7 +270,7 @@ static void __iomem *u3_ht_cfg_access(struct pci_controller *hose, u8 bus,
 				      u8 devfn, u8 offset, int *swap)
 {
 	*swap = 1;
-	if (bus == hose->first_busno) {
+	if (bus == hose->first_busyes) {
 		if (devfn != 0)
 			return hose->cfg_data + U3_HT_CFA0(devfn, offset);
 		*swap = 0;
@@ -406,12 +406,12 @@ static void __iomem *u4_pcie_cfg_map_bus(struct pci_bus *bus,
 	if (!hose)
 		return NULL;
 
-	if (bus->number == hose->first_busno) {
+	if (bus->number == hose->first_busyes) {
 		caddr = U4_PCIE_CFA0(dev_fn, offset);
 	} else
 		caddr = U4_PCIE_CFA1(bus->number, dev_fn, offset);
 
-	/* Uninorth will return garbage if we don't read back the value ! */
+	/* Uniyesrth will return garbage if we don't read back the value ! */
 	do {
 		out_le32(hose->cfg_addr, caddr);
 	} while (in_le32(hose->cfg_addr) != caddr);
@@ -427,19 +427,19 @@ static struct pci_ops u4_pcie_pci_ops =
 	.write = pci_generic_config_write,
 };
 
-static void pmac_pci_fixup_u4_of_node(struct pci_dev *dev)
+static void pmac_pci_fixup_u4_of_yesde(struct pci_dev *dev)
 {
 	/* Apple's device-tree "hides" the root complex virtual P2P bridge
 	 * on U4. However, Linux sees it, causing the PCI <-> OF matching
 	 * code to fail to properly match devices below it. This works around
-	 * it by setting the node of the bridge to point to the PHB node,
-	 * which is not entirely correct but fixes the matching code and
+	 * it by setting the yesde of the bridge to point to the PHB yesde,
+	 * which is yest entirely correct but fixes the matching code and
 	 * doesn't break anything else. It's also the simplest possible fix.
 	 */
-	if (dev->dev.of_node == NULL)
-		dev->dev.of_node = pcibios_get_phb_of_node(dev->bus);
+	if (dev->dev.of_yesde == NULL)
+		dev->dev.of_yesde = pcibios_get_phb_of_yesde(dev->bus);
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_APPLE, 0x5b, pmac_pci_fixup_u4_of_node);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_APPLE, 0x5b, pmac_pci_fixup_u4_of_yesde);
 
 #endif /* CONFIG_PPC64 */
 
@@ -466,7 +466,7 @@ static void __init init_bandit(struct pci_controller *bp)
 		rev = in_8(bp->cfg_data);
 		if (rev != BANDIT_REVID)
 			printk(KERN_WARNING
-			       "Unknown revision %d for bandit\n", rev);
+			       "Unkyeswn revision %d for bandit\n", rev);
 	} else if (vendev != (BANDIT_DEVID_2 << 16) + PCI_VENDOR_ID_APPLE) {
 		printk(KERN_WARNING "bandit isn't? (%x)\n", vendev);
 		return;
@@ -489,21 +489,21 @@ static void __init init_bandit(struct pci_controller *bp)
  */
 static void __init init_p2pbridge(void)
 {
-	struct device_node *p2pbridge;
+	struct device_yesde *p2pbridge;
 	struct pci_controller* hose;
 	u8 bus, devfn;
 	u16 val;
 
 	/* XXX it would be better here to identify the specific
 	   PCI-PCI bridge chip we have. */
-	p2pbridge = of_find_node_by_name(NULL, "pci-bridge");
-	if (p2pbridge == NULL || !of_node_name_eq(p2pbridge->parent, "pci"))
+	p2pbridge = of_find_yesde_by_name(NULL, "pci-bridge");
+	if (p2pbridge == NULL || !of_yesde_name_eq(p2pbridge->parent, "pci"))
 		goto done;
-	if (pci_device_from_OF_node(p2pbridge, &bus, &devfn) < 0) {
+	if (pci_device_from_OF_yesde(p2pbridge, &bus, &devfn) < 0) {
 		DBG("Can't find PCI infos for PCI<->PCI bridge\n");
 		goto done;
 	}
-	/* Warning: At this point, we have not yet renumbered all busses.
+	/* Warning: At this point, we have yest yet renumbered all busses.
 	 * So we must use OF walking to find out hose
 	 */
 	hose = pci_find_hose_for_OF_device(p2pbridge);
@@ -520,12 +520,12 @@ static void __init init_p2pbridge(void)
 	val &= ~PCI_BRIDGE_CTL_MASTER_ABORT;
 	early_write_config_word(hose, bus, devfn, PCI_BRIDGE_CONTROL, val);
 done:
-	of_node_put(p2pbridge);
+	of_yesde_put(p2pbridge);
 }
 
 static void __init init_second_ohare(void)
 {
-	struct device_node *np = of_find_node_by_name(NULL, "pci106b,7");
+	struct device_yesde *np = of_find_yesde_by_name(NULL, "pci106b,7");
 	unsigned char bus, devfn;
 	unsigned short cmd;
 
@@ -535,12 +535,12 @@ static void __init init_second_ohare(void)
 	/* This must run before we initialize the PICs since the second
 	 * ohare hosts a PIC that will be accessed there.
 	 */
-	if (pci_device_from_OF_node(np, &bus, &devfn) == 0) {
+	if (pci_device_from_OF_yesde(np, &bus, &devfn) == 0) {
 		struct pci_controller* hose =
 			pci_find_hose_for_OF_device(np);
 		if (!hose) {
 			printk(KERN_ERR "Can't find PCI hose for OHare2 !\n");
-			of_node_put(np);
+			of_yesde_put(np);
 			return;
 		}
 		early_read_config_word(hose, bus, devfn, PCI_COMMAND, &cmd);
@@ -549,7 +549,7 @@ static void __init init_second_ohare(void)
 		early_write_config_word(hose, bus, devfn, PCI_COMMAND, cmd);
 	}
 	has_second_ohare = 1;
-	of_node_put(np);
+	of_yesde_put(np);
 }
 
 /*
@@ -560,9 +560,9 @@ static void __init init_second_ohare(void)
  */
 static void __init fixup_nec_usb2(void)
 {
-	struct device_node *nec;
+	struct device_yesde *nec;
 
-	for_each_node_by_name(nec, "usb") {
+	for_each_yesde_by_name(nec, "usb") {
 		struct pci_controller *hose;
 		u32 data;
 		const u32 *prop;
@@ -607,15 +607,15 @@ static void __init setup_bandit(struct pci_controller *hose,
 	init_bandit(hose);
 }
 
-static int __init setup_uninorth(struct pci_controller *hose,
+static int __init setup_uniyesrth(struct pci_controller *hose,
 				 struct resource *addr)
 {
 	pci_add_flags(PCI_REASSIGN_ALL_BUS);
-	has_uninorth = 1;
+	has_uniyesrth = 1;
 	hose->ops = &macrisc_pci_ops;
 	hose->cfg_addr = ioremap(addr->start + 0x800000, 0x1000);
 	hose->cfg_data = ioremap(addr->start + 0xc00000, 0x1000);
-	/* We "know" that the bridge at f2000000 has the PCI slots. */
+	/* We "kyesw" that the bridge at f2000000 has the PCI slots. */
 	return addr->start == 0xf2000000;
 }
 #endif /* CONFIG_PPC32 */
@@ -626,15 +626,15 @@ static void __init setup_u3_agp(struct pci_controller* hose)
 	/* On G5, we move AGP up to high bus number so we don't need
 	 * to reassign bus numbers for HT. If we ever have P2P bridges
 	 * on AGP, we'll have to move pci_assign_all_busses to the
-	 * pci_controller structure so we enable it for AGP and not for
+	 * pci_controller structure so we enable it for AGP and yest for
 	 * HT childs.
 	 * We hard code the address because of the different size of
 	 * the reg address cell, we shall fix that by killing struct
 	 * reg_property and using some accessor functions instead
 	 */
-	hose->first_busno = 0xf0;
-	hose->last_busno = 0xff;
-	has_uninorth = 1;
+	hose->first_busyes = 0xf0;
+	hose->last_busyes = 0xff;
+	has_uniyesrth = 1;
 	hose->ops = &macrisc_pci_ops;
 	hose->cfg_addr = ioremap(0xf0000000 + 0x800000, 0x1000);
 	hose->cfg_data = ioremap(0xf0000000 + 0xc00000, 0x1000);
@@ -643,7 +643,7 @@ static void __init setup_u3_agp(struct pci_controller* hose)
 
 static void __init setup_u4_pcie(struct pci_controller* hose)
 {
-	/* We currently only implement the "non-atomic" config space, to
+	/* We currently only implement the "yesn-atomic" config space, to
 	 * be optimised later.
 	 */
 	hose->ops = &u4_pcie_pci_ops;
@@ -656,8 +656,8 @@ static void __init setup_u4_pcie(struct pci_controller* hose)
 	 * config cycles to be type 1. So we override the "bus-range"
 	 * property here
 	 */
-	hose->first_busno = 0x00;
-	hose->last_busno = 0xff;
+	hose->first_busyes = 0x00;
+	hose->last_busyes = 0xff;
 }
 
 static void __init parse_region_decode(struct pci_controller *hose,
@@ -666,7 +666,7 @@ static void __init parse_region_decode(struct pci_controller *hose,
 	unsigned long base, end, next = -1;
 	int i, cur = -1;
 
-	/* Iterate through all bits. We ignore the last bit as this region is
+	/* Iterate through all bits. We igyesre the last bit as this region is
 	 * reserved for the ROM among other niceties
 	 */
 	for (i = 0; i < 31; i++) {
@@ -700,7 +700,7 @@ static void __init parse_region_decode(struct pci_controller *hose,
 
 static void __init setup_u3_ht(struct pci_controller* hose)
 {
-	struct device_node *np = hose->dn;
+	struct device_yesde *np = hose->dn;
 	struct resource cfg_res, self_res;
 	u32 decode;
 
@@ -721,7 +721,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	hose->cfg_addr = ioremap(self_res.start, resource_size(&self_res));
 
 	/*
-	 * /ht node doesn't expose a "ranges" property, we read the register
+	 * /ht yesde doesn't expose a "ranges" property, we read the register
 	 * that controls the decoding logic and use that for memory regions.
 	 * The IO region is hard coded since it is fixed in HW as well.
 	 */
@@ -731,8 +731,8 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	hose->io_resource.start = 0;
 	hose->io_resource.end = 0x003fffff;
 	hose->io_resource.flags = IORESOURCE_IO;
-	hose->first_busno = 0;
-	hose->last_busno = 0xef;
+	hose->first_busyes = 0;
+	hose->last_busyes = 0xef;
 
 	/* Note: fix offset when cfg_addr becomes a void * */
 	decode = in_be32(hose->cfg_addr + 0x80);
@@ -746,13 +746,13 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	 *
 	 * In a similar vein, region 0xf4000000 is actually the HT IO space but
 	 * also marked as enabled in here and 0xf9000000 is used by some other
-	 * internal bits of the northbridge.
+	 * internal bits of the yesrthbridge.
 	 *
 	 * Unfortunately, we can't just mask out those bit as we would end
 	 * up with more regions than we can cope (linux can only cope with
 	 * 3 memory regions for a PHB at this stage).
 	 *
-	 * So for now, we just do a little hack. We happen to -know- that
+	 * So for yesw, we just do a little hack. We happen to -kyesw- that
 	 * Apple firmware doesn't assign things below 0xfa000000 for that
 	 * bridge anyway so we mask out all bits we don't want.
 	 */
@@ -765,10 +765,10 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 
 /*
  * We assume that if we have a G3 powermac, we have one bridge called
- * "pci" (a MPC106) and no bandit or chaos bridges, and contrariwise,
+ * "pci" (a MPC106) and yes bandit or chaos bridges, and contrariwise,
  * if we have one or more bandit or chaos bridges, we don't have a MPC106.
  */
-static int __init pmac_add_bridge(struct device_node *dev)
+static int __init pmac_add_bridge(struct device_yesde *dev)
 {
 	int len;
 	struct pci_controller *hose;
@@ -792,8 +792,8 @@ static int __init pmac_add_bridge(struct device_node *dev)
 	hose = pcibios_alloc_controller(dev);
 	if (!hose)
 		return -ENOMEM;
-	hose->first_busno = bus_range ? bus_range[0] : 0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->first_busyes = bus_range ? bus_range[0] : 0;
+	hose->last_busyes = bus_range ? bus_range[1] : 0xff;
 	hose->controller_ops = pmac_pci_controller_ops;
 
 	disp_name = NULL;
@@ -814,30 +814,30 @@ static int __init pmac_add_bridge(struct device_node *dev)
 		primary = 0;
 	}
 	printk(KERN_INFO "Found %s PCI host bridge.  Firmware bus number:"
-	       " %d->%d\n", disp_name, hose->first_busno, hose->last_busno);
+	       " %d->%d\n", disp_name, hose->first_busyes, hose->last_busyes);
 #endif /* CONFIG_PPC64 */
 
 	/* 32 bits only bridges */
 #ifdef CONFIG_PPC32
-	if (of_device_is_compatible(dev, "uni-north")) {
-		primary = setup_uninorth(hose, &rsrc);
+	if (of_device_is_compatible(dev, "uni-yesrth")) {
+		primary = setup_uniyesrth(hose, &rsrc);
 		disp_name = "UniNorth";
-	} else if (of_node_name_eq(dev, "pci")) {
+	} else if (of_yesde_name_eq(dev, "pci")) {
 		/* XXX assume this is a mpc106 (grackle) */
 		setup_grackle(hose);
 		disp_name = "Grackle (MPC106)";
-	} else if (of_node_name_eq(dev, "bandit")) {
+	} else if (of_yesde_name_eq(dev, "bandit")) {
 		setup_bandit(hose, &rsrc);
 		disp_name = "Bandit";
-	} else if (of_node_name_eq(dev, "chaos")) {
+	} else if (of_yesde_name_eq(dev, "chaos")) {
 		setup_chaos(hose, &rsrc);
 		disp_name = "Chaos";
 		primary = 0;
 	}
 	printk(KERN_INFO "Found %s PCI host bridge at 0x%016llx. "
 	       "Firmware bus number: %d->%d\n",
-		disp_name, (unsigned long long)rsrc.start, hose->first_busno,
-		hose->last_busno);
+		disp_name, (unsigned long long)rsrc.start, hose->first_busyes,
+		hose->last_busyes);
 #endif /* CONFIG_PPC32 */
 
 	DBG(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
@@ -859,7 +859,7 @@ void pmac_pci_irq_fixup(struct pci_dev *dev)
 	/* Fixup interrupt for the modem/ethernet combo controller.
 	 * on machines with a second ohare chip.
 	 * The number in the device tree (27) is bogus (correct for
-	 * the ethernet-only board but not the combo ethernet/modem
+	 * the ethernet-only board but yest the combo ethernet/modem
 	 * board). The real interrupt is 28 on the second controller
 	 * -> 28+32 = 60.
 	 */
@@ -876,20 +876,20 @@ void pmac_pci_irq_fixup(struct pci_dev *dev)
 static int pmac_pci_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
 	struct pci_controller *hose = pci_bus_to_host(bridge->bus);
-	struct device_node *np, *child;
+	struct device_yesde *np, *child;
 
 	if (hose != u3_agp)
 		return 0;
 
 	/* Fixup the PCI<->OF mapping for U3 AGP due to bus renumbering. We
-	 * assume there is no P2P bridge on the AGP bus, which should be a
-	 * safe assumptions for now. We should do something better in the
+	 * assume there is yes P2P bridge on the AGP bus, which should be a
+	 * safe assumptions for yesw. We should do something better in the
 	 * future though
 	 */
 	np = hose->dn;
-	PCI_DN(np)->busno = 0xf0;
-	for_each_child_of_node(np, child)
-		PCI_DN(child)->busno = 0xf0;
+	PCI_DN(np)->busyes = 0xf0;
+	for_each_child_of_yesde(np, child)
+		PCI_DN(child)->busyes = 0xf0;
 
 	return 0;
 }
@@ -897,37 +897,37 @@ static int pmac_pci_root_bridge_prepare(struct pci_host_bridge *bridge)
 
 void __init pmac_pci_init(void)
 {
-	struct device_node *np, *root;
-	struct device_node *ht __maybe_unused = NULL;
+	struct device_yesde *np, *root;
+	struct device_yesde *ht __maybe_unused = NULL;
 
 	pci_set_flags(PCI_CAN_SKIP_ISA_ALIGN);
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (root == NULL) {
 		printk(KERN_CRIT "pmac_pci_init: can't find root "
 		       "of device tree\n");
 		return;
 	}
-	for_each_child_of_node(root, np) {
-		if (of_node_name_eq(np, "bandit")
-		    || of_node_name_eq(np, "chaos")
-		    || of_node_name_eq(np, "pci")) {
+	for_each_child_of_yesde(root, np) {
+		if (of_yesde_name_eq(np, "bandit")
+		    || of_yesde_name_eq(np, "chaos")
+		    || of_yesde_name_eq(np, "pci")) {
 			if (pmac_add_bridge(np) == 0)
-				of_node_get(np);
+				of_yesde_get(np);
 		}
-		if (of_node_name_eq(np, "ht")) {
-			of_node_get(np);
+		if (of_yesde_name_eq(np, "ht")) {
+			of_yesde_get(np);
 			ht = np;
 		}
 	}
-	of_node_put(root);
+	of_yesde_put(root);
 
 #ifdef CONFIG_PPC64
 	/* Probe HT last as it relies on the agp resources to be already
 	 * setup
 	 */
 	if (ht && pmac_add_bridge(ht) != 0)
-		of_node_put(ht);
+		of_yesde_put(ht);
 
 	ppc_md.pcibios_root_bridge_prepare = pmac_pci_root_bridge_prepare;
 	/* pmac_check_ht_link(); */
@@ -938,8 +938,8 @@ void __init pmac_pci_init(void)
 	fixup_nec_usb2();
 
 	/* We are still having some issues with the Xserve G4, enabling
-	 * some offset between bus number and domains for now when we
-	 * assign all busses should help for now
+	 * some offset between bus number and domains for yesw when we
+	 * assign all busses should help for yesw
 	 */
 	if (pci_has_flag(PCI_REASSIGN_ALL_BUS))
 		pcibios_assign_bus_offset = 0x10;
@@ -949,50 +949,50 @@ void __init pmac_pci_init(void)
 #ifdef CONFIG_PPC32
 static bool pmac_pci_enable_device_hook(struct pci_dev *dev)
 {
-	struct device_node* node;
+	struct device_yesde* yesde;
 	int updatecfg = 0;
-	int uninorth_child;
+	int uniyesrth_child;
 
-	node = pci_device_to_OF_node(dev);
+	yesde = pci_device_to_OF_yesde(dev);
 
 	/* We don't want to enable USB controllers absent from the OF tree
 	 * (iBook second controller)
 	 */
 	if (dev->vendor == PCI_VENDOR_ID_APPLE
 	    && dev->class == PCI_CLASS_SERIAL_USB_OHCI
-	    && !node) {
+	    && !yesde) {
 		printk(KERN_INFO "Apple USB OHCI %s disabled by firmware\n",
 		       pci_name(dev));
 		return false;
 	}
 
-	if (!node)
+	if (!yesde)
 		return true;
 
-	uninorth_child = node->parent &&
-		of_device_is_compatible(node->parent, "uni-north");
+	uniyesrth_child = yesde->parent &&
+		of_device_is_compatible(yesde->parent, "uni-yesrth");
 
 	/* Firewire & GMAC were disabled after PCI probe, the driver is
-	 * claiming them, we must re-enable them now.
+	 * claiming them, we must re-enable them yesw.
 	 */
-	if (uninorth_child && of_node_name_eq(node, "firewire") &&
-	    (of_device_is_compatible(node, "pci106b,18") ||
-	     of_device_is_compatible(node, "pci106b,30") ||
-	     of_device_is_compatible(node, "pci11c1,5811"))) {
-		pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, node, 0, 1);
-		pmac_call_feature(PMAC_FTR_1394_ENABLE, node, 0, 1);
+	if (uniyesrth_child && of_yesde_name_eq(yesde, "firewire") &&
+	    (of_device_is_compatible(yesde, "pci106b,18") ||
+	     of_device_is_compatible(yesde, "pci106b,30") ||
+	     of_device_is_compatible(yesde, "pci11c1,5811"))) {
+		pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, yesde, 0, 1);
+		pmac_call_feature(PMAC_FTR_1394_ENABLE, yesde, 0, 1);
 		updatecfg = 1;
 	}
-	if (uninorth_child && of_node_name_eq(node, "ethernet") &&
-	    of_device_is_compatible(node, "gmac")) {
-		pmac_call_feature(PMAC_FTR_GMAC_ENABLE, node, 0, 1);
+	if (uniyesrth_child && of_yesde_name_eq(yesde, "ethernet") &&
+	    of_device_is_compatible(yesde, "gmac")) {
+		pmac_call_feature(PMAC_FTR_GMAC_ENABLE, yesde, 0, 1);
 		updatecfg = 1;
 	}
 
 	/*
 	 * Fixup various header fields on 32 bits. We don't do that on
 	 * 64 bits as some of these have strange values behind the HT
-	 * bridge and we must not, for example, enable MWI or set the
+	 * bridge and we must yest, for example, enable MWI or set the
 	 * cache line size on them.
 	 */
 	if (updatecfg) {
@@ -1013,12 +1013,12 @@ static bool pmac_pci_enable_device_hook(struct pci_dev *dev)
 
 static void pmac_pci_fixup_ohci(struct pci_dev *dev)
 {
-	struct device_node *node = pci_device_to_OF_node(dev);
+	struct device_yesde *yesde = pci_device_to_OF_yesde(dev);
 
 	/* We don't want to assign resources to USB controllers
 	 * absent from the OF tree (iBook second controller)
 	 */
-	if (dev->class == PCI_CLASS_SERIAL_USB_OHCI && !node)
+	if (dev->class == PCI_CLASS_SERIAL_USB_OHCI && !yesde)
 		dev->resource[0].flags = 0;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_APPLE, PCI_ANY_ID, pmac_pci_fixup_ohci);
@@ -1028,20 +1028,20 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_APPLE, PCI_ANY_ID, pmac_pci_fixup_ohci);
  */
 void __init pmac_pcibios_after_init(void)
 {
-	struct device_node* nd;
+	struct device_yesde* nd;
 
-	for_each_node_by_name(nd, "firewire") {
+	for_each_yesde_by_name(nd, "firewire") {
 		if (nd->parent && (of_device_is_compatible(nd, "pci106b,18") ||
 				   of_device_is_compatible(nd, "pci106b,30") ||
 				   of_device_is_compatible(nd, "pci11c1,5811"))
-		    && of_device_is_compatible(nd->parent, "uni-north")) {
+		    && of_device_is_compatible(nd->parent, "uni-yesrth")) {
 			pmac_call_feature(PMAC_FTR_1394_ENABLE, nd, 0, 0);
 			pmac_call_feature(PMAC_FTR_1394_CABLE_POWER, nd, 0, 0);
 		}
 	}
-	for_each_node_by_name(nd, "ethernet") {
+	for_each_yesde_by_name(nd, "ethernet") {
 		if (nd->parent && of_device_is_compatible(nd, "gmac")
-		    && of_device_is_compatible(nd->parent, "uni-north"))
+		    && of_device_is_compatible(nd->parent, "uni-yesrth"))
 			pmac_call_feature(PMAC_FTR_GMAC_ENABLE, nd, 0, 0);
 	}
 }
@@ -1170,7 +1170,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS, 0x0240, fixup_k2_sata);
 
 /*
  * On U4 (aka CPC945) the PCIe root complex "P2P" bridge resource ranges aren't
- * configured by the firmware. The bridge itself seems to ignore them but it
+ * configured by the firmware. The bridge itself seems to igyesre them but it
  * causes problems with Linux which then re-assigns devices below the bridge,
  * thus changing addresses of those devices from what was in the device-tree,
  * which sucks when those are video cards using offb
@@ -1181,9 +1181,9 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SERVERWORKS, 0x0240, fixup_k2_sata);
  *
  * We leave PIO alone, it seems to be fine
  *
- * Oh and there's another funny bug. The OF properties advertize the region
+ * Oh and there's ayesther funny bug. The OF properties advertize the region
  * 0xf1000000..0xf1ffffff as being forwarded as memory space. But that's
- * actually not true, this region is the memory mapped config space. So we
+ * actually yest true, this region is the memory mapped config space. So we
  * also need to filter it out or we'll map things in the wrong place.
  */
 static void fixup_u4_pcie(struct pci_dev* dev)
@@ -1202,7 +1202,7 @@ static void fixup_u4_pcie(struct pci_dev* dev)
 		struct resource *r = &host->mem_resources[i];
 		if (!(r->flags & IORESOURCE_MEM))
 			continue;
-		/* Skip the 0xf0xxxxxx..f2xxxxxx regions, we know they
+		/* Skip the 0xf0xxxxxx..f2xxxxxx regions, we kyesw they
 		 * are reserved by HW for other things
 		 */
 		if (r->start >= 0xf0000000 && r->start < 0xf3000000)
@@ -1217,8 +1217,8 @@ static void fixup_u4_pcie(struct pci_dev* dev)
 	/* Print things out */
 	printk(KERN_INFO "PCI: Fixup U4 PCIe bridge range: %pR\n", region);
 
-	/* Fixup bridge config space. We know it's a Mac, resource aren't
-	 * offset so let's just blast them as-is. We also know that they
+	/* Fixup bridge config space. We kyesw it's a Mac, resource aren't
+	 * offset so let's just blast them as-is. We also kyesw that they
 	 * fit in 32 bits
 	 */
 	reg = ((region->start >> 16) & 0xfff0) | (region->end & 0xfff00000);
@@ -1232,15 +1232,15 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_U4_PCIE, fixup
 #ifdef CONFIG_PPC64
 static int pmac_pci_probe_mode(struct pci_bus *bus)
 {
-	struct device_node *node = pci_bus_to_OF_node(bus);
+	struct device_yesde *yesde = pci_bus_to_OF_yesde(bus);
 
-	/* We need to use normal PCI probing for the AGP bus,
+	/* We need to use yesrmal PCI probing for the AGP bus,
 	 * since the device for the AGP bridge isn't in the tree.
 	 * Same for the PCIe host on U4 and the HT host bridge.
 	 */
-	if (bus->self == NULL && (of_device_is_compatible(node, "u3-agp") ||
-				  of_device_is_compatible(node, "u4-pcie") ||
-				  of_device_is_compatible(node, "u3-ht")))
+	if (bus->self == NULL && (of_device_is_compatible(yesde, "u3-agp") ||
+				  of_device_is_compatible(yesde, "u4-pcie") ||
+				  of_device_is_compatible(yesde, "u3-ht")))
 		return PCI_PROBE_NORMAL;
 	return PCI_PROBE_DEVTREE;
 }

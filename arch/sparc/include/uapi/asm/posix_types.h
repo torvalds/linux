@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * This file is generally used by user-level software, so you need to
- * be a little careful about namespace pollution etc.  Also, we cannot
+ * be a little careful about namespace pollution etc.  Also, we canyest
  * assume GCC is being used.
  */
 

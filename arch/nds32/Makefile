@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: GPL-2.0-only
-LDFLAGS_vmlinux	:= --no-undefined -X
-OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment -S
+LDFLAGS_vmlinux	:= --yes-undefined -X
+OBJCOPYFLAGS	:= -O binary -R .yeste -R .yeste.gnu.build-id -R .comment -S
 
 ifdef CONFIG_FUNCTION_TRACER
-arch-y += -malways-save-lp -mno-relax
+arch-y += -malways-save-lp -myes-relax
 endif
 
 # Avoid generating FPU instructions
-arch-y  += -mno-ext-fpu-sp -mno-ext-fpu-dp -mfloat-abi=soft
+arch-y  += -myes-ext-fpu-sp -myes-ext-fpu-dp -mfloat-abi=soft
 
-KBUILD_CFLAGS	+= $(call cc-option, -mno-sched-prolog-epilog)
+KBUILD_CFLAGS	+= $(call cc-option, -myes-sched-prolog-epilog)
 KBUILD_CFLAGS	+= -mcmodel=large
 
 KBUILD_CFLAGS	+=$(arch-y) $(tune-y)

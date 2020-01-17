@@ -8,7 +8,7 @@
  * Written by Uday Savagaonkar, 2014.
  * Modified by Jaegeuk Kim, 2015.
  *
- * This has not yet undergone a rigorous security audit.
+ * This has yest yet undergone a rigorous security audit.
  */
 
 #include <linux/scatterlist.h>
@@ -32,14 +32,14 @@ static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)
  * The output buffer must be at least as large as the input buffer.
  * Any extra space is filled with NUL padding before encryption.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
-int fname_encrypt(struct inode *inode, const struct qstr *iname,
+int fname_encrypt(struct iyesde *iyesde, const struct qstr *iname,
 		  u8 *out, unsigned int olen)
 {
 	struct skcipher_request *req = NULL;
 	DECLARE_CRYPTO_WAIT(wait);
-	struct fscrypt_info *ci = inode->i_crypt_info;
+	struct fscrypt_info *ci = iyesde->i_crypt_info;
 	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	union fscrypt_iv iv;
 	struct scatterlist sg;
@@ -71,7 +71,7 @@ int fname_encrypt(struct inode *inode, const struct qstr *iname,
 	res = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
 	skcipher_request_free(req);
 	if (res < 0) {
-		fscrypt_err(inode, "Filename encryption failed: %d", res);
+		fscrypt_err(iyesde, "Filename encryption failed: %d", res);
 		return res;
 	}
 
@@ -83,16 +83,16 @@ int fname_encrypt(struct inode *inode, const struct qstr *iname,
  *
  * The caller must have allocated sufficient memory for the @oname string.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
-static int fname_decrypt(struct inode *inode,
+static int fname_decrypt(struct iyesde *iyesde,
 				const struct fscrypt_str *iname,
 				struct fscrypt_str *oname)
 {
 	struct skcipher_request *req = NULL;
 	DECLARE_CRYPTO_WAIT(wait);
 	struct scatterlist src_sg, dst_sg;
-	struct fscrypt_info *ci = inode->i_crypt_info;
+	struct fscrypt_info *ci = iyesde->i_crypt_info;
 	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	union fscrypt_iv iv;
 	int res;
@@ -115,7 +115,7 @@ static int fname_decrypt(struct inode *inode,
 	res = crypto_wait_req(crypto_skcipher_decrypt(req), &wait);
 	skcipher_request_free(req);
 	if (res < 0) {
-		fscrypt_err(inode, "Filename decryption failed: %d", res);
+		fscrypt_err(iyesde, "Filename decryption failed: %d", res);
 		return res;
 	}
 
@@ -124,7 +124,7 @@ static int fname_decrypt(struct inode *inode,
 }
 
 static const char lookup_table[65] =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+,";
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmyespqrstuvwxyz0123456789+,";
 
 #define BASE64_CHARS(nbytes)	DIV_ROUND_UP((nbytes) * 4, 3)
 
@@ -178,10 +178,10 @@ static int base64_decode(const char *src, int len, u8 *dst)
 	return cp - dst;
 }
 
-bool fscrypt_fname_encrypted_size(const struct inode *inode, u32 orig_len,
+bool fscrypt_fname_encrypted_size(const struct iyesde *iyesde, u32 orig_len,
 				  u32 max_len, u32 *encrypted_len_ret)
 {
-	const struct fscrypt_info *ci = inode->i_crypt_info;
+	const struct fscrypt_info *ci = iyesde->i_crypt_info;
 	int padding = 4 << (fscrypt_policy_flags(&ci->ci_policy) &
 			    FSCRYPT_POLICY_FLAGS_PAD_MASK);
 	u32 encrypted_len;
@@ -197,12 +197,12 @@ bool fscrypt_fname_encrypted_size(const struct inode *inode, u32 orig_len,
 /**
  * fscrypt_fname_alloc_buffer - allocate a buffer for presented filenames
  *
- * Allocate a buffer that is large enough to hold any decrypted or encoded
+ * Allocate a buffer that is large eyesugh to hold any decrypted or encoded
  * filename (null-terminated), for the given maximum encrypted filename length.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
-int fscrypt_fname_alloc_buffer(const struct inode *inode,
+int fscrypt_fname_alloc_buffer(const struct iyesde *iyesde,
 			       u32 max_encrypted_len,
 			       struct fscrypt_str *crypto_str)
 {
@@ -245,10 +245,10 @@ EXPORT_SYMBOL(fscrypt_fname_free_buffer);
  * it for presentation.  Short names are directly base64-encoded, while long
  * names are encoded in fscrypt_digested_name format.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
-int fscrypt_fname_disk_to_usr(struct inode *inode,
-			u32 hash, u32 minor_hash,
+int fscrypt_fname_disk_to_usr(struct iyesde *iyesde,
+			u32 hash, u32 miyesr_hash,
 			const struct fscrypt_str *iname,
 			struct fscrypt_str *oname)
 {
@@ -265,8 +265,8 @@ int fscrypt_fname_disk_to_usr(struct inode *inode,
 	if (iname->len < FS_CRYPTO_BLOCK_SIZE)
 		return -EUCLEAN;
 
-	if (fscrypt_has_encryption_key(inode))
-		return fname_decrypt(inode, iname, oname);
+	if (fscrypt_has_encryption_key(iyesde))
+		return fname_decrypt(iyesde, iname, oname);
 
 	if (iname->len <= FSCRYPT_FNAME_MAX_UNDIGESTED_SIZE) {
 		oname->len = base64_encode(iname->name, iname->len,
@@ -275,10 +275,10 @@ int fscrypt_fname_disk_to_usr(struct inode *inode,
 	}
 	if (hash) {
 		digested_name.hash = hash;
-		digested_name.minor_hash = minor_hash;
+		digested_name.miyesr_hash = miyesr_hash;
 	} else {
 		digested_name.hash = 0;
-		digested_name.minor_hash = 0;
+		digested_name.miyesr_hash = 0;
 	}
 	memcpy(digested_name.digest,
 	       FSCRYPT_FNAME_DIGEST(iname->name, iname->len),
@@ -295,7 +295,7 @@ EXPORT_SYMBOL(fscrypt_fname_disk_to_usr);
  * @dir: the directory that will be searched
  * @iname: the user-provided filename being searched for
  * @lookup: 1 if we're allowed to proceed without the key because it's
- *	->lookup() or we're finding the dir_entry for deletion; 0 if we cannot
+ *	->lookup() or we're finding the dir_entry for deletion; 0 if we canyest
  *	proceed without the key because we're going to create the dir_entry.
  * @fname: the filename information to be filled in
  *
@@ -312,9 +312,9 @@ EXPORT_SYMBOL(fscrypt_fname_disk_to_usr);
  *
  * If successful, fscrypt_free_filename() must be called later to clean up.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
-int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
+int fscrypt_setup_filename(struct iyesde *dir, const struct qstr *iname,
 			      int lookup, struct fscrypt_name *fname)
 {
 	int ret;
@@ -388,7 +388,7 @@ int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
 		const struct fscrypt_digested_name *n =
 			(const void *)fname->crypto_buf.name;
 		fname->hash = n->hash;
-		fname->minor_hash = n->minor_hash;
+		fname->miyesr_hash = n->miyesr_hash;
 	} else {
 		fname->disk_name.name = fname->crypto_buf.name;
 		fname->disk_name.len = fname->crypto_buf.len;

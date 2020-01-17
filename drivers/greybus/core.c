@@ -15,15 +15,15 @@
 #define GB_BUNDLE_AUTOSUSPEND_MS	3000
 
 /* Allow greybus to be disabled at boot if needed */
-static bool nogreybus;
+static bool yesgreybus;
 #ifdef MODULE
-module_param(nogreybus, bool, 0444);
+module_param(yesgreybus, bool, 0444);
 #else
-core_param(nogreybus, nogreybus, bool, 0444);
+core_param(yesgreybus, yesgreybus, bool, 0444);
 #endif
 int greybus_disabled(void)
 {
-	return nogreybus;
+	return yesgreybus;
 }
 EXPORT_SYMBOL_GPL(greybus_disabled);
 
@@ -110,7 +110,7 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 		svc = to_gb_svc(dev);
 		hd = svc->hd;
 	} else {
-		dev_WARN(dev, "uevent for unknown greybus device \"type\"!\n");
+		dev_WARN(dev, "uevent for unkyeswn greybus device \"type\"!\n");
 		return -EINVAL;
 	}
 
@@ -176,7 +176,7 @@ static int greybus_probe(struct device *dev)
 
 	retval = pm_runtime_get_sync(&bundle->intf->dev);
 	if (retval < 0) {
-		pm_runtime_put_noidle(&bundle->intf->dev);
+		pm_runtime_put_yesidle(&bundle->intf->dev);
 		return retval;
 	}
 
@@ -195,7 +195,7 @@ static int greybus_probe(struct device *dev)
 	 */
 	pm_runtime_set_autosuspend_delay(dev, GB_BUNDLE_AUTOSUSPEND_MS);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -210,7 +210,7 @@ static int greybus_probe(struct device *dev)
 
 		pm_runtime_disable(dev);
 		pm_runtime_set_suspended(dev);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		pm_runtime_dont_use_autosuspend(dev);
 		pm_runtime_put(&bundle->intf->dev);
 
@@ -234,7 +234,7 @@ static int greybus_remove(struct device *dev)
 		dev_err(dev, "failed to resume bundle: %d\n", retval);
 
 	/*
-	 * Disable (non-offloaded) connections early in case the interface is
+	 * Disable (yesn-offloaded) connections early in case the interface is
 	 * already gone to avoid unceccessary operation timeouts during
 	 * driver disconnect. Otherwise, only disable incoming requests.
 	 */
@@ -256,11 +256,11 @@ static int greybus_remove(struct device *dev)
 	if (!bundle->intf->disconnected)
 		gb_control_bundle_deactivate(bundle->intf->control, bundle->id);
 
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
 	pm_runtime_dont_use_autosuspend(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 
 	return 0;
 }

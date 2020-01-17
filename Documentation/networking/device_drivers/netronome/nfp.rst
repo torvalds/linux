@@ -1,10 +1,10 @@
 .. SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 
 =============================================
-Netronome Flow Processor (NFP) Kernel Drivers
+Netroyesme Flow Processor (NFP) Kernel Drivers
 =============================================
 
-Copyright (c) 2019, Netronome Systems, Inc.
+Copyright (c) 2019, Netroyesme Systems, Inc.
 
 Contents
 ========
@@ -15,7 +15,7 @@ Contents
 Overview
 ========
 
-This driver supports Netronome's line of Flow Processor devices,
+This driver supports Netroyesme's line of Flow Processor devices,
 including the NFP4000, NFP5000, and NFP6000 models, which are also
 incorporated in the company's family of Agilio SmartNICs. The SR-IOV
 physical and virtual functions for these devices are supported by
@@ -29,7 +29,7 @@ to function.  Application firmware can be located either on the host file system
 or in the device flash (if supported by management firmware).
 
 Firmware files on the host filesystem contain card type (`AMDA-*` string), media
-config etc.  They should be placed in `/lib/firmware/netronome` directory to
+config etc.  They should be placed in `/lib/firmware/netroyesme` directory to
 load firmware from the host file system.
 
 Firmware for basic NIC operation is available in the upstream
@@ -57,10 +57,10 @@ firmware images targeting different applications.
 
 When using application firmware from host, we recommend placing
 actual firmware files in application-named subdirectories in
-`/lib/firmware/netronome` and linking the desired files, e.g.::
+`/lib/firmware/netroyesme` and linking the desired files, e.g.::
 
-    $ tree /lib/firmware/netronome/
-    /lib/firmware/netronome/
+    $ tree /lib/firmware/netroyesme/
+    /lib/firmware/netroyesme/
     ├── bpf
     │   ├── nic_AMDA0081-0001_1x40.nffw
     │   └── nic_AMDA0081-0001_4x10.nffw
@@ -94,15 +94,15 @@ can use either the PCI bus address or serial number.  Driver will print
 which files it's looking for when it recognizes a NFP device::
 
     nfp: Looking for firmware file in order of priority:
-    nfp:  netronome/serial-00-12-34-aa-bb-cc-10-ff.nffw: not found
-    nfp:  netronome/pci-0000:02:00.0.nffw: not found
-    nfp:  netronome/nic_AMDA0081-0001_1x40.nffw: found, loading...
+    nfp:  netroyesme/serial-00-12-34-aa-bb-cc-10-ff.nffw: yest found
+    nfp:  netroyesme/pci-0000:02:00.0.nffw: yest found
+    nfp:  netroyesme/nic_AMDA0081-0001_1x40.nffw: found, loading...
 
 In this case if file (or link) called *serial-00-12-34-aa-bb-5d-10-ff.nffw*
-or *pci-0000:02:00.0.nffw* is present in `/lib/firmware/netronome` this
+or *pci-0000:02:00.0.nffw* is present in `/lib/firmware/netroyesme` this
 firmware file will take precedence over `nic_AMDA*` files.
 
-Note that `serial-*` and `pci-*` files are **not** automatically included
+Note that `serial-*` and `pci-*` files are **yest** automatically included
 in initramfs, you will have to refer to documentation of appropriate tools
 to find out how to include them.
 
@@ -130,4 +130,4 @@ abi_drv_reset
 
 abi_drv_load_ifc
     Defines a list of PF devices allowed to load FW on the device.
-    This variable is not currently user configurable.
+    This variable is yest currently user configurable.

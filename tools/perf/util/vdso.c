@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
@@ -166,11 +166,11 @@ static int vdso__do_copy_compat(FILE *f, int fd)
 	while (1) {
 		count = fread(buf, 1, sizeof(buf), f);
 		if (ferror(f))
-			return -errno;
+			return -erryes;
 		if (feof(f))
 			break;
 		if (count && writen(fd, buf, count) != (ssize_t)count)
-			return -errno;
+			return -erryes;
 	}
 
 	return 0;
@@ -183,12 +183,12 @@ static int vdso__copy_compat(const char *prog, int fd)
 
 	f = popen(prog, "r");
 	if (!f)
-		return -errno;
+		return -erryes;
 
 	err = vdso__do_copy_compat(f, fd);
 
 	if (pclose(f) == -1)
-		return -errno;
+		return -erryes;
 
 	return err;
 }
@@ -199,12 +199,12 @@ static int vdso__create_compat_file(const char *prog, char *temp_name)
 
 	fd = mkstemp(temp_name);
 	if (fd < 0)
-		return -errno;
+		return -erryes;
 
 	err = vdso__copy_compat(prog, fd);
 
 	if (close(fd) == -1)
-		return -errno;
+		return -erryes;
 
 	return err;
 }

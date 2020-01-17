@@ -8,7 +8,7 @@
 	Some applications of this adapter may require a "printer" reset
 	prior to loading the driver.  This can be done by loading and
 	unloading the "lp" driver, or it can be done by this driver
-	if you define FRPW_HARD_RESET.  The latter is not recommended
+	if you define FRPW_HARD_RESET.  The latter is yest recommended
 	as it may upset devices on other ports.
 
 */
@@ -217,7 +217,7 @@ static int frpw_test_pnp ( PIA *pi )
 } 
 
 /* We use the pi->private to remember the result of the PNP test.
-   To make this work, private = port*2 + chip.  Yes, I know it's
+   To make this work, private = port*2 + chip.  Yes, I kyesw it's
    a hack :-(
 */
 
@@ -231,14 +231,14 @@ static int frpw_test_proto( PIA *pi, char * scratch, int verbose )
 
 	if (((pi->private%2) == 0) && (pi->mode > 2)) {
 	   if (verbose) 
-		printk("%s: frpw: Xilinx does not support mode %d\n",
+		printk("%s: frpw: Xilinx does yest support mode %d\n",
 			pi->device, pi->mode);
 	   return 1;
 	}
 
 	if (((pi->private%2) == 1) && (pi->mode == 2)) {
 	   if (verbose)
-		printk("%s: frpw: ASIC does not support mode 2\n",
+		printk("%s: frpw: ASIC does yest support mode 2\n",
 			pi->device);
 	   return 1;
 	}

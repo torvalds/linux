@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * GSPCA Endpoints (formerly known as AOX) se401 USB Camera sub Driver
+ * GSPCA Endpoints (formerly kyeswn as AOX) se401 USB Camera sub Driver
  *
  * Copyright (C) 2011 Hans de Goede <hdegoede@redhat.com>
  *

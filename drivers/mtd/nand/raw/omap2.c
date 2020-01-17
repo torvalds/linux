@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2004 Texas Instruments, Jian Zhang <jzhang@ti.com>
- * Copyright © 2004 Micron Technology Inc.
+ * Copyright © 2004 Micron Techyeslogy Inc.
  * Copyright © 2004 David Brownell
  */
 
@@ -128,7 +128,7 @@
 
 /* GPMC ecc engine settings for write */
 #define BCH_WRAPMODE_6		6	/* BCH wrap mode 6 */
-#define BCH_ECC_SIZE0		0x0	/* ecc_size0 = 0, no oob protection */
+#define BCH_ECC_SIZE0		0x0	/* ecc_size0 = 0, yes oob protection */
 #define BCH_ECC_SIZE1		0x20	/* ecc_size1 = 32 */
 
 #define BADBLOCK_MARKER_LENGTH		2
@@ -150,7 +150,7 @@ struct omap_nand_info {
 	enum nand_io			xfer_type;
 	int				devsize;
 	enum omap_ecc			ecc_opt;
-	struct device_node		*elm_of_node;
+	struct device_yesde		*elm_of_yesde;
 
 	unsigned long			phys_base;
 	struct completion		comp;
@@ -601,8 +601,8 @@ static irqreturn_t omap_nand_irq(int this_irq, void *dev)
 done:
 	complete(&info->comp);
 
-	disable_irq_nosync(info->gpmc_irq_fifo);
-	disable_irq_nosync(info->gpmc_irq_count);
+	disable_irq_yessync(info->gpmc_irq_fifo);
+	disable_irq_yessync(info->gpmc_irq_count);
 
 	return IRQ_HANDLED;
 }
@@ -742,7 +742,7 @@ static void gen_true_ecc(u8 *ecc_buf)
  *
  * This function compares two ECC's and indicates if there is an error.
  * If the error can be corrected it will be corrected to the buffer.
- * If there is no error, %0 is returned. If there is an error but it
+ * If there is yes error, %0 is returned. If there is an error but it
  * was corrected, %1 is returned. Otherwise, %-1 is returned.
  */
 static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
@@ -815,7 +815,7 @@ static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
 
 	switch (ecc_sum) {
 	case 0:
-		/* Not reached because this function is not called if
+		/* Not reached because this function is yest called if
 		 *  ECC values are equal
 		 */
 		return 0;
@@ -871,7 +871,7 @@ static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
  *
  * Compares the ecc read from nand spare area with ECC registers values
  * and if ECC's mismatched, it will call 'omap_compare_ecc' for error
- * detection and correction. If there are no errors, %0 is returned. If
+ * detection and correction. If there are yes errors, %0 is returned. If
  * there were errors and all of the errors were corrected, the number of
  * corrected errors is returned. If uncorrectable errors exist, %-1 is
  * returned.
@@ -906,14 +906,14 @@ static int omap_correct_data(struct nand_chip *chip, u_char *dat,
 }
 
 /**
- * omap_calcuate_ecc - Generate non-inverted ECC bytes.
+ * omap_calcuate_ecc - Generate yesn-inverted ECC bytes.
  * @chip: NAND chip object
  * @dat: The pointer to data on which ecc is computed
  * @ecc_code: The ecc_code buffer
  *
- * Using noninverted ECC can be considered ugly since writing a blank
- * page ie. padding will clear the ECC bytes. This is no problem as long
- * nobody is trying to write data on the seemingly unused page. Reading
+ * Using yesninverted ECC can be considered ugly since writing a blank
+ * page ie. padding will clear the ECC bytes. This is yes problem as long
+ * yesbody is trying to write data on the seemingly unused page. Reading
  * an erased page will produce an ECC mismatch between generated and read
  * ECC bytes that has to be dealt with separately.
  */
@@ -1025,10 +1025,10 @@ static int omap_dev_ready(struct nand_chip *chip)
  * @mtd: MTD device structure
  * @mode: Read/Write mode
  *
- * When using BCH with SW correction (i.e. no ELM), sector size is set
+ * When using BCH with SW correction (i.e. yes ELM), sector size is set
  * to 512 bytes and we use BCH_WRAPMODE_6 wrapping mode
  * for both reading and writing with:
- * eccsize0 = 0  (no additional protected byte in spare area)
+ * eccsize0 = 0  (yes additional protected byte in spare area)
  * eccsize1 = 32 (skip 32 nibbles = 16 bytes per sector in spare area)
  */
 static void __maybe_unused omap_enable_hwecc_bch(struct nand_chip *chip,
@@ -1089,7 +1089,7 @@ static void __maybe_unused omap_enable_hwecc_bch(struct nand_chip *chip,
 		if (mode == NAND_ECC_READ) {
 			wr_mode	  = 0x01;
 			ecc_size0 = 52; /* ECC bits in nibbles per sector */
-			ecc_size1 = 0;  /* non-ECC bits in nibbles per sector */
+			ecc_size1 = 0;  /* yesn-ECC bits in nibbles per sector */
 		} else {
 			wr_mode	  = 0x01;
 			ecc_size0 = 0;  /* extra bits in nibbles per sector */
@@ -1123,8 +1123,8 @@ static void __maybe_unused omap_enable_hwecc_bch(struct nand_chip *chip,
 	writel(ECCCLEAR | ECC1, info->reg.gpmc_ecc_control);
 }
 
-static u8  bch4_polynomial[] = {0x28, 0x13, 0xcc, 0x39, 0x96, 0xac, 0x7f};
-static u8  bch8_polynomial[] = {0xef, 0x51, 0x2e, 0x09, 0xed, 0x93, 0x9a, 0xc2,
+static u8  bch4_polyyesmial[] = {0x28, 0x13, 0xcc, 0x39, 0x96, 0xac, 0x7f};
+static u8  bch8_polyyesmial[] = {0xef, 0x51, 0x2e, 0x09, 0xed, 0x93, 0x9a, 0xc2,
 				0x97, 0x79, 0xe5, 0x24, 0xb5};
 
 /**
@@ -1225,22 +1225,22 @@ static int _omap_calculate_ecc_bch(struct mtd_info *mtd,
 	/* ECC scheme specific syndrome customizations */
 	switch (info->ecc_opt) {
 	case OMAP_ECC_BCH4_CODE_HW_DETECTION_SW:
-		/* Add constant polynomial to remainder, so that
+		/* Add constant polyyesmial to remainder, so that
 		 * ECC of blank pages results in 0x0 on reading back
 		 */
 		for (j = 0; j < eccbytes; j++)
-			ecc_calc[j] ^= bch4_polynomial[j];
+			ecc_calc[j] ^= bch4_polyyesmial[j];
 		break;
 	case OMAP_ECC_BCH4_CODE_HW:
 		/* Set  8th ECC byte as 0x0 for ROM compatibility */
 		ecc_calc[eccbytes - 1] = 0x0;
 		break;
 	case OMAP_ECC_BCH8_CODE_HW_DETECTION_SW:
-		/* Add constant polynomial to remainder, so that
+		/* Add constant polyyesmial to remainder, so that
 		 * ECC of blank pages results in 0x0 on reading back
 		 */
 		for (j = 0; j < eccbytes; j++)
-			ecc_calc[j] ^= bch8_polynomial[j];
+			ecc_calc[j] ^= bch8_polyyesmial[j];
 		break;
 	case OMAP_ECC_BCH8_CODE_HW:
 		/* Set 14th ECC byte as 0x0 for ROM compatibility */
@@ -1345,8 +1345,8 @@ static int erased_sector_bitflips(u_char *data, u_char *oob,
  * @read_ecc:	ecc read from nand flash
  * @calc_ecc:	ecc read from HW ECC registers
  *
- * Calculated ecc vector reported as zero in case of non-error pages.
- * In case of non-zero ecc vector, first filter out erased-pages, and
+ * Calculated ecc vector reported as zero in case of yesn-error pages.
+ * In case of yesn-zero ecc vector, first filter out erased-pages, and
  * then process data via ELM to detect bit-flips.
  */
 static int omap_elm_correct_data(struct nand_chip *chip, u_char *data,
@@ -1395,11 +1395,11 @@ static int omap_elm_correct_data(struct nand_chip *chip, u_char *data,
 
 		/*
 		 * Check any error reported,
-		 * In case of error, non zero ecc reported.
+		 * In case of error, yesn zero ecc reported.
 		 */
 		for (j = 0; j < actual_eccbytes; j++) {
 			if (calc_ecc[j] != 0) {
-				eccflag = 1; /* non zero ecc, error present */
+				eccflag = 1; /* yesn zero ecc, error present */
 				break;
 			}
 		}
@@ -1627,7 +1627,7 @@ static int omap_write_subpage_bch(struct nand_chip *chip, u32 offset,
  * Custom method evolved to support ELM error correction & multi sector
  * reading. On reading page data area is read along with OOB data with
  * ecc engine enabled. ecc vector updated after read of OOB data.
- * For non error pages ecc vector reported as zero.
+ * For yesn error pages ecc vector reported as zero.
  */
 static int omap_read_page_bch(struct nand_chip *chip, uint8_t *buf,
 			      int oob_required, int page)
@@ -1673,26 +1673,26 @@ static int omap_read_page_bch(struct nand_chip *chip, uint8_t *buf,
 }
 
 /**
- * is_elm_present - checks for presence of ELM module by scanning DT nodes
+ * is_elm_present - checks for presence of ELM module by scanning DT yesdes
  * @omap_nand_info: NAND device structure containing platform data
  */
 static bool is_elm_present(struct omap_nand_info *info,
-			   struct device_node *elm_node)
+			   struct device_yesde *elm_yesde)
 {
 	struct platform_device *pdev;
 
 	/* check whether elm-id is passed via DT */
-	if (!elm_node) {
-		dev_err(&info->pdev->dev, "ELM devicetree node not found\n");
+	if (!elm_yesde) {
+		dev_err(&info->pdev->dev, "ELM devicetree yesde yest found\n");
 		return false;
 	}
-	pdev = of_find_device_by_node(elm_node);
+	pdev = of_find_device_by_yesde(elm_yesde);
 	/* check whether ELM device is registered */
 	if (!pdev) {
-		dev_err(&info->pdev->dev, "ELM device not found\n");
+		dev_err(&info->pdev->dev, "ELM device yest found\n");
 		return false;
 	}
-	/* ELM module available, now configure it */
+	/* ELM module available, yesw configure it */
 	info->elm_dev = &pdev->dev;
 	return true;
 }
@@ -1724,16 +1724,16 @@ static bool omap2_nand_ecc_check(struct omap_nand_info *info)
 
 	if (ecc_needs_bch && !IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_BCH)) {
 		dev_err(&info->pdev->dev,
-			"CONFIG_MTD_NAND_ECC_SW_BCH not enabled\n");
+			"CONFIG_MTD_NAND_ECC_SW_BCH yest enabled\n");
 		return false;
 	}
 	if (ecc_needs_omap_bch && !IS_ENABLED(CONFIG_MTD_NAND_OMAP_BCH)) {
 		dev_err(&info->pdev->dev,
-			"CONFIG_MTD_NAND_OMAP_BCH not enabled\n");
+			"CONFIG_MTD_NAND_OMAP_BCH yest enabled\n");
 		return false;
 	}
-	if (ecc_needs_elm && !is_elm_present(info, info->elm_of_node)) {
-		dev_err(&info->pdev->dev, "ELM not available\n");
+	if (ecc_needs_elm && !is_elm_present(info, info->elm_of_yesde)) {
+		dev_err(&info->pdev->dev, "ELM yest available\n");
 		return false;
 	}
 
@@ -1749,29 +1749,29 @@ static const char * const nand_xfer_types[] = {
 
 static int omap_get_dt_info(struct device *dev, struct omap_nand_info *info)
 {
-	struct device_node *child = dev->of_node;
+	struct device_yesde *child = dev->of_yesde;
 	int i;
 	const char *s;
 	u32 cs;
 
 	if (of_property_read_u32(child, "reg", &cs) < 0) {
-		dev_err(dev, "reg not found in DT\n");
+		dev_err(dev, "reg yest found in DT\n");
 		return -EINVAL;
 	}
 
 	info->gpmc_cs = cs;
 
 	/* detect availability of ELM module. Won't be present pre-OMAP4 */
-	info->elm_of_node = of_parse_phandle(child, "ti,elm-id", 0);
-	if (!info->elm_of_node) {
-		info->elm_of_node = of_parse_phandle(child, "elm_id", 0);
-		if (!info->elm_of_node)
-			dev_dbg(dev, "ti,elm-id not in DT\n");
+	info->elm_of_yesde = of_parse_phandle(child, "ti,elm-id", 0);
+	if (!info->elm_of_yesde) {
+		info->elm_of_yesde = of_parse_phandle(child, "elm_id", 0);
+		if (!info->elm_of_yesde)
+			dev_dbg(dev, "ti,elm-id yest in DT\n");
 	}
 
 	/* select ecc-scheme for NAND */
 	if (of_property_read_string(child, "ti,nand-ecc-opt", &s)) {
-		dev_err(dev, "ti,nand-ecc-opt not found\n");
+		dev_err(dev, "ti,nand-ecc-opt yest found\n");
 		return -EINVAL;
 	}
 
@@ -1781,12 +1781,12 @@ static int omap_get_dt_info(struct device *dev, struct omap_nand_info *info)
 		   !strcmp(s, "hw") || !strcmp(s, "hw-romcode")) {
 		info->ecc_opt =	OMAP_ECC_HAM1_CODE_HW;
 	} else if (!strcmp(s, "bch4")) {
-		if (info->elm_of_node)
+		if (info->elm_of_yesde)
 			info->ecc_opt = OMAP_ECC_BCH4_CODE_HW;
 		else
 			info->ecc_opt = OMAP_ECC_BCH4_CODE_HW_DETECTION_SW;
 	} else if (!strcmp(s, "bch8")) {
-		if (info->elm_of_node)
+		if (info->elm_of_yesde)
 			info->ecc_opt = OMAP_ECC_BCH8_CODE_HW;
 		else
 			info->ecc_opt = OMAP_ECC_BCH8_CODE_HW_DETECTION_SW;
@@ -1998,7 +1998,7 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 		break;
 
 	default:
-		dev_err(dev, "xfer_type %d not supported!\n", info->xfer_type);
+		dev_err(dev, "xfer_type %d yest supported!\n", info->xfer_type);
 		return -EINVAL;
 	}
 
@@ -2145,12 +2145,12 @@ static int omap_nand_attach_chip(struct nand_chip *chip)
 		return -EINVAL;
 	}
 
-	/* Check if NAND device's OOB is enough to store ECC signatures */
+	/* Check if NAND device's OOB is eyesugh to store ECC signatures */
 	min_oobbytes += (oobbytes_per_step *
 			 (mtd->writesize / chip->ecc.size));
 	if (mtd->oobsize < min_oobbytes) {
 		dev_err(dev,
-			"Not enough OOB bytes: required = %d, available=%d\n",
+			"Not eyesugh OOB bytes: required = %d, available=%d\n",
 			min_oobbytes, mtd->oobsize);
 		return -EINVAL;
 	}
@@ -2196,7 +2196,7 @@ static int omap_nand_probe(struct platform_device *pdev)
 	mtd			= nand_to_mtd(nand_chip);
 	mtd->dev.parent		= &pdev->dev;
 	nand_chip->ecc.priv	= NULL;
-	nand_set_flash_node(nand_chip, dev->of_node);
+	nand_set_flash_yesde(nand_chip, dev->of_yesde);
 
 	if (!mtd->name) {
 		mtd->name = devm_kasprintf(&pdev->dev, GFP_KERNEL,

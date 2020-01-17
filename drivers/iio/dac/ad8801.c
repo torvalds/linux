@@ -124,7 +124,7 @@ static int ad8801_probe(struct spi_device *spi)
 
 	state->vrefh_reg = devm_regulator_get(&spi->dev, "vrefh");
 	if (IS_ERR(state->vrefh_reg)) {
-		dev_err(&spi->dev, "Vrefh regulator not specified\n");
+		dev_err(&spi->dev, "Vrefh regulator yest specified\n");
 		return PTR_ERR(state->vrefh_reg);
 	}
 
@@ -146,7 +146,7 @@ static int ad8801_probe(struct spi_device *spi)
 	if (id->driver_data == ID_AD8803) {
 		state->vrefl_reg = devm_regulator_get(&spi->dev, "vrefl");
 		if (IS_ERR(state->vrefl_reg)) {
-			dev_err(&spi->dev, "Vrefl regulator not specified\n");
+			dev_err(&spi->dev, "Vrefl regulator yest specified\n");
 			ret = PTR_ERR(state->vrefl_reg);
 			goto error_disable_vrefh_reg;
 		}

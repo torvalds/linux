@@ -3,7 +3,7 @@
 #
 # Multiqueue: Using pktgen threads for sending on multiple CPUs
 #  * adding devices to kernel threads
-#  * notice the naming scheme for keeping device names unique
+#  * yestice the naming scheme for keeping device names unique
 #  * nameing scheme: dev@thread_number
 #  * flow variation via random UDP source port
 #

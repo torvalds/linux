@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,7 +24,7 @@
 
 #include <nvif/cl507d.h>
 
-#include "nouveau_bo.h"
+#include "yesuveau_bo.h"
 
 void
 core507d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
@@ -44,11 +44,11 @@ core507d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
 }
 
 int
-core507d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
+core507d_ntfy_wait_done(struct yesuveau_bo *bo, u32 offset,
 			struct nvif_device *device)
 {
 	s64 time = nvif_msec(device, 2000ULL,
-		if (nouveau_bo_rd32(bo, offset / 4))
+		if (yesuveau_bo_rd32(bo, offset / 4))
 			break;
 		usleep_range(1, 2);
 	);
@@ -56,9 +56,9 @@ core507d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
 }
 
 void
-core507d_ntfy_init(struct nouveau_bo *bo, u32 offset)
+core507d_ntfy_init(struct yesuveau_bo *bo, u32 offset)
 {
-	nouveau_bo_wr32(bo, offset / 4, 0x00000000);
+	yesuveau_bo_wr32(bo, offset / 4, 0x00000000);
 }
 
 void
@@ -85,7 +85,7 @@ core507d = {
 };
 
 int
-core507d_new_(const struct nv50_core_func *func, struct nouveau_drm *drm,
+core507d_new_(const struct nv50_core_func *func, struct yesuveau_drm *drm,
 	      s32 oclass, struct nv50_core **pcore)
 {
 	struct nv50_disp_core_channel_dma_v0 args = {};
@@ -109,7 +109,7 @@ core507d_new_(const struct nv50_core_func *func, struct nouveau_drm *drm,
 }
 
 int
-core507d_new(struct nouveau_drm *drm, s32 oclass, struct nv50_core **pcore)
+core507d_new(struct yesuveau_drm *drm, s32 oclass, struct nv50_core **pcore)
 {
 	return core507d_new_(&core507d, drm, oclass, pcore);
 }

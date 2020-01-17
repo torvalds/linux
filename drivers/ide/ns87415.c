@@ -213,7 +213,7 @@ static void init_hwif_ns87415 (ide_hwif_t *hwif)
 #endif
 
 	/*
-	 * We cannot probe for IRQ: both ports share common IRQ on INTA.
+	 * We canyest probe for IRQ: both ports share common IRQ on INTA.
 	 * Also, leave IRQ masked during drive probing, to prevent infinite
 	 * interrupts from a potentially floating INTA..
 	 *
@@ -244,7 +244,7 @@ static void init_hwif_ns87415 (ide_hwif_t *hwif)
 
 #ifdef __sparc_v9__
 		/*
-		 * XXX: Reset the device, if we don't it will not respond to
+		 * XXX: Reset the device, if we don't it will yest respond to
 		 *      dev_select() properly during first ide_probe_port().
 		 */
 		timeout = 10000;

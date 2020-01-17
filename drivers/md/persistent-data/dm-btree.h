@@ -13,7 +13,7 @@ struct dm_transaction_manager;
 /*----------------------------------------------------------------*/
 
 /*
- * Annotations used to check on-disk metadata is handled as little-endian.
+ * Anyestations used to check on-disk metadata is handled as little-endian.
  */
 #ifdef __CHECKER__
 #  define __dm_written_to_disk(x) __releases(x)
@@ -46,16 +46,16 @@ struct dm_btree_value_type {
 	uint32_t size;
 
 	/*
-	 * Any of these methods can be safely set to NULL if you do not
+	 * Any of these methods can be safely set to NULL if you do yest
 	 * need the corresponding feature.
 	 */
 
 	/*
 	 * The btree is making a duplicate of the value, for instance
-	 * because previously-shared btree nodes have now diverged.
+	 * because previously-shared btree yesdes have yesw diverged.
 	 * @value argument is the new copy that the copy function may modify.
 	 * (Probably it just wants to increment a reference count
-	 * somewhere.) This method is _not_ called for insertion of a new
+	 * somewhere.) This method is _yest_ called for insertion of a new
 	 * value: It is assumed the ref count is already 1.
 	 */
 	void (*inc)(void *context, const void *value);
@@ -100,7 +100,7 @@ int dm_btree_empty(struct dm_btree_info *info, dm_block_t *root);
 int dm_btree_del(struct dm_btree_info *info, dm_block_t root);
 
 /*
- * All the lookup functions return -ENODATA if the key cannot be found.
+ * All the lookup functions return -ENODATA if the key canyest be found.
  */
 
 /*
@@ -128,7 +128,7 @@ int dm_btree_insert(struct dm_btree_info *info, dm_block_t root,
  * overwrote.  Useful if you're keeping track of the number of entries in a
  * tree.
  */
-int dm_btree_insert_notify(struct dm_btree_info *info, dm_block_t root,
+int dm_btree_insert_yestify(struct dm_btree_info *info, dm_block_t root,
 			   uint64_t *keys, void *value, dm_block_t *new_root,
 			   int *inserted)
 			   __dm_written_to_disk(value);
@@ -142,7 +142,7 @@ int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 		    uint64_t *keys, dm_block_t *new_root);
 
 /*
- * Removes a _contiguous_ run of values starting from 'keys' and not
+ * Removes a _contiguous_ run of values starting from 'keys' and yest
  * reaching keys2 (where keys2 is keys with the final key replaced with
  * 'end_key').  'end_key' is the one-past-the-end value.  'keys' may be
  * altered.
@@ -154,7 +154,7 @@ int dm_btree_remove_leaves(struct dm_btree_info *info, dm_block_t root,
 /*
  * Returns < 0 on failure.  Otherwise the number of key entries that have
  * been filled out.  Remember trees can have zero entries, and as such have
- * no lowest key.
+ * yes lowest key.
  */
 int dm_btree_find_lowest_key(struct dm_btree_info *info, dm_block_t root,
 			     uint64_t *result_keys);
@@ -162,7 +162,7 @@ int dm_btree_find_lowest_key(struct dm_btree_info *info, dm_block_t root,
 /*
  * Returns < 0 on failure.  Otherwise the number of key entries that have
  * been filled out.  Remember trees can have zero entries, and as such have
- * no highest key.
+ * yes highest key.
  */
 int dm_btree_find_highest_key(struct dm_btree_info *info, dm_block_t root,
 			      uint64_t *result_keys);
@@ -180,13 +180,13 @@ int dm_btree_walk(struct dm_btree_info *info, dm_block_t root,
 /*----------------------------------------------------------------*/
 
 /*
- * Cursor API.  This does not follow the rolling lock convention.  Since we
- * know the order that values are required we can issue prefetches to speed
+ * Cursor API.  This does yest follow the rolling lock convention.  Since we
+ * kyesw the order that values are required we can issue prefetches to speed
  * up iteration.  Use on a single level btree only.
  */
 #define DM_BTREE_CURSOR_MAX_DEPTH 16
 
-struct cursor_node {
+struct cursor_yesde {
 	struct dm_block *b;
 	unsigned index;
 };
@@ -197,7 +197,7 @@ struct dm_btree_cursor {
 
 	bool prefetch_leaves;
 	unsigned depth;
-	struct cursor_node nodes[DM_BTREE_CURSOR_MAX_DEPTH];
+	struct cursor_yesde yesdes[DM_BTREE_CURSOR_MAX_DEPTH];
 };
 
 /*

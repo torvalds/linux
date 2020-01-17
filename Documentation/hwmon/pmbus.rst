@@ -91,9 +91,9 @@ Fan support will be added in a later version of this driver.
 Usage Notes
 -----------
 
-This driver does not probe for PMBus devices, since there is no register
-which can be safely used to identify the chip (The MFG_ID register is not
-supported by all chips), and since there is no well defined address range for
+This driver does yest probe for PMBus devices, since there is yes register
+which can be safely used to identify the chip (The MFG_ID register is yest
+supported by all chips), and since there is yes well defined address range for
 PMBus devices. You will have to instantiate the devices explicitly.
 
 Example: the following will load the driver for an LTC2978 at address 0x60

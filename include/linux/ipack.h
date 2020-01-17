@@ -88,7 +88,7 @@ struct ipack_region {
  *	@dev: device in kernel representation.
  *
  * Warning: Direct access to mapped memory is possible but the endianness
- * is not the same with PCI carrier or VME carrier. The endianness is managed
+ * is yest the same with PCI carrier or VME carrier. The endianness is managed
  * by the carrier board throught bus->ops.
  */
 struct ipack_device {
@@ -142,7 +142,7 @@ struct ipack_driver {
  *	@get_clockrate: Returns the clockrate the carrier is currently
  *		communicating with the device at.
  *	@set_clockrate: Sets the clock-rate for carrier / module communication.
- *		Should return -EINVAL if the requested speed is not supported.
+ *		Should return -EINVAL if the requested speed is yest supported.
  *	@get_error: Returns the error state for the slot the device is attached
  *		to.
  *	@get_timeout: Returns 1 if the communication with the device has

@@ -81,7 +81,7 @@ int lola_set_granularity(struct lola *chip, unsigned int val, bool force)
 		if (val == chip->granularity)
 			return 0;
 #if 0
-		/* change Gran only if there are no streams allocated ! */
+		/* change Gran only if there are yes streams allocated ! */
 		if (chip->audio_in_alloc_mask || chip->audio_out_alloc_mask)
 			return -EBUSY;
 #endif

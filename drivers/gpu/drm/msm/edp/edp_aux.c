@@ -116,7 +116,7 @@ static ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux,
 	bool native = msg->request & (DP_AUX_NATIVE_WRITE & DP_AUX_NATIVE_READ);
 	bool read = msg->request & (DP_AUX_I2C_READ & DP_AUX_NATIVE_READ);
 
-	/* Ignore address only message */
+	/* Igyesre address only message */
 	if ((msg->size == 0) || (msg->buffer == NULL)) {
 		msg->reply = native ?
 			DP_AUX_NATIVE_REPLY_ACK : DP_AUX_I2C_REPLY_ACK;
@@ -170,7 +170,7 @@ static ssize_t edp_aux_transfer(struct drm_dp_aux *drm_aux,
 		msg->reply = native ?
 			DP_AUX_NATIVE_REPLY_DEFER : DP_AUX_I2C_REPLY_DEFER;
 		/*
-		 * The sleep time in caller is not long enough to make sure
+		 * The sleep time in caller is yest long eyesugh to make sure
 		 * our H/W completes transactions. Add more defer time here.
 		 */
 		msleep(100);

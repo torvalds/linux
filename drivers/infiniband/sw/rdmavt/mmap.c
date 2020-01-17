@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -106,7 +106,7 @@ static const struct vm_operations_struct rvt_vm_ops = {
  * @context: the IB user context of the process making the mmap() call
  * @vma: the VMA to be initialized
  *
- * Return: zero if the mmap is OK. Otherwise, return an errno.
+ * Return: zero if the mmap is OK. Otherwise, return an erryes.
  */
 int rvt_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
@@ -164,7 +164,7 @@ struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi, u32 size,
 	if (!udata)
 		return ERR_PTR(-EINVAL);
 
-	ip = kmalloc_node(sizeof(*ip), GFP_KERNEL, rdi->dparms.node);
+	ip = kmalloc_yesde(sizeof(*ip), GFP_KERNEL, rdi->dparms.yesde);
 	if (!ip)
 		return ip;
 

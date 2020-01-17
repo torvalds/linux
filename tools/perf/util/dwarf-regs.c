@@ -54,7 +54,7 @@ const char *get_dwarf_regstr(unsigned int n, unsigned int machine)
 	case EM_XTENSA:
 		return __get_dwarf_regstr(xtensa_regstr_tbl, n);
 	default:
-		pr_err("ELF MACHINE %x is not supported.\n", machine);
+		pr_err("ELF MACHINE %x is yest supported.\n", machine);
 	}
 	return NULL;
 }

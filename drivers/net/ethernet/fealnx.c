@@ -4,7 +4,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license yestice.  This file is yest
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -51,7 +51,7 @@ static int full_duplex[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 /* The compiler will convert <unsigned>'%'<2^N> into a bit mask.        */
 /* Making the Tx ring too large decreases the effectiveness of channel  */
 /* bonding and packet priority.                                         */
-/* There are no ill effects from too-large receive rings.               */
+/* There are yes ill effects from too-large receive rings.               */
 // 88-12-9 modify,
 // #define TX_RING_SIZE    16
 // #define RX_RING_SIZE    32
@@ -60,7 +60,7 @@ static int full_duplex[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 #define TX_TOTAL_SIZE	TX_RING_SIZE*sizeof(struct fealnx_desc)
 #define RX_TOTAL_SIZE	RX_RING_SIZE*sizeof(struct fealnx_desc)
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are yest changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT      (2*HZ)
 
@@ -72,7 +72,7 @@ static int full_duplex[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -91,7 +91,7 @@ static int full_duplex[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
-/* These identify the driver base version and may not be removed. */
+/* These identify the driver base version and may yest be removed. */
 static const char version[] =
 	KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE "\n";
 
@@ -211,7 +211,7 @@ enum intr_status_bits {
 
 /* Bits in the NetworkConfig register, W for writing, R for reading */
 /* FIXME: some names are invented by me. Marked with (name?) */
-/* If you have docs and know bit names, please fix 'em */
+/* If you have docs and kyesw bit names, please fix 'em */
 enum rx_mode_bits {
 	CR_W_ENH	= 0x02000000,	/* enhanced mode (name?) */
 	CR_W_FD		= 0x00100000,	/* full duplex */
@@ -332,7 +332,7 @@ enum tx_desc_control_bits {
 /* ------------------------------------------------------------------------- */
 #define AhdocPHYID0     0x0022
 
-#define DiagnosticReg   18
+#define DiagyessticReg   18
 #define DPLX_FULL       0x0800
 #define Speed_100       0x0400
 
@@ -610,8 +610,8 @@ static int fealnx_init_one(struct pci_dev *pdev,
 		np->mii_cnt = phy_idx;
 		if (phy_idx == 0)
 			dev_warn(&pdev->dev,
-				"MII PHY not found -- this device may "
-			       "not operate correctly.\n");
+				"MII PHY yest found -- this device may "
+			       "yest operate correctly.\n");
 	} else {
 		np->phys[0] = 32;
 /* 89/6/23 add, (begin) */
@@ -699,7 +699,7 @@ static void fealnx_remove_one(struct pci_dev *pdev)
 		free_netdev(dev);
 		pci_release_regions(pdev);
 	} else
-		printk(KERN_ERR "fealnx: remove for unknown device\n");
+		printk(KERN_ERR "fealnx: remove for unkyeswn device\n");
 }
 
 
@@ -848,7 +848,7 @@ static int netdev_open(struct net_device *dev)
 	/* Initialize other registers. */
 	/* Configure the PCI bus bursts and FIFO thresholds.
 	   486: Set 8 longword burst.
-	   586: no burst limit.
+	   586: yes burst limit.
 	   Burst length 5:3
 	   0 0 0   1
 	   0 0 1   4
@@ -924,7 +924,7 @@ static int netdev_open(struct net_device *dev)
 static void getlinkstatus(struct net_device *dev)
 /* function: Routine will read MII Status Register to get link status.       */
 /* input   : dev... pointer to the adapter block.                            */
-/* output  : none.                                                           */
+/* output  : yesne.                                                           */
 {
 	struct netdev_private *np = netdev_priv(dev);
 	unsigned int i, DelayTime = 0x1000;
@@ -980,7 +980,7 @@ static void getlinktype(struct net_device *dev)
 		} else if (np->PHYType == AhdocPHY) {
 			unsigned int data;
 
-			data = mdio_read(dev, np->phys[0], DiagnosticReg);
+			data = mdio_read(dev, np->phys[0], DiagyessticReg);
 			if (data & Speed_100)
 				np->line_speed = 2;	/* 100M */
 			else
@@ -1392,7 +1392,7 @@ static void reset_tx_descriptors(struct net_device *dev)
 		}
 		cur->status = 0;
 		cur->control = 0;	/* needed? */
-		/* probably not needed. We do it for purely paranoid reasons */
+		/* probably yest needed. We do it for purely parayesid reasons */
 		cur->next_desc = np->tx_ring_dma +
 			(i + 1)*sizeof(struct fealnx_desc);
 		cur->next_desc_logical = &np->tx_ring[i + 1];
@@ -1441,7 +1441,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 	do {
 		u32 intr_status = ioread32(ioaddr + ISR);
 
-		/* Acknowledge all of the current interrupt sources ASAP. */
+		/* Ackyeswledge all of the current interrupt sources ASAP. */
 		iowrite32(intr_status, ioaddr + ISR);
 
 		if (debug)
@@ -1636,24 +1636,24 @@ static int netdev_rx(struct net_device *dev)
 					dev->stats.rx_crc_errors++;
 			} else {
 				int need_to_reset = 0;
-				int desno = 0;
+				int desyes = 0;
 
 				if (rx_status & RXFSD) {	/* this pkt is too long, over one rx buffer */
 					struct fealnx_desc *cur;
 
 					/* check this packet is received completely? */
 					cur = np->cur_rx;
-					while (desno <= np->really_rx_count) {
-						++desno;
+					while (desyes <= np->really_rx_count) {
+						++desyes;
 						if ((!(cur->status & RXOWN)) &&
 						    (cur->status & RXLSD))
 							break;
 						/* goto next rx descriptor */
 						cur = cur->next_desc_logical;
 					}
-					if (desno > np->really_rx_count)
+					if (desyes > np->really_rx_count)
 						need_to_reset = 1;
-				} else	/* RXLSD did not find, something error */
+				} else	/* RXLSD did yest find, something error */
 					need_to_reset = 1;
 
 				if (need_to_reset == 0) {
@@ -1662,7 +1662,7 @@ static int netdev_rx(struct net_device *dev)
 					dev->stats.rx_length_errors++;
 
 					/* free all rx descriptors related this long pkt */
-					for (i = 0; i < desno; ++i) {
+					for (i = 0; i < desyes; ++i) {
 						if (!np->cur_rx->skbuff) {
 							printk(KERN_DEBUG
 								"%s: I'm scared\n", dev->name);
@@ -1687,11 +1687,11 @@ static int netdev_rx(struct net_device *dev)
 
 #ifndef final_version
 			if (debug)
-				printk(KERN_DEBUG "  netdev_rx() normal Rx pkt length %d"
+				printk(KERN_DEBUG "  netdev_rx() yesrmal Rx pkt length %d"
 				       " status %x.\n", pkt_len, rx_status);
 #endif
 
-			/* Check if the packet is long enough to accept without copying
+			/* Check if the packet is long eyesugh to accept without copying
 			   to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak &&
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
@@ -1950,7 +1950,7 @@ static struct pci_driver fealnx_driver = {
 
 static int __init fealnx_init(void)
 {
-/* when a module, this is printed whether or not devices are found in probe */
+/* when a module, this is printed whether or yest devices are found in probe */
 #ifdef MODULE
 	printk(version);
 #endif

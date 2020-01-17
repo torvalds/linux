@@ -97,7 +97,7 @@
 	};
 
 	/*
-	 * Apparently RPMh does not provide support for PM8998 S4 because it
+	 * Apparently RPMh does yest provide support for PM8998 S4 because it
 	 * is always-on; model it as a fixed regulator.
 	 */
 	src_pp1800_s4a: pm8998-smps4 {
@@ -131,10 +131,10 @@
 	};
 
 	panel: panel {
-		compatible ="innolux,p120zdg-bf1";
+		compatible ="inyeslux,p120zdg-bf1";
 		power-supply = <&pp3300_dx_edp>;
 		backlight = <&backlight>;
-		no-hpd;
+		yes-hpd;
 
 		ports {
 			panel_in: port {
@@ -159,14 +159,14 @@
  *
  * For venus_mem we'll delete and re-create at a different address.
  *
- * cdsp_mem isn't used on cheza right now so we won't bother re-creating it; but
+ * cdsp_mem isn't used on cheza right yesw so we won't bother re-creating it; but
  * that also means we need to delete cdsp_pas.
  */
-/delete-node/ &venus_mem;
-/delete-node/ &cdsp_mem;
-/delete-node/ &cdsp_pas;
-/delete-node/ &zap_shader;
-/delete-node/ &gpu_mem;
+/delete-yesde/ &venus_mem;
+/delete-yesde/ &cdsp_mem;
+/delete-yesde/ &cdsp_pas;
+/delete-yesde/ &zap_shader;
+/delete-yesde/ &gpu_mem;
 
 /* Increase the size from 120 MB to 128 MB */
 &mpss_region {
@@ -182,7 +182,7 @@
 	reserved-memory {
 		venus_mem: memory@96000000 {
 			reg = <0 0x96000000 0 0x500000>;
-			no-map;
+			yes-map;
 		};
 	};
 };
@@ -193,13 +193,13 @@
 	pinctrl-0 = <&qspi_clk &qspi_cs0 &qspi_data01>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		reg = <0>;
 
 		/*
 		 * In theory chip supports up to 104 MHz and controller up
 		 * to 80 MHz, but above 25 MHz wasn't reliable so we'll use
-		 * that for now.  b:117440651
+		 * that for yesw.  b:117440651
 		 */
 		spi-max-frequency = <25000000>;
 		spi-tx-bus-width = <2>;
@@ -427,7 +427,7 @@
 			regulator-max-microvolt = <3304000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 			/*
-			 * HACK: Should add a usb hub node and driver
+			 * HACK: Should add a usb hub yesde and driver
 			 * to turn this on and off at suspend/resume time
 			 */
 			regulator-boot-on;
@@ -817,7 +817,7 @@ ap_ts_i2c: &i2c14 {
 	vdd-3.3-ch0-supply = <&pp3300_l25a_ch0_wcn3990>;
 };
 
-/* PINCTRL - additions to nodes defined in sdm845.dtsi */
+/* PINCTRL - additions to yesdes defined in sdm845.dtsi */
 
 &qspi_cs0 {
 	pinconf {
@@ -837,7 +837,7 @@ ap_ts_i2c: &i2c14 {
 	pinconf {
 		pins = "gpio91", "gpio92";
 
-		/* High-Z when no transfers; nice to park the lines */
+		/* High-Z when yes transfers; nice to park the lines */
 		bias-pull-up;
 	};
 };
@@ -923,7 +923,7 @@ ap_ts_i2c: &i2c14 {
 	};
 
 	pinconf-rts-tx {
-		/* We'll drive 46 (RTS) and 47 (TX), so no pull */
+		/* We'll drive 46 (RTS) and 47 (TX), so yes pull */
 		pins = "gpio46", "gpio47";
 		drive-strength = <2>;
 		bias-disable;
@@ -933,7 +933,7 @@ ap_ts_i2c: &i2c14 {
 		/*
 		 * Configure a pull-up on 48 (RX). This is needed to avoid
 		 * garbage data when the TX pin of the Bluetooth module is
-		 * in tri-state (module powered off or not driving the
+		 * in tri-state (module powered off or yest driving the
 		 * signal yet).
 		 */
 		pins = "gpio48";
@@ -1021,7 +1021,7 @@ ap_ts_i2c: &i2c14 {
 
 &tlmm {
 	/*
-	 * pinctrl settings for pins that have no real owners.
+	 * pinctrl settings for pins that have yes real owners.
 	 */
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&bios_flash_wp_r_l>,
@@ -1200,7 +1200,7 @@ ap_ts_i2c: &i2c14 {
 
 			/*
 			 * It seems that mmc_test reports errors if drive
-			 * strength is not 16.
+			 * strength is yest 16.
 			 */
 			drive-strength = <16>;
 		};
@@ -1263,7 +1263,7 @@ ap_ts_i2c: &i2c14 {
 		config {
 			pins = "gpio126";
 			function = "gpio";
-			bias-no-pull;
+			bias-yes-pull;
 			drive-strength = <2>;
 			output-low;
 		};
@@ -1273,7 +1273,7 @@ ap_ts_i2c: &i2c14 {
 		config {
 			pins = "gpio126";
 			function = "gpio";
-			bias-no-pull;
+			bias-yes-pull;
 			drive-strength = <2>;
 			output-high;
 		};

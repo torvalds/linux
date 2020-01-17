@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/string.h>
@@ -73,7 +73,7 @@ static DEFINE_IDR(genl_fam_idr);
  * That group will typically conflict with other groups that
  * any proper users use.
  * Bit 16 is marked as used since it's used for generic netlink
- * and the code no longer marks pre-reserved IDs as used.
+ * and the code yes longer marks pre-reserved IDs as used.
  * Bit 17 is marked as already used since the VFS quota code
  * also abused this API and relied on family == group ID, we
  * cater to that by giving it a static family and group ID.
@@ -474,10 +474,10 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 				struct netlink_ext_ack *extack,
 				const struct genl_ops *ops,
 				int hdrlen,
-				enum genl_validate_flags no_strict_flag,
+				enum genl_validate_flags yes_strict_flag,
 				bool parallel)
 {
-	enum netlink_validation validate = ops->validate & no_strict_flag ?
+	enum netlink_validation validate = ops->validate & yes_strict_flag ?
 					   NL_VALIDATE_LIBERAL :
 					   NL_VALIDATE_STRICT;
 	struct nlattr **attrbuf;
@@ -580,7 +580,7 @@ static int genl_family_rcv_msg_dumpit(const struct genl_family *family,
 		return -EOPNOTSUPP;
 
 	if (ops->validate & GENL_DONT_VALIDATE_DUMP)
-		goto no_attrs;
+		goto yes_attrs;
 
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
 		return -EINVAL;
@@ -592,7 +592,7 @@ static int genl_family_rcv_msg_dumpit(const struct genl_family *family,
 	if (IS_ERR(attrs))
 		return PTR_ERR(attrs);
 
-no_attrs:
+yes_attrs:
 	/* Allocate dumpit info. It is going to be freed by done() callback. */
 	info = genl_dumpit_info_alloc();
 	if (!info) {
@@ -772,7 +772,7 @@ static int ctrl_fill_info(const struct genl_family *family, u32 portid, u32 seq,
 		struct nlattr *nla_ops;
 		int i;
 
-		nla_ops = nla_nest_start_noflag(skb, CTRL_ATTR_OPS);
+		nla_ops = nla_nest_start_yesflag(skb, CTRL_ATTR_OPS);
 		if (nla_ops == NULL)
 			goto nla_put_failure;
 
@@ -788,7 +788,7 @@ static int ctrl_fill_info(const struct genl_family *family, u32 portid, u32 seq,
 			if (family->policy)
 				op_flags |= GENL_CMD_CAP_HASPOL;
 
-			nest = nla_nest_start_noflag(skb, i + 1);
+			nest = nla_nest_start_yesflag(skb, i + 1);
 			if (nest == NULL)
 				goto nla_put_failure;
 
@@ -806,7 +806,7 @@ static int ctrl_fill_info(const struct genl_family *family, u32 portid, u32 seq,
 		struct nlattr *nla_grps;
 		int i;
 
-		nla_grps = nla_nest_start_noflag(skb, CTRL_ATTR_MCAST_GROUPS);
+		nla_grps = nla_nest_start_yesflag(skb, CTRL_ATTR_MCAST_GROUPS);
 		if (nla_grps == NULL)
 			goto nla_put_failure;
 
@@ -816,7 +816,7 @@ static int ctrl_fill_info(const struct genl_family *family, u32 portid, u32 seq,
 
 			grp = &family->mcgrps[i];
 
-			nest = nla_nest_start_noflag(skb, i + 1);
+			nest = nla_nest_start_yesflag(skb, i + 1);
 			if (nest == NULL)
 				goto nla_put_failure;
 
@@ -856,11 +856,11 @@ static int ctrl_fill_mcgrp_info(const struct genl_family *family,
 	    nla_put_u16(skb, CTRL_ATTR_FAMILY_ID, family->id))
 		goto nla_put_failure;
 
-	nla_grps = nla_nest_start_noflag(skb, CTRL_ATTR_MCAST_GROUPS);
+	nla_grps = nla_nest_start_yesflag(skb, CTRL_ATTR_MCAST_GROUPS);
 	if (nla_grps == NULL)
 		goto nla_put_failure;
 
-	nest = nla_nest_start_noflag(skb, 1);
+	nest = nla_nest_start_yesflag(skb, 1);
 	if (nest == NULL)
 		goto nla_put_failure;
 
@@ -1052,7 +1052,7 @@ static const struct genl_ops genl_ctrl_ops[] = {
 };
 
 static const struct genl_multicast_group genl_ctrl_groups[] = {
-	{ .name = "notify", },
+	{ .name = "yestify", },
 };
 
 static struct genl_family genl_ctrl __ro_after_init = {
@@ -1129,7 +1129,7 @@ static int __net_init genl_pernet_init(struct net *net)
 	net->genl_sock = netlink_kernel_create(net, NETLINK_GENERIC, &cfg);
 
 	if (!net->genl_sock && net_eq(net, &init_net))
-		panic("GENL: Cannot initialize generic netlink\n");
+		panic("GENL: Canyest initialize generic netlink\n");
 
 	if (!net->genl_sock)
 		return -ENOMEM;
@@ -1163,7 +1163,7 @@ static int __init genl_init(void)
 	return 0;
 
 problem:
-	panic("GENL: Cannot register controller: %d\n", err);
+	panic("GENL: Canyest register controller: %d\n", err);
 }
 
 subsys_initcall(genl_init);
@@ -1216,7 +1216,7 @@ int genlmsg_multicast_allns(const struct genl_family *family,
 }
 EXPORT_SYMBOL(genlmsg_multicast_allns);
 
-void genl_notify(const struct genl_family *family, struct sk_buff *skb,
+void genl_yestify(const struct genl_family *family, struct sk_buff *skb,
 		 struct genl_info *info, u32 group, gfp_t flags)
 {
 	struct net *net = genl_info_net(info);
@@ -1229,6 +1229,6 @@ void genl_notify(const struct genl_family *family, struct sk_buff *skb,
 	if (WARN_ON_ONCE(group >= family->n_mcgrps))
 		return;
 	group = family->mcgrp_offset + group;
-	nlmsg_notify(sk, skb, info->snd_portid, group, report, flags);
+	nlmsg_yestify(sk, skb, info->snd_portid, group, report, flags);
 }
-EXPORT_SYMBOL(genl_notify);
+EXPORT_SYMBOL(genl_yestify);

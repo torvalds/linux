@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  *  drivers/tty/serial/8250/8250_pxa.c -- driver for PXA on-board UARTS
- *  Copyright:	(C) 2013 Sergei Ianovich <ynvich@gmail.com>
+ *  Copyright:	(C) 2013 Sergei Iayesvich <ynvich@gmail.com>
  *
  *  replaces drivers/serial/pxa.c by Nicolas Pitre
  *  Created:	Feb 20, 2003
@@ -113,7 +113,7 @@ static int serial_pxa_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = of_alias_get_id(pdev->dev.of_node, "serial");
+	ret = of_alias_get_id(pdev->dev.of_yesde, "serial");
 	if (ret >= 0)
 		uart.port.line = ret;
 
@@ -184,6 +184,6 @@ static int __init early_serial_pxa_setup(struct earlycon_device *device,
 OF_EARLYCON_DECLARE(early_pxa, "mrvl,pxa-uart", early_serial_pxa_setup);
 #endif
 
-MODULE_AUTHOR("Sergei Ianovich");
+MODULE_AUTHOR("Sergei Iayesvich");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:pxa2xx-uart");

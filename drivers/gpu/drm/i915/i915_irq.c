@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -177,7 +177,7 @@ void gen3_irq_reset(struct intel_uncore *uncore, i915_reg_t imr,
 
 	intel_uncore_write(uncore, ier, 0);
 
-	/* IIR can theoretically queue up two events. Be paranoid. */
+	/* IIR can theoretically queue up two events. Be parayesid. */
 	intel_uncore_write(uncore, iir, 0xffffffff);
 	intel_uncore_posting_read(uncore, iir);
 	intel_uncore_write(uncore, iir, 0xffffffff);
@@ -191,7 +191,7 @@ void gen2_irq_reset(struct intel_uncore *uncore)
 
 	intel_uncore_write16(uncore, GEN2_IER, 0);
 
-	/* IIR can theoretically queue up two events. Be paranoid. */
+	/* IIR can theoretically queue up two events. Be parayesid. */
 	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
 	intel_uncore_posting_read16(uncore, GEN2_IIR);
 	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
@@ -208,7 +208,7 @@ static void gen3_assert_iir_is_zero(struct intel_uncore *uncore, i915_reg_t reg)
 	if (val == 0)
 		return;
 
-	WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n",
+	WARN(1, "Interrupt register 0x%x is yest zero: 0x%08x\n",
 	     i915_mmio_reg_offset(reg), val);
 	intel_uncore_write(uncore, reg, 0xffffffff);
 	intel_uncore_posting_read(uncore, reg);
@@ -223,7 +223,7 @@ static void gen2_assert_iir_is_zero(struct intel_uncore *uncore)
 	if (val == 0)
 		return;
 
-	WARN(1, "Interrupt register 0x%x is not zero: 0x%08x\n",
+	WARN(1, "Interrupt register 0x%x is yest zero: 0x%08x\n",
 	     i915_mmio_reg_offset(GEN2_IIR), val);
 	intel_uncore_write16(uncore, GEN2_IIR, 0xffff);
 	intel_uncore_posting_read16(uncore, GEN2_IIR);
@@ -278,8 +278,8 @@ i915_hotplug_interrupt_update_locked(struct drm_i915_private *dev_priv,
  * NOTE: the HPD enable bits are modified both inside and outside
  * of an interrupt context. To avoid that read-modify-write cycles
  * interfer, these bits are protected by a spinlock. Since this
- * function is usually not called from a context where the lock is
- * held already, this function acquires the lock itself. A non-locking
+ * function is usually yest called from a context where the lock is
+ * held already, this function acquires the lock itself. A yesn-locking
  * version is also available.
  */
 void i915_hotplug_interrupt_update(struct drm_i915_private *dev_priv,
@@ -594,9 +594,9 @@ u32 i915_get_vblank_counter(struct drm_crtc *crtc)
 	 * vblank wait before enabling the TV encoder and so we
 	 * have to enable vblank interrupts while the frame counter
 	 * is still in a working state. However the core vblank code
-	 * does not like us returning non-zero frame counter values
+	 * does yest like us returning yesn-zero frame counter values
 	 * when we've told it that we don't have a working frame
-	 * counter. Thus we must stop non-zero values leaking out.
+	 * counter. Thus we must stop yesn-zero values leaking out.
 	 */
 	if (!vblank->max_vblank_count)
 		return 0;
@@ -653,7 +653,7 @@ u32 g4x_get_vblank_counter(struct drm_crtc *crtc)
 
 /*
  * On certain encoders on certain platforms, pipe
- * scanline register will not work to get the scanline,
+ * scanline register will yest work to get the scanline,
  * since the timings are driven from the PORT or issues
  * with scanline register updates.
  * This function will use Framestamp and current
@@ -702,7 +702,7 @@ static u32 __intel_get_crtc_scanline_from_timestamp(struct intel_crtc *crtc)
 	return scanline;
 }
 
-/* I915_READ_FW, only for fast reads of display block, no need for forcewake etc. */
+/* I915_READ_FW, only for fast reads of display block, yes need for forcewake etc. */
 static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -737,7 +737,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	 * increment, causing the pipe_update_end() code to squak at us.
 	 *
 	 * The nature of this problem means we can't simply check the ISR
-	 * bit and return the vblank start value; nor can we use the scanline
+	 * bit and return the vblank start value; yesr can we use the scanline
 	 * debug register in the transcoder as it appears to have the same
 	 * problem.  We may need to extend this to include other platforms,
 	 * but so far testing only shows the problem on HSW.
@@ -762,7 +762,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return (position + crtc->scanline_offset) % vtotal;
 }
 
-bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int index,
+bool i915_get_crtc_scayesutpos(struct drm_device *dev, unsigned int index,
 			      bool in_vblank_irq, int *vpos, int *hpos,
 			      ktime_t *stime, ktime_t *etime,
 			      const struct drm_display_mode *mode)
@@ -778,7 +778,7 @@ bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int index,
 		mode->private_flags & I915_MODE_FLAG_USE_SCANLINE_COUNTER;
 
 	if (WARN_ON(!mode->crtc_clock)) {
-		DRM_DEBUG_DRIVER("trying to get scanoutpos for disabled "
+		DRM_DEBUG_DRIVER("trying to get scayesutpos for disabled "
 				 "pipe %c\n", pipe_name(pipe));
 		return false;
 	}
@@ -798,7 +798,7 @@ bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int index,
 	/*
 	 * Lock uncore.lock, as we will do multiple timing critical raw
 	 * register reads, potentially with preemption disabled, so the
-	 * following code must not block on uncore.lock.
+	 * following code must yest block on uncore.lock.
 	 */
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
@@ -810,13 +810,13 @@ bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int index,
 
 	if (use_scanline_counter) {
 		/* No obvious pixelcount register. Only query vertical
-		 * scanout position from Display scan line register.
+		 * scayesut position from Display scan line register.
 		 */
 		position = __intel_get_crtc_scanline(crtc);
 	} else {
 		/* Have access to pixelcount since start of frame.
 		 * We can split this into vertical and horizontal
-		 * scanout position.
+		 * scayesut position.
 		 */
 		position = (I915_READ_FW(PIPEFRAMEPIXEL(pipe)) & PIPE_PIXEL_MASK) >> PIPE_PIXEL_SHIFT;
 
@@ -843,7 +843,7 @@ bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int index,
 		 * consider lines to start at the leading edge of horizontal
 		 * active. So, should we get here before we've crossed into
 		 * the horizontal active of the first line in vblank, we would
-		 * not set the DRM_SCANOUTPOS_INVBL flag. In order to fix that,
+		 * yest set the DRM_SCANOUTPOS_INVBL flag. In order to fix that,
 		 * always add htotal-hsync_start to the current pixel position.
 		 */
 		position = (position + htotal - hsync_start) % vtotal;
@@ -897,7 +897,7 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
  * occurred.
  * @work: workqueue struct
  *
- * Doesn't actually do anything except notify userspace. As a consequence of
+ * Doesn't actually do anything except yestify userspace. As a consequence of
  * this event, userspace should try to remap the bad rows since statistically
  * it is likely the same row is more likely to go bad again.
  */
@@ -1195,7 +1195,7 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 
 	spin_lock(&pipe_crc->lock);
 	/*
-	 * For some not yet identified reason, the first CRC is
+	 * For some yest yet identified reason, the first CRC is
 	 * bonkers. So let's just wait for the next vblank and read
 	 * out the buggy result.
 	 *
@@ -1297,7 +1297,7 @@ static void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 		/*
 		 * PIPESTAT bits get signalled even when the interrupt is
 		 * disabled with the mask bits, and some of the status bits do
-		 * not generate interrupts at all (like the underrun bit). Hence
+		 * yest generate interrupts at all (like the underrun bit). Hence
 		 * we need to be careful that we only handle what we want to
 		 * handle.
 		 */
@@ -1333,7 +1333,7 @@ static void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 		 * Toggle the enable bits to make sure we get an
 		 * edge in the ISR pipe event bit if we don't clear
 		 * all the enabled status bits. Otherwise the edge
-		 * triggered IIR on i965/g4x wouldn't notice that
+		 * triggered IIR on i965/g4x wouldn't yestice that
 		 * an interrupt is still pending.
 		 */
 		if (pipe_stats[pipe]) {
@@ -1448,7 +1448,7 @@ static u32 i9xx_hpd_irq_ack(struct drm_i915_private *dev_priv)
 	 * We absolutely have to clear all the pending interrupt
 	 * bits in PORT_HOTPLUG_STAT. Otherwise the ISR port
 	 * interrupt bit won't have an edge, and the i965/g4x
-	 * edge triggered IIR will not notice that an interrupt
+	 * edge triggered IIR will yest yestice that an interrupt
 	 * is still pending. We can't use PORT_HOTPLUG_EN to
 	 * guarantee the edge as the act of toggling the enable
 	 * bits can itself generate a new hotplug interrupt :(
@@ -1464,7 +1464,7 @@ static u32 i9xx_hpd_irq_ack(struct drm_i915_private *dev_priv)
 	}
 
 	WARN_ONCE(1,
-		  "PORT_HOTPLUG_STAT did not clear (0x%08x)\n",
+		  "PORT_HOTPLUG_STAT did yest clear (0x%08x)\n",
 		  I915_READ(PORT_HOTPLUG_STAT));
 
 	return hotplug_status;
@@ -1554,7 +1554,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
-		/* Call regardless, as some status bits might not be
+		/* Call regardless, as some status bits might yest be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
@@ -1636,7 +1636,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
-		/* Call regardless, as some status bits might not be
+		/* Call regardless, as some status bits might yest be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
@@ -2334,7 +2334,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_PCH_NOP(dev_priv) &&
 	    master_ctl & GEN8_DE_PCH_IRQ) {
 		/*
-		 * FIXME(BDW): Assume for now that the new interrupt handling
+		 * FIXME(BDW): Assume for yesw that the new interrupt handling
 		 * scheme also closed the SDE interrupt handling race we've seen
 		 * on older pch-split platforms. But this needs testing.
 		 */
@@ -2562,8 +2562,8 @@ int ilk_enable_vblank(struct drm_crtc *crtc)
 	ilk_enable_display_irq(dev_priv, bit);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
-	/* Even though there is no DMC, frame counter can get stuck when
-	 * PSR is active as no frames are generated.
+	/* Even though there is yes DMC, frame counter can get stuck when
+	 * PSR is active as yes frames are generated.
 	 */
 	if (HAS_PSR(dev_priv))
 		drm_crtc_vblank_restore(crtc);
@@ -2581,8 +2581,8 @@ int bdw_enable_vblank(struct drm_crtc *crtc)
 	bdw_enable_pipe_irq(dev_priv, pipe, GEN8_PIPE_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
-	/* Even if there is no DMC, frame counter can get stuck when
-	 * PSR is active as no frames are generated, so check only for PSR.
+	/* Even if there is yes DMC, frame counter can get stuck when
+	 * PSR is active as yes frames are generated, so check only for PSR.
 	 */
 	if (HAS_PSR(dev_priv))
 		drm_crtc_vblank_restore(crtc);
@@ -2925,7 +2925,7 @@ static void ibx_hpd_detection_setup(struct drm_i915_private *dev_priv)
 	hotplug |= PORTD_HOTPLUG_ENABLE | PORTD_PULSE_DURATION_2ms;
 	/*
 	 * When CPU and PCH are on the same package, port A
-	 * HPD must be enabled in both north and south.
+	 * HPD must be enabled in both yesrth and south.
 	 */
 	if (HAS_PCH_LPT_LP(dev_priv))
 		hotplug |= PORTA_HOTPLUG_ENABLE;
@@ -3244,7 +3244,7 @@ static void ironlake_irq_postinstall(struct drm_i915_private *dev_priv)
 	if (IS_IRONLAKE_M(dev_priv)) {
 		/* Enable PCU event interrupts
 		 *
-		 * spinlocking not required here for correctness since interrupt
+		 * spinlocking yest required here for correctness since interrupt
 		 * setup is guaranteed to run in single-threaded context. But we
 		 * need it to make the assert_spin_locked happy. */
 		spin_lock_irq(&dev_priv->irq_lock);
@@ -3508,7 +3508,7 @@ static void i8xx_error_irq_ack(struct drm_i915_private *i915,
 	 * Toggle all EMR bits to make sure we get an edge
 	 * in the ISR master error bit if we don't clear
 	 * all the EIR bits. Otherwise the edge triggered
-	 * IIR on i965/g4x wouldn't notice that an interrupt
+	 * IIR on i965/g4x wouldn't yestice that an interrupt
 	 * is still pending. Also some EIR bits can't be
 	 * cleared except by handling the underlying error
 	 * (or by a GPU reset) so we mask any bit that
@@ -3545,7 +3545,7 @@ static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
 	 * Toggle all EMR bits to make sure we get an edge
 	 * in the ISR master error bit if we don't clear
 	 * all the EIR bits. Otherwise the edge triggered
-	 * IIR on i965/g4x wouldn't notice that an interrupt
+	 * IIR on i965/g4x wouldn't yestice that an interrupt
 	 * is still pending. Also some EIR bits can't be
 	 * cleared except by handling the underlying error
 	 * (or by a GPU reset) so we mask any bit that
@@ -3587,7 +3587,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 
 		ret = IRQ_HANDLED;
 
-		/* Call regardless, as some status bits might not be
+		/* Call regardless, as some status bits might yest be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
@@ -3692,7 +3692,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		    iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
-		/* Call regardless, as some status bits might not be
+		/* Call regardless, as some status bits might yest be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
@@ -3737,7 +3737,7 @@ static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
 	u32 error_mask;
 
 	/*
-	 * Enable some error detection, note the instruction error mask
+	 * Enable some error detection, yeste the instruction error mask
 	 * bit is reserved, so we leave it masked.
 	 */
 	if (IS_G4X(dev_priv)) {
@@ -3800,7 +3800,7 @@ static void i915_hpd_irq_setup(struct drm_i915_private *dev_priv)
 		hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
 	hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
 
-	/* Ignore TV since it's buggy */
+	/* Igyesre TV since it's buggy */
 	i915_hotplug_interrupt_update_locked(dev_priv,
 					     HOTPLUG_INT_EN_MASK |
 					     CRT_HOTPLUG_VOLTAGE_COMPARE_MASK |
@@ -3834,7 +3834,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
-		/* Call regardless, as some status bits might not be
+		/* Call regardless, as some status bits might yest be
 		 * signalled in iir */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
 
@@ -3868,7 +3868,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
  * @dev_priv: i915 device instance
  *
  * This function initializes all the irq support including work items, timers
- * and all the vtables. It does not setup the interrupt itself though.
+ * and all the vtables. It does yest setup the interrupt itself though.
  */
 void intel_irq_init(struct drm_i915_private *dev_priv)
 {

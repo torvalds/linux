@@ -53,7 +53,7 @@ struct llc_shdlc {
 	struct sk_buff_head rcv_q;
 
 	struct sk_buff_head send_q;
-	bool rnr;			/* other side is not ready to receive */
+	bool rnr;			/* other side is yest ready to receive */
 
 	struct sk_buff_head ack_pending_q;
 
@@ -426,7 +426,7 @@ static void llc_shdlc_rcv_u_frame(struct llc_shdlc *shdlc,
 			break;
 		case SHDLC_HALF_CONNECTED:
 			/*
-			 * Chip resent RSET due to its timeout - Ignote it
+			 * Chip resent RSET due to its timeout - Igyeste it
 			 * as we already sent UA.
 			 */
 			break;
@@ -650,7 +650,7 @@ static void llc_shdlc_sm_work(struct work_struct *work)
 
 		if (shdlc->t1_active && timer_pending(&shdlc->t1_timer) == 0) {
 			pr_debug
-			    ("Handle T1(send ack) elapsed (T1 now inactive)\n");
+			    ("Handle T1(send ack) elapsed (T1 yesw inactive)\n");
 
 			shdlc->t1_active = false;
 			r = llc_shdlc_send_s_frame(shdlc, S_FRAME_RR,
@@ -720,7 +720,7 @@ static void llc_shdlc_disconnect(struct llc_shdlc *shdlc)
 /*
  * Receive an incoming shdlc frame. Frame has already been crc-validated.
  * skb contains only LLC header and payload.
- * If skb == NULL, it is a notification that the link below is dead.
+ * If skb == NULL, it is a yestification that the link below is dead.
  */
 static void llc_shdlc_recv_frame(struct llc_shdlc *shdlc, struct sk_buff *skb)
 {

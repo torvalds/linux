@@ -9,7 +9,7 @@
  */
 
 #include <linux/kvm_host.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pagemap.h>
 
 #include <asm/kvm_host.h>
@@ -58,7 +58,7 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.exit_stop_request++;
 
-	/* delay the stop if any non-stop irq is pending */
+	/* delay the stop if any yesn-stop irq is pending */
 	if (kvm_s390_vcpu_has_irq(vcpu, 1))
 		return 0;
 
@@ -93,7 +93,7 @@ static int handle_validity(struct kvm_vcpu *vcpu)
 	KVM_EVENT(3, "validity intercept 0x%x for pid %u (kvm 0x%pK)", viwhy,
 		  current->pid, vcpu->kvm);
 
-	/* do not warn on invalid runtime instrumentation mode */
+	/* do yest warn on invalid runtime instrumentation mode */
 	WARN_ONCE(viwhy != 0x44, "kvm: unhandled validity intercept 0x%x\n",
 		  viwhy);
 	return -EINVAL;
@@ -260,7 +260,7 @@ static int handle_prog(struct kvm_vcpu *vcpu)
  * handle_external_interrupt - used for external interruption interceptions
  *
  * This interception only occurs if the CPUSTAT_EXT_INT bit was set, or if
- * the new PSW does not have external interrupts disabled. In the first case,
+ * the new PSW does yest have external interrupts disabled. In the first case,
  * we've got to deliver the interrupt manually, and in the second case, we
  * drop to userspace to handle the situation there.
  */
@@ -276,7 +276,7 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 	rc = read_guest_lc(vcpu, __LC_EXT_NEW_PSW, &newpsw, sizeof(psw_t));
 	if (rc)
 		return rc;
-	/* We can not handle clock comparator or timer interrupt with bad PSW */
+	/* We can yest handle clock comparator or timer interrupt with bad PSW */
 	if ((eic == EXT_IRQ_CLK_COMP || eic == EXT_IRQ_CPU_TIMER) &&
 	    (newpsw.mask & PSW_MASK_EXT))
 		return -EOPNOTSUPP;
@@ -292,7 +292,7 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 		irq.type = KVM_S390_INT_EXTERNAL_CALL;
 		irq.u.extcall.code = vcpu->arch.sie_block->extcpuaddr;
 		rc = kvm_s390_inject_vcpu(vcpu, &irq);
-		/* ignore if another external call is already pending */
+		/* igyesre if ayesther external call is already pending */
 		if (rc == -EBUSY)
 			return 0;
 		return rc;
@@ -307,7 +307,7 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
  * Handle MOVE PAGE partial execution interception.
  *
  * This interception can only happen for guests with DAT disabled and
- * addresses that are currently not mapped in the host. Thus we try to
+ * addresses that are currently yest mapped in the host. Thus we try to
  * set up the mappings for the corresponding user pages here (or throw
  * addressing exceptions in case of illegal guest addresses).
  */
@@ -430,7 +430,7 @@ static int handle_operexc(struct kvm_vcpu *vcpu)
 	 * PSW will cause a new operation exception.
 	 * The heuristic checks if the pgm new psw is within 6 bytes before
 	 * the faulting psw address (with same DAT, AS settings) and the
-	 * new psw is not a wait psw and the fault was not triggered by
+	 * new psw is yest a wait psw and the fault was yest triggered by
 	 * problem state.
 	 */
 	oldpsw = vcpu->arch.sie_block->gpsw;

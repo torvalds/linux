@@ -5,9 +5,9 @@ Graphic Layer (GL) and Video Layer (VL), two Mixers/Channels, and a few blocks
 handling scaling, color space conversion etc.  VOU also integrates the support
 for typical output devices, like HDMI, TV Encoder, VGA, and RGB LCD.
 
-* Master VOU node
+* Master VOU yesde
 
-It must be the parent node of all the sub-device nodes.
+It must be the parent yesde of all the sub-device yesdes.
 
 Required properties:
  - compatible: should be "zte,zx296718-vou"

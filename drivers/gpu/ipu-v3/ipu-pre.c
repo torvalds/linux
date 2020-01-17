@@ -113,23 +113,23 @@ int ipu_pre_get_available_count(void)
 struct ipu_pre *
 ipu_pre_lookup_by_phandle(struct device *dev, const char *name, int index)
 {
-	struct device_node *pre_node = of_parse_phandle(dev->of_node,
+	struct device_yesde *pre_yesde = of_parse_phandle(dev->of_yesde,
 							name, index);
 	struct ipu_pre *pre;
 
 	mutex_lock(&ipu_pre_list_mutex);
 	list_for_each_entry(pre, &ipu_pre_list, list) {
-		if (pre_node == pre->dev->of_node) {
+		if (pre_yesde == pre->dev->of_yesde) {
 			mutex_unlock(&ipu_pre_list_mutex);
 			device_link_add(dev, pre->dev,
 					DL_FLAG_AUTOREMOVE_CONSUMER);
-			of_node_put(pre_node);
+			of_yesde_put(pre_yesde);
 			return pre;
 		}
 	}
 	mutex_unlock(&ipu_pre_list_mutex);
 
-	of_node_put(pre_node);
+	of_yesde_put(pre_yesde);
 
 	return NULL;
 }
@@ -211,7 +211,7 @@ void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
 	val = readl(pre->regs + IPU_PRE_TPR_CTRL);
 	val &= ~IPU_PRE_TPR_CTRL_TILE_FORMAT_MASK;
 	if (modifier != DRM_FORMAT_MOD_LINEAR) {
-		/* only support single buffer formats for now */
+		/* only support single buffer formats for yesw */
 		val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_SINGLE_BUF;
 		if (modifier == DRM_FORMAT_MOD_VIVANTE_SUPER_TILED)
 			val |= IPU_PRE_TPR_CTRL_TILE_FORMAT_SUPER_TILED;
@@ -287,14 +287,14 @@ static int ipu_pre_probe(struct platform_device *pdev)
 	if (IS_ERR(pre->clk_axi))
 		return PTR_ERR(pre->clk_axi);
 
-	pre->iram = of_gen_pool_get(dev->of_node, "fsl,iram", 0);
+	pre->iram = of_gen_pool_get(dev->of_yesde, "fsl,iram", 0);
 	if (!pre->iram)
 		return -EPROBE_DEFER;
 
 	/*
 	 * Allocate IRAM buffer with maximum size. This could be made dynamic,
-	 * but as there is no other user of this IRAM region and we can fit all
-	 * max sized buffers into it, there is no need yet.
+	 * but as there is yes other user of this IRAM region and we can fit all
+	 * max sized buffers into it, there is yes need yet.
 	 */
 	pre->buffer_virt = gen_pool_dma_alloc(pre->iram, IPU_PRE_MAX_WIDTH *
 					      IPU_PRE_NUM_SCANLINES * 4,

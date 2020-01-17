@@ -31,7 +31,7 @@ struct ipw_hardware;
 #define IPW_CHANNEL_CONSOLE  2
 #define NO_OF_IPW_CHANNELS   5
 
-void ipwireless_network_notify_control_line_change(struct ipw_network *net,
+void ipwireless_network_yestify_control_line_change(struct ipw_network *net,
 		unsigned int channel_idx, unsigned int control_lines,
 		unsigned int control_mask);
 void ipwireless_network_packet_received(struct ipw_network *net,

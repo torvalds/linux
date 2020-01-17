@@ -1,7 +1,7 @@
 /*
  * Silicon Motion SM7XX frame buffer device
  *
- * Copyright (C) 2006 Silicon Motion Technology Corp.
+ * Copyright (C) 2006 Silicon Motion Techyeslogy Corp.
  * Authors:  Ge Wang, gewang@siliconmotion.com
  *	     Boyod boyod.yang@siliconmotion.com.cn
  *
@@ -69,7 +69,7 @@ static const struct fb_var_screeninfo smtcfb_var = {
 	.height         = -1,
 	.width          = -1,
 	.vmode          = FB_VMODE_NONINTERLACED,
-	.nonstd         = 0,
+	.yesnstd         = 0,
 	.accel_flags    = FB_ACCELF_TEXT,
 };
 
@@ -857,13 +857,13 @@ static void __init sm7xx_vga_setup(char *options)
 	}
 }
 
-static void sm712_setpalette(int regno, unsigned int red, unsigned int green,
+static void sm712_setpalette(int regyes, unsigned int red, unsigned int green,
 			     unsigned int blue, struct fb_info *info)
 {
 	/* set bit 5:4 = 01 (write LCD RAM only) */
 	smtc_seqw(0x66, (smtc_seqr(0x66) & 0xC3) | 0x10);
 
-	smtc_mmiowb(regno, dac_reg);
+	smtc_mmiowb(regyes, dac_reg);
 	smtc_mmiowb(red >> 10, dac_val);
 	smtc_mmiowb(green >> 10, dac_val);
 	smtc_mmiowb(blue >> 10, dac_val);
@@ -968,7 +968,7 @@ static int smtc_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
-static int smtc_setcolreg(unsigned int regno, unsigned int red,
+static int smtc_setcolreg(unsigned int regyes, unsigned int red,
 			  unsigned int green, unsigned int blue,
 			  unsigned int trans, struct fb_info *info)
 {
@@ -977,7 +977,7 @@ static int smtc_setcolreg(unsigned int regno, unsigned int red,
 
 	sfb = info->par;
 
-	if (regno > 255)
+	if (regyes > 255)
 		return 1;
 
 	switch (sfb->fb->fix.visual) {
@@ -986,7 +986,7 @@ static int smtc_setcolreg(unsigned int regno, unsigned int red,
 		/*
 		 * 16/32 bit true-colour, use pseudo-palette for 16 base color
 		 */
-		if (regno >= 16)
+		if (regyes >= 16)
 			break;
 		if (sfb->fb->var.bits_per_pixel == 16) {
 			u32 *pal = sfb->fb->pseudo_palette;
@@ -994,24 +994,24 @@ static int smtc_setcolreg(unsigned int regno, unsigned int red,
 			val = chan_to_field(red, &sfb->fb->var.red);
 			val |= chan_to_field(green, &sfb->fb->var.green);
 			val |= chan_to_field(blue, &sfb->fb->var.blue);
-			pal[regno] = pal_rgb(red, green, blue, val);
+			pal[regyes] = pal_rgb(red, green, blue, val);
 		} else {
 			u32 *pal = sfb->fb->pseudo_palette;
 
 			val = chan_to_field(red, &sfb->fb->var.red);
 			val |= chan_to_field(green, &sfb->fb->var.green);
 			val |= chan_to_field(blue, &sfb->fb->var.blue);
-			pal[regno] = big_swap(val);
+			pal[regyes] = big_swap(val);
 		}
 		break;
 
 	case FB_VISUAL_PSEUDOCOLOR:
 		/* color depth 8 bit */
-		sm712_setpalette(regno, red, green, blue, info);
+		sm712_setpalette(regyes, red, green, blue, info);
 		break;
 
 	default:
-		return 1;	/* unknown type */
+		return 1;	/* unkyeswn type */
 	}
 
 	return 0;
@@ -1473,7 +1473,7 @@ static u_long sm7xx_vram_probe(struct smtcfb_info *sfb)
 		else if (vram == 0x03)
 			return 0x00400000;  /* 4 MB */
 	}
-	return 0;  /* unknown hardware */
+	return 0;  /* unkyeswn hardware */
 }
 
 static void sm7xx_resolution_probe(struct smtcfb_info *sfb)
@@ -1501,7 +1501,7 @@ static void sm7xx_resolution_probe(struct smtcfb_info *sfb)
 	 * Loongson MIPS netbooks use 1024x600 LCD panels, which is the original
 	 * target platform of this driver, but nearly all old x86 laptops have
 	 * 1024x768. Lighting 768 panels using 600's timings would partially
-	 * garble the display, so we don't want that. But it's not possible to
+	 * garble the display, so we don't want that. But it's yest possible to
 	 * distinguish them reliably.
 	 *
 	 * So we change the default to 768, but keep 600 as-is on MIPS.
@@ -1530,7 +1530,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 
 	err = pci_request_region(pdev, 0, "sm7xxfb");
 	if (err < 0) {
-		dev_err(&pdev->dev, "cannot reserve framebuffer region\n");
+		dev_err(&pdev->dev, "canyest reserve framebuffer region\n");
 		goto failed_regions;
 	}
 

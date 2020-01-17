@@ -142,7 +142,7 @@ loop:
 		spin_lock_irqsave(&cache_lock, flags);
 
 		/*
-		 * If another cache operation is occurring
+		 * If ayesther cache operation is occurring
 		 */
 		if (unlikely(imcr_get(wc_reg))) {
 			spin_unlock_irqrestore(&cache_lock, flags);
@@ -171,7 +171,7 @@ loop:
 	}
 }
 
-static void cache_block_operation_nowait(unsigned int *start,
+static void cache_block_operation_yeswait(unsigned int *start,
 					 unsigned int *end,
 					 unsigned int bar_reg,
 					 unsigned int wc_reg)
@@ -395,24 +395,24 @@ void L2_cache_block_writeback_invalidate(unsigned int start, unsigned int end)
 			      IMCR_L2WIBAR, IMCR_L2WIWC);
 }
 
-void L2_cache_block_invalidate_nowait(unsigned int start, unsigned int end)
+void L2_cache_block_invalidate_yeswait(unsigned int start, unsigned int end)
 {
-	cache_block_operation_nowait((unsigned int *) start,
+	cache_block_operation_yeswait((unsigned int *) start,
 				     (unsigned int *) end,
 				     IMCR_L2IBAR, IMCR_L2IWC);
 }
 
-void L2_cache_block_writeback_nowait(unsigned int start, unsigned int end)
+void L2_cache_block_writeback_yeswait(unsigned int start, unsigned int end)
 {
-	cache_block_operation_nowait((unsigned int *) start,
+	cache_block_operation_yeswait((unsigned int *) start,
 				     (unsigned int *) end,
 				     IMCR_L2WBAR, IMCR_L2WWC);
 }
 
-void L2_cache_block_writeback_invalidate_nowait(unsigned int start,
+void L2_cache_block_writeback_invalidate_yeswait(unsigned int start,
 						unsigned int end)
 {
-	cache_block_operation_nowait((unsigned int *) start,
+	cache_block_operation_yeswait((unsigned int *) start,
 				     (unsigned int *) end,
 				     IMCR_L2WIBAR, IMCR_L2WIWC);
 }
@@ -423,15 +423,15 @@ void L2_cache_block_writeback_invalidate_nowait(unsigned int start,
  */
 void __init c6x_cache_init(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	node = of_find_compatible_node(NULL, NULL, "ti,c64x+cache");
-	if (!node)
+	yesde = of_find_compatible_yesde(NULL, NULL, "ti,c64x+cache");
+	if (!yesde)
 		return;
 
-	cache_base = of_iomap(node, 0);
+	cache_base = of_iomap(yesde, 0);
 
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	if (!cache_base)
 		return;

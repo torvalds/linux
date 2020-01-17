@@ -5,7 +5,7 @@
  */
 
 #include <linux/mmu_context.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/mempolicy.h>
 #include <linux/swap.h>
 #include <linux/sched/mm.h>
@@ -20,8 +20,8 @@
 struct i915_mm_struct {
 	struct mm_struct *mm;
 	struct drm_i915_private *i915;
-	struct i915_mmu_notifier *mn;
-	struct hlist_node node;
+	struct i915_mmu_yestifier *mn;
+	struct hlist_yesde yesde;
 	struct kref kref;
 	struct work_struct work;
 };
@@ -29,18 +29,18 @@ struct i915_mm_struct {
 #if defined(CONFIG_MMU_NOTIFIER)
 #include <linux/interval_tree.h>
 
-struct i915_mmu_notifier {
+struct i915_mmu_yestifier {
 	spinlock_t lock;
-	struct hlist_node node;
-	struct mmu_notifier mn;
+	struct hlist_yesde yesde;
+	struct mmu_yestifier mn;
 	struct rb_root_cached objects;
 	struct i915_mm_struct *mm;
 };
 
 struct i915_mmu_object {
-	struct i915_mmu_notifier *mn;
+	struct i915_mmu_yestifier *mn;
 	struct drm_i915_gem_object *obj;
-	struct interval_tree_node it;
+	struct interval_tree_yesde it;
 };
 
 static void add_object(struct i915_mmu_object *mo)
@@ -71,7 +71,7 @@ __i915_gem_userptr_set_active(struct drm_i915_gem_object *obj, bool value)
 	 * a GTT mmapping (possible with a MAP_FIXED) - then when we have
 	 * to invalidate that mmaping, mm_invalidate_range is called with
 	 * the userptr address *and* the struct_mutex held.  To prevent that
-	 * we set a flag under the i915_mmu_notifier spinlock to indicate
+	 * we set a flag under the i915_mmu_yestifier spinlock to indicate
 	 * whether this object is valid.
 	 */
 	if (!mo)
@@ -86,12 +86,12 @@ __i915_gem_userptr_set_active(struct drm_i915_gem_object *obj, bool value)
 }
 
 static int
-userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
-				  const struct mmu_notifier_range *range)
+userptr_mn_invalidate_range_start(struct mmu_yestifier *_mn,
+				  const struct mmu_yestifier_range *range)
 {
-	struct i915_mmu_notifier *mn =
-		container_of(_mn, struct i915_mmu_notifier, mn);
-	struct interval_tree_node *it;
+	struct i915_mmu_yestifier *mn =
+		container_of(_mn, struct i915_mmu_yestifier, mn);
+	struct interval_tree_yesde *it;
 	unsigned long end;
 	int ret = 0;
 
@@ -106,7 +106,7 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 	while (it) {
 		struct drm_i915_gem_object *obj;
 
-		if (!mmu_notifier_range_blockable(range)) {
+		if (!mmu_yestifier_range_blockable(range)) {
 			ret = -EAGAIN;
 			break;
 		}
@@ -115,11 +115,11 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		 * The mmu_object is released late when destroying the
 		 * GEM object so it is entirely possible to gain a
 		 * reference on an object in the process of being freed
-		 * since our serialisation is via the spinlock and not
+		 * since our serialisation is via the spinlock and yest
 		 * the struct_mutex - and consequently use it after it
 		 * is freed and then double free it. To prevent that
 		 * use-after-free we only acquire a reference on the
-		 * object if it is not in the process of being destroyed.
+		 * object if it is yest in the process of being destroyed.
 		 */
 		obj = container_of(it, struct i915_mmu_object, it)->obj;
 		if (!kref_get_unless_zero(&obj->base.refcount)) {
@@ -139,8 +139,8 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 		spin_lock(&mn->lock);
 
 		/*
-		 * As we do not (yet) protect the mmu from concurrent insertion
-		 * over this range, there is no guarantee that this search will
+		 * As we do yest (yet) protect the mmu from concurrent insertion
+		 * over this range, there is yes guarantee that this search will
 		 * terminate given a pathologic workload.
 		 */
 		it = interval_tree_iter_first(&mn->objects, range->start, end);
@@ -151,21 +151,21 @@ userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
 
 }
 
-static const struct mmu_notifier_ops i915_gem_userptr_notifier = {
+static const struct mmu_yestifier_ops i915_gem_userptr_yestifier = {
 	.invalidate_range_start = userptr_mn_invalidate_range_start,
 };
 
-static struct i915_mmu_notifier *
-i915_mmu_notifier_create(struct i915_mm_struct *mm)
+static struct i915_mmu_yestifier *
+i915_mmu_yestifier_create(struct i915_mm_struct *mm)
 {
-	struct i915_mmu_notifier *mn;
+	struct i915_mmu_yestifier *mn;
 
 	mn = kmalloc(sizeof(*mn), GFP_KERNEL);
 	if (mn == NULL)
 		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&mn->lock);
-	mn->mn.ops = &i915_gem_userptr_notifier;
+	mn->mn.ops = &i915_gem_userptr_yestifier;
 	mn->objects = RB_ROOT_CACHED;
 	mn->mm = mm;
 
@@ -173,7 +173,7 @@ i915_mmu_notifier_create(struct i915_mm_struct *mm)
 }
 
 static void
-i915_gem_userptr_release__mmu_notifier(struct drm_i915_gem_object *obj)
+i915_gem_userptr_release__mmu_yestifier(struct drm_i915_gem_object *obj)
 {
 	struct i915_mmu_object *mo;
 
@@ -187,17 +187,17 @@ i915_gem_userptr_release__mmu_notifier(struct drm_i915_gem_object *obj)
 	kfree(mo);
 }
 
-static struct i915_mmu_notifier *
-i915_mmu_notifier_find(struct i915_mm_struct *mm)
+static struct i915_mmu_yestifier *
+i915_mmu_yestifier_find(struct i915_mm_struct *mm)
 {
-	struct i915_mmu_notifier *mn;
+	struct i915_mmu_yestifier *mn;
 	int err = 0;
 
 	mn = mm->mn;
 	if (mn)
 		return mn;
 
-	mn = i915_mmu_notifier_create(mm);
+	mn = i915_mmu_yestifier_create(mm);
 	if (IS_ERR(mn))
 		err = PTR_ERR(mn);
 
@@ -205,7 +205,7 @@ i915_mmu_notifier_find(struct i915_mm_struct *mm)
 	mutex_lock(&mm->i915->mm_lock);
 	if (mm->mn == NULL && !err) {
 		/* Protected by mmap_sem (write-lock) */
-		err = __mmu_notifier_register(&mn->mn, mm->mm);
+		err = __mmu_yestifier_register(&mn->mn, mm->mm);
 		if (!err) {
 			/* Protected by mm_lock */
 			mm->mn = fetch_and_zero(&mn);
@@ -213,7 +213,7 @@ i915_mmu_notifier_find(struct i915_mm_struct *mm)
 	} else if (mm->mn) {
 		/*
 		 * Someone else raced and successfully installed the mmu
-		 * notifier, we can cancel our own errors.
+		 * yestifier, we can cancel our own errors.
 		 */
 		err = 0;
 	}
@@ -227,10 +227,10 @@ i915_mmu_notifier_find(struct i915_mm_struct *mm)
 }
 
 static int
-i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj,
+i915_gem_userptr_init__mmu_yestifier(struct drm_i915_gem_object *obj,
 				    unsigned flags)
 {
-	struct i915_mmu_notifier *mn;
+	struct i915_mmu_yestifier *mn;
 	struct i915_mmu_object *mo;
 
 	if (flags & I915_USERPTR_UNSYNCHRONIZED)
@@ -239,7 +239,7 @@ i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj,
 	if (WARN_ON(obj->userptr.mm == NULL))
 		return -EINVAL;
 
-	mn = i915_mmu_notifier_find(obj->userptr.mm);
+	mn = i915_mmu_yestifier_find(obj->userptr.mm);
 	if (IS_ERR(mn))
 		return PTR_ERR(mn);
 
@@ -258,13 +258,13 @@ i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj,
 }
 
 static void
-i915_mmu_notifier_free(struct i915_mmu_notifier *mn,
+i915_mmu_yestifier_free(struct i915_mmu_yestifier *mn,
 		       struct mm_struct *mm)
 {
 	if (mn == NULL)
 		return;
 
-	mmu_notifier_unregister(&mn->mn, mm);
+	mmu_yestifier_unregister(&mn->mn, mm);
 	kfree(mn);
 }
 
@@ -276,12 +276,12 @@ __i915_gem_userptr_set_active(struct drm_i915_gem_object *obj, bool value)
 }
 
 static void
-i915_gem_userptr_release__mmu_notifier(struct drm_i915_gem_object *obj)
+i915_gem_userptr_release__mmu_yestifier(struct drm_i915_gem_object *obj)
 {
 }
 
 static int
-i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj,
+i915_gem_userptr_init__mmu_yestifier(struct drm_i915_gem_object *obj,
 				    unsigned flags)
 {
 	if ((flags & I915_USERPTR_UNSYNCHRONIZED) == 0)
@@ -294,7 +294,7 @@ i915_gem_userptr_init__mmu_notifier(struct drm_i915_gem_object *obj,
 }
 
 static void
-i915_mmu_notifier_free(struct i915_mmu_notifier *mn,
+i915_mmu_yestifier_free(struct i915_mmu_yestifier *mn,
 		       struct mm_struct *mm)
 {
 }
@@ -307,7 +307,7 @@ __i915_mm_struct_find(struct drm_i915_private *dev_priv, struct mm_struct *real)
 	struct i915_mm_struct *mm;
 
 	/* Protected by dev_priv->mm_lock */
-	hash_for_each_possible(dev_priv->mm_structs, mm, node, (unsigned long)real)
+	hash_for_each_possible(dev_priv->mm_structs, mm, yesde, (unsigned long)real)
 		if (mm->mm == real)
 			return mm;
 
@@ -350,7 +350,7 @@ i915_gem_userptr_init__mm_struct(struct drm_i915_gem_object *obj)
 
 		/* Protected by dev_priv->mm_lock */
 		hash_add(dev_priv->mm_structs,
-			 &mm->node, (unsigned long)mm->mm);
+			 &mm->yesde, (unsigned long)mm->mm);
 	} else
 		kref_get(&mm->kref);
 
@@ -364,7 +364,7 @@ static void
 __i915_mm_struct_free__worker(struct work_struct *work)
 {
 	struct i915_mm_struct *mm = container_of(work, typeof(*mm), work);
-	i915_mmu_notifier_free(mm->mn, mm->mm);
+	i915_mmu_yestifier_free(mm->mn, mm->mm);
 	mmdrop(mm->mm);
 	kfree(mm);
 }
@@ -375,7 +375,7 @@ __i915_mm_struct_free(struct kref *kref)
 	struct i915_mm_struct *mm = container_of(kref, typeof(*mm), kref);
 
 	/* Protected by dev_priv->mm_lock */
-	hash_del(&mm->node);
+	hash_del(&mm->yesde);
 	mutex_unlock(&mm->i915->mm_lock);
 
 	INIT_WORK(&mm->work, __i915_mm_struct_free__worker);
@@ -464,7 +464,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 			flags |= FOLL_WRITE;
 
 		ret = -EFAULT;
-		if (mmget_not_zero(mm)) {
+		if (mmget_yest_zero(mm)) {
 			down_read(&mm->mmap_sem);
 			while (pinned < npages) {
 				ret = get_user_pages_remote
@@ -519,14 +519,14 @@ __i915_gem_userptr_get_pages_schedule(struct drm_i915_gem_object *obj)
 	 * user pages without holding our mutex. Access
 	 * to the user pages requires mmap_sem, and we have
 	 * a strict lock ordering of mmap_sem, struct_mutex -
-	 * we already hold struct_mutex here and so cannot
+	 * we already hold struct_mutex here and so canyest
 	 * call gup without encountering a lock inversion.
 	 *
 	 * Userspace will keep on repeating the operation
 	 * (thanks to EAGAIN) until either we hit the fast
 	 * path or the worker completes. If the worker is
 	 * cancelled or superseded, the task is still run
-	 * but the results ignored. (This leads to
+	 * but the results igyesred. (This leads to
 	 * complications that we may have a stray object
 	 * refcount that we need to be wary of when
 	 * checking for existing objects during creation.)
@@ -568,10 +568,10 @@ static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	 * However, that still leaves open the possibility of the vma
 	 * being copied upon fork. Which falls under the same userspace
 	 * synchronisation issue as a regular bo, except that this time
-	 * the process may not be expecting that a particular piece of
+	 * the process may yest be expecting that a particular piece of
 	 * memory is tied to the GPU.
 	 *
-	 * Fortunately, we can hook into the mmu_notifier in order to
+	 * Fortunately, we can hook into the mmu_yestifier in order to
 	 * discard the page references prior to anything nasty happening
 	 * to the vma (discard or cloning) which should prevent the more
 	 * egregious cases from causing harm.
@@ -639,7 +639,7 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
 
 	/*
 	 * We always mark objects as dirty when they are used by the GPU,
-	 * just in case. However, if we set the vma as being read-only we know
+	 * just in case. However, if we set the vma as being read-only we kyesw
 	 * that the object will never have been written to.
 	 */
 	if (i915_gem_object_is_readonly(obj))
@@ -648,16 +648,16 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
 	for_each_sgt_page(page, sgt_iter, pages) {
 		if (obj->mm.dirty && trylock_page(page)) {
 			/*
-			 * As this may not be anonymous memory (e.g. shmem)
+			 * As this may yest be ayesnymous memory (e.g. shmem)
 			 * but exist on a real mapping, we have to lock
 			 * the page in order to dirty it -- holding
-			 * the page reference is not sufficient to
-			 * prevent the inode from being truncated.
+			 * the page reference is yest sufficient to
+			 * prevent the iyesde from being truncated.
 			 * Play safe and take the lock.
 			 *
 			 * However...!
 			 *
-			 * The mmu-notifier can be invalidated for a
+			 * The mmu-yestifier can be invalidated for a
 			 * migrate_page, that is alreadying holding the lock
 			 * on the page. Such a try_to_unmap() will result
 			 * in us calling put_pages() and so recursively try
@@ -681,7 +681,7 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
 static void
 i915_gem_userptr_release(struct drm_i915_gem_object *obj)
 {
-	i915_gem_userptr_release__mmu_notifier(obj);
+	i915_gem_userptr_release__mmu_yestifier(obj);
 	i915_gem_userptr_release__mm_struct(obj);
 }
 
@@ -691,7 +691,7 @@ i915_gem_userptr_dmabuf_export(struct drm_i915_gem_object *obj)
 	if (obj->userptr.mmu_object)
 		return 0;
 
-	return i915_gem_userptr_init__mmu_notifier(obj, 0);
+	return i915_gem_userptr_init__mmu_yestifier(obj, 0);
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
@@ -706,33 +706,33 @@ static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 };
 
 /*
- * Creates a new mm object that wraps some normal memory from the process
+ * Creates a new mm object that wraps some yesrmal memory from the process
  * context - user memory.
  *
  * We impose several restrictions upon the memory being mapped
  * into the GPU.
  * 1. It must be page aligned (both start/end addresses, i.e ptr and size).
- * 2. It must be normal system memory, not a pointer into another map of IO
- *    space (e.g. it must not be a GTT mmapping of another object).
+ * 2. It must be yesrmal system memory, yest a pointer into ayesther map of IO
+ *    space (e.g. it must yest be a GTT mmapping of ayesther object).
  * 3. We only allow a bo as large as we could in theory map into the GTT,
  *    that is we limit the size to the total size of the GTT.
- * 4. The bo is marked as being snoopable. The backing pages are left
+ * 4. The bo is marked as being syesopable. The backing pages are left
  *    accessible directly by the CPU, but reads and writes by the GPU may
- *    incur the cost of a snoop (unless you have an LLC architecture).
+ *    incur the cost of a syesop (unless you have an LLC architecture).
  *
  * Synchronisation between multiple users and the GPU is left to userspace
- * through the normal set-domain-ioctl. The kernel will enforce that the
+ * through the yesrmal set-domain-ioctl. The kernel will enforce that the
  * GPU relinquishes the VMA before it is returned back to the system
  * i.e. upon free(), munmap() or process termination. However, the userspace
- * malloc() library may not immediately relinquish the VMA after free() and
+ * malloc() library may yest immediately relinquish the VMA after free() and
  * instead reuse it whilst the GPU is still reading and writing to the VMA.
  * Caveat emptor.
  *
- * Also note, that the object created here is not currently a "first class"
+ * Also yeste, that the object created here is yest currently a "first class"
  * object, in that several ioctls are banned. These are the CPU access
  * ioctls: mmap(), pwrite and pread. In practice, you are expected to use
- * direct access via your pointer rather than use those ioctls. Another
- * restriction is that we do not allow userptr surfaces to be pinned to the
+ * direct access via your pointer rather than use those ioctls. Ayesther
+ * restriction is that we do yest allow userptr surfaces to be pinned to the
  * hardware and so we reject any attempt to create a framebuffer out of a
  * userptr.
  *
@@ -753,8 +753,8 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 	u32 handle;
 
 	if (!HAS_LLC(dev_priv) && !HAS_SNOOP(dev_priv)) {
-		/* We cannot support coherent userptr objects on hw without
-		 * LLC and broken snooping.
+		/* We canyest support coherent userptr objects on hw without
+		 * LLC and broken syesoping.
 		 */
 		return -ENODEV;
 	}
@@ -776,7 +776,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		struct i915_address_space *vm;
 
 		/*
-		 * On almost all of the older hw, we cannot tell the GPU that
+		 * On almost all of the older hw, we canyest tell the GPU that
 		 * a page is readonly.
 		 */
 		vm = rcu_dereference_protected(dev_priv->kernel_context->vm,
@@ -800,16 +800,16 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		i915_gem_object_set_readonly(obj);
 
 	/* And keep a pointer to the current->mm for resolving the user pages
-	 * at binding. This means that we need to hook into the mmu_notifier
+	 * at binding. This means that we need to hook into the mmu_yestifier
 	 * in order to detect if the mmu is destroyed.
 	 */
 	ret = i915_gem_userptr_init__mm_struct(obj);
 	if (ret == 0)
-		ret = i915_gem_userptr_init__mmu_notifier(obj, args->flags);
+		ret = i915_gem_userptr_init__mmu_yestifier(obj, args->flags);
 	if (ret == 0)
 		ret = drm_gem_handle_create(file, &obj->base, &handle);
 
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it yesw */
 	i915_gem_object_put(obj);
 	if (ret)
 		return ret;

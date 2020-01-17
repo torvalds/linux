@@ -14,7 +14,7 @@
 #define DEV_ERR(fmt, args...)   pr_err(fmt, ##args)
 
 enum dss_clk_type {
-	DSS_CLK_AHB, /* no set rate. rate controlled through rpm */
+	DSS_CLK_AHB, /* yes set rate. rate controlled through rpm */
 	DSS_CLK_PCLK,
 };
 

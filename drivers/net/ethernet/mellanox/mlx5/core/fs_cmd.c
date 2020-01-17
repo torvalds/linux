@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -373,7 +373,7 @@ static int mlx5_set_extended_dest(struct mlx5_core_dev *dev,
 	if (!(fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST))
 		return 0;
 
-	list_for_each_entry(dst, &fte->node.children, node.list) {
+	list_for_each_entry(dst, &fte->yesde.children, yesde.list) {
 		if (dst->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_COUNTER)
 			continue;
 		if (dst->dest_attr.type == MLX5_FLOW_DESTINATION_TYPE_VPORT &&
@@ -385,11 +385,11 @@ static int mlx5_set_extended_dest(struct mlx5_core_dev *dev,
 		*extended_dest = true;
 
 	if (*extended_dest && !fw_log_max_fdb_encap_uplink) {
-		mlx5_core_warn(dev, "FW does not support extended destination");
+		mlx5_core_warn(dev, "FW does yest support extended destination");
 		return -EOPNOTSUPP;
 	}
 	if (num_encap > (1 << fw_log_max_fdb_encap_uplink)) {
-		mlx5_core_warn(dev, "FW does not support more than %d encaps",
+		mlx5_core_warn(dev, "FW does yest support more than %d encaps",
 			       1 << fw_log_max_fdb_encap_uplink);
 		return -EOPNOTSUPP;
 	}
@@ -484,7 +484,7 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
 		int list_size = 0;
 
-		list_for_each_entry(dst, &fte->node.children, node.list) {
+		list_for_each_entry(dst, &fte->yesde.children, yesde.list) {
 			unsigned int id, type = dst->dest_attr.type;
 
 			if (type == MLX5_FLOW_DESTINATION_TYPE_COUNTER)
@@ -539,7 +539,7 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 					ft->type));
 		int list_size = 0;
 
-		list_for_each_entry(dst, &fte->node.children, node.list) {
+		list_for_each_entry(dst, &fte->yesde.children, yesde.list) {
 			if (dst->dest_attr.type !=
 			    MLX5_FLOW_DESTINATION_TYPE_COUNTER)
 				continue;

@@ -12,7 +12,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -58,7 +58,7 @@ static struct drm_buf *i810_freelist_get(struct drm_device * dev)
 	int i;
 	int used;
 
-	/* Linear search might not be the best solution */
+	/* Linear search might yest be the best solution */
 
 	for (i = 0; i < dma->buf_count; i++) {
 		struct drm_buf *buf = dma->buflist[i];
@@ -72,7 +72,7 @@ static struct drm_buf *i810_freelist_get(struct drm_device * dev)
 	return NULL;
 }
 
-/* This should only be called if the buffer is not sent to the hardware
+/* This should only be called if the buffer is yest sent to the hardware
  * yet, the hardware updates in use for us once its on the ring buffer.
  */
 
@@ -84,7 +84,7 @@ static int i810_freelist_put(struct drm_device *dev, struct drm_buf *buf)
 	/* In use is already a pointer */
 	used = cmpxchg(buf_priv->in_use, I810_BUF_CLIENT, I810_BUF_FREE);
 	if (used != I810_BUF_CLIENT) {
-		DRM_ERROR("Freeing buffer thats not in use : %d\n", buf->idx);
+		DRM_ERROR("Freeing buffer thats yest in use : %d\n", buf->idx);
 		return -EINVAL;
 	}
 
@@ -99,7 +99,7 @@ static int i810_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 	struct drm_buf *buf;
 	drm_i810_buf_priv_t *buf_priv;
 
-	dev = priv->minor->dev;
+	dev = priv->miyesr->dev;
 	dev_priv = dev->dev_private;
 	buf = dev_priv->mmap_buffer;
 	buf_priv = buf->dev_private;
@@ -121,12 +121,12 @@ static const struct file_operations i810_buffer_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = i810_mmap_buffers,
 	.compat_ioctl = drm_compat_ioctl,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static int i810_map_buffer(struct drm_buf *buf, struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->minor->dev;
+	struct drm_device *dev = file_priv->miyesr->dev;
 	drm_i810_buf_priv_t *buf_priv = buf->dev_private;
 	drm_i810_private_t *dev_priv = dev->dev_private;
 	const struct file_operations *old_fops;
@@ -206,7 +206,7 @@ static int i810_dma_cleanup(struct drm_device *dev)
 	struct drm_device_dma *dma = dev->dma;
 
 	/* Make sure interrupts are disabled here because the uninstall ioctl
-	 * may not have been called from userspace and after dev_private
+	 * may yest have been called from userspace and after dev_private
 	 * is freed, it's too late.
 	 */
 	if (drm_core_check_feature(dev, DRIVER_HAVE_IRQ) && dev->irq_enabled)
@@ -291,7 +291,7 @@ static int i810_freelist_init(struct drm_device *dev, drm_i810_private_t *dev_pr
 	int i;
 
 	if (dma->buf_count > 1019) {
-		/* Not enough space in the status page for the freelist */
+		/* Not eyesugh space in the status page for the freelist */
 		return -EINVAL;
 	}
 
@@ -336,14 +336,14 @@ static int i810_dma_initialize(struct drm_device *dev,
 	if (!dev_priv->sarea_map) {
 		dev->dev_private = (void *)dev_priv;
 		i810_dma_cleanup(dev);
-		DRM_ERROR("can not find sarea!\n");
+		DRM_ERROR("can yest find sarea!\n");
 		return -EINVAL;
 	}
 	dev_priv->mmio_map = drm_legacy_findmap(dev, init->mmio_offset);
 	if (!dev_priv->mmio_map) {
 		dev->dev_private = (void *)dev_priv;
 		i810_dma_cleanup(dev);
-		DRM_ERROR("can not find mmio map!\n");
+		DRM_ERROR("can yest find mmio map!\n");
 		return -EINVAL;
 	}
 	dev->agp_buffer_token = init->buffers_offset;
@@ -351,7 +351,7 @@ static int i810_dma_initialize(struct drm_device *dev,
 	if (!dev->agp_buffer_map) {
 		dev->dev_private = (void *)dev_priv;
 		i810_dma_cleanup(dev);
-		DRM_ERROR("can not find dma buffer map!\n");
+		DRM_ERROR("can yest find dma buffer map!\n");
 		return -EINVAL;
 	}
 
@@ -373,7 +373,7 @@ static int i810_dma_initialize(struct drm_device *dev,
 	if (dev_priv->ring.map.handle == NULL) {
 		dev->dev_private = (void *)dev_priv;
 		i810_dma_cleanup(dev);
-		DRM_ERROR("can not ioremap virtual address for"
+		DRM_ERROR("can yest ioremap virtual address for"
 			  " ring buffer\n");
 		return -ENOMEM;
 	}
@@ -403,7 +403,7 @@ static int i810_dma_initialize(struct drm_device *dev,
 	if (!dev_priv->hw_status_page) {
 		dev->dev_private = (void *)dev_priv;
 		i810_dma_cleanup(dev);
-		DRM_ERROR("Can not allocate hardware status page\n");
+		DRM_ERROR("Can yest allocate hardware status page\n");
 		return -ENOMEM;
 	}
 	DRM_DEBUG("hw status page @ %p\n", dev_priv->hw_status_page);
@@ -415,7 +415,7 @@ static int i810_dma_initialize(struct drm_device *dev,
 	if (i810_freelist_init(dev, dev_priv) != 0) {
 		dev->dev_private = (void *)dev_priv;
 		i810_dma_cleanup(dev);
-		DRM_ERROR("Not enough space in the status page for"
+		DRM_ERROR("Not eyesugh space in the status page for"
 			  " the freelist\n");
 		return -ENOMEM;
 	}
@@ -1232,7 +1232,7 @@ void i810_driver_preclose(struct drm_device *dev, struct drm_file *file_priv)
 		i810_driver_reclaim_buffers(dev, file_priv);
 		drm_legacy_idlelock_release(&file_priv->master->lock);
 	} else {
-		/* master disappeared, clean up stuff anyway and hope nothing
+		/* master disappeared, clean up stuff anyway and hope yesthing
 		 * goes wrong */
 		i810_driver_reclaim_buffers(dev, file_priv);
 	}

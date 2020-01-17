@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2008 Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012 MIPS Techyeslogies, Inc.  All rights reserved.
  */
 
 #define pr_fmt(fmt) "irq-mips-gic: " fmt
@@ -430,7 +430,7 @@ static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	return 0;
 }
 
-static int gic_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
+static int gic_irq_domain_xlate(struct irq_domain *d, struct device_yesde *ctrlr,
 				const u32 *intspec, unsigned int intsize,
 				irq_hw_number_t *out_hwirq,
 				unsigned int *out_type)
@@ -485,7 +485,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	case GIC_LOCAL_INT_FDC:
 		/*
 		 * HACK: These are all really percpu interrupts, but
-		 * the rest of the MIPS kernel code does not use the
+		 * the rest of the MIPS kernel code does yest use the
 		 * percpu IRQ API for them.
 		 */
 		cd = &gic_all_vpes_chip_data[intr];
@@ -550,13 +550,13 @@ static const struct irq_domain_ops gic_irq_domain_ops = {
 	.map = gic_irq_domain_map,
 };
 
-static int gic_ipi_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
+static int gic_ipi_domain_xlate(struct irq_domain *d, struct device_yesde *ctrlr,
 				const u32 *intspec, unsigned int intsize,
 				irq_hw_number_t *out_hwirq,
 				unsigned int *out_type)
 {
 	/*
-	 * There's nothing to translate here. hwirq is dynamically allocated and
+	 * There's yesthing to translate here. hwirq is dynamically allocated and
 	 * the irq type is always edge triggered.
 	 * */
 	*out_hwirq = 0;
@@ -576,7 +576,7 @@ static int gic_ipi_domain_alloc(struct irq_domain *d, unsigned int virq,
 	if (base_hwirq == gic_shared_intrs)
 		return -ENOMEM;
 
-	/* check that we have enough space */
+	/* check that we have eyesugh space */
 	for (i = base_hwirq; i < nr_irqs; i++) {
 		if (!test_bit(i, ipi_available))
 			return -EBUSY;
@@ -631,7 +631,7 @@ void gic_ipi_domain_free(struct irq_domain *d, unsigned int virq,
 	bitmap_set(ipi_available, base_hwirq, nr_irqs);
 }
 
-int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
+int gic_ipi_domain_match(struct irq_domain *d, struct device_yesde *yesde,
 			 enum irq_domain_bus_token bus_token)
 {
 	bool is_ipi;
@@ -639,7 +639,7 @@ int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
 	switch (bus_token) {
 	case DOMAIN_BUS_IPI:
 		is_ipi = d->bus_token == bus_token;
-		return (!node || to_of_node(d->fwnode) == node) && is_ipi;
+		return (!yesde || to_of_yesde(d->fwyesde) == yesde) && is_ipi;
 		break;
 	default:
 		return 0;
@@ -668,8 +668,8 @@ static int gic_cpu_startup(unsigned int cpu)
 	return 0;
 }
 
-static int __init gic_of_init(struct device_node *node,
-			      struct device_node *parent)
+static int __init gic_of_init(struct device_yesde *yesde,
+			      struct device_yesde *parent)
 {
 	unsigned int cpu_vec, i, gicconfig, v[2], num_ipis;
 	unsigned long reserved;
@@ -680,7 +680,7 @@ static int __init gic_of_init(struct device_node *node,
 	/* Find the first available CPU vector. */
 	i = 0;
 	reserved = (C_SW0 | C_SW1) >> __ffs(C_SW0);
-	while (!of_property_read_u32_index(node, "mti,reserved-cpu-vectors",
+	while (!of_property_read_u32_index(yesde, "mti,reserved-cpu-vectors",
 					   i++, &cpu_vec))
 		reserved |= BIT(cpu_vec);
 
@@ -690,9 +690,9 @@ static int __init gic_of_init(struct device_node *node,
 		return -ENODEV;
 	}
 
-	if (of_address_to_resource(node, 0, &res)) {
+	if (of_address_to_resource(yesde, 0, &res)) {
 		/*
-		 * Probe the CM for the GIC base address if not specified
+		 * Probe the CM for the GIC base address if yest specified
 		 * in the device-tree.
 		 */
 		if (mips_cm_present()) {
@@ -716,7 +716,7 @@ static int __init gic_of_init(struct device_node *node,
 		__sync();
 	}
 
-	mips_gic_base = ioremap_nocache(gic_base, gic_len);
+	mips_gic_base = ioremap_yescache(gic_base, gic_len);
 
 	gicconfig = read_gic_config();
 	gic_shared_intrs = gicconfig & GIC_CONFIG_NUMINTERRUPTS;
@@ -736,7 +736,7 @@ static int __init gic_of_init(struct device_node *node,
 		/*
 		 * With the CMP implementation of SMP (deprecated), other CPUs
 		 * are started by the bootloader and put into a timer based
-		 * waiting poll loop. We must not re-route those CPU's local
+		 * waiting poll loop. We must yest re-route those CPU's local
 		 * timer interrupts as the wait instruction will never finish,
 		 * so just handle whatever CPU interrupt it is routed to by
 		 * default.
@@ -756,7 +756,7 @@ static int __init gic_of_init(struct device_node *node,
 		}
 	}
 
-	gic_irq_domain = irq_domain_add_simple(node, GIC_NUM_LOCAL_INTRS +
+	gic_irq_domain = irq_domain_add_simple(yesde, GIC_NUM_LOCAL_INTRS +
 					       gic_shared_intrs, 0,
 					       &gic_irq_domain_ops, NULL);
 	if (!gic_irq_domain) {
@@ -767,7 +767,7 @@ static int __init gic_of_init(struct device_node *node,
 	gic_ipi_domain = irq_domain_add_hierarchy(gic_irq_domain,
 						  IRQ_DOMAIN_FLAG_IPI_PER_CPU,
 						  GIC_NUM_LOCAL_INTRS + gic_shared_intrs,
-						  node, &gic_ipi_domain_ops, NULL);
+						  yesde, &gic_ipi_domain_ops, NULL);
 	if (!gic_ipi_domain) {
 		pr_err("Failed to add IPI domain");
 		return -ENXIO;
@@ -775,8 +775,8 @@ static int __init gic_of_init(struct device_node *node,
 
 	irq_domain_update_bus_token(gic_ipi_domain, DOMAIN_BUS_IPI);
 
-	if (node &&
-	    !of_property_read_u32_array(node, "mti,reserved-ipi-vectors", v, 2)) {
+	if (yesde &&
+	    !of_property_read_u32_array(yesde, "mti,reserved-ipi-vectors", v, 2)) {
 		bitmap_set(ipi_resrv, v[0], v[1]);
 	} else {
 		/*

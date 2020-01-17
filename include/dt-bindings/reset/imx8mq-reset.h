@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2018 Zodiac Inflight Innovations
+ * Copyright (C) 2018 Zodiac Inflight Inyesvations
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiryesv <andrew.smiryesv@gmail.com>
  */
 
 #ifndef DT_BINDING_RESET_IMX8MQ_H

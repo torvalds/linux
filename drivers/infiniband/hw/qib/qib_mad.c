@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -139,7 +139,7 @@ static void qib_send_trap(struct qib_ibport *ibp, void *data, unsigned len)
 void qib_bad_pkey(struct qib_ibport *ibp, u32 key, u32 sl,
 		  u32 qp1, u32 qp2, __be16 lid1, __be16 lid2)
 {
-	struct ib_mad_notice_attr data;
+	struct ib_mad_yestice_attr data;
 
 	ibp->rvp.n_pkt_drops++;
 	ibp->rvp.pkey_violations++;
@@ -166,7 +166,7 @@ void qib_bad_pkey(struct qib_ibport *ibp, u32 key, u32 sl,
  */
 static void qib_bad_mkey(struct qib_ibport *ibp, struct ib_smp *smp)
 {
-	struct ib_mad_notice_attr data;
+	struct ib_mad_yestice_attr data;
 
 	/* Send violation trap */
 	data.generic_type = IB_NOTICE_TYPE_SECURITY;
@@ -208,7 +208,7 @@ void qib_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num)
 	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
 	struct qib_devdata *dd = dd_from_dev(ibdev);
 	struct qib_ibport *ibp = &dd->pport[port_num - 1].ibport_data;
-	struct ib_mad_notice_attr data;
+	struct ib_mad_yestice_attr data;
 
 	data.generic_type = IB_NOTICE_TYPE_INFO;
 	data.prod_type_msb = 0;
@@ -228,7 +228,7 @@ void qib_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num)
  */
 void qib_sys_guid_chg(struct qib_ibport *ibp)
 {
-	struct ib_mad_notice_attr data;
+	struct ib_mad_yestice_attr data;
 
 	data.generic_type = IB_NOTICE_TYPE_INFO;
 	data.prod_type_msb = 0;
@@ -246,9 +246,9 @@ void qib_sys_guid_chg(struct qib_ibport *ibp)
 /*
  * Send a Node Description Changed trap (ch. 14.3.13).
  */
-void qib_node_desc_chg(struct qib_ibport *ibp)
+void qib_yesde_desc_chg(struct qib_ibport *ibp)
 {
-	struct ib_mad_notice_attr data;
+	struct ib_mad_yestice_attr data;
 
 	data.generic_type = IB_NOTICE_TYPE_INFO;
 	data.prod_type_msb = 0;
@@ -264,21 +264,21 @@ void qib_node_desc_chg(struct qib_ibport *ibp)
 	qib_send_trap(ibp, &data, sizeof(data));
 }
 
-static int subn_get_nodedescription(struct ib_smp *smp,
+static int subn_get_yesdedescription(struct ib_smp *smp,
 				    struct ib_device *ibdev)
 {
 	if (smp->attr_mod)
 		smp->status |= IB_SMP_INVALID_FIELD;
 
-	memcpy(smp->data, ibdev->node_desc, sizeof(smp->data));
+	memcpy(smp->data, ibdev->yesde_desc, sizeof(smp->data));
 
 	return reply(smp);
 }
 
-static int subn_get_nodeinfo(struct ib_smp *smp, struct ib_device *ibdev,
+static int subn_get_yesdeinfo(struct ib_smp *smp, struct ib_device *ibdev,
 			     u8 port)
 {
-	struct ib_node_info *nip = (struct ib_node_info *)&smp->data;
+	struct ib_yesde_info *nip = (struct ib_yesde_info *)&smp->data;
 	struct qib_devdata *dd = dd_from_ibdev(ibdev);
 	u32 majrev, minrev;
 	unsigned pidx = port - 1; /* IB number port from 1, hdw from 0 */
@@ -292,11 +292,11 @@ static int subn_get_nodeinfo(struct ib_smp *smp, struct ib_device *ibdev,
 
 	nip->base_version = 1;
 	nip->class_version = 1;
-	nip->node_type = 1;     /* channel adapter */
+	nip->yesde_type = 1;     /* channel adapter */
 	nip->num_ports = ibdev->phys_port_cnt;
 	/* This is already in network order */
 	nip->sys_guid = ib_qib_sys_image_guid;
-	nip->node_guid = dd->pport->guid; /* Use first-port GUID as node */
+	nip->yesde_guid = dd->pport->guid; /* Use first-port GUID as yesde */
 	nip->partition_cap = cpu_to_be16(qib_get_npkeys(dd));
 	nip->device_id = cpu_to_be16(dd->deviceid);
 	majrev = dd->majrev;
@@ -430,7 +430,7 @@ static int check_mkey(struct qib_ibport *ibp, struct ib_smp *smp, int mad_flags)
 	if (!valid_mkey) {
 		switch (smp->method) {
 		case IB_MGMT_METHOD_GET:
-			/* Bad mkey not a violation below level 2 */
+			/* Bad mkey yest a violation below level 2 */
 			if (ibp->rvp.mkeyprot < 2)
 				break;
 			/* fall through */
@@ -442,7 +442,7 @@ static int check_mkey(struct qib_ibport *ibp, struct ib_smp *smp, int mad_flags)
 			    ibp->rvp.mkey_lease_period)
 				ibp->rvp.mkey_lease_timeout = jiffies +
 					ibp->rvp.mkey_lease_period * HZ;
-			/* Generate a trap notice. */
+			/* Generate a trap yestice. */
 			qib_bad_mkey(ibp, smp);
 			ret = 1;
 		}
@@ -486,7 +486,7 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	ppd = dd->pport + (port_num - 1);
 	ibp = &ppd->ibport_data;
 
-	/* Clear all fields.  Only set the non-zero fields. */
+	/* Clear all fields.  Only set the yesn-zero fields. */
 	memset(smp->data, 0, sizeof(smp->data));
 
 	/* Only return the mkey if the protection field allows it. */
@@ -540,7 +540,7 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 		dd->f_get_ib_cfg(ppd, QIB_IB_CFG_VL_LOW_CAP);
 	/* InitTypeReply = 0 */
 	pip->inittypereply_mtucap = qib_ibmtu ? qib_ibmtu : IB_MTU_4096;
-	/* HCAs ignore VLStallCount and HOQLife */
+	/* HCAs igyesre VLStallCount and HOQLife */
 	/* pip->vlstallcnt_hoqlife; */
 	pip->operationalvl_pei_peo_fpi_fpo =
 		dd->f_get_ib_cfg(ppd, QIB_IB_CFG_OP_VLS) << 4;
@@ -548,7 +548,7 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	/* P_KeyViolations are counted by hardware. */
 	pip->pkey_violations = cpu_to_be16(ibp->rvp.pkey_violations);
 	pip->qkey_violations = cpu_to_be16(ibp->rvp.qkey_violations);
-	/* Only the hardware GUID is supported for now */
+	/* Only the hardware GUID is supported for yesw */
 	pip->guid_cap = QIB_GUIDS_PER_PORT;
 	pip->clientrereg_resv_subnetto = ibp->rvp.subnet_timeout;
 	/* 32.768 usec. response time (guessing) */
@@ -582,8 +582,8 @@ static int get_pkeys(struct qib_devdata *dd, u8 port, u16 *pkeys)
 {
 	struct qib_pportdata *ppd = dd->pport + port - 1;
 	/*
-	 * always a kernel context, no locking needed.
-	 * If we get here with ppd setup, no need to check
+	 * always a kernel context, yes locking needed.
+	 * If we get here with ppd setup, yes need to check
 	 * that pd is valid.
 	 */
 	struct qib_ctxtdata *rcd = dd->rcd[ppd->hw_pidx];
@@ -810,7 +810,7 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	ibp->rvp.subnet_timeout = pip->clientrereg_resv_subnetto & 0x1F;
 
 	/*
-	 * Do the port state change now that the other link parameters
+	 * Do the port state change yesw that the other link parameters
 	 * have been set.
 	 * Changing the port physical state only makes sense if the link
 	 * is down or is being set to down.
@@ -919,7 +919,7 @@ bail:
  * @dd: the qlogic_ib device
  * @key: the PKEY
  *
- * Return an error code if unable to add the entry, zero if no change,
+ * Return an error code if unable to add the entry, zero if yes change,
  * or 1 if the hardware PKEY register needs to be updated.
  */
 static int add_pkey(struct qib_pportdata *ppd, u16 key)
@@ -951,7 +951,7 @@ static int add_pkey(struct qib_pportdata *ppd, u16 key)
 			any++;
 		}
 		/*
-		 * It makes no sense to have both the limited and unlimited
+		 * It makes yes sense to have both the limited and unlimited
 		 * PKEY set at the same time since the unlimited one will
 		 * disable the limited one.
 		 */
@@ -994,8 +994,8 @@ static int set_pkeys(struct qib_devdata *dd, u8 port, u16 *pkeys)
 
 	/*
 	 * IB port one/two always maps to context zero/one,
-	 * always a kernel context, no locking needed
-	 * If we get here with ppd setup, no need to check
+	 * always a kernel context, yes locking needed
+	 * If we get here with ppd setup, yes need to check
 	 * that rcd is valid.
 	 */
 	ppd = dd->pport + (port - 1);
@@ -1140,9 +1140,9 @@ static int subn_trap_repress(struct ib_smp *smp, struct ib_device *ibdev,
 			     u8 port)
 {
 	/*
-	 * For now, we only send the trap once so no need to process this.
+	 * For yesw, we only send the trap once so yes need to process this.
 	 * o13-6, o13-7,
-	 * o14-3.a4 The SMA shall not send any message in response to a valid
+	 * o14-3.a4 The SMA shall yest send any message in response to a valid
 	 * SubnTrapRepress() message.
 	 */
 	return IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED;
@@ -1160,7 +1160,7 @@ static int pma_get_classportinfo(struct ib_pma_mad *pmp,
 	if (pmp->mad_hdr.attr_mod != 0)
 		pmp->mad_hdr.status |= IB_SMP_INVALID_FIELD;
 
-	/* Note that AllPortSelect is not valid */
+	/* Note that AllPortSelect is yest valid */
 	p->base_version = 1;
 	p->class_version = 1;
 	p->capability_mask = IB_PMA_CLASS_CAP_EXT_WIDTH;
@@ -1528,7 +1528,7 @@ static int pma_get_portcounters(struct ib_pma_mad *pmp,
 static int pma_get_portcounters_cong(struct ib_pma_mad *pmp,
 				     struct ib_device *ibdev, u8 port)
 {
-	/* Congestion PMA packets start at offset 24 not 64 */
+	/* Congestion PMA packets start at offset 24 yest 64 */
 	struct ib_pma_portcounters_cong *p =
 		(struct ib_pma_portcounters_cong *)pmp->reserved;
 	struct qib_verbs_counters cntrs;
@@ -1879,7 +1879,7 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 
 		/*
 		 * If this is a get/set portinfo, we already check the
-		 * M_Key if the MAD is for another port and the M_Key
+		 * M_Key if the MAD is for ayesther port and the M_Key
 		 * is OK on the receiving port. This check is needed
 		 * to increment the error counters when the M_Key
 		 * fails to match on *both* ports.
@@ -1898,10 +1898,10 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 	case IB_MGMT_METHOD_GET:
 		switch (smp->attr_id) {
 		case IB_SMP_ATTR_NODE_DESC:
-			ret = subn_get_nodedescription(smp, ibdev);
+			ret = subn_get_yesdedescription(smp, ibdev);
 			goto bail;
 		case IB_SMP_ATTR_NODE_INFO:
-			ret = subn_get_nodeinfo(smp, ibdev, port);
+			ret = subn_get_yesdeinfo(smp, ibdev, port);
 			goto bail;
 		case IB_SMP_ATTR_GUID_INFO:
 			ret = subn_get_guidinfo(smp, ibdev, port);
@@ -1985,7 +1985,7 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 		/*
 		 * The ib_mad module will call us to process responses
 		 * before checking for other consumers.
-		 * Just tell the caller to process it normally.
+		 * Just tell the caller to process it yesrmally.
 		 */
 		ret = IB_MAD_RESULT_SUCCESS;
 		goto bail;
@@ -2078,7 +2078,7 @@ static int process_perf(struct ib_device *ibdev, u8 port,
 		/*
 		 * The ib_mad module will call us to process responses
 		 * before checking for other consumers.
-		 * Just tell the caller to process it normally.
+		 * Just tell the caller to process it yesrmally.
 		 */
 		ret = IB_MAD_RESULT_SUCCESS;
 		goto bail;
@@ -2350,7 +2350,7 @@ static int process_cc(struct ib_device *ibdev, int mad_flags,
 		/*
 		 * The ib_mad module will call us to process responses
 		 * before checking for other consumers.
-		 * Just tell the caller to process it normally.
+		 * Just tell the caller to process it yesrmally.
 		 */
 		ret = IB_MAD_RESULT_SUCCESS;
 		goto bail;
@@ -2375,7 +2375,7 @@ bail:
  * @in_mad: the incoming MAD
  * @out_mad: any outgoing MAD reply
  *
- * Returns IB_MAD_RESULT_SUCCESS if this is a MAD that we are not
+ * Returns IB_MAD_RESULT_SUCCESS if this is a MAD that we are yest
  * interested in processing.
  *
  * Note that the verbs framework has already done the MAD sanity checks,
@@ -2444,7 +2444,7 @@ done:
 	mod_timer(&ppd->cong_stats.timer, jiffies + HZ);
 }
 
-void qib_notify_create_mad_agent(struct rvt_dev_info *rdi, int port_idx)
+void qib_yestify_create_mad_agent(struct rvt_dev_info *rdi, int port_idx)
 {
 	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
 	struct qib_devdata *dd = container_of(ibdev,
@@ -2458,7 +2458,7 @@ void qib_notify_create_mad_agent(struct rvt_dev_info *rdi, int port_idx)
 	add_timer(&dd->pport[port_idx].cong_stats.timer);
 }
 
-void qib_notify_free_mad_agent(struct rvt_dev_info *rdi, int port_idx)
+void qib_yestify_free_mad_agent(struct rvt_dev_info *rdi, int port_idx)
 {
 	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
 	struct qib_devdata *dd = container_of(ibdev,

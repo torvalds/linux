@@ -223,7 +223,7 @@ struct iwl_rate_mcs_info {
  * @last_rate_n_flags: last rate reported by FW
  * @sta_id: the id of the station
 #ifdef CONFIG_MAC80211_DEBUGFS
- * @dbg_fixed_rate: for debug, use fixed rate if not 0
+ * @dbg_fixed_rate: for debug, use fixed rate if yest 0
  * @dbg_agg_frame_count_lim: for debug, max number of frames in A-MPDU
 #endif
  * @chains: bitmask of chains reported in %chain_signal
@@ -419,7 +419,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks
  *
- * Since the rate control algorithm is hardware specific, there is no need
+ * Since the rate control algorithm is hardware specific, there is yes need
  * or reason to place it as a stand alone module.  The driver can call
  * iwl_rate_control_register in order to register the rate control callbacks
  * with the mac80211 subsystem.  This should be performed prior to calling
@@ -450,7 +450,7 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		     enum nl80211_band band, bool update);
 int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			bool enable);
-void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
+void iwl_mvm_tlc_update_yestif(struct iwl_mvm *mvm,
 			      struct iwl_rx_cmd_buffer *rxb);
 
 u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta);

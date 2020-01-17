@@ -65,21 +65,21 @@ static const struct factors_data sun4i_a10_mod0_data = {
 
 static DEFINE_SPINLOCK(sun4i_a10_mod0_lock);
 
-static void __init sun4i_a10_mod0_setup(struct device_node *node)
+static void __init sun4i_a10_mod0_setup(struct device_yesde *yesde)
 {
 	void __iomem *reg;
 
-	reg = of_iomap(node, 0);
+	reg = of_iomap(yesde, 0);
 	if (!reg) {
 		/*
-		 * This happens with mod0 clk nodes instantiated through
-		 * mfd, as those do not have their resources assigned at
-		 * CLK_OF_DECLARE time yet, so do not print an error.
+		 * This happens with mod0 clk yesdes instantiated through
+		 * mfd, as those do yest have their resources assigned at
+		 * CLK_OF_DECLARE time yet, so do yest print an error.
 		 */
 		return;
 	}
 
-	sunxi_factors_register(node, &sun4i_a10_mod0_data,
+	sunxi_factors_register(yesde, &sun4i_a10_mod0_data,
 			       &sun4i_a10_mod0_lock, reg);
 }
 CLK_OF_DECLARE_DRIVER(sun4i_a10_mod0, "allwinner,sun4i-a10-mod0-clk",
@@ -87,7 +87,7 @@ CLK_OF_DECLARE_DRIVER(sun4i_a10_mod0, "allwinner,sun4i-a10-mod0-clk",
 
 static int sun4i_a10_mod0_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct resource *r;
 	void __iomem *reg;
 
@@ -126,36 +126,36 @@ static const struct factors_data sun9i_a80_mod0_data __initconst = {
 	.getter = sun4i_a10_get_mod0_factors,
 };
 
-static void __init sun9i_a80_mod0_setup(struct device_node *node)
+static void __init sun9i_a80_mod0_setup(struct device_yesde *yesde)
 {
 	void __iomem *reg;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(reg)) {
-		pr_err("Could not get registers for mod0-clk: %pOFn\n",
-		       node);
+		pr_err("Could yest get registers for mod0-clk: %pOFn\n",
+		       yesde);
 		return;
 	}
 
-	sunxi_factors_register(node, &sun9i_a80_mod0_data,
+	sunxi_factors_register(yesde, &sun9i_a80_mod0_data,
 			       &sun4i_a10_mod0_lock, reg);
 }
 CLK_OF_DECLARE(sun9i_a80_mod0, "allwinner,sun9i-a80-mod0-clk", sun9i_a80_mod0_setup);
 
 static DEFINE_SPINLOCK(sun5i_a13_mbus_lock);
 
-static void __init sun5i_a13_mbus_setup(struct device_node *node)
+static void __init sun5i_a13_mbus_setup(struct device_yesde *yesde)
 {
 	void __iomem *reg;
 
-	reg = of_iomap(node, 0);
+	reg = of_iomap(yesde, 0);
 	if (!reg) {
-		pr_err("Could not get registers for a13-mbus-clk\n");
+		pr_err("Could yest get registers for a13-mbus-clk\n");
 		return;
 	}
 
 	/* The MBUS clocks needs to be always enabled */
-	sunxi_factors_register_critical(node, &sun4i_a10_mod0_data,
+	sunxi_factors_register_critical(yesde, &sun4i_a10_mod0_data,
 					&sun5i_a13_mbus_lock, reg);
 }
 CLK_OF_DECLARE(sun5i_a13_mbus, "allwinner,sun5i-a13-mbus-clk", sun5i_a13_mbus_setup);
@@ -287,7 +287,7 @@ static const struct clk_ops mmc_clk_ops = {
  * width of the mux register bits and the valid values, which are passed in
  * through struct factors_data. The phase clocks parts are identical.
  */
-static void __init sunxi_mmc_setup(struct device_node *node,
+static void __init sunxi_mmc_setup(struct device_yesde *yesde,
 				   const struct factors_data *data,
 				   spinlock_t *lock)
 {
@@ -296,9 +296,9 @@ static void __init sunxi_mmc_setup(struct device_node *node,
 	void __iomem *reg;
 	int i;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(reg)) {
-		pr_err("Couldn't map the %pOFn clock registers\n", node);
+		pr_err("Couldn't map the %pOFn clock registers\n", yesde);
 		return;
 	}
 
@@ -311,7 +311,7 @@ static void __init sunxi_mmc_setup(struct device_node *node,
 		goto err_free_data;
 
 	clk_data->clk_num = 3;
-	clk_data->clks[0] = sunxi_factors_register(node, data, lock, reg);
+	clk_data->clks[0] = sunxi_factors_register(yesde, data, lock, reg);
 	if (!clk_data->clks[0])
 		goto err_free_clks;
 
@@ -338,9 +338,9 @@ static void __init sunxi_mmc_setup(struct device_node *node,
 		else
 			phase->offset = 20;
 
-		if (of_property_read_string_index(node, "clock-output-names",
+		if (of_property_read_string_index(yesde, "clock-output-names",
 						  i, &init.name))
-			init.name = node->name;
+			init.name = yesde->name;
 
 		clk_data->clks[i] = clk_register(NULL, &phase->hw);
 		if (IS_ERR(clk_data->clks[i])) {
@@ -349,7 +349,7 @@ static void __init sunxi_mmc_setup(struct device_node *node,
 		}
 	}
 
-	of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 
 	return;
 
@@ -361,16 +361,16 @@ err_free_data:
 
 static DEFINE_SPINLOCK(sun4i_a10_mmc_lock);
 
-static void __init sun4i_a10_mmc_setup(struct device_node *node)
+static void __init sun4i_a10_mmc_setup(struct device_yesde *yesde)
 {
-	sunxi_mmc_setup(node, &sun4i_a10_mod0_data, &sun4i_a10_mmc_lock);
+	sunxi_mmc_setup(yesde, &sun4i_a10_mod0_data, &sun4i_a10_mmc_lock);
 }
 CLK_OF_DECLARE(sun4i_a10_mmc, "allwinner,sun4i-a10-mmc-clk", sun4i_a10_mmc_setup);
 
 static DEFINE_SPINLOCK(sun9i_a80_mmc_lock);
 
-static void __init sun9i_a80_mmc_setup(struct device_node *node)
+static void __init sun9i_a80_mmc_setup(struct device_yesde *yesde)
 {
-	sunxi_mmc_setup(node, &sun9i_a80_mod0_data, &sun9i_a80_mmc_lock);
+	sunxi_mmc_setup(yesde, &sun9i_a80_mod0_data, &sun9i_a80_mmc_lock);
 }
 CLK_OF_DECLARE(sun9i_a80_mmc, "allwinner,sun9i-a80-mmc-clk", sun9i_a80_mmc_setup);

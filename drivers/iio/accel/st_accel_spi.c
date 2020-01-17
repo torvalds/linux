@@ -112,7 +112,7 @@ static int st_accel_spi_probe(struct spi_device *spi)
 
 	settings = st_accel_get_settings(spi->modalias);
 	if (!settings) {
-		dev_err(&spi->dev, "device name %s not recognized.\n",
+		dev_err(&spi->dev, "device name %s yest recognized.\n",
 			spi->modalias);
 		return -ENODEV;
 	}

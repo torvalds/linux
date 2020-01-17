@@ -44,7 +44,7 @@ __setup("powersave=off", powersave_off);
 #ifdef CONFIG_HOTPLUG_CPU
 void arch_cpu_idle_dead(void)
 {
-	sched_preempt_enable_no_resched();
+	sched_preempt_enable_yes_resched();
 	cpu_die();
 }
 #endif

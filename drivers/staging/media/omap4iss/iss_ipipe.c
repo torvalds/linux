@@ -102,7 +102,7 @@ static void ipipe_configure(struct iss_ipipe_device *ipipe)
 	iss_reg_write(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_HSZ,
 		      (format->width - 1) & IPIPE_SRC_HSZ_MASK);
 
-	/* Ignore ipipeif_wrt signal, and operate on-the-fly.  */
+	/* Igyesre ipipeif_wrt signal, and operate on-the-fly.  */
 	iss_reg_clr(iss, OMAP4_ISS_MEM_ISP_IPIPE, IPIPE_SRC_MODE,
 		    IPIPE_SRC_MODE_WRT | IPIPE_SRC_MODE_OST);
 
@@ -113,7 +113,7 @@ static void ipipe_configure(struct iss_ipipe_device *ipipe)
 
 	/* IPIPE_PAD_SOURCE_VP */
 	format = &ipipe->formats[IPIPE_PAD_SOURCE_VP];
-	/* Do nothing? */
+	/* Do yesthing? */
 }
 
 /* -----------------------------------------------------------------------------
@@ -211,7 +211,7 @@ ipipe_try_format(struct iss_ipipe_device *ipipe,
 				break;
 		}
 
-		/* If not found, use SGRBG10 as default */
+		/* If yest found, use SGRBG10 as default */
 		if (i >= ARRAY_SIZE(ipipe_fmts))
 			fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
@@ -378,7 +378,7 @@ static int ipipe_link_validate(struct v4l2_subdev *sd, struct media_link *link,
  * @sd: ISP IPIPE V4L2 subdevice
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
+ * Initialize all pad formats with default values. If fh is yest NULL, try
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
@@ -531,7 +531,7 @@ int omap4iss_ipipe_register_entities(struct iss_ipipe_device *ipipe,
 {
 	int ret;
 
-	/* Register the subdev and video node. */
+	/* Register the subdev and video yesde. */
 	ret = v4l2_device_register_subdev(vdev, &ipipe->subdev);
 	if (ret < 0)
 		goto error;

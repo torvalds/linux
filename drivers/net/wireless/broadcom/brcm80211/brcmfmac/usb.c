@@ -492,7 +492,7 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 	skb = req->skb;
 	req->skb = NULL;
 
-	/* zero length packets indicate usb "failure". Do not refill */
+	/* zero length packets indicate usb "failure". Do yest refill */
 	if (urb->status != 0 || !urb->actual_length) {
 		brcmu_pkt_buf_free_skb(skb);
 		brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req, NULL);
@@ -548,7 +548,7 @@ static void brcmf_usb_rx_fill_all(struct brcmf_usbdev_info *devinfo)
 	struct brcmf_usbreq *req;
 
 	if (devinfo->bus_pub.state != BRCMFMAC_USB_STATE_UP) {
-		brcmf_err("bus is not up=%d\n", devinfo->bus_pub.state);
+		brcmf_err("bus is yest up=%d\n", devinfo->bus_pub.state);
 		return;
 	}
 	while ((req = brcmf_usb_deq(devinfo, &devinfo->rx_freeq, NULL)) != NULL)
@@ -596,7 +596,7 @@ static int brcmf_usb_tx(struct device *dev, struct sk_buff *skb)
 	req = brcmf_usb_deq(devinfo, &devinfo->tx_freeq,
 					&devinfo->tx_freecount);
 	if (!req) {
-		brcmf_err("no req to send\n");
+		brcmf_err("yes req to send\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -815,7 +815,7 @@ brcmf_usb_resetcfg(struct brcmf_usbdev_info *devinfo)
 		brcmf_usb_dl_cmd(devinfo, DL_RESETCFG, &id, sizeof(id));
 		return 0;
 	} else {
-		brcmf_err("Cannot talk to Dongle. Firmware is not UP, %d ms\n",
+		brcmf_err("Canyest talk to Dongle. Firmware is yest UP, %d ms\n",
 			  BRCMF_USB_RESET_GETVER_SPINWAIT * loop_cnt);
 		return -EINVAL;
 	}
@@ -979,7 +979,7 @@ static int brcmf_usb_dlrun(struct brcmf_usbdev_info *devinfo)
 			return -ENODEV;
 		/* The Dongle may go for re-enumeration. */
 	} else {
-		brcmf_err("Dongle not runnable\n");
+		brcmf_err("Dongle yest runnable\n");
 		return -EINVAL;
 	}
 	brcmf_dbg(USB, "Exit\n");
@@ -1325,7 +1325,7 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	devinfo->usbdev = usb;
 	devinfo->dev = &usb->dev;
 	/* Init completion, to protect for disconnect while still loading.
-	 * Necessary because of the asynchronous firmware load construction
+	 * Necessary because of the asynchroyesus firmware load construction
 	 */
 	init_completion(&devinfo->dev_init_done);
 
@@ -1333,7 +1333,7 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	/* Check that the device supports only one configuration */
 	if (usb->descriptor.bNumConfigurations != 1) {
-		brcmf_err("Number of configurations: %d not supported\n",
+		brcmf_err("Number of configurations: %d yest supported\n",
 			  usb->descriptor.bNumConfigurations);
 		ret = -ENODEV;
 		goto fail;
@@ -1342,7 +1342,7 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if ((usb->descriptor.bDeviceClass != USB_CLASS_VENDOR_SPEC) &&
 	    (usb->descriptor.bDeviceClass != USB_CLASS_MISC) &&
 	    (usb->descriptor.bDeviceClass != USB_CLASS_WIRELESS_CONTROLLER)) {
-		brcmf_err("Device class: 0x%x not supported\n",
+		brcmf_err("Device class: 0x%x yest supported\n",
 			  usb->descriptor.bDeviceClass);
 		ret = -ENODEV;
 		goto fail;
@@ -1352,7 +1352,7 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if ((desc->bInterfaceClass != USB_CLASS_VENDOR_SPEC) ||
 	    (desc->bInterfaceSubClass != 2) ||
 	    (desc->bInterfaceProtocol != 0xff)) {
-		brcmf_err("non WLAN interface %d: 0x%x:0x%x:0x%x\n",
+		brcmf_err("yesn WLAN interface %d: 0x%x:0x%x:0x%x\n",
 			  desc->bInterfaceNumber, desc->bInterfaceClass,
 			  desc->bInterfaceSubClass, desc->bInterfaceProtocol);
 		ret = -ENODEV;
@@ -1537,7 +1537,7 @@ static struct usb_driver brcmf_usbdrvr = {
 	.disable_hub_initiated_lpm = 1,
 };
 
-static int brcmf_usb_reset_device(struct device *dev, void *notused)
+static int brcmf_usb_reset_device(struct device *dev, void *yestused)
 {
 	/* device past is the usb interface so we
 	 * need to use parent here.

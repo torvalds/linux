@@ -3,7 +3,7 @@
 Some Layerscape SOCs (LS1021A, LS1043A, LS1046A) support inverting
 the polarity of certain external interrupt lines.
 
-The device node must be a child of the node representing the
+The device yesde must be a child of the yesde representing the
 Supplemental Configuration Unit (SCFG).
 
 Required properties:
@@ -11,7 +11,7 @@ Required properties:
 - #interrupt-cells: Must be 2. The first element is the index of the
   external interrupt line. The second element is the trigger type.
 - #address-cells: Must be 0.
-- interrupt-controller: Identifies the node as an interrupt controller
+- interrupt-controller: Identifies the yesde as an interrupt controller
 - reg: Specifies the Interrupt Polarity Control Register (INTPCR) in
   the SCFG.
 - interrupt-map: Specifies the mapping from external interrupts to GIC

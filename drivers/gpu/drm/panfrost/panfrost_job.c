@@ -27,7 +27,7 @@ struct panfrost_queue_state {
 	struct drm_gpu_scheduler sched;
 
 	u64 fence_context;
-	u64 emit_seqno;
+	u64 emit_seqyes;
 };
 
 struct panfrost_job_slot {
@@ -44,8 +44,8 @@ to_panfrost_job(struct drm_sched_job *sched_job)
 struct panfrost_fence {
 	struct dma_fence base;
 	struct drm_device *dev;
-	/* panfrost seqno for signaled() test */
-	u64 seqno;
+	/* panfrost seqyes for signaled() test */
+	u64 seqyes;
 	int queue;
 };
 
@@ -92,9 +92,9 @@ static struct dma_fence *panfrost_fence_create(struct panfrost_device *pfdev, in
 
 	fence->dev = pfdev->ddev;
 	fence->queue = js_num;
-	fence->seqno = ++js->queue[js_num].emit_seqno;
+	fence->seqyes = ++js->queue[js_num].emit_seqyes;
 	dma_fence_init(&fence->base, &panfrost_fence_ops, &js->job_lock,
-		       js->queue[js_num].fence_context, fence->seqno);
+		       js->queue[js_num].fence_context, fence->seqyes);
 
 	return &fence->base;
 }
@@ -128,7 +128,7 @@ static void panfrost_job_write_affinity(struct panfrost_device *pfdev,
 	u64 affinity;
 
 	/*
-	 * Use all cores for now.
+	 * Use all cores for yesw.
 	 * Eventually we may need to support tiler only jobs and h/w with
 	 * multiple (2) coherent core groups
 	 */
@@ -397,7 +397,7 @@ static void panfrost_job_timedout(struct drm_sched_job *sched_job)
 	spin_lock_irqsave(&pfdev->js->job_lock, flags);
 	for (i = 0; i < NUM_JOB_SLOTS; i++) {
 		if (pfdev->jobs[i]) {
-			pm_runtime_put_noidle(pfdev->dev);
+			pm_runtime_put_yesidle(pfdev->dev);
 			pfdev->jobs[i] = NULL;
 		}
 	}
@@ -572,7 +572,7 @@ int panfrost_job_is_idle(struct panfrost_device *pfdev)
 		return false;
 
 	for (i = 0; i < NUM_JOB_SLOTS; i++) {
-		/* If there are any jobs in the HW queue, we're not idle */
+		/* If there are any jobs in the HW queue, we're yest idle */
 		if (atomic_read(&js->queue[i].sched.hw_rq_count))
 			return false;
 	}

@@ -15,11 +15,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -190,7 +190,7 @@ struct fsl_re_dpi {
 };
 
 /*
- * CDB for GenQ command. In RAID Engine terminology, XOR is
+ * CDB for GenQ command. In RAID Engine termiyeslogy, XOR is
  * done through this command
  */
 struct fsl_re_xor_cdb {
@@ -200,13 +200,13 @@ struct fsl_re_xor_cdb {
 	struct fsl_re_dpi dpi_src_spec[16];
 };
 
-/* CDB for no-op command */
-struct fsl_re_noop_cdb {
+/* CDB for yes-op command */
+struct fsl_re_yesop_cdb {
 	__be32 cdb32;
 };
 
 /*
- * CDB for GenQQ command. In RAID Engine terminology, P/Q is
+ * CDB for GenQQ command. In RAID Engine termiyeslogy, P/Q is
  * done through this command
  */
 struct fsl_re_pq_cdb {
@@ -267,7 +267,7 @@ struct fsl_re_chan {
 	char name[16];
 	spinlock_t desc_lock; /* queue lock */
 	struct list_head ack_q;  /* wait to acked queue */
-	struct list_head active_q; /* already issued on hw, not completed */
+	struct list_head active_q; /* already issued on hw, yest completed */
 	struct list_head submit_q;
 	struct list_head free_q; /* alloc available queue */
 	struct device *dev;
@@ -292,7 +292,7 @@ struct fsl_re_chan {
 /* Async transaction descriptor */
 struct fsl_re_desc {
 	struct dma_async_tx_descriptor async_tx;
-	struct list_head node;
+	struct list_head yesde;
 	struct fsl_re_hw_desc hwdesc;
 	struct fsl_re_chan *re_chan;
 

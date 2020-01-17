@@ -2,7 +2,7 @@
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
  * Drivers based on or derived from this code fall under the GPL and must
- * retain the authorship, copyright and license notice.  This file is not
+ * retain the authorship, copyright and license yestice.  This file is yest
  * a complete program and may only be used when the entire operating
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
@@ -668,7 +668,7 @@ struct vxge_hw_common_reg {
 #define VXGE_HW_RXPE_CMDS_RESET_IN_PROGRESS_NOA_VP(n)	vxge_mBIT(n)
 /*0x00a20*/	u64	mxp_cmds_reset_in_progress;
 #define VXGE_HW_MXP_CMDS_RESET_IN_PROGRESS_NOA_VP(n)	vxge_mBIT(n)
-/*0x00a28*/	u64	noffload_reset_in_progress;
+/*0x00a28*/	u64	yesffload_reset_in_progress;
 #define VXGE_HW_NOFFLOAD_RESET_IN_PROGRESS_PRC_VP(n)	vxge_mBIT(n)
 /*0x00a30*/	u64	rd_req_in_progress;
 #define VXGE_HW_RD_REQ_IN_PROGRESS_VP(n)	vxge_mBIT(n)
@@ -704,7 +704,7 @@ struct vxge_hw_common_reg {
 #define VXGE_HW_MSG_MXP_MR_READY_MP_BOOTED(n)	vxge_mBIT(n)
 /*0x00c10*/	u64	msg_uxp_mr_ready;
 #define VXGE_HW_MSG_UXP_MR_READY_UP_BOOTED(n)	vxge_mBIT(n)
-/*0x00c18*/	u64	msg_dmq_noni_rtl_prefetch;
+/*0x00c18*/	u64	msg_dmq_yesni_rtl_prefetch;
 #define VXGE_HW_MSG_DMQ_NONI_RTL_PREFETCH_BYPASS_ENABLE(n)	vxge_mBIT(n)
 /*0x00c20*/	u64	msg_umq_rtl_bwr;
 #define VXGE_HW_MSG_UMQ_RTL_BWR_PREFETCH_DISABLE(n)	vxge_mBIT(n)
@@ -870,7 +870,7 @@ struct vxge_hw_memrepair_reg {
 
 struct vxge_hw_pcicfgmgmt_reg {
 
-/*0x00000*/	u64	resource_no;
+/*0x00000*/	u64	resource_yes;
 #define	VXGE_HW_RESOURCE_NO_PFN_OR_VF	BIT(3)
 /*0x00008*/	u64	bargrp_pf_or_vf_bar0_mask;
 #define	VXGE_HW_BARGRP_PF_OR_VF_BAR0_MASK_BARGRP_PF_OR_VF_BAR0_MASK(val) \
@@ -881,7 +881,7 @@ struct vxge_hw_pcicfgmgmt_reg {
 /*0x00018*/	u64	bargrp_pf_or_vf_bar2_mask;
 #define	VXGE_HW_BARGRP_PF_OR_VF_BAR2_MASK_BARGRP_PF_OR_VF_BAR2_MASK(val) \
 							vxge_vBIT(val, 2, 6)
-/*0x00020*/	u64	msixgrp_no;
+/*0x00020*/	u64	msixgrp_yes;
 #define VXGE_HW_MSIXGRP_NO_TABLE_SIZE(val) vxge_vBIT(val, 5, 11)
 
 } __packed;
@@ -1424,7 +1424,7 @@ struct vxge_hw_mrpcim_reg {
 #define	VXGE_HW_WDE_PRM_CTRL_SPLIT_ON_1ST_ROW	vxge_mBIT(32)
 #define	VXGE_HW_WDE_PRM_CTRL_SPLIT_ON_ROW_BNDRY	vxge_mBIT(33)
 #define VXGE_HW_WDE_PRM_CTRL_FB_ROW_SIZE(val) vxge_vBIT(val, 46, 2)
-/*0x00cf0*/	u64	noa_ctrl;
+/*0x00cf0*/	u64	yesa_ctrl;
 #define VXGE_HW_NOA_CTRL_FRM_PRTY_QUOTA(val) vxge_vBIT(val, 3, 5)
 #define VXGE_HW_NOA_CTRL_NON_FRM_PRTY_QUOTA(val) vxge_vBIT(val, 11, 5)
 #define	VXGE_HW_NOA_CTRL_IGNORE_KDFC_IF_STATUS	vxge_mBIT(16)
@@ -2311,7 +2311,7 @@ struct vxge_hw_mrpcim_reg {
 /*0x04008*/	u64	one_int_mask;
 	u8	unused04818[0x04818-0x04010];
 
-/*0x04818*/	u64	noa_wct_ctrl;
+/*0x04818*/	u64	yesa_wct_ctrl;
 #define	VXGE_HW_NOA_WCT_CTRL_VP_INT_NUM	vxge_mBIT(0)
 /*0x04820*/	u64	rc_cfg2;
 #define VXGE_HW_RC_CFG2_BUFF1_SIZE(val) vxge_vBIT(val, 0, 16)
@@ -4355,11 +4355,11 @@ struct vxge_hw_vpath_reg {
 /*0x011e0*/	u64	umq_bwr_init_byte;
 #define VXGE_HW_UMQ_BWR_INIT_BYTE_COUNT(val) vxge_vBIT(val, 0, 32)
 /*0x011e8*/	u64	gendma_int;
-/*0x011f0*/	u64	umqdmq_ir_init_notify;
+/*0x011f0*/	u64	umqdmq_ir_init_yestify;
 #define	VXGE_HW_UMQDMQ_IR_INIT_NOTIFY_PULSE	vxge_mBIT(3)
-/*0x011f8*/	u64	dmq_init_notify;
+/*0x011f8*/	u64	dmq_init_yestify;
 #define	VXGE_HW_DMQ_INIT_NOTIFY_PULSE	vxge_mBIT(3)
-/*0x01200*/	u64	umq_init_notify;
+/*0x01200*/	u64	umq_init_yestify;
 #define	VXGE_HW_UMQ_INIT_NOTIFY_PULSE	vxge_mBIT(3)
 	u8	unused01380[0x01380-0x01208];
 

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -22,17 +22,17 @@
  * Authors: Ben Skeggs
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_fbcon.h"
-#include "nouveau_vmm.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_dma.h"
+#include "yesuveau_fbcon.h"
+#include "yesuveau_vmm.h"
 
 int
 nvc0_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
-	struct nouveau_fbdev *nfbdev = info->par;
-	struct nouveau_drm *drm = nouveau_drm(nfbdev->helper.dev);
-	struct nouveau_channel *chan = drm->channel;
+	struct yesuveau_fbdev *nfbdev = info->par;
+	struct yesuveau_drm *drm = yesuveau_drm(nfbdev->helper.dev);
+	struct yesuveau_channel *chan = drm->channel;
 	int ret;
 
 	ret = RING_SPACE(chan, rect->rop == ROP_COPY ? 7 : 11);
@@ -65,9 +65,9 @@ nvc0_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 int
 nvc0_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 {
-	struct nouveau_fbdev *nfbdev = info->par;
-	struct nouveau_drm *drm = nouveau_drm(nfbdev->helper.dev);
-	struct nouveau_channel *chan = drm->channel;
+	struct yesuveau_fbdev *nfbdev = info->par;
+	struct yesuveau_drm *drm = yesuveau_drm(nfbdev->helper.dev);
+	struct yesuveau_channel *chan = drm->channel;
 	int ret;
 
 	ret = RING_SPACE(chan, 12);
@@ -93,9 +93,9 @@ nvc0_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 int
 nvc0_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-	struct nouveau_fbdev *nfbdev = info->par;
-	struct nouveau_drm *drm = nouveau_drm(nfbdev->helper.dev);
-	struct nouveau_channel *chan = drm->channel;
+	struct yesuveau_fbdev *nfbdev = info->par;
+	struct yesuveau_drm *drm = yesuveau_drm(nfbdev->helper.dev);
+	struct yesuveau_channel *chan = drm->channel;
 	uint32_t dwords, *data = (uint32_t *)image->data;
 	uint32_t mask = ~(~0 >> (32 - info->var.bits_per_pixel));
 	uint32_t *palette = info->pseudo_palette;
@@ -148,11 +148,11 @@ nvc0_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 int
 nvc0_fbcon_accel_init(struct fb_info *info)
 {
-	struct nouveau_fbdev *nfbdev = info->par;
+	struct yesuveau_fbdev *nfbdev = info->par;
 	struct drm_device *dev = nfbdev->helper.dev;
-	struct nouveau_framebuffer *fb = nouveau_framebuffer(nfbdev->helper.fb);
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_channel *chan = drm->channel;
+	struct yesuveau_framebuffer *fb = yesuveau_framebuffer(nfbdev->helper.fb);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
+	struct yesuveau_channel *chan = drm->channel;
 	int ret, format;
 
 	ret = nvif_object_init(&chan->user, 0x902d, 0x902d, NULL, 0,
@@ -190,7 +190,7 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 	ret = RING_SPACE(chan, 58);
 	if (ret) {
 		WARN_ON(1);
-		nouveau_fbcon_gpu_lockup(info);
+		yesuveau_fbcon_gpu_lockup(info);
 		return ret;
 	}
 

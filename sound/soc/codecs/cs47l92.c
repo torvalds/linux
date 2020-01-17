@@ -61,7 +61,7 @@ static int cs47l92_put_demux(struct snd_kcontrol *kcontrol,
 	struct madera *madera = priv->madera;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int ep_sel, mux, change, cur;
-	bool out_mono;
+	bool out_moyes;
 	int ret;
 
 	if (ucontrol->value.enumerated.item[0] > e->items - 1)
@@ -83,7 +83,7 @@ static int cs47l92_put_demux(struct snd_kcontrol *kcontrol,
 	if (ret != 0)
 		dev_warn(madera->dev, "Failed to read outputs: %d\n", ret);
 
-	/* EP_SEL should not be modified while HPOUT3 or 4 is enabled */
+	/* EP_SEL should yest be modified while HPOUT3 or 4 is enabled */
 	ret = regmap_update_bits(madera->regmap, MADERA_OUTPUT_ENABLES_1,
 				 MADERA_OUT3L_ENA | MADERA_OUT3R_ENA, 0);
 	if (ret)
@@ -96,9 +96,9 @@ static int cs47l92_put_demux(struct snd_kcontrol *kcontrol,
 	if (ret) {
 		dev_err(madera->dev, "Failed to set OUT3 demux: %d\n", ret);
 	} else {
-		out_mono = madera->pdata.codec.out_mono[2 + mux];
+		out_moyes = madera->pdata.codec.out_moyes[2 + mux];
 
-		ret = madera_set_output_mode(component, 3, out_mono);
+		ret = madera_set_output_mode(component, 3, out_moyes);
 		if (ret < 0)
 			dev_warn(madera->dev,
 				 "Failed to set output mode: %d\n", ret);
@@ -334,7 +334,7 @@ MADERA_MIXER_CONTROLS("DSP1L", MADERA_DSP1LMIX_INPUT_1_SOURCE),
 MADERA_MIXER_CONTROLS("DSP1R", MADERA_DSP1RMIX_INPUT_1_SOURCE),
 
 SOC_SINGLE_TLV("Noise Generator Volume", MADERA_COMFORT_NOISE_GENERATOR,
-	       MADERA_NOISE_GEN_GAIN_SHIFT, 0x16, 0, madera_noise_tlv),
+	       MADERA_NOISE_GEN_GAIN_SHIFT, 0x16, 0, madera_yesise_tlv),
 
 MADERA_MIXER_CONTROLS("HPOUT1L", MADERA_OUT1LMIX_INPUT_1_SOURCE),
 MADERA_MIXER_CONTROLS("HPOUT1R", MADERA_OUT1RMIX_INPUT_1_SOURCE),
@@ -1898,7 +1898,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs47l92 = {
 	.num_dapm_routes	= ARRAY_SIZE(cs47l92_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int cs47l92_probe(struct platform_device *pdev)
@@ -1911,7 +1911,7 @@ static int cs47l92_probe(struct platform_device *pdev)
 
 	/* quick exit if Madera irqchip driver hasn't completed probe */
 	if (!madera->irq_dev) {
-		dev_dbg(&pdev->dev, "irqchip driver not ready\n");
+		dev_dbg(&pdev->dev, "irqchip driver yest ready\n");
 		return -EPROBE_DEFER;
 	}
 

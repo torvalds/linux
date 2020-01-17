@@ -166,10 +166,10 @@ static struct tcs_group *get_tcs_for_msg(struct rsc_drv *drv,
 	}
 
 	/*
-	 * If we are making an active request on a RSC that does not have a
+	 * If we are making an active request on a RSC that does yest have a
 	 * dedicated TCS for active state use, then re-purpose a wake TCS to
 	 * send active votes.
-	 * NOTE: The driver must be aware that this RSC does not have a
+	 * NOTE: The driver must be aware that this RSC does yest have a
 	 * dedicated AMC, and therefore would invalidate the sleep and wake
 	 * TCSes before making an active state request.
 	 */
@@ -359,7 +359,7 @@ static int tcs_write(struct rsc_drv *drv, const struct tcs_request *msg)
 	spin_lock_irqsave(&tcs->lock, flags);
 	spin_lock(&drv->lock);
 	/*
-	 * The h/w does not like if we send a request to the same address,
+	 * The h/w does yest like if we send a request to the same address,
 	 * when one is already in-flight or being processed.
 	 */
 	ret = check_for_req_inflight(drv, tcs, msg);
@@ -440,7 +440,7 @@ static int find_match(const struct tcs_group *tcs, const struct tcs_cmd *cmd,
 	return -ENODATA;
 
 seq_err:
-	WARN(1, "Message does not match previous sequence.\n");
+	WARN(1, "Message does yest match previous sequence.\n");
 	return -EINVAL;
 }
 
@@ -504,7 +504,7 @@ static int tcs_ctrl_write(struct rsc_drv *drv, const struct tcs_request *msg)
  * @drv: the controller
  * @msg: the data to be written to the controller
  *
- * There is no response returned for writing the request to the controller.
+ * There is yes response returned for writing the request to the controller.
  */
 int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv, const struct tcs_request *msg)
 {
@@ -514,7 +514,7 @@ int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv, const struct tcs_request *msg)
 		return -EINVAL;
 	}
 
-	/* Data sent to this API will not be sent immediately */
+	/* Data sent to this API will yest be sent immediately */
 	if (msg->state == RPMH_ACTIVE_ONLY_STATE)
 		return -EINVAL;
 
@@ -528,7 +528,7 @@ static int rpmh_probe_tcs_config(struct platform_device *pdev,
 		u32 type;
 		u32 n;
 	} tcs_cfg[TCS_TYPE_NR] = { { 0 } };
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	u32 config, max_tcs, ncpt, offset;
 	int i, ret, n, st = 0;
 	struct tcs_group *tcs;
@@ -618,18 +618,18 @@ static int rpmh_probe_tcs_config(struct platform_device *pdev,
 
 static int rpmh_rsc_probe(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	struct rsc_drv *drv;
 	int ret, irq;
 
 	/*
 	 * Even though RPMh doesn't directly use cmd-db, all of its children
-	 * do. To avoid adding this check to our children we'll do it now.
+	 * do. To avoid adding this check to our children we'll do it yesw.
 	 */
 	ret = cmd_db_ready();
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Command DB not available (%d)\n",
+			dev_err(&pdev->dev, "Command DB yest available (%d)\n",
 									ret);
 		return ret;
 	}

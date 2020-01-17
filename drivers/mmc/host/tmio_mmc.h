@@ -67,10 +67,10 @@
 #define TMIO_STAT_RXOVERFLOW    BIT(20)
 #define TMIO_STAT_TXUNDERRUN    BIT(21)
 #define TMIO_STAT_CMDTIMEOUT    BIT(22)
-#define TMIO_STAT_DAT0		BIT(23)	/* only known on R-Car so far */
+#define TMIO_STAT_DAT0		BIT(23)	/* only kyeswn on R-Car so far */
 #define TMIO_STAT_RXRDY         BIT(24)
 #define TMIO_STAT_TXRQ          BIT(25)
-#define TMIO_STAT_ALWAYS_SET_27	BIT(27) /* only known on R-Car 2+ so far */
+#define TMIO_STAT_ALWAYS_SET_27	BIT(27) /* only kyeswn on R-Car 2+ so far */
 #define TMIO_STAT_ILL_FUNC      BIT(29) /* only when !TMIO_MMC_HAS_IDLE_WAIT */
 #define TMIO_STAT_SCLKDIVEN     BIT(29) /* only when TMIO_MMC_HAS_IDLE_WAIT */
 #define TMIO_STAT_CMD_BUSY      BIT(30)
@@ -255,7 +255,7 @@ static inline void sd_ctrl_read32_rep(struct tmio_mmc_host *host, int addr,
 static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr,
 				   u16 val)
 {
-	/* If there is a hook and it returns non-zero then there
+	/* If there is a hook and it returns yesn-zero then there
 	 * is an error and the write should be skipped
 	 */
 	if (host->write16_hook && host->write16_hook(host, addr))

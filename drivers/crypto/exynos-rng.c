@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * exynos-rng.c - Random Number Generator driver for the Exynos
+ * exyyess-rng.c - Random Number Generator driver for the Exyyess
  *
  * Copyright (c) 2017 Krzysztof Kozlowski <krzk@kernel.org>
  *
- * Loosely based on old driver from drivers/char/hw_random/exynos-rng.c:
+ * Loosely based on old driver from drivers/char/hw_random/exyyess-rng.c:
  * Copyright (C) 2012 Samsung Electronics
  * Jonghwa Lee <jonghwa3.lee@samsung.com>
  */
@@ -41,7 +41,7 @@
 #define EXYNOS_RNG_SEED_REGS		5
 #define EXYNOS_RNG_SEED_SIZE		(EXYNOS_RNG_SEED_REGS * 4)
 
-enum exynos_prng_type {
+enum exyyess_prng_type {
 	EXYNOS_PRNG_UNKNOWN = 0,
 	EXYNOS_PRNG_EXYNOS4,
 	EXYNOS_PRNG_EXYNOS5,
@@ -57,19 +57,19 @@ enum exynos_prng_type {
 #define EXYNOS_RNG_RESEED_BYTES		65536
 
 /*
- * In polling mode, do not wait infinitely for the engine to finish the work.
+ * In polling mode, do yest wait infinitely for the engine to finish the work.
  */
 #define EXYNOS_RNG_WAIT_RETRIES		100
 
 /* Context for crypto */
-struct exynos_rng_ctx {
-	struct exynos_rng_dev		*rng;
+struct exyyess_rng_ctx {
+	struct exyyess_rng_dev		*rng;
 };
 
 /* Device associated memory */
-struct exynos_rng_dev {
+struct exyyess_rng_dev {
 	struct device			*dev;
-	enum exynos_prng_type		type;
+	enum exyyess_prng_type		type;
 	void __iomem			*mem;
 	struct clk			*clk;
 	struct mutex 			lock;
@@ -82,19 +82,19 @@ struct exynos_rng_dev {
 	unsigned long			bytes_seeding;
 };
 
-static struct exynos_rng_dev *exynos_rng_dev;
+static struct exyyess_rng_dev *exyyess_rng_dev;
 
-static u32 exynos_rng_readl(struct exynos_rng_dev *rng, u32 offset)
+static u32 exyyess_rng_readl(struct exyyess_rng_dev *rng, u32 offset)
 {
 	return readl_relaxed(rng->mem + offset);
 }
 
-static void exynos_rng_writel(struct exynos_rng_dev *rng, u32 val, u32 offset)
+static void exyyess_rng_writel(struct exyyess_rng_dev *rng, u32 val, u32 offset)
 {
 	writel_relaxed(val, rng->mem + offset);
 }
 
-static int exynos_rng_set_seed(struct exynos_rng_dev *rng,
+static int exyyess_rng_set_seed(struct exyyess_rng_dev *rng,
 			       const u8 *seed, unsigned int slen)
 {
 	u32 val;
@@ -114,12 +114,12 @@ static int exynos_rng_set_seed(struct exynos_rng_dev *rng,
 		val |= seed[i + 2] << 8;
 		val |= seed[i + 3] << 0;
 
-		exynos_rng_writel(rng, val, EXYNOS_RNG_SEED(seed_reg));
+		exyyess_rng_writel(rng, val, EXYNOS_RNG_SEED(seed_reg));
 	}
 
-	val = exynos_rng_readl(rng, EXYNOS_RNG_STATUS);
+	val = exyyess_rng_readl(rng, EXYNOS_RNG_STATUS);
 	if (!(val & EXYNOS_RNG_STATUS_SEED_SETTING_DONE)) {
-		dev_warn(rng->dev, "Seed setting not finished\n");
+		dev_warn(rng->dev, "Seed setting yest finished\n");
 		return -EIO;
 	}
 
@@ -137,21 +137,21 @@ static int exynos_rng_set_seed(struct exynos_rng_dev *rng,
  * On success: return 0 and store number of read bytes under 'read' address.
  * On error: return -ERRNO.
  */
-static int exynos_rng_get_random(struct exynos_rng_dev *rng,
+static int exyyess_rng_get_random(struct exyyess_rng_dev *rng,
 				 u8 *dst, unsigned int dlen,
 				 unsigned int *read)
 {
 	int retry = EXYNOS_RNG_WAIT_RETRIES;
 
 	if (rng->type == EXYNOS_PRNG_EXYNOS4) {
-		exynos_rng_writel(rng, EXYNOS_RNG_CONTROL_START,
+		exyyess_rng_writel(rng, EXYNOS_RNG_CONTROL_START,
 				  EXYNOS_RNG_CONTROL);
 	} else if (rng->type == EXYNOS_PRNG_EXYNOS5) {
-		exynos_rng_writel(rng, EXYNOS_RNG_GEN_PRNG,
+		exyyess_rng_writel(rng, EXYNOS_RNG_GEN_PRNG,
 				  EXYNOS_RNG_SEED_CONF);
 	}
 
-	while (!(exynos_rng_readl(rng,
+	while (!(exyyess_rng_readl(rng,
 			EXYNOS_RNG_STATUS) & EXYNOS_RNG_STATUS_RNG_DONE) && --retry)
 		cpu_relax();
 
@@ -159,7 +159,7 @@ static int exynos_rng_get_random(struct exynos_rng_dev *rng,
 		return -ETIMEDOUT;
 
 	/* Clear status bit */
-	exynos_rng_writel(rng, EXYNOS_RNG_STATUS_RNG_DONE,
+	exyyess_rng_writel(rng, EXYNOS_RNG_STATUS_RNG_DONE,
 			  EXYNOS_RNG_STATUS);
 	*read = min_t(size_t, dlen, EXYNOS_RNG_SEED_SIZE);
 	memcpy_fromio(dst, rng->mem + EXYNOS_RNG_OUT_BASE, *read);
@@ -169,34 +169,34 @@ static int exynos_rng_get_random(struct exynos_rng_dev *rng,
 }
 
 /* Re-seed itself from time to time */
-static void exynos_rng_reseed(struct exynos_rng_dev *rng)
+static void exyyess_rng_reseed(struct exyyess_rng_dev *rng)
 {
 	unsigned long next_seeding = rng->last_seeding + \
 				     msecs_to_jiffies(EXYNOS_RNG_RESEED_TIME);
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	unsigned int read = 0;
 	u8 seed[EXYNOS_RNG_SEED_SIZE];
 
-	if (time_before(now, next_seeding) &&
+	if (time_before(yesw, next_seeding) &&
 	    rng->bytes_seeding < EXYNOS_RNG_RESEED_BYTES)
 		return;
 
-	if (exynos_rng_get_random(rng, seed, sizeof(seed), &read))
+	if (exyyess_rng_get_random(rng, seed, sizeof(seed), &read))
 		return;
 
-	exynos_rng_set_seed(rng, seed, read);
+	exyyess_rng_set_seed(rng, seed, read);
 
 	/* Let others do some of their job. */
 	mutex_unlock(&rng->lock);
 	mutex_lock(&rng->lock);
 }
 
-static int exynos_rng_generate(struct crypto_rng *tfm,
+static int exyyess_rng_generate(struct crypto_rng *tfm,
 			       const u8 *src, unsigned int slen,
 			       u8 *dst, unsigned int dlen)
 {
-	struct exynos_rng_ctx *ctx = crypto_rng_ctx(tfm);
-	struct exynos_rng_dev *rng = ctx->rng;
+	struct exyyess_rng_ctx *ctx = crypto_rng_ctx(tfm);
+	struct exyyess_rng_dev *rng = ctx->rng;
 	unsigned int read = 0;
 	int ret;
 
@@ -206,14 +206,14 @@ static int exynos_rng_generate(struct crypto_rng *tfm,
 
 	mutex_lock(&rng->lock);
 	do {
-		ret = exynos_rng_get_random(rng, dst, dlen, &read);
+		ret = exyyess_rng_get_random(rng, dst, dlen, &read);
 		if (ret)
 			break;
 
 		dlen -= read;
 		dst += read;
 
-		exynos_rng_reseed(rng);
+		exyyess_rng_reseed(rng);
 	} while (dlen > 0);
 	mutex_unlock(&rng->lock);
 
@@ -222,11 +222,11 @@ static int exynos_rng_generate(struct crypto_rng *tfm,
 	return ret;
 }
 
-static int exynos_rng_seed(struct crypto_rng *tfm, const u8 *seed,
+static int exyyess_rng_seed(struct crypto_rng *tfm, const u8 *seed,
 			   unsigned int slen)
 {
-	struct exynos_rng_ctx *ctx = crypto_rng_ctx(tfm);
-	struct exynos_rng_dev *rng = ctx->rng;
+	struct exyyess_rng_ctx *ctx = crypto_rng_ctx(tfm);
+	struct exyyess_rng_dev *rng = ctx->rng;
 	int ret;
 
 	ret = clk_prepare_enable(rng->clk);
@@ -234,7 +234,7 @@ static int exynos_rng_seed(struct crypto_rng *tfm, const u8 *seed,
 		return ret;
 
 	mutex_lock(&rng->lock);
-	ret = exynos_rng_set_seed(ctx->rng, seed, slen);
+	ret = exyyess_rng_set_seed(ctx->rng, seed, slen);
 	mutex_unlock(&rng->lock);
 
 	clk_disable_unprepare(rng->clk);
@@ -242,42 +242,42 @@ static int exynos_rng_seed(struct crypto_rng *tfm, const u8 *seed,
 	return ret;
 }
 
-static int exynos_rng_kcapi_init(struct crypto_tfm *tfm)
+static int exyyess_rng_kcapi_init(struct crypto_tfm *tfm)
 {
-	struct exynos_rng_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct exyyess_rng_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	ctx->rng = exynos_rng_dev;
+	ctx->rng = exyyess_rng_dev;
 
 	return 0;
 }
 
-static struct rng_alg exynos_rng_alg = {
-	.generate		= exynos_rng_generate,
-	.seed			= exynos_rng_seed,
+static struct rng_alg exyyess_rng_alg = {
+	.generate		= exyyess_rng_generate,
+	.seed			= exyyess_rng_seed,
 	.seedsize		= EXYNOS_RNG_SEED_SIZE,
 	.base			= {
 		.cra_name		= "stdrng",
-		.cra_driver_name	= "exynos_rng",
+		.cra_driver_name	= "exyyess_rng",
 		.cra_priority		= 300,
-		.cra_ctxsize		= sizeof(struct exynos_rng_ctx),
+		.cra_ctxsize		= sizeof(struct exyyess_rng_ctx),
 		.cra_module		= THIS_MODULE,
-		.cra_init		= exynos_rng_kcapi_init,
+		.cra_init		= exyyess_rng_kcapi_init,
 	}
 };
 
-static int exynos_rng_probe(struct platform_device *pdev)
+static int exyyess_rng_probe(struct platform_device *pdev)
 {
-	struct exynos_rng_dev *rng;
+	struct exyyess_rng_dev *rng;
 	int ret;
 
-	if (exynos_rng_dev)
+	if (exyyess_rng_dev)
 		return -EEXIST;
 
 	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
 	if (!rng)
 		return -ENOMEM;
 
-	rng->type = (enum exynos_prng_type)of_device_get_match_data(&pdev->dev);
+	rng->type = (enum exyyess_prng_type)of_device_get_match_data(&pdev->dev);
 
 	mutex_init(&rng->lock);
 
@@ -294,30 +294,30 @@ static int exynos_rng_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rng);
 
-	exynos_rng_dev = rng;
+	exyyess_rng_dev = rng;
 
-	ret = crypto_register_rng(&exynos_rng_alg);
+	ret = crypto_register_rng(&exyyess_rng_alg);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Couldn't register rng crypto alg: %d\n", ret);
-		exynos_rng_dev = NULL;
+		exyyess_rng_dev = NULL;
 	}
 
 	return ret;
 }
 
-static int exynos_rng_remove(struct platform_device *pdev)
+static int exyyess_rng_remove(struct platform_device *pdev)
 {
-	crypto_unregister_rng(&exynos_rng_alg);
+	crypto_unregister_rng(&exyyess_rng_alg);
 
-	exynos_rng_dev = NULL;
+	exyyess_rng_dev = NULL;
 
 	return 0;
 }
 
-static int __maybe_unused exynos_rng_suspend(struct device *dev)
+static int __maybe_unused exyyess_rng_suspend(struct device *dev)
 {
-	struct exynos_rng_dev *rng = dev_get_drvdata(dev);
+	struct exyyess_rng_dev *rng = dev_get_drvdata(dev);
 	int ret;
 
 	/* If we were never seeded then after resume it will be the same */
@@ -332,7 +332,7 @@ static int __maybe_unused exynos_rng_suspend(struct device *dev)
 	mutex_lock(&rng->lock);
 
 	/* Get new random numbers and store them for seeding on resume. */
-	exynos_rng_get_random(rng, rng->seed_save, sizeof(rng->seed_save),
+	exyyess_rng_get_random(rng, rng->seed_save, sizeof(rng->seed_save),
 			      &(rng->seed_save_len));
 
 	mutex_unlock(&rng->lock);
@@ -345,12 +345,12 @@ static int __maybe_unused exynos_rng_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused exynos_rng_resume(struct device *dev)
+static int __maybe_unused exyyess_rng_resume(struct device *dev)
 {
-	struct exynos_rng_dev *rng = dev_get_drvdata(dev);
+	struct exyyess_rng_dev *rng = dev_get_drvdata(dev);
 	int ret;
 
-	/* Never seeded so nothing to do */
+	/* Never seeded so yesthing to do */
 	if (!rng->last_seeding)
 		return 0;
 
@@ -360,7 +360,7 @@ static int __maybe_unused exynos_rng_resume(struct device *dev)
 
 	mutex_lock(&rng->lock);
 
-	ret = exynos_rng_set_seed(rng, rng->seed_save, rng->seed_save_len);
+	ret = exyyess_rng_set_seed(rng, rng->seed_save, rng->seed_save_len);
 
 	mutex_unlock(&rng->lock);
 
@@ -369,33 +369,33 @@ static int __maybe_unused exynos_rng_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(exynos_rng_pm_ops, exynos_rng_suspend,
-			 exynos_rng_resume);
+static SIMPLE_DEV_PM_OPS(exyyess_rng_pm_ops, exyyess_rng_suspend,
+			 exyyess_rng_resume);
 
-static const struct of_device_id exynos_rng_dt_match[] = {
+static const struct of_device_id exyyess_rng_dt_match[] = {
 	{
-		.compatible = "samsung,exynos4-rng",
+		.compatible = "samsung,exyyess4-rng",
 		.data = (const void *)EXYNOS_PRNG_EXYNOS4,
 	}, {
-		.compatible = "samsung,exynos5250-prng",
+		.compatible = "samsung,exyyess5250-prng",
 		.data = (const void *)EXYNOS_PRNG_EXYNOS5,
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, exynos_rng_dt_match);
+MODULE_DEVICE_TABLE(of, exyyess_rng_dt_match);
 
-static struct platform_driver exynos_rng_driver = {
+static struct platform_driver exyyess_rng_driver = {
 	.driver		= {
-		.name	= "exynos-rng",
-		.pm	= &exynos_rng_pm_ops,
-		.of_match_table = exynos_rng_dt_match,
+		.name	= "exyyess-rng",
+		.pm	= &exyyess_rng_pm_ops,
+		.of_match_table = exyyess_rng_dt_match,
 	},
-	.probe		= exynos_rng_probe,
-	.remove		= exynos_rng_remove,
+	.probe		= exyyess_rng_probe,
+	.remove		= exyyess_rng_remove,
 };
 
-module_platform_driver(exynos_rng_driver);
+module_platform_driver(exyyess_rng_driver);
 
-MODULE_DESCRIPTION("Exynos H/W Random Number Generator driver");
+MODULE_DESCRIPTION("Exyyess H/W Random Number Generator driver");
 MODULE_AUTHOR("Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_LICENSE("GPL v2");

@@ -68,7 +68,7 @@ IRQs
 ----
 
   All the standard, and external interrupt sources are supported. The
-  extra sub-sources are not yet supported.
+  extra sub-sources are yest yet supported.
 
 
 RTC

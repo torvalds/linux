@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -41,8 +41,8 @@ enum {
 	INTEL_GVT_PCI_BAR_MAX,
 };
 
-/* bitmap for writable bits (RW or RW1C bits, but cannot co-exist in one
- * byte) byte by byte in standard pci configuration space. (not the full
+/* bitmap for writable bits (RW or RW1C bits, but canyest co-exist in one
+ * byte) byte by byte in standard pci configuration space. (yest the full
  * 256 bytes.)
  */
 static const u8 pci_cfg_space_rw_bmp[PCI_INTERRUPT_LINE + 4] = {
@@ -80,7 +80,7 @@ static void vgpu_pci_cfg_mem_write(struct intel_vgpu *vgpu, unsigned int off,
 		/**
 		 * The PCI_STATUS high byte has RW1C bits, here
 		 * emulates clear by writing 1 for these bits.
-		 * Writing a 0b to RW1C bits has no effect.
+		 * Writing a 0b to RW1C bits has yes effect.
 		 */
 		if (off + i == PCI_STATUS + 1)
 			new = (~new & old) & mask;
@@ -416,7 +416,7 @@ void intel_vgpu_reset_cfg_space(struct intel_vgpu *vgpu)
 	}
 
 	/**
-	 * Currently we only do such reset when vGPU is not
+	 * Currently we only do such reset when vGPU is yest
 	 * owned by any VM, so we simply restore entire cfg
 	 * space to default value.
 	 */

@@ -3,17 +3,17 @@
                           Under the terms of the GNU General Public License.
 
 	fit3.c is a low-level protocol driver for newer models 
-        of the Fidelity International Technology parallel port adapter.  
+        of the Fidelity International Techyeslogy parallel port adapter.  
 	This adapter is used in their TransDisk 3000 portable 
 	hard-drives, as well as CD-ROM, PD-CD and other devices.
 
 	The TD-2000 and certain older devices use a different protocol.
 	Try the fit2 protocol module with them.
 
-        NB:  The FIT adapters do not appear to support the control 
+        NB:  The FIT adapters do yest appear to support the control 
 	registers.  So, we map ALT_STATUS to STATUS and NO-OP writes 
 	to the device control register - this means that IDE reset 
-	will not work on these devices.
+	will yest work on these devices.
 
 */
 

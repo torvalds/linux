@@ -9,7 +9,7 @@
 // Confidence: High
 // Copyright: (C) 2014 Himangi Saraogi.
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 
 virtual patch
 virtual context

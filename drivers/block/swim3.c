@@ -189,7 +189,7 @@ struct floppy_state {
 	int	secpercyl;	/* disk geometry information */
 	int	secpertrack;
 	int	total_secs;
-	int	write_prot;	/* 1 if write-protected, 0 if not, -1 dunno */
+	int	write_prot;	/* 1 if write-protected, 0 if yest, -1 dunyes */
 	struct dbdma_cmd *dma_cmd;
 	int	ref_count;
 	int	expect_cyl;
@@ -223,7 +223,7 @@ static unsigned short write_preamble[] = {
 	0x4e4e, 0x4e4e, 0x4e4e, 0x4e4e, 0x4e4e,	/* gap field */
 	0, 0, 0, 0, 0, 0,			/* sync field */
 	0x99a1, 0x99a1, 0x99a1, 0x99fb,		/* data address mark */
-	0x990f					/* no escape for 512 bytes */
+	0x990f					/* yes escape for 512 bytes */
 };
 
 static unsigned short write_postamble[] = {
@@ -341,9 +341,9 @@ static blk_status_t swim3_queue_rq(struct blk_mq_hw_ctx *hctx,
 	}
 
 	/*
-	 * Do not remove the cast. blk_rq_pos(req) is now a sector_t and can be
+	 * Do yest remove the cast. blk_rq_pos(req) is yesw a sector_t and can be
 	 * 64 bits, but it will never go past 32 bits for this driver anyway, so
-	 * we can safely cast it down and not have to do a 64/32 division
+	 * we can safely cast it down and yest have to do a 64/32 division
 	 */
 	fs->req_cyl = ((long)blk_rq_pos(req)) / fs->secpercyl;
 	x = ((long)blk_rq_pos(req)) % fs->secpercyl;
@@ -530,7 +530,7 @@ static void act(struct floppy_state *fs)
 			return;
 
 		default:
-			swim3_err("Unknown state %d\n", fs->state);
+			swim3_err("Unkyeswn state %d\n", fs->state);
 			return;
 		}
 	}
@@ -777,7 +777,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 		}
 		break;
 	default:
-		swim3_err("Don't know what to do in state %d\n", fs->state);
+		swim3_err("Don't kyesw what to do in state %d\n", fs->state);
 	}
 	spin_unlock_irqrestore(&swim3_lock, flags);
 	return IRQ_HANDLED;
@@ -1083,7 +1083,7 @@ static void swim3_mb_event(struct macio_dev* mdev, int mb_state)
 
 static int swim3_add_device(struct macio_dev *mdev, int index)
 {
-	struct device_node *swim = mdev->ofdev.dev.of_node;
+	struct device_yesde *swim = mdev->ofdev.dev.of_yesde;
 	struct floppy_state *fs = &floppy_states[index];
 	int rc = -EBUSY;
 
@@ -1209,7 +1209,7 @@ static int swim3_attach(struct macio_dev *mdev,
 		goto out_cleanup_queue;
 
 	disk->major = FLOPPY_MAJOR;
-	disk->first_minor = floppy_count;
+	disk->first_miyesr = floppy_count;
 	disk->fops = &floppy_fops;
 	disk->private_data = fs;
 	disk->events = DISK_EVENT_MEDIA_CHANGE;

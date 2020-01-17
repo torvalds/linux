@@ -3,7 +3,7 @@
  * Freescale MXS Low Resolution Analog-to-Digital Converter driver
  *
  * Copyright (c) 2012 DENX Software Engineering, GmbH.
- * Copyright (c) 2016 Ksenija Stanojevic <ksenija.stanojevic@gmail.com>
+ * Copyright (c) 2016 Ksenija Stayesjevic <ksenija.stayesjevic@gmail.com>
  *
  * Author: Marek Vasut <marex@denx.de>
  */
@@ -115,7 +115,7 @@
 	/*
 	 * Certain LRADC channels are shared between touchscreen
 	 * and/or touch-buttons and generic LRADC block. Therefore when using
-	 * either of these, these channels are not available for the regular
+	 * either of these, these channels are yest available for the regular
 	 * sampling. The shared channels are as follows:
 	 *
 	 * CH0 -- Touch button #0
@@ -127,7 +127,7 @@
 	 * CH6 -- Touch screen WIPER (5-wire only)
 	 *
 	 * The bit fields below represents which parts of the LRADC block are
-	 * switched into special mode of operation. These channels can not
+	 * switched into special mode of operation. These channels can yest
 	 * be sampled as regular LRADC channels. The driver will refuse any
 	 * attempt to sample these channels.
 	 */

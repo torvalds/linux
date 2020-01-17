@@ -100,7 +100,7 @@ struct fddi_mib {
 #endif	/* ESS */
 #ifdef	SBA
 	/*
-	 * private variables for the Synchronous Bandwidth Allocator
+	 * private variables for the Synchroyesus Bandwidth Allocator
 	 */
 	char	fddiSBACommand ;	/* holds the parsed SBA cmd */
 	u_char	fddiSBAAvailable ;	/* SBA allocatable value */
@@ -259,7 +259,7 @@ struct fddi_mib {
 		SMTEnum		fddiPORTCurrentPath ;
 		/* must be 4: is 32 bit in SMT format
 		 * indices :
-		 *	1	none
+		 *	1	yesne
 		 *	2	tree
 		 *	3	peer
 		 */

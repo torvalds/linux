@@ -4,7 +4,7 @@
  * device driver for Conexant 2388x based TV cards
  * video4linux video interface
  *
- * (c) 2003-04 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2003-04 Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]
  *
  * (c) 2005-2006 Mauro Carvalho Chehab <mchehab@kernel.org>
  *	- Multituner support
@@ -32,7 +32,7 @@
 #include <media/i2c/wm8775.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(CX88_VERSION);
 
@@ -618,7 +618,7 @@ static int cx8800_s_vid_ctrl(struct v4l2_ctrl *ctrl)
 
 		value = ((ctrl->val - cc->off) << cc->shift) & cc->mask;
 
-		if (core->tvnorm & V4L2_STD_SECAM) {
+		if (core->tvyesrm & V4L2_STD_SECAM) {
 			/* For SECAM, both U and V sat should be equal */
 			value = value << 8 | value;
 		} else {
@@ -734,8 +734,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	if (!fmt)
 		return -EINVAL;
 
-	maxw = norm_maxw(core->tvnorm);
-	maxh = norm_maxh(core->tvnorm);
+	maxw = yesrm_maxw(core->tvyesrm);
+	maxh = yesrm_maxh(core->tvyesrm);
 
 	field = f->fmt.pix.field;
 
@@ -824,21 +824,21 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvnorm)
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvyesrm)
 {
 	struct cx8800_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
 
-	*tvnorm = core->tvnorm;
+	*tvyesrm = core->tvyesrm;
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvyesrms)
 {
 	struct cx8800_dev *dev = video_drvdata(file);
 	struct cx88_core *core = dev->core;
 
-	return cx88_set_tvnorm(core, tvnorms);
+	return cx88_set_tvyesrm(core, tvyesrms);
 }
 
 /* only one input in this sample driver */
@@ -1174,7 +1174,7 @@ static const struct video_device cx8800_video_template = {
 	.name                 = "cx8800-video",
 	.fops                 = &video_fops,
 	.ioctl_ops	      = &video_ioctl_ops,
-	.tvnorms              = CX88_NORMS,
+	.tvyesrms              = CX88_NORMS,
 };
 
 static const struct v4l2_ioctl_ops vbi_ioctl_ops = {
@@ -1207,7 +1207,7 @@ static const struct video_device cx8800_vbi_template = {
 	.name                 = "cx8800-vbi",
 	.fops                 = &video_fops,
 	.ioctl_ops	      = &vbi_ioctl_ops,
-	.tvnorms              = CX88_NORMS,
+	.tvyesrms              = CX88_NORMS,
 };
 
 static const struct v4l2_file_operations radio_fops = {
@@ -1292,7 +1292,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	err = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
 	if (err) {
-		pr_err("Oops: no 32bit PCI DMA ???\n");
+		pr_err("Oops: yes 32bit PCI DMA ???\n");
 		goto fail_core;
 	}
 
@@ -1356,9 +1356,9 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		struct v4l2_subdev *sd;
 
 		if (core->boardnr == CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1)
-			core->wm8775_data.is_nova_s = true;
+			core->wm8775_data.is_yesva_s = true;
 		else
-			core->wm8775_data.is_nova_s = false;
+			core->wm8775_data.is_yesva_s = false;
 
 		sd = v4l2_i2c_new_subdev_board(&core->v4l2_dev, &core->i2c_adap,
 					       &wm8775_info, NULL);
@@ -1402,7 +1402,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* initial device configuration */
 	mutex_lock(&core->lock);
-	cx88_set_tvnorm(core, V4L2_STD_NTSC_M);
+	cx88_set_tvyesrm(core, V4L2_STD_NTSC_M);
 	v4l2_ctrl_handler_setup(&core->video_hdl);
 	v4l2_ctrl_handler_setup(&core->audio_hdl);
 	cx88_video_mux(core, 0);
@@ -1458,7 +1458,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		goto fail_unreg;
 	}
 	pr_info("registered device %s [v4l2]\n",
-		video_device_node_name(&dev->video_dev));
+		video_device_yesde_name(&dev->video_dev));
 
 	cx88_vdev_init(core, dev->pci, &dev->vbi_dev,
 		       &cx8800_vbi_template, "vbi");
@@ -1475,7 +1475,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		goto fail_unreg;
 	}
 	pr_info("registered device %s\n",
-		video_device_node_name(&dev->vbi_dev));
+		video_device_yesde_name(&dev->vbi_dev));
 
 	if (core->board.radio.type == CX88_RADIO) {
 		cx88_vdev_init(core, dev->pci, &dev->radio_dev,
@@ -1490,7 +1490,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 			goto fail_unreg;
 		}
 		pr_info("registered device %s\n",
-			video_device_node_name(&dev->radio_dev));
+			video_device_yesde_name(&dev->radio_dev));
 	}
 
 	/* start tvaudio thread */

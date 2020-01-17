@@ -22,7 +22,7 @@ config ARCH_MMAP_RND_BITS_MAX
 	# is 2^47 (128TB). As a maximum, allow randomisation to consume up to
 	# 32T of address space (2^45), which should ensure a reasonable gap
 	# between bottom-up and top-down allocations for applications that
-	# consume "normal" amounts of address space. Book3S 64 only supports 64K
+	# consume "yesrmal" amounts of address space. Book3S 64 only supports 64K
 	# and 4K page sizes.
 	default 29 if PPC_BOOK3S_64 && PPC_64K_PAGES # 29 = 45 (32T) - 16 (64K)
 	default 33 if PPC_BOOK3S_64		     # 33 = 45 (32T) - 12 (4K)
@@ -89,7 +89,7 @@ config PPC_WATCHDOG
 	  This is a placeholder when the powerpc hardlockup detector
 	  watchdog is selected (arch/powerpc/kernel/watchdog.c). It is
 	  seleted via the generic lockup detector menu which is why we
-	  have no standalone config option for it here.
+	  have yes standalone config option for it here.
 
 config STACKTRACE_SUPPORT
 	bool
@@ -344,7 +344,7 @@ config PPC_DCR
 config PPC_OF_PLATFORM_PCI
 	bool
 	depends on PCI
-	depends on PPC64 # not supported on 32 bits yet
+	depends on PPC64 # yest supported on 32 bits yet
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	depends on PPC32 || PPC_BOOK3S_64
@@ -412,15 +412,15 @@ config MATH_EMULATION
 	bool "Math emulation"
 	depends on 4xx || PPC_8xx || PPC_MPC832x || BOOKE
 	help
-	  Some PowerPC chips designed for embedded applications do not have
-	  a floating-point unit and therefore do not implement the
+	  Some PowerPC chips designed for embedded applications do yest have
+	  a floating-point unit and therefore do yest implement the
 	  floating-point instructions in the PowerPC instruction set.  If you
 	  say Y here, the kernel will include code to emulate a floating-point
 	  unit, which will allow programs that use floating-point
 	  instructions to run.
 
 	  This is also useful to emulate missing (optional) instructions
-	  such as fsqrt on cores that do have an FPU but do not implement
+	  such as fsqrt on cores that do have an FPU but do yest implement
 	  them (such as Freescale BookE).
 
 choice
@@ -438,8 +438,8 @@ config	MATH_EMULATION_FULL
 config MATH_EMULATION_HW_UNIMPLEMENTED
 	bool "Just emulate the FPU unimplemented instructions"
 	help
-	  Select this if you know there does have a hardware FPU on your
-	  SoC, but some floating point instructions are not implemented by that.
+	  Select this if you kyesw there does have a hardware FPU on your
+	  SoC, but some floating point instructions are yest implemented by that.
 
 endchoice
 
@@ -515,16 +515,16 @@ config KEXEC
 	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
-	  current kernel, and to start another kernel.  It is like a reboot
+	  current kernel, and to start ayesther kernel.  It is like a reboot
 	  but it is independent of the system firmware.   And like a reboot
-	  you can start any kernel with it, not just Linux.
+	  you can start any kernel with it, yest just Linux.
 
 	  The name comes from the similarity to the exec system call.
 
 	  It is an ongoing process to be certain the hardware in a machine
-	  is properly shutdown, so do not be surprised if this code does not
+	  is properly shutdown, so do yest be surprised if this code does yest
 	  initially work for you.  As of this writing the exact hardware
-	  interface is strongly in flux, so no good recommendation can be
+	  interface is strongly in flux, so yes good recommendation can be
 	  made.
 
 config KEXEC_FILE
@@ -552,7 +552,7 @@ config RELOCATABLE
 	select MODULE_REL_CRCS if MODVERSIONS
 	help
 	  This builds a kernel image that is capable of running at the
-	  location the kernel is loaded at. For ppc32, there is no any
+	  location the kernel is loaded at. For ppc32, there is yes any
 	  alignment restrictions, and this feature is a superset of
 	  DYNAMIC_MEMSTART and hence overrides it. For ppc64, we should use
 	  16k-aligned base address. The kernel is linked as a
@@ -565,8 +565,8 @@ config RELOCATABLE
 
 	  Note: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
 	  it has been loaded at and the compile time physical addresses
-	  CONFIG_PHYSICAL_START is ignored.  However CONFIG_PHYSICAL_START
-	  setting can still be useful to bootwrappers that need to know the
+	  CONFIG_PHYSICAL_START is igyesred.  However CONFIG_PHYSICAL_START
+	  setting can still be useful to bootwrappers that need to kyesw the
 	  load address of the kernel (eg. u-boot/mkimage).
 
 config RANDOMIZE_BASE
@@ -576,7 +576,7 @@ config RANDOMIZE_BASE
 	help
 	  Randomizes the virtual address at which the kernel image is
 	  loaded, as a security feature that deters exploit attempts
-	  relying on knowledge of the location of kernel internals.
+	  relying on kyeswledge of the location of kernel internals.
 
 	  If unsure, say Y.
 
@@ -585,7 +585,7 @@ config RELOCATABLE_TEST
 	depends on (PPC64 && RELOCATABLE)
 	help
 	  This runs the relocatable kernel at the address it was initially
-	  loaded at, which tends to be non-zero and therefore test the
+	  loaded at, which tends to be yesn-zero and therefore test the
 	  relocation code.
 
 config CRASH_DUMP
@@ -604,11 +604,11 @@ config FA_DUMP
 	select CRASH_DUMP
 	help
 	  A robust mechanism to get reliable kernel crash dump with
-	  assistance from firmware. This approach does not use kexec,
+	  assistance from firmware. This approach does yest use kexec,
 	  instead firmware assists in booting the capture kernel
 	  while preserving memory contents. Firmware-assisted dump
 	  is meant to be a kdump replacement offering robustness and
-	  speed not possible without system firmware assistance.
+	  speed yest possible without system firmware assistance.
 
 	  If unsure, say "y". Only special kernels like petitboot may
 	  need to say "N" here.
@@ -690,10 +690,10 @@ config ARCH_MEMORY_PROBE
 	def_bool y
 	depends on MEMORY_HOTPLUG
 
-# Some NUMA nodes have memory ranges that span
-# other nodes.  Even though a pfn is valid and
-# between a node's start and end pfns, it may not
-# reside on that node.  See memmap_init_zone()
+# Some NUMA yesdes have memory ranges that span
+# other yesdes.  Even though a pfn is valid and
+# between a yesde's start and end pfns, it may yest
+# reside on that yesde.  See memmap_init_zone()
 # for details.
 config NODES_SPAN_OTHER_NODES
 	def_bool y
@@ -728,10 +728,10 @@ choice
 	  accelerated calculations, have shown significant increases.
 
 	  If you configure a 64 bit kernel for 64k pages but the
-	  processor does not support them, then the kernel will simulate
+	  processor does yest support them, then the kernel will simulate
 	  them with 4k pages, loading them on demand, but with the
 	  reduced software overhead and larger internal fragmentation.
-	  For the 32 bit kernel, a large page option will not be offered
+	  For the 32 bit kernel, a large page option will yest be offered
 	  unless it is supported by the configured processor.
 
 	  If unsure, choose 4K_PAGES.
@@ -757,10 +757,10 @@ config PPC_256K_PAGES
 
 	  As the ELF standard only requires alignment to support page
 	  sizes up to 64k, you will need to compile all of your user
-	  space applications with a non-standard binutils settings
+	  space applications with a yesn-standard binutils settings
 	  (see the STDBINUTILS description for details).
 
-	  Say N unless you know what you are doing.
+	  Say N unless you kyesw what you are doing.
 
 endchoice
 
@@ -779,7 +779,7 @@ config THREAD_SHIFT
 	default "13"
 	help
 	  Used to define the stack size. The default is almost always what you
-	  want. Only change this if you know what you are doing.
+	  want. Only change this if you kyesw what you are doing.
 
 config ETEXT_SHIFT_BOOL
 	bool "Set custom etext alignment" if STRICT_KERNEL_RWX && \
@@ -790,7 +790,7 @@ config ETEXT_SHIFT_BOOL
 	  RAM is mapped by blocks, the alignment needs to fit the size and
 	  number of possible blocks. The default should be OK for most configs.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kyesw what you are doing.
 
 config ETEXT_SHIFT
 	int "_etext shift" if ETEXT_SHIFT_BOOL
@@ -816,7 +816,7 @@ config DATA_SHIFT_BOOL
 	  RAM is mapped by blocks, the alignment needs to fit the size and
 	  number of possible blocks. The default should be OK for most configs.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kyesw what you are doing.
 
 config DATA_SHIFT
 	int "Data shift" if DATA_SHIFT_BOOL
@@ -859,7 +859,7 @@ config FORCE_MAX_ZONEORDER
 	  This config option is actually maximum order plus one. For example,
 	  a value of 11 means that the largest free memory block is 2^10 pages.
 
-	  The page size is not necessarily 4KB.  For example, on 64-bit
+	  The page size is yest necessarily 4KB.  For example, on 64-bit
 	  systems, 64KB pages can be enabled via CONFIG_PPC_64K_PAGES.  Keep
 	  this in mind when choosing a value for this option.
 
@@ -868,7 +868,7 @@ config PPC_SUBPAGE_PROT
 	depends on PPC_BOOK3S_64 && PPC_64K_PAGES
 	help
 	  This option adds support for a system call to allow user programs
-	  to set access permissions (read/write, readonly, or no access)
+	  to set access permissions (read/write, readonly, or yes access)
 	  on the 4k subpages of each 64k page.
 
 config PPC_COPRO_BASE
@@ -883,11 +883,11 @@ config SCHED_SMT
 	  overhead in some places. If unsure say N here.
 
 config PPC_DENORMALISATION
-	bool "PowerPC denormalisation exception handling"
+	bool "PowerPC deyesrmalisation exception handling"
 	depends on PPC_BOOK3S_64
 	default "y" if PPC_POWERNV
 	help
-	  Add support for handling denormalisation of single precision
+	  Add support for handling deyesrmalisation of single precision
 	  values.  Useful for bare metal only.  If unsure say Y here.
 
 config CMDLINE_BOOL
@@ -898,7 +898,7 @@ config CMDLINE
 	default "console=ttyS0,9600 console=tty0 root=/dev/sda2" if CMDLINE_BOOL
 	default ""
 	help
-	  On some platforms, there is currently no way for the boot loader to
+	  On some platforms, there is currently yes way for the boot loader to
 	  pass arguments to the kernel. For these platforms, you can supply
 	  some command-line options at build time by entering them here.  In
 	  most cases you will need to specify the root device here.
@@ -925,7 +925,7 @@ config CMDLINE_FORCE
 	help
 	  Always use the default kernel command string, even if the boot
 	  loader passes other arguments to the kernel.
-	  This is useful if you cannot or don't want to change the
+	  This is useful if you canyest or don't want to change the
 	  command-line options your boot loader passes to the kernel.
 
 endchoice
@@ -960,7 +960,7 @@ config SECCOMP
 	  the process as file descriptors supporting the read/write
 	  syscalls, it's possible to isolate those applications in
 	  their own address space using seccomp. Once seccomp is
-	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  enabled via /proc/<pid>/seccomp, it canyest be disabled
 	  and the task is only allowed to execute a few safe syscalls
 	  defined by each seccomp mode.
 
@@ -1103,11 +1103,11 @@ config ADVANCED_OPTIONS
 	bool "Prompt for advanced kernel configuration options"
 	help
 	  This option will enable prompting for a variety of advanced kernel
-	  configuration options.  These options can cause the kernel to not
+	  configuration options.  These options can cause the kernel to yest
 	  work if they are set incorrectly, but can be used to optimize certain
 	  aspects of kernel memory management.
 
-	  Unless you know what you are doing, say N here.
+	  Unless you kyesw what you are doing, say N here.
 
 comment "Default settings for advanced configuration options are used"
 	depends on !ADVANCED_OPTIONS
@@ -1122,7 +1122,7 @@ config LOWMEM_SIZE_BOOL
 	  This can be useful in optimizing the layout of kernel virtual
 	  memory.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kyesw what you are doing.
 
 config LOWMEM_SIZE
 	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
@@ -1138,7 +1138,7 @@ config LOWMEM_CAM_NUM_BOOL
 	  However, using more entries will allow mapping more low memory.  This
 	  can be useful in optimizing the layout of kernel virtual memory.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kyesw what you are doing.
 
 config LOWMEM_CAM_NUM
 	depends on FSL_BOOKE
@@ -1159,7 +1159,7 @@ config DYNAMIC_MEMSTART
 	  DYNAMIC_MEMSTART is an easy way of implementing pseudo-RELOCATABLE
 	  kernel image, where the only restriction is the page aligned kernel
 	  load address. When this option is enabled, the compile time physical
-	  address CONFIG_PHYSICAL_START is ignored.
+	  address CONFIG_PHYSICAL_START is igyesred.
 
 	  This option is overridden by CONFIG_RELOCATABLE
 
@@ -1171,7 +1171,7 @@ config PAGE_OFFSET_BOOL
 	  the kernel will map low memory.  This can be useful in optimizing
 	  the virtual memory layout of the system.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kyesw what you are doing.
 
 config PAGE_OFFSET
 	hex "Virtual address of memory base" if PAGE_OFFSET_BOOL
@@ -1183,10 +1183,10 @@ config KERNEL_START_BOOL
 	help
 	  This option allows you to set the kernel virtual address at which
 	  the kernel will be loaded.  Normally this should match PAGE_OFFSET
-	  however there are times (like kdump) that one might not want them
+	  however there are times (like kdump) that one might yest want them
 	  to be the same.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kyesw what you are doing.
 
 config KERNEL_START
 	hex "Virtual address of kernel base" if KERNEL_START_BOOL
@@ -1200,7 +1200,7 @@ config PHYSICAL_START_BOOL
 	help
 	  This gives the physical address where the kernel is loaded.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kyesw what you are doing.
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if PHYSICAL_START_BOOL
@@ -1223,7 +1223,7 @@ config TASK_SIZE_BOOL
 	  allocated to user tasks.  This can be useful in optimizing the
 	  virtual memory layout of the system.
 
-	  Say N here unless you know what you are doing.
+	  Say N here unless you kyesw what you are doing.
 
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL

@@ -65,7 +65,7 @@ struct sja1105_info {
 	 * (since the parts with/without SGMII share the same
 	 * switch core and device_id)
 	 */
-	u64 part_no;
+	u64 part_yes;
 	/* E/T and P/Q/R/S have partial timestamps of different sizes.
 	 * They must be reconstructed on both families anyway to get the full
 	 * 64-bit values back.
@@ -100,7 +100,7 @@ struct sja1105_private {
 	struct dsa_switch *ds;
 	struct sja1105_port ports[SJA1105_NUM_PORTS];
 	/* Serializes transmission of management frames so that
-	 * the switch doesn't confuse them with one another.
+	 * the switch doesn't confuse them with one ayesther.
 	 */
 	struct mutex mgmt_lock;
 	struct sja1105_tagger_data tagger_data;

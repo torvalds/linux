@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <linux/bpf.h>
 #include <linux/bitops.h>
@@ -54,7 +54,7 @@ nfp_bpf_cmsg_map_reply_size(struct nfp_app_bpf *bpf, unsigned int n)
 }
 
 static int
-nfp_bpf_ctrl_rc_to_errno(struct nfp_app_bpf *bpf,
+nfp_bpf_ctrl_rc_to_erryes(struct nfp_app_bpf *bpf,
 			 struct cmsg_reply_map_simple *reply)
 {
 	static const int res_table[] = {
@@ -104,7 +104,7 @@ nfp_bpf_ctrl_alloc_map(struct nfp_app_bpf *bpf, struct bpf_map *map)
 		return PTR_ERR(skb);
 
 	reply = (void *)skb->data;
-	err = nfp_bpf_ctrl_rc_to_errno(bpf, &reply->reply_hdr);
+	err = nfp_bpf_ctrl_rc_to_erryes(bpf, &reply->reply_hdr);
 	if (err)
 		goto err_free;
 
@@ -141,7 +141,7 @@ void nfp_bpf_ctrl_free_map(struct nfp_app_bpf *bpf, struct nfp_bpf_map *nfp_map)
 	}
 
 	reply = (void *)skb->data;
-	err = nfp_bpf_ctrl_rc_to_errno(bpf, &reply->reply_hdr);
+	err = nfp_bpf_ctrl_rc_to_erryes(bpf, &reply->reply_hdr);
 	if (err)
 		cmsg_warn(bpf, "leaking map - FW responded with: %d\n", err);
 
@@ -302,7 +302,7 @@ nfp_bpf_ctrl_entry_op(struct bpf_offloaded_map *offmap, enum nfp_ccm_type op,
 	u32 cache_gen;
 	int err;
 
-	/* FW messages have no space for more than 32 bits of flags */
+	/* FW messages have yes space for more than 32 bits of flags */
 	if (flags >> 32)
 		return -EOPNOTSUPP;
 
@@ -345,7 +345,7 @@ nfp_bpf_ctrl_entry_op(struct bpf_offloaded_map *offmap, enum nfp_ccm_type op,
 
 	reply = (void *)skb->data;
 	count = be32_to_cpu(reply->count);
-	err = nfp_bpf_ctrl_rc_to_errno(bpf, &reply->reply_hdr);
+	err = nfp_bpf_ctrl_rc_to_erryes(bpf, &reply->reply_hdr);
 	/* FW responds with message sized to hold the good entries,
 	 * plus one extra entry if there was an error.
 	 */

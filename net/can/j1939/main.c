@@ -45,7 +45,7 @@ static void j1939_can_recv(struct sk_buff *iskb, void *data)
 	/* create a copy of the skb
 	 * j1939 only delivers the real data bytes,
 	 * the header goes into sockaddr.
-	 * j1939 may not touch the incoming skb in such way
+	 * j1939 may yest touch the incoming skb in such way
 	 */
 	skb = skb_clone(iskb, GFP_ATOMIC);
 	if (!skb)
@@ -78,7 +78,7 @@ static void j1939_can_recv(struct sk_buff *iskb, void *data)
 	if (j1939_pgn_is_pdu1(skcb->addr.pgn)) {
 		/* Type 1: with destination address */
 		skcb->addr.da = skcb->addr.pgn;
-		/* normalize pgn: strip dst address */
+		/* yesrmalize pgn: strip dst address */
 		skcb->addr.pgn &= 0x3ff00;
 	} else {
 		/* set broadcast address */
@@ -344,18 +344,18 @@ int j1939_send_one(struct j1939_priv *priv, struct sk_buff *skb)
 	return ret;
 }
 
-static int j1939_netdev_notify(struct notifier_block *nb,
+static int j1939_netdev_yestify(struct yestifier_block *nb,
 			       unsigned long msg, void *data)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(data);
+	struct net_device *ndev = netdev_yestifier_info_to_dev(data);
 	struct j1939_priv *priv;
 
 	priv = j1939_priv_get_by_ndev(ndev);
 	if (!priv)
-		goto notify_done;
+		goto yestify_done;
 
 	if (ndev->type != ARPHRD_CAN)
-		goto notify_put;
+		goto yestify_put;
 
 	switch (msg) {
 	case NETDEV_DOWN:
@@ -365,15 +365,15 @@ static int j1939_netdev_notify(struct notifier_block *nb,
 		break;
 	}
 
-notify_put:
+yestify_put:
 	j1939_priv_put(priv);
 
-notify_done:
+yestify_done:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block j1939_netdev_notifier = {
-	.notifier_call = j1939_netdev_notify,
+static struct yestifier_block j1939_netdev_yestifier = {
+	.yestifier_call = j1939_netdev_yestify,
 };
 
 /* MODULE interface */
@@ -383,9 +383,9 @@ static __init int j1939_module_init(void)
 
 	pr_info("can: SAE J1939\n");
 
-	ret = register_netdevice_notifier(&j1939_netdev_notifier);
+	ret = register_netdevice_yestifier(&j1939_netdev_yestifier);
 	if (ret)
-		goto fail_notifier;
+		goto fail_yestifier;
 
 	ret = can_proto_register(&j1939_can_proto);
 	if (ret < 0) {
@@ -396,8 +396,8 @@ static __init int j1939_module_init(void)
 	return 0;
 
  fail_sk:
-	unregister_netdevice_notifier(&j1939_netdev_notifier);
- fail_notifier:
+	unregister_netdevice_yestifier(&j1939_netdev_yestifier);
+ fail_yestifier:
 	return ret;
 }
 
@@ -405,7 +405,7 @@ static __exit void j1939_module_exit(void)
 {
 	can_proto_unregister(&j1939_can_proto);
 
-	unregister_netdevice_notifier(&j1939_netdev_notifier);
+	unregister_netdevice_yestifier(&j1939_netdev_yestifier);
 }
 
 module_init(j1939_module_init);

@@ -3,7 +3,7 @@
  * Mac80211 SDIO driver for ST-Ericsson CW1200 device
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.yes>
  */
 
 #include <linux/module.h>
@@ -21,7 +21,7 @@
 #include <linux/platform_data/net-cw1200.h>
 #include "hwio.h"
 
-MODULE_AUTHOR("Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>");
+MODULE_AUTHOR("Dmitry Tarnyagin <dmitry.tarnyagin@lockless.yes>");
 MODULE_DESCRIPTION("mac80211 ST-Ericsson CW1200 SDIO driver");
 MODULE_LICENSE("GPL");
 
@@ -91,7 +91,7 @@ static void cw1200_sdio_irq_handler(struct sdio_func *func)
 {
 	struct hwbus_priv *self = sdio_get_drvdata(func);
 
-	/* note:  sdio_host already claimed here. */
+	/* yeste:  sdio_host already claimed here. */
 	if (self->core)
 		cw1200_irq_handler(self->core);
 }
@@ -246,7 +246,7 @@ static int cw1200_sdio_on(const struct cw1200_platform_data_sdio *pdata)
 
 static size_t cw1200_sdio_align_size(struct hwbus_priv *self, size_t size)
 {
-	if (self->pdata->no_nptb)
+	if (self->pdata->yes_nptb)
 		size = round_up(size, SDIO_BLOCK_SIZE);
 	else
 		size = sdio_align_size(self->func, size);

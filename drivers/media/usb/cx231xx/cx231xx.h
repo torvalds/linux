@@ -327,7 +327,7 @@ struct cx231xx_board {
 	int vchannels;
 	int tuner_type;
 	int tuner_addr;
-	v4l2_std_id norm;	/* tv norm */
+	v4l2_std_id yesrm;	/* tv yesrm */
 
 	/* demod related */
 	int demod_addr;
@@ -360,7 +360,7 @@ struct cx231xx_board {
 	unsigned int has_dvb:1;
 	unsigned int has_417:1;
 	unsigned int valid:1;
-	unsigned int no_alt_vanc:1;
+	unsigned int yes_alt_vanc:1;
 	unsigned int external_av:1;
 
 	unsigned char xclk, i2c_speed;
@@ -437,7 +437,7 @@ struct cx231xx;
 
 /* 0-- STOP transaction */
 #define I2C_STOP                0x0
-/* 1-- do not transmit STOP at end of transaction */
+/* 1-- do yest transmit STOP at end of transaction */
 #define I2C_NOSTOP              0x1
 /* 1--allow slave to insert clock wait states */
 #define I2C_SYNC                0x1
@@ -453,7 +453,7 @@ struct cx231xx_i2c {
 
 	/* different settings for each bus */
 	u8 i2c_period;
-	u8 i2c_nostop;
+	u8 i2c_yesstop;
 	u8 i2c_reserve;
 };
 
@@ -476,7 +476,7 @@ struct VENDOR_REQUEST_IN {
 	u8 *pBuff;
 };
 
-struct cx231xx_tvnorm {
+struct cx231xx_tvyesrm {
 	char		*name;
 	v4l2_std_id	id;
 	u32		cxiformat;
@@ -513,7 +513,7 @@ struct cx231xx_tsport {
 	struct cx231xx *dev;
 
 	int                        nr;
-	int                        sram_chno;
+	int                        sram_chyes;
 
 	/* dma queues */
 
@@ -560,9 +560,9 @@ struct cx231xx_tsport {
 /* main device struct */
 struct cx231xx {
 	/* generic device properties */
-	char name[30];		/* name (including minor) of the device */
+	char name[30];		/* name (including miyesr) of the device */
 	int model;		/* index in the device_data struct */
-	int devno;		/* marks the number of this device */
+	int devyes;		/* marks the number of this device */
 	struct device *dev;	/* pointer to USB interface's dev */
 
 	struct cx231xx_board board;
@@ -609,7 +609,7 @@ struct cx231xx {
 	/* video for linux */
 	int users;		/* user count for exclusive use */
 	struct video_device vdev;	/* video for linux device struct */
-	v4l2_std_id norm;	/* selected tv norm */
+	v4l2_std_id yesrm;	/* selected tv yesrm */
 	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_ainput;	/* selected audio input */
 
@@ -702,7 +702,7 @@ struct cx231xx {
 	u8 mode_tv;
 
 	u8 USE_ISO;
-	struct cx231xx_tvnorm      encodernorm;
+	struct cx231xx_tvyesrm      encoderyesrm;
 	struct cx231xx_tsport      ts1, ts2;
 	struct vb2_queue	   mpegq;
 	struct video_device        v4l_device;
@@ -740,7 +740,7 @@ void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port);
 int cx231xx_i2c_register(struct cx231xx_i2c *bus);
 void cx231xx_i2c_unregister(struct cx231xx_i2c *bus);
 int cx231xx_i2c_mux_create(struct cx231xx *dev);
-int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no);
+int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_yes);
 void cx231xx_i2c_mux_unregister(struct cx231xx *dev);
 struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port);
 
@@ -968,7 +968,7 @@ static inline int cx231xx_ir_init(struct cx231xx *dev)
 static inline void cx231xx_ir_exit(struct cx231xx *dev) {}
 #endif
 
-static inline unsigned int norm_maxw(struct cx231xx *dev)
+static inline unsigned int yesrm_maxw(struct cx231xx *dev)
 {
 	if (dev->board.max_range_640_480)
 		return 640;
@@ -976,11 +976,11 @@ static inline unsigned int norm_maxw(struct cx231xx *dev)
 		return 720;
 }
 
-static inline unsigned int norm_maxh(struct cx231xx *dev)
+static inline unsigned int yesrm_maxh(struct cx231xx *dev)
 {
 	if (dev->board.max_range_640_480)
 		return 480;
 	else
-		return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
+		return (dev->yesrm & V4L2_STD_625_50) ? 576 : 480;
 }
 #endif

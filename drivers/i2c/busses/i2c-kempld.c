@@ -335,7 +335,7 @@ static int kempld_i2c_remove(struct platform_device *pdev)
 
 	kempld_get_mutex(pld);
 	/*
-	 * Disable I2C logic if it was not activated before the
+	 * Disable I2C logic if it was yest activated before the
 	 * driver loaded
 	 */
 	if (!i2c->was_active) {

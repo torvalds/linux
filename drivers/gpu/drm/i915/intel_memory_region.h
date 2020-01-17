@@ -73,7 +73,7 @@ struct intel_memory_region {
 	struct resource region;
 
 	/* For fake LMEM */
-	struct drm_mm_node fake_mappable;
+	struct drm_mm_yesde fake_mappable;
 
 	struct i915_buddy_mm mm;
 	struct mutex mm_lock;

@@ -16,7 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
@@ -157,7 +157,7 @@ static unsigned h_pic(unsigned long *pool_idle_time,
 static void parse_ppp_data(struct seq_file *m)
 {
 	struct hvcall_ppp_data ppp_data;
-	struct device_node *root;
+	struct device_yesde *root;
 	const __be32 *perf_level;
 	int rc;
 
@@ -197,7 +197,7 @@ static void parse_ppp_data(struct seq_file *m)
 	 * valid if the ibm,partition-performance-parameters-level
 	 * property is >= 1.
 	 */
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (root) {
 		perf_level = of_get_property(root,
 				"ibm,partition-performance-parameters-level",
@@ -212,7 +212,7 @@ static void parse_ppp_data(struct seq_file *m)
 				   ppp_data.entitled_proc_cap_avail);
 		}
 
-		of_node_put(root);
+		of_yesde_put(root);
 	}
 }
 
@@ -366,14 +366,14 @@ static void parse_system_parameter_string(struct seq_file *m)
 
 /* Return the number of processors in the system.
  * This function reads through the device tree and counts
- * the virtual processors, this does not include threads.
+ * the virtual processors, this does yest include threads.
  */
 static int lparcfg_count_active_processors(void)
 {
-	struct device_node *cpus_dn;
+	struct device_yesde *cpus_dn;
 	int count = 0;
 
-	for_each_node_by_type(cpus_dn, "cpu") {
+	for_each_yesde_by_type(cpus_dn, "cpu") {
 #ifdef LPARCFG_DEBUG
 		printk(KERN_ERR "cpus_dn %p\n", cpus_dn);
 #endif
@@ -445,19 +445,19 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 {
 	int partition_potential_processors;
 	int partition_active_processors;
-	struct device_node *rtas_node;
+	struct device_yesde *rtas_yesde;
 	const __be32 *lrdrp = NULL;
 
-	rtas_node = of_find_node_by_path("/rtas");
-	if (rtas_node)
-		lrdrp = of_get_property(rtas_node, "ibm,lrdr-capacity", NULL);
+	rtas_yesde = of_find_yesde_by_path("/rtas");
+	if (rtas_yesde)
+		lrdrp = of_get_property(rtas_yesde, "ibm,lrdr-capacity", NULL);
 
 	if (lrdrp == NULL) {
 		partition_potential_processors = vdso_data->processorCount;
 	} else {
 		partition_potential_processors = be32_to_cpup(lrdrp + 4);
 	}
-	of_node_put(rtas_node);
+	of_yesde_put(rtas_yesde);
 
 	partition_active_processors = lparcfg_count_active_processors();
 
@@ -472,7 +472,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 
 		seq_printf(m, "purr=%ld\n", get_purr());
 		seq_printf(m, "tbr=%ld\n", mftb());
-	} else {		/* non SPLPAR case */
+	} else {		/* yesn SPLPAR case */
 
 		seq_printf(m, "system_active_processors=%d\n",
 			   partition_potential_processors);
@@ -532,7 +532,7 @@ static ssize_t update_ppp(u64 *entitlement, u8 *weight)
 	pr_debug("%s: new_entitled = %llu, new_weight = %u\n",
 		 __func__, new_entitled, new_weight);
 
-	retval = plpar_hcall_norets(H_SET_PPP, new_entitled, new_weight);
+	retval = plpar_hcall_yesrets(H_SET_PPP, new_entitled, new_weight);
 	return retval;
 }
 
@@ -540,7 +540,7 @@ static ssize_t update_ppp(u64 *entitlement, u8 *weight)
  * update_mpp
  *
  * Update the memory entitlement and weight for the partition.  Caller must
- * specify either a new entitlement or weight, not both, to be updated
+ * specify either a new entitlement or weight, yest both, to be updated
  * since the h_set_mpp call takes both entitlement and weight as parameters.
  */
 static ssize_t update_mpp(u64 *entitlement, u8 *weight)
@@ -578,14 +578,14 @@ static ssize_t update_mpp(u64 *entitlement, u8 *weight)
 	pr_debug("%s: new_entitled = %llu, new_weight = %u\n",
 		 __func__, new_entitled, new_weight);
 
-	rc = plpar_hcall_norets(H_SET_MPP, new_entitled, new_weight);
+	rc = plpar_hcall_yesrets(H_SET_MPP, new_entitled, new_weight);
 	return rc;
 }
 
 /*
  * Interface for changing system parameters (variable capacity weight
  * and entitled capacity).  Format of input is "param_name=value";
- * anything after value is ignored.  Valid parameters at this time are
+ * anything after value is igyesred.  Valid parameters at this time are
  * "partition_entitled_capacity" and "capacity_weight".  We use
  * H_SET_PPP to alter parameters.
  *
@@ -663,7 +663,7 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 
 static int lparcfg_data(struct seq_file *m, void *v)
 {
-	struct device_node *rootdn;
+	struct device_yesde *rootdn;
 	const char *model = "";
 	const char *system_id = "";
 	const char *tmp;
@@ -672,7 +672,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
 
 	seq_printf(m, "%s %s\n", MODULE_NAME, MODULE_VERS);
 
-	rootdn = of_find_node_by_path("/");
+	rootdn = of_find_yesde_by_path("/");
 	if (rootdn) {
 		tmp = of_get_property(rootdn, "model", NULL);
 		if (tmp)
@@ -680,11 +680,11 @@ static int lparcfg_data(struct seq_file *m, void *v)
 		tmp = of_get_property(rootdn, "system-id", NULL);
 		if (tmp)
 			system_id = tmp;
-		lp_index_ptr = of_get_property(rootdn, "ibm,partition-no",
+		lp_index_ptr = of_get_property(rootdn, "ibm,partition-yes",
 					NULL);
 		if (lp_index_ptr)
 			lp_index = be32_to_cpup(lp_index_ptr);
-		of_node_put(rootdn);
+		of_yesde_put(rootdn);
 	}
 	seq_printf(m, "serial_number=%s\n", system_id);
 	seq_printf(m, "system_type=%s\n", model);
@@ -693,7 +693,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
 	return pseries_lparcfg_data(m, v);
 }
 
-static int lparcfg_open(struct inode *inode, struct file *file)
+static int lparcfg_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, lparcfg_data, NULL);
 }

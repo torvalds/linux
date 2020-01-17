@@ -4,11 +4,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -50,9 +50,9 @@
 #define FM_FD_ERR_LENGTH                0x02000000
 #define FM_FD_ERR_DMA                   0x01000000  /* DMA Data error */
 
-/* IPR frame (not error) */
+/* IPR frame (yest error) */
 #define FM_FD_IPR                       0x00000001
-/* IPR non-consistent-sp */
+/* IPR yesn-consistent-sp */
 #define FM_FD_ERR_IPR_NCSP              (0x00100000 | FM_FD_IPR)
 /* IPR error */
 #define FM_FD_ERR_IPR                   (0x00200000 | FM_FD_IPR)
@@ -89,7 +89,7 @@
 /* Frame parsed beyind 256 first bytes */
 #define FM_FD_ERR_BLOCK_LIMIT_EXCEEDED  0x00000008
 
-/* non Frame-Manager error */
+/* yesn Frame-Manager error */
 #define FM_FD_RX_STATUS_ERR_NON_FM      0x00400000
 
 /* FMan driver defines */
@@ -110,7 +110,7 @@ enum fman_port_type {
 
 struct fman_rev_info {
 	u8 major;			/* Major revision */
-	u8 minor;			/* Minor revision */
+	u8 miyesr;			/* Miyesr revision */
 };
 
 enum fman_exceptions {
@@ -124,7 +124,7 @@ enum fman_exceptions {
 	FMAN_EX_FPM_DOUBLE_ECC,		/* Double ECC error on FPM ram access */
 	FMAN_EX_QMI_SINGLE_ECC,	/* Single ECC on QMI. */
 	FMAN_EX_QMI_DOUBLE_ECC,	/* Double bit ECC occurred on QMI */
-	FMAN_EX_QMI_DEQ_FROM_UNKNOWN_PORTID,/* DeQ from unknown port id */
+	FMAN_EX_QMI_DEQ_FROM_UNKNOWN_PORTID,/* DeQ from unkyeswn port id */
 	FMAN_EX_BMI_LIST_RAM_ECC,	/* Linked List RAM ECC error */
 	FMAN_EX_BMI_STORAGE_PROFILE_ECC,/* storage profile */
 	FMAN_EX_BMI_STATISTICS_RAM_ECC,/* Statistics RAM ECC Err Enable */

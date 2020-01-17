@@ -18,7 +18,7 @@
 #define __va(x)  ((void *)((unsigned long)(x)))
 
 /*
- * Special hack: we have to be careful, because no indirections are
+ * Special hack: we have to be careful, because yes indirections are
  * allowed here, and paravirt_ops is a kind of one. As it will only run in
  * baremetal anyway, we just keep it from happening. (This list needs to
  * be extended when new paravirt and debugging variants are added.)
@@ -73,7 +73,7 @@ struct sme_populate_pgd_data {
 /*
  * This work area lives in the .init.scratch section, which lives outside of
  * the kernel proper. It is sized to hold the intermediate copy buffer and
- * more than enough pagetable pages.
+ * more than eyesugh pagetable pages.
  *
  * By using this section, the kernel can be encrypted in place and it
  * avoids any possibility of boot parameters or initramfs images being
@@ -110,7 +110,7 @@ static pud_t __init *sme_prepare_pgd(struct sme_populate_pgd_data *ppd)
 	pmd_t *pmd;
 
 	pgd = ppd->pgd + pgd_index(ppd->vaddr);
-	if (pgd_none(*pgd)) {
+	if (pgd_yesne(*pgd)) {
 		p4d = ppd->pgtable_area;
 		memset(p4d, 0, sizeof(*p4d) * PTRS_PER_P4D);
 		ppd->pgtable_area += sizeof(*p4d) * PTRS_PER_P4D;
@@ -118,7 +118,7 @@ static pud_t __init *sme_prepare_pgd(struct sme_populate_pgd_data *ppd)
 	}
 
 	p4d = p4d_offset(pgd, ppd->vaddr);
-	if (p4d_none(*p4d)) {
+	if (p4d_yesne(*p4d)) {
 		pud = ppd->pgtable_area;
 		memset(pud, 0, sizeof(*pud) * PTRS_PER_PUD);
 		ppd->pgtable_area += sizeof(*pud) * PTRS_PER_PUD;
@@ -126,7 +126,7 @@ static pud_t __init *sme_prepare_pgd(struct sme_populate_pgd_data *ppd)
 	}
 
 	pud = pud_offset(p4d, ppd->vaddr);
-	if (pud_none(*pud)) {
+	if (pud_yesne(*pud)) {
 		pmd = ppd->pgtable_area;
 		memset(pmd, 0, sizeof(*pmd) * PTRS_PER_PMD);
 		ppd->pgtable_area += sizeof(*pmd) * PTRS_PER_PMD;
@@ -166,7 +166,7 @@ static void __init sme_populate_pgd(struct sme_populate_pgd_data *ppd)
 		return;
 
 	pmd = pmd_offset(pud, ppd->vaddr);
-	if (pmd_none(*pmd)) {
+	if (pmd_yesne(*pmd)) {
 		pte = ppd->pgtable_area;
 		memset(pte, 0, sizeof(*pte) * PTRS_PER_PTE);
 		ppd->pgtable_area += sizeof(*pte) * PTRS_PER_PTE;
@@ -177,7 +177,7 @@ static void __init sme_populate_pgd(struct sme_populate_pgd_data *ppd)
 		return;
 
 	pte = pte_offset_map(pmd, ppd->vaddr);
-	if (pte_none(*pte))
+	if (pte_yesne(*pte))
 		set_pte(pte, __pte(ppd->paddr | ppd->pte_flags));
 }
 
@@ -212,7 +212,7 @@ static void __init __sme_map_range(struct sme_populate_pgd_data *ppd,
 	/* Save original end value since we modify the struct value */
 	vaddr_end = ppd->vaddr_end;
 
-	/* If start is not 2MB aligned, create PTE entries */
+	/* If start is yest 2MB aligned, create PTE entries */
 	ppd->vaddr_end = ALIGN(ppd->vaddr, PMD_PAGE_SIZE);
 	__sme_map_range_pte(ppd);
 
@@ -220,7 +220,7 @@ static void __init __sme_map_range(struct sme_populate_pgd_data *ppd,
 	ppd->vaddr_end = vaddr_end & PMD_PAGE_MASK;
 	__sme_map_range_pmd(ppd);
 
-	/* If end is not 2MB aligned, create PTE entries */
+	/* If end is yest 2MB aligned, create PTE entries */
 	ppd->vaddr_end = vaddr_end;
 	__sme_map_range_pte(ppd);
 }
@@ -249,7 +249,7 @@ static unsigned long __init sme_pgtable_calc(unsigned long len)
 	 * entries that are needed. Those mappings will be covered mostly
 	 * by 2MB PMD entries so we can conservatively calculate the required
 	 * number of P4D, PUD and PMD structures needed to perform the
-	 * mappings.  For mappings that are not 2MB aligned, PTE mappings
+	 * mappings.  For mappings that are yest 2MB aligned, PTE mappings
 	 * would be needed for the start and end portion of the address range
 	 * that fall outside of the 2MB alignment.  This results in, at most,
 	 * two extra pages to hold PTE entries for each range that is mapped.
@@ -298,7 +298,7 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 	 *   One range of virtual addresses will map the memory occupied
 	 *   by the kernel and initrd as encrypted.
 	 *
-	 *   Another range of virtual addresses will map the memory occupied
+	 *   Ayesther range of virtual addresses will map the memory occupied
 	 *   by the kernel and initrd as decrypted and write-protected.
 	 *
 	 *     The use of write-protect attribute will prevent any of the
@@ -339,7 +339,7 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 	 *     encryption routine page (PAGE_SIZE)
 	 *     intermediate copy buffer (PMD_PAGE_SIZE)
 	 *   pagetable structures for the encryption of the kernel
-	 *   pagetable structures for workarea (in case not currently mapped)
+	 *   pagetable structures for workarea (in case yest currently mapped)
 	 */
 	execute_start = workarea_start;
 	execute_end = execute_start + (PAGE_SIZE * 2) + PMD_PAGE_SIZE;
@@ -386,7 +386,7 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 	ppd.vaddr_end = workarea_end;
 	sme_map_range_decrypted(&ppd);
 
-	/* Flush the TLB - no globals so cr3 is enough */
+	/* Flush the TLB - yes globals so cr3 is eyesugh */
 	native_write_cr3(__native_read_cr3());
 
 	/*
@@ -420,7 +420,7 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 	ppd.vaddr_end = kernel_end;
 	sme_map_range_encrypted(&ppd);
 
-	/* Add decrypted, write-protected kernel (non-identity) mappings */
+	/* Add decrypted, write-protected kernel (yesn-identity) mappings */
 	ppd.paddr = kernel_start;
 	ppd.vaddr = kernel_start + decrypted_base;
 	ppd.vaddr_end = kernel_end + decrypted_base;
@@ -433,7 +433,7 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 		ppd.vaddr_end = initrd_end;
 		sme_map_range_encrypted(&ppd);
 		/*
-		 * Add decrypted, write-protected initrd (non-identity) mappings
+		 * Add decrypted, write-protected initrd (yesn-identity) mappings
 		 */
 		ppd.paddr = initrd_start;
 		ppd.vaddr = initrd_start + decrypted_base;
@@ -480,7 +480,7 @@ void __init sme_encrypt_kernel(struct boot_params *bp)
 	ppd.vaddr_end = workarea_end + decrypted_base;
 	sme_clear_pgd(&ppd);
 
-	/* Flush the TLB - no globals so cr3 is enough */
+	/* Flush the TLB - yes globals so cr3 is eyesugh */
 	native_write_cr3(__native_read_cr3());
 }
 
@@ -540,7 +540,7 @@ void __init sme_enable(struct boot_params *bp)
 		if (!(msr & MSR_AMD64_SEV_ENABLED))
 			return;
 
-		/* SEV state cannot be controlled by a command line option */
+		/* SEV state canyest be controlled by a command line option */
 		sme_me_mask = me_mask;
 		sev_enabled = true;
 		physical_mask &= ~sme_me_mask;
@@ -548,7 +548,7 @@ void __init sme_enable(struct boot_params *bp)
 	}
 
 	/*
-	 * Fixups have not been applied to phys_base yet and we're running
+	 * Fixups have yest been applied to phys_base yet and we're running
 	 * identity mapped, so we must obtain the address to the SME command
 	 * line argument data using rip-relative addressing.
 	 */

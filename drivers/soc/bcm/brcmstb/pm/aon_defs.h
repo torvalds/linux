@@ -76,10 +76,10 @@ struct brcmstb_s3_params {
 	uint32_t hash[BRCMSTB_HASH_LEN / 4];
 
 	/*
-	 * If 0, then ignore this parameter (there is only one set of
+	 * If 0, then igyesre this parameter (there is only one set of
 	 *   descriptors)
 	 *
-	 * If non-0, then a second set of descriptors is stored at:
+	 * If yesn-0, then a second set of descriptors is stored at:
 	 *
 	 *   descriptors + desc_offset_2
 	 *

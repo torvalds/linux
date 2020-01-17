@@ -67,7 +67,7 @@ static int taos_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	   SMBus command and "#" for the data. */
 	p = taos->buffer;
 
-	/* The device remembers the last used address, no need to send it
+	/* The device remembers the last used address, yes need to send it
 	   again if it's the same */
 	if (addr != taos->addr)
 		p += sprintf(p, "@%02X", addr);

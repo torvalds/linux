@@ -26,7 +26,7 @@ struct dm_kobject_holder {
 
 /*
  * DM core internal structure that used directly by dm.c and dm-rq.c
- * DM targets must _not_ deference a mapped_device to directly access its members!
+ * DM targets must _yest_ deference a mapped_device to directly access its members!
  */
 struct mapped_device {
 	struct mutex suspend_lock;
@@ -47,7 +47,7 @@ struct mapped_device {
 	struct mutex type_lock;
 	enum dm_queue_mode type;
 
-	int numa_node_id;
+	int numa_yesde_id;
 	struct request_queue *queue;
 
 	atomic_t holders;

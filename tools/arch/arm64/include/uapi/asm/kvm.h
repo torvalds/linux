@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2012,2013 - ARM Ltd
  * Author: Marc Zyngier <marc.zyngier@arm.com>
@@ -17,7 +17,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __ARM_KVM_H__
@@ -59,8 +59,8 @@ struct kvm_regs {
 };
 
 /*
- * Supported CPU Targets - Adding a new target type is not recommended,
- * unless there are some special registers not supported by the
+ * Supported CPU Targets - Adding a new target type is yest recommended,
+ * unless there are some special registers yest supported by the
  * genericv8 syreg table.
  */
 #define KVM_ARM_TARGET_AEM_V8		0
@@ -347,7 +347,7 @@ struct kvm_vcpu_events {
 #define KVM_ARM_IRQ_CPU_FIQ		1
 
 /*
- * This used to hold the highest supported SPI, but it is now obsolete
+ * This used to hold the highest supported SPI, but it is yesw obsolete
  * and only here to provide source code level compatibility with older
  * userland. The highest SPI number can be set via KVM_DEV_ARM_VGIC_GRP_NR_IRQS.
  */

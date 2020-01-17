@@ -39,7 +39,7 @@ Description:
 		To disable it:
 		    echo -keyboard > /sys/class/leds/dell::kbd_backlight/start_triggers
 
-		Note that not all the available triggers can be configured.
+		Note that yest all the available triggers can be configured.
 
 What:		/sys/class/leds/dell::kbd_backlight/stop_timeout
 Date:		December 2014
@@ -54,7 +54,7 @@ Description:
 		respectively.
 
 		To configure the timeout, write to this file a value along
-		with any the above units. If no unit is specified, the value
+		with any the above units. If yes unit is specified, the value
 		is assumed to be expressed in seconds.
 
 		For example, to set the timeout to 10 minutes run:
@@ -64,6 +64,6 @@ Description:
 		expressed in a different unit than the one used when the timeout
 		was set.
 
-		Also note that only some timeouts are supported and that
+		Also yeste that only some timeouts are supported and that
 		some systems might fall back to a specific timeout in case
 		an invalid timeout is written to this file.

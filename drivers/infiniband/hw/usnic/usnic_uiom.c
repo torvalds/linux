@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2013 Cisco Systems.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -195,7 +195,7 @@ out:
 static void usnic_uiom_unmap_sorted_intervals(struct list_head *intervals,
 						struct usnic_uiom_pd *pd)
 {
-	struct usnic_uiom_interval_node *interval, *tmp;
+	struct usnic_uiom_interval_yesde *interval, *tmp;
 	long unsigned va, size;
 
 	list_for_each_entry_safe(interval, tmp, intervals, link) {
@@ -217,7 +217,7 @@ static void __usnic_uiom_reg_release(struct usnic_uiom_pd *pd,
 {
 	int npages;
 	unsigned long vpn_start, vpn_last;
-	struct usnic_uiom_interval_node *interval, *tmp;
+	struct usnic_uiom_interval_yesde *interval, *tmp;
 	int writable = 0;
 	LIST_HEAD(rm_intervals);
 
@@ -247,7 +247,7 @@ static int usnic_uiom_map_sorted_intervals(struct list_head *intervals,
 	int i, err;
 	size_t size;
 	struct usnic_uiom_chunk *chunk;
-	struct usnic_uiom_interval_node *interval_node;
+	struct usnic_uiom_interval_yesde *interval_yesde;
 	dma_addr_t pa;
 	dma_addr_t pa_start = 0;
 	dma_addr_t pa_end = 0;
@@ -259,14 +259,14 @@ static int usnic_uiom_map_sorted_intervals(struct list_head *intervals,
 	flags |= (uiomr->writable) ? IOMMU_WRITE : 0;
 	chunk = list_first_entry(&uiomr->chunk_list, struct usnic_uiom_chunk,
 									list);
-	list_for_each_entry(interval_node, intervals, link) {
+	list_for_each_entry(interval_yesde, intervals, link) {
 iter_chunk:
 		for (i = 0; i < chunk->nents; i++, va += PAGE_SIZE) {
 			pa = sg_phys(&chunk->page_list[i]);
-			if ((va >> PAGE_SHIFT) < interval_node->start)
+			if ((va >> PAGE_SHIFT) < interval_yesde->start)
 				continue;
 
-			if ((va >> PAGE_SHIFT) == interval_node->start) {
+			if ((va >> PAGE_SHIFT) == interval_yesde->start) {
 				/* First page of the interval */
 				va_start = va;
 				pa_start = pa;
@@ -277,7 +277,7 @@ iter_chunk:
 
 			if ((pa_end + PAGE_SIZE != pa) &&
 					(pa != pa_start)) {
-				/* PAs are not contiguous */
+				/* PAs are yest contiguous */
 				size = pa_end - pa_start + PAGE_SIZE;
 				usnic_dbg("va 0x%lx pa %pa size 0x%zx flags 0x%x",
 					va_start, &pa_start, size, flags);
@@ -293,7 +293,7 @@ iter_chunk:
 				pa_end = pa;
 			}
 
-			if ((va >> PAGE_SHIFT) == interval_node->last) {
+			if ((va >> PAGE_SHIFT) == interval_yesde->last) {
 				/* Last page of the interval */
 				size = pa - pa_start + PAGE_SIZE;
 				usnic_dbg("va 0x%lx pa %pa size 0x%zx flags 0x%x\n",
@@ -343,7 +343,7 @@ struct usnic_uiom_reg *usnic_uiom_reg_get(struct usnic_uiom_pd *pd,
 
 	/*
 	 * Intel IOMMU map throws an error if a translation entry is
-	 * changed from read to write.  This module may not unmap
+	 * changed from read to write.  This module may yest unmap
 	 * and then remap the entry after fixing the permission
 	 * b/c this open up a small windows where hw DMA may page fault
 	 * Hence, make all entries to be writable.
@@ -484,7 +484,7 @@ int usnic_uiom_attach_dev_to_pd(struct usnic_uiom_pd *pd, struct device *dev)
 		goto out_free_dev;
 
 	if (!iommu_capable(dev->bus, IOMMU_CAP_CACHE_COHERENCY)) {
-		usnic_err("IOMMU of %s does not support cache coherency\n",
+		usnic_err("IOMMU of %s does yest support cache coherency\n",
 				dev_name(dev));
 		err = -EINVAL;
 		goto out_detach_device;
@@ -518,7 +518,7 @@ void usnic_uiom_detach_dev_from_pd(struct usnic_uiom_pd *pd, struct device *dev)
 	}
 
 	if (!found) {
-		usnic_err("Unable to free dev %s - not found\n",
+		usnic_err("Unable to free dev %s - yest found\n",
 				dev_name(dev));
 		spin_unlock(&pd->lock);
 		return;
@@ -560,7 +560,7 @@ void usnic_uiom_free_dev_list(struct device **devs)
 int usnic_uiom_init(char *drv_name)
 {
 	if (!iommu_present(&pci_bus_type)) {
-		usnic_err("IOMMU required but not present or enabled.  USNIC QPs will not function w/o enabling IOMMU\n");
+		usnic_err("IOMMU required but yest present or enabled.  USNIC QPs will yest function w/o enabling IOMMU\n");
 		return -EPERM;
 	}
 

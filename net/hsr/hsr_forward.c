@@ -13,13 +13,13 @@
 #include "hsr_main.h"
 #include "hsr_framereg.h"
 
-struct hsr_node;
+struct hsr_yesde;
 
 struct hsr_frame_info {
 	struct sk_buff *skb_std;
 	struct sk_buff *skb_hsr;
 	struct hsr_port *port_rcv;
-	struct hsr_node *node_src;
+	struct hsr_yesde *yesde_src;
 	u16 sequence_nr;
 	bool is_supervision;
 	bool is_vlan;
@@ -28,16 +28,16 @@ struct hsr_frame_info {
 };
 
 /* The uses I can see for these HSR supervision frames are:
- * 1) Use the frames that are sent after node initialization ("HSR_TLV.Type =
- *    22") to reset any sequence_nr counters belonging to that node. Useful if
- *    the other node's counter has been reset for some reason.
+ * 1) Use the frames that are sent after yesde initialization ("HSR_TLV.Type =
+ *    22") to reset any sequence_nr counters belonging to that yesde. Useful if
+ *    the other yesde's counter has been reset for some reason.
  *    --
- *    Or not - resetting the counter and bridging the frame would create a
+ *    Or yest - resetting the counter and bridging the frame would create a
  *    loop, unfortunately.
  *
- * 2) Use the LifeCheck frames to detect ring breaks. I.e. if no LifeCheck
- *    frame is received from a particular node, we know something is wrong.
- *    We just register these (as with normal frames) and throw them away.
+ * 2) Use the LifeCheck frames to detect ring breaks. I.e. if yes LifeCheck
+ *    frame is received from a particular yesde, we kyesw something is wrong.
+ *    We just register these (as with yesrmal frames) and throw them away.
  *
  * 3) Allow different MAC addresses for the two slave interfaces, using the
  *    MacAddressA field.
@@ -154,7 +154,7 @@ static struct sk_buff *create_tagged_skb(struct sk_buff *skb_o,
 	unsigned char *dst, *src;
 	struct sk_buff *skb;
 
-	/* Create the new skb with enough headroom to fit the HSR tag */
+	/* Create the new skb with eyesugh headroom to fit the HSR tag */
 	skb = __pskb_copy(skb_o, skb_headroom(skb_o) + HSR_HLEN, GFP_ATOMIC);
 	if (!skb)
 		return NULL;
@@ -187,7 +187,7 @@ static struct sk_buff *frame_get_tagged_skb(struct hsr_frame_info *frame,
 		return skb_clone(frame->skb_hsr, GFP_ATOMIC);
 
 	if (port->type != HSR_PT_SLAVE_A && port->type != HSR_PT_SLAVE_B) {
-		WARN_ONCE(1, "HSR: Bug: trying to create a tagged frame for a non-ring port");
+		WARN_ONCE(1, "HSR: Bug: trying to create a tagged frame for a yesn-ring port");
 		return NULL;
 	}
 
@@ -195,13 +195,13 @@ static struct sk_buff *frame_get_tagged_skb(struct hsr_frame_info *frame,
 }
 
 static void hsr_deliver_master(struct sk_buff *skb, struct net_device *dev,
-			       struct hsr_node *node_src)
+			       struct hsr_yesde *yesde_src)
 {
 	bool was_multicast_frame;
 	int res;
 
 	was_multicast_frame = (skb->pkt_type == PACKET_MULTICAST);
-	hsr_addr_subst_source(node_src, skb);
+	hsr_addr_subst_source(yesde_src, skb);
 	skb_pull(skb, ETH_HLEN);
 	res = netif_rx(skb);
 	if (res == NET_RX_DROP) {
@@ -218,7 +218,7 @@ static int hsr_xmit(struct sk_buff *skb, struct hsr_port *port,
 		    struct hsr_frame_info *frame)
 {
 	if (frame->port_rcv->type == HSR_PT_MASTER) {
-		hsr_addr_subst_dest(frame->node_src, skb, port);
+		hsr_addr_subst_dest(frame->yesde_src, skb, port);
 
 		/* Address substitution (IEC62439-3 pp 26, 50): replace mac
 		 * address of outgoing frame with that of the outgoing slave's.
@@ -232,11 +232,11 @@ static int hsr_xmit(struct sk_buff *skb, struct hsr_port *port,
  * - Back through the receiving device
  * - If it's a HSR frame: through a device where it has passed before
  * - To the local HSR master only if the frame is directly addressed to it, or
- *   a non-supervision multicast or broadcast frame.
+ *   a yesn-supervision multicast or broadcast frame.
  *
  * HSR slave devices should insert a HSR tag into the frame, or forward the
  * frame unchanged if it's already tagged. Interlink devices should strip HSR
- * tags if they're of the non-HSR type (but only after duplicate discard). The
+ * tags if they're of the yesn-HSR type (but only after duplicate discard). The
  * master device always strips HSR tags.
  */
 static void hsr_forward_do(struct hsr_frame_info *frame)
@@ -258,13 +258,13 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 			continue;
 
 		/* Don't send frame over port where it has been sent before */
-		if (hsr_register_frame_out(port, frame->node_src,
+		if (hsr_register_frame_out(port, frame->yesde_src,
 					   frame->sequence_nr))
 			continue;
 
 		if (frame->is_supervision && port->type == HSR_PT_MASTER) {
 			hsr_handle_sup_frame(frame->skb_hsr,
-					     frame->node_src,
+					     frame->yesde_src,
 					     frame->port_rcv);
 			continue;
 		}
@@ -280,7 +280,7 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 
 		skb->dev = port->dev;
 		if (port->type == HSR_PT_MASTER)
-			hsr_deliver_master(skb, port->dev, frame->node_src);
+			hsr_deliver_master(skb, port->dev, frame->yesde_src);
 		else
 			hsr_xmit(skb, port, frame);
 	}
@@ -312,16 +312,16 @@ static int hsr_fill_frame_info(struct hsr_frame_info *frame,
 	unsigned long irqflags;
 
 	frame->is_supervision = is_supervision_frame(port->hsr, skb);
-	frame->node_src = hsr_get_node(port, skb, frame->is_supervision);
-	if (!frame->node_src)
-		return -1; /* Unknown node and !is_supervision, or no mem */
+	frame->yesde_src = hsr_get_yesde(port, skb, frame->is_supervision);
+	if (!frame->yesde_src)
+		return -1; /* Unkyeswn yesde and !is_supervision, or yes mem */
 
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 	frame->is_vlan = false;
 	if (ethhdr->h_proto == htons(ETH_P_8021Q)) {
 		frame->is_vlan = true;
 		/* FIXME: */
-		WARN_ONCE(1, "HSR: VLAN not yet supported");
+		WARN_ONCE(1, "HSR: VLAN yest yet supported");
 	}
 	if (ethhdr->h_proto == htons(ETH_P_PRP) ||
 	    ethhdr->h_proto == htons(ETH_P_HSR)) {
@@ -331,7 +331,7 @@ static int hsr_fill_frame_info(struct hsr_frame_info *frame,
 	} else {
 		frame->skb_std = skb;
 		frame->skb_hsr = NULL;
-		/* Sequence nr for the master node */
+		/* Sequence nr for the master yesde */
 		spin_lock_irqsave(&port->hsr->seqnr_lock, irqflags);
 		frame->sequence_nr = port->hsr->sequence_nr;
 		port->hsr->sequence_nr++;
@@ -357,7 +357,7 @@ void hsr_forward_skb(struct sk_buff *skb, struct hsr_port *port)
 
 	if (hsr_fill_frame_info(&frame, skb, port) < 0)
 		goto out_drop;
-	hsr_register_frame_in(frame.node_src, port, frame.sequence_nr);
+	hsr_register_frame_in(frame.yesde_src, port, frame.sequence_nr);
 	hsr_forward_do(&frame);
 	/* Gets called for ingress frames as well as egress from master port.
 	 * So check and increment stats for master port only here.

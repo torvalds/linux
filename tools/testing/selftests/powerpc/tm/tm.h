@@ -17,17 +17,17 @@ static inline bool have_htm(void)
 #ifdef PPC_FEATURE2_HTM
 	return have_hwcap2(PPC_FEATURE2_HTM);
 #else
-	printf("PPC_FEATURE2_HTM not defined, can't check AT_HWCAP2\n");
+	printf("PPC_FEATURE2_HTM yest defined, can't check AT_HWCAP2\n");
 	return false;
 #endif
 }
 
-static inline bool have_htm_nosc(void)
+static inline bool have_htm_yessc(void)
 {
 #ifdef PPC_FEATURE2_HTM_NOSC
 	return have_hwcap2(PPC_FEATURE2_HTM_NOSC);
 #else
-	printf("PPC_FEATURE2_HTM_NOSC not defined, can't check AT_HWCAP2\n");
+	printf("PPC_FEATURE2_HTM_NOSC yest defined, can't check AT_HWCAP2\n");
 	return false;
 #endif
 }

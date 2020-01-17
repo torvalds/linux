@@ -5,7 +5,7 @@
 #ifndef __ASM_FP_H
 #define __ASM_FP_H
 
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/sigcontext.h>
@@ -52,7 +52,7 @@ extern void fpsimd_bind_state_to_cpu(struct user_fpsimd_state *state,
 extern void fpsimd_flush_task_state(struct task_struct *target);
 extern void fpsimd_save_and_flush_cpu_state(void);
 
-/* Maximum VL that SVE VL-agnostic software can transparently support */
+/* Maximum VL that SVE VL-agyesstic software can transparently support */
 #define SVE_VL_ARCH_MAX 0x100
 
 /* Offset of FFR in the SVE register dump */
@@ -83,7 +83,7 @@ extern __ro_after_init DECLARE_BITMAP(sve_vq_map, SVE_VQ_MAX);
 /*
  * Helpers to translate bit indices in sve_vq_map to VQ values (and
  * vice versa).  This allows find_next_bit() to be used to find the
- * _maximum_ VQ not exceeding a certain value.
+ * _maximum_ VQ yest exceeding a certain value.
  */
 static inline unsigned int __vq_to_bit(unsigned int vq)
 {
@@ -129,7 +129,7 @@ static inline void sve_user_enable(void)
 
 /*
  * Probing and setup functions.
- * Calls to these functions must be serialised with one another.
+ * Calls to these functions must be serialised with one ayesther.
  */
 extern void __init sve_init_vq_map(void);
 extern void sve_update_vq_map(void);

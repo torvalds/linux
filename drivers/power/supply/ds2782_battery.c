@@ -8,13 +8,13 @@
  *
  * DS2786 added by Yulia Vilensky <vilensky@compulab.co.il>
  *
- * UEvent sending added by Evgeny Romanov <romanov@neurosoft.ru>
+ * UEvent sending added by Evgeny Romayesv <romayesv@neurosoft.ru>
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/swab.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>

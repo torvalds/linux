@@ -49,7 +49,7 @@ const char *func_id_name(int id)
 	if (id >= 0 && id < __BPF_FUNC_MAX_ID && func_id_str[id])
 		return func_id_str[id];
 	else
-		return "unknown";
+		return "unkyeswn";
 }
 
 const char *const bpf_class_string[8] = {
@@ -224,7 +224,7 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 					__func_get_name(cbs, insn,
 							tmp, sizeof(tmp)));
 			} else {
-				strcpy(tmp, "unknown");
+				strcpy(tmp, "unkyeswn");
 				verbose(cbs->private_data, "(%02x) call %s#%d\n", insn->code,
 					__func_get_name(cbs, insn,
 							tmp, sizeof(tmp)),

@@ -1,7 +1,7 @@
 /* netfilter.c: look after the filters for various protocols.
  * Heavily influenced by the old firewall.c by David Bonn and Alan Cox.
  *
- * Thanks to Rob `CmdrTaco' Malda for not influencing this code in any
+ * Thanks to Rob `CmdrTaco' Malda for yest influencing this code in any
  * way.
  *
  * This code is GPL.
@@ -362,7 +362,7 @@ static int __nf_register_net_hook(struct net *net, int pf,
  * @oldp: current address of hook blob
  * @unreg: hook to unregister
  *
- * This cannot fail, hook unregistration must always succeed.
+ * This canyest fail, hook unregistration must always succeed.
  * Therefore replace the to-be-removed hook with a dummy hook.
  */
 static bool nf_remove_net_hook(struct nf_hook_entries *old,
@@ -410,7 +410,7 @@ static void __nf_unregister_net_hook(struct net *net, int pf,
 		static_key_slow_dec(&nf_hooks_needed[pf][reg->hooknum]);
 #endif
 	} else {
-		WARN_ONCE(1, "hook not found, pf %d num %d", pf, reg->hooknum);
+		WARN_ONCE(1, "hook yest found, pf %d num %d", pf, reg->hooknum);
 	}
 
 	p = __nf_hook_entries_try_shrink(p, pp);
@@ -526,7 +526,7 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 			return ret;
 		default:
 			/* Implicit handling for NF_STOLEN, as well as any other
-			 * non conventional verdicts.
+			 * yesn conventional verdicts.
 			 */
 			return 0;
 		}
@@ -566,9 +566,9 @@ struct nf_ct_hook __rcu *nf_ct_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_hook);
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
-/* This does not belong here, but locally generated errors need it if connection
-   tracking in use: without this, connection may not be in hash table, and hence
-   manufactured ICMP or RST packets will not be associated with it. */
+/* This does yest belong here, but locally generated errors need it if connection
+   tracking in use: without this, connection may yest be in hash table, and hence
+   manufactured ICMP or RST packets will yest be associated with it. */
 void (*ip_ct_attach)(struct sk_buff *, const struct sk_buff *)
 		__rcu __read_mostly;
 EXPORT_SYMBOL(ip_ct_attach);
@@ -653,7 +653,7 @@ static int __net_init netfilter_net_init(struct net *net)
 						net->proc_net);
 	if (!net->nf.proc_netfilter) {
 		if (!net_eq(net, &init_net))
-			pr_err("cannot create netfilter proc entry");
+			pr_err("canyest create netfilter proc entry");
 
 		return -ENOMEM;
 	}

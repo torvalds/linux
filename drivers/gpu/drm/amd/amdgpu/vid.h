@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,11 +23,11 @@
 #ifndef VI_H
 #define VI_H
 
-#define SDMA0_REGISTER_OFFSET                             0x0 /* not a register */
-#define SDMA1_REGISTER_OFFSET                             0x200 /* not a register */
+#define SDMA0_REGISTER_OFFSET                             0x0 /* yest a register */
+#define SDMA1_REGISTER_OFFSET                             0x200 /* yest a register */
 #define SDMA_MAX_INSTANCE 2
 
-#define KFD_VI_SDMA_QUEUE_OFFSET                      0x80 /* not a register */
+#define KFD_VI_SDMA_QUEUE_OFFSET                      0x80 /* yest a register */
 
 /* crtc instance offsets */
 #define CRTC0_REGISTER_OFFSET                 (0x1b9c - 0x1b9c)
@@ -228,7 +228,7 @@
 #define	PACKET3_EVENT_WRITE				0x46
 #define		EVENT_TYPE(x)                           ((x) << 0)
 #define		EVENT_INDEX(x)                          ((x) << 8)
-		/* 0 - any non-TS event
+		/* 0 - any yesn-TS event
 		 * 1 - ZPASS_DONE, PIXEL_PIPE_STAT_*
 		 * 2 - SAMPLE_PIPELINESTAT
 		 * 3 - SAMPLE_STREAMOUTSTAT*
@@ -256,7 +256,7 @@
 		 * 4 - send 64bit sys counter value
 		 */
 #define		INT_SEL(x)                              ((x) << 24)
-		/* 0 - none
+		/* 0 - yesne
 		 * 1 - interrupt only (DATA_SEL = 0)
 		 * 2 - interrupt when data write is confirmed
 		 */
@@ -310,13 +310,13 @@
 /* COMMAND */
 #              define PACKET3_DMA_DATA_DIS_WC      (1 << 21)
 #              define PACKET3_DMA_DATA_CMD_SRC_SWAP(x) ((x) << 22)
-		/* 0 - none
+		/* 0 - yesne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
 		 */
 #              define PACKET3_DMA_DATA_CMD_DST_SWAP(x) ((x) << 24)
-		/* 0 - none
+		/* 0 - yesne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64

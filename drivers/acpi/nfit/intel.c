@@ -361,7 +361,7 @@ static int __maybe_unused intel_security_overwrite(struct nvdimm *nvdimm,
 
 /*
  * TODO: define a cross arch wbinvd equivalent when/if
- * NVDIMM_FAMILY_INTEL command support arrives on another arch.
+ * NVDIMM_FAMILY_INTEL command support arrives on ayesther arch.
  */
 #ifdef CONFIG_X86
 static void nvdimm_invalidate_cache(void)

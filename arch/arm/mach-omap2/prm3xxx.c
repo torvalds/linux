@@ -4,13 +4,13 @@
  *
  * Copyright (C) 2010-2012 Texas Instruments, Inc.
  * Copyright (C) 2010 Nokia Corporation
- * Benoît Cousson
+ * Beyesît Cousson
  * Paul Walmsley
  * Rajendra Nayak <rnayak@ti.com>
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -166,7 +166,7 @@ static void omap3xxx_prm_read_pending_irqs(unsigned long *events)
  *
  * Force any buffered writes to the PRM IP block to complete.  Needed
  * by the PRM IRQ handler, which reads and writes directly to the IP
- * block, to avoid race conditions after acknowledging or clearing IRQ
+ * block, to avoid race conditions after ackyeswledging or clearing IRQ
  * bits.  No return value.
  */
 static void omap3xxx_prm_ocp_barrier(void)
@@ -220,7 +220,7 @@ static void omap3xxx_prm_restore_irqen(u32 *saved_mask)
  * The purpose of this function is to clear any wake-up events latched
  * in the PRCM PM_WKST_x registers. It is possible that a wake-up event
  * may occur whilst attempting to clear a PM_WKST_x register and thus
- * set another bit in this register. A while loop is used to ensure
+ * set ayesther bit in this register. A while loop is used to ensure
  * that any peripheral wake-up events occurring while attempting to
  * clear the PM_WKST_x are detected and cleared.
  */
@@ -244,7 +244,7 @@ static int omap3xxx_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
 			clken = wkst;
 			omap2_cm_set_mod_reg_bits(clken, module, iclk_off);
 			/*
-			 * For USBHOST, we don't know whether HOST1 or
+			 * For USBHOST, we don't kyesw whether HOST1 or
 			 * HOST2 woke us up, so enable both f-clocks
 			 */
 			if (module == OMAP3430ES2_USBHOST_MOD)
@@ -369,7 +369,7 @@ void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
 	/* Clear any pending PRCM interrupts */
 	omap2_prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
 
-	/* We need to idle iva2_pwrdm even on am3703 with no iva2. */
+	/* We need to idle iva2_pwrdm even on am3703 with yes iva2. */
 	omap3xxx_prm_iva_idle();
 
 	omap3_prm_reset_modem();
@@ -378,7 +378,7 @@ void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
 /**
  * omap3430_pre_es3_1_reconfigure_io_chain - restart wake-up daisy chain
  *
- * The ST_IO_CHAIN bit does not exist in 3430 before es3.1. The only
+ * The ST_IO_CHAIN bit does yest exist in 3430 before es3.1. The only
  * thing we can do is toggle EN_IO bit for earlier omaps.
  */
 static void omap3430_pre_es3_1_reconfigure_io_chain(void)
@@ -465,7 +465,7 @@ static u32 omap3xxx_prm_read_reset_sources(void)
  * omap3xxx_prm_iva_idle - ensure IVA is in idle so it can be put into retention
  *
  * In cases where IVA2 is activated by bootcode, it may prevent
- * full-chip retention or off-mode because it is not idle.  This
+ * full-chip retention or off-mode because it is yest idle.  This
  * function forces the IVA2 into idle state so it can go
  * into retention/off and thus allow full-chip retention/off.
  */
@@ -474,7 +474,7 @@ void omap3xxx_prm_iva_idle(void)
 	/* ensure IVA2 clock is disabled */
 	omap2_cm_write_mod_reg(0, OMAP3430_IVA2_MOD, CM_FCLKEN);
 
-	/* if no clock activity, nothing else to do */
+	/* if yes clock activity, yesthing else to do */
 	if (!(omap2_cm_read_mod_reg(OMAP3430_IVA2_MOD, OMAP3430_CM_CLKSTST) &
 	      OMAP3430_CLKACTIVITY_IVA2_MASK))
 		return;
@@ -506,7 +506,7 @@ void omap3xxx_prm_iva_idle(void)
  * omap3xxx_prm_clear_global_cold_reset - checks the global cold reset status
  *					  and clears it if asserted
  *
- * Checks if cold-reset has occurred and clears the status bit if yes. Returns
+ * Checks if cold-reset has occurred and clears the status bit if no. Returns
  * 1 if cold-reset has occurred, 0 otherwise.
  */
 int omap3xxx_prm_clear_global_cold_reset(void)
@@ -687,7 +687,7 @@ static const struct of_device_id omap3_prm_dt_match_table[] = {
 
 static int omap3xxx_prm_late_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int irq_num;
 
 	if (!(prm_features & PRM_HAS_IO_WAKEUP))
@@ -700,9 +700,9 @@ static int omap3xxx_prm_late_init(void)
 		omap3_prcm_irq_setup.reconfigure_io_chain =
 			omap3430_pre_es3_1_reconfigure_io_chain;
 
-	np = of_find_matching_node(NULL, omap3_prm_dt_match_table);
+	np = of_find_matching_yesde(NULL, omap3_prm_dt_match_table);
 	if (!np) {
-		pr_err("PRM: no device tree node for interrupt?\n");
+		pr_err("PRM: yes device tree yesde for interrupt?\n");
 
 		return -ENODEV;
 	}

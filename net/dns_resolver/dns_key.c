@@ -19,7 +19,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, see <http://www.gnu.org/licenses/>.
+ *   along with this library; if yest, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -49,7 +49,7 @@ const struct cred *dns_resolver_cache;
 /*
  * Preparse instantiation data for a dns_resolver key.
  *
- * For normal hostname lookups, the data must be a NUL-terminated string, with
+ * For yesrmal hostname lookups, the data must be a NUL-terminated string, with
  * the NUL char accounted in datalen.
  *
  * If the data contains a '#' characters, then we take the clause after each
@@ -60,7 +60,7 @@ const struct cred *dns_resolver_cache;
  *
  * For server list requests, the data must begin with a NUL char and be
  * followed by a byte indicating the version of the data format.  Version 1
- * looks something like (note this is packed):
+ * looks something like (yeste this is packed):
  *
  *	u8      Non-string marker (ie. 0)
  *	u8	Content (DNS_PAYLOAD_IS_*)
@@ -77,7 +77,7 @@ const struct cred *dns_resolver_cache;
  *		u8	Lookup status of address list
  *		u8	Protocol (DNS_SERVER_PROTOCOL_*)
  *		u8	Number of addresses
- *		char[]	Name (not NUL-terminated)
+ *		char[]	Name (yest NUL-terminated)
  *		foreach-address {
  *			u8		Family (DNS_ADDRESS_IS_*)
  *			union {
@@ -93,7 +93,7 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 {
 	const struct dns_payload_header *bin;
 	struct user_key_payload *upayload;
-	unsigned long derrno;
+	unsigned long derryes;
 	int ret;
 	int datalen = prep->datalen, result_len = 0;
 	const char *data = prep->data, *end, *opt;
@@ -136,8 +136,8 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 	end = data + datalen;
 	opt = memchr(data, '#', datalen);
 	if (!opt) {
-		/* no options: the entire data is the result */
-		kdebug("no options");
+		/* yes options: the entire data is the result */
+		kdebug("yes options");
 		result_len = datalen;
 	} else {
 		const char *next_opt;
@@ -178,15 +178,15 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 			    memcmp(opt, DNS_ERRORNO_OPTION, opt_nlen) == 0) {
 				kdebug("dns error number option");
 
-				ret = kstrtoul(optval, 10, &derrno);
+				ret = kstrtoul(optval, 10, &derryes);
 				if (ret < 0)
 					goto bad_option_value;
 
-				if (derrno < 1 || derrno > 511)
+				if (derryes < 1 || derryes > 511)
 					goto bad_option_value;
 
-				kdebug("dns error no. = %lu", derrno);
-				prep->payload.data[dns_key_error] = ERR_PTR(-derrno);
+				kdebug("dns error yes. = %lu", derryes);
+				prep->payload.data[dns_key_error] = ERR_PTR(-derryes);
 				continue;
 			}
 
@@ -197,7 +197,7 @@ dns_resolver_preparse(struct key_preparsed_payload *prep)
 		} while (opt = next_opt + 1, opt < end);
 	}
 
-	/* don't cache the result if we're caching an error saying there's no
+	/* don't cache the result if we're caching an error saying there's yes
 	 * result */
 	if (prep->payload.data[dns_key_error]) {
 		kleave(" = 0 [h_error %ld]", PTR_ERR(prep->payload.data[dns_key_error]));
@@ -248,7 +248,7 @@ static bool dns_resolver_cmp(const struct key *key,
 	kenter("%s,%s", src, dsp);
 
 	if (!src || !dsp)
-		goto no_match;
+		goto yes_match;
 
 	if (strcasecmp(src, dsp) == 0)
 		goto matched;
@@ -256,17 +256,17 @@ static bool dns_resolver_cmp(const struct key *key,
 	slen = strlen(src);
 	dlen = strlen(dsp);
 	if (slen <= 0 || dlen <= 0)
-		goto no_match;
+		goto yes_match;
 	if (src[slen - 1] == '.')
 		slen--;
 	if (dsp[dlen - 1] == '.')
 		dlen--;
 	if (slen != dlen || strncasecmp(src, dsp, slen) != 0)
-		goto no_match;
+		goto yes_match;
 
 matched:
 	ret = 1;
-no_match:
+yes_match:
 	kleave(" = %d", ret);
 	return ret;
 }

@@ -2,9 +2,9 @@
 DMA Engine API Guide
 ====================
 
-Vinod Koul <vinod dot koul at intel.com>
+Viyesd Koul <viyesd dot koul at intel.com>
 
-.. note:: For DMA Engine usage in async_tx please see:
+.. yeste:: For DMA Engine usage in async_tx please see:
           ``Documentation/crypto/async-tx-api.txt``
 
 
@@ -24,7 +24,7 @@ The slave DMA usage consists of following steps:
 
 - Submit the transaction
 
-- Issue pending requests and wait for callback notification
+- Issue pending requests and wait for callback yestification
 
 The details of these operations are:
 
@@ -69,7 +69,7 @@ The details of these operations are:
 			struct dma_slave_config *config)
 
    Please see the dma_slave_config structure definition in dmaengine.h
-   for a detailed explanation of the struct members. Please note
+   for a detailed explanation of the struct members. Please yeste
    that the 'direction' member will be going away as it duplicates the
    direction given in the prepare call.
 
@@ -84,11 +84,11 @@ The details of these operations are:
     operation is explicitly stopped.
 
   - interleaved_dma: This is common to Slave as well as M2M clients. For slave
-    address of devices' fifo could be already known to the driver.
+    address of devices' fifo could be already kyeswn to the driver.
     Various types of operations could be expressed by setting
     appropriate values to the 'dma_interleaved_template' members.
 
-  A non-NULL return of this transfer API represents a "descriptor" for
+  A yesn-NULL return of this transfer API represents a "descriptor" for
   the given transaction.
 
   Interface:
@@ -114,7 +114,7 @@ The details of these operations are:
   The scatterlist must be mapped using the DMA struct device.
   If a mapping needs to be synchronized later, dma_sync_*_for_*() must be
   called using the DMA struct device, too.
-  So, normal setup should look like this:
+  So, yesrmal setup should look like this:
 
   .. code-block:: c
 
@@ -130,13 +130,13 @@ The details of these operations are:
   submission so it is important that these two operations are closely
   paired.
 
-  .. note::
+  .. yeste::
 
      Although the async_tx API specifies that completion callback
-     routines cannot submit any new operations, this is not the
+     routines canyest submit any new operations, this is yest the
      case for slave/cyclic DMA.
 
-     For slave DMA, the subsequent transaction may not be available
+     For slave DMA, the subsequent transaction may yest be available
      for submission prior to callback function being invoked, so
      slave DMA callbacks are permitted to prepare and submit a new
      transaction.
@@ -163,19 +163,19 @@ The details of these operations are:
       dma_cookie_t dmaengine_submit(struct dma_async_tx_descriptor *desc)
 
    This returns a cookie can be used to check the progress of DMA engine
-   activity via other DMA engine calls not covered in this document.
+   activity via other DMA engine calls yest covered in this document.
 
-   dmaengine_submit() will not start the DMA operation, it merely adds
+   dmaengine_submit() will yest start the DMA operation, it merely adds
    it to the pending queue. For this, see step 5, dma_async_issue_pending.
 
-   .. note::
+   .. yeste::
 
       After calling ``dmaengine_submit()`` the submitted transfer descriptor
       (``struct dma_async_tx_descriptor``) belongs to the DMA engine.
       Consequently, the client must consider invalid the pointer to that
       descriptor.
 
-5. Issue pending DMA requests and wait for callback notification
+5. Issue pending DMA requests and wait for callback yestification
 
    The transactions in the pending queue can be activated by calling the
    issue_pending API. If channel is idle then the first transaction in
@@ -183,7 +183,7 @@ The details of these operations are:
 
    On completion of each DMA operation, the next in queue is started and
    a tasklet triggered. The tasklet will then call the client driver
-   completion callback routine for notification, if set.
+   completion callback routine for yestification, if set.
 
    Interface:
 
@@ -208,7 +208,7 @@ Further APIs:
 
    Two variants of this function are available.
 
-   dmaengine_terminate_async() might not wait until the DMA has been fully
+   dmaengine_terminate_async() might yest wait until the DMA has been fully
    stopped or until any running complete callbacks have finished. But it is
    possible to call dmaengine_terminate_async() from atomic context or from
    within a complete callback. dmaengine_synchronize() must be called before it
@@ -216,10 +216,10 @@ Further APIs:
    accessed from within the complete callback.
 
    dmaengine_terminate_sync() will wait for the transfer and any running
-   complete callbacks to finish before it returns. But the function must not be
+   complete callbacks to finish before it returns. But the function must yest be
    called from atomic context or from within a complete callback.
 
-   dmaengine_terminate_all() is deprecated and should not be used in new code.
+   dmaengine_terminate_all() is deprecated and should yest be used in new code.
 
 2. Pause API
 
@@ -236,7 +236,7 @@ Further APIs:
        int dmaengine_resume(struct dma_chan *chan)
 
    Resume a previously paused DMA channel. It is invalid to resume a
-   channel which is not currently paused.
+   channel which is yest currently paused.
 
 4. Check Txn complete
 
@@ -253,7 +253,7 @@ Further APIs:
    the cookie returned from dmaengine_submit() to check for
    completion of a specific DMA transaction.
 
-   .. note::
+   .. yeste::
 
       Not all DMA engine drivers can return reliable information for
       a running DMA channel. It is recommended that DMA engine users

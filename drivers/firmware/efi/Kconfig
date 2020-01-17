@@ -119,9 +119,9 @@ config EFI_ARMSTUB_DTB_LOADER
 	  memory from the EFI System Partition by the stub.
 
 	  If the device tree is provided by the platform or by
-	  the bootloader this option may not be needed.
+	  the bootloader this option may yest be needed.
 	  But, for various development reasons and to maintain existing
-	  functionality for bootloaders that do not have such support
+	  functionality for bootloaders that do yest have such support
 	  this option is necessary.
 
 config EFI_BOOTLOADER_CONTROL
@@ -145,12 +145,12 @@ config EFI_CAPSULE_LOADER
 	help
 	  This option exposes a loader interface "/dev/efi_capsule_loader" for
 	  users to load EFI capsules. This driver requires working runtime
-	  capsule support in the firmware, which many OEMs do not provide.
+	  capsule support in the firmware, which many OEMs do yest provide.
 
 	  Most users should say N.
 
 config EFI_CAPSULE_QUIRK_QUARK_CSH
-	bool "Add support for Quark capsules with non-standard headers"
+	bool "Add support for Quark capsules with yesn-standard headers"
 	depends on X86 && !64BIT
 	select EFI_CAPSULE_LOADER
 	default y
@@ -164,7 +164,7 @@ config EFI_TEST
 	default n
 	help
 	  This driver uses the efi.<service> function pointers directly instead
-	  of going through the efivar API, because it is not trying to test the
+	  of going through the efivar API, because it is yest trying to test the
 	  kernel subsystem, just for testing the UEFI runtime service
 	  interfaces which are provided by the firmware. This driver is used
 	  by the Firmware Test Suite (FWTS) for testing the UEFI runtime
@@ -195,7 +195,7 @@ config RESET_ATTACK_MITIGATION
 	  Request that the firmware clear the contents of RAM after a reboot
 	  using the TCG Platform Reset Attack Mitigation specification. This
 	  protects against an attacker forcibly rebooting the system while it
-	  still contains secrets in RAM, booting another OS and extracting the
+	  still contains secrets in RAM, booting ayesther OS and extracting the
 	  secrets. This should only be enabled when userland is configured to
 	  clear the MemoryOverwriteRequest flag on clean shutdown after secrets
 	  have been evicted, since otherwise it will trigger even on clean

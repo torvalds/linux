@@ -31,17 +31,17 @@
  *
  * This software is furnished under a license and may be used and copied
  * only  in  accordance  of  the  terms  of  such  license  and with the
- * inclusion of the above copyright notice. This software or  any  other
- * copies thereof may not be provided or otherwise made available to any
+ * inclusion of the above copyright yestice. This software or  any  other
+ * copies thereof may yest be provided or otherwise made available to any
  * other person.  No title to and  ownership of the  software is  hereby
  * transferred.
  *
- * The information in this software is  subject to change without notice
- * and  should  not  be  construed  as a commitment by Digital Equipment
+ * The information in this software is  subject to change without yestice
+ * and  should  yest  be  construed  as a commitment by Digital Equipment
  * Corporation.
  *
- * Digital assumes no responsibility for the use  or  reliability of its
- * software on equipment which is not supplied by Digital.
+ * Digital assumes yes responsibility for the use  or  reliability of its
+ * software on equipment which is yest supplied by Digital.
  *
  *
  * Abstract:	
@@ -226,18 +226,18 @@ typedef struct _SMC37c669_CONFIG_REGS {
 **	be used to indicate that a valid configuration
 **	cycle has occurred.  The control software must
 **	take care to set this bit at the appropriate times.
-**	Set to zero after power up.  This bit has no
+**	Set to zero after power up.  This bit has yes
 **	effect on any other hardware in the chip.
 **
 */
 typedef union _SMC37c669_CR00 {
     unsigned char as_uchar;
     struct {
-    	unsigned ide_en : 2;	    /* See note above		*/
+    	unsigned ide_en : 2;	    /* See yeste above		*/
 	unsigned reserved1 : 1;	    /* RAZ			*/
 	unsigned fdc_pwr : 1;	    /* 1 = supply power to FDC  */
 	unsigned reserved2 : 3;	    /* Read as 010b		*/
-	unsigned valid : 1;	    /* See note above		*/
+	unsigned valid : 1;	    /* See yeste above		*/
     }	by_field;
 } SMC37c669_CR00;
 
@@ -290,11 +290,11 @@ typedef union _SMC37c669_CR03 {
     struct {
     	unsigned pwrgd_gamecs : 1;  /* 1 = PWRGD, 0 = GAMECS	    */
 	unsigned fdc_mode2 : 1;	    /* 1 = Enhanced Mode 2	    */
-	unsigned pin94_0 : 1;	    /* See note above		    */
+	unsigned pin94_0 : 1;	    /* See yeste above		    */
 	unsigned reserved1 : 1;	    /* RAZ			    */
 	unsigned drvden : 1;	    /* 1 = high, 0 - output	    */
-	unsigned op_mode : 2;	    /* See note above		    */
-	unsigned pin94_1 : 1;	    /* See note above		    */
+	unsigned op_mode : 2;	    /* See yeste above		    */
+	unsigned pin94_1 : 1;	    /* See yeste above		    */
     }	by_field;
 } SMC37c669_CR03;
 
@@ -338,18 +338,18 @@ typedef union _SMC37c669_CR03 {
 **	1 - Use pins IRRX2, IRTX2
 **
 **	If this bit is set, the IR receive and transmit
-**	functions will not be available on pins 25 and 26
+**	functions will yest be available on pins 25 and 26
 **	unless CR00<IDE_EN> = 11.
 */
 typedef union _SMC37c669_CR04 {
     unsigned char as_uchar;
     struct {
-    	unsigned ppt_ext_mode : 2;  /* See note above		    */
-	unsigned ppt_fdc : 2;	    /* See note above		    */
-	unsigned midi1 : 1;	    /* See note above		    */
-	unsigned midi2 : 1;	    /* See note above		    */
+    	unsigned ppt_ext_mode : 2;  /* See yeste above		    */
+	unsigned ppt_fdc : 2;	    /* See yeste above		    */
+	unsigned midi1 : 1;	    /* See yeste above		    */
+	unsigned midi2 : 1;	    /* See yeste above		    */
 	unsigned epp_type : 1;	    /* 0 = EPP 1.9, 1 = EPP 1.7	    */
-	unsigned alt_io : 1;	    /* See note above		    */
+	unsigned alt_io : 1;	    /* See yeste above		    */
     }	by_field;
 } SMC37c669_CR04;
 
@@ -357,7 +357,7 @@ typedef union _SMC37c669_CR04 {
 ** CR05 - default value 0x00
 **
 **  DEN_SEL:
-**	00 - Densel output normal
+**	00 - Densel output yesrmal
 **	01 - Reserved
 **	10 - Densel output 1
 **	11 - Densel output 0
@@ -367,8 +367,8 @@ typedef union _SMC37c669_CR05 {
     unsigned char as_uchar;
     struct {
     	unsigned reserved1 : 2;	    /* RAZ					*/
-	unsigned fdc_dma_mode : 1;  /* 0 = burst, 1 = non-burst			*/
-	unsigned den_sel : 2;	    /* See note above				*/
+	unsigned fdc_dma_mode : 1;  /* 0 = burst, 1 = yesn-burst			*/
+	unsigned den_sel : 2;	    /* See yeste above				*/
 	unsigned swap_drv : 1;	    /* Swap the FDC motor selects		*/
 	unsigned extx4 : 1;	    /* 0 = 2 drive, 1 = external 4 drive decode	*/
 	unsigned reserved2 : 1;	    /* RAZ					*/
@@ -404,10 +404,10 @@ typedef union _SMC37c669_CR07 {
     struct {
     	unsigned floppy_boot : 2;   /* 0 = A:, 1 = B:		    */
 	unsigned reserved1 : 2;	    /* RAZ			    */
-	unsigned ppt_en : 1;	    /* See note above		    */
-	unsigned uart1_en : 1;	    /* See note above		    */
-	unsigned uart2_en : 1;	    /* See note above		    */
-	unsigned fdc_en : 1;	    /* See note above		    */
+	unsigned ppt_en : 1;	    /* See yeste above		    */
+	unsigned uart1_en : 1;	    /* See yeste above		    */
+	unsigned uart2_en : 1;	    /* See yeste above		    */
+	unsigned fdc_en : 1;	    /* See yeste above		    */
     }	by_field;
 } SMC37c669_CR07;
 
@@ -437,7 +437,7 @@ typedef union _SMC37c669_CR09 {
     struct {
     	unsigned adra8 : 3;	    /* ADR<10:8> for ADRx decode    */
 	unsigned reserved1 : 3;
-	unsigned adrx_config : 2;   /* See note above		    */
+	unsigned adrx_config : 2;   /* See yeste above		    */
     }	by_field;
 } SMC37c669_CR09;
 
@@ -482,7 +482,7 @@ typedef union _SMC37c669_CR0C {
     	unsigned uart2_rcv_polarity : 1;    /* 1 = invert RX		*/
 	unsigned uart2_xmit_polarity : 1;   /* 1 = invert TX		*/
 	unsigned uart2_duplex : 1;	    /* 1 = full, 0 = half	*/
-	unsigned uart2_mode : 3;	    /* See note above		*/
+	unsigned uart2_mode : 3;	    /* See yeste above		*/
 	unsigned uart1_speed : 1;	    /* 1 = high speed enabled	*/
 	unsigned uart2_speed : 1;	    /* 1 = high speed enabled	*/
     }	by_field;
@@ -573,7 +573,7 @@ typedef union _SMC37c669_CR11 {
 typedef union _SMC37c66_CR1E {
     unsigned char as_uchar;
     struct {
-    	unsigned gamecs_config: 2;   /* See note above		    */
+    	unsigned gamecs_config: 2;   /* See yeste above		    */
 	unsigned gamecs_addr9_4 : 6; /* GAMECS Addr<9:4>	    */
     }	by_field;
 } SMC37c669_CR1E;
@@ -718,8 +718,8 @@ typedef union _SMC37c669_CR25 {
 typedef union _SMC37c669_CR26 {
     unsigned char as_uchar;
     struct {
-    	unsigned ppt_drq : 4;	    /* See note above		    */
-	unsigned fdc_drq : 4;	    /* See note above		    */
+    	unsigned ppt_drq : 4;	    /* See yeste above		    */
+	unsigned fdc_drq : 4;	    /* See yeste above		    */
     }	by_field;
 } SMC37c669_CR26;
 
@@ -747,8 +747,8 @@ typedef union _SMC37c669_CR26 {
 typedef union _SMC37c669_CR27 {
     unsigned char as_uchar;
     struct {
-    	unsigned ppt_irq : 4;	    /* See note above		    */
-	unsigned fdc_irq : 4;	    /* See note above		    */
+    	unsigned ppt_irq : 4;	    /* See yeste above		    */
+	unsigned fdc_irq : 4;	    /* See yeste above		    */
     }	by_field;
 } SMC37c669_CR27;
 
@@ -781,8 +781,8 @@ typedef union _SMC37c669_CR27 {
 typedef union _SMC37c669_CR28 {
     unsigned char as_uchar;
     struct {
-    	unsigned uart2_irq : 4;	    /* See note above		    */
-	unsigned uart1_irq : 4;	    /* See note above		    */
+    	unsigned uart2_irq : 4;	    /* See yeste above		    */
+	unsigned uart1_irq : 4;	    /* See yeste above		    */
     }	by_field;
 } SMC37c669_CR28;
 
@@ -810,7 +810,7 @@ typedef union _SMC37c669_CR28 {
 typedef union _SMC37c669_CR29 {
     unsigned char as_uchar;
     struct {
-    	unsigned irqin_irq : 4;	    /* See note above		    */
+    	unsigned irqin_irq : 4;	    /* See yeste above		    */
 	unsigned reserved1 : 4;	    /* RAZ			    */
     }	by_field;
 } SMC37c669_CR29;
@@ -893,17 +893,17 @@ void SMC37c669_display_device_info(
  *
  * This software is furnished under a license and may be used and copied
  * only  in  accordance  of  the  terms  of  such  license  and with the
- * inclusion of the above copyright notice. This software or  any  other
- * copies thereof may not be provided or otherwise made available to any
+ * inclusion of the above copyright yestice. This software or  any  other
+ * copies thereof may yest be provided or otherwise made available to any
  * other person.  No title to and  ownership of the  software is  hereby
  * transferred.
  *
- * The information in this software is  subject to change without notice
- * and  should  not  be  construed  as a commitment by digital equipment
+ * The information in this software is  subject to change without yestice
+ * and  should  yest  be  construed  as a commitment by digital equipment
  * corporation.
  *
- * Digital assumes no responsibility for the use  or  reliability of its
- * software on equipment which is not supplied by digital.
+ * Digital assumes yes responsibility for the use  or  reliability of its
+ * software on equipment which is yest supplied by digital.
  */
 
 /*
@@ -946,7 +946,7 @@ void SMC37c669_display_device_info(
 /*
 ** Local storage for device configuration information.
 **
-** Since the SMC37c669 does not provide an explicit
+** Since the SMC37c669 does yest provide an explicit
 ** mechanism for enabling/disabling individual device 
 ** functions, other than unmapping the device, local 
 ** storage for device configuration information is 
@@ -1121,7 +1121,7 @@ SMC37c669_CONFIG_REGS * __init SMC37c669_detect( int index )
 
     for ( i = 0;  SMC37c669_Addresses[i] != 0;  i++ ) {
 /*
-** Initialize the device pointer even though we don't yet know if
+** Initialize the device pointer even though we don't yet kyesw if
 ** the controller is at this address.  The support functions access
 ** the controller through this device pointer so we need to set it
 ** even when we are looking ...
@@ -1156,7 +1156,7 @@ SMC37c669_CONFIG_REGS * __init SMC37c669_detect( int index )
 ** file, it should call a platform-specific external routine at this 
 ** point to reset the IRQ and DRQ translation table pointers to point 
 ** at the appropriate tables for the platform.  If the defaults are 
-** acceptable, then the external routine should do nothing.
+** acceptable, then the external routine should do yesthing.
 */
 
 /*
@@ -1178,7 +1178,7 @@ SMC37c669_CONFIG_REGS * __init SMC37c669_detect( int index )
 	}
 	else {
 /*
-** Otherwise, we did not find an SMC37c669 controller at this
+** Otherwise, we did yest find an SMC37c669 controller at this
 ** address so set the device pointer to NULL.
 */
 	    SMC37c669 = NULL;
@@ -1205,7 +1205,7 @@ SMC37c669_CONFIG_REGS * __init SMC37c669_detect( int index )
 **
 **  SIDE EFFECTS:
 **
-**      {@description or none@}
+**      {@description or yesne@}
 **
 **  DESIGN:
 **
@@ -1438,7 +1438,7 @@ unsigned int __init SMC37c669_enable_device ( unsigned int func )
 **
 **  SIDE EFFECTS:
 **
-**      {@description or none@}
+**      {@description or yesne@}
 **
 **  DESIGN:
 **
@@ -1652,7 +1652,7 @@ unsigned int __init SMC37c669_disable_device ( unsigned int func )
 **
 **  SIDE EFFECTS:
 **
-**      {@description or none@}
+**      {@description or yesne@}
 **
 **  DESIGN:
 **
@@ -1719,7 +1719,7 @@ unsigned int __init SMC37c669_configure_device (
 **
 **  SIDE EFFECTS:
 **
-**      {@description or none@}
+**      {@description or yesne@}
 **
 **  DESIGN:
 **
@@ -1774,7 +1774,7 @@ static unsigned int __init SMC37c669_is_device_enabled ( unsigned int func )
 */
     if ( ( dev_ok ) && ( ( base_addr & 0xC0 ) != 0 ) ) {
 /*
-** The mapping is not disabled, so assume that the function is 
+** The mapping is yest disabled, so assume that the function is 
 ** enabled.
 */
     	ret_val = TRUE;
@@ -1818,14 +1818,14 @@ static unsigned int __init SMC37c669_is_device_enabled ( unsigned int func )
 **  SIDE EFFECTS:
 **
 **      The data pointed to by the port, irq, and drq parameters
-**	my be modified even if the configuration is not successfully
+**	my be modified even if the configuration is yest successfully
 **	retrieved.
 **
 **  DESIGN:
 **
 **      The device configuration is fetched from the local shadow
 **	copy.  Any unused parameters will be set to -1.  Any
-**	parameter which is not desired can specify the NULL
+**	parameter which is yest desired can specify the NULL
 **	pointer.
 **
 **--
@@ -1965,8 +1965,8 @@ static void __init SMC37c669_config_mode(
     if ( enable ) {
 /*
 ** To enter configuration mode, two writes in succession to the index
-** port are required.  If a write to another address or port occurs
-** between these two writes, the chip does not enter configuration
+** port are required.  If a write to ayesther address or port occurs
+** between these two writes, the chip does yest enter configuration
 ** mode.  Therefore, a spinlock is placed around the two writes to 
 ** guarantee that they complete uninterrupted.
 */
@@ -2193,7 +2193,7 @@ static void __init SMC37c669_init_local_config ( void )
 **
 **  SIDE EFFECTS:
 **
-**      {@description or none@}
+**      {@description or yesne@}
 **
 **--
 */
@@ -2239,7 +2239,7 @@ static struct DEVICE_CONFIG * __init SMC37c669_get_config( unsigned int func )
 **
 **  SIDE EFFECTS:
 **
-**      {@description or none@}
+**      {@description or yesne@}
 **
 **--
 */
@@ -2291,7 +2291,7 @@ static int __init SMC37c669_xlate_irq ( int irq )
 **
 **  SIDE EFFECTS:
 **
-**      {@description or none@}
+**      {@description or yesne@}
 **
 **--
 */
@@ -2329,7 +2329,7 @@ int __init smcc669_init ( void )
 {
     struct INODE *ip;
 
-    allocinode( smc_ddb.name, 1, &ip );
+    allociyesde( smc_ddb.name, 1, &ip );
     ip->dva = &smc_ddb;
     ip->attr = ATTR$M_WRITE | ATTR$M_READ;
     ip->len[0] = 0x30;

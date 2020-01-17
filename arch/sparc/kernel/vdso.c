@@ -30,40 +30,40 @@ void update_vsyscall(struct timekeeper *tk)
 		return;
 
 	vvar_write_begin(vdata);
-	vdata->vclock_mode = tk->tkr_mono.clock->archdata.vclock_mode;
-	vdata->clock.cycle_last = tk->tkr_mono.cycle_last;
-	vdata->clock.mask = tk->tkr_mono.mask;
-	vdata->clock.mult = tk->tkr_mono.mult;
-	vdata->clock.shift = tk->tkr_mono.shift;
+	vdata->vclock_mode = tk->tkr_moyes.clock->archdata.vclock_mode;
+	vdata->clock.cycle_last = tk->tkr_moyes.cycle_last;
+	vdata->clock.mask = tk->tkr_moyes.mask;
+	vdata->clock.mult = tk->tkr_moyes.mult;
+	vdata->clock.shift = tk->tkr_moyes.shift;
 
 	vdata->wall_time_sec = tk->xtime_sec;
-	vdata->wall_time_snsec = tk->tkr_mono.xtime_nsec;
+	vdata->wall_time_snsec = tk->tkr_moyes.xtime_nsec;
 
-	vdata->monotonic_time_sec = tk->xtime_sec +
-				    tk->wall_to_monotonic.tv_sec;
-	vdata->monotonic_time_snsec = tk->tkr_mono.xtime_nsec +
-				      (tk->wall_to_monotonic.tv_nsec <<
-				       tk->tkr_mono.shift);
+	vdata->moyestonic_time_sec = tk->xtime_sec +
+				    tk->wall_to_moyestonic.tv_sec;
+	vdata->moyestonic_time_snsec = tk->tkr_moyes.xtime_nsec +
+				      (tk->wall_to_moyestonic.tv_nsec <<
+				       tk->tkr_moyes.shift);
 
-	while (vdata->monotonic_time_snsec >=
-	       (((u64)NSEC_PER_SEC) << tk->tkr_mono.shift)) {
-		vdata->monotonic_time_snsec -=
-				((u64)NSEC_PER_SEC) << tk->tkr_mono.shift;
-		vdata->monotonic_time_sec++;
+	while (vdata->moyestonic_time_snsec >=
+	       (((u64)NSEC_PER_SEC) << tk->tkr_moyes.shift)) {
+		vdata->moyestonic_time_snsec -=
+				((u64)NSEC_PER_SEC) << tk->tkr_moyes.shift;
+		vdata->moyestonic_time_sec++;
 	}
 
 	vdata->wall_time_coarse_sec = tk->xtime_sec;
 	vdata->wall_time_coarse_nsec =
-			(long)(tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift);
+			(long)(tk->tkr_moyes.xtime_nsec >> tk->tkr_moyes.shift);
 
-	vdata->monotonic_time_coarse_sec =
-		vdata->wall_time_coarse_sec + tk->wall_to_monotonic.tv_sec;
-	vdata->monotonic_time_coarse_nsec =
-		vdata->wall_time_coarse_nsec + tk->wall_to_monotonic.tv_nsec;
+	vdata->moyestonic_time_coarse_sec =
+		vdata->wall_time_coarse_sec + tk->wall_to_moyestonic.tv_sec;
+	vdata->moyestonic_time_coarse_nsec =
+		vdata->wall_time_coarse_nsec + tk->wall_to_moyestonic.tv_nsec;
 
-	while (vdata->monotonic_time_coarse_nsec >= NSEC_PER_SEC) {
-		vdata->monotonic_time_coarse_nsec -= NSEC_PER_SEC;
-		vdata->monotonic_time_coarse_sec++;
+	while (vdata->moyestonic_time_coarse_nsec >= NSEC_PER_SEC) {
+		vdata->moyestonic_time_coarse_nsec -= NSEC_PER_SEC;
+		vdata->moyestonic_time_coarse_sec++;
 	}
 
 	vvar_write_end(vdata);

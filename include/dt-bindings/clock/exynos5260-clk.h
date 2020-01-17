@@ -3,7 +3,7 @@
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Rahul Sharma <rahul.sharma@samsung.com>
  *
- * Provides Constants for Exynos5260 clocks.
+ * Provides Constants for Exyyess5260 clocks.
  */
 
 #ifndef _DT_BINDINGS_CLK_EXYNOS5260_H

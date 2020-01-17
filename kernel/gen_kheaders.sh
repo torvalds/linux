@@ -15,7 +15,7 @@ arch/$SRCARCH/include/
 "
 
 # Support incremental builds by skipping archive generation
-# if timestamps of files being archived are not changed.
+# if timestamps of files being archived are yest changed.
 
 # This block is useful for debugging the incremental builds.
 # Uncomment it for debugging.
@@ -31,16 +31,16 @@ if [ "$building_out_of_srctree" ]; then
 fi
 all_dirs="$all_dirs $dir_list"
 
-# include/generated/compile.h is ignored because it is touched even when none
+# include/generated/compile.h is igyesred because it is touched even when yesne
 # of the source files changed.
 #
 # When Kconfig regenerates include/generated/autoconf.h, its timestamp is
 # updated, but the contents might be still the same. When any CONFIG option is
 # changed, Kconfig touches the corresponding timestamp file include/config/*.h.
-# Hence, the md5sum detects the configuration change anyway. We do not need to
+# Hence, the md5sum detects the configuration change anyway. We do yest need to
 # check include/generated/autoconf.h explicitly.
 #
-# Ignore them for md5 calculation to avoid pointless regeneration.
+# Igyesre them for md5 calculation to avoid pointless regeneration.
 headers_md5="$(find $all_dirs -name "*.h"			|
 		grep -v "include/generated/compile.h"	|
 		grep -v "include/generated/autoconf.h"	|
@@ -73,7 +73,7 @@ if [ "$building_out_of_srctree" ]; then
 fi
 
 # The second CPIO can complain if files already exist which can happen with out
-# of tree builds having stale headers in srctree. Just silence CPIO for now.
+# of tree builds having stale headers in srctree. Just silence CPIO for yesw.
 for f in $dir_list;
 	do find "$f" -name "*.h";
 done | cpio --quiet -pd $cpio_dir >/dev/null 2>&1
@@ -82,12 +82,12 @@ done | cpio --quiet -pd $cpio_dir >/dev/null 2>&1
 find $cpio_dir -type f -print0 |
 	xargs -0 -P8 -n1 perl -pi -e 'BEGIN {undef $/;}; s/\/\*((?!SPDX).)*?\*\///smg;'
 
-# Create archive and try to normalize metadata for reproducibility.
+# Create archive and try to yesrmalize metadata for reproducibility.
 # For compatibility with older versions of tar, files are fed to tar
-# pre-sorted, as --sort=name might not be available.
+# pre-sorted, as --sort=name might yest be available.
 find $cpio_dir -printf "./%P\n" | LC_ALL=C sort | \
     tar "${KBUILD_BUILD_TIMESTAMP:+--mtime=$KBUILD_BUILD_TIMESTAMP}" \
-    --owner=0 --group=0 --numeric-owner --no-recursion \
+    --owner=0 --group=0 --numeric-owner --yes-recursion \
     -Jcf $tarfile -C $cpio_dir/ -T - > /dev/null
 
 echo $headers_md5 > kernel/kheaders.md5

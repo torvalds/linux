@@ -4,7 +4,7 @@
  *
  * (C) Copyright IBM Corporation 2005
  *
- * Authors: Maximino Aguilar (maguilar@us.ibm.com)
+ * Authors: Maximiyes Aguilar (maguilar@us.ibm.com)
  *          Michael N. Day (mnday@us.ibm.com)
  */
 
@@ -48,7 +48,7 @@ static void cbe_power_save(void)
 		thread_switch_control |= TSC_CELL_DEC_ENABLE_1;
 		break;
 	default:
-		printk(KERN_WARNING "%s: unknown configuration\n",
+		printk(KERN_WARNING "%s: unkyeswn configuration\n",
 			__func__);
 		break;
 	}
@@ -63,7 +63,7 @@ static void cbe_power_save(void)
 	/*
 	 * atomically disable thread execution and runlatch.
 	 * External and Decrementer exceptions are still handled when the
-	 * thread is disabled but now enter in cbe_system_reset_exception()
+	 * thread is disabled but yesw enter in cbe_system_reset_exception()
 	 */
 	ctrl &= ~(CTRL_RUNLATCH | CTRL_TE);
 	mtspr(SPRN_CTRLT, ctrl);

@@ -44,9 +44,9 @@ CHAR			L?\'([^\\\']*\\.)*[^\\\']*\'
 MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 
 /* We don't do multiple input files.  */
-%option noyywrap
+%option yesyywrap
 
-%option noinput
+%option yesinput
 
 %%
 
@@ -56,7 +56,7 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 ^#.*\n					cur_line++;
 \n					cur_line++;
 
- /* Ignore all other whitespace.  */
+ /* Igyesre all other whitespace.  */
 [ \t\f\v\r]+				;
 
 
@@ -88,7 +88,7 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 /* Macros to append to our phrase collection list.  */
 
 /*
- * We mark any token, that that equals to a known enumerator, as
+ * We mark any token, that that equals to a kyeswn enumerator, as
  * SYM_ENUM_CONST. The parser will change this for struct and union tags later,
  * the only problem is struct and union members:
  *    enum e { a, b }; struct s { int a, b; }
@@ -97,20 +97,20 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
  * so far it was only observed in include/linux/telephony.h.
  */
 #define _APP(T,L)	do {						   \
-			  cur_node = next_node;				   \
-			  next_node = xmalloc(sizeof(*next_node));	   \
-			  next_node->next = cur_node;			   \
-			  cur_node->string = memcpy(xmalloc(L+1), T, L+1); \
-			  cur_node->tag =				   \
-			    find_symbol(cur_node->string, SYM_ENUM_CONST, 1)?\
+			  cur_yesde = next_yesde;				   \
+			  next_yesde = xmalloc(sizeof(*next_yesde));	   \
+			  next_yesde->next = cur_yesde;			   \
+			  cur_yesde->string = memcpy(xmalloc(L+1), T, L+1); \
+			  cur_yesde->tag =				   \
+			    find_symbol(cur_yesde->string, SYM_ENUM_CONST, 1)?\
 			    SYM_ENUM_CONST : SYM_NORMAL ;		   \
-			  cur_node->in_source_file = in_source_file;       \
+			  cur_yesde->in_source_file = in_source_file;       \
 			} while (0)
 
 #define APP		_APP(yytext, yyleng)
 
 
-/* The second stage lexer.  Here we incorporate knowledge of the state
+/* The second stage lexer.  Here we incorporate kyeswledge of the state
    of the parser to tailor the tokens that are returned.  */
 
 int
@@ -124,15 +124,15 @@ yylex(void)
   } lexstate = ST_NOTSTARTED;
 
   static int suppress_type_lookup, dont_want_brace_phrase;
-  static struct string_list *next_node;
+  static struct string_list *next_yesde;
 
   int token, count = 0;
-  struct string_list *cur_node;
+  struct string_list *cur_yesde;
 
   if (lexstate == ST_NOTSTARTED)
     {
-      next_node = xmalloc(sizeof(*next_node));
-      next_node->next = NULL;
+      next_yesde = xmalloc(sizeof(*next_yesde));
+      next_yesde->next = NULL;
       lexstate = ST_NORMAL;
     }
 
@@ -463,7 +463,7 @@ fini:
   if (dont_want_brace_phrase > 0)
     --dont_want_brace_phrase;
 
-  yylval = &next_node->next;
+  yylval = &next_yesde->next;
 
   return token;
 }

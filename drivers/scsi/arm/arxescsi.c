@@ -6,7 +6,7 @@
  *
  * This driver is based on experimentation.  Hence, it may have made
  * assumptions about the particular card that I have available, and
- * may not be reliable!
+ * may yest be reliable!
  *
  * Changelog:
  *  30-08-1997	RMK	0.0.0	Created, READONLY version as cumana_2.c
@@ -61,7 +61,7 @@ struct arxescsi_info {
  *	     SCpnt     - command
  *	     direction - DMA on to/off of card
  *	     min_type  - minimum DMA support that we must have for this transfer
- * Returns : 0 if we should not set CMD_WITHDMA for transfer info command
+ * Returns : 0 if we should yest set CMD_WITHDMA for transfer info command
  */
 static fasdmatype_t
 arxescsi_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
@@ -199,7 +199,7 @@ arxescsi_dma_pseudo(struct Scsi_Host *host, struct scsi_pointer *SCp,
 static void arxescsi_dma_stop(struct Scsi_Host *host, struct scsi_pointer *SCp)
 {
 	/*
-	 * no DMA to stop
+	 * yes DMA to stop
 	 */
 }
 
@@ -215,7 +215,7 @@ static const char *arxescsi_info(struct Scsi_Host *host)
 	static char string[150];
 
 	sprintf(string, "%s (%s) in slot %d v%s",
-		host->hostt->name, info->info.scsi.type, info->ec->slot_no,
+		host->hostt->name, info->info.scsi.type, info->ec->slot_yes,
 		VERSION);
 
 	return string;
@@ -238,7 +238,7 @@ static struct scsi_host_template arxescsi_template = {
 	.show_info			= arxescsi_show_info,
 	.name				= "ARXE SCSI card",
 	.info				= arxescsi_info,
-	.queuecommand			= fas216_noqueue_command,
+	.queuecommand			= fas216_yesqueue_command,
 	.eh_host_reset_handler		= fas216_eh_host_reset,
 	.eh_bus_reset_handler		= fas216_eh_bus_reset,
 	.eh_device_reset_handler	= fas216_eh_device_reset,

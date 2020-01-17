@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -34,11 +34,11 @@ static atomic_t fence_seq = ATOMIC_INIT(0);
 
 /* Eviction Fence
  * Fence helper functions to deal with KFD memory eviction.
- * Big Idea - Since KFD submissions are done by user queues, a BO cannot be
+ * Big Idea - Since KFD submissions are done by user queues, a BO canyest be
  *  evicted unless all the user queues for that process are evicted.
  *
  * All the BOs in a process share an eviction fence. When process X wants
- * to map VRAM memory but TTM can't find enough space, TTM will attempt to
+ * to map VRAM memory but TTM can't find eyesugh space, TTM will attempt to
  * evict BOs from its LRU list. TTM checks if the BO is valuable to evict
  * by calling ttm_bo_driver->eviction_valuable().
  *
@@ -51,11 +51,11 @@ static atomic_t fence_seq = ATOMIC_INIT(0);
  * --> amdgpu_copy_buffer(). This sets up job in GPU scheduler.
  *
  * GPU Scheduler (amd_sched_main) - sets up a cb (fence_add_callback) to
- *  nofity when the BO is free to move. fence_add_callback --> enable_signaling
+ *  yesfity when the BO is free to move. fence_add_callback --> enable_signaling
  *  --> amdgpu_amdkfd_fence.enable_signaling
  *
  * amdgpu_amdkfd_fence.enable_signaling - Start a work item that will quiesce
- * user queues and signal fence. The work item will also start another delayed
+ * user queues and signal fence. The work item will also start ayesther delayed
  * work item to restore BOs
  */
 
@@ -110,7 +110,7 @@ static const char *amdkfd_fence_get_timeline_name(struct dma_fence *f)
  * amdkfd_fence_enable_signaling - This gets called when TTM wants to evict
  *  a KFD BO and schedules a job to move the BO.
  *  If fence is already signaled return true.
- *  If fence is not signaled schedule a evict KFD process work item.
+ *  If fence is yest signaled schedule a evict KFD process work item.
  */
 static bool amdkfd_fence_enable_signaling(struct dma_fence *f)
 {

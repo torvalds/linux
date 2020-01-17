@@ -112,9 +112,9 @@ struct n2rng {
 	struct hwrng		hwrng;
 	u32			buffer;
 
-	/* Registered hypervisor group API major and minor version.  */
+	/* Registered hypervisor group API major and miyesr version.  */
 	unsigned long		hvapi_major;
-	unsigned long		hvapi_minor;
+	unsigned long		hvapi_miyesr;
 
 	struct delayed_work	work;
 

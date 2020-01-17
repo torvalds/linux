@@ -259,7 +259,7 @@ extern void nile4_set_pdar(u32 pdar, u32 phys, u32 size, int width,
      *	PCI Master Registers
      */
 
-#define NILE4_PCICMD_IACK	0	/* PCI Interrupt Acknowledge */
+#define NILE4_PCICMD_IACK	0	/* PCI Interrupt Ackyeswledge */
 #define NILE4_PCICMD_IO		1	/* PCI I/O Space */
 #define NILE4_PCICMD_MEM	3	/* PCI Memory Space */
 #define NILE4_PCICMD_CFG	5	/* PCI Configuration Space */

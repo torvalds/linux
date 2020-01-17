@@ -176,7 +176,7 @@ static int pci_create_attr(struct pci_dev *pdev, int num)
 	struct pci_controller *hose = pdev->sysdata;
 	char *suffix, *attr_name;
 
-	suffix = "";	/* Assume bwx machine, normal resourceN files. */
+	suffix = "";	/* Assume bwx machine, yesrmal resourceN files. */
 	nlen1 = 10;
 
 	if (pdev->resource[num].flags & IORESOURCE_MEM) {

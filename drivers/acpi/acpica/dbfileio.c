@@ -58,7 +58,7 @@ void acpi_db_open_debug_file(char *name)
 	acpi_db_close_debug_file();
 	acpi_gbl_debug_file = fopen(name, "w+");
 	if (!acpi_gbl_debug_file) {
-		acpi_os_printf("Could not open debug file %s\n", name);
+		acpi_os_printf("Could yest open debug file %s\n", name);
 		return;
 	}
 
@@ -100,7 +100,7 @@ acpi_status acpi_db_load_tables(struct acpi_new_table_desc *list_head)
 				    ("Table %4.4s is already installed\n",
 				     table->signature);
 			} else {
-				acpi_os_printf("Could not install table, %s\n",
+				acpi_os_printf("Could yest install table, %s\n",
 					       acpi_format_exception(status));
 			}
 

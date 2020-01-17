@@ -1,9 +1,9 @@
 MediaTek MT6358 Regulator
 
 All voltage regulators provided by the MT6358 PMIC are described as the
-subnodes of the MT6358 regulators node. Each regulator is named according
+subyesdes of the MT6358 regulators yesde. Each regulator is named according
 to its regulator type, buck_<name> and ldo_<name>. The definition for each
-of these nodes is defined using the standard binding for regulators at
+of these yesdes is defined using the standard binding for regulators at
 Documentation/devicetree/bindings/regulator/regulator.txt.
 
 The valid names for regulators are::

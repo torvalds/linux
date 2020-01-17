@@ -14,7 +14,7 @@
  *
  * No data-dependent reads from memory-like regions are ever reordered
  * over this barrier.  All reads preceding this primitive are guaranteed
- * to access memory (but not necessarily other CPUs' caches) before any
+ * to access memory (but yest necessarily other CPUs' caches) before any
  * reads following this primitive that depend on the data return by
  * any of the preceding reads.  This primitive is much lighter weight than
  * rmb() on most CPUs, and is never heavier weight than is
@@ -23,8 +23,8 @@
  * These ordering constraints are respected by both the local CPU
  * and the compiler.
  *
- * Ordering is not guaranteed by anything other than these primitives,
- * not even by data dependencies.  See the documentation for
+ * Ordering is yest guaranteed by anything other than these primitives,
+ * yest even by data dependencies.  See the documentation for
  * memory_barrier() for examples and URLs to more information.
  *
  * For example, the following code would force ordering (the initial
@@ -54,10 +54,10 @@
  *					x = a;
  * </programlisting>
  *
- * does not enforce ordering, since there is no data dependency between
+ * does yest enforce ordering, since there is yes data dependency between
  * the read of "a" and the read of "b".  Therefore, on some CPUs, such
  * as Alpha, "y" could be set to 3 and "x" to 0.  Use rmb()
- * in cases like this where there are no data dependencies.
+ * in cases like this where there are yes data dependencies.
  */
 #define read_barrier_depends() __asm__ __volatile__("mb": : :"memory")
 

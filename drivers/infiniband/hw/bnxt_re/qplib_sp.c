@@ -15,9 +15,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -69,7 +69,7 @@ static void bnxt_qplib_query_version(struct bnxt_qplib_rcfw *rcfw,
 	if (rc)
 		return;
 	fw_ver[0] = resp.fw_maj;
-	fw_ver[1] = resp.fw_minor;
+	fw_ver[1] = resp.fw_miyesr;
 	fw_ver[2] = resp.fw_bld;
 	fw_ver[3] = resp.fw_rsvd;
 }
@@ -141,7 +141,7 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->max_pkey = le32_to_cpu(sb->max_pkeys);
 	/*
 	 * Some versions of FW reports more than 0xFFFF.
-	 * Restrict it for now to 0xFFFF to avoid
+	 * Restrict it for yesw to 0xFFFF to avoid
 	 * reporting trucated value
 	 */
 	if (attr->max_pkey > 0xFFFF) {
@@ -227,12 +227,12 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	int index;
 
 	if (!sgid_tbl) {
-		dev_err(&res->pdev->dev, "SGID table not allocated\n");
+		dev_err(&res->pdev->dev, "SGID table yest allocated\n");
 		return -EINVAL;
 	}
 	/* Do we need a sgid_lock here? */
 	if (!sgid_tbl->active) {
-		dev_err(&res->pdev->dev, "SGID table has no active entries\n");
+		dev_err(&res->pdev->dev, "SGID table has yes active entries\n");
 		return -ENOMEM;
 	}
 	for (index = 0; index < sgid_tbl->max; index++) {
@@ -241,7 +241,7 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 			break;
 	}
 	if (index == sgid_tbl->max) {
-		dev_warn(&res->pdev->dev, "GID not found in the SGID table\n");
+		dev_warn(&res->pdev->dev, "GID yest found in the SGID table\n");
 		return 0;
 	}
 	/* Remove GID from the SGID table */
@@ -288,7 +288,7 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	int i, free_idx;
 
 	if (!sgid_tbl) {
-		dev_err(&res->pdev->dev, "SGID table not allocated\n");
+		dev_err(&res->pdev->dev, "SGID table yest allocated\n");
 		return -EINVAL;
 	}
 	/* Do we need a sgid_lock here? */
@@ -312,7 +312,7 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	}
 	if (free_idx == sgid_tbl->max) {
 		dev_err(&res->pdev->dev,
-			"SGID table is FULL but count is not MAX??\n");
+			"SGID table is FULL but count is yest MAX??\n");
 		return -ENOMEM;
 	}
 	if (update) {
@@ -329,8 +329,8 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 		req.gid[3] = cpu_to_be32(((u32 *)gid->data)[0]);
 		/*
 		 * driver should ensure that all RoCE traffic is always VLAN
-		 * tagged if RoCE traffic is running on non-zero VLAN ID or
-		 * RoCE traffic is running on non-zero Priority.
+		 * tagged if RoCE traffic is running on yesn-zero VLAN ID or
+		 * RoCE traffic is running on yesn-zero Priority.
 		 */
 		if ((vlan_id != 0xFFFF) || res->prio) {
 			if (vlan_id != 0xFFFF)
@@ -431,13 +431,13 @@ int bnxt_qplib_del_pkey(struct bnxt_qplib_res *res,
 	int i, rc = 0;
 
 	if (!pkey_tbl) {
-		dev_err(&res->pdev->dev, "PKEY table not allocated\n");
+		dev_err(&res->pdev->dev, "PKEY table yest allocated\n");
 		return -EINVAL;
 	}
 
 	/* Do we need a pkey_lock here? */
 	if (!pkey_tbl->active) {
-		dev_err(&res->pdev->dev, "PKEY table has no active entries\n");
+		dev_err(&res->pdev->dev, "PKEY table has yes active entries\n");
 		return -ENOMEM;
 	}
 	for (i = 0; i < pkey_tbl->max; i++) {
@@ -446,7 +446,7 @@ int bnxt_qplib_del_pkey(struct bnxt_qplib_res *res,
 	}
 	if (i == pkey_tbl->max) {
 		dev_err(&res->pdev->dev,
-			"PKEY 0x%04x not found in the pkey table\n", *pkey);
+			"PKEY 0x%04x yest found in the pkey table\n", *pkey);
 		return -ENOMEM;
 	}
 	memset(&pkey_tbl->tbl[i], 0, sizeof(*pkey));
@@ -463,7 +463,7 @@ int bnxt_qplib_add_pkey(struct bnxt_qplib_res *res,
 	int i, free_idx, rc = 0;
 
 	if (!pkey_tbl) {
-		dev_err(&res->pdev->dev, "PKEY table not allocated\n");
+		dev_err(&res->pdev->dev, "PKEY table yest allocated\n");
 		return -EINVAL;
 	}
 
@@ -481,7 +481,7 @@ int bnxt_qplib_add_pkey(struct bnxt_qplib_res *res,
 	}
 	if (free_idx == pkey_tbl->max) {
 		dev_err(&res->pdev->dev,
-			"PKEY table is FULL but count is not MAX??\n");
+			"PKEY table is FULL but count is yest MAX??\n");
 		return -ENOMEM;
 	}
 	/* Add PKEY to the pkey_tbl */
@@ -664,7 +664,7 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 	u32 pg_size;
 
 	if (num_pbls) {
-		/* Allocate memory for the non-leaf pages to store buf ptrs.
+		/* Allocate memory for the yesn-leaf pages to store buf ptrs.
 		 * Non-leaf pages always uses system PAGE_SIZE
 		 */
 		pg_ptrs = roundup_pow_of_two(num_pbls);
@@ -831,11 +831,11 @@ int bnxt_qplib_get_roce_stats(struct bnxt_qplib_rcfw *rcfw,
 	stats->res_opcode_err = le64_to_cpu(sb->res_opcode_err);
 	stats->res_rx_invalid_rkey = le64_to_cpu(sb->res_rx_invalid_rkey);
 	stats->res_rx_domain_err = le64_to_cpu(sb->res_rx_domain_err);
-	stats->res_rx_no_perm = le64_to_cpu(sb->res_rx_no_perm);
+	stats->res_rx_yes_perm = le64_to_cpu(sb->res_rx_yes_perm);
 	stats->res_rx_range_err = le64_to_cpu(sb->res_rx_range_err);
 	stats->res_tx_invalid_rkey = le64_to_cpu(sb->res_tx_invalid_rkey);
 	stats->res_tx_domain_err = le64_to_cpu(sb->res_tx_domain_err);
-	stats->res_tx_no_perm = le64_to_cpu(sb->res_tx_no_perm);
+	stats->res_tx_yes_perm = le64_to_cpu(sb->res_tx_yes_perm);
 	stats->res_tx_range_err = le64_to_cpu(sb->res_tx_range_err);
 	stats->res_irrq_oflow = le64_to_cpu(sb->res_irrq_oflow);
 	stats->res_unsup_opcode = le64_to_cpu(sb->res_unsup_opcode);

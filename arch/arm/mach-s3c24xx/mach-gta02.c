@@ -133,7 +133,7 @@ static struct s3c2410_uartcfg gta02_uartcfgs[] = {
  * We use this to recognize that we can pull 1A from the USB socket.
  *
  * These constants are the measured pcf50633 ADC levels with the 1A
- * charger / 48K resistor, and with no pulldown resistor.
+ * charger / 48K resistor, and with yes pulldown resistor.
  */
 
 #define ADC_NOM_CHG_DETECT_1A 6
@@ -149,7 +149,7 @@ gta02_configure_pmu_for_charger(struct pcf50633 *pcf, void *unused, int res)
 	if (res < ((ADC_NOM_CHG_DETECT_USB + ADC_NOM_CHG_DETECT_1A) / 2)) {
 
 		/*
-		 * Sanity - stop GPO driving out now that we have a 1A charger
+		 * Sanity - stop GPO driving out yesw that we have a 1A charger
 		 * GPO controls USB Host power generation on GTA02
 		 */
 		pcf50633_gpio_set(pcf, PCF50633_GPO, 0);
@@ -353,20 +353,20 @@ static struct pcf50633_platform_data gta02_pcf_pdata = {
 #define GTA02_FLASH_BASE	0x18000000 /* GCS3 */
 #define GTA02_FLASH_SIZE	0x200000 /* 2MBytes */
 
-static struct physmap_flash_data gta02_nor_flash_data = {
+static struct physmap_flash_data gta02_yesr_flash_data = {
 	.width		= 2,
 };
 
-static struct resource gta02_nor_flash_resource =
+static struct resource gta02_yesr_flash_resource =
 	DEFINE_RES_MEM(GTA02_FLASH_BASE, GTA02_FLASH_SIZE);
 
-static struct platform_device gta02_nor_flash = {
+static struct platform_device gta02_yesr_flash = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &gta02_nor_flash_data,
+		.platform_data	= &gta02_yesr_flash_data,
 	},
-	.resource	= &gta02_nor_flash_resource,
+	.resource	= &gta02_yesr_flash_resource,
 	.num_resources	= 1,
 };
 
@@ -490,7 +490,7 @@ static struct platform_device *gta02_devices[] __initdata = {
 	&s3c_device_sdi,
 	&s3c_device_usbgadget,
 	&s3c_device_nand,
-	&gta02_nor_flash,
+	&gta02_yesr_flash,
 	&s3c24xx_pwm_device,
 	&s3c_device_iis,
 	&s3c_device_i2c0,

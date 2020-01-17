@@ -7,11 +7,11 @@
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
  * Copyright (c) 2009 Nokia Corporation
- * Roger Quadros <ext-roger.quadros@nokia.com>
+ * Roger Quadros <ext-roger.quadros@yeskia.com>
  *
  * This is useful for systems with mixed controllable and
- * non-controllable regulators, as well as for allowing testing on
- * systems with no controllable regulators.
+ * yesn-controllable regulators, as well as for allowing testing on
+ * systems with yes controllable regulators.
  */
 
 #include <linux/err.h>
@@ -87,7 +87,7 @@ static int reg_clock_is_enabled(struct regulator_dev *rdev)
  * @desc: regulator description
  *
  * Populates fixed_voltage_config structure by extracting data from device
- * tree node, returns a pointer to the populated structure of NULL if memory
+ * tree yesde, returns a pointer to the populated structure of NULL if memory
  * alloc fails.
  */
 static struct fixed_voltage_config *
@@ -95,7 +95,7 @@ of_get_fixed_voltage_config(struct device *dev,
 			    const struct regulator_desc *desc)
 {
 	struct fixed_voltage_config *config;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct regulator_init_data *init_data;
 
 	config = devm_kzalloc(dev, sizeof(struct fixed_voltage_config),
@@ -103,7 +103,7 @@ of_get_fixed_voltage_config(struct device *dev,
 	if (!config)
 		return ERR_PTR(-ENOMEM);
 
-	config->init_data = of_get_regulator_init_data(dev, dev->of_node, desc);
+	config->init_data = of_get_regulator_init_data(dev, dev->of_yesde, desc);
 	if (!config->init_data)
 		return ERR_PTR(-EINVAL);
 
@@ -155,7 +155,7 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	if (!drvdata)
 		return -ENOMEM;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		config = of_get_fixed_voltage_config(&pdev->dev,
 						     &drvdata->desc);
 		if (IS_ERR(config))
@@ -231,7 +231,7 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	gflags |= GPIOD_FLAGS_BIT_NONEXCLUSIVE;
 
 	/*
-	 * Do not use devm* here: the regulator core takes over the
+	 * Do yest use devm* here: the regulator core takes over the
 	 * lifecycle management of the GPIO descriptor.
 	 */
 	cfg.ena_gpiod = gpiod_get_optional(&pdev->dev, NULL, gflags);
@@ -241,7 +241,7 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	cfg.dev = &pdev->dev;
 	cfg.init_data = config->init_data;
 	cfg.driver_data = drvdata;
-	cfg.of_node = pdev->dev.of_node;
+	cfg.of_yesde = pdev->dev.of_yesde;
 
 	drvdata->dev = devm_regulator_register(&pdev->dev, &drvdata->desc,
 					       &cfg);

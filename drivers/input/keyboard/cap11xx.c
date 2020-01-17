@@ -180,7 +180,7 @@ static irqreturn_t cap11xx_thread_func(int irq_num, void *data)
 
 	/*
 	 * Deassert interrupt. This needs to be done before reading the status
-	 * registers, which will not carry valid values otherwise.
+	 * registers, which will yest carry valid values otherwise.
 	 */
 	ret = regmap_update_bits(priv->regmap, CAP11XX_REG_MAIN_CONTROL, 1, 0);
 	if (ret < 0)
@@ -248,9 +248,9 @@ static int cap11xx_led_set(struct led_classdev *cdev,
 static int cap11xx_init_leds(struct device *dev,
 			     struct cap11xx_priv *priv, int num_leds)
 {
-	struct device_node *node = dev->of_node, *child;
+	struct device_yesde *yesde = dev->of_yesde, *child;
 	struct cap11xx_led *led;
-	int cnt = of_get_child_count(node);
+	int cnt = of_get_child_count(yesde);
 	int error;
 
 	if (!num_leds || !cnt)
@@ -277,7 +277,7 @@ static int cap11xx_init_leds(struct device *dev,
 	if (error)
 		return error;
 
-	for_each_child_of_node(node, child) {
+	for_each_child_of_yesde(yesde, child) {
 		u32 reg;
 
 		led->cdev.name =
@@ -291,7 +291,7 @@ static int cap11xx_init_leds(struct device *dev,
 
 		error = of_property_read_u32(child, "reg", &reg);
 		if (error != 0 || reg >= num_leds) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return -EINVAL;
 		}
 
@@ -300,7 +300,7 @@ static int cap11xx_init_leds(struct device *dev,
 
 		error = devm_led_classdev_register(dev, &led->cdev);
 		if (error) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return error;
 		}
 
@@ -323,7 +323,7 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client,
 {
 	struct device *dev = &i2c_client->dev;
 	struct cap11xx_priv *priv;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	const struct cap11xx_hw_model *cap;
 	int i, error, irq, gain = 0;
 	unsigned int val, rev;
@@ -375,16 +375,16 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client,
 		return error;
 
 	dev_info(dev, "CAP11XX detected, revision 0x%02x\n", rev);
-	node = dev->of_node;
+	yesde = dev->of_yesde;
 
-	if (!of_property_read_u32(node, "microchip,sensor-gain", &gain32)) {
+	if (!of_property_read_u32(yesde, "microchip,sensor-gain", &gain32)) {
 		if (is_power_of_2(gain32) && gain32 <= 8)
 			gain = ilog2(gain32);
 		else
 			dev_err(dev, "Invalid sensor-gain value %d\n", gain32);
 	}
 
-	if (of_property_read_bool(node, "microchip,irq-active-high")) {
+	if (of_property_read_bool(yesde, "microchip,irq-active-high")) {
 		error = regmap_update_bits(priv->regmap, CAP11XX_REG_CONFIG2,
 					   CAP11XX_REG_CONFIG2_ALT_POL, 0);
 		if (error)
@@ -395,7 +395,7 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client,
 	for (i = 0; i < cap->num_channels; i++)
 		priv->keycodes[i] = KEY_A + i;
 
-	of_property_read_u32_array(node, "linux,keycodes",
+	of_property_read_u32_array(yesde, "linux,keycodes",
 				   priv->keycodes, cap->num_channels);
 
 	error = regmap_update_bits(priv->regmap, CAP11XX_REG_MAIN_CONTROL,
@@ -417,7 +417,7 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client,
 	priv->idev->id.bustype = BUS_I2C;
 	priv->idev->evbit[0] = BIT_MASK(EV_KEY);
 
-	if (of_property_read_bool(node, "autorepeat"))
+	if (of_property_read_bool(yesde, "autorepeat"))
 		__set_bit(EV_REP, priv->idev->evbit);
 
 	for (i = 0; i < cap->num_channels; i++)
@@ -443,7 +443,7 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client,
 	input_set_drvdata(priv->idev, priv);
 
 	/*
-	 * Put the device in deep sleep mode for now.
+	 * Put the device in deep sleep mode for yesw.
 	 * ->open() will bring it back once the it is actually needed.
 	 */
 	cap11xx_set_sleep(priv, true);
@@ -452,7 +452,7 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client,
 	if (error)
 		return error;
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (!irq) {
 		dev_err(dev, "Unable to parse or map IRQ\n");
 		return -ENXIO;

@@ -6,7 +6,7 @@
 
 #include <linux/completion.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/rpmsg.h>
 #include <linux/remoteproc/qcom_rproc.h>
 
@@ -48,7 +48,7 @@ struct glink_ssr {
 	struct device *dev;
 	struct rpmsg_endpoint *ept;
 
-	struct notifier_block nb;
+	struct yestifier_block nb;
 
 	u32 seq_num;
 	struct completion completion;
@@ -81,7 +81,7 @@ static int qcom_glink_ssr_callback(struct rpmsg_device *rpdev,
 	return 0;
 }
 
-static int qcom_glink_ssr_notify(struct notifier_block *nb, unsigned long event,
+static int qcom_glink_ssr_yestify(struct yestifier_block *nb, unsigned long event,
 				 void *data)
 {
 	struct glink_ssr *ssr = container_of(nb, struct glink_ssr, nb);
@@ -121,18 +121,18 @@ static int qcom_glink_ssr_probe(struct rpmsg_device *rpdev)
 
 	ssr->dev = &rpdev->dev;
 	ssr->ept = rpdev->ept;
-	ssr->nb.notifier_call = qcom_glink_ssr_notify;
+	ssr->nb.yestifier_call = qcom_glink_ssr_yestify;
 
 	dev_set_drvdata(&rpdev->dev, ssr);
 
-	return qcom_register_ssr_notifier(&ssr->nb);
+	return qcom_register_ssr_yestifier(&ssr->nb);
 }
 
 static void qcom_glink_ssr_remove(struct rpmsg_device *rpdev)
 {
 	struct glink_ssr *ssr = dev_get_drvdata(&rpdev->dev);
 
-	qcom_unregister_ssr_notifier(&ssr->nb);
+	qcom_unregister_ssr_yestifier(&ssr->nb);
 }
 
 static const struct rpmsg_device_id qcom_glink_ssr_match[] = {
@@ -152,5 +152,5 @@ static struct rpmsg_driver qcom_glink_ssr_driver = {
 module_rpmsg_driver(qcom_glink_ssr_driver);
 
 MODULE_ALIAS("rpmsg:glink_ssr");
-MODULE_DESCRIPTION("Qualcomm GLINK SSR notifier");
+MODULE_DESCRIPTION("Qualcomm GLINK SSR yestifier");
 MODULE_LICENSE("GPL v2");

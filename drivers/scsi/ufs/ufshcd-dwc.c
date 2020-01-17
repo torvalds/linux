@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * UFS Host driver for Synopsys Designware Core
+ * UFS Host driver for Syyespsys Designware Core
  *
- * Copyright (C) 2015-2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2015-2016 Syyespsys, Inc. (www.syyespsys.com)
  *
- * Authors: Joao Pinto <jpinto@synopsys.com>
+ * Authors: Joao Pinto <jpinto@syyespsys.com>
  */
 
 #include "ufshcd.h"
@@ -17,11 +17,11 @@ int ufshcd_dwc_dme_set_attrs(struct ufs_hba *hba,
 				const struct ufshcd_dme_attr_val *v, int n)
 {
 	int ret = 0;
-	int attr_node = 0;
+	int attr_yesde = 0;
 
-	for (attr_node = 0; attr_node < n; attr_node++) {
-		ret = ufshcd_dme_set_attr(hba, v[attr_node].attr_sel,
-			ATTR_SET_NOR, v[attr_node].mib_val, v[attr_node].peer);
+	for (attr_yesde = 0; attr_yesde < n; attr_yesde++) {
+		ret = ufshcd_dme_set_attr(hba, v[attr_yesde].attr_sel,
+			ATTR_SET_NOR, v[attr_yesde].mib_val, v[attr_yesde].peer);
 
 		if (ret)
 			return ret;
@@ -49,7 +49,7 @@ static void ufshcd_dwc_program_clk_div(struct ufs_hba *hba, u32 divider_val)
  * Check if link is up
  * @hba: private structure pointer
  *
- * Returns 0 on success, non-zero value on failure
+ * Returns 0 on success, yesn-zero value on failure
  */
 static int ufshcd_dwc_link_is_up(struct ufs_hba *hba)
 {
@@ -70,13 +70,13 @@ static int ufshcd_dwc_link_is_up(struct ufs_hba *hba)
  * This function configures both the local side (host) and the peer side
  * (device) unipro attributes to establish the connection to application/
  * cport.
- * This function is not required if the hardware is properly configured to
- * have this connection setup on reset. But invoking this function does no
+ * This function is yest required if the hardware is properly configured to
+ * have this connection setup on reset. But invoking this function does yes
  * harm and should be fine even working with any ufs device.
  *
  * @hba: pointer to drivers private data
  *
- * Returns 0 on success non-zero value on failure
+ * Returns 0 on success yesn-zero value on failure
  */
 static int ufshcd_dwc_connection_setup(struct ufs_hba *hba)
 {
@@ -105,15 +105,15 @@ static int ufshcd_dwc_connection_setup(struct ufs_hba *hba)
 }
 
 /**
- * ufshcd_dwc_link_startup_notify()
+ * ufshcd_dwc_link_startup_yestify()
  * UFS Host DWC specific link startup sequence
  * @hba: private structure pointer
- * @status: Callback notify status
+ * @status: Callback yestify status
  *
- * Returns 0 on success, non-zero value on failure
+ * Returns 0 on success, yesn-zero value on failure
  */
-int ufshcd_dwc_link_startup_notify(struct ufs_hba *hba,
-					enum ufs_notify_change_status status)
+int ufshcd_dwc_link_startup_yestify(struct ufs_hba *hba,
+					enum ufs_yestify_change_status status)
 {
 	int err = 0;
 
@@ -131,7 +131,7 @@ int ufshcd_dwc_link_startup_notify(struct ufs_hba *hba,
 	} else { /* POST_CHANGE */
 		err = ufshcd_dwc_link_is_up(hba);
 		if (err) {
-			dev_err(hba->dev, "Link is not up\n");
+			dev_err(hba->dev, "Link is yest up\n");
 			goto out;
 		}
 
@@ -144,8 +144,8 @@ int ufshcd_dwc_link_startup_notify(struct ufs_hba *hba,
 out:
 	return err;
 }
-EXPORT_SYMBOL(ufshcd_dwc_link_startup_notify);
+EXPORT_SYMBOL(ufshcd_dwc_link_startup_yestify);
 
-MODULE_AUTHOR("Joao Pinto <Joao.Pinto@synopsys.com>");
-MODULE_DESCRIPTION("UFS Host driver for Synopsys Designware Core");
+MODULE_AUTHOR("Joao Pinto <Joao.Pinto@syyespsys.com>");
+MODULE_DESCRIPTION("UFS Host driver for Syyespsys Designware Core");
 MODULE_LICENSE("Dual BSD/GPL");

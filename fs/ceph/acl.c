@@ -16,20 +16,20 @@
 
 #include "super.h"
 
-static inline void ceph_set_cached_acl(struct inode *inode,
+static inline void ceph_set_cached_acl(struct iyesde *iyesde,
 					int type, struct posix_acl *acl)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 
 	spin_lock(&ci->i_ceph_lock);
 	if (__ceph_caps_issued_mask(ci, CEPH_CAP_XATTR_SHARED, 0))
-		set_cached_acl(inode, type, acl);
+		set_cached_acl(iyesde, type, acl);
 	else
-		forget_cached_acl(inode, type);
+		forget_cached_acl(iyesde, type);
 	spin_unlock(&ci->i_ceph_lock);
 }
 
-struct posix_acl *ceph_get_acl(struct inode *inode, int type)
+struct posix_acl *ceph_get_acl(struct iyesde *iyesde, int type)
 {
 	int size;
 	unsigned int retry_cnt = 0;
@@ -49,12 +49,12 @@ struct posix_acl *ceph_get_acl(struct inode *inode, int type)
 	}
 
 retry:
-	size = __ceph_getxattr(inode, name, "", 0);
+	size = __ceph_getxattr(iyesde, name, "", 0);
 	if (size > 0) {
 		value = kzalloc(size, GFP_NOFS);
 		if (!value)
 			return ERR_PTR(-ENOMEM);
-		size = __ceph_getxattr(inode, name, value, size);
+		size = __ceph_getxattr(iyesde, name, value, size);
 	}
 
 	if (size == -ERANGE && retry_cnt < 10) {
@@ -70,28 +70,28 @@ retry:
 		acl = NULL;
 	} else {
 		pr_err_ratelimited("get acl %llx.%llx failed, err=%d\n",
-				   ceph_vinop(inode), size);
+				   ceph_viyesp(iyesde), size);
 		acl = ERR_PTR(-EIO);
 	}
 
 	kfree(value);
 
 	if (!IS_ERR(acl))
-		ceph_set_cached_acl(inode, type, acl);
+		ceph_set_cached_acl(iyesde, type, acl);
 
 	return acl;
 }
 
-int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int ceph_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type)
 {
 	int ret = 0, size = 0;
 	const char *name = NULL;
 	char *value = NULL;
 	struct iattr newattrs;
-	struct timespec64 old_ctime = inode->i_ctime;
-	umode_t new_mode = inode->i_mode, old_mode = inode->i_mode;
+	struct timespec64 old_ctime = iyesde->i_ctime;
+	umode_t new_mode = iyesde->i_mode, old_mode = iyesde->i_mode;
 
-	if (ceph_snap(inode) != CEPH_NOSNAP) {
+	if (ceph_snap(iyesde) != CEPH_NOSNAP) {
 		ret = -EROFS;
 		goto out;
 	}
@@ -100,13 +100,13 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	case ACL_TYPE_ACCESS:
 		name = XATTR_NAME_POSIX_ACL_ACCESS;
 		if (acl) {
-			ret = posix_acl_update_mode(inode, &new_mode, &acl);
+			ret = posix_acl_update_mode(iyesde, &new_mode, &acl);
 			if (ret)
 				goto out;
 		}
 		break;
 	case ACL_TYPE_DEFAULT:
-		if (!S_ISDIR(inode->i_mode)) {
+		if (!S_ISDIR(iyesde->i_mode)) {
 			ret = acl ? -EINVAL : 0;
 			goto out;
 		}
@@ -131,26 +131,26 @@ int ceph_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	}
 
 	if (new_mode != old_mode) {
-		newattrs.ia_ctime = current_time(inode);
+		newattrs.ia_ctime = current_time(iyesde);
 		newattrs.ia_mode = new_mode;
 		newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
-		ret = __ceph_setattr(inode, &newattrs);
+		ret = __ceph_setattr(iyesde, &newattrs);
 		if (ret)
 			goto out_free;
 	}
 
-	ret = __ceph_setxattr(inode, name, value, size, 0);
+	ret = __ceph_setxattr(iyesde, name, value, size, 0);
 	if (ret) {
 		if (new_mode != old_mode) {
 			newattrs.ia_ctime = old_ctime;
 			newattrs.ia_mode = old_mode;
 			newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
-			__ceph_setattr(inode, &newattrs);
+			__ceph_setattr(iyesde, &newattrs);
 		}
 		goto out_free;
 	}
 
-	ceph_set_cached_acl(inode, type, acl);
+	ceph_set_cached_acl(iyesde, type, acl);
 
 out_free:
 	kfree(value);
@@ -158,7 +158,7 @@ out:
 	return ret;
 }
 
-int ceph_pre_init_acls(struct inode *dir, umode_t *mode,
+int ceph_pre_init_acls(struct iyesde *dir, umode_t *mode,
 		       struct ceph_acl_sec_ctx *as_ctx)
 {
 	struct posix_acl *acl, *default_acl;
@@ -248,10 +248,10 @@ out_err:
 	return err;
 }
 
-void ceph_init_inode_acls(struct inode *inode, struct ceph_acl_sec_ctx *as_ctx)
+void ceph_init_iyesde_acls(struct iyesde *iyesde, struct ceph_acl_sec_ctx *as_ctx)
 {
-	if (!inode)
+	if (!iyesde)
 		return;
-	ceph_set_cached_acl(inode, ACL_TYPE_ACCESS, as_ctx->acl);
-	ceph_set_cached_acl(inode, ACL_TYPE_DEFAULT, as_ctx->default_acl);
+	ceph_set_cached_acl(iyesde, ACL_TYPE_ACCESS, as_ctx->acl);
+	ceph_set_cached_acl(iyesde, ACL_TYPE_DEFAULT, as_ctx->default_acl);
 }

@@ -31,7 +31,7 @@ static int hx4700_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	 * IRQ type must be set before soc_pcmcia_hw_init() calls request_irq().
 	 * The asic3 default IRQ type is level trigger low level detect, exactly
 	 * the the signal present on GPIOD4_CF_nCD when a CF card is inserted.
-	 * If the IRQ type is not changed, the asic3 interrupt handler will loop
+	 * If the IRQ type is yest changed, the asic3 interrupt handler will loop
 	 * repeatedly because it is unable to clear the level trigger interrupt.
 	 */
 	irq_set_irq_type(gpio_to_irq(GPIOD4_CF_nCD), IRQ_TYPE_EDGE_BOTH);

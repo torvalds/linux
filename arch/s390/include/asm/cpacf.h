@@ -178,7 +178,7 @@ static __always_inline void __cpacf_query(unsigned int opcode, cpacf_mask_t *mas
 
 	asm volatile(
 		"	spm 0\n" /* pckmo doesn't change the cc */
-		/* Parameter regs are ignored, but must be nonzero and unique */
+		/* Parameter regs are igyesred, but must be yesnzero and unique */
 		"0:	.insn	rrf,%[opc] << 16,2,4,6,0\n"
 		"	brc	1,0b\n"	/* handle partial completion */
 		: "=m" (*mask)
@@ -404,7 +404,7 @@ static inline int cpacf_kmctr(unsigned long func, void *param, u8 *dest,
 }
 
 /**
- * cpacf_prno() - executes the PRNO (PERFORM RANDOM NUMBER OPERATION)
+ * cpacf_pryes() - executes the PRNO (PERFORM RANDOM NUMBER OPERATION)
  *		  instruction
  * @func: the function code passed to PRNO; see CPACF_PRNO_xxx defines
  * @param: address of parameter block; see POP for details on each func
@@ -413,7 +413,7 @@ static inline int cpacf_kmctr(unsigned long func, void *param, u8 *dest,
  * @seed: address of seed data
  * @seed_len: size of seed data in bytes
  */
-static inline void cpacf_prno(unsigned long func, void *param,
+static inline void cpacf_pryes(unsigned long func, void *param,
 			      u8 *dest, unsigned long dest_len,
 			      const u8 *seed, unsigned long seed_len)
 {

@@ -18,15 +18,15 @@
 
 /**
  * of_get_min_tck() - extract min timing values for ddr
- * @np: pointer to ddr device tree node
+ * @np: pointer to ddr device tree yesde
  * @device: device requesting for min timing values
  *
  * Populates the lpddr2_min_tck structure by extracting data
- * from device tree node. Returns a pointer to the populated
+ * from device tree yesde. Returns a pointer to the populated
  * structure. If any error in populating the structure, returns
  * default min timings provided by JEDEC.
  */
-const struct lpddr2_min_tck *of_get_min_tck(struct device_node *np,
+const struct lpddr2_min_tck *of_get_min_tck(struct device_yesde *np,
 		struct device *dev)
 {
 	int			ret = 0;
@@ -61,7 +61,7 @@ default_min_tck:
 }
 EXPORT_SYMBOL(of_get_min_tck);
 
-static int of_do_get_timings(struct device_node *np,
+static int of_do_get_timings(struct device_yesde *np,
 		struct lpddr2_timings *tim)
 {
 	int ret;
@@ -90,24 +90,24 @@ static int of_do_get_timings(struct device_node *np,
 }
 
 /**
- * of_get_ddr_timings() - extracts the ddr timings and updates no of
+ * of_get_ddr_timings() - extracts the ddr timings and updates yes of
  * frequencies available.
- * @np_ddr: Pointer to ddr device tree node
+ * @np_ddr: Pointer to ddr device tree yesde
  * @dev: Device requesting for ddr timings
  * @device_type: Type of ddr(LPDDR2 S2/S4)
  * @nr_frequencies: No of frequencies available for ddr
  * (updated by this function)
  *
  * Populates lpddr2_timings structure by extracting data from device
- * tree node. Returns pointer to populated structure. If any error
+ * tree yesde. Returns pointer to populated structure. If any error
  * while populating, returns default timings provided by JEDEC.
  */
-const struct lpddr2_timings *of_get_ddr_timings(struct device_node *np_ddr,
+const struct lpddr2_timings *of_get_ddr_timings(struct device_yesde *np_ddr,
 		struct device *dev, u32 device_type, u32 *nr_frequencies)
 {
 	struct lpddr2_timings	*timings = NULL;
 	u32			arr_sz = 0, i = 0;
-	struct device_node	*np_tim;
+	struct device_yesde	*np_tim;
 	char			*tim_compat = NULL;
 
 	switch (device_type) {
@@ -119,7 +119,7 @@ const struct lpddr2_timings *of_get_ddr_timings(struct device_node *np_ddr,
 		dev_warn(dev, "%s: un-supported memory type\n", __func__);
 	}
 
-	for_each_child_of_node(np_ddr, np_tim)
+	for_each_child_of_yesde(np_ddr, np_tim)
 		if (of_device_is_compatible(np_tim, tim_compat))
 			arr_sz++;
 
@@ -130,7 +130,7 @@ const struct lpddr2_timings *of_get_ddr_timings(struct device_node *np_ddr,
 	if (!timings)
 		goto default_timings;
 
-	for_each_child_of_node(np_ddr, np_tim) {
+	for_each_child_of_yesde(np_ddr, np_tim) {
 		if (of_device_is_compatible(np_tim, tim_compat)) {
 			if (of_do_get_timings(np_tim, &timings[i])) {
 				devm_kfree(dev, timings);
@@ -153,14 +153,14 @@ EXPORT_SYMBOL(of_get_ddr_timings);
 
 /**
  * of_lpddr3_get_min_tck() - extract min timing values for lpddr3
- * @np: pointer to ddr device tree node
+ * @np: pointer to ddr device tree yesde
  * @device: device requesting for min timing values
  *
  * Populates the lpddr3_min_tck structure by extracting data
- * from device tree node. Returns a pointer to the populated
+ * from device tree yesde. Returns a pointer to the populated
  * structure. If any error in populating the structure, returns NULL.
  */
-const struct lpddr3_min_tck *of_lpddr3_get_min_tck(struct device_node *np,
+const struct lpddr3_min_tck *of_lpddr3_get_min_tck(struct device_yesde *np,
 						   struct device *dev)
 {
 	int			ret = 0;
@@ -207,7 +207,7 @@ default_min_tck:
 }
 EXPORT_SYMBOL(of_lpddr3_get_min_tck);
 
-static int of_lpddr3_do_get_timings(struct device_node *np,
+static int of_lpddr3_do_get_timings(struct device_yesde *np,
 				    struct lpddr3_timings *tim)
 {
 	int ret;
@@ -238,25 +238,25 @@ static int of_lpddr3_do_get_timings(struct device_node *np,
 }
 
 /**
- * of_lpddr3_get_ddr_timings() - extracts the lpddr3 timings and updates no of
+ * of_lpddr3_get_ddr_timings() - extracts the lpddr3 timings and updates yes of
  * frequencies available.
- * @np_ddr: Pointer to ddr device tree node
+ * @np_ddr: Pointer to ddr device tree yesde
  * @dev: Device requesting for ddr timings
  * @device_type: Type of ddr
  * @nr_frequencies: No of frequencies available for ddr
  * (updated by this function)
  *
  * Populates lpddr3_timings structure by extracting data from device
- * tree node. Returns pointer to populated structure. If any error
+ * tree yesde. Returns pointer to populated structure. If any error
  * while populating, returns NULL.
  */
 const struct lpddr3_timings
-*of_lpddr3_get_ddr_timings(struct device_node *np_ddr, struct device *dev,
+*of_lpddr3_get_ddr_timings(struct device_yesde *np_ddr, struct device *dev,
 			   u32 device_type, u32 *nr_frequencies)
 {
 	struct lpddr3_timings	*timings = NULL;
 	u32			arr_sz = 0, i = 0;
-	struct device_node	*np_tim;
+	struct device_yesde	*np_tim;
 	char			*tim_compat = NULL;
 
 	switch (device_type) {
@@ -267,7 +267,7 @@ const struct lpddr3_timings
 		dev_warn(dev, "%s: un-supported memory type\n", __func__);
 	}
 
-	for_each_child_of_node(np_ddr, np_tim)
+	for_each_child_of_yesde(np_ddr, np_tim)
 		if (of_device_is_compatible(np_tim, tim_compat))
 			arr_sz++;
 
@@ -278,7 +278,7 @@ const struct lpddr3_timings
 	if (!timings)
 		goto default_timings;
 
-	for_each_child_of_node(np_ddr, np_tim) {
+	for_each_child_of_yesde(np_ddr, np_tim) {
 		if (of_device_is_compatible(np_tim, tim_compat)) {
 			if (of_lpddr3_do_get_timings(np_tim, &timings[i])) {
 				devm_kfree(dev, timings);

@@ -11,7 +11,7 @@ If you are adding new ioctl's to the kernel, you should use the _IO
 macros defined in <linux/ioctl.h>:
 
     ====== == ============================================
-    _IO    an ioctl with no parameters
+    _IO    an ioctl with yes parameters
     _IOW   an ioctl with write parameters (copy_from_user)
     _IOR   an ioctl with read parameters  (copy_to_user)
     _IOWR  an ioctl with both write and read parameters.
@@ -28,7 +28,7 @@ or number from the table below.  Because of the large number of drivers,
 many drivers share a partial letter with other drivers.
 
 If you are writing a driver for a new device and need a letter, pick an
-unused block with enough room for expansion: 32 to 256 ioctl commands.
+unused block with eyesugh room for expansion: 32 to 256 ioctl commands.
 You can register the block by patching this file and submitting the
 patch to Linus Torvalds.  Or you can e-mail me at <mec@shout.net> and
 I'll register one for you.
@@ -63,8 +63,8 @@ Following this convention is good because:
     code to copy the parameters between user and kernel space.
 
 This table lists ioctls visible from user land for Linux/x86.  It contains
-most drivers up to 2.6.31, but I know I am missing some.  There has been
-no attempt to list non-X86 architectures or ioctls from drivers/staging/.
+most drivers up to 2.6.31, but I kyesw I am missing some.  There has been
+yes attempt to list yesn-X86 architectures or ioctls from drivers/staging/.
 
 ====  =====  ======================================================= ================================================================
 Code  Seq#    Include File                                           Comments
@@ -94,7 +94,7 @@ Code  Seq#    Include File                                           Comments
 '$'   00-0F  linux/perf_counter.h, linux/perf_event.h
 '%'   00-0F  include/uapi/linux/stm.h                                System Trace Module subsystem
                                                                      <mailto:alexander.shishkin@linux.intel.com>
-'&'   00-07  drivers/firewire/nosy-user.h
+'&'   00-07  drivers/firewire/yessy-user.h
 '1'   00-1F  linux/timepps.h                                         PPS kit from Ulrich Windl
                                                                      <ftp://ftp.de.kernel.org/pub/linux/daemons/ntp/PPS/>
 '2'   01-04  linux/i2o.h
@@ -229,7 +229,7 @@ Code  Seq#    Include File                                           Comments
 'e'   all    linux/digi1.h                                           conflict!
 'f'   00-1F  linux/ext2_fs.h                                         conflict!
 'f'   00-1F  linux/ext3_fs.h                                         conflict!
-'f'   00-0F  fs/jfs/jfs_dinode.h                                     conflict!
+'f'   00-0F  fs/jfs/jfs_diyesde.h                                     conflict!
 'f'   00-0F  fs/ext4/ext4.h                                          conflict!
 'f'   00-0F  linux/fs.h                                              conflict!
 'f'   00-0F  fs/ocfs2/ocfs2_fs.h                                     conflict!
@@ -249,7 +249,7 @@ Code  Seq#    Include File                                           Comments
 'k'   00-05  video/kyro.h                                            conflict!
 'k'   10-17  linux/hsi/hsi_char.h                                    HSI character device
 'l'   00-3F  linux/tcfs_fs.h                                         transparent cryptographic file system
-                                                                     <http://web.archive.org/web/%2A/http://mikonos.dia.unisa.it/tcfs>
+                                                                     <http://web.archive.org/web/%2A/http://mikoyess.dia.unisa.it/tcfs>
 'l'   40-7F  linux/udf_fs_i.h                                        in development:
                                                                      <http://sourceforge.net/projects/linux-udf/>
 'm'   00-09  linux/mmtimer.h                                         conflict!
@@ -357,7 +357,7 @@ Code  Seq#    Include File                                           Comments
 0xF4  00-1F  video/mbxfb.h                                           mbxfb
                                                                      <mailto:raph@8d.com>
 0xF6  all                                                            LTTng Linux Trace Toolkit Next Generation
-                                                                     <mailto:mathieu.desnoyers@efficios.com>
+                                                                     <mailto:mathieu.desyesyers@efficios.com>
 0xFD  all    linux/dm-ioctl.h
 0xFE  all    linux/isst_if.h
 ====  =====  ======================================================= ================================================================

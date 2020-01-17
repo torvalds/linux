@@ -65,10 +65,10 @@ ENTRY(puv3_cpu_suspend)
 	@ clean data cache
 	mov	r1, #0
 	movc	p0.c5, r1, #14
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
 
 
 
@@ -171,13 +171,13 @@ ENTRY(puv3_cpu_resume)
 	movc	p0.c7, r3, #0			@ PID
 	movc	p0.c2, r4, #0			@ translation table base addr
 	movc	p0.c1, r5, #0			@ control reg, turn on mmu
-	nop
+	yesp
 	jump	r2
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 sleep_save_sp:
 	.word	0				@ preserve stack phys ptr here

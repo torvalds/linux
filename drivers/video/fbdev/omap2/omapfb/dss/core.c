@@ -3,7 +3,7 @@
  * linux/drivers/video/omap2/dss/core.c
  *
  * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@yeskia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -129,9 +129,9 @@ void dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
 #endif /* CONFIG_FB_OMAP2_DSS_DEBUGFS */
 
 /* PLATFORM DEVICE */
-static int omap_dss_pm_notif(struct notifier_block *b, unsigned long v, void *d)
+static int omap_dss_pm_yestif(struct yestifier_block *b, unsigned long v, void *d)
 {
-	DSSDBG("pm notif %lu\n", v);
+	DSSDBG("pm yestif %lu\n", v);
 
 	switch (v) {
 	case PM_SUSPEND_PREPARE:
@@ -151,8 +151,8 @@ static int omap_dss_pm_notif(struct notifier_block *b, unsigned long v, void *d)
 	}
 }
 
-static struct notifier_block omap_dss_pm_notif_block = {
-	.notifier_call = omap_dss_pm_notif,
+static struct yestifier_block omap_dss_pm_yestif_block = {
+	.yestifier_call = omap_dss_pm_yestif,
 };
 
 static int __init omap_dss_probe(struct platform_device *pdev)
@@ -166,14 +166,14 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 	if (def_disp_name)
 		core.default_display_name = def_disp_name;
 
-	register_pm_notifier(&omap_dss_pm_notif_block);
+	register_pm_yestifier(&omap_dss_pm_yestif_block);
 
 	return 0;
 }
 
 static int omap_dss_remove(struct platform_device *pdev)
 {
-	unregister_pm_notifier(&omap_dss_pm_notif_block);
+	unregister_pm_yestifier(&omap_dss_pm_yestif_block);
 
 	dss_uninitialize_debugfs();
 
@@ -282,7 +282,7 @@ static void __exit omap_dss_exit(void)
 module_init(omap_dss_init);
 module_exit(omap_dss_exit);
 
-MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@nokia.com>");
+MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@yeskia.com>");
 MODULE_DESCRIPTION("OMAP2/3 Display Subsystem");
 MODULE_LICENSE("GPL v2");
 

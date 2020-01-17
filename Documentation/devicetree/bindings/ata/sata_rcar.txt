@@ -16,7 +16,7 @@ Required properties:
 			     RZ/G2 compatible device
 			  - "renesas,rcar-sata" is deprecated
 
-			  When compatible with the generic version nodes
+			  When compatible with the generic version yesdes
 			  must list the SoC-specific version corresponding
 			  to the platform first followed by the generic
 			  version.

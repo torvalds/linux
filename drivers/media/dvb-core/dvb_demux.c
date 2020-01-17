@@ -82,7 +82,7 @@ static inline u16 ts_pid(const u8 *buf)
 
 static inline u8 payload(const u8 *tsp)
 {
-	if (!(tsp[3] & 0x10))	// no payload?
+	if (!(tsp[3] & 0x10))	// yes payload?
 		return 0;
 
 	if (tsp[3] & 0x20) {	// adaptation field?
@@ -153,7 +153,7 @@ static int dvb_dmx_swfilter_sectionfilter(struct dvb_demux_feed *feed,
 		if (f->maskandmode[i] & xor)
 			return 0;
 
-		neq |= f->maskandnotmode[i] & xor;
+		neq |= f->maskandyestmode[i] & xor;
 	}
 
 	if (f->doneq && !neq)
@@ -223,13 +223,13 @@ static void dvb_dmx_swfilter_section_new(struct dvb_demux_feed *feed)
 /*
  * Losless Section Demux 1.4.1 by Emard
  * Valsecchi Patrick:
- *  - middle of section A  (no PUSI)
+ *  - middle of section A  (yes PUSI)
  *  - end of section A and start of section B
  *    (with PUSI pointing to the start of the second section)
  *
  *  In this case, without feed->pusi_seen you'll receive a garbage section
  *  consisting of the end of section A. Basically because tsfeedp
- *  is incemented and the use=0 condition is not raised
+ *  is incemented and the use=0 condition is yest raised
  *  when the second packet arrives.
  *
  * Fix:
@@ -285,7 +285,7 @@ static int dvb_dmx_swfilter_section_copy_dump(struct dvb_demux_feed *feed,
 		} else {
 			set_buf_flags(feed,
 				      DMX_BUFFER_FLAG_DISCONTINUITY_DETECTED);
-			dprintk_sect_loss("pusi not seen, discarding section data\n");
+			dprintk_sect_loss("pusi yest seen, discarding section data\n");
 		}
 		sec->secbufp += seclen;	/* secbufp and secbuf moving together is */
 		sec->secbuf += seclen;	/* redundant but saves pointer arithmetic */
@@ -303,7 +303,7 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed,
 
 	count = payload(buf);
 
-	if (count == 0)		/* count == 0 if no payload or out of range */
+	if (count == 0)		/* count == 0 if yes payload or out of range */
 		return -1;
 
 	p = 188 - count;	/* payload start */
@@ -368,7 +368,7 @@ static int dvb_dmx_swfilter_section_packet(struct dvb_demux_feed *feed,
 			dprintk_sect_loss("PUSI=1 but %d bytes lost\n", count);
 		}
 	} else {
-		/* PUSI=0 (is not set), no section boundary */
+		/* PUSI=0 (is yest set), yes section boundary */
 		dvb_dmx_swfilter_section_copy_dump(feed, &buf[p], count);
 	}
 
@@ -553,7 +553,7 @@ static inline void _dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf,
 
 	spin_lock_irqsave(&demux->lock, flags);
 
-	if (demux->tsbufp) { /* tsbuf[0] is now 0x47. */
+	if (demux->tsbufp) { /* tsbuf[0] is yesw 0x47. */
 		i = demux->tsbufp;
 		j = pktsize - i;
 		if (count < j) {
@@ -684,7 +684,7 @@ static void dvb_demux_feed_del(struct dvb_demux_feed *feed)
 {
 	spin_lock_irq(&feed->demux->lock);
 	if (!(dvb_demux_feed_find(feed))) {
-		pr_err("%s: feed not in list (type=%x state=%x pid=%x)\n",
+		pr_err("%s: feed yest in list (type=%x state=%x pid=%x)\n",
 		       __func__, feed->type, feed->state, feed->pid);
 		goto out;
 	}
@@ -942,7 +942,7 @@ static void prepare_secfilters(struct dvb_demux_feed *dvbdmxfeed)
 			mode = sf->filter_mode[i];
 			mask = sf->filter_mask[i];
 			f->maskandmode[i] = mask & mode;
-			doneq |= f->maskandnotmode[i] = mask & ~mode;
+			doneq |= f->maskandyestmode[i] = mask & ~mode;
 		}
 		f->doneq = doneq ? true : false;
 	} while ((f = f->next));

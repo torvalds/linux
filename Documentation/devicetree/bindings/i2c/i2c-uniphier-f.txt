@@ -10,7 +10,7 @@ Required properties:
 
 Optional properties:
 - clock-frequency: desired I2C bus frequency in Hz.  The maximum supported
-  value is 400000.  Defaults to 100000 if not specified.
+  value is 400000.  Defaults to 100000 if yest specified.
 
 Examples:
 

@@ -121,7 +121,7 @@ static void __init sun3_bootmem_alloc(unsigned long memory_start,
 	high_memory = (void *)memory_end;
 	availmem = memory_start;
 
-	m68k_setup_node(0);
+	m68k_setup_yesde(0);
 }
 
 

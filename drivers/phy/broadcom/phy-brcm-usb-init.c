@@ -490,7 +490,7 @@ static void brcmusb_usb_mdio_write(void __iomem *ctrl_base, u32 reg,
 static void brcmusb_usb_phy_ldo_fix(void __iomem *ctrl_base)
 {
 	/* first disable FSM but also leave it that way */
-	/* to allow normal suspend/resume */
+	/* to allow yesrmal suspend/resume */
 	USB_CTRL_UNSET(ctrl_base, UTMI_CTL_1, POWER_UP_FSM_EN);
 	USB_CTRL_UNSET(ctrl_base, UTMI_CTL_1, POWER_UP_FSM_EN_P1);
 
@@ -499,7 +499,7 @@ static void brcmusb_usb_phy_ldo_fix(void __iomem *ctrl_base)
 	/* PLL reset period */
 	udelay(1);
 	USB_CTRL_SET(ctrl_base, PLL_CTL, PLL_RESETB);
-	/* Give PLL enough time to lock */
+	/* Give PLL eyesugh time to lock */
 	usleep_range(1000, 2000);
 }
 
@@ -638,7 +638,7 @@ static void brcmusb_usb3_pll_54mhz(struct brcm_usb_init_params *params)
 
 	/* restart PLL sequence */
 	USB_CTRL_SET(ctrl_base, USB30_CTL1, PHY3_PLL_SEQ_START);
-	/* Give PLL enough time to lock */
+	/* Give PLL eyesugh time to lock */
 	usleep_range(1000, 2000);
 }
 
@@ -683,7 +683,7 @@ static void brcmusb_memc_fix(struct brcm_usb_init_params *params)
 	 * This is a workaround for HW7445-1869 where a DMA write ends up
 	 * doing a read pre-fetch after the end of the DMA buffer. This
 	 * causes a problem when the DMA buffer is at the end of physical
-	 * memory, causing the pre-fetch read to access non-existent memory,
+	 * memory, causing the pre-fetch read to access yesn-existent memory,
 	 * and the chip bondout has MEMC2 disabled. When the pre-fetch read
 	 * tries to use the disabled MEMC2, it hangs the bus. The workaround
 	 * is to disable MEMC2 access in the usb controller which avoids
@@ -745,23 +745,23 @@ static void brcmusb_xhci_soft_reset(struct brcm_usb_init_params *params,
  *   - exact match of chip and major rev
  *   - exact match of chip and closest older major rev
  *   - default chip/rev.
- * NOTE: The minor rev is always ignored.
+ * NOTE: The miyesr rev is always igyesred.
  */
 static enum brcm_family_type brcmusb_get_family_type(
 	struct brcm_usb_init_params *params)
 {
 	int last_type = -1;
 	u32 last_family = 0;
-	u32 family_no_major;
+	u32 family_yes_major;
 	unsigned int x;
 	u32 family;
 
 	family = params->family_id & 0xfffffff0;
-	family_no_major = params->family_id & 0xffffff00;
+	family_yes_major = params->family_id & 0xffffff00;
 	for (x = 0; id_to_type_table[x].id; x++) {
 		if (family == id_to_type_table[x].id)
 			return id_to_type_table[x].type;
-		if (family_no_major == (id_to_type_table[x].id & 0xffffff00))
+		if (family_yes_major == (id_to_type_table[x].id & 0xffffff00))
 			if (family > id_to_type_table[x].id &&
 			    last_family < id_to_type_table[x].id) {
 				last_family = id_to_type_table[x].id;
@@ -769,7 +769,7 @@ static enum brcm_family_type brcmusb_get_family_type(
 			}
 	}
 
-	/* If no match, return the default family */
+	/* If yes match, return the default family */
 	if (last_type == -1)
 		return id_to_type_table[x].type;
 	return last_type;
@@ -781,7 +781,7 @@ void brcm_usb_init_ipp(struct brcm_usb_init_params *params)
 	u32 reg;
 	u32 orig_reg;
 
-	/* Starting with the 7445d0, there are no longer separate 3.0
+	/* Starting with the 7445d0, there are yes longer separate 3.0
 	 * versions of IOC and IPP.
 	 */
 	if (USB_CTRL_MASK_FAMILY(params, USB30_CTL1, USB3_IOC)) {
@@ -813,7 +813,7 @@ void brcm_usb_init_ipp(struct brcm_usb_init_params *params)
 	brcmusb_writel(reg, USB_CTRL_REG(ctrl, SETUP));
 
 	/*
-	 * If we're changing IPP, make sure power is off long enough
+	 * If we're changing IPP, make sure power is off long eyesugh
 	 * to turn off any connected devices.
 	 */
 	if (reg != orig_reg)
@@ -869,8 +869,8 @@ void brcm_usb_init_common(struct brcm_usb_init_params *params)
 	if (params->selected_family != BRCM_FAMILY_74371A0 &&
 	    (BRCM_ID(params->family_id) != 0x7364))
 		/*
-		 * HW7439-637: 7439a0 and its derivatives do not have large
-		 * enough descriptor storage for this.
+		 * HW7439-637: 7439a0 and its derivatives do yest have large
+		 * eyesugh descriptor storage for this.
 		 */
 		USB_CTRL_SET_FAMILY(params, SETUP, SS_EHCI64BIT_EN);
 

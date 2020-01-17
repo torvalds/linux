@@ -49,7 +49,7 @@
 #define DS2438_CURRENT_MSB		0x06
 #define DS2438_THRESHOLD		0x07
 
-static int w1_ds2438_get_page(struct w1_slave *sl, int pageno, u8 *buf)
+static int w1_ds2438_get_page(struct w1_slave *sl, int pageyes, u8 *buf)
 {
 	unsigned int retries = W1_DS2438_RETRIES;
 	u8 w1_buf[2];
@@ -310,7 +310,7 @@ static ssize_t page0_read(struct file *filp, struct kobject *kobj,
 
 	mutex_lock(&sl->master->bus_mutex);
 
-	/* Read no more than page0 size */
+	/* Read yes more than page0 size */
 	if (count > DS2438_PAGE_SIZE)
 		count = DS2438_PAGE_SIZE;
 

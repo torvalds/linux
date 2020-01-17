@@ -83,7 +83,7 @@ static u32 ocotp_words[OCOTP_WORD_COUNT];
 
 static const u32 *mxs_get_ocotp(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *ocotp_base;
 	int timeout = 0x400;
 	size_t i;
@@ -92,7 +92,7 @@ static const u32 *mxs_get_ocotp(void)
 	if (once)
 		return ocotp_words;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,ocotp");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,ocotp");
 	ocotp_base = of_iomap(np, 0);
 	WARN_ON(!ocotp_base);
 
@@ -157,7 +157,7 @@ enum mac_oui {
 
 static void __init update_fec_mac_prop(enum mac_oui oui)
 {
-	struct device_node *np, *from = NULL;
+	struct device_yesde *np, *from = NULL;
 	struct property *newmac;
 	const u32 *ocotp = mxs_get_ocotp();
 	u8 *macaddr;
@@ -165,7 +165,7 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 	int i;
 
 	for (i = 0; i < 2; i++) {
-		np = of_find_compatible_node(from, NULL, "fsl,imx28-fec");
+		np = of_find_compatible_yesde(from, NULL, "fsl,imx28-fec");
 		if (!np)
 			return;
 
@@ -279,10 +279,10 @@ static void __init m28cu3_init(void)
 
 static const char __init *mxs_get_soc_id(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *digctl_base;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-digctl");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx23-digctl");
 	digctl_base = of_iomap(np, 0);
 	WARN_ON(!digctl_base);
 
@@ -290,7 +290,7 @@ static const char __init *mxs_get_soc_id(void)
 	socid = chipid & HW_DIGCTL_CHIPID_MASK;
 
 	iounmap(digctl_base);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	switch (socid) {
 	case HW_DIGCTL_CHIPID_MX23:
@@ -298,7 +298,7 @@ static const char __init *mxs_get_soc_id(void)
 	case HW_DIGCTL_CHIPID_MX28:
 		return "i.MX28";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -344,7 +344,7 @@ static const char __init *mxs_get_revision(void)
 		return kasprintf(GFP_KERNEL, "%d.%d", (rev >> 4) & 0xf,
 				rev & 0xf);
 	else
-		return kasprintf(GFP_KERNEL, "%s", "Unknown");
+		return kasprintf(GFP_KERNEL, "%s", "Unkyeswn");
 }
 
 #define MX23_CLKCTRL_RESET_OFFSET	0x120
@@ -352,9 +352,9 @@ static const char __init *mxs_get_revision(void)
 
 static int __init mxs_restart_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,clkctrl");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,clkctrl");
 	reset_addr = of_iomap(np, 0);
 	if (!reset_addr)
 		return -ENODEV;
@@ -363,7 +363,7 @@ static int __init mxs_restart_init(void)
 		reset_addr += MX23_CLKCTRL_RESET_OFFSET;
 	else
 		reset_addr += MX28_CLKCTRL_RESET_OFFSET;
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return 0;
 }
@@ -375,7 +375,7 @@ static void __init eukrea_mbmx283lc_init(void)
 
 static void __init mxs_machine_init(void)
 {
-	struct device_node *root;
+	struct device_yesde *root;
 	struct device *parent;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
@@ -385,7 +385,7 @@ static void __init mxs_machine_init(void)
 	if (!soc_dev_attr)
 		return;
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	ret = of_property_read_string(root, "model", &soc_dev_attr->machine);
 	if (ret)
 		return;

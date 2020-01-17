@@ -111,7 +111,7 @@ enum rockchip_pin_pull_type {
  *	    an initial offset value the relevant source offset can be reset
  *	    to a new value for autocalculating the following drive strength
  *	    registers. if used chips own cal_drv func instead to calculate
- *	    registers offset, the variant could be ignored.
+ *	    registers offset, the variant could be igyesred.
  */
 struct rockchip_drv {
 	enum rockchip_pin_drv_type	drv_type;
@@ -132,7 +132,7 @@ struct rockchip_drv {
  * @drv: array describing the 4 drive strength sources of the bank
  * @pull_type: array describing the 4 pull type sources of the bank
  * @valid: is all necessary information present
- * @of_node: dt node of this bank
+ * @of_yesde: dt yesde of this bank
  * @drvdata: common pinctrl basedata
  * @domain: irqdomain of the gpio bank
  * @gpio_chip: gpiolib chip
@@ -154,7 +154,7 @@ struct rockchip_pin_bank {
 	struct rockchip_drv		drv[4];
 	enum rockchip_pin_pull_type	pull_type[4];
 	bool				valid;
-	struct device_node		*of_node;
+	struct device_yesde		*of_yesde;
 	struct rockchip_pinctrl		*drvdata;
 	struct irq_domain		*domain;
 	struct gpio_chip		gpio_chip;
@@ -485,24 +485,24 @@ static int rockchip_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int rockchip_dt_node_to_map(struct pinctrl_dev *pctldev,
-				 struct device_node *np,
+static int rockchip_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+				 struct device_yesde *np,
 				 struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	const struct rockchip_pin_group *grp;
 	struct pinctrl_map *new_map;
-	struct device_node *parent;
+	struct device_yesde *parent;
 	int map_num = 1;
 	int i;
 
 	/*
-	 * first find the group of this node and check if we need to create
+	 * first find the group of this yesde and check if we need to create
 	 * config maps for pins
 	 */
 	grp = pinctrl_name_to_group(info, np->name);
 	if (!grp) {
-		dev_err(info->dev, "unable to find group for node %pOFn\n",
+		dev_err(info->dev, "unable to find group for yesde %pOFn\n",
 			np);
 		return -EINVAL;
 	}
@@ -525,7 +525,7 @@ static int rockchip_dt_node_to_map(struct pinctrl_dev *pctldev,
 	new_map[0].type = PIN_MAP_TYPE_MUX_GROUP;
 	new_map[0].data.mux.function = parent->name;
 	new_map[0].data.mux.group = np->name;
-	of_node_put(parent);
+	of_yesde_put(parent);
 
 	/* create config map */
 	new_map++;
@@ -552,7 +552,7 @@ static const struct pinctrl_ops rockchip_pctrl_ops = {
 	.get_groups_count	= rockchip_get_groups_count,
 	.get_group_name		= rockchip_get_group_name,
 	.get_group_pins		= rockchip_get_group_pins,
-	.dt_node_to_map		= rockchip_dt_node_to_map,
+	.dt_yesde_to_map		= rockchip_dt_yesde_to_map,
 	.dt_free_map		= rockchip_dt_free_map,
 };
 
@@ -912,7 +912,7 @@ static struct rockchip_mux_route_data rk3128_mux_route_data[] = {
 
 static struct rockchip_mux_route_data rk3188_mux_route_data[] = {
 	{
-		/* non-iomuxed emmc/flash pins on flash-dqs */
+		/* yesn-iomuxed emmc/flash pins on flash-dqs */
 		.bank_num = 0,
 		.pin = 24,
 		.func = 1,
@@ -920,7 +920,7 @@ static struct rockchip_mux_route_data rk3188_mux_route_data[] = {
 		.route_offset = 0xa0,
 		.route_val = BIT(16 + 11),
 	}, {
-		/* non-iomuxed emmc/flash pins on emmc-clk */
+		/* yesn-iomuxed emmc/flash pins on emmc-clk */
 		.bank_num = 0,
 		.pin = 24,
 		.func = 2,
@@ -1062,14 +1062,14 @@ static struct rockchip_mux_route_data rk3228_mux_route_data[] = {
 
 static struct rockchip_mux_route_data rk3288_mux_route_data[] = {
 	{
-		/* edphdmi_cecinoutt1 */
+		/* edphdmi_ceciyesutt1 */
 		.bank_num = 7,
 		.pin = 16,
 		.func = 2,
 		.route_offset = 0x264,
 		.route_val = BIT(16 + 12) | BIT(12),
 	}, {
-		/* edphdmi_cecinout */
+		/* edphdmi_ceciyesut */
 		.bank_num = 7,
 		.pin = 23,
 		.func = 4,
@@ -1496,7 +1496,7 @@ static int rockchip_verify_mux(struct rockchip_pin_bank *bank,
  * Set a new mux function for a pin.
  *
  * The register is divided into the upper and lower 16 bit. When changing
- * a value, the previous register value is not read and changed. Instead
+ * a value, the previous register value is yest read and changed. Instead
  * it seems the changed bits are marked in the upper 16 bit, while the
  * changed value gets set in the same offset in the lower 16 bit.
  * All pin settings seem to be 2 bit wide in both the upper and lower
@@ -2126,7 +2126,7 @@ static int rockchip_get_drive_perpin(struct rockchip_pin_bank *bank,
 		rmask_bits = RK3399_DRV_3BITS_PER_PIN;
 		switch (bit) {
 		case 0 ... 12:
-			/* regular case, nothing to do */
+			/* regular case, yesthing to do */
 			break;
 		case 15:
 			/*
@@ -2223,7 +2223,7 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		rmask_bits = RK3399_DRV_3BITS_PER_PIN;
 		switch (bit) {
 		case 0 ... 12:
-			/* regular case, nothing to do */
+			/* regular case, yesthing to do */
 			break;
 		case 15:
 			/*
@@ -2800,12 +2800,12 @@ static const struct of_device_id rockchip_bank_match[] = {
 };
 
 static void rockchip_pinctrl_child_count(struct rockchip_pinctrl *info,
-						struct device_node *np)
+						struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 
-	for_each_child_of_node(np, child) {
-		if (of_match_node(rockchip_bank_match, child))
+	for_each_child_of_yesde(np, child) {
+		if (of_match_yesde(rockchip_bank_match, child))
 			continue;
 
 		info->nfunctions++;
@@ -2813,7 +2813,7 @@ static void rockchip_pinctrl_child_count(struct rockchip_pinctrl *info,
 	}
 }
 
-static int rockchip_pinctrl_parse_groups(struct device_node *np,
+static int rockchip_pinctrl_parse_groups(struct device_yesde *np,
 					      struct rockchip_pin_group *grp,
 					      struct rockchip_pinctrl *info,
 					      u32 index)
@@ -2835,7 +2835,7 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 	 * do sanity check and calculate pins number
 	 */
 	list = of_get_property(np, "rockchip,pins", &size);
-	/* we do not check return since it's safe node passed down */
+	/* we do yest check return since it's safe yesde passed down */
 	size /= sizeof(*list);
 	if (!size || size % 4) {
 		dev_err(info->dev, "wrong pins number or pins and configs should be by 4\n");
@@ -2855,7 +2855,7 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 
 	for (i = 0, j = 0; i < size; i += 4, j++) {
 		const __be32 *phandle;
-		struct device_node *np_config;
+		struct device_yesde *np_config;
 
 		num = be32_to_cpu(*list++);
 		bank = bank_num_to_bank(info, num);
@@ -2869,7 +2869,7 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 		if (!phandle)
 			return -EINVAL;
 
-		np_config = of_find_node_by_phandle(be32_to_cpup(phandle));
+		np_config = of_find_yesde_by_phandle(be32_to_cpup(phandle));
 		ret = pinconf_generic_parse_dt_config(np_config, NULL,
 				&grp->data[j].configs, &grp->data[j].nconfigs);
 		if (ret)
@@ -2879,11 +2879,11 @@ static int rockchip_pinctrl_parse_groups(struct device_node *np,
 	return 0;
 }
 
-static int rockchip_pinctrl_parse_functions(struct device_node *np,
+static int rockchip_pinctrl_parse_functions(struct device_yesde *np,
 						struct rockchip_pinctrl *info,
 						u32 index)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	struct rockchip_pmx_func *func;
 	struct rockchip_pin_group *grp;
 	int ret;
@@ -2905,12 +2905,12 @@ static int rockchip_pinctrl_parse_functions(struct device_node *np,
 	if (!func->groups)
 		return -ENOMEM;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		func->groups[i] = child->name;
 		grp = &info->groups[grp_index++];
 		ret = rockchip_pinctrl_parse_groups(child, grp, info, i++);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 	}
@@ -2922,8 +2922,8 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
 					      struct rockchip_pinctrl *info)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *child;
 	int ret;
 	int i;
 
@@ -2948,14 +2948,14 @@ static int rockchip_pinctrl_parse_dt(struct platform_device *pdev,
 
 	i = 0;
 
-	for_each_child_of_node(np, child) {
-		if (of_match_node(rockchip_bank_match, child))
+	for_each_child_of_yesde(np, child) {
+		if (of_match_yesde(rockchip_bank_match, child))
 			continue;
 
 		ret = rockchip_pinctrl_parse_functions(child, info, i++);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to parse function\n");
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 	}
@@ -3004,7 +3004,7 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 
 	info->pctl_dev = devm_pinctrl_register(&pdev->dev, ctrldesc, info);
 	if (IS_ERR(info->pctl_dev)) {
-		dev_err(&pdev->dev, "could not register pinctrl driver\n");
+		dev_err(&pdev->dev, "could yest register pinctrl driver\n");
 		return PTR_ERR(info->pctl_dev);
 	}
 
@@ -3139,7 +3139,7 @@ static int rockchip_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 
 /*
  * gpiolib gpio_to_irq callback function. Creates a mapping between a GPIO pin
- * and a virtual IRQ, if not already present.
+ * and a virtual IRQ, if yest already present.
  */
 static int rockchip_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
@@ -3371,7 +3371,7 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 
 	for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
 		if (!bank->valid) {
-			dev_warn(&pdev->dev, "bank %s is not valid\n",
+			dev_warn(&pdev->dev, "bank %s is yest valid\n",
 				 bank->name);
 			continue;
 		}
@@ -3383,10 +3383,10 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 			continue;
 		}
 
-		bank->domain = irq_domain_add_linear(bank->of_node, 32,
+		bank->domain = irq_domain_add_linear(bank->of_yesde, 32,
 						&irq_generic_chip_ops, NULL);
 		if (!bank->domain) {
-			dev_warn(&pdev->dev, "could not initialize irq domain for bank %s\n",
+			dev_warn(&pdev->dev, "could yest initialize irq domain for bank %s\n",
 				 bank->name);
 			clk_disable(bank->clk);
 			continue;
@@ -3396,7 +3396,7 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 					 "rockchip_gpio_irq", handle_level_irq,
 					 clr, 0, IRQ_GC_INIT_MASK_CACHE);
 		if (ret) {
-			dev_err(&pdev->dev, "could not alloc generic chips for bank %s\n",
+			dev_err(&pdev->dev, "could yest alloc generic chips for bank %s\n",
 				bank->name);
 			irq_domain_remove(bank->domain);
 			clk_disable(bank->clk);
@@ -3451,7 +3451,7 @@ static int rockchip_gpiolib_register(struct platform_device *pdev,
 
 	for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
 		if (!bank->valid) {
-			dev_warn(&pdev->dev, "bank %s is not valid\n",
+			dev_warn(&pdev->dev, "bank %s is yest valid\n",
 				 bank->name);
 			continue;
 		}
@@ -3462,7 +3462,7 @@ static int rockchip_gpiolib_register(struct platform_device *pdev,
 		gc->base = bank->pin_base;
 		gc->ngpio = bank->nr_pins;
 		gc->parent = &pdev->dev;
-		gc->of_node = bank->of_node;
+		gc->of_yesde = bank->of_yesde;
 		gc->label = bank->name;
 
 		ret = gpiochip_add_data(gc, bank);
@@ -3508,8 +3508,8 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 	struct resource res;
 	void __iomem *base;
 
-	if (of_address_to_resource(bank->of_node, 0, &res)) {
-		dev_err(info->dev, "cannot find IO resource for bank\n");
+	if (of_address_to_resource(bank->of_yesde, 0, &res)) {
+		dev_err(info->dev, "canyest find IO resource for bank\n");
 		return -ENOENT;
 	}
 
@@ -3521,15 +3521,15 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 	 * special case, where parts of the pull setting-registers are
 	 * part of the PMU register space
 	 */
-	if (of_device_is_compatible(bank->of_node,
+	if (of_device_is_compatible(bank->of_yesde,
 				    "rockchip,rk3188-gpio-bank0")) {
-		struct device_node *node;
+		struct device_yesde *yesde;
 
-		node = of_parse_phandle(bank->of_node->parent,
+		yesde = of_parse_phandle(bank->of_yesde->parent,
 					"rockchip,pmu", 0);
-		if (!node) {
-			if (of_address_to_resource(bank->of_node, 1, &res)) {
-				dev_err(info->dev, "cannot find IO resource for bank\n");
+		if (!yesde) {
+			if (of_address_to_resource(bank->of_yesde, 1, &res)) {
+				dev_err(info->dev, "canyest find IO resource for bank\n");
 				return -ENOENT;
 			}
 
@@ -3544,12 +3544,12 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 						    base,
 						    &rockchip_regmap_config);
 		}
-		of_node_put(node);
+		of_yesde_put(yesde);
 	}
 
-	bank->irq = irq_of_parse_and_map(bank->of_node, 0);
+	bank->irq = irq_of_parse_and_map(bank->of_yesde, 0);
 
-	bank->clk = of_clk_get(bank->of_node, 0);
+	bank->clk = of_clk_get(bank->of_yesde, 0);
 	if (IS_ERR(bank->clk))
 		return PTR_ERR(bank->clk);
 
@@ -3564,23 +3564,23 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 						struct platform_device *pdev)
 {
 	const struct of_device_id *match;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *np;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *np;
 	struct rockchip_pin_ctrl *ctrl;
 	struct rockchip_pin_bank *bank;
 	int grf_offs, pmu_offs, drv_grf_offs, drv_pmu_offs, i, j;
 
-	match = of_match_node(rockchip_pinctrl_dt_match, node);
+	match = of_match_yesde(rockchip_pinctrl_dt_match, yesde);
 	ctrl = (struct rockchip_pin_ctrl *)match->data;
 
-	for_each_child_of_node(node, np) {
+	for_each_child_of_yesde(yesde, np) {
 		if (!of_find_property(np, "gpio-controller", NULL))
 			continue;
 
 		bank = ctrl->pin_banks;
 		for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
 			if (!strcmp(bank->name, np->name)) {
-				bank->of_node = np;
+				bank->of_yesde = np;
 
 				if (!rockchip_get_bank_data(bank, d))
 					bank->valid = true;
@@ -3741,13 +3741,13 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	struct rockchip_pinctrl *info;
 	struct device *dev = &pdev->dev;
 	struct rockchip_pin_ctrl *ctrl;
-	struct device_node *np = pdev->dev.of_node, *node;
+	struct device_yesde *np = pdev->dev.of_yesde, *yesde;
 	struct resource *res;
 	void __iomem *base;
 	int ret;
 
-	if (!dev->of_node) {
-		dev_err(dev, "device tree node not found\n");
+	if (!dev->of_yesde) {
+		dev_err(dev, "device tree yesde yest found\n");
 		return -ENODEV;
 	}
 
@@ -3759,14 +3759,14 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 
 	ctrl = rockchip_pinctrl_get_soc_data(info, pdev);
 	if (!ctrl) {
-		dev_err(dev, "driver data not available\n");
+		dev_err(dev, "driver data yest available\n");
 		return -EINVAL;
 	}
 	info->ctrl = ctrl;
 
-	node = of_parse_phandle(np, "rockchip,grf", 0);
-	if (node) {
-		info->regmap_base = syscon_node_to_regmap(node);
+	yesde = of_parse_phandle(np, "rockchip,grf", 0);
+	if (yesde) {
+		info->regmap_base = syscon_yesde_to_regmap(yesde);
 		if (IS_ERR(info->regmap_base))
 			return PTR_ERR(info->regmap_base);
 	} else {
@@ -3783,7 +3783,7 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 		/* to check for the old dt-bindings */
 		info->reg_size = resource_size(res);
 
-		/* Honor the old binding, with pull registers as 2nd resource */
+		/* Hoyesr the old binding, with pull registers as 2nd resource */
 		if (ctrl->type == RK3188 && info->reg_size < 0x200) {
 			res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 			base = devm_ioremap_resource(&pdev->dev, res);
@@ -3800,9 +3800,9 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	/* try to find the optional reference to the pmu syscon */
-	node = of_parse_phandle(np, "rockchip,pmu", 0);
-	if (node) {
-		info->regmap_pmu = syscon_node_to_regmap(node);
+	yesde = of_parse_phandle(np, "rockchip,pmu", 0);
+	if (yesde) {
+		info->regmap_pmu = syscon_yesde_to_regmap(yesde);
 		if (IS_ERR(info->regmap_pmu))
 			return PTR_ERR(info->regmap_pmu);
 	}

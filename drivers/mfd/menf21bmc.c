@@ -32,7 +32,7 @@ static int menf21bmc_wdt_exit_prod_mode(struct i2c_client *client)
 		return val;
 
 	/*
-	 * Production mode should be not active after delivery of the Board.
+	 * Production mode should be yest active after delivery of the Board.
 	 * To be sure we check it, inform the user and exit the mode
 	 * if active.
 	 */
@@ -51,7 +51,7 @@ static int menf21bmc_wdt_exit_prod_mode(struct i2c_client *client)
 static int
 menf21bmc_probe(struct i2c_client *client, const struct i2c_device_id *ids)
 {
-	int rev_major, rev_minor, rev_main;
+	int rev_major, rev_miyesr, rev_main;
 	int ret;
 
 	ret = i2c_check_functionality(client->adapter,
@@ -67,10 +67,10 @@ menf21bmc_probe(struct i2c_client *client, const struct i2c_device_id *ids)
 		return rev_major;
 	}
 
-	rev_minor = i2c_smbus_read_word_data(client, BMC_CMD_REV_MINOR);
-	if (rev_minor < 0) {
-		dev_err(&client->dev, "failed to get BMC minor revision\n");
-		return rev_minor;
+	rev_miyesr = i2c_smbus_read_word_data(client, BMC_CMD_REV_MINOR);
+	if (rev_miyesr < 0) {
+		dev_err(&client->dev, "failed to get BMC miyesr revision\n");
+		return rev_miyesr;
 	}
 
 	rev_main = i2c_smbus_read_word_data(client, BMC_CMD_REV_MAIN);
@@ -80,7 +80,7 @@ menf21bmc_probe(struct i2c_client *client, const struct i2c_device_id *ids)
 	}
 
 	dev_info(&client->dev, "FW Revision: %02d.%02d.%02d\n",
-		 rev_major, rev_minor, rev_main);
+		 rev_major, rev_miyesr, rev_main);
 
 	/*
 	 * We have to exit the Production Mode of the BMC to activate the

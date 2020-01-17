@@ -155,7 +155,7 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 		       "target %uus interval %uus ecn %s\n",
 		       codel_time_to_us(sta->cparams.target),
 		       codel_time_to_us(sta->cparams.interval),
-		       sta->cparams.ecn ? "yes" : "no");
+		       sta->cparams.ecn ? "no" : "yes");
 	p += scnprintf(p,
 		       bufsz+buf-p,
 		       "tid ac backlog-bytes backlog-packets new-flows drops marks overlimit collisions tx-bytes tx-packets flags\n");
@@ -438,7 +438,7 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 	struct ieee80211_sta_ht_cap *htc = &sta->sta.ht_cap;
 
 	p += scnprintf(p, sizeof(buf) + buf - p, "ht %ssupported\n",
-			htc->ht_supported ? "" : "not ");
+			htc->ht_supported ? "" : "yest ");
 	if (htc->ht_supported) {
 		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.4x\n", htc->cap);
 
@@ -469,8 +469,8 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 
 		/*
 		 * For beacons and probe response this would mean the BSS
-		 * does or does not allow the usage of DSSS/CCK HT40.
-		 * Otherwise it means the STA does or does not use
+		 * does or does yest allow the usage of DSSS/CCK HT40.
+		 * Otherwise it means the STA does or does yest use
 		 * DSSS/CCK HT40.
 		 */
 		PRINT_HT_CAP((htc->cap & BIT(12)), "DSSS/CCK HT40");
@@ -491,7 +491,7 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 					htc->mcs.rx_mask[i]);
 		p += scnprintf(p, sizeof(buf)+buf-p, "\n");
 
-		/* If not set this is meaningless */
+		/* If yest set this is meaningless */
 		if (le16_to_cpu(htc->mcs.rx_highest)) {
 			p += scnprintf(p, sizeof(buf)+buf-p,
 				       "MCS rx highest: %d Mbps\n",
@@ -514,7 +514,7 @@ static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 	struct ieee80211_sta_vht_cap *vhtc = &sta->sta.vht_cap;
 
 	p += scnprintf(p, sizeof(buf) + buf - p, "VHT %ssupported\n",
-			vhtc->vht_supported ? "" : "not ");
+			vhtc->vht_supported ? "" : "yest ");
 	if (vhtc->vht_supported) {
 		p += scnprintf(p, sizeof(buf) + buf - p, "cap: %#.8x\n",
 			       vhtc->cap);
@@ -630,7 +630,7 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 	p = buf;
 
 	p += scnprintf(p, buf_sz + buf - p, "HE %ssupported\n",
-		       hec->has_he ? "" : "not ");
+		       hec->has_he ? "" : "yest ");
 	if (!hec->has_he)
 		goto out;
 
@@ -1007,7 +1007,7 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	 * remain, but it is already possible to link a new
 	 * station with the same address which triggers adding
 	 * it to debugfs; therefore, if the old station isn't
-	 * destroyed quickly enough the old station's debugfs
+	 * destroyed quickly eyesugh the old station's debugfs
 	 * dir might still be around.
 	 */
 	sta->debugfs_dir = debugfs_create_dir(mac, stations_dir);

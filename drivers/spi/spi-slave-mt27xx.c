@@ -193,9 +193,9 @@ static int mtk_spi_slave_dma_transfer(struct spi_controller *ctlr,
 		/* tx_buf is a const void* where we need a void * for
 		 * the dma mapping
 		 */
-		void *nonconst_tx = (void *)xfer->tx_buf;
+		void *yesnconst_tx = (void *)xfer->tx_buf;
 
-		xfer->tx_dma = dma_map_single(dev, nonconst_tx,
+		xfer->tx_dma = dma_map_single(dev, yesnconst_tx,
 					      xfer->len, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, xfer->tx_dma)) {
 			ret = -ENOMEM;
@@ -377,7 +377,7 @@ static int mtk_spi_slave_probe(struct platform_device *pdev)
 	}
 
 	ctlr->auto_runtime_pm = true;
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_yesde = pdev->dev.of_yesde;
 	ctlr->mode_bits = SPI_CPOL | SPI_CPHA;
 	ctlr->mode_bits |= SPI_LSB_FIRST;
 

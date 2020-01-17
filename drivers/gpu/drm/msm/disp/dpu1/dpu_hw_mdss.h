@@ -314,7 +314,7 @@ enum {
 /**
  * enum dpu_3d_blend_mode
  * Desribes how the 3d data is blended
- * @BLEND_3D_NONE      : 3d blending not enabled
+ * @BLEND_3D_NONE      : 3d blending yest enabled
  * @BLEND_3D_FRAME_INT : Frame interleaving
  * @BLEND_3D_H_ROW_INT : Horizontal row interleaving
  * @BLEND_3D_V_ROW_INT : vertical row interleaving

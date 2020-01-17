@@ -504,7 +504,7 @@
 				clock-names	= "mclk", "apb_pclk";
 				bus-width	= <8>;
 				max-frequency	= <48000000>;
-				non-removable;
+				yesn-removable;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
 			};
@@ -537,7 +537,7 @@
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
 				max-frequency	= <48000000>;
-				no-1-8-v;
+				yes-1-8-v;
 			};
 
 			sdcc4: sdcc@121c0000 {

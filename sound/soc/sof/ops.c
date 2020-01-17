@@ -147,8 +147,8 @@ void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset)
 	dev_err(sdev->dev, "error : DSP panic!\n");
 
 	/*
-	 * check if DSP is not ready and did not set the dsp_oops_offset.
-	 * if the dsp_oops_offset is not set, set it from the panic message.
+	 * check if DSP is yest ready and did yest set the dsp_oops_offset.
+	 * if the dsp_oops_offset is yest set, set it from the panic message.
 	 * Also add a check to memory window setting with panic message.
 	 */
 	if (!sdev->dsp_oops_offset)
@@ -158,6 +158,6 @@ void snd_sof_dsp_panic(struct snd_sof_dev *sdev, u32 offset)
 			sdev->dsp_oops_offset, offset);
 
 	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_REGS | SOF_DBG_MBOX);
-	snd_sof_trace_notify_for_error(sdev);
+	snd_sof_trace_yestify_for_error(sdev);
 }
 EXPORT_SYMBOL(snd_sof_dsp_panic);

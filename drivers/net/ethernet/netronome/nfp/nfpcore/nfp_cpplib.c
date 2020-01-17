@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_cpplib.c
  * Library of functions to access the NFP's CPP bus
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Authors: Jakub Kicinski <jakub.kicinski@netroyesme.com>
+ *          Jason McMullan <jason.mcmullan@netroyesme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroyesme.com>
  */
 
 #include <asm/unaligned.h>
@@ -116,7 +116,7 @@ int nfp_cpp_writeq(struct nfp_cpp *cpp, u32 cpp_id,
 	return n == sizeof(tmp) ? 0 : n < 0 ? n : -EIO;
 }
 
-/* NOTE: This code should not use nfp_xpb_* functions,
+/* NOTE: This code should yest use nfp_xpb_* functions,
  * as those are model-specific
  */
 int nfp_cpp_model_autodetect(struct nfp_cpp *cpp, u32 *model)

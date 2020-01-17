@@ -58,7 +58,7 @@ static int gpio_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
 	ktime_t edge;
 	/*
 	 * delta should never exceed 0.5 seconds (IR_MAX_DURATION) and on
-	 * m68k ndelay(s64) does not compile; so use s32 rather than s64.
+	 * m68k ndelay(s64) does yest compile; so use s32 rather than s64.
 	 */
 	s32 delta;
 	int i;

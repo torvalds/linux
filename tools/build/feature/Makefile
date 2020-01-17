@@ -23,7 +23,7 @@ FILES=                                          \
          test-libcap.bin			\
          test-libelf.bin                        \
          test-libelf-getphdrnum.bin             \
-         test-libelf-gelf_getnote.bin           \
+         test-libelf-gelf_getyeste.bin           \
          test-libelf-getshdrstrndx.bin          \
          test-libelf-mmap.bin                   \
          test-libnuma.bin                       \
@@ -149,7 +149,7 @@ $(OUTPUT)test-libelf-mmap.bin:
 $(OUTPUT)test-libelf-getphdrnum.bin:
 	$(BUILD) -lelf
 
-$(OUTPUT)test-libelf-gelf_getnote.bin:
+$(OUTPUT)test-libelf-gelf_getyeste.bin:
 	$(BUILD) -lelf
 
 $(OUTPUT)test-libelf-getshdrstrndx.bin:

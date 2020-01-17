@@ -12,8 +12,8 @@ _zimage_start:
 
 	/*
 	 * Invalidate the data cache if the data cache is turned off.
-	 * - The 405 core does not invalidate the data cache on power-up
-	 *   or reset but does turn off the data cache. We cannot assume
+	 * - The 405 core does yest invalidate the data cache on power-up
+	 *   or reset but does turn off the data cache. We canyest assume
 	 *   that the cache contents are valid.
 	 * - If the data cache is turned on this must have been done by
 	 *   a bootloader and we assume that the cache contents are

@@ -16,13 +16,13 @@
 /* The number of supported Gasket page tables per device. */
 #define GASKET_MAX_NUM_PAGE_TABLES 1
 
-/* Maximum length of device names (driver name + minor number suffix + NULL). */
+/* Maximum length of device names (driver name + miyesr number suffix + NULL). */
 #define GASKET_NAME_MAX 32
 
 /* Device status enumeration. */
 enum gasket_status {
 	/*
-	 * A device is DEAD if it has not been initialized or has had an error.
+	 * A device is DEAD if it has yest been initialized or has had an error.
 	 */
 	GASKET_STATUS_DEAD = 0,
 	/*

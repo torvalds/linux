@@ -2,8 +2,8 @@
 /*
  * arch/arm64/include/asm/xor.h
  *
- * Authors: Jackie Liu <liuyun01@kylinos.cn>
- * Copyright (C) 2018,Tianjin KYLIN Information Technology Co., Ltd.
+ * Authors: Jackie Liu <liuyun01@kyliyess.cn>
+ * Copyright (C) 2018,Tianjin KYLIN Information Techyeslogy Co., Ltd.
  */
 
 #include <linux/hardirq.h>

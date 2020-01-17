@@ -40,10 +40,10 @@ struct drm_i915_gem_object_ops {
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
 	 * of pages before to binding them into the GTT, and put_pages() is
-	 * called after we no longer need them. As we expect there to be
+	 * called after we yes longer need them. As we expect there to be
 	 * associated cost with migrating pages between the backing storage
 	 * and making them available for the GPU (e.g. clflush), we may hold
-	 * onto the pages after they are no longer referenced by the GPU
+	 * onto the pages after they are yes longer referenced by the GPU
 	 * in case they may be used again shortly (for example migrating the
 	 * pages to a different memory domain within the GTT). put_pages()
 	 * will therefore most likely be called when the object itself is
@@ -79,7 +79,7 @@ struct drm_i915_gem_object {
 		 *
 		 * The VMA on this list are ordered by type, all GGTT vma are
 		 * placed at the head and all ppGTT vma are placed at the tail.
-		 * The different types of GGTT vma are unordered between
+		 * The different types of GGTT vma are uyesrdered between
 		 * themselves, use the @vma.tree (which has a defined order
 		 * between all VMA) to quickly find an exact match.
 		 */
@@ -106,10 +106,10 @@ struct drm_i915_gem_object {
 	struct list_head lut_list;
 
 	/** Stolen memory for this object, instead of being backed by shmem. */
-	struct drm_mm_node *stolen;
+	struct drm_mm_yesde *stolen;
 	union {
 		struct rcu_head rcu;
-		struct llist_node freed;
+		struct llist_yesde freed;
 	};
 
 	/**
@@ -127,7 +127,7 @@ struct drm_i915_gem_object {
 
 	/*
 	 * Is the object to be mapped as read-only to the GPU
-	 * Only honoured if hardware has relevant pte bit
+	 * Only hoyesured if hardware has relevant pte bit
 	 */
 	unsigned int cache_level:3;
 	unsigned int cache_coherent:2;
@@ -139,7 +139,7 @@ struct drm_i915_gem_object {
 	 * @read_domains: Read memory domains.
 	 *
 	 * These monitor which caches contain read/write data related to the
-	 * object. When transitioning from one set of domains to another,
+	 * object. When transitioning from one set of domains to ayesther,
 	 * the driver is called to ensure that caches are suitably flushed and
 	 * invalidated.
 	 */
@@ -238,7 +238,7 @@ struct drm_i915_gem_object {
 		bool dirty:1;
 
 		/**
-		 * This is set if the object has been pinned due to unknown
+		 * This is set if the object has been pinned due to unkyeswn
 		 * swizzling.
 		 */
 		bool quirked:1;

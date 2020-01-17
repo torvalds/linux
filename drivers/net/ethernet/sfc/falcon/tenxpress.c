@@ -57,7 +57,7 @@
 
 /* LED function override register */
 #define PMA_PMD_LED_OVERR_REG	49161
-/* Bit positions for different LEDs (there are more but not wired on SFE4001)*/
+/* Bit positions for different LEDs (there are more but yest wired on SFE4001)*/
 #define PMA_PMD_LED_LINK_LBN	(0)
 #define PMA_PMD_LED_SPEED_LBN	(2)
 #define PMA_PMD_LED_TX_LBN	(4)
@@ -259,10 +259,10 @@ static void sfx7101_check_bad_lp(struct ef4_nic *efx, bool link_ok)
 	if (link_ok) {
 		bad_lp = false;
 	} else {
-		/* Check that AN has started but not completed. */
+		/* Check that AN has started but yest completed. */
 		reg = ef4_mdio_read(efx, MDIO_MMD_AN, MDIO_STAT1);
 		if (!(reg & MDIO_AN_STAT1_LPABLE))
-			return; /* LP status is unknown */
+			return; /* LP status is unkyeswn */
 		bad_lp = !(reg & MDIO_AN_STAT1_COMPLETE);
 		if (bad_lp)
 			pd->bad_lp_tries++;
@@ -284,8 +284,8 @@ static void sfx7101_check_bad_lp(struct ef4_nic *efx, bool link_ok)
 			reg |= PMA_PMD_LED_FLASH << PMA_PMD_LED_RX_LBN;
 			netif_err(efx, link, efx->net_dev,
 				  "appears to be plugged into a port"
-				  " that is not 10GBASE-T capable. The PHY"
-				  " supports 10GBASE-T ONLY, so no link can"
+				  " that is yest 10GBASE-T capable. The PHY"
+				  " supports 10GBASE-T ONLY, so yes link can"
 				  " be established\n");
 		}
 		ef4_mdio_write(efx, MDIO_MMD_PMAPMD,
@@ -373,7 +373,7 @@ static void sfx7101_phy_fini(struct ef4_nic *efx)
 
 	/* Waiting here ensures that the board fini, which can turn
 	 * off the power to the PHY, won't get run until the LNPGA
-	 * powerdown has been given long enough to complete. */
+	 * powerdown has been given long eyesugh to complete. */
 	schedule_timeout_uninterruptible(LNPGA_PDOWN_WAIT); /* 200 ms */
 }
 

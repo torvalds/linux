@@ -98,7 +98,7 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 
 	/*
 	 * Sanity check: a symbol offset of zero means that the page
-	 * does not exist for this vdso image, not that the page is at
+	 * does yest exist for this vdso image, yest that the page is at
 	 * offset zero relative to the text mapping.  This should be
 	 * impossible here, because sym_offset should only be zero for
 	 * the page past the end of the vvar mapping.
@@ -199,8 +199,8 @@ up_fail:
 
 #ifdef CONFIG_X86_64
 /*
- * Put the vdso above the (randomized) stack with another randomized
- * offset.  This way there is no hole in the middle of address space.
+ * Put the vdso above the (randomized) stack with ayesther randomized
+ * offset.  This way there is yes hole in the middle of address space.
  * To save memory make sure it is still in the same PTE as the stack
  * top.  This doesn't give that many random bits.
  *
@@ -259,7 +259,7 @@ int map_vdso_once(const struct vdso_image *image, unsigned long addr)
 	/*
 	 * Check if we have already mapped vdso blob - fail to prevent
 	 * abusing from userspace install_speciall_mapping, which may
-	 * not do accounting and rlimit right.
+	 * yest do accounting and rlimit right.
 	 * We could search vma near context.vdso, but it's a slowpath,
 	 * so let's explicitly check all VMAs to be completely sure.
 	 */

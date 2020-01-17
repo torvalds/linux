@@ -30,7 +30,7 @@ enum tps65086_regulators { BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6, LDOA1,
 		.desc = {						\
 			.name			= _name,		\
 			.of_match		= of_match_ptr(_of),	\
-			.regulators_node	= "regulators",		\
+			.regulators_yesde	= "regulators",		\
 			.of_parse_cb		= tps65086_of_parse_cb,	\
 			.id			= _id,			\
 			.ops			= &reg_ops,		\
@@ -54,7 +54,7 @@ enum tps65086_regulators { BUCK1, BUCK2, BUCK3, BUCK4, BUCK5, BUCK6, LDOA1,
 		.desc = {						\
 			.name			= _name,		\
 			.of_match		= of_match_ptr(_of),	\
-			.regulators_node	= "regulators",		\
+			.regulators_yesde	= "regulators",		\
 			.of_parse_cb		= tps65086_of_parse_cb,	\
 			.id			= _id,			\
 			.ops			= &switch_ops,		\
@@ -118,7 +118,7 @@ static struct regulator_ops switch_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 };
 
-static int tps65086_of_parse_cb(struct device_node *dev,
+static int tps65086_of_parse_cb(struct device_yesde *dev,
 				const struct regulator_desc *desc,
 				struct regulator_config *config);
 
@@ -162,14 +162,14 @@ static struct tps65086_regulator regulators[] = {
 	TPS65086_SWITCH("VTT", "vtt", VTT, TPS65086_SWVTT_EN, BIT(4)),
 };
 
-static int tps65086_of_parse_cb(struct device_node *node,
+static int tps65086_of_parse_cb(struct device_yesde *yesde,
 				const struct regulator_desc *desc,
 				struct regulator_config *config)
 {
 	int ret;
 
 	/* Check for 25mV step mode */
-	if (of_property_read_bool(node, "ti,regulator-step-size-25mv")) {
+	if (of_property_read_bool(yesde, "ti,regulator-step-size-25mv")) {
 		switch (desc->id) {
 		case BUCK1:
 		case BUCK2:
@@ -193,7 +193,7 @@ static int tps65086_of_parse_cb(struct device_node *node,
 	}
 
 	/* Check for decay mode */
-	if (desc->id <= BUCK6 && of_property_read_bool(node, "ti,regulator-decay")) {
+	if (desc->id <= BUCK6 && of_property_read_bool(yesde, "ti,regulator-decay")) {
 		ret = regmap_write_bits(config->regmap,
 					regulators[desc->id].decay_reg,
 					regulators[desc->id].decay_mask,
@@ -217,7 +217,7 @@ static int tps65086_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tps);
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = tps->dev->of_node;
+	config.dev->of_yesde = tps->dev->of_yesde;
 	config.driver_data = tps;
 	config.regmap = tps->regmap;
 

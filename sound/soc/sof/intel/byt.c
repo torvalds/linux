@@ -125,7 +125,7 @@ static void byt_get_registers(struct snd_sof_dev *sdev,
 	/* first read regsisters */
 	sof_mailbox_read(sdev, offset, xoops, sizeof(*xoops));
 
-	/* note: variable AR register array is not read */
+	/* yeste: variable AR register array is yest read */
 
 	/* then get panic info */
 	if (xoops->arch_hdr.totalsize > EXCEPT_MAX_HDR_SIZE) {
@@ -148,7 +148,7 @@ static void byt_dump(struct snd_sof_dev *sdev, u32 flags)
 	u32 stack[BYT_STACK_DUMP_SIZE];
 	u64 status, panic, imrd, imrx;
 
-	/* now try generic SOF status messages */
+	/* yesw try generic SOF status messages */
 	status = snd_sof_dsp_read64(sdev, BYT_DSP_BAR, SHIM_IPCD);
 	panic = snd_sof_dsp_read64(sdev, BYT_DSP_BAR, SHIM_IPCX);
 	byt_get_registers(sdev, &xoops, &panic_info, stack,
@@ -161,20 +161,20 @@ static void byt_dump(struct snd_sof_dev *sdev, u32 flags)
 	imrd = snd_sof_dsp_read64(sdev, BYT_DSP_BAR, SHIM_IMRD);
 	dev_err(sdev->dev,
 		"error: ipc host -> DSP: pending %s complete %s raw 0x%llx\n",
-		(panic & SHIM_IPCX_BUSY) ? "yes" : "no",
-		(panic & SHIM_IPCX_DONE) ? "yes" : "no", panic);
+		(panic & SHIM_IPCX_BUSY) ? "no" : "yes",
+		(panic & SHIM_IPCX_DONE) ? "no" : "yes", panic);
 	dev_err(sdev->dev,
 		"error: mask host: pending %s complete %s raw 0x%llx\n",
-		(imrx & SHIM_IMRX_BUSY) ? "yes" : "no",
-		(imrx & SHIM_IMRX_DONE) ? "yes" : "no", imrx);
+		(imrx & SHIM_IMRX_BUSY) ? "no" : "yes",
+		(imrx & SHIM_IMRX_DONE) ? "no" : "yes", imrx);
 	dev_err(sdev->dev,
 		"error: ipc DSP -> host: pending %s complete %s raw 0x%llx\n",
-		(status & SHIM_IPCD_BUSY) ? "yes" : "no",
-		(status & SHIM_IPCD_DONE) ? "yes" : "no", status);
+		(status & SHIM_IPCD_BUSY) ? "no" : "yes",
+		(status & SHIM_IPCD_DONE) ? "no" : "yes", status);
 	dev_err(sdev->dev,
 		"error: mask DSP: pending %s complete %s raw 0x%llx\n",
-		(imrd & SHIM_IMRD_BUSY) ? "yes" : "no",
-		(imrd & SHIM_IMRD_DONE) ? "yes" : "no", imrd);
+		(imrd & SHIM_IMRD_BUSY) ? "no" : "yes",
+		(imrd & SHIM_IMRD_DONE) ? "no" : "yes", imrd);
 
 }
 
@@ -273,8 +273,8 @@ static void byt_get_reply(struct snd_sof_dev *sdev)
 
 	/*
 	 * Sometimes, there is unexpected reply ipc arriving. The reply
-	 * ipc belongs to none of the ipcs sent from driver.
-	 * In this case, the driver must ignore the ipc.
+	 * ipc belongs to yesne of the ipcs sent from driver.
+	 * In this case, the driver must igyesre the ipc.
 	 */
 	if (!msg) {
 		dev_warn(sdev->dev, "unexpected ipc interrupt raised!\n");
@@ -448,7 +448,7 @@ static int tangier_pci_probe(struct snd_sof_dev *sdev)
 
 	/* some BIOSes don't map IMR */
 	if (base == 0x55aa55aa || base == 0x0) {
-		dev_info(sdev->dev, "IMR not set by BIOS. Ignoring\n");
+		dev_info(sdev->dev, "IMR yest set by BIOS. Igyesring\n");
 		goto irq;
 	}
 
@@ -612,7 +612,7 @@ static int byt_acpi_probe(struct snd_sof_dev *sdev)
 
 	/* some BIOSes don't map IMR */
 	if (base == 0x55aa55aa || base == 0x0) {
-		dev_info(sdev->dev, "IMR not set by BIOS. Ignoring\n");
+		dev_info(sdev->dev, "IMR yest set by BIOS. Igyesring\n");
 		goto irq;
 	}
 

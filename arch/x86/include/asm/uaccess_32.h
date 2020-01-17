@@ -11,7 +11,7 @@
 
 unsigned long __must_check __copy_user_ll
 		(void *to, const void *from, unsigned long n);
-unsigned long __must_check __copy_from_user_ll_nocache_nozero
+unsigned long __must_check __copy_from_user_ll_yescache_yeszero
 		(void *to, const void __user *from, unsigned long n);
 
 static __always_inline unsigned long __must_check
@@ -29,22 +29,22 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 		switch (n) {
 		case 1:
 			ret = 0;
-			__uaccess_begin_nospec();
-			__get_user_asm_nozero(*(u8 *)to, from, ret,
+			__uaccess_begin_yesspec();
+			__get_user_asm_yeszero(*(u8 *)to, from, ret,
 					      "b", "b", "=q", 1);
 			__uaccess_end();
 			return ret;
 		case 2:
 			ret = 0;
-			__uaccess_begin_nospec();
-			__get_user_asm_nozero(*(u16 *)to, from, ret,
+			__uaccess_begin_yesspec();
+			__get_user_asm_yeszero(*(u16 *)to, from, ret,
 					      "w", "w", "=r", 2);
 			__uaccess_end();
 			return ret;
 		case 4:
 			ret = 0;
-			__uaccess_begin_nospec();
-			__get_user_asm_nozero(*(u32 *)to, from, ret,
+			__uaccess_begin_yesspec();
+			__get_user_asm_yeszero(*(u32 *)to, from, ret,
 					      "l", "k", "=r", 4);
 			__uaccess_end();
 			return ret;
@@ -54,10 +54,10 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 }
 
 static __always_inline unsigned long
-__copy_from_user_inatomic_nocache(void *to, const void __user *from,
+__copy_from_user_inatomic_yescache(void *to, const void __user *from,
 				  unsigned long n)
 {
-       return __copy_from_user_ll_nocache_nozero(to, from, n);
+       return __copy_from_user_ll_yescache_yeszero(to, from, n);
 }
 
 #endif /* _ASM_X86_UACCESS_32_H */

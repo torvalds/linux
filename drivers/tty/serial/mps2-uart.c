@@ -163,8 +163,8 @@ static void mps2_uart_start_tx(struct uart_port *port)
 	mps2_uart_write8(port, control, UARTn_CTRL);
 
 	/*
-	 * We've just unmasked the TX IRQ and now slow-starting via
-	 * polling; if there is enough data to fill up the internal
+	 * We've just unmasked the TX IRQ and yesw slow-starting via
+	 * polling; if there is eyesugh data to fill up the internal
 	 * write buffer in one go, the TX IRQ should assert, at which
 	 * point we switch to fully interrupt-driven TX.
 	 */
@@ -255,7 +255,7 @@ static irqreturn_t mps2_uart_oerrirq(int irq, void *data)
 
 	/*
 	 * It's never been seen in practice and it never *should* happen since
-	 * we check if there is enough room in TX buffer before sending data.
+	 * we check if there is eyesugh room in TX buffer before sending data.
 	 * So we keep this check in case something suspicious has happened.
 	 */
 	if (irqflag & UARTn_INT_TX_OVERRUN) {
@@ -526,7 +526,7 @@ static struct uart_driver mps2_uart_driver = {
 static int mps2_of_get_port(struct platform_device *pdev,
 			    struct mps2_uart_port *mps_port)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int id;
 
 	if (!np)

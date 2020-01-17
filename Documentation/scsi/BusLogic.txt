@@ -18,22 +18,22 @@
 
 BusLogic, Inc. designed and manufactured a variety of high performance SCSI
 host adapters which share a common programming interface across a diverse
-collection of bus architectures by virtue of their MultiMaster ASIC technology.
+collection of bus architectures by virtue of their MultiMaster ASIC techyeslogy.
 BusLogic was acquired by Mylex Corporation in February 1996, but the products
 supported by this driver originated under the BusLogic name and so that name is
 retained in the source code and documentation.
 
 This driver supports all present BusLogic MultiMaster Host Adapters, and should
-support any future MultiMaster designs with little or no modification.  More
+support any future MultiMaster designs with little or yes modification.  More
 recently, BusLogic introduced the FlashPoint Host Adapters, which are less
 costly and rely on the host CPU, rather than including an onboard processor.
-Despite not having an onboard CPU, the FlashPoint Host Adapters perform very
+Despite yest having an onboard CPU, the FlashPoint Host Adapters perform very
 well and have very low command latency.  BusLogic has recently provided me with
 the FlashPoint Driver Developer's Kit, which comprises documentation and freely
 redistributable source code for the FlashPoint SCCB Manager.  The SCCB Manager
 is the library of code that runs on the host CPU and performs functions
 analogous to the firmware on the MultiMaster Host Adapters.  Thanks to their
-having provided the SCCB Manager, this driver now supports the FlashPoint Host
+having provided the SCCB Manager, this driver yesw supports the FlashPoint Host
 Adapters as well.
 
 My primary goals in writing this completely new BusLogic driver for Linux are
@@ -60,7 +60,7 @@ products to the Linux community.  In November 1995, I was offered the
 opportunity to become a beta test site for their latest MultiMaster product,
 the BT-948 PCI Ultra SCSI Host Adapter, and then again for the BT-958 PCI Wide
 Ultra SCSI Host Adapter in January 1996.  This was mutually beneficial since
-Mylex received a degree and kind of testing that their own testing group cannot
+Mylex received a degree and kind of testing that their own testing group canyest
 readily achieve, and the Linux community has available high performance host
 adapters that have been well tested with Linux even before being brought to
 market.  This relationship has also given me the opportunity to interact
@@ -69,11 +69,11 @@ workings of their products, and in turn to educate them about the needs and
 potential of the Linux community.
 
 More recently, Mylex has reaffirmed the company's interest in supporting the
-Linux community, and I am now working on a Linux driver for the DAC960 PCI RAID
+Linux community, and I am yesw working on a Linux driver for the DAC960 PCI RAID
 Controllers.  Mylex's interest and support is greatly appreciated.
 
 Unlike some other vendors, if you contact Mylex Technical Support with a
-problem and are running Linux, they will not tell you that your use of their
+problem and are running Linux, they will yest tell you that your use of their
 products is unsupported.  Their latest product marketing literature even states
 "Mylex SCSI host adapters are compatible with all major operating systems
 including: ... Linux ...".
@@ -91,40 +91,40 @@ site.
 o Configuration Reporting and Testing
 
   During system initialization, the driver reports extensively on the host
-  adapter hardware configuration, including the synchronous transfer parameters
+  adapter hardware configuration, including the synchroyesus transfer parameters
   requested and negotiated with each target device.  AutoSCSI settings for
-  Synchronous Negotiation, Wide Negotiation, and Disconnect/Reconnect are
+  Synchroyesus Negotiation, Wide Negotiation, and Disconnect/Reconnect are
   reported for each target device, as well as the status of Tagged Queuing.
   If the same setting is in effect for all target devices, then a single word
   or phrase is used; otherwise, a letter is provided for each target device to
   indicate the individual status.  The following examples
   should clarify this reporting format:
 
-    Synchronous Negotiation: Ultra
+    Synchroyesus Negotiation: Ultra
 
-      Synchronous negotiation is enabled for all target devices and the host
+      Synchroyesus negotiation is enabled for all target devices and the host
       adapter will attempt to negotiate for 20.0 mega-transfers/second.
 
-    Synchronous Negotiation: Fast
+    Synchroyesus Negotiation: Fast
 
-      Synchronous negotiation is enabled for all target devices and the host
+      Synchroyesus negotiation is enabled for all target devices and the host
       adapter will attempt to negotiate for 10.0 mega-transfers/second.
 
-    Synchronous Negotiation: Slow
+    Synchroyesus Negotiation: Slow
 
-      Synchronous negotiation is enabled for all target devices and the host
+      Synchroyesus negotiation is enabled for all target devices and the host
       adapter will attempt to negotiate for 5.0 mega-transfers/second.
 
-    Synchronous Negotiation: Disabled
+    Synchroyesus Negotiation: Disabled
 
-      Synchronous negotiation is disabled and all target devices are limited to
-      asynchronous operation.
+      Synchroyesus negotiation is disabled and all target devices are limited to
+      asynchroyesus operation.
 
-    Synchronous Negotiation: UFSNUUU#UUUUUUUU
+    Synchroyesus Negotiation: UFSNUUU#UUUUUUUU
 
-      Synchronous negotiation to Ultra speed is enabled for target devices 0
+      Synchroyesus negotiation to Ultra speed is enabled for target devices 0
       and 4 through 15, to Fast speed for target device 1, to Slow speed for
-      target device 2, and is not permitted to target device 3.  The host
+      target device 2, and is yest permitted to target device 3.  The host
       adapter's SCSI ID is represented by the "#".
 
     The status of Wide Negotiation, Disconnect/Reconnect, and Tagged Queuing
@@ -146,7 +146,7 @@ o Performance Features
   is determined automatically based on the host adapter's total queue depth and
   the number, type, speed, and capabilities of the target devices found.  In
   addition, tagged queuing is automatically disabled whenever the host adapter
-  firmware version is known not to implement it correctly, or whenever a tagged
+  firmware version is kyeswn yest to implement it correctly, or whenever a tagged
   queue depth of 1 is selected.  Tagged queuing is also disabled for individual
   target devices if disconnect/reconnect is disabled for that device.
 
@@ -162,7 +162,7 @@ o Robustness Features
   associated with the command being reset, as well as suppressing error
   recovery entirely to avoid perturbing an improperly functioning device.  If
   the bus device reset error recovery strategy is selected and sending a bus
-  device reset does not restore correct operation, the next command that is
+  device reset does yest restore correct operation, the next command that is
   reset will force a full host adapter hard reset and SCSI bus reset.  SCSI bus
   resets caused by other devices and detected by the host adapter are also
   handled by issuing a soft reset to the host adapter and re-initialization.
@@ -181,7 +181,7 @@ o PCI Configuration Support
   addresses assigned by the system BIOS, rather than the ISA compatible I/O
   port addresses.  The ISA compatible I/O port address is then disabled by the
   driver.  On PCI systems it is also recommended that the AutoSCSI utility be
-  used to disable the ISA compatible I/O port entirely as it is not necessary.
+  used to disable the ISA compatible I/O port entirely as it is yest necessary.
   The ISA compatible I/O port is disabled by default on the BT-948/958/958D.
 
 o /proc File System Support
@@ -200,7 +200,7 @@ o Shared Interrupts Support
 
 The following list comprises the supported BusLogic SCSI Host Adapters as of
 the date of this document.  It is recommended that anyone purchasing a BusLogic
-Host Adapter not in the following table contact the author beforehand to verify
+Host Adapter yest in the following table contact the author beforehand to verify
 that it is or will be supported.
 
 FlashPoint Series PCI Host Adapters:
@@ -257,15 +257,15 @@ BusLogic SCSI Host Adapters are available packaged both as bare boards and as
 retail kits.  The BT- model numbers above refer to the bare board packaging.
 The retail kit model numbers are found by replacing BT- with KT- in the above
 list.  The retail kit includes the bare board and manual as well as cabling and
-driver media and documentation that are not provided with bare boards.
+driver media and documentation that are yest provided with bare boards.
 
 
 			 FLASHPOINT INSTALLATION NOTES
 
 o RAIDPlus Support
 
-  FlashPoint Host Adapters now include RAIDPlus, Mylex's bootable software
-  RAID.  RAIDPlus is not supported on Linux, and there are no plans to support
+  FlashPoint Host Adapters yesw include RAIDPlus, Mylex's bootable software
+  RAID.  RAIDPlus is yest supported on Linux, and there are yes plans to support
   it.  The MD driver in Linux 2.0 provides for concatenation (LINEAR) and
   striping (RAID-0), and support for mirroring (RAID-1), fixed parity (RAID-4),
   and distributed parity (RAID-5) is available separately.  The built-in Linux
@@ -276,11 +276,11 @@ o RAIDPlus Support
 o Enabling UltraSCSI Transfers
 
   FlashPoint Host Adapters ship with their configuration set to "Factory
-  Default" settings that are conservative and do not allow for UltraSCSI speed
+  Default" settings that are conservative and do yest allow for UltraSCSI speed
   to be negotiated.  This results in fewer problems when these host adapters
-  are installed in systems with cabling or termination that is not sufficient
-  for UltraSCSI operation, or where existing SCSI devices do not properly
-  respond to synchronous transfer negotiation for UltraSCSI speed.  AutoSCSI
+  are installed in systems with cabling or termination that is yest sufficient
+  for UltraSCSI operation, or where existing SCSI devices do yest properly
+  respond to synchroyesus transfer negotiation for UltraSCSI speed.  AutoSCSI
   may be used to load "Optimum Performance" settings which allow UltraSCSI
   speed to be negotiated with all devices, or UltraSCSI speed can be enabled on
   an individual basis.  It is recommended that SCAM be manually disabled after
@@ -296,11 +296,11 @@ o PCI I/O Port Assignments
 
   When configured to factory default settings, the BT-948/958/958D will only
   recognize the PCI I/O port assignments made by the motherboard's PCI BIOS.
-  The BT-948/958/958D will not respond to any of the ISA compatible I/O ports
+  The BT-948/958/958D will yest respond to any of the ISA compatible I/O ports
   that previous BusLogic SCSI Host Adapters respond to.  This driver supports
   the PCI I/O port assignments, so this is the preferred configuration.
   However, if the obsolete BusLogic driver must be used for any reason, such as
-  a Linux distribution that does not yet use this driver in its boot kernel,
+  a Linux distribution that does yest yet use this driver in its boot kernel,
   BusLogic has provided an AutoSCSI configuration option to enable a legacy ISA
   compatible I/O port.
 
@@ -342,11 +342,11 @@ o PCI Slot Scanning Order
 o Enabling UltraSCSI Transfers
 
   The BT-948/958/958D ship with their configuration set to "Factory Default"
-  settings that are conservative and do not allow for UltraSCSI speed to be
+  settings that are conservative and do yest allow for UltraSCSI speed to be
   negotiated.  This results in fewer problems when these host adapters are
-  installed in systems with cabling or termination that is not sufficient for
-  UltraSCSI operation, or where existing SCSI devices do not properly respond
-  to synchronous transfer negotiation for UltraSCSI speed.  AutoSCSI may be
+  installed in systems with cabling or termination that is yest sufficient for
+  UltraSCSI operation, or where existing SCSI devices do yest properly respond
+  to synchroyesus transfer negotiation for UltraSCSI speed.  AutoSCSI may be
   used to load "Optimum Performance" settings which allow UltraSCSI speed to be
   negotiated with all devices, or UltraSCSI speed can be enabled on an
   individual basis.  It is recommended that SCAM be manually disabled after the
@@ -368,8 +368,8 @@ The BusLogic Driver Probing Options comprise the following:
 
 IO:<integer>
 
-  The "IO:" option specifies an ISA I/O Address to be probed for a non-PCI
-  MultiMaster Host Adapter.  If neither "IO:" nor "NoProbeISA" options are
+  The "IO:" option specifies an ISA I/O Address to be probed for a yesn-PCI
+  MultiMaster Host Adapter.  If neither "IO:" yesr "NoProbeISA" options are
   specified, then the standard list of BusLogic MultiMaster ISA I/O Addresses
   will be probed (0x330, 0x334, 0x230, 0x234, 0x130, and 0x134).  Multiple
   "IO:" options may be specified to precisely determine the I/O Addresses to
@@ -377,7 +377,7 @@ IO:<integer>
 
 NoProbe
 
-  The "NoProbe" option disables all probing and therefore no BusLogic Host
+  The "NoProbe" option disables all probing and therefore yes BusLogic Host
   Adapters will be detected.
 
 NoProbeISA
@@ -396,7 +396,7 @@ NoProbePCI
 NoSortPCI
 
   The "NoSortPCI" option forces PCI MultiMaster Host Adapters to be
-  enumerated in the order provided by the PCI BIOS, ignoring any setting of
+  enumerated in the order provided by the PCI BIOS, igyesring any setting of
   the AutoSCSI "Use Bus And Device # For PCI Scanning Seq." option.
 
 MultiMasterFirst
@@ -420,21 +420,21 @@ Depth is the number of SCSI Commands that are allowed to be concurrently
 presented for execution (either to the Host Adapter or Target Device).  Note
 that explicitly enabling Tagged Queuing may lead to problems; the option to
 enable or disable Tagged Queuing is provided primarily to allow disabling
-Tagged Queuing on Target Devices that do not implement it correctly.  The
+Tagged Queuing on Target Devices that do yest implement it correctly.  The
 following options are available:
 
 QueueDepth:<integer>
 
   The "QueueDepth:" or QD:" option specifies the Queue Depth to use for all
   Target Devices that support Tagged Queuing, as well as the maximum Queue
-  Depth for devices that do not support Tagged Queuing.  If no Queue Depth
+  Depth for devices that do yest support Tagged Queuing.  If yes Queue Depth
   option is provided, the Queue Depth will be determined automatically based
   on the Host Adapter's Total Queue Depth and the number, type, speed, and
   capabilities of the detected Target Devices.  For Host Adapters that
   require ISA Bounce Buffers, the Queue Depth is automatically set by default
   to BusLogic_TaggedQueueDepthBB or BusLogic_UntaggedQueueDepthBB to avoid
   excessive preallocation of DMA Bounce Buffer memory.  Target Devices that
-  do not support Tagged Queuing always have their Queue Depth set to
+  do yest support Tagged Queuing always have their Queue Depth set to
   BusLogic_UntaggedQueueDepth or BusLogic_UntaggedQueueDepthBB, unless a
   lower Queue Depth option is provided.  A Queue Depth of 1 automatically
   disables Tagged Queuing.
@@ -470,7 +470,7 @@ TaggedQueuing:<Target-Spec>
   disables Tagged Queuing, and "X" accepts the default based on the firmware
   version.  The first character refers to Target Device 0, the second to
   Target Device 1, and so on; if the sequence of "Y", "N", and "X" characters
-  does not cover all the Target Devices, unspecified characters are assumed
+  does yest cover all the Target Devices, unspecified characters are assumed
   to be "X".
 
 The BusLogic Driver Miscellaneous Options comprise the following:
@@ -486,7 +486,7 @@ InhibitTargetInquiry
 
   The "InhibitTargetInquiry" option inhibits the execution of an Inquire
   Target Devices or Inquire Installed Devices command on MultiMaster Host
-  Adapters.  This may be necessary with some older Target Devices that do not
+  Adapters.  This may be necessary with some older Target Devices that do yest
   respond correctly when Logical Units above 0 are addressed.
 
 The BusLogic Driver Debugging Options comprise the following:
@@ -559,8 +559,8 @@ appropriate, and reboot.
 
 		      BUSLOGIC ANNOUNCEMENTS MAILING LIST
 
-The BusLogic Announcements Mailing List provides a forum for informing Linux
-users of new driver releases and other announcements regarding Linux support
+The BusLogic Anyesuncements Mailing List provides a forum for informing Linux
+users of new driver releases and other anyesuncements regarding Linux support
 for BusLogic SCSI Host Adapters.  To join the mailing list, send a message to
-"buslogic-announce-request@dandelion.com" with the line "subscribe" in the
+"buslogic-anyesunce-request@dandelion.com" with the line "subscribe" in the
 message body.

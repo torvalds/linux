@@ -237,10 +237,10 @@ static struct nft_expr_type nft_flow_offload_type __read_mostly = {
 	.owner		= THIS_MODULE,
 };
 
-static int flow_offload_netdev_event(struct notifier_block *this,
+static int flow_offload_netdev_event(struct yestifier_block *this,
 				     unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (event != NETDEV_DOWN)
 		return NOTIFY_DONE;
@@ -250,15 +250,15 @@ static int flow_offload_netdev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block flow_offload_netdev_notifier = {
-	.notifier_call	= flow_offload_netdev_event,
+static struct yestifier_block flow_offload_netdev_yestifier = {
+	.yestifier_call	= flow_offload_netdev_event,
 };
 
 static int __init nft_flow_offload_module_init(void)
 {
 	int err;
 
-	err = register_netdevice_notifier(&flow_offload_netdev_notifier);
+	err = register_netdevice_yestifier(&flow_offload_netdev_yestifier);
 	if (err)
 		goto err;
 
@@ -269,7 +269,7 @@ static int __init nft_flow_offload_module_init(void)
 	return 0;
 
 register_expr:
-	unregister_netdevice_notifier(&flow_offload_netdev_notifier);
+	unregister_netdevice_yestifier(&flow_offload_netdev_yestifier);
 err:
 	return err;
 }
@@ -277,7 +277,7 @@ err:
 static void __exit nft_flow_offload_module_exit(void)
 {
 	nft_unregister_expr(&nft_flow_offload_type);
-	unregister_netdevice_notifier(&flow_offload_netdev_notifier);
+	unregister_netdevice_yestifier(&flow_offload_netdev_yestifier);
 }
 
 module_init(nft_flow_offload_module_init);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2004 Shannon Holland <holland@loser.net>
+ * Copyright (c) 2004 Shanyesn Holland <holland@loser.net>
  *
  * S3C2410 ADC registers
  */

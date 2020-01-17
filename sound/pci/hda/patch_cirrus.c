@@ -122,7 +122,7 @@ enum {
 #define CS421X_IDX_DAC_CFG	0x03
 #define CS421X_IDX_SPK_CTL	0x04
 
-/* Cirrus Logic CS4213 is like CS4210 but does not have SPDIF input/output */
+/* Cirrus Logic CS4213 is like CS4210 but does yest have SPDIF input/output */
 #define CS4213_VENDOR_NID	0x09
 
 
@@ -237,7 +237,7 @@ static const struct hda_verb cs4208_coef_init_verbs[] = {
  * observed while the part is being held in reset (RESET# active low).
  *
  * Root Cause: At initial powerup of the device, the logic that drives
- * the clock and write enable to the S/PDIF SRC RAMs is not properly
+ * the clock and write enable to the S/PDIF SRC RAMs is yest properly
  * initialized.
  * Certain random patterns will cause a steady leakage current in those
  * RAM cells. The issue will resolve once the SRCs are used (turned on).
@@ -282,7 +282,7 @@ static void init_digital_coef(struct hda_codec *codec)
 {
 	unsigned int coef;
 
-	coef = 0x0002; /* SRC_MUTE soft-mute on SPDIF (if no lock) */
+	coef = 0x0002; /* SRC_MUTE soft-mute on SPDIF (if yes lock) */
 	coef |= 0x0008; /* Replace with mute on error */
 	if (is_active_pin(codec, CS_DIG_OUT2_PIN_NID))
 		coef |= 0x4000; /* RX to TX1 or TX2 Loopthru / SPDIF2
@@ -576,7 +576,7 @@ static struct cs_spec *cs_alloc_spec(struct hda_codec *codec, int vendor_nid)
 		return NULL;
 	codec->spec = spec;
 	spec->vendor_nid = vendor_nid;
-	codec->power_save_node = 1;
+	codec->power_save_yesde = 1;
 	snd_hda_gen_spec_init(&spec->gen);
 
 	return spec;
@@ -614,7 +614,7 @@ static int patch_cs420x(struct hda_codec *codec)
 
 /*
  * CS4208 support:
- * Its layout is no longer compatible with CS4206/CS4207
+ * Its layout is yes longer compatible with CS4206/CS4207
  */
 enum {
 	CS4208_MAC_AUTO,
@@ -898,7 +898,7 @@ static const struct hda_verb cs421x_coef_init_verbs[] = {
  *
  * Description:
  * 1. Performance degredation is present in the ADC.
- * 2. Speaker output is not completely muted upon HP detect.
+ * 2. Speaker output is yest completely muted upon HP detect.
  * 3. Noise is present when clipping occurs on the amplified
  *    speaker outputs.
  *
@@ -923,7 +923,7 @@ static const struct hda_verb cs421x_coef_init_verbs_A1_silicon_fixes[] = {
 	{0x0B, AC_VERB_SET_PROC_COEF, 0x02A9}, /* Mute speaker */
 
 	{0x0B, AC_VERB_SET_COEF_INDEX, 0x001B},
-	{0x0B, AC_VERB_SET_PROC_COEF, 0X1006}, /* Remove noise */
+	{0x0B, AC_VERB_SET_PROC_COEF, 0X1006}, /* Remove yesise */
 
 	{} /* terminator */
 };
@@ -997,7 +997,7 @@ static void cs4210_pinmux_init(struct hda_codec *codec)
 		coef &= ~0x0008;
 
 	if (spec->sense_b)
-		coef |= 0x0010; /* B2 is SENSE_B, not inverted  */
+		coef |= 0x0010; /* B2 is SENSE_B, yest inverted  */
 	else
 		coef &= ~0x0010;
 

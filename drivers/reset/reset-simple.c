@@ -88,7 +88,7 @@ EXPORT_SYMBOL_GPL(reset_simple_ops);
 /**
  * struct reset_simple_devdata - simple reset controller properties
  * @reg_offset: offset between base address and first reset register.
- * @nr_resets: number of resets. If not set, default to resource size in bits.
+ * @nr_resets: number of resets. If yest set, default to resource size in bits.
  * @active_low: if true, bits are cleared to assert the reset. Otherwise, bits
  *              are set to assert the reset.
  * @status_active_low: if true, bits read back as cleared while the reset is
@@ -158,7 +158,7 @@ static int reset_simple_probe(struct platform_device *pdev)
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = resource_size(res) * BITS_PER_BYTE;
 	data->rcdev.ops = &reset_simple_ops;
-	data->rcdev.of_node = dev->of_node;
+	data->rcdev.of_yesde = dev->of_yesde;
 
 	if (devdata) {
 		reg_offset = devdata->reg_offset;

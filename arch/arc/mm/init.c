@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <linux/kernel.h>
@@ -32,8 +32,8 @@ static u64 high_mem_sz;
 #endif
 
 #ifdef CONFIG_DISCONTIGMEM
-struct pglist_data node_data[MAX_NUMNODES] __read_mostly;
-EXPORT_SYMBOL(node_data);
+struct pglist_data yesde_data[MAX_NUMNODES] __read_mostly;
+EXPORT_SYMBOL(yesde_data);
 #endif
 
 long __init arc_get_mem_sz(void)
@@ -46,7 +46,7 @@ static int __init setup_mem_sz(char *str)
 {
 	low_mem_sz = memparse(str, NULL) & PAGE_MASK;
 
-	/* early console might not be setup yet - it will show up later */
+	/* early console might yest be setup yet - it will show up later */
 	pr_info("\"mem=%s\": mem sz set to %ldM\n", str, TO_MB(low_mem_sz));
 
 	return 0;
@@ -105,7 +105,7 @@ void __init setup_arch_memory(void)
 	/*------------- bootmem allocator setup -----------------------*/
 
 	/*
-	 * seed the bootmem allocator after any DT memory node parsing or
+	 * seed the bootmem allocator after any DT memory yesde parsing or
 	 * "mem=xxx" cmdline overrides have potentially updated @arc_mem_sz
 	 *
 	 * Only low mem is added, otherwise we have crashes when allocating
@@ -115,7 +115,7 @@ void __init setup_arch_memory(void)
 	 * the crash
 	 */
 
-	memblock_add_node(low_mem_start, low_mem_sz, 0);
+	memblock_add_yesde(low_mem_start, low_mem_sz, 0);
 	memblock_reserve(CONFIG_LINUX_LINK_BASE,
 			 __pa(_end) - CONFIG_LINUX_LINK_BASE);
 
@@ -132,7 +132,7 @@ void __init setup_arch_memory(void)
 
 	memblock_dump_all();
 
-	/*----------------- node/zones setup --------------------------*/
+	/*----------------- yesde/zones setup --------------------------*/
 	memset(zones_size, 0, sizeof(zones_size));
 	memset(zones_holes, 0, sizeof(zones_holes));
 
@@ -145,25 +145,25 @@ void __init setup_arch_memory(void)
 	 * when our kernel doesn't start at PAGE_OFFSET, i.e.
 	 * PAGE_OFFSET != CONFIG_LINUX_RAM_BASE
 	 */
-	free_area_init_node(0,			/* node-id */
+	free_area_init_yesde(0,			/* yesde-id */
 			    zones_size,		/* num pages per zone */
-			    min_low_pfn,	/* first pfn of node */
+			    min_low_pfn,	/* first pfn of yesde */
 			    zones_holes);	/* holes */
 
 #ifdef CONFIG_HIGHMEM
 	/*
-	 * Populate a new node with highmem
+	 * Populate a new yesde with highmem
 	 *
 	 * On ARC (w/o PAE) HIGHMEM addresses are actually smaller (0 based)
-	 * than addresses in normal ala low memory (0x8000_0000 based).
+	 * than addresses in yesrmal ala low memory (0x8000_0000 based).
 	 * Even with PAE, the huge peripheral space hole would waste a lot of
 	 * mem with single mem_map[]. This warrants a mem_map per region design.
 	 * Thus HIGHMEM on ARC is imlemented with DISCONTIGMEM.
 	 *
-	 * DISCONTIGMEM in turns requires multiple nodes. node 0 above is
-	 * populated with normal memory zone while node 1 only has highmem
+	 * DISCONTIGMEM in turns requires multiple yesdes. yesde 0 above is
+	 * populated with yesrmal memory zone while yesde 1 only has highmem
 	 */
-	node_set_online(1);
+	yesde_set_online(1);
 
 	min_high_pfn = PFN_DOWN(high_mem_start);
 	max_high_pfn = PFN_DOWN(high_mem_start + high_mem_sz);
@@ -174,9 +174,9 @@ void __init setup_arch_memory(void)
 	zones_size[ZONE_HIGHMEM] = max_high_pfn - min_high_pfn;
 	zones_holes[ZONE_HIGHMEM] = 0;
 
-	free_area_init_node(1,			/* node-id */
+	free_area_init_yesde(1,			/* yesde-id */
 			    zones_size,		/* num pages per zone */
-			    min_high_pfn,	/* first pfn of node */
+			    min_high_pfn,	/* first pfn of yesde */
 			    zones_holes);	/* holes */
 
 	high_memory = (void *)(min_high_pfn << PAGE_SHIFT);

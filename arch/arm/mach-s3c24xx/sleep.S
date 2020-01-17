@@ -20,7 +20,7 @@
 #include <mach/regs-clock.h>
 
 /*
- * S3C24XX_DEBUG_RESUME is dangerous if your bootloader does not
+ * S3C24XX_DEBUG_RESUME is dangerous if your bootloader does yest
  * reset the UART configuration, only enable if you really need this!
  */
 //#define S3C24XX_DEBUG_RESUME

@@ -22,7 +22,7 @@ struct serdev_device;
  * @receive_buf:	Function called with data received from device;
  *			returns number of bytes accepted; may sleep.
  * @write_wakeup:	Function called when ready to transmit more data; must
- *			not sleep.
+ *			yest sleep.
  */
 struct serdev_device_ops {
 	int (*receive_buf)(struct serdev_device *, const unsigned char *, size_t);

@@ -20,7 +20,7 @@
 	Changelog:
 
 	Paul Gortmaker	: multiple card support for module users, support
-			  for non-standard memory sizes.
+			  for yesn-standard memory sizes.
 
 
 */
@@ -30,7 +30,7 @@ static const char version[] =
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -182,7 +182,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	/* Check for semi-valid mem_start/end values if supplied. */
 	if ((dev->mem_start % 0x2000) || (dev->mem_end % 0x2000)) {
 		netdev_warn(dev,
-			    "wd.c: user supplied mem_start or mem_end not on 8kB boundary - ignored.\n");
+			    "wd.c: user supplied mem_start or mem_end yest on 8kB boundary - igyesred.\n");
 		dev->mem_start = 0;
 		dev->mem_end = 0;
 	}
@@ -308,7 +308,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 	} else if (dev->irq == 2)		/* Fixup bogosity: IRQ2 is really IRQ9 */
 		dev->irq = 9;
 
-	/* Snarf the interrupt now.  There's no point in waiting since we cannot
+	/* Snarf the interrupt yesw.  There's yes point in waiting since we canyest
 	   share and the board will usually be enabled. */
 	i = request_irq(dev->irq, ei_interrupt, 0, DRV_NAME, dev);
 	if (i) {
@@ -430,7 +430,7 @@ wd_get_8390_hdr(struct net_device *dev, struct e8390_pkt_hdr *hdr, int ring_page
 }
 
 /* Block input and output are easy on shared memory ethercards, and trivial
-   on the Western digital card where there is no choice of how to do it.
+   on the Western digital card where there is yes choice of how to do it.
    The only complications are that the ring buffer wraps, and need to map
    switch between 8- and 16-bit modes. */
 
@@ -501,7 +501,7 @@ static struct net_device *dev_wd[MAX_WD_CARDS];
 static int io[MAX_WD_CARDS];
 static int irq[MAX_WD_CARDS];
 static int mem[MAX_WD_CARDS];
-static int mem_end[MAX_WD_CARDS];	/* for non std. mem size */
+static int mem_end[MAX_WD_CARDS];	/* for yesn std. mem size */
 
 module_param_hw_array(io, int, ioport, NULL, 0);
 module_param_hw_array(irq, int, irq, NULL, 0);
@@ -509,15 +509,15 @@ module_param_hw_array(mem, int, iomem, NULL, 0);
 module_param_hw_array(mem_end, int, iomem, NULL, 0);
 module_param_named(msg_enable, wd_msg_enable, uint, 0444);
 MODULE_PARM_DESC(io, "I/O base address(es)");
-MODULE_PARM_DESC(irq, "IRQ number(s) (ignored for PureData boards)");
-MODULE_PARM_DESC(mem, "memory base address(es)(ignored for PureData boards)");
+MODULE_PARM_DESC(irq, "IRQ number(s) (igyesred for PureData boards)");
+MODULE_PARM_DESC(mem, "memory base address(es)(igyesred for PureData boards)");
 MODULE_PARM_DESC(mem_end, "memory end address(es)");
 MODULE_PARM_DESC(msg_enable, "Debug message level (see linux/netdevice.h for bitmap)");
 MODULE_DESCRIPTION("ISA Western Digital wd8003/wd8013 ; SMC Elite, Elite16 ethernet driver");
 MODULE_LICENSE("GPL");
 
 /* This is set up so that only a single autoprobe takes place per call.
-ISA device autoprobes on a running machine are not recommended. */
+ISA device autoprobes on a running machine are yest recommended. */
 
 int __init init_module(void)
 {
@@ -527,7 +527,7 @@ int __init init_module(void)
 	for (this_dev = 0; this_dev < MAX_WD_CARDS; this_dev++) {
 		if (io[this_dev] == 0)  {
 			if (this_dev != 0) break; /* only autoprobe 1st one */
-			printk(KERN_NOTICE "wd.c: Presently autoprobing (not recommended) for a single card.\n");
+			printk(KERN_NOTICE "wd.c: Presently autoprobing (yest recommended) for a single card.\n");
 		}
 		dev = alloc_ei_netdev();
 		if (!dev)

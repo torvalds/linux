@@ -54,10 +54,10 @@ static int tcf_vlan_act(struct sk_buff *skb, const struct tc_action *a,
 			goto drop;
 		break;
 	case TCA_VLAN_ACT_MODIFY:
-		/* No-op if no vlan tag (either hw-accel or in-payload) */
+		/* No-op if yes vlan tag (either hw-accel or in-payload) */
 		if (!skb_vlan_tagged(skb))
 			goto out;
-		/* extract existing tag (and guarantee no hw-accel tag) */
+		/* extract existing tag (and guarantee yes hw-accel tag) */
 		if (skb_vlan_tag_present(skb)) {
 			tci = skb_vlan_tag_get(skb);
 			__vlan_hwaccel_clear_tag(skb);

@@ -5,7 +5,7 @@ Overview
 --------
 
 The FPGA manager core exports a set of functions for programming an FPGA with
-an image.  The API is manufacturer agnostic.  All manufacturer specifics are
+an image.  The API is manufacturer agyesstic.  All manufacturer specifics are
 hidden away in a low level driver which registers a set of ops with the core.
 The FPGA image data itself is very manufacturer specific, but for our purposes
 it's just binary data.  The FPGA manager core won't parse it.
@@ -23,7 +23,7 @@ built for full or partial reconfiguration.
 How to support a new FPGA device
 --------------------------------
 
-To add another FPGA manager, write a driver that implements a set of ops.  The
+To add ayesther FPGA manager, write a driver that implements a set of ops.  The
 probe function calls fpga_mgr_register(), such as::
 
 	static const struct fpga_manager_ops socfpga_fpga_ops = {
@@ -80,7 +80,7 @@ The programming sequence is::
 
 The .write_init function will prepare the FPGA to receive the image data.  The
 buffer passed into .write_init will be at most .initial_header_size bytes long;
-if the whole bitstream is not immediately available then the core code will
+if the whole bitstream is yest immediately available then the core code will
 buffer up at least this much before starting.
 
 The .write function writes a buffer to the FPGA. The buffer may be contain the

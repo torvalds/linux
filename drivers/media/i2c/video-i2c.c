@@ -2,7 +2,7 @@
 /*
  * video-i2c.c - Support for I2C transport video devices
  *
- * Copyright (C) 2018 Matt Ranostay <matt.ranostay@konsulko.com>
+ * Copyright (C) 2018 Matt Rayesstay <matt.rayesstay@konsulko.com>
  *
  * Supported:
  * - Panasonic AMG88xx Grid-Eye Sensors
@@ -177,7 +177,7 @@ static int amg88xx_setup(struct video_i2c_data *data)
 	unsigned int mask = AMG88XX_FPSC_1FPS;
 	unsigned int val;
 
-	if (data->frame_interval.numerator == data->frame_interval.denominator)
+	if (data->frame_interval.numerator == data->frame_interval.deyesminator)
 		val = mask;
 	else
 		val = 0;
@@ -238,9 +238,9 @@ static int amg88xx_set_power_off(struct video_i2c_data *data)
 	if (ret)
 		return ret;
 	/*
-	 * Wait for a while to avoid resuming normal mode immediately after
+	 * Wait for a while to avoid resuming yesrmal mode immediately after
 	 * entering sleep mode, otherwise the device occasionally goes wrong
-	 * (thermistor and temperature registers are not updated at all)
+	 * (thermistor and temperature registers are yest updated at all)
 	 */
 	msleep(100);
 
@@ -288,7 +288,7 @@ static int amg88xx_read(struct device *dev, enum hwmon_sensor_types type,
 
 	tmp = pm_runtime_get_sync(regmap_get_device(data->regmap));
 	if (tmp < 0) {
-		pm_runtime_put_noidle(regmap_get_device(data->regmap));
+		pm_runtime_put_yesidle(regmap_get_device(data->regmap));
 		return tmp;
 	}
 
@@ -444,7 +444,7 @@ static int video_i2c_thread_vid_cap(void *priv)
 {
 	struct video_i2c_data *data = priv;
 	unsigned int delay = mult_frac(HZ, data->frame_interval.numerator,
-				       data->frame_interval.denominator);
+				       data->frame_interval.deyesminator);
 
 	set_freezable();
 
@@ -514,7 +514,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		goto error_del_list;
 	}
 
@@ -763,7 +763,7 @@ static int video_i2c_probe(struct i2c_client *client,
 	if (!data)
 		return -ENOMEM;
 
-	if (dev_fwnode(&client->dev))
+	if (dev_fwyesde(&client->dev))
 		data->chip = device_get_match_data(&client->dev);
 	else if (id)
 		data->chip = &video_i2c_chip[id->driver_data];
@@ -829,7 +829,7 @@ static int video_i2c_probe(struct i2c_client *client,
 			goto error_unregister_device;
 	}
 
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_yesresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev, 2000);
@@ -870,7 +870,7 @@ static int video_i2c_probe(struct i2c_client *client,
 error_pm_disable:
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	if (data->chip->set_power)
 		data->chip->set_power(data, false);
@@ -896,7 +896,7 @@ static int video_i2c_remove(struct i2c_client *client)
 	pm_runtime_get_sync(&client->dev);
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	if (data->chip->set_power)
 		data->chip->set_power(data, false);
@@ -962,6 +962,6 @@ static struct i2c_driver video_i2c_driver = {
 
 module_i2c_driver(video_i2c_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Rayesstay <matt.rayesstay@konsulko.com>");
 MODULE_DESCRIPTION("I2C transport video support");
 MODULE_LICENSE("GPL v2");

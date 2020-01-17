@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -162,7 +162,7 @@ static int igt_ppgtt_alloc(void *arg)
 	 * While we only allocate the page tables here and so we could
 	 * address a much larger GTT than we could actually fit into
 	 * RAM, a practical limit is the amount of physical pages in the system.
-	 * This should ensure that we do not run into the oomkiller during
+	 * This should ensure that we do yest run into the oomkiller during
 	 * the test and take down the machine wilfully.
 	 */
 	limit = totalram_pages() << PAGE_SHIFT;
@@ -217,7 +217,7 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 
 	memset(&mock_vma, 0, sizeof(struct i915_vma));
 
-	/* Keep creating larger objects until one cannot fit into the hole */
+	/* Keep creating larger objects until one canyest fit into the hole */
 	for (size = 12; (hole_end - hole_start) >> size; size++) {
 		I915_RND_SUBSTATE(prng, seed_prng);
 		struct drm_i915_gem_object *obj;
@@ -246,7 +246,7 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 		GEM_BUG_ON(count * BIT_ULL(size) > vm->total);
 		GEM_BUG_ON(hole_start + count * BIT_ULL(size) > hole_end);
 
-		/* Ignore allocation failures (i.e. don't report them as
+		/* Igyesre allocation failures (i.e. don't report them as
 		 * a test failure) as we are purposefully allocating very
 		 * large objects without checking that we have sufficient
 		 * memory. We expect to hit -ENOMEM.
@@ -284,8 +284,8 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 				break;
 
 			mock_vma.pages = obj->mm.pages;
-			mock_vma.node.size = BIT_ULL(size);
-			mock_vma.node.start = addr;
+			mock_vma.yesde.size = BIT_ULL(size);
+			mock_vma.yesde.start = addr;
 
 			with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 				vm->insert_entries(vm, &mock_vma,
@@ -318,14 +318,14 @@ static void close_object_list(struct list_head *objects,
 			      struct i915_address_space *vm)
 {
 	struct drm_i915_gem_object *obj, *on;
-	int ignored;
+	int igyesred;
 
 	list_for_each_entry_safe(obj, on, objects, st_link) {
 		struct i915_vma *vma;
 
 		vma = i915_vma_instance(obj, vm, NULL);
 		if (!IS_ERR(vma))
-			ignored = i915_vma_unbind(vma);
+			igyesred = i915_vma_unbind(vma);
 		/* Only ppgtt vma may be closed before the object is freed */
 		if (!IS_ERR(vma) && !i915_vma_is_ggtt(vma))
 			i915_vma_close(vma);
@@ -401,10 +401,10 @@ static int fill_hole(struct drm_i915_private *i915,
 						goto err;
 					}
 
-					if (!drm_mm_node_allocated(&vma->node) ||
+					if (!drm_mm_yesde_allocated(&vma->yesde) ||
 					    i915_vma_misplaced(vma, 0, 0, offset | flags)) {
-						pr_err("%s(%s) (forward) insert failed: vma.node=%llx + %llx [allocated? %d], expected offset %llx\n",
-						       __func__, p->name, vma->node.start, vma->node.size, drm_mm_node_allocated(&vma->node),
+						pr_err("%s(%s) (forward) insert failed: vma.yesde=%llx + %llx [allocated? %d], expected offset %llx\n",
+						       __func__, p->name, vma->yesde.start, vma->yesde.size, drm_mm_yesde_allocated(&vma->yesde),
 						       offset);
 						err = -EINVAL;
 						goto err;
@@ -431,10 +431,10 @@ static int fill_hole(struct drm_i915_private *i915,
 						offset -= obj->base.size;
 					}
 
-					if (!drm_mm_node_allocated(&vma->node) ||
+					if (!drm_mm_yesde_allocated(&vma->yesde) ||
 					    i915_vma_misplaced(vma, 0, 0, offset | flags)) {
-						pr_err("%s(%s) (forward) moved vma.node=%llx + %llx, expected offset %llx\n",
-						       __func__, p->name, vma->node.start, vma->node.size,
+						pr_err("%s(%s) (forward) moved vma.yesde=%llx + %llx, expected offset %llx\n",
+						       __func__, p->name, vma->yesde.start, vma->yesde.size,
 						       offset);
 						err = -EINVAL;
 						goto err;
@@ -442,8 +442,8 @@ static int fill_hole(struct drm_i915_private *i915,
 
 					err = i915_vma_unbind(vma);
 					if (err) {
-						pr_err("%s(%s) (forward) unbind of vma.node=%llx + %llx failed with err=%d\n",
-						       __func__, p->name, vma->node.start, vma->node.size,
+						pr_err("%s(%s) (forward) unbind of vma.yesde=%llx + %llx failed with err=%d\n",
+						       __func__, p->name, vma->yesde.start, vma->yesde.size,
 						       err);
 						goto err;
 					}
@@ -474,10 +474,10 @@ static int fill_hole(struct drm_i915_private *i915,
 						goto err;
 					}
 
-					if (!drm_mm_node_allocated(&vma->node) ||
+					if (!drm_mm_yesde_allocated(&vma->yesde) ||
 					    i915_vma_misplaced(vma, 0, 0, offset | flags)) {
-						pr_err("%s(%s) (backward) insert failed: vma.node=%llx + %llx [allocated? %d], expected offset %llx\n",
-						       __func__, p->name, vma->node.start, vma->node.size, drm_mm_node_allocated(&vma->node),
+						pr_err("%s(%s) (backward) insert failed: vma.yesde=%llx + %llx [allocated? %d], expected offset %llx\n",
+						       __func__, p->name, vma->yesde.start, vma->yesde.size, drm_mm_yesde_allocated(&vma->yesde),
 						       offset);
 						err = -EINVAL;
 						goto err;
@@ -504,10 +504,10 @@ static int fill_hole(struct drm_i915_private *i915,
 						offset -= obj->base.size;
 					}
 
-					if (!drm_mm_node_allocated(&vma->node) ||
+					if (!drm_mm_yesde_allocated(&vma->yesde) ||
 					    i915_vma_misplaced(vma, 0, 0, offset | flags)) {
-						pr_err("%s(%s) (backward) moved vma.node=%llx + %llx [allocated? %d], expected offset %llx\n",
-						       __func__, p->name, vma->node.start, vma->node.size, drm_mm_node_allocated(&vma->node),
+						pr_err("%s(%s) (backward) moved vma.yesde=%llx + %llx [allocated? %d], expected offset %llx\n",
+						       __func__, p->name, vma->yesde.start, vma->yesde.size, drm_mm_yesde_allocated(&vma->yesde),
 						       offset);
 						err = -EINVAL;
 						goto err;
@@ -515,8 +515,8 @@ static int fill_hole(struct drm_i915_private *i915,
 
 					err = i915_vma_unbind(vma);
 					if (err) {
-						pr_err("%s(%s) (backward) unbind of vma.node=%llx + %llx failed with err=%d\n",
-						       __func__, p->name, vma->node.start, vma->node.size,
+						pr_err("%s(%s) (backward) unbind of vma.yesde=%llx + %llx failed with err=%d\n",
+						       __func__, p->name, vma->yesde.start, vma->yesde.size,
 						       err);
 						goto err;
 					}
@@ -592,7 +592,7 @@ static int walk_hole(struct drm_i915_private *i915,
 			}
 			i915_vma_unpin(vma);
 
-			if (!drm_mm_node_allocated(&vma->node) ||
+			if (!drm_mm_yesde_allocated(&vma->yesde) ||
 			    i915_vma_misplaced(vma, 0, 0, addr | flags)) {
 				pr_err("%s incorrect at %llx + %llx\n",
 				       __func__, addr, vma->size);
@@ -607,7 +607,7 @@ static int walk_hole(struct drm_i915_private *i915,
 				goto err_close;
 			}
 
-			GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
+			GEM_BUG_ON(drm_mm_yesde_allocated(&vma->yesde));
 
 			if (igt_timeout(end_time,
 					"%s timed out at %llx\n",
@@ -676,7 +676,7 @@ static int pot_hole(struct drm_i915_private *i915,
 				goto err;
 			}
 
-			if (!drm_mm_node_allocated(&vma->node) ||
+			if (!drm_mm_yesde_allocated(&vma->yesde) ||
 			    i915_vma_misplaced(vma, 0, 0, addr | flags)) {
 				pr_err("%s incorrect at %llx + %llx\n",
 				       __func__, addr, vma->size);
@@ -720,7 +720,7 @@ static int drunk_hole(struct drm_i915_private *i915,
 	if (i915_is_ggtt(vm))
 		flags |= PIN_GLOBAL;
 
-	/* Keep creating larger objects until one cannot fit into the hole */
+	/* Keep creating larger objects until one canyest fit into the hole */
 	for (size = 12; (hole_end - hole_start) >> size; size++) {
 		struct drm_i915_gem_object *obj;
 		unsigned int *order, count, n;
@@ -747,7 +747,7 @@ static int drunk_hole(struct drm_i915_private *i915,
 			return -ENOMEM;
 		GEM_BUG_ON(!order);
 
-		/* Ignore allocation failures (i.e. don't report them as
+		/* Igyesre allocation failures (i.e. don't report them as
 		 * a test failure) as we are purposefully allocating very
 		 * large objects without checking that we have sufficient
 		 * memory. We expect to hit -ENOMEM.
@@ -780,7 +780,7 @@ static int drunk_hole(struct drm_i915_private *i915,
 				goto err;
 			}
 
-			if (!drm_mm_node_allocated(&vma->node) ||
+			if (!drm_mm_yesde_allocated(&vma->yesde) ||
 			    i915_vma_misplaced(vma, 0, 0, addr | flags)) {
 				pr_err("%s incorrect at %llx + %llx\n",
 				       __func__, addr, BIT_ULL(size));
@@ -829,7 +829,7 @@ static int __shrink_hole(struct drm_i915_private *i915,
 	int err = 0;
 	u64 addr;
 
-	/* Keep creating larger objects until one cannot fit into the hole */
+	/* Keep creating larger objects until one canyest fit into the hole */
 	for (addr = hole_start; addr < hole_end; ) {
 		struct i915_vma *vma;
 		u64 size = BIT_ULL(order++);
@@ -858,7 +858,7 @@ static int __shrink_hole(struct drm_i915_private *i915,
 			break;
 		}
 
-		if (!drm_mm_node_allocated(&vma->node) ||
+		if (!drm_mm_yesde_allocated(&vma->yesde) ||
 		    i915_vma_misplaced(vma, 0, 0, addr | flags)) {
 			pr_err("%s incorrect at %llx + %llx\n",
 			       __func__, addr, size);
@@ -953,7 +953,7 @@ static int shrink_boom(struct drm_i915_private *i915,
 		if (err)
 			goto err_purge;
 
-		/* Should now be ripe for purging */
+		/* Should yesw be ripe for purging */
 		i915_vma_unpin(vma);
 
 		explode = fake_dma_object(i915, size);
@@ -1067,8 +1067,8 @@ static int igt_ppgtt_shrink_boom(void *arg)
 
 static int sort_holes(void *priv, struct list_head *A, struct list_head *B)
 {
-	struct drm_mm_node *a = list_entry(A, typeof(*a), hole_stack);
-	struct drm_mm_node *b = list_entry(B, typeof(*b), hole_stack);
+	struct drm_mm_yesde *a = list_entry(A, typeof(*a), hole_stack);
+	struct drm_mm_yesde *b = list_entry(B, typeof(*b), hole_stack);
 
 	if (a->start < b->start)
 		return -1;
@@ -1084,18 +1084,18 @@ static int exercise_ggtt(struct drm_i915_private *i915,
 {
 	struct i915_ggtt *ggtt = &i915->ggtt;
 	u64 hole_start, hole_end, last = 0;
-	struct drm_mm_node *node;
+	struct drm_mm_yesde *yesde;
 	IGT_TIMEOUT(end_time);
 	int err = 0;
 
 restart:
 	list_sort(NULL, &ggtt->vm.mm.hole_stack, sort_holes);
-	drm_mm_for_each_hole(node, &ggtt->vm.mm, hole_start, hole_end) {
+	drm_mm_for_each_hole(yesde, &ggtt->vm.mm, hole_start, hole_end) {
 		if (hole_start < last)
 			continue;
 
 		if (ggtt->vm.mm.color_adjust)
-			ggtt->vm.mm.color_adjust(node, 0,
+			ggtt->vm.mm.color_adjust(yesde, 0,
 						 &hole_start, &hole_end);
 		if (hole_start >= hole_end)
 			continue;
@@ -1145,7 +1145,7 @@ static int igt_ggtt_page(void *arg)
 	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct drm_i915_gem_object *obj;
 	intel_wakeref_t wakeref;
-	struct drm_mm_node tmp;
+	struct drm_mm_yesde tmp;
 	unsigned int *order, n;
 	int err;
 
@@ -1161,7 +1161,7 @@ static int igt_ggtt_page(void *arg)
 		goto out_free;
 
 	memset(&tmp, 0, sizeof(tmp));
-	err = drm_mm_insert_node_in_range(&ggtt->vm.mm, &tmp,
+	err = drm_mm_insert_yesde_in_range(&ggtt->vm.mm, &tmp,
 					  count * PAGE_SIZE, 0,
 					  I915_COLOR_UNEVICTABLE,
 					  0, ggtt->mappable_end,
@@ -1217,7 +1217,7 @@ static int igt_ggtt_page(void *arg)
 out_remove:
 	ggtt->vm.clear_range(&ggtt->vm, tmp.start, tmp.size);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	drm_mm_remove_node(&tmp);
+	drm_mm_remove_yesde(&tmp);
 out_unpin:
 	i915_gem_object_unpin_pages(obj);
 out_free:
@@ -1304,7 +1304,7 @@ static int igt_gtt_reserve(void *arg)
 	int err = -ENODEV;
 
 	/* i915_gem_gtt_reserve() tries to reserve the precise range
-	 * for the node, and evicts if it has to. So our test checks that
+	 * for the yesde, and evicts if it has to. So our test checks that
 	 * it can give us the requsted space and prevent overlaps.
 	 */
 
@@ -1336,7 +1336,7 @@ static int igt_gtt_reserve(void *arg)
 		}
 
 		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
+		err = i915_gem_gtt_reserve(&ggtt->vm, &vma->yesde,
 					   obj->base.size,
 					   total,
 					   obj->cache_level,
@@ -1349,11 +1349,11 @@ static int igt_gtt_reserve(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-		if (vma->node.start != total ||
-		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
+		GEM_BUG_ON(!drm_mm_yesde_allocated(&vma->yesde));
+		if (vma->yesde.start != total ||
+		    vma->yesde.size != 2*I915_GTT_PAGE_SIZE) {
 			pr_err("i915_gem_gtt_reserve (pass 1) placement failed, found (%llx + %llx), expected (%llx + %llx)\n",
-			       vma->node.start, vma->node.size,
+			       vma->yesde.start, vma->yesde.size,
 			       total, 2*I915_GTT_PAGE_SIZE);
 			err = -EINVAL;
 			goto out;
@@ -1388,7 +1388,7 @@ static int igt_gtt_reserve(void *arg)
 		}
 
 		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
+		err = i915_gem_gtt_reserve(&ggtt->vm, &vma->yesde,
 					   obj->base.size,
 					   total,
 					   obj->cache_level,
@@ -1401,11 +1401,11 @@ static int igt_gtt_reserve(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-		if (vma->node.start != total ||
-		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
+		GEM_BUG_ON(!drm_mm_yesde_allocated(&vma->yesde));
+		if (vma->yesde.start != total ||
+		    vma->yesde.size != 2*I915_GTT_PAGE_SIZE) {
 			pr_err("i915_gem_gtt_reserve (pass 2) placement failed, found (%llx + %llx), expected (%llx + %llx)\n",
-			       vma->node.start, vma->node.size,
+			       vma->yesde.start, vma->yesde.size,
 			       total, 2*I915_GTT_PAGE_SIZE);
 			err = -EINVAL;
 			goto out;
@@ -1435,7 +1435,7 @@ static int igt_gtt_reserve(void *arg)
 					   I915_GTT_MIN_ALIGNMENT);
 
 		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_gtt_reserve(&ggtt->vm, &vma->node,
+		err = i915_gem_gtt_reserve(&ggtt->vm, &vma->yesde,
 					   obj->base.size,
 					   offset,
 					   obj->cache_level,
@@ -1448,11 +1448,11 @@ static int igt_gtt_reserve(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-		if (vma->node.start != offset ||
-		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
+		GEM_BUG_ON(!drm_mm_yesde_allocated(&vma->yesde));
+		if (vma->yesde.start != offset ||
+		    vma->yesde.size != 2*I915_GTT_PAGE_SIZE) {
 			pr_err("i915_gem_gtt_reserve (pass 3) placement failed, found (%llx + %llx), expected (%llx + %llx)\n",
-			       vma->node.start, vma->node.size,
+			       vma->yesde.start, vma->yesde.size,
 			       offset, 2*I915_GTT_PAGE_SIZE);
 			err = -EINVAL;
 			goto out;
@@ -1471,7 +1471,7 @@ static int igt_gtt_insert(void *arg)
 {
 	struct i915_ggtt *ggtt = arg;
 	struct drm_i915_gem_object *obj, *on;
-	struct drm_mm_node tmp = {};
+	struct drm_mm_yesde tmp = {};
 	const struct invalid_insert {
 		u64 size;
 		u64 alignment;
@@ -1504,7 +1504,7 @@ static int igt_gtt_insert(void *arg)
 	int err = -ENODEV;
 
 	/* i915_gem_gtt_insert() tries to allocate some free space in the GTT
-	 * to the node, evicting if required.
+	 * to the yesde, evicting if required.
 	 */
 
 	/* Check a couple of obviously invalid requests */
@@ -1552,7 +1552,7 @@ static int igt_gtt_insert(void *arg)
 		}
 
 		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_gtt_insert(&ggtt->vm, &vma->node,
+		err = i915_gem_gtt_insert(&ggtt->vm, &vma->yesde,
 					  obj->base.size, 0, obj->cache_level,
 					  0, ggtt->vm.total,
 					  0);
@@ -1570,7 +1570,7 @@ static int igt_gtt_insert(void *arg)
 		track_vma_bind(vma);
 		__i915_vma_pin(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM_BUG_ON(!drm_mm_yesde_allocated(&vma->yesde));
 	}
 
 	list_for_each_entry(obj, &objects, st_link) {
@@ -1582,7 +1582,7 @@ static int igt_gtt_insert(void *arg)
 			goto out;
 		}
 
-		if (!drm_mm_node_allocated(&vma->node)) {
+		if (!drm_mm_yesde_allocated(&vma->yesde)) {
 			pr_err("VMA was unexpectedly evicted!\n");
 			err = -EINVAL;
 			goto out;
@@ -1602,8 +1602,8 @@ static int igt_gtt_insert(void *arg)
 			goto out;
 		}
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-		offset = vma->node.start;
+		GEM_BUG_ON(!drm_mm_yesde_allocated(&vma->yesde));
+		offset = vma->yesde.start;
 
 		err = i915_vma_unbind(vma);
 		if (err) {
@@ -1612,7 +1612,7 @@ static int igt_gtt_insert(void *arg)
 		}
 
 		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_gtt_insert(&ggtt->vm, &vma->node,
+		err = i915_gem_gtt_insert(&ggtt->vm, &vma->yesde,
 					  obj->base.size, 0, obj->cache_level,
 					  0, ggtt->vm.total,
 					  0);
@@ -1624,10 +1624,10 @@ static int igt_gtt_insert(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-		if (vma->node.start != offset) {
-			pr_err("i915_gem_gtt_insert did not return node to its previous location (the only hole), expected address %llx, found %llx\n",
-			       offset, vma->node.start);
+		GEM_BUG_ON(!drm_mm_yesde_allocated(&vma->yesde));
+		if (vma->yesde.start != offset) {
+			pr_err("i915_gem_gtt_insert did yest return yesde to its previous location (the only hole), expected address %llx, found %llx\n",
+			       offset, vma->yesde.start);
 			err = -EINVAL;
 			goto out;
 		}
@@ -1661,7 +1661,7 @@ static int igt_gtt_insert(void *arg)
 		}
 
 		mutex_lock(&ggtt->vm.mutex);
-		err = i915_gem_gtt_insert(&ggtt->vm, &vma->node,
+		err = i915_gem_gtt_insert(&ggtt->vm, &vma->yesde,
 					  obj->base.size, 0, obj->cache_level,
 					  0, ggtt->vm.total,
 					  0);
@@ -1673,7 +1673,7 @@ static int igt_gtt_insert(void *arg)
 		}
 		track_vma_bind(vma);
 
-		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+		GEM_BUG_ON(!drm_mm_yesde_allocated(&vma->yesde));
 	}
 
 out:
@@ -1792,7 +1792,7 @@ static int igt_cs_tlb(void *arg)
 
 	/*
 	 * Our mission here is to fool the hardware to execute something
-	 * from scratch as it has not seen the batch move (due to missing
+	 * from scratch as it has yest seen the batch move (due to missing
 	 * the TLB invalidate).
 	 */
 
@@ -1878,7 +1878,7 @@ static int igt_cs_tlb(void *arg)
 			   (vm->total - PAGE_SIZE));
 	if (err)
 		goto out_put_out;
-	GEM_BUG_ON(vma->node.start != vm->total - PAGE_SIZE);
+	GEM_BUG_ON(vma->yesde.start != vm->total - PAGE_SIZE);
 
 	result = i915_gem_object_pin_map(out, I915_MAP_WB);
 	if (IS_ERR(result)) {
@@ -1919,10 +1919,10 @@ static int igt_cs_tlb(void *arg)
 
 			/* Prime the TLB with the dummy pages */
 			for (i = 0; i < count; i++) {
-				vma->node.start = offset + i * PAGE_SIZE;
+				vma->yesde.start = offset + i * PAGE_SIZE;
 				vm->insert_entries(vm, vma, I915_CACHE_NONE, 0);
 
-				rq = submit_batch(ce, vma->node.start);
+				rq = submit_batch(ce, vma->yesde.start);
 				if (IS_ERR(rq)) {
 					err = PTR_ERR(rq);
 					goto end;
@@ -1955,10 +1955,10 @@ static int igt_cs_tlb(void *arg)
 				u32 *cs = batch + i * 64 / sizeof(*cs);
 				u64 addr;
 
-				vma->node.start = offset + i * PAGE_SIZE;
+				vma->yesde.start = offset + i * PAGE_SIZE;
 				vm->insert_entries(vm, vma, I915_CACHE_NONE, 0);
 
-				addr = vma->node.start + i * 64;
+				addr = vma->yesde.start + i * 64;
 				cs[4] = MI_NOOP;
 				cs[6] = lower_32_bits(addr);
 				cs[7] = upper_32_bits(addr);

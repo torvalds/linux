@@ -35,7 +35,7 @@ struct zx_pm_domain {
 	unsigned int bit;
 };
 
-static int normal_power_off(struct generic_pm_domain *domain)
+static int yesrmal_power_off(struct generic_pm_domain *domain)
 {
 	struct zx_pm_domain *zpd = (struct zx_pm_domain *)domain;
 	unsigned long loop = 1000;
@@ -71,7 +71,7 @@ static int normal_power_off(struct generic_pm_domain *domain)
 	return 0;
 }
 
-static int normal_power_on(struct generic_pm_domain *domain)
+static int yesrmal_power_on(struct generic_pm_domain *domain)
 {
 	struct zx_pm_domain *zpd = (struct zx_pm_domain *)domain;
 	unsigned long loop = 10000;
@@ -109,8 +109,8 @@ static int normal_power_on(struct generic_pm_domain *domain)
 static struct zx_pm_domain gpu_domain = {
 	.dm = {
 		.name		= "gpu_domain",
-		.power_off	= normal_power_off,
-		.power_on	= normal_power_on,
+		.power_off	= yesrmal_power_off,
+		.power_on	= yesrmal_power_on,
 	},
 	.bit = PCU_DM_GPU,
 };
@@ -118,8 +118,8 @@ static struct zx_pm_domain gpu_domain = {
 static struct zx_pm_domain decppu_domain = {
 	.dm = {
 		.name		= "decppu_domain",
-		.power_off	= normal_power_off,
-		.power_on	= normal_power_on,
+		.power_off	= yesrmal_power_off,
+		.power_on	= yesrmal_power_on,
 	},
 	.bit = PCU_DM_DECPPU,
 };
@@ -127,8 +127,8 @@ static struct zx_pm_domain decppu_domain = {
 static struct zx_pm_domain vou_domain = {
 	.dm = {
 		.name		= "vou_domain",
-		.power_off	= normal_power_off,
-		.power_on	= normal_power_on,
+		.power_off	= yesrmal_power_off,
+		.power_on	= yesrmal_power_on,
 	},
 	.bit = PCU_DM_VOU,
 };
@@ -136,8 +136,8 @@ static struct zx_pm_domain vou_domain = {
 static struct zx_pm_domain r2d_domain = {
 	.dm = {
 		.name		= "r2d_domain",
-		.power_off	= normal_power_off,
-		.power_on	= normal_power_on,
+		.power_off	= yesrmal_power_off,
+		.power_on	= yesrmal_power_on,
 	},
 	.bit = PCU_DM_R2D,
 };
@@ -164,7 +164,7 @@ static int zx296702_pd_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
+		dev_err(&pdev->dev, "yes memory resource defined\n");
 		return -ENODEV;
 	}
 
@@ -177,7 +177,7 @@ static int zx296702_pd_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(zx296702_pm_domains); ++i)
 		pm_genpd_init(zx296702_pm_domains[i], NULL, false);
 
-	of_genpd_add_provider_onecell(pdev->dev.of_node, genpd_data);
+	of_genpd_add_provider_onecell(pdev->dev.of_yesde, genpd_data);
 	return 0;
 }
 

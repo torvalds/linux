@@ -5,7 +5,7 @@ The Soc-Camera Drivers
 
 Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
 
-Terminology
+Termiyeslogy
 -----------
 
 The following terms are used in this document:
@@ -25,7 +25,7 @@ Purpose of the soc-camera subsystem
 The soc-camera subsystem initially provided a unified API between camera host
 drivers and camera sensor drivers. Later the soc-camera sensor API has been
 replaced with the V4L2 standard subdev API. This also made camera driver re-use
-with non-soc-camera hosts possible. The camera host API to the soc-camera core
+with yesn-soc-camera hosts possible. The camera host API to the soc-camera core
 has been preserved.
 
 Soc-camera implements a V4L2 interface to the user, currently only the "mmap"
@@ -49,13 +49,13 @@ Camera host API
 
 A host camera driver is registered using the
 
-.. code-block:: none
+.. code-block:: yesne
 
 	soc_camera_host_register(struct soc_camera_host *);
 
 function. The host object can be initialized as follows:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	struct soc_camera_host	*ici;
 	ici->drv_name		= DRV_NAME;
@@ -66,7 +66,7 @@ function. The host object can be initialized as follows:
 
 All camera host methods are passed in a struct soc_camera_host_ops:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	static struct soc_camera_host_ops camera_host_ops = {
 		.owner		= THIS_MODULE,
@@ -87,7 +87,7 @@ parameters between the host and the sensor. .init_videobuf2 is called by
 soc-camera core when a video-device is opened, the host driver would typically
 call vb2_queue_init() in this method. Further video-buffer management is
 implemented completely by the specific camera host driver. If the host driver
-supports non-standard pixel format conversion, it should implement a
+supports yesn-standard pixel format conversion, it should implement a
 .get_formats and, possibly, a .put_formats operations. See below for more
 details about format conversion. The rest of the methods are called from
 respective V4L2 operations.
@@ -123,7 +123,7 @@ pixel. Changing sensor window sizes preserves any scaling factors, therefore
 user window sizes change as well.
 
 VIDIOC_S_FMT: sets user window. Should preserve previously set sensor window as
-much as possible by modifying scaling factors. If the sensor window cannot be
+much as possible by modifying scaling factors. If the sensor window canyest be
 preserved precisely, it may be changed too.
 
 In soc-camera there are two locations, where scaling and cropping can take
@@ -142,8 +142,8 @@ output geometry. This is necessary to correctly configure the camera bus.
 .s_fmt() and .try_fmt() have to be implemented too. Sensor window and scaling
 factors have to be maintained by camera drivers internally. According to the
 V4L2 API all capture drivers must support the VIDIOC_CROPCAP ioctl, hence we
-rely on camera drivers implementing .cropcap(). If the camera driver does not
-support cropping, it may choose to not implement .s_crop(), but to enable
+rely on camera drivers implementing .cropcap(). If the camera driver does yest
+support cropping, it may choose to yest implement .s_crop(), but to enable
 cropping support by the camera host driver at least the .g_crop method must be
 implemented.
 
@@ -162,7 +162,7 @@ conveniently manage these formats. A table of standard transformations is
 maintained by soc-camera core, which describes, what FOURCC pixel format will
 be obtained, if a media-bus pixel format is stored in memory according to
 certain rules. E.g. if MEDIA_BUS_FMT_YUYV8_2X8 data is sampled with 8 bits per
-sample and stored in memory in the little-endian order with no gaps between
+sample and stored in memory in the little-endian order with yes gaps between
 bytes, data in memory will represent the V4L2_PIX_FMT_YUYV FOURCC format. These
 standard transformations will be used by soc-camera or by camera host drivers to
 configure camera drivers to produce the FOURCC format, requested by the user,

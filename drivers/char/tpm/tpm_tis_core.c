@@ -563,12 +563,12 @@ static void tpm_tis_update_durations(struct tpm_chip *chip,
 
 		if ((version->major ==
 		     vendor_dur_overrides[i].version.major) &&
-		    (version->minor ==
-		     vendor_dur_overrides[i].version.minor) &&
+		    (version->miyesr ==
+		     vendor_dur_overrides[i].version.miyesr) &&
 		    (version->rev_major ==
 		     vendor_dur_overrides[i].version.rev_major) &&
-		    (version->rev_minor ==
-		     vendor_dur_overrides[i].version.rev_minor)) {
+		    (version->rev_miyesr ==
+		     vendor_dur_overrides[i].version.rev_miyesr)) {
 
 			memcpy(duration_cap,
 			       vendor_dur_overrides[i].durations,
@@ -814,7 +814,7 @@ static int tpm_tis_probe_irq_single(struct tpm_chip *chip, u32 intmask,
 }
 
 /* Try to find the IRQ the TPM is using. This is for legacy x86 systems that
- * do not have ACPI/etc. We typically expect the interrupt to be declared if
+ * do yest have ACPI/etc. We typically expect the interrupt to be declared if
  * present.
  */
 static void tpm_tis_probe_irq(struct tpm_chip *chip, u32 intmask)
@@ -966,7 +966,7 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 			return -ENOMEM;
 
 		clkrun_val = ioread32(priv->ilb_base_addr + LPC_CNTRL_OFFSET);
-		/* Check if CLKRUN# is already not enabled in the LPC bus */
+		/* Check if CLKRUN# is already yest enabled in the LPC bus */
 		if (!(clkrun_val & LPC_CLKRUN_EN)) {
 			iounmap(priv->ilb_base_addr);
 			priv->ilb_base_addr = NULL;
@@ -1054,7 +1054,7 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 		 * proper timeouts for the driver.
 		 */
 		if (tpm_get_timeouts(chip)) {
-			dev_err(dev, "Could not get TPM timeouts and durations\n");
+			dev_err(dev, "Could yest get TPM timeouts and durations\n");
 			rc = -ENODEV;
 			goto out_err;
 		}
@@ -1064,7 +1064,7 @@ int tpm_tis_core_init(struct device *dev, struct tpm_tis_data *priv, int irq,
 						 irq);
 			if (!(chip->flags & TPM_CHIP_FLAG_IRQ))
 				dev_err(&chip->dev, FW_BUG
-					"TPM interrupt not working, polling instead\n");
+					"TPM interrupt yest working, polling instead\n");
 		} else {
 			tpm_tis_probe_irq(chip, intmask);
 		}
@@ -1135,7 +1135,7 @@ int tpm_tis_resume(struct device *dev)
 		return ret;
 
 	/* TPM 1.2 requires self-test on resume. This function actually returns
-	 * an error code but for unknown reason it isn't handled.
+	 * an error code but for unkyeswn reason it isn't handled.
 	 */
 	if (!(chip->flags & TPM_CHIP_FLAG_TPM2))
 		tpm1_do_selftest(chip);

@@ -69,7 +69,7 @@ void rmi_2d_sensor_abs_report(struct rmi_2d_sensor *sensor,
 {
 	struct rmi_2d_axis_alignment *axis_align = &sensor->axis_align;
 	struct input_dev *input = sensor->input;
-	int wide, major, minor;
+	int wide, major, miyesr;
 
 	if (sensor->kernel_tracking)
 		input_mt_slot(input, sensor->tracking_slots[slot]);
@@ -88,11 +88,11 @@ void rmi_2d_sensor_abs_report(struct rmi_2d_sensor *sensor,
 
 		wide = (obj->wx > obj->wy);
 		major = max(obj->wx, obj->wy);
-		minor = min(obj->wx, obj->wy);
+		miyesr = min(obj->wx, obj->wy);
 
 		if (obj->type == RMI_2D_OBJECT_STYLUS) {
 			major = max(1, major);
-			minor = max(1, minor);
+			miyesr = max(1, miyesr);
 		}
 
 		input_event(sensor->input, EV_ABS, ABS_MT_POSITION_X, obj->x);
@@ -100,7 +100,7 @@ void rmi_2d_sensor_abs_report(struct rmi_2d_sensor *sensor,
 		input_event(sensor->input, EV_ABS, ABS_MT_ORIENTATION, wide);
 		input_event(sensor->input, EV_ABS, ABS_MT_PRESSURE, obj->z);
 		input_event(sensor->input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
-		input_event(sensor->input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
+		input_event(sensor->input, EV_ABS, ABS_MT_TOUCH_MINOR, miyesr);
 
 		rmi_dbg(RMI_DEBUG_2D_SENSOR, &sensor->input->dev,
 			"%s: obj[%d]: type: 0x%02x X: %d Y: %d Z: %d WX: %d WY: %d\n",
@@ -228,13 +228,13 @@ int rmi_2d_sensor_of_probe(struct device *dev,
 	int retval;
 	u32 val;
 
-	pdata->axis_align.swap_axes = of_property_read_bool(dev->of_node,
+	pdata->axis_align.swap_axes = of_property_read_bool(dev->of_yesde,
 						"touchscreen-swapped-x-y");
 
-	pdata->axis_align.flip_x = of_property_read_bool(dev->of_node,
+	pdata->axis_align.flip_x = of_property_read_bool(dev->of_yesde,
 						"touchscreen-inverted-x");
 
-	pdata->axis_align.flip_y = of_property_read_bool(dev->of_node,
+	pdata->axis_align.flip_y = of_property_read_bool(dev->of_yesde,
 						"touchscreen-inverted-y");
 
 	retval = rmi_of_property_read_u32(dev, &val, "syna,clip-x-low", 1);

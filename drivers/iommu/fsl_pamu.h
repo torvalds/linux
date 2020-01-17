@@ -270,7 +270,7 @@ struct paace {
 			u8 did;
 			/* Partition ID */
 			u8 pid;
-			/* Snoop ID */
+			/* Syesop ID */
 			u8 snpid;
 			/* coherency_required : 1 reserved : 7 */
 			u8 coherency_required; /* See PAACE_DA_* */
@@ -308,7 +308,7 @@ struct paace {
 	} op_encode;
 
 	/* PAACE Offsets 0x20-0x38 */
-	u32 reserved[8];			/* not currently implemented */
+	u32 reserved[8];			/* yest currently implemented */
 };
 
 /* OME : Operation mapping entry
@@ -371,7 +371,7 @@ struct ome {
 #define EOE_RSA         0x16    /* Read with stash allocate */
 #define EOE_RSAU        0x17    /* Read with stash allocate and unlock */
 #define EOE_READI       0x18    /* Read with invalidate */
-#define EOE_RWNITC      0x19    /* Read with no intention to cache */
+#define EOE_RWNITC      0x19    /* Read with yes intention to cache */
 #define EOE_WCI         0x1a    /* Write cache inhibited */
 #define EOE_WWSA        0x1b    /* Write with stash allocate */
 #define EOE_WWSAL       0x1c    /* Write with stash allocate and lock */
@@ -385,11 +385,11 @@ int pamu_enable_liodn(int liodn);
 int pamu_disable_liodn(int liodn);
 void pamu_free_subwins(int liodn);
 int pamu_config_ppaace(int liodn, phys_addr_t win_addr, phys_addr_t win_size,
-		       u32 omi, unsigned long rpn, u32 snoopid, uint32_t stashid,
+		       u32 omi, unsigned long rpn, u32 syesopid, uint32_t stashid,
 		       u32 subwin_cnt, int prot);
 int pamu_config_spaace(int liodn, u32 subwin_cnt, u32 subwin_addr,
 		       phys_addr_t subwin_size, u32 omi, unsigned long rpn,
-		       uint32_t snoopid, u32 stashid, int enable, int prot);
+		       uint32_t syesopid, u32 stashid, int enable, int prot);
 
 u32 get_stash_id(u32 stash_dest_hint, u32 vcpu);
 void get_ome_index(u32 *omi_index, struct device *dev);

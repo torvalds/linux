@@ -78,7 +78,7 @@ static u32 bcma_core_mips_irqflag(struct bcma_device *dev)
 /* Get the MIPS IRQ assignment for a specified device.
  * If unassigned, 0 is returned.
  * If disabled, 5 is returned.
- * If not supported, 6 is returned.
+ * If yest supported, 6 is returned.
  */
 unsigned int bcma_core_mips_irq(struct bcma_device *dev)
 {
@@ -156,7 +156,7 @@ static void bcma_core_mips_set_irq_name(struct bcma_bus *bus, unsigned int irq,
 	core = bcma_find_core_unit(bus, coreid, unit);
 	if (!core) {
 		bcma_warn(bus,
-			  "Can not find core (id: 0x%x, unit %i) for IRQ configuration.\n",
+			  "Can yest find core (id: 0x%x, unit %i) for IRQ configuration.\n",
 			  coreid, unit);
 		return;
 	}
@@ -282,7 +282,7 @@ static void bcma_fix_i2s_irqflag(struct bcma_bus *bus)
 	struct bcma_device *cpu, *pcie, *i2s;
 
 	/* Fixup the interrupts in 4716/4748 for i2s core (2010 Broadcom SDK)
-	 * (IRQ flags > 7 are ignored when setting the interrupt masks)
+	 * (IRQ flags > 7 are igyesred when setting the interrupt masks)
 	 */
 	if (bus->chipinfo.id != BCMA_CHIP_ID_BCM4716 &&
 	    bus->chipinfo.id != BCMA_CHIP_ID_BCM4748)
@@ -357,7 +357,7 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 			core->irq = bcma_core_irq(core, 0);
 		}
 		bcma_err(bus,
-			 "Unknown device (0x%x) found, can not configure IRQs\n",
+			 "Unkyeswn device (0x%x) found, can yest configure IRQs\n",
 			 bus->chipinfo.id);
 	}
 	bcma_debug(bus, "IRQ reconfiguration done\n");

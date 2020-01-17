@@ -53,7 +53,7 @@ struct rcar_gen2_phy {
 };
 
 struct rcar_gen2_channel {
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 	struct rcar_gen2_phy_driver *drv;
 	struct rcar_gen2_phy phys[PHYS_PER_CHANNEL];
 	int selected_phy;
@@ -84,7 +84,7 @@ static int rcar_gen2_phy_init(struct phy *p)
 
 	/*
 	 * Try to acquire exclusive access to PHY.  The first driver calling
-	 * phy_init()  on a given channel wins, and all attempts  to use another
+	 * phy_init()  on a given channel wins, and all attempts  to use ayesther
 	 * PHY on this channel will fail until phy_exit() is called by the first
 	 * driver.   Achieving this with cmpxcgh() should be SMP-safe.
 	 */
@@ -123,7 +123,7 @@ static int rcar_gen2_phy_power_on(struct phy *p)
 	u32 value;
 	int err = 0, i;
 
-	/* Skip if it's not USBHS */
+	/* Skip if it's yest USBHS */
 	if (phy->select_value != USBHS_UGCTRL2_USB0SEL_HS_USB)
 		return 0;
 
@@ -166,7 +166,7 @@ static int rcar_gen2_phy_power_off(struct phy *p)
 	unsigned long flags;
 	u32 value;
 
-	/* Skip if it's not USBHS */
+	/* Skip if it's yest USBHS */
 	if (phy->select_value != USBHS_UGCTRL2_USB0SEL_HS_USB)
 		return 0;
 
@@ -310,7 +310,7 @@ static struct phy *rcar_gen2_phy_xlate(struct device *dev,
 				       struct of_phandle_args *args)
 {
 	struct rcar_gen2_phy_driver *drv;
-	struct device_node *np = args->np;
+	struct device_yesde *np = args->np;
 	int i;
 
 	drv = dev_get_drvdata(dev);
@@ -318,7 +318,7 @@ static struct phy *rcar_gen2_phy_xlate(struct device *dev,
 		return ERR_PTR(-EINVAL);
 
 	for (i = 0; i < drv->num_channels; i++) {
-		if (np == drv->channels[i].of_node)
+		if (np == drv->channels[i].of_yesde)
 			break;
 	}
 
@@ -338,14 +338,14 @@ static int rcar_gen2_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rcar_gen2_phy_driver *drv;
 	struct phy_provider *provider;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource *res;
 	void __iomem *base;
 	struct clk *clk;
 	const struct rcar_gen2_phy_data *data;
 	int i = 0;
 
-	if (!dev->of_node) {
+	if (!dev->of_yesde) {
 		dev_err(dev,
 			"This driver is required to be instantiated from device tree\n");
 		return -EINVAL;
@@ -375,26 +375,26 @@ static int rcar_gen2_phy_probe(struct platform_device *pdev)
 	if (!data)
 		return -EINVAL;
 
-	drv->num_channels = of_get_child_count(dev->of_node);
+	drv->num_channels = of_get_child_count(dev->of_yesde);
 	drv->channels = devm_kcalloc(dev, drv->num_channels,
 				     sizeof(struct rcar_gen2_channel),
 				     GFP_KERNEL);
 	if (!drv->channels)
 		return -ENOMEM;
 
-	for_each_child_of_node(dev->of_node, np) {
+	for_each_child_of_yesde(dev->of_yesde, np) {
 		struct rcar_gen2_channel *channel = drv->channels + i;
 		u32 channel_num;
 		int error, n;
 
-		channel->of_node = np;
+		channel->of_yesde = np;
 		channel->drv = drv;
 		channel->selected_phy = -1;
 
 		error = of_property_read_u32(np, "reg", &channel_num);
 		if (error || channel_num >= data->num_channels) {
 			dev_err(dev, "Invalid \"reg\" property\n");
-			of_node_put(np);
+			of_yesde_put(np);
 			return error;
 		}
 		channel->select_mask = select_mask[channel_num];
@@ -410,7 +410,7 @@ static int rcar_gen2_phy_probe(struct platform_device *pdev)
 						   data->gen2_phy_ops);
 			if (IS_ERR(phy->phy)) {
 				dev_err(dev, "Failed to create PHY\n");
-				of_node_put(np);
+				of_yesde_put(np);
 				return PTR_ERR(phy->phy);
 			}
 			phy_set_drvdata(phy->phy, phy);

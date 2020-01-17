@@ -47,7 +47,7 @@ EXPORT_SYMBOL(can_do_mlock);
  * PageUnevictable is set to indicate the unevictable state.
  *
  * When lazy mlocking via vmscan, it is important to ensure that the
- * vma's VM_LOCKED status is not concurrently being modified, otherwise we
+ * vma's VM_LOCKED status is yest concurrently being modified, otherwise we
  * may have mlocked a page that is being munlocked. So lazy mlock must take
  * the mmap_sem for read, and verify that the vma really is locked
  * (see mm/rmap.c).
@@ -82,7 +82,7 @@ void clear_page_mlock(struct page *page)
 }
 
 /*
- * Mark page as mlocked if not already.
+ * Mark page as mlocked if yest already.
  * If page on LRU, isolate and putback to move to unevictable list.
  */
 void mlock_vma_page(struct page *page)
@@ -147,7 +147,7 @@ static void __munlock_isolated_page(struct page *page)
 /*
  * Accounting for page isolation fail during munlock
  *
- * Performs accounting when page isolation fails in munlock. There is nothing
+ * Performs accounting when page isolation fails in munlock. There is yesthing
  * else to do because it means some other task has already removed the page
  * from the LRU. putback_lru_page() will take care of removing the page from
  * the unevictable list, if necessary. vmscan [page_referenced()] will move
@@ -163,19 +163,19 @@ static void __munlock_isolation_failed(struct page *page)
 
 /**
  * munlock_vma_page - munlock a vma page
- * @page: page to be unlocked, either a normal page or THP page head
+ * @page: page to be unlocked, either a yesrmal page or THP page head
  *
- * returns the size of the page as a page mask (0 for normal page,
+ * returns the size of the page as a page mask (0 for yesrmal page,
  *         HPAGE_PMD_NR - 1 for THP head page)
  *
  * called from munlock()/munmap() path with page supposedly on the LRU.
  * When we munlock a page, because the vma where we found the page is being
  * munlock()ed or munmap()ed, we want to check whether other vmas hold the
- * page locked so that we can leave it on the unevictable lru list and not
+ * page locked so that we can leave it on the unevictable lru list and yest
  * bother vmscan with it.  However, to walk the page's rmap list in
  * try_to_munlock() we must isolate the page from the LRU.  If some other
  * task has removed the page from the LRU, we won't be able to do that.
- * So we clear the PageMlocked as we might not get another chance.  If we
+ * So we clear the PageMlocked as we might yest get ayesther chance.  If we
  * can't isolate the page, we leave it for putback_lru_page() and vmscan
  * [page_referenced()/try_to_unmap()] to deal with.
  */
@@ -197,7 +197,7 @@ unsigned int munlock_vma_page(struct page *page)
 	spin_lock_irq(&pgdat->lru_lock);
 
 	if (!TestClearPageMlocked(page)) {
-		/* Potentially, PTE-mapped THP: do not skip the rest PTEs */
+		/* Potentially, PTE-mapped THP: do yest skip the rest PTEs */
 		nr_pages = 1;
 		goto unlock_out;
 	}
@@ -318,7 +318,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 		/*
 		 * We won't be munlocking this page in the next phase
 		 * but we still need to release the follow_page_mask()
-		 * pin. We cannot do it under lru_lock however. If it's
+		 * pin. We canyest do it under lru_lock however. If it's
 		 * the last pin, __page_cache_release() would deadlock.
 		 */
 		pagevec_add(&pvec_putback, pvec->pages[i]);
@@ -327,7 +327,7 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
 	__mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
 	spin_unlock_irq(&zone->zone_pgdat->lru_lock);
 
-	/* Now we can release pins of pages that we are not munlocking */
+	/* Now we can release pins of pages that we are yest munlocking */
 	pagevec_release(&pvec_putback);
 
 	/* Phase 2: page munlock */
@@ -362,14 +362,14 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
  * Fill up pagevec for __munlock_pagevec using pte walk
  *
  * The function expects that the struct page corresponding to @start address is
- * a non-TPH page already pinned and in the @pvec, and that it belongs to @zone.
+ * a yesn-TPH page already pinned and in the @pvec, and that it belongs to @zone.
  *
  * The rest of @pvec is filled by subsequent pages within the same pmd and same
- * zone, as long as the pte's are present and vm_normal_page() succeeds. These
+ * zone, as long as the pte's are present and vm_yesrmal_page() succeeds. These
  * pages also get pinned.
  *
  * Returns the address of the next page that should be scanned. This equals
- * @start + PAGE_SIZE when no page could be added by the pte walk.
+ * @start + PAGE_SIZE when yes page could be added by the pte walk.
  */
 static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
 			struct vm_area_struct *vma, struct zone *zone,
@@ -384,7 +384,7 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
 	 * mmap_sem write op.
 	 */
 	pte = get_locked_pte(vma->vm_mm, start,	&ptl);
-	/* Make sure we do not cross the page table boundary */
+	/* Make sure we do yest cross the page table boundary */
 	end = pgd_addr_end(start, end);
 	end = p4d_addr_end(start, end);
 	end = pud_addr_end(start, end);
@@ -396,16 +396,16 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
 		struct page *page = NULL;
 		pte++;
 		if (pte_present(*pte))
-			page = vm_normal_page(vma, start, *pte);
+			page = vm_yesrmal_page(vma, start, *pte);
 		/*
-		 * Break if page could not be obtained or the page's node+zone does not
+		 * Break if page could yest be obtained or the page's yesde+zone does yest
 		 * match
 		 */
 		if (!page || page_zone(page) != zone)
 			break;
 
 		/*
-		 * Do not use pagevec for PTE-mapped THP,
+		 * Do yest use pagevec for PTE-mapped THP,
 		 * munlock_vma_pages_range() will handle them.
 		 */
 		if (PageTransCompound(page))
@@ -459,7 +459,7 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
 		 * Although FOLL_DUMP is intended for get_dump_page(),
 		 * it just so happens that its special treatment of the
 		 * ZERO_PAGE (returning an error instead of doing get_page)
-		 * suits munlock very well (and if somehow an abnormal page
+		 * suits munlock very well (and if somehow an abyesrmal page
 		 * has sneaked into the range, we won't oops here: great).
 		 */
 		page = follow_page(vma, start, FOLL_GET | FOLL_DUMP);
@@ -511,7 +511,7 @@ next:
  * mlock_fixup  - handle mlock[all]/munlock[all] requests.
  *
  * Filters out "special" vmas -- VM_LOCKED never gets set for these, and
- * munlock is a no-op.  However, for some special vmas, we go ahead and
+ * munlock is a yes-op.  However, for some special vmas, we go ahead and
  * populate the ptes.
  *
  * For vmas that pass the filters, merge/split as appropriate.
@@ -533,7 +533,7 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
 		goto out;
 
 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
-	*prev = vma_merge(mm, *prev, start, end, newflags, vma->anon_vma,
+	*prev = vma_merge(mm, *prev, start, end, newflags, vma->ayesn_vma,
 			  vma->vm_file, pgoff, vma_policy(vma),
 			  vma->vm_userfaultfd_ctx);
 	if (*prev) {
@@ -607,7 +607,7 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 
 		newflags |= flags;
 
-		/* Here we know that  vma->vm_start <= nstart < vma->vm_end. */
+		/* Here we kyesw that  vma->vm_start <= nstart < vma->vm_end. */
 		tmp = vma->vm_end;
 		if (tmp > end)
 			tmp = end;
@@ -694,7 +694,7 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
 		/*
 		 * It is possible that the regions requested intersect with
 		 * previously mlocked areas, that part area in "mm->locked_vm"
-		 * should not be counted to new mlock increment count. So check
+		 * should yest be counted to new mlock increment count. So check
 		 * and adjust locked count if necessary.
 		 */
 		locked -= count_mm_mlocked_page_nr(current->mm,
@@ -756,7 +756,7 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
  * flags for all current VMAs.
  *
  * There are a couple of subtleties with this.  If mlockall() is called multiple
- * times with different flags, the values do not necessarily stack.  If mlockall
+ * times with different flags, the values do yest necessarily stack.  If mlockall
  * is called once including the MCL_FUTURE flag and then a second time without
  * it, VM_LOCKED and VM_LOCKONFAULT will be cleared from mm->def_flags.
  */
@@ -788,7 +788,7 @@ static int apply_mlockall_flags(int flags)
 		newflags = vma->vm_flags & VM_LOCKED_CLEAR_MASK;
 		newflags |= to_add;
 
-		/* Ignore errors */
+		/* Igyesre errors */
 		mlock_fixup(vma, &prev, vma->vm_start, vma->vm_end, newflags);
 		cond_resched();
 	}

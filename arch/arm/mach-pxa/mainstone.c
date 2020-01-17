@@ -624,7 +624,7 @@ static void __init mainstone_map_io(void)
 /*
  * Driver for the 8 discrete LEDs available for general use:
  * Note: bits [15-8] are used to enable/blank the 8 7 segment hex displays
- * so be sure to not monkey with them here.
+ * so be sure to yest monkey with them here.
  */
 
 #if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)

@@ -2,7 +2,7 @@
 /*
  * MDIO bus driver for the Xilinx Axi Ethernet device
  *
- * Copyright (c) 2009 Secret Lab Technologies, Ltd.
+ * Copyright (c) 2009 Secret Lab Techyeslogies, Ltd.
  * Copyright (c) 2010 - 2011 Michal Simek <monstr@monstr.eu>
  * Copyright (c) 2010 - 2011 PetaLogix
  * Copyright (c) 2019 SED Systems, a division of Calian Ltd.
@@ -129,23 +129,23 @@ int axienet_mdio_enable(struct axienet_local *lp)
 	if (lp->clk) {
 		host_clock = clk_get_rate(lp->clk);
 	} else {
-		struct device_node *np1;
+		struct device_yesde *np1;
 
 		/* Legacy fallback: detect CPU clock frequency and use as AXI
 		 * bus clock frequency. This only works on certain platforms.
 		 */
-		np1 = of_find_node_by_name(NULL, "cpu");
+		np1 = of_find_yesde_by_name(NULL, "cpu");
 		if (!np1) {
-			netdev_warn(lp->ndev, "Could not find CPU device node.\n");
+			netdev_warn(lp->ndev, "Could yest find CPU device yesde.\n");
 			host_clock = DEFAULT_HOST_CLOCK;
 		} else {
 			int ret = of_property_read_u32(np1, "clock-frequency",
 						       &host_clock);
 			if (ret) {
-				netdev_warn(lp->ndev, "CPU clock-frequency property not found.\n");
+				netdev_warn(lp->ndev, "CPU clock-frequency property yest found.\n");
 				host_clock = DEFAULT_HOST_CLOCK;
 			}
-			of_node_put(np1);
+			of_yesde_put(np1);
 		}
 		netdev_info(lp->ndev, "Setting assumed host clock to %u\n",
 			    host_clock);
@@ -216,7 +216,7 @@ void axienet_mdio_disable(struct axienet_local *lp)
  **/
 int axienet_mdio_setup(struct axienet_local *lp)
 {
-	struct device_node *mdio_node;
+	struct device_yesde *mdio_yesde;
 	struct mii_bus *bus;
 	int ret;
 
@@ -238,9 +238,9 @@ int axienet_mdio_setup(struct axienet_local *lp)
 	bus->parent = lp->dev;
 	lp->mii_bus = bus;
 
-	mdio_node = of_get_child_by_name(lp->dev->of_node, "mdio");
-	ret = of_mdiobus_register(bus, mdio_node);
-	of_node_put(mdio_node);
+	mdio_yesde = of_get_child_by_name(lp->dev->of_yesde, "mdio");
+	ret = of_mdiobus_register(bus, mdio_yesde);
+	of_yesde_put(mdio_yesde);
 	if (ret) {
 		mdiobus_free(bus);
 		lp->mii_bus = NULL;

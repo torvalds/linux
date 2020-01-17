@@ -33,7 +33,7 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
  * This function returns an error if it detects any unreliable features of the
  * stack.  Otherwise it guarantees that the stack trace is reliable.
  *
- * If the task is not 'current', the caller *must* ensure the task is inactive.
+ * If the task is yest 'current', the caller *must* ensure the task is inactive.
  */
 int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 			     void *cookie, struct task_struct *task)
@@ -67,7 +67,7 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 
 		/*
 		 * A NULL or invalid return address probably means there's some
-		 * generated code which __kernel_text_address() doesn't know
+		 * generated code which __kernel_text_address() doesn't kyesw
 		 * about.
 		 */
 		if (!addr)
@@ -81,7 +81,7 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 	if (unwind_error(&state))
 		return -EINVAL;
 
-	/* Success path for non-user tasks, i.e. kthreads and idle tasks */
+	/* Success path for yesn-user tasks, i.e. kthreads and idle tasks */
 	if (!(task->flags & (PF_KTHREAD | PF_IDLE)))
 		return -EINVAL;
 
@@ -100,7 +100,7 @@ copy_stack_frame(const void __user *fp, struct stack_frame_user *frame)
 {
 	int ret;
 
-	if (__range_not_ok(fp, sizeof(*frame), TASK_SIZE))
+	if (__range_yest_ok(fp, sizeof(*frame), TASK_SIZE))
 		return 0;
 
 	ret = 1;

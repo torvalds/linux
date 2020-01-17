@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -78,9 +78,9 @@ gp102_run_secure_scrub(struct nvkm_secboot *sb)
 	lhdr = scrub_image + fw_hdr->hdr_offset;
 	scrub_data = scrub_image + hsbin_hdr->data_offset;
 
-	nvkm_falcon_load_imem(falcon, scrub_data, lhdr->non_sec_code_off,
-			      lhdr->non_sec_code_size,
-			      lhdr->non_sec_code_off >> 8, 0, false);
+	nvkm_falcon_load_imem(falcon, scrub_data, lhdr->yesn_sec_code_off,
+			      lhdr->yesn_sec_code_size,
+			      lhdr->yesn_sec_code_off >> 8, 0, false);
 	nvkm_falcon_load_imem(falcon, scrub_data + lhdr->apps[0],
 			      ALIGN(lhdr->apps[0], 0x100),
 			      lhdr->apps[1],
@@ -183,7 +183,7 @@ MODULE_FIRMWARE("nvidia/gp102/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/gp102/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/gp102/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/gp102/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gp102/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gp102/gr/sw_yesnctx.bin");
 MODULE_FIRMWARE("nvidia/gp102/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gp102/gr/sw_method_init.bin");
 MODULE_FIRMWARE("nvidia/gp102/nvdec/scrubber.bin");
@@ -206,7 +206,7 @@ MODULE_FIRMWARE("nvidia/gp104/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/gp104/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/gp104/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/gp104/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gp104/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gp104/gr/sw_yesnctx.bin");
 MODULE_FIRMWARE("nvidia/gp104/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gp104/gr/sw_method_init.bin");
 MODULE_FIRMWARE("nvidia/gp104/nvdec/scrubber.bin");
@@ -229,7 +229,7 @@ MODULE_FIRMWARE("nvidia/gp106/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/gp106/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/gp106/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/gp106/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gp106/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gp106/gr/sw_yesnctx.bin");
 MODULE_FIRMWARE("nvidia/gp106/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gp106/gr/sw_method_init.bin");
 MODULE_FIRMWARE("nvidia/gp106/nvdec/scrubber.bin");
@@ -252,7 +252,7 @@ MODULE_FIRMWARE("nvidia/gp107/gr/gpccs_inst.bin");
 MODULE_FIRMWARE("nvidia/gp107/gr/gpccs_data.bin");
 MODULE_FIRMWARE("nvidia/gp107/gr/gpccs_sig.bin");
 MODULE_FIRMWARE("nvidia/gp107/gr/sw_ctx.bin");
-MODULE_FIRMWARE("nvidia/gp107/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gp107/gr/sw_yesnctx.bin");
 MODULE_FIRMWARE("nvidia/gp107/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gp107/gr/sw_method_init.bin");
 MODULE_FIRMWARE("nvidia/gp107/nvdec/scrubber.bin");

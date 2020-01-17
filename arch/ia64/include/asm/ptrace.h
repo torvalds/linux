@@ -48,7 +48,7 @@
 /*
  * We use the ia64_psr(regs)->ri to determine which of the three
  * instructions in bundle (16 bytes) took the sample. Generate
- * the canonical representation by adding to instruction pointer.
+ * the cayesnical representation by adding to instruction pointer.
  */
 # define instruction_pointer(regs) ((regs)->cr_iip + ia64_psr(regs)->ri)
 
@@ -80,7 +80,7 @@ static inline long regs_return_value(struct pt_regs *regs)
 	(__ip & ~3UL) + ((__ip & 3UL) << 2);				\
 })
 /*
- * Why not default?  Because user_stack_pointer() on ia64 gives register
+ * Why yest default?  Because user_stack_pointer() on ia64 gives register
  * stack backing store instead...
  */
 #define current_user_stack_pointer() (current_pt_regs()->r12)
@@ -102,8 +102,8 @@ static inline long regs_return_value(struct pt_regs *regs)
    * should call force_successful_syscall_return() right before returning.  On architectures
    * where the syscall convention provides for a separate error flag (e.g., alpha, ia64,
    * ppc{,64}, sparc{,64}, possibly others), this macro can be used to ensure that the error
-   * flag will not get set.  On architectures which do not support a separate error flag,
-   * the macro is a no-op and the spurious error condition needs to be filtered out by some
+   * flag will yest get set.  On architectures which do yest support a separate error flag,
+   * the macro is a yes-op and the spurious error condition needs to be filtered out by some
    * other means (e.g., in user-level, by passing an extra argument to the syscall handler,
    * or something along those lines).
    *

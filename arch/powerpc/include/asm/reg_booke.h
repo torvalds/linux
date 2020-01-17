@@ -2,7 +2,7 @@
 /*
  * Contains register definitions common to the Book E PowerPC
  * specification.  Notice that while the IBM-40x series of CPUs
- * are not true Book E PowerPCs, they borrowed a number of features
+ * are yest true Book E PowerPCs, they borrowed a number of features
  * before Book E was finalized, and are included here as well.  Unfortunately,
  * they sometimes used different locations than true Book E CPUs did.
  *
@@ -434,7 +434,7 @@
 #define DBCR0_EDM	0x80000000	/* External Debug Mode */
 #define DBCR0_IDM	0x40000000	/* Internal Debug Mode */
 #define DBCR0_RST	0x30000000	/* all the bits in the RST field */
-/* DBCR0_RST_* is 44x specific and not followed in fsl booke */
+/* DBCR0_RST_* is 44x specific and yest followed in fsl booke */
 #define DBCR0_RST_SYSTEM 0x30000000	/* System Reset */
 #define DBCR0_RST_CHIP	0x20000000	/* Chip Reset */
 #define DBCR0_RST_CORE	0x10000000	/* Core Reset */
@@ -510,7 +510,7 @@
 #define DBCR2_DAC12MM	0x00400000	/* DAC 1-2 Mask mode*/
 #define DBCR2_DAC12MX	0x00C00000	/* DAC 1-2 range eXclusive */
 #define DBCR2_DAC12MODE	0x00C00000	/* DAC 1-2 Mode Bits */
-#define DBCR2_DAC12A	0x00200000	/* DAC 1-2 Asynchronous */
+#define DBCR2_DAC12A	0x00200000	/* DAC 1-2 Asynchroyesus */
 #define DBCR2_DVC1M	0x000C0000	/* Data Value Comp 1 Mode */
 #define DBCR2_DVC1M_SHIFT	18	/* # of bits to shift DBCR2_DVC1M */
 #define DBCR2_DVC2M	0x00030000	/* Data Value Comp 2 Mode */

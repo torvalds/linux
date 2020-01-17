@@ -22,7 +22,7 @@
 #include <linux/platform_data/gpio/gpio-amd-fch.h>
 
 /*
- * NOTE: this driver only supports APUv2/3 - not APUv1, as this one
+ * NOTE: this driver only supports APUv2/3 - yest APUv1, as this one
  * has completely different register layouts.
  */
 

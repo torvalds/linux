@@ -142,7 +142,7 @@ struct mpc8xx_pcmcia_ops {
 	int(*voltage_set)(int slot, int vcc, int vpp);
 };
 
-/* Returns non-zero if the current suspend operation would
+/* Returns yesn-zero if the current suspend operation would
  * lead to a deep sleep (i.e. power removed from the core,
  * instead of just the clock).
  */

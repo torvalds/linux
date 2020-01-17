@@ -3,7 +3,7 @@
  * Panel driver for the TPO TPG110 400CH LTPS TFT LCD Single Chip
  * Digital Driver.
  *
- * This chip drives a TFT LCD, so it does not know what kind of
+ * This chip drives a TFT LCD, so it does yest kyesw what kind of
  * display is actually connected to it, so the width and height of that
  * display needs to be supplied from the machine configuration.
  *
@@ -100,7 +100,7 @@ struct tpg110 {
 
 /*
  * TPG110 modes, these are the simple modes, the dualscan modes that
- * take 400x240 or 480x272 in and display as 800x480 are not listed.
+ * take 400x240 or 480x272 in and display as 800x480 are yest listed.
  */
 static const struct tpg110_panel_mode tpg110_modes[] = {
 	{
@@ -380,7 +380,7 @@ static int tpg110_enable(struct drm_panel *panel)
  * tpg110_get_modes() - return the appropriate mode
  * @panel: the panel to get the mode for
  *
- * This currently does not present a forest of modes, instead it
+ * This currently does yest present a forest of modes, instead it
  * presents the mode that is configured for the system under use,
  * and which is detected by reading the registers of the display.
  */
@@ -415,7 +415,7 @@ static const struct drm_panel_funcs tpg110_drm_funcs = {
 static int tpg110_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct tpg110 *tpg;
 	int ret;
 
@@ -427,10 +427,10 @@ static int tpg110_probe(struct spi_device *spi)
 	/* We get the physical display dimensions from the DT */
 	ret = of_property_read_u32(np, "width-mm", &tpg->width);
 	if (ret)
-		DRM_DEV_ERROR(dev, "no panel width specified\n");
+		DRM_DEV_ERROR(dev, "yes panel width specified\n");
 	ret = of_property_read_u32(np, "height-mm", &tpg->height);
 	if (ret)
-		DRM_DEV_ERROR(dev, "no panel height specified\n");
+		DRM_DEV_ERROR(dev, "yes panel height specified\n");
 
 	/* Look for some optional backlight */
 	tpg->backlight = devm_of_find_backlight(dev);
@@ -440,7 +440,7 @@ static int tpg110_probe(struct spi_device *spi)
 	/* This asserts the GRESTB signal, putting the display into reset */
 	tpg->grestb = devm_gpiod_get(dev, "grestb", GPIOD_OUT_HIGH);
 	if (IS_ERR(tpg->grestb)) {
-		DRM_DEV_ERROR(dev, "no GRESTB GPIO\n");
+		DRM_DEV_ERROR(dev, "yes GRESTB GPIO\n");
 		return -ENODEV;
 	}
 

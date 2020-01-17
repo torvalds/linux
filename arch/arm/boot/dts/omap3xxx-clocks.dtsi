@@ -505,7 +505,7 @@
 
 	clkout2_src_gate_ck: clkout2_src_gate_ck@d70 {
 		#clock-cells = <0>;
-		compatible = "ti,composite-no-wait-gate-clock";
+		compatible = "ti,composite-yes-wait-gate-clock";
 		clocks = <&core_ck>;
 		ti,bit-shift = <7>;
 		reg = <0x0d70>;

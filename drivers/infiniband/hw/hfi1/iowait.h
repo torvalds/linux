@@ -24,12 +24,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -97,7 +97,7 @@ struct iowait_work {
 /**
  * @list: used to add/insert into QP/PQ wait lists
  * @tx_head: overflow list of sdma_txreq's
- * @sleep: no space callback
+ * @sleep: yes space callback
  * @wakeup: space callback wakeup
  * @sdma_drained: sdma count drained
  * @init_priority: callback to manipulate priority
@@ -116,7 +116,7 @@ struct iowait_work {
  * (QP or PQ).
  *
  * The sleep and wakeup members are a
- * bit misnamed.   They do not strictly
+ * bit misnamed.   They do yest strictly
  * speaking sleep or wake up, but they
  * are callbacks for the ULP to implement
  * what ever queuing/dequeuing of
@@ -125,7 +125,7 @@ struct iowait_work {
  * or PIO credit space is seen.
  *
  * Both potentially have locks help
- * so sleeping is not allowed and it is not
+ * so sleeping is yest allowed and it is yest
  * supported to submit txreqs from the wakeup
  * call directly because of lock conflicts.
  *
@@ -133,8 +133,8 @@ struct iowait_work {
  *
  * The lock field is used by waiters to record
  * the seqlock_t that guards the list head.
- * Waiters explicity know that, but the destroy
- * code that unwaits QPs does not.
+ * Waiters explicity kyesw that, but the destroy
+ * code that unwaits QPs does yest.
  */
 struct iowait {
 	struct list_head list;
@@ -229,7 +229,7 @@ static inline int iowait_sdma_pending(struct iowait *wait)
 }
 
 /**
- * iowait_sdma_inc - note sdma io pending
+ * iowait_sdma_inc - yeste sdma io pending
  * @wait: iowait structure
  */
 static inline void iowait_sdma_inc(struct iowait *wait)
@@ -247,7 +247,7 @@ static inline void iowait_sdma_add(struct iowait *wait, int count)
 }
 
 /**
- * iowait_sdma_dec - note sdma complete
+ * iowait_sdma_dec - yeste sdma complete
  * @wait: iowait structure
  */
 static inline int iowait_sdma_dec(struct iowait *wait)
@@ -284,7 +284,7 @@ static inline int iowait_pio_pending(struct iowait *wait)
 }
 
 /**
- * iowait_pio_inc - note pio pending
+ * iowait_pio_inc - yeste pio pending
  * @wait: iowait structure
  */
 static inline void iowait_pio_inc(struct iowait *wait)
@@ -293,7 +293,7 @@ static inline void iowait_pio_inc(struct iowait *wait)
 }
 
 /**
- * iowait_pio_dec - note pio complete
+ * iowait_pio_dec - yeste pio complete
  * @wait: iowait structure
  */
 static inline int iowait_pio_dec(struct iowait *wait)
@@ -427,8 +427,8 @@ static inline void iowait_queue(bool pkts_sent, struct iowait *w,
  * @pkts_sent: have some packets been sent?
  * @w: the iowait struct
  *
- * This function is called to clear the starve count. If no
- * packets have been sent, the starve count will not be cleared.
+ * This function is called to clear the starve count. If yes
+ * packets have been sent, the starve count will yest be cleared.
  */
 static inline void iowait_starve_clear(bool pkts_sent, struct iowait *w)
 {

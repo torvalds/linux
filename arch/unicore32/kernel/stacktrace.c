@@ -28,9 +28,9 @@
  *	ldm	sp, {fp, sp, pc}
  *
  * Note that with framepointer enabled, even the leaf functions have the same
- * prologue and epilogue, therefore we can ignore the LR value in this case.
+ * prologue and epilogue, therefore we can igyesre the LR value in this case.
  */
-int notrace unwind_frame(struct stackframe *frame)
+int yestrace unwind_frame(struct stackframe *frame)
 {
 	unsigned long high, low;
 	unsigned long fp = frame->fp;
@@ -52,7 +52,7 @@ int notrace unwind_frame(struct stackframe *frame)
 }
 #endif
 
-void notrace walk_stackframe(struct stackframe *frame,
+void yestrace walk_stackframe(struct stackframe *frame,
 		     int (*fn)(struct stackframe *, void *), void *data)
 {
 	while (1) {
@@ -70,7 +70,7 @@ EXPORT_SYMBOL(walk_stackframe);
 #ifdef CONFIG_STACKTRACE
 struct stack_trace_data {
 	struct stack_trace *trace;
-	unsigned int no_sched_functions;
+	unsigned int yes_sched_functions;
 	unsigned int skip;
 };
 
@@ -80,7 +80,7 @@ static int save_trace(struct stackframe *frame, void *d)
 	struct stack_trace *trace = data->trace;
 	unsigned long addr = frame->pc;
 
-	if (data->no_sched_functions && in_sched_functions(addr))
+	if (data->yes_sched_functions && in_sched_functions(addr))
 		return 0;
 	if (data->skip) {
 		data->skip--;
@@ -101,7 +101,7 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 	data.skip = trace->skip;
 
 	if (tsk != current) {
-		data.no_sched_functions = 1;
+		data.yes_sched_functions = 1;
 		frame.fp = thread_saved_fp(tsk);
 		frame.sp = thread_saved_sp(tsk);
 		frame.lr = 0;		/* recovered from the stack */
@@ -109,7 +109,7 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 	} else {
 		register unsigned long current_sp asm("sp");
 
-		data.no_sched_functions = 0;
+		data.yes_sched_functions = 0;
 		frame.fp = (unsigned long)__builtin_frame_address(0);
 		frame.sp = current_sp;
 		frame.lr = (unsigned long)__builtin_return_address(0);

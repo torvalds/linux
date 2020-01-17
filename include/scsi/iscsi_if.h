@@ -151,11 +151,11 @@ struct iscsi_uevent {
 			uint32_t	cid;
 		} get_stats;
 		struct msg_transport_connect {
-			uint32_t	non_blocking;
+			uint32_t	yesn_blocking;
 		} ep_connect;
 		struct msg_transport_connect_through_host {
-			uint32_t	host_no;
-			uint32_t	non_blocking;
+			uint32_t	host_yes;
+			uint32_t	yesn_blocking;
 		} ep_connect_through_host;
 		struct msg_transport_poll {
 			uint64_t	ep_handle;
@@ -166,29 +166,29 @@ struct iscsi_uevent {
 		} ep_disconnect;
 		struct msg_tgt_dscvr {
 			enum iscsi_tgt_dscvr	type;
-			uint32_t	host_no;
+			uint32_t	host_yes;
 			/*
  			 * enable = 1 to establish a new connection
 			 * with the server. enable = 0 to disconnect
 			 * from the server. Used primarily to switch
-			 * from one iSNS server to another.
+			 * from one iSNS server to ayesther.
 			 */
 			uint32_t	enable;
 		} tgt_dscvr;
 		struct msg_set_host_param {
-			uint32_t	host_no;
+			uint32_t	host_yes;
 			uint32_t	param; /* enum iscsi_host_param */
 			uint32_t	len;
 		} set_host_param;
 		struct msg_set_path {
-			uint32_t	host_no;
+			uint32_t	host_yes;
 		} set_path;
 		struct msg_set_iface_params {
-			uint32_t	host_no;
+			uint32_t	host_yes;
 			uint32_t	count;
 		} set_iface_params;
 		struct msg_iscsi_ping {
-			uint32_t        host_no;
+			uint32_t        host_yes;
 			uint32_t        iface_num;
 			uint32_t        iface_type;
 			uint32_t        payload_size;
@@ -196,7 +196,7 @@ struct iscsi_uevent {
 						   with each ping request */
 		} iscsi_ping;
 		struct msg_get_chap {
-			uint32_t	host_no;
+			uint32_t	host_yes;
 			uint32_t	num_entries; /* number of CHAP entries
 						      * on request, number of
 						      * valid CHAP entries on
@@ -204,36 +204,36 @@ struct iscsi_uevent {
 			uint16_t	chap_tbl_idx;
 		} get_chap;
 		struct msg_delete_chap {
-		       uint32_t        host_no;
+		       uint32_t        host_yes;
 		       uint16_t        chap_tbl_idx;
 		} delete_chap;
-		struct msg_set_flashnode_param {
-			uint32_t	host_no;
-			uint32_t	flashnode_idx;
+		struct msg_set_flashyesde_param {
+			uint32_t	host_yes;
+			uint32_t	flashyesde_idx;
 			uint32_t	count;
-		} set_flashnode;
-		struct msg_new_flashnode {
-			uint32_t	host_no;
+		} set_flashyesde;
+		struct msg_new_flashyesde {
+			uint32_t	host_yes;
 			uint32_t	len;
-		} new_flashnode;
-		struct msg_del_flashnode {
-			uint32_t	host_no;
-			uint32_t	flashnode_idx;
-		} del_flashnode;
-		struct msg_login_flashnode {
-			uint32_t	host_no;
-			uint32_t	flashnode_idx;
-		} login_flashnode;
-		struct msg_logout_flashnode {
-			uint32_t	host_no;
-			uint32_t	flashnode_idx;
-		} logout_flashnode;
-		struct msg_logout_flashnode_sid {
-			uint32_t	host_no;
+		} new_flashyesde;
+		struct msg_del_flashyesde {
+			uint32_t	host_yes;
+			uint32_t	flashyesde_idx;
+		} del_flashyesde;
+		struct msg_login_flashyesde {
+			uint32_t	host_yes;
+			uint32_t	flashyesde_idx;
+		} login_flashyesde;
+		struct msg_logout_flashyesde {
+			uint32_t	host_yes;
+			uint32_t	flashyesde_idx;
+		} logout_flashyesde;
+		struct msg_logout_flashyesde_sid {
+			uint32_t	host_yes;
 			uint32_t	sid;
-		} logout_flashnode_sid;
+		} logout_flashyesde_sid;
 		struct msg_get_host_stats {
-			uint32_t host_no;
+			uint32_t host_yes;
 		} get_host_stats;
 	} u;
 	union {
@@ -241,7 +241,7 @@ struct iscsi_uevent {
 		int			retcode;
 		struct msg_create_session_ret {
 			uint32_t	sid;
-			uint32_t	host_no;
+			uint32_t	host_yes;
 		} c_session_ret;
 		struct msg_create_conn_ret {
 			uint32_t	sid;
@@ -249,7 +249,7 @@ struct iscsi_uevent {
 		} c_conn_ret;
 		struct msg_unbind_session {
 			uint32_t	sid;
-			uint32_t	host_no;
+			uint32_t	host_yes;
 		} unbind_session;
 		struct msg_recv_req {
 			uint32_t	sid;
@@ -267,34 +267,34 @@ struct iscsi_uevent {
 			uint32_t	error; /* enum iscsi_err */
 		} connerror;
 		struct msg_session_destroyed {
-			uint32_t	host_no;
+			uint32_t	host_yes;
 			uint32_t	sid;
 		} d_session;
 		struct msg_transport_connect_ret {
 			uint64_t	handle;
 		} ep_connect_ret;
 		struct msg_req_path {
-			uint32_t	host_no;
+			uint32_t	host_yes;
 		} req_path;
-		struct msg_notify_if_down {
-			uint32_t	host_no;
-		} notify_if_down;
+		struct msg_yestify_if_down {
+			uint32_t	host_yes;
+		} yestify_if_down;
 		struct msg_host_event {
-			uint32_t	host_no;
+			uint32_t	host_yes;
 			uint32_t	data_size;
 			enum iscsi_host_event_code code;
 		} host_event;
 		struct msg_ping_comp {
-			uint32_t        host_no;
+			uint32_t        host_yes;
 			uint32_t        status; /* enum
 						 * iscsi_ping_status_code */
 			uint32_t	pid;	/* unique ping id associated
 						   with each ping request */
 			uint32_t        data_size;
 		} ping_comp;
-		struct msg_new_flashnode_ret {
-			uint32_t	flashnode_idx;
-		} new_flashnode_ret;
+		struct msg_new_flashyesde_ret {
+			uint32_t	flashyesde_idx;
+		} new_flashyesde_ret;
 	} r;
 } __attribute__ ((aligned (sizeof(uint64_t))));
 
@@ -302,7 +302,7 @@ enum iscsi_param_type {
 	ISCSI_PARAM,		/* iscsi_param (session, conn, target, LU) */
 	ISCSI_HOST_PARAM,	/* iscsi_host_param */
 	ISCSI_NET_PARAM,	/* iscsi_net_param */
-	ISCSI_FLASHNODE_PARAM,	/* iscsi_flashnode_param */
+	ISCSI_FLASHNODE_PARAM,	/* iscsi_flashyesde_param */
 	ISCSI_CHAP_PARAM,	/* iscsi_chap_param */
 	ISCSI_IFACE_PARAM,	/* iscsi_iface_param */
 };
@@ -629,7 +629,7 @@ enum iscsi_host_param {
 #define PORTAL_TYPE_IPV6	"ipv6"
 
 /* iSCSI Flash Target params */
-enum iscsi_flashnode_param {
+enum iscsi_flashyesde_param {
 	ISCSI_FLASHNODE_IS_FW_ASSIGNED_IPV6,
 	ISCSI_FLASHNODE_PORTAL_TYPE,
 	ISCSI_FLASHNODE_AUTO_SND_TGT_DISABLE,
@@ -694,7 +694,7 @@ enum iscsi_flashnode_param {
 	ISCSI_FLASHNODE_MAX,
 };
 
-struct iscsi_flashnode_param_info {
+struct iscsi_flashyesde_param_info {
 	uint32_t len;		/* Actual length of the param */
 	uint16_t param;		/* iscsi param value */
 	uint8_t value[0];	/* length sized value follows */
@@ -785,7 +785,7 @@ struct iscsi_stats {
 	uint64_t rxdata_octets;
 
 	/* xmit pdus */
-	uint32_t noptx_pdus;
+	uint32_t yesptx_pdus;
 	uint32_t scsicmd_pdus;
 	uint32_t tmfcmd_pdus;
 	uint32_t login_pdus;
@@ -795,7 +795,7 @@ struct iscsi_stats {
 	uint32_t snack_pdus;
 
 	/* recv pdus */
-	uint32_t noprx_pdus;
+	uint32_t yesprx_pdus;
 	uint32_t scsirsp_pdus;
 	uint32_t tmfrsp_pdus;
 	uint32_t textrsp_pdus;
@@ -871,7 +871,7 @@ struct iscsi_offload_host_stats {
 	uint64_t mactx_jumbo_frames;
 	uint64_t macrx_frames;
 	uint64_t macrx_bytes;
-	uint64_t macrx_unknown_control_frames;
+	uint64_t macrx_unkyeswn_control_frames;
 	uint64_t macrx_pause_frames;
 	uint64_t macrx_control_frames;
 	uint64_t macrx_dribble;

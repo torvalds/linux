@@ -36,8 +36,8 @@
 #define FM3130_RTC_CONTROL_BIT_POR (1 << 4) /* Power on reset */
 #define FM3130_RTC_CONTROL_BIT_AEN (1 << 3) /* Alarm enable */
 #define FM3130_RTC_CONTROL_BIT_CAL (1 << 2) /* Calibration mode */
-#define FM3130_RTC_CONTROL_BIT_WRITE (1 << 1) /* W=1 -> write mode W=0 normal */
-#define FM3130_RTC_CONTROL_BIT_READ (1 << 0) /* R=1 -> read mode R=0 normal */
+#define FM3130_RTC_CONTROL_BIT_WRITE (1 << 1) /* W=1 -> write mode W=0 yesrmal */
+#define FM3130_RTC_CONTROL_BIT_READ (1 << 0) /* R=1 -> read mode R=0 yesrmal */
 
 #define FM3130_CLOCK_REGS 7
 #define FM3130_ALARM_REGS 5
@@ -97,7 +97,7 @@ static int fm3130_get_time(struct device *dev, struct rtc_time *t)
 	if (!fm3130->data_valid) {
 		/* We have invalid data in RTC, probably due
 		to battery faults or other problems. Return EIO
-		for now, it will allow us to set data later instead
+		for yesw, it will allow us to set data later instead
 		of error during probing which disables device */
 		return -EIO;
 	}
@@ -123,7 +123,7 @@ static int fm3130_get_time(struct device *dev, struct rtc_time *t)
 	tmp = fm3130->regs[FM3130_RTC_MONTHS] & 0x1f;
 	t->tm_mon = bcd2bin(tmp) - 1;
 
-	/* assume 20YY not 19YY, and ignore CF bit */
+	/* assume 20YY yest 19YY, and igyesre CF bit */
 	t->tm_year = bcd2bin(fm3130->regs[FM3130_RTC_YEARS]) + 100;
 
 	dev_dbg(dev, "%s secs=%d, mins=%d, "
@@ -156,7 +156,7 @@ static int fm3130_set_time(struct device *dev, struct rtc_time *t)
 	buf[FM3130_RTC_DATE] = bin2bcd(t->tm_mday);
 	buf[FM3130_RTC_MONTHS] = bin2bcd(t->tm_mon + 1);
 
-	/* assume 20YY not 19YY */
+	/* assume 20YY yest 19YY */
 	tmp = t->tm_year - 100;
 	buf[FM3130_RTC_YEARS] = bin2bcd(tmp);
 
@@ -188,7 +188,7 @@ static int fm3130_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (!fm3130->alarm_valid) {
 		/*
 		 * We have invalid alarm in RTC, probably due to battery faults
-		 * or other problems. Return EIO for now, it will allow us to
+		 * or other problems. Return EIO for yesw, it will allow us to
 		 * set alarm value later instead of error during probing which
 		 * disables device
 		 */

@@ -10,7 +10,7 @@ EXPORT_SYMBOL(ioremap_bot);
 
 void __iomem *ioremap(phys_addr_t addr, unsigned long size)
 {
-	pgprot_t prot = pgprot_noncached(PAGE_KERNEL);
+	pgprot_t prot = pgprot_yesncached(PAGE_KERNEL);
 	void *caller = __builtin_return_address(0);
 
 	if (iowa_is_active())
@@ -21,7 +21,7 @@ EXPORT_SYMBOL(ioremap);
 
 void __iomem *ioremap_wc(phys_addr_t addr, unsigned long size)
 {
-	pgprot_t prot = pgprot_noncached_wc(PAGE_KERNEL);
+	pgprot_t prot = pgprot_yesncached_wc(PAGE_KERNEL);
 	void *caller = __builtin_return_address(0);
 
 	if (iowa_is_active())

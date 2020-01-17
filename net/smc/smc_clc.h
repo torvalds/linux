@@ -32,15 +32,15 @@
 #define SMC_CLC_DECL_TIMEOUT_CL	0x02010000  /* timeout w4 QP confirm link     */
 #define SMC_CLC_DECL_TIMEOUT_AL	0x02020000  /* timeout w4 QP add link	      */
 #define SMC_CLC_DECL_CNFERR	0x03000000  /* configuration error            */
-#define SMC_CLC_DECL_PEERNOSMC	0x03010000  /* peer did not indicate SMC      */
+#define SMC_CLC_DECL_PEERNOSMC	0x03010000  /* peer did yest indicate SMC      */
 #define SMC_CLC_DECL_IPSEC	0x03020000  /* IPsec usage		      */
-#define SMC_CLC_DECL_NOSMCDEV	0x03030000  /* no SMC device found (R or D)   */
-#define SMC_CLC_DECL_NOSMCDDEV	0x03030001  /* no SMC-D device found	      */
-#define SMC_CLC_DECL_NOSMCRDEV	0x03030002  /* no SMC-R device found	      */
+#define SMC_CLC_DECL_NOSMCDEV	0x03030000  /* yes SMC device found (R or D)   */
+#define SMC_CLC_DECL_NOSMCDDEV	0x03030001  /* yes SMC-D device found	      */
+#define SMC_CLC_DECL_NOSMCRDEV	0x03030002  /* yes SMC-R device found	      */
 #define SMC_CLC_DECL_SMCDNOTALK	0x03030003  /* SMC-D dev can't talk to peer   */
-#define SMC_CLC_DECL_MODEUNSUPP	0x03040000  /* smc modes do not match (R or D)*/
+#define SMC_CLC_DECL_MODEUNSUPP	0x03040000  /* smc modes do yest match (R or D)*/
 #define SMC_CLC_DECL_RMBE_EC	0x03050000  /* peer has eyecatcher in RMBE    */
-#define SMC_CLC_DECL_OPTUNSUPP	0x03060000  /* fastopen sockopt not supported */
+#define SMC_CLC_DECL_OPTUNSUPP	0x03060000  /* fastopen sockopt yest supported */
 #define SMC_CLC_DECL_DIFFPREFIX	0x03070000  /* IP prefix / subnet mismatch    */
 #define SMC_CLC_DECL_GETVLANERR	0x03080000  /* err to get vlan id of ip device*/
 #define SMC_CLC_DECL_ISMVLANERR	0x03090000  /* err to reg vlan id on ism dev  */
@@ -161,7 +161,7 @@ struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
 struct smc_clc_msg_decline {	/* clc decline message */
 	struct smc_clc_msg_hdr hdr;
 	u8 id_for_peer[SMC_SYSTEMID_LEN]; /* sender peer_id */
-	__be32 peer_diagnosis;	/* diagnosis information */
+	__be32 peer_diagyessis;	/* diagyessis information */
 	u8 reserved2[4];
 	struct smc_clc_msg_trail trl; /* eye catcher "SMCR" EBCDIC */
 } __aligned(4);

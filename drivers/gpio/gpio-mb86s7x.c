@@ -12,7 +12,7 @@
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/of_device.h>
 #include <linux/gpio/driver.h>

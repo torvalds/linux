@@ -143,7 +143,7 @@ struct acpi_rsconvert_info acpi_rs_convert_pin_function[13] = {
 	/* Pin Table */
 
 	/*
-	 * It is OK to use GPIO operations here because none of them refer GPIO
+	 * It is OK to use GPIO operations here because yesne of them refer GPIO
 	 * structures directly but instead use offsets given here.
 	 */
 
@@ -537,7 +537,7 @@ struct acpi_rsconvert_info acpi_rs_convert_pin_config[14] = {
 	/* Pin Table */
 
 	/*
-	 * It is OK to use GPIO operations here because none of them refer GPIO
+	 * It is OK to use GPIO operations here because yesne of them refer GPIO
 	 * structures directly but instead use offsets given here.
 	 */
 
@@ -603,7 +603,7 @@ struct acpi_rsconvert_info acpi_rs_convert_pin_group[10] = {
 	/* Pin Table */
 
 	/*
-	 * It is OK to use GPIO operations here because none of them refer GPIO
+	 * It is OK to use GPIO operations here because yesne of them refer GPIO
 	 * structures directly but instead use offsets given here.
 	 */
 

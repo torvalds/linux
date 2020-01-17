@@ -112,7 +112,7 @@ enum nand_ecc_algo {
 /*
  * Enable generic NAND 'page erased' check. This check is only done when
  * ecc.correct() returns -EBADMSG.
- * Set this flag if your implementation does not fix bitflips in erased
+ * Set this flag if your implementation does yest fix bitflips in erased
  * pages and you want to rely on the default implementation.
  */
 #define NAND_ECC_GENERIC_ERASED_CHECK	BIT(0)
@@ -134,12 +134,12 @@ enum nand_ecc_algo {
 #define NAND_CACHEPRG		0x00000008
 /*
  * Chip requires ready check on read (for auto-incremented sequential read).
- * True only for small page devices; large page devices do not support
+ * True only for small page devices; large page devices do yest support
  * autoincrement.
  */
 #define NAND_NEED_READRDY	0x00000100
 
-/* Chip does not allow subpage writes */
+/* Chip does yest allow subpage writes */
 #define NAND_NO_SUBPAGE_WRITE	0x00000200
 
 /* Device is one of 'new' xD cards that expose fake nand command set */
@@ -184,7 +184,7 @@ enum nand_ecc_algo {
 /* Non chip related options */
 /* This option skips the bbt scan during initialization. */
 #define NAND_SKIP_BBTSCAN	0x00010000
-/* Chip may not exist, so silence any errors in scan */
+/* Chip may yest exist, so silence any errors in scan */
 #define NAND_SCAN_SILENT_NODEV	0x00040000
 /*
  * Autodetect nand buswidth with readid/onfi.
@@ -216,7 +216,7 @@ enum nand_ecc_algo {
 #define NAND_IS_BOOT_MEDIUM	0x00400000
 
 /*
- * Do not try to tweak the timings at runtime. This is needed when the
+ * Do yest try to tweak the timings at runtime. This is needed when the
  * controller initializes the timings on itself or when it relies on
  * configuration done by the bootloader.
  */
@@ -318,14 +318,14 @@ static const struct nand_ecc_caps __name = {			\
  * @correct:	function for ECC correction, matching to ECC generator (sw/hw).
  *		Should return a positive number representing the number of
  *		corrected bitflips, -EBADMSG if the number of bitflips exceed
- *		ECC strength, or any other error code if the error is not
+ *		ECC strength, or any other error code if the error is yest
  *		directly related to correction.
  *		If -EBADMSG is returned the input buffers should be left
  *		untouched.
  * @read_page_raw:	function to read a raw page without ECC. This function
  *			should hide the specific layout used by the ECC
  *			controller and always return contiguous in-band and
- *			out-of-band data even if they're not stored
+ *			out-of-band data even if they're yest stored
  *			contiguously on the NAND chip (e.g.
  *			NAND_ECC_HW_SYNDROME interleaves in-band and
  *			out-of-band data).
@@ -540,7 +540,7 @@ struct nand_op_addr_instr {
  * @buf.out: buffer to read from when writing to the NAND chip
  * @force_8bit: force 8-bit access
  *
- * Please note that "in" and "out" are inverted from the ONFI specification
+ * Please yeste that "in" and "out" are inverted from the ONFI specification
  * and are from the controller perspective, so a "in" is a read from the NAND
  * chip while a "out" is a write to the NAND chip.
  */
@@ -589,7 +589,7 @@ enum nand_op_instr_type {
  * @ctx.waitrdy: use it if @type is %NAND_OP_WAITRDY_INSTR
  * @delay_ns: delay the controller should apply after the instruction has been
  *	      issued on the bus. Most modern controllers have internal timings
- *	      control logic, and in this case, the controller driver can ignore
+ *	      control logic, and in this case, the controller driver can igyesre
  *	      this field.
  */
 struct nand_op_instr {
@@ -606,14 +606,14 @@ struct nand_op_instr {
 /*
  * Special handling must be done for the WAITRDY timeout parameter as it usually
  * is either tPROG (after a prog), tR (before a read), tRST (during a reset) or
- * tBERS (during an erase) which all of them are u64 values that cannot be
+ * tBERS (during an erase) which all of them are u64 values that canyest be
  * divided by usual kernel macros and must be handled with the special
  * DIV_ROUND_UP_ULL() macro.
  *
  * Cast to type of dividend is needed here to guarantee that the result won't
  * be an unsigned long long when the dividend is an unsigned long (or smaller),
  * which is what the compiler does when it sees ternary operator with 2
- * different return types (picks the largest type to make sure there's no
+ * different return types (picks the largest type to make sure there's yes
  * loss).
  */
 #define __DIVIDE(dividend, divisor) ({						\
@@ -704,7 +704,7 @@ struct nand_op_instr {
  * Both @first_instr_start_off and @last_instr_end_off only apply to data or
  * address instructions.
  *
- * When an operation cannot be handled as is by the NAND controller, it will
+ * When an operation canyest be handled as is by the NAND controller, it will
  * be split by the parser into sub-operations which will be passed to the
  * controller driver.
  */
@@ -929,7 +929,7 @@ static inline void nand_op_trace(const char *prefix,
  *		 chip->legacy.dev_ready() and chip->legacy.waifunc().
  * @setup_data_interface: setup the data interface and timing. If
  *			  chipnr is set to %NAND_DATA_IFACE_CHECK_ONLY this
- *			  means the configuration should not be applied but
+ *			  means the configuration should yest be applied but
  *			  only checked.
  *			  This hook is optional.
  */
@@ -972,7 +972,7 @@ static inline void nand_controller_init(struct nand_controller *nfc)
  *	      to write command and address
  * @cmdfunc: hardware specific function for writing commands to the chip.
  * @dev_ready: hardware specific function for accessing device ready/busy line.
- *	       If set to NULL no access to ready/busy is available and the
+ *	       If set to NULL yes access to ready/busy is available and the
  *	       ready/busy information is read from the chip status register.
  * @waitfunc: hardware specific function for wait on ready.
  * @block_bad: check if a block is bad, using OOB markers
@@ -1039,31 +1039,31 @@ struct nand_legacy {
  *			area.
  * @badblockbits:	[INTERN] minimum number of set bits in a good block's
  *			bad block marker position; i.e., BBM == 11110111b is
- *			not bad when badblockbits == 7
+ *			yest bad when badblockbits == 7
  * @onfi_timing_mode_default: [INTERN] default ONFI timing mode. This field is
  *			      set to the actually used ONFI mode if the chip is
  *			      ONFI compliant or deduced from the datasheet if
- *			      the NAND chip is not ONFI compliant.
+ *			      the NAND chip is yest ONFI compliant.
  * @pagemask:		[INTERN] page number mask = number of (pages / chip) - 1
  * @data_buf:		[INTERN] buffer for data, size is (page size + oobsize).
  * @pagecache:		Structure containing page cache related fields
  * @pagecache.bitflips:	Number of bitflips of the cached page
- * @pagecache.page:	Page number currently in the cache. -1 means no page is
+ * @pagecache.page:	Page number currently in the cache. -1 means yes page is
  *			currently cached
  * @subpagesize:	[INTERN] holds the subpagesize
  * @id:			[INTERN] holds NAND ID
  * @parameters:		[INTERN] holds generic parameters under an easily
  *			readable form.
  * @data_interface:	[INTERN] NAND interface timing information
- * @cur_cs:		currently selected target. -1 means no target selected,
+ * @cur_cs:		currently selected target. -1 means yes target selected,
  *			otherwise we should always have cur_cs >= 0 &&
  *			cur_cs < nanddev_ntargets(). NAND Controller drivers
- *			should not modify this value, but they're allowed to
+ *			should yest modify this value, but they're allowed to
  *			read it.
  * @read_retries:	[INTERN] the number of read retry modes supported
  * @lock:		lock protecting the suspended field. Also used to
  *			serialize accesses to the NAND device.
- * @suspended:		set to 1 when the device is suspended, 0 when it's not.
+ * @suspended:		set to 1 when the device is suspended, 0 when it's yest.
  * @bbt:		[INTERN] bad block table pointer
  * @bbt_td:		[REPLACEABLE] bad block table descriptor for flash
  *			lookup.
@@ -1172,15 +1172,15 @@ static inline void *nand_get_manufacturer_data(struct nand_chip *chip)
 	return chip->manufacturer.priv;
 }
 
-static inline void nand_set_flash_node(struct nand_chip *chip,
-				       struct device_node *np)
+static inline void nand_set_flash_yesde(struct nand_chip *chip,
+				       struct device_yesde *np)
 {
-	mtd_set_of_node(nand_to_mtd(chip), np);
+	mtd_set_of_yesde(nand_to_mtd(chip), np);
 }
 
-static inline struct device_node *nand_get_flash_node(struct nand_chip *chip)
+static inline struct device_yesde *nand_get_flash_yesde(struct nand_chip *chip)
 {
-	return mtd_get_of_node(nand_to_mtd(chip));
+	return mtd_get_of_yesde(nand_to_mtd(chip));
 }
 
 /*
@@ -1198,7 +1198,7 @@ static inline struct device_node *nand_get_flash_node(struct nand_chip *chip)
  *
  * The real difference between LEGACY_ID_NAND and EXTENDED_ID_NAND is that with
  * EXTENDED_ID_NAND, manufacturers overloaded the same device ID so that the
- * device ID now only represented a particular total chip size (and voltage,
+ * device ID yesw only represented a particular total chip size (and voltage,
  * buswidth), and the page size, eraseblock size, and OOB size could vary while
  * using the same device ID.
  */
@@ -1267,7 +1267,7 @@ int nand_create_bbt(struct nand_chip *chip);
 /*
  * Check if it is a SLC nand.
  * The !nand_is_slc() can be used to check the MLC/TLC nand chips.
- * We do not distinguish the MLC and TLC now.
+ * We do yest distinguish the MLC and TLC yesw.
  */
 static inline bool nand_is_slc(struct nand_chip *chip)
 {
@@ -1308,8 +1308,8 @@ int nand_write_oob_std(struct nand_chip *chip, int page);
 /* Default read_oob implementation */
 int nand_read_oob_std(struct nand_chip *chip, int page);
 
-/* Stub used by drivers that do not support GET/SET FEATURES operations */
-int nand_get_set_features_notsupp(struct nand_chip *chip, int addr,
+/* Stub used by drivers that do yest support GET/SET FEATURES operations */
+int nand_get_set_features_yestsupp(struct nand_chip *chip, int addr,
 				  u8 *subfeature_param);
 
 /* Default read_page_raw implementation */
@@ -1373,7 +1373,7 @@ void nand_release(struct nand_chip *chip);
 
 /*
  * External helper for controller drivers that have to implement the WAITRDY
- * instruction and have no physical pin to check it.
+ * instruction and have yes physical pin to check it.
  */
 int nand_soft_waitrdy(struct nand_chip *chip, unsigned long timeout_ms);
 struct gpio_desc;
@@ -1389,7 +1389,7 @@ void nand_deselect_target(struct nand_chip *chip);
  * @chip: NAND chip object
  *
  * Returns the pre-allocated page buffer after invalidating the cache. This
- * function should be used by drivers that do not want to allocate their own
+ * function should be used by drivers that do yest want to allocate their own
  * bounce buffer and still need such a buffer for specific operations (most
  * commonly when reading OOB data only).
  *

@@ -5,17 +5,17 @@
  *  Added support for TT interrupts; setup for TT SCU (may someone has
  *  twiddled there and we won't get the right interrupts :-()
  *
- *  Major change: The device-independent code in m68k/ints.c didn't know
- *  about non-autovec ints yet. It hardcoded the number of possible ints to
- *  7 (IRQ1...IRQ7). But the Atari has lots of non-autovec ints! I made the
+ *  Major change: The device-independent code in m68k/ints.c didn't kyesw
+ *  about yesn-autovec ints yet. It hardcoded the number of possible ints to
+ *  7 (IRQ1...IRQ7). But the Atari has lots of yesn-autovec ints! I made the
  *  number of possible ints a constant defined in interrupt.h, which is
  *  47 for the Atari. So we can call request_irq() for all Atari interrupts
- *  just the normal way. Additionally, all vectors >= 48 are initialized to
+ *  just the yesrmal way. Additionally, all vectors >= 48 are initialized to
  *  call trap() instead of inthandler(). This must be changed here, too.
  *
  * 1995-07-16 Lars Brinkhoff <f93labr@dd.chalmers.se>:
  *  Corrected a bug in atari_add_isr() which rejected all SCC
- *  interrupt sources if there were no TT MFP!
+ *  interrupt sources if there were yes TT MFP!
  *
  * 12/13/95: New interface functions atari_level_triggered_int() and
  *  atari_register_vme_int() as support for level triggered VME interrupts.
@@ -88,7 +88,7 @@ static unsigned int atari_irq_startup(struct irq_data *data)
 	unsigned int irq = data->irq;
 
 	m68k_irq_startup(data);
-	atari_turnon_irq(irq);
+	atari_turyesn_irq(irq);
 	atari_enable_irq(irq);
 	return 0;
 }
@@ -98,7 +98,7 @@ static void atari_irq_shutdown(struct irq_data *data)
 	unsigned int irq = data->irq;
 
 	atari_disable_irq(irq);
-	atari_turnoff_irq(irq);
+	atari_turyesff_irq(irq);
 	m68k_irq_shutdown(data);
 
 	if (irq == IRQ_AUTO_4)
@@ -202,7 +202,7 @@ static unsigned int atari_ethernat_startup(struct irq_data *data)
 	if (!enat_cpld)
 		enat_cpld = (unsigned char *)ioremap((ATARI_ETHERNAT_PHYS_ADDR+0x23), 0x2);
 	/*
-	 * do _not_ enable the USB chip interrupt here - causes interrupt storm
+	 * do _yest_ enable the USB chip interrupt here - causes interrupt storm
 	 * and triggers dead interrupt watchdog
 	 * Need to reset the USB chip to a sane state in early startup before
 	 * removing this hack
@@ -279,7 +279,7 @@ void __init atari_init_IRQ(void)
 #endif
 	st_mfp.int_en_a = 0x00;	/* turn off MFP-Ints */
 	st_mfp.int_en_b = 0x00;
-	st_mfp.int_mk_a = 0xff;	/* no Masking */
+	st_mfp.int_mk_a = 0xff;	/* yes Masking */
 	st_mfp.int_mk_b = 0xff;
 
 	if (ATARIHW_PRESENT(TT_MFP)) {
@@ -290,7 +290,7 @@ void __init atari_init_IRQ(void)
 #endif
 		tt_mfp.int_en_a = 0x00;		/* turn off MFP-Ints */
 		tt_mfp.int_en_b = 0x00;
-		tt_mfp.int_mk_a = 0xff;		/* no Masking */
+		tt_mfp.int_mk_a = 0xff;		/* yes Masking */
 		tt_mfp.int_mk_b = 0xff;
 	}
 
@@ -309,7 +309,7 @@ void __init atari_init_IRQ(void)
 									 */
 		tt_scu.vme_mask = 0x60;		/* enable MFP and SCC ints */
 	} else {
-		/* If no SCU and no Hades, the HSYNC interrupt needs to be
+		/* If yes SCU and yes Hades, the HSYNC interrupt needs to be
 		 * disabled this way. (Else _inthandler in kernel/sys_call.S
 		 * gets overruns)
 		 */

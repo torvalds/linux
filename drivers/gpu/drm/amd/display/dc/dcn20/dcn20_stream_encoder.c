@@ -8,7 +8,7 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -215,7 +215,7 @@ static void enc2_update_gsp7_128_info_packet(
 	uint32_t i;
 
 	/* TODOFPGA Figure out a proper number for max_retries polling for lock
-	 * use 50 for now.
+	 * use 50 for yesw.
 	 */
 	uint32_t max_retries = 50;
 	const uint32_t *content = (const uint32_t *) &info_packet->sb[0];
@@ -228,7 +228,7 @@ static void enc2_update_gsp7_128_info_packet(
 	/* We need turn on clock before programming AFMT block*/
 	REG_UPDATE(AFMT_CNTL, AFMT_AUDIO_CLOCK_EN, 1);
 
-	/* Poll dig_update_lock is not locked -> asic internal signal
+	/* Poll dig_update_lock is yest locked -> asic internal signal
 	 * assumes otg master lock will unlock it
 	 */
 	/*REG_WAIT(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_LOCK_STATUS, 0, 10, max_retries);*/
@@ -520,8 +520,8 @@ void enc2_stream_encoder_dp_unblank(
 	/* the hardware would start sending video at the start of the next DP
 	 * frame (i.e. rising edge of the vblank).
 	 * NOTE: We used to program DP_VID_STREAM_DIS_DEFER = 2 here, but this
-	 * register has no effect on enable transition! HW always guarantees
-	 * VID_STREAM enable at start of next frame, and this is not
+	 * register has yes effect on enable transition! HW always guarantees
+	 * VID_STREAM enable at start of next frame, and this is yest
 	 * programmable
 	 */
 

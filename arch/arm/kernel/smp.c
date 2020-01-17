@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/cache.h>
 #include <linux/profile.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/cpu.h>
@@ -53,7 +53,7 @@
 #include <trace/events/ipi.h>
 
 /*
- * as from 2.5, kernels no longer have an init_tasks structure
+ * as from 2.5, kernels yes longer have an init_tasks structure
  * so we need some other way of telling a new secondary core
  * where to place its SVC stack
  */
@@ -68,13 +68,13 @@ enum ipi_msg_type {
 	IPI_IRQ_WORK,
 	IPI_COMPLETION,
 	/*
-	 * CPU_BACKTRACE is special and not included in NR_IPI
+	 * CPU_BACKTRACE is special and yest included in NR_IPI
 	 * or tracable with trace_ipi_*
 	 */
 	IPI_CPU_BACKTRACE,
 	/*
 	 * SGI8-15 can be reserved by secure firmware, and thus may
-	 * not be usable by the kernel. Please keep the above limited
+	 * yest be usable by the kernel. Please keep the above limited
 	 * to at most 8 entries.
 	 */
 };
@@ -246,7 +246,7 @@ int __cpu_disable(void)
 
 	/*
 	 * Take this CPU offline.  Once we clear this, we can't return,
-	 * and we must not schedule until we're ready to give up the cpu.
+	 * and we must yest schedule until we're ready to give up the cpu.
 	 */
 	set_cpu_online(cpu, false);
 
@@ -285,7 +285,7 @@ void __cpu_die(unsigned int cpu)
 	 * platform_cpu_kill() is generally expected to do the powering off
 	 * and/or cutting of clocks to the dying CPU.  Optionally, this may
 	 * be done by the CPU which is dying in preference to supporting
-	 * this call, but that means there is _no_ synchronisation between
+	 * this call, but that means there is _yes_ synchronisation between
 	 * the requesting CPU and the dying CPU actually losing power.
 	 */
 	if (!platform_cpu_kill(cpu))
@@ -295,7 +295,7 @@ void __cpu_die(unsigned int cpu)
 /*
  * Called from the idle thread for the CPU which has been shutdown.
  *
- * Note that we disable IRQs here, but do not re-enable them
+ * Note that we disable IRQs here, but do yest re-enable them
  * before returning to the caller. This is also the behaviour
  * of the other hotplug-cpu capable cores, so presumably coming
  * out of idle fixes this.
@@ -317,7 +317,7 @@ void arch_cpu_idle_dead(void)
 	flush_cache_louis();
 
 	/*
-	 * Tell __cpu_die() that this CPU is now safe to dispose of.  Once
+	 * Tell __cpu_die() that this CPU is yesw safe to dispose of.  Once
 	 * this returns, power and/or clocks can be removed at any point
 	 * from this CPU and its cache by platform_cpu_kill().
 	 */
@@ -332,15 +332,15 @@ void arch_cpu_idle_dead(void)
 	flush_cache_louis();
 
 	/*
-	 * The actual CPU shutdown procedure is at least platform (if not
+	 * The actual CPU shutdown procedure is at least platform (if yest
 	 * CPU) specific.  This may remove power, or it may simply spin.
 	 *
 	 * Platforms are generally expected *NOT* to return from this call,
-	 * although there are some which do because they have no way to
+	 * although there are some which do because they have yes way to
 	 * power down the CPU.  These platforms are the _only_ reason we
 	 * have a return path which uses the fragment of assembly below.
 	 *
-	 * The return path should not be used for platforms which can
+	 * The return path should yest be used for platforms which can
 	 * power off the CPU.
 	 */
 	if (smp_ops.cpu_die)
@@ -350,7 +350,7 @@ void arch_cpu_idle_dead(void)
 		cpu);
 
 	/*
-	 * Do not return to the idle loop - jump back to the secondary
+	 * Do yest return to the idle loop - jump back to the secondary
 	 * cpu initialisation.  There's some initialisation which needs
 	 * to be repeated to undo the effects of taking the CPU offline.
 	 */
@@ -422,15 +422,15 @@ asmlinkage void secondary_start_kernel(void)
 	if (smp_ops.smp_secondary_init)
 		smp_ops.smp_secondary_init(cpu);
 
-	notify_cpu_starting(cpu);
+	yestify_cpu_starting(cpu);
 
 	calibrate_delay();
 
 	smp_store_cpu_info(cpu);
 
 	/*
-	 * OK, now it's safe to let the boot CPU continue.  Wait for
-	 * the CPU migration code to notice that the CPU is online
+	 * OK, yesw it's safe to let the boot CPU continue.  Wait for
+	 * the CPU migration code to yestice that the CPU is online
 	 * before we continue - which happens after __cpu_up returns.
 	 */
 	set_cpu_online(cpu, true);
@@ -495,7 +495,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 		/*
 		 * Initialise the SCU if there are more than one CPU
-		 * and let them know where to start.
+		 * and let them kyesw where to start.
 		 */
 		if (smp_ops.smp_prepare_cpus)
 			smp_ops.smp_prepare_cpus(max_cpus);
@@ -690,7 +690,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		break;
 
 	default:
-		pr_crit("CPU%u: Unknown IPI message 0x%x\n",
+		pr_crit("CPU%u: Unkyeswn IPI message 0x%x\n",
 		        cpu, ipinr);
 		break;
 	}
@@ -732,7 +732,7 @@ void smp_send_stop(void)
  */
 void panic_smp_self_stop(void)
 {
-	pr_debug("CPU %u will stop doing anything useful since another CPU has paniced\n",
+	pr_debug("CPU %u will stop doing anything useful since ayesther CPU has paniced\n",
 	         smp_processor_id());
 	set_cpu_online(smp_processor_id(), false);
 	while (1)
@@ -740,7 +740,7 @@ void panic_smp_self_stop(void)
 }
 
 /*
- * not supported here
+ * yest supported here
  */
 int setup_profiling_timer(unsigned int multiplier)
 {
@@ -754,7 +754,7 @@ static DEFINE_PER_CPU(unsigned long, l_p_j_ref_freq);
 static unsigned long global_l_p_j_ref;
 static unsigned long global_l_p_j_ref_freq;
 
-static int cpufreq_callback(struct notifier_block *nb,
+static int cpufreq_callback(struct yestifier_block *nb,
 					unsigned long val, void *data)
 {
 	struct cpufreq_freqs *freq = data;
@@ -792,16 +792,16 @@ static int cpufreq_callback(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cpufreq_notifier = {
-	.notifier_call  = cpufreq_callback,
+static struct yestifier_block cpufreq_yestifier = {
+	.yestifier_call  = cpufreq_callback,
 };
 
-static int __init register_cpufreq_notifier(void)
+static int __init register_cpufreq_yestifier(void)
 {
-	return cpufreq_register_notifier(&cpufreq_notifier,
+	return cpufreq_register_yestifier(&cpufreq_yestifier,
 						CPUFREQ_TRANSITION_NOTIFIER);
 }
-core_initcall(register_cpufreq_notifier);
+core_initcall(register_cpufreq_yestifier);
 
 #endif
 

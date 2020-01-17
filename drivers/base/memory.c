@@ -2,7 +2,7 @@
 /*
  * Memory subsystem support
  *
- * Written by Matt Tolentino <matthew.e.tolentino@intel.com>
+ * Written by Matt Tolentiyes <matthew.e.tolentiyes@intel.com>
  *            Dave Hansen <haveblue@us.ibm.com>
  *
  * This file provides the necessary infrastructure to represent
@@ -58,31 +58,31 @@ static struct bus_type memory_subsys = {
 
 static BLOCKING_NOTIFIER_HEAD(memory_chain);
 
-int register_memory_notifier(struct notifier_block *nb)
+int register_memory_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&memory_chain, nb);
+	return blocking_yestifier_chain_register(&memory_chain, nb);
 }
-EXPORT_SYMBOL(register_memory_notifier);
+EXPORT_SYMBOL(register_memory_yestifier);
 
-void unregister_memory_notifier(struct notifier_block *nb)
+void unregister_memory_yestifier(struct yestifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&memory_chain, nb);
+	blocking_yestifier_chain_unregister(&memory_chain, nb);
 }
-EXPORT_SYMBOL(unregister_memory_notifier);
+EXPORT_SYMBOL(unregister_memory_yestifier);
 
 static ATOMIC_NOTIFIER_HEAD(memory_isolate_chain);
 
-int register_memory_isolate_notifier(struct notifier_block *nb)
+int register_memory_isolate_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&memory_isolate_chain, nb);
+	return atomic_yestifier_chain_register(&memory_isolate_chain, nb);
 }
-EXPORT_SYMBOL(register_memory_isolate_notifier);
+EXPORT_SYMBOL(register_memory_isolate_yestifier);
 
-void unregister_memory_isolate_notifier(struct notifier_block *nb)
+void unregister_memory_isolate_yestifier(struct yestifier_block *nb)
 {
-	atomic_notifier_chain_unregister(&memory_isolate_chain, nb);
+	atomic_yestifier_chain_unregister(&memory_isolate_chain, nb);
 }
-EXPORT_SYMBOL(unregister_memory_isolate_notifier);
+EXPORT_SYMBOL(unregister_memory_isolate_yestifier);
 
 static void memory_block_release(struct device *dev)
 {
@@ -113,7 +113,7 @@ static ssize_t phys_index_show(struct device *dev,
 /*
  * Show whether the memory block is likely to be offlineable (or is already
  * offline). Once offline, the memory block could be removed. The return
- * value does, however, not indicate that there is a way to remove the
+ * value does, however, yest indicate that there is a way to remove the
  * memory block.
  */
 static ssize_t removable_show(struct device *dev, struct device_attribute *attr,
@@ -148,7 +148,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 
 	/*
 	 * We can probably put these states in a nice little array
-	 * so that they're not open-coded
+	 * so that they're yest open-coded
 	 */
 	switch (mem->state) {
 	case MEM_ONLINE:
@@ -170,19 +170,19 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 	return len;
 }
 
-int memory_notify(unsigned long val, void *v)
+int memory_yestify(unsigned long val, void *v)
 {
-	return blocking_notifier_call_chain(&memory_chain, val, v);
+	return blocking_yestifier_call_chain(&memory_chain, val, v);
 }
 
-int memory_isolate_notify(unsigned long val, void *v)
+int memory_isolate_yestify(unsigned long val, void *v)
 {
-	return atomic_notifier_call_chain(&memory_isolate_chain, val, v);
+	return atomic_yestifier_call_chain(&memory_isolate_chain, val, v);
 }
 
 /*
  * The probe routines leave the pages uninitialized, just as the bootmem code
- * does. Make sure we do not access them, but instead use only information from
+ * does. Make sure we do yest access them, but instead use only information from
  * within sections.
  */
 static bool pages_correctly_probed(unsigned long start_pfn)
@@ -192,7 +192,7 @@ static bool pages_correctly_probed(unsigned long start_pfn)
 	unsigned long pfn = start_pfn;
 
 	/*
-	 * memmap between sections is not contiguous except with
+	 * memmap between sections is yest contiguous except with
 	 * SPARSEMEM_VMEMMAP. We lookup the page once per section
 	 * and assume memmap is contiguous within each section
 	 */
@@ -201,11 +201,11 @@ static bool pages_correctly_probed(unsigned long start_pfn)
 			return false;
 
 		if (!present_section_nr(section_nr)) {
-			pr_warn("section %ld pfn[%lx, %lx) not present\n",
+			pr_warn("section %ld pfn[%lx, %lx) yest present\n",
 				section_nr, pfn, pfn + PAGES_PER_SECTION);
 			return false;
 		} else if (!valid_section_nr(section_nr)) {
-			pr_warn("section %ld pfn[%lx, %lx) no valid memmap\n",
+			pr_warn("section %ld pfn[%lx, %lx) yes valid memmap\n",
 				section_nr, pfn, pfn + PAGES_PER_SECTION);
 			return false;
 		} else if (online_section_nr(section_nr)) {
@@ -244,7 +244,7 @@ memory_block_action(unsigned long start_section_nr, unsigned long action,
 		ret = offline_pages(start_pfn, nr_pages);
 		break;
 	default:
-		WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
+		WARN(1, KERN_WARNING "%s(%ld, %ld) unkyeswn action: "
 		     "%ld\n", __func__, start_section_nr, action, action);
 		ret = -EINVAL;
 	}
@@ -303,7 +303,7 @@ static int memory_subsys_offline(struct device *dev)
 	if (mem->state == MEM_OFFLINE)
 		return 0;
 
-	/* Can't offline block with non-present sections */
+	/* Can't offline block with yesn-present sections */
 	if (mem->section_count != sections_per_block)
 		return -EINVAL;
 
@@ -401,16 +401,16 @@ static ssize_t valid_zones_show(struct device *dev,
 
 	/*
 	 * Check the existing zone. Make sure that we do that only on the
-	 * online nodes otherwise the page_zone is not reliable
+	 * online yesdes otherwise the page_zone is yest reliable
 	 */
 	if (mem->state == MEM_ONLINE) {
 		/*
-		 * The block contains more than one zone can not be offlined.
+		 * The block contains more than one zone can yest be offlined.
 		 * This can happen e.g. for ZONE_DMA and ZONE_DMA32
 		 */
 		if (!test_pages_in_a_zone(start_pfn, start_pfn + nr_pages,
 					  &valid_start_pfn, &valid_end_pfn))
-			return sprintf(buf, "none\n");
+			return sprintf(buf, "yesne\n");
 		start_pfn = valid_start_pfn;
 		strcat(buf, page_zone(pfn_to_page(start_pfn))->name);
 		goto out;
@@ -479,7 +479,7 @@ static DEVICE_ATTR_RW(auto_online_blocks);
 
 /*
  * Some architectures will have custom drivers to do this, and
- * will not need to do it from userspace.  The fake hot-add code
+ * will yest need to do it from userspace.  The fake hot-add code
  * as well as ppc64 will do all of their discovery in userspace
  * and will require this interface.
  */
@@ -579,7 +579,7 @@ static struct memory_block *find_memory_block_by_id(unsigned long block_id)
 }
 
 /*
- * For now, we have a linear search to go find the appropriate
+ * For yesw, we have a linear search to go find the appropriate
  * memory_block corresponding to a particular phys_index. If
  * this gets to be a real problem, we can always use a radix
  * tree or something here.
@@ -755,7 +755,7 @@ void remove_memory_block_devices(unsigned long start, unsigned long size)
 		if (WARN_ON_ONCE(!mem))
 			continue;
 		mem->section_count = 0;
-		unregister_memory_block_under_nodes(mem);
+		unregister_memory_block_under_yesdes(mem);
 		unregister_memory(mem);
 	}
 }
@@ -792,8 +792,8 @@ static const struct attribute_group *memory_root_attr_groups[] = {
 
 /*
  * Initialize the sysfs support for memory devices. At the time this function
- * is called, we cannot have concurrent creation/deletion of memory block
- * devices, the device_hotplug_lock is not needed.
+ * is called, we canyest have concurrent creation/deletion of memory block
+ * devices, the device_hotplug_lock is yest needed.
  */
 void __init memory_dev_init(void)
 {
@@ -803,7 +803,7 @@ void __init memory_dev_init(void)
 	/* Validate the configured memory block size */
 	block_sz = memory_block_size_bytes();
 	if (!is_power_of_2(block_sz) || block_sz < MIN_MEMORY_BLOCK_SIZE)
-		panic("Memory block size not suitable: 0x%lx\n", block_sz);
+		panic("Memory block size yest suitable: 0x%lx\n", block_sz);
 	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
 
 	ret = subsys_system_register(&memory_subsys, memory_root_attr_groups);

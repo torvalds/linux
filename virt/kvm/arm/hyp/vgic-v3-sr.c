@@ -201,8 +201,8 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Make sure stores to the GIC via the memory mapped interface
-	 * are now visible to the system register interface when reading the
-	 * LRs, and when reading back the VMCR on non-VHE systems.
+	 * are yesw visible to the system register interface when reading the
+	 * LRs, and when reading back the VMCR on yesn-VHE systems.
 	 */
 	if (used_lrs || !has_vhe()) {
 		if (!cpu_if->vgic_sre) {
@@ -244,7 +244,7 @@ void __hyp_text __vgic_v3_restore_state(struct kvm_vcpu *vcpu)
 	}
 
 	/*
-	 * Ensure that writes to the LRs, and on non-VHE systems ensure that
+	 * Ensure that writes to the LRs, and on yesn-VHE systems ensure that
 	 * the write to the VMCR in __vgic_v3_activate_traps(), will have
 	 * reached the (re)distributors. This ensure the guest will read the
 	 * correct values from the memory-mapped interface.
@@ -298,7 +298,7 @@ void __hyp_text __vgic_v3_activate_traps(struct kvm_vcpu *vcpu)
 
 	/*
 	 * If we need to trap system registers, we must write
-	 * ICH_HCR_EL2 anyway, even if no interrupts are being
+	 * ICH_HCR_EL2 anyway, even if yes interrupts are being
 	 * injected,
 	 */
 	if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
@@ -326,7 +326,7 @@ void __hyp_text __vgic_v3_deactivate_traps(struct kvm_vcpu *vcpu)
 
 	/*
 	 * If we were trapping system registers, we enabled the VGIC even if
-	 * no interrupts were being injected, and we disable it again here.
+	 * yes interrupts were being injected, and we disable it again here.
 	 */
 	if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
 	    cpu_if->its_vpe.its_vm)
@@ -579,7 +579,7 @@ static u8 __hyp_text __vgic_v3_pri_to_pre(u8 pri, u32 vmcr, int grp)
 
 /*
  * The priority value is independent of any of the BPR values, so we
- * normalize it using the minumal BPR value. This guarantees that no
+ * yesrmalize it using the minumal BPR value. This guarantees that yes
  * matter what the guest does with its BPR, we can always set/get the
  * same value of a priority.
  */
@@ -705,7 +705,7 @@ static void __hyp_text __vgic_v3_write_dir(struct kvm_vcpu *vcpu,
 	u64 lr_val;
 	int lr;
 
-	/* EOImode == 0, nothing to be done here */
+	/* EOImode == 0, yesthing to be done here */
 	if (!(vmcr & ICH_VMCR_EOIM_MASK))
 		return;
 
@@ -734,11 +734,11 @@ static void __hyp_text __vgic_v3_write_eoir(struct kvm_vcpu *vcpu, u32 vmcr, int
 	/* Drop priority in any case */
 	act_prio = __vgic_v3_clear_highest_active_priority();
 
-	/* If EOIing an LPI, no deactivate to be performed */
+	/* If EOIing an LPI, yes deactivate to be performed */
 	if (vid >= VGIC_MIN_LPI)
 		return;
 
-	/* EOImode == 1, nothing to be done here */
+	/* EOImode == 1, yesthing to be done here */
 	if (vmcr & ICH_VMCR_EOIM_MASK)
 		return;
 
@@ -750,12 +750,12 @@ static void __hyp_text __vgic_v3_write_eoir(struct kvm_vcpu *vcpu, u32 vmcr, int
 
 	lr_prio = (lr_val & ICH_LR_PRIORITY_MASK) >> ICH_LR_PRIORITY_SHIFT;
 
-	/* If priorities or group do not match, the guest has fscked-up. */
+	/* If priorities or group do yest match, the guest has fscked-up. */
 	if (grp != !!(lr_val & ICH_LR_GROUP) ||
 	    __vgic_v3_pri_to_pre(lr_prio, vmcr, grp) != act_prio)
 		return;
 
-	/* Let's now perform the deactivation */
+	/* Let's yesw perform the deactivation */
 	__vgic_v3_clear_active_lr(lr, lr_val);
 }
 

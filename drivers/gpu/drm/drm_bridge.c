@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -34,7 +34,7 @@
  * DOC: overview
  *
  * &struct drm_bridge represents a device that hangs on to an encoder. These are
- * handy when a regular &drm_encoder entity isn't enough to represent the entire
+ * handy when a regular &drm_encoder entity isn't eyesugh to represent the entire
  * encoder chain.
  *
  * A bridge is always attached to a single &drm_encoder at a time, but can be
@@ -51,7 +51,7 @@
  * through the ops provided in &drm_bridge_funcs.
  *
  * drm_bridge, like drm_panel, aren't drm_mode_object entities like planes,
- * CRTCs, encoders or connectors and hence are not visible to userspace. They
+ * CRTCs, encoders or connectors and hence are yest visible to userspace. They
  * just provide additional hooks to get the desired output at the end of the
  * encoder chain.
  *
@@ -101,12 +101,12 @@ EXPORT_SYMBOL(drm_bridge_remove);
  * linked directly at the encoder's output. Otherwise it is linked at the
  * previous bridge's output.
  *
- * If non-NULL the previous bridge must be already attached by a call to this
+ * If yesn-NULL the previous bridge must be already attached by a call to this
  * function.
  *
  * Note that bridges attached to encoders are auto-detached during encoder
  * cleanup in drm_encoder_cleanup(), so drm_bridge_attach() should generally
- * *not* be balanced with a drm_bridge_detach() in driver code.
+ * *yest* be balanced with a drm_bridge_detach() in driver code.
  *
  * RETURNS:
  * Zero on success, error code on failure
@@ -212,7 +212,7 @@ EXPORT_SYMBOL(drm_bridge_mode_fixup);
  *
  * Calls &drm_bridge_funcs.mode_valid for all the bridges in the encoder
  * chain, starting from the first bridge to the last. If at least one bridge
- * does not accept the mode the function returns the error code.
+ * does yest accept the mode the function returns the error code.
  *
  * Note: the bridge passed should be the one closest to the encoder.
  *
@@ -464,22 +464,22 @@ EXPORT_SYMBOL(drm_atomic_bridge_enable);
 
 #ifdef CONFIG_OF
 /**
- * of_drm_find_bridge - find the bridge corresponding to the device node in
+ * of_drm_find_bridge - find the bridge corresponding to the device yesde in
  *			the global bridge list
  *
- * @np: device node
+ * @np: device yesde
  *
  * RETURNS:
  * drm_bridge control struct on success, NULL on failure
  */
-struct drm_bridge *of_drm_find_bridge(struct device_node *np)
+struct drm_bridge *of_drm_find_bridge(struct device_yesde *np)
 {
 	struct drm_bridge *bridge;
 
 	mutex_lock(&bridge_lock);
 
 	list_for_each_entry(bridge, &bridge_list, list) {
-		if (bridge->of_node == np) {
+		if (bridge->of_yesde == np) {
 			mutex_unlock(&bridge_lock);
 			return bridge;
 		}

@@ -37,15 +37,15 @@ struct scmi_power_set_state {
 	__le32 state;
 };
 
-struct scmi_power_state_notify {
+struct scmi_power_state_yestify {
 	__le32 domain;
-	__le32 notify_enable;
+	__le32 yestify_enable;
 };
 
 struct power_dom_info {
 	bool state_set_sync;
 	bool state_set_async;
-	bool state_set_notify;
+	bool state_set_yestify;
 	char name[SCMI_MAX_STR_SIZE];
 };
 
@@ -103,7 +103,7 @@ scmi_power_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 	if (!ret) {
 		u32 flags = le32_to_cpu(attr->flags);
 
-		dom_info->state_set_notify = SUPPORTS_STATE_SET_NOTIFY(flags);
+		dom_info->state_set_yestify = SUPPORTS_STATE_SET_NOTIFY(flags);
 		dom_info->state_set_async = SUPPORTS_STATE_SET_ASYNC(flags);
 		dom_info->state_set_sync = SUPPORTS_STATE_SET_SYNC(flags);
 		strlcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);

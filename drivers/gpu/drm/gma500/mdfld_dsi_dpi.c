@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -104,7 +104,7 @@ static void mdfld_wait_for_SPL_PKG_SENT(struct drm_device *dev, u32 pipe)
 	}
 
 	if (timeout == 20000)
-                DRM_ERROR("MIPI: SPL_PKT_SENT_INTERRUPT was not sent successfully!\n");
+                DRM_ERROR("MIPI: SPL_PKT_SENT_INTERRUPT was yest sent successfully!\n");
 }
 
 /* For TC35876X */
@@ -167,7 +167,7 @@ static void dsi_set_pipe_plane_enable_state(struct drm_device *dev,
 				__func__);
 
 		if (REG_BIT_WAIT(MIPI_GEN_FIFO_STAT_REG(pipe), 1, 28))
-			dev_err(&dev->pdev->dev, "%s: FIFO not empty\n",
+			dev_err(&dev->pdev->dev, "%s: FIFO yest empty\n",
 				__func__);
 	}
 }
@@ -224,7 +224,7 @@ static void mdfld_dsi_configure_up(struct mdfld_dsi_encoder *dsi_encoder,
  * FUNCTION: mdfld_dsi_tpo_ic_init
  *
  * DESCRIPTION:  This function is called only by mrst_dsi_mode_set and
- *               restore_display_registers.  since this function does not
+ *               restore_display_registers.  since this function does yest
  *               acquire the mutex, it is important that the calling function
  *               does!
 \* ************************************************************************* */
@@ -601,7 +601,7 @@ static void mdfld_dsi_dpi_shut_down(struct mdfld_dsi_dpi_output *output,
 {
 	struct drm_device *dev = output->dev;
 
-	/*if output is on, or mode setting didn't happen, ignore this*/
+	/*if output is on, or mode setting didn't happen, igyesre this*/
 	if ((!output->panel_on) || output->first_boot) {
 		output->first_boot = 0;
 		return;

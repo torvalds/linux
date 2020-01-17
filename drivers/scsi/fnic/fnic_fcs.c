@@ -15,7 +15,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
@@ -109,7 +109,7 @@ void fnic_handle_link(struct work_struct *work)
 		if (!fnic->link_status) {
 			/* DOWN -> DOWN */
 			spin_unlock_irqrestore(&fnic->fnic_lock, flags);
-			fnic_fc_trace_set_data(fnic->lport->host->host_no,
+			fnic_fc_trace_set_data(fnic->lport->host->host_yes,
 				FNIC_FC_LE, "Link Status: DOWN->DOWN",
 				strlen("Link Status: DOWN->DOWN"));
 		} else {
@@ -118,7 +118,7 @@ void fnic_handle_link(struct work_struct *work)
 				fnic->lport->host_stats.link_failure_count++;
 				spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 				fnic_fc_trace_set_data(
-					fnic->lport->host->host_no,
+					fnic->lport->host->host_yes,
 					FNIC_FC_LE,
 					"Link Status:UP_DOWN_UP",
 					strlen("Link_Status:UP_DOWN_UP")
@@ -129,7 +129,7 @@ void fnic_handle_link(struct work_struct *work)
 				if (fnic->config.flags & VFCF_FIP_CAPABLE) {
 					/* start FCoE VLAN discovery */
 					fnic_fc_trace_set_data(
-						fnic->lport->host->host_no,
+						fnic->lport->host->host_yes,
 						FNIC_FC_LE,
 						"Link Status: UP_DOWN_UP_VLAN",
 						strlen(
@@ -145,7 +145,7 @@ void fnic_handle_link(struct work_struct *work)
 				/* UP -> UP */
 				spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 				fnic_fc_trace_set_data(
-					fnic->lport->host->host_no, FNIC_FC_LE,
+					fnic->lport->host->host_yes, FNIC_FC_LE,
 					"Link Status: UP_UP",
 					strlen("Link Status: UP_UP"));
 			}
@@ -156,14 +156,14 @@ void fnic_handle_link(struct work_struct *work)
 		if (fnic->config.flags & VFCF_FIP_CAPABLE) {
 			/* start FCoE VLAN discovery */
 				fnic_fc_trace_set_data(
-				fnic->lport->host->host_no,
+				fnic->lport->host->host_yes,
 				FNIC_FC_LE, "Link Status: DOWN_UP_VLAN",
 				strlen("Link Status: DOWN_UP_VLAN"));
 			fnic_fcoe_send_vlan_req(fnic);
 			return;
 		}
 		FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, "link up\n");
-		fnic_fc_trace_set_data(fnic->lport->host->host_no, FNIC_FC_LE,
+		fnic_fc_trace_set_data(fnic->lport->host->host_yes, FNIC_FC_LE,
 			"Link Status: DOWN_UP", strlen("Link Status: DOWN_UP"));
 		fcoe_ctlr_link_up(&fnic->ctlr);
 	} else {
@@ -172,7 +172,7 @@ void fnic_handle_link(struct work_struct *work)
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 		FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host, "link down\n");
 		fnic_fc_trace_set_data(
-			fnic->lport->host->host_no, FNIC_FC_LE,
+			fnic->lport->host->host_yes, FNIC_FC_LE,
 			"Link Status: UP_DOWN",
 			strlen("Link Status: UP_DOWN"));
 		if (fnic->config.flags & VFCF_FIP_CAPABLE) {
@@ -285,7 +285,7 @@ void fnic_handle_event(struct work_struct *work)
 			break;
 		default:
 			FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
-				  "Unknown event 0x%x\n", fevt->event);
+				  "Unkyeswn event 0x%x\n", fevt->event);
 			break;
 		}
 		kfree(fevt);
@@ -298,7 +298,7 @@ void fnic_handle_event(struct work_struct *work)
  * @fip: The FCoE controller that received the frame
  * @skb: The received FIP frame
  *
- * Returns non-zero if the frame is rejected with unsupported cmd with
+ * Returns yesn-zero if the frame is rejected with unsupported cmd with
  * insufficient resource els explanation.
  */
 static inline int is_fnic_fip_flogi_reject(struct fcoe_ctlr *fip,
@@ -420,7 +420,7 @@ static void fnic_fcoe_send_vlan_req(struct fnic *fnic)
 	skb_reset_network_header(skb);
 	fip->send(fip, skb);
 
-	/* set a timer so that we can retry if there no response */
+	/* set a timer so that we can retry if there yes response */
 	vlan_tov = jiffies + msecs_to_jiffies(FCOE_CTLR_FIPVLAN_TOV);
 	mod_timer(&fnic->fip_timer, round_jiffies(vlan_tov));
 }
@@ -477,7 +477,7 @@ static void fnic_fcoe_process_vlan_resp(struct fnic *fnic, struct sk_buff *skb)
 	/* any VLAN descriptors present ? */
 	if (list_empty(&fnic->vlans)) {
 		/* retry from timer */
-		atomic64_inc(&fnic_stats->vlan_stats.resp_withno_vlanID);
+		atomic64_inc(&fnic_stats->vlan_stats.resp_withyes_vlanID);
 		FNIC_FCS_DBG(KERN_INFO, fnic->lport->host,
 			  "No VLAN descriptors in FIP VLAN response\n");
 		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
@@ -486,7 +486,7 @@ static void fnic_fcoe_process_vlan_resp(struct fnic *fnic, struct sk_buff *skb)
 
 	vlan = list_first_entry(&fnic->vlans, struct fcoe_vlan, list);
 	fnic->set_vlan(fnic, vlan->vid);
-	vlan->state = FIP_VLAN_SENT; /* sent now */
+	vlan->state = FIP_VLAN_SENT; /* sent yesw */
 	vlan->sol_count++;
 	spin_unlock_irqrestore(&fnic->vlans_lock, flags);
 
@@ -508,7 +508,7 @@ static void fnic_fcoe_start_fcf_disc(struct fnic *fnic)
 	spin_lock_irqsave(&fnic->vlans_lock, flags);
 	vlan = list_first_entry(&fnic->vlans, struct fcoe_vlan, list);
 	fnic->set_vlan(fnic, vlan->vid);
-	vlan->state = FIP_VLAN_SENT; /* sent now */
+	vlan->state = FIP_VLAN_SENT; /* sent yesw */
 	vlan->sol_count = 1;
 	spin_unlock_irqrestore(&fnic->vlans_lock, flags);
 
@@ -684,17 +684,17 @@ static inline int fnic_import_rq_eth_pkt(struct fnic *fnic, struct sk_buff *skb)
 	if (eh->h_proto == htons(ETH_P_FIP)) {
 		if (!(fnic->config.flags & VFCF_FIP_CAPABLE)) {
 			printk(KERN_ERR "Dropped FIP frame, as firmware "
-					"uses non-FIP mode, Enable FIP "
+					"uses yesn-FIP mode, Enable FIP "
 					"using UCSM\n");
 			goto drop;
 		}
-		if ((fnic_fc_trace_set_data(fnic->lport->host->host_no,
+		if ((fnic_fc_trace_set_data(fnic->lport->host->host_yes,
 			FNIC_FC_RECV|0x80, (char *)skb->data, skb->len)) != 0) {
 			printk(KERN_ERR "fnic ctlr frame trace error!!!");
 		}
 		skb_queue_tail(&fnic->fip_frame_queue, skb);
 		queue_work(fnic_fip_queue, &fnic->fip_frame_work);
-		return 1;		/* let caller know packet was used */
+		return 1;		/* let caller kyesw packet was used */
 	}
 	if (eh->h_proto != htons(ETH_P_FCOE))
 		goto drop;
@@ -794,7 +794,7 @@ void fnic_set_port_id(struct fc_lport *lport, u32 port_id, struct fc_frame *fp)
 	if (fp) {
 		mac = fr_cb(fp)->granted_mac;
 		if (is_zero_ether_addr(mac)) {
-			/* non-FIP - FLOGI already accepted - ignore return */
+			/* yesn-FIP - FLOGI already accepted - igyesre return */
 			fcoe_ctlr_recv_flogi(&fnic->ctlr, lport, fp);
 		}
 		fnic_update_mac(lport, mac);
@@ -842,7 +842,7 @@ static void fnic_rq_cmpl_frame_recv(struct vnic_rq *rq, struct cq_desc
 	u8 fcoe = 0, fcoe_sof, fcoe_eof;
 	u8 fcoe_fc_crc_ok = 1, fcoe_enc_error = 0;
 	u8 tcp_udp_csum_ok, udp, tcp, ipv4_csum_ok;
-	u8 ipv6, ipv4, ipv4_fragment, rss_type, csum_not_calc;
+	u8 ipv6, ipv4, ipv4_fragment, rss_type, csum_yest_calc;
 	u8 fcs_ok = 1, packet_error = 0;
 	u16 q_number, completed_index, bytes_written = 0, vlan, checksum;
 	u32 rss_hash;
@@ -876,7 +876,7 @@ static void fnic_rq_cmpl_frame_recv(struct vnic_rq *rq, struct cq_desc
 		cq_enet_rq_desc_dec((struct cq_enet_rq_desc *)cq_desc,
 				    &type, &color, &q_number, &completed_index,
 				    &ingress_port, &fcoe, &eop, &sop,
-				    &rss_type, &csum_not_calc, &rss_hash,
+				    &rss_type, &csum_yest_calc, &rss_hash,
 				    &bytes_written, &packet_error,
 				    &vlan_stripped, &vlan, &checksum,
 				    &fcoe_sof, &fcoe_fc_crc_ok,
@@ -920,7 +920,7 @@ static void fnic_rq_cmpl_frame_recv(struct vnic_rq *rq, struct cq_desc
 	}
 	fr_dev(fp) = fnic->lport;
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
-	if ((fnic_fc_trace_set_data(fnic->lport->host->host_no, FNIC_FC_RECV,
+	if ((fnic_fc_trace_set_data(fnic->lport->host->host_yes, FNIC_FC_RECV,
 					(char *)skb->data, skb->len)) != 0) {
 		printk(KERN_ERR "fnic ctlr frame trace error!!!");
 	}
@@ -1041,12 +1041,12 @@ void fnic_eth_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		vlan_hdr->h_vlan_proto = htons(ETH_P_8021Q);
 		vlan_hdr->h_vlan_encapsulated_proto = eth_hdr->h_proto;
 		vlan_hdr->h_vlan_TCI = htons(fnic->vlan_id);
-		if ((fnic_fc_trace_set_data(fnic->lport->host->host_no,
+		if ((fnic_fc_trace_set_data(fnic->lport->host->host_yes,
 			FNIC_FC_SEND|0x80, (char *)eth_hdr, skb->len)) != 0) {
 			printk(KERN_ERR "fnic ctlr frame trace error!!!");
 		}
 	} else {
-		if ((fnic_fc_trace_set_data(fnic->lport->host->host_no,
+		if ((fnic_fc_trace_set_data(fnic->lport->host->host_yes,
 			FNIC_FC_SEND|0x80, (char *)skb->data, skb->len)) != 0) {
 			printk(KERN_ERR "fnic ctlr frame trace error!!!");
 		}
@@ -1135,7 +1135,7 @@ static int fnic_send_frame(struct fnic *fnic, struct fc_frame *fp)
 		goto free_skb_on_err;
 	}
 
-	if ((fnic_fc_trace_set_data(fnic->lport->host->host_no, FNIC_FC_SEND,
+	if ((fnic_fc_trace_set_data(fnic->lport->host->host_yes, FNIC_FC_SEND,
 				(char *)eth_hdr, tot_len)) != 0) {
 		printk(KERN_ERR "fnic ctlr frame trace error!!!");
 	}
@@ -1316,7 +1316,7 @@ void fnic_fcoe_reset_vlans(struct fnic *fnic)
 
 	/*
 	 * indicate a link down to fcoe so that all fcf's are free'd
-	 * might not be required since we did this before sending vlan
+	 * might yest be required since we did this before sending vlan
 	 * discovery request
 	 */
 	spin_lock_irqsave(&fnic->vlans_lock, flags);
@@ -1349,7 +1349,7 @@ void fnic_handle_fip_timer(struct fnic *fnic)
 	spin_lock_irqsave(&fnic->vlans_lock, flags);
 	if (list_empty(&fnic->vlans)) {
 		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
-		/* no vlans available, try again */
+		/* yes vlans available, try again */
 		if (printk_ratelimit())
 			FNIC_FCS_DBG(KERN_DEBUG, fnic->lport->host,
 				  "Start VLAN Discovery\n");
@@ -1378,7 +1378,7 @@ void fnic_handle_fip_timer(struct fnic *fnic)
 	case FIP_VLAN_SENT:
 		if (vlan->sol_count >= FCOE_CTLR_MAX_SOL) {
 			/*
-			 * no response on this vlan, remove  from the list.
+			 * yes response on this vlan, remove  from the list.
 			 * Try the next vlan
 			 */
 			shost_printk(KERN_INFO, fnic->lport->host,
@@ -1401,7 +1401,7 @@ void fnic_handle_fip_timer(struct fnic *fnic)
 			vlan = list_first_entry(&fnic->vlans, struct fcoe_vlan,
 							list);
 			fnic->set_vlan(fnic, vlan->vid);
-			vlan->state = FIP_VLAN_SENT; /* sent now */
+			vlan->state = FIP_VLAN_SENT; /* sent yesw */
 		}
 		spin_unlock_irqrestore(&fnic->vlans_lock, flags);
 		atomic64_inc(&fnic_stats->vlan_stats.sol_expiry_count);

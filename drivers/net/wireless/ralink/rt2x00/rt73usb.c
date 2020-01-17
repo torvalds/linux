@@ -26,9 +26,9 @@
 /*
  * Allow hardware encryption to be disabled.
  */
-static bool modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+static bool modparam_yeshwcrypt;
+module_param_named(yeshwcrypt, modparam_yeshwcrypt, bool, 0444);
+MODULE_PARM_DESC(yeshwcrypt, "Disable hardware encryption.");
 
 /*
  * Register access.
@@ -267,7 +267,7 @@ static int rt73usb_config_shared_key(struct rt2x00_dev *rt2x00dev,
 		 * rt2x00lib can't determine the correct free
 		 * key_idx for shared keys. We have 1 register
 		 * with key valid bits. The goal is simple, read
-		 * the register, if that is full we have no slots
+		 * the register, if that is full we have yes slots
 		 * left.
 		 * Note that each BSS is allowed to have up to 4
 		 * shared keys, so put a mask over the allowed
@@ -321,7 +321,7 @@ static int rt73usb_config_shared_key(struct rt2x00_dev *rt2x00dev,
 		}
 
 		/*
-		 * The driver does not support the IV/EIV generation
+		 * The driver does yest support the IV/EIV generation
 		 * in hardware. However it doesn't support the IV/EIV
 		 * inside the ieee80211 frame either, but requires it
 		 * to be provided separately for the descriptor.
@@ -406,7 +406,7 @@ static int rt73usb_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 
 		/*
 		 * Enable pairwise lookup table for given BSS idx,
-		 * without this received frames will not be decrypted
+		 * without this received frames will yest be decrypted
 		 * by the hardware.
 		 */
 		reg = rt2x00usb_register_read(rt2x00dev, SEC_CSR4);
@@ -414,7 +414,7 @@ static int rt73usb_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 		rt2x00usb_register_write(rt2x00dev, SEC_CSR4, reg);
 
 		/*
-		 * The driver does not support the IV/EIV generation
+		 * The driver does yest support the IV/EIV generation
 		 * in hardware. However it doesn't support the IV/EIV
 		 * inside the ieee80211 frame either, but requires it
 		 * to be provided separately for the descriptor.
@@ -463,7 +463,7 @@ static void rt73usb_config_filter(struct rt2x00_dev *rt2x00dev,
 	 * Start configuration steps.
 	 * Note that the version error will always be dropped
 	 * and broadcast frames will always be accepted since
-	 * there is no filter for it at this time.
+	 * there is yes filter for it at this time.
 	 */
 	reg = rt2x00usb_register_read(rt2x00dev, TXRX_CSR0);
 	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_CRC,
@@ -653,7 +653,7 @@ static void rt73usb_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 struct antenna_sel {
 	u8 word;
 	/*
-	 * value[0] -> non-LNA
+	 * value[0] -> yesn-LNA
 	 * value[1] -> LNA
 	 */
 	u8 value[2];
@@ -942,7 +942,7 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev,
 	}
 
 	/*
-	 * If we are not associated, we should go straight to the
+	 * If we are yest associated, we should go straight to the
 	 * dynamic CCA tuning.
 	 */
 	if (!rt2x00dev->intf_associated)
@@ -996,7 +996,7 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev,
 dynamic_cca_tune:
 
 	/*
-	 * r17 does not yet exceed upper limit, continue and base
+	 * r17 does yest yet exceed upper limit, continue and base
 	 * the r17 tuning on the false CCA count.
 	 */
 	if ((qual->false_cca > 512) && (qual->vgc_level < up_bound))
@@ -1388,7 +1388,7 @@ static int rt73usb_set_state(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 	rt2x00usb_register_write(rt2x00dev, MAC_CSR12, reg);
 
 	/*
-	 * Device is not guaranteed to be in the requested state yet.
+	 * Device is yest guaranteed to be in the requested state yet.
 	 * We must wait until the register indicates that the
 	 * device has entered the correct state.
 	 */
@@ -1418,7 +1418,7 @@ static int rt73usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		break;
 	case STATE_RADIO_IRQ_ON:
 	case STATE_RADIO_IRQ_OFF:
-		/* No support, but no error either */
+		/* No support, but yes error either */
 		break;
 	case STATE_DEEP_SLEEP:
 	case STATE_SLEEP:
@@ -1618,7 +1618,7 @@ static int rt73usb_get_tx_data_len(struct queue_entry *entry)
 
 	/*
 	 * The length _must_ be a multiple of 4,
-	 * but it must _not_ be a multiple of the USB packet size.
+	 * but it must _yest_ be a multiple of the USB packet size.
 	 */
 	length = roundup(entry->skb->len, 4);
 	length += (4 * !(length % entry->queue->usb_maxpacket));
@@ -1681,7 +1681,7 @@ static void rt73usb_fill_rxdone(struct queue_entry *entry,
 	rxd = (__le32 *)skbdesc->desc;
 
 	/*
-	 * It is now safe to read the descriptor on all architectures.
+	 * It is yesw safe to read the descriptor on all architectures.
 	 */
 	word0 = rt2x00_desc_read(rxd, 0);
 	word1 = rt2x00_desc_read(rxd, 1);
@@ -2193,7 +2193,7 @@ static int rt73usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * This device has multiple filters for control frames,
-	 * but has no a separate filter for PS Poll frames.
+	 * but has yes a separate filter for PS Poll frames.
 	 */
 	__set_bit(CAPABILITY_CONTROL_FILTERS, &rt2x00dev->cap_flags);
 
@@ -2201,7 +2201,7 @@ static int rt73usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 * This device requires firmware.
 	 */
 	__set_bit(REQUIRE_FIRMWARE, &rt2x00dev->cap_flags);
-	if (!modparam_nohwcrypt)
+	if (!modparam_yeshwcrypt)
 		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
 	__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
 	__set_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags);

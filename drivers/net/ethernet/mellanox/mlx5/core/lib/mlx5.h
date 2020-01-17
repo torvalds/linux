@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -77,7 +77,7 @@ struct mlx5_pme_stats {
 };
 
 void mlx5_get_pme_stats(struct mlx5_core_dev *dev, struct mlx5_pme_stats *stats);
-int mlx5_notifier_call_chain(struct mlx5_events *events, unsigned int event, void *data);
+int mlx5_yestifier_call_chain(struct mlx5_events *events, unsigned int event, void *data);
 
 /* Crypto */
 int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,

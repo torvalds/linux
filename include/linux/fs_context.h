@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/refcount.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/security.h>
 #include <linux/mutex.h>
 
@@ -50,7 +50,7 @@ enum fs_context_phase {
  */
 enum fs_value_type {
 	fs_value_is_undefined,
-	fs_value_is_flag,		/* Value not given a value */
+	fs_value_is_flag,		/* Value yest given a value */
 	fs_value_is_string,		/* Value is a string */
 	fs_value_is_blob,		/* Value is a binary blob */
 	fs_value_is_filename,		/* Value is a filename* + dirfd */
@@ -111,7 +111,7 @@ struct fs_context_operations {
 	void (*free)(struct fs_context *fc);
 	int (*dup)(struct fs_context *fc, struct fs_context *src_fc);
 	int (*parse_param)(struct fs_context *fc, struct fs_parameter *param);
-	int (*parse_monolithic)(struct fs_context *fc, void *data);
+	int (*parse_moyeslithic)(struct fs_context *fc, void *data);
 	int (*get_tree)(struct fs_context *fc);
 	int (*reconfigure)(struct fs_context *fc);
 };
@@ -131,7 +131,7 @@ extern struct fs_context *vfs_dup_fs_context(struct fs_context *fc);
 extern int vfs_parse_fs_param(struct fs_context *fc, struct fs_parameter *param);
 extern int vfs_parse_fs_string(struct fs_context *fc, const char *key,
 			       const char *value, size_t v_size);
-extern int generic_parse_monolithic(struct fs_context *fc, void *data);
+extern int generic_parse_moyeslithic(struct fs_context *fc, void *data);
 extern int vfs_get_tree(struct fs_context *fc);
 extern void put_fs_context(struct fs_context *fc);
 
@@ -149,7 +149,7 @@ extern int vfs_get_super(struct fs_context *fc,
 			 int (*fill_super)(struct super_block *sb,
 					   struct fs_context *fc));
 
-extern int get_tree_nodev(struct fs_context *fc,
+extern int get_tree_yesdev(struct fs_context *fc,
 			 int (*fill_super)(struct super_block *sb,
 					   struct fs_context *fc));
 extern int get_tree_single(struct fs_context *fc,

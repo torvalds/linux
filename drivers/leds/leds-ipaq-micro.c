@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * h3xxx atmel micro companion support, notification LED subdevice
+ * h3xxx atmel micro companion support, yestification LED subdevice
  *
  * Author : Linus Walleij <linus.walleij@linaro.org>
  */
@@ -26,7 +26,7 @@ static int micro_leds_brightness_set(struct led_classdev *led_cdev,
 	 * In this message:
 	 * Byte 0 = LED color: 0 = yellow, 1 = green
 	 *          yellow LED is always ~30 blinks per minute
-	 * Byte 1 = duration (flags?) appears to be ignored
+	 * Byte 1 = duration (flags?) appears to be igyesred
 	 * Byte 2 = green ontime in 1/10 sec (deciseconds)
 	 *          1 = 1/10 second
 	 *          0 = 256/10 second
@@ -63,7 +63,7 @@ static int micro_leds_blink_set(struct led_classdev *led_cdev,
 	 * In this message:
 	 * Byte 0 = LED color: 0 = yellow, 1 = green
 	 *          yellow LED is always ~30 blinks per minute
-	 * Byte 1 = duration (flags?) appears to be ignored
+	 * Byte 1 = duration (flags?) appears to be igyesred
 	 * Byte 2 = green ontime in 1/10 sec (deciseconds)
 	 *          1 = 1/10 second
 	 *          0 = 256/10 second
@@ -114,7 +114,7 @@ static int micro_leds_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "registering led failed: %d\n", ret);
 		return ret;
 	}
-	dev_info(&pdev->dev, "iPAQ micro notification LED driver\n");
+	dev_info(&pdev->dev, "iPAQ micro yestification LED driver\n");
 
 	return 0;
 }

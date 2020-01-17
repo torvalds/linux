@@ -60,7 +60,7 @@ MODULE_PARM_DESC(cont_rate, "Sampling rate in continuous mode (Hz)");
  */
 static int pressure;
 module_param(pressure, int, 0);
-MODULE_PARM_DESC(pressure, "Pressure readback (1 = pressure, 0 = no pressure)");
+MODULE_PARM_DESC(pressure, "Pressure readback (1 = pressure, 0 = yes pressure)");
 
 /*
  * AC97 touch data slot.
@@ -92,7 +92,7 @@ static int wm97xx_acc_pen_down(struct wm97xx *wm)
 	/* When the AC97 queue has been drained we need to allow time
 	 * to buffer up samples otherwise we end up spinning polling
 	 * for samples.  The controller can't have a suitably low
-	 * threshold set to use the notifications it gives.
+	 * threshold set to use the yestifications it gives.
 	 */
 	msleep(1);
 
@@ -166,7 +166,7 @@ static void wm97xx_irq_enable(struct wm97xx *wm, int enable)
 	if (enable)
 		enable_irq(wm->pen_irq);
 	else
-		disable_irq_nosync(wm->pen_irq);
+		disable_irq_yessync(wm->pen_irq);
 }
 
 static struct wm97xx_mach_ops zylonite_mach_ops = {

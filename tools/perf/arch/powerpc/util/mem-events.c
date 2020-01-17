@@ -2,7 +2,7 @@
 #include "map_symbol.h"
 #include "mem-events.h"
 
-/* PowerPC does not support 'ldlat' parameter. */
+/* PowerPC does yest support 'ldlat' parameter. */
 char *perf_mem_events__name(int i)
 {
 	if (i == PERF_MEM_EVENTS__LOAD)

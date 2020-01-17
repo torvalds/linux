@@ -19,10 +19,10 @@
 
 #include <drm/drm_fourcc.h>
 #include <drm/drm_print.h>
-#include <drm/exynos_drm.h>
+#include <drm/exyyess_drm.h>
 
-#include "exynos_drm_drv.h"
-#include "exynos_drm_ipp.h"
+#include "exyyess_drm_drv.h"
+#include "exyyess_drm_ipp.h"
 #include "regs-fimc.h"
 
 /*
@@ -44,7 +44,7 @@
 
 static unsigned int fimc_mask = 0xc;
 module_param_named(fimc_devs, fimc_mask, uint, 0644);
-MODULE_PARM_DESC(fimc_devs, "Alias mask for assigning FIMC devices to Exynos DRM");
+MODULE_PARM_DESC(fimc_devs, "Alias mask for assigning FIMC devices to Exyyess DRM");
 
 #define get_fimc_context(dev)	dev_get_drvdata(dev)
 
@@ -95,11 +95,11 @@ struct fimc_scaler {
  * @irq: irq number.
  */
 struct fimc_context {
-	struct exynos_drm_ipp ipp;
+	struct exyyess_drm_ipp ipp;
 	struct drm_device *drm_dev;
 	struct device	*dev;
-	struct exynos_drm_ipp_task	*task;
-	struct exynos_drm_ipp_formats	*formats;
+	struct exyyess_drm_ipp_task	*task;
+	struct exyyess_drm_ipp_formats	*formats;
 	unsigned int			num_formats;
 
 	struct resource	*regs_res;
@@ -466,7 +466,7 @@ static void fimc_src_set_transf(struct fimc_context *ctx, unsigned int rotation)
 }
 
 static void fimc_set_window(struct fimc_context *ctx,
-			    struct exynos_drm_ipp_buffer *buf)
+			    struct exyyess_drm_ipp_buffer *buf)
 {
 	unsigned int real_width = buf->buf.pitch[0] / buf->format->cpp[0];
 	u32 cfg, h1, h2, v1, v2;
@@ -501,7 +501,7 @@ static void fimc_set_window(struct fimc_context *ctx,
 }
 
 static void fimc_src_set_size(struct fimc_context *ctx,
-			      struct exynos_drm_ipp_buffer *buf)
+			      struct exyyess_drm_ipp_buffer *buf)
 {
 	unsigned int real_width = buf->buf.pitch[0] / buf->format->cpp[0];
 	u32 cfg;
@@ -528,7 +528,7 @@ static void fimc_src_set_size(struct fimc_context *ctx,
 
 	/*
 	 * set input FIFO image size
-	 * for now, we support only ITU601 8 bit mode
+	 * for yesw, we support only ITU601 8 bit mode
 	 */
 	cfg = (EXYNOS_CISRCFMT_ITU601_8BIT |
 		EXYNOS_CISRCFMT_SOURCEHSIZE(real_width) |
@@ -550,7 +550,7 @@ static void fimc_src_set_size(struct fimc_context *ctx,
 }
 
 static void fimc_src_set_addr(struct fimc_context *ctx,
-			      struct exynos_drm_ipp_buffer *buf)
+			      struct exyyess_drm_ipp_buffer *buf)
 {
 	fimc_write(ctx, buf->dma_addr[0], EXYNOS_CIIYSA(0));
 	fimc_write(ctx, buf->dma_addr[1], EXYNOS_CIICBSA(0));
@@ -735,8 +735,8 @@ static void fimc_dst_set_transf(struct fimc_context *ctx, unsigned int rotation)
 }
 
 static int fimc_set_prescaler(struct fimc_context *ctx, struct fimc_scaler *sc,
-			      struct drm_exynos_ipp_task_rect *src,
-			      struct drm_exynos_ipp_task_rect *dst)
+			      struct drm_exyyess_ipp_task_rect *src,
+			      struct drm_exyyess_ipp_task_rect *dst)
 {
 	u32 cfg, cfg_ext, shfactor;
 	u32 pre_dst_width, pre_dst_height;
@@ -761,7 +761,7 @@ static int fimc_set_prescaler(struct fimc_context *ctx, struct fimc_scaler *sc,
 		dst_h = dst->h;
 	}
 
-	/* fimc_ippdrv_check_property assures that dividers are not null */
+	/* fimc_ippdrv_check_property assures that dividers are yest null */
 	hfactor = fls(src_w / dst_w / 2);
 	if (hfactor > FIMC_SHFACTOR / 2) {
 		dev_err(ctx->dev, "failed to get ratio horizontal.\n");
@@ -843,7 +843,7 @@ static void fimc_set_scaler(struct fimc_context *ctx, struct fimc_scaler *sc)
 }
 
 static void fimc_dst_set_size(struct fimc_context *ctx,
-			     struct exynos_drm_ipp_buffer *buf)
+			     struct exyyess_drm_ipp_buffer *buf)
 {
 	unsigned int real_width = buf->buf.pitch[0] / buf->format->cpp[0];
 	u32 cfg, cfg_ext;
@@ -933,7 +933,7 @@ static void fimc_dst_set_buf_seq(struct fimc_context *ctx, u32 buf_id,
 }
 
 static void fimc_dst_set_addr(struct fimc_context *ctx,
-			     struct exynos_drm_ipp_buffer *buf)
+			     struct exyyess_drm_ipp_buffer *buf)
 {
 	fimc_write(ctx, buf->dma_addr[0], EXYNOS_CIOYSA(0));
 	fimc_write(ctx, buf->dma_addr[1], EXYNOS_CIOCBSA(0));
@@ -965,12 +965,12 @@ static irqreturn_t fimc_irq_handler(int irq, void *dev_id)
 	DRM_DEV_DEBUG_KMS(ctx->dev, "buf_id[%d]\n", buf_id);
 
 	if (ctx->task) {
-		struct exynos_drm_ipp_task *task = ctx->task;
+		struct exyyess_drm_ipp_task *task = ctx->task;
 
 		ctx->task = NULL;
 		pm_runtime_mark_last_busy(ctx->dev);
 		pm_runtime_put_autosuspend(ctx->dev);
-		exynos_drm_ipp_task_done(task, 0);
+		exyyess_drm_ipp_task_done(task, 0);
 	}
 
 	fimc_dst_set_buf_seq(ctx, buf_id, false);
@@ -1079,8 +1079,8 @@ static void fimc_stop(struct fimc_context *ctx)
 	fimc_set_bits(ctx, EXYNOS_CIGCTRL, EXYNOS_CIGCTRL_IRQ_END_DISABLE);
 }
 
-static int fimc_commit(struct exynos_drm_ipp *ipp,
-			  struct exynos_drm_ipp_task *task)
+static int fimc_commit(struct exyyess_drm_ipp *ipp,
+			  struct exyyess_drm_ipp_task *task)
 {
 	struct fimc_context *ctx =
 			container_of(ipp, struct fimc_context, ipp);
@@ -1102,8 +1102,8 @@ static int fimc_commit(struct exynos_drm_ipp *ipp,
 	return 0;
 }
 
-static void fimc_abort(struct exynos_drm_ipp *ipp,
-			  struct exynos_drm_ipp_task *task)
+static void fimc_abort(struct exyyess_drm_ipp *ipp,
+			  struct exyyess_drm_ipp_task *task)
 {
 	struct fimc_context *ctx =
 			container_of(ipp, struct fimc_context, ipp);
@@ -1111,16 +1111,16 @@ static void fimc_abort(struct exynos_drm_ipp *ipp,
 	fimc_reset(ctx);
 
 	if (ctx->task) {
-		struct exynos_drm_ipp_task *task = ctx->task;
+		struct exyyess_drm_ipp_task *task = ctx->task;
 
 		ctx->task = NULL;
 		pm_runtime_mark_last_busy(ctx->dev);
 		pm_runtime_put_autosuspend(ctx->dev);
-		exynos_drm_ipp_task_done(task, -EIO);
+		exyyess_drm_ipp_task_done(task, -EIO);
 	}
 }
 
-static struct exynos_drm_ipp_funcs ipp_funcs = {
+static struct exyyess_drm_ipp_funcs ipp_funcs = {
 	.commit = fimc_commit,
 	.abort = fimc_abort,
 };
@@ -1129,18 +1129,18 @@ static int fimc_bind(struct device *dev, struct device *master, void *data)
 {
 	struct fimc_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_ipp *ipp = &ctx->ipp;
+	struct exyyess_drm_ipp *ipp = &ctx->ipp;
 
 	ctx->drm_dev = drm_dev;
 	ipp->drm_dev = drm_dev;
-	exynos_drm_register_dma(drm_dev, dev);
+	exyyess_drm_register_dma(drm_dev, dev);
 
-	exynos_drm_ipp_register(dev, ipp, &ipp_funcs,
+	exyyess_drm_ipp_register(dev, ipp, &ipp_funcs,
 			DRM_EXYNOS_IPP_CAP_CROP | DRM_EXYNOS_IPP_CAP_ROTATE |
 			DRM_EXYNOS_IPP_CAP_SCALE | DRM_EXYNOS_IPP_CAP_CONVERT,
 			ctx->formats, ctx->num_formats, "fimc");
 
-	dev_info(dev, "The exynos fimc has been probed successfully\n");
+	dev_info(dev, "The exyyess fimc has been probed successfully\n");
 
 	return 0;
 }
@@ -1150,10 +1150,10 @@ static void fimc_unbind(struct device *dev, struct device *master,
 {
 	struct fimc_context *ctx = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct exynos_drm_ipp *ipp = &ctx->ipp;
+	struct exyyess_drm_ipp *ipp = &ctx->ipp;
 
-	exynos_drm_ipp_unregister(dev, ipp);
-	exynos_drm_unregister_dma(drm_dev, dev);
+	exyyess_drm_ipp_unregister(dev, ipp);
+	exyyess_drm_unregister_dma(drm_dev, dev);
 }
 
 static const struct component_ops fimc_component_ops = {
@@ -1205,9 +1205,9 @@ e_clk_free:
 	return ret;
 }
 
-int exynos_drm_check_fimc_device(struct device *dev)
+int exyyess_drm_check_fimc_device(struct device *dev)
 {
-	int id = of_alias_get_id(dev->of_node, "fimc");
+	int id = of_alias_get_id(dev->of_yesde, "fimc");
 
 	if (id >= 0 && (BIT(id) & fimc_mask))
 		return 0;
@@ -1226,7 +1226,7 @@ static const unsigned int fimc_tiled_formats[] = {
 	DRM_FORMAT_NV12, DRM_FORMAT_NV21,
 };
 
-static const struct drm_exynos_ipp_limit fimc_4210_limits_v1[] = {
+static const struct drm_exyyess_ipp_limit fimc_4210_limits_v1[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 16, 8192, 8 }, .v = { 16, 8192, 2 }) },
 	{ IPP_SIZE_LIMIT(AREA, .h = { 16, 4224, 2 }, .v = { 16, 0, 2 }) },
 	{ IPP_SIZE_LIMIT(ROTATED, .h = { 128, 1920 }, .v = { 128, 0 }) },
@@ -1234,7 +1234,7 @@ static const struct drm_exynos_ipp_limit fimc_4210_limits_v1[] = {
 			  .v = { (1 << 16) / 64, (1 << 16) * 64 }) },
 };
 
-static const struct drm_exynos_ipp_limit fimc_4210_limits_v2[] = {
+static const struct drm_exyyess_ipp_limit fimc_4210_limits_v2[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 16, 8192, 8 }, .v = { 16, 8192, 2 }) },
 	{ IPP_SIZE_LIMIT(AREA, .h = { 16, 1920, 2 }, .v = { 16, 0, 2 }) },
 	{ IPP_SIZE_LIMIT(ROTATED, .h = { 128, 1366 }, .v = { 128, 0 }) },
@@ -1242,14 +1242,14 @@ static const struct drm_exynos_ipp_limit fimc_4210_limits_v2[] = {
 			  .v = { (1 << 16) / 64, (1 << 16) * 64 }) },
 };
 
-static const struct drm_exynos_ipp_limit fimc_4210_limits_tiled_v1[] = {
+static const struct drm_exyyess_ipp_limit fimc_4210_limits_tiled_v1[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 128, 1920, 128 }, .v = { 32, 1920, 32 }) },
 	{ IPP_SIZE_LIMIT(AREA, .h = { 128, 1920, 2 }, .v = { 128, 0, 2 }) },
 	{ IPP_SCALE_LIMIT(.h = { (1 << 16) / 64, (1 << 16) * 64 },
 			  .v = { (1 << 16) / 64, (1 << 16) * 64 }) },
 };
 
-static const struct drm_exynos_ipp_limit fimc_4210_limits_tiled_v2[] = {
+static const struct drm_exyyess_ipp_limit fimc_4210_limits_tiled_v2[] = {
 	{ IPP_SIZE_LIMIT(BUFFER, .h = { 128, 1920, 128 }, .v = { 32, 1920, 32 }) },
 	{ IPP_SIZE_LIMIT(AREA, .h = { 128, 1366, 2 }, .v = { 128, 0, 2 }) },
 	{ IPP_SCALE_LIMIT(.h = { (1 << 16) / 64, (1 << 16) * 64 },
@@ -1258,15 +1258,15 @@ static const struct drm_exynos_ipp_limit fimc_4210_limits_tiled_v2[] = {
 
 static int fimc_probe(struct platform_device *pdev)
 {
-	const struct drm_exynos_ipp_limit *limits;
-	struct exynos_drm_ipp_formats *formats;
+	const struct drm_exyyess_ipp_limit *limits;
+	struct exyyess_drm_ipp_formats *formats;
 	struct device *dev = &pdev->dev;
 	struct fimc_context *ctx;
 	struct resource *res;
 	int ret;
 	int i, j, num_limits, num_formats;
 
-	if (exynos_drm_check_fimc_device(dev) != 0)
+	if (exyyess_drm_check_fimc_device(dev) != 0)
 		return -ENODEV;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
@@ -1274,7 +1274,7 @@ static int fimc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctx->dev = dev;
-	ctx->id = of_alias_get_id(dev->of_node, "fimc");
+	ctx->id = of_alias_get_id(dev->of_yesde, "fimc");
 
 	/* construct formats/limits array */
 	num_formats = ARRAY_SIZE(fimc_formats) + ARRAY_SIZE(fimc_tiled_formats);
@@ -1406,8 +1406,8 @@ static const struct dev_pm_ops fimc_pm_ops = {
 };
 
 static const struct of_device_id fimc_of_match[] = {
-	{ .compatible = "samsung,exynos4210-fimc" },
-	{ .compatible = "samsung,exynos4212-fimc" },
+	{ .compatible = "samsung,exyyess4210-fimc" },
+	{ .compatible = "samsung,exyyess4212-fimc" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, fimc_of_match);
@@ -1417,7 +1417,7 @@ struct platform_driver fimc_driver = {
 	.remove		= fimc_remove,
 	.driver		= {
 		.of_match_table = fimc_of_match,
-		.name	= "exynos-drm-fimc",
+		.name	= "exyyess-drm-fimc",
 		.owner	= THIS_MODULE,
 		.pm	= &fimc_pm_ops,
 	},

@@ -1,4 +1,4 @@
-Synopsys DesignWare AXI DMA Controller
+Syyespsys DesignWare AXI DMA Controller
 
 Required properties:
 - compatible: "snps,axi-dma-1.01a"

@@ -294,7 +294,7 @@ struct mtk_phy_instance {
 		struct u2phy_banks u2_banks;
 		struct u3phy_banks u3_banks;
 	};
-	struct clk *ref_clk;	/* reference clock of anolog phy */
+	struct clk *ref_clk;	/* reference clock of ayeslog phy */
 	u32 index;
 	u8 type;
 	int eye_src;
@@ -307,7 +307,7 @@ struct mtk_tphy {
 	struct device *dev;
 	void __iomem *sif_base;	/* only shared sif */
 	/* deprecated, use @ref_clk instead in phy instance */
-	struct clk *u3phya_ref;	/* reference clock of usb3 anolog phy */
+	struct clk *u3phya_ref;	/* reference clock of usb3 ayeslog phy */
 	const struct mtk_phy_pdata *pdata;
 	struct mtk_phy_instance **phys;
 	int nphys;
@@ -354,7 +354,7 @@ static void hs_slew_rate_calibrate(struct mtk_tphy *tphy,
 	tmp |= P2F_RG_FREQDET_EN;
 	writel(tmp, fmreg + U3P_U2FREQ_FMCR0);
 
-	/* ignore return value */
+	/* igyesre return value */
 	readl_poll_timeout(fmreg + U3P_U2FREQ_FMMONR1, tmp,
 			   (tmp & P2F_USB_FM_VALID), 10, 200);
 
@@ -987,7 +987,7 @@ static struct phy *mtk_phy_xlate(struct device *dev,
 {
 	struct mtk_tphy *tphy = dev_get_drvdata(dev);
 	struct mtk_phy_instance *instance = NULL;
-	struct device_node *phy_np = args->np;
+	struct device_yesde *phy_np = args->np;
 	int index;
 
 	if (args->args_count != 1) {
@@ -996,7 +996,7 @@ static struct phy *mtk_phy_xlate(struct device *dev,
 	}
 
 	for (index = 0; index < tphy->nphys; index++)
-		if (phy_np == tphy->phys[index]->phy->dev.of_node) {
+		if (phy_np == tphy->phys[index]->phy->dev.of_yesde) {
 			instance = tphy->phys[index];
 			break;
 		}
@@ -1020,7 +1020,7 @@ static struct phy *mtk_phy_xlate(struct device *dev,
 	} else if (tphy->pdata->version == MTK_PHY_V2) {
 		phy_v2_banks_init(tphy, instance);
 	} else {
-		dev_err(dev, "phy version is not supported\n");
+		dev_err(dev, "phy version is yest supported\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1066,8 +1066,8 @@ MODULE_DEVICE_TABLE(of, mtk_tphy_id_table);
 static int mtk_tphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child_np;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *child_np;
 	struct phy_provider *provider;
 	struct resource *sif_res;
 	struct mtk_tphy *tphy;
@@ -1092,7 +1092,7 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tphy);
 
 	sif_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	/* SATA phy of V1 needn't it if not shared with PCIe or USB */
+	/* SATA phy of V1 needn't it if yest shared with PCIe or USB */
 	if (sif_res && tphy->pdata->version == MTK_PHY_V1) {
 		/* get banks shared by multiple phys */
 		tphy->sif_base = devm_ioremap_resource(dev, sif_res);
@@ -1115,7 +1115,7 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 	device_property_read_u32(dev, "mediatek,src-coef", &tphy->src_coef);
 
 	port = 0;
-	for_each_child_of_node(np, child_np) {
+	for_each_child_of_yesde(np, child_np) {
 		struct mtk_phy_instance *instance;
 		struct phy *phy;
 
@@ -1153,7 +1153,7 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 		phy_set_drvdata(phy, instance);
 		port++;
 
-		/* if deprecated clock is provided, ignore instance's one */
+		/* if deprecated clock is provided, igyesre instance's one */
 		if (tphy->u3phya_ref)
 			continue;
 
@@ -1169,7 +1169,7 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 
 	return PTR_ERR_OR_ZERO(provider);
 put_child:
-	of_node_put(child_np);
+	of_yesde_put(child_np);
 	return retval;
 }
 

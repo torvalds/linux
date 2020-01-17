@@ -32,7 +32,7 @@
 
 static unsigned int verbose;
 module_param(verbose, int, 0644);
-MODULE_PARM_DESC(verbose, "verbose startup messages, default is 0 (no)");
+MODULE_PARM_DESC(verbose, "verbose startup messages, default is 0 (yes)");
 
 #define DRIVER_NAME	"Hopper"
 
@@ -135,7 +135,7 @@ static irqreturn_t hopper_irq_handler(int irq, void *dev_id)
 		  MANTIS_INT_RISCI);
 
 	if (stat)
-		dprintk(MANTIS_DEBUG, 0, "<Unknown> Stat=<%02x> Mask=<%02x>", stat, mask);
+		dprintk(MANTIS_DEBUG, 0, "<Unkyeswn> Stat=<%02x> Mask=<%02x>", stat, mask);
 
 	dprintk(MANTIS_DEBUG, 0, "\n");
 	return IRQ_HANDLED;

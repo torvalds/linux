@@ -20,7 +20,7 @@
 #include <linux/mount.h>
 #include <linux/capability.h>
 #include <linux/cdev.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/sysctl.h>
 #include <linux/percpu_counter.h>
 #include <linux/percpu.h>
@@ -123,11 +123,11 @@ static struct file *__alloc_file(int flags, const struct cred *cred)
 
 /* Find an unused file structure and return a pointer to it.
  * Returns an error pointer if some error happend e.g. we over file
- * structures limit, run out of memory or operation is not permitted.
+ * structures limit, run out of memory or operation is yest permitted.
  *
  * Be very careful using this.  You are responsible for
  * getting write access to any mount that you might assign
- * to this filp, if it is opened for write.  If this is not
+ * to this filp, if it is opened for write.  If this is yest
  * done, you will imbalance int the mount's writer count
  * and a warning at __fput() time.
  */
@@ -166,9 +166,9 @@ over:
 /*
  * Variant of alloc_empty_file() that doesn't check and modify nr_files.
  *
- * Should not be used unless there's a very good reason to do so.
+ * Should yest be used unless there's a very good reason to do so.
  */
-struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred)
+struct file *alloc_empty_file_yesaccount(int flags, const struct cred *cred)
 {
 	struct file *f = __alloc_file(flags, cred);
 
@@ -195,8 +195,8 @@ static struct file *alloc_file(const struct path *path, int flags,
 		return file;
 
 	file->f_path = *path;
-	file->f_inode = path->dentry->d_inode;
-	file->f_mapping = path->dentry->d_inode->i_mapping;
+	file->f_iyesde = path->dentry->d_iyesde;
+	file->f_mapping = path->dentry->d_iyesde->i_mapping;
 	file->f_wb_err = filemap_sample_wb_err(file->f_mapping);
 	if ((file->f_mode & FMODE_READ) &&
 	     likely(fop->read || fop->read_iter))
@@ -207,15 +207,15 @@ static struct file *alloc_file(const struct path *path, int flags,
 	file->f_mode |= FMODE_OPENED;
 	file->f_op = fop;
 	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
-		i_readcount_inc(path->dentry->d_inode);
+		i_readcount_inc(path->dentry->d_iyesde);
 	return file;
 }
 
-struct file *alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt,
+struct file *alloc_file_pseudo(struct iyesde *iyesde, struct vfsmount *mnt,
 				const char *name, int flags,
 				const struct file_operations *fops)
 {
-	static const struct dentry_operations anon_ops = {
+	static const struct dentry_operations ayesn_ops = {
 		.d_dname = simple_dname
 	};
 	struct qstr this = QSTR_INIT(name, strlen(name));
@@ -226,12 +226,12 @@ struct file *alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt,
 	if (!path.dentry)
 		return ERR_PTR(-ENOMEM);
 	if (!mnt->mnt_sb->s_d_op)
-		d_set_d_op(path.dentry, &anon_ops);
+		d_set_d_op(path.dentry, &ayesn_ops);
 	path.mnt = mntget(mnt);
-	d_instantiate(path.dentry, inode);
+	d_instantiate(path.dentry, iyesde);
 	file = alloc_file(&path, flags, fops);
 	if (IS_ERR(file)) {
-		ihold(inode);
+		ihold(iyesde);
 		path_put(&path);
 	}
 	return file;
@@ -255,7 +255,7 @@ static void __fput(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct vfsmount *mnt = file->f_path.mnt;
-	struct inode *inode = file->f_inode;
+	struct iyesde *iyesde = file->f_iyesde;
 	fmode_t mode = file->f_mode;
 
 	if (unlikely(!(file->f_mode & FMODE_OPENED)))
@@ -263,7 +263,7 @@ static void __fput(struct file *file)
 
 	might_sleep();
 
-	fsnotify_close(file);
+	fsyestify_close(file);
 	/*
 	 * The function eventpoll_release() should be the first called
 	 * in the file cleanup chain.
@@ -277,17 +277,17 @@ static void __fput(struct file *file)
 			file->f_op->fasync(-1, file, 0);
 	}
 	if (file->f_op->release)
-		file->f_op->release(inode, file);
-	if (unlikely(S_ISCHR(inode->i_mode) && inode->i_cdev != NULL &&
+		file->f_op->release(iyesde, file);
+	if (unlikely(S_ISCHR(iyesde->i_mode) && iyesde->i_cdev != NULL &&
 		     !(mode & FMODE_PATH))) {
-		cdev_put(inode->i_cdev);
+		cdev_put(iyesde->i_cdev);
 	}
 	fops_put(file->f_op);
 	put_pid(file->f_owner.pid);
 	if ((mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
-		i_readcount_dec(inode);
+		i_readcount_dec(iyesde);
 	if (mode & FMODE_WRITER) {
-		put_write_access(inode);
+		put_write_access(iyesde);
 		__mnt_drop_write(mnt);
 	}
 	dput(dentry);
@@ -301,10 +301,10 @@ out:
 static LLIST_HEAD(delayed_fput_list);
 static void delayed_fput(struct work_struct *unused)
 {
-	struct llist_node *node = llist_del_all(&delayed_fput_list);
+	struct llist_yesde *yesde = llist_del_all(&delayed_fput_list);
 	struct file *f, *t;
 
-	llist_for_each_entry_safe(f, t, node, f_u.fu_llist)
+	llist_for_each_entry_safe(f, t, yesde, f_u.fu_llist)
 		__fput(f);
 }
 
@@ -315,9 +315,9 @@ static void ____fput(struct callback_head *work)
 
 /*
  * If kernel thread really needs to have the final fput() it has done
- * to complete, call this.  The only user right now is the boot - we
+ * to complete, call this.  The only user right yesw is the boot - we
  * *do* need to make sure our writes to binaries on initramfs has
- * not left us with opened struct file waiting for __fput() - execve()
+ * yest left us with opened struct file waiting for __fput() - execve()
  * won't work without that.  Please, don't add more callers without
  * very good reasons; in particular, never call that with locks
  * held and never call that from a thread that might need to do
@@ -358,9 +358,9 @@ void fput(struct file *file)
 }
 
 /*
- * synchronous analog of fput(); for kernel threads that might be needed
+ * synchroyesus analog of fput(); for kernel threads that might be needed
  * in some umount() (and thus can't use flush_delayed_fput() without
- * risking deadlocks), need to wait for completion of __fput() and know
+ * risking deadlocks), need to wait for completion of __fput() and kyesw
  * for this specific struct file it won't involve anything that would
  * need them.  Use only if you really need it - at the very least,
  * don't blindly convert fput() by kernel thread to that.
@@ -384,8 +384,8 @@ void __init files_init(void)
 }
 
 /*
- * One file with associated inode and dcache is very roughly 1K. Per default
- * do not use more than 10% of our memory for files.
+ * One file with associated iyesde and dcache is very roughly 1K. Per default
+ * do yest use more than 10% of our memory for files.
  */
 void __init files_maxfiles_init(void)
 {

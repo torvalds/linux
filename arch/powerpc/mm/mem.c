@@ -15,7 +15,7 @@
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/gfp.h>
 #include <linux/types.h>
@@ -53,7 +53,7 @@
 #include <mm/mmu_decl.h>
 
 #ifndef CPU_FTR_COHERENT_ICACHE
-#define CPU_FTR_COHERENT_ICACHE	0	/* XXX for now */
+#define CPU_FTR_COHERENT_ICACHE	0	/* XXX for yesw */
 #define CPU_FTR_NOEXECUTE	0
 #endif
 
@@ -80,7 +80,7 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 		return ppc_md.phys_mem_access_prot(file, pfn, size, vma_prot);
 
 	if (!page_is_ram(pfn))
-		vma_prot = pgprot_noncached(vma_prot);
+		vma_prot = pgprot_yesncached(vma_prot);
 
 	return vma_prot;
 }
@@ -109,7 +109,7 @@ int __weak remove_section_mapping(unsigned long start, unsigned long end)
 /**
  * flush_dcache_range_chunked(): Write any modified data cache blocks out to
  * memory and invalidate them, in chunks of up to FLUSH_CHUNK_SIZE
- * Does not invalidate the corresponding instruction cache blocks.
+ * Does yest invalidate the corresponding instruction cache blocks.
  *
  * @start: the start address
  * @stop: the stop address (exclusive)
@@ -181,10 +181,10 @@ void __init mem_topology_setup(void)
 	max_low_pfn = lowmem_end_addr >> PAGE_SHIFT;
 #endif
 
-	/* Place all memblock_regions in the same node and merge contiguous
+	/* Place all memblock_regions in the same yesde and merge contiguous
 	 * memblock_regions
 	 */
-	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
+	memblock_set_yesde(0, PHYS_ADDR_MAX, &memblock.memory, 0);
 }
 
 void __init initmem_init(void)
@@ -194,22 +194,22 @@ void __init initmem_init(void)
 	sparse_init();
 }
 
-/* mark pages that don't exist as nosave */
-static int __init mark_nonram_nosave(void)
+/* mark pages that don't exist as yessave */
+static int __init mark_yesnram_yessave(void)
 {
 	struct memblock_region *reg, *prev = NULL;
 
 	for_each_memblock(memory, reg) {
 		if (prev &&
 		    memblock_region_memory_end_pfn(prev) < memblock_region_memory_base_pfn(reg))
-			register_nosave_region(memblock_region_memory_end_pfn(prev),
+			register_yessave_region(memblock_region_memory_end_pfn(prev),
 					       memblock_region_memory_base_pfn(reg));
 		prev = reg;
 	}
 	return 0;
 }
 #else /* CONFIG_NEED_MULTIPLE_NODES */
-static int __init mark_nonram_nosave(void)
+static int __init mark_yesnram_yessave(void)
 {
 	return 0;
 }
@@ -223,7 +223,7 @@ static int __init mark_nonram_nosave(void)
  * ZONE_DMA.
  *
  * By using 31-bit unconditionally, we can exploit zone_dma_bits to inform the
- * generic DMA mapping code.  32-bit only devices (if not handled by an IOMMU
+ * generic DMA mapping code.  32-bit only devices (if yest handled by an IOMMU
  * anyway) will take a first dip into ZONE_NORMAL and get otherwise served by
  * ZONE_DMA.
  */
@@ -274,9 +274,9 @@ void __init paging_init(void)
 	max_zone_pfns[ZONE_HIGHMEM] = max_pfn;
 #endif
 
-	free_area_init_nodes(max_zone_pfns);
+	free_area_init_yesdes(max_zone_pfns);
 
-	mark_nonram_nosave();
+	mark_yesnram_yessave();
 }
 
 void __init mem_init(void)
@@ -292,7 +292,7 @@ void __init mem_init(void)
 	 * Some platforms (e.g. 85xx) limit DMA-able memory way below
 	 * 4G. We force memblock to bottom-up mode to ensure that the
 	 * memory allocated in swiotlb_init() is DMA-able.
-	 * As it's the last memblock allocation, no need to reset it
+	 * As it's the last memblock allocation, yes need to reset it
 	 * back to to-down.
 	 */
 	memblock_set_bottom_up(true);
@@ -320,7 +320,7 @@ void __init mem_init(void)
 #if defined(CONFIG_PPC_FSL_BOOK3E) && !defined(CONFIG_SMP)
 	/*
 	 * If smp is enabled, next_tlbcam_idx is initialized in the cpu up
-	 * functions.... do it here for the non-smp case.
+	 * functions.... do it here for the yesn-smp case.
 	 */
 	per_cpu(next_tlbcam_idx, smp_processor_id()) =
 		(mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY) - 1;
@@ -362,7 +362,7 @@ void free_initmem(void)
 static inline bool flush_coherent_icache(unsigned long addr)
 {
 	/*
-	 * For a snooping icache, we still need a dummy icbi to purge all the
+	 * For a syesoping icache, we still need a dummy icbi to purge all the
 	 * prefetched instructions from the ifetch buffers. We also need a sync
 	 * before the icbi to order the the actual stores to memory that might
 	 * have modified instructions with the icbi.
@@ -470,7 +470,7 @@ static void flush_dcache_icache_phys(unsigned long physaddr)
 
 /*
  * This is called when a page has been modified by the kernel.
- * It just marks the page as not i-cache clean.  We do the i-cache
+ * It just marks the page as yest i-cache clean.  We do the i-cache
  * flush later when the page is given to a user process, if necessary.
  */
 void flush_dcache_page(struct page *page)
@@ -492,7 +492,7 @@ void flush_dcache_icache_page(struct page *page)
 	}
 #endif
 #if defined(CONFIG_PPC_8xx) || defined(CONFIG_PPC64)
-	/* On 8xx there is no need to kmap since highmem is not supported */
+	/* On 8xx there is yes need to kmap since highmem is yest supported */
 	__flush_dcache_icache(page_address(page));
 #else
 	if (IS_ENABLED(CONFIG_BOOKE) || sizeof(phys_addr_t) > sizeof(void *)) {
@@ -512,8 +512,8 @@ EXPORT_SYMBOL(flush_dcache_icache_page);
 
 /**
  * __flush_dcache_icache(): Flush a particular page from the data cache to RAM.
- * Note: this is necessary because the instruction cache does *not*
- * snoop from the data cache.
+ * Note: this is necessary because the instruction cache does *yest*
+ * syesop from the data cache.
  *
  * @page: the address of the page to flush
  */
@@ -528,7 +528,7 @@ void __flush_dcache_icache(void *p)
 
 	/*
 	 * We don't flush the icache on 44x. Those have a virtual icache and we
-	 * don't have access to the virtual address here (it's not the page
+	 * don't have access to the virtual address here (it's yest the page
 	 * vaddr but where it's mapped in user space). The flushing of the
 	 * icache on these is handled elsewhere, when a change in the address
 	 * space occurs, before returning to user space.
@@ -562,10 +562,10 @@ void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 	 * We should be able to use the following optimisation, however
 	 * there are two problems.
 	 * Firstly a bug in some versions of binutils meant PLT sections
-	 * were not marked executable.
+	 * were yest marked executable.
 	 * Secondly the first word in the GOT section is blrl, used
 	 * to establish the GOT address. Until recently the GOT was
-	 * not marked executable.
+	 * yest marked executable.
 	 * - Anton
 	 */
 #if 0
@@ -588,7 +588,7 @@ void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
 EXPORT_SYMBOL(flush_icache_user_range);
 
 /*
- * System memory should not be in /proc/iomem but various tools expect it
+ * System memory should yest be in /proc/iomem but various tools expect it
  * (eg kdump).
  */
 static int __init add_system_ram_resources(void)
@@ -621,7 +621,7 @@ subsys_initcall(add_system_ram_resources);
  * devmem_is_allowed(): check to see if /dev/mem access to a certain address
  * is valid. The argument is a physical page number.
  *
- * Access has to be given to non-kernel-ram areas as well, these contain the
+ * Access has to be given to yesn-kernel-ram areas as well, these contain the
  * PCI mmio resources as well as potential bios/acpi data regions.
  */
 int devmem_is_allowed(unsigned long pfn)

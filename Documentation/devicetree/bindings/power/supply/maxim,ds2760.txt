@@ -1,8 +1,8 @@
 Devicetree bindings for Maxim DS2760
 ====================================
 
-The ds2760 is a w1 slave device and must hence have its sub-node in DT
-under a w1 bus master node.
+The ds2760 is a w1 slave device and must hence have its sub-yesde in DT
+under a w1 bus master yesde.
 
 The device exposes a power supply, so the details described in
 Documentation/devicetree/bindings/power/supply/power_supply.txt apply.
@@ -22,5 +22,5 @@ Optional properties:
 			the hardware. Defaults to 1000.
 - rated-capacity-microamp-hours:
 			The rated capacity of the battery, in mAh.
-			If not specified, the value stored in the
-			non-volatile chip memory is used.
+			If yest specified, the value stored in the
+			yesn-volatile chip memory is used.

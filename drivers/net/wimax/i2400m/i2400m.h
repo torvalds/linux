@@ -10,12 +10,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -46,8 +46,8 @@
  *  - bus generic driver (this part)
  *
  * The bus specific driver sets up stuff specific to the bus the
- * device is connected to (USB, PCI, tam-tam...non-authoritative
- * nor binding list) which is basically the device-model management
+ * device is connected to (USB, PCI, tam-tam...yesn-authoritative
+ * yesr binding list) which is basically the device-model management
  * (probe/disconnect, etc), moving data from device to kernel and
  * back, doing the power saving details and reseting the device.
  *
@@ -110,7 +110,7 @@
  * LIFE CYCLE:
  *
  * When the bus-specific driver probes, it allocates a network device
- * with enough space for it's data structue, that must contain a
+ * with eyesugh space for it's data structue, that must contain a
  * &struct i2400m at the top.
  *
  * On probe, it needs to fill the i2400m members marked as [fill], as
@@ -260,7 +260,7 @@ struct i2400m_barker_db;
  *     communications to the the device needed to load firmware. See
  *     LIFE CYCLE above.
  *
- *     This function does not need to reset the device, just tear down
+ *     This function does yest need to reset the device, just tear down
  *     all the host resources created to  handle communication with
  *     the device.
  *
@@ -275,15 +275,15 @@ struct i2400m_barker_db;
  *     code [i2400m_dev_stop()] to do things needed for stopping the
  *     device. See LIFE CYCLE above.
  *
- *     This function does not need to reset the device, just tear down
+ *     This function does yest need to reset the device, just tear down
  *     all the host resources created to handle communication with
  *     the device.
  *
  * @bus_tx_kick: [fill] Function called by the bus-generic code to let
- *     the bus-specific code know that there is data available in the
+ *     the bus-specific code kyesw that there is data available in the
  *     TX FIFO for transmission to the device.
  *
- *     This function cannot sleep.
+ *     This function canyest sleep.
  *
  * @bus_reset: [fill] Function called by the bus-generic code to reset
  *     the device in in various ways. Doesn't need to wait for the
@@ -297,7 +297,7 @@ struct i2400m_barker_db;
  *     reinitialize the device.
  *
  *     IMPORTANT: this is called very early in the device setup
- *     process, so it cannot rely on common infrastructure being laid
+ *     process, so it canyest rely on common infrastructure being laid
  *     out.
  *
  *     IMPORTANT: don't call reset on RT_BUS with i2400m->init_mutex
@@ -311,19 +311,19 @@ struct i2400m_barker_db;
  *     multiplicative (__i2400m_dev_start() calling N times
  *     i2400m_fw_dnload() and this trying N times to download the
  *     firmware), as if __i2400m_dev_start() only retries if the
- *     firmware crashed while initializing the device (not in a
+ *     firmware crashed while initializing the device (yest in a
  *     general case).
  *
  * @bus_bm_cmd_send: [fill] Function called to send a boot-mode
  *     command. Flags are defined in 'enum i2400m_bm_cmd_flags'. This
- *     is synchronous and has to return 0 if ok or < 0 errno code in
+ *     is synchroyesus and has to return 0 if ok or < 0 erryes code in
  *     any error condition.
  *
  * @bus_bm_wait_for_ack: [fill] Function called to wait for a
- *     boot-mode notification (that can be a response to a previously
- *     issued command or an asynchronous one). Will read until all the
+ *     boot-mode yestification (that can be a response to a previously
+ *     issued command or an asynchroyesus one). Will read until all the
  *     indicated size is read or timeout. Reading more or less data
- *     than asked for is an error condition. Return 0 if ok, < 0 errno
+ *     than asked for is an error condition. Return 0 if ok, < 0 erryes
  *     code on error.
  *
  *     The caller to this function will check if the response is a
@@ -471,7 +471,7 @@ struct i2400m_barker_db;
  *
  * @ack_skb: used to store the actual ack to a control command if the
  *     reception of the command was successful. Otherwise, a ERR_PTR()
- *     errno code that indicates what failed with the ack reception.
+ *     erryes code that indicates what failed with the ack reception.
  *
  *     Only valid after @msg_completion is woken up. Only updateable
  *     if @msg_completion is armed. Only touched by
@@ -487,18 +487,18 @@ struct i2400m_barker_db;
  *
  *     USB can't r/w to stack, vmalloc, etc...as well, we end up
  *     having to alloc/free a lot to compose commands, so we use these
- *     for stagging and not having to realloc all the time.
+ *     for stagging and yest having to realloc all the time.
  *
  *     This assumes the code always runs serialized. Only one thread
  *     can call i2400m_bm_cmd() at the same time.
  *
- * @bm_ack_buf: boot mode acknoledge buffer for staging reception of
+ * @bm_ack_buf: boot mode ackyesledge buffer for staging reception of
  *     responses to commands.
  *
  *     See @bm_cmd_buf.
  *
  * @work_queue: work queue for processing device reports. This
- *     workqueue cannot be used for processing TX or RX to the device,
+ *     workqueue canyest be used for processing TX or RX to the device,
  *     as from it we'll process device reports, which might require
  *     further communication with the device.
  *
@@ -509,15 +509,15 @@ struct i2400m_barker_db;
  *
  * @fw_name: name of the firmware image that is currently being used.
  *
- * @fw_version: version of the firmware interface, Major.minor,
- *     encoded in the high word and low word (major << 16 | minor).
+ * @fw_version: version of the firmware interface, Major.miyesr,
+ *     encoded in the high word and low word (major << 16 | miyesr).
  *
  * @fw_hdrs: NULL terminated array of pointers to the firmware
  *     headers. This is only available during firmware load time.
  *
  * @fw_cached: Used to cache firmware when the system goes to
  *     suspend/standby/hibernation (as on resume we can't read it). If
- *     NULL, no firmware was cached, read it. If ~0, you can't read
+ *     NULL, yes firmware was cached, read it. If ~0, you can't read
  *     any firmware files (the system still didn't come out of suspend
  *     and failed to cache one), so abort; otherwise, a valid cached
  *     firmware to be used. Access to this variable is protected by
@@ -529,10 +529,10 @@ struct i2400m_barker_db;
  *     a boot barker is received, it is just verified for it being the
  *     same.
  *
- * @pm_notifier: used to register for PM events
+ * @pm_yestifier: used to register for PM events
  *
  * @bus_reset_retries: counter for the number of bus resets attempted for
- *	this boot. It's not for tracking the number of bus resets during
+ *	this boot. It's yest for tracking the number of bus resets during
  *	the whole driver life cycle (from insmod to rmmod) but for the
  *	number of dev_start() executed until dev_start() returns a success
  *	(ie: a good boot means a dev_stop() followed by a successful
@@ -544,9 +544,9 @@ struct i2400m_barker_db;
  *	dev_reset_handle() when dev_start() returns a success,
  *	ie: a successul boot is completed.
  *
- * @alive: flag to denote if the device *should* be alive. This flag is
+ * @alive: flag to deyeste if the device *should* be alive. This flag is
  *	everything like @updown (see doc for @updown) except reflecting
- *	the device state *we expect* rather than the actual state as denoted
+ *	the device state *we expect* rather than the actual state as deyested
  *	by @updown. It is set 1 whenever @updown is set 1 in dev_start().
  *	Then the device is expected to be alive all the time
  *	(i2400m->alive remains 1) until the driver is removed. Therefore
@@ -554,14 +554,14 @@ struct i2400m_barker_db;
  *	by either dev_reset_handle() or .pre_reset/.post_reset as long as
  *	the driver presents. It is set 0 along with @updown in dev_stop().
  *
- * @error_recovery: flag to denote if we are ready to take an error recovery.
- *	0 for ready to take an error recovery; 1 for not ready. It is
+ * @error_recovery: flag to deyeste if we are ready to take an error recovery.
+ *	0 for ready to take an error recovery; 1 for yest ready. It is
  *	initialized to 1 while probe() since we don't tend to take any error
  *	recovery during probe(). It is decremented by 1 whenever dev_start()
- *	succeeds to indicate we are ready to take error recovery from now on.
+ *	succeeds to indicate we are ready to take error recovery from yesw on.
  *	It is checked every time we wanna schedule an error recovery. If an
  *	error recovery is already in place (error_recovery was set 1), we
- *	should not schedule another one until the last one is done.
+ *	should yest schedule ayesther one until the last one is done.
  */
 struct i2400m {
 	struct wimax_dev wimax_dev;	/* FIRST! See doc */
@@ -643,7 +643,7 @@ struct i2400m {
 	struct i2400m_fw *fw_cached;	/* protected by rx_lock */
 	struct i2400m_barker_db *barker;
 
-	struct notifier_block pm_notifier;
+	struct yestifier_block pm_yestifier;
 
 	/* counting bus reset retries in this boot */
 	atomic_t bus_reset_retries;
@@ -651,7 +651,7 @@ struct i2400m {
 	/* if the device is expected to be alive */
 	unsigned alive;
 
-	/* 0 if we are ready for error recovery; 1 if not ready  */
+	/* 0 if we are ready for error recovery; 1 if yest ready  */
 	atomic_t error_recovery;
 
 };
@@ -697,7 +697,7 @@ enum i2400m_bm_cmd_flags {
  *
  * @I2400M_BRI_SOFT: The device rebooted already and a reboot
  *     barker received, proceed directly to ack the boot sequence.
- * @I2400M_BRI_NO_REBOOT: Do not reboot the device and proceed
+ * @I2400M_BRI_NO_REBOOT: Do yest reboot the device and proceed
  *     directly to wait for a reboot barker from the device.
  * @I2400M_BRI_MAC_REINIT: We need to reinitialize the boot
  *     rom after reading the MAC address. This is quite a dirty hack,
@@ -721,7 +721,7 @@ int i2400m_is_d2h_barker(const void *buf)
 	const __le32 *barker = buf;
 	return le32_to_cpu(*barker) == I2400M_D2H_MSG_BARKER;
 }
-void i2400m_unknown_barker(struct i2400m *, const void *, size_t);
+void i2400m_unkyeswn_barker(struct i2400m *, const void *, size_t);
 
 /* Make/grok boot-rom header commands */
 
@@ -930,7 +930,7 @@ void i2400m_report_tlv_rf_switches_status(struct i2400m *,
  * will be purged.
  *
  * By making it depend on this macros, it is easier to keep it a tab
- * on what has to go and what not.
+ * on what has to go and what yest.
  */
 static inline
 unsigned i2400m_le_v1_3(struct i2400m *i2400m)

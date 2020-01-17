@@ -3,7 +3,7 @@
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -17,7 +17,7 @@
  *     GNU General Public License for more details.
  *
  *     You should have received a copy of the GNU General Public
- *     License along with this file; if not, write to the Free
+ *     License along with this file; if yest, write to the Free
  *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
  *     MA 02110-1301 USA
  *
@@ -32,7 +32,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -49,7 +49,7 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	/* these are used by bootloader for disabling nodes */
+	/* these are used by bootloader for disabling yesdes */
 	aliases {
 		led0 = &led0;
 		led1 = &led1;
@@ -501,7 +501,7 @@
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	bus-width = <8>;
 	vmmc-supply = <&reg_3p3v>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 

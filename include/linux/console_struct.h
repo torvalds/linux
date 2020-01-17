@@ -38,7 +38,7 @@ struct uni_screen;
  *           vc_rows --->< | login: root          |   |  visible on console
  *                        || password:            |    > (vc_screenbuf_size is
  * vc_origin -----------> ||                      |   |   vc_size_row * vc_rows)
- * (start when no scroll) || Last login: 12:28    |  /
+ * (start when yes scroll) || Last login: 12:28    |  /
  *                        v+----------------------+-:
  *                         | Have a lot of fun... |  \
  * vc_pos -----------------|--------v             |   > scroll-front area
@@ -51,7 +51,7 @@ struct uni_screen;
  *                         <---- vc_size_row ----->
  *
  * Note that every character in the console buffer is accompanied with an
- * attribute in the buffer right after the character. This is not depicted
+ * attribute in the buffer right after the character. This is yest depicted
  * in the figure.
  */
 struct vc_data {
@@ -86,7 +86,7 @@ struct vc_data {
 	unsigned int	vc_saved_x, vc_saved_y;
 	unsigned long	vc_pos;			/* Cursor address */
 	/* fonts */	
-	unsigned short	vc_hi_font_mask;	/* [#] Attribute set for upper 256 chars of font or 0 if not supported */
+	unsigned short	vc_hi_font_mask;	/* [#] Attribute set for upper 256 chars of font or 0 if yest supported */
 	struct console_font vc_font;		/* Current VC font set */
 	unsigned short	vc_video_erase_char;	/* Background erase character */
 	/* VT terminal data */
@@ -108,7 +108,7 @@ struct vc_data {
 	unsigned int	vc_deccm	: 1;	/* Cursor Visible */
 	unsigned int	vc_decim	: 1;	/* Insert Mode */
 	/* attribute flags */
-	unsigned int	vc_intensity	: 2;	/* 0=half-bright, 1=normal, 2=bold */
+	unsigned int	vc_intensity	: 2;	/* 0=half-bright, 1=yesrmal, 2=bold */
 	unsigned int    vc_italic:1;
 	unsigned int	vc_underline	: 1;
 	unsigned int	vc_blink	: 1;
@@ -150,7 +150,7 @@ struct vc {
 
 	/* might add  scrmem, kbd  at some time,
 	   to have everything in one place - the disadvantage
-	   would be that vc_cons etc can no longer be static */
+	   would be that vc_cons etc can yes longer be static */
 };
 
 extern struct vc vc_cons [MAX_NR_CONSOLES];

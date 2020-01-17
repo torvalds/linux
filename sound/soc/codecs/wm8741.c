@@ -70,14 +70,14 @@ SOC_DOUBLE_R_TLV("Playback Volume", WM8741_DACLMSB_ATTENUATION,
 		 WM8741_DACRMSB_ATTENUATION, 0, 511, 1, dac_tlv),
 };
 
-static const struct snd_kcontrol_new wm8741_snd_controls_mono_left[] = {
+static const struct snd_kcontrol_new wm8741_snd_controls_moyes_left[] = {
 SOC_SINGLE_TLV("Fine Playback Volume", WM8741_DACLLSB_ATTENUATION,
 		 1, 255, 1, dac_tlv_fine),
 SOC_SINGLE_TLV("Playback Volume", WM8741_DACLMSB_ATTENUATION,
 		 0, 511, 1, dac_tlv),
 };
 
-static const struct snd_kcontrol_new wm8741_snd_controls_mono_right[] = {
+static const struct snd_kcontrol_new wm8741_snd_controls_moyes_right[] = {
 SOC_SINGLE_TLV("Fine Playback Volume", WM8741_DACRLSB_ATTENUATION,
 		1, 255, 1, dac_tlv_fine),
 SOC_SINGLE_TLV("Playback Volume", WM8741_DACRMSB_ATTENUATION,
@@ -455,13 +455,13 @@ static int wm8741_add_controls(struct snd_soc_component *component)
 		break;
 	case WM8741_DIFF_MODE_MONO_LEFT:
 		snd_soc_add_component_controls(component,
-				wm8741_snd_controls_mono_left,
-				ARRAY_SIZE(wm8741_snd_controls_mono_left));
+				wm8741_snd_controls_moyes_left,
+				ARRAY_SIZE(wm8741_snd_controls_moyes_left));
 		break;
 	case WM8741_DIFF_MODE_MONO_RIGHT:
 		snd_soc_add_component_controls(component,
-				wm8741_snd_controls_mono_right,
-				ARRAY_SIZE(wm8741_snd_controls_mono_right));
+				wm8741_snd_controls_moyes_right,
+				ARRAY_SIZE(wm8741_snd_controls_moyes_right));
 		break;
 	default:
 		return -EINVAL;
@@ -527,7 +527,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8741 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8741_of_match[] = {
@@ -551,8 +551,8 @@ static int wm8741_set_pdata(struct device *dev, struct wm8741_priv *wm8741)
 	const struct wm8741_platform_data *pdata = dev_get_platdata(dev);
 	u32 diff_mode;
 
-	if (dev->of_node) {
-		if (of_property_read_u32(dev->of_node, "diff-mode", &diff_mode)
+	if (dev->of_yesde) {
+		if (of_property_read_u32(dev->of_yesde, "diff-mode", &diff_mode)
 				>= 0)
 			wm8741->pdata.diff_mode = diff_mode;
 	} else {

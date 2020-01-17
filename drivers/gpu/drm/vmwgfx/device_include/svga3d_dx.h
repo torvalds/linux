@@ -10,7 +10,7 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright yestice and this permission yestice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -398,10 +398,10 @@ typedef uint32 SVGA3dDXQueryFlags;
 
 /*
  * The SVGADXQueryDeviceState and SVGADXQueryDeviceBits are used by the device
- * to track query state transitions, but are not intended to be used by the
+ * to track query state transitions, but are yest intended to be used by the
  * driver.
  */
-#define SVGADX_QDSTATE_INVALID   ((uint8)-1) /* Query has no state */
+#define SVGADX_QDSTATE_INVALID   ((uint8)-1) /* Query has yes state */
 #define SVGADX_QDSTATE_MIN       0
 #define SVGADX_QDSTATE_IDLE      0   /* Query hasn't started yet */
 #define SVGADX_QDSTATE_ACTIVE    1   /* Query is actively gathering data */
@@ -666,7 +666,7 @@ SVGA3dCmdDXBufferCopy;
 /* SVGA_3D_CMD_DX_BUFFER_COPY */
 
 /*
- * Perform a surface copy between a multisample, and a non-multisampled
+ * Perform a surface copy between a multisample, and a yesn-multisampled
  * surface.
  */
 typedef
@@ -683,7 +683,7 @@ SVGA3dCmdDXResolveCopy;               /* SVGA_3D_CMD_DX_RESOLVE_COPY */
 
 /*
  * Perform a predicated surface copy between a multisample, and a
- * non-multisampled surface.
+ * yesn-multisampled surface.
  */
 typedef
 #include "vmware_pack_begin.h"
@@ -767,9 +767,9 @@ SVGA3dCmdDXInvalidateSubResource;   /* SVGA_3D_CMD_DX_INVALIDATE_SUBRESOURCE */
 
 
 /*
- * Raw byte wise transfer from a buffer surface into another surface
+ * Raw byte wise transfer from a buffer surface into ayesther surface
  * of the requested box.  Supported if 3d is enabled and SVGA_CAP_DX
- * is set.  This command does not take a context.
+ * is set.  This command does yest take a context.
  */
 typedef
 #include "vmware_pack_begin.h"
@@ -787,7 +787,7 @@ SVGA3dCmdDXTransferFromBuffer;   /* SVGA_3D_CMD_DX_TRANSFER_FROM_BUFFER */
 
 
 /*
- * Raw byte wise transfer from a buffer surface into another surface
+ * Raw byte wise transfer from a buffer surface into ayesther surface
  * of the requested box.  Supported if SVGA3D_DEVCAP_DXCONTEXT is set.
  * The context is implied from the command buffer header.
  */
@@ -819,7 +819,7 @@ SVGA3dCmdDXSurfaceCopyAndReadback;
 /* SVGA_3D_CMD_DX_SURFACE_COPY_AND_READBACK */
 
 /*
- * SVGA_DX_HINT_NONE: Does nothing.
+ * SVGA_DX_HINT_NONE: Does yesthing.
  *
  * SVGA_DX_HINT_PREFETCH_OBJECT:
  * SVGA_DX_HINT_PREEVICT_OBJECT:
@@ -827,8 +827,8 @@ SVGA3dCmdDXSurfaceCopyAndReadback;
  *      fetching/evicting the specified object.
  *
  *      An id of SVGA3D_INVALID_ID can be used if the guest isn't sure
- *      what object was affected.  (For instance, if the guest knows that
- *      it is about to evict a DXShader, but doesn't know precisely which one,
+ *      what object was affected.  (For instance, if the guest kyesws that
+ *      it is about to evict a DXShader, but doesn't kyesw precisely which one,
  *      the device can still use this to help limit it's search, or track
  *      how many page-outs have happened.)
  *
@@ -1581,7 +1581,7 @@ struct SVGADXContextMobFormat {
       uint32 rasterizerStateId;
       uint32 depthStencilViewId;
       uint32 renderTargetViewIds[SVGA3D_MAX_SIMULTANEOUS_RENDER_TARGETS];
-      uint32 unorderedAccessViewIds[SVGA3D_MAX_UAVIEWS];
+      uint32 uyesrderedAccessViewIds[SVGA3D_MAX_UAVIEWS];
    } renderState;
 
    struct {

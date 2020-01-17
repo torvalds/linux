@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /*
- * nozomi.c  -- HSDPA driver Broadband Wireless Data Card - Globe Trotter
+ * yeszomi.c  -- HSDPA driver Broadband Wireless Data Card - Globe Trotter
  *
  * Written by: Ulf Jakobsson,
  *             Jan Åkerfeldt,
@@ -87,8 +87,8 @@ do {							\
 	} while (0)
 
 /*    Defines */
-#define NOZOMI_NAME		"nozomi"
-#define NOZOMI_NAME_TTY		"nozomi_tty"
+#define NOZOMI_NAME		"yeszomi"
+#define NOZOMI_NAME_TTY		"yeszomi_tty"
 #define DRIVER_DESC		"Nozomi driver"
 
 #define NTTY_TTY_MAXMINORS	256
@@ -145,7 +145,7 @@ do {							\
 /*    Type definitions */
 
 /*
- * There are two types of nozomi cards,
+ * There are two types of yeszomi cards,
  * one with 2048 memory and with 8192 memory
  */
 enum card_type {
@@ -177,7 +177,7 @@ enum ctrl_port_type {
 	CTRL_ERROR	= -1,
 };
 
-/* Ports that the nozomi has */
+/* Ports that the yeszomi has */
 enum port_type {
 	PORT_MDM	= 0,
 	PORT_DIAG	= 1,
@@ -201,7 +201,7 @@ struct toggles {
 } __attribute__ ((packed));
 
 /* Configuration table to read at startup of card */
-/* Is for now only needed during initialization phase */
+/* Is for yesw only needed during initialization phase */
 struct config_table {
 	u32 signature;
 	u16 product_information;
@@ -332,11 +332,11 @@ struct port {
 	wait_queue_head_t tty_wait;
 	struct async_icount tty_icount;
 
-	struct nozomi *dc;
+	struct yeszomi *dc;
 };
 
 /* Private data one for each card in the system */
-struct nozomi {
+struct yeszomi {
 	void __iomem *base_addr;
 	unsigned long flip;
 
@@ -366,29 +366,29 @@ struct buffer {
 } __attribute__ ((packed));
 
 /* Global variables */
-static const struct pci_device_id nozomi_pci_tbl[] = {
+static const struct pci_device_id yeszomi_pci_tbl[] = {
 	{PCI_DEVICE(0x1931, 0x000c)},	/* Nozomi HSDPA */
 	{},
 };
 
-MODULE_DEVICE_TABLE(pci, nozomi_pci_tbl);
+MODULE_DEVICE_TABLE(pci, yeszomi_pci_tbl);
 
-static struct nozomi *ndevs[NOZOMI_MAX_CARDS];
+static struct yeszomi *ndevs[NOZOMI_MAX_CARDS];
 static struct tty_driver *ntty_driver;
 
-static const struct tty_port_operations noz_tty_port_ops;
+static const struct tty_port_operations yesz_tty_port_ops;
 
 /*
  * find card by tty_index
  */
-static inline struct nozomi *get_dc_by_tty(const struct tty_struct *tty)
+static inline struct yeszomi *get_dc_by_tty(const struct tty_struct *tty)
 {
 	return tty ? ndevs[tty->index / MAX_PORT] : NULL;
 }
 
 static inline struct port *get_port_by_tty(const struct tty_struct *tty)
 {
-	struct nozomi *ndev = get_dc_by_tty(tty);
+	struct yeszomi *ndev = get_dc_by_tty(tty);
 	return ndev ? &ndev->port[tty->index % MAX_PORT] : NULL;
 }
 
@@ -489,7 +489,7 @@ static u32 write_mem32(void __iomem *mem_addr_start, const u32 *buf,
 }
 
 /* Setup pointers to different channels and also setup buffer sizes. */
-static void nozomi_setup_memory(struct nozomi *dc)
+static void yeszomi_setup_memory(struct yeszomi *dc)
 {
 	void __iomem *offset = dc->base_addr + dc->config_table.dl_start;
 	/* The length reported is including the length field of 4 bytes,
@@ -572,7 +572,7 @@ static void nozomi_setup_memory(struct nozomi *dc)
 
 /* Dump config table under initalization phase */
 #ifdef DEBUG
-static void dump_table(const struct nozomi *dc)
+static void dump_table(const struct yeszomi *dc)
 {
 	DBG3("signature: 0x%08X", dc->config_table.signature);
 	DBG3("version: 0x%04X", dc->config_table.version);
@@ -614,14 +614,14 @@ static void dump_table(const struct nozomi *dc)
 	   dc->config_table.ul_ctrl_len);
 }
 #else
-static inline void dump_table(const struct nozomi *dc) { }
+static inline void dump_table(const struct yeszomi *dc) { }
 #endif
 
 /*
  * Read configuration table from card under intalization phase
  * Returns 1 if ok, else 0
  */
-static int nozomi_read_config_table(struct nozomi *dc)
+static int yeszomi_read_config_table(struct yeszomi *dc)
 {
 	read_mem32((u32 *) &dc->config_table, dc->base_addr + 0,
 						sizeof(struct config_table));
@@ -637,7 +637,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 		int i;
 		DBG1("Second phase, configuring card");
 
-		nozomi_setup_memory(dc);
+		yeszomi_setup_memory(dc);
 
 		dc->port[PORT_MDM].toggle_ul = dc->config_table.toggle.mdm_ul;
 		dc->port[PORT_MDM].toggle_dl = dc->config_table.toggle.mdm_dl;
@@ -671,7 +671,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 			 dc->config_table.version);
 
 		/* Here we should disable all I/O over F32. */
-		nozomi_setup_memory(dc);
+		yeszomi_setup_memory(dc);
 
 		/*
 		 * We should send ALL channel pair tokens back along
@@ -693,7 +693,7 @@ static int nozomi_read_config_table(struct nozomi *dc)
 }
 
 /* Enable uplink interrupts  */
-static void enable_transmit_ul(enum port_type port, struct nozomi *dc)
+static void enable_transmit_ul(enum port_type port, struct yeszomi *dc)
 {
 	static const u16 mask[] = {MDM_UL, DIAG_UL, APP1_UL, APP2_UL, CTRL_UL};
 
@@ -706,7 +706,7 @@ static void enable_transmit_ul(enum port_type port, struct nozomi *dc)
 }
 
 /* Disable uplink interrupts  */
-static void disable_transmit_ul(enum port_type port, struct nozomi *dc)
+static void disable_transmit_ul(enum port_type port, struct yeszomi *dc)
 {
 	static const u16 mask[] =
 		{~MDM_UL, ~DIAG_UL, ~APP1_UL, ~APP2_UL, ~CTRL_UL};
@@ -720,7 +720,7 @@ static void disable_transmit_ul(enum port_type port, struct nozomi *dc)
 }
 
 /* Enable downlink interrupts */
-static void enable_transmit_dl(enum port_type port, struct nozomi *dc)
+static void enable_transmit_dl(enum port_type port, struct yeszomi *dc)
 {
 	static const u16 mask[] = {MDM_DL, DIAG_DL, APP1_DL, APP2_DL, CTRL_DL};
 
@@ -733,7 +733,7 @@ static void enable_transmit_dl(enum port_type port, struct nozomi *dc)
 }
 
 /* Disable downlink interrupts */
-static void disable_transmit_dl(enum port_type port, struct nozomi *dc)
+static void disable_transmit_dl(enum port_type port, struct yeszomi *dc)
 {
 	static const u16 mask[] =
 		{~MDM_DL, ~DIAG_DL, ~APP1_DL, ~APP2_DL, ~CTRL_DL};
@@ -750,7 +750,7 @@ static void disable_transmit_dl(enum port_type port, struct nozomi *dc)
  * Return 1 - send buffer to card and ack.
  * Return 0 - don't ack, don't send buffer to card.
  */
-static int send_data(enum port_type index, struct nozomi *dc)
+static int send_data(enum port_type index, struct yeszomi *dc)
 {
 	u32 size = 0;
 	struct port *port = &dc->port[index];
@@ -758,7 +758,7 @@ static int send_data(enum port_type index, struct nozomi *dc)
 	void __iomem *addr = port->ul_addr[toggle];
 	const u32 ul_size = port->ul_size[toggle];
 
-	/* Get data from tty and place in buf for now */
+	/* Get data from tty and place in buf for yesw */
 	size = kfifo_out(&port->fifo_ul, dc->send_buf,
 			   ul_size < SEND_BUF_MAX ? ul_size : SEND_BUF_MAX);
 
@@ -779,7 +779,7 @@ static int send_data(enum port_type index, struct nozomi *dc)
 }
 
 /* If all data has been read, return 1, else 0 */
-static int receive_data(enum port_type index, struct nozomi *dc)
+static int receive_data(enum port_type index, struct yeszomi *dc)
 {
 	u8 buf[RECEIVE_BUF_MAX] = { 0 };
 	int size;
@@ -882,7 +882,7 @@ static char *interrupt2str(u16 interrupt)
  * Receive flow control
  * Return 1 - If ok, else 0
  */
-static int receive_flow_control(struct nozomi *dc)
+static int receive_flow_control(struct yeszomi *dc)
 {
 	enum port_type port = PORT_MDM;
 	struct ctrl_dl ctrl_dl;
@@ -923,7 +923,7 @@ static int receive_flow_control(struct nozomi *dc)
 		break;
 	default:
 		dev_err(&dc->pdev->dev,
-			"ERROR: flow control received for non-existing port\n");
+			"ERROR: flow control received for yesn-existing port\n");
 		return 0;
 	}
 
@@ -976,7 +976,7 @@ static int receive_flow_control(struct nozomi *dc)
 }
 
 static enum ctrl_port_type port2ctrl(enum port_type port,
-					const struct nozomi *dc)
+					const struct yeszomi *dc)
 {
 	switch (port) {
 	case PORT_MDM:
@@ -990,7 +990,7 @@ static enum ctrl_port_type port2ctrl(enum port_type port,
 	default:
 		dev_err(&dc->pdev->dev,
 			"ERROR: send flow control " \
-			"received for non-existing port\n");
+			"received for yesn-existing port\n");
 	}
 	return CTRL_ERROR;
 }
@@ -1000,7 +1000,7 @@ static enum ctrl_port_type port2ctrl(enum port_type port,
  * Return 0 - If we have updated all flow control
  * Return 1 - If we need to update more flow control, ack current enable more
  */
-static int send_flow_control(struct nozomi *dc)
+static int send_flow_control(struct yeszomi *dc)
 {
 	u32 i, more_flow_control_to_be_updated = 0;
 	u16 *ctrl;
@@ -1023,11 +1023,11 @@ static int send_flow_control(struct nozomi *dc)
 }
 
 /*
- * Handle downlink data, ports that are handled are modem and diagnostics
+ * Handle downlink data, ports that are handled are modem and diagyesstics
  * Return 1 - ok
  * Return 0 - toggle fields are out of sync
  */
-static int handle_data_dl(struct nozomi *dc, enum port_type port, u8 *toggle,
+static int handle_data_dl(struct yeszomi *dc, enum port_type port, u8 *toggle,
 			u16 read_iir, u16 mask1, u16 mask2)
 {
 	if (*toggle == 0 && read_iir & mask1) {
@@ -1067,7 +1067,7 @@ static int handle_data_dl(struct nozomi *dc, enum port_type port, u8 *toggle,
  * Return 1 - ok
  * Return 0 - toggle field are out of sync
  */
-static int handle_data_ul(struct nozomi *dc, enum port_type port, u16 read_iir)
+static int handle_data_ul(struct yeszomi *dc, enum port_type port, u16 read_iir)
 {
 	u8 *toggle = &(dc->port[port].toggle_ul);
 
@@ -1122,7 +1122,7 @@ static int handle_data_ul(struct nozomi *dc, enum port_type port, u16 read_iir)
 
 static irqreturn_t interrupt_handler(int irq, void *dev_id)
 {
-	struct nozomi *dc = dev_id;
+	struct yeszomi *dc = dev_id;
 	unsigned int a;
 	u16 read_iir;
 
@@ -1134,7 +1134,7 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id)
 
 	/* Card removed */
 	if (read_iir == (u16)-1)
-		goto none;
+		goto yesne;
 	/*
 	 * Just handle interrupt enabled in IER
 	 * (by masking with dc->last_ier)
@@ -1142,17 +1142,17 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id)
 	read_iir &= dc->last_ier;
 
 	if (read_iir == 0)
-		goto none;
+		goto yesne;
 
 
 	DBG4("%s irq:0x%04X, prev:0x%04X", interrupt2str(read_iir), read_iir,
 		dc->last_ier);
 
 	if (read_iir & RESET) {
-		if (unlikely(!nozomi_read_config_table(dc))) {
+		if (unlikely(!yeszomi_read_config_table(dc))) {
 			dc->last_ier = 0x0;
 			writew(dc->last_ier, dc->reg_ier);
-			dev_err(&dc->pdev->dev, "Could not read status from "
+			dev_err(&dc->pdev->dev, "Could yest read status from "
 				"card, we should disable interface\n");
 		} else {
 			writew(RESET, dc->reg_fcr);
@@ -1240,12 +1240,12 @@ exit_handler:
 			tty_flip_buffer_push(&dc->port[a].port);
 
 	return IRQ_HANDLED;
-none:
+yesne:
 	spin_unlock(&dc->spin_mutex);
 	return IRQ_NONE;
 }
 
-static void nozomi_get_card_type(struct nozomi *dc)
+static void yeszomi_get_card_type(struct yeszomi *dc)
 {
 	int i;
 	u32 size = 0;
@@ -1253,13 +1253,13 @@ static void nozomi_get_card_type(struct nozomi *dc)
 	for (i = 0; i < 6; i++)
 		size += pci_resource_len(dc->pdev, i);
 
-	/* Assume card type F32_8 if no match */
+	/* Assume card type F32_8 if yes match */
 	dc->card_type = size == 2048 ? F32_2 : F32_8;
 
 	dev_info(&dc->pdev->dev, "Card type is: %d\n", dc->card_type);
 }
 
-static void nozomi_setup_private_data(struct nozomi *dc)
+static void yeszomi_setup_private_data(struct yeszomi *dc)
 {
 	void __iomem *offset = dc->base_addr + dc->card_type / 2;
 	unsigned int i;
@@ -1282,7 +1282,7 @@ static void nozomi_setup_private_data(struct nozomi *dc)
 static ssize_t card_type_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	const struct nozomi *dc = dev_get_drvdata(dev);
+	const struct yeszomi *dc = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%d\n", dc->card_type);
 }
@@ -1291,34 +1291,34 @@ static DEVICE_ATTR_RO(card_type);
 static ssize_t open_ttys_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	const struct nozomi *dc = dev_get_drvdata(dev);
+	const struct yeszomi *dc = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%u\n", dc->open_ttys);
 }
 static DEVICE_ATTR_RO(open_ttys);
 
-static void make_sysfs_files(struct nozomi *dc)
+static void make_sysfs_files(struct yeszomi *dc)
 {
 	if (device_create_file(&dc->pdev->dev, &dev_attr_card_type))
 		dev_err(&dc->pdev->dev,
-			"Could not create sysfs file for card_type\n");
+			"Could yest create sysfs file for card_type\n");
 	if (device_create_file(&dc->pdev->dev, &dev_attr_open_ttys))
 		dev_err(&dc->pdev->dev,
-			"Could not create sysfs file for open_ttys\n");
+			"Could yest create sysfs file for open_ttys\n");
 }
 
-static void remove_sysfs_files(struct nozomi *dc)
+static void remove_sysfs_files(struct yeszomi *dc)
 {
 	device_remove_file(&dc->pdev->dev, &dev_attr_card_type);
 	device_remove_file(&dc->pdev->dev, &dev_attr_open_ttys);
 }
 
 /* Allocate memory for one device */
-static int nozomi_card_init(struct pci_dev *pdev,
+static int yeszomi_card_init(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
 	int ret;
-	struct nozomi *dc = NULL;
+	struct yeszomi *dc = NULL;
 	int ndev_idx;
 	int i;
 
@@ -1329,14 +1329,14 @@ static int nozomi_card_init(struct pci_dev *pdev,
 			break;
 
 	if (ndev_idx >= ARRAY_SIZE(ndevs)) {
-		dev_err(&pdev->dev, "no free tty range for this card left\n");
+		dev_err(&pdev->dev, "yes free tty range for this card left\n");
 		ret = -EIO;
 		goto err;
 	}
 
-	dc = kzalloc(sizeof(struct nozomi), GFP_KERNEL);
+	dc = kzalloc(sizeof(struct yeszomi), GFP_KERNEL);
 	if (unlikely(!dc)) {
-		dev_err(&pdev->dev, "Could not allocate memory\n");
+		dev_err(&pdev->dev, "Could yest allocate memory\n");
 		ret = -ENOMEM;
 		goto err_free;
 	}
@@ -1352,12 +1352,12 @@ static int nozomi_card_init(struct pci_dev *pdev,
 	ret = pci_request_regions(dc->pdev, NOZOMI_NAME);
 	if (ret) {
 		dev_err(&pdev->dev, "I/O address 0x%04x already in use\n",
-			(int) /* nozomi_private.io_addr */ 0);
+			(int) /* yeszomi_private.io_addr */ 0);
 		goto err_disable_device;
 	}
 
 	/* Find out what card type it is */
-	nozomi_get_card_type(dc);
+	yeszomi_get_card_type(dc);
 
 	dc->base_addr = pci_iomap(dc->pdev, 0, dc->card_type);
 	if (!dc->base_addr) {
@@ -1368,7 +1368,7 @@ static int nozomi_card_init(struct pci_dev *pdev,
 
 	dc->send_buf = kmalloc(SEND_BUF_MAX, GFP_KERNEL);
 	if (!dc->send_buf) {
-		dev_err(&pdev->dev, "Could not allocate send buffer?\n");
+		dev_err(&pdev->dev, "Could yest allocate send buffer?\n");
 		ret = -ENOMEM;
 		goto err_free_sbuf;
 	}
@@ -1377,7 +1377,7 @@ static int nozomi_card_init(struct pci_dev *pdev,
 		if (kfifo_alloc(&dc->port[i].fifo_ul, FIFO_BUFFER_SIZE_UL,
 					GFP_KERNEL)) {
 			dev_err(&pdev->dev,
-					"Could not allocate kfifo buffer\n");
+					"Could yest allocate kfifo buffer\n");
 			ret = -ENOMEM;
 			goto err_free_kfifo;
 		}
@@ -1385,7 +1385,7 @@ static int nozomi_card_init(struct pci_dev *pdev,
 
 	spin_lock_init(&dc->spin_mutex);
 
-	nozomi_setup_private_data(dc);
+	yeszomi_setup_private_data(dc);
 
 	/* Disable all interrupts */
 	dc->last_ier = 0;
@@ -1418,13 +1418,13 @@ static int nozomi_card_init(struct pci_dev *pdev,
 		struct port *port = &dc->port[i];
 		port->dc = dc;
 		tty_port_init(&port->port);
-		port->port.ops = &noz_tty_port_ops;
+		port->port.ops = &yesz_tty_port_ops;
 		tty_dev = tty_port_register_device(&port->port, ntty_driver,
 				dc->index_start + i, &pdev->dev);
 
 		if (IS_ERR(tty_dev)) {
 			ret = PTR_ERR(tty_dev);
-			dev_err(&pdev->dev, "Could not allocate tty?\n");
+			dev_err(&pdev->dev, "Could yest allocate tty?\n");
 			tty_port_destroy(&port->port);
 			goto err_free_tty;
 		}
@@ -1453,7 +1453,7 @@ err:
 	return ret;
 }
 
-static void tty_exit(struct nozomi *dc)
+static void tty_exit(struct yeszomi *dc)
 {
 	unsigned int i;
 
@@ -1473,11 +1473,11 @@ static void tty_exit(struct nozomi *dc)
 }
 
 /* Deallocate memory for one device */
-static void nozomi_card_exit(struct pci_dev *pdev)
+static void yeszomi_card_exit(struct pci_dev *pdev)
 {
 	int i;
 	struct ctrl_ul ctrl;
-	struct nozomi *dc = pci_get_drvdata(pdev);
+	struct yeszomi *dc = pci_get_drvdata(pdev);
 
 	/* Disable all interrupts */
 	dc->last_ier = 0;
@@ -1546,7 +1546,7 @@ static void set_dtr(const struct tty_struct *tty, int dtr)
 static int ntty_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	struct port *port = get_port_by_tty(tty);
-	struct nozomi *dc = get_dc_by_tty(tty);
+	struct yeszomi *dc = get_dc_by_tty(tty);
 	int ret;
 	if (!port || !dc || dc->state != NOZOMI_STATE_READY)
 		return -ENODEV;
@@ -1564,7 +1564,7 @@ static void ntty_cleanup(struct tty_struct *tty)
 static int ntty_activate(struct tty_port *tport, struct tty_struct *tty)
 {
 	struct port *port = container_of(tport, struct port, port);
-	struct nozomi *dc = port->dc;
+	struct yeszomi *dc = port->dc;
 	unsigned long flags;
 
 	DBG1("open: %d", port->token_dl);
@@ -1573,7 +1573,7 @@ static int ntty_activate(struct tty_port *tport, struct tty_struct *tty)
 	writew(dc->last_ier, dc->reg_ier);
 	dc->open_ttys++;
 	spin_unlock_irqrestore(&dc->spin_mutex, flags);
-	printk("noz: activated %d: %p\n", tty->index, tport);
+	printk("yesz: activated %d: %p\n", tty->index, tport);
 	return 0;
 }
 
@@ -1586,7 +1586,7 @@ static int ntty_open(struct tty_struct *tty, struct file *filp)
 static void ntty_shutdown(struct tty_port *tport)
 {
 	struct port *port = container_of(tport, struct port, port);
-	struct nozomi *dc = port->dc;
+	struct yeszomi *dc = port->dc;
 	unsigned long flags;
 
 	DBG1("close: %d", port->token_dl);
@@ -1595,7 +1595,7 @@ static void ntty_shutdown(struct tty_port *tport)
 	writew(dc->last_ier, dc->reg_ier);
 	dc->open_ttys--;
 	spin_unlock_irqrestore(&dc->spin_mutex, flags);
-	printk("noz: shutdown %p\n", tport);
+	printk("yesz: shutdown %p\n", tport);
 }
 
 static void ntty_close(struct tty_struct *tty, struct file *filp)
@@ -1612,14 +1612,14 @@ static void ntty_hangup(struct tty_struct *tty)
 }
 
 /*
- * called when the userspace process writes to the tty (/dev/noz*).
+ * called when the userspace process writes to the tty (/dev/yesz*).
  * Data is inserted into a fifo, which is then read and transferred to the modem.
  */
 static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 		      int count)
 {
 	int rval = -EINVAL;
-	struct nozomi *dc = get_dc_by_tty(tty);
+	struct yeszomi *dc = get_dc_by_tty(tty);
 	struct port *port = tty->driver_data;
 	unsigned long flags;
 
@@ -1638,7 +1638,7 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 			enable_transmit_ul(tty->index % MAX_PORT, dc);
 		} else {
 			dev_err(&dc->pdev->dev,
-				"CTS not active on modem port?\n");
+				"CTS yest active on modem port?\n");
 		}
 	} else {
 		enable_transmit_ul(tty->index % MAX_PORT, dc);
@@ -1652,7 +1652,7 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
  * Calculate how much is left in device
  * This method is called by the upper tty layer.
  *   #according to sources N_TTY.c it expects a value >= 0 and
- *    does not check for negative values.
+ *    does yest check for negative values.
  *
  * If the port is unplugged report lots of room and let the bits
  * dribble away so we don't block anything.
@@ -1661,7 +1661,7 @@ static int ntty_write_room(struct tty_struct *tty)
 {
 	struct port *port = tty->driver_data;
 	int room = 4096;
-	const struct nozomi *dc = get_dc_by_tty(tty);
+	const struct yeszomi *dc = get_dc_by_tty(tty);
 
 	if (dc)
 		room = kfifo_avail(&port->fifo_ul);
@@ -1676,7 +1676,7 @@ static int ntty_tiocmget(struct tty_struct *tty)
 	const struct ctrl_dl *ctrl_dl = &port->ctrl_dl;
 	const struct ctrl_ul *ctrl_ul = &port->ctrl_ul;
 
-	/* Note: these could change under us but it is not clear this
+	/* Note: these could change under us but it is yest clear this
 	   matters if so */
 	return (ctrl_ul->RTS ? TIOCM_RTS : 0)
 		| (ctrl_ul->DTR ? TIOCM_DTR : 0)
@@ -1690,7 +1690,7 @@ static int ntty_tiocmget(struct tty_struct *tty)
 static int ntty_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear)
 {
-	struct nozomi *dc = get_dc_by_tty(tty);
+	struct yeszomi *dc = get_dc_by_tty(tty);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dc->spin_mutex, flags);
@@ -1711,15 +1711,15 @@ static int ntty_tiocmset(struct tty_struct *tty,
 static int ntty_cflags_changed(struct port *port, unsigned long flags,
 		struct async_icount *cprev)
 {
-	const struct async_icount cnow = port->tty_icount;
+	const struct async_icount cyesw = port->tty_icount;
 	int ret;
 
-	ret = ((flags & TIOCM_RNG) && (cnow.rng != cprev->rng))
-		|| ((flags & TIOCM_DSR) && (cnow.dsr != cprev->dsr))
-		|| ((flags & TIOCM_CD)  && (cnow.dcd != cprev->dcd))
-		|| ((flags & TIOCM_CTS) && (cnow.cts != cprev->cts));
+	ret = ((flags & TIOCM_RNG) && (cyesw.rng != cprev->rng))
+		|| ((flags & TIOCM_DSR) && (cyesw.dsr != cprev->dsr))
+		|| ((flags & TIOCM_CD)  && (cyesw.dcd != cprev->dcd))
+		|| ((flags & TIOCM_CTS) && (cyesw.cts != cprev->cts));
 
-	*cprev = cnow;
+	*cprev = cyesw;
 
 	return ret;
 }
@@ -1728,19 +1728,19 @@ static int ntty_tiocgicount(struct tty_struct *tty,
 				struct serial_icounter_struct *icount)
 {
 	struct port *port = tty->driver_data;
-	const struct async_icount cnow = port->tty_icount;
+	const struct async_icount cyesw = port->tty_icount;
 
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
+	icount->cts = cyesw.cts;
+	icount->dsr = cyesw.dsr;
+	icount->rng = cyesw.rng;
+	icount->dcd = cyesw.dcd;
+	icount->rx = cyesw.rx;
+	icount->tx = cyesw.tx;
+	icount->frame = cyesw.frame;
+	icount->overrun = cyesw.overrun;
+	icount->parity = cyesw.parity;
+	icount->brk = cyesw.brk;
+	icount->buf_overrun = cyesw.buf_overrun;
 	return 0;
 }
 
@@ -1774,7 +1774,7 @@ static int ntty_ioctl(struct tty_struct *tty,
  */
 static void ntty_unthrottle(struct tty_struct *tty)
 {
-	struct nozomi *dc = get_dc_by_tty(tty);
+	struct yeszomi *dc = get_dc_by_tty(tty);
 	unsigned long flags;
 
 	DBG1("UNTHROTTLE");
@@ -1791,7 +1791,7 @@ static void ntty_unthrottle(struct tty_struct *tty)
  */
 static void ntty_throttle(struct tty_struct *tty)
 {
-	struct nozomi *dc = get_dc_by_tty(tty);
+	struct yeszomi *dc = get_dc_by_tty(tty);
 	unsigned long flags;
 
 	DBG1("THROTTLE");
@@ -1804,7 +1804,7 @@ static void ntty_throttle(struct tty_struct *tty)
 static s32 ntty_chars_in_buffer(struct tty_struct *tty)
 {
 	struct port *port = tty->driver_data;
-	struct nozomi *dc = get_dc_by_tty(tty);
+	struct yeszomi *dc = get_dc_by_tty(tty);
 	s32 rval = 0;
 
 	if (unlikely(!dc || !port)) {
@@ -1817,7 +1817,7 @@ exit_in_buffer:
 	return rval;
 }
 
-static const struct tty_port_operations noz_tty_port_ops = {
+static const struct tty_port_operations yesz_tty_port_ops = {
 	.activate = ntty_activate,
 	.shutdown = ntty_shutdown,
 };
@@ -1840,14 +1840,14 @@ static const struct tty_operations tty_ops = {
 };
 
 /* Module initialization */
-static struct pci_driver nozomi_driver = {
+static struct pci_driver yeszomi_driver = {
 	.name = NOZOMI_NAME,
-	.id_table = nozomi_pci_tbl,
-	.probe = nozomi_card_init,
-	.remove = nozomi_card_exit,
+	.id_table = yeszomi_pci_tbl,
+	.probe = yeszomi_card_init,
+	.remove = yeszomi_card_exit,
 };
 
-static __init int nozomi_init(void)
+static __init int yeszomi_init(void)
 {
 	int ret;
 
@@ -1858,7 +1858,7 @@ static __init int nozomi_init(void)
 		return -ENOMEM;
 
 	ntty_driver->driver_name = NOZOMI_NAME_TTY;
-	ntty_driver->name = "noz";
+	ntty_driver->name = "yesz";
 	ntty_driver->major = 0;
 	ntty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	ntty_driver->subtype = SERIAL_TYPE_NORMAL;
@@ -1876,7 +1876,7 @@ static __init int nozomi_init(void)
 		goto free_tty;
 	}
 
-	ret = pci_register_driver(&nozomi_driver);
+	ret = pci_register_driver(&yeszomi_driver);
 	if (ret) {
 		printk(KERN_ERR "Nozomi: can't register pci driver\n");
 		goto unr_tty;
@@ -1890,16 +1890,16 @@ free_tty:
 	return ret;
 }
 
-static __exit void nozomi_exit(void)
+static __exit void yeszomi_exit(void)
 {
 	printk(KERN_INFO "Unloading %s\n", DRIVER_DESC);
-	pci_unregister_driver(&nozomi_driver);
+	pci_unregister_driver(&yeszomi_driver);
 	tty_unregister_driver(ntty_driver);
 	put_tty_driver(ntty_driver);
 }
 
-module_init(nozomi_init);
-module_exit(nozomi_exit);
+module_init(yeszomi_init);
+module_exit(yeszomi_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION(DRIVER_DESC);

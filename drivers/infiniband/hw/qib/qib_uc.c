@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -348,7 +348,7 @@ send_first:
 		}
 		qp->r_rcv_len = 0;
 		if (opcode == OP(SEND_ONLY))
-			goto no_immediate_data;
+			goto yes_immediate_data;
 		else if (opcode == OP(SEND_ONLY_WITH_IMMEDIATE))
 			goto send_last_imm;
 		/* FALLTHROUGH */
@@ -369,7 +369,7 @@ send_last_imm:
 		wc.wc_flags = IB_WC_WITH_IMM;
 		goto send_last;
 	case OP(SEND_LAST):
-no_immediate_data:
+yes_immediate_data:
 		wc.ex.imm_data = 0;
 		wc.wc_flags = 0;
 send_last:
@@ -499,7 +499,7 @@ rdma_last:
 		break;
 
 	default:
-		/* Drop packet for unknown opcodes. */
+		/* Drop packet for unkyeswn opcodes. */
 		goto drop;
 	}
 	qp->r_psn++;

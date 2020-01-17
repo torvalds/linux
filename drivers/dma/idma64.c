@@ -20,7 +20,7 @@
 
 #include "idma64.h"
 
-/* For now we support only two channels */
+/* For yesw we support only two channels */
 #define IDMA64_NR_CHAN		2
 
 /* ---------------------------------------------------------------------- */
@@ -121,7 +121,7 @@ static void idma64_start_transfer(struct idma64_chan *idma64c)
 		return;
 	}
 
-	list_del(&vdesc->node);
+	list_del(&vdesc->yesde);
 	idma64c->desc = to_idma64_desc(vdesc);
 
 	/* Configure the channel */
@@ -356,7 +356,7 @@ static size_t idma64_active_desc_size(struct idma64_chan *idma64c)
 	if (!i)
 		return bytes;
 
-	/* The current chunk is not fully transfered yet */
+	/* The current chunk is yest fully transfered yet */
 	bytes += desc->hw[--i].len;
 
 	return bytes - IDMA64C_CTLH_BLOCK_TS(ctlhi);

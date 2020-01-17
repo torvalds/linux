@@ -26,7 +26,7 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 			return 0;
 		case 4:
 			asm volatile ("ldnw .d1t1 *%2,%0\n"
-				      "nop  4\n"
+				      "yesp  4\n"
 				      "stnw .d1t1 %0,*%1\n"
 				      : "=&a"(tmp32)
 				      : "A"(to), "a"(from)
@@ -34,7 +34,7 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 			return 0;
 		case 8:
 			asm volatile ("ldndw .d1t1 *%2,%0\n"
-				      "nop   4\n"
+				      "yesp   4\n"
 				      "stndw .d1t1 %0,*%1\n"
 				      : "=&a"(tmp64)
 				      : "a"(to), "a"(from)
@@ -62,7 +62,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 			return 0;
 		case 4:
 			asm volatile ("ldnw .d1t1 *%2,%0\n"
-				      "nop  4\n"
+				      "yesp  4\n"
 				      "stnw .d1t1 %0,*%1\n"
 				      : "=&a"(tmp32)
 				      : "a"(to), "a"(from)
@@ -70,7 +70,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 			return 0;
 		case 8:
 			asm volatile ("ldndw .d1t1 *%2,%0\n"
-				      "nop   4\n"
+				      "yesp   4\n"
 				      "stndw .d1t1 %0,*%1\n"
 				      : "=&a"(tmp64)
 				      : "a"(to), "a"(from)

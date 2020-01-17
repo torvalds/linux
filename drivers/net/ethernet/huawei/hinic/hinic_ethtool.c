@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techyeslogies Co., Ltd
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,7 +18,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
@@ -249,7 +249,7 @@ static int hinic_set_rss_hash_opts(struct hinic_dev *nic_dev,
 		return -EOPNOTSUPP;
 	}
 
-	/* RSS does not support anything other than hashing
+	/* RSS does yest support anything other than hashing
 	 * to queues on src and dst IPs and ports
 	 */
 	if (cmd->data & ~(RXH_IP_SRC | RXH_IP_DST | RXH_L4_B_0_1 |

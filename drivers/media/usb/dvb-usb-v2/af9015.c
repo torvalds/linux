@@ -57,7 +57,7 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 	case BOOT:
 		break;
 	default:
-		dev_err(&intf->dev, "unknown cmd %d\n", req->cmd);
+		dev_err(&intf->dev, "unkyeswn cmd %d\n", req->cmd);
 		ret = -EIO;
 		goto error;
 	}
@@ -84,7 +84,7 @@ static int af9015_ctrl_msg(struct dvb_usb_device *d, struct req_t *req)
 		rlen += req->data_len;
 	}
 
-	/* no ack for these packets */
+	/* yes ack for these packets */
 	if (req->cmd == DOWNLOAD_FIRMWARE || req->cmd == RECONNECT_USB)
 		rlen = 0;
 
@@ -243,7 +243,7 @@ static int af9015_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		ret = af9015_ctrl_msg(d, &req);
 	} else {
 		ret = -EOPNOTSUPP;
-		dev_dbg(&intf->dev, "unknown msg, num %u\n", num);
+		dev_dbg(&intf->dev, "unkyeswn msg, num %u\n", num);
 	}
 	if (ret)
 		goto err;
@@ -502,7 +502,7 @@ static int af9015_read_config(struct dvb_usb_device *d)
 			break;
 		default:
 			dev_err(&intf->dev,
-				"tuner id %02x not supported, please report!\n",
+				"tuner id %02x yest supported, please report!\n",
 				val);
 			return -ENODEV;
 		}
@@ -548,7 +548,7 @@ static int af9015_get_stream_config(struct dvb_frontend *fe, u8 *ts_type,
 	return 0;
 }
 
-static int af9015_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int af9015_streaming_ctrl(struct dvb_frontend *fe, int oyesff)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 	struct af9015_state *state = d_to_priv(d);
@@ -558,7 +558,7 @@ static int af9015_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 	u8 buf[2];
 	const unsigned int adap_id = fe_to_adap(fe)->id;
 
-	dev_dbg(&intf->dev, "adap id %d, onoff %d\n", adap_id, onoff);
+	dev_dbg(&intf->dev, "adap id %d, oyesff %d\n", adap_id, oyesff);
 
 	if (!state->usb_ts_if_configured[adap_id]) {
 		dev_dbg(&intf->dev, "set usb and ts interface\n");
@@ -603,7 +603,7 @@ static int af9015_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 		state->usb_ts_if_configured[adap_id] = true;
 	}
 
-	if (adap_id == 0 && onoff) {
+	if (adap_id == 0 && oyesff) {
 		/* Adapter 0 stream on. EP4: clear NAK, enable, clear reset */
 		ret = regmap_update_bits(state->regmap, 0xdd13, 0x20, 0x00);
 		if (ret)
@@ -614,7 +614,7 @@ static int af9015_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 		ret = regmap_update_bits(state->regmap, 0xd507, 0x04, 0x00);
 		if (ret)
 			goto err;
-	} else if (adap_id == 1 && onoff) {
+	} else if (adap_id == 1 && oyesff) {
 		/* Adapter 1 stream on. EP5: clear NAK, enable, clear reset */
 		ret = regmap_update_bits(state->regmap, 0xdd13, 0x40, 0x00);
 		if (ret)
@@ -625,7 +625,7 @@ static int af9015_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 		ret = regmap_update_bits(state->regmap, 0xd50b, 0x02, 0x00);
 		if (ret)
 			goto err;
-	} else if (adap_id == 0 && !onoff) {
+	} else if (adap_id == 0 && !oyesff) {
 		/* Adapter 0 stream off. EP4: set reset, disable, set NAK */
 		ret = regmap_update_bits(state->regmap, 0xd507, 0x04, 0x04);
 		if (ret)
@@ -636,7 +636,7 @@ static int af9015_streaming_ctrl(struct dvb_frontend *fe, int onoff)
 		ret = regmap_update_bits(state->regmap, 0xdd13, 0x20, 0x20);
 		if (ret)
 			goto err;
-	} else if (adap_id == 1 && !onoff) {
+	} else if (adap_id == 1 && !oyesff) {
 		/* Adapter 1 stream off. EP5: set reset, disable, set NAK */
 		ret = regmap_update_bits(state->regmap, 0xd50b, 0x02, 0x02);
 		if (ret)
@@ -826,7 +826,7 @@ static int af9015_copy_firmware(struct dvb_usb_device *d)
 
 	if (val == 0x04) {
 		ret = -ENODEV;
-		dev_err(&intf->dev, "firmware did not run\n");
+		dev_err(&intf->dev, "firmware did yest run\n");
 		goto err;
 	} else if (val != 0x0c) {
 		ret = -ETIMEDOUT;
@@ -892,8 +892,8 @@ static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 	state->demod_i2c_client[adap->id] = client;
 
 	/*
-	 * AF9015 firmware does not like if it gets interrupted by I2C adapter
-	 * request on some critical phases. During normal operation I2C adapter
+	 * AF9015 firmware does yest like if it gets interrupted by I2C adapter
+	 * request on some critical phases. During yesrmal operation I2C adapter
 	 * is used only 2nd demodulator and tuner on dual tuner devices.
 	 * Override demodulator callbacks and use mutex for limit access to
 	 * those "critical" paths to keep AF9015 happy.
@@ -1051,7 +1051,7 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 		break;
 	case AF9013_TUNER_UNKNOWN:
 	default:
-		dev_err(&intf->dev, "unknown tuner, tuner id %02x\n",
+		dev_err(&intf->dev, "unkyeswn tuner, tuner id %02x\n",
 			state->af9013_pdata[adap->id].tuner);
 		ret = -ENODEV;
 	}
@@ -1071,28 +1071,28 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 	return ret;
 }
 
-static int af9015_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int af9015_pid_filter_ctrl(struct dvb_usb_adapter *adap, int oyesff)
 {
 	struct af9015_state *state = adap_to_priv(adap);
 	struct af9013_platform_data *pdata = &state->af9013_pdata[adap->id];
 	int ret;
 
 	mutex_lock(&state->fe_mutex);
-	ret = pdata->pid_filter_ctrl(adap->fe[0], onoff);
+	ret = pdata->pid_filter_ctrl(adap->fe[0], oyesff);
 	mutex_unlock(&state->fe_mutex);
 
 	return ret;
 }
 
 static int af9015_pid_filter(struct dvb_usb_adapter *adap, int index,
-			     u16 pid, int onoff)
+			     u16 pid, int oyesff)
 {
 	struct af9015_state *state = adap_to_priv(adap);
 	struct af9013_platform_data *pdata = &state->af9013_pdata[adap->id];
 	int ret;
 
 	mutex_lock(&state->fe_mutex);
-	ret = pdata->pid_filter(adap->fe[0], index, pid, onoff);
+	ret = pdata->pid_filter(adap->fe[0], index, pid, oyesff);
 	mutex_unlock(&state->fe_mutex);
 
 	return ret;
@@ -1161,7 +1161,7 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 	if (ret)
 		goto error;
 
-	/* If any of these are non-zero, assume invalid data */
+	/* If any of these are yesn-zero, assume invalid data */
 	if (buf[1] || buf[2] || buf[3]) {
 		dev_dbg(&intf->dev, "invalid data\n");
 		return ret;
@@ -1212,7 +1212,7 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 		}
 		rc_keydown(d->rc_dev, proto, state->rc_keycode, 0);
 	} else {
-		dev_dbg(&intf->dev, "no key press\n");
+		dev_dbg(&intf->dev, "yes key press\n");
 		/* Invalidate last keypress */
 		/* Not really needed, but helps with debug */
 		state->rc_last[2] = state->rc_last[3];
@@ -1338,7 +1338,7 @@ static int af9015_probe(struct dvb_usb_device *d)
 	struct usb_interface *intf = d->intf;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	int ret;
-	char manufacturer[sizeof("ITE Technologies, Inc.")];
+	char manufacturer[sizeof("ITE Techyeslogies, Inc.")];
 	static const struct regmap_config regmap_config = {
 		.reg_bits    =  16,
 		.val_bits    =  8,
@@ -1367,12 +1367,12 @@ static int af9015_probe(struct dvb_usb_device *d)
 	 * idVendor           0x0ccd TerraTec Electronic GmbH
 	 * idProduct          0x0099
 	 * bcdDevice            2.00
-	 * iManufacturer           1 ITE Technologies, Inc.
+	 * iManufacturer           1 ITE Techyeslogies, Inc.
 	 * iProduct                2 DVB-T TV Stick
 	 */
 	if ((le16_to_cpu(udev->descriptor.idVendor) == USB_VID_TERRATEC) &&
 	    (le16_to_cpu(udev->descriptor.idProduct) == 0x0099)) {
-		if (!strcmp("ITE Technologies, Inc.", manufacturer)) {
+		if (!strcmp("ITE Techyeslogies, Inc.", manufacturer)) {
 			ret = -ENODEV;
 			dev_dbg(&intf->dev, "rejecting device\n");
 			goto err;
@@ -1543,7 +1543,7 @@ static struct usb_driver af9015_usb_driver = {
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
 	.reset_resume = dvb_usbv2_reset_resume,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

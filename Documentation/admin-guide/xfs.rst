@@ -34,7 +34,7 @@ When mounting an XFS filesystem, the following options are accepted.
 	to the file. Specifying a fixed ``allocsize`` value turns off
 	the dynamic behaviour.
 
-  attr2 or noattr2
+  attr2 or yesattr2
 	The options enable/disable an "opportunistic" improvement to
 	be made in the way inline extended attributes are stored
 	on-disk.  When the new form is used for the first time when
@@ -48,9 +48,9 @@ When mounting an XFS filesystem, the following options are accepted.
 	by the filesystem.
 
 	CRC enabled filesystems always use the ``attr2`` format, and so
-	will reject the ``noattr2`` mount option if it is set.
+	will reject the ``yesattr2`` mount option if it is set.
 
-  discard or nodiscard (default)
+  discard or yesdiscard (default)
 	Enable/disable the issuing of commands to let the block
 	device reclaim space freed by the filesystem.  This is
 	useful for SSD devices, thinly provisioned LUNs and virtual
@@ -61,7 +61,7 @@ When mounting an XFS filesystem, the following options are accepted.
 	mount option because the performance impact of this option
 	is quite severe.
 
-  grpid/bsdgroups or nogrpid/sysvgroups (default)
+  grpid/bsdgroups or yesgrpid/sysvgroups (default)
 	These options define what group ID a newly created file
 	gets.  When ``grpid`` is set, it takes the group ID of the
 	directory in which it is created; otherwise it takes the
@@ -75,31 +75,31 @@ When mounting an XFS filesystem, the following options are accepted.
 	across the entire filesystem rather than just on directories
 	configured to use it.
 
-  ikeep or noikeep (default)
-	When ``ikeep`` is specified, XFS does not delete empty inode
-	clusters and keeps them around on disk.  When ``noikeep`` is
-	specified, empty inode clusters are returned to the free
+  ikeep or yesikeep (default)
+	When ``ikeep`` is specified, XFS does yest delete empty iyesde
+	clusters and keeps them around on disk.  When ``yesikeep`` is
+	specified, empty iyesde clusters are returned to the free
 	space pool.
 
-  inode32 or inode64 (default)
-	When ``inode32`` is specified, it indicates that XFS limits
-	inode creation to locations which will not result in inode
+  iyesde32 or iyesde64 (default)
+	When ``iyesde32`` is specified, it indicates that XFS limits
+	iyesde creation to locations which will yest result in iyesde
 	numbers with more than 32 bits of significance.
 
-	When ``inode64`` is specified, it indicates that XFS is allowed
-	to create inodes at any location in the filesystem,
-	including those which will result in inode numbers occupying
+	When ``iyesde64`` is specified, it indicates that XFS is allowed
+	to create iyesdes at any location in the filesystem,
+	including those which will result in iyesde numbers occupying
 	more than 32 bits of significance.
 
-	``inode32`` is provided for backwards compatibility with older
-	systems and applications, since 64 bits inode numbers might
-	cause problems for some applications that cannot handle
-	large inode numbers.  If applications are in use which do
-	not handle inode numbers bigger than 32 bits, the ``inode32``
+	``iyesde32`` is provided for backwards compatibility with older
+	systems and applications, since 64 bits iyesde numbers might
+	cause problems for some applications that canyest handle
+	large iyesde numbers.  If applications are in use which do
+	yest handle iyesde numbers bigger than 32 bits, the ``iyesde32``
 	option should be specified.
 
-  largeio or nolargeio (default)
-	If ``nolargeio`` is specified, the optimal I/O reported in
+  largeio or yeslargeio (default)
+	If ``yeslargeio`` is specified, the optimal I/O reported in
 	``st_blksize`` by **stat(2)** will be as small as possible to allow
 	user applications to avoid inefficient read/modify/write
 	I/O.  This is typically the page size of the machine, as
@@ -107,10 +107,10 @@ When mounting an XFS filesystem, the following options are accepted.
 
 	If ``largeio`` is specified, a filesystem that was created with a
 	``swidth`` specified will return the ``swidth`` value (in bytes)
-	in ``st_blksize``. If the filesystem does not have a ``swidth``
+	in ``st_blksize``. If the filesystem does yest have a ``swidth``
 	specified but does specify an ``allocsize`` then ``allocsize``
 	(in bytes) will be returned instead. Otherwise the behaviour
-	is the same as if ``nolargeio`` was specified.
+	is the same as if ``yeslargeio`` was specified.
 
   logbufs=value
 	Set the number of in-memory log buffers.  Valid numbers
@@ -143,39 +143,39 @@ When mounting an XFS filesystem, the following options are accepted.
 	optional, and the log section can be separate from the data
 	section or contained within it.
 
-  noalign
-	Data allocations will not be aligned at stripe unit
+  yesalign
+	Data allocations will yest be aligned at stripe unit
 	boundaries. This is only relevant to filesystems created
-	with non-zero data alignment parameters (``sunit``, ``swidth``) by
+	with yesn-zero data alignment parameters (``sunit``, ``swidth``) by
 	**mkfs(8)**.
 
-  norecovery
+  yesrecovery
 	The filesystem will be mounted without running log recovery.
-	If the filesystem was not cleanly unmounted, it is likely to
-	be inconsistent when mounted in ``norecovery`` mode.
-	Some files or directories may not be accessible because of this.
-	Filesystems mounted ``norecovery`` must be mounted read-only or
+	If the filesystem was yest cleanly unmounted, it is likely to
+	be inconsistent when mounted in ``yesrecovery`` mode.
+	Some files or directories may yest be accessible because of this.
+	Filesystems mounted ``yesrecovery`` must be mounted read-only or
 	the mount will fail.
 
-  nouuid
+  yesuuid
 	Don't check for double mounted file systems using the file
 	system ``uuid``.  This is useful to mount LVM snapshot volumes,
-	and often used in combination with ``norecovery`` for mounting
+	and often used in combination with ``yesrecovery`` for mounting
 	read-only snapshots.
 
-  noquota
+  yesquota
 	Forcibly turns off all quota accounting and enforcement
 	within the filesystem.
 
-  uquota/usrquota/uqnoenforce/quota
+  uquota/usrquota/uqyesenforce/quota
 	User disk quota accounting enabled, and limits (optionally)
 	enforced.  Refer to **xfs_quota(8)** for further details.
 
-  gquota/grpquota/gqnoenforce
+  gquota/grpquota/gqyesenforce
 	Group disk quota accounting enabled and limits (optionally)
 	enforced.  Refer to **xfs_quota(8)** for further details.
 
-  pquota/prjquota/pqnoenforce
+  pquota/prjquota/pqyesenforce
 	Project disk quota accounting enabled and limits (optionally)
 	enforced.  Refer to **xfs_quota(8)** for further details.
 
@@ -183,7 +183,7 @@ When mounting an XFS filesystem, the following options are accepted.
 	Used to specify the stripe unit and width for a RAID device
 	or a stripe volume.  "value" must be specified in 512-byte
 	block units. These options are only relevant to filesystems
-	that were created with non-zero data alignment parameters.
+	that were created with yesn-zero data alignment parameters.
 
 	The ``sunit`` and ``swidth`` parameters specified must be compatible
 	with the existing filesystem alignment characteristics.  In
@@ -203,10 +203,10 @@ When mounting an XFS filesystem, the following options are accepted.
 
   wsync
 	When specified, all filesystem namespace operations are
-	executed synchronously. This ensures that when the namespace
+	executed synchroyesusly. This ensures that when the namespace
 	operation (create, unlink, etc) completes, the change to the
 	namespace is on stable storage. This is useful in HA setups
-	where failover must not result in clients seeing
+	where failover must yest result in clients seeing
 	inconsistent namespace presentation during or after a
 	failover event.
 
@@ -226,12 +226,12 @@ Removed Mount Options
 ===========================     =======
   Name				Removed
 ===========================	=======
-  delaylog/nodelaylog		v4.0
+  delaylog/yesdelaylog		v4.0
   ihashsize			v4.0
   irixsgid			v4.0
   osyncisdsync/osyncisosync	v4.0
   barrier			v4.19
-  nobarrier			v4.19
+  yesbarrier			v4.19
 ===========================     =======
 
 sysctls
@@ -254,13 +254,13 @@ The following sysctls are available for the XFS filesystem:
 
   fs.xfs.speculative_prealloc_lifetime
 	(Units: seconds   Min: 1  Default: 300  Max: 86400)
-	The interval at which the background scanning for inodes
+	The interval at which the background scanning for iyesdes
 	with unused speculative preallocation runs. The scan
-	removes unused preallocation from clean inodes and releases
+	removes unused preallocation from clean iyesdes and releases
 	the unused space back to the free pool.
 
   fs.xfs.error_level		(Min: 0  Default: 3  Max: 11)
-	A volume knob for error reporting when internal errors occur.
+	A volume kyesb for error reporting when internal errors occur.
 	This will generate detailed messages & backtraces for filesystem
 	shutdowns, for example.  Current threshold values are:
 
@@ -291,7 +291,7 @@ The following sysctls are available for the XFS filesystem:
 
   fs.xfs.irix_sgid_inherit	(Min: 0  Default: 0  Max: 1)
 	Controls files created in SGID directories.
-	If the group ID of the new file does not match the effective group
+	If the group ID of the new file does yest match the effective group
 	ID or one of the supplementary group IDs of the parent dir, the
 	ISGID bit is cleared if the irix_sgid_inherit compatibility sysctl
 	is set.
@@ -301,28 +301,28 @@ The following sysctls are available for the XFS filesystem:
 	by the **xfs_io(8)** chattr command on a directory to be
 	inherited by files in that directory.
 
-  fs.xfs.inherit_nodump		(Min: 0  Default: 1  Max: 1)
-	Setting this to "1" will cause the "nodump" flag set
+  fs.xfs.inherit_yesdump		(Min: 0  Default: 1  Max: 1)
+	Setting this to "1" will cause the "yesdump" flag set
 	by the **xfs_io(8)** chattr command on a directory to be
 	inherited by files in that directory.
 
-  fs.xfs.inherit_noatime	(Min: 0  Default: 1  Max: 1)
-	Setting this to "1" will cause the "noatime" flag set
+  fs.xfs.inherit_yesatime	(Min: 0  Default: 1  Max: 1)
+	Setting this to "1" will cause the "yesatime" flag set
 	by the **xfs_io(8)** chattr command on a directory to be
 	inherited by files in that directory.
 
-  fs.xfs.inherit_nosymlinks	(Min: 0  Default: 1  Max: 1)
-	Setting this to "1" will cause the "nosymlinks" flag set
+  fs.xfs.inherit_yessymlinks	(Min: 0  Default: 1  Max: 1)
+	Setting this to "1" will cause the "yessymlinks" flag set
 	by the **xfs_io(8)** chattr command on a directory to be
 	inherited by files in that directory.
 
-  fs.xfs.inherit_nodefrag	(Min: 0  Default: 1  Max: 1)
-	Setting this to "1" will cause the "nodefrag" flag set
+  fs.xfs.inherit_yesdefrag	(Min: 0  Default: 1  Max: 1)
+	Setting this to "1" will cause the "yesdefrag" flag set
 	by the **xfs_io(8)** chattr command on a directory to be
 	inherited by files in that directory.
 
   fs.xfs.rotorstep		(Min: 1  Default: 1  Max: 256)
-	In "inode32" allocation mode, this option determines how many
+	In "iyesde32" allocation mode, this option determines how many
 	files the allocator attempts to allocate in the same allocation
 	group before moving to the next allocation group.  The intent
 	is to control the rate at which the allocator moves between
@@ -372,8 +372,8 @@ retried.
 
 The action taken by the filesystem when the error is propagated is context
 dependent - it may cause a shut down in the case of an unrecoverable error,
-it may be reported back to userspace, or it may even be ignored because
-there's nothing useful we can with the error or anyone we can report it to (e.g.
+it may be reported back to userspace, or it may even be igyesred because
+there's yesthing useful we can with the error or anyone we can report it to (e.g.
 during unmount).
 
 The configuration files are organized into the following hierarchy for each
@@ -406,7 +406,7 @@ level directory:
 
 	If set to a value of 1, XFS will override all other error configurations
 	during unmount and replace them with "immediate fail" characteristics.
-	i.e. no retries, no retry timeout. This will always allow unmount to
+	i.e. yes retries, yes retry timeout. This will always allow unmount to
 	succeed when there are persistent errors present.
 
 	If set to 0, the configured retry behaviour will continue until all
@@ -415,7 +415,7 @@ level directory:
 	filesystem from ever unmounting fully in the case of "retry forever"
 	handler configurations.
 
-	Note: there is no guarantee that fail_at_unmount can be set while an
+	Note: there is yes guarantee that fail_at_unmount can be set while an
 	unmount is in progress. It is possible that the ``sysfs`` entries are
 	removed by the unmounting filesystem before a "retry forever" error
 	handler configuration causes unmount to hang, and hence the filesystem
@@ -464,4 +464,4 @@ to be propagated. The handler configurations are found in the directory:
 the class and error context. For example, the default values for
 "metadata/ENODEV" are "0" rather than "-1" so that this error handler defaults
 to "fail immediately" behaviour. This is done because ENODEV is a fatal,
-unrecoverable error no matter how many times the metadata IO is retried.
+unrecoverable error yes matter how many times the metadata IO is retried.

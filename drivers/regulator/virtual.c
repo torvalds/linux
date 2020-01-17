@@ -217,13 +217,13 @@ static ssize_t show_mode(struct device *dev,
 	case REGULATOR_MODE_FAST:
 		return sprintf(buf, "fast\n");
 	case REGULATOR_MODE_NORMAL:
-		return sprintf(buf, "normal\n");
+		return sprintf(buf, "yesrmal\n");
 	case REGULATOR_MODE_IDLE:
 		return sprintf(buf, "idle\n");
 	case REGULATOR_MODE_STANDBY:
 		return sprintf(buf, "standby\n");
 	default:
-		return sprintf(buf, "unknown\n");
+		return sprintf(buf, "unkyeswn\n");
 	}
 }
 
@@ -240,7 +240,7 @@ static ssize_t set_mode(struct device *dev, struct device_attribute *attr,
 	 */
 	if (sysfs_streq(buf, "fast\n"))
 		mode = REGULATOR_MODE_FAST;
-	else if (sysfs_streq(buf, "normal\n"))
+	else if (sysfs_streq(buf, "yesrmal\n"))
 		mode = REGULATOR_MODE_NORMAL;
 	else if (sysfs_streq(buf, "idle\n"))
 		mode = REGULATOR_MODE_IDLE;

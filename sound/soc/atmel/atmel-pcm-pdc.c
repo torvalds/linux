@@ -8,8 +8,8 @@
  * Authors: Sedji Gaouaou <sedji.gaouaou@atmel.com>
  *
  * Based on at91-pcm. by:
- * Frank Mandarino <fmandarino@endrelia.com>
- * Copyright 2006 Endrelia Technologies Inc.
+ * Frank Mandariyes <fmandariyes@endrelia.com>
+ * Copyright 2006 Endrelia Techyeslogies Inc.
  *
  * Based on pxa2xx-pcm.c by:
  *

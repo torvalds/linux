@@ -91,14 +91,14 @@ struct eth_stats_info {
 	u32 ipv4_ofld_cnt;
 	/* Num Offloaded Connections TCP_IPv6. */
 	u32 ipv6_ofld_cnt;
-	u32 promiscuous_mode;	/* Promiscuous Mode. non-zero true */
+	u32 promiscuous_mode;	/* Promiscuous Mode. yesn-zero true */
 	u32 txq_size;		/* TX Descriptors Queue Size */
 	u32 rxq_size;		/* RX Descriptors Queue Size */
 	/* TX Descriptor Queue Avg Depth. % Avg Queue Depth since last poll */
 	u32 txq_avg_depth;
 	/* RX Descriptors Queue Avg Depth. % Avg Queue Depth since last poll */
 	u32 rxq_avg_depth;
-	/* IOV_Offload. 0=none; 1=MultiQueue, 2=VEB 3= VEPA*/
+	/* IOV_Offload. 0=yesne; 1=MultiQueue, 2=VEB 3= VEPA*/
 	u32 iov_offload;
 	/* Number of NetQueue/VMQ Config'd. */
 	u32 netq_cnt;

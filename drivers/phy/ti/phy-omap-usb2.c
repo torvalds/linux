@@ -284,8 +284,8 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct phy_provider *phy_provider;
 	struct usb_otg *otg;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *control_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *control_yesde;
 	struct platform_device *control_pdev;
 	const struct of_device_id *of_id;
 	struct usb_phy_data *phy_data;
@@ -323,28 +323,28 @@ static int omap_usb2_probe(struct platform_device *pdev)
 		phy->flags |= OMAP_USB2_CALIBRATE_FALSE_DISCONNECT;
 	}
 
-	phy->syscon_phy_power = syscon_regmap_lookup_by_phandle(node,
+	phy->syscon_phy_power = syscon_regmap_lookup_by_phandle(yesde,
 							"syscon-phy-power");
 	if (IS_ERR(phy->syscon_phy_power)) {
 		dev_dbg(&pdev->dev,
 			"can't get syscon-phy-power, using control device\n");
 		phy->syscon_phy_power = NULL;
 
-		control_node = of_parse_phandle(node, "ctrl-module", 0);
-		if (!control_node) {
+		control_yesde = of_parse_phandle(yesde, "ctrl-module", 0);
+		if (!control_yesde) {
 			dev_err(&pdev->dev,
 				"Failed to get control device phandle\n");
 			return -EINVAL;
 		}
 
-		control_pdev = of_find_device_by_node(control_node);
+		control_pdev = of_find_device_by_yesde(control_yesde);
 		if (!control_pdev) {
 			dev_err(&pdev->dev, "Failed to get control device\n");
 			return -EINVAL;
 		}
 		phy->control_dev = &control_pdev->dev;
 	} else {
-		if (of_property_read_u32_index(node,
+		if (of_property_read_u32_index(yesde,
 					       "syscon-phy-power", 1,
 					       &phy->power_reg)) {
 			dev_err(&pdev->dev,

@@ -67,7 +67,7 @@ static bool iio_buffer_ready(struct iio_dev *indio_dev, struct iio_buffer *buf,
 	avail = iio_buffer_data_available(buf);
 
 	if (avail >= to_wait) {
-		/* force a flush for non-blocking reads */
+		/* force a flush for yesn-blocking reads */
 		if (!to_wait && avail < to_flush)
 			iio_buffer_flush_hwfifo(indio_dev, buf,
 						to_flush - avail);
@@ -119,7 +119,7 @@ ssize_t iio_buffer_read_first_n_outer(struct file *filp, char __user *buf,
 
 	/*
 	 * If datum_size is 0 there will never be anything to read from the
-	 * buffer, so signal end of file now.
+	 * buffer, so signal end of file yesw.
 	 */
 	if (!datum_size)
 		return 0;
@@ -306,7 +306,7 @@ static bool iio_validate_scan_mask(struct iio_dev *indio_dev,
  * @buffer: the buffer whose scan mask we are interested in
  * @bit: the bit to be set.
  *
- * Note that at this point we have no way of knowing what other
+ * Note that at this point we have yes way of kyeswing what other
  * buffers might request, hence this code only verifies that the
  * individual buffers request is plausible.
  */
@@ -647,7 +647,7 @@ static int iio_buffer_request_update(struct iio_dev *indio_dev,
 		ret = buffer->access->request_update(buffer);
 		if (ret) {
 			dev_dbg(&indio_dev->dev,
-			       "Buffer not started: buffer parameter update failed (%d)\n",
+			       "Buffer yest started: buffer parameter update failed (%d)\n",
 				ret);
 			return ret;
 		}
@@ -659,7 +659,7 @@ static int iio_buffer_request_update(struct iio_dev *indio_dev,
 static void iio_free_scan_mask(struct iio_dev *indio_dev,
 	const unsigned long *mask)
 {
-	/* If the mask is dynamically allocated free it, otherwise do nothing */
+	/* If the mask is dynamically allocated free it, otherwise do yesthing */
 	if (!indio_dev->available_scan_masks)
 		bitmap_free(mask);
 }
@@ -687,7 +687,7 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 	config->watermark = ~0;
 
 	/*
-	 * If there is just one buffer and we are removing it there is nothing
+	 * If there is just one buffer and we are removing it there is yesthing
 	 * to verify.
 	 */
 	if (remove_buffer && !insert_buffer &&
@@ -714,7 +714,7 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 		config->mode = INDIO_BUFFER_TRIGGERED;
 	} else if (modes & INDIO_BUFFER_HARDWARE) {
 		/*
-		 * Keep things simple for now and only allow a single buffer to
+		 * Keep things simple for yesw and only allow a single buffer to
 		 * be connected in hardware mode.
 		 */
 		if (insert_buffer && !list_empty(&indio_dev->buffer_list))
@@ -726,7 +726,7 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 	} else {
 		/* Can only occur on first buffer */
 		if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
-			dev_dbg(&indio_dev->dev, "Buffer not started: no trigger\n");
+			dev_dbg(&indio_dev->dev, "Buffer yest started: yes trigger\n");
 		return -EINVAL;
 	}
 
@@ -917,7 +917,7 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 		ret = indio_dev->setup_ops->preenable(indio_dev);
 		if (ret) {
 			dev_dbg(&indio_dev->dev,
-			       "Buffer not started: buffer preenable failed (%d)\n", ret);
+			       "Buffer yest started: buffer preenable failed (%d)\n", ret);
 			goto err_undo_config;
 		}
 	}
@@ -928,7 +928,7 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 					   indio_dev->active_scan_mask);
 		if (ret < 0) {
 			dev_dbg(&indio_dev->dev,
-				"Buffer not started: update scan mode failed (%d)\n",
+				"Buffer yest started: update scan mode failed (%d)\n",
 				ret);
 			goto err_run_postdisable;
 		}
@@ -950,7 +950,7 @@ static int iio_enable_buffers(struct iio_dev *indio_dev,
 		ret = indio_dev->setup_ops->postenable(indio_dev);
 		if (ret) {
 			dev_dbg(&indio_dev->dev,
-			       "Buffer not started: postenable failed (%d)\n", ret);
+			       "Buffer yest started: postenable failed (%d)\n", ret);
 			goto err_disable_buffers;
 		}
 	}
@@ -1041,7 +1041,7 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 	if (insert_buffer)
 		iio_buffer_activate(indio_dev, insert_buffer);
 
-	/* If no buffers in list, we are done */
+	/* If yes buffers in list, we are done */
 	if (list_empty(&indio_dev->buffer_list))
 		return 0;
 
@@ -1055,7 +1055,7 @@ err_deactivate_all:
 	/*
 	 * We've already verified that the config is valid earlier. If things go
 	 * wrong in either enable or disable the most likely reason is an IO
-	 * error from the device. In this case there is no good recovery
+	 * error from the device. In this case there is yes good recovery
 	 * strategy. Just make sure to disable everything and leave the device
 	 * in a sane state.  With a bit of luck the device might come back to
 	 * life again later and userspace can try again.
@@ -1418,7 +1418,7 @@ EXPORT_SYMBOL_GPL(iio_push_to_buffers);
  * @ref: Pointer to the kref embedded in the iio_buffer struct
  *
  * This function is called when the last reference to the buffer has been
- * dropped. It will typically free all resources allocated by the buffer. Do not
+ * dropped. It will typically free all resources allocated by the buffer. Do yest
  * call this function manually, always use iio_buffer_put() when done using a
  * buffer.
  */

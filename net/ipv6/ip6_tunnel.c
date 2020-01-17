@@ -17,7 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/sockios.h>
 #include <linux/icmp.h>
@@ -327,7 +327,7 @@ failed:
 /**
  * ip6_tnl_locate - find or create tunnel matching given parameters
  *   @p: tunnel parameters
- *   @create: != 0 if allowed to create new tunnel if no match found
+ *   @create: != 0 if allowed to create new tunnel if yes match found
  *
  * Description:
  *   ip6_tnl_locate() first tries to locate an existing tunnel
@@ -391,7 +391,7 @@ ip6_tnl_dev_uninit(struct net_device *dev)
  *   @skb: received socket buffer
  *
  * Return:
- *   0 if none was found,
+ *   0 if yesne was found,
  *   else index to encapsulation limit
  **/
 
@@ -427,7 +427,7 @@ __u16 ip6_tnl_parse_tlv_enc_lim(struct sk_buff *skb, __u8 *raw)
 		if (nexthdr == NEXTHDR_DEST) {
 			u16 i = 2;
 
-			/* Remember : hdr is no longer valid at this point. */
+			/* Remember : hdr is yes longer valid at this point. */
 			if (!pskb_may_pull(skb, off + optlen))
 				break;
 
@@ -640,7 +640,7 @@ ip4ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (rel_info > dst_mtu(skb_dst(skb2)))
 			goto out;
 
-		skb_dst_update_pmtu_no_confirm(skb2, rel_info);
+		skb_dst_update_pmtu_yes_confirm(skb2, rel_info);
 	}
 
 	icmp_send(skb2, rel_type, rel_code, htonl(rel_info));
@@ -790,13 +790,13 @@ static int __ip6_tnl_rcv(struct ip6_tnl *tunnel, struct sk_buff *skb,
 
 	if (tunnel->parms.i_flags & TUNNEL_SEQ) {
 		if (!(tpi->flags & TUNNEL_SEQ) ||
-		    (tunnel->i_seqno &&
-		     (s32)(ntohl(tpi->seq) - tunnel->i_seqno) < 0)) {
+		    (tunnel->i_seqyes &&
+		     (s32)(ntohl(tpi->seq) - tunnel->i_seqyes) < 0)) {
 			tunnel->dev->stats.rx_fifo_errors++;
 			tunnel->dev->stats.rx_errors++;
 			goto drop;
 		}
-		tunnel->i_seqno = ntohl(tpi->seq) + 1;
+		tunnel->i_seqyes = ntohl(tpi->seq) + 1;
 	}
 
 	skb->protocol = tpi->proto;
@@ -824,7 +824,7 @@ static int __ip6_tnl_rcv(struct ip6_tnl *tunnel, struct sk_buff *skb,
 	err = dscp_ecn_decapsulate(tunnel, ipv6h, skb);
 	if (unlikely(err)) {
 		if (log_ecn_err)
-			net_info_ratelimited("non-ECT from %pI6 with DS=%#x\n",
+			net_info_ratelimited("yesn-ECT from %pI6 with DS=%#x\n",
 					     &ipv6h->saddr,
 					     ipv6_get_dsfield(ipv6h));
 		if (err > 1) {
@@ -866,12 +866,12 @@ int ip6_tnl_rcv(struct ip6_tnl *t, struct sk_buff *skb,
 EXPORT_SYMBOL(ip6_tnl_rcv);
 
 static const struct tnl_ptk_info tpi_v6 = {
-	/* no tunnel info required for ipxip6. */
+	/* yes tunnel info required for ipxip6. */
 	.proto = htons(ETH_P_IPV6),
 };
 
 static const struct tnl_ptk_info tpi_v4 = {
-	/* no tunnel info required for ipxip6. */
+	/* yes tunnel info required for ipxip6. */
 	.proto = htons(ETH_P_IP),
 };
 
@@ -993,13 +993,13 @@ int ip6_tnl_xmit_ctl(struct ip6_tnl *t,
 
 		if (unlikely(!ipv6_chk_addr_and_flags(net, laddr, ldev, false,
 						      0, IFA_F_TENTATIVE)))
-			pr_warn("%s xmit: Local address not yet configured!\n",
+			pr_warn("%s xmit: Local address yest yet configured!\n",
 				p->name);
 		else if (!(p->flags & IP6_TNL_F_ALLOW_LOCAL_REMOTE) &&
 			 !ipv6_addr_is_multicast(raddr) &&
 			 unlikely(ipv6_chk_addr_and_flags(net, raddr, ldev,
 							  true, 0, IFA_F_TENTATIVE)))
-			pr_warn("%s xmit: Routing loop! Remote address found on this node!\n",
+			pr_warn("%s xmit: Routing loop! Remote address found on this yesde!\n",
 				p->name);
 		else
 			ret = 1;
@@ -1082,7 +1082,7 @@ int ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev, __u8 dsfield,
 	} else if (t->parms.proto != 0 && !(t->parms.flags &
 					    (IP6_TNL_F_USE_ORIG_TCLASS |
 					     IP6_TNL_F_USE_ORIG_FWMARK))) {
-		/* enable the cache only if neither the outer protocol nor the
+		/* enable the cache only if neither the outer protocol yesr the
 		 * routing decision depends on the current inner header value
 		 */
 		use_cache = true;
@@ -1132,7 +1132,7 @@ route_lookup:
 	mtu = max(mtu, skb->protocol == htons(ETH_P_IPV6) ?
 		       IPV6_MIN_MTU : IPV4_MIN_MTU);
 
-	skb_dst_update_pmtu_no_confirm(skb, mtu);
+	skb_dst_update_pmtu_yes_confirm(skb, mtu);
 	if (skb->len - t->tun_hlen - eth_hlen > mtu && !skb_is_gso(skb)) {
 		*pmtu = mtu;
 		err = -EMSGSIZE;
@@ -1153,7 +1153,7 @@ route_lookup:
 	skb_scrub_packet(skb, !net_eq(t->net, dev_net(dev)));
 
 	/*
-	 * Okay, now see if we can stuff it in the buffer as-is.
+	 * Okay, yesw see if we can stuff it in the buffer as-is.
 	 */
 	max_headroom += LL_RESERVED_SPACE(tdev);
 
@@ -1288,7 +1288,7 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	err = ip6_tnl_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
 			   IPPROTO_IPIP);
 	if (err != 0) {
-		/* XXX: send ICMP error even if DF is not set. */
+		/* XXX: send ICMP error even if DF is yest set. */
 		if (err == -EMSGSIZE)
 			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 				  htonl(mtu));
@@ -1577,7 +1577,7 @@ ip6_tnl_parm_to_user(struct ip6_tnl_parm *u, const struct __ip6_tnl_parm *p)
  *   %-EPERM if current process hasn't %CAP_NET_ADMIN set
  *   %-EINVAL if passed tunnel parameters are invalid,
  *   %-EEXIST if changing a tunnel's parameters would cause a conflict
- *   %-ENODEV if attempting to change or delete a nonexisting device
+ *   %-ENODEV if attempting to change or delete a yesnexisting device
  **/
 
 static int
@@ -1865,7 +1865,7 @@ free_stats:
 }
 
 /**
- * ip6_tnl_dev_init - initializer for all non fallback tunnel devices
+ * ip6_tnl_dev_init - initializer for all yesn fallback tunnel devices
  *   @dev: virtual device associated with tunnel
  **/
 
@@ -2233,7 +2233,7 @@ static int __net_init ip6_tnl_init_net(struct net *net)
 	dev_net_set(ip6n->fb_tnl_dev, net);
 	ip6n->fb_tnl_dev->rtnl_link_ops = &ip6_link_ops;
 	/* FB netdevice is special: we have one, and only one per netns.
-	 * Allowing to move it to another netns is clearly unsafe.
+	 * Allowing to move it to ayesther netns is clearly unsafe.
 	 */
 	ip6n->fb_tnl_dev->features |= NETIF_F_NETNS_LOCAL;
 

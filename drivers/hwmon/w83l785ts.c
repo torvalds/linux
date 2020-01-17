@@ -33,10 +33,10 @@
 
 /*
  * Address to scan
- * Address is fully defined internally and cannot be changed.
+ * Address is fully defined internally and canyest be changed.
  */
 
-static const unsigned short normal_i2c[] = { 0x2e, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2e, I2C_CLIENT_END };
 
 /*
  * The W83L785TS-S registers
@@ -49,7 +49,7 @@ static const unsigned short normal_i2c[] = { 0x2e, I2C_CLIENT_END };
 #define W83L785TS_REG_CONFIG		0x40
 #define W83L785TS_REG_TYPE		0x52
 #define W83L785TS_REG_TEMP		0x27
-#define W83L785TS_REG_TEMP_OVER		0x53 /* not sure about this one */
+#define W83L785TS_REG_TEMP_OVER		0x53 /* yest sure about this one */
 
 /*
  * Conversions
@@ -89,7 +89,7 @@ static struct i2c_driver w83l785ts_driver = {
 	.remove		= w83l785ts_remove,
 	.id_table	= w83l785ts_id,
 	.detect		= w83l785ts_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 /*

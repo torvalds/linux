@@ -7,8 +7,8 @@
 #define __LINUX_IRQCHIP_ARM_GIC_V3_H
 
 /*
- * Distributor registers. We assume we're running non-secure, with ARE
- * being set. Secure-only and non-ARE registers are not described.
+ * Distributor registers. We assume we're running yesn-secure, with ARE
+ * being set. Secure-only and yesn-ARE registers are yest described.
  */
 #define GICD_CTLR			0x0000
 #define GICD_TYPER			0x0004
@@ -619,11 +619,11 @@ struct rdists {
 };
 
 struct irq_domain;
-struct fwnode_handle;
+struct fwyesde_handle;
 int its_cpu_init(void);
-int its_init(struct fwnode_handle *handle, struct rdists *rdists,
+int its_init(struct fwyesde_handle *handle, struct rdists *rdists,
 	     struct irq_domain *domain);
-int mbi_init(struct fwnode_handle *fwnode, struct irq_domain *parent);
+int mbi_init(struct fwyesde_handle *fwyesde, struct irq_domain *parent);
 
 static inline bool gic_enable_sre(void)
 {

@@ -9,7 +9,7 @@
  *    Copyright 2002-2005 MontaVista Software Inc.
  *
  *    Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- *    Copyright (c) 2003-2005 Zultys Technologies
+ *    Copyright (c) 2003-2005 Zultys Techyeslogies
  *
  *    Rewritten and ported to the merged powerpc tree:
  *    Copyright 2007 David Gibson <dwg@au1.ibm.com>, IBM Corporation.
@@ -48,10 +48,10 @@ machine_device_initcall(iss4xx, iss4xx_device_probe);
 /* We can have either UICs or MPICs */
 static void __init iss4xx_init_irq(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	/* Find top level interrupt controller */
-	for_each_node_with_property(np, "interrupt-controller") {
+	for_each_yesde_with_property(np, "interrupt-controller") {
 		if (of_get_property(np, "interrupts", NULL) == NULL)
 			break;
 	}
@@ -84,18 +84,18 @@ static void smp_iss4xx_setup_cpu(int cpu)
 
 static int smp_iss4xx_kick_cpu(int cpu)
 {
-	struct device_node *cpunode = of_get_cpu_node(cpu, NULL);
+	struct device_yesde *cpuyesde = of_get_cpu_yesde(cpu, NULL);
 	const u64 *spin_table_addr_prop;
 	u32 *spin_table;
 	extern void start_secondary_47x(void);
 
-	BUG_ON(cpunode == NULL);
+	BUG_ON(cpuyesde == NULL);
 
 	/* Assume spin table. We could test for the enable-method in
 	 * the device-tree but currently there's little point as it's
 	 * our only supported method
 	 */
-	spin_table_addr_prop = of_get_property(cpunode, "cpu-release-addr",
+	spin_table_addr_prop = of_get_property(cpuyesde, "cpu-release-addr",
 					       NULL);
 	if (spin_table_addr_prop == NULL) {
 		pr_err("CPU%d: Can't start, missing cpu-release-addr !\n", cpu);
@@ -103,7 +103,7 @@ static int smp_iss4xx_kick_cpu(int cpu)
 	}
 
 	/* Assume it's mapped as part of the linear mapping. This is a bit
-	 * fishy but will work fine for now
+	 * fishy but will work fine for yesw
 	 */
 	spin_table = (u32 *)__va(*spin_table_addr_prop);
 	pr_debug("CPU%d: Spin table mapped at %p\n", cpu, spin_table);

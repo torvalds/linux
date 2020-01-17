@@ -6,7 +6,7 @@
  *
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
@@ -72,11 +72,11 @@ void nfs4_slot_tbl_drain_complete(struct nfs4_slot_table *tbl)
  * in the bitmap.
  * If the freed slotid equals highest_used_slotid we want to update it
  * so that the server would be able to size down the slot table if needed,
- * otherwise we know that the highest_used_slotid is still in use.
+ * otherwise we kyesw that the highest_used_slotid is still in use.
  * When updating highest_used_slotid there may be "holes" in the bitmap
- * so we need to scan down from highest_used_slotid to 0 looking for the now
+ * so we need to scan down from highest_used_slotid to 0 looking for the yesw
  * highest slotid in use.
- * If none found, highest_used_slotid is set to NFS4_NO_SLOT.
+ * If yesne found, highest_used_slotid is set to NFS4_NO_SLOT.
  *
  * Must be called while holding tbl->slot_tbl_lock
  */
@@ -345,7 +345,7 @@ void nfs4_shutdown_slot_table(struct nfs4_slot_table *tbl)
  * @max_reqs: maximum number of requests allowed
  * @queue: name to give RPC wait queue
  *
- * Returns zero on success, or a negative errno.
+ * Returns zero on success, or a negative erryes.
  */
 int nfs4_setup_slot_table(struct nfs4_slot_table *tbl, unsigned int max_reqs,
 		const char *queue)
@@ -594,7 +594,7 @@ void nfs4_destroy_session(struct nfs4_session *session)
 }
 
 /*
- * With sessions, the client is not marked ready until after a
+ * With sessions, the client is yest marked ready until after a
  * successful EXCHANGE_ID and CREATE_SESSION.
  *
  * Map errors cl_cons_state errors to EPROTONOSUPPORT to indicate
@@ -632,7 +632,7 @@ int nfs4_init_ds_session(struct nfs_client *clp, unsigned long lease_time)
 	spin_lock(&clp->cl_lock);
 	if (test_and_clear_bit(NFS4_SESSION_INITING, &session->session_state)) {
 		/*
-		 * Do not set NFS_CS_CHECK_LEASE_TIME instead set the
+		 * Do yest set NFS_CS_CHECK_LEASE_TIME instead set the
 		 * DS lease to be equal to the MDS lease.
 		 */
 		clp->cl_lease_time = lease_time;

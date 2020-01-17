@@ -378,7 +378,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 	vmmc-supply = <&reg_wlan>;
 	mmc-pwrseq = <&usdhc2_pwrseq>;
 	cap-power-off-card;
@@ -401,7 +401,7 @@
 	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
 	fsl,tuning-step = <2>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 

@@ -226,7 +226,7 @@
  */
 .macro m5249c3_setup
 	/*
-	 *	Set MBAR1 and MBAR2, just incase they are not set.
+	 *	Set MBAR1 and MBAR2, just incase they are yest set.
 	 */
 	movel	#0x10000001,%a0
 	movec	%a0,%MBAR			/* map MBAR region */
@@ -249,13 +249,13 @@
 	movel	%d0,0x84(%a0)			/* set CSMR0 */
 
 	/*
-	 *	Disable the PLL firstly. (Who knows what state it is
+	 *	Disable the PLL firstly. (Who kyesws what state it is
 	 *	in here!).
 	 */
 	movel	0x180(%a1),%d0			/* get current PLL value */
 	andl	#0xfffffffe,%d0			/* PLL bypass first */
 	movel	%d0,0x180(%a1)			/* set PLL register */
-	nop
+	yesp
 
 #if CONFIG_CLOCK_FREQ == 140000000
 	/*

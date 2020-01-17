@@ -176,7 +176,7 @@ uint32_t fdt_next_tag(const void *fdt, int startoffset, int *nextoffset)
 	return tag;
 }
 
-int fdt_check_node_offset_(const void *fdt, int offset)
+int fdt_check_yesde_offset_(const void *fdt, int offset)
 {
 	if ((offset < 0) || (offset % FDT_TAGSIZE)
 	    || (fdt_next_tag(fdt, offset, &offset) != FDT_BEGIN_NODE))
@@ -194,13 +194,13 @@ int fdt_check_prop_offset_(const void *fdt, int offset)
 	return offset;
 }
 
-int fdt_next_node(const void *fdt, int offset, int *depth)
+int fdt_next_yesde(const void *fdt, int offset, int *depth)
 {
 	int nextoffset = 0;
 	uint32_t tag;
 
 	if (offset >= 0)
-		if ((nextoffset = fdt_check_node_offset_(fdt, offset)) < 0)
+		if ((nextoffset = fdt_check_yesde_offset_(fdt, offset)) < 0)
 			return nextoffset;
 
 	do {
@@ -234,27 +234,27 @@ int fdt_next_node(const void *fdt, int offset, int *depth)
 	return offset;
 }
 
-int fdt_first_subnode(const void *fdt, int offset)
+int fdt_first_subyesde(const void *fdt, int offset)
 {
 	int depth = 0;
 
-	offset = fdt_next_node(fdt, offset, &depth);
+	offset = fdt_next_yesde(fdt, offset, &depth);
 	if (offset < 0 || depth != 1)
 		return -FDT_ERR_NOTFOUND;
 
 	return offset;
 }
 
-int fdt_next_subnode(const void *fdt, int offset)
+int fdt_next_subyesde(const void *fdt, int offset)
 {
 	int depth = 1;
 
 	/*
-	 * With respect to the parent, the depth of the next subnode will be
+	 * With respect to the parent, the depth of the next subyesde will be
 	 * the same as the last.
 	 */
 	do {
-		offset = fdt_next_node(fdt, offset, &depth);
+		offset = fdt_next_yesde(fdt, offset, &depth);
 		if (offset < 0 || depth < 1)
 			return -FDT_ERR_NOTFOUND;
 	} while (depth > 1);

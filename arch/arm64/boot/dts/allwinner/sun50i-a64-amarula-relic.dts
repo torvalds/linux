@@ -125,7 +125,7 @@
 	vqmmc-supply = <&reg_eldo1>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 
 	brcmf: wifi@1 {
@@ -142,7 +142,7 @@
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	cap-mmc-hw-reset;
 	status = "okay";
 };
@@ -265,9 +265,9 @@
 };
 
 /*
- * The A64 chip cannot work without this regulator off, although
+ * The A64 chip canyest work without this regulator off, although
  * it seems to be only driving the AR100 core.
- * Maybe we don't still know well about CPUs domain.
+ * Maybe we don't still kyesw well about CPUs domain.
  */
 &reg_fldo2 {
 	regulator-always-on;

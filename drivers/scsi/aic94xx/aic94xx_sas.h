@@ -220,7 +220,7 @@ struct asd_ddb_seq_shared {
 	u32    _r_a;
 	u8     settable_max_contexts;
 	u8     _r_b[23];
-	u8     conn_not_active;
+	u8     conn_yest_active;
 	u8     phy_is_up;
 	u8     _r_c[8];
 	u8     port_map_by_links[8];
@@ -258,7 +258,7 @@ struct sg_el {
 
 /* An SCB (sequencer control block) is comprised of a common header
  * and a task part, for a total of 128 bytes.  All fields are in LE
- * order, unless otherwise noted.
+ * order, unless otherwise yested.
  */
 
 /* This struct scb_header, defines the SCB header format.
@@ -589,18 +589,18 @@ struct scb {
 /* ---------- Done List ---------- */
 /* The done list entry opcode field is defined below.
  * The mnemonic encoding and meaning is as follows:
- * TC - Task Complete, status was received and acknowledged
- * TF - Task Failed, indicates an error prior to receiving acknowledgment
+ * TC - Task Complete, status was received and ackyeswledged
+ * TF - Task Failed, indicates an error prior to receiving ackyeswledgment
  *   for the command:
- *   - no conn,
+ *   - yes conn,
  *   - NACK or R_ERR received in response to this command,
- *   - credit blocked or not available, or in the case of SMP request,
- *   - no SMP response was received.
- *   In these four cases it is known that the target didn't receive the
+ *   - credit blocked or yest available, or in the case of SMP request,
+ *   - yes SMP response was received.
+ *   In these four cases it is kyeswn that the target didn't receive the
  *   command.
- * TI - Task Interrupted, error after the command was acknowledged.  It is
- *   known that the command was received by the target.
- * TU - Task Unacked, command was transmitted but neither ACK (R_OK) nor NAK
+ * TI - Task Interrupted, error after the command was ackyeswledged.  It is
+ *   kyeswn that the command was received by the target.
+ * TU - Task Unacked, command was transmitted but neither ACK (R_OK) yesr NAK
  *   (R_ERR) was received due to loss of signal, broken connection, loss of
  *   dword sync or other reason.  The application client should send the
  *   appropriate task query.
@@ -688,7 +688,7 @@ struct asd_phy {
 #define ASD_SCB_SIZE sizeof(struct scb)
 #define ASD_DDB_SIZE sizeof(struct asd_ddb_ssp_smp_target_port)
 
-/* Define this to 0 if you do not want NOTIFY (ENABLE SPINIP) sent.
+/* Define this to 0 if you do yest want NOTIFY (ENABLE SPINIP) sent.
  * Default: 0x10 (it's a mask)
  */
 #define ASD_NOTIFY_ENABLE_SPINUP  0x10

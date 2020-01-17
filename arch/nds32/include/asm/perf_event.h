@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2008-2018 Andes Technology Corporation */
+/* Copyright (C) 2008-2018 Andes Techyeslogy Corporation */
 
 #ifndef __ASM_PERF_EVENT_H
 #define __ASM_PERF_EVENT_H

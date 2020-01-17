@@ -23,8 +23,8 @@
 #include "stmmac.h"
 #include "stmmac_platform.h"
 
-/* General notes on dwmac-sun8i:
- * Locking: no locking is necessary in this file because all necessary locking
+/* General yestes on dwmac-sun8i:
+ * Locking: yes locking is necessary in this file because all necessary locking
  *		is done in the "stmmac files"
  */
 
@@ -43,7 +43,7 @@
  * @tx_delay_max:		Maximum raw value for TX delay chain
  *				These two also indicate the bitmask for
  *				the RX and TX delay chain registers. A
- *				value of zero indicates this is not supported.
+ *				value of zero indicates this is yest supported.
  */
 struct emac_variant {
 	u32 default_syscon_value;
@@ -141,7 +141,7 @@ static const struct emac_variant emac_variant_a64 = {
 static const struct emac_variant emac_variant_h6 = {
 	.default_syscon_value = 0x50000,
 	.syscon_field = &sun8i_syscon_reg_field,
-	/* The "Internal PHY" of H6 is not on the die. It's on the
+	/* The "Internal PHY" of H6 is yest on the die. It's on the
 	 * co-packaged AC200 chip instead.
 	 */
 	.soc_has_internal_phy = false,
@@ -403,7 +403,7 @@ static int sun8i_dwmac_dma_interrupt(void __iomem *ioaddr,
 
 	if (v & EMAC_TX_INT) {
 		ret |= handle_tx;
-		x->tx_normal_irq_n++;
+		x->tx_yesrmal_irq_n++;
 	}
 
 	if (v & EMAC_TX_DMA_STOP_INT)
@@ -425,7 +425,7 @@ static int sun8i_dwmac_dma_interrupt(void __iomem *ioaddr,
 
 	if (v & EMAC_RX_INT) {
 		ret |= handle_rx;
-		x->rx_normal_irq_n++;
+		x->rx_yesrmal_irq_n++;
 	}
 
 	if (v & EMAC_RX_BUF_UA_INT)
@@ -540,7 +540,7 @@ static int sun8i_dwmac_init(struct platform_device *pdev, void *priv)
 	if (ret) {
 		if (gmac->regulator)
 			regulator_disable(gmac->regulator);
-		dev_err(&pdev->dev, "Could not enable AHB clock\n");
+		dev_err(&pdev->dev, "Could yest enable AHB clock\n");
 		return ret;
 	}
 
@@ -609,7 +609,7 @@ static void sun8i_dwmac_get_umac_addr(struct mac_device_info *hw,
 			    EMAC_MACADDR_LO(reg_n));
 }
 
-/* caution this function must return non 0 to work */
+/* caution this function must return yesn 0 to work */
 static int sun8i_dwmac_rx_ipc_enable(struct mac_device_info *hw)
 {
 	void __iomem *ioaddr = hw->pcsr;
@@ -694,7 +694,7 @@ static int sun8i_dwmac_reset(struct stmmac_priv *priv)
 	writel(v | 0x01, priv->ioaddr + EMAC_BASIC_CTL1);
 
 	/* The timeout was previoulsy set to 10ms, but some board (OrangePI0)
-	 * need more if no cable plugged. 100ms seems OK
+	 * need more if yes cable plugged. 100ms seems OK
 	 */
 	err = readl_poll_timeout(priv->ioaddr + EMAC_BASIC_CTL1, v,
 				 !(v & 0x01), 100, 100000);
@@ -706,50 +706,50 @@ static int sun8i_dwmac_reset(struct stmmac_priv *priv)
 	return 0;
 }
 
-/* Search in mdio-mux node for internal PHY node and get its clk/reset */
-static int get_ephy_nodes(struct stmmac_priv *priv)
+/* Search in mdio-mux yesde for internal PHY yesde and get its clk/reset */
+static int get_ephy_yesdes(struct stmmac_priv *priv)
 {
 	struct sunxi_priv_data *gmac = priv->plat->bsp_priv;
-	struct device_node *mdio_mux, *iphynode;
-	struct device_node *mdio_internal;
+	struct device_yesde *mdio_mux, *iphyyesde;
+	struct device_yesde *mdio_internal;
 	int ret;
 
-	mdio_mux = of_get_child_by_name(priv->device->of_node, "mdio-mux");
+	mdio_mux = of_get_child_by_name(priv->device->of_yesde, "mdio-mux");
 	if (!mdio_mux) {
-		dev_err(priv->device, "Cannot get mdio-mux node\n");
+		dev_err(priv->device, "Canyest get mdio-mux yesde\n");
 		return -ENODEV;
 	}
 
 	mdio_internal = of_get_compatible_child(mdio_mux,
 						"allwinner,sun8i-h3-mdio-internal");
-	of_node_put(mdio_mux);
+	of_yesde_put(mdio_mux);
 	if (!mdio_internal) {
-		dev_err(priv->device, "Cannot get internal_mdio node\n");
+		dev_err(priv->device, "Canyest get internal_mdio yesde\n");
 		return -ENODEV;
 	}
 
 	/* Seek for internal PHY */
-	for_each_child_of_node(mdio_internal, iphynode) {
-		gmac->ephy_clk = of_clk_get(iphynode, 0);
+	for_each_child_of_yesde(mdio_internal, iphyyesde) {
+		gmac->ephy_clk = of_clk_get(iphyyesde, 0);
 		if (IS_ERR(gmac->ephy_clk))
 			continue;
-		gmac->rst_ephy = of_reset_control_get_exclusive(iphynode, NULL);
+		gmac->rst_ephy = of_reset_control_get_exclusive(iphyyesde, NULL);
 		if (IS_ERR(gmac->rst_ephy)) {
 			ret = PTR_ERR(gmac->rst_ephy);
 			if (ret == -EPROBE_DEFER) {
-				of_node_put(iphynode);
-				of_node_put(mdio_internal);
+				of_yesde_put(iphyyesde);
+				of_yesde_put(mdio_internal);
 				return ret;
 			}
 			continue;
 		}
-		dev_info(priv->device, "Found internal PHY node\n");
-		of_node_put(iphynode);
-		of_node_put(mdio_internal);
+		dev_info(priv->device, "Found internal PHY yesde\n");
+		of_yesde_put(iphyyesde);
+		of_yesde_put(mdio_internal);
 		return 0;
 	}
 
-	of_node_put(mdio_internal);
+	of_yesde_put(mdio_internal);
 	return -ENODEV;
 }
 
@@ -766,7 +766,7 @@ static int sun8i_dwmac_power_internal_phy(struct stmmac_priv *priv)
 	dev_info(priv->device, "Powering internal PHY\n");
 	ret = clk_prepare_enable(gmac->ephy_clk);
 	if (ret) {
-		dev_err(priv->device, "Cannot enable internal PHY\n");
+		dev_err(priv->device, "Canyest enable internal PHY\n");
 		return ret;
 	}
 
@@ -777,7 +777,7 @@ static int sun8i_dwmac_power_internal_phy(struct stmmac_priv *priv)
 
 	ret = reset_control_deassert(gmac->rst_ephy);
 	if (ret) {
-		dev_err(priv->device, "Cannot deassert internal phy\n");
+		dev_err(priv->device, "Canyest deassert internal phy\n");
 		clk_disable_unprepare(gmac->ephy_clk);
 		return ret;
 	}
@@ -803,7 +803,7 @@ static int sun8i_dwmac_unpower_internal_phy(struct sunxi_priv_data *gmac)
  * multiplexer needs to switch.
  * 'current_child' is the current value of the mux register
  * 'desired_child' is the value of the 'reg' property of the target child MDIO
- * node.
+ * yesde.
  * The first time this function is called, current_child == -1.
  * If current_child == desired_child, then the mux is already set to the
  * correct bus.
@@ -855,10 +855,10 @@ static int mdio_mux_syscon_switch_fn(int current_child, int desired_child,
 static int sun8i_dwmac_register_mdio_mux(struct stmmac_priv *priv)
 {
 	int ret;
-	struct device_node *mdio_mux;
+	struct device_yesde *mdio_mux;
 	struct sunxi_priv_data *gmac = priv->plat->bsp_priv;
 
-	mdio_mux = of_get_child_by_name(priv->device->of_node, "mdio-mux");
+	mdio_mux = of_get_child_by_name(priv->device->of_yesde, "mdio-mux");
 	if (!mdio_mux)
 		return -ENODEV;
 
@@ -870,7 +870,7 @@ static int sun8i_dwmac_register_mdio_mux(struct stmmac_priv *priv)
 static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 {
 	struct sunxi_priv_data *gmac = priv->plat->bsp_priv;
-	struct device_node *node = priv->device->of_node;
+	struct device_yesde *yesde = priv->device->of_yesde;
 	int ret;
 	u32 reg, val;
 
@@ -883,11 +883,11 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 	reg = gmac->variant->default_syscon_value;
 	if (reg != val)
 		dev_warn(priv->device,
-			 "Current syscon value is not the default %x (expect %x)\n",
+			 "Current syscon value is yest the default %x (expect %x)\n",
 			 val, reg);
 
 	if (gmac->variant->soc_has_internal_phy) {
-		if (of_property_read_bool(node, "allwinner,leds-active-low"))
+		if (of_property_read_bool(yesde, "allwinner,leds-active-low"))
 			reg |= H3_EPHY_LED_POL;
 		else
 			reg &= ~H3_EPHY_LED_POL;
@@ -895,9 +895,9 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 		/* Force EPHY xtal frequency to 24MHz. */
 		reg |= H3_EPHY_CLK_SEL;
 
-		ret = of_mdio_parse_addr(priv->device, priv->plat->phy_node);
+		ret = of_mdio_parse_addr(priv->device, priv->plat->phy_yesde);
 		if (ret < 0) {
-			dev_err(priv->device, "Could not parse MDIO addr\n");
+			dev_err(priv->device, "Could yest parse MDIO addr\n");
 			return ret;
 		}
 		/* of_mdio_parse_addr returns a valid (0 ~ 31) PHY
@@ -911,7 +911,7 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 		reg &= ~H3_EPHY_SELECT;
 	}
 
-	if (!of_property_read_u32(node, "allwinner,tx-delay-ps", &val)) {
+	if (!of_property_read_u32(yesde, "allwinner,tx-delay-ps", &val)) {
 		if (val % 100) {
 			dev_err(priv->device, "tx-delay must be a multiple of 100\n");
 			return -EINVAL;
@@ -929,7 +929,7 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 		}
 	}
 
-	if (!of_property_read_u32(node, "allwinner,rx-delay-ps", &val)) {
+	if (!of_property_read_u32(yesde, "allwinner,rx-delay-ps", &val)) {
 		if (val % 100) {
 			dev_err(priv->device, "rx-delay must be a multiple of 100\n");
 			return -EINVAL;
@@ -1068,37 +1068,37 @@ static struct mac_device_info *sun8i_dwmac_setup(void *ppriv)
 	mac->mii.clk_csr_mask = GENMASK(22, 20);
 	mac->unicast_filter_entries = 8;
 
-	/* Synopsys Id is not available */
-	priv->synopsys_id = 0;
+	/* Syyespsys Id is yest available */
+	priv->syyespsys_id = 0;
 
 	return mac;
 }
 
-static struct regmap *sun8i_dwmac_get_syscon_from_dev(struct device_node *node)
+static struct regmap *sun8i_dwmac_get_syscon_from_dev(struct device_yesde *yesde)
 {
-	struct device_node *syscon_node;
+	struct device_yesde *syscon_yesde;
 	struct platform_device *syscon_pdev;
 	struct regmap *regmap = NULL;
 
-	syscon_node = of_parse_phandle(node, "syscon", 0);
-	if (!syscon_node)
+	syscon_yesde = of_parse_phandle(yesde, "syscon", 0);
+	if (!syscon_yesde)
 		return ERR_PTR(-ENODEV);
 
-	syscon_pdev = of_find_device_by_node(syscon_node);
+	syscon_pdev = of_find_device_by_yesde(syscon_yesde);
 	if (!syscon_pdev) {
-		/* platform device might not be probed yet */
+		/* platform device might yest be probed yet */
 		regmap = ERR_PTR(-EPROBE_DEFER);
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
-	/* If no regmap is found then the other device driver is at fault */
+	/* If yes regmap is found then the other device driver is at fault */
 	regmap = dev_get_regmap(&syscon_pdev->dev, NULL);
 	if (!regmap)
 		regmap = ERR_PTR(-EINVAL);
 
 	platform_device_put(syscon_pdev);
-out_put_node:
-	of_node_put(syscon_node);
+out_put_yesde:
+	of_yesde_put(syscon_yesde);
 	return regmap;
 }
 
@@ -1134,7 +1134,7 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 
 	gmac->tx_clk = devm_clk_get(dev, "stmmaceth");
 	if (IS_ERR(gmac->tx_clk)) {
-		dev_err(dev, "Could not get TX clock\n");
+		dev_err(dev, "Could yest get TX clock\n");
 		return PTR_ERR(gmac->tx_clk);
 	}
 
@@ -1151,7 +1151,7 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 	 * CCU address range (on the R40), or the system control address
 	 * range (on most other sun8i and later SoCs).
 	 *
-	 * The former controls most if not all clocks in the SoC. The
+	 * The former controls most if yest all clocks in the SoC. The
 	 * latter has an SoC identification register, and on some SoCs,
 	 * controls to map device specific SRAM to either the intended
 	 * peripheral, or the CPU address space.
@@ -1164,9 +1164,9 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 	 * To support old device trees, we fall back to using the syscon
 	 * interface if possible.
 	 */
-	regmap = sun8i_dwmac_get_syscon_from_dev(pdev->dev.of_node);
+	regmap = sun8i_dwmac_get_syscon_from_dev(pdev->dev.of_yesde);
 	if (IS_ERR(regmap))
-		regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+		regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							 "syscon");
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
@@ -1182,7 +1182,7 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_get_phy_mode(dev->of_node, &interface);
+	ret = of_get_phy_mode(dev->of_yesde, &interface);
 	if (ret)
 		return -EINVAL;
 	plat_dat->interface = interface;
@@ -1212,7 +1212,7 @@ static int sun8i_dwmac_probe(struct platform_device *pdev)
 	 * so after stmmac_dvr_probe()
 	 */
 	if (gmac->variant->soc_has_internal_phy) {
-		ret = get_ephy_nodes(priv);
+		ret = get_ephy_yesdes(priv);
 		if (ret)
 			goto dwmac_exit;
 		ret = sun8i_dwmac_register_mdio_mux(priv);

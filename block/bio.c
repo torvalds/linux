@@ -30,7 +30,7 @@
 
 /*
  * if you change this list, also change bvec_alloc or things will
- * break badly! cannot be bigger than what you can fit into an
+ * break badly! canyest be bigger than what you can fit into an
  * unsigned short
  */
 #define BV(x, n) { .nr_vecs = x, .name = "biovec-"#n }
@@ -41,7 +41,7 @@ static struct biovec_slab bvec_slabs[BVEC_POOL_NR] __read_mostly = {
 
 /*
  * fs_bio_set is the bio_set containing bio and iovec memory pools used by
- * IO code that does not need private memory pools.
+ * IO code that does yest need private memory pools.
  */
 struct bio_set fs_bio_set;
 EXPORT_SYMBOL(fs_bio_set);
@@ -198,7 +198,7 @@ struct bio_vec *bvec_alloc(gfp_t gfp_mask, int nr, unsigned long *idx,
 	}
 
 	/*
-	 * idx now points to the pool we want to allocate from. only the
+	 * idx yesw points to the pool we want to allocate from. only the
 	 * 1-vec entry pool is mempool backed.
 	 */
 	if (*idx == BVEC_POOL_MAX) {
@@ -325,7 +325,7 @@ static void bio_chain_endio(struct bio *bio)
  * @parent's bi_end_io won't be called until both @parent and @bio have
  * completed; the chained bio will also be freed when it completes.
  *
- * The caller must not set bi_private or bi_end_io in @bio.
+ * The caller must yest set bi_private or bi_end_io in @bio.
  */
 void bio_chain(struct bio *bio, struct bio *parent)
 {
@@ -356,7 +356,7 @@ static void bio_alloc_rescue(struct work_struct *work)
 
 static void punt_bios_to_rescuer(struct bio_set *bs)
 {
-	struct bio_list punt, nopunt;
+	struct bio_list punt, yespunt;
 	struct bio *bio;
 
 	if (WARN_ON_ONCE(!bs->rescue_workqueue))
@@ -373,16 +373,16 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
 	 */
 
 	bio_list_init(&punt);
-	bio_list_init(&nopunt);
+	bio_list_init(&yespunt);
 
 	while ((bio = bio_list_pop(&current->bio_list[0])))
-		bio_list_add(bio->bi_pool == bs ? &punt : &nopunt, bio);
-	current->bio_list[0] = nopunt;
+		bio_list_add(bio->bi_pool == bs ? &punt : &yespunt, bio);
+	current->bio_list[0] = yespunt;
 
-	bio_list_init(&nopunt);
+	bio_list_init(&yespunt);
 	while ((bio = bio_list_pop(&current->bio_list[1])))
-		bio_list_add(bio->bi_pool == bs ? &punt : &nopunt, bio);
-	current->bio_list[1] = nopunt;
+		bio_list_add(bio->bi_pool == bs ? &punt : &yespunt, bio);
+	current->bio_list[1] = yespunt;
 
 	spin_lock(&bs->rescue_lock);
 	bio_list_merge(&bs->rescue_list, &punt);
@@ -401,7 +401,7 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
  *   If @bs is NULL, uses kmalloc() to allocate the bio; else the allocation is
  *   backed by the @bs's mempool.
  *
- *   When @bs is not NULL, if %__GFP_DIRECT_RECLAIM is set then bio_alloc will
+ *   When @bs is yest NULL, if %__GFP_DIRECT_RECLAIM is set then bio_alloc will
  *   always be able to allocate a bio. This is due to the mempool guarantees.
  *   To make this work, callers must never allocate more than 1 bio at a time
  *   from this pool. Callers that need to allocate more than 1 bio must always
@@ -409,16 +409,16 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
  *   a new one. Failure to do so can cause deadlocks under memory pressure.
  *
  *   Note that when running under generic_make_request() (i.e. any block
- *   driver), bios are not submitted until after you return - see the code in
+ *   driver), bios are yest submitted until after you return - see the code in
  *   generic_make_request() that converts recursion into iteration, to prevent
  *   stack overflows.
  *
- *   This would normally mean allocating multiple bios under
+ *   This would yesrmally mean allocating multiple bios under
  *   generic_make_request() would be susceptible to deadlocks, but we have
  *   deadlock avoidance code that resubmits any blocked bios from a rescuer
  *   thread.
  *
- *   However, we do not guarantee forward progress for allocations from other
+ *   However, we do yest guarantee forward progress for allocations from other
  *   mempools. Doing multiple allocations from the same mempool under
  *   generic_make_request() should be avoided - instead, use bio_set's front_pad
  *   for per bio allocations.
@@ -446,14 +446,14 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, unsigned int nr_iovecs,
 		front_pad = 0;
 		inline_vecs = nr_iovecs;
 	} else {
-		/* should not use nobvec bioset for nr_iovecs > 0 */
+		/* should yest use yesbvec bioset for nr_iovecs > 0 */
 		if (WARN_ON_ONCE(!mempool_initialized(&bs->bvec_pool) &&
 				 nr_iovecs > 0))
 			return NULL;
 		/*
 		 * generic_make_request() converts recursion to iteration; this
 		 * means if we're running beneath it, any bios we allocate and
-		 * submit will not be submitted (and thus freed) until after we
+		 * submit will yest be submitted (and thus freed) until after we
 		 * return.
 		 *
 		 * This exposes us to a potential deadlock if we allocate
@@ -581,7 +581,7 @@ void bio_truncate(struct bio *bio, unsigned new_size)
 	 * fs bio user has to retrieve all pages via bio_for_each_segment_all
 	 * in its .end_bio() callback.
 	 *
-	 * It is enough to truncate bio by updating .bi_size since we can make
+	 * It is eyesugh to truncate bio by updating .bi_size since we can make
 	 * correct bvec with the updated .bi_size for drivers.
 	 */
 	bio->bi_iter.bi_size = new_size;
@@ -616,11 +616,11 @@ EXPORT_SYMBOL(bio_put);
  * 	@bio: destination bio
  * 	@bio_src: bio to clone
  *
- *	Clone a &bio. Caller will own the returned bio, but not
+ *	Clone a &bio. Caller will own the returned bio, but yest
  *	the actual data it points to. Reference count of returned
  * 	bio will be one.
  *
- * 	Caller must ensure that @bio_src is not freed before @bio.
+ * 	Caller must ensure that @bio_src is yest freed before @bio.
  */
 void __bio_clone_fast(struct bio *bio, struct bio *bio_src)
 {
@@ -628,10 +628,10 @@ void __bio_clone_fast(struct bio *bio, struct bio *bio_src)
 
 	/*
 	 * most users will be overriding ->bi_disk with a new target,
-	 * so we don't set nor calculate new physical/hw segment counts here
+	 * so we don't set yesr calculate new physical/hw segment counts here
 	 */
 	bio->bi_disk = bio_src->bi_disk;
-	bio->bi_partno = bio_src->bi_partno;
+	bio->bi_partyes = bio_src->bi_partyes;
 	bio_set_flag(bio, BIO_CLONED);
 	if (bio_flagged(bio_src, BIO_THROTTLED))
 		bio_set_flag(bio, BIO_THROTTLED);
@@ -737,7 +737,7 @@ static int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 	struct bio_vec *bvec;
 
 	/*
-	 * cloned bio must not modify vec list
+	 * cloned bio must yest modify vec list
 	 */
 	if (unlikely(bio_flagged(bio, BIO_CLONED)))
 		return 0;
@@ -826,7 +826,7 @@ EXPORT_SYMBOL_GPL(__bio_try_merge_page);
  * @off: offset of the data relative to @page, may cross pages
  *
  * Add the data at @page + @off to @bio as a new bvec.  The caller must ensure
- * that @bio has space for another bvec.
+ * that @bio has space for ayesther bvec.
  */
 void __bio_add_page(struct bio *bio, struct page *page,
 		unsigned int len, unsigned int off)
@@ -915,7 +915,7 @@ static int __bio_iov_bvec_add_pages(struct bio *bio, struct iov_iter *iter)
  * Pins pages from *iter and appends them to @bio's bvec array. The
  * pages will have to be released using put_page() when done.
  * For multi-segment *iter, this function only adds pages from the
- * the next non-empty segment of the iov iterator.
+ * the next yesn-empty segment of the iov iterator.
  */
 static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 {
@@ -975,7 +975,7 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
  * flagged BIO_NO_PAGE_REF on IO completion. If it isn't, then pages should be
  * released.
  *
- * The function tries, but does not guarantee, to pin as many pages as
+ * The function tries, but does yest guarantee, to pin as many pages as
  * fit into the bio, or are requested in *iter, whatever is smaller. If
  * MM encounters an error pinning the requested pages, it stops. Error
  * is returned only if 0 pages could be pinned.
@@ -1012,7 +1012,7 @@ static void submit_bio_wait_endio(struct bio *bio)
  * Simple wrapper around submit_bio(). Returns 0 on success, or the error from
  * bio_endio() on failure.
  *
- * WARNING: Unlike to how submit_bio() is usually used, this function does not
+ * WARNING: Unlike to how submit_bio() is usually used, this function does yest
  * result in bio reference to be consumed. The caller must drop the reference
  * on his own.
  */
@@ -1026,7 +1026,7 @@ int submit_bio_wait(struct bio *bio)
 	submit_bio(bio);
 	wait_for_completion_io(&done);
 
-	return blk_status_to_errno(bio->bi_status);
+	return blk_status_to_erryes(bio->bi_status);
 }
 EXPORT_SYMBOL(submit_bio_wait);
 
@@ -1082,7 +1082,7 @@ void bio_copy_data_iter(struct bio *dst, struct bvec_iter *dst_iter,
 EXPORT_SYMBOL(bio_copy_data_iter);
 
 /**
- * bio_copy_data - copy contents of data buffers from one bio to another
+ * bio_copy_data - copy contents of data buffers from one bio to ayesther
  * @src: source bio
  * @dst: destination bio
  *
@@ -1100,7 +1100,7 @@ EXPORT_SYMBOL(bio_copy_data);
 
 /**
  * bio_list_copy_data - copy contents of data buffers from one chain of bios to
- * another
+ * ayesther
  * @src: source bio list
  * @dst: destination bio list
  *
@@ -1456,7 +1456,7 @@ struct bio *bio_map_user_iov(struct request_queue *q,
 
 	/*
 	 * subtle -- if bio_map_user_iov() ended up bouncing a bio,
-	 * it would normally disappear when its bi_end_io is run.
+	 * it would yesrmally disappear when its bi_end_io is run.
 	 * however, we need it for the unmap, so grab an extra
 	 * reference to it
 	 */
@@ -1657,21 +1657,21 @@ cleanup:
  * bio_set_pages_dirty() and bio_check_pages_dirty() are support functions
  * for performing direct-IO in BIOs.
  *
- * The problem is that we cannot run set_page_dirty() from interrupt context
- * because the required locks are not interrupt-safe.  So what we can do is to
+ * The problem is that we canyest run set_page_dirty() from interrupt context
+ * because the required locks are yest interrupt-safe.  So what we can do is to
  * mark the pages dirty _before_ performing IO.  And in interrupt context,
- * check that the pages are still dirty.   If so, fine.  If not, redirty them
+ * check that the pages are still dirty.   If so, fine.  If yest, redirty them
  * in process context.
  *
- * We special-case compound pages here: normally this means reads into hugetlb
+ * We special-case compound pages here: yesrmally this means reads into hugetlb
  * pages.  The logic in here doesn't really work right for compound pages
- * because the VM does not uniformly chase down the head page in all cases.
+ * because the VM does yest uniformly chase down the head page in all cases.
  * But dirtiness of compound pages is pretty meaningless anyway: the VM doesn't
  * handle them at all.  So we skip compound pages here at an early stage.
  *
- * Note that this code is very hard to test under normal circumstances because
+ * Note that this code is very hard to test under yesrmal circumstances because
  * direct-io pins the pages with get_user_pages().  This makes
- * is_page_cache_freeable return false, and the VM will not clean the pages.
+ * is_page_cache_freeable return false, and the VM will yest clean the pages.
  * But other code (eg, flusher threads) could clean the pages if they are mapped
  * pagecache.
  *
@@ -1696,7 +1696,7 @@ void bio_set_pages_dirty(struct bio *bio)
 /*
  * bio_check_pages_dirty() will check that all the BIO's pages are still dirty.
  * If they are, then fine.  If, however, some pages are clean then they must
- * have been written out during the direct-IO read.  So we take another ref on
+ * have been written out during the direct-IO read.  So we take ayesther ref on
  * the BIO and re-dirty the pages in process context.
  *
  * It is expected that bio_check_pages_dirty() will wholly own the BIO from
@@ -1752,17 +1752,17 @@ defer:
 	schedule_work(&bio_dirty_work);
 }
 
-void update_io_ticks(struct hd_struct *part, unsigned long now)
+void update_io_ticks(struct hd_struct *part, unsigned long yesw)
 {
 	unsigned long stamp;
 again:
 	stamp = READ_ONCE(part->stamp);
-	if (unlikely(stamp != now)) {
-		if (likely(cmpxchg(&part->stamp, stamp, now) == stamp)) {
+	if (unlikely(stamp != yesw)) {
+		if (likely(cmpxchg(&part->stamp, stamp, yesw) == stamp)) {
 			__part_stat_add(part, io_ticks, 1);
 		}
 	}
-	if (part->partno) {
+	if (part->partyes) {
 		part = &part_to_disk(part)->part0;
 		goto again;
 	}
@@ -1787,13 +1787,13 @@ EXPORT_SYMBOL(generic_start_io_acct);
 void generic_end_io_acct(struct request_queue *q, int req_op,
 			 struct hd_struct *part, unsigned long start_time)
 {
-	unsigned long now = jiffies;
-	unsigned long duration = now - start_time;
+	unsigned long yesw = jiffies;
+	unsigned long duration = yesw - start_time;
 	const int sgrp = op_stat_group(req_op);
 
 	part_stat_lock();
 
-	update_io_ticks(part, now);
+	update_io_ticks(part, yesw);
 	part_stat_add(part, nsecs[sgrp], jiffies_to_nsecs(duration));
 	part_stat_add(part, time_in_queue, duration);
 	part_dec_in_flight(q, part, op_is_write(req_op));
@@ -1805,7 +1805,7 @@ EXPORT_SYMBOL(generic_end_io_acct);
 static inline bool bio_remaining_done(struct bio *bio)
 {
 	/*
-	 * If we're not chaining, then ->__bi_remaining is always 1 and
+	 * If we're yest chaining, then ->__bi_remaining is always 1 and
 	 * we always end io on the first invocation.
 	 */
 	if (!bio_flagged(bio, BIO_CHAIN))
@@ -1828,7 +1828,7 @@ static inline bool bio_remaining_done(struct bio *bio)
  * Description:
  *   bio_endio() will end I/O on the whole bio. bio_endio() is the preferred
  *   way to end I/O on a bio. No one should call bi_end_io() directly on a
- *   bio unless they own it and thus know that it has an end_io function.
+ *   bio unless they own it and thus kyesw that it has an end_io function.
  *
  *   bio_endio() can be called several times on a bio that has been chained
  *   using bio_chain().  The ->bi_end_io() function will only be called the
@@ -1861,7 +1861,7 @@ again:
 
 	if (bio->bi_disk && bio_flagged(bio, BIO_TRACE_COMPLETION)) {
 		trace_block_bio_complete(bio->bi_disk->queue, bio,
-					 blk_status_to_errno(bio->bi_status));
+					 blk_status_to_erryes(bio->bi_status));
 		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
 	}
 
@@ -1885,7 +1885,7 @@ EXPORT_SYMBOL(bio_endio);
  *
  * Unless this is a discard request the newly allocated bio will point
  * to @bio's bi_io_vec. It is the caller's responsibility to ensure that
- * neither @bio nor @bs are freed before the split bio.
+ * neither @bio yesr @bs are freed before the split bio.
  */
 struct bio *bio_split(struct bio *bio, int sectors,
 		      gfp_t gfp, struct bio_set *bs)
@@ -1983,11 +1983,11 @@ EXPORT_SYMBOL(bioset_exit);
  *    Set up a bio_set to be used with @bio_alloc_bioset. Allows the caller
  *    to ask for a number of bytes to be allocated in front of the bio.
  *    Front pad allocation is useful for embedding the bio inside
- *    another structure, to avoid allocating extra data to go with the bio.
+ *    ayesther structure, to avoid allocating extra data to go with the bio.
  *    Note that the bio must be embedded at the END of that structure always,
  *    or things will break badly.
  *    If %BIOSET_NEED_BVECS is set in @flags, a separate pool will be allocated
- *    for allocating iovecs.  This pool is not needed e.g. for bio_clone_fast().
+ *    for allocating iovecs.  This pool is yest needed e.g. for bio_clone_fast().
  *    If %BIOSET_NEED_RESCUER is set, a workqueue is created which can be used to
  *    dispatch queued requests when the mempool runs out of space.
  *
@@ -2032,7 +2032,7 @@ EXPORT_SYMBOL(bioset_init);
 
 /*
  * Initialize and setup a new bio_set, based on the settings from
- * another bio_set.
+ * ayesther bio_set.
  */
 int bioset_init_from_src(struct bio_set *bs, struct bio_set *src)
 {
@@ -2145,7 +2145,7 @@ void bio_associate_blkg_from_page(struct bio *bio, struct page *page)
  * @bio: target bio
  *
  * Associate @bio with the blkg found from the bio's css and request_queue.
- * If one is not found, bio_lookup_blkg() creates the blkg.  If a blkg is
+ * If one is yest found, bio_lookup_blkg() creates the blkg.  If a blkg is
  * already associated, the css is reused and association redone as the
  * request_queue may have changed.
  */

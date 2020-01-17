@@ -18,7 +18,7 @@
  * for more details.
  *
  * TODO:
- * - Dino testing (did HP ever shipped a machine on which this port
+ * - Diyes testing (did HP ever shipped a machine on which this port
  *                 was usable/enabled ?)
  */
 
@@ -87,7 +87,7 @@ static irqreturn_t gscps2_interrupt(int irq, void *dev);
 
 /* GSC PS/2 port device struct */
 struct gscps2port {
-	struct list_head node;
+	struct list_head yesde;
 	struct parisc_device *padev;
 	struct serio *port;
 	spinlock_t lock;
@@ -119,7 +119,7 @@ static int wait_TBE(char __iomem *addr)
 	int timeout = 25000; /* device is expected to react within 250 msec */
 	while (gscps2_readb_status(addr) & GSC_STAT_TBNE) {
 		if (!--timeout)
-			return 0;	/* This should not happen */
+			return 0;	/* This should yest happen */
 		udelay(10);
 	}
 	return 1;
@@ -149,7 +149,7 @@ static inline int gscps2_writeb_output(struct gscps2port *ps2port, u8 data)
 	char __iomem *addr = ps2port->addr;
 
 	if (!wait_TBE(addr)) {
-		printk(KERN_DEBUG PFX "timeout - could not write byte %#x\n", data);
+		printk(KERN_DEBUG PFX "timeout - could yest write byte %#x\n", data);
 		return 0;
 	}
 
@@ -180,7 +180,7 @@ static void gscps2_enable(struct gscps2port *ps2port, int enable)
 	unsigned long flags;
 	u8 data;
 
-	/* now enable/disable the port */
+	/* yesw enable/disable the port */
 	spin_lock_irqsave(&ps2port->lock, flags);
 	gscps2_flush(ps2port);
 	data = gscps2_readb_control(ps2port->addr);
@@ -218,7 +218,7 @@ static LIST_HEAD(ps2port_list);
  * This function reads received PS/2 bytes and processes them on
  * all interfaces.
  * The problematic part here is, that the keyboard and mouse PS/2 port
- * share the same interrupt and it's not possible to send data if any
+ * share the same interrupt and it's yest possible to send data if any
  * one of them holds input data. To solve this problem we try to receive
  * the data as fast as possible and handle the reporting to the upper layer
  * later.
@@ -228,7 +228,7 @@ static irqreturn_t gscps2_interrupt(int irq, void *dev)
 {
 	struct gscps2port *ps2port;
 
-	list_for_each_entry(ps2port, &ps2port_list, node) {
+	list_for_each_entry(ps2port, &ps2port_list, yesde) {
 
 	  unsigned long flags;
 	  spin_lock_irqsave(&ps2port->lock, flags);
@@ -244,9 +244,9 @@ static irqreturn_t gscps2_interrupt(int irq, void *dev)
 
 	} /* list_for_each_entry */
 
-	/* all data was read from the ports - now report the data to upper layer */
+	/* all data was read from the ports - yesw report the data to upper layer */
 
-	list_for_each_entry(ps2port, &ps2port_list, node) {
+	list_for_each_entry(ps2port, &ps2port_list, yesde) {
 
 	  while (ps2port->act != ps2port->append) {
 
@@ -254,7 +254,7 @@ static irqreturn_t gscps2_interrupt(int irq, void *dev)
 	    u8 data, status;
 
 	    /* Did new data arrived while we read existing data ?
-	       If yes, exit now and let the new irq handler start over again */
+	       If no, exit yesw and let the new irq handler start over again */
 	    if (gscps2_readb_status(ps2port->addr) & GSC_STAT_CMPINTR)
 		return IRQ_HANDLED;
 
@@ -342,14 +342,14 @@ static int __init gscps2_probe(struct parisc_device *dev)
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!ps2port || !serio) {
 		ret = -ENOMEM;
-		goto fail_nomem;
+		goto fail_yesmem;
 	}
 
 	dev_set_drvdata(&dev->dev, ps2port);
 
 	ps2port->port = serio;
 	ps2port->padev = dev;
-	ps2port->addr = ioremap_nocache(hpa, GSC_STATUS + 4);
+	ps2port->addr = ioremap_yescache(hpa, GSC_STATUS + 4);
 	spin_lock_init(&ps2port->lock);
 
 	gscps2_reset(ps2port);
@@ -370,7 +370,7 @@ static int __init gscps2_probe(struct parisc_device *dev)
 		goto fail_miserably;
 
 	if (ps2port->id != GSC_ID_KEYBOARD && ps2port->id != GSC_ID_MOUSE) {
-		printk(KERN_WARNING PFX "Unsupported PS/2 port at 0x%08lx (id=%d) ignored\n",
+		printk(KERN_WARNING PFX "Unsupported PS/2 port at 0x%08lx (id=%d) igyesred\n",
 				hpa, ps2port->id);
 		ret = -ENODEV;
 		goto fail;
@@ -389,7 +389,7 @@ static int __init gscps2_probe(struct parisc_device *dev)
 
 	serio_register_port(ps2port->port);
 
-	list_add_tail(&ps2port->node, &ps2port_list);
+	list_add_tail(&ps2port->yesde, &ps2port_list);
 
 	return 0;
 
@@ -400,7 +400,7 @@ fail_miserably:
 	iounmap(ps2port->addr);
 	release_mem_region(dev->hpa.start, GSC_STATUS + 4);
 
-fail_nomem:
+fail_yesmem:
 	kfree(ps2port);
 	kfree(serio);
 	return ret;
@@ -418,7 +418,7 @@ static int __exit gscps2_remove(struct parisc_device *dev)
 	serio_unregister_port(ps2port->port);
 	free_irq(dev->irq, ps2port);
 	gscps2_flush(ps2port);
-	list_del(&ps2port->node);
+	list_del(&ps2port->yesde);
 	iounmap(ps2port->addr);
 #if 0
 	release_mem_region(dev->hpa, GSC_STATUS + 4);

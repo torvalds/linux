@@ -5,7 +5,7 @@
  * eMMa-PrP is a piece of HW that allows fetching buffers
  * from one memory location and do several operations on
  * them such as scaling or format conversion giving, as a result
- * a new processed buffer in another memory location.
+ * a new processed buffer in ayesther memory location.
  *
  * Based on mem2mem_testdev.c by Pawel Osciak.
  *
@@ -408,7 +408,7 @@ static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 		return 0;
 	}
 
-	/* Format not found */
+	/* Format yest found */
 	return -EINVAL;
 }
 
@@ -655,7 +655,7 @@ static int emmaprp_buf_prepare(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
 		dprintk(ctx->dev,
-			"%s data will not fit into plane(%lu < %lu)\n",
+			"%s data will yest fit into plane(%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0),
 			(long)q_data->sizeimage);
 		return -EINVAL;
@@ -789,7 +789,7 @@ static const struct video_device emmaprp_videodev = {
 	.name		= MEM2MEM_NAME,
 	.fops		= &emmaprp_fops,
 	.ioctl_ops	= &emmaprp_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= video_device_release,
 	.vfl_dir	= VFL_DIR_M2M,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,

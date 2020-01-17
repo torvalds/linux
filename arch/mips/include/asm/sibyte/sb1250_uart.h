@@ -76,7 +76,7 @@
  * Register: DUART_MODE_REG_2_B
  */
 
-#define M_DUART_MODE_RESERVED1	    _SB_MAKEMASK(3, 0)	 /* ignored */
+#define M_DUART_MODE_RESERVED1	    _SB_MAKEMASK(3, 0)	 /* igyesred */
 
 #define M_DUART_STOP_BIT_LEN_2	    _SB_MAKEMASK1(3)
 #define M_DUART_STOP_BIT_LEN_1	    0

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -360,7 +360,7 @@ static const struct amd_ip_funcs mes_v10_1_ip_funcs = {
 const struct amdgpu_ip_block_version mes_v10_1_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_MES,
 	.major = 10,
-	.minor = 1,
+	.miyesr = 1,
 	.rev = 0,
 	.funcs = &mes_v10_1_ip_funcs,
 };

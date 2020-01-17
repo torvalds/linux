@@ -185,7 +185,7 @@ static struct skcipher_alg cbc_des_alg = {
 /*
  * RFC2451:
  *
- *   For DES-EDE3, there is no known need to reject weak or
+ *   For DES-EDE3, there is yes kyeswn need to reject weak or
  *   complementation keys.  Any weakness is obviated by the use of
  *   multiple keys.
  *

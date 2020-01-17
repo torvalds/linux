@@ -59,7 +59,7 @@
 
 /*
  * The OSF/1 version of <sys/procfs.h> makes gregset_t 46 entries long.
- * I have no idea why that is so.  For now, we just leave it at 33
+ * I have yes idea why that is so.  For yesw, we just leave it at 33
  * (32 general regs + processor status word). 
  */
 #define ELF_NGREG	33
@@ -98,7 +98,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
    been loaded before the code runs.
 
    So that we can use the same startup file with static executables,
-   we start programs with a value of 0 to indicate that there is no
+   we start programs with a value of 0 to indicate that there is yes
    such function.  */
 
 #define ELF_PLAT_INIT(_r, load_addr)	_r->r0 = 0
@@ -128,7 +128,7 @@ extern int dump_elf_task_fp(elf_fpreg_t *dest, struct task_struct *task);
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports.  This is trivial on Alpha, 
-   but not so on other machines. */
+   but yest so on other machines. */
 
 #define ELF_HWCAP  (~amask(-1))
 

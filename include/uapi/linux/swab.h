@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_SWAB_H
 #define _UAPI_LINUX_SWAB_H
 
@@ -7,8 +7,8 @@
 #include <asm/swab.h>
 
 /*
- * casts are necessary for constants, because we never know how for sure
- * how U/UL/ULL map to __u16, __u32, __u64. At least not in a portable way.
+ * casts are necessary for constants, because we never kyesw how for sure
+ * how U/UL/ULL map to __u16, __u32, __u64. At least yest in a portable way.
  */
 #define ___constant_swab16(x) ((__u16)(				\
 	(((__u16)(x) & (__u16)0x00ffU) << 8) |			\

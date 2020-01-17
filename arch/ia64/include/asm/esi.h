@@ -16,7 +16,7 @@
 
 enum esi_proc_type {
 	ESI_PROC_SERIALIZED,	/* calls need to be serialized */
-	ESI_PROC_MP_SAFE,	/* MP-safe, but not reentrant */
+	ESI_PROC_MP_SAFE,	/* MP-safe, but yest reentrant */
 	ESI_PROC_REENTRANT	/* MP-safe and reentrant */
 };
 

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2011-2012 Texas Instruments, Inc.
  * Copyright (C) 2010 Nokia Corporation
- * Benoît Cousson
+ * Beyesît Cousson
  * Paul Walmsley
  * Rajendra Nayak <rnayak@ti.com>
  */
@@ -12,7 +12,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/of_irq.h>
@@ -234,7 +234,7 @@ static void omap44xx_prm_read_pending_irqs(unsigned long *events)
  *
  * Force any buffered writes to the PRM IP block to complete.  Needed
  * by the PRM IRQ handler, which reads and writes directly to the IP
- * block, to avoid race conditions after acknowledging or clearing IRQ
+ * block, to avoid race conditions after ackyeswledging or clearing IRQ
  * bits.  No return value.
  */
 static void omap44xx_prm_ocp_barrier(void)
@@ -562,7 +562,7 @@ static int omap4_pwrdm_read_logic_retst(struct powerdomain *pwrdm)
  * function reads the setting for the next retention logic state to
  * see the actual value.  In every other case, the logic is
  * retained. Returns either PWRDM_POWER_OFF or PWRDM_POWER_RET
- * depending whether the logic was retained or not.
+ * depending whether the logic was retained or yest.
  */
 static int omap4_pwrdm_read_prev_logic_pwrst(struct powerdomain *pwrdm)
 {
@@ -619,7 +619,7 @@ static int omap4_pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank)
  * function reads the setting for the next memory retention state to
  * see the actual value.  In every other case, the logic is
  * retained. Returns either PWRDM_POWER_OFF or PWRDM_POWER_RET
- * depending whether logic was retained or not.
+ * depending whether logic was retained or yest.
  */
 static int omap4_pwrdm_read_prev_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
 {
@@ -687,7 +687,7 @@ static void omap4_pwrdm_save_context(struct powerdomain *pwrdm)
 						     pwrdm->pwrstctrl_offs);
 
 	/*
-	 * Do not save LOWPOWERSTATECHANGE, writing a 1 indicates a request,
+	 * Do yest save LOWPOWERSTATECHANGE, writing a 1 indicates a request,
 	 * reading back a 1 indicates a request in progress.
 	 */
 	pwrdm->context &= ~OMAP4430_LOWPOWERSTATECHANGE_MASK;
@@ -767,7 +767,7 @@ static void prm_restore_context(void)
 				 omap4_prcm_irq_setup.pm_ctrl);
 }
 
-static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
+static int cpu_yestifier(struct yestifier_block *nb, unsigned long cmd, void *v)
 {
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
@@ -803,7 +803,7 @@ static const struct omap_prcm_init_data *prm_init_data;
 
 int __init omap44xx_prm_init(const struct omap_prcm_init_data *data)
 {
-	static struct notifier_block nb;
+	static struct yestifier_block nb;
 	omap_prm_base_init();
 
 	prm_init_data = data;
@@ -827,8 +827,8 @@ int __init omap44xx_prm_init(const struct omap_prcm_init_data *data)
 
 	/* Only AM43XX can lose prm context during rtc-ddr suspend */
 	if (soc_is_am43xx()) {
-		nb.notifier_call = cpu_notifier;
-		cpu_pm_register_notifier(&nb);
+		nb.yestifier_call = cpu_yestifier;
+		cpu_pm_register_yestifier(&nb);
 	}
 
 	return prm_register(&omap44xx_prm_ll_data);

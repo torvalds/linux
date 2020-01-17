@@ -12,7 +12,7 @@
 #include <linux/moduleparam.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include <asm/paca.h>
 #include <asm/reg.h>
@@ -28,8 +28,8 @@ struct cpuidle_driver pseries_idle_driver = {
 
 static int max_idle_state __read_mostly;
 static struct cpuidle_state *cpuidle_state_table __read_mostly;
-static u64 snooze_timeout __read_mostly;
-static bool snooze_timeout_en __read_mostly;
+static u64 syesoze_timeout __read_mostly;
+static bool syesoze_timeout_en __read_mostly;
 
 static inline void idle_loop_prolog(unsigned long *in_purr)
 {
@@ -54,25 +54,25 @@ static inline void idle_loop_epilog(unsigned long in_purr)
 	ppc64_runlatch_on();
 }
 
-static int snooze_loop(struct cpuidle_device *dev,
+static int syesoze_loop(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
 			int index)
 {
 	unsigned long in_purr;
-	u64 snooze_exit_time;
+	u64 syesoze_exit_time;
 
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	idle_loop_prolog(&in_purr);
 	local_irq_enable();
-	snooze_exit_time = get_tb() + snooze_timeout;
+	syesoze_exit_time = get_tb() + syesoze_timeout;
 
 	while (!need_resched()) {
 		HMT_low();
 		HMT_very_low();
-		if (likely(snooze_timeout_en) && get_tb() > snooze_exit_time) {
+		if (likely(syesoze_timeout_en) && get_tb() > syesoze_exit_time) {
 			/*
-			 * Task has not woken up but we are exiting the polling
+			 * Task has yest woken up but we are exiting the polling
 			 * loop anyway. Require a barrier after polling is
 			 * cleared to order subsequent test of need_resched().
 			 */
@@ -96,7 +96,7 @@ static void check_and_cede_processor(void)
 {
 	/*
 	 * Ensure our interrupt state is properly tracked,
-	 * also checks if no interrupt has occurred while we
+	 * also checks if yes interrupt has occurred while we
 	 * were soft-disabled
 	 */
 	if (prep_irq_for_idle()) {
@@ -140,7 +140,7 @@ static int shared_cede_loop(struct cpuidle_device *dev,
 	/*
 	 * Yield the processor to the hypervisor.  We return if
 	 * an external interrupt occurs (which are driven prior
-	 * to returning here) or if a prod occurs from another
+	 * to returning here) or if a prod occurs from ayesther
 	 * processor. When returning here, external interrupts
 	 * are enabled.
 	 */
@@ -156,12 +156,12 @@ static int shared_cede_loop(struct cpuidle_device *dev,
  * States for dedicated partition case.
  */
 static struct cpuidle_state dedicated_states[] = {
-	{ /* Snooze */
-		.name = "snooze",
-		.desc = "snooze",
+	{ /* Syesoze */
+		.name = "syesoze",
+		.desc = "syesoze",
 		.exit_latency = 0,
 		.target_residency = 0,
-		.enter = &snooze_loop },
+		.enter = &syesoze_loop },
 	{ /* CEDE */
 		.name = "CEDE",
 		.desc = "CEDE",
@@ -174,12 +174,12 @@ static struct cpuidle_state dedicated_states[] = {
  * States for shared partition case.
  */
 static struct cpuidle_state shared_states[] = {
-	{ /* Snooze */
-		.name = "snooze",
-		.desc = "snooze",
+	{ /* Syesoze */
+		.name = "syesoze",
+		.desc = "syesoze",
 		.exit_latency = 0,
 		.target_residency = 0,
-		.enter = &snooze_loop },
+		.enter = &syesoze_loop },
 	{ /* Shared Cede */
 		.name = "Shared Cede",
 		.desc = "Shared Cede",
@@ -223,7 +223,7 @@ static int pseries_cpuidle_driver_init(void)
 	drv->state_count = 0;
 
 	for (idle_state = 0; idle_state < max_idle_state; ++idle_state) {
-		/* Is the state not enabled? */
+		/* Is the state yest enabled? */
 		if (cpuidle_state_table[idle_state].enter == NULL)
 			continue;
 
@@ -249,8 +249,8 @@ static int pseries_idle_probe(void)
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		/*
 		 * Use local_paca instead of get_lppaca() since
-		 * preemption is not disabled, and it is not required in
-		 * fact, since lppaca_ptr does not need to be the value
+		 * preemption is yest disabled, and it is yest required in
+		 * fact, since lppaca_ptr does yest need to be the value
 		 * associated to the current CPU, it can be from any CPU.
 		 */
 		if (lppaca_shared_proc(local_paca->lppaca_ptr)) {
@@ -264,8 +264,8 @@ static int pseries_idle_probe(void)
 		return -ENODEV;
 
 	if (max_idle_state > 1) {
-		snooze_timeout_en = true;
-		snooze_timeout = cpuidle_state_table[1].target_residency *
+		syesoze_timeout_en = true;
+		syesoze_timeout = cpuidle_state_table[1].target_residency *
 				 tb_ticks_per_usec;
 	}
 	return 0;
@@ -286,11 +286,11 @@ static int __init pseries_processor_idle_init(void)
 		return retval;
 	}
 
-	retval = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	retval = cpuhp_setup_state_yescalls(CPUHP_AP_ONLINE_DYN,
 					   "cpuidle/pseries:online",
 					   pseries_cpuidle_cpu_online, NULL);
 	WARN_ON(retval < 0);
-	retval = cpuhp_setup_state_nocalls(CPUHP_CPUIDLE_DEAD,
+	retval = cpuhp_setup_state_yescalls(CPUHP_CPUIDLE_DEAD,
 					   "cpuidle/pseries:DEAD", NULL,
 					   pseries_cpuidle_cpu_dead);
 	WARN_ON(retval < 0);

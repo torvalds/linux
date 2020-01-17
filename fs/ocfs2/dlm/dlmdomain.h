@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * dlmdomain.h
  *
@@ -38,6 +38,6 @@ static inline int dlm_shutting_down(struct dlm_ctxt *dlm)
 }
 
 void dlm_fire_domain_eviction_callbacks(struct dlm_ctxt *dlm,
-					int node_num);
+					int yesde_num);
 
 #endif

@@ -16,8 +16,8 @@
  * The default winbits of 11 should suit most packets, and it may be something
  * to configure on a per-tfm basis in the future.
  *
- * Currently, compression history is not maintained between tfm calls, as
- * it is not needed for IPCOMP and keeps the code simpler.  It can be
+ * Currently, compression history is yest maintained between tfm calls, as
+ * it is yest needed for IPCOMP and keeps the code simpler.  It can be
  * implemented if someone wants it.
  */
 #include <linux/init.h>

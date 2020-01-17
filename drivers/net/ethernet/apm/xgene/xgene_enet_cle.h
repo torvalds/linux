@@ -89,7 +89,7 @@
 #define JMP_FW			0
 #define JMP_BW			1
 
-enum xgene_cle_ptree_nodes {
+enum xgene_cle_ptree_yesdes {
 	PKT_TYPE_NODE,
 	PKT_PROT_NODE,
 	RSS_IPV4_TCP_NODE,
@@ -107,7 +107,7 @@ enum xgene_cle_byte_store {
 };
 
 /* Preclassification operation types */
-enum xgene_cle_node_type {
+enum xgene_cle_yesde_type {
 	INV,
 	KN,
 	EWDN,
@@ -201,15 +201,15 @@ struct xgene_cle_ptree_branch {
 	bool jump_bw;
 	bool jump_rel;
 	u8 operation;
-	u16 next_node;
+	u16 next_yesde;
 	u8 next_branch;
 	u16 data;
 	u16 mask;
 };
 
 struct xgene_cle_ptree_ewdn {
-	u8 node_type;
-	bool last_node;
+	u8 yesde_type;
+	bool last_yesde;
 	bool hdr_len_store;
 	u8 hdr_extn;
 	u8 byte_store;
@@ -225,7 +225,7 @@ struct xgene_cle_ptree_key {
 };
 
 struct xgene_cle_ptree_kn {
-	u8 node_type;
+	u8 yesde_type;
 	u8 num_keys;
 	struct xgene_cle_ptree_key key[32];
 };
@@ -270,7 +270,7 @@ struct xgene_cle_ptree {
 	struct xgene_cle_dbptr *dbptr;
 	u32 num_kn;
 	u32 num_dbptr;
-	u32 start_node;
+	u32 start_yesde;
 	u32 start_pkt;
 	u32 start_dbptr;
 };
@@ -280,7 +280,7 @@ struct xgene_enet_cle {
 	struct xgene_cle_ptree ptree;
 	enum xgene_cle_parser active_parser;
 	u32 parsers;
-	u32 max_nodes;
+	u32 max_yesdes;
 	u32 max_dbptrs;
 	u32 jump_bytes;
 };

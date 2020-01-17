@@ -85,7 +85,7 @@ enum bcm_usb_phy_ctrl_bits {
 /*
  * 0x0806 of PCTL_VAL has below bits set
  * BIT-8 : refclk divider 1
- * BIT-3:2: device mode; mode is not effect
+ * BIT-3:2: device mode; mode is yest effect
  * BIT-1: soft reset active low
  */
 #define HSPHY_PCTL_VAL	0x0806
@@ -283,7 +283,7 @@ static struct phy *bcm_usb_phy_xlate(struct device *dev,
 		return phy_cfg->phy;
 }
 
-static int bcm_usb_phy_create(struct device *dev, struct device_node *node,
+static int bcm_usb_phy_create(struct device *dev, struct device_yesde *yesde,
 			      void __iomem *regs, uint32_t version)
 {
 	struct bcm_usb_phy_cfg *phy_cfg;
@@ -306,7 +306,7 @@ static int bcm_usb_phy_create(struct device *dev, struct device_node *node,
 				phy_cfg[idx].offset = bcm_usb_combo_phy_ss;
 				phy_cfg[idx].type = USB_SS_PHY;
 			}
-			phy_cfg[idx].phy = devm_phy_create(dev, node,
+			phy_cfg[idx].phy = devm_phy_create(dev, yesde,
 							   &sr_phy_ops);
 			if (IS_ERR(phy_cfg[idx].phy))
 				return PTR_ERR(phy_cfg[idx].phy);
@@ -323,7 +323,7 @@ static int bcm_usb_phy_create(struct device *dev, struct device_node *node,
 		phy_cfg->version = version;
 		phy_cfg->offset = bcm_usb_hs_phy;
 		phy_cfg->type = USB_HS_PHY;
-		phy_cfg->phy = devm_phy_create(dev, node, &sr_phy_ops);
+		phy_cfg->phy = devm_phy_create(dev, yesde, &sr_phy_ops);
 		if (IS_ERR(phy_cfg->phy))
 			return PTR_ERR(phy_cfg->phy);
 
@@ -352,7 +352,7 @@ MODULE_DEVICE_TABLE(of, bcm_usb_phy_of_match);
 static int bcm_usb_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node;
+	struct device_yesde *dn = dev->of_yesde;
 	const struct of_device_id *of_id;
 	struct resource *res;
 	void __iomem *regs;
@@ -365,7 +365,7 @@ static int bcm_usb_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
-	of_id = of_match_node(bcm_usb_phy_of_match, dn);
+	of_id = of_match_yesde(bcm_usb_phy_of_match, dn);
 	if (of_id)
 		version = (enum bcm_usb_phy_version)of_id->data;
 	else

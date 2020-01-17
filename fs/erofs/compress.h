@@ -45,7 +45,7 @@ static inline bool z_erofs_put_stagingpage(struct list_head *pagepool,
 	if (!z_erofs_page_is_staging(page))
 		return false;
 
-	/* staging pages should not be used by others at the same time */
+	/* staging pages should yest be used by others at the same time */
 	if (page_ref_count(page) > 1)
 		put_page(page);
 	else

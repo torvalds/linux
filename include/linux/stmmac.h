@@ -135,9 +135,9 @@ struct plat_stmmacenet_data {
 	int interface;
 	phy_interface_t phy_interface;
 	struct stmmac_mdio_bus_data *mdio_bus_data;
-	struct device_node *phy_node;
-	struct device_node *phylink_node;
-	struct device_node *mdio_node;
+	struct device_yesde *phy_yesde;
+	struct device_yesde *phylink_yesde;
+	struct device_yesde *mdio_yesde;
 	struct stmmac_dma_cfg *dma_cfg;
 	int clk_csr;
 	int has_gmac;

@@ -8,9 +8,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -129,8 +129,8 @@ static void hil_dev_handle_command_response(struct hil_dev *dev)
 	default:
 		/* These occur when device isn't present */
 		if (p != (HIL_ERR_INT | HIL_PKT_CMD)) {
-			/* Anything else we'd like to know about. */
-			printk(KERN_WARNING PREFIX "Device sent unknown record %x\n", p);
+			/* Anything else we'd like to kyesw about. */
+			printk(KERN_WARNING PREFIX "Device sent unkyeswn record %x\n", p);
 		}
 		goto out;
 	}
@@ -511,7 +511,7 @@ static int hil_dev_connect(struct serio *serio, struct serio_driver *drv)
 		if (HIL_IDD_NUM_BUTTONS(idd) ||
 		    HIL_IDD_NUM_AXES_PER_SET(*idd)) {
 			printk(KERN_INFO PREFIX
-				"combo devices are not supported.\n");
+				"combo devices are yest supported.\n");
 			goto bail1;
 		}
 

@@ -59,7 +59,7 @@ static int led_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int led_proc_open(struct inode *inode, struct file *file)
+static int led_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, led_proc_show, NULL);
 }
@@ -81,7 +81,7 @@ static ssize_t led_proc_write(struct file *file, const char __user *buffer,
 		buf[count - 1] = '\0';
 
 	/* before we change anything we want to stop any running timers,
-	 * otherwise calls such as on will have no persistent effect
+	 * otherwise calls such as on will have yes persistent effect
 	 */
 	del_timer_sync(&led_blink_timer);
 

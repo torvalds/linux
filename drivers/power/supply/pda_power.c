@@ -11,7 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/power_supply.h>
 #include <linux/pda_power.h>
 #include <linux/regulator/consumer.h>
@@ -35,7 +35,7 @@ static struct power_supply *pda_psy_ac, *pda_psy_usb;
 
 #if IS_ENABLED(CONFIG_USB_PHY)
 static struct usb_phy *transceiver;
-static struct notifier_block otg_nb;
+static struct yestifier_block otg_nb;
 #endif
 
 static struct regulator *ac_draw;
@@ -155,7 +155,7 @@ static void psy_changed(void)
 	update_charger();
 
 	/*
-	 * Okay, charger set. Now wait a bit before notifying supplicants,
+	 * Okay, charger set. Now wait a bit before yestifying supplicants,
 	 * charge power should stabilize.
 	 */
 	cancel_delayed_work(&supply_work);
@@ -227,7 +227,7 @@ static int otg_is_ac_online(void)
 	return (transceiver->last_event == USB_EVENT_CHARGER);
 }
 
-static int otg_handle_notification(struct notifier_block *nb,
+static int otg_handle_yestification(struct yestifier_block *nb,
 		unsigned long event, void *unused)
 {
 	switch (event) {
@@ -373,12 +373,12 @@ static int pda_power_probe(struct platform_device *pdev)
 	}
 
 #if IS_ENABLED(CONFIG_USB_PHY)
-	if (!IS_ERR_OR_NULL(transceiver) && pdata->use_otg_notifier) {
-		otg_nb.notifier_call = otg_handle_notification;
-		ret = usb_register_notifier(transceiver, &otg_nb);
+	if (!IS_ERR_OR_NULL(transceiver) && pdata->use_otg_yestifier) {
+		otg_nb.yestifier_call = otg_handle_yestification;
+		ret = usb_register_yestifier(transceiver, &otg_nb);
 		if (ret) {
-			dev_err(dev, "failure to register otg notifier\n");
-			goto otg_reg_notifier_failed;
+			dev_err(dev, "failure to register otg yestifier\n");
+			goto otg_reg_yestifier_failed;
 		}
 		polling = 0;
 	}
@@ -398,7 +398,7 @@ static int pda_power_probe(struct platform_device *pdev)
 	return 0;
 
 #if IS_ENABLED(CONFIG_USB_PHY)
-otg_reg_notifier_failed:
+otg_reg_yestifier_failed:
 	if (pdata->is_usb_online && usb_irq)
 		free_irq(usb_irq->start, pda_psy_usb);
 #endif

@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -41,7 +41,7 @@ int intel_connector_init(struct intel_connector *connector)
 	struct intel_digital_connector_state *conn_state;
 
 	/*
-	 * Allocate enough memory to hold intel_digital_connector_state,
+	 * Allocate eyesugh memory to hold intel_digital_connector_state,
 	 * This might be a few bytes too many, but for connectors that don't
 	 * need it we'll free the state and allocate a smaller one on the first
 	 * successful commit anyway.
@@ -147,7 +147,7 @@ void intel_connector_attach_encoder(struct intel_connector *connector,
 
 /*
  * Simple connector->get_hw_state implementation for encoders that support only
- * one connector and no cloning and hence the encoder state determines the state
+ * one connector and yes cloning and hence the encoder state determines the state
  * of the connector.
  */
 bool intel_connector_get_hw_state(struct intel_connector *connector)
@@ -289,7 +289,7 @@ intel_attach_colorspace_property(struct drm_connector *connector)
 			return;
 		break;
 	default:
-		DRM_DEBUG_KMS("Colorspace property not supported\n");
+		DRM_DEBUG_KMS("Colorspace property yest supported\n");
 		return;
 	}
 

@@ -175,7 +175,7 @@ static int sun8i_vi_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 				      format);
 		sun8i_vi_scaler_enable(mixer, channel, true);
 	} else {
-		DRM_DEBUG_DRIVER("HW scaling is not needed\n");
+		DRM_DEBUG_DRIVER("HW scaling is yest needed\n");
 		sun8i_vi_scaler_enable(mixer, channel, false);
 	}
 
@@ -350,7 +350,7 @@ static void sun8i_vi_layer_atomic_disable(struct drm_plane *plane,
 					  struct drm_plane_state *old_state)
 {
 	struct sun8i_vi_layer *layer = plane_to_sun8i_vi_layer(plane);
-	unsigned int old_zpos = old_state->normalized_zpos;
+	unsigned int old_zpos = old_state->yesrmalized_zpos;
 	struct sun8i_mixer *mixer = layer->mixer;
 
 	sun8i_vi_layer_enable(mixer, layer->channel, layer->overlay, false, 0,
@@ -361,8 +361,8 @@ static void sun8i_vi_layer_atomic_update(struct drm_plane *plane,
 					 struct drm_plane_state *old_state)
 {
 	struct sun8i_vi_layer *layer = plane_to_sun8i_vi_layer(plane);
-	unsigned int zpos = plane->state->normalized_zpos;
-	unsigned int old_zpos = old_state->normalized_zpos;
+	unsigned int zpos = plane->state->yesrmalized_zpos;
+	unsigned int old_zpos = old_state->yesrmalized_zpos;
 	struct sun8i_mixer *mixer = layer->mixer;
 
 	if (!plane->state->visible) {
@@ -399,7 +399,7 @@ static const struct drm_plane_funcs sun8i_vi_layer_funcs = {
 
 /*
  * While all RGB formats are supported, VI planes don't support
- * alpha blending, so there is no point having formats with alpha
+ * alpha blending, so there is yes point having formats with alpha
  * channel if their opaque analog exist.
  */
 static const u32 sun8i_vi_layer_formats[] = {

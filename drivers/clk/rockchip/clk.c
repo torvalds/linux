@@ -122,7 +122,7 @@ err_gate:
 }
 
 struct rockchip_clk_frac {
-	struct notifier_block			clk_nb;
+	struct yestifier_block			clk_nb;
 	struct clk_fractional_divider		div;
 	struct clk_gate				gate;
 
@@ -137,10 +137,10 @@ struct rockchip_clk_frac {
 #define to_rockchip_clk_frac_nb(nb) \
 			container_of(nb, struct rockchip_clk_frac, clk_nb)
 
-static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
+static int rockchip_clk_frac_yestifier_cb(struct yestifier_block *nb,
 					 unsigned long event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_yestifier_data *ndata = data;
 	struct rockchip_clk_frac *frac = to_rockchip_clk_frac_nb(nb);
 	struct clk_mux *frac_mux = &frac->mux;
 	int ret = 0;
@@ -157,7 +157,7 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 		}
 	} else if (event == POST_RATE_CHANGE) {
 		/*
-		 * The POST_RATE_CHANGE notifier runs directly after the
+		 * The POST_RATE_CHANGE yestifier runs directly after the
 		 * divider clock is set in clk_change_rate, so we'll have
 		 * remuxed back to the original parent before clk_change_rate
 		 * reaches the mux itself.
@@ -169,11 +169,11 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 		}
 	}
 
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 
 /**
- * fractional divider must set that denominator is 20 times larger than
+ * fractional divider must set that deyesminator is 20 times larger than
  * numerator to generate precise clock frequency.
  */
 static void rockchip_fractional_approximation(struct clk_hw *hw,
@@ -193,7 +193,7 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 	}
 
 	/*
-	 * Get rate closer to *parent_rate to guarantee there is no overflow
+	 * Get rate closer to *parent_rate to guarantee there is yes overflow
 	 * for m and n. In the result it will be the nearest rate left shifted
 	 * by (scale - fd->nwidth) bits.
 	 */
@@ -274,7 +274,7 @@ static struct clk *rockchip_clk_register_frac_branch(
 		frac->mux_frac_idx = match_string(child->parent_names,
 						  child->num_parents, name);
 		frac->mux_ops = &clk_mux_ops;
-		frac->clk_nb.notifier_call = rockchip_clk_frac_notifier_cb;
+		frac->clk_nb.yestifier_call = rockchip_clk_frac_yestifier_cb;
 
 		frac_mux->reg = base + child->muxdiv_offset;
 		frac_mux->shift = child->mux_shift;
@@ -297,16 +297,16 @@ static struct clk *rockchip_clk_register_frac_branch(
 
 		rockchip_clk_add_lookup(ctx, mux_clk, child->id);
 
-		/* notifier on the fraction divider to catch rate changes */
+		/* yestifier on the fraction divider to catch rate changes */
 		if (frac->mux_frac_idx >= 0) {
 			pr_debug("%s: found fractional parent in mux at pos %d\n",
 				 __func__, frac->mux_frac_idx);
-			ret = clk_notifier_register(clk, &frac->clk_nb);
+			ret = clk_yestifier_register(clk, &frac->clk_nb);
 			if (ret)
-				pr_err("%s: failed to register clock notifier for %s\n",
+				pr_err("%s: failed to register clock yestifier for %s\n",
 						__func__, name);
 		} else {
-			pr_warn("%s: could not find %s as parent of %s, rate changes may not work\n",
+			pr_warn("%s: could yest find %s as parent of %s, rate changes may yest work\n",
 				__func__, name, child->name);
 		}
 	}
@@ -361,7 +361,7 @@ static struct clk *rockchip_clk_register_factor_branch(const char *name,
 	return clk;
 }
 
-struct rockchip_clk_provider * __init rockchip_clk_init(struct device_node *np,
+struct rockchip_clk_provider * __init rockchip_clk_init(struct device_yesde *np,
 			void __iomem *base, unsigned long nr_clks)
 {
 	struct rockchip_clk_provider *ctx;
@@ -382,10 +382,10 @@ struct rockchip_clk_provider * __init rockchip_clk_init(struct device_node *np,
 	ctx->reg_base = base;
 	ctx->clk_data.clks = clk_table;
 	ctx->clk_data.clk_num = nr_clks;
-	ctx->cru_node = np;
+	ctx->cru_yesde = np;
 	spin_lock_init(&ctx->lock);
 
-	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
+	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_yesde,
 						   "rockchip,grf");
 
 	return ctx;
@@ -395,12 +395,12 @@ err_free:
 	return ERR_PTR(-ENOMEM);
 }
 
-void __init rockchip_clk_of_add_provider(struct device_node *np,
+void __init rockchip_clk_of_add_provider(struct device_yesde *np,
 				struct rockchip_clk_provider *ctx)
 {
 	if (of_clk_add_provider(np, of_clk_src_onecell_get,
 				&ctx->clk_data))
-		pr_err("%s: could not register clk provider\n", __func__);
+		pr_err("%s: could yest register clk provider\n", __func__);
 }
 
 void rockchip_clk_add_lookup(struct rockchip_clk_provider *ctx,
@@ -550,9 +550,9 @@ void __init rockchip_clk_register_branches(
 			break;
 		}
 
-		/* none of the cases above matched */
+		/* yesne of the cases above matched */
 		if (!clk) {
-			pr_err("%s: unknown clock type %d\n",
+			pr_err("%s: unkyeswn clock type %d\n",
 			       __func__, list->branch_type);
 			continue;
 		}
@@ -606,7 +606,7 @@ void __init rockchip_clk_protect_critical(const char *const clocks[],
 static void __iomem *rst_base;
 static unsigned int reg_restart;
 static void (*cb_restart)(void);
-static int rockchip_restart_notify(struct notifier_block *this,
+static int rockchip_restart_yestify(struct yestifier_block *this,
 				   unsigned long mode, void *cmd)
 {
 	if (cb_restart)
@@ -616,13 +616,13 @@ static int rockchip_restart_notify(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block rockchip_restart_handler = {
-	.notifier_call = rockchip_restart_notify,
+static struct yestifier_block rockchip_restart_handler = {
+	.yestifier_call = rockchip_restart_yestify,
 	.priority = 128,
 };
 
 void __init
-rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
+rockchip_register_restart_yestifier(struct rockchip_clk_provider *ctx,
 					       unsigned int reg,
 					       void (*cb)(void))
 {
@@ -633,6 +633,6 @@ rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
 	cb_restart = cb;
 	ret = register_restart_handler(&rockchip_restart_handler);
 	if (ret)
-		pr_err("%s: cannot register restart handler, %d\n",
+		pr_err("%s: canyest register restart handler, %d\n",
 		       __func__, ret);
 }

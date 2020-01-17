@@ -10,7 +10,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,7 +33,7 @@
  * XEN_GUEST_HANDLE_PARAM represent a guest pointer, when passed as an
  * hypercall argument.
  * XEN_GUEST_HANDLE_PARAM and XEN_GUEST_HANDLE are the same on X86 but
- * they might not be on other architectures.
+ * they might yest be on other architectures.
  */
 #ifdef __XEN__
 #define __DEFINE_GUEST_HANDLE(name, type) \
@@ -110,7 +110,7 @@ DEFINE_GUEST_HANDLE(xen_ulong_t);
  * SEGMENT DESCRIPTOR TABLES
  */
 /*
- * A number of GDT entries are reserved by Xen. These are not situated at the
+ * A number of GDT entries are reserved by Xen. These are yest situated at the
  * start of the GDT because some stupid OSes export hard-coded selector values
  * in their ABI. These hard-coded values are always near the start of the GDT,
  * so Xen places itself out of the way, at the far end of the GDT.
@@ -154,7 +154,7 @@ struct arch_shared_info {
 	unsigned long max_pfn;
 	/*
 	 * Frame containing list of mfns containing list of mfns containing p2m.
-	 * A value of 0 indicates it has not yet been set up, ~0 indicates it
+	 * A value of 0 indicates it has yest yet been set up, ~0 indicates it
 	 * has been set to invalid e.g. due to the p2m being too large for the
 	 * 3-level p2m tree. In this case the linear mapper p2m list anchored
 	 * at p2m_vaddr is to be used.
@@ -198,14 +198,14 @@ struct arch_shared_info {
  * The following is all CPU context. Note that the fpu_ctxt block is filled
  * in by FXSAVE if the CPU has feature FXSR; otherwise FSAVE is used.
  *
- * Also note that when calling DOMCTL_setvcpucontext and VCPU_initialise
- * for HVM and PVH guests, not all information in this structure is updated:
+ * Also yeste that when calling DOMCTL_setvcpucontext and VCPU_initialise
+ * for HVM and PVH guests, yest all information in this structure is updated:
  *
  * - For HVM guests, the structures read include: fpu_ctxt (if
  * VGCT_I387_VALID is set), flags, user_regs, debugreg[*]
  *
  * - PVH guests are the same as HVM guests, but additionally use ctrlreg[3] to
- * set cr3. All other fields not used should be set to 0.
+ * set cr3. All other fields yest used should be set to 0.
  */
 struct vcpu_guest_context {
     /* FPU registers come first so they can be aligned for FXSAVE/FXRSTOR. */
@@ -365,7 +365,7 @@ struct xen_pmu_arch {
 		struct xen_pmu_intel_ctxt intel;
 
 		/*
-		 * Padding for contexts (fixed parts only, does not include
+		 * Padding for contexts (fixed parts only, does yest include
 		 * MSR banks that are specified by offsets)
 		 */
 #define XENPMU_CTXT_PAD_SZ  128
@@ -376,7 +376,7 @@ struct xen_pmu_arch {
 #endif	/* !__ASSEMBLY__ */
 
 /*
- * Prefix forces emulation of some non-trapping instructions.
+ * Prefix forces emulation of some yesn-trapping instructions.
  * Currently only CPUID.
  */
 #include <asm/emulate_prefix.h>

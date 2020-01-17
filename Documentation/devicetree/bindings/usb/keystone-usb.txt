@@ -6,7 +6,7 @@ Required properties:
  - compatible: should be
 		"ti,keystone-dwc3" for Keystone 2 SoCs
 		"ti,am654-dwc3" for AM654 SoC
- - #address-cells, #size-cells : should be '1' if the device has sub-nodes
+ - #address-cells, #size-cells : should be '1' if the device has sub-yesdes
    with 'reg' property.
  - reg : Address and length of the register set for the USB subsystem on
    the SOC.
@@ -25,13 +25,13 @@ SoCs only:
 
 The following are mandatory properties for 66AK2G and AM654:
 
-- power-domains:	Should contain a phandle to a PM domain provider node
+- power-domains:	Should contain a phandle to a PM domain provider yesde
 			and an args specifier containing the USB device id
 			value. This property is as per the binding,
 			Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
 
-Sub-nodes:
-The dwc3 core should be added as subnode to Keystone DWC3 glue.
+Sub-yesdes:
+The dwc3 core should be added as subyesde to Keystone DWC3 glue.
 - dwc3 :
    The binding details of dwc3 can be found in:
    Documentation/devicetree/bindings/usb/dwc3.txt
@@ -48,7 +48,7 @@ Example:
 		ranges;
 
 		dwc3@2690000 {
-			compatible = "synopsys,dwc3";
+			compatible = "syyespsys,dwc3";
 			reg = <0x2690000 0x70000>;
 			interrupts = <GIC_SPI 393 IRQ_TYPE_EDGE_RISING>;
 			usb-phy = <&usb_phy>, <&usb_phy>;

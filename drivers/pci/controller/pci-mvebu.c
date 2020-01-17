@@ -100,7 +100,7 @@ struct mvebu_pcie_port {
 	struct gpio_desc *reset_gpio;
 	char *reset_name;
 	struct pci_bridge_emul bridge;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct mvebu_pcie *pcie;
 	struct mvebu_pcie_window memwin;
 	struct mvebu_pcie_window iowin;
@@ -292,7 +292,7 @@ static void mvebu_pcie_del_windows(struct mvebu_pcie_port *port,
 }
 
 /*
- * MBus windows can only have a power of two size, but PCI BARs do not
+ * MBus windows can only have a power of two size, but PCI BARs do yest
  * have this constraint. Therefore, we have to split the PCI BAR into
  * areas each having a power of two size. We start from the largest
  * one (i.e highest order bit set in the size).
@@ -314,7 +314,7 @@ static void mvebu_pcie_add_windows(struct mvebu_pcie_port *port,
 			phys_addr_t end = base + sz - 1;
 
 			dev_err(&port->pcie->pdev->dev,
-				"Could not create MBus window at [mem %pa-%pa]: %d\n",
+				"Could yest create MBus window at [mem %pa-%pa]: %d\n",
 				&base, &end, ret);
 			mvebu_pcie_del_windows(port, base - size_mapped,
 					       size_mapped);
@@ -345,7 +345,7 @@ static void mvebu_pcie_set_window(struct mvebu_pcie_port *port,
 
 		/*
 		 * If something tries to change the window while it is enabled
-		 * the change will not be done atomically. That would be
+		 * the change will yest be done atomically. That would be
 		 * difficult to do in the general case.
 		 */
 	}
@@ -705,7 +705,7 @@ static resource_size_t mvebu_pcie_align_resource(struct pci_dev *dev,
 }
 
 static void __iomem *mvebu_pcie_map_registers(struct platform_device *pdev,
-					      struct device_node *np,
+					      struct device_yesde *np,
 					      struct mvebu_pcie_port *port)
 {
 	struct resource regs;
@@ -724,7 +724,7 @@ static void __iomem *mvebu_pcie_map_registers(struct platform_device *pdev,
 #define DT_CPUADDR_TO_TARGET(cpuaddr) (((cpuaddr) >> 56) & 0xFF)
 #define DT_CPUADDR_TO_ATTR(cpuaddr)   (((cpuaddr) >> 48) & 0xFF)
 
-static int mvebu_get_tgt_attr(struct device_node *np, int devfn,
+static int mvebu_get_tgt_attr(struct device_yesde *np, int devfn,
 			      unsigned long type,
 			      unsigned int *tgt,
 			      unsigned int *attr)
@@ -806,7 +806,7 @@ static void mvebu_pcie_port_clk_put(void *data)
 }
 
 static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
-	struct mvebu_pcie_port *port, struct device_node *child)
+	struct mvebu_pcie_port *port, struct device_yesde *child)
 {
 	struct device *dev = &pcie->pdev->dev;
 	enum of_gpio_flags flags;
@@ -815,7 +815,7 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 	port->pcie = pcie;
 
 	if (of_property_read_u32(child, "marvell,pcie-port", &port->port)) {
-		dev_warn(dev, "ignoring %pOF, missing pcie-port property\n",
+		dev_warn(dev, "igyesring %pOF, missing pcie-port property\n",
 			 child);
 		goto skip;
 	}
@@ -834,16 +834,16 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 	if (port->devfn < 0)
 		goto skip;
 
-	ret = mvebu_get_tgt_attr(dev->of_node, port->devfn, IORESOURCE_MEM,
+	ret = mvebu_get_tgt_attr(dev->of_yesde, port->devfn, IORESOURCE_MEM,
 				 &port->mem_target, &port->mem_attr);
 	if (ret < 0) {
-		dev_err(dev, "%s: cannot get tgt/attr for mem window\n",
+		dev_err(dev, "%s: canyest get tgt/attr for mem window\n",
 			port->name);
 		goto skip;
 	}
 
 	if (resource_size(&pcie->io) != 0) {
-		mvebu_get_tgt_attr(dev->of_node, port->devfn, IORESOURCE_IO,
+		mvebu_get_tgt_attr(dev->of_yesde, port->devfn, IORESOURCE_IO,
 				   &port->io_target, &port->io_attr);
 	} else {
 		port->io_target = -1;
@@ -888,7 +888,7 @@ static int mvebu_pcie_parse_port(struct mvebu_pcie *pcie,
 
 	port->clk = of_clk_get_by_name(child, NULL);
 	if (IS_ERR(port->clk)) {
-		dev_err(dev, "%s: cannot get clock\n", port->name);
+		dev_err(dev, "%s: canyest get clock\n", port->name);
 		goto skip;
 	}
 
@@ -960,7 +960,7 @@ static void mvebu_pcie_powerdown(struct mvebu_pcie_port *port)
 static int mvebu_pcie_parse_request_resources(struct mvebu_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int ret;
 
 	INIT_LIST_HEAD(&pcie->resources);
@@ -1040,7 +1040,7 @@ static int mvebu_pci_host_probe(struct pci_host_bridge *bridge)
 		pci_bus_size_bridges(bus);
 		pci_bus_assign_resources(bus);
 
-		list_for_each_entry(child, &bus->children, node)
+		list_for_each_entry(child, &bus->children, yesde)
 			pcie_bus_configure_settings(child);
 	}
 
@@ -1053,8 +1053,8 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mvebu_pcie *pcie;
 	struct pci_host_bridge *bridge;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *child;
 	int num, i, ret;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(struct mvebu_pcie));
@@ -1076,12 +1076,12 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	i = 0;
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		struct mvebu_pcie_port *port = &pcie->ports[i];
 
 		ret = mvebu_pcie_parse_port(pcie, port, child);
 		if (ret < 0) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		} else if (ret == 0) {
 			continue;
@@ -1105,7 +1105,7 @@ static int mvebu_pcie_probe(struct platform_device *pdev)
 
 		port->base = mvebu_pcie_map_registers(pdev, child, port);
 		if (IS_ERR(port->base)) {
-			dev_err(dev, "%s: cannot map registers\n", port->name);
+			dev_err(dev, "%s: canyest map registers\n", port->name);
 			port->base = NULL;
 			mvebu_pcie_powerdown(port);
 			continue;
@@ -1147,7 +1147,7 @@ static struct platform_driver mvebu_pcie_driver = {
 	.driver = {
 		.name = "mvebu-pcie",
 		.of_match_table = mvebu_pcie_of_match_table,
-		/* driver unloading/unbinding currently not supported */
+		/* driver unloading/unbinding currently yest supported */
 		.suppress_bind_attrs = true,
 		.pm = &mvebu_pcie_pm_ops,
 	},

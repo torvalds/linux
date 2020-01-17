@@ -14,7 +14,7 @@
  *  code, and exception/interrupt return code for PowerPC.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/sys.h>
 #include <linux/threads.h>
@@ -38,7 +38,7 @@
 
 /*
  * Align to 4k in order to ensure that all functions modyfing srr0/srr1
- * fit into one page in order to not encounter a TLB miss between the
+ * fit into one page in order to yest encounter a TLB miss between the
  * modification of srr0/srr1 and the associated rfi.
  */
 	.align	12
@@ -224,7 +224,7 @@ transfer_to_handler_cont:
 	RFI				/* jump to handler, enable MMU */
 
 #ifdef CONFIG_TRACE_IRQFLAGS
-1:	/* MSR is changing, re-enable MMU so we can notify lockdep. We need to
+1:	/* MSR is changing, re-enable MMU so we can yestify lockdep. We need to
 	 * keep interrupts disabled at this point otherwise we might risk
 	 * taking an interrupt before we tell lockdep they are enabled.
 	 */
@@ -254,7 +254,7 @@ reenable_mmu:
 	stw	r4,20(r1)
 	stw	r5,24(r1)
 
-	/* If we are disabling interrupts (normal case), simply log it with
+	/* If we are disabling interrupts (yesrmal case), simply log it with
 	 * lockdep
 	 */
 1:	bl	trace_hardirqs_off
@@ -289,7 +289,7 @@ reenable_mmu:
 
 /*
  * On kernel stack overflow, load up an initial stack pointer
- * and call StackOverflow(regs), which should not return.
+ * and call StackOverflow(regs), which should yest return.
  */
 stack_ovf:
 	/* sometimes we use a statically-allocated stack, which is OK. */
@@ -356,7 +356,7 @@ _GLOBAL(DoSyscall)
 	mfmsr	r11
 	andi.	r12,r11,MSR_EE
 	/* We came in with interrupts disabled, we WARN and mark them enabled
-	 * for lockdep now */
+	 * for lockdep yesw */
 0:	tweqi	r12, 0
 	EMIT_BUG_ENTRY 0b,__FILE__,__LINE__, BUGFLAG_WARNING
 #endif /* CONFIG_TRACE_IRQFLAGS */
@@ -370,7 +370,7 @@ syscall_dotrace_cont:
 	slwi	r0,r0,2
 	bge-	66f
 
-	barrier_nospec_asm
+	barrier_yesspec_asm
 	/*
 	 * Prevent the load of the handler below (based on the user-passed
 	 * system call number) being speculatively executed until the test
@@ -412,7 +412,7 @@ syscall_exit_cont:
 	lwz	r8,_MSR(r1)
 #ifdef CONFIG_TRACE_IRQFLAGS
 	/* If we are going to return from the syscall with interrupts
-	 * off, we trace that here. It shouldn't normally happen.
+	 * off, we trace that here. It shouldn't yesrmally happen.
 	 */
 	andi.	r10,r8,MSR_EE
 	bne+	1f
@@ -549,14 +549,14 @@ syscall_exit_work:
 	andi.	r0,r9,(_TIF_SYSCALL_DOTRACE|_TIF_SINGLESTEP)
 	beq	ret_from_except
 
-	/* Re-enable interrupts. There is no need to trace that with
+	/* Re-enable interrupts. There is yes need to trace that with
 	 * lockdep as we are supposed to have IRQs on at this point
 	 */
 	ori	r10,r10,MSR_EE
 	SYNC
 	MTMSRD(r10)
 
-	/* Save NVGPRS if they're not saved already */
+	/* Save NVGPRS if they're yest saved already */
 	lwz	r4,_TRAP(r1)
 	andi.	r4,r4,1
 	beq	5f
@@ -570,7 +570,7 @@ syscall_exit_work:
 
 /*
  * The fork/clone functions need to copy the full register set into
- * the child process. Therefore we need to save all the nonvolatile
+ * the child process. Therefore we need to save all the yesnvolatile
  * registers (r13 - r31) before calling the C code.
  */
 	.globl	ppc_fork
@@ -616,7 +616,7 @@ ppc_swapcontext:
 /*
  * Top-level page fault handling.
  * This is in assembler because if do_page_fault tells us that
- * it is a bad kernel page fault, we want to save the non-volatile
+ * it is a bad kernel page fault, we want to save the yesn-volatile
  * registers before calling bad_page_fault.
  */
 	.globl	handle_page_fault
@@ -707,7 +707,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPE)
 	kuap_check r2, r4
 #ifdef CONFIG_SMP
 	/* We need a sync somewhere here to make sure that if the
-	 * previous task gets rescheduled on another CPU, it sees all
+	 * previous task gets rescheduled on ayesther CPU, it sees all
 	 * stores it has performed on this one.
 	 */
 	sync
@@ -748,7 +748,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPE)
 fast_exception_return:
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
 	andi.	r10,r9,MSR_RI		/* check for recoverable interrupt */
-	beq	1f			/* if not, we've got problems */
+	beq	1f			/* if yest, we've got problems */
 #endif
 
 2:	REST_4GPRS(3, r11)
@@ -804,8 +804,8 @@ fee_restarts:
 	.space	4
 	.previous
 
-/* aargh, a nonrecoverable interrupt, panic */
-/* aargh, we don't know which trap this is */
+/* aargh, a yesnrecoverable interrupt, panic */
+/* aargh, we don't kyesw which trap this is */
 /* but the 601 doesn't implement the RI bit, so assume it's OK */
 3:
 	li	r10,-1
@@ -900,7 +900,7 @@ resume_kernel:
 #ifdef CONFIG_PREEMPT
 	/* check current_thread_info->preempt_count */
 	lwz	r0,TI_PREEMPT(r2)
-	cmpwi	0,r0,0		/* if non-zero, just restore regs and return */
+	cmpwi	0,r0,0		/* if yesn-zero, just restore regs and return */
 	bne	restore_kuap
 	andi.	r8,r8,_TIF_NEED_RESCHED
 	beq+	restore_kuap
@@ -910,13 +910,13 @@ resume_kernel:
 #ifdef CONFIG_TRACE_IRQFLAGS
 	/* Lockdep thinks irqs are enabled, we need to call
 	 * preempt_schedule_irq with IRQs off, so we inform lockdep
-	 * now that we -did- turn them off already
+	 * yesw that we -did- turn them off already
 	 */
 	bl	trace_hardirqs_off
 #endif
 	bl	preempt_schedule_irq
 #ifdef CONFIG_TRACE_IRQFLAGS
-	/* And now, to properly rebalance the above, we tell lockdep they
+	/* And yesw, to properly rebalance the above, we tell lockdep they
 	 * are being turned back on, which will happen when we return
 	 */
 	bl	trace_hardirqs_on
@@ -943,7 +943,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 
 	lwz	r9,_MSR(r1)
 #ifdef CONFIG_TRACE_IRQFLAGS
-	/* Lockdep doesn't know about the fact that IRQs are temporarily turned
+	/* Lockdep doesn't kyesw about the fact that IRQs are temporarily turned
 	 * off in this assembly code while peeking at TI_FLAGS() and such. However
 	 * we need to inform it if the exception turned interrupts off, and we
 	 * are about to trun them back on.
@@ -977,7 +977,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
 	andi.	r10,r9,MSR_RI		/* check if this exception occurred */
-	beql	nonrecoverable		/* at a bad place (MSR:RI = 0) */
+	beql	yesnrecoverable		/* at a bad place (MSR:RI = 0) */
 
 	lwz	r10,_CCR(r1)
 	lwz	r11,_LINK(r1)
@@ -989,7 +989,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	stw	r10, 8(r1)
 	/*
 	 * Once we put values in SRR0 and SRR1, we are in a state
-	 * where exceptions are not recoverable, since taking an
+	 * where exceptions are yest recoverable, since taking an
 	 * exception will trash SRR0 and SRR1.  Therefore we clear the
 	 * MSR:RI bit to indicate this.  If we do take an exception,
 	 * we can't return to the point of the exception but we
@@ -1044,11 +1044,11 @@ exc_exit_restart_end:
 
 /*
  * Returning from a critical interrupt in user mode doesn't need
- * to be any different from a normal exception.  For a critical
+ * to be any different from a yesrmal exception.  For a critical
  * interrupt in the kernel, we just return (without checking for
  * preemption) since the interrupt may have happened at some crucial
  * place (e.g. inside the TLB miss handler), and because we will be
- * running with r1 pointing into critical_stack, not the current
+ * running with r1 pointing into critical_stack, yest the current
  * process's kernel stack (and therefore current_thread_info() will
  * give the wrong answer).
  * We have to restore various SPRs that may have been in use at the
@@ -1253,7 +1253,7 @@ do_user_signal:			/* r10 contains MSR_KERNEL here */
 	ori	r10,r10,MSR_EE
 	SYNC
 	MTMSRD(r10)		/* hard-enable interrupts */
-	/* save r13-r31 in the exception frame, if not already done */
+	/* save r13-r31 in the exception frame, if yest already done */
 	lwz	r3,_TRAP(r1)
 	andi.	r0,r3,1
 	beq	2f
@@ -1262,7 +1262,7 @@ do_user_signal:			/* r10 contains MSR_KERNEL here */
 	stw	r3,_TRAP(r1)
 2:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	mr	r4,r9
-	bl	do_notify_resume
+	bl	do_yestify_resume
 	REST_NVGPRS(r1)
 	b	recheck
 
@@ -1271,7 +1271,7 @@ do_user_signal:			/* r10 contains MSR_KERNEL here */
  * that occurred at a place where taking an exception will lose
  * state information, such as the contents of SRR0 and SRR1.
  */
-nonrecoverable:
+yesnrecoverable:
 	lis	r10,exc_exit_restart_end@ha
 	addi	r10,r10,exc_exit_restart_end@l
 	cmplw	r12,r10

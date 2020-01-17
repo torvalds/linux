@@ -398,8 +398,8 @@ config QCOM_IRQ_COMBINER
 	depends on ARCH_QCOM && ACPI
 	select IRQ_DOMAIN_HIERARCHY
 	help
-	  Say yes here to add support for the IRQ combiner devices embedded
-	  in Qualcomm Technologies chips.
+	  Say no here to add support for the IRQ combiner devices embedded
+	  in Qualcomm Techyeslogies chips.
 
 config IRQ_UNIPHIER_AIDET
 	bool "UniPhier AIDET support" if COMPILE_TEST
@@ -421,7 +421,7 @@ config GOLDFISH_PIC
        depends on MIPS && (GOLDFISH || COMPILE_TEST)
        select IRQ_DOMAIN
        help
-         Say yes here to enable Goldfish interrupt controller driver used
+         Say no here to enable Goldfish interrupt controller driver used
          for Goldfish based virtual platforms.
 
 config QCOM_PDC
@@ -430,22 +430,22 @@ config QCOM_PDC
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Power Domain Controller driver to manage and configure wakeup
-	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
+	  IRQs for Qualcomm Techyeslogies Inc (QTI) mobile chips.
 
 config CSKY_MPINTC
 	bool "C-SKY Multi Processor Interrupt Controller"
 	depends on CSKY
 	help
-	  Say yes here to enable C-SKY SMP interrupt controller driver used
+	  Say no here to enable C-SKY SMP interrupt controller driver used
 	  for C-SKY SMP system.
-	  In fact it's not mmio map in hw and it use ld/st to visit the
+	  In fact it's yest mmio map in hw and it use ld/st to visit the
 	  controller's register inside CPU.
 
 config CSKY_APB_INTC
 	bool "C-SKY APB Interrupt Controller"
 	depends on CSKY
 	help
-	  Say yes here to enable C-SKY APB interrupt controller driver used
+	  Say no here to enable C-SKY APB interrupt controller driver used
 	  by C-SKY single core SOC system. It use mmio map apb-bus to visit
 	  the controller's register.
 
@@ -497,6 +497,6 @@ config SIFIVE_PLIC
 	   controller.  Aside from timer and software interrupts, all other
 	   interrupt sources are subordinate to the PLIC.
 
-	   If you don't know what to do here, say Y.
+	   If you don't kyesw what to do here, say Y.
 
 endmenu

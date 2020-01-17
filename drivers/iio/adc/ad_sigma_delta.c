@@ -229,7 +229,7 @@ int ad_sd_calibrate(struct ad_sigma_delta *sigma_delta,
 	timeout = wait_for_completion_timeout(&sigma_delta->completion, 2 * HZ);
 	if (timeout == 0) {
 		sigma_delta->irq_dis = true;
-		disable_irq_nosync(sigma_delta->spi->irq);
+		disable_irq_yessync(sigma_delta->spi->irq);
 		ret = -EIO;
 	} else {
 		ret = 0;
@@ -318,7 +318,7 @@ int ad_sigma_delta_single_conversion(struct iio_dev *indio_dev,
 
 out:
 	if (!sigma_delta->irq_dis) {
-		disable_irq_nosync(sigma_delta->spi->irq);
+		disable_irq_yessync(sigma_delta->spi->irq);
 		sigma_delta->irq_dis = true;
 	}
 
@@ -387,7 +387,7 @@ static int ad_sd_buffer_postdisable(struct iio_dev *indio_dev)
 	wait_for_completion_timeout(&sigma_delta->completion, HZ);
 
 	if (!sigma_delta->irq_dis) {
-		disable_irq_nosync(sigma_delta->spi->irq);
+		disable_irq_yessync(sigma_delta->spi->irq);
 		sigma_delta->irq_dis = true;
 	}
 
@@ -436,7 +436,7 @@ static irqreturn_t ad_sd_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data, pf->timestamp);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 	sigma_delta->irq_dis = false;
 	enable_irq(sigma_delta->spi->irq);
 
@@ -455,7 +455,7 @@ static irqreturn_t ad_sd_data_rdy_trig_poll(int irq, void *private)
 	struct ad_sigma_delta *sigma_delta = private;
 
 	complete(&sigma_delta->completion);
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	sigma_delta->irq_dis = true;
 	iio_trigger_poll(sigma_delta->trig);
 
@@ -508,7 +508,7 @@ static int ad_sd_probe_trigger(struct iio_dev *indio_dev)
 
 	if (!sigma_delta->irq_dis) {
 		sigma_delta->irq_dis = true;
-		disable_irq_nosync(sigma_delta->spi->irq);
+		disable_irq_yessync(sigma_delta->spi->irq);
 	}
 	sigma_delta->trig->dev.parent = &sigma_delta->spi->dev;
 	iio_trigger_set_drvdata(sigma_delta->trig, sigma_delta);

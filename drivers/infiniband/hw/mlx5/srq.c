@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2013-2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2018, Mellayesx Techyeslogies inc.  All rights reserved.
  */
 
 #include <linux/module.h>
@@ -141,8 +141,8 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 		return err;
 	}
 
-	if (mlx5_frag_buf_alloc_node(dev->mdev, buf_size, &srq->buf,
-				     dev->mdev->priv.numa_node)) {
+	if (mlx5_frag_buf_alloc_yesde(dev->mdev, buf_size, &srq->buf,
+				     dev->mdev->priv.numa_yesde)) {
 		mlx5_ib_dbg(dev, "buf alloc failed\n");
 		err = -ENOMEM;
 		goto err_db;

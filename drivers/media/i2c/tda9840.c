@@ -2,7 +2,7 @@
  /*
     tda9840 - i2c-driver for the tda9840 by SGS Thomson
 
-    Copyright (C) 1998-2003 Michael Hunold <michael@mihu.de>
+    Copyright (C) 1998-2003 Michael Huyesld <michael@mihu.de>
     Copyright (C) 2008 Hans Verkuil <hverkuil@xs4all.nl>
 
     The tda9840 is a stereo/dual sound processor with digital
@@ -20,7 +20,7 @@
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
 
-MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
+MODULE_AUTHOR("Michael Huyesld <michael@mihu.de>");
 MODULE_DESCRIPTION("tda9840 driver");
 MODULE_LICENSE("GPL");
 
@@ -87,7 +87,7 @@ static int tda9840_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *t)
 		return -EINVAL;
 
 	stat = stat < 0 ? 0 : stat;
-	if (stat == 0 || stat == 0x60) /* mono input */
+	if (stat == 0 || stat == 0x60) /* moyes input */
 		byte = TDA9840_SET_MONO;
 	else if (stat == 0x40) /* stereo input */
 		byte = (t->audmode == V4L2_TUNER_MODE_MONO) ?

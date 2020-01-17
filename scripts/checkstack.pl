@@ -15,7 +15,7 @@
 #	M68k port by Geert Uytterhoeven and Andreas Schwab
 #	AArch64, PARISC ports by Kyle McMartin
 #	sparc port by Martin Habets <errandir_news@mph.eclipse.co.uk>
-#	ppc64le port by Breno Leitao <leitao@debian.org>
+#	ppc64le port by Breyes Leitao <leitao@debian.org>
 #
 #	Usage:
 #	objdump -d vmlinux | scripts/checkstack.pl [arch]
@@ -101,7 +101,7 @@ my (@stack, $re, $dre, $x, $xs, $funcre);
 		# f0019d10:       9d e3 bf 90     save  %sp, -112, %sp
 		$re = qr/.*save.*%sp, -(([0-9]{2}|[3-9])[0-9]{2}), %sp/o;
 	} else {
-		print("wrong or unknown architecture \"$arch\"\n");
+		print("wrong or unkyeswn architecture \"$arch\"\n");
 		exit
 	}
 }

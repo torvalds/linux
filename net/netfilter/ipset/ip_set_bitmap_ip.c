@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 #include <linux/netlink.h>
@@ -47,7 +47,7 @@ struct bitmap_ip {
 	struct timer_list gc;	/* garbage collection */
 	struct ip_set *set;	/* attached to this ip_set */
 	unsigned char extensions[0]	/* data extensions */
-		__aligned(__alignof__(u64));
+		__aligned(__aligyesf__(u64));
 };
 
 /* ADT structure for generic function args */
@@ -128,7 +128,7 @@ bitmap_ip_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 bitmap_ip_uadt(struct ip_set *set, struct nlattr *tb[],
-	       enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+	       enum ipset_adt adt, u32 *lineyes, u32 flags, bool retried)
 {
 	struct bitmap_ip *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -138,7 +138,7 @@ bitmap_ip_uadt(struct ip_set *set, struct nlattr *tb[],
 	int ret = 0;
 
 	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+		*lineyes = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP]))
 		return -IPSET_ERR_PROTOCOL;

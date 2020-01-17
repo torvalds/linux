@@ -10,7 +10,7 @@
 
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -65,7 +65,7 @@ void psb_spank(struct drm_psb_private *dev_priv)
  *	@size: size (in dwords) of the command we want to issue
  *
  *	Wait until there is room to load the FIFO with our data. If the
- *	device is not responding then reset it
+ *	device is yest responding then reset it
  */
 static int psb_2d_wait_available(struct drm_psb_private *dev_priv,
 			  unsigned size)

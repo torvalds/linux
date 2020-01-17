@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-#MAKEFLAGS += --no-print-directory
+#MAKEFLAGS += --yes-print-directory
 
 
 # Makefiles suck: This macro sets a default value of $(2) for the
@@ -143,7 +143,7 @@ PLUGINS_IN := $(PLUGINS:.so=-in.o)
 
 plugins: $(PLUGINS) $(DYNAMIC_LIST_FILE)
 
-__plugin_obj = $(notdir $@)
+__plugin_obj = $(yestdir $@)
   plugin_obj = $(__plugin_obj:-in.o=)
 
 $(PLUGINS_IN): force
@@ -153,7 +153,7 @@ $(OUTPUT)libtraceevent-dynamic-list: $(PLUGINS)
 	$(QUIET_GEN)$(call do_generate_dynamic_list_file, $(PLUGINS), $@)
 
 $(OUTPUT)%.so: $(OUTPUT)%-in.o
-	$(QUIET_LINK)$(CC) $(CFLAGS) -shared $(LDFLAGS) -nostartfiles -o $@ $^
+	$(QUIET_LINK)$(CC) $(CFLAGS) -shared $(LDFLAGS) -yesstartfiles -o $@ $^
 
 define update_dir
   (echo $1 > $@.tmp;                           \

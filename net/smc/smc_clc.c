@@ -263,8 +263,8 @@ out:
 
 /* Wait for data on the tcp-socket, analyze received data
  * Returns:
- * 0 if success and it was not a decline that we received.
- * SMC_CLC_DECL_REPLY if decline received for fallback w/o another decl send.
+ * 0 if success and it was yest a decline that we received.
+ * SMC_CLC_DECL_REPLY if decline received for fallback w/o ayesther decl send.
  * clcsock error, -EINTR, -ECONNRESET, -EPROTO otherwise.
  */
 int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
@@ -284,7 +284,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	 * in the TCP byte stream
 	 */
 	/*
-	 * Caller must make sure that buflen is no less than
+	 * Caller must make sure that buflen is yes less than
 	 * sizeof(struct smc_clc_msg_hdr)
 	 */
 	krflags = MSG_PEEK | MSG_WAITALL;
@@ -346,7 +346,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 
 		dclc = (struct smc_clc_msg_decline *)clcm;
 		reason_code = SMC_CLC_DECL_PEERDECL;
-		smc->peer_diagnosis = ntohl(dclc->peer_diagnosis);
+		smc->peer_diagyessis = ntohl(dclc->peer_diagyessis);
 		if (((struct smc_clc_msg_decline *)buf)->hdr.flag) {
 			smc->conn.lgr->sync_err = 1;
 			smc_lgr_terminate(smc->conn.lgr, true);
@@ -373,7 +373,7 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 	dclc.hdr.version = SMC_CLC_V1;
 	dclc.hdr.flag = (peer_diag_info == SMC_CLC_DECL_SYNCERR) ? 1 : 0;
 	memcpy(dclc.id_for_peer, local_systemid, sizeof(local_systemid));
-	dclc.peer_diagnosis = htonl(peer_diag_info);
+	dclc.peer_diagyessis = htonl(peer_diag_info);
 	memcpy(dclc.trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 
 	memset(&msg, 0, sizeof(msg));
@@ -450,7 +450,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, int smc_type,
 	}
 	vec[i].iov_base = &trl;
 	vec[i++].iov_len = sizeof(trl);
-	/* due to the few bytes needed for clc-handshake this cannot block */
+	/* due to the few bytes needed for clc-handshake this canyest block */
 	len = kernel_sendmsg(smc->clcsock, &msg, vec, i, plen);
 	if (len < 0) {
 		smc->sk.sk_err = smc->clcsock->sk->sk_err;
@@ -506,7 +506,7 @@ int smc_clc_send_confirm(struct smc_sock *smc)
 		hton24(cclc.qpn, link->roce_qp->qp_num);
 		cclc.rmb_rkey =
 			htonl(conn->rmb_desc->mr_rx[SMC_SINGLE_LINK]->rkey);
-		cclc.rmbe_idx = 1; /* for now: 1 RMB = 1 RMBE */
+		cclc.rmbe_idx = 1; /* for yesw: 1 RMB = 1 RMBE */
 		cclc.rmbe_alert_token = htonl(conn->alert_token_local);
 		cclc.qp_mtu = min(link->path_mtu, link->peer_mtu);
 		cclc.rmbe_size = conn->rmbe_size_short;

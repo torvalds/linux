@@ -6,7 +6,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 #define __futex_atomic_ex_table(err_reg)			\
 	"3:\n"							\
@@ -54,7 +54,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		return -EFAULT;
 
 	smp_mb();
-	/* Prefetching cannot fault */
+	/* Prefetching canyest fault */
 	prefetchw(uaddr);
 	__ua_flags = uaccess_save_and_enable();
 	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"

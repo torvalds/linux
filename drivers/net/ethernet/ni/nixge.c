@@ -171,7 +171,7 @@ struct nixge_priv {
 	struct device *dev;
 
 	/* Connection to PHY device */
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 	phy_interface_t		phy_mode;
 
 	int link;
@@ -376,7 +376,7 @@ static int nixge_hw_dma_bd_init(struct net_device *ndev)
 			    (sizeof(*priv->rx_bd_v) * (RX_BD_NUM - 1)));
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
-	 * Tx channel is now ready to run. But only after we write to the
+	 * Tx channel is yesw ready to run. But only after we write to the
 	 * tail pointer register that the Tx channel will start transmitting.
 	 */
 	nixge_dma_write_desc_reg(priv, XAXIDMA_TX_CDESC_OFFSET, priv->tx_bd_p);
@@ -622,9 +622,9 @@ static int nixge_recv(struct net_device *ndev, int budget)
 		skb_put(skb, length);
 
 		skb->protocol = eth_type_trans(skb, ndev);
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 
-		/* For now mark them as CHECKSUM_NONE since
+		/* For yesw mark them as CHECKSUM_NONE since
 		 * we don't have offload capabilities
 		 */
 		skb->ip_summed = CHECKSUM_NONE;
@@ -683,7 +683,7 @@ static int nixge_poll(struct napi_struct *napi, int budget)
 			nixge_dma_write_reg(priv, XAXIDMA_RX_SR_OFFSET, status);
 			napi_reschedule(napi);
 		} else {
-			/* if not, turn on RX IRQs again ... */
+			/* if yest, turn on RX IRQs again ... */
 			cr = nixge_dma_read_reg(priv, XAXIDMA_RX_CR_OFFSET);
 			cr |= (XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_DELAY_MASK);
 			nixge_dma_write_reg(priv, XAXIDMA_RX_CR_OFFSET, cr);
@@ -853,7 +853,7 @@ static void nixge_dma_err_handler(unsigned long data)
 			    (sizeof(*lp->rx_bd_v) * (RX_BD_NUM - 1)));
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
-	 * Tx channel is now ready to run. But only after we write to the
+	 * Tx channel is yesw ready to run. But only after we write to the
 	 * tail pointer register that the Tx channel will start transmitting
 	 */
 	nixge_dma_write_desc_reg(lp, XAXIDMA_TX_CDESC_OFFSET, lp->tx_bd_p);
@@ -870,7 +870,7 @@ static int nixge_open(struct net_device *ndev)
 
 	nixge_device_reset(ndev);
 
-	phy = of_phy_connect(ndev, priv->phy_node,
+	phy = of_phy_connect(ndev, priv->phy_yesde,
 			     &nixge_handle_link_change, 0, priv->phy_mode);
 	if (!phy)
 		return -ENODEV;
@@ -1195,7 +1195,7 @@ static int nixge_mdio_write(struct mii_bus *bus, int phy_id, int reg, u16 val)
 	return err;
 }
 
-static int nixge_mdio_setup(struct nixge_priv *priv, struct device_node *np)
+static int nixge_mdio_setup(struct nixge_priv *priv, struct device_yesde *np)
 {
 	struct mii_bus *bus;
 
@@ -1250,7 +1250,7 @@ static int nixge_of_get_resources(struct platform_device *pdev)
 
 	ndev = platform_get_drvdata(pdev);
 	priv = netdev_priv(ndev);
-	of_id = of_match_node(nixge_dt_ids, pdev->dev.of_node);
+	of_id = of_match_yesde(nixge_dt_ids, pdev->dev.of_yesde);
 	if (!of_id)
 		return -ENODEV;
 
@@ -1282,7 +1282,7 @@ static int nixge_of_get_resources(struct platform_device *pdev)
 
 static int nixge_probe(struct platform_device *pdev)
 {
-	struct device_node *mn, *phy_node;
+	struct device_yesde *mn, *phy_yesde;
 	struct nixge_priv *priv;
 	struct net_device *ndev;
 	const u8 *mac_addr;
@@ -1323,45 +1323,45 @@ static int nixge_probe(struct platform_device *pdev)
 
 	priv->tx_irq = platform_get_irq_byname(pdev, "tx");
 	if (priv->tx_irq < 0) {
-		netdev_err(ndev, "could not find 'tx' irq");
+		netdev_err(ndev, "could yest find 'tx' irq");
 		return priv->tx_irq;
 	}
 
 	priv->rx_irq = platform_get_irq_byname(pdev, "rx");
 	if (priv->rx_irq < 0) {
-		netdev_err(ndev, "could not find 'rx' irq");
+		netdev_err(ndev, "could yest find 'rx' irq");
 		return priv->rx_irq;
 	}
 
 	priv->coalesce_count_rx = XAXIDMA_DFT_RX_THRESHOLD;
 	priv->coalesce_count_tx = XAXIDMA_DFT_TX_THRESHOLD;
 
-	mn = of_get_child_by_name(pdev->dev.of_node, "mdio");
+	mn = of_get_child_by_name(pdev->dev.of_yesde, "mdio");
 	if (mn) {
 		err = nixge_mdio_setup(priv, mn);
-		of_node_put(mn);
+		of_yesde_put(mn);
 		if (err) {
 			netdev_err(ndev, "error registering mdio bus");
 			goto free_netdev;
 		}
 	}
 
-	err = of_get_phy_mode(pdev->dev.of_node, &priv->phy_mode);
+	err = of_get_phy_mode(pdev->dev.of_yesde, &priv->phy_mode);
 	if (err) {
-		netdev_err(ndev, "not find \"phy-mode\" property\n");
+		netdev_err(ndev, "yest find \"phy-mode\" property\n");
 		goto unregister_mdio;
 	}
 
-	phy_node = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
-	if (!phy_node && of_phy_is_fixed_link(pdev->dev.of_node)) {
-		err = of_phy_register_fixed_link(pdev->dev.of_node);
+	phy_yesde = of_parse_phandle(pdev->dev.of_yesde, "phy-handle", 0);
+	if (!phy_yesde && of_phy_is_fixed_link(pdev->dev.of_yesde)) {
+		err = of_phy_register_fixed_link(pdev->dev.of_yesde);
 		if (err < 0) {
 			netdev_err(ndev, "broken fixed-link specification\n");
 			goto unregister_mdio;
 		}
-		phy_node = of_node_get(pdev->dev.of_node);
+		phy_yesde = of_yesde_get(pdev->dev.of_yesde);
 	}
-	priv->phy_node = phy_node;
+	priv->phy_yesde = phy_yesde;
 
 	err = register_netdev(priv->ndev);
 	if (err) {
@@ -1372,9 +1372,9 @@ static int nixge_probe(struct platform_device *pdev)
 	return 0;
 
 free_phy:
-	if (of_phy_is_fixed_link(pdev->dev.of_node))
-		of_phy_deregister_fixed_link(pdev->dev.of_node);
-	of_node_put(phy_node);
+	if (of_phy_is_fixed_link(pdev->dev.of_yesde))
+		of_phy_deregister_fixed_link(pdev->dev.of_yesde);
+	of_yesde_put(phy_yesde);
 
 unregister_mdio:
 	if (priv->mii_bus)
@@ -1393,9 +1393,9 @@ static int nixge_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 
-	if (of_phy_is_fixed_link(pdev->dev.of_node))
-		of_phy_deregister_fixed_link(pdev->dev.of_node);
-	of_node_put(priv->phy_node);
+	if (of_phy_is_fixed_link(pdev->dev.of_yesde))
+		of_phy_deregister_fixed_link(pdev->dev.of_yesde);
+	of_yesde_put(priv->phy_yesde);
 
 	if (priv->mii_bus)
 		mdiobus_unregister(priv->mii_bus);

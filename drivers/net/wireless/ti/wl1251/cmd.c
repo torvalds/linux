@@ -116,7 +116,7 @@ int wl1251_cmd_interrogate(struct wl1251 *wl, u16 id, void *buf, size_t len)
 
 	acx->id = id;
 
-	/* payload length, does not include any headers */
+	/* payload length, does yest include any headers */
 	acx->len = len - sizeof(*acx);
 
 	ret = wl1251_cmd_send(wl, CMD_INTERROGATE, acx, sizeof(*acx));
@@ -154,7 +154,7 @@ int wl1251_cmd_configure(struct wl1251 *wl, u16 id, void *buf, size_t len)
 
 	acx->id = id;
 
-	/* payload length, does not include any headers */
+	/* payload length, does yest include any headers */
 	acx->len = len - sizeof(*acx);
 
 	ret = wl1251_cmd_send(wl, CMD_CONFIGURE, acx, len);
@@ -373,7 +373,7 @@ int wl1251_cmd_read_memory(struct wl1251 *wl, u32 addr, void *answer,
 		goto out;
 	}
 
-	/* the read command got in, we can now read the answer */
+	/* the read command got in, we can yesw read the answer */
 	wl1251_mem_read(wl, wl->cmd_box_addr, cmd, sizeof(*cmd));
 
 	if (cmd->header.status != CMD_STATUS_SUCCESS)
@@ -443,7 +443,7 @@ int wl1251_cmd_scan(struct wl1251 *wl, u8 *ssid, size_t ssid_len,
 						    CFG_RX_BCN_EN);
 	cmd->params.scan_options = 0;
 	/*
-	 * Use high priority scan when not associated to prevent fw issue
+	 * Use high priority scan when yest associated to prevent fw issue
 	 * causing never-ending scans (sometimes 20+ minutes).
 	 * Note: This bug may be caused by the fw's DTIM handling.
 	 */

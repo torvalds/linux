@@ -121,9 +121,9 @@ setup_604_hid0:
  * around #3 and with the same fix we use. We may want to
  * check if the CPU is using 60x bus mode in which case
  * the workaround for errata #4 is useless. Also, we may
- * want to explicitly clear HID0_NOPDST as this is not
+ * want to explicitly clear HID0_NOPDST as this is yest
  * needed once we have applied workaround #5 (though it's
- * not set by Apple's firmware at least).
+ * yest set by Apple's firmware at least).
  */
 setup_7400_workarounds:
 	mfpvr	r3
@@ -215,7 +215,7 @@ setup_750fx:
 setup_745x_specifics:
 	/* We check for the presence of an L3 cache setup by
 	 * the firmware. If any, we disable NAP capability as
-	 * it's known to be bogus on rev 2.1 and earlier
+	 * it's kyeswn to be bogus on rev 2.1 and earlier
 	 */
 BEGIN_FTR_SECTION
 	mfspr	r11,SPRN_L3CR
@@ -273,7 +273,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_NO_DPM)
 
 /*
  * Initialize the FPU registers. This is needed to work around an errata
- * in some 750 cpus where using a not yet initialized FPU register after
+ * in some 750 cpus where using a yest yet initialized FPU register after
  * power on reset may hang the CPU
  */
 _GLOBAL(__init_fpu_registers)
@@ -308,9 +308,9 @@ cpu_state_storage:
 	.balign	L1_CACHE_BYTES,0
 	.text
 
-/* Called in normal context to backup CPU 0 state. This
- * does not include cache settings. This function is also
- * called for machine sleep. This does not include the MMU
+/* Called in yesrmal context to backup CPU 0 state. This
+ * does yest include cache settings. This function is also
+ * called for machine sleep. This does yest include the MMU
  * setup, BATs, etc... but rather the "special" registers
  * like HID0, HID1, MSSCR0, etc...
  */
@@ -377,9 +377,9 @@ _GLOBAL(__save_cpu_setup)
 	mtcr	r7
 	blr
 
-/* Called with no MMU context (typically MSR:IR/DR off) to
+/* Called with yes MMU context (typically MSR:IR/DR off) to
  * restore CPU state as backed up by the previous
- * function. This does not include cache setting
+ * function. This does yest include cache setting
  */
 _GLOBAL(__restore_cpu_setup)
 	/* Some CR fields are volatile, we back it up all */

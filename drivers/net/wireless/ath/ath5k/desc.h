@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -191,7 +191,7 @@ struct ath5k_hw_2w_tx_ctl {
 #define AR5K_2W_TX_DESC_CTL1_ENC_KEY_IDX_S	13
 #define AR5K_2W_TX_DESC_CTL1_FRAME_TYPE_5211	0x00700000 /* [5211] frame type */
 #define AR5K_2W_TX_DESC_CTL1_FRAME_TYPE_5211_S	20
-#define AR5K_2W_TX_DESC_CTL1_NOACK_5211		0x00800000 /* [5211] no ACK */
+#define AR5K_2W_TX_DESC_CTL1_NOACK_5211		0x00800000 /* [5211] yes ACK */
 #define AR5K_2W_TX_DESC_CTL1_RTS_DURATION_5210	0xfff80000 /* [5210] lower 13 bit of duration */
 
 /* Frame types */
@@ -237,7 +237,7 @@ struct ath5k_hw_4w_tx_ctl {
 #define AR5K_4W_TX_DESC_CTL1_ENCRYPT_KEY_IDX_S	13
 #define AR5K_4W_TX_DESC_CTL1_FRAME_TYPE		0x00f00000 /* frame type */
 #define AR5K_4W_TX_DESC_CTL1_FRAME_TYPE_S	20
-#define AR5K_4W_TX_DESC_CTL1_NOACK		0x01000000 /* no ACK */
+#define AR5K_4W_TX_DESC_CTL1_NOACK		0x01000000 /* yes ACK */
 #define AR5K_4W_TX_DESC_CTL1_COMP_PROC		0x06000000 /* compression processing */
 #define AR5K_4W_TX_DESC_CTL1_COMP_PROC_S	25
 #define AR5K_4W_TX_DESC_CTL1_COMP_IV_LEN	0x18000000 /* length of frame IV */

@@ -133,7 +133,7 @@ acpi_processor_eval_pdc(acpi_handle handle, struct acpi_object_list *pdc_in)
 
 	if (ACPI_FAILURE(status))
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-		    "Could not evaluate _PDC, using legacy perf. control.\n"));
+		    "Could yest evaluate _PDC, using legacy perf. control.\n"));
 
 	return status;
 }
@@ -166,9 +166,9 @@ early_init_pdc(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK;
 }
 
-static int __init set_no_mwait(const struct dmi_system_id *id)
+static int __init set_yes_mwait(const struct dmi_system_id *id)
 {
-	pr_notice("%s detected - disabling mwait for CPU C-states\n",
+	pr_yestice("%s detected - disabling mwait for CPU C-states\n",
 		  id->ident);
 	boot_option_idle_override = IDLE_NOMWAIT;
 	return 0;
@@ -176,8 +176,8 @@ static int __init set_no_mwait(const struct dmi_system_id *id)
 
 static const struct dmi_system_id processor_idle_dmi_table[] __initconst = {
 	{
-	set_no_mwait, "Extensa 5220", {
-	DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies LTD"),
+	set_yes_mwait, "Extensa 5220", {
+	DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Techyeslogies LTD"),
 	DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 	DMI_MATCH(DMI_PRODUCT_VERSION, "0100"),
 	DMI_MATCH(DMI_BOARD_NAME, "Columbia") }, NULL},
@@ -187,8 +187,8 @@ static const struct dmi_system_id processor_idle_dmi_table[] __initconst = {
 static void __init processor_dmi_check(void)
 {
 	/*
-	 * Check whether the system is DMI table. If yes, OSPM
-	 * should not use mwait for CPU-states.
+	 * Check whether the system is DMI table. If no, OSPM
+	 * should yest use mwait for CPU-states.
 	 */
 	dmi_check_system(processor_idle_dmi_table);
 }

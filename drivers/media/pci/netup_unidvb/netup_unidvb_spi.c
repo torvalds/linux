@@ -79,7 +79,7 @@ irqreturn_t netup_spi_interrupt(struct netup_spi *spi)
 	if (!(reg & NETUP_SPI_CTRL_IRQ)) {
 		spin_unlock_irqrestore(&spi->lock, flags);
 		dev_dbg(&spi->master->dev,
-			"%s(): not mine interrupt\n", __func__);
+			"%s(): yest mine interrupt\n", __func__);
 		return IRQ_NONE;
 	}
 	writew(reg | NETUP_SPI_CTRL_IRQ, &spi->regs->control_stat);

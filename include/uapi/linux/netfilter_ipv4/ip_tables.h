@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * 25-Jul-1998 Major changes to allow for ip chain table
  *
@@ -202,7 +202,7 @@ struct ipt_replace {
 	/* The old entries' counters. */
 	struct xt_counters __user *counters;
 
-	/* The entries (hang off end: not really an array). */
+	/* The entries (hang off end: yest really an array). */
 	struct ipt_entry entries[0];
 };
 

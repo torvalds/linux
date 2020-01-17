@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erryes.h>
 #include <math.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
@@ -180,7 +180,7 @@ __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 		return 0;
 
 	while ((tok = strtok_r((char *)arg, ",", &saveptr)) != NULL) {
-		if (!strncmp(tok, "none", strlen(tok))) {
+		if (!strncmp(tok, "yesne", strlen(tok))) {
 			callchain_param.mode = CHAIN_NONE;
 			callchain_param.enabled = false;
 			symbol_conf.use_callchain = false;
@@ -253,7 +253,7 @@ int parse_callchain_record(const char *arg, struct callchain_param *param)
 	char *buf;
 	int ret = -1;
 
-	/* We need buffer that we know we can write to. */
+	/* We need buffer that we kyesw we can write to. */
 	buf = malloc(strlen(arg) + 1);
 	if (!buf)
 		return -ENOMEM;
@@ -299,7 +299,7 @@ int parse_callchain_record(const char *arg, struct callchain_param *param)
 					"needed for --call-graph lbr\n");
 			break;
 		} else {
-			pr_err("callchain: Unknown --call-graph option "
+			pr_err("callchain: Unkyeswn --call-graph option "
 			       "value: %s\n", arg);
 			break;
 		}
@@ -369,32 +369,32 @@ int perf_callchain_config(const char *var, const char *value)
 }
 
 static void
-rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
+rb_insert_callchain(struct rb_root *root, struct callchain_yesde *chain,
 		    enum chain_mode mode)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
-	struct callchain_node *rnode;
+	struct rb_yesde **p = &root->rb_yesde;
+	struct rb_yesde *parent = NULL;
+	struct callchain_yesde *ryesde;
 	u64 chain_cumul = callchain_cumul_hits(chain);
 
 	while (*p) {
-		u64 rnode_cumul;
+		u64 ryesde_cumul;
 
 		parent = *p;
-		rnode = rb_entry(parent, struct callchain_node, rb_node);
-		rnode_cumul = callchain_cumul_hits(rnode);
+		ryesde = rb_entry(parent, struct callchain_yesde, rb_yesde);
+		ryesde_cumul = callchain_cumul_hits(ryesde);
 
 		switch (mode) {
 		case CHAIN_FLAT:
 		case CHAIN_FOLDED:
-			if (rnode->hit < chain->hit)
+			if (ryesde->hit < chain->hit)
 				p = &(*p)->rb_left;
 			else
 				p = &(*p)->rb_right;
 			break;
 		case CHAIN_GRAPH_ABS: /* Falldown */
 		case CHAIN_GRAPH_REL:
-			if (rnode_cumul < chain_cumul)
+			if (ryesde_cumul < chain_cumul)
 				p = &(*p)->rb_left;
 			else
 				p = &(*p)->rb_right;
@@ -405,31 +405,31 @@ rb_insert_callchain(struct rb_root *root, struct callchain_node *chain,
 		}
 	}
 
-	rb_link_node(&chain->rb_node, parent, p);
-	rb_insert_color(&chain->rb_node, root);
+	rb_link_yesde(&chain->rb_yesde, parent, p);
+	rb_insert_color(&chain->rb_yesde, root);
 }
 
 static void
-__sort_chain_flat(struct rb_root *rb_root, struct callchain_node *node,
+__sort_chain_flat(struct rb_root *rb_root, struct callchain_yesde *yesde,
 		  u64 min_hit)
 {
-	struct rb_node *n;
-	struct callchain_node *child;
+	struct rb_yesde *n;
+	struct callchain_yesde *child;
 
-	n = rb_first(&node->rb_root_in);
+	n = rb_first(&yesde->rb_root_in);
 	while (n) {
-		child = rb_entry(n, struct callchain_node, rb_node_in);
+		child = rb_entry(n, struct callchain_yesde, rb_yesde_in);
 		n = rb_next(n);
 
 		__sort_chain_flat(rb_root, child, min_hit);
 	}
 
-	if (node->hit && node->hit >= min_hit)
-		rb_insert_callchain(rb_root, node, CHAIN_FLAT);
+	if (yesde->hit && yesde->hit >= min_hit)
+		rb_insert_callchain(rb_root, yesde, CHAIN_FLAT);
 }
 
 /*
- * Once we get every callchains from the stream, we can now
+ * Once we get every callchains from the stream, we can yesw
  * sort them by hit
  */
 static void
@@ -437,25 +437,25 @@ sort_chain_flat(struct rb_root *rb_root, struct callchain_root *root,
 		u64 min_hit, struct callchain_param *param __maybe_unused)
 {
 	*rb_root = RB_ROOT;
-	__sort_chain_flat(rb_root, &root->node, min_hit);
+	__sort_chain_flat(rb_root, &root->yesde, min_hit);
 }
 
-static void __sort_chain_graph_abs(struct callchain_node *node,
+static void __sort_chain_graph_abs(struct callchain_yesde *yesde,
 				   u64 min_hit)
 {
-	struct rb_node *n;
-	struct callchain_node *child;
+	struct rb_yesde *n;
+	struct callchain_yesde *child;
 
-	node->rb_root = RB_ROOT;
-	n = rb_first(&node->rb_root_in);
+	yesde->rb_root = RB_ROOT;
+	n = rb_first(&yesde->rb_root_in);
 
 	while (n) {
-		child = rb_entry(n, struct callchain_node, rb_node_in);
+		child = rb_entry(n, struct callchain_yesde, rb_yesde_in);
 		n = rb_next(n);
 
 		__sort_chain_graph_abs(child, min_hit);
 		if (callchain_cumul_hits(child) >= min_hit)
-			rb_insert_callchain(&node->rb_root, child,
+			rb_insert_callchain(&yesde->rb_root, child,
 					    CHAIN_GRAPH_ABS);
 	}
 }
@@ -464,28 +464,28 @@ static void
 sort_chain_graph_abs(struct rb_root *rb_root, struct callchain_root *chain_root,
 		     u64 min_hit, struct callchain_param *param __maybe_unused)
 {
-	__sort_chain_graph_abs(&chain_root->node, min_hit);
-	rb_root->rb_node = chain_root->node.rb_root.rb_node;
+	__sort_chain_graph_abs(&chain_root->yesde, min_hit);
+	rb_root->rb_yesde = chain_root->yesde.rb_root.rb_yesde;
 }
 
-static void __sort_chain_graph_rel(struct callchain_node *node,
+static void __sort_chain_graph_rel(struct callchain_yesde *yesde,
 				   double min_percent)
 {
-	struct rb_node *n;
-	struct callchain_node *child;
+	struct rb_yesde *n;
+	struct callchain_yesde *child;
 	u64 min_hit;
 
-	node->rb_root = RB_ROOT;
-	min_hit = ceil(node->children_hit * min_percent);
+	yesde->rb_root = RB_ROOT;
+	min_hit = ceil(yesde->children_hit * min_percent);
 
-	n = rb_first(&node->rb_root_in);
+	n = rb_first(&yesde->rb_root_in);
 	while (n) {
-		child = rb_entry(n, struct callchain_node, rb_node_in);
+		child = rb_entry(n, struct callchain_yesde, rb_yesde_in);
 		n = rb_next(n);
 
 		__sort_chain_graph_rel(child, min_percent);
 		if (callchain_cumul_hits(child) >= min_hit)
-			rb_insert_callchain(&node->rb_root, child,
+			rb_insert_callchain(&yesde->rb_root, child,
 					    CHAIN_GRAPH_REL);
 	}
 }
@@ -494,8 +494,8 @@ static void
 sort_chain_graph_rel(struct rb_root *rb_root, struct callchain_root *chain_root,
 		     u64 min_hit __maybe_unused, struct callchain_param *param)
 {
-	__sort_chain_graph_rel(&chain_root->node, param->min_percent / 100.0);
-	rb_root->rb_node = chain_root->node.rb_root.rb_node;
+	__sort_chain_graph_rel(&chain_root->yesde, param->min_percent / 100.0);
+	rb_root->rb_yesde = chain_root->yesde.rb_root.rb_yesde;
 }
 
 int callchain_register_param(struct callchain_param *param)
@@ -522,14 +522,14 @@ int callchain_register_param(struct callchain_param *param)
  * Create a child for a parent. If inherit_children, then the new child
  * will become the new parent of it's parent children
  */
-static struct callchain_node *
-create_child(struct callchain_node *parent, bool inherit_children)
+static struct callchain_yesde *
+create_child(struct callchain_yesde *parent, bool inherit_children)
 {
-	struct callchain_node *new;
+	struct callchain_yesde *new;
 
 	new = zalloc(sizeof(*new));
 	if (!new) {
-		perror("not enough memory to create child for code path tree");
+		perror("yest eyesugh memory to create child for code path tree");
 		return NULL;
 	}
 	new->parent = parent;
@@ -537,22 +537,22 @@ create_child(struct callchain_node *parent, bool inherit_children)
 	INIT_LIST_HEAD(&new->parent_val);
 
 	if (inherit_children) {
-		struct rb_node *n;
-		struct callchain_node *child;
+		struct rb_yesde *n;
+		struct callchain_yesde *child;
 
 		new->rb_root_in = parent->rb_root_in;
 		parent->rb_root_in = RB_ROOT;
 
 		n = rb_first(&new->rb_root_in);
 		while (n) {
-			child = rb_entry(n, struct callchain_node, rb_node_in);
+			child = rb_entry(n, struct callchain_yesde, rb_yesde_in);
 			child->parent = new;
 			n = rb_next(n);
 		}
 
 		/* make it the first child */
-		rb_link_node(&new->rb_node_in, NULL, &parent->rb_root_in.rb_node);
-		rb_insert_color(&new->rb_node_in, &parent->rb_root_in);
+		rb_link_yesde(&new->rb_yesde_in, NULL, &parent->rb_root_in.rb_yesde);
+		rb_insert_color(&new->rb_yesde_in, &parent->rb_root_in);
 	}
 
 	return new;
@@ -560,84 +560,84 @@ create_child(struct callchain_node *parent, bool inherit_children)
 
 
 /*
- * Fill the node with callchain values
+ * Fill the yesde with callchain values
  */
 static int
-fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
+fill_yesde(struct callchain_yesde *yesde, struct callchain_cursor *cursor)
 {
-	struct callchain_cursor_node *cursor_node;
+	struct callchain_cursor_yesde *cursor_yesde;
 
-	node->val_nr = cursor->nr - cursor->pos;
-	if (!node->val_nr)
-		pr_warning("Warning: empty node in callchain tree\n");
+	yesde->val_nr = cursor->nr - cursor->pos;
+	if (!yesde->val_nr)
+		pr_warning("Warning: empty yesde in callchain tree\n");
 
-	cursor_node = callchain_cursor_current(cursor);
+	cursor_yesde = callchain_cursor_current(cursor);
 
-	while (cursor_node) {
+	while (cursor_yesde) {
 		struct callchain_list *call;
 
 		call = zalloc(sizeof(*call));
 		if (!call) {
-			perror("not enough memory for the code path tree");
+			perror("yest eyesugh memory for the code path tree");
 			return -1;
 		}
-		call->ip = cursor_node->ip;
-		call->ms = cursor_node->ms;
+		call->ip = cursor_yesde->ip;
+		call->ms = cursor_yesde->ms;
 		map__get(call->ms.map);
-		call->srcline = cursor_node->srcline;
+		call->srcline = cursor_yesde->srcline;
 
-		if (cursor_node->branch) {
+		if (cursor_yesde->branch) {
 			call->branch_count = 1;
 
-			if (cursor_node->branch_from) {
+			if (cursor_yesde->branch_from) {
 				/*
 				 * branch_from is set with value somewhere else
 				 * to imply it's "to" of a branch.
 				 */
 				call->brtype_stat.branch_to = true;
 
-				if (cursor_node->branch_flags.predicted)
+				if (cursor_yesde->branch_flags.predicted)
 					call->predicted_count = 1;
 
-				if (cursor_node->branch_flags.abort)
+				if (cursor_yesde->branch_flags.abort)
 					call->abort_count = 1;
 
 				branch_type_count(&call->brtype_stat,
-						  &cursor_node->branch_flags,
-						  cursor_node->branch_from,
-						  cursor_node->ip);
+						  &cursor_yesde->branch_flags,
+						  cursor_yesde->branch_from,
+						  cursor_yesde->ip);
 			} else {
 				/*
 				 * It's "from" of a branch
 				 */
 				call->brtype_stat.branch_to = false;
 				call->cycles_count =
-					cursor_node->branch_flags.cycles;
-				call->iter_count = cursor_node->nr_loop_iter;
-				call->iter_cycles = cursor_node->iter_cycles;
+					cursor_yesde->branch_flags.cycles;
+				call->iter_count = cursor_yesde->nr_loop_iter;
+				call->iter_cycles = cursor_yesde->iter_cycles;
 			}
 		}
 
-		list_add_tail(&call->list, &node->val);
+		list_add_tail(&call->list, &yesde->val);
 
 		callchain_cursor_advance(cursor);
-		cursor_node = callchain_cursor_current(cursor);
+		cursor_yesde = callchain_cursor_current(cursor);
 	}
 	return 0;
 }
 
-static struct callchain_node *
-add_child(struct callchain_node *parent,
+static struct callchain_yesde *
+add_child(struct callchain_yesde *parent,
 	  struct callchain_cursor *cursor,
 	  u64 period)
 {
-	struct callchain_node *new;
+	struct callchain_yesde *new;
 
 	new = create_child(parent, false);
 	if (new == NULL)
 		return NULL;
 
-	if (fill_node(new, cursor) < 0) {
+	if (fill_yesde(new, cursor) < 0) {
 		struct callchain_list *call, *tmp;
 
 		list_for_each_entry_safe(call, tmp, &new->val, list) {
@@ -687,7 +687,7 @@ static enum match_result match_chain_strings(const char *left,
 /*
  * We need to always use relative addresses because we're aggregating
  * callchains from multiple threads, i.e. different address spaces, so
- * comparing absolute addresses make no sense as a symbol in a DSO may end up
+ * comparing absolute addresses make yes sense as a symbol in a DSO may end up
  * in a different address when used in a different binary or even the same
  * binary but with some sort of address randomization technique, thus we need
  * to compare just relative addresses. -acme
@@ -707,34 +707,34 @@ static enum match_result match_chain_dso_addresses(struct map *left_map, u64 lef
 	return MATCH_EQ;
 }
 
-static enum match_result match_chain(struct callchain_cursor_node *node,
-				     struct callchain_list *cnode)
+static enum match_result match_chain(struct callchain_cursor_yesde *yesde,
+				     struct callchain_list *cyesde)
 {
 	enum match_result match = MATCH_ERROR;
 
 	switch (callchain_param.key) {
 	case CCKEY_SRCLINE:
-		match = match_chain_strings(cnode->srcline, node->srcline);
+		match = match_chain_strings(cyesde->srcline, yesde->srcline);
 		if (match != MATCH_ERROR)
 			break;
 		/* otherwise fall-back to symbol-based comparison below */
 		__fallthrough;
 	case CCKEY_FUNCTION:
-		if (node->ms.sym && cnode->ms.sym) {
+		if (yesde->ms.sym && cyesde->ms.sym) {
 			/*
 			 * Compare inlined frames based on their symbol name
 			 * because different inlined frames will have the same
 			 * symbol start. Otherwise do a faster comparison based
 			 * on the symbol start address.
 			 */
-			if (cnode->ms.sym->inlined || node->ms.sym->inlined) {
-				match = match_chain_strings(cnode->ms.sym->name,
-							    node->ms.sym->name);
+			if (cyesde->ms.sym->inlined || yesde->ms.sym->inlined) {
+				match = match_chain_strings(cyesde->ms.sym->name,
+							    yesde->ms.sym->name);
 				if (match != MATCH_ERROR)
 					break;
 			} else {
-				match = match_chain_dso_addresses(cnode->ms.map, cnode->ms.sym->start,
-								  node->ms.map, node->ms.sym->start);
+				match = match_chain_dso_addresses(cyesde->ms.map, cyesde->ms.sym->start,
+								  yesde->ms.map, yesde->ms.sym->start);
 				break;
 			}
 		}
@@ -742,38 +742,38 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 		__fallthrough;
 	case CCKEY_ADDRESS:
 	default:
-		match = match_chain_dso_addresses(cnode->ms.map, cnode->ip, node->ms.map, node->ip);
+		match = match_chain_dso_addresses(cyesde->ms.map, cyesde->ip, yesde->ms.map, yesde->ip);
 		break;
 	}
 
-	if (match == MATCH_EQ && node->branch) {
-		cnode->branch_count++;
+	if (match == MATCH_EQ && yesde->branch) {
+		cyesde->branch_count++;
 
-		if (node->branch_from) {
+		if (yesde->branch_from) {
 			/*
 			 * It's "to" of a branch
 			 */
-			cnode->brtype_stat.branch_to = true;
+			cyesde->brtype_stat.branch_to = true;
 
-			if (node->branch_flags.predicted)
-				cnode->predicted_count++;
+			if (yesde->branch_flags.predicted)
+				cyesde->predicted_count++;
 
-			if (node->branch_flags.abort)
-				cnode->abort_count++;
+			if (yesde->branch_flags.abort)
+				cyesde->abort_count++;
 
-			branch_type_count(&cnode->brtype_stat,
-					  &node->branch_flags,
-					  node->branch_from,
-					  node->ip);
+			branch_type_count(&cyesde->brtype_stat,
+					  &yesde->branch_flags,
+					  yesde->branch_from,
+					  yesde->ip);
 		} else {
 			/*
 			 * It's "from" of a branch
 			 */
-			cnode->brtype_stat.branch_to = false;
-			cnode->cycles_count += node->branch_flags.cycles;
-			cnode->iter_count += node->nr_loop_iter;
-			cnode->iter_cycles += node->iter_cycles;
-			cnode->from_count++;
+			cyesde->brtype_stat.branch_to = false;
+			cyesde->cycles_count += yesde->branch_flags.cycles;
+			cyesde->iter_count += yesde->nr_loop_iter;
+			cyesde->iter_cycles += yesde->iter_cycles;
+			cyesde->from_count++;
 		}
 	}
 
@@ -783,15 +783,15 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 /*
  * Split the parent in two parts (a new child is created) and
  * give a part of its callchain to the created child.
- * Then create another child to host the given callchain of new branch
+ * Then create ayesther child to host the given callchain of new branch
  */
 static int
-split_add_child(struct callchain_node *parent,
+split_add_child(struct callchain_yesde *parent,
 		struct callchain_cursor *cursor,
 		struct callchain_list *to_split,
 		u64 idx_parents, u64 idx_local, u64 period)
 {
-	struct callchain_node *new;
+	struct callchain_yesde *new;
 	struct list_head *old_tail;
 	unsigned int idx_total = idx_parents + idx_local;
 
@@ -820,17 +820,17 @@ split_add_child(struct callchain_node *parent,
 
 	/* create a new child for the new branch if any */
 	if (idx_total < cursor->nr) {
-		struct callchain_node *first;
-		struct callchain_list *cnode;
-		struct callchain_cursor_node *node;
-		struct rb_node *p, **pp;
+		struct callchain_yesde *first;
+		struct callchain_list *cyesde;
+		struct callchain_cursor_yesde *yesde;
+		struct rb_yesde *p, **pp;
 
 		parent->hit = 0;
 		parent->children_hit += period;
 		parent->count = 0;
 		parent->children_count += 1;
 
-		node = callchain_cursor_current(cursor);
+		yesde = callchain_cursor_current(cursor);
 		new = add_child(parent, cursor, period);
 		if (new == NULL)
 			return -1;
@@ -839,18 +839,18 @@ split_add_child(struct callchain_node *parent,
 		 * This is second child since we moved parent's children
 		 * to new (first) child above.
 		 */
-		p = parent->rb_root_in.rb_node;
-		first = rb_entry(p, struct callchain_node, rb_node_in);
-		cnode = list_first_entry(&first->val, struct callchain_list,
+		p = parent->rb_root_in.rb_yesde;
+		first = rb_entry(p, struct callchain_yesde, rb_yesde_in);
+		cyesde = list_first_entry(&first->val, struct callchain_list,
 					 list);
 
-		if (match_chain(node, cnode) == MATCH_LT)
+		if (match_chain(yesde, cyesde) == MATCH_LT)
 			pp = &p->rb_left;
 		else
 			pp = &p->rb_right;
 
-		rb_link_node(&new->rb_node_in, p, pp);
-		rb_insert_color(&new->rb_node_in, &parent->rb_root_in);
+		rb_link_yesde(&new->rb_yesde_in, p, pp);
+		rb_insert_color(&new->rb_yesde_in, &parent->rb_root_in);
 	} else {
 		parent->hit = period;
 		parent->count = 1;
@@ -859,22 +859,22 @@ split_add_child(struct callchain_node *parent,
 }
 
 static enum match_result
-append_chain(struct callchain_node *root,
+append_chain(struct callchain_yesde *root,
 	     struct callchain_cursor *cursor,
 	     u64 period);
 
 static int
-append_chain_children(struct callchain_node *root,
+append_chain_children(struct callchain_yesde *root,
 		      struct callchain_cursor *cursor,
 		      u64 period)
 {
-	struct callchain_node *rnode;
-	struct callchain_cursor_node *node;
-	struct rb_node **p = &root->rb_root_in.rb_node;
-	struct rb_node *parent = NULL;
+	struct callchain_yesde *ryesde;
+	struct callchain_cursor_yesde *yesde;
+	struct rb_yesde **p = &root->rb_root_in.rb_yesde;
+	struct rb_yesde *parent = NULL;
 
-	node = callchain_cursor_current(cursor);
-	if (!node)
+	yesde = callchain_cursor_current(cursor);
+	if (!yesde)
 		return -1;
 
 	/* lookup in childrens */
@@ -882,10 +882,10 @@ append_chain_children(struct callchain_node *root,
 		enum match_result ret;
 
 		parent = *p;
-		rnode = rb_entry(parent, struct callchain_node, rb_node_in);
+		ryesde = rb_entry(parent, struct callchain_yesde, rb_yesde_in);
 
 		/* If at least first entry matches, rely to children */
-		ret = append_chain(rnode, cursor, period);
+		ret = append_chain(ryesde, cursor, period);
 		if (ret == MATCH_EQ)
 			goto inc_children_hit;
 		if (ret == MATCH_ERROR)
@@ -896,13 +896,13 @@ append_chain_children(struct callchain_node *root,
 		else
 			p = &parent->rb_right;
 	}
-	/* nothing in children, add to the current node */
-	rnode = add_child(root, cursor, period);
-	if (rnode == NULL)
+	/* yesthing in children, add to the current yesde */
+	ryesde = add_child(root, cursor, period);
+	if (ryesde == NULL)
 		return -1;
 
-	rb_link_node(&rnode->rb_node_in, parent, p);
-	rb_insert_color(&rnode->rb_node_in, &root->rb_root_in);
+	rb_link_yesde(&ryesde->rb_yesde_in, parent, p);
+	rb_insert_color(&ryesde->rb_yesde_in, &root->rb_root_in);
 
 inc_children_hit:
 	root->children_hit += period;
@@ -911,30 +911,30 @@ inc_children_hit:
 }
 
 static enum match_result
-append_chain(struct callchain_node *root,
+append_chain(struct callchain_yesde *root,
 	     struct callchain_cursor *cursor,
 	     u64 period)
 {
-	struct callchain_list *cnode;
+	struct callchain_list *cyesde;
 	u64 start = cursor->pos;
 	bool found = false;
 	u64 matches;
 	enum match_result cmp = MATCH_ERROR;
 
 	/*
-	 * Lookup in the current node
+	 * Lookup in the current yesde
 	 * If we have a symbol, then compare the start to match
 	 * anywhere inside a function, unless function
 	 * mode is disabled.
 	 */
-	list_for_each_entry(cnode, &root->val, list) {
-		struct callchain_cursor_node *node;
+	list_for_each_entry(cyesde, &root->val, list) {
+		struct callchain_cursor_yesde *yesde;
 
-		node = callchain_cursor_current(cursor);
-		if (!node)
+		yesde = callchain_cursor_current(cursor);
+		if (!yesde)
 			break;
 
-		cmp = match_chain(node, cnode);
+		cmp = match_chain(yesde, cyesde);
 		if (cmp != MATCH_EQ)
 			break;
 
@@ -943,7 +943,7 @@ append_chain(struct callchain_node *root,
 		callchain_cursor_advance(cursor);
 	}
 
-	/* matches not, relay no the parent */
+	/* matches yest, relay yes the parent */
 	if (!found) {
 		WARN_ONCE(cmp == MATCH_ERROR, "Chain comparison error\n");
 		return cmp;
@@ -951,9 +951,9 @@ append_chain(struct callchain_node *root,
 
 	matches = cursor->pos - start;
 
-	/* we match only a part of the node. Split it and add the new chain */
+	/* we match only a part of the yesde. Split it and add the new chain */
 	if (matches < root->val_nr) {
-		if (split_add_child(root, cursor, cnode, start, matches,
+		if (split_add_child(root, cursor, cyesde, start, matches,
 				    period) < 0)
 			return MATCH_ERROR;
 
@@ -967,7 +967,7 @@ append_chain(struct callchain_node *root,
 		return MATCH_EQ;
 	}
 
-	/* We match the node and still have a part remaining */
+	/* We match the yesde and still have a part remaining */
 	if (append_chain_children(root, cursor, period) < 0)
 		return MATCH_ERROR;
 
@@ -983,7 +983,7 @@ int callchain_append(struct callchain_root *root,
 
 	callchain_cursor_commit(cursor);
 
-	if (append_chain_children(&root->node, cursor, period) < 0)
+	if (append_chain_children(&root->yesde, cursor, period) < 0)
 		return -1;
 
 	if (cursor->nr > root->max_depth)
@@ -994,12 +994,12 @@ int callchain_append(struct callchain_root *root,
 
 static int
 merge_chain_branch(struct callchain_cursor *cursor,
-		   struct callchain_node *dst, struct callchain_node *src)
+		   struct callchain_yesde *dst, struct callchain_yesde *src)
 {
-	struct callchain_cursor_node **old_last = cursor->last;
-	struct callchain_node *child;
+	struct callchain_cursor_yesde **old_last = cursor->last;
+	struct callchain_yesde *child;
 	struct callchain_list *list, *next_list;
-	struct rb_node *n;
+	struct rb_yesde *n;
 	int old_pos = cursor->nr;
 	int err = 0;
 
@@ -1019,9 +1019,9 @@ merge_chain_branch(struct callchain_cursor *cursor,
 
 	n = rb_first(&src->rb_root_in);
 	while (n) {
-		child = container_of(n, struct callchain_node, rb_node_in);
+		child = container_of(n, struct callchain_yesde, rb_yesde_in);
 		n = rb_next(n);
-		rb_erase(&child->rb_node_in, &src->rb_root_in);
+		rb_erase(&child->rb_yesde_in, &src->rb_root_in);
 
 		err = merge_chain_branch(cursor, dst, child);
 		if (err)
@@ -1039,7 +1039,7 @@ merge_chain_branch(struct callchain_cursor *cursor,
 int callchain_merge(struct callchain_cursor *cursor,
 		    struct callchain_root *dst, struct callchain_root *src)
 {
-	return merge_chain_branch(cursor, &dst->node, &src->node);
+	return merge_chain_branch(cursor, &dst->yesde, &src->yesde);
 }
 
 int callchain_cursor_append(struct callchain_cursor *cursor,
@@ -1048,33 +1048,33 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 			    int nr_loop_iter, u64 iter_cycles, u64 branch_from,
 			    const char *srcline)
 {
-	struct callchain_cursor_node *node = *cursor->last;
+	struct callchain_cursor_yesde *yesde = *cursor->last;
 
-	if (!node) {
-		node = calloc(1, sizeof(*node));
-		if (!node)
+	if (!yesde) {
+		yesde = calloc(1, sizeof(*yesde));
+		if (!yesde)
 			return -ENOMEM;
 
-		*cursor->last = node;
+		*cursor->last = yesde;
 	}
 
-	node->ip = ip;
-	map__zput(node->ms.map);
-	node->ms = *ms;
-	map__get(node->ms.map);
-	node->branch = branch;
-	node->nr_loop_iter = nr_loop_iter;
-	node->iter_cycles = iter_cycles;
-	node->srcline = srcline;
+	yesde->ip = ip;
+	map__zput(yesde->ms.map);
+	yesde->ms = *ms;
+	map__get(yesde->ms.map);
+	yesde->branch = branch;
+	yesde->nr_loop_iter = nr_loop_iter;
+	yesde->iter_cycles = iter_cycles;
+	yesde->srcline = srcline;
 
 	if (flags)
-		memcpy(&node->branch_flags, flags,
+		memcpy(&yesde->branch_flags, flags,
 			sizeof(struct branch_flags));
 
-	node->branch_from = branch_from;
+	yesde->branch_from = branch_from;
 	cursor->nr++;
 
-	cursor->last = &node->next;
+	cursor->last = &yesde->next;
 
 	return 0;
 }
@@ -1103,14 +1103,14 @@ int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *samp
 	return callchain_append(he->callchain, &callchain_cursor, sample->period);
 }
 
-int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *node,
+int fill_callchain_info(struct addr_location *al, struct callchain_cursor_yesde *yesde,
 			bool hide_unresolved)
 {
-	al->maps = node->ms.maps;
-	al->map = node->ms.map;
-	al->sym = node->ms.sym;
-	al->srcline = node->srcline;
-	al->addr = node->ip;
+	al->maps = yesde->ms.maps;
+	al->map = yesde->ms.map;
+	al->sym = yesde->ms.sym;
+	al->srcline = yesde->srcline;
+	al->addr = yesde->ip;
 
 	if (al->sym == NULL) {
 		if (hide_unresolved)
@@ -1168,21 +1168,21 @@ char *callchain_list__sym_name(struct callchain_list *cl,
 		scnprintf(bf + printed, bfsize - printed, " %s",
 			  cl->ms.map ?
 			  cl->ms.map->dso->short_name :
-			  "unknown");
+			  "unkyeswn");
 
 	return bf;
 }
 
-char *callchain_node__scnprintf_value(struct callchain_node *node,
+char *callchain_yesde__scnprintf_value(struct callchain_yesde *yesde,
 				      char *bf, size_t bfsize, u64 total)
 {
 	double percent = 0.0;
-	u64 period = callchain_cumul_hits(node);
-	unsigned count = callchain_cumul_counts(node);
+	u64 period = callchain_cumul_hits(yesde);
+	unsigned count = callchain_cumul_counts(yesde);
 
 	if (callchain_param.mode == CHAIN_FOLDED) {
-		period = node->hit;
-		count = node->count;
+		period = yesde->hit;
+		count = yesde->count;
 	}
 
 	switch (callchain_param.value) {
@@ -1202,16 +1202,16 @@ char *callchain_node__scnprintf_value(struct callchain_node *node,
 	return bf;
 }
 
-int callchain_node__fprintf_value(struct callchain_node *node,
+int callchain_yesde__fprintf_value(struct callchain_yesde *yesde,
 				 FILE *fp, u64 total)
 {
 	double percent = 0.0;
-	u64 period = callchain_cumul_hits(node);
-	unsigned count = callchain_cumul_counts(node);
+	u64 period = callchain_cumul_hits(yesde);
+	unsigned count = callchain_cumul_counts(yesde);
 
 	if (callchain_param.mode == CHAIN_FOLDED) {
-		period = node->hit;
-		count = node->count;
+		period = yesde->hit;
+		count = yesde->count;
 	}
 
 	switch (callchain_param.value) {
@@ -1228,13 +1228,13 @@ int callchain_node__fprintf_value(struct callchain_node *node,
 	return 0;
 }
 
-static void callchain_counts_value(struct callchain_node *node,
+static void callchain_counts_value(struct callchain_yesde *yesde,
 				   u64 *branch_count, u64 *predicted_count,
 				   u64 *abort_count, u64 *cycles_count)
 {
 	struct callchain_list *clist;
 
-	list_for_each_entry(clist, &node->val, list) {
+	list_for_each_entry(clist, &yesde->val, list) {
 		if (branch_count)
 			*branch_count += clist->branch_count;
 
@@ -1249,21 +1249,21 @@ static void callchain_counts_value(struct callchain_node *node,
 	}
 }
 
-static int callchain_node_branch_counts_cumul(struct callchain_node *node,
+static int callchain_yesde_branch_counts_cumul(struct callchain_yesde *yesde,
 					      u64 *branch_count,
 					      u64 *predicted_count,
 					      u64 *abort_count,
 					      u64 *cycles_count)
 {
-	struct callchain_node *child;
-	struct rb_node *n;
+	struct callchain_yesde *child;
+	struct rb_yesde *n;
 
-	n = rb_first(&node->rb_root_in);
+	n = rb_first(&yesde->rb_root_in);
 	while (n) {
-		child = rb_entry(n, struct callchain_node, rb_node_in);
+		child = rb_entry(n, struct callchain_yesde, rb_yesde_in);
 		n = rb_next(n);
 
-		callchain_node_branch_counts_cumul(child, branch_count,
+		callchain_yesde_branch_counts_cumul(child, branch_count,
 						   predicted_count,
 						   abort_count,
 						   cycles_count);
@@ -1292,7 +1292,7 @@ int callchain_branch_counts(struct callchain_root *root,
 	if (cycles_count)
 		*cycles_count = 0;
 
-	return callchain_node_branch_counts_cumul(&root->node,
+	return callchain_yesde_branch_counts_cumul(&root->yesde,
 						  branch_count,
 						  predicted_count,
 						  abort_count,
@@ -1451,31 +1451,31 @@ int callchain_list_counts__printf_value(struct callchain_list *clist,
 				       from_count, &clist->brtype_stat);
 }
 
-static void free_callchain_node(struct callchain_node *node)
+static void free_callchain_yesde(struct callchain_yesde *yesde)
 {
 	struct callchain_list *list, *tmp;
-	struct callchain_node *child;
-	struct rb_node *n;
+	struct callchain_yesde *child;
+	struct rb_yesde *n;
 
-	list_for_each_entry_safe(list, tmp, &node->parent_val, list) {
+	list_for_each_entry_safe(list, tmp, &yesde->parent_val, list) {
 		list_del_init(&list->list);
 		map__zput(list->ms.map);
 		free(list);
 	}
 
-	list_for_each_entry_safe(list, tmp, &node->val, list) {
+	list_for_each_entry_safe(list, tmp, &yesde->val, list) {
 		list_del_init(&list->list);
 		map__zput(list->ms.map);
 		free(list);
 	}
 
-	n = rb_first(&node->rb_root_in);
+	n = rb_first(&yesde->rb_root_in);
 	while (n) {
-		child = container_of(n, struct callchain_node, rb_node_in);
+		child = container_of(n, struct callchain_yesde, rb_yesde_in);
 		n = rb_next(n);
-		rb_erase(&child->rb_node_in, &node->rb_root_in);
+		rb_erase(&child->rb_yesde_in, &yesde->rb_root_in);
 
-		free_callchain_node(child);
+		free_callchain_yesde(child);
 		free(child);
 	}
 }
@@ -1485,27 +1485,27 @@ void free_callchain(struct callchain_root *root)
 	if (!symbol_conf.use_callchain)
 		return;
 
-	free_callchain_node(&root->node);
+	free_callchain_yesde(&root->yesde);
 }
 
-static u64 decay_callchain_node(struct callchain_node *node)
+static u64 decay_callchain_yesde(struct callchain_yesde *yesde)
 {
-	struct callchain_node *child;
-	struct rb_node *n;
+	struct callchain_yesde *child;
+	struct rb_yesde *n;
 	u64 child_hits = 0;
 
-	n = rb_first(&node->rb_root_in);
+	n = rb_first(&yesde->rb_root_in);
 	while (n) {
-		child = container_of(n, struct callchain_node, rb_node_in);
+		child = container_of(n, struct callchain_yesde, rb_yesde_in);
 
-		child_hits += decay_callchain_node(child);
+		child_hits += decay_callchain_yesde(child);
 		n = rb_next(n);
 	}
 
-	node->hit = (node->hit * 7) / 8;
-	node->children_hit = child_hits;
+	yesde->hit = (yesde->hit * 7) / 8;
+	yesde->children_hit = child_hits;
 
-	return node->hit;
+	return yesde->hit;
 }
 
 void decay_callchain(struct callchain_root *root)
@@ -1513,12 +1513,12 @@ void decay_callchain(struct callchain_root *root)
 	if (!symbol_conf.use_callchain)
 		return;
 
-	decay_callchain_node(&root->node);
+	decay_callchain_yesde(&root->yesde);
 }
 
-int callchain_node__make_parent_list(struct callchain_node *node)
+int callchain_yesde__make_parent_list(struct callchain_yesde *yesde)
 {
-	struct callchain_node *parent = node->parent;
+	struct callchain_yesde *parent = yesde->parent;
 	struct callchain_list *chain, *new;
 	LIST_HEAD(head);
 
@@ -1536,13 +1536,13 @@ int callchain_node__make_parent_list(struct callchain_node *node)
 	}
 
 	list_for_each_entry_safe_reverse(chain, new, &head, list)
-		list_move_tail(&chain->list, &node->parent_val);
+		list_move_tail(&chain->list, &yesde->parent_val);
 
-	if (!list_empty(&node->parent_val)) {
-		chain = list_first_entry(&node->parent_val, struct callchain_list, list);
-		chain->has_children = rb_prev(&node->rb_node) || rb_next(&node->rb_node);
+	if (!list_empty(&yesde->parent_val)) {
+		chain = list_first_entry(&yesde->parent_val, struct callchain_list, list);
+		chain->has_children = rb_prev(&yesde->rb_yesde) || rb_next(&yesde->rb_yesde);
 
-		chain = list_first_entry(&node->val, struct callchain_list, list);
+		chain = list_first_entry(&yesde->val, struct callchain_list, list);
 		chain->has_children = false;
 	}
 	return 0;
@@ -1565,17 +1565,17 @@ int callchain_cursor__copy(struct callchain_cursor *dst,
 	callchain_cursor_commit(src);
 
 	while (true) {
-		struct callchain_cursor_node *node;
+		struct callchain_cursor_yesde *yesde;
 
-		node = callchain_cursor_current(src);
-		if (node == NULL)
+		yesde = callchain_cursor_current(src);
+		if (yesde == NULL)
 			break;
 
-		rc = callchain_cursor_append(dst, node->ip, &node->ms,
-					     node->branch, &node->branch_flags,
-					     node->nr_loop_iter,
-					     node->iter_cycles,
-					     node->branch_from, node->srcline);
+		rc = callchain_cursor_append(dst, yesde->ip, &yesde->ms,
+					     yesde->branch, &yesde->branch_flags,
+					     yesde->nr_loop_iter,
+					     yesde->iter_cycles,
+					     yesde->branch_from, yesde->srcline);
 		if (rc)
 			break;
 
@@ -1591,11 +1591,11 @@ int callchain_cursor__copy(struct callchain_cursor *dst,
  */
 void callchain_cursor_reset(struct callchain_cursor *cursor)
 {
-	struct callchain_cursor_node *node;
+	struct callchain_cursor_yesde *yesde;
 
 	cursor->nr = 0;
 	cursor->last = &cursor->first;
 
-	for (node = cursor->first; node != NULL; node = node->next)
-		map__zput(node->ms.map);
+	for (yesde = cursor->first; yesde != NULL; yesde = yesde->next)
+		map__zput(yesde->ms.map);
 }

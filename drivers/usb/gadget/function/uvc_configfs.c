@@ -895,11 +895,11 @@ static int uvcg_streaming_header_allow_link(struct config_item *src,
 	}
 
 	/*
-	 * Linking is only allowed to direct children of the format nodes
-	 * (streaming/uncompressed or streaming/mjpeg nodes). First check that
+	 * Linking is only allowed to direct children of the format yesdes
+	 * (streaming/uncompressed or streaming/mjpeg yesdes). First check that
 	 * the grand-parent of the target matches the grand-parent of the source
-	 * (the streaming node), and then verify that the target parent is a
-	 * format node.
+	 * (the streaming yesde), and then verify that the target parent is a
+	 * format yesde.
 	 */
 	if (src->ci_parent->ci_parent != target->ci_parent->ci_parent)
 		goto out;
@@ -1975,8 +1975,8 @@ enum uvcg_strm_type {
  * and second, to actually fill the array.
  *
  * @h: streaming header pointer
- * @priv2: an "inout" parameter (the caller might want to see the changes to it)
- * @priv3: an "inout" parameter (the caller might want to see the changes to it)
+ * @priv2: an "iyesut" parameter (the caller might want to see the changes to it)
+ * @priv3: an "iyesut" parameter (the caller might want to see the changes to it)
  * @fun: callback function for processing each level of the hierarchy
  */
 static int __uvcg_iter_strm_cls(struct uvcg_streaming_header *h,
@@ -2016,8 +2016,8 @@ static int __uvcg_iter_strm_cls(struct uvcg_streaming_header *h,
  * Count how many bytes are needed for an array of streaming descriptors.
  *
  * @priv1: pointer to a header, format or frame
- * @priv2: inout parameter, accumulated size of the array
- * @priv3: inout parameter, accumulated number of the array elements
+ * @priv2: iyesut parameter, accumulated size of the array
+ * @priv3: iyesut parameter, accumulated number of the array elements
  * @n: unused, this function's prototype must match @fun in __uvcg_iter_strm_cls
  */
 static int __uvcg_cnt_strm(void *priv1, void *priv2, void *priv3, int n,
@@ -2073,8 +2073,8 @@ static int __uvcg_cnt_strm(void *priv1, void *priv2, void *priv3, int n,
  * Fill an array of streaming descriptors.
  *
  * @priv1: pointer to a header, format or frame
- * @priv2: inout parameter, pointer into a block of memory
- * @priv3: inout parameter, pointer to a 2-dimensional array
+ * @priv2: iyesut parameter, pointer into a block of memory
+ * @priv3: iyesut parameter, pointer to a 2-dimensional array
  */
 static int __uvcg_fill_strm(void *priv1, void *priv2, void *priv3, int n,
 			    enum uvcg_strm_type type)

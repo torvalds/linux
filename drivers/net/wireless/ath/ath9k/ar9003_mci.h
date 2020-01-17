@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -313,7 +313,7 @@ void ar9003_mci_cleanup(struct ath_hw *ah);
 void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr);
 u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, u32 *more);
-void ar9003_mci_set_bt_version(struct ath_hw *ah, u8 major, u8 minor);
+void ar9003_mci_set_bt_version(struct ath_hw *ah, u8 major, u8 miyesr);
 void ar9003_mci_send_wlan_channels(struct ath_hw *ah);
 /*
  * These functions are used by ath9k_hw.

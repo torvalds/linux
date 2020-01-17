@@ -17,12 +17,12 @@
 #include "u_gether.h"
 
 /*
- * This function packages a simple "CDC Subset" Ethernet port with no real
+ * This function packages a simple "CDC Subset" Ethernet port with yes real
  * control mechanisms; just raw data transfer over two bulk endpoints.
  * The data transfer model is exactly that of CDC Ethernet, which is
  * why we call it the "CDC Subset".
  *
- * Because it's not standardized, this has some interoperability issues.
+ * Because it's yest standardized, this has some interoperability issues.
  * They mostly relate to driver binding, since the data transfer model is
  * so simple (CDC Ethernet).  The original versions of this protocol used
  * specific product/vendor IDs:  byteswapped IDs for Digital Equipment's
@@ -32,7 +32,7 @@
  * this with CONFIG_USB_ARMLINUX; these devices have only one configuration
  * and one interface.
  *
- * At some point, MCCI defined a (nonconformant) CDC MDLM variant called
+ * At some point, MCCI defined a (yesnconformant) CDC MDLM variant called
  * "SAFE", which happens to have a mode which is identical to the "CDC
  * Subset" in terms of data transfer and lack of control model.  This was
  * adopted by later Sharp Zaurus models, and by some other software which
@@ -66,8 +66,8 @@ static inline struct f_gether *func_to_geth(struct usb_function *f)
  * some host side drivers will understand it as a "SAFE" variant.
  *
  * "SAFE" loosely follows CDC WMC MDLM, violating the spec in various ways.
- * Data endpoints live in the control interface, there's no data interface.
- * And it's not used to talk to a cell phone radio.
+ * Data endpoints live in the control interface, there's yes data interface.
+ * And it's yest used to talk to a cell phone radio.
  */
 
 /* interface descriptor: */
@@ -115,7 +115,7 @@ static u8 mdlm_detail_desc[] = {
 	USB_CDC_MDLM_DETAIL_TYPE,
 
 	0,	/* "SAFE" */
-	0,	/* network control capabilities (none) */
+	0,	/* network control capabilities (yesne) */
 	0,	/* network data capabilities ("raw" encapsulation) */
 };
 
@@ -126,7 +126,7 @@ static struct usb_cdc_ether_desc ether_desc = {
 
 	/* this descriptor actually adds value, surprise! */
 	/* .iMACAddress = DYNAMIC */
-	.bmEthernetStatistics =	cpu_to_le32(0), /* no statistics */
+	.bmEthernetStatistics =	cpu_to_le32(0), /* yes statistics */
 	.wMaxSegmentSize =	cpu_to_le16(ETH_FRAME_LEN),
 	.wNumberMCFilters =	cpu_to_le16(0),
 	.bNumberPowerFilters =	0,
@@ -256,7 +256,7 @@ static int geth_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct net_device	*net;
 
-	/* we know alt == 0, so this is an activation or a reset */
+	/* we kyesw alt == 0, so this is an activation or a reset */
 
 	if (geth->port.in_ep->enabled) {
 		DBG(cdev, "reset cdc subset\n");
@@ -305,7 +305,7 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
 	 * configurations are bound in sequence with list_for_each_entry,
 	 * in each configuration its functions are bound in sequence
-	 * with list_for_each_entry, so we assume no race condition
+	 * with list_for_each_entry, so we assume yes race condition
 	 * with regard to gether_opts->bound access
 	 */
 	if (!gether_opts->bound) {
@@ -362,7 +362,7 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 	if (status)
 		goto fail;
 
-	/* NOTE:  all that is done without knowing or caring about
+	/* NOTE:  all that is done without kyeswing or caring about
 	 * the network link ... which is unavailable to this code
 	 * until we're activated via set_alt().
 	 */

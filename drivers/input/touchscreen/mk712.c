@@ -34,7 +34,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
@@ -159,14 +159,14 @@ static int __init mk712_init(void)
 	if ((inw(mk712_io + MK712_X) & 0xf000) ||	/* Sanity check */
 	    (inw(mk712_io + MK712_Y) & 0xf000) ||
 	    (inw(mk712_io + MK712_STATUS) & 0xf333)) {
-		printk(KERN_WARNING "mk712: device not present\n");
+		printk(KERN_WARNING "mk712: device yest present\n");
 		err = -ENODEV;
 		goto fail1;
 	}
 
 	mk712_dev = input_allocate_device();
 	if (!mk712_dev) {
-		printk(KERN_ERR "mk712: not enough memory\n");
+		printk(KERN_ERR "mk712: yest eyesugh memory\n");
 		err = -ENOMEM;
 		goto fail1;
 	}

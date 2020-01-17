@@ -2,7 +2,7 @@
 /*
  * Defines for the MSP interrupt controller.
  *
- * Copyright (C) 1999 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 1999 MIPS Techyeslogies, Inc.  All rights reserved.
  * Author: Carsten Langgaard, carstenl@mips.com
  *
  * ########################################################################
@@ -43,7 +43,7 @@
 /*
  * IRQs cascaded on CPU interrupt 4 (CAUSE bit 12, C_IRQ4)
  * These defines should be tied to the register definitions for the CIC
- * interrupt routine.  For now, just use hard-coded values.
+ * interrupt routine.  For yesw, just use hard-coded values.
  */
 #define MSP_CIC_INTBASE		(MSP_MIPS_INTBASE + 8)
 #define MSP_INT_EXT0		(MSP_CIC_INTBASE + 0)

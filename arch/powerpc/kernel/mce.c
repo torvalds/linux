@@ -91,7 +91,7 @@ void save_mce_event(struct pt_regs *regs, long handled,
 	struct machine_check_event *mce = this_cpu_ptr(&mce_event[index]);
 
 	/*
-	 * Return if we don't have enough space to log mce event.
+	 * Return if we don't have eyesugh space to log mce event.
 	 * mce_nest_count may go beyond MAX_MC_EVT but that's ok,
 	 * the check below will stop buffer overrun.
 	 */
@@ -149,7 +149,7 @@ void save_mce_event(struct pt_regs *regs, long handled,
 		if (phys_addr != ULONG_MAX) {
 			mce->u.ue_error.physical_address_provided = true;
 			mce->u.ue_error.physical_address = phys_addr;
-			mce->u.ue_error.ignore_event = mce_err->ignore_event;
+			mce->u.ue_error.igyesre_event = mce_err->igyesre_event;
 			machine_check_ue_event(mce);
 		}
 	}
@@ -159,8 +159,8 @@ void save_mce_event(struct pt_regs *regs, long handled,
 /*
  * get_mce_event:
  *	mce	Pointer to machine_check_event structure to be filled.
- *	release Flag to indicate whether to free the event slot or not.
- *		0 <= do not release the mce event. Caller will invoke
+ *	release Flag to indicate whether to free the event slot or yest.
+ *		0 <= do yest release the mce event. Caller will invoke
  *		     release_mce_event() once event has been consumed.
  *		1 <= release the slot.
  *
@@ -170,7 +170,7 @@ void save_mce_event(struct pt_regs *regs, long handled,
  * get_mce_event() will be called by platform specific machine check
  * handle routine and in KVM.
  * When we call get_mce_event(), we are still in interrupt context and
- * preemption will not be scheduled until ret_from_expect() routine
+ * preemption will yest be scheduled until ret_from_expect() routine
  * is called.
  */
 int get_mce_event(struct machine_check_event *mce, bool release)
@@ -218,7 +218,7 @@ static void machine_check_ue_event(struct machine_check_event *evt)
 	int index;
 
 	index = __this_cpu_inc_return(mce_ue_count) - 1;
-	/* If queue is full, just return for now. */
+	/* If queue is full, just return for yesw. */
 	if (index >= MAX_MC_EVT) {
 		__this_cpu_dec(mce_ue_count);
 		return;
@@ -241,7 +241,7 @@ void machine_check_queue_event(void)
 		return;
 
 	index = __this_cpu_inc_return(mce_queue_count) - 1;
-	/* If queue is full, just return for now. */
+	/* If queue is full, just return for yesw. */
 	if (index >= MAX_MC_EVT) {
 		__this_cpu_dec(mce_queue_count);
 		return;
@@ -269,11 +269,11 @@ static void machine_process_ue_event(struct work_struct *work)
 		 * oh! well
 		 *
 		 * Don't report this machine check because the caller has a
-		 * asked us to ignore the event, it has a fixup handler which
+		 * asked us to igyesre the event, it has a fixup handler which
 		 * will do the appropriate error handling and reporting.
 		 */
 		if (evt->error_type == MCE_ERROR_TYPE_UE) {
-			if (evt->u.ue_error.ignore_event) {
+			if (evt->u.ue_error.igyesre_event) {
 				__this_cpu_dec(mce_ue_count);
 				continue;
 			}
@@ -305,7 +305,7 @@ static void machine_check_process_queued_event(struct irq_work *work)
 	add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 
 	/*
-	 * For now just print it to console.
+	 * For yesw just print it to console.
 	 * TODO: log this error event to FSP or nvram.
 	 */
 	while (__this_cpu_read(mce_queue_count) > 0) {
@@ -313,7 +313,7 @@ static void machine_check_process_queued_event(struct irq_work *work)
 		evt = this_cpu_ptr(&mce_event_queue[index]);
 
 		if (evt->error_type == MCE_ERROR_TYPE_UE &&
-		    evt->u.ue_error.ignore_event) {
+		    evt->u.ue_error.igyesre_event) {
 			__this_cpu_dec(mce_queue_count);
 			continue;
 		}
@@ -377,7 +377,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		"Page table walk Load/Store (timeout)",
 	};
 	static const char *mc_error_class[] = {
-		"Unknown",
+		"Unkyeswn",
 		"Hardware error",
 		"Probable Hardware error (some chance of software cause)",
 		"Software error",
@@ -386,7 +386,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 
 	/* Print things out */
 	if (evt->version != MCE_V1) {
-		pr_err("Machine Check Exception, Unknown event version %d !\n",
+		pr_err("Machine Check Exception, Unkyeswn event version %d !\n",
 		       evt->version);
 		return;
 	}
@@ -428,7 +428,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		break;
 	case MCE_INITIATOR_UNKNOWN:
 	default:
-		initiator = "Unknown";
+		initiator = "Unkyeswn";
 		break;
 	}
 
@@ -438,7 +438,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.ue_error.ue_error_type <
 			ARRAY_SIZE(mc_ue_types) ?
 			mc_ue_types[evt->u.ue_error.ue_error_type]
-			: "Unknown";
+			: "Unkyeswn";
 		if (evt->u.ue_error.effective_address_provided)
 			ea = evt->u.ue_error.effective_address;
 		if (evt->u.ue_error.physical_address_provided)
@@ -449,7 +449,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.slb_error.slb_error_type <
 			ARRAY_SIZE(mc_slb_types) ?
 			mc_slb_types[evt->u.slb_error.slb_error_type]
-			: "Unknown";
+			: "Unkyeswn";
 		if (evt->u.slb_error.effective_address_provided)
 			ea = evt->u.slb_error.effective_address;
 		break;
@@ -458,7 +458,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.erat_error.erat_error_type <
 			ARRAY_SIZE(mc_erat_types) ?
 			mc_erat_types[evt->u.erat_error.erat_error_type]
-			: "Unknown";
+			: "Unkyeswn";
 		if (evt->u.erat_error.effective_address_provided)
 			ea = evt->u.erat_error.effective_address;
 		break;
@@ -467,7 +467,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.tlb_error.tlb_error_type <
 			ARRAY_SIZE(mc_tlb_types) ?
 			mc_tlb_types[evt->u.tlb_error.tlb_error_type]
-			: "Unknown";
+			: "Unkyeswn";
 		if (evt->u.tlb_error.effective_address_provided)
 			ea = evt->u.tlb_error.effective_address;
 		break;
@@ -476,7 +476,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.user_error.user_error_type <
 			ARRAY_SIZE(mc_user_types) ?
 			mc_user_types[evt->u.user_error.user_error_type]
-			: "Unknown";
+			: "Unkyeswn";
 		if (evt->u.user_error.effective_address_provided)
 			ea = evt->u.user_error.effective_address;
 		break;
@@ -485,7 +485,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.ra_error.ra_error_type <
 			ARRAY_SIZE(mc_ra_types) ?
 			mc_ra_types[evt->u.ra_error.ra_error_type]
-			: "Unknown";
+			: "Unkyeswn";
 		if (evt->u.ra_error.effective_address_provided)
 			ea = evt->u.ra_error.effective_address;
 		break;
@@ -494,21 +494,21 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		subtype = evt->u.link_error.link_error_type <
 			ARRAY_SIZE(mc_link_types) ?
 			mc_link_types[evt->u.link_error.link_error_type]
-			: "Unknown";
+			: "Unkyeswn";
 		if (evt->u.link_error.effective_address_provided)
 			ea = evt->u.link_error.effective_address;
 		break;
 	case MCE_ERROR_TYPE_DCACHE:
 		err_type = "D-Cache";
-		subtype = "Unknown";
+		subtype = "Unkyeswn";
 		break;
 	case MCE_ERROR_TYPE_ICACHE:
 		err_type = "I-Cache";
-		subtype = "Unknown";
+		subtype = "Unkyeswn";
 		break;
 	default:
 	case MCE_ERROR_TYPE_UNKNOWN:
-		err_type = "Unknown";
+		err_type = "Unkyeswn";
 		subtype = "";
 		break;
 	}
@@ -541,7 +541,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 	printk("%sMCE: CPU%d: Initiator %s\n", level, evt->cpu, initiator);
 
 	subtype = evt->error_class < ARRAY_SIZE(mc_error_class) ?
-		mc_error_class[evt->error_class] : "Unknown";
+		mc_error_class[evt->error_class] : "Unkyeswn";
 	printk("%sMCE: CPU%d: %s\n", level, evt->cpu, subtype);
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -553,7 +553,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 EXPORT_SYMBOL_GPL(machine_check_print_event_info);
 
 /*
- * This function is called in real mode. Strictly no printk's please.
+ * This function is called in real mode. Strictly yes printk's please.
  *
  * regs->nip and regs->msr contains srr0 and ssr1.
  */
@@ -561,7 +561,7 @@ long machine_check_early(struct pt_regs *regs)
 {
 	long handled = 0;
 
-	hv_nmi_check_nonrecoverable(regs);
+	hv_nmi_check_yesnrecoverable(regs);
 
 	/*
 	 * See if platform is capable of handling machine check.
@@ -581,13 +581,13 @@ static enum {
 static int init_debug_trig_function(void)
 {
 	int pvr;
-	struct device_node *cpun;
+	struct device_yesde *cpun;
 	struct property *prop = NULL;
 	const char *str;
 
 	/* First look in the device tree */
 	preempt_disable();
-	cpun = of_get_cpu_node(smp_processor_id(), NULL);
+	cpun = of_get_cpu_yesde(smp_processor_id(), NULL);
 	if (cpun) {
 		of_property_for_each_string(cpun, "ibm,hmi-special-triggers",
 					    prop, str) {
@@ -596,7 +596,7 @@ static int init_debug_trig_function(void)
 			else if (strcmp(str, "bit17-tm-suspend-escape") == 0)
 				hmer_debug_trig_function = DTRIG_SUSPEND_ESCAPE;
 		}
-		of_node_put(cpun);
+		of_yesde_put(cpun);
 	}
 	preempt_enable();
 
@@ -633,8 +633,8 @@ __initcall(init_debug_trig_function);
 /*
  * Handle HMIs that occur as a result of a debug trigger.
  * Return values:
- * -1 means this is not a HMI cause that we know about
- *  0 means no further handling is required
+ * -1 means this is yest a HMI cause that we kyesw about
+ *  0 means yes further handling is required
  *  1 means further handling is required
  */
 long hmi_handle_debugtrig(struct pt_regs *regs)

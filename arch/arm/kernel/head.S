@@ -57,7 +57,7 @@
  * Kernel startup entry point.
  * ---------------------------
  *
- * This is normally called from the decompressor code.  The requirements
+ * This is yesrmally called from the decompressor code.  The requirements
  * are: MMU = off, D-cache = off, I-cache = dont care, r0 = 0,
  * r1 = machine nr, r2 = atags or dtb pointer.
  *
@@ -79,7 +79,7 @@ ENTRY(stext)
 
  THUMB(	badr	r9, 1f		)	@ Kernel is always entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
- THUMB(	.thumb			)	@ switch to Thumb now.
+ THUMB(	.thumb			)	@ switch to Thumb yesw.
  THUMB(1:			)
 
 #ifdef CONFIG_ARM_VIRT_EXT
@@ -92,7 +92,7 @@ ENTRY(stext)
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
  THUMB( it	eq )		@ force fixup-able long branch encoding
-	beq	__error_p			@ yes, error 'p'
+	beq	__error_p			@ no, error 'p'
 
 #ifdef CONFIG_ARM_LPAE
 	mrc	p15, 0, r3, c0, c1, 4		@ read ID_MMFR0
@@ -112,7 +112,7 @@ ENTRY(stext)
 #endif
 
 	/*
-	 * r1 = machine no, r2 = atags or dtb,
+	 * r1 = machine yes, r2 = atags or dtb,
 	 * r8 = phys_offset, r9 = cpuid, r10 = procinfo
 	 */
 	bl	__vet_atags
@@ -252,7 +252,7 @@ __create_page_tables:
 
 #ifdef CONFIG_XIP_KERNEL
 	/*
-	 * Map the kernel image separately as it is not located in RAM.
+	 * Map the kernel image separately as it is yest located in RAM.
 	 */
 #define XIP_START XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR)
 	mov	r3, pc
@@ -363,14 +363,14 @@ __turn_mmu_on_loc:
 ENTRY(secondary_startup_arm)
  THUMB(	badr	r9, 1f		)	@ Kernel is entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
- THUMB(	.thumb			)	@ switch to Thumb now.
+ THUMB(	.thumb			)	@ switch to Thumb yesw.
  THUMB(1:			)
 ENTRY(secondary_startup)
 	/*
 	 * Common entry point for secondary CPUs.
 	 *
 	 * Ensure that we're in SVC mode, and IRQs are disabled.  Lookup
-	 * the processor type - there is no need to check the machine type
+	 * the processor type - there is yes need to check the machine type
 	 * as it has already been validated by the primary processor.
 	 */
 
@@ -384,7 +384,7 @@ ENTRY(secondary_startup)
 	mrc	p15, 0, r9, c0, c0		@ get processor id
 	bl	__lookup_processor_type
 	movs	r10, r5				@ invalid processor?
-	moveq	r0, #'p'			@ yes, error 'p'
+	moveq	r0, #'p'			@ no, error 'p'
  THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_p
 
@@ -470,9 +470,9 @@ ENDPROC(__enable_mmu)
 
 /*
  * Enable the MMU.  This completely changes the structure of the visible
- * memory space.  You will not be able to trace execution through this.
+ * memory space.  You will yest be able to trace execution through this.
  * If you have an enquiry about this, *please* check the linux-arm-kernel
- * mailing list archives BEFORE sending another post to the list.
+ * mailing list archives BEFORE sending ayesther post to the list.
  *
  *  r0  = cp#15 control register
  *  r1  = machine ID
@@ -503,7 +503,7 @@ ENDPROC(__turn_mmu_on)
 __fixup_smp:
 	and	r3, r9, #0x000f0000	@ architecture version
 	teq	r3, #0x000f0000		@ CPU ID supported?
-	bne	__fixup_smp_on_up	@ no, assume UP
+	bne	__fixup_smp_on_up	@ yes, assume UP
 
 	bic	r3, r9, #0x00ff0000
 	bic	r3, r3, #0x0000000f	@ mask 0xff00fff0
@@ -511,12 +511,12 @@ __fixup_smp:
 	orr	r4, r4, #0x0000b000
 	orr	r4, r4, #0x00000020	@ val 0x4100b020
 	teq	r3, r4			@ ARM 11MPCore?
-	reteq	lr			@ yes, assume SMP
+	reteq	lr			@ no, assume SMP
 
 	mrc	p15, 0, r0, c0, c0, 5	@ read MPIDR
 	and	r0, r0, #0xc0000000	@ multiprocessing extensions and
-	teq	r0, #0x80000000		@ not part of a uniprocessor system?
-	bne    __fixup_smp_on_up	@ no, assume UP
+	teq	r0, #0x80000000		@ yest part of a uniprocessor system?
+	bne    __fixup_smp_on_up	@ yes, assume UP
 
 	@ Core indicates it is SMP. Check for Aegis SOC where a single
 	@ Cortex-A9 CPU is present but SMP operations fault.
@@ -706,7 +706,7 @@ ENDPROC(__fixup_a_pv_table)
 
 ENTRY(fixup_pv_table)
 	stmfd	sp!, {r4 - r7, lr}
-	mov	r3, #0			@ no offset
+	mov	r3, #0			@ yes offset
 	mov	r4, r0			@ r0 = table start
 	add	r5, r0, r1		@ r1 = table size
 	bl	__fixup_a_pv_table

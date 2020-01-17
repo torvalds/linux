@@ -52,7 +52,7 @@ static const struct hns3_stats hns3_rxq_stats[] = {
 	HNS3_TQP_STAT("l2_err", l2_err),
 	HNS3_TQP_STAT("l3l4_csum_err", l3l4_csum_err),
 	HNS3_TQP_STAT("multicast", rx_multicast),
-	HNS3_TQP_STAT("non_reuse_pg", non_reuse_pg),
+	HNS3_TQP_STAT("yesn_reuse_pg", yesn_reuse_pg),
 };
 
 #define HNS3_RXQ_STATS_COUNT ARRAY_SIZE(hns3_rxq_stats)
@@ -339,7 +339,7 @@ static void hns3_self_test(struct net_device *ndev,
 		ndev->netdev_ops->ndo_stop(ndev);
 
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
-	/* Disable the vlan filter for selftest does not support it */
+	/* Disable the vlan filter for selftest does yest support it */
 	dis_vlan_filter = (ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER) &&
 				h->ae_algo->ops->enable_vlan_filter;
 	if (dis_vlan_filter)
@@ -428,7 +428,7 @@ static void *hns3_update_strings(u8 *data, const struct hns3_stats *stats,
 			n1 = min_t(uint, n1, MAX_PREFIX_SIZE - 1);
 			size_left = (ETH_GSTRING_LEN - 1) - n1;
 
-			/* now, concatenate the stats string to it */
+			/* yesw, concatenate the stats string to it */
 			strncat(data, stats[j].stats_string, size_left);
 			data += ETH_GSTRING_LEN;
 		}
@@ -517,12 +517,12 @@ static void hns3_get_stats(struct net_device *netdev,
 	u64 *p = data;
 
 	if (hns3_nic_resetting(netdev)) {
-		netdev_err(netdev, "dev resetting, could not get stats\n");
+		netdev_err(netdev, "dev resetting, could yest get stats\n");
 		return;
 	}
 
 	if (!h->ae_algo->ops->get_stats || !h->ae_algo->ops->update_stats) {
-		netdev_err(netdev, "could not get any statistics\n");
+		netdev_err(netdev, "could yest get any statistics\n");
 		return;
 	}
 
@@ -543,7 +543,7 @@ static void hns3_get_drvinfo(struct net_device *netdev,
 	u32 fw_version;
 
 	if (!h->ae_algo->ops->get_fw_version) {
-		netdev_err(netdev, "could not get fw version!\n");
+		netdev_err(netdev, "could yest get fw version!\n");
 		return;
 	}
 
@@ -693,7 +693,7 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 		break;
 	default:
 
-		netdev_warn(netdev, "Unknown media type");
+		netdev_warn(netdev, "Unkyeswn media type");
 		return 0;
 	}
 
@@ -771,7 +771,7 @@ static int hns3_set_link_ksettings(struct net_device *netdev,
 		  netdev->phydev ? "phy" : "mac",
 		  cmd->base.autoneg, cmd->base.speed, cmd->base.duplex);
 
-	/* Only support ksettings_set for netdev with phy attached for now */
+	/* Only support ksettings_set for netdev with phy attached for yesw */
 	if (netdev->phydev)
 		return phy_ethtool_ksettings_set(netdev->phydev, cmd);
 
@@ -789,11 +789,11 @@ static int hns3_set_link_ksettings(struct net_device *netdev,
 	}
 
 	/* hw doesn't support use specified speed and duplex to negotiate,
-	 * ignore them when autoneg on.
+	 * igyesre them when autoneg on.
 	 */
 	if (cmd->base.autoneg) {
 		netdev_info(netdev,
-			    "autoneg is on, ignore the speed and duplex\n");
+			    "autoneg is on, igyesre the speed and duplex\n");
 		return 0;
 	}
 
@@ -846,7 +846,7 @@ static int hns3_set_rss(struct net_device *netdev, const u32 *indir,
 	if ((h->pdev->revision == 0x20 &&
 	     hfunc != ETH_RSS_HASH_TOP) || (hfunc != ETH_RSS_HASH_NO_CHANGE &&
 	     hfunc != ETH_RSS_HASH_TOP && hfunc != ETH_RSS_HASH_XOR)) {
-		netdev_err(netdev, "hash func not supported\n");
+		netdev_err(netdev, "hash func yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1325,7 +1325,7 @@ static unsigned int loc_to_eth_fec(u8 loc_fec)
 	if (loc_fec & BIT(HNAE3_FEC_BASER))
 		eth_fec |= ETHTOOL_FEC_BASER;
 
-	/* if nothing is set, then FEC is off */
+	/* if yesthing is set, then FEC is off */
 	if (!eth_fec)
 		eth_fec = ETHTOOL_FEC_OFF;
 

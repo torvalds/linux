@@ -84,11 +84,11 @@ Optional properties:
     (all except CS47L85, WM1840)
 
     The following following additional property is supported for the generator
-    nodes:
+    yesdes:
       - cirrus,ext-cap : Set to 1 if the MICBIAS has external decoupling
         capacitors attached.
 
-Optional child nodes:
+Optional child yesdes:
     micvdd : Node containing initialization data for the micvdd regulator
     See bindings/regulator/arizona-regulator.txt
 

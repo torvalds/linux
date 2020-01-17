@@ -17,10 +17,10 @@
  *   write accesses; this replaces the ack bit
  * - only one read access is required to read a byte (instead of a write
  *   followed by a read access in standard SMBus protocol)
- * - there's no Ack bit after each read access
+ * - there's yes Ack bit after each read access
  *
- * This means this bus cannot be used to interface with standard SMBus
- * devices. Devices known to support this interface include the AXP223,
+ * This means this bus canyest be used to interface with standard SMBus
+ * devices. Devices kyeswn to support this interface include the AXP223,
  * AXP809, and AXP806 PMICs, and the AC100 audio codec, all from X-Powers.
  *
  * A description of the operation and wire protocol can be found in the
@@ -148,8 +148,8 @@ static int sunxi_rsb_device_probe(struct device *dev)
 	if (!rdev->irq) {
 		int irq = -ENOENT;
 
-		if (dev->of_node)
-			irq = of_irq_get(dev->of_node, 0);
+		if (dev->of_yesde)
+			irq = of_irq_get(dev->of_yesde, 0);
 
 		if (irq == -EPROBE_DEFER)
 			return irq;
@@ -159,7 +159,7 @@ static int sunxi_rsb_device_probe(struct device *dev)
 		rdev->irq = irq;
 	}
 
-	ret = of_clk_set_defaults(dev->of_node, false);
+	ret = of_clk_set_defaults(dev->of_yesde, false);
 	if (ret < 0)
 		return ret;
 
@@ -191,12 +191,12 @@ static void sunxi_rsb_dev_release(struct device *dev)
 /**
  * sunxi_rsb_device_create() - allocate and add an RSB device
  * @rsb:	RSB controller
- * @node:	RSB slave device node
+ * @yesde:	RSB slave device yesde
  * @hwaddr:	RSB slave hardware address
  * @rtaddr:	RSB slave runtime address
  */
 static struct sunxi_rsb_device *sunxi_rsb_device_create(struct sunxi_rsb *rsb,
-		struct device_node *node, u16 hwaddr, u8 rtaddr)
+		struct device_yesde *yesde, u16 hwaddr, u8 rtaddr)
 {
 	int err;
 	struct sunxi_rsb_device *rdev;
@@ -210,7 +210,7 @@ static struct sunxi_rsb_device *sunxi_rsb_device_create(struct sunxi_rsb *rsb,
 	rdev->rtaddr = rtaddr;
 	rdev->dev.bus = &sunxi_rsb_bus;
 	rdev->dev.parent = rsb->dev;
-	rdev->dev.of_node = node;
+	rdev->dev.of_yesde = yesde;
 	rdev->dev.release = sunxi_rsb_dev_release;
 
 	dev_set_name(&rdev->dev, "%s-%x", RSB_CTRL_NAME, hwaddr);
@@ -512,7 +512,7 @@ static int sunxi_rsb_init_device_mode(struct sunxi_rsb *rsb)
 
 /*
  * There are 15 valid runtime addresses, though Allwinner typically
- * skips the first, for unknown reasons, and uses the following three.
+ * skips the first, for unkyeswn reasons, and uses the following three.
  *
  * 0x17, 0x2d, 0x3a, 0x4e, 0x59, 0x63, 0x74, 0x8b,
  * 0x9c, 0xa6, 0xb1, 0xc5, 0xd2, 0xe8, 0xff
@@ -522,7 +522,7 @@ static int sunxi_rsb_init_device_mode(struct sunxi_rsb *rsb)
  * use 0x2d for the primary PMIC, 0x3a for the secondary PMIC if
  * there is one, and 0x45 for peripheral ICs.
  *
- * The hardware does not seem to support re-setting runtime addresses.
+ * The hardware does yest seem to support re-setting runtime addresses.
  * Attempts to do so result in the slave devices returning a NACK.
  * Hence we just hardcode the mapping here, like Allwinner does.
  */
@@ -547,7 +547,7 @@ static u8 sunxi_rsb_get_rtaddr(u16 hwaddr)
 static int of_rsb_register_devices(struct sunxi_rsb *rsb)
 {
 	struct device *dev = rsb->dev;
-	struct device_node *child, *np = dev->of_node;
+	struct device_yesde *child, *np = dev->of_yesde;
 	u32 hwaddr;
 	u8 rtaddr;
 	int ret;
@@ -556,7 +556,7 @@ static int of_rsb_register_devices(struct sunxi_rsb *rsb)
 		return -EINVAL;
 
 	/* Runtime addresses for all slaves should be set first */
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		dev_dbg(dev, "setting child %pOF runtime address\n",
 			child);
 
@@ -569,13 +569,13 @@ static int of_rsb_register_devices(struct sunxi_rsb *rsb)
 
 		rtaddr = sunxi_rsb_get_rtaddr(hwaddr);
 		if (!rtaddr) {
-			dev_err(dev, "%pOF: unknown hardware device address\n",
+			dev_err(dev, "%pOF: unkyeswn hardware device address\n",
 				child);
 			continue;
 		}
 
 		/*
-		 * Since no devices have been registered yet, we are the
+		 * Since yes devices have been registered yet, we are the
 		 * only ones using the bus, we can skip locking the bus.
 		 */
 
@@ -592,7 +592,7 @@ static int of_rsb_register_devices(struct sunxi_rsb *rsb)
 	}
 
 	/* Then we start adding devices and probing them */
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		struct sunxi_rsb_device *rdev;
 
 		dev_dbg(dev, "adding child %pOF\n", child);
@@ -623,7 +623,7 @@ MODULE_DEVICE_TABLE(of, sunxi_rsb_of_match_table);
 static int sunxi_rsb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct resource *r;
 	struct sunxi_rsb *rsb;
 	unsigned long p_clk_freq;

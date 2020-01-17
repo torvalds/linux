@@ -85,11 +85,11 @@ struct property *reverse_properties(struct property *first)
 	return head;
 }
 
-struct node *build_node(struct property *proplist, struct node *children,
+struct yesde *build_yesde(struct property *proplist, struct yesde *children,
 			struct srcpos *srcpos)
 {
-	struct node *new = xmalloc(sizeof(*new));
-	struct node *child;
+	struct yesde *new = xmalloc(sizeof(*new));
+	struct yesde *child;
 
 	memset(new, 0, sizeof(*new));
 
@@ -104,9 +104,9 @@ struct node *build_node(struct property *proplist, struct node *children,
 	return new;
 }
 
-struct node *build_node_delete(struct srcpos *srcpos)
+struct yesde *build_yesde_delete(struct srcpos *srcpos)
 {
-	struct node *new = xmalloc(sizeof(*new));
+	struct yesde *new = xmalloc(sizeof(*new));
 
 	memset(new, 0, sizeof(*new));
 
@@ -116,57 +116,57 @@ struct node *build_node_delete(struct srcpos *srcpos)
 	return new;
 }
 
-struct node *name_node(struct node *node, char *name)
+struct yesde *name_yesde(struct yesde *yesde, char *name)
 {
-	assert(node->name == NULL);
+	assert(yesde->name == NULL);
 
-	node->name = name;
+	yesde->name = name;
 
-	return node;
+	return yesde;
 }
 
-struct node *omit_node_if_unused(struct node *node)
+struct yesde *omit_yesde_if_unused(struct yesde *yesde)
 {
-	node->omit_if_unused = 1;
+	yesde->omit_if_unused = 1;
 
-	return node;
+	return yesde;
 }
 
-struct node *reference_node(struct node *node)
+struct yesde *reference_yesde(struct yesde *yesde)
 {
-	node->is_referenced = 1;
+	yesde->is_referenced = 1;
 
-	return node;
+	return yesde;
 }
 
-struct node *merge_nodes(struct node *old_node, struct node *new_node)
+struct yesde *merge_yesdes(struct yesde *old_yesde, struct yesde *new_yesde)
 {
 	struct property *new_prop, *old_prop;
-	struct node *new_child, *old_child;
+	struct yesde *new_child, *old_child;
 	struct label *l;
 
-	old_node->deleted = 0;
+	old_yesde->deleted = 0;
 
-	/* Add new node labels to old node */
-	for_each_label_withdel(new_node->labels, l)
-		add_label(&old_node->labels, l->label);
+	/* Add new yesde labels to old yesde */
+	for_each_label_withdel(new_yesde->labels, l)
+		add_label(&old_yesde->labels, l->label);
 
-	/* Move properties from the new node to the old node.  If there
+	/* Move properties from the new yesde to the old yesde.  If there
 	 * is a collision, replace the old value with the new */
-	while (new_node->proplist) {
+	while (new_yesde->proplist) {
 		/* Pop the property off the list */
-		new_prop = new_node->proplist;
-		new_node->proplist = new_prop->next;
+		new_prop = new_yesde->proplist;
+		new_yesde->proplist = new_prop->next;
 		new_prop->next = NULL;
 
 		if (new_prop->deleted) {
-			delete_property_by_name(old_node, new_prop->name);
+			delete_property_by_name(old_yesde, new_prop->name);
 			free(new_prop);
 			continue;
 		}
 
 		/* Look for a collision, set new value if there is */
-		for_each_property_withdel(old_node, old_prop) {
+		for_each_property_withdel(old_yesde, old_prop) {
 			if (streq(old_prop->name, new_prop->name)) {
 				/* Add new labels to old property */
 				for_each_label_withdel(new_prop->labels, l)
@@ -182,53 +182,53 @@ struct node *merge_nodes(struct node *old_node, struct node *new_node)
 			}
 		}
 
-		/* if no collision occurred, add property to the old node. */
+		/* if yes collision occurred, add property to the old yesde. */
 		if (new_prop)
-			add_property(old_node, new_prop);
+			add_property(old_yesde, new_prop);
 	}
 
-	/* Move the override child nodes into the primary node.  If
-	 * there is a collision, then merge the nodes. */
-	while (new_node->children) {
-		/* Pop the child node off the list */
-		new_child = new_node->children;
-		new_node->children = new_child->next_sibling;
+	/* Move the override child yesdes into the primary yesde.  If
+	 * there is a collision, then merge the yesdes. */
+	while (new_yesde->children) {
+		/* Pop the child yesde off the list */
+		new_child = new_yesde->children;
+		new_yesde->children = new_child->next_sibling;
 		new_child->parent = NULL;
 		new_child->next_sibling = NULL;
 
 		if (new_child->deleted) {
-			delete_node_by_name(old_node, new_child->name);
+			delete_yesde_by_name(old_yesde, new_child->name);
 			free(new_child);
 			continue;
 		}
 
 		/* Search for a collision.  Merge if there is */
-		for_each_child_withdel(old_node, old_child) {
+		for_each_child_withdel(old_yesde, old_child) {
 			if (streq(old_child->name, new_child->name)) {
-				merge_nodes(old_child, new_child);
+				merge_yesdes(old_child, new_child);
 				new_child = NULL;
 				break;
 			}
 		}
 
-		/* if no collision occurred, add child to the old node. */
+		/* if yes collision occurred, add child to the old yesde. */
 		if (new_child)
-			add_child(old_node, new_child);
+			add_child(old_yesde, new_child);
 	}
 
-	old_node->srcpos = srcpos_extend(old_node->srcpos, new_node->srcpos);
+	old_yesde->srcpos = srcpos_extend(old_yesde->srcpos, new_yesde->srcpos);
 
-	/* The new node contents are now merged into the old node.  Free
-	 * the new node. */
-	free(new_node);
+	/* The new yesde contents are yesw merged into the old yesde.  Free
+	 * the new yesde. */
+	free(new_yesde);
 
-	return old_node;
+	return old_yesde;
 }
 
-struct node * add_orphan_node(struct node *dt, struct node *new_node, char *ref)
+struct yesde * add_orphan_yesde(struct yesde *dt, struct yesde *new_yesde, char *ref)
 {
 	static unsigned int next_orphan_fragment = 0;
-	struct node *node;
+	struct yesde *yesde;
 	struct property *p;
 	struct data d = empty_data;
 	char *name;
@@ -247,15 +247,15 @@ struct node * add_orphan_node(struct node *dt, struct node *new_node, char *ref)
 
 	xasprintf(&name, "fragment@%u",
 			next_orphan_fragment++);
-	name_node(new_node, "__overlay__");
-	node = build_node(p, new_node, NULL);
-	name_node(node, name);
+	name_yesde(new_yesde, "__overlay__");
+	yesde = build_yesde(p, new_yesde, NULL);
+	name_yesde(yesde, name);
 
-	add_child(dt, node);
+	add_child(dt, yesde);
 	return dt;
 }
 
-struct node *chain_node(struct node *first, struct node *list)
+struct yesde *chain_yesde(struct yesde *first, struct yesde *list)
 {
 	assert(first->next_sibling == NULL);
 
@@ -263,22 +263,22 @@ struct node *chain_node(struct node *first, struct node *list)
 	return first;
 }
 
-void add_property(struct node *node, struct property *prop)
+void add_property(struct yesde *yesde, struct property *prop)
 {
 	struct property **p;
 
 	prop->next = NULL;
 
-	p = &node->proplist;
+	p = &yesde->proplist;
 	while (*p)
 		p = &((*p)->next);
 
 	*p = prop;
 }
 
-void delete_property_by_name(struct node *node, char *name)
+void delete_property_by_name(struct yesde *yesde, char *name)
 {
-	struct property *prop = node->proplist;
+	struct property *prop = yesde->proplist;
 
 	while (prop) {
 		if (streq(prop->name, name)) {
@@ -295,9 +295,9 @@ void delete_property(struct property *prop)
 	delete_labels(&prop->labels);
 }
 
-void add_child(struct node *parent, struct node *child)
+void add_child(struct yesde *parent, struct yesde *child)
 {
-	struct node **p;
+	struct yesde **p;
 
 	child->next_sibling = NULL;
 	child->parent = parent;
@@ -309,40 +309,40 @@ void add_child(struct node *parent, struct node *child)
 	*p = child;
 }
 
-void delete_node_by_name(struct node *parent, char *name)
+void delete_yesde_by_name(struct yesde *parent, char *name)
 {
-	struct node *node = parent->children;
+	struct yesde *yesde = parent->children;
 
-	while (node) {
-		if (streq(node->name, name)) {
-			delete_node(node);
+	while (yesde) {
+		if (streq(yesde->name, name)) {
+			delete_yesde(yesde);
 			return;
 		}
-		node = node->next_sibling;
+		yesde = yesde->next_sibling;
 	}
 }
 
-void delete_node(struct node *node)
+void delete_yesde(struct yesde *yesde)
 {
 	struct property *prop;
-	struct node *child;
+	struct yesde *child;
 
-	node->deleted = 1;
-	for_each_child(node, child)
-		delete_node(child);
-	for_each_property(node, prop)
+	yesde->deleted = 1;
+	for_each_child(yesde, child)
+		delete_yesde(child);
+	for_each_property(yesde, prop)
 		delete_property(prop);
-	delete_labels(&node->labels);
+	delete_labels(&yesde->labels);
 }
 
-void append_to_property(struct node *node,
+void append_to_property(struct yesde *yesde,
 			char *name, const void *data, int len,
 			enum markertype type)
 {
 	struct data d;
 	struct property *p;
 
-	p = get_property(node, name);
+	p = get_property(yesde, name);
 	if (p) {
 		d = data_add_marker(p->val, type, name);
 		d = data_append_data(d, data, len);
@@ -351,7 +351,7 @@ void append_to_property(struct node *node,
 		d = data_add_marker(empty_data, type, name);
 		d = data_append_data(d, data, len);
 		p = build_property(name, d, NULL);
-		add_property(node, p);
+		add_property(yesde, p);
 	}
 }
 
@@ -396,7 +396,7 @@ struct reserve_info *add_reserve_entry(struct reserve_info *list,
 
 struct dt_info *build_dt_info(unsigned int dtsflags,
 			      struct reserve_info *reservelist,
-			      struct node *tree, uint32_t boot_cpuid_phys)
+			      struct yesde *tree, uint32_t boot_cpuid_phys)
 {
 	struct dt_info *dti;
 
@@ -413,19 +413,19 @@ struct dt_info *build_dt_info(unsigned int dtsflags,
  * Tree accessor functions
  */
 
-const char *get_unitname(struct node *node)
+const char *get_unitname(struct yesde *yesde)
 {
-	if (node->name[node->basenamelen] == '\0')
+	if (yesde->name[yesde->basenamelen] == '\0')
 		return "";
 	else
-		return node->name + node->basenamelen + 1;
+		return yesde->name + yesde->basenamelen + 1;
 }
 
-struct property *get_property(struct node *node, const char *propname)
+struct property *get_property(struct yesde *yesde, const char *propname)
 {
 	struct property *prop;
 
-	for_each_property(node, prop)
+	for_each_property(yesde, prop)
 		if (streq(prop->name, propname))
 			return prop;
 
@@ -444,13 +444,13 @@ cell_t propval_cell_n(struct property *prop, int n)
 	return fdt32_to_cpu(*((fdt32_t *)prop->val.val + n));
 }
 
-struct property *get_property_by_label(struct node *tree, const char *label,
-				       struct node **node)
+struct property *get_property_by_label(struct yesde *tree, const char *label,
+				       struct yesde **yesde)
 {
 	struct property *prop;
-	struct node *c;
+	struct yesde *c;
 
-	*node = tree;
+	*yesde = tree;
 
 	for_each_property(tree, prop) {
 		struct label *l;
@@ -461,23 +461,23 @@ struct property *get_property_by_label(struct node *tree, const char *label,
 	}
 
 	for_each_child(tree, c) {
-		prop = get_property_by_label(c, label, node);
+		prop = get_property_by_label(c, label, yesde);
 		if (prop)
 			return prop;
 	}
 
-	*node = NULL;
+	*yesde = NULL;
 	return NULL;
 }
 
-struct marker *get_marker_label(struct node *tree, const char *label,
-				struct node **node, struct property **prop)
+struct marker *get_marker_label(struct yesde *tree, const char *label,
+				struct yesde **yesde, struct property **prop)
 {
 	struct marker *m;
 	struct property *p;
-	struct node *c;
+	struct yesde *c;
 
-	*node = tree;
+	*yesde = tree;
 
 	for_each_property(tree, p) {
 		*prop = p;
@@ -488,31 +488,31 @@ struct marker *get_marker_label(struct node *tree, const char *label,
 	}
 
 	for_each_child(tree, c) {
-		m = get_marker_label(c, label, node, prop);
+		m = get_marker_label(c, label, yesde, prop);
 		if (m)
 			return m;
 	}
 
 	*prop = NULL;
-	*node = NULL;
+	*yesde = NULL;
 	return NULL;
 }
 
-struct node *get_subnode(struct node *node, const char *nodename)
+struct yesde *get_subyesde(struct yesde *yesde, const char *yesdename)
 {
-	struct node *child;
+	struct yesde *child;
 
-	for_each_child(node, child)
-		if (streq(child->name, nodename))
+	for_each_child(yesde, child)
+		if (streq(child->name, yesdename))
 			return child;
 
 	return NULL;
 }
 
-struct node *get_node_by_path(struct node *tree, const char *path)
+struct yesde *get_yesde_by_path(struct yesde *tree, const char *path)
 {
 	const char *p;
-	struct node *child;
+	struct yesde *child;
 
 	if (!path || ! (*path)) {
 		if (tree->deleted)
@@ -528,7 +528,7 @@ struct node *get_node_by_path(struct node *tree, const char *path)
 	for_each_child(tree, child) {
 		if (p && (strlen(child->name) == p-path) &&
 		    strprefixeq(path, p - path, child->name))
-			return get_node_by_path(child, p+1);
+			return get_yesde_by_path(child, p+1);
 		else if (!p && streq(path, child->name))
 			return child;
 	}
@@ -536,9 +536,9 @@ struct node *get_node_by_path(struct node *tree, const char *path)
 	return NULL;
 }
 
-struct node *get_node_by_label(struct node *tree, const char *label)
+struct yesde *get_yesde_by_label(struct yesde *tree, const char *label)
 {
-	struct node *child, *node;
+	struct yesde *child, *yesde;
 	struct label *l;
 
 	assert(label && (strlen(label) > 0));
@@ -548,17 +548,17 @@ struct node *get_node_by_label(struct node *tree, const char *label)
 			return tree;
 
 	for_each_child(tree, child) {
-		node = get_node_by_label(child, label);
-		if (node)
-			return node;
+		yesde = get_yesde_by_label(child, label);
+		if (yesde)
+			return yesde;
 	}
 
 	return NULL;
 }
 
-struct node *get_node_by_phandle(struct node *tree, cell_t phandle)
+struct yesde *get_yesde_by_phandle(struct yesde *tree, cell_t phandle)
 {
-	struct node *child, *node;
+	struct yesde *child, *yesde;
 
 	if ((phandle == 0) || (phandle == -1)) {
 		assert(generate_fixups);
@@ -572,61 +572,61 @@ struct node *get_node_by_phandle(struct node *tree, cell_t phandle)
 	}
 
 	for_each_child(tree, child) {
-		node = get_node_by_phandle(child, phandle);
-		if (node)
-			return node;
+		yesde = get_yesde_by_phandle(child, phandle);
+		if (yesde)
+			return yesde;
 	}
 
 	return NULL;
 }
 
-struct node *get_node_by_ref(struct node *tree, const char *ref)
+struct yesde *get_yesde_by_ref(struct yesde *tree, const char *ref)
 {
 	if (streq(ref, "/"))
 		return tree;
 	else if (ref[0] == '/')
-		return get_node_by_path(tree, ref);
+		return get_yesde_by_path(tree, ref);
 	else
-		return get_node_by_label(tree, ref);
+		return get_yesde_by_label(tree, ref);
 }
 
-cell_t get_node_phandle(struct node *root, struct node *node)
+cell_t get_yesde_phandle(struct yesde *root, struct yesde *yesde)
 {
 	static cell_t phandle = 1; /* FIXME: ick, static local */
 	struct data d = empty_data;
 
-	if ((node->phandle != 0) && (node->phandle != -1))
-		return node->phandle;
+	if ((yesde->phandle != 0) && (yesde->phandle != -1))
+		return yesde->phandle;
 
-	while (get_node_by_phandle(root, phandle))
+	while (get_yesde_by_phandle(root, phandle))
 		phandle++;
 
-	node->phandle = phandle;
+	yesde->phandle = phandle;
 
 	d = data_add_marker(d, TYPE_UINT32, NULL);
 	d = data_append_cell(d, phandle);
 
-	if (!get_property(node, "linux,phandle")
+	if (!get_property(yesde, "linux,phandle")
 	    && (phandle_format & PHANDLE_LEGACY))
-		add_property(node, build_property("linux,phandle", d, NULL));
+		add_property(yesde, build_property("linux,phandle", d, NULL));
 
-	if (!get_property(node, "phandle")
+	if (!get_property(yesde, "phandle")
 	    && (phandle_format & PHANDLE_EPAPR))
-		add_property(node, build_property("phandle", d, NULL));
+		add_property(yesde, build_property("phandle", d, NULL));
 
-	/* If the node *does* have a phandle property, we must
+	/* If the yesde *does* have a phandle property, we must
 	 * be dealing with a self-referencing phandle, which will be
 	 * fixed up momentarily in the caller */
 
-	return node->phandle;
+	return yesde->phandle;
 }
 
-uint32_t guess_boot_cpuid(struct node *tree)
+uint32_t guess_boot_cpuid(struct yesde *tree)
 {
-	struct node *cpus, *bootcpu;
+	struct yesde *cpus, *bootcpu;
 	struct property *reg;
 
-	cpus = get_node_by_path(tree, "/cpus");
+	cpus = get_yesde_by_path(tree, "/cpus");
 	if (!cpus)
 		return 0;
 
@@ -639,7 +639,7 @@ uint32_t guess_boot_cpuid(struct node *tree)
 	if (!reg || (reg->val.len != sizeof(uint32_t)))
 		return 0;
 
-	/* FIXME: Sanity check node? */
+	/* FIXME: Sanity check yesde? */
 
 	return propval_cell(reg);
 }
@@ -703,12 +703,12 @@ static int cmp_prop(const void *ax, const void *bx)
 	return strcmp(a->name, b->name);
 }
 
-static void sort_properties(struct node *node)
+static void sort_properties(struct yesde *yesde)
 {
 	int n = 0, i = 0;
 	struct property *prop, **tbl;
 
-	for_each_property_withdel(node, prop)
+	for_each_property_withdel(yesde, prop)
 		n++;
 
 	if (n == 0)
@@ -716,12 +716,12 @@ static void sort_properties(struct node *node)
 
 	tbl = xmalloc(n * sizeof(*tbl));
 
-	for_each_property_withdel(node, prop)
+	for_each_property_withdel(yesde, prop)
 		tbl[i++] = prop;
 
 	qsort(tbl, n, sizeof(*tbl), cmp_prop);
 
-	node->proplist = tbl[0];
+	yesde->proplist = tbl[0];
 	for (i = 0; i < (n-1); i++)
 		tbl[i]->next = tbl[i+1];
 	tbl[n-1]->next = NULL;
@@ -729,22 +729,22 @@ static void sort_properties(struct node *node)
 	free(tbl);
 }
 
-static int cmp_subnode(const void *ax, const void *bx)
+static int cmp_subyesde(const void *ax, const void *bx)
 {
-	const struct node *a, *b;
+	const struct yesde *a, *b;
 
-	a = *((const struct node * const *)ax);
-	b = *((const struct node * const *)bx);
+	a = *((const struct yesde * const *)ax);
+	b = *((const struct yesde * const *)bx);
 
 	return strcmp(a->name, b->name);
 }
 
-static void sort_subnodes(struct node *node)
+static void sort_subyesdes(struct yesde *yesde)
 {
 	int n = 0, i = 0;
-	struct node *subnode, **tbl;
+	struct yesde *subyesde, **tbl;
 
-	for_each_child_withdel(node, subnode)
+	for_each_child_withdel(yesde, subyesde)
 		n++;
 
 	if (n == 0)
@@ -752,12 +752,12 @@ static void sort_subnodes(struct node *node)
 
 	tbl = xmalloc(n * sizeof(*tbl));
 
-	for_each_child_withdel(node, subnode)
-		tbl[i++] = subnode;
+	for_each_child_withdel(yesde, subyesde)
+		tbl[i++] = subyesde;
 
-	qsort(tbl, n, sizeof(*tbl), cmp_subnode);
+	qsort(tbl, n, sizeof(*tbl), cmp_subyesde);
 
-	node->children = tbl[0];
+	yesde->children = tbl[0];
 	for (i = 0; i < (n-1); i++)
 		tbl[i]->next_sibling = tbl[i+1];
 	tbl[n-1]->next_sibling = NULL;
@@ -765,56 +765,56 @@ static void sort_subnodes(struct node *node)
 	free(tbl);
 }
 
-static void sort_node(struct node *node)
+static void sort_yesde(struct yesde *yesde)
 {
-	struct node *c;
+	struct yesde *c;
 
-	sort_properties(node);
-	sort_subnodes(node);
-	for_each_child_withdel(node, c)
-		sort_node(c);
+	sort_properties(yesde);
+	sort_subyesdes(yesde);
+	for_each_child_withdel(yesde, c)
+		sort_yesde(c);
 }
 
 void sort_tree(struct dt_info *dti)
 {
 	sort_reserve_entries(dti);
-	sort_node(dti->dt);
+	sort_yesde(dti->dt);
 }
 
 /* utility helper to avoid code duplication */
-static struct node *build_and_name_child_node(struct node *parent, char *name)
+static struct yesde *build_and_name_child_yesde(struct yesde *parent, char *name)
 {
-	struct node *node;
+	struct yesde *yesde;
 
-	node = build_node(NULL, NULL, NULL);
-	name_node(node, xstrdup(name));
-	add_child(parent, node);
+	yesde = build_yesde(NULL, NULL, NULL);
+	name_yesde(yesde, xstrdup(name));
+	add_child(parent, yesde);
 
-	return node;
+	return yesde;
 }
 
-static struct node *build_root_node(struct node *dt, char *name)
+static struct yesde *build_root_yesde(struct yesde *dt, char *name)
 {
-	struct node *an;
+	struct yesde *an;
 
-	an = get_subnode(dt, name);
+	an = get_subyesde(dt, name);
 	if (!an)
-		an = build_and_name_child_node(dt, name);
+		an = build_and_name_child_yesde(dt, name);
 
 	if (!an)
-		die("Could not build root node /%s\n", name);
+		die("Could yest build root yesde /%s\n", name);
 
 	return an;
 }
 
-static bool any_label_tree(struct dt_info *dti, struct node *node)
+static bool any_label_tree(struct dt_info *dti, struct yesde *yesde)
 {
-	struct node *c;
+	struct yesde *c;
 
-	if (node->labels)
+	if (yesde->labels)
 		return true;
 
-	for_each_child(node, c)
+	for_each_child(yesde, c)
 		if (any_label_tree(dti, c))
 			return true;
 
@@ -822,19 +822,19 @@ static bool any_label_tree(struct dt_info *dti, struct node *node)
 }
 
 static void generate_label_tree_internal(struct dt_info *dti,
-					 struct node *an, struct node *node,
+					 struct yesde *an, struct yesde *yesde,
 					 bool allocph)
 {
-	struct node *dt = dti->dt;
-	struct node *c;
+	struct yesde *dt = dti->dt;
+	struct yesde *c;
 	struct property *p;
 	struct label *l;
 
 	/* if there are labels */
-	if (node->labels) {
+	if (yesde->labels) {
 
-		/* now add the label in the node */
-		for_each_label(node->labels, l) {
+		/* yesw add the label in the yesde */
+		for_each_label(yesde->labels, l) {
 
 			/* check whether the label already exists */
 			p = get_property(an, l->label);
@@ -847,36 +847,36 @@ static void generate_label_tree_internal(struct dt_info *dti,
 
 			/* insert it */
 			p = build_property(l->label,
-				data_copy_escape_string(node->fullpath,
-						strlen(node->fullpath)),
+				data_copy_escape_string(yesde->fullpath,
+						strlen(yesde->fullpath)),
 				NULL);
 			add_property(an, p);
 		}
 
-		/* force allocation of a phandle for this node */
+		/* force allocation of a phandle for this yesde */
 		if (allocph)
-			(void)get_node_phandle(dt, node);
+			(void)get_yesde_phandle(dt, yesde);
 	}
 
-	for_each_child(node, c)
+	for_each_child(yesde, c)
 		generate_label_tree_internal(dti, an, c, allocph);
 }
 
-static bool any_fixup_tree(struct dt_info *dti, struct node *node)
+static bool any_fixup_tree(struct dt_info *dti, struct yesde *yesde)
 {
-	struct node *c;
+	struct yesde *c;
 	struct property *prop;
 	struct marker *m;
 
-	for_each_property(node, prop) {
+	for_each_property(yesde, prop) {
 		m = prop->val.markers;
 		for_each_marker_of_type(m, REF_PHANDLE) {
-			if (!get_node_by_ref(dti->dt, m->ref))
+			if (!get_yesde_by_ref(dti->dt, m->ref))
 				return true;
 		}
 	}
 
-	for_each_child(node, c) {
+	for_each_child(yesde, c) {
 		if (any_fixup_tree(dti, c))
 			return true;
 	}
@@ -884,8 +884,8 @@ static bool any_fixup_tree(struct dt_info *dti, struct node *node)
 	return false;
 }
 
-static void add_fixup_entry(struct dt_info *dti, struct node *fn,
-			    struct node *node, struct property *prop,
+static void add_fixup_entry(struct dt_info *dti, struct yesde *fn,
+			    struct yesde *yesde, struct property *prop,
 			    struct marker *m)
 {
 	char *entry;
@@ -894,54 +894,54 @@ static void add_fixup_entry(struct dt_info *dti, struct node *fn,
 	assert(m->type == REF_PHANDLE);
 
 	/* there shouldn't be any ':' in the arguments */
-	if (strchr(node->fullpath, ':') || strchr(prop->name, ':'))
-		die("arguments should not contain ':'\n");
+	if (strchr(yesde->fullpath, ':') || strchr(prop->name, ':'))
+		die("arguments should yest contain ':'\n");
 
 	xasprintf(&entry, "%s:%s:%u",
-			node->fullpath, prop->name, m->offset);
+			yesde->fullpath, prop->name, m->offset);
 	append_to_property(fn, m->ref, entry, strlen(entry) + 1, TYPE_STRING);
 
 	free(entry);
 }
 
 static void generate_fixups_tree_internal(struct dt_info *dti,
-					  struct node *fn,
-					  struct node *node)
+					  struct yesde *fn,
+					  struct yesde *yesde)
 {
-	struct node *dt = dti->dt;
-	struct node *c;
+	struct yesde *dt = dti->dt;
+	struct yesde *c;
 	struct property *prop;
 	struct marker *m;
-	struct node *refnode;
+	struct yesde *refyesde;
 
-	for_each_property(node, prop) {
+	for_each_property(yesde, prop) {
 		m = prop->val.markers;
 		for_each_marker_of_type(m, REF_PHANDLE) {
-			refnode = get_node_by_ref(dt, m->ref);
-			if (!refnode)
-				add_fixup_entry(dti, fn, node, prop, m);
+			refyesde = get_yesde_by_ref(dt, m->ref);
+			if (!refyesde)
+				add_fixup_entry(dti, fn, yesde, prop, m);
 		}
 	}
 
-	for_each_child(node, c)
+	for_each_child(yesde, c)
 		generate_fixups_tree_internal(dti, fn, c);
 }
 
-static bool any_local_fixup_tree(struct dt_info *dti, struct node *node)
+static bool any_local_fixup_tree(struct dt_info *dti, struct yesde *yesde)
 {
-	struct node *c;
+	struct yesde *c;
 	struct property *prop;
 	struct marker *m;
 
-	for_each_property(node, prop) {
+	for_each_property(yesde, prop) {
 		m = prop->val.markers;
 		for_each_marker_of_type(m, REF_PHANDLE) {
-			if (get_node_by_ref(dti->dt, m->ref))
+			if (get_yesde_by_ref(dti->dt, m->ref))
 				return true;
 		}
 	}
 
-	for_each_child(node, c) {
+	for_each_child(yesde, c) {
 		if (any_local_fixup_tree(dti, c))
 			return true;
 	}
@@ -950,33 +950,33 @@ static bool any_local_fixup_tree(struct dt_info *dti, struct node *node)
 }
 
 static void add_local_fixup_entry(struct dt_info *dti,
-		struct node *lfn, struct node *node,
+		struct yesde *lfn, struct yesde *yesde,
 		struct property *prop, struct marker *m,
-		struct node *refnode)
+		struct yesde *refyesde)
 {
-	struct node *wn, *nwn;	/* local fixup node, walk node, new */
+	struct yesde *wn, *nwn;	/* local fixup yesde, walk yesde, new */
 	fdt32_t value_32;
 	char **compp;
 	int i, depth;
 
 	/* walk back retrieving depth */
 	depth = 0;
-	for (wn = node; wn; wn = wn->parent)
+	for (wn = yesde; wn; wn = wn->parent)
 		depth++;
 
 	/* allocate name array */
 	compp = xmalloc(sizeof(*compp) * depth);
 
 	/* store names in the array */
-	for (wn = node, i = depth - 1; wn; wn = wn->parent, i--)
+	for (wn = yesde, i = depth - 1; wn; wn = wn->parent, i--)
 		compp[i] = wn->name;
 
-	/* walk the path components creating nodes if they don't exist */
+	/* walk the path components creating yesdes if they don't exist */
 	for (wn = lfn, i = 1; i < depth; i++, wn = nwn) {
-		/* if no node exists, create it */
-		nwn = get_subnode(wn, compp[i]);
+		/* if yes yesde exists, create it */
+		nwn = get_subyesde(wn, compp[i]);
 		if (!nwn)
-			nwn = build_and_name_child_node(wn, compp[i]);
+			nwn = build_and_name_child_yesde(wn, compp[i]);
 	}
 
 	free(compp);
@@ -986,25 +986,25 @@ static void add_local_fixup_entry(struct dt_info *dti,
 }
 
 static void generate_local_fixups_tree_internal(struct dt_info *dti,
-						struct node *lfn,
-						struct node *node)
+						struct yesde *lfn,
+						struct yesde *yesde)
 {
-	struct node *dt = dti->dt;
-	struct node *c;
+	struct yesde *dt = dti->dt;
+	struct yesde *c;
 	struct property *prop;
 	struct marker *m;
-	struct node *refnode;
+	struct yesde *refyesde;
 
-	for_each_property(node, prop) {
+	for_each_property(yesde, prop) {
 		m = prop->val.markers;
 		for_each_marker_of_type(m, REF_PHANDLE) {
-			refnode = get_node_by_ref(dt, m->ref);
-			if (refnode)
-				add_local_fixup_entry(dti, lfn, node, prop, m, refnode);
+			refyesde = get_yesde_by_ref(dt, m->ref);
+			if (refyesde)
+				add_local_fixup_entry(dti, lfn, yesde, prop, m, refyesde);
 		}
 	}
 
-	for_each_child(node, c)
+	for_each_child(yesde, c)
 		generate_local_fixups_tree_internal(dti, lfn, c);
 }
 
@@ -1012,7 +1012,7 @@ void generate_label_tree(struct dt_info *dti, char *name, bool allocph)
 {
 	if (!any_label_tree(dti, dti->dt))
 		return;
-	generate_label_tree_internal(dti, build_root_node(dti->dt, name),
+	generate_label_tree_internal(dti, build_root_yesde(dti->dt, name),
 				     dti->dt, allocph);
 }
 
@@ -1020,7 +1020,7 @@ void generate_fixups_tree(struct dt_info *dti, char *name)
 {
 	if (!any_fixup_tree(dti, dti->dt))
 		return;
-	generate_fixups_tree_internal(dti, build_root_node(dti->dt, name),
+	generate_fixups_tree_internal(dti, build_root_yesde(dti->dt, name),
 				      dti->dt);
 }
 
@@ -1028,6 +1028,6 @@ void generate_local_fixups_tree(struct dt_info *dti, char *name)
 {
 	if (!any_local_fixup_tree(dti, dti->dt))
 		return;
-	generate_local_fixups_tree_internal(dti, build_root_node(dti->dt, name),
+	generate_local_fixups_tree_internal(dti, build_root_yesde(dti->dt, name),
 					    dti->dt);
 }

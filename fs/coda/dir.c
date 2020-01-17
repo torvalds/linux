@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/stat.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/namei.h>
@@ -29,21 +29,21 @@
 
 #include "coda_int.h"
 
-/* same as fs/bad_inode.c */
+/* same as fs/bad_iyesde.c */
 static int coda_return_EIO(void)
 {
 	return -EIO;
 }
 #define CODA_EIO_ERROR ((void *) (coda_return_EIO))
 
-/* inode operations for directories */
+/* iyesde operations for directories */
 /* access routines: lookup, readlink, permission */
-static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, unsigned int flags)
+static struct dentry *coda_lookup(struct iyesde *dir, struct dentry *entry, unsigned int flags)
 {
 	struct super_block *sb = dir->i_sb;
 	const char *name = entry->d_name.name;
 	size_t length = entry->d_name.len;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int type = 0;
 
 	if (length > CODA_MAXNAMLEN) {
@@ -52,28 +52,28 @@ static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, unsig
 		return ERR_PTR(-ENAMETOOLONG);
 	}
 
-	/* control object, create inode on the fly */
-	if (is_root_inode(dir) && coda_iscontrol(name, length)) {
-		inode = coda_cnode_makectl(sb);
+	/* control object, create iyesde on the fly */
+	if (is_root_iyesde(dir) && coda_iscontrol(name, length)) {
+		iyesde = coda_cyesde_makectl(sb);
 		type = CODA_NOCACHE;
 	} else {
 		struct CodaFid fid = { { 0, } };
 		int error = venus_lookup(sb, coda_i2f(dir), name, length,
 				     &type, &fid);
-		inode = !error ? coda_cnode_make(&fid, sb) : ERR_PTR(error);
+		iyesde = !error ? coda_cyesde_make(&fid, sb) : ERR_PTR(error);
 	}
 
-	if (!IS_ERR(inode) && (type & CODA_NOCACHE))
-		coda_flag_inode(inode, C_VATTR | C_PURGE);
+	if (!IS_ERR(iyesde) && (type & CODA_NOCACHE))
+		coda_flag_iyesde(iyesde, C_VATTR | C_PURGE);
 
-	if (inode == ERR_PTR(-ENOENT))
-		inode = NULL;
+	if (iyesde == ERR_PTR(-ENOENT))
+		iyesde = NULL;
 
-	return d_splice_alias(inode, entry);
+	return d_splice_alias(iyesde, entry);
 }
 
 
-int coda_permission(struct inode *inode, int mask)
+int coda_permission(struct iyesde *iyesde, int mask)
 {
 	int error;
 
@@ -85,29 +85,29 @@ int coda_permission(struct inode *inode, int mask)
 	if (!mask)
 		return 0;
 
-	if ((mask & MAY_EXEC) && !execute_ok(inode))
+	if ((mask & MAY_EXEC) && !execute_ok(iyesde))
 		return -EACCES;
 
-	if (coda_cache_check(inode, mask))
+	if (coda_cache_check(iyesde, mask))
 		return 0;
 
-	error = venus_access(inode->i_sb, coda_i2f(inode), mask);
+	error = venus_access(iyesde->i_sb, coda_i2f(iyesde), mask);
     
 	if (!error)
-		coda_cache_enter(inode, mask);
+		coda_cache_enter(iyesde, mask);
 
 	return error;
 }
 
 
-static inline void coda_dir_update_mtime(struct inode *dir)
+static inline void coda_dir_update_mtime(struct iyesde *dir)
 {
 #ifdef REQUERY_VENUS_FOR_MTIME
-	/* invalidate the directory cnode's attributes so we refetch the
-	 * attributes from venus next time the inode is referenced */
-	coda_flag_inode(dir, C_VATTR);
+	/* invalidate the directory cyesde's attributes so we refetch the
+	 * attributes from venus next time the iyesde is referenced */
+	coda_flag_iyesde(dir, C_VATTR);
 #else
-	/* optimistically we can also act as if our nose bleeds. The
+	/* optimistically we can also act as if our yesse bleeds. The
 	 * granularity of the mtime is coarse anyways so we might actually be
 	 * right most of the time. Note: we only do this for directories. */
 	dir->i_mtime = dir->i_ctime = current_time(dir);
@@ -119,29 +119,29 @@ static inline void coda_dir_update_mtime(struct inode *dir)
  * (because of volume mount points) we set i_nlink to 1 which forces find
  * to consider every child as a possible directory. We should also never
  * see an increment or decrement for deleted directories where i_nlink == 0 */
-static inline void coda_dir_inc_nlink(struct inode *dir)
+static inline void coda_dir_inc_nlink(struct iyesde *dir)
 {
 	if (dir->i_nlink >= 2)
 		inc_nlink(dir);
 }
 
-static inline void coda_dir_drop_nlink(struct inode *dir)
+static inline void coda_dir_drop_nlink(struct iyesde *dir)
 {
 	if (dir->i_nlink > 2)
 		drop_nlink(dir);
 }
 
-/* creation routines: create, mknod, mkdir, link, symlink */
-static int coda_create(struct inode *dir, struct dentry *de, umode_t mode, bool excl)
+/* creation routines: create, mkyesd, mkdir, link, symlink */
+static int coda_create(struct iyesde *dir, struct dentry *de, umode_t mode, bool excl)
 {
 	int error;
 	const char *name=de->d_name.name;
 	int length=de->d_name.len;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct CodaFid newfid;
 	struct coda_vattr attrs;
 
-	if (is_root_inode(dir) && coda_iscontrol(name, length))
+	if (is_root_iyesde(dir) && coda_iscontrol(name, length))
 		return -EPERM;
 
 	error = venus_create(dir->i_sb, coda_i2f(dir), name, length, 
@@ -149,31 +149,31 @@ static int coda_create(struct inode *dir, struct dentry *de, umode_t mode, bool 
 	if (error)
 		goto err_out;
 
-	inode = coda_iget(dir->i_sb, &newfid, &attrs);
-	if (IS_ERR(inode)) {
-		error = PTR_ERR(inode);
+	iyesde = coda_iget(dir->i_sb, &newfid, &attrs);
+	if (IS_ERR(iyesde)) {
+		error = PTR_ERR(iyesde);
 		goto err_out;
 	}
 
-	/* invalidate the directory cnode's attributes */
+	/* invalidate the directory cyesde's attributes */
 	coda_dir_update_mtime(dir);
-	d_instantiate(de, inode);
+	d_instantiate(de, iyesde);
 	return 0;
 err_out:
 	d_drop(de);
 	return error;
 }
 
-static int coda_mkdir(struct inode *dir, struct dentry *de, umode_t mode)
+static int coda_mkdir(struct iyesde *dir, struct dentry *de, umode_t mode)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct coda_vattr attrs;
 	const char *name = de->d_name.name;
 	int len = de->d_name.len;
 	int error;
 	struct CodaFid newfid;
 
-	if (is_root_inode(dir) && coda_iscontrol(name, len))
+	if (is_root_iyesde(dir) && coda_iscontrol(name, len))
 		return -EPERM;
 
 	attrs.va_mode = mode;
@@ -182,50 +182,50 @@ static int coda_mkdir(struct inode *dir, struct dentry *de, umode_t mode)
 	if (error)
 		goto err_out;
          
-	inode = coda_iget(dir->i_sb, &newfid, &attrs);
-	if (IS_ERR(inode)) {
-		error = PTR_ERR(inode);
+	iyesde = coda_iget(dir->i_sb, &newfid, &attrs);
+	if (IS_ERR(iyesde)) {
+		error = PTR_ERR(iyesde);
 		goto err_out;
 	}
 
-	/* invalidate the directory cnode's attributes */
+	/* invalidate the directory cyesde's attributes */
 	coda_dir_inc_nlink(dir);
 	coda_dir_update_mtime(dir);
-	d_instantiate(de, inode);
+	d_instantiate(de, iyesde);
 	return 0;
 err_out:
 	d_drop(de);
 	return error;
 }
 
-/* try to make de an entry in dir_inodde linked to source_de */ 
-static int coda_link(struct dentry *source_de, struct inode *dir_inode, 
+/* try to make de an entry in dir_iyesdde linked to source_de */ 
+static int coda_link(struct dentry *source_de, struct iyesde *dir_iyesde, 
 	  struct dentry *de)
 {
-	struct inode *inode = d_inode(source_de);
+	struct iyesde *iyesde = d_iyesde(source_de);
         const char * name = de->d_name.name;
 	int len = de->d_name.len;
 	int error;
 
-	if (is_root_inode(dir_inode) && coda_iscontrol(name, len))
+	if (is_root_iyesde(dir_iyesde) && coda_iscontrol(name, len))
 		return -EPERM;
 
-	error = venus_link(dir_inode->i_sb, coda_i2f(inode),
-			   coda_i2f(dir_inode), (const char *)name, len);
+	error = venus_link(dir_iyesde->i_sb, coda_i2f(iyesde),
+			   coda_i2f(dir_iyesde), (const char *)name, len);
 	if (error) {
 		d_drop(de);
 		return error;
 	}
 
-	coda_dir_update_mtime(dir_inode);
-	ihold(inode);
-	d_instantiate(de, inode);
-	inc_nlink(inode);
+	coda_dir_update_mtime(dir_iyesde);
+	ihold(iyesde);
+	d_instantiate(de, iyesde);
+	inc_nlink(iyesde);
 	return 0;
 }
 
 
-static int coda_symlink(struct inode *dir_inode, struct dentry *de,
+static int coda_symlink(struct iyesde *dir_iyesde, struct dentry *de,
 			const char *symname)
 {
 	const char *name = de->d_name.name;
@@ -233,7 +233,7 @@ static int coda_symlink(struct inode *dir_inode, struct dentry *de,
 	int symlen;
 	int error;
 
-	if (is_root_inode(dir_inode) && coda_iscontrol(name, len))
+	if (is_root_iyesde(dir_iyesde) && coda_iscontrol(name, len))
 		return -EPERM;
 
 	symlen = strlen(symname);
@@ -241,22 +241,22 @@ static int coda_symlink(struct inode *dir_inode, struct dentry *de,
 		return -ENAMETOOLONG;
 
 	/*
-	 * This entry is now negative. Since we do not create
-	 * an inode for the entry we have to drop it.
+	 * This entry is yesw negative. Since we do yest create
+	 * an iyesde for the entry we have to drop it.
 	 */
 	d_drop(de);
-	error = venus_symlink(dir_inode->i_sb, coda_i2f(dir_inode), name, len,
+	error = venus_symlink(dir_iyesde->i_sb, coda_i2f(dir_iyesde), name, len,
 			      symname, symlen);
 
-	/* mtime is no good anymore */
+	/* mtime is yes good anymore */
 	if (!error)
-		coda_dir_update_mtime(dir_inode);
+		coda_dir_update_mtime(dir_iyesde);
 
 	return error;
 }
 
 /* destruction routines: unlink, rmdir */
-static int coda_unlink(struct inode *dir, struct dentry *de)
+static int coda_unlink(struct iyesde *dir, struct dentry *de)
 {
         int error;
 	const char *name = de->d_name.name;
@@ -267,11 +267,11 @@ static int coda_unlink(struct inode *dir, struct dentry *de)
 		return error;
 
 	coda_dir_update_mtime(dir);
-	drop_nlink(d_inode(de));
+	drop_nlink(d_iyesde(de));
 	return 0;
 }
 
-static int coda_rmdir(struct inode *dir, struct dentry *de)
+static int coda_rmdir(struct iyesde *dir, struct dentry *de)
 {
 	const char *name = de->d_name.name;
 	int len = de->d_name.len;
@@ -281,7 +281,7 @@ static int coda_rmdir(struct inode *dir, struct dentry *de)
 	if (!error) {
 		/* VFS may delete the child */
 		if (d_really_is_positive(de))
-			clear_nlink(d_inode(de));
+			clear_nlink(d_iyesde(de));
 
 		/* fix the link count of the parent */
 		coda_dir_drop_nlink(dir);
@@ -291,8 +291,8 @@ static int coda_rmdir(struct inode *dir, struct dentry *de)
 }
 
 /* rename */
-static int coda_rename(struct inode *old_dir, struct dentry *old_dentry,
-		       struct inode *new_dir, struct dentry *new_dentry,
+static int coda_rename(struct iyesde *old_dir, struct dentry *old_dentry,
+		       struct iyesde *new_dir, struct dentry *new_dentry,
 		       unsigned int flags)
 {
 	const char *old_name = old_dentry->d_name.name;
@@ -315,10 +315,10 @@ static int coda_rename(struct inode *old_dir, struct dentry *old_dentry,
 			}
 			coda_dir_update_mtime(old_dir);
 			coda_dir_update_mtime(new_dir);
-			coda_flag_inode(d_inode(new_dentry), C_VATTR);
+			coda_flag_iyesde(d_iyesde(new_dentry), C_VATTR);
 		} else {
-			coda_flag_inode(old_dir, C_VATTR);
-			coda_flag_inode(new_dir, C_VATTR);
+			coda_flag_iyesde(old_dir, C_VATTR);
+			coda_flag_iyesde(new_dir, C_VATTR);
 		}
 	}
 	return error;
@@ -347,19 +347,19 @@ static inline unsigned int CDT2DT(unsigned char cdt)
 static int coda_venus_readdir(struct file *coda_file, struct dir_context *ctx)
 {
 	struct coda_file_info *cfi;
-	struct coda_inode_info *cii;
+	struct coda_iyesde_info *cii;
 	struct file *host_file;
 	struct venus_dirent *vdir;
 	unsigned long vdir_size = offsetof(struct venus_dirent, d_name);
 	unsigned int type;
 	struct qstr name;
-	ino_t ino;
+	iyes_t iyes;
 	int ret;
 
 	cfi = coda_ftoc(coda_file);
 	host_file = cfi->cfi_container;
 
-	cii = ITOC(file_inode(coda_file));
+	cii = ITOC(file_iyesde(coda_file));
 
 	vdir = kmalloc(sizeof(*vdir), GFP_KERNEL);
 	if (!vdir) return -ENOMEM;
@@ -400,17 +400,17 @@ static int coda_venus_readdir(struct file *coda_file, struct dir_context *ctx)
 		/* Make sure we skip '.' and '..', we already got those */
 		if (name.name[0] == '.' && (name.len == 1 ||
 		    (name.name[1] == '.' && name.len == 2)))
-			vdir->d_fileno = name.len = 0;
+			vdir->d_fileyes = name.len = 0;
 
 		/* skip null entries */
-		if (vdir->d_fileno && name.len) {
-			ino = vdir->d_fileno;
+		if (vdir->d_fileyes && name.len) {
+			iyes = vdir->d_fileyes;
 			type = CDT2DT(vdir->d_type);
-			if (!dir_emit(ctx, name.name, name.len, ino, type))
+			if (!dir_emit(ctx, name.name, name.len, iyes, type))
 				break;
 		}
 		/* we'll always have progress because d_reclen is unsigned and
-		 * we've already established it is non-zero. */
+		 * we've already established it is yesn-zero. */
 		ctx->pos += vdir->d_reclen;
 	}
 out:
@@ -429,19 +429,19 @@ static int coda_readdir(struct file *coda_file, struct dir_context *ctx)
 	host_file = cfi->cfi_container;
 
 	if (host_file->f_op->iterate || host_file->f_op->iterate_shared) {
-		struct inode *host_inode = file_inode(host_file);
+		struct iyesde *host_iyesde = file_iyesde(host_file);
 		ret = -ENOENT;
-		if (!IS_DEADDIR(host_inode)) {
+		if (!IS_DEADDIR(host_iyesde)) {
 			if (host_file->f_op->iterate_shared) {
-				inode_lock_shared(host_inode);
+				iyesde_lock_shared(host_iyesde);
 				ret = host_file->f_op->iterate_shared(host_file, ctx);
 				file_accessed(host_file);
-				inode_unlock_shared(host_inode);
+				iyesde_unlock_shared(host_iyesde);
 			} else {
-				inode_lock(host_inode);
+				iyesde_lock(host_iyesde);
 				ret = host_file->f_op->iterate(host_file, ctx);
 				file_accessed(host_file);
-				inode_unlock(host_inode);
+				iyesde_unlock(host_iyesde);
 			}
 		}
 		return ret;
@@ -453,19 +453,19 @@ static int coda_readdir(struct file *coda_file, struct dir_context *ctx)
 /* called when a cache lookup succeeds */
 static int coda_dentry_revalidate(struct dentry *de, unsigned int flags)
 {
-	struct inode *inode;
-	struct coda_inode_info *cii;
+	struct iyesde *iyesde;
+	struct coda_iyesde_info *cii;
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	inode = d_inode(de);
-	if (!inode || is_root_inode(inode))
+	iyesde = d_iyesde(de);
+	if (!iyesde || is_root_iyesde(iyesde))
 		goto out;
-	if (is_bad_inode(inode))
+	if (is_bad_iyesde(iyesde))
 		goto bad;
 
-	cii = ITOC(d_inode(de));
+	cii = ITOC(d_iyesde(de));
 	if (!(cii->c_flags & (C_PURGE | C_FLUSH)))
 		goto out;
 
@@ -473,7 +473,7 @@ static int coda_dentry_revalidate(struct dentry *de, unsigned int flags)
 
 	/* propagate for a flush */
 	if (cii->c_flags & C_FLUSH) 
-		coda_flag_inode_children(inode, C_FLUSH);
+		coda_flag_iyesde_children(iyesde, C_FLUSH);
 
 	if (d_count(de) > 1)
 		/* pretend it's valid, but don't change the flags */
@@ -491,7 +491,7 @@ out:
 
 /*
  * This is the callback from dput() when d_count is going to 0.
- * We use this to unhash dentries with bad inodes.
+ * We use this to unhash dentries with bad iyesdes.
  */
 static int coda_dentry_delete(const struct dentry * dentry)
 {
@@ -500,8 +500,8 @@ static int coda_dentry_delete(const struct dentry * dentry)
 	if (d_really_is_negative(dentry)) 
 		return 0;
 
-	flags = (ITOC(d_inode(dentry))->c_flags) & C_PURGE;
-	if (is_bad_inode(d_inode(dentry)) || flags) {
+	flags = (ITOC(d_iyesde(dentry))->c_flags) & C_PURGE;
+	if (is_bad_iyesde(d_iyesde(dentry)) || flags) {
 		return 1;
 	}
 	return 0;
@@ -510,47 +510,47 @@ static int coda_dentry_delete(const struct dentry * dentry)
 
 
 /*
- * This is called when we want to check if the inode has
+ * This is called when we want to check if the iyesde has
  * changed on the server.  Coda makes this easy since the
  * cache manager Venus issues a downcall to the kernel when this 
  * happens 
  */
-int coda_revalidate_inode(struct inode *inode)
+int coda_revalidate_iyesde(struct iyesde *iyesde)
 {
 	struct coda_vattr attr;
 	int error;
 	int old_mode;
-	ino_t old_ino;
-	struct coda_inode_info *cii = ITOC(inode);
+	iyes_t old_iyes;
+	struct coda_iyesde_info *cii = ITOC(iyesde);
 
 	if (!cii->c_flags)
 		return 0;
 
 	if (cii->c_flags & (C_VATTR | C_PURGE | C_FLUSH)) {
-		error = venus_getattr(inode->i_sb, &(cii->c_fid), &attr);
+		error = venus_getattr(iyesde->i_sb, &(cii->c_fid), &attr);
 		if (error)
 			return -EIO;
 
-		/* this inode may be lost if:
-		   - it's ino changed 
+		/* this iyesde may be lost if:
+		   - it's iyes changed 
 		   - type changes must be permitted for repair and
 		   missing mount points.
 		*/
-		old_mode = inode->i_mode;
-		old_ino = inode->i_ino;
-		coda_vattr_to_iattr(inode, &attr);
+		old_mode = iyesde->i_mode;
+		old_iyes = iyesde->i_iyes;
+		coda_vattr_to_iattr(iyesde, &attr);
 
-		if ((old_mode & S_IFMT) != (inode->i_mode & S_IFMT)) {
-			pr_warn("inode %ld, fid %s changed type!\n",
-				inode->i_ino, coda_f2s(&(cii->c_fid)));
+		if ((old_mode & S_IFMT) != (iyesde->i_mode & S_IFMT)) {
+			pr_warn("iyesde %ld, fid %s changed type!\n",
+				iyesde->i_iyes, coda_f2s(&(cii->c_fid)));
 		}
 
 		/* the following can happen when a local fid is replaced 
-		   with a global one, here we lose and declare the inode bad */
-		if (inode->i_ino != old_ino)
+		   with a global one, here we lose and declare the iyesde bad */
+		if (iyesde->i_iyes != old_iyes)
 			return -EIO;
 		
-		coda_flag_inode_children(inode, C_FLUSH);
+		coda_flag_iyesde_children(iyesde, C_FLUSH);
 
 		spin_lock(&cii->c_lock);
 		cii->c_flags &= ~(C_VATTR | C_PURGE | C_FLUSH);
@@ -564,7 +564,7 @@ const struct dentry_operations coda_dentry_operations = {
 	.d_delete	= coda_dentry_delete,
 };
 
-const struct inode_operations coda_dir_inode_operations = {
+const struct iyesde_operations coda_dir_iyesde_operations = {
 	.create		= coda_create,
 	.lookup		= coda_lookup,
 	.link		= coda_link,
@@ -572,7 +572,7 @@ const struct inode_operations coda_dir_inode_operations = {
 	.symlink	= coda_symlink,
 	.mkdir		= coda_mkdir,
 	.rmdir		= coda_rmdir,
-	.mknod		= CODA_EIO_ERROR,
+	.mkyesd		= CODA_EIO_ERROR,
 	.rename		= coda_rename,
 	.permission	= coda_permission,
 	.getattr	= coda_getattr,

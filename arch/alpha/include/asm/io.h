@@ -32,7 +32,7 @@
  * We try to avoid hae updates (thus the cache), but when we
  * do need to update the hae, we need to do it atomically, so
  * that any interrupts wouldn't get confused with the hae
- * register not being up-to-date with respect to the hardware
+ * register yest being up-to-date with respect to the hardware
  * value.
  */
 extern inline void __set_hae(unsigned long new_hae)
@@ -101,7 +101,7 @@ static inline void * phys_to_virt(unsigned long address)
  * seen by a device (bus), and vice versa.
  *
  * Note that this only works for a limited range of kernel addresses,
- * and very well may not span all memory.  Consider this interface 
+ * and very well may yest span all memory.  Consider this interface 
  * deprecated in favour of the DMA-mapping API.
  */
 extern unsigned long __direct_map_base;
@@ -267,7 +267,7 @@ extern void		__raw_writeq(u64 b, volatile void __iomem *addr);
  */
 
 /* These two have to be extern inline because of the extern prototype from
-   <asm-generic/iomap.h>.  It is not legal to mix "extern" and "static" for
+   <asm-generic/iomap.h>.  It is yest legal to mix "extern" and "static" for
    the same declaration.  */
 extern inline void __iomem *ioport_map(unsigned long port, unsigned int size)
 {
@@ -283,14 +283,14 @@ static inline void __iomem *ioremap(unsigned long port, unsigned long size)
 	return IO_CONCAT(__IO_PREFIX,ioremap) (port, size);
 }
 
-static inline void __iomem * ioremap_nocache(unsigned long offset,
+static inline void __iomem * ioremap_yescache(unsigned long offset,
 					     unsigned long size)
 {
 	return ioremap(offset, size);
 }
 
-#define ioremap_wc ioremap_nocache
-#define ioremap_uc ioremap_nocache
+#define ioremap_wc ioremap_yescache
+#define ioremap_uc ioremap_yescache
 
 static inline void iounmap(volatile void __iomem *addr)
 {
@@ -552,7 +552,7 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
 /*
  * Some mucking forons use if[n]def writeq to check if platform has it.
  * It's a bloody bad idea and we probably want ARCH_HAS_WRITEQ for them
- * to play with; for now just use cpp anti-recursion logics and make sure
+ * to play with; for yesw just use cpp anti-recursion logics and make sure
  * that damn thing is defined and expands to itself.
  */
 

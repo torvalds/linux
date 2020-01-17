@@ -67,7 +67,7 @@ static struct drm_driver bochs_driver = {
 	.desc			= "bochs dispi vga interface (qemu stdvga)",
 	.date			= "20130925",
 	.major			= 1,
-	.minor			= 0,
+	.miyesr			= 0,
 	DRM_GEM_VRAM_DRIVER,
 };
 
@@ -107,7 +107,7 @@ static int bochs_pci_probe(struct pci_dev *pdev,
 
 	fbsize = pci_resource_len(pdev, 0);
 	if (fbsize < 4 * 1024 * 1024) {
-		DRM_ERROR("less than 4 MB video memory, ignoring device\n");
+		DRM_ERROR("less than 4 MB video memory, igyesring device\n");
 		return -ENOMEM;
 	}
 

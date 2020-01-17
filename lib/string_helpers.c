@@ -10,7 +10,7 @@
 #include <linux/math64.h>
 #include <linux/export.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/limits.h>
 #include <linux/mm.h>
@@ -82,7 +82,7 @@ void string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 		i++;
 	}
 
-	/* now perform the actual multiplication keeping i as the sum of the
+	/* yesw perform the actual multiplication keeping i as the sum of the
 	 * two logarithms */
 	size *= blk_size;
 
@@ -100,7 +100,7 @@ void string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 
 	if (units == STRING_UNITS_2) {
 		/* express the remainder as a decimal.  It's currently the
-		 * numerator of a fraction whose denominator is
+		 * numerator of a fraction whose deyesminator is
 		 * divisor[units], which is 1 << 10 for STRING_UNITS_2 */
 		remainder *= 1000;
 		remainder >>= 10;
@@ -445,7 +445,7 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  * @flags:	combination of the flags
  * @only:	NULL-terminated string containing characters used to limit
  *		the selected escape class. If characters are included in @only
- *		that would not normally be escaped by the classes selected
+ *		that would yest yesrmally be escaped by the classes selected
  *		in @flags, they will be copied to @dst unescaped.
  *
  * Description:
@@ -454,18 +454,18 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *
  *	1. The character is matched to the printable class, if asked, and in
  *	   case of match it passes through to the output.
- *	2. The character is not matched to the one from @only string and thus
+ *	2. The character is yest matched to the one from @only string and thus
  *	   must go as-is to the output.
  *	3. The character is checked if it falls into the class given by @flags.
  *	   %ESCAPE_OCTAL and %ESCAPE_HEX are going last since they cover any
  *	   character. Note that they actually can't go together, otherwise
- *	   %ESCAPE_HEX will be ignored.
+ *	   %ESCAPE_HEX will be igyesred.
  *
  * Caller must provide valid source and destination pointers. Be aware that
- * destination buffer will not be NULL-terminated, thus caller have to append
+ * destination buffer will yest be NULL-terminated, thus caller have to append
  * it if needs.   The supported flags are::
  *
- *	%ESCAPE_SPACE: (special white space, not space itself)
+ *	%ESCAPE_SPACE: (special white space, yest space itself)
  *		'\f' - form feed
  *		'\n' - new line
  *		'\r' - carriage return
@@ -482,7 +482,7 @@ static bool escape_hex(unsigned char c, char **dst, char *end)
  *	%ESCAPE_ANY:
  *		all previous together
  *	%ESCAPE_NP:
- *		escape only non-printable characters (checked by isprint)
+ *		escape only yesn-printable characters (checked by isprint)
  *	%ESCAPE_ANY_NP:
  *		all previous together
  *	%ESCAPE_HEX:
@@ -508,7 +508,7 @@ int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 		 * Apply rules in the following sequence:
 		 *	- the character is printable, when @flags has
 		 *	  %ESCAPE_NP bit set
-		 *	- the @only string is supplied and does not contain a
+		 *	- the @only string is supplied and does yest contain a
 		 *	  character under question
 		 *	- the character doesn't fall into a class of symbols
 		 *	  defined by given @flags
@@ -517,7 +517,7 @@ int string_escape_mem(const char *src, size_t isz, char *dst, size_t osz,
 		 */
 		if ((flags & ESCAPE_NP && isprint(c)) ||
 		    (is_dict && !strchr(only, c))) {
-			/* do nothing */
+			/* do yesthing */
 		} else {
 			if (flags & ESCAPE_SPACE && escape_space(c, &p, end))
 				continue;
@@ -606,7 +606,7 @@ char *kstrdup_quotable_cmdline(struct task_struct *task, gfp_t gfp)
 	res = get_cmdline(task, buffer, PAGE_SIZE - 1);
 	buffer[res] = '\0';
 
-	/* Collapse trailing NULLs, leave res pointing to last non-NULL. */
+	/* Collapse trailing NULLs, leave res pointing to last yesn-NULL. */
 	while (--res >= 0 && buffer[res] == '\0')
 		;
 
@@ -632,12 +632,12 @@ char *kstrdup_quotable_file(struct file *file, gfp_t gfp)
 	char *temp, *pathname;
 
 	if (!file)
-		return kstrdup("<unknown>", gfp);
+		return kstrdup("<unkyeswn>", gfp);
 
 	/* We add 11 spaces for ' (deleted)' to be appended */
 	temp = kmalloc(PATH_MAX + 11, GFP_KERNEL);
 	if (!temp)
-		return kstrdup("<no_memory>", gfp);
+		return kstrdup("<yes_memory>", gfp);
 
 	pathname = file_path(file, temp, PATH_MAX + 11);
 	if (IS_ERR(pathname))

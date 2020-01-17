@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -1191,7 +1191,7 @@ static bool si_read_bios_from_rom(struct amdgpu_device *adev,
 	return true;
 }
 
-//xxx: not implemented
+//xxx: yest implemented
 static int si_asic_reset(struct amdgpu_device *adev)
 {
 	return 0;
@@ -1238,7 +1238,7 @@ static u32 si_get_xclk(struct amdgpu_device *adev)
 	return reference_clock;
 }
 
-//xxx:not implemented
+//xxx:yest implemented
 static int si_set_uvd_clocks(struct amdgpu_device *adev, u32 vclk, u32 dclk)
 {
 	return 0;
@@ -1355,7 +1355,7 @@ static void si_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	int tmp;
 
 	/* This reports 0 on APUs, so return to avoid writing/reading registers
-	 * that may or may not be different from their GPU counterparts
+	 * that may or may yest be different from their GPU counterparts
 	 */
 	if (adev->flags & AMD_IS_APU)
 		return;
@@ -2152,7 +2152,7 @@ static const struct amdgpu_ip_block_version si_common_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_COMMON,
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &si_common_ip_funcs,
 };

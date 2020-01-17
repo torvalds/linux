@@ -152,9 +152,9 @@ void read_persistent_clock64(struct timespec64 *ts)
 	ts->tv_nsec = 0;
 }
 
-int update_persistent_clock64(struct timespec64 now)
+int update_persistent_clock64(struct timespec64 yesw)
 {
-	time64_t time = now.tv_sec;
+	time64_t time = yesw.tv_sec;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rtc_lock, flags);

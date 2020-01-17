@@ -28,7 +28,7 @@
 #include <subcmd/parse-options.h>
 
 #include <linux/list.h>
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 
 struct perf_inject {
@@ -49,7 +49,7 @@ struct perf_inject {
 };
 
 struct event_entry {
-	struct list_head node;
+	struct list_head yesde;
 	u32		 tid;
 	union perf_event event[0];
 };
@@ -60,7 +60,7 @@ static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
 
 	size = perf_data__write(&inject->output, buf, sz);
 	if (size < 0)
-		return -errno;
+		return -erryes;
 
 	inject->bytes_written += size;
 	return 0;
@@ -126,7 +126,7 @@ static int copy_bytes(struct perf_inject *inject, int fd, off_t size)
 	while (size > 0) {
 		ssz = read(fd, buf, min(size, (off_t)sizeof(buf)));
 		if (ssz < 0)
-			return -errno;
+			return -erryes;
 		ret = output_bytes(inject, buf, ssz);
 		if (ret)
 			return ret;
@@ -151,7 +151,7 @@ static s64 perf_event__repipe_auxtrace(struct perf_session *session,
 
 		offset = lseek(inject->output.file.fd, 0, SEEK_CUR);
 		if (offset == -1)
-			return -errno;
+			return -erryes;
 		ret = auxtrace_index__auxtrace_event(&session->auxtrace_index,
 						     event, offset);
 		if (ret < 0)
@@ -180,7 +180,7 @@ static s64
 perf_event__repipe_auxtrace(struct perf_session *session __maybe_unused,
 			    union perf_event *event __maybe_unused)
 {
-	pr_err("AUX area tracing not supported\n");
+	pr_err("AUX area tracing yest supported\n");
 	return -EINVAL;
 }
 
@@ -424,7 +424,7 @@ static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
 	int err;
 
 	if (dso__read_build_id(dso) < 0) {
-		pr_debug("no build_id found for %s\n", dso->long_name);
+		pr_debug("yes build_id found for %s\n", dso->long_name);
 		return -1;
 	}
 
@@ -468,7 +468,7 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 				 */
 			} else {
 #ifdef HAVE_LIBELF_SUPPORT
-				pr_warning("no symbols found in %s, maybe "
+				pr_warning("yes symbols found in %s, maybe "
 					   "install a debug package?\n",
 					   al.map->dso->long_name);
 #endif
@@ -491,9 +491,9 @@ static int perf_inject__sched_process_exit(struct perf_tool *tool,
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	struct event_entry *ent;
 
-	list_for_each_entry(ent, &inject->samples, node) {
+	list_for_each_entry(ent, &inject->samples, yesde) {
 		if (sample->tid == ent->tid) {
-			list_del_init(&ent->node);
+			list_del_init(&ent->yesde);
 			free(ent);
 			break;
 		}
@@ -516,13 +516,13 @@ static int perf_inject__sched_switch(struct perf_tool *tool,
 	ent = malloc(event->header.size + sizeof(struct event_entry));
 	if (ent == NULL) {
 		color_fprintf(stderr, PERF_COLOR_RED,
-			     "Not enough memory to process sched switch event!");
+			     "Not eyesugh memory to process sched switch event!");
 		return -1;
 	}
 
 	ent->tid = sample->tid;
 	memcpy(&ent->event, event, event->header.size);
-	list_add(&ent->node, &inject->samples);
+	list_add(&ent->yesde, &inject->samples);
 	return 0;
 }
 
@@ -538,7 +538,7 @@ static int perf_inject__sched_stat(struct perf_tool *tool,
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	u32 pid = perf_evsel__intval(evsel, sample, "pid");
 
-	list_for_each_entry(ent, &inject->samples, node) {
+	list_for_each_entry(ent, &inject->samples, yesde) {
 		if (pid == ent->tid)
 			goto found;
 	}
@@ -568,7 +568,7 @@ static int perf_evsel__check_stype(struct evsel *evsel,
 	const char *name = perf_evsel__name(evsel);
 
 	if (!(attr->sample_type & sample_type)) {
-		pr_err("Samples for %s event do not have %s attribute set.",
+		pr_err("Samples for %s event do yest have %s attribute set.",
 			name, sample_msg);
 		return -EINVAL;
 	}
@@ -669,7 +669,7 @@ static int __cmd_inject(struct perf_inject *inject)
 					      HEADER_BUILD_ID);
 		/*
 		 * Keep all buildids when there is unprocessed AUX data because
-		 * it is not known which ones the AUX trace hits.
+		 * it is yest kyeswn which ones the AUX trace hits.
 		 */
 		if (perf_header__has_feat(&session->header, HEADER_BUILD_ID) &&
 		    inject->have_auxtrace && !inject->itrace_synth_opts.set)
@@ -768,7 +768,7 @@ int cmd_inject(int argc, const char **argv)
 				    ITRACE_HELP,
 				    itrace_parse_synth_opts),
 		OPT_BOOLEAN(0, "strip", &inject.strip,
-			    "strip non-synthesized events (use with --itrace)"),
+			    "strip yesn-synthesized events (use with --itrace)"),
 		OPT_END()
 	};
 	const char * const inject_usage[] = {
@@ -776,7 +776,7 @@ int cmd_inject(int argc, const char **argv)
 		NULL
 	};
 #ifndef HAVE_JITDUMP
-	set_option_nobuild(options, 'j', "jit", "NO_LIBELF=1", true);
+	set_option_yesbuild(options, 'j', "jit", "NO_LIBELF=1", true);
 #endif
 	argc = parse_options(argc, argv, options, inject_usage, 0);
 
@@ -810,8 +810,8 @@ int cmd_inject(int argc, const char **argv)
 		/*
 		 * to make sure the mmap records are ordered correctly
 		 * and so that the correct especially due to jitted code
-		 * mmaps. We cannot generate the buildid hit list and
-		 * inject the jit mmaps at the same time for now.
+		 * mmaps. We canyest generate the buildid hit list and
+		 * inject the jit mmaps at the same time for yesw.
 		 */
 		inject.tool.ordered_events = true;
 		inject.tool.ordering_requires_timestamps = true;
@@ -824,7 +824,7 @@ int cmd_inject(int argc, const char **argv)
 		inject.tool.ordering_requires_timestamps = true;
 		/*
 		 * JIT MMAP injection injects all MMAP events in one go, so it
-		 * does not obey finished_round semantics.
+		 * does yest obey finished_round semantics.
 		 */
 		inject.tool.finished_round = perf_event__drop_oe;
 	}

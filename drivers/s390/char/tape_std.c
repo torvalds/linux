@@ -66,7 +66,7 @@ tape_std_assign(struct tape_device *device)
 
 	/*
 	 * The assign command sometimes blocks if the device is assigned
-	 * to another host (actually this shouldn't happen but it does).
+	 * to ayesther host (actually this shouldn't happen but it does).
 	 * So we set up a timeout for this call.
 	 */
 	timer_setup(&request->timer, tape_std_assign_timeout, 0);
@@ -182,7 +182,7 @@ tape_std_terminate_write(struct tape_device *device)
 	if(device->required_tapemarks == 0)
 		return 0;
 
-	DBF_LH(5, "tape%d: terminate write %dxEOF\n", device->first_minor,
+	DBF_LH(5, "tape%d: terminate write %dxEOF\n", device->first_miyesr,
 		device->required_tapemarks);
 
 	rc = tape_mtop(device, MTWEOF, device->required_tapemarks);
@@ -505,7 +505,7 @@ tape_std_mtoffl(struct tape_device *device, int mt_count)
  * MTNOP: 'No operation'.
  */
 int
-tape_std_mtnop(struct tape_device *device, int mt_count)
+tape_std_mtyesp(struct tape_device *device, int mt_count)
 {
 	struct tape_request *request;
 
@@ -523,7 +523,7 @@ tape_std_mtnop(struct tape_device *device, int mt_count)
 /*
  * MTEOM: positions at the end of the portion of the tape already used
  * for recordind data. MTEOM positions after the last file mark, ready for
- * appending another file.
+ * appending ayesther file.
  */
 int
 tape_std_mteom(struct tape_device *device, int mt_count)
@@ -539,7 +539,7 @@ tape_std_mteom(struct tape_device *device, int mt_count)
 	/*
 	 * The logical end of volume is given by two sewuential tapemarks.
 	 * Look for this by skipping to the next file (over one tapemark)
-	 * and then test for another one (fsr returns 1 if a tapemark was
+	 * and then test for ayesther one (fsr returns 1 if a tapemark was
 	 * encountered).
 	 */
 	do {
@@ -569,7 +569,7 @@ tape_std_mtreten(struct tape_device *device, int mt_count)
 	tape_ccw_cc(request->cpaddr + 1,FORSPACEFILE, 0, NULL);
 	tape_ccw_cc(request->cpaddr + 2, NOP, 0, NULL);
 	tape_ccw_end(request->cpaddr + 3, CCW_CMD_TIC, 0, request->cpaddr);
-	/* execute it, MTRETEN rc gets ignored */
+	/* execute it, MTRETEN rc gets igyesred */
 	tape_do_io_interruptible(device, request);
 	tape_free_request(request);
 	return tape_mtop(device, MTREW, 1);
@@ -668,7 +668,7 @@ void
 tape_std_read_backward(struct tape_device *device, struct tape_request *request)
 {
 	/*
-	 * We have allocated 4 ccws in tape_std_read, so we can now
+	 * We have allocated 4 ccws in tape_std_read, so we can yesw
 	 * transform the request to a read backward, followed by a
 	 * forward space block.
 	 */
@@ -733,7 +733,7 @@ EXPORT_SYMBOL(tape_std_mtbsf);
 EXPORT_SYMBOL(tape_std_mtfsfm);
 EXPORT_SYMBOL(tape_std_mtrew);
 EXPORT_SYMBOL(tape_std_mtoffl);
-EXPORT_SYMBOL(tape_std_mtnop);
+EXPORT_SYMBOL(tape_std_mtyesp);
 EXPORT_SYMBOL(tape_std_mteom);
 EXPORT_SYMBOL(tape_std_mtreten);
 EXPORT_SYMBOL(tape_std_mterase);

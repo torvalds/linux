@@ -209,7 +209,7 @@ PNAME(usb_ref24m_p) = {
 	"clk32k768",
 };
 
-PNAME(sys_noc_alck_p) = {
+PNAME(sys_yesc_alck_p) = {
 	"osc24m",
 	"clk250m",
 	"clk198m",
@@ -448,13 +448,13 @@ static struct zx_clk_fixed_factor top_ffactor_clk[] = {
 	FFACTOR(0, "emmc_mux_div2",	"emmc_mux", 1, 2, CLK_SET_RATE_PARENT),
 };
 
-static const struct clk_div_table noc_div_table[] = {
+static const struct clk_div_table yesc_div_table[] = {
 	{ .val = 1, .div = 2, },
 	{ .val = 3, .div = 4, },
 };
 static struct zx_clk_div top_div_clk[] = {
-	DIV_T(0, "sys_noc_hclk", "sys_noc_aclk", TOP_CLK_DIV0, 0, 2, 0, noc_div_table),
-	DIV_T(0, "sys_noc_pclk", "sys_noc_aclk", TOP_CLK_DIV0, 4, 2, 0, noc_div_table),
+	DIV_T(0, "sys_yesc_hclk", "sys_yesc_aclk", TOP_CLK_DIV0, 0, 2, 0, yesc_div_table),
+	DIV_T(0, "sys_yesc_pclk", "sys_yesc_aclk", TOP_CLK_DIV0, 4, 2, 0, yesc_div_table),
 };
 
 static struct zx_clk_mux top_mux_clk[] = {
@@ -462,7 +462,7 @@ static struct zx_clk_mux top_mux_clk[] = {
 	MUX(0, "a72_mux",	 a72_coreclk_p,	  TOP_CLK_MUX0, 8, 3),
 	MUX(0, "cpu_peri_mux",	 cpu_periclk_p,	  TOP_CLK_MUX0, 4, 3),
 	MUX_F(0, "a53_mux",	 a53_coreclk_p,	  TOP_CLK_MUX0, 0, 3, CLK_SET_RATE_PARENT, 0),
-	MUX(0, "sys_noc_aclk",	 sys_noc_alck_p,  TOP_CLK_MUX1, 0, 3),
+	MUX(0, "sys_yesc_aclk",	 sys_yesc_alck_p,  TOP_CLK_MUX1, 0, 3),
 	MUX(0, "sec_mux",	 sec_wclk_p,	  TOP_CLK_MUX2, 16, 3),
 	MUX(0, "sd1_mux",	 sd_nand_wclk_p,  TOP_CLK_MUX2, 12, 3),
 	MUX(0, "sd0_mux",	 sd_nand_wclk_p,  TOP_CLK_MUX2, 8, 3),
@@ -498,15 +498,15 @@ static struct zx_clk_gate top_gate_clk[] = {
 	GATE(SD1_WCLK,        "sd1_wclk",        "sd1_mux",        TOP_CLK_GATE1, 13, CLK_SET_RATE_PARENT, 0),
 	GATE(SD0_WCLK,        "sd0_wclk",        "sd0_mux",        TOP_CLK_GATE1, 9, CLK_SET_RATE_PARENT, 0),
 	GATE(EMMC_WCLK,       "emmc_wclk",       "emmc_mux_div2",  TOP_CLK_GATE0, 5, CLK_SET_RATE_PARENT, 0),
-	GATE(EMMC_NAND_AXI,   "emmc_nand_aclk",  "sys_noc_aclk",   TOP_CLK_GATE1, 4, CLK_SET_RATE_PARENT, 0),
+	GATE(EMMC_NAND_AXI,   "emmc_nand_aclk",  "sys_yesc_aclk",   TOP_CLK_GATE1, 4, CLK_SET_RATE_PARENT, 0),
 	GATE(NAND_WCLK,       "nand_wclk",       "nand_mux",       TOP_CLK_GATE0, 1, CLK_SET_RATE_PARENT, 0),
-	GATE(EMMC_NAND_AHB,   "emmc_nand_hclk",  "sys_noc_hclk",   TOP_CLK_GATE1, 0, CLK_SET_RATE_PARENT, 0),
-	GATE(0,               "lsp1_pclk",       "sys_noc_pclk",   TOP_CLK_GATE2, 31, 0,                  0),
+	GATE(EMMC_NAND_AHB,   "emmc_nand_hclk",  "sys_yesc_hclk",   TOP_CLK_GATE1, 0, CLK_SET_RATE_PARENT, 0),
+	GATE(0,               "lsp1_pclk",       "sys_yesc_pclk",   TOP_CLK_GATE2, 31, 0,                  0),
 	GATE(LSP1_148M5,      "lsp1_148m5",      "clk148m5",       TOP_CLK_GATE2, 30, 0,                  0),
 	GATE(LSP1_99M,        "lsp1_99m",        "clk99m",         TOP_CLK_GATE2, 29, 0,                  0),
 	GATE(LSP1_24M,        "lsp1_24m",        "osc24m",         TOP_CLK_GATE2, 28, 0,                  0),
 	GATE(LSP0_74M25,      "lsp0_74m25",      "clk74m25",       TOP_CLK_GATE2, 25, 0,                  0),
-	GATE(0,               "lsp0_pclk",       "sys_noc_pclk",   TOP_CLK_GATE2, 24, 0,                  0),
+	GATE(0,               "lsp0_pclk",       "sys_yesc_pclk",   TOP_CLK_GATE2, 24, 0,                  0),
 	GATE(LSP0_32K,        "lsp0_32k",        "osc32k",         TOP_CLK_GATE2, 23, 0,                  0),
 	GATE(LSP0_148M5,      "lsp0_148m5",      "clk148m5",       TOP_CLK_GATE2, 22, 0,                  0),
 	GATE(LSP0_99M,        "lsp0_99m",        "clk99m",         TOP_CLK_GATE2, 21, 0,                  0),
@@ -540,16 +540,16 @@ static struct zx_clk_gate top_gate_clk[] = {
 	GATE(VIU_CFG_CLK,     "viu_cfg_clk",     "osc24m",         TOP_CLK_GATE4, 6,  0,                   0),
 	GATE(TS_SYS_WCLK,     "ts_sys_wclk",     "ts_sys_mux",     TOP_CLK_GATE5, 2,  CLK_SET_RATE_PARENT, 0),
 	GATE(TS_SYS_108M,     "ts_sys_108m",     "clk108m",        TOP_CLK_GATE5, 3,  0,                   0),
-	GATE(USB20_HCLK,      "usb20_hclk",      "sys_noc_hclk",   TOP_CLK_GATE2, 12, 0,                   0),
+	GATE(USB20_HCLK,      "usb20_hclk",      "sys_yesc_hclk",   TOP_CLK_GATE2, 12, 0,                   0),
 	GATE(USB20_PHY_CLK,   "usb20_phy_clk",   "usb_ref24m_mux", TOP_CLK_GATE2, 13, 0,                   0),
-	GATE(USB21_HCLK,      "usb21_hclk",      "sys_noc_hclk",   TOP_CLK_GATE2, 14, 0,                   0),
+	GATE(USB21_HCLK,      "usb21_hclk",      "sys_yesc_hclk",   TOP_CLK_GATE2, 14, 0,                   0),
 	GATE(USB21_PHY_CLK,   "usb21_phy_clk",   "usb_ref24m_mux", TOP_CLK_GATE2, 15, 0,                   0),
 	GATE(GMAC_RMIICLK,    "gmac_rmii_clk",   "clk50m",         TOP_CLK_GATE2, 3, 0,                    0),
 	GATE(GMAC_PCLK,       "gmac_pclk",       "clk198m",        TOP_CLK_GATE2, 1, 0,                    0),
 	GATE(GMAC_ACLK,       "gmac_aclk",       "clk49m5",        TOP_CLK_GATE2, 0, 0,                    0),
 	GATE(GMAC_RFCLK,      "gmac_refclk",     "clk25m",         TOP_CLK_GATE2, 4, 0,                    0),
-	GATE(SD1_AHB,         "sd1_hclk",        "sys_noc_hclk",   TOP_CLK_GATE1, 12,  0,                  0),
-	GATE(SD0_AHB,         "sd0_hclk",        "sys_noc_hclk",   TOP_CLK_GATE1, 8,  0,                   0),
+	GATE(SD1_AHB,         "sd1_hclk",        "sys_yesc_hclk",   TOP_CLK_GATE1, 12,  0,                  0),
+	GATE(SD0_AHB,         "sd0_hclk",        "sys_yesc_hclk",   TOP_CLK_GATE1, 8,  0,                   0),
 	GATE(TEMPSENSOR_GATE, "tempsensor_gate", "clk4m",          TOP_CLK_GATE5, 31,  0,                  0),
 };
 
@@ -560,7 +560,7 @@ static struct clk_hw_onecell_data top_hw_onecell_data = {
 	},
 };
 
-static int __init top_clocks_init(struct device_node *np)
+static int __init top_clocks_init(struct device_yesde *np)
 {
 	void __iomem *reg_base;
 	int i, ret;
@@ -746,7 +746,7 @@ static struct clk_hw_onecell_data lsp0_hw_onecell_data = {
 	},
 };
 
-static int __init lsp0_clocks_init(struct device_node *np)
+static int __init lsp0_clocks_init(struct device_yesde *np)
 {
 	void __iomem *reg_base;
 	int i, ret;
@@ -852,7 +852,7 @@ static struct clk_hw_onecell_data lsp1_hw_onecell_data = {
 	},
 };
 
-static int __init lsp1_clocks_init(struct device_node *np)
+static int __init lsp1_clocks_init(struct device_yesde *np)
 {
 	void __iomem *reg_base;
 	int i, ret;
@@ -967,7 +967,7 @@ static struct clk_hw_onecell_data audio_hw_onecell_data = {
 	},
 };
 
-static int __init audio_clocks_init(struct device_node *np)
+static int __init audio_clocks_init(struct device_yesde *np)
 {
 	void __iomem *reg_base;
 	int i, ret;
@@ -1047,8 +1047,8 @@ static const struct of_device_id zx_clkc_match_table[] = {
 
 static int zx_clkc_probe(struct platform_device *pdev)
 {
-	int (*init_fn)(struct device_node *np);
-	struct device_node *np = pdev->dev.of_node;
+	int (*init_fn)(struct device_yesde *np);
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	init_fn = of_device_get_match_data(&pdev->dev);
 	if (!init_fn) {

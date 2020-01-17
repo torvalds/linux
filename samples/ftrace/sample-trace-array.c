@@ -117,7 +117,7 @@ static void __exit sample_trace_array_exit(void)
 	kthread_stop(simple_tsk);
 
 	/*
-	 * We are unloading our module and no longer require the trace array.
+	 * We are unloading our module and yes longer require the trace array.
 	 * Remove/destroy "tr" using trace_array_destroy()
 	 */
 	trace_array_destroy(tr);

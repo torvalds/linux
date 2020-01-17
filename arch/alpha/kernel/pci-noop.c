@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	linux/arch/alpha/kernel/pci-noop.c
+ *	linux/arch/alpha/kernel/pci-yesop.c
  *
  * Stub PCI interfaces for Jensen-specific kernels.
  */
@@ -11,7 +11,7 @@
 #include <linux/gfp.h>
 #include <linux/capability.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>

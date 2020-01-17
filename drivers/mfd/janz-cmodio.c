@@ -59,8 +59,8 @@ struct cmodio_device {
  */
 
 static int cmodio_setup_subdevice(struct cmodio_device *priv,
-					    char *name, unsigned int devno,
-					    unsigned int modno)
+					    char *name, unsigned int devyes,
+					    unsigned int modyes)
 {
 	struct janz_platform_data *pdata;
 	struct mfd_cell *cell;
@@ -68,9 +68,9 @@ static int cmodio_setup_subdevice(struct cmodio_device *priv,
 	struct pci_dev *pci;
 
 	pci = priv->pdev;
-	cell = &priv->cells[devno];
-	res = &priv->resources[devno * 3];
-	pdata = &priv->pdata[devno];
+	cell = &priv->cells[devyes];
+	res = &priv->resources[devyes * 3];
+	pdata = &priv->pdata[devyes];
 
 	cell->name = name;
 	cell->resources = res;
@@ -80,14 +80,14 @@ static int cmodio_setup_subdevice(struct cmodio_device *priv,
 	cell->id = cmodio_id++;
 
 	/* Add platform data */
-	pdata->modno = modno;
+	pdata->modyes = modyes;
 	cell->platform_data = pdata;
 	cell->pdata_size = sizeof(*pdata);
 
 	/* MODULbus registers -- PCI BAR3 is big-endian MODULbus access */
 	res->flags = IORESOURCE_MEM;
 	res->parent = &pci->resource[3];
-	res->start = pci->resource[3].start + (CMODIO_MODULBUS_SIZE * modno);
+	res->start = pci->resource[3].start + (CMODIO_MODULBUS_SIZE * modyes);
 	res->end = res->start + CMODIO_MODULBUS_SIZE - 1;
 	res++;
 
@@ -132,9 +132,9 @@ static int cmodio_probe_submodules(struct cmodio_device *priv)
 		num_probed++;
 	}
 
-	/* print an error message if no modules were probed */
+	/* print an error message if yes modules were probed */
 	if (num_probed == 0) {
-		dev_err(&priv->pdev->dev, "no MODULbus modules specified, "
+		dev_err(&priv->pdev->dev, "yes MODULbus modules specified, "
 					  "please set the ``modules'' kernel "
 					  "parameter according to your "
 					  "hardware configuration\n");

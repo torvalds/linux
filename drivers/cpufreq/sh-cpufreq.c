@@ -76,7 +76,7 @@ static long __sh_cpufreq_target(void *arg)
 }
 
 /*
- * Here we notify other drivers of the proposed change and the final change.
+ * Here we yestify other drivers of the proposed change and the final change.
  */
 static int sh_cpufreq_target(struct cpufreq_policy *policy,
 			     unsigned int target_freq,
@@ -124,7 +124,7 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	if (freq_table) {
 		policy->freq_table = freq_table;
 	} else {
-		dev_notice(dev, "no frequency table found, falling back "
+		dev_yestice(dev, "yes frequency table found, falling back "
 			   "to rate rounding.\n");
 
 		policy->min = policy->cpuinfo.min_freq =
@@ -170,7 +170,7 @@ static struct cpufreq_driver sh_cpufreq_driver = {
 
 static int __init sh_cpufreq_module_init(void)
 {
-	pr_notice("SuperH CPU frequency driver.\n");
+	pr_yestice("SuperH CPU frequency driver.\n");
 	return cpufreq_register_driver(&sh_cpufreq_driver);
 }
 

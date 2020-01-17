@@ -103,7 +103,7 @@ static int twlreg_grp(struct regulator_dev *rdev)
 
 /*
  * Enable/disable regulators by joining/leaving the P1 (processor) group.
- * We assume nobody else is updating the DEV_GRP registers.
+ * We assume yesbody else is updating the DEV_GRP registers.
  */
 /* definition for 4030 family */
 #define P3_GRP_4030	BIT(7)		/* "peripherals" */
@@ -234,7 +234,7 @@ static int twl4030reg_get_status(struct regulator_dev *rdev)
 		return state;
 	state &= 0x0f;
 
-	/* assume state != WARM_RESET; we'd not be running...  */
+	/* assume state != WARM_RESET; we'd yest be running...  */
 	if (!state)
 		return REGULATOR_STATUS_OFF;
 	return (state & BIT(3))
@@ -285,8 +285,8 @@ static inline unsigned int twl4030reg_map_mode(unsigned int mode)
  * currently handled by listing two slightly different VAUX2 regulators,
  * only one of which will be configured.
  *
- * VSEL values documented as "TI cannot support these values" are flagged
- * in these tables as UNSUP() values; we normally won't assign them.
+ * VSEL values documented as "TI canyest support these values" are flagged
+ * in these tables as UNSUP() values; we yesrmally won't assign them.
  *
  * VAUX3 at 3V is incorrectly listed in some TI manuals as unsupported.
  * TI are revising the twl5030/tps659x0 specs to support that 3.0V setting.
@@ -460,7 +460,7 @@ static const struct regulator_ops twl4030fixed_ops = {
 
 /*----------------------------------------------------------------------*/
 
-#define TWL4030_ADJUSTABLE_LDO(label, offset, num, turnon_delay, remap_conf) \
+#define TWL4030_ADJUSTABLE_LDO(label, offset, num, turyesn_delay, remap_conf) \
 static const struct twlreg_info TWL4030_INFO_##label = { \
 	.base = offset, \
 	.id = num, \
@@ -474,12 +474,12 @@ static const struct twlreg_info TWL4030_INFO_##label = { \
 		.ops = &twl4030ldo_ops, \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
-		.enable_time = turnon_delay, \
+		.enable_time = turyesn_delay, \
 		.of_map_mode = twl4030reg_map_mode, \
 		}, \
 	}
 
-#define TWL4030_ADJUSTABLE_SMPS(label, offset, num, turnon_delay, remap_conf, \
+#define TWL4030_ADJUSTABLE_SMPS(label, offset, num, turyesn_delay, remap_conf, \
 		n_volt) \
 static const struct twlreg_info TWL4030_INFO_##label = { \
 	.base = offset, \
@@ -491,7 +491,7 @@ static const struct twlreg_info TWL4030_INFO_##label = { \
 		.ops = &twl4030smps_ops, \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
-		.enable_time = turnon_delay, \
+		.enable_time = turyesn_delay, \
 		.of_map_mode = twl4030reg_map_mode, \
 		.n_voltages = n_volt, \
 		.n_linear_ranges = ARRAY_SIZE(label ## _ranges), \
@@ -499,7 +499,7 @@ static const struct twlreg_info TWL4030_INFO_##label = { \
 		}, \
 	}
 
-#define TWL4030_FIXED_LDO(label, offset, mVolts, num, turnon_delay, \
+#define TWL4030_FIXED_LDO(label, offset, mVolts, num, turyesn_delay, \
 			remap_conf) \
 static const struct twlreg_info TWLFIXED_INFO_##label = { \
 	.base = offset, \
@@ -513,7 +513,7 @@ static const struct twlreg_info TWLFIXED_INFO_##label = { \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
 		.min_uV = mVolts * 1000, \
-		.enable_time = turnon_delay, \
+		.enable_time = turyesn_delay, \
 		.of_map_mode = twl4030reg_map_mode, \
 		}, \
 	}
@@ -596,7 +596,7 @@ static int twlreg_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	id = template->desc.id;
-	initdata = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node,
+	initdata = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_yesde,
 						&template->desc);
 	if (!initdata)
 		return -EINVAL;
@@ -630,7 +630,7 @@ static int twlreg_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.init_data = initdata;
 	config.driver_data = info;
-	config.of_node = pdev->dev.of_node;
+	config.of_yesde = pdev->dev.of_yesde;
 
 	rdev = devm_regulator_register(&pdev->dev, &info->desc, &config);
 	if (IS_ERR(rdev)) {
@@ -643,7 +643,7 @@ static int twlreg_probe(struct platform_device *pdev)
 	twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_REMAP, info->remap);
 
 	/* NOTE:  many regulators support short-circuit IRQs (presentable
-	 * as REGULATOR_OVER_CURRENT notifications?) configured via:
+	 * as REGULATOR_OVER_CURRENT yestifications?) configured via:
 	 *  - SC_CONFIG
 	 *  - SC_DETECT1 (vintana2, vmmc1/2, vaux1/2/3/4)
 	 *  - SC_DETECT2 (vusb, vdac, vio, vdd1/2, vpll2)

@@ -284,7 +284,7 @@ mwifiex_set_uap_rates(struct mwifiex_uap_bss_param *bss_cfg,
 }
 
 /* This function initializes some of mwifiex_uap_bss_param variables.
- * This helps FW in ignoring invalid values. These values may or may not
+ * This helps FW in igyesring invalid values. These values may or may yest
  * be get updated to valid ones at later stage.
  */
 void mwifiex_set_sys_config_invalid_data(struct mwifiex_uap_bss_param *config)
@@ -776,13 +776,13 @@ static int mwifiex_cmd_uap_sta_deauth(struct mwifiex_private *priv,
  * This is a generic function which calls specific command preparation
  * routines based upon the command number.
  */
-int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
+int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_yes,
 			    u16 cmd_action, u32 type,
 			    void *data_buf, void *cmd_buf)
 {
 	struct host_cmd_ds_command *cmd = cmd_buf;
 
-	switch (cmd_no) {
+	switch (cmd_yes) {
 	case HostCmd_CMD_UAP_SYS_CONFIG:
 		if (mwifiex_cmd_uap_sys_config(cmd, cmd_action, type, data_buf))
 			return -1;
@@ -791,7 +791,7 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	case HostCmd_CMD_UAP_BSS_STOP:
 	case HOST_CMD_APCMD_SYS_RESET:
 	case HOST_CMD_APCMD_STA_LIST:
-		cmd->command = cpu_to_le16(cmd_no);
+		cmd->command = cpu_to_le16(cmd_yes);
 		cmd->size = cpu_to_le16(S_DS_GEN);
 		break;
 	case HostCmd_CMD_UAP_STA_DEAUTH:
@@ -805,7 +805,7 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "PREP_CMD: unknown cmd %#x\n", cmd_no);
+			    "PREP_CMD: unkyeswn cmd %#x\n", cmd_yes);
 		return -1;
 	}
 
@@ -861,7 +861,7 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 		break;
 	default:
 		mwifiex_dbg(priv->adapter,
-			    WARN, "Unknown channel width: %d\n",
+			    WARN, "Unkyeswn channel width: %d\n",
 			    chandef.width);
 		break;
 	}

@@ -19,7 +19,7 @@
  *
  * The hardirq count could in theory be the same as the number of
  * interrupts in the system, but we run all interrupt handlers with
- * interrupts disabled, so we cannot have nesting interrupts. Though
+ * interrupts disabled, so we canyest have nesting interrupts. Though
  * there are a few palaeontologic drivers which reenable interrupts in
  * the handler, so we need more than one bit here.
  *
@@ -93,7 +93,7 @@
  * in_task()	  - We're in task context
  *
  * Note: due to the BH disabled confusion: in_softirq(),in_interrupt() really
- *       should not be used in new code.
+ *       should yest be used in new code.
  */
 #define in_irq()		(hardirq_count())
 #define in_softirq()		(softirq_count())
@@ -133,11 +133,11 @@
 #define SOFTIRQ_LOCK_OFFSET (SOFTIRQ_DISABLE_OFFSET + PREEMPT_LOCK_OFFSET)
 
 /*
- * Are we running in atomic context?  WARNING: this macro cannot
- * always detect atomic context; in particular, it cannot know about
- * held spinlocks in non-preemptible kernels.  Thus it should not be
+ * Are we running in atomic context?  WARNING: this macro canyest
+ * always detect atomic context; in particular, it canyest kyesw about
+ * held spinlocks in yesn-preemptible kernels.  Thus it should yest be
  * used in the general case to determine whether sleeping is possible.
- * Do not use in_atomic() in driver code.
+ * Do yest use in_atomic() in driver code.
  */
 #define in_atomic()	(preempt_count() != 0)
 
@@ -172,13 +172,13 @@ do { \
 	barrier(); \
 } while (0)
 
-#define sched_preempt_enable_no_resched() \
+#define sched_preempt_enable_yes_resched() \
 do { \
 	barrier(); \
 	preempt_count_dec(); \
 } while (0)
 
-#define preempt_enable_no_resched() sched_preempt_enable_no_resched()
+#define preempt_enable_yes_resched() sched_preempt_enable_yes_resched()
 
 #define preemptible()	(preempt_count() == 0 && !irqs_disabled())
 
@@ -190,11 +190,11 @@ do { \
 		__preempt_schedule(); \
 } while (0)
 
-#define preempt_enable_notrace() \
+#define preempt_enable_yestrace() \
 do { \
 	barrier(); \
 	if (unlikely(__preempt_count_dec_and_test())) \
-		__preempt_schedule_notrace(); \
+		__preempt_schedule_yestrace(); \
 } while (0)
 
 #define preempt_check_resched() \
@@ -210,7 +210,7 @@ do { \
 	preempt_count_dec(); \
 } while (0)
 
-#define preempt_enable_notrace() \
+#define preempt_enable_yestrace() \
 do { \
 	barrier(); \
 	__preempt_count_dec(); \
@@ -219,13 +219,13 @@ do { \
 #define preempt_check_resched() do { } while (0)
 #endif /* CONFIG_PREEMPTION */
 
-#define preempt_disable_notrace() \
+#define preempt_disable_yestrace() \
 do { \
 	__preempt_count_inc(); \
 	barrier(); \
 } while (0)
 
-#define preempt_enable_no_resched_notrace() \
+#define preempt_enable_yes_resched_yestrace() \
 do { \
 	barrier(); \
 	__preempt_count_dec(); \
@@ -240,25 +240,25 @@ do { \
  * region.
  */
 #define preempt_disable()			barrier()
-#define sched_preempt_enable_no_resched()	barrier()
-#define preempt_enable_no_resched()		barrier()
+#define sched_preempt_enable_yes_resched()	barrier()
+#define preempt_enable_yes_resched()		barrier()
 #define preempt_enable()			barrier()
 #define preempt_check_resched()			do { } while (0)
 
-#define preempt_disable_notrace()		barrier()
-#define preempt_enable_no_resched_notrace()	barrier()
-#define preempt_enable_notrace()		barrier()
+#define preempt_disable_yestrace()		barrier()
+#define preempt_enable_yes_resched_yestrace()	barrier()
+#define preempt_enable_yestrace()		barrier()
 #define preemptible()				0
 
 #endif /* CONFIG_PREEMPT_COUNT */
 
 #ifdef MODULE
 /*
- * Modules have no business playing preemption tricks.
+ * Modules have yes business playing preemption tricks.
  */
-#undef sched_preempt_enable_no_resched
-#undef preempt_enable_no_resched
-#undef preempt_enable_no_resched_notrace
+#undef sched_preempt_enable_yes_resched
+#undef preempt_enable_yes_resched
+#undef preempt_enable_yes_resched_yestrace
 #undef preempt_check_resched
 #endif
 
@@ -274,50 +274,50 @@ do { \
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 
-struct preempt_notifier;
+struct preempt_yestifier;
 
 /**
- * preempt_ops - notifiers called when a task is preempted and rescheduled
+ * preempt_ops - yestifiers called when a task is preempted and rescheduled
  * @sched_in: we're about to be rescheduled:
- *    notifier: struct preempt_notifier for the task being scheduled
+ *    yestifier: struct preempt_yestifier for the task being scheduled
  *    cpu:  cpu we're scheduled on
  * @sched_out: we've just been preempted
- *    notifier: struct preempt_notifier for the task being preempted
+ *    yestifier: struct preempt_yestifier for the task being preempted
  *    next: the task that's kicking us out
  *
- * Please note that sched_in and out are called under different
+ * Please yeste that sched_in and out are called under different
  * contexts.  sched_out is called with rq lock held and irq disabled
  * while sched_in is called without rq lock and irq enabled.  This
  * difference is intentional and depended upon by its users.
  */
 struct preempt_ops {
-	void (*sched_in)(struct preempt_notifier *notifier, int cpu);
-	void (*sched_out)(struct preempt_notifier *notifier,
+	void (*sched_in)(struct preempt_yestifier *yestifier, int cpu);
+	void (*sched_out)(struct preempt_yestifier *yestifier,
 			  struct task_struct *next);
 };
 
 /**
- * preempt_notifier - key for installing preemption notifiers
+ * preempt_yestifier - key for installing preemption yestifiers
  * @link: internal use
- * @ops: defines the notifier functions to be called
+ * @ops: defines the yestifier functions to be called
  *
  * Usually used in conjunction with container_of().
  */
-struct preempt_notifier {
-	struct hlist_node link;
+struct preempt_yestifier {
+	struct hlist_yesde link;
 	struct preempt_ops *ops;
 };
 
-void preempt_notifier_inc(void);
-void preempt_notifier_dec(void);
-void preempt_notifier_register(struct preempt_notifier *notifier);
-void preempt_notifier_unregister(struct preempt_notifier *notifier);
+void preempt_yestifier_inc(void);
+void preempt_yestifier_dec(void);
+void preempt_yestifier_register(struct preempt_yestifier *yestifier);
+void preempt_yestifier_unregister(struct preempt_yestifier *yestifier);
 
-static inline void preempt_notifier_init(struct preempt_notifier *notifier,
+static inline void preempt_yestifier_init(struct preempt_yestifier *yestifier,
 				     struct preempt_ops *ops)
 {
-	INIT_HLIST_NODE(&notifier->link);
-	notifier->ops = ops;
+	INIT_HLIST_NODE(&yestifier->link);
+	yestifier->ops = ops;
 }
 
 #endif

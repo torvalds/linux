@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * ethtool.h: Defines for Linux ethtool.
  *
@@ -18,7 +18,7 @@
 #include <linux/types.h>
 #include <linux/if_ether.h>
 
-#define ETHTOOL_GCHANNELS       0x0000003c /* Get no of channels */
+#define ETHTOOL_GCHANNELS       0x0000003c /* Get yes of channels */
 
 /**
  * struct ethtool_channels - configuring number of network channel

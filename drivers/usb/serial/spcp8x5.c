@@ -11,7 +11,7 @@
  * Changes for 2.6.20 by Harald Klein <hari@vt100.at>
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>

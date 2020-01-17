@@ -3,7 +3,7 @@ Analogix Display Port bridge bindings
 Required properties for dp-controller:
 	-compatible:
 		platform specific such as:
-		 * "samsung,exynos5-dp"
+		 * "samsung,exyyess5-dp"
 		 * "rockchip,rk3288-dp"
 		 * "rockchip,rk3399-edp"
 	-reg:
@@ -27,10 +27,10 @@ Optional properties for dp-controller:
 	-hpd-gpios:
 		Hotplug detect GPIO.
 		Indicates which GPIO should be used for hotplug detection
-	-port@[X]: SoC specific port nodes with endpoint definitions as defined
+	-port@[X]: SoC specific port yesdes with endpoint definitions as defined
 		in Documentation/devicetree/bindings/media/video-interfaces.txt,
 		please refer to the SoC specific binding document:
-		* Documentation/devicetree/bindings/display/exynos/exynos_dp.txt
+		* Documentation/devicetree/bindings/display/exyyess/exyyess_dp.txt
 		* Documentation/devicetree/bindings/display/rockchip/analogix_dp-rockchip.txt
 
 [1]: Documentation/devicetree/bindings/media/video-interfaces.txt
@@ -39,7 +39,7 @@ Optional properties for dp-controller:
 Example:
 
 	dp-controller {
-		compatible = "samsung,exynos5-dp";
+		compatible = "samsung,exyyess5-dp";
 		reg = <0x145b0000 0x10000>;
 		interrupts = <10 3>;
 		interrupt-parent = <&combiner>;

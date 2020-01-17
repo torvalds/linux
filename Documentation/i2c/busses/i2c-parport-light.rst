@@ -7,7 +7,7 @@ Author: Jean Delvare <jdelvare@suse.de>
 This driver is a light version of i2c-parport. It doesn't depend
 on the parport driver, and uses direct I/O access instead. This might be
 preferred on embedded systems where wasting memory for the clean but heavy
-parport handling is not an option. The drawback is a reduced portability
+parport handling is yest an option. The drawback is a reduced portability
 and the impossibility to daisy-chain other parallel port devices.
 
 Please see i2c-parport for documentation.

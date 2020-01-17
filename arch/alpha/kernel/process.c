@@ -9,7 +9,7 @@
  * This file handles the architecture-dependent parts of process handling.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -53,7 +53,7 @@ EXPORT_SYMBOL(pm_power_off);
 #ifdef CONFIG_ALPHA_WTINT
 /*
  * Sleep the CPU.
- * EV6, LCA45 and QEMU know how to power down, skipping N timer interrupts.
+ * EV6, LCA45 and QEMU kyesw how to power down, skipping N timer interrupts.
  */
 void arch_cpu_idle(void)
 {
@@ -262,9 +262,9 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		childti->pcb.usp = 0;
 		return 0;
 	}
-	/* Note: if CLONE_SETTLS is not set, then we must inherit the
+	/* Note: if CLONE_SETTLS is yest set, then we must inherit the
 	   value from the parent, which will have been set by the block
-	   copy in dup_task_struct.  This is non-intuitive, but is
+	   copy in dup_task_struct.  This is yesn-intuitive, but is
 	   required for proper operation in the case of a threaded
 	   application calling fork.  */
 	if (clone_flags & CLONE_SETTLS)

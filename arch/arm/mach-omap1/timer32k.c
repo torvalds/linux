@@ -11,7 +11,7 @@
  *
  * MPU timer code based on the older MPU timer code for OMAP
  * Copyright (C) 2000 RidgeRun, Inc.
- * Author: Greg Lonnon <glonnon@ridgerun.com>
+ * Author: Greg Lonyesn <glonyesn@ridgerun.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -30,7 +30,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if yest, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -60,10 +60,10 @@
  * ---------------------------------------------------------------------------
  * 32KHz OS timer
  *
- * This currently works only on 16xx, as 1510 does not have the continuous
- * 32KHz synchronous timer. The 32KHz synchronous timer is used to keep track
+ * This currently works only on 16xx, as 1510 does yest have the continuous
+ * 32KHz synchroyesus timer. The 32KHz synchroyesus timer is used to keep track
  * of time in addition to the 32KHz OS timer. Using only the 32KHz OS timer
- * on 1510 would be possible, but the timer would not be as accurate as
+ * on 1510 would be possible, but the timer would yest be as accurate as
  * with the 32KHz synchronized timer.
  * ---------------------------------------------------------------------------
  */

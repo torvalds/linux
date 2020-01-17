@@ -13,9 +13,9 @@
 
 /*
  * GPIO name legend: proper name = the GPIO line is used as GPIO
- *         NC = not connected (pin out but not routed from the chip to
+ *         NC = yest connected (pin out but yest routed from the chip to
  *              anything the board)
- *         "[PER]" = pin is muxed for [peripheral] (not GPIO)
+ *         "[PER]" = pin is muxed for [peripheral] (yest GPIO)
  *         LSEC = Low Speed External Connector
  *         HSEC = High Speed External Connector
  *
@@ -315,7 +315,7 @@
 			led@4 {
 				label = "apq8016-sbc:green:user4";
 				gpios = <&pm8916_gpios 2 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "none";
+				linux,default-trigger = "yesne";
 				panic-indicator;
 				default-state = "off";
 			};

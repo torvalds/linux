@@ -58,7 +58,7 @@ titan_parse_c_misc(u64 c_misc, int print)
 		nxs -= 4;
 		break;
 	default:/* reserved */
-		src = "Unknown, NXS =";
+		src = "Unkyeswn, NXS =";
 		/* leave num untouched */
 		break;
 	}
@@ -146,7 +146,7 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 
 #ifdef CONFIG_VERBOSE_MCHECK
 	static const char * const perror_cmd[] = {
-		"Interrupt Acknowledge", "Special Cycle",
+		"Interrupt Ackyeswledge", "Special Cycle",
 		"I/O Read",		"I/O Write",
 		"Reserved",		"Reserved",
 		"Memory Read",		"Memory Write",
@@ -212,9 +212,9 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 	 * be handled on a different CPU than the BIOS code is run on,
 	 * it is possible for a second master abort to occur between the
 	 * time the PALcode reads PERROR and the time it writes PERROR
-	 * to acknowledge the error. If this timing happens, a second
-	 * error will be signalled after the first, and if no additional
-	 * errors occur, will look like a Lost error with no additional 
+	 * to ackyeswledge the error. If this timing happens, a second
+	 * error will be signalled after the first, and if yes additional
+	 * errors occur, will look like a Lost error with yes additional 
 	 * errors on the same transaction as the previous error.
 	 */
 	if (((perror & TITAN__PCHIP_PERROR__NDS) || 
@@ -436,7 +436,7 @@ titan_machine_check(unsigned long vector, unsigned long la_ptr)
 		err_print_prefix = KERN_CRIT;
 
 		/*
-		 * Either a nondismissable error was detected or no
+		 * Either a yesndismissable error was detected or yes
 		 * recognized error was detected  in the logout frame 
 		 * -- report the error in either case
 		 */
@@ -471,9 +471,9 @@ titan_machine_check(unsigned long vector, unsigned long la_ptr)
 }
 
 /*
- * Subpacket Annotations
+ * Subpacket Anyestations
  */
-static char *el_titan_pchip0_extended_annotation[] = {
+static char *el_titan_pchip0_extended_anyestation[] = {
 	"Subpacket Header", 	"P0_SCTL",	"P0_SERREN",
 	"P0_APCTL",		"P0_APERREN",	"P0_AGPERREN",
 	"P0_ASPRST",		"P0_AWSBA0",	"P0_AWSBA1",
@@ -487,7 +487,7 @@ static char *el_titan_pchip0_extended_annotation[] = {
 	"P0_GTBA0",		"P0_GTBA1",	"P0_GTBA2",
 	"P0_GTBA3",		NULL 
 };
-static char *el_titan_pchip1_extended_annotation[] = {
+static char *el_titan_pchip1_extended_anyestation[] = {
 	"Subpacket Header", 	"P1_SCTL",	"P1_SERREN",
 	"P1_APCTL",		"P1_APERREN",	"P1_AGPERREN",
 	"P1_ASPRST",		"P1_AWSBA0",	"P1_AWSBA1",
@@ -501,29 +501,29 @@ static char *el_titan_pchip1_extended_annotation[] = {
 	"P1_GTBA0",		"P1_GTBA1",	"P1_GTBA2",
 	"P1_GTBA3",		NULL 
 };
-static char *el_titan_memory_extended_annotation[] = {
+static char *el_titan_memory_extended_anyestation[] = {
 	"Subpacket Header", 	"AAR0",		"AAR1",
 	"AAR2",			"AAR3",		"P0_SCTL",
 	"P0_GPCTL",		"P0_APCTL",	"P1_SCTL",
 	"P1_GPCTL",		"P1_SCTL",	NULL 
 };
 
-static struct el_subpacket_annotation el_titan_annotations[] = {
+static struct el_subpacket_anyestation el_titan_anyestations[] = {
 	SUBPACKET_ANNOTATION(EL_CLASS__REGATTA_FAMILY,
 			     EL_TYPE__REGATTA__TITAN_PCHIP0_EXTENDED,
 			     1,
 			     "Titan PChip 0 Extended Frame",
-			     el_titan_pchip0_extended_annotation),
+			     el_titan_pchip0_extended_anyestation),
 	SUBPACKET_ANNOTATION(EL_CLASS__REGATTA_FAMILY,
 			     EL_TYPE__REGATTA__TITAN_PCHIP1_EXTENDED,
 			     1,
 			     "Titan PChip 1 Extended Frame",
-			     el_titan_pchip1_extended_annotation),
+			     el_titan_pchip1_extended_anyestation),
 	SUBPACKET_ANNOTATION(EL_CLASS__REGATTA_FAMILY,
 			     EL_TYPE__REGATTA__TITAN_MEMORY_EXTENDED,
 			     1,
 			     "Titan Memory Extended Frame",
-			     el_titan_memory_extended_annotation),
+			     el_titan_memory_extended_anyestation),
 	SUBPACKET_ANNOTATION(EL_CLASS__REGATTA_FAMILY,
 			     EL_TYPE__TERMINATION__TERMINATION,
 			     1,
@@ -556,7 +556,7 @@ el_process_regatta_subpacket(struct el_subpacket *header)
 	default:
 		printk("%s  ** REGATTA TYPE %d SUBPACKET\n", 
 		       err_print_prefix, header->type);
-		el_annotate_subpacket(header);
+		el_anyestate_subpacket(header);
 		break;
 	}
 
@@ -573,8 +573,8 @@ titan_register_error_handlers(void)
 {
 	size_t i;
 
-	for (i = 0; i < ARRAY_SIZE (el_titan_annotations); i++)
-		cdl_register_subpacket_annotation(&el_titan_annotations[i]);
+	for (i = 0; i < ARRAY_SIZE (el_titan_anyestations); i++)
+		cdl_register_subpacket_anyestation(&el_titan_anyestations[i]);
 
 	cdl_register_subpacket_handler(&titan_subpacket_handler);
 
@@ -595,7 +595,7 @@ privateer_process_680_frame(struct el_common *mchk_header, int print)
 		(struct el_PRIVATEER_envdata_mcheck *)
 		((unsigned long)mchk_header + mchk_header->sys_offset);
 
-	/* TODO - categorize errors, for now, no error */
+	/* TODO - categorize errors, for yesw, yes error */
 
 	if (!print)
 		return status;
@@ -690,12 +690,12 @@ privateer_process_logout_frame(struct el_common *mchk_header, int print)
 		break;
 
 	/* 
-	 * Unknown
+	 * Unkyeswn
 	 */
 	default:
 		status |= MCHK_DISPOSITION_REPORT;
 		if (print) {
-			printk("%s** Unknown Error, frame follows\n", 
+			printk("%s** Unkyeswn Error, frame follows\n", 
 			       err_print_prefix);
 			mchk_dump_logout_frame(mchk_header);
 		}
@@ -731,9 +731,9 @@ privateer_machine_check(unsigned long vector, unsigned long la_ptr)
 		return titan_machine_check(vector, la_ptr);
 
 	/*
-	 * Report the event - System Events should be reported even if no
+	 * Report the event - System Events should be reported even if yes
 	 * error is indicated since the event could indicate the return
-	 * to normal status.
+	 * to yesrmal status.
 	 */
 	err_print_prefix = KERN_CRIT;
 	printk("%s*System Event (Vector 0x%x) reported on CPU %d:\n", 

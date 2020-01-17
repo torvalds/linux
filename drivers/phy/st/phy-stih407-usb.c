@@ -89,7 +89,7 @@ static int stih407_usb2_picophy_probe(struct platform_device *pdev)
 {
 	struct stih407_usb2_picophy *phy_dev;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct phy_provider *phy_provider;
 	struct phy *phy;
 	int ret;

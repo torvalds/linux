@@ -47,7 +47,7 @@ MODULE_LICENSE("GPL");
 /**
  * CPRB
  *	  Note that all shorts, ints and longs are little-endian.
- *	  All pointer fields are 32-bits long, and mean nothing
+ *	  All pointer fields are 32-bits long, and mean yesthing
  *
  *	  A request CPRB is followed by a request_parameter_block.
  *
@@ -69,7 +69,7 @@ struct CPRB {
 	unsigned short req_parml;	/* request parameter buffer	 */
 					/* length 16-bit little endian	 */
 	unsigned char req_parmp[4];	/* request parameter buffer	 *
-					 * pointer (means nothing: the	 *
+					 * pointer (means yesthing: the	 *
 					 * parameter buffer follows	 *
 					 * the CPRB).			 */
 	unsigned char req_datal[4];	/* request data buffer		 */
@@ -80,7 +80,7 @@ struct CPRB {
 					/* length 16-bit little endian	 */
 	unsigned char pad_001[2];	/* Alignment pad bytes. ULESHORT */
 	unsigned char rpl_parmp[4];	/* reply parameter buffer	 *
-					 * pointer (means nothing: the	 *
+					 * pointer (means yesthing: the	 *
 					 * parameter buffer follows	 *
 					 * the CPRB).			 */
 	unsigned char rpl_datal[4];	/* reply data buffer len ULELONG */
@@ -112,7 +112,7 @@ struct function_and_rules_block {
  * card in a type6 message. The 3 fields that must be filled in at execution
  * time are  req_parml, rpl_parml and usage_domain.
  * Everything about this interface is ascii/big-endian, since the
- * device does *not* have 'Intel inside'.
+ * device does *yest* have 'Intel inside'.
  *
  * The CPRBX is followed immediately by the parm block.
  * The parm block contains:
@@ -243,7 +243,7 @@ int speed_idx_ep11(int req_type)
  * @ap_msg: pointer to AP message
  * @mex: pointer to user input data
  *
- * Returns 0 on success or negative errno value.
+ * Returns 0 on success or negative erryes value.
  */
 static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_queue *zq,
 				       struct ap_message *ap_msg,
@@ -312,7 +312,7 @@ static int ICAMEX_msg_to_type6MEX_msgX(struct zcrypt_queue *zq,
  * @ap_msg: pointer to AP message
  * @crt: pointer to user input data
  *
- * Returns 0 on success or negative errno value.
+ * Returns 0 on success or negative erryes value.
  */
 static int ICACRT_msg_to_type6CRT_msgX(struct zcrypt_queue *zq,
 				       struct ap_message *ap_msg,
@@ -801,8 +801,8 @@ static int convert_response_ica(struct zcrypt_queue *zq,
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_ica(zq, reply,
 						  outputdata, outputdatalength);
-		/* fall through - wrong cprb version is an unknown response */
-	default: /* Unknown response type, this should NEVER EVER happen */
+		/* fall through - wrong cprb version is an unkyeswn response */
+	default: /* Unkyeswn response type, this should NEVER EVER happen */
 		zq->online = 0;
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
 		       AP_QID_CARD(zq->queue->qid),
@@ -834,8 +834,8 @@ static int convert_response_xcrb(struct zcrypt_queue *zq,
 		}
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_xcrb(zq, reply, xcRB);
-		/* fall through - wrong cprb version is an unknown response */
-	default: /* Unknown response type, this should NEVER EVER happen */
+		/* fall through - wrong cprb version is an unkyeswn response */
+	default: /* Unkyeswn response type, this should NEVER EVER happen */
 		xcRB->status = 0x0008044DL; /* HDD_InvalidParm */
 		zq->online = 0;
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
@@ -864,8 +864,8 @@ static int convert_response_ep11_xcrb(struct zcrypt_queue *zq,
 			return convert_error(zq, reply);
 		if (msg->cprbx.cprb_ver_id == 0x04)
 			return convert_type86_ep11_xcrb(zq, reply, xcRB);
-		/* fall through - wrong cprb version is an unknown resp */
-	default: /* Unknown response type, this should NEVER EVER happen */
+		/* fall through - wrong cprb version is an unkyeswn resp */
+	default: /* Unkyeswn response type, this should NEVER EVER happen */
 		zq->online = 0;
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
 		       AP_QID_CARD(zq->queue->qid),
@@ -894,8 +894,8 @@ static int convert_response_rng(struct zcrypt_queue *zq,
 			return -EINVAL;
 		if (msg->cprbx.cprb_ver_id == 0x02)
 			return convert_type86_rng(zq, reply, data);
-		/* fall through - wrong cprb version is an unknown response */
-	default: /* Unknown response type, this should NEVER EVER happen */
+		/* fall through - wrong cprb version is an unkyeswn response */
+	default: /* Unkyeswn response type, this should NEVER EVER happen */
 		zq->online = 0;
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
 		       AP_QID_CARD(zq->queue->qid),
@@ -1206,10 +1206,10 @@ static long zcrypt_msgtype6_send_ep11_cprb(struct zcrypt_queue *zq,
 
 	/**
 	 * The target domain field within the cprb body/payload block will be
-	 * replaced by the usage domain for non-management commands only.
+	 * replaced by the usage domain for yesn-management commands only.
 	 * Therefore we check the first bit of the 'flags' parameter for
 	 * management command indication.
-	 *   0 - non management command
+	 *   0 - yesn management command
 	 *   1 - management command
 	 */
 	if (!((msg->cprbx.flags & 0x80) == 0x80)) {
@@ -1313,7 +1313,7 @@ static long zcrypt_msgtype6_rng(struct zcrypt_queue *zq,
 /**
  * The crypto operations for a CEXxC card.
  */
-static struct zcrypt_ops zcrypt_msgtype6_norng_ops = {
+static struct zcrypt_ops zcrypt_msgtype6_yesrng_ops = {
 	.owner = THIS_MODULE,
 	.name = MSGTYPE06_NAME,
 	.variant = MSGTYPE06_VARIANT_NORNG,
@@ -1343,14 +1343,14 @@ static struct zcrypt_ops zcrypt_msgtype6_ep11_ops = {
 
 void __init zcrypt_msgtype6_init(void)
 {
-	zcrypt_msgtype_register(&zcrypt_msgtype6_norng_ops);
+	zcrypt_msgtype_register(&zcrypt_msgtype6_yesrng_ops);
 	zcrypt_msgtype_register(&zcrypt_msgtype6_ops);
 	zcrypt_msgtype_register(&zcrypt_msgtype6_ep11_ops);
 }
 
 void __exit zcrypt_msgtype6_exit(void)
 {
-	zcrypt_msgtype_unregister(&zcrypt_msgtype6_norng_ops);
+	zcrypt_msgtype_unregister(&zcrypt_msgtype6_yesrng_ops);
 	zcrypt_msgtype_unregister(&zcrypt_msgtype6_ops);
 	zcrypt_msgtype_unregister(&zcrypt_msgtype6_ep11_ops);
 }

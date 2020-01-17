@@ -104,7 +104,7 @@
 #define DCPU_RET_ERR_INVAL	(DCPU_RET_ERROR_BIT | BIT(1))
 #define DCPU_RET_ERR_CHKSUM	(DCPU_RET_ERROR_BIT | BIT(2))
 #define DCPU_RET_ERR_COMMAND	(DCPU_RET_ERROR_BIT | BIT(3))
-/* This error code is not firmware defined and only used in the driver. */
+/* This error code is yest firmware defined and only used in the driver. */
 #define DCPU_RET_ERR_TIMEDOUT	(DCPU_RET_ERROR_BIT | BIT(4))
 
 /* Firmware magic */
@@ -189,7 +189,7 @@ struct brcmstb_dpfe_priv {
 };
 
 static const char *error_text[] = {
-	"Success", "Header code incorrect", "Unknown command or argument",
+	"Success", "Header code incorrect", "Unkyeswn command or argument",
 	"Incorrect checksum", "Malformed command", "Timed out",
 };
 
@@ -233,7 +233,7 @@ ATTRIBUTE_GROUPS(dpfe_v3);
 
 /*
  * Old API v2 firmware commands, as defined in the rev 0.61 specification, we
- * use a version set to 1 to denote that it is not compatible with the new API
+ * use a version set to 1 to deyeste that it is yest compatible with the new API
  * v2 and onwards.
  */
 static const struct dpfe_api dpfe_api_old_v2 = {
@@ -303,7 +303,7 @@ static const struct dpfe_api dpfe_api_v3 = {
 			[MSG_COMMAND] = 0x0202,
 			[MSG_ARG_COUNT] = 0,
 		},
-		/* There's no GET_VENDOR command in API v3. */
+		/* There's yes GET_VENDOR command in API v3. */
 	},
 };
 
@@ -378,7 +378,7 @@ static void __iomem *get_msg_ptr(struct brcmstb_dpfe_priv *priv, u32 response,
 	unsigned int offset;
 	void __iomem *ptr = NULL;
 
-	/* There is no need to use this function for API v3 or later. */
+	/* There is yes need to use this function for API v3 or later. */
 	if (unlikely(priv->dpfe_api->version >= 3)) {
 		return NULL;
 	}
@@ -639,10 +639,10 @@ static int brcmstb_dpfe_download_firmware(struct brcmstb_dpfe_priv *priv)
 	if (!priv->dpfe_api->fw_name)
 		return -ENODEV;
 
-	ret = firmware_request_nowarn(&fw, priv->dpfe_api->fw_name, dev);
+	ret = firmware_request_yeswarn(&fw, priv->dpfe_api->fw_name, dev);
 	/*
 	 * Defer the firmware download if the firmware file couldn't be found.
-	 * The root file system may not be available yet.
+	 * The root file system may yest be available yet.
 	 */
 	if (ret)
 		return (ret == -ENOENT) ? -EPROBE_DEFER : ret;
@@ -688,7 +688,7 @@ static ssize_t generic_show(unsigned int command, u32 response[],
 	int ret;
 
 	if (!priv)
-		return sprintf(buf, "ERROR: driver private data not set\n");
+		return sprintf(buf, "ERROR: driver private data yest set\n");
 
 	ret = __send_command(priv, command, response);
 	if (ret < 0)

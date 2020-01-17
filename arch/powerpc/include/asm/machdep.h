@@ -10,14 +10,14 @@
 
 #include <asm/setup.h>
 
-/* We export this macro for external modules like Alsa to know if
- * ppc_md.feature_call is implemented or not
+/* We export this macro for external modules like Alsa to kyesw if
+ * ppc_md.feature_call is implemented or yest
  */
 #define CONFIG_PPC_HAS_FEATURE_CALLS
 
 struct pt_regs;
 struct pci_bus;	
-struct device_node;
+struct device_yesde;
 struct iommu_table;
 struct rtc_time;
 struct file;
@@ -49,7 +49,7 @@ struct machdep_calls {
 
 	void		(*init_IRQ)(void);
 
-	/* Return an irq, or 0 to indicate there are none pending. */
+	/* Return an irq, or 0 to indicate there are yesne pending. */
 	unsigned int	(*get_irq)(void);
 
 	/* PCI stuff */
@@ -62,8 +62,8 @@ struct machdep_calls {
 	/* To setup PHBs when using automatic OF platform driver for PCI */
 	int		(*pci_setup_phb)(struct pci_controller *host);
 
-	void __noreturn	(*restart)(char *cmd);
-	void __noreturn (*halt)(void);
+	void __yesreturn	(*restart)(char *cmd);
+	void __yesreturn (*halt)(void);
 	void		(*panic)(char *str);
 	void		(*cpu_die)(void);
 
@@ -134,7 +134,7 @@ struct machdep_calls {
 	int		(*set_dawr)(unsigned long dawr,
 				    unsigned long dawrx);
 
-#ifdef CONFIG_PPC32	/* XXX for now */
+#ifdef CONFIG_PPC32	/* XXX for yesw */
 	/* A general init function, called by ppc_init in init/main.c.
 	   May be NULL. */
 	void		(*init)(void);
@@ -172,12 +172,12 @@ struct machdep_calls {
 
 #ifdef CONFIG_PCI_IOV
 	void (*pcibios_fixup_sriov)(struct pci_dev *pdev);
-	resource_size_t (*pcibios_iov_resource_alignment)(struct pci_dev *, int resno);
+	resource_size_t (*pcibios_iov_resource_alignment)(struct pci_dev *, int resyes);
 	int (*pcibios_sriov_enable)(struct pci_dev *pdev, u16 num_vfs);
 	int (*pcibios_sriov_disable)(struct pci_dev *pdev);
 #endif /* CONFIG_PCI_IOV */
 
-	/* Called to shutdown machine specific hardware not already controlled
+	/* Called to shutdown machine specific hardware yest already controlled
 	 * by other drivers.
 	 */
 	void (*machine_shutdown)(void);
@@ -194,7 +194,7 @@ struct machdep_calls {
 
 	/* Called to perform the _real_ kexec.
 	 * Do NOT allocate memory or fail here. We are past the point of
-	 * no return.
+	 * yes return.
 	 */
 	void (*machine_kexec)(struct kimage *image);
 #endif /* CONFIG_KEXEC_CORE */

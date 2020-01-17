@@ -11,8 +11,8 @@ struct rds_tcp_incoming {
 
 struct rds_tcp_connection {
 
-	struct list_head	t_tcp_node;
-	bool			t_tcp_node_detached;
+	struct list_head	t_tcp_yesde;
+	bool			t_tcp_yesde_detached;
 	struct rds_conn_path	*t_cpath;
 	/* t_conn_path_lock synchronizes the connection establishment between
 	 * rds_tcp_accept_one and rds_tcp_conn_path_connect
@@ -50,7 +50,7 @@ struct rds_tcp_statistics {
 
 /* tcp.c */
 void rds_tcp_tune(struct socket *sock);
-void rds_tcp_nonagle(struct socket *sock);
+void rds_tcp_yesnagle(struct socket *sock);
 void rds_tcp_set_callbacks(struct socket *sock, struct rds_conn_path *cp);
 void rds_tcp_reset_callbacks(struct socket *sock, struct rds_conn_path *cp);
 void rds_tcp_restore_callbacks(struct socket *sock,

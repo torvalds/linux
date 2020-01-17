@@ -97,7 +97,7 @@ struct cca_pvt_ext_CRT_sec {
  * @mex: pointer to user input data
  * @p: pointer to memory area for the key
  *
- * Returns the size of the key area or negative errno value.
+ * Returns the size of the key area or negative erryes value.
  */
 static inline int zcrypt_type6_mex_key_en(struct ica_rsa_modexpo *mex, void *p)
 {

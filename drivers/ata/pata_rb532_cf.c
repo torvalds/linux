@@ -7,12 +7,12 @@
  *  Copyright (C) 2008 Florian Fainelli <florian@openwrt.org>
  *
  *  This file was based on: drivers/ata/pata_ixp4xx_cf.c
- *	Copyright (C) 2006-07 Tower Technologies
+ *	Copyright (C) 2006-07 Tower Techyeslogies
  *	Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  *  Also was based on the driver for Linux 2.4.xx published by Mikrotik for
  *  their RouterBoard 1xx and 5xx series devices. The original Mikrotik code
- *  seems not to have a license.
+ *  seems yest to have a license.
  */
 
 #include <linux/gfp.h>
@@ -110,19 +110,19 @@ static int rb532_pata_driver_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "no IOMEM resource found\n");
+		dev_err(&pdev->dev, "yes IOMEM resource found\n");
 		return -EINVAL;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
-		dev_err(&pdev->dev, "no IRQ resource found\n");
+		dev_err(&pdev->dev, "yes IRQ resource found\n");
 		return -ENOENT;
 	}
 
 	gpiod = devm_gpiod_get(&pdev->dev, NULL, GPIOD_IN);
 	if (IS_ERR(gpiod)) {
-		dev_err(&pdev->dev, "no GPIO found for irq%d\n", irq);
+		dev_err(&pdev->dev, "yes GPIO found for irq%d\n", irq);
 		return PTR_ERR(gpiod);
 	}
 	gpiod_set_consumer_name(gpiod, DRV_NAME);
@@ -140,7 +140,7 @@ static int rb532_pata_driver_probe(struct platform_device *pdev)
 	info->gpio_line = gpiod;
 	info->irq = irq;
 
-	info->iobase = devm_ioremap_nocache(&pdev->dev, res->start,
+	info->iobase = devm_ioremap_yescache(&pdev->dev, res->start,
 				resource_size(res));
 	if (!info->iobase)
 		return -ENOMEM;

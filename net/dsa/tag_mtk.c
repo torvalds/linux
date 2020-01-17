@@ -40,7 +40,7 @@ static struct sk_buff *mtk_tag_xmit(struct sk_buff *skb,
 
 	mtk_tag = skb->data + 2 * ETH_ALEN;
 
-	/* Mark tag attribute on special tag insertion to notify hardware
+	/* Mark tag attribute on special tag insertion to yestify hardware
 	 * whether that's a combined special tag with 802.1Q header.
 	 */
 	mtk_tag[0] = is_vlan_skb ? MTK_HDR_XMIT_TAGGED_TPID_8100 :

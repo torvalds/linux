@@ -185,7 +185,7 @@ static ssize_t vbus_show(struct device *dev,
 	       ret = snprintf(buf, PAGE_SIZE, "id\n");
 	       break;
 	case MUSB_VBUS_OFF:
-	       ret = snprintf(buf, PAGE_SIZE, "none\n");
+	       ret = snprintf(buf, PAGE_SIZE, "yesne\n");
 	       break;
 	default:
 	       ret = snprintf(buf, PAGE_SIZE, "UNKNOWN\n");
@@ -239,7 +239,7 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 			}
 		}
 	}
-	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
+	sysfs_yestify(&twl->dev->kobj, NULL, "vbus");
 
 	return IRQ_HANDLED;
 }
@@ -331,11 +331,11 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	u32 ret;
 	struct twl6030_usb	*twl;
 	int			status, err;
-	struct device_node	*np = pdev->dev.of_node;
+	struct device_yesde	*np = pdev->dev.of_yesde;
 	struct device		*dev = &pdev->dev;
 
 	if (!np) {
-		dev_err(dev, "no DT info\n");
+		dev_err(dev, "yes DT info\n");
 		return -EINVAL;
 	}
 
@@ -353,7 +353,7 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 
 	ret = omap_usb2_set_comparator(&twl->comparator);
 	if (ret == -ENODEV) {
-		dev_info(&pdev->dev, "phy not ready, deferring probe");
+		dev_info(&pdev->dev, "phy yest ready, deferring probe");
 		return -EPROBE_DEFER;
 	}
 

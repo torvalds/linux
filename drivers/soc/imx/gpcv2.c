@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2017 Impinj, Inc
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiryesv <andrew.smiryesv@gmail.com>
  *
  * Based on the code of analogus driver:
  *
@@ -256,7 +256,7 @@ static const struct imx_pgc_domain imx7_pgc_domains[] = {
 	},
 };
 
-static const struct regmap_range imx7_yes_ranges[] = {
+static const struct regmap_range imx7_no_ranges[] = {
 		regmap_reg_range(GPC_LPCR_A_CORE_BSC,
 				 GPC_M4_PU_PDN_FLG),
 		regmap_reg_range(GPC_PGC_CTRL(IMX7_PGC_MIPI),
@@ -268,8 +268,8 @@ static const struct regmap_range imx7_yes_ranges[] = {
 };
 
 static const struct regmap_access_table imx7_access_table = {
-	.yes_ranges	= imx7_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(imx7_yes_ranges),
+	.no_ranges	= imx7_no_ranges,
+	.n_no_ranges	= ARRAY_SIZE(imx7_no_ranges),
 };
 
 static const struct imx_pgc_domain_data imx7_pgc_domain_data = {
@@ -404,7 +404,7 @@ static const struct imx_pgc_domain imx8m_pgc_domains[] = {
 	},
 };
 
-static const struct regmap_range imx8m_yes_ranges[] = {
+static const struct regmap_range imx8m_no_ranges[] = {
 		regmap_reg_range(GPC_LPCR_A_CORE_BSC,
 				 GPC_PU_PWRHSK),
 		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_MIPI),
@@ -432,8 +432,8 @@ static const struct regmap_range imx8m_yes_ranges[] = {
 };
 
 static const struct regmap_access_table imx8m_access_table = {
-	.yes_ranges	= imx8m_yes_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(imx8m_yes_ranges),
+	.no_ranges	= imx8m_no_ranges,
+	.n_no_ranges	= ARRAY_SIZE(imx8m_no_ranges),
 };
 
 static const struct imx_pgc_domain_data imx8m_pgc_domain_data = {
@@ -447,7 +447,7 @@ static int imx_pgc_get_clocks(struct imx_pgc_domain *domain)
 	int i, ret;
 
 	for (i = 0; ; i++) {
-		struct clk *clk = of_clk_get(domain->dev->of_node, i);
+		struct clk *clk = of_clk_get(domain->dev->of_yesde, i);
 		if (IS_ERR(clk))
 			break;
 		if (i >= GPC_CLK_MAX) {
@@ -510,7 +510,7 @@ static int imx_pgc_domain_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_genpd_add_provider_simple(domain->dev->of_node,
+	ret = of_genpd_add_provider_simple(domain->dev->of_yesde,
 					   &domain->genpd);
 	if (ret) {
 		dev_err(domain->dev, "Failed to add genpd provider\n");
@@ -525,7 +525,7 @@ static int imx_pgc_domain_remove(struct platform_device *pdev)
 {
 	struct imx_pgc_domain *domain = pdev->dev.platform_data;
 
-	of_genpd_del_provider(domain->dev->of_node);
+	of_genpd_del_provider(domain->dev->of_yesde);
 	pm_genpd_remove(&domain->genpd);
 	imx_pgc_put_clocks(domain);
 
@@ -561,12 +561,12 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		.max_register   = SZ_4K,
 	};
 	struct device *dev = &pdev->dev;
-	struct device_node *pgc_np, *np;
+	struct device_yesde *pgc_np, *np;
 	struct regmap *regmap;
 	void __iomem *base;
 	int ret;
 
-	pgc_np = of_get_child_by_name(dev->of_node, "pgc");
+	pgc_np = of_get_child_by_name(dev->of_yesde, "pgc");
 	if (!pgc_np) {
 		dev_err(dev, "No power domains specified in DT\n");
 		return -EINVAL;
@@ -583,7 +583,7 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	for_each_child_of_node(pgc_np, np) {
+	for_each_child_of_yesde(pgc_np, np) {
 		struct platform_device *pd_pdev;
 		struct imx_pgc_domain *domain;
 		u32 domain_index;
@@ -591,7 +591,7 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		ret = of_property_read_u32(np, "reg", &domain_index);
 		if (ret) {
 			dev_err(dev, "Failed to read 'reg' property\n");
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 
@@ -606,7 +606,7 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 						domain_index);
 		if (!pd_pdev) {
 			dev_err(dev, "Failed to allocate platform device\n");
-			of_node_put(np);
+			of_yesde_put(np);
 			return -ENOMEM;
 		}
 
@@ -615,7 +615,7 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 					       sizeof(domain_data->domains[domain_index]));
 		if (ret) {
 			platform_device_put(pd_pdev);
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 
@@ -625,12 +625,12 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		domain->genpd.power_off = imx_gpc_pu_pgc_sw_pdn_req;
 
 		pd_pdev->dev.parent = dev;
-		pd_pdev->dev.of_node = np;
+		pd_pdev->dev.of_yesde = np;
 
 		ret = platform_device_add(pd_pdev);
 		if (ret) {
 			platform_device_put(pd_pdev);
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 	}

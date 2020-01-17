@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2012,2013 Infineon Technologies
+ * Copyright (C) 2012,2013 Infineon Techyeslogies
  *
  * Authors:
  * Peter Huewe <peter.huewe@infineon.com>
@@ -83,9 +83,9 @@ static struct tpm_inf_dev tpm_dev;
  * values have to be swapped.
  *
  * NOTE: We can't unfortunately use the combined read/write functions
- * provided by the i2c core as the TPM currently does not support the
+ * provided by the i2c core as the TPM currently does yest support the
  * repeated start condition and due to it's special requirements.
- * The i2c_smbus* functions do not work for this chip.
+ * The i2c_smbus* functions do yest work for this chip.
  *
  * Return -EIO on error, 0 on success.
  */
@@ -116,9 +116,9 @@ static int iic_tpm_read(u8 addr, u8 *buffer, size_t len)
 
 	if (tpm_dev.chip_type == SLB9645) {
 		/* use a combined read for newer chips
-		 * unfortunately the smbus functions are not suitable due to
+		 * unfortunately the smbus functions are yest suitable due to
 		 * the 32 byte limit of the smbus.
-		 * retries should usually not be needed, but are kept just to
+		 * retries should usually yest be needed, but are kept just to
 		 * be on the safe side.
 		 */
 		for (count = 0; count < MAX_COUNT; count++) {
@@ -163,7 +163,7 @@ static int iic_tpm_read(u8 addr, u8 *buffer, size_t len)
 						    &msg2, 1);
 				if (rc > 0) {
 					/* Since len is unsigned, make doubly
-					 * sure we do not underflow it.
+					 * sure we do yest underflow it.
 					 */
 					if (msglen > len)
 						len = 0;
@@ -227,8 +227,8 @@ static int iic_tpm_write_generic(u8 addr, u8 *buffer, size_t len,
 
 	/*
 	 * NOTE: We have to use these special mechanisms here and unfortunately
-	 * cannot rely on the standard behavior of i2c_transfer.
-	 * Even for newer chips the smbus functions are not
+	 * canyest rely on the standard behavior of i2c_transfer.
+	 * Even for newer chips the smbus functions are yest
 	 * suitable due to the 32 byte limit of the smbus.
 	 */
 	for (count = 0; count < max_count; count++) {
@@ -373,7 +373,7 @@ static u8 tpm_tis_i2c_status(struct tpm_chip *chip)
 			return 0;
 
 		i++;
-	/* if locallity is set STS should not be 0xFF */
+	/* if locallity is set STS should yest be 0xFF */
 	} while ((buf == 0xFF) && i < 10);
 
 	return buf;
@@ -626,14 +626,14 @@ static int tpm_tis_i2c_init(struct device *dev)
 	chip->timeout_d = msecs_to_jiffies(TIS_SHORT_TIMEOUT);
 
 	if (request_locality(chip, 0) != 0) {
-		dev_err(dev, "could not request locality\n");
+		dev_err(dev, "could yest request locality\n");
 		rc = -ENODEV;
 		goto out_err;
 	}
 
 	/* read four bytes from DID_VID register */
 	if (iic_tpm_read(TPM_DID_VID(0), (u8 *)&vendor, 4) < 0) {
-		dev_err(dev, "could not read vendor id\n");
+		dev_err(dev, "could yest read vendor id\n");
 		rc = -EIO;
 		goto out_release;
 	}
@@ -643,7 +643,7 @@ static int tpm_tis_i2c_init(struct device *dev)
 	} else if (vendor == TPM_TIS_I2C_DID_VID_9635) {
 		tpm_dev.chip_type = SLB9635;
 	} else {
-		dev_err(dev, "vendor id did not match! ID was %08x\n", vendor);
+		dev_err(dev, "vendor id did yest match! ID was %08x\n", vendor);
 		rc = -ENODEV;
 		goto out_release;
 	}
@@ -693,7 +693,7 @@ static int tpm_tis_i2c_probe(struct i2c_client *client,
 	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(dev, "no algorithms associated to the i2c bus\n");
+		dev_err(dev, "yes algorithms associated to the i2c bus\n");
 		return -ENODEV;
 	}
 

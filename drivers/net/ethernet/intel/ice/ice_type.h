@@ -70,7 +70,7 @@ enum ice_aq_res_access_type {
 
 struct ice_driver_ver {
 	u8 major_ver;
-	u8 minor_ver;
+	u8 miyesr_ver;
 	u8 build_ver;
 	u8 subbuild_ver;
 	u8 driver_string[32];
@@ -128,7 +128,7 @@ struct ice_link_status {
 	u16 max_frame_size;
 	u16 link_speed;
 	u16 req_speeds;
-	u8 lse_ena;	/* Link Status Event notification */
+	u8 lse_ena;	/* Link Status Event yestification */
 	u8 link_info;
 	u8 an_info;
 	u8 ext_info;
@@ -213,7 +213,7 @@ struct ice_mac_info {
 
 /* Reset types used to determine which kind of reset was requested. These
  * defines match what the RESET_TYPE field of the GLGEN_RSTAT register.
- * ICE_RESET_PFR does not match any RESET_TYPE field in the GLGEN_RSTAT register
+ * ICE_RESET_PFR does yest match any RESET_TYPE field in the GLGEN_RSTAT register
  * because its reset source is different than the other types listed.
  */
 enum ice_reset_req {
@@ -243,7 +243,7 @@ struct ice_nvm_info {
 	u32 oem_ver;              /* OEM version info */
 	u16 sr_words;             /* Shadow RAM size in words */
 	u16 ver;                  /* NVM package version */
-	u8 blank_nvm_mode;        /* is NVM empty (no FW present) */
+	u8 blank_nvm_mode;        /* is NVM empty (yes FW present) */
 };
 
 #define ICE_NVM_VER_LEN	32
@@ -257,10 +257,10 @@ struct ice_nvm_info {
 
 #define ICE_INVAL_TEID 0xFFFFFFFF
 
-struct ice_sched_node {
-	struct ice_sched_node *parent;
-	struct ice_sched_node *sibling; /* next sibling in the same layer */
-	struct ice_sched_node **children;
+struct ice_sched_yesde {
+	struct ice_sched_yesde *parent;
+	struct ice_sched_yesde *sibling; /* next sibling in the same layer */
+	struct ice_sched_yesde **children;
 	struct ice_aqc_txsched_elem_data info;
 	u32 agg_id;			/* aggregator group ID */
 	u16 vsi_handle;
@@ -273,7 +273,7 @@ struct ice_sched_node {
 };
 
 /* Access Macros for Tx Sched Elements data */
-#define ICE_TXSCHED_GET_NODE_TEID(x) le32_to_cpu((x)->info.node_teid)
+#define ICE_TXSCHED_GET_NODE_TEID(x) le32_to_cpu((x)->info.yesde_teid)
 
 /* The aggregator type determines if identifier is for a VSI group,
  * aggregator group, aggregator of queues, or queue group.
@@ -335,10 +335,10 @@ struct ice_q_ctx {
 	struct ice_bw_type_info bw_t_info;
 };
 
-/* VSI type list entry to locate corresponding VSI/aggregator nodes */
+/* VSI type list entry to locate corresponding VSI/aggregator yesdes */
 struct ice_sched_vsi_info {
-	struct ice_sched_node *vsi_node[ICE_MAX_TRAFFIC_CLASS];
-	struct ice_sched_node *ag_node[ICE_MAX_TRAFFIC_CLASS];
+	struct ice_sched_yesde *vsi_yesde[ICE_MAX_TRAFFIC_CLASS];
+	struct ice_sched_yesde *ag_yesde[ICE_MAX_TRAFFIC_CLASS];
 	struct list_head list_entry;
 	u16 max_lanq[ICE_MAX_TRAFFIC_CLASS];
 };
@@ -404,9 +404,9 @@ struct ice_dcbx_cfg {
 };
 
 struct ice_port_info {
-	struct ice_sched_node *root;	/* Root Node per Port */
+	struct ice_sched_yesde *root;	/* Root Node per Port */
 	struct ice_hw *hw;		/* back pointer to HW instance */
-	u32 last_node_teid;		/* scheduler last node info */
+	u32 last_yesde_teid;		/* scheduler last yesde info */
 	u16 sw_id;			/* Initial switch ID belongs to port */
 	u16 pf_vf_num;
 	u8 port_state;
@@ -422,7 +422,7 @@ struct ice_port_info {
 	struct ice_mac_info mac;
 	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
-	struct ice_sched_node *
+	struct ice_sched_yesde *
 		sib_head[ICE_MAX_TRAFFIC_CLASS][ICE_AQC_TOPO_MAX_LEVEL_NUM];
 	/* List contain profile ID(s) and other params per layer */
 	struct list_head rl_prof_list[ICE_AQC_TOPO_MAX_LEVEL_NUM];
@@ -504,11 +504,11 @@ struct ice_hw {
 
 	u8 api_branch;		/* API branch version */
 	u8 api_maj_ver;		/* API major version */
-	u8 api_min_ver;		/* API minor version */
+	u8 api_min_ver;		/* API miyesr version */
 	u8 api_patch;		/* API patch version */
 	u8 fw_branch;		/* firmware branch version */
 	u8 fw_maj_ver;		/* firmware major version */
-	u8 fw_min_ver;		/* firmware minor version */
+	u8 fw_min_ver;		/* firmware miyesr version */
 	u8 fw_patch;		/* firmware patch version */
 	u32 fw_build;		/* firmware build number */
 
@@ -568,7 +568,7 @@ struct ice_eth_stats {
 	u64 rx_multicast;		/* mprc */
 	u64 rx_broadcast;		/* bprc */
 	u64 rx_discards;		/* rdpc */
-	u64 rx_unknown_protocol;	/* rupp */
+	u64 rx_unkyeswn_protocol;	/* rupp */
 	u64 tx_bytes;			/* gotc */
 	u64 tx_unicast;			/* uptc */
 	u64 tx_multicast;		/* mptc */

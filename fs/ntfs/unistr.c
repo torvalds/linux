@@ -43,12 +43,12 @@ static const u8 legal_ansi_char_array[0x40] = {
  * @s1_len:		length in Unicode characters of @s1
  * @s2:			name to compare to @s1
  * @s2_len:		length in Unicode characters of @s2
- * @ic:			ignore case bool
+ * @ic:			igyesre case bool
  * @upcase:		upcase table (only if @ic == IGNORE_CASE)
  * @upcase_size:	length in Unicode characters of @upcase (if present)
  *
  * Compare the names @s1 and @s2 and return 'true' (1) if the names are
- * identical, or 'false' (0) if they are not identical. If @ic is IGNORE_CASE,
+ * identical, or 'false' (0) if they are yest identical. If @ic is IGNORE_CASE,
  * the @upcase table is used to performa a case insensitive comparison.
  */
 bool ntfs_are_names_equal(const ntfschar *s1, size_t s1_len,
@@ -68,8 +68,8 @@ bool ntfs_are_names_equal(const ntfschar *s1, size_t s1_len,
  * @name2:	second Unicode name to compare
  * @err_val:	if @name1 contains an invalid character return this value
  * @ic:		either CASE_SENSITIVE or IGNORE_CASE
- * @upcase:	upcase table (ignored if @ic is CASE_SENSITIVE)
- * @upcase_len:	upcase table size (ignored if @ic is CASE_SENSITIVE)
+ * @upcase:	upcase table (igyesred if @ic is CASE_SENSITIVE)
+ * @upcase_len:	upcase table size (igyesred if @ic is CASE_SENSITIVE)
  *
  * ntfs_collate_names collates two Unicode names and returns:
  *
@@ -126,7 +126,7 @@ int ntfs_collate_names(const ntfschar *name1, const u32 name1_len,
  *
  * Compare the first @n characters of the Unicode strings @s1 and @s2,
  * The strings in little endian format and appropriate le16_to_cpu()
- * conversion is performed on non-little endian machines.
+ * conversion is performed on yesn-little endian machines.
  *
  * The function returns an integer less than, equal to, or greater than zero
  * if @s1 (or the first @n Unicode characters thereof) is found, respectively,
@@ -151,7 +151,7 @@ int ntfs_ucsncmp(const ntfschar *s1, const ntfschar *s2, size_t n)
 }
 
 /**
- * ntfs_ucsncasecmp - compare two little endian Unicode strings, ignoring case
+ * ntfs_ucsncasecmp - compare two little endian Unicode strings, igyesring case
  * @s1:			first string
  * @s2:			second string
  * @n:			maximum unicode characters to compare
@@ -159,8 +159,8 @@ int ntfs_ucsncmp(const ntfschar *s1, const ntfschar *s2, size_t n)
  * @upcase_size:	upcase table size in Unicode characters
  *
  * Compare the first @n characters of the Unicode strings @s1 and @s2,
- * ignoring case. The strings in little endian format and appropriate
- * le16_to_cpu() conversion is performed on non-little endian machines.
+ * igyesring case. The strings in little endian format and appropriate
+ * le16_to_cpu() conversion is performed on yesn-little endian machines.
  *
  * Each character is uppercased using the @upcase table before the comparison.
  *
@@ -233,11 +233,11 @@ int ntfs_file_compare_values(FILE_NAME_ATTR *file_name_attr1,
  * calling kmem_cache_free(ntfs_name_cache, *@outs); when finished with it.
  *
  * On success the function returns the number of Unicode characters written to
- * the output string *@outs (>= 0), not counting the terminating Unicode NULL
+ * the output string *@outs (>= 0), yest counting the terminating Unicode NULL
  * character. *@outs is set to the allocated output string buffer.
  *
  * On error, a negative number corresponding to the error code is returned. In
- * that case the output string is not allocated. Both *@outs and *@outs_len
+ * that case the output string is yest allocated. Both *@outs and *@outs_len
  * are then undefined.
  *
  * This might look a bit odd due to fast path optimization...
@@ -250,7 +250,7 @@ int ntfs_nlstoucs(const ntfs_volume *vol, const char *ins,
 	wchar_t wc;
 	int i, o, wc_len;
 
-	/* We do not trust outside sources. */
+	/* We do yest trust outside sources. */
 	if (likely(ins)) {
 		ucs = kmem_cache_alloc(ntfs_name_cache, GFP_NOFS);
 		if (likely(ucs)) {
@@ -282,7 +282,7 @@ name_err:
 	kmem_cache_free(ntfs_name_cache, ucs);
 	if (wc_len < 0) {
 		ntfs_error(vol->sb, "Name using character set %s contains "
-				"characters that cannot be converted to "
+				"characters that canyest be converted to "
 				"Unicode.", nls->charset);
 		i = -EILSEQ;
 	} else /* if (o >= NTFS_MAX_NAME_LEN) */ {
@@ -307,14 +307,14 @@ name_err:
  *
  * If *@outs is NULL, this function allocates the string and the caller is
  * responsible for calling kfree(*@outs); when finished with it. In this case
- * @outs_len is ignored and can be 0.
+ * @outs_len is igyesred and can be 0.
  *
  * On success the function returns the number of bytes written to the output
- * string *@outs (>= 0), not counting the terminating NULL byte. If the output
+ * string *@outs (>= 0), yest counting the terminating NULL byte. If the output
  * string buffer was allocated, *@outs is set to it.
  *
  * On error, a negative number corresponding to the error code is returned. In
- * that case the output string is not allocated. The contents of *@outs are
+ * that case the output string is yest allocated. The contents of *@outs are
  * then undefined.
  *
  * This might look a bit odd due to fast path optimization...
@@ -370,7 +370,7 @@ retry:			wc = nls->uni2char(le16_to_cpu(ins[i]), ns + o,
 	ntfs_error(vol->sb, "Received NULL pointer.");
 	return -EINVAL;
 conversion_err:
-	ntfs_error(vol->sb, "Unicode name contains characters that cannot be "
+	ntfs_error(vol->sb, "Unicode name contains characters that canyest be "
 			"converted to character set %s.  You might want to "
 			"try to use the mount option nls=utf8.", nls->charset);
 	if (ns != *outs)

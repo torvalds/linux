@@ -92,7 +92,7 @@ pfm_mck_pmc_check(struct task_struct *task, pfm_context_t *ctx, unsigned int cnu
 	/*
 	 * we must clear the debug registers if pmc13 has a value which enable
 	 * memory pipeline event constraints. In this case we need to clear the
-	 * the debug registers if they have not yet been accessed. This is required
+	 * the debug registers if they have yest yet been accessed. This is required
 	 * to avoid picking stale state.
 	 * PMC13 is "active" if:
 	 * 	one of the pmc13.cfg_dbrpXX field is different from 0x3

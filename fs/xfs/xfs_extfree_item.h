@@ -26,7 +26,7 @@ struct kmem_zone;
  * that some extents need to be free.  It is used in conjunction with the
  * "extent free done" log item described below.
  *
- * The EFI is reference counted so that it is not freed prior to both the EFI
+ * The EFI is reference counted so that it is yest freed prior to both the EFI
  * and EFD being committed and unpinned. This ensures the EFI is inserted into
  * the AIL even in the event of out of order EFI/EFD processing. In other words,
  * an EFI is born with two references:
@@ -39,7 +39,7 @@ struct kmem_zone;
  * transfers to the transaction. The reference is dropped once the EFI is
  * inserted to the AIL or in the event of failure along the way (e.g., commit
  * failure, log I/O error, etc.). Note that the caller remains responsible for
- * the EFD reference under all circumstances to this point. The caller has no
+ * the EFD reference under all circumstances to this point. The caller has yes
  * means to detect failure once the transaction is committed, however.
  * Therefore, an EFD is required after this point, even in the event of
  * unrelated failure.
@@ -47,7 +47,7 @@ struct kmem_zone;
  * Once an EFD is allocated and dirtied in a transaction, reference two
  * transfers to the transaction. The EFD reference is dropped once it reaches
  * the unpin handler. Similar to the EFI, the reference also drops in the event
- * of commit failure or log I/O errors. Note that the EFD is not inserted in the
+ * of commit failure or log I/O errors. Note that the EFD is yest inserted in the
  * AIL, so at this point both the EFI and EFD are freed.
  */
 typedef struct xfs_efi_log_item {

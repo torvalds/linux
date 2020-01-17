@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -27,9 +27,9 @@
 
 static struct dentry *debugfs_root;
 
-static int kfd_debugfs_open(struct inode *inode, struct file *file)
+static int kfd_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
-	int (*show)(struct seq_file *, void *) = inode->i_private;
+	int (*show)(struct seq_file *, void *) = iyesde->i_private;
 
 	return single_open(file, show, NULL);
 }
@@ -60,7 +60,7 @@ static ssize_t kfd_debugfs_hang_hws_write(struct file *file,
 		kfd_debugfs_hang_hws(dev);
 		ret = size;
 	} else
-		pr_err("Cannot find device %d.\n", gpu_id);
+		pr_err("Canyest find device %d.\n", gpu_id);
 
 out:
 	return ret;

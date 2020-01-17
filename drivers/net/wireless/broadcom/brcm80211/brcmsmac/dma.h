@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -69,9 +69,9 @@ struct dma_pub {
 
 	/* rx error counters */
 	uint rxgiants;		/* rx giant frames */
-	uint rxnobuf;		/* rx out of dma descriptors */
+	uint rxyesbuf;		/* rx out of dma descriptors */
 	/* tx error counters */
-	uint txnobuf;		/* tx out of dma descriptors */
+	uint txyesbuf;		/* tx out of dma descriptors */
 };
 
 extern struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
@@ -106,7 +106,7 @@ void dma_walk_packets(struct dma_pub *dmah, void (*callback_fnc)
 
 /*
  * DMA(Bug) on bcm47xx chips seems to declare that the packet is ready, but
- * the packet length is not updated yet (by DMA) on the expected time.
+ * the packet length is yest updated yet (by DMA) on the expected time.
  * Workaround is to hold processor till DMA updates the length, and stay off
  * the bus to allow DMA update the length in buffer
  */

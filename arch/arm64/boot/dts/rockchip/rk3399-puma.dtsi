@@ -26,7 +26,7 @@
 	 * regulator (FAN53555) that only allows 10mV steps and therefore
 	 * can't reach the operation point target voltages from rk3399-opp.dtsi
 	 */
-	/delete-node/ opp-table1;
+	/delete-yesde/ opp-table1;
 	cluster1_opp: opp-table1 {
 		compatible = "operating-points-v2";
 		opp-shared;
@@ -410,17 +410,17 @@
 };
 
 /*
- * As Q7 does not specify neither a global nor a RX clock for I2S these
- * signals are not used. Furthermore I2S0_LRCK_RX is used as GPIO.
+ * As Q7 does yest specify neither a global yesr a RX clock for I2S these
+ * signals are yest used. Furthermore I2S0_LRCK_RX is used as GPIO.
  * Therefore we have to redefine the i2s0_2ch_bus definition to prevent
  * conflicts.
  */
 &i2s0_2ch_bus {
 	rockchip,pins =
-		<3 RK_PD0 1 &pcfg_pull_none>,
-		<3 RK_PD2 1 &pcfg_pull_none>,
-		<3 RK_PD3 1 &pcfg_pull_none>,
-		<3 RK_PD7 1 &pcfg_pull_none>;
+		<3 RK_PD0 1 &pcfg_pull_yesne>,
+		<3 RK_PD2 1 &pcfg_pull_yesne>,
+		<3 RK_PD3 1 &pcfg_pull_yesne>,
+		<3 RK_PD7 1 &pcfg_pull_yesne>;
 };
 
 &io_domains {
@@ -452,7 +452,7 @@
 	leds {
 		led_pin_module: led-module-gpio {
 			rockchip,pins =
-			  <2 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <2 RK_PD1 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -466,7 +466,7 @@
 	usb2 {
 		vcc5v0_host_en: vcc5v0-host-en {
 			rockchip,pins =
-			  <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };
@@ -475,7 +475,7 @@
 	bus-width = <8>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 
@@ -486,8 +486,8 @@
 &spi1 {
 	status = "okay";
 
-	norflash: flash@0 {
-		compatible = "jedec,spi-nor";
+	yesrflash: flash@0 {
+		compatible = "jedec,spi-yesr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 	};

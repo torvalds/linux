@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -452,7 +452,7 @@ static int s3c2410fb_set_par(struct fb_info *info)
 }
 
 static void schedule_palette_update(struct s3c2410fb_info *fbi,
-				    unsigned int regno, unsigned int val)
+				    unsigned int regyes, unsigned int val)
 {
 	unsigned long flags;
 	unsigned long irqen;
@@ -460,7 +460,7 @@ static void schedule_palette_update(struct s3c2410fb_info *fbi,
 
 	local_irq_save(flags);
 
-	fbi->palette_buffer[regno] = val;
+	fbi->palette_buffer[regyes] = val;
 
 	if (!fbi->palette_ready) {
 		fbi->palette_ready = 1;
@@ -483,7 +483,7 @@ static inline unsigned int chan_to_field(unsigned int chan,
 	return chan << bf->offset;
 }
 
-static int s3c2410fb_setcolreg(unsigned regno,
+static int s3c2410fb_setcolreg(unsigned regyes,
 			       unsigned red, unsigned green, unsigned blue,
 			       unsigned transp, struct fb_info *info)
 {
@@ -491,40 +491,40 @@ static int s3c2410fb_setcolreg(unsigned regno,
 	void __iomem *regs = fbi->io;
 	unsigned int val;
 
-	/* dprintk("setcol: regno=%d, rgb=%d,%d,%d\n",
-		   regno, red, green, blue); */
+	/* dprintk("setcol: regyes=%d, rgb=%d,%d,%d\n",
+		   regyes, red, green, blue); */
 
 	switch (info->fix.visual) {
 	case FB_VISUAL_TRUECOLOR:
 		/* true-colour, use pseudo-palette */
 
-		if (regno < 16) {
+		if (regyes < 16) {
 			u32 *pal = info->pseudo_palette;
 
 			val  = chan_to_field(red,   &info->var.red);
 			val |= chan_to_field(green, &info->var.green);
 			val |= chan_to_field(blue,  &info->var.blue);
 
-			pal[regno] = val;
+			pal[regyes] = val;
 		}
 		break;
 
 	case FB_VISUAL_PSEUDOCOLOR:
-		if (regno < 256) {
+		if (regyes < 256) {
 			/* currently assume RGB 5-6-5 mode */
 
 			val  = (red   >>  0) & 0xf800;
 			val |= (green >>  5) & 0x07e0;
 			val |= (blue  >> 11) & 0x001f;
 
-			writel(val, regs + S3C2410_TFTPAL(regno));
-			schedule_palette_update(fbi, regno, val);
+			writel(val, regs + S3C2410_TFTPAL(regyes));
+			schedule_palette_update(fbi, regyes, val);
 		}
 
 		break;
 
 	default:
-		return 1;	/* unknown type */
+		return 1;	/* unkyeswn type */
 	}
 
 	return 0;
@@ -561,7 +561,7 @@ static void s3c2410fb_lcd_enable(struct s3c2410fb_info *fbi, int enable)
  *	video mode which doesn't support it. Implements VESA suspend
  *	and powerdown modes on hardware that supports disabling hsync/vsync:
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erryes on error, or zero on success.
  *
  */
 static int s3c2410fb_blank(int blank_mode, struct fb_info *info)
@@ -632,7 +632,7 @@ static struct fb_ops s3c2410fb_ops = {
 /*
  * s3c2410fb_map_video_memory():
  *	Allocates the DRAM memory for the frame buffer.  This buffer is
- *	remapped into a non-cached, non-buffered, memory region to
+ *	remapped into a yesn-cached, yesn-buffered, memory region to
  *	allow palette and pixel writes to occur without flushing the
  *	cache.  Once this area is remapped, all virtual memory
  *	access to the video memory should occur at the new region.
@@ -738,7 +738,7 @@ static void s3c2410fb_write_palette(struct s3c2410fb_info *fbi)
 
 		writel(ent, regs + S3C2410_TFTPAL(i));
 
-		/* it seems the only way to know exactly
+		/* it seems the only way to kyesw exactly
 		 * if the palette wrote ok, is to check
 		 * to see if the value verifies ok
 		 */
@@ -769,7 +769,7 @@ static irqreturn_t s3c2410fb_irq(int irq, void *dev_id)
 
 #ifdef CONFIG_ARM_S3C24XX_CPUFREQ
 
-static int s3c2410fb_cpufreq_transition(struct notifier_block *nb,
+static int s3c2410fb_cpufreq_transition(struct yestifier_block *nb,
 					unsigned long val, void *data)
 {
 	struct s3c2410fb_info *info;
@@ -793,15 +793,15 @@ static int s3c2410fb_cpufreq_transition(struct notifier_block *nb,
 
 static inline int s3c2410fb_cpufreq_register(struct s3c2410fb_info *info)
 {
-	info->freq_transition.notifier_call = s3c2410fb_cpufreq_transition;
+	info->freq_transition.yestifier_call = s3c2410fb_cpufreq_transition;
 
-	return cpufreq_register_notifier(&info->freq_transition,
+	return cpufreq_register_yestifier(&info->freq_transition,
 					 CPUFREQ_TRANSITION_NOTIFIER);
 }
 
 static inline void s3c2410fb_cpufreq_deregister(struct s3c2410fb_info *info)
 {
-	cpufreq_unregister_notifier(&info->freq_transition,
+	cpufreq_unregister_yestifier(&info->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
 }
 
@@ -836,7 +836,7 @@ static int s3c24xxfb_probe(struct platform_device *pdev,
 	mach_info = dev_get_platdata(&pdev->dev);
 	if (mach_info == NULL) {
 		dev_err(&pdev->dev,
-			"no platform data for lcd, cannot attach\n");
+			"yes platform data for lcd, canyest attach\n");
 		return -EINVAL;
 	}
 
@@ -850,7 +850,7 @@ static int s3c24xxfb_probe(struct platform_device *pdev,
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "no irq for device\n");
+		dev_err(&pdev->dev, "yes irq for device\n");
 		return -ENOENT;
 	}
 
@@ -906,7 +906,7 @@ static int s3c24xxfb_probe(struct platform_device *pdev,
 	fbinfo->fix.ywrapstep	    = 0;
 	fbinfo->fix.accel	    = FB_ACCEL_NONE;
 
-	fbinfo->var.nonstd	    = 0;
+	fbinfo->var.yesnstd	    = 0;
 	fbinfo->var.activate	    = FB_ACTIVATE_NOW;
 	fbinfo->var.accel_flags     = 0;
 	fbinfo->var.vmode	    = FB_VMODE_NONINTERLACED;
@@ -920,7 +920,7 @@ static int s3c24xxfb_probe(struct platform_device *pdev,
 
 	ret = request_irq(irq, s3c2410fb_irq, 0, pdev->name, info);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot get irq %d - err %d\n", irq, ret);
+		dev_err(&pdev->dev, "canyest get irq %d - err %d\n", irq, ret);
 		ret = -EBUSY;
 		goto release_regs;
 	}
@@ -987,7 +987,7 @@ static int s3c24xxfb_probe(struct platform_device *pdev,
 		dev_err(&pdev->dev, "failed to add debug attribute\n");
 
 	dev_info(&pdev->dev, "fb%d: %s frame buffer device\n",
-		fbinfo->node, fbinfo->fix.id);
+		fbinfo->yesde, fbinfo->fix.id);
 
 	return 0;
 
@@ -1066,7 +1066,7 @@ static int s3c2410fb_suspend(struct platform_device *dev, pm_message_t state)
 	s3c2410fb_lcd_enable(info, 0);
 
 	/* sleep before disabling the clock, we need to ensure
-	 * the LCD DMA engine is not going to get back on the bus
+	 * the LCD DMA engine is yest going to get back on the bus
 	 * before the clock goes off again (bjd) */
 
 	usleep_range(1000, 1100);

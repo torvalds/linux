@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __nosy_dump_h__
-#define __nosy_dump_h__
+#ifndef __yessy_dump_h__
+#define __yessy_dump_h__
 
 #define array_length(array) (sizeof(array) / sizeof(array[0]))
 
@@ -163,7 +163,7 @@ struct subaction {
 };
 
 struct link_transaction {
-	int request_node, response_node, tlabel;
+	int request_yesde, response_yesde, tlabel;
 	struct subaction *request, *response;
 	struct list request_list, response_list;
 	struct list link;
@@ -171,4 +171,4 @@ struct link_transaction {
 
 int decode_fcp(struct link_transaction *t);
 
-#endif /* __nosy_dump_h__ */
+#endif /* __yessy_dump_h__ */

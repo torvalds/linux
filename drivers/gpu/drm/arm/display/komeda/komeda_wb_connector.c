@@ -47,7 +47,7 @@ komeda_wb_encoder_atomic_check(struct drm_encoder *encoder,
 		return 0;
 
 	if (!crtc_st->active) {
-		DRM_DEBUG_ATOMIC("Cannot write the composition result out on a inactive CRTC.\n");
+		DRM_DEBUG_ATOMIC("Canyest write the composition result out on a inactive CRTC.\n");
 		return -EINVAL;
 	}
 

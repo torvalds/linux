@@ -276,7 +276,7 @@ static int guest_reset(struct cxl *adapter)
 	for (i = 0; i < adapter->slices; i++) {
 		if (!rc && (afu = adapter->afu[i])) {
 			pci_error_handlers(afu, CXL_SLOT_RESET_EVENT,
-					pci_channel_io_normal);
+					pci_channel_io_yesrmal);
 			pci_error_handlers(afu, CXL_RESUME_EVENT, 0);
 		}
 	}
@@ -496,19 +496,19 @@ static int guest_afu_cr_read64(struct cxl_afu *afu, int cr_idx, u64 offset,
 
 static int guest_afu_cr_write32(struct cxl_afu *afu, int cr, u64 off, u32 in)
 {
-	/* config record is not writable from guest */
+	/* config record is yest writable from guest */
 	return -EPERM;
 }
 
 static int guest_afu_cr_write16(struct cxl_afu *afu, int cr, u64 off, u16 in)
 {
-	/* config record is not writable from guest */
+	/* config record is yest writable from guest */
 	return -EPERM;
 }
 
 static int guest_afu_cr_write8(struct cxl_afu *afu, int cr, u64 off, u8 in)
 {
-	/* config record is not writable from guest */
+	/* config record is yest writable from guest */
 	return -EPERM;
 }
 
@@ -522,7 +522,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 	u64 mmio_addr, mmio_size;
 	__be64 flags = 0;
 
-	/* Must be 8 byte aligned and cannot cross a 4096 byte boundary */
+	/* Must be 8 byte aligned and canyest cross a 4096 byte boundary */
 	if (!(elem = (struct cxl_process_element_hcall *)
 			get_zeroed_page(GFP_KERNEL)))
 		return -ENOMEM;
@@ -559,7 +559,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 
 	/*
 	 * Ensure we have at least one interrupt allocated to take faults for
-	 * kernel contexts that may not have allocated any AFU IRQs at all:
+	 * kernel contexts that may yest have allocated any AFU IRQs at all:
 	 */
 	if (ctx->irqs.range[0] == 0) {
 		rc = afu_register_irqs(ctx, 0);
@@ -595,7 +595,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 		if (ctx->afu->pp_psa && mmio_size &&
 			ctx->afu->pp_size == 0) {
 			/*
-			 * There's no property in the device tree to read the
+			 * There's yes property in the device tree to read the
 			 * pp_size. We only find out at the 1st attach.
 			 * Compared to bare-metal, it is too late and we
 			 * should really lock here. However, on powerVM,
@@ -606,7 +606,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 		}
 		/* from PAPR: process element is bytes 4-7 of process token */
 		ctx->external_pe = ctx->process_token & 0xFFFFFFFF;
-		pr_devel("CXL pe=%i is known as %i for pHyp, mmio_size=%#llx",
+		pr_devel("CXL pe=%i is kyeswn as %i for pHyp, mmio_size=%#llx",
 			ctx->pe, ctx->external_pe, ctx->psn_size);
 		ctx->pe_inserted = true;
 		enable_afu_irqs(ctx);
@@ -625,7 +625,7 @@ static int guest_attach_process(struct cxl_context *ctx, bool kernel, u64 wed, u
 	if (ctx->afu->current_mode == CXL_MODE_DIRECTED)
 		return attach_afu_directed(ctx, wed, amr);
 
-	/* dedicated mode not supported on FW840 */
+	/* dedicated mode yest supported on FW840 */
 
 	return -EINVAL;
 }
@@ -764,7 +764,7 @@ static int guest_afu_activate_mode(struct cxl_afu *afu, int mode)
 		return activate_afu_directed(afu);
 
 	if (mode == CXL_MODE_DEDICATED)
-		dev_err(&afu->dev, "Dedicated mode not supported\n");
+		dev_err(&afu->dev, "Dedicated mode yest supported\n");
 
 	return -EINVAL;
 }
@@ -847,7 +847,7 @@ static int afu_update_state(struct cxl_afu *afu)
 		rc = afu_read_error_state(afu, &cur_state);
 		if (!rc && cur_state == H_STATE_NORMAL) {
 			pci_error_handlers(afu, CXL_SLOT_RESET_EVENT,
-					pci_channel_io_normal);
+					pci_channel_io_yesrmal);
 			pci_error_handlers(afu, CXL_RESUME_EVENT, 0);
 		}
 		afu->guest->previous_state = 0;
@@ -914,7 +914,7 @@ static int afu_properties_look_ok(struct cxl_afu *afu)
 	return 0;
 }
 
-int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_np)
+int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_yesde *afu_np)
 {
 	struct cxl_afu *afu;
 	bool free = true;
@@ -955,7 +955,7 @@ int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_n
 		goto err2;
 
 	/*
-	 * After we call this function we must not free the afu directly, even
+	 * After we call this function we must yest free the afu directly, even
 	 * if it returns an error!
 	 */
 	if ((rc = cxl_register_afu(afu)))
@@ -967,7 +967,7 @@ int cxl_guest_init_afu(struct cxl *adapter, int slice, struct device_node *afu_n
 	/*
 	 * pHyp doesn't expose the programming models supported by the
 	 * AFU. pHyp currently only supports directed mode. If it adds
-	 * dedicated mode later, this version of cxl has no way to
+	 * dedicated mode later, this version of cxl has yes way to
 	 * detect it. So we'll initialize the driver, but the first
 	 * attach will fail.
 	 * Being discussed with pHyp to do better (likely new property)
@@ -1061,7 +1061,7 @@ static void free_adapter(struct cxl *adapter)
 static int properties_look_ok(struct cxl *adapter)
 {
 	/* The absence of this property means that the operational
-	 * status is unknown or okay
+	 * status is unkyeswn or okay
 	 */
 	if (strlen(adapter->guest->status) &&
 	    strcmp(adapter->guest->status, "okay")) {
@@ -1092,7 +1092,7 @@ static void release_adapter(struct device *dev)
 	free_adapter(to_cxl_adapter(dev));
 }
 
-struct cxl *cxl_guest_init_adapter(struct device_node *np, struct platform_device *pdev)
+struct cxl *cxl_guest_init_adapter(struct device_yesde *np, struct platform_device *pdev)
 {
 	struct cxl *adapter;
 	bool free = true;
@@ -1131,7 +1131,7 @@ struct cxl *cxl_guest_init_adapter(struct device_node *np, struct platform_devic
 		goto err1;
 
 	/*
-	 * After we call this function we must not free the adapter directly,
+	 * After we call this function we must yest free the adapter directly,
 	 * even if it returns an error!
 	 */
 	if ((rc = cxl_register_adapter(adapter)))

@@ -69,7 +69,7 @@ static struct map_desc anubis_iodesc[] __initdata = {
 
   /* we could possibly compress the next set down into a set of smaller tables
    * pagetables, but that would mean using an L2 section, and it still means
-   * we cannot actually feed the same register to an LDR due to 16K spacing
+   * we canyest actually feed the same register to an LDR due to 16K spacing
    */
 
   /* CPLD control registers */
@@ -165,7 +165,7 @@ static struct mtd_partition __initdata anubis_default_nand_part_large[] = {
 /* the Anubis has 3 selectable slots for nand-flash, the two
  * on-board chip areas, as well as the external slot.
  *
- * Note, there is no current hot-plug support for the External
+ * Note, there is yes current hot-plug support for the External
  * socket.
 */
 
@@ -206,7 +206,7 @@ static void anubis_nand_select(struct s3c2410_nand_set *set, int slot)
 	tmp &= ~ANUBIS_CTRL1_NANDSEL;
 	tmp |= slot;
 
-	pr_debug("anubis_nand: ctrl1 now %02x\n", tmp);
+	pr_debug("anubis_nand: ctrl1 yesw %02x\n", tmp);
 
 	__raw_writeb(tmp, ANUBIS_VA_CTRL1);
 }

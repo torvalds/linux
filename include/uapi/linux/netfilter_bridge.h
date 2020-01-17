@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI__LINUX_BRIDGE_NETFILTER_H
 #define _UAPI__LINUX_BRIDGE_NETFILTER_H
 
@@ -20,7 +20,7 @@
 #define NF_BR_PRE_ROUTING	0
 /* If the packet is destined for this box. */
 #define NF_BR_LOCAL_IN		1
-/* If the packet is destined for another interface. */
+/* If the packet is destined for ayesther interface. */
 #define NF_BR_FORWARD		2
 /* Packets coming from a local process. */
 #define NF_BR_LOCAL_OUT		3

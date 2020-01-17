@@ -46,7 +46,7 @@ void dump_backtrace_entry(unsigned long where,
 
 /*
  * Stack pointers should always be within the kernels view of
- * physical memory.  If it is not there, then we can't dump
+ * physical memory.  If it is yest there, then we can't dump
  * out any information relating to the stack.
  */
 static int verify_stack(unsigned long sp)
@@ -70,7 +70,7 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 
 	/*
 	 * We need to switch to kernel mode so that we can use __get_user
-	 * to safely read from kernel space.  Note that we now dump the
+	 * to safely read from kernel space.  Note that we yesw dump the
 	 * code first, just in case the backtrace kills us.
 	 */
 	fs = get_fs();
@@ -111,7 +111,7 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 
 	/*
 	 * We need to switch to kernel mode so that we can use __get_user
-	 * to safely read from kernel space.  Note that we now dump the
+	 * to safely read from kernel space.  Note that we yesw dump the
 	 * code first, just in case the backtrace kills us.
 	 */
 	fs = get_fs();
@@ -157,7 +157,7 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	}
 
 	if (!fp) {
-		printk("no frame pointer");
+		printk("yes frame pointer");
 		ok = 0;
 	} else if (verify_stack(fp)) {
 		printk("invalid frame pointer 0x%08x", fp);
@@ -187,7 +187,7 @@ static int __die(const char *str, int err, struct thread_info *thread,
 	       str, err, ++die_counter);
 
 	/* trap and error numbers are mostly meaningless on UniCore */
-	ret = notify_die(DIE_OOPS, str, regs, err, tsk->thread.trap_no, \
+	ret = yestify_die(DIE_OOPS, str, regs, err, tsk->thread.trap_yes, \
 			SIGSEGV);
 	if (ret == NOTIFY_STOP)
 		return ret;
@@ -237,13 +237,13 @@ void die(const char *str, struct pt_regs *regs, int err)
 		do_exit(SIGSEGV);
 }
 
-void uc32_notify_die(const char *str, struct pt_regs *regs,
+void uc32_yestify_die(const char *str, struct pt_regs *regs,
 		int sig, int code, void __user *addr,
 		unsigned long err, unsigned long trap)
 {
 	if (user_mode(regs)) {
 		current->thread.error_code = err;
-		current->thread.trap_no = trap;
+		current->thread.trap_yes = trap;
 
 		force_sig_fault(sig, code, addr);
 	} else

@@ -19,27 +19,27 @@ properties:
       secondary FIFO, s/w reset control and internal mux for root clock
       source.
 
-      samsung,exynos5420-i2s: for 8/16/24bit multichannel (5.1) I2S for
+      samsung,exyyess5420-i2s: for 8/16/24bit multichannel (5.1) I2S for
       playback, stereo channel capture, secondary FIFO using internal
       or external DMA, s/w reset control, internal mux for root clock
       source and 7.1 channel TDM support for playback; TDM (Time division
       multiplexing) is to allow transfer of multiple channel audio data on
       single data line.
 
-      samsung,exynos7-i2s: with all the available features of Exynos5 I2S.
-      Exynos7 I2S has 7.1 channel TDM support for capture, secondary FIFO
+      samsung,exyyess7-i2s: with all the available features of Exyyess5 I2S.
+      Exyyess7 I2S has 7.1 channel TDM support for capture, secondary FIFO
       with only external DMA and more number of root clock sampling
       frequencies.
 
-      samsung,exynos7-i2s1: I2S1 on previous samsung platforms supports
-      stereo channels. Exynos7 I2S1 upgraded to 5.1 multichannel with
+      samsung,exyyess7-i2s1: I2S1 on previous samsung platforms supports
+      stereo channels. Exyyess7 I2S1 upgraded to 5.1 multichannel with
       slightly modified bit offsets.
     enum:
       - samsung,s3c6410-i2s
       - samsung,s5pv210-i2s
-      - samsung,exynos5420-i2s
-      - samsung,exynos7-i2s
-      - samsung,exynos7-i2s1
+      - samsung,exyyess5420-i2s
+      - samsung,exyyess7-i2s
+      - samsung,exyyess7-i2s1
 
   reg:
     maxItems: 1
@@ -117,7 +117,7 @@ required:
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos-audss-clk.h>
+    #include <dt-bindings/clock/exyyess-audss-clk.h>
 
     i2s0: i2s@3830000 {
         compatible = "samsung,s5pv210-i2s";

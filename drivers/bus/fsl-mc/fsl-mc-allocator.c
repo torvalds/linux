@@ -73,8 +73,8 @@ static int __must_check fsl_mc_resource_pool_add_device(struct fsl_mc_bus
 	resource->id = mc_dev->obj_desc.id;
 	resource->data = mc_dev;
 	resource->parent_pool = res_pool;
-	INIT_LIST_HEAD(&resource->node);
-	list_add_tail(&resource->node, &res_pool->free_list);
+	INIT_LIST_HEAD(&resource->yesde);
+	list_add_tail(&resource->yesde, &res_pool->free_list);
 	mc_dev->resource = resource;
 	res_pool->free_count++;
 	res_pool->max_count++;
@@ -125,18 +125,18 @@ static int __must_check fsl_mc_resource_pool_remove_device(struct fsl_mc_device
 		goto out_unlock;
 
 	/*
-	 * If the device is currently allocated, its resource is not
-	 * in the free list and thus, the device cannot be removed.
+	 * If the device is currently allocated, its resource is yest
+	 * in the free list and thus, the device canyest be removed.
 	 */
-	if (list_empty(&resource->node)) {
+	if (list_empty(&resource->yesde)) {
 		error = -EBUSY;
 		dev_err(&mc_bus_dev->dev,
-			"Device %s cannot be removed from resource pool\n",
+			"Device %s canyest be removed from resource pool\n",
 			dev_name(&mc_dev->dev));
 		goto out_unlock;
 	}
 
-	list_del_init(&resource->node);
+	list_del_init(&resource->yesde);
 	res_pool->free_count--;
 	res_pool->max_count--;
 
@@ -194,7 +194,7 @@ int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 
 	mutex_lock(&res_pool->mutex);
 	resource = list_first_entry_or_null(&res_pool->free_list,
-					    struct fsl_mc_resource, node);
+					    struct fsl_mc_resource, yesde);
 
 	if (!resource) {
 		error = -ENXIO;
@@ -212,7 +212,7 @@ int __must_check fsl_mc_resource_allocate(struct fsl_mc_bus *mc_bus,
 	    res_pool->free_count > res_pool->max_count)
 		goto out_unlock;
 
-	list_del_init(&resource->node);
+	list_del_init(&resource->yesde);
 
 	res_pool->free_count--;
 	error = 0;
@@ -237,10 +237,10 @@ void fsl_mc_resource_free(struct fsl_mc_resource *resource)
 	    res_pool->free_count >= res_pool->max_count)
 		goto out_unlock;
 
-	if (!list_empty(&resource->node))
+	if (!list_empty(&resource->yesde))
 		goto out_unlock;
 
-	list_add_tail(&resource->node, &res_pool->free_list);
+	list_add_tail(&resource->yesde, &res_pool->free_list);
 	res_pool->free_count++;
 out_unlock:
 	mutex_unlock(&res_pool->mutex);
@@ -382,8 +382,8 @@ int fsl_mc_populate_irq_pool(struct fsl_mc_bus *mc_bus,
 		mc_dev_irq->resource.type = res_pool->type;
 		mc_dev_irq->resource.data = mc_dev_irq;
 		mc_dev_irq->resource.parent_pool = res_pool;
-		INIT_LIST_HEAD(&mc_dev_irq->resource.node);
-		list_add_tail(&mc_dev_irq->resource.node, &res_pool->free_list);
+		INIT_LIST_HEAD(&mc_dev_irq->resource.yesde);
+		list_add_tail(&mc_dev_irq->resource.yesde, &res_pool->free_list);
 	}
 
 	for_each_msi_entry(msi_desc, &mc_bus_dev->dev) {
@@ -558,7 +558,7 @@ static void fsl_mc_cleanup_resource_pool(struct fsl_mc_device *mc_bus_dev,
 					&mc_bus->resource_pools[pool_type];
 	int free_count = 0;
 
-	list_for_each_entry_safe(resource, next, &res_pool->free_list, node) {
+	list_for_each_entry_safe(resource, next, &res_pool->free_list, yesde) {
 		free_count++;
 		devm_kfree(&mc_bus_dev->dev, resource);
 	}

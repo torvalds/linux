@@ -27,7 +27,7 @@ static inline unsigned short from32to16(unsigned a)
  * This isn't as time critical as it used to be because many NICs
  * do hardware checksumming these days.
  * 
- * Things tried and found to not make it faster:
+ * Things tried and found to yest make it faster:
  * Manual Prefetching
  * Unrolling to an 128 bytes inner loop.
  * Using interleaving with more registers to break the carry chains.

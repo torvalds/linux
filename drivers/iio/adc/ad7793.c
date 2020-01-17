@@ -68,7 +68,7 @@
 #define AD7793_MODE_CAL_SYS_ZERO	6 /* System Zero-Scale Calibration */
 #define AD7793_MODE_CAL_SYS_FULL	7 /* System Full-Scale Calibration */
 
-#define AD7793_CLK_INT		0 /* Internal 64 kHz Clock not
+#define AD7793_CLK_INT		0 /* Internal 64 kHz Clock yest
 				   * available at the CLK pin */
 #define AD7793_CLK_INT_CO	1 /* Internal 64 kHz Clock available
 				   * at the CLK pin */
@@ -78,7 +78,7 @@
 /* Configuration Register Bit Designations (AD7793_REG_CONF) */
 #define AD7793_CONF_VBIAS(x)	(((x) & 0x3) << 14) /* Bias Voltage
 						     * Generator Enable */
-#define AD7793_CONF_BO_EN	(1 << 13) /* Burnout Current Enable */
+#define AD7793_CONF_BO_EN	(1 << 13) /* Buryesut Current Enable */
 #define AD7793_CONF_UNIPOLAR	(1 << 12) /* Unipolar/Bipolar Enable */
 #define AD7793_CONF_BOOST	(1 << 11) /* Boost Enable */
 #define AD7793_CONF_GAIN(x)	(((x) & 0x7) << 8) /* Gain Select */
@@ -296,7 +296,7 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 	if (pdata->boost_enable &&
 		(st->chip_info->flags & AD7793_FLAG_HAS_VBIAS))
 		st->conf |= AD7793_CONF_BOOST;
-	if (pdata->burnout_current)
+	if (pdata->buryesut_current)
 		st->conf |= AD7793_CONF_BO_EN;
 	if (pdata->unipolar)
 		st->conf |= AD7793_CONF_UNIPOLAR;
@@ -709,12 +709,12 @@ static int ad7793_probe(struct spi_device *spi)
 	int ret, vref_mv = 0;
 
 	if (!pdata) {
-		dev_err(&spi->dev, "no platform data?\n");
+		dev_err(&spi->dev, "yes platform data?\n");
 		return -ENODEV;
 	}
 
 	if (!spi->irq) {
-		dev_err(&spi->dev, "no IRQ?\n");
+		dev_err(&spi->dev, "yes IRQ?\n");
 		return -ENODEV;
 	}
 
@@ -752,7 +752,7 @@ static int ad7793_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channels;

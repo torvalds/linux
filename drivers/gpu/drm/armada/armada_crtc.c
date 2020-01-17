@@ -25,7 +25,7 @@
 #include "armada_trace.h"
 
 /*
- * A note about interlacing.  Let's consider HDMI 1920x1080i.
+ * A yeste about interlacing.  Let's consider HDMI 1920x1080i.
  * The timing parameters we have from X are:
  *  Hact HsyA HsyI Htot  Vact VsyA VsyI Vtot
  *  1920 2448 2492 2640  1080 1084 1094 1125
@@ -72,7 +72,7 @@
  * So, we need to reprogram these registers on each vsync event:
  *  LCD_SPU_V_PORCH, LCD_SPU_ADV_REG, LCD_SPUT_V_H_TOTAL
  *
- * Note: we do not use the frame done interrupts because these appear
+ * Note: we do yest use the frame done interrupts because these appear
  * to happen too early, and lead to jitter on the display (presumably
  * they occur at the end of the last active line, before the vsync back
  * porch, which we're reprogramming.)
@@ -309,7 +309,7 @@ static irqreturn_t armada_drm_irq(int irq, void *arg)
 
 	/*
 	 * Reading the ISR appears to clear bits provided CLEAN_SPU_IRQ_ISR
-	 * is set.  Writing has some other effect to acknowledge the IRQ -
+	 * is set.  Writing has some other effect to ackyeswledge the IRQ -
 	 * without this, we only get a single IRQ.
 	 */
 	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ISR);
@@ -327,7 +327,7 @@ static irqreturn_t armada_drm_irq(int irq, void *arg)
 }
 
 /* The mode_config.mutex will be held for this call */
-static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void armada_drm_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 	struct drm_display_mode *adj = &crtc->state->adjusted_mode;
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
@@ -390,11 +390,11 @@ static void armada_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	armada_reg_queue_mod(regs, i, val, CFG_VSYNC_INV, LCD_SPU_DMA_CTRL1);
 
 	/*
-	 * The documentation doesn't indicate what the normal state of
+	 * The documentation doesn't indicate what the yesrmal state of
 	 * the sync signals are.  Sebastian Hesselbart kindly probed
 	 * these signals on his board to determine their state.
 	 *
-	 * The non-inverted state of the sync signals is active high.
+	 * The yesn-inverted state of the sync signals is active high.
 	 * Setting these bits makes the appropriate signal active low.
 	 */
 	val = 0;
@@ -489,7 +489,7 @@ static void armada_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 			dcrtc->variant->disable(dcrtc);
 
 		/*
-		 * We will not receive any further vblank events.
+		 * We will yest receive any further vblank events.
 		 * Send the flip_done event manually.
 		 */
 		event = crtc->state->event;
@@ -530,7 +530,7 @@ static void armada_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 static const struct drm_crtc_helper_funcs armada_crtc_helper_funcs = {
 	.mode_valid	= armada_drm_crtc_mode_valid,
 	.mode_fixup	= armada_drm_crtc_mode_fixup,
-	.mode_set_nofb	= armada_drm_crtc_mode_set_nofb,
+	.mode_set_yesfb	= armada_drm_crtc_mode_set_yesfb,
 	.atomic_check	= armada_drm_crtc_atomic_check,
 	.atomic_begin	= armada_drm_crtc_atomic_begin,
 	.atomic_flush	= armada_drm_crtc_atomic_flush,
@@ -695,7 +695,7 @@ static int armada_drm_crtc_cursor_set(struct drm_crtc *crtc,
 	struct armada_gem_object *obj = NULL;
 	int ret;
 
-	/* If no cursor support, replicate drm's return value */
+	/* If yes cursor support, replicate drm's return value */
 	if (!dcrtc->variant->has_spu_adv_reg)
 		return -ENXIO;
 
@@ -743,7 +743,7 @@ static int armada_drm_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 	int ret;
 
-	/* If no cursor support, replicate drm's return value */
+	/* If yes cursor support, replicate drm's return value */
 	if (!dcrtc->variant->has_spu_adv_reg)
 		return -EFAULT;
 
@@ -770,7 +770,7 @@ static void armada_drm_crtc_destroy(struct drm_crtc *crtc)
 
 	writel_relaxed(0, dcrtc->base + LCD_SPU_IRQ_ENA);
 
-	of_node_put(dcrtc->crtc.port);
+	of_yesde_put(dcrtc->crtc.port);
 
 	kfree(dcrtc);
 }
@@ -899,7 +899,7 @@ found:
 
 static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	struct resource *res, int irq, const struct armada_variant *variant,
-	struct device_node *port)
+	struct device_yesde *port)
 {
 	struct armada_private *priv = drm->dev_private;
 	struct armada_crtc *dcrtc;
@@ -1003,12 +1003,12 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int irq = platform_get_irq(pdev, 0);
 	const struct armada_variant *variant;
-	struct device_node *port = NULL;
+	struct device_yesde *port = NULL;
 
 	if (irq < 0)
 		return irq;
 
-	if (!dev->of_node) {
+	if (!dev->of_yesde) {
 		const struct platform_device_id *id;
 
 		id = platform_get_device_id(pdev);
@@ -1018,7 +1018,7 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 		variant = (const struct armada_variant *)id->driver_data;
 	} else {
 		const struct of_device_id *match;
-		struct device_node *np, *parent = dev->of_node;
+		struct device_yesde *np, *parent = dev->of_yesde;
 
 		match = of_match_device(dev->driver->of_match_table, dev);
 		if (!match)
@@ -1028,9 +1028,9 @@ armada_lcd_bind(struct device *dev, struct device *master, void *data)
 		if (np)
 			parent = np;
 		port = of_get_child_by_name(parent, "port");
-		of_node_put(np);
+		of_yesde_put(np);
 		if (!port) {
-			dev_err(dev, "no port node found in %pOF\n", parent);
+			dev_err(dev, "yes port yesde found in %pOF\n", parent);
 			return -ENXIO;
 		}
 

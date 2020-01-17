@@ -19,7 +19,7 @@
 
 /*
  * On Mali450 each block automatically starts up its corresponding L2
- * and the PPs are not fully independent controllable.
+ * and the PPs are yest fully independent controllable.
  * Instead PP0, PP1-3 and PP4-7 can be turned on or off.
  */
 #define   LIMA450_PMU_POWER_PP0_MASK       BIT(1)

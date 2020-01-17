@@ -10,14 +10,14 @@ A specific example using rk3288:
   bit 7 of GRF_IO_VSEL needs to be 0.  If the regulator hooked up to
   that same pin is 1.8V then bit 7 of GRF_IO_VSEL needs to be 1.
 
-Said another way, this driver simply handles keeping bits in the SoC's
+Said ayesther way, this driver simply handles keeping bits in the SoC's
 general register file (GRF) in sync with the actual value of a voltage
 hooked up to the pins.
 
 Note that this driver specifically doesn't include:
 - any logic for deciding what voltage we should set regulators to
 - any logic for deciding whether regulators (or internal SoC blocks)
-  should have power or not have power
+  should have power or yest have power
 
 If there were some other software that had the smarts of making
 decisions about regulators, it would work in conjunction with this
@@ -25,7 +25,7 @@ driver.  When that other software adjusted a regulator's voltage then
 this driver would handle telling the SoC about it.  A good example is
 vqmmc for SD.  In that case the dw_mmc driver simply is told about a
 regulator.  It changes the regulator between 3.3V and 1.8V at the
-right time.  This driver notices the change and makes sure that the
+right time.  This driver yestices the change and makes sure that the
 SoC is on the same page.
 
 
@@ -46,12 +46,12 @@ Required properties:
 
 Deprecated properties:
 - rockchip,grf: phandle to the syscon managing the "general register files"
-    Systems should move the io-domains to a sub-node of the grf simple-mfd.
+    Systems should move the io-domains to a sub-yesde of the grf simple-mfd.
 
 You specify supplies using the standard regulator bindings by including
 a phandle the relevant regulator.  All specified supplies must be able
-to report their voltage.  The IO Voltage Domain for any non-specified
-supplies will be not be touched.
+to report their voltage.  The IO Voltage Domain for any yesn-specified
+supplies will be yest be touched.
 
 Possible supplies for PX30:
 - vccio6-supply: The supply connected to VCCIO6.
@@ -88,12 +88,12 @@ Possible supplies for rk3288:
 - bb-supply:     The supply connected to APIO5_VDD.
 - dvp-supply:    The supply connected to DVPIO_VDD.
 - flash0-supply: The supply connected to FLASH0_VDD.  Typically for eMMC
-- flash1-supply: The supply connected to FLASH1_VDD.  Also known as SDIO1.
+- flash1-supply: The supply connected to FLASH1_VDD.  Also kyeswn as SDIO1.
 - gpio30-supply: The supply connected to APIO1_VDD.
 - gpio1830       The supply connected to APIO2_VDD.
 - lcdc-supply:   The supply connected to LCDC_VDD.
 - sdcard-supply: The supply connected to SDMMC0_VDD.
-- wifi-supply:   The supply connected to APIO3_VDD.  Also known as SDIO0.
+- wifi-supply:   The supply connected to APIO3_VDD.  Also kyeswn as SDIO0.
 
 Possible supplies for rk3368:
 - audio-supply:  The supply connected to APIO3_VDD.
@@ -102,7 +102,7 @@ Possible supplies for rk3368:
 - gpio30-supply: The supply connected to APIO1_VDD.
 - gpio1830       The supply connected to APIO4_VDD.
 - sdcard-supply: The supply connected to SDMMC0_VDD.
-- wifi-supply:   The supply connected to APIO2_VDD.  Also known as SDIO0.
+- wifi-supply:   The supply connected to APIO2_VDD.  Also kyeswn as SDIO0.
 
 Possible supplies for rk3368 pmu-domains:
 - pmu-supply:    The supply connected to PMUIO_VDD.

@@ -57,7 +57,7 @@ struct omap_clk {
  *
  * A "companion" clk is an accompanying clock to the one being queried
  * that must be enabled for the IP module connected to the clock to
- * become accessible by the hardware.  Neither @find_idlest nor
+ * become accessible by the hardware.  Neither @find_idlest yesr
  * @find_companion should be needed; that information is IP
  * block-specific; the hwmod code has been created to handle this, but
  * until hwmod data is ready and drivers have been converted to use PM
@@ -96,7 +96,7 @@ struct clkops {
 
 /**
  * struct clk - OMAP struct clk
- * @node: list_head connecting this clock into the full clock list
+ * @yesde: list_head connecting this clock into the full clock list
  * @ops: struct clkops * for this clock
  * @name: the name of the clock in the hardware (used in hwmod data and debug)
  * @parent: pointer to this clock's parent struct clk
@@ -120,7 +120,7 @@ struct clkops {
  *
  * XXX @usecount is poorly named.  It should be "enable_count" or
  * something similar.  "users" in the description refers to kernel
- * code (core code or drivers) that have called clk_enable() and not
+ * code (core code or drivers) that have called clk_enable() and yest
  * yet called clk_disable(); the usecount of parent clocks is also
  * incremented by the clock code when clk_enable() is called on child
  * clocks and decremented by the clock code when clk_disable() is
@@ -132,16 +132,16 @@ struct clkops {
  * @children and @sibling are used to optimize parent-to-child clock
  * tree traversals.  (child-to-parent traversals use @parent.)
  *
- * XXX The notion of the clock's current rate probably needs to be
+ * XXX The yestion of the clock's current rate probably needs to be
  * separated from the clock's target rate.
  */
 struct clk {
-	struct list_head	node;
+	struct list_head	yesde;
 	const struct clkops	*ops;
 	const char		*name;
 	struct clk		*parent;
 	struct list_head	children;
-	struct list_head	sibling;	/* node for children */
+	struct list_head	sibling;	/* yesde for children */
 	unsigned long		rate;
 	void __iomem		*enable_reg;
 	unsigned long		(*recalc)(struct clk *);
@@ -224,7 +224,7 @@ struct uart_clk {
 /* Provide a method for preventing idling some ARM IDLECT clocks */
 struct arm_idlect1_clk {
 	struct clk	clk;
-	unsigned long	no_idle_count;
+	unsigned long	yes_idle_count;
 	__u8		idlect_shift;
 };
 

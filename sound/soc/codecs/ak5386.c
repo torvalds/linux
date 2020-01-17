@@ -77,7 +77,7 @@ static const struct snd_soc_component_driver soc_component_ak5386 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int ak5386_set_dai_fmt(struct snd_soc_dai *codec_dai,
@@ -106,9 +106,9 @@ static int ak5386_hw_params(struct snd_pcm_substream *substream,
 	 * From the datasheet:
 	 *
 	 * All external clocks (MCLK, SCLK and LRCK) must be present unless
-	 * PDN pin = “L”. If these clocks are not provided, the AK5386 may
+	 * PDN pin = “L”. If these clocks are yest provided, the AK5386 may
 	 * draw excess current due to its use of internal dynamically
-	 * refreshed logic. If the external clocks are not present, place
+	 * refreshed logic. If the external clocks are yest present, place
 	 * the AK5386 in power-down mode (PDN pin = “L”).
 	 */
 
@@ -181,7 +181,7 @@ static int ak5386_probe(struct platform_device *pdev)
 		return ret;
 
 	if (of_match_device(of_match_ptr(ak5386_dt_ids), dev))
-		priv->reset_gpio = of_get_named_gpio(dev->of_node,
+		priv->reset_gpio = of_get_named_gpio(dev->of_yesde,
 						      "reset-gpio", 0);
 
 	if (gpio_is_valid(priv->reset_gpio))

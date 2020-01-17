@@ -5,7 +5,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License and no later version.
+ * Free Software Foundation; version 2 of the License and yes later version.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -14,7 +14,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * The full GNU General Public License is included in this distribution in
@@ -366,7 +366,7 @@ union Vmxnet3_GenericDesc {
 #define VMXNET3_TXD_NEEDED(size) (((size) + VMXNET3_MAX_TX_BUF_SIZE - 1) / \
 				  VMXNET3_MAX_TX_BUF_SIZE)
 
-/* max # of tx descs for a non-tso pkt */
+/* max # of tx descs for a yesn-tso pkt */
 #define VMXNET3_MAX_TXD_PER_PKT 16
 
 /* Max size of a single rx buffer */
@@ -406,10 +406,10 @@ union Vmxnet3_GenericDesc {
 /* a list of reasons for queue stop */
 
 enum {
- VMXNET3_ERR_NOEOP        = 0x80000000,  /* cannot find the EOP desc of a pkt */
+ VMXNET3_ERR_NOEOP        = 0x80000000,  /* canyest find the EOP desc of a pkt */
  VMXNET3_ERR_TXD_REUSE    = 0x80000001,  /* reuse TxDesc before tx completion */
  VMXNET3_ERR_BIG_PKT      = 0x80000002,  /* too many TxDesc for a pkt */
- VMXNET3_ERR_DESC_NOT_SPT = 0x80000003,  /* descriptor type not supported */
+ VMXNET3_ERR_DESC_NOT_SPT = 0x80000003,  /* descriptor type yest supported */
  VMXNET3_ERR_SMALL_BUF    = 0x80000004,  /* type 0 buffer too small */
  VMXNET3_ERR_STRESS       = 0x80000005,  /* stress option firing in vmkernel */
  VMXNET3_ERR_SWITCH       = 0x80000006,  /* mode switch failure */
@@ -422,7 +422,7 @@ enum {
 #define VMXNET3_CDTYPE_RXCOMP_LRO  4    /* Rx Completion Descriptor for LRO */
 
 enum {
-	VMXNET3_GOS_BITS_UNK    = 0,   /* unknown */
+	VMXNET3_GOS_BITS_UNK    = 0,   /* unkyeswn */
 	VMXNET3_GOS_BITS_32     = 1,
 	VMXNET3_GOS_BITS_64     = 2,
 };

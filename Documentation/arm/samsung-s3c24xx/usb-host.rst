@@ -42,7 +42,7 @@ Board Support
   The platform device's platform_data field is only needed if the
   board implements extra power control or over-current monitoring.
 
-  The OHCI driver does not ensure the state of the S3C2410's MISCCTRL
+  The OHCI driver does yest ensure the state of the S3C2410's MISCCTRL
   register, so if both ports are to be used for the host, then it is
   the board support file's responsibility to ensure that the second
   port is configured to be connected to the OHCI core.

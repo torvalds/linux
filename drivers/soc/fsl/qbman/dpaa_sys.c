@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of NXP Semiconductor nor the
+ *     * Neither the name of NXP Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -37,19 +37,19 @@
 int qbman_init_private_mem(struct device *dev, int idx, dma_addr_t *addr,
 				size_t *size)
 {
-	struct device_node *mem_node;
+	struct device_yesde *mem_yesde;
 	struct reserved_mem *rmem;
 	struct property *prop;
 	int len, err;
 	__be32 *res_array;
 
-	mem_node = of_parse_phandle(dev->of_node, "memory-region", idx);
-	if (!mem_node) {
+	mem_yesde = of_parse_phandle(dev->of_yesde, "memory-region", idx);
+	if (!mem_yesde) {
 		dev_err(dev, "No memory-region found for index %d\n", idx);
 		return -ENODEV;
 	}
 
-	rmem = of_reserved_mem_lookup(mem_node);
+	rmem = of_reserved_mem_lookup(mem_yesde);
 	if (!rmem) {
 		dev_err(dev, "of_reserved_mem_lookup() returned NULL\n");
 		return -ENODEV;
@@ -58,12 +58,12 @@ int qbman_init_private_mem(struct device *dev, int idx, dma_addr_t *addr,
 	*size = rmem->size;
 
 	/*
-	 * Check if the reg property exists - if not insert the node
+	 * Check if the reg property exists - if yest insert the yesde
 	 * so upon kexec() the same memory region address will be preserved.
-	 * This is needed because QBMan HW does not allow the base address/
+	 * This is needed because QBMan HW does yest allow the base address/
 	 * size to be modified once set.
 	 */
-	prop = of_find_property(mem_node, "reg", &len);
+	prop = of_find_property(mem_yesde, "reg", &len);
 	if (!prop) {
 		prop = devm_kzalloc(dev, sizeof(*prop), GFP_KERNEL);
 		if (!prop)
@@ -80,7 +80,7 @@ int qbman_init_private_mem(struct device *dev, int idx, dma_addr_t *addr,
 		prop->name = devm_kstrdup(dev, "reg", GFP_KERNEL);
 		if (!prop->name)
 			return -ENOMEM;
-		err = of_add_property(mem_node, prop);
+		err = of_add_property(mem_yesde, prop);
 		if (err)
 			return err;
 	}

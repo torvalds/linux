@@ -3,7 +3,7 @@ Device State Configuration Registers
 
 TI C6X SoCs contain a region of miscellaneous registers which provide various
 function for SoC control or status. Details vary considerably among from SoC
-to SoC with no two being alike.
+to SoC with yes two being alike.
 
 In general, the Device State Configuration Registers (DSCR) will provide one or
 more configuration registers often protected by a lock register where one or
@@ -26,7 +26,7 @@ Required properties:
 
 Optional properties:
 
-  NOTE: These are optional in that not all SoCs will have all properties. For
+  NOTE: These are optional in that yest all SoCs will have all properties. For
         SoCs which do support a given property, leaving the property out of the
         device tree will result in reduced functionality or possibly driver
         failure.
@@ -72,7 +72,7 @@ Optional properties:
         num_ids is the number of device controls in the range
         reg is the offset of the register holding the control bits
         enable is the value to enable a device
-        disable is the value to disable a device (0xffffffff if cannot disable)
+        disable is the value to disable a device (0xffffffff if canyest disable)
         start_bit is the bit number of the first bit in the range
         nbits is the number of bits per device control
 

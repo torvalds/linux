@@ -11,7 +11,7 @@
 #include <linux/list.h>
 
 struct syscore_ops {
-	struct list_head node;
+	struct list_head yesde;
 	int (*suspend)(void);
 	void (*resume)(void);
 	void (*shutdown)(void);

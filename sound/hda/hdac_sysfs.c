@@ -13,7 +13,7 @@
 struct hdac_widget_tree {
 	struct kobject *root;
 	struct kobject *afg;
-	struct kobject **nodes;
+	struct kobject **yesdes;
 };
 
 #define CODEC_ATTR(type)					\
@@ -277,7 +277,7 @@ static WIDGET_ATTR_RO(power_caps);
 static WIDGET_ATTR_RO(gpio_caps);
 static WIDGET_ATTR_RO(connections);
 
-static struct attribute *widget_node_attrs[] = {
+static struct attribute *widget_yesde_attrs[] = {
 	&wid_attr_caps.attr,
 	&wid_attr_pin_caps.attr,
 	&wid_attr_pin_cfg.attr,
@@ -300,15 +300,15 @@ static struct attribute *widget_afg_attrs[] = {
 	NULL,
 };
 
-static const struct attribute_group widget_node_group = {
-	.attrs = widget_node_attrs,
+static const struct attribute_group widget_yesde_group = {
+	.attrs = widget_yesde_attrs,
 };
 
 static const struct attribute_group widget_afg_group = {
 	.attrs = widget_afg_attrs,
 };
 
-static void free_widget_node(struct kobject *kobj,
+static void free_widget_yesde(struct kobject *kobj,
 			     const struct attribute_group *group)
 {
 	if (kobj) {
@@ -324,18 +324,18 @@ static void widget_tree_free(struct hdac_device *codec)
 
 	if (!tree)
 		return;
-	free_widget_node(tree->afg, &widget_afg_group);
-	if (tree->nodes) {
-		for (p = tree->nodes; *p; p++)
-			free_widget_node(*p, &widget_node_group);
-		kfree(tree->nodes);
+	free_widget_yesde(tree->afg, &widget_afg_group);
+	if (tree->yesdes) {
+		for (p = tree->yesdes; *p; p++)
+			free_widget_yesde(*p, &widget_yesde_group);
+		kfree(tree->yesdes);
 	}
 	kobject_put(tree->root);
 	kfree(tree);
 	codec->widgets = NULL;
 }
 
-static int add_widget_node(struct kobject *parent, hda_nid_t nid,
+static int add_widget_yesde(struct kobject *parent, hda_nid_t nid,
 			   const struct attribute_group *group,
 			   struct kobject **res)
 {
@@ -372,20 +372,20 @@ static int widget_tree_create(struct hdac_device *codec)
 	if (!tree->root)
 		return -ENOMEM;
 
-	tree->nodes = kcalloc(codec->num_nodes + 1, sizeof(*tree->nodes),
+	tree->yesdes = kcalloc(codec->num_yesdes + 1, sizeof(*tree->yesdes),
 			      GFP_KERNEL);
-	if (!tree->nodes)
+	if (!tree->yesdes)
 		return -ENOMEM;
 
-	for (i = 0, nid = codec->start_nid; i < codec->num_nodes; i++, nid++) {
-		err = add_widget_node(tree->root, nid, &widget_node_group,
-				      &tree->nodes[i]);
+	for (i = 0, nid = codec->start_nid; i < codec->num_yesdes; i++, nid++) {
+		err = add_widget_yesde(tree->root, nid, &widget_yesde_group,
+				      &tree->yesdes[i]);
 		if (err < 0)
 			return err;
 	}
 
 	if (codec->afg) {
-		err = add_widget_node(tree->root, codec->afg,
+		err = add_widget_yesde(tree->root, codec->afg,
 				      &widget_afg_group, &tree->afg);
 		if (err < 0)
 			return err;
@@ -420,10 +420,10 @@ void hda_widget_sysfs_exit(struct hdac_device *codec)
 
 /* call with codec->widget_lock held */
 int hda_widget_sysfs_reinit(struct hdac_device *codec,
-			    hda_nid_t start_nid, int num_nodes)
+			    hda_nid_t start_nid, int num_yesdes)
 {
 	struct hdac_widget_tree *tree;
-	hda_nid_t end_nid = start_nid + num_nodes;
+	hda_nid_t end_nid = start_nid + num_yesdes;
 	hda_nid_t nid;
 	int i;
 
@@ -434,31 +434,31 @@ int hda_widget_sysfs_reinit(struct hdac_device *codec,
 	if (!tree)
 		return -ENOMEM;
 
-	tree->nodes = kcalloc(num_nodes + 1, sizeof(*tree->nodes), GFP_KERNEL);
-	if (!tree->nodes) {
+	tree->yesdes = kcalloc(num_yesdes + 1, sizeof(*tree->yesdes), GFP_KERNEL);
+	if (!tree->yesdes) {
 		kfree(tree);
 		return -ENOMEM;
 	}
 
-	/* prune non-existing nodes */
-	for (i = 0, nid = codec->start_nid; i < codec->num_nodes; i++, nid++) {
+	/* prune yesn-existing yesdes */
+	for (i = 0, nid = codec->start_nid; i < codec->num_yesdes; i++, nid++) {
 		if (nid < start_nid || nid >= end_nid)
-			free_widget_node(codec->widgets->nodes[i],
-					 &widget_node_group);
+			free_widget_yesde(codec->widgets->yesdes[i],
+					 &widget_yesde_group);
 	}
 
-	/* add new nodes */
-	for (i = 0, nid = start_nid; i < num_nodes; i++, nid++) {
+	/* add new yesdes */
+	for (i = 0, nid = start_nid; i < num_yesdes; i++, nid++) {
 		if (nid < codec->start_nid || nid >= codec->end_nid)
-			add_widget_node(tree->root, nid, &widget_node_group,
-					&tree->nodes[i]);
+			add_widget_yesde(tree->root, nid, &widget_yesde_group,
+					&tree->yesdes[i]);
 		else
-			tree->nodes[i] =
-				codec->widgets->nodes[nid - codec->start_nid];
+			tree->yesdes[i] =
+				codec->widgets->yesdes[nid - codec->start_nid];
 	}
 
 	/* replace with the new tree */
-	kfree(codec->widgets->nodes);
+	kfree(codec->widgets->yesdes);
 	kfree(codec->widgets);
 	codec->widgets = tree;
 

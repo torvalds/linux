@@ -30,7 +30,7 @@ struct apic_chip_data {
 	unsigned int		cpu;
 	unsigned int		prev_cpu;
 	unsigned int		irq;
-	struct hlist_node	clist;
+	struct hlist_yesde	clist;
 	unsigned int		move_in_progress	: 1,
 				is_managed		: 1,
 				can_reserve		: 1,
@@ -49,7 +49,7 @@ static DEFINE_PER_CPU(struct hlist_head, cleanup_list);
 
 void lock_vector_lock(void)
 {
-	/* Used to the online set of cpus does not change
+	/* Used to the online set of cpus does yest change
 	 * during assign_irq_vector.
 	 */
 	raw_spin_lock(&vector_lock);
@@ -99,11 +99,11 @@ struct irq_cfg *irq_cfg(unsigned int irq)
 	return irqd_cfg(irq_get_irq_data(irq));
 }
 
-static struct apic_chip_data *alloc_apic_chip_data(int node)
+static struct apic_chip_data *alloc_apic_chip_data(int yesde)
 {
 	struct apic_chip_data *apicd;
 
-	apicd = kzalloc_node(sizeof(*apicd), GFP_KERNEL, node);
+	apicd = kzalloc_yesde(sizeof(*apicd), GFP_KERNEL, yesde);
 	if (apicd)
 		INIT_HLIST_NODE(&apicd->clist);
 	return apicd;
@@ -141,9 +141,9 @@ static void apic_update_vector(struct irq_data *irqd, unsigned int newvec,
 			    apicd->cpu);
 
 	/*
-	 * If there is no vector associated or if the associated vector is
+	 * If there is yes vector associated or if the associated vector is
 	 * the shutdown vector, which is associated to make PCI/MSI
-	 * shutdown mode work, then there is nothing to release. Clear out
+	 * shutdown mode work, then there is yesthing to release. Clear out
 	 * prev_vector for this and the offlined target case.
 	 */
 	apicd->prev_vector = 0;
@@ -154,7 +154,7 @@ static void apic_update_vector(struct irq_data *irqd, unsigned int newvec,
 	 * the vector as move in progress and store it for cleanup when the
 	 * first interrupt on the new vector arrives. If the target CPU is
 	 * offline then the regular release mechanism via the cleanup
-	 * vector is not possible and the vector can be immediately freed
+	 * vector is yest possible and the vector can be immediately freed
 	 * in the underlying matrix allocator.
 	 */
 	if (cpu_online(apicd->cpu)) {
@@ -229,8 +229,8 @@ assign_vector_locked(struct irq_data *irqd, const struct cpumask *dest)
 
 	/*
 	 * If the current target CPU is online and in the new requested
-	 * affinity mask, there is no point in moving the interrupt from
-	 * one CPU to another.
+	 * affinity mask, there is yes point in moving the interrupt from
+	 * one CPU to ayesther.
 	 */
 	if (vector && cpu_online(cpu) && cpumask_test_cpu(cpu, dest))
 		return 0;
@@ -270,16 +270,16 @@ static int assign_irq_vector_any_locked(struct irq_data *irqd)
 {
 	/* Get the affinity mask - either irq_default_affinity or (user) set */
 	const struct cpumask *affmsk = irq_data_get_affinity_mask(irqd);
-	int node = irq_data_get_node(irqd);
+	int yesde = irq_data_get_yesde(irqd);
 
-	if (node == NUMA_NO_NODE)
+	if (yesde == NUMA_NO_NODE)
 		goto all;
-	/* Try the intersection of @affmsk and node mask */
-	cpumask_and(vector_searchmask, cpumask_of_node(node), affmsk);
+	/* Try the intersection of @affmsk and yesde mask */
+	cpumask_and(vector_searchmask, cpumask_of_yesde(yesde), affmsk);
 	if (!assign_vector_locked(irqd, vector_searchmask))
 		return 0;
-	/* Try the node mask */
-	if (!assign_vector_locked(irqd, cpumask_of_node(node)))
+	/* Try the yesde mask */
+	if (!assign_vector_locked(irqd, cpumask_of_yesde(yesde)))
 		return 0;
 all:
 	/* Try the full affinity mask */
@@ -298,7 +298,7 @@ assign_irq_vector_policy(struct irq_data *irqd, struct irq_alloc_info *info)
 	if (info->mask)
 		return assign_irq_vector(irqd, info->mask);
 	/*
-	 * Make only a global reservation with no guarantee. A real vector
+	 * Make only a global reservation with yes guarantee. A real vector
 	 * is associated at activation time.
 	 */
 	return reserve_irq_vector(irqd);
@@ -313,7 +313,7 @@ assign_managed_vector(struct irq_data *irqd, const struct cpumask *dest)
 
 	cpumask_and(vector_searchmask, dest, affmsk);
 
-	/* set_affinity might call here for nothing */
+	/* set_affinity might call here for yesthing */
 	if (apicd->vector && cpumask_test_cpu(apicd->cpu, vector_searchmask))
 		return 0;
 	vector = irq_matrix_alloc_managed(vector_matrix, vector_searchmask,
@@ -367,7 +367,7 @@ static void x86_vector_deactivate(struct irq_domain *dom, struct irq_data *irqd)
 	/* Regular fixed assigned interrupt */
 	if (!apicd->is_managed && !apicd->can_reserve)
 		return;
-	/* If the interrupt has a global reservation, nothing to do */
+	/* If the interrupt has a global reservation, yesthing to do */
 	if (apicd->has_reserved)
 		return;
 
@@ -401,7 +401,7 @@ static int activate_reserved(struct irq_data *irqd)
 
 	/*
 	 * Check to ensure that the effective affinity mask is a subset
-	 * the user supplied affinity mask, and warn the user if it is not
+	 * the user supplied affinity mask, and warn the user if it is yest
 	 */
 	if (!cpumask_subset(irq_data_get_effective_affinity_mask(irqd),
 			    irq_data_get_affinity_mask(irqd))) {
@@ -420,17 +420,17 @@ static int activate_managed(struct irq_data *irqd)
 	cpumask_and(vector_searchmask, dest, cpu_online_mask);
 	if (WARN_ON_ONCE(cpumask_empty(vector_searchmask))) {
 		/* Something in the core code broke! Survive gracefully */
-		pr_err("Managed startup for irq %u, but no CPU\n", irqd->irq);
+		pr_err("Managed startup for irq %u, but yes CPU\n", irqd->irq);
 		return -EINVAL;
 	}
 
 	ret = assign_managed_vector(irqd, vector_searchmask);
 	/*
-	 * This should not happen. The vector reservation got buggered.  Handle
+	 * This should yest happen. The vector reservation got buggered.  Handle
 	 * it gracefully.
 	 */
 	if (WARN_ON_ONCE(ret < 0)) {
-		pr_err("Managed startup irq %u, no vector available\n",
+		pr_err("Managed startup irq %u, yes vector available\n",
 		       irqd->irq);
 	}
 	return ret;
@@ -531,7 +531,7 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 	struct irq_alloc_info *info = arg;
 	struct apic_chip_data *apicd;
 	struct irq_data *irqd;
-	int i, err, node;
+	int i, err, yesde;
 
 	if (disable_apic)
 		return -ENXIO;
@@ -543,9 +543,9 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 	for (i = 0; i < nr_irqs; i++) {
 		irqd = irq_domain_get_irq_data(domain, virq + i);
 		BUG_ON(!irqd);
-		node = irq_data_get_node(irqd);
+		yesde = irq_data_get_yesde(irqd);
 		WARN_ON_ONCE(irqd->chip_data);
-		apicd = alloc_apic_chip_data(node);
+		apicd = alloc_apic_chip_data(yesde);
 		if (!apicd) {
 			err = -ENOMEM;
 			goto error;
@@ -658,7 +658,7 @@ int __init arch_probe_nr_irqs(void)
 		nr_irqs = nr;
 
 	/*
-	 * We don't know if PIC is present at this point so we need to do
+	 * We don't kyesw if PIC is present at this point so we need to do
 	 * probe() to get the right number of legacy IRQs.
 	 */
 	return legacy_pic->probe();
@@ -696,14 +696,14 @@ void __init lapic_assign_system_vectors(void)
 
 int __init arch_early_irq_init(void)
 {
-	struct fwnode_handle *fn;
+	struct fwyesde_handle *fn;
 
-	fn = irq_domain_alloc_named_fwnode("VECTOR");
+	fn = irq_domain_alloc_named_fwyesde("VECTOR");
 	BUG_ON(!fn);
 	x86_vector_domain = irq_domain_create_tree(fn, &x86_vector_domain_ops,
 						   NULL);
 	BUG_ON(x86_vector_domain == NULL);
-	irq_domain_free_fwnode(fn);
+	irq_domain_free_fwyesde(fn);
 	irq_set_default_host(x86_vector_domain);
 
 	arch_init_msi_domain(x86_vector_domain);
@@ -751,8 +751,8 @@ void lapic_online(void)
 	 * CPUs. The exception are the legacy PIC interrupts. In general
 	 * they are only targeted to CPU0, but depending on the platform
 	 * they can be distributed to any online CPU in hardware. The
-	 * kernel has no influence on that. So all active legacy vectors
-	 * must be installed on all CPUs. All non legacy interrupts can be
+	 * kernel has yes influence on that. So all active legacy vectors
+	 * must be installed on all CPUs. All yesn legacy interrupts can be
 	 * cleared.
 	 */
 	for (vector = 0; vector < NR_VECTORS; vector++)
@@ -774,8 +774,8 @@ static int apic_set_affinity(struct irq_data *irqd,
 
 	/*
 	 * Core code can call here for inactive interrupts. For inactive
-	 * interrupts which use managed or reservation mode there is no
-	 * point in going through the vector assignment right now as the
+	 * interrupts which use managed or reservation mode there is yes
+	 * point in going through the vector assignment right yesw as the
 	 * activation will assign a vector which fits the destination
 	 * cpumask. Let the core code store the destination mask and be
 	 * done with it.
@@ -838,8 +838,8 @@ static void free_moved_vector(struct apic_chip_data *apicd)
 	bool managed = apicd->is_managed;
 
 	/*
-	 * This should never happen. Managed interrupts are not
-	 * migrated except on CPU down, which does not involve the
+	 * This should never happen. Managed interrupts are yest
+	 * migrated except on CPU down, which does yest involve the
 	 * cleanup vector. But try to keep the accounting correct
 	 * nevertheless.
 	 */
@@ -857,7 +857,7 @@ asmlinkage __visible void __irq_entry smp_irq_move_cleanup_interrupt(void)
 {
 	struct hlist_head *clhead = this_cpu_ptr(&cleanup_list);
 	struct apic_chip_data *apicd;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 
 	entering_ack_irq();
 	/* Prevent vectors vanishing under us */
@@ -867,10 +867,10 @@ asmlinkage __visible void __irq_entry smp_irq_move_cleanup_interrupt(void)
 		unsigned int irr, vector = apicd->prev_vector;
 
 		/*
-		 * Paranoia: Check if the vector that needs to be cleaned
+		 * Parayesia: Check if the vector that needs to be cleaned
 		 * up is registered at the APICs IRR. If so, then this is
-		 * not the best time to clean it up. Clean it up in the
-		 * next attempt by sending another IRQ_MOVE_CLEANUP_VECTOR
+		 * yest the best time to clean it up. Clean it up in the
+		 * next attempt by sending ayesther IRQ_MOVE_CLEANUP_VECTOR
 		 * to this CPU. IRQ_MOVE_CLEANUP_VECTOR is the lowest
 		 * priority external vector, so on return from this
 		 * interrupt the device interrupt will happen first.
@@ -958,14 +958,14 @@ void irq_force_complete_move(struct irq_desc *desc)
 		goto unlock;
 
 	/*
-	 * If prev_vector is empty, no action required.
+	 * If prev_vector is empty, yes action required.
 	 */
 	vector = apicd->prev_vector;
 	if (!vector)
 		goto unlock;
 
 	/*
-	 * This is tricky. If the cleanup of the old vector has not been
+	 * This is tricky. If the cleanup of the old vector has yest been
 	 * done yet, then the following setaffinity call will fail with
 	 * -EBUSY. This can leave the interrupt in a stale state.
 	 *
@@ -973,11 +973,11 @@ void irq_force_complete_move(struct irq_desc *desc)
 	 * calling __irq_complete_move() would be completely pointless.
 	 *
 	 * 1) The interrupt is in move_in_progress state. That means that we
-	 *    have not seen an interrupt since the io_apic was reprogrammed to
+	 *    have yest seen an interrupt since the io_apic was reprogrammed to
 	 *    the new vector.
 	 *
 	 * 2) The interrupt has fired on the new vector, but the cleanup IPIs
-	 *    have not been processed yet.
+	 *    have yest been processed yet.
 	 */
 	if (apicd->move_in_progress) {
 		/*
@@ -987,26 +987,26 @@ void irq_force_complete_move(struct irq_desc *desc)
 		 *			      is effective, i.e. it's raised on
 		 *			      the old vector.
 		 *
-		 * So if the target cpu cannot handle that interrupt before
+		 * So if the target cpu canyest handle that interrupt before
 		 * the old vector is cleaned up, we get a spurious interrupt
 		 * and in the worst case the ioapic irq line becomes stale.
 		 *
-		 * But in case of cpu hotplug this should be a non issue
+		 * But in case of cpu hotplug this should be a yesn issue
 		 * because if the affinity update happens right before all
-		 * cpus rendevouz in stop machine, there is no way that the
+		 * cpus rendevouz in stop machine, there is yes way that the
 		 * interrupt can be blocked on the target cpu because all cpus
 		 * loops first with interrupts enabled in stop machine, so the
-		 * old vector is not yet cleaned up when the interrupt fires.
+		 * old vector is yest yet cleaned up when the interrupt fires.
 		 *
 		 * So the only way to run into this issue is if the delivery
 		 * of the interrupt on the apic/system bus would be delayed
 		 * beyond the point where the target cpu disables interrupts
 		 * in stop machine. I doubt that it can happen, but at least
 		 * there is a theroretical chance. Virtualization might be
-		 * able to expose this, but AFAICT the IOAPIC emulation is not
+		 * able to expose this, but AFAICT the IOAPIC emulation is yest
 		 * as stupid as the real hardware.
 		 *
-		 * Anyway, there is nothing we can do about that at this point
+		 * Anyway, there is yesthing we can do about that at this point
 		 * w/o refactoring the whole fixup_irq() business completely.
 		 * We print at least the irq number and the old vector number,
 		 * so we have the necessary information when a problem in that
@@ -1022,7 +1022,7 @@ unlock:
 
 #ifdef CONFIG_HOTPLUG_CPU
 /*
- * Note, this is not accurate accounting, but at least good enough to
+ * Note, this is yest accurate accounting, but at least good eyesugh to
  * prevent that the actual interrupt move will run out of vectors.
  */
 int lapic_can_unplug_cpu(void)
@@ -1034,7 +1034,7 @@ int lapic_can_unplug_cpu(void)
 	tomove = irq_matrix_allocated(vector_matrix);
 	avl = irq_matrix_available(vector_matrix, true);
 	if (avl < tomove) {
-		pr_warn("CPU %u has %u vectors, %u available. Cannot disable CPU\n",
+		pr_warn("CPU %u has %u vectors, %u available. Canyest disable CPU\n",
 			cpu, tomove, avl);
 		ret = -ENOSPC;
 		goto out;
@@ -1242,7 +1242,7 @@ static int __init print_ICs(void)
 
 	print_PIC();
 
-	/* don't print out if apic is not there */
+	/* don't print out if apic is yest there */
 	if (!boot_cpu_has(X86_FEATURE_APIC) && !apic_from_smp_config())
 		return 0;
 

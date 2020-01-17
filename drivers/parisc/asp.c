@@ -7,7 +7,7 @@
  *	by Helge Deller <deller@gmx.de>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -44,7 +44,7 @@ static void asp_choose_irq(struct parisc_device *dev, void *ctrl)
 	case 0x7c:	irq =  3; break; /* FW SCSI */
 	case 0x7d:	irq =  4; break; /* FDDI */
 	case 0x7f:	irq = 13; break; /* Audio (Outfield) */
-	default:	return;		 /* Unknown */
+	default:	return;		 /* Unkyeswn */
 	}
 
 	gsc_asic_assign_irq(ctrl, irq, &dev->irq);
@@ -82,7 +82,7 @@ static int __init asp_init_chip(struct parisc_device *dev)
 	ret = -EBUSY;
 	dev->irq = gsc_claim_irq(&gsc_irq, ASP_GSC_IRQ);
 	if (dev->irq < 0) {
-		printk(KERN_ERR "%s(): cannot get GSC irq\n", __func__);
+		printk(KERN_ERR "%s(): canyest get GSC irq\n", __func__);
 		goto out;
 	}
 
@@ -101,7 +101,7 @@ static int __init asp_init_chip(struct parisc_device *dev)
 		goto out;
 
 	gsc_fixup_irqs(dev, &asp, asp_choose_irq);
-	/* Mongoose is a sibling of Asp, not a child... */
+	/* Mongoose is a sibling of Asp, yest a child... */
 	gsc_fixup_irqs(parisc_parent(dev), &asp, asp_choose_irq);
 
 	/* initialize the chassis LEDs */ 

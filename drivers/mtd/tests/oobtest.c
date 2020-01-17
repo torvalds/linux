@@ -4,7 +4,7 @@
  *
  * Test OOB read and write on MTD device.
  *
- * Author: Adrian Hunter <ext-adrian.hunter@nokia.com>
+ * Author: Adrian Hunter <ext-adrian.hunter@yeskia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -203,7 +203,7 @@ static int verify_eraseblock(int ebnum)
 				return -1;
 			}
 		} else if (bitflips) {
-			pr_info("ignoring error as within bitflip_limit\n");
+			pr_info("igyesring error as within bitflip_limit\n");
 		}
 
 		if (use_offset != 0 || use_len < mtd->oobavail) {
@@ -249,7 +249,7 @@ static int verify_eraseblock(int ebnum)
 					return -1;
 				}
 			} else if (bitflips) {
-				pr_info("ignoring errors as within bitflip limit\n");
+				pr_info("igyesring errors as within bitflip limit\n");
 			}
 		}
 		if (vary_offset)
@@ -303,7 +303,7 @@ static int verify_eraseblock_in_one_go(int ebnum)
 				return -1;
 			}
 		} else if (bitflips) {
-			pr_info("ignoring error as within bitflip_limit\n");
+			pr_info("igyesring error as within bitflip_limit\n");
 		}
 	}
 
@@ -355,7 +355,7 @@ static int __init mtd_oobtest_init(void)
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		pr_err("error: cannot get MTD device\n");
+		pr_err("error: canyest get MTD device\n");
 		return err;
 	}
 

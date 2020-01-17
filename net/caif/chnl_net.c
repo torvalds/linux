@@ -53,14 +53,14 @@ struct chnl_net {
 	enum caif_states state;
 };
 
-static void robust_list_del(struct list_head *delete_node)
+static void robust_list_del(struct list_head *delete_yesde)
 {
-	struct list_head *list_node;
+	struct list_head *list_yesde;
 	struct list_head *n;
 	ASSERT_RTNL();
-	list_for_each_safe(list_node, n, &chnl_net_list) {
-		if (list_node == delete_node) {
-			list_del(list_node);
+	list_for_each_safe(list_yesde, n, &chnl_net_list) {
+		if (list_yesde == delete_yesde) {
+			list_del(list_yesde);
 			return;
 		}
 	}
@@ -138,12 +138,12 @@ static int delete_device(struct chnl_net *dev)
 static void close_work(struct work_struct *work)
 {
 	struct chnl_net *dev = NULL;
-	struct list_head *list_node;
+	struct list_head *list_yesde;
 	struct list_head *_tmp;
 
 	rtnl_lock();
-	list_for_each_safe(list_node, _tmp, &chnl_net_list) {
-		dev = list_entry(list_node, struct chnl_net, list_field);
+	list_for_each_safe(list_yesde, _tmp, &chnl_net_list) {
+		dev = list_entry(list_yesde, struct chnl_net, list_field);
 		if (dev->state == CAIF_SHUTDOWN)
 			dev_close(dev->netdev);
 	}
@@ -265,7 +265,7 @@ static int chnl_net_open(struct net_device *dev)
 	ASSERT_RTNL();
 	priv = netdev_priv(dev);
 	if (!priv) {
-		pr_debug("chnl_net_open: no priv\n");
+		pr_debug("chnl_net_open: yes priv\n");
 		return -ENODEV;
 	}
 
@@ -285,7 +285,7 @@ static int chnl_net_open(struct net_device *dev)
 		lldev = __dev_get_by_index(dev_net(dev), llifindex);
 
 		if (lldev == NULL) {
-			pr_debug("no interface?\n");
+			pr_debug("yes interface?\n");
 			result = -ENODEV;
 			goto error;
 		}
@@ -295,7 +295,7 @@ static int chnl_net_open(struct net_device *dev)
 			lldev->needed_tailroom;
 
 		/*
-		 * MTU, head-room etc is not know before we have a
+		 * MTU, head-room etc is yest kyesw before we have a
 		 * CAIF link layer device available. MTU calculation may
 		 * override initial RTNL configuration.
 		 * MTU is minimum of current mtu, link layer mtu pluss
@@ -442,7 +442,7 @@ static void caif_netlink_parms(struct nlattr *data[],
 			       struct caif_connect_request *conn_req)
 {
 	if (!data) {
-		pr_warn("no params data found\n");
+		pr_warn("yes params data found\n");
 		return;
 	}
 	if (data[IFLA_CAIF_IPV4_CONNID])
@@ -535,13 +535,13 @@ static int __init chnl_init_module(void)
 static void __exit chnl_exit_module(void)
 {
 	struct chnl_net *dev = NULL;
-	struct list_head *list_node;
+	struct list_head *list_yesde;
 	struct list_head *_tmp;
 	rtnl_link_unregister(&ipcaif_link_ops);
 	rtnl_lock();
-	list_for_each_safe(list_node, _tmp, &chnl_net_list) {
-		dev = list_entry(list_node, struct chnl_net, list_field);
-		list_del(list_node);
+	list_for_each_safe(list_yesde, _tmp, &chnl_net_list) {
+		dev = list_entry(list_yesde, struct chnl_net, list_field);
+		list_del(list_yesde);
 		delete_device(dev);
 	}
 	rtnl_unlock();

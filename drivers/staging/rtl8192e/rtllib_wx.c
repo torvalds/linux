@@ -9,7 +9,7 @@
  * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ * James P. Ketreyess <ipw2100-admin@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  */
 #include <linux/wireless.h>
@@ -172,7 +172,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	iwe.cmd = IWEVQUAL;
 	iwe.u.qual.qual = network->stats.signal;
 	iwe.u.qual.level = network->stats.rssi;
-	iwe.u.qual.noise = network->stats.noise;
+	iwe.u.qual.yesise = network->stats.yesise;
 	iwe.u.qual.updated = network->stats.mask & RTLLIB_STATMASK_WEMASK;
 	if (!(network->stats.mask & RTLLIB_STATMASK_RSSI))
 		iwe.u.qual.updated |= IW_QUAL_LEVEL_INVALID;
@@ -321,7 +321,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			netdev_dbg(ieee->dev, "Disabling encryption.\n");
 
 		/* Check all the keys to see if any are still configured,
-		 * and if no key index was provided, de-init them all
+		 * and if yes key index was provided, de-init them all
 		 */
 		for (i = 0; i < NUM_WEP_KEYS; i++) {
 			if (ieee->crypt_info.crypt[i] != NULL) {
@@ -375,7 +375,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			new_crypt = NULL;
 
 			netdev_warn(dev,
-				    "%s: could not initialize WEP: load module rtllib_crypt_wep\n",
+				    "%s: could yest initialize WEP: load module rtllib_crypt_wep\n",
 				    dev->name);
 			return -EOPNOTSUPP;
 		}
@@ -396,7 +396,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 		(*crypt)->ops->set_key(sec.keys[key], len, NULL,
 				       (*crypt)->priv);
 		sec.flags |= (1 << key);
-		/* This ensures a key will be activated if no key is
+		/* This ensures a key will be activated if yes key is
 		 * explicitly set
 		 */
 		if (key == sec.active_key)
@@ -436,7 +436,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	netdev_dbg(ieee->dev, "Auth: %s\n", sec.auth_mode == WLAN_AUTH_OPEN ?
 			   "OPEN" : "SHARED KEY");
 
-	/* For now we just support WEP, so only set that security level...
+	/* For yesw we just support WEP, so only set that security level...
 	 * TODO: When WPA is added this is one place that needs to change
 	 */
 	sec.flags |= SEC_LEVEL;
@@ -445,7 +445,7 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	if (ieee->set_security)
 		ieee->set_security(dev, &sec);
 
-	/* Do not reset port if card is in Managed mode since resetting will
+	/* Do yest reset port if card is in Managed mode since resetting will
 	 * generate new IEEE 802.11 authentication which may end up in looping
 	 * with IEEE 802.1X.  If your hardware requires a reset after WEP
 	 * configuration (for example... Prism2), implement the reset_port in
@@ -577,7 +577,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		module = "rtllib_crypt_ccmp";
 		break;
 	default:
-		netdev_dbg(ieee->dev, "Unknown crypto alg %d\n", ext->alg);
+		netdev_dbg(ieee->dev, "Unkyeswn crypto alg %d\n", ext->alg);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -593,7 +593,7 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 		ops = lib80211_get_crypto_ops(alg);
 	}
 	if (ops == NULL) {
-		netdev_info(dev, "========>unknown crypto alg %d\n", ext->alg);
+		netdev_info(dev, "========>unkyeswn crypto alg %d\n", ext->alg);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -687,7 +687,7 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 		else
 			netdev_info(ieee->dev, "dis associate packet!\n");
 
-		ieee->cannot_notify = true;
+		ieee->canyest_yestify = true;
 
 		SendDisassociation(ieee, deauth, mlme->reason_code);
 		rtllib_disassociate(ieee);
@@ -721,7 +721,7 @@ int rtllib_wx_set_auth(struct rtllib_device *ieee,
 	case IW_AUTH_CIPHER_PAIRWISE:
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_KEY_MGMT:
-		/* Host AP driver does not use these parameters and allows
+		/* Host AP driver does yest use these parameters and allows
 		 * wpa_supplicant to control them internally.
 		 */
 		break;

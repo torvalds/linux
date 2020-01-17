@@ -85,14 +85,14 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned
 void flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end);
 
-/* defined in pacache.S exported in cache.c used by flush_anon_page */
+/* defined in pacache.S exported in cache.c used by flush_ayesn_page */
 void flush_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
 
 #define ARCH_HAS_FLUSH_ANON_PAGE
 static inline void
-flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
+flush_ayesn_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
 {
-	if (PageAnon(page)) {
+	if (PageAyesn(page)) {
 		flush_tlb_page(vma, vmaddr);
 		preempt_disable();
 		flush_dcache_page_asm(page_to_phys(page), vmaddr);

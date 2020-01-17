@@ -8,7 +8,7 @@
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
  *
  * The HMAC implementation is derived from USAGI.
- * Copyright (c) 2002 Kazunori Miyazawa <miyazawa@linux-ipv6.org> / USAGI
+ * Copyright (c) 2002 Kazuyesri Miyazawa <miyazawa@linux-ipv6.org> / USAGI
  */
 
 #include <crypto/hmac.h>

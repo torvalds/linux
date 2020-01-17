@@ -205,7 +205,7 @@ static inline uint16_t exca_write_word(int slot, uint8_t index, uint16_t data)
 	return data;
 }
 
-static inline int search_nonuse_irq(void)
+static inline int search_yesnuse_irq(void)
 {
 	int i;
 
@@ -231,8 +231,8 @@ static int pccard_init(struct pcmcia_socket *sock)
 
 	slot = sock->sock;
 	socket = &vrc4171_sockets[slot];
-	socket->csc_irq = search_nonuse_irq();
-	socket->io_irq = search_nonuse_irq();
+	socket->csc_irq = search_yesnuse_irq();
+	socket->io_irq = search_yesnuse_irq();
 	spin_lock_init(&socket->lock);
 
 	return 0;
@@ -639,13 +639,13 @@ static int vrc4171_card_setup(char *options)
 	if (strncmp(options, "slota:", 6) == 0) {
 		options += 6;
 		if (*options != '\0') {
-			if (strncmp(options, "memnoprobe", 10) == 0) {
+			if (strncmp(options, "memyesprobe", 10) == 0) {
 				vrc4171_sockets[CARD_SLOTA].slot = SLOT_NOPROBE_MEM;
 				options += 10;
-			} else if (strncmp(options, "ionoprobe", 9) == 0) {
+			} else if (strncmp(options, "ioyesprobe", 9) == 0) {
 				vrc4171_sockets[CARD_SLOTA].slot = SLOT_NOPROBE_IO;
 				options += 9;
-			} else if ( strncmp(options, "noprobe", 7) == 0) {
+			} else if ( strncmp(options, "yesprobe", 7) == 0) {
 				vrc4171_sockets[CARD_SLOTA].slot = SLOT_NOPROBE_ALL;
 				options += 7;
 			}
@@ -670,7 +670,7 @@ static int vrc4171_card_setup(char *options)
 			} else if (strncmp(options, "flashrom", 8) == 0) {
 				vrc4171_slotb = SLOTB_IS_FLASHROM;
 				options += 8;
-			} else if (strncmp(options, "none", 4) == 0) {
+			} else if (strncmp(options, "yesne", 4) == 0) {
 				vrc4171_slotb = SLOTB_IS_NONE;
 				options += 4;
 			}
@@ -679,11 +679,11 @@ static int vrc4171_card_setup(char *options)
 				return 1;
 			options++;
 
-			if (strncmp(options, "memnoprobe", 10) == 0)
+			if (strncmp(options, "memyesprobe", 10) == 0)
 				vrc4171_sockets[CARD_SLOTB].slot = SLOT_NOPROBE_MEM;
-			if (strncmp(options, "ionoprobe", 9) == 0)
+			if (strncmp(options, "ioyesprobe", 9) == 0)
 				vrc4171_sockets[CARD_SLOTB].slot = SLOT_NOPROBE_IO;
-			if (strncmp(options, "noprobe", 7) == 0)
+			if (strncmp(options, "yesprobe", 7) == 0)
 				vrc4171_sockets[CARD_SLOTB].slot = SLOT_NOPROBE_ALL;
 		}
 	}

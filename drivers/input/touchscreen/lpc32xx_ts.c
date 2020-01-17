@@ -91,7 +91,7 @@ static irqreturn_t lpc32xx_ts_interrupt(int irq, void *dev_id)
 	}
 
 	/*
-	 * Gather and normalize 4 samples. Pen-up events may have less
+	 * Gather and yesrmalize 4 samples. Pen-up events may have less
 	 * than 4 samples, but its ok to pop 4 and let the last sample
 	 * pen status check drop the samples.
 	 */
@@ -157,7 +157,7 @@ static int lpc32xx_setup_tsc(struct lpc32xx_tsc *tsc)
 	tsc_writel(tsc, LPC32XX_TSC_MIN_Y, LPC32XX_TSC_MIN_XY_VAL);
 	tsc_writel(tsc, LPC32XX_TSC_MAX_Y, LPC32XX_TSC_MAX_XY_VAL);
 
-	/* Aux support is not used */
+	/* Aux support is yest used */
 	tsc_writel(tsc, LPC32XX_TSC_AUX_UTR, 0);
 	tsc_writel(tsc, LPC32XX_TSC_AUX_MIN, 0);
 	tsc_writel(tsc, LPC32XX_TSC_AUX_MAX, 0);
@@ -229,7 +229,7 @@ static int lpc32xx_ts_probe(struct platform_device *pdev)
 	size = resource_size(res);
 
 	if (!request_mem_region(res->start, size, pdev->name)) {
-		dev_err(&pdev->dev, "TSC registers are not free\n");
+		dev_err(&pdev->dev, "TSC registers are yest free\n");
 		error = -EBUSY;
 		goto err_free_mem;
 	}
@@ -328,7 +328,7 @@ static int lpc32xx_ts_suspend(struct device *dev)
 
 	/*
 	 * Suspend and resume can be called when the device hasn't been
-	 * enabled. If there are no users that have the device open, then
+	 * enabled. If there are yes users that have the device open, then
 	 * avoid calling the TSC stop and start functions as the TSC
 	 * isn't yet clocked.
 	 */

@@ -82,13 +82,13 @@ static int secmark_tg_check(const struct xt_tgchk_param *par)
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "security") != 0) {
-		pr_info_ratelimited("only valid in \'mangle\' or \'security\' table, not \'%s\'\n",
+		pr_info_ratelimited("only valid in \'mangle\' or \'security\' table, yest \'%s\'\n",
 				    par->table);
 		return -EINVAL;
 	}
 
 	if (mode && mode != info->mode) {
-		pr_info_ratelimited("mode already set to %hu cannot mix with rules for mode %hu\n",
+		pr_info_ratelimited("mode already set to %hu canyest mix with rules for mode %hu\n",
 				    mode, info->mode);
 		return -EINVAL;
 	}

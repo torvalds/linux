@@ -120,7 +120,7 @@
 
 #else
 /*
- * The hardware does not support unaligned transfers. We must move the
+ * The hardware does yest support unaligned transfers. We must move the
  * data one byte at a time. These macros work whether the source or
  * the destination (or both) is/are unaligned. (Little-endian move)
  */
@@ -160,7 +160,7 @@
 #endif
 
 /*
- * Fast power-of-two math macros for non-optimized compilers
+ * Fast power-of-two math macros for yesn-optimized compilers
  */
 #define _ACPI_DIV(value, power_of2)     ((u32) ((value) >> (power_of2)))
 #define _ACPI_MUL(value, power_of2)     ((u32) ((value) << (power_of2)))
@@ -220,7 +220,7 @@
 
 #define ACPI_ROUND_UP_TO_1K(a)              (((a) + 1023) >> 10)
 
-/* Generic (non-power-of-two) rounding */
+/* Generic (yesn-power-of-two) rounding */
 
 #define ACPI_ROUND_UP_TO(value, boundary)   (((value) + ((boundary)-1)) / (boundary))
 
@@ -365,7 +365,7 @@
 #define ACPI_IS_PATH_SEPARATOR(c)   ((c) == (u8) 0x2E)	/* Period (dot) */
 
 /*
- * An object of type struct acpi_namespace_node can appear in some contexts
+ * An object of type struct acpi_namespace_yesde can appear in some contexts
  * where a pointer to an object of type union acpi_operand_object can also
  * appear. This macro is used to distinguish them.
  *
@@ -419,7 +419,7 @@
 /*
  * Error reporting. The callers module and line number are inserted by AE_INFO,
  * the plist contains a set of parens to allow variable-length lists.
- * These macros are used for both the debug and non-debug versions of the code.
+ * These macros are used for both the debug and yesn-debug versions of the code.
  */
 #define ACPI_ERROR_NAMESPACE(s, p, e)       acpi_ut_prefixed_namespace_error (AE_INFO, s, p, e);
 #define ACPI_ERROR_METHOD(s, n, p, e)       acpi_ut_method_error (AE_INFO, s, n, p, e);
@@ -466,7 +466,7 @@
  */
 #ifdef ACPI_ASL_COMPILER
 
-#define ASL_CV_LABEL_FILENODE(a)         cv_label_file_node(a);
+#define ASL_CV_LABEL_FILENODE(a)         cv_label_file_yesde(a);
 #define ASL_CV_CAPTURE_COMMENTS_ONLY(a)   cv_capture_comments_only (a);
 #define ASL_CV_CAPTURE_COMMENTS(a)       cv_capture_comments (a);
 #define ASL_CV_TRANSFER_COMMENTS(a)      cv_transfer_comments (a);

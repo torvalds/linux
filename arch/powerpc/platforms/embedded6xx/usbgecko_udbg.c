@@ -92,7 +92,7 @@ static int ug_is_txfifo_ready(void)
 
 /*
  * Tries to transmit a character.
- * If the TX fifo is not ready the result is undefined.
+ * If the TX fifo is yest ready the result is undefined.
  */
 static void ug_raw_putc(char ch)
 {
@@ -101,7 +101,7 @@ static void ug_raw_putc(char ch)
 
 /*
  * Transmits a character.
- * It silently fails if the TX fifo is not ready after a number of retries.
+ * It silently fails if the TX fifo is yest ready after a number of retries.
  */
 static void ug_putc(char ch)
 {
@@ -142,7 +142,7 @@ static int ug_raw_getc(void)
 
 /*
  * Receives a character.
- * It fails if the RX fifo is not ready after a number of retries.
+ * It fails if the RX fifo is yest ready after a number of retries.
  */
 static int ug_getc(void)
 {
@@ -182,7 +182,7 @@ static int ug_udbg_getc(void)
 }
 
 /*
- * Receives a character. If a character is not available, returns -1.
+ * Receives a character. If a character is yest available, returns -1.
  */
 static int ug_udbg_getc_poll(void)
 {
@@ -194,7 +194,7 @@ static int ug_udbg_getc_poll(void)
 /*
  * Retrieves and prepares the virtual address needed to access the hardware.
  */
-static void __iomem *ug_udbg_setup_exi_io_base(struct device_node *np)
+static void __iomem *ug_udbg_setup_exi_io_base(struct device_yesde *np)
 {
 	void __iomem *exi_io_base = NULL;
 	phys_addr_t paddr;
@@ -233,15 +233,15 @@ static void __iomem *ug_udbg_probe(void __iomem *exi_io_base)
  */
 void __init ug_udbg_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *exi_io_base;
 
 	if (ug_io_base)
 		udbg_printf("%s: early -> final\n", __func__);
 
-	np = of_find_compatible_node(NULL, NULL, "nintendo,flipper-exi");
+	np = of_find_compatible_yesde(NULL, NULL, "nintendo,flipper-exi");
 	if (!np) {
-		udbg_printf("%s: EXI node not found\n", __func__);
+		udbg_printf("%s: EXI yesde yest found\n", __func__);
 		goto out;
 	}
 
@@ -252,7 +252,7 @@ void __init ug_udbg_init(void)
 	}
 
 	if (!ug_udbg_probe(exi_io_base)) {
-		udbg_printf("usbgecko_udbg: not found\n");
+		udbg_printf("usbgecko_udbg: yest found\n");
 		iounmap(exi_io_base);
 	} else {
 		udbg_putc = ug_udbg_putc;
@@ -262,7 +262,7 @@ void __init ug_udbg_init(void)
 	}
 
 done:
-	of_node_put(np);
+	of_yesde_put(np);
 out:
 	return;
 }

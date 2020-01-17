@@ -9,7 +9,7 @@
 
 struct s3c24xx_audio_simtec_pdata;
 
-extern void nor_simtec_init(void);
+extern void yesr_simtec_init(void);
 
 extern int usb_simtec_init(void);
 

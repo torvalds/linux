@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2008-2017 Andes Technology Corporation
+// Copyright (C) 2008-2017 Andes Techyeslogy Corporation
 
 #include <linux/init.h>
 #include <linux/suspend.h>
@@ -36,7 +36,7 @@ static void nds32_suspend2ram(void)
 static void nds32_suspend_cpu(void)
 {
 	while (!(__nds32__mfsr(NDS32_SR_INT_PEND) & wake_mask))
-		__asm__ volatile ("standby no_wake_grant\n\t");
+		__asm__ volatile ("standby yes_wake_grant\n\t");
 }
 
 static int nds32_pm_valid(suspend_state_t state)

@@ -318,7 +318,7 @@ static int tps65218_regulator_probe(struct platform_device *pdev)
 	unsigned int val;
 
 	config.dev = &pdev->dev;
-	config.dev->of_node = tps->dev->of_node;
+	config.dev->of_yesde = tps->dev->of_yesde;
 	config.driver_data = tps;
 	config.regmap = tps->regmap;
 

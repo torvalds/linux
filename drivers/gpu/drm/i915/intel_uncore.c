@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -82,7 +82,7 @@ intel_uncore_forcewake_domain_to_str(const enum forcewake_domain_id id)
 
 	WARN_ON(id);
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 #define fw_ack(d) readl((d)->reg_ack)
@@ -93,9 +93,9 @@ static inline void
 fw_domain_reset(const struct intel_uncore_forcewake_domain *d)
 {
 	/*
-	 * We don't really know if the powerwell for the forcewake domain we are
+	 * We don't really kyesw if the powerwell for the forcewake domain we are
 	 * trying to reset here does exist at this point (engines could be fused
-	 * off in ICL+), so no waiting for acks
+	 * off in ICL+), so yes waiting for acks
 	 */
 	/* WaRsClearFWBitsAtReset:bdw,skl */
 	fw_clear(d, 0xffff);
@@ -142,7 +142,7 @@ fw_domain_wait_ack_clear(const struct intel_uncore_forcewake_domain *d)
 	if (wait_ack_clear(d, FORCEWAKE_KERNEL)) {
 		DRM_ERROR("%s: timed out waiting for forcewake ack to clear.\n",
 			  intel_uncore_forcewake_domain_to_str(d->id));
-		add_taint_for_CI(TAINT_WARN); /* CI now unreliable */
+		add_taint_for_CI(TAINT_WARN); /* CI yesw unreliable */
 	}
 }
 
@@ -163,13 +163,13 @@ fw_domain_wait_ack_with_fallback(const struct intel_uncore_forcewake_domain *d,
 	/*
 	 * There is a possibility of driver's wake request colliding
 	 * with hardware's own wake requests and that can cause
-	 * hardware to not deliver the driver's ack message.
+	 * hardware to yest deliver the driver's ack message.
 	 *
 	 * Use a fallback bit toggle to kick the gpu state machine
 	 * in the hope that the original ack will be delivered along with
 	 * the fallback ack.
 	 *
-	 * This workaround is described in HSDES #1604254524 and it's known as:
+	 * This workaround is described in HSDES #1604254524 and it's kyeswn as:
 	 * WaRsForcewakeAddDelayForAck:skl,bxt,kbl,glk,cfl,cnl,icl
 	 * although the name is a bit misleading.
 	 */
@@ -219,7 +219,7 @@ fw_domain_wait_ack_set(const struct intel_uncore_forcewake_domain *d)
 	if (wait_ack_set(d, FORCEWAKE_KERNEL)) {
 		DRM_ERROR("%s: timed out waiting for forcewake ack request.\n",
 			  intel_uncore_forcewake_domain_to_str(d->id));
-		add_taint_for_CI(TAINT_WARN); /* CI now unreliable */
+		add_taint_for_CI(TAINT_WARN); /* CI yesw unreliable */
 	}
 }
 
@@ -375,7 +375,7 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 	struct intel_uncore *uncore = domain->uncore;
 	unsigned long irqflags;
 
-	assert_rpm_device_not_suspended(uncore->rpm);
+	assert_rpm_device_yest_suspended(uncore->rpm);
 
 	if (xchg(&domain->active, false))
 		return HRTIMER_RESTART;
@@ -405,7 +405,7 @@ intel_uncore_forcewake_reset(struct intel_uncore *uncore)
 	iosf_mbi_assert_punit_acquired();
 
 	/* Hold uncore.lock across reset to prevent any register access
-	 * with forcewake not set correctly. Wait until all pending
+	 * with forcewake yest set correctly. Wait until all pending
 	 * timers are run before holding.
 	 */
 	while (1) {
@@ -551,7 +551,7 @@ void intel_uncore_suspend(struct intel_uncore *uncore)
 		return;
 
 	iosf_mbi_punit_acquire();
-	iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
+	iosf_mbi_unregister_pmic_bus_access_yestifier_unlocked(
 		&uncore->pmic_bus_access_nb);
 	uncore->fw_domains_saved = intel_uncore_forcewake_reset(uncore);
 	iosf_mbi_punit_release();
@@ -570,7 +570,7 @@ void intel_uncore_resume_early(struct intel_uncore *uncore)
 	restore_forcewake = fetch_and_zero(&uncore->fw_domains_saved);
 	forcewake_early_sanitize(uncore, restore_forcewake);
 
-	iosf_mbi_register_pmic_bus_access_notifier(&uncore->pmic_bus_access_nb);
+	iosf_mbi_register_pmic_bus_access_yestifier(&uncore->pmic_bus_access_nb);
 }
 
 void intel_uncore_runtime_resume(struct intel_uncore *uncore)
@@ -578,7 +578,7 @@ void intel_uncore_runtime_resume(struct intel_uncore *uncore)
 	if (!intel_uncore_has_forcewake(uncore))
 		return;
 
-	iosf_mbi_register_pmic_bus_access_notifier(&uncore->pmic_bus_access_nb);
+	iosf_mbi_register_pmic_bus_access_yestifier(&uncore->pmic_bus_access_nb);
 }
 
 static void __intel_uncore_forcewake_get(struct intel_uncore *uncore,
@@ -607,7 +607,7 @@ static void __intel_uncore_forcewake_get(struct intel_uncore *uncore,
  *
  * This function can be used get GT's forcewake domain references.
  * Normal register access will handle the forcewake domains automatically.
- * However if some sequence requires the GT to not power down a particular
+ * However if some sequence requires the GT to yest power down a particular
  * forcewake domains this function should be called at the beginning of the
  * sequence. And subsequently the reference should be dropped by symmetric
  * call to intel_unforce_forcewake_put(). Usually caller wants all the domains
@@ -913,7 +913,7 @@ static const i915_reg_t gen8_shadowed_regs[] = {
 	RING_TAIL(GEN6_BSD_RING_BASE),	/* 0x12000 (base) */
 	RING_TAIL(VEBOX_RING_BASE),	/* 0x1a000 (base) */
 	RING_TAIL(BLT_RING_BASE),	/* 0x22000 (base) */
-	/* TODO: Other registers are not yet used */
+	/* TODO: Other registers are yest yet used */
 };
 
 static const i915_reg_t gen11_shadowed_regs[] = {
@@ -927,7 +927,7 @@ static const i915_reg_t gen11_shadowed_regs[] = {
 	RING_TAIL(GEN11_BSD3_RING_BASE),	/* 0x1D0000 (base) */
 	RING_TAIL(GEN11_BSD4_RING_BASE),	/* 0x1D4000 (base) */
 	RING_TAIL(GEN11_VEBOX2_RING_BASE),	/* 0x1D8000 (base) */
-	/* TODO: Other registers are not yet used */
+	/* TODO: Other registers are yest yet used */
 };
 
 static const i915_reg_t gen12_shadowed_regs[] = {
@@ -941,7 +941,7 @@ static const i915_reg_t gen12_shadowed_regs[] = {
 	RING_TAIL(GEN11_BSD3_RING_BASE),	/* 0x1D0000 (base) */
 	RING_TAIL(GEN11_BSD4_RING_BASE),	/* 0x1D4000 (base) */
 	RING_TAIL(GEN11_VEBOX2_RING_BASE),	/* 0x1D8000 (base) */
-	/* TODO: Other registers are not yet used */
+	/* TODO: Other registers are yest yet used */
 };
 
 static int mmio_reg_cmp(u32 key, const i915_reg_t *reg)
@@ -1240,7 +1240,7 @@ __gen2_read(64)
 	trace_i915_reg_rw(false, reg, val, sizeof(val), trace); \
 	return val
 
-static noinline void ___force_wake_auto(struct intel_uncore *uncore,
+static yesinline void ___force_wake_auto(struct intel_uncore *uncore,
 					enum forcewake_domains fw_domains)
 {
 	struct intel_uncore_forcewake_domain *domain;
@@ -1564,7 +1564,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 
 		/* A small trick here - if the bios hasn't configured
 		 * MT forcewake, and if the device is in RC6, then
-		 * force_wake_mt_get will not wake the device and the
+		 * force_wake_mt_get will yest wake the device and the
 		 * ECOBUS read will return zero. Which will be
 		 * (correctly) interpreted by the test below as MT
 		 * forcewake being disabled.
@@ -1575,7 +1575,7 @@ static int intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 
 		/* We need to init first for ECOBUS access and then
 		 * determine later if we want to reinit, in case of MT access is
-		 * not working. In this stage we don't know which flavour this
+		 * yest working. In this stage we don't kyesw which flavour this
 		 * ivb is, so it is better to reset also the gen6 fw registers
 		 * before the ecobus check.
 		 */
@@ -1628,7 +1628,7 @@ out:
 	(uncore)->fw_domains_table_entries = ARRAY_SIZE((d)); \
 }
 
-static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
+static int i915_pmic_bus_access_yestifier(struct yestifier_block *nb,
 					 unsigned long action, void *data)
 {
 	struct intel_uncore *uncore = container_of(nb,
@@ -1637,14 +1637,14 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 	switch (action) {
 	case MBI_PMIC_BUS_ACCESS_BEGIN:
 		/*
-		 * forcewake all now to make sure that we don't need to do a
-		 * forcewake later which on systems where this notifier gets
+		 * forcewake all yesw to make sure that we don't need to do a
+		 * forcewake later which on systems where this yestifier gets
 		 * called requires the punit to access to the shared pmic i2c
-		 * bus, which will be busy after this notification, leading to:
+		 * bus, which will be busy after this yestification, leading to:
 		 * "render: timed out waiting for forcewake ack request."
 		 * errors.
 		 *
-		 * The notifier is unregistered during intel_runtime_suspend(),
+		 * The yestifier is unregistered during intel_runtime_suspend(),
 		 * so it's ok to access the HW here without holding a RPM
 		 * wake reference -> disable wakeref asserts for the time of
 		 * the access.
@@ -1764,8 +1764,8 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen12_fwtable);
 	}
 
-	uncore->pmic_bus_access_nb.notifier_call = i915_pmic_bus_access_notifier;
-	iosf_mbi_register_pmic_bus_access_notifier(&uncore->pmic_bus_access_nb);
+	uncore->pmic_bus_access_nb.yestifier_call = i915_pmic_bus_access_yestifier;
+	iosf_mbi_register_pmic_bus_access_yestifier(&uncore->pmic_bus_access_nb);
 
 	return 0;
 }
@@ -1857,7 +1857,7 @@ void intel_uncore_fini_mmio(struct intel_uncore *uncore)
 {
 	if (intel_uncore_has_forcewake(uncore)) {
 		iosf_mbi_punit_acquire();
-		iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
+		iosf_mbi_unregister_pmic_bus_access_yestifier_unlocked(
 			&uncore->pmic_bus_access_nb);
 		intel_uncore_forcewake_reset(uncore);
 		intel_uncore_fw_domains_fini(uncore);
@@ -1952,10 +1952,10 @@ int i915_reg_read_ioctl(struct drm_device *dev,
  *
  * Otherwise, the wait will timeout after @slow_timeout_ms milliseconds.
  * For atomic context @slow_timeout_ms must be zero and @fast_timeout_us
- * must be not larger than 20,0000 microseconds.
+ * must be yest larger than 20,0000 microseconds.
  *
  * Note that this routine assumes the caller holds forcewake asserted, it is
- * not suitable for very long waits. See intel_wait_for_register() if you
+ * yest suitable for very long waits. See intel_wait_for_register() if you
  * wish to wait without holding forcewake for the duration (i.e. you expect
  * the wait to be slow).
  *
@@ -2035,7 +2035,7 @@ int __intel_wait_for_register(struct intel_uncore *uncore,
 	spin_unlock_irq(&uncore->lock);
 
 	if (ret && slow_timeout_ms)
-		ret = __wait_for(reg_value = intel_uncore_read_notrace(uncore,
+		ret = __wait_for(reg_value = intel_uncore_read_yestrace(uncore,
 								       reg),
 				 (reg_value & mask) == value,
 				 slow_timeout_ms * 1000, 10, 1000);

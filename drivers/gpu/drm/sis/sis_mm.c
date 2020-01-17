@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -45,7 +45,7 @@
 
 
 struct sis_memblock {
-	struct drm_mm_node mm_node;
+	struct drm_mm_yesde mm_yesde;
 	struct sis_memreq req;
 	struct list_head owner_list;
 };
@@ -110,10 +110,10 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 
 	mem->size = (mem->size + SIS_MM_ALIGN_MASK) >> SIS_MM_ALIGN_SHIFT;
 	if (pool == AGP_TYPE) {
-		retval = drm_mm_insert_node(&dev_priv->agp_mm,
-					    &item->mm_node,
+		retval = drm_mm_insert_yesde(&dev_priv->agp_mm,
+					    &item->mm_yesde,
 					    mem->size);
-		offset = item->mm_node.start;
+		offset = item->mm_yesde.start;
 	} else {
 #if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
 		item->req.size = mem->size;
@@ -122,10 +122,10 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 			retval = -ENOMEM;
 		offset = item->req.offset;
 #else
-		retval = drm_mm_insert_node(&dev_priv->vram_mm,
-					    &item->mm_node,
+		retval = drm_mm_insert_yesde(&dev_priv->vram_mm,
+					    &item->mm_yesde,
 					    mem->size);
-		offset = item->mm_node.start;
+		offset = item->mm_yesde.start;
 #endif
 	}
 	if (retval)
@@ -148,7 +148,7 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 	return 0;
 
 fail_idr:
-	drm_mm_remove_node(&item->mm_node);
+	drm_mm_remove_yesde(&item->mm_yesde);
 fail_alloc:
 	kfree(item);
 	mutex_unlock(&dev->struct_mutex);
@@ -178,8 +178,8 @@ static int sis_drm_free(struct drm_device *dev, void *data, struct drm_file *fil
 
 	idr_remove(&dev_priv->object_idr, mem->free);
 	list_del(&obj->owner_list);
-	if (drm_mm_node_allocated(&obj->mm_node))
-		drm_mm_remove_node(&obj->mm_node);
+	if (drm_mm_yesde_allocated(&obj->mm_yesde))
+		drm_mm_remove_yesde(&obj->mm_yesde);
 #if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
 	else
 		sis_free(obj->req.offset);
@@ -250,7 +250,7 @@ int sis_idle(struct drm_device *dev)
 	if (dev_priv->mmio == NULL) {
 		dev_priv->mmio = sis_reg_init(dev);
 		if (dev_priv->mmio == NULL) {
-			DRM_ERROR("Could not find register map.\n");
+			DRM_ERROR("Could yest find register map.\n");
 			return 0;
 		}
 	}
@@ -263,7 +263,7 @@ int sis_idle(struct drm_device *dev)
 		return 0;
 
 	/*
-	 * Timeout after 3 seconds. We cannot use DRM_WAIT_ON here
+	 * Timeout after 3 seconds. We canyest use DRM_WAIT_ON here
 	 * because its polling frequency is too low.
 	 */
 
@@ -336,8 +336,8 @@ void sis_reclaim_buffers_locked(struct drm_device *dev,
 	list_for_each_entry_safe(entry, next, &file_priv->obj_list,
 				 owner_list) {
 		list_del(&entry->owner_list);
-		if (drm_mm_node_allocated(&entry->mm_node))
-			drm_mm_remove_node(&entry->mm_node);
+		if (drm_mm_yesde_allocated(&entry->mm_yesde))
+			drm_mm_remove_yesde(&entry->mm_yesde);
 #if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
 		else
 			sis_free(entry->req.offset);

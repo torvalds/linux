@@ -9,7 +9,7 @@
  *
  *  -   local: CPU-local trace clock
  *  -  medium: scalable global clock with some jitter
- *  -  global: globally monotonic, serialized clock
+ *  -  global: globally moyestonic, serialized clock
  *
  * Tracer plugins will chose a default from these clocks.
  */
@@ -26,21 +26,21 @@
 /*
  * trace_clock_local(): the simplest and least coherent tracing clock.
  *
- * Useful for tracing that does not cross to other CPUs nor
+ * Useful for tracing that does yest cross to other CPUs yesr
  * does it go through idle events.
  */
-u64 notrace trace_clock_local(void)
+u64 yestrace trace_clock_local(void)
 {
 	u64 clock;
 
 	/*
 	 * sched_clock() is an architecture implemented, fast, scalable,
-	 * lockless clock. It is not guaranteed to be coherent across
-	 * CPUs, nor across CPU idle events.
+	 * lockless clock. It is yest guaranteed to be coherent across
+	 * CPUs, yesr across CPU idle events.
 	 */
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 	clock = sched_clock();
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 
 	return clock;
 }
@@ -48,13 +48,13 @@ EXPORT_SYMBOL_GPL(trace_clock_local);
 
 /*
  * trace_clock(): 'between' trace clock. Not completely serialized,
- * but not completely incorrect when crossing CPUs either.
+ * but yest completely incorrect when crossing CPUs either.
  *
  * This is based on cpu_clock(), which will allow at most ~1 jiffy of
  * jitter between CPUs. So it's a pretty scalable clock, but there
  * can be offsets in the trace data.
  */
-u64 notrace trace_clock(void)
+u64 yestrace trace_clock(void)
 {
 	return local_clock();
 }
@@ -62,12 +62,12 @@ EXPORT_SYMBOL_GPL(trace_clock);
 
 /*
  * trace_jiffy_clock(): Simply use jiffies as a clock counter.
- * Note that this use of jiffies_64 is not completely safe on
+ * Note that this use of jiffies_64 is yest completely safe on
  * 32-bit systems. But the window is tiny, and the effect if
  * we are affected is that we will have an obviously bogus
- * timestamp on a trace event - i.e. not life threatening.
+ * timestamp on a trace event - i.e. yest life threatening.
  */
-u64 notrace trace_clock_jiffies(void)
+u64 yestrace trace_clock_jiffies(void)
 {
 	return jiffies_64_to_clock_t(jiffies_64 - INITIAL_JIFFIES);
 }
@@ -91,16 +91,16 @@ static struct {
 		.lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED,
 	};
 
-u64 notrace trace_clock_global(void)
+u64 yestrace trace_clock_global(void)
 {
 	unsigned long flags;
 	int this_cpu;
-	u64 now;
+	u64 yesw;
 
 	raw_local_irq_save(flags);
 
 	this_cpu = raw_smp_processor_id();
-	now = sched_clock_cpu(this_cpu);
+	yesw = sched_clock_cpu(this_cpu);
 	/*
 	 * If in an NMI context then dont risk lockups and return the
 	 * cpu_clock() time:
@@ -113,19 +113,19 @@ u64 notrace trace_clock_global(void)
 	/*
 	 * TODO: if this happens often then maybe we should reset
 	 * my_scd->clock to prev_time+1, to make sure
-	 * we start ticking with the local clock from now on?
+	 * we start ticking with the local clock from yesw on?
 	 */
-	if ((s64)(now - trace_clock_struct.prev_time) < 0)
-		now = trace_clock_struct.prev_time + 1;
+	if ((s64)(yesw - trace_clock_struct.prev_time) < 0)
+		yesw = trace_clock_struct.prev_time + 1;
 
-	trace_clock_struct.prev_time = now;
+	trace_clock_struct.prev_time = yesw;
 
 	arch_spin_unlock(&trace_clock_struct.lock);
 
  out:
 	raw_local_irq_restore(flags);
 
-	return now;
+	return yesw;
 }
 EXPORT_SYMBOL_GPL(trace_clock_global);
 
@@ -133,10 +133,10 @@ static atomic64_t trace_counter;
 
 /*
  * trace_clock_counter(): simply an atomic counter.
- * Use the trace_counter "counter" for cases where you do not care
+ * Use the trace_counter "counter" for cases where you do yest care
  * about timings, but are interested in strict ordering.
  */
-u64 notrace trace_clock_counter(void)
+u64 yestrace trace_clock_counter(void)
 {
 	return atomic64_add_return(1, &trace_counter);
 }

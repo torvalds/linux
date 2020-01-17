@@ -21,7 +21,7 @@
 
 #include <linux/bottom_half.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
@@ -428,7 +428,7 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	}
 
 	if (type == ICMPV6_PKT_TOOBIG) {
-		/* We are not interested in TCP_LISTEN and open_requests
+		/* We are yest interested in TCP_LISTEN and open_requests
 		 * (SYN-ACKs send out by Linux are always <576bytes so
 		 * they should go through unfragmented).
 		 */
@@ -625,7 +625,7 @@ static int tcp_v6_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 
 	hp = tcp_get_md5sig_pool();
 	if (!hp)
-		goto clear_hash_noput;
+		goto clear_hash_yesput;
 	req = hp->md5_req;
 
 	if (crypto_ahash_init(req))
@@ -643,7 +643,7 @@ static int tcp_v6_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 
 clear_hash:
 	tcp_put_md5sig_pool();
-clear_hash_noput:
+clear_hash_yesput:
 	memset(md5_hash, 0, 16);
 	return 1;
 }
@@ -669,7 +669,7 @@ static int tcp_v6_md5_hash_skb(char *md5_hash,
 
 	hp = tcp_get_md5sig_pool();
 	if (!hp)
-		goto clear_hash_noput;
+		goto clear_hash_yesput;
 	req = hp->md5_req;
 
 	if (crypto_ahash_init(req))
@@ -690,7 +690,7 @@ static int tcp_v6_md5_hash_skb(char *md5_hash,
 
 clear_hash:
 	tcp_put_md5sig_pool();
-clear_hash_noput:
+clear_hash_yesput:
 	memset(md5_hash, 0, 16);
 	return 1;
 }
@@ -940,7 +940,7 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 	if (th->rst)
 		return;
 
-	/* If sk not NULL, it means we did a successful lookup and incoming
+	/* If sk yest NULL, it means we did a successful lookup and incoming
 	 * route had to be correct. prequeue might have dropped our dst.
 	 */
 	if (!sk && !ipv6_unicast_destination(skb))
@@ -956,9 +956,9 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 		/*
 		 * active side is lost. Try to find listening socket through
 		 * source port, and then find md5 key through listening socket.
-		 * we are not loose security here:
+		 * we are yest loose security here:
 		 * Incoming packet is checked with md5 hash with finding key,
-		 * no RST generated if md5 hash doesn't match.
+		 * yes RST generated if md5 hash doesn't match.
 		 */
 		sk1 = inet6_lookup_listener(net,
 					   &tcp_hashinfo, NULL, 0,
@@ -1169,13 +1169,13 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 
 		/*
 		 * No need to charge this sock to the relevant IPv6 refcnt debug socks count
-		 * here, tcp_create_openreq_child now does this for us, see the comment in
+		 * here, tcp_create_openreq_child yesw does this for us, see the comment in
 		 * that function for the gory details. -acme
 		 */
 
 		/* It is tricky place. Until this moment IPv4 tcp
 		   worked with IPv6 icsk.icsk_af_ops.
-		   Sync it now.
+		   Sync it yesw.
 		 */
 		tcp_sync_mss(newsk, inet_csk(newsk)->icsk_pmtu_cookie);
 
@@ -1195,11 +1195,11 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 
 	newsk = tcp_create_openreq_child(sk, req, skb);
 	if (!newsk)
-		goto out_nonewsk;
+		goto out_yesnewsk;
 
 	/*
 	 * No need to charge this sock to the relevant IPv6 refcnt debug socks
-	 * count here, tcp_create_openreq_child now does this for us, see the
+	 * count here, tcp_create_openreq_child yesw does this for us, see the
 	 * comment in that function for the gory details. -acme
 	 */
 
@@ -1222,7 +1222,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 
 	/* Now IPv6 options...
 
-	   First: no IPv4 options.
+	   First: yes IPv4 options.
 	 */
 	newinet->inet_opt = NULL;
 	newnp->ipv6_mc_list = NULL;
@@ -1274,7 +1274,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 	if (key) {
 		/* We're using one, so create a matching key
 		 * on the newsk structure. If we fail to get
-		 * memory, then we end up not copying the key
+		 * memory, then we end up yest copying the key
 		 * across. Shucks.
 		 */
 		tcp_md5_do_add(newsk, (union tcp_md5_addr *)&newsk->sk_v6_daddr,
@@ -1288,7 +1288,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 		tcp_done(newsk);
 		goto out;
 	}
-	*own_req = inet_ehash_nolisten(newsk, req_to_sk(req_unhash));
+	*own_req = inet_ehash_yeslisten(newsk, req_to_sk(req_unhash));
 	if (*own_req) {
 		tcp_move_syn(newtp, req);
 
@@ -1309,7 +1309,7 @@ static struct sock *tcp_v6_syn_recv_sock(const struct sock *sk, struct sk_buff *
 
 out_overflow:
 	__NET_INC_STATS(sock_net(sk), LINUX_MIB_LISTENOVERFLOWS);
-out_nonewsk:
+out_yesnewsk:
 	dst_release(dst);
 out:
 	tcp_listendrop(sk);
@@ -1321,7 +1321,7 @@ out:
  *
  * We have a potential double-lock case here, so even when
  * doing backlog processing we use the BH locking scheme.
- * This is because we cannot sleep with the original spinlock
+ * This is because we canyest sleep with the original spinlock
  * held.
  */
 static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
@@ -1334,7 +1334,7 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	   goes to IPv4 receive handler and backlogged.
 	   From backlog it always goes here. Kerboom...
 	   Fortunately, tcp_rcv_established and rcv_established
-	   handle them correctly, but it is not case with
+	   handle them correctly, but it is yest case with
 	   tcp_v6_hnd_req and tcp_v6_send_reset().   --ANK
 	 */
 
@@ -1349,12 +1349,12 @@ static int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	/* Do Stevens' IPV6_PKTOPTIONS.
 
 	   Yes, guys, it is the only place in our code, where we
-	   may make it not affecting IPv4.
+	   may make it yest affecting IPv4.
 	   The rest of code is protocol independent,
-	   and I do not like idea to uglify IPv4.
+	   and I do yest like idea to uglify IPv4.
 
 	   Actually, all the idea behind IPV6_PKTOPTIONS
-	   looks not very well thought. For now we latch
+	   looks yest very well thought. For yesw we latch
 	   options, received in the last packet, enqueued
 	   by tcp. Feel free to propose better solution.
 					       --ANK (980728)
@@ -1424,7 +1424,7 @@ ipv6_pktoptions:
 
 	   1. skb was enqueued by tcp.
 	   2. skb is added to tail of read queue, rather than out of order.
-	   3. socket is not in passive state.
+	   3. socket is yest in passive state.
 	   4. Finally, it really contains options, which user wants to receive.
 	 */
 	tp = tcp_sk(sk);
@@ -1516,7 +1516,7 @@ lookup:
 				th->source, th->dest, inet6_iif(skb), sdif,
 				&refcounted);
 	if (!sk)
-		goto no_tcp_socket;
+		goto yes_tcp_socket;
 
 process:
 	if (sk->sk_state == TCP_TIME_WAIT)
@@ -1553,7 +1553,7 @@ process:
 		if (!nsk) {
 			reqsk_put(req);
 			if (req_stolen) {
-				/* Another cpu got exclusive access to req
+				/* Ayesther cpu got exclusive access to req
 				 * and created a full blown socket.
 				 * Try to feed this packet to this socket
 				 * instead of discarding it.
@@ -1621,7 +1621,7 @@ put_and_return:
 		sock_put(sk);
 	return ret ? -1 : 0;
 
-no_tcp_socket:
+yes_tcp_socket:
 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb))
 		goto discard_it;
 
@@ -1713,7 +1713,7 @@ INDIRECT_CALLABLE_SCOPE void tcp_v6_early_demux(struct sk_buff *skb)
 	if (th->doff < sizeof(struct tcphdr) / 4)
 		return;
 
-	/* Note : We use inet6_iif() here, not tcp_v6_iif() */
+	/* Note : We use inet6_iif() here, yest tcp_v6_iif() */
 	sk = __inet6_lookup_established(dev_net(skb->dev), &tcp_hashinfo,
 					&hdr->saddr, th->source,
 					&hdr->daddr, ntohs(th->dest),
@@ -1728,7 +1728,7 @@ INDIRECT_CALLABLE_SCOPE void tcp_v6_early_demux(struct sk_buff *skb)
 				dst = dst_check(dst, tcp_inet6_sk(sk)->rx_dst_cookie);
 			if (dst &&
 			    inet_sk(sk)->rx_dst_ifindex == skb->skb_iif)
-				skb_dst_set_noref(skb, dst);
+				skb_dst_set_yesref(skb, dst);
 		}
 	}
 }
@@ -1798,7 +1798,7 @@ static const struct tcp_sock_af_ops tcp_sock_ipv6_mapped_specific = {
 #endif
 
 /* NOTE: A lot of things set to zero explicitly by call to
- *       sk_alloc() so need not be done here.
+ *       sk_alloc() so need yest be done here.
  */
 static int tcp_v6_init_sock(struct sock *sk)
 {
@@ -1850,8 +1850,8 @@ static void get_openreq6(struct seq_file *seq,
 		   req->num_timeout,
 		   from_kuid_munged(seq_user_ns(seq),
 				    sock_i_uid(req->rsk_listener)),
-		   0,  /* non standard timer */
-		   0, /* open_requests have no inode */
+		   0,  /* yesn standard timer */
+		   0, /* open_requests have yes iyesde */
 		   0, req);
 }
 
@@ -1915,7 +1915,7 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 		   icsk->icsk_retransmits,
 		   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sp)),
 		   icsk->icsk_probes_out,
-		   sock_i_ino(sp),
+		   sock_i_iyes(sp),
 		   refcount_read(&sp->sk_refcnt), sp,
 		   jiffies_to_clock_t(icsk->icsk_rto),
 		   jiffies_to_clock_t(icsk->icsk_ack.ato),
@@ -1963,7 +1963,7 @@ static int tcp6_seq_show(struct seq_file *seq, void *v)
 			 "local_address                         "
 			 "remote_address                        "
 			 "st tx_queue rx_queue tr tm->when retrnsmt"
-			 "   uid  timeout inode\n");
+			 "   uid  timeout iyesde\n");
 		goto out;
 	}
 	st = seq->private;
@@ -2042,7 +2042,7 @@ struct proto tcpv6_prot = {
 	.twsk_prot		= &tcp6_timewait_sock_ops,
 	.rsk_prot		= &tcp6_request_sock_ops,
 	.h.hashinfo		= &tcp_hashinfo,
-	.no_autobind		= true,
+	.yes_autobind		= true,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt	= compat_tcp_setsockopt,
 	.compat_getsockopt	= compat_tcp_getsockopt,

@@ -19,25 +19,25 @@
 
 
 /*
- * All known Zaurii lie about their standards conformance.  At least
+ * All kyeswn Zaurii lie about their standards conformance.  At least
  * the earliest SA-1100 models lie by saying they support CDC Ethernet.
  * Some later models (especially PXA-25x and PXA-27x based ones) lie
  * and say they support CDC MDLM (for access to cell phone modems).
  *
- * There are non-Zaurus products that use these same protocols too.
+ * There are yesn-Zaurus products that use these same protocols too.
  *
- * The annoying thing is that at the same time Sharp was developing
- * that annoying standards-breaking software, the Linux community had
+ * The anyesying thing is that at the same time Sharp was developing
+ * that anyesying standards-breaking software, the Linux community had
  * a simple "CDC Subset" working reliably on the same SA-1100 hardware.
- * That is, the same functionality but not violating standards.
+ * That is, the same functionality but yest violating standards.
  *
- * The CDC Ethernet nonconformance points are troublesome to hosts
+ * The CDC Ethernet yesnconformance points are troublesome to hosts
  * with a true CDC Ethernet implementation:
- *   - Framing appends a CRC, which the spec says drivers "must not" do;
+ *   - Framing appends a CRC, which the spec says drivers "must yest" do;
  *   - Transfers data in altsetting zero, instead of altsetting 1;
  *   - All these peripherals use the same ethernet address.
  *
- * The CDC MDLM nonconformance is less immediately troublesome, since all
+ * The CDC MDLM yesnconformance is less immediately troublesome, since all
  * MDLM implementations are quasi-proprietary anyway.
  */
 
@@ -119,10 +119,10 @@ static const struct driver_info	olympus_mxl_info = {
 
 /* Some more recent products using Lineo/Belcarra code will wrongly claim
  * CDC MDLM conformance.  They aren't conformant:  data endpoints live
- * in the control interface, there's no data interface, and it's not used
+ * in the control interface, there's yes data interface, and it's yest used
  * to talk to a cell phone radio.  But at least we can detect these two
  * pseudo-classes, rather than growing this product list with entries for
- * each new nonconformant product (sigh).
+ * each new yesnconformant product (sigh).
  */
 static const u8 safe_guid[16] = {
 	0x5d, 0x34, 0xcf, 0x66, 0x11, 0x18, 0x11, 0xd6,
@@ -159,7 +159,7 @@ static int blan_mdlm_bind(struct usbnet *dev, struct usb_interface *intf)
 					desc->bLength);
 				goto bad_desc;
 			}
-			/* expect bcdVersion 1.0, ignore */
+			/* expect bcdVersion 1.0, igyesre */
 			if (memcmp(&desc->bGUID, blan_guid, 16) &&
 			    memcmp(&desc->bGUID, safe_guid, 16)) {
 				/* hey, this one might _really_ be MDLM! */
@@ -186,22 +186,22 @@ static int blan_mdlm_bind(struct usbnet *dev, struct usb_interface *intf)
 				goto bad_detail;
 			}
 
-			/* assuming we either noticed BLAN already, or will
+			/* assuming we either yesticed BLAN already, or will
 			 * find it soon, there are some data bytes here:
 			 *  - bmNetworkCapabilities (unused)
 			 *  - bmDataCapabilities (bits, see below)
-			 *  - bPad (ignored, for PADAFTER -- BLAN-only)
+			 *  - bPad (igyesred, for PADAFTER -- BLAN-only)
 			 * bits are:
 			 *  - 0x01 -- Zaurus framing (add CRC)
 			 *  - 0x02 -- PADBEFORE (CRC includes some padding)
 			 *  - 0x04 -- PADAFTER (some padding after CRC)
 			 *  - 0x08 -- "fermat" packet mangling (for hw bugs)
-			 * the PADBEFORE appears not to matter; we interop
+			 * the PADBEFORE appears yest to matter; we interop
 			 * with devices that use it and those that don't.
 			 */
 			if ((detail->bDetailData[1] & ~0x02) != 0x01) {
 				/* bmDataCapabilities == 0 would be fine too,
-				 * but framing is minidriver-coupled for now.
+				 * but framing is minidriver-coupled for yesw.
 				 */
 bad_detail:
 				dev_dbg(&intf->dev,
@@ -212,7 +212,7 @@ bad_detail:
 				goto bad_desc;
 			}
 
-			/* same extra framing as for non-BLAN mode */
+			/* same extra framing as for yesn-BLAN mode */
 			dev->net->hard_header_len += 6;
 			dev->rx_urb_size = dev->net->hard_header_len
 					+ dev->net->mtu;
@@ -231,9 +231,9 @@ next_desc:
 	}
 
 	/* There's probably a CDC Ethernet descriptor there, but we can't
-	 * rely on the Ethernet address it provides since not all vendors
-	 * bother to make it unique.  Likewise there's no point in tracking
-	 * of the CDC event notifications.
+	 * rely on the Ethernet address it provides since yest all vendors
+	 * bother to make it unique.  Likewise there's yes point in tracking
+	 * of the CDC event yestifications.
 	 */
 	return usbnet_get_endpoints(dev, intf);
 

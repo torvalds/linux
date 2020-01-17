@@ -28,7 +28,7 @@ void scif_recv_mark(struct scif_dev *scifdev, struct scifmsg *msg)
 		msg->uop = SCIF_MARK_ACK;
 	msg->payload[0] = ep->remote_ep;
 	msg->payload[2] = mark;
-	scif_nodeqp_send(ep->remote_dev, msg);
+	scif_yesdeqp_send(ep->remote_dev, msg);
 }
 
 /**
@@ -74,7 +74,7 @@ void scif_recv_wait(struct scif_dev *scifdev, struct scifmsg *msg)
 	if (!fence) {
 		msg->payload[0] = ep->remote_ep;
 		msg->uop = SCIF_WAIT_NACK;
-		scif_nodeqp_send(ep->remote_dev, msg);
+		scif_yesdeqp_send(ep->remote_dev, msg);
 		return;
 	}
 
@@ -130,7 +130,7 @@ void scif_recv_sig_local(struct scif_dev *scifdev, struct scifmsg *msg)
 	else
 		msg->uop = SCIF_SIG_ACK;
 	msg->payload[0] = ep->remote_ep;
-	scif_nodeqp_send(ep->remote_dev, msg);
+	scif_yesdeqp_send(ep->remote_dev, msg);
 }
 
 /**
@@ -151,7 +151,7 @@ void scif_recv_sig_remote(struct scif_dev *scifdev, struct scifmsg *msg)
 	else
 		msg->uop = SCIF_SIG_ACK;
 	msg->payload[0] = ep->remote_ep;
-	scif_nodeqp_send(ep->remote_dev, msg);
+	scif_yesdeqp_send(ep->remote_dev, msg);
 }
 
 /**
@@ -317,7 +317,7 @@ int scif_prog_signal(scif_epd_t epd, off_t offset, u64 val,
 		goto unlock_ret;
 	}
 
-	if (scif_is_mgmt_node() && scifdev_self(ep->remote_dev)) {
+	if (scif_is_mgmt_yesde() && scifdev_self(ep->remote_dev)) {
 		u64 *dst_virt;
 
 		if (type == SCIF_WINDOW_SELF)
@@ -385,7 +385,7 @@ void scif_rma_handle_remote_fences(void)
 		else
 			fence->msg.uop = SCIF_WAIT_ACK;
 		fence->msg.payload[0] = ep->remote_ep;
-		scif_nodeqp_send(ep->remote_dev, &fence->msg);
+		scif_yesdeqp_send(ep->remote_dev, &fence->msg);
 		kfree(fence);
 		if (!atomic_sub_return(1, &ep->rma_info.fence_refcount))
 			schedule_work(&scif_info.misc_work);
@@ -417,7 +417,7 @@ static int _scif_send_fence(scif_epd_t epd, int uop, int mark, int *out_mark)
 		msg.payload[2] = mark;
 	spin_lock(&ep->lock);
 	if (ep->state == SCIFEP_CONNECTED)
-		err = scif_nodeqp_send(ep->remote_dev, &msg);
+		err = scif_yesdeqp_send(ep->remote_dev, &msg);
 	else
 		err = -ENOTCONN;
 	spin_unlock(&ep->lock);
@@ -535,7 +535,7 @@ static int scif_send_fence_signal(scif_epd_t epd, off_t roff, u64 rval,
 		msg.payload[3] = (u64)fence_req;
 		spin_lock(&ep->lock);
 		if (ep->state == SCIFEP_CONNECTED)
-			err = scif_nodeqp_send(ep->remote_dev, &msg);
+			err = scif_yesdeqp_send(ep->remote_dev, &msg);
 		else
 			err = -ENOTCONN;
 		spin_unlock(&ep->lock);
@@ -555,7 +555,7 @@ static int scif_send_fence_signal(scif_epd_t epd, off_t roff, u64 rval,
 		msg.payload[3] = (u64)fence_req;
 		spin_lock(&ep->lock);
 		if (ep->state == SCIFEP_CONNECTED)
-			err = scif_nodeqp_send(ep->remote_dev, &msg);
+			err = scif_yesdeqp_send(ep->remote_dev, &msg);
 		else
 			err = -ENOTCONN;
 		spin_unlock(&ep->lock);
@@ -650,15 +650,15 @@ int scif_fence_mark(scif_epd_t epd, int flags, int *mark)
 	if (!(flags & (SCIF_FENCE_INIT_SELF | SCIF_FENCE_INIT_PEER)))
 		return -EINVAL;
 
-	/* Exactly one of init self or peer RMA should be set but not both */
+	/* Exactly one of init self or peer RMA should be set but yest both */
 	if ((flags & SCIF_FENCE_INIT_SELF) && (flags & SCIF_FENCE_INIT_PEER))
 		return -EINVAL;
 
 	/*
-	 * Management node loopback does not need to use DMA.
+	 * Management yesde loopback does yest need to use DMA.
 	 * Return a valid mark to be symmetric.
 	 */
-	if (scifdev_self(ep->remote_dev) && scif_is_mgmt_node()) {
+	if (scifdev_self(ep->remote_dev) && scif_is_mgmt_yesde()) {
 		*mark = SCIF_LOOPB_MAGIC_MARK;
 		return 0;
 	}
@@ -690,11 +690,11 @@ int scif_fence_wait(scif_epd_t epd, int mark)
 	if (err)
 		return err;
 	/*
-	 * Management node loopback does not need to use DMA.
+	 * Management yesde loopback does yest need to use DMA.
 	 * The only valid mark provided is 0 so simply
 	 * return success if the mark is valid.
 	 */
-	if (scifdev_self(ep->remote_dev) && scif_is_mgmt_node()) {
+	if (scifdev_self(ep->remote_dev) && scif_is_mgmt_yesde()) {
 		if (mark == SCIF_LOOPB_MAGIC_MARK)
 			return 0;
 		else
@@ -733,7 +733,7 @@ int scif_fence_signal(scif_epd_t epd, off_t loff, u64 lval,
 	if (!(flags & (SCIF_FENCE_INIT_SELF | SCIF_FENCE_INIT_PEER)))
 		return -EINVAL;
 
-	/* Exactly one of init self or peer RMA should be set but not both */
+	/* Exactly one of init self or peer RMA should be set but yest both */
 	if ((flags & SCIF_FENCE_INIT_SELF) && (flags & SCIF_FENCE_INIT_PEER))
 		return -EINVAL;
 

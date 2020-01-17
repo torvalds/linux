@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -48,31 +48,31 @@ static int rv1_determine_dppclk_threshold(struct clk_mgr_internal *clk_mgr, stru
 
 	/* increase clock, looking for div is 0 for current, request div is 1*/
 	if (dispclk_increase) {
-		/* already divided by 2, no need to reach target clk with 2 steps*/
+		/* already divided by 2, yes need to reach target clk with 2 steps*/
 		if (cur_dpp_div)
 			return new_clocks->dispclk_khz;
 
 		/* request disp clk is lower than maximum supported dpp clk,
-		 * no need to reach target clk with two steps.
+		 * yes need to reach target clk with two steps.
 		 */
 		if (new_clocks->dispclk_khz <= disp_clk_threshold)
 			return new_clocks->dispclk_khz;
 
-		/* target dpp clk not request divided by 2, still within threshold */
+		/* target dpp clk yest request divided by 2, still within threshold */
 		if (!request_dpp_div)
 			return new_clocks->dispclk_khz;
 
 	} else {
 		/* decrease clock, looking for current dppclk divided by 2,
-		 * request dppclk not divided by 2.
+		 * request dppclk yest divided by 2.
 		 */
 
-		/* current dpp clk not divided by 2, no need to ramp*/
+		/* current dpp clk yest divided by 2, yes need to ramp*/
 		if (!cur_dpp_div)
 			return new_clocks->dispclk_khz;
 
 		/* current disp clk is lower than current maximum dpp clk,
-		 * no need to ramp
+		 * yes need to ramp
 		 */
 		if (clk_mgr->base.clks.dispclk_khz <= disp_clk_threshold)
 			return new_clocks->dispclk_khz;
@@ -110,7 +110,7 @@ static void ramp_up_dispclk_with_dpp(struct clk_mgr_internal *clk_mgr, struct dc
 				true);
 	}
 
-	/* If target clk not same as dppclk threshold, set to target clock */
+	/* If target clk yest same as dppclk threshold, set to target clock */
 	if (dispclk_to_dpp_threshold != new_clocks->dispclk_khz) {
 		clk_mgr->funcs->set_dispclk(clk_mgr, new_clocks->dispclk_khz);
 		clk_mgr->funcs->set_dprefclk(clk_mgr);
@@ -152,7 +152,7 @@ static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (enter_display_off == safe_to_lower) {
 		/*
 		 * Notify SMU active displays
-		 * if function pointer not set up, this message is
+		 * if function pointer yest set up, this message is
 		 * sent as part of pplib_apply_display_requirements.
 		 */
 		if (pp_smu->set_display_count)
@@ -192,7 +192,7 @@ static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	/* make sure dcf clk is before dpp clk to
-	 * make sure we have enough voltage to run dpp clk
+	 * make sure we have eyesugh voltage to run dpp clk
 	 */
 	if (send_request_to_increase) {
 		/*use dcfclk to request voltage*/

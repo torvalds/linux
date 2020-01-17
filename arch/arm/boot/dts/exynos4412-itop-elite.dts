@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * TOPEET's Exynos4412 based itop board device tree source
+ * TOPEET's Exyyess4412 based itop board device tree source
  *
  * Copyright (c) 2016 SUMOMO Computer Association
  *			https://www.sumomo.mobi
  *			Randy Li <ayaka@soulik.info>
  *
- * Device tree source file for TOPEET iTop Exynos 4412 core board
- * which is based on Samsung's Exynos4412 SoC.
+ * Device tree source file for TOPEET iTop Exyyess 4412 core board
+ * which is based on Samsung's Exyyess4412 SoC.
  */
 
 /dts-v1/;
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/sound/samsung-i2s.h>
-#include "exynos4412-itop-scp-core.dtsi"
+#include "exyyess4412-itop-scp-core.dtsi"
 
 / {
-	model = "TOPEET iTop 4412 Elite board based on Exynos4412";
-	compatible = "topeet,itop4412-elite", "samsung,exynos4412", "samsung,exynos4";
+	model = "TOPEET iTop 4412 Elite board based on Exyyess4412";
+	compatible = "topeet,itop4412-elite", "samsung,exyyess4412", "samsung,exyyess4";
 
 	chosen {
 		bootargs = "root=/dev/mmcblk0p2 rw rootfstype=ext4 rootdelay=1 rootwait";
@@ -146,11 +146,11 @@
 	/* In order to reset USB ethernet */
 	samsung,vbus-gpio = <&gpc0 1 GPIO_ACTIVE_HIGH>;
 
-	phys = <&exynos_usbphy 1>, <&exynos_usbphy 3>;
+	phys = <&exyyess_usbphy 1>, <&exyyess_usbphy 3>;
 	phy-names = "host", "hsic1";
 };
 
-&exynos_usbphy {
+&exyyess_usbphy {
 	status = "okay";
 };
 

@@ -15,7 +15,7 @@
  * oriented RPN.  This at least makes it easy to load the RPN and
  * ERPN fields in the TLB. -Matt
  *
- * This isn't entirely true anymore, at least some bits are now
+ * This isn't entirely true anymore, at least some bits are yesw
  * easier to move into the TLB from the PTE. -BenH.
  *
  * Note that these bits preclude future use of a page size
@@ -37,7 +37,7 @@
  *
  *   TLB2:
  *   0...10    11   12   13   14   15   16...31
- *   no change WL1  IL1I IL1D IL2I IL2D no change
+ *   yes change WL1  IL1I IL1D IL2I IL2D yes change
  *
  * There are some constrains and options, to decide mapping software bits
  * into TLB entry.
@@ -45,7 +45,7 @@
  *   - PRESENT *must* be in the bottom three bits because swap cache
  *     entries use the top 29 bits for TLB2.
  *
- *   - CACHE COHERENT bit (M) has no effect on original PPC440 cores,
+ *   - CACHE COHERENT bit (M) has yes effect on original PPC440 cores,
  *     because it doesn't support SMP. However, some later 460 variants
  *     have -some- form of SMP support and so I keep the bit there for
  *     future use
@@ -53,7 +53,7 @@
  * With the PPC 44x Linux implementation, the 0-11th LSBs of the PTE are used
  * for memory protection related functions (see PTE structure in
  * include/asm-ppc/mmu.h).  The _PAGE_XXX definitions in this file map to the
- * above bits.  Note that the bit values are CPU specific, not architecture
+ * above bits.  Note that the bit values are CPU specific, yest architecture
  * specific.
  *
  * The kernel PTE entry holds an arch-dependent swp_entry structure under
@@ -99,12 +99,12 @@
 #define _PMD_BAD	(~PAGE_MASK)
 #define _PMD_USER	0
 
-/* ERPN in a PTE never gets cleared, ignore it */
+/* ERPN in a PTE never gets cleared, igyesre it */
 #define _PTE_NONE_MASK	0xffffffff00000000ULL
 
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
- * cacheable kernel and user pages) and one for non cacheable
+ * cacheable kernel and user pages) and one for yesn cacheable
  * pages. We always set _PAGE_COHERENT when SMP is enabled or
  * the processor might need it for DMA coherency.
  */

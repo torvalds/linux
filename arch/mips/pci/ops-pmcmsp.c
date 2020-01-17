@@ -150,11 +150,11 @@ static int gen_pci_cfg_wr_show(struct seq_file *m, void *v)
  *
  *  DESCRIPTION: Create entries in the /proc filesystem for debug access.
  *
- *  INPUTS:	 none
+ *  INPUTS:	 yesne
  *
- *  OUTPUTS:	 none
+ *  OUTPUTS:	 yesne
  *
- *  RETURNS:	 none
+ *  RETURNS:	 yesne
  *
  ****************************************************************************/
 static void pci_proc_init(void)
@@ -176,7 +176,7 @@ static void pci_proc_init(void)
  *		 Controller I/O space, in the form that they appear on the
  *		 PCI bus AFTER MSP7120 has performed address translation.
  *
- *		 For I/O accesses, MSP7120 ignores OATRAN and maps I/O
+ *		 For I/O accesses, MSP7120 igyesres OATRAN and maps I/O
  *		 accesses into the bottom 0xFFF region of address space,
  *		 so that is the range to put into the pci_io_resource
  *		 struct.
@@ -187,7 +187,7 @@ static void pci_proc_init(void)
  *
  *  NOTES:	 Linux, by default, will assign I/O space to the lowest
  *		 region of address space. Since MSP7120 and Linux,
- *		 by default, have no offset in between how they map, the
+ *		 by default, have yes offset in between how they map, the
  *		 io_offset element of pci_controller struct should be set
  *		 to zero.
  *  ELEMENTS:
@@ -259,7 +259,7 @@ static struct resource pci_mem_resource = {
  *		 dev_id	 - unused
  *		 pt_regs - unused
  *
- *  OUTPUTS:	 none
+ *  OUTPUTS:	 yesne
  *
  *  RETURNS:	 PCIBIOS_SUCCESSFUL  - success
  *
@@ -305,7 +305,7 @@ static irqreturn_t bpci_interrupt(int irq, void *dev_id)
  *				used is bus->number. This argument determines
  *				if the configuration access will be Type 0 or
  *				Type 1. Since MSP7120 assumes itself to be the
- *				PCI Host, any non-zero bus->number generates
+ *				PCI Host, any yesn-zero bus->number generates
  *				a Type 1 access.
  *
  *		 devfn	      - this is an 8-bit field. The lower three bits
@@ -376,11 +376,11 @@ int msp_pcibios_config_access(unsigned char access_type,
 	 * Clear PCI cause register bits.
 	 *
 	 * In Polo, the PCI Host had a dedicated DMA called the
-	 * Block Copy (not to be confused with the general purpose Block
+	 * Block Copy (yest to be confused with the general purpose Block
 	 * Copy Engine block). There appear to have been special interrupts
 	 * for this Block Copy, called Block Copy 0 Fault (BC0F) and
 	 * Block Copy 1 Fault (BC1F). MSP4200 and MSP7120 don't have this
-	 * dedicated Block Copy block, so these two interrupts are now
+	 * dedicated Block Copy block, so these two interrupts are yesw
 	 * marked reserved. In case the	 Block Copy is resurrected in a
 	 * future design, maintain the code that treats these two interrupts
 	 * specially.
@@ -466,7 +466,7 @@ msp_pcibios_read_config_byte(struct pci_bus *bus,
 	u32 data = 0;
 
 	/*
-	 * If the config access did not complete normally (e.g., underwent
+	 * If the config access did yest complete yesrmally (e.g., underwent
 	 * master abort) do the PCI compliant thing, which is to supply an
 	 * all ones value.
 	 */
@@ -513,7 +513,7 @@ msp_pcibios_read_config_word(struct pci_bus *bus,
 {
 	u32 data = 0;
 
-	/* if (where & 1) */	/* Commented out non-compliant code.
+	/* if (where & 1) */	/* Commented out yesn-compliant code.
 				 * Should allow word access to configuration
 				 * registers, with only exception being when
 				 * the word access would wrap around into
@@ -525,7 +525,7 @@ msp_pcibios_read_config_word(struct pci_bus *bus,
 	}
 
 	/*
-	 * If the config access did not complete normally (e.g., underwent
+	 * If the config access did yest complete yesrmally (e.g., underwent
 	 * master abort) do the PCI compliant thing, which is to supply an
 	 * all ones value.
 	 */
@@ -577,7 +577,7 @@ msp_pcibios_read_config_dword(struct pci_bus *bus,
 	}
 
 	/*
-	 * If the config access did not complete normally (e.g., underwent
+	 * If the config access did yest complete yesrmally (e.g., underwent
 	 * master abort) do the PCI compliant thing, which is to supply an
 	 * all ones value.
 	 */
@@ -609,7 +609,7 @@ msp_pcibios_read_config_dword(struct pci_bus *bus,
  *			  to access.
  *		 val	- value to write
  *
- *  OUTPUTS	 none
+ *  OUTPUTS	 yesne
  *
  *  RETURNS:	 PCIBIOS_SUCCESSFUL  - success
  *		 -1		     - write access failure
@@ -657,7 +657,7 @@ msp_pcibios_write_config_byte(struct pci_bus *bus,
  *			  to access.
  *		 val	- value to write
  *
- *  OUTPUTS	 none
+ *  OUTPUTS	 yesne
  *
  *  RETURNS:	 PCIBIOS_SUCCESSFUL	      - success
  *		 PCIBIOS_BAD_REGISTER_NUMBER  - bad register address
@@ -672,7 +672,7 @@ msp_pcibios_write_config_word(struct pci_bus *bus,
 {
 	u32 data = 0;
 
-	/* Fixed non-compliance: if (where & 1) */
+	/* Fixed yesn-compliance: if (where & 1) */
 	if ((where & 3) == 3)
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
@@ -709,7 +709,7 @@ msp_pcibios_write_config_word(struct pci_bus *bus,
  *			  to access.
  *		 val	- value to write
  *
- *  OUTPUTS	 none
+ *  OUTPUTS	 yesne
  *
  *  RETURNS:	 PCIBIOS_SUCCESSFUL	      - success
  *		 PCIBIOS_BAD_REGISTER_NUMBER  - bad register address
@@ -803,7 +803,7 @@ msp_pcibios_read_config(struct pci_bus *bus,
  *		 size	- in units of bytes, should be 1, 2, or 4.
  *		 val	- value to write
  *
- *  OUTPUTS:	 none
+ *  OUTPUTS:	 yesne
  *
  *  RETURNS:	 PCIBIOS_SUCCESSFUL   - success
  *		 -1		      - failure
@@ -872,7 +872,7 @@ struct pci_ops msp_pci_ops = {
  *    mem_offset   - offset between how MSP7120 outbound PCI memory
  *		     transaction addresses appear on the PCI bus and how Linux
  *		     wants to configure memory BARs of the PCI devices.
- *		     MSP7120 does nothing funky, so just set to zero.
+ *		     MSP7120 does yesthing funky, so just set to zero.
  *
  *    io_resource  - address range pciauto() uses to assign to PCI device
  *		     I/O BARs.
@@ -881,9 +881,9 @@ struct pci_ops msp_pci_ops = {
  *		     transaction addresses appear on the PCI bus and how
  *		     Linux defaults to configure I/O BARs of the PCI devices.
  *		     MSP7120 maps outbound I/O accesses into the bottom
- *		     bottom 4K of PCI address space (and ignores OATRAN).
+ *		     bottom 4K of PCI address space (and igyesres OATRAN).
  *		     Since the Linux default is to configure I/O BARs to the
- *		     bottom 4K, no special offset is needed. Just set to zero.
+ *		     bottom 4K, yes special offset is needed. Just set to zero.
  *
  ****************************************************************************/
 static struct pci_controller msp_pci_controller = {
@@ -915,7 +915,7 @@ void __init msp_pci_init(void)
 	/* Check if JTAG ID identifies MSP7120 */
 	if (!MSP_HAS_PCI(id)) {
 		printk(KERN_WARNING "PCI: No PCI; id reads as %x\n", id);
-		goto no_pci;
+		goto yes_pci;
 	}
 
 	/*
@@ -938,7 +938,7 @@ void __init msp_pci_init(void)
 
 	return;
 
-no_pci:
+yes_pci:
 	/* Disable PCI channel */
-	printk(KERN_WARNING "PCI: no host PCI bus detected\n");
+	printk(KERN_WARNING "PCI: yes host PCI bus detected\n");
 }

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -47,7 +47,7 @@ struct mdfld_dsi_pkg_sender {
 	u32 dspcntr_reg;
 	u32 pipeconf_reg;
 	u32 pipestat_reg;
-	u32 dsplinoff_reg;
+	u32 dspliyesff_reg;
 	u32 dspsurf_reg;
 
 	u32 mipi_intr_stat_reg;

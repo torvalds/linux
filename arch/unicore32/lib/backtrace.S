@@ -30,7 +30,7 @@ ENDPROC(c_backtrace)
 		stm.w	(v4 - v8, lr), [sp-]	@ Save an extra register
 						@ so we have a location...
 		mov.a	frame, r0		@ if frame pointer is zero
-		beq	no_frame		@ we have no stack frames
+		beq	yes_frame		@ we have yes stack frames
 
 1:		stm.w	(pc), [sp-]		@ calculate offset of PC stored
 		ldw.w	r0, [sp]+, #4		@ by stmfd for this CPU
@@ -88,7 +88,7 @@ for_each_frame:
 		b.l	.Ldumpstm		@ dump saved registers
 201:
 		cxor.a	sv_fp, #0		@ zero saved fp means
-		beq	no_frame		@ no further frames
+		beq	yes_frame		@ yes further frames
 
 		csub.a	sv_fp, frame		@ next frame must be
 		mov	frame, sv_fp		@ above the current frame
@@ -97,7 +97,7 @@ for_each_frame:
 1006:		adr	r0, .Lbad
 		mov	r1, frame
 		b.l	printk
-no_frame:	ldm.w	(v4 - v8, pc), [sp]+
+yes_frame:	ldm.w	(v4 - v8, pc), [sp]+
 ENDPROC(__backtrace)
 ENDPROC(c_backtrace)
 

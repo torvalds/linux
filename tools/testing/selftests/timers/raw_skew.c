@@ -66,7 +66,7 @@ long long diff_timespec(struct timespec start, struct timespec end)
 	return end_ns - start_ns;
 }
 
-void get_monotonic_and_raw(struct timespec *mon, struct timespec *raw)
+void get_moyestonic_and_raw(struct timespec *mon, struct timespec *raw)
 {
 	struct timespec start, mid, end;
 	long long diff = 0, tmp;
@@ -104,7 +104,7 @@ int main(int argv, char **argc)
 
 	tx1.modes = 0;
 	adjtimex(&tx1);
-	get_monotonic_and_raw(&mon, &raw);
+	get_moyestonic_and_raw(&mon, &raw);
 	start = mon;
 	delta1 = diff_timespec(mon, raw);
 
@@ -115,7 +115,7 @@ int main(int argv, char **argc)
 	fflush(stdout);
 	sleep(120);
 
-	get_monotonic_and_raw(&mon, &raw);
+	get_moyestonic_and_raw(&mon, &raw);
 	end = mon;
 	tx2.modes = 0;
 	adjtimex(&tx2);

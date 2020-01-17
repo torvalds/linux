@@ -6,5 +6,5 @@
  *  All rights reserved.
  */
 
-int cobalt_nodes_register(struct cobalt *cobalt);
-void cobalt_nodes_unregister(struct cobalt *cobalt);
+int cobalt_yesdes_register(struct cobalt *cobalt);
+void cobalt_yesdes_unregister(struct cobalt *cobalt);

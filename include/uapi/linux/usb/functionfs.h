@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI__LINUX_FUNCTIONFS_H__
 #define _UAPI__LINUX_FUNCTIONFS_H__
 
@@ -26,8 +26,8 @@ enum functionfs_flags {
 	FUNCTIONFS_CONFIG0_SETUP = 128,
 };
 
-/* Descriptor of an non-audio endpoint */
-struct usb_endpoint_descriptor_no_audio {
+/* Descriptor of an yesn-audio endpoint */
+struct usb_endpoint_descriptor_yes_audio {
 	__u8  bLength;
 	__u8  bDescriptorType;
 
@@ -105,7 +105,7 @@ struct usb_ext_prop_desc {
  * |     | os_descrs | OSDesc[]     | list of MS OS descriptors            |
  *
  * Depending on which flags are set, various fields may be missing in the
- * structure.  Any flags that are not recognised cause the whole block to be
+ * structure.  Any flags that are yest recognised cause the whole block to be
  * rejected with -ENOSYS.
  *
  * Legacy descriptors format (deprecated as of 3.14):
@@ -270,7 +270,7 @@ struct usb_functionfs_event {
 
 /*
  * Returns reverse mapping of an interface.  Called on EP0.  If there
- * is no such interface returns -EDOM.  If function is not active
+ * is yes such interface returns -EDOM.  If function is yest active
  * returns -ENODEV.
  */
 #define	FUNCTIONFS_INTERFACE_REVMAP	_IO('g', 128)

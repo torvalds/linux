@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _V4L2-PIX-FMT-YUYV:
 
@@ -14,7 +14,7 @@ V4L2_PIX_FMT_YUYV ('YUYV')
 **************************
 
 
-Packed format with ½ horizontal chroma resolution, also known as YUV
+Packed format with ½ horizontal chroma resolution, also kyeswn as YUV
 4:2:2
 
 
@@ -25,7 +25,7 @@ In this format each four bytes is two pixels. Each four bytes is two
 Y's, a Cb and a Cr. Each Y goes to one of the pixels, and the Cb and Cr
 belong to both pixels. As you can see, the Cr and Cb components have
 half the horizontal resolution of the Y component. ``V4L2_PIX_FMT_YUYV``
-is known in the Windows environment as YUY2.
+is kyeswn in the Windows environment as YUY2.
 
 **Byte Order.**
 Each cell is one byte.

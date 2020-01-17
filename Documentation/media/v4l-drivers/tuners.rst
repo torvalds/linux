@@ -20,7 +20,7 @@ Tuner Manufacturers
 
 - SAMSUNG Tuner identification: (e.g. TCPM9091PD27)
 
-.. code-block:: none
+.. code-block:: yesne
 
  TCP [ABCJLMNQ] 90[89][125] [DP] [ACD] 27 [ABCD]
  [ABCJLMNQ]:
@@ -41,7 +41,7 @@ Tuner Manufacturers
    P= PAL
  [ACD]:
    A= F-connector
-   C= Phono connector
+   C= Phoyes connector
    D= Din Jack
  [ABCD]:
    3-wire/I2C tuning, 2-band/3-band
@@ -50,7 +50,7 @@ These Tuners are PHILIPS_API compatible.
 
 Philips Tuner identification: (e.g. FM1216MF)
 
-.. code-block:: none
+.. code-block:: yesne
 
   F[IRMQ]12[1345]6{MF|ME|MP}
   F[IRMQ]:
@@ -76,7 +76,7 @@ Philips Tuner identification: (e.g. FM1216MF)
 
 Temic Tuner identification: (.e.g 4006FH5)
 
-.. code-block:: none
+.. code-block:: yesne
 
    4[01][0136][269]F[HYNR]5
     40x2: Tuner (5V/33V), TEMIC_API.
@@ -96,7 +96,7 @@ Temic Tuner identification: (.e.g 4006FH5)
    3X xxxx: order number with specific connector
   Note: Only 40x2 series has TEMIC_API, all newer tuners have PHILIPS_API.
 
-LG Innotek Tuner:
+LG Inyestek Tuner:
 
 - TPI8NSR11 : NTSC J/M    (TPI8NSR01 w/FM)  (P,210/497)
 - TPI8PSB11 : PAL B/G     (TPI8PSB01 w/FM)  (P,170/450)
@@ -114,7 +114,7 @@ LG Innotek Tuner:
 - TADC-T003F: NTSC Taiwan  (L,175/410?; 2-B, C-W+11, W+12-69)
 
 Suffix:
-  - P= Standard phono female socket
+  - P= Standard phoyes female socket
   - D= IEC female socket
   - F= F-connector
 

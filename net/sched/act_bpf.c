@@ -59,7 +59,7 @@ static int tcf_bpf_act(struct sk_buff *skb, const struct tc_action *act,
 	 * Similarly as in cls_bpf, if filter_res == -1 we use the
 	 * default action specified from tc.
 	 *
-	 * In case a different well-known TC_ACT opcode has been
+	 * In case a different well-kyeswn TC_ACT opcode has been
 	 * returned, it will overwrite the default one.
 	 *
 	 * For everything else that is unkown, TC_ACT_UNSPEC is
@@ -365,7 +365,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	if (res == ACT_P_CREATED) {
 		tcf_idr_insert(tn, *act);
 	} else {
-		/* make sure the program being replaced is no longer executing */
+		/* make sure the program being replaced is yes longer executing */
 		synchronize_rcu();
 		tcf_bpf_cfg_cleanup(&old);
 	}

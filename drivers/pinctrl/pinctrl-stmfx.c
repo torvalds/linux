@@ -47,7 +47,7 @@
 #define get_mask(offset)		(BIT(get_shift(offset)))
 
 /*
- * STMFX pinctrl can have up to 24 pins if STMFX other functions are not used.
+ * STMFX pinctrl can have up to 24 pins if STMFX other functions are yest used.
  * Pins availability is managed thanks to gpio-ranges property.
  */
 static const struct pinctrl_pin_desc stmfx_pins[] = {
@@ -216,7 +216,7 @@ static int stmfx_pinconf_get(struct pinctrl_dev *pctldev,
 	u32 arg = 0;
 	int ret, dir, type, pupd;
 
-	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
+	range = pinctrl_find_gpio_range_from_pin_yeslock(pctldev, pin);
 	if (!range)
 		return -EINVAL;
 
@@ -279,9 +279,9 @@ static int stmfx_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	u32 arg;
 	int dir, i, ret;
 
-	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
+	range = pinctrl_find_gpio_range_from_pin_yeslock(pctldev, pin);
 	if (!range) {
-		dev_err(pctldev->dev, "pin %d is not available\n", pin);
+		dev_err(pctldev->dev, "pin %d is yest available\n", pin);
 		return -EINVAL;
 	}
 
@@ -343,7 +343,7 @@ static void stmfx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 	struct pinctrl_gpio_range *range;
 	int dir, type, pupd, val;
 
-	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, offset);
+	range = pinctrl_find_gpio_range_from_pin_yeslock(pctldev, offset);
 	if (!range)
 		return;
 
@@ -366,7 +366,7 @@ static void stmfx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 			seq_printf(s, "open drain %s internal pull-up ",
 				   pupd ? "with" : "without");
 		else
-			seq_puts(s, "push pull no pull ");
+			seq_puts(s, "push pull yes pull ");
 	} else {
 		seq_printf(s, "input %s ", val ? "high" : "low");
 		if (type)
@@ -406,7 +406,7 @@ static const struct pinctrl_ops stmfx_pinctrl_ops = {
 	.get_groups_count = stmfx_pinctrl_get_groups_count,
 	.get_group_name = stmfx_pinctrl_get_group_name,
 	.get_group_pins = stmfx_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -454,7 +454,7 @@ static int stmfx_pinctrl_irq_set_type(struct irq_data *data, unsigned int type)
 		pctl->irq_gpi_type[reg] &= ~mask;
 
 	/*
-	 * In case of (type & IRQ_TYPE_EDGE_BOTH), we need to know current
+	 * In case of (type & IRQ_TYPE_EDGE_BOTH), we need to kyesw current
 	 * GPIO value to set the right edge trigger. But in atomic context
 	 * here we can't access registers over I2C. That's why (type &
 	 * IRQ_TYPE_EDGE_BOTH) will be managed in .irq_sync_unlock.
@@ -607,7 +607,7 @@ static int stmfx_pinctrl_gpio_function_enable(struct stmfx_pinctrl *pctl)
 static int stmfx_pinctrl_probe(struct platform_device *pdev)
 {
 	struct stmfx *stmfx = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct stmfx_pinctrl *pctl;
 	int irq, ret;
 
@@ -665,7 +665,7 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	pctl->gpio_chip.base = -1;
 	pctl->gpio_chip.ngpio = pctl->pctl_desc.npins;
 	pctl->gpio_chip.can_sleep = true;
-	pctl->gpio_chip.of_node = np;
+	pctl->gpio_chip.of_yesde = np;
 
 	ret = devm_gpiochip_add_data(pctl->dev, &pctl->gpio_chip, pctl);
 	if (ret) {
@@ -689,7 +689,7 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	ret = gpiochip_irqchip_add_nested(&pctl->gpio_chip, &pctl->irq_chip,
 					  0, handle_bad_irq, IRQ_TYPE_NONE);
 	if (ret) {
-		dev_err(pctl->dev, "cannot add irqchip to gpiochip\n");
+		dev_err(pctl->dev, "canyest add irqchip to gpiochip\n");
 		return ret;
 	}
 
@@ -698,7 +698,7 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 					IRQF_ONESHOT,
 					pctl->irq_chip.name, pctl);
 	if (ret) {
-		dev_err(pctl->dev, "cannot request irq%d\n", irq);
+		dev_err(pctl->dev, "canyest request irq%d\n", irq);
 		return ret;
 	}
 

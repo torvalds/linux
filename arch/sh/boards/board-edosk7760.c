@@ -29,7 +29,7 @@
 #define SMC_IOADDR	(SMC_IOBASE + SMC_IO_OFFSET)
 
 /* NOR flash */
-static struct mtd_partition edosk7760_nor_flash_partitions[] = {
+static struct mtd_partition edosk7760_yesr_flash_partitions[] = {
 	{
 		.name = "bootloader",
 		.offset = 0,
@@ -50,13 +50,13 @@ static struct mtd_partition edosk7760_nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data edosk7760_nor_flash_data = {
+static struct physmap_flash_data edosk7760_yesr_flash_data = {
 	.width		= 4,
-	.parts		= edosk7760_nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(edosk7760_nor_flash_partitions),
+	.parts		= edosk7760_yesr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(edosk7760_yesr_flash_partitions),
 };
 
-static struct resource edosk7760_nor_flash_resources[] = {
+static struct resource edosk7760_yesr_flash_resources[] = {
 	[0] = {
 		.name	= "NOR Flash",
 		.start	= 0x00000000,
@@ -65,12 +65,12 @@ static struct resource edosk7760_nor_flash_resources[] = {
 	}
 };
 
-static struct platform_device edosk7760_nor_flash_device = {
+static struct platform_device edosk7760_yesr_flash_device = {
 	.name		= "physmap-flash",
-	.resource	= edosk7760_nor_flash_resources,
-	.num_resources	= ARRAY_SIZE(edosk7760_nor_flash_resources),
+	.resource	= edosk7760_yesr_flash_resources,
+	.num_resources	= ARRAY_SIZE(edosk7760_yesr_flash_resources),
 	.dev		= {
-		.platform_data = &edosk7760_nor_flash_data,
+		.platform_data = &edosk7760_yesr_flash_data,
 	},
 };
 
@@ -156,7 +156,7 @@ static struct platform_device smc91x_dev = {
 /* platform init code */
 static struct platform_device *edosk7760_devices[] __initdata = {
 	&smc91x_dev,
-	&edosk7760_nor_flash_device,
+	&edosk7760_yesr_flash_device,
 	&sh7760_i2c0_dev,
 	&sh7760_i2c1_dev,
 };

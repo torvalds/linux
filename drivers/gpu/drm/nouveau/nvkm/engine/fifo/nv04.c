@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -145,7 +145,7 @@ nv04_fifo_cache_error(struct nv04_fifo *fifo, u32 chid, u32 get)
 	int ptr;
 
 	/* NV_PFIFO_CACHE1_GET actually goes to 0xffc before wrapping on my
-	 * G80 chips, but CACHE1 isn't big enough for this much data.. Tests
+	 * G80 chips, but CACHE1 isn't big eyesugh for this much data.. Tests
 	 * show that it wraps around to the start at GET=0x800.. No clue as to
 	 * why..
 	 */
@@ -164,7 +164,7 @@ nv04_fifo_cache_error(struct nv04_fifo *fifo, u32 chid, u32 get)
 		chan = nvkm_fifo_chan_chid(&fifo->base, chid, &flags);
 		nvkm_error(subdev, "CACHE_ERROR - "
 			   "ch %d [%s] subc %d mthd %04x data %08x\n",
-			   chid, chan ? chan->object.client->name : "unknown",
+			   chid, chan ? chan->object.client->name : "unkyeswn",
 			   (mthd >> 13) & 7, mthd & 0x1ffc, data);
 		nvkm_fifo_chan_put(&fifo->base, flags, &chan);
 	}
@@ -198,7 +198,7 @@ nv04_fifo_dma_pusher(struct nv04_fifo *fifo, u32 chid)
 	const char *name;
 
 	chan = nvkm_fifo_chan_chid(&fifo->base, chid, &flags);
-	name = chan ? chan->object.client->name : "unknown";
+	name = chan ? chan->object.client->name : "unkyeswn";
 	if (device->card_type == NV_50) {
 		u32 ho_get = nvkm_rd32(device, 0x003328);
 		u32 ho_put = nvkm_rd32(device, 0x003320);

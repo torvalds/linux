@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -377,11 +377,11 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 	int retry_count = 2;
 	struct dp_hdmi_dongle_signature_data *dongle_signature;
 
-	/* Assume we have no valid DP passive dongle connected */
+	/* Assume we have yes valid DP passive dongle connected */
 	*dongle = DISPLAY_DONGLE_NONE;
 	sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK;
 
-	/* Read DP-HDMI dongle I2c (no response interpreted as DP-DVI dongle)*/
+	/* Read DP-HDMI dongle I2c (yes response interpreted as DP-DVI dongle)*/
 	if (!i2c_read(
 		ddc,
 		DP_HDMI_DONGLE_ADDRESS,
@@ -423,7 +423,7 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 
 	/* Check signature */
 	for (i = 0; i < sizeof(dongle_signature->id); ++i) {
-		/* If its not the right signature,
+		/* If its yest the right signature,
 		 * skip mismatch in subversion byte.*/
 		if (dongle_signature->id[i] !=
 			dp_hdmi_dongle_signature_str[i] && i != 3) {
@@ -464,7 +464,7 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 
 				CONN_DATA_DETECT(ddc->link, type2_dongle_buf,
 						sizeof(type2_dongle_buf),
-						"Type 2 DP-HDMI passive dongle (no signature) %dMhz: ",
+						"Type 2 DP-HDMI passive dongle (yes signature) %dMhz: ",
 						max_tmds_clk);
 
 			}
@@ -487,7 +487,7 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 
 			CONN_DATA_DETECT(ddc->link, type2_dongle_buf,
 					sizeof(type2_dongle_buf),
-					"Type 1 DP-HDMI passive dongle (no signature) %dMhz: ",
+					"Type 1 DP-HDMI passive dongle (yes signature) %dMhz: ",
 					sink_cap->max_hdmi_pixel_clock / 1000);
 		}
 	}
@@ -619,7 +619,7 @@ bool dal_ddc_submit_aux_command(struct ddc_service *ddc,
 }
 
 /* dc_link_aux_transfer_raw() - Attempt to transfer
- * the given aux payload.  This function does not perform
+ * the given aux payload.  This function does yest perform
  * retries or handle error states.  The reply is returned
  * in the payload->reply and the result through
  * *operation_result.  Returns the number of bytes transferred,

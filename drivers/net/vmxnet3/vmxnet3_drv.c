@@ -5,7 +5,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License and no later version.
+ * Free Software Foundation; version 2 of the License and yes later version.
  *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -14,7 +14,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * The full GNU General Public License is included in this distribution in
@@ -332,7 +332,7 @@ vmxnet3_unmap_pkt(u32 eop_idx, struct vmxnet3_tx_queue *tq,
 	struct sk_buff *skb;
 	int entries = 0;
 
-	/* no out of order completion */
+	/* yes out of order completion */
 	BUG_ON(tq->buf_info[eop_idx].sop_idx != tq->tx_ring.next2comp);
 	BUG_ON(VMXNET3_TXDESC_GET_EOP(&(tq->tx_ring.base[eop_idx].txd)) != 1);
 
@@ -497,7 +497,7 @@ vmxnet3_tq_init(struct vmxnet3_tx_queue *tq,
 	for (i = 0; i < tq->tx_ring.size; i++)
 		tq->buf_info[i].map_type = VMXNET3_MAP_NONE;
 
-	/* stats are not reset */
+	/* stats are yest reset */
 }
 
 
@@ -689,7 +689,7 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 	ctx->sop_txd = tq->tx_ring.base + tq->tx_ring.next2fill;
 	gdesc = ctx->sop_txd; /* both loops below can be skipped */
 
-	/* no need to map the buffer if headers are copied */
+	/* yes need to map the buffer if headers are copied */
 	if (ctx->copy_size) {
 		ctx->sop_txd->txd.addr = cpu_to_le64(tq->data_ring.basePA +
 					tq->tx_ring.next2fill *
@@ -707,7 +707,7 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 			ctx->sop_txd->dword[2], ctx->sop_txd->dword[3]);
 		vmxnet3_cmd_ring_adv_next2fill(&tq->tx_ring);
 
-		/* use the right gen for non-SOP desc */
+		/* use the right gen for yesn-SOP desc */
 		dw2 = tq->tx_ring.gen << VMXNET3_TXD_GEN_SHIFT;
 	}
 
@@ -1010,7 +1010,7 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 	} else {
 		if (unlikely(count > VMXNET3_MAX_TXD_PER_PKT)) {
 
-			/* non-tso pkts must not use more than
+			/* yesn-tso pkts must yest use more than
 			 * VMXNET3_MAX_TXD_PER_PKT entries
 			 */
 			if (skb_linearize(skb) != 0) {
@@ -1183,11 +1183,11 @@ vmxnet3_rx_csum(struct vmxnet3_adapter *adapter,
 				skb->csum = htons(gdesc->rcd.csum);
 				skb->ip_summed = CHECKSUM_PARTIAL;
 			} else {
-				skb_checksum_none_assert(skb);
+				skb_checksum_yesne_assert(skb);
 			}
 		}
 	} else {
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 	}
 }
 
@@ -1203,8 +1203,8 @@ vmxnet3_rx_error(struct vmxnet3_rx_queue *rq, struct Vmxnet3_RxCompDesc *rcd,
 	rq->stats.drop_total++;
 
 	/*
-	 * We do not unmap and chain the rx buffer to the skb.
-	 * We basically pretend this buffer is not used and will be recycled
+	 * We do yest unmap and chain the rx buffer to the skb.
+	 * We basically pretend this buffer is yest used and will be recycled
 	 * by vmxnet3_rq_alloc_rx_buf()
 	 */
 
@@ -1359,7 +1359,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			new_skb = netdev_alloc_skb_ip_align(adapter->netdev,
 							    len);
 			if (new_skb == NULL) {
-				/* Skb allocation failed, do not handover this
+				/* Skb allocation failed, do yest handover this
 				 * skb to stack. Reuse it. Drop the existing pkt
 				 */
 				rq->stats.rx_buf_alloc_failure++;
@@ -1388,7 +1388,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 				if (dma_mapping_error(&adapter->pdev->dev,
 						      new_dma_addr)) {
 					dev_kfree_skb(new_skb);
-					/* Skb allocation failed, do not
+					/* Skb allocation failed, do yest
 					 * handover this skb to stack. Reuse
 					 * it. Drop the existing pkt.
 					 */
@@ -1436,22 +1436,22 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 		} else {
 			BUG_ON(ctx->skb == NULL && !skip_page_frags);
 
-			/* non SOP buffer must be type 1 in most cases */
+			/* yesn SOP buffer must be type 1 in most cases */
 			BUG_ON(rbi->buf_type != VMXNET3_RX_BUF_PAGE);
 			BUG_ON(rxd->btype != VMXNET3_RXD_BTYPE_BODY);
 
 			/* If an sop buffer was dropped, skip all
-			 * following non-sop fragments. They will be reused.
+			 * following yesn-sop fragments. They will be reused.
 			 */
 			if (skip_page_frags)
 				goto rcd_done;
 
 			if (rcd->len) {
 				new_page = alloc_page(GFP_ATOMIC);
-				/* Replacement page frag could not be allocated.
+				/* Replacement page frag could yest be allocated.
 				 * Reuse this page. Drop the pkt and free the
 				 * skb which contained this page as a frag. Skip
-				 * processing all the following non-sop frags.
+				 * processing all the following yesn-sop frags.
 				 */
 				if (unlikely(!new_page)) {
 					rq->stats.rx_buf_alloc_failure++;
@@ -1499,7 +1499,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			skb->protocol = eth_type_trans(skb, adapter->netdev);
 			if (!rcd->tcp ||
 			    !(adapter->netdev->features & NETIF_F_LRO))
-				goto not_lro;
+				goto yest_lro;
 
 			if (segCnt != 0 && mss != 0) {
 				skb_shinfo(skb)->gso_type = rcd->v4 ?
@@ -1512,7 +1512,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 				hlen = vmxnet3_get_hdr_len(adapter, skb,
 					(union Vmxnet3_GenericDesc *)rcd);
 				if (hlen == 0)
-					goto not_lro;
+					goto yest_lro;
 
 				skb_shinfo(skb)->gso_type =
 					rcd->v4 ? SKB_GSO_TCPV4 : SKB_GSO_TCPV6;
@@ -1525,7 +1525,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 					skb_shinfo(skb)->gso_size = mtu - hlen;
 				}
 			}
-not_lro:
+yest_lro:
 			if (unlikely(rcd->ts))
 				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), rcd->tci);
 
@@ -1742,7 +1742,7 @@ vmxnet3_rq_init(struct vmxnet3_rx_queue *rq,
 	/* reset rxctx */
 	rq->rx_ctx.skb = NULL;
 
-	/* stats are not reset */
+	/* stats are yest reset */
 	return 0;
 }
 
@@ -1927,7 +1927,7 @@ vmxnet3_poll_rx_only(struct napi_struct *napi, int budget)
 
 /*
  * Handle completion interrupts on tx queues
- * Returns whether or not the intr is handled
+ * Returns whether or yest the intr is handled
  */
 
 static irqreturn_t
@@ -1956,7 +1956,7 @@ vmxnet3_msix_tx(int irq, void *data)
 
 
 /*
- * Handle completion interrupts on rx queues. Returns whether or not the
+ * Handle completion interrupts on rx queues. Returns whether or yest the
  * intr is handled
  */
 
@@ -1982,7 +1982,7 @@ vmxnet3_msix_rx(int irq, void *data)
  *    vmxnet3 msix event intr handler
  *
  * Result:
- *    whether or not the intr is handled
+ *    whether or yest the intr is handled
  *
  *----------------------------------------------------------------------------
  */
@@ -2018,7 +2018,7 @@ vmxnet3_intr(int irq, void *dev_id)
 	if (adapter->intr.type == VMXNET3_IT_INTX) {
 		u32 icr = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_ICR);
 		if (unlikely(icr == 0))
-			/* not ours */
+			/* yest ours */
 			return IRQ_NONE;
 	}
 
@@ -2152,7 +2152,7 @@ vmxnet3_request_irqs(struct vmxnet3_adapter *adapter)
 			   "Failed to request irq (intr type:%d), error %d\n",
 			   intr->type, err);
 	} else {
-		/* Number of rx queues will not change after this */
+		/* Number of rx queues will yest change after this */
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			struct vmxnet3_rx_queue *rq = &adapter->rx_queue[i];
 			rq->qid = i;
@@ -2835,7 +2835,7 @@ vmxnet3_create_queues(struct vmxnet3_adapter *adapter, u32 tx_ring_size,
 		tq->qid = i;
 		err = vmxnet3_tq_create(tq, adapter);
 		/*
-		 * Too late to change num_tx_queues. We cannot do away with
+		 * Too late to change num_tx_queues. We canyest do away with
 		 * lesser number of queues than what we asked for
 		 */
 		if (err)
@@ -2858,7 +2858,7 @@ vmxnet3_create_queues(struct vmxnet3_adapter *adapter, u32 tx_ring_size,
 		if (err) {
 			if (i == 0) {
 				netdev_err(adapter->netdev,
-					   "Could not allocate any rx queues. "
+					   "Could yest allocate any rx queues. "
 					   "Aborting.\n");
 				goto queue_err;
 			} else {
@@ -3141,7 +3141,7 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 		if (nvec < 0)
 			goto msix_err;
 
-		/* If we cannot allocate one MSIx vector per queue
+		/* If we canyest allocate one MSIx vector per queue
 		 * then limit the number of rx queues to 1
 		 */
 		if (nvec == VMXNET3_LINUX_MIN_MSIX_VECT) {
@@ -3158,7 +3158,7 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 		return;
 
 msix_err:
-		/* If we cannot allocate MSIx vectors use only one rx queue */
+		/* If we canyest allocate MSIx vectors use only one rx queue */
 		dev_info(&adapter->pdev->dev,
 			 "Failed to enable MSI-X, error %d. "
 			 "Limiting #rx queues to 1, try MSI.\n", nvec);
@@ -3215,14 +3215,14 @@ vmxnet3_reset_work(struct work_struct *data)
 
 	adapter = container_of(data, struct vmxnet3_adapter, work);
 
-	/* if another thread is resetting the device, no need to proceed */
+	/* if ayesther thread is resetting the device, yes need to proceed */
 	if (test_and_set_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state))
 		return;
 
 	/* if the device is closed, we must leave it alone */
 	rtnl_lock();
 	if (netif_running(adapter->netdev)) {
-		netdev_notice(adapter->netdev, "resetting\n");
+		netdev_yestice(adapter->netdev, "resetting\n");
 		vmxnet3_quiesce_dev(adapter);
 		vmxnet3_reset_dev(adapter);
 		vmxnet3_activate_dev(adapter);
@@ -3748,10 +3748,10 @@ vmxnet3_resume(struct device *device)
 	vmxnet3_alloc_intr_resources(adapter);
 
 	/* During hibernate and suspend, device has to be reinitialized as the
-	 * device state need not be preserved.
+	 * device state need yest be preserved.
 	 */
 
-	/* Need not check adapter state as other reset tasks cannot run during
+	/* Need yest check adapter state as other reset tasks canyest run during
 	 * device resume.
 	 */
 	spin_lock_irqsave(&adapter->cmd_lock, flags);

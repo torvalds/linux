@@ -15,7 +15,7 @@
  *   GNU Library General Public License for more details.
  *
  *   You should have received a copy of the GNU Library General Public
- *   License along with this library; if not, write to the Free Software
+ *   License along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
@@ -36,7 +36,7 @@
 #define snd_pcm_plug_last(plug) ((plug)->runtime->oss.plugin_last)
 
 /*
- *  because some cards might have rates "very close", we ignore
+ *  because some cards might have rates "very close", we igyesre
  *  all "resampling" requests within +-5%
  */
 static int rate_match(unsigned int src_rate, unsigned int dst_rate)

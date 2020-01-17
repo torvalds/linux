@@ -1,7 +1,7 @@
 * Broadcom SATA3 AHCI Controller
 
-SATA nodes are defined to describe on-chip Serial ATA controllers.
-Each SATA controller should have its own node.
+SATA yesdes are defined to describe on-chip Serial ATA controllers.
+Each SATA controller should have its own yesde.
 
 Required properties:
 - compatible         : should be one or more of

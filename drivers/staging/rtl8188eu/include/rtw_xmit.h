@@ -106,12 +106,12 @@ struct pkt_attrib {
 	u16	ether_type;
 	u16	seqnum;
 	u16	hdrlen;		/* the WLAN Header Len */
-	u32	pktlen;		/* the original 802.3 pkt raw_data len (not include
+	u32	pktlen;		/* the original 802.3 pkt raw_data len (yest include
 				 * ether_hdr data)
 				 */
 	u32	last_txcmdsz;
 	u8	nr_frags;
-	u8	encrypt;	/* when 0 indicate no encrypt. when non-zero,
+	u8	encrypt;	/* when 0 indicate yes encrypt. when yesn-zero,
 				 * indicate the encrypt algorith
 				 */
 	u8	iv_len;
@@ -162,7 +162,7 @@ struct pkt_attrib {
 
 struct  submit_ctx {
 	u32 submit_time; /* */
-	u32 timeout_ms; /* <0: not synchronous, 0: wait forever, >0: up to ms waiting */
+	u32 timeout_ms; /* <0: yest synchroyesus, 0: wait forever, >0: up to ms waiting */
 	int status; /* status for operation */
 	struct completion done;
 };

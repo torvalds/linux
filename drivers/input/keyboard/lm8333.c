@@ -139,7 +139,7 @@ static int lm8333_probe(struct i2c_client *client,
 
 	active_time = pdata->active_time ?: 500;
 	if (active_time / 3 <= pdata->debounce_time / 3) {
-		dev_err(&client->dev, "Active time not big enough!\n");
+		dev_err(&client->dev, "Active time yest big eyesugh!\n");
 		return -EINVAL;
 	}
 

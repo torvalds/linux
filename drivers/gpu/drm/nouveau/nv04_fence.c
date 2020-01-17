@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -22,42 +22,42 @@
  * Authors: Ben Skeggs
  */
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_fence.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_dma.h"
+#include "yesuveau_fence.h"
 
 #include <nvif/if0004.h>
 
 struct nv04_fence_chan {
-	struct nouveau_fence_chan base;
+	struct yesuveau_fence_chan base;
 };
 
 struct nv04_fence_priv {
-	struct nouveau_fence_priv base;
+	struct yesuveau_fence_priv base;
 };
 
 static int
-nv04_fence_emit(struct nouveau_fence *fence)
+nv04_fence_emit(struct yesuveau_fence *fence)
 {
-	struct nouveau_channel *chan = fence->channel;
+	struct yesuveau_channel *chan = fence->channel;
 	int ret = RING_SPACE(chan, 2);
 	if (ret == 0) {
 		BEGIN_NV04(chan, NvSubSw, 0x0150, 1);
-		OUT_RING  (chan, fence->base.seqno);
+		OUT_RING  (chan, fence->base.seqyes);
 		FIRE_RING (chan);
 	}
 	return ret;
 }
 
 static int
-nv04_fence_sync(struct nouveau_fence *fence,
-		struct nouveau_channel *prev, struct nouveau_channel *chan)
+nv04_fence_sync(struct yesuveau_fence *fence,
+		struct yesuveau_channel *prev, struct yesuveau_channel *chan)
 {
 	return -ENODEV;
 }
 
 static u32
-nv04_fence_read(struct nouveau_channel *chan)
+nv04_fence_read(struct yesuveau_channel *chan)
 {
 	struct nv04_nvsw_get_ref_v0 args = {};
 	WARN_ON(nvif_object_mthd(&chan->nvsw, NV04_NVSW_GET_REF,
@@ -66,20 +66,20 @@ nv04_fence_read(struct nouveau_channel *chan)
 }
 
 static void
-nv04_fence_context_del(struct nouveau_channel *chan)
+nv04_fence_context_del(struct yesuveau_channel *chan)
 {
 	struct nv04_fence_chan *fctx = chan->fence;
-	nouveau_fence_context_del(&fctx->base);
+	yesuveau_fence_context_del(&fctx->base);
 	chan->fence = NULL;
-	nouveau_fence_context_free(&fctx->base);
+	yesuveau_fence_context_free(&fctx->base);
 }
 
 static int
-nv04_fence_context_new(struct nouveau_channel *chan)
+nv04_fence_context_new(struct yesuveau_channel *chan)
 {
 	struct nv04_fence_chan *fctx = kzalloc(sizeof(*fctx), GFP_KERNEL);
 	if (fctx) {
-		nouveau_fence_context_new(chan, &fctx->base);
+		yesuveau_fence_context_new(chan, &fctx->base);
 		fctx->base.emit = nv04_fence_emit;
 		fctx->base.sync = nv04_fence_sync;
 		fctx->base.read = nv04_fence_read;
@@ -90,7 +90,7 @@ nv04_fence_context_new(struct nouveau_channel *chan)
 }
 
 static void
-nv04_fence_destroy(struct nouveau_drm *drm)
+nv04_fence_destroy(struct yesuveau_drm *drm)
 {
 	struct nv04_fence_priv *priv = drm->fence;
 	drm->fence = NULL;
@@ -98,7 +98,7 @@ nv04_fence_destroy(struct nouveau_drm *drm)
 }
 
 int
-nv04_fence_create(struct nouveau_drm *drm)
+nv04_fence_create(struct yesuveau_drm *drm)
 {
 	struct nv04_fence_priv *priv;
 

@@ -7,7 +7,7 @@
  *	Maintained by GUAN Xue-tao <gxt@mprc.pku.edu.cn>
  *	Copyright (C) 2001-2010 Guan Xuetao
  */
-/* in FPGA, no GPIO support */
+/* in FPGA, yes GPIO support */
 
 #include <linux/init.h>
 #include <linux/module.h>

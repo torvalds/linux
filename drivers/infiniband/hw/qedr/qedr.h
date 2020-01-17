@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -87,7 +87,7 @@ struct qedr_device_attr {
 	u32	vendor_part_id;
 	u32	hw_ver;
 	u64	fw_ver;
-	u64	node_guid;
+	u64	yesde_guid;
 	u64	sys_image_guid;
 	u8	max_cnq;
 	u8	max_sge;
@@ -301,7 +301,7 @@ struct qedr_cq {
 
 	struct qedr_userq q;
 	u8 destroyed;
-	u16 cnq_notif;
+	u16 cnq_yestif;
 };
 
 struct qedr_pd {
@@ -528,7 +528,7 @@ static inline int qedr_get_dmac(struct qedr_dev *dev,
 	u8 *dmac;
 
 	if (!memcmp(&grh->dgid, &zero_sgid, sizeof(union ib_gid))) {
-		DP_ERR(dev, "Local port GID not supported\n");
+		DP_ERR(dev, "Local port GID yest supported\n");
 		eth_zero_addr(mac_addr);
 		return -EINVAL;
 	}

@@ -7,7 +7,7 @@
  */
 
 /*
- * ok, we've used up to 0x01300000, now we need to find space for the
+ * ok, we've used up to 0x01300000, yesw we need to find space for the
  * peripherals that live in the nGCS[x] areas, which are quite numerous
  * in their space.
  */

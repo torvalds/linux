@@ -631,7 +631,7 @@ static void tegra_sor_filter_rates(struct tegra_sor *sor)
 			break;
 
 		default:
-			DRM_DEBUG_KMS("link rate %lu kHz not supported\n",
+			DRM_DEBUG_KMS("link rate %lu kHz yest supported\n",
 				      link->rates[i]);
 			link->rates[i] = 0;
 			break;
@@ -648,7 +648,7 @@ static int tegra_sor_power_up_lanes(struct tegra_sor *sor, unsigned int lanes)
 
 	/*
 	 * Clear or set the PD_TXD bit corresponding to each lane, depending
-	 * on whether it is used or not.
+	 * on whether it is used or yest.
 	 */
 	value = tegra_sor_readl(sor, sor->soc->regs->dp_padctl0);
 
@@ -998,7 +998,7 @@ static int tegra_sor_attach(struct tegra_sor *sor)
 {
 	unsigned long value, timeout;
 
-	/* wake up in normal mode */
+	/* wake up in yesrmal mode */
 	value = tegra_sor_readl(sor, SOR_SUPER_STATE1);
 	value |= SOR_SUPER_STATE_HEAD_MODE_AWAKE;
 	value |= SOR_SUPER_STATE_MODE_NORMAL;
@@ -1487,10 +1487,10 @@ static int tegra_sor_crc_wait(struct tegra_sor *sor, unsigned long timeout)
 
 static int tegra_sor_show_crc(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct tegra_sor *sor = node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct tegra_sor *sor = yesde->info_ent->data;
 	struct drm_crtc *crtc = sor->output.encoder.crtc;
-	struct drm_device *drm = node->minor->dev;
+	struct drm_device *drm = yesde->miyesr->dev;
 	int err = 0;
 	u32 value;
 
@@ -1649,10 +1649,10 @@ static const struct debugfs_reg32 tegra_sor_regs[] = {
 
 static int tegra_sor_show_regs(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct tegra_sor *sor = node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct tegra_sor *sor = yesde->info_ent->data;
 	struct drm_crtc *crtc = sor->output.encoder.crtc;
-	struct drm_device *drm = node->minor->dev;
+	struct drm_device *drm = yesde->miyesr->dev;
 	unsigned int i;
 	int err = 0;
 
@@ -1684,7 +1684,7 @@ static int tegra_sor_late_register(struct drm_connector *connector)
 {
 	struct tegra_output *output = connector_to_output(connector);
 	unsigned int i, count = ARRAY_SIZE(debugfs_files);
-	struct drm_minor *minor = connector->dev->primary;
+	struct drm_miyesr *miyesr = connector->dev->primary;
 	struct dentry *root = connector->debugfs_entry;
 	struct tegra_sor *sor = to_sor(output);
 	int err;
@@ -1697,7 +1697,7 @@ static int tegra_sor_late_register(struct drm_connector *connector)
 	for (i = 0; i < count; i++)
 		sor->debugfs_files[i].data = sor;
 
-	err = drm_debugfs_create_files(sor->debugfs_files, count, root, minor);
+	err = drm_debugfs_create_files(sor->debugfs_files, count, root, miyesr);
 	if (err < 0)
 		goto free;
 
@@ -1850,7 +1850,7 @@ tegra_sor_encoder_atomic_check(struct drm_encoder *encoder,
 		break;
 
 	default:
-		DRM_DEBUG_KMS("%u bits-per-color not supported\n", info->bpc);
+		DRM_DEBUG_KMS("%u bits-per-color yest supported\n", info->bpc);
 		state->bpc = 8;
 		break;
 	}
@@ -1971,7 +1971,7 @@ static void tegra_sor_write_eld(struct tegra_sor *sor)
 	/*
 	 * The HDA codec will always report an ELD buffer size of 96 bytes and
 	 * the HDA codec driver will check that each byte read from the buffer
-	 * is valid. Therefore every byte must be written, even if no 96 bytes
+	 * is valid. Therefore every byte must be written, even if yes 96 bytes
 	 * were parsed from EDID.
 	 */
 	for (i = length; i < 96; i++)
@@ -2196,7 +2196,7 @@ static void tegra_sor_hdmi_scdc_work(struct work_struct *work)
 	struct i2c_adapter *ddc = sor->output.ddc;
 
 	if (!drm_scdc_get_scrambling_status(ddc)) {
-		DRM_DEBUG_KMS("SCDC not scrambled\n");
+		DRM_DEBUG_KMS("SCDC yest scrambled\n");
 		tegra_sor_hdmi_scdc_enable(sor);
 	}
 
@@ -2391,7 +2391,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 		tegra_sor_writel(sor, value, SOR_REFCLK);
 	}
 
-	/* XXX not in TRM */
+	/* XXX yest in TRM */
 	for (value = 0, i = 0; i < 5; i++)
 		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->xbar_cfg[i]) |
 			 SOR_XBAR_CTRL_LINK1_XSEL(i, i);
@@ -2400,7 +2400,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
 	/*
-	 * Switch the pad clock to the DP clock. Note that we cannot actually
+	 * Switch the pad clock to the DP clock. Note that we canyest actually
 	 * do this because Tegra186 and later don't support clk_set_parent()
 	 * on the sorX_pad_clkout clocks. We already do the equivalent above
 	 * using the DP_CLK_SEL mux of the SOR_CLK_CNTRL register.
@@ -2479,7 +2479,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	if (err < 0)
 		dev_err(sor->dev, "failed to setup AVI infoframe: %d\n", err);
 
-	/* XXX HDMI audio support not implemented yet */
+	/* XXX HDMI audio support yest implemented yet */
 	tegra_sor_hdmi_disable_audio_infoframe(sor);
 
 	/* use single TMDS protocol */
@@ -2496,7 +2496,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	/* production settings */
 	settings = tegra_sor_hdmi_find_settings(sor, mode->clock * 1000);
 	if (!settings) {
-		dev_err(sor->dev, "no settings for pixel clock %d Hz\n",
+		dev_err(sor->dev, "yes settings for pixel clock %d Hz\n",
 			mode->clock * 1000);
 		return;
 	}
@@ -2510,7 +2510,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	value |= SOR_PLL0_VCOCAP(settings->vcocap);
 	tegra_sor_writel(sor, value, sor->soc->regs->pll0);
 
-	/* XXX not in TRM */
+	/* XXX yest in TRM */
 	value = tegra_sor_readl(sor, sor->soc->regs->pll1);
 	value &= ~SOR_PLL1_LOADADJ_MASK;
 	value &= ~SOR_PLL1_TMDS_TERMADJ_MASK;
@@ -2586,7 +2586,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 		break;
 
 	default:
-		WARN(1, "%u bits-per-color not supported\n", state->bpc);
+		WARN(1, "%u bits-per-color yest supported\n", state->bpc);
 		value |= BASE_COLOR_SIZE_888;
 		break;
 	}
@@ -2673,7 +2673,7 @@ static void tegra_sor_dp_disable(struct drm_encoder *encoder)
 		drm_panel_disable(output->panel);
 
 	/*
-	 * Do not attempt to power down a DP link if we're not connected since
+	 * Do yest attempt to power down a DP link if we're yest connected since
 	 * the AUX transactions would just be timing out.
 	 */
 	if (output->connector.status != connector_status_disconnected) {
@@ -2811,7 +2811,7 @@ static void tegra_sor_dp_enable(struct drm_encoder *encoder)
 	usleep_range(200, 400);
 
 	value = tegra_sor_readl(sor, SOR_DP_SPARE0);
-	/* XXX not in TRM */
+	/* XXX yest in TRM */
 	if (output->panel)
 		value |= SOR_DP_SPARE_PANEL_INTERNAL;
 	else
@@ -2820,7 +2820,7 @@ static void tegra_sor_dp_enable(struct drm_encoder *encoder)
 	value |= SOR_DP_SPARE_SEQ_ENABLE;
 	tegra_sor_writel(sor, value, SOR_DP_SPARE0);
 
-	/* XXX not in TRM */
+	/* XXX yest in TRM */
 	tegra_sor_writel(sor, 0, SOR_LVDS);
 
 	value = tegra_sor_readl(sor, sor->soc->regs->pll0);
@@ -2831,7 +2831,7 @@ static void tegra_sor_dp_enable(struct drm_encoder *encoder)
 	value |= SOR_PLL0_RESISTOR_EXT;
 	tegra_sor_writel(sor, value, sor->soc->regs->pll0);
 
-	/* XXX not in TRM */
+	/* XXX yest in TRM */
 	for (value = 0, i = 0; i < 5; i++)
 		value |= SOR_XBAR_CTRL_LINK0_XSEL(i, sor->soc->xbar_cfg[i]) |
 			 SOR_XBAR_CTRL_LINK1_XSEL(i, i);
@@ -2840,7 +2840,7 @@ static void tegra_sor_dp_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, value, SOR_XBAR_CTRL);
 
 	/*
-	 * Switch the pad clock to the DP clock. Note that we cannot actually
+	 * Switch the pad clock to the DP clock. Note that we canyest actually
 	 * do this because Tegra186 and later don't support clk_set_parent()
 	 * on the sorX_pad_clkout clocks. We already do the equivalent above
 	 * using the DP_CLK_SEL mux of the SOR_CLK_CNTRL register.
@@ -2953,7 +2953,7 @@ static int tegra_sor_hdmi_probe(struct tegra_sor *sor)
 
 	sor->avdd_io_supply = devm_regulator_get(sor->dev, "avdd-io");
 	if (IS_ERR(sor->avdd_io_supply)) {
-		dev_err(sor->dev, "cannot get AVDD I/O supply: %ld\n",
+		dev_err(sor->dev, "canyest get AVDD I/O supply: %ld\n",
 			PTR_ERR(sor->avdd_io_supply));
 		return PTR_ERR(sor->avdd_io_supply);
 	}
@@ -2967,7 +2967,7 @@ static int tegra_sor_hdmi_probe(struct tegra_sor *sor)
 
 	sor->vdd_pll_supply = devm_regulator_get(sor->dev, "vdd-pll");
 	if (IS_ERR(sor->vdd_pll_supply)) {
-		dev_err(sor->dev, "cannot get VDD PLL supply: %ld\n",
+		dev_err(sor->dev, "canyest get VDD PLL supply: %ld\n",
 			PTR_ERR(sor->vdd_pll_supply));
 		return PTR_ERR(sor->vdd_pll_supply);
 	}
@@ -2981,7 +2981,7 @@ static int tegra_sor_hdmi_probe(struct tegra_sor *sor)
 
 	sor->hdmi_supply = devm_regulator_get(sor->dev, "hdmi");
 	if (IS_ERR(sor->hdmi_supply)) {
-		dev_err(sor->dev, "cannot get HDMI supply: %ld\n",
+		dev_err(sor->dev, "canyest get HDMI supply: %ld\n",
 			PTR_ERR(sor->hdmi_supply));
 		return PTR_ERR(sor->hdmi_supply);
 	}
@@ -3056,7 +3056,7 @@ static int tegra_sor_init(struct host1x_client *client)
 	struct drm_device *drm = dev_get_drvdata(client->parent);
 	const struct drm_encoder_helper_funcs *helpers = NULL;
 	struct tegra_sor *sor = host1x_client_to_sor(client);
-	int connector = DRM_MODE_CONNECTOR_Unknown;
+	int connector = DRM_MODE_CONNECTOR_Unkyeswn;
 	int encoder = DRM_MODE_ENCODER_NONE;
 	int err;
 
@@ -3563,7 +3563,7 @@ MODULE_DEVICE_TABLE(of, tegra_sor_of_match);
 
 static int tegra_sor_parse_dt(struct tegra_sor *sor)
 {
-	struct device_node *np = sor->dev->of_node;
+	struct device_yesde *np = sor->dev->of_yesde;
 	u32 xbar_cfg[5];
 	unsigned int i;
 	u32 value;
@@ -3633,7 +3633,7 @@ static irqreturn_t tegra_sor_irq(int irq, void *data)
 
 static int tegra_sor_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct tegra_sor *sor;
 	struct resource *regs;
 	int err;
@@ -3654,10 +3654,10 @@ static int tegra_sor_probe(struct platform_device *pdev)
 
 	sor->num_settings = sor->soc->num_settings;
 
-	np = of_parse_phandle(pdev->dev.of_node, "nvidia,dpaux", 0);
+	np = of_parse_phandle(pdev->dev.of_yesde, "nvidia,dpaux", 0);
 	if (np) {
-		sor->aux = drm_dp_aux_find_by_of_node(np);
-		of_node_put(np);
+		sor->aux = drm_dp_aux_find_by_of_yesde(np);
+		of_yesde_put(np);
 
 		if (!sor->aux)
 			return -EPROBE_DEFER;
@@ -3670,19 +3670,19 @@ static int tegra_sor_probe(struct platform_device *pdev)
 			sor->ops = &tegra_sor_hdmi_ops;
 			sor->pad = TEGRA_IO_PAD_HDMI;
 		} else if (sor->soc->supports_lvds) {
-			dev_err(&pdev->dev, "LVDS not supported yet\n");
+			dev_err(&pdev->dev, "LVDS yest supported yet\n");
 			return -ENODEV;
 		} else {
-			dev_err(&pdev->dev, "unknown (non-DP) support\n");
+			dev_err(&pdev->dev, "unkyeswn (yesn-DP) support\n");
 			return -ENODEV;
 		}
 	} else {
-		np = of_parse_phandle(pdev->dev.of_node, "nvidia,panel", 0);
+		np = of_parse_phandle(pdev->dev.of_yesde, "nvidia,panel", 0);
 		/*
 		 * No need to keep this around since we only use it as a check
-		 * to see if a panel is connected (eDP) or not (DP).
+		 * to see if a panel is connected (eDP) or yest (DP).
 		 */
-		of_node_put(np);
+		of_yesde_put(np);
 
 		sor->ops = &tegra_sor_dp_ops;
 		sor->pad = TEGRA_IO_PAD_LVDS;
@@ -3756,13 +3756,13 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	}
 
 	if (sor->soc->supports_hdmi || sor->soc->supports_dp) {
-		struct device_node *np = pdev->dev.of_node;
+		struct device_yesde *np = pdev->dev.of_yesde;
 		const char *name;
 
 		/*
 		 * For backwards compatibility with Tegra210 device trees,
 		 * fall back to the old clock name "source" if the new "out"
-		 * clock is not available.
+		 * clock is yest available.
 		 */
 		if (of_property_match_string(np, "clock-names", "out") < 0)
 			name = "source";
@@ -3814,7 +3814,7 @@ static int tegra_sor_probe(struct platform_device *pdev)
 		}
 
 		/*
-		 * If the pad output clock is not available, then we assume
+		 * If the pad output clock is yest available, then we assume
 		 * we're on Tegra210 or earlier and have to provide our own
 		 * implementation.
 		 */

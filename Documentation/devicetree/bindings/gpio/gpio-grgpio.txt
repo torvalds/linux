@@ -15,11 +15,11 @@ Required properties:
 
 Optional properties:
 
-- nbits : The number of gpio lines. If not present driver assumes 32 lines.
+- nbits : The number of gpio lines. If yest present driver assumes 32 lines.
 
 - irqmap : An array with an index for each gpio line. An index is either a valid
 	index into the interrupts property array, or 0xffffffff that indicates
-	no irq for that line. Driver provides no interrupt support if not
+	yes irq for that line. Driver provides yes interrupt support if yest
 	present.
 
 For further information look in the documentation for the GLIB IP core library:

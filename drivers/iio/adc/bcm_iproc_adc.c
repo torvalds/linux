@@ -109,7 +109,7 @@ struct iproc_adc_priv {
 	struct regmap *regmap;
 	struct clk *adc_clk;
 	struct mutex mutex;
-	int  irqno;
+	int  irqyes;
 	int chan_val;
 	int chan_id;
 	struct completion completion;
@@ -279,7 +279,7 @@ static int iproc_adc_do_read(struct iio_dev *indio_dev,
 
 	/*
 	 * There seems to be a very rare issue where writing to this register
-	 * does not take effect.  To work around the issue we will try multiple
+	 * does yest take effect.  To work around the issue we will try multiple
 	 * writes.  In total we will spend about 10*10 = 100 us attempting this.
 	 * Testing has shown that this may loop a few time, but we have never
 	 * hit the full count.
@@ -322,9 +322,9 @@ static int iproc_adc_do_read(struct iio_dev *indio_dev,
 	} else {
 		/*
 		 * We never got the interrupt, something went wrong.
-		 * Perhaps the interrupt may still be coming, we do not want
-		 * that now.  Lets disable the ADC interrupt, and clear the
-		 * status to put it back in to normal state.
+		 * Perhaps the interrupt may still be coming, we do yest want
+		 * that yesw.  Lets disable the ADC interrupt, and clear the
+		 * status to put it back in to yesrmal state.
 		 */
 		read_len = -ETIMEDOUT;
 		goto adc_err;
@@ -523,7 +523,7 @@ static int iproc_adc_probe(struct platform_device *pdev)
 
 	init_completion(&adc_priv->completion);
 
-	adc_priv->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	adc_priv->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 			   "adc-syscon");
 	if (IS_ERR(adc_priv->regmap)) {
 		dev_err(&pdev->dev, "failed to get handle for tsc syscon\n");
@@ -539,8 +539,8 @@ static int iproc_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	adc_priv->irqno = platform_get_irq(pdev, 0);
-	if (adc_priv->irqno <= 0)
+	adc_priv->irqyes = platform_get_irq(pdev, 0);
+	if (adc_priv->irqyes <= 0)
 		return -ENODEV;
 
 	ret = regmap_update_bits(adc_priv->regmap, IPROC_REGCTL2,
@@ -550,7 +550,7 @@ static int iproc_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_request_threaded_irq(&pdev->dev, adc_priv->irqno,
+	ret = devm_request_threaded_irq(&pdev->dev, adc_priv->irqyes,
 				iproc_adc_interrupt_handler,
 				iproc_adc_interrupt_thread,
 				IRQF_SHARED, "iproc-adc", indio_dev);
@@ -574,7 +574,7 @@ static int iproc_adc_probe(struct platform_device *pdev)
 
 	indio_dev->name = "iproc-static-adc";
 	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
 	indio_dev->info = &iproc_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = iproc_adc_iio_channels;

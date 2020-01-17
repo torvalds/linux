@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2010-2011 Canonical Ltd <jeremy.kerr@canonical.com>
+ * Copyright (C) 2010-2011 Cayesnical Ltd <jeremy.kerr@cayesnical.com>
  * Copyright (C) 2011-2012 Linaro Ltd <mturquette@linaro.org>
  *
  * Standard functionality for the common clock API.  See Documentation/driver-api/clk.rst
@@ -35,7 +35,7 @@ static int enable_refcnt;
 
 static HLIST_HEAD(clk_root_list);
 static HLIST_HEAD(clk_orphan_list);
-static LIST_HEAD(clk_notifier_list);
+static LIST_HEAD(clk_yestifier_list);
 
 static struct hlist_head *all_lists[] = {
 	&clk_root_list,
@@ -59,7 +59,7 @@ struct clk_core {
 	struct clk_hw		*hw;
 	struct module		*owner;
 	struct device		*dev;
-	struct device_node	*of_node;
+	struct device_yesde	*of_yesde;
 	struct clk_core		*parent;
 	struct clk_parent_map	*parents;
 	u8			num_parents;
@@ -81,12 +81,12 @@ struct clk_core {
 	int			phase;
 	struct clk_duty		duty;
 	struct hlist_head	children;
-	struct hlist_node	child_node;
+	struct hlist_yesde	child_yesde;
 	struct hlist_head	clks;
-	unsigned int		notifier_count;
+	unsigned int		yestifier_count;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry		*dentry;
-	struct hlist_node	debug_node;
+	struct hlist_yesde	debug_yesde;
 #endif
 	struct kref		ref;
 };
@@ -102,7 +102,7 @@ struct clk {
 	unsigned long min_rate;
 	unsigned long max_rate;
 	unsigned int exclusive_count;
-	struct hlist_node clks_node;
+	struct hlist_yesde clks_yesde;
 };
 
 /***           runtime pm          ***/
@@ -231,16 +231,16 @@ static bool clk_core_is_enabled(struct clk_core *core)
 
 	/*
 	 * Check if clock controller's device is runtime active before
-	 * calling .is_enabled callback. If not, assume that clock is
+	 * calling .is_enabled callback. If yest, assume that clock is
 	 * disabled, because we might be called from atomic context, from
-	 * which pm_runtime_get() is not allowed.
+	 * which pm_runtime_get() is yest allowed.
 	 * This function is called mainly from clk_disable_unused_subtree,
 	 * which ensures proper runtime pm activation of controller before
 	 * taking enable spinlock, but the below check is needed if one tries
 	 * to call it from other places.
 	 */
 	if (core->rpm_enabled) {
-		pm_runtime_get_noresume(core->dev);
+		pm_runtime_get_yesresume(core->dev);
 		if (!pm_runtime_active(core->dev)) {
 			ret = false;
 			goto done;
@@ -296,7 +296,7 @@ static struct clk_core *__clk_lookup_subtree(const char *name,
 	if (!strcmp(core->name, name))
 		return core;
 
-	hlist_for_each_entry(child, &core->children, child_node) {
+	hlist_for_each_entry(child, &core->children, child_yesde) {
 		ret = __clk_lookup_subtree(name, child);
 		if (ret)
 			return ret;
@@ -314,14 +314,14 @@ static struct clk_core *clk_core_lookup(const char *name)
 		return NULL;
 
 	/* search the 'proper' clk tree first */
-	hlist_for_each_entry(root_clk, &clk_root_list, child_node) {
+	hlist_for_each_entry(root_clk, &clk_root_list, child_yesde) {
 		ret = __clk_lookup_subtree(name, root_clk);
 		if (ret)
 			return ret;
 	}
 
-	/* if not found, then search the orphan tree */
-	hlist_for_each_entry(root_clk, &clk_orphan_list, child_node) {
+	/* if yest found, then search the orphan tree */
+	hlist_for_each_entry(root_clk, &clk_orphan_list, child_yesde) {
 		ret = __clk_lookup_subtree(name, root_clk);
 		if (ret)
 			return ret;
@@ -331,12 +331,12 @@ static struct clk_core *clk_core_lookup(const char *name)
 }
 
 #ifdef CONFIG_OF
-static int of_parse_clkspec(const struct device_node *np, int index,
+static int of_parse_clkspec(const struct device_yesde *np, int index,
 			    const char *name, struct of_phandle_args *out_args);
 static struct clk_hw *
 of_clk_get_hw_from_clkspec(struct of_phandle_args *clkspec);
 #else
-static inline int of_parse_clkspec(const struct device_node *np, int index,
+static inline int of_parse_clkspec(const struct device_yesde *np, int index,
 				   const char *name,
 				   struct of_phandle_args *out_args)
 {
@@ -357,7 +357,7 @@ of_clk_get_hw_from_clkspec(struct of_phandle_args *clkspec)
  * This is the preferred method for clk providers to find the parent of a
  * clk when that parent is external to the clk controller. The parent_names
  * array is indexed and treated as a local name matching a string in the device
- * node's 'clock-names' property or as the 'con_id' matching the device's
+ * yesde's 'clock-names' property or as the 'con_id' matching the device's
  * dev_name() in a clk_lookup. This allows clk providers to use their own
  * namespace instead of looking for a globally unique parent string.
  *
@@ -380,8 +380,8 @@ of_clk_get_hw_from_clkspec(struct of_phandle_args *clkspec)
  *      };
  *
  * Returns: -ENOENT when the provider can't be found or the clk doesn't
- * exist in the provider or the name can't be found in the DT node or
- * in a clkdev lookup. NULL when the provider knows about the clk but it
+ * exist in the provider or the name can't be found in the DT yesde or
+ * in a clkdev lookup. NULL when the provider kyesws about the clk but it
  * isn't provided on this system.
  * A valid clk_core pointer when the clk can be found in the provider.
  */
@@ -392,13 +392,13 @@ static struct clk_core *clk_core_get(struct clk_core *core, u8 p_index)
 	struct clk_hw *hw = ERR_PTR(-ENOENT);
 	struct device *dev = core->dev;
 	const char *dev_id = dev ? dev_name(dev) : NULL;
-	struct device_node *np = core->of_node;
+	struct device_yesde *np = core->of_yesde;
 	struct of_phandle_args clkspec;
 
 	if (np && (name || index >= 0) &&
 	    !of_parse_clkspec(np, index, name, &clkspec)) {
 		hw = of_clk_get_hw_from_clkspec(&clkspec);
-		of_node_put(clkspec.np);
+		of_yesde_put(clkspec.np);
 	} else if (name) {
 		/*
 		 * If the DT search above couldn't find the provider fallback to
@@ -433,7 +433,7 @@ static void clk_core_fill_parent_index(struct clk_core *core, u8 index)
 			parent = clk_core_lookup(entry->name);
 	}
 
-	/* Only cache it if it's not an error */
+	/* Only cache it if it's yest an error */
 	if (!IS_ERR(parent))
 		entry->core = parent;
 }
@@ -466,7 +466,7 @@ unsigned int __clk_get_enable_count(struct clk *clk)
 	return !clk ? 0 : clk->core->enable_count;
 }
 
-static unsigned long clk_core_get_rate_nolock(struct clk_core *core)
+static unsigned long clk_core_get_rate_yeslock(struct clk_core *core)
 {
 	if (!core)
 		return 0;
@@ -476,7 +476,7 @@ static unsigned long clk_core_get_rate_nolock(struct clk_core *core)
 
 	/*
 	 * Clk must have a parent because num_parents > 0 but the parent isn't
-	 * known yet. Best to return 0 as the rate of this clk until we can
+	 * kyeswn yet. Best to return 0 as the rate of this clk until we can
 	 * properly recalc the rate based on the parent's rate.
 	 */
 	return 0;
@@ -484,7 +484,7 @@ static unsigned long clk_core_get_rate_nolock(struct clk_core *core)
 
 unsigned long clk_hw_get_rate(const struct clk_hw *hw)
 {
-	return clk_core_get_rate_nolock(hw->core);
+	return clk_core_get_rate_yeslock(hw->core);
 }
 EXPORT_SYMBOL_GPL(clk_hw_get_rate);
 
@@ -535,13 +535,13 @@ bool __clk_is_enabled(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(__clk_is_enabled);
 
-static bool mux_is_better_rate(unsigned long rate, unsigned long now,
+static bool mux_is_better_rate(unsigned long rate, unsigned long yesw,
 			   unsigned long best, unsigned long flags)
 {
 	if (flags & CLK_MUX_ROUND_CLOSEST)
-		return abs(now - rate) < abs(best - rate);
+		return abs(yesw - rate) < abs(best - rate);
 
-	return now <= rate && now > best;
+	return yesw <= rate && yesw > best;
 }
 
 int clk_mux_determine_rate_flags(struct clk_hw *hw,
@@ -564,9 +564,9 @@ int clk_mux_determine_rate_flags(struct clk_hw *hw,
 
 			best = parent_req.rate;
 		} else if (parent) {
-			best = clk_core_get_rate_nolock(parent);
+			best = clk_core_get_rate_yeslock(parent);
 		} else {
-			best = clk_core_get_rate_nolock(core);
+			best = clk_core_get_rate_yeslock(core);
 		}
 
 		goto out;
@@ -585,7 +585,7 @@ int clk_mux_determine_rate_flags(struct clk_hw *hw,
 			if (ret)
 				continue;
 		} else {
-			parent_req.rate = clk_core_get_rate_nolock(parent);
+			parent_req.rate = clk_core_get_rate_yeslock(parent);
 		}
 
 		if (mux_is_better_rate(req->rate, parent_req.rate,
@@ -626,10 +626,10 @@ static void clk_core_get_boundaries(struct clk_core *core,
 	*min_rate = core->min_rate;
 	*max_rate = core->max_rate;
 
-	hlist_for_each_entry(clk_user, &core->clks, clks_node)
+	hlist_for_each_entry(clk_user, &core->clks, clks_yesde)
 		*min_rate = max(*min_rate, clk_user->min_rate);
 
-	hlist_for_each_entry(clk_user, &core->clks, clks_node)
+	hlist_for_each_entry(clk_user, &core->clks, clks_yesde)
 		*max_rate = min(*max_rate, clk_user->max_rate);
 }
 
@@ -709,9 +709,9 @@ static int clk_core_rate_nuke_protect(struct clk_core *core)
  * @clk: the clk over which the exclusivity is released
  *
  * clk_rate_exclusive_put() completes a critical section during which a clock
- * consumer cannot tolerate any other consumer making any operation on the
+ * consumer canyest tolerate any other consumer making any operation on the
  * clock which could result in a rate change or rate glitch. Exclusive clocks
- * cannot have their rate changed, either directly or indirectly due to changes
+ * canyest have their rate changed, either directly or indirectly due to changes
  * further up the parent chain of clocks. As a result, clocks up parent chain
  * also get under exclusive control of the calling consumer.
  *
@@ -719,7 +719,7 @@ static int clk_core_rate_nuke_protect(struct clk_core *core)
  * the rate effectively gets locked as exclusivity can't be preempted.
  *
  * Calls to clk_rate_exclusive_put() must be balanced with calls to
- * clk_rate_exclusive_get(). Calls to this function may sleep, and do not return
+ * clk_rate_exclusive_get(). Calls to this function may sleep, and do yest return
  * error status.
  */
 void clk_rate_exclusive_put(struct clk *clk)
@@ -775,9 +775,9 @@ static void clk_core_rate_restore_protect(struct clk_core *core, int count)
  * @clk: the clk over which the exclusity of rate control is requested
  *
  * clk_rate_exlusive_get() begins a critical section during which a clock
- * consumer cannot tolerate any other consumer making any operation on the
+ * consumer canyest tolerate any other consumer making any operation on the
  * clock which could result in a rate change or rate glitch. Exclusive clocks
- * cannot have their rate changed, either directly or indirectly due to changes
+ * canyest have their rate changed, either directly or indirectly due to changes
  * further up the parent chain of clocks. As a result, clocks up parent chain
  * also get under exclusive control of the calling consumer.
  *
@@ -851,7 +851,7 @@ static void clk_core_unprepare_lock(struct clk_core *core)
  * simple case, clk_unprepare can be used instead of clk_disable to gate a clk
  * if the operation may sleep.  One example is a clk which is accessed over
  * I2c.  In the complex case a clk gate operation may require a fast and a slow
- * part.  It is this reason that clk_unprepare and clk_disable are not mutually
+ * part.  It is this reason that clk_unprepare and clk_disable are yest mutually
  * exclusive.  In fact clk_disable must be called before clk_unprepare.
  */
 void clk_unprepare(struct clk *clk)
@@ -931,7 +931,7 @@ static int clk_core_prepare_lock(struct clk_core *core)
  * case, clk_prepare can be used instead of clk_enable to ungate a clk if the
  * operation may sleep.  One example is a clk which is accessed over I2c.  In
  * the complex case a clk ungate operation may require a fast and a slow part.
- * It is this reason that clk_prepare and clk_enable are not mutually
+ * It is this reason that clk_prepare and clk_enable are yest mutually
  * exclusive.  In fact clk_prepare must be called before clk_enable.
  * Returns 0 on success, -EERROR otherwise.
  */
@@ -984,12 +984,12 @@ static void clk_core_disable_lock(struct clk_core *core)
  * clk_disable - gate a clock
  * @clk: the clk being gated
  *
- * clk_disable must not sleep, which differentiates it from clk_unprepare.  In
+ * clk_disable must yest sleep, which differentiates it from clk_unprepare.  In
  * a simple case, clk_disable can be used instead of clk_unprepare to gate a
  * clk if the operation is fast and will never sleep.  One example is a
  * SoC-internal clk which is controlled via simple register writes.  In the
  * complex case a clk gate operation may require a fast and a slow part.  It is
- * this reason that clk_unprepare and clk_disable are not mutually exclusive.
+ * this reason that clk_unprepare and clk_disable are yest mutually exclusive.
  * In fact clk_disable must be called before clk_unprepare.
  */
 void clk_disable(struct clk *clk)
@@ -1075,7 +1075,7 @@ static int clk_core_save_context(struct clk_core *core)
 	struct clk_core *child;
 	int ret = 0;
 
-	hlist_for_each_entry(child, &core->children, child_node) {
+	hlist_for_each_entry(child, &core->children, child_yesde) {
 		ret = clk_core_save_context(child);
 		if (ret < 0)
 			return ret;
@@ -1094,7 +1094,7 @@ static void clk_core_restore_context(struct clk_core *core)
 	if (core->ops && core->ops->restore_context)
 		core->ops->restore_context(core->hw);
 
-	hlist_for_each_entry(child, &core->children, child_node)
+	hlist_for_each_entry(child, &core->children, child_yesde)
 		clk_core_restore_context(child);
 }
 
@@ -1110,13 +1110,13 @@ int clk_save_context(void)
 	struct clk_core *clk;
 	int ret;
 
-	hlist_for_each_entry(clk, &clk_root_list, child_node) {
+	hlist_for_each_entry(clk, &clk_root_list, child_yesde) {
 		ret = clk_core_save_context(clk);
 		if (ret < 0)
 			return ret;
 	}
 
-	hlist_for_each_entry(clk, &clk_orphan_list, child_node) {
+	hlist_for_each_entry(clk, &clk_orphan_list, child_yesde) {
 		ret = clk_core_save_context(clk);
 		if (ret < 0)
 			return ret;
@@ -1136,10 +1136,10 @@ void clk_restore_context(void)
 {
 	struct clk_core *core;
 
-	hlist_for_each_entry(core, &clk_root_list, child_node)
+	hlist_for_each_entry(core, &clk_root_list, child_yesde)
 		clk_core_restore_context(core);
 
-	hlist_for_each_entry(core, &clk_orphan_list, child_node)
+	hlist_for_each_entry(core, &clk_orphan_list, child_yesde)
 		clk_core_restore_context(core);
 }
 EXPORT_SYMBOL_GPL(clk_restore_context);
@@ -1148,12 +1148,12 @@ EXPORT_SYMBOL_GPL(clk_restore_context);
  * clk_enable - ungate a clock
  * @clk: the clk being ungated
  *
- * clk_enable must not sleep, which differentiates it from clk_prepare.  In a
+ * clk_enable must yest sleep, which differentiates it from clk_prepare.  In a
  * simple case, clk_enable can be used instead of clk_prepare to ungate a clk
  * if the operation will never sleep.  One example is a SoC-internal clk which
  * is controlled via simple register writes.  In the complex case a clk ungate
  * operation may require a fast and a slow part.  It is this reason that
- * clk_enable and clk_prepare are not mutually exclusive.  In fact clk_prepare
+ * clk_enable and clk_prepare are yest mutually exclusive.  In fact clk_prepare
  * must be called before clk_enable.  Returns 0 on success, -EERROR
  * otherwise.
  */
@@ -1193,7 +1193,7 @@ static void __init clk_unprepare_unused_subtree(struct clk_core *core)
 
 	lockdep_assert_held(&prepare_lock);
 
-	hlist_for_each_entry(child, &core->children, child_node)
+	hlist_for_each_entry(child, &core->children, child_yesde)
 		clk_unprepare_unused_subtree(child);
 
 	if (core->prepare_count)
@@ -1224,7 +1224,7 @@ static void __init clk_disable_unused_subtree(struct clk_core *core)
 
 	lockdep_assert_held(&prepare_lock);
 
-	hlist_for_each_entry(child, &core->children, child_node)
+	hlist_for_each_entry(child, &core->children, child_yesde)
 		clk_disable_unused_subtree(child);
 
 	if (core->flags & CLK_OPS_PARENT_ENABLE)
@@ -1263,35 +1263,35 @@ unprepare_out:
 		clk_core_disable_unprepare(core->parent);
 }
 
-static bool clk_ignore_unused __initdata;
-static int __init clk_ignore_unused_setup(char *__unused)
+static bool clk_igyesre_unused __initdata;
+static int __init clk_igyesre_unused_setup(char *__unused)
 {
-	clk_ignore_unused = true;
+	clk_igyesre_unused = true;
 	return 1;
 }
-__setup("clk_ignore_unused", clk_ignore_unused_setup);
+__setup("clk_igyesre_unused", clk_igyesre_unused_setup);
 
 static int __init clk_disable_unused(void)
 {
 	struct clk_core *core;
 
-	if (clk_ignore_unused) {
+	if (clk_igyesre_unused) {
 		pr_warn("clk: Not disabling unused clocks\n");
 		return 0;
 	}
 
 	clk_prepare_lock();
 
-	hlist_for_each_entry(core, &clk_root_list, child_node)
+	hlist_for_each_entry(core, &clk_root_list, child_yesde)
 		clk_disable_unused_subtree(core);
 
-	hlist_for_each_entry(core, &clk_orphan_list, child_node)
+	hlist_for_each_entry(core, &clk_orphan_list, child_yesde)
 		clk_disable_unused_subtree(core);
 
-	hlist_for_each_entry(core, &clk_root_list, child_node)
+	hlist_for_each_entry(core, &clk_root_list, child_yesde)
 		clk_unprepare_unused_subtree(core);
 
-	hlist_for_each_entry(core, &clk_orphan_list, child_node)
+	hlist_for_each_entry(core, &clk_orphan_list, child_yesde)
 		clk_unprepare_unused_subtree(core);
 
 	clk_prepare_unlock();
@@ -1300,7 +1300,7 @@ static int __init clk_disable_unused(void)
 }
 late_initcall_sync(clk_disable_unused);
 
-static int clk_core_determine_round_nolock(struct clk_core *core,
+static int clk_core_determine_round_yeslock(struct clk_core *core,
 					   struct clk_rate_request *req)
 {
 	long rate;
@@ -1312,7 +1312,7 @@ static int clk_core_determine_round_nolock(struct clk_core *core,
 
 	/*
 	 * At this point, core protection will be disabled if
-	 * - if the provider is not protected at all
+	 * - if the provider is yest protected at all
 	 * - if the calling consumer is the only one which has exclusivity
 	 *   over the provider
 	 */
@@ -1357,7 +1357,7 @@ static bool clk_core_can_round(struct clk_core * const core)
 	return core->ops->determine_rate || core->ops->round_rate;
 }
 
-static int clk_core_round_rate_nolock(struct clk_core *core,
+static int clk_core_round_rate_yeslock(struct clk_core *core,
 				      struct clk_rate_request *req)
 {
 	lockdep_assert_held(&prepare_lock);
@@ -1370,9 +1370,9 @@ static int clk_core_round_rate_nolock(struct clk_core *core,
 	clk_core_init_rate_req(core, req);
 
 	if (clk_core_can_round(core))
-		return clk_core_determine_round_nolock(core, req);
+		return clk_core_determine_round_yeslock(core, req);
 	else if (core->flags & CLK_SET_RATE_PARENT)
-		return clk_core_round_rate_nolock(core->parent, req);
+		return clk_core_round_rate_yeslock(core->parent, req);
 
 	req->rate = core->rate;
 	return 0;
@@ -1392,7 +1392,7 @@ int __clk_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 		return 0;
 	}
 
-	return clk_core_round_rate_nolock(hw->core, req);
+	return clk_core_round_rate_yeslock(hw->core, req);
 }
 EXPORT_SYMBOL_GPL(__clk_determine_rate);
 
@@ -1404,7 +1404,7 @@ unsigned long clk_hw_round_rate(struct clk_hw *hw, unsigned long rate)
 	clk_core_get_boundaries(hw->core, &req.min_rate, &req.max_rate);
 	req.rate = rate;
 
-	ret = clk_core_round_rate_nolock(hw->core, &req);
+	ret = clk_core_round_rate_yeslock(hw->core, &req);
 	if (ret)
 		return 0;
 
@@ -1437,7 +1437,7 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 	clk_core_get_boundaries(clk->core, &req.min_rate, &req.max_rate);
 	req.rate = rate;
 
-	ret = clk_core_round_rate_nolock(clk->core, &req);
+	ret = clk_core_round_rate_yeslock(clk->core, &req);
 
 	if (clk->exclusive_count)
 		clk_core_rate_protect(clk->core);
@@ -1452,33 +1452,33 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 EXPORT_SYMBOL_GPL(clk_round_rate);
 
 /**
- * __clk_notify - call clk notifier chain
+ * __clk_yestify - call clk yestifier chain
  * @core: clk that is changing rate
- * @msg: clk notifier type (see include/linux/clk.h)
+ * @msg: clk yestifier type (see include/linux/clk.h)
  * @old_rate: old clk rate
  * @new_rate: new clk rate
  *
- * Triggers a notifier call chain on the clk rate-change notification
+ * Triggers a yestifier call chain on the clk rate-change yestification
  * for 'clk'.  Passes a pointer to the struct clk and the previous
- * and current rates to the notifier callback.  Intended to be called by
+ * and current rates to the yestifier callback.  Intended to be called by
  * internal clock code only.  Returns NOTIFY_DONE from the last driver
  * called if all went well, or NOTIFY_STOP or NOTIFY_BAD immediately if
  * a driver returns that.
  */
-static int __clk_notify(struct clk_core *core, unsigned long msg,
+static int __clk_yestify(struct clk_core *core, unsigned long msg,
 		unsigned long old_rate, unsigned long new_rate)
 {
-	struct clk_notifier *cn;
-	struct clk_notifier_data cnd;
+	struct clk_yestifier *cn;
+	struct clk_yestifier_data cnd;
 	int ret = NOTIFY_DONE;
 
 	cnd.old_rate = old_rate;
 	cnd.new_rate = new_rate;
 
-	list_for_each_entry(cn, &clk_notifier_list, node) {
+	list_for_each_entry(cn, &clk_yestifier_list, yesde) {
 		if (cn->clk->core == core) {
 			cnd.clk = cn->clk;
-			ret = srcu_notifier_call_chain(&cn->notifier_head, msg,
+			ret = srcu_yestifier_call_chain(&cn->yestifier_head, msg,
 					&cnd);
 			if (ret & NOTIFY_STOP_MASK)
 				return ret;
@@ -1493,7 +1493,7 @@ static int __clk_notify(struct clk_core *core, unsigned long msg,
  * @core: first clk in the subtree
  *
  * Walks the subtree of clks starting with clk and recalculates accuracies as
- * it goes.  Note that if a clk does not implement the .recalc_accuracy
+ * it goes.  Note that if a clk does yest implement the .recalc_accuracy
  * callback then it is assumed that the clock will take on the accuracy of its
  * parent.
  */
@@ -1513,7 +1513,7 @@ static void __clk_recalc_accuracies(struct clk_core *core)
 	else
 		core->accuracy = parent_accuracy;
 
-	hlist_for_each_entry(child, &core->children, child_node)
+	hlist_for_each_entry(child, &core->children, child_yesde)
 		__clk_recalc_accuracies(child);
 }
 
@@ -1564,13 +1564,13 @@ static unsigned long clk_recalc(struct clk_core *core,
 /**
  * __clk_recalc_rates
  * @core: first clk in the subtree
- * @msg: notification type (see include/linux/clk.h)
+ * @msg: yestification type (see include/linux/clk.h)
  *
  * Walks the subtree of clks starting with clk and recalculates rates as it
- * goes.  Note that if a clk does not implement the .recalc_rate callback then
+ * goes.  Note that if a clk does yest implement the .recalc_rate callback then
  * it is assumed that the clock will take on the rate of its parent.
  *
- * clk_recalc_rates also propagates the POST_RATE_CHANGE notification,
+ * clk_recalc_rates also propagates the POST_RATE_CHANGE yestification,
  * if necessary.
  */
 static void __clk_recalc_rates(struct clk_core *core, unsigned long msg)
@@ -1589,13 +1589,13 @@ static void __clk_recalc_rates(struct clk_core *core, unsigned long msg)
 	core->rate = clk_recalc(core, parent_rate);
 
 	/*
-	 * ignore NOTIFY_STOP and NOTIFY_BAD return values for POST_RATE_CHANGE
-	 * & ABORT_RATE_CHANGE notifiers
+	 * igyesre NOTIFY_STOP and NOTIFY_BAD return values for POST_RATE_CHANGE
+	 * & ABORT_RATE_CHANGE yestifiers
 	 */
-	if (core->notifier_count && msg)
-		__clk_notify(core, msg, old_rate, core->rate);
+	if (core->yestifier_count && msg)
+		__clk_yestify(core, msg, old_rate, core->rate);
 
-	hlist_for_each_entry(child, &core->children, child_node)
+	hlist_for_each_entry(child, &core->children, child_yesde)
 		__clk_recalc_rates(child, msg);
 }
 
@@ -1608,7 +1608,7 @@ static unsigned long clk_core_get_rate(struct clk_core *core)
 	if (core && (core->flags & CLK_GET_RATE_NOCACHE))
 		__clk_recalc_rates(core, 0);
 
-	rate = clk_core_get_rate_nolock(core);
+	rate = clk_core_get_rate_yeslock(core);
 	clk_prepare_unlock();
 
 	return rate;
@@ -1648,7 +1648,7 @@ static int clk_fetch_parent_index(struct clk_core *core,
 		if (core->parents[i].core)
 			continue;
 
-		/* Maybe core hasn't been cached but the hw is all we know? */
+		/* Maybe core hasn't been cached but the hw is all we kyesw? */
 		if (core->parents[i].hw) {
 			if (core->parents[i].hw == parent->hw)
 				break;
@@ -1679,7 +1679,7 @@ static int clk_fetch_parent_index(struct clk_core *core,
  * @hw: clk_hw associated with the clk being consumed
  *
  * Fetches and returns the index of parent clock. Returns -EINVAL if the given
- * clock does not have a current parent.
+ * clock does yest have a current parent.
  */
 int clk_hw_get_parent_index(struct clk_hw *hw)
 {
@@ -1701,7 +1701,7 @@ static void clk_core_update_orphan_status(struct clk_core *core, bool is_orphan)
 
 	core->orphan = is_orphan;
 
-	hlist_for_each_entry(child, &core->children, child_node)
+	hlist_for_each_entry(child, &core->children, child_yesde)
 		clk_core_update_orphan_status(child, is_orphan);
 }
 
@@ -1709,21 +1709,21 @@ static void clk_reparent(struct clk_core *core, struct clk_core *new_parent)
 {
 	bool was_orphan = core->orphan;
 
-	hlist_del(&core->child_node);
+	hlist_del(&core->child_yesde);
 
 	if (new_parent) {
 		bool becomes_orphan = new_parent->orphan;
 
-		/* avoid duplicate POST_RATE_CHANGE notifications */
+		/* avoid duplicate POST_RATE_CHANGE yestifications */
 		if (new_parent->new_child == core)
 			new_parent->new_child = NULL;
 
-		hlist_add_head(&core->child_node, &new_parent->children);
+		hlist_add_head(&core->child_yesde, &new_parent->children);
 
 		if (was_orphan != becomes_orphan)
 			clk_core_update_orphan_status(core, becomes_orphan);
 	} else {
-		hlist_add_head(&core->child_node, &clk_orphan_list);
+		hlist_add_head(&core->child_yesde, &clk_orphan_list);
 		if (!was_orphan)
 			clk_core_update_orphan_status(core, true);
 	}
@@ -1743,7 +1743,7 @@ static struct clk_core *__clk_set_parent_before(struct clk_core *core,
 	 * 2. Migrate prepare state between parents and prevent race with
 	 * clk_enable().
 	 *
-	 * If the clock is not prepared, then a race with
+	 * If the clock is yest prepared, then a race with
 	 * clk_enable/disable() is impossible since we already have the
 	 * prepare lock (future calls to clk_enable() need to be preceded by
 	 * a clk_prepare()).
@@ -1834,11 +1834,11 @@ static int __clk_set_parent(struct clk_core *core, struct clk_core *parent,
  * @parent_rate: the "future" rate of clk's parent
  *
  * Walks the subtree of clks starting with clk, speculating rates as it
- * goes and firing off PRE_RATE_CHANGE notifications as necessary.
+ * goes and firing off PRE_RATE_CHANGE yestifications as necessary.
  *
  * Unlike clk_recalc_rates, clk_speculate_rates exists only for sending
- * pre-rate change notifications and returns early if no clks in the
- * subtree have subscribed to the notifications.  Note that if a clk does not
+ * pre-rate change yestifications and returns early if yes clks in the
+ * subtree have subscribed to the yestifications.  Note that if a clk does yest
  * implement the .recalc_rate callback then it is assumed that the clock will
  * take on the rate of its parent.
  */
@@ -1854,16 +1854,16 @@ static int __clk_speculate_rates(struct clk_core *core,
 	new_rate = clk_recalc(core, parent_rate);
 
 	/* abort rate change if a driver returns NOTIFY_BAD or NOTIFY_STOP */
-	if (core->notifier_count)
-		ret = __clk_notify(core, PRE_RATE_CHANGE, core->rate, new_rate);
+	if (core->yestifier_count)
+		ret = __clk_yestify(core, PRE_RATE_CHANGE, core->rate, new_rate);
 
 	if (ret & NOTIFY_STOP_MASK) {
-		pr_debug("%s: clk notifier callback for clock %s aborted with error %d\n",
+		pr_debug("%s: clk yestifier callback for clock %s aborted with error %d\n",
 				__func__, core->name, ret);
 		goto out;
 	}
 
-	hlist_for_each_entry(child, &core->children, child_node) {
+	hlist_for_each_entry(child, &core->children, child_yesde) {
 		ret = __clk_speculate_rates(child, new_rate);
 		if (ret & NOTIFY_STOP_MASK)
 			break;
@@ -1881,12 +1881,12 @@ static void clk_calc_subtree(struct clk_core *core, unsigned long new_rate,
 	core->new_rate = new_rate;
 	core->new_parent = new_parent;
 	core->new_parent_index = p_index;
-	/* include clk in new parent's PRE_RATE_CHANGE notifications */
+	/* include clk in new parent's PRE_RATE_CHANGE yestifications */
 	core->new_child = NULL;
 	if (new_parent && new_parent != core->parent)
 		new_parent->new_child = core;
 
-	hlist_for_each_entry(child, &core->children, child_node) {
+	hlist_for_each_entry(child, &core->children, child_yesde) {
 		child->new_rate = clk_recalc(child, new_rate);
 		clk_calc_subtree(child, child->new_rate, NULL, 0);
 	}
@@ -1929,7 +1929,7 @@ static struct clk_core *clk_calc_new_rates(struct clk_core *core,
 
 		clk_core_init_rate_req(core, &req);
 
-		ret = clk_core_determine_round_nolock(core, &req);
+		ret = clk_core_determine_round_yeslock(core, &req);
 		if (ret < 0)
 			return NULL;
 
@@ -1953,7 +1953,7 @@ static struct clk_core *clk_calc_new_rates(struct clk_core *core,
 	/* some clocks must be gated to change parent */
 	if (parent != old_parent &&
 	    (core->flags & CLK_SET_PARENT_GATE) && core->prepare_count) {
-		pr_debug("%s: %s not gated but wants to reparent\n",
+		pr_debug("%s: %s yest gated but wants to reparent\n",
 			 __func__, core->name);
 		return NULL;
 	}
@@ -1962,7 +1962,7 @@ static struct clk_core *clk_calc_new_rates(struct clk_core *core,
 	if (parent && core->num_parents > 1) {
 		p_index = clk_fetch_parent_index(core, parent);
 		if (p_index < 0) {
-			pr_debug("%s: clk %s can not be parent of clk %s\n",
+			pr_debug("%s: clk %s can yest be parent of clk %s\n",
 				 __func__, parent->name, core->name);
 			return NULL;
 		}
@@ -1992,14 +1992,14 @@ static struct clk_core *clk_propagate_rate_change(struct clk_core *core,
 	if (core->rate == core->new_rate)
 		return NULL;
 
-	if (core->notifier_count) {
-		ret = __clk_notify(core, event, core->rate, core->new_rate);
+	if (core->yestifier_count) {
+		ret = __clk_yestify(core, event, core->rate, core->new_rate);
 		if (ret & NOTIFY_STOP_MASK)
 			fail_clk = core;
 	}
 
-	hlist_for_each_entry(child, &core->children, child_node) {
-		/* Skip children who will be reparented to another clock */
+	hlist_for_each_entry(child, &core->children, child_yesde) {
+		/* Skip children who will be reparented to ayesther clock */
 		if (child->new_parent && child->new_parent != core)
 			continue;
 		tmp_clk = clk_propagate_rate_change(child, event);
@@ -2007,7 +2007,7 @@ static struct clk_core *clk_propagate_rate_change(struct clk_core *core,
 			fail_clk = tmp_clk;
 	}
 
-	/* handle the new child who might not be in core->children yet */
+	/* handle the new child who might yest be in core->children yet */
 	if (core->new_child) {
 		tmp_clk = clk_propagate_rate_change(core->new_child, event);
 		if (tmp_clk)
@@ -2018,13 +2018,13 @@ static struct clk_core *clk_propagate_rate_change(struct clk_core *core,
 }
 
 /*
- * walk down a subtree and set the new rates notifying the rate
+ * walk down a subtree and set the new rates yestifying the rate
  * change on the way
  */
 static void clk_change_rate(struct clk_core *core)
 {
 	struct clk_core *child;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned long old_rate;
 	unsigned long best_parent_rate = 0;
 	bool skip_set_rate = false;
@@ -2094,8 +2094,8 @@ static void clk_change_rate(struct clk_core *core)
 	if (core->flags & CLK_OPS_PARENT_ENABLE)
 		clk_core_disable_unprepare(parent);
 
-	if (core->notifier_count && old_rate != core->rate)
-		__clk_notify(core, POST_RATE_CHANGE, old_rate, core->rate);
+	if (core->yestifier_count && old_rate != core->rate)
+		__clk_yestify(core, POST_RATE_CHANGE, old_rate, core->rate);
 
 	if (core->flags & CLK_RECALC_NEW_RATES)
 		(void)clk_calc_new_rates(core, core->new_rate);
@@ -2104,21 +2104,21 @@ static void clk_change_rate(struct clk_core *core)
 	 * Use safe iteration, as change_rate can actually swap parents
 	 * for certain clock types.
 	 */
-	hlist_for_each_entry_safe(child, tmp, &core->children, child_node) {
-		/* Skip children who will be reparented to another clock */
+	hlist_for_each_entry_safe(child, tmp, &core->children, child_yesde) {
+		/* Skip children who will be reparented to ayesther clock */
 		if (child->new_parent && child->new_parent != core)
 			continue;
 		clk_change_rate(child);
 	}
 
-	/* handle the new child who might not be in core->children yet */
+	/* handle the new child who might yest be in core->children yet */
 	if (core->new_child)
 		clk_change_rate(core->new_child);
 
 	clk_pm_runtime_put(core);
 }
 
-static unsigned long clk_core_req_round_rate_nolock(struct clk_core *core,
+static unsigned long clk_core_req_round_rate_yeslock(struct clk_core *core,
 						     unsigned long req_rate)
 {
 	int ret, cnt;
@@ -2137,7 +2137,7 @@ static unsigned long clk_core_req_round_rate_nolock(struct clk_core *core,
 	clk_core_get_boundaries(core, &req.min_rate, &req.max_rate);
 	req.rate = req_rate;
 
-	ret = clk_core_round_rate_nolock(core, &req);
+	ret = clk_core_round_rate_yeslock(core, &req);
 
 	/* restore the protection */
 	clk_core_rate_restore_protect(core, cnt);
@@ -2145,7 +2145,7 @@ static unsigned long clk_core_req_round_rate_nolock(struct clk_core *core,
 	return ret ? 0 : req.rate;
 }
 
-static int clk_core_set_rate_nolock(struct clk_core *core,
+static int clk_core_set_rate_yeslock(struct clk_core *core,
 				    unsigned long req_rate)
 {
 	struct clk_core *top, *fail_clk;
@@ -2155,10 +2155,10 @@ static int clk_core_set_rate_nolock(struct clk_core *core,
 	if (!core)
 		return 0;
 
-	rate = clk_core_req_round_rate_nolock(core, req_rate);
+	rate = clk_core_req_round_rate_yeslock(core, req_rate);
 
-	/* bail early if nothing to do */
-	if (rate == clk_core_get_rate_nolock(core))
+	/* bail early if yesthing to do */
+	if (rate == clk_core_get_rate_yeslock(core))
 		return 0;
 
 	/* fail on a direct rate set of a protected provider */
@@ -2174,7 +2174,7 @@ static int clk_core_set_rate_nolock(struct clk_core *core,
 	if (ret)
 		return ret;
 
-	/* notify that we are about to change rates */
+	/* yestify that we are about to change rates */
 	fail_clk = clk_propagate_rate_change(top, PRE_RATE_CHANGE);
 	if (fail_clk) {
 		pr_debug("%s: failed to set %s rate\n", __func__,
@@ -2202,16 +2202,16 @@ err:
  * In the simplest case clk_set_rate will only adjust the rate of clk.
  *
  * Setting the CLK_SET_RATE_PARENT flag allows the rate change operation to
- * propagate up to clk's parent; whether or not this happens depends on the
+ * propagate up to clk's parent; whether or yest this happens depends on the
  * outcome of clk's .round_rate implementation.  If *parent_rate is unchanged
- * after calling .round_rate then upstream parent propagation is ignored.  If
+ * after calling .round_rate then upstream parent propagation is igyesred.  If
  * *parent_rate comes back with a new rate for clk's parent then we propagate
  * up to clk's parent and set its rate.  Upward propagation will continue
- * until either a clk does not support the CLK_SET_RATE_PARENT flag or
+ * until either a clk does yest support the CLK_SET_RATE_PARENT flag or
  * .round_rate stops requesting changes to clk's parent_rate.
  *
  * Rate changes are accomplished via tree traversal that also recalculates the
- * rates for the clocks and fires off POST_RATE_CHANGE notifiers.
+ * rates for the clocks and fires off POST_RATE_CHANGE yestifiers.
  *
  * Returns 0 on success, -EERROR otherwise.
  */
@@ -2228,7 +2228,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (clk->exclusive_count)
 		clk_core_rate_unprotect(clk->core);
 
-	ret = clk_core_set_rate_nolock(clk->core, rate);
+	ret = clk_core_set_rate_yeslock(clk->core, rate);
 
 	if (clk->exclusive_count)
 		clk_core_rate_protect(clk->core);
@@ -2251,7 +2251,7 @@ EXPORT_SYMBOL_GPL(clk_set_rate);
  * satisfied when several consumers are competing for exclusivity over the
  * same clock provider.
  *
- * The exclusivity is not applied if setting the rate failed.
+ * The exclusivity is yest applied if setting the rate failed.
  *
  * Calls to clk_rate_exclusive_get() should be balanced with calls to
  * clk_rate_exclusive_put().
@@ -2269,12 +2269,12 @@ int clk_set_rate_exclusive(struct clk *clk, unsigned long rate)
 	clk_prepare_lock();
 
 	/*
-	 * The temporary protection removal is not here, on purpose
+	 * The temporary protection removal is yest here, on purpose
 	 * This function is meant to be used instead of clk_rate_protect,
 	 * so before the consumer code path protect the clock provider
 	 */
 
-	ret = clk_core_set_rate_nolock(clk->core, rate);
+	ret = clk_core_set_rate_yeslock(clk->core, rate);
 	if (!ret) {
 		clk_core_rate_protect(clk->core);
 		clk->exclusive_count++;
@@ -2292,7 +2292,7 @@ EXPORT_SYMBOL_GPL(clk_set_rate_exclusive);
  * @min: desired minimum clock rate in Hz, inclusive
  * @max: desired maximum clock rate in Hz, inclusive
  *
- * Returns success (0) or negative errno.
+ * Returns success (0) or negative erryes.
  */
 int clk_set_rate_range(struct clk *clk, unsigned long min, unsigned long max)
 {
@@ -2320,7 +2320,7 @@ int clk_set_rate_range(struct clk *clk, unsigned long min, unsigned long max)
 	clk->min_rate = min;
 	clk->max_rate = max;
 
-	rate = clk_core_get_rate_nolock(clk->core);
+	rate = clk_core_get_rate_yeslock(clk->core);
 	if (rate < min || rate > max) {
 		/*
 		 * FIXME:
@@ -2329,9 +2329,9 @@ int clk_set_rate_range(struct clk *clk, unsigned long min, unsigned long max)
 		 * range boundary but there is a catch. It may fail for the
 		 * usual reason (clock broken, clock protected, etc) but also
 		 * because:
-		 * - round_rate() was not favorable and fell on the wrong
+		 * - round_rate() was yest favorable and fell on the wrong
 		 *   side of the boundary
-		 * - the determine_rate() callback does not really check for
+		 * - the determine_rate() callback does yest really check for
 		 *   this corner case when determining the rate
 		 */
 
@@ -2340,7 +2340,7 @@ int clk_set_rate_range(struct clk *clk, unsigned long min, unsigned long max)
 		else
 			rate = max;
 
-		ret = clk_core_set_rate_nolock(clk->core, rate);
+		ret = clk_core_set_rate_yeslock(clk->core, rate);
 		if (ret) {
 			/* rollback the changes */
 			clk->min_rate = old_min;
@@ -2362,7 +2362,7 @@ EXPORT_SYMBOL_GPL(clk_set_rate_range);
  * @clk: clock source
  * @rate: desired minimum clock rate in Hz, inclusive
  *
- * Returns success (0) or negative errno.
+ * Returns success (0) or negative erryes.
  */
 int clk_set_min_rate(struct clk *clk, unsigned long rate)
 {
@@ -2378,7 +2378,7 @@ EXPORT_SYMBOL_GPL(clk_set_min_rate);
  * @clk: clock source
  * @rate: desired maximum clock rate in Hz, inclusive
  *
- * Returns success (0) or negative errno.
+ * Returns success (0) or negative erryes.
  */
 int clk_set_max_rate(struct clk *clk, unsigned long rate)
 {
@@ -2438,12 +2438,12 @@ void clk_hw_reparent(struct clk_hw *hw, struct clk_hw *new_parent)
 }
 
 /**
- * clk_has_parent - check if a clock is a possible parent for another
+ * clk_has_parent - check if a clock is a possible parent for ayesther
  * @clk: clock source
  * @parent: parent clock source
  *
  * This function can be used in drivers that need to check that a clock can be
- * the parent of another without actually changing the parent.
+ * the parent of ayesther without actually changing the parent.
  *
  * Returns true if @parent is a possible parent for @clk, false otherwise.
  */
@@ -2452,7 +2452,7 @@ bool clk_has_parent(struct clk *clk, struct clk *parent)
 	struct clk_core *core, *parent_core;
 	int i;
 
-	/* NULL clocks should be nops, so return success if either is NULL. */
+	/* NULL clocks should be yesps, so return success if either is NULL. */
 	if (!clk || !parent)
 		return true;
 
@@ -2471,7 +2471,7 @@ bool clk_has_parent(struct clk *clk, struct clk *parent)
 }
 EXPORT_SYMBOL_GPL(clk_has_parent);
 
-static int clk_core_set_parent_nolock(struct clk_core *core,
+static int clk_core_set_parent_yeslock(struct clk_core *core,
 				      struct clk_core *parent)
 {
 	int ret = 0;
@@ -2501,7 +2501,7 @@ static int clk_core_set_parent_nolock(struct clk_core *core,
 	if (parent) {
 		p_index = clk_fetch_parent_index(core, parent);
 		if (p_index < 0) {
-			pr_debug("%s: clk %s can not be parent of clk %s\n",
+			pr_debug("%s: clk %s can yest be parent of clk %s\n",
 					__func__, parent->name, core->name);
 			return p_index;
 		}
@@ -2512,7 +2512,7 @@ static int clk_core_set_parent_nolock(struct clk_core *core,
 	if (ret)
 		return ret;
 
-	/* propagate PRE_RATE_CHANGE notifications */
+	/* propagate PRE_RATE_CHANGE yestifications */
 	ret = __clk_speculate_rates(core, p_rate);
 
 	/* abort if a driver objects */
@@ -2538,7 +2538,7 @@ runtime_put:
 
 int clk_hw_set_parent(struct clk_hw *hw, struct clk_hw *parent)
 {
-	return clk_core_set_parent_nolock(hw->core, parent->core);
+	return clk_core_set_parent_yeslock(hw->core, parent->core);
 }
 EXPORT_SYMBOL_GPL(clk_hw_set_parent);
 
@@ -2549,7 +2549,7 @@ EXPORT_SYMBOL_GPL(clk_hw_set_parent);
  *
  * Re-parent clk to use parent as its new input source.  If clk is in
  * prepared state, the clk will get enabled for the duration of this call. If
- * that's not acceptable for a specific clk (Eg: the consumer can't handle
+ * that's yest acceptable for a specific clk (Eg: the consumer can't handle
  * that, the reparenting is glitchy in hardware, etc), use the
  * CLK_SET_PARENT_GATE flag to allow reparenting only when clk is unprepared.
  *
@@ -2571,7 +2571,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	if (clk->exclusive_count)
 		clk_core_rate_unprotect(clk->core);
 
-	ret = clk_core_set_parent_nolock(clk->core,
+	ret = clk_core_set_parent_yeslock(clk->core,
 					 parent ? parent->core : NULL);
 
 	if (clk->exclusive_count)
@@ -2583,7 +2583,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 }
 EXPORT_SYMBOL_GPL(clk_set_parent);
 
-static int clk_core_set_phase_nolock(struct clk_core *core, int degrees)
+static int clk_core_set_phase_yeslock(struct clk_core *core, int degrees)
 {
 	int ret = -EINVAL;
 
@@ -2616,16 +2616,16 @@ static int clk_core_set_phase_nolock(struct clk_core *core, int degrees)
  * Shifts the phase of a clock signal by the specified
  * degrees. Returns 0 on success, -EERROR otherwise.
  *
- * This function makes no distinction about the input or reference
+ * This function makes yes distinction about the input or reference
  * signal that we adjust the clock signal phase against. For example
  * phase locked-loop clock signal generators we may shift phase with
  * respect to feedback clock signal input, but for other cases the
  * clock phase may be shifted with respect to some other, unspecified
  * signal.
  *
- * Additionally the concept of phase shift does not propagate through
+ * Additionally the concept of phase shift does yest propagate through
  * the clock tree hierarchy, which sets it apart from clock rates and
- * clock accuracy. A parent clock phase attribute does not have an
+ * clock accuracy. A parent clock phase attribute does yest have an
  * impact on the phase attribute of a child clock.
  */
 int clk_set_phase(struct clk *clk, int degrees)
@@ -2645,7 +2645,7 @@ int clk_set_phase(struct clk *clk, int degrees)
 	if (clk->exclusive_count)
 		clk_core_rate_unprotect(clk->core);
 
-	ret = clk_core_set_phase_nolock(clk->core, degrees);
+	ret = clk_core_set_phase_yeslock(clk->core, degrees);
 
 	if (clk->exclusive_count)
 		clk_core_rate_protect(clk->core);
@@ -2674,7 +2674,7 @@ static int clk_core_get_phase(struct clk_core *core)
  * clk_get_phase - return the phase shift of a clock signal
  * @clk: clock signal source
  *
- * Returns the phase shift of a clock node in degrees, otherwise returns
+ * Returns the phase shift of a clock yesde in degrees, otherwise returns
  * -EERROR.
  */
 int clk_get_phase(struct clk *clk)
@@ -2686,22 +2686,22 @@ int clk_get_phase(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(clk_get_phase);
 
-static void clk_core_reset_duty_cycle_nolock(struct clk_core *core)
+static void clk_core_reset_duty_cycle_yeslock(struct clk_core *core)
 {
 	/* Assume a default value of 50% */
 	core->duty.num = 1;
 	core->duty.den = 2;
 }
 
-static int clk_core_update_duty_cycle_parent_nolock(struct clk_core *core);
+static int clk_core_update_duty_cycle_parent_yeslock(struct clk_core *core);
 
-static int clk_core_update_duty_cycle_nolock(struct clk_core *core)
+static int clk_core_update_duty_cycle_yeslock(struct clk_core *core)
 {
 	struct clk_duty *duty = &core->duty;
 	int ret = 0;
 
 	if (!core->ops->get_duty_cycle)
-		return clk_core_update_duty_cycle_parent_nolock(core);
+		return clk_core_update_duty_cycle_parent_yeslock(core);
 
 	ret = core->ops->get_duty_cycle(core->hw, duty);
 	if (ret)
@@ -2716,29 +2716,29 @@ static int clk_core_update_duty_cycle_nolock(struct clk_core *core)
 	return 0;
 
 reset:
-	clk_core_reset_duty_cycle_nolock(core);
+	clk_core_reset_duty_cycle_yeslock(core);
 	return ret;
 }
 
-static int clk_core_update_duty_cycle_parent_nolock(struct clk_core *core)
+static int clk_core_update_duty_cycle_parent_yeslock(struct clk_core *core)
 {
 	int ret = 0;
 
 	if (core->parent &&
 	    core->flags & CLK_DUTY_CYCLE_PARENT) {
-		ret = clk_core_update_duty_cycle_nolock(core->parent);
+		ret = clk_core_update_duty_cycle_yeslock(core->parent);
 		memcpy(&core->duty, &core->parent->duty, sizeof(core->duty));
 	} else {
-		clk_core_reset_duty_cycle_nolock(core);
+		clk_core_reset_duty_cycle_yeslock(core);
 	}
 
 	return ret;
 }
 
-static int clk_core_set_duty_cycle_parent_nolock(struct clk_core *core,
+static int clk_core_set_duty_cycle_parent_yeslock(struct clk_core *core,
 						 struct clk_duty *duty);
 
-static int clk_core_set_duty_cycle_nolock(struct clk_core *core,
+static int clk_core_set_duty_cycle_yeslock(struct clk_core *core,
 					  struct clk_duty *duty)
 {
 	int ret;
@@ -2751,7 +2751,7 @@ static int clk_core_set_duty_cycle_nolock(struct clk_core *core,
 	trace_clk_set_duty_cycle(core, duty);
 
 	if (!core->ops->set_duty_cycle)
-		return clk_core_set_duty_cycle_parent_nolock(core, duty);
+		return clk_core_set_duty_cycle_parent_yeslock(core, duty);
 
 	ret = core->ops->set_duty_cycle(core->hw, duty);
 	if (!ret)
@@ -2762,14 +2762,14 @@ static int clk_core_set_duty_cycle_nolock(struct clk_core *core,
 	return ret;
 }
 
-static int clk_core_set_duty_cycle_parent_nolock(struct clk_core *core,
+static int clk_core_set_duty_cycle_parent_yeslock(struct clk_core *core,
 						 struct clk_duty *duty)
 {
 	int ret = 0;
 
 	if (core->parent &&
 	    core->flags & (CLK_DUTY_CYCLE_PARENT | CLK_SET_RATE_PARENT)) {
-		ret = clk_core_set_duty_cycle_nolock(core->parent, duty);
+		ret = clk_core_set_duty_cycle_yeslock(core->parent, duty);
 		memcpy(&core->duty, &core->parent->duty, sizeof(core->duty));
 	}
 
@@ -2780,12 +2780,12 @@ static int clk_core_set_duty_cycle_parent_nolock(struct clk_core *core,
  * clk_set_duty_cycle - adjust the duty cycle ratio of a clock signal
  * @clk: clock signal source
  * @num: numerator of the duty cycle ratio to be applied
- * @den: denominator of the duty cycle ratio to be applied
+ * @den: deyesminator of the duty cycle ratio to be applied
  *
  * Apply the duty cycle ratio if the ratio is valid and the clock can
  * perform this operation
  *
- * Returns (0) on success, a negative errno otherwise.
+ * Returns (0) on success, a negative erryes otherwise.
  */
 int clk_set_duty_cycle(struct clk *clk, unsigned int num, unsigned int den)
 {
@@ -2807,7 +2807,7 @@ int clk_set_duty_cycle(struct clk *clk, unsigned int num, unsigned int den)
 	if (clk->exclusive_count)
 		clk_core_rate_unprotect(clk->core);
 
-	ret = clk_core_set_duty_cycle_nolock(clk->core, &duty);
+	ret = clk_core_set_duty_cycle_yeslock(clk->core, &duty);
 
 	if (clk->exclusive_count)
 		clk_core_rate_protect(clk->core);
@@ -2826,7 +2826,7 @@ static int clk_core_get_scaled_duty_cycle(struct clk_core *core,
 
 	clk_prepare_lock();
 
-	ret = clk_core_update_duty_cycle_nolock(core);
+	ret = clk_core_update_duty_cycle_yeslock(core);
 	if (!ret)
 		ret = mult_frac(scale, duty->num, duty->den);
 
@@ -2840,8 +2840,8 @@ static int clk_core_get_scaled_duty_cycle(struct clk_core *core,
  * @clk: clock signal source
  * @scale: scaling factor to be applied to represent the ratio as an integer
  *
- * Returns the duty cycle ratio of a clock node multiplied by the provided
- * scaling factor, or negative errno on error.
+ * Returns the duty cycle ratio of a clock yesde multiplied by the provided
+ * scaling factor, or negative erryes on error.
  */
 int clk_get_scaled_duty_cycle(struct clk *clk, unsigned int scale)
 {
@@ -2858,7 +2858,7 @@ EXPORT_SYMBOL_GPL(clk_get_scaled_duty_cycle);
  * @q: clk compared against p
  *
  * Returns true if the two struct clk pointers both point to the same hardware
- * clock node. Put differently, returns true if struct clk *p and struct clk *q
+ * clock yesde. Put differently, returns true if struct clk *p and struct clk *q
  * share the same struct clk_core object.
  *
  * Returns false otherwise. Note that two NULL clks are treated as matching.
@@ -2912,7 +2912,7 @@ static void clk_summary_show_subtree(struct seq_file *s, struct clk_core *c,
 
 	clk_summary_show_one(s, c, level);
 
-	hlist_for_each_entry(child, &c->children, child_node)
+	hlist_for_each_entry(child, &c->children, child_yesde)
 		clk_summary_show_subtree(s, child, level + 1);
 }
 
@@ -2928,7 +2928,7 @@ static int clk_summary_show(struct seq_file *s, void *data)
 	clk_prepare_lock();
 
 	for (; *lists; lists++)
-		hlist_for_each_entry(c, *lists, child_node)
+		hlist_for_each_entry(c, *lists, child_yesde)
 			clk_summary_show_subtree(s, c, 0);
 
 	clk_prepare_unlock();
@@ -2963,7 +2963,7 @@ static void clk_dump_subtree(struct seq_file *s, struct clk_core *c, int level)
 
 	clk_dump_one(s, c, level);
 
-	hlist_for_each_entry(child, &c->children, child_node) {
+	hlist_for_each_entry(child, &c->children, child_yesde) {
 		seq_putc(s, ',');
 		clk_dump_subtree(s, child, level + 1);
 	}
@@ -2974,17 +2974,17 @@ static void clk_dump_subtree(struct seq_file *s, struct clk_core *c, int level)
 static int clk_dump_show(struct seq_file *s, void *data)
 {
 	struct clk_core *c;
-	bool first_node = true;
+	bool first_yesde = true;
 	struct hlist_head **lists = (struct hlist_head **)s->private;
 
 	seq_putc(s, '{');
 	clk_prepare_lock();
 
 	for (; *lists; lists++) {
-		hlist_for_each_entry(c, *lists, child_node) {
-			if (!first_node)
+		hlist_for_each_entry(c, *lists, child_yesde) {
+			if (!first_yesde)
 				seq_putc(s, ',');
-			first_node = false;
+			first_yesde = false;
 			clk_dump_subtree(s, c, 0);
 		}
 	}
@@ -3029,7 +3029,7 @@ static int clk_flags_show(struct seq_file *s, void *data)
 		}
 	}
 	if (flags) {
-		/* Unknown flags */
+		/* Unkyeswn flags */
 		seq_printf(s, "0x%lx\n", flags);
 	}
 
@@ -3063,7 +3063,7 @@ static void possible_parent_show(struct seq_file *s, struct clk_core *core,
 		seq_printf(s, "<%s>(fw)", core->parents[i].fw_name);
 	else if (core->parents[i].index >= 0)
 		seq_puts(s,
-			 of_clk_get_parent_name(core->of_node,
+			 of_clk_get_parent_name(core->of_yesde,
 						core->parents[i].index));
 	else
 		seq_puts(s, "(missing)");
@@ -3154,7 +3154,7 @@ static void clk_debug_create_one(struct clk_core *core, struct dentry *pdentry)
 	debugfs_create_u32("clk_prepare_count", 0444, root, &core->prepare_count);
 	debugfs_create_u32("clk_enable_count", 0444, root, &core->enable_count);
 	debugfs_create_u32("clk_protect_count", 0444, root, &core->protect_count);
-	debugfs_create_u32("clk_notifier_count", 0444, root, &core->notifier_count);
+	debugfs_create_u32("clk_yestifier_count", 0444, root, &core->yestifier_count);
 	debugfs_create_file("clk_duty_cycle", 0444, root, core,
 			    &clk_duty_cycle_fops);
 
@@ -3171,7 +3171,7 @@ static void clk_debug_create_one(struct clk_core *core, struct dentry *pdentry)
 }
 
 /**
- * clk_debug_register - add a clk node to the debugfs clk directory
+ * clk_debug_register - add a clk yesde to the debugfs clk directory
  * @core: the clk being added to the debugfs clk directory
  *
  * Dynamically adds a clk to the debugfs clk directory if debugfs has been
@@ -3181,24 +3181,24 @@ static void clk_debug_create_one(struct clk_core *core, struct dentry *pdentry)
 static void clk_debug_register(struct clk_core *core)
 {
 	mutex_lock(&clk_debug_lock);
-	hlist_add_head(&core->debug_node, &clk_debug_list);
+	hlist_add_head(&core->debug_yesde, &clk_debug_list);
 	if (inited)
 		clk_debug_create_one(core, rootdir);
 	mutex_unlock(&clk_debug_lock);
 }
 
  /**
- * clk_debug_unregister - remove a clk node from the debugfs clk directory
+ * clk_debug_unregister - remove a clk yesde from the debugfs clk directory
  * @core: the clk being removed from the debugfs clk directory
  *
- * Dynamically removes a clk and all its child nodes from the
+ * Dynamically removes a clk and all its child yesdes from the
  * debugfs clk directory if clk->dentry points to debugfs created by
  * clk_debug_register in __clk_core_init.
  */
 static void clk_debug_unregister(struct clk_core *core)
 {
 	mutex_lock(&clk_debug_lock);
-	hlist_del_init(&core->debug_node);
+	hlist_del_init(&core->debug_yesde);
 	debugfs_remove_recursive(core->dentry);
 	core->dentry = NULL;
 	mutex_unlock(&clk_debug_lock);
@@ -3209,7 +3209,7 @@ static void clk_debug_unregister(struct clk_core *core)
  *
  * clks are often initialized very early during boot before memory can be
  * dynamically allocated and well before debugfs is setup. This function
- * populates the debugfs clk directory once at boot-time when we know that
+ * populates the debugfs clk directory once at boot-time when we kyesw that
  * debugfs is setup. It should only be called once at boot-time, all other clks
  * added dynamically will be done so with clk_debug_register.
  */
@@ -3229,7 +3229,7 @@ static int __init clk_debug_init(void)
 			    &clk_dump_fops);
 
 	mutex_lock(&clk_debug_lock);
-	hlist_for_each_entry(core, &clk_debug_list, debug_node)
+	hlist_for_each_entry(core, &clk_debug_list, debug_yesde)
 		clk_debug_create_one(core, rootdir);
 
 	inited = 1;
@@ -3249,23 +3249,23 @@ static inline void clk_debug_unregister(struct clk_core *core)
 }
 #endif
 
-static void clk_core_reparent_orphans_nolock(void)
+static void clk_core_reparent_orphans_yeslock(void)
 {
 	struct clk_core *orphan;
-	struct hlist_node *tmp2;
+	struct hlist_yesde *tmp2;
 
 	/*
 	 * walk the list of orphan clocks and reparent any that newly finds a
 	 * parent.
 	 */
-	hlist_for_each_entry_safe(orphan, tmp2, &clk_orphan_list, child_node) {
+	hlist_for_each_entry_safe(orphan, tmp2, &clk_orphan_list, child_yesde) {
 		struct clk_core *parent = __clk_init_parent(orphan);
 
 		/*
 		 * We need to use __clk_set_parent_before() and _after() to
 		 * to properly migrate any prepare/enable count of the orphan
 		 * clock. This is important for CLK_IS_CRITICAL clocks, which
-		 * are enabled during init but might not have a parent yet.
+		 * are enabled during init but might yest have a parent yet.
 		 */
 		if (parent) {
 			/* update the clk tree topology */
@@ -3342,7 +3342,7 @@ static int __clk_core_init(struct clk_core *core)
 
 	/*
 	 * Populate core->parent if parent has already been clk_core_init'd. If
-	 * parent has not yet been clk_core_init'd then place clk in the orphan
+	 * parent has yest yet been clk_core_init'd then place clk in the orphan
 	 * list.  If clk doesn't have any parents then place it in the root
 	 * clk list.
 	 *
@@ -3351,21 +3351,21 @@ static int __clk_core_init(struct clk_core *core)
 	 * being clk_init'd.
 	 */
 	if (core->parent) {
-		hlist_add_head(&core->child_node,
+		hlist_add_head(&core->child_yesde,
 				&core->parent->children);
 		core->orphan = core->parent->orphan;
 	} else if (!core->num_parents) {
-		hlist_add_head(&core->child_node, &clk_root_list);
+		hlist_add_head(&core->child_yesde, &clk_root_list);
 		core->orphan = false;
 	} else {
-		hlist_add_head(&core->child_node, &clk_orphan_list);
+		hlist_add_head(&core->child_yesde, &clk_orphan_list);
 		core->orphan = true;
 	}
 
 	/*
 	 * optional platform-specific magic
 	 *
-	 * The .init callback is not used by any of the basic clock types, but
+	 * The .init callback is yest used by any of the basic clock types, but
 	 * exists for weird hardware that must perform initialization magic.
 	 * Please consider other ways of solving initialization problems before
 	 * using this callback, as its use is discouraged.
@@ -3401,7 +3401,7 @@ static int __clk_core_init(struct clk_core *core)
 	/*
 	 * Set clk's duty cycle.
 	 */
-	clk_core_update_duty_cycle_nolock(core);
+	clk_core_update_duty_cycle_yeslock(core);
 
 	/*
 	 * Set clk's rate.  The preferred method is to use .recalc_rate.  For
@@ -3411,7 +3411,7 @@ static int __clk_core_init(struct clk_core *core)
 	 */
 	if (core->ops->recalc_rate)
 		rate = core->ops->recalc_rate(core->hw,
-				clk_core_get_rate_nolock(core->parent));
+				clk_core_get_rate_yeslock(core->parent));
 	else if (core->parent)
 		rate = core->parent->rate;
 	else
@@ -3433,7 +3433,7 @@ static int __clk_core_init(struct clk_core *core)
 		clk_enable_unlock(flags);
 	}
 
-	clk_core_reparent_orphans_nolock();
+	clk_core_reparent_orphans_yeslock();
 
 
 	kref_init(&core->ref);
@@ -3456,7 +3456,7 @@ unlock:
 static void clk_core_link_consumer(struct clk_core *core, struct clk *clk)
 {
 	clk_prepare_lock();
-	hlist_add_head(&clk->clks_node, &core->clks);
+	hlist_add_head(&clk->clks_yesde, &core->clks);
 	clk_prepare_unlock();
 }
 
@@ -3467,7 +3467,7 @@ static void clk_core_link_consumer(struct clk_core *core, struct clk *clk)
 static void clk_core_unlink_consumer(struct clk *clk)
 {
 	lockdep_assert_held(&prepare_lock);
-	hlist_del(&clk->clks_node);
+	hlist_del(&clk->clks_yesde);
 }
 
 /**
@@ -3642,14 +3642,14 @@ static void clk_core_free_parent_map(struct clk_core *core)
 }
 
 static struct clk *
-__clk_register(struct device *dev, struct device_node *np, struct clk_hw *hw)
+__clk_register(struct device *dev, struct device_yesde *np, struct clk_hw *hw)
 {
 	int ret;
 	struct clk_core *core;
 	const struct clk_init_data *init = hw->init;
 
 	/*
-	 * The init data is not supposed to be used outside of registration path.
+	 * The init data is yest supposed to be used outside of registration path.
 	 * Set it to NULL so that provider drivers can't use it either and so that
 	 * we catch use of hw->init early on in the core.
 	 */
@@ -3676,7 +3676,7 @@ __clk_register(struct device *dev, struct device_node *np, struct clk_hw *hw)
 	if (dev && pm_runtime_enabled(dev))
 		core->rpm_enabled = true;
 	core->dev = dev;
-	core->of_node = np;
+	core->of_yesde = np;
 	if (dev && dev->driver)
 		core->owner = dev->driver->owner;
 	core->hw = hw;
@@ -3732,16 +3732,16 @@ fail_out:
  * @hw: link to hardware-specific clock data
  *
  * clk_register is the *deprecated* interface for populating the clock tree with
- * new clock nodes. Use clk_hw_register() instead.
+ * new clock yesdes. Use clk_hw_register() instead.
  *
  * Returns: a pointer to the newly allocated struct clk which
- * cannot be dereferenced by driver code but may be used in conjunction with the
+ * canyest be dereferenced by driver code but may be used in conjunction with the
  * rest of the clock API.  In the event of an error clk_register will return an
  * error code; drivers must test for an error code after calling clk_register.
  */
 struct clk *clk_register(struct device *dev, struct clk_hw *hw)
 {
-	return __clk_register(dev, dev_of_node(dev), hw);
+	return __clk_register(dev, dev_of_yesde(dev), hw);
 }
 EXPORT_SYMBOL_GPL(clk_register);
 
@@ -3751,30 +3751,30 @@ EXPORT_SYMBOL_GPL(clk_register);
  * @hw: link to hardware-specific clock data
  *
  * clk_hw_register is the primary interface for populating the clock tree with
- * new clock nodes. It returns an integer equal to zero indicating success or
+ * new clock yesdes. It returns an integer equal to zero indicating success or
  * less than zero indicating failure. Drivers must test for an error code after
  * calling clk_hw_register().
  */
 int clk_hw_register(struct device *dev, struct clk_hw *hw)
 {
-	return PTR_ERR_OR_ZERO(__clk_register(dev, dev_of_node(dev), hw));
+	return PTR_ERR_OR_ZERO(__clk_register(dev, dev_of_yesde(dev), hw));
 }
 EXPORT_SYMBOL_GPL(clk_hw_register);
 
 /*
  * of_clk_hw_register - register a clk_hw and return an error code
- * @node: device_node of device that is registering this clock
+ * @yesde: device_yesde of device that is registering this clock
  * @hw: link to hardware-specific clock data
  *
  * of_clk_hw_register() is the primary interface for populating the clock tree
- * with new clock nodes when a struct device is not available, but a struct
- * device_node is. It returns an integer equal to zero indicating success or
+ * with new clock yesdes when a struct device is yest available, but a struct
+ * device_yesde is. It returns an integer equal to zero indicating success or
  * less than zero indicating failure. Drivers must test for an error code after
  * calling of_clk_hw_register().
  */
-int of_clk_hw_register(struct device_node *node, struct clk_hw *hw)
+int of_clk_hw_register(struct device_yesde *yesde, struct clk_hw *hw)
 {
-	return PTR_ERR_OR_ZERO(__clk_register(NULL, node, hw));
+	return PTR_ERR_OR_ZERO(__clk_register(NULL, yesde, hw));
 }
 EXPORT_SYMBOL_GPL(of_clk_hw_register);
 
@@ -3795,34 +3795,34 @@ static void __clk_release(struct kref *ref)
  * after clk_unregister() was called on a clock and until last clock
  * consumer calls clk_put() and the struct clk object is freed.
  */
-static int clk_nodrv_prepare_enable(struct clk_hw *hw)
+static int clk_yesdrv_prepare_enable(struct clk_hw *hw)
 {
 	return -ENXIO;
 }
 
-static void clk_nodrv_disable_unprepare(struct clk_hw *hw)
+static void clk_yesdrv_disable_unprepare(struct clk_hw *hw)
 {
 	WARN_ON_ONCE(1);
 }
 
-static int clk_nodrv_set_rate(struct clk_hw *hw, unsigned long rate,
+static int clk_yesdrv_set_rate(struct clk_hw *hw, unsigned long rate,
 					unsigned long parent_rate)
 {
 	return -ENXIO;
 }
 
-static int clk_nodrv_set_parent(struct clk_hw *hw, u8 index)
+static int clk_yesdrv_set_parent(struct clk_hw *hw, u8 index)
 {
 	return -ENXIO;
 }
 
-static const struct clk_ops clk_nodrv_ops = {
-	.enable		= clk_nodrv_prepare_enable,
-	.disable	= clk_nodrv_disable_unprepare,
-	.prepare	= clk_nodrv_prepare_enable,
-	.unprepare	= clk_nodrv_disable_unprepare,
-	.set_rate	= clk_nodrv_set_rate,
-	.set_parent	= clk_nodrv_set_parent,
+static const struct clk_ops clk_yesdrv_ops = {
+	.enable		= clk_yesdrv_prepare_enable,
+	.disable	= clk_yesdrv_disable_unprepare,
+	.prepare	= clk_yesdrv_prepare_enable,
+	.unprepare	= clk_yesdrv_disable_unprepare,
+	.set_rate	= clk_yesdrv_set_rate,
+	.set_parent	= clk_yesdrv_set_parent,
 };
 
 static void clk_core_evict_parent_cache_subtree(struct clk_core *root,
@@ -3835,7 +3835,7 @@ static void clk_core_evict_parent_cache_subtree(struct clk_core *root,
 		if (root->parents[i].core == target)
 			root->parents[i].core = NULL;
 
-	hlist_for_each_entry(child, &root->children, child_node)
+	hlist_for_each_entry(child, &root->children, child_yesde)
 		clk_core_evict_parent_cache_subtree(child, target);
 }
 
@@ -3848,7 +3848,7 @@ static void clk_core_evict_parent_cache(struct clk_core *core)
 	lockdep_assert_held(&prepare_lock);
 
 	for (lists = all_lists; *lists; lists++)
-		hlist_for_each_entry(root, *lists, child_node)
+		hlist_for_each_entry(root, *lists, child_yesde)
 			clk_core_evict_parent_cache_subtree(root, core);
 
 }
@@ -3868,7 +3868,7 @@ void clk_unregister(struct clk *clk)
 
 	clk_prepare_lock();
 
-	if (clk->core->ops == &clk_nodrv_ops) {
+	if (clk->core->ops == &clk_yesdrv_ops) {
 		pr_err("%s: unregistered clock: %s\n", __func__,
 		       clk->core->name);
 		goto unlock;
@@ -3878,22 +3878,22 @@ void clk_unregister(struct clk *clk)
 	 * a reference to this clock.
 	 */
 	flags = clk_enable_lock();
-	clk->core->ops = &clk_nodrv_ops;
+	clk->core->ops = &clk_yesdrv_ops;
 	clk_enable_unlock(flags);
 
 	if (!hlist_empty(&clk->core->children)) {
 		struct clk_core *child;
-		struct hlist_node *t;
+		struct hlist_yesde *t;
 
 		/* Reparent all children to the orphan list. */
 		hlist_for_each_entry_safe(child, t, &clk->core->children,
-					  child_node)
-			clk_core_set_parent_nolock(child, NULL);
+					  child_yesde)
+			clk_core_set_parent_yeslock(child, NULL);
 	}
 
 	clk_core_evict_parent_cache(clk->core);
 
-	hlist_del_init(&clk->core->child_node);
+	hlist_del_init(&clk->core->child_yesde);
 
 	if (clk->core->prepare_count)
 		pr_warn("%s: unregistering prepared clock: %s\n",
@@ -4013,7 +4013,7 @@ static int devm_clk_hw_match(struct device *dev, void *res, void *data)
  * @clk: clock to unregister
  *
  * Deallocate a clock allocated with devm_clk_register(). Normally
- * this function will not need to be called and the resource management
+ * this function will yest need to be called and the resource management
  * code will ensure that the resource is freed.
  */
 void devm_clk_unregister(struct device *dev, struct clk *clk)
@@ -4028,7 +4028,7 @@ EXPORT_SYMBOL_GPL(devm_clk_unregister);
  * @hw: link to hardware-specific clock data
  *
  * Unregister a clk_hw registered with devm_clk_hw_register(). Normally
- * this function will not need to be called and the resource management
+ * this function will yest need to be called and the resource management
  * code will ensure that the resource is freed.
  */
 void devm_clk_hw_unregister(struct device *dev, struct clk_hw *hw)
@@ -4063,10 +4063,10 @@ void __clk_put(struct clk *clk)
 		clk->exclusive_count = 0;
 	}
 
-	hlist_del(&clk->clks_node);
+	hlist_del(&clk->clks_yesde);
 	if (clk->min_rate > clk->core->req_rate ||
 	    clk->max_rate < clk->core->req_rate)
-		clk_core_set_rate_nolock(clk->core, clk->core->req_rate);
+		clk_core_set_rate_yeslock(clk->core, clk->core->req_rate);
 
 	owner = clk->core->owner;
 	kref_put(&clk->core->ref, __clk_release);
@@ -4078,31 +4078,31 @@ void __clk_put(struct clk *clk)
 	free_clk(clk);
 }
 
-/***        clk rate change notifiers        ***/
+/***        clk rate change yestifiers        ***/
 
 /**
- * clk_notifier_register - add a clk rate change notifier
+ * clk_yestifier_register - add a clk rate change yestifier
  * @clk: struct clk * to watch
- * @nb: struct notifier_block * with callback info
+ * @nb: struct yestifier_block * with callback info
  *
- * Request notification when clk's rate changes.  This uses an SRCU
- * notifier because we want it to block and notifier unregistrations are
- * uncommon.  The callbacks associated with the notifier must not
+ * Request yestification when clk's rate changes.  This uses an SRCU
+ * yestifier because we want it to block and yestifier unregistrations are
+ * uncommon.  The callbacks associated with the yestifier must yest
  * re-enter into the clk framework by calling any top-level clk APIs;
  * this will cause a nested prepare_lock mutex.
  *
- * In all notification cases (pre, post and abort rate change) the original
- * clock rate is passed to the callback via struct clk_notifier_data.old_rate
- * and the new frequency is passed via struct clk_notifier_data.new_rate.
+ * In all yestification cases (pre, post and abort rate change) the original
+ * clock rate is passed to the callback via struct clk_yestifier_data.old_rate
+ * and the new frequency is passed via struct clk_yestifier_data.new_rate.
  *
- * clk_notifier_register() must be called from non-atomic context.
+ * clk_yestifier_register() must be called from yesn-atomic context.
  * Returns -EINVAL if called with null arguments, -ENOMEM upon
  * allocation failure; otherwise, passes along the return value of
- * srcu_notifier_chain_register().
+ * srcu_yestifier_chain_register().
  */
-int clk_notifier_register(struct clk *clk, struct notifier_block *nb)
+int clk_yestifier_register(struct clk *clk, struct yestifier_block *nb)
 {
-	struct clk_notifier *cn;
+	struct clk_yestifier *cn;
 	int ret = -ENOMEM;
 
 	if (!clk || !nb)
@@ -4110,48 +4110,48 @@ int clk_notifier_register(struct clk *clk, struct notifier_block *nb)
 
 	clk_prepare_lock();
 
-	/* search the list of notifiers for this clk */
-	list_for_each_entry(cn, &clk_notifier_list, node)
+	/* search the list of yestifiers for this clk */
+	list_for_each_entry(cn, &clk_yestifier_list, yesde)
 		if (cn->clk == clk)
 			break;
 
-	/* if clk wasn't in the notifier list, allocate new clk_notifier */
+	/* if clk wasn't in the yestifier list, allocate new clk_yestifier */
 	if (cn->clk != clk) {
 		cn = kzalloc(sizeof(*cn), GFP_KERNEL);
 		if (!cn)
 			goto out;
 
 		cn->clk = clk;
-		srcu_init_notifier_head(&cn->notifier_head);
+		srcu_init_yestifier_head(&cn->yestifier_head);
 
-		list_add(&cn->node, &clk_notifier_list);
+		list_add(&cn->yesde, &clk_yestifier_list);
 	}
 
-	ret = srcu_notifier_chain_register(&cn->notifier_head, nb);
+	ret = srcu_yestifier_chain_register(&cn->yestifier_head, nb);
 
-	clk->core->notifier_count++;
+	clk->core->yestifier_count++;
 
 out:
 	clk_prepare_unlock();
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(clk_notifier_register);
+EXPORT_SYMBOL_GPL(clk_yestifier_register);
 
 /**
- * clk_notifier_unregister - remove a clk rate change notifier
+ * clk_yestifier_unregister - remove a clk rate change yestifier
  * @clk: struct clk *
- * @nb: struct notifier_block * with callback info
+ * @nb: struct yestifier_block * with callback info
  *
- * Request no further notification for changes to 'clk' and frees memory
- * allocated in clk_notifier_register.
+ * Request yes further yestification for changes to 'clk' and frees memory
+ * allocated in clk_yestifier_register.
  *
  * Returns -EINVAL if called with null arguments; otherwise, passes
- * along the return value of srcu_notifier_chain_unregister().
+ * along the return value of srcu_yestifier_chain_unregister().
  */
-int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
+int clk_yestifier_unregister(struct clk *clk, struct yestifier_block *nb)
 {
-	struct clk_notifier *cn = NULL;
+	struct clk_yestifier *cn = NULL;
 	int ret = -EINVAL;
 
 	if (!clk || !nb)
@@ -4159,19 +4159,19 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
 
 	clk_prepare_lock();
 
-	list_for_each_entry(cn, &clk_notifier_list, node)
+	list_for_each_entry(cn, &clk_yestifier_list, yesde)
 		if (cn->clk == clk)
 			break;
 
 	if (cn->clk == clk) {
-		ret = srcu_notifier_chain_unregister(&cn->notifier_head, nb);
+		ret = srcu_yestifier_chain_unregister(&cn->yestifier_head, nb);
 
-		clk->core->notifier_count--;
+		clk->core->yestifier_count--;
 
-		/* XXX the notifier code should handle this better */
-		if (!cn->notifier_head.head) {
-			srcu_cleanup_notifier_head(&cn->notifier_head);
-			list_del(&cn->node);
+		/* XXX the yestifier code should handle this better */
+		if (!cn->yestifier_head.head) {
+			srcu_cleanup_yestifier_head(&cn->yestifier_head);
+			list_del(&cn->yesde);
 			kfree(cn);
 		}
 
@@ -4183,20 +4183,20 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(clk_notifier_unregister);
+EXPORT_SYMBOL_GPL(clk_yestifier_unregister);
 
 #ifdef CONFIG_OF
 static void clk_core_reparent_orphans(void)
 {
 	clk_prepare_lock();
-	clk_core_reparent_orphans_nolock();
+	clk_core_reparent_orphans_yeslock();
 	clk_prepare_unlock();
 }
 
 /**
  * struct of_clk_provider - Clock provider registration structure
  * @link: Entry in global list of clock providers
- * @node: Pointer to device tree node of clock provider
+ * @yesde: Pointer to device tree yesde of clock provider
  * @get: Get clock callback.  Returns NULL or a struct clk for the
  *       given clock specifier
  * @data: context pointer to be passed into @get callback
@@ -4204,7 +4204,7 @@ static void clk_core_reparent_orphans(void)
 struct of_clk_provider {
 	struct list_head link;
 
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct clk *(*get)(struct of_phandle_args *clkspec, void *data);
 	struct clk_hw *(*get_hw)(struct of_phandle_args *clkspec, void *data);
 	void *data;
@@ -4260,14 +4260,14 @@ of_clk_hw_onecell_get(struct of_phandle_args *clkspec, void *data)
 EXPORT_SYMBOL_GPL(of_clk_hw_onecell_get);
 
 /**
- * of_clk_add_provider() - Register a clock provider for a node
- * @np: Device node pointer associated with clock provider
+ * of_clk_add_provider() - Register a clock provider for a yesde
+ * @np: Device yesde pointer associated with clock provider
  * @clk_src_get: callback for decoding clock
  * @data: context pointer for @clk_src_get callback.
  *
  * This function is *deprecated*. Use of_clk_add_hw_provider() instead.
  */
-int of_clk_add_provider(struct device_node *np,
+int of_clk_add_provider(struct device_yesde *np,
 			struct clk *(*clk_src_get)(struct of_phandle_args *clkspec,
 						   void *data),
 			void *data)
@@ -4279,7 +4279,7 @@ int of_clk_add_provider(struct device_node *np,
 	if (!cp)
 		return -ENOMEM;
 
-	cp->node = of_node_get(np);
+	cp->yesde = of_yesde_get(np);
 	cp->data = data;
 	cp->get = clk_src_get;
 
@@ -4299,12 +4299,12 @@ int of_clk_add_provider(struct device_node *np,
 EXPORT_SYMBOL_GPL(of_clk_add_provider);
 
 /**
- * of_clk_add_hw_provider() - Register a clock provider for a node
- * @np: Device node pointer associated with clock provider
+ * of_clk_add_hw_provider() - Register a clock provider for a yesde
+ * @np: Device yesde pointer associated with clock provider
  * @get: callback for decoding clk_hw
  * @data: context pointer for @get callback.
  */
-int of_clk_add_hw_provider(struct device_node *np,
+int of_clk_add_hw_provider(struct device_yesde *np,
 			   struct clk_hw *(*get)(struct of_phandle_args *clkspec,
 						 void *data),
 			   void *data)
@@ -4316,7 +4316,7 @@ int of_clk_add_hw_provider(struct device_node *np,
 	if (!cp)
 		return -ENOMEM;
 
-	cp->node = of_node_get(np);
+	cp->yesde = of_yesde_get(np);
 	cp->data = data;
 	cp->get_hw = get;
 
@@ -4337,20 +4337,20 @@ EXPORT_SYMBOL_GPL(of_clk_add_hw_provider);
 
 static void devm_of_clk_release_provider(struct device *dev, void *res)
 {
-	of_clk_del_provider(*(struct device_node **)res);
+	of_clk_del_provider(*(struct device_yesde **)res);
 }
 
 /*
- * We allow a child device to use its parent device as the clock provider node
+ * We allow a child device to use its parent device as the clock provider yesde
  * for cases like MFD sub-devices where the child device driver wants to use
- * devm_*() APIs but not list the device in DT as a sub-node.
+ * devm_*() APIs but yest list the device in DT as a sub-yesde.
  */
-static struct device_node *get_clk_provider_node(struct device *dev)
+static struct device_yesde *get_clk_provider_yesde(struct device *dev)
 {
-	struct device_node *np, *parent_np;
+	struct device_yesde *np, *parent_np;
 
-	np = dev->of_node;
-	parent_np = dev->parent ? dev->parent->of_node : NULL;
+	np = dev->of_yesde;
+	parent_np = dev->parent ? dev->parent->of_yesde : NULL;
 
 	if (!of_find_property(np, "#clock-cells", NULL))
 		if (of_find_property(parent_np, "#clock-cells", NULL))
@@ -4360,25 +4360,25 @@ static struct device_node *get_clk_provider_node(struct device *dev)
 }
 
 /**
- * devm_of_clk_add_hw_provider() - Managed clk provider node registration
- * @dev: Device acting as the clock provider (used for DT node and lifetime)
+ * devm_of_clk_add_hw_provider() - Managed clk provider yesde registration
+ * @dev: Device acting as the clock provider (used for DT yesde and lifetime)
  * @get: callback for decoding clk_hw
  * @data: context pointer for @get callback
  *
- * Registers clock provider for given device's node. If the device has no DT
- * node or if the device node lacks of clock provider information (#clock-cells)
- * then the parent device's node is scanned for this information. If parent node
+ * Registers clock provider for given device's yesde. If the device has yes DT
+ * yesde or if the device yesde lacks of clock provider information (#clock-cells)
+ * then the parent device's yesde is scanned for this information. If parent yesde
  * has the #clock-cells then it is used in registration. Provider is
  * automatically released at device exit.
  *
- * Return: 0 on success or an errno on failure.
+ * Return: 0 on success or an erryes on failure.
  */
 int devm_of_clk_add_hw_provider(struct device *dev,
 			struct clk_hw *(*get)(struct of_phandle_args *clkspec,
 					      void *data),
 			void *data)
 {
-	struct device_node **ptr, *np;
+	struct device_yesde **ptr, *np;
 	int ret;
 
 	ptr = devres_alloc(devm_of_clk_release_provider, sizeof(*ptr),
@@ -4386,7 +4386,7 @@ int devm_of_clk_add_hw_provider(struct device *dev,
 	if (!ptr)
 		return -ENOMEM;
 
-	np = get_clk_provider_node(dev);
+	np = get_clk_provider_yesde(dev);
 	ret = of_clk_add_hw_provider(np, get, data);
 	if (!ret) {
 		*ptr = np;
@@ -4401,17 +4401,17 @@ EXPORT_SYMBOL_GPL(devm_of_clk_add_hw_provider);
 
 /**
  * of_clk_del_provider() - Remove a previously registered clock provider
- * @np: Device node pointer associated with clock provider
+ * @np: Device yesde pointer associated with clock provider
  */
-void of_clk_del_provider(struct device_node *np)
+void of_clk_del_provider(struct device_yesde *np)
 {
 	struct of_clk_provider *cp;
 
 	mutex_lock(&of_clk_mutex);
 	list_for_each_entry(cp, &of_clk_providers, link) {
-		if (cp->node == np) {
+		if (cp->yesde == np) {
 			list_del(&cp->link);
-			of_node_put(cp->node);
+			of_yesde_put(cp->yesde);
 			kfree(cp);
 			break;
 		}
@@ -4422,7 +4422,7 @@ EXPORT_SYMBOL_GPL(of_clk_del_provider);
 
 static int devm_clk_provider_match(struct device *dev, void *res, void *data)
 {
-	struct device_node **np = res;
+	struct device_yesde **np = res;
 
 	if (WARN_ON(!np || !*np))
 		return 0;
@@ -4437,7 +4437,7 @@ static int devm_clk_provider_match(struct device *dev, void *res, void *data)
 void devm_of_clk_del_provider(struct device *dev)
 {
 	int ret;
-	struct device_node *np = get_clk_provider_node(dev);
+	struct device_yesde *np = get_clk_provider_yesde(dev);
 
 	ret = devres_release(dev, devm_of_clk_release_provider,
 			     devm_clk_provider_match, np);
@@ -4447,16 +4447,16 @@ void devm_of_clk_del_provider(struct device *dev)
 EXPORT_SYMBOL(devm_of_clk_del_provider);
 
 /**
- * of_parse_clkspec() - Parse a DT clock specifier for a given device node
- * @np: device node to parse clock specifier from
+ * of_parse_clkspec() - Parse a DT clock specifier for a given device yesde
+ * @np: device yesde to parse clock specifier from
  * @index: index of phandle to parse clock out of. If index < 0, @name is used
  * @name: clock name to find and parse. If name is NULL, the index is used
  * @out_args: Result of parsing the clock specifier
  *
- * Parses a device node's "clocks" and "clock-names" properties to find the
+ * Parses a device yesde's "clocks" and "clock-names" properties to find the
  * phandle and cells for the index or name that is desired. The resulting clock
- * specifier is placed into @out_args, or an errno is returned when there's a
- * parsing error. The @index argument is ignored if @name is non-NULL.
+ * specifier is placed into @out_args, or an erryes is returned when there's a
+ * parsing error. The @index argument is igyesred if @name is yesn-NULL.
  *
  * Example:
  *
@@ -4473,7 +4473,7 @@ EXPORT_SYMBOL(devm_of_clk_del_provider);
  *	clock-names = "name1", "name2";
  * }
  *
- * To get a device_node for `clock-controller@2' node you may call this
+ * To get a device_yesde for `clock-controller@2' yesde you may call this
  * function a few different ways:
  *
  *   of_parse_clkspec(clock-consumer@3, -1, "name2", &args);
@@ -4481,10 +4481,10 @@ EXPORT_SYMBOL(devm_of_clk_del_provider);
  *   of_parse_clkspec(clock-consumer@3, 1, "name2", &args);
  *
  * Return: 0 upon successfully parsing the clock specifier. Otherwise, -ENOENT
- * if @name is NULL or -EINVAL if @name is non-NULL and it can't be found in
+ * if @name is NULL or -EINVAL if @name is yesn-NULL and it can't be found in
  * the "clock-names" property of @np.
  */
-static int of_parse_clkspec(const struct device_node *np, int index,
+static int of_parse_clkspec(const struct device_yesde *np, int index,
 			    const char *name, struct of_phandle_args *out_args)
 {
 	int ret = -ENOENT;
@@ -4493,7 +4493,7 @@ static int of_parse_clkspec(const struct device_node *np, int index,
 	while (np) {
 		/*
 		 * For named clocks, first look up the name in the
-		 * "clock-names" property.  If it cannot be found, then index
+		 * "clock-names" property.  If it canyest be found, then index
 		 * will be an error code and of_parse_phandle_with_args() will
 		 * return -EINVAL.
 		 */
@@ -4507,7 +4507,7 @@ static int of_parse_clkspec(const struct device_node *np, int index,
 			break;
 
 		/*
-		 * No matching clock found on this node.  If the parent node
+		 * No matching clock found on this yesde.  If the parent yesde
 		 * has a "clock-ranges" property, then we can try one of its
 		 * clocks.
 		 */
@@ -4546,7 +4546,7 @@ of_clk_get_hw_from_clkspec(struct of_phandle_args *clkspec)
 
 	mutex_lock(&of_clk_mutex);
 	list_for_each_entry(provider, &of_clk_providers, link) {
-		if (provider->node == clkspec->np) {
+		if (provider->yesde == clkspec->np) {
 			hw = __of_clk_get_hw_from_provider(provider, clkspec);
 			if (!IS_ERR(hw))
 				break;
@@ -4573,7 +4573,7 @@ struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec)
 }
 EXPORT_SYMBOL_GPL(of_clk_get_from_provider);
 
-struct clk_hw *of_clk_get_hw(struct device_node *np, int index,
+struct clk_hw *of_clk_get_hw(struct device_yesde *np, int index,
 			     const char *con_id)
 {
 	int ret;
@@ -4585,12 +4585,12 @@ struct clk_hw *of_clk_get_hw(struct device_node *np, int index,
 		return ERR_PTR(ret);
 
 	hw = of_clk_get_hw_from_clkspec(&clkspec);
-	of_node_put(clkspec.np);
+	of_yesde_put(clkspec.np);
 
 	return hw;
 }
 
-static struct clk *__of_clk_get(struct device_node *np,
+static struct clk *__of_clk_get(struct device_yesde *np,
 				int index, const char *dev_id,
 				const char *con_id)
 {
@@ -4599,22 +4599,22 @@ static struct clk *__of_clk_get(struct device_node *np,
 	return clk_hw_create_clk(NULL, hw, dev_id, con_id);
 }
 
-struct clk *of_clk_get(struct device_node *np, int index)
+struct clk *of_clk_get(struct device_yesde *np, int index)
 {
 	return __of_clk_get(np, index, np->full_name, NULL);
 }
 EXPORT_SYMBOL(of_clk_get);
 
 /**
- * of_clk_get_by_name() - Parse and lookup a clock referenced by a device node
- * @np: pointer to clock consumer node
+ * of_clk_get_by_name() - Parse and lookup a clock referenced by a device yesde
+ * @np: pointer to clock consumer yesde
  * @name: name of consumer's clock input, or NULL for the first clock reference
  *
  * This function parses the clocks and clock-names properties,
  * and uses them to look up the struct clk from the registered list of clock
  * providers.
  */
-struct clk *of_clk_get_by_name(struct device_node *np, const char *name)
+struct clk *of_clk_get_by_name(struct device_yesde *np, const char *name)
 {
 	if (!np)
 		return ERR_PTR(-ENOENT);
@@ -4624,12 +4624,12 @@ struct clk *of_clk_get_by_name(struct device_node *np, const char *name)
 EXPORT_SYMBOL(of_clk_get_by_name);
 
 /**
- * of_clk_get_parent_count() - Count the number of clocks a device node has
- * @np: device node to count
+ * of_clk_get_parent_count() - Count the number of clocks a device yesde has
+ * @np: device yesde to count
  *
- * Returns: The number of clocks that are possible parents of this node
+ * Returns: The number of clocks that are possible parents of this yesde
  */
-unsigned int of_clk_get_parent_count(struct device_node *np)
+unsigned int of_clk_get_parent_count(struct device_yesde *np)
 {
 	int count;
 
@@ -4641,7 +4641,7 @@ unsigned int of_clk_get_parent_count(struct device_node *np)
 }
 EXPORT_SYMBOL_GPL(of_clk_get_parent_count);
 
-const char *of_clk_get_parent_name(struct device_node *np, int index)
+const char *of_clk_get_parent_name(struct device_yesde *np, int index)
 {
 	struct of_phandle_args clkspec;
 	struct property *prop;
@@ -4680,7 +4680,7 @@ const char *of_clk_get_parent_name(struct device_node *np, int index)
 		/*
 		 * Best effort to get the name if the clock has been
 		 * registered with the framework. If the clock isn't
-		 * registered, we return the node name as the name of
+		 * registered, we return the yesde name as the name of
 		 * the clock as long as #clock-cells = 0.
 		 */
 		clk = of_clk_get_from_provider(&clkspec);
@@ -4696,7 +4696,7 @@ const char *of_clk_get_parent_name(struct device_node *np, int index)
 	}
 
 
-	of_node_put(clkspec.np);
+	of_yesde_put(clkspec.np);
 	return clk_name;
 }
 EXPORT_SYMBOL_GPL(of_clk_get_parent_name);
@@ -4704,13 +4704,13 @@ EXPORT_SYMBOL_GPL(of_clk_get_parent_name);
 /**
  * of_clk_parent_fill() - Fill @parents with names of @np's parents and return
  * number of parents
- * @np: Device node pointer associated with clock provider
+ * @np: Device yesde pointer associated with clock provider
  * @parents: pointer to char array that hold the parents' names
  * @size: size of the @parents array
  *
- * Return: number of parents for the clock node.
+ * Return: number of parents for the clock yesde.
  */
-int of_clk_parent_fill(struct device_node *np, const char **parents,
+int of_clk_parent_fill(struct device_yesde *np, const char **parents,
 		       unsigned int size)
 {
 	unsigned int i = 0;
@@ -4723,9 +4723,9 @@ int of_clk_parent_fill(struct device_node *np, const char **parents,
 EXPORT_SYMBOL_GPL(of_clk_parent_fill);
 
 struct clock_provider {
-	void (*clk_init_cb)(struct device_node *);
-	struct device_node *np;
-	struct list_head node;
+	void (*clk_init_cb)(struct device_yesde *);
+	struct device_yesde *np;
+	struct list_head yesde;
 };
 
 /*
@@ -4733,7 +4733,7 @@ struct clock_provider {
  * checks that the provider for this parent clock was initialized, in
  * this case the parent clock will be ready.
  */
-static int parent_ready(struct device_node *np)
+static int parent_ready(struct device_yesde *np)
 {
 	int i = 0;
 
@@ -4747,16 +4747,16 @@ static int parent_ready(struct device_node *np)
 			continue;
 		}
 
-		/* at least one parent is not ready, we exit now */
+		/* at least one parent is yest ready, we exit yesw */
 		if (PTR_ERR(clk) == -EPROBE_DEFER)
 			return 0;
 
 		/*
 		 * Here we make assumption that the device tree is
 		 * written correctly. So an error means that there is
-		 * no more parent. As we didn't exit yet, then the
-		 * previous parent are ready. If there is no clock
-		 * parent, no need to wait for them, then we can
+		 * yes more parent. As we didn't exit yet, then the
+		 * previous parent are ready. If there is yes clock
+		 * parent, yes need to wait for them, then we can
 		 * consider their absence as being ready
 		 */
 		return 1;
@@ -4765,23 +4765,23 @@ static int parent_ready(struct device_node *np)
 
 /**
  * of_clk_detect_critical() - set CLK_IS_CRITICAL flag from Device Tree
- * @np: Device node pointer associated with clock provider
+ * @np: Device yesde pointer associated with clock provider
  * @index: clock index
  * @flags: pointer to top-level framework flags
  *
  * Detects if the clock-critical property exists and, if so, sets the
  * corresponding CLK_IS_CRITICAL flag.
  *
- * Do not use this function. It exists only for legacy Device Tree
- * bindings, such as the one-clock-per-node style that are outdated.
+ * Do yest use this function. It exists only for legacy Device Tree
+ * bindings, such as the one-clock-per-yesde style that are outdated.
  * Those bindings typically put all clock data into .dts and the Linux
- * driver has no clock data, thus making it impossible to set this flag
+ * driver has yes clock data, thus making it impossible to set this flag
  * correctly from the driver. Only those drivers may call
  * of_clk_detect_critical from their setup functions.
  *
  * Return: error code or zero on success
  */
-int of_clk_detect_critical(struct device_node *np,
+int of_clk_detect_critical(struct device_yesde *np,
 					  int index, unsigned long *flags)
 {
 	struct property *prop;
@@ -4809,7 +4809,7 @@ int of_clk_detect_critical(struct device_node *np,
 void __init of_clk_init(const struct of_device_id *matches)
 {
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct clock_provider *clk_provider, *next;
 	bool is_init_done;
 	bool force = false;
@@ -4819,7 +4819,7 @@ void __init of_clk_init(const struct of_device_id *matches)
 		matches = &__clk_of_table;
 
 	/* First prepare the list of the clocks providers */
-	for_each_matching_node_and_match(np, matches, &match) {
+	for_each_matching_yesde_and_match(np, matches, &match) {
 		struct clock_provider *parent;
 
 		if (!of_device_is_available(np))
@@ -4828,35 +4828,35 @@ void __init of_clk_init(const struct of_device_id *matches)
 		parent = kzalloc(sizeof(*parent), GFP_KERNEL);
 		if (!parent) {
 			list_for_each_entry_safe(clk_provider, next,
-						 &clk_provider_list, node) {
-				list_del(&clk_provider->node);
-				of_node_put(clk_provider->np);
+						 &clk_provider_list, yesde) {
+				list_del(&clk_provider->yesde);
+				of_yesde_put(clk_provider->np);
 				kfree(clk_provider);
 			}
-			of_node_put(np);
+			of_yesde_put(np);
 			return;
 		}
 
 		parent->clk_init_cb = match->data;
-		parent->np = of_node_get(np);
-		list_add_tail(&parent->node, &clk_provider_list);
+		parent->np = of_yesde_get(np);
+		list_add_tail(&parent->yesde, &clk_provider_list);
 	}
 
 	while (!list_empty(&clk_provider_list)) {
 		is_init_done = false;
 		list_for_each_entry_safe(clk_provider, next,
-					&clk_provider_list, node) {
+					&clk_provider_list, yesde) {
 			if (force || parent_ready(clk_provider->np)) {
 
 				/* Don't populate platform devices */
-				of_node_set_flag(clk_provider->np,
+				of_yesde_set_flag(clk_provider->np,
 						 OF_POPULATED);
 
 				clk_provider->clk_init_cb(clk_provider->np);
 				of_clk_set_defaults(clk_provider->np, true);
 
-				list_del(&clk_provider->node);
-				of_node_put(clk_provider->np);
+				list_del(&clk_provider->yesde);
+				of_yesde_put(clk_provider->np);
 				kfree(clk_provider);
 				is_init_done = true;
 			}
@@ -4864,9 +4864,9 @@ void __init of_clk_init(const struct of_device_id *matches)
 
 		/*
 		 * We didn't manage to initialize any of the
-		 * remaining providers during the last loop, so now we
+		 * remaining providers during the last loop, so yesw we
 		 * initialize all the remaining ones unconditionally
-		 * in case the clock parent was not mandatory
+		 * in case the clock parent was yest mandatory
 		 */
 		if (!is_init_done)
 			force = true;

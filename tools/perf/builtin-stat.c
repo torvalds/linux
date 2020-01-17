@@ -71,7 +71,7 @@
 #include <linux/time64.h>
 #include <linux/zalloc.h>
 #include <api/fs/fs.h>
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
@@ -107,7 +107,7 @@ static const char *transaction_attrs = {
 	"}"
 };
 
-/* More limited version when the CPU does not have all events. */
+/* More limited version when the CPU does yest have all events. */
 static const char * transaction_limited_attrs = {
 	"task-clock,"
 	"{"
@@ -264,7 +264,7 @@ static int read_single_counter(struct evsel *counter, int cpu,
 
 /*
  * Read out the results of a single counter:
- * do not aggregate counts across CPUs in system-wide mode
+ * do yest aggregate counts across CPUs in system-wide mode
  */
 static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 {
@@ -381,7 +381,7 @@ static void enable_counters(void)
 	 * - we don't have tracee (attaching to task or cpu)
 	 * - we have initial delay configured
 	 */
-	if (!target__none(&target) || stat_config.initial_delay)
+	if (!target__yesne(&target) || stat_config.initial_delay)
 		evlist__enable(evsel_list);
 }
 
@@ -392,21 +392,21 @@ static void disable_counters(void)
 	 * still be running. To get accurate group ratios, we must stop groups
 	 * from counting before reading their constituent counters.
 	 */
-	if (!target__none(&target))
+	if (!target__yesne(&target))
 		evlist__disable(evsel_list);
 }
 
-static volatile int workload_exec_errno;
+static volatile int workload_exec_erryes;
 
 /*
  * perf_evlist__prepare_workload will send a SIGUSR1
  * if the fork fails, since we asked by setting its
  * want_signal to true.
  */
-static void workload_exec_failed_signal(int signo __maybe_unused, siginfo_t *info,
+static void workload_exec_failed_signal(int sigyes __maybe_unused, siginfo_t *info,
 					void *ucontext __maybe_unused)
 {
-	workload_exec_errno = info->si_value.sival_int;
+	workload_exec_erryes = info->si_value.sival_int;
 }
 
 static bool perf_evsel__should_store_id(struct evsel *counter)
@@ -449,11 +449,11 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 	 * PPC returns ENXIO for HW counters until 2.6.37
 	 * (behavior changed with commit b0a873e).
 	 */
-	if (errno == EINVAL || errno == ENOSYS ||
-	    errno == ENOENT || errno == EOPNOTSUPP ||
-	    errno == ENXIO) {
+	if (erryes == EINVAL || erryes == ENOSYS ||
+	    erryes == ENOENT || erryes == EOPNOTSUPP ||
+	    erryes == ENXIO) {
 		if (verbose > 0)
-			ui__warning("%s event is not supported by the kernel.\n",
+			ui__warning("%s event is yest supported by the kernel.\n",
 				    perf_evsel__name(counter));
 		counter->supported = false;
 		/*
@@ -465,7 +465,7 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 		if ((counter->leader != counter) ||
 		    !(counter->leader->core.nr_members > 1))
 			return COUNTER_SKIP;
-	} else if (perf_evsel__fallback(counter, errno, msg, sizeof(msg))) {
+	} else if (perf_evsel__fallback(counter, erryes, msg, sizeof(msg))) {
 		if (verbose > 0)
 			ui__warning("%s\n", msg);
 		return COUNTER_RETRY;
@@ -484,7 +484,7 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 	}
 
 	perf_evsel__open_strerror(counter, &target,
-				  errno, msg, sizeof(msg));
+				  erryes, msg, sizeof(msg));
 	ui__error("%s\n", msg);
 
 	if (child_pid != -1)
@@ -548,13 +548,13 @@ try_again:
 						     counter->cpu_iter - 1) < 0) {
 
 				/*
-				 * Weak group failed. We cannot just undo this here
+				 * Weak group failed. We canyest just undo this here
 				 * because earlier CPUs might be in group mode, and the kernel
-				 * doesn't support mixing group and non group reads. Defer
+				 * doesn't support mixing group and yesn group reads. Defer
 				 * it to later.
 				 * Don't close here because we're in the wrong affinity.
 				 */
-				if ((errno == EINVAL || errno == EBADF) &&
+				if ((erryes == EINVAL || erryes == EBADF) &&
 				    counter->leader != counter &&
 				    counter->weak_group) {
 					perf_evlist__reset_weak_group(evsel_list, counter, false);
@@ -591,7 +591,7 @@ try_again:
 			evlist__for_each_entry(evsel_list, counter) {
 				if (!counter->reset_group && !counter->errored)
 					continue;
-				if (evsel__cpu_iter_skip_no_inc(counter, cpu))
+				if (evsel__cpu_iter_skip_yes_inc(counter, cpu))
 					continue;
 				perf_evsel__close_cpu(&counter->core, counter->cpu_iter);
 			}
@@ -642,8 +642,8 @@ try_again_reset:
 
 	if (perf_evlist__apply_filters(evsel_list, &counter)) {
 		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
-			counter->filter, perf_evsel__name(counter), errno,
-			str_error_r(errno, msg, sizeof(msg)));
+			counter->filter, perf_evsel__name(counter), erryes,
+			str_error_r(erryes, msg, sizeof(msg)));
 		return -1;
 	}
 
@@ -678,7 +678,7 @@ try_again_reset:
 
 		if (interval || timeout) {
 			while (!waitpid(child_pid, &status, WNOHANG)) {
-				nanosleep(&ts, NULL);
+				nayessleep(&ts, NULL);
 				if (timeout)
 					break;
 				process_interval();
@@ -689,8 +689,8 @@ try_again_reset:
 		if (child_pid != -1)
 			wait4(child_pid, &status, 0, &stat_config.ru_data);
 
-		if (workload_exec_errno) {
-			const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
+		if (workload_exec_erryes) {
+			const char *emsg = str_error_r(workload_exec_erryes, msg, sizeof(msg));
 			pr_err("Workload failed: %s\n", emsg);
 			return -1;
 		}
@@ -700,7 +700,7 @@ try_again_reset:
 	} else {
 		enable_counters();
 		while (!done) {
-			nanosleep(&ts, NULL);
+			nayessleep(&ts, NULL);
 			if (!is_target_alive(&target, evsel_list->core.threads))
 				break;
 			if (timeout)
@@ -768,7 +768,7 @@ static int run_perf_stat(int argc, const char **argv, int run_idx)
 
 static void print_counters(struct timespec *ts, int argc, const char **argv)
 {
-	/* Do not print anything if we record to the pipe. */
+	/* Do yest print anything if we record to the pipe. */
 	if (STAT_RECORD && perf_stat.data.is_pipe)
 		return;
 
@@ -778,12 +778,12 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 
 static volatile int signr = -1;
 
-static void skip_signal(int signo)
+static void skip_signal(int sigyes)
 {
 	if ((child_pid == -1) || stat_config.interval)
 		done = 1;
 
-	signr = signo;
+	signr = sigyes;
 	/*
 	 * render child_pid harmless
 	 * won't send SIGTERM to a random
@@ -849,8 +849,8 @@ static struct option stat_options[] = {
 		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &evsel_list, "filter",
 		     "event filter", parse_filter),
-	OPT_BOOLEAN('i', "no-inherit", &stat_config.no_inherit,
-		    "child tasks do not inherit counters"),
+	OPT_BOOLEAN('i', "yes-inherit", &stat_config.yes_inherit,
+		    "child tasks do yest inherit counters"),
 	OPT_STRING('p', "pid", &target.pid, "pid",
 		   "stat events on existing process id"),
 	OPT_STRING('t', "tid", &target.tid, "tid",
@@ -860,7 +860,7 @@ static struct option stat_options[] = {
 	OPT_BOOLEAN('g', "group", &group,
 		    "put the counters into a counter group"),
 	OPT_BOOLEAN(0, "scale", &stat_config.scale,
-		    "Use --no-scale to disable counter scaling for multiplexing"),
+		    "Use --yes-scale to disable counter scaling for multiplexing"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_INTEGER('r', "repeat", &stat_config.run_count,
@@ -878,9 +878,9 @@ static struct option stat_options[] = {
 			   stat__set_big_num),
 	OPT_STRING('C', "cpu", &target.cpu_list, "cpu",
 		    "list of cpus to monitor in system-wide"),
-	OPT_SET_UINT('A', "no-aggr", &stat_config.aggr_mode,
+	OPT_SET_UINT('A', "yes-aggr", &stat_config.aggr_mode,
 		    "disable CPU count aggregation", AGGR_NONE),
-	OPT_BOOLEAN(0, "no-merge", &stat_config.no_merge, "Do not merge identical named events"),
+	OPT_BOOLEAN(0, "yes-merge", &stat_config.yes_merge, "Do yest merge identical named events"),
 	OPT_STRING('x', "field-separator", &stat_config.csv_sep, "separator",
 		   "print counts with custom separator"),
 	OPT_CALLBACK('G', "cgroup", &evsel_list, "name",
@@ -910,8 +910,8 @@ static struct option stat_options[] = {
 		     "aggregate counts per physical processor core", AGGR_CORE),
 	OPT_SET_UINT(0, "per-thread", &stat_config.aggr_mode,
 		     "aggregate counts per thread", AGGR_THREAD),
-	OPT_SET_UINT(0, "per-node", &stat_config.aggr_mode,
-		     "aggregate counts per numa node", AGGR_NODE),
+	OPT_SET_UINT(0, "per-yesde", &stat_config.aggr_mode,
+		     "aggregate counts per numa yesde", AGGR_NODE),
 	OPT_UINTEGER('D', "delay", &stat_config.initial_delay,
 		     "ms to wait before starting measurement after program start"),
 	OPT_CALLBACK_NOOPT(0, "metric-only", &stat_config.metric_only, NULL,
@@ -950,10 +950,10 @@ static int perf_stat__get_core(struct perf_stat_config *config __maybe_unused,
 	return cpu_map__get_core(map, cpu, NULL);
 }
 
-static int perf_stat__get_node(struct perf_stat_config *config __maybe_unused,
+static int perf_stat__get_yesde(struct perf_stat_config *config __maybe_unused,
 			       struct perf_cpu_map *map, int cpu)
 {
-	return cpu_map__get_node(map, cpu, NULL);
+	return cpu_map__get_yesde(map, cpu, NULL);
 }
 
 static int perf_stat__get_aggr(struct perf_stat_config *config,
@@ -990,10 +990,10 @@ static int perf_stat__get_core_cached(struct perf_stat_config *config,
 	return perf_stat__get_aggr(config, perf_stat__get_core, map, idx);
 }
 
-static int perf_stat__get_node_cached(struct perf_stat_config *config,
+static int perf_stat__get_yesde_cached(struct perf_stat_config *config,
 				      struct perf_cpu_map *map, int idx)
 {
-	return perf_stat__get_aggr(config, perf_stat__get_node, map, idx);
+	return perf_stat__get_aggr(config, perf_stat__get_yesde, map, idx);
 }
 
 static bool term_percore_set(void)
@@ -1015,37 +1015,37 @@ static int perf_stat_init_aggr_mode(void)
 	switch (stat_config.aggr_mode) {
 	case AGGR_SOCKET:
 		if (cpu_map__build_socket_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build socket map");
+			perror("canyest build socket map");
 			return -1;
 		}
 		stat_config.aggr_get_id = perf_stat__get_socket_cached;
 		break;
 	case AGGR_DIE:
 		if (cpu_map__build_die_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build die map");
+			perror("canyest build die map");
 			return -1;
 		}
 		stat_config.aggr_get_id = perf_stat__get_die_cached;
 		break;
 	case AGGR_CORE:
 		if (cpu_map__build_core_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build core map");
+			perror("canyest build core map");
 			return -1;
 		}
 		stat_config.aggr_get_id = perf_stat__get_core_cached;
 		break;
 	case AGGR_NODE:
-		if (cpu_map__build_node_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build core map");
+		if (cpu_map__build_yesde_map(evsel_list->core.cpus, &stat_config.aggr_map)) {
+			perror("canyest build core map");
 			return -1;
 		}
-		stat_config.aggr_get_id = perf_stat__get_node_cached;
+		stat_config.aggr_get_id = perf_stat__get_yesde_cached;
 		break;
 	case AGGR_NONE:
 		if (term_percore_set()) {
 			if (cpu_map__build_core_map(evsel_list->core.cpus,
 						    &stat_config.aggr_map)) {
-				perror("cannot build core map");
+				perror("canyest build core map");
 				return -1;
 			}
 			stat_config.aggr_get_id = perf_stat__get_core_cached;
@@ -1153,11 +1153,11 @@ static int perf_env__get_core(struct perf_cpu_map *map, int idx, void *data)
 	return core;
 }
 
-static int perf_env__get_node(struct perf_cpu_map *map, int idx, void *data)
+static int perf_env__get_yesde(struct perf_cpu_map *map, int idx, void *data)
 {
 	int cpu = perf_env__get_cpu(data, map, idx);
 
-	return perf_env__numa_node(data, cpu);
+	return perf_env__numa_yesde(data, cpu);
 }
 
 static int perf_env__build_socket_map(struct perf_env *env, struct perf_cpu_map *cpus,
@@ -1178,10 +1178,10 @@ static int perf_env__build_core_map(struct perf_env *env, struct perf_cpu_map *c
 	return cpu_map__build_map(cpus, corep, perf_env__get_core, env);
 }
 
-static int perf_env__build_node_map(struct perf_env *env, struct perf_cpu_map *cpus,
-				    struct perf_cpu_map **nodep)
+static int perf_env__build_yesde_map(struct perf_env *env, struct perf_cpu_map *cpus,
+				    struct perf_cpu_map **yesdep)
 {
-	return cpu_map__build_map(cpus, nodep, perf_env__get_node, env);
+	return cpu_map__build_map(cpus, yesdep, perf_env__get_yesde, env);
 }
 
 static int perf_stat__get_socket_file(struct perf_stat_config *config __maybe_unused,
@@ -1201,10 +1201,10 @@ static int perf_stat__get_core_file(struct perf_stat_config *config __maybe_unus
 	return perf_env__get_core(map, idx, &perf_stat.session->header.env);
 }
 
-static int perf_stat__get_node_file(struct perf_stat_config *config __maybe_unused,
+static int perf_stat__get_yesde_file(struct perf_stat_config *config __maybe_unused,
 				    struct perf_cpu_map *map, int idx)
 {
-	return perf_env__get_node(map, idx, &perf_stat.session->header.env);
+	return perf_env__get_yesde(map, idx, &perf_stat.session->header.env);
 }
 
 static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
@@ -1214,31 +1214,31 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 	switch (stat_config.aggr_mode) {
 	case AGGR_SOCKET:
 		if (perf_env__build_socket_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build socket map");
+			perror("canyest build socket map");
 			return -1;
 		}
 		stat_config.aggr_get_id = perf_stat__get_socket_file;
 		break;
 	case AGGR_DIE:
 		if (perf_env__build_die_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build die map");
+			perror("canyest build die map");
 			return -1;
 		}
 		stat_config.aggr_get_id = perf_stat__get_die_file;
 		break;
 	case AGGR_CORE:
 		if (perf_env__build_core_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build core map");
+			perror("canyest build core map");
 			return -1;
 		}
 		stat_config.aggr_get_id = perf_stat__get_core_file;
 		break;
 	case AGGR_NODE:
-		if (perf_env__build_node_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
-			perror("cannot build core map");
+		if (perf_env__build_yesde_map(env, evsel_list->core.cpus, &stat_config.aggr_map)) {
+			perror("canyest build core map");
 			return -1;
 		}
-		stat_config.aggr_get_id = perf_stat__get_node_file;
+		stat_config.aggr_get_id = perf_stat__get_yesde_file;
 		break;
 	case AGGR_NONE:
 	case AGGR_GLOBAL:
@@ -1301,7 +1301,7 @@ __weak void arch_topdown_group_warn(void)
 }
 
 /*
- * Add default attributes, if there were no attributes specified or
+ * Add default attributes, if there were yes attributes specified or
  * if -d/--detailed, -d -d or -d -d -d is used:
  */
 static int add_default_attributes(void)
@@ -1421,7 +1421,7 @@ static int add_default_attributes(void)
 };
 	struct parse_events_error errinfo;
 
-	/* Set attrs if no event is selected and !null_run: */
+	/* Set attrs if yes event is selected and !null_run: */
 	if (stat_config.null_run)
 		return 0;
 
@@ -1448,7 +1448,7 @@ static int add_default_attributes(void)
 					   transaction_limited_attrs,
 					   &errinfo);
 		if (err) {
-			fprintf(stderr, "Cannot set up transaction events\n");
+			fprintf(stderr, "Canyest set up transaction events\n");
 			parse_events_print_error(&errinfo, transaction_attrs);
 			return -1;
 		}
@@ -1459,7 +1459,7 @@ static int add_default_attributes(void)
 		int smi;
 
 		if (sysfs__read_int(FREEZE_ON_SMI_PATH, &smi) < 0) {
-			fprintf(stderr, "freeze_on_smi is not supported.\n");
+			fprintf(stderr, "freeze_on_smi is yest supported.\n");
 			return -1;
 		}
 
@@ -1484,7 +1484,7 @@ static int add_default_attributes(void)
 		}
 		if (err) {
 			parse_events_print_error(&errinfo, smi_cost_attrs);
-			fprintf(stderr, "Cannot set up SMI cost events\n");
+			fprintf(stderr, "Canyest set up SMI cost events\n");
 			return -1;
 		}
 		return 0;
@@ -1518,14 +1518,14 @@ static int add_default_attributes(void)
 			err = parse_events(evsel_list, str, &errinfo);
 			if (err) {
 				fprintf(stderr,
-					"Cannot set up top down events %s: %d\n",
+					"Canyest set up top down events %s: %d\n",
 					str, err);
 				parse_events_print_error(&errinfo, str);
 				free(str);
 				return -1;
 			}
 		} else {
-			fprintf(stderr, "System does not support topdown\n");
+			fprintf(stderr, "System does yest support topdown\n");
 			return -1;
 		}
 		free(str);
@@ -1605,7 +1605,7 @@ static int __cmd_record(int argc, const char **argv)
 		data->path = output_name;
 
 	if (stat_config.run_count != 1 || forever) {
-		pr_err("Cannot use -r option with perf stat record.\n");
+		pr_err("Canyest use -r option with perf stat record.\n");
 		return -1;
 	}
 
@@ -1659,7 +1659,7 @@ int process_stat_config_event(struct perf_session *session,
 
 	if (perf_cpu_map__empty(st->cpus)) {
 		if (st->aggr_mode != AGGR_UNSET)
-			pr_warning("warning: processing task data, aggregation mode not set\n");
+			pr_warning("warning: processing task data, aggregation mode yest set\n");
 		return 0;
 	}
 
@@ -1699,7 +1699,7 @@ int process_thread_map_event(struct perf_session *session,
 	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
 
 	if (st->threads) {
-		pr_warning("Extra thread map event, ignoring.\n");
+		pr_warning("Extra thread map event, igyesring.\n");
 		return 0;
 	}
 
@@ -1719,7 +1719,7 @@ int process_cpu_map_event(struct perf_session *session,
 	struct perf_cpu_map *cpus;
 
 	if (st->cpus) {
-		pr_warning("Extra cpu map event, ignoring.\n");
+		pr_warning("Extra cpu map event, igyesring.\n");
 		return 0;
 	}
 
@@ -1789,9 +1789,9 @@ static int __cmd_report(int argc, const char **argv)
 		     "aggregate counts per processor die", AGGR_DIE),
 	OPT_SET_UINT(0, "per-core", &perf_stat.aggr_mode,
 		     "aggregate counts per physical processor core", AGGR_CORE),
-	OPT_SET_UINT(0, "per-node", &perf_stat.aggr_mode,
-		     "aggregate counts per numa node", AGGR_NODE),
-	OPT_SET_UINT('A', "no-aggr", &perf_stat.aggr_mode,
+	OPT_SET_UINT(0, "per-yesde", &perf_stat.aggr_mode,
+		     "aggregate counts per numa yesde", AGGR_NODE),
+	OPT_SET_UINT('A', "yes-aggr", &perf_stat.aggr_mode,
 		     "disable CPU count aggregation", AGGR_NONE),
 	OPT_END()
 	};
@@ -1830,14 +1830,14 @@ static void setup_system_wide(int forks)
 {
 	/*
 	 * Make system wide (-a) the default target if
-	 * no target was specified and one of following
+	 * yes target was specified and one of following
 	 * conditions is met:
 	 *
-	 *   - there's no workload specified
+	 *   - there's yes workload specified
 	 *   - there is workload specified but all requested
 	 *     events are system wide events
 	 */
-	if (!target__none(&target))
+	if (!target__yesne(&target))
 		return;
 
 	if (!forks)
@@ -1910,19 +1910,19 @@ int cmd_stat(int argc, const char **argv)
 		output = NULL;
 
 	if (output_name && output_fd) {
-		fprintf(stderr, "cannot use both --output and --log-fd\n");
+		fprintf(stderr, "canyest use both --output and --log-fd\n");
 		parse_options_usage(stat_usage, stat_options, "o", 1);
 		parse_options_usage(NULL, stat_options, "log-fd", 0);
 		goto out;
 	}
 
 	if (stat_config.metric_only && stat_config.aggr_mode == AGGR_THREAD) {
-		fprintf(stderr, "--metric-only is not supported with --per-thread\n");
+		fprintf(stderr, "--metric-only is yest supported with --per-thread\n");
 		goto out;
 	}
 
 	if (stat_config.metric_only && stat_config.run_count > 1) {
-		fprintf(stderr, "--metric-only is not supported with -r\n");
+		fprintf(stderr, "--metric-only is yest supported with -r\n");
 		goto out;
 	}
 
@@ -1955,7 +1955,7 @@ int cmd_stat(int argc, const char **argv)
 		output = fdopen(output_fd, mode);
 		if (!output) {
 			perror("Failed opening logfd");
-			return -errno;
+			return -erryes;
 		}
 	}
 
@@ -1967,13 +1967,13 @@ int cmd_stat(int argc, const char **argv)
 	if (stat_config.csv_output) {
 		/* User explicitly passed -B? */
 		if (big_num_opt == 1) {
-			fprintf(stderr, "-B option not supported with -x\n");
+			fprintf(stderr, "-B option yest supported with -x\n");
 			parse_options_usage(stat_usage, stat_options, "B", 1);
 			parse_options_usage(NULL, stat_options, "x", 1);
 			goto out;
 		} else /* Nope, so disable big number formatting */
 			stat_config.big_num = false;
-	} else if (big_num_opt == 0) /* User passed --no-big-num */
+	} else if (big_num_opt == 0) /* User passed --yes-big-num */
 		stat_config.big_num = false;
 
 	setup_system_wide(argc);
@@ -1982,7 +1982,7 @@ int cmd_stat(int argc, const char **argv)
 	 * Display user/system times only for single
 	 * run and when there's specified tracee.
 	 */
-	if ((stat_config.run_count == 1) && target__none(&target))
+	if ((stat_config.run_count == 1) && target__yesne(&target))
 		stat_config.ru_display = true;
 
 	if (stat_config.run_count < 0) {
@@ -2015,13 +2015,13 @@ int cmd_stat(int argc, const char **argv)
 	}
 
 	/*
-	 * no_aggr, cgroup are for system-wide only
+	 * yes_aggr, cgroup are for system-wide only
 	 * --per-thread is aggregated per thread, we dont mix it with cpu mode
 	 */
 	if (((stat_config.aggr_mode != AGGR_GLOBAL &&
 	      stat_config.aggr_mode != AGGR_THREAD) || nr_cgroups) &&
 	    !target__has_cpu(&target)) {
-		fprintf(stderr, "both cgroup and no-aggregation "
+		fprintf(stderr, "both cgroup and yes-aggregation "
 			"modes only available in system-wide mode\n");
 
 		parse_options_usage(stat_usage, stat_options, "G", 1);
@@ -2066,7 +2066,7 @@ int cmd_stat(int argc, const char **argv)
 	}
 
 	if (stat_config.aggr_mode == AGGR_NODE)
-		cpu__setup_cpunode_map();
+		cpu__setup_cpuyesde_map();
 
 	if (stat_config.times && interval)
 		interval_count = true;
@@ -2089,7 +2089,7 @@ int cmd_stat(int argc, const char **argv)
 				   "Please proceed with caution.\n");
 	}
 	if (timeout && interval) {
-		pr_err("timeout option is not supported with interval-print.\n");
+		pr_err("timeout option is yest supported with interval-print.\n");
 		parse_options_usage(stat_usage, stat_options, "timeout", 0);
 		parse_options_usage(stat_usage, stat_options, "I", 1);
 		goto out;
@@ -2114,9 +2114,9 @@ int cmd_stat(int argc, const char **argv)
 
 	/*
 	 * We dont want to block the signals - that would cause
-	 * child tasks to inherit that and Ctrl-C would not work.
+	 * child tasks to inherit that and Ctrl-C would yest work.
 	 * What we want is for Ctrl-C to work in the exec()-ed
-	 * task, but being ignored by perf stat itself:
+	 * task, but being igyesred by perf stat itself:
 	 */
 	atexit(sig_atexit);
 	if (!forever)
@@ -2147,13 +2147,13 @@ int cmd_stat(int argc, const char **argv)
 	if (STAT_RECORD) {
 		/*
 		 * We synthesize the kernel mmap record just so that older tools
-		 * don't emit warnings about not being able to resolve symbols
+		 * don't emit warnings about yest being able to resolve symbols
 		 * due to /proc/sys/kernel/kptr_restrict settings and instear provide
-		 * a saner message about no samples being in the perf.data file.
+		 * a saner message about yes samples being in the perf.data file.
 		 *
 		 * This also serves to suppress a warning about f_header.data.size == 0
 		 * in header.c at the moment 'perf stat record' gets introduced, which
-		 * is not really needed once we start adding the stat specific PERF_RECORD_
+		 * is yest really needed once we start adding the stat specific PERF_RECORD_
 		 * records, but the need to suppress the kptr_restrict messages in older
 		 * tools remain  -acme
 		 */

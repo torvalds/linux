@@ -113,7 +113,7 @@ ip32_rtc_platform_data[] = {
 	{
 		.regstep = 0x100,
 		.bcd_mode = true,
-		.no_irq = false,
+		.yes_irq = false,
 		.uie_unsupported = false,
 		.access_type = ds1685_reg_direct,
 		.plat_prepare_poweroff = ip32_prepare_poweroff,

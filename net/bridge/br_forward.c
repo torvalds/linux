@@ -195,7 +195,7 @@ void br_flood(struct net_bridge *br, struct sk_buff *skb,
 	struct net_bridge_port *p;
 
 	list_for_each_entry_rcu(p, &br->port_list, list) {
-		/* Do not flood unicast traffic to ports that turn it off, nor
+		/* Do yest flood unicast traffic to ports that turn it off, yesr
 		 * other traffic if flood off, except for traffic we originate
 		 */
 		switch (pkt_type) {
@@ -213,7 +213,7 @@ void br_flood(struct net_bridge *br, struct sk_buff *skb,
 			break;
 		}
 
-		/* Do not flood to ports that enable proxy ARP */
+		/* Do yest flood to ports that enable proxy ARP */
 		if (p->flags & BR_PROXYARP)
 			continue;
 		if ((p->flags & (BR_PROXYARP_WIFI | BR_NEIGH_SUPPRESS)) &&
@@ -249,7 +249,7 @@ static void maybe_deliver_addr(struct net_bridge_port *p, struct sk_buff *skb,
 	if (!should_deliver(p, skb))
 		return;
 
-	/* Even with hairpin, no soliloquies - prevent breaking IPv6 DAD */
+	/* Even with hairpin, yes soliloquies - prevent breaking IPv6 DAD */
 	if (skb->dev == p->dev && ether_addr_equal(src, addr))
 		return;
 
@@ -274,7 +274,7 @@ void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *prev = NULL;
 	struct net_bridge_port_group *p;
-	struct hlist_node *rp;
+	struct hlist_yesde *rp;
 
 	rp = rcu_dereference(hlist_first_rcu(&br->router_list));
 	p = mdst ? rcu_dereference(mdst->ports) : NULL;

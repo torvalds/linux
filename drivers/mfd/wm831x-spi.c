@@ -27,7 +27,7 @@ static int wm831x_spi_probe(struct spi_device *spi)
 	enum wm831x_parent type;
 	int ret;
 
-	if (spi->dev.of_node) {
+	if (spi->dev.of_yesde) {
 		of_id = of_match_device(wm831x_of_match, &spi->dev);
 		if (!of_id) {
 			dev_err(&spi->dev, "Failed to match device\n");

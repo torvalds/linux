@@ -25,8 +25,8 @@ IPV6_TESTS="ipv6_fcnal ipv6_grp_fcnal ipv6_fcnal_runtime"
 ALL_TESTS="basic ${IPV4_TESTS} ${IPV6_TESTS}"
 TESTS="${ALL_TESTS}"
 VERBOSE=0
-PAUSE_ON_FAIL=no
-PAUSE=no
+PAUSE_ON_FAIL=yes
+PAUSE=yes
 
 nsid=100
 
@@ -50,7 +50,7 @@ log_test()
 			echo "    rc=$rc, expected $expected"
 		fi
 
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "no" ]; then
 		echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -58,7 +58,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "no" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -126,11 +126,11 @@ create_ns()
 
 	ip netns exec ${n} sysctl -qw net.ipv4.ip_forward=1
 	ip netns exec ${n} sysctl -qw net.ipv4.fib_multipath_use_neigh=1
-	ip netns exec ${n} sysctl -qw net.ipv4.conf.default.ignore_routes_with_linkdown=1
+	ip netns exec ${n} sysctl -qw net.ipv4.conf.default.igyesre_routes_with_linkdown=1
 	ip netns exec ${n} sysctl -qw net.ipv6.conf.all.keep_addr_on_down=1
 	ip netns exec ${n} sysctl -qw net.ipv6.conf.all.forwarding=1
 	ip netns exec ${n} sysctl -qw net.ipv6.conf.default.forwarding=1
-	ip netns exec ${n} sysctl -qw net.ipv6.conf.default.ignore_routes_with_linkdown=1
+	ip netns exec ${n} sysctl -qw net.ipv6.conf.default.igyesre_routes_with_linkdown=1
 	ip netns exec ${n} sysctl -qw net.ipv6.conf.all.accept_dad=0
 	ip netns exec ${n} sysctl -qw net.ipv6.conf.default.accept_dad=0
 
@@ -270,7 +270,7 @@ ipv6_fcnal()
 	rc=$?
 	log_test $rc 0 "Create nexthop with id, gw, dev"
 	if [ $rc -ne 0 ]; then
-		echo "Basic IPv6 create fails; can not continue"
+		echo "Basic IPv6 create fails; can yest continue"
 		return 1
 	fi
 
@@ -285,11 +285,11 @@ ipv6_fcnal()
 	#
 	# gw, device spec
 	#
-	# gw validation, no device - fails since dev required
+	# gw validation, yes device - fails since dev required
 	run_cmd "$IP nexthop add id 52 via 2001:db8:92::3"
 	log_test $? 2 "Create nexthop - gw only"
 
-	# gw is not reachable throught given dev
+	# gw is yest reachable throught given dev
 	run_cmd "$IP nexthop add id 53 via 2001:db8:3::3 dev veth1"
 	log_test $? 2 "Create nexthop - invalid gw+dev combination"
 
@@ -402,7 +402,7 @@ ipv6_grp_fcnal()
 	log_test $? 0 "Nexthops in group removed on admin down - mixed group"
 
 	run_cmd "$IP nexthop add id 106 group 105/74"
-	log_test $? 2 "Nexthop group can not have a group as an entry"
+	log_test $? 2 "Nexthop group can yest have a group as an entry"
 
 	# a group can have a blackhole entry only if it is the only
 	# nexthop in the group. Needed for atomic replace with an
@@ -412,7 +412,7 @@ ipv6_grp_fcnal()
 	log_test $? 0 "Nexthop group with a blackhole entry"
 
 	run_cmd "$IP nexthop add id 108 group 31/24"
-	log_test $? 2 "Nexthop group can not have a blackhole and another nexthop"
+	log_test $? 2 "Nexthop group can yest have a blackhole and ayesther nexthop"
 }
 
 ipv6_fcnal_runtime()
@@ -489,12 +489,12 @@ ipv6_fcnal_runtime()
 	check_route6 "2001:db8:101::1" "2001:db8:101::1 nhid 123 metric 1024 nexthop via 2001:db8:91::2 dev veth1 weight 1 nexthop dev veth1 weight 1 pref medium"
 
 	#
-	# IPv6 route with v4 nexthop - not allowed
+	# IPv6 route with v4 nexthop - yest allowed
 	#
 	run_cmd "$IP ro delete 2001:db8:101::1/128"
 	run_cmd "$IP nexthop add id 84 via 172.16.1.1 dev veth1"
 	run_cmd "$IP ro add 2001:db8:101::1/128 nhid 84"
-	log_test $? 2 "IPv6 route can not have a v4 gateway"
+	log_test $? 2 "IPv6 route can yest have a v4 gateway"
 
 	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 81"
 	run_cmd "$IP nexthop replace id 81 via 172.16.1.1 dev veth1"
@@ -516,7 +516,7 @@ ipv6_fcnal_runtime()
 	# existing route with old nexthop; append route with new nexthop
 	# existing route with old nexthop; replace route with new
 	# existing route with new nexthop; replace route with old
-	# route with src address and using nexthop - not allowed
+	# route with src address and using nexthop - yest allowed
 }
 
 ipv4_fcnal()
@@ -534,7 +534,7 @@ ipv4_fcnal()
 	rc=$?
 	log_test $rc 0 "Create nexthop with id, gw, dev"
 	if [ $rc -ne 0 ]; then
-		echo "Basic IPv4 create fails; can not continue"
+		echo "Basic IPv4 create fails; can yest continue"
 		return 1
 	fi
 
@@ -549,11 +549,11 @@ ipv4_fcnal()
 	#
 	# gw, device spec
 	#
-	# gw validation, no device - fails since dev is required
+	# gw validation, yes device - fails since dev is required
 	run_cmd "$IP nexthop add id 12 via 172.16.2.3"
 	log_test $? 2 "Create nexthop - gw only"
 
-	# gw not reachable through given dev
+	# gw yest reachable through given dev
 	run_cmd "$IP nexthop add id 13 via 172.16.3.2 dev veth1"
 	log_test $? 2 "Create nexthop - invalid gw+dev combination"
 
@@ -664,7 +664,7 @@ ipv4_grp_fcnal()
 	log_test $? 0 "Nexthops in group removed on admin down - mixed group"
 
 	run_cmd "$IP nexthop add id 106 group 105/24"
-	log_test $? 2 "Nexthop group can not have a group as an entry"
+	log_test $? 2 "Nexthop group can yest have a group as an entry"
 
 	# a group can have a blackhole entry only if it is the only
 	# nexthop in the group. Needed for atomic replace with an
@@ -674,7 +674,7 @@ ipv4_grp_fcnal()
 	log_test $? 0 "Nexthop group with a blackhole entry"
 
 	run_cmd "$IP nexthop add id 108 group 31/24"
-	log_test $? 2 "Nexthop group can not have a blackhole and another nexthop"
+	log_test $? 2 "Nexthop group can yest have a blackhole and ayesther nexthop"
 }
 
 ipv4_withv6_fcnal()
@@ -863,14 +863,14 @@ basic()
 	echo "Basic functional tests"
 	echo "----------------------"
 	run_cmd "$IP nexthop ls"
-	log_test $? 0 "List with nothing defined"
+	log_test $? 0 "List with yesthing defined"
 
 	run_cmd "$IP nexthop get id 1"
-	log_test $? 2 "Nexthop get on non-existent id"
+	log_test $? 2 "Nexthop get on yesn-existent id"
 
 	# attempt to create nh without a device or gw - fails
 	run_cmd "$IP nexthop add id 1"
-	log_test $? 2 "Nexthop with no device or gateway"
+	log_test $? 2 "Nexthop with yes device or gateway"
 
 	# attempt to create nh with down device - fails
 	$IP li set veth1 down
@@ -896,7 +896,7 @@ basic()
 	run_cmd "$IP nexthop add id 2 blackhole"
 	log_test $? 0 "Blackhole nexthop"
 
-	# blackhole nexthop can not have other specs
+	# blackhole nexthop can yest have other specs
 	run_cmd "$IP nexthop replace id 2 blackhole dev veth1"
 	log_test $? 2 "Blackhole nexthop with other attributes"
 
@@ -910,19 +910,19 @@ basic()
 	run_cmd "$IP nexthop add id 102 group 2"
 	log_test $? 0 "Create group with blackhole nexthop"
 
-	# multipath group can not have a blackhole as 1 path
+	# multipath group can yest have a blackhole as 1 path
 	run_cmd "$IP nexthop add id 103 group 1/2"
 	log_test $? 2 "Create multipath group where 1 path is a blackhole"
 
-	# multipath group can not have a member replaced by a blackhole
+	# multipath group can yest have a member replaced by a blackhole
 	run_cmd "$IP nexthop replace id 2 dev veth3"
 	run_cmd "$IP nexthop replace id 102 group 1/2"
 	run_cmd "$IP nexthop replace id 2 blackhole"
-	log_test $? 2 "Multipath group can not have a member replaced by blackhole"
+	log_test $? 2 "Multipath group can yest have a member replaced by blackhole"
 
-	# attempt to create group with non-existent nexthop
+	# attempt to create group with yesn-existent nexthop
 	run_cmd "$IP nexthop add id 103 group 12"
-	log_test $? 2 "Create group with non-existent nexthop"
+	log_test $? 2 "Create group with yesn-existent nexthop"
 
 	# attempt to create group with same nexthop
 	run_cmd "$IP nexthop add id 103 group 1/1"
@@ -993,8 +993,8 @@ do
 		t) TESTS=$OPTARG;;
 		4) TESTS=${IPV4_TESTS};;
 		6) TESTS=${IPV6_TESTS};;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=no;;
+		P) PAUSE=no;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -1002,7 +1002,7 @@ do
 done
 
 # make sure we don't pause twice
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "no" ] && PAUSE_ON_FAIL=yes
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -1010,7 +1010,7 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could yest run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -1020,7 +1020,7 @@ if [ $? -ne 0 ]; then
 	exit $ksft_skip
 fi
 
-out=$(ip nexthop ls 2>&1 | grep -q "Operation not supported")
+out=$(ip nexthop ls 2>&1 | grep -q "Operation yest supported")
 if [ $? -eq 0 ]; then
 	echo "SKIP: kernel lacks nexthop support"
 	exit $ksft_skip
@@ -1029,12 +1029,12 @@ fi
 for t in $TESTS
 do
 	case $t in
-	none) IP="ip -netns peer"; setup; exit 0;;
+	yesne) IP="ip -netns peer"; setup; exit 0;;
 	*) setup; $t; cleanup;;
 	esac
 done
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "yesne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

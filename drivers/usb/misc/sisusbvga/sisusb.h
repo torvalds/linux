@@ -13,11 +13,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1) Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2) Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3) The name of the author may not be used to endorse or promote products
+ * 3) The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESSED OR
@@ -69,7 +69,7 @@
  *    expected/delivered in machine endiannes by this
  *    driver.
  * 2) Video memory. The data is copied 1:1. There is
- *    no swapping. Ever. This means for userland that
+ *    yes swapping. Ever. This means for userland that
  *    the data has to be prepared properly. (Hint:
  *    think graphics data format, command queue,
  *    hardware cursor.)
@@ -104,7 +104,7 @@ struct sisusb_usb_data {
 	wait_queue_head_t wait_q;	/* for syncind and timeouts */
 	struct mutex lock;	/* general race avoidance */
 	unsigned int ifnum;	/* interface number of the USB device */
-	int minor;		/* minor (for logging clarity) */
+	int miyesr;		/* miyesr (for logging clarity) */
 	int isopen;		/* !=0 if open */
 	int present;		/* !=0 if device is present on the bus */
 	int ready;		/* !=0 if device is ready for userland */
@@ -133,7 +133,7 @@ struct sisusb_usb_data {
 	int haveconsole, con_first, con_last;
 	int havethisconsole[MAX_NR_CONSOLES];
 	int textmodedestroyed;
-	unsigned int sisusb_num_columns;	/* real number, not vt's idea */
+	unsigned int sisusb_num_columns;	/* real number, yest vt's idea */
 	int cur_start_addr, con_rolled_over;
 	int sisusb_cursor_loc, bad_cursor_pos;
 	int sisusb_cursor_size_from;
@@ -260,7 +260,7 @@ struct sisusb_info {
 
 	__u32 sisusb_vramsize;	/* framebuffer size in bytes */
 
-	__u32 sisusb_minor;
+	__u32 sisusb_miyesr;
 
 	__u32 sisusb_fbdevactive;	/* != 0 if framebuffer device active */
 

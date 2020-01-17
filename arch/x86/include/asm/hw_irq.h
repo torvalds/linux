@@ -87,7 +87,7 @@ struct irq_alloc_info {
 		struct {
 			int		ioapic_id;
 			int		ioapic_pin;
-			int		ioapic_node;
+			int		ioapic_yesde;
 			u32		ioapic_trigger : 1;
 			u32		ioapic_polarity : 1;
 			u32		ioapic_valid : 1;

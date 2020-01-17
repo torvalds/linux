@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/list.h>
@@ -271,7 +271,7 @@ static u16 get_r8a66597_usb_speed(enum usb_device_speed speed)
 		usbspd = HSMODE;
 		break;
 	default:
-		printk(KERN_ERR "r8a66597: unknown speed\n");
+		printk(KERN_ERR "r8a66597: unkyeswn speed\n");
 		break;
 	}
 
@@ -301,7 +301,7 @@ static void set_pipe_reg_addr(struct r8a66597_pipe *pipe, u8 dma_ch)
 	const unsigned long fifosel[] = {D0FIFOSEL, D1FIFOSEL, CFIFOSEL};
 	const unsigned long fifoctr[] = {D0FIFOCTR, D1FIFOCTR, CFIFOCTR};
 
-	if (dma_ch > R8A66597_PIPE_NO_DMA)	/* dma fifo not use? */
+	if (dma_ch > R8A66597_PIPE_NO_DMA)	/* dma fifo yest use? */
 		dma_ch = R8A66597_PIPE_NO_DMA;
 
 	pipe->fifoaddr = fifoaddr[dma_ch];
@@ -393,7 +393,7 @@ static u8 alloc_usb_address(struct r8a66597 *r8a66597, struct urb *urb)
 	}
 
 	dev_err(&urb->dev->dev,
-		"cannot communicate with a USB device more than 10.(%x)\n",
+		"canyest communicate with a USB device more than 10.(%x)\n",
 		r8a66597->address_map);
 
 	return 0;
@@ -416,7 +416,7 @@ static void free_usb_address(struct r8a66597 *r8a66597,
 	/*
 	 * Only when resetting USB, it is necessary to erase drvdata. When
 	 * a usb device with usb hub is disconnect, "dev->udev" is already
-	 * freed on usb_desconnect(). So we cannot access the data.
+	 * freed on usb_desconnect(). So we canyest access the data.
 	 */
 	if (reset)
 		dev_set_drvdata(&dev->udev->dev, NULL);
@@ -1323,7 +1323,7 @@ static void packet_read(struct r8a66597 *r8a66597, u16 pipenum)
 	if (unlikely((tmp & FRDY) == 0)) {
 		pipe_stop(r8a66597, td->pipe);
 		pipe_irq_disable(r8a66597, pipenum);
-		printk(KERN_ERR "r8a66597: in fifo not ready (%d)\n", pipenum);
+		printk(KERN_ERR "r8a66597: in fifo yest ready (%d)\n", pipenum);
 		finish_request(r8a66597, td, pipenum, td->urb, -EPIPE);
 		return;
 	}
@@ -1398,7 +1398,7 @@ static void packet_write(struct r8a66597 *r8a66597, u16 pipenum)
 	if (unlikely((tmp & FRDY) == 0)) {
 		pipe_stop(r8a66597, td->pipe);
 		pipe_irq_disable(r8a66597, pipenum);
-		printk(KERN_ERR "r8a66597: out fifo not ready (%d)\n", pipenum);
+		printk(KERN_ERR "r8a66597: out fifo yest ready (%d)\n", pipenum);
 		finish_request(r8a66597, td, pipenum, urb, -EPIPE);
 		return;
 	}
@@ -1895,12 +1895,12 @@ static int r8a66597_urb_enqueue(struct usb_hcd *hcd,
 	spin_lock_irqsave(&r8a66597->lock, flags);
 	if (!get_urb_to_r8a66597_dev(r8a66597, urb)) {
 		ret = -ENODEV;
-		goto error_not_linked;
+		goto error_yest_linked;
 	}
 
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (ret)
-		goto error_not_linked;
+		goto error_yest_linked;
 
 	if (!hep->hcpriv) {
 		hep->hcpriv = kzalloc(sizeof(struct r8a66597_pipe),
@@ -1947,7 +1947,7 @@ static int r8a66597_urb_enqueue(struct usb_hcd *hcd,
 error:
 	if (ret)
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
-error_not_linked:
+error_yest_linked:
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
 	return ret;
 }
@@ -2089,15 +2089,15 @@ static void r8a66597_check_detect_child(struct r8a66597 *r8a66597,
 					struct usb_hcd *hcd)
 {
 	struct usb_bus *bus;
-	unsigned long now_map[4];
+	unsigned long yesw_map[4];
 
-	memset(now_map, 0, sizeof(now_map));
+	memset(yesw_map, 0, sizeof(yesw_map));
 
 	mutex_lock(&usb_bus_idr_lock);
 	bus = idr_find(&usb_bus_idr, hcd->self.busnum);
 	if (bus && bus->root_hub) {
-		collect_usb_address_map(bus->root_hub, now_map);
-		update_usb_address_map(r8a66597, bus->root_hub, now_map);
+		collect_usb_address_map(bus->root_hub, yesw_map);
+		update_usb_address_map(r8a66597, bus->root_hub, yesw_map);
 	}
 	mutex_unlock(&usb_bus_idr_lock);
 }
@@ -2112,7 +2112,7 @@ static int r8a66597_hub_status_data(struct usb_hcd *hcd, char *buf)
 
 	spin_lock_irqsave(&r8a66597->lock, flags);
 
-	*buf = 0;	/* initialize (no change) */
+	*buf = 0;	/* initialize (yes change) */
 
 	for (i = 0; i < r8a66597->max_root_hub; i++) {
 		if (r8a66597->root_hub[i].port & 0xffff0000)
@@ -2437,7 +2437,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 	}
 
 	if (pdev->dev.platform_data == NULL) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "yes platform data\n");
 		ret = -ENODEV;
 		goto clean_up;
 	}
@@ -2459,7 +2459,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 		snprintf(clk_name, sizeof(clk_name), "usb%d", pdev->id);
 		r8a66597->clk = clk_get(&pdev->dev, clk_name);
 		if (IS_ERR(r8a66597->clk)) {
-			dev_err(&pdev->dev, "cannot get clock \"%s\"\n",
+			dev_err(&pdev->dev, "canyest get clock \"%s\"\n",
 				clk_name);
 			ret = PTR_ERR(r8a66597->clk);
 			goto clean_up2;
@@ -2472,7 +2472,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 	timer_setup(&r8a66597->rh_timer, r8a66597_timer, 0);
 	r8a66597->reg = reg;
 
-	/* make sure no interrupts are pending */
+	/* make sure yes interrupts are pending */
 	ret = r8a66597_clock_enable(r8a66597);
 	if (ret < 0)
 		goto clean_up3;

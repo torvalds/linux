@@ -64,7 +64,7 @@ static const int eld_speaker_allocation_bits[] = {
 	[4] = RC,
 	[5] = FLC | FRC,
 	[6] = RLC | RRC,
-	/* the following are not defined in ELD yet */
+	/* the following are yest defined in ELD yet */
 	[7] = 0,
 };
 
@@ -232,7 +232,7 @@ static void had_write_register(struct snd_intelhad *ctx, u32 reg, u32 val)
 /*
  * enable / disable audio configuration
  *
- * The normal read/modify should not directly be used on VLV2 for
+ * The yesrmal read/modify should yest directly be used on VLV2 for
  * updating AUD_CONFIG register.
  * This is because:
  * Bit6 of AUD_CONFIG register is writeonly due to a silicon bug on VLV2
@@ -430,7 +430,7 @@ static int had_channel_allocation(struct snd_intelhad *intelhaddata,
 	 * expand ELD's speaker allocation mask
 	 *
 	 * ELD tells the speaker mask in a compact(paired) form,
-	 * expand ELD's notions to match the ones used by Audio InfoFrame.
+	 * expand ELD's yestions to match the ones used by Audio InfoFrame.
 	 */
 
 	for (i = 0; i < ARRAY_SIZE(eld_speaker_allocation_bits); i++) {
@@ -874,7 +874,7 @@ static void had_prog_bd(struct snd_pcm_substream *substream,
 	u32 addr = substream->runtime->dma_addr + ofs;
 
 	addr |= AUD_BUF_VALID;
-	if (!substream->runtime->no_period_wakeup)
+	if (!substream->runtime->yes_period_wakeup)
 		addr |= AUD_BUF_INTR_EN;
 	had_write_register(intelhaddata, AUD_BUF_ADDR(idx), addr);
 	had_write_register(intelhaddata, AUD_BUF_LEN(idx),
@@ -986,7 +986,7 @@ static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 
 	substream = had_substream_get(intelhaddata);
 	if (!substream)
-		return; /* no stream? - bail out */
+		return; /* yes stream? - bail out */
 
 	if (!intelhaddata->connected) {
 		snd_pcm_stop_xrun(substream);
@@ -1004,7 +1004,7 @@ static void had_process_buffer_done(struct snd_intelhad *intelhaddata)
 }
 
 /*
- * The interrupt status 'sticky' bits might not be cleared by
+ * The interrupt status 'sticky' bits might yest be cleared by
  * setting '1' to that bit once...
  */
 static void wait_clear_underrun_bit(struct snd_intelhad *intelhaddata)
@@ -1277,7 +1277,7 @@ static snd_pcm_uframes_t had_pcm_pointer(struct snd_pcm_substream *substream)
 static int had_pcm_mmap(struct snd_pcm_substream *substream,
 			struct vm_area_struct *vma)
 {
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	return remap_pfn_range(vma, vma->vm_start,
 			substream->dma_buffer.addr >> PAGE_SHIFT,
 			vma->vm_end - vma->vm_start, vma->vm_page_prot);
@@ -1545,9 +1545,9 @@ static irqreturn_t display_pipe_interrupt_handler(int irq, void *dev_id)
 }
 
 /*
- * monitor plug/unplug notification from i915; just kick off the work
+ * monitor plug/unplug yestification from i915; just kick off the work
  */
-static void notify_audio_lpe(struct platform_device *pdev, int port)
+static void yestify_audio_lpe(struct platform_device *pdev, int port)
 {
 	struct snd_intelhad_card *card_ctx = platform_get_drvdata(pdev);
 	struct snd_intelhad *ctx;
@@ -1668,7 +1668,7 @@ static void hdmi_lpe_audio_free(struct snd_card *card)
 	int port;
 
 	spin_lock_irq(&pdata->lpe_audio_slock);
-	pdata->notify_audio_lpe = NULL;
+	pdata->yestify_audio_lpe = NULL;
 	spin_unlock_irq(&pdata->lpe_audio_slock);
 
 	for_each_port(card_ctx, port) {
@@ -1702,7 +1702,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
-		dev_err(&pdev->dev, "%s: quit: pdata not allocated by i915!!\n", __func__);
+		dev_err(&pdev->dev, "%s: quit: pdata yest allocated by i915!!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1713,7 +1713,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 
 	res_mmio = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mmio) {
-		dev_err(&pdev->dev, "Could not get IO_MEM resources\n");
+		dev_err(&pdev->dev, "Could yest get IO_MEM resources\n");
 		return -ENXIO;
 	}
 
@@ -1755,10 +1755,10 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		__func__, (unsigned int)res_mmio->start,
 		(unsigned int)res_mmio->end);
 
-	card_ctx->mmio_start = ioremap_nocache(res_mmio->start,
+	card_ctx->mmio_start = ioremap_yescache(res_mmio->start,
 					       (size_t)(resource_size(res_mmio)));
 	if (!card_ctx->mmio_start) {
-		dev_err(&pdev->dev, "Could not get ioremap\n");
+		dev_err(&pdev->dev, "Could yest get ioremap\n");
 		ret = -EACCES;
 		goto err;
 	}
@@ -1799,7 +1799,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &had_pcm_ops);
 
 		/* allocate dma pages;
-		 * try to allocate 600k buffer as default which is large enough
+		 * try to allocate 600k buffer as default which is large eyesugh
 		 */
 		snd_pcm_lib_preallocate_pages_for_all(pcm,
 						      SNDRV_DMA_TYPE_DEV_UC,
@@ -1838,13 +1838,13 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		goto err;
 
 	spin_lock_irq(&pdata->lpe_audio_slock);
-	pdata->notify_audio_lpe = notify_audio_lpe;
+	pdata->yestify_audio_lpe = yestify_audio_lpe;
 	spin_unlock_irq(&pdata->lpe_audio_slock);
 
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_mark_last_busy(&pdev->dev);
 
-	dev_dbg(&pdev->dev, "%s: handle pending notification\n", __func__);
+	dev_dbg(&pdev->dev, "%s: handle pending yestification\n", __func__);
 	for_each_port(card_ctx, port) {
 		struct snd_intelhad *ctx = &card_ctx->pcm_ctx[port];
 

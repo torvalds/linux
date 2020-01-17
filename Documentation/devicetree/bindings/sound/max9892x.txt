@@ -9,13 +9,13 @@ Required properties:
     - "maxim,max98926"
     - "maxim,max98927"
 
-  - vmon-slot-no : slot number used to send voltage information
+  - vmon-slot-yes : slot number used to send voltage information
                    or in inteleave mode this will be used as
                    interleave slot.
                    MAX98925/MAX98926 slot range : 0 ~ 30,  Default : 0
                    MAX98927 slot range : 0 ~ 15,  Default : 0
 
-  - imon-slot-no : slot number used to send current information
+  - imon-slot-yes : slot number used to send current information
                    MAX98925/MAX98926 slot range : 0 ~ 30,  Default : 0
                    MAX98927 slot range : 0 ~ 15,  Default : 0
 
@@ -34,8 +34,8 @@ Example:
 
 codec: max98927@3a {
    compatible = "maxim,max98927";
-   vmon-slot-no = <0>;
-   imon-slot-no = <1>;
+   vmon-slot-yes = <0>;
+   imon-slot-yes = <1>;
    interleave-mode = <0>;
    reg = <0x3a>;
 };

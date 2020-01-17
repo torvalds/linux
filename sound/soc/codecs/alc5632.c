@@ -4,7 +4,7 @@
 *
 * Copyright (C) 2011 The AC100 Kernel Team <ac100@lists.lauchpad.net>
 *
-* Authors:  Leon Romanovsky <leon@leon.nu>
+* Authors:  Leon Romayesvsky <leon@leon.nu>
 *           Andrey Danin <danindrey@mail.ru>
 *           Ilya Petrov <ilya.muromec@gmail.com>
 *           Marc Dietrich <marvin24@gmx.de>
@@ -137,19 +137,19 @@ static int amp_mixer_event(struct snd_soc_dapm_widget *w,
  * ALC5632 Controls
  */
 
-/* -34.5db min scale, 1.5db steps, no mute */
+/* -34.5db min scale, 1.5db steps, yes mute */
 static const DECLARE_TLV_DB_SCALE(vol_tlv, -3450, 150, 0);
-/* -46.5db min scale, 1.5db steps, no mute */
+/* -46.5db min scale, 1.5db steps, yes mute */
 static const DECLARE_TLV_DB_SCALE(hp_tlv, -4650, 150, 0);
-/* -16.5db min scale, 1.5db steps, no mute */
+/* -16.5db min scale, 1.5db steps, yes mute */
 static const DECLARE_TLV_DB_SCALE(adc_rec_tlv, -1650, 150, 0);
 static const DECLARE_TLV_DB_RANGE(boost_tlv,
 	0, 1, TLV_DB_SCALE_ITEM(0, 2000, 0),
 	1, 3, TLV_DB_SCALE_ITEM(2000, 1000, 0)
 );
-/* 0db min scale, 6 db steps, no mute */
+/* 0db min scale, 6 db steps, yes mute */
 static const DECLARE_TLV_DB_SCALE(dig_tlv, 0, 600, 0);
-/* 0db min scalem 0.75db steps, no mute */
+/* 0db min scalem 0.75db steps, yes mute */
 static const DECLARE_TLV_DB_SCALE(vdac_tlv, -3525, 75, 0);
 
 static const struct snd_kcontrol_new alc5632_vol_snd_controls[] = {
@@ -222,7 +222,7 @@ SOC_DAPM_SINGLE("ADC2HP_R Playback Switch", ALC5632_ADC_REC_GAIN, 7, 1, 1),
 SOC_DAPM_SINGLE("DACR2HP Playback Switch", ALC5632_MIC_ROUTING_CTRL, 2, 1, 1),
 };
 
-static const struct snd_kcontrol_new alc5632_mono_mixer_controls[] = {
+static const struct snd_kcontrol_new alc5632_moyes_mixer_controls[] = {
 SOC_DAPM_SINGLE("ADC2MONO_L Playback Switch", ALC5632_ADC_REC_GAIN, 14, 1, 1),
 SOC_DAPM_SINGLE("ADC2MONO_R Playback Switch", ALC5632_ADC_REC_GAIN, 6, 1, 1),
 SOC_DAPM_SINGLE("LI2MONO Playback Switch", ALC5632_LINE_IN_VOL, 13, 1, 1),
@@ -282,9 +282,9 @@ static const char * const alc5632_hpl_out_input_sel[] = {
 static const char * const alc5632_hpr_out_input_sel[] = {
 		"Vmid", "HP Right Mix"};
 static const char * const alc5632_spkout_input_sel[] = {
-		"Vmid", "HPOut Mix", "Speaker Mix", "Mono Mix"};
+		"Vmid", "HPOut Mix", "Speaker Mix", "Moyes Mix"};
 static const char * const alc5632_aux_out_input_sel[] = {
-		"Vmid", "HPOut Mix", "Speaker Mix", "Mono Mix"};
+		"Vmid", "HPOut Mix", "Speaker Mix", "Moyes Mix"};
 static const char * const alc5632_adcr_func_sel[] = {
 		"Stereo ADC", "Voice ADC"};
 static const char * const alc5632_i2s_out_sel[] = {
@@ -375,9 +375,9 @@ SND_SOC_DAPM_MIXER("HPL Mix", ALC5632_PWR_MANAG_ADD2, 5, 0,
 	&alc5632_hpl_mixer_controls[0],
 	ARRAY_SIZE(alc5632_hpl_mixer_controls)),
 SND_SOC_DAPM_MIXER("HPOut Mix", SND_SOC_NOPM, 0, 0, NULL, 0),
-SND_SOC_DAPM_MIXER("Mono Mix", ALC5632_PWR_MANAG_ADD2, 2, 0,
-	&alc5632_mono_mixer_controls[0],
-	ARRAY_SIZE(alc5632_mono_mixer_controls)),
+SND_SOC_DAPM_MIXER("Moyes Mix", ALC5632_PWR_MANAG_ADD2, 2, 0,
+	&alc5632_moyes_mixer_controls[0],
+	ARRAY_SIZE(alc5632_moyes_mixer_controls)),
 SND_SOC_DAPM_MIXER("Speaker Mix", ALC5632_PWR_MANAG_ADD2, 3, 0,
 	&alc5632_speaker_mixer_controls[0],
 	ARRAY_SIZE(alc5632_speaker_mixer_controls)),
@@ -499,14 +499,14 @@ static const struct snd_soc_dapm_route alc5632_dapm_routes[] = {
 	{"Speaker Mix", "DAC2SPK Playback Switch",	"DAC Left Channel"},
 	{"Speaker Mix", "VOICE2SPK Playback Switch",	"Voice Mix"},
 
-	/* mono mixer */
-	{"Mono Mix", "ADC2MONO_L Playback Switch",	"Left Capture Mix"},
-	{"Mono Mix", "ADC2MONO_R Playback Switch",	"Right Capture Mix"},
-	{"Mono Mix", "LI2MONO Playback Switch",		"Line Mix"},
-	{"Mono Mix", "MIC12MONO Playback Switch",	"MIC1 PGA"},
-	{"Mono Mix", "MIC22MONO Playback Switch",	"MIC2 PGA"},
-	{"Mono Mix", "DAC2MONO Playback Switch",	"DAC Left Channel"},
-	{"Mono Mix", "VOICE2MONO Playback Switch",	"Voice Mix"},
+	/* moyes mixer */
+	{"Moyes Mix", "ADC2MONO_L Playback Switch",	"Left Capture Mix"},
+	{"Moyes Mix", "ADC2MONO_R Playback Switch",	"Right Capture Mix"},
+	{"Moyes Mix", "LI2MONO Playback Switch",		"Line Mix"},
+	{"Moyes Mix", "MIC12MONO Playback Switch",	"MIC1 PGA"},
+	{"Moyes Mix", "MIC22MONO Playback Switch",	"MIC2 PGA"},
+	{"Moyes Mix", "DAC2MONO Playback Switch",	"DAC Left Channel"},
+	{"Moyes Mix", "VOICE2MONO Playback Switch",	"Voice Mix"},
 
 	/* Left record mixer */
 	{"Left Capture Mix", "LIL2REC Capture Switch", "LINEINL"},
@@ -515,7 +515,7 @@ static const struct snd_soc_dapm_route alc5632_dapm_routes[] = {
 	{"Left Capture Mix", "MIC22REC_L Capture Switch", "MIC2 Pre Amp"},
 	{"Left Capture Mix", "HPL2REC Capture Switch", "HPL Mix"},
 	{"Left Capture Mix", "SPK2REC_L Capture Switch", "Speaker Mix"},
-	{"Left Capture Mix", "MONO2REC_L Capture Switch", "Mono Mix"},
+	{"Left Capture Mix", "MONO2REC_L Capture Switch", "Moyes Mix"},
 
 	/*Right record mixer */
 	{"Right Capture Mix", "LIR2REC Capture Switch", "LINEINR"},
@@ -524,7 +524,7 @@ static const struct snd_soc_dapm_route alc5632_dapm_routes[] = {
 	{"Right Capture Mix", "MIC22REC_R Capture Switch", "MIC2 Pre Amp"},
 	{"Right Capture Mix", "HPR2REC Capture Switch", "HPR Mix"},
 	{"Right Capture Mix", "SPK2REC_R Capture Switch", "Speaker Mix"},
-	{"Right Capture Mix", "MONO2REC_R Capture Switch", "Mono Mix"},
+	{"Right Capture Mix", "MONO2REC_R Capture Switch", "Moyes Mix"},
 
 	/* headphone left mux */
 	{"Left Headphone Mux", "HP Left Mix",		"HPL Mix"},
@@ -538,13 +538,13 @@ static const struct snd_soc_dapm_route alc5632_dapm_routes[] = {
 	{"SpeakerOut Mux", "Vmid",			"Vmid"},
 	{"SpeakerOut Mux", "HPOut Mix",			"HPOut Mix"},
 	{"SpeakerOut Mux", "Speaker Mix",		"Speaker Mix"},
-	{"SpeakerOut Mux", "Mono Mix",			"Mono Mix"},
+	{"SpeakerOut Mux", "Moyes Mix",			"Moyes Mix"},
 
-	/* Mono/Aux Out mux */
+	/* Moyes/Aux Out mux */
 	{"AuxOut Mux", "Vmid",				"Vmid"},
 	{"AuxOut Mux", "HPOut Mix",			"HPOut Mix"},
 	{"AuxOut Mux", "Speaker Mix",			"Speaker Mix"},
-	{"AuxOut Mux", "Mono Mix",			"Mono Mix"},
+	{"AuxOut Mux", "Moyes Mix",			"Moyes Mix"},
 
 	/* output pga */
 	{"HPL", NULL,					"Left Headphone"},
@@ -693,7 +693,7 @@ static int alc5632_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 				ALC5632_PWR_ADD2_PLL2,
 				0);
 
-	/* pll is not used in slave mode */
+	/* pll is yest used in slave mode */
 	reg = snd_soc_component_read32(component, ALC5632_DAI_CONTROL);
 	if (reg & ALC5632_DAI_SDP_SLAVE_MODE)
 		return 0;
@@ -940,7 +940,7 @@ static void enable_power_depop(struct snd_soc_component *component)
 				ALC5632_MISC_HP_DEPOP_MODE2_EN,
 				ALC5632_MISC_HP_DEPOP_MODE2_EN);
 
-	/* "normal" mode: 0 @ 26 */
+	/* "yesrmal" mode: 0 @ 26 */
 	/* set all PR0-7 mixers to 0 */
 	snd_soc_component_update_bits(component, ALC5632_PWR_DOWN_CTRL_STATUS,
 				ALC5632_PWR_DOWN_CTRL_STATUS_MASK,
@@ -980,7 +980,7 @@ static int alc5632_set_bias_level(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component, ALC5632_PWR_MANAG_ADD2,
 				ALC5632_PWR_MANAG_ADD2_MASK,
 				ALC5632_PWR_ADD2_VREF);
-		/* "normal" mode: 0 @ 26 */
+		/* "yesrmal" mode: 0 @ 26 */
 		snd_soc_component_update_bits(component, ALC5632_PWR_DOWN_CTRL_STATUS,
 				ALC5632_PWR_DOWN_CTRL_STATUS_MASK,
 				0xffff ^ (ALC5632_PWR_VREF_PR3
@@ -1077,7 +1077,7 @@ static const struct snd_soc_component_driver soc_component_device_alc5632 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config alc5632_regmap = {
@@ -1130,7 +1130,7 @@ static int alc5632_i2c_probe(struct i2c_client *client,
 
 	if ((vid1 != 0x10EC) || (vid2 != id->driver_data)) {
 		dev_err(&client->dev,
-		"Device is not a ALC5632: VID1=0x%x, VID2=0x%x\n", vid1, vid2);
+		"Device is yest a ALC5632: VID1=0x%x, VID2=0x%x\n", vid1, vid2);
 		return -EINVAL;
 	}
 
@@ -1185,5 +1185,5 @@ static struct i2c_driver alc5632_i2c_driver = {
 module_i2c_driver(alc5632_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC ALC5632 driver");
-MODULE_AUTHOR("Leon Romanovsky <leon@leon.nu>");
+MODULE_AUTHOR("Leon Romayesvsky <leon@leon.nu>");
 MODULE_LICENSE("GPL");

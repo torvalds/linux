@@ -5,7 +5,7 @@ The functional split of the controller requires two drivers to operate:
 the nand controller interface driver and the ECC engine driver.
 
 The hardware description for both devices must be captured as device
-tree nodes.
+tree yesdes.
 
 1) NFC NAND Controller Interface (NFI):
 =======================================
@@ -20,7 +20,7 @@ Required NFI properties:
 - interrupts:			Interrupts of NFI.
 - clocks:			NFI required clocks.
 - clock-names:			NFI clocks internal name.
-- ecc-engine:			Required ECC Engine node.
+- ecc-engine:			Required ECC Engine yesde.
 - #address-cells:		NAND chip index, should be 1.
 - #size-cells:			Should be 0.
 
@@ -39,9 +39,9 @@ Example:
         };
 
 Platform related properties, should be set in {platform_name}.dts:
-- children nodes:	NAND chips.
+- children yesdes:	NAND chips.
 
-Children nodes properties:
+Children yesdes properties:
 - reg:			Chip Select Signal, default 0.
 			Set as reg = <0>, <1> when need 2 CS.
 Optional:
@@ -78,12 +78,12 @@ Optional:
 					then it should be always 14. And if max
 					ecc step size is 512, then it should be
 					always 13.
-			If the result does not match any one of the listed
+			If the result does yest match any one of the listed
 			choices above, please select the smaller valid value from
 			the list.
 			(otherwise the driver will do the adjustment at runtime)
 - pinctrl-names:	Default NAND pin GPIO setting name.
-- pinctrl-0:		GPIO setting node.
+- pinctrl-0:		GPIO setting yesde.
 
 Example:
 	&pio {
@@ -130,7 +130,7 @@ Example:
 		};
 	};
 
-NAND chip optional subnodes:
+NAND chip optional subyesdes:
 - Partitions, see Documentation/devicetree/bindings/mtd/partition.txt
 
 Example:

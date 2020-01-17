@@ -148,7 +148,7 @@ static int rtl8211_config_aneg(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	/* Quirk was copied from vendor driver. Unfortunately it includes no
+	/* Quirk was copied from vendor driver. Unfortunately it includes yes
 	 * description of the magic numbers.
 	 */
 	if (phydev->speed == SPEED_100 && phydev->autoneg == AUTONEG_DISABLE) {
@@ -534,8 +534,8 @@ static struct phy_driver realtek_drvs[] = {
 		 * irq is requested and ACKed by reading the status register,
 		 * which is done by the irqchip code.
 		 */
-		.ack_interrupt	= genphy_no_ack_interrupt,
-		.config_intr	= genphy_no_config_intr,
+		.ack_interrupt	= genphy_yes_ack_interrupt,
+		.config_intr	= genphy_yes_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 	},

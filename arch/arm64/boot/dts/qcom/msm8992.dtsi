@@ -6,7 +6,7 @@
 #include <dt-bindings/clock/qcom,gcc-msm8994.h>
 
 / {
-	model = "Qualcomm Technologies, Inc. MSM 8992";
+	model = "Qualcomm Techyeslogies, Inc. MSM 8992";
 	compatible = "qcom,msm8992";
 	// msm-id needed by bootloader for selecting correct blob
 	qcom,msm-id = <251 0>, <252 0>;
@@ -244,7 +244,7 @@
 
 		smem_region: smem@6a00000 {
 			reg = <0x0 0x6a00000 0x0 0x200000>;
-			no-map;
+			yes-map;
 		};
 	};
 

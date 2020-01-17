@@ -3,7 +3,7 @@
  * PIC32 pinctrl driver
  *
  * Joshua Henderson, <joshua.henderson@microchip.com>
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techyeslogy Inc.  All rights reserved.
  */
 #include <linux/clk.h>
 #include <linux/gpio/driver.h>
@@ -1734,7 +1734,7 @@ static const struct pinctrl_ops pic32_pinctrl_ops = {
 	.get_groups_count = pic32_pinctrl_get_groups_count,
 	.get_group_name = pic32_pinctrl_get_group_name,
 	.get_group_pins = pic32_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -1789,7 +1789,7 @@ static int pic32_pinmux_enable(struct pinctrl_dev *pctldev,
 		functions++;
 	}
 
-	dev_err(pctl->dev, "cannot mux pin %u to function %u\n", group, func);
+	dev_err(pctl->dev, "canyest mux pin %u to function %u\n", group, func);
 
 	return -EINVAL;
 }
@@ -1907,7 +1907,7 @@ static int pic32_pinconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 		arg = !(readl(bank->reg_base + TRIS_REG) & mask);
 		break;
 	default:
-		dev_err(pctl->dev, "Property %u not supported\n", param);
+		dev_err(pctl->dev, "Property %u yest supported\n", param);
 		return -ENOTSUPP;
 	}
 
@@ -1963,7 +1963,7 @@ static int pic32_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 						    offset, arg);
 			break;
 		default:
-			dev_err(pctl->dev, "Property %u not supported\n",
+			dev_err(pctl->dev, "Property %u yest supported\n",
 				param);
 			return -ENOTSUPP;
 		}
@@ -2198,14 +2198,14 @@ static int pic32_pinctrl_probe(struct platform_device *pdev)
 
 static int pic32_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct pic32_gpio_bank *bank;
 	u32 id;
 	int irq, ret;
 	struct gpio_irq_chip *girq;
 
 	if (of_property_read_u32(np, "microchip,gpio-bank", &id)) {
-		dev_err(&pdev->dev, "microchip,gpio-bank property not found\n");
+		dev_err(&pdev->dev, "microchip,gpio-bank property yest found\n");
 		return -EINVAL;
 	}
 
@@ -2238,7 +2238,7 @@ static int pic32_gpio_probe(struct platform_device *pdev)
 	}
 
 	bank->gpio_chip.parent = &pdev->dev;
-	bank->gpio_chip.of_node = np;
+	bank->gpio_chip.of_yesde = np;
 	girq = &bank->gpio_chip.irq;
 	girq->chip = &bank->irq_chip;
 	girq->parent_handler = pic32_gpio_irq_handler;

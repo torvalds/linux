@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -278,7 +278,7 @@ void mpc1_remove_mpcc(
 			tree->opp_list = mpcc_to_remove->mpcc_bot;
 			REG_UPDATE(MUX[tree->opp_id], MPC_OUT_MUX, tree->opp_list->mpcc_id);
 		} else {
-			/* there are no other MPCC is list */
+			/* there are yes other MPCC is list */
 			tree->opp_list = NULL;
 			REG_UPDATE(MUX[tree->opp_id], MPC_OUT_MUX, 0xf);
 		}
@@ -312,7 +312,7 @@ void mpc1_remove_mpcc(
 		REG_SET(MPCC_BOT_SEL[mpcc_id], 0, MPCC_BOT_SEL, 0xf);
 		REG_SET(MPCC_OPP_ID[mpcc_id],  0, MPCC_OPP_ID,  0xf);
 
-		/* mark this mpcc as not in use */
+		/* mark this mpcc as yest in use */
 		mpc10->mpcc_in_use_mask &= ~(1 << mpcc_id);
 		mpcc_to_remove->dpp_id = 0xf;
 		mpcc_to_remove->mpcc_bot = NULL;
@@ -458,8 +458,8 @@ static const struct mpc_funcs dcn10_mpc_funcs = {
 	.init_mpcc_list_from_hw = mpc1_init_mpcc_list_from_hw,
 	.update_blending = mpc1_update_blending,
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-	.set_denorm = NULL,
-	.set_denorm_clamp = NULL,
+	.set_deyesrm = NULL,
+	.set_deyesrm_clamp = NULL,
 	.set_output_csc = NULL,
 	.set_output_gamma = NULL,
 #endif

@@ -15,7 +15,7 @@
 #include <asm/epapr_hcalls.h>
 #include <asm/hw_irq.h>
 
-/* 64-bit version only for now */
+/* 64-bit version only for yesw */
 #ifdef CONFIG_PPC64
 
 .macro BOOK3E_IDLE name loop
@@ -64,7 +64,7 @@ _GLOBAL(\name)
 	ori	r10,r10,_TLF_NAPPING
 	std	r10,TI_LOCAL_FLAGS(r11)
 
-	/* We can now re-enable hard interrupts and go to sleep */
+	/* We can yesw re-enable hard interrupts and go to sleep */
 	wrteei	1
 	\loop
 
@@ -90,9 +90,9 @@ idle_loop:
 .global epapr_ev_idle_start
 epapr_ev_idle_start:
 	li      r3, -1
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
 	b       idle_loop
 .endm
 

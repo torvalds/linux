@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Only give sleepers 50% of their service deficit. This allows
- * them to run sooner, but does not allow tons of sleepers to
+ * them to run sooner, but does yest allow tons of sleepers to
  * rip the spread apart.
  */
 SCHED_FEAT(GENTLE_FAIR_SLEEPERS, true)
 
 /*
- * Place new tasks ahead so that they do not starve already running
+ * Place new tasks ahead so that they do yest starve already running
  * tasks
  */
 SCHED_FEAT(START_DEBIT, true)
@@ -41,7 +41,7 @@ SCHED_FEAT(HRTICK, false)
 SCHED_FEAT(DOUBLE_TICK, false)
 
 /*
- * Decrement CPU capacity based on time not spent running tasks
+ * Decrement CPU capacity based on time yest spent running tasks
  */
 SCHED_FEAT(NONTASK_CAPACITY, true)
 
@@ -60,7 +60,7 @@ SCHED_FEAT(SIS_PROP, true)
 /*
  * Issue a WARN when we do multiple update_rq_clock() calls
  * in a single rq->lock section. Default disabled because the
- * annotations are not complete.
+ * anyestations are yest complete.
  */
 SCHED_FEAT(WARN_DOUBLE_CLOCK, false)
 

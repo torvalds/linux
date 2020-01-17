@@ -7,14 +7,14 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * Check for obligatory CPU features and abort if the features are not
+ * Check for obligatory CPU features and abort if the features are yest
  * present.  This code should be compilable as 16-, 32- or 64-bit
  * code, so be very careful with types and inline assembly.
  *
- * This code should not contain any messages; that requires an
+ * This code should yest contain any messages; that requires an
  * additional wrapper.
  *
- * As written, this code is not safe for inclusion into the kernel
+ * As written, this code is yest safe for inclusion into the kernel
  * proper (after FPU initialization, in particular).
  */
 
@@ -36,20 +36,20 @@ static const u32 req_flags[NCAPINTS] =
 {
 	REQUIRED_MASK0,
 	REQUIRED_MASK1,
-	0, /* REQUIRED_MASK2 not implemented in this file */
-	0, /* REQUIRED_MASK3 not implemented in this file */
+	0, /* REQUIRED_MASK2 yest implemented in this file */
+	0, /* REQUIRED_MASK3 yest implemented in this file */
 	REQUIRED_MASK4,
-	0, /* REQUIRED_MASK5 not implemented in this file */
+	0, /* REQUIRED_MASK5 yest implemented in this file */
 	REQUIRED_MASK6,
-	0, /* REQUIRED_MASK7 not implemented in this file */
-	0, /* REQUIRED_MASK8 not implemented in this file */
-	0, /* REQUIRED_MASK9 not implemented in this file */
-	0, /* REQUIRED_MASK10 not implemented in this file */
-	0, /* REQUIRED_MASK11 not implemented in this file */
-	0, /* REQUIRED_MASK12 not implemented in this file */
-	0, /* REQUIRED_MASK13 not implemented in this file */
-	0, /* REQUIRED_MASK14 not implemented in this file */
-	0, /* REQUIRED_MASK15 not implemented in this file */
+	0, /* REQUIRED_MASK7 yest implemented in this file */
+	0, /* REQUIRED_MASK8 yest implemented in this file */
+	0, /* REQUIRED_MASK9 yest implemented in this file */
+	0, /* REQUIRED_MASK10 yest implemented in this file */
+	0, /* REQUIRED_MASK11 yest implemented in this file */
+	0, /* REQUIRED_MASK12 yest implemented in this file */
+	0, /* REQUIRED_MASK13 yest implemented in this file */
+	0, /* REQUIRED_MASK14 yest implemented in this file */
+	0, /* REQUIRED_MASK15 yest implemented in this file */
 	REQUIRED_MASK16,
 };
 
@@ -209,15 +209,15 @@ int check_knl_erratum(void)
 	/*
 	 * This erratum affects the Accessed/Dirty bits, and can
 	 * cause stray bits to be set in !Present PTEs.  We have
-	 * enough bits in our 64-bit PTEs (which we have on real
+	 * eyesugh bits in our 64-bit PTEs (which we have on real
 	 * 64-bit mode or PAE) to avoid using these troublesome
-	 * bits.  But, we do not have enough space in our 32-bit
-	 * PTEs.  So, refuse to run on 32-bit non-PAE kernels.
+	 * bits.  But, we do yest have eyesugh space in our 32-bit
+	 * PTEs.  So, refuse to run on 32-bit yesn-PAE kernels.
 	 */
 	if (IS_ENABLED(CONFIG_X86_64) || IS_ENABLED(CONFIG_X86_PAE))
 		return 0;
 
-	puts("This 32-bit kernel can not run on this Xeon Phi x200\n"
+	puts("This 32-bit kernel can yest run on this Xeon Phi x200\n"
 	     "processor due to a processor erratum.  Use a 64-bit\n"
 	     "kernel, or enable PAE in this 32-bit kernel.\n\n");
 

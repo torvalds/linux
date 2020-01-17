@@ -3,7 +3,7 @@
  * NFS protocol definitions
  *
  * This file contains constants mostly for Version 2 of the protocol,
- * but also has a couple of NFSv3 bits in (notably the error codes).
+ * but also has a couple of NFSv3 bits in (yestably the error codes).
  */
 #ifndef _LINUX_NFS_H
 #define _LINUX_NFS_H
@@ -38,7 +38,7 @@ static inline void nfs_copy_fh(struct nfs_fh *target, const struct nfs_fh *sourc
 
 
 /*
- * This is really a general kernel constant, but since nothing like
+ * This is really a general kernel constant, but since yesthing like
  * this is defined in the kernel headers, I have to do it here.
  */
 #define NFS_OFFSET_MAX		((__s64)((~(__u64)0) >> 1))

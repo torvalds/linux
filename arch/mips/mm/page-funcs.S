@@ -5,7 +5,7 @@
  *
  * Micro-assembler generated clear_page/copy_page functions.
  *
- * Copyright (C) 2012  MIPS Technologies, Inc.
+ * Copyright (C) 2012  MIPS Techyeslogies, Inc.
  * Copyright (C) 2012  Ralf Baechle <ralf@linux-mips.org>
  */
 #include <asm/asm.h>

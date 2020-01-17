@@ -18,9 +18,9 @@ static inline void prepare_switch_to(struct task_struct *next)
 #ifdef CONFIG_VMAP_STACK
 	/*
 	 * If we switch to a stack that has a top-level paging entry
-	 * that is not present in the current mm, the resulting #PF will
+	 * that is yest present in the current mm, the resulting #PF will
 	 * will be promoted to a double-fault and we'll panic.  Probe
-	 * the new stack now so that vmalloc_fault can fix up the page
+	 * the new stack yesw so that vmalloc_fault can fix up the page
 	 * tables if needed.  This can only happen if we use a stack
 	 * in vmap space.
 	 *
@@ -75,7 +75,7 @@ do {									\
 #ifdef CONFIG_X86_32
 static inline void refresh_sysenter_cs(struct thread_struct *thread)
 {
-	/* Only happens when SEP is enabled, no need to test "SEP"arately: */
+	/* Only happens when SEP is enabled, yes need to test "SEP"arately: */
 	if (unlikely(this_cpu_read(cpu_tss_rw.x86_tss.ss1) == thread->sysenter_cs))
 		return;
 
@@ -98,7 +98,7 @@ static inline void update_task_stack(struct task_struct *task)
 	 * x86-64 updates x86_tss.sp1 via cpu_current_top_of_stack. That
 	 * doesn't work on x86-32 because sp1 and
 	 * cpu_current_top_of_stack have different values (because of
-	 * the non-zero stack-padding on 32bit).
+	 * the yesn-zero stack-padding on 32bit).
 	 */
 	if (static_cpu_has(X86_FEATURE_XENPV))
 		load_sp0(task_top_of_stack(task));

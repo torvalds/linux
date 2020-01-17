@@ -1,10 +1,10 @@
 #! /bin/bash
 # SPDX-License-Identifier: GPL-2.0
-# (c) 2015, Quentin Casasnovas <quentin.casasnovas@oracle.com>
+# (c) 2015, Quentin Casasyesvas <quentin.casasyesvas@oracle.com>
 
 obj=$1
 
-file ${obj} | grep -q ELF || (echo "${obj} is not and ELF file." 1>&2 ; exit 0)
+file ${obj} | grep -q ELF || (echo "${obj} is yest and ELF file." 1>&2 ; exit 0)
 
 # Bail out early if there isn't an __ex_table section in this object file.
 objdump -hj __ex_table ${obj} 2> /dev/null > /dev/null
@@ -24,7 +24,7 @@ suspicious_relocs=$(objdump -rj __ex_table ${obj}  | tail -n +6 |
 # white listed.  If you're adding a new section in the Linux kernel, and
 # you're expecting this section to contain code which can fault (i.e. the
 # __ex_table relocation to your new section is expected), simply add your
-# new section to the white_list variable above.  If not, you're probably
+# new section to the white_list variable above.  If yest, you're probably
 # doing something wrong and the rest of this code is just trying to print
 # you more information about it.
 
@@ -76,7 +76,7 @@ function is_executable_section()
 function handle_suspicious_generic_reloc()
 {
     if is_executable_section ${section}; then
-	# We've got a relocation to a non white listed _executable_
+	# We've got a relocation to a yesn white listed _executable_
 	# section, print a warning so the developper adds the section to
 	# the white list or fix his code.  We try to pretty-print the file
 	# and line number where that relocation was added.
@@ -84,9 +84,9 @@ function handle_suspicious_generic_reloc()
 	addr2line -fip -j ${section} -e ${obj} ${section_offset} | awk '{print "\t" $0}'
     else
 	# Something is definitively wrong here since we've got a relocation
-	# to a non-executable section, there's no way this would ever be
+	# to a yesn-executable section, there's yes way this would ever be
 	# running in the kernel.
-	echo "Error: found a reference to non-executable section \"${section}\" in __ex_table at offset ${section_offset}"
+	echo "Error: found a reference to yesn-executable section \"${section}\" in __ex_table at offset ${section_offset}"
 	error=true
     fi
 }
@@ -103,7 +103,7 @@ function handle_suspicious_reloc()
     esac
 }
 
-function diagnose()
+function diagyesse()
 {
 
     for reloc in ${suspicious_relocs}; do
@@ -125,20 +125,20 @@ function diagnose()
 	fi
 
 	# Will either print a warning if the relocation happens to be in a
-	# section we do not know but has executable bit set, or error out.
+	# section we do yest kyesw but has executable bit set, or error out.
 	handle_suspicious_reloc
     done
 }
 
 function check_debug_info() {
     objdump -hj .debug_info ${obj} 2> /dev/null > /dev/null ||
-	echo -e "${obj} does not contain debug information, the addr2line output will be limited.\n" \
+	echo -e "${obj} does yest contain debug information, the addr2line output will be limited.\n" \
 	     "Recompile ${obj} with CONFIG_DEBUG_INFO to get a more useful output."
 }
 
 check_debug_info
 
-diagnose
+diagyesse
 
 if [ "${error}" ]; then
     exit 1

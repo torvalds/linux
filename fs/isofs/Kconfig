@@ -3,7 +3,7 @@ config ISO9660_FS
 	tristate "ISO 9660 CDROM file system support"
 	help
 	  This is the standard file system used on CD-ROMs.  It was previously
-	  known as "High Sierra File System" and is called "hsfs" on other
+	  kyeswn as "High Sierra File System" and is called "hsfs" on other
 	  Unix systems.  The so-called Rock-Ridge extensions which allow for
 	  long Unix filenames and symbolic links are also supported by this
 	  driver.  If you have a CD-ROM drive and want to do more with it than

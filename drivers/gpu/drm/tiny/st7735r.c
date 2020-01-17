@@ -2,7 +2,7 @@
 /*
  * DRM driver for Sitronix ST7735R panels
  *
- * Copyright 2017 David Lechner <david@lechnology.com>
+ * Copyright 2017 David Lechner <david@lechyeslogy.com>
  */
 
 #include <linux/backlight.h>
@@ -132,7 +132,7 @@ static struct drm_driver st7735r_driver = {
 	.desc			= "Sitronix ST7735R",
 	.date			= "20171128",
 	.major			= 1,
-	.minor			= 0,
+	.miyesr			= 0,
 };
 
 static const struct of_device_id st7735r_of_match[] = {
@@ -193,7 +193,7 @@ static int st7735r_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	/* Cannot read from Adafruit 1.8" display via SPI */
+	/* Canyest read from Adafruit 1.8" display via SPI */
 	dbi->read_commands = NULL;
 
 	ret = mipi_dbi_dev_init(dbidev, &jd_t18003_t01_pipe_funcs, &jd_t18003_t01_mode, rotation);
@@ -242,5 +242,5 @@ static struct spi_driver st7735r_spi_driver = {
 module_spi_driver(st7735r_spi_driver);
 
 MODULE_DESCRIPTION("Sitronix ST7735R DRM driver");
-MODULE_AUTHOR("David Lechner <david@lechnology.com>");
+MODULE_AUTHOR("David Lechner <david@lechyeslogy.com>");
 MODULE_LICENSE("GPL");

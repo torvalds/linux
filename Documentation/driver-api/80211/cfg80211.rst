@@ -219,10 +219,10 @@ Actions and configuration
    :functions: cfg80211_mgmt_tx_status
 
 .. kernel-doc:: include/net/cfg80211.h
-   :functions: cfg80211_cqm_rssi_notify
+   :functions: cfg80211_cqm_rssi_yestify
 
 .. kernel-doc:: include/net/cfg80211.h
-   :functions: cfg80211_cqm_pktloss_notify
+   :functions: cfg80211_cqm_pktloss_yestify
 
 .. kernel-doc:: include/net/cfg80211.h
    :functions: cfg80211_michael_mic_failure

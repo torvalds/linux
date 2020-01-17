@@ -57,7 +57,7 @@ static void usb_acecad_irq(struct urb *urb)
 			__func__, urb->status);
 		return;
 	default:
-		dev_dbg(&intf->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&intf->dev, "%s - yesnzero urb status received: %d\n",
 			__func__, urb->status);
 		goto resubmit;
 	}

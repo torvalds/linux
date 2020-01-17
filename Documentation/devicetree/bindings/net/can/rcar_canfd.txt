@@ -14,7 +14,7 @@ Required properties:
   - "renesas,r8a77990-canfd" for R8A77990 (R-Car E3) compatible controller.
   - "renesas,r8a77995-canfd" for R8A77995 (R-Car D3) compatible controller.
 
-  When compatible with the generic version, nodes must list the
+  When compatible with the generic version, yesdes must list the
   SoC-specific version corresponding to the platform first, followed by the
   family-specific and/or generic versions.
 
@@ -25,15 +25,15 @@ Required properties:
 - pinctrl-0: pin control group to be used for this controller.
 - pinctrl-names: must be "default".
 
-Required child nodes:
-The controller supports two channels and each is represented as a child node.
-The name of the child nodes are "channel0" and "channel1" respectively. Each
-child node supports the "status" property only, which is used to
+Required child yesdes:
+The controller supports two channels and each is represented as a child yesde.
+The name of the child yesdes are "channel0" and "channel1" respectively. Each
+child yesde supports the "status" property only, which is used to
 enable/disable the respective channel.
 
 Required properties for R8A774A1, R8A774C0, R8A7795, R8A7796, R8A77965,
 R8A77990, and R8A77995:
-In the denoted SoCs, canfd clock is a div6 clock and can be used by both CAN
+In the deyested SoCs, canfd clock is a div6 clock and can be used by both CAN
 and CAN FD controller at the same time. It needs to be scaled to maximum
 frequency if any of these controllers use it. This is done using the below
 properties:
@@ -45,7 +45,7 @@ Optional property:
 The controller can operate in either CAN FD only mode (default) or
 Classical CAN only mode. The mode is global to both the channels. In order to
 enable the later, define the following optional property.
- - renesas,no-can-fd: puts the controller in Classical CAN only mode.
+ - renesas,yes-can-fd: puts the controller in Classical CAN only mode.
 
 Example
 -------
@@ -83,7 +83,7 @@ E.g. below enables Channel 1 alone in the board in Classical CAN only mode.
 &canfd {
 	pinctrl-0 = <&canfd1_pins>;
 	pinctrl-names = "default";
-	renesas,no-can-fd;
+	renesas,yes-can-fd;
 	status = "okay";
 
 	channel1 {

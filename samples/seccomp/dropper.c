@@ -9,12 +9,12 @@
  * and can serve as a starting point for developing
  * applications using prctl(PR_SET_SECCOMP, 2, ...).
  *
- * When run, returns the specified errno for the specified
+ * When run, returns the specified erryes for the specified
  * system call number against the given architecture.
  *
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <linux/audit.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 {
 	if (argc < 5) {
 		fprintf(stderr, "Usage:\n"
-			"dropper <syscall_nr> <arch> <errno> <prog> [<args>]\n"
+			"dropper <syscall_nr> <arch> <erryes> <prog> [<args>]\n"
 			"Hint:	AUDIT_ARCH_I386: 0x%X\n"
 			"	AUDIT_ARCH_X86_64: 0x%X\n"
 			"\n", AUDIT_ARCH_I386, AUDIT_ARCH_X86_64);

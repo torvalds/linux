@@ -36,7 +36,7 @@
 static char *fwlog_param;
 static int fwlog_mem_blocks = -1;
 static int bug_on_recovery = -1;
-static int no_recovery     = -1;
+static int yes_recovery     = -1;
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl,
 					 struct ieee80211_vif *vif,
@@ -65,7 +65,7 @@ static int wl12xx_set_authorized(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	return 0;
 }
 
-static void wl1271_reg_notify(struct wiphy *wiphy,
+static void wl1271_reg_yestify(struct wiphy *wiphy,
 			      struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
@@ -144,7 +144,7 @@ static void wl1271_rx_streaming_enable_work(struct work_struct *work)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -177,7 +177,7 @@ static void wl1271_rx_streaming_disable_work(struct work_struct *work)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -202,7 +202,7 @@ static void wl1271_rx_streaming_timer(struct timer_list *t)
 /* wl->mutex must be taken */
 void wl12xx_rearm_tx_watchdog_locked(struct wl1271 *wl)
 {
-	/* if the watchdog is not armed, don't do anything */
+	/* if the watchdog is yest armed, don't do anything */
 	if (wl->tx_allocated_blocks == 0)
 		return;
 
@@ -226,7 +226,7 @@ static void wlcore_rc_update_work(struct work_struct *work)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -264,8 +264,8 @@ static void wl12xx_tx_watchdog_work(struct work_struct *work)
 		goto out;
 
 	/*
-	 * if a ROC is in progress, we might not have any Tx for a long
-	 * time (e.g. pending Tx on the non-ROC channels)
+	 * if a ROC is in progress, we might yest have any Tx for a long
+	 * time (e.g. pending Tx on the yesn-ROC channels)
 	 */
 	if (find_first_bit(wl->roc_map, WL12XX_MAX_ROLES) < WL12XX_MAX_ROLES) {
 		wl1271_debug(DEBUG_TX, "No Tx (in FW) for %d ms due to ROC",
@@ -275,7 +275,7 @@ static void wl12xx_tx_watchdog_work(struct work_struct *work)
 	}
 
 	/*
-	 * if a scan is in progress, we might not have any Tx for a long
+	 * if a scan is in progress, we might yest have any Tx for a long
 	 * time
 	 */
 	if (wl->scan.state != WL1271_SCAN_STATE_IDLE) {
@@ -322,15 +322,15 @@ static void wlcore_adjust_conf(struct wl1271 *wl)
 			wl->conf.fwlog.mem_blocks = 0;
 			wl->conf.fwlog.output = WL12XX_FWLOG_OUTPUT_NONE;
 		} else {
-			wl1271_error("Unknown fwlog parameter %s", fwlog_param);
+			wl1271_error("Unkyeswn fwlog parameter %s", fwlog_param);
 		}
 	}
 
 	if (bug_on_recovery != -1)
 		wl->conf.recovery.bug_on_recovery = (u8) bug_on_recovery;
 
-	if (no_recovery != -1)
-		wl->conf.recovery.no_recovery = (u8) no_recovery;
+	if (yes_recovery != -1)
+		wl->conf.recovery.yes_recovery = (u8) yes_recovery;
 }
 
 static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl,
@@ -349,13 +349,13 @@ static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl,
 		wl12xx_ps_link_end(wl, wlvif, hlid);
 
 	/*
-	 * Start high-level PS if the STA is asleep with enough blocks in FW.
+	 * Start high-level PS if the STA is asleep with eyesugh blocks in FW.
 	 * Make an exception if this is the only connected link. In this
 	 * case FW-memory congestion is less of a problem.
 	 * Note that a single connected STA means 2*ap_count + 1 active links,
 	 * since we must account for the global and broadcast AP links
 	 * for each AP. The "fw_ps" check assures us the other link is a STA
-	 * connected to the AP. Otherwise the FW would not set the PSM bit.
+	 * connected to the AP. Otherwise the FW would yest set the PSM bit.
 	 */
 	else if (wl->active_link_count > (wl->ap_count*2 + 1) && fw_ps &&
 		 tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
@@ -451,7 +451,7 @@ static int wlcore_fw_status(struct wl1271 *wl, struct wl_fw_status *status)
 	/*
 	 * If the FW freed some blocks:
 	 * If we still have allocated blocks - re-arm the timer, Tx is
-	 * not stuck. Otherwise, cancel the timer (no Tx currently).
+	 * yest stuck. Otherwise, cancel the timer (yes Tx currently).
 	 */
 	if (freed_blocks) {
 		if (wl->tx_allocated_blocks)
@@ -464,7 +464,7 @@ static int wlcore_fw_status(struct wl1271 *wl, struct wl_fw_status *status)
 
 	/*
 	 * The FW might change the total number of TX memblocks before
-	 * we get a notification about blocks being released. Thus, the
+	 * we get a yestification about blocks being released. Thus, the
 	 * available blocks calculation might yield a temporary result
 	 * which is lower than the actual available blocks. Keeping in
 	 * mind that only blocks that were allocated can be moved from
@@ -473,7 +473,7 @@ static int wlcore_fw_status(struct wl1271 *wl, struct wl_fw_status *status)
 	wl->tx_blocks_available = max((int)wl->tx_blocks_available,
 				      avail);
 
-	/* if more blocks are available now, tx work can be scheduled */
+	/* if more blocks are available yesw, tx work can be scheduled */
 	if (wl->tx_blocks_available > old_tx_blk_count)
 		clear_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
 
@@ -526,7 +526,7 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 	unsigned long flags;
 
 	/*
-	 * In case edge triggered interrupt must be used, we cannot iterate
+	 * In case edge triggered interrupt must be used, we canyest iterate
 	 * more than once without introducing race conditions with the hardirq.
 	 */
 	if (wl->irq_flags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING))
@@ -539,7 +539,7 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -564,7 +564,7 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 			wl->watchdog_recovery = true;
 			ret = -EIO;
 
-			/* restarting the chip. ignore any other interrupt. */
+			/* restarting the chip. igyesre any other interrupt. */
 			goto out;
 		}
 
@@ -574,7 +574,7 @@ static int wlcore_irq_locked(struct wl1271 *wl)
 			wl->watchdog_recovery = true;
 			ret = -EIO;
 
-			/* restarting the chip. ignore any other interrupt. */
+			/* restarting the chip. igyesre any other interrupt. */
 			goto out;
 		}
 
@@ -657,10 +657,10 @@ static irqreturn_t wlcore_irq(int irq, void *cookie)
 	}
 
 	if (test_bit(WL1271_FLAG_SUSPENDED, &wl->flags)) {
-		/* don't enqueue a work right now. mark it as pending */
+		/* don't enqueue a work right yesw. mark it as pending */
 		set_bit(WL1271_FLAG_PENDING_WORK, &wl->flags);
-		wl1271_debug(DEBUG_IRQ, "should not enqueue work");
-		disable_irq_nosync(wl->irq);
+		wl1271_debug(DEBUG_IRQ, "should yest enqueue work");
+		disable_irq_yessync(wl->irq);
 		pm_wakeup_event(wl->dev, 0);
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 		goto out_handled;
@@ -678,7 +678,7 @@ static irqreturn_t wlcore_irq(int irq, void *cookie)
 		wl12xx_queue_recovery_work(wl);
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
-	/* In case TX was not handled here, queue TX work */
+	/* In case TX was yest handled here, queue TX work */
 	clear_bit(WL1271_FLAG_TX_PENDING, &wl->flags);
 	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
 	    wl1271_tx_total_queue_count(wl) > 0)
@@ -712,7 +712,7 @@ static void wl12xx_vif_count_iter(void *data, u8 *mac,
 		counter->cur_vif_running = true;
 }
 
-/* caller must not hold wl->mutex, as it might deadlock */
+/* caller must yest hold wl->mutex, as it might deadlock */
 static void wl12xx_get_vif_count(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *cur_vif,
 			       struct vif_counter_data *data)
@@ -756,12 +756,12 @@ static int wl12xx_fetch_firmware(struct wl1271 *wl, bool plt)
 	ret = request_firmware(&fw, fw_name, wl->dev);
 
 	if (ret < 0) {
-		wl1271_error("could not get firmware %s: %d", fw_name, ret);
+		wl1271_error("could yest get firmware %s: %d", fw_name, ret);
 		return ret;
 	}
 
 	if (fw->size % 4) {
-		wl1271_error("firmware size is not multiple of 32 bits: %zu",
+		wl1271_error("firmware size is yest multiple of 32 bits: %zu",
 			     fw->size);
 		ret = -EILSEQ;
 		goto out;
@@ -773,7 +773,7 @@ static int wl12xx_fetch_firmware(struct wl1271 *wl, bool plt)
 	wl->fw = vmalloc(wl->fw_len);
 
 	if (!wl->fw) {
-		wl1271_error("could not allocate memory for the firmware");
+		wl1271_error("could yest allocate memory for the firmware");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -804,7 +804,7 @@ size_t wl12xx_copy_fwlog(struct wl1271 *wl, u8 *memblock, size_t maxlen)
 {
 	size_t len;
 
-	/* Make sure we have enough room */
+	/* Make sure we have eyesugh room */
 	len = min_t(size_t, maxlen, PAGE_SIZE - wl->fwlog_size);
 
 	/* Fill the FW log file, consumed by the sysfs fwlog entry */
@@ -826,12 +826,12 @@ static void wl12xx_read_fwlog_panic(struct wl1271 *wl)
 
 	/*
 	 * Make sure the chip is awake and the logger isn't active.
-	 * Do not send a stop fwlog command if the fw is hanged or if
+	 * Do yest send a stop fwlog command if the fw is hanged or if
 	 * dbgpins are used (due to some fw bug).
 	 */
 	error = pm_runtime_get_sync(wl->dev);
 	if (error < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		return;
 	}
 	if (!wl->watchdog_recovery &&
@@ -931,9 +931,9 @@ static void wl1271_recovery_work(struct work_struct *work)
 	error = pm_runtime_get_sync(wl->dev);
 	if (error < 0) {
 		wl1271_warning("Enable for recovery failed");
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 	}
-	wlcore_disable_interrupts_nosync(wl);
+	wlcore_disable_interrupts_yessync(wl);
 
 	if (!test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags)) {
 		if (wl->conf.fwlog.output == WL12XX_FWLOG_OUTPUT_HOST)
@@ -946,7 +946,7 @@ static void wl1271_recovery_work(struct work_struct *work)
 
 	clear_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags);
 
-	if (wl->conf.recovery.no_recovery) {
+	if (wl->conf.recovery.yes_recovery) {
 		wl1271_info("No recovery (chosen on module load). Fw will remain stuck.");
 		goto out_unlock;
 	}
@@ -976,7 +976,7 @@ static void wl1271_recovery_work(struct work_struct *work)
 	ieee80211_restart_hw(wl->hw);
 
 	/*
-	 * Its safe to enable TX now - the queues are stopped after a request
+	 * Its safe to enable TX yesw - the queues are stopped after a request
 	 * to restart the HW.
 	 */
 	wlcore_wake_queues(wl, WLCORE_QUEUE_STOP_REASON_FW_RESTART);
@@ -1097,16 +1097,16 @@ int wl1271_plt_start(struct wl1271 *wl, const enum plt_mode plt_mode)
 
 	mutex_lock(&wl->mutex);
 
-	wl1271_notice("power up");
+	wl1271_yestice("power up");
 
 	if (wl->state != WLCORE_STATE_OFF) {
-		wl1271_error("cannot go into PLT state because not "
+		wl1271_error("canyest go into PLT state because yest "
 			     "in off state: %d", wl->state);
 		ret = -EBUSY;
 		goto out;
 	}
 
-	/* Indicate to lower levels that we are now in PLT mode */
+	/* Indicate to lower levels that we are yesw in PLT mode */
 	wl->plt = true;
 	wl->plt_mode = plt_mode;
 
@@ -1123,7 +1123,7 @@ int wl1271_plt_start(struct wl1271 *wl, const enum plt_mode plt_mode)
 		}
 
 		wl->state = WLCORE_STATE_ON;
-		wl1271_notice("firmware booted in PLT mode %s (%s)",
+		wl1271_yestice("firmware booted in PLT mode %s (%s)",
 			      PLT_MODE[plt_mode],
 			      wl->chip.fw_ver_str);
 
@@ -1153,7 +1153,7 @@ int wl1271_plt_stop(struct wl1271 *wl)
 {
 	int ret = 0;
 
-	wl1271_notice("power down");
+	wl1271_yestice("power down");
 
 	/*
 	 * Interrupts must be disabled before setting the state to OFF.
@@ -1166,13 +1166,13 @@ int wl1271_plt_stop(struct wl1271 *wl)
 		mutex_unlock(&wl->mutex);
 
 		/*
-		 * This will not necessarily enable interrupts as interrupts
+		 * This will yest necessarily enable interrupts as interrupts
 		 * may have been disabled when op_stop was called. It will,
 		 * however, balance the above call to disable_interrupts().
 		 */
 		wlcore_enable_interrupts(wl);
 
-		wl1271_error("cannot power down because not in PLT "
+		wl1271_error("canyest power down because yest in PLT "
 			     "state: %d", wl->state);
 		ret = -EBUSY;
 		goto out;
@@ -1212,7 +1212,7 @@ static void wl1271_op_tx(struct ieee80211_hw *hw,
 	u8 hlid;
 
 	if (!vif) {
-		wl1271_debug(DEBUG_TX, "DROP skb with no vif");
+		wl1271_debug(DEBUG_TX, "DROP skb with yes vif");
 		ieee80211_free_txskb(hw, skb);
 		return;
 	}
@@ -1261,7 +1261,7 @@ static void wl1271_op_tx(struct ieee80211_hw *hw,
 
 	/*
 	 * The chip specific setup must run before the first TX packet -
-	 * before that, the tx_work will not be initialized!
+	 * before that, the tx_work will yest be initialized!
 	 */
 
 	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
@@ -1277,7 +1277,7 @@ int wl1271_tx_dummy_packet(struct wl1271 *wl)
 	unsigned long flags;
 	int q;
 
-	/* no need to queue a new dummy packet if one is already pending */
+	/* yes need to queue a new dummy packet if one is already pending */
 	if (test_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags))
 		return 0;
 
@@ -1428,7 +1428,7 @@ int wl1271_rx_filter_alloc_field(struct wl12xx_rx_filter *filter,
 	struct wl12xx_rx_filter_field *field;
 
 	if (filter->num_fields == WL1271_RX_FILTER_MAX_FIELDS) {
-		wl1271_warning("Max fields per RX filter. can't alloc another");
+		wl1271_warning("Max fields per RX filter. can't alloc ayesther");
 		return -EINVAL;
 	}
 
@@ -1734,7 +1734,7 @@ static int __maybe_unused wl1271_op_suspend(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		mutex_unlock(&wl->mutex);
 		return ret;
 	}
@@ -1752,8 +1752,8 @@ static int __maybe_unused wl1271_op_suspend(struct ieee80211_hw *hw,
 		}
 	}
 
-	/* disable fast link flow control notifications from FW */
-	ret = wlcore_hw_interrupt_notify(wl, false);
+	/* disable fast link flow control yestifications from FW */
+	ret = wlcore_hw_interrupt_yestify(wl, false);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -1764,7 +1764,7 @@ static int __maybe_unused wl1271_op_suspend(struct ieee80211_hw *hw,
 		goto out_sleep;
 
 out_sleep:
-	pm_runtime_put_noidle(wl->dev);
+	pm_runtime_put_yesidle(wl->dev);
 	mutex_unlock(&wl->mutex);
 
 	if (ret < 0) {
@@ -1850,7 +1850,7 @@ static int __maybe_unused wl1271_op_resume(struct ieee80211_hw *hw)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -1861,7 +1861,7 @@ static int __maybe_unused wl1271_op_resume(struct ieee80211_hw *hw)
 		wl1271_configure_resume(wl, wlvif);
 	}
 
-	ret = wlcore_hw_interrupt_notify(wl, true);
+	ret = wlcore_hw_interrupt_yestify(wl, true);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -1894,12 +1894,12 @@ static int wl1271_op_start(struct ieee80211_hw *hw)
 
 	/*
 	 * We have to delay the booting of the hardware because
-	 * we need to know the local MAC address before downloading and
-	 * initializing the firmware. The MAC address cannot be changed
+	 * we need to kyesw the local MAC address before downloading and
+	 * initializing the firmware. The MAC address canyest be changed
 	 * after boot, and without the proper MAC address, the firmware
-	 * will not function properly.
+	 * will yest function properly.
 	 *
-	 * The MAC address is first known when the corresponding interface
+	 * The MAC address is first kyeswn when the corresponding interface
 	 * is added. That is where we will initialize the hardware.
 	 */
 
@@ -1925,10 +1925,10 @@ static void wlcore_op_stop_locked(struct wl1271 *wl)
 	wl->state = WLCORE_STATE_OFF;
 
 	/*
-	 * Use the nosync variant to disable interrupts, so the mutex could be
+	 * Use the yessync variant to disable interrupts, so the mutex could be
 	 * held while doing so without deadlocking.
 	 */
-	wlcore_disable_interrupts_nosync(wl);
+	wlcore_disable_interrupts_yessync(wl);
 
 	mutex_unlock(&wl->mutex);
 
@@ -1941,7 +1941,7 @@ static void wlcore_op_stop_locked(struct wl1271 *wl)
 	cancel_work_sync(&wl->tx_work);
 	cancel_delayed_work_sync(&wl->tx_watchdog_work);
 
-	/* let's notify MAC80211 about the remaining pending TX frames */
+	/* let's yestify MAC80211 about the remaining pending TX frames */
 	mutex_lock(&wl->mutex);
 	wl12xx_tx_reset(wl);
 
@@ -1982,7 +1982,7 @@ static void wlcore_op_stop_locked(struct wl1271 *wl)
 
 	/*
 	 * this is performed after the cancel_work calls and the associated
-	 * mutex_lock, so that wl1271_op_add_interface does not accidentally
+	 * mutex_lock, so that wl1271_op_add_interface does yest accidentally
 	 * get executed before all these vars have been reset.
 	 */
 	wl->flags = 0;
@@ -2055,7 +2055,7 @@ static void wlcore_channel_switch_work(struct work_struct *work)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -2126,7 +2126,7 @@ static void wlcore_pending_auth_complete_work(struct work_struct *work)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -2335,7 +2335,7 @@ irq_disable:
 		   inherently unsafe. In this case we deem it safe to do,
 		   because we need to let any possibly pending IRQ out of
 		   the system (and while we are WLCORE_STATE_OFF the IRQ
-		   work function will not do anything.) Also, any other
+		   work function will yest do anything.) Also, any other
 		   possible concurrent operations will fail due to the
 		   current state, hence the wl1271 struct should be safe. */
 		wlcore_disable_interrupts(wl);
@@ -2360,14 +2360,14 @@ power_off:
 		sizeof(wiphy->fw_version));
 
 	/*
-	 * Now we know if 11a is supported (info from the NVS), so disable
-	 * 11a channels if not supported
+	 * Now we kyesw if 11a is supported (info from the NVS), so disable
+	 * 11a channels if yest supported
 	 */
 	if (!wl->enable_11a)
 		wiphy->bands[NL80211_BAND_5GHZ]->n_channels = 0;
 
 	wl1271_debug(DEBUG_MAC80211, "11a is %ssupported",
-		     wl->enable_11a ? "" : "not ");
+		     wl->enable_11a ? "" : "yest ");
 
 	wl->state = WLCORE_STATE_ON;
 out:
@@ -2381,9 +2381,9 @@ static bool wl12xx_dev_role_started(struct wl12xx_vif *wlvif)
 
 /*
  * Check whether a fw switch (i.e. moving from one loaded
- * fw to another) is needed. This function is also responsible
+ * fw to ayesther) is needed. This function is also responsible
  * for updating wl->last_vif_count, so it must be called before
- * loading a non-plt fw (so the correct fw (single-role/multi-role)
+ * loading a yesn-plt fw (so the correct fw (single-role/multi-role)
  * will be used).
  */
 static bool wl12xx_need_fw_change(struct wl1271 *wl,
@@ -2402,11 +2402,11 @@ static bool wl12xx_need_fw_change(struct wl1271 *wl,
 
 	wl->last_vif_count = vif_count;
 
-	/* no need for fw change if the device is OFF */
+	/* yes need for fw change if the device is OFF */
 	if (wl->state == WLCORE_STATE_OFF)
 		return false;
 
-	/* no need for fw change if a single fw is used */
+	/* yes need for fw change if a single fw is used */
 	if (!wl->mr_fw_name)
 		return false;
 
@@ -2522,7 +2522,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 	u8 role_type;
 
 	if (wl->plt) {
-		wl1271_error("Adding Interface not allowed while in PLT mode");
+		wl1271_error("Adding Interface yest allowed while in PLT mode");
 		return -EBUSY;
 	}
 
@@ -2582,11 +2582,11 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 
 	/*
 	 * Call runtime PM only after possible wl12xx_init_fw() above
-	 * is done. Otherwise we do not have interrupts enabled.
+	 * is done. Otherwise we do yest have interrupts enabled.
 	 */
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out_unlock;
 	}
 
@@ -2686,7 +2686,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 		/* disable active roles */
 		ret = pm_runtime_get_sync(wl->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(wl->dev);
+			pm_runtime_put_yesidle(wl->dev);
 			goto deinit;
 		}
 
@@ -2850,7 +2850,7 @@ static int wlcore_join(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	 * to a WPA/WPA2 access point will therefore kill the data-path.
 	 * Currently the only valid scenario for JOIN during association
 	 * is on roaming, in which case we will also be given new keys.
-	 * Keep the below message for now, unless it starts bothering
+	 * Keep the below message for yesw, unless it starts bothering
 	 * users who really like to roam a lot :)
 	 */
 	if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
@@ -2865,7 +2865,7 @@ static int wlcore_join(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		if (wl->quirks & WLCORE_QUIRK_START_STA_FAILS) {
 			/*
 			 * TODO: this is an ugly workaround for wl12xx fw
-			 * bug - we are not able to tx/rx after the first
+			 * bug - we are yest able to tx/rx after the first
 			 * start_sta, so make dummy start+stop calls,
 			 * and then call start_sta again.
 			 * this should be fixed in the fw.
@@ -3026,7 +3026,7 @@ static int wlcore_unset_assoc(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		return false;
 
 	if (sta) {
-		/* use defaults when not associated */
+		/* use defaults when yest associated */
 		wlvif->aid = 0;
 
 		/* free probe-request template */
@@ -3133,7 +3133,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -3217,7 +3217,7 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -3284,7 +3284,7 @@ static int wl1271_record_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		return -EINVAL;
 
 	/*
-	 * Find next free entry in ap_keys. Also check we are not replacing
+	 * Find next free entry in ap_keys. Also check we are yest replacing
 	 * an existing key.
 	 */
 	for (i = 0; i < MAX_NUM_KEYS; i++) {
@@ -3387,7 +3387,7 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 		if (!test_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags)) {
 			/*
-			 * We do not support removing keys after AP shutdown.
+			 * We do yest support removing keys after AP shutdown.
 			 * Pretend we do to make mac80211 happy.
 			 */
 			if (action != KEY_ADD_OR_REPLACE)
@@ -3419,8 +3419,8 @@ static int wl1271_set_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			return -EOPNOTSUPP;
 		}
 
-		/* The wl1271 does not allow to remove unicast keys - they
-		   will be cleared automatically on next CMD_JOIN. Ignore the
+		/* The wl1271 does yest allow to remove unicast keys - they
+		   will be cleared automatically on next CMD_JOIN. Igyesre the
 		   request silently, as we dont want the mac80211 to emit
 		   an error message. */
 		if (action == KEY_REMOVE && !is_broadcast_ether_addr(addr))
@@ -3472,7 +3472,7 @@ static int wlcore_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out_wake_queues;
 	}
 
@@ -3545,7 +3545,7 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		key_type = KEY_GEM;
 		break;
 	default:
-		wl1271_error("Unknown key algo 0x%x", key_conf->cipher);
+		wl1271_error("Unkyeswn key algo 0x%x", key_conf->cipher);
 
 		return -EOPNOTSUPP;
 	}
@@ -3557,7 +3557,7 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 				 key_conf->keylen, key_conf->key,
 				 tx_seq_32, tx_seq_16, sta);
 		if (ret < 0) {
-			wl1271_error("Could not add or replace key");
+			wl1271_error("Could yest add or replace key");
 			return ret;
 		}
 
@@ -3583,7 +3583,7 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 				     key_conf->keylen, key_conf->key,
 				     0, 0, sta);
 		if (ret < 0) {
-			wl1271_error("Could not remove key");
+			wl1271_error("Could yest remove key");
 			return ret;
 		}
 		break;
@@ -3621,7 +3621,7 @@ static void wl1271_op_set_default_key_idx(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out_unlock;
 	}
 
@@ -3693,7 +3693,7 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 
 	if (unlikely(wl->state != WLCORE_STATE_ON)) {
 		/*
-		 * We cannot return -EBUSY here because cfg80211 will expect
+		 * We canyest return -EBUSY here because cfg80211 will expect
 		 * a call to ieee80211_scan_completed if we do - in this case
 		 * there won't be any call.
 		 */
@@ -3703,13 +3703,13 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
 	/* fail if there is any role in ROC */
 	if (find_first_bit(wl->roc_map, WL12XX_MAX_ROLES) < WL12XX_MAX_ROLES) {
-		/* don't allow scanning right now */
+		/* don't allow scanning right yesw */
 		ret = -EBUSY;
 		goto out_sleep;
 	}
@@ -3746,7 +3746,7 @@ static void wl1271_op_cancel_hw_scan(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -3797,7 +3797,7 @@ static int wl1271_op_sched_scan_start(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -3831,7 +3831,7 @@ static int wl1271_op_sched_scan_stop(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -3859,7 +3859,7 @@ static int wl1271_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -3891,7 +3891,7 @@ static int wl1271_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -3980,7 +3980,7 @@ static int wl1271_ap_set_probe_resp_tmpl_legacy(struct wl1271 *wl,
 	int ssid_ie_offset, ie_offset, templ_len;
 	const u8 *ptr;
 
-	/* no need to change probe response if the SSID is set correctly */
+	/* yes need to change probe response if the SSID is set correctly */
 	if (wlvif->ssid_len > 0)
 		return wl1271_cmd_template_set(wl, wlvif->role_id,
 					       CMD_TEMPL_AP_PROBE_RESPONSE,
@@ -4322,7 +4322,7 @@ static int wlcore_set_bssid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 						sta_rate_set,
 						wlvif->band);
 
-	/* we only support sched_scan while not connected */
+	/* we only support sched_scan while yest connected */
 	if (wl->sched_vif == wlvif)
 		wl->ops->sched_scan_stop(wl, wlvif);
 
@@ -4650,7 +4650,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -4711,7 +4711,7 @@ static void wlcore_op_change_chanctx(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -4768,7 +4768,7 @@ static int wlcore_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -4820,7 +4820,7 @@ static void wlcore_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -4890,7 +4890,7 @@ wlcore_op_switch_vif_chanctx(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -4936,7 +4936,7 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -4984,7 +4984,7 @@ static u64 wl1271_op_get_tsf(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -5023,14 +5023,14 @@ static int wl1271_allocate_sta(struct wl1271 *wl,
 
 
 	if (wl->active_sta_count >= wl->max_ap_stations) {
-		wl1271_warning("could not allocate HLID - too much stations");
+		wl1271_warning("could yest allocate HLID - too much stations");
 		return -EBUSY;
 	}
 
 	wl_sta = (struct wl1271_station *)sta->drv_priv;
 	ret = wl12xx_allocate_link(wl, wlvif, &wl_sta->hlid);
 	if (ret < 0) {
-		wl1271_warning("could not allocate HLID - too many links");
+		wl1271_warning("could yest allocate HLID - too many links");
 		return -EBUSY;
 	}
 
@@ -5202,7 +5202,7 @@ static int wl12xx_update_sta_state(struct wl1271 *wl,
 	if (is_ap &&
 	    old_state == IEEE80211_STA_NONE &&
 	    new_state == IEEE80211_STA_NOTEXIST) {
-		/* must not fail */
+		/* must yest fail */
 		wl12xx_sta_remove(wl, wlvif, sta);
 
 		wlcore_update_inconn_sta(wl, wlvif, wl_sta, false);
@@ -5302,7 +5302,7 @@ static int wl12xx_op_sta_state(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -5360,7 +5360,7 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -5382,7 +5382,7 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 
 		if (*ba_bitmap & BIT(tid)) {
 			ret = -EINVAL;
-			wl1271_error("cannot enable RX BA session on active "
+			wl1271_error("canyest enable RX BA session on active "
 				     "tid: %d", tid);
 			break;
 		}
@@ -5401,10 +5401,10 @@ static int wl1271_op_ampdu_action(struct ieee80211_hw *hw,
 		if (!(*ba_bitmap & BIT(tid))) {
 			/*
 			 * this happens on reconfig - so only output a debug
-			 * message for now, and don't fail the function.
+			 * message for yesw, and don't fail the function.
 			 */
 			wl1271_debug(DEBUG_MAC80211,
-				     "no active RX BA session on tid: %d",
+				     "yes active RX BA session on tid: %d",
 				     tid);
 			ret = 0;
 			break;
@@ -5472,7 +5472,7 @@ static int wl12xx_set_bitrate_mask(struct ieee80211_hw *hw,
 
 		ret = pm_runtime_get_sync(wl->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(wl->dev);
+			pm_runtime_put_yesidle(wl->dev);
 			goto out;
 		}
 
@@ -5514,7 +5514,7 @@ static void wl12xx_op_channel_switch(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -5608,7 +5608,7 @@ static void wlcore_op_channel_switch_beacon(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -5653,7 +5653,7 @@ static int wlcore_op_remain_on_channel(struct ieee80211_hw *hw,
 	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
-	/* return EBUSY if we can't ROC right now */
+	/* return EBUSY if we can't ROC right yesw */
 	active_roc = find_first_bit(wl->roc_map, WL12XX_MAX_ROLES);
 	if (wl->roc_vif || active_roc < WL12XX_MAX_ROLES) {
 		wl1271_warning("active roc on role %d", active_roc);
@@ -5663,7 +5663,7 @@ static int wlcore_op_remain_on_channel(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -5720,7 +5720,7 @@ static int wlcore_roc_completed(struct wl1271 *wl)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -5805,7 +5805,7 @@ static void wlcore_op_sta_statistics(struct ieee80211_hw *hw,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out_sleep;
 	}
 
@@ -6156,7 +6156,7 @@ static int wl1271_register_hw(struct wl1271 *wl)
 		if (!strcmp(pdev_data->family->name, "wl18xx")) {
 			wl1271_warning("This default nvs file can be removed from the file system");
 		} else {
-			wl1271_warning("Your device performance is not optimized.");
+			wl1271_warning("Your device performance is yest optimized.");
 			wl1271_warning("Please use the calibrator tool to configure your device.");
 		}
 
@@ -6184,7 +6184,7 @@ static int wl1271_register_hw(struct wl1271 *wl)
 
 	wl1271_debugfs_init(wl);
 
-	wl1271_notice("loaded");
+	wl1271_yestice("loaded");
 
 out:
 	return ret;
@@ -6321,7 +6321,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->offchannel_tx_hw_queue = wl->hw->queues - 1;
 	wl->hw->max_rates = 1;
 
-	wl->hw->wiphy->reg_notifier = wl1271_reg_notify;
+	wl->hw->wiphy->reg_yestifier = wl1271_reg_yestify;
 
 	/* the FW answers probe-requests in AP-mode */
 	wl->hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
@@ -6357,7 +6357,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1271_ops);
 	if (!hw) {
-		wl1271_error("could not alloc ieee80211_hw");
+		wl1271_error("could yest alloc ieee80211_hw");
 		ret = -ENOMEM;
 		goto err_hw_alloc;
 	}
@@ -6367,7 +6367,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
 
 	wl->priv = kzalloc(priv_size, GFP_KERNEL);
 	if (!wl->priv) {
-		wl1271_error("could not alloc wl priv");
+		wl1271_error("could yest alloc wl priv");
 		ret = -ENOMEM;
 		goto err_priv_alloc;
 	}
@@ -6377,7 +6377,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
 	wl->hw = hw;
 
 	/*
-	 * wl->num_links is not configured yet, so just use WLCORE_MAX_LINKS.
+	 * wl->num_links is yest configured yet, so just use WLCORE_MAX_LINKS.
 	 * we don't allocate any additional resource here, so that's fine.
 	 */
 	for (i = 0; i < NUM_TX_QUEUES; i++)
@@ -6559,12 +6559,12 @@ static void wlcore_nvs_cb(const struct firmware *fw, void *context)
 	if (fw) {
 		wl->nvs = kmemdup(fw->data, fw->size, GFP_KERNEL);
 		if (!wl->nvs) {
-			wl1271_error("Could not allocate nvs data");
+			wl1271_error("Could yest allocate nvs data");
 			goto out;
 		}
 		wl->nvs_len = fw->size;
 	} else if (pdev_data->family->nvs_name) {
-		wl1271_debug(DEBUG_BOOT, "Could not get nvs file %s",
+		wl1271_debug(DEBUG_BOOT, "Could yest get nvs file %s",
 			     pdev_data->family->nvs_name);
 		wl->nvs = NULL;
 		wl->nvs_len = 0;
@@ -6584,7 +6584,7 @@ static void wlcore_nvs_cb(const struct firmware *fw, void *context)
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
-		wl1271_error("Could not get IRQ resource");
+		wl1271_error("Could yest get IRQ resource");
 		goto out_free_nvs;
 	}
 
@@ -6682,11 +6682,11 @@ static int __maybe_unused wlcore_runtime_suspend(struct device *dev)
 	struct wl12xx_vif *wlvif;
 	int error;
 
-	/* We do not enter elp sleep in PLT mode */
+	/* We do yest enter elp sleep in PLT mode */
 	if (wl->plt)
 		return 0;
 
-	/* Nothing to do if no ELP mode requested */
+	/* Nothing to do if yes ELP mode requested */
 	if (wl->sleep_auth != WL1271_PSM_ELP)
 		return 0;
 
@@ -6719,7 +6719,7 @@ static int __maybe_unused wlcore_runtime_resume(struct device *dev)
 	bool pending = false;
 	bool recovery = false;
 
-	/* Nothing to do if no ELP mode requested */
+	/* Nothing to do if yes ELP mode requested */
 	if (!test_bit(WL1271_FLAG_IN_ELP, &wl->flags))
 		return 0;
 
@@ -6744,7 +6744,7 @@ static int __maybe_unused wlcore_runtime_resume(struct device *dev)
 		if (ret == 0) {
 			wl1271_warning("ELP wakeup timeout!");
 
-			/* Return no error for runtime PM for recovery */
+			/* Return yes error for runtime PM for recovery */
 			ret = 0;
 			recovery = true;
 			goto err;
@@ -6792,11 +6792,11 @@ int wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 
 	if (pdev_data->family && pdev_data->family->nvs_name) {
 		nvs_name = pdev_data->family->nvs_name;
-		ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+		ret = request_firmware_yeswait(THIS_MODULE, FW_ACTION_HOTPLUG,
 					      nvs_name, &pdev->dev, GFP_KERNEL,
 					      wl, wlcore_nvs_cb);
 		if (ret < 0) {
-			wl1271_error("request_firmware_nowait failed for %s: %d",
+			wl1271_error("request_firmware_yeswait failed for %s: %d",
 				     nvs_name, ret);
 			complete_all(&wl->nvs_loading_complete);
 		}
@@ -6868,9 +6868,9 @@ MODULE_PARM_DESC(fwlog_mem_blocks, "fwlog mem_blocks");
 module_param(bug_on_recovery, int, 0600);
 MODULE_PARM_DESC(bug_on_recovery, "BUG() on fw recovery");
 
-module_param(no_recovery, int, 0600);
-MODULE_PARM_DESC(no_recovery, "Prevent HW recovery. FW will remain stuck.");
+module_param(yes_recovery, int, 0600);
+MODULE_PARM_DESC(yes_recovery, "Prevent HW recovery. FW will remain stuck.");
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
-MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
+MODULE_AUTHOR("Luciayes Coelho <coelho@ti.com>");
+MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@yeskia.com>");

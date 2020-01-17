@@ -1,9 +1,9 @@
 /*
  * MTD primitives for XIP support. Architecture specific functions.
  *
- * Do not include this file directly. It's included from linux/mtd/xip.h
+ * Do yest include this file directly. It's included from linux/mtd/xip.h
  *
- * Author: Vladimir Barinov <vbarinov@embeddedalley.com>
+ * Author: Vladimir Bariyesv <vbariyesv@embeddedalley.com>
  *
  * (c) 2005 MontaVista Software, Inc.  This file is licensed under the
  * terms of the GNU General Public License version 2.  This program is
@@ -53,7 +53,7 @@ static inline unsigned long xip_omap_mpu_timer_read(int nr)
  * xip_cpu_idle() is used when waiting for a delay equal or larger than
  * the system timer tick period.  This should put the CPU into idle mode
  * to save power and to be woken up only when some interrupts are pending.
- * As above, this should not rely upon standard kernel code.
+ * As above, this should yest rely upon standard kernel code.
  */
 
 #define xip_cpu_idle()  asm volatile ("mcr p15, 0, %0, c7, c0, 4" :: "r" (1))

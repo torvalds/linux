@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -77,7 +77,7 @@ struct locomo_dev_info {
 	const char *	name;
 };
 
-/* All the locomo devices.  If offset is non-zero, the mapbase for the
+/* All the locomo devices.  If offset is yesn-zero, the mapbase for the
  * locomo_dev will be set to the chip base plus offset.  If offset is
  * zero, then the mapbase for the locomo_dev will be set to zero.  An
  * offset of zero means the device only uses GPIOs or other helper
@@ -140,7 +140,7 @@ static void locomo_handler(struct irq_desc *desc)
 	struct locomo *lchip = irq_desc_get_handler_data(desc);
 	int req, i;
 
-	/* Acknowledge the parent IRQ */
+	/* Ackyeswledge the parent IRQ */
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 	/* check why this interrupt was generated */
@@ -302,7 +302,7 @@ static int locomo_suspend(struct platform_device *dev, pm_message_t state)
 	if ((locomo_readl(lchip->base + LOCOMO_LED + LOCOMO_LPT0) & 0x88) && (locomo_readl(lchip->base + LOCOMO_LED + LOCOMO_LPT1) & 0x88))
 		locomo_writel(0x00, lchip->base + LOCOMO_C32K); 	/* CLK32 off */
 	else
-		/* 18MHz already enabled, so no wait */
+		/* 18MHz already enabled, so yes wait */
 		locomo_writel(0xc1, lchip->base + LOCOMO_C32K); 	/* CLK32 on */
 
 	locomo_writel(0x00, lchip->base + LOCOMO_TADC);		/* 18MHz clock off*/
@@ -360,7 +360,7 @@ static int locomo_resume(struct platform_device *dev)
  *	before any other locomo-specific code.
  *
  *	Returns:
- *	%-ENODEV	device not found.
+ *	%-ENODEV	device yest found.
  *	%-EBUSY		physical address already marked in-use.
  *	%0		successful.
  */
@@ -508,7 +508,7 @@ static int locomo_remove(struct platform_device *dev)
 }
 
 /*
- *	Not sure if this should be on the system bus or not yet.
+ *	Not sure if this should be on the system bus or yest yet.
  *	We really want some way to register a system device at
  *	the per-machine level, and then have this driver pick
  *	up the registered devices.

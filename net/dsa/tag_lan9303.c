@@ -27,7 +27,7 @@
  * (0, 1, 2) or broadcast (3) or the source port (1, 2).
  *
  * VID bit 4 is used to specify if the STP port state should be overridden.
- * Required when no forwarding between the external ports should happen.
+ * Required when yes forwarding between the external ports should happen.
  */
 
 #define LAN9303_TAG_LEN 4
@@ -62,7 +62,7 @@ static struct sk_buff *lan9303_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (skb_cow_head(skb, LAN9303_TAG_LEN) < 0) {
 		dev_dbg(&dev->dev,
-			"Cannot make room for the special tag. Dropping packet\n");
+			"Canyest make room for the special tag. Dropping packet\n");
 		return NULL;
 	}
 
@@ -91,7 +91,7 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	if (unlikely(!pskb_may_pull(skb, LAN9303_TAG_LEN))) {
 		dev_warn_ratelimited(&dev->dev,
-				     "Dropping packet, cannot pull\n");
+				     "Dropping packet, canyest pull\n");
 		return NULL;
 	}
 

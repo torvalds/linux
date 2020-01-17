@@ -164,7 +164,7 @@ static inline const char *err_str(enum jpeg_decoding_error_t err)
 	case JPEG_DECODER_ERROR_FEATURE_NOT_SUPPORTED:
 		return "JPEG_DECODER_ERROR_FEATURE_NOT_SUPPORTED";
 	default:
-		return "!unknown MJPEG error!";
+		return "!unkyeswn MJPEG error!";
 	}
 }
 
@@ -264,7 +264,7 @@ static int delta_mjpeg_ipc_decode(struct delta_ctx *pctx, struct delta_au *au)
 	 * the NV12 decoded frame is only available
 	 * on decimated output when enabling flag
 	 * "JPEG_ADDITIONAL_FLAG_420MB"...
-	 * the non decimated output gives YUV422SP
+	 * the yesn decimated output gives YUV422SP
 	 */
 	params->main_aux_enable = JPEG_DISP_AUX_EN;
 	params->additional_flags = JPEG_ADDITIONAL_FLAG_420MB;
@@ -352,7 +352,7 @@ static int delta_mjpeg_get_streaminfo(struct delta_ctx *pctx,
 	struct delta_mjpeg_ctx *ctx = to_ctx(pctx);
 
 	if (!ctx->header)
-		goto nodata;
+		goto yesdata;
 
 	streaminfo->streamformat = V4L2_PIX_FMT_MJPEG;
 	streaminfo->width = ctx->header->frame_width;
@@ -365,7 +365,7 @@ static int delta_mjpeg_get_streaminfo(struct delta_ctx *pctx,
 
 	return 0;
 
-nodata:
+yesdata:
 	return -ENODATA;
 }
 

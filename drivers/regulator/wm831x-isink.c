@@ -100,7 +100,7 @@ static irqreturn_t wm831x_isink_irq(int irq, void *data)
 	struct wm831x_isink *isink = data;
 
 	regulator_lock(isink->regulator);
-	regulator_notifier_call_chain(isink->regulator,
+	regulator_yestifier_call_chain(isink->regulator,
 				      REGULATOR_EVENT_OVER_CURRENT,
 				      NULL);
 	regulator_unlock(isink->regulator);

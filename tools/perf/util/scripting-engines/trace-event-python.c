@@ -14,7 +14,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if yest, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/bitmap.h>
 #include <linux/compiler.h>
 #include <linux/time64.h>
@@ -119,19 +119,19 @@ struct tables {
 
 static struct tables tables_global;
 
-static void handler_call_die(const char *handler_name) __noreturn;
+static void handler_call_die(const char *handler_name) __yesreturn;
 static void handler_call_die(const char *handler_name)
 {
 	PyErr_Print();
 	Py_FatalError("problem in Python trace event handler");
-	// Py_FatalError does not return
+	// Py_FatalError does yest return
 	// but we have to make the compiler happy
 	abort();
 }
 
 /*
  * Insert val into into the dictionary and decrement the reference counter.
- * This is necessary for dictionaries since PyDict_SetItemString() does not
+ * This is necessary for dictionaries since PyDict_SetItemString() does yest
  * steal a reference, as opposed to PyTuple_SetItem().
  */
 static void pydict_set_item_string_decref(PyObject *dict, const char *key, PyObject *val)
@@ -379,7 +379,7 @@ static PyObject *get_field_numeric_entry(struct tep_event *event,
 
 static const char *get_dsoname(struct map *map)
 {
-	const char *dsoname = "[unknown]";
+	const char *dsoname = "[unkyeswn]";
 
 	if (map && map->dso) {
 		if (symbol_conf.show_kernel_path && map->dso->long_name)
@@ -415,9 +415,9 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 
 	while (1) {
 		PyObject *pyelem;
-		struct callchain_cursor_node *node;
-		node = callchain_cursor_current(&callchain_cursor);
-		if (!node)
+		struct callchain_cursor_yesde *yesde;
+		yesde = callchain_cursor_current(&callchain_cursor);
+		if (!yesde)
 			break;
 
 		pyelem = PyDict_New();
@@ -426,26 +426,26 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 
 
 		pydict_set_item_string_decref(pyelem, "ip",
-				PyLong_FromUnsignedLongLong(node->ip));
+				PyLong_FromUnsignedLongLong(yesde->ip));
 
-		if (node->ms.sym) {
+		if (yesde->ms.sym) {
 			PyObject *pysym  = PyDict_New();
 			if (!pysym)
 				Py_FatalError("couldn't create Python dictionary");
 			pydict_set_item_string_decref(pysym, "start",
-					PyLong_FromUnsignedLongLong(node->ms.sym->start));
+					PyLong_FromUnsignedLongLong(yesde->ms.sym->start));
 			pydict_set_item_string_decref(pysym, "end",
-					PyLong_FromUnsignedLongLong(node->ms.sym->end));
+					PyLong_FromUnsignedLongLong(yesde->ms.sym->end));
 			pydict_set_item_string_decref(pysym, "binding",
-					_PyLong_FromLong(node->ms.sym->binding));
+					_PyLong_FromLong(yesde->ms.sym->binding));
 			pydict_set_item_string_decref(pysym, "name",
-					_PyUnicode_FromStringAndSize(node->ms.sym->name,
-							node->ms.sym->namelen));
+					_PyUnicode_FromStringAndSize(yesde->ms.sym->name,
+							yesde->ms.sym->namelen));
 			pydict_set_item_string_decref(pyelem, "sym", pysym);
 		}
 
-		if (node->ms.map) {
-			const char *dsoname = get_dsoname(node->ms.map);
+		if (yesde->ms.map) {
+			const char *dsoname = get_dsoname(yesde->ms.map);
 
 			pydict_set_item_string_decref(pyelem, "dso",
 					_PyUnicode_FromString(dsoname));
@@ -536,7 +536,7 @@ static int get_symoff(struct symbol *sym, struct addr_location *al,
 	unsigned long offset;
 
 	if (!sym || !sym->name[0])
-		return scnprintf(bf, size, "%s", "[unknown]");
+		return scnprintf(bf, size, "%s", "[unkyeswn]");
 
 	if (!print_off)
 		return scnprintf(bf, size, "%s", sym->name);
@@ -809,7 +809,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 
 	if (!event) {
 		snprintf(handler_name, sizeof(handler_name),
-			 "ug! no event found for type %" PRIu64, (u64)evsel->core.attr.config);
+			 "ug! yes event found for type %" PRIu64, (u64)evsel->core.attr.config);
 		Py_FatalError(handler_name);
 	}
 
@@ -1559,7 +1559,7 @@ static void set_table_handlers(struct tables *tables)
 	/*
 	 * Synthesized events are samples but with architecture-specific data
 	 * stored in sample->raw_data. They are exported via
-	 * python_export_sample() and consequently do not need a separate export
+	 * python_export_sample() and consequently do yest need a separate export
 	 * callback.
 	 */
 	tables->synth_handler = get_handler("synth_data");
@@ -1594,7 +1594,7 @@ static int python_start_script(const char *script, int argc, const char **argv)
 	wchar_t **command_line;
 #endif
 	/*
-	 * Use a non-const name variable to cope with python 2.6's
+	 * Use a yesn-const name variable to cope with python 2.6's
 	 * PyImport_AppendInittab prototype
 	 */
 	char buf[PATH_MAX], name[19] = "perf_trace_context";
@@ -1687,7 +1687,7 @@ static int python_stop_script(void)
 
 static int python_generate_script(struct tep_handle *pevent, const char *outfile)
 {
-	int i, not_first, count, nr_events;
+	int i, yest_first, count, nr_events;
 	struct tep_event **all_events;
 	struct tep_event *event = NULL;
 	struct tep_format_field *f;
@@ -1712,7 +1712,7 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 	fprintf(ofp, "# all events.  They don't necessarily correspond to "
 		"the 'common_*' fields\n");
 
-	fprintf(ofp, "# in the format files.  Those fields not available as "
+	fprintf(ofp, "# in the format files.  Those fields yest available as "
 		"handler params can\n");
 
 	fprintf(ofp, "# be retrieved using Python functions of the form "
@@ -1751,18 +1751,18 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 		fprintf(ofp, "common_comm,\n\t");
 		fprintf(ofp, "common_callchain, ");
 
-		not_first = 0;
+		yest_first = 0;
 		count = 0;
 
 		for (f = event->format.fields; f; f = f->next) {
-			if (not_first++)
+			if (yest_first++)
 				fprintf(ofp, ", ");
 			if (++count % 5 == 0)
 				fprintf(ofp, "\n\t");
 
 			fprintf(ofp, "%s", f->name);
 		}
-		if (not_first++)
+		if (yest_first++)
 			fprintf(ofp, ", ");
 		if (++count % 5 == 0)
 			fprintf(ofp, "\n\t\t");
@@ -1776,11 +1776,11 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 
 		fprintf(ofp, "\t\tprint(\"");
 
-		not_first = 0;
+		yest_first = 0;
 		count = 0;
 
 		for (f = event->format.fields; f; f = f->next) {
-			if (not_first++)
+			if (yest_first++)
 				fprintf(ofp, ", ");
 			if (count && count % 3 == 0) {
 				fprintf(ofp, "\" \\\n\t\t\"");
@@ -1801,11 +1801,11 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 
 		fprintf(ofp, "\" %% \\\n\t\t(");
 
-		not_first = 0;
+		yest_first = 0;
 		count = 0;
 
 		for (f = event->format.fields; f; f = f->next) {
-			if (not_first++)
+			if (yest_first++)
 				fprintf(ofp, ", ");
 
 			if (++count % 5 == 0)
@@ -1840,11 +1840,11 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 		fprintf(ofp, "\t\tprint('Sample: {'+"
 			"get_dict_as_string(perf_sample_dict['sample'], ', ')+'}')\n\n");
 
-		fprintf(ofp, "\t\tfor node in common_callchain:");
-		fprintf(ofp, "\n\t\t\tif 'sym' in node:");
-		fprintf(ofp, "\n\t\t\t\tprint(\"\\t[%%x] %%s\" %% (node['ip'], node['sym']['name']))");
+		fprintf(ofp, "\t\tfor yesde in common_callchain:");
+		fprintf(ofp, "\n\t\t\tif 'sym' in yesde:");
+		fprintf(ofp, "\n\t\t\t\tprint(\"\\t[%%x] %%s\" %% (yesde['ip'], yesde['sym']['name']))");
 		fprintf(ofp, "\n\t\t\telse:");
-		fprintf(ofp, "\n\t\t\t\tprint(\"\t[%%x]\" %% (node['ip']))\n\n");
+		fprintf(ofp, "\n\t\t\t\tprint(\"\t[%%x]\" %% (yesde['ip']))\n\n");
 		fprintf(ofp, "\t\tprint()\n\n");
 
 	}

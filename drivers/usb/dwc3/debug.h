@@ -153,7 +153,7 @@ static inline const char *dwc3_trb_type_string(unsigned int type)
 {
 	switch (type) {
 	case DWC3_TRBCTL_NORMAL:
-		return "normal";
+		return "yesrmal";
 	case DWC3_TRBCTL_CONTROL_SETUP:
 		return "setup";
 	case DWC3_TRBCTL_CONTROL_STATUS2:

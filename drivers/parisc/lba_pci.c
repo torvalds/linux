@@ -12,13 +12,13 @@
 ** spaces) on platforms with an SBA/LBA chipset. A/B/C/J/L/N-class
 ** with 4 digit model numbers - eg C3000 (and A400...sigh).
 **
-** LBA driver isn't as simple as the Dino driver because:
+** LBA driver isn't as simple as the Diyes driver because:
 **   (a) this chip has substantial bug fixes between revisions
-**       (Only one Dino bug has a software workaround :^(  )
+**       (Only one Diyes bug has a software workaround :^(  )
 **   (b) has more options which we don't (yet) support (DMA hints, OLARD)
-**   (c) IRQ support lives in the I/O SAPIC driver (not with PCI driver)
+**   (c) IRQ support lives in the I/O SAPIC driver (yest with PCI driver)
 **   (d) play nicely with both PAT and "Legacy" PA-RISC firmware (PDC).
-**       (dino only deals with "Legacy" PDC)
+**       (diyes only deals with "Legacy" PDC)
 **
 ** LBA driver passes the I/O SAPIC HPA to the I/O SAPIC driver.
 ** (I/O SAPIC is integratd in the LBA chip).
@@ -82,7 +82,7 @@
 
 
 /*
-** Config accessor functions only pass in the 8-bit bus number and not
+** Config accessor functions only pass in the 8-bit bus number and yest
 ** the 8-bit "PCI Segment" number. Each LBA will be assigned a PCI bus
 ** number based on what firmware wrote into the scratch register.
 **
@@ -97,7 +97,7 @@
 
 #define MODULE_NAME "LBA"
 
-/* non-postable I/O port space, densely packed */
+/* yesn-postable I/O port space, densely packed */
 #define LBA_PORT_BASE	(PCI_F_EXTEND | 0xfee00000UL)
 static void __iomem *astro_iop_base __read_mostly;
 
@@ -241,7 +241,7 @@ static int lba_device_present(u8 bus, u8 dfn, struct lba_device *d)
      */									\
     lba_t32 = READ_REG32((d)->hba.base_addr + LBA_PCI_CFG_ADDR);	\
     /*									\
-     * Generate a cfg write cycle (will have no affect on		\
+     * Generate a cfg write cycle (will have yes affect on		\
      * Vendor ID register since read-only).				\
      */									\
     WRITE_REG32(~0, (d)->hba.base_addr + LBA_PCI_CFG_DATA);		\
@@ -260,18 +260,18 @@ static int lba_device_present(u8 bus, u8 dfn, struct lba_device *d)
  *		OV bit is broken until rev 4.0, so can't use OV bit and
  *		LBA_ERROR_LOG_ADDR to tell if error belongs to config cycle.
  *
- *		As of rev 4.0, no longer need the error check.
+ *		As of rev 4.0, yes longer need the error check.
  *
  *   -- Even if we could tell, we still want to return -1
- *	for **ANY** error (not just master abort).
+ *	for **ANY** error (yest just master abort).
  *
- *   -- Only clear non-fatal errors (we don't want to bring
+ *   -- Only clear yesn-fatal errors (we don't want to bring
  *	LBA out of pci-fatal mode).
  *
  *		Actually, there is still a race in which
  *		we could be clearing a fatal error.  We will
  *		live with this during our initial bus walk
- *		until rev 4.0 (no driver activity during
+ *		until rev 4.0 (yes driver activity during
  *		initial bus walk).  The initial bus walk
  *		has race conditions concerning the use of
  *		smart mode as well.
@@ -295,7 +295,7 @@ static int lba_device_present(u8 bus, u8 dfn, struct lba_device *d)
 	error = 1;							\
 	if ((error_status & LBA_FATAL_ERROR) == 0) {			\
 	    /*								\
-	     * Clear error status (if fatal bit not set) by setting	\
+	     * Clear error status (if fatal bit yest set) by setting	\
 	     * clear error log bit (CL).				\
 	     */								\
 	    WRITE_REG32(status_control | CLEAR_ERRLOG, base + LBA_STAT_CTL); \
@@ -381,7 +381,7 @@ static int elroy_cfg_read(struct pci_bus *bus, unsigned int devfn, int pos, int 
 
 	if (LBA_SKIP_PROBE(d) && !lba_device_present(bus->busn_res.start, devfn, d)) {
 		DBG_CFG("%s(%x+%2x) -> -1 (b)\n", __func__, tok, pos);
-		/* either don't want to look or know device isn't present. */
+		/* either don't want to look or kyesw device isn't present. */
 		*data = ~0U;
 		return(0);
 	}
@@ -423,7 +423,7 @@ lba_wr_cfg(struct lba_device *d, u32 tok, u8 reg, u32 data, u32 size)
 
 
 /*
- * LBA 4.0 config write code implements non-postable semantics
+ * LBA 4.0 config write code implements yesn-postable semantics
  * by doing a read of CONFIG ADDR after the write.
  */
 
@@ -473,7 +473,7 @@ static struct pci_ops elroy_cfg_ops = {
 
 /*
  * The mercury_cfg_ops are slightly misnamed; they're also used for Elroy
- * TR4.0 as no additional bugs were found in this areea between Elroy and
+ * TR4.0 as yes additional bugs were found in this areea between Elroy and
  * Mercury
  */
 
@@ -505,7 +505,7 @@ static int mercury_cfg_read(struct pci_bus *bus, unsigned int devfn, int pos, in
 }
 
 /*
- * LBA 4.0 config write code implements non-postable semantics
+ * LBA 4.0 config write code implements yesn-postable semantics
  * by doing a read of CONFIG ADDR after the write.
  */
 
@@ -562,7 +562,7 @@ lba_bios_init(void)
  *   overlaps with CPU HPA. Just truncate the lmmio range.
  *
  *   BEWARE: conflicts with this lmmio range may be an
- *   elmmio range which is pointing down another rope.
+ *   elmmio range which is pointing down ayesther rope.
  *
  *  FIXME: only deals with one collision per range...theoretically we
  *  could have several. Supporting more than one collision will get messy.
@@ -581,7 +581,7 @@ truncate_pat_collision(struct resource *root, struct resource *new)
 	while (tmp && tmp->end < start)
 		tmp = tmp->sibling;
 
-	/* no entries overlap */
+	/* yes entries overlap */
 	if (!tmp)  return 0;
 
 	/* found one that starts behind the new one
@@ -616,14 +616,14 @@ truncate_pat_collision(struct resource *root, struct resource *new)
  * extend_lmmio_len: extend lmmio range to maximum length
  *
  * This is needed at least on C8000 systems to get the ATI FireGL card
- * working. On other systems we will currently not extend the lmmio space.
+ * working. On other systems we will currently yest extend the lmmio space.
  */
 static unsigned long
 extend_lmmio_len(unsigned long start, unsigned long end, unsigned long lba_len)
 {
 	struct resource *tmp;
 
-	/* exit if not a C8000 */
+	/* exit if yest a C8000 */
 	if (boot_cpu_data.cpu_type < mako)
 		return end;
 
@@ -645,7 +645,7 @@ extend_lmmio_len(unsigned long start, unsigned long end, unsigned long lba_len)
 	for (tmp = iomem_resource.child; tmp; tmp = tmp->sibling) {
 		pr_debug("LBA: testing %pR\n", tmp);
 		if (tmp->start == start)
-			continue; /* ignore ourself */
+			continue; /* igyesre ourself */
 		if (tmp->end < start)
 			continue;
 		if (tmp->start > end)
@@ -695,7 +695,7 @@ static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 	/* Depth-First Search on bus tree */
 	if (bus->self)
 		pcibios_allocate_bridge_resources(bus->self);
-	list_for_each_entry(child, &bus->children, node)
+	list_for_each_entry(child, &bus->children, yesde)
 		pcibios_allocate_bus_resources(child);
 }
 
@@ -703,7 +703,7 @@ static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 /*
 ** The algorithm is generic code.
 ** But it needs to access local data structures to get the IRQ base.
-** Could make this a "pci_fixup_irq(bus, region)" but not sure
+** Could make this a "pci_fixup_irq(bus, region)" but yest sure
 ** it's worth it.
 **
 ** Called by do_pci_scan_bus() immediately after each PCI bus is walked.
@@ -801,7 +801,7 @@ lba_fixup_bus(struct pci_bus *bus)
 		for (i = 0; i < PCI_BRIDGE_RESOURCES; i++) {
 			struct resource *res = &dev->resource[i];
 
-			/* If resource not allocated - skip it */
+			/* If resource yest allocated - skip it */
 			if (!res->start)
 				continue;
 
@@ -815,7 +815,7 @@ lba_fixup_bus(struct pci_bus *bus)
 
 #ifdef FBB_SUPPORT
 		/*
-		** If one device does not support FBB transfers,
+		** If one device does yest support FBB transfers,
 		** No one on the bus can be allowed to use them.
 		*/
 		(void) pci_read_config_word(dev, PCI_STATUS, &status);
@@ -823,7 +823,7 @@ lba_fixup_bus(struct pci_bus *bus)
 #endif
 
                 /*
-		** P2PB's have no IRQs. ignore them.
+		** P2PB's have yes IRQs. igyesre them.
 		*/
 		if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
 			pcibios_init_bridge(dev);
@@ -903,17 +903,17 @@ LBA_PORT_IN(32, 0)
 ** BUG X4107:  Ordering broken - DMA RD return can bypass PIO WR
 **
 ** Fixed in Elroy 2.2. The READ_U32(..., LBA_FUNC_ID) below is
-** guarantee non-postable completion semantics - not avoid X4107.
+** guarantee yesn-postable completion semantics - yest avoid X4107.
 ** The READ_U32 only guarantees the write data gets to elroy but
 ** out to the PCI bus. We can't read stuff from I/O port space
-** since we don't know what has side-effects. Attempting to read
+** since we don't kyesw what has side-effects. Attempting to read
 ** from configuration space would be suicidal given the number of
 ** bugs in that elroy functionality.
 **
 **      Description:
 **          DMA read results can improperly pass PIO writes (X4107).  The
 **          result of this bug is that if a processor modifies a location in
-**          memory after having issued PIO writes, the PIO writes are not
+**          memory after having issued PIO writes, the PIO writes are yest
 **          guaranteed to be completed before a PCI device is allowed to see
 **          the modified data in a DMA read.
 **
@@ -1125,7 +1125,7 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 
 		case PAT_NPIOP:
 			printk(KERN_WARNING MODULE_NAME
-				" range[%d] : ignoring NPIOP (0x%lx)\n",
+				" range[%d] : igyesring NPIOP (0x%lx)\n",
 				i, p->start);
 			break;
 
@@ -1134,7 +1134,7 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 			** Postable I/O port space is per PCI host adapter.
 			** base of 64MB PIOP region
 			*/
-			lba_dev->iop_base = ioremap_nocache(p->start, 64 * 1024 * 1024);
+			lba_dev->iop_base = ioremap_yescache(p->start, 64 * 1024 * 1024);
 
 			sprintf(lba_dev->hba.io_name, "PCI%02x Ports",
 					(int)lba_dev->hba.bus_num.start);
@@ -1148,7 +1148,7 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 
 		default:
 			printk(KERN_WARNING MODULE_NAME
-				" range[%d] : unknown pat range type (0x%lx)\n",
+				" range[%d] : unkyeswn pat range type (0x%lx)\n",
 				i, p->type & 0xff);
 			break;
 		}
@@ -1216,7 +1216,7 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 	 *
 	 * Should someone want to mess with MSI, they may need to
 	 * reprogram LBA BASE/MASK registers. Thus preserve the code
-	 * below until MSI is known to work on C3000/A500/N4000/RP3440.
+	 * below until MSI is kyeswn to work on C3000/A500/N4000/RP3440.
 	 *
 	 * Using the code below, /proc/iomem shows:
 	 * ...
@@ -1259,11 +1259,11 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 	 *   fa100000-fa4fffff : stifb mmio
 	 *   fb000000-fb1fffff : stifb fb
 	 *
-	 * ie all Built-in core are under now correctly under PCI00.
+	 * ie all Built-in core are under yesw correctly under PCI00.
 	 * The "PCI02 ELMMIO" directed range is for:
 	 *  +-[02]---03.0  3Dfx Interactive, Inc. Voodoo 2
 	 *
-	 * All is well now.
+	 * All is well yesw.
 	 */
 	r->start = READ_REG32(lba_dev->hba.base_addr + LBA_LMMIO_BASE);
 	if (r->start & 1) {
@@ -1294,7 +1294,7 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 	** bus has multiple slots (ie multiple devices) or the device
 	** needs more than the typical 4 or 8MB a distributed range offers.
 	**
-	** The main reason for ignoring it now frigging complications.
+	** The main reason for igyesring it yesw frigging complications.
 	** Directed ranges may overlap (and have precedence) over
 	** distributed ranges. Or a distributed range assigned to a unused
 	** rope may be used by a directed range on a different rope.
@@ -1405,7 +1405,7 @@ lba_hw_init(struct lba_device *d)
 	 * Hard Fail vs. Soft Fail on PCI "Master Abort".
 	 *
 	 * "Master Abort" means the MMIO transaction timed out - usually due to
-	 * the device not responding to an MMIO read. We would like HF to be
+	 * the device yest responding to an MMIO read. We would like HF to be
 	 * enabled to find driver problems, though it means the system will
 	 * crash with a HPMC.
 	 *
@@ -1413,7 +1413,7 @@ lba_hw_init(struct lba_device *d)
 	 * pci bus. This is like how PCI busses on x86 and most other
 	 * architectures behave.  In order to increase compatibility with
 	 * existing (x86) PCI hardware and existing Linux drivers we enable
-	 * Soft Faul mode on PA-RISC now too.
+	 * Soft Faul mode on PA-RISC yesw too.
 	 */
         stat = READ_REG32(d->hba.base_addr + LBA_STAT_CTL);
 #if defined(ENABLE_HARDFAIL)
@@ -1424,7 +1424,7 @@ lba_hw_init(struct lba_device *d)
 
 	/*
 	** Writing a zero to STAT_CTL.rf (bit 0) will clear reset signal
-	** if it's not already set. If we just cleared the PCI Bus Reset
+	** if it's yest already set. If we just cleared the PCI Bus Reset
 	** signal, wait a bit for the PCI devices to recover and setup.
 	*/
 	if (bus_reset)
@@ -1438,7 +1438,7 @@ lba_hw_init(struct lba_device *d)
 		** Elroys with hot pluggable slots don't get configured
 		** correctly if the slot is empty.  ARB_MASK is set to 0
 		** and we can't master transactions on the bus if it's
-		** not at least one. 0x3 enables elroy and first slot.
+		** yest at least one. 0x3 enables elroy and first slot.
 		*/
 		printk(KERN_DEBUG "NOTICE: Enabling PCI Arbitration\n");
 		WRITE_REG32(0x3, d->hba.base_addr + LBA_ARB_MASK);
@@ -1455,14 +1455,14 @@ lba_hw_init(struct lba_device *d)
 /*
  * Unfortunately, when firmware numbers busses, it doesn't take into account
  * Cardbus bridges.  So we have to renumber the busses to suit ourselves.
- * Elroy/Mercury don't actually know what bus number they're attached to;
+ * Elroy/Mercury don't actually kyesw what bus number they're attached to;
  * we use bus 0 to indicate the directly attached bus and any other bus
  * number will be taken care of by the PCI-PCI bridge.
  */
 static unsigned int lba_next_bus = 0;
 
 /*
- * Determine if lba should claim this chip (return 0) or not (return 1).
+ * Determine if lba should claim this chip (return 0) or yest (return 1).
  * If so, initialize the chip and tell other partners in crime they
  * have work to do.
  */
@@ -1476,7 +1476,7 @@ lba_driver_probe(struct parisc_device *dev)
 	u32 func_class;
 	void *tmp_obj;
 	char *version;
-	void __iomem *addr = ioremap_nocache(dev->hpa.start, 4096);
+	void __iomem *addr = ioremap_yescache(dev->hpa.start, 4096);
 	int max;
 
 	/* Read HW Rev First */
@@ -1515,21 +1515,21 @@ lba_driver_probe(struct parisc_device *dev)
 		}
 
 	} else if (IS_MERCURY(dev) || IS_QUICKSILVER(dev)) {
-		int major, minor;
+		int major, miyesr;
 
 		func_class &= 0xff;
-		major = func_class >> 4, minor = func_class & 0xf;
+		major = func_class >> 4, miyesr = func_class & 0xf;
 
 		/* We could use one printk for both Elroy and Mercury,
                  * but for the mask for func_class.
                  */ 
 		printk(KERN_INFO "%s version TR%d.%d (0x%x) found at 0x%lx\n",
 		       IS_MERCURY(dev) ? "Mercury" : "Quicksilver", major,
-		       minor, func_class, (long)dev->hpa.start);
+		       miyesr, func_class, (long)dev->hpa.start);
 
 		cfg_ops = &mercury_cfg_ops;
 	} else {
-		printk(KERN_ERR "Unknown LBA found at 0x%lx\n",
+		printk(KERN_ERR "Unkyeswn LBA found at 0x%lx\n",
 			(long)dev->hpa.start);
 		return -ENODEV;
 	}
@@ -1575,7 +1575,7 @@ lba_driver_probe(struct parisc_device *dev)
 	} else {
 		if (!astro_iop_base) {
 			/* Sprockets PDC uses NPIOP region */
-			astro_iop_base = ioremap_nocache(LBA_PORT_BASE, 64 * 1024);
+			astro_iop_base = ioremap_yescache(LBA_PORT_BASE, 64 * 1024);
 			pci_port = &lba_astro_port_ops;
 		}
 
@@ -1587,7 +1587,7 @@ lba_driver_probe(struct parisc_device *dev)
 		lba_dev->hba.bus_num.start = lba_next_bus;
 
 	/*   Overlaps with elmmio can (and should) fail here.
-	 *   We will prune (or ignore) the distributed range.
+	 *   We will prune (or igyesre) the distributed range.
 	 *
 	 *   FIXME: SBA code should register all elmmio ranges first.
 	 *      that would take care of elmmio ranges routed
@@ -1612,7 +1612,7 @@ lba_driver_probe(struct parisc_device *dev)
 		pci_add_resource_offset(&resources, &lba_dev->hba.lmmio_space,
 					lba_dev->hba.lmmio_space_offset);
 	if (lba_dev->hba.gmmio_space.flags) {
-		/* Not registering GMMIO space - according to docs it's not
+		/* Not registering GMMIO space - according to docs it's yest
 		 * even used on HP-UX. */
 		/* pci_add_resource(&resources, &lba_dev->hba.gmmio_space); */
 	}
@@ -1678,7 +1678,7 @@ static struct parisc_driver lba_driver __refdata = {
 };
 
 /*
-** One time initialization to let the world know the LBA was found.
+** One time initialization to let the world kyesw the LBA was found.
 ** Must be called exactly once before pci_init().
 */
 void __init lba_init(void)
@@ -1689,11 +1689,11 @@ void __init lba_init(void)
 /*
 ** Initialize the IBASE/IMASK registers for LBA (Elroy).
 ** Only called from sba_iommu.c in order to route ranges (MMIO vs DMA).
-** sba_iommu is responsible for locking (none needed at init time).
+** sba_iommu is responsible for locking (yesne needed at init time).
 */
 void lba_set_iregs(struct parisc_device *lba, u32 ibase, u32 imask)
 {
-	void __iomem * base_addr = ioremap_nocache(lba->hpa.start, 4096);
+	void __iomem * base_addr = ioremap_yescache(lba->hpa.start, 4096);
 
 	imask <<= 2;	/* adjust for hints - 2 more bits */
 

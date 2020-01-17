@@ -6,7 +6,7 @@ Description:
 		The /sys/class/rapidio_port subdirectory contains individual
 		subdirectories named as "rapidioN" where N = mport ID registered
 		with RapidIO subsystem.
-		NOTE: An mport ID is not a RapidIO destination ID assigned to a
+		NOTE: An mport ID is yest a RapidIO destination ID assigned to a
 		given local mport device.
 
 What:		/sys/class/rapidio_port/rapidioN/sys_size
@@ -27,7 +27,7 @@ Contact:	Matt Porter <mporter@kernel.crashing.org>,
 Description:
 		(RO) reports RapidIO destination ID assigned to the given
 		RapidIO mport device. If value 0xFFFFFFFF is returned this means
-		that no valid destination ID have been assigned to the mport
+		that yes valid destination ID have been assigned to the mport
 		(yet). Normally, before enumeration/discovery have been executed
 		only fabric enumerating mports have a valid destination ID
 		assigned to them using "hdid=..." rapidio module parameter.

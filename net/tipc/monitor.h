@@ -8,11 +8,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -39,8 +39,8 @@
 #include "netlink.h"
 
 /* struct tipc_mon_state: link instance's cache of monitor list and domain state
- * @list_gen: current generation of this node's monitor list
- * @gen: current generation of this node's local domain
+ * @list_gen: current generation of this yesde's monitor list
+ * @gen: current generation of this yesde's local domain
  * @peer_gen: most recent domain generation received from peer
  * @acked_gen: most recent generation of self's domain acked by peer
  * @monitoring: this peer endpoint should continuously monitored
@@ -76,7 +76,7 @@ int tipc_nl_monitor_get_threshold(struct net *net);
 int __tipc_nl_add_monitor(struct net *net, struct tipc_nl_msg *msg,
 			  u32 bearer_id);
 int tipc_nl_add_monitor_peer(struct net *net, struct tipc_nl_msg *msg,
-			     u32 bearer_id, u32 *prev_node);
+			     u32 bearer_id, u32 *prev_yesde);
 void tipc_mon_reinit_self(struct net *net);
 
 extern const int tipc_max_domain_size;

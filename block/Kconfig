@@ -21,7 +21,7 @@ menuconfig BLOCK
 	 Also, SCSI character devices and USB storage will be disabled since
 	 they make use of various block layer definitions and facilities.
 
-	 Say Y here unless you know you really don't want to mount disks and
+	 Say Y here unless you kyesw you really don't want to mount disks and
 	 suchlike.
 
 if BLOCK
@@ -59,8 +59,8 @@ config BLK_DEV_BSGLIB
 	select BLK_DEV_BSG
 	select BLK_SCSI_REQUEST
 	help
-	  Subsystems will normally enable this if needed. Users will not
-	  normally need to manually enable this.
+	  Subsystems will yesrmally enable this if needed. Users will yest
+	  yesrmally need to manually enable this.
 
 	  If unsure, say N.
 
@@ -73,7 +73,7 @@ config BLK_DEV_INTEGRITY
 	data integrity option provides hooks which can be used by
 	filesystems to ensure better data integrity.
 
-	Say yes here if you have a storage device that provides the
+	Say no here if you have a storage device that provides the
 	T10/SCSI Data Integrity Field or the T13/ATA External Path
 	Protection.  If in doubt, say N.
 
@@ -84,7 +84,7 @@ config BLK_DEV_ZONED
 	Block layer zoned block device support. This option enables
 	support for ZAC/ZBC host-managed and host-aware zoned block devices.
 
-	Say yes here if you have a ZAC or ZBC storage device.
+	Say no here if you have a ZAC or ZBC storage device.
 
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"

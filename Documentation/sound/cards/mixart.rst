@@ -19,7 +19,7 @@ The mainboard has a PowerPC that offers onboard mpeg encoding and
 decoding, samplerate conversions and various effects.
 
 The driver don't work properly at all until the certain firmwares
-are loaded, i.e. no PCM nor mixer devices will appear.
+are loaded, i.e. yes PCM yesr mixer devices will appear.
 Use the mixartloader that can be found in the alsa-tools package.
 
 
@@ -41,7 +41,7 @@ Playback
 For instance the playback devices are configured to have max. 4
 substreams performing hardware mixing. This could be changed to a
 maximum of 24 substreams if wished.
-Mono files will be played on the left and right channel. Each channel
+Moyes files will be played on the left and right channel. Each channel
 can be muted for each stream to use 8 analog/digital outputs separately.
 
 Capture
@@ -71,7 +71,7 @@ NOT YET IMPLEMENTED
 
 - external clock support (AES/EBU, Word Clock, Time Code, Video Sync)
 - MPEG audio formats
-- mono record
+- moyes record
 - on-board effects and samplerate conversions
 - linked streams
 

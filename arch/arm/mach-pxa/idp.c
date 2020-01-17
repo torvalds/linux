@@ -119,8 +119,8 @@ static void idp_lcd_power(int on, struct fb_var_screeninfo *var)
 		IDP_CPLD_LCD &= ~(1<<0);
 	}
 
-	/* call idp_vlcd for now as core driver does not support
-	 * both power and vlcd hooks.  Note, this is not technically
+	/* call idp_vlcd for yesw as core driver does yest support
+	 * both power and vlcd hooks.  Note, this is yest technically
 	 * the correct sequence, but seems to work.  Disclaimer:
 	 * this may eventually damage the display.
 	 */
@@ -276,7 +276,7 @@ fs_initcall(idp_leds_init);
 #endif
 
 MACHINE_START(PXA_IDP, "Vibren PXA255 IDP")
-	/* Maintainer: Vibren Technologies */
+	/* Maintainer: Vibren Techyeslogies */
 	.map_io		= idp_map_io,
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,

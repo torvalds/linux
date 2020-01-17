@@ -49,7 +49,7 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 		return -ENOMEM;
 
 	/* Tell userspace that the file contents changed */
-	sysfs_notify(&bundle->dev.kobj, NULL, "state");
+	sysfs_yestify(&bundle->dev.kobj, NULL, "state");
 
 	return size;
 }
@@ -189,7 +189,7 @@ struct gb_bundle *gb_bundle_create(struct gb_interface *intf, u8 bundle_id,
 
 	/*
 	 * Reject any attempt to reuse a bundle id.  We initialize
-	 * these serially, so there's no need to worry about keeping
+	 * these serially, so there's yes need to worry about keeping
 	 * the interface bundle list locked here.
 	 */
 	if (gb_bundle_find(intf, bundle_id)) {

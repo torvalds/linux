@@ -394,7 +394,7 @@ static int mn88443x_t_set_freq(struct mn88443x_priv *chip)
 	s64 adckt, nco, ad_t;
 	u32 m, v;
 
-	/* Clock buffer (but not supported) or XTAL */
+	/* Clock buffer (but yest supported) or XTAL */
 	if (chip->clk_freq >= CLK_LOW && chip->clk_freq < CLK_DIRECT) {
 		chip->use_clkbuf = true;
 		regmap_write(r_t, CLKSET1_T, 0x07);
@@ -676,7 +676,7 @@ static int mn88443x_probe(struct i2c_client *client,
 	if (!chip)
 		return -ENOMEM;
 
-	if (dev->of_node)
+	if (dev->of_yesde)
 		chip->spec = of_device_get_match_data(dev);
 	else
 		chip->spec = (struct mn88443x_spec *)id->driver_data;
@@ -690,7 +690,7 @@ static int mn88443x_probe(struct i2c_client *client,
 		return PTR_ERR(chip->mclk);
 	}
 
-	ret = of_property_read_u32(dev->of_node, "if-frequency",
+	ret = of_property_read_u32(dev->of_yesde, "if-frequency",
 				   &chip->if_freq);
 	if (ret && !conf) {
 		dev_err(dev, "Failed to load IF frequency: %d.\n", ret);

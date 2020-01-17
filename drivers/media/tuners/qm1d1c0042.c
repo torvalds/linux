@@ -10,7 +10,7 @@
  * As the disclosed information on the chip is very limited,
  * this driver lacks some features, including chip config like IF freq.
  * It assumes that users of this driver (such as a PCI bridge of
- * DTV receiver cards) know the relevant info and
+ * DTV receiver cards) kyesw the relevant info and
  * configure the chip via I2C if necessary.
  *
  * Currently, PT3 driver is the only one that uses this driver,
@@ -47,7 +47,7 @@ static const struct qm1d1c0042_config default_cfg = {
 	.fast_srch = 0,
 	.lpf_wait = 20,
 	.fast_srch_wait = 4,
-	.normal_srch_wait = 15,
+	.yesrmal_srch_wait = 15,
 };
 
 struct qm1d1c0042_state {
@@ -139,7 +139,7 @@ static int qm1d1c0042_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	if (cfg->xtal_freq != QM1D1C0042_CFG_XTAL_DFLT)
 		dev_warn(&state->i2c->dev,
-			"(%s) changing xtal_freq not supported. ", __func__);
+			"(%s) changing xtal_freq yest supported. ", __func__);
 	state->cfg.xtal_freq = default_cfg.xtal_freq;
 
 	state->cfg.lpf = cfg->lpf;
@@ -155,10 +155,10 @@ static int qm1d1c0042_set_config(struct dvb_frontend *fe, void *priv_cfg)
 	else
 		state->cfg.fast_srch_wait = default_cfg.fast_srch_wait;
 
-	if (cfg->normal_srch_wait != QM1D1C0042_CFG_WAIT_DFLT)
-		state->cfg.normal_srch_wait = cfg->normal_srch_wait;
+	if (cfg->yesrmal_srch_wait != QM1D1C0042_CFG_WAIT_DFLT)
+		state->cfg.yesrmal_srch_wait = cfg->yesrmal_srch_wait;
 	else
-		state->cfg.normal_srch_wait = default_cfg.normal_srch_wait;
+		state->cfg.yesrmal_srch_wait = default_cfg.yesrmal_srch_wait;
 	return 0;
 }
 
@@ -280,7 +280,7 @@ static int qm1d1c0042_set_params(struct dvb_frontend *fe)
 	else if (state->regs[0x03] & 0x01)
 		msleep(state->cfg.fast_srch_wait);
 	else
-		msleep(state->cfg.normal_srch_wait);
+		msleep(state->cfg.yesrmal_srch_wait);
 
 	if (state->cfg.lpf) {
 		/* LPF_FC */

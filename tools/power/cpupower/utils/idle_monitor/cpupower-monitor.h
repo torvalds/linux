@@ -50,7 +50,7 @@ typedef struct cstate {
 } cstate_t;
 
 struct cpuidle_monitor {
-	/* Name must not contain whitespaces */
+	/* Name must yest contain whitespaces */
 	char name[MONITOR_NAME_LEN];
 	int name_len;
 	int hw_states_num;

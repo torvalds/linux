@@ -215,7 +215,7 @@ static irqreturn_t xgene_enet_rx_irq(const int irq, void *data)
 	struct xgene_enet_desc_ring *rx_ring = data;
 
 	if (napi_schedule_prep(&rx_ring->napi)) {
-		disable_irq_nosync(irq);
+		disable_irq_yessync(irq);
 		__napi_schedule(&rx_ring->napi);
 	}
 
@@ -335,7 +335,7 @@ static int xgene_enet_work_msg(struct sk_buff *skb, u64 *hopinfo)
 			hdr_len = ethhdr + ip_hdrlen(skb) + tcp_hdrlen(skb);
 			mss = skb_shinfo(skb)->gso_size;
 
-			if (skb_is_nonlinear(skb)) {
+			if (skb_is_yesnlinear(skb)) {
 				len = skb_headlen(skb);
 				nr_frags = skb_shinfo(skb)->nr_frags;
 
@@ -446,7 +446,7 @@ static int xgene_enet_setup_tx_desc(struct xgene_enet_desc_ring *tx_ring,
 				   SET_VAL(BUFDATALEN, hw_len) |
 				   SET_BIT(COHERENT));
 
-	if (!skb_is_nonlinear(skb))
+	if (!skb_is_yesnlinear(skb))
 		goto out;
 
 	/* scatter gather */
@@ -750,7 +750,7 @@ static int xgene_enet_rx_frame(struct xgene_enet_desc_ring *rx_ring,
 	rx_ring->npagepool -= skb_shinfo(skb)->nr_frags;
 
 skip_jumbo:
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 	xgene_enet_rx_csum(skb);
 
 	rx_ring->rx_packets++;
@@ -1565,7 +1565,7 @@ static void xgene_get_port_id_dt(struct device *dev, struct xgene_enet_pdata *pd
 {
 	u32 id = 0;
 
-	of_property_read_u32(dev->of_node, "port-id", &id);
+	of_property_read_u32(dev->of_yesde, "port-id", &id);
 
 	pdata->port_id = id & BIT(0);
 
@@ -1691,7 +1691,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, RES_ENET_CSR);
 	if (!res) {
-		dev_err(dev, "Resource enet_csr not defined\n");
+		dev_err(dev, "Resource enet_csr yest defined\n");
 		return -ENODEV;
 	}
 	pdata->base_addr = devm_ioremap(dev, res->start, resource_size(res));
@@ -1702,7 +1702,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, RES_RING_CSR);
 	if (!res) {
-		dev_err(dev, "Resource ring_csr not defined\n");
+		dev_err(dev, "Resource ring_csr yest defined\n");
 		return -ENODEV;
 	}
 	pdata->ring_csr_addr = devm_ioremap(dev, res->start,
@@ -1714,7 +1714,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, RES_RING_CMD);
 	if (!res) {
-		dev_err(dev, "Resource ring_cmd not defined\n");
+		dev_err(dev, "Resource ring_cmd yest defined\n");
 		return -ENODEV;
 	}
 	pdata->ring_cmd_addr = devm_ioremap(dev, res->start,
@@ -1724,7 +1724,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 		return -ENOMEM;
 	}
 
-	if (dev->of_node)
+	if (dev->of_yesde)
 		xgene_get_port_id_dt(dev, pdata);
 #ifdef CONFIG_ACPI
 	else
@@ -1769,7 +1769,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 			 * retrived. Always abort if the clock is missing on
 			 * DT system as the driver can't cope with this case.
 			 */
-			if (PTR_ERR(pdata->clk) != -ENOENT || dev->of_node)
+			if (PTR_ERR(pdata->clk) != -ENOENT || dev->of_yesde)
 				return PTR_ERR(pdata->clk);
 			/* Firmware may have set up the clock already. */
 			dev_info(dev, "clocks have been setup already\n");
@@ -1846,11 +1846,11 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 	buf_pool = pdata->rx_ring[0]->buf_pool;
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
 		/* Initialize and Enable  PreClassifier Tree */
-		enet_cle->max_nodes = 512;
+		enet_cle->max_yesdes = 512;
 		enet_cle->max_dbptrs = 1024;
 		enet_cle->parsers = 3;
 		enet_cle->active_parser = PARSER_ALL;
-		enet_cle->ptree.start_node = 0;
+		enet_cle->ptree.start_yesde = 0;
 		enet_cle->ptree.start_dbptr = 0;
 		enet_cle->jump_bytes = 8;
 		ret = pdata->cle_ops->cle_init(pdata);

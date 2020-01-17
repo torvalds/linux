@@ -10,14 +10,14 @@
 
 /*
  * NOTE! This filesystem is probably most useful
- * not as a real filesystem, but as an example of
+ * yest as a real filesystem, but as an example of
  * how virtual filesystems can be written.
  *
  * It doesn't get much simpler than this. Consider
  * that this file implements the full semantics of
  * a POSIX-compliant read-write filesystem.
  *
- * Note in particular how the filesystem does not
+ * Note in particular how the filesystem does yest
  * need to implement any data structures of its own
  * to keep track of the virtual data: using the VFS
  * caches is sufficient.
@@ -51,63 +51,63 @@ struct ramfs_fs_info {
 #define RAMFS_DEFAULT_MODE	0755
 
 static const struct super_operations ramfs_ops;
-static const struct inode_operations ramfs_dir_inode_operations;
+static const struct iyesde_operations ramfs_dir_iyesde_operations;
 
 static const struct address_space_operations ramfs_aops = {
 	.readpage	= simple_readpage,
 	.write_begin	= simple_write_begin,
 	.write_end	= simple_write_end,
-	.set_page_dirty	= __set_page_dirty_no_writeback,
+	.set_page_dirty	= __set_page_dirty_yes_writeback,
 };
 
-struct inode *ramfs_get_inode(struct super_block *sb,
-				const struct inode *dir, umode_t mode, dev_t dev)
+struct iyesde *ramfs_get_iyesde(struct super_block *sb,
+				const struct iyesde *dir, umode_t mode, dev_t dev)
 {
-	struct inode * inode = new_inode(sb);
+	struct iyesde * iyesde = new_iyesde(sb);
 
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		inode_init_owner(inode, dir, mode);
-		inode->i_mapping->a_ops = &ramfs_aops;
-		mapping_set_gfp_mask(inode->i_mapping, GFP_HIGHUSER);
-		mapping_set_unevictable(inode->i_mapping);
-		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	if (iyesde) {
+		iyesde->i_iyes = get_next_iyes();
+		iyesde_init_owner(iyesde, dir, mode);
+		iyesde->i_mapping->a_ops = &ramfs_aops;
+		mapping_set_gfp_mask(iyesde->i_mapping, GFP_HIGHUSER);
+		mapping_set_unevictable(iyesde->i_mapping);
+		iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
 		switch (mode & S_IFMT) {
 		default:
-			init_special_inode(inode, mode, dev);
+			init_special_iyesde(iyesde, mode, dev);
 			break;
 		case S_IFREG:
-			inode->i_op = &ramfs_file_inode_operations;
-			inode->i_fop = &ramfs_file_operations;
+			iyesde->i_op = &ramfs_file_iyesde_operations;
+			iyesde->i_fop = &ramfs_file_operations;
 			break;
 		case S_IFDIR:
-			inode->i_op = &ramfs_dir_inode_operations;
-			inode->i_fop = &simple_dir_operations;
+			iyesde->i_op = &ramfs_dir_iyesde_operations;
+			iyesde->i_fop = &simple_dir_operations;
 
-			/* directory inodes start off with i_nlink == 2 (for "." entry) */
-			inc_nlink(inode);
+			/* directory iyesdes start off with i_nlink == 2 (for "." entry) */
+			inc_nlink(iyesde);
 			break;
 		case S_IFLNK:
-			inode->i_op = &page_symlink_inode_operations;
-			inode_nohighmem(inode);
+			iyesde->i_op = &page_symlink_iyesde_operations;
+			iyesde_yeshighmem(iyesde);
 			break;
 		}
 	}
-	return inode;
+	return iyesde;
 }
 
 /*
- * File creation. Allocate an inode, and we're done..
+ * File creation. Allocate an iyesde, and we're done..
  */
 /* SMP-safe */
 static int
-ramfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
+ramfs_mkyesd(struct iyesde *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 {
-	struct inode * inode = ramfs_get_inode(dir->i_sb, dir, mode, dev);
+	struct iyesde * iyesde = ramfs_get_iyesde(dir->i_sb, dir, mode, dev);
 	int error = -ENOSPC;
 
-	if (inode) {
-		d_instantiate(dentry, inode);
+	if (iyesde) {
+		d_instantiate(dentry, iyesde);
 		dget(dentry);	/* Extra count - pin the dentry in core */
 		error = 0;
 		dir->i_mtime = dir->i_ctime = current_time(dir);
@@ -115,39 +115,39 @@ ramfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 	return error;
 }
 
-static int ramfs_mkdir(struct inode * dir, struct dentry * dentry, umode_t mode)
+static int ramfs_mkdir(struct iyesde * dir, struct dentry * dentry, umode_t mode)
 {
-	int retval = ramfs_mknod(dir, dentry, mode | S_IFDIR, 0);
+	int retval = ramfs_mkyesd(dir, dentry, mode | S_IFDIR, 0);
 	if (!retval)
 		inc_nlink(dir);
 	return retval;
 }
 
-static int ramfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
+static int ramfs_create(struct iyesde *dir, struct dentry *dentry, umode_t mode, bool excl)
 {
-	return ramfs_mknod(dir, dentry, mode | S_IFREG, 0);
+	return ramfs_mkyesd(dir, dentry, mode | S_IFREG, 0);
 }
 
-static int ramfs_symlink(struct inode * dir, struct dentry *dentry, const char * symname)
+static int ramfs_symlink(struct iyesde * dir, struct dentry *dentry, const char * symname)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int error = -ENOSPC;
 
-	inode = ramfs_get_inode(dir->i_sb, dir, S_IFLNK|S_IRWXUGO, 0);
-	if (inode) {
+	iyesde = ramfs_get_iyesde(dir->i_sb, dir, S_IFLNK|S_IRWXUGO, 0);
+	if (iyesde) {
 		int l = strlen(symname)+1;
-		error = page_symlink(inode, symname, l);
+		error = page_symlink(iyesde, symname, l);
 		if (!error) {
-			d_instantiate(dentry, inode);
+			d_instantiate(dentry, iyesde);
 			dget(dentry);
 			dir->i_mtime = dir->i_ctime = current_time(dir);
 		} else
-			iput(inode);
+			iput(iyesde);
 	}
 	return error;
 }
 
-static const struct inode_operations ramfs_dir_inode_operations = {
+static const struct iyesde_operations ramfs_dir_iyesde_operations = {
 	.create		= ramfs_create,
 	.lookup		= simple_lookup,
 	.link		= simple_link,
@@ -155,7 +155,7 @@ static const struct inode_operations ramfs_dir_inode_operations = {
 	.symlink	= ramfs_symlink,
 	.mkdir		= ramfs_mkdir,
 	.rmdir		= simple_rmdir,
-	.mknod		= ramfs_mknod,
+	.mkyesd		= ramfs_mkyesd,
 	.rename		= simple_rename,
 };
 
@@ -173,7 +173,7 @@ static int ramfs_show_options(struct seq_file *m, struct dentry *root)
 
 static const struct super_operations ramfs_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
+	.drop_iyesde	= generic_delete_iyesde,
 	.show_options	= ramfs_show_options,
 };
 
@@ -201,9 +201,9 @@ static int ramfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	if (opt < 0) {
 		/*
 		 * We might like to report bad mount options here;
-		 * but traditionally ramfs has ignored all mount options,
+		 * but traditionally ramfs has igyesred all mount options,
 		 * and as it is used as a !CONFIG_SHMEM simple substitute
-		 * for tmpfs, better continue to ignore other mount options.
+		 * for tmpfs, better continue to igyesre other mount options.
 		 */
 		if (opt == -ENOPARAM)
 			opt = 0;
@@ -222,7 +222,7 @@ static int ramfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 static int ramfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct ramfs_fs_info *fsi = sb->s_fs_info;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	sb->s_maxbytes		= MAX_LFS_FILESIZE;
 	sb->s_blocksize		= PAGE_SIZE;
@@ -231,8 +231,8 @@ static int ramfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_op		= &ramfs_ops;
 	sb->s_time_gran		= 1;
 
-	inode = ramfs_get_inode(sb, NULL, S_IFDIR | fsi->mount_opts.mode, 0);
-	sb->s_root = d_make_root(inode);
+	iyesde = ramfs_get_iyesde(sb, NULL, S_IFDIR | fsi->mount_opts.mode, 0);
+	sb->s_root = d_make_root(iyesde);
 	if (!sb->s_root)
 		return -ENOMEM;
 
@@ -241,7 +241,7 @@ static int ramfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 static int ramfs_get_tree(struct fs_context *fc)
 {
-	return get_tree_nodev(fc, ramfs_fill_super);
+	return get_tree_yesdev(fc, ramfs_fill_super);
 }
 
 static void ramfs_free_fc(struct fs_context *fc)

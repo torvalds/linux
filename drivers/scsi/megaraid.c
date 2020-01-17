@@ -98,7 +98,7 @@ static const struct file_operations megadev_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= megadev_unlocked_ioctl,
 	.open		= megadev_open,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 /*
@@ -118,7 +118,7 @@ static int major;
 
 
 /*
- * Debug variable to print some diagnostic messages
+ * Debug variable to print some diagyesstic messages
  */
 static int trace_level;
 
@@ -203,7 +203,7 @@ mega_query_adapter(adapter_t *adapter)
 
 	/*
 	 * Try to issue Inquiry3 command
-	 * if not succeeded, then issue MEGA_MBOXCMD_ADAPTERINQ command and
+	 * if yest succeeded, then issue MEGA_MBOXCMD_ADAPTERINQ command and
 	 * update enquiry3 structure
 	 */
 	mbox->m_out.xferaddr = (u32)adapter->buf_dma_handle;
@@ -216,7 +216,7 @@ mega_query_adapter(adapter_t *adapter)
 
 	/* Issue a blocking command to the card */
 	if ((retval = issue_scb_block(adapter, raw_mbox))) {
-		/* the adapter does not support 40ld */
+		/* the adapter does yest support 40ld */
 
 		mraid_ext_inquiry	*ext_inq;
 		mraid_inquiry		*inq;
@@ -280,7 +280,7 @@ mega_query_adapter(adapter_t *adapter)
 
 	adapter->host->max_id = 16;	/* max targets per channel */
 
-	adapter->host->max_lun = 7;	/* Up to 7 luns for non disk devices */
+	adapter->host->max_lun = 7;	/* Up to 7 luns for yesn disk devices */
 
 	adapter->host->cmd_per_lun = max_cmd_per_lun;
 
@@ -331,7 +331,7 @@ mega_query_adapter(adapter_t *adapter)
 		adapter->bios_version[4] = 0;
 	}
 
-	dev_notice(&adapter->dev->dev, "[%s:%s] detected %d logical drives\n",
+	dev_yestice(&adapter->dev->dev, "[%s:%s] detected %d logical drives\n",
 		adapter->fw_version, adapter->bios_version, adapter->numldrv);
 
 	/*
@@ -339,7 +339,7 @@ mega_query_adapter(adapter_t *adapter)
 	 */
 	adapter->support_ext_cdb = mega_support_ext_cdb(adapter);
 	if (adapter->support_ext_cdb)
-		dev_notice(&adapter->dev->dev, "supports extended CDBs\n");
+		dev_yestice(&adapter->dev->dev, "supports extended CDBs\n");
 
 
 	return 0;
@@ -380,8 +380,8 @@ megaraid_queue_lck(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 
 	/*
 	 * Allocate and build a SCB request
-	 * busy flag will be set if mega_build_cmd() command could not
-	 * allocate scb. We will return non-zero status in that case.
+	 * busy flag will be set if mega_build_cmd() command could yest
+	 * allocate scb. We will return yesn-zero status in that case.
 	 * NOTE: scb can be null even though certain commands completed
 	 * successfully, e.g., MODE_SENSE and TEST_UNIT_READY, we would
 	 * return 0 in that case.
@@ -460,7 +460,7 @@ mega_get_ldrv_num(adapter_t *adapter, struct scsi_cmnd *cmd, int channel)
 	tgt = cmd->device->id;
 	
 	if ( tgt > adapter->this_id )
-		tgt--;	/* we do not get inquires for initiator id */
+		tgt--;	/* we do yest get inquires for initiator id */
 
 	ldrv_num = (channel * 15) + tgt;
 
@@ -505,7 +505,7 @@ mega_get_ldrv_num(adapter_t *adapter, struct scsi_cmnd *cmd, int channel)
  * mega_build_cmd()
  * @adapter - pointer to our soft state
  * @cmd - Prepare using this scsi command
- * @busy - busy flag if no resources
+ * @busy - busy flag if yes resources
  *
  * Prepares a command and scatter gather list for the controller. This routine
  * also finds out if the commands is intended for a logical drive or a
@@ -529,7 +529,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 	int	ldrv_num = 0;   /* logical drive number */
 
 	/*
-	 * We know what channels our logical drives are on - mega_find_card()
+	 * We kyesw what channels our logical drives are on - mega_find_card()
 	 */
 	islogical = adapter->logdrv_chan[cmd->device->channel];
 
@@ -554,7 +554,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 			/*
 			 * boot from a physical disk, that disk needs to be
 			 * exposed first IF both the channels are SCSI, then
-			 * booting from the second channel is not allowed.
+			 * booting from the second channel is yest allowed.
 			 */
 			if( target == 0 ) {
 				target = adapter->boot_pdrv_tgt;
@@ -609,7 +609,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 	else {
 		if( cmd->device->lun > 7) {
 			/*
-			 * Do not support lun >7 for physically accessed
+			 * Do yest support lun >7 for physically accessed
 			 * devices
 			 */
 			cmd->result = (DID_BAD_TARGET << 16);
@@ -629,7 +629,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 #if MEGA_HAVE_CLUSTERING
 			/*
 			 * Do we support clustering and is the support enabled
-			 * If no, return success always
+			 * If yes, return success always
 			 */
 			if( !adapter->has_cluster ) {
 				cmd->result = (DID_OK << 16);
@@ -675,10 +675,10 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 
 			if(!(adapter->flag & (1L << cmd->device->channel))) {
 
-				dev_notice(&adapter->dev->dev,
+				dev_yestice(&adapter->dev->dev,
 					"scsi%d: scanning scsi channel %d "
 					"for logical drives\n",
-						adapter->host->host_no,
+						adapter->host->host_yes,
 						cmd->device->channel);
 
 				adapter->flag |= (1L << cmd->device->channel);
@@ -980,10 +980,10 @@ mega_prepare_passthru(adapter_t *adapter, scb_t *scb, struct scsi_cmnd *cmd,
 	case READ_CAPACITY:
 		if(!(adapter->flag & (1L << cmd->device->channel))) {
 
-			dev_notice(&adapter->dev->dev,
+			dev_yestice(&adapter->dev->dev,
 				"scsi%d: scanning scsi channel %d [P%d] "
 				"for physical devices\n",
-					adapter->host->host_no,
+					adapter->host->host_yes,
 					cmd->device->channel, channel);
 
 			adapter->flag |= (1L << cmd->device->channel);
@@ -1043,10 +1043,10 @@ mega_prepare_extpassthru(adapter_t *adapter, scb_t *scb,
 	case READ_CAPACITY:
 		if(!(adapter->flag & (1L << cmd->device->channel))) {
 
-			dev_notice(&adapter->dev->dev,
+			dev_yestice(&adapter->dev->dev,
 				"scsi%d: scanning scsi channel %d [P%d] "
 				"for physical devices\n",
-					adapter->host->host_no,
+					adapter->host->host_yes,
 					cmd->device->channel, channel);
 
 			adapter->flag |= (1L << cmd->device->channel);
@@ -1169,7 +1169,7 @@ mega_busywait_mbox (adapter_t *adapter)
  * @adapter - pointer to our soft state
  * @raw_mbox - the mailbox
  *
- * Issue a scb in synchronous and non-interrupt mode
+ * Issue a scb in synchroyesus and yesn-interrupt mode
  */
 static int
 issue_scb_block(adapter_t *adapter, u_char *raw_mbox)
@@ -1251,7 +1251,7 @@ bug_blocked_mailbox:
  * @devp - pointer to our soft state
  *
  * Interrupt service routine for io-mapped controllers.
- * Find out if our device is interrupting. If yes, acknowledge the interrupt
+ * Find out if our device is interrupting. If no, ackyeswledge the interrupt
  * and service the completed commands.
  */
 static irqreturn_t
@@ -1297,7 +1297,7 @@ megaraid_isr_iomapped(int irq, void *devp)
 		memcpy(completed, (void *)adapter->mbox->m_in.completed, 
 				nstatus);
 
-		/* Acknowledge interrupt */
+		/* Ackyeswledge interrupt */
 		irq_ack(adapter);
 
 		mega_cmd_done(adapter, completed, nstatus, status);
@@ -1327,7 +1327,7 @@ megaraid_isr_iomapped(int irq, void *devp)
  * @devp - pointer to our soft state
  *
  * Interrupt service routine for memory-mapped controllers.
- * Find out if our device is interrupting. If yes, acknowledge the interrupt
+ * Find out if our device is interrupting. If no, ackyeswledge the interrupt
  * and service the completed commands.
  */
 static irqreturn_t
@@ -1374,7 +1374,7 @@ megaraid_isr_memmapped(int irq, void *devp)
 		memcpy(completed, (void *)adapter->mbox->m_in.completed, 
 				nstatus);
 
-		/* Acknowledge interrupt */
+		/* Ackyeswledge interrupt */
 		WRINDOOR(adapter, 0x2);
 
 		handled = 1;
@@ -1432,7 +1432,7 @@ mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
 
 		/*
 		 * Only free SCBs for the commands coming down from the
-		 * mid-layer, not for which were issued internally
+		 * mid-layer, yest for which were issued internally
 		 *
 		 * For internal command, restore the status returned by the
 		 * firmware so that user can interpret it.
@@ -1538,9 +1538,9 @@ mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
 		}
 
 		/*
-		 * Do not return the presence of hard disk on the channel so,
+		 * Do yest return the presence of hard disk on the channel so,
 		 * inquiry sent, and returned data==hard disk or removable
-		 * hard disk and not logical, request should return failure! -
+		 * hard disk and yest logical, request should return failure! -
 		 * PJ
 		 */
 		islogical = adapter->logdrv_chan[cmd->device->channel];
@@ -1608,7 +1608,7 @@ mega_cmd_done(adapter_t *adapter, u8 completed[], int nstatus, int status)
 		default:
 #if MEGA_HAVE_CLUSTERING
 			/*
-			 * If TEST_UNIT_READY fails, we know
+			 * If TEST_UNIT_READY fails, we kyesw
 			 * MEGA_RESERVATION_STATUS failed
 			 */
 			if( cmd->cmnd[0] == TEST_UNIT_READY ) {
@@ -1665,7 +1665,7 @@ mega_rundoneq (adapter_t *adapter)
 
 /*
  * Free a SCB structure
- * Note: We assume the scsi commands associated with this scb is not free yet.
+ * Note: We assume the scsi commands associated with this scb is yest free yet.
  */
 static void
 mega_free_scb(adapter_t *adapter, scb_t *scb)
@@ -1727,7 +1727,7 @@ mega_build_sglist(adapter_t *adapter, scb_t *scb, u32 *buf, u32 *len)
 	/*
 	 * Copy Scatter-Gather list info into controller structure.
 	 *
-	 * The number of sg elements returned must not exceed our limit
+	 * The number of sg elements returned must yest exceed our limit
 	 */
 	sgcnt = scsi_dma_map(cmd);
 
@@ -1925,7 +1925,7 @@ megaraid_reset(struct scsi_cmnd *cmd)
  * @cmd - scsi command to be aborted or reset
  * @aor - abort or reset flag
  *
- * Try to locate the scsi command in the pending queue. If found and is not
+ * Try to locate the scsi command in the pending queue. If found and is yest
  * issued to the controller, abort/reset it. Otherwise return failure
  */
 static int
@@ -1952,7 +1952,7 @@ megaraid_abort_and_reset(adapter_t *adapter, struct scsi_cmnd *cmd, int aor)
 
 			/*
 			 * Check if this command has firmware ownership. If
-			 * yes, we cannot reset this command. Whenever f/w
+			 * no, we canyest reset this command. Whenever f/w
 			 * completes this command, we will return appropriate
 			 * status from ISR.
 			 */
@@ -2075,7 +2075,7 @@ proc_show_config(struct seq_file *m, void *v)
 	if( adapter->has_64bit_addr )
 		seq_puts(m, "Controller using 64-bit memory addressing\n");
 	else
-		seq_puts(m, "Controller is not using 64-bit memory addressing\n");
+		seq_puts(m, "Controller is yest using 64-bit memory addressing\n");
 
 	seq_printf(m, "Base = %08lx, Irq = %d, ",
 		   adapter->base, adapter->host->irq);
@@ -2135,7 +2135,7 @@ proc_show_stat(struct seq_file *m, void *v)
 			   adapter->rd_errors[i], adapter->wr_errors[i]);
 	}
 #else
-	seq_puts(m, "IO and error counters not compiled in driver.\n");
+	seq_puts(m, "IO and error counters yest compiled in driver.\n");
 #endif
 	return 0;
 }
@@ -2352,7 +2352,7 @@ proc_show_pdrv(struct seq_file *m, adapter_t *adapter, int channel)
 
 	scsi_inq = pci_alloc_consistent(pdev, 256, &scsi_inq_dma_handle);
 	if( scsi_inq == NULL ) {
-		seq_puts(m, "memory not available for scsi inq.\n");
+		seq_puts(m, "memory yest available for scsi inq.\n");
 		goto free_inquiry;
 	}
 
@@ -2404,7 +2404,7 @@ proc_show_pdrv(struct seq_file *m, adapter_t *adapter, int channel)
 
 		/*
 		 * This interface displays inquiries for disk drives
-		 * only. Inquries for logical drives and non-disk
+		 * only. Inquries for logical drives and yesn-disk
 		 * devices are available through /proc/scsi/scsi
 		 */
 		memset(scsi_inq, 0, 256);
@@ -2494,7 +2494,7 @@ proc_show_pdrv_ch3(struct seq_file *m, void *v)
  * @start - starting logical drive to display
  * @end - ending logical drive to display
  *
- * We do not print the inquiry information since its already available through
+ * We do yest print the inquiry information since its already available through
  * /proc/scsi/scsi interface
  */
 static int
@@ -2547,7 +2547,7 @@ proc_show_rdrv(struct seq_file *m, adapter_t *adapter, int start, int end )
 			&disk_array_dma_handle);
 
 	if( disk_array == NULL ) {
-		seq_puts(m, "memory not available.\n");
+		seq_puts(m, "memory yest available.\n");
 		goto free_inquiry;
 	}
 
@@ -2606,7 +2606,7 @@ proc_show_rdrv(struct seq_file *m, adapter_t *adapter, int start, int end )
 			seq_puts(m, "state: deleted");
 			break;
 		default:
-			seq_puts(m, "state: unknown");
+			seq_puts(m, "state: unkyeswn");
 			break;
 		}
 
@@ -2730,7 +2730,7 @@ proc_show_rdrv_40(struct seq_file *m, void *v)
 /**
  * mega_create_proc_entry()
  * @index - index in soft state array
- * @parent - parent node for this /proc entry
+ * @parent - parent yesde for this /proc entry
  *
  * Creates /proc entries for our controllers.
  */
@@ -2741,7 +2741,7 @@ mega_create_proc_entry(int index, struct proc_dir_entry *parent)
 	struct proc_dir_entry *dir;
 	u8 string[16];
 
-	sprintf(string, "hba%d", adapter->host->host_no);
+	sprintf(string, "hba%d", adapter->host->host_yes);
 	dir = proc_mkdir_data(string, 0, parent, adapter);
 	if (!dir) {
 		dev_warn(&adapter->dev->dev, "proc_mkdir failed\n");
@@ -2929,8 +2929,8 @@ mega_init_scb(adapter_t *adapter)
 
 		/*
 		 * Link to free list
-		 * lock not required since we are loading the driver, so no
-		 * commands possible right now.
+		 * lock yest required since we are loading the driver, so yes
+		 * commands possible right yesw.
 		 */
 		scb->state = SCB_FREE;
 		scb->cmd = NULL;
@@ -2943,14 +2943,14 @@ mega_init_scb(adapter_t *adapter)
 
 /**
  * megadev_open()
- * @inode - unused
+ * @iyesde - unused
  * @filep - unused
  *
  * Routines for the character/ioctl interface to the driver. Find out if this
  * is a valid open. 
  */
 static int
-megadev_open (struct inode *inode, struct file *filep)
+megadev_open (struct iyesde *iyesde, struct file *filep)
 {
 	/*
 	 * Only allow superuser to access private ioctl interface
@@ -2963,14 +2963,14 @@ megadev_open (struct inode *inode, struct file *filep)
 
 /**
  * megadev_ioctl()
- * @inode - Our device inode
+ * @iyesde - Our device iyesde
  * @filep - unused
  * @cmd - ioctl command
  * @arg - user buffer
  *
  * ioctl entry point for our private ioctl interface. We move the data in from
  * the user space, prepare the command (if necessary, convert the old MIMD
- * ioctl to new ioctl command), and issue a synchronous command to the
+ * ioctl to new ioctl command), and issue a synchroyesus command to the
  * controller.
  */
 static int
@@ -2978,7 +2978,7 @@ megadev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	adapter_t	*adapter;
 	nitioctl_t	uioc;
-	int		adapno;
+	int		adapyes;
 	int		rval;
 	mega_passthru	__user *upthru;	/* user address for passthru */
 	mega_passthru	*pthru;		/* copy user passthru here */
@@ -3004,7 +3004,7 @@ megadev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 	/*
 	 * Check and convert a possible MIMD command to NIT command.
-	 * mega_m_to_n() copies the data from the user space, so we do not
+	 * mega_m_to_n() copies the data from the user space, so we do yest
 	 * have to do it here.
 	 * NOTE: We will need some user address to copyout the data, therefore
 	 * the inteface layer will also provide us with the required user
@@ -3029,7 +3029,7 @@ megadev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 		/*
 		 * Shucks. MIMD interface returns a positive value for number
-		 * of adapters. TODO: Change it to return 0 when there is no
+		 * of adapters. TODO: Change it to return 0 when there is yes
 		 * applicatio using mimd interface.
 		 */
 		return hba_count;
@@ -3039,10 +3039,10 @@ megadev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		/*
 		 * Which adapter
 		 */
-		if( (adapno = GETADAP(uioc.adapno)) >= hba_count )
+		if( (adapyes = GETADAP(uioc.adapyes)) >= hba_count )
 			return (-ENODEV);
 
-		if( copy_to_user(uioc.uioc_uaddr, mcontroller+adapno,
+		if( copy_to_user(uioc.uioc_uaddr, mcontroller+adapyes,
 				sizeof(struct mcontroller)) )
 			return (-EFAULT);
 		break;
@@ -3053,10 +3053,10 @@ megadev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		/*
 		 * Which adapter
 		 */
-		if( (adapno = GETADAP(uioc.adapno)) >= hba_count )
+		if( (adapyes = GETADAP(uioc.adapyes)) >= hba_count )
 			return (-ENODEV);
 
-		adapter = hba_soft_state[adapno];
+		adapter = hba_soft_state[adapyes];
 
 		ustats = uioc.uioc_uaddr;
 
@@ -3100,10 +3100,10 @@ megadev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		/*
 		 * Which adapter
 		 */
-		if( (adapno = GETADAP(uioc.adapno)) >= hba_count )
+		if( (adapyes = GETADAP(uioc.adapyes)) >= hba_count )
 			return (-ENODEV);
 
-		adapter = hba_soft_state[adapno];
+		adapter = hba_soft_state[adapyes];
 
 		/*
 		 * Deletion of logical drive is a special case. The adapter
@@ -3117,7 +3117,7 @@ megadev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 			 */
 			if( !adapter->support_random_del ) {
 				dev_warn(&adapter->dev->dev, "logdrv "
-					"delete on non-supporting F/W\n");
+					"delete on yesn-supporting F/W\n");
 
 				return (-EINVAL);
 			}
@@ -3255,7 +3255,7 @@ megadev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 			/*
 			 * Send the request sense data also, irrespective of
-			 * whether the user has asked for it or not.
+			 * whether the user has asked for it or yest.
 			 */
 			if (copy_to_user(upthru->reqsensearea,
 					pthru->reqsensearea, 14))
@@ -3397,7 +3397,7 @@ mega_m_to_n(void __user *arg, nitioctl_t *uioc)
 
 
 	/*
-	 * check is the application conforms to NIT. We do not have to do much
+	 * check is the application conforms to NIT. We do yest have to do much
 	 * in that case.
 	 * We exploit the fact that the signature is stored in the very
 	 * beginning of the structure.
@@ -3411,7 +3411,7 @@ mega_m_to_n(void __user *arg, nitioctl_t *uioc)
 		/*
 		 * NOTE NOTE: The nit ioctl is still under flux because of
 		 * change of mailbox definition, in HPE. No applications yet
-		 * use this interface and let's not have applications use this
+		 * use this interface and let's yest have applications use this
 		 * interface till the new specifitions are in place.
 		 */
 		return -EINVAL;
@@ -3454,7 +3454,7 @@ mega_m_to_n(void __user *arg, nitioctl_t *uioc)
 
 		case MEGAIOC_QADAPINFO:	/* Get adapter information */
 			uioc->opcode = GET_ADAP_INFO;
-			uioc->adapno = uioc_mimd.ui.fcs.adapno;
+			uioc->adapyes = uioc_mimd.ui.fcs.adapyes;
 			uioc->uioc_uaddr = uioc_mimd.data;
 			break;
 
@@ -3468,7 +3468,7 @@ mega_m_to_n(void __user *arg, nitioctl_t *uioc)
 	case 0x81:
 
 		uioc->opcode = MBOX_CMD;
-		uioc->adapno = uioc_mimd.ui.fcs.adapno;
+		uioc->adapyes = uioc_mimd.ui.fcs.adapyes;
 
 		memcpy(uioc->uioc_rmbox, uioc_mimd.mbox, 18);
 
@@ -3482,7 +3482,7 @@ mega_m_to_n(void __user *arg, nitioctl_t *uioc)
 	case 0x80:
 
 		uioc->opcode = MBOX_CMD;
-		uioc->adapno = uioc_mimd.ui.fcs.adapno;
+		uioc->adapyes = uioc_mimd.ui.fcs.adapyes;
 
 		memcpy(uioc->uioc_rmbox, uioc_mimd.mbox, 18);
 
@@ -3609,7 +3609,7 @@ mega_is_bios_enabled(adapter_t *adapter)
  *
  * Find out what channels are RAID/SCSI. This information is used to
  * differentiate the virtual channels and physical channels and to support
- * ROMB feature and non-disk devices.
+ * ROMB feature and yesn-disk devices.
  */
 static void
 mega_enum_raid_scsi(adapter_t *adapter)
@@ -3789,7 +3789,7 @@ mega_support_ext_cdb(adapter_t *adapter)
  * @logdrv - logical drive to be deleted
  *
  * Delete the specified logical drive. It is the responsibility of the user
- * app to let the OS know about this operation.
+ * app to let the OS kyesw about this operation.
  */
 static int
 mega_del_logdrv(adapter_t *adapter, int logdrv)
@@ -3805,7 +3805,7 @@ mega_del_logdrv(adapter_t *adapter, int logdrv)
 	atomic_set(&adapter->quiescent, 1);
 
 	/*
-	 * Wait till all the issued commands are complete and there are no
+	 * Wait till all the issued commands are complete and there are yes
 	 * commands in the pending queue
 	 */
 	while (atomic_read(&adapter->pend_cmds) > 0 ||
@@ -3896,7 +3896,7 @@ mega_get_max_sgl(adapter_t *adapter)
 
 	if( issue_scb_block(adapter, raw_mbox) ) {
 		/*
-		 * f/w does not support this command. Choose the default value
+		 * f/w does yest support this command. Choose the default value
 		 */
 		adapter->sglen = MIN_SGLIST;
 	}
@@ -3904,7 +3904,7 @@ mega_get_max_sgl(adapter_t *adapter)
 		adapter->sglen = *((char *)adapter->mega_buffer);
 		
 		/*
-		 * Make sure this is not more than the resources we are
+		 * Make sure this is yest more than the resources we are
 		 * planning to allocate
 		 */
 		if ( adapter->sglen > MAX_SGLIST )
@@ -4073,7 +4073,7 @@ mega_internal_dev_inquiry(adapter_t *adapter, u8 ch, u8 tgt,
  * The last argument is the address of the passthru structure if the command
  * to be fired is a passthru command
  *
- * Note: parameter 'pthru' is null for non-passthru commands.
+ * Note: parameter 'pthru' is null for yesn-passthru commands.
  */
 static int
 mega_internal_command(adapter_t *adapter, megacmd_t *mc, mega_passthru *pthru)
@@ -4147,7 +4147,7 @@ static struct scsi_host_template megaraid_template = {
 	.eh_device_reset_handler	= megaraid_reset,
 	.eh_bus_reset_handler		= megaraid_reset,
 	.eh_host_reset_handler		= megaraid_reset,
-	.no_write_same			= 1,
+	.yes_write_same			= 1,
 };
 
 static int
@@ -4172,7 +4172,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_dev_func = pdev->devfn;
 
 	/*
-	 * The megaraid3 stuff reports the ID of the Intel part which is not
+	 * The megaraid3 stuff reports the ID of the Intel part which is yest
 	 * remotely specific to the megaraid
 	 */
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL) {
@@ -4192,7 +4192,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/*
-	 * For these vendor and device ids, signature offsets are not
+	 * For these vendor and device ids, signature offsets are yest
 	 * valid and 64 bit is implicit
 	 */
 	if (id->driver_data & BOARD_64BIT)
@@ -4208,7 +4208,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	subsysvid = pdev->subsystem_vendor;
 	subsysid = pdev->subsystem_device;
 
-	dev_notice(&pdev->dev, "found 0x%4.04x:0x%4.04x\n",
+	dev_yestice(&pdev->dev, "found 0x%4.04x:0x%4.04x\n",
 		id->vendor, id->device);
 
 	/* Read the base port and IRQ from PCI */
@@ -4226,7 +4226,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		mega_baseport = (unsigned long)ioremap(mega_baseport, 128);
 		if (!mega_baseport) {
-			dev_warn(&pdev->dev, "could not map hba memory\n");
+			dev_warn(&pdev->dev, "could yest map hba memory\n");
 			goto out_release_region;
 		}
 	} else {
@@ -4245,9 +4245,9 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	adapter = (adapter_t *)host->hostdata;
 	memset(adapter, 0, sizeof(adapter_t));
 
-	dev_notice(&pdev->dev,
+	dev_yestice(&pdev->dev,
 		"scsi%d:Found MegaRAID controller at 0x%lx, IRQ:%d\n",
-		host->host_no, mega_baseport, irq);
+		host->host_yes, mega_baseport, irq);
 
 	adapter->base = mega_baseport;
 	if (flag & BOARD_MEMMAP)
@@ -4321,7 +4321,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 				"Your card is a Dell PERC "
 				"2/SC RAID controller with "
 				"firmware\nmegaraid: 3.00 or 3.01.  "
-				"This driver is known to have "
+				"This driver is kyeswn to have "
 				"corruption issues\nmegaraid: with "
 				"those firmware versions on this "
 				"specific card.  In order\nmegaraid: "
@@ -4339,7 +4339,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/*
 	 * If we have a HP 1M(0x60E7)/2M(0x60E8) controller with
 	 * firmware H.01.07, H.01.08, and H.01.09 disable 64 bit
-	 * support, since this firmware cannot handle 64 bit
+	 * support, since this firmware canyest handle 64 bit
 	 * addressing
 	 */
 	if ((subsysvid == PCI_VENDOR_ID_HP) &&
@@ -4354,7 +4354,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 				"Firmware H.01.07, "
 				"H.01.08, and H.01.09 on 1M/2M "
 				"controllers\n"
-				"do not support 64 bit "
+				"do yest support 64 bit "
 				"addressing.\nDISABLING "
 				"64 bit support.\n");
 			adapter->flag &= ~BOARD_64BIT;
@@ -4457,13 +4457,13 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/*
 	 * Is cluster support enabled on this controller
 	 * Note: In a cluster the HBAs ( the initiators ) will have
-	 * different target IDs and we cannot assume it to be 7. Call
+	 * different target IDs and we canyest assume it to be 7. Call
 	 * to mega_support_cluster() will get the target ids also if
 	 * the cluster support is available
 	 */
 	adapter->has_cluster = mega_support_cluster(adapter);
 	if (adapter->has_cluster) {
-		dev_notice(&pdev->dev,
+		dev_yestice(&pdev->dev,
 			"Cluster driver, initiator id:%d\n",
 			adapter->this_id);
 	}
@@ -4561,7 +4561,7 @@ megaraid_remove_one(struct pci_dev *pdev)
 
 	mega_free_sgl(adapter);
 
-	sprintf(buf, "hba%d", adapter->host->host_no);
+	sprintf(buf, "hba%d", adapter->host->host_yes);
 	remove_proc_subtree(buf, mega_proc_dir_entry);
 
 	pci_free_consistent(adapter->dev, MEGA_BUFFER_SIZE,

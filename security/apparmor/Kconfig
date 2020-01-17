@@ -11,7 +11,7 @@ config SECURITY_APPARMOR
 	default n
 	help
 	  This enables the AppArmor security module.
-	  Required userspace tools (if they are not included in your
+	  Required userspace tools (if they are yest included in your
 	  distribution) and further information may be found at
 	  http://apparmor.wiki.kernel.org
 

@@ -63,12 +63,12 @@ time64_t __init opal_get_boot_time(void)
 static __init int opal_time_init(void)
 {
 	struct platform_device *pdev;
-	struct device_node *rtc;
+	struct device_yesde *rtc;
 
-	rtc = of_find_node_by_path("/ibm,opal/rtc");
+	rtc = of_find_yesde_by_path("/ibm,opal/rtc");
 	if (rtc) {
 		pdev = of_platform_device_create(rtc, "opal-rtc", NULL);
-		of_node_put(rtc);
+		of_yesde_put(rtc);
 	} else {
 		if (opal_check_token(OPAL_RTC_READ) ||
 		    opal_check_token(OPAL_READ_TPO))

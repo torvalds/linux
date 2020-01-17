@@ -55,7 +55,7 @@ struct evtchn_bind_interdomain {
  * NOTES:
  *  1. A virtual IRQ may be bound to at most one event channel per vcpu.
  *  2. The allocated event channel is bound to the specified vcpu. The binding
- *     may not be changed.
+ *     may yest be changed.
  */
 #define EVTCHNOP_bind_virq	  1
 struct evtchn_bind_virq {
@@ -86,7 +86,7 @@ struct evtchn_bind_pirq {
  * EVTCHNOP_bind_ipi: Bind a local event channel to receive events.
  * NOTES:
  *  1. The allocated event channel is bound to the specified vcpu. The binding
- *     may not be changed.
+ *     may yest be changed.
  */
 #define EVTCHNOP_bind_ipi	  7
 struct evtchn_bind_ipi {
@@ -122,7 +122,7 @@ struct evtchn_send {
  * NOTES:
  *  1. <dom> may be specified as DOMID_SELF.
  *  2. Only a sufficiently-privileged domain may obtain the status of an event
- *     channel for which <dom> is not DOMID_SELF.
+ *     channel for which <dom> is yest DOMID_SELF.
  */
 #define EVTCHNOP_status		  5
 struct evtchn_status {
@@ -130,7 +130,7 @@ struct evtchn_status {
 	domid_t  dom;
 	evtchn_port_t port;
 	/* OUT parameters */
-#define EVTCHNSTAT_closed	0  /* Channel is not in use.		     */
+#define EVTCHNSTAT_closed	0  /* Channel is yest in use.		     */
 #define EVTCHNSTAT_unbound	1  /* Channel is waiting interdom connection.*/
 #define EVTCHNSTAT_interdomain	2  /* Channel is connected to remote domain. */
 #define EVTCHNSTAT_pirq		3  /* Channel is bound to a phys IRQ line.   */
@@ -152,12 +152,12 @@ struct evtchn_status {
 };
 
 /*
- * EVTCHNOP_bind_vcpu: Specify which vcpu a channel should notify when an
+ * EVTCHNOP_bind_vcpu: Specify which vcpu a channel should yestify when an
  * event is pending.
  * NOTES:
- *  1. IPI- and VIRQ-bound channels always notify the vcpu that initialised
- *     the binding. This binding cannot be changed.
- *  2. All other channels notify vcpu0 by default. This default is set when
+ *  1. IPI- and VIRQ-bound channels always yestify the vcpu that initialised
+ *     the binding. This binding canyest be changed.
+ *  2. All other channels yestify vcpu0 by default. This default is set when
  *     the channel is allocated (a port that is freed and subsequently reused
  *     has its binding reset to vcpu0).
  */
@@ -170,7 +170,7 @@ struct evtchn_bind_vcpu {
 
 /*
  * EVTCHNOP_unmask: Unmask the specified local event-channel port and deliver
- * a notification to the appropriate VCPU if an event is pending.
+ * a yestification to the appropriate VCPU if an event is pending.
  */
 #define EVTCHNOP_unmask		  9
 struct evtchn_unmask {

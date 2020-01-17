@@ -203,7 +203,7 @@ static int max77686_i2c_probe(struct i2c_client *i2c)
 	ret = regmap_read(max77686->regmap, MAX77686_REG_DEVICE_ID, &data);
 	if (ret < 0) {
 		dev_err(max77686->dev,
-			"device not found on this channel (this is not an error)\n");
+			"device yest found on this channel (this is yest an error)\n");
 		return -ENODEV;
 	}
 

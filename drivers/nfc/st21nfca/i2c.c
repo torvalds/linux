@@ -70,7 +70,7 @@ struct st21nfca_i2c_phy {
 
 	/*
 	 * < 0 if hardware error occured (e.g. i2c err)
-	 * and prevents normal operation.
+	 * and prevents yesrmal operation.
 	 */
 	int hard_fault;
 	struct mutex phy_lock;
@@ -87,7 +87,7 @@ do {								\
 } while (0)
 
 /*
- * In order to get the CLF in a known state we generate an internal reboot
+ * In order to get the CLF in a kyeswn state we generate an internal reboot
  * using a proprietary command.
  * Once the reboot is completed, we expect to receive a ST21NFCA_SOF_EOF
  * fill buffer.
@@ -177,9 +177,9 @@ static void st21nfca_hci_remove_len_crc(struct sk_buff *skb)
 }
 
 /*
- * Writing a frame must not return the number of written bytes.
+ * Writing a frame must yest return the number of written bytes.
  * It must return either zero for success, or <0 for error.
- * In addition, it must not alter the skb
+ * In addition, it must yest alter the skb
  */
 static int st21nfca_hci_i2c_write(void *phy_id, struct sk_buff *skb)
 {
@@ -285,7 +285,7 @@ static int check_crc(u8 *buf, int buflen)
 /*
  * Prepare received data for upper layer.
  * Received data include byte stuffing, crc and sof/eof
- * which is not usable by hci part.
+ * which is yest usable by hci part.
  * returns:
  * frame size without sof/eof, header and byte stuffing
  * -EBADMSG : frame was incorrect and discarded
@@ -338,12 +338,12 @@ static int st21nfca_hci_i2c_repack(struct sk_buff *skb)
  * returns:
  * frame size : if received frame is complete (find ST21NFCA_SOF_EOF at
  * end of read)
- * -EAGAIN : if received frame is incomplete (not find ST21NFCA_SOF_EOF
+ * -EAGAIN : if received frame is incomplete (yest find ST21NFCA_SOF_EOF
  * at end of read)
  * -EREMOTEIO : i2c read error (fatal)
  * -EBADMSG : frame was incorrect and discarded
  * (value returned from st21nfca_hci_i2c_repack)
- * -EIO : if no ST21NFCA_SOF_EOF is found after reaching
+ * -EIO : if yes ST21NFCA_SOF_EOF is found after reaching
  * the read length end sequence
  */
 static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
@@ -377,7 +377,7 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 		}
 
 		/*
-		 * The first read sequence does not start with SOF.
+		 * The first read sequence does yest start with SOF.
 		 * Data is corrupeted so we drop it.
 		 */
 		if (!phy->current_read_len && !IS_START_OF_FRAME(buf)) {
@@ -407,7 +407,7 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
 }
 
 /*
- * Reads an shdlc frame from the chip. This is not as straightforward as it
+ * Reads an shdlc frame from the chip. This is yest as straightforward as it
  * seems. The frame format is data-crc, and corruption can occur anywhere
  * while transiting on i2c bus, such that we could read an invalid data.
  * The tricky case is when we read a corrupted data or crc. We must detect
@@ -415,7 +415,7 @@ static int st21nfca_hci_i2c_read(struct st21nfca_i2c_phy *phy,
  * core. This is the reason why we check the crc here.
  * The CLF will repeat a frame until we send a RR on that frame.
  *
- * On ST21NFCA, IRQ goes in idle when read starts. As no size information are
+ * On ST21NFCA, IRQ goes in idle when read starts. As yes size information are
  * available in the incoming data, other IRQ might come. Every IRQ will trigger
  * a read sequence with different length and will fill the current frame.
  * The reception is complete once we reach a ST21NFCA_SOF_EOF.

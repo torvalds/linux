@@ -37,7 +37,7 @@ acpi_status acpi_ev_initialize_events(void)
 
 	ACPI_FUNCTION_TRACE(ev_initialize_events);
 
-	/* If Hardware Reduced flag is set, there are no fixed events */
+	/* If Hardware Reduced flag is set, there are yes fixed events */
 
 	if (acpi_gbl_reduced_hardware) {
 		return_ACPI_STATUS(AE_OK);
@@ -83,7 +83,7 @@ acpi_status acpi_ev_install_xrupt_handlers(void)
 
 	ACPI_FUNCTION_TRACE(ev_install_xrupt_handlers);
 
-	/* If Hardware Reduced flag is set, there is no ACPI h/w */
+	/* If Hardware Reduced flag is set, there is yes ACPI h/w */
 
 	if (acpi_gbl_reduced_hardware) {
 		return_ACPI_STATUS(AE_OK);
@@ -176,7 +176,7 @@ u32 acpi_ev_fixed_event_detect(void)
 
 	/*
 	 * Read the fixed feature status and enable registers, as all the cases
-	 * depend on their values. Ignore errors here.
+	 * depend on their values. Igyesre errors here.
 	 */
 	status = acpi_hw_register_read(ACPI_REGISTER_PM1_STATUS, &fixed_status);
 	status |=
@@ -228,7 +228,7 @@ u32 acpi_ev_fixed_event_detect(void)
  *
  * DESCRIPTION: Clears the status bit for the requested event, calls the
  *              handler that previously registered for the event.
- *              NOTE: If there is no handler for the event, the event is
+ *              NOTE: If there is yes handler for the event, the event is
  *              disabled to prevent further interrupts.
  *
  ******************************************************************************/
@@ -244,7 +244,7 @@ static u32 acpi_ev_fixed_event_dispatch(u32 event)
 				      status_register_id, ACPI_CLEAR_STATUS);
 
 	/*
-	 * Make sure that a handler exists. If not, report an error
+	 * Make sure that a handler exists. If yest, report an error
 	 * and disable the event to prevent further interrupts.
 	 */
 	if (!acpi_gbl_fixed_event_handlers[event].handler) {

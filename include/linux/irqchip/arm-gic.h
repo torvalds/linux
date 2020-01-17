@@ -129,7 +129,7 @@
 
 #include <linux/irqdomain.h>
 
-struct device_node;
+struct device_yesde;
 struct gic_chip_data;
 
 void gic_cascade_irq(unsigned int gic_nr, unsigned int irq);
@@ -143,16 +143,16 @@ void gic_dist_restore(struct gic_chip_data *gic);
  * Subdrivers that need some preparatory work can initialize their
  * chips and call this to register their GICs.
  */
-int gic_of_init(struct device_node *node, struct device_node *parent);
+int gic_of_init(struct device_yesde *yesde, struct device_yesde *parent);
 
 /*
- * Initialises and registers a non-root or child GIC chip. Memory for
+ * Initialises and registers a yesn-root or child GIC chip. Memory for
  * the gic_chip_data structure is dynamically allocated.
  */
 int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq);
 
 /*
- * Legacy platforms not converted to DT yet must use this to init
+ * Legacy platforms yest converted to DT yet must use this to init
  * their GIC
  */
 void gic_init(void __iomem *dist , void __iomem *cpu);

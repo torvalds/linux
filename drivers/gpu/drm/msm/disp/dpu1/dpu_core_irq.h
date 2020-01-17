@@ -11,14 +11,14 @@
 /**
  * dpu_core_irq_preinstall - perform pre-installation of core IRQ handler
  * @dpu_kms:		DPU handle
- * @return:		none
+ * @return:		yesne
  */
 void dpu_core_irq_preinstall(struct dpu_kms *dpu_kms);
 
 /**
  * dpu_core_irq_uninstall - uninstall core IRQ handler
  * @dpu_kms:		DPU handle
- * @return:		none
+ * @return:		yesne
  */
 void dpu_core_irq_uninstall(struct dpu_kms *dpu_kms);
 
@@ -77,7 +77,7 @@ int dpu_core_irq_disable(
  * @dpu_kms:		DPU handle
  * @irq_idx:		irq index
  * @clear:		True to clear the irq after read
- * @return:		non-zero if irq detected; otherwise no irq detected
+ * @return:		yesn-zero if irq detected; otherwise yes irq detected
  */
 u32 dpu_core_irq_read(
 		struct dpu_kms *dpu_kms,

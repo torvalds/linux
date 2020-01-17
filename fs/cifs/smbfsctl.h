@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -24,8 +24,8 @@
  * List of ioctl/fsctl function codes that are or could be useful in the
  * future to remote clients like cifs or SMB2/SMB3 client.  This is probably
  * a slightly larger set of fsctls that NTFS local filesystem could handle,
- * including the seven below that we do not have struct definitions for.
- * Even with protocol definitions for most of these now available, we still
+ * including the seven below that we do yest have struct definitions for.
+ * Even with protocol definitions for most of these yesw available, we still
  * need to do some experimentation to identify which are practical to do
  * remotely.  Some of the following, such as the encryption/compression ones
  * could be invoked from tools via a specialized hook into the VFS rather
@@ -111,7 +111,7 @@
 #define FSCTL_SET_INTEGRITY_INFORMATION 0x0009C280
 #define FSCTL_PIPE_PEEK              0x0011400C /* BB add struct */
 #define FSCTL_PIPE_TRANSCEIVE        0x0011C017 /* BB add struct */
-/* strange that the number for this op is not sequential with previous op */
+/* strange that the number for this op is yest sequential with previous op */
 #define FSCTL_PIPE_WAIT              0x00110018 /* BB add struct */
 /* Enumerate previous versions of a file */
 #define FSCTL_SRV_ENUMERATE_SNAPSHOTS 0x00144064
@@ -157,6 +157,6 @@
 #define IO_REPARSE_TAG_LX_BLK	     0x80000026
 
 /* fsctl flags */
-/* If Flags is set to this value, the request is an FSCTL not ioctl request */
+/* If Flags is set to this value, the request is an FSCTL yest ioctl request */
 #define SMB2_0_IOCTL_IS_FSCTL		0x00000001
 

@@ -396,23 +396,23 @@ static int tpm2_map_response_header(struct tpm_chip *chip, u32 cc, u8 *rsp,
 	case TPM2_HT_TRANSIENT:
 		vhandle = tpm2_map_to_vhandle(space, phandle, true);
 		if (!vhandle)
-			goto out_no_slots;
+			goto out_yes_slots;
 
 		*(__be32 *)&rsp[TPM_HEADER_SIZE] = cpu_to_be32(vhandle);
 		break;
 	case TPM2_HT_HMAC_SESSION:
 	case TPM2_HT_POLICY_SESSION:
 		if (!tpm2_add_session(chip, phandle))
-			goto out_no_slots;
+			goto out_yes_slots;
 		break;
 	default:
-		dev_err(&chip->dev, "%s: unknown handle 0x%08X\n",
+		dev_err(&chip->dev, "%s: unkyeswn handle 0x%08X\n",
 			__func__, phandle);
 		break;
 	}
 
 	return 0;
-out_no_slots:
+out_yes_slots:
 	tpm2_flush_context(chip, phandle);
 	dev_warn(&chip->dev, "%s: out of slots for 0x%08X\n", __func__,
 		 phandle);

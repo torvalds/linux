@@ -12,11 +12,11 @@
  *
  *  NOTES:
  *
- *   - the linked URBs would be preferred but not used so far because of
+ *   - the linked URBs would be preferred but yest used so far because of
  *     the instability of unlinking.
- *   - type II is not supported properly.  there is no device which supports
+ *   - type II is yest supported properly.  there is yes device which supports
  *     this type *correctly*.  SB extigy looks as if it supports, but it's
- *     indeed an AC3 stream packed in SPDIF frames (i.e. no real AC3 stream).
+ *     indeed an AC3 stream packed in SPDIF frames (i.e. yes real AC3 stream).
  */
 
 
@@ -69,7 +69,7 @@ static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;/* Enable this card *
 static int vid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 };
 static int pid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 };
 static int device_setup[SNDRV_CARDS]; /* device parameter for this card */
-static bool ignore_ctl_error;
+static bool igyesre_ctl_error;
 static bool autoclock = true;
 static char *quirk_alias[SNDRV_CARDS];
 
@@ -88,17 +88,17 @@ module_param_array(pid, int, NULL, 0444);
 MODULE_PARM_DESC(pid, "Product ID for the USB audio device.");
 module_param_array(device_setup, int, NULL, 0444);
 MODULE_PARM_DESC(device_setup, "Specific device setup (if needed).");
-module_param(ignore_ctl_error, bool, 0444);
-MODULE_PARM_DESC(ignore_ctl_error,
-		 "Ignore errors from USB controller for mixer interfaces.");
+module_param(igyesre_ctl_error, bool, 0444);
+MODULE_PARM_DESC(igyesre_ctl_error,
+		 "Igyesre errors from USB controller for mixer interfaces.");
 module_param(autoclock, bool, 0444);
-MODULE_PARM_DESC(autoclock, "Enable auto-clock selection for UAC2 devices (default: yes).");
+MODULE_PARM_DESC(autoclock, "Enable auto-clock selection for UAC2 devices (default: no).");
 module_param_array(quirk_alias, charp, NULL, 0444);
 MODULE_PARM_DESC(quirk_alias, "Quirk aliases, e.g. 0123abcd:5678beef.");
 module_param_named(use_vmalloc, snd_usb_use_vmalloc, bool, 0444);
-MODULE_PARM_DESC(use_vmalloc, "Use vmalloc for PCM intermediate buffers (default: yes).");
+MODULE_PARM_DESC(use_vmalloc, "Use vmalloc for PCM intermediate buffers (default: no).");
 module_param_named(skip_validation, snd_usb_skip_validation, bool, 0444);
-MODULE_PARM_DESC(skip_validation, "Skip unit descriptor validation (default: no).");
+MODULE_PARM_DESC(skip_validation, "Skip unit descriptor validation (default: yes).");
 
 /*
  * we keep the snd_usb_audio_t instances by ourselves for merging
@@ -136,7 +136,7 @@ static int snd_usb_create_stream(struct snd_usb_audio *chip, int ctrlif, int int
 	struct usb_interface *iface = usb_ifnum_to_if(dev, interface);
 
 	if (!iface) {
-		dev_err(&dev->dev, "%u:%d : does not exist\n",
+		dev_err(&dev->dev, "%u:%d : does yest exist\n",
 			ctrlif, interface);
 		return -EINVAL;
 	}
@@ -175,7 +175,7 @@ static int snd_usb_create_stream(struct snd_usb_audio *chip, int ctrlif, int int
 					     chip->usb_id);
 		if (err < 0) {
 			dev_err(&dev->dev,
-				"%u:%d: cannot create sequencer device\n",
+				"%u:%d: canyest create sequencer device\n",
 				ctrlif, interface);
 			return -EINVAL;
 		}
@@ -188,14 +188,14 @@ static int snd_usb_create_stream(struct snd_usb_audio *chip, int ctrlif, int int
 	     altsd->bInterfaceClass != USB_CLASS_VENDOR_SPEC) ||
 	    altsd->bInterfaceSubClass != USB_SUBCLASS_AUDIOSTREAMING) {
 		dev_dbg(&dev->dev,
-			"%u:%d: skipping non-supported interface %d\n",
+			"%u:%d: skipping yesn-supported interface %d\n",
 			ctrlif, interface, altsd->bInterfaceClass);
-		/* skip non-supported classes */
+		/* skip yesn-supported classes */
 		return -EINVAL;
 	}
 
 	if (snd_usb_get_speed(dev) == USB_SPEED_LOW) {
-		dev_err(&dev->dev, "low speed audio streaming not supported\n");
+		dev_err(&dev->dev, "low speed audio streaming yest supported\n");
 		return -EINVAL;
 	}
 
@@ -225,7 +225,7 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 	switch (protocol) {
 	default:
 		dev_warn(&dev->dev,
-			 "unknown interface protocol %#02x, assuming v1\n",
+			 "unkyeswn interface protocol %#02x, assuming v1\n",
 			 protocol);
 		/* fall through */
 
@@ -237,7 +237,7 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 							 host_iface->extralen,
 							 NULL, UAC_HEADER);
 		if (!h1 || h1->bLength < sizeof(*h1)) {
-			dev_err(&dev->dev, "cannot find UAC_HEADER\n");
+			dev_err(&dev->dev, "canyest find UAC_HEADER\n");
 			return -EINVAL;
 		}
 
@@ -283,7 +283,7 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 
 		if (!assoc) {
 			/*
-			 * Firmware writers cannot count to three.  So to find
+			 * Firmware writers canyest count to three.  So to find
 			 * the IAD on the NuForce UDH-100, also check the next
 			 * interface.
 			 */
@@ -332,7 +332,7 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 /*
  * free the chip instance
  *
- * here we have to do not much, since pcm and controls are already freed
+ * here we have to do yest much, since pcm and controls are already freed
  *
  */
 
@@ -365,7 +365,7 @@ static void usb_audio_make_shortname(struct usb_device *dev,
 	if (!dev->descriptor.iProduct ||
 	    usb_string(dev, dev->descriptor.iProduct,
 		       card->shortname, sizeof(card->shortname)) <= 0) {
-		/* no name available from anywhere, so use ID */
+		/* yes name available from anywhere, so use ID */
 		sprintf(card->shortname, "USB Device %#04x:%#04x",
 			USB_ID_VENDOR(chip->usb_id),
 			USB_ID_PRODUCT(chip->usb_id));
@@ -458,14 +458,14 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 	case USB_SPEED_SUPER_PLUS:
 		break;
 	default:
-		dev_err(&dev->dev, "unknown device speed %d\n", snd_usb_get_speed(dev));
+		dev_err(&dev->dev, "unkyeswn device speed %d\n", snd_usb_get_speed(dev));
 		return -ENXIO;
 	}
 
 	err = snd_card_new(&intf->dev, index[idx], id[idx], THIS_MODULE,
 			   sizeof(*chip), &card);
 	if (err < 0) {
-		dev_err(&dev->dev, "cannot create card instance %d\n", idx);
+		dev_err(&dev->dev, "canyest create card instance %d\n", idx);
 		return err;
 	}
 
@@ -548,7 +548,7 @@ get_alias_quirk(struct usb_device *dev, unsigned int id)
 /*
  * probe the active usb device
  *
- * note that this can be called multiple times per a device, when it
+ * yeste that this can be called multiple times per a device, when it
  * includes multiple audio control interfaces.
  *
  * thus we check the usb device pointer and creates the card instance
@@ -581,7 +581,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 		return err;
 
 	/*
-	 * found a config.  now register to ALSA
+	 * found a config.  yesw register to ALSA
 	 */
 
 	/* check whether it's already registered */
@@ -590,7 +590,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 	for (i = 0; i < SNDRV_CARDS; i++) {
 		if (usb_chip[i] && usb_chip[i]->dev == dev) {
 			if (atomic_read(&usb_chip[i]->shutdown)) {
-				dev_err(&dev->dev, "USB device is in the shutdown state, cannot create a card instance\n");
+				dev_err(&dev->dev, "USB device is in the shutdown state, canyest create a card instance\n");
 				err = -EIO;
 				goto __error;
 			}
@@ -601,7 +601,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 	}
 	if (! chip) {
 		/* it's a fresh one.
-		 * now look for an empty slot and create a new card instance
+		 * yesw look for an empty slot and create a new card instance
 		 */
 		for (i = 0; i < SNDRV_CARDS; i++)
 			if (!usb_chip[i] &&
@@ -624,7 +624,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 				}
 			}
 		if (!chip) {
-			dev_err(&dev->dev, "no available usb audio device\n");
+			dev_err(&dev->dev, "yes available usb audio device\n");
 			err = -ENODEV;
 			goto __error;
 		}
@@ -649,11 +649,11 @@ static int usb_audio_probe(struct usb_interface *intf,
 	}
 
 	if (err > 0) {
-		/* create normal USB audio interfaces */
+		/* create yesrmal USB audio interfaces */
 		err = snd_usb_create_streams(chip, ifnum);
 		if (err < 0)
 			goto __error;
-		err = snd_usb_create_mixer(chip, ifnum, ignore_ctl_error);
+		err = snd_usb_create_mixer(chip, ifnum, igyesre_ctl_error);
 		if (err < 0)
 			goto __error;
 	}
@@ -850,7 +850,7 @@ static int __usb_audio_resume(struct usb_interface *intf, bool reset_resume)
 
 	/*
 	 * ALSA leaves material resumption to user space
-	 * we just notify and restart the mixers
+	 * we just yestify and restart the mixers
 	 */
 	list_for_each_entry(mixer, &chip->mixer_list, list) {
 		err = snd_usb_mixer_resume(mixer, reset_resume);

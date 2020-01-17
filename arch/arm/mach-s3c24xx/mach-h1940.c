@@ -263,7 +263,7 @@ static struct platform_device power_supply = {
 	.num_resources	= ARRAY_SIZE(power_supply_resources),
 };
 
-static const struct s3c_adc_bat_thresh bat_lut_noac[] = {
+static const struct s3c_adc_bat_thresh bat_lut_yesac[] = {
 	{ .volt = 4070, .cur = 162, .level = 100},
 	{ .volt = 4040, .cur = 165, .level = 95},
 	{ .volt = 4016, .cur = 164, .level = 90},
@@ -329,8 +329,8 @@ static struct s3c_adc_bat_pdata h1940_bat_cfg = {
 	.disable_charger = h1940_disable_charger,
 	.gpio_charge_finished = S3C2410_GPF(3),
 	.gpio_inverted = 1,
-	.lut_noac = bat_lut_noac,
-	.lut_noac_cnt = ARRAY_SIZE(bat_lut_noac),
+	.lut_yesac = bat_lut_yesac,
+	.lut_yesac_cnt = ARRAY_SIZE(bat_lut_yesac),
 	.lut_acin = bat_lut_acin,
 	.lut_acin_cnt = ARRAY_SIZE(bat_lut_acin),
 	.volt_channel = 0,
@@ -492,7 +492,7 @@ static int h1940_backlight_init(struct device *dev)
 	return 0;
 }
 
-static int h1940_backlight_notify(struct device *dev, int brightness)
+static int h1940_backlight_yestify(struct device *dev, int brightness)
 {
 	if (!brightness) {
 		gpio_direction_output(S3C2410_GPB(0), 1);
@@ -518,7 +518,7 @@ static struct platform_pwm_backlight_data backlight_data = {
 	.dft_brightness = 50,
 	.enable_gpio    = -1,
 	.init           = h1940_backlight_init,
-	.notify		= h1940_backlight_notify,
+	.yestify		= h1940_backlight_yestify,
 	.exit           = h1940_backlight_exit,
 };
 

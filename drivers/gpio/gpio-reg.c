@@ -125,7 +125,7 @@ static int gpio_reg_to_irq(struct gpio_chip *gc, unsigned offset)
  * Add a single-register GPIO device containing up to 32 GPIO signals,
  * where each GPIO has a fixed input or output configuration.  Only
  * input GPIOs are assumed to be readable from the register, and only
- * then after a double-read.  Output values are assumed not to be
+ * then after a double-read.  Output values are assumed yest to be
  * readable.
  */
 struct gpio_chip *gpio_reg_init(struct device *dev, void __iomem *reg,

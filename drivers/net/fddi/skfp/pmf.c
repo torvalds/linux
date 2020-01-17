@@ -339,8 +339,8 @@ static SMbuf *smt_build_pmf_response(struct s_smc *smc, struct smt_header *req,
 	 * setup parameter status
 	 */
 	pcon.pc_len = SMT_MAX_INFO_LEN ;	/* max para length */
-	pcon.pc_err = 0 ;			/* no error */
-	pcon.pc_badset = 0 ;			/* no bad set count */
+	pcon.pc_err = 0 ;			/* yes error */
+	pcon.pc_badset = 0 ;			/* yes bad set count */
 	pcon.pc_p = (void *) (smt + 1) ;	/* paras start here */
 
 	/*
@@ -410,7 +410,7 @@ static SMbuf *smt_build_pmf_response(struct s_smc *smc, struct smt_header *req,
 		}
 		else {
 			/*
-			 * smt group has no index
+			 * smt group has yes index
 			 */
 			if (!set && (pa->p_len != 0)) {
 				pcon.pc_err = SMT_RDF_LENGTH ;
@@ -435,7 +435,7 @@ static SMbuf *smt_build_pmf_response(struct s_smc *smc, struct smt_header *req,
 				}
 			}
 			/*
-			 * ignore
+			 * igyesre
 			 *	AUTHORIZATION in get/set
 			 *	SET COUNT in set
 			 */
@@ -499,7 +499,7 @@ static int smt_authorize(struct s_smc *smc, struct smt_header *sm)
 	char		*p ;
 
 	/*
-	 * check source station id if not zero
+	 * check source station id if yest zero
 	 */
 	p = (char *) &smc->mib.fddiPRPMFStation ;
 	for (i = 0 ; i < 8 && !p[i] ; i++)
@@ -510,7 +510,7 @@ static int smt_authorize(struct s_smc *smc, struct smt_header *sm)
 			return 1;
 	}
 	/*
-	 * check authoriziation parameter if passwd not zero
+	 * check authoriziation parameter if passwd yest zero
 	 */
 	p = (char *) smc->mib.fddiPRPMFPasswd ;
 	for (i = 0 ; i < 8 && !p[i] ; i++)
@@ -742,17 +742,17 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 			sp_len = sizeof(struct smt_p_208d) ;
 			goto sp_done ;
 		}
-	case SMT_P208E :		/* not copied condition */
+	case SMT_P208E :		/* yest copied condition */
 		{
 			struct smt_p_208e	*sp ;
 			sp = (struct smt_p_208e *) to ;
 			sp->p208e_flag =
 				mib_m->fddiMACNotCopiedFlag ;
-			sp->p208e_not_copied =
+			sp->p208e_yest_copied =
 				mib_m->fddiMACNotCopied_Ct ;
 			sp->p208e_copied =
 				mib_m->fddiMACCopied_Ct ;
-			sp->p208e_not_copied_ratio =
+			sp->p208e_yest_copied_ratio =
 				mib_m->fddiMACNotCopiedRatio ;
 			sp_len = sizeof(struct smt_p_208e) ;
 			goto sp_done ;
@@ -1034,7 +1034,7 @@ void smt_add_para(struct s_smc *smc, struct s_pcon *pcon, u_short para,
 done:
 	/*
 	 * make it even (in case of 'I' encoding)
-	 * note: len is DECREMENTED
+	 * yeste: len is DECREMENTED
 	 */
 	if (len & 3) {
 		to[0] = 0 ;
@@ -1057,7 +1057,7 @@ sp_done:
 	goto done ;
 
 len_error:
-	/* parameter does not fit in frame */
+	/* parameter does yest fit in frame */
 	pcon->pc_err = SMT_RDF_TOOLONG ;
 	return ;
 
@@ -1315,7 +1315,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 		break ;
 	case SMT_P101F :		/* fddiSMTTrace_MaxExpiration */
 		/*
-		 * note: lower limit trace_max = 6.001773... s
+		 * yeste: lower limit trace_max = 6.001773... s
 		 * NO upper limit
 		 */
 		if (long_val < (long)0x478bf51L)
@@ -1421,7 +1421,7 @@ static int smt_set_para(struct s_smc *smc, struct smt_para *pa, int index,
 #endif
 		break ;
 	case SMT_P3213:			/* fddiPATHT_Rmode */
-		/* no limit :
+		/* yes limit :
 		 * 0 .. 343.597 => 0 .. 2e32 * 80nS
 		 */
 		if (set) {
@@ -1506,10 +1506,10 @@ len_error:
 	return SMT_RDF_LENGTH;
 
 #if	0
-no_author_error:
-	/* parameter not setable, because the SBA is not active
-	 * Please note: we give the return code 'not authorizeed
-	 *  because SBA denied is not a valid return code in the
+yes_author_error:
+	/* parameter yest setable, because the SBA is yest active
+	 * Please yeste: we give the return code 'yest authorizeed
+	 *  because SBA denied is yest a valid return code in the
 	 * PMF protocol.
 	 */
 	return SMT_RDF_AUTHOR;
@@ -1652,8 +1652,8 @@ void dump_hex(char *p, int len)
 #endif
 	}
 }
-#endif	/* no BOOT */
+#endif	/* yes BOOT */
 #endif	/* DEBUG */
 
 
-#endif	/* no SLIM_SMT */
+#endif	/* yes SLIM_SMT */

@@ -10,7 +10,7 @@
  *  mode components is called a visor device driver.  Refer to visortemplate
  *  for a minimal sample visor device driver.
  *
- *  There should be nothing in this file that is private to the visorbus
+ *  There should be yesthing in this file that is private to the visorbus
  *  bus implementation itself.
  */
 
@@ -55,7 +55,7 @@ enum channel_clientstate {
 /*
  * Values for VISOR_CHANNEL_PROTOCOL.Features: This define exists so that
  * a guest can look at the FeatureFlags in the io channel, and configure the
- * driver to use interrupts or not based on this setting. All feature bits for
+ * driver to use interrupts or yest based on this setting. All feature bits for
  * all channels should be defined here. The io channel feature bits are defined
  * below.
  */
@@ -80,7 +80,7 @@ enum channel_clientstate {
  * @partition_index:   Index of guest partition.
  * @zone_uuid:	       Guid of Channel's zone.
  * @cli_str_offset:    Offset from channel header to null-terminated
- *		       ClientString (0 if ClientString not present).
+ *		       ClientString (0 if ClientString yest present).
  * @cli_state_boot:    CHANNEL_CLIENTSTATE of pre-boot EFI client of this
  *		       channel.
  * @cmd_state_cli:     CHANNEL_COMMANDSTATE (overloaded in Windows drivers, see
@@ -149,7 +149,7 @@ struct channel_header {
  *		      ISR in the guest windows driver.
  * @num_empty:	      Number of times that visor_signal_remove is called and
  *		      returned Empty Status.
- * @errorflags:	      Error bits set during SignalReinit to denote trouble with
+ * @errorflags:	      Error bits set during SignalReinit to deyeste trouble with
  *		      client's fields.
  * @filler:	      Pad out to 64 byte cacheline.
  */
@@ -212,8 +212,8 @@ struct visorchipset_state {
  *				is in progress. Only modified by the bus driver.
  * @resuming:			Indicates that a change towards a running state
  *				is in progress. Only modified by the bus driver.
- * @chipset_bus_no:		Private field used by the bus driver.
- * @chipset_dev_no:		Private field used the bus driver.
+ * @chipset_bus_yes:		Private field used by the bus driver.
+ * @chipset_dev_yes:		Private field used the bus driver.
  * @state:			Used to indicate the current state of the
  *				device.
  * @inst:			Unique GUID for this instance of the device.
@@ -238,8 +238,8 @@ struct visor_device {
 	struct mutex visordriver_callback_lock; /* synchronize probe/remove */
 	bool pausing;
 	bool resuming;
-	u32 chipset_bus_no;
-	u32 chipset_dev_no;
+	u32 chipset_bus_yes;
+	u32 chipset_dev_yes;
 	struct visorchipset_state state;
 	guid_t inst;
 	u8 *name;
@@ -272,7 +272,7 @@ struct visor_channeltype_descriptor {
  * @name:		Name of the visor driver.
  * @owner:		The module owner.
  * @channel_types:	Types of channels handled by this driver, ending with
- *			a zero GUID. Our specialized BUS.match() method knows
+ *			a zero GUID. Our specialized BUS.match() method kyesws
  *			about this list, and uses it to determine whether this
  *			driver will in fact handle a new device that it has
  *			detected.
@@ -339,6 +339,6 @@ bool visorchannel_signalempty(struct visorchannel *channel, u32 queue);
 const guid_t *visorchannel_get_guid(struct visorchannel *channel);
 
 #define BUS_ROOT_DEVICE UINT_MAX
-struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
+struct visor_device *visorbus_get_device_by_id(u32 bus_yes, u32 dev_yes,
 					       struct visor_device *from);
 #endif

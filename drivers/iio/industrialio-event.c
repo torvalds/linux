@@ -6,7 +6,7 @@
  * Based on elements of hwmon and input subsystems.
  */
 
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
@@ -52,7 +52,7 @@ bool iio_event_enabled(const struct iio_event_interface *ev_int)
  * @ev_code:		What event
  * @timestamp:		When the event occurred
  *
- * Note: The caller must make sure that this function is not running
+ * Note: The caller must make sure that this function is yest running
  * concurrently for the same indio_dev more than once.
  *
  * This function may be safely used as soon as a valid reference to iio_dev has
@@ -151,7 +151,7 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 		/*
 		 * If we couldn't read anything from the fifo (a different
 		 * thread might have been faster) we either return -EAGAIN if
-		 * the file descriptor is non-blocking, otherwise we go back to
+		 * the file descriptor is yesn-blocking, otherwise we go back to
 		 * sleep and wait for more data to arrive.
 		 */
 		if (copied == 0 && (filep->f_flags & O_NONBLOCK))
@@ -162,7 +162,7 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 	return copied;
 }
 
-static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
+static int iio_event_chrdev_release(struct iyesde *iyesde, struct file *filep)
 {
 	struct iio_dev *indio_dev = filep->private_data;
 	struct iio_event_interface *ev_int = indio_dev->event_interface;
@@ -179,7 +179,7 @@ static const struct file_operations iio_event_chrdev_fileops = {
 	.poll =  iio_event_poll,
 	.release = iio_event_chrdev_release,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 int iio_event_getfd(struct iio_dev *indio_dev)
@@ -201,7 +201,7 @@ int iio_event_getfd(struct iio_dev *indio_dev)
 
 	iio_device_get(indio_dev);
 
-	fd = anon_inode_getfd("iio:event", &iio_event_chrdev_fileops,
+	fd = ayesn_iyesde_getfd("iio:event", &iio_event_chrdev_fileops,
 				indio_dev, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);

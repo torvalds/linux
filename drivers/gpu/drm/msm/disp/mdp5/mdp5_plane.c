@@ -277,7 +277,7 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 
 	if (state->src_w > max_width) {
 		/* If source split is supported, we can go up to 2x
-		 * the max LM width, but we'd need to stage another
+		 * the max LM width, but we'd need to stage ayesther
 		 * hwpipe to the right LM. So, the drm_plane would
 		 * consist of 2 hwpipes.
 		 */
@@ -359,7 +359,7 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 		/* (re)assign hwpipe if needed, otherwise keep old one: */
 		if (new_hwpipe) {
 			/* TODO maybe we want to re-assign hwpipe sometimes
-			 * in cases when we no-longer need some caps to make
+			 * in cases when we yes-longer need some caps to make
 			 * it available for other planes?
 			 */
 			struct mdp5_hw_pipe *old_hwpipe = mdp5_state->hwpipe;
@@ -383,7 +383,7 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 				mdp5_state->r_hwpipe = new_right_hwpipe;
 			else
 				/*
-				 * set it to NULL so that the driver knows we
+				 * set it to NULL so that the driver kyesws we
 				 * don't have a right hwpipe when committing a
 				 * new state
 				 */
@@ -531,7 +531,7 @@ static const struct drm_plane_helper_funcs mdp5_plane_helper_funcs = {
 		.atomic_async_update = mdp5_plane_atomic_async_update,
 };
 
-static void set_scanout_locked(struct mdp5_kms *mdp5_kms,
+static void set_scayesut_locked(struct mdp5_kms *mdp5_kms,
 			       enum mdp5_pipe pipe,
 			       struct drm_framebuffer *fb)
 {
@@ -568,7 +568,7 @@ static void csc_disable(struct mdp5_kms *mdp5_kms, enum mdp5_pipe pipe)
 static void csc_enable(struct mdp5_kms *mdp5_kms, enum mdp5_pipe pipe,
 		struct csc_cfg *csc)
 {
-	uint32_t  i, mode = 0; /* RGB, no CSC */
+	uint32_t  i, mode = 0; /* RGB, yes CSC */
 	uint32_t *matrix;
 
 	if (unlikely(!csc))
@@ -875,7 +875,7 @@ static void mdp5_hwpipe_mode_set(struct mdp5_kms *mdp5_kms,
 			COND(has_pe, MDP5_PIPE_SRC_OP_MODE_SW_PIX_EXT_OVERRIDE) |
 			MDP5_PIPE_SRC_OP_MODE_BWC(BWC_LOSSLESS));
 
-	/* not using secure mode: */
+	/* yest using secure mode: */
 	mdp5_write(mdp5_kms, REG_MDP5_PIPE_SRC_ADDR_SW_STATUS(pipe), 0);
 
 	if (hwpipe->caps & MDP_PIPE_CAP_SW_PIX_EXT)
@@ -907,7 +907,7 @@ static void mdp5_hwpipe_mode_set(struct mdp5_kms *mdp5_kms,
 			csc_disable(mdp5_kms, pipe);
 	}
 
-	set_scanout_locked(mdp5_kms, pipe, fb);
+	set_scayesut_locked(mdp5_kms, pipe, fb);
 }
 
 static int mdp5_plane_mode_set(struct drm_plane *plane,

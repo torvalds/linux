@@ -3,8 +3,8 @@
  * net/core/devlink.c - Network physical/parent device Netlink interface
  *
  * Heavily inspired by net/wireless/
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellayesx Techyeslogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellayesx.com>
  */
 
 #include <linux/kernel.h>
@@ -388,7 +388,7 @@ devlink_region_snapshot_get_by_id(struct devlink_region *region, u32 id)
 #define DEVLINK_NL_FLAG_NEED_SB		BIT(2)
 
 /* The per devlink instance lock is taken by default in the pre-doit
- * operation, yet several commands do not require this. The global
+ * operation, yet several commands do yest require this. The global
  * devlink lock is taken and protects from disruption by user-calls.
  */
 #define DEVLINK_NL_FLAG_NO_LOCK		BIT(3)
@@ -443,7 +443,7 @@ static void devlink_nl_post_doit(const struct genl_ops *ops,
 {
 	struct devlink *devlink;
 
-	/* When devlink changes netns, it would not be found
+	/* When devlink changes netns, it would yest be found
 	 * by devlink_get_from_info(). So try if it is stored first.
 	 */
 	if (ops->internal_flags & DEVLINK_NL_FLAG_NEED_DEVLINK) {
@@ -499,7 +499,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static void devlink_notify(struct devlink *devlink, enum devlink_command cmd)
+static void devlink_yestify(struct devlink *devlink, enum devlink_command cmd)
 {
 	struct sk_buff *msg;
 	int err;
@@ -618,7 +618,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static void devlink_port_notify(struct devlink_port *devlink_port,
+static void devlink_port_yestify(struct devlink_port *devlink_port,
 				enum devlink_command cmd)
 {
 	struct devlink *devlink = devlink_port->devlink;
@@ -772,7 +772,7 @@ static int devlink_port_type_set(struct devlink *devlink,
 		if (err)
 			return err;
 		devlink_port->desired_type = port_type;
-		devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
+		devlink_port_yestify(devlink_port, DEVLINK_CMD_PORT_NEW);
 		return 0;
 	}
 	return -EOPNOTSUPP;
@@ -1716,7 +1716,7 @@ int devlink_dpipe_match_put(struct sk_buff *skb,
 	struct devlink_dpipe_field *field = &header->fields[match->field_id];
 	struct nlattr *match_attr;
 
-	match_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_DPIPE_MATCH);
+	match_attr = nla_nest_start_yesflag(skb, DEVLINK_ATTR_DPIPE_MATCH);
 	if (!match_attr)
 		return -EMSGSIZE;
 
@@ -1741,7 +1741,7 @@ static int devlink_dpipe_matches_put(struct devlink_dpipe_table *table,
 {
 	struct nlattr *matches_attr;
 
-	matches_attr = nla_nest_start_noflag(skb,
+	matches_attr = nla_nest_start_yesflag(skb,
 					     DEVLINK_ATTR_DPIPE_TABLE_MATCHES);
 	if (!matches_attr)
 		return -EMSGSIZE;
@@ -1764,7 +1764,7 @@ int devlink_dpipe_action_put(struct sk_buff *skb,
 	struct devlink_dpipe_field *field = &header->fields[action->field_id];
 	struct nlattr *action_attr;
 
-	action_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_DPIPE_ACTION);
+	action_attr = nla_nest_start_yesflag(skb, DEVLINK_ATTR_DPIPE_ACTION);
 	if (!action_attr)
 		return -EMSGSIZE;
 
@@ -1789,7 +1789,7 @@ static int devlink_dpipe_actions_put(struct devlink_dpipe_table *table,
 {
 	struct nlattr *actions_attr;
 
-	actions_attr = nla_nest_start_noflag(skb,
+	actions_attr = nla_nest_start_yesflag(skb,
 					     DEVLINK_ATTR_DPIPE_TABLE_ACTIONS);
 	if (!actions_attr)
 		return -EMSGSIZE;
@@ -1812,7 +1812,7 @@ static int devlink_dpipe_table_put(struct sk_buff *skb,
 	u64 table_size;
 
 	table_size = table->table_ops->size_get(table->priv);
-	table_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_DPIPE_TABLE);
+	table_attr = nla_nest_start_yesflag(skb, DEVLINK_ATTR_DPIPE_TABLE);
 	if (!table_attr)
 		return -EMSGSIZE;
 
@@ -1892,7 +1892,7 @@ start_again:
 
 	if (devlink_nl_put_handle(skb, devlink))
 		goto nla_put_failure;
-	tables_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_DPIPE_TABLES);
+	tables_attr = nla_nest_start_yesflag(skb, DEVLINK_ATTR_DPIPE_TABLES);
 	if (!tables_attr)
 		goto nla_put_failure;
 
@@ -1993,7 +1993,7 @@ static int devlink_dpipe_action_values_put(struct sk_buff *skb,
 	int err;
 
 	for (i = 0; i < values_count; i++) {
-		action_attr = nla_nest_start_noflag(skb,
+		action_attr = nla_nest_start_yesflag(skb,
 						    DEVLINK_ATTR_DPIPE_ACTION_VALUE);
 		if (!action_attr)
 			return -EMSGSIZE;
@@ -2030,7 +2030,7 @@ static int devlink_dpipe_match_values_put(struct sk_buff *skb,
 	int err;
 
 	for (i = 0; i < values_count; i++) {
-		match_attr = nla_nest_start_noflag(skb,
+		match_attr = nla_nest_start_yesflag(skb,
 						   DEVLINK_ATTR_DPIPE_MATCH_VALUE);
 		if (!match_attr)
 			return -EMSGSIZE;
@@ -2052,7 +2052,7 @@ static int devlink_dpipe_entry_put(struct sk_buff *skb,
 	struct nlattr *entry_attr, *matches_attr, *actions_attr;
 	int err;
 
-	entry_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_DPIPE_ENTRY);
+	entry_attr = nla_nest_start_yesflag(skb, DEVLINK_ATTR_DPIPE_ENTRY);
 	if (!entry_attr)
 		return  -EMSGSIZE;
 
@@ -2064,7 +2064,7 @@ static int devlink_dpipe_entry_put(struct sk_buff *skb,
 				      entry->counter, DEVLINK_ATTR_PAD))
 			goto nla_put_failure;
 
-	matches_attr = nla_nest_start_noflag(skb,
+	matches_attr = nla_nest_start_yesflag(skb,
 					     DEVLINK_ATTR_DPIPE_ENTRY_MATCH_VALUES);
 	if (!matches_attr)
 		goto nla_put_failure;
@@ -2077,7 +2077,7 @@ static int devlink_dpipe_entry_put(struct sk_buff *skb,
 	}
 	nla_nest_end(skb, matches_attr);
 
-	actions_attr = nla_nest_start_noflag(skb,
+	actions_attr = nla_nest_start_yesflag(skb,
 					     DEVLINK_ATTR_DPIPE_ENTRY_ACTION_VALUES);
 	if (!actions_attr)
 		goto nla_put_failure;
@@ -2135,7 +2135,7 @@ int devlink_dpipe_entry_ctx_prepare(struct devlink_dpipe_dump_ctx *dump_ctx)
 	devlink = dump_ctx->info->user_ptr[0];
 	if (devlink_nl_put_handle(dump_ctx->skb, devlink))
 		goto nla_put_failure;
-	dump_ctx->nest = nla_nest_start_noflag(dump_ctx->skb,
+	dump_ctx->nest = nla_nest_start_yesflag(dump_ctx->skb,
 					       DEVLINK_ATTR_DPIPE_ENTRIES);
 	if (!dump_ctx->nest)
 		goto nla_put_failure;
@@ -2246,7 +2246,7 @@ static int devlink_dpipe_fields_put(struct sk_buff *skb,
 
 	for (i = 0; i < header->fields_count; i++) {
 		field = &header->fields[i];
-		field_attr = nla_nest_start_noflag(skb,
+		field_attr = nla_nest_start_yesflag(skb,
 						   DEVLINK_ATTR_DPIPE_FIELD);
 		if (!field_attr)
 			return -EMSGSIZE;
@@ -2270,7 +2270,7 @@ static int devlink_dpipe_header_put(struct sk_buff *skb,
 	struct nlattr *fields_attr, *header_attr;
 	int err;
 
-	header_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_DPIPE_HEADER);
+	header_attr = nla_nest_start_yesflag(skb, DEVLINK_ATTR_DPIPE_HEADER);
 	if (!header_attr)
 		return -EMSGSIZE;
 
@@ -2279,7 +2279,7 @@ static int devlink_dpipe_header_put(struct sk_buff *skb,
 	    nla_put_u8(skb, DEVLINK_ATTR_DPIPE_HEADER_GLOBAL, header->global))
 		goto nla_put_failure;
 
-	fields_attr = nla_nest_start_noflag(skb,
+	fields_attr = nla_nest_start_yesflag(skb,
 					    DEVLINK_ATTR_DPIPE_HEADER_FIELDS);
 	if (!fields_attr)
 		goto nla_put_failure;
@@ -2327,7 +2327,7 @@ start_again:
 
 	if (devlink_nl_put_handle(skb, devlink))
 		goto nla_put_failure;
-	headers_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_DPIPE_HEADERS);
+	headers_attr = nla_nest_start_yesflag(skb, DEVLINK_ATTR_DPIPE_HEADERS);
 	if (!headers_attr)
 		goto nla_put_failure;
 
@@ -2551,7 +2551,7 @@ static int devlink_resource_put(struct devlink *devlink, struct sk_buff *skb,
 	struct nlattr *child_resource_attr;
 	struct nlattr *resource_attr;
 
-	resource_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_RESOURCE);
+	resource_attr = nla_nest_start_yesflag(skb, DEVLINK_ATTR_RESOURCE);
 	if (!resource_attr)
 		return -EMSGSIZE;
 
@@ -2575,7 +2575,7 @@ static int devlink_resource_put(struct devlink *devlink, struct sk_buff *skb,
 		       resource->size_valid))
 		goto nla_put_failure;
 
-	child_resource_attr = nla_nest_start_noflag(skb,
+	child_resource_attr = nla_nest_start_yesflag(skb,
 						    DEVLINK_ATTR_RESOURCE_LIST);
 	if (!child_resource_attr)
 		goto nla_put_failure;
@@ -2627,7 +2627,7 @@ start_again:
 	if (devlink_nl_put_handle(skb, devlink))
 		goto nla_put_failure;
 
-	resources_attr = nla_nest_start_noflag(skb,
+	resources_attr = nla_nest_start_yesflag(skb,
 					       DEVLINK_ATTR_RESOURCE_LIST);
 	if (!resources_attr)
 		goto nla_put_failure;
@@ -2727,7 +2727,7 @@ static struct net *devlink_netns_get(struct sk_buff *skb,
 		net = ERR_PTR(-EINVAL);
 	}
 	if (IS_ERR(net)) {
-		NL_SET_ERR_MSG(info->extack, "Unknown network namespace");
+		NL_SET_ERR_MSG(info->extack, "Unkyeswn network namespace");
 		return ERR_PTR(-EINVAL);
 	}
 	if (!netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN)) {
@@ -2737,7 +2737,7 @@ static struct net *devlink_netns_get(struct sk_buff *skb,
 	return net;
 }
 
-static void devlink_param_notify(struct devlink *devlink,
+static void devlink_param_yestify(struct devlink *devlink,
 				 unsigned int port_index,
 				 struct devlink_param_item *param_item,
 				 enum devlink_command cmd);
@@ -2747,22 +2747,22 @@ static void devlink_reload_netns_change(struct devlink *devlink,
 {
 	struct devlink_param_item *param_item;
 
-	/* Userspace needs to be notified about devlink objects
+	/* Userspace needs to be yestified about devlink objects
 	 * removed from original and entering new network namespace.
 	 * The rest of the devlink objects are re-created during
-	 * reload process so the notifications are generated separatelly.
+	 * reload process so the yestifications are generated separatelly.
 	 */
 
 	list_for_each_entry(param_item, &devlink->param_list, list)
-		devlink_param_notify(devlink, 0, param_item,
+		devlink_param_yestify(devlink, 0, param_item,
 				     DEVLINK_CMD_PARAM_DEL);
-	devlink_notify(devlink, DEVLINK_CMD_DEL);
+	devlink_yestify(devlink, DEVLINK_CMD_DEL);
 
 	__devlink_net_set(devlink, dest_net);
 
-	devlink_notify(devlink, DEVLINK_CMD_NEW);
+	devlink_yestify(devlink, DEVLINK_CMD_NEW);
 	list_for_each_entry(param_item, &devlink->param_list, list)
-		devlink_param_notify(devlink, 0, param_item,
+		devlink_param_yestify(devlink, 0, param_item,
 				     DEVLINK_CMD_PARAM_NEW);
 }
 
@@ -2777,7 +2777,7 @@ static void devlink_reload_failed_set(struct devlink *devlink,
 	if (devlink->reload_failed == reload_failed)
 		return;
 	devlink->reload_failed = reload_failed;
-	devlink_notify(devlink, DEVLINK_CMD_NEW);
+	devlink_yestify(devlink, DEVLINK_CMD_NEW);
 }
 
 bool devlink_is_reload_failed(const struct devlink *devlink)
@@ -2880,7 +2880,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static void __devlink_flash_update_notify(struct devlink *devlink,
+static void __devlink_flash_update_yestify(struct devlink *devlink,
 					  enum devlink_command cmd,
 					  const char *status_msg,
 					  const char *component,
@@ -2911,33 +2911,33 @@ out_free_msg:
 	nlmsg_free(msg);
 }
 
-void devlink_flash_update_begin_notify(struct devlink *devlink)
+void devlink_flash_update_begin_yestify(struct devlink *devlink)
 {
-	__devlink_flash_update_notify(devlink,
+	__devlink_flash_update_yestify(devlink,
 				      DEVLINK_CMD_FLASH_UPDATE,
 				      NULL, NULL, 0, 0);
 }
-EXPORT_SYMBOL_GPL(devlink_flash_update_begin_notify);
+EXPORT_SYMBOL_GPL(devlink_flash_update_begin_yestify);
 
-void devlink_flash_update_end_notify(struct devlink *devlink)
+void devlink_flash_update_end_yestify(struct devlink *devlink)
 {
-	__devlink_flash_update_notify(devlink,
+	__devlink_flash_update_yestify(devlink,
 				      DEVLINK_CMD_FLASH_UPDATE_END,
 				      NULL, NULL, 0, 0);
 }
-EXPORT_SYMBOL_GPL(devlink_flash_update_end_notify);
+EXPORT_SYMBOL_GPL(devlink_flash_update_end_yestify);
 
-void devlink_flash_update_status_notify(struct devlink *devlink,
+void devlink_flash_update_status_yestify(struct devlink *devlink,
 					const char *status_msg,
 					const char *component,
 					unsigned long done,
 					unsigned long total)
 {
-	__devlink_flash_update_notify(devlink,
+	__devlink_flash_update_yestify(devlink,
 				      DEVLINK_CMD_FLASH_UPDATE_STATUS,
 				      status_msg, component, done, total);
 }
-EXPORT_SYMBOL_GPL(devlink_flash_update_status_notify);
+EXPORT_SYMBOL_GPL(devlink_flash_update_status_yestify);
 
 static int devlink_nl_cmd_flash_update(struct sk_buff *skb,
 				       struct genl_info *info)
@@ -3032,7 +3032,7 @@ static int devlink_param_driver_verify(const struct devlink_param *param)
 
 	if (param->id <= DEVLINK_PARAM_GENERIC_ID_MAX)
 		return -EINVAL;
-	/* verify no such name in generic params */
+	/* verify yes such name in generic params */
 	for (i = 0; i <= DEVLINK_PARAM_GENERIC_ID_MAX; i++)
 		if (!strcmp(param->name, devlink_param_generic[i].name))
 			return -EEXIST;
@@ -3115,7 +3115,7 @@ devlink_nl_param_value_fill_one(struct sk_buff *msg,
 {
 	struct nlattr *param_value_attr;
 
-	param_value_attr = nla_nest_start_noflag(msg,
+	param_value_attr = nla_nest_start_yesflag(msg,
 						 DEVLINK_ATTR_PARAM_VALUE);
 	if (!param_value_attr)
 		goto nla_put_failure;
@@ -3207,7 +3207,7 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 		if (nla_put_u32(msg, DEVLINK_ATTR_PORT_INDEX, port_index))
 			goto genlmsg_cancel;
 
-	param_attr = nla_nest_start_noflag(msg, DEVLINK_ATTR_PARAM);
+	param_attr = nla_nest_start_yesflag(msg, DEVLINK_ATTR_PARAM);
 	if (!param_attr)
 		goto genlmsg_cancel;
 	if (nla_put_string(msg, DEVLINK_ATTR_PARAM_NAME, param->name))
@@ -3221,7 +3221,7 @@ static int devlink_nl_param_fill(struct sk_buff *msg, struct devlink *devlink,
 	if (nla_put_u8(msg, DEVLINK_ATTR_PARAM_TYPE, nla_type))
 		goto param_nest_cancel;
 
-	param_values_list = nla_nest_start_noflag(msg,
+	param_values_list = nla_nest_start_yesflag(msg,
 						  DEVLINK_ATTR_PARAM_VALUES_LIST);
 	if (!param_values_list)
 		goto param_nest_cancel;
@@ -3249,7 +3249,7 @@ genlmsg_cancel:
 	return -EMSGSIZE;
 }
 
-static void devlink_param_notify(struct devlink *devlink,
+static void devlink_param_yestify(struct devlink *devlink,
 				 unsigned int port_index,
 				 struct devlink_param_item *param_item,
 				 enum devlink_command cmd)
@@ -3479,7 +3479,7 @@ static int __devlink_nl_cmd_param_set_doit(struct devlink *devlink,
 			return err;
 	}
 
-	devlink_param_notify(devlink, port_index, param_item, cmd);
+	devlink_param_yestify(devlink, port_index, param_item, cmd);
 	return 0;
 }
 
@@ -3514,7 +3514,7 @@ static int devlink_param_register_one(struct devlink *devlink,
 	param_item->param = param;
 
 	list_add_tail(&param_item->list, param_list);
-	devlink_param_notify(devlink, port_index, param_item, cmd);
+	devlink_param_yestify(devlink, port_index, param_item, cmd);
 	return 0;
 }
 
@@ -3528,7 +3528,7 @@ static void devlink_param_unregister_one(struct devlink *devlink,
 
 	param_item = devlink_param_find_by_name(param_list, param->name);
 	WARN_ON(!param_item);
-	devlink_param_notify(devlink, port_index, param_item, cmd);
+	devlink_param_yestify(devlink, port_index, param_item, cmd);
 	list_del(&param_item->list);
 	kfree(param_item);
 }
@@ -3628,7 +3628,7 @@ static int devlink_nl_region_snapshot_id_put(struct sk_buff *msg,
 	struct nlattr *snap_attr;
 	int err;
 
-	snap_attr = nla_nest_start_noflag(msg, DEVLINK_ATTR_REGION_SNAPSHOT);
+	snap_attr = nla_nest_start_yesflag(msg, DEVLINK_ATTR_REGION_SNAPSHOT);
 	if (!snap_attr)
 		return -EINVAL;
 
@@ -3652,7 +3652,7 @@ static int devlink_nl_region_snapshots_id_put(struct sk_buff *msg,
 	struct nlattr *snapshots_attr;
 	int err;
 
-	snapshots_attr = nla_nest_start_noflag(msg,
+	snapshots_attr = nla_nest_start_yesflag(msg,
 					       DEVLINK_ATTR_REGION_SNAPSHOTS);
 	if (!snapshots_attr)
 		return -EINVAL;
@@ -3709,7 +3709,7 @@ nla_put_failure:
 	return err;
 }
 
-static void devlink_nl_region_notify(struct devlink_region *region,
+static void devlink_nl_region_yestify(struct devlink_region *region,
 				     struct devlink_snapshot *snapshot,
 				     enum devlink_command cmd)
 {
@@ -3764,7 +3764,7 @@ out_free_msg:
 static void devlink_region_snapshot_del(struct devlink_region *region,
 					struct devlink_snapshot *snapshot)
 {
-	devlink_nl_region_notify(region, snapshot, DEVLINK_CMD_REGION_DEL);
+	devlink_nl_region_yestify(region, snapshot, DEVLINK_CMD_REGION_DEL);
 	region->cur_snapshots--;
 	list_del(&snapshot->list);
 	(*snapshot->data_destructor)(snapshot->data);
@@ -3878,7 +3878,7 @@ static int devlink_nl_cmd_region_read_chunk_fill(struct sk_buff *msg,
 	struct nlattr *chunk_attr;
 	int err;
 
-	chunk_attr = nla_nest_start_noflag(msg, DEVLINK_ATTR_REGION_CHUNK);
+	chunk_attr = nla_nest_start_yesflag(msg, DEVLINK_ATTR_REGION_CHUNK);
 	if (!chunk_attr)
 		return -EINVAL;
 
@@ -4002,7 +4002,7 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 	if (err)
 		goto nla_put_failure;
 
-	chunks_attr = nla_nest_start_noflag(skb, DEVLINK_ATTR_REGION_CHUNKS);
+	chunks_attr = nla_nest_start_yesflag(skb, DEVLINK_ATTR_REGION_CHUNKS);
 	if (!chunks_attr) {
 		err = -EMSGSIZE;
 		goto nla_put_failure;
@@ -4075,7 +4075,7 @@ static int devlink_info_version_put(struct devlink_info_req *req, int attr,
 	struct nlattr *nest;
 	int err;
 
-	nest = nla_nest_start_noflag(req->msg, attr);
+	nest = nla_nest_start_yesflag(req->msg, attr);
 	if (!nest)
 		return -EMSGSIZE;
 
@@ -4612,7 +4612,7 @@ devlink_fmsg_prepare_skb(struct devlink_fmsg *fmsg, struct sk_buff *skb,
 	int i = 0;
 	int err;
 
-	fmsg_nlattr = nla_nest_start_noflag(skb, DEVLINK_ATTR_FMSG);
+	fmsg_nlattr = nla_nest_start_yesflag(skb, DEVLINK_ATTR_FMSG);
 	if (!fmsg_nlattr)
 		return -EMSGSIZE;
 
@@ -5044,7 +5044,7 @@ devlink_nl_health_reporter_fill(struct sk_buff *msg,
 	if (devlink_nl_put_handle(msg, devlink))
 		goto genlmsg_cancel;
 
-	reporter_attr = nla_nest_start_noflag(msg,
+	reporter_attr = nla_nest_start_yesflag(msg,
 					      DEVLINK_ATTR_HEALTH_REPORTER);
 	if (!reporter_attr)
 		goto genlmsg_cancel;
@@ -5216,7 +5216,7 @@ static int devlink_nl_cmd_health_reporter_recover_doit(struct sk_buff *skb,
 	return err;
 }
 
-static int devlink_nl_cmd_health_reporter_diagnose_doit(struct sk_buff *skb,
+static int devlink_nl_cmd_health_reporter_diagyesse_doit(struct sk_buff *skb,
 							struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
@@ -5228,7 +5228,7 @@ static int devlink_nl_cmd_health_reporter_diagnose_doit(struct sk_buff *skb,
 	if (!reporter)
 		return -EINVAL;
 
-	if (!reporter->ops->diagnose) {
+	if (!reporter->ops->diagyesse) {
 		devlink_health_reporter_put(reporter);
 		return -EOPNOTSUPP;
 	}
@@ -5243,7 +5243,7 @@ static int devlink_nl_cmd_health_reporter_diagnose_doit(struct sk_buff *skb,
 	if (err)
 		goto out;
 
-	err = reporter->ops->diagnose(reporter, fmsg, info->extack);
+	err = reporter->ops->diagyesse(reporter, fmsg, info->extack);
 	if (err)
 		goto out;
 
@@ -5548,7 +5548,7 @@ static int devlink_nl_cmd_trap_get_doit(struct sk_buff *skb,
 
 	trap_item = devlink_trap_item_get_from_info(devlink, info);
 	if (!trap_item) {
-		NL_SET_ERR_MSG_MOD(extack, "Device did not register this trap");
+		NL_SET_ERR_MSG_MOD(extack, "Device did yest register this trap");
 		return -ENOENT;
 	}
 
@@ -5617,7 +5617,7 @@ static int __devlink_trap_action_set(struct devlink *devlink,
 
 	if (trap_item->action != trap_action &&
 	    trap_item->trap->type != DEVLINK_TRAP_TYPE_DROP) {
-		NL_SET_ERR_MSG_MOD(extack, "Cannot change action of non-drop traps. Skipping");
+		NL_SET_ERR_MSG_MOD(extack, "Canyest change action of yesn-drop traps. Skipping");
 		return 0;
 	}
 
@@ -5664,7 +5664,7 @@ static int devlink_nl_cmd_trap_set_doit(struct sk_buff *skb,
 
 	trap_item = devlink_trap_item_get_from_info(devlink, info);
 	if (!trap_item) {
-		NL_SET_ERR_MSG_MOD(extack, "Device did not register this trap");
+		NL_SET_ERR_MSG_MOD(extack, "Device did yest register this trap");
 		return -ENOENT;
 	}
 
@@ -5752,7 +5752,7 @@ static int devlink_nl_cmd_trap_group_get_doit(struct sk_buff *skb,
 
 	group_item = devlink_trap_group_item_get_from_info(devlink, info);
 	if (!group_item) {
-		NL_SET_ERR_MSG_MOD(extack, "Device did not register this trap group");
+		NL_SET_ERR_MSG_MOD(extack, "Device did yest register this trap group");
 		return -ENOENT;
 	}
 
@@ -5875,7 +5875,7 @@ static int devlink_nl_cmd_trap_group_set_doit(struct sk_buff *skb,
 
 	group_item = devlink_trap_group_item_get_from_info(devlink, info);
 	if (!group_item) {
-		NL_SET_ERR_MSG_MOD(extack, "Device did not register this trap group");
+		NL_SET_ERR_MSG_MOD(extack, "Device did yest register this trap group");
 		return -ENOENT;
 	}
 
@@ -6194,7 +6194,7 @@ static const struct genl_ops devlink_nl_ops[] = {
 	{
 		.cmd = DEVLINK_CMD_HEALTH_REPORTER_DIAGNOSE,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit = devlink_nl_cmd_health_reporter_diagnose_doit,
+		.doit = devlink_nl_cmd_health_reporter_diagyesse_doit,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK |
 				  DEVLINK_NL_FLAG_NO_LOCK,
@@ -6314,7 +6314,7 @@ int devlink_register(struct devlink *devlink, struct device *dev)
 	devlink->dev = dev;
 	devlink->registered = true;
 	list_add_tail(&devlink->list, &devlink_list);
-	devlink_notify(devlink, DEVLINK_CMD_NEW);
+	devlink_yestify(devlink, DEVLINK_CMD_NEW);
 	mutex_unlock(&devlink_mutex);
 	return 0;
 }
@@ -6330,7 +6330,7 @@ void devlink_unregister(struct devlink *devlink)
 	mutex_lock(&devlink_mutex);
 	WARN_ON(devlink_reload_supported(devlink) &&
 		devlink->reload_enabled);
-	devlink_notify(devlink, DEVLINK_CMD_DEL);
+	devlink_yestify(devlink, DEVLINK_CMD_DEL);
 	list_del(&devlink->list);
 	mutex_unlock(&devlink_mutex);
 }
@@ -6363,7 +6363,7 @@ EXPORT_SYMBOL_GPL(devlink_reload_enable);
 void devlink_reload_disable(struct devlink *devlink)
 {
 	mutex_lock(&devlink_mutex);
-	/* Mutex is taken which ensures that no reload operation is in
+	/* Mutex is taken which ensures that yes reload operation is in
 	 * progress while setting up forbidded flag.
 	 */
 	devlink->reload_enabled = false;
@@ -6396,12 +6396,12 @@ EXPORT_SYMBOL_GPL(devlink_free);
 
 static void devlink_port_type_warn(struct work_struct *work)
 {
-	WARN(true, "Type was not set for devlink port.");
+	WARN(true, "Type was yest set for devlink port.");
 }
 
 static bool devlink_port_type_should_warn(struct devlink_port *devlink_port)
 {
-	/* Ignore CPU and DSA flavours. */
+	/* Igyesre CPU and DSA flavours. */
 	return devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_CPU &&
 	       devlink_port->attrs.flavour != DEVLINK_PORT_FLAVOUR_DSA;
 }
@@ -6412,7 +6412,7 @@ static void devlink_port_type_warn_schedule(struct devlink_port *devlink_port)
 {
 	if (!devlink_port_type_should_warn(devlink_port))
 		return;
-	/* Schedule a work to WARN in case driver does not set port
+	/* Schedule a work to WARN in case driver does yest set port
 	 * type within timeout.
 	 */
 	schedule_delayed_work(&devlink_port->type_warn_dw,
@@ -6457,7 +6457,7 @@ int devlink_port_register(struct devlink *devlink,
 	mutex_unlock(&devlink->lock);
 	INIT_DELAYED_WORK(&devlink_port->type_warn_dw, &devlink_port_type_warn);
 	devlink_port_type_warn_schedule(devlink_port);
-	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
+	devlink_port_yestify(devlink_port, DEVLINK_CMD_PORT_NEW);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devlink_port_register);
@@ -6472,7 +6472,7 @@ void devlink_port_unregister(struct devlink_port *devlink_port)
 	struct devlink *devlink = devlink_port->devlink;
 
 	devlink_port_type_warn_cancel(devlink_port);
-	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_DEL);
+	devlink_port_yestify(devlink_port, DEVLINK_CMD_PORT_DEL);
 	mutex_lock(&devlink->lock);
 	list_del(&devlink_port->list);
 	mutex_unlock(&devlink->lock);
@@ -6490,7 +6490,7 @@ static void __devlink_port_type_set(struct devlink_port *devlink_port,
 	devlink_port->type = type;
 	devlink_port->type_dev = type_dev;
 	spin_unlock_bh(&devlink_port->type_lock);
-	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
+	devlink_port_yestify(devlink_port, DEVLINK_CMD_PORT_NEW);
 }
 
 /**
@@ -6506,14 +6506,14 @@ void devlink_port_type_eth_set(struct devlink_port *devlink_port,
 
 	/* If driver registers devlink port, it should set devlink port
 	 * attributes accordingly so the compat functions are called
-	 * and the original ops are not used.
+	 * and the original ops are yest used.
 	 */
 	if (ops->ndo_get_phys_port_name) {
 		/* Some drivers use the same set of ndos for netdevs
 		 * that have devlink_port registered and also for
 		 * those who don't. Make sure that ndo_get_phys_port_name
 		 * returns -EOPNOTSUPP here in case it is defined.
-		 * Warn if not.
+		 * Warn if yest.
 		 */
 		char name[IFNAMSIZ];
 		int err;
@@ -6526,7 +6526,7 @@ void devlink_port_type_eth_set(struct devlink_port *devlink_port,
 		 * that have devlink_port registered and also for
 		 * those who don't. Make sure that ndo_get_port_parent_id
 		 * returns -EOPNOTSUPP here in case it is defined.
-		 * Warn if not.
+		 * Warn if yest.
 		 */
 		struct netdev_phys_item_id ppid;
 		int err;
@@ -6694,8 +6694,8 @@ static int __devlink_port_phys_port_name_get(struct devlink_port *devlink_port,
 		break;
 	case DEVLINK_PORT_FLAVOUR_CPU:
 	case DEVLINK_PORT_FLAVOUR_DSA:
-		/* As CPU and DSA ports do not have a netdevice associated
-		 * case should not ever happen.
+		/* As CPU and DSA ports do yest have a netdevice associated
+		 * case should yest ever happen.
 		 */
 		WARN_ON(1);
 		return -EINVAL;
@@ -7213,7 +7213,7 @@ void devlink_params_publish(struct devlink *devlink)
 		if (param_item->published)
 			continue;
 		param_item->published = true;
-		devlink_param_notify(devlink, 0, param_item,
+		devlink_param_yestify(devlink, 0, param_item,
 				     DEVLINK_CMD_PARAM_NEW);
 	}
 }
@@ -7234,7 +7234,7 @@ void devlink_params_unpublish(struct devlink *devlink)
 		if (!param_item->published)
 			continue;
 		param_item->published = false;
-		devlink_param_notify(devlink, 0, param_item,
+		devlink_param_yestify(devlink, 0, param_item,
 				     DEVLINK_CMD_PARAM_DEL);
 	}
 }
@@ -7328,7 +7328,7 @@ __devlink_param_driverinit_value_set(struct devlink *devlink,
 		param_item->driverinit_value = init_val;
 	param_item->driverinit_value_valid = true;
 
-	devlink_param_notify(devlink, port_index, param_item, cmd);
+	devlink_param_yestify(devlink, port_index, param_item, cmd);
 	return 0;
 }
 
@@ -7426,14 +7426,14 @@ int devlink_port_param_driverinit_value_set(struct devlink_port *devlink_port,
 EXPORT_SYMBOL_GPL(devlink_port_param_driverinit_value_set);
 
 /**
- *	devlink_param_value_changed - notify devlink on a parameter's value
+ *	devlink_param_value_changed - yestify devlink on a parameter's value
  *				      change. Should be called by the driver
  *				      right after the change.
  *
  *	@devlink: devlink
  *	@param_id: parameter ID
  *
- *	This function should be used by the driver to notify devlink on value
+ *	This function should be used by the driver to yestify devlink on value
  *	change, excluding driverinit configuration mode.
  *	For driverinit configuration mode driver should use the function
  */
@@ -7444,19 +7444,19 @@ void devlink_param_value_changed(struct devlink *devlink, u32 param_id)
 	param_item = devlink_param_find_by_id(&devlink->param_list, param_id);
 	WARN_ON(!param_item);
 
-	devlink_param_notify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
+	devlink_param_yestify(devlink, 0, param_item, DEVLINK_CMD_PARAM_NEW);
 }
 EXPORT_SYMBOL_GPL(devlink_param_value_changed);
 
 /**
- *     devlink_port_param_value_changed - notify devlink on a parameter's value
+ *     devlink_port_param_value_changed - yestify devlink on a parameter's value
  *                                      change. Should be called by the driver
  *                                      right after the change.
  *
  *     @devlink_port: devlink_port
  *     @param_id: parameter ID
  *
- *     This function should be used by the driver to notify devlink on value
+ *     This function should be used by the driver to yestify devlink on value
  *     change, excluding driverinit configuration mode.
  *     For driverinit configuration mode driver should use the function
  *     devlink_port_param_driverinit_value_set() instead.
@@ -7470,7 +7470,7 @@ void devlink_port_param_value_changed(struct devlink_port *devlink_port,
 					      param_id);
 	WARN_ON(!param_item);
 
-	devlink_param_notify(devlink_port->devlink, devlink_port->index,
+	devlink_param_yestify(devlink_port->devlink, devlink_port->index,
 			     param_item, DEVLINK_CMD_PORT_PARAM_NEW);
 }
 EXPORT_SYMBOL_GPL(devlink_port_param_value_changed);
@@ -7527,7 +7527,7 @@ struct devlink_region *devlink_region_create(struct devlink *devlink,
 	region->size = region_size;
 	INIT_LIST_HEAD(&region->snapshot_list);
 	list_add_tail(&region->list, &devlink->region_list);
-	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
+	devlink_nl_region_yestify(region, NULL, DEVLINK_CMD_REGION_NEW);
 
 	mutex_unlock(&devlink->lock);
 	return region;
@@ -7556,7 +7556,7 @@ void devlink_region_destroy(struct devlink_region *region)
 
 	list_del(&region->list);
 
-	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_DEL);
+	devlink_nl_region_yestify(region, NULL, DEVLINK_CMD_REGION_DEL);
 	mutex_unlock(&devlink->lock);
 	kfree(region);
 }
@@ -7632,7 +7632,7 @@ int devlink_region_snapshot_create(struct devlink_region *region,
 
 	region->cur_snapshots++;
 
-	devlink_nl_region_notify(region, snapshot, DEVLINK_CMD_REGION_NEW);
+	devlink_nl_region_yestify(region, snapshot, DEVLINK_CMD_REGION_NEW);
 	mutex_unlock(&devlink->lock);
 	return 0;
 
@@ -7765,7 +7765,7 @@ static int devlink_trap_group_verify(const struct devlink_trap_group *group)
 }
 
 static void
-devlink_trap_group_notify(struct devlink *devlink,
+devlink_trap_group_yestify(struct devlink *devlink,
 			  const struct devlink_trap_group_item *group_item,
 			  enum devlink_command cmd)
 {
@@ -7821,7 +7821,7 @@ devlink_trap_group_item_create(struct devlink *devlink,
 	}
 
 	list_add_tail(&group_item->list, &devlink->trap_group_list);
-	devlink_trap_group_notify(devlink, group_item,
+	devlink_trap_group_yestify(devlink, group_item,
 				  DEVLINK_CMD_TRAP_GROUP_NEW);
 
 	return group_item;
@@ -7837,7 +7837,7 @@ static void
 devlink_trap_group_item_destroy(struct devlink *devlink,
 				struct devlink_trap_group_item *group_item)
 {
-	devlink_trap_group_notify(devlink, group_item,
+	devlink_trap_group_yestify(devlink, group_item,
 				  DEVLINK_CMD_TRAP_GROUP_DEL);
 	list_del(&group_item->list);
 	free_percpu(group_item->stats);
@@ -7892,7 +7892,7 @@ devlink_trap_item_group_unlink(struct devlink *devlink,
 	devlink_trap_group_item_put(devlink, trap_item->group_item);
 }
 
-static void devlink_trap_notify(struct devlink *devlink,
+static void devlink_trap_yestify(struct devlink *devlink,
 				const struct devlink_trap_item *trap_item,
 				enum devlink_command cmd)
 {
@@ -7949,7 +7949,7 @@ devlink_trap_register(struct devlink *devlink,
 		goto err_trap_init;
 
 	list_add_tail(&trap_item->list, &devlink->trap_list);
-	devlink_trap_notify(devlink, trap_item, DEVLINK_CMD_TRAP_NEW);
+	devlink_trap_yestify(devlink, trap_item, DEVLINK_CMD_TRAP_NEW);
 
 	return 0;
 
@@ -7971,7 +7971,7 @@ static void devlink_trap_unregister(struct devlink *devlink,
 	if (WARN_ON_ONCE(!trap_item))
 		return;
 
-	devlink_trap_notify(devlink, trap_item, DEVLINK_CMD_TRAP_DEL);
+	devlink_trap_yestify(devlink, trap_item, DEVLINK_CMD_TRAP_DEL);
 	list_del(&trap_item->list);
 	if (devlink->ops->trap_fini)
 		devlink->ops->trap_fini(devlink, trap, trap_item);
@@ -8049,7 +8049,7 @@ void devlink_traps_unregister(struct devlink *devlink,
 	int i;
 
 	mutex_lock(&devlink->lock);
-	/* Make sure we do not have any packets in-flight while unregistering
+	/* Make sure we do yest have any packets in-flight while unregistering
 	 * traps by disabling all of them and waiting for a grace period.
 	 */
 	for (i = traps_count - 1; i >= 0; i--)
@@ -8214,7 +8214,7 @@ int devlink_compat_phys_port_name_get(struct net_device *dev,
 	struct devlink_port *devlink_port;
 
 	/* RTNL mutex is held here which ensures that devlink_port
-	 * instance cannot disappear in the middle. No need to take
+	 * instance canyest disappear in the middle. No need to take
 	 * any devlink lock as only permanent values are accessed.
 	 */
 	ASSERT_RTNL();
@@ -8232,7 +8232,7 @@ int devlink_compat_switch_id_get(struct net_device *dev,
 	struct devlink_port *devlink_port;
 
 	/* Caller must hold RTNL mutex or reference to dev, which ensures that
-	 * devlink_port instance cannot disappear in the middle. No need to take
+	 * devlink_port instance canyest disappear in the middle. No need to take
 	 * any devlink lock as only permanent values are accessed.
 	 */
 	devlink_port = netdev_to_devlink_port(dev);

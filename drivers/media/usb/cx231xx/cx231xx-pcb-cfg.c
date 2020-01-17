@@ -20,7 +20,7 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_DIGITAL_ONLY,	/* index */
 	 USB_SELF_POWER,	/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , yest decide yet */
 	 MOD_DIGITAL,		/* mode */
 	 SOURCE_TS_BDA,		/* ts1_source, digital tv only */
 	 NOT_SUPPORTED,		/* ts2_source  */
@@ -91,7 +91,7 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_DUAL_DIGITAL,	/* index */
 	 USB_SELF_POWER,	/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , yest decide yet */
 	 MOD_DIGITAL,		/* mode */
 	 SOURCE_TS_BDA,		/* ts1_source, digital tv only */
 	 0,			/* ts2_source,need update from register */
@@ -160,7 +160,7 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_ANALOG_ONLY,	/* index */
 	 USB_SELF_POWER,	/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , yest decide yet */
 	 MOD_ANALOG | MOD_DIF | MOD_EXTERNAL,	/* mode ,analog tv only */
 	 NOT_SUPPORTED,		/* ts1_source, NOT SUPPORT */
 	 NOT_SUPPORTED,		/* ts2_source,NOT SUPPORT */
@@ -230,7 +230,7 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_DUAL,	/* index */
 	 USB_SELF_POWER,	/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , yest decide yet */
 	 /* mode ,analog tv and digital path */
 	 MOD_ANALOG | MOD_DIF | MOD_DIGITAL | MOD_EXTERNAL,
 	 0,			/* ts1_source,will update in register */
@@ -299,7 +299,7 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_TRIPLE,	/* index */
 	 USB_SELF_POWER,	/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , yest decide yet */
 	 /* mode ,analog tv and digital path */
 	 MOD_ANALOG | MOD_DIF | MOD_DIGITAL | MOD_EXTERNAL,
 	 0,			/* ts1_source, update in register */
@@ -369,7 +369,7 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_SELFPOWER_COMPRESSOR,	/* index */
 	 USB_SELF_POWER,	/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , yest decide yet */
 	 /* mode ,analog tv AND DIGITAL path */
 	 MOD_ANALOG | MOD_DIF | MOD_DIGITAL | MOD_EXTERNAL,
 	 NOT_SUPPORTED,		/* ts1_source, disable */
@@ -438,7 +438,7 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_BUSPOWER_DIGITAL_ONLY,	/* index */
 	 USB_BUS_POWER,		/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , yest decide yet */
 	 MOD_DIGITAL,		/* mode ,analog tv AND DIGITAL path */
 	 SOURCE_TS_BDA,		/* ts1_source, disable */
 	 NOT_SUPPORTED,		/* ts2_source */
@@ -507,7 +507,7 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_BUSPOWER_ANALOG_ONLY,	/* index */
 	 USB_BUS_POWER,		/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , yest decide yet */
 	 MOD_ANALOG,		/* mode ,analog tv AND DIGITAL path */
 	 NOT_SUPPORTED,		/* ts1_source, disable */
 	 NOT_SUPPORTED,		/* ts2_source */
@@ -573,7 +573,7 @@ static struct pcb_config cx231xx_Scenario[] = {
 	{
 	 INDEX_BUSPOWER_DIF_ONLY,	/* index */
 	 USB_BUS_POWER,		/* power_type */
-	 0,			/* speed , not decide yet */
+	 0,			/* speed , yest decide yet */
 	 /* mode ,analog tv AND DIGITAL path */
 	 MOD_DIF | MOD_ANALOG | MOD_DIGITAL | MOD_EXTERNAL,
 	 SOURCE_TS_BDA,		/* ts1_source, disable */

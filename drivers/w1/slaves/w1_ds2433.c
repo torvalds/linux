@@ -44,7 +44,7 @@ struct w1_f23_data {
 
 /**
  * Check the file size bounds and adjusts count as needed.
- * This would not be needed if the file size didn't reset to 0 after a write.
+ * This would yest be needed if the file size didn't reset to 0 after a write.
  */
 static inline size_t w1_f23_fix_count(loff_t off, size_t count, size_t size)
 {
@@ -192,7 +192,7 @@ static int w1_f23_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 	/* Sleep for 5 ms to wait for the write to complete */
 	msleep(5);
 
-	/* Reset the bus to wake up the EEPROM (this may not be needed) */
+	/* Reset the bus to wake up the EEPROM (this may yest be needed) */
 	w1_reset_bus(sl->master);
 #ifdef CONFIG_W1_SLAVE_DS2433_CRC
 	f23->validcrc &= ~(1 << (addr >> W1_PAGE_BITS));

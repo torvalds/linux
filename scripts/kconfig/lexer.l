@@ -2,8 +2,8 @@
 /*
  * Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>
  */
-%option nostdinit noyywrap never-interactive full ecs
-%option 8bit nodefault yylineno
+%option yesstdinit yesyywrap never-interactive full ecs
+%option 8bit yesdefault yylineyes
 %x ASSIGN_VAL HELP STRING
 %{
 
@@ -23,7 +23,7 @@
 
 static struct {
 	struct file *file;
-	int lineno;
+	int lineyes;
 } current_pos;
 
 static int prev_prev_token = T_EOL;
@@ -74,11 +74,11 @@ static void alloc_string(const char *str, int size)
 	text[size] = 0;
 }
 
-static void warn_ignored_character(char chr)
+static void warn_igyesred_character(char chr)
 {
 	fprintf(stderr,
-	        "%s:%d:warning: ignoring unsupported character '%c'\n",
-	        current_file->name, yylineno, chr);
+	        "%s:%d:warning: igyesring unsupported character '%c'\n",
+	        current_file->name, yylineyes, chr);
 }
 %}
 
@@ -88,11 +88,11 @@ n	[A-Za-z0-9_-]
 	int str = 0;
 	int ts, i;
 
-#.*			/* ignore comment */
+#.*			/* igyesre comment */
 [ \t]*			/* whitespaces */
 \\\n			/* escaped new line */
 \n			return T_EOL;
-"allnoconfig_y"		return T_ALLNOCONFIG_Y;
+"allyesconfig_y"		return T_ALLNOCONFIG_Y;
 "bool"			return T_BOOL;
 "choice"		return T_CHOICE;
 "comment"		return T_COMMENT;
@@ -154,7 +154,7 @@ n	[A-Za-z0-9_-]
 					return T_WORD;
 				free(yylval.string);
 			}
-.			warn_ignored_character(*yytext);
+.			warn_igyesred_character(*yytext);
 
 <ASSIGN_VAL>{
 	[^[:blank:]\n]+.*	{
@@ -184,8 +184,8 @@ n	[A-Za-z0-9_-]
 	}
 	\n	{
 		fprintf(stderr,
-			"%s:%d:warning: multi-line strings not supported\n",
-			zconf_curname(), zconf_lineno());
+			"%s:%d:warning: multi-line strings yest supported\n",
+			zconf_curname(), zconf_lineyes());
 		unput('\n');
 		BEGIN(INITIAL);
 		yylval.string = text;
@@ -248,8 +248,8 @@ n	[A-Za-z0-9_-]
 	BEGIN(INITIAL);
 
 	if (prev_token != T_EOL && prev_token != T_HELPTEXT)
-		fprintf(stderr, "%s:%d:warning: no new line at end of file\n",
-			current_file->name, yylineno);
+		fprintf(stderr, "%s:%d:warning: yes new line at end of file\n",
+			current_file->name, yylineyes);
 
 	if (current_file) {
 		zconf_endfile();
@@ -271,17 +271,17 @@ repeat:
 
 	if (prev_token == T_EOL || prev_token == T_HELPTEXT) {
 		if (token == T_EOL) {
-			/* Do not pass unneeded T_EOL to the parser. */
+			/* Do yest pass unneeded T_EOL to the parser. */
 			goto repeat;
 		} else {
 			/*
-			 * For the parser, update file/lineno at the first token
+			 * For the parser, update file/lineyes at the first token
 			 * of each statement. Generally, \n is a statement
-			 * terminator in Kconfig, but it is not always true
+			 * terminator in Kconfig, but it is yest always true
 			 * because \n could be escaped by a backslash.
 			 */
 			current_pos.file = current_file;
-			current_pos.lineno = yylineno;
+			current_pos.lineyes = yylineyes;
 		}
 	}
 
@@ -305,7 +305,7 @@ static char *expand_token(const char *in, size_t n)
 	new_string();
 	append_string(in, n);
 
-	/* get the whole line because we do not know the end of token. */
+	/* get the whole line because we do yest kyesw the end of token. */
 	while ((c = input()) != EOF) {
 		if (c == '\n') {
 			unput(c);
@@ -367,7 +367,7 @@ static void zconf_endhelp(void)
  * $(srctree)/name
  * The latter is used when srctree is separate from objtree
  * when compiling the kernel.
- * Return NULL if file is not found.
+ * Return NULL if file is yest found.
  */
 FILE *zconf_fopen(const char *name)
 {
@@ -398,7 +398,7 @@ void zconf_initscan(const char *name)
 	memset(current_buf, 0, sizeof(*current_buf));
 
 	current_file = file_lookup(name);
-	yylineno = 1;
+	yylineyes = 1;
 }
 
 void zconf_nextfile(const char *name)
@@ -412,14 +412,14 @@ void zconf_nextfile(const char *name)
 	yyin = zconf_fopen(file->name);
 	if (!yyin) {
 		fprintf(stderr, "%s:%d: can't open file \"%s\"\n",
-			zconf_curname(), zconf_lineno(), file->name);
+			zconf_curname(), zconf_lineyes(), file->name);
 		exit(1);
 	}
 	yy_switch_to_buffer(yy_create_buffer(yyin, YY_BUF_SIZE));
 	buf->parent = current_buf;
 	current_buf = buf;
 
-	current_file->lineno = yylineno;
+	current_file->lineyes = yylineyes;
 	file->parent = current_file;
 
 	for (iter = current_file; iter; iter = iter->parent) {
@@ -432,13 +432,13 @@ void zconf_nextfile(const char *name)
 			do {
 				iter = iter->parent;
 				fprintf(stderr, "  included from: %s:%d\n",
-					iter->name, iter->lineno - 1);
+					iter->name, iter->lineyes - 1);
 			} while (strcmp(iter->name, file->name));
 			exit(1);
 		}
 	}
 
-	yylineno = 1;
+	yylineyes = 1;
 	current_file = file;
 }
 
@@ -448,7 +448,7 @@ static void zconf_endfile(void)
 
 	current_file = current_file->parent;
 	if (current_file)
-		yylineno = current_file->lineno;
+		yylineyes = current_file->lineyes;
 
 	parent = current_buf->parent;
 	if (parent) {
@@ -460,12 +460,12 @@ static void zconf_endfile(void)
 	current_buf = parent;
 }
 
-int zconf_lineno(void)
+int zconf_lineyes(void)
 {
-	return current_pos.lineno;
+	return current_pos.lineyes;
 }
 
 const char *zconf_curname(void)
 {
-	return current_pos.file ? current_pos.file->name : "<none>";
+	return current_pos.file ? current_pos.file->name : "<yesne>";
 }

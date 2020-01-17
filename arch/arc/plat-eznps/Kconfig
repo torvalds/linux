@@ -53,5 +53,5 @@ config EZNPS_SHARED_AUX_REGS
 	  On the real chip of the NPS, auxiliary registers are shared between
 	  all the cpus of the core, whereas on simulator platform for NPS,
 	  each cpu has a different set of auxiliary registers. Configuration
-	  should be unset if auxiliary registers are not shared between the cpus
+	  should be unset if auxiliary registers are yest shared between the cpus
 	  of the core, so there will be a need to initialize them per cpu.

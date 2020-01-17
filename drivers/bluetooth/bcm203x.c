@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <linux/device.h>
 #include <linux/firmware.h>

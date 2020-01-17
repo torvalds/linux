@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -117,7 +117,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 				le32_to_cpu(sos_hdr->header.ucode_array_offset_bytes);
 		adev->psp.sos_start_addr = (uint8_t *)adev->psp.sys_start_addr +
 				le32_to_cpu(sos_hdr->sos_offset_bytes);
-		if (sos_hdr->header.header_version_minor == 1) {
+		if (sos_hdr->header.header_version_miyesr == 1) {
 			sos_hdr_v1_1 = (const struct psp_firmware_header_v1_1 *)adev->psp.sos_fw->data;
 			adev->psp.toc_bin_size = le32_to_cpu(sos_hdr_v1_1->toc_size_bytes);
 			adev->psp.toc_start_addr = (uint8_t *)adev->psp.sys_start_addr +
@@ -126,7 +126,7 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
 					le32_to_cpu(sos_hdr_v1_1->kdb_offset_bytes);
 		}
-		if (sos_hdr->header.header_version_minor == 2) {
+		if (sos_hdr->header.header_version_miyesr == 2) {
 			sos_hdr_v1_2 = (const struct psp_firmware_header_v1_2 *)adev->psp.sos_fw->data;
 			adev->psp.kdb_bin_size = le32_to_cpu(sos_hdr_v1_2->kdb_size_bytes);
 			adev->psp.kdb_start_addr = (uint8_t *)adev->psp.sys_start_addr +
@@ -719,7 +719,7 @@ static int psp_v11_0_mode1_reset(struct psp_context *psp)
 	ret = psp_wait_for(psp, offset, 0x80000000, 0x8000FFFF, false);
 
 	if (ret) {
-		DRM_INFO("psp is not working correctly before mode1 reset!\n");
+		DRM_INFO("psp is yest working correctly before mode1 reset!\n");
 		return -EINVAL;
 	}
 
@@ -743,7 +743,7 @@ static int psp_v11_0_mode1_reset(struct psp_context *psp)
 }
 
 /* TODO: Fill in follow functions once PSP firmware interface for XGMI is ready.
- * For now, return success and hack the hive_id so high level code can
+ * For yesw, return success and hack the hive_id so high level code can
  * start testing
  */
 static int psp_v11_0_xgmi_get_topology_info(struct psp_context *psp,
@@ -755,7 +755,7 @@ static int psp_v11_0_xgmi_get_topology_info(struct psp_context *psp,
 	int i;
 	int ret;
 
-	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
+	if (!topology || topology->num_yesdes > TA_XGMI__MAX_CONNECTED_NODES)
 		return -EINVAL;
 
 	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
@@ -764,13 +764,13 @@ static int psp_v11_0_xgmi_get_topology_info(struct psp_context *psp,
 	/* Fill in the shared memory with topology information as input */
 	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_GET_TOPOLOGY_INFO;
-	topology_info_input->num_nodes = number_devices;
+	topology_info_input->num_yesdes = number_devices;
 
-	for (i = 0; i < topology_info_input->num_nodes; i++) {
-		topology_info_input->nodes[i].node_id = topology->nodes[i].node_id;
-		topology_info_input->nodes[i].num_hops = topology->nodes[i].num_hops;
-		topology_info_input->nodes[i].is_sharing_enabled = topology->nodes[i].is_sharing_enabled;
-		topology_info_input->nodes[i].sdma_engine = topology->nodes[i].sdma_engine;
+	for (i = 0; i < topology_info_input->num_yesdes; i++) {
+		topology_info_input->yesdes[i].yesde_id = topology->yesdes[i].yesde_id;
+		topology_info_input->yesdes[i].num_hops = topology->yesdes[i].num_hops;
+		topology_info_input->yesdes[i].is_sharing_enabled = topology->yesdes[i].is_sharing_enabled;
+		topology_info_input->yesdes[i].sdma_engine = topology->yesdes[i].sdma_engine;
 	}
 
 	/* Invoke xgmi ta to get the topology information */
@@ -780,12 +780,12 @@ static int psp_v11_0_xgmi_get_topology_info(struct psp_context *psp,
 
 	/* Read the output topology information from the shared memory */
 	topology_info_output = &xgmi_cmd->xgmi_out_message.get_topology_info;
-	topology->num_nodes = xgmi_cmd->xgmi_out_message.get_topology_info.num_nodes;
-	for (i = 0; i < topology->num_nodes; i++) {
-		topology->nodes[i].node_id = topology_info_output->nodes[i].node_id;
-		topology->nodes[i].num_hops = topology_info_output->nodes[i].num_hops;
-		topology->nodes[i].is_sharing_enabled = topology_info_output->nodes[i].is_sharing_enabled;
-		topology->nodes[i].sdma_engine = topology_info_output->nodes[i].sdma_engine;
+	topology->num_yesdes = xgmi_cmd->xgmi_out_message.get_topology_info.num_yesdes;
+	for (i = 0; i < topology->num_yesdes; i++) {
+		topology->yesdes[i].yesde_id = topology_info_output->yesdes[i].yesde_id;
+		topology->yesdes[i].num_hops = topology_info_output->yesdes[i].num_hops;
+		topology->yesdes[i].is_sharing_enabled = topology_info_output->yesdes[i].is_sharing_enabled;
+		topology->yesdes[i].sdma_engine = topology_info_output->yesdes[i].sdma_engine;
 	}
 
 	return 0;
@@ -798,7 +798,7 @@ static int psp_v11_0_xgmi_set_topology_info(struct psp_context *psp,
 	struct ta_xgmi_cmd_get_topology_info_input *topology_info_input;
 	int i;
 
-	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
+	if (!topology || topology->num_yesdes > TA_XGMI__MAX_CONNECTED_NODES)
 		return -EINVAL;
 
 	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
@@ -806,13 +806,13 @@ static int psp_v11_0_xgmi_set_topology_info(struct psp_context *psp,
 
 	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__SET_TOPOLOGY_INFO;
-	topology_info_input->num_nodes = number_devices;
+	topology_info_input->num_yesdes = number_devices;
 
-	for (i = 0; i < topology_info_input->num_nodes; i++) {
-		topology_info_input->nodes[i].node_id = topology->nodes[i].node_id;
-		topology_info_input->nodes[i].num_hops = topology->nodes[i].num_hops;
-		topology_info_input->nodes[i].is_sharing_enabled = 1;
-		topology_info_input->nodes[i].sdma_engine = topology->nodes[i].sdma_engine;
+	for (i = 0; i < topology_info_input->num_yesdes; i++) {
+		topology_info_input->yesdes[i].yesde_id = topology->yesdes[i].yesde_id;
+		topology_info_input->yesdes[i].num_hops = topology->yesdes[i].num_hops;
+		topology_info_input->yesdes[i].is_sharing_enabled = 1;
+		topology_info_input->yesdes[i].sdma_engine = topology->yesdes[i].sdma_engine;
 	}
 
 	/* Invoke xgmi ta to set topology information */
@@ -839,7 +839,7 @@ static int psp_v11_0_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id
 	return 0;
 }
 
-static int psp_v11_0_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
+static int psp_v11_0_xgmi_get_yesde_id(struct psp_context *psp, uint64_t *yesde_id)
 {
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
@@ -849,12 +849,12 @@ static int psp_v11_0_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id
 
 	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_NODE_ID;
 
-	/* Invoke xgmi ta to get the node id */
+	/* Invoke xgmi ta to get the yesde id */
 	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
 	if (ret)
 		return ret;
 
-	*node_id = xgmi_cmd->xgmi_out_message.get_node_id.node_id;
+	*yesde_id = xgmi_cmd->xgmi_out_message.get_yesde_id.yesde_id;
 
 	return 0;
 }
@@ -884,7 +884,7 @@ static int psp_v11_0_ras_trigger_error(struct psp_context *psp,
 static int psp_v11_0_ras_cure_posion(struct psp_context *psp, uint64_t *mode_ptr)
 {
 #if 0
-	// not support yet.
+	// yest support yet.
 	struct ta_ras_shared_memory *ras_cmd;
 	int ret;
 
@@ -958,7 +958,7 @@ static int psp_v11_0_memory_training_init(struct psp_context *psp)
 	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
 
 	if (ctx->init != PSP_MEM_TRAIN_RESERVE_SUCCESS) {
-		DRM_DEBUG("memory training is not supported!\n");
+		DRM_DEBUG("memory training is yest supported!\n");
 		return 0;
 	}
 
@@ -992,7 +992,7 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 	uint32_t *pcache = (uint32_t*)ctx->sys_cache;
 
 	if (ctx->init == PSP_MEM_TRAIN_NOT_SUPPORT) {
-		DRM_DEBUG("Memory training is not supported.\n");
+		DRM_DEBUG("Memory training is yest supported.\n");
 		return 0;
 	} else if (ctx->init != PSP_MEM_TRAIN_INIT_SUCCESS) {
 		DRM_ERROR("Memory training initialization failure.\n");
@@ -1083,7 +1083,7 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.xgmi_get_topology_info = psp_v11_0_xgmi_get_topology_info,
 	.xgmi_set_topology_info = psp_v11_0_xgmi_set_topology_info,
 	.xgmi_get_hive_id = psp_v11_0_xgmi_get_hive_id,
-	.xgmi_get_node_id = psp_v11_0_xgmi_get_node_id,
+	.xgmi_get_yesde_id = psp_v11_0_xgmi_get_yesde_id,
 	.support_vmr_ring = psp_v11_0_support_vmr_ring,
 	.ras_trigger_error = psp_v11_0_ras_trigger_error,
 	.ras_cure_posion = psp_v11_0_ras_cure_posion,

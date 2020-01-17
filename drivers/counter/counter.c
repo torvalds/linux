@@ -27,9 +27,9 @@ const char *const counter_count_direction_str[2] = {
 EXPORT_SYMBOL_GPL(counter_count_direction_str);
 
 const char *const counter_count_mode_str[4] = {
-	[COUNTER_COUNT_MODE_NORMAL] = "normal",
+	[COUNTER_COUNT_MODE_NORMAL] = "yesrmal",
 	[COUNTER_COUNT_MODE_RANGE_LIMIT] = "range limit",
-	[COUNTER_COUNT_MODE_NON_RECYCLE] = "non-recycle",
+	[COUNTER_COUNT_MODE_NON_RECYCLE] = "yesn-recycle",
 	[COUNTER_COUNT_MODE_MODULO_N] = "modulo-n"
 };
 EXPORT_SYMBOL_GPL(counter_count_mode_str);
@@ -332,7 +332,7 @@ static int counter_name_attribute_create(
 	struct counter_attr_parm parm;
 	int err;
 
-	/* Skip if no name */
+	/* Skip if yes name */
 	if (!name)
 		return 0;
 
@@ -530,7 +530,7 @@ err_free_attr_groups:
 }
 
 static const char *const counter_synapse_action_str[] = {
-	[COUNTER_SYNAPSE_ACTION_NONE] = "none",
+	[COUNTER_SYNAPSE_ACTION_NONE] = "yesne",
 	[COUNTER_SYNAPSE_ACTION_RISING_EDGE] = "rising edge",
 	[COUNTER_SYNAPSE_ACTION_FALLING_EDGE] = "falling edge",
 	[COUNTER_SYNAPSE_ACTION_BOTH_EDGES] = "both edges"
@@ -583,7 +583,7 @@ static ssize_t counter_action_store(struct device *dev,
 		if (sysfs_streq(buf, counter_synapse_action_str[action]))
 			break;
 	}
-	/* If requested action mode not found */
+	/* If requested action mode yest found */
 	if (action_index >= num_actions)
 		return -EINVAL;
 
@@ -795,7 +795,7 @@ static ssize_t counter_function_store(struct device *dev,
 		if (sysfs_streq(buf, counter_count_function_str[function]))
 			break;
 	}
-	/* Return error if requested Count function mode not found */
+	/* Return error if requested Count function mode yest found */
 	if (func_index >= num_functions)
 		return -EINVAL;
 
@@ -1357,7 +1357,7 @@ int counter_register(struct counter_device *const counter)
 	device_state->dev.bus = &counter_bus_type;
 	if (counter->parent) {
 		device_state->dev.parent = counter->parent;
-		device_state->dev.of_node = counter->parent->of_node;
+		device_state->dev.of_yesde = counter->parent->of_yesde;
 	}
 	dev_set_name(&device_state->dev, "counter%d", device_state->id);
 	device_initialize(&device_state->dev);

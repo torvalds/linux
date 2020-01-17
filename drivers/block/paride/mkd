@@ -7,7 +7,7 @@
 #  character devices:	pt (96), pg (97)
 #
 function mkdev {
-  mknod $1 $2 $3 $4 ; chmod 0660 $1 ; chown root:disk $1
+  mkyesd $1 $2 $3 $4 ; chmod 0660 $1 ; chown root:disk $1
 }
 #
 function pd {

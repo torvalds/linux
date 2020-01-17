@@ -5,7 +5,7 @@
  *
  *  Currently supports the Winbond WPCD376i chip (PNP id WEC1022), but
  *  could probably support others (Winbond WEC102X, NatSemi, etc)
- *  with minor modifications.
+ *  with miyesr modifications.
  *
  *  Original Author: David Härdeman <david@hardeman.nu>
  *     Copyright (C) 2012 Sean Young <sean@mess.org>
@@ -451,7 +451,7 @@ wbcir_irq_tx(struct wbcir_data *data)
 }
 
 static irqreturn_t
-wbcir_irq_handler(int irqno, void *cookie)
+wbcir_irq_handler(int irqyes, void *cookie)
 {
 	struct pnp_dev *device = cookie;
 	struct wbcir_data *data = pnp_get_drvdata(device);
@@ -761,7 +761,7 @@ wbcir_shutdown(struct pnp_dev *device)
 		mask[3]  = wbcir_to_rc6cells(mask_sc >> 12);
 
 		/* Header */
-		match[4] = 0x50; /* mode1 = mode0 = 0, ignore toggle */
+		match[4] = 0x50; /* mode1 = mode0 = 0, igyesre toggle */
 		mask[4]  = 0xF0;
 		match[5] = 0x09; /* start bit = 1, mode2 = 0 */
 		mask[5]  = 0x0F;
@@ -857,7 +857,7 @@ finish:
 	/*
 	 * ACPI will set the HW disable bit for SP3 which means that the
 	 * output signals are left in an undefined state which may cause
-	 * spurious interrupts which we need to ignore until the hardware
+	 * spurious interrupts which we need to igyesre until the hardware
 	 * is reinitialized.
 	 */
 	wbcir_set_irqmask(data, WBCIR_IRQ_NONE);
@@ -908,7 +908,7 @@ wbcir_init_hw(struct wbcir_data *data)
 
 	/*
 	 * Clear IR LED, set SP3 clock to 24Mhz, set TX mask to IRTX1,
-	 * set SP3_IRRX_SW to binary 01, helpfully not documented
+	 * set SP3_IRRX_SW to binary 01, helpfully yest documented
 	 */
 	outb(0x10, data->ebase + WBCIR_REG_ECEIR_CTS);
 	data->txmask = 0x1;
@@ -924,7 +924,7 @@ wbcir_init_hw(struct wbcir_data *data)
 	 * The ECIR registers include a flag to change the
 	 * 24Mhz clock freq to 48Mhz.
 	 *
-	 * It's not documented in the specs, but fifo levels
+	 * It's yest documented in the specs, but fifo levels
 	 * other than 16 seems to be unsupported.
 	 */
 
@@ -957,7 +957,7 @@ wbcir_init_hw(struct wbcir_data *data)
 	wbcir_select_bank(data, WBCIR_BANK_6);
 	outb(0x20, data->sbase + WBCIR_REG_SP3_IRCR3);
 
-	/* Set RX demodulation freq, not really used */
+	/* Set RX demodulation freq, yest really used */
 	wbcir_select_bank(data, WBCIR_BANK_7);
 	outb(0xF2, data->sbase + WBCIR_REG_SP3_IRRXDC);
 

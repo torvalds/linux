@@ -52,7 +52,7 @@
 				goto decode;
 		}
 
-		/* syndrome is zero, no errors to correct  */
+		/* syndrome is zero, yes errors to correct  */
 		return 0;
 	}
 
@@ -88,7 +88,7 @@
 	}
 	s = syn;
 
-	/* Convert syndromes to index form, checking for nonzero condition */
+	/* Convert syndromes to index form, checking for yesnzero condition */
 	syn_error = 0;
 	for (i = 0; i < nroots; i++) {
 		syn_error |= s[i];
@@ -96,7 +96,7 @@
 	}
 
 	if (!syn_error) {
-		/* if syndrome is zero, data[] is a codeword and there are no
+		/* if syndrome is zero, data[] is a codeword and there are yes
 		 * errors to correct. So return data[] unmodified
 		 */
 		return 0;
@@ -106,11 +106,11 @@
 	memset(&lambda[1], 0, nroots * sizeof(lambda[0]));
 	lambda[0] = 1;
 
-	if (no_eras > 0) {
-		/* Init lambda to be the erasure locator polynomial */
+	if (yes_eras > 0) {
+		/* Init lambda to be the erasure locator polyyesmial */
 		lambda[1] = alpha_to[rs_modnn(rs,
 					prim * (nn - 1 - (eras_pos[0] + pad)))];
-		for (i = 1; i < no_eras; i++) {
+		for (i = 1; i < yes_eras; i++) {
 			u = rs_modnn(rs, prim * (nn - 1 - (eras_pos[i] + pad)));
 			for (j = i + 1; j > 0; j--) {
 				tmp = index_of[lambda[j - 1]];
@@ -127,10 +127,10 @@
 
 	/*
 	 * Begin Berlekamp-Massey algorithm to determine error+erasure
-	 * locator polynomial
+	 * locator polyyesmial
 	 */
-	r = no_eras;
-	el = no_eras;
+	r = yes_eras;
+	el = yes_eras;
 	while (++r <= nroots) {	/* r is the step number */
 		/* Compute discrepancy at the r-th step in poly-form */
 		discr_r = 0;
@@ -158,8 +158,8 @@
 				} else
 					t[i + 1] = lambda[i + 1];
 			}
-			if (2 * el <= r + no_eras - 1) {
-				el = r + no_eras - el;
+			if (2 * el <= r + yes_eras - 1) {
+				el = r + yes_eras - el;
 				/*
 				 * 2 lines below: B(x) <-- inv(discr_r) *
 				 * lambda(x)
@@ -188,13 +188,13 @@
 
 	if (deg_lambda == 0) {
 		/*
-		 * deg(lambda) is zero even though the syndrome is non-zero
+		 * deg(lambda) is zero even though the syndrome is yesn-zero
 		 * => uncorrectable error detected
 		 */
 		return -EBADMSG;
 	}
 
-	/* Find roots of error+erasure locator polynomial by Chien search */
+	/* Find roots of error+erasure locator polyyesmial by Chien search */
 	memcpy(&reg[1], &lambda[1], nroots * sizeof(reg[0]));
 	count = 0;		/* Number of roots of lambda(x) */
 	for (i = 1, k = iprim - 1; i <= nn; i++, k = rs_modnn(rs, k + iprim)) {

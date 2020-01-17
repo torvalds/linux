@@ -16,14 +16,14 @@
 #include <linux/sched/stat.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
 #include <linux/sysctl.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cpu.h>
 #include <linux/workqueue.h>
 #include <linux/suspend.h>
@@ -213,7 +213,7 @@ static void __appldata_vtimer_setup(int cmd)
 /*
  * appldata_timer_handler()
  *
- * Start/Stop timer, show status of timer (0 = not active, 1 = active)
+ * Start/Stop timer, show status of timer (0 = yest active, 1 = active)
  */
 static int
 appldata_timer_handler(struct ctl_table *ctl, int write,
@@ -276,7 +276,7 @@ appldata_interval_handler(struct ctl_table *ctl, int write,
  * appldata_generic_handler()
  *
  * Generic start/stop monitoring and DIAG, show status of
- * monitoring (0 = not in process, 1 = in process)
+ * monitoring (0 = yest in process, 1 = in process)
  */
 static int
 appldata_generic_handler(struct ctl_table *ctl, int write,

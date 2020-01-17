@@ -58,12 +58,12 @@ static void hwpoison_clear(struct pmem_device *pmem,
 		struct page *page = pfn_to_page(pfn);
 
 		/*
-		 * Note, no need to hold a get_dev_pagemap() reference
+		 * Note, yes need to hold a get_dev_pagemap() reference
 		 * here since we're in the driver I/O path and
 		 * outstanding I/O requests pin the dev_pagemap.
 		 */
 		if (test_and_clear_pmem_poison(page))
-			clear_mce_nospec(pfn);
+			clear_mce_yesspec(pfn);
 	}
 }
 
@@ -88,7 +88,7 @@ static blk_status_t pmem_clear_poison(struct pmem_device *pmem,
 				cleared > 1 ? "s" : "");
 		badblocks_clear(&pmem->bb, sector, cleared);
 		if (pmem->bb_state)
-			sysfs_notify_dirent(pmem->bb_state);
+			sysfs_yestify_dirent(pmem->bb_state);
 	}
 
 	arch_invalidate_pmem(pmem->virt_addr + offset, len);
@@ -211,7 +211,7 @@ static blk_qc_t pmem_make_request(struct request_queue *q, struct bio *bio)
 		ret = nvdimm_flush(nd_region, bio);
 
 	if (ret)
-		bio->bi_status = errno_to_blk_status(ret);
+		bio->bi_status = erryes_to_blk_status(ret);
 
 	bio_endio(bio);
 	return BLK_QC_T_NONE;
@@ -235,7 +235,7 @@ static int pmem_rw_page(struct block_device *bdev, sector_t sector,
 	if (rc == 0)
 		page_endio(page, op_is_write(op), 0);
 
-	return blk_status_to_errno(rc);
+	return blk_status_to_erryes(rc);
 }
 
 /* see "strong" declaration in tools/testing/nvdimm/pmem-dax.c */
@@ -254,7 +254,7 @@ __weak long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
 		*pfn = phys_to_pfn_t(pmem->phys_addr + offset, pmem->pfn_flags);
 
 	/*
-	 * If badblocks are present, limit known good range to the
+	 * If badblocks are present, limit kyeswn good range to the
 	 * requested range.
 	 */
 	if (unlikely(pmem->bb.count))
@@ -277,7 +277,7 @@ static long pmem_dax_direct_access(struct dax_device *dax_dev,
 }
 
 /*
- * Use the 'no check' versions of copy_from_iter_flushcache() and
+ * Use the 'yes check' versions of copy_from_iter_flushcache() and
  * copy_to_iter_mcsafe() to bypass HARDENED_USERCOPY overhead. Bounds
  * checking, both file offset and device offset, is handled by
  * dax_iomap_actor()
@@ -353,7 +353,7 @@ static int pmem_attach_disk(struct device *dev,
 {
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
 	struct nd_region *nd_region = to_nd_region(dev->parent);
-	int nid = dev_to_node(dev), fua;
+	int nid = dev_to_yesde(dev), fua;
 	struct resource *res = &nsio->res;
 	struct resource bb_res;
 	struct nd_pfn *nd_pfn = NULL;
@@ -397,11 +397,11 @@ static int pmem_attach_disk(struct device *dev,
 
 	if (!devm_request_mem_region(dev, res->start, resource_size(res),
 				dev_name(&ndns->dev))) {
-		dev_warn(dev, "could not reserve region %pR\n", res);
+		dev_warn(dev, "could yest reserve region %pR\n", res);
 		return -EBUSY;
 	}
 
-	q = blk_alloc_queue_node(GFP_KERNEL, dev_to_node(dev));
+	q = blk_alloc_queue_yesde(GFP_KERNEL, dev_to_yesde(dev));
 	if (!q)
 		return -ENOMEM;
 
@@ -448,7 +448,7 @@ static int pmem_attach_disk(struct device *dev,
 		blk_queue_flag_set(QUEUE_FLAG_DAX, q);
 	q->queuedata = pmem;
 
-	disk = alloc_disk_node(0, nid);
+	disk = alloc_disk_yesde(0, nid);
 	if (!disk)
 		return -ENOMEM;
 	pmem->disk = disk;
@@ -486,7 +486,7 @@ static int pmem_attach_disk(struct device *dev,
 	pmem->bb_state = sysfs_get_dirent(disk_to_dev(disk)->kobj.sd,
 					  "badblocks");
 	if (!pmem->bb_state)
-		dev_warn(dev, "'badblocks' notification disabled\n");
+		dev_warn(dev, "'badblocks' yestification disabled\n");
 
 	return 0;
 }
@@ -515,7 +515,7 @@ static int nd_pmem_probe(struct device *dev)
 		return -ENXIO;
 
 	/*
-	 * We have two failure conditions here, there is no
+	 * We have two failure conditions here, there is yes
 	 * info reserver block or we found a valid info reserve block
 	 * but failed to initialize the pfn superblock.
 	 *
@@ -551,8 +551,8 @@ static int nd_pmem_remove(struct device *dev)
 		nvdimm_namespace_detach_btt(to_nd_btt(dev));
 	else {
 		/*
-		 * Note, this assumes nd_device_lock() context to not
-		 * race nd_pmem_notify()
+		 * Note, this assumes nd_device_lock() context to yest
+		 * race nd_pmem_yestify()
 		 */
 		sysfs_put(pmem->bb_state);
 		pmem->bb_state = NULL;
@@ -567,7 +567,7 @@ static void nd_pmem_shutdown(struct device *dev)
 	nvdimm_flush(to_nd_region(dev->parent), NULL);
 }
 
-static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
+static void nd_pmem_yestify(struct device *dev, enum nvdimm_event event)
 {
 	struct nd_region *nd_region;
 	resource_size_t offset = 0, end_trunc = 0;
@@ -575,7 +575,7 @@ static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
 	struct nd_namespace_io *nsio;
 	struct resource res;
 	struct badblocks *bb;
-	struct kernfs_node *bb_state;
+	struct kernfs_yesde *bb_state;
 
 	if (event != NVDIMM_REVALIDATE_POISON)
 		return;
@@ -614,7 +614,7 @@ static void nd_pmem_notify(struct device *dev, enum nvdimm_event event)
 	res.end = nsio->res.end - end_trunc;
 	nvdimm_badblocks_populate(nd_region, bb, &res);
 	if (bb_state)
-		sysfs_notify_dirent(bb_state);
+		sysfs_yestify_dirent(bb_state);
 }
 
 MODULE_ALIAS("pmem");
@@ -623,7 +623,7 @@ MODULE_ALIAS_ND_DEVICE(ND_DEVICE_NAMESPACE_PMEM);
 static struct nd_device_driver nd_pmem_driver = {
 	.probe = nd_pmem_probe,
 	.remove = nd_pmem_remove,
-	.notify = nd_pmem_notify,
+	.yestify = nd_pmem_yestify,
 	.shutdown = nd_pmem_shutdown,
 	.drv = {
 		.name = "nd_pmem",

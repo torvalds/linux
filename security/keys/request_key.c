@@ -199,7 +199,7 @@ static int call_sbin_request_key(struct key *authkey, void *aux)
 		    key_validate(key) < 0)
 			ret = -ENOKEY;
 		else
-			/* ignore any errors from userspace if the key was
+			/* igyesre any errors from userspace if the key was
 			 * instantiated */
 			ret = 0;
 	}
@@ -218,7 +218,7 @@ error_us:
 /*
  * Call out to userspace for key construction.
  *
- * Program failure is ignored in favour of key status.
+ * Program failure is igyesred in favour of key status.
  */
 static int construct_key(struct key *key, const void *callout_info,
 			 size_t callout_len, void *aux,
@@ -407,7 +407,7 @@ static int construct_alloc_key(struct keyring_search_context *ctx,
 	}
 
 	/* attach the key to the destination keyring under lock, but we do need
-	 * to do another check just in case someone beat us to it whilst we
+	 * to do ayesther check just in case someone beat us to it whilst we
 	 * waited for locks */
 	mutex_lock(&key_construction_mutex);
 
@@ -428,7 +428,7 @@ static int construct_alloc_key(struct keyring_search_context *ctx,
 	kleave(" = 0 [%d]", key_serial(key));
 	return 0;
 
-	/* the key is now present - we tell the caller that we found it by
+	/* the key is yesw present - we tell the caller that we found it by
 	 * returning -EINPROGRESS  */
 key_already_present:
 	key_put(key);
@@ -539,7 +539,7 @@ error:
  *
  * A key matching the specified criteria (type, description, domain_tag) is
  * searched for in the process's keyrings and returned with its usage count
- * incremented if found.  Otherwise, if callout_info is not NULL, a key will be
+ * incremented if found.  Otherwise, if callout_info is yest NULL, a key will be
  * allocated and some service (probably in userspace) will be asked to
  * instantiate it.
  *
@@ -548,7 +548,7 @@ error:
  *
  * Returns a pointer to the key if successful; -EACCES, -ENOKEY, -EKEYREVOKED
  * or -EKEYEXPIRED if an inaccessible, negative, revoked or expired key was
- * found; -ENOKEY if no key was found and no @callout_info was given; -EDQUOT
+ * found; -ENOKEY if yes key was found and yes @callout_info was given; -EDQUOT
  * if insufficient key quota was available to create a new key; or -ENOMEM if
  * insufficient memory was available.
  *
@@ -679,13 +679,13 @@ EXPORT_SYMBOL(wait_for_key_construction);
  * @domain_tag: The domain in which the key operates.
  * @callout_info: The data to pass to the instantiation upcall (or NULL).
  *
- * As for request_key_and_link() except that it does not add the returned key
+ * As for request_key_and_link() except that it does yest add the returned key
  * to a keyring if found, new keys are always allocated in the user's quota,
- * the callout_info must be a NUL-terminated string and no auxiliary data can
+ * the callout_info must be a NUL-terminated string and yes auxiliary data can
  * be passed.
  *
  * Furthermore, it then works as wait_for_key_construction() to wait for the
- * completion of keys undergoing construction with a non-interruptible wait.
+ * completion of keys undergoing construction with a yesn-interruptible wait.
  */
 struct key *request_key_tag(struct key_type *type,
 			    const char *description,
@@ -721,11 +721,11 @@ EXPORT_SYMBOL(request_key_tag);
  * @callout_len: The length of callout_info.
  * @aux: Auxiliary data for the upcall.
  *
- * As for request_key_and_link() except that it does not add the returned key
+ * As for request_key_and_link() except that it does yest add the returned key
  * to a keyring if found and new keys are always allocated in the user's quota.
  *
  * Furthermore, it then works as wait_for_key_construction() to wait for the
- * completion of keys undergoing construction with a non-interruptible wait.
+ * completion of keys undergoing construction with a yesn-interruptible wait.
  */
 struct key *request_key_with_auxdata(struct key_type *type,
 				     const char *description,
@@ -757,8 +757,8 @@ EXPORT_SYMBOL(request_key_with_auxdata);
  * @description: The name of the key we want.
  * @domain_tag: The domain in which the key operates.
  *
- * Request a key from a context that we may not sleep in (such as RCU-mode
- * pathwalk).  Keys under construction are ignored.
+ * Request a key from a context that we may yest sleep in (such as RCU-mode
+ * pathwalk).  Keys under construction are igyesred.
  *
  * Return a pointer to the found key if successful, -ENOKEY if we couldn't find
  * a key or some other error if the key found was unsuitable or inaccessible.

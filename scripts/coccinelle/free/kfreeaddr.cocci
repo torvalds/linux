@@ -5,7 +5,7 @@
 // Copyright: (C) 2013 Julia Lawall, INRIA/LIP6.
 // URL: http://coccinelle.lip6.fr/
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 
 virtual org
 virtual report

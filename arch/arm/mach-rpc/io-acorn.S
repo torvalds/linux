@@ -14,11 +14,11 @@
 		.align
 
 .Liosl_warning:
-		.ascii	KERN_WARNING "insl/outsl not implemented, called from %08lX\0"
+		.ascii	KERN_WARNING "insl/outsl yest implemented, called from %08lX\0"
 		.align
 
 /*
- * These make no sense on Acorn machines.
+ * These make yes sense on Acorn machines.
  * Print a warning message.
  */
 ENTRY(insl)

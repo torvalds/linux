@@ -12,7 +12,7 @@
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/a.out.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/string.h>
 #include <linux/fs.h>
@@ -111,7 +111,7 @@ static unsigned long __user *create_aout_tables(char __user *p, struct linux_bin
 
 /*
  * These are the functions used to load a.out style executables and shared
- * libraries.  There is no binary dependent code anywhere else.
+ * libraries.  There is yes binary dependent code anywhere else.
  */
 
 static int load_aout_binary(struct linux_binprm * bprm)
@@ -127,7 +127,7 @@ static int load_aout_binary(struct linux_binprm * bprm)
 	if ((N_MAGIC(ex) != ZMAGIC && N_MAGIC(ex) != OMAGIC &&
 	     N_MAGIC(ex) != QMAGIC && N_MAGIC(ex) != NMAGIC) ||
 	    N_TRSIZE(ex) || N_DRSIZE(ex) ||
-	    i_size_read(file_inode(bprm->file)) < ex.a_text+ex.a_data+N_SYMSIZE(ex)+N_TXTOFF(ex)) {
+	    i_size_read(file_iyesde(bprm->file)) < ex.a_text+ex.a_data+N_SYMSIZE(ex)+N_TXTOFF(ex)) {
 		return -ENOEXEC;
 	}
 
@@ -155,7 +155,7 @@ static int load_aout_binary(struct linux_binprm * bprm)
 	if (retval)
 		return retval;
 
-	/* OK, This is the point of no return */
+	/* OK, This is the point of yes return */
 #ifdef __alpha__
 	SET_AOUT_PERSONALITY(bprm, ex);
 #else
@@ -201,13 +201,13 @@ static int load_aout_binary(struct linux_binprm * bprm)
 		if ((ex.a_text & 0xfff || ex.a_data & 0xfff) &&
 		    (N_MAGIC(ex) != NMAGIC) && printk_ratelimit())
 		{
-			printk(KERN_NOTICE "executable not page aligned\n");
+			printk(KERN_NOTICE "executable yest page aligned\n");
 		}
 
 		if ((fd_offset & ~PAGE_MASK) != 0 && printk_ratelimit())
 		{
 			printk(KERN_WARNING 
-			       "fd_offset is not page aligned. Please convert program: %pD\n",
+			       "fd_offset is yest page aligned. Please convert program: %pD\n",
 			       bprm->file);
 		}
 
@@ -255,14 +255,14 @@ beyond_if:
 
 static int load_aout_library(struct file *file)
 {
-	struct inode * inode;
+	struct iyesde * iyesde;
 	unsigned long bss, start_addr, len;
 	unsigned long error;
 	int retval;
 	struct exec ex;
 	loff_t pos = 0;
 
-	inode = file_inode(file);
+	iyesde = file_iyesde(file);
 
 	retval = -ENOEXEC;
 	error = kernel_read(file, &ex, sizeof(ex), &pos);
@@ -272,7 +272,7 @@ static int load_aout_library(struct file *file)
 	/* We come in here for the regular a.out style of shared libraries */
 	if ((N_MAGIC(ex) != ZMAGIC && N_MAGIC(ex) != QMAGIC) || N_TRSIZE(ex) ||
 	    N_DRSIZE(ex) || ((ex.a_entry & 0xfff) && N_MAGIC(ex) == ZMAGIC) ||
-	    i_size_read(inode) < ex.a_text+ex.a_data+N_SYMSIZE(ex)+N_TXTOFF(ex)) {
+	    i_size_read(iyesde) < ex.a_text+ex.a_data+N_SYMSIZE(ex)+N_TXTOFF(ex)) {
 		goto out;
 	}
 
@@ -295,7 +295,7 @@ static int load_aout_library(struct file *file)
 		if (printk_ratelimit())
 		{
 			printk(KERN_WARNING 
-			       "N_TXTOFF is not page aligned. Please convert library: %pD\n",
+			       "N_TXTOFF is yest page aligned. Please convert library: %pD\n",
 			       file);
 		}
 		retval = vm_brk(start_addr, ex.a_text + ex.a_data + ex.a_bss);

@@ -37,7 +37,7 @@ struct efa_user_mmap_entry {
 	op(EFA_RX_DROPS, "rx_drops") \
 	op(EFA_SUBMITTED_CMDS, "submitted_cmds") \
 	op(EFA_COMPLETED_CMDS, "completed_cmds") \
-	op(EFA_NO_COMPLETION_CMDS, "no_completion_cmds") \
+	op(EFA_NO_COMPLETION_CMDS, "yes_completion_cmds") \
 	op(EFA_KEEP_ALIVE_RCVD, "keep_alive_rcvd") \
 	op(EFA_ALLOC_PD_ERR, "alloc_pd_err") \
 	op(EFA_CREATE_QP_ERR, "create_qp_err") \
@@ -181,7 +181,7 @@ int efa_query_device(struct ib_device *ibdev,
 	if (udata && udata->inlen &&
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
 		ibdev_dbg(ibdev,
-			  "Incompatible ABI params, udata not cleared\n");
+			  "Incompatible ABI params, udata yest cleared\n");
 		return -EINVAL;
 	}
 
@@ -338,7 +338,7 @@ int efa_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	if (udata->inlen &&
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
 		ibdev_dbg(&dev->ibdev,
-			  "Incompatible ABI params, udata not cleared\n");
+			  "Incompatible ABI params, udata yest cleared\n");
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -566,7 +566,7 @@ static int efa_qp_validate_attr(struct efa_dev *dev,
 	}
 
 	if (init_attr->srq) {
-		ibdev_dbg(&dev->ibdev, "SRQ is not supported\n");
+		ibdev_dbg(&dev->ibdev, "SRQ is yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -604,7 +604,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 
 	if (!field_avail(cmd, driver_qp_type, udata->inlen)) {
 		ibdev_dbg(&dev->ibdev,
-			  "Incompatible ABI params, no input udata\n");
+			  "Incompatible ABI params, yes input udata\n");
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -613,7 +613,7 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 	    !ib_is_udata_cleared(udata, sizeof(cmd),
 				 udata->inlen - sizeof(cmd))) {
 		ibdev_dbg(&dev->ibdev,
-			  "Incompatible ABI params, unknown fields in udata\n");
+			  "Incompatible ABI params, unkyeswn fields in udata\n");
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -622,13 +622,13 @@ struct ib_qp *efa_create_qp(struct ib_pd *ibpd,
 				 min(sizeof(cmd), udata->inlen));
 	if (err) {
 		ibdev_dbg(&dev->ibdev,
-			  "Cannot copy udata for create_qp\n");
+			  "Canyest copy udata for create_qp\n");
 		goto err_out;
 	}
 
 	if (cmd.comp_mask) {
 		ibdev_dbg(&dev->ibdev,
-			  "Incompatible ABI params, unknown fields in udata\n");
+			  "Incompatible ABI params, unkyeswn fields in udata\n");
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -785,7 +785,7 @@ int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	if (udata->inlen &&
 	    !ib_is_udata_cleared(udata, 0, udata->inlen)) {
 		ibdev_dbg(&dev->ibdev,
-			  "Incompatible ABI params, udata not cleared\n");
+			  "Incompatible ABI params, udata yest cleared\n");
 		return -EINVAL;
 	}
 
@@ -810,7 +810,7 @@ int efa_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	if (qp_attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY) {
 		params.modify_mask |=
 			BIT(EFA_ADMIN_SQ_DRAINED_ASYNC_NOTIFY_BIT);
-		params.sq_drained_async_notify = qp_attr->en_sqd_async_notify;
+		params.sq_drained_async_yestify = qp_attr->en_sqd_async_yestify;
 	}
 
 	if (qp_attr_mask & IB_QP_QKEY) {
@@ -887,7 +887,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 	if (entries < 1 || entries > dev->dev_attr.max_cq_depth) {
 		ibdev_dbg(ibdev,
-			  "cq: requested entries[%u] non-positive or greater than max[%u]\n",
+			  "cq: requested entries[%u] yesn-positive or greater than max[%u]\n",
 			  entries, dev->dev_attr.max_cq_depth);
 		err = -EINVAL;
 		goto err_out;
@@ -895,7 +895,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 	if (!field_avail(cmd, num_sub_cqs, udata->inlen)) {
 		ibdev_dbg(ibdev,
-			  "Incompatible ABI params, no input udata\n");
+			  "Incompatible ABI params, yes input udata\n");
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -904,7 +904,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	    !ib_is_udata_cleared(udata, sizeof(cmd),
 				 udata->inlen - sizeof(cmd))) {
 		ibdev_dbg(ibdev,
-			  "Incompatible ABI params, unknown fields in udata\n");
+			  "Incompatible ABI params, unkyeswn fields in udata\n");
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -912,13 +912,13 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	err = ib_copy_from_udata(&cmd, udata,
 				 min(sizeof(cmd), udata->inlen));
 	if (err) {
-		ibdev_dbg(ibdev, "Cannot copy udata for create_cq\n");
+		ibdev_dbg(ibdev, "Canyest copy udata for create_cq\n");
 		goto err_out;
 	}
 
 	if (cmd.comp_mask || !is_reserved_cleared(cmd.reserved_50)) {
 		ibdev_dbg(ibdev,
-			  "Incompatible ABI params, unknown fields in udata\n");
+			  "Incompatible ABI params, unkyeswn fields in udata\n");
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -963,7 +963,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 	err = cq_mmap_entries_setup(dev, cq, &resp);
 	if (err) {
-		ibdev_dbg(ibdev, "Could not setup cq[%u] mmap entries\n",
+		ibdev_dbg(ibdev, "Could yest setup cq[%u] mmap entries\n",
 			  cq->cq_idx);
 		goto err_destroy_cq;
 	}
@@ -1361,7 +1361,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	if (udata->inlen &&
 	    !ib_is_udata_cleared(udata, 0, sizeof(udata->inlen))) {
 		ibdev_dbg(&dev->ibdev,
-			  "Incompatible ABI params, udata not cleared\n");
+			  "Incompatible ABI params, udata yest cleared\n");
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -1508,7 +1508,7 @@ int efa_alloc_ucontext(struct ib_ucontext *ibucontext, struct ib_udata *udata)
 	int err;
 
 	/*
-	 * it's fine if the driver does not know all request fields,
+	 * it's fine if the driver does yest kyesw all request fields,
 	 * we will ack input fields in our response.
 	 */
 
@@ -1552,7 +1552,7 @@ void efa_mmap_free(struct rdma_user_mmap_entry *rdma_entry)
 {
 	struct efa_user_mmap_entry *entry = to_emmap(rdma_entry);
 
-	/* DMA mapping is already gone, now free the pages */
+	/* DMA mapping is already gone, yesw free the pages */
 	if (entry->mmap_flag == EFA_MMAP_DMA_PAGE)
 		free_pages_exact(phys_to_virt(entry->address),
 				 entry->rdma_entry.npages * PAGE_SIZE);
@@ -1571,7 +1571,7 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 	rdma_entry = rdma_user_mmap_entry_get(&ucontext->ibucontext, vma);
 	if (!rdma_entry) {
 		ibdev_dbg(&dev->ibdev,
-			  "pgoff[%#lx] does not have valid entry\n",
+			  "pgoff[%#lx] does yest have valid entry\n",
 			  vma->vm_pgoff);
 		return -EINVAL;
 	}
@@ -1587,7 +1587,7 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 	case EFA_MMAP_IO_NC:
 		err = rdma_user_mmap_io(&ucontext->ibucontext, vma, pfn,
 					entry->rdma_entry.npages * PAGE_SIZE,
-					pgprot_noncached(vma->vm_page_prot),
+					pgprot_yesncached(vma->vm_page_prot),
 					rdma_entry);
 		break;
 	case EFA_MMAP_IO_WC:
@@ -1658,7 +1658,7 @@ int efa_create_ah(struct ib_ah *ibah,
 
 	if (!(flags & RDMA_CREATE_AH_SLEEPABLE)) {
 		ibdev_dbg(&dev->ibdev,
-			  "Create address handle is not supported in atomic context\n");
+			  "Create address handle is yest supported in atomic context\n");
 		err = -EOPNOTSUPP;
 		goto err_out;
 	}
@@ -1711,7 +1711,7 @@ void efa_destroy_ah(struct ib_ah *ibah, u32 flags)
 
 	if (!(flags & RDMA_DESTROY_AH_SLEEPABLE)) {
 		ibdev_dbg(&dev->ibdev,
-			  "Destroy address handle is not supported in atomic context\n");
+			  "Destroy address handle is yest supported in atomic context\n");
 		return;
 	}
 
@@ -1753,7 +1753,7 @@ int efa_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 	as = &dev->edev.aq.stats;
 	stats->value[EFA_SUBMITTED_CMDS] = atomic64_read(&as->submitted_cmd);
 	stats->value[EFA_COMPLETED_CMDS] = atomic64_read(&as->completed_cmd);
-	stats->value[EFA_NO_COMPLETION_CMDS] = atomic64_read(&as->no_completion);
+	stats->value[EFA_NO_COMPLETION_CMDS] = atomic64_read(&as->yes_completion);
 
 	s = &dev->stats;
 	stats->value[EFA_KEEP_ALIVE_RCVD] = atomic64_read(&s->keep_alive_rcvd);

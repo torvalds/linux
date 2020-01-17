@@ -15,7 +15,7 @@
 #include <linux/compiler.h>
 #include <linux/genalloc.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <asm/cpm.h>
 #include <soc/fsl/qe/immap_qe.h>
@@ -159,14 +159,14 @@ extern void __par_io_config_pin(struct qe_pio_regs __iomem *par_io, u8 pin,
 				int dir, int open_drain, int assignment,
 				int has_irq);
 #ifdef CONFIG_QUICC_ENGINE
-extern int par_io_init(struct device_node *np);
-extern int par_io_of_config(struct device_node *np);
+extern int par_io_init(struct device_yesde *np);
+extern int par_io_of_config(struct device_yesde *np);
 extern int par_io_config_pin(u8 port, u8 pin, int dir, int open_drain,
 			     int assignment, int has_irq);
 extern int par_io_data_set(u8 port, u8 pin, u8 val);
 #else
-static inline int par_io_init(struct device_node *np) { return -ENOSYS; }
-static inline int par_io_of_config(struct device_node *np) { return -ENOSYS; }
+static inline int par_io_init(struct device_yesde *np) { return -ENOSYS; }
+static inline int par_io_of_config(struct device_yesde *np) { return -ENOSYS; }
 static inline int par_io_config_pin(u8 port, u8 pin, int dir, int open_drain,
 		int assignment, int has_irq) { return -ENOSYS; }
 static inline int par_io_data_set(u8 port, u8 pin, u8 val) { return -ENOSYS; }
@@ -177,12 +177,12 @@ static inline int par_io_data_set(u8 port, u8 pin, u8 val) { return -ENOSYS; }
  */
 struct qe_pin;
 #ifdef CONFIG_QE_GPIO
-extern struct qe_pin *qe_pin_request(struct device_node *np, int index);
+extern struct qe_pin *qe_pin_request(struct device_yesde *np, int index);
 extern void qe_pin_free(struct qe_pin *qe_pin);
 extern void qe_pin_set_gpio(struct qe_pin *qe_pin);
 extern void qe_pin_set_dedicated(struct qe_pin *pin);
 #else
-static inline struct qe_pin *qe_pin_request(struct device_node *np, int index)
+static inline struct qe_pin *qe_pin_request(struct device_yesde *np, int index)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -274,7 +274,7 @@ struct qe_firmware {
 	struct {
 		__be16 model;   	/* The SOC model  */
 		u8 major;       	/* The SOC revision major */
-		u8 minor;       	/* The SOC revision minor */
+		u8 miyesr;       	/* The SOC revision miyesr */
 	} __attribute__ ((packed)) soc;
 	u8 padding[4];			/* Reserved, for alignment */
 	__be64 extended_modes;		/* Extended modes */
@@ -282,13 +282,13 @@ struct qe_firmware {
 	u8 reserved[4];			/* Reserved, for future expansion */
 	struct qe_microcode {
 		u8 id[32];      	/* Null-terminated identifier */
-		__be32 traps[16];       /* Trap addresses, 0 == ignore */
+		__be32 traps[16];       /* Trap addresses, 0 == igyesre */
 		__be32 eccr;    	/* The value for the ECCR register */
 		__be32 iram_offset;     /* Offset into I-RAM for the code */
 		__be32 count;   	/* Number of 32-bit words of the code */
 		__be32 code_offset;     /* Offset of the actual microcode */
 		u8 major;       	/* The microcode version major */
-		u8 minor;       	/* The microcode version minor */
+		u8 miyesr;       	/* The microcode version miyesr */
 		u8 revision;		/* The microcode version revision */
 		u8 padding;		/* Reserved, for alignment */
 		u8 reserved[4];		/* Reserved, for future expansion */
@@ -359,7 +359,7 @@ enum qe_fltr_tbl_lookup_key_size {
 /* QE FLTR extended filtering Largest External Table Lookup Key Size */
 enum qe_fltr_largest_external_tbl_lookup_key_size {
 	QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_NONE
-		= 0x0,/* not used */
+		= 0x0,/* yest used */
 	QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_8_BYTES
 		= QE_FLTR_TABLE_LOOKUP_KEY_SIZE_8_BYTES,	/* 8 bytes */
 	QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_16_BYTES
@@ -506,7 +506,7 @@ enum comm_dir {
 #define QE_CR_SUBBLOCK_TIMER		0x01e00000
 #define QE_CR_SUBBLOCK_GENERAL		0x03c00000
 
-/* QE CECR Protocol - For non-MCC, specifies mode for QE CECR command */
+/* QE CECR Protocol - For yesn-MCC, specifies mode for QE CECR command */
 #define QE_CR_PROTOCOL_UNSPECIFIED	0x00	/* For all other protocols */
 #define QE_CR_PROTOCOL_HDLC_TRANSPARENT	0x00
 #define QE_CR_PROTOCOL_QMC		0x02
@@ -569,7 +569,7 @@ enum comm_dir {
 #define UPGCR_TMS	0x40000000	/* Transmit master/slave mode */
 #define UPGCR_RMS	0x20000000	/* Receive master/slave mode */
 #define UPGCR_ADDR	0x10000000	/* Master MPHY Addr multiplexing */
-#define UPGCR_DIAG	0x01000000	/* Diagnostic mode */
+#define UPGCR_DIAG	0x01000000	/* Diagyesstic mode */
 
 /* UCC GUEMR register */
 #define UCC_GUEMR_MODE_MASK_RX	0x02

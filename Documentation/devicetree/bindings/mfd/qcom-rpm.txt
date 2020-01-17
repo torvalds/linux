@@ -24,7 +24,7 @@ frequencies.
 	Usage: required
 	Value type: <prop-encoded-array>
 	Definition: three entries specifying the RPM's:
-		    1. acknowledgement interrupt
+		    1. ackyeswledgement interrupt
 		    2. error interrupt
 		    3. wakeup interrupt
 
@@ -39,19 +39,19 @@ frequencies.
 
 	Definition: three entries specifying the outgoing ipc bit used for
 		    signaling the RPM:
-		    - phandle to a syscon node representing the apcs registers
+		    - phandle to a syscon yesde representing the apcs registers
 		    - u32 representing offset to the register within the syscon
 		    - u32 representing the ipc bit within the register
 
 
 = SUBNODES
 
-The RPM exposes resources to its subnodes. The below bindings specify the set
-of valid subnodes that can operate on these resources.
+The RPM exposes resources to its subyesdes. The below bindings specify the set
+of valid subyesdes that can operate on these resources.
 
 == Regulators
 
-Regulator nodes are identified by their compatible:
+Regulator yesdes are identified by their compatible:
 
 - compatible:
 	Usage: required
@@ -148,8 +148,8 @@ Regulator nodes are identified by their compatible:
 	Definition: reference to regulator supplying the input pin, as
 		    described in the data sheet
 
-The regulator node houses sub-nodes for each regulator within the device. Each
-sub-node is identified using the node's name, with valid values listed for each
+The regulator yesde houses sub-yesdes for each regulator within the device. Each
+sub-yesde is identified using the yesde's name, with valid values listed for each
 of the pmics below.
 
 pm8058:
@@ -171,7 +171,7 @@ pm8018:
 	s1, s2, s3, s4, s5, , l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
 	l12, l14, lvs1
 
-The content of each sub-node is defined by the standard binding for regulators -
+The content of each sub-yesde is defined by the standard binding for regulators -
 see regulator.txt - with additional custom properties described below:
 
 === Switch-mode Power Supply regulator custom properties
@@ -191,11 +191,11 @@ see regulator.txt - with additional custom properties described below:
 		    1480000, 1370000, 1280000, 1200000
 
 - qcom,force-mode:
-	Usage: optional (default if no other qcom,force-mode is specified)
+	Usage: optional (default if yes other qcom,force-mode is specified)
 	Value type: <u32>
 	Definition: indicates that the regulator should be forced to a
 		   particular mode, valid values are:
-		   QCOM_RPM_FORCE_MODE_NONE - do not force any mode
+		   QCOM_RPM_FORCE_MODE_NONE - do yest force any mode
 		   QCOM_RPM_FORCE_MODE_LPM - force into low power mode
 		   QCOM_RPM_FORCE_MODE_HPM - force into high power mode
 		   QCOM_RPM_FORCE_MODE_AUTO - allow regulator to automatically
@@ -219,14 +219,14 @@ see regulator.txt - with additional custom properties described below:
 - qcom,force-mode:
 	Usage: optional
 	Value type: <u32>
-	Definition: indicates that the regulator should not be forced to any
+	Definition: indicates that the regulator should yest be forced to any
 		   particular mode, valid values are:
-		   QCOM_RPM_FORCE_MODE_NONE - do not force any mode
+		   QCOM_RPM_FORCE_MODE_NONE - do yest force any mode
 		   QCOM_RPM_FORCE_MODE_LPM - force into low power mode
 		   QCOM_RPM_FORCE_MODE_HPM - force into high power mode
 		   QCOM_RPM_FORCE_MODE_BYPASS - set regulator to use bypass
 						mode, i.e.  to act as a switch
-						and not regulate, only for:
+						and yest regulate, only for:
 						pm8921 pldo, nldo and nldo1200
 
 === Negative Charge Pump custom properties

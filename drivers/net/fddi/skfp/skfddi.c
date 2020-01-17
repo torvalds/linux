@@ -23,7 +23,7 @@
  *
  * The technical manual for the adapters is available from SysKonnect's
  * web pages: www.syskonnect.com
- * Goto "Support" and search Knowledge Base for "manual".
+ * Goto "Support" and search Kyeswledge Base for "manual".
  *
  * Driver Architecture:
  *   The driver architecture is based on the DEC FDDI driver by
@@ -34,7 +34,7 @@
  *   The only headerfiles that are directly related to this source
  *   are skfddi.c, h/types.h, h/osdef1st.h, h/targetos.h.
  *   The others belong to the SysKonnect FDDI Hardware Module and
- *   should better not be changed.
+ *   should better yest be changed.
  *
  * Modification History:
  *              Date            Name    Description
@@ -72,7 +72,7 @@ static const char * const boot_msg =
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -182,12 +182,12 @@ static const struct net_device_ops skfp_netdev_ops = {
  *   pdev - pointer to PCI device information
  *
  * Functional Description:
- *   This is now called by PCI driver registration process
+ *   This is yesw called by PCI driver registration process
  *   for each board found.
  *   
  * Return Codes:
  *   0           - This device (fddi0, fddi1, etc) configured successfully
- *   -ENODEV - No devices present, or no SysKonnect FDDI PCI device
+ *   -ENODEV - No devices present, or yes SysKonnect FDDI PCI device
  *                         present for this device name
  *
  *
@@ -221,7 +221,7 @@ static int skfp_init_one(struct pci_dev *pdev,
 
 #ifdef MEM_MAPPED_IO
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		printk(KERN_ERR "skfp: region is not an MMIO resource\n");
+		printk(KERN_ERR "skfp: region is yest an MMIO resource\n");
 		err = -EIO;
 		goto err_out2;
 	}
@@ -229,7 +229,7 @@ static int skfp_init_one(struct pci_dev *pdev,
 	mem = ioremap(pci_resource_start(pdev, 0), 0x4000);
 #else
 	if (!(pci_resource_flags(pdev, 1) & IO_RESOURCE_IO)) {
-		printk(KERN_ERR "skfp: region is not PIO resource\n");
+		printk(KERN_ERR "skfp: region is yest PIO resource\n");
 		err = -EIO;
 		goto err_out2;
 	}
@@ -394,7 +394,7 @@ static  int skfp_driver_init(struct net_device *dev)
 					       &bp->LocalRxBufferDMA,
 					       GFP_ATOMIC);
 	if (!bp->LocalRxBuffer) {
-		printk("could not allocate mem for ");
+		printk("could yest allocate mem for ");
 		printk("LocalRxBuffer: %d byte\n", MAX_FRAME_SIZE);
 		goto fail;
 	}
@@ -410,7 +410,7 @@ static  int skfp_driver_init(struct net_device *dev)
 						       &bp->SharedMemDMA,
 						       GFP_ATOMIC);
 		if (!bp->SharedMemAddr) {
-			printk("could not allocate mem for ");
+			printk("could yest allocate mem for ");
 			printk("hardware module: %ld byte\n",
 			       bp->SharedMemSize);
 			goto fail;
@@ -430,8 +430,8 @@ static  int skfp_driver_init(struct net_device *dev)
 		goto fail;
 	}
 	read_address(smc, NULL);
-	pr_debug("HW-Addr: %pMF\n", smc->hw.fddi_canon_addr.a);
-	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, ETH_ALEN);
+	pr_debug("HW-Addr: %pMF\n", smc->hw.fddi_cayesn_addr.a);
+	memcpy(dev->dev_addr, smc->hw.fddi_cayesn_addr.a, ETH_ALEN);
 
 	smt_reset_defaults(smc, 0);
 
@@ -473,7 +473,7 @@ fail:
  *
  * Return Codes:
  *   0           - Adapter was successfully opened
- *   -EAGAIN - Could not register IRQ
+ *   -EAGAIN - Could yest register IRQ
  */
 static int skfp_open(struct net_device *dev)
 {
@@ -491,14 +491,14 @@ static int skfp_open(struct net_device *dev)
 	 * Set current address to factory MAC address
 	 *
 	 * Note: We've already done this step in skfp_driver_init.
-	 *       However, it's possible that a user has set a node
+	 *       However, it's possible that a user has set a yesde
 	 *               address override, then closed and reopened the
 	 *               adapter.  Unless we reset the device address field
-	 *               now, we'll continue to use the existing modified
+	 *               yesw, we'll continue to use the existing modified
 	 *               address.
 	 */
 	read_address(smc, NULL);
-	memcpy(dev->dev_addr, smc->hw.fddi_canon_addr.a, ETH_ALEN);
+	memcpy(dev->dev_addr, smc->hw.fddi_cayesn_addr.a, ETH_ALEN);
 
 	init_smt(smc, NULL);
 	smt_online(smc, 1);
@@ -532,7 +532,7 @@ static int skfp_open(struct net_device *dev)
  * Functional Description:
  *   This routine closes the adapter and brings it to a safe state.
  *   The interrupt service routine is deregistered with the OS.
- *   The adapter can be opened again with another call to skfp_open().
+ *   The adapter can be opened again with ayesther call to skfp_open().
  *
  * Return Codes:
  *   Always return 0.
@@ -589,7 +589,7 @@ static int skfp_close(struct net_device *dev)
  *   None
  *
  * Assumptions:
- *   The interrupt acknowledgement at the hardware level (eg. ACKing the PIC
+ *   The interrupt ackyeswledgement at the hardware level (eg. ACKing the PIC
  *   on Intel-based systems) is done by the operating system outside this
  *   routine.
  *
@@ -615,7 +615,7 @@ static irqreturn_t skfp_interrupt(int irq, void *dev_id)
 	}
 	// Note: At this point, IRQs are enabled.
 	if ((inpd(ISR_A) & smc->hw.is_imask) == 0) {	// IRQ?
-		// Adapter did not issue an IRQ: must be shared interrupt
+		// Adapter did yest issue an IRQ: must be shared interrupt
 		return IRQ_NONE;
 	}
 	CLI_FBI();		// Disable IRQs from our adapter.
@@ -687,13 +687,13 @@ static struct net_device_stats *skfp_ctl_get_stats(struct net_device *dev)
 	memcpy(bp->stats.smt_user_data, &bp->cmd_rsp_virt->smt_mib_get.smt_user_data, sizeof(bp->cmd_rsp_virt->smt_mib_get.smt_user_data));
 	bp->stats.smt_mib_version_id = bp->cmd_rsp_virt->smt_mib_get.smt_mib_version_id;
 	bp->stats.smt_mac_cts = bp->cmd_rsp_virt->smt_mib_get.smt_mac_ct;
-	bp->stats.smt_non_master_cts = bp->cmd_rsp_virt->smt_mib_get.smt_non_master_ct;
+	bp->stats.smt_yesn_master_cts = bp->cmd_rsp_virt->smt_mib_get.smt_yesn_master_ct;
 	bp->stats.smt_master_cts = bp->cmd_rsp_virt->smt_mib_get.smt_master_ct;
 	bp->stats.smt_available_paths = bp->cmd_rsp_virt->smt_mib_get.smt_available_paths;
 	bp->stats.smt_config_capabilities = bp->cmd_rsp_virt->smt_mib_get.smt_config_capabilities;
 	bp->stats.smt_config_policy = bp->cmd_rsp_virt->smt_mib_get.smt_config_policy;
 	bp->stats.smt_connection_policy = bp->cmd_rsp_virt->smt_mib_get.smt_connection_policy;
-	bp->stats.smt_t_notify = bp->cmd_rsp_virt->smt_mib_get.smt_t_notify;
+	bp->stats.smt_t_yestify = bp->cmd_rsp_virt->smt_mib_get.smt_t_yestify;
 	bp->stats.smt_stat_rpt_policy = bp->cmd_rsp_virt->smt_mib_get.smt_stat_rpt_policy;
 	bp->stats.smt_trace_max_expiration = bp->cmd_rsp_virt->smt_mib_get.smt_trace_max_expiration;
 	bp->stats.smt_bypass_present = bp->cmd_rsp_virt->smt_mib_get.smt_bypass_present;
@@ -825,7 +825,7 @@ static struct net_device_stats *skfp_ctl_get_stats(struct net_device *dev)
  *              update adapter filters
  *
  * Assumptions:
- *   Multicast addresses are presented in canonical (LSB) format.
+ *   Multicast addresses are presented in cayesnical (LSB) format.
  *
  * Side Effects:
  *   On-board adapter filters are updated.
@@ -884,7 +884,7 @@ static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
 				mac_drv_rx_mode(smc, RX_ENABLE_ALLMULTI);
 				pr_debug("ENABLE ALL MC ADDRESSES\n");
 			}
-		} else {	// no MC addresses
+		} else {	// yes MC addresses
 
 			pr_debug("DISABLE ALL MC ADDRESSES\n");
 		}
@@ -912,7 +912,7 @@ static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
  *
  * Assumptions:
  *   The address pointed to by addr->sa_data is a valid unicast
- *   address and is presented in canonical (LSB) format.
+ *   address and is presented in cayesnical (LSB) format.
  */
 static int skfp_ctl_set_mac_address(struct net_device *dev, void *addr)
 {
@@ -978,7 +978,7 @@ static int skfp_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		}
 		break;
 	default:
-		printk("ioctl for %s: unknown cmd: %04x\n", dev->name, ioc.cmd);
+		printk("ioctl for %s: unkyeswn cmd: %04x\n", dev->name, ioc.cmd);
 		status = -EOPNOTSUPP;
 
 	}			// switch
@@ -1009,7 +1009,7 @@ static int skfp_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
  *   (skb->data) can be converted to a physical address
  *   by using pci_map_single().
  *
- *   We have an internal queue for packets we can not send 
+ *   We have an internal queue for packets we can yest send 
  *   immediately. Packets in this queue can be given to the 
  *   adapter if transmit buffers are freed.
  *
@@ -1023,11 +1023,11 @@ static int skfp_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
  *
  * Assumptions:
  *   The entire packet is stored in one physically
- *   contiguous buffer which is not cached and whose
+ *   contiguous buffer which is yest cached and whose
  *   32-bit physical address can be determined.
  *
  *   It's vital that this routine is NOT reentered for the
- *   same board and that the OS is not in another section of
+ *   same board and that the OS is yest in ayesther section of
  *   code (eg. skfp_interrupt) for the same board on a
  *   different thread.
  *
@@ -1090,11 +1090,11 @@ static netdev_tx_t skfp_send_pkt(struct sk_buff *skb,
  *   smc - pointer to smc (adapter) structure
  *
  * Functional Description:
- *   Take a packet from queue if there is any. If not, then we are done.
- *   Check if there are resources to send the packet. If not, requeue it
+ *   Take a packet from queue if there is any. If yest, then we are done.
+ *   Check if there are resources to send the packet. If yest, requeue it
  *   and exit. 
  *   Set packet descriptor flags and give packet to adapter.
- *   Check if any send resources can be freed (we do not use the
+ *   Check if any send resources can be freed (we do yest use the
  *   transmit complete interrupt).
  */
 static void send_queued_packets(struct s_smc *smc)
@@ -1123,7 +1123,7 @@ static void send_queued_packets(struct s_smc *smc)
 		fc = skb->data[0];
 		queue = (fc & FC_SYNC_BIT) ? QUEUE_S : QUEUE_A0;
 #ifdef ESS
-		// Check if the frame may/must be sent as a synchronous frame.
+		// Check if the frame may/must be sent as a synchroyesus frame.
 
 		if ((fc & ~(FC_SYNC_BIT | FC_LLC_PRIOR)) == FC_ASYNC_LLC) {
 			// It's an LLC frame.
@@ -1165,7 +1165,7 @@ static void send_queued_packets(struct s_smc *smc)
 		bp->QueueSkb++;	// one packet less in local queue
 
 		// source address in packet ?
-		CheckSourceAddress(skb->data, smc->hw.fddi_canon_addr.a);
+		CheckSourceAddress(skb->data, smc->hw.fddi_cayesn_addr.a);
 
 		txd = (struct s_smt_fp_txd *) HWM_GET_CURR_TXD(smc, queue);
 
@@ -1258,10 +1258,10 @@ static void ResetAdapter(struct s_smc *smc)
  *	llc_restart_tx
  *
  *	The hardware driver calls this routine when the transmit complete
- *	interrupt bits (end of frame) for the synchronous or asynchronous
+ *	interrupt bits (end of frame) for the synchroyesus or asynchroyesus
  *	queue is set.
  *
- * NOTE The hardware driver calls this function also if no packets are queued.
+ * NOTE The hardware driver calls this function also if yes packets are queued.
  *	The routine must be able to handle this case.
  * Args
  *	smc - A pointer to the SMT context struct.
@@ -1328,7 +1328,7 @@ void *mac_drv_get_space(struct s_smc *smc, unsigned int size)
  *	This function is called by the hardware dependent module.
  *	It allocates the memory for the RxD and TxD descriptors.
  *
- *	This memory must be non-cached, non-movable and non-swappable.
+ *	This memory must be yesn-cached, yesn-movable and yesn-swappable.
  *	This memory should start at a physical page boundary.
  * Args
  *	smc - A pointer to the SMT context struct.
@@ -1443,15 +1443,15 @@ u_long dma_master(struct s_smc * smc, void *virt, int len, int flag)
 void dma_complete(struct s_smc *smc, volatile union s_fp_descr *descr, int flag)
 {
 	/* For TX buffers, there are two cases.  If it is an SMT transmit
-	 * buffer, there is nothing to do since we use consistent memory
-	 * for the 'shared' memory area.  The other case is for normal
+	 * buffer, there is yesthing to do since we use consistent memory
+	 * for the 'shared' memory area.  The other case is for yesrmal
 	 * transmit packets given to us by the networking stack, and in
 	 * that case we cleanup the PCI DMA mapping in mac_drv_tx_complete
 	 * below.
 	 *
 	 * For RX buffers, we have to unmap dynamic PCI DMA mappings here
 	 * because the hardware module is about to potentially look at
-	 * the contents of the buffer.  If we did not call the PCI DMA
+	 * the contents of the buffer.  If we did yest call the PCI DMA
 	 * unmap first, the hardware module could read inconsistent data.
 	 */
 	if (flag & DMA_WR) {
@@ -1481,7 +1481,7 @@ void dma_complete(struct s_smc *smc, volatile union s_fp_descr *descr, int flag)
  *
  *	txd - A pointer to the last TxD which is used by the frame.
  * Out
- *	Returns nothing.
+ *	Returns yesthing.
  *
  ************************/
 void mac_drv_tx_complete(struct s_smc *smc, volatile struct s_smt_fp_txd *txd)
@@ -1492,7 +1492,7 @@ void mac_drv_tx_complete(struct s_smc *smc, volatile struct s_smt_fp_txd *txd)
 	// Check if this TxD points to a skb
 
 	if (!(skb = txd->txd_os.skb)) {
-		pr_debug("TXD with no skb assigned.\n");
+		pr_debug("TXD with yes skb assigned.\n");
 		return;
 	}
 	txd->txd_os.skb = NULL;
@@ -1576,7 +1576,7 @@ void mac_drv_rx_complete(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 	u_int RifLength;
 
 	pr_debug("entering mac_drv_rx_complete (len=%d)\n", len);
-	if (frag_count != 1) {	// This is not allowed to happen.
+	if (frag_count != 1) {	// This is yest allowed to happen.
 
 		printk("fddi: Multi-fragment receive!\n");
 		goto RequeueRxd;	// Re-use the given RXD(s).
@@ -1662,7 +1662,7 @@ void mac_drv_rx_complete(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 	pr_debug("Rx: re-queue RXD.\n");
 	mac_drv_requeue_rxd(smc, rxd, frag_count);
 	smc->os.MacStat.gen.rx_errors++;	// Count receive packets
-						// not indicated.
+						// yest indicated.
 
 }				// mac_drv_rx_complete
 
@@ -1695,7 +1695,7 @@ void mac_drv_requeue_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 	unsigned char *v_addr;
 	dma_addr_t b_addr;
 
-	if (frag_count != 1)	// This is not allowed to happen.
+	if (frag_count != 1)	// This is yest allowed to happen.
 
 		printk("fddi: Multi-fragment requeue!\n");
 
@@ -1706,9 +1706,9 @@ void mac_drv_requeue_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 		rxd = HWM_GET_CURR_RXD(smc);
 
 		skb = src_rxd->rxd_os.skb;
-		if (skb == NULL) {	// this should not happen
+		if (skb == NULL) {	// this should yest happen
 
-			pr_debug("Requeue with no skb in rxd!\n");
+			pr_debug("Requeue with yes skb in rxd!\n");
 			skb = alloc_skb(MaxFrameSize + 3, GFP_ATOMIC);
 			if (skb) {
 				// we got a skb
@@ -1722,7 +1722,7 @@ void mac_drv_requeue_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 							PCI_DMA_FROMDEVICE);
 				rxd->rxd_os.dma_addr = b_addr;
 			} else {
-				// no skb available, use local buffer
+				// yes skb available, use local buffer
 				pr_debug("Queueing invalid buffer!\n");
 				rxd->rxd_os.skb = NULL;
 				v_addr = smc->os.LocalRxBuffer;
@@ -1752,9 +1752,9 @@ void mac_drv_requeue_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
  *
  *	The hardware module calls this function at initialization time
  *	to fill the RxD ring with receive buffers. It is also called by
- *	mac_drv_rx_complete if rx_free is large enough to queue some new
+ *	mac_drv_rx_complete if rx_free is large eyesugh to queue some new
  *	receive buffers into the RxD ring. mac_drv_fill_rxd queues new
- *	receive buffers as long as enough RxDs and receive buffers are
+ *	receive buffers as long as eyesugh RxDs and receive buffers are
  *	available.
  * Args
  *	smc - A pointer to the SMT context struct.
@@ -1793,7 +1793,7 @@ void mac_drv_fill_rxd(struct s_smc *smc)
 						PCI_DMA_FROMDEVICE);
 			rxd->rxd_os.dma_addr = b_addr;
 		} else {
-			// no skb available, use local buffer
+			// yes skb available, use local buffer
 			// System has run out of buffer memory, but we want to
 			// keep the receiver running in hope of better times.
 			// Multiple descriptors may point to this local buffer,
@@ -1837,7 +1837,7 @@ void mac_drv_clear_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 
 	pr_debug("entering mac_drv_clear_rxd\n");
 
-	if (frag_count != 1)	// This is not allowed to happen.
+	if (frag_count != 1)	// This is yest allowed to happen.
 
 		printk("fddi: Multi-fragment clear!\n");
 
@@ -1866,7 +1866,7 @@ void mac_drv_clear_rxd(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
  *	The hardware module calls this routine when an SMT or NSA frame of the
  *	local SMT should be delivered to the LLC layer.
  *
- *	It is necessary to have this function, because there is no other way to
+ *	It is necessary to have this function, because there is yes other way to
  *	copy the contents of SMT MBufs into receive buffers.
  *
  *	mac_drv_rx_init allocates the required target memory for this frame,
@@ -2039,7 +2039,7 @@ void smt_stat_counter(struct s_smc *smc, int stat)
 		smc->os.MacStat.gen.rx_errors++;
 		break;
 	default:
-		pr_debug("Unknown status (%d).\n", stat);
+		pr_debug("Unkyeswn status (%d).\n", stat);
 		break;
 	}
 }				// smt_stat_counter
@@ -2095,7 +2095,7 @@ void cfm_state_change(struct s_smc *smc, int c_state)
 		s = "SC11_C_WRAP_S";
 		break;
 	default:
-		pr_debug("cfm_state_change: unknown %d\n", c_state);
+		pr_debug("cfm_state_change: unkyeswn %d\n", c_state);
 		return;
 	}
 	pr_debug("cfm_state_change: %s\n", s);
@@ -2150,7 +2150,7 @@ void ecm_state_change(struct s_smc *smc, int e_state)
 		s = "EC7_DEINSERT";
 		break;
 	default:
-		s = "unknown";
+		s = "unkyeswn";
 		break;
 	}
 	pr_debug("ecm_state_change: %s\n", s);
@@ -2184,7 +2184,7 @@ void rmt_state_change(struct s_smc *smc, int r_state)
 		s = "RM0_ISOLATED";
 		break;
 	case RM1_NON_OP:
-		s = "RM1_NON_OP - not operational";
+		s = "RM1_NON_OP - yest operational";
 		break;
 	case RM2_RING_OP:
 		s = "RM2_RING_OP - ring operational";
@@ -2205,7 +2205,7 @@ void rmt_state_change(struct s_smc *smc, int r_state)
 		s = "RM7_TRACE - trace initiated";
 		break;
 	default:
-		s = "unknown";
+		s = "unkyeswn";
 		break;
 	}
 	pr_debug("[rmt_state_change: %s]\n", s);
@@ -2219,7 +2219,7 @@ void rmt_state_change(struct s_smc *smc, int r_state)
  *
  *	This function is called by the SMT when it has detected a severe
  *	hardware problem. The driver should perform a reset on the adapter
- *	as soon as possible, but not from within this function.
+ *	as soon as possible, but yest from within this function.
  * Args
  *	smc - A pointer to the SMT context struct.
  * Out

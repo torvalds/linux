@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -166,7 +166,7 @@ struct radeon_fence *evergreen_copy_dma(struct radeon_device *rdev,
  * @ring: radeon_ring structure holding ring information
  *
  * Check if the async DMA engine is locked up.
- * Returns true if the engine appears to be locked up, false if not.
+ * Returns true if the engine appears to be locked up, false if yest.
  */
 bool evergreen_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {

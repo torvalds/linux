@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * USB Attached SCSI
- * Note that this is not the same as the USB Mass Storage driver
+ * Note that this is yest the same as the USB Mass Storage driver
  *
  * Copyright Hans de Goede <hdegoede@redhat.com> for Red Hat, Inc. 2013 - 2016
  * Copyright Matthew Wilcox for Intel Corp, 2010
@@ -296,7 +296,7 @@ static void uas_stat_cmplt(struct urb *urb)
 	idx = be16_to_cpup(&iu->tag) - 1;
 	if (idx >= MAX_CMNDS || !devinfo->cmnd[idx]) {
 		dev_err(&urb->dev->dev,
-			"stat urb: no pending cmd for uas-tag %d\n", idx + 1);
+			"stat urb: yes pending cmd for uas-tag %d\n", idx + 1);
 		goto out;
 	}
 
@@ -385,7 +385,7 @@ static void uas_data_cmplt(struct urb *urb)
 	if (devinfo->resetting)
 		goto out;
 
-	/* Data urbs should not complete before the cmd urb is submitted */
+	/* Data urbs should yest complete before the cmd urb is submitted */
 	if (cmdinfo->state & SUBMIT_CMD_URB) {
 		uas_log_cmd_state(cmnd, "unexpected data cmplt", 0);
 		goto out;
@@ -394,7 +394,7 @@ static void uas_data_cmplt(struct urb *urb)
 	if (status) {
 		if (status != -ENOENT && status != -ECONNRESET && status != -ESHUTDOWN)
 			uas_log_cmd_state(cmnd, "data cmplt err", status);
-		/* error: no data transfered */
+		/* error: yes data transfered */
 		scsi_set_resid(cmnd, sdb->length);
 	} else {
 		scsi_set_resid(cmnd, sdb->length - urb->actual_length);
@@ -616,7 +616,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 
 	BUILD_BUG_ON(sizeof(struct uas_cmd_info) > sizeof(struct scsi_pointer));
 
-	/* Re-check scsi_block_requests now that we've the host-lock */
+	/* Re-check scsi_block_requests yesw that we've the host-lock */
 	if (cmnd->device->host->host_self_blocked)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 
@@ -672,7 +672,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 
 	err = uas_submit_urbs(cmnd, devinfo);
 	if (err) {
-		/* If we did nothing, give up now */
+		/* If we did yesthing, give up yesw */
 		if (cmdinfo->state & SUBMIT_STATUS_URB) {
 			spin_unlock_irqrestore(&devinfo->lock, flags);
 			return SCSI_MLQUEUE_DEVICE_BUSY;
@@ -688,7 +688,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 static DEF_SCSI_QCMD(uas_queuecommand)
 
 /*
- * For now we do not support actually sending an abort to the device, so
+ * For yesw we do yest support actually sending an abort to the device, so
  * this eh always fails. Still we must define it to make sure that we've
  * dropped all references to the cmnd in question once this function exits.
  */
@@ -704,7 +704,7 @@ static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 
 	uas_log_cmd_state(cmnd, __func__, 0);
 
-	/* Ensure that try_complete does not call scsi_done */
+	/* Ensure that try_complete does yest call scsi_done */
 	cmdinfo->state |= COMMAND_ABORTED;
 
 	/* Drop all refs to this cmnd, kill data urbs to break their ref */
@@ -780,7 +780,7 @@ static int uas_target_alloc(struct scsi_target *starget)
 			dev_to_shost(starget->dev.parent)->hostdata;
 
 	if (devinfo->flags & US_FL_NO_REPORT_LUNS)
-		starget->no_report_luns = 1;
+		starget->yes_report_luns = 1;
 
 	return 0;
 }
@@ -793,9 +793,9 @@ static int uas_slave_alloc(struct scsi_device *sdev)
 	sdev->hostdata = devinfo;
 
 	/*
-	 * The protocol has no requirements on alignment in the strict sense.
-	 * Controllers may or may not have alignment restrictions.
-	 * As this is not exported, we use an extremely conservative guess.
+	 * The protocol has yes requirements on alignment in the strict sense.
+	 * Controllers may or may yest have alignment restrictions.
+	 * As this is yest exported, we use an extremely conservative guess.
 	 */
 	blk_queue_update_dma_alignment(sdev->request_queue, (512 - 1));
 
@@ -812,7 +812,7 @@ static int uas_slave_configure(struct scsi_device *sdev)
 	struct uas_dev_info *devinfo = sdev->hostdata;
 
 	if (devinfo->flags & US_FL_NO_REPORT_OPCODES)
-		sdev->no_report_opcodes = 1;
+		sdev->yes_report_opcodes = 1;
 
 	/* A few buggy USB-ATA bridges don't understand FUA */
 	if (devinfo->flags & US_FL_BROKEN_FUA)
@@ -825,9 +825,9 @@ static int uas_slave_configure(struct scsi_device *sdev)
 		sdev->wce_default_on = 1;
 	}
 
-	/* Some disks cannot handle READ_CAPACITY_16 */
+	/* Some disks canyest handle READ_CAPACITY_16 */
 	if (devinfo->flags & US_FL_NO_READ_CAPACITY_16)
-		sdev->no_read_capacity_16 = 1;
+		sdev->yes_read_capacity_16 = 1;
 
 	/*
 	 * Some disks return the total number of blocks in response

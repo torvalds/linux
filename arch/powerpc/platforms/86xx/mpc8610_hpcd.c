@@ -37,7 +37,7 @@
 
 #include "mpc86xx.h"
 
-static struct device_node *pixis_node;
+static struct device_yesde *pixis_yesde;
 static unsigned char *pixis_bdcfg0, *pixis_arch;
 
 /* DIU Pixel Clock bits of the CLKDVDR Global Utilities register */
@@ -58,10 +58,10 @@ static void __init mpc8610_suspend_init(void)
 	int irq;
 	int ret;
 
-	if (!pixis_node)
+	if (!pixis_yesde)
 		return;
 
-	irq = irq_of_parse_and_map(pixis_node, 0);
+	irq = irq_of_parse_and_map(pixis_yesde, 0);
 	if (!irq) {
 		pr_err("%s: can't map pixis event IRQ.\n", __func__);
 		return;
@@ -83,7 +83,7 @@ static inline void mpc8610_suspend_init(void) { }
 static const struct of_device_id mpc8610_ids[] __initconst = {
 	{ .compatible = "fsl,mpc8610-immr", },
 	{ .compatible = "fsl,mpc8610-guts", },
-	/* So that the DMA channel nodes can be probed individually: */
+	/* So that the DMA channel yesdes can be probed individually: */
 	{ .compatible = "fsl,eloplus-dma", },
 	/* PCI controllers */
 	{ .compatible = "fsl,mpc8610-pci", },
@@ -219,23 +219,23 @@ void mpc8610hpcd_set_monitor_port(enum fsl_diu_monitor_port port)
  */
 void mpc8610hpcd_set_pixel_clock(unsigned int pixclock)
 {
-	struct device_node *guts_np = NULL;
+	struct device_yesde *guts_np = NULL;
 	struct ccsr_guts __iomem *guts;
 	unsigned long freq;
 	u64 temp;
 	u32 pxclk;
 
 	/* Map the global utilities registers. */
-	guts_np = of_find_compatible_node(NULL, NULL, "fsl,mpc8610-guts");
+	guts_np = of_find_compatible_yesde(NULL, NULL, "fsl,mpc8610-guts");
 	if (!guts_np) {
-		pr_err("mpc8610hpcd: missing global utilities device node\n");
+		pr_err("mpc8610hpcd: missing global utilities device yesde\n");
 		return;
 	}
 
 	guts = of_iomap(guts_np, 0);
-	of_node_put(guts_np);
+	of_yesde_put(guts_np);
 	if (!guts) {
-		pr_err("mpc8610hpcd: could not map global utilities device\n");
+		pr_err("mpc8610hpcd: could yest map global utilities device\n");
 		return;
 	}
 
@@ -252,7 +252,7 @@ void mpc8610hpcd_set_pixel_clock(unsigned int pixclock)
 	pxclk = DIV_ROUND_CLOSEST(fsl_get_sys_freq(), freq) - 1;
 	pxclk = clamp_t(u32, pxclk, 2, 31);
 
-	/* Disable the pixel clock, and set it to non-inverted and no delay */
+	/* Disable the pixel clock, and set it to yesn-inverted and yes delay */
 	clrbits32(&guts->clkdvdr,
 		  CLKDVDR_PXCKEN | CLKDVDR_PXCKDLY | CLKDVDR_PXCLK_MASK);
 
@@ -288,10 +288,10 @@ static void __init mpc86xx_hpcd_setup_arch(void)
 	diu_ops.valid_monitor_port	= mpc8610hpcd_valid_monitor_port;
 #endif
 
-	pixis_node = of_find_compatible_node(NULL, NULL, "fsl,fpga-pixis");
-	if (pixis_node) {
-		of_address_to_resource(pixis_node, 0, &r);
-		of_node_put(pixis_node);
+	pixis_yesde = of_find_compatible_yesde(NULL, NULL, "fsl,fpga-pixis");
+	if (pixis_yesde) {
+		of_address_to_resource(pixis_yesde, 0, &r);
+		of_yesde_put(pixis_yesde);
 		pixis = ioremap(r.start, 32);
 		if (!pixis) {
 			printk(KERN_ERR "Err: can't map FPGA cfg register!\n");
@@ -301,7 +301,7 @@ static void __init mpc86xx_hpcd_setup_arch(void)
 		pixis_arch = pixis + 1;
 	} else
 		printk(KERN_ERR "Err: "
-				"can't find device node 'fsl,fpga-pixis'\n");
+				"can't find device yesde 'fsl,fpga-pixis'\n");
 
 	printk("MPC86xx HPCD board from Freescale Semiconductor\n");
 }

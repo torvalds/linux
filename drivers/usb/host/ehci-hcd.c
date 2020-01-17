@@ -15,7 +15,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/hrtimer.h>
 #include <linux/list.h>
@@ -42,7 +42,7 @@
  * EHCI hc_driver implementation ... experimental, incomplete.
  * Based on the final 1.0 register interface specification.
  *
- * USB 2.0 shows up in upcoming www.pcmcia.org technology.
+ * USB 2.0 shows up in upcoming www.pcmcia.org techyeslogy.
  * First was PCMCIA, like ISA; then CardBus, which is PCI.
  * Next comes "CardBay", using USB 2.0 signals.
  *
@@ -67,7 +67,7 @@ static const char	hcd_name [] = "ehci_hcd";
 #define	EHCI_TUNE_MULT_HS	1	/* 1-3 transactions/uframe; 4.10.3 */
 #define	EHCI_TUNE_MULT_TT	1
 /*
- * Some drivers think it's safe to schedule isochronous transfers more than
+ * Some drivers think it's safe to schedule isochroyesus transfers more than
  * 256 ms into the future (partly as a result of an old bug in the scheduling
  * code).  In an attempt to avoid trouble, we will use a minimum scheduling
  * length of 512 frames instead of 256.
@@ -84,10 +84,10 @@ static unsigned park = 0;
 module_param (park, uint, S_IRUGO);
 MODULE_PARM_DESC (park, "park setting; 1-3 back-to-back async packets");
 
-/* for flakey hardware, ignore overcurrent indicators */
-static bool ignore_oc;
-module_param (ignore_oc, bool, S_IRUGO);
-MODULE_PARM_DESC (ignore_oc, "ignore bogus hardware overcurrent indications");
+/* for flakey hardware, igyesre overcurrent indicators */
+static bool igyesre_oc;
+module_param (igyesre_oc, bool, S_IRUGO);
+MODULE_PARM_DESC (igyesre_oc, "igyesre bogus hardware overcurrent indications");
 
 #define	INTR_MASK (STS_IAA | STS_FATAL | STS_PCD | STS_ERR | STS_INT)
 
@@ -134,7 +134,7 @@ static inline unsigned ehci_read_frame_index(struct ehci_hcd *ehci)
  * @done: value of those bits when handshake succeeds
  * @usec: timeout in microseconds
  *
- * Returns negative errno, or zero on success
+ * Returns negative erryes, or zero on success
  *
  * Success happens when the "mask" bits have the specified value (hardware
  * handshake done).  There are two failure modes:  "usec" have passed (major
@@ -173,8 +173,8 @@ static int tdi_in_host_mode (struct ehci_hcd *ehci)
 }
 
 /*
- * Force HC to halt state from unknown (EHCI spec section 2.3).
- * Must be called with interrupts enabled and the lock not held.
+ * Force HC to halt state from unkyeswn (EHCI spec section 2.3).
+ * Must be called with interrupts enabled and the lock yest held.
  */
 static int ehci_halt (struct ehci_hcd *ehci)
 {
@@ -223,8 +223,8 @@ static void tdi_reset (struct ehci_hcd *ehci)
 }
 
 /*
- * Reset a non-running (STS_HALT == 1) controller.
- * Must be called with interrupts enabled and the lock not held.
+ * Reset a yesn-running (STS_HALT == 1) controller.
+ * Must be called with interrupts enabled and the lock yest held.
  */
 int ehci_reset(struct ehci_hcd *ehci)
 {
@@ -266,7 +266,7 @@ EXPORT_SYMBOL_GPL(ehci_reset);
 
 /*
  * Idle the controller (turn off the schedules).
- * Must be called with interrupts enabled and the lock not held.
+ * Must be called with interrupts enabled and the lock yest held.
  */
 static void ehci_quiesce (struct ehci_hcd *ehci)
 {
@@ -329,7 +329,7 @@ static void ehci_turn_off_all_ports(struct ehci_hcd *ehci)
 
 /*
  * Halt HC, turn off all ports, and let the BIOS use the companion controllers.
- * Must be called with interrupts enabled and the lock not held.
+ * Must be called with interrupts enabled and the lock yest held.
  */
 static void ehci_silence_controller(struct ehci_hcd *ehci)
 {
@@ -347,7 +347,7 @@ static void ehci_silence_controller(struct ehci_hcd *ehci)
 	spin_unlock_irq(&ehci->lock);
 }
 
-/* ehci_shutdown kick in for silicon on any bus (not just pci, etc).
+/* ehci_shutdown kick in for silicon on any bus (yest just pci, etc).
  * This forcibly disables dma and IRQs, helping kexec and other cases
  * where the next system software may expect clean state.
  */
@@ -357,8 +357,8 @@ static void ehci_shutdown(struct usb_hcd *hcd)
 
 	/**
 	 * Protect the system from crashing at system shutdown in cases where
-	 * usb host is not added yet from OTG controller driver.
-	 * As ehci_setup() not done yet, so stop accessing registers or
+	 * usb host is yest added yet from OTG controller driver.
+	 * As ehci_setup() yest done yet, so stop accessing registers or
 	 * variables initialized in ehci_setup()
 	 */
 	if (!ehci->sbrn)
@@ -383,7 +383,7 @@ static void ehci_shutdown(struct usb_hcd *hcd)
  */
 static void ehci_work (struct ehci_hcd *ehci)
 {
-	/* another CPU may drop ehci->lock during a schedule scan while
+	/* ayesther CPU may drop ehci->lock during a schedule scan while
 	 * it reports urb completions.  this flag guards against bogus
 	 * attempts at re-entrant schedule scanning.
 	 */
@@ -421,7 +421,7 @@ static void ehci_stop (struct usb_hcd *hcd)
 
 	ehci_dbg (ehci, "stop\n");
 
-	/* no more interrupts ... */
+	/* yes more interrupts ... */
 
 	spin_lock_irq(&ehci->lock);
 	ehci->enabled_hrtimer_events = 0;
@@ -613,15 +613,15 @@ static int ehci_run (struct usb_hcd *hcd)
 
 	/*
 	 * Start, enabling full USB 2.0 functionality ... usb 1.1 devices
-	 * are explicitly handed to companion controller(s), so no TT is
+	 * are explicitly handed to companion controller(s), so yes TT is
 	 * involved with the root hub.  (Except where one is integrated,
-	 * and there's no companion controller unless maybe for USB OTG.)
+	 * and there's yes companion controller unless maybe for USB OTG.)
 	 *
 	 * Turning on the CF flag will transfer ownership of all ports
 	 * from the companions to the EHCI controller.  If any of the
 	 * companions are in the middle of a port reset at the time, it
 	 * could cause trouble.  Write-locking ehci_cf_port_reset_rwsem
-	 * guarantees that no resets are in progress.  After we set CF,
+	 * guarantees that yes resets are in progress.  After we set CF,
 	 * a short delay lets the hardware catch up; new resets shouldn't
 	 * be started before the port switching actions could complete.
 	 */
@@ -638,7 +638,7 @@ static int ehci_run (struct usb_hcd *hcd)
 		"USB %x.%x started, EHCI %x.%02x%s\n",
 		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),
 		temp >> 8, temp & 0xff,
-		ignore_oc ? ", overcurrent ignored" : "");
+		igyesre_oc ? ", overcurrent igyesred" : "");
 
 	ehci_writel(ehci, INTR_MASK,
 		    &ehci->regs->intr_enable); /* Turn On Interrupts */
@@ -727,10 +727,10 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	cmd = ehci_readl(ehci, &ehci->regs->command);
 	bh = 0;
 
-	/* normal [4.15.1.2] or error [4.15.1.1] completion */
+	/* yesrmal [4.15.1.2] or error [4.15.1.1] completion */
 	if (likely ((status & (STS_INT|STS_ERR)) != 0)) {
 		if (likely ((status & STS_ERR) == 0))
-			INCR(ehci->stats.normal);
+			INCR(ehci->stats.yesrmal);
 		else
 			INCR(ehci->stats.error);
 		bh = 1;
@@ -743,7 +743,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		ehci->enabled_hrtimer_events &= ~BIT(EHCI_HRTIMER_IAA_WATCHDOG);
 
 		/*
-		 * Mild optimization: Allow another IAAD to reset the
+		 * Mild optimization: Allow ayesther IAAD to reset the
 		 * hrtimer, if one occurs before the next expiration.
 		 * In theory we could always cancel the hrtimer, but
 		 * tests show that about half the time it will be reset
@@ -838,7 +838,7 @@ dead:
 /*-------------------------------------------------------------------------*/
 
 /*
- * non-error returns are a promise to giveback() the urb later
+ * yesn-error returns are a promise to giveback() the urb later
  * we drop ownership so next owner (or urb unlink) can get it
  *
  * urb + dev is in hcd.self.controller.urb_list
@@ -887,7 +887,7 @@ static int ehci_urb_enqueue (
 }
 
 /* remove from hardware lists
- * completions normally happen asynchronously
+ * completions yesrmally happen asynchroyesusly
  */
 
 static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
@@ -904,8 +904,8 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
 		/*
-		 * We don't expedite dequeue for isochronous URBs.
-		 * Just wait until they complete normally or their
+		 * We don't expedite dequeue for isochroyesus URBs.
+		 * Just wait until they complete yesrmally or their
 		 * time slot expires.
 		 */
 	} else {
@@ -948,7 +948,7 @@ ehci_endpoint_disable (struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 	struct ehci_qh		*qh;
 
 	/* ASSERT:  any requests/urbs are being unlinked */
-	/* ASSERT:  nobody can be submitting urbs for this any more */
+	/* ASSERT:  yesbody can be submitting urbs for this any more */
 
 rescan:
 	spin_lock_irqsave (&ehci->lock, flags);
@@ -956,7 +956,7 @@ rescan:
 	if (!qh)
 		goto done;
 
-	/* endpoints can be iso streams.  for now, we don't
+	/* endpoints can be iso streams.  for yesw, we don't
 	 * accelerate iso completions ... so spin a while.
 	 */
 	if (qh->hw == NULL) {
@@ -1002,7 +1002,7 @@ idle_timeout:
 		/* fall through */
 	default:
 		/* caller was supposed to have unlinked any requests;
-		 * that's not our job.  just leak this memory.
+		 * that's yest our job.  just leak this memory.
 		 */
 		ehci_err (ehci, "qh %p (#%02x) state %d%s\n",
 			qh, ep->desc.bEndpointAddress, qh->qh_state,
@@ -1040,7 +1040,7 @@ ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 			WARN_ONCE(1, "clear_halt for a busy endpoint\n");
 		} else {
 			/* The toggle value in the QH can't be updated
-			 * while the QH is active.  Unlink it now;
+			 * while the QH is active.  Unlink it yesw;
 			 * re-linking will call qh_refresh().
 			 */
 			usb_settoggle(qh->ps.udev, epnum, is_out, 0);
@@ -1122,7 +1122,7 @@ int ehci_resume(struct usb_hcd *hcd, bool force_reset)
 	if (time_before(jiffies, ehci->next_statechange))
 		msleep(100);
 
-	/* Mark hardware accessible again as we are back to full power by now */
+	/* Mark hardware accessible again as we are back to full power by yesw */
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 	if (ehci->shutdown)
@@ -1298,7 +1298,7 @@ static int __init ehci_hcd_init(void)
 	if (test_bit(USB_UHCI_LOADED, &usb_hcds_loaded) ||
 			test_bit(USB_OHCI_LOADED, &usb_hcds_loaded))
 		printk(KERN_WARNING "Warning! ehci_hcd should always be loaded"
-				" before uhci_hcd and ohci_hcd, not after\n");
+				" before uhci_hcd and ohci_hcd, yest after\n");
 
 	pr_debug("%s: block sizes: qh %zd qtd %zd itd %zd sitd %zd\n",
 		 hcd_name,

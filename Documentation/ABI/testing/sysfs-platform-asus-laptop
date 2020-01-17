@@ -10,7 +10,7 @@ Description:
 		||`-- CRT
 		|`--- TV
 		`---- DVI
-		Ex: - 0 (0000b) means no display
+		Ex: - 0 (0000b) means yes display
 		    - 3 (0011b) CRT+LCD.
 
 What:		/sys/devices/platform/asus_laptop/gps

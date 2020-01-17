@@ -1,7 +1,7 @@
 =============
  Thunderbolt
 =============
-The interface presented here is not meant for end users. Instead there
+The interface presented here is yest meant for end users. Instead there
 should be a userspace tool that handles all the low-level details, keeps
 a database of the authorized devices and prompts users for new connections.
 
@@ -24,12 +24,12 @@ Starting with Intel Falcon Ridge Thunderbolt controller there are 4
 security levels available. Intel Titan Ridge added one more security level
 (usbonly). The reason for these is the fact that the connected devices can
 be DMA masters and thus read contents of the host memory without CPU and OS
-knowing about it. There are ways to prevent this by setting up an IOMMU but
-it is not always available for various reasons.
+kyeswing about it. There are ways to prevent this by setting up an IOMMU but
+it is yest always available for various reasons.
 
 The security levels are as follows:
 
-  none
+  yesne
     All devices are automatically connected by the firmware. No user
     approval is needed. In BIOS settings this is typically called
     *Legacy mode*.
@@ -82,12 +82,12 @@ When a device is plugged in it will appear in sysfs as follows::
   /sys/bus/thunderbolt/devices/0-1/vendor_name	- Apple, Inc.
   /sys/bus/thunderbolt/devices/0-1/unique_id	- e0376f00-0300-0100-ffff-ffffffffffff
 
-The ``authorized`` attribute reads 0 which means no PCIe tunnels are
+The ``authorized`` attribute reads 0 which means yes PCIe tunnels are
 created yet. The user can authorize the device by simply entering::
 
   # echo 1 > /sys/bus/thunderbolt/devices/0-1/authorized
 
-This will create the PCIe tunnels and the device is now connected.
+This will create the PCIe tunnels and the device is yesw connected.
 
 If the device supports secure connect, and the domain security level is
 set to ``secure``, it has an additional attribute ``key`` which can hold
@@ -104,7 +104,7 @@ future connects::
 
 Notice the key is empty by default.
 
-If the user does not want to use secure connect they can just ``echo 1``
+If the user does yest want to use secure connect they can just ``echo 1``
 to the ``authorized`` attribute and the PCIe tunnels will be created in
 the same way as in the ``user`` security level.
 
@@ -126,7 +126,7 @@ device using the same key::
 
 If the challenge the device returns back matches the one we expect based
 on the key, the device is connected and the PCIe tunnels are created.
-However, if the challenge fails no tunnels are created and error is
+However, if the challenge fails yes tunnels are created and error is
 returned to the user.
 
 If the user still wants to connect the device they can either approve
@@ -137,16 +137,16 @@ DMA protection utilizing IOMMU
 ------------------------------
 Recent systems from 2018 and forward with Thunderbolt ports may natively
 support IOMMU. This means that Thunderbolt security is handled by an IOMMU
-so connected devices cannot access memory regions outside of what is
+so connected devices canyest access memory regions outside of what is
 allocated for them by drivers. When Linux is running on such system it
-automatically enables IOMMU if not enabled by the user already. These
+automatically enables IOMMU if yest enabled by the user already. These
 systems can be identified by reading ``1`` from
 ``/sys/bus/thunderbolt/devices/domainX/iommu_dma_protection`` attribute.
 
-The driver does not do anything special in this case but because DMA
+The driver does yest do anything special in this case but because DMA
 protection is handled by the IOMMU, security levels (if set) are
 redundant. For this reason some systems ship with security level set to
-``none``. Other systems have security level set to ``user`` in order to
+``yesne``. Other systems have security level set to ``user`` in order to
 support downgrade to older OS, so users who want to automatically
 authorize devices when IOMMU DMA protection is enabled can use the
 following ``udev`` rule::
@@ -163,36 +163,36 @@ Typically OEMs provide this firmware from their support site.
 There is also a central site which has links where to download firmware
 for some machines:
 
-  `Thunderbolt Updates <https://thunderbolttechnology.net/updates>`_
+  `Thunderbolt Updates <https://thunderbolttechyeslogy.net/updates>`_
 
 Before you upgrade firmware on a device or host, please make sure it is a
 suitable upgrade. Failing to do that may render the device (or host) in a
-state where it cannot be used properly anymore without special tools!
+state where it canyest be used properly anymore without special tools!
 
-Host NVM upgrade on Apple Macs is not supported.
+Host NVM upgrade on Apple Macs is yest supported.
 
 Once the NVM image has been downloaded, you need to plug in a
-Thunderbolt device so that the host controller appears. It does not
+Thunderbolt device so that the host controller appears. It does yest
 matter which device is connected (unless you are upgrading NVM on a
 device - then you need to connect that particular device).
 
 Note an OEM-specific method to power the controller up ("force power") may
-be available for your system in which case there is no need to plug in a
+be available for your system in which case there is yes need to plug in a
 Thunderbolt device.
 
-After that we can write the firmware to the non-active parts of the NVM
+After that we can write the firmware to the yesn-active parts of the NVM
 of the host or device. As an example here is how Intel NUC6i7KYK (Skull
 Canyon) Thunderbolt controller NVM is upgraded::
 
-  # dd if=KYK_TBT_FW_0018.bin of=/sys/bus/thunderbolt/devices/0-0/nvm_non_active0/nvmem
+  # dd if=KYK_TBT_FW_0018.bin of=/sys/bus/thunderbolt/devices/0-0/nvm_yesn_active0/nvmem
 
 Once the operation completes we can trigger NVM authentication and
 upgrade process as follows::
 
   # echo 1 > /sys/bus/thunderbolt/devices/0-0/nvm_authenticate
 
-If no errors are returned, the host controller shortly disappears. Once
-it comes back the driver notices it and initiates a full power cycle.
+If yes errors are returned, the host controller shortly disappears. Once
+it comes back the driver yestices it and initiates a full power cycle.
 After a while the host controller appears again and this time it should
 be fully functional.
 
@@ -208,13 +208,13 @@ If ``nvm_authenticate`` contains anything other than 0x0 it is the error
 code from the last authentication cycle, which means the authentication
 of the NVM image failed.
 
-Note names of the NVMem devices ``nvm_activeN`` and ``nvm_non_activeN``
+Note names of the NVMem devices ``nvm_activeN`` and ``nvm_yesn_activeN``
 depend on the order they are registered in the NVMem subsystem. N in
 the name is the identifier added by the NVMem subsystem.
 
 Upgrading NVM when host controller is in safe mode
 --------------------------------------------------
-If the existing NVM is not properly authenticated (or is missing) the
+If the existing NVM is yest properly authenticated (or is missing) the
 host controller goes into safe mode which means that the only available
 functionality is flashing a new NVM image. When in this mode, reading
 ``nvm_version`` fails with ``ENODATA`` and the device identification
@@ -225,7 +225,7 @@ host controller in the same way it is done in the previous chapter.
 
 Networking over Thunderbolt cable
 ---------------------------------
-Thunderbolt technology allows software communication between two hosts
+Thunderbolt techyeslogy allows software communication between two hosts
 connected by a Thunderbolt cable.
 
 It is possible to tunnel any kind of traffic over a Thunderbolt link but
@@ -235,12 +235,12 @@ If the other host is running Windows or macOS, the only thing you need to
 do is to connect a Thunderbolt cable between the two hosts; the
 ``thunderbolt-net`` driver is loaded automatically. If the other host is
 also Linux you should load ``thunderbolt-net`` manually on one host (it
-does not matter which one)::
+does yest matter which one)::
 
   # modprobe thunderbolt-net
 
 This triggers module load on the other host automatically. If the driver
-is built-in to the kernel image, there is no need to do anything.
+is built-in to the kernel image, there is yes need to do anything.
 
 The driver will create one virtual ethernet interface per Thunderbolt
 port which are named like ``thunderbolt0`` and so on. From this point
@@ -250,7 +250,7 @@ configure the interface or let your GUI handle it automatically.
 Forcing power
 -------------
 Many OEMs include a method that can be used to force the power of a
-Thunderbolt controller to an "On" state even if nothing is connected.
+Thunderbolt controller to an "On" state even if yesthing is connected.
 If supported by your machine this will be exposed by the WMI bus with
 a sysfs attribute called "force_power".
 
@@ -260,4 +260,4 @@ For example the intel-wmi-thunderbolt driver exposes this attribute in:
   To force the power to on, write 1 to this attribute file.
   To disable force power, write 0 to this attribute file.
 
-Note: it's currently not possible to query the force power state of a platform.
+Note: it's currently yest possible to query the force power state of a platform.

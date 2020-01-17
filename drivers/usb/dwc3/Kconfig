@@ -65,11 +65,11 @@ config USB_DWC3_OMAP
 	  Say 'Y' or 'M' here if you have one such device
 
 config USB_DWC3_EXYNOS
-	tristate "Samsung Exynos Platform"
+	tristate "Samsung Exyyess Platform"
 	depends on (ARCH_EXYNOS || COMPILE_TEST) && OF
 	default USB_DWC3
 	help
-	  Recent Exynos5 SoCs ship with one DesignWare Core USB3 IP inside,
+	  Recent Exyyess5 SoCs ship with one DesignWare Core USB3 IP inside,
 	  say 'Y' or 'M' if you have one such device.
 
 config USB_DWC3_PCI
@@ -77,15 +77,15 @@ config USB_DWC3_PCI
 	depends on USB_PCI && ACPI
 	default USB_DWC3
 	help
-	  If you're using the DesignWare Core IP with a PCIe (but not HAPS
+	  If you're using the DesignWare Core IP with a PCIe (but yest HAPS
 	  platform), please say 'Y' or 'M' here.
 
 config USB_DWC3_HAPS
-	tristate "Synopsys PCIe-based HAPS Platforms"
+	tristate "Syyespsys PCIe-based HAPS Platforms"
 	depends on USB_PCI
 	default USB_DWC3
 	help
-	  If you're using the DesignWare Core IP with a Synopsys PCIe HAPS
+	  If you're using the DesignWare Core IP with a Syyespsys PCIe HAPS
 	  platform, please say 'Y' or 'M' here.
 
 config USB_DWC3_KEYSTONE

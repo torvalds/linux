@@ -10,13 +10,13 @@ Required properties:
     registers for the XOR engine.
 - clocks: pointer to the reference clock
 
-The DT node must also contains sub-nodes for each XOR channel that the
-XOR engine has. Those sub-nodes have the following required
+The DT yesde must also contains sub-yesdes for each XOR channel that the
+XOR engine has. Those sub-yesdes have the following required
 properties:
 - interrupts: interrupt of the XOR channel
 
-The sub-nodes used to contain one or several of the following
-properties, but they are now deprecated:
+The sub-yesdes used to contain one or several of the following
+properties, but they are yesw deprecated:
 - dmacap,memcpy to indicate that the XOR channel is capable of memcpy operations
 - dmacap,memset to indicate that the XOR channel is capable of memset operations
 - dmacap,xor to indicate that the XOR channel is capable of xor operations

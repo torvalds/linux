@@ -9,9 +9,9 @@
  * met:
  *
  *   * Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
+ * yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
+ * copyright yestice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
  *
@@ -92,7 +92,7 @@
 
 /* Function templates */
 
-size_t FSE_buildDTable_wksp(FSE_DTable *dt, const short *normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void *workspace, size_t workspaceSize)
+size_t FSE_buildDTable_wksp(FSE_DTable *dt, const short *yesrmalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void *workspace, size_t workspaceSize)
 {
 	void *const tdPtr = dt + 1; /* because *dt is unsigned, 32-bits aligned on 32-bits */
 	FSE_DECODE_TYPE *const tableDecode = (FSE_DECODE_TYPE *)(tdPtr);
@@ -119,13 +119,13 @@ size_t FSE_buildDTable_wksp(FSE_DTable *dt, const short *normalizedCounter, unsi
 			S16 const largeLimit = (S16)(1 << (tableLog - 1));
 			U32 s;
 			for (s = 0; s < maxSV1; s++) {
-				if (normalizedCounter[s] == -1) {
+				if (yesrmalizedCounter[s] == -1) {
 					tableDecode[highThreshold--].symbol = (FSE_FUNCTION_TYPE)s;
 					symbolNext[s] = 1;
 				} else {
-					if (normalizedCounter[s] >= largeLimit)
+					if (yesrmalizedCounter[s] >= largeLimit)
 						DTableH.fastMode = 0;
-					symbolNext[s] = normalizedCounter[s];
+					symbolNext[s] = yesrmalizedCounter[s];
 				}
 			}
 		}
@@ -139,7 +139,7 @@ size_t FSE_buildDTable_wksp(FSE_DTable *dt, const short *normalizedCounter, unsi
 		U32 s, position = 0;
 		for (s = 0; s < maxSV1; s++) {
 			int i;
-			for (i = 0; i < normalizedCounter[s]; i++) {
+			for (i = 0; i < yesrmalizedCounter[s]; i++) {
 				tableDecode[position].symbol = (FSE_FUNCTION_TYPE)s;
 				position = (position + step) & tableMask;
 				while (position > highThreshold)
@@ -147,7 +147,7 @@ size_t FSE_buildDTable_wksp(FSE_DTable *dt, const short *normalizedCounter, unsi
 			}
 		}
 		if (position != 0)
-			return ERROR(GENERIC); /* position must reach all cells once, otherwise normalizedCounter is incorrect */
+			return ERROR(GENERIC); /* position must reach all cells once, otherwise yesrmalizedCounter is incorrect */
 	}
 
 	/* Build Decoding table */
@@ -257,7 +257,7 @@ FORCE_INLINE size_t FSE_decompress_usingDTable_generic(void *dst, size_t maxDstS
 	}
 
 	/* tail */
-	/* note : BIT_reloadDStream(&bitD) >= FSE_DStream_partiallyFilled; Ends at exactly BIT_DStream_completed */
+	/* yeste : BIT_reloadDStream(&bitD) >= FSE_DStream_partiallyFilled; Ends at exactly BIT_DStream_completed */
 	while (1) {
 		if (op > (omax - 2))
 			return ERROR(dstSize_tooSmall);
@@ -315,7 +315,7 @@ size_t FSE_decompress_wksp(void *dst, size_t dstCapacity, const void *cSrc, size
 	workspace = (U32 *)workspace + spaceUsed32;
 	workspaceSize -= (spaceUsed32 << 2);
 
-	/* normal FSE decoding mode */
+	/* yesrmal FSE decoding mode */
 	NCountLength = FSE_readNCount(counting, &maxSymbolValue, &tableLog, istart, cSrcSize);
 	if (FSE_isError(NCountLength))
 		return NCountLength;

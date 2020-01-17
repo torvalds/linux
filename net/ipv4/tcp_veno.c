@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * TCP Veno congestion control
+ * TCP Veyes congestion control
  *
  * This is based on the congestion detection/avoidance scheme described in
  *    C. P. Fu, S. C. Liew.
- *    "TCP Veno: TCP Enhancement for Transmission over Wireless Access Networks."
+ *    "TCP Veyes: TCP Enhancement for Transmission over Wireless Access Networks."
  *    IEEE Journal on Selected Areas in Communication,
  *    Feb. 2003.
  * 	See http://www.ie.cuhk.edu.hk/fileadmin/staff_upload/soung/Journal/J3.pdf
@@ -17,63 +17,63 @@
 
 #include <net/tcp.h>
 
-/* Default values of the Veno variables, in fixed-point representation
+/* Default values of the Veyes variables, in fixed-point representation
  * with V_PARAM_SHIFT bits to the right of the binary point.
  */
 #define V_PARAM_SHIFT 1
 static const int beta = 3 << V_PARAM_SHIFT;
 
-/* Veno variables */
-struct veno {
-	u8 doing_veno_now;	/* if true, do veno for this rtt */
+/* Veyes variables */
+struct veyes {
+	u8 doing_veyes_yesw;	/* if true, do veyes for this rtt */
 	u16 cntrtt;		/* # of rtts measured within last rtt */
 	u32 minrtt;		/* min of rtts measured within last rtt (in usec) */
-	u32 basertt;		/* the min of all Veno rtt measurements seen (in usec) */
+	u32 basertt;		/* the min of all Veyes rtt measurements seen (in usec) */
 	u32 inc;		/* decide whether to increase cwnd */
 	u32 diff;		/* calculate the diff rate */
 };
 
-/* There are several situations when we must "re-start" Veno:
+/* There are several situations when we must "re-start" Veyes:
  *
  *  o when a connection is established
  *  o after an RTO
  *  o after fast recovery
- *  o when we send a packet and there is no outstanding
- *    unacknowledged data (restarting an idle connection)
+ *  o when we send a packet and there is yes outstanding
+ *    unackyeswledged data (restarting an idle connection)
  *
  */
-static inline void veno_enable(struct sock *sk)
+static inline void veyes_enable(struct sock *sk)
 {
-	struct veno *veno = inet_csk_ca(sk);
+	struct veyes *veyes = inet_csk_ca(sk);
 
-	/* turn on Veno */
-	veno->doing_veno_now = 1;
+	/* turn on Veyes */
+	veyes->doing_veyes_yesw = 1;
 
-	veno->minrtt = 0x7fffffff;
+	veyes->minrtt = 0x7fffffff;
 }
 
-static inline void veno_disable(struct sock *sk)
+static inline void veyes_disable(struct sock *sk)
 {
-	struct veno *veno = inet_csk_ca(sk);
+	struct veyes *veyes = inet_csk_ca(sk);
 
-	/* turn off Veno */
-	veno->doing_veno_now = 0;
+	/* turn off Veyes */
+	veyes->doing_veyes_yesw = 0;
 }
 
-static void tcp_veno_init(struct sock *sk)
+static void tcp_veyes_init(struct sock *sk)
 {
-	struct veno *veno = inet_csk_ca(sk);
+	struct veyes *veyes = inet_csk_ca(sk);
 
-	veno->basertt = 0x7fffffff;
-	veno->inc = 1;
-	veno_enable(sk);
+	veyes->basertt = 0x7fffffff;
+	veyes->inc = 1;
+	veyes_enable(sk);
 }
 
-/* Do rtt sampling needed for Veno. */
-static void tcp_veno_pkts_acked(struct sock *sk,
+/* Do rtt sampling needed for Veyes. */
+static void tcp_veyes_pkts_acked(struct sock *sk,
 				const struct ack_sample *sample)
 {
-	struct veno *veno = inet_csk_ca(sk);
+	struct veyes *veyes = inet_csk_ca(sk);
 	u32 vrtt;
 
 	if (sample->rtt_us < 0)
@@ -83,46 +83,46 @@ static void tcp_veno_pkts_acked(struct sock *sk,
 	vrtt = sample->rtt_us + 1;
 
 	/* Filter to find propagation delay: */
-	if (vrtt < veno->basertt)
-		veno->basertt = vrtt;
+	if (vrtt < veyes->basertt)
+		veyes->basertt = vrtt;
 
 	/* Find the min rtt during the last rtt to find
 	 * the current prop. delay + queuing delay:
 	 */
-	veno->minrtt = min(veno->minrtt, vrtt);
-	veno->cntrtt++;
+	veyes->minrtt = min(veyes->minrtt, vrtt);
+	veyes->cntrtt++;
 }
 
-static void tcp_veno_state(struct sock *sk, u8 ca_state)
+static void tcp_veyes_state(struct sock *sk, u8 ca_state)
 {
 	if (ca_state == TCP_CA_Open)
-		veno_enable(sk);
+		veyes_enable(sk);
 	else
-		veno_disable(sk);
+		veyes_disable(sk);
 }
 
 /*
  * If the connection is idle and we are restarting,
- * then we don't want to do any Veno calculations
+ * then we don't want to do any Veyes calculations
  * until we get fresh rtt samples.  So when we
- * restart, we reset our Veno state to a clean
+ * restart, we reset our Veyes state to a clean
  * state. After we get acks for this flight of
- * packets, _then_ we can make Veno calculations
+ * packets, _then_ we can make Veyes calculations
  * again.
  */
-static void tcp_veno_cwnd_event(struct sock *sk, enum tcp_ca_event event)
+static void tcp_veyes_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 {
 	if (event == CA_EVENT_CWND_RESTART || event == CA_EVENT_TX_START)
-		tcp_veno_init(sk);
+		tcp_veyes_init(sk);
 }
 
-static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
+static void tcp_veyes_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct veno *veno = inet_csk_ca(sk);
+	struct veyes *veyes = inet_csk_ca(sk);
 
-	if (!veno->doing_veno_now) {
-		tcp_reno_cong_avoid(sk, ack, acked);
+	if (!veyes->doing_veyes_yesw) {
+		tcp_reyes_cong_avoid(sk, ack, acked);
 		return;
 	}
 
@@ -130,35 +130,35 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	if (!tcp_is_cwnd_limited(sk))
 		return;
 
-	/* We do the Veno calculations only if we got enough rtt samples */
-	if (veno->cntrtt <= 2) {
-		/* We don't have enough rtt samples to do the Veno
-		 * calculation, so we'll behave like Reno.
+	/* We do the Veyes calculations only if we got eyesugh rtt samples */
+	if (veyes->cntrtt <= 2) {
+		/* We don't have eyesugh rtt samples to do the Veyes
+		 * calculation, so we'll behave like Reyes.
 		 */
-		tcp_reno_cong_avoid(sk, ack, acked);
+		tcp_reyes_cong_avoid(sk, ack, acked);
 	} else {
 		u64 target_cwnd;
 		u32 rtt;
 
-		/* We have enough rtt samples, so, using the Veno
+		/* We have eyesugh rtt samples, so, using the Veyes
 		 * algorithm, we determine the state of the network.
 		 */
 
-		rtt = veno->minrtt;
+		rtt = veyes->minrtt;
 
-		target_cwnd = (u64)tp->snd_cwnd * veno->basertt;
+		target_cwnd = (u64)tp->snd_cwnd * veyes->basertt;
 		target_cwnd <<= V_PARAM_SHIFT;
 		do_div(target_cwnd, rtt);
 
-		veno->diff = (tp->snd_cwnd << V_PARAM_SHIFT) - target_cwnd;
+		veyes->diff = (tp->snd_cwnd << V_PARAM_SHIFT) - target_cwnd;
 
 		if (tcp_in_slow_start(tp)) {
 			/* Slow start.  */
 			tcp_slow_start(tp, acked);
 		} else {
 			/* Congestion avoidance. */
-			if (veno->diff < beta) {
-				/* In the "non-congestive state", increase cwnd
+			if (veyes->diff < beta) {
+				/* In the "yesn-congestive state", increase cwnd
 				 *  every rtt.
 				 */
 				tcp_cong_avoid_ai(tp, tp->snd_cwnd, 1);
@@ -167,12 +167,12 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				 * every other rtt.
 				 */
 				if (tp->snd_cwnd_cnt >= tp->snd_cwnd) {
-					if (veno->inc &&
+					if (veyes->inc &&
 					    tp->snd_cwnd < tp->snd_cwnd_clamp) {
 						tp->snd_cwnd++;
-						veno->inc = 0;
+						veyes->inc = 0;
 					} else
-						veno->inc = 1;
+						veyes->inc = 1;
 					tp->snd_cwnd_cnt = 0;
 				} else
 					tp->snd_cwnd_cnt++;
@@ -184,52 +184,52 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			tp->snd_cwnd = tp->snd_cwnd_clamp;
 	}
 	/* Wipe the slate clean for the next rtt. */
-	/* veno->cntrtt = 0; */
-	veno->minrtt = 0x7fffffff;
+	/* veyes->cntrtt = 0; */
+	veyes->minrtt = 0x7fffffff;
 }
 
-/* Veno MD phase */
-static u32 tcp_veno_ssthresh(struct sock *sk)
+/* Veyes MD phase */
+static u32 tcp_veyes_ssthresh(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
-	struct veno *veno = inet_csk_ca(sk);
+	struct veyes *veyes = inet_csk_ca(sk);
 
-	if (veno->diff < beta)
-		/* in "non-congestive state", cut cwnd by 1/5 */
+	if (veyes->diff < beta)
+		/* in "yesn-congestive state", cut cwnd by 1/5 */
 		return max(tp->snd_cwnd * 4 / 5, 2U);
 	else
 		/* in "congestive state", cut cwnd by 1/2 */
 		return max(tp->snd_cwnd >> 1U, 2U);
 }
 
-static struct tcp_congestion_ops tcp_veno __read_mostly = {
-	.init		= tcp_veno_init,
-	.ssthresh	= tcp_veno_ssthresh,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
-	.cong_avoid	= tcp_veno_cong_avoid,
-	.pkts_acked	= tcp_veno_pkts_acked,
-	.set_state	= tcp_veno_state,
-	.cwnd_event	= tcp_veno_cwnd_event,
+static struct tcp_congestion_ops tcp_veyes __read_mostly = {
+	.init		= tcp_veyes_init,
+	.ssthresh	= tcp_veyes_ssthresh,
+	.undo_cwnd	= tcp_reyes_undo_cwnd,
+	.cong_avoid	= tcp_veyes_cong_avoid,
+	.pkts_acked	= tcp_veyes_pkts_acked,
+	.set_state	= tcp_veyes_state,
+	.cwnd_event	= tcp_veyes_cwnd_event,
 
 	.owner		= THIS_MODULE,
-	.name		= "veno",
+	.name		= "veyes",
 };
 
-static int __init tcp_veno_register(void)
+static int __init tcp_veyes_register(void)
 {
-	BUILD_BUG_ON(sizeof(struct veno) > ICSK_CA_PRIV_SIZE);
-	tcp_register_congestion_control(&tcp_veno);
+	BUILD_BUG_ON(sizeof(struct veyes) > ICSK_CA_PRIV_SIZE);
+	tcp_register_congestion_control(&tcp_veyes);
 	return 0;
 }
 
-static void __exit tcp_veno_unregister(void)
+static void __exit tcp_veyes_unregister(void)
 {
-	tcp_unregister_congestion_control(&tcp_veno);
+	tcp_unregister_congestion_control(&tcp_veyes);
 }
 
-module_init(tcp_veno_register);
-module_exit(tcp_veno_unregister);
+module_init(tcp_veyes_register);
+module_exit(tcp_veyes_unregister);
 
 MODULE_AUTHOR("Bin Zhou, Cheng Peng Fu");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("TCP Veno");
+MODULE_DESCRIPTION("TCP Veyes");

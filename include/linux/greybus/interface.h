@@ -33,7 +33,7 @@ struct gb_interface {
 	struct gb_control *control;
 
 	struct list_head bundles;
-	struct list_head module_node;
+	struct list_head module_yesde;
 	struct list_head manifest_descs;
 	u8 interface_id;	/* Physical location within the Endo */
 	u8 device_id;

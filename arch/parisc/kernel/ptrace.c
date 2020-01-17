@@ -13,7 +13,7 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/elf.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/tracehook.h>
 #include <linux/user.h>
@@ -47,14 +47,14 @@ enum parisc_regset {
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure single step bits etc are not set.
+ * Make sure single step bits etc are yest set.
  */
 void ptrace_disable(struct task_struct *task)
 {
 	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
 	clear_tsk_thread_flag(task, TIF_BLOCKSTEP);
 
-	/* make sure the trap bits are not set */
+	/* make sure the trap bits are yest set */
 	pa_psw(task)->r = 0;
 	pa_psw(task)->t = 0;
 	pa_psw(task)->h = 0;
@@ -87,11 +87,11 @@ void user_enable_single_step(struct task_struct *task)
 		pa_psw(task)->b = 0;
 		ptrace_disable(task);
 		/* Don't wake up the task, but let the
-		   parent know something happened. */
+		   parent kyesw something happened. */
 		force_sig_fault_to_task(SIGTRAP, TRAP_TRACE,
 					(void __user *) (task_regs(task)->iaoq[0] & ~3),
 					task);
-		/* notify_parent(task, SIGCHLD); */
+		/* yestify_parent(task, SIGCHLD); */
 		return;
 	}
 
@@ -141,15 +141,15 @@ long arch_ptrace(struct task_struct *child, long request,
 		break;
 
 	/* Write the word at location addr in the USER area.  This will need
-	   to change when the kernel no longer saves all regs on a syscall.
+	   to change when the kernel yes longer saves all regs on a syscall.
 	   FIXME.  There is a problem at the moment in that r3-r18 are only
 	   saved if the process is ptraced on syscall entry, and even then
 	   those values are overwritten by actual register values on syscall
 	   exit. */
 	case PTRACE_POKEUSR:
-		/* Some register values written here may be ignored in
+		/* Some register values written here may be igyesred in
 		 * entry.S:syscall_restore_rfi; e.g. iaoq is written with
-		 * r31/r31+4, and not with the values in pt_regs.
+		 * r31/r31+4, and yest with the values in pt_regs.
 		 */
 		if (addr == PT_PSW) {
 			/* Allow writing to Nullify, Divide-step-correction,
@@ -265,15 +265,15 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		break;
 
 	/* Write the word at location addr in the USER area.  This will need
-	   to change when the kernel no longer saves all regs on a syscall.
+	   to change when the kernel yes longer saves all regs on a syscall.
 	   FIXME.  There is a problem at the moment in that r3-r18 are only
 	   saved if the process is ptraced on syscall entry, and even then
 	   those values are overwritten by actual register values on syscall
 	   exit. */
 	case PTRACE_POKEUSR:
-		/* Some register values written here may be ignored in
+		/* Some register values written here may be igyesred in
 		 * entry.S:syscall_restore_rfi; e.g. iaoq is written with
-		 * r31/r31+4, and not with the values in pt_regs.
+		 * r31/r31+4, and yest with the values in pt_regs.
 		 */
 		if (addr == PT_PSW) {
 			/* Since PT_PSW==0, it is valid for 32 bit processes
@@ -320,14 +320,14 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 		int rc = tracehook_report_syscall_entry(regs);
 
 		/*
-		 * As tracesys_next does not set %r28 to -ENOSYS
+		 * As tracesys_next does yest set %r28 to -ENOSYS
 		 * when %r20 is set to -1, initialize it here.
 		 */
 		regs->gr[28] = -ENOSYS;
 
 		if (rc) {
 			/*
-			 * A nonzero return code from
+			 * A yesnzero return code from
 			 * tracehook_report_syscall_entry() tells us
 			 * to prevent the syscall execution.  Skip
 			 * the syscall call and the syscall restart handling.
@@ -446,7 +446,7 @@ static int fpr_set(struct task_struct *target,
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
-	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+	return user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 					 ELF_NFPREG * sizeof(reg), -1);
 }
 
@@ -511,7 +511,7 @@ static void set_reg(struct pt_regs *regs, int num, unsigned long val)
 			return;
 	default:	return;
 #if 0
-	/* do not allow to change any of the following registers (yet) */
+	/* do yest allow to change any of the following registers (yet) */
 	case RI(sr[0]) ... RI(sr[7]):	return regs->sr[num - RI(sr[0])];
 	case RI(iasq[0]):		return regs->iasq[0];
 	case RI(iasq[1]):		return regs->iasq[1];
@@ -581,18 +581,18 @@ static int gpr_set(struct task_struct *target,
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
-	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+	return user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 					 ELF_NGREG * sizeof(reg), -1);
 }
 
 static const struct user_regset native_regsets[] = {
 	[REGSET_GENERAL] = {
-		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
+		.core_yeste_type = NT_PRSTATUS, .n = ELF_NGREG,
 		.size = sizeof(long), .align = sizeof(long),
 		.get = gpr_get, .set = gpr_set
 	},
 	[REGSET_FP] = {
-		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
+		.core_yeste_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(__u64), .align = sizeof(__u64),
 		.get = fpr_get, .set = fpr_set
 	}
@@ -662,7 +662,7 @@ static int gpr32_set(struct task_struct *target,
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
-	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+	return user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 					 ELF_NGREG * sizeof(reg), -1);
 }
 
@@ -671,12 +671,12 @@ static int gpr32_set(struct task_struct *target,
  */
 static const struct user_regset compat_regsets[] = {
 	[REGSET_GENERAL] = {
-		.core_note_type = NT_PRSTATUS, .n = ELF_NGREG,
+		.core_yeste_type = NT_PRSTATUS, .n = ELF_NGREG,
 		.size = sizeof(compat_long_t), .align = sizeof(compat_long_t),
 		.get = gpr32_get, .set = gpr32_set
 	},
 	[REGSET_FP] = {
-		.core_note_type = NT_PRFPREG, .n = ELF_NFPREG,
+		.core_yeste_type = NT_PRFPREG, .n = ELF_NFPREG,
 		.size = sizeof(__u64), .align = sizeof(__u64),
 		.get = fpr_get, .set = fpr_set
 	}
@@ -805,7 +805,7 @@ const char *regs_query_register_name(unsigned int offset)
  * @addr:      address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If yest, returns false.
  */
 int regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
 {

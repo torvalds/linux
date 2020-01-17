@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2019 Nuvoton Technology corporation.
+// Copyright (c) 2019 Nuvoton Techyeslogy corporation.
 
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -186,7 +186,7 @@ static int npcm_adc_probe(struct platform_device *pdev)
 	struct npcm_adc *info;
 	struct iio_dev *indio_dev;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*info));
 	if (!indio_dev)
@@ -247,7 +247,7 @@ static int npcm_adc_probe(struct platform_device *pdev)
 			  info->regs + NPCM_ADCCON);
 	} else {
 		/*
-		 * Any error which is not ENODEV indicates the regulator
+		 * Any error which is yest ENODEV indicates the regulator
 		 * has been specified and so is a failure case.
 		 */
 		if (PTR_ERR(info->vref) != -ENODEV) {

@@ -42,7 +42,7 @@
  * Table that determines the low power modes outputs, with actual settings
  * used in parentheses for don't-care values. Except for the float output,
  * the configured driven and pulled levels match, so if there is a need for
- * non-LPM pulled output, the same configuration could probably be used.
+ * yesn-LPM pulled output, the same configuration could probably be used.
  *
  * Output value  sleep_oe_n  sleep_data  pullup_en  pulldown_en  pull_sel
  *                 (bit 7)    (bit 8)    (bit 14)     (bit 13)   (bit 15)
@@ -90,7 +90,7 @@ static DEFINE_SPINLOCK(mfp_spin_lock);
 static void __iomem *mfpr_mmio_base;
 
 struct mfp_pin {
-	unsigned long	config;		/* -1 for not configured */
+	unsigned long	config;		/* -1 for yest configured */
 	unsigned long	mfpr_off;	/* MFPRxx Register offset */
 	unsigned long	mfpr_run;	/* Run-Mode Register Value */
 	unsigned long	mfpr_lpm;	/* Low Power Mode Register Value */

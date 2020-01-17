@@ -69,7 +69,7 @@ MODULE_PARM_DESC(ifnum_to_use, "The interface number to use for the watchdog "
 /* parameter definition to allow user to flag power cycle */
 module_param(poweroff_powercycle, int, 0644);
 MODULE_PARM_DESC(poweroff_powercycle,
-		 " Set to non-zero to enable power cycle instead of power"
+		 " Set to yesn-zero to enable power cycle instead of power"
 		 " down. Power cycle is contingent on hardware support,"
 		 " otherwise it defaults back to power down.");
 
@@ -82,7 +82,7 @@ static unsigned char ipmi_version;
 /*
  * We use our own messages for this operation, we don't let the system
  * allocate them, since we may be in a panic situation.  The whole
- * thing is single-threaded, anyway, so multiple messages are not
+ * thing is single-threaded, anyway, so multiple messages are yest
  * required.
  */
 static atomic_t dummy_count = ATOMIC_INIT(0);
@@ -276,7 +276,7 @@ static void ipmi_poweroff_atca(struct ipmi_user *user)
 	/*
 	 * At this point, the system may be shutting down, and most
 	 * serial drivers (if used) will have interrupts turned off
-	 * it may be better to ignore IPMI_UNKNOWN_ERR_COMPLETION_CODE
+	 * it may be better to igyesre IPMI_UNKNOWN_ERR_COMPLETION_CODE
 	 * return code
 	 */
 	if (rv && rv != IPMI_UNKNOWN_ERR_COMPLETION_CODE) {
@@ -425,11 +425,11 @@ static void ipmi_poweroff_cpi1(struct ipmi_user *user)
 static int ipmi_dell_chassis_detect(struct ipmi_user *user)
 {
 	const char ipmi_version_major = ipmi_version & 0xF;
-	const char ipmi_version_minor = (ipmi_version >> 4) & 0xF;
+	const char ipmi_version_miyesr = (ipmi_version >> 4) & 0xF;
 	const char mfr[3] = DELL_IANA_MFR_ID;
 	if (!memcmp(mfr, &mfg_id, sizeof(mfr)) &&
 	    ipmi_version_major <= 1 &&
-	    ipmi_version_minor < 5)
+	    ipmi_version_miyesr < 5)
 		return 1;
 	return 0;
 }
@@ -569,7 +569,7 @@ static void ipmi_po_new_smi(int if_num, struct device *device)
 	rv = ipmi_create_user(if_num, &ipmi_poweroff_handler, NULL,
 			      &ipmi_user);
 	if (rv) {
-		pr_err("could not create IPMI user, error %d\n", rv);
+		pr_err("could yest create IPMI user, error %d\n", rv);
 		return;
 	}
 
@@ -729,7 +729,7 @@ static void __exit ipmi_poweroff_cleanup(void)
 	if (ready) {
 		rv = ipmi_destroy_user(ipmi_user);
 		if (rv)
-			pr_err("could not cleanup the IPMI user: 0x%x\n", rv);
+			pr_err("could yest cleanup the IPMI user: 0x%x\n", rv);
 		pm_power_off = old_poweroff_func;
 	}
 }

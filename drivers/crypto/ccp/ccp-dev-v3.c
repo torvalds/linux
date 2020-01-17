@@ -345,7 +345,7 @@ static void ccp_irq_bh(unsigned long data)
 
 			cmd_q->int_rcvd = 1;
 
-			/* Acknowledge the interrupt and wake the kthread */
+			/* Ackyeswledge the interrupt and wake the kthread */
 			iowrite32(q_int, ccp->io_regs + IRQ_STATUS_REG);
 			wake_up_interruptible(&cmd_q->int_queue);
 		}
@@ -432,11 +432,11 @@ static int ccp_init(struct ccp_device *ccp)
 		dev_dbg(dev, "queue #%u available\n", i);
 	}
 	if (ccp->cmd_q_count == 0) {
-		dev_notice(dev, "no command queues available\n");
+		dev_yestice(dev, "yes command queues available\n");
 		ret = -EIO;
 		goto e_pool;
 	}
-	dev_notice(dev, "%u command queues available\n", ccp->cmd_q_count);
+	dev_yestice(dev, "%u command queues available\n", ccp->cmd_q_count);
 
 	/* Disable and clear interrupts until ready */
 	ccp_disable_queue_interrupts(ccp);

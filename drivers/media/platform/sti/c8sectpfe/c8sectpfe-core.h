@@ -20,8 +20,8 @@ struct channel_info {
 
 	int tsin_id;
 	bool invert_ts_clk;
-	bool serial_not_parallel;
-	bool async_not_sync;
+	bool serial_yest_parallel;
+	bool async_yest_sync;
 	int i2c;
 	int dvb_card;
 

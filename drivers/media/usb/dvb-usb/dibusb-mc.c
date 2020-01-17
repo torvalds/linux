@@ -23,7 +23,7 @@ static int dibusb_mc_probe(struct usb_interface *intf,
 				   NULL, adapter_nr);
 }
 
-/* do not change the order of the ID table */
+/* do yest change the order of the ID table */
 static struct usb_device_id dibusb_dib3000mc_table [] = {
 /* 00 */	{ USB_DEVICE(USB_VID_DIBCOM,		USB_PID_DIBCOM_MOD3001_COLD) },
 /* 01 */	{ USB_DEVICE(USB_VID_DIBCOM,		USB_PID_DIBCOM_MOD3001_WARM) },

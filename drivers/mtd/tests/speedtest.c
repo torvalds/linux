@@ -4,7 +4,7 @@
  *
  * Test read and write speed of a MTD device.
  *
- * Author: Adrian Hunter <adrian.hunter@nokia.com>
+ * Author: Adrian Hunter <adrian.hunter@yeskia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -194,12 +194,12 @@ static int __init mtd_speedtest_init(void)
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		pr_err("error: cannot get MTD device\n");
+		pr_err("error: canyest get MTD device\n");
 		return err;
 	}
 
 	if (mtd->writesize == 1) {
-		pr_info("not NAND flash, assume page size is 512 "
+		pr_info("yest NAND flash, assume page size is 512 "
 		       "bytes.\n");
 		pgsize = 512;
 	} else

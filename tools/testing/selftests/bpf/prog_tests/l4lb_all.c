@@ -52,15 +52,15 @@ static void test_l4lb(const char *file)
 				buf, &size, &retval, &duration);
 	CHECK(err || retval != 7/*TC_ACT_REDIRECT*/ || size != 54 ||
 	      *magic != MAGIC_VAL, "ipv4",
-	      "err %d errno %d retval %d size %d magic %x\n",
-	      err, errno, retval, size, *magic);
+	      "err %d erryes %d retval %d size %d magic %x\n",
+	      err, erryes, retval, size, *magic);
 
 	err = bpf_prog_test_run(prog_fd, NUM_ITER, &pkt_v6, sizeof(pkt_v6),
 				buf, &size, &retval, &duration);
 	CHECK(err || retval != 7/*TC_ACT_REDIRECT*/ || size != 74 ||
 	      *magic != MAGIC_VAL, "ipv6",
-	      "err %d errno %d retval %d size %d magic %x\n",
-	      err, errno, retval, size, *magic);
+	      "err %d erryes %d retval %d size %d magic %x\n",
+	      err, erryes, retval, size, *magic);
 
 	map_fd = bpf_find_map(__func__, obj, "stats");
 	if (map_fd < 0)
@@ -80,7 +80,7 @@ out:
 void test_l4lb_all(void)
 {
 	const char *file1 = "./test_l4lb.o";
-	const char *file2 = "./test_l4lb_noinline.o";
+	const char *file2 = "./test_l4lb_yesinline.o";
 
 	test_l4lb(file1);
 	test_l4lb(file2);

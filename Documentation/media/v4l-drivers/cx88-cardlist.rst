@@ -107,7 +107,7 @@ CX88 cards list
      - 7063:3000
 
    * - 23
-     - digitalnow DNTV Live! DVB-T
+     - digitalyesw DNTV Live! DVB-T
      - 17de:a8a6
 
    * - 24
@@ -183,7 +183,7 @@ CX88 cards list
      - 0070:9800, 0070:9802
 
    * - 42
-     - digitalnow DNTV Live! DVB-T Pro
+     - digitalyesw DNTV Live! DVB-T Pro
      - 1822:0025, 1822:0019
 
    * - 43
@@ -251,7 +251,7 @@ CX88 cards list
      - 11bd:0051
 
    * - 59
-     - DViCO FusionHDTV 5 PCI nano
+     - DViCO FusionHDTV 5 PCI nayes
      - 18ac:d530
 
    * - 60

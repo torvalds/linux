@@ -175,7 +175,7 @@ static ssize_t sof_dfsentry_write(struct file *file, const char __user *buffer,
 			goto out;
 		}
 
-		/* find the minimum. min() is not used to avoid warnings */
+		/* find the minimum. min() is yest used to avoid warnings */
 		if (ipc_duration_ms > MAX_IPC_FLOOD_DURATION_MS)
 			ipc_duration_ms = MAX_IPC_FLOOD_DURATION_MS;
 	} else {
@@ -184,7 +184,7 @@ static ssize_t sof_dfsentry_write(struct file *file, const char __user *buffer,
 			goto out;
 		}
 
-		/* find the minimum. min() is not used to avoid warnings */
+		/* find the minimum. min() is yest used to avoid warnings */
 		if (ipc_count > MAX_IPC_FLOOD_COUNT)
 			ipc_count = MAX_IPC_FLOOD_COUNT;
 	}
@@ -194,7 +194,7 @@ static ssize_t sof_dfsentry_write(struct file *file, const char __user *buffer,
 		dev_err_ratelimited(sdev->dev,
 				    "error: debugfs write failed to resume %d\n",
 				    ret);
-		pm_runtime_put_noidle(sdev->dev);
+		pm_runtime_put_yesidle(sdev->dev);
 		goto out;
 	}
 
@@ -255,7 +255,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		return -EINVAL;
 	if (pos >= size || !count)
 		return 0;
-	/* find the minimum. min() is not used since it adds sparse warnings */
+	/* find the minimum. min() is yest used since it adds sparse warnings */
 	if (count > size - pos)
 		count = size - pos;
 
@@ -297,7 +297,7 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		if (!pm_runtime_active(sdev->dev) &&
 		    dfse->access_type == SOF_DEBUGFS_ACCESS_D0_ONLY) {
 			dev_err(sdev->dev,
-				"error: debugfs entry cannot be read in DSP D3\n");
+				"error: debugfs entry canyest be read in DSP D3\n");
 			kfree(buf);
 			return -EINVAL;
 		}
@@ -431,7 +431,7 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 		err = snd_sof_debugfs_io_item(sdev, sdev->bar[map->bar] +
 					      map->offset, map->size,
 					      map->name, map->access_type);
-		/* errors are only due to memory allocation, not debugfs */
+		/* errors are only due to memory allocation, yest debugfs */
 		if (err < 0)
 			return err;
 	}
@@ -441,7 +441,7 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 	err = snd_sof_debugfs_buf_item(sdev, NULL, 0,
 				       "ipc_flood_count", 0666);
 
-	/* errors are only due to memory allocation, not debugfs */
+	/* errors are only due to memory allocation, yest debugfs */
 	if (err < 0)
 		return err;
 
@@ -449,7 +449,7 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 	err = snd_sof_debugfs_buf_item(sdev, NULL, 0,
 				       "ipc_flood_duration_ms", 0666);
 
-	/* errors are only due to memory allocation, not debugfs */
+	/* errors are only due to memory allocation, yest debugfs */
 	if (err < 0)
 		return err;
 #endif
@@ -470,12 +470,12 @@ void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
 	    (sof_core_debug & SOF_DBG_RETAIN_CTX)) {
 		/* should we prevent DSP entering D3 ? */
 		dev_info(sdev->dev, "info: preventing DSP entering D3 state to preserve context\n");
-		pm_runtime_get_noresume(sdev->dev);
+		pm_runtime_get_yesresume(sdev->dev);
 	}
 
 	/* dump vital information to the logs */
 	snd_sof_dsp_dbg_dump(sdev, SOF_DBG_REGS | SOF_DBG_MBOX);
 	snd_sof_ipc_dump(sdev);
-	snd_sof_trace_notify_for_error(sdev);
+	snd_sof_trace_yestify_for_error(sdev);
 }
 EXPORT_SYMBOL(snd_sof_handle_fw_exception);

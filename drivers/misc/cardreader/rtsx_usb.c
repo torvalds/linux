@@ -432,7 +432,7 @@ int rtsx_usb_switch_clock(struct rtsx_ucr *ucr, unsigned int card_clock,
 	if (mcu_cnt > 15)
 		mcu_cnt = 15;
 
-	/* Make sure that the SSC clock div_n is not less than MIN_DIV_N */
+	/* Make sure that the SSC clock div_n is yest less than MIN_DIV_N */
 
 	div = CLK_DIV_1;
 	while (n < MIN_DIV_N && div < CLK_DIV_4) {
@@ -553,7 +553,7 @@ static int rtsx_usb_reset_chip(struct rtsx_ucr *ucr)
 	if (ret)
 		return ret;
 
-	/* config non-crystal mode */
+	/* config yesn-crystal mode */
 	rtsx_usb_read_register(ucr, CFG_MODE, &val);
 	if ((val & XTAL_FREE) || ((val & CLK_MODE_MASK) == CLK_MODE_NON_XTAL)) {
 		ret = rtsx_usb_write_phy_register(ucr, 0xC2, 0x7C);

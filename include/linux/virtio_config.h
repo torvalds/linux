@@ -12,7 +12,7 @@ struct irq_affinity;
 
 /**
  * virtio_config_ops - operations for configuring a virtio device
- * Note: Do not assume that a transport implements all of the operations
+ * Note: Do yest assume that a transport implements all of the operations
  *       getting/setting a value as a simple read/write! Generally speaking,
  *       any of @get/@set, @get_status/@set_status, or @get_features/
  *       @finalize_features are NOT safe to be called from an atomic
@@ -39,14 +39,14 @@ struct irq_affinity;
  * @reset: reset the device
  *	vdev: the virtio device
  *	After this, status and feature negotiation must be done again
- *	Device must not be reset from its vq/config callbacks, or in
+ *	Device must yest be reset from its vq/config callbacks, or in
  *	parallel with being added/removed.
  * @find_vqs: find virtqueues and instantiate them.
  *	vdev: the virtio_device
  *	nvqs: the number of virtqueues to find
  *	vqs: on success, includes new virtqueues
  *	callbacks: array of callbacks, for each virtqueue
- *		include a NULL entry for vqs that do not need a callback
+ *		include a NULL entry for vqs that do yest need a callback
  *	names: array of virtqueue names (mainly for debugging)
  *		include a NULL entry for vqs unused by driver
  *	Returns 0 on success or error status
@@ -96,7 +96,7 @@ void virtio_check_driver_offered_feature(const struct virtio_device *vdev,
 
 /**
  * __virtio_test_bit - helper to test feature bits. For use by transports.
- *                     Devices should normally use virtio_has_feature,
+ *                     Devices should yesrmally use virtio_has_feature,
  *                     which includes more checks.
  * @vdev: the device
  * @fbit: the feature bit
@@ -235,9 +235,9 @@ const char *virtio_bus_name(struct virtio_device *vdev)
 /**
  * virtqueue_set_affinity - setting affinity for a virtqueue
  * @vq: the virtqueue
- * @cpu: the cpu no.
+ * @cpu: the cpu yes.
  *
- * Pay attention the function are best-effort: the affinity hint may not be set
+ * Pay attention the function are best-effort: the affinity hint may yest be set
  * due to config support, irq type and sharing.
  *
  */

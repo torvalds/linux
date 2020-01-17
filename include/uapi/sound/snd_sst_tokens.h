@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * snd_sst_tokens.h - Intel SST tokens definition
  *
@@ -25,10 +25,10 @@
  *                              tuples, bytes, short and words
  *
  * %SKL_TKN_U8_IN_PIN_TYPE:     Input pin type,
- *                              homogenous=0, heterogenous=1
+ *                              homogeyesus=0, heterogeyesus=1
  *
  * %SKL_TKN_U8_OUT_PIN_TYPE:    Output pin type,
- *                              homogenous=0, heterogenous=1
+ *                              homogeyesus=0, heterogeyesus=1
  * %SKL_TKN_U8_DYN_IN_PIN:      Configure Input pin dynamically
  *                              if true
  *

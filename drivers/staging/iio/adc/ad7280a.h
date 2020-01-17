@@ -30,7 +30,7 @@
 struct ad7280_platform_data {
 	unsigned int		acquisition_time;
 	unsigned int		conversion_averaging;
-	unsigned int		chain_last_alert_ignore;
+	unsigned int		chain_last_alert_igyesre;
 	bool			thermistor_term_en;
 };
 

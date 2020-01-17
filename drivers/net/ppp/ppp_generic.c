@@ -138,8 +138,8 @@ struct ppp {
 	int		nxchan;		/* next channel to send something on */
 	u32		nxseq;		/* next sequence number to send */
 	int		mrru;		/* MP: max reconst. receive unit */
-	u32		nextseq;	/* MP: seq no of next packet */
-	u32		minseq;		/* MP: min of most recent seqnos */
+	u32		nextseq;	/* MP: seq yes of next packet */
+	u32		minseq;		/* MP: min of most recent seqyess */
 	struct sk_buff_head mrq;	/* MP: receive reconstruction queue */
 #endif /* CONFIG_PPP_MULTILINK */
 #ifdef CONFIG_PPP_FILTER
@@ -236,7 +236,7 @@ struct ppp_net {
 
 /*
  * Maximum number of multilink fragments queued up.
- * This has to be large enough to cope with the maximum latency of
+ * This has to be large eyesugh to cope with the maximum latency of
  * the slowest channel relative to the others.  Strictly it should
  * depend on the number of channels and their characteristics.
  */
@@ -260,7 +260,7 @@ static void ppp_channel_push(struct channel *pch);
 static void ppp_receive_frame(struct ppp *ppp, struct sk_buff *skb,
 			      struct channel *pch);
 static void ppp_receive_error(struct ppp *ppp);
-static void ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb);
+static void ppp_receive_yesnmp_frame(struct ppp *ppp, struct sk_buff *skb);
 static struct sk_buff *ppp_decompress_frame(struct ppp *ppp,
 					    struct sk_buff *skb);
 #ifdef CONFIG_PPP_MULTILINK
@@ -381,7 +381,7 @@ static const int npindex_to_ethertype[NUM_NP] = {
  * Open instances of /dev/ppp can be in one of three states:
  * unattached, attached to a ppp unit, or attached to a ppp channel.
  */
-static int ppp_open(struct inode *inode, struct file *file)
+static int ppp_open(struct iyesde *iyesde, struct file *file)
 {
 	/*
 	 * This could (should?) be enforced by the permissions on /dev/ppp.
@@ -391,7 +391,7 @@ static int ppp_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ppp_release(struct inode *unused, struct file *file)
+static int ppp_release(struct iyesde *unused, struct file *file)
 {
 	struct ppp_file *pf = file->private_data;
 	struct ppp *ppp;
@@ -444,7 +444,7 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 			break;
 		if (pf->kind == INTERFACE) {
 			/*
-			 * Return 0 (EOF) on an interface that has no
+			 * Return 0 (EOF) on an interface that has yes
 			 * channels connected, unless it is looping
 			 * network traffic (demand mode).
 			 */
@@ -563,7 +563,7 @@ static struct bpf_prog *get_filter(struct sock_fprog *uprog)
 	if (!uprog->len)
 		return NULL;
 
-	/* uprog->len is unsigned short, so no overflow here */
+	/* uprog->len is unsigned short, so yes overflow here */
 	fprog.len = uprog->len;
 	fprog.filter = memdup_user(uprog->filter,
 				   uprog->len * sizeof(struct sock_filter));
@@ -632,8 +632,8 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	if (cmd == PPPIOCDETACH) {
 		/*
-		 * PPPIOCDETACH is no longer supported as it was heavily broken,
-		 * and is only known to have been used by pppd older than
+		 * PPPIOCDETACH is yes longer supported as it was heavily broken,
+		 * and is only kyeswn to have been used by pppd older than
 		 * ppp-2.4.2 (released November 2003).
 		 */
 		pr_warn_once("%s (%d) used obsolete PPPIOCDETACH ioctl\n",
@@ -672,7 +672,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	if (pf->kind != INTERFACE) {
 		/* can't happen */
-		pr_err("PPP: not interface or channel??\n");
+		pr_err("PPP: yest interface or channel??\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -789,7 +789,7 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				break;
 		} else {
 			ppp->npmode[i] = npi.mode;
-			/* we may be able to transmit more packets now (??) */
+			/* we may be able to transmit more packets yesw (??) */
 			netif_wake_queue(ppp->dev);
 		}
 		err = 0;
@@ -985,7 +985,7 @@ static const struct file_operations ppp_device_fops = {
 #endif
 	.open		= ppp_open,
 	.release	= ppp_release,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static __net_init int ppp_init_net(struct net *net)
@@ -1281,7 +1281,7 @@ static int __init ppp_init(void)
 		goto out_class;
 	}
 
-	/* not a big deal if we fail here :-) */
+	/* yest a big deal if we fail here :-) */
 	device_create(ppp_class, NULL, MKDEV(PPP_MAJOR, 0), NULL, "ppp");
 
 	return 0;
@@ -1483,7 +1483,7 @@ static void ppp_setup(struct net_device *dev)
  * Transmit-side routines.
  */
 
-/* Called to do any work queued up on the transmit side that can now be done */
+/* Called to do any work queued up on the transmit side that can yesw be done */
 static void __ppp_xmit_process(struct ppp *ppp, struct sk_buff *skb)
 {
 	ppp_xmit_lock(ppp);
@@ -1495,7 +1495,7 @@ static void __ppp_xmit_process(struct ppp *ppp, struct sk_buff *skb)
 		while (!ppp->xmit_pending &&
 		       (skb = skb_dequeue(&ppp->file.xq)))
 			ppp_send_frame(ppp, skb);
-		/* If there's no work left to do, tell the core net
+		/* If there's yes work left to do, tell the core net
 		   code that we can accept some more. */
 		if (!ppp->xmit_pending && !skb_peek(&ppp->file.xq))
 			netif_wake_queue(ppp->dev);
@@ -1543,7 +1543,7 @@ pad_compress_skb(struct ppp *ppp, struct sk_buff *skb)
 	new_skb = alloc_skb(new_skb_size, GFP_ATOMIC);
 	if (!new_skb) {
 		if (net_ratelimit())
-			netdev_err(ppp->dev, "PPP: no memory (comp pkt)\n");
+			netdev_err(ppp->dev, "PPP: yes memory (comp pkt)\n");
 		return NULL;
 	}
 	if (ppp->dev->hard_header_len > PPP_HDRLEN)
@@ -1560,15 +1560,15 @@ pad_compress_skb(struct ppp *ppp, struct sk_buff *skb)
 		skb_put(skb, len);
 		skb_pull(skb, 2);	/* pull off A/C bytes */
 	} else if (len == 0) {
-		/* didn't compress, or CCP not up yet */
+		/* didn't compress, or CCP yest up yet */
 		consume_skb(new_skb);
 		new_skb = skb;
 	} else {
 		/*
 		 * (len < 0)
-		 * MPPE requires that we do not send unencrypted
+		 * MPPE requires that we do yest send unencrypted
 		 * frames.  The compressor will return -1 if we
-		 * should drop the frame.  We cannot simply test
+		 * should drop the frame.  We canyest simply test
 		 * the compress_proto because MPPE and MPPC share
 		 * the same number.
 		 */
@@ -1605,7 +1605,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 			if (ppp->debug & 1)
 				netdev_printk(KERN_DEBUG, ppp->dev,
 					      "PPP: outbound frame "
-					      "not passed\n");
+					      "yest passed\n");
 			kfree_skb(skb);
 			return;
 		}
@@ -1631,7 +1631,7 @@ ppp_send_frame(struct ppp *ppp, struct sk_buff *skb)
 		new_skb = alloc_skb(skb->len + ppp->dev->hard_header_len - 2,
 				    GFP_ATOMIC);
 		if (!new_skb) {
-			netdev_err(ppp->dev, "PPP: no memory (VJ comp pkt)\n");
+			netdev_err(ppp->dev, "PPP: yes memory (VJ comp pkt)\n");
 			goto drop;
 		}
 		skb_reserve(new_skb, ppp->dev->hard_header_len - 2);
@@ -1716,14 +1716,14 @@ ppp_push(struct ppp *ppp)
 
 	list = &ppp->channels;
 	if (list_empty(list)) {
-		/* nowhere to send the packet, just drop it */
+		/* yeswhere to send the packet, just drop it */
 		ppp->xmit_pending = NULL;
 		kfree_skb(skb);
 		return;
 	}
 
 	if ((ppp->flags & SC_MULTILINK) == 0) {
-		/* not doing multilink: send it down the first channel */
+		/* yest doing multilink: send it down the first channel */
 		list = list->next;
 		pch = list_entry(list, struct channel, clist);
 
@@ -1777,11 +1777,11 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 	struct ppp_channel *chan;
 
 	totspeed = 0; /*total bitrate of the bundle*/
-	nfree = 0; /* # channels which have no packet already queued */
-	navail = 0; /* total # of usable channels (not deregistered) */
+	nfree = 0; /* # channels which have yes packet already queued */
+	navail = 0; /* total # of usable channels (yest deregistered) */
 	nzero = 0; /* number of channels with zero speed associated*/
 	totfree = 0; /*total # of channels available and
-				  *having no queued packets before
+				  *having yes queued packets before
 				  *starting the fragmentation*/
 
 	hdrlen = (ppp->flags & SC_MP_XSHORTSEQ)? MPHDRLEN_SSN: MPHDRLEN;
@@ -1817,7 +1817,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 	 * performance if we have a lot of channels.
 	 */
 	if (nfree == 0 || nfree < navail / 2)
-		return 0; /* can't take now, leave it in xmit_pending */
+		return 0; /* can't take yesw, leave it in xmit_pending */
 
 	/* Do protocol field compression */
 	p = skb->data;
@@ -1885,7 +1885,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 		}
 
 		/*
-		*if the channel speed is not set divide
+		*if the channel speed is yest set divide
 		*the packet evenly among the free channels;
 		*otherwise divide it according to the speed
 		*of the channel we are going to transmit on
@@ -1918,7 +1918,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 		if ((nfree <= 0) || (flen > len))
 			flen = len;
 		/*
-		 *it is not worth to tx on slow channels:
+		 *it is yest worth to tx on slow channels:
 		 *in that case from the resulting flen according to the
 		 *above formula will be equal or less than zero.
 		 *Skip the channel in this case
@@ -1943,7 +1943,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 			bits |= E;
 		frag = alloc_skb(flen + hdrlen + (flen == 0), GFP_ATOMIC);
 		if (!frag)
-			goto noskb;
+			goto yesskb;
 		q = skb_put(frag, flen + hdrlen);
 
 		/* make the MP header */
@@ -1976,10 +1976,10 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 
 	return 1;
 
- noskb:
+ yesskb:
 	spin_unlock(&pch->downl);
 	if (ppp->debug & 1)
-		netdev_err(ppp->dev, "PPP: no memory (fragment)\n");
+		netdev_err(ppp->dev, "PPP: yes memory (fragment)\n");
 	++ppp->dev->stats.tx_errors;
 	++ppp->nxseq;
 	return 1;	/* abandon the frame */
@@ -2075,7 +2075,7 @@ static void __ppp_decompress_proto(struct sk_buff *skb)
  * sure that skb data room is sufficient for Protocol field, before and after
  * decompression.
  *
- * Return: true - decompressed successfully, false - not enough room in skb.
+ * Return: true - decompressed successfully, false - yest eyesugh room in skb.
  */
 static bool ppp_decompress_proto(struct sk_buff *skb)
 {
@@ -2085,7 +2085,7 @@ static bool ppp_decompress_proto(struct sk_buff *skb)
 
 	__ppp_decompress_proto(skb);
 
-	/* Protocol field should occupy 2 bytes when not compressed */
+	/* Protocol field should occupy 2 bytes when yest compressed */
 	return pskb_may_pull(skb, 2);
 }
 
@@ -2156,7 +2156,7 @@ ppp_input_error(struct ppp_channel *chan, int code)
 static void
 ppp_receive_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 {
-	/* note: a 0-length skb is used as an error indication */
+	/* yeste: a 0-length skb is used as an error indication */
 	if (skb->len > 0) {
 		skb_checksum_complete_unset(skb);
 #ifdef CONFIG_PPP_MULTILINK
@@ -2165,7 +2165,7 @@ ppp_receive_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 			ppp_receive_mp_frame(ppp, skb, pch);
 		else
 #endif /* CONFIG_PPP_MULTILINK */
-			ppp_receive_nonmp_frame(ppp, skb);
+			ppp_receive_yesnmp_frame(ppp, skb);
 	} else {
 		kfree_skb(skb);
 		ppp_receive_error(ppp);
@@ -2181,7 +2181,7 @@ ppp_receive_error(struct ppp *ppp)
 }
 
 static void
-ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
+ppp_receive_yesnmp_frame(struct ppp *ppp, struct sk_buff *skb)
 {
 	struct sk_buff *ns;
 	int proto, len, npi;
@@ -2212,7 +2212,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 			/* copy to a new sk_buff with more tailroom */
 			ns = dev_alloc_skb(skb->len + 128);
 			if (!ns) {
-				netdev_err(ppp->dev, "PPP: no memory "
+				netdev_err(ppp->dev, "PPP: yes memory "
 					   "(VJ decomp)\n");
 				goto err;
 			}
@@ -2265,7 +2265,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 
 	npi = proto_to_npindex(proto);
 	if (npi < 0) {
-		/* control or unknown frame - pass it to pppd */
+		/* control or unkyeswn frame - pass it to pppd */
 		skb_queue_tail(&ppp->file.rq, skb);
 		/* limit queue length by dropping old frames */
 		while (ppp->file.rq.qlen > PPP_MAX_RQLEN &&
@@ -2291,7 +2291,7 @@ ppp_receive_nonmp_frame(struct ppp *ppp, struct sk_buff *skb)
 				if (ppp->debug & 1)
 					netdev_printk(KERN_DEBUG, ppp->dev,
 						      "PPP: inbound frame "
-						      "not passed\n");
+						      "yest passed\n");
 				kfree_skb(skb);
 				return;
 			}
@@ -2352,7 +2352,7 @@ ppp_decompress_frame(struct ppp *ppp, struct sk_buff *skb)
 		ns = dev_alloc_skb(obuff_size);
 		if (!ns) {
 			netdev_err(ppp->dev, "ppp_decompress_frame: "
-				   "no memory\n");
+				   "yes memory\n");
 			goto err;
 		}
 		/* the decompressor still expects the A/C bytes in the hdr */
@@ -2405,7 +2405,7 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 	int mphdrlen = (ppp->flags & SC_MP_SHORTSEQ)? MPHDRLEN_SSN: MPHDRLEN;
 
 	if (!pskb_may_pull(skb, mphdrlen + 1) || ppp->mrru == 0)
-		goto err;		/* no good, throw it away */
+		goto err;		/* yes good, throw it away */
 
 	/* Decode sequence number and begin/end bits */
 	if (ppp->flags & SC_MP_SHORTSEQ) {
@@ -2420,7 +2420,7 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 
 	/*
 	 * Do protocol ID decompression on the first fragment of each packet.
-	 * We have to do that here, because ppp_receive_nonmp_frame() expects
+	 * We have to do that here, because ppp_receive_yesnmp_frame() expects
 	 * decompressed protocol field.
 	 */
 	if (PPP_MP_CB(skb)->BEbits & B)
@@ -2452,7 +2452,7 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 	/*
 	 * Reevaluate minseq, the minimum over all channels of the
 	 * last sequence number received on each channel.  Because of
-	 * the increasing sequence number rule, we know that any fragment
+	 * the increasing sequence number rule, we kyesw that any fragment
 	 * before `minseq' which hasn't arrived is never going to arrive.
 	 * The list of channels can't change because we have the receive
 	 * side of the ppp unit locked.
@@ -2478,7 +2478,7 @@ ppp_receive_mp_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 	/* Pull completed packets off the queue and receive them. */
 	while ((skb = ppp_mp_reconstruct(ppp))) {
 		if (pskb_may_pull(skb, 2))
-			ppp_receive_nonmp_frame(ppp, skb);
+			ppp_receive_yesnmp_frame(ppp, skb);
 		else {
 			++ppp->dev->stats.rx_length_errors;
 			kfree_skb(skb);
@@ -2530,14 +2530,14 @@ ppp_mp_reconstruct(struct ppp *ppp)
 	struct sk_buff *skb = NULL;
 	int lost = 0, len = 0;
 
-	if (ppp->mrru == 0)	/* do nothing until mrru is set */
+	if (ppp->mrru == 0)	/* do yesthing until mrru is set */
 		return NULL;
 	head = __skb_peek(list);
 	tail = NULL;
 	skb_queue_walk_safe(list, p, tmp) {
 	again:
 		if (seq_before(PPP_MP_CB(p)->sequence, seq)) {
-			/* this can't happen, anyway ignore the skb */
+			/* this can't happen, anyway igyesre the skb */
 			netdev_err(ppp->dev, "ppp_mp_reconstruct bad "
 				   "seq %u < %u\n",
 				   PPP_MP_CB(p)->sequence, seq);
@@ -2566,10 +2566,10 @@ ppp_mp_reconstruct(struct ppp *ppp)
 		}
 
 		/*
-		 * At this point we know that all the fragments from
+		 * At this point we kyesw that all the fragments from
 		 * ppp->nextseq to seq are either present or lost.
-		 * Also, there are no complete packets in the queue
-		 * that have no missing fragments and end before this
+		 * Also, there are yes complete packets in the queue
+		 * that have yes missing fragments and end before this
 		 * fragment.
 		 */
 
@@ -2804,7 +2804,7 @@ ppp_unregister_channel(struct ppp_channel *chan)
 
 /*
  * Callback from a channel when it can accept more to transmit.
- * This should be called at BH/softirq level, not interrupt level.
+ * This should be called at BH/softirq level, yest interrupt level.
  */
 void
 ppp_output_wakeup(struct ppp_channel *chan)
@@ -2897,7 +2897,7 @@ ppp_ccp_peek(struct ppp *ppp, struct sk_buff *skb, int inbound)
 	int len;
 
 	if (!pskb_may_pull(skb, CCP_HDRLEN + 2))
-		return;	/* no header */
+		return;	/* yes header */
 	dp = skb->data + 2;
 
 	switch (CCP_CODE(dp)) {
@@ -3170,7 +3170,7 @@ init_ppp_file(struct ppp_file *pf, int kind)
 
 /*
  * Free the memory used by a ppp unit.  This is only called once
- * there are no channels connected to the unit and no file structs
+ * there are yes channels connected to the unit and yes file structs
  * that reference the unit.
  */
 static void ppp_destroy_interface(struct ppp *ppp)

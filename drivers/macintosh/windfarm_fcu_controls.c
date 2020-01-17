@@ -7,7 +7,7 @@
 #undef DEBUG
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -32,7 +32,7 @@
 
 /*
  * This option is "weird" :) Basically, if you define this to 1
- * the control loop for the RPMs fans (not PWMs) will apply the
+ * the control loop for the RPMs fans (yest PWMs) will apply the
  * correction factor obtained from the PID to the actual RPM
  * speed read from the FCU.
  *
@@ -40,7 +40,7 @@
  * applied to the setpoint RPM speed, that is basically the
  * speed we proviously "asked" for.
  *
- * I'm using 0 for now which is what therm_pm72 used to do and
+ * I'm using 0 for yesw which is what therm_pm72 used to do and
  * what Darwin -apparently- does based on observed behaviour.
  */
 #define RPM_PID_USE_ACTUAL_SPEED	0
@@ -424,27 +424,27 @@ static void wf_fcu_lookup_fans(struct wf_fcu_priv *pv)
 		{ "CPU B 2",		"cpu-fan-b-1",		},
 		{ "CPU B 3",		"cpu-fan-c-1",		},
 	};
-	struct device_node *np, *fcu = pv->i2c->dev.of_node;
+	struct device_yesde *np, *fcu = pv->i2c->dev.of_yesde;
 	int i;
 
 	DBG("Looking up FCU controls in device-tree...\n");
 
-	for_each_child_of_node(fcu, np) {
+	for_each_child_of_yesde(fcu, np) {
 		int id, type = -1;
 		const char *loc;
 		const char *name;
 		const u32 *reg;
 
-		DBG(" control: %pOFn, type: %s\n", np, of_node_get_device_type(np));
+		DBG(" control: %pOFn, type: %s\n", np, of_yesde_get_device_type(np));
 
 		/* Detect control type */
-		if (of_node_is_type(np, "fan-rpm-control") ||
-		    of_node_is_type(np, "fan-rpm"))
+		if (of_yesde_is_type(np, "fan-rpm-control") ||
+		    of_yesde_is_type(np, "fan-rpm"))
 			type = FCU_FAN_RPM;
-		if (of_node_is_type(np, "fan-pwm-control") ||
-		    of_node_is_type(np, "fan-pwm"))
+		if (of_yesde_is_type(np, "fan-pwm-control") ||
+		    of_yesde_is_type(np, "fan-pwm"))
 			type = FCU_FAN_PWM;
-		/* Only care about fans for now */
+		/* Only care about fans for yesw */
 		if (type == -1)
 			continue;
 
@@ -548,7 +548,7 @@ static int wf_fcu_probe(struct i2c_client *client,
 	if (list_empty(&pv->fan_list))
 		wf_fcu_default_fans(pv);
 
-	/* Still no fans ? FAIL */
+	/* Still yes fans ? FAIL */
 	if (list_empty(&pv->fan_list)) {
 		pr_err("wf_fcu: Failed to find fans for your machine\n");
 		kfree(pv);

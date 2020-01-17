@@ -163,12 +163,12 @@
 
 /* LLI == Linked List Item; aka DMA buffer descriptor */
 struct at_lli {
-	/* values that are not changed by hardware */
+	/* values that are yest changed by hardware */
 	dma_addr_t	saddr;
 	dma_addr_t	daddr;
 	/* value that may get written back: */
 	u32		ctrla;
-	/* more values that are not changed by hardware */
+	/* more values that are yest changed by hardware */
 	u32		ctrlb;
 	dma_addr_t	dscr;	/* chain to next lli */
 };
@@ -177,7 +177,7 @@ struct at_lli {
  * struct at_desc - software descriptor
  * @at_lli: hardware lli structure
  * @txd: support for the async_tx api
- * @desc_node: node on the channed descriptors list
+ * @desc_yesde: yesde on the channed descriptors list
  * @len: descriptor byte count
  * @total_len: total transaction byte count
  */
@@ -188,7 +188,7 @@ struct at_desc {
 	/* THEN values for driver housekeeping */
 	struct list_head		tx_list;
 	struct dma_async_tx_descriptor	txd;
-	struct list_head		desc_node;
+	struct list_head		desc_yesde;
 	size_t				len;
 	size_t				total_len;
 

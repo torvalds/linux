@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * An hwmon driver for the Analog Devices AD7416/17/18
- * Copyright (C) 2006-07 Tower Technologies
+ * Copyright (C) 2006-07 Tower Techyeslogies
  *
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
@@ -219,7 +219,7 @@ static void ad7418_init_client(struct i2c_client *client)
 
 	int reg = i2c_smbus_read_byte_data(client, AD7418_REG_CONF);
 	if (reg < 0) {
-		dev_err(&client->dev, "cannot read configuration register\n");
+		dev_err(&client->dev, "canyest read configuration register\n");
 	} else {
 		dev_info(&client->dev, "configuring for mode 1\n");
 		i2c_smbus_write_byte_data(client, AD7418_REG_CONF, reg & 0xfe);
@@ -251,7 +251,7 @@ static int ad7418_probe(struct i2c_client *client,
 
 	mutex_init(&data->lock);
 	data->client = client;
-	if (dev->of_node)
+	if (dev->of_yesde)
 		data->type = (enum chips)of_device_get_match_data(dev);
 	else
 		data->type = id->driver_data;

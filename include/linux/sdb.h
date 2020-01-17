@@ -23,7 +23,7 @@
  *
  * device_id is vendor-assigned; version is device-specific,
  * date is hex (e.g 0x20120501), name is UTF-8, blank-filled
- * and not terminated with a 0 byte.
+ * and yest terminated with a 0 byte.
  */
 struct sdb_product {
 	uint64_t		vendor_id;	/* 0x18..0x1f */
@@ -80,7 +80,7 @@ struct sdb_interconnect {
 struct sdb_device {
 	uint16_t		abi_class;	/* 0x00-0x01 */
 	uint8_t			abi_ver_major;	/* 0x02 */
-	uint8_t			abi_ver_minor;	/* 0x03 */
+	uint8_t			abi_ver_miyesr;	/* 0x03 */
 	uint32_t		bus_specific;	/* 0x04-0x07 */
 	struct sdb_component	sdb_component;	/* 0x08-0x3f */
 };
@@ -97,7 +97,7 @@ struct sdb_bridge {
 /* Type 0x80: integration
  *
  * all types with bit 7 set are meta-information, so
- * software can ignore the types it doesn't know. Here we
+ * software can igyesre the types it doesn't kyesw. Here we
  * just provide product information for an aggregate device
  */
 struct sdb_integration {
@@ -107,7 +107,7 @@ struct sdb_integration {
 
 /* Type 0x81: Top module repository url
  *
- * again, an informative field that software can ignore
+ * again, an informative field that software can igyesre
  */
 struct sdb_repo_url {
 	uint8_t			repo_url[63];	/* 0x00-0x3e */
@@ -132,7 +132,7 @@ struct sdb_synthesis {
  *
  * this allows keeping empty slots during development,
  * so they can be filled later with minimal efforts and
- * no misleading description is ever shipped -- hopefully.
+ * yes misleading description is ever shipped -- hopefully.
  * It can also be used to pad a table to a desired length.
  */
 struct sdb_empty {

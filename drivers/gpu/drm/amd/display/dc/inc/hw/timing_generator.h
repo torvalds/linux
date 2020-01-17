@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -34,7 +34,7 @@ struct dc_bios;
 struct crtc_position {
 	int32_t vertical_count;
 	int32_t horizontal_count;
-	int32_t nominal_vcount;
+	int32_t yesminal_vcount;
 };
 
 struct dcp_gsl_params {
@@ -163,7 +163,7 @@ struct timing_generator_funcs {
 				struct crtc_position *position);
 
 	uint32_t (*get_frame_count)(struct timing_generator *tg);
-	void (*get_scanoutpos)(
+	void (*get_scayesutpos)(
 		struct timing_generator *tg,
 		uint32_t *v_blank_start,
 		uint32_t *v_blank_end,
@@ -247,14 +247,14 @@ struct timing_generator_funcs {
 
 	/**
 	 * Configure CRCs for the given timing generator. Return false if TG is
-	 * not on.
+	 * yest on.
 	 */
 	bool (*configure_crc)(struct timing_generator *tg,
 			       const struct crc_params *params);
 
 	/**
 	 * Get CRCs for the given timing generator. Return false if CRCs are
-	 * not enabled (via configure_crc).
+	 * yest enabled (via configure_crc).
 	 */
 	bool (*get_crc)(struct timing_generator *tg,
 			uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);

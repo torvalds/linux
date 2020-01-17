@@ -219,7 +219,7 @@ static int bnep_rx_control(struct bnep_session *s, void *data, int len)
 	case BNEP_SETUP_CONN_RSP:
 	case BNEP_FILTER_NET_TYPE_RSP:
 	case BNEP_FILTER_MULTI_ADDR_RSP:
-		/* Ignore these for now */
+		/* Igyesre these for yesw */
 		break;
 
 	case BNEP_FILTER_NET_TYPE_SET:
@@ -274,7 +274,7 @@ static int bnep_rx_extension(struct bnep_session *s, struct sk_buff *skb)
 			break;
 
 		default:
-			/* Unknown extension, skip it. */
+			/* Unkyeswn extension, skip it. */
 			break;
 		}
 
@@ -362,7 +362,7 @@ static int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	}
 
 	/* We have to alloc new skb and copy data here :(. Because original skb
-	 * may not be modified and because of the alignment requirements. */
+	 * may yest be modified and because of the alignment requirements. */
 	nskb = alloc_skb(2 + ETH_HLEN + skb->len, GFP_KERNEL);
 	if (!nskb) {
 		dev->stats.rx_dropped++;
@@ -605,7 +605,7 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	s->msg.msg_flags = MSG_NOSIGNAL;
 
 #ifdef CONFIG_BT_BNEP_MC_FILTER
-	/* Set default mc filter to not filter out any mc addresses
+	/* Set default mc filter to yest filter out any mc addresses
 	 * as defined in the BNEP specification (revision 0.95a)
 	 * http://grouper.ieee.org/groups/802/15/Bluetooth/BNEP.pdf
 	 */

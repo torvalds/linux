@@ -2,7 +2,7 @@
 /*
  * SPCA506 chip based cameras function
  * M Xhaard 15/04/2004 based on different work Mark Taylor and others
- * and my own snoopy file on a pv-321c donate by a german compagny
+ * and my own syesopy file on a pv-321c donate by a german compagny
  *                "Firma Frank Gmbh" from  Saarbruecken
  *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
@@ -20,7 +20,7 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	char norme;
+	char yesrme;
 	char channel;
 };
 
@@ -108,7 +108,7 @@ static void spca506_WriteI2c(struct gspca_dev *gspca_dev, __u16 valeur,
 }
 
 static void spca506_SetNormeInput(struct gspca_dev *gspca_dev,
-				 __u16 norme,
+				 __u16 yesrme,
 				 __u16 channel)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -122,7 +122,7 @@ static void spca506_SetNormeInput(struct gspca_dev *gspca_dev,
 	/* NTSC bit0 -> 1(525 l) PAL SECAM bit0 -> 0 (625 l) */
 	/* Composite channel bit1 -> 1 S-video bit 1 -> 0 */
 	/* and exclude SAA7113 reserved channel set default 0 otherwise */
-	if (norme & V4L2_STD_NTSC)
+	if (yesrme & V4L2_STD_NTSC)
 		setbit0 = 0x01;
 	if (channel == 4 || channel == 5 || channel > 9)
 		channel = 0;
@@ -132,34 +132,34 @@ static void spca506_SetNormeInput(struct gspca_dev *gspca_dev,
 	reg_w(gspca_dev->dev, 0x08, videomask, 0x0000);
 	spca506_WriteI2c(gspca_dev, (0xc0 | (channel & 0x0F)), 0x02);
 
-	if (norme & V4L2_STD_NTSC)
+	if (yesrme & V4L2_STD_NTSC)
 		spca506_WriteI2c(gspca_dev, 0x33, 0x0e);
 					/* Chrominance Control NTSC N */
-	else if (norme & V4L2_STD_SECAM)
+	else if (yesrme & V4L2_STD_SECAM)
 		spca506_WriteI2c(gspca_dev, 0x53, 0x0e);
 					/* Chrominance Control SECAM */
 	else
 		spca506_WriteI2c(gspca_dev, 0x03, 0x0e);
 					/* Chrominance Control PAL BGHIV */
 
-	sd->norme = norme;
+	sd->yesrme = yesrme;
 	sd->channel = channel;
 	gspca_dbg(gspca_dev, D_STREAM, "Set Video Byte to 0x%2x\n", videomask);
 	gspca_dbg(gspca_dev, D_STREAM, "Set Norme: %08x Channel %d",
-		  norme, channel);
+		  yesrme, channel);
 }
 
 static void spca506_GetNormeInput(struct gspca_dev *gspca_dev,
-				  __u16 *norme, __u16 *channel)
+				  __u16 *yesrme, __u16 *channel)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	/* Read the register is not so good value change so
+	/* Read the register is yest so good value change so
 	   we use your own copy in spca50x struct */
-	*norme = sd->norme;
+	*yesrme = sd->yesrme;
 	*channel = sd->channel;
 	gspca_dbg(gspca_dev, D_STREAM, "Get Norme: %d Channel %d\n",
-		  *norme, *channel);
+		  *yesrme, *channel);
 }
 
 static void spca506_Setsize(struct gspca_dev *gspca_dev, __u16 code,
@@ -317,7 +317,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
-	__u16 norme;
+	__u16 yesrme;
 	__u16 channel;
 
 	/**************************************/
@@ -439,8 +439,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x03, 0x12, 0x0000);
 	reg_r(gspca_dev, 0x04, 0x0001, 2);
 	gspca_dbg(gspca_dev, D_STREAM, "webcam started\n");
-	spca506_GetNormeInput(gspca_dev, &norme, &channel);
-	spca506_SetNormeInput(gspca_dev, norme, channel);
+	spca506_GetNormeInput(gspca_dev, &yesrme, &channel);
+	spca506_SetNormeInput(gspca_dev, yesrme, channel);
 	return 0;
 }
 
@@ -550,7 +550,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_HUE, 0, 255, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

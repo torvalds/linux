@@ -7,17 +7,17 @@
 # Copyright © 2008 IBM Corporation
 #
 
-awk	'BEGIN { num = -1; }	# Ignore the beginning of the file
+awk	'BEGIN { num = -1; }	# Igyesre the beginning of the file
 	/^#/ { next; }
 	/^[ \t]*$/ { next; }
 	/^START_TABLE/ { num = 0; next; }
 	/^END_TABLE/ {
 		if (num != $2) {
-			printf "Error: NR_syscalls (%s) is not one more than the last syscall (%s)\n",
+			printf "Error: NR_syscalls (%s) is yest one more than the last syscall (%s)\n",
 				$2, num - 1;
 			exit(1);
 		}
-		num = -1;	# Ignore the rest of the file
+		num = -1;	# Igyesre the rest of the file
 	}
 	{
 		if (num == -1) next;

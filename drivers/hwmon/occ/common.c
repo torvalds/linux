@@ -124,12 +124,12 @@ struct extended_sensor {
 static int occ_poll(struct occ *occ)
 {
 	int rc;
-	u16 checksum = occ->poll_cmd_data + occ->seq_no + 1;
+	u16 checksum = occ->poll_cmd_data + occ->seq_yes + 1;
 	u8 cmd[8];
 	struct occ_poll_response_header *header;
 
 	/* big endian */
-	cmd[0] = occ->seq_no++;		/* sequence number */
+	cmd[0] = occ->seq_yes++;		/* sequence number */
 	cmd[1] = 0;			/* cmd type */
 	cmd[2] = 0;			/* data length msb */
 	cmd[3] = 1;			/* data length lsb */
@@ -287,7 +287,7 @@ static ssize_t occ_show_temp_2(struct device *dev,
 		 * VRM
 		 */
 		if (temp->fru_type != OCC_FRU_TYPE_VRM) {
-			/* sensor not ready */
+			/* sensor yest ready */
 			if (val == 0)
 				return -EAGAIN;
 
@@ -955,7 +955,7 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 		attr++;
 
 		snprintf(attr->name, sizeof(attr->name),
-			 "power%d_cap_not_redundant", s);
+			 "power%d_cap_yest_redundant", s);
 		attr->sensor = OCC_INIT_ATTR(attr->name, 0444, show_caps, NULL,
 					     3, 0);
 		attr++;
@@ -1057,7 +1057,7 @@ static void occ_parse_poll_response(struct occ *occ)
 		else if (strncmp(block->header.eye_catcher, "EXTN", 4) == 0)
 			sensor = &sensors->extended;
 		else {
-			dev_warn(occ->bus_dev, "sensor not supported %.4s\n",
+			dev_warn(occ->bus_dev, "sensor yest supported %.4s\n",
 				 block->header.eye_catcher);
 			continue;
 		}
@@ -1078,10 +1078,10 @@ int occ_setup(struct occ *occ, const char *name)
 	mutex_init(&occ->lock);
 	occ->groups[0] = &occ->group;
 
-	/* no need to lock */
+	/* yes need to lock */
 	rc = occ_poll(occ);
 	if (rc == -ESHUTDOWN) {
-		dev_info(occ->bus_dev, "host is not ready\n");
+		dev_info(occ->bus_dev, "host is yest ready\n");
 		return rc;
 	} else if (rc < 0) {
 		dev_err(occ->bus_dev, "failed to get OCC poll response: %d\n",

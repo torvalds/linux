@@ -14,7 +14,7 @@
  *					Centralised disconnection processing.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <net/sock.h>

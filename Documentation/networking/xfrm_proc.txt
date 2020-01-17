@@ -15,7 +15,7 @@ as part of the linux private MIB.  These counters can be viewed in
 Inbound errors
 ~~~~~~~~~~~~~~
 XfrmInError:
-	All errors which is not matched others
+	All errors which is yest matched others
 XfrmInBufferError:
 	No buffer is left
 XfrmInHdrError:
@@ -43,7 +43,7 @@ XfrmInTmplMismatch:
 	e.g. Inbound SAs are correct but SP rule is wrong
 XfrmInNoPols:
 	No policy is found for states
-	e.g. Inbound SAs are correct but no SP is found
+	e.g. Inbound SAs are correct but yes SP is found
 XfrmInPolBlock:
 	Policy discards
 XfrmInPolError:
@@ -51,12 +51,12 @@ XfrmInPolError:
 XfrmAcquireError:
 	State hasn't been fully acquired before use
 XfrmFwdHdrError:
-	Forward routing of a packet is not allowed
+	Forward routing of a packet is yest allowed
 
 Outbound errors
 ~~~~~~~~~~~~~~~
 XfrmOutError:
-	All errors which is not matched others
+	All errors which is yest matched others
 XfrmOutBundleGenError:
 	Bundle generation error
 XfrmOutBundleCheckError:

@@ -136,7 +136,7 @@ extern int s3c_gpio_cfgpin_range(unsigned int start, unsigned int nr,
  *
  * This function sets the state of the pull-{up,down} resistor for the
  * specified pin. It will return 0 if successful, or a negative error
- * code if the pin cannot support the requested pull setting.
+ * code if the pin canyest support the requested pull setting.
  *
  * @pull is one of S3C_GPIO_PULL_NONE, S3C_GPIO_PULL_DOWN or S3C_GPIO_PULL_UP.
 */
@@ -169,7 +169,7 @@ extern samsung_gpio_pull_t s3c_gpio_getpull(unsigned int pin);
 extern int s3c_gpio_cfgall_range(unsigned int start, unsigned int nr,
 				 unsigned int cfg, samsung_gpio_pull_t pull);
 
-static inline int s3c_gpio_cfgrange_nopull(unsigned int pin, unsigned int size,
+static inline int s3c_gpio_cfgrange_yespull(unsigned int pin, unsigned int size,
 					   unsigned int cfg)
 {
 	return s3c_gpio_cfgall_range(pin, size, cfg, S3C_GPIO_PULL_NONE);

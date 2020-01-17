@@ -203,7 +203,7 @@ static const struct pinctrl_ops max77620_pinctrl_ops = {
 	.get_groups_count = max77620_pinctrl_get_groups_count,
 	.get_group_name = max77620_pinctrl_get_group_name,
 	.get_group_pins = max77620_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -308,7 +308,7 @@ static int max77620_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 
 	default:
-		dev_err(dev, "Properties not supported\n");
+		dev_err(dev, "Properties yest supported\n");
 		return -ENOTSUPP;
 	}
 
@@ -521,7 +521,7 @@ static int max77620_pinconf_set(struct pinctrl_dev *pctldev,
 			break;
 
 		default:
-			dev_err(dev, "Properties not supported\n");
+			dev_err(dev, "Properties yest supported\n");
 			return -ENOTSUPP;
 		}
 	}
@@ -556,7 +556,7 @@ static int max77620_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mpci->dev = &pdev->dev;
-	mpci->dev->of_node = pdev->dev.parent->of_node;
+	mpci->dev->of_yesde = pdev->dev.parent->of_yesde;
 	mpci->rmap = max77620->rmap;
 
 	mpci->pins = max77620_pins_desc;

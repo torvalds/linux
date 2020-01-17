@@ -451,7 +451,7 @@ static int denali_hw_ecc_fixup(struct nand_chip *chip,
 	if (ecc_cor & ECC_COR_INFO__UNCOR_ERR) {
 		/*
 		 * This flag is set when uncorrectable error occurs at least in
-		 * one ECC sector.  We can not know "how many sectors", or
+		 * one ECC sector.  We can yest kyesw "how many sectors", or
 		 * "which sector(s)".  We need erase-page check for all sectors.
 		 */
 		*uncor_ecc_flags = GENMASK(chip->ecc.steps - 1, 0);
@@ -463,7 +463,7 @@ static int denali_hw_ecc_fixup(struct nand_chip *chip,
 	/*
 	 * The register holds the maximum of per-sector corrected bitflips.
 	 * This is suitable for the return value of the ->read_page() callback.
-	 * Unfortunately, we can not know the total number of corrected bits in
+	 * Unfortunately, we can yest kyesw the total number of corrected bits in
 	 * the page.  Increase the stats by max_bitflips. (compromised solution)
 	 */
 	ecc_stats->corrected += max_bitflips;
@@ -511,7 +511,7 @@ static int denali_sw_ecc_fixup(struct nand_chip *chip,
 		} else if (err_byte < ecc_size) {
 			/*
 			 * If err_byte is larger than ecc_size, means error
-			 * happened in OOB, so we ignore it. It's no need for
+			 * happened in OOB, so we igyesre it. It's yes need for
 			 * us to correct it err_device is represented the NAND
 			 * error bits are happened in if there are more than
 			 * one NAND connected.
@@ -828,7 +828,7 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 	 * tCCS, tWHR -> WE_2_RE
 	 *
 	 * With WE_2_RE properly set, the Denali controller automatically takes
-	 * care of the delay; the driver need not set NAND_WAIT_TCCS.
+	 * care of the delay; the driver need yest set NAND_WAIT_TCCS.
 	 */
 	we_2_re = DIV_ROUND_UP(max(timings->tCCS_min, timings->tWHR_min), t_x);
 	we_2_re = min_t(int, we_2_re, TWHR2_AND_WE_2_RE__WE_2_RE);
@@ -944,13 +944,13 @@ static int denali_multidev_fixup(struct nand_chip *chip)
 	 * Support for multi device:
 	 * When the IP configuration is x16 capable and two x8 chips are
 	 * connected in parallel, DEVICES_CONNECTED should be set to 2.
-	 * In this case, the core framework knows nothing about this fact,
+	 * In this case, the core framework kyesws yesthing about this fact,
 	 * so we should tell it the _logical_ pagesize and anything necessary.
 	 */
 	denali->devs_per_cs = ioread32(denali->reg + DEVICES_CONNECTED);
 
 	/*
-	 * On some SoCs, DEVICES_CONNECTED is not auto-detected.
+	 * On some SoCs, DEVICES_CONNECTED is yest auto-detected.
 	 * For those, DEVICES_CONNECTED is left to 0.  Set 1 if it is the case.
 	 */
 	if (denali->devs_per_cs == 0) {
@@ -1182,7 +1182,7 @@ int denali_chip_init(struct denali_controller *denali,
 			}
 		}
 
-		list_for_each_entry(dchip2, &denali->chips, node) {
+		list_for_each_entry(dchip2, &denali->chips, yesde) {
 			for (j = 0; j < dchip2->nsels; j++) {
 				if (bank == dchip2->sels[j].bank) {
 					dev_err(denali->dev,
@@ -1197,7 +1197,7 @@ int denali_chip_init(struct denali_controller *denali,
 	mtd->dev.parent = denali->dev;
 
 	/*
-	 * Fallback to the default name if DT did not give "label" property.
+	 * Fallback to the default name if DT did yest give "label" property.
 	 * Use "label" property if multiple chips are connected.
 	 */
 	if (!mtd->name && list_empty(&denali->chips))
@@ -1235,7 +1235,7 @@ int denali_chip_init(struct denali_controller *denali,
 		goto cleanup_nand;
 	}
 
-	list_add_tail(&dchip->node, &denali->chips);
+	list_add_tail(&dchip->yesde, &denali->chips);
 
 	return 0;
 
@@ -1259,7 +1259,7 @@ int denali_init(struct denali_controller *denali)
 	denali->active_bank = DENALI_INVALID_BANK;
 
 	/*
-	 * The REVISION register may not be reliable. Platforms are allowed to
+	 * The REVISION register may yest be reliable. Platforms are allowed to
 	 * override it.
 	 */
 	if (!denali->revision)
@@ -1302,7 +1302,7 @@ int denali_init(struct denali_controller *denali)
 
 	/*
 	 * Set how many bytes should be skipped before writing data in OOB.
-	 * If a non-zero value has already been set (by firmware or something),
+	 * If a yesn-zero value has already been set (by firmware or something),
 	 * just use it. Otherwise, set the driver's default.
 	 */
 	denali->oob_skip_bytes = ioread32(denali->reg + SPARE_AREA_SKIP_BYTES);
@@ -1337,7 +1337,7 @@ void denali_remove(struct denali_controller *denali)
 {
 	struct denali_chip *dchip;
 
-	list_for_each_entry(dchip, &denali->chips, node)
+	list_for_each_entry(dchip, &denali->chips, yesde)
 		nand_release(&dchip->chip);
 
 	denali_disable_irq(denali);

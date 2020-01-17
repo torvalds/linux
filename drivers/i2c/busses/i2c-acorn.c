@@ -20,7 +20,7 @@
 #define SDA		0x01
 
 /*
- * We must preserve all non-i2c output bits in IOC_CONTROL.
+ * We must preserve all yesn-i2c output bits in IOC_CONTROL.
  * Note also that we need to preserve the value of SCL and
  * SDA outputs as well (which may be different from the
  * values read back from IOC_CONTROL).

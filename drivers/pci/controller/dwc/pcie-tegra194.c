@@ -313,8 +313,8 @@ static void apply_bad_link_workaround(struct pcie_port *pp)
 	u16 val;
 
 	/*
-	 * NOTE:- Since this scenario is uncommon and link as such is not
-	 * stable anyway, not waiting to confirm if link is really
+	 * NOTE:- Since this scenario is uncommon and link as such is yest
+	 * stable anyway, yest waiting to confirm if link is really
 	 * transitioning to Gen-2 speed
 	 */
 	val = dw_pcie_readw_dbi(pci, pcie->pcie_cap_base + PCI_EXP_LNKSTA);
@@ -934,7 +934,7 @@ phy_exit:
 
 static int tegra_pcie_dw_parse_dt(struct tegra_pcie_dw *pcie)
 {
-	struct device_node *np = pcie->dev->of_node;
+	struct device_yesde *np = pcie->dev->of_yesde;
 	int ret;
 
 	ret = of_property_read_u32(np, "nvidia,aspm-cmrt-us", &pcie->aspm_cmrt);
@@ -981,7 +981,7 @@ static int tegra_pcie_dw_parse_dt(struct tegra_pcie_dw *pcie)
 		pcie->update_fc_fixup = true;
 
 	pcie->supports_clkreq =
-		of_property_read_bool(pcie->dev->of_node, "supports-clkreq");
+		of_property_read_bool(pcie->dev->of_yesde, "supports-clkreq");
 
 	pcie->enable_cdm_check =
 		of_property_read_bool(np, "snps,enable-cdm-check");
@@ -1025,15 +1025,15 @@ static void tegra_pcie_downstream_dev_to_D0(struct tegra_pcie_dw *pcie)
 
 	/*
 	 * link doesn't go into L2 state with some of the endpoints with Tegra
-	 * if they are not in D0 state. So, need to make sure that immediate
+	 * if they are yest in D0 state. So, need to make sure that immediate
 	 * downstream devices are in D0 state before sending PME_TurnOff to put
 	 * link into L2 state.
 	 * This is as per PCI Express Base r4.0 v1.0 September 27-2017,
 	 * 5.2 Link State Power Management (Page #428).
 	 */
 
-	list_for_each_entry(child, &pp->root_bus->children, node) {
-		/* Bring downstream devices to D0 if they are not already in */
+	list_for_each_entry(child, &pp->root_bus->children, yesde) {
+		/* Bring downstream devices to D0 if they are yest already in */
 		if (child->parent == pp->root_bus) {
 			root_bus = child;
 			break;
@@ -1206,7 +1206,7 @@ static int tegra_pcie_config_controller(struct tegra_pcie_dw *pcie,
 	pcie->pcie_cap_base = dw_pcie_find_capability(&pcie->pci,
 						      PCI_CAP_ID_EXP);
 
-	/* Disable ASPM-L1SS advertisement as there is no CLKREQ routing */
+	/* Disable ASPM-L1SS advertisement as there is yes CLKREQ routing */
 	if (!pcie->supports_clkreq) {
 		disable_aspm_l11(pcie);
 		disable_aspm_l12(pcie);
@@ -1307,13 +1307,13 @@ static int tegra_pcie_try_link_l2(struct tegra_pcie_dw *pcie)
 				 1, PME_ACK_TIMEOUT);
 }
 
-static void tegra_pcie_dw_pme_turnoff(struct tegra_pcie_dw *pcie)
+static void tegra_pcie_dw_pme_turyesff(struct tegra_pcie_dw *pcie)
 {
 	u32 data;
 	int err;
 
 	if (!tegra_pcie_dw_link_up(&pcie->pci)) {
-		dev_dbg(pcie->dev, "PCIe link is not up...!\n");
+		dev_dbg(pcie->dev, "PCIe link is yest up...!\n");
 		return;
 	}
 
@@ -1346,7 +1346,7 @@ static void tegra_pcie_dw_pme_turnoff(struct tegra_pcie_dw *pcie)
 		}
 	}
 	/*
-	 * DBI registers may not be accessible after this as PLL-E would be
+	 * DBI registers may yest be accessible after this as PLL-E would be
 	 * down depending on how CLKREQ is pulled by end point
 	 */
 	data = appl_readl(pcie, APPL_PINMUX);
@@ -1361,7 +1361,7 @@ static int tegra_pcie_deinit_controller(struct tegra_pcie_dw *pcie)
 {
 	tegra_pcie_downstream_dev_to_D0(pcie);
 	dw_pcie_host_deinit(&pcie->pci.pp);
-	tegra_pcie_dw_pme_turnoff(pcie);
+	tegra_pcie_dw_pme_turyesff(pcie);
 
 	return __deinit_controller(pcie);
 }
@@ -1374,7 +1374,7 @@ static int tegra_pcie_config_rp(struct tegra_pcie_dw *pcie)
 	int ret;
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		pp->msi_irq = of_irq_get_byname(dev->of_node, "msi");
+		pp->msi_irq = of_irq_get_byname(dev->of_yesde, "msi");
 		if (!pp->msi_irq) {
 			dev_err(dev, "Failed to get MSI interrupt\n");
 			return -ENODEV;
@@ -1404,7 +1404,7 @@ static int tegra_pcie_config_rp(struct tegra_pcie_dw *pcie)
 		goto fail_host_init;
 	}
 
-	name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_node);
+	name = devm_kasprintf(dev, GFP_KERNEL, "%pOFP", dev->of_yesde);
 	if (!name) {
 		ret = -ENOMEM;
 		goto fail_host_init;
@@ -1615,7 +1615,7 @@ static int tegra_pcie_dw_suspend_late(struct device *dev)
 	return 0;
 }
 
-static int tegra_pcie_dw_suspend_noirq(struct device *dev)
+static int tegra_pcie_dw_suspend_yesirq(struct device *dev)
 {
 	struct tegra_pcie_dw *pcie = dev_get_drvdata(dev);
 
@@ -1626,12 +1626,12 @@ static int tegra_pcie_dw_suspend_noirq(struct device *dev)
 	pcie->msi_ctrl_int = dw_pcie_readl_dbi(&pcie->pci,
 					       PORT_LOGIC_MSI_CTRL_INT_0_EN);
 	tegra_pcie_downstream_dev_to_D0(pcie);
-	tegra_pcie_dw_pme_turnoff(pcie);
+	tegra_pcie_dw_pme_turyesff(pcie);
 
 	return __deinit_controller(pcie);
 }
 
-static int tegra_pcie_dw_resume_noirq(struct device *dev)
+static int tegra_pcie_dw_resume_yesirq(struct device *dev)
 {
 	struct tegra_pcie_dw *pcie = dev_get_drvdata(dev);
 	int ret;
@@ -1693,7 +1693,7 @@ static void tegra_pcie_dw_shutdown(struct platform_device *pdev)
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		disable_irq(pcie->pci.pp.msi_irq);
 
-	tegra_pcie_dw_pme_turnoff(pcie);
+	tegra_pcie_dw_pme_turyesff(pcie);
 	__deinit_controller(pcie);
 }
 
@@ -1706,8 +1706,8 @@ static const struct of_device_id tegra_pcie_dw_of_match[] = {
 
 static const struct dev_pm_ops tegra_pcie_dw_pm_ops = {
 	.suspend_late = tegra_pcie_dw_suspend_late,
-	.suspend_noirq = tegra_pcie_dw_suspend_noirq,
-	.resume_noirq = tegra_pcie_dw_resume_noirq,
+	.suspend_yesirq = tegra_pcie_dw_suspend_yesirq,
+	.resume_yesirq = tegra_pcie_dw_resume_yesirq,
 	.resume_early = tegra_pcie_dw_resume_early,
 };
 

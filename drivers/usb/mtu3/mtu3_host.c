@@ -60,7 +60,7 @@ static void ssusb_wakeup_ip_sleep_set(struct ssusb_mtk *ssusb, bool enable)
 }
 
 int ssusb_wakeup_of_property_parse(struct ssusb_mtk *ssusb,
-				struct device_node *dn)
+				struct device_yesde *dn)
 {
 	struct of_phandle_args args;
 	int ret;
@@ -77,8 +77,8 @@ int ssusb_wakeup_of_property_parse(struct ssusb_mtk *ssusb,
 
 	ssusb->uwk_reg_base = args.args[0];
 	ssusb->uwk_vers = args.args[1];
-	ssusb->uwk = syscon_node_to_regmap(args.np);
-	of_node_put(args.np);
+	ssusb->uwk = syscon_yesde_to_regmap(args.np);
+	of_yesde_put(args.np);
 	dev_info(ssusb->dev, "uwk - reg:0x%x, version:%d\n",
 			ssusb->uwk_reg_base, ssusb->uwk_vers);
 
@@ -220,9 +220,9 @@ static void ssusb_host_cleanup(struct ssusb_mtk *ssusb)
  * If host supports multiple ports, the VBUSes(5V) of ports except port0
  * which supports OTG are better to be enabled by default in DTS.
  * Because the host driver will keep link with devices attached when system
- * enters suspend mode, so no need to control VBUSes after initialization.
+ * enters suspend mode, so yes need to control VBUSes after initialization.
  */
-int ssusb_host_init(struct ssusb_mtk *ssusb, struct device_node *parent_dn)
+int ssusb_host_init(struct ssusb_mtk *ssusb, struct device_yesde *parent_dn)
 {
 	struct device *parent_dev = ssusb->dev;
 	int ret;

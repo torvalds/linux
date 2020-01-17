@@ -118,7 +118,7 @@ struct smp_cmd_dhkey_check {
 } __packed;
 
 #define SMP_CMD_KEYPRESS_NOTIFY	0x0e
-struct smp_cmd_keypress_notify {
+struct smp_cmd_keypress_yestify {
 	__u8	value;
 } __packed;
 

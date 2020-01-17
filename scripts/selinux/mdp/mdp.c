@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 
 	fout = fopen(polout, "w");
 	if (!fout) {
-		printf("Could not open %s for writing\n", polout);
+		printf("Could yest open %s for writing\n", polout);
 		usage(argv[0]);
 	}
 
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 		behavior, fstype, mls ? ":" SYSTEMLOW : "")
 
 	/*
-	 * Filesystems whose inode labels can be fetched via getxattr.
+	 * Filesystems whose iyesde labels can be fetched via getxattr.
 	 */
 #ifdef CONFIG_EXT2_FS_SECURITY
 	FS_USE("xattr", "ext2");
@@ -180,13 +180,13 @@ int main(int argc, char *argv[])
 #endif
 
 	/*
-	 * Filesystems whose inodes are labeled from allocating task.
+	 * Filesystems whose iyesdes are labeled from allocating task.
 	 */
 	FS_USE("task", "pipefs");
 	FS_USE("task", "sockfs");
 
 	/*
-	 * Filesystems whose inode labels are computed from both
+	 * Filesystems whose iyesde labels are computed from both
 	 * the allocating task and the superblock label.
 	 */
 #ifdef CONFIG_UNIX98_PTYS
@@ -210,12 +210,12 @@ int main(int argc, char *argv[])
 		fstype, prefix, mls ? ":" SYSTEMLOW : "")
 
 	/*
-	 * Filesystems whose inodes are labeled from path prefix match
+	 * Filesystems whose iyesdes are labeled from path prefix match
 	 * relative to the filesystem root.  Depending on the filesystem,
-	 * only a single label for all inodes may be supported.  Here
+	 * only a single label for all iyesdes may be supported.  Here
 	 * we list the filesystem types for which per-file labeling is
 	 * supported using genfscon; any other filesystem type can also
-	 * be added by only with a single entry for all of its inodes.
+	 * be added by only with a single entry for all of its iyesdes.
 	 */
 #ifdef CONFIG_PROC_FS
 	GENFSCON("proc", "/");
@@ -242,7 +242,7 @@ int main(int argc, char *argv[])
 
 	fout = fopen(ctxout, "w");
 	if (!fout) {
-		printf("Wrote policy, but cannot open %s for writing\n", ctxout);
+		printf("Wrote policy, but canyest open %s for writing\n", ctxout);
 		usage(argv[0]);
 	}
 	fprintf(fout, "/ " OBJUSERROLETYPE "%s\n", mls ? ":" SYSTEMLOW : "");

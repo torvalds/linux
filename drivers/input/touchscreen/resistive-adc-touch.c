@@ -5,7 +5,7 @@
  * given the channels in device tree, and reports events to the input
  * subsystem.
  *
- * Copyright (C) 2017,2018 Microchip Technology,
+ * Copyright (C) 2017,2018 Microchip Techyeslogy,
  * Author: Eugen Hristev <eugen.hristev@microchip.com>
  *
  */
@@ -25,7 +25,7 @@
 /**
  * grts_state - generic resistive touch screen information struct
  * @pressure_min:	number representing the minimum for the pressure
- * @pressure:		are we getting pressure info or not
+ * @pressure:		are we getting pressure info or yest
  * @iio_chans:		list of channels acquired
  * @iio_cb:		iio_callback buffer for the data
  * @input:		the input device structure that we register

@@ -189,7 +189,7 @@ enum status_config {
 	ERR_LINE_TOO_LONG	= 0x04 << 4,	/* Line too long */
 	ERR_TOO_MANG_LINES	= 0x05 << 4,	/* Too many lines in field */
 	ERR_LINE_TOO_SHORT	= 0x06 << 4,	/* Line too short */
-	ERR_NOT_ENOUGH_LINE	= 0x07 << 4,	/* Not enough lines in field */
+	ERR_NOT_ENOUGH_LINE	= 0x07 << 4,	/* Not eyesugh lines in field */
 	ERR_FIFO_OVERFLOW	= 0x08 << 4,	/* FIFO overflow */
 	ERR_FIFO_UNDERFLOW	= 0x09 << 4,	/* FIFO underflow */
 	ERR_1bit_ECC		= 0x0a << 4,	/* One bit ECC error */
@@ -219,8 +219,8 @@ enum status_config {
 						 */
 };
 
-#define norm_maxw()	720
-#define norm_maxh()	576
+#define yesrm_maxw()	720
+#define yesrm_maxh()	576
 
 #define INT_ALL_STATUS	(INT_FIELD_STATUS | INT_VSYNC_STATUS | \
 			 INT_HSYNC_STATUS | INT_VSTART_STATUS | \
@@ -239,7 +239,7 @@ static struct viu_fmt *format_by_fourcc(int fourcc)
 			return formats + i;
 	}
 
-	dprintk(0, "unknown pixelformat:'%4.4s'\n", (char *)&fourcc);
+	dprintk(0, "unkyeswn pixelformat:'%4.4s'\n", (char *)&fourcc);
 	return NULL;
 }
 
@@ -453,8 +453,8 @@ static int buffer_prepare(struct videobuf_queue *vq,
 
 	BUG_ON(fh->fmt == NULL);
 
-	if (fh->width  < 48 || fh->width  > norm_maxw() ||
-	    fh->height < 32 || fh->height > norm_maxh())
+	if (fh->width  < 48 || fh->width  > yesrm_maxw() ||
+	    fh->height < 32 || fh->height > yesrm_maxh())
 		return -EINVAL;
 	buf->vb.size = (fh->width * fh->height * fh->fmt->depth) >> 3;
 	if (buf->vb.baddr != 0 && buf->vb.bsize < buf->vb.size)
@@ -607,8 +607,8 @@ static int vidioc_try_fmt_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	maxw  = norm_maxw();
-	maxh  = norm_maxh();
+	maxw  = yesrm_maxw();
+	maxh  = yesrm_maxh();
 
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 	if (f->fmt.pix.height < 32)
@@ -930,7 +930,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
-	inp->std = fh->dev->vdev->tvnorms;
+	inp->std = fh->dev->vdev->tvyesrms;
 	strscpy(inp->name, "Camera", sizeof(inp->name));
 	return 0;
 }
@@ -958,18 +958,18 @@ inline void viu_activate_next_buf(struct viu_dev *dev,
 	struct viu_dmaqueue *vidq = viuq;
 	struct viu_buf *buf;
 
-	/* launch another DMA operation for an active/queued buffer */
+	/* launch ayesther DMA operation for an active/queued buffer */
 	if (!list_empty(&vidq->active)) {
 		buf = list_entry(vidq->active.next, struct viu_buf,
 					vb.queue);
-		dprintk(1, "start another queued buffer: 0x%p\n", buf);
+		dprintk(1, "start ayesther queued buffer: 0x%p\n", buf);
 		buffer_activate(dev, buf);
 	} else if (!list_empty(&vidq->queued)) {
 		buf = list_entry(vidq->queued.next, struct viu_buf,
 					vb.queue);
 		list_del(&buf->vb.queue);
 
-		dprintk(1, "start another queued buffer: 0x%p\n", buf);
+		dprintk(1, "start ayesther queued buffer: 0x%p\n", buf);
 		list_add_tail(&buf->vb.queue, &vidq->active);
 		buf->vb.state = VIDEOBUF_ACTIVE;
 		buffer_activate(dev, buf);
@@ -1159,10 +1159,10 @@ static int viu_open(struct file *file)
 	struct viu_dev *dev = video_get_drvdata(vdev);
 	struct viu_fh *fh;
 	struct viu_reg __iomem *vr;
-	int minor = vdev->minor;
+	int miyesr = vdev->miyesr;
 	u32 status_cfg;
 
-	dprintk(1, "viu: open (minor=%d)\n", minor);
+	dprintk(1, "viu: open (miyesr=%d)\n", miyesr);
 
 	dev->users++;
 	if (dev->users > 1) {
@@ -1172,7 +1172,7 @@ static int viu_open(struct file *file)
 
 	vr = dev->vr;
 
-	dprintk(1, "open minor=%d type=%s users=%d\n", minor,
+	dprintk(1, "open miyesr=%d type=%s users=%d\n", miyesr,
 		v4l2_type_names[V4L2_BUF_TYPE_VIDEO_CAPTURE], dev->users);
 
 	if (mutex_lock_interruptible(&dev->lock)) {
@@ -1194,8 +1194,8 @@ static int viu_open(struct file *file)
 
 	fh->type     = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	fh->fmt      = format_by_fourcc(V4L2_PIX_FMT_RGB32);
-	fh->width    = norm_maxw();
-	fh->height   = norm_maxh();
+	fh->width    = yesrm_maxw();
+	fh->height   = yesrm_maxh();
 	dev->crop_current.width  = fh->width;
 	dev->crop_current.height = fh->height;
 
@@ -1274,7 +1274,7 @@ static int viu_release(struct file *file)
 {
 	struct viu_fh *fh = file->private_data;
 	struct viu_dev *dev = fh->dev;
-	int minor = video_devdata(file)->minor;
+	int miyesr = video_devdata(file)->miyesr;
 
 	mutex_lock(&dev->lock);
 	viu_stop_dma(dev);
@@ -1287,8 +1287,8 @@ static int viu_release(struct file *file)
 	kfree(fh);
 
 	dev->users--;
-	dprintk(1, "close (minor=%d, users=%d)\n",
-		minor, dev->users);
+	dprintk(1, "close (miyesr=%d, users=%d)\n",
+		miyesr, dev->users);
 	return 0;
 }
 
@@ -1370,11 +1370,11 @@ static const struct v4l2_ioctl_ops viu_ioctl_ops = {
 static const struct video_device viu_template = {
 	.name		= "FSL viu",
 	.fops		= &viu_fops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.ioctl_ops	= &viu_ioctl_ops,
 	.release	= video_device_release,
 
-	.tvnorms        = V4L2_STD_NTSC_M | V4L2_STD_PAL,
+	.tvyesrms        = V4L2_STD_NTSC_M | V4L2_STD_PAL,
 	.device_caps	= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 			  V4L2_CAP_VIDEO_OVERLAY | V4L2_CAP_READWRITE,
 };
@@ -1389,13 +1389,13 @@ static int viu_of_probe(struct platform_device *op)
 	int ret, viu_irq;
 	struct clk *clk;
 
-	ret = of_address_to_resource(op->dev.of_node, 0, &r);
+	ret = of_address_to_resource(op->dev.of_yesde, 0, &r);
 	if (ret) {
-		dev_err(&op->dev, "Can't parse device node resource\n");
+		dev_err(&op->dev, "Can't parse device yesde resource\n");
 		return -ENODEV;
 	}
 
-	viu_irq = irq_of_parse_and_map(op->dev.of_node, 0);
+	viu_irq = irq_of_parse_and_map(op->dev.of_yesde, 0);
 	if (!viu_irq) {
 		dev_err(&op->dev, "Error while mapping the irq\n");
 		return -EINVAL;

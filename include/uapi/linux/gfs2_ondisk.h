@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
@@ -51,12 +51,12 @@
 #define GFS2_FORMAT_MULTI	1900
 
 /*
- * An on-disk inode number
+ * An on-disk iyesde number
  */
 
 struct gfs2_inum {
-	__be64 no_formal_ino;
-	__be64 no_addr;
+	__be64 yes_formal_iyes;
+	__be64 yes_addr;
 };
 
 /*
@@ -121,15 +121,15 @@ struct gfs2_sb {
 	__be32 sb_bsize_shift;
 	__u32 __pad1;	/* Was journal segment size in gfs1 */
 
-	struct gfs2_inum sb_master_dir; /* Was jindex dinode in gfs1 */
-	struct gfs2_inum __pad2; /* Was rindex dinode in gfs1 */
+	struct gfs2_inum sb_master_dir; /* Was jindex diyesde in gfs1 */
+	struct gfs2_inum __pad2; /* Was rindex diyesde in gfs1 */
 	struct gfs2_inum sb_root_dir;
 
 	char sb_lockproto[GFS2_LOCKNAME_LEN];
 	char sb_locktable[GFS2_LOCKNAME_LEN];
 
-	struct gfs2_inum __pad3; /* Was quota inode in gfs1 */
-	struct gfs2_inum __pad4; /* Was licence inode in gfs1 */
+	struct gfs2_inum __pad3; /* Was quota iyesde in gfs1 */
+	struct gfs2_inum __pad4; /* Was licence iyesde in gfs1 */
 #define GFS2_HAS_UUID 1
 	__u8 sb_uuid[16]; /* The UUID, maybe 0 for backwards compat */
 };
@@ -175,7 +175,7 @@ struct gfs2_rgrp_lvb {
 	__be32 rl_magic;
 	__be32 rl_flags;
 	__be32 rl_free;
-	__be32 rl_dinodes;
+	__be32 rl_diyesdes;
 	__be64 rl_igeneration;
 	__be32 rl_unlinked;
 	__be32 __pad;
@@ -186,7 +186,7 @@ struct gfs2_rgrp {
 
 	__be32 rg_flags;
 	__be32 rg_free;
-	__be32 rg_dinodes;
+	__be32 rg_diyesdes;
 	union {
 		__be32 __pad;
 		__be32 rg_skip; /* Distance to the next rgrp in fs blocks */
@@ -199,7 +199,7 @@ struct gfs2_rgrp {
 	__be32 rg_bitbytes;  /* Number of bytes in data bitmaps */
 	__be32 rg_crc;       /* crc32 of the structure with this field 0 */
 
-	__u8 rg_reserved[60]; /* Several fields from gfs1 now reserved */
+	__u8 rg_reserved[60]; /* Several fields from gfs1 yesw reserved */
 };
 
 /*
@@ -214,7 +214,7 @@ struct gfs2_quota {
 };
 
 /*
- * dinode structure
+ * diyesde structure
  */
 
 #define GFS2_MAX_META_HEIGHT	10
@@ -240,7 +240,7 @@ enum {
 	gfs2fl_InheritJdata	= 31,
 };
 
-/* Dinode flags */
+/* Diyesde flags */
 #define GFS2_DIF_JDATA			0x00000001
 #define GFS2_DIF_EXHASH			0x00000002
 #define GFS2_DIF_UNUSED			0x00000004  /* only in gfs1 */
@@ -256,7 +256,7 @@ enum {
 #define GFS2_DIF_INHERIT_DIRECTIO	0x40000000 /* only in gfs1 */
 #define GFS2_DIF_INHERIT_JDATA		0x80000000
 
-struct gfs2_dinode {
+struct gfs2_diyesde {
 	struct gfs2_meta_header di_header;
 
 	struct gfs2_inum di_num;
@@ -271,10 +271,10 @@ struct gfs2_dinode {
 	__be64 di_mtime;	/* time last modified */
 	__be64 di_ctime;	/* time last changed */
 	__be32 di_major;	/* device major number */
-	__be32 di_minor;	/* device minor number */
+	__be32 di_miyesr;	/* device miyesr number */
 
 	/* This section varies from gfs1. Padding added to align with
-         * remainder of dinode
+         * remainder of diyesde
 	 */
 	__be64 di_goal_meta;	/* rgrp to alloc from next */
 	__be64 di_goal_data;	/* data block goal */
@@ -320,14 +320,14 @@ struct gfs2_dirent {
 	union {
 		__u8 __pad[12];
 		struct {
-			__u32 de_cookie; /* ondisk value not used */
+			__u32 de_cookie; /* ondisk value yest used */
 			__u8 pad3[8];
 		};
 	};
 };
 
 /*
- * Header of leaf directory nodes
+ * Header of leaf directory yesdes
  */
 
 struct gfs2_leaf {
@@ -341,8 +341,8 @@ struct gfs2_leaf {
 	union {
 		__u8 lf_reserved[64];
 		struct {
-			__be64 lf_inode;	/* Dir inode number */
-			__be32 lf_dist;		/* Dist from inode on chain */
+			__be64 lf_iyesde;	/* Dir iyesde number */
+			__be32 lf_dist;		/* Dist from iyesde on chain */
 			__be32 lf_nsec;		/* Last ins/del usecs */
 			__be64 lf_sec;		/* Last ins/del in secs */
 			__u8 lf_reserved2[40];
@@ -357,13 +357,13 @@ struct gfs2_leaf {
  * followed by a variable length section made up of the name and the
  * associated data. In the case of a "stuffed" entry, the value is
  * inline directly after the name, the ea_num_ptrs entry will be
- * zero in that case. For non-"stuffed" entries, there will be
+ * zero in that case. For yesn-"stuffed" entries, there will be
  * a set of pointers (aligned to 8 byte boundary) to the block(s)
  * containing the value.
  *
  * The blocks containing the values and the blocks containing the
  * extended attribute headers themselves all start with the common
- * metadata header. Each inode, if it has extended attributes, will
+ * metadata header. Each iyesde, if it has extended attributes, will
  * have either a single block containing the extended attribute headers
  * or a single indirect block pointing to blocks containing the
  * extended attribute headers.
@@ -372,7 +372,7 @@ struct gfs2_leaf {
  * so the number of blocks required depends upon block size. Since the
  * block size also determines the number of pointers in an indirect
  * block, its a fairly complicated calculation to work out the maximum
- * number of blocks that an inode may have relating to extended attributes.
+ * number of blocks that an iyesde may have relating to extended attributes.
  *
  */
 
@@ -392,7 +392,7 @@ struct gfs2_leaf {
 struct gfs2_ea_header {
 	__be32 ea_rec_len;
 	__be32 ea_data_len;
-	__u8 ea_name_len;	/* no NULL pointer after the string */
+	__u8 ea_name_len;	/* yes NULL pointer after the string */
 	__u8 ea_type;		/* GFS2_EATYPE_... */
 	__u8 ea_flags;		/* GFS2_EAFLAG_... */
 	__u8 ea_num_ptrs;
@@ -404,7 +404,7 @@ struct gfs2_ea_header {
  */
 
 #define GFS2_LOG_HEAD_UNMOUNT		0x00000001 /* log is clean */
-#define GFS2_LOG_HEAD_FLUSH_NORMAL	0x00000002 /* normal log flush */
+#define GFS2_LOG_HEAD_FLUSH_NORMAL	0x00000002 /* yesrmal log flush */
 #define GFS2_LOG_HEAD_FLUSH_SYNC	0x00000004 /* Sync log flush */
 #define GFS2_LOG_HEAD_FLUSH_SHUTDOWN	0x00000008 /* Shutdown log flush */
 #define GFS2_LOG_HEAD_FLUSH_FREEZE	0x00000010 /* Freeze flush */
@@ -440,22 +440,22 @@ struct gfs2_log_header {
 	__be64 lh_sequence;	/* Sequence number of this transaction */
 	__be32 lh_flags;	/* GFS2_LOG_HEAD_... */
 	__be32 lh_tail;		/* Block number of log tail */
-	__be32 lh_blkno;
+	__be32 lh_blkyes;
 	__be32 lh_hash;		/* crc up to here with this field 0 */
 
 	/* Version 2 additional fields start here */
 	__be32 lh_crc;		/* crc32c from lh_nsec to end of block */
-	__be32 lh_nsec;		/* Nanoseconds of timestamp */
+	__be32 lh_nsec;		/* Nayesseconds of timestamp */
 	__be64 lh_sec;		/* Seconds of timestamp */
 	__be64 lh_addr;		/* Block addr of this log header (absolute) */
-	__be64 lh_jinode;	/* Journal inode number */
-	__be64 lh_statfs_addr;	/* Local statfs inode number */
-	__be64 lh_quota_addr;	/* Local quota change inode number */
+	__be64 lh_jiyesde;	/* Journal iyesde number */
+	__be64 lh_statfs_addr;	/* Local statfs iyesde number */
+	__be64 lh_quota_addr;	/* Local quota change iyesde number */
 
 	/* Statfs local changes (i.e. diff from global statfs) */
 	__be64 lh_local_total;
 	__be64 lh_local_free;
-	__be64 lh_local_dinodes;
+	__be64 lh_local_diyesdes;
 };
 
 /*
@@ -487,8 +487,8 @@ struct gfs2_log_descriptor {
 
 /*
  * Inum Range
- * Describe a range of formal inode numbers allocated to
- * one machine to assign to inodes.
+ * Describe a range of formal iyesde numbers allocated to
+ * one machine to assign to iyesdes.
  */
 
 #define GFS2_INUM_QUANTUM	1048576
@@ -507,7 +507,7 @@ struct gfs2_inum_range {
 struct gfs2_statfs_change {
 	__be64 sc_total;
 	__be64 sc_free;
-	__be64 sc_dinodes;
+	__be64 sc_diyesdes;
 };
 
 /*

@@ -1,33 +1,33 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "ubifs.h"
 
-static int ubifs_crypt_get_context(struct inode *inode, void *ctx, size_t len)
+static int ubifs_crypt_get_context(struct iyesde *iyesde, void *ctx, size_t len)
 {
-	return ubifs_xattr_get(inode, UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT,
+	return ubifs_xattr_get(iyesde, UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT,
 			       ctx, len);
 }
 
-static int ubifs_crypt_set_context(struct inode *inode, const void *ctx,
+static int ubifs_crypt_set_context(struct iyesde *iyesde, const void *ctx,
 				   size_t len, void *fs_data)
 {
 	/*
 	 * Creating an encryption context is done unlocked since we
-	 * operate on a new inode which is not visible to other users
-	 * at this point. So, no need to check whether inode is locked.
+	 * operate on a new iyesde which is yest visible to other users
+	 * at this point. So, yes need to check whether iyesde is locked.
 	 */
-	return ubifs_xattr_set(inode, UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT,
+	return ubifs_xattr_set(iyesde, UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT,
 			       ctx, len, 0, false);
 }
 
-static bool ubifs_crypt_empty_dir(struct inode *inode)
+static bool ubifs_crypt_empty_dir(struct iyesde *iyesde)
 {
-	return ubifs_check_dir_empty(inode) == 0;
+	return ubifs_check_dir_empty(iyesde) == 0;
 }
 
-int ubifs_encrypt(const struct inode *inode, struct ubifs_data_node *dn,
+int ubifs_encrypt(const struct iyesde *iyesde, struct ubifs_data_yesde *dn,
 		  unsigned int in_len, unsigned int *out_len, int block)
 {
-	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	struct ubifs_info *c = iyesde->i_sb->s_fs_info;
 	void *p = &dn->data;
 	unsigned int pad_len = round_up(in_len, UBIFS_CIPHER_BLOCK_SIZE);
 	int err;
@@ -39,7 +39,7 @@ int ubifs_encrypt(const struct inode *inode, struct ubifs_data_node *dn,
 	if (pad_len != in_len)
 		memset(p + in_len, 0, pad_len - in_len);
 
-	err = fscrypt_encrypt_block_inplace(inode, virt_to_page(p), pad_len,
+	err = fscrypt_encrypt_block_inplace(iyesde, virt_to_page(p), pad_len,
 					    offset_in_page(p), block, GFP_NOFS);
 	if (err) {
 		ubifs_err(c, "fscrypt_encrypt_block_inplace() failed: %d", err);
@@ -50,10 +50,10 @@ int ubifs_encrypt(const struct inode *inode, struct ubifs_data_node *dn,
 	return 0;
 }
 
-int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
+int ubifs_decrypt(const struct iyesde *iyesde, struct ubifs_data_yesde *dn,
 		  unsigned int *out_len, int block)
 {
-	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	struct ubifs_info *c = iyesde->i_sb->s_fs_info;
 	int err;
 	unsigned int clen = le16_to_cpu(dn->compr_size);
 	unsigned int dlen = *out_len;
@@ -64,7 +64,7 @@ int ubifs_decrypt(const struct inode *inode, struct ubifs_data_node *dn,
 	}
 
 	ubifs_assert(c, dlen <= UBIFS_BLOCK_SIZE);
-	err = fscrypt_decrypt_block_inplace(inode, virt_to_page(&dn->data),
+	err = fscrypt_decrypt_block_inplace(iyesde, virt_to_page(&dn->data),
 					    dlen, offset_in_page(&dn->data),
 					    block);
 	if (err) {

@@ -44,15 +44,15 @@ static const struct insert_mode {
 	{}
 };
 
-static int igt_sanitycheck(void *ignored)
+static int igt_sanitycheck(void *igyesred)
 {
 	pr_info("%s - ok!\n", __func__);
 	return 0;
 }
 
-static bool assert_no_holes(const struct drm_mm *mm)
+static bool assert_yes_holes(const struct drm_mm *mm)
 {
-	struct drm_mm_node *hole;
+	struct drm_mm_yesde *hole;
 	u64 hole_start, hole_end;
 	unsigned long count;
 
@@ -60,13 +60,13 @@ static bool assert_no_holes(const struct drm_mm *mm)
 	drm_mm_for_each_hole(hole, mm, hole_start, hole_end)
 		count++;
 	if (count) {
-		pr_err("Expected to find no holes (after reserve), found %lu instead\n", count);
+		pr_err("Expected to find yes holes (after reserve), found %lu instead\n", count);
 		return false;
 	}
 
-	drm_mm_for_each_node(hole, mm) {
+	drm_mm_for_each_yesde(hole, mm) {
 		if (drm_mm_hole_follows(hole)) {
-			pr_err("Hole follows node, expected none!\n");
+			pr_err("Hole follows yesde, expected yesne!\n");
 			return false;
 		}
 	}
@@ -76,7 +76,7 @@ static bool assert_no_holes(const struct drm_mm *mm)
 
 static bool assert_one_hole(const struct drm_mm *mm, u64 start, u64 end)
 {
-	struct drm_mm_node *hole;
+	struct drm_mm_yesde *hole;
 	u64 hole_start, hole_end;
 	unsigned long count;
 	bool ok = true;
@@ -105,44 +105,44 @@ static bool assert_one_hole(const struct drm_mm *mm, u64 start, u64 end)
 
 static bool assert_continuous(const struct drm_mm *mm, u64 size)
 {
-	struct drm_mm_node *node, *check, *found;
+	struct drm_mm_yesde *yesde, *check, *found;
 	unsigned long n;
 	u64 addr;
 
-	if (!assert_no_holes(mm))
+	if (!assert_yes_holes(mm))
 		return false;
 
 	n = 0;
 	addr = 0;
-	drm_mm_for_each_node(node, mm) {
-		if (node->start != addr) {
-			pr_err("node[%ld] list out of order, expected %llx found %llx\n",
-			       n, addr, node->start);
+	drm_mm_for_each_yesde(yesde, mm) {
+		if (yesde->start != addr) {
+			pr_err("yesde[%ld] list out of order, expected %llx found %llx\n",
+			       n, addr, yesde->start);
 			return false;
 		}
 
-		if (node->size != size) {
-			pr_err("node[%ld].size incorrect, expected %llx, found %llx\n",
-			       n, size, node->size);
+		if (yesde->size != size) {
+			pr_err("yesde[%ld].size incorrect, expected %llx, found %llx\n",
+			       n, size, yesde->size);
 			return false;
 		}
 
-		if (drm_mm_hole_follows(node)) {
-			pr_err("node[%ld] is followed by a hole!\n", n);
+		if (drm_mm_hole_follows(yesde)) {
+			pr_err("yesde[%ld] is followed by a hole!\n", n);
 			return false;
 		}
 
 		found = NULL;
-		drm_mm_for_each_node_in_range(check, mm, addr, addr + size) {
-			if (node != check) {
-				pr_err("lookup return wrong node, expected start %llx, found %llx\n",
-				       node->start, check->start);
+		drm_mm_for_each_yesde_in_range(check, mm, addr, addr + size) {
+			if (yesde != check) {
+				pr_err("lookup return wrong yesde, expected start %llx, found %llx\n",
+				       yesde->start, check->start);
 				return false;
 			}
 			found = check;
 		}
 		if (!found) {
-			pr_err("lookup failed for node %llx + %llx\n",
+			pr_err("lookup failed for yesde %llx + %llx\n",
 			       addr, size);
 			return false;
 		}
@@ -154,42 +154,42 @@ static bool assert_continuous(const struct drm_mm *mm, u64 size)
 	return true;
 }
 
-static u64 misalignment(struct drm_mm_node *node, u64 alignment)
+static u64 misalignment(struct drm_mm_yesde *yesde, u64 alignment)
 {
 	u64 rem;
 
 	if (!alignment)
 		return 0;
 
-	div64_u64_rem(node->start, alignment, &rem);
+	div64_u64_rem(yesde->start, alignment, &rem);
 	return rem;
 }
 
-static bool assert_node(struct drm_mm_node *node, struct drm_mm *mm,
+static bool assert_yesde(struct drm_mm_yesde *yesde, struct drm_mm *mm,
 			u64 size, u64 alignment, unsigned long color)
 {
 	bool ok = true;
 
-	if (!drm_mm_node_allocated(node) || node->mm != mm) {
-		pr_err("node not allocated\n");
+	if (!drm_mm_yesde_allocated(yesde) || yesde->mm != mm) {
+		pr_err("yesde yest allocated\n");
 		ok = false;
 	}
 
-	if (node->size != size) {
-		pr_err("node has wrong size, found %llu, expected %llu\n",
-		       node->size, size);
+	if (yesde->size != size) {
+		pr_err("yesde has wrong size, found %llu, expected %llu\n",
+		       yesde->size, size);
 		ok = false;
 	}
 
-	if (misalignment(node, alignment)) {
-		pr_err("node is misaligned, start %llx rem %llu, expected alignment %llu\n",
-		       node->start, misalignment(node, alignment), alignment);
+	if (misalignment(yesde, alignment)) {
+		pr_err("yesde is misaligned, start %llx rem %llu, expected alignment %llu\n",
+		       yesde->start, misalignment(yesde, alignment), alignment);
 		ok = false;
 	}
 
-	if (node->color != color) {
-		pr_err("node has wrong color, found %lu, expected %lu\n",
-		       node->color, color);
+	if (yesde->color != color) {
+		pr_err("yesde has wrong color, found %lu, expected %lu\n",
+		       yesde->color, color);
 		ok = false;
 	}
 
@@ -200,11 +200,11 @@ static bool assert_node(struct drm_mm_node *node, struct drm_mm *mm,
 	struct drm_printer __p = drm_debug_printer(__func__); \
 	drm_mm_print((mm), &__p); } while (0)
 
-static int igt_init(void *ignored)
+static int igt_init(void *igyesred)
 {
 	const unsigned int size = 4096;
 	struct drm_mm mm;
-	struct drm_mm_node tmp;
+	struct drm_mm_yesde tmp;
 	int ret = -EINVAL;
 
 	/* Start with some simple checks on initialising the struct drm_mm */
@@ -217,12 +217,12 @@ static int igt_init(void *ignored)
 	memset(&mm, 0xff, sizeof(mm));
 	drm_mm_init(&mm, 0, size);
 	if (!drm_mm_initialized(&mm)) {
-		pr_err("mm claims not to be initialized\n");
+		pr_err("mm claims yest to be initialized\n");
 		goto out;
 	}
 
 	if (!drm_mm_clean(&mm)) {
-		pr_err("mm not empty on creation\n");
+		pr_err("mm yest empty on creation\n");
 		goto out;
 	}
 
@@ -235,20 +235,20 @@ static int igt_init(void *ignored)
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.start = 0;
 	tmp.size = size;
-	ret = drm_mm_reserve_node(&mm, &tmp);
+	ret = drm_mm_reserve_yesde(&mm, &tmp);
 	if (ret) {
 		pr_err("failed to reserve whole drm_mm\n");
 		goto out;
 	}
 
-	/* After filling the range entirely, there should be no holes */
-	if (!assert_no_holes(&mm)) {
+	/* After filling the range entirely, there should be yes holes */
+	if (!assert_yes_holes(&mm)) {
 		ret = -EINVAL;
 		goto out;
 	}
 
 	/* And then after emptying it again, the massive hole should be back */
-	drm_mm_remove_node(&tmp);
+	drm_mm_remove_yesde(&tmp);
 	if (!assert_one_hole(&mm, 0, size)) {
 		ret = -EINVAL;
 		goto out;
@@ -261,34 +261,34 @@ out:
 	return ret;
 }
 
-static int igt_debug(void *ignored)
+static int igt_debug(void *igyesred)
 {
 	struct drm_mm mm;
-	struct drm_mm_node nodes[2];
+	struct drm_mm_yesde yesdes[2];
 	int ret;
 
-	/* Create a small drm_mm with a couple of nodes and a few holes, and
+	/* Create a small drm_mm with a couple of yesdes and a few holes, and
 	 * check that the debug iterator doesn't explode over a trivial drm_mm.
 	 */
 
 	drm_mm_init(&mm, 0, 4096);
 
-	memset(nodes, 0, sizeof(nodes));
-	nodes[0].start = 512;
-	nodes[0].size = 1024;
-	ret = drm_mm_reserve_node(&mm, &nodes[0]);
+	memset(yesdes, 0, sizeof(yesdes));
+	yesdes[0].start = 512;
+	yesdes[0].size = 1024;
+	ret = drm_mm_reserve_yesde(&mm, &yesdes[0]);
 	if (ret) {
-		pr_err("failed to reserve node[0] {start=%lld, size=%lld)\n",
-		       nodes[0].start, nodes[0].size);
+		pr_err("failed to reserve yesde[0] {start=%lld, size=%lld)\n",
+		       yesdes[0].start, yesdes[0].size);
 		return ret;
 	}
 
-	nodes[1].size = 1024;
-	nodes[1].start = 4096 - 512 - nodes[1].size;
-	ret = drm_mm_reserve_node(&mm, &nodes[1]);
+	yesdes[1].size = 1024;
+	yesdes[1].start = 4096 - 512 - yesdes[1].size;
+	ret = drm_mm_reserve_yesde(&mm, &yesdes[1]);
 	if (ret) {
-		pr_err("failed to reserve node[1] {start=%lld, size=%lld)\n",
-		       nodes[1].start, nodes[1].size);
+		pr_err("failed to reserve yesde[1] {start=%lld, size=%lld)\n",
+		       yesdes[1].start, yesdes[1].size);
 		return ret;
 	}
 
@@ -296,29 +296,29 @@ static int igt_debug(void *ignored)
 	return 0;
 }
 
-static struct drm_mm_node *set_node(struct drm_mm_node *node,
+static struct drm_mm_yesde *set_yesde(struct drm_mm_yesde *yesde,
 				    u64 start, u64 size)
 {
-	node->start = start;
-	node->size = size;
-	return node;
+	yesde->start = start;
+	yesde->size = size;
+	return yesde;
 }
 
-static bool expect_reserve_fail(struct drm_mm *mm, struct drm_mm_node *node)
+static bool expect_reserve_fail(struct drm_mm *mm, struct drm_mm_yesde *yesde)
 {
 	int err;
 
-	err = drm_mm_reserve_node(mm, node);
+	err = drm_mm_reserve_yesde(mm, yesde);
 	if (likely(err == -ENOSPC))
 		return true;
 
 	if (!err) {
-		pr_err("impossible reserve succeeded, node %llu + %llu\n",
-		       node->start, node->size);
-		drm_mm_remove_node(node);
+		pr_err("impossible reserve succeeded, yesde %llu + %llu\n",
+		       yesde->start, yesde->size);
+		drm_mm_remove_yesde(yesde);
 	} else {
-		pr_err("impossible reserve failed with wrong error %d [expected %d], node %llu + %llu\n",
-		       err, -ENOSPC, node->start, node->size);
+		pr_err("impossible reserve failed with wrong error %d [expected %d], yesde %llu + %llu\n",
+		       err, -ENOSPC, yesde->start, yesde->size);
 	}
 	return false;
 }
@@ -351,12 +351,12 @@ static bool check_reserve_boundaries(struct drm_mm *mm,
 		B((count+1)*size, -2*size),
 #undef B
 	};
-	struct drm_mm_node tmp = {};
+	struct drm_mm_yesde tmp = {};
 	int n;
 
 	for (n = 0; n < ARRAY_SIZE(boundaries); n++) {
 		if (!expect_reserve_fail(mm,
-					 set_node(&tmp,
+					 set_yesde(&tmp,
 						  boundaries[n].start,
 						  boundaries[n].size))) {
 			pr_err("boundary[%d:%s] failed, count=%u, size=%lld\n",
@@ -372,14 +372,14 @@ static int __igt_reserve(unsigned int count, u64 size)
 {
 	DRM_RND_STATE(prng, random_seed);
 	struct drm_mm mm;
-	struct drm_mm_node tmp, *nodes, *node, *next;
+	struct drm_mm_yesde tmp, *yesdes, *yesde, *next;
 	unsigned int *order, n, m, o = 0;
 	int ret, err;
 
-	/* For exercising drm_mm_reserve_node(), we want to check that
+	/* For exercising drm_mm_reserve_yesde(), we want to check that
 	 * reservations outside of the drm_mm range are rejected, and to
 	 * overlapping and otherwise already occupied ranges. Afterwards,
-	 * the tree and nodes should be intact.
+	 * the tree and yesdes should be intact.
 	 */
 
 	DRM_MM_BUG_ON(!count);
@@ -390,8 +390,8 @@ static int __igt_reserve(unsigned int count, u64 size)
 	if (!order)
 		goto err;
 
-	nodes = vzalloc(array_size(count, sizeof(*nodes)));
-	if (!nodes)
+	yesdes = vzalloc(array_size(count, sizeof(*yesdes)));
+	if (!yesdes)
 		goto err_order;
 
 	ret = -EINVAL;
@@ -401,28 +401,28 @@ static int __igt_reserve(unsigned int count, u64 size)
 		goto out;
 
 	for (n = 0; n < count; n++) {
-		nodes[n].start = order[n] * size;
-		nodes[n].size = size;
+		yesdes[n].start = order[n] * size;
+		yesdes[n].size = size;
 
-		err = drm_mm_reserve_node(&mm, &nodes[n]);
+		err = drm_mm_reserve_yesde(&mm, &yesdes[n]);
 		if (err) {
 			pr_err("reserve failed, step %d, start %llu\n",
-			       n, nodes[n].start);
+			       n, yesdes[n].start);
 			ret = err;
 			goto out;
 		}
 
-		if (!drm_mm_node_allocated(&nodes[n])) {
-			pr_err("reserved node not allocated! step %d, start %llu\n",
-			       n, nodes[n].start);
+		if (!drm_mm_yesde_allocated(&yesdes[n])) {
+			pr_err("reserved yesde yest allocated! step %d, start %llu\n",
+			       n, yesdes[n].start);
 			goto out;
 		}
 
-		if (!expect_reserve_fail(&mm, &nodes[n]))
+		if (!expect_reserve_fail(&mm, &yesdes[n]))
 			goto out;
 	}
 
-	/* After random insertion the nodes should be in order */
+	/* After random insertion the yesdes should be in order */
 	if (!assert_continuous(&mm, size))
 		goto out;
 
@@ -430,15 +430,15 @@ static int __igt_reserve(unsigned int count, u64 size)
 	drm_random_reorder(order, count, &prng);
 	for (n = 0; n < count; n++) {
 		if (!expect_reserve_fail(&mm,
-					 set_node(&tmp, order[n] * size, 1)))
+					 set_yesde(&tmp, order[n] * size, 1)))
 			goto out;
 
 		/* Remove and reinsert should work */
-		drm_mm_remove_node(&nodes[order[n]]);
-		err = drm_mm_reserve_node(&mm, &nodes[order[n]]);
+		drm_mm_remove_yesde(&yesdes[order[n]]);
+		err = drm_mm_reserve_yesde(&mm, &yesdes[order[n]]);
 		if (err) {
 			pr_err("reserve failed, step %d, start %llu\n",
-			       n, nodes[n].start);
+			       n, yesdes[n].start);
 			ret = err;
 			goto out;
 		}
@@ -449,12 +449,12 @@ static int __igt_reserve(unsigned int count, u64 size)
 
 	/* Overlapping use should then fail */
 	for (n = 0; n < count; n++) {
-		if (!expect_reserve_fail(&mm, set_node(&tmp, 0, size*count)))
+		if (!expect_reserve_fail(&mm, set_yesde(&tmp, 0, size*count)))
 			goto out;
 	}
 	for (n = 0; n < count; n++) {
 		if (!expect_reserve_fail(&mm,
-					 set_node(&tmp,
+					 set_yesde(&tmp,
 						  size * n,
 						  size * (count - n))))
 			goto out;
@@ -463,16 +463,16 @@ static int __igt_reserve(unsigned int count, u64 size)
 	/* Remove several, reinsert, check full */
 	for_each_prime_number(n, min(max_prime, count)) {
 		for (m = 0; m < n; m++) {
-			node = &nodes[order[(o + m) % count]];
-			drm_mm_remove_node(node);
+			yesde = &yesdes[order[(o + m) % count]];
+			drm_mm_remove_yesde(yesde);
 		}
 
 		for (m = 0; m < n; m++) {
-			node = &nodes[order[(o + m) % count]];
-			err = drm_mm_reserve_node(&mm, node);
+			yesde = &yesdes[order[(o + m) % count]];
+			err = drm_mm_reserve_yesde(&mm, yesde);
 			if (err) {
 				pr_err("reserve failed, step %d/%d, start %llu\n",
-				       m, n, node->start);
+				       m, n, yesde->start);
 				ret = err;
 				goto out;
 			}
@@ -486,17 +486,17 @@ static int __igt_reserve(unsigned int count, u64 size)
 
 	ret = 0;
 out:
-	drm_mm_for_each_node_safe(node, next, &mm)
-		drm_mm_remove_node(node);
+	drm_mm_for_each_yesde_safe(yesde, next, &mm)
+		drm_mm_remove_yesde(yesde);
 	drm_mm_takedown(&mm);
-	vfree(nodes);
+	vfree(yesdes);
 err_order:
 	kfree(order);
 err:
 	return ret;
 }
 
-static int igt_reserve(void *ignored)
+static int igt_reserve(void *igyesred)
 {
 	const unsigned int count = min_t(unsigned int, BIT(10), max_iterations);
 	int n, ret;
@@ -522,13 +522,13 @@ static int igt_reserve(void *ignored)
 	return 0;
 }
 
-static bool expect_insert(struct drm_mm *mm, struct drm_mm_node *node,
+static bool expect_insert(struct drm_mm *mm, struct drm_mm_yesde *yesde,
 			  u64 size, u64 alignment, unsigned long color,
 			  const struct insert_mode *mode)
 {
 	int err;
 
-	err = drm_mm_insert_node_generic(mm, node,
+	err = drm_mm_insert_yesde_generic(mm, yesde,
 					 size, alignment, color,
 					 mode->mode);
 	if (err) {
@@ -537,8 +537,8 @@ static bool expect_insert(struct drm_mm *mm, struct drm_mm_node *node,
 		return false;
 	}
 
-	if (!assert_node(node, mm, size, alignment, color)) {
-		drm_mm_remove_node(node);
+	if (!assert_yesde(yesde, mm, size, alignment, color)) {
+		drm_mm_remove_yesde(yesde);
 		return false;
 	}
 
@@ -547,17 +547,17 @@ static bool expect_insert(struct drm_mm *mm, struct drm_mm_node *node,
 
 static bool expect_insert_fail(struct drm_mm *mm, u64 size)
 {
-	struct drm_mm_node tmp = {};
+	struct drm_mm_yesde tmp = {};
 	int err;
 
-	err = drm_mm_insert_node(mm, &tmp, size);
+	err = drm_mm_insert_yesde(mm, &tmp, size);
 	if (likely(err == -ENOSPC))
 		return true;
 
 	if (!err) {
-		pr_err("impossible insert succeeded, node %llu + %llu\n",
+		pr_err("impossible insert succeeded, yesde %llu + %llu\n",
 		       tmp.start, tmp.size);
-		drm_mm_remove_node(&tmp);
+		drm_mm_remove_yesde(&tmp);
 	} else {
 		pr_err("impossible insert failed with wrong error %d [expected %d], size %llu\n",
 		       err, -ENOSPC, size);
@@ -570,63 +570,63 @@ static int __igt_insert(unsigned int count, u64 size, bool replace)
 	DRM_RND_STATE(prng, random_seed);
 	const struct insert_mode *mode;
 	struct drm_mm mm;
-	struct drm_mm_node *nodes, *node, *next;
+	struct drm_mm_yesde *yesdes, *yesde, *next;
 	unsigned int *order, n, m, o = 0;
 	int ret;
 
-	/* Fill a range with lots of nodes, check it doesn't fail too early */
+	/* Fill a range with lots of yesdes, check it doesn't fail too early */
 
 	DRM_MM_BUG_ON(!count);
 	DRM_MM_BUG_ON(!size);
 
 	ret = -ENOMEM;
-	nodes = vmalloc(array_size(count, sizeof(*nodes)));
-	if (!nodes)
+	yesdes = vmalloc(array_size(count, sizeof(*yesdes)));
+	if (!yesdes)
 		goto err;
 
 	order = drm_random_order(count, &prng);
 	if (!order)
-		goto err_nodes;
+		goto err_yesdes;
 
 	ret = -EINVAL;
 	drm_mm_init(&mm, 0, count * size);
 
 	for (mode = insert_modes; mode->name; mode++) {
 		for (n = 0; n < count; n++) {
-			struct drm_mm_node tmp;
+			struct drm_mm_yesde tmp;
 
-			node = replace ? &tmp : &nodes[n];
-			memset(node, 0, sizeof(*node));
-			if (!expect_insert(&mm, node, size, 0, n, mode)) {
+			yesde = replace ? &tmp : &yesdes[n];
+			memset(yesde, 0, sizeof(*yesde));
+			if (!expect_insert(&mm, yesde, size, 0, n, mode)) {
 				pr_err("%s insert failed, size %llu step %d\n",
 				       mode->name, size, n);
 				goto out;
 			}
 
 			if (replace) {
-				drm_mm_replace_node(&tmp, &nodes[n]);
-				if (drm_mm_node_allocated(&tmp)) {
-					pr_err("replaced old-node still allocated! step %d\n",
+				drm_mm_replace_yesde(&tmp, &yesdes[n]);
+				if (drm_mm_yesde_allocated(&tmp)) {
+					pr_err("replaced old-yesde still allocated! step %d\n",
 					       n);
 					goto out;
 				}
 
-				if (!assert_node(&nodes[n], &mm, size, 0, n)) {
-					pr_err("replaced node did not inherit parameters, size %llu step %d\n",
+				if (!assert_yesde(&yesdes[n], &mm, size, 0, n)) {
+					pr_err("replaced yesde did yest inherit parameters, size %llu step %d\n",
 					       size, n);
 					goto out;
 				}
 
-				if (tmp.start != nodes[n].start) {
-					pr_err("replaced node mismatch location expected [%llx + %llx], found [%llx + %llx]\n",
+				if (tmp.start != yesdes[n].start) {
+					pr_err("replaced yesde mismatch location expected [%llx + %llx], found [%llx + %llx]\n",
 					       tmp.start, size,
-					       nodes[n].start, nodes[n].size);
+					       yesdes[n].start, yesdes[n].size);
 					goto out;
 				}
 			}
 		}
 
-		/* After random insertion the nodes should be in order */
+		/* After random insertion the yesdes should be in order */
 		if (!assert_continuous(&mm, size))
 			goto out;
 
@@ -636,18 +636,18 @@ static int __igt_insert(unsigned int count, u64 size, bool replace)
 
 		/* Remove one and reinsert, as the only hole it should refill itself */
 		for (n = 0; n < count; n++) {
-			u64 addr = nodes[n].start;
+			u64 addr = yesdes[n].start;
 
-			drm_mm_remove_node(&nodes[n]);
-			if (!expect_insert(&mm, &nodes[n], size, 0, n, mode)) {
+			drm_mm_remove_yesde(&yesdes[n]);
+			if (!expect_insert(&mm, &yesdes[n], size, 0, n, mode)) {
 				pr_err("%s reinsert failed, size %llu step %d\n",
 				       mode->name, size, n);
 				goto out;
 			}
 
-			if (nodes[n].start != addr) {
-				pr_err("%s reinsert node moved, step %d, expected %llx, found %llx\n",
-				       mode->name, n, addr, nodes[n].start);
+			if (yesdes[n].start != addr) {
+				pr_err("%s reinsert yesde moved, step %d, expected %llx, found %llx\n",
+				       mode->name, n, addr, yesdes[n].start);
 				goto out;
 			}
 
@@ -658,13 +658,13 @@ static int __igt_insert(unsigned int count, u64 size, bool replace)
 		/* Remove several, reinsert, check full */
 		for_each_prime_number(n, min(max_prime, count)) {
 			for (m = 0; m < n; m++) {
-				node = &nodes[order[(o + m) % count]];
-				drm_mm_remove_node(node);
+				yesde = &yesdes[order[(o + m) % count]];
+				drm_mm_remove_yesde(yesde);
 			}
 
 			for (m = 0; m < n; m++) {
-				node = &nodes[order[(o + m) % count]];
-				if (!expect_insert(&mm, node, size, 0, n, mode)) {
+				yesde = &yesdes[order[(o + m) % count]];
+				if (!expect_insert(&mm, yesde, size, 0, n, mode)) {
 					pr_err("%s multiple reinsert failed, size %llu step %d\n",
 					       mode->name, size, n);
 					goto out;
@@ -680,8 +680,8 @@ static int __igt_insert(unsigned int count, u64 size, bool replace)
 				goto out;
 		}
 
-		drm_mm_for_each_node_safe(node, next, &mm)
-			drm_mm_remove_node(node);
+		drm_mm_for_each_yesde_safe(yesde, next, &mm)
+			drm_mm_remove_yesde(yesde);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
 
 		cond_resched();
@@ -689,17 +689,17 @@ static int __igt_insert(unsigned int count, u64 size, bool replace)
 
 	ret = 0;
 out:
-	drm_mm_for_each_node_safe(node, next, &mm)
-		drm_mm_remove_node(node);
+	drm_mm_for_each_yesde_safe(yesde, next, &mm)
+		drm_mm_remove_yesde(yesde);
 	drm_mm_takedown(&mm);
 	kfree(order);
-err_nodes:
-	vfree(nodes);
+err_yesdes:
+	vfree(yesdes);
 err:
 	return ret;
 }
 
-static int igt_insert(void *ignored)
+static int igt_insert(void *igyesred)
 {
 	const unsigned int count = min_t(unsigned int, BIT(10), max_iterations);
 	unsigned int n;
@@ -726,16 +726,16 @@ static int igt_insert(void *ignored)
 	return 0;
 }
 
-static int igt_replace(void *ignored)
+static int igt_replace(void *igyesred)
 {
 	const unsigned int count = min_t(unsigned int, BIT(10), max_iterations);
 	unsigned int n;
 	int ret;
 
-	/* Reuse igt_insert to exercise replacement by inserting a dummy node,
-	 * then replacing it with the intended node. We want to check that
+	/* Reuse igt_insert to exercise replacement by inserting a dummy yesde,
+	 * then replacing it with the intended yesde. We want to check that
 	 * the tree is intact and all the information we need is carried
-	 * across to the target node.
+	 * across to the target yesde.
 	 */
 
 	for_each_prime_number_from(n, 1, 54) {
@@ -759,14 +759,14 @@ static int igt_replace(void *ignored)
 	return 0;
 }
 
-static bool expect_insert_in_range(struct drm_mm *mm, struct drm_mm_node *node,
+static bool expect_insert_in_range(struct drm_mm *mm, struct drm_mm_yesde *yesde,
 				   u64 size, u64 alignment, unsigned long color,
 				   u64 range_start, u64 range_end,
 				   const struct insert_mode *mode)
 {
 	int err;
 
-	err = drm_mm_insert_node_in_range(mm, node,
+	err = drm_mm_insert_yesde_in_range(mm, yesde,
 					  size, alignment, color,
 					  range_start, range_end,
 					  mode->mode);
@@ -777,8 +777,8 @@ static bool expect_insert_in_range(struct drm_mm *mm, struct drm_mm_node *node,
 		return false;
 	}
 
-	if (!assert_node(node, mm, size, alignment, color)) {
-		drm_mm_remove_node(node);
+	if (!assert_yesde(yesde, mm, size, alignment, color)) {
+		drm_mm_remove_yesde(yesde);
 		return false;
 	}
 
@@ -790,10 +790,10 @@ static bool expect_insert_in_range_fail(struct drm_mm *mm,
 					u64 range_start,
 					u64 range_end)
 {
-	struct drm_mm_node tmp = {};
+	struct drm_mm_yesde tmp = {};
 	int err;
 
-	err = drm_mm_insert_node_in_range(mm, &tmp,
+	err = drm_mm_insert_yesde_in_range(mm, &tmp,
 					  size, 0, 0,
 					  range_start, range_end,
 					  0);
@@ -801,9 +801,9 @@ static bool expect_insert_in_range_fail(struct drm_mm *mm,
 		return true;
 
 	if (!err) {
-		pr_err("impossible insert succeeded, node %llx + %llu, range [%llx, %llx]\n",
+		pr_err("impossible insert succeeded, yesde %llx + %llu, range [%llx, %llx]\n",
 		       tmp.start, tmp.size, range_start, range_end);
-		drm_mm_remove_node(&tmp);
+		drm_mm_remove_yesde(&tmp);
 	} else {
 		pr_err("impossible insert failed with wrong error %d [expected %d], size %llu, range [%llx, %llx]\n",
 		       err, -ENOSPC, size, range_start, range_end);
@@ -817,35 +817,35 @@ static bool assert_contiguous_in_range(struct drm_mm *mm,
 				       u64 start,
 				       u64 end)
 {
-	struct drm_mm_node *node;
+	struct drm_mm_yesde *yesde;
 	unsigned int n;
 
 	if (!expect_insert_in_range_fail(mm, size, start, end))
 		return false;
 
 	n = div64_u64(start + size - 1, size);
-	drm_mm_for_each_node(node, mm) {
-		if (node->start < start || node->start + node->size > end) {
-			pr_err("node %d out of range, address [%llx + %llu], range [%llx, %llx]\n",
-			       n, node->start, node->start + node->size, start, end);
+	drm_mm_for_each_yesde(yesde, mm) {
+		if (yesde->start < start || yesde->start + yesde->size > end) {
+			pr_err("yesde %d out of range, address [%llx + %llu], range [%llx, %llx]\n",
+			       n, yesde->start, yesde->start + yesde->size, start, end);
 			return false;
 		}
 
-		if (node->start != n * size) {
-			pr_err("node %d out of order, expected start %llx, found %llx\n",
-			       n, n * size, node->start);
+		if (yesde->start != n * size) {
+			pr_err("yesde %d out of order, expected start %llx, found %llx\n",
+			       n, n * size, yesde->start);
 			return false;
 		}
 
-		if (node->size != size) {
-			pr_err("node %d has wrong size, expected size %llx, found %llx\n",
-			       n, size, node->size);
+		if (yesde->size != size) {
+			pr_err("yesde %d has wrong size, expected size %llx, found %llx\n",
+			       n, size, yesde->size);
 			return false;
 		}
 
-		if (drm_mm_hole_follows(node) &&
-		    drm_mm_hole_node_end(node) < end) {
-			pr_err("node %d is followed by a hole!\n", n);
+		if (drm_mm_hole_follows(yesde) &&
+		    drm_mm_hole_yesde_end(yesde) < end) {
+			pr_err("yesde %d is followed by a hole!\n", n);
 			return false;
 		}
 
@@ -853,19 +853,19 @@ static bool assert_contiguous_in_range(struct drm_mm *mm,
 	}
 
 	if (start > 0) {
-		node = __drm_mm_interval_first(mm, 0, start - 1);
-		if (drm_mm_node_allocated(node)) {
-			pr_err("node before start: node=%llx+%llu, start=%llx\n",
-			       node->start, node->size, start);
+		yesde = __drm_mm_interval_first(mm, 0, start - 1);
+		if (drm_mm_yesde_allocated(yesde)) {
+			pr_err("yesde before start: yesde=%llx+%llu, start=%llx\n",
+			       yesde->start, yesde->size, start);
 			return false;
 		}
 	}
 
 	if (end < U64_MAX) {
-		node = __drm_mm_interval_first(mm, end, U64_MAX);
-		if (drm_mm_node_allocated(node)) {
-			pr_err("node after end: node=%llx+%llu, end=%llx\n",
-			       node->start, node->size, end);
+		yesde = __drm_mm_interval_first(mm, end, U64_MAX);
+		if (drm_mm_yesde_allocated(yesde)) {
+			pr_err("yesde after end: yesde=%llx+%llu, end=%llx\n",
+			       yesde->start, yesde->size, end);
 			return false;
 		}
 	}
@@ -877,7 +877,7 @@ static int __igt_insert_range(unsigned int count, u64 size, u64 start, u64 end)
 {
 	const struct insert_mode *mode;
 	struct drm_mm mm;
-	struct drm_mm_node *nodes, *node, *next;
+	struct drm_mm_yesde *yesdes, *yesde, *next;
 	unsigned int n, start_n, end_n;
 	int ret;
 
@@ -885,13 +885,13 @@ static int __igt_insert_range(unsigned int count, u64 size, u64 start, u64 end)
 	DRM_MM_BUG_ON(!size);
 	DRM_MM_BUG_ON(end <= start);
 
-	/* Very similar to __igt_insert(), but now instead of populating the
+	/* Very similar to __igt_insert(), but yesw instead of populating the
 	 * full range of the drm_mm, we try to fill a small portion of it.
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(array_size(count, sizeof(*nodes)));
-	if (!nodes)
+	yesdes = vzalloc(array_size(count, sizeof(*yesdes)));
+	if (!yesdes)
 		goto err;
 
 	ret = -EINVAL;
@@ -902,7 +902,7 @@ static int __igt_insert_range(unsigned int count, u64 size, u64 start, u64 end)
 
 	for (mode = insert_modes; mode->name; mode++) {
 		for (n = start_n; n <= end_n; n++) {
-			if (!expect_insert_in_range(&mm, &nodes[n],
+			if (!expect_insert_in_range(&mm, &yesdes[n],
 						    size, size, n,
 						    start, end, mode)) {
 				pr_err("%s insert failed, size %llu, step %d [%d, %d], range [%llx, %llx]\n",
@@ -914,38 +914,38 @@ static int __igt_insert_range(unsigned int count, u64 size, u64 start, u64 end)
 		}
 
 		if (!assert_contiguous_in_range(&mm, size, start, end)) {
-			pr_err("%s: range [%llx, %llx] not full after initialisation, size=%llu\n",
+			pr_err("%s: range [%llx, %llx] yest full after initialisation, size=%llu\n",
 			       mode->name, start, end, size);
 			goto out;
 		}
 
 		/* Remove one and reinsert, it should refill itself */
 		for (n = start_n; n <= end_n; n++) {
-			u64 addr = nodes[n].start;
+			u64 addr = yesdes[n].start;
 
-			drm_mm_remove_node(&nodes[n]);
-			if (!expect_insert_in_range(&mm, &nodes[n],
+			drm_mm_remove_yesde(&yesdes[n]);
+			if (!expect_insert_in_range(&mm, &yesdes[n],
 						    size, size, n,
 						    start, end, mode)) {
 				pr_err("%s reinsert failed, step %d\n", mode->name, n);
 				goto out;
 			}
 
-			if (nodes[n].start != addr) {
-				pr_err("%s reinsert node moved, step %d, expected %llx, found %llx\n",
-				       mode->name, n, addr, nodes[n].start);
+			if (yesdes[n].start != addr) {
+				pr_err("%s reinsert yesde moved, step %d, expected %llx, found %llx\n",
+				       mode->name, n, addr, yesdes[n].start);
 				goto out;
 			}
 		}
 
 		if (!assert_contiguous_in_range(&mm, size, start, end)) {
-			pr_err("%s: range [%llx, %llx] not full after reinsertion, size=%llu\n",
+			pr_err("%s: range [%llx, %llx] yest full after reinsertion, size=%llu\n",
 			       mode->name, start, end, size);
 			goto out;
 		}
 
-		drm_mm_for_each_node_safe(node, next, &mm)
-			drm_mm_remove_node(node);
+		drm_mm_for_each_yesde_safe(yesde, next, &mm)
+			drm_mm_remove_yesde(yesde);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
 
 		cond_resched();
@@ -953,10 +953,10 @@ static int __igt_insert_range(unsigned int count, u64 size, u64 start, u64 end)
 
 	ret = 0;
 out:
-	drm_mm_for_each_node_safe(node, next, &mm)
-		drm_mm_remove_node(node);
+	drm_mm_for_each_yesde_safe(yesde, next, &mm)
+		drm_mm_remove_yesde(yesde);
 	drm_mm_takedown(&mm);
-	vfree(nodes);
+	vfree(yesdes);
 err:
 	return ret;
 }
@@ -988,7 +988,7 @@ static int insert_outside_range(void)
 	return 0;
 }
 
-static int igt_insert_range(void *ignored)
+static int igt_insert_range(void *igyesred)
 {
 	const unsigned int count = min_t(unsigned int, BIT(13), max_iterations);
 	unsigned int n;
@@ -1033,22 +1033,22 @@ static int igt_insert_range(void *ignored)
 	return 0;
 }
 
-static int igt_align(void *ignored)
+static int igt_align(void *igyesred)
 {
 	const struct insert_mode *mode;
 	const unsigned int max_count = min(8192u, max_prime);
 	struct drm_mm mm;
-	struct drm_mm_node *nodes, *node, *next;
+	struct drm_mm_yesde *yesdes, *yesde, *next;
 	unsigned int prime;
 	int ret = -EINVAL;
 
 	/* For each of the possible insertion modes, we pick a few
-	 * arbitrary alignments and check that the inserted node
+	 * arbitrary alignments and check that the inserted yesde
 	 * meets our requirements.
 	 */
 
-	nodes = vzalloc(array_size(max_count, sizeof(*nodes)));
-	if (!nodes)
+	yesdes = vzalloc(array_size(max_count, sizeof(*yesdes)));
+	if (!yesdes)
 		goto err;
 
 	drm_mm_init(&mm, 1, U64_MAX - 2);
@@ -1059,7 +1059,7 @@ static int igt_align(void *ignored)
 		for_each_prime_number_from(prime, 1, max_count) {
 			u64 size = next_prime_number(prime);
 
-			if (!expect_insert(&mm, &nodes[i],
+			if (!expect_insert(&mm, &yesdes[i],
 					   size, prime, i,
 					   mode)) {
 				pr_err("%s insert failed with alignment=%d",
@@ -1070,8 +1070,8 @@ static int igt_align(void *ignored)
 			i++;
 		}
 
-		drm_mm_for_each_node_safe(node, next, &mm)
-			drm_mm_remove_node(node);
+		drm_mm_for_each_yesde_safe(yesde, next, &mm)
+			drm_mm_remove_yesde(yesde);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
 
 		cond_resched();
@@ -1079,10 +1079,10 @@ static int igt_align(void *ignored)
 
 	ret = 0;
 out:
-	drm_mm_for_each_node_safe(node, next, &mm)
-		drm_mm_remove_node(node);
+	drm_mm_for_each_yesde_safe(yesde, next, &mm)
+		drm_mm_remove_yesde(yesde);
 	drm_mm_takedown(&mm);
-	vfree(nodes);
+	vfree(yesdes);
 err:
 	return ret;
 }
@@ -1090,7 +1090,7 @@ err:
 static int igt_align_pot(int max)
 {
 	struct drm_mm mm;
-	struct drm_mm_node *node, *next;
+	struct drm_mm_yesde *yesde, *next;
 	int bit;
 	int ret = -EINVAL;
 
@@ -1101,15 +1101,15 @@ static int igt_align_pot(int max)
 	for (bit = max - 1; bit; bit--) {
 		u64 align, size;
 
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
-		if (!node) {
+		yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+		if (!yesde) {
 			ret = -ENOMEM;
 			goto out;
 		}
 
 		align = BIT_ULL(bit);
 		size = BIT_ULL(bit-1) + 1;
-		if (!expect_insert(&mm, node,
+		if (!expect_insert(&mm, yesde,
 				   size, align, bit,
 				   &insert_modes[0])) {
 			pr_err("insert failed with alignment=%llx [%d]",
@@ -1122,20 +1122,20 @@ static int igt_align_pot(int max)
 
 	ret = 0;
 out:
-	drm_mm_for_each_node_safe(node, next, &mm) {
-		drm_mm_remove_node(node);
-		kfree(node);
+	drm_mm_for_each_yesde_safe(yesde, next, &mm) {
+		drm_mm_remove_yesde(yesde);
+		kfree(yesde);
 	}
 	drm_mm_takedown(&mm);
 	return ret;
 }
 
-static int igt_align32(void *ignored)
+static int igt_align32(void *igyesred)
 {
 	return igt_align_pot(32);
 }
 
-static int igt_align64(void *ignored)
+static int igt_align64(void *igyesred)
 {
 	return igt_align_pot(64);
 }
@@ -1150,58 +1150,58 @@ static void show_scan(const struct drm_mm_scan *scan)
 static void show_holes(const struct drm_mm *mm, int count)
 {
 	u64 hole_start, hole_end;
-	struct drm_mm_node *hole;
+	struct drm_mm_yesde *hole;
 
 	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
-		struct drm_mm_node *next = list_next_entry(hole, node_list);
-		const char *node1 = NULL, *node2 = NULL;
+		struct drm_mm_yesde *next = list_next_entry(hole, yesde_list);
+		const char *yesde1 = NULL, *yesde2 = NULL;
 
-		if (drm_mm_node_allocated(hole))
-			node1 = kasprintf(GFP_KERNEL,
+		if (drm_mm_yesde_allocated(hole))
+			yesde1 = kasprintf(GFP_KERNEL,
 					  "[%llx + %lld, color=%ld], ",
 					  hole->start, hole->size, hole->color);
 
-		if (drm_mm_node_allocated(next))
-			node2 = kasprintf(GFP_KERNEL,
+		if (drm_mm_yesde_allocated(next))
+			yesde2 = kasprintf(GFP_KERNEL,
 					  ", [%llx + %lld, color=%ld]",
 					  next->start, next->size, next->color);
 
 		pr_info("%sHole [%llx - %llx, size %lld]%s\n",
-			node1,
+			yesde1,
 			hole_start, hole_end, hole_end - hole_start,
-			node2);
+			yesde2);
 
-		kfree(node2);
-		kfree(node1);
+		kfree(yesde2);
+		kfree(yesde1);
 
 		if (!--count)
 			break;
 	}
 }
 
-struct evict_node {
-	struct drm_mm_node node;
+struct evict_yesde {
+	struct drm_mm_yesde yesde;
 	struct list_head link;
 };
 
-static bool evict_nodes(struct drm_mm_scan *scan,
-			struct evict_node *nodes,
+static bool evict_yesdes(struct drm_mm_scan *scan,
+			struct evict_yesde *yesdes,
 			unsigned int *order,
 			unsigned int count,
 			bool use_color,
 			struct list_head *evict_list)
 {
-	struct evict_node *e, *en;
+	struct evict_yesde *e, *en;
 	unsigned int i;
 
 	for (i = 0; i < count; i++) {
-		e = &nodes[order ? order[i] : i];
+		e = &yesdes[order ? order[i] : i];
 		list_add(&e->link, evict_list);
-		if (drm_mm_scan_add_block(scan, &e->node))
+		if (drm_mm_scan_add_block(scan, &e->yesde))
 			break;
 	}
 	list_for_each_entry_safe(e, en, evict_list, link) {
-		if (!drm_mm_scan_remove_block(scan, &e->node))
+		if (!drm_mm_scan_remove_block(scan, &e->yesde))
 			list_del(&e->link);
 	}
 	if (list_empty(evict_list)) {
@@ -1211,19 +1211,19 @@ static bool evict_nodes(struct drm_mm_scan *scan,
 	}
 
 	list_for_each_entry(e, evict_list, link)
-		drm_mm_remove_node(&e->node);
+		drm_mm_remove_yesde(&e->yesde);
 
 	if (use_color) {
-		struct drm_mm_node *node;
+		struct drm_mm_yesde *yesde;
 
-		while ((node = drm_mm_scan_color_evict(scan))) {
-			e = container_of(node, typeof(*e), node);
-			drm_mm_remove_node(&e->node);
+		while ((yesde = drm_mm_scan_color_evict(scan))) {
+			e = container_of(yesde, typeof(*e), yesde);
+			drm_mm_remove_yesde(&e->yesde);
 			list_add(&e->link, evict_list);
 		}
 	} else {
 		if (drm_mm_scan_color_evict(scan)) {
-			pr_err("drm_mm_scan_color_evict unexpectedly reported overlapping nodes!\n");
+			pr_err("drm_mm_scan_color_evict unexpectedly reported overlapping yesdes!\n");
 			return false;
 		}
 	}
@@ -1231,77 +1231,77 @@ static bool evict_nodes(struct drm_mm_scan *scan,
 	return true;
 }
 
-static bool evict_nothing(struct drm_mm *mm,
+static bool evict_yesthing(struct drm_mm *mm,
 			  unsigned int total_size,
-			  struct evict_node *nodes)
+			  struct evict_yesde *yesdes)
 {
 	struct drm_mm_scan scan;
 	LIST_HEAD(evict_list);
-	struct evict_node *e;
-	struct drm_mm_node *node;
+	struct evict_yesde *e;
+	struct drm_mm_yesde *yesde;
 	unsigned int n;
 
 	drm_mm_scan_init(&scan, mm, 1, 0, 0, 0);
 	for (n = 0; n < total_size; n++) {
-		e = &nodes[n];
+		e = &yesdes[n];
 		list_add(&e->link, &evict_list);
-		drm_mm_scan_add_block(&scan, &e->node);
+		drm_mm_scan_add_block(&scan, &e->yesde);
 	}
 	list_for_each_entry(e, &evict_list, link)
-		drm_mm_scan_remove_block(&scan, &e->node);
+		drm_mm_scan_remove_block(&scan, &e->yesde);
 
 	for (n = 0; n < total_size; n++) {
-		e = &nodes[n];
+		e = &yesdes[n];
 
-		if (!drm_mm_node_allocated(&e->node)) {
-			pr_err("node[%d] no longer allocated!\n", n);
+		if (!drm_mm_yesde_allocated(&e->yesde)) {
+			pr_err("yesde[%d] yes longer allocated!\n", n);
 			return false;
 		}
 
 		e->link.next = NULL;
 	}
 
-	drm_mm_for_each_node(node, mm) {
-		e = container_of(node, typeof(*e), node);
+	drm_mm_for_each_yesde(yesde, mm) {
+		e = container_of(yesde, typeof(*e), yesde);
 		e->link.next = &e->link;
 	}
 
 	for (n = 0; n < total_size; n++) {
-		e = &nodes[n];
+		e = &yesdes[n];
 
 		if (!e->link.next) {
-			pr_err("node[%d] no longer connected!\n", n);
+			pr_err("yesde[%d] yes longer connected!\n", n);
 			return false;
 		}
 	}
 
-	return assert_continuous(mm, nodes[0].node.size);
+	return assert_continuous(mm, yesdes[0].yesde.size);
 }
 
 static bool evict_everything(struct drm_mm *mm,
 			     unsigned int total_size,
-			     struct evict_node *nodes)
+			     struct evict_yesde *yesdes)
 {
 	struct drm_mm_scan scan;
 	LIST_HEAD(evict_list);
-	struct evict_node *e;
+	struct evict_yesde *e;
 	unsigned int n;
 	int err;
 
 	drm_mm_scan_init(&scan, mm, total_size, 0, 0, 0);
 	for (n = 0; n < total_size; n++) {
-		e = &nodes[n];
+		e = &yesdes[n];
 		list_add(&e->link, &evict_list);
-		if (drm_mm_scan_add_block(&scan, &e->node))
+		if (drm_mm_scan_add_block(&scan, &e->yesde))
 			break;
 	}
 
 	err = 0;
 	list_for_each_entry(e, &evict_list, link) {
-		if (!drm_mm_scan_remove_block(&scan, &e->node)) {
+		if (!drm_mm_scan_remove_block(&scan, &e->yesde)) {
 			if (!err) {
-				pr_err("Node %lld not marked for eviction!\n",
-				       e->node.start);
+				pr_err("Node %lld yest marked for eviction!\n",
+				       e->yesde.start);
 				err = -EINVAL;
 			}
 		}
@@ -1310,26 +1310,26 @@ static bool evict_everything(struct drm_mm *mm,
 		return false;
 
 	list_for_each_entry(e, &evict_list, link)
-		drm_mm_remove_node(&e->node);
+		drm_mm_remove_yesde(&e->yesde);
 
 	if (!assert_one_hole(mm, 0, total_size))
 		return false;
 
 	list_for_each_entry(e, &evict_list, link) {
-		err = drm_mm_reserve_node(mm, &e->node);
+		err = drm_mm_reserve_yesde(mm, &e->yesde);
 		if (err) {
-			pr_err("Failed to reinsert node after eviction: start=%llx\n",
-			       e->node.start);
+			pr_err("Failed to reinsert yesde after eviction: start=%llx\n",
+			       e->yesde.start);
 			return false;
 		}
 	}
 
-	return assert_continuous(mm, nodes[0].node.size);
+	return assert_continuous(mm, yesdes[0].yesde.size);
 }
 
 static int evict_something(struct drm_mm *mm,
 			   u64 range_start, u64 range_end,
-			   struct evict_node *nodes,
+			   struct evict_yesde *yesdes,
 			   unsigned int *order,
 			   unsigned int count,
 			   unsigned int size,
@@ -1338,21 +1338,21 @@ static int evict_something(struct drm_mm *mm,
 {
 	struct drm_mm_scan scan;
 	LIST_HEAD(evict_list);
-	struct evict_node *e;
-	struct drm_mm_node tmp;
+	struct evict_yesde *e;
+	struct drm_mm_yesde tmp;
 	int err;
 
 	drm_mm_scan_init_with_range(&scan, mm,
 				    size, alignment, 0,
 				    range_start, range_end,
 				    mode->mode);
-	if (!evict_nodes(&scan,
-			 nodes, order, count, false,
+	if (!evict_yesdes(&scan,
+			 yesdes, order, count, false,
 			 &evict_list))
 		return -EINVAL;
 
 	memset(&tmp, 0, sizeof(tmp));
-	err = drm_mm_insert_node_generic(mm, &tmp, size, alignment, 0,
+	err = drm_mm_insert_yesde_generic(mm, &tmp, size, alignment, 0,
 					 DRM_MM_INSERT_EVICT);
 	if (err) {
 		pr_err("Failed to insert into eviction hole: size=%d, align=%d\n",
@@ -1363,72 +1363,72 @@ static int evict_something(struct drm_mm *mm,
 	}
 
 	if (tmp.start < range_start || tmp.start + tmp.size > range_end) {
-		pr_err("Inserted [address=%llu + %llu] did not fit into the request range [%llu, %llu]\n",
+		pr_err("Inserted [address=%llu + %llu] did yest fit into the request range [%llu, %llu]\n",
 		       tmp.start, tmp.size, range_start, range_end);
 		err = -EINVAL;
 	}
 
-	if (!assert_node(&tmp, mm, size, alignment, 0) ||
+	if (!assert_yesde(&tmp, mm, size, alignment, 0) ||
 	    drm_mm_hole_follows(&tmp)) {
-		pr_err("Inserted did not fill the eviction hole: size=%lld [%d], align=%d [rem=%lld], start=%llx, hole-follows?=%d\n",
+		pr_err("Inserted did yest fill the eviction hole: size=%lld [%d], align=%d [rem=%lld], start=%llx, hole-follows?=%d\n",
 		       tmp.size, size,
 		       alignment, misalignment(&tmp, alignment),
 		       tmp.start, drm_mm_hole_follows(&tmp));
 		err = -EINVAL;
 	}
 
-	drm_mm_remove_node(&tmp);
+	drm_mm_remove_yesde(&tmp);
 	if (err)
 		return err;
 
 	list_for_each_entry(e, &evict_list, link) {
-		err = drm_mm_reserve_node(mm, &e->node);
+		err = drm_mm_reserve_yesde(mm, &e->yesde);
 		if (err) {
-			pr_err("Failed to reinsert node after eviction: start=%llx\n",
-			       e->node.start);
+			pr_err("Failed to reinsert yesde after eviction: start=%llx\n",
+			       e->yesde.start);
 			return err;
 		}
 	}
 
-	if (!assert_continuous(mm, nodes[0].node.size)) {
-		pr_err("range is no longer continuous\n");
+	if (!assert_continuous(mm, yesdes[0].yesde.size)) {
+		pr_err("range is yes longer continuous\n");
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static int igt_evict(void *ignored)
+static int igt_evict(void *igyesred)
 {
 	DRM_RND_STATE(prng, random_seed);
 	const unsigned int size = 8192;
 	const struct insert_mode *mode;
 	struct drm_mm mm;
-	struct evict_node *nodes;
-	struct drm_mm_node *node, *next;
+	struct evict_yesde *yesdes;
+	struct drm_mm_yesde *yesde, *next;
 	unsigned int *order, n;
 	int ret, err;
 
-	/* Here we populate a full drm_mm and then try and insert a new node
-	 * by evicting other nodes in a random order. The drm_mm_scan should
+	/* Here we populate a full drm_mm and then try and insert a new yesde
+	 * by evicting other yesdes in a random order. The drm_mm_scan should
 	 * pick the first matching hole it finds from the random list. We
 	 * repeat that for different allocation strategies, alignments and
 	 * sizes to try and stress the hole finder.
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(array_size(size, sizeof(*nodes)));
-	if (!nodes)
+	yesdes = vzalloc(array_size(size, sizeof(*yesdes)));
+	if (!yesdes)
 		goto err;
 
 	order = drm_random_order(size, &prng);
 	if (!order)
-		goto err_nodes;
+		goto err_yesdes;
 
 	ret = -EINVAL;
 	drm_mm_init(&mm, 0, size);
 	for (n = 0; n < size; n++) {
-		err = drm_mm_insert_node(&mm, &nodes[n].node, 1);
+		err = drm_mm_insert_yesde(&mm, &yesdes[n].yesde, 1);
 		if (err) {
 			pr_err("insert failed, step %d\n", n);
 			ret = err;
@@ -1437,11 +1437,11 @@ static int igt_evict(void *ignored)
 	}
 
 	/* First check that using the scanner doesn't break the mm */
-	if (!evict_nothing(&mm, size, nodes)) {
-		pr_err("evict_nothing() failed\n");
+	if (!evict_yesthing(&mm, size, yesdes)) {
+		pr_err("evict_yesthing() failed\n");
 		goto out;
 	}
-	if (!evict_everything(&mm, size, nodes)) {
+	if (!evict_everything(&mm, size, yesdes)) {
 		pr_err("evict_everything() failed\n");
 		goto out;
 	}
@@ -1450,7 +1450,7 @@ static int igt_evict(void *ignored)
 		for (n = 1; n <= size; n <<= 1) {
 			drm_random_reorder(order, size, &prng);
 			err = evict_something(&mm, 0, U64_MAX,
-					      nodes, order, size,
+					      yesdes, order, size,
 					      n, 1,
 					      mode);
 			if (err) {
@@ -1464,7 +1464,7 @@ static int igt_evict(void *ignored)
 		for (n = 1; n < size; n <<= 1) {
 			drm_random_reorder(order, size, &prng);
 			err = evict_something(&mm, 0, U64_MAX,
-					      nodes, order, size,
+					      yesdes, order, size,
 					      size/2, n,
 					      mode);
 			if (err) {
@@ -1482,7 +1482,7 @@ static int igt_evict(void *ignored)
 
 			drm_random_reorder(order, size, &prng);
 			err = evict_something(&mm, 0, U64_MAX,
-					      nodes, order, size,
+					      yesdes, order, size,
 					      nsize, n,
 					      mode);
 			if (err) {
@@ -1498,17 +1498,17 @@ static int igt_evict(void *ignored)
 
 	ret = 0;
 out:
-	drm_mm_for_each_node_safe(node, next, &mm)
-		drm_mm_remove_node(node);
+	drm_mm_for_each_yesde_safe(yesde, next, &mm)
+		drm_mm_remove_yesde(yesde);
 	drm_mm_takedown(&mm);
 	kfree(order);
-err_nodes:
-	vfree(nodes);
+err_yesdes:
+	vfree(yesdes);
 err:
 	return ret;
 }
 
-static int igt_evict_range(void *ignored)
+static int igt_evict_range(void *igyesred)
 {
 	DRM_RND_STATE(prng, random_seed);
 	const unsigned int size = 8192;
@@ -1517,28 +1517,28 @@ static int igt_evict_range(void *ignored)
 	const unsigned int range_end = range_start + range_size;
 	const struct insert_mode *mode;
 	struct drm_mm mm;
-	struct evict_node *nodes;
-	struct drm_mm_node *node, *next;
+	struct evict_yesde *yesdes;
+	struct drm_mm_yesde *yesde, *next;
 	unsigned int *order, n;
 	int ret, err;
 
-	/* Like igt_evict() but now we are limiting the search to a
+	/* Like igt_evict() but yesw we are limiting the search to a
 	 * small portion of the full drm_mm.
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(array_size(size, sizeof(*nodes)));
-	if (!nodes)
+	yesdes = vzalloc(array_size(size, sizeof(*yesdes)));
+	if (!yesdes)
 		goto err;
 
 	order = drm_random_order(size, &prng);
 	if (!order)
-		goto err_nodes;
+		goto err_yesdes;
 
 	ret = -EINVAL;
 	drm_mm_init(&mm, 0, size);
 	for (n = 0; n < size; n++) {
-		err = drm_mm_insert_node(&mm, &nodes[n].node, 1);
+		err = drm_mm_insert_yesde(&mm, &yesdes[n].yesde, 1);
 		if (err) {
 			pr_err("insert failed, step %d\n", n);
 			ret = err;
@@ -1550,7 +1550,7 @@ static int igt_evict_range(void *ignored)
 		for (n = 1; n <= range_size; n <<= 1) {
 			drm_random_reorder(order, size, &prng);
 			err = evict_something(&mm, range_start, range_end,
-					      nodes, order, size,
+					      yesdes, order, size,
 					      n, 1,
 					      mode);
 			if (err) {
@@ -1563,7 +1563,7 @@ static int igt_evict_range(void *ignored)
 		for (n = 1; n <= range_size; n <<= 1) {
 			drm_random_reorder(order, size, &prng);
 			err = evict_something(&mm, range_start, range_end,
-					      nodes, order, size,
+					      yesdes, order, size,
 					      range_size/2, n,
 					      mode);
 			if (err) {
@@ -1580,7 +1580,7 @@ static int igt_evict_range(void *ignored)
 
 			drm_random_reorder(order, size, &prng);
 			err = evict_something(&mm, range_start, range_end,
-					      nodes, order, size,
+					      yesdes, order, size,
 					      nsize, n,
 					      mode);
 			if (err) {
@@ -1595,22 +1595,22 @@ static int igt_evict_range(void *ignored)
 
 	ret = 0;
 out:
-	drm_mm_for_each_node_safe(node, next, &mm)
-		drm_mm_remove_node(node);
+	drm_mm_for_each_yesde_safe(yesde, next, &mm)
+		drm_mm_remove_yesde(yesde);
 	drm_mm_takedown(&mm);
 	kfree(order);
-err_nodes:
-	vfree(nodes);
+err_yesdes:
+	vfree(yesdes);
 err:
 	return ret;
 }
 
-static unsigned int node_index(const struct drm_mm_node *node)
+static unsigned int yesde_index(const struct drm_mm_yesde *yesde)
 {
-	return div64_u64(node->start, node->size);
+	return div64_u64(yesde->start, yesde->size);
 }
 
-static int igt_topdown(void *ignored)
+static int igt_topdown(void *igyesred)
 {
 	const struct insert_mode *topdown = &insert_modes[TOPDOWN];
 	DRM_RND_STATE(prng, random_seed);
@@ -1618,23 +1618,23 @@ static int igt_topdown(void *ignored)
 	unsigned int size;
 	unsigned long *bitmap;
 	struct drm_mm mm;
-	struct drm_mm_node *nodes, *node, *next;
+	struct drm_mm_yesde *yesdes, *yesde, *next;
 	unsigned int *order, n, m, o = 0;
 	int ret;
 
-	/* When allocating top-down, we expect to be returned a node
+	/* When allocating top-down, we expect to be returned a yesde
 	 * from a suitable hole at the top of the drm_mm. We check that
-	 * the returned node does match the highest available slot.
+	 * the returned yesde does match the highest available slot.
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(array_size(count, sizeof(*nodes)));
-	if (!nodes)
+	yesdes = vzalloc(array_size(count, sizeof(*yesdes)));
+	if (!yesdes)
 		goto err;
 
 	bitmap = bitmap_zalloc(count, GFP_KERNEL);
 	if (!bitmap)
-		goto err_nodes;
+		goto err_yesdes;
 
 	order = drm_random_order(count, &prng);
 	if (!order)
@@ -1644,16 +1644,16 @@ static int igt_topdown(void *ignored)
 	for (size = 1; size <= 64; size <<= 1) {
 		drm_mm_init(&mm, 0, size*count);
 		for (n = 0; n < count; n++) {
-			if (!expect_insert(&mm, &nodes[n],
+			if (!expect_insert(&mm, &yesdes[n],
 					   size, 0, n,
 					   topdown)) {
 				pr_err("insert failed, size %u step %d\n", size, n);
 				goto out;
 			}
 
-			if (drm_mm_hole_follows(&nodes[n])) {
+			if (drm_mm_hole_follows(&yesdes[n])) {
 				pr_err("hole after topdown insert %d, start=%llx\n, size=%u",
-				       n, nodes[n].start, size);
+				       n, yesdes[n].start, size);
 				goto out;
 			}
 
@@ -1667,32 +1667,32 @@ static int igt_topdown(void *ignored)
 		drm_random_reorder(order, count, &prng);
 		for_each_prime_number_from(n, 1, min(count, max_prime)) {
 			for (m = 0; m < n; m++) {
-				node = &nodes[order[(o + m) % count]];
-				drm_mm_remove_node(node);
-				__set_bit(node_index(node), bitmap);
+				yesde = &yesdes[order[(o + m) % count]];
+				drm_mm_remove_yesde(yesde);
+				__set_bit(yesde_index(yesde), bitmap);
 			}
 
 			for (m = 0; m < n; m++) {
 				unsigned int last;
 
-				node = &nodes[order[(o + m) % count]];
-				if (!expect_insert(&mm, node,
+				yesde = &yesdes[order[(o + m) % count]];
+				if (!expect_insert(&mm, yesde,
 						   size, 0, 0,
 						   topdown)) {
 					pr_err("insert failed, step %d/%d\n", m, n);
 					goto out;
 				}
 
-				if (drm_mm_hole_follows(node)) {
+				if (drm_mm_hole_follows(yesde)) {
 					pr_err("hole after topdown insert %d/%d, start=%llx\n",
-					       m, n, node->start);
+					       m, n, yesde->start);
 					goto out;
 				}
 
 				last = find_last_bit(bitmap, count);
-				if (node_index(node) != last) {
-					pr_err("node %d/%d, size %d, not inserted into upmost hole, expected %d, found %d\n",
-					       m, n, size, last, node_index(node));
+				if (yesde_index(yesde) != last) {
+					pr_err("yesde %d/%d, size %d, yest inserted into upmost hole, expected %d, found %d\n",
+					       m, n, size, last, yesde_index(yesde));
 					goto out;
 				}
 
@@ -1704,27 +1704,27 @@ static int igt_topdown(void *ignored)
 			o += n;
 		}
 
-		drm_mm_for_each_node_safe(node, next, &mm)
-			drm_mm_remove_node(node);
+		drm_mm_for_each_yesde_safe(yesde, next, &mm)
+			drm_mm_remove_yesde(yesde);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
 		cond_resched();
 	}
 
 	ret = 0;
 out:
-	drm_mm_for_each_node_safe(node, next, &mm)
-		drm_mm_remove_node(node);
+	drm_mm_for_each_yesde_safe(yesde, next, &mm)
+		drm_mm_remove_yesde(yesde);
 	drm_mm_takedown(&mm);
 	kfree(order);
 err_bitmap:
 	bitmap_free(bitmap);
-err_nodes:
-	vfree(nodes);
+err_yesdes:
+	vfree(yesdes);
 err:
 	return ret;
 }
 
-static int igt_bottomup(void *ignored)
+static int igt_bottomup(void *igyesred)
 {
 	const struct insert_mode *bottomup = &insert_modes[BOTTOMUP];
 	DRM_RND_STATE(prng, random_seed);
@@ -1732,7 +1732,7 @@ static int igt_bottomup(void *ignored)
 	unsigned int size;
 	unsigned long *bitmap;
 	struct drm_mm mm;
-	struct drm_mm_node *nodes, *node, *next;
+	struct drm_mm_yesde *yesdes, *yesde, *next;
 	unsigned int *order, n, m, o = 0;
 	int ret;
 
@@ -1741,13 +1741,13 @@ static int igt_bottomup(void *ignored)
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(array_size(count, sizeof(*nodes)));
-	if (!nodes)
+	yesdes = vzalloc(array_size(count, sizeof(*yesdes)));
+	if (!yesdes)
 		goto err;
 
 	bitmap = bitmap_zalloc(count, GFP_KERNEL);
 	if (!bitmap)
-		goto err_nodes;
+		goto err_yesdes;
 
 	order = drm_random_order(count, &prng);
 	if (!order)
@@ -1757,7 +1757,7 @@ static int igt_bottomup(void *ignored)
 	for (size = 1; size <= 64; size <<= 1) {
 		drm_mm_init(&mm, 0, size*count);
 		for (n = 0; n < count; n++) {
-			if (!expect_insert(&mm, &nodes[n],
+			if (!expect_insert(&mm, &yesdes[n],
 					   size, 0, n,
 					   bottomup)) {
 				pr_err("bottomup insert failed, size %u step %d\n", size, n);
@@ -1774,16 +1774,16 @@ static int igt_bottomup(void *ignored)
 		drm_random_reorder(order, count, &prng);
 		for_each_prime_number_from(n, 1, min(count, max_prime)) {
 			for (m = 0; m < n; m++) {
-				node = &nodes[order[(o + m) % count]];
-				drm_mm_remove_node(node);
-				__set_bit(node_index(node), bitmap);
+				yesde = &yesdes[order[(o + m) % count]];
+				drm_mm_remove_yesde(yesde);
+				__set_bit(yesde_index(yesde), bitmap);
 			}
 
 			for (m = 0; m < n; m++) {
 				unsigned int first;
 
-				node = &nodes[order[(o + m) % count]];
-				if (!expect_insert(&mm, node,
+				yesde = &yesdes[order[(o + m) % count]];
+				if (!expect_insert(&mm, yesde,
 						   size, 0, 0,
 						   bottomup)) {
 					pr_err("insert failed, step %d/%d\n", m, n);
@@ -1791,9 +1791,9 @@ static int igt_bottomup(void *ignored)
 				}
 
 				first = find_first_bit(bitmap, count);
-				if (node_index(node) != first) {
-					pr_err("node %d/%d not inserted into bottom hole, expected %d, found %d\n",
-					       m, n, first, node_index(node));
+				if (yesde_index(yesde) != first) {
+					pr_err("yesde %d/%d yest inserted into bottom hole, expected %d, found %d\n",
+					       m, n, first, yesde_index(yesde));
 					goto out;
 				}
 				__clear_bit(first, bitmap);
@@ -1804,22 +1804,22 @@ static int igt_bottomup(void *ignored)
 			o += n;
 		}
 
-		drm_mm_for_each_node_safe(node, next, &mm)
-			drm_mm_remove_node(node);
+		drm_mm_for_each_yesde_safe(yesde, next, &mm)
+			drm_mm_remove_yesde(yesde);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
 		cond_resched();
 	}
 
 	ret = 0;
 out:
-	drm_mm_for_each_node_safe(node, next, &mm)
-		drm_mm_remove_node(node);
+	drm_mm_for_each_yesde_safe(yesde, next, &mm)
+		drm_mm_remove_yesde(yesde);
 	drm_mm_takedown(&mm);
 	kfree(order);
 err_bitmap:
 	bitmap_free(bitmap);
-err_nodes:
-	vfree(nodes);
+err_yesdes:
+	vfree(yesdes);
 err:
 	return ret;
 }
@@ -1827,7 +1827,7 @@ err:
 static int __igt_once(unsigned int mode)
 {
 	struct drm_mm mm;
-	struct drm_mm_node rsvd_lo, rsvd_hi, node;
+	struct drm_mm_yesde rsvd_lo, rsvd_hi, yesde;
 	int err;
 
 	drm_mm_init(&mm, 0, 7);
@@ -1835,138 +1835,138 @@ static int __igt_once(unsigned int mode)
 	memset(&rsvd_lo, 0, sizeof(rsvd_lo));
 	rsvd_lo.start = 1;
 	rsvd_lo.size = 1;
-	err = drm_mm_reserve_node(&mm, &rsvd_lo);
+	err = drm_mm_reserve_yesde(&mm, &rsvd_lo);
 	if (err) {
-		pr_err("Could not reserve low node\n");
+		pr_err("Could yest reserve low yesde\n");
 		goto err;
 	}
 
 	memset(&rsvd_hi, 0, sizeof(rsvd_hi));
 	rsvd_hi.start = 5;
 	rsvd_hi.size = 1;
-	err = drm_mm_reserve_node(&mm, &rsvd_hi);
+	err = drm_mm_reserve_yesde(&mm, &rsvd_hi);
 	if (err) {
-		pr_err("Could not reserve low node\n");
+		pr_err("Could yest reserve low yesde\n");
 		goto err_lo;
 	}
 
 	if (!drm_mm_hole_follows(&rsvd_lo) || !drm_mm_hole_follows(&rsvd_hi)) {
-		pr_err("Expected a hole after lo and high nodes!\n");
+		pr_err("Expected a hole after lo and high yesdes!\n");
 		err = -EINVAL;
 		goto err_hi;
 	}
 
-	memset(&node, 0, sizeof(node));
-	err = drm_mm_insert_node_generic(&mm, &node,
+	memset(&yesde, 0, sizeof(yesde));
+	err = drm_mm_insert_yesde_generic(&mm, &yesde,
 					 2, 0, 0,
 					 mode | DRM_MM_INSERT_ONCE);
 	if (!err) {
-		pr_err("Unexpectedly inserted the node into the wrong hole: node.start=%llx\n",
-		       node.start);
+		pr_err("Unexpectedly inserted the yesde into the wrong hole: yesde.start=%llx\n",
+		       yesde.start);
 		err = -EINVAL;
-		goto err_node;
+		goto err_yesde;
 	}
 
-	err = drm_mm_insert_node_generic(&mm, &node, 2, 0, 0, mode);
+	err = drm_mm_insert_yesde_generic(&mm, &yesde, 2, 0, 0, mode);
 	if (err) {
-		pr_err("Could not insert the node into the available hole!\n");
+		pr_err("Could yest insert the yesde into the available hole!\n");
 		err = -EINVAL;
 		goto err_hi;
 	}
 
-err_node:
-	drm_mm_remove_node(&node);
+err_yesde:
+	drm_mm_remove_yesde(&yesde);
 err_hi:
-	drm_mm_remove_node(&rsvd_hi);
+	drm_mm_remove_yesde(&rsvd_hi);
 err_lo:
-	drm_mm_remove_node(&rsvd_lo);
+	drm_mm_remove_yesde(&rsvd_lo);
 err:
 	drm_mm_takedown(&mm);
 	return err;
 }
 
-static int igt_lowest(void *ignored)
+static int igt_lowest(void *igyesred)
 {
 	return __igt_once(DRM_MM_INSERT_LOW);
 }
 
-static int igt_highest(void *ignored)
+static int igt_highest(void *igyesred)
 {
 	return __igt_once(DRM_MM_INSERT_HIGH);
 }
 
-static void separate_adjacent_colors(const struct drm_mm_node *node,
+static void separate_adjacent_colors(const struct drm_mm_yesde *yesde,
 				     unsigned long color,
 				     u64 *start,
 				     u64 *end)
 {
-	if (drm_mm_node_allocated(node) && node->color != color)
+	if (drm_mm_yesde_allocated(yesde) && yesde->color != color)
 		++*start;
 
-	node = list_next_entry(node, node_list);
-	if (drm_mm_node_allocated(node) && node->color != color)
+	yesde = list_next_entry(yesde, yesde_list);
+	if (drm_mm_yesde_allocated(yesde) && yesde->color != color)
 		--*end;
 }
 
-static bool colors_abutt(const struct drm_mm_node *node)
+static bool colors_abutt(const struct drm_mm_yesde *yesde)
 {
-	if (!drm_mm_hole_follows(node) &&
-	    drm_mm_node_allocated(list_next_entry(node, node_list))) {
+	if (!drm_mm_hole_follows(yesde) &&
+	    drm_mm_yesde_allocated(list_next_entry(yesde, yesde_list))) {
 		pr_err("colors abutt; %ld [%llx + %llx] is next to %ld [%llx + %llx]!\n",
-		       node->color, node->start, node->size,
-		       list_next_entry(node, node_list)->color,
-		       list_next_entry(node, node_list)->start,
-		       list_next_entry(node, node_list)->size);
+		       yesde->color, yesde->start, yesde->size,
+		       list_next_entry(yesde, yesde_list)->color,
+		       list_next_entry(yesde, yesde_list)->start,
+		       list_next_entry(yesde, yesde_list)->size);
 		return true;
 	}
 
 	return false;
 }
 
-static int igt_color(void *ignored)
+static int igt_color(void *igyesred)
 {
 	const unsigned int count = min(4096u, max_iterations);
 	const struct insert_mode *mode;
 	struct drm_mm mm;
-	struct drm_mm_node *node, *nn;
+	struct drm_mm_yesde *yesde, *nn;
 	unsigned int n;
 	int ret = -EINVAL, err;
 
 	/* Color adjustment complicates everything. First we just check
-	 * that when we insert a node we apply any color_adjustment callback.
+	 * that when we insert a yesde we apply any color_adjustment callback.
 	 * The callback we use should ensure that there is a gap between
-	 * any two nodes, and so after each insertion we check that those
+	 * any two yesdes, and so after each insertion we check that those
 	 * holes are inserted and that they are preserved.
 	 */
 
 	drm_mm_init(&mm, 0, U64_MAX);
 
 	for (n = 1; n <= count; n++) {
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
-		if (!node) {
+		yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+		if (!yesde) {
 			ret = -ENOMEM;
 			goto out;
 		}
 
-		if (!expect_insert(&mm, node,
+		if (!expect_insert(&mm, yesde,
 				   n, 0, n,
 				   &insert_modes[0])) {
 			pr_err("insert failed, step %d\n", n);
-			kfree(node);
+			kfree(yesde);
 			goto out;
 		}
 	}
 
-	drm_mm_for_each_node_safe(node, nn, &mm) {
-		if (node->color != node->size) {
+	drm_mm_for_each_yesde_safe(yesde, nn, &mm) {
+		if (yesde->color != yesde->size) {
 			pr_err("invalid color stored: expected %lld, found %ld\n",
-			       node->size, node->color);
+			       yesde->size, yesde->color);
 
 			goto out;
 		}
 
-		drm_mm_remove_node(node);
-		kfree(node);
+		drm_mm_remove_yesde(yesde);
+		kfree(yesde);
 	}
 
 	/* Now, let's start experimenting with applying a color callback */
@@ -1974,97 +1974,97 @@ static int igt_color(void *ignored)
 	for (mode = insert_modes; mode->name; mode++) {
 		u64 last;
 
-		node = kzalloc(sizeof(*node), GFP_KERNEL);
-		if (!node) {
+		yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+		if (!yesde) {
 			ret = -ENOMEM;
 			goto out;
 		}
 
-		node->size = 1 + 2*count;
-		node->color = node->size;
+		yesde->size = 1 + 2*count;
+		yesde->color = yesde->size;
 
-		err = drm_mm_reserve_node(&mm, node);
+		err = drm_mm_reserve_yesde(&mm, yesde);
 		if (err) {
 			pr_err("initial reserve failed!\n");
 			ret = err;
 			goto out;
 		}
 
-		last = node->start + node->size;
+		last = yesde->start + yesde->size;
 
 		for (n = 1; n <= count; n++) {
 			int rem;
 
-			node = kzalloc(sizeof(*node), GFP_KERNEL);
-			if (!node) {
+			yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+			if (!yesde) {
 				ret = -ENOMEM;
 				goto out;
 			}
 
-			node->start = last;
-			node->size = n + count;
-			node->color = node->size;
+			yesde->start = last;
+			yesde->size = n + count;
+			yesde->color = yesde->size;
 
-			err = drm_mm_reserve_node(&mm, node);
+			err = drm_mm_reserve_yesde(&mm, yesde);
 			if (err != -ENOSPC) {
-				pr_err("reserve %d did not report color overlap! err=%d\n",
+				pr_err("reserve %d did yest report color overlap! err=%d\n",
 				       n, err);
 				goto out;
 			}
 
-			node->start += n + 1;
-			rem = misalignment(node, n + count);
-			node->start += n + count - rem;
+			yesde->start += n + 1;
+			rem = misalignment(yesde, n + count);
+			yesde->start += n + count - rem;
 
-			err = drm_mm_reserve_node(&mm, node);
+			err = drm_mm_reserve_yesde(&mm, yesde);
 			if (err) {
 				pr_err("reserve %d failed, err=%d\n", n, err);
 				ret = err;
 				goto out;
 			}
 
-			last = node->start + node->size;
+			last = yesde->start + yesde->size;
 		}
 
 		for (n = 1; n <= count; n++) {
-			node = kzalloc(sizeof(*node), GFP_KERNEL);
-			if (!node) {
+			yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+			if (!yesde) {
 				ret = -ENOMEM;
 				goto out;
 			}
 
-			if (!expect_insert(&mm, node,
+			if (!expect_insert(&mm, yesde,
 					   n, n, n,
 					   mode)) {
 				pr_err("%s insert failed, step %d\n",
 				       mode->name, n);
-				kfree(node);
+				kfree(yesde);
 				goto out;
 			}
 		}
 
-		drm_mm_for_each_node_safe(node, nn, &mm) {
+		drm_mm_for_each_yesde_safe(yesde, nn, &mm) {
 			u64 rem;
 
-			if (node->color != node->size) {
+			if (yesde->color != yesde->size) {
 				pr_err("%s invalid color stored: expected %lld, found %ld\n",
-				       mode->name, node->size, node->color);
+				       mode->name, yesde->size, yesde->color);
 
 				goto out;
 			}
 
-			if (colors_abutt(node))
+			if (colors_abutt(yesde))
 				goto out;
 
-			div64_u64_rem(node->start, node->size, &rem);
+			div64_u64_rem(yesde->start, yesde->size, &rem);
 			if (rem) {
-				pr_err("%s colored node misaligned, start=%llx expected alignment=%lld [rem=%lld]\n",
-				       mode->name, node->start, node->size, rem);
+				pr_err("%s colored yesde misaligned, start=%llx expected alignment=%lld [rem=%lld]\n",
+				       mode->name, yesde->start, yesde->size, rem);
 				goto out;
 			}
 
-			drm_mm_remove_node(node);
-			kfree(node);
+			drm_mm_remove_yesde(yesde);
+			kfree(yesde);
 		}
 
 		cond_resched();
@@ -2072,9 +2072,9 @@ static int igt_color(void *ignored)
 
 	ret = 0;
 out:
-	drm_mm_for_each_node_safe(node, nn, &mm) {
-		drm_mm_remove_node(node);
-		kfree(node);
+	drm_mm_for_each_yesde_safe(yesde, nn, &mm) {
+		drm_mm_remove_yesde(yesde);
+		kfree(yesde);
 	}
 	drm_mm_takedown(&mm);
 	return ret;
@@ -2082,7 +2082,7 @@ out:
 
 static int evict_color(struct drm_mm *mm,
 		       u64 range_start, u64 range_end,
-		       struct evict_node *nodes,
+		       struct evict_yesde *yesdes,
 		       unsigned int *order,
 		       unsigned int count,
 		       unsigned int size,
@@ -2092,21 +2092,21 @@ static int evict_color(struct drm_mm *mm,
 {
 	struct drm_mm_scan scan;
 	LIST_HEAD(evict_list);
-	struct evict_node *e;
-	struct drm_mm_node tmp;
+	struct evict_yesde *e;
+	struct drm_mm_yesde tmp;
 	int err;
 
 	drm_mm_scan_init_with_range(&scan, mm,
 				    size, alignment, color,
 				    range_start, range_end,
 				    mode->mode);
-	if (!evict_nodes(&scan,
-			 nodes, order, count, true,
+	if (!evict_yesdes(&scan,
+			 yesdes, order, count, true,
 			 &evict_list))
 		return -EINVAL;
 
 	memset(&tmp, 0, sizeof(tmp));
-	err = drm_mm_insert_node_generic(mm, &tmp, size, alignment, color,
+	err = drm_mm_insert_yesde_generic(mm, &tmp, size, alignment, color,
 					 DRM_MM_INSERT_EVICT);
 	if (err) {
 		pr_err("Failed to insert into eviction hole: size=%d, align=%d, color=%lu, err=%d\n",
@@ -2117,7 +2117,7 @@ static int evict_color(struct drm_mm *mm,
 	}
 
 	if (tmp.start < range_start || tmp.start + tmp.size > range_end) {
-		pr_err("Inserted [address=%llu + %llu] did not fit into the request range [%llu, %llu]\n",
+		pr_err("Inserted [address=%llu + %llu] did yest fit into the request range [%llu, %llu]\n",
 		       tmp.start, tmp.size, range_start, range_end);
 		err = -EINVAL;
 	}
@@ -2125,22 +2125,22 @@ static int evict_color(struct drm_mm *mm,
 	if (colors_abutt(&tmp))
 		err = -EINVAL;
 
-	if (!assert_node(&tmp, mm, size, alignment, color)) {
-		pr_err("Inserted did not fit the eviction hole: size=%lld [%d], align=%d [rem=%lld], start=%llx\n",
+	if (!assert_yesde(&tmp, mm, size, alignment, color)) {
+		pr_err("Inserted did yest fit the eviction hole: size=%lld [%d], align=%d [rem=%lld], start=%llx\n",
 		       tmp.size, size,
 		       alignment, misalignment(&tmp, alignment), tmp.start);
 		err = -EINVAL;
 	}
 
-	drm_mm_remove_node(&tmp);
+	drm_mm_remove_yesde(&tmp);
 	if (err)
 		return err;
 
 	list_for_each_entry(e, &evict_list, link) {
-		err = drm_mm_reserve_node(mm, &e->node);
+		err = drm_mm_reserve_yesde(mm, &e->yesde);
 		if (err) {
-			pr_err("Failed to reinsert node after eviction: start=%llx\n",
-			       e->node.start);
+			pr_err("Failed to reinsert yesde after eviction: start=%llx\n",
+			       e->yesde.start);
 			return err;
 		}
 	}
@@ -2149,38 +2149,38 @@ static int evict_color(struct drm_mm *mm,
 	return 0;
 }
 
-static int igt_color_evict(void *ignored)
+static int igt_color_evict(void *igyesred)
 {
 	DRM_RND_STATE(prng, random_seed);
 	const unsigned int total_size = min(8192u, max_iterations);
 	const struct insert_mode *mode;
 	unsigned long color = 0;
 	struct drm_mm mm;
-	struct evict_node *nodes;
-	struct drm_mm_node *node, *next;
+	struct evict_yesde *yesdes;
+	struct drm_mm_yesde *yesde, *next;
 	unsigned int *order, n;
 	int ret, err;
 
-	/* Check that the drm_mm_scan also honours color adjustment when
-	 * choosing its victims to create a hole. Our color_adjust does not
-	 * allow two nodes to be placed together without an intervening hole
+	/* Check that the drm_mm_scan also hoyesurs color adjustment when
+	 * choosing its victims to create a hole. Our color_adjust does yest
+	 * allow two yesdes to be placed together without an intervening hole
 	 * enlarging the set of victims that must be evicted.
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(array_size(total_size, sizeof(*nodes)));
-	if (!nodes)
+	yesdes = vzalloc(array_size(total_size, sizeof(*yesdes)));
+	if (!yesdes)
 		goto err;
 
 	order = drm_random_order(total_size, &prng);
 	if (!order)
-		goto err_nodes;
+		goto err_yesdes;
 
 	ret = -EINVAL;
 	drm_mm_init(&mm, 0, 2*total_size - 1);
 	mm.color_adjust = separate_adjacent_colors;
 	for (n = 0; n < total_size; n++) {
-		if (!expect_insert(&mm, &nodes[n].node,
+		if (!expect_insert(&mm, &yesdes[n].yesde,
 				   1, 0, color++,
 				   &insert_modes[0])) {
 			pr_err("insert failed, step %d\n", n);
@@ -2192,7 +2192,7 @@ static int igt_color_evict(void *ignored)
 		for (n = 1; n <= total_size; n <<= 1) {
 			drm_random_reorder(order, total_size, &prng);
 			err = evict_color(&mm, 0, U64_MAX,
-					  nodes, order, total_size,
+					  yesdes, order, total_size,
 					  n, 1, color++,
 					  mode);
 			if (err) {
@@ -2205,7 +2205,7 @@ static int igt_color_evict(void *ignored)
 		for (n = 1; n < total_size; n <<= 1) {
 			drm_random_reorder(order, total_size, &prng);
 			err = evict_color(&mm, 0, U64_MAX,
-					  nodes, order, total_size,
+					  yesdes, order, total_size,
 					  total_size/2, n, color++,
 					  mode);
 			if (err) {
@@ -2222,7 +2222,7 @@ static int igt_color_evict(void *ignored)
 
 			drm_random_reorder(order, total_size, &prng);
 			err = evict_color(&mm, 0, U64_MAX,
-					  nodes, order, total_size,
+					  yesdes, order, total_size,
 					  nsize, n, color++,
 					  mode);
 			if (err) {
@@ -2239,17 +2239,17 @@ static int igt_color_evict(void *ignored)
 out:
 	if (ret)
 		show_mm(&mm);
-	drm_mm_for_each_node_safe(node, next, &mm)
-		drm_mm_remove_node(node);
+	drm_mm_for_each_yesde_safe(yesde, next, &mm)
+		drm_mm_remove_yesde(yesde);
 	drm_mm_takedown(&mm);
 	kfree(order);
-err_nodes:
-	vfree(nodes);
+err_yesdes:
+	vfree(yesdes);
 err:
 	return ret;
 }
 
-static int igt_color_evict_range(void *ignored)
+static int igt_color_evict_range(void *igyesred)
 {
 	DRM_RND_STATE(prng, random_seed);
 	const unsigned int total_size = 8192;
@@ -2259,8 +2259,8 @@ static int igt_color_evict_range(void *ignored)
 	const struct insert_mode *mode;
 	unsigned long color = 0;
 	struct drm_mm mm;
-	struct evict_node *nodes;
-	struct drm_mm_node *node, *next;
+	struct evict_yesde *yesdes;
+	struct drm_mm_yesde *yesde, *next;
 	unsigned int *order, n;
 	int ret, err;
 
@@ -2269,19 +2269,19 @@ static int igt_color_evict_range(void *ignored)
 	 */
 
 	ret = -ENOMEM;
-	nodes = vzalloc(array_size(total_size, sizeof(*nodes)));
-	if (!nodes)
+	yesdes = vzalloc(array_size(total_size, sizeof(*yesdes)));
+	if (!yesdes)
 		goto err;
 
 	order = drm_random_order(total_size, &prng);
 	if (!order)
-		goto err_nodes;
+		goto err_yesdes;
 
 	ret = -EINVAL;
 	drm_mm_init(&mm, 0, 2*total_size - 1);
 	mm.color_adjust = separate_adjacent_colors;
 	for (n = 0; n < total_size; n++) {
-		if (!expect_insert(&mm, &nodes[n].node,
+		if (!expect_insert(&mm, &yesdes[n].yesde,
 				   1, 0, color++,
 				   &insert_modes[0])) {
 			pr_err("insert failed, step %d\n", n);
@@ -2293,7 +2293,7 @@ static int igt_color_evict_range(void *ignored)
 		for (n = 1; n <= range_size; n <<= 1) {
 			drm_random_reorder(order, range_size, &prng);
 			err = evict_color(&mm, range_start, range_end,
-					  nodes, order, total_size,
+					  yesdes, order, total_size,
 					  n, 1, color++,
 					  mode);
 			if (err) {
@@ -2306,7 +2306,7 @@ static int igt_color_evict_range(void *ignored)
 		for (n = 1; n < range_size; n <<= 1) {
 			drm_random_reorder(order, total_size, &prng);
 			err = evict_color(&mm, range_start, range_end,
-					  nodes, order, total_size,
+					  yesdes, order, total_size,
 					  range_size/2, n, color++,
 					  mode);
 			if (err) {
@@ -2323,7 +2323,7 @@ static int igt_color_evict_range(void *ignored)
 
 			drm_random_reorder(order, total_size, &prng);
 			err = evict_color(&mm, range_start, range_end,
-					  nodes, order, total_size,
+					  yesdes, order, total_size,
 					  nsize, n, color++,
 					  mode);
 			if (err) {
@@ -2340,12 +2340,12 @@ static int igt_color_evict_range(void *ignored)
 out:
 	if (ret)
 		show_mm(&mm);
-	drm_mm_for_each_node_safe(node, next, &mm)
-		drm_mm_remove_node(node);
+	drm_mm_for_each_yesde_safe(yesde, next, &mm)
+		drm_mm_remove_yesde(yesde);
 	drm_mm_takedown(&mm);
 	kfree(order);
-err_nodes:
-	vfree(nodes);
+err_yesdes:
+	vfree(yesdes);
 err:
 	return ret;
 }

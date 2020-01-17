@@ -35,14 +35,14 @@ struct serio_raw {
 	struct miscdevice dev;
 	wait_queue_head_t wait;
 	struct list_head client_list;
-	struct list_head node;
+	struct list_head yesde;
 	bool dead;
 };
 
 struct serio_raw_client {
 	struct fasync_struct *fasync;
 	struct serio_raw *serio_raw;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static DEFINE_MUTEX(serio_raw_mutex);
@@ -59,19 +59,19 @@ static int serio_raw_fasync(int fd, struct file *file, int on)
 	return fasync_helper(fd, file, on, &client->fasync);
 }
 
-static struct serio_raw *serio_raw_locate(int minor)
+static struct serio_raw *serio_raw_locate(int miyesr)
 {
 	struct serio_raw *serio_raw;
 
-	list_for_each_entry(serio_raw, &serio_raw_list, node) {
-		if (serio_raw->dev.minor == minor)
+	list_for_each_entry(serio_raw, &serio_raw_list, yesde) {
+		if (serio_raw->dev.miyesr == miyesr)
 			return serio_raw;
 	}
 
 	return NULL;
 }
 
-static int serio_raw_open(struct inode *inode, struct file *file)
+static int serio_raw_open(struct iyesde *iyesde, struct file *file)
 {
 	struct serio_raw *serio_raw;
 	struct serio_raw_client *client;
@@ -81,7 +81,7 @@ static int serio_raw_open(struct inode *inode, struct file *file)
 	if (retval)
 		return retval;
 
-	serio_raw = serio_raw_locate(iminor(inode));
+	serio_raw = serio_raw_locate(imiyesr(iyesde));
 	if (!serio_raw) {
 		retval = -ENODEV;
 		goto out;
@@ -104,7 +104,7 @@ static int serio_raw_open(struct inode *inode, struct file *file)
 	kref_get(&serio_raw->kref);
 
 	serio_pause_rx(serio_raw->serio);
-	list_add_tail(&client->node, &serio_raw->client_list);
+	list_add_tail(&client->yesde, &serio_raw->client_list);
 	serio_continue_rx(serio_raw->serio);
 
 out:
@@ -121,13 +121,13 @@ static void serio_raw_free(struct kref *kref)
 	kfree(serio_raw);
 }
 
-static int serio_raw_release(struct inode *inode, struct file *file)
+static int serio_raw_release(struct iyesde *iyesde, struct file *file)
 {
 	struct serio_raw_client *client = file->private_data;
 	struct serio_raw *serio_raw = client->serio_raw;
 
 	serio_pause_rx(serio_raw->serio);
-	list_del(&client->node);
+	list_del(&client->yesde);
 	serio_continue_rx(serio_raw->serio);
 
 	kfree(client);
@@ -259,7 +259,7 @@ static const struct file_operations serio_raw_fops = {
 	.write		= serio_raw_write,
 	.poll		= serio_raw_poll,
 	.fasync		= serio_raw_fasync,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 
@@ -279,7 +279,7 @@ static irqreturn_t serio_raw_interrupt(struct serio *serio, unsigned char data,
 	head = (head + 1) % SERIO_RAW_QUEUE_LEN;
 	if (likely(head != serio_raw->tail)) {
 		serio_raw->head = head;
-		list_for_each_entry(client, &serio_raw->client_list, node)
+		list_for_each_entry(client, &serio_raw->client_list, yesde)
 			kill_fasync(&client->fasync, SIGIO, POLL_IN);
 		wake_up_interruptible(&serio_raw->wait);
 	}
@@ -289,7 +289,7 @@ static irqreturn_t serio_raw_interrupt(struct serio *serio, unsigned char data,
 
 static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 {
-	static atomic_t serio_raw_no = ATOMIC_INIT(-1);
+	static atomic_t serio_raw_yes = ATOMIC_INIT(-1);
 	struct serio_raw *serio_raw;
 	int err;
 
@@ -300,7 +300,7 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 	}
 
 	snprintf(serio_raw->name, sizeof(serio_raw->name),
-		 "serio_raw%ld", (long)atomic_inc_return(&serio_raw_no));
+		 "serio_raw%ld", (long)atomic_inc_return(&serio_raw_yes));
 	kref_init(&serio_raw->kref);
 	INIT_LIST_HEAD(&serio_raw->client_list);
 	init_waitqueue_head(&serio_raw->wait);
@@ -318,17 +318,17 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 	if (err)
 		goto err_close;
 
-	list_add_tail(&serio_raw->node, &serio_raw_list);
+	list_add_tail(&serio_raw->yesde, &serio_raw_list);
 	mutex_unlock(&serio_raw_mutex);
 
-	serio_raw->dev.minor = PSMOUSE_MINOR;
+	serio_raw->dev.miyesr = PSMOUSE_MINOR;
 	serio_raw->dev.name = serio_raw->name;
 	serio_raw->dev.parent = &serio->dev;
 	serio_raw->dev.fops = &serio_raw_fops;
 
 	err = misc_register(&serio_raw->dev);
 	if (err) {
-		serio_raw->dev.minor = MISC_DYNAMIC_MINOR;
+		serio_raw->dev.miyesr = MISC_DYNAMIC_MINOR;
 		err = misc_register(&serio_raw->dev);
 	}
 
@@ -339,12 +339,12 @@ static int serio_raw_connect(struct serio *serio, struct serio_driver *drv)
 		goto err_unlink;
 	}
 
-	dev_info(&serio->dev, "raw access enabled on %s (%s, minor %d)\n",
-		 serio->phys, serio_raw->name, serio_raw->dev.minor);
+	dev_info(&serio->dev, "raw access enabled on %s (%s, miyesr %d)\n",
+		 serio->phys, serio_raw->name, serio_raw->dev.miyesr);
 	return 0;
 
 err_unlink:
-	list_del_init(&serio_raw->node);
+	list_del_init(&serio_raw->yesde);
 err_close:
 	serio_close(serio);
 err_free:
@@ -360,7 +360,7 @@ static int serio_raw_reconnect(struct serio *serio)
 
 	if (!drv || !serio_raw) {
 		dev_dbg(&serio->dev,
-			"reconnect request, but serio is disconnected, ignoring...\n");
+			"reconnect request, but serio is disconnected, igyesring...\n");
 		return -1;
 	}
 
@@ -380,7 +380,7 @@ static void serio_raw_hangup(struct serio_raw *serio_raw)
 	struct serio_raw_client *client;
 
 	serio_pause_rx(serio_raw->serio);
-	list_for_each_entry(client, &serio_raw->client_list, node)
+	list_for_each_entry(client, &serio_raw->client_list, yesde)
 		kill_fasync(&client->fasync, SIGIO, POLL_HUP);
 	serio_continue_rx(serio_raw->serio);
 
@@ -396,7 +396,7 @@ static void serio_raw_disconnect(struct serio *serio)
 
 	mutex_lock(&serio_raw_mutex);
 	serio_raw->dead = true;
-	list_del_init(&serio_raw->node);
+	list_del_init(&serio_raw->yesde);
 	mutex_unlock(&serio_raw_mutex);
 
 	serio_raw_hangup(serio_raw);

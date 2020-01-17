@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -348,7 +348,7 @@ static void set_dp_phy_pattern_hbr2_compliance_cp2520_2(
 
 	/* previously there is a register DP_HBR2_EYE_PATTERN
 	 * that is enabled to get the pattern.
-	 * But it does not work with the latest spec change,
+	 * But it does yest work with the latest spec change,
 	 * so we are programming the following registers manually.
 	 *
 	 * The following settings have been confirmed
@@ -362,10 +362,10 @@ static void set_dp_phy_pattern_hbr2_compliance_cp2520_2(
 	/* Setup DIG encoder in DP SST mode */
 	enc10->base.funcs->setup(&enc10->base, SIGNAL_TYPE_DISPLAY_PORT);
 
-	/* ensure normal panel mode. */
+	/* ensure yesrmal panel mode. */
 	setup_panel_mode(enc10, DP_PANEL_MODE_DEFAULT);
 
-	/* no vbid after BS (SR)
+	/* yes vbid after BS (SR)
 	 * DP_LINK_FRAMING_CNTL changed history Sandra Liu
 	 * 11000260 / 11000104 / 110000FC
 	 */
@@ -576,7 +576,7 @@ bool dcn10_link_encoder_validate_dvi_output(
 		max_pixel_clock *= 2;
 
 	/* This handles the case of HDMI downgrade to DVI we don't want to
-	 * we don't want to cap the pixel clock if the DDI is not DVI.
+	 * we don't want to cap the pixel clock if the DDI is yest DVI.
 	 */
 	if (connector_signal != SIGNAL_TYPE_DVI_DUAL_LINK &&
 			connector_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
@@ -635,7 +635,7 @@ static bool dcn10_link_encoder_validate_hdmi_output(
 		(adjusted_pix_clk_100hz > (enc10->base.features.max_hdmi_pixel_clock * 10)))
 		return false;
 
-	/* DCE11 HW does not support 420 */
+	/* DCE11 HW does yest support 420 */
 	if (!enc10->base.features.hdmi_ycbcr420_supported &&
 			crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		return false;
@@ -707,13 +707,13 @@ void dcn10_link_encoder_construct(
 		SIGNAL_TYPE_HDMI_TYPE_A;
 
 	/* For DCE 8.0 and 8.1, by design, UNIPHY is hardwired to DIG_BE.
-	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for non-MST UNIPHY.
-	 * SW assign DIG_FE to non-MST UNIPHY first and MST last. So prefer
+	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for yesn-MST UNIPHY.
+	 * SW assign DIG_FE to yesn-MST UNIPHY first and MST last. So prefer
 	 * DIG is per UNIPHY and used by SST DP, eDP, HDMI, DVI and LVDS.
 	 * Prefer DIG assignment is decided by board design.
 	 * For DCE 8.0, there are only max 6 UNIPHYs, we assume board design
 	 * and VBIOS will filter out 7 UNIPHY for DCE 8.0.
-	 * By this, adding DIGG should not hurt DCE 8.0.
+	 * By this, adding DIGG should yest hurt DCE 8.0.
 	 * This will let DCE 8.1 share DCE 8.0 as much as possible
 	 */
 
@@ -956,7 +956,7 @@ void dcn10_link_encoder_enable_dp_output(
 	/* Enable the PHY */
 
 	/* number_of_lanes is used for pixel clock adjust,
-	 * but it's not passed to asic_control.
+	 * but it's yest passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
 	enc1_configure_encoder(enc10, link_settings);
@@ -995,7 +995,7 @@ void dcn10_link_encoder_enable_dp_mst_output(
 	/* Enable the PHY */
 
 	/* number_of_lanes is used for pixel clock adjust,
-	 * but it's not passed to asic_control.
+	 * but it's yest passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
 	enc1_configure_encoder(enc10, link_settings);
@@ -1035,7 +1035,7 @@ void dcn10_link_encoder_disable_output(
 	if (!dcn10_is_dig_enabled(enc)) {
 		/* OF_SKIP_POWER_DOWN_INACTIVE_ENCODER */
 	/*in DP_Alt_No_Connect case, we turn off the dig already,
-	after excuation the PHY w/a sequence, not allow touch PHY any more*/
+	after excuation the PHY w/a sequence, yest allow touch PHY any more*/
 		return;
 	}
 	/* Power-down RX and disable GPU PHY should be paired.
@@ -1045,7 +1045,7 @@ void dcn10_link_encoder_disable_output(
 
 	/* There is a case for the DP active dongles
 	 * where we want to disable the PHY but keep RX powered,
-	 * for those we need to ignore DP Sink interrupt
+	 * for those we need to igyesre DP Sink interrupt
 	 * by checking lane count that has been set
 	 * on the last do_enable_output().
 	 */

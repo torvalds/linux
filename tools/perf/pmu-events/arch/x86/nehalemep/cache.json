@@ -37,7 +37,7 @@
         "UMask": "0x8",
         "EventName": "L1D.M_SNOOP_EVICT",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "L1D snoop eviction of cache lines in M state"
+        "BriefDescription": "L1D syesop eviction of cache lines in M state"
     },
     {
         "EventCode": "0x51",
@@ -1034,7 +1034,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_DATA.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore data reads satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore data reads satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -1166,7 +1166,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_IFETCH.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore code reads satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore code reads satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -1298,7 +1298,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore requests satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore requests satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -1430,7 +1430,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_RFO.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore RFO requests satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore RFO requests satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -1562,7 +1562,7 @@
         "EventName": "OFFCORE_RESPONSE.COREWB.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore writebacks to the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore writebacks to the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -1683,7 +1683,7 @@
         "EventName": "OFFCORE_RESPONSE.DATA_IFETCH.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore code or data read requests satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore code or data read requests satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -1815,7 +1815,7 @@
         "EventName": "OFFCORE_RESPONSE.DATA_IN.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore data reads, RFO's and prefetches statisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore data reads, RFO's and prefetches statisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -1947,7 +1947,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore demand data requests satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore demand data requests satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -2079,7 +2079,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore demand data reads satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore demand data reads satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -2211,7 +2211,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_IFETCH.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore demand code reads satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore demand code reads satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -2343,7 +2343,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore demand RFO requests satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore demand RFO requests satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -2475,7 +2475,7 @@
         "EventName": "OFFCORE_RESPONSE.OTHER.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore other requests satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore other requests satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -2607,7 +2607,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_DATA.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore prefetch data requests satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore prefetch data requests satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -2739,7 +2739,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_DATA_RD.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore prefetch data reads satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore prefetch data reads satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -2871,7 +2871,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_IFETCH.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore prefetch code reads satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore prefetch code reads satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -3003,7 +3003,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_RFO.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore prefetch RFO requests satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore prefetch RFO requests satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {
@@ -3135,7 +3135,7 @@
         "EventName": "OFFCORE_RESPONSE.PREFETCH.LLC_HIT_NO_OTHER_CORE",
         "MSRIndex": "0x1A6",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Offcore prefetch requests satisfied by the LLC and not found in a sibling core",
+        "BriefDescription": "Offcore prefetch requests satisfied by the LLC and yest found in a sibling core",
         "Offcore": "1"
     },
     {

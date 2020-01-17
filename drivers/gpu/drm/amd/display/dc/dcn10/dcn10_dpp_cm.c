@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -510,7 +510,7 @@ void dpp1_program_input_csc(
 				CM_ICSC_MODE, select);
 }
 
-//keep here for now, decide multi dce support later
+//keep here for yesw, decide multi dce support later
 void dpp1_program_bias_and_scale(
 	struct dpp *dpp_base,
 	struct dc_bias_and_scale *params)
@@ -617,7 +617,7 @@ void dpp1_set_degamma(
 
 	switch (mode) {
 	case IPP_DEGAMMA_MODE_BYPASS:
-		/* Setting de gamma bypass for now */
+		/* Setting de gamma bypass for yesw */
 		REG_UPDATE(CM_DGAM_CONTROL, CM_DGAM_LUT_MODE, 0);
 		break;
 	case IPP_DEGAMMA_MODE_HW_sRGB:
@@ -736,7 +736,7 @@ void dpp1_full_bypass(struct dpp *dpp_base)
 		REG_SET(CM_CONTROL, 0, CM_BYPASS, 1);
 #endif
 
-	/* Setting degamma bypass for now */
+	/* Setting degamma bypass for yesw */
 	REG_SET(CM_DGAM_CONTROL, 0, CM_DGAM_LUT_MODE, 0);
 }
 
@@ -792,7 +792,7 @@ void dpp1_program_input_lut(
 	REG_UPDATE(CM_IGAM_LUT_RW_CONTROL, CM_IGAM_LUT_RW_MODE, 0);
 	// IGAM Input format should be 8 bits per channel.
 	REG_UPDATE(CM_IGAM_CONTROL, CM_IGAM_INPUT_FORMAT, 0);
-	// Do not mask any R,G,B values
+	// Do yest mask any R,G,B values
 	REG_UPDATE(CM_IGAM_LUT_RW_CONTROL, CM_IGAM_LUT_WRITE_EN_MASK, 7);
 	// LUT-256, unsigned, integer, new u0.12 format
 	REG_UPDATE_3(

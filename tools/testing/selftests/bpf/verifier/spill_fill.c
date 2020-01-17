@@ -36,7 +36,7 @@
 	/* mess up with R1 pointer on stack */
 	BPF_ST_MEM(BPF_B, BPF_REG_10, -7, 0x23),
 	/* fill back into R0 is fine for priv.
-	 * R0 now becomes SCALAR_VALUE.
+	 * R0 yesw becomes SCALAR_VALUE.
 	 */
 	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_10, -8),
 	/* Load from R0 should fail. */

@@ -1,4 +1,4 @@
-synopsys DWC3 CORE
+syyespsys DWC3 CORE
 
 DWC3- USB3 CONTROLLER. Complies to the generic USB binding properties
       as described in 'usb/generic.txt'
@@ -12,15 +12,15 @@ Required properties:
            entries in the clock-names property.
 
 Exception for clocks:
-  clocks are optional if the parent node (i.e. glue-layer) is compatible to
+  clocks are optional if the parent yesde (i.e. glue-layer) is compatible to
   one of the following:
     "amlogic,meson-axg-dwc3"
     "amlogic,meson-gxl-dwc3"
     "cavium,octeon-7130-usb-uctl"
     "qcom,dwc3"
-    "samsung,exynos5250-dwusb3"
-    "samsung,exynos5433-dwusb3"
-    "samsung,exynos7-dwusb3"
+    "samsung,exyyess5250-dwusb3"
+    "samsung,exyyess5433-dwusb3"
+    "samsung,exyyess7-dwusb3"
     "sprd,sc9860-dwc3"
     "st,stih407-dwc3"
     "ti,am437x-dwc3"
@@ -87,18 +87,18 @@ Optional properties:
 	fladj_30mhz_sdbnd signal is invalid or incorrect.
  - snps,rx-thr-num-pkt-prd: periodic ESS RX packet threshold count - host mode
 			only. Set this and rx-max-burst-prd to a valid,
-			non-zero value 1-16 (DWC_usb31 programming guide
+			yesn-zero value 1-16 (DWC_usb31 programming guide
 			section 1.2.4) to enable periodic ESS RX threshold.
  - snps,rx-max-burst-prd: max periodic ESS RX burst size - host mode only. Set
-			this and rx-thr-num-pkt-prd to a valid, non-zero value
+			this and rx-thr-num-pkt-prd to a valid, yesn-zero value
 			1-16 (DWC_usb31 programming guide section 1.2.4) to
 			enable periodic ESS RX threshold.
  - snps,tx-thr-num-pkt-prd: periodic ESS TX packet threshold count - host mode
 			only. Set this and tx-max-burst-prd to a valid,
-			non-zero value 1-16 (DWC_usb31 programming guide
+			yesn-zero value 1-16 (DWC_usb31 programming guide
 			section 1.2.3) to enable periodic ESS TX threshold.
  - snps,tx-max-burst-prd: max periodic ESS TX burst size - host mode only. Set
-			this and tx-thr-num-pkt-prd to a valid, non-zero value
+			this and tx-thr-num-pkt-prd to a valid, yesn-zero value
 			1-16 (DWC_usb31 programming guide section 1.2.3) to
 			enable periodic ESS TX threshold.
 
@@ -113,7 +113,7 @@ Optional properties:
    supported as well
 
 
-This is usually a subnode to DWC3 glue to which it is connected.
+This is usually a subyesde to DWC3 glue to which it is connected.
 
 dwc3@4a030000 {
 	compatible = "snps,dwc3";

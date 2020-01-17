@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,20 +24,20 @@
 
 #include <linux/dma-buf.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_gem.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_gem.h"
 
-struct sg_table *nouveau_gem_prime_get_sg_table(struct drm_gem_object *obj)
+struct sg_table *yesuveau_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
-	struct nouveau_bo *nvbo = nouveau_gem_object(obj);
+	struct yesuveau_bo *nvbo = yesuveau_gem_object(obj);
 	int npages = nvbo->bo.num_pages;
 
 	return drm_prime_pages_to_sg(nvbo->bo.ttm->pages, npages);
 }
 
-void *nouveau_gem_prime_vmap(struct drm_gem_object *obj)
+void *yesuveau_gem_prime_vmap(struct drm_gem_object *obj)
 {
-	struct nouveau_bo *nvbo = nouveau_gem_object(obj);
+	struct yesuveau_bo *nvbo = yesuveau_gem_object(obj);
 	int ret;
 
 	ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.num_pages,
@@ -48,20 +48,20 @@ void *nouveau_gem_prime_vmap(struct drm_gem_object *obj)
 	return nvbo->dma_buf_vmap.virtual;
 }
 
-void nouveau_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+void yesuveau_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
-	struct nouveau_bo *nvbo = nouveau_gem_object(obj);
+	struct yesuveau_bo *nvbo = yesuveau_gem_object(obj);
 
 	ttm_bo_kunmap(&nvbo->dma_buf_vmap);
 }
 
-struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
+struct drm_gem_object *yesuveau_gem_prime_import_sg_table(struct drm_device *dev,
 							 struct dma_buf_attachment *attach,
 							 struct sg_table *sg)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct drm_gem_object *obj;
-	struct nouveau_bo *nvbo;
+	struct yesuveau_bo *nvbo;
 	struct dma_resv *robj = attach->dmabuf->resv;
 	u64 size = attach->dmabuf->size;
 	u32 flags = 0;
@@ -71,7 +71,7 @@ struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
 	flags = TTM_PL_FLAG_TT;
 
 	dma_resv_lock(robj, NULL);
-	nvbo = nouveau_bo_alloc(&drm->client, &size, &align, flags, 0, 0);
+	nvbo = yesuveau_bo_alloc(&drm->client, &size, &align, flags, 0, 0);
 	if (IS_ERR(nvbo)) {
 		obj = ERR_CAST(nvbo);
 		goto unlock;
@@ -80,17 +80,17 @@ struct drm_gem_object *nouveau_gem_prime_import_sg_table(struct drm_device *dev,
 	nvbo->valid_domains = NOUVEAU_GEM_DOMAIN_GART;
 
 	/* Initialize the embedded gem-object. We return a single gem-reference
-	 * to the caller, instead of a normal nouveau_bo ttm reference. */
+	 * to the caller, instead of a yesrmal yesuveau_bo ttm reference. */
 	ret = drm_gem_object_init(dev, &nvbo->bo.base, size);
 	if (ret) {
-		nouveau_bo_ref(NULL, &nvbo);
+		yesuveau_bo_ref(NULL, &nvbo);
 		obj = ERR_PTR(-ENOMEM);
 		goto unlock;
 	}
 
-	ret = nouveau_bo_init(nvbo, size, align, flags, sg, robj);
+	ret = yesuveau_bo_init(nvbo, size, align, flags, sg, robj);
 	if (ret) {
-		nouveau_bo_ref(NULL, &nvbo);
+		yesuveau_bo_ref(NULL, &nvbo);
 		obj = ERR_PTR(ret);
 		goto unlock;
 	}
@@ -102,22 +102,22 @@ unlock:
 	return obj;
 }
 
-int nouveau_gem_prime_pin(struct drm_gem_object *obj)
+int yesuveau_gem_prime_pin(struct drm_gem_object *obj)
 {
-	struct nouveau_bo *nvbo = nouveau_gem_object(obj);
+	struct yesuveau_bo *nvbo = yesuveau_gem_object(obj);
 	int ret;
 
 	/* pin buffer into GTT */
-	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_TT, false);
+	ret = yesuveau_bo_pin(nvbo, TTM_PL_FLAG_TT, false);
 	if (ret)
 		return -EINVAL;
 
 	return 0;
 }
 
-void nouveau_gem_prime_unpin(struct drm_gem_object *obj)
+void yesuveau_gem_prime_unpin(struct drm_gem_object *obj)
 {
-	struct nouveau_bo *nvbo = nouveau_gem_object(obj);
+	struct yesuveau_bo *nvbo = yesuveau_gem_object(obj);
 
-	nouveau_bo_unpin(nvbo);
+	yesuveau_bo_unpin(nvbo);
 }

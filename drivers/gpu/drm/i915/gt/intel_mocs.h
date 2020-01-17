@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -30,12 +30,12 @@
  * Motivation:
  * In previous Gens the MOCS settings was a value that was set by user land as
  * part of the batch. In Gen9 this has changed to be a single table (per ring)
- * that all batches now reference by index instead of programming the MOCS
+ * that all batches yesw reference by index instead of programming the MOCS
  * directly.
  *
  * The one wrinkle in this is that only PART of the MOCS tables are included
  * in context (The GFX_MOCS_0 - GFX_MOCS_64 and the LNCFCMOCS0 - LNCFCMOCS32
- * registers). The rest are not (the settings for the other rings).
+ * registers). The rest are yest (the settings for the other rings).
  *
  * This table needs to be set at system start-up because the way the table
  * interacts with the contexts and the GmmLib interface.

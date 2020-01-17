@@ -13,7 +13,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/dma-contiguous.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -33,7 +33,7 @@
 #include "media-dev.h"
 #include "fimc-is.h"
 #include "fimc-is-command.h"
-#include "fimc-is-errno.h"
+#include "fimc-is-erryes.h"
 #include "fimc-is-i2c.h"
 #include "fimc-is-param.h"
 #include "fimc-is-regs.h"
@@ -162,58 +162,58 @@ static void fimc_is_disable_clocks(struct fimc_is *is)
 }
 
 static int fimc_is_parse_sensor_config(struct fimc_is *is, unsigned int index,
-						struct device_node *node)
+						struct device_yesde *yesde)
 {
 	struct fimc_is_sensor *sensor = &is->sensor[index];
-	struct device_node *ep, *port;
+	struct device_yesde *ep, *port;
 	u32 tmp = 0;
 	int ret;
 
-	sensor->drvdata = fimc_is_sensor_get_drvdata(node);
+	sensor->drvdata = fimc_is_sensor_get_drvdata(yesde);
 	if (!sensor->drvdata) {
-		dev_err(&is->pdev->dev, "no driver data found for: %pOF\n",
-							 node);
+		dev_err(&is->pdev->dev, "yes driver data found for: %pOF\n",
+							 yesde);
 		return -EINVAL;
 	}
 
-	ep = of_graph_get_next_endpoint(node, NULL);
+	ep = of_graph_get_next_endpoint(yesde, NULL);
 	if (!ep)
 		return -ENXIO;
 
 	port = of_graph_get_remote_port(ep);
-	of_node_put(ep);
+	of_yesde_put(ep);
 	if (!port)
 		return -ENXIO;
 
 	/* Use MIPI-CSIS channel id to determine the ISP I2C bus index. */
 	ret = of_property_read_u32(port, "reg", &tmp);
 	if (ret < 0) {
-		dev_err(&is->pdev->dev, "reg property not found at: %pOF\n",
+		dev_err(&is->pdev->dev, "reg property yest found at: %pOF\n",
 							 port);
-		of_node_put(port);
+		of_yesde_put(port);
 		return ret;
 	}
 
-	of_node_put(port);
+	of_yesde_put(port);
 	sensor->i2c_bus = tmp - FIMC_INPUT_MIPI_CSI2_0;
 	return 0;
 }
 
 static int fimc_is_register_subdevs(struct fimc_is *is)
 {
-	struct device_node *i2c_bus, *child;
+	struct device_yesde *i2c_bus, *child;
 	int ret, index = 0;
 
 	ret = fimc_isp_subdev_create(&is->isp);
 	if (ret < 0)
 		return ret;
 
-	for_each_compatible_node(i2c_bus, NULL, FIMC_IS_I2C_COMPATIBLE) {
-		for_each_available_child_of_node(i2c_bus, child) {
+	for_each_compatible_yesde(i2c_bus, NULL, FIMC_IS_I2C_COMPATIBLE) {
+		for_each_available_child_of_yesde(i2c_bus, child) {
 			ret = fimc_is_parse_sensor_config(is, index, child);
 
 			if (ret < 0 || index >= FIMC_IS_SENSORS_NUM) {
-				of_node_put(child);
+				of_yesde_put(child);
 				return ret;
 			}
 			index++;
@@ -311,7 +311,7 @@ int fimc_is_start_firmware(struct fimc_is *is)
 	int ret;
 
 	if (is->fw.f_w == NULL) {
-		dev_err(dev, "firmware is not loaded\n");
+		dev_err(dev, "firmware is yest loaded\n");
 		return -EINVAL;
 	}
 
@@ -419,12 +419,12 @@ static void fimc_is_load_firmware(const struct firmware *fw, void *context)
 	dev_dbg(dev, "FW size: %zu, paddr: %pad\n", fw->size, &is->memory.paddr);
 
 	is->is_shared_region->chip_id = 0xe4412;
-	is->is_shared_region->chip_rev_no = 1;
+	is->is_shared_region->chip_rev_yes = 1;
 
 	fimc_is_mem_barrier();
 
 	/*
-	 * FIXME: The firmware is not being released for now, as it is
+	 * FIXME: The firmware is yest being released for yesw, as it is
 	 * needed around for copying to the IS working memory every
 	 * time before the Cortex-A5 is restarted.
 	 */
@@ -436,7 +436,7 @@ done:
 
 static int fimc_is_request_firmware(struct fimc_is *is, const char *fw_name)
 {
-	return request_firmware_nowait(THIS_MODULE,
+	return request_firmware_yeswait(THIS_MODULE,
 				FW_ACTION_HOTPLUG, fw_name, &is->pdev->dev,
 				GFP_KERNEL, is, fimc_is_load_firmware);
 }
@@ -468,7 +468,7 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 	case IHC_NOT_READY:
 		break;
 	default:
-		pr_info("unknown command: %#x\n", is->i2h_cmd.cmd);
+		pr_info("unkyeswn command: %#x\n", is->i2h_cmd.cmd);
 	}
 
 	fimc_is_fw_clear_irq1(is, FIMC_IS_INT_GENERAL);
@@ -740,7 +740,7 @@ static int fimc_is_show(struct seq_file *s, void *data)
 	const u8 *buf = is->memory.vaddr + FIMC_IS_DEBUG_REGION_OFFSET;
 
 	if (is->memory.vaddr == NULL) {
-		dev_err(&is->pdev->dev, "firmware memory is not initialized\n");
+		dev_err(&is->pdev->dev, "firmware memory is yest initialized\n");
 		return -EIO;
 	}
 
@@ -778,7 +778,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct fimc_is *is;
 	struct resource res;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int ret;
 
 	is = devm_kzalloc(&pdev->dev, sizeof(*is), GFP_KERNEL);
@@ -792,7 +792,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 	spin_lock_init(&is->slock);
 	mutex_init(&is->lock);
 
-	ret = of_address_to_resource(dev->of_node, 0, &res);
+	ret = of_address_to_resource(dev->of_yesde, 0, &res);
 	if (ret < 0)
 		return ret;
 
@@ -800,18 +800,18 @@ static int fimc_is_probe(struct platform_device *pdev)
 	if (IS_ERR(is->regs))
 		return PTR_ERR(is->regs);
 
-	node = of_get_child_by_name(dev->of_node, "pmu");
-	if (!node)
+	yesde = of_get_child_by_name(dev->of_yesde, "pmu");
+	if (!yesde)
 		return -ENODEV;
 
-	is->pmu_regs = of_iomap(node, 0);
-	of_node_put(node);
+	is->pmu_regs = of_iomap(yesde, 0);
+	of_yesde_put(yesde);
 	if (!is->pmu_regs)
 		return -ENOMEM;
 
-	is->irq = irq_of_parse_and_map(dev->of_node, 0);
+	is->irq = irq_of_parse_and_map(dev->of_yesde, 0);
 	if (!is->irq) {
-		dev_err(dev, "no irq found\n");
+		dev_err(dev, "yes irq found\n");
 		ret = -EINVAL;
 		goto err_iounmap;
 	}
@@ -846,7 +846,7 @@ static int fimc_is_probe(struct platform_device *pdev)
 		goto err_pm;
 
 	/*
-	 * Register FIMC-IS V4L2 subdevs to this driver. The video nodes
+	 * Register FIMC-IS V4L2 subdevs to this driver. The video yesdes
 	 * will be created within the subdev's registered() callback.
 	 */
 	ret = fimc_is_register_subdevs(is);
@@ -943,7 +943,7 @@ static int fimc_is_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id fimc_is_of_match[] = {
-	{ .compatible = "samsung,exynos4212-fimc-is" },
+	{ .compatible = "samsung,exyyess4212-fimc-is" },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, fimc_is_of_match);

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2018 Mellanox Technologies */
+/* Copyright (c) 2018 Mellayesx Techyeslogies */
 
 #ifndef __LIB_MLX5_EQ_H__
 #define __LIB_MLX5_EQ_H__
@@ -37,12 +37,12 @@ struct mlx5_eq {
 
 struct mlx5_eq_async {
 	struct mlx5_eq          core;
-	struct notifier_block   irq_nb;
+	struct yestifier_block   irq_nb;
 };
 
 struct mlx5_eq_comp {
 	struct mlx5_eq          core;
-	struct notifier_block   irq_nb;
+	struct yestifier_block   irq_nb;
 	struct mlx5_eq_tasklet  tasklet_ctx;
 	struct list_head        list;
 };
@@ -65,7 +65,7 @@ static inline void eq_update_ci(struct mlx5_eq *eq, int arm)
 	u32 val = (eq->cons_index & 0xffffff) | (eq->eqn << 24);
 
 	__raw_writel((__force u32)cpu_to_be32(val), addr);
-	/* We still want ordering, just not swabbing, so add a barrier */
+	/* We still want ordering, just yest swabbing, so add a barrier */
 	mb();
 }
 

@@ -87,7 +87,7 @@ abort_guest_exit_end:
 ENDPROC(__guest_exit)
 
 /*
- * If VFPv3 support is not available, then we will not switch the VFP
+ * If VFPv3 support is yest available, then we will yest switch the VFP
  * registers; however cp10 and cp11 accesses will still trap and fallback
  * to the regular coprocessor emulation code, which currently will
  * inject an undefined exception to the guest.

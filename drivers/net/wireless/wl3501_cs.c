@@ -19,7 +19,7 @@
  *   1. Performance: about 165 Kbytes/sec in TCP/IP with Ad-Hoc mode.
  *      rsh 192.168.1.3 "dd if=/dev/zero bs=1k count=1000" > /dev/null
  *      (Specification 2M bits/sec. is about 250 Kbytes/sec., but we must deduct
- *       ETHER/IP/UDP/TCP header, and acknowledgement overhead)
+ *       ETHER/IP/UDP/TCP header, and ackyeswledgement overhead)
  *
  * Tested with Planet AP in 2.4.17, 184 Kbytes/s in UDP in Infrastructure mode,
  * 173 Kbytes/s in TCP.
@@ -137,7 +137,7 @@ static const struct {
  * @reg_comain - regulatory domain
  * @channel - channel to validate
  *
- * Returns 0 if invalid in the specified regulatory domain, non-zero if valid.
+ * Returns 0 if invalid in the specified regulatory domain, yesn-zero if valid.
  */
 static int iw_valid_channel(int reg_domain, int channel)
 {
@@ -194,7 +194,7 @@ static inline void wl3501_switch_page(struct wl3501_card *this, u8 page)
  * Get Ethernet MAC address.
  *
  * WARNING: We switch to FPAGE0 and switc back again.
- *          Making sure there is no other WL function beening called by ISR.
+ *          Making sure there is yes other WL function beening called by ISR.
  */
 static int wl3501_get_flash_mac_addr(struct wl3501_card *this)
 {
@@ -312,7 +312,7 @@ static u16 wl3501_get_tx_buffer(struct wl3501_card *this, u16 len)
 					  sizeof(zero));
 		this->tx_buffer_head = next;
 		blk_cnt++;
-		/* if buffer is not enough */
+		/* if buffer is yest eyesugh */
 		if (!next && full_len) {
 			this->tx_buffer_head = ret;
 			ret = 0;
@@ -329,7 +329,7 @@ out:
  */
 static void wl3501_free_tx_buffer(struct wl3501_card *this, u16 ptr)
 {
-	/* check if all space is not free */
+	/* check if all space is yest free */
 	if (!this->tx_buffer_head)
 		this->tx_buffer_head = ptr;
 	else
@@ -722,7 +722,7 @@ static void wl3501_mgmt_scan_confirm(struct wl3501_card *this, u16 addr)
  * wl3501_block_interrupt - Mask interrupt from SUTRO
  * @this - card
  *
- * Mask interrupt from SUTRO. (i.e. SUTRO cannot interrupt the HOST)
+ * Mask interrupt from SUTRO. (i.e. SUTRO canyest interrupt the HOST)
  * Return: 1 if interrupt is originally enabled
  */
 static int wl3501_block_interrupt(struct wl3501_card *this)
@@ -1113,7 +1113,7 @@ static inline void wl3501_ack_interrupt(struct wl3501_card *this)
  * @irq - Interrupt number
  * @dev_id - net_device
  *
- * We must acknowledge the interrupt as soon as possible, and block the
+ * We must ackyeswledge the interrupt as soon as possible, and block the
  * interrupt from the same card immediately to prevent re-entry.
  *
  * Before accessing the Control_Status_Block, we must lock SUTRO first.
@@ -1233,7 +1233,7 @@ static int wl3501_close(struct net_device *dev)
 	spin_lock_irqsave(&this->lock, flags);
 	link->open--;
 
-	/* Stop wl3501_hard_start_xmit() from now on */
+	/* Stop wl3501_hard_start_xmit() from yesw on */
 	netif_stop_queue(dev);
 	wl3501_ack_interrupt(this);
 
@@ -1303,7 +1303,7 @@ static void wl3501_tx_timeout(struct net_device *dev)
 
 /*
  * Return : 0 - OK
- *	    1 - Could not transmit (dev_queue_xmit will queue it)
+ *	    1 - Could yest transmit (dev_queue_xmit will queue it)
  *		and try to sent it later
  */
 static netdev_tx_t wl3501_hard_start_xmit(struct sk_buff *skb,
@@ -1353,7 +1353,7 @@ static int wl3501_open(struct net_device *dev)
 		goto fail;
 	/* Initial device variables */
 	this->adhoc_times = 0;
-	/* Acknowledge Interrupt, for cleaning last state */
+	/* Ackyeswledge Interrupt, for cleaning last state */
 	wl3501_ack_interrupt(this);
 
 	/* Enable interrupt from card after all */
@@ -1513,7 +1513,7 @@ static int wl3501_get_range(struct net_device *dev,
 	/* Set the length (very important for backward compatibility) */
 	wrqu->data.length = sizeof(*range);
 
-	/* Set all the info we don't care or don't know about to zero */
+	/* Set all the info we don't care or don't kyesw about to zero */
 	memset(range, 0, sizeof(*range));
 
 	/* Set the Wireless Extension versions */
@@ -1557,7 +1557,7 @@ static int wl3501_set_scan(struct net_device *dev, struct iw_request_info *info,
 			   union iwreq_data *wrqu, char *extra)
 {
 	/*
-	 * FIXME: trigger scanning with a reset, yes, I'm lazy
+	 * FIXME: trigger scanning with a reset, no, I'm lazy
 	 */
 	return wl3501_reset(dev);
 }
@@ -1669,7 +1669,7 @@ static int wl3501_get_rate(struct net_device *dev, struct iw_request_info *info,
 {
 	/*
 	 * FIXME: have to see from where to get this info, perhaps this card
-	 * works at 1 Mbit/s too... for now leave at 2 Mbit/s that is the most
+	 * works at 1 Mbit/s too... for yesw leave at 2 Mbit/s that is the most
 	 * common with the Planet Access Points. -acme
 	 */
 	wrqu->bitrate.value = 2000000;
@@ -1913,7 +1913,7 @@ static int wl3501_config(struct pcmcia_device *link)
 	if (i != 0)
 		goto failed;
 
-	/* Now allocate an interrupt line. Note that this does not actually
+	/* Now allocate an interrupt line. Note that this does yest actually
 	 * assign a handler to the interrupt. */
 
 	ret = pcmcia_request_irq(link, wl3501_interrupt);

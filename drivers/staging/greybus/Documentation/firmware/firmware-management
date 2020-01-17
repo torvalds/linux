@@ -106,13 +106,13 @@ Following are the IOCTLs and their data structures available to the user:
 struct fw_mgmt_ioc_get_intf_version {
 	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_SIZE];
 	__u16 major;
-	__u16 minor;
+	__u16 miyesr;
 } __attribute__ ((__packed__));
 
 struct fw_mgmt_ioc_get_backend_version {
 	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_SIZE];
 	__u16 major;
-	__u16 minor;
+	__u16 miyesr;
 	__u8 status;
 } __attribute__ ((__packed__));
 
@@ -121,7 +121,7 @@ struct fw_mgmt_ioc_intf_load_and_validate {
 	__u8			load_method;
 	__u8			status;
 	__u16			major;
-	__u16			minor;
+	__u16			miyesr;
 } __packed;
 
 struct fw_mgmt_ioc_backend_fw_update {
@@ -148,7 +148,7 @@ struct fw_mgmt_ioc_backend_fw_update {
    This ioctl shall be used by the user to get the version of a currently
    running Backend Interface Firmware identified by a firmware-tag. The user is
    required to fill the 'firmware_tag' field of the 'struct fw_mgmt_ioc_get_fw'
-   in this case. The 'major' and 'minor' fields are set by the kernel in
+   in this case. The 'major' and 'miyesr' fields are set by the kernel in
    response.
 
 3. FW_MGMT_IOC_INTF_LOAD_AND_VALIDATE:
@@ -156,7 +156,7 @@ struct fw_mgmt_ioc_backend_fw_update {
    This ioctl shall be used by the user to load an Interface Firmware package on
    an Interface. The user needs to fill the 'firmware_tag' and 'load_method'
    fields of the 'struct fw_mgmt_ioc_intf_load_and_validate'. The 'status',
-   'major' and 'minor' fields are set by the kernel in response.
+   'major' and 'miyesr' fields are set by the kernel in response.
 
 4. FW_MGMT_IOC_INTF_BACKEND_FW_UPDATE:
 
@@ -175,7 +175,7 @@ struct fw_mgmt_ioc_backend_fw_update {
 
    This ioctl shall be used by the user to mode-switch the module to the
    previously loaded interface firmware. If the interface firmware isn't loaded
-   previously, or if another unsuccessful FW_MGMT_IOC_INTF_LOAD_AND_VALIDATE
+   previously, or if ayesther unsuccessful FW_MGMT_IOC_INTF_LOAD_AND_VALIDATE
    operation is started after loading interface firmware, then the firmware core
    wouldn't allow mode-switch.
 

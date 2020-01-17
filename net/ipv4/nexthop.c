@@ -131,12 +131,12 @@ static void nh_base_seq_inc(struct net *net)
 		;
 }
 
-/* no reference taken; rcu lock or rtnl must be held */
+/* yes reference taken; rcu lock or rtnl must be held */
 struct nexthop *nexthop_find_by_id(struct net *net, u32 id)
 {
-	struct rb_node **pp, *parent = NULL, *next;
+	struct rb_yesde **pp, *parent = NULL, *next;
 
-	pp = &net->nexthop.rb_root.rb_node;
+	pp = &net->nexthop.rb_root.rb_yesde;
 	while (1) {
 		struct nexthop *nh;
 
@@ -145,7 +145,7 @@ struct nexthop *nexthop_find_by_id(struct net *net, u32 id)
 			break;
 		parent = next;
 
-		nh = rb_entry(parent, struct nexthop, rb_node);
+		nh = rb_entry(parent, struct nexthop, rb_yesde);
 		if (id < nh->id)
 			pp = &next->rb_left;
 		else if (id > nh->id)
@@ -204,7 +204,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int nh_fill_node(struct sk_buff *skb, struct nexthop *nh,
+static int nh_fill_yesde(struct sk_buff *skb, struct nexthop *nh,
 			int event, u32 portid, u32 seq, unsigned int nlflags)
 {
 	struct fib6_nh *fib6_nh;
@@ -331,7 +331,7 @@ static size_t nh_nlmsg_size(struct nexthop *nh)
 	return sz;
 }
 
-static void nexthop_notify(int event, struct nexthop *nh, struct nl_info *info)
+static void nexthop_yestify(int event, struct nexthop *nh, struct nl_info *info)
 {
 	unsigned int nlflags = info->nlh ? info->nlh->nlmsg_flags : 0;
 	u32 seq = info->nlh ? info->nlh->nlmsg_seq : 0;
@@ -342,7 +342,7 @@ static void nexthop_notify(int event, struct nexthop *nh, struct nl_info *info)
 	if (!skb)
 		goto errout;
 
-	err = nh_fill_node(skb, nh, event, info->portid, seq, nlflags);
+	err = nh_fill_yesde(skb, nh, event, info->portid, seq, nlflags);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in nh_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
@@ -350,7 +350,7 @@ static void nexthop_notify(int event, struct nexthop *nh, struct nl_info *info)
 		goto errout;
 	}
 
-	rtnl_notify(skb, info->nl_net, info->portid, RTNLGRP_NEXTHOP,
+	rtnl_yestify(skb, info->nl_net, info->portid, RTNLGRP_NEXTHOP,
 		    info->nlh, gfp_any());
 	return;
 errout:
@@ -364,12 +364,12 @@ static bool valid_group_nh(struct nexthop *nh, unsigned int npaths,
 	if (nh->is_group) {
 		struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
 
-		/* nested multipath (group within a group) is not
+		/* nested multipath (group within a group) is yest
 		 * supported
 		 */
 		if (nhg->mpath) {
 			NL_SET_ERR_MSG(extack,
-				       "Multipath group can not be a nexthop within a group");
+				       "Multipath group can yest be a nexthop within a group");
 			return false;
 		}
 	} else {
@@ -377,7 +377,7 @@ static bool valid_group_nh(struct nexthop *nh, unsigned int npaths,
 
 		if (nhi->reject_nh && npaths > 1) {
 			NL_SET_ERR_MSG(extack,
-				       "Blackhole nexthop can not be used in a group with more than 1 path");
+				       "Blackhole nexthop can yest be used in a group with more than 1 path");
 			return false;
 		}
 	}
@@ -413,7 +413,7 @@ static int nh_check_attr_group(struct net *net, struct nlattr *tb[],
 		}
 		for (j = i + 1; j < len; ++j) {
 			if (nhg[i].id == nhg[j].id) {
-				NL_SET_ERR_MSG(extack, "Nexthop id can not be used twice in a group");
+				NL_SET_ERR_MSG(extack, "Nexthop id can yest be used twice in a group");
 				return -EINVAL;
 			}
 		}
@@ -450,7 +450,7 @@ static bool ipv6_good_nh(const struct fib6_nh *nh)
 
 	rcu_read_lock_bh();
 
-	n = __ipv6_neigh_lookup_noref_stub(nh->fib_nh_dev, &nh->fib_nh_gw6);
+	n = __ipv6_neigh_lookup_yesref_stub(nh->fib_nh_dev, &nh->fib_nh_gw6);
 	if (n)
 		state = n->nud_state;
 
@@ -466,7 +466,7 @@ static bool ipv4_good_nh(const struct fib_nh *nh)
 
 	rcu_read_lock_bh();
 
-	n = __ipv4_neigh_lookup_noref(nh->fib_nh_dev,
+	n = __ipv4_neigh_lookup_yesref(nh->fib_nh_dev,
 				      (__force u32)nh->fib_nh_gw4);
 	if (n)
 		state = n->nud_state;
@@ -494,7 +494,7 @@ struct nexthop *nexthop_select_path(struct nexthop *nh, int hash)
 			continue;
 
 		/* nexthops always check if it is good and does
-		 * not rely on a sysctl for this behavior
+		 * yest rely on a sysctl for this behavior
 		 */
 		nhi = rcu_dereference(nhge->nh->nh_info);
 		switch (nhi->family) {
@@ -551,7 +551,7 @@ static int check_src_addr(const struct in6_addr *saddr,
 			  struct netlink_ext_ack *extack)
 {
 	if (!ipv6_addr_any(saddr)) {
-		NL_SET_ERR_MSG(extack, "IPv6 routes using source address can not use nexthop objects");
+		NL_SET_ERR_MSG(extack, "IPv6 routes using source address can yest use nexthop objects");
 		return -EINVAL;
 	}
 	return 0;
@@ -565,7 +565,7 @@ int fib6_check_nexthop(struct nexthop *nh, struct fib6_config *cfg,
 	/* fib6_src is unique to a fib6_info and limits the ability to cache
 	 * routes in fib6_nh within a nexthop that is potentially shared
 	 * across multiple fib entries. If the config wants to use source
-	 * routing it can not use nexthop objects. mlxsw also does not allow
+	 * routing it can yest use nexthop objects. mlxsw also does yest allow
 	 * fib6_src on routes.
 	 */
 	if (cfg && check_src_addr(&cfg->fc_src, extack) < 0)
@@ -576,16 +576,16 @@ int fib6_check_nexthop(struct nexthop *nh, struct fib6_config *cfg,
 
 		nhg = rtnl_dereference(nh->nh_grp);
 		if (nhg->has_v4)
-			goto no_v4_nh;
+			goto yes_v4_nh;
 	} else {
 		nhi = rtnl_dereference(nh->nh_info);
 		if (nhi->family == AF_INET)
-			goto no_v4_nh;
+			goto yes_v4_nh;
 	}
 
 	return 0;
-no_v4_nh:
-	NL_SET_ERR_MSG(extack, "IPv6 routes can not use an IPv4 nexthop");
+yes_v4_nh:
+	NL_SET_ERR_MSG(extack, "IPv6 routes can yest use an IPv4 nexthop");
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(fib6_check_nexthop);
@@ -617,7 +617,7 @@ static int nexthop_check_scope(struct nexthop *nh, u8 scope,
 	nhi = rtnl_dereference(nh->nh_info);
 	if (scope == RT_SCOPE_HOST && nhi->fib_nhc.nhc_gw_family) {
 		NL_SET_ERR_MSG(extack,
-			       "Route with host scope can not have a gateway");
+			       "Route with host scope can yest have a gateway");
 		return -EINVAL;
 	}
 
@@ -630,7 +630,7 @@ static int nexthop_check_scope(struct nexthop *nh, u8 scope,
 }
 
 /* Invoked by fib add code to verify nexthop by id is ok with
- * config for prefix; parts of fib_check_nh not done when nexthop
+ * config for prefix; parts of fib_check_nh yest done when nexthop
  * object is used.
  */
 int fib_check_nexthop(struct nexthop *nh, u8 scope,
@@ -642,7 +642,7 @@ int fib_check_nexthop(struct nexthop *nh, u8 scope,
 		struct nh_group *nhg;
 
 		if (scope == RT_SCOPE_HOST) {
-			NL_SET_ERR_MSG(extack, "Route with host scope can not have multiple nexthops");
+			NL_SET_ERR_MSG(extack, "Route with host scope can yest have multiple nexthops");
 			err = -EINVAL;
 			goto out;
 		}
@@ -725,7 +725,7 @@ static void remove_nh_grp_entry(struct nh_grp_entry *nhge,
 	nexthop_put(nh);
 
 	if (nlinfo)
-		nexthop_notify(RTM_NEWNEXTHOP, nhge->nh_parent, nlinfo);
+		nexthop_yestify(RTM_NEWNEXTHOP, nhge->nh_parent, nlinfo);
 }
 
 static void remove_nexthop_from_groups(struct net *net, struct nexthop *nh,
@@ -740,7 +740,7 @@ static void remove_nexthop_from_groups(struct net *net, struct nexthop *nh,
 		nhg = rtnl_dereference(nhge->nh_parent->nh_grp);
 		remove_nh_grp_entry(nhge, nhg, nlinfo);
 
-		/* if this group has no more entries then remove it */
+		/* if this group has yes more entries then remove it */
 		if (!nhg->num_nh)
 			remove_nexthop(net, nhge->nh_parent, nlinfo);
 	}
@@ -764,7 +764,7 @@ static void remove_nexthop_group(struct nexthop *nh, struct nl_info *nlinfo)
 	}
 }
 
-/* not called for nexthop replace */
+/* yest called for nexthop replace */
 static void __remove_nexthop_fib(struct net *net, struct nexthop *nh)
 {
 	struct fib6_info *f6i, *tmp;
@@ -808,10 +808,10 @@ static void remove_nexthop(struct net *net, struct nexthop *nh,
 			   struct nl_info *nlinfo)
 {
 	/* remove from the tree */
-	rb_erase(&nh->rb_node, &net->nexthop.rb_root);
+	rb_erase(&nh->rb_yesde, &net->nexthop.rb_root);
 
 	if (nlinfo)
-		nexthop_notify(RTM_DELNEXTHOP, nh, nlinfo);
+		nexthop_yestify(RTM_DELNEXTHOP, nh, nlinfo);
 
 	__remove_nexthop(net, nh, nlinfo);
 	nh_base_seq_inc(net);
@@ -841,7 +841,7 @@ static int replace_nexthop_grp(struct net *net, struct nexthop *old,
 	int i;
 
 	if (!new->is_group) {
-		NL_SET_ERR_MSG(extack, "Can not replace a nexthop group with a nexthop.");
+		NL_SET_ERR_MSG(extack, "Can yest replace a nexthop group with a nexthop.");
 		return -EINVAL;
 	}
 
@@ -869,7 +869,7 @@ static int replace_nexthop_single(struct net *net, struct nexthop *old,
 	struct nh_info *oldi, *newi;
 
 	if (new->is_group) {
-		NL_SET_ERR_MSG(extack, "Can not replace a nexthop with a nexthop group.");
+		NL_SET_ERR_MSG(extack, "Can yest replace a nexthop with a nexthop group.");
 		return -EINVAL;
 	}
 
@@ -888,7 +888,7 @@ static int replace_nexthop_single(struct net *net, struct nexthop *old,
 	return 0;
 }
 
-static void __nexthop_replace_notify(struct net *net, struct nexthop *nh,
+static void __nexthop_replace_yestify(struct net *net, struct nexthop *nh,
 				     struct nl_info *info)
 {
 	struct fib6_info *f6i;
@@ -903,7 +903,7 @@ static void __nexthop_replace_notify(struct net *net, struct nexthop *nh,
 		list_for_each_entry(fi, &nh->fi_list, nh_list)
 			fi->nh_updated = true;
 
-		fib_info_notify_update(net, info);
+		fib_info_yestify_update(net, info);
 
 		list_for_each_entry(fi, &nh->fi_list, nh_list)
 			fi->nh_updated = false;
@@ -917,15 +917,15 @@ static void __nexthop_replace_notify(struct net *net, struct nexthop *nh,
  * linked to this nexthop and for all groups that the nexthop
  * is a member of
  */
-static void nexthop_replace_notify(struct net *net, struct nexthop *nh,
+static void nexthop_replace_yestify(struct net *net, struct nexthop *nh,
 				   struct nl_info *info)
 {
 	struct nh_grp_entry *nhge;
 
-	__nexthop_replace_notify(net, nh, info);
+	__nexthop_replace_yestify(net, nh, info);
 
 	list_for_each_entry(nhge, &nh->grp_list, nh_list)
-		__nexthop_replace_notify(net, nhge->nh_parent, info);
+		__nexthop_replace_yestify(net, nhge->nh_parent, info);
 }
 
 static int replace_nexthop(struct net *net, struct nexthop *old,
@@ -954,11 +954,11 @@ static int replace_nexthop(struct net *net, struct nexthop *old,
 
 	list_for_each_entry(nhge, &old->grp_list, nh_list) {
 		/* if new nexthop is a blackhole, any groups using this
-		 * nexthop cannot have more than 1 path
+		 * nexthop canyest have more than 1 path
 		 */
 		if (new_is_reject &&
 		    nexthop_num_path(nhge->nh_parent) > 1) {
-			NL_SET_ERR_MSG(extack, "Blackhole nexthop can not be a member of a group with more than one path");
+			NL_SET_ERR_MSG(extack, "Blackhole nexthop can yest be a member of a group with more than one path");
 			return -EINVAL;
 		}
 
@@ -990,15 +990,15 @@ static int replace_nexthop(struct net *net, struct nexthop *old,
 static int insert_nexthop(struct net *net, struct nexthop *new_nh,
 			  struct nh_config *cfg, struct netlink_ext_ack *extack)
 {
-	struct rb_node **pp, *parent = NULL, *next;
+	struct rb_yesde **pp, *parent = NULL, *next;
 	struct rb_root *root = &net->nexthop.rb_root;
 	bool replace = !!(cfg->nlflags & NLM_F_REPLACE);
 	bool create = !!(cfg->nlflags & NLM_F_CREATE);
 	u32 new_id = new_nh->id;
-	int replace_notify = 0;
+	int replace_yestify = 0;
 	int rc = -EEXIST;
 
-	pp = &root->rb_node;
+	pp = &root->rb_yesde;
 	while (1) {
 		struct nexthop *nh;
 
@@ -1008,7 +1008,7 @@ static int insert_nexthop(struct net *net, struct nexthop *new_nh,
 
 		parent = next;
 
-		nh = rb_entry(parent, struct nexthop, rb_node);
+		nh = rb_entry(parent, struct nexthop, rb_yesde);
 		if (new_id < nh->id) {
 			pp = &next->rb_left;
 		} else if (new_id > nh->id) {
@@ -1016,31 +1016,31 @@ static int insert_nexthop(struct net *net, struct nexthop *new_nh,
 		} else if (replace) {
 			rc = replace_nexthop(net, nh, new_nh, extack);
 			if (!rc) {
-				new_nh = nh; /* send notification with old nh */
-				replace_notify = 1;
+				new_nh = nh; /* send yestification with old nh */
+				replace_yestify = 1;
 			}
 			goto out;
 		} else {
-			/* id already exists and not a replace */
+			/* id already exists and yest a replace */
 			goto out;
 		}
 	}
 
 	if (replace && !create) {
-		NL_SET_ERR_MSG(extack, "Replace specified without create and no entry exists");
+		NL_SET_ERR_MSG(extack, "Replace specified without create and yes entry exists");
 		rc = -ENOENT;
 		goto out;
 	}
 
-	rb_link_node_rcu(&new_nh->rb_node, parent, pp);
-	rb_insert_color(&new_nh->rb_node, root);
+	rb_link_yesde_rcu(&new_nh->rb_yesde, parent, pp);
+	rb_insert_color(&new_nh->rb_yesde, root);
 	rc = 0;
 out:
 	if (!rc) {
 		nh_base_seq_inc(net);
-		nexthop_notify(RTM_NEWNEXTHOP, new_nh, &cfg->nlinfo);
-		if (replace_notify)
-			nexthop_replace_notify(net, new_nh, &cfg->nlinfo);
+		nexthop_yestify(RTM_NEWNEXTHOP, new_nh, &cfg->nlinfo);
+		if (replace_yestify)
+			nexthop_replace_yestify(net, new_nh, &cfg->nlinfo);
 	}
 
 	return rc;
@@ -1053,7 +1053,7 @@ static void nexthop_flush_dev(struct net_device *dev)
 	unsigned int hash = nh_dev_hashfn(dev->ifindex);
 	struct net *net = dev_net(dev);
 	struct hlist_head *head = &net->nexthop.devhash[hash];
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	struct nh_info *nhi;
 
 	hlist_for_each_entry_safe(nhi, n, head, dev_hash) {
@@ -1068,11 +1068,11 @@ static void nexthop_flush_dev(struct net_device *dev)
 static void flush_all_nexthops(struct net *net)
 {
 	struct rb_root *root = &net->nexthop.rb_root;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct nexthop *nh;
 
-	while ((node = rb_first(root))) {
-		nh = rb_entry(node, struct nexthop, rb_node);
+	while ((yesde = rb_first(root))) {
+		nh = rb_entry(yesde, struct nexthop, rb_yesde);
 		remove_nexthop(net, nh, NULL);
 		cond_resched();
 	}
@@ -1105,7 +1105,7 @@ static struct nexthop *nexthop_create_group(struct net *net,
 
 		nhe = nexthop_find_by_id(net, entry[i].id);
 		if (!nexthop_get(nhe))
-			goto out_no_nh;
+			goto out_yes_nh;
 
 		nhi = rtnl_dereference(nhe->nh_info);
 		if (nhi->family == AF_INET)
@@ -1126,7 +1126,7 @@ static struct nexthop *nexthop_create_group(struct net *net,
 
 	return nh;
 
-out_no_nh:
+out_yes_nh:
 	for (; i >= 0; --i)
 		nexthop_put(nhg->nh_entries[i].nh);
 
@@ -1366,14 +1366,14 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 		}
 		err = nh_check_attr_group(net, tb, extack);
 
-		/* no other attributes should be set */
+		/* yes other attributes should be set */
 		goto out;
 	}
 
 	if (tb[NHA_BLACKHOLE]) {
 		if (tb[NHA_GATEWAY] || tb[NHA_OIF] ||
 		    tb[NHA_ENCAP]   || tb[NHA_ENCAP_TYPE]) {
-			NL_SET_ERR_MSG(extack, "Blackhole attribute can not be used with gateway or oif");
+			NL_SET_ERR_MSG(extack, "Blackhole attribute can yest be used with gateway or oif");
 			goto out;
 		}
 
@@ -1383,7 +1383,7 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 	}
 
 	if (!tb[NHA_OIF]) {
-		NL_SET_ERR_MSG(extack, "Device attribute required for non-blackhole nexthops");
+		NL_SET_ERR_MSG(extack, "Device attribute required for yesn-blackhole nexthops");
 		goto out;
 	}
 
@@ -1395,7 +1395,7 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 		NL_SET_ERR_MSG(extack, "Invalid device index");
 		goto out;
 	} else if (!(cfg->dev->flags & IFF_UP)) {
-		NL_SET_ERR_MSG(extack, "Nexthop device is not up");
+		NL_SET_ERR_MSG(extack, "Nexthop device is yest up");
 		err = -ENETDOWN;
 		goto out;
 	} else if (!netif_carrier_ok(cfg->dev)) {
@@ -1425,14 +1425,14 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 			break;
 		default:
 			NL_SET_ERR_MSG(extack,
-				       "Unknown address family for gateway");
+				       "Unkyeswn address family for gateway");
 			goto out;
 		}
 	} else {
-		/* device only nexthop (no gateway) */
+		/* device only nexthop (yes gateway) */
 		if (cfg->nh_flags & RTNH_F_ONLINK) {
 			NL_SET_ERR_MSG(extack,
-				       "ONLINK flag can not be set for nexthop without a gateway");
+				       "ONLINK flag can yest be set for nexthop without a gateway");
 			goto out;
 		}
 	}
@@ -1576,7 +1576,7 @@ static int rtm_get_nexthop(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (!nh)
 		goto errout_free;
 
-	err = nh_fill_node(skb, nh, RTM_NEWNEXTHOP, NETLINK_CB(in_skb).portid,
+	err = nh_fill_yesde(skb, nh, RTM_NEWNEXTHOP, NETLINK_CB(in_skb).portid,
 			   nlh->nlmsg_seq, 0);
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
@@ -1690,7 +1690,7 @@ static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net *net = sock_net(skb->sk);
 	struct rb_root *root = &net->nexthop.rb_root;
 	bool group_filter = false;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	int idx = 0, s_idx;
 	int err;
 
@@ -1700,18 +1700,18 @@ static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
 		return err;
 
 	s_idx = cb->args[0];
-	for (node = rb_first(root); node; node = rb_next(node)) {
+	for (yesde = rb_first(root); yesde; yesde = rb_next(yesde)) {
 		struct nexthop *nh;
 
 		if (idx < s_idx)
 			goto cont;
 
-		nh = rb_entry(node, struct nexthop, rb_node);
+		nh = rb_entry(yesde, struct nexthop, rb_yesde);
 		if (nh_dump_filtered(nh, dev_filter_idx, master_idx,
 				     group_filter, nhm->nh_family))
 			goto cont;
 
-		err = nh_fill_node(skb, nh, RTM_NEWNEXTHOP,
+		err = nh_fill_yesde(skb, nh, RTM_NEWNEXTHOP,
 				   NETLINK_CB(cb->skb).portid,
 				   cb->nlh->nlmsg_seq, NLM_F_MULTI);
 		if (err < 0) {
@@ -1739,7 +1739,7 @@ static void nexthop_sync_mtu(struct net_device *dev, u32 orig_mtu)
 	unsigned int hash = nh_dev_hashfn(dev->ifindex);
 	struct net *net = dev_net(dev);
 	struct hlist_head *head = &net->nexthop.devhash[hash];
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	struct nh_info *nhi;
 
 	hlist_for_each_entry_safe(nhi, n, head, dev_hash) {
@@ -1752,11 +1752,11 @@ static void nexthop_sync_mtu(struct net_device *dev, u32 orig_mtu)
 }
 
 /* rtnl */
-static int nh_netdev_event(struct notifier_block *this,
+static int nh_netdev_event(struct yestifier_block *this,
 			   unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct netdev_notifier_info_ext *info_ext;
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
+	struct netdev_yestifier_info_ext *info_ext;
 
 	switch (event) {
 	case NETDEV_DOWN:
@@ -1776,8 +1776,8 @@ static int nh_netdev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block nh_netdev_notifier = {
-	.notifier_call = nh_netdev_event,
+static struct yestifier_block nh_netdev_yestifier = {
+	.yestifier_call = nh_netdev_event,
 };
 
 static void __net_exit nexthop_net_exit(struct net *net)
@@ -1809,7 +1809,7 @@ static int __init nexthop_init(void)
 {
 	register_pernet_subsys(&nexthop_net_ops);
 
-	register_netdevice_notifier(&nh_netdev_notifier);
+	register_netdevice_yestifier(&nh_netdev_yestifier);
 
 	rtnl_register(PF_UNSPEC, RTM_NEWNEXTHOP, rtm_new_nexthop, NULL, 0);
 	rtnl_register(PF_UNSPEC, RTM_DELNEXTHOP, rtm_del_nexthop, NULL, 0);

@@ -11,7 +11,7 @@ menuconfig RESET_CONTROLLER
 	  This framework is designed to abstract reset handling of devices
 	  via GPIOs or SoC-internal reset controller modules.
 
-	  If unsure, say no.
+	  If unsure, say yes.
 
 if RESET_CONTROLLER
 
@@ -50,7 +50,7 @@ config RESET_BRCMSTB
 	  a SUN_TOP_CTRL_SW_INIT style controller.
 
 config RESET_HSDK
-	bool "Synopsys HSDK Reset Driver"
+	bool "Syyespsys HSDK Reset Driver"
 	depends on HAS_IOMEM
 	depends on ARC_SOC_HSDK || COMPILE_TEST
 	help
@@ -112,7 +112,7 @@ config RESET_QCOM_PDC
 	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  This enables the PDC (Power Domain Controller) reset driver
-	  for Qualcomm Technologies Inc SDM845 SoCs. Say Y if you want
+	  for Qualcomm Techyeslogies Inc SDM845 SoCs. Say Y if you want
 	  to control reset signals provided by PDC for Modem, Compute,
 	  Display, GPU, Debug, AOP, Sensors, Audio, SP and APPS.
 
@@ -179,7 +179,7 @@ config RESET_TI_SYSCON
 	select MFD_SYSCON
 	help
 	  This enables the reset driver support for TI devices with
-	  memory-mapped reset registers as part of a syscon device node. If
+	  memory-mapped reset registers as part of a syscon device yesde. If
 	  you wish to use the reset framework for such memory-mapped devices,
 	  say Y here. Otherwise, say N.
 

@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -44,24 +44,24 @@
 #include "subscr.h"
 #include "bcast.h"
 #include "addr.h"
-#include "node.h"
+#include "yesde.h"
 #include "group.h"
 
 /**
  * struct service_range - container for all bindings of a service range
  * @lower: service range lower bound
  * @upper: service range upper bound
- * @tree_node: member of service range RB tree
- * @max: largest 'upper' in this node subtree
- * @local_publ: list of identical publications made from this node
+ * @tree_yesde: member of service range RB tree
+ * @max: largest 'upper' in this yesde subtree
+ * @local_publ: list of identical publications made from this yesde
  *   Used by closest_first lookup and multicast lookup algorithm
- * @all_publ: all publications identical to this one, whatever node and scope
+ * @all_publ: all publications identical to this one, whatever yesde and scope
  *   Used by round-robin lookup algorithm
  */
 struct service_range {
 	u32 lower;
 	u32 upper;
-	struct rb_node tree_node;
+	struct rb_yesde tree_yesde;
 	u32 max;
 	struct list_head local_publ;
 	struct list_head all_publ;
@@ -81,7 +81,7 @@ struct tipc_service {
 	u32 type;
 	u32 publ_cnt;
 	struct rb_root ranges;
-	struct hlist_node service_list;
+	struct hlist_yesde service_list;
 	struct list_head subscriptions;
 	spinlock_t lock; /* Covers service range list */
 	struct rcu_head rcu;
@@ -89,11 +89,11 @@ struct tipc_service {
 
 #define service_range_upper(sr) ((sr)->upper)
 RB_DECLARE_CALLBACKS_MAX(static, sr_callbacks,
-			 struct service_range, tree_node, u32, max,
+			 struct service_range, tree_yesde, u32, max,
 			 service_range_upper)
 
-#define service_range_entry(rbtree_node)				\
-	(container_of(rbtree_node, struct service_range, tree_node))
+#define service_range_entry(rbtree_yesde)				\
+	(container_of(rbtree_yesde, struct service_range, tree_yesde))
 
 #define service_range_overlap(sr, start, end)				\
 	((sr)->lower <= (end) && (sr)->upper >= (start))
@@ -106,27 +106,27 @@ RB_DECLARE_CALLBACKS_MAX(static, sr_callbacks,
  * @start, end: the range (end >= start) for matching
  */
 #define service_range_foreach_match(sr, sc, start, end)			\
-	for (sr = service_range_match_first((sc)->ranges.rb_node,	\
+	for (sr = service_range_match_first((sc)->ranges.rb_yesde,	\
 					    start,			\
 					    end);			\
 	     sr;							\
-	     sr = service_range_match_next(&(sr)->tree_node,		\
+	     sr = service_range_match_next(&(sr)->tree_yesde,		\
 					   start,			\
 					   end))
 
 /**
  * service_range_match_first - find first service range matching a range
- * @n: the root node of service range rbtree for searching
+ * @n: the root yesde of service range rbtree for searching
  * @start, end: the range (end >= start) for matching
  *
- * Return: the leftmost service range node in the rbtree that overlaps the
+ * Return: the leftmost service range yesde in the rbtree that overlaps the
  * specific range if any. Otherwise, returns NULL.
  */
-static struct service_range *service_range_match_first(struct rb_node *n,
+static struct service_range *service_range_match_first(struct rb_yesde *n,
 						       u32 start, u32 end)
 {
 	struct service_range *sr;
-	struct rb_node *l, *r;
+	struct rb_yesde *l, *r;
 
 	/* Non overlaps in tree at all? */
 	if (!n || service_range_entry(n)->max < start)
@@ -135,15 +135,15 @@ static struct service_range *service_range_match_first(struct rb_node *n,
 	while (n) {
 		l = n->rb_left;
 		if (l && service_range_entry(l)->max >= start) {
-			/* A leftmost overlap range node must be one in the left
-			 * subtree. If not, it has lower > end, then nodes on
-			 * the right side cannot satisfy the condition either.
+			/* A leftmost overlap range yesde must be one in the left
+			 * subtree. If yest, it has lower > end, then yesdes on
+			 * the right side canyest satisfy the condition either.
 			 */
 			n = l;
 			continue;
 		}
 
-		/* No one in the left subtree can match, return if this node is
+		/* No one in the left subtree can match, return if this yesde is
 		 * an overlap i.e. leftmost.
 		 */
 		sr = service_range_entry(n);
@@ -165,30 +165,30 @@ static struct service_range *service_range_match_first(struct rb_node *n,
 
 /**
  * service_range_match_next - find next service range matching a range
- * @n: a node in service range rbtree from which the searching starts
+ * @n: a yesde in service range rbtree from which the searching starts
  * @start, end: the range (end >= start) for matching
  *
- * Return: the next service range node to the given node in the rbtree that
+ * Return: the next service range yesde to the given yesde in the rbtree that
  * overlaps the specific range if any. Otherwise, returns NULL.
  */
-static struct service_range *service_range_match_next(struct rb_node *n,
+static struct service_range *service_range_match_next(struct rb_yesde *n,
 						      u32 start, u32 end)
 {
 	struct service_range *sr;
-	struct rb_node *p, *r;
+	struct rb_yesde *p, *r;
 
 	while (n) {
 		r = n->rb_right;
 		if (r && service_range_entry(r)->max >= start)
-			/* A next overlap range node must be one in the right
-			 * subtree. If not, it has lower > end, then any next
-			 * successor (- an ancestor) of this node cannot
+			/* A next overlap range yesde must be one in the right
+			 * subtree. If yest, it has lower > end, then any next
+			 * successor (- an ancestor) of this yesde canyest
 			 * satisfy the condition either.
 			 */
 			return service_range_match_first(r, start, end);
 
 		/* No one in the right subtree can match, go up to find an
-		 * ancestor of this node which is parent of a left-hand child.
+		 * ancestor of this yesde which is parent of a left-hand child.
 		 */
 		while ((p = rb_parent(n)) && n == p->rb_right)
 			n = p;
@@ -220,7 +220,7 @@ static int hash(int x)
  * tipc_publ_create - create a publication structure
  */
 static struct publication *tipc_publ_create(u32 type, u32 lower, u32 upper,
-					    u32 scope, u32 node, u32 port,
+					    u32 scope, u32 yesde, u32 port,
 					    u32 key)
 {
 	struct publication *publ = kzalloc(sizeof(*publ), GFP_ATOMIC);
@@ -232,11 +232,11 @@ static struct publication *tipc_publ_create(u32 type, u32 lower, u32 upper,
 	publ->lower = lower;
 	publ->upper = upper;
 	publ->scope = scope;
-	publ->node = node;
+	publ->yesde = yesde;
 	publ->port = port;
 	publ->key = key;
 	INIT_LIST_HEAD(&publ->binding_sock);
-	INIT_LIST_HEAD(&publ->binding_node);
+	INIT_LIST_HEAD(&publ->binding_yesde);
 	INIT_LIST_HEAD(&publ->local_publ);
 	INIT_LIST_HEAD(&publ->all_publ);
 	INIT_LIST_HEAD(&publ->list);
@@ -253,7 +253,7 @@ static struct tipc_service *tipc_service_create(u32 type, struct hlist_head *hd)
 	struct tipc_service *service = kzalloc(sizeof(*service), GFP_ATOMIC);
 
 	if (!service) {
-		pr_warn("Service creation failed, no memory\n");
+		pr_warn("Service creation failed, yes memory\n");
 		return NULL;
 	}
 
@@ -285,10 +285,10 @@ static struct service_range *tipc_service_find_range(struct tipc_service *sc,
 static struct service_range *tipc_service_create_range(struct tipc_service *sc,
 						       u32 lower, u32 upper)
 {
-	struct rb_node **n, *parent = NULL;
+	struct rb_yesde **n, *parent = NULL;
 	struct service_range *sr;
 
-	n = &sc->ranges.rb_node;
+	n = &sc->ranges.rb_yesde;
 	while (*n) {
 		parent = *n;
 		sr = service_range_entry(parent);
@@ -309,8 +309,8 @@ static struct service_range *tipc_service_create_range(struct tipc_service *sc,
 	sr->max = upper;
 	INIT_LIST_HEAD(&sr->local_publ);
 	INIT_LIST_HEAD(&sr->all_publ);
-	rb_link_node(&sr->tree_node, parent, n);
-	rb_insert_augmented(&sr->tree_node, &sc->ranges, &sr_callbacks);
+	rb_link_yesde(&sr->tree_yesde, parent, n);
+	rb_insert_augmented(&sr->tree_yesde, &sc->ranges, &sr_callbacks);
 	return sr;
 }
 
@@ -318,7 +318,7 @@ static struct publication *tipc_service_insert_publ(struct net *net,
 						    struct tipc_service *sc,
 						    u32 type, u32 lower,
 						    u32 upper, u32 scope,
-						    u32 node, u32 port,
+						    u32 yesde, u32 port,
 						    u32 key)
 {
 	struct tipc_subscription *sub, *tmp;
@@ -334,28 +334,28 @@ static struct publication *tipc_service_insert_publ(struct net *net,
 
 	/* Return if the publication already exists */
 	list_for_each_entry(p, &sr->all_publ, all_publ) {
-		if (p->key == key && (!p->node || p->node == node))
+		if (p->key == key && (!p->yesde || p->yesde == yesde))
 			return NULL;
 	}
 
 	/* Create and insert publication */
-	p = tipc_publ_create(type, lower, upper, scope, node, port, key);
+	p = tipc_publ_create(type, lower, upper, scope, yesde, port, key);
 	if (!p)
 		goto err;
 	/* Suppose there shouldn't be a huge gap btw publs i.e. >INT_MAX */
 	p->id = sc->publ_cnt++;
-	if (in_own_node(net, node))
+	if (in_own_yesde(net, yesde))
 		list_add(&p->local_publ, &sr->local_publ);
 	list_add(&p->all_publ, &sr->all_publ);
 
-	/* Any subscriptions waiting for notification?  */
+	/* Any subscriptions waiting for yestification?  */
 	list_for_each_entry_safe(sub, tmp, &sc->subscriptions, service_list) {
 		tipc_sub_report_overlap(sub, p->lower, p->upper, TIPC_PUBLISHED,
-					p->port, p->node, p->scope, first);
+					p->port, p->yesde, p->scope, first);
 	}
 	return p;
 err:
-	pr_warn("Failed to bind to %u,%u,%u, no memory\n", type, lower, upper);
+	pr_warn("Failed to bind to %u,%u,%u, yes memory\n", type, lower, upper);
 	return NULL;
 }
 
@@ -363,12 +363,12 @@ err:
  * tipc_service_remove_publ - remove a publication from a service
  */
 static struct publication *tipc_service_remove_publ(struct service_range *sr,
-						    u32 node, u32 key)
+						    u32 yesde, u32 key)
 {
 	struct publication *p;
 
 	list_for_each_entry(p, &sr->all_publ, all_publ) {
-		if (p->key != key || (node && node != p->node))
+		if (p->key != key || (yesde && yesde != p->yesde))
 			continue;
 		list_del(&p->all_publ);
 		list_del(&p->local_publ);
@@ -435,7 +435,7 @@ static void tipc_service_subscribe(struct tipc_service *service,
 	list_sort(NULL, &publ_list, tipc_publ_sort);
 	list_for_each_entry_safe(p, tmp, &publ_list, list) {
 		tipc_sub_report_overlap(sub, p->lower, p->upper,
-					TIPC_PUBLISHED, p->port, p->node,
+					TIPC_PUBLISHED, p->port, p->yesde,
 					p->scope, true);
 		list_del_init(&p->list);
 	}
@@ -457,7 +457,7 @@ static struct tipc_service *tipc_service_find(struct net *net, u32 type)
 
 struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
 					     u32 lower, u32 upper,
-					     u32 scope, u32 node,
+					     u32 scope, u32 yesde,
 					     u32 port, u32 key)
 {
 	struct name_table *nt = tipc_name_table(net);
@@ -477,14 +477,14 @@ struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
 
 	spin_lock_bh(&sc->lock);
 	p = tipc_service_insert_publ(net, sc, type, lower, upper,
-				     scope, node, port, key);
+				     scope, yesde, port, key);
 	spin_unlock_bh(&sc->lock);
 	return p;
 }
 
 struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 					     u32 lower, u32 upper,
-					     u32 node, u32 key)
+					     u32 yesde, u32 key)
 {
 	struct tipc_service *sc = tipc_service_find(net, type);
 	struct tipc_subscription *sub, *tmp;
@@ -499,7 +499,7 @@ struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 	sr = tipc_service_find_range(sc, lower, upper);
 	if (!sr)
 		goto exit;
-	p = tipc_service_remove_publ(sr, node, key);
+	p = tipc_service_remove_publ(sr, yesde, key);
 	if (!p)
 		goto exit;
 
@@ -507,16 +507,16 @@ struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 	last = list_empty(&sr->all_publ);
 	list_for_each_entry_safe(sub, tmp, &sc->subscriptions, service_list) {
 		tipc_sub_report_overlap(sub, lower, upper, TIPC_WITHDRAWN,
-					p->port, node, p->scope, last);
+					p->port, yesde, p->scope, last);
 	}
 
 	/* Remove service range item if this was its last publication */
 	if (list_empty(&sr->all_publ)) {
-		rb_erase_augmented(&sr->tree_node, &sc->ranges, &sr_callbacks);
+		rb_erase_augmented(&sr->tree_yesde, &sc->ranges, &sr_callbacks);
 		kfree(sr);
 	}
 
-	/* Delete service item if this no more publications and subscriptions */
+	/* Delete service item if this yes more publications and subscriptions */
 	if (RB_EMPTY_ROOT(&sc->ranges) && list_empty(&sc->subscriptions)) {
 		hlist_del_init_rcu(&sc->service_list);
 		kfree_rcu(sc, rcu);
@@ -529,20 +529,20 @@ exit:
 /**
  * tipc_nametbl_translate - perform service instance to socket translation
  *
- * On entry, 'dnode' is the search domain used during translation.
+ * On entry, 'dyesde' is the search domain used during translation.
  *
  * On exit:
- * - if translation is deferred to another node, leave 'dnode' unchanged and
+ * - if translation is deferred to ayesther yesde, leave 'dyesde' unchanged and
  *   return 0
- * - if translation is attempted and succeeds, set 'dnode' to the publishing
- *   node and return the published (non-zero) port number
- * - if translation is attempted and fails, set 'dnode' to 0 and return 0
+ * - if translation is attempted and succeeds, set 'dyesde' to the publishing
+ *   yesde and return the published (yesn-zero) port number
+ * - if translation is attempted and fails, set 'dyesde' to 0 and return 0
  *
- * Note that for legacy users (node configured with Z.C.N address format) the
- * 'closest-first' lookup algorithm must be maintained, i.e., if dnode is 0
+ * Note that for legacy users (yesde configured with Z.C.N address format) the
+ * 'closest-first' lookup algorithm must be maintained, i.e., if dyesde is 0
  * we must look in the local binding list first
  */
-u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *dnode)
+u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *dyesde)
 {
 	struct tipc_net *tn = tipc_net(net);
 	bool legacy = tn->legacy_addr_format;
@@ -552,9 +552,9 @@ u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *dnode)
 	struct list_head *list;
 	struct publication *p;
 	u32 port = 0;
-	u32 node = 0;
+	u32 yesde = 0;
 
-	if (!tipc_in_scope(legacy, *dnode, self))
+	if (!tipc_in_scope(legacy, *dyesde, self))
 		return 0;
 
 	rcu_read_lock();
@@ -565,14 +565,14 @@ u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *dnode)
 	spin_lock_bh(&sc->lock);
 	service_range_foreach_match(sr, sc, instance, instance) {
 		/* Select lookup algo: local, closest-first or round-robin */
-		if (*dnode == self) {
+		if (*dyesde == self) {
 			list = &sr->local_publ;
 			if (list_empty(list))
 				continue;
 			p = list_first_entry(list, struct publication,
 					     local_publ);
 			list_move_tail(&p->local_publ, &sr->local_publ);
-		} else if (legacy && !*dnode && !list_empty(&sr->local_publ)) {
+		} else if (legacy && !*dyesde && !list_empty(&sr->local_publ)) {
 			list = &sr->local_publ;
 			p = list_first_entry(list, struct publication,
 					     local_publ);
@@ -584,7 +584,7 @@ u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *dnode)
 			list_move_tail(&p->all_publ, &sr->all_publ);
 		}
 		port = p->port;
-		node = p->node;
+		yesde = p->yesde;
 		/* Todo: as for legacy, pick the first matching range only, a
 		 * "true" round-robin will be performed as needed.
 		 */
@@ -594,7 +594,7 @@ u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *dnode)
 
 exit:
 	rcu_read_unlock();
-	*dnode = node;
+	*dyesde = yesde;
 	return port;
 }
 
@@ -616,23 +616,23 @@ bool tipc_nametbl_lookup(struct net *net, u32 type, u32 instance, u32 scope,
 	spin_lock_bh(&sc->lock);
 
 	/* Todo: a full search i.e. service_range_foreach_match() instead? */
-	sr = service_range_match_first(sc->ranges.rb_node, instance, instance);
+	sr = service_range_match_first(sc->ranges.rb_yesde, instance, instance);
 	if (!sr)
-		goto no_match;
+		goto yes_match;
 
 	list_for_each_entry(p, &sr->all_publ, all_publ) {
 		if (p->scope != scope)
 			continue;
-		if (p->port == exclude && p->node == self)
+		if (p->port == exclude && p->yesde == self)
 			continue;
-		tipc_dest_push(dsts, p->node, p->port);
+		tipc_dest_push(dsts, p->yesde, p->port);
 		(*dstcnt)++;
 		if (all)
 			continue;
 		list_move_tail(&p->all_publ, &sr->all_publ);
 		break;
 	}
-no_match:
+yes_match:
 	spin_unlock_bh(&sc->lock);
 exit:
 	rcu_read_unlock();
@@ -663,12 +663,12 @@ exit:
 	rcu_read_unlock();
 }
 
-/* tipc_nametbl_lookup_dst_nodes - find broadcast destination nodes
- * - Creates list of nodes that overlap the given multicast address
- * - Determines if any node local destinations overlap
+/* tipc_nametbl_lookup_dst_yesdes - find broadcast destination yesdes
+ * - Creates list of yesdes that overlap the given multicast address
+ * - Determines if any yesde local destinations overlap
  */
-void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
-				   u32 upper, struct tipc_nlist *nodes)
+void tipc_nametbl_lookup_dst_yesdes(struct net *net, u32 type, u32 lower,
+				   u32 upper, struct tipc_nlist *yesdes)
 {
 	struct service_range *sr;
 	struct tipc_service *sc;
@@ -682,7 +682,7 @@ void tipc_nametbl_lookup_dst_nodes(struct net *net, u32 type, u32 lower,
 	spin_lock_bh(&sc->lock);
 	service_range_foreach_match(sr, sc, lower, upper) {
 		list_for_each_entry(p, &sr->all_publ, all_publ) {
-			tipc_nlist_add(nodes, p->node);
+			tipc_nlist_add(yesdes, p->yesde);
 		}
 	}
 	spin_unlock_bh(&sc->lock);
@@ -698,7 +698,7 @@ void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
 	struct service_range *sr;
 	struct tipc_service *sc;
 	struct publication *p;
-	struct rb_node *n;
+	struct rb_yesde *n;
 
 	rcu_read_lock();
 	sc = tipc_service_find(net, type);
@@ -707,11 +707,11 @@ void tipc_nametbl_build_group(struct net *net, struct tipc_group *grp,
 
 	spin_lock_bh(&sc->lock);
 	for (n = rb_first(&sc->ranges); n; n = rb_next(n)) {
-		sr = container_of(n, struct service_range, tree_node);
+		sr = container_of(n, struct service_range, tree_yesde);
 		list_for_each_entry(p, &sr->all_publ, all_publ) {
 			if (p->scope != scope)
 				continue;
-			tipc_group_add_member(grp, p->node, p->port, p->lower);
+			tipc_group_add_member(grp, p->yesde, p->port, p->lower);
 		}
 	}
 	spin_unlock_bh(&sc->lock);
@@ -747,7 +747,7 @@ exit:
 	spin_unlock_bh(&tn->nametbl_lock);
 
 	if (skb)
-		tipc_node_broadcast(net, skb);
+		tipc_yesde_broadcast(net, skb);
 	return p;
 }
 
@@ -778,7 +778,7 @@ int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower,
 	spin_unlock_bh(&tn->nametbl_lock);
 
 	if (skb) {
-		tipc_node_broadcast(net, skb);
+		tipc_yesde_broadcast(net, skb);
 		return 1;
 	}
 	return 0;
@@ -833,7 +833,7 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *sub)
 	list_del_init(&sub->service_list);
 	tipc_sub_put(sub);
 
-	/* Delete service item if no more publications and subscriptions */
+	/* Delete service item if yes more publications and subscriptions */
 	if (RB_EMPTY_ROOT(&sc->ranges) && list_empty(&sc->subscriptions)) {
 		hlist_del_init_rcu(&sc->service_list);
 		kfree_rcu(sc, rcu);
@@ -856,7 +856,7 @@ int tipc_nametbl_init(struct net *net)
 	for (i = 0; i < TIPC_NAMETBL_SIZE; i++)
 		INIT_HLIST_HEAD(&nt->services[i]);
 
-	INIT_LIST_HEAD(&nt->node_scope);
+	INIT_LIST_HEAD(&nt->yesde_scope);
 	INIT_LIST_HEAD(&nt->cluster_scope);
 	rwlock_init(&nt->cluster_scope_lock);
 	tn->nametbl = nt;
@@ -873,12 +873,12 @@ static void tipc_service_delete(struct net *net, struct tipc_service *sc)
 	struct publication *p, *tmp;
 
 	spin_lock_bh(&sc->lock);
-	rbtree_postorder_for_each_entry_safe(sr, tmpr, &sc->ranges, tree_node) {
+	rbtree_postorder_for_each_entry_safe(sr, tmpr, &sc->ranges, tree_yesde) {
 		list_for_each_entry_safe(p, tmp, &sr->all_publ, all_publ) {
-			tipc_service_remove_publ(sr, p->node, p->key);
+			tipc_service_remove_publ(sr, p->yesde, p->key);
 			kfree_rcu(p, rcu);
 		}
-		rb_erase_augmented(&sr->tree_node, &sc->ranges, &sr_callbacks);
+		rb_erase_augmented(&sr->tree_yesde, &sc->ranges, &sr_callbacks);
 		kfree(sr);
 	}
 	hlist_del_init_rcu(&sc->service_list);
@@ -943,11 +943,11 @@ static int __tipc_nl_add_nametable_publ(struct tipc_nl_msg *msg,
 		if (!hdr)
 			return -EMSGSIZE;
 
-		attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_NAME_TABLE);
+		attrs = nla_nest_start_yesflag(msg->skb, TIPC_NLA_NAME_TABLE);
 		if (!attrs)
 			goto msg_full;
 
-		b = nla_nest_start_noflag(msg->skb, TIPC_NLA_NAME_TABLE_PUBL);
+		b = nla_nest_start_yesflag(msg->skb, TIPC_NLA_NAME_TABLE_PUBL);
 		if (!b)
 			goto attr_msg_full;
 
@@ -959,7 +959,7 @@ static int __tipc_nl_add_nametable_publ(struct tipc_nl_msg *msg,
 			goto publ_msg_full;
 		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_SCOPE, p->scope))
 			goto publ_msg_full;
-		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_NODE, p->node))
+		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_NODE, p->yesde))
 			goto publ_msg_full;
 		if (nla_put_u32(msg->skb, TIPC_NLA_PUBL_REF, p->port))
 			goto publ_msg_full;
@@ -989,11 +989,11 @@ static int __tipc_nl_service_range_list(struct tipc_nl_msg *msg,
 					u32 *last_lower, u32 *last_key)
 {
 	struct service_range *sr;
-	struct rb_node *n;
+	struct rb_yesde *n;
 	int err;
 
 	for (n = rb_first(&sc->ranges); n; n = rb_next(n)) {
-		sr = container_of(n, struct service_range, tree_node);
+		sr = container_of(n, struct service_range, tree_yesde);
 		if (sr->lower < *last_lower)
 			continue;
 		err = __tipc_nl_add_nametable_publ(msg, sc, sr, last_key);
@@ -1094,34 +1094,34 @@ int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-struct tipc_dest *tipc_dest_find(struct list_head *l, u32 node, u32 port)
+struct tipc_dest *tipc_dest_find(struct list_head *l, u32 yesde, u32 port)
 {
 	struct tipc_dest *dst;
 
 	list_for_each_entry(dst, l, list) {
-		if (dst->node == node && dst->port == port)
+		if (dst->yesde == yesde && dst->port == port)
 			return dst;
 	}
 	return NULL;
 }
 
-bool tipc_dest_push(struct list_head *l, u32 node, u32 port)
+bool tipc_dest_push(struct list_head *l, u32 yesde, u32 port)
 {
 	struct tipc_dest *dst;
 
-	if (tipc_dest_find(l, node, port))
+	if (tipc_dest_find(l, yesde, port))
 		return false;
 
 	dst = kmalloc(sizeof(*dst), GFP_ATOMIC);
 	if (unlikely(!dst))
 		return false;
-	dst->node = node;
+	dst->yesde = yesde;
 	dst->port = port;
 	list_add(&dst->list, l);
 	return true;
 }
 
-bool tipc_dest_pop(struct list_head *l, u32 *node, u32 *port)
+bool tipc_dest_pop(struct list_head *l, u32 *yesde, u32 *port)
 {
 	struct tipc_dest *dst;
 
@@ -1130,18 +1130,18 @@ bool tipc_dest_pop(struct list_head *l, u32 *node, u32 *port)
 	dst = list_first_entry(l, typeof(*dst), list);
 	if (port)
 		*port = dst->port;
-	if (node)
-		*node = dst->node;
+	if (yesde)
+		*yesde = dst->yesde;
 	list_del(&dst->list);
 	kfree(dst);
 	return true;
 }
 
-bool tipc_dest_del(struct list_head *l, u32 node, u32 port)
+bool tipc_dest_del(struct list_head *l, u32 yesde, u32 port)
 {
 	struct tipc_dest *dst;
 
-	dst = tipc_dest_find(l, node, port);
+	dst = tipc_dest_find(l, yesde, port);
 	if (!dst)
 		return false;
 	list_del(&dst->list);

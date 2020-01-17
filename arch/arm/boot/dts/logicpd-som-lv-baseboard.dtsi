@@ -34,7 +34,7 @@
 		led2 {
 			label = "led2";
 			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;	/* gpio11 */
-			linux,default-trigger = "none";
+			linux,default-trigger = "yesne";
 		};
 	};
 };

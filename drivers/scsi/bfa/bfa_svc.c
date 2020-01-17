@@ -61,13 +61,13 @@ enum bfa_fcport_sm_event {
 };
 
 /*
- * BFA port link notification state machine events
+ * BFA port link yestification state machine events
  */
 
 enum bfa_fcport_ln_sm_event {
 	BFA_FCPORT_LN_SM_LINKUP		= 1,	/*  linkup event	*/
 	BFA_FCPORT_LN_SM_LINKDOWN	= 2,	/*  linkdown event	*/
-	BFA_FCPORT_LN_SM_NOTIFICATION	= 3	/*  done notification	*/
+	BFA_FCPORT_LN_SM_NOTIFICATION	= 3	/*  done yestification	*/
 };
 
 /*
@@ -108,7 +108,7 @@ static void	bfa_fcxp_queue(struct bfa_fcxp_s *fcxp,
  */
 static void bfa_lps_login_rsp(struct bfa_s *bfa,
 				struct bfi_lps_login_rsp_s *rsp);
-static void bfa_lps_no_res(struct bfa_lps_s *first_lps, u8 count);
+static void bfa_lps_yes_res(struct bfa_lps_s *first_lps, u8 count);
 static void bfa_lps_logout_rsp(struct bfa_s *bfa,
 				struct bfi_lps_logout_rsp_s *rsp);
 static void bfa_lps_reqq_resume(void *lps_arg);
@@ -680,7 +680,7 @@ hal_fcxp_send_comp(struct bfa_s *bfa, struct bfi_fcxp_send_rsp_s *fcxp_rsp)
 	fcxp_rsp->rsp_len = be32_to_cpu(fcxp_rsp->rsp_len);
 
 	/*
-	 * @todo f/w should not set residue to non-0 when everything
+	 * @todo f/w should yest set residue to yesn-0 when everything
 	 *	 is received.
 	 */
 	if (fcxp_rsp->req_status == BFA_STATUS_OK)
@@ -989,7 +989,7 @@ bfa_fcxp_free(struct bfa_fcxp_s *fcxp)
  * @param[in]	lp_tag	lport tag
  * @param[in]	cts	use Continuous sequence
  * @param[in]	cos	fc Class of Service
- * @param[in]	reqlen	request length, does not include FCHS length
+ * @param[in]	reqlen	request length, does yest include FCHS length
  * @param[in]	fchs	fc Header Pointer. The header content will be copied
  *			in by BFA.
  *
@@ -1030,7 +1030,7 @@ bfa_fcxp_send(struct bfa_fcxp_s *fcxp, struct bfa_rport_s *rport,
 	fcxp->send_cbarg = cbarg;
 
 	/*
-	 * If no room in CPE queue, wait for space in request queue
+	 * If yes room in CPE queue, wait for space in request queue
 	 */
 	send_req = bfa_reqq_next(bfa, BFA_REQQ_FCXP);
 	if (!send_req) {
@@ -1163,7 +1163,7 @@ bfa_fcxp_res_recfg(struct bfa_s *bfa, u16 num_fcxp_fw)
  */
 
 /*
- * Init state -- no login
+ * Init state -- yes login
  */
 static void
 bfa_lps_sm_init(struct bfa_lps_s *lps, enum bfa_lps_event event)
@@ -1205,13 +1205,13 @@ bfa_lps_sm_init(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		/*
 		 * Could happen when fabric detects loopback and discards
 		 * the lps request. Fw will eventually sent out the timeout
-		 * Just ignore
+		 * Just igyesre
 		 */
 		break;
 	case BFA_LPS_SM_SET_N2N_PID:
 		/*
 		 * When topology is set to loop, bfa_lps_set_n2n_pid() sends
-		 * this event. Ignore this event.
+		 * this event. Igyesre this event.
 		 */
 		break;
 
@@ -1297,7 +1297,7 @@ bfa_lps_sm_loginwait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 
 	case BFA_LPS_SM_RX_CVL:
 		/*
-		 * Login was not even sent out; so when getting out
+		 * Login was yest even sent out; so when getting out
 		 * of this state, it will appear like a login retry
 		 * after Clear virtual link
 		 */
@@ -1333,7 +1333,7 @@ bfa_lps_sm_online(struct bfa_lps_s *lps, enum bfa_lps_event event)
 	case BFA_LPS_SM_RX_CVL:
 		bfa_sm_set_state(lps, bfa_lps_sm_init);
 
-		/* Let the vport module know about this event */
+		/* Let the vport module kyesw about this event */
 		bfa_lps_cvl_event(lps);
 		bfa_plog_str(lps->bfa->plog, BFA_PL_MID_LPS,
 			BFA_PL_EID_FIP_FCF_CVL, 0, "FCF Clear Virt. Link Rx");
@@ -1382,7 +1382,7 @@ bfa_lps_sm_online_n2n_pid_wait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		bfa_sm_set_state(lps, bfa_lps_sm_init);
 		bfa_reqq_wcancel(&lps->wqe);
 
-		/* Let the vport module know about this event */
+		/* Let the vport module kyesw about this event */
 		bfa_lps_cvl_event(lps);
 		bfa_plog_str(lps->bfa->plog, BFA_PL_MID_LPS,
 			BFA_PL_EID_FIP_FCF_CVL, 0, "FCF Clear Virt. Link Rx");
@@ -1549,7 +1549,7 @@ bfa_lps_login_rsp(struct bfa_s *bfa, struct bfi_lps_login_rsp_s *rsp)
 		lps->npiv_en	= rsp->npiv_en;
 		lps->pr_bbcred	= be16_to_cpu(rsp->bb_credit);
 		lps->pr_pwwn	= rsp->port_name;
-		lps->pr_nwwn	= rsp->node_name;
+		lps->pr_nwwn	= rsp->yesde_name;
 		lps->auth_req	= rsp->auth_req;
 		lps->lp_mac	= rsp->lp_mac;
 		lps->brcd_switch = rsp->brcd_switch;
@@ -1570,7 +1570,7 @@ bfa_lps_login_rsp(struct bfa_s *bfa, struct bfi_lps_login_rsp_s *rsp)
 
 	case BFA_STATUS_VPORT_MAX:
 		if (rsp->ext_status)
-			bfa_lps_no_res(lps, rsp->ext_status);
+			bfa_lps_yes_res(lps, rsp->ext_status);
 		break;
 
 	default:
@@ -1584,7 +1584,7 @@ bfa_lps_login_rsp(struct bfa_s *bfa, struct bfi_lps_login_rsp_s *rsp)
 }
 
 static void
-bfa_lps_no_res(struct bfa_lps_s *first_lps, u8 count)
+bfa_lps_yes_res(struct bfa_lps_s *first_lps, u8 count)
 {
 	struct bfa_s		*bfa = first_lps->bfa;
 	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(bfa);
@@ -1728,7 +1728,7 @@ bfa_lps_send_set_n2n_pid(struct bfa_lps_s *lps)
 }
 
 /*
- * Indirect login completion handler for non-fcs
+ * Indirect login completion handler for yesn-fcs
  */
 static void
 bfa_lps_login_comp_cb(void *arg, bfa_boolean_t complete)
@@ -1763,7 +1763,7 @@ bfa_lps_login_comp(struct bfa_lps_s *lps)
 }
 
 /*
- * Indirect logout completion handler for non-fcs
+ * Indirect logout completion handler for yesn-fcs
  */
 static void
 bfa_lps_logout_comp_cb(void *arg, bfa_boolean_t complete)
@@ -1795,7 +1795,7 @@ bfa_lps_logout_comp(struct bfa_lps_s *lps)
 }
 
 /*
- * Clear virtual link completion handler for non-fcs
+ * Clear virtual link completion handler for yesn-fcs
  */
 static void
 bfa_lps_cvl_event_cb(void *arg, bfa_boolean_t complete)
@@ -2012,7 +2012,7 @@ bfa_fcport_aen_post(struct bfa_fcport_s *fcport, enum bfa_port_aen_event event)
 	aen_entry->aen_data.port.ioc_type = bfa_get_type(fcport->bfa);
 	aen_entry->aen_data.port.pwwn = fcport->pwwn;
 
-	/* Send the AEN notification */
+	/* Send the AEN yestification */
 	bfad_im_post_vendor_event(aen_entry, bfad, ++fcport->bfa->bfa_aen_seq,
 				  BFA_AEN_CAT_PORT, event);
 }
@@ -2046,7 +2046,7 @@ bfa_fcport_sm_uninit(struct bfa_fcport_s *fcport,
 	case BFA_FCPORT_SM_ENABLE:
 		/*
 		 * Port is persistently configured to be in enabled state. Do
-		 * not change state. Port enabling is done when START event is
+		 * yest change state. Port enabling is done when START event is
 		 * received.
 		 */
 		break;
@@ -2234,7 +2234,7 @@ bfa_fcport_sm_linkdown(struct bfa_fcport_s *fcport,
 			"Base port online: WWN = %s\n", pwwn_buf);
 		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_ONLINE);
 
-		/* If QoS is enabled and it is not online, send AEN */
+		/* If QoS is enabled and it is yest online, send AEN */
 		if (fcport->cfg.qos_enabled &&
 		    fcport->qos_attr.state != BFA_QOS_ONLINE)
 			bfa_fcport_aen_post(fcport, BFA_PORT_AEN_QOS_NEG);
@@ -2549,7 +2549,7 @@ bfa_fcport_sm_disabled(struct bfa_fcport_s *fcport,
 	switch (event) {
 	case BFA_FCPORT_SM_START:
 		/*
-		 * Ignore start event for a port that is disabled.
+		 * Igyesre start event for a port that is disabled.
 		 */
 		break;
 
@@ -2612,7 +2612,7 @@ bfa_fcport_sm_stopped(struct bfa_fcport_s *fcport,
 
 	default:
 		/*
-		 * Ignore all other events.
+		 * Igyesre all other events.
 		 */
 		;
 	}
@@ -2638,7 +2638,7 @@ bfa_fcport_sm_iocdown(struct bfa_fcport_s *fcport,
 
 	default:
 		/*
-		 * Ignore all events.
+		 * Igyesre all events.
 		 */
 		;
 	}
@@ -2664,7 +2664,7 @@ bfa_fcport_sm_iocfail(struct bfa_fcport_s *fcport,
 
 	default:
 		/*
-		 * Ignore all events.
+		 * Igyesre all events.
 		 */
 		;
 	}
@@ -2681,7 +2681,7 @@ bfa_fcport_sm_dport(struct bfa_fcport_s *fcport, enum bfa_fcport_sm_event event)
 	case BFA_FCPORT_SM_ENABLE:
 	case BFA_FCPORT_SM_START:
 		/*
-		 * Ignore event for a port that is dport
+		 * Igyesre event for a port that is dport
 		 */
 		break;
 
@@ -2719,7 +2719,7 @@ bfa_fcport_sm_ddport(struct bfa_fcport_s *fcport,
 	case BFA_FCPORT_SM_ENABLE:
 	case BFA_FCPORT_SM_START:
 		/**
-		 * Ignore event for a port that is ddport
+		 * Igyesre event for a port that is ddport
 		 */
 		break;
 
@@ -2747,7 +2747,7 @@ bfa_fcport_sm_faa_misconfig(struct bfa_fcport_s *fcport,
 	case BFA_FCPORT_SM_ENABLE:
 	case BFA_FCPORT_SM_START:
 		/*
-		 * Ignore event for a port as there is FAA misconfig
+		 * Igyesre event for a port as there is FAA misconfig
 		 */
 		break;
 
@@ -2800,7 +2800,7 @@ bfa_fcport_ln_sm_dn(struct bfa_fcport_ln_s *ln,
 }
 
 /*
- * Link state is waiting for down notification
+ * Link state is waiting for down yestification
  */
 static void
 bfa_fcport_ln_sm_dn_nf(struct bfa_fcport_ln_s *ln,
@@ -2823,7 +2823,7 @@ bfa_fcport_ln_sm_dn_nf(struct bfa_fcport_ln_s *ln,
 }
 
 /*
- * Link state is waiting for down notification and there is a pending up
+ * Link state is waiting for down yestification and there is a pending up
  */
 static void
 bfa_fcport_ln_sm_dn_up_nf(struct bfa_fcport_ln_s *ln,
@@ -2867,7 +2867,7 @@ bfa_fcport_ln_sm_up(struct bfa_fcport_ln_s *ln,
 }
 
 /*
- * Link state is waiting for up notification
+ * Link state is waiting for up yestification
  */
 static void
 bfa_fcport_ln_sm_up_nf(struct bfa_fcport_ln_s *ln,
@@ -2890,7 +2890,7 @@ bfa_fcport_ln_sm_up_nf(struct bfa_fcport_ln_s *ln,
 }
 
 /*
- * Link state is waiting for up notification and there is a pending down
+ * Link state is waiting for up yestification and there is a pending down
  */
 static void
 bfa_fcport_ln_sm_up_dn_nf(struct bfa_fcport_ln_s *ln,
@@ -2914,7 +2914,7 @@ bfa_fcport_ln_sm_up_dn_nf(struct bfa_fcport_ln_s *ln,
 }
 
 /*
- * Link state is waiting for up notification and there are pending down and up
+ * Link state is waiting for up yestification and there are pending down and up
  */
 static void
 bfa_fcport_ln_sm_up_dn_up_nf(struct bfa_fcport_ln_s *ln,
@@ -2949,8 +2949,8 @@ __bfa_cb_fcport_event(void *cbarg, bfa_boolean_t complete)
 }
 
 /*
- * Send SCN notification to upper layers.
- * trunk - false if caller is fcport to ignore fcport event in trunked mode
+ * Send SCN yestification to upper layers.
+ * trunk - false if caller is fcport to igyesre fcport event in trunked mode
  */
 static void
 bfa_fcport_scn(struct bfa_fcport_s *fcport, enum bfa_port_linkstate event,
@@ -3157,7 +3157,7 @@ bfa_fcport_send_enable(struct bfa_fcport_s *fcport)
 	fcport->msgtag++;
 
 	/*
-	 * check for room in queue to send request now
+	 * check for room in queue to send request yesw
 	 */
 	m = bfa_reqq_next(fcport->bfa, BFA_REQQ_PORT);
 	if (!m) {
@@ -3200,7 +3200,7 @@ bfa_fcport_send_disable(struct bfa_fcport_s *fcport)
 	fcport->msgtag++;
 
 	/*
-	 * check for room in queue to send request now
+	 * check for room in queue to send request yesw
 	 */
 	m = bfa_reqq_next(fcport->bfa, BFA_REQQ_PORT);
 	if (!m) {
@@ -3492,7 +3492,7 @@ bfa_trunk_iocdisable(struct bfa_s *bfa)
 	int i = 0;
 
 	/*
-	 * In trunked mode, notify upper layers that link is down
+	 * In trunked mode, yestify upper layers that link is down
 	 */
 	if (fcport->cfg.trunked) {
 		if (fcport->trunk.attr.state == BFA_TRUNK_ONLINE)
@@ -3748,7 +3748,7 @@ bfa_fcport_cfg_speed(struct bfa_s *bfa, enum bfa_port_speed speed)
 
 	/* Port speed entered needs to be checked */
 	if (bfa_ioc_get_type(&fcport->bfa->ioc) == BFA_IOC_TYPE_FC) {
-		/* For CT2, 1G is not supported */
+		/* For CT2, 1G is yest supported */
 		if ((speed == BFA_PORT_SPEED_1GBPS) &&
 		    (bfa_asic_id_ct2(bfa->ioc.pcidev.device_id)))
 			return BFA_STATUS_UNSUPP_SPEED;
@@ -3906,7 +3906,7 @@ bfa_fcport_cfg_maxfrsize(struct bfa_s *bfa, u16 maxfrsize)
 	if ((maxfrsize > FC_MAX_PDUSZ) || (maxfrsize < FC_MIN_PDUSZ))
 		return BFA_STATUS_INVLD_DFSZ;
 
-	/* power of 2, if not the max frame size of 2112 */
+	/* power of 2, if yest the max frame size of 2112 */
 	if ((maxfrsize != FC_MAX_PDUSZ) && (maxfrsize & (maxfrsize - 1)))
 		return BFA_STATUS_INVLD_DFSZ;
 
@@ -3945,10 +3945,10 @@ bfa_fcport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit)
  */
 
 wwn_t
-bfa_fcport_get_wwn(struct bfa_s *bfa, bfa_boolean_t node)
+bfa_fcport_get_wwn(struct bfa_s *bfa, bfa_boolean_t yesde)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-	if (node)
+	if (yesde)
 		return fcport->nwwn;
 	else
 		return fcport->pwwn;
@@ -4437,7 +4437,7 @@ bfa_rport_sm_fwcreate_qfull(struct bfa_rport_s *rp, enum bfa_rport_event event)
 }
 
 /*
- * Online state - normal parking state.
+ * Online state - yesrmal parking state.
  */
 static void
 bfa_rport_sm_online(struct bfa_rport_s *rp, enum bfa_rport_event event)
@@ -4893,7 +4893,7 @@ bfa_rport_send_fwcreate(struct bfa_rport_s *rp)
 	struct bfi_rport_create_req_s *m;
 
 	/*
-	 * check for room in queue to send request now
+	 * check for room in queue to send request yesw
 	 */
 	m = bfa_reqq_next(rp->bfa, BFA_REQQ_RPORT);
 	if (!m) {
@@ -4926,7 +4926,7 @@ bfa_rport_send_fwdelete(struct bfa_rport_s *rp)
 	struct bfi_rport_delete_req_s *m;
 
 	/*
-	 * check for room in queue to send request now
+	 * check for room in queue to send request yesw
 	 */
 	m = bfa_reqq_next(rp->bfa, BFA_REQQ_RPORT);
 	if (!m) {
@@ -4951,7 +4951,7 @@ bfa_rport_send_fwspeed(struct bfa_rport_s *rp)
 	struct bfa_rport_speed_req_s *m;
 
 	/*
-	 * check for room in queue to send request now
+	 * check for room in queue to send request yesw
 	 */
 	m = bfa_reqq_next(rp->bfa, BFA_REQQ_RPORT);
 	if (!m) {
@@ -5025,7 +5025,7 @@ bfa_rport_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 
 	case BFI_RPORT_I2H_NO_DEV:
 		rp = BFA_RPORT_FROM_TAG(bfa, msg.lip_scn->bfa_handle);
-		bfa_cb_rport_scn_no_dev(rp->rport_drv);
+		bfa_cb_rport_scn_yes_dev(rp->rport_drv);
 		break;
 
 	default:
@@ -5077,7 +5077,7 @@ bfa_rport_online(struct bfa_rport_s *rport, struct bfa_rport_info_s *rport_info)
 	WARN_ON(rport_info->max_frmsz == 0);
 
 	/*
-	 * Some JBODs are seen to be not setting PDU size correctly in PLOGI
+	 * Some JBODs are seen to be yest setting PDU size correctly in PLOGI
 	 * responses. Default to minimum size.
 	 */
 	if (rport_info->max_frmsz == 0) {
@@ -5305,7 +5305,7 @@ bfa_sgpg_wait(struct bfa_s *bfa, struct bfa_sgpg_wqe_s *wqe, int nsgpg)
 	 */
 	if (mod->free_sgpgs) {
 		/*
-		 * no one else is waiting for SGPG
+		 * yes one else is waiting for SGPG
 		 */
 		WARN_ON(!list_empty(&mod->sgpg_wait_q));
 		list_splice_tail_init(&mod->sgpg_q, &wqe->sgpg_q);
@@ -5646,8 +5646,8 @@ enum bfa_dport_test_state_e {
 	BFA_DPORT_ST_DISABLED	= 0,	/*!< dport is disabled */
 	BFA_DPORT_ST_INP	= 1,	/*!< test in progress */
 	BFA_DPORT_ST_COMP	= 2,	/*!< test complete successfully */
-	BFA_DPORT_ST_NO_SFP	= 3,	/*!< sfp is not present */
-	BFA_DPORT_ST_NOTSTART	= 4,	/*!< test not start dport is enabled */
+	BFA_DPORT_ST_NO_SFP	= 3,	/*!< sfp is yest present */
+	BFA_DPORT_ST_NOTSTART	= 4,	/*!< test yest start dport is enabled */
 };
 
 /*
@@ -5661,7 +5661,7 @@ enum bfa_dport_sm_event {
 	BFA_DPORT_SM_HWFAIL     = 5,    /* IOC h/w failure            */
 	BFA_DPORT_SM_START	= 6,	/* re-start dport test        */
 	BFA_DPORT_SM_REQFAIL	= 7,	/* request failure            */
-	BFA_DPORT_SM_SCN	= 8,	/* state change notify frm fw */
+	BFA_DPORT_SM_SCN	= 8,	/* state change yestify frm fw */
 };
 
 static void bfa_dport_sm_disabled(struct bfa_dport_s *dport,
@@ -5990,7 +5990,7 @@ bfa_fcdiag_loopback(struct bfa_s *bfa, enum bfa_port_opmode opmode,
 	}
 
 	/*
-	 * For CT2, 1G is not supported
+	 * For CT2, 1G is yest supported
 	 */
 	if ((speed == BFA_PORT_SPEED_1GBPS) &&
 	    (bfa_asic_id_ct2(bfa->ioc.pcidev.device_id))) {
@@ -6018,7 +6018,7 @@ bfa_fcdiag_loopback(struct bfa_s *bfa, enum bfa_port_opmode opmode,
 		bfa_trc(fcdiag, fcdiag->lb.lock);
 		return BFA_STATUS_DPORT_ENABLED;
 	}
-	/* check to see if there is another destructive diag cmd running */
+	/* check to see if there is ayesther destructive diag cmd running */
 	if (fcdiag->lb.lock) {
 		bfa_trc(fcdiag, fcdiag->lb.lock);
 		return BFA_STATUS_DEVBUSY;
@@ -6045,7 +6045,7 @@ bfa_fcdiag_loopback(struct bfa_s *bfa, enum bfa_port_opmode opmode,
  *
  *   @param[in] *bfa            - bfa data struct
  *   @param[in] force           - 1: don't do ioc op checking
- *   @param[in] queue           - queue no. to test
+ *   @param[in] queue           - queue yes. to test
  *   @param[in] *result         - pt to bfa_diag_qtest_result_t data struct
  *   @param[in] cbfn            - callback function
  *   @param[in] *cbarg          - callback functioin arg
@@ -6065,7 +6065,7 @@ bfa_fcdiag_queuetest(struct bfa_s *bfa, u32 force, u32 queue,
 	if (!force && !bfa_iocfc_is_operational(bfa))
 		return BFA_STATUS_IOC_NON_OP;
 
-	/* check to see if there is another destructive diag cmd running */
+	/* check to see if there is ayesther destructive diag cmd running */
 	if (fcdiag->qtest.lock) {
 		bfa_trc(fcdiag, fcdiag->qtest.lock);
 		return BFA_STATUS_DEVBUSY;
@@ -6161,7 +6161,7 @@ bfa_dport_sm_disabled(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
 		break;
 
 	case BFA_DPORT_SM_HWFAIL:
-		/* ignore */
+		/* igyesre */
 		break;
 
 	case BFA_DPORT_SM_SCN:
@@ -6275,7 +6275,7 @@ bfa_dport_sm_enabled(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
 
 		case BFI_DPORT_SCN_TESTSKIP:
 		case BFI_DPORT_SCN_SUBTESTSTART:
-			/* no state change */
+			/* yes state change */
 			break;
 
 		case BFI_DPORT_SCN_SFP_REMOVED:
@@ -6329,7 +6329,7 @@ bfa_dport_sm_disabling_qwait(struct bfa_dport_s *dport,
 		break;
 
 	case BFA_DPORT_SM_SCN:
-		/* ignore */
+		/* igyesre */
 		break;
 
 	default:
@@ -6354,7 +6354,7 @@ bfa_dport_sm_disabling(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
 		break;
 
 	case BFA_DPORT_SM_SCN:
-		/* no state change */
+		/* yes state change */
 		break;
 
 	default:
@@ -6467,7 +6467,7 @@ bfa_dport_sm_dynamic_disabling_qwait(struct bfa_dport_s *dport,
 		break;
 
 	case BFA_DPORT_SM_SCN:
-		/* ignore */
+		/* igyesre */
 		break;
 
 	default:
@@ -6481,7 +6481,7 @@ bfa_dport_send_req(struct bfa_dport_s *dport, enum bfi_dport_req req)
 	struct bfi_diag_dport_req_s *m;
 
 	/*
-	 * check for room in queue to send request now
+	 * check for room in queue to send request yesw
 	 */
 	m = bfa_reqq_next(dport->bfa, BFA_REQQ_DIAG);
 	if (!m) {
@@ -6644,7 +6644,7 @@ bfa_dport_enable(struct bfa_s *bfa, u32 lpcnt, u32 pat,
 	struct bfa_dport_s  *dport = &fcdiag->dport;
 
 	/*
-	 * Dport is not support in MEZZ card
+	 * Dport is yest support in MEZZ card
 	 */
 	if (bfa_mfg_is_mezz(dport->bfa->ioc.attr->card_type)) {
 		bfa_trc(dport->bfa, BFA_STATUS_PBC);

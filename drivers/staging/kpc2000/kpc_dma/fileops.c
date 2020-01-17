@@ -5,7 +5,7 @@
 #include <linux/kernel.h>   /* printk() */
 #include <linux/slab.h>     /* kmalloc() */
 #include <linux/fs.h>       /* everything... */
-#include <linux/errno.h>    /* error codes */
+#include <linux/erryes.h>    /* error codes */
 #include <linux/types.h>    /* size_t */
 #include <linux/cdev.h>
 #include <linux/uaccess.h>  /* copy_*_user */
@@ -105,7 +105,7 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 
 	lock_engine(ldev);
 
-	// Figoure out how many descriptors are available and return an error if there aren't enough
+	// Figoure out how many descriptors are available and return an error if there aren't eyesugh
 	num_descrs_avail = count_descriptors_available(ldev);
 	dev_dbg(&priv->ldev->pldev->dev, "    mapped_entry_count = %d    num_descrs_needed = %d    num_descrs_avail = %d\n", acd->mapped_entry_count, desc_needed, num_descrs_avail);
 	if (desc_needed >= ldev->desc_pool_cnt) {
@@ -114,7 +114,7 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 		goto err_descr_too_many;
 	}
 	if (desc_needed > num_descrs_avail) {
-		dev_warn(&priv->ldev->pldev->dev, "    mapped_entry_count = %d    num_descrs_needed = %d    num_descrs_avail = %d    Too many to complete right now.\n", acd->mapped_entry_count, desc_needed, num_descrs_avail);
+		dev_warn(&priv->ldev->pldev->dev, "    mapped_entry_count = %d    num_descrs_needed = %d    num_descrs_avail = %d    Too many to complete right yesw.\n", acd->mapped_entry_count, desc_needed, num_descrs_avail);
 		rv = -EMSGSIZE;
 		goto err_descr_too_many;
 	}
@@ -173,7 +173,7 @@ static int kpc_dma_transfer(struct dev_private_data *priv,
 
 	rv = wait_for_completion_interruptible(&done);
 	/*
-	 * If the user aborted (rv == -ERESTARTSYS), we're no longer responsible
+	 * If the user aborted (rv == -ERESTARTSYS), we're yes longer responsible
 	 * for cleaning up the acd
 	 */
 	if (rv == -ERESTARTSYS)
@@ -233,7 +233,7 @@ void  transfer_complete_cb(struct aio_cb_data *acd, size_t xfr_count, u32 flags)
 		complete(acd->cpl);
 	} else {
 		/*
-		 * There's no completion, so we're responsible for cleaning up
+		 * There's yes completion, so we're responsible for cleaning up
 		 * the acd
 		 */
 		kfree(acd);
@@ -242,10 +242,10 @@ void  transfer_complete_cb(struct aio_cb_data *acd, size_t xfr_count, u32 flags)
 
 /**********  Fileops  **********/
 static
-int  kpc_dma_open(struct inode *inode, struct file *filp)
+int  kpc_dma_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct dev_private_data *priv;
-	struct kpc_dma_device *ldev = kpc_dma_lookup_device(iminor(inode));
+	struct kpc_dma_device *ldev = kpc_dma_lookup_device(imiyesr(iyesde));
 
 	if (!ldev)
 		return -ENODEV;
@@ -266,7 +266,7 @@ int  kpc_dma_open(struct inode *inode, struct file *filp)
 }
 
 static
-int  kpc_dma_close(struct inode *inode, struct file *filp)
+int  kpc_dma_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct kpc_dma_descriptor *cur;
 	struct dev_private_data *priv = (struct dev_private_data *)filp->private_data;

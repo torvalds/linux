@@ -58,12 +58,12 @@ struct fm10k_mbx_info;
  * The diagram above describes the PF/VF mailbox state machine.  There
  * are four main states to this machine.
  * Closed: This state represents a mailbox that is in a standby state
- *	   with interrupts disabled.  In this state the mailbox should not
+ *	   with interrupts disabled.  In this state the mailbox should yest
  *	   read the mailbox or write any data.  The only means of exiting
  *	   this state is for the system to make the connect() call for the
  *	   mailbox, it will then transition to the connect state.
  * Connect: In this state the mailbox is seeking a connection.  It will
- *	    post a connect message with no specified destination and will
+ *	    post a connect message with yes specified destination and will
  *	    wait for a reply from the other side of the mailbox.  This state
  *	    is exited when either a connect with the local mailbox as the
  *	    destination is received or when a data message is received with
@@ -73,7 +73,7 @@ struct fm10k_mbx_info;
  *       receiving either an error message, or a disconnect message.  It will
  *       transition to disconnect on a call to disconnect();
  * Disconnect: In this state the mailbox is attempting to gracefully terminate
- *	       the connection.  It will do so at the first point where it knows
+ *	       the connection.  It will do so at the first point where it kyesws
  *	       that the remote endpoint is either done sending, or when the
  *	       remote endpoint has fallen back into connect.
  */
@@ -88,7 +88,7 @@ enum fm10k_mbx_state {
  *    3			  2		      1			  0
  *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * |        Size/Err_no/CRC        | Rsvd0 | Head  | Tail  | Type  |
+ * |        Size/Err_yes/CRC        | Rsvd0 | Head  | Tail  | Type  |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  * The layout above describes the format for the header used in the PF/VF
@@ -111,8 +111,8 @@ enum fm10k_mbx_state {
  * CRC: Running CRC for all data since connect plus current message header
  * Size: Maximum message size - Applies only to connect headers
  *		The maximum message size is provided during connect to avoid
- *		jamming the mailbox with messages that do not fit.
- * Err_no: Error number - Applies only to error headers
+ *		jamming the mailbox with messages that do yest fit.
+ * Err_yes: Error number - Applies only to error headers
  *		The error number provides an indication of the type of error
  *		experienced.
  */

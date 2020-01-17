@@ -4,7 +4,7 @@
  *  Copyright (C) 2006-2007, 2009	MontaVista Software, Inc.
  *  Copyright (C) 2007-2010		Bartlomiej Zolnierkiewicz
  *
- *  Portions Copyright (C) 1999 Promise Technology, Inc.
+ *  Portions Copyright (C) 1999 Promise Techyeslogy, Inc.
  *  Author: Frank Tiernan (frankt@promise.com)
  *  Released under terms of General Public License
  */

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-// norwood.h - Keytable for norwood Remote Controller
+// yesrwood.h - Keytable for yesrwood Remote Controller
 //
 // keymap imported from ir-keymaps.c
 //
@@ -8,11 +8,11 @@
 #include <media/rc-map.h>
 #include <linux/module.h>
 
-/* Norwood Micro (non-Pro) TV Tuner
+/* Norwood Micro (yesn-Pro) TV Tuner
    By Peter Naulls <peter@chocky.org>
    Key comments are the functions given in the manual */
 
-static struct rc_map_table norwood[] = {
+static struct rc_map_table yesrwood[] = {
 	/* Keys 0 to 9 */
 	{ 0x20, KEY_NUMERIC_0 },
 	{ 0x21, KEY_NUMERIC_1 },
@@ -32,8 +32,8 @@ static struct rc_map_table norwood[] = {
 
 	{ 0x32, KEY_BRIGHTNESSUP },	/* Brightness increase */
 	{ 0x33, KEY_BRIGHTNESSDOWN },	/* Brightness decrease */
-	{ 0x6b, KEY_KPPLUS },		/* (not named >>>>>)   */
-	{ 0x6c, KEY_KPMINUS },		/* (not named <<<<<)   */
+	{ 0x6b, KEY_KPPLUS },		/* (yest named >>>>>)   */
+	{ 0x6c, KEY_KPMINUS },		/* (yest named <<<<<)   */
 
 	{ 0x2d, KEY_MUTE },		/* Mute                */
 	{ 0x30, KEY_VOLUMEUP },		/* Volume up           */
@@ -55,27 +55,27 @@ static struct rc_map_table norwood[] = {
 	{ 0x65, KEY_POWER },		/* Computer power      */
 };
 
-static struct rc_map_list norwood_map = {
+static struct rc_map_list yesrwood_map = {
 	.map = {
-		.scan     = norwood,
-		.size     = ARRAY_SIZE(norwood),
+		.scan     = yesrwood,
+		.size     = ARRAY_SIZE(yesrwood),
 		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
 		.name     = RC_MAP_NORWOOD,
 	}
 };
 
-static int __init init_rc_map_norwood(void)
+static int __init init_rc_map_yesrwood(void)
 {
-	return rc_map_register(&norwood_map);
+	return rc_map_register(&yesrwood_map);
 }
 
-static void __exit exit_rc_map_norwood(void)
+static void __exit exit_rc_map_yesrwood(void)
 {
-	rc_map_unregister(&norwood_map);
+	rc_map_unregister(&yesrwood_map);
 }
 
-module_init(init_rc_map_norwood)
-module_exit(exit_rc_map_norwood)
+module_init(init_rc_map_yesrwood)
+module_exit(exit_rc_map_yesrwood)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");

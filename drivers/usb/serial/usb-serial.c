@@ -17,7 +17,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
@@ -40,16 +40,16 @@
 #define DRIVER_DESC "USB Serial Driver core"
 
 #define USB_SERIAL_TTY_MAJOR	188
-#define USB_SERIAL_TTY_MINORS	512	/* should be enough for a while */
+#define USB_SERIAL_TTY_MINORS	512	/* should be eyesugh for a while */
 
-/* There is no MODULE_DEVICE_TABLE for usbserial.c.  Instead
+/* There is yes MODULE_DEVICE_TABLE for usbserial.c.  Instead
    the MODULE_DEVICE_TABLE declarations in each serial driver
    cause the "hotplug" program to pull in whatever module is necessary
    via modprobe, and modprobe will load usbserial because the serial
    drivers depend on it.
 */
 
-static DEFINE_IDR(serial_minors);
+static DEFINE_IDR(serial_miyesrs);
 static DEFINE_MUTEX(table_lock);
 static LIST_HEAD(usb_serial_driver_list);
 
@@ -58,13 +58,13 @@ static LIST_HEAD(usb_serial_driver_list);
  * disconnected, return with the parent usb_serial structure's disc_mutex held
  * and its refcount incremented.  Otherwise return NULL.
  */
-struct usb_serial_port *usb_serial_port_get_by_minor(unsigned minor)
+struct usb_serial_port *usb_serial_port_get_by_miyesr(unsigned miyesr)
 {
 	struct usb_serial *serial;
 	struct usb_serial_port *port;
 
 	mutex_lock(&table_lock);
-	port = idr_find(&serial_minors, minor);
+	port = idr_find(&serial_miyesrs, miyesr);
 	if (!port)
 		goto exit;
 
@@ -81,44 +81,44 @@ exit:
 	return port;
 }
 
-static int allocate_minors(struct usb_serial *serial, int num_ports)
+static int allocate_miyesrs(struct usb_serial *serial, int num_ports)
 {
 	struct usb_serial_port *port;
 	unsigned int i, j;
-	int minor;
+	int miyesr;
 
 	dev_dbg(&serial->interface->dev, "%s %d\n", __func__, num_ports);
 
 	mutex_lock(&table_lock);
 	for (i = 0; i < num_ports; ++i) {
 		port = serial->port[i];
-		minor = idr_alloc(&serial_minors, port, 0,
+		miyesr = idr_alloc(&serial_miyesrs, port, 0,
 					USB_SERIAL_TTY_MINORS, GFP_KERNEL);
-		if (minor < 0)
+		if (miyesr < 0)
 			goto error;
-		port->minor = minor;
+		port->miyesr = miyesr;
 		port->port_number = i;
 	}
-	serial->minors_reserved = 1;
+	serial->miyesrs_reserved = 1;
 	mutex_unlock(&table_lock);
 	return 0;
 error:
-	/* unwind the already allocated minors */
+	/* unwind the already allocated miyesrs */
 	for (j = 0; j < i; ++j)
-		idr_remove(&serial_minors, serial->port[j]->minor);
+		idr_remove(&serial_miyesrs, serial->port[j]->miyesr);
 	mutex_unlock(&table_lock);
-	return minor;
+	return miyesr;
 }
 
-static void release_minors(struct usb_serial *serial)
+static void release_miyesrs(struct usb_serial *serial)
 {
 	int i;
 
 	mutex_lock(&table_lock);
 	for (i = 0; i < serial->num_ports; ++i)
-		idr_remove(&serial_minors, serial->port[i]->minor);
+		idr_remove(&serial_miyesrs, serial->port[i]->miyesr);
 	mutex_unlock(&table_lock);
-	serial->minors_reserved = 0;
+	serial->miyesrs_reserved = 0;
 }
 
 static void destroy_serial(struct kref *kref)
@@ -129,14 +129,14 @@ static void destroy_serial(struct kref *kref)
 
 	serial = to_usb_serial(kref);
 
-	/* return the minor range that this device had */
-	if (serial->minors_reserved)
-		release_minors(serial);
+	/* return the miyesr range that this device had */
+	if (serial->miyesrs_reserved)
+		release_miyesrs(serial);
 
 	if (serial->attached && serial->type->release)
 		serial->type->release(serial);
 
-	/* Now that nothing is using the ports, they can be freed */
+	/* Now that yesthing is using the ports, they can be freed */
 	for (i = 0; i < serial->num_port_pointers; ++i) {
 		port = serial->port[i];
 		if (port) {
@@ -181,7 +181,7 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	bool init_termios;
 	int retval = -ENODEV;
 
-	port = usb_serial_port_get_by_minor(idx);
+	port = usb_serial_port_get_by_miyesr(idx);
 	if (!port)
 		return retval;
 
@@ -293,7 +293,7 @@ static void serial_close(struct tty_struct *tty, struct file *filp)
  * Do the resource freeing and refcount dropping for the port.
  * Avoid freeing the console.
  *
- * Called asynchronously after the last tty kref is dropped.
+ * Called asynchroyesusly after the last tty kref is dropped.
  */
 static void serial_cleanup(struct tty_struct *tty)
 {
@@ -303,7 +303,7 @@ static void serial_cleanup(struct tty_struct *tty)
 
 	dev_dbg(tty->dev, "%s\n", __func__);
 
-	/* The console is magical.  Do not hang up the console hardware
+	/* The console is magical.  Do yest hang up the console hardware
 	 * or there will be tears.
 	 */
 	if (port->port.console)
@@ -468,7 +468,7 @@ static int serial_proc_show(struct seq_file *m, void *v)
 
 	seq_puts(m, "usbserinfo:1.0 driver:2.0\n");
 	for (i = 0; i < USB_SERIAL_TTY_MINORS; ++i) {
-		port = usb_serial_port_get_by_minor(i);
+		port = usb_serial_port_get_by_miyesr(i);
 		if (port == NULL)
 			continue;
 		serial = port->serial;
@@ -531,7 +531,7 @@ static int serial_get_icount(struct tty_struct *tty,
 
 /*
  * We would be calling tty_wakeup here, but unfortunately some line
- * disciplines have an annoying habit of calling tty->write from
+ * disciplines have an anyesying habit of calling tty->write from
  * the write wakeup callback (e.g. n_hdlc.c).
  */
 void usb_serial_port_softint(struct usb_serial_port *port)
@@ -612,7 +612,7 @@ static struct usb_serial *create_serial(struct usb_device *dev,
 	serial->interface = usb_get_intf(interface);
 	kref_init(&serial->kref);
 	mutex_init(&serial->disc_mutex);
-	serial->minors_reserved = 0;
+	serial->miyesrs_reserved = 0;
 
 	return serial;
 }
@@ -623,7 +623,7 @@ static const struct usb_device_id *match_dynamic_id(struct usb_interface *intf,
 	struct usb_dynid *dynid;
 
 	spin_lock(&drv->dynids.lock);
-	list_for_each_entry(dynid, &drv->dynids.list, node) {
+	list_for_each_entry(dynid, &drv->dynids.list, yesde) {
 		if (usb_match_one_id(intf, &dynid->id)) {
 			spin_unlock(&drv->dynids.lock);
 			return &dynid->id;
@@ -658,7 +658,7 @@ static struct usb_serial_driver *search_serial_device(
 	struct usb_serial_driver *drv;
 	struct usb_driver *driver = to_usb_driver(iface->dev.driver);
 
-	/* Check if the usb id matches a known device */
+	/* Check if the usb id matches a kyeswn device */
 	list_for_each_entry(drv, &usb_serial_driver_list, driver_list) {
 		if (drv->usb_driver == driver)
 			id = get_iface_id(drv, iface);
@@ -880,7 +880,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 	type = search_serial_device(interface);
 	if (!type) {
 		mutex_unlock(&table_lock);
-		dev_dbg(ddev, "none matched\n");
+		dev_dbg(ddev, "yesne matched\n");
 		return -ENODEV;
 	}
 
@@ -1006,7 +1006,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 				goto err_free_epds;
 		}
 	} else if (epds->num_interrupt_in) {
-		dev_dbg(ddev, "The device claims to support interrupt in transfers, but read_int_callback is not defined\n");
+		dev_dbg(ddev, "The device claims to support interrupt in transfers, but read_int_callback is yest defined\n");
 	}
 
 	if (serial->type->write_int_callback) {
@@ -1017,7 +1017,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 				goto err_free_epds;
 		}
 	} else if (epds->num_interrupt_out) {
-		dev_dbg(ddev, "The device claims to support interrupt out transfers, but write_int_callback is not defined\n");
+		dev_dbg(ddev, "The device claims to support interrupt out transfers, but write_int_callback is yest defined\n");
 	}
 
 	usb_set_intfdata(interface, serial);
@@ -1038,16 +1038,16 @@ static int usb_serial_probe(struct usb_interface *interface,
 		serial->attached = 1;
 	}
 
-	retval = allocate_minors(serial, num_ports);
+	retval = allocate_miyesrs(serial, num_ports);
 	if (retval) {
-		dev_err(ddev, "No more free serial minor numbers\n");
+		dev_err(ddev, "No more free serial miyesr numbers\n");
 		goto err_free_epds;
 	}
 
 	/* register all of the individual ports with the driver core */
 	for (i = 0; i < num_ports; ++i) {
 		port = serial->port[i];
-		dev_set_name(&port->dev, "ttyUSB%d", port->minor);
+		dev_set_name(&port->dev, "ttyUSB%d", port->miyesr);
 		dev_dbg(ddev, "registering %s\n", dev_name(&port->dev));
 		device_enable_async_suspend(&port->dev);
 
@@ -1057,7 +1057,7 @@ static int usb_serial_probe(struct usb_interface *interface,
 	}
 
 	if (num_ports > 0)
-		usb_serial_console_init(serial->port[0]->minor);
+		usb_serial_console_init(serial->port[0]->miyesr);
 exit:
 	kfree(epds);
 	module_put(type->driver.owner);
@@ -1223,7 +1223,7 @@ static int __init usb_serial_init(void)
 	usb_serial_tty_driver->driver_name = "usbserial";
 	usb_serial_tty_driver->name = "ttyUSB";
 	usb_serial_tty_driver->major = USB_SERIAL_TTY_MAJOR;
-	usb_serial_tty_driver->minor_start = 0;
+	usb_serial_tty_driver->miyesr_start = 0;
 	usb_serial_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	usb_serial_tty_driver->subtype = SERIAL_TYPE_NORMAL;
 	usb_serial_tty_driver->flags = TTY_DRIVER_REAL_RAW |
@@ -1271,7 +1271,7 @@ static void __exit usb_serial_exit(void)
 	tty_unregister_driver(usb_serial_tty_driver);
 	put_tty_driver(usb_serial_tty_driver);
 	bus_unregister(&usb_serial_bus_type);
-	idr_destroy(&serial_minors);
+	idr_destroy(&serial_miyesrs);
 }
 
 
@@ -1312,7 +1312,7 @@ static int usb_serial_register(struct usb_serial_driver *driver)
 	if (!driver->description)
 		driver->description = driver->driver.name;
 	if (!driver->usb_driver) {
-		WARN(1, "Serial driver %s has no usb_driver\n",
+		WARN(1, "Serial driver %s has yes usb_driver\n",
 				driver->description);
 		return -EINVAL;
 	}
@@ -1380,7 +1380,7 @@ int usb_serial_register_drivers(struct usb_serial_driver *const serial_drivers[]
 		return -ENOMEM;
 
 	udriver->name = name;
-	udriver->no_dynamic_id = 1;
+	udriver->yes_dynamic_id = 1;
 	udriver->supports_autosuspend = 1;
 	udriver->suspend = usb_serial_suspend;
 	udriver->resume = usb_serial_resume;

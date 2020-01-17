@@ -24,16 +24,16 @@ Notes
 -----
 
 The force_addr parameter is useful for boards that don't set the address in
-the BIOS. Does not do a PCI force; the device must still be present in
+the BIOS. Does yest do a PCI force; the device must still be present in
 lspci. Don't use this unless the driver complains that the base address is
-not set.
+yest set.
 
 Example::
 
     modprobe i2c-ali15x3 force_addr=0xe800
 
 SMBus periodically hangs on ASUS P5A motherboards and can only be cleared
-by a power cycle. Cause unknown (see Issues below).
+by a power cycle. Cause unkyeswn (see Issues below).
 
 
 Description
@@ -102,7 +102,7 @@ Features
 --------
 
 This driver controls the SMB Host only. The SMB Slave
-controller on the M15X3 is not enabled. This driver does not use
+controller on the M15X3 is yest enabled. This driver does yest use
 interrupts.
 
 

@@ -20,7 +20,7 @@
  * SW SYNC validation framework
  *
  * A sync object driver that uses a 32bit counter to coordinate
- * synchronization.  Useful when there is no hardware primitive backing
+ * synchronization.  Useful when there is yes hardware primitive backing
  * the synchronization.
  *
  * To start the framework just open:
@@ -38,11 +38,11 @@
  *
  * To increment the timeline counter, SW_SYNC_IOC_INC ioctl should be used
  * with the increment as u32. This will update the last signaled value
- * from the timeline and signal any fence that has a seqno smaller or equal
+ * from the timeline and signal any fence that has a seqyes smaller or equal
  * to it.
  *
  * struct sw_sync_create_fence_data
- * @value:	the seqno to initialise the fence with
+ * @value:	the seqyes to initialise the fence with
  * @name:	the name of the new sync point
  * @fence:	return the fd of the new sync_file with the created fence
  */
@@ -137,7 +137,7 @@ static void timeline_fence_release(struct dma_fence *fence)
 	spin_lock_irqsave(fence->lock, flags);
 	if (!list_empty(&pt->link)) {
 		list_del(&pt->link);
-		rb_erase(&pt->node, &parent->pt_tree);
+		rb_erase(&pt->yesde, &parent->pt_tree);
 	}
 	spin_unlock_irqrestore(fence->lock, flags);
 
@@ -149,7 +149,7 @@ static bool timeline_fence_signaled(struct dma_fence *fence)
 {
 	struct sync_timeline *parent = dma_fence_parent(fence);
 
-	return !__dma_fence_is_later(fence->seqno, parent->value, fence->ops);
+	return !__dma_fence_is_later(fence->seqyes, parent->value, fence->ops);
 }
 
 static bool timeline_fence_enable_signaling(struct dma_fence *fence)
@@ -160,7 +160,7 @@ static bool timeline_fence_enable_signaling(struct dma_fence *fence)
 static void timeline_fence_value_str(struct dma_fence *fence,
 				    char *str, int size)
 {
-	snprintf(str, size, "%lld", fence->seqno);
+	snprintf(str, size, "%lld", fence->seqyes);
 }
 
 static void timeline_fence_timeline_value_str(struct dma_fence *fence,
@@ -204,7 +204,7 @@ static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 			break;
 
 		list_del_init(&pt->link);
-		rb_erase(&pt->node, &obj->pt_tree);
+		rb_erase(&pt->yesde, &obj->pt_tree);
 
 		/*
 		 * A signal callback may release the last reference to this
@@ -246,16 +246,16 @@ static struct sync_pt *sync_pt_create(struct sync_timeline *obj,
 
 	spin_lock_irq(&obj->lock);
 	if (!dma_fence_is_signaled_locked(&pt->base)) {
-		struct rb_node **p = &obj->pt_tree.rb_node;
-		struct rb_node *parent = NULL;
+		struct rb_yesde **p = &obj->pt_tree.rb_yesde;
+		struct rb_yesde *parent = NULL;
 
 		while (*p) {
 			struct sync_pt *other;
 			int cmp;
 
 			parent = *p;
-			other = rb_entry(parent, typeof(*pt), node);
-			cmp = value - other->base.seqno;
+			other = rb_entry(parent, typeof(*pt), yesde);
+			cmp = value - other->base.seqyes;
 			if (cmp > 0) {
 				p = &parent->rb_right;
 			} else if (cmp < 0) {
@@ -270,12 +270,12 @@ static struct sync_pt *sync_pt_create(struct sync_timeline *obj,
 				p = &parent->rb_left;
 			}
 		}
-		rb_link_node(&pt->node, parent, p);
-		rb_insert_color(&pt->node, &obj->pt_tree);
+		rb_link_yesde(&pt->yesde, parent, p);
+		rb_insert_color(&pt->yesde, &obj->pt_tree);
 
-		parent = rb_next(&pt->node);
+		parent = rb_next(&pt->yesde);
 		list_add_tail(&pt->link,
-			      parent ? &rb_entry(parent, typeof(*pt), node)->link : &obj->pt_list);
+			      parent ? &rb_entry(parent, typeof(*pt), yesde)->link : &obj->pt_list);
 	}
 unlock:
 	spin_unlock_irq(&obj->lock);
@@ -290,7 +290,7 @@ unlock:
  */
 
 /* opening sw_sync create a new sync obj */
-static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
+static int sw_sync_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
 	struct sync_timeline *obj;
 	char task_comm[TASK_COMM_LEN];
@@ -306,7 +306,7 @@ static int sw_sync_debugfs_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int sw_sync_debugfs_release(struct inode *inode, struct file *file)
+static int sw_sync_debugfs_release(struct iyesde *iyesde, struct file *file)
 {
 	struct sync_timeline *obj = file->private_data;
 	struct sync_pt *pt, *next;

@@ -126,12 +126,12 @@ DECLARE_EVENT_CLASS(clk_parent,
 
 	TP_STRUCT__entry(
 		__string(        name,           core->name                )
-		__string(        pname, parent ? parent->name : "none"     )
+		__string(        pname, parent ? parent->name : "yesne"     )
 	),
 
 	TP_fast_assign(
 		__assign_str(name, core->name);
-		__assign_str(pname, parent ? parent->name : "none");
+		__assign_str(pname, parent ? parent->name : "yesne");
 	),
 
 	TP_printk("%s %s", __get_str(name), __get_str(pname))

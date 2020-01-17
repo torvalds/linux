@@ -65,12 +65,12 @@
  * - VMCIQPB_CREATED_NO_MEM: this state indicates that either:
  *
  *     - the created was performed by a host endpoint, in which case there is
- *       no backing memory yet.
+ *       yes backing memory yet.
  *
  *     - the create was initiated by an old-style VMX, that uses
  *       vmci_qp_broker_set_page_store to specify the UVAs of the queue pair at
  *       a later point in time. This state can be distinguished from the one
- *       above by the context ID of the creator. A host side is not allowed to
+ *       above by the context ID of the creator. A host side is yest allowed to
  *       attach until the page store has been set.
  *
  * - VMCIQPB_CREATED_MEM: this state is the result when the queue pair
@@ -104,15 +104,15 @@
  * From the attached queue pair, the queue pair can enter the shutdown states
  * when either side of the queue pair detaches. If the guest side detaches
  * first, the queue pair will enter the VMCIQPB_SHUTDOWN_NO_MEM state, where
- * the content of the queue pair will no longer be available. If the host
+ * the content of the queue pair will yes longer be available. If the host
  * side detaches first, the queue pair will either enter the
  * VMCIQPB_SHUTDOWN_MEM, if the guest memory is currently mapped, or
- * VMCIQPB_SHUTDOWN_NO_MEM, if the guest memory is not mapped
+ * VMCIQPB_SHUTDOWN_NO_MEM, if the guest memory is yest mapped
  * (e.g., the host detaches while a guest is stunned).
  *
  * New-style VMX'en will also unmap guest memory, if the guest is
  * quiesced, e.g., during a snapshot operation. In that case, the guest
- * memory will no longer be available, and the queue pair will transition from
+ * memory will yes longer be available, and the queue pair will transition from
  * *_MEM state to a *_NO_MEM state. The VMX may later map the memory once more,
  * in which case the queue pair will transition from the *_NO_MEM state at that
  * point back to the *_MEM state. Note that the *_NO_MEM state may have changed,
@@ -250,7 +250,7 @@ static void qp_free_queue(void *q, u64 size)
 	if (queue) {
 		u64 i;
 
-		/* Given size does not include header, so add in a page here. */
+		/* Given size does yest include header, so add in a page here. */
 		for (i = 0; i < DIV_ROUND_UP(size, PAGE_SIZE) + 1; i++) {
 			dma_free_coherent(&vmci_pdev->dev, PAGE_SIZE,
 					  queue->kernel_if->u.g.vas[i],
@@ -324,7 +324,7 @@ static void *qp_alloc_queue(u64 size, u32 flags)
  * Copies from a given buffer or iovector to a VMCI Queue.  Uses
  * kmap()/kunmap() to dynamically map/unmap required portions of the queue
  * by traversing the offset -> page translation structure for the queue.
- * Assumes that offset + size does not wrap around in the queue.
+ * Assumes that offset + size does yest wrap around in the queue.
  */
 static int qp_memcpy_to_queue_iter(struct vmci_queue *queue,
 				  u64 queue_offset,
@@ -349,7 +349,7 @@ static int qp_memcpy_to_queue_iter(struct vmci_queue *queue,
 			/* Skip header. */
 
 		if (size - bytes_copied > PAGE_SIZE - page_offset)
-			/* Enough payload to fill up from this page. */
+			/* Eyesugh payload to fill up from this page. */
 			to_copy = PAGE_SIZE - page_offset;
 		else
 			to_copy = size - bytes_copied;
@@ -372,7 +372,7 @@ static int qp_memcpy_to_queue_iter(struct vmci_queue *queue,
  * Copies to a given buffer or iovector from a VMCI Queue.  Uses
  * kmap()/kunmap() to dynamically map/unmap required portions of the queue
  * by traversing the offset -> page translation structure for the queue.
- * Assumes that offset + size does not wrap around in the queue.
+ * Assumes that offset + size does yest wrap around in the queue.
  */
 static int qp_memcpy_from_queue_iter(struct iov_iter *to,
 				    const struct vmci_queue *queue,
@@ -397,7 +397,7 @@ static int qp_memcpy_from_queue_iter(struct iov_iter *to,
 			/* Skip header. */
 
 		if (size - bytes_copied > PAGE_SIZE - page_offset)
-			/* Enough payload to fill up this page. */
+			/* Eyesugh payload to fill up this page. */
 			to_copy = PAGE_SIZE - page_offset;
 		else
 			to_copy = size - bytes_copied;
@@ -476,7 +476,7 @@ static int qp_alloc_ppn_set(void *prod_q,
 static void qp_free_ppn_set(struct ppn_set *ppn_set)
 {
 	if (ppn_set->initialized) {
-		/* Do not call these functions on NULL inputs. */
+		/* Do yest call these functions on NULL inputs. */
 		kfree(ppn_set->produce_ppns);
 		kfree(ppn_set->consume_ppns);
 	}
@@ -518,7 +518,7 @@ static int qp_populate_ppn_set(u8 *call_buf, const struct ppn_set *ppn_set)
 /*
  * Allocates kernel VA space of specified size plus space for the queue
  * and kernel interface.  This is different from the guest queue allocator,
- * because we do not allocate our own queue header/data pages here but
+ * because we do yest allocate our own queue header/data pages here but
  * share those of the guest.
  */
 static struct vmci_queue *qp_host_alloc_queue(u64 size)
@@ -567,14 +567,14 @@ static void qp_host_free_queue(struct vmci_queue *queue, u64 queue_size)
  * Initialize the mutex for the pair of queues.  This mutex is used to
  * protect the q_header and the buffer from changing out from under any
  * users of either queue.  Of course, it's only any good if the mutexes
- * are actually acquired.  Queue structure must lie on non-paged memory
- * or we cannot guarantee access to the mutex.
+ * are actually acquired.  Queue structure must lie on yesn-paged memory
+ * or we canyest guarantee access to the mutex.
  */
 static void qp_init_queue_mutex(struct vmci_queue *produce_q,
 				struct vmci_queue *consume_q)
 {
 	/*
-	 * Only the host queue has shared state - the guest queues do not
+	 * Only the host queue has shared state - the guest queues do yest
 	 * need to synchronize access using a queue mutex.
 	 */
 
@@ -683,7 +683,7 @@ static int qp_host_get_user_memory(u64 produce_uva,
 
 /*
  * Registers the specification of the user pages used for backing a queue
- * pair. Enough information to map in pages is stored in the OS specific
+ * pair. Eyesugh information to map in pages is stored in the OS specific
  * part of the struct vmci_queue structure.
  */
 static int qp_host_register_user_memory(struct vmci_qp_page_store *page_store,
@@ -842,7 +842,7 @@ qp_broker_handle_to_entry(struct vmci_handle handle)
  * Dispatches a queue pair event message directly into the local event
  * queue.
  */
-static int qp_notify_peer_local(bool attach, struct vmci_handle handle)
+static int qp_yestify_peer_local(bool attach, struct vmci_handle handle)
 {
 	u32 context_id = vmci_get_context_id();
 	struct vmci_event_qp ev;
@@ -1030,9 +1030,9 @@ static int qp_detatch_guest_work(struct vmci_handle handle)
 		result = VMCI_SUCCESS;
 
 		if (entry->qp.ref_count > 1) {
-			result = qp_notify_peer_local(false, handle);
+			result = qp_yestify_peer_local(false, handle);
 			/*
-			 * We can fail to notify a local queuepair
+			 * We can fail to yestify a local queuepair
 			 * because we can't allocate.  We still want
 			 * to release the entry if that happens, so
 			 * don't bail out yet.
@@ -1042,7 +1042,7 @@ static int qp_detatch_guest_work(struct vmci_handle handle)
 		result = qp_detatch_hypercall(handle);
 		if (result < VMCI_SUCCESS) {
 			/*
-			 * We failed to notify a non-local queuepair.
+			 * We failed to yestify a yesn-local queuepair.
 			 * That other queuepair might still be
 			 * accessing the shared memory, so don't
 			 * release the entry yet.  It will get cleaned
@@ -1057,7 +1057,7 @@ static int qp_detatch_guest_work(struct vmci_handle handle)
 	}
 
 	/*
-	 * If we get here then we either failed to notify a local queuepair, or
+	 * If we get here then we either failed to yestify a local queuepair, or
 	 * we succeeded in all cases.  Release the entry if required.
 	 */
 
@@ -1130,7 +1130,7 @@ static int qp_alloc_guest_work(struct vmci_handle *handle,
 			 * produce queues for the attacher and deliver
 			 * an attach event.
 			 */
-			result = qp_notify_peer_local(true, *handle);
+			result = qp_yestify_peer_local(true, *handle);
 			if (result < VMCI_SUCCESS)
 				goto error_keep_entry;
 
@@ -1175,8 +1175,8 @@ static int qp_alloc_guest_work(struct vmci_handle *handle,
 	}
 
 	/*
-	 * It's only necessary to notify the host if this queue pair will be
-	 * attached to from another context.
+	 * It's only necessary to yestify the host if this queue pair will be
+	 * attached to from ayesther context.
 	 */
 	if (queue_pair_entry->qp.flags & VMCI_QPFLAG_LOCAL) {
 		/* Local create case. */
@@ -1187,7 +1187,7 @@ static int qp_alloc_guest_work(struct vmci_handle *handle,
 		 * do for regular ones.  The handle's context must
 		 * match the creator or attacher context id (here they
 		 * are both the current context id) and the
-		 * attach-only flag cannot exist during create.  We
+		 * attach-only flag canyest exist during create.  We
 		 * also ensure specified peer is this context or an
 		 * invalid one.
 		 */
@@ -1223,7 +1223,7 @@ static int qp_alloc_guest_work(struct vmci_handle *handle,
 
 	/*
 	 * We should initialize the queue pair header pages on a local
-	 * queue pair create.  For non-local queue pairs, the
+	 * queue pair create.  For yesn-local queue pairs, the
 	 * hypervisor initializes the header pages in the create step.
 	 */
 	if ((queue_pair_entry->qp.flags & VMCI_QPFLAG_LOCAL) &&
@@ -1265,7 +1265,7 @@ static int qp_alloc_guest_work(struct vmci_handle *handle,
  * used.
  *
  * If the creator is the host, a page_store of NULL should be used as well,
- * since the host is not able to supply a page store for the queue pair.
+ * since the host is yest able to supply a page store for the queue pair.
  *
  * For older VMX and host callers, the queue pair will be created in the
  * VMCIQPB_CREATED_NO_MEM state, and for current VMX callers, it will be
@@ -1289,7 +1289,7 @@ static int qp_broker_create(struct vmci_handle handle,
 	u64 guest_produce_size;
 	u64 guest_consume_size;
 
-	/* Do not create if the caller asked not to. */
+	/* Do yest create if the caller asked yest to. */
 	if (flags & VMCI_QPFLAG_ATTACH_ONLY)
 		return VMCI_ERROR_NOT_FOUND;
 
@@ -1319,7 +1319,7 @@ static int qp_broker_create(struct vmci_handle handle,
 		 * The queue pair broker entry stores values from the guest
 		 * point of view, so a creating host side endpoint should swap
 		 * produce and consume values -- unless it is a local queue
-		 * pair, in which case no swapping is necessary, since the local
+		 * pair, in which case yes swapping is necessary, since the local
 		 * attacher will swap queues.
 		 */
 
@@ -1377,7 +1377,7 @@ static int qp_broker_create(struct vmci_handle handle,
 		entry->consume_q->q_header = (struct vmci_queue_header *)tmp;
 	} else if (page_store) {
 		/*
-		 * The VMX already initialized the queue pair headers, so no
+		 * The VMX already initialized the queue pair headers, so yes
 		 * need for the kernel side to do that.
 		 */
 		result = qp_host_register_user_memory(page_store,
@@ -1435,12 +1435,12 @@ static int qp_broker_create(struct vmci_handle handle,
 }
 
 /*
- * Enqueues an event datagram to notify the peer VM attached to
+ * Enqueues an event datagram to yestify the peer VM attached to
  * the given queue pair handle about attach/detach event by the
  * given VM.  Returns Payload size of datagram enqueued on
  * success, error code otherwise.
  */
-static int qp_notify_peer(bool attach,
+static int qp_yestify_peer(bool attach,
 			  struct vmci_handle handle,
 			  u32 my_id,
 			  u32 peer_id)
@@ -1551,14 +1551,14 @@ static int qp_broker_attach(struct qp_broker_entry *entry,
 
 	/*
 	 * If the creator specifies VMCI_INVALID_ID in "peer" field, access
-	 * control check is not performed.
+	 * control check is yest performed.
 	 */
 	if (entry->qp.peer != VMCI_INVALID_ID && entry->qp.peer != context_id)
 		return VMCI_ERROR_NO_ACCESS;
 
 	if (entry->create_id == VMCI_HOST_CONTEXT_ID) {
 		/*
-		 * Do not attach if the caller doesn't support Host Queue Pairs
+		 * Do yest attach if the caller doesn't support Host Queue Pairs
 		 * and a host created this queue pair.
 		 */
 
@@ -1570,7 +1570,7 @@ static int qp_broker_attach(struct qp_broker_entry *entry,
 		bool supports_host_qp;
 
 		/*
-		 * Do not attach a host to a user created queue pair if that
+		 * Do yest attach a host to a user created queue pair if that
 		 * user doesn't support host queue pair end points.
 		 */
 
@@ -1611,7 +1611,7 @@ static int qp_broker_attach(struct qp_broker_entry *entry,
 		 * a vmx of version NOVMVM or later, the page store
 		 * must be supplied as part of the
 		 * vmci_qp_broker_alloc call.  Under all circumstances
-		 * must the initially created queue pair not have any
+		 * must the initially created queue pair yest have any
 		 * memory associated with it already.
 		 */
 
@@ -1622,7 +1622,7 @@ static int qp_broker_attach(struct qp_broker_entry *entry,
 			/*
 			 * Patch up host state to point to guest
 			 * supplied memory. The VMX already
-			 * initialized the queue pair headers, so no
+			 * initialized the queue pair headers, so yes
 			 * need for the kernel side to do that.
 			 */
 
@@ -1652,10 +1652,10 @@ static int qp_broker_attach(struct qp_broker_entry *entry,
 
 	if (entry->state == VMCIQPB_ATTACHED_MEM) {
 		result =
-		    qp_notify_peer(true, entry->qp.handle, context_id,
+		    qp_yestify_peer(true, entry->qp.handle, context_id,
 				   entry->create_id);
 		if (result < VMCI_SUCCESS)
-			pr_warn("Failed to notify peer (ID=0x%x) of attach to queue pair (handle=0x%x:0x%x)\n",
+			pr_warn("Failed to yestify peer (ID=0x%x) of attach to queue pair (handle=0x%x:0x%x)\n",
 				entry->create_id, entry->qp.handle.context,
 				entry->qp.handle.resource);
 	}
@@ -1669,7 +1669,7 @@ static int qp_broker_attach(struct qp_broker_entry *entry,
 
 	/*
 	 * When attaching to local queue pairs, the context already has
-	 * an entry tracking the queue pair, so don't add another one.
+	 * an entry tracking the queue pair, so don't add ayesther one.
 	 */
 	if (!is_local)
 		vmci_ctx_qp_create(context, entry->qp.handle);
@@ -1715,8 +1715,8 @@ static int qp_broker_alloc(struct vmci_handle handle,
 		return VMCI_ERROR_INVALID_ARGS;
 
 	/*
-	 * In the initial argument check, we ensure that non-vmkernel hosts
-	 * are not allowed to create local queue pairs.
+	 * In the initial argument check, we ensure that yesn-vmkernel hosts
+	 * are yest allowed to create local queue pairs.
 	 */
 
 	mutex_lock(&qp_broker_list.mutex);
@@ -1913,7 +1913,7 @@ void vmci_qp_broker_exit(void)
 
 /*
  * Requests that a queue pair be allocated with the VMCI queue
- * pair broker. Allocates a queue pair entry if one does not
+ * pair broker. Allocates a queue pair entry if one does yest
  * exist. Attaches to one if it exists, and retrieves the page
  * files backing that queue_pair.  Assumes that the queue pair
  * broker lock is held.
@@ -1945,7 +1945,7 @@ int vmci_qp_broker_alloc(struct vmci_handle handle,
  *
  * Assumes that the queue pair broker lock is held.
  *
- * This function is only used by the hosted platform, since there is no
+ * This function is only used by the hosted platform, since there is yes
  * issue with backwards compatibility for vmkernel.
  */
 int vmci_qp_broker_set_page_store(struct vmci_handle handle,
@@ -1972,7 +1972,7 @@ int vmci_qp_broker_set_page_store(struct vmci_handle handle,
 	mutex_lock(&qp_broker_list.mutex);
 
 	if (!vmci_ctx_qp_exists(context, handle)) {
-		pr_warn("Context (ID=0x%x) not attached to queue pair (handle=0x%x:0x%x)\n",
+		pr_warn("Context (ID=0x%x) yest attached to queue pair (handle=0x%x:0x%x)\n",
 			context_id, handle.context, handle.resource);
 		result = VMCI_ERROR_NOT_FOUND;
 		goto out;
@@ -2024,9 +2024,9 @@ int vmci_qp_broker_set_page_store(struct vmci_handle handle,
 
 	if (entry->state == VMCIQPB_ATTACHED_MEM) {
 		result =
-		    qp_notify_peer(true, handle, context_id, entry->create_id);
+		    qp_yestify_peer(true, handle, context_id, entry->create_id);
 		if (result < VMCI_SUCCESS) {
-			pr_warn("Failed to notify peer (ID=0x%x) of attach to queue pair (handle=0x%x:0x%x)\n",
+			pr_warn("Failed to yestify peer (ID=0x%x) of attach to queue pair (handle=0x%x:0x%x)\n",
 				entry->create_id, entry->qp.handle.context,
 				entry->qp.handle.resource);
 		}
@@ -2053,14 +2053,14 @@ static void qp_reset_saved_headers(struct qp_broker_entry *entry)
  * The main entry point for detaching from a queue pair registered with the
  * queue pair broker. If more than one endpoint is attached to the queue
  * pair, the first endpoint will mainly decrement a reference count and
- * generate a notification to its peer. The last endpoint will clean up
+ * generate a yestification to its peer. The last endpoint will clean up
  * the queue pair state registered with the broker.
  *
  * When a guest endpoint detaches, it will unmap and unregister the guest
  * memory backing the queue pair. If the host is still attached, it will
- * no longer be able to access the queue pair content.
+ * yes longer be able to access the queue pair content.
  *
- * If the queue pair is already in a state where there is no memory
+ * If the queue pair is already in a state where there is yes memory
  * registered for the queue pair (any *_NO_MEM state), it will transition to
  * the VMCIQPB_SHUTDOWN_NO_MEM state. This will also happen, if a guest
  * endpoint is the first of two endpoints to detach. If the host endpoint is
@@ -2083,7 +2083,7 @@ int vmci_qp_broker_detach(struct vmci_handle handle, struct vmci_ctx *context)
 	mutex_lock(&qp_broker_list.mutex);
 
 	if (!vmci_ctx_qp_exists(context, handle)) {
-		pr_devel("Context (ID=0x%x) not attached to queue pair (handle=0x%x:0x%x)\n",
+		pr_devel("Context (ID=0x%x) yest attached to queue pair (handle=0x%x:0x%x)\n",
 			 context_id, handle.context, handle.resource);
 		result = VMCI_ERROR_NOT_FOUND;
 		goto out;
@@ -2119,7 +2119,7 @@ int vmci_qp_broker_detach(struct vmci_handle handle, struct vmci_ctx *context)
 		/*
 		 * Pre NOVMVM vmx'en may detach from a queue pair
 		 * before setting the page store, and in that case
-		 * there is no user memory to detach from. Also, more
+		 * there is yes user memory to detach from. Also, more
 		 * recent VMX'en may detach from a queue pair in the
 		 * quiesced state.
 		 */
@@ -2173,7 +2173,7 @@ int vmci_qp_broker_detach(struct vmci_handle handle, struct vmci_ctx *context)
 
 		vmci_ctx_qp_destroy(context, handle);
 	} else {
-		qp_notify_peer(false, handle, context_id, peer_id);
+		qp_yestify_peer(false, handle, context_id, peer_id);
 		if (context_id == VMCI_HOST_CONTEXT_ID &&
 		    QPBROKERSTATE_HAS_MEM(entry)) {
 			entry->state = VMCIQPB_SHUTDOWN_MEM;
@@ -2212,7 +2212,7 @@ int vmci_qp_broker_map(struct vmci_handle handle,
 	mutex_lock(&qp_broker_list.mutex);
 
 	if (!vmci_ctx_qp_exists(context, handle)) {
-		pr_devel("Context (ID=0x%x) not attached to queue pair (handle=0x%x:0x%x)\n",
+		pr_devel("Context (ID=0x%x) yest attached to queue pair (handle=0x%x:0x%x)\n",
 			 context_id, handle.context, handle.resource);
 		result = VMCI_ERROR_NOT_FOUND;
 		goto out;
@@ -2321,7 +2321,7 @@ int vmci_qp_broker_unmap(struct vmci_handle handle,
 	mutex_lock(&qp_broker_list.mutex);
 
 	if (!vmci_ctx_qp_exists(context, handle)) {
-		pr_devel("Context (ID=0x%x) not attached to queue pair (handle=0x%x:0x%x)\n",
+		pr_devel("Context (ID=0x%x) yest attached to queue pair (handle=0x%x:0x%x)\n",
 			 context_id, handle.context, handle.resource);
 		result = VMCI_ERROR_NOT_FOUND;
 		goto out;
@@ -2378,7 +2378,7 @@ int vmci_qp_broker_unmap(struct vmci_handle handle,
  * Destroys all guest queue pair endpoints. If active guest queue
  * pairs still exist, hypercalls to attempt detach from these
  * queue pairs will be made. Any failure to detach is silently
- * ignored.
+ * igyesred.
  */
 void vmci_qp_guest_endpoints_exit(void)
 {
@@ -2394,7 +2394,7 @@ void vmci_qp_guest_endpoints_exit(void)
 		if (!(entry->flags & VMCI_QPFLAG_LOCAL))
 			qp_detatch_hypercall(entry->handle);
 
-		/* We cannot fail the exit, so let's reset ref_count. */
+		/* We canyest fail the exit, so let's reset ref_count. */
 		entry->ref_count = 0;
 		qp_list_remove_entry(&qp_guest_endpoints, entry);
 
@@ -2408,8 +2408,8 @@ void vmci_qp_guest_endpoints_exit(void)
  * Helper routine that will lock the queue pair before subsequent
  * operations.
  * Note: Non-blocking on the host side is currently only implemented in ESX.
- * Since non-blocking isn't yet implemented on the host personality we
- * have no reason to acquire a spin lock.  So to avoid the use of an
+ * Since yesn-blocking isn't yet implemented on the host personality we
+ * have yes reason to acquire a spin lock.  So to avoid the use of an
  * unnecessary lock only acquire the mutex if we can block.
  */
 static void qp_lock(const struct vmci_qp *qpair)
@@ -2427,8 +2427,8 @@ static void qp_unlock(const struct vmci_qp *qpair)
 }
 
 /*
- * The queue headers may not be mapped at all times. If a queue is
- * currently not mapped, it will be attempted to do so.
+ * The queue headers may yest be mapped at all times. If a queue is
+ * currently yest mapped, it will be attempted to do so.
  */
 static int qp_map_queue_headers(struct vmci_queue *produce_q,
 				struct vmci_queue *consume_q)
@@ -2450,7 +2450,7 @@ static int qp_map_queue_headers(struct vmci_queue *produce_q,
 /*
  * Helper routine that will retrieve the produce and consume
  * headers of a given queue pair. If the guest memory of the
- * queue pair is currently not available, the saved queue headers
+ * queue pair is currently yest available, the saved queue headers
  * will be returned, if these are available.
  */
 static int qp_get_queue_headers(const struct vmci_qp *qpair,
@@ -2475,7 +2475,7 @@ static int qp_get_queue_headers(const struct vmci_qp *qpair,
 
 /*
  * Callback from VMCI queue pair broker indicating that a queue
- * pair that was previously not ready, now either is ready or
+ * pair that was previously yest ready, yesw either is ready or
  * gone forever.
  */
 static int qp_wakeup_cb(void *client_data)
@@ -2515,7 +2515,7 @@ static bool qp_wait_for_ready_queue(struct vmci_qp *qpair)
  * Enqueues a given buffer to the produce queue using the provided
  * function. As many bytes as possible (space available in the queue)
  * are enqueued.  Assumes the queue->mutex has been acquired.  Returns
- * VMCI_ERROR_QUEUEPAIR_NOSPACE if no space was available to enqueue
+ * VMCI_ERROR_QUEUEPAIR_NOSPACE if yes space was available to enqueue
  * data, VMCI_ERROR_INVALID_SIZE, if any queue pointer is outside the
  * queue (as defined by the queue size), VMCI_ERROR_INVALID_ARGS, if
  * an error occured when accessing the buffer,
@@ -2575,7 +2575,7 @@ static ssize_t qp_enqueue_locked(struct vmci_queue *produce_q,
  * to the user provided buffer using the provided function.
  * Assumes the queue->mutex has been acquired.
  * Results:
- * VMCI_ERROR_QUEUEPAIR_NODATA if no data was available to dequeue.
+ * VMCI_ERROR_QUEUEPAIR_NODATA if yes data was available to dequeue.
  * VMCI_ERROR_INVALID_SIZE, if any queue pointer is outside the queue
  * (as defined by the queue size).
  * VMCI_ERROR_INVALID_ARGS, if an error occured when accessing the buffer.
@@ -2647,7 +2647,7 @@ static ssize_t qp_dequeue_locked(struct vmci_queue *produce_q,
  * This is the client interface for allocating the memory for a
  * vmci_qp structure and then attaching to the underlying
  * queue.  If an error occurs allocating the memory for the
- * vmci_qp structure no attempt is made to attach.  If an
+ * vmci_qp structure yes attempt is made to attach.  If an
  * error occurs attaching, then the structure is freed.
  */
 int vmci_qpair_alloc(struct vmci_qp **qpair,
@@ -2899,7 +2899,7 @@ EXPORT_SYMBOL_GPL(vmci_qpair_produce_free_space);
  *
  * This is the client interface for getting the amount of free
  * space in the QPair from the point of the view of the caller as
- * the consumer which is not the common case.  Returns < 0 if err, else
+ * the consumer which is yest the common case.  Returns < 0 if err, else
  * available bytes into which data can be enqueued if > 0.
  */
 s64 vmci_qpair_consume_free_space(const struct vmci_qp *qpair)
@@ -2934,7 +2934,7 @@ EXPORT_SYMBOL_GPL(vmci_qpair_consume_free_space);
  *
  * This is the client interface for getting the amount of
  * enqueued data in the QPair from the point of the view of the
- * caller as the producer which is not the common case.  Returns < 0 if err,
+ * caller as the producer which is yest the common case.  Returns < 0 if err,
  * else available bytes that may be read.
  */
 s64 vmci_qpair_produce_buf_ready(const struct vmci_qp *qpair)
@@ -2969,7 +2969,7 @@ EXPORT_SYMBOL_GPL(vmci_qpair_produce_buf_ready);
  *
  * This is the client interface for getting the amount of
  * enqueued data in the QPair from the point of the view of the
- * caller as the consumer which is the normal case.  Returns < 0 if err,
+ * caller as the consumer which is the yesrmal case.  Returns < 0 if err,
  * else available bytes that may be read.
  */
 s64 vmci_qpair_consume_buf_ready(const struct vmci_qp *qpair)

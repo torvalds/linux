@@ -18,18 +18,18 @@
  * -------------------------------------------------------------------
  *  31    24 23-21 20-19 18 17 16-15 14 13-10  9  8  7  6-3   2  1  0
  *
- * BM: Boot Mode -- 0 = not in boot mode, 1 = in boot mode
+ * BM: Boot Mode -- 0 = yest in boot mode, 1 = in boot mode
  *
- * This indicates whether the TurboSparc is in boot-mode or not.
+ * This indicates whether the TurboSparc is in boot-mode or yest.
  *
  * IC: Instruction Cache -- 0 = off, 1 = on
  * DC: Data Cache -- 0 = off, 1 = 0n
  *
  * These bits enable the on-cpu TurboSparc split I/D caches.
  *
- * ICS: ICache Snooping -- 0 = disable, 1 = enable snooping of icache
+ * ICS: ICache Syesoping -- 0 = disable, 1 = enable syesoping of icache
  * NF: No Fault -- 0 = faults generate traps, 1 = faults don't trap
- * ME: MMU enable -- 0 = mmu not translating, 1 = mmu translating
+ * ME: MMU enable -- 0 = mmu yest translating, 1 = mmu translating
  *
  */
 
@@ -55,7 +55,7 @@
 #define TURBOSPARC_SCENABLE 0x00000008	 /* Secondary cache enable */
 #define TURBOSPARC_uS2	    0x00000010   /* Swift compatibility mode */
 #define TURBOSPARC_WTENABLE 0x00000020	 /* Write thru for dcache */
-#define TURBOSPARC_SNENABLE 0x40000000	 /* DVMA snoop enable */
+#define TURBOSPARC_SNENABLE 0x40000000	 /* DVMA syesop enable */
 
 #ifndef __ASSEMBLY__
 
@@ -63,7 +63,7 @@
 static inline void turbosparc_inv_insn_tag(unsigned long addr)
 {
         __asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (addr), "i" (ASI_M_TXTC_TAG)
 			     : "memory");
 }
@@ -72,7 +72,7 @@ static inline void turbosparc_inv_insn_tag(unsigned long addr)
 static inline void turbosparc_inv_data_tag(unsigned long addr)
 {
         __asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (addr), "i" (ASI_M_DATAC_TAG)
 			     : "memory");
 }
@@ -106,7 +106,7 @@ static inline void turbosparc_idflash_clear(void)
 static inline void turbosparc_set_ccreg(unsigned long regval)
 {
 	__asm__ __volatile__("sta %0, [%1] %2\n\t"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (regval), "r" (0x600), "i" (ASI_M_MMUREGS)
 			     : "memory");
 }

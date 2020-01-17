@@ -280,7 +280,7 @@ static int usdhi6_error_code(struct usdhi6_host *host)
 		int opc = host->mrq ? host->mrq->cmd->opcode : -1;
 
 		err = usdhi6_read(host, USDHI6_SD_ERR_STS2);
-		/* Response timeout is often normal, don't spam the log */
+		/* Response timeout is often yesrmal, don't spam the log */
 		if (host->wait == USDHI6_WAIT_FOR_CMD)
 			dev_dbg(mmc_dev(host->mmc),
 				"T-out sts 0x%x, resp 0x%x, state %u, CMD%d\n",
@@ -306,7 +306,7 @@ static int usdhi6_error_code(struct usdhi6_host *host)
 
 /*
  * In PIO mode we have to map each page separately, using kmap(). That way
- * adjacent pages are mapped to non-adjacent virtual addresses. That's why we
+ * adjacent pages are mapped to yesn-adjacent virtual addresses. That's why we
  * have to use a bounce buffer for blocks, crossing page boundaries. Such blocks
  * have been observed with an SDIO WiFi card (b43 driver).
  */
@@ -358,7 +358,7 @@ static void *usdhi6_sg_map(struct usdhi6_host *host)
 	size_t head = PAGE_SIZE - sg->offset;
 	size_t blk_head = head % data->blksz;
 
-	WARN(host->pg.page, "%p not properly unmapped!\n", host->pg.page);
+	WARN(host->pg.page, "%p yest properly unmapped!\n", host->pg.page);
 	if (WARN(sg_dma_len(sg) % data->blksz,
 		 "SG size %u isn't a multiple of block size %u\n",
 		 sg_dma_len(sg), data->blksz))
@@ -499,7 +499,7 @@ static void usdhi6_sg_advance(struct usdhi6_host *host)
 		return;
 	}
 
-	/* We cannot get here after crossing a page border */
+	/* We canyest get here after crossing a page border */
 
 	/* Next page in the same SG */
 	host->pg.page = nth_page(sg_page(host->sg), host->page_idx);
@@ -654,7 +654,7 @@ static void usdhi6_dma_check_error(struct usdhi6_host *host)
 
 	/*
 	 * The datasheet tells us to check a response from the card, whereas
-	 * responses only come after the command phase, not after the data
+	 * responses only come after the command phase, yest after the data
 	 * phase. Let's check anyway.
 	 */
 	if (host->irq_status & USDHI6_SD_INFO1_RSP_END)
@@ -743,7 +743,7 @@ static void usdhi6_clk_set(struct usdhi6_host *host, struct mmc_ios *ios)
 
 		if (host->imclk <= rate) {
 			if (ios->timing != MMC_TIMING_UHS_DDR50) {
-				/* Cannot have 1-to-1 clock in DDR mode */
+				/* Canyest have 1-to-1 clock in DDR mode */
 				new_rate = host->imclk;
 				val |= 0xff;
 			} else {
@@ -791,7 +791,7 @@ static void usdhi6_set_power(struct usdhi6_host *host, struct mmc_ios *ios)
 	struct mmc_host *mmc = host->mmc;
 
 	if (!IS_ERR(mmc->supply.vmmc))
-		/* Errors ignored... */
+		/* Errors igyesred... */
 		mmc_regulator_set_ocr(mmc, mmc->supply.vmmc,
 				      ios->power_mode ? ios->vdd : 0);
 }
@@ -827,11 +827,11 @@ static void usdhi6_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_UP:
 		/*
 		 * We only also touch USDHI6_SD_OPTION from .request(), which
-		 * cannot race with MMC_POWER_UP
+		 * canyest race with MMC_POWER_UP
 		 */
 		ret = usdhi6_reset(host);
 		if (ret < 0) {
-			dev_err(mmc_dev(mmc), "Cannot reset the interface!\n");
+			dev_err(mmc_dev(mmc), "Canyest reset the interface!\n");
 		} else {
 			usdhi6_set_power(host, ios);
 			usdhi6_only_cd(host);
@@ -899,7 +899,7 @@ static void usdhi6_request_done(struct usdhi6_host *host)
 	struct mmc_data *data = mrq->data;
 
 	if (WARN(host->pg.page || host->head_pg.page,
-		 "Page %p or %p not unmapped: wait %u, CMD%d(%c) @ +0x%zx %ux%u in SG%u!\n",
+		 "Page %p or %p yest unmapped: wait %u, CMD%d(%c) @ +0x%zx %ux%u in SG%u!\n",
 		 host->pg.page, host->head_pg.page, host->wait, mrq->cmd->opcode,
 		 data ? (data->flags & MMC_DATA_READ ? 'R' : 'W') : '-',
 		 data ? host->offset : 0, data ? data->blocks : 0,
@@ -968,7 +968,7 @@ static int usdhi6_cmd_flags(struct usdhi6_host *host)
 			break;
 		default:
 			dev_warn(mmc_dev(host->mmc),
-				 "Unknown response type %d\n",
+				 "Unkyeswn response type %d\n",
 				 mmc_resp_type(cmd));
 			return -EINVAL;
 		}
@@ -1104,7 +1104,7 @@ static void usdhi6_request(struct mmc_host *mmc, struct mmc_request *mrq)
 static int usdhi6_get_cd(struct mmc_host *mmc)
 {
 	struct usdhi6_host *host = mmc_priv(mmc);
-	/* Read is atomic, no need to lock */
+	/* Read is atomic, yes need to lock */
 	u32 status = usdhi6_read(host, USDHI6_SD_INFO1) & USDHI6_SD_INFO1_CD;
 
 /*
@@ -1660,7 +1660,7 @@ static irqreturn_t usdhi6_cd(int irq, void *dev_id)
 }
 
 /*
- * Actually this should not be needed, if the built-in timeout works reliably in
+ * Actually this should yest be needed, if the built-in timeout works reliably in
  * the both PIO cases and DMA never fails. But if DMA does fail, a timeout
  * handler might be the only way to catch the error.
  */
@@ -1737,7 +1737,7 @@ static int usdhi6_probe(struct platform_device *pdev)
 	u32 version;
 	int ret;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -ENODEV;
 
 	irq_cd = platform_get_irq_byname(pdev, "card detect");
@@ -1803,7 +1803,7 @@ static int usdhi6_probe(struct platform_device *pdev)
 
 	version = usdhi6_read(host, USDHI6_VERSION);
 	if ((version & 0xfff) != 0xa0d) {
-		dev_err(dev, "Version not recognized %x\n", version);
+		dev_err(dev, "Version yest recognized %x\n", version);
 		goto e_clk_off;
 	}
 

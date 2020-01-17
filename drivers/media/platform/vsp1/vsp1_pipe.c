@@ -210,7 +210,7 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
  * @fourcc: the format 4CC
  *
  * Return a pointer to the format information structure corresponding to the
- * given V4L2 format 4CC, or NULL if no corresponding format can be found.
+ * given V4L2 format 4CC, or NULL if yes corresponding format can be found.
  */
 const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 						    u32 fourcc)
@@ -392,7 +392,7 @@ void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe)
 		vsp1_hgt_frame_end(pipe->hgt);
 
 	/*
-	 * Regardless of frame completion we still need to notify the pipe
+	 * Regardless of frame completion we still need to yestify the pipe
 	 * frame_end to account for vblank events.
 	 */
 	if (pipe->frame_end)

@@ -23,7 +23,7 @@
 
 /*
  * Is sp valid as the address of the next kernel stack frame after prev_sp?
- * The next frame may be in a different stack area but should not go
+ * The next frame may be in a different stack area but should yest go
  * back down in the same stack area.
  */
 static int valid_next_sp(unsigned long sp, unsigned long prev_sp)
@@ -140,7 +140,7 @@ static int read_user_stack_slow(void __user *ptr, void *buf, int nb)
 	if (!page_is_ram(pfn))
 		goto err_out;
 
-	/* no highmem to worry about here */
+	/* yes highmem to worry about here */
 	kaddr = pfn_to_kaddr(pfn);
 	memcpy(buf, kaddr + offset, nb);
 	ret = 0;
@@ -189,7 +189,7 @@ static inline int valid_user_sp(unsigned long sp, int is_64)
 }
 
 /*
- * 64-bit user processes use the same stack frame for RT and non-RT signals.
+ * 64-bit user processes use the same stack frame for RT and yesn-RT signals.
  */
 struct signal_frame_64 {
 	char		dummy[__SIGNAL_FRAMESIZE];
@@ -255,7 +255,7 @@ static void perf_callchain_user_64(struct perf_callchain_entry_ctx *entry,
 		 * Note: the next_sp - sp >= signal frame size check
 		 * is true when next_sp < sp, which can happen when
 		 * transitioning from an alternate signal stack to the
-		 * normal stack.
+		 * yesrmal stack.
 		 */
 		if (next_sp - sp >= sizeof(struct signal_frame_64) &&
 		    (is_sigreturn_64_address(next_ip, sp) ||
@@ -287,7 +287,7 @@ static void perf_callchain_user_64(struct perf_callchain_entry_ctx *entry,
 #else  /* CONFIG_PPC64 */
 /*
  * On 32-bit we just access the address and let hash_page create a
- * HPTE if necessary, so there is no need to fall back to reading
+ * HPTE if necessary, so there is yes need to fall back to reading
  * the page tables.  Since this is called at interrupt level,
  * do_page_fault() won't treat a DSI as a page fault.
  */
@@ -327,7 +327,7 @@ static inline int valid_user_sp(unsigned long sp, int is_64)
 #endif /* CONFIG_PPC64 */
 
 /*
- * Layout for non-RT signal frames
+ * Layout for yesn-RT signal frames
  */
 struct signal_frame_32 {
 	char			dummy[__SIGNAL_FRAMESIZE32];
@@ -400,7 +400,7 @@ static unsigned int __user *signal_frame_32_regs(unsigned int sp,
 	 * Note: the next_sp - sp >= signal frame size check
 	 * is true when next_sp < sp, for example, when
 	 * transitioning from an alternate signal stack to the
-	 * normal stack.
+	 * yesrmal stack.
 	 */
 	if (next_sp - sp >= sizeof(struct signal_frame_32) &&
 	    is_sigreturn_32_address(next_ip, sp) &&

@@ -3,7 +3,7 @@
  * f_ncm.c -- USB CDC Network (NCM) link function driver
  *
  * Copyright (C) 2010 Nokia Corporation
- * Contact: Yauheni Kaliuta <yauheni.kaliuta@nokia.com>
+ * Contact: Yauheni Kaliuta <yauheni.kaliuta@yeskia.com>
  *
  * The driver borrows from f_ecm.c which is:
  *
@@ -34,12 +34,12 @@
  * and also means that a get_alt() method is required.
  */
 
-/* to trigger crc/non-crc ndp signature */
+/* to trigger crc/yesn-crc ndp signature */
 
 #define NCM_NDP_HDR_CRC		0x01000000
 
-enum ncm_notify_state {
-	NCM_NOTIFY_NONE,		/* don't notify */
+enum ncm_yestify_state {
+	NCM_NOTIFY_NONE,		/* don't yestify */
 	NCM_NOTIFY_CONNECT,		/* issue CONNECT next */
 	NCM_NOTIFY_SPEED,		/* issue SPEED_CHANGE next */
 };
@@ -50,9 +50,9 @@ struct f_ncm {
 
 	char				ethaddr[14];
 
-	struct usb_ep			*notify;
-	struct usb_request		*notify_req;
-	u8				notify_state;
+	struct usb_ep			*yestify;
+	struct usb_request		*yestify_req;
+	u8				yestify_state;
 	bool				is_open;
 
 	const struct ndp_parser_opts	*parser_opts;
@@ -60,7 +60,7 @@ struct f_ncm {
 	u32				ndp_sign;
 
 	/*
-	 * for notification, it is accessed from both
+	 * for yestification, it is accessed from both
 	 * callback and ethernet open/close
 	 */
 	spinlock_t			lock;
@@ -95,7 +95,7 @@ static inline unsigned ncm_bitrate(struct usb_gadget *g)
 /*-------------------------------------------------------------------------*/
 
 /*
- * We cannot group frames so use just the minimal size which ok to put
+ * We canyest group frames so use just the minimal size which ok to put
  * one max-size ethernet frame.
  * If the host can group frames, allow it to do that, 16K is selected,
  * because it's used by default by the current linux host driver
@@ -107,7 +107,7 @@ static inline unsigned ncm_bitrate(struct usb_gadget *g)
  * 16k packet. This allows a maximum of 32 * 507 Byte packets to
  * be transmitted in a single 16kB skb, though when sending full size
  * packets this limit will be plenty.
- * Smaller packets are not likely to be trying to maximize the
+ * Smaller packets are yest likely to be trying to maximize the
  * throughput and will be mstly sending smaller infrequent frames.
  */
 #define TX_MAX_NUM_DPE		32
@@ -133,7 +133,7 @@ static struct usb_cdc_ncm_ntb_parameters ntb_parameters = {
 };
 
 /*
- * Use wMaxPacketSize big enough to fit CDC_NOTIFY_SPEED_CHANGE in one
+ * Use wMaxPacketSize big eyesugh to fit CDC_NOTIFY_SPEED_CHANGE in one
  * packet, to simplify cancellation; and a big transfer interval, to
  * waste less bandwidth.
  */
@@ -190,7 +190,7 @@ static struct usb_cdc_ether_desc ecm_desc = {
 
 	/* this descriptor actually adds value, surprise! */
 	/* .iMACAddress = DYNAMIC */
-	.bmEthernetStatistics =	cpu_to_le32(0), /* no statistics */
+	.bmEthernetStatistics =	cpu_to_le32(0), /* yes statistics */
 	.wMaxSegmentSize =	cpu_to_le16(ETH_FRAME_LEN),
 	.wNumberMCFilters =	cpu_to_le16(0),
 	.bNumberPowerFilters =	0,
@@ -208,10 +208,10 @@ static struct usb_cdc_ncm_desc ncm_desc = {
 	.bmNetworkCapabilities = NCAPS,
 };
 
-/* the default data interface has no endpoints ... */
+/* the default data interface has yes endpoints ... */
 
-static struct usb_interface_descriptor ncm_data_nop_intf = {
-	.bLength =		sizeof ncm_data_nop_intf,
+static struct usb_interface_descriptor ncm_data_yesp_intf = {
+	.bLength =		sizeof ncm_data_yesp_intf,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
 	.bInterfaceNumber =	1,
@@ -240,7 +240,7 @@ static struct usb_interface_descriptor ncm_data_intf = {
 
 /* full speed support: */
 
-static struct usb_endpoint_descriptor fs_ncm_notify_desc = {
+static struct usb_endpoint_descriptor fs_ncm_yestify_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -274,9 +274,9 @@ static struct usb_descriptor_header *ncm_fs_function[] = {
 	(struct usb_descriptor_header *) &ncm_union_desc,
 	(struct usb_descriptor_header *) &ecm_desc,
 	(struct usb_descriptor_header *) &ncm_desc,
-	(struct usb_descriptor_header *) &fs_ncm_notify_desc,
+	(struct usb_descriptor_header *) &fs_ncm_yestify_desc,
 	/* data interface, altsettings 0 and 1 */
-	(struct usb_descriptor_header *) &ncm_data_nop_intf,
+	(struct usb_descriptor_header *) &ncm_data_yesp_intf,
 	(struct usb_descriptor_header *) &ncm_data_intf,
 	(struct usb_descriptor_header *) &fs_ncm_in_desc,
 	(struct usb_descriptor_header *) &fs_ncm_out_desc,
@@ -285,7 +285,7 @@ static struct usb_descriptor_header *ncm_fs_function[] = {
 
 /* high speed support: */
 
-static struct usb_endpoint_descriptor hs_ncm_notify_desc = {
+static struct usb_endpoint_descriptor hs_ncm_yestify_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -320,9 +320,9 @@ static struct usb_descriptor_header *ncm_hs_function[] = {
 	(struct usb_descriptor_header *) &ncm_union_desc,
 	(struct usb_descriptor_header *) &ecm_desc,
 	(struct usb_descriptor_header *) &ncm_desc,
-	(struct usb_descriptor_header *) &hs_ncm_notify_desc,
+	(struct usb_descriptor_header *) &hs_ncm_yestify_desc,
 	/* data interface, altsettings 0 and 1 */
-	(struct usb_descriptor_header *) &ncm_data_nop_intf,
+	(struct usb_descriptor_header *) &ncm_data_yesp_intf,
 	(struct usb_descriptor_header *) &ncm_data_intf,
 	(struct usb_descriptor_header *) &hs_ncm_in_desc,
 	(struct usb_descriptor_header *) &hs_ncm_out_desc,
@@ -332,7 +332,7 @@ static struct usb_descriptor_header *ncm_hs_function[] = {
 
 /* super speed support: */
 
-static struct usb_endpoint_descriptor ss_ncm_notify_desc = {
+static struct usb_endpoint_descriptor ss_ncm_yestify_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -342,8 +342,8 @@ static struct usb_endpoint_descriptor ss_ncm_notify_desc = {
 	.bInterval =		USB_MS_TO_HS_INTERVAL(NCM_STATUS_INTERVAL_MS)
 };
 
-static struct usb_ss_ep_comp_descriptor ss_ncm_notify_comp_desc = {
-	.bLength =		sizeof(ss_ncm_notify_comp_desc),
+static struct usb_ss_ep_comp_descriptor ss_ncm_yestify_comp_desc = {
+	.bLength =		sizeof(ss_ncm_yestify_comp_desc),
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
 
 	/* the following 3 values can be tweaked if necessary */
@@ -387,10 +387,10 @@ static struct usb_descriptor_header *ncm_ss_function[] = {
 	(struct usb_descriptor_header *) &ncm_union_desc,
 	(struct usb_descriptor_header *) &ecm_desc,
 	(struct usb_descriptor_header *) &ncm_desc,
-	(struct usb_descriptor_header *) &ss_ncm_notify_desc,
-	(struct usb_descriptor_header *) &ss_ncm_notify_comp_desc,
+	(struct usb_descriptor_header *) &ss_ncm_yestify_desc,
+	(struct usb_descriptor_header *) &ss_ncm_yestify_comp_desc,
 	/* data interface, altsettings 0 and 1 */
-	(struct usb_descriptor_header *) &ncm_data_nop_intf,
+	(struct usb_descriptor_header *) &ncm_data_yesp_intf,
 	(struct usb_descriptor_header *) &ncm_data_intf,
 	(struct usb_descriptor_header *) &ss_ncm_in_desc,
 	(struct usb_descriptor_header *) &ss_ncm_bulk_comp_desc,
@@ -538,20 +538,20 @@ static inline void ncm_reset_values(struct f_ncm *ncm)
 /*
  * Context: ncm->lock held
  */
-static void ncm_do_notify(struct f_ncm *ncm)
+static void ncm_do_yestify(struct f_ncm *ncm)
 {
-	struct usb_request		*req = ncm->notify_req;
-	struct usb_cdc_notification	*event;
+	struct usb_request		*req = ncm->yestify_req;
+	struct usb_cdc_yestification	*event;
 	struct usb_composite_dev	*cdev = ncm->port.func.config->cdev;
 	__le32				*data;
 	int				status;
 
-	/* notification already in flight? */
+	/* yestification already in flight? */
 	if (!req)
 		return;
 
 	event = req->buf;
-	switch (ncm->notify_state) {
+	switch (ncm->yestify_state) {
 	case NCM_NOTIFY_NONE:
 		return;
 
@@ -564,9 +564,9 @@ static void ncm_do_notify(struct f_ncm *ncm)
 		event->wLength = 0;
 		req->length = sizeof *event;
 
-		DBG(cdev, "notify connect %s\n",
+		DBG(cdev, "yestify connect %s\n",
 				ncm->is_open ? "true" : "false");
-		ncm->notify_state = NCM_NOTIFY_NONE;
+		ncm->yestify_state = NCM_NOTIFY_NONE;
 		break;
 
 	case NCM_NOTIFY_SPEED:
@@ -580,52 +580,52 @@ static void ncm_do_notify(struct f_ncm *ncm)
 		data[0] = cpu_to_le32(ncm_bitrate(cdev->gadget));
 		data[1] = data[0];
 
-		DBG(cdev, "notify speed %d\n", ncm_bitrate(cdev->gadget));
-		ncm->notify_state = NCM_NOTIFY_CONNECT;
+		DBG(cdev, "yestify speed %d\n", ncm_bitrate(cdev->gadget));
+		ncm->yestify_state = NCM_NOTIFY_CONNECT;
 		break;
 	}
 	event->bmRequestType = 0xA1;
 	event->wIndex = cpu_to_le16(ncm->ctrl_id);
 
-	ncm->notify_req = NULL;
+	ncm->yestify_req = NULL;
 	/*
 	 * In double buffering if there is a space in FIFO,
 	 * completion callback can be called right after the call,
 	 * so unlocking
 	 */
 	spin_unlock(&ncm->lock);
-	status = usb_ep_queue(ncm->notify, req, GFP_ATOMIC);
+	status = usb_ep_queue(ncm->yestify, req, GFP_ATOMIC);
 	spin_lock(&ncm->lock);
 	if (status < 0) {
-		ncm->notify_req = req;
-		DBG(cdev, "notify --> %d\n", status);
+		ncm->yestify_req = req;
+		DBG(cdev, "yestify --> %d\n", status);
 	}
 }
 
 /*
  * Context: ncm->lock held
  */
-static void ncm_notify(struct f_ncm *ncm)
+static void ncm_yestify(struct f_ncm *ncm)
 {
 	/*
 	 * NOTE on most versions of Linux, host side cdc-ethernet
-	 * won't listen for notifications until its netdevice opens.
-	 * The first notification then sits in the FIFO for a long
+	 * won't listen for yestifications until its netdevice opens.
+	 * The first yestification then sits in the FIFO for a long
 	 * time, and the second one is queued.
 	 *
-	 * If ncm_notify() is called before the second (CONNECT)
-	 * notification is sent, then it will reset to send the SPEED
-	 * notificaion again (and again, and again), but it's not a problem
+	 * If ncm_yestify() is called before the second (CONNECT)
+	 * yestification is sent, then it will reset to send the SPEED
+	 * yestificaion again (and again, and again), but it's yest a problem
 	 */
-	ncm->notify_state = NCM_NOTIFY_SPEED;
-	ncm_do_notify(ncm);
+	ncm->yestify_state = NCM_NOTIFY_SPEED;
+	ncm_do_yestify(ncm);
 }
 
-static void ncm_notify_complete(struct usb_ep *ep, struct usb_request *req)
+static void ncm_yestify_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct f_ncm			*ncm = req->context;
 	struct usb_composite_dev	*cdev = ncm->port.func.config->cdev;
-	struct usb_cdc_notification	*event = req->buf;
+	struct usb_cdc_yestification	*event = req->buf;
 
 	spin_lock(&ncm->lock);
 	switch (req->status) {
@@ -635,21 +635,21 @@ static void ncm_notify_complete(struct usb_ep *ep, struct usb_request *req)
 		break;
 	case -ECONNRESET:
 	case -ESHUTDOWN:
-		ncm->notify_state = NCM_NOTIFY_NONE;
+		ncm->yestify_state = NCM_NOTIFY_NONE;
 		break;
 	default:
 		DBG(cdev, "event %02x --> %d\n",
 			event->bNotificationType, req->status);
 		break;
 	}
-	ncm->notify_req = req;
-	ncm_do_notify(ncm);
+	ncm->yestify_req = req;
+	ncm_do_yestify(ncm);
 	spin_unlock(&ncm->lock);
 }
 
 static void ncm_ep0out_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	/* now for SET_NTB_INPUT_SIZE only */
+	/* yesw for SET_NTB_INPUT_SIZE only */
 	unsigned		in_size;
 	struct usb_function	*f = req->context;
 	struct f_ncm		*ncm = func_to_ncm(f);
@@ -695,7 +695,7 @@ static int ncm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	case ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE) << 8)
 			| USB_CDC_SET_ETHERNET_PACKET_FILTER:
 		/*
-		 * see 6.2.30: no data, wIndex = interface,
+		 * see 6.2.30: yes data, wIndex = interface,
 		 * wValue = packet filter bitmap
 		 */
 		if (w_length != 0 || w_index != ncm->ctrl_id)
@@ -704,7 +704,7 @@ static int ncm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 		/*
 		 * REVISIT locking of cdc_filter.  This assumes the UDC
 		 * driver won't have a concurrent packet TX irq running on
-		 * another CPU; or that if it does, this write is atomic...
+		 * ayesther CPU; or that if it does, this write is atomic...
 		 */
 		ncm->port.cdc_filter = w_value;
 		value = 0;
@@ -810,7 +810,7 @@ static int ncm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 		switch (w_value) {
 		case 0x0000:
 			ncm->is_crc = false;
-			DBG(cdev, "non-CRC mode selected\n");
+			DBG(cdev, "yesn-CRC mode selected\n");
 			break;
 		case 0x0001:
 			ncm->is_crc = true;
@@ -868,14 +868,14 @@ static int ncm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			goto fail;
 
 		DBG(cdev, "reset ncm control %d\n", intf);
-		usb_ep_disable(ncm->notify);
+		usb_ep_disable(ncm->yestify);
 
-		if (!(ncm->notify->desc)) {
+		if (!(ncm->yestify->desc)) {
 			DBG(cdev, "init ncm ctrl %d\n", intf);
-			if (config_ep_by_speed(cdev->gadget, f, ncm->notify))
+			if (config_ep_by_speed(cdev->gadget, f, ncm->yestify))
 				goto fail;
 		}
-		usb_ep_enable(ncm->notify);
+		usb_ep_enable(ncm->yestify);
 
 	/* Data interface has two altsettings, 0 and 1 */
 	} else if (intf == ncm->data_id) {
@@ -891,7 +891,7 @@ static int ncm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		}
 
 		/*
-		 * CDC Network only sends data in non-default altsettings.
+		 * CDC Network only sends data in yesn-default altsettings.
 		 * Changing altsettings resets filters, statistics, etc.
 		 */
 		if (alt == 1) {
@@ -926,7 +926,7 @@ static int ncm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		}
 
 		spin_lock(&ncm->lock);
-		ncm_notify(ncm);
+		ncm_yestify(ncm);
 		spin_unlock(&ncm->lock);
 	} else
 		goto fail;
@@ -1040,7 +1040,7 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 		}
 
 		/* If the new skb is too big for the current NCM NTB then
-		 * set the current stored skb to be sent now and clear it
+		 * set the current stored skb to be sent yesw and clear it
 		 * ready for new data.
 		 * NOTE: Assume maximum align for speed of calculation.
 		 */
@@ -1143,7 +1143,7 @@ err:
 }
 
 /*
- * The transmit should only be run if no skb data has been sent
+ * The transmit should only be run if yes skb data has been sent
  * for a certain duration.
  */
 static enum hrtimer_restart ncm_tx_timeout(struct hrtimer *data)
@@ -1155,7 +1155,7 @@ static enum hrtimer_restart ncm_tx_timeout(struct hrtimer *data)
 		ncm->timer_force_tx = true;
 
 		/* XXX This allowance of a NULL skb argument to ndo_start_xmit
-		 * XXX is not sane.  The gadget layer should be redesigned so
+		 * XXX is yest sane.  The gadget layer should be redesigned so
 		 * XXX that the dev->wrap() invocations to build SKBs is transparent
 		 * XXX and performed in some way outside of the ndo_start_xmit
 		 * XXX interface.
@@ -1232,7 +1232,7 @@ static int ncm_unwrap_ntb(struct gether *port,
 		 * NCM 3.3.1
 		 * entry is 2 items
 		 * item size is 16/32 bits, opts->dgram_item_len * 2 bytes
-		 * minimal: struct usb_cdc_ncm_ndpX + normal entry + zero entry
+		 * minimal: struct usb_cdc_ncm_ndpX + yesrmal entry + zero entry
 		 * Each entry is a dgram index and a dgram length.
 		 */
 		if ((ndp_len < opts->ndp_size
@@ -1243,7 +1243,7 @@ static int ncm_unwrap_ntb(struct gether *port,
 			goto err;
 		}
 		tmp += opts->reserved1;
-		/* Check for another NDP (d)wNextNdpIndex */
+		/* Check for ayesther NDP (d)wNextNdpIndex */
 		ndp_index = get_ncm(&tmp, opts->next_ndp_index);
 		tmp += opts->reserved2;
 
@@ -1325,19 +1325,19 @@ static void ncm_disable(struct usb_function *f)
 		gether_disconnect(&ncm->port);
 	}
 
-	if (ncm->notify->enabled) {
-		usb_ep_disable(ncm->notify);
-		ncm->notify->desc = NULL;
+	if (ncm->yestify->enabled) {
+		usb_ep_disable(ncm->yestify);
+		ncm->yestify->desc = NULL;
 	}
 }
 
 /*-------------------------------------------------------------------------*/
 
 /*
- * Callbacks let us notify the host about connect/disconnect when the
+ * Callbacks let us yestify the host about connect/disconnect when the
  * net device is opened or closed.
  *
- * For testing, note that link states on this side include both opened
+ * For testing, yeste that link states on this side include both opened
  * and closed variants of:
  *
  *   - disconnected/unconfigured
@@ -1346,7 +1346,7 @@ static void ncm_disable(struct usb_function *f)
  *
  * Each needs to be tested with unplug, rmmod, SET_CONFIGURATION, and
  * SET_INTERFACE (altsetting).  Remember also that "configured" doesn't
- * imply the host is actually polling the notification endpoint, and
+ * imply the host is actually polling the yestification endpoint, and
  * likewise that "active" doesn't imply it's actually using the data
  * endpoints for traffic.
  */
@@ -1359,7 +1359,7 @@ static void ncm_open(struct gether *geth)
 
 	spin_lock(&ncm->lock);
 	ncm->is_open = true;
-	ncm_notify(ncm);
+	ncm_yestify(ncm);
 	spin_unlock(&ncm->lock);
 }
 
@@ -1371,7 +1371,7 @@ static void ncm_close(struct gether *geth)
 
 	spin_lock(&ncm->lock);
 	ncm->is_open = false;
-	ncm_notify(ncm);
+	ncm_yestify(ncm);
 	spin_unlock(&ncm->lock);
 }
 
@@ -1406,7 +1406,7 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
 	 * configurations are bound in sequence with list_for_each_entry,
 	 * in each configuration its functions are bound in sequence
-	 * with list_for_each_entry, so we assume no race condition
+	 * with list_for_each_entry, so we assume yes race condition
 	 * with regard to ncm_opts->bound access
 	 */
 	if (!ncm_opts->bound) {
@@ -1425,7 +1425,7 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	}
 	ncm_control_intf.iInterface = us[STRING_CTRL_IDX].id;
-	ncm_data_nop_intf.iInterface = us[STRING_DATA_IDX].id;
+	ncm_data_yesp_intf.iInterface = us[STRING_DATA_IDX].id;
 	ncm_data_intf.iInterface = us[STRING_DATA_IDX].id;
 	ecm_desc.iMACAddress = us[STRING_MAC_IDX].id;
 	ncm_iad_desc.iFunction = us[STRING_IAD_IDX].id;
@@ -1449,7 +1449,7 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	ncm->data_id = status;
 
-	ncm_data_nop_intf.bInterfaceNumber = status;
+	ncm_data_yesp_intf.bInterfaceNumber = status;
 	ncm_data_intf.bInterfaceNumber = status;
 	ncm_union_desc.bSlaveInterface0 = status;
 
@@ -1466,22 +1466,22 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	ncm->port.out_ep = ep;
 
-	ep = usb_ep_autoconfig(cdev->gadget, &fs_ncm_notify_desc);
+	ep = usb_ep_autoconfig(cdev->gadget, &fs_ncm_yestify_desc);
 	if (!ep)
 		goto fail;
-	ncm->notify = ep;
+	ncm->yestify = ep;
 
 	status = -ENOMEM;
 
-	/* allocate notification request and buffer */
-	ncm->notify_req = usb_ep_alloc_request(ep, GFP_KERNEL);
-	if (!ncm->notify_req)
+	/* allocate yestification request and buffer */
+	ncm->yestify_req = usb_ep_alloc_request(ep, GFP_KERNEL);
+	if (!ncm->yestify_req)
 		goto fail;
-	ncm->notify_req->buf = kmalloc(NCM_STATUS_BYTECOUNT, GFP_KERNEL);
-	if (!ncm->notify_req->buf)
+	ncm->yestify_req->buf = kmalloc(NCM_STATUS_BYTECOUNT, GFP_KERNEL);
+	if (!ncm->yestify_req->buf)
 		goto fail;
-	ncm->notify_req->context = ncm;
-	ncm->notify_req->complete = ncm_notify_complete;
+	ncm->yestify_req->context = ncm;
+	ncm->yestify_req->complete = ncm_yestify_complete;
 
 	/*
 	 * support all relevant hardware speeds... we expect that when
@@ -1490,13 +1490,13 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 	 */
 	hs_ncm_in_desc.bEndpointAddress = fs_ncm_in_desc.bEndpointAddress;
 	hs_ncm_out_desc.bEndpointAddress = fs_ncm_out_desc.bEndpointAddress;
-	hs_ncm_notify_desc.bEndpointAddress =
-		fs_ncm_notify_desc.bEndpointAddress;
+	hs_ncm_yestify_desc.bEndpointAddress =
+		fs_ncm_yestify_desc.bEndpointAddress;
 
 	ss_ncm_in_desc.bEndpointAddress = fs_ncm_in_desc.bEndpointAddress;
 	ss_ncm_out_desc.bEndpointAddress = fs_ncm_out_desc.bEndpointAddress;
-	ss_ncm_notify_desc.bEndpointAddress =
-		fs_ncm_notify_desc.bEndpointAddress;
+	ss_ncm_yestify_desc.bEndpointAddress =
+		fs_ncm_yestify_desc.bEndpointAddress;
 
 	status = usb_assign_descriptors(f, ncm_fs_function, ncm_hs_function,
 			ncm_ss_function, NULL);
@@ -1504,7 +1504,7 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 
 	/*
-	 * NOTE:  all that is done without knowing or caring about
+	 * NOTE:  all that is done without kyeswing or caring about
 	 * the network link ... which is unavailable to this code
 	 * until we're activated via set_alt().
 	 */
@@ -1519,16 +1519,16 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 			gadget_is_superspeed(c->cdev->gadget) ? "super" :
 			gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
 			ncm->port.in_ep->name, ncm->port.out_ep->name,
-			ncm->notify->name);
+			ncm->yestify->name);
 	return 0;
 
 fail:
 	kfree(f->os_desc_table);
 	f->os_desc_n = 0;
 
-	if (ncm->notify_req) {
-		kfree(ncm->notify_req->buf);
-		usb_ep_free_request(ncm->notify, ncm->notify_req);
+	if (ncm->yestify_req) {
+		kfree(ncm->yestify_req->buf);
+		usb_ep_free_request(ncm->yestify, ncm->yestify_req);
 	}
 
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);
@@ -1649,8 +1649,8 @@ static void ncm_unbind(struct usb_configuration *c, struct usb_function *f)
 	ncm_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
 
-	kfree(ncm->notify_req->buf);
-	usb_ep_free_request(ncm->notify, ncm->notify_req);
+	kfree(ncm->yestify_req->buf);
+	usb_ep_free_request(ncm->yestify, ncm->yestify_req);
 }
 
 static struct usb_function *ncm_alloc(struct usb_function_instance *fi)

@@ -52,8 +52,8 @@ struct platform_device *__init imx_add_sdhci_esdhc_imx(
 	};
 
 	/*
-	 * If machine does not provide pdata, use the default one
-	 * which means no WP/CD support
+	 * If machine does yest provide pdata, use the default one
+	 * which means yes WP/CD support
 	 */
 	if (!pdata)
 		pdata = &default_esdhc_pdata;

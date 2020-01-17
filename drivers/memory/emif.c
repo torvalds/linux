@@ -38,7 +38,7 @@
  *				are two devices attached to this EMIF, this
  *				value is the maximum of the two temperature
  *				levels.
- * @node:			node in the device list
+ * @yesde:			yesde in the device list
  * @base:			base address of memory-mapped IO registers.
  * @dev:			device pointer.
  * @addressing			table with addressing information from the spec
@@ -51,13 +51,13 @@
  *				frequency in effect at the moment)
  * @plat_data:			Pointer to saved platform data.
  * @debugfs_root:		dentry to the root folder for EMIF in debugfs
- * @np_ddr:			Pointer to ddr device tree node
+ * @np_ddr:			Pointer to ddr device tree yesde
  */
 struct emif_data {
 	u8				duplicate;
 	u8				temperature_level;
 	u8				lpmode;
-	struct list_head		node;
+	struct list_head		yesde;
 	unsigned long			irq_state;
 	void __iomem			*base;
 	struct device			*dev;
@@ -66,7 +66,7 @@ struct emif_data {
 	struct emif_regs		*curr_regs;
 	struct emif_platform_data	*plat_data;
 	struct dentry			*debugfs_root;
-	struct device_node		*np_ddr;
+	struct device_yesde		*np_ddr;
 };
 
 static struct emif_data *emif1;
@@ -91,13 +91,13 @@ static void do_emif_regdump_show(struct seq_file *s, struct emif_data *emif,
 	seq_printf(s, "sdram_tim3_shdw\t: 0x%08x\n", regs->sdram_tim3_shdw);
 
 	if (ip_rev == EMIF_4D) {
-		seq_printf(s, "read_idle_ctrl_shdw_normal\t: 0x%08x\n",
-			regs->read_idle_ctrl_shdw_normal);
+		seq_printf(s, "read_idle_ctrl_shdw_yesrmal\t: 0x%08x\n",
+			regs->read_idle_ctrl_shdw_yesrmal);
 		seq_printf(s, "read_idle_ctrl_shdw_volt_ramp\t: 0x%08x\n",
 			regs->read_idle_ctrl_shdw_volt_ramp);
 	} else if (ip_rev == EMIF_4D5) {
-		seq_printf(s, "dll_calib_ctrl_shdw_normal\t: 0x%08x\n",
-			regs->dll_calib_ctrl_shdw_normal);
+		seq_printf(s, "dll_calib_ctrl_shdw_yesrmal\t: 0x%08x\n",
+			regs->dll_calib_ctrl_shdw_yesrmal);
 		seq_printf(s, "dll_calib_ctrl_shdw_volt_ramp\t: 0x%08x\n",
 			regs->dll_calib_ctrl_shdw_volt_ramp);
 	}
@@ -131,9 +131,9 @@ static int emif_regdump_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int emif_regdump_open(struct inode *inode, struct file *file)
+static int emif_regdump_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, emif_regdump_show, inode->i_private);
+	return single_open(file, emif_regdump_show, iyesde->i_private);
 }
 
 static const struct file_operations emif_regdump_fops = {
@@ -150,9 +150,9 @@ static int emif_mr4_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int emif_mr4_open(struct inode *inode, struct file *file)
+static int emif_mr4_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, emif_mr4_show, inode->i_private);
+	return single_open(file, emif_mr4_show, iyesde->i_private);
 }
 
 static const struct file_operations emif_mr4_fops = {
@@ -262,13 +262,13 @@ static void set_lpmode(struct emif_data *emif, u8 lpmode)
 	 * i743 DESCRIPTION:
 	 * The EMIF supports power-down state for low power. The EMIF
 	 * automatically puts the SDRAM into power-down after the memory is
-	 * not accessed for a defined number of cycles and the
+	 * yest accessed for a defined number of cycles and the
 	 * EMIF_PWR_MGMT_CTRL[10:8] REG_LP_MODE bit field is set to 0x4.
 	 * As the EMIF supports automatic output impedance calibration, a ZQ
 	 * calibration long command is issued every time it exits active
 	 * power-down and precharge power-down modes. The EMIF waits and
 	 * blocks any other command during this calibration.
-	 * The EMIF does not allow selective disabling of ZQ calibration upon
+	 * The EMIF does yest allow selective disabling of ZQ calibration upon
 	 * exit of power-down mode. Due to very short periods of power-down
 	 * cycles, ZQ calibration overhead creates bandwidth issues and
 	 * increases overall system power consumption. On the other hand,
@@ -276,9 +276,9 @@ static void set_lpmode(struct emif_data *emif, u8 lpmode)
 	 * still required.
 	 *
 	 * WORKAROUND
-	 * Because there is no power consumption benefit of the power-down due
+	 * Because there is yes power consumption benefit of the power-down due
 	 * to the calibration and there is a performance risk, the guideline
-	 * is to not allow power-down state and, therefore, to not have set
+	 * is to yest allow power-down state and, therefore, to yest have set
 	 * the EMIF_PWR_MGMT_CTRL[10:8] REG_LP_MODE bit field to 0x4.
 	 */
 	if ((emif->plat_data->ip_rev == EMIF_4D) &&
@@ -305,7 +305,7 @@ static void do_freq_update(void)
 	 *
 	 * i728 DESCRIPTION:
 	 * The EMIF automatically puts the SDRAM into self-refresh mode
-	 * after the EMIF has not performed accesses during
+	 * after the EMIF has yest performed accesses during
 	 * EMIF_PWR_MGMT_CTRL[7:4] REG_SR_TIM number of DDR clock cycles
 	 * and the EMIF_PWR_MGMT_CTRL[10:8] REG_LP_MODE bit field is set
 	 * to 0x2. If during a small window the following three events
@@ -323,7 +323,7 @@ static void do_freq_update(void)
 	 * frequency change has been done, the software can reprogram
 	 * EMIF_PWR_MGMT_CTRL[10:8] REG_LP_MODE to 0x2
 	 */
-	list_for_each_entry(emif, &device_list, node) {
+	list_for_each_entry(emif, &device_list, yesde) {
 		if (emif->lpmode == EMIF_LP_MODE_SELF_REFRESH)
 			set_lpmode(emif, EMIF_LP_MODE_DISABLE);
 	}
@@ -334,7 +334,7 @@ static void do_freq_update(void)
 	 * clock framework
 	 */
 
-	list_for_each_entry(emif, &device_list, node) {
+	list_for_each_entry(emif, &device_list, yesde) {
 		if (emif->lpmode == EMIF_LP_MODE_SELF_REFRESH)
 			set_lpmode(emif, EMIF_LP_MODE_SELF_REFRESH);
 	}
@@ -636,7 +636,7 @@ static u32 get_read_idle_ctrl_shdw(u8 volt_ramp)
 	u32 idle = 0, val = 0;
 
 	/*
-	 * Maximum value in normal conditions and increased frequency
+	 * Maximum value in yesrmal conditions and increased frequency
 	 * when voltage is ramping
 	 */
 	if (volt_ramp)
@@ -695,7 +695,7 @@ static u32 get_phy_ctrl_1_intelliphy_4d5(u32 freq, u8 cl)
 
 	/*
 	 * DLL operates at 266 MHz. If DDR frequency is near 266 MHz,
-	 * half-delay is not needed else set half-delay
+	 * half-delay is yest needed else set half-delay
 	 */
 	if (freq >= 265000000 && freq < 267000000)
 		half_delay = 0;
@@ -767,7 +767,7 @@ static u32 get_pwr_mgmt_ctrl(u32 freq, struct emif_data *emif, u32 ip_rev)
 	/*
 	 * The value to be set in register is "log2(timeout) - 3"
 	 * if timeout < 16 load 0 in register
-	 * if timeout is not a power of 2, round to next highest power of 2
+	 * if timeout is yest a power of 2, round to next highest power of 2
 	 */
 	if (timeout < 16) {
 		timeout = 0;
@@ -854,7 +854,7 @@ static void get_temperature_level(struct emif_data *emif)
 		temperature_level = max(temp, temperature_level);
 	}
 
-	/* treat everything less than nominal(3) in MR4 as nominal */
+	/* treat everything less than yesminal(3) in MR4 as yesminal */
 	if (unlikely(temperature_level < SDRAM_TEMP_NOMINAL))
 		temperature_level = SDRAM_TEMP_NOMINAL;
 
@@ -864,7 +864,7 @@ static void get_temperature_level(struct emif_data *emif)
 }
 
 /*
- * Program EMIF shadow registers that are not dependent on temperature
+ * Program EMIF shadow registers that are yest dependent on temperature
  * or voltage
  */
 static void setup_registers(struct emif_data *emif, struct emif_regs *regs)
@@ -903,7 +903,7 @@ static void setup_volt_sensitive_regs(struct emif_data *emif,
 	if (volt_state == DDR_VOLTAGE_RAMPING)
 		calib_ctrl = regs->dll_calib_ctrl_shdw_volt_ramp;
 	else
-		calib_ctrl = regs->dll_calib_ctrl_shdw_normal;
+		calib_ctrl = regs->dll_calib_ctrl_shdw_yesrmal;
 
 	writel(calib_ctrl, base + EMIF_DLL_CALIB_CTRL_SHDW);
 }
@@ -914,7 +914,7 @@ static void setup_volt_sensitive_regs(struct emif_data *emif,
  * on the temperature at boot time and subsequently based on the temperature
  * alert interrupt. Temperature alert can happen when the temperature
  * increases or drops. So this function can have the effect of either
- * derating the timings or going back to nominal values.
+ * derating the timings or going back to yesminal values.
  */
 static void setup_temperature_sensitive_regs(struct emif_data *emif,
 		struct emif_regs *regs)
@@ -929,7 +929,7 @@ static void setup_temperature_sensitive_regs(struct emif_data *emif,
 	tim3 = regs->sdram_tim3_shdw;
 	ref_ctrl = regs->ref_ctrl_shdw;
 
-	/* No de-rating for non-lpddr2 devices */
+	/* No de-rating for yesn-lpddr2 devices */
 	if (type != DDR_TYPE_LPDDR2_S2 && type != DDR_TYPE_LPDDR2_S4)
 		goto out;
 
@@ -961,14 +961,14 @@ static irqreturn_t handle_temp_alert(void __iomem *base, struct emif_data *emif)
 	if (unlikely(emif->temperature_level == old_temp_level)) {
 		goto out;
 	} else if (!emif->curr_regs) {
-		dev_err(emif->dev, "temperature alert before registers are calculated, not de-rating timings\n");
+		dev_err(emif->dev, "temperature alert before registers are calculated, yest de-rating timings\n");
 		goto out;
 	}
 
 	custom_configs = emif->plat_data->custom_configs;
 
 	/*
-	 * IF we detect higher than "nominal rating" from DDR sensor
+	 * IF we detect higher than "yesminal rating" from DDR sensor
 	 * on an unsupported DDR part, shutdown system
 	 */
 	if (custom_configs && !(custom_configs->mask &
@@ -1022,7 +1022,7 @@ static irqreturn_t emif_interrupt_handler(int irq, void *dev_id)
 	/*
 	 * Handle temperature alert
 	 * Temperature alert should be same for all ports
-	 * So, it's enough to process it only for one of the ports
+	 * So, it's eyesugh to process it only for one of the ports
 	 */
 	if (interrupts & TA_SYS_MASK)
 		ret = handle_temp_alert(base, emif);
@@ -1066,7 +1066,7 @@ static irqreturn_t emif_threaded_isr(int irq, void *dev_id)
 		setup_temperature_sensitive_regs(emif, emif->curr_regs);
 		do_freq_update();
 	} else {
-		dev_err(emif->dev, "temperature alert before registers are calculated, not de-rating timings\n");
+		dev_err(emif->dev, "temperature alert before registers are calculated, yest de-rating timings\n");
 	}
 
 	spin_unlock_irqrestore(&emif_lock, irq_state);
@@ -1117,7 +1117,7 @@ static int __init_or_module setup_interrupts(struct emif_data *emif, u32 irq)
 
 	/* Enable interrupts for LL interface */
 	if (emif->plat_data->hw_caps & EMIF_HW_CAPS_LL_INTERFACE) {
-		/* TA need not be enabled for LL */
+		/* TA need yest be enabled for LL */
 		interrupts = EN_ERR_LL_MASK;
 		writel(interrupts, base + EMIF_LL_OCP_INTERRUPT_ENABLE_SET);
 	}
@@ -1143,7 +1143,7 @@ static void __init_or_module emif_onetime_settings(struct emif_data *emif)
 
 	/*
 	 * Init power management settings
-	 * We don't know the frequency yet. Use a high frequency
+	 * We don't kyesw the frequency yet. Use a high frequency
 	 * value for a conservative timeout setting
 	 */
 	pwr_mgmt_ctrl = get_pwr_mgmt_ctrl(1000000000, emif,
@@ -1168,7 +1168,7 @@ static void __init_or_module emif_onetime_settings(struct emif_data *emif)
 	writel(temp_alert_cfg, base + EMIF_TEMPERATURE_ALERT_CONFIG);
 
 	/*
-	 * Program external PHY control registers that are not frequency
+	 * Program external PHY control registers that are yest frequency
 	 * dependent
 	 */
 	if (emif->plat_data->phy_type != EMIF_PHY_TYPE_INTELLIPHY)
@@ -1256,7 +1256,7 @@ static int is_custom_config_valid(struct emif_custom_configs *cust_cfgs,
 }
 
 #if defined(CONFIG_OF)
-static void __init_or_module of_get_custom_configs(struct device_node *np_emif,
+static void __init_or_module of_get_custom_configs(struct device_yesde *np_emif,
 		struct emif_data *emif)
 {
 	struct emif_custom_configs	*cust_cfgs = NULL;
@@ -1305,8 +1305,8 @@ static void __init_or_module of_get_custom_configs(struct device_node *np_emif,
 	emif->plat_data->custom_configs = cust_cfgs;
 }
 
-static void __init_or_module of_get_ddr_info(struct device_node *np_emif,
-		struct device_node *np_ddr,
+static void __init_or_module of_get_ddr_info(struct device_yesde *np_emif,
+		struct device_yesde *np_ddr,
 		struct ddr_device_info *dev_info)
 {
 	u32 density = 0, io_width = 0;
@@ -1340,12 +1340,12 @@ static void __init_or_module of_get_ddr_info(struct device_node *np_emif,
 }
 
 static struct emif_data * __init_or_module of_get_memory_device_details(
-		struct device_node *np_emif, struct device *dev)
+		struct device_yesde *np_emif, struct device *dev)
 {
 	struct emif_data		*emif = NULL;
 	struct ddr_device_info		*dev_info = NULL;
 	struct emif_platform_data	*pd = NULL;
-	struct device_node		*np_ddr;
+	struct device_yesde		*np_ddr;
 	int				len;
 
 	np_ddr = of_parse_phandle(np_emif, "device-handle", 0);
@@ -1415,7 +1415,7 @@ out:
 #else
 
 static struct emif_data * __init_or_module of_get_memory_device_details(
-		struct device_node *np_emif, struct device *dev)
+		struct device_yesde *np_emif, struct device *dev)
 {
 	return NULL;
 }
@@ -1480,8 +1480,8 @@ static struct emif_data *__init_or_module get_device_details(
 	}
 
 	/*
-	 * Copy custom configs - ignore allocation error, if any, as
-	 * custom_configs is not very critical
+	 * Copy custom configs - igyesre allocation error, if any, as
+	 * custom_configs is yest very critical
 	 */
 	cust_cfgs = pd->custom_configs;
 	if (cust_cfgs && is_custom_config_valid(cust_cfgs, dev)) {
@@ -1495,7 +1495,7 @@ static struct emif_data *__init_or_module get_device_details(
 	}
 
 	/*
-	 * Copy timings and min-tck values from platform data. If it is not
+	 * Copy timings and min-tck values from platform data. If it is yest
 	 * available or if memory allocation fails, use JEDEC defaults
 	 */
 	size = sizeof(struct lpddr2_timings) * pd->timings_arr_size;
@@ -1540,8 +1540,8 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 	struct resource		*res;
 	int			irq;
 
-	if (pdev->dev.of_node)
-		emif = of_get_memory_device_details(pdev->dev.of_node, &pdev->dev);
+	if (pdev->dev.of_yesde)
+		emif = of_get_memory_device_details(pdev->dev.of_yesde, &pdev->dev);
 	else
 		emif = get_device_details(pdev);
 
@@ -1550,7 +1550,7 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	list_add(&emif->node, &device_list);
+	list_add(&emif->yesde, &device_list);
 	emif->addressing = get_addressing_table(emif->plat_data->device_info);
 
 	/* Save pointers to each other in emif and device structures */
@@ -1580,7 +1580,7 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 		spin_lock_init(&emif_lock);
 
 		/*
-		 * TODO: register notifiers for frequency and voltage
+		 * TODO: register yestifiers for frequency and voltage
 		 * change here once the respective frameworks are
 		 * available
 		 */
@@ -1631,7 +1631,7 @@ static int get_emif_reg_values(struct emif_data *emif, u32 freq,
 	timings		= get_timings_table(emif_for_calc, freq);
 	addressing	= emif_for_calc->addressing;
 	if (!timings || !addressing) {
-		dev_err(dev, "%s: not enough data available for %dHz",
+		dev_err(dev, "%s: yest eyesugh data available for %dHz",
 			__func__, freq);
 		return -1;
 	}
@@ -1673,13 +1673,13 @@ static int get_emif_reg_values(struct emif_data *emif, u32 freq,
 		(CS_TIM_MASK | SR_TIM_MASK | PD_TIM_MASK);
 
 	if (ip_rev & EMIF_4D) {
-		regs->read_idle_ctrl_shdw_normal =
+		regs->read_idle_ctrl_shdw_yesrmal =
 			get_read_idle_ctrl_shdw(DDR_VOLTAGE_STABLE);
 
 		regs->read_idle_ctrl_shdw_volt_ramp =
 			get_read_idle_ctrl_shdw(DDR_VOLTAGE_RAMPING);
 	} else if (ip_rev & EMIF_4D5) {
-		regs->dll_calib_ctrl_shdw_normal =
+		regs->dll_calib_ctrl_shdw_yesrmal =
 			get_dll_calib_ctrl_shdw(DDR_VOLTAGE_STABLE);
 
 		regs->dll_calib_ctrl_shdw_volt_ramp =
@@ -1712,7 +1712,7 @@ static int get_emif_reg_values(struct emif_data *emif, u32 freq,
  * register cache with EMIF1 if the devices connected on this instance
  * are same as that on EMIF1(indicated by the duplicate flag)
  *
- * If we do not have an entry corresponding to the frequency given, we
+ * If we do yest have an entry corresponding to the frequency given, we
  * allocate a new entry and calculate the values
  *
  * Upon finding the right reg dump, save it in curr_regs. It can be
@@ -1762,7 +1762,7 @@ static struct emif_regs *get_regs(struct emif_data *emif, u32 freq)
 
 		/*
 		 * Now look for an un-used entry in the cache and save the
-		 * newly created struct. If there are no free entries
+		 * newly created struct. If there are yes free entries
 		 * over-write the last entry
 		 */
 		for (i = 0; i < EMIF_MAX_NUM_FREQUENCIES && regs_cache[i]; i++)
@@ -1780,14 +1780,14 @@ static struct emif_regs *get_regs(struct emif_data *emif, u32 freq)
 	return regs;
 }
 
-static void do_volt_notify_handling(struct emif_data *emif, u32 volt_state)
+static void do_volt_yestify_handling(struct emif_data *emif, u32 volt_state)
 {
-	dev_dbg(emif->dev, "%s: voltage notification : %d", __func__,
+	dev_dbg(emif->dev, "%s: voltage yestification : %d", __func__,
 		volt_state);
 
 	if (!emif->curr_regs) {
 		dev_err(emif->dev,
-			"%s: volt-notify before registers are ready: %d\n",
+			"%s: volt-yestify before registers are ready: %d\n",
 			__func__, volt_state);
 		return;
 	}
@@ -1796,25 +1796,25 @@ static void do_volt_notify_handling(struct emif_data *emif, u32 volt_state)
 }
 
 /*
- * TODO: voltage notify handling should be hooked up to
+ * TODO: voltage yestify handling should be hooked up to
  * regulator framework as soon as the necessary support
  * is available in mainline kernel. This function is un-used
- * right now.
+ * right yesw.
  */
-static void __attribute__((unused)) volt_notify_handling(u32 volt_state)
+static void __attribute__((unused)) volt_yestify_handling(u32 volt_state)
 {
 	struct emif_data *emif;
 
 	spin_lock_irqsave(&emif_lock, irq_state);
 
-	list_for_each_entry(emif, &device_list, node)
-		do_volt_notify_handling(emif, volt_state);
+	list_for_each_entry(emif, &device_list, yesde)
+		do_volt_yestify_handling(emif, volt_state);
 	do_freq_update();
 
 	spin_unlock_irqrestore(&emif_lock, irq_state);
 }
 
-static void do_freq_pre_notify_handling(struct emif_data *emif, u32 new_freq)
+static void do_freq_pre_yestify_handling(struct emif_data *emif, u32 new_freq)
 {
 	struct emif_regs *regs;
 
@@ -1845,27 +1845,27 @@ static void do_freq_pre_notify_handling(struct emif_data *emif, u32 new_freq)
 }
 
 /*
- * TODO: frequency notify handling should be hooked up to
+ * TODO: frequency yestify handling should be hooked up to
  * clock framework as soon as the necessary support is
  * available in mainline kernel. This function is un-used
- * right now.
+ * right yesw.
  */
-static void __attribute__((unused)) freq_pre_notify_handling(u32 new_freq)
+static void __attribute__((unused)) freq_pre_yestify_handling(u32 new_freq)
 {
 	struct emif_data *emif;
 
 	/*
 	 * NOTE: we are taking the spin-lock here and releases it
-	 * only in post-notifier. This doesn't look good and
+	 * only in post-yestifier. This doesn't look good and
 	 * Sparse complains about it, but this seems to be
 	 * un-avoidable. We need to lock a sequence of events
 	 * that is split between EMIF and clock framework.
 	 *
 	 * 1. EMIF driver updates EMIF timings in shadow registers in the
-	 *    frequency pre-notify callback from clock framework
+	 *    frequency pre-yestify callback from clock framework
 	 * 2. clock framework sets up the registers for the new frequency
 	 * 3. clock framework initiates a hw-sequence that updates
-	 *    the frequency EMIF timings synchronously.
+	 *    the frequency EMIF timings synchroyesusly.
 	 *
 	 * All these 3 steps should be performed as an atomic operation
 	 * vis-a-vis similar sequence in the EMIF interrupt handler
@@ -1875,11 +1875,11 @@ static void __attribute__((unused)) freq_pre_notify_handling(u32 new_freq)
 	 */
 	spin_lock_irqsave(&emif_lock, irq_state);
 
-	list_for_each_entry(emif, &device_list, node)
-		do_freq_pre_notify_handling(emif, new_freq);
+	list_for_each_entry(emif, &device_list, yesde)
+		do_freq_pre_yestify_handling(emif, new_freq);
 }
 
-static void do_freq_post_notify_handling(struct emif_data *emif)
+static void do_freq_post_yestify_handling(struct emif_data *emif)
 {
 	/*
 	 * Part of workaround for errata i728. See do_freq_update()
@@ -1890,20 +1890,20 @@ static void do_freq_post_notify_handling(struct emif_data *emif)
 }
 
 /*
- * TODO: frequency notify handling should be hooked up to
+ * TODO: frequency yestify handling should be hooked up to
  * clock framework as soon as the necessary support is
  * available in mainline kernel. This function is un-used
- * right now.
+ * right yesw.
  */
-static void __attribute__((unused)) freq_post_notify_handling(void)
+static void __attribute__((unused)) freq_post_yestify_handling(void)
 {
 	struct emif_data *emif;
 
-	list_for_each_entry(emif, &device_list, node)
-		do_freq_post_notify_handling(emif);
+	list_for_each_entry(emif, &device_list, yesde)
+		do_freq_post_yestify_handling(emif);
 
 	/*
-	 * Lock is done in pre-notify handler. See freq_pre_notify_handling()
+	 * Lock is done in pre-yestify handler. See freq_pre_yestify_handling()
 	 * for more details
 	 */
 	spin_unlock_irqrestore(&emif_lock, irq_state);

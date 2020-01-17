@@ -9,7 +9,7 @@
  * linux-wlan
  *
  *   The contents of this file are subject to the Mozilla Public
- *   License Version 1.1 (the "License"); you may not use this file
+ *   License Version 1.1 (the "License"); you may yest use this file
  *   except in compliance with the License. You may obtain a copy of
  *   the License at http://www.mozilla.org/MPL/
  *
@@ -22,10 +22,10 @@
  *   terms of the GNU Public License version 2 (the "GPL"), in which
  *   case the provisions of the GPL are applicable instead of the
  *   above.  If you wish to allow the use of your version of this file
- *   only under the terms of the GPL and not to allow others to use
+ *   only under the terms of the GPL and yest to allow others to use
  *   your version of this file under the MPL, indicate your decision
- *   by deleting the provisions above and replace them with the notice
- *   and other provisions required by the GPL.  If you do not delete
+ *   by deleting the provisions above and replace them with the yestice
+ *   and other provisions required by the GPL.  If you do yest delete
  *   the provisions above, a recipient may use your version of this
  *   file under either the MPL or the GPL.
  *
@@ -86,7 +86,7 @@
  *			hfa384x_cmd_xxx functions.
  *
  * hfa384x_bap_xxx	BAP read/write access functions.
- *			Note: we usually use BAP0 for non-interrupt context
+ *			Note: we usually use BAP0 for yesn-interrupt context
  *			 and BAP1 for interrupt context.
  *
  * hfa384x_dl_xxx	download related functions.
@@ -413,7 +413,7 @@ static int submit_tx_urb(struct hfa384x *hw, struct urb *tx_urb, gfp_t memflags)
 /*----------------------------------------------------------------
  * hfa394x_usb_defer
  *
- * There are some things that the USB stack cannot do while
+ * There are some things that the USB stack canyest do while
  * in interrupt context, so we arrange this function to run
  * in process context.
  *
@@ -421,7 +421,7 @@ static int submit_tx_urb(struct hfa384x *hw, struct urb *tx_urb, gfp_t memflags)
  *	hw	device structure
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Call context:
  *	process (by design)
@@ -442,7 +442,7 @@ static void hfa384x_usb_defer(struct work_struct *data)
 	if (test_bit(WORK_RX_HALT, &hw->usb_flags)) {
 		int ret;
 
-		usb_kill_urb(&hw->rx_urb); /* Cannot be holding spinlock! */
+		usb_kill_urb(&hw->rx_urb); /* Canyest be holding spinlock! */
 
 		ret = usb_clear_halt(hw->usb, hw->endp_in);
 		if (ret != 0) {
@@ -504,7 +504,7 @@ static void hfa384x_usb_defer(struct work_struct *data)
  * hfa384x_create
  *
  * Sets up the struct hfa384x data structure for use.  Note this
- * does _not_ initialize the actual hardware, just the data structures
+ * does _yest_ initialize the actual hardware, just the data structures
  * we use to keep track of its state.
  *
  * Arguments:
@@ -514,7 +514,7 @@ static void hfa384x_usb_defer(struct work_struct *data)
  *	membase		memory base address for register access
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -583,7 +583,7 @@ void hfa384x_create(struct hfa384x *hw, struct usb_device *usb)
  *	hw		device structure
  *
  * Returns:
- *	nothing, this function is not allowed to fail.
+ *	yesthing, this function is yest allowed to fail.
  *
  * Side effects:
  *
@@ -697,7 +697,7 @@ static int usbctlx_rrid_completor_fn(struct usbctlx_completor *head)
 	complete = (struct usbctlx_rrid_completor *)head;
 	usbctlx_get_rridresult(complete->rridresp, &rridresult);
 
-	/* Validate the length, note body len calculation in bytes */
+	/* Validate the length, yeste body len calculation in bytes */
 	if (rridresult.riddata_len != complete->riddatalen) {
 		pr_warn("RID len mismatch, rid=0x%04x hlen=%d fwlen=%d\n",
 			rridresult.rid,
@@ -724,21 +724,21 @@ init_rrid_completor(struct usbctlx_rrid_completor *completor,
 
 /*----------------------------------------------------------------
  * Completor object:
- * Interprets the results of a synchronous RID-write
+ * Interprets the results of a synchroyesus RID-write
  *----------------------------------------------------------------
  */
 #define init_wrid_completor  init_cmd_completor
 
 /*----------------------------------------------------------------
  * Completor object:
- * Interprets the results of a synchronous memory-write
+ * Interprets the results of a synchroyesus memory-write
  *----------------------------------------------------------------
  */
 #define init_wmem_completor  init_cmd_completor
 
 /*----------------------------------------------------------------
  * Completor object:
- * Interprets the results of a synchronous memory-read
+ * Interprets the results of a synchroyesus memory-read
  *----------------------------------------------------------------
  */
 struct usbctlx_rmem_completor {
@@ -786,7 +786,7 @@ init_rmem_completor(struct usbctlx_rmem_completor *completor,
  *	ctlx		completed CTLX
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -937,7 +937,7 @@ int hfa384x_cmd_enable(struct hfa384x *hw, u16 macport)
  *  MPDUs are passed to the host with MAC Port = 7, with a
  *  receive status of good, FCS error, or undecryptable. Passing
  *  certain MPDUs is a violation of the 802.11 standard, but useful
- *  for a debugging tool."  Normal communication is not possible
+ *  for a debugging tool."  Normal communication is yest possible
  *  while monitor mode is enabled.
  *
  * Arguments:
@@ -981,8 +981,8 @@ int hfa384x_cmd_monitor(struct hfa384x *hw, u16 enable)
  *	hw		device structure
  *	mode		0 - Disable programming and begin code exec
  *			1 - Enable volatile mem programming
- *			2 - Enable non-volatile mem programming
- *			3 - Program non-volatile section from NV download
+ *			2 - Enable yesn-volatile mem programming
+ *			3 - Program yesn-volatile section from NV download
  *			    buffer.
  *			(host order)
  *	lowaddr
@@ -1042,7 +1042,7 @@ int hfa384x_cmd_download(struct hfa384x *hw, u16 mode, u16 lowaddr,
  *			the reset
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -1067,7 +1067,7 @@ int hfa384x_corereset(struct hfa384x *hw, int holdtime,
 /*----------------------------------------------------------------
  * hfa384x_usbctlx_complete_sync
  *
- * Waits for a synchronous CTLX object to complete,
+ * Waits for a synchroyesus CTLX object to complete,
  * and then handles the response.
  *
  * Arguments:
@@ -1102,7 +1102,7 @@ static int hfa384x_usbctlx_complete_sync(struct hfa384x *hw,
 
 	/*
 	 * We can only handle the CTLX if the USB disconnect
-	 * function has not run yet ...
+	 * function has yest run yet ...
 	 */
 cleanup:
 	if (hw->wlandev->hwremoved) {
@@ -1113,7 +1113,7 @@ cleanup:
 
 		/*
 		 * We were probably interrupted, so delete
-		 * this CTLX asynchronously, kill the timers
+		 * this CTLX asynchroyesusly, kill the timers
 		 * and the URB, and then start the next
 		 * pending CTLX.
 		 *
@@ -1144,7 +1144,7 @@ cleanup:
 		/*
 		 * The completion task will send this CTLX
 		 * to the reaper the next time it runs. We
-		 * are no longer in a hurry.
+		 * are yes longer in a hurry.
 		 */
 		ctlx->reapable = 1;
 		ctlx->state = CTLX_REQ_FAILED;
@@ -1673,7 +1673,7 @@ int hfa384x_drvr_enable(struct hfa384x *hw, u16 macport)
 /*----------------------------------------------------------------
  * hfa384x_drvr_flashdl_enable
  *
- * Begins the flash download state.  Checks to see that we're not
+ * Begins the flash download state.  Checks to see that we're yest
  * already in a download state and that a port isn't enabled.
  * Sets the download state and retrieves the flash download
  * buffer location, buffer size, and timeout length.
@@ -1705,7 +1705,7 @@ int hfa384x_drvr_flashdl_enable(struct hfa384x *hw)
 		}
 	}
 
-	/* Check that we're not already in a download state */
+	/* Check that we're yest already in a download state */
 	if (hw->dlstate != HFA384x_DLSTATE_DISABLED)
 		return -EINVAL;
 
@@ -2015,7 +2015,7 @@ int hfa384x_drvr_ramdl_disable(struct hfa384x *hw)
 /*----------------------------------------------------------------
  * hfa384x_drvr_ramdl_enable
  *
- * Begins the ram download state.  Checks to see that we're not
+ * Begins the ram download state.  Checks to see that we're yest
  * already in a download state and that a port isn't enabled.
  * Sets the download state and calls cmd_download with the
  * ENABLE_VOLATILE subcommand and the exeaddr argument.
@@ -2053,10 +2053,10 @@ int hfa384x_drvr_ramdl_enable(struct hfa384x *hw, u32 exeaddr)
 		}
 	}
 
-	/* Check that we're not already in a download state */
+	/* Check that we're yest already in a download state */
 	if (hw->dlstate != HFA384x_DLSTATE_DISABLED) {
 		netdev_err(hw->wlandev->netdev,
-			   "Download state not disabled.\n");
+			   "Download state yest disabled.\n");
 		return -EINVAL;
 	}
 
@@ -2158,7 +2158,7 @@ int hfa384x_drvr_ramdl_write(struct hfa384x *hw, u32 daddr, void *buf, u32 len)
 /*----------------------------------------------------------------
  * hfa384x_drvr_readpda
  *
- * Performs the sequence to read the PDA space.  Note there is no
+ * Performs the sequence to read the PDA space.  Note there is yes
  * drvr_writepda() function.  Writing a PDA is
  * generally implemented by a calling component via calls to
  * cmd_download and writing to the flash download buffer via the
@@ -2184,7 +2184,7 @@ int hfa384x_drvr_ramdl_write(struct hfa384x *hw, u32 daddr, void *buf, u32 len)
  * Side effects:
  *
  * Call context:
- *	process or non-card interrupt.
+ *	process or yesn-card interrupt.
  *----------------------------------------------------------------
  */
 int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len)
@@ -2209,7 +2209,7 @@ int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len)
 		HFA3841_PDA_BOGUS_BASE, 0}
 	};
 
-	/* Read the pda from each known address.  */
+	/* Read the pda from each kyeswn address.  */
 	for (i = 0; i < ARRAY_SIZE(pdaloc); i++) {
 		/* Make address */
 		currpage = HFA384x_ADDR_CMD_MKPAGE(pdaloc[i].cardaddr);
@@ -2252,7 +2252,7 @@ int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len)
 
 			/* Move to the next pdr (if necessary) */
 			if (morepdrs) {
-				/* note the access to pda[], need words here */
+				/* yeste the access to pda[], need words here */
 				currpdr += le16_to_cpu(pda[currpdr]) + 1;
 			}
 		}
@@ -2271,7 +2271,7 @@ int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len)
 	result = pdaok ? 0 : -ENODATA;
 
 	if (result)
-		pr_debug("Failure: pda is not okay\n");
+		pr_debug("Failure: pda is yest okay\n");
 
 	return result;
 }
@@ -2339,7 +2339,7 @@ int hfa384x_drvr_start(struct hfa384x *hw)
 	    usb_get_std_status(hw->usb, USB_RECIP_ENDPOINT, hw->endp_in,
 			       &status);
 	if (result < 0) {
-		netdev_err(hw->wlandev->netdev, "Cannot get bulk in endpoint status.\n");
+		netdev_err(hw->wlandev->netdev, "Canyest get bulk in endpoint status.\n");
 		goto done;
 	}
 	if ((status == 1) && usb_clear_halt(hw->usb, hw->endp_in))
@@ -2349,13 +2349,13 @@ int hfa384x_drvr_start(struct hfa384x *hw)
 	    usb_get_std_status(hw->usb, USB_RECIP_ENDPOINT, hw->endp_out,
 			       &status);
 	if (result < 0) {
-		netdev_err(hw->wlandev->netdev, "Cannot get bulk out endpoint status.\n");
+		netdev_err(hw->wlandev->netdev, "Canyest get bulk out endpoint status.\n");
 		goto done;
 	}
 	if ((status == 1) && usb_clear_halt(hw->usb, hw->endp_out))
 		netdev_err(hw->wlandev->netdev, "Failed to reset bulk out endpoint.\n");
 
-	/* Synchronous unlink, in case we're trying to restart the driver */
+	/* Synchroyesus unlink, in case we're trying to restart the driver */
 	usb_kill_urb(&hw->rx_urb);
 
 	/* Post the IN urb */
@@ -2370,7 +2370,7 @@ int hfa384x_drvr_start(struct hfa384x *hw)
 	/* Call initialize twice, with a 1 second sleep in between.
 	 * This is a nasty work-around since many prism2 cards seem to
 	 * need time to settle after an init from cold. The second
-	 * call to initialize in theory is not necessary - but we call
+	 * call to initialize in theory is yest necessary - but we call
 	 * it anyway as a double insurance policy:
 	 * 1) If the first init should fail, the second may well succeed
 	 *    and the card can still be used
@@ -2433,7 +2433,7 @@ int hfa384x_drvr_stop(struct hfa384x *hw)
 
 	might_sleep();
 
-	/* There's no need for spinlocks here. The USB "disconnect"
+	/* There's yes need for spinlocks here. The USB "disconnect"
 	 * function sets this "removed" flag and then calls us.
 	 */
 	if (!hw->wlandev->hwremoved) {
@@ -2468,7 +2468,7 @@ int hfa384x_drvr_stop(struct hfa384x *hw)
  *       p80211_hdr      points to the 802.11 header for the packet.
  * Returns:
  *	0		Success and more buffs available
- *	1		Success but no more buffs
+ *	1		Success but yes more buffs
  *	2		Allocation failure
  *	4		Buffer full or queue busy
  *
@@ -2700,7 +2700,7 @@ static void hfa384x_usbctlx_completion_task(unsigned long data)
 /*----------------------------------------------------------------
  * unlocked_usbctlx_cancel_async
  *
- * Mark the CTLX dead asynchronously, and ensure that the
+ * Mark the CTLX dead asynchroyesusly, and ensure that the
  * next command on the queue is run afterwards.
  *
  * Arguments:
@@ -2732,7 +2732,7 @@ static int unlocked_usbctlx_cancel_async(struct hfa384x *hw,
 		/*
 		 * The OUT URB had either already completed
 		 * or was still in the pending queue, so the
-		 * URB's completion function will not be called.
+		 * URB's completion function will yest be called.
 		 * We will have to complete the CTLX ourselves.
 		 */
 		ctlx->state = CTLX_REQ_FAILED;
@@ -2746,7 +2746,7 @@ static int unlocked_usbctlx_cancel_async(struct hfa384x *hw,
 /*----------------------------------------------------------------
  * unlocked_usbctlx_complete
  *
- * A CTLX has completed.  It may have been successful, it may not
+ * A CTLX has completed.  It may have been successful, it may yest
  * have been. At this point, the CTLX should be quiescent.  The URBs
  * aren't active and the timers should have been stopped.
  *
@@ -2758,7 +2758,7 @@ static int unlocked_usbctlx_cancel_async(struct hfa384x *hw,
  *	ctlx		ptr to a ctlx structure
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -2783,7 +2783,7 @@ static void unlocked_usbctlx_complete(struct hfa384x *hw,
 		break;
 
 	default:
-		netdev_err(hw->wlandev->netdev, "CTLX[%d] not in a terminating state(%s)\n",
+		netdev_err(hw->wlandev->netdev, "CTLX[%d] yest in a terminating state(%s)\n",
 			   le16_to_cpu(ctlx->outbuf.type),
 			   ctlxstr(ctlx->state));
 		break;
@@ -2793,13 +2793,13 @@ static void unlocked_usbctlx_complete(struct hfa384x *hw,
 /*----------------------------------------------------------------
  * hfa384x_usbctlxq_run
  *
- * Checks to see if the head item is running.  If not, starts it.
+ * Checks to see if the head item is running.  If yest, starts it.
  *
  * Arguments:
  *	hw	ptr to struct hfa384x
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -2814,7 +2814,7 @@ static void hfa384x_usbctlxq_run(struct hfa384x *hw)
 	/* acquire lock */
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
 
-	/* Only one active CTLX at any one time, because there's no
+	/* Only one active CTLX at any one time, because there's yes
 	 * other (reliable) way to match the response URB to the
 	 * correct CTLX.
 	 *
@@ -2846,7 +2846,7 @@ static void hfa384x_usbctlxq_run(struct hfa384x *hw)
 		/* Now submit the URB and update the CTLX's state */
 		result = usb_submit_urb(&hw->ctlx_urb, GFP_ATOMIC);
 		if (result == 0) {
-			/* This CTLX is now running on the active queue */
+			/* This CTLX is yesw running on the active queue */
 			head->state = CTLX_REQ_SUBMITTED;
 
 			/* Start the OUT wait timer */
@@ -2900,7 +2900,7 @@ unlock:
  *	urb		ptr to the completed urb
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -3086,7 +3086,7 @@ exit:
  *	urb_status	status of this Bulk-In URB
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -3131,7 +3131,7 @@ retry:
 	if (urb_status != 0) {
 		/*
 		 * Bad CTLX, so get rid of it. But we only
-		 * remove it from the active queue if we're no
+		 * remove it from the active queue if we're yes
 		 * longer expecting the OUT URB to complete.
 		 */
 		if (unlocked_usbctlx_cancel_async(hw, ctlx) == 0)
@@ -3144,7 +3144,7 @@ retry:
 		 */
 		if (ctlx->outbuf.type != intype) {
 			netdev_warn(hw->wlandev->netdev,
-				    "Expected IN[%d], received IN[%d] - ignored.\n",
+				    "Expected IN[%d], received IN[%d] - igyesred.\n",
 				    le16_to_cpu(ctlx->outbuf.type),
 				    le16_to_cpu(intype));
 			goto unlock;
@@ -3157,7 +3157,7 @@ retry:
 		case CTLX_REQ_SUBMITTED:
 			/*
 			 * We have received our response URB before
-			 * our request has been acknowledged. Odd,
+			 * our request has been ackyeswledged. Odd,
 			 * but our OUT URB is still alive...
 			 */
 			pr_debug("Causality violation: please reboot Universe\n");
@@ -3167,8 +3167,8 @@ retry:
 		case CTLX_REQ_COMPLETE:
 			/*
 			 * This is the usual path: our request
-			 * has already been acknowledged, and
-			 * now we have received the reply too.
+			 * has already been ackyeswledged, and
+			 * yesw we have received the reply too.
 			 */
 			ctlx->state = CTLX_COMPLETE;
 			unlocked_usbctlx_complete(hw, ctlx);
@@ -3206,7 +3206,7 @@ unlock:
  *	usbin		ptr to the usb transfer buffer
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -3219,7 +3219,7 @@ static void hfa384x_usbin_txcompl(struct wlandevice *wlandev,
 {
 	u16 status;
 
-	status = le16_to_cpu(usbin->type); /* yeah I know it says type... */
+	status = le16_to_cpu(usbin->type); /* yeah I kyesw it says type... */
 
 	/* Was there an error? */
 	if (HFA384x_TXSTATUS_ISERROR(status))
@@ -3238,7 +3238,7 @@ static void hfa384x_usbin_txcompl(struct wlandevice *wlandev,
  *	usbin		ptr to the usb transfer buffer
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -3289,7 +3289,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 		/* And set the frame length properly */
 		skb_trim(skb, data_len + hdrlen);
 
-		/* The prism2 series does not return the CRC */
+		/* The prism2 series does yest return the CRC */
 		memset(skb_put(skb, WLAN_CRC_LEN), 0xff, WLAN_CRC_LEN);
 
 		skb_reset_mac_header(skb);
@@ -3300,7 +3300,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 		rxmeta->mactime = usbin->rxfrm.desc.time;
 		rxmeta->rxrate = usbin->rxfrm.desc.rate;
 		rxmeta->signal = usbin->rxfrm.desc.signal - hw->dbmadjust;
-		rxmeta->noise = usbin->rxfrm.desc.silence - hw->dbmadjust;
+		rxmeta->yesise = usbin->rxfrm.desc.silence - hw->dbmadjust;
 
 		p80211netdev_rx(wlandev, skb);
 
@@ -3337,7 +3337,7 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
  *	rxfrm		rx descriptor read from card in int_rx
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *	Allocates an skb and passes it up via the PF_PACKET interface.
@@ -3393,12 +3393,12 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 		caphdr->phytype = htonl(4);	/* dss_dot11_b */
 		caphdr->channel = htonl(hw->sniff_channel);
 		caphdr->datarate = htonl(rxdesc->rate);
-		caphdr->antenna = htonl(0);	/* unknown */
-		caphdr->priority = htonl(0);	/* unknown */
+		caphdr->antenna = htonl(0);	/* unkyeswn */
+		caphdr->priority = htonl(0);	/* unkyeswn */
 		caphdr->ssi_type = htonl(3);	/* rssi_raw */
 		caphdr->ssi_signal = htonl(rxdesc->signal);
-		caphdr->ssi_noise = htonl(rxdesc->silence);
-		caphdr->preamble = htonl(0);	/* unknown */
+		caphdr->ssi_yesise = htonl(rxdesc->silence);
+		caphdr->preamble = htonl(0);	/* unkyeswn */
 		caphdr->encoding = htonl(1);	/* cck */
 	}
 
@@ -3438,7 +3438,7 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
  *	usbin		ptr to the usb transfer buffer
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -3462,7 +3462,7 @@ static void hfa384x_usbin_info(struct wlandevice *wlandev,
  *	urb		ptr to the completed urb
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -3513,11 +3513,11 @@ static void hfa384x_usbout_callback(struct urb *urb)
 
 		case -ENOENT:
 		case -ESHUTDOWN:
-			/* Ignorable errors */
+			/* Igyesrable errors */
 			break;
 
 		default:
-			netdev_info(wlandev->netdev, "unknown urb->status=%d\n",
+			netdev_info(wlandev->netdev, "unkyeswn urb->status=%d\n",
 				    urb->status);
 			wlandev->netdev->stats.tx_errors++;
 			break;
@@ -3534,7 +3534,7 @@ static void hfa384x_usbout_callback(struct urb *urb)
  *	urb		ptr to the completed urb
  *
  * Returns:
- * nothing
+ * yesthing
  *
  * Side effects:
  *
@@ -3564,7 +3564,7 @@ retry:
 
 	/*
 	 * Only one CTLX at a time on the "active" list, and
-	 * none at all if we are unplugged. However, we can
+	 * yesne at all if we are unplugged. However, we can
 	 * rely on the disconnect function to clean everything
 	 * up if someone unplugged the adapter.
 	 */
@@ -3603,7 +3603,7 @@ retry:
 
 		case CTLX_RESP_COMPLETE:
 			/* IN already received before this OUT-ACK,
-			 * so this command must now be complete.
+			 * so this command must yesw be complete.
 			 */
 			ctlx->state = CTLX_COMPLETE;
 			unlocked_usbctlx_complete(hw, ctlx);
@@ -3666,7 +3666,7 @@ delresp:
  *	data		a ptr to the struct hfa384x
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -3697,12 +3697,12 @@ static void hfa384x_usbctlx_reqtimerfn(struct timer_list *t)
 
 			ctlx->state = CTLX_REQ_FAILED;
 
-			/* This URB was active, but has now been
-			 * cancelled. It will now have a status of
+			/* This URB was active, but has yesw been
+			 * cancelled. It will yesw have a status of
 			 * -ECONNRESET in the callback function.
 			 *
 			 * We are cancelling this CTLX, so we're
-			 * not going to need to wait for a response.
+			 * yest going to need to wait for a response.
 			 * The URB's callback function will check
 			 * that this timer is truly dead.
 			 */
@@ -3725,7 +3725,7 @@ static void hfa384x_usbctlx_reqtimerfn(struct timer_list *t)
  *	data		a ptr to the struct hfa384x
  *
  * Returns:
- *	nothing
+ *	yesthing
  *
  * Side effects:
  *
@@ -3845,7 +3845,7 @@ static int hfa384x_usbctlx_submit(struct hfa384x *hw,
  *	pdrcode		PDR code number (host order)
  *
  * Returns:
- *	zero		not good.
+ *	zero		yest good.
  *	one		is good.
  *
  * Side effects:
@@ -3889,15 +3889,15 @@ static int hfa384x_isgood_pdrcode(u16 pdrcode)
 		return 1;
 	default:
 		if (pdrcode < 0x1000) {
-			/* code is OK, but we don't know exactly what it is */
-			pr_debug("Encountered unknown PDR#=0x%04x, assuming it's ok.\n",
+			/* code is OK, but we don't kyesw exactly what it is */
+			pr_debug("Encountered unkyeswn PDR#=0x%04x, assuming it's ok.\n",
 				 pdrcode);
 			return 1;
 		}
 		break;
 	}
 	/* bad code */
-	pr_debug("Encountered unknown PDR#=0x%04x, (>=0x1000), assuming it's bad.\n",
+	pr_debug("Encountered unkyeswn PDR#=0x%04x, (>=0x1000), assuming it's bad.\n",
 		 pdrcode);
 	return 0;
 }

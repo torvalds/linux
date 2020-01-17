@@ -76,7 +76,7 @@ static struct ccw_driver dasd_fba_driver = {
 	.remove      = dasd_generic_remove,
 	.set_offline = dasd_generic_set_offline,
 	.set_online  = dasd_fba_set_online,
-	.notify      = dasd_generic_notify,
+	.yestify      = dasd_generic_yestify,
 	.path_event  = dasd_generic_path_event,
 	.freeze      = dasd_generic_pm_freeze,
 	.thaw	     = dasd_generic_restore_device,
@@ -145,7 +145,7 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	}
 	block = dasd_alloc_block();
 	if (IS_ERR(block)) {
-		DBF_EVENT_DEVID(DBF_WARNING, cdev, "%s", "could not allocate "
+		DBF_EVENT_DEVID(DBF_WARNING, cdev, "%s", "could yest allocate "
 				"dasd block structure");
 		device->private = NULL;
 		kfree(private);
@@ -199,7 +199,7 @@ static int dasd_fba_do_analysis(struct dasd_block *block)
 
 	rc = dasd_check_blocksize(private->rdc_data.blk_size);
 	if (rc) {
-		DBF_DEV_EVENT(DBF_WARNING, block->base, "unknown blocksize %d",
+		DBF_DEV_EVENT(DBF_WARNING, block->base, "unkyeswn blocksize %d",
 			    private->rdc_data.blk_size);
 		return rc;
 	}
@@ -234,7 +234,7 @@ dasd_fba_erp_postaction(struct dasd_ccw_req * cqr)
 	if (cqr->function == dasd_default_erp_action)
 		return dasd_default_erp_postaction;
 
-	DBF_DEV_EVENT(DBF_WARNING, cqr->startdev, "unknown ERP action %p",
+	DBF_DEV_EVENT(DBF_WARNING, cqr->startdev, "unkyeswn ERP action %p",
 		    cqr->function);
 	return NULL;
 }
@@ -253,9 +253,9 @@ static void dasd_fba_check_for_device_change(struct dasd_device *device,
 
 
 /*
- * Builds a CCW with no data payload
+ * Builds a CCW with yes data payload
  */
-static void ccw_write_no_data(struct ccw1 *ccw)
+static void ccw_write_yes_data(struct ccw1 *ccw)
 {
 	ccw->cmd_code = DASD_FBA_CCW_WRITE;
 	ccw->flags |= CCW_FLAG_SLI;
@@ -314,7 +314,7 @@ static int count_ccws(sector_t first_rec, sector_t last_rec,
  * This function builds a CCW request for block layer discard requests.
  * Each page in the z/VM hypervisor that represents certain records of an FBA
  * device will be padded with zeros. This is a special behaviour of the WRITE
- * command which is triggered when no data payload is added to the CCW.
+ * command which is triggered when yes data payload is added to the CCW.
  *
  * Note: Due to issues in some z/VM versions, we can't fully utilise this
  * special behaviour. We have to keep a 4k (or 8 block) alignment in mind to
@@ -366,7 +366,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_discard(
 	define_extent(ccw++, cqr->data, WRITE, blksize, first_rec, count);
 	LO_data = cqr->data + sizeof(struct DE_fba_data);
 
-	/* First part is not aligned. Calculate range to write zeroes. */
+	/* First part is yest aligned. Calculate range to write zeroes. */
 	if (first_rec % blocks_per_page != 0) {
 		wz_stop = first_rec + blocks_per_page -
 			(first_rec % blocks_per_page) - 1;
@@ -398,7 +398,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_discard(
 		locate_record(ccw++, LO_data++, WRITE, cur_pos, d_count);
 
 		ccw[-1].flags |= CCW_FLAG_CC;
-		ccw_write_no_data(ccw++);
+		ccw_write_yes_data(ccw++);
 
 		cur_pos += d_count;
 	}
@@ -419,7 +419,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_discard(
 		ccw_write_zero(ccw++, wz_count * blksize);
 	}
 
-	if (blk_noretry_request(req) ||
+	if (blk_yesretry_request(req) ||
 	    block->base->features & DASD_FEATURE_FAILFAST)
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 
@@ -474,7 +474,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_regular(
 		if (idal_is_needed (page_address(bv.bv_page), bv.bv_len))
 			cidaw += bv.bv_len / blksize;
 	}
-	/* Paranoia. */
+	/* Parayesia. */
 	if (count != last_rec - first_rec + 1)
 		return ERR_PTR(-EINVAL);
 	/* 1x define extent + 1x locate record + number of blocks */
@@ -548,7 +548,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_regular(
 			recid++;
 		}
 	}
-	if (blk_noretry_request(req) ||
+	if (blk_yesretry_request(req) ||
 	    block->base->features & DASD_FEATURE_FAILFAST)
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->startdev = memdev;

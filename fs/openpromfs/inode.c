@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* inode.c: /proc/openprom handling routines
+/* iyesde.c: /proc/openprom handling routines
  *
  * Copyright (C) 1996-1999 Jakub Jelinek  (jakub@redhat.com)
  * Copyright (C) 1998      Eddie C. Dost  (ecd@skynet.be)
@@ -24,27 +24,27 @@ static DEFINE_MUTEX(op_mutex);
 
 #define OPENPROM_ROOT_INO	0
 
-enum op_inode_type {
-	op_inode_node,
-	op_inode_prop,
+enum op_iyesde_type {
+	op_iyesde_yesde,
+	op_iyesde_prop,
 };
 
-union op_inode_data {
-	struct device_node	*node;
+union op_iyesde_data {
+	struct device_yesde	*yesde;
 	struct property		*prop;
 };
 
-struct op_inode_info {
-	struct inode		vfs_inode;
-	enum op_inode_type	type;
-	union op_inode_data	u;
+struct op_iyesde_info {
+	struct iyesde		vfs_iyesde;
+	enum op_iyesde_type	type;
+	union op_iyesde_data	u;
 };
 
-static struct inode *openprom_iget(struct super_block *sb, ino_t ino);
+static struct iyesde *openprom_iget(struct super_block *sb, iyes_t iyes);
 
-static inline struct op_inode_info *OP_I(struct inode *inode)
+static inline struct op_iyesde_info *OP_I(struct iyesde *iyesde)
 {
-	return container_of(inode, struct op_inode_info, vfs_inode);
+	return container_of(iyesde, struct op_iyesde_info, vfs_iyesde);
 }
 
 static int is_string(unsigned char *p, int len)
@@ -142,12 +142,12 @@ static const struct seq_operations property_op = {
 	.show		= property_show
 };
 
-static int property_open(struct inode *inode, struct file *file)
+static int property_open(struct iyesde *iyesde, struct file *file)
 {
-	struct op_inode_info *oi = OP_I(inode);
+	struct op_iyesde_info *oi = OP_I(iyesde);
 	int ret;
 
-	BUG_ON(oi->type != op_inode_prop);
+	BUG_ON(oi->type != op_iyesde_prop);
 
 	ret = seq_open(file, &property_op);
 	if (!ret) {
@@ -172,27 +172,27 @@ static const struct file_operations openprom_operations = {
 	.llseek		= generic_file_llseek,
 };
 
-static struct dentry *openpromfs_lookup(struct inode *, struct dentry *, unsigned int);
+static struct dentry *openpromfs_lookup(struct iyesde *, struct dentry *, unsigned int);
 
-static const struct inode_operations openprom_inode_operations = {
+static const struct iyesde_operations openprom_iyesde_operations = {
 	.lookup		= openpromfs_lookup,
 };
 
-static struct dentry *openpromfs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
+static struct dentry *openpromfs_lookup(struct iyesde *dir, struct dentry *dentry, unsigned int flags)
 {
-	struct op_inode_info *ent_oi, *oi = OP_I(dir);
-	struct device_node *dp, *child;
+	struct op_iyesde_info *ent_oi, *oi = OP_I(dir);
+	struct device_yesde *dp, *child;
 	struct property *prop;
-	enum op_inode_type ent_type;
-	union op_inode_data ent_data;
+	enum op_iyesde_type ent_type;
+	union op_iyesde_data ent_data;
 	const char *name;
-	struct inode *inode;
-	unsigned int ino;
+	struct iyesde *iyesde;
+	unsigned int iyes;
 	int len;
 	
-	BUG_ON(oi->type != op_inode_node);
+	BUG_ON(oi->type != op_iyesde_yesde);
 
-	dp = oi->u.node;
+	dp = oi->u.yesde;
 
 	name = dentry->d_name.name;
 	len = dentry->d_name.len;
@@ -201,14 +201,14 @@ static struct dentry *openpromfs_lookup(struct inode *dir, struct dentry *dentry
 
 	child = dp->child;
 	while (child) {
-		const char *node_name = kbasename(child->full_name);
-		int n = strlen(node_name);
+		const char *yesde_name = kbasename(child->full_name);
+		int n = strlen(yesde_name);
 
 		if (len == n &&
-		    !strncmp(node_name, name, len)) {
-			ent_type = op_inode_node;
-			ent_data.node = child;
-			ino = child->unique_id;
+		    !strncmp(yesde_name, name, len)) {
+			ent_type = op_iyesde_yesde;
+			ent_data.yesde = child;
+			iyes = child->unique_id;
 			goto found;
 		}
 		child = child->sibling;
@@ -219,9 +219,9 @@ static struct dentry *openpromfs_lookup(struct inode *dir, struct dentry *dentry
 		int n = strlen(prop->name);
 
 		if (len == n && !strncmp(prop->name, name, len)) {
-			ent_type = op_inode_prop;
+			ent_type = op_iyesde_prop;
 			ent_data.prop = prop;
-			ino = prop->unique_id;
+			iyes = prop->unique_id;
 			goto found;
 		}
 
@@ -232,49 +232,49 @@ static struct dentry *openpromfs_lookup(struct inode *dir, struct dentry *dentry
 	return ERR_PTR(-ENOENT);
 
 found:
-	inode = openprom_iget(dir->i_sb, ino);
+	iyesde = openprom_iget(dir->i_sb, iyes);
 	mutex_unlock(&op_mutex);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	ent_oi = OP_I(inode);
+	if (IS_ERR(iyesde))
+		return ERR_CAST(iyesde);
+	ent_oi = OP_I(iyesde);
 	ent_oi->type = ent_type;
 	ent_oi->u = ent_data;
 
 	switch (ent_type) {
-	case op_inode_node:
-		inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
-		inode->i_op = &openprom_inode_operations;
-		inode->i_fop = &openprom_operations;
-		set_nlink(inode, 2);
+	case op_iyesde_yesde:
+		iyesde->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
+		iyesde->i_op = &openprom_iyesde_operations;
+		iyesde->i_fop = &openprom_operations;
+		set_nlink(iyesde, 2);
 		break;
-	case op_inode_prop:
-		if (of_node_name_eq(dp, "options") && (len == 17) &&
+	case op_iyesde_prop:
+		if (of_yesde_name_eq(dp, "options") && (len == 17) &&
 		    !strncmp (name, "security-password", 17))
-			inode->i_mode = S_IFREG | S_IRUSR | S_IWUSR;
+			iyesde->i_mode = S_IFREG | S_IRUSR | S_IWUSR;
 		else
-			inode->i_mode = S_IFREG | S_IRUGO;
-		inode->i_fop = &openpromfs_prop_ops;
-		set_nlink(inode, 1);
-		inode->i_size = ent_oi->u.prop->length;
+			iyesde->i_mode = S_IFREG | S_IRUGO;
+		iyesde->i_fop = &openpromfs_prop_ops;
+		set_nlink(iyesde, 1);
+		iyesde->i_size = ent_oi->u.prop->length;
 		break;
 	}
 
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(iyesde, dentry);
 }
 
 static int openpromfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
-	struct op_inode_info *oi = OP_I(inode);
-	struct device_node *dp = oi->u.node;
-	struct device_node *child;
+	struct iyesde *iyesde = file_iyesde(file);
+	struct op_iyesde_info *oi = OP_I(iyesde);
+	struct device_yesde *dp = oi->u.yesde;
+	struct device_yesde *child;
 	struct property *prop;
 	int i;
 
 	mutex_lock(&op_mutex);
 	
 	if (ctx->pos == 0) {
-		if (!dir_emit(ctx, ".", 1, inode->i_ino, DT_DIR))
+		if (!dir_emit(ctx, ".", 1, iyesde->i_iyes, DT_DIR))
 			goto out;
 		ctx->pos = 1;
 	}
@@ -288,7 +288,7 @@ static int openpromfs_readdir(struct file *file, struct dir_context *ctx)
 	}
 	i = ctx->pos - 2;
 
-	/* First, the children nodes as directories.  */
+	/* First, the children yesdes as directories.  */
 	child = dp->child;
 	while (i && child) {
 		child = child->sibling;
@@ -325,41 +325,41 @@ out:
 	return 0;
 }
 
-static struct kmem_cache *op_inode_cachep;
+static struct kmem_cache *op_iyesde_cachep;
 
-static struct inode *openprom_alloc_inode(struct super_block *sb)
+static struct iyesde *openprom_alloc_iyesde(struct super_block *sb)
 {
-	struct op_inode_info *oi;
+	struct op_iyesde_info *oi;
 
-	oi = kmem_cache_alloc(op_inode_cachep, GFP_KERNEL);
+	oi = kmem_cache_alloc(op_iyesde_cachep, GFP_KERNEL);
 	if (!oi)
 		return NULL;
 
-	return &oi->vfs_inode;
+	return &oi->vfs_iyesde;
 }
 
-static void openprom_free_inode(struct inode *inode)
+static void openprom_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(op_inode_cachep, OP_I(inode));
+	kmem_cache_free(op_iyesde_cachep, OP_I(iyesde));
 }
 
-static struct inode *openprom_iget(struct super_block *sb, ino_t ino)
+static struct iyesde *openprom_iget(struct super_block *sb, iyes_t iyes)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 
-	inode = iget_locked(sb, ino);
-	if (!inode)
+	iyesde = iget_locked(sb, iyes);
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
-	if (inode->i_state & I_NEW) {
-		inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
-		if (inode->i_ino == OPENPROM_ROOT_INO) {
-			inode->i_op = &openprom_inode_operations;
-			inode->i_fop = &openprom_operations;
-			inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	if (iyesde->i_state & I_NEW) {
+		iyesde->i_mtime = iyesde->i_atime = iyesde->i_ctime = current_time(iyesde);
+		if (iyesde->i_iyes == OPENPROM_ROOT_INO) {
+			iyesde->i_op = &openprom_iyesde_operations;
+			iyesde->i_fop = &openprom_operations;
+			iyesde->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
 		}
-		unlock_new_inode(inode);
+		unlock_new_iyesde(iyesde);
 	}
-	return inode;
+	return iyesde;
 }
 
 static int openprom_remount(struct super_block *sb, int *flags, char *data)
@@ -370,16 +370,16 @@ static int openprom_remount(struct super_block *sb, int *flags, char *data)
 }
 
 static const struct super_operations openprom_sops = {
-	.alloc_inode	= openprom_alloc_inode,
-	.free_inode	= openprom_free_inode,
+	.alloc_iyesde	= openprom_alloc_iyesde,
+	.free_iyesde	= openprom_free_iyesde,
 	.statfs		= simple_statfs,
 	.remount_fs	= openprom_remount,
 };
 
 static int openprom_fill_super(struct super_block *s, struct fs_context *fc)
 {
-	struct inode *root_inode;
-	struct op_inode_info *oi;
+	struct iyesde *root_iyesde;
+	struct op_iyesde_info *oi;
 	int ret;
 
 	s->s_flags |= SB_NOATIME;
@@ -388,25 +388,25 @@ static int openprom_fill_super(struct super_block *s, struct fs_context *fc)
 	s->s_magic = OPENPROM_SUPER_MAGIC;
 	s->s_op = &openprom_sops;
 	s->s_time_gran = 1;
-	root_inode = openprom_iget(s, OPENPROM_ROOT_INO);
-	if (IS_ERR(root_inode)) {
-		ret = PTR_ERR(root_inode);
-		goto out_no_root;
+	root_iyesde = openprom_iget(s, OPENPROM_ROOT_INO);
+	if (IS_ERR(root_iyesde)) {
+		ret = PTR_ERR(root_iyesde);
+		goto out_yes_root;
 	}
 
-	oi = OP_I(root_inode);
-	oi->type = op_inode_node;
-	oi->u.node = of_find_node_by_path("/");
+	oi = OP_I(root_iyesde);
+	oi->type = op_iyesde_yesde;
+	oi->u.yesde = of_find_yesde_by_path("/");
 
-	s->s_root = d_make_root(root_inode);
+	s->s_root = d_make_root(root_iyesde);
 	if (!s->s_root)
-		goto out_no_root_dentry;
+		goto out_yes_root_dentry;
 	return 0;
 
-out_no_root_dentry:
+out_yes_root_dentry:
 	ret = -ENOMEM;
-out_no_root:
-	printk("openprom_fill_super: get root inode failed\n");
+out_yes_root:
+	printk("openprom_fill_super: get root iyesde failed\n");
 	return ret;
 }
 
@@ -429,33 +429,33 @@ static struct file_system_type openprom_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "openpromfs",
 	.init_fs_context = openpromfs_init_fs_context,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= kill_ayesn_super,
 };
 MODULE_ALIAS_FS("openpromfs");
 
-static void op_inode_init_once(void *data)
+static void op_iyesde_init_once(void *data)
 {
-	struct op_inode_info *oi = (struct op_inode_info *) data;
+	struct op_iyesde_info *oi = (struct op_iyesde_info *) data;
 
-	inode_init_once(&oi->vfs_inode);
+	iyesde_init_once(&oi->vfs_iyesde);
 }
 
 static int __init init_openprom_fs(void)
 {
 	int err;
 
-	op_inode_cachep = kmem_cache_create("op_inode_cache",
-					    sizeof(struct op_inode_info),
+	op_iyesde_cachep = kmem_cache_create("op_iyesde_cache",
+					    sizeof(struct op_iyesde_info),
 					    0,
 					    (SLAB_RECLAIM_ACCOUNT |
 					     SLAB_MEM_SPREAD | SLAB_ACCOUNT),
-					    op_inode_init_once);
-	if (!op_inode_cachep)
+					    op_iyesde_init_once);
+	if (!op_iyesde_cachep)
 		return -ENOMEM;
 
 	err = register_filesystem(&openprom_fs_type);
 	if (err)
-		kmem_cache_destroy(op_inode_cachep);
+		kmem_cache_destroy(op_iyesde_cachep);
 
 	return err;
 }
@@ -464,11 +464,11 @@ static void __exit exit_openprom_fs(void)
 {
 	unregister_filesystem(&openprom_fs_type);
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(op_inode_cachep);
+	kmem_cache_destroy(op_iyesde_cachep);
 }
 
 module_init(init_openprom_fs)

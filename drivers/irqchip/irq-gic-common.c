@@ -25,7 +25,7 @@ void gic_set_kvm_info(const struct gic_kvm_info *info)
 	gic_kvm_info = info;
 }
 
-void gic_enable_of_quirks(const struct device_node *np,
+void gic_enable_of_quirks(const struct device_yesde *np,
 			  const struct gic_quirk *quirks, void *data)
 {
 	for (; quirks->desc; quirks++) {
@@ -82,8 +82,8 @@ int gic_configure_irq(unsigned int irq, unsigned int type,
 	 * the interrupt. If we fail to write a new configuration for
 	 * an SPI then WARN and return an error. If we fail to write the
 	 * configuration for a PPI this is most likely because the GIC
-	 * does not allow us to set the configuration or we are in a
-	 * non-secure mode, and hence it may not be catastrophic.
+	 * does yest allow us to set the configuration or we are in a
+	 * yesn-secure mode, and hence it may yest be catastrophic.
 	 */
 	writel_relaxed(val, base + confoff);
 	if (readl_relaxed(base + confoff) != val)
@@ -152,7 +152,7 @@ void gic_cpu_config(void __iomem *base, int nr, void (*sync_access)(void))
 		writel_relaxed(GICD_INT_DEF_PRI_X4,
 					base + GIC_DIST_PRI + i * 4 / 4);
 
-	/* Ensure all SGI interrupts are now enabled */
+	/* Ensure all SGI interrupts are yesw enabled */
 	writel_relaxed(GICD_INT_EN_SET_SGI, base + GIC_DIST_ENABLE_SET);
 
 	if (sync_access)

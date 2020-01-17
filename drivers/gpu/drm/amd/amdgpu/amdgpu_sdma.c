@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -143,7 +143,7 @@ void amdgpu_sdma_ras_fini(struct amdgpu_device *adev)
 		struct ras_common_if *ras_if = adev->sdma.ras_if;
 		struct ras_ih_if ih_info = {
 			.head = *ras_if,
-			/* the cb member will not be used by
+			/* the cb member will yest be used by
 			 * amdgpu_ras_interrupt_remove_handler, init it only
 			 * to cheat the check in ras_late_fini
 			 */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012  Bjørn Mork <bjorn@mork.no>
+ * Copyright (c) 2012  Bjørn Mork <bjorn@mork.yes>
  *
  * The probing code is heavily inspired by cdc_ether, which is:
  * Copyright (C) 2003-2005 by David Brownell
@@ -28,10 +28,10 @@
  *
  * QMI is wrapped in CDC, using CDC encapsulated commands on the
  * control ("master") interface of a two-interface CDC Union
- * resembling standard CDC ECM.  The devices do not use the control
+ * resembling standard CDC ECM.  The devices do yest use the control
  * interface for any other CDC messages.  Most likely because the
  * management protocol is used in place of the standard CDC
- * notifications NOTIFY_NETWORK_CONNECTION and NOTIFY_SPEED_CHANGE
+ * yestifications NOTIFY_NETWORK_CONNECTION and NOTIFY_SPEED_CHANGE
  *
  * Alternatively, control and data functions can be combined in a
  * single USB interface.
@@ -212,7 +212,7 @@ static int qmimux_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		if (offset + len + qmimux_hdr_sz > skb->len)
 			return 0;
 
-		/* control packet, we do not know what to do */
+		/* control packet, we do yest kyesw what to do */
 		if (hdr->pad & 0x80)
 			goto skip;
 
@@ -238,7 +238,7 @@ static int qmimux_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			skbn->protocol = htons(ETH_P_IPV6);
 			break;
 		default:
-			/* not ip - do not know what to do */
+			/* yest ip - do yest kyesw what to do */
 			goto skip;
 		}
 
@@ -364,7 +364,7 @@ static ssize_t raw_ip_store(struct device *d,  struct device_attribute *attr, co
 	if (strtobool(buf, &enable))
 		return -EINVAL;
 
-	/* no change? */
+	/* yes change? */
 	if (enable == (info->flags & QMI_WWAN_FLAG_RAWIP))
 		return len;
 
@@ -373,14 +373,14 @@ static ssize_t raw_ip_store(struct device *d,  struct device_attribute *attr, co
 
 	/* we don't want to modify a running netdev */
 	if (netif_running(dev->net)) {
-		netdev_err(dev->net, "Cannot change a running device\n");
+		netdev_err(dev->net, "Canyest change a running device\n");
 		ret = -EBUSY;
 		goto err;
 	}
 
 	/* let other drivers deny the change */
-	ret = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE, dev->net);
-	ret = notifier_to_errno(ret);
+	ret = call_netdevice_yestifiers(NETDEV_PRE_TYPE_CHANGE, dev->net);
+	ret = yestifier_to_erryes(ret);
 	if (ret) {
 		netdev_err(dev->net, "Type change was refused\n");
 		goto err;
@@ -391,7 +391,7 @@ static ssize_t raw_ip_store(struct device *d,  struct device_attribute *attr, co
 	else
 		info->flags &= ~QMI_WWAN_FLAG_RAWIP;
 	qmi_wwan_netdev_setup(dev->net);
-	call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev->net);
+	call_netdevice_yestifiers(NETDEV_POST_TYPE_CHANGE, dev->net);
 	ret = len;
 err:
 	rtnl_unlock();
@@ -441,7 +441,7 @@ static ssize_t add_mux_store(struct device *d,  struct device_attribute *attr, c
 
 	/* we don't want to modify a running netdev */
 	if (netif_running(dev->net)) {
-		netdev_err(dev->net, "Cannot change a running device\n");
+		netdev_err(dev->net, "Canyest change a running device\n");
 		ret = -EBUSY;
 		goto err;
 	}
@@ -477,14 +477,14 @@ static ssize_t del_mux_store(struct device *d,  struct device_attribute *attr, c
 
 	/* we don't want to modify a running netdev */
 	if (netif_running(dev->net)) {
-		netdev_err(dev->net, "Cannot change a running device\n");
+		netdev_err(dev->net, "Canyest change a running device\n");
 		ret = -EBUSY;
 		goto err;
 	}
 
 	del_dev = qmimux_find_dev(dev, mux_id);
 	if (!del_dev) {
-		netdev_err(dev->net, "mux_id not present\n");
+		netdev_err(dev->net, "mux_id yest present\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -522,8 +522,8 @@ static const u8 buggy_fw_addr[ETH_ALEN] = {0x00, 0xa0, 0xc6, 0x00, 0x00, 0x00};
 /* Make up an ethernet header if the packet doesn't have one.
  *
  * A firmware bug common among several devices cause them to send raw
- * IP packets under some circumstances.  There is no way for the
- * driver/host to know when this will happen.  And even when the bug
+ * IP packets under some circumstances.  There is yes way for the
+ * driver/host to kyesw when this will happen.  And even when the bug
  * hits, some packets will still arrive with an intact header.
  *
  * The supported devices are only capably of sending IPv4, IPv6 and
@@ -532,10 +532,10 @@ static const u8 buggy_fw_addr[ETH_ALEN] = {0x00, 0xa0, 0xc6, 0x00, 0x00, 0x00};
  * address as destination.  ARP packets will always have a header.
  *
  * This means that this function will reliably add the appropriate
- * header iff necessary, provided our hardware address does not start
+ * header iff necessary, provided our hardware address does yest start
  * with 4 or 6.
  *
- * Another common firmware bug results in all packets being addressed
+ * Ayesther common firmware bug results in all packets being addressed
  * to 00:a0:c6:00:00:00 despite the host address being different.
  * This function will also fixup such packets.
  */
@@ -545,7 +545,7 @@ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	bool rawip = info->flags & QMI_WWAN_FLAG_RAWIP;
 	__be16 proto;
 
-	/* This check is no longer done by usbnet */
+	/* This check is yes longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len)
 		return 0;
 
@@ -575,7 +575,7 @@ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	}
 	if (rawip) {
 		skb_reset_mac_header(skb);
-		skb->dev = dev->net; /* normally set by eth_type_trans */
+		skb->dev = dev->net; /* yesrmally set by eth_type_trans */
 		skb->protocol = proto;
 		return 1;
 	}
@@ -750,7 +750,7 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 				cdc_union->bMasterInterface0,
 				cdc_union->bSlaveInterface0);
 
-			/* ignore and continue... */
+			/* igyesre and continue... */
 			cdc_union = NULL;
 			info->data = intf;
 		}
@@ -776,7 +776,7 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 
 	/* disabling remote wakeup on MDM9x30 devices has the same
-	 * effect as clearing DTR. The device will not respond to QMI
+	 * effect as clearing DTR. The device will yest respond to QMI
 	 * requests until we set DTR again.  This is similar to a
 	 * QMI_CTL SYNC request, clearing a lot of firmware state
 	 * including the client ID allocations.
@@ -799,7 +799,7 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 
 	/* Never use the same address on both ends of the link, even if the
-	 * buggy firmware told us to. Or, if device is assigned the well-known
+	 * buggy firmware told us to. Or, if device is assigned the well-kyeswn
 	 * buggy firmware MAC address, replace it with a random address,
 	 */
 	if (ether_addr_equal(dev->net->dev_addr, default_modem_addr) ||
@@ -838,7 +838,7 @@ static void qmi_wwan_unbind(struct usbnet *dev, struct usb_interface *intf)
 	else
 		other = info->control;
 
-	/* only if not shared */
+	/* only if yest shared */
 	if (other && intf != other) {
 		usb_set_intfdata(other, NULL);
 		usb_driver_release_interface(driver, other);
@@ -852,7 +852,7 @@ static void qmi_wwan_unbind(struct usbnet *dev, struct usb_interface *intf)
 /* suspend/resume wrappers calling both usbnet and the cdc-wdm
  * subdriver if present.
  *
- * NOTE: cdc-wdm also supports pre/post_reset, but we cannot provide
+ * NOTE: cdc-wdm also supports pre/post_reset, but we canyest provide
  * wrappers for those without adding usbnet reset support first.
  */
 static int qmi_wwan_suspend(struct usb_interface *intf, pm_message_t message)
@@ -946,7 +946,7 @@ static const struct driver_info	qmi_wwan_info_quirk_quectel_dyncfg = {
 #define QMI_GOBI_DEVICE(vend, prod) \
 	QMI_FIXED_INTF(vend, prod, 0)
 
-/* Quectel does not use fixed interface numbers on at least some of their
+/* Quectel does yest use fixed interface numbers on at least some of their
  * devices. We need to check the number of endpoints to ensure that we bind to
  * the correct interface.
  */
@@ -1406,7 +1406,7 @@ static const struct usb_device_id products[] = {
 	{QMI_FIXED_INTF(0x05c6, 0x9215, 4)},	/* Quectel EC20 Mini PCIe */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9265)},	/* Asus Gobi 2000 Modem device (VR305) */
 	{QMI_GOBI_DEVICE(0x05c6, 0x9235)},	/* Top Global Gobi 2000 Modem device (VR306) */
-	{QMI_GOBI_DEVICE(0x05c6, 0x9275)},	/* iRex Technologies Gobi 2000 Modem device (VR307) */
+	{QMI_GOBI_DEVICE(0x05c6, 0x9275)},	/* iRex Techyeslogies Gobi 2000 Modem device (VR307) */
 	{QMI_GOBI_DEVICE(0x0af0, 0x8120)},	/* Option GTM681W */
 	{QMI_GOBI_DEVICE(0x1199, 0x68a5)},	/* Sierra Wireless Modem */
 	{QMI_GOBI_DEVICE(0x1199, 0x68a9)},	/* Sierra Wireless Modem */
@@ -1485,8 +1485,8 @@ static int qmi_wwan_probe(struct usb_interface *intf,
 
 	/* Several Quectel modems supports dynamic interface configuration, so
 	 * we need to match on class/subclass/protocol. These values are
-	 * identical for the diagnostic- and QMI-interface, but bNumEndpoints is
-	 * different. Ignore the current interface if the number of endpoints
+	 * identical for the diagyesstic- and QMI-interface, but bNumEndpoints is
+	 * different. Igyesre the current interface if the number of endpoints
 	 * equals the number for the diag interface (two).
 	 */
 	info = (void *)id->driver_info;
@@ -1541,6 +1541,6 @@ static struct usb_driver qmi_wwan_driver = {
 
 module_usb_driver(qmi_wwan_driver);
 
-MODULE_AUTHOR("Bjørn Mork <bjorn@mork.no>");
+MODULE_AUTHOR("Bjørn Mork <bjorn@mork.yes>");
 MODULE_DESCRIPTION("Qualcomm MSM Interface (QMI) WWAN driver");
 MODULE_LICENSE("GPL");

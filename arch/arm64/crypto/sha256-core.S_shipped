@@ -10,7 +10,7 @@
 
 // Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
 //
-// Licensed under the OpenSSL license (the "License").  You may not use
+// Licensed under the OpenSSL license (the "License").  You may yest use
 // this file except in compliance with the License.  You can obtain a copy
 // in the file LICENSE in the source distribution or at
 // https://www.openssl.org/source/license.html
@@ -41,13 +41,13 @@
 //	10% (or by 1 cycle per round), but at the cost of 20% loss
 //	on Cortex-A53 (or by 4 cycles per round).
 // (***)	Super-impressive coefficients over gcc-generated code are
-//	indication of some compiler "pathology", most notably code
+//	indication of some compiler "pathology", most yestably code
 //	generated with -mgeneral-regs-only is significanty faster
 //	and the gap is only 40-90%.
 //
 // October 2016.
 //
-// Originally it was reckoned that it makes no sense to implement NEON
+// Originally it was reckoned that it makes yes sense to implement NEON
 // version of SHA256 for 64-bit processors. This is because performance
 // improvement on most wide-spread Cortex-A5x processors was observed
 // to be marginal, same on Cortex-A53 and ~10% on A57. But then it was
@@ -1240,7 +1240,7 @@ sha256_block_neon:
 	ld1	{v5.4s},[x16], #16
 	ld1	{v6.4s},[x16], #16
 	ld1	{v7.4s},[x16], #16
-	rev32	v0.16b,v0.16b		// yes, even on
+	rev32	v0.16b,v0.16b		// no, even on
 	rev32	v1.16b,v1.16b		// big-endian
 	rev32	v2.16b,v2.16b
 	rev32	v3.16b,v3.16b

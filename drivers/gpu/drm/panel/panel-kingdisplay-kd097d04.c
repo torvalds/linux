@@ -39,7 +39,7 @@ struct kingdisplay_panel_cmd {
 /*
  * According to the discussion on
  * https://review.coreboot.org/#/c/coreboot/+/22472/
- * the panel init array is not part of the panels datasheet but instead
+ * the panel init array is yest part of the panels datasheet but instead
  * just came in this form from the panel vendor.
  */
 static const struct kingdisplay_panel_cmd init_code[] = {

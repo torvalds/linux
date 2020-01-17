@@ -24,8 +24,8 @@ struct ef4_loopback_self_tests {
 #define EF4_MAX_PHY_TESTS 20
 
 /* Efx self test results
- * For fields which are not counters, 1 indicates success and -1
- * indicates failure; 0 indicates test could not be run.
+ * For fields which are yest counters, 1 indicates success and -1
+ * indicates failure; 0 indicates test could yest be run.
  */
 struct ef4_self_tests {
 	/* online tests */

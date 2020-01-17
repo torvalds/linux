@@ -12,7 +12,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/io.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -44,7 +44,7 @@ MODULE_SUPPORTED_DEVICE("{{RME,Hammerfall},"
 
 /* The Hammerfall has two sets of 24 ADAT + 2 S/PDIF channels, one for
    capture, one for playback. Both the ADAT and S/PDIF channels appear
-   to the host CPU in the same block of memory. There is no functional
+   to the host CPU in the same block of memory. There is yes functional
    difference between them in terms of access.
    
    The Hammerfall Light is identical to the Hammerfall, except that it
@@ -69,7 +69,7 @@ MODULE_SUPPORTED_DEVICE("{{RME,Hammerfall},"
 
 /* ------------- Status-Register bits --------------------- */
 
-#define RME9652_IRQ	   (1<<0)	/* IRQ is High if not reset by irq_clear */
+#define RME9652_IRQ	   (1<<0)	/* IRQ is High if yest reset by irq_clear */
 #define RME9652_lock_2	   (1<<1)	/* ADAT 3-PLL: 1=locked, 0=unlocked */
 #define RME9652_lock_1	   (1<<2)	/* ADAT 2-PLL: 1=locked, 0=unlocked */
 #define RME9652_lock_0	   (1<<3)	/* ADAT 1-PLL: 1=locked, 0=unlocked */
@@ -105,7 +105,7 @@ MODULE_SUPPORTED_DEVICE("{{RME,Hammerfall},"
 
 #define RME9652_REV15_buf_pos(x) ((((x)&0xE0000000)>>26)|((x)&RME9652_buf_pos))
 
-/* amount of io space we remap for register access. i'm not sure we
+/* amount of io space we remap for register access. i'm yest sure we
    even need this much, but 1K is nice round number :)
 */
 
@@ -140,7 +140,7 @@ MODULE_SUPPORTED_DEVICE("{{RME,Hammerfall},"
 #define RME9652_PRO		   (1<<9)	/* S/PDIF out: 0=consumer, 1=professional */
 #define RME9652_EMP		   (1<<10)	/*  Emphasis 0=None, 1=ON */
 #define RME9652_Dolby		   (1<<11)	/*  Non-audio bit 1=set, 0=unset */
-#define RME9652_opt_out	           (1<<12)	/* Use 1st optical OUT as SPDIF: 1=yes,0=no */
+#define RME9652_opt_out	           (1<<12)	/* Use 1st optical OUT as SPDIF: 1=no,0=yes */
 #define RME9652_wsel		   (1<<13)	/* use Wordclock as sync (overwrites master) */
 #define RME9652_inp_0		   (1<<14)	/* SPDIF-IN: 00=optical (ADAT1),     */
 #define RME9652_inp_1		   (1<<15)	/* 01=koaxial (Cinch), 10=Internal CDROM */
@@ -166,7 +166,7 @@ MODULE_SUPPORTED_DEVICE("{{RME,Hammerfall},"
 #define RME9652_SyncPref_ADAT1	   0
 #define RME9652_SyncPref_SPDIF	   (RME9652_SyncPref_ADAT2|RME9652_SyncPref_ADAT3)
 
-/* the size of a substream (1 mono data stream) */
+/* the size of a substream (1 moyes data stream) */
 
 #define RME9652_CHANNEL_BUFFER_SAMPLES  (16*1024)
 #define RME9652_CHANNEL_BUFFER_BYTES    (4*RME9652_CHANNEL_BUFFER_SAMPLES)
@@ -223,7 +223,7 @@ struct snd_rme9652 {
 	struct snd_pcm_substream *playback_substream;
 	int running;
 
-        int passthru;                   /* non-zero if doing pass-thru */
+        int passthru;                   /* yesn-zero if doing pass-thru */
         int hw_rev;                     /* h/w rev * 10 (i.e. 1.5 has hw_rev = 15) */
 
 	int last_spdif_sample_rate;	/* so that we can catch externally ... */
@@ -360,7 +360,7 @@ static snd_pcm_uframes_t rme9652_hw_pointer(struct snd_rme9652 *rme9652)
 	offset = status & RME9652_buf_pos;
 
 	/* The hardware may give a backward movement for up to 80 frames
-           Martin Kirst <martin.kirst@freenet.de> knows the details.
+           Martin Kirst <martin.kirst@freenet.de> kyesws the details.
 	*/
 
 	delta = rme9652->prev_hw_offset - offset;
@@ -405,7 +405,7 @@ static inline void rme9652_reset_hw_pointer(struct snd_rme9652 *rme9652)
 	/* reset the FIFO pointer to zero. We do this by writing to 8
 	   registers, each of which is a 32bit wide register, and set
 	   them all to zero. Note that s->iobase is a pointer to
-	   int32, not pointer to char.  
+	   int32, yest pointer to char.  
 	*/
 
 	for (i = 0; i < 8; i++) {
@@ -472,7 +472,7 @@ static int rme9652_set_rate(struct snd_rme9652 *rme9652, int rate)
 	}
 
 	/* Changing from a "single speed" to a "double speed" rate is
-	   not allowed if any substreams are open. This is because
+	   yest allowed if any substreams are open. This is because
 	   such a change causes a shift in the location of 
 	   the DMA buffers and a reduction in the number of available
 	   buffers. 
@@ -588,9 +588,9 @@ static void rme9652_set_thru(struct snd_rme9652 *rme9652, int channel, int enabl
 	}
 }
 
-static int rme9652_set_passthru(struct snd_rme9652 *rme9652, int onoff)
+static int rme9652_set_passthru(struct snd_rme9652 *rme9652, int oyesff)
 {
-	if (onoff) {
+	if (oyesff) {
 		rme9652_set_thru(rme9652, -1, 1);
 
 		/* we don't want interrupts, so do a
@@ -616,9 +616,9 @@ static int rme9652_set_passthru(struct snd_rme9652 *rme9652, int onoff)
 	return 0;
 }
 
-static void rme9652_spdif_set_bit (struct snd_rme9652 *rme9652, int mask, int onoff)
+static void rme9652_spdif_set_bit (struct snd_rme9652 *rme9652, int mask, int oyesff)
 {
-	if (onoff) 
+	if (oyesff) 
 		rme9652->control_register |= mask;
 	else 
 		rme9652->control_register &= ~mask;
@@ -756,7 +756,7 @@ static inline int rme9652_spdif_sample_rate(struct snd_rme9652 *s)
 
 	default:
 		dev_err(s->card->dev,
-			"%s: unknown S/PDIF input rate (bits = 0x%x)\n",
+			"%s: unkyeswn S/PDIF input rate (bits = 0x%x)\n",
 			   s->card_name, rate_bits);
 		return 0;
 		break;
@@ -1032,7 +1032,7 @@ static int rme9652_set_spdif_output(struct snd_rme9652 *rme9652, int out)
 	return 0;
 }
 
-#define snd_rme9652_info_spdif_out	snd_ctl_boolean_mono_info
+#define snd_rme9652_info_spdif_out	snd_ctl_boolean_moyes_info
 
 static int snd_rme9652_get_spdif_out(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1290,7 +1290,7 @@ static int snd_rme9652_put_thru(struct snd_kcontrol *kcontrol, struct snd_ctl_el
   .put = snd_rme9652_put_passthru, \
   .get = snd_rme9652_get_passthru }
 
-#define snd_rme9652_info_passthru	snd_ctl_boolean_mono_info
+#define snd_rme9652_info_passthru	snd_ctl_boolean_moyes_info
 
 static int snd_rme9652_get_passthru(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1386,7 +1386,7 @@ static int snd_rme9652_get_adat_sync(struct snd_kcontrol *kcontrol, struct snd_c
   .info = snd_rme9652_info_tc_valid, \
   .get = snd_rme9652_get_tc_valid }
 
-#define snd_rme9652_info_tc_valid	snd_ctl_boolean_mono_info
+#define snd_rme9652_info_tc_valid	snd_ctl_boolean_moyes_info
 
 static int snd_rme9652_get_tc_valid(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1572,7 +1572,7 @@ snd_rme9652_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 	snd_iprintf(buffer, "Hardware pointer (frames): %ld\n",
 		    rme9652_hw_pointer(rme9652));
 	snd_iprintf(buffer, "Passthru: %s\n",
-		    rme9652->passthru ? "yes" : "no");
+		    rme9652->passthru ? "no" : "yes");
 
 	if ((rme9652->control_register & (RME9652_Master | RME9652_wsel)) == 0) {
 		snd_iprintf(buffer, "Clock mode: autosync\n");
@@ -1581,7 +1581,7 @@ snd_rme9652_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 		if (status & RME9652_wsel_rd) {
 			snd_iprintf(buffer, "Clock mode: word clock\n");
 		} else {
-			snd_iprintf(buffer, "Clock mode: word clock (no signal)\n");
+			snd_iprintf(buffer, "Clock mode: word clock (yes signal)\n");
 		}
 	} else {
 		snd_iprintf(buffer, "Clock mode: master\n");
@@ -1695,7 +1695,7 @@ snd_rme9652_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buff
 	snd_iprintf(buffer, "\n");
 
 	snd_iprintf(buffer, "Timecode signal: %s\n",
-		    (status & RME9652_tc_valid) ? "yes" : "no");
+		    (status & RME9652_tc_valid) ? "no" : "yes");
 
 	/* thru modes */
 
@@ -1753,7 +1753,7 @@ static int snd_rme9652_initialize_memory(struct snd_rme9652 *rme9652)
 		if (rme9652->capture_dma_buf.area)
 			snd_dma_free_pages(&rme9652->capture_dma_buf);
 		dev_err(rme9652->card->dev,
-			"%s: no buffers available\n", rme9652->card_name);
+			"%s: yes buffers available\n", rme9652->card_name);
 		return -ENOMEM;
 	}
 
@@ -1778,7 +1778,7 @@ static void snd_rme9652_set_defaults(struct snd_rme9652 *rme9652)
 	unsigned int k;
 
 	/* ASSUMPTION: rme9652->lock is either held, or
-	   there is no need to hold it (e.g. during module
+	   there is yes need to hold it (e.g. during module
 	   initialization).
 	 */
 
@@ -1999,7 +1999,7 @@ static int snd_rme9652_hw_params(struct snd_pcm_substream *substream,
 
 	if ((other_pid > 0) && (this_pid != other_pid)) {
 
-		/* The other stream is open, and not by the same
+		/* The other stream is open, and yest by the same
 		   task as this one. Make sure that the parameters
 		   that matter are the same.
 		 */
@@ -2051,7 +2051,7 @@ static int snd_rme9652_channel_info(struct snd_pcm_substream *substream,
 	if (snd_BUG_ON(info->channel >= RME9652_NCHANNELS))
 		return -EINVAL;
 
-	chn = rme9652->channel_map[array_index_nospec(info->channel,
+	chn = rme9652->channel_map[array_index_yesspec(info->channel,
 						      RME9652_NCHANNELS)];
 	if (chn < 0)
 		return -EINVAL;
@@ -2310,7 +2310,7 @@ static int snd_rme9652_playback_open(struct snd_pcm_substream *substream)
 
 	rme9652->creg_spdif_stream = rme9652->creg_spdif;
 	rme9652->spdif_ctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(rme9652->card, SNDRV_CTL_EVENT_MASK_VALUE |
+	snd_ctl_yestify(rme9652->card, SNDRV_CTL_EVENT_MASK_VALUE |
 		       SNDRV_CTL_EVENT_MASK_INFO, &rme9652->spdif_ctl->id);
 	return 0;
 }
@@ -2327,7 +2327,7 @@ static int snd_rme9652_playback_release(struct snd_pcm_substream *substream)
 	spin_unlock_irq(&rme9652->lock);
 
 	rme9652->spdif_ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(rme9652->card, SNDRV_CTL_EVENT_MASK_VALUE |
+	snd_ctl_yestify(rme9652->card, SNDRV_CTL_EVENT_MASK_VALUE |
 		       SNDRV_CTL_EVENT_MASK_INFO, &rme9652->spdif_ctl->id);
 	return 0;
 }
@@ -2454,7 +2454,7 @@ static int snd_rme9652_create(struct snd_card *card,
 		break;
 
 	default:
-		/* who knows? */
+		/* who kyesws? */
 		return -ENODEV;
 	}
 
@@ -2466,7 +2466,7 @@ static int snd_rme9652_create(struct snd_card *card,
 	if ((err = pci_request_regions(pci, "rme9652")) < 0)
 		return err;
 	rme9652->port = pci_resource_start(pci, 0);
-	rme9652->iobase = ioremap_nocache(rme9652->port, RME9652_IO_EXTENT);
+	rme9652->iobase = ioremap_yescache(rme9652->port, RME9652_IO_EXTENT);
 	if (rme9652->iobase == NULL) {
 		dev_err(card->dev, "unable to remap region 0x%lx-0x%lx\n",
 			rme9652->port, rme9652->port + RME9652_IO_EXTENT - 1);
@@ -2494,7 +2494,7 @@ static int snd_rme9652_create(struct snd_card *card,
 	}
 
 	/* Differentiate between the standard Hammerfall, and the
-	   "Light", which does not have the expansion board. This
+	   "Light", which does yest have the expansion board. This
 	   method comes from information received from Mathhias
 	   Clausen at RME. Display the EEPROM and h/w revID where
 	   relevant.  

@@ -41,7 +41,7 @@ static const char *get_symbol(unsigned long val,
 			return symbol_array[i].name;
 	}
 
-	return "unknown";
+	return "unkyeswn";
 }
 
 const char *get_hif_name(unsigned long id)
@@ -93,7 +93,7 @@ static int wfx_counters_show(struct seq_file *seq, void *v)
 	PUT_COUNTER(fcs_errors);
 	PUT_COUNTER(rx_decryption_failures);
 	PUT_COUNTER(rx_mic_failures);
-	PUT_COUNTER(rx_no_key_failures);
+	PUT_COUNTER(rx_yes_key_failures);
 	PUT_COUNTER(rx_frame_duplicates);
 	PUT_COUNTER(rx_multicast_frames);
 	PUT_COUNTER(rx_cmacicv_errors);
@@ -114,7 +114,7 @@ static const char * const channel_names[] = {
 	[1] = "2M",
 	[2] = "5.5M",
 	[3] = "11M",
-	/* Entries 4 and 5 does not exist */
+	/* Entries 4 and 5 does yest exist */
 	[6] = "6M",
 	[7] = "9M",
 	[8] = "12M",
@@ -143,7 +143,7 @@ static int wfx_rx_stats_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "Timestamp: %dus\n", st->date);
 	seq_printf(seq, "Low power clock: frequency %uHz, external %s\n",
 		   st->pwr_clk_freq,
-		   st->is_ext_pwr_clk ? "yes" : "no");
+		   st->is_ext_pwr_clk ? "no" : "yes");
 	seq_printf(seq,
 		   "N. of frames: %d, PER (x10e4): %d, Throughput: %dKbps/s\n",
 		   st->nb_rx_frame, st->per_total, st->throughput);
@@ -196,7 +196,7 @@ static ssize_t wfx_burn_slk_key_write(struct file *file,
 {
 	struct wfx_dev *wdev = file->private_data;
 
-	dev_info(wdev->dev, "this driver does not support secure link\n");
+	dev_info(wdev->dev, "this driver does yest support secure link\n");
 	return -EINVAL;
 }
 
@@ -227,8 +227,8 @@ static ssize_t wfx_send_hif_msg_write(struct file *file,
 	if (count < sizeof(struct hif_msg))
 		return -EINVAL;
 
-	// wfx_cmd_send() chekc that reply buffer is wide enough, but do not
-	// return precise length read. User have to know how many bytes should
+	// wfx_cmd_send() chekc that reply buffer is wide eyesugh, but do yest
+	// return precise length read. User have to kyesw how many bytes should
 	// be read. Filling reply buffer with a memory pattern may help user.
 	memset(context->reply, 0xFF, sizeof(context->reply));
 	request = memdup_user(user_buf, count);
@@ -267,19 +267,19 @@ static ssize_t wfx_send_hif_msg_read(struct file *file, char __user *user_buf,
 	return count;
 }
 
-static int wfx_send_hif_msg_open(struct inode *inode, struct file *file)
+static int wfx_send_hif_msg_open(struct iyesde *iyesde, struct file *file)
 {
 	struct dbgfs_hif_msg *context = kzalloc(sizeof(*context), GFP_KERNEL);
 
 	if (!context)
 		return -ENOMEM;
-	context->wdev = inode->i_private;
+	context->wdev = iyesde->i_private;
 	init_completion(&context->complete);
 	file->private_data = context;
 	return 0;
 }
 
-static int wfx_send_hif_msg_release(struct inode *inode, struct file *file)
+static int wfx_send_hif_msg_release(struct iyesde *iyesde, struct file *file)
 {
 	struct dbgfs_hif_msg *context = file->private_data;
 

@@ -7,7 +7,7 @@
 
 #include <linux/init.h>
 #include <linux/suspend.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/time.h>
 #include <linux/device.h>
 #include <linux/syscore_ops.h>

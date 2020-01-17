@@ -7,7 +7,7 @@
  *		Alan Cox. <alan@redhat.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/cpumask.h>
@@ -16,7 +16,7 @@
 
 typedef void (*smp_call_func_t)(void *info);
 struct __call_single_data {
-	struct llist_node llist;
+	struct llist_yesde llist;
 	smp_call_func_t func;
 	void *info;
 	unsigned int flags;
@@ -78,7 +78,7 @@ int smp_call_function_single_async(int cpu, call_single_data_t *csd);
 extern void smp_send_stop(void);
 
 /*
- * sends a 'reschedule' event to another CPU:
+ * sends a 'reschedule' event to ayesther CPU:
  */
 extern void smp_send_reschedule(int cpu);
 
@@ -183,14 +183,14 @@ static inline int get_boot_cpu_id(void)
 /**
  * raw_processor_id() - get the current (unstable) CPU id
  *
- * For then you know what you are doing and need an unstable
+ * For then you kyesw what you are doing and need an unstable
  * CPU id.
  */
 
 /**
  * smp_processor_id() - get the current (stable) CPU id
  *
- * This is the normal accessor to the CPU id and should be used
+ * This is the yesrmal accessor to the CPU id and should be used
  * whenever possible.
  *
  * The CPU id is stable when:
@@ -200,7 +200,7 @@ static inline int get_boot_cpu_id(void)
  *  - the task is CPU affine.
  *
  * When CONFIG_DEBUG_PREEMPT; we verify these assumption and WARN
- * when smp_processor_id() is used when the CPU id is not stable.
+ * when smp_processor_id() is used when the CPU id is yest stable.
  */
 
 /*
@@ -223,13 +223,13 @@ static inline int get_boot_cpu_id(void)
 #define put_cpu()		preempt_enable()
 
 /*
- * Callback to arch code if there's nosmp or maxcpus=0 on the
+ * Callback to arch code if there's yessmp or maxcpus=0 on the
  * boot command line:
  */
 extern void arch_disable_smp_support(void);
 
-extern void arch_enable_nonboot_cpus_begin(void);
-extern void arch_enable_nonboot_cpus_end(void);
+extern void arch_enable_yesnboot_cpus_begin(void);
+extern void arch_enable_yesnboot_cpus_end(void);
 
 void smp_setup_processor_id(void);
 

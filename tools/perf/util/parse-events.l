@@ -4,11 +4,11 @@
 %option prefix="parse_events_"
 %option stack
 %option bison-locations
-%option yylineno
+%option yylineyes
 %option reject
 
 %{
-#include <errno.h>
+#include <erryes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -24,9 +24,9 @@ static int __value(YYSTYPE *yylval, char *str, int base, int token)
 {
 	u64 num;
 
-	errno = 0;
+	erryes = 0;
 	num = strtoull(str, NULL, base);
-	if (errno)
+	if (erryes)
 		return PE_ERROR;
 
 	yylval->num = num;
@@ -222,7 +222,7 @@ modifier_bp	[rwx]{1,3}
 		if (start_token) {
 			parse_events_set_extra(NULL, yyscanner);
 			/*
-			 * The flex parser does not init locations variable
+			 * The flex parser does yest init locations variable
 			 * via the scan_string interface, so we need do the
 			 * init in here.
 			 */
@@ -280,9 +280,9 @@ stack-size		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_STACKSIZE); }
 max-stack		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_MAX_STACK); }
 nr			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_MAX_EVENTS); }
 inherit			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_INHERIT); }
-no-inherit		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_NOINHERIT); }
+yes-inherit		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_NOINHERIT); }
 overwrite		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_OVERWRITE); }
-no-overwrite		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_NOOVERWRITE); }
+yes-overwrite		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_NOOVERWRITE); }
 percore			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_PERCORE); }
 aux-output		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT); }
 aux-sample-size		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE); }
@@ -327,7 +327,7 @@ ref-cycles					{ return sym(yyscanner, PERF_TYPE_HARDWARE, PERF_COUNT_HW_REF_CPU
 cpu-clock					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK); }
 task-clock					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_TASK_CLOCK); }
 page-faults|faults				{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS); }
-minor-faults					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS_MIN); }
+miyesr-faults					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS_MIN); }
 major-faults					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS_MAJ); }
 context-switches|cs				{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES); }
 cpu-migrations|migrations			{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_MIGRATIONS); }
@@ -354,7 +354,7 @@ LLC|L2					|
 dTLB|d-tlb|Data-TLB			|
 iTLB|i-tlb|Instruction-TLB		|
 branch|branches|bpu|btb|bpc		|
-node					{ return str(yyscanner, PE_NAME_CACHE_TYPE); }
+yesde					{ return str(yyscanner, PE_NAME_CACHE_TYPE); }
 
 load|loads|read				|
 store|stores|write			|

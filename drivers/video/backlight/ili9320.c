@@ -204,7 +204,7 @@ int ili9320_probe_spi(struct spi_device *spi,
 	/* verify we where given some information */
 
 	if (cfg == NULL) {
-		dev_err(dev, "no platform data supplied\n");
+		dev_err(dev, "yes platform data supplied\n");
 		return -EINVAL;
 	}
 

@@ -46,7 +46,7 @@ Required Properties:
     instance that serves the DU channel, and the channel index identifies the
     LIF instance in that VSP.
 
-Required nodes:
+Required yesdes:
 
 The connections to the DU output video ports are modeled using the OF graph
 bindings specified in Documentation/devicetree/bindings/graph.txt.

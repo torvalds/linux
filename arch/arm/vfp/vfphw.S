@@ -70,7 +70,7 @@
 @
 @  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
 @  r2  = PC value to resume execution after successful emulation
-@  r9  = normal "successful" return address
+@  r9  = yesrmal "successful" return address
 @  r10 = vfp_state union
 @  r11 = CPU number
 @  lr  = unrecognised instruction return address
@@ -78,7 +78,7 @@
 ENTRY(vfp_support_entry)
 	DBGSTR3	"instr %08x pc %08x state %p", r0, r2, r10
 
-	ldr	r3, [sp, #S_PSR]	@ Neither lazy restore nor FP exceptions
+	ldr	r3, [sp, #S_PSR]	@ Neither lazy restore yesr FP exceptions
 	and	r3, r3, #MODE_MASK	@ are supported in kernel mode
 	teq	r3, #USR_MODE
 	bne	vfp_kmode_exception	@ Returns through lr
@@ -125,13 +125,13 @@ ENTRY(vfp_support_entry)
 vfp_reload_hw:
 
 #else
-	@ For SMP, if this thread does not own the hw context, then we
+	@ For SMP, if this thread does yest own the hw context, then we
 	@ need to reload it.  No need to save the old state as on SMP,
 	@ we always save the state when we switch away from a thread.
 	bne	vfp_reload_hw
 
 	@ This thread has ownership of the current hardware context.
-	@ However, it may have been migrated to another CPU, in which
+	@ However, it may have been migrated to ayesther CPU, in which
 	@ case the saved state is newer than the hardware context.
 	@ Check this by looking at the CPU number which the state was
 	@ last loaded onto.
@@ -184,11 +184,11 @@ vfp_hw_state_valid:
 
 
 look_for_VFP_exceptions:
-	@ Check for synchronous or asynchronous exception
+	@ Check for synchroyesus or asynchroyesus exception
 	tst	r1, #FPEXC_EX | FPEXC_DEX
 	bne	process_exception
 	@ On some implementations of the VFP subarch 1, setting FPSCR.IXE
-	@ causes all the CDP instructions to be bounced synchronously without
+	@ causes all the CDP instructions to be bounced synchroyesusly without
 	@ setting the FPEXC.EX bit
 	VFPFMRX	r5, FPSCR
 	tst	r5, #FPSCR_IXE
@@ -201,15 +201,15 @@ look_for_VFP_exceptions:
 skip:
 
 	@ Fall into hand on to next handler - appropriate coproc instr
-	@ not recognised by VFP
+	@ yest recognised by VFP
 
-	DBGSTR	"not VFP"
+	DBGSTR	"yest VFP"
 	dec_preempt_count_ti r10, r4
 	ret	lr
 
 process_exception:
 	DBGSTR	"bounce"
-	mov	r2, sp			@ nothing stacked - regdump is at TOS
+	mov	r2, sp			@ yesthing stacked - regdump is at TOS
 	mov	lr, r9			@ setup for a return to the user code.
 
 	@ Now call the C code to package up the bounce to the support code
@@ -218,7 +218,7 @@ process_exception:
 	@   r2 pointer to register dump
 	b	VFP_bounce		@ we have handled this - the support
 					@ code will raise an exception if
-					@ required. If not, the user code will
+					@ required. If yest, the user code will
 					@ retry the faulted instruction
 ENDPROC(vfp_support_entry)
 

@@ -55,7 +55,7 @@ static int ice40_fpga_ops_write_init(struct fpga_manager *mgr,
 
 	if ((info->flags & FPGA_MGR_PARTIAL_RECONFIG)) {
 		dev_err(&dev->dev,
-			"Partial reconfiguration is not supported\n");
+			"Partial reconfiguration is yest supported\n");
 		return -ENOTSUPP;
 	}
 
@@ -111,7 +111,7 @@ static int ice40_fpga_ops_write_complete(struct fpga_manager *mgr,
 	/* Check CDONE is asserted */
 	if (!gpiod_get_value(priv->cdone)) {
 		dev_err(&dev->dev,
-			"CDONE was not asserted after firmware transfer\n");
+			"CDONE was yest asserted after firmware transfer\n");
 		return -EIO;
 	}
 
@@ -153,7 +153,7 @@ static int ice40_fpga_probe(struct spi_device *spi)
 	}
 
 	if (spi->mode & SPI_CPHA) {
-		dev_err(dev, "Bad SPI mode, CPHA not supported\n");
+		dev_err(dev, "Bad SPI mode, CPHA yest supported\n");
 		return -EINVAL;
 	}
 

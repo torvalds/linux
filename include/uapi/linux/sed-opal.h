@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright © 2016 Intel Corporation
  *
  * Authors:
- *    Rafael Antognolli <rafael.antognolli@intel.com>
+ *    Rafael Antogyeslli <rafael.antogyeslli@intel.com>
  *    Scott  Bauer      <scott.bauer@intel.com>
  */
 
@@ -82,11 +82,11 @@ struct opal_lock_unlock {
 struct opal_new_pw {
 	struct opal_session_info session;
 
-	/* When we're not operating in sum, and we first set
+	/* When we're yest operating in sum, and we first set
 	 * passwords we need to set them via ADMIN authority.
 	 * After passwords are changed, we can set them via,
 	 * User authorities.
-	 * Because of this restriction we need to know about
+	 * Because of this restriction we need to kyesw about
 	 * Two different users. One in 'session' which we will use
 	 * to start the session and new_userr_pw as the user we're
 	 * chaning the pw for.

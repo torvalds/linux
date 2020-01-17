@@ -94,7 +94,7 @@
 #define MAC80211_3ADDR_LEN			24
 #define MAC80211_4ADDR_LEN			30
 
-#define CHANNEL_MAX_NUMBER	(14 + 24 + 21)	/* 14 is the max channel no */
+#define CHANNEL_MAX_NUMBER	(14 + 24 + 21)	/* 14 is the max channel yes */
 #define CHANNEL_MAX_NUMBER_2G		14
 #define CHANNEL_MAX_NUMBER_5G		49 /* Please refer to
 					    *"phy_GetChnlGroup8812A" and
@@ -189,8 +189,8 @@ enum rtl_c2h_evt_v2 {
 
 #define DEL_SW_IDX_SZ		30
 
-/* For now, it's just for 8192ee
- * but not OK yet, keep it 0
+/* For yesw, it's just for 8192ee
+ * but yest OK yet, keep it 0
  */
 #define RTL8192EE_SEG_NUM		BUFDESC_SEG_NUM
 
@@ -1141,7 +1141,7 @@ struct wireless_stats {
 
 	long rx_snr_db[4];
 	/*Correct smoothed ss in Dbm, only used
-	 * in driver to report real power now.
+	 * in driver to report real power yesw.
 	 */
 	long recv_signal_power;
 	long signal_quality;
@@ -1151,7 +1151,7 @@ struct wireless_stats {
 	u32 pwdb_all_cnt;
 
 	/* Transformed, in dbm. Beautified signal
-	 * strength for UI, not correct.
+	 * strength for UI, yest correct.
 	 */
 	long signal_strength;
 
@@ -1255,31 +1255,31 @@ enum p2p_ps_mode {
 struct rtl_p2p_ps_info {
 	enum p2p_ps_mode p2p_ps_mode; /* indicate p2p ps mode */
 	enum p2p_ps_state p2p_ps_state; /*  indicate p2p ps state */
-	u8 noa_index; /*  Identifies instance of Notice of Absence timing. */
+	u8 yesa_index; /*  Identifies instance of Notice of Absence timing. */
 	/*  Client traffic window. A period of time in TU after TBTT. */
 	u8 ctwindow;
 	u8 opp_ps; /*  opportunistic power save. */
-	u8 noa_num; /*  number of NoA descriptor in P2P IE. */
+	u8 yesa_num; /*  number of NoA descriptor in P2P IE. */
 	/*  Count for owner, Type of client. */
-	u8 noa_count_type[P2P_MAX_NOA_NUM];
+	u8 yesa_count_type[P2P_MAX_NOA_NUM];
 	/*  Max duration for owner, preferred or min acceptable duration
 	 * for client.
 	 */
-	u32 noa_duration[P2P_MAX_NOA_NUM];
+	u32 yesa_duration[P2P_MAX_NOA_NUM];
 	/*  Length of interval for owner, preferred or max acceptable intervali
 	 * of client.
 	 */
-	u32 noa_interval[P2P_MAX_NOA_NUM];
+	u32 yesa_interval[P2P_MAX_NOA_NUM];
 	/*  schedule in terms of the lower 4 bytes of the TSF timer. */
-	u32 noa_start_time[P2P_MAX_NOA_NUM];
+	u32 yesa_start_time[P2P_MAX_NOA_NUM];
 };
 
 struct p2p_ps_offload_t {
 	u8 offload_en:1;
 	u8 role:1; /* 1: Owner, 0: Client */
 	u8 ctwindow_en:1;
-	u8 noa0_en:1;
-	u8 noa1_en:1;
+	u8 yesa0_en:1;
+	u8 yesa1_en:1;
 	u8 allstasleep:1;
 	u8 discovery:1;
 	u8 reserved:1;
@@ -1597,7 +1597,7 @@ struct btdm_8723 {
 	u32 wlan_act_lo;
 	u32 bt_retry_index;
 	bool dec_bt_pwr;
-	bool ignore_wlan_act;
+	bool igyesre_wlan_act;
 };
 
 struct bt_coexist_8723 {
@@ -1776,7 +1776,7 @@ struct dm_phy_dbg_info {
 	u64 num_qry_phy_status_cck;
 	u64 num_qry_phy_status_ofdm;
 	u16 num_qry_beacon_pkt;
-	u16 num_non_be_pkt;
+	u16 num_yesn_be_pkt;
 	s32 rx_evm[4];
 };
 
@@ -1790,7 +1790,7 @@ struct rtl_dm {
 	bool dm_initialgain_enable;
 	bool dynamic_txpower_enable;
 	bool current_turbo_edca;
-	bool is_any_nonbepkts;	/*out dm */
+	bool is_any_yesnbepkts;	/*out dm */
 	bool is_cur_rdlstate;
 	bool txpower_trackinginit;
 	bool disable_framebursting;
@@ -1978,7 +1978,7 @@ struct rtl_efuse {
 	u8 delta_lck;
 
 	u8 legacy_ht_txpowerdiff;	/*Legacy to HT rate power diff */
-	bool apk_thermalmeterignore;
+	bool apk_thermalmeterigyesre;
 
 	bool b1x1_recvcombine;
 	bool b1ss_support;
@@ -2078,7 +2078,7 @@ struct rtl_stats {
 	u32 mac_time[2];
 	s8 rssi;
 	u8 signal;
-	u8 noise;
+	u8 yesise;
 	u8 rate;		/* hw desc rate */
 	u8 received_channel;
 	u8 control;
@@ -2091,7 +2091,7 @@ struct rtl_stats {
 	u16 length;
 	u8 signalquality;	/*in 0-100 index. */
 	/* Real power in dBm for this packet,
-	 * no beautification and aggregation.
+	 * yes beautification and aggregation.
 	 */
 	s32 recvsignalpower;
 	s8 rxpower;		/*in dBm Translate from PWdB */
@@ -2273,7 +2273,7 @@ struct rtl_hal_ops {
 			      struct ieee80211_rx_status *rx_status,
 			      u8 *pdesc, struct sk_buff *skb);
 	void (*set_channel_access)(struct ieee80211_hw *hw);
-	bool (*radio_onoff_checking)(struct ieee80211_hw *hw, u8 *valid);
+	bool (*radio_oyesff_checking)(struct ieee80211_hw *hw, u8 *valid);
 	void (*dm_watchdog)(struct ieee80211_hw *hw);
 	void (*scan_operation_backup)(struct ieee80211_hw *hw, u8 operation);
 	bool (*set_rf_power_state)(struct ieee80211_hw *hw,
@@ -2317,7 +2317,7 @@ struct rtl_hal_ops {
 	void (*phy_set_bw_mode_callback)(struct ieee80211_hw *hw);
 	void (*dm_dynamic_txpower)(struct ieee80211_hw *hw);
 	void (*c2h_command_handle)(struct ieee80211_hw *hw);
-	void (*bt_wifi_media_status_notify)(struct ieee80211_hw *hw,
+	void (*bt_wifi_media_status_yestify)(struct ieee80211_hw *hw,
 					    bool mstate);
 	void (*bt_coex_off_before_lps)(struct ieee80211_hw *hw);
 	void (*fill_h2c_cmd)(struct ieee80211_hw *hw, u8 element_id,
@@ -2367,7 +2367,7 @@ struct rtl_mod_params {
 	/* default: 0 = DBG_EMERG (0)*/
 	int debug_level;
 
-	/* default: 1 = using no linked power save */
+	/* default: 1 = using yes linked power save */
 	bool inactiveps;
 
 	/* default: 1 = using linked sw power save */
@@ -2376,7 +2376,7 @@ struct rtl_mod_params {
 	/* default: 1 = using linked fw power save */
 	bool fwctrl_lps;
 
-	/* default: 0 = not using MSI interrupts mode
+	/* default: 0 = yest using MSI interrupts mode
 	 * submodules should set their own default value
 	 */
 	bool msi_support;
@@ -2390,7 +2390,7 @@ struct rtl_mod_params {
 	/* default 0: 1 means disable */
 	bool disable_watchdog;
 
-	/* default 0: 1 means do not disable interrupts */
+	/* default 0: 1 means do yest disable interrupts */
 	bool int_clear;
 
 	/* select antenna */
@@ -2510,15 +2510,15 @@ struct rtl_dualmac_easy_concurrent_ctl {
 
 struct rtl_dmsp_ctl {
 	bool activescan_for_slaveofdmsp;
-	bool scan_for_anothermac_fordmsp;
+	bool scan_for_ayesthermac_fordmsp;
 	bool scan_for_itself_fordmsp;
-	bool writedig_for_anothermacofdmsp;
-	u32 curdigvalue_for_anothermacofdmsp;
-	bool changecckpdstate_for_anothermacofdmsp;
-	u8 curcckpdstate_for_anothermacofdmsp;
-	bool changetxhighpowerlvl_for_anothermacofdmsp;
-	u8 curtxhighlvl_for_anothermacofdmsp;
-	long rssivalmin_for_anothermacofdmsp;
+	bool writedig_for_ayesthermacofdmsp;
+	u32 curdigvalue_for_ayesthermacofdmsp;
+	bool changecckpdstate_for_ayesthermacofdmsp;
+	u8 curcckpdstate_for_ayesthermacofdmsp;
+	bool changetxhighpowerlvl_for_ayesthermacofdmsp;
+	u8 curtxhighlvl_for_ayesthermacofdmsp;
+	long rssivalmin_for_ayesthermacofdmsp;
 };
 
 struct ps_t {
@@ -2646,7 +2646,7 @@ struct bt_coexist_info {
 	bool init_set;
 	bool bt_busy_traffic;
 	bool bt_traffic_mode_set;
-	bool bt_non_traffic_mode_set;
+	bool bt_yesn_traffic_mode_set;
 
 	bool fw_coexist_all_off;
 	bool sw_coexist_all_off;
@@ -2681,28 +2681,28 @@ struct rtl_btc_ops {
 	void (*btc_power_on_setting)(struct rtl_priv *rtlpriv);
 	void (*btc_init_hw_config)(struct rtl_priv *rtlpriv);
 	void (*btc_init_hw_config_wifi_only)(struct rtl_priv *rtlpriv);
-	void (*btc_ips_notify)(struct rtl_priv *rtlpriv, u8 type);
-	void (*btc_lps_notify)(struct rtl_priv *rtlpriv, u8 type);
-	void (*btc_scan_notify)(struct rtl_priv *rtlpriv, u8 scantype);
-	void (*btc_scan_notify_wifi_only)(struct rtl_priv *rtlpriv,
+	void (*btc_ips_yestify)(struct rtl_priv *rtlpriv, u8 type);
+	void (*btc_lps_yestify)(struct rtl_priv *rtlpriv, u8 type);
+	void (*btc_scan_yestify)(struct rtl_priv *rtlpriv, u8 scantype);
+	void (*btc_scan_yestify_wifi_only)(struct rtl_priv *rtlpriv,
 					  u8 scantype);
-	void (*btc_connect_notify)(struct rtl_priv *rtlpriv, u8 action);
-	void (*btc_mediastatus_notify)(struct rtl_priv *rtlpriv,
+	void (*btc_connect_yestify)(struct rtl_priv *rtlpriv, u8 action);
+	void (*btc_mediastatus_yestify)(struct rtl_priv *rtlpriv,
 				       enum rt_media_status mstatus);
 	void (*btc_periodical)(struct rtl_priv *rtlpriv);
-	void (*btc_halt_notify)(struct rtl_priv *rtlpriv);
-	void (*btc_btinfo_notify)(struct rtl_priv *rtlpriv,
+	void (*btc_halt_yestify)(struct rtl_priv *rtlpriv);
+	void (*btc_btinfo_yestify)(struct rtl_priv *rtlpriv,
 				  u8 *tmp_buf, u8 length);
-	void (*btc_btmpinfo_notify)(struct rtl_priv *rtlpriv,
+	void (*btc_btmpinfo_yestify)(struct rtl_priv *rtlpriv,
 				    u8 *tmp_buf, u8 length);
 	bool (*btc_is_limited_dig)(struct rtl_priv *rtlpriv);
 	bool (*btc_is_disable_edca_turbo)(struct rtl_priv *rtlpriv);
 	bool (*btc_is_bt_disabled)(struct rtl_priv *rtlpriv);
-	void (*btc_special_packet_notify)(struct rtl_priv *rtlpriv,
+	void (*btc_special_packet_yestify)(struct rtl_priv *rtlpriv,
 					  u8 pkt_type);
-	void (*btc_switch_band_notify)(struct rtl_priv *rtlpriv, u8 type,
+	void (*btc_switch_band_yestify)(struct rtl_priv *rtlpriv, u8 type,
 				       bool scanning);
-	void (*btc_switch_band_notify_wifi_only)(struct rtl_priv *rtlpriv,
+	void (*btc_switch_band_yestify_wifi_only)(struct rtl_priv *rtlpriv,
 						 u8 type, bool scanning);
 	void (*btc_display_bt_coex_info)(struct rtl_priv *rtlpriv,
 					 struct seq_file *m);
@@ -3039,9 +3039,9 @@ enum bt_radio_shared {
 #define	RT_RF_OFF_LEVL_FW_32K		BIT(5)	/*FW in 32k */
 /*Always enable ASPM and Clock Req in initialization.*/
 #define	RT_RF_PS_LEVEL_ALWAYS_ASPM	BIT(6)
-/* no matter RFOFF or SLEEP we set PS_ASPM_LEVL*/
+/* yes matter RFOFF or SLEEP we set PS_ASPM_LEVL*/
 #define	RT_PS_LEVEL_ASPM		BIT(7)
-/*When LPS is on, disable 2R if no packet is received or transmittd.*/
+/*When LPS is on, disable 2R if yes packet is received or transmittd.*/
 #define	RT_RF_LPS_DISALBE_2R		BIT(30)
 #define	RT_RF_LPS_LEVEL_ASPM		BIT(31)	/*LPS with ASPM */
 #define	RT_IN_PS_LEVEL(ppsc, _ps_flg)		\

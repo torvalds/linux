@@ -21,10 +21,10 @@
 #include "hysdn_defs.h"
 
 /*****************************************************************************/
-/* hysdn_sched_rx is called from the cards handler to announce new data is   */
+/* hysdn_sched_rx is called from the cards handler to anyesunce new data is   */
 /* available from the card. The routine has to handle the data and return    */
-/* with a nonzero code if the data could be worked (or even thrown away), if */
-/* no room to buffer the data is available a zero return tells the card      */
+/* with a yesnzero code if the data could be worked (or even thrown away), if */
+/* yes room to buffer the data is available a zero return tells the card      */
 /* to keep the data until later.                                             */
 /*****************************************************************************/
 int
@@ -63,10 +63,10 @@ hysdn_sched_rx(hysdn_card *card, unsigned char *buf, unsigned short len,
 }				/* hysdn_sched_rx */
 
 /*****************************************************************************/
-/* hysdn_sched_tx is called from the cards handler to announce that there is */
+/* hysdn_sched_tx is called from the cards handler to anyesunce that there is */
 /* room in the tx-buffer to the card and data may be sent if needed.         */
 /* If the routine wants to send data it must fill buf, len and chan with the */
-/* appropriate data and return a nonzero value. With a zero return no new    */
+/* appropriate data and return a yesnzero value. With a zero return yes new    */
 /* data to send is assumed. maxlen specifies the buffer size available for   */
 /* sending.                                                                  */
 /*****************************************************************************/
@@ -79,7 +79,7 @@ hysdn_sched_tx(hysdn_card *card, unsigned char *buf,
 
 	if (card->net_tx_busy) {
 		card->net_tx_busy = 0;	/* reset flag */
-		hysdn_tx_netack(card);	/* acknowledge packet send */
+		hysdn_tx_netack(card);	/* ackyeswledge packet send */
 	}			/* a network packet has completely been transferred */
 	/* first of all async requests are handled */
 	if (card->async_busy) {
@@ -108,7 +108,7 @@ hysdn_sched_tx(hysdn_card *card, unsigned char *buf,
 		card->err_log_state = ERRLOG_STATE_OFF;		/* new state is off */
 		return (1);	/* tell that data should be send */
 	}			/* error log start and able to send */
-	/* now handle network interface packets */
+	/* yesw handle network interface packets */
 	if ((hynet_enable & (1 << card->myid)) &&
 	    (skb = hysdn_tx_netget(card)) != NULL)
 	{
@@ -120,7 +120,7 @@ hysdn_sched_tx(hysdn_card *card, unsigned char *buf,
 			card->net_tx_busy = 1;	/* we are busy sending network data */
 			return (1);	/* go and send the data */
 		} else
-			hysdn_tx_netack(card);	/* aknowledge packet -> throw away */
+			hysdn_tx_netack(card);	/* akyeswledge packet -> throw away */
 	}			/* send a network packet if available */
 #ifdef CONFIG_HYSDN_CAPI
 	if (((hycapi_enable & (1 << card->myid))) &&
@@ -135,14 +135,14 @@ hysdn_sched_tx(hysdn_card *card, unsigned char *buf,
 		}
 	}
 #endif /* CONFIG_HYSDN_CAPI */
-	return (0);		/* nothing to send */
+	return (0);		/* yesthing to send */
 }				/* hysdn_sched_tx */
 
 
 /*****************************************************************************/
 /* send one config line to the card and return 0 if successful, otherwise a */
 /* negative error code.                                                      */
-/* The function works with timeouts perhaps not giving the greatest speed    */
+/* The function works with timeouts perhaps yest giving the greatest speed    */
 /* sending the line, but this should be meaningless because only some lines  */
 /* are to be sent and this happens very seldom.                              */
 /*****************************************************************************/
@@ -171,7 +171,7 @@ hysdn_tx_cfgline(hysdn_card *card, unsigned char *line, unsigned short chan)
 	card->async_channel = chan;
 	card->async_busy = 1;	/* request transfer */
 
-	/* now queue the task */
+	/* yesw queue the task */
 	schedule_work(&card->irq_queue);
 	spin_unlock_irqrestore(&card->hysdn_lock, flags);
 

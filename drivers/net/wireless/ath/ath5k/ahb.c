@@ -5,7 +5,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -94,19 +94,19 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	u32 reg;
 
 	if (!dev_get_platdata(&pdev->dev)) {
-		dev_err(&pdev->dev, "no platform data specified\n");
+		dev_err(&pdev->dev, "yes platform data specified\n");
 		ret = -EINVAL;
 		goto err_out;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "no memory resource found\n");
+		dev_err(&pdev->dev, "yes memory resource found\n");
 		ret = -ENXIO;
 		goto err_out;
 	}
 
-	mem = ioremap_nocache(res->start, resource_size(res));
+	mem = ioremap_yescache(res->start, resource_size(res));
 	if (mem == NULL) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
@@ -115,7 +115,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "no IRQ resource found\n");
+		dev_err(&pdev->dev, "yes IRQ resource found\n");
 		ret = -ENXIO;
 		goto err_iounmap;
 	}
@@ -124,7 +124,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
 	hw = ieee80211_alloc_hw(sizeof(struct ath5k_hw), &ath5k_hw_ops);
 	if (hw == NULL) {
-		dev_err(&pdev->dev, "no memory for ieee80211_hw\n");
+		dev_err(&pdev->dev, "yes memory for ieee80211_hw\n");
 		ret = -ENOMEM;
 		goto err_iounmap;
 	}

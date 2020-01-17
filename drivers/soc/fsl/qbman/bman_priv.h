@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -63,7 +63,7 @@ struct bman_portal *bman_create_affine_portal(
 			const struct bm_portal_config *config);
 /*
  * The below bman_p_***() variant might be called in a situation that the cpu
- * which the portal affine to is not online yet.
+ * which the portal affine to is yest online yet.
  * @bman_portal specifies which portal the API will use.
  */
 int bman_p_irqsource_add(struct bman_portal *p, u32 bits);

@@ -42,7 +42,7 @@ struct nvdimm {
 		unsigned long flags;
 		unsigned long ext_flags;
 		unsigned int overwrite_tmo;
-		struct kernfs_node *overwrite_state;
+		struct kernfs_yesde *overwrite_state;
 	} sec;
 	struct delayed_work dwork;
 };
@@ -210,7 +210,7 @@ static inline void debug_nvdimm_lock(struct device *dev)
 	else if (dev->class && dev->class == nd_class)
 		mutex_lock_nested(&dev->lockdep_mutex, LOCK_NDCTL);
 	else
-		dev_WARN(dev, "unknown lock level\n");
+		dev_WARN(dev, "unkyeswn lock level\n");
 }
 
 static inline void debug_nvdimm_unlock(struct device *dev)

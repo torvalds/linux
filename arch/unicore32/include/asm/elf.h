@@ -73,7 +73,7 @@ int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs);
 
 /* When the program starts, a1 contains a pointer to a function to be
    registered with atexit, as per the SVR4 ABI.  A value of 0 means we
-   have no such handler.  */
+   have yes such handler.  */
 #define ELF_PLAT_INIT(_r, load_addr)	{(_r)->UCreg_00 = 0; }
 
 extern void elf_set_personality(const struct elf32_hdr *);

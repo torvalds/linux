@@ -1,7 +1,7 @@
 #ifndef LLC_C_AC_H
 #define LLC_C_AC_H
 /*
- * Copyright (c) 1997 by Procom Technology,Inc.
+ * Copyright (c) 1997 by Procom Techyeslogy,Inc.
  * 		 2001 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
@@ -132,7 +132,7 @@ int llc_conn_ac_set_s_flag_1(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ac_start_p_timer(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ac_start_ack_timer(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ac_start_rej_timer(struct sock *sk, struct sk_buff *skb);
-int llc_conn_ac_start_ack_tmr_if_not_running(struct sock *sk,
+int llc_conn_ac_start_ack_tmr_if_yest_running(struct sock *sk,
 					     struct sk_buff *skb);
 int llc_conn_ac_stop_ack_timer(struct sock *sk, struct sk_buff *skb);
 int llc_conn_ac_stop_p_timer(struct sock *sk, struct sk_buff *skb);

@@ -46,7 +46,7 @@ static irqreturn_t fsl_edma_tx_handler(int irq, void *dev_id)
 
 			spin_lock(&fsl_chan->vchan.lock);
 			if (!fsl_chan->edesc->iscyclic) {
-				list_del(&fsl_chan->edesc->vdesc.node);
+				list_del(&fsl_chan->edesc->vdesc.yesde);
 				vchan_cookie_complete(&fsl_chan->edesc->vdesc);
 				fsl_chan->edesc = NULL;
 				fsl_chan->status = DMA_COMPLETE;
@@ -106,7 +106,7 @@ static struct dma_chan *fsl_edma_xlate(struct of_phandle_args *dma_spec,
 		return NULL;
 
 	mutex_lock(&fsl_edma->fsl_edma_mutex);
-	list_for_each_entry_safe(chan, _chan, &fsl_edma->dma_dev.channels, device_node) {
+	list_for_each_entry_safe(chan, _chan, &fsl_edma->dma_dev.channels, device_yesde) {
 		if (chan->client_count)
 			continue;
 		if ((chan->chan_id / chans_per_mux) == dma_spec->args[0]) {
@@ -175,14 +175,14 @@ fsl_edma2_irq_init(struct platform_device *pdev,
 	count = platform_irq_count(pdev);
 	dev_dbg(&pdev->dev, "%s Found %d interrupts\r\n", __func__, count);
 	if (count <= 2) {
-		dev_err(&pdev->dev, "Interrupts in DTS not correct.\n");
+		dev_err(&pdev->dev, "Interrupts in DTS yest correct.\n");
 		return -EINVAL;
 	}
 	/*
 	 * 16 channel independent interrupts + 1 error interrupt on i.mx7ulp.
 	 * 2 channel share one interrupt, for example, ch0/ch16, ch1/ch17...
-	 * For now, just simply request irq without IRQF_SHARED flag, since 16
-	 * channels are enough on i.mx7ulp whose M4 domain own some peripherals.
+	 * For yesw, just simply request irq without IRQF_SHARED flag, since 16
+	 * channels are eyesugh on i.mx7ulp whose M4 domain own some peripherals.
 	 */
 	for (i = 0; i < count; i++) {
 		irq = platform_get_irq(pdev, i);
@@ -251,7 +251,7 @@ static int fsl_edma_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(fsl_edma_dt_ids, &pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct fsl_edma_engine *fsl_edma;
 	const struct fsl_edma_drvdata *drvdata = NULL;
 	struct fsl_edma_chan *fsl_chan;
@@ -404,7 +404,7 @@ static int fsl_edma_probe(struct platform_device *pdev)
 
 static int fsl_edma_remove(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct fsl_edma_engine *fsl_edma = platform_get_drvdata(pdev);
 
 	fsl_edma_irq_exit(pdev, fsl_edma);
@@ -428,7 +428,7 @@ static int fsl_edma_suspend_late(struct device *dev)
 		spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
 		/* Make sure chan is idle or will force disable. */
 		if (unlikely(!fsl_chan->idle)) {
-			dev_warn(dev, "WARN: There is non-idle channel.");
+			dev_warn(dev, "WARN: There is yesn-idle channel.");
 			fsl_edma_disable_request(fsl_chan);
 			fsl_edma_chan_mux(fsl_chan, 0, false);
 		}

@@ -133,11 +133,11 @@ void ccw_request_start(struct ccw_device *cdev)
 	req->done	= 0;
 	req->cancel	= 0;
 	if (!req->mask)
-		goto out_nopath;
+		goto out_yespath;
 	ccwreq_do(cdev);
 	return;
 
-out_nopath:
+out_yespath:
 	ccwreq_stop(cdev, -EACCES);
 }
 
@@ -145,7 +145,7 @@ out_nopath:
  * ccw_request_cancel - cancel running I/O request
  * @cdev: ccw device
  *
- * Cancel the I/O request specified by cdev->req. Return non-zero if request
+ * Cancel the I/O request specified by cdev->req. Return yesn-zero if request
  * has already finished, zero otherwise.
  */
 int ccw_request_cancel(struct ccw_device *cdev)
@@ -180,7 +180,7 @@ static enum io_status ccwreq_status(struct ccw_device *cdev, struct irb *lcirb)
 	if (scsw->fctl & (SCSW_FCTL_HALT_FUNC | SCSW_FCTL_CLEAR_FUNC))
 		return IO_KILLED;
 	/* Check for path error. */
-	if (scsw->cc == 3 || scsw->pno)
+	if (scsw->cc == 3 || scsw->pyes)
 		return IO_PATH_ERROR;
 	/* Handle BASIC SENSE data. */
 	if (irb->esw.esw0.erw.cons) {
@@ -357,12 +357,12 @@ err:
 }
 
 /**
- * ccw_request_notoper - notoper handler for I/O request procedure
+ * ccw_request_yestoper - yestoper handler for I/O request procedure
  * @cdev: ccw device
  *
- * Handle notoper during I/O request procedure.
+ * Handle yestoper during I/O request procedure.
  */
-void ccw_request_notoper(struct ccw_device *cdev)
+void ccw_request_yestoper(struct ccw_device *cdev)
 {
 	ccwreq_stop(cdev, -ENODEV);
 }

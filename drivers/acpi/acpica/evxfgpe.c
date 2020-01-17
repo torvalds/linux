@@ -27,7 +27,7 @@ ACPI_MODULE_NAME("evxfgpe")
  * RETURN:      Status
  *
  * DESCRIPTION: Complete GPE initialization and enable all GPEs that have
- *              associated _Lxx or _Exx methods and are not pointed to by any
+ *              associated _Lxx or _Exx methods and are yest pointed to by any
  *              device _PRW methods (this indicates that these GPEs are
  *              generally intended for system or device wakeup. Such GPEs
  *              have to be enabled directly when the devices whose _PRW
@@ -102,7 +102,7 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number)
 	/*
 	 * Ensure that we have a valid GPE number and that there is some way
 	 * of handling the GPE (handler or a GPE method). In other words, we
-	 * won't allow a valid GPE to be enabled if there is no way to handle it.
+	 * won't allow a valid GPE to be enabled if there is yes way to handle it.
 	 */
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
 	if (gpe_event_info) {
@@ -248,7 +248,7 @@ ACPI_EXPORT_SYMBOL(acpi_set_gpe)
  *
  * PARAMETERS:  gpe_device          - Parent GPE Device. NULL for GPE0/GPE1
  *              gpe_number          - GPE level within the GPE block
- *              is_masked           - Whether the GPE is masked or not
+ *              is_masked           - Whether the GPE is masked or yest
  *
  * RETURN:      Status
  *
@@ -295,12 +295,12 @@ ACPI_EXPORT_SYMBOL(acpi_mask_gpe)
  * DESCRIPTION: Mark a GPE as having the ability to wake the system. Simply
  *              sets the ACPI_GPE_CAN_WAKE flag.
  *
- * Some potential callers of acpi_setup_gpe_for_wake may know in advance that
- * there won't be any notify handlers installed for device wake notifications
+ * Some potential callers of acpi_setup_gpe_for_wake may kyesw in advance that
+ * there won't be any yestify handlers installed for device wake yestifications
  * from the given GPE (one example is a button GPE in Linux). For these cases,
  * acpi_mark_gpe_for_wake should be used instead of acpi_setup_gpe_for_wake.
  * This will set the ACPI_GPE_CAN_WAKE flag for the GPE without trying to
- * setup implicit wake notification for it (since there's no handler method).
+ * setup implicit wake yestification for it (since there's yes handler method).
  *
  ******************************************************************************/
 acpi_status acpi_mark_gpe_for_wake(acpi_handle gpe_device, u32 gpe_number)
@@ -354,9 +354,9 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 {
 	acpi_status status;
 	struct acpi_gpe_event_info *gpe_event_info;
-	struct acpi_namespace_node *device_node;
-	struct acpi_gpe_notify_info *notify;
-	struct acpi_gpe_notify_info *new_notify;
+	struct acpi_namespace_yesde *device_yesde;
+	struct acpi_gpe_yestify_info *yestify;
+	struct acpi_gpe_yestify_info *new_yestify;
 	acpi_cpu_flags flags;
 
 	ACPI_FUNCTION_TRACE(acpi_setup_gpe_for_wake);
@@ -366,7 +366,7 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 	if (!wake_device) {
 		/*
 		 * By forcing wake_device to be valid, we automatically enable the
-		 * implicit notify feature on all hosts.
+		 * implicit yestify feature on all hosts.
 		 */
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
@@ -374,25 +374,25 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 	/* Handle root object case */
 
 	if (wake_device == ACPI_ROOT_OBJECT) {
-		device_node = acpi_gbl_root_node;
+		device_yesde = acpi_gbl_root_yesde;
 	} else {
-		device_node =
-		    ACPI_CAST_PTR(struct acpi_namespace_node, wake_device);
+		device_yesde =
+		    ACPI_CAST_PTR(struct acpi_namespace_yesde, wake_device);
 	}
 
 	/* Validate wake_device is of type Device */
 
-	if (device_node->type != ACPI_TYPE_DEVICE) {
+	if (device_yesde->type != ACPI_TYPE_DEVICE) {
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
 	/*
-	 * Allocate a new notify object up front, in case it is needed.
-	 * Memory allocation while holding a spinlock is a big no-no
+	 * Allocate a new yestify object up front, in case it is needed.
+	 * Memory allocation while holding a spinlock is a big yes-yes
 	 * on some hosts.
 	 */
-	new_notify = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_notify_info));
-	if (!new_notify) {
+	new_yestify = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_yestify_info));
+	if (!new_yestify) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
@@ -407,15 +407,15 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 	}
 
 	/*
-	 * If there is no method or handler for this GPE, then the
-	 * wake_device will be notified whenever this GPE fires. This is
-	 * known as an "implicit notify". Note: The GPE is assumed to be
+	 * If there is yes method or handler for this GPE, then the
+	 * wake_device will be yestified whenever this GPE fires. This is
+	 * kyeswn as an "implicit yestify". Note: The GPE is assumed to be
 	 * level-triggered (for windows compatibility).
 	 */
 	if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
 	    ACPI_GPE_DISPATCH_NONE) {
 		/*
-		 * This is the first device for implicit notify on this GPE.
+		 * This is the first device for implicit yestify on this GPE.
 		 * Just set the flags here, and enter the NOTIFY block below.
 		 */
 		gpe_event_info->flags =
@@ -423,7 +423,7 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 	} else if (gpe_event_info->flags & ACPI_GPE_AUTO_ENABLED) {
 		/*
 		 * A reference to this GPE has been added during the GPE block
-		 * initialization, so drop it now to prevent the GPE from being
+		 * initialization, so drop it yesw to prevent the GPE from being
 		 * permanently enabled and clear its ACPI_GPE_AUTO_ENABLED flag.
 		 */
 		(void)acpi_ev_remove_gpe_reference(gpe_event_info);
@@ -431,29 +431,29 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 	}
 
 	/*
-	 * If we already have an implicit notify on this GPE, add
-	 * this device to the notify list.
+	 * If we already have an implicit yestify on this GPE, add
+	 * this device to the yestify list.
 	 */
 	if (ACPI_GPE_DISPATCH_TYPE(gpe_event_info->flags) ==
 	    ACPI_GPE_DISPATCH_NOTIFY) {
 
-		/* Ensure that the device is not already in the list */
+		/* Ensure that the device is yest already in the list */
 
-		notify = gpe_event_info->dispatch.notify_list;
-		while (notify) {
-			if (notify->device_node == device_node) {
+		yestify = gpe_event_info->dispatch.yestify_list;
+		while (yestify) {
+			if (yestify->device_yesde == device_yesde) {
 				status = AE_ALREADY_EXISTS;
 				goto unlock_and_exit;
 			}
-			notify = notify->next;
+			yestify = yestify->next;
 		}
 
-		/* Add this device to the notify list for this GPE */
+		/* Add this device to the yestify list for this GPE */
 
-		new_notify->device_node = device_node;
-		new_notify->next = gpe_event_info->dispatch.notify_list;
-		gpe_event_info->dispatch.notify_list = new_notify;
-		new_notify = NULL;
+		new_yestify->device_yesde = device_yesde;
+		new_yestify->next = gpe_event_info->dispatch.yestify_list;
+		gpe_event_info->dispatch.yestify_list = new_yestify;
+		new_yestify = NULL;
 	}
 
 	/* Mark the GPE as a possible wake event */
@@ -464,10 +464,10 @@ acpi_setup_gpe_for_wake(acpi_handle wake_device,
 unlock_and_exit:
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 
-	/* Delete the notify object if it was not used above */
+	/* Delete the yestify object if it was yest used above */
 
-	if (new_notify) {
-		ACPI_FREE(new_notify);
+	if (new_yestify) {
+		ACPI_FREE(new_yestify);
 	}
 	return_ACPI_STATUS(status);
 }
@@ -603,7 +603,7 @@ ACPI_EXPORT_SYMBOL(acpi_clear_gpe)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Get the current status of a GPE (signalled/not_signalled)
+ * DESCRIPTION: Get the current status of a GPE (signalled/yest_signalled)
  *
  ******************************************************************************/
 acpi_status
@@ -663,14 +663,14 @@ ACPI_EXPORT_SYMBOL(acpi_dispatch_gpe)
  *
  * FUNCTION:    acpi_finish_gpe
  *
- * PARAMETERS:  gpe_device          - Namespace node for the GPE Block
+ * PARAMETERS:  gpe_device          - Namespace yesde for the GPE Block
  *                                    (NULL for FADT defined GPEs)
  *              gpe_number          - GPE level within the GPE block
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Clear and conditionally re-enable a GPE. This completes the GPE
- *              processing. Intended for use by asynchronous host-installed
+ *              processing. Intended for use by asynchroyesus host-installed
  *              GPE handlers. The GPE is only re-enabled if the enable_for_run bit
  *              is set in the GPE info.
  *
@@ -806,7 +806,7 @@ ACPI_EXPORT_SYMBOL(acpi_enable_all_wakeup_gpes)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create and Install a block of GPE registers. The GPEs are not
+ * DESCRIPTION: Create and Install a block of GPE registers. The GPEs are yest
  *              enabled here.
  *
  ******************************************************************************/
@@ -817,7 +817,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 {
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	struct acpi_gpe_block_info *gpe_block;
 
 	ACPI_FUNCTION_TRACE(acpi_install_gpe_block);
@@ -831,20 +831,20 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 		return_ACPI_STATUS(status);
 	}
 
-	node = acpi_ns_validate_handle(gpe_device);
-	if (!node) {
+	yesde = acpi_ns_validate_handle(gpe_device);
+	if (!yesde) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
 
 	/* Validate the parent device */
 
-	if (node->type != ACPI_TYPE_DEVICE) {
+	if (yesde->type != ACPI_TYPE_DEVICE) {
 		status = AE_TYPE;
 		goto unlock_and_exit;
 	}
 
-	if (node->object) {
+	if (yesde->object) {
 		status = AE_ALREADY_EXISTS;
 		goto unlock_and_exit;
 	}
@@ -853,7 +853,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 	 * For user-installed GPE Block Devices, the gpe_block_base_number
 	 * is always zero
 	 */
-	status = acpi_ev_create_gpe_block(node, gpe_block_address->address,
+	status = acpi_ev_create_gpe_block(yesde, gpe_block_address->address,
 					  gpe_block_address->space_id,
 					  register_count, 0, interrupt_number,
 					  &gpe_block);
@@ -861,13 +861,13 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 		goto unlock_and_exit;
 	}
 
-	/* Install block in the device_object attached to the node */
+	/* Install block in the device_object attached to the yesde */
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(yesde);
 	if (!obj_desc) {
 
 		/*
-		 * No object, create a new one (Device nodes do not always have
+		 * No object, create a new one (Device yesdes do yest always have
 		 * an attached object)
 		 */
 		obj_desc = acpi_ut_create_internal_object(ACPI_TYPE_DEVICE);
@@ -877,7 +877,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 		}
 
 		status =
-		    acpi_ns_attach_object(node, obj_desc, ACPI_TYPE_DEVICE);
+		    acpi_ns_attach_object(yesde, obj_desc, ACPI_TYPE_DEVICE);
 
 		/* Remove local reference to the object */
 
@@ -914,7 +914,7 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 
 	ACPI_FUNCTION_TRACE(acpi_remove_gpe_block);
 
@@ -927,27 +927,27 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 		return_ACPI_STATUS(status);
 	}
 
-	node = acpi_ns_validate_handle(gpe_device);
-	if (!node) {
+	yesde = acpi_ns_validate_handle(gpe_device);
+	if (!yesde) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
 	}
 
 	/* Validate the parent device */
 
-	if (node->type != ACPI_TYPE_DEVICE) {
+	if (yesde->type != ACPI_TYPE_DEVICE) {
 		status = AE_TYPE;
 		goto unlock_and_exit;
 	}
 
-	/* Get the device_object attached to the node */
+	/* Get the device_object attached to the yesde */
 
-	obj_desc = acpi_ns_get_attached_object(node);
+	obj_desc = acpi_ns_get_attached_object(yesde);
 	if (!obj_desc || !obj_desc->device.gpe_block) {
 		return_ACPI_STATUS(AE_NULL_OBJECT);
 	}
 
-	/* Delete the GPE block (but not the device_object) */
+	/* Delete the GPE block (but yest the device_object) */
 
 	status = acpi_ev_delete_gpe_block(obj_desc->device.gpe_block);
 	if (ACPI_SUCCESS(status)) {

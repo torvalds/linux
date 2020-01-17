@@ -50,7 +50,7 @@ extern struct kernel_debug *linux_dbvec;
 static inline void sp_enter_debugger(void)
 {
 	__asm__ __volatile__("jmpl %0, %%o7\n\t"
-			     "nop\n\t" : :
+			     "yesp\n\t" : :
 			     "r" (linux_dbvec) : "o7", "memory");
 }
 

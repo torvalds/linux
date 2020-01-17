@@ -168,7 +168,7 @@ static inline void __ew32flash(struct e1000_hw *hw, unsigned long reg, u32 val)
  *  @hw: pointer to the HW structure
  *
  *  Test access to the PHY registers by reading the PHY ID registers.  If
- *  the PHY ID is already known (e.g. resume path) compare it with known ID,
+ *  the PHY ID is already kyeswn (e.g. resume path) compare it with kyeswn ID,
  *  otherwise assume the read PHY ID is correct if it is valid.
  *
  *  Assumes the sw/fw/hw semaphore is already acquired.
@@ -220,7 +220,7 @@ static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 		return false;
 out:
 	if (hw->mac.type >= e1000_pch_lpt) {
-		/* Only unforce SMBus if ME is not active */
+		/* Only unforce SMBus if ME is yest active */
 		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
 			/* Unforce SMBus mode in PHY */
 			e1e_rphy_locked(hw, CV_SMB_CTRL, &phy_reg);
@@ -292,14 +292,14 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	s32 ret_val;
 
 	/* Gate automatic PHY configuration by hardware on managed and
-	 * non-managed 82579 and newer adapters.
+	 * yesn-managed 82579 and newer adapters.
 	 */
 	e1000_gate_hw_phy_config_ich8lan(hw, true);
 
-	/* It is not possible to be certain of the current state of ULP
+	/* It is yest possible to be certain of the current state of ULP
 	 * so forcibly disable it.
 	 */
-	hw->dev_spec.ich8lan.ulp_state = e1000_ulp_state_unknown;
+	hw->dev_spec.ich8lan.ulp_state = e1000_ulp_state_unkyeswn;
 	e1000_disable_ulp_lpt_lp(hw, true);
 
 	ret_val = hw->phy.ops.acquire(hw);
@@ -309,7 +309,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	}
 
 	/* The MAC-PHY interconnect may be in SMBus mode.  If the PHY is
-	 * inaccessible and resetting the PHY is not blocked, toggle the
+	 * inaccessible and resetting the PHY is yest blocked, toggle the
 	 * LANPHYPC Value bit to force the interconnect to PCIe mode.
 	 */
 	switch (hw->mac.type) {
@@ -329,7 +329,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 
 		/* Wait 50 milliseconds for MAC to finish any retries
 		 * that it might be trying to perform from previous
-		 * attempts to acknowledge any phy read requests.
+		 * attempts to ackyeswledge any phy read requests.
 		 */
 		msleep(50);
 
@@ -376,14 +376,14 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	hw->phy.ops.release(hw);
 	if (!ret_val) {
 
-		/* Check to see if able to reset PHY.  Print error if not */
+		/* Check to see if able to reset PHY.  Print error if yest */
 		if (hw->phy.ops.check_reset_block(hw)) {
 			e_err("Reset blocked by ME\n");
 			goto out;
 		}
 
 		/* Reset the PHY before any access to it.  Doing so, ensures
-		 * that the PHY is in a known good state before we read/write
+		 * that the PHY is in a kyeswn good state before we read/write
 		 * PHY registers.  The generic reset is sufficient here,
 		 * because we haven't determined the PHY type yet.
 		 */
@@ -393,7 +393,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 
 		/* On a successful reset, possibly need to wait for the PHY
 		 * to quiesce to an accessible state before returning control
-		 * to the calling function.  If the PHY does not quiesce, then
+		 * to the calling function.  If the PHY does yest quiesce, then
 		 * return E1000E_BLK_PHY_RESET, as this is the condition that
 		 *  the PHY is in.
 		 */
@@ -403,7 +403,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	}
 
 out:
-	/* Ungate automatic PHY configuration on non-managed 82579 */
+	/* Ungate automatic PHY configuration on yesn-managed 82579 */
 	if ((hw->mac.type == e1000_pch2lan) &&
 	    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
 		usleep_range(10000, 11000);
@@ -440,13 +440,13 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->ops.power_down = e1000_power_down_phy_copper_ich8lan;
 	phy->autoneg_mask = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
-	phy->id = e1000_phy_unknown;
+	phy->id = e1000_phy_unkyeswn;
 
 	ret_val = e1000_init_phy_workarounds_pchlan(hw);
 	if (ret_val)
 		return ret_val;
 
-	if (phy->id == e1000_phy_unknown)
+	if (phy->id == e1000_phy_unkyeswn)
 		switch (hw->mac.type) {
 		default:
 			ret_val = e1000e_get_phy_id(hw);
@@ -525,13 +525,13 @@ static s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 		phy->ops.read_reg = e1000e_read_phy_reg_bm;
 		ret_val = e1000e_determine_phy_address(hw);
 		if (ret_val) {
-			e_dbg("Cannot determine PHY addr. Erroring out\n");
+			e_dbg("Canyest determine PHY addr. Erroring out\n");
 			return ret_val;
 		}
 	}
 
 	phy->id = 0;
-	while ((e1000_phy_unknown == e1000e_get_phy_type_from_id(phy->id)) &&
+	while ((e1000_phy_unkyeswn == e1000e_get_phy_type_from_id(phy->id)) &&
 	       (i++ < 100)) {
 		usleep_range(1000, 1100);
 		ret_val = e1000e_get_phy_id(hw);
@@ -596,9 +596,9 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 	if (hw->mac.type >= e1000_pch_spt) {
 		/* in SPT, gfpreg doesn't exist. NVM size is taken from the
 		 * STRAP register. This is because in SPT the GbE Flash region
-		 * is no longer accessed through the flash registers. Instead,
+		 * is yes longer accessed through the flash registers. Instead,
 		 * the mechanism has changed, and the Flash region access
-		 * registers are now implemented in GbE memory space.
+		 * registers are yesw implemented in GbE memory space.
 		 */
 		nvm->flash_base_addr = 0;
 		nvm_size = (((er32(STRAP) >> 1) & 0x1F) + 1)
@@ -611,7 +611,7 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 	} else {
 		/* Can't read flash registers if register set isn't mapped. */
 		if (!hw->flash_address) {
-			e_dbg("ERROR: Flash registers not mapped\n");
+			e_dbg("ERROR: Flash registers yest mapped\n");
 			return -E1000_ERR_CONFIG;
 		}
 
@@ -671,7 +671,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 		mac->rar_entry_count--;
 	/* FWSM register */
 	mac->has_fwsm = true;
-	/* ARC subsystem not supported */
+	/* ARC subsystem yest supported */
 	mac->arc_subsystem_valid = false;
 	/* Adaptive IFS supported */
 	mac->adaptive_ifs = true;
@@ -795,8 +795,8 @@ s32 e1000_write_emi_reg_locked(struct e1000_hw *hw, u16 addr, u16 data)
  *  the link and the EEE capabilities of the link partner.  The LPI Control
  *  register bits will remain set only if/when link is up.
  *
- *  EEE LPI must not be asserted earlier than one second after link is up.
- *  On 82579, EEE LPI should not be enabled until such time otherwise there
+ *  EEE LPI must yest be asserted earlier than one second after link is up.
+ *  On 82579, EEE LPI should yest be enabled until such time otherwise there
  *  can be link issues with some switches.  Other devices can have EEE LPI
  *  enabled immediately upon link up since they have a timer in hardware which
  *  prevents LPI from being asserted too early.
@@ -833,7 +833,7 @@ s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
 	/* Clear bits that enable EEE in various speeds */
 	lpi_ctrl &= ~I82579_LPI_CTRL_ENABLE_MASK;
 
-	/* Enable EEE if not disabled by user */
+	/* Enable EEE if yest disabled by user */
 	if (!dev_spec->eee_disable) {
 		/* Save off link partner's EEE ability */
 		ret_val = e1000_read_emi_reg_locked(hw, lpa,
@@ -857,9 +857,9 @@ s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
 			if (data & LPA_100FULL)
 				lpi_ctrl |= I82579_LPI_CTRL_100_ENABLE;
 			else
-				/* EEE is not supported in 100Half, so ignore
+				/* EEE is yest supported in 100Half, so igyesre
 				 * partner's EEE in 100 ability if full-duplex
-				 * is not advertised.
+				 * is yest advertised.
 				 */
 				dev_spec->eee_lp_ability &=
 				    ~I82579_EEE_100_SUPPORTED;
@@ -956,7 +956,7 @@ release:
 			/* Set inband Tx timeout to 5x10us for 100Half */
 			reg |= 5 << I217_INBAND_CTRL_LINK_STAT_TX_TIMEOUT_SHIFT;
 
-			/* Do not extend the K1 entry latency for 100Half */
+			/* Do yest extend the K1 entry latency for 100Half */
 			fextnvm6 &= ~E1000_FEXTNVM6_ENABLE_K1_ENTRY_CONDITION;
 		} else {
 			/* Set inband Tx timeout to 50x10us for 10Full/Half */
@@ -985,12 +985,12 @@ update_fextnvm6:
  *
  *  Set the Latency Tolerance Reporting (LTR) values for the "PCIe-like"
  *  GbE MAC in the Lynx Point PCH based on Rx buffer size and link speed
- *  when link is up (which must not exceed the maximum latency supported
- *  by the platform), otherwise specify there is no LTR requirement.
- *  Unlike true-PCIe devices which set the LTR maximum snoop/no-snoop
+ *  when link is up (which must yest exceed the maximum latency supported
+ *  by the platform), otherwise specify there is yes LTR requirement.
+ *  Unlike true-PCIe devices which set the LTR maximum syesop/yes-syesop
  *  latencies in the LTR Extended Capability Structure in the PCIe Extended
  *  Capability register set, on this device LTR is set by writing the
- *  equivalent snoop/no-snoop latencies in the LTRV register in the MAC and
+ *  equivalent syesop/yes-syesop latencies in the LTRV register in the MAC and
  *  set the SEND bit to send an Intel On-chip System Fabric sideband (IOSF-SB)
  *  message to the PMC.
  **/
@@ -1002,19 +1002,19 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 
 	if (link) {
 		u16 speed, duplex, scale = 0;
-		u16 max_snoop, max_nosnoop;
+		u16 max_syesop, max_yessyesop;
 		u16 max_ltr_enc;	/* max LTR latency encoded */
 		u64 value;
 		u32 rxa;
 
 		if (!hw->adapter->max_frame_size) {
-			e_dbg("max_frame_size not set.\n");
+			e_dbg("max_frame_size yest set.\n");
 			return -E1000_ERR_CONFIG;
 		}
 
 		hw->mac.ops.get_link_up_info(hw, &speed, &duplex);
 		if (!speed) {
-			e_dbg("Speed not set.\n");
+			e_dbg("Speed yest set.\n");
 			return -E1000_ERR_CONFIG;
 		}
 
@@ -1046,16 +1046,16 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 
 		/* Determine the maximum latency tolerated by the platform */
 		pci_read_config_word(hw->adapter->pdev, E1000_PCI_LTR_CAP_LPT,
-				     &max_snoop);
+				     &max_syesop);
 		pci_read_config_word(hw->adapter->pdev,
-				     E1000_PCI_LTR_CAP_LPT + 2, &max_nosnoop);
-		max_ltr_enc = max_t(u16, max_snoop, max_nosnoop);
+				     E1000_PCI_LTR_CAP_LPT + 2, &max_yessyesop);
+		max_ltr_enc = max_t(u16, max_syesop, max_yessyesop);
 
 		if (lat_enc > max_ltr_enc)
 			lat_enc = max_ltr_enc;
 	}
 
-	/* Set Snoop and No-Snoop latencies the same */
+	/* Set Syesop and No-Syesop latencies the same */
 	reg |= lat_enc | (lat_enc << E1000_LTRV_NOSNOOP_SHIFT);
 	ew32(LTRV, reg);
 
@@ -1069,7 +1069,7 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
  *
  *  When link is down, configure ULP mode to significantly reduce the power
  *  to the PHY.  If on a Manageability Engine (ME) enabled system, tell the
- *  ME firmware to start the ULP configuration.  If not on an ME enabled
+ *  ME firmware to start the ULP configuration.  If yest on an ME enabled
  *  system, configure the ULP mode by software.
  */
 s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
@@ -1112,7 +1112,7 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 		}
 		e_dbg("CABLE_DISCONNECTED %s set after %dmsec\n",
 		      (er32(FEXT) &
-		       E1000_FEXT_PHY_CABLE_DISCONNECTED) ? "" : "not", i * 50);
+		       E1000_FEXT_PHY_CABLE_DISCONNECTED) ? "" : "yest", i * 50);
 	}
 
 	ret_val = hw->phy.ops.acquire(hw);
@@ -1204,14 +1204,14 @@ out:
 /**
  *  e1000_disable_ulp_lpt_lp - unconfigure Ultra Low Power mode for LynxPoint-LP
  *  @hw: pointer to the HW structure
- *  @force: boolean indicating whether or not to force disabling ULP
+ *  @force: boolean indicating whether or yest to force disabling ULP
  *
  *  Un-configure ULP mode when link is up, the system is transitioned from
  *  Sx or the driver is unloaded.  If on a Manageability Engine (ME) enabled
  *  system, poll for an indication from ME that ULP has been un-configured.
- *  If not on an ME enabled system, un-configure the ULP mode by software.
+ *  If yest on an ME enabled system, un-configure the ULP mode by software.
  *
- *  During nominal operation, this function is called when link is acquired
+ *  During yesminal operation, this function is called when link is acquired
  *  to disable ULP mode (force=false); otherwise, for example when unloading
  *  the driver or during Sx->S0 transitions, this is called with force=true
  *  to forcibly disable ULP.
@@ -1590,7 +1590,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	}
 
 	/* If we are forcing speed/duplex, then we simply return since
-	 * we have already determined whether we have link or not.
+	 * we have already determined whether we have link or yest.
 	 */
 	if (!mac->autoneg)
 		return -E1000_ERR_CONFIG;
@@ -1601,7 +1601,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	 */
 	mac->ops.config_collision_dist(hw);
 
-	/* Configure Flow Control now that Auto-Neg has completed.
+	/* Configure Flow Control yesw that Auto-Neg has completed.
 	 * First, we need to restore the desired flow control
 	 * settings because we may have had to re-autoneg with a
 	 * different link partner.
@@ -1845,7 +1845,7 @@ static int e1000_rar_set_pch2lan(struct e1000_hw *hw, u8 *addr, u32 index)
 
 	rar_high = ((u32)addr[4] | ((u32)addr[5] << 8));
 
-	/* If MAC address zero, no need to set the AV bit */
+	/* If MAC address zero, yes need to set the AV bit */
 	if (rar_low || rar_high)
 		rar_high |= E1000_RAH_AV;
 
@@ -1948,7 +1948,7 @@ static int e1000_rar_set_pch_lpt(struct e1000_hw *hw, u8 *addr, u32 index)
 
 	rar_high = ((u32)addr[4] | ((u32)addr[5] << 8));
 
-	/* If MAC address zero, no need to set the AV bit */
+	/* If MAC address zero, yes need to set the AV bit */
 	if (rar_low || rar_high)
 		rar_high |= E1000_RAH_AV;
 
@@ -2074,7 +2074,7 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 
 	/* Initialize the PHY from the NVM on ICH platforms.  This
 	 * is needed due to an issue where the NVM configuration is
-	 * not properly autoloaded after power transitions.
+	 * yest properly autoloaded after power transitions.
 	 * Therefore, after each PHY reset, we will load the
 	 * configuration data out of the NVM manually.
 	 */
@@ -2109,7 +2109,7 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 	if (!(data & sw_cfg_mask))
 		goto release;
 
-	/* Make sure HW does not configure LCD from PHY
+	/* Make sure HW does yest configure LCD from PHY
 	 * extended configuration before SW configuration
 	 */
 	data = er32(EXTCNF_CTRL);
@@ -2471,7 +2471,7 @@ static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 	if (ret_val)
 		goto release;
 
-	/* set MSE higher to enable link to stay up when noise is high */
+	/* set MSE higher to enable link to stay up when yesise is high */
 	ret_val = e1000_write_emi_reg_locked(hw, I82577_MSE_THRESHOLD, 0x0034);
 release:
 	hw->phy.ops.release(hw);
@@ -2705,7 +2705,7 @@ static s32 e1000_lv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		return ret_val;
-	/* set MSE higher to enable link to stay up when noise is high */
+	/* set MSE higher to enable link to stay up when yesise is high */
 	ret_val = e1000_write_emi_reg_locked(hw, I82579_MSE_THRESHOLD, 0x0034);
 	if (ret_val)
 		goto release;
@@ -2809,10 +2809,10 @@ static void e1000_lan_init_done_ich8lan(struct e1000_hw *hw)
 
 	/* If basic configuration is incomplete before the above loop
 	 * count reaches 0, loading the configuration from NVM will
-	 * leave the PHY in a bad state possibly resulting in no link.
+	 * leave the PHY in a bad state possibly resulting in yes link.
 	 */
 	if (loop == 0)
-		e_dbg("LAN_INIT_DONE not set, increase timeout\n");
+		e_dbg("LAN_INIT_DONE yest set, increase timeout\n");
 
 	/* Clear the Init Done bit for the next init event */
 	data = er32(STATUS);
@@ -2867,7 +2867,7 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 	ret_val = e1000_oem_bits_config_ich8lan(hw, true);
 
 	if (hw->mac.type == e1000_pch2lan) {
-		/* Ungate automatic PHY configuration on non-managed 82579 */
+		/* Ungate automatic PHY configuration on yesn-managed 82579 */
 		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
 			usleep_range(10000, 11000);
 			e1000_gate_hw_phy_config_ich8lan(hw, false);
@@ -2898,7 +2898,7 @@ static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
 
-	/* Gate automatic PHY configuration by hardware on non-managed 82579 */
+	/* Gate automatic PHY configuration by hardware on yesn-managed 82579 */
 	if ((hw->mac.type == e1000_pch2lan) &&
 	    !(er32(FWSM) & E1000_ICH_FWSM_FW_VALID))
 		e1000_gate_hw_phy_config_ich8lan(hw, true);
@@ -2916,7 +2916,7 @@ static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
  *  @active: true to enable LPLU, false to disable
  *
  *  Sets the LPLU state according to the active flag.  For PCH, if OEM write
- *  bit are disabled in the NVM, writing the LPLU bits in the MAC will not set
+ *  bit are disabled in the NVM, writing the LPLU bits in the MAC will yest set
  *  the phy speed. This function will manually set the LPLU bit and restart
  *  auto-neg as hw would do. D3 and D0 LPLU will call the same function
  *  since it configures the same bit.
@@ -2948,7 +2948,7 @@ static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active)
  *
  *  Sets the LPLU D0 state according to the active flag.  When
  *  activating LPLU this function also disables smart speed
- *  and vice versa.  LPLU will not be activated unless the
+ *  and vice versa.  LPLU will yest be activated unless the
  *  device autonegotiation advertisement meets standards of
  *  either 10 or 10/100 or 10/100/1000 at all duplexes.
  *  This is a function pointer entry point only called by
@@ -3034,7 +3034,7 @@ static s32 e1000_set_d0_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
  *
  *  Sets the LPLU D3 state according to the active flag.  When
  *  activating LPLU this function also disables smart speed
- *  and vice versa.  LPLU will not be activated unless the
+ *  and vice versa.  LPLU will yest be activated unless the
  *  device autonegotiation advertisement meets standards of
  *  either 10 or 10/100 or 10/100/1000 at all duplexes.
  *  This is a function pointer entry point only called by
@@ -3244,7 +3244,7 @@ static s32 e1000_read_nvm_spt(struct e1000_hw *hw, u16 offset, u16 words,
 
 	ret_val = e1000_valid_nvm_bank_detect_ich8lan(hw, &bank);
 	if (ret_val) {
-		e_dbg("Could not detect valid bank, assuming bank 0\n");
+		e_dbg("Could yest detect valid bank, assuming bank 0\n");
 		bank = 0;
 	}
 
@@ -3335,7 +3335,7 @@ static s32 e1000_read_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 
 	ret_val = e1000_valid_nvm_bank_detect_ich8lan(hw, &bank);
 	if (ret_val) {
-		e_dbg("Could not detect valid bank, assuming bank 0\n");
+		e_dbg("Could yest detect valid bank, assuming bank 0\n");
 		bank = 0;
 	}
 
@@ -3402,7 +3402,7 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 	 */
 
 	if (!hsfsts.hsf_status.flcinprog) {
-		/* There is no cycle running at present,
+		/* There is yes cycle running at present,
 		 * so we can start a cycle.
 		 * Begin by setting Flash Cycle Done.
 		 */
@@ -3428,7 +3428,7 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 		}
 		if (!ret_val) {
 			/* Successful in waiting for previous cycle to timeout,
-			 * now set the Flash Cycle Done.
+			 * yesw set the Flash Cycle Done.
 			 */
 			hsfsts.hsf_status.flcdone = 1;
 			if (hw->mac.type >= e1000_pch_spt)
@@ -3437,7 +3437,7 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 			else
 				ew16flash(ICH_FLASH_HSFSTS, hsfsts.regval);
 		} else {
-			e_dbg("Flash controller busy, cannot get access\n");
+			e_dbg("Flash controller busy, canyest get access\n");
 		}
 	}
 
@@ -3533,7 +3533,7 @@ static s32 e1000_read_flash_byte_ich8lan(struct e1000_hw *hw, u32 offset,
 	u16 word = 0;
 
 	/* In SPT, only 32 bits access is supported,
-	 * so this function should not be called.
+	 * so this function should yest be called.
 	 */
 	if (hw->mac.type >= e1000_pch_spt)
 		return -E1000_ERR_NVM;
@@ -3607,7 +3607,7 @@ static s32 e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 		} else {
 			/* If we've gotten here, then things are probably
 			 * completely hosed, but if the error condition is
-			 * detected, it won't hurt to give it another try...
+			 * detected, it won't hurt to give it ayesther try...
 			 * ICH_FLASH_CYCLE_REPEAT_COUNT times.
 			 */
 			hsfsts.regval = er16flash(ICH_FLASH_HSFSTS);
@@ -3615,7 +3615,7 @@ static s32 e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 				/* Repeat for some time before giving up. */
 				continue;
 			} else if (!hsfsts.hsf_status.flcdone) {
-				e_dbg("Timeout error - flash cycle did not complete.\n");
+				e_dbg("Timeout error - flash cycle did yest complete.\n");
 				break;
 			}
 		}
@@ -3653,7 +3653,7 @@ static s32 e1000_read_flash_data32_ich8lan(struct e1000_hw *hw, u32 offset,
 		ret_val = e1000_flash_cycle_init_ich8lan(hw);
 		if (ret_val)
 			break;
-		/* In SPT, This register is in Lan memory space, not flash.
+		/* In SPT, This register is in Lan memory space, yest flash.
 		 * Therefore, only 32 bit access is supported
 		 */
 		hsflctl.regval = er32flash(ICH_FLASH_HSFSTS) >> 16;
@@ -3661,7 +3661,7 @@ static s32 e1000_read_flash_data32_ich8lan(struct e1000_hw *hw, u32 offset,
 		/* 0b/1b corresponds to 1 or 2 byte size, respectively. */
 		hsflctl.hsf_ctrl.fldbcount = sizeof(u32) - 1;
 		hsflctl.hsf_ctrl.flcycle = ICH_CYCLE_READ;
-		/* In SPT, This register is in Lan memory space, not flash.
+		/* In SPT, This register is in Lan memory space, yest flash.
 		 * Therefore, only 32 bit access is supported
 		 */
 		ew32flash(ICH_FLASH_HSFSTS, (u32)hsflctl.regval << 16);
@@ -3682,7 +3682,7 @@ static s32 e1000_read_flash_data32_ich8lan(struct e1000_hw *hw, u32 offset,
 		} else {
 			/* If we've gotten here, then things are probably
 			 * completely hosed, but if the error condition is
-			 * detected, it won't hurt to give it another try...
+			 * detected, it won't hurt to give it ayesther try...
 			 * ICH_FLASH_CYCLE_REPEAT_COUNT times.
 			 */
 			hsfsts.regval = er16flash(ICH_FLASH_HSFSTS);
@@ -3690,7 +3690,7 @@ static s32 e1000_read_flash_data32_ich8lan(struct e1000_hw *hw, u32 offset,
 				/* Repeat for some time before giving up. */
 				continue;
 			} else if (!hsfsts.hsf_status.flcdone) {
-				e_dbg("Timeout error - flash cycle did not complete.\n");
+				e_dbg("Timeout error - flash cycle did yest complete.\n");
 				break;
 			}
 		}
@@ -3767,7 +3767,7 @@ static s32 e1000_update_nvm_checksum_spt(struct e1000_hw *hw)
 	 */
 	ret_val = e1000_valid_nvm_bank_detect_ich8lan(hw, &bank);
 	if (ret_val) {
-		e_dbg("Could not detect valid bank, assuming bank 0\n");
+		e_dbg("Could yest detect valid bank, assuming bank 0\n");
 		bank = 0;
 	}
 
@@ -3877,7 +3877,7 @@ static s32 e1000_update_nvm_checksum_spt(struct e1000_hw *hw)
 	if (ret_val)
 		goto release;
 
-	/* Great!  Everything worked, we can now clear the cached entries. */
+	/* Great!  Everything worked, we can yesw clear the cached entries. */
 	for (i = 0; i < E1000_ICH8_SHADOW_RAM_WORDS; i++) {
 		dev_spec->shadow_ram[i].modified = false;
 		dev_spec->shadow_ram[i].value = 0xFFFF;
@@ -3886,7 +3886,7 @@ static s32 e1000_update_nvm_checksum_spt(struct e1000_hw *hw)
 release:
 	nvm->ops.release(hw);
 
-	/* Reload the EEPROM, or else modifications will not appear
+	/* Reload the EEPROM, or else modifications will yest appear
 	 * until after the next adapter reset.
 	 */
 	if (!ret_val) {
@@ -3935,7 +3935,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	 */
 	ret_val = e1000_valid_nvm_bank_detect_ich8lan(hw, &bank);
 	if (ret_val) {
-		e_dbg("Could not detect valid bank, assuming bank 0\n");
+		e_dbg("Could yest detect valid bank, assuming bank 0\n");
 		bank = 0;
 	}
 
@@ -4028,7 +4028,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	if (ret_val)
 		goto release;
 
-	/* Great!  Everything worked, we can now clear the cached entries. */
+	/* Great!  Everything worked, we can yesw clear the cached entries. */
 	for (i = 0; i < E1000_ICH8_SHADOW_RAM_WORDS; i++) {
 		dev_spec->shadow_ram[i].modified = false;
 		dev_spec->shadow_ram[i].value = 0xFFFF;
@@ -4037,7 +4037,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 release:
 	nvm->ops.release(hw);
 
-	/* Reload the EEPROM, or else modifications will not appear
+	/* Reload the EEPROM, or else modifications will yest appear
 	 * until after the next adapter reset.
 	 */
 	if (!ret_val) {
@@ -4057,7 +4057,7 @@ out:
  *  @hw: pointer to the HW structure
  *
  *  Check to see if checksum needs to be fixed by reading bit 6 in word 0x19.
- *  If the bit is 0, that the EEPROM had been modified, but the checksum was not
+ *  If the bit is 0, that the EEPROM had been modified, but the checksum was yest
  *  calculated, in which case we need to calculate the checksum and set bit 6.
  **/
 static s32 e1000_validate_nvm_checksum_ich8lan(struct e1000_hw *hw)
@@ -4069,7 +4069,7 @@ static s32 e1000_validate_nvm_checksum_ich8lan(struct e1000_hw *hw)
 
 	/* Read NVM and check Invalid Image CSUM bit.  If this bit is 0,
 	 * the checksum needs to be fixed.  This bit is an indication that
-	 * the NVM was prepared by OEM software and did not calculate
+	 * the NVM was prepared by OEM software and did yest calculate
 	 * the checksum...a likely scenario.
 	 */
 	switch (hw->mac.type) {
@@ -4108,9 +4108,9 @@ static s32 e1000_validate_nvm_checksum_ich8lan(struct e1000_hw *hw)
  *  @hw: pointer to the HW structure
  *
  *  To prevent malicious write/erase of the NVM, set it to be read-only
- *  so that the hardware ignores all write/erase cycles of the NVM via
+ *  so that the hardware igyesres all write/erase cycles of the NVM via
  *  the flash control registers.  The shadow-ram copy of the NVM will
- *  still be updated, however any updates to this copy will not stick
+ *  still be updated, however any updates to this copy will yest stick
  *  across driver reloads.
  **/
 void e1000e_write_protect_nvm_ich8lan(struct e1000_hw *hw)
@@ -4133,7 +4133,7 @@ void e1000e_write_protect_nvm_ich8lan(struct e1000_hw *hw)
 
 	/* Lock down a subset of GbE Flash Control Registers, e.g.
 	 * PR0 to prevent the write-protection from being lifted.
-	 * Once FLOCKDN is set, the registers protected by it cannot
+	 * Once FLOCKDN is set, the registers protected by it canyest
 	 * be written until FLOCKDN is cleared by a hardware reset.
 	 */
 	hsfsts.regval = er16flash(ICH_FLASH_HSFSTS);
@@ -4179,7 +4179,7 @@ static s32 e1000_write_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 		ret_val = e1000_flash_cycle_init_ich8lan(hw);
 		if (ret_val)
 			break;
-		/* In SPT, This register is in Lan memory space, not
+		/* In SPT, This register is in Lan memory space, yest
 		 * flash.  Therefore, only 32 bit access is supported
 		 */
 		if (hw->mac.type >= e1000_pch_spt)
@@ -4191,7 +4191,7 @@ static s32 e1000_write_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 		hsflctl.hsf_ctrl.fldbcount = size - 1;
 		hsflctl.hsf_ctrl.flcycle = ICH_CYCLE_WRITE;
 		/* In SPT, This register is in Lan memory space,
-		 * not flash.  Therefore, only 32 bit access is
+		 * yest flash.  Therefore, only 32 bit access is
 		 * supported
 		 */
 		if (hw->mac.type >= e1000_pch_spt)
@@ -4219,7 +4219,7 @@ static s32 e1000_write_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 
 		/* If we're here, then things are most likely
 		 * completely hosed, but if the error condition
-		 * is detected, it won't hurt to give it another
+		 * is detected, it won't hurt to give it ayesther
 		 * try...ICH_FLASH_CYCLE_REPEAT_COUNT times.
 		 */
 		hsfsts.regval = er16flash(ICH_FLASH_HSFSTS);
@@ -4227,7 +4227,7 @@ static s32 e1000_write_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 			/* Repeat for some time before giving up. */
 			continue;
 		if (!hsfsts.hsf_status.flcdone) {
-			e_dbg("Timeout error - flash cycle did not complete.\n");
+			e_dbg("Timeout error - flash cycle did yest complete.\n");
 			break;
 		}
 	} while (count++ < ICH_FLASH_CYCLE_REPEAT_COUNT);
@@ -4265,7 +4265,7 @@ static s32 e1000_write_flash_data32_ich8lan(struct e1000_hw *hw, u32 offset,
 		if (ret_val)
 			break;
 
-		/* In SPT, This register is in Lan memory space, not
+		/* In SPT, This register is in Lan memory space, yest
 		 * flash.  Therefore, only 32 bit access is supported
 		 */
 		if (hw->mac.type >= e1000_pch_spt)
@@ -4278,7 +4278,7 @@ static s32 e1000_write_flash_data32_ich8lan(struct e1000_hw *hw, u32 offset,
 		hsflctl.hsf_ctrl.flcycle = ICH_CYCLE_WRITE;
 
 		/* In SPT, This register is in Lan memory space,
-		 * not flash.  Therefore, only 32 bit access is
+		 * yest flash.  Therefore, only 32 bit access is
 		 * supported
 		 */
 		if (hw->mac.type >= e1000_pch_spt)
@@ -4302,7 +4302,7 @@ static s32 e1000_write_flash_data32_ich8lan(struct e1000_hw *hw, u32 offset,
 
 		/* If we're here, then things are most likely
 		 * completely hosed, but if the error condition
-		 * is detected, it won't hurt to give it another
+		 * is detected, it won't hurt to give it ayesther
 		 * try...ICH_FLASH_CYCLE_REPEAT_COUNT times.
 		 */
 		hsfsts.regval = er16flash(ICH_FLASH_HSFSTS);
@@ -4311,7 +4311,7 @@ static s32 e1000_write_flash_data32_ich8lan(struct e1000_hw *hw, u32 offset,
 			/* Repeat for some time before giving up. */
 			continue;
 		if (!hsfsts.hsf_status.flcdone) {
-			e_dbg("Timeout error - flash cycle did not complete.\n");
+			e_dbg("Timeout error - flash cycle did yest complete.\n");
 			break;
 		}
 	} while (count++ < ICH_FLASH_CYCLE_REPEAT_COUNT);
@@ -4542,13 +4542,13 @@ static s32 e1000_valid_led_default_ich8lan(struct e1000_hw *hw, u16 *data)
  *  e1000_id_led_init_pchlan - store LED configurations
  *  @hw: pointer to the HW structure
  *
- *  PCH does not control LEDs via the LEDCTL register, rather it uses
+ *  PCH does yest control LEDs via the LEDCTL register, rather it uses
  *  the PHY LED configuration register.
  *
- *  PCH also does not have an "always on" or "always off" mode which
+ *  PCH also does yest have an "always on" or "always off" mode which
  *  complicates the ID feature.  Instead of using the "on" mode to indicate
  *  in ledctl_mode2 the LEDs to use for ID (see e1000e_id_led_init_generic()),
- *  use "link_up" mode.  The LEDs will still ID on request if there is no
+ *  use "link_up" mode.  The LEDs will still ID on request if there is yes
  *  link based on logic in e1000_led_[on|off]_pchlan().
  **/
 static s32 e1000_id_led_init_pchlan(struct e1000_hw *hw)
@@ -4585,7 +4585,7 @@ static s32 e1000_id_led_init_pchlan(struct e1000_hw *hw)
 			mac->ledctl_mode1 |= (ledctl_off << shift);
 			break;
 		default:
-			/* Do nothing */
+			/* Do yesthing */
 			break;
 		}
 		switch (temp) {
@@ -4602,7 +4602,7 @@ static s32 e1000_id_led_init_pchlan(struct e1000_hw *hw)
 			mac->ledctl_mode2 |= (ledctl_off << shift);
 			break;
 		default:
-			/* Do nothing */
+			/* Do yesthing */
 			break;
 		}
 	}
@@ -4614,7 +4614,7 @@ static s32 e1000_id_led_init_pchlan(struct e1000_hw *hw)
  *  e1000_get_bus_info_ich8lan - Get/Set the bus type and width
  *  @hw: pointer to the HW structure
  *
- *  ICH8 use the PCI Express bus, but does not contain a PCI Express Capability
+ *  ICH8 use the PCI Express bus, but does yest contain a PCI Express Capability
  *  register, so the the bus width is hard coded.
  **/
 static s32 e1000_get_bus_info_ich8lan(struct e1000_hw *hw)
@@ -4625,11 +4625,11 @@ static s32 e1000_get_bus_info_ich8lan(struct e1000_hw *hw)
 	ret_val = e1000e_get_bus_info_pcie(hw);
 
 	/* ICH devices are "PCI Express"-ish.  They have
-	 * a configuration space, but do not contain
+	 * a configuration space, but do yest contain
 	 * PCI Express Capability registers, so bus width
 	 * must be hardcoded.
 	 */
-	if (bus->width == e1000_bus_width_unknown)
+	if (bus->width == e1000_bus_width_unkyeswn)
 		bus->width = e1000_bus_width_pcie_x1;
 
 	return ret_val;
@@ -4649,7 +4649,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	u32 ctrl, reg;
 	s32 ret_val;
 
-	/* Prevent the PCI-E bus from sticking if there is no TLP connection
+	/* Prevent the PCI-E bus from sticking if there is yes TLP connection
 	 * on the last TLP read/write transaction when MAC is reset.
 	 */
 	ret_val = e1000e_disable_pcie_master(hw);
@@ -4699,7 +4699,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 		ctrl |= E1000_CTRL_PHY_RST;
 
 		/* Gate automatic PHY configuration by hardware on
-		 * non-managed 82579
+		 * yesn-managed 82579
 		 */
 		if ((hw->mac.type == e1000_pch2lan) &&
 		    !(er32(FWSM) & E1000_ICH_FWSM_FW_VALID))
@@ -4708,7 +4708,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	ret_val = e1000_acquire_swflag_ich8lan(hw);
 	e_dbg("Issuing a global reset to ich8lan\n");
 	ew32(CTRL, (ctrl | E1000_CTRL_RST));
-	/* cannot issue a flush here because it hangs the hardware */
+	/* canyest issue a flush here because it hangs the hardware */
 	msleep(20);
 
 	/* Set Phy Config Counter to 50msec */
@@ -4732,7 +4732,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 			return ret_val;
 	}
 
-	/* For PCH, this write will make sure that any noise
+	/* For PCH, this write will make sure that any yesise
 	 * will be detected as a CRC error and be dropped rather than show up
 	 * as a bad packet to the DMA engine.
 	 */
@@ -4764,7 +4764,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
-	u32 ctrl_ext, txdctl, snoop;
+	u32 ctrl_ext, txdctl, syesop;
 	s32 ret_val;
 	u16 i;
 
@@ -4772,7 +4772,7 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 
 	/* Initialize identification LED */
 	ret_val = mac->ops.id_led_init(hw);
-	/* An error is not fatal and we should not stop init due to this */
+	/* An error is yest fatal and we should yest stop init due to this */
 	if (ret_val)
 		e_dbg("Error initializing identification LED\n");
 
@@ -4814,14 +4814,14 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 		  E1000_TXDCTL_MAX_TX_DESC_PREFETCH);
 	ew32(TXDCTL(1), txdctl);
 
-	/* ICH8 has opposite polarity of no_snoop bits.
-	 * By default, we should use snoop behavior.
+	/* ICH8 has opposite polarity of yes_syesop bits.
+	 * By default, we should use syesop behavior.
 	 */
 	if (mac->type == e1000_ich8lan)
-		snoop = PCIE_ICH8_SNOOP_ALL;
+		syesop = PCIE_ICH8_SNOOP_ALL;
 	else
-		snoop = (u32)~(PCIE_NO_SNOOP_ALL);
-	e1000e_set_pcie_no_snoop(hw, snoop);
+		syesop = (u32)~(PCIE_NO_SNOOP_ALL);
+	e1000e_set_pcie_yes_syesop(hw, syesop);
 
 	ctrl_ext = er32(CTRL_EXT);
 	ctrl_ext |= E1000_CTRL_EXT_RO_DIS;
@@ -4830,7 +4830,7 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 	/* Clear all of the statistics registers (clear on read).  It is
 	 * important that we do this after we have tried to establish link
 	 * because the symbol error count will increment wildly if there
-	 * is no link.
+	 * is yes link.
 	 */
 	e1000_clear_hw_cntrs_ich8lan(hw);
 
@@ -4922,7 +4922,7 @@ static void e1000_initialize_hw_bits_ich8lan(struct e1000_hw *hw)
  *  control.  Calls the appropriate media-specific link configuration
  *  function.  Assuming the adapter has a valid link partner, a valid link
  *  should be established.  Assumes the hardware has previously been reset
- *  and the transmitter and receiver are not enabled.
+ *  and the transmitter and receiver are yest enabled.
  **/
 static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 {
@@ -4931,7 +4931,7 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 	if (hw->phy.ops.check_reset_block(hw))
 		return 0;
 
-	/* ICH parts do not have a word in the NVM to determine
+	/* ICH parts do yest have a word in the NVM to determine
 	 * the default flow control setting, so we explicitly
 	 * set it to full.
 	 */
@@ -4944,11 +4944,11 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 	}
 
 	/* Save off the requested flow control mode for use later.  Depending
-	 * on the link partner's capabilities, we may or may not use this mode.
+	 * on the link partner's capabilities, we may or may yest use this mode.
 	 */
 	hw->fc.current_mode = hw->fc.requested_mode;
 
-	e_dbg("After fix-ups FlowControl is now = %x\n", hw->fc.current_mode);
+	e_dbg("After fix-ups FlowControl is yesw = %x\n", hw->fc.current_mode);
 
 	/* Continue to configure the copper link. */
 	ret_val = hw->mac.ops.setup_physical_interface(hw);
@@ -5114,10 +5114,10 @@ static s32 e1000_get_link_up_info_ich8lan(struct e1000_hw *hw, u16 *speed,
  *  Work-around for 82566 Kumeran PCS lock loss:
  *  On link status change (i.e. PCI reset, speed change) and link is up and
  *  speed is gigabit-
- *    0) if workaround is optionally disabled do nothing
+ *    0) if workaround is optionally disabled do yesthing
  *    1) wait 1ms for Kumeran link to come up
- *    2) check Kumeran Diagnostic register PCS lock loss bit
- *    3) if not set the link is locked (all is good), otherwise...
+ *    2) check Kumeran Diagyesstic register PCS lock loss bit
+ *    3) if yest set the link is locked (all is good), otherwise...
  *    4) reset the PHY
  *    5) repeat up to 10 times
  *  Note: this is only called for IGP3 copper when speed is 1gb.
@@ -5133,7 +5133,7 @@ static s32 e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw)
 	if (!dev_spec->kmrn_lock_loss_workaround_enabled)
 		return 0;
 
-	/* Make sure link is up before proceeding.  If not just return.
+	/* Make sure link is up before proceeding.  If yest just return.
 	 * Attempting this while link is negotiating fouled up link
 	 * stability
 	 */
@@ -5330,7 +5330,7 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 			/* Disable LPLU if both link partners support 100BaseT
 			 * EEE and 100Full is advertised on both ends of the
 			 * link, and enable Auto Enable LPI since there will
-			 * be no driver to enable LPI while in Sx.
+			 * be yes driver to enable LPI while in Sx.
 			 */
 			if ((eee_advert & I82579_EEE_100_SUPPORTED) &&
 			    (dev_spec->eee_lp_ability &
@@ -5348,8 +5348,8 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 			}
 		}
 
-		/* For i217 Intel Rapid Start Technology support,
-		 * when the system is going into Sx and no manageability engine
+		/* For i217 Intel Rapid Start Techyeslogy support,
+		 * when the system is going into Sx and yes manageability engine
 		 * is present, the driver must configure proxy to reset only on
 		 * power good.  LPI (Low Power Idle) state must also reset only
 		 * on power good, as well as the MTA (Multicast table array).
@@ -5374,7 +5374,7 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 			e1e_wphy_locked(hw, I217_MEMPWR, phy_reg);
 		}
 
-		/* Enable MTA to reset for Intel Rapid Start Technology
+		/* Enable MTA to reset for Intel Rapid Start Techyeslogy
 		 * Support
 		 */
 		e1e_rphy_locked(hw, I217_CGFREG, &phy_reg);
@@ -5409,11 +5409,11 @@ out:
  *  e1000_resume_workarounds_pchlan - workarounds needed during Sx->S0
  *  @hw: pointer to the HW structure
  *
- *  During Sx to S0 transitions on non-managed devices or managed devices
- *  on which PHY resets are not blocked, if the PHY registers cannot be
+ *  During Sx to S0 transitions on yesn-managed devices or managed devices
+ *  on which PHY resets are yest blocked, if the PHY registers canyest be
  *  accessed properly by the s/w toggle the LANPHYPC value to power cycle
  *  the PHY.
- *  On i217, setup Intel Rapid Start Technology.
+ *  On i217, setup Intel Rapid Start Techyeslogy.
  **/
 void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 {
@@ -5428,8 +5428,8 @@ void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 		return;
 	}
 
-	/* For i217 Intel Rapid Start Technology support when the system
-	 * is transitioning from Sx and no manageability engine is present
+	/* For i217 Intel Rapid Start Techyeslogy support when the system
+	 * is transitioning from Sx and yes manageability engine is present
 	 * configure SMBus to restore on reset, disable proxy, and enable
 	 * the reset on MTA (Multicast table array).
 	 */
@@ -5448,7 +5448,7 @@ void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 		e1e_wphy_locked(hw, I217_LPI_GPIO_CTRL, phy_reg);
 
 		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
-			/* Restore clear on SMB if no manageability engine
+			/* Restore clear on SMB if yes manageability engine
 			 * is present
 			 */
 			ret_val = e1e_rphy_locked(hw, I217_MEMPWR, &phy_reg);
@@ -5554,7 +5554,7 @@ static s32 e1000_led_on_pchlan(struct e1000_hw *hw)
 	u16 data = (u16)hw->mac.ledctl_mode2;
 	u32 i, led;
 
-	/* If no link, then turn LED on by setting the invert bit
+	/* If yes link, then turn LED on by setting the invert bit
 	 * for each LED that's mode is "link_up" in ledctl_mode2.
 	 */
 	if (!(er32(STATUS) & E1000_STATUS_LU)) {
@@ -5584,7 +5584,7 @@ static s32 e1000_led_off_pchlan(struct e1000_hw *hw)
 	u16 data = (u16)hw->mac.ledctl_mode1;
 	u32 i, led;
 
-	/* If no link, then turn LED off by clearing the invert bit
+	/* If yes link, then turn LED off by clearing the invert bit
 	 * for each LED that's mode is "link_up" in ledctl_mode1.
 	 */
 	if (!(er32(STATUS) & E1000_STATUS_LU)) {
@@ -5612,7 +5612,7 @@ static s32 e1000_led_off_pchlan(struct e1000_hw *hw)
  *
  *  NOTE: some silicon which is EEPROM-less will fail trying to read the
  *  config done bit, so only an error is logged and continues.  If we were
- *  to return with error, EEPROM-less silicon would not be able to be reset
+ *  to return with error, EEPROM-less silicon would yest be able to be reset
  *  or change link.
  **/
 static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
@@ -5629,11 +5629,11 @@ static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
 	} else {
 		ret_val = e1000e_get_auto_rd_done(hw);
 		if (ret_val) {
-			/* When auto config read does not complete, do not
+			/* When auto config read does yest complete, do yest
 			 * return with an error. This can happen in situations
-			 * where there is no eeprom and prevents getting link.
+			 * where there is yes eeprom and prevents getting link.
 			 */
-			e_dbg("Auto Read Done did not complete\n");
+			e_dbg("Auto Read Done did yest complete\n");
 			ret_val = 0;
 		}
 	}
@@ -5643,9 +5643,9 @@ static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
 	if (status & E1000_STATUS_PHYRA)
 		ew32(STATUS, status & ~E1000_STATUS_PHYRA);
 	else
-		e_dbg("PHY Reset Asserted not set - needs delay\n");
+		e_dbg("PHY Reset Asserted yest set - needs delay\n");
 
-	/* If EEPROM is not marked present, init the IGP 3 PHY manually */
+	/* If EEPROM is yest marked present, init the IGP 3 PHY manually */
 	if (hw->mac.type <= e1000_ich9lan) {
 		if (!(er32(EECD) & E1000_EECD_PRES) &&
 		    (hw->phy.type == e1000_phy_igp_3)) {
@@ -5654,7 +5654,7 @@ static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
 	} else {
 		if (e1000_valid_nvm_bank_detect_ich8lan(hw, &bank)) {
 			/* Maybe we should do a basic PHY config */
-			e_dbg("EEPROM not present\n");
+			e_dbg("EEPROM yest present\n");
 			ret_val = -E1000_ERR_CONFIG;
 		}
 	}
@@ -5667,11 +5667,11 @@ static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
  * @hw: pointer to the HW structure
  *
  * In the case of a PHY power down to save power, or to turn off link during a
- * driver unload, or wake on lan is not enabled, remove the link.
+ * driver unload, or wake on lan is yest enabled, remove the link.
  **/
 static void e1000_power_down_phy_copper_ich8lan(struct e1000_hw *hw)
 {
-	/* If the management interface is not enabled, then power down */
+	/* If the management interface is yest enabled, then power down */
 	if (!(hw->mac.ops.check_mng_mode(hw) ||
 	      hw->phy.ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);

@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/smp.h>
 #include <linux/oprofile.h>
 #include <linux/profile.h>
@@ -23,10 +23,10 @@
 static DEFINE_PER_CPU(struct hrtimer, oprofile_hrtimer);
 static int ctr_running;
 
-static enum hrtimer_restart oprofile_hrtimer_notify(struct hrtimer *hrtimer)
+static enum hrtimer_restart oprofile_hrtimer_yestify(struct hrtimer *hrtimer)
 {
 	oprofile_add_sample(get_irq_regs(), 0);
-	hrtimer_forward_now(hrtimer, ns_to_ktime(TICK_NSEC));
+	hrtimer_forward_yesw(hrtimer, ns_to_ktime(TICK_NSEC));
 	return HRTIMER_RESTART;
 }
 
@@ -38,7 +38,7 @@ static void __oprofile_hrtimer_start(void *unused)
 		return;
 
 	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hrtimer->function = oprofile_hrtimer_notify;
+	hrtimer->function = oprofile_hrtimer_yestify;
 
 	hrtimer_start(hrtimer, ns_to_ktime(TICK_NSEC),
 		      HRTIMER_MODE_REL_PINNED);
@@ -94,7 +94,7 @@ static int oprofile_hrtimer_setup(void)
 {
 	int ret;
 
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	ret = cpuhp_setup_state_yescalls(CPUHP_AP_ONLINE_DYN,
 					"oprofile/timer:online",
 					oprofile_timer_online,
 					oprofile_timer_prep_down);
@@ -106,7 +106,7 @@ static int oprofile_hrtimer_setup(void)
 
 static void oprofile_hrtimer_shutdown(void)
 {
-	cpuhp_remove_state_nocalls(hp_online);
+	cpuhp_remove_state_yescalls(hp_online);
 }
 
 int oprofile_timer_init(struct oprofile_operations *ops)

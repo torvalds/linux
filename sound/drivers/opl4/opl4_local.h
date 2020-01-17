@@ -8,9 +8,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed and/or modified under the
@@ -160,7 +160,7 @@ struct opl4_voice {
 	struct list_head list;
 	int number;
 	struct snd_midi_channel *chan;
-	int note;
+	int yeste;
 	int velocity;
 	const struct opl4_sound *sound;
 	u8 level_direct;
@@ -222,9 +222,9 @@ extern int volume_boost;
 /* opl4_synth.c */
 void snd_opl4_synth_reset(struct snd_opl4 *opl4);
 void snd_opl4_synth_shutdown(struct snd_opl4 *opl4);
-void snd_opl4_note_on(void *p, int note, int vel, struct snd_midi_channel *chan);
-void snd_opl4_note_off(void *p, int note, int vel, struct snd_midi_channel *chan);
-void snd_opl4_terminate_note(void *p, int note, struct snd_midi_channel *chan);
+void snd_opl4_yeste_on(void *p, int yeste, int vel, struct snd_midi_channel *chan);
+void snd_opl4_yeste_off(void *p, int yeste, int vel, struct snd_midi_channel *chan);
+void snd_opl4_terminate_yeste(void *p, int yeste, struct snd_midi_channel *chan);
 void snd_opl4_control(void *p, int type, struct snd_midi_channel *chan);
 void snd_opl4_sysex(void *p, unsigned char *buf, int len, int parsed, struct snd_midi_channel_set *chset);
 

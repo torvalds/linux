@@ -51,11 +51,11 @@ void wusbhc_mmcie_destroy(struct wusbhc *wusbhc)
  * @repeat_cnt:  See WUSB1.0[8.5.3.1]
  * @handle:      See WUSB1.0[8.5.3.1]
  * @wuie:        Pointer to the header of the WUSB IE data to add.
- *               MUST BE allocated in a kmalloc buffer (no stack or
+ *               MUST BE allocated in a kmalloc buffer (yes stack or
  *               vmalloc).
  *               THE CALLER ALWAYS OWNS THE POINTER (we don't free it
  *               on remove, we just forget about it).
- * @returns:     0 if ok, < 0 errno code on error.
+ * @returns:     0 if ok, < 0 erryes code on error.
  *
  * Goes over the *whole* @wusbhc->mmcie array looking for (a) the
  * first free spot and (b) if @wuie is already in the array (aka:
@@ -185,7 +185,7 @@ int wusbhc_start(struct wusbhc *wusbhc)
 
 	result = wusbhc_rsv_establish(wusbhc);
 	if (result < 0) {
-		dev_err(dev, "cannot establish cluster reservation: %d\n",
+		dev_err(dev, "canyest establish cluster reservation: %d\n",
 			result);
 		goto error_rsv_establish;
 	}
@@ -207,7 +207,7 @@ int wusbhc_start(struct wusbhc *wusbhc)
 	result = wusbhc->set_num_dnts(wusbhc, wusbhc->dnts_interval,
 		wusbhc->dnts_num_slots);
 	if (result < 0) {
-		dev_err(dev, "Cannot set DNTS parameters: %d\n", result);
+		dev_err(dev, "Canyest set DNTS parameters: %d\n", result);
 		goto error_set_num_dnts;
 	}
 	result = wusbhc_mmc_start(wusbhc);
@@ -273,13 +273,13 @@ int wusbhc_chid_set(struct wusbhc *wusbhc, const struct wusb_ckhdid *chid)
 		if (wusbhc->uwb_rc == NULL) {
 			result = -ENODEV;
 			dev_err(wusbhc->dev,
-				"Cannot get associated UWB Host Controller\n");
+				"Canyest get associated UWB Host Controller\n");
 			goto error_rc_get;
 		}
 
 		result = wusbhc_pal_register(wusbhc);
 		if (result < 0) {
-			dev_err(wusbhc->dev, "Cannot register as a UWB PAL\n");
+			dev_err(wusbhc->dev, "Canyest register as a UWB PAL\n");
 			goto error_pal_register;
 		}
 	}

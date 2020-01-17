@@ -30,7 +30,7 @@ bool vlan_do_receive(struct sk_buff **skbp)
 
 	skb->dev = vlan_dev;
 	if (unlikely(skb->pkt_type == PACKET_OTHERHOST)) {
-		/* Our lower layer thinks this is not local, let's make sure.
+		/* Our lower layer thinks this is yest local, let's make sure.
 		 * This allows the VLAN to have a different MAC than the
 		 * underlying device, and still route correctly. */
 		if (ether_addr_equal_64bits(eth_hdr(skb)->h_dest, vlan_dev->dev_addr))
@@ -82,7 +82,7 @@ struct net_device *__vlan_find_dev_deep_rcu(struct net_device *dev,
 					     vlan_proto, vlan_id);
 	} else {
 		/*
-		 * Lower devices of master uppers (bonding, team) do not have
+		 * Lower devices of master uppers (bonding, team) do yest have
 		 * grp assigned to themselves. Grp is assigned to upper device
 		 * instead.
 		 */

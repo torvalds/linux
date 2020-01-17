@@ -111,7 +111,7 @@ exit:
 static ssize_t version_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	static const char * const image_names[] = {"unknown", "RO", "RW"};
+	static const char * const image_names[] = {"unkyeswn", "RO", "RW"};
 	struct ec_response_get_version *r_ver;
 	struct ec_response_get_chip_info *r_chip;
 	struct ec_response_board_version *r_board;

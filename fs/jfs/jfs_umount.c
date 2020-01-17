@@ -6,7 +6,7 @@
 /*
  *	jfs_umount.c
  *
- * note: file system in transition to aggregate/fileset:
+ * yeste: file system in transition to aggregate/fileset:
  * (ref. jfs_mount.c)
  *
  * file system unmount is interpreted as mount of the single/only
@@ -37,10 +37,10 @@
 int jfs_umount(struct super_block *sb)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(sb);
-	struct inode *ipbmap = sbi->ipbmap;
-	struct inode *ipimap = sbi->ipimap;
-	struct inode *ipaimap = sbi->ipaimap;
-	struct inode *ipaimap2 = sbi->ipaimap2;
+	struct iyesde *ipbmap = sbi->ipbmap;
+	struct iyesde *ipimap = sbi->ipimap;
+	struct iyesde *ipaimap = sbi->ipaimap;
+	struct iyesde *ipaimap2 = sbi->ipaimap2;
 	struct jfs_log *log;
 	int rc = 0;
 
@@ -58,7 +58,7 @@ int jfs_umount(struct super_block *sb)
 		jfs_flush_journal(log, 2);
 
 	/*
-	 * close fileset inode allocation map (aka fileset inode)
+	 * close fileset iyesde allocation map (aka fileset iyesde)
 	 */
 	diUnmount(ipimap, 0);
 
@@ -66,7 +66,7 @@ int jfs_umount(struct super_block *sb)
 	sbi->ipimap = NULL;
 
 	/*
-	 * close secondary aggregate inode allocation map
+	 * close secondary aggregate iyesde allocation map
 	 */
 	ipaimap2 = sbi->ipaimap2;
 	if (ipaimap2) {
@@ -76,7 +76,7 @@ int jfs_umount(struct super_block *sb)
 	}
 
 	/*
-	 * close aggregate inode allocation map
+	 * close aggregate iyesde allocation map
 	 */
 	ipaimap = sbi->ipaimap;
 	diUnmount(ipaimap, 0);
@@ -95,7 +95,7 @@ int jfs_umount(struct super_block *sb)
 	 * Make sure all metadata makes it to disk before we mark
 	 * the superblock as clean
 	 */
-	filemap_write_and_wait(sbi->direct_inode->i_mapping);
+	filemap_write_and_wait(sbi->direct_iyesde->i_mapping);
 
 	/*
 	 * ensure all file system file pages are propagated to their
@@ -147,7 +147,7 @@ int jfs_umount_rw(struct super_block *sb)
 	 * mark the superblock clean before everything is flushed to
 	 * disk.
 	 */
-	filemap_write_and_wait(sbi->direct_inode->i_mapping);
+	filemap_write_and_wait(sbi->direct_iyesde->i_mapping);
 
 	updateSuper(sb, FM_CLEAN);
 

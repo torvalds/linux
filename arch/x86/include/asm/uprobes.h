@@ -10,7 +10,7 @@
  *	Jim Keniston
  */
 
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 typedef u8 uprobe_opcode_t;
 

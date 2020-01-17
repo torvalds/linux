@@ -91,7 +91,7 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 					       ARIZONA_INTERRUPT_RAW_STATUS_3);
 		if (val & ARIZONA_SPK_OVERHEAT_STS) {
 			dev_crit(arizona->dev,
-				 "Speaker not enabled due to temperature\n");
+				 "Speaker yest enabled due to temperature\n");
 			return -EBUSY;
 		}
 
@@ -227,7 +227,7 @@ int arizona_free_spk_irqs(struct arizona *arizona)
 }
 EXPORT_SYMBOL_GPL(arizona_free_spk_irqs);
 
-static const struct snd_soc_dapm_route arizona_mono_routes[] = {
+static const struct snd_soc_dapm_route arizona_moyes_routes[] = {
 	{ "OUT1R", NULL, "OUT1L" },
 	{ "OUT2R", NULL, "OUT2L" },
 	{ "OUT3R", NULL, "OUT3L" },
@@ -236,7 +236,7 @@ static const struct snd_soc_dapm_route arizona_mono_routes[] = {
 	{ "OUT6R", NULL, "OUT6L" },
 };
 
-int arizona_init_mono(struct snd_soc_component *component)
+int arizona_init_moyes(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct arizona_priv *priv = snd_soc_component_get_drvdata(component);
@@ -244,14 +244,14 @@ int arizona_init_mono(struct snd_soc_component *component)
 	int i;
 
 	for (i = 0; i < ARIZONA_MAX_OUTPUT; ++i) {
-		if (arizona->pdata.out_mono[i])
+		if (arizona->pdata.out_moyes[i])
 			snd_soc_dapm_add_routes(dapm,
-						&arizona_mono_routes[i], 1);
+						&arizona_moyes_routes[i], 1);
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(arizona_init_mono);
+EXPORT_SYMBOL_GPL(arizona_init_moyes);
 
 int arizona_init_gpio(struct snd_soc_component *component)
 {
@@ -296,11 +296,11 @@ int arizona_init_common(struct arizona *arizona)
 	unsigned int val, mask;
 	int i;
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&arizona->notifier);
+	BLOCKING_INIT_NOTIFIER_HEAD(&arizona->yestifier);
 
 	for (i = 0; i < ARIZONA_MAX_OUTPUT; ++i) {
-		/* Default is 0 so noop with defaults */
-		if (pdata->out_mono[i])
+		/* Default is 0 so yesop with defaults */
+		if (pdata->out_moyes[i])
 			val = ARIZONA_OUT1_MONO;
 		else
 			val = 0;
@@ -326,7 +326,7 @@ int arizona_init_common(struct arizona *arizona)
 	}
 
 	for (i = 0; i < ARIZONA_MAX_INPUT; i++) {
-		/* Default for both is 0 so noop with defaults */
+		/* Default for both is 0 so yesop with defaults */
 		val = pdata->dmic_ref[i] << ARIZONA_IN1_DMIC_SUP_SHIFT;
 		if (pdata->inmode[i] & ARIZONA_INMODE_DMIC)
 			val |= 1 << ARIZONA_IN1_MODE_SHIFT;
@@ -500,7 +500,7 @@ unsigned int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS] = {
 	0x08,  /* AEC */
 	0x09,  /* AEC2 */
 	0x0c,  /* Noise mixer */
-	0x0d,  /* Comfort noise */
+	0x0d,  /* Comfort yesise */
 	0x10,  /* IN1L */
 	0x11,
 	0x12,
@@ -936,7 +936,7 @@ int arizona_in_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 				    ARIZONA_IN1L_MUTE | ARIZONA_IN_VU);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		/* Disable volume updates if no inputs are enabled */
+		/* Disable volume updates if yes inputs are enabled */
 		reg = snd_soc_component_read32(component, ARIZONA_INPUT_ENABLES);
 		if (reg == 0)
 			arizona_in_set_vu(component, 0);
@@ -1212,7 +1212,7 @@ int arizona_dvfs_sysclk_ev(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMD:
 		/* We must ensure DVFS is disabled before the codec goes into
 		 * suspend so that we are never in an illegal state of DVFS
-		 * enabled without enough DCVDD
+		 * enabled without eyesugh DCVDD
 		 */
 		priv->dvfs_cached = true;
 
@@ -1457,7 +1457,7 @@ static int arizona_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_DSP_B:
 		if ((fmt & SND_SOC_DAIFMT_MASTER_MASK)
 				!= SND_SOC_DAIFMT_CBM_CFM) {
-			arizona_aif_err(dai, "DSP_B not valid in slave mode\n");
+			arizona_aif_err(dai, "DSP_B yest valid in slave mode\n");
 			return -EINVAL;
 		}
 		mode = ARIZONA_FMT_DSP_MODE_B;
@@ -1468,7 +1468,7 @@ static int arizona_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_LEFT_J:
 		if ((fmt & SND_SOC_DAIFMT_MASTER_MASK)
 				!= SND_SOC_DAIFMT_CBM_CFM) {
-			arizona_aif_err(dai, "LEFT_J not valid in slave mode\n");
+			arizona_aif_err(dai, "LEFT_J yest valid in slave mode\n");
 			return -EINVAL;
 		}
 		mode = ARIZONA_FMT_LEFT_JUSTIFIED_MODE;
@@ -1902,7 +1902,7 @@ static const char *arizona_dai_clk_str(int clk_id)
 	case ARIZONA_CLK_ASYNCCLK:
 		return "ASYNCCLK";
 	default:
-		return "Unknown clock";
+		return "Unkyeswn clock";
 	}
 }
 
@@ -2295,7 +2295,7 @@ static int arizona_calc_fll(struct arizona_fll *fll,
 	}
 
 	/* Round down to 16bit range with cost of accuracy lost.
-	 * Denominator must be bigger than numerator so we only
+	 * Deyesminator must be bigger than numerator so we only
 	 * take care of it.
 	 */
 	while (cfg->lambda >= (1 << 16)) {
@@ -2478,7 +2478,7 @@ static int arizona_enable_fll(struct arizona_fll *fll)
 		arizona_fll_warn(fll, "Synchroniser changed on active FLL\n");
 
 	/*
-	 * Increase the bandwidth if we're not using a low frequency
+	 * Increase the bandwidth if we're yest using a low frequency
 	 * sync source.
 	 */
 	if (use_sync && fll->sync_freq > 100000)
@@ -2784,7 +2784,7 @@ EXPORT_SYMBOL_GPL(arizona_lhpf_coeff_put);
 int arizona_of_get_audio_pdata(struct arizona *arizona)
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
-	struct device_node *np = arizona->dev->of_node;
+	struct device_yesde *np = arizona->dev->of_yesde;
 	struct property *prop;
 	const __be32 *cur;
 	u32 val;
@@ -2811,11 +2811,11 @@ int arizona_of_get_audio_pdata(struct arizona *arizona)
 	}
 
 	count = 0;
-	of_property_for_each_u32(np, "wlf,out-mono", prop, cur, val) {
-		if (count == ARRAY_SIZE(pdata->out_mono))
+	of_property_for_each_u32(np, "wlf,out-moyes", prop, cur, val) {
+		if (count == ARRAY_SIZE(pdata->out_moyes))
 			break;
 
-		pdata->out_mono[count] = !!val;
+		pdata->out_moyes[count] = !!val;
 		count++;
 	}
 

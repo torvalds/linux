@@ -4,7 +4,7 @@
 #
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not trace early setup code
+# Do yest trace early setup code
 CFLAGS_REMOVE_sclp_early_core.o	= $(CC_FLAGS_FTRACE)
 endif
 

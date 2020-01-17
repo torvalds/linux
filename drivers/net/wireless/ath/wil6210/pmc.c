@@ -5,7 +5,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include "wmi.h"
@@ -53,14 +53,14 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 	if (wil_is_pmc_allocated(pmc)) {
 		/* sanity check */
 		wil_err(wil, "ERROR pmc is already allocated\n");
-		goto no_release_err;
+		goto yes_release_err;
 	}
 	if ((num_descriptors <= 0) || (descriptor_size <= 0)) {
 		wil_err(wil,
 			"Invalid params num_descriptors(%d), descriptor_size(%d)\n",
 			num_descriptors, descriptor_size);
 		last_cmd_err = -EINVAL;
-		goto no_release_err;
+		goto yes_release_err;
 	}
 
 	if (num_descriptors > (1 << WIL_RING_SIZE_ORDER_MAX)) {
@@ -68,7 +68,7 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 			"num_descriptors(%d) exceeds max ring size %d\n",
 			num_descriptors, 1 << WIL_RING_SIZE_ORDER_MAX);
 		last_cmd_err = -EINVAL;
-		goto no_release_err;
+		goto yes_release_err;
 	}
 
 	if (num_descriptors > INT_MAX / descriptor_size) {
@@ -76,7 +76,7 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 			"Overflow in num_descriptors(%d)*descriptor_size(%d)\n",
 			num_descriptors, descriptor_size);
 		last_cmd_err = -EINVAL;
-		goto no_release_err;
+		goto yes_release_err;
 	}
 
 	pmc->num_descriptors = num_descriptors;
@@ -91,7 +91,7 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 				  GFP_KERNEL);
 	if (!pmc->descriptors) {
 		wil_err(wil, "ERROR allocating pmc skb list\n");
-		goto no_release_err;
+		goto yes_release_err;
 	}
 
 	wil_dbg_misc(wil, "pmc_alloc: allocated descriptors info list %p\n",
@@ -106,9 +106,9 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 	 * if we are using more than 32 bit addresses switch to 32 bit
 	 * allocation before allocating vring memory.
 	 *
-	 * There's no check for the return value of dma_set_mask_and_coherent,
+	 * There's yes check for the return value of dma_set_mask_and_coherent,
 	 * since we assume if we were able to set the mask during
-	 * initialization in this system it will not fail if we set it again
+	 * initialization in this system it will yest fail if we set it again
 	 */
 	if (wil->dma_addr_size > 32)
 		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
@@ -216,7 +216,7 @@ release_pmc_skb_list:
 	kfree(pmc->descriptors);
 	pmc->descriptors = NULL;
 
-no_release_err:
+yes_release_err:
 	pmc->last_cmd_status = last_cmd_err;
 	mutex_unlock(&pmc->lock);
 }
@@ -238,7 +238,7 @@ void wil_pmc_free(struct wil6210_priv *wil, int send_pmc_cmd)
 
 	if (!wil_is_pmc_allocated(pmc)) {
 		wil_dbg_misc(wil,
-			     "pmc_free: Error, can't free - not allocated\n");
+			     "pmc_free: Error, can't free - yest allocated\n");
 		pmc->last_cmd_status = -EPERM;
 		mutex_unlock(&pmc->lock);
 		return;
@@ -254,7 +254,7 @@ void wil_pmc_free(struct wil6210_priv *wil, int send_pmc_cmd)
 			wil_err(wil,
 				"WMI_PMC_CMD with RELEASE op failed, status %d",
 				pmc->last_cmd_status);
-			/* There's nothing we can do with this error.
+			/* There's yesthing we can do with this error.
 			 * Normally, it should never occur.
 			 * Continue to freeing all memory allocated for pmc.
 			 */
@@ -301,7 +301,7 @@ void wil_pmc_free(struct wil6210_priv *wil, int send_pmc_cmd)
 
 /**
  * Status of the last operation requested via debugfs: alloc/free/read.
- * 0 - success or negative errno
+ * 0 - success or negative erryes
  */
 int wil_pmc_last_cmd_status(struct wil6210_priv *wil)
 {
@@ -328,7 +328,7 @@ ssize_t wil_pmc_read(struct file *filp, char __user *buf, size_t count,
 	mutex_lock(&pmc->lock);
 
 	if (!wil_is_pmc_allocated(pmc)) {
-		wil_err(wil, "error, pmc is not allocated!\n");
+		wil_err(wil, "error, pmc is yest allocated!\n");
 		pmc->last_cmd_status = -EPERM;
 		mutex_unlock(&pmc->lock);
 		return -EPERM;
@@ -358,7 +358,7 @@ ssize_t wil_pmc_read(struct file *filp, char __user *buf, size_t count,
 		     "pmc_read: read from pos %lld (descriptor %llu, offset %llu) %zu bytes\n",
 		     *f_pos, idx, offset, count);
 
-	/* if no errors, return the copied byte count */
+	/* if yes errors, return the copied byte count */
 	retval = simple_read_from_buffer(buf,
 					 count,
 					 &offset,
@@ -381,7 +381,7 @@ loff_t wil_pmc_llseek(struct file *filp, loff_t off, int whence)
 	mutex_lock(&pmc->lock);
 
 	if (!wil_is_pmc_allocated(pmc)) {
-		wil_err(wil, "error, pmc is not allocated!\n");
+		wil_err(wil, "error, pmc is yest allocated!\n");
 		pmc->last_cmd_status = -EPERM;
 		mutex_unlock(&pmc->lock);
 		return -EPERM;
@@ -432,7 +432,7 @@ int wil_pmcring_read(struct seq_file *s, void *data)
 	mutex_lock(&pmc->lock);
 
 	if (!wil_is_pmc_allocated(pmc)) {
-		wil_err(wil, "error, pmc is not allocated!\n");
+		wil_err(wil, "error, pmc is yest allocated!\n");
 		pmc->last_cmd_status = -EPERM;
 		mutex_unlock(&pmc->lock);
 		return -EPERM;

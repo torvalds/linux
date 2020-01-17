@@ -29,7 +29,7 @@
 #include <linux/rbtree.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <locale.h>
 #include <regex.h>
@@ -67,7 +67,7 @@ struct alloc_stat {
 
 	short	alloc_cpu;
 
-	struct rb_node node;
+	struct rb_yesde yesde;
 };
 
 static struct rb_root root_alloc_stat;
@@ -85,18 +85,18 @@ const char *time_str;
 static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 			     int bytes_req, int bytes_alloc, int cpu)
 {
-	struct rb_node **node = &root_alloc_stat.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **yesde = &root_alloc_stat.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct alloc_stat *data = NULL;
 
-	while (*node) {
-		parent = *node;
-		data = rb_entry(*node, struct alloc_stat, node);
+	while (*yesde) {
+		parent = *yesde;
+		data = rb_entry(*yesde, struct alloc_stat, yesde);
 
 		if (ptr > data->ptr)
-			node = &(*node)->rb_right;
+			yesde = &(*yesde)->rb_right;
 		else if (ptr < data->ptr)
-			node = &(*node)->rb_left;
+			yesde = &(*yesde)->rb_left;
 		else
 			break;
 	}
@@ -117,8 +117,8 @@ static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 		data->bytes_req = bytes_req;
 		data->bytes_alloc = bytes_alloc;
 
-		rb_link_node(&data->node, parent, node);
-		rb_insert_color(&data->node, &root_alloc_stat);
+		rb_link_yesde(&data->yesde, parent, yesde);
+		rb_insert_color(&data->yesde, &root_alloc_stat);
 	}
 	data->call_site = call_site;
 	data->alloc_cpu = cpu;
@@ -130,18 +130,18 @@ static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 static int insert_caller_stat(unsigned long call_site,
 			      int bytes_req, int bytes_alloc)
 {
-	struct rb_node **node = &root_caller_stat.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **yesde = &root_caller_stat.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct alloc_stat *data = NULL;
 
-	while (*node) {
-		parent = *node;
-		data = rb_entry(*node, struct alloc_stat, node);
+	while (*yesde) {
+		parent = *yesde;
+		data = rb_entry(*yesde, struct alloc_stat, yesde);
 
 		if (call_site > data->call_site)
-			node = &(*node)->rb_right;
+			yesde = &(*yesde)->rb_right;
 		else if (call_site < data->call_site)
-			node = &(*node)->rb_left;
+			yesde = &(*yesde)->rb_left;
 		else
 			break;
 	}
@@ -162,8 +162,8 @@ static int insert_caller_stat(unsigned long call_site,
 		data->bytes_req = bytes_req;
 		data->bytes_alloc = bytes_alloc;
 
-		rb_link_node(&data->node, parent, node);
-		rb_insert_color(&data->node, &root_caller_stat);
+		rb_link_yesde(&data->yesde, parent, yesde);
+		rb_insert_color(&data->yesde, &root_caller_stat);
 	}
 
 	return 0;
@@ -188,16 +188,16 @@ static int perf_evsel__process_alloc_event(struct evsel *evsel,
 	return 0;
 }
 
-static int perf_evsel__process_alloc_node_event(struct evsel *evsel,
+static int perf_evsel__process_alloc_yesde_event(struct evsel *evsel,
 						struct perf_sample *sample)
 {
 	int ret = perf_evsel__process_alloc_event(evsel, sample);
 
 	if (!ret) {
-		int node1 = cpu__get_node(sample->cpu),
-		    node2 = perf_evsel__intval(evsel, sample, "node");
+		int yesde1 = cpu__get_yesde(sample->cpu),
+		    yesde2 = perf_evsel__intval(evsel, sample, "yesde");
 
-		if (node1 != node2)
+		if (yesde1 != yesde2)
 			nr_cross_allocs++;
 	}
 
@@ -212,20 +212,20 @@ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
 					    struct rb_root *root,
 					    sort_fn_t sort_fn)
 {
-	struct rb_node *node = root->rb_node;
+	struct rb_yesde *yesde = root->rb_yesde;
 	struct alloc_stat key = { .ptr = ptr, .call_site = call_site };
 
-	while (node) {
+	while (yesde) {
 		struct alloc_stat *data;
 		int cmp;
 
-		data = rb_entry(node, struct alloc_stat, node);
+		data = rb_entry(yesde, struct alloc_stat, yesde);
 
 		cmp = sort_fn(&key, data);
 		if (cmp < 0)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (cmp > 0)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return data;
 	}
@@ -261,12 +261,12 @@ static int perf_evsel__process_free_event(struct evsel *evsel,
 
 static u64 total_page_alloc_bytes;
 static u64 total_page_free_bytes;
-static u64 total_page_nomatch_bytes;
+static u64 total_page_yesmatch_bytes;
 static u64 total_page_fail_bytes;
 static unsigned long nr_page_allocs;
 static unsigned long nr_page_frees;
 static unsigned long nr_page_fails;
-static unsigned long nr_page_nomatch;
+static unsigned long nr_page_yesmatch;
 
 static bool use_pfn;
 static bool live_page;
@@ -278,7 +278,7 @@ static struct perf_session *kmem_session;
 static int order_stats[MAX_PAGE_ORDER][MAX_MIGRATE_TYPES];
 
 struct page_stat {
-	struct rb_node 	node;
+	struct rb_yesde 	yesde;
 	u64 		page;
 	u64 		callsite;
 	int 		order;
@@ -335,7 +335,7 @@ static int build_alloc_func_list(void)
 	int ret;
 	struct map *kernel_map;
 	struct symbol *sym;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct alloc_func *func;
 	struct machine *machine = &kmem_session->machines.host;
 	regex_t alloc_func_regex;
@@ -352,11 +352,11 @@ static int build_alloc_func_list(void)
 
 	kernel_map = machine__kernel_map(machine);
 	if (map__load(kernel_map) < 0) {
-		pr_err("cannot load kernel map\n");
+		pr_err("canyest load kernel map\n");
 		return -ENOENT;
 	}
 
-	map__for_each_symbol(kernel_map, sym, node) {
+	map__for_each_symbol(kernel_map, sym, yesde) {
 		if (regexec(&alloc_func_regex, sym->name, 0, NULL, 0))
 			continue;
 
@@ -381,14 +381,14 @@ static int build_alloc_func_list(void)
 }
 
 /*
- * Find first non-memory allocation function from callchain.
+ * Find first yesn-memory allocation function from callchain.
  * The allocation functions are in the 'alloc_func_list'.
  */
 static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 {
 	struct addr_location al;
 	struct machine *machine = &kmem_session->machines.host;
-	struct callchain_cursor_node *node;
+	struct callchain_cursor_yesde *yesde;
 
 	if (alloc_func_list == NULL) {
 		if (build_alloc_func_list() < 0)
@@ -403,19 +403,19 @@ static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 		struct alloc_func key, *caller;
 		u64 addr;
 
-		node = callchain_cursor_current(&callchain_cursor);
-		if (node == NULL)
+		yesde = callchain_cursor_current(&callchain_cursor);
+		if (yesde == NULL)
 			break;
 
-		key.start = key.end = node->ip;
+		key.start = key.end = yesde->ip;
 		caller = bsearch(&key, alloc_func_list, nr_alloc_funcs,
 				 sizeof(key), callcmp);
 		if (!caller) {
 			/* found */
-			if (node->ms.map)
-				addr = map__unmap_ip(node->ms.map, node->ip);
+			if (yesde->ms.map)
+				addr = map__unmap_ip(yesde->ms.map, yesde->ip);
 			else
-				addr = node->ip;
+				addr = yesde->ip;
 
 			return addr;
 		} else
@@ -425,7 +425,7 @@ static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 	}
 
 out:
-	pr_debug2("unknown callsite: %"PRIx64 "\n", sample->ip);
+	pr_debug2("unkyeswn callsite: %"PRIx64 "\n", sample->ip);
 	return sample->ip;
 }
 
@@ -441,21 +441,21 @@ static LIST_HEAD(page_caller_sort_input);
 static struct page_stat *
 __page_stat__findnew_page(struct page_stat *pstat, bool create)
 {
-	struct rb_node **node = &page_live_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **yesde = &page_live_tree.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct page_stat *data;
 
-	while (*node) {
+	while (*yesde) {
 		s64 cmp;
 
-		parent = *node;
-		data = rb_entry(*node, struct page_stat, node);
+		parent = *yesde;
+		data = rb_entry(*yesde, struct page_stat, yesde);
 
 		cmp = data->page - pstat->page;
 		if (cmp < 0)
-			node = &parent->rb_left;
+			yesde = &parent->rb_left;
 		else if (cmp > 0)
-			node = &parent->rb_right;
+			yesde = &parent->rb_right;
 		else
 			return data;
 	}
@@ -470,8 +470,8 @@ __page_stat__findnew_page(struct page_stat *pstat, bool create)
 		data->gfp_flags = pstat->gfp_flags;
 		data->migrate_type = pstat->migrate_type;
 
-		rb_link_node(&data->node, parent, node);
-		rb_insert_color(&data->node, &page_live_tree);
+		rb_link_yesde(&data->yesde, parent, yesde);
+		rb_insert_color(&data->yesde, &page_live_tree);
 	}
 
 	return data;
@@ -490,16 +490,16 @@ static struct page_stat *page_stat__findnew_page(struct page_stat *pstat)
 static struct page_stat *
 __page_stat__findnew_alloc(struct page_stat *pstat, bool create)
 {
-	struct rb_node **node = &page_alloc_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **yesde = &page_alloc_tree.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct page_stat *data;
 	struct sort_dimension *sort;
 
-	while (*node) {
+	while (*yesde) {
 		int cmp = 0;
 
-		parent = *node;
-		data = rb_entry(*node, struct page_stat, node);
+		parent = *yesde;
+		data = rb_entry(*yesde, struct page_stat, yesde);
 
 		list_for_each_entry(sort, &page_alloc_sort_input, list) {
 			cmp = sort->cmp(pstat, data);
@@ -508,9 +508,9 @@ __page_stat__findnew_alloc(struct page_stat *pstat, bool create)
 		}
 
 		if (cmp < 0)
-			node = &parent->rb_left;
+			yesde = &parent->rb_left;
 		else if (cmp > 0)
-			node = &parent->rb_right;
+			yesde = &parent->rb_right;
 		else
 			return data;
 	}
@@ -525,8 +525,8 @@ __page_stat__findnew_alloc(struct page_stat *pstat, bool create)
 		data->gfp_flags = pstat->gfp_flags;
 		data->migrate_type = pstat->migrate_type;
 
-		rb_link_node(&data->node, parent, node);
-		rb_insert_color(&data->node, &page_alloc_tree);
+		rb_link_yesde(&data->yesde, parent, yesde);
+		rb_insert_color(&data->yesde, &page_alloc_tree);
 	}
 
 	return data;
@@ -545,16 +545,16 @@ static struct page_stat *page_stat__findnew_alloc(struct page_stat *pstat)
 static struct page_stat *
 __page_stat__findnew_caller(struct page_stat *pstat, bool create)
 {
-	struct rb_node **node = &page_caller_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **yesde = &page_caller_tree.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct page_stat *data;
 	struct sort_dimension *sort;
 
-	while (*node) {
+	while (*yesde) {
 		int cmp = 0;
 
-		parent = *node;
-		data = rb_entry(*node, struct page_stat, node);
+		parent = *yesde;
+		data = rb_entry(*yesde, struct page_stat, yesde);
 
 		list_for_each_entry(sort, &page_caller_sort_input, list) {
 			cmp = sort->cmp(pstat, data);
@@ -563,9 +563,9 @@ __page_stat__findnew_caller(struct page_stat *pstat, bool create)
 		}
 
 		if (cmp < 0)
-			node = &parent->rb_left;
+			yesde = &parent->rb_left;
 		else if (cmp > 0)
-			node = &parent->rb_right;
+			yesde = &parent->rb_right;
 		else
 			return data;
 	}
@@ -580,8 +580,8 @@ __page_stat__findnew_caller(struct page_stat *pstat, bool create)
 		data->gfp_flags = pstat->gfp_flags;
 		data->migrate_type = pstat->migrate_type;
 
-		rb_link_node(&data->node, parent, node);
-		rb_insert_color(&data->node, &page_caller_tree);
+		rb_link_yesde(&data->yesde, parent, yesde);
+		rb_insert_color(&data->yesde, &page_caller_tree);
 	}
 
 	return data;
@@ -882,8 +882,8 @@ static int perf_evsel__process_page_free_event(struct evsel *evsel,
 		pr_debug2("missing free at page %"PRIx64" (order: %d)\n",
 			  page, order);
 
-		nr_page_nomatch++;
-		total_page_nomatch_bytes += bytes;
+		nr_page_yesmatch++;
+		total_page_yesmatch_bytes += bytes;
 
 		return 0;
 	}
@@ -892,7 +892,7 @@ static int perf_evsel__process_page_free_event(struct evsel *evsel,
 	this.migrate_type = pstat->migrate_type;
 	this.callsite = pstat->callsite;
 
-	rb_erase(&pstat->node, &page_live_tree);
+	rb_erase(&pstat->yesde, &page_live_tree);
 	free(pstat);
 
 	if (live_page) {
@@ -918,7 +918,7 @@ static int perf_evsel__process_page_free_event(struct evsel *evsel,
 		pstat->alloc_bytes -= bytes;
 
 		if (pstat->nr_alloc == 0) {
-			rb_erase(&pstat->node, &page_caller_tree);
+			rb_erase(&pstat->yesde, &page_caller_tree);
 			free(pstat);
 		}
 	}
@@ -990,7 +990,7 @@ static void __print_slab_result(struct rb_root *root,
 				struct perf_session *session,
 				int n_lines, int is_caller)
 {
-	struct rb_node *next;
+	struct rb_yesde *next;
 	struct machine *machine = &session->machines.host;
 
 	printf("%.105s\n", graph_dotted_line);
@@ -1002,7 +1002,7 @@ static void __print_slab_result(struct rb_root *root,
 
 	while (next && n_lines--) {
 		struct alloc_stat *data = rb_entry(next, struct alloc_stat,
-						   node);
+						   yesde);
 		struct symbol *sym = NULL;
 		struct map *map;
 		char buf[BUFSIZ];
@@ -1051,7 +1051,7 @@ static const char * const migrate_type_str[] = {
 
 static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 {
-	struct rb_node *next = rb_first(&page_alloc_sorted);
+	struct rb_yesde *next = rb_first(&page_alloc_sorted);
 	struct machine *machine = &session->machines.host;
 	const char *format;
 	int gfp_len = max(strlen("GFP flags"), max_gfp_len);
@@ -1074,7 +1074,7 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 		char buf[32];
 		char *caller = buf;
 
-		data = rb_entry(next, struct page_stat, node);
+		data = rb_entry(next, struct page_stat, yesde);
 		sym = machine__find_kernel_symbol(machine, data->callsite, &map);
 		if (sym)
 			caller = sym->name;
@@ -1100,7 +1100,7 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 
 static void __print_page_caller_result(struct perf_session *session, int n_lines)
 {
-	struct rb_node *next = rb_first(&page_caller_sorted);
+	struct rb_yesde *next = rb_first(&page_caller_sorted);
 	struct machine *machine = &session->machines.host;
 	int gfp_len = max(strlen("GFP flags"), max_gfp_len);
 
@@ -1116,7 +1116,7 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
 		char buf[32];
 		char *caller = buf;
 
-		data = rb_entry(next, struct page_stat, node);
+		data = rb_entry(next, struct page_stat, yesde);
 		sym = machine__find_kernel_symbol(machine, data->callsite, &map);
 		if (sym)
 			caller = sym->name;
@@ -1175,8 +1175,8 @@ static void print_slab_summary(void)
 static void print_page_summary(void)
 {
 	int o, m;
-	u64 nr_alloc_freed = nr_page_frees - nr_page_nomatch;
-	u64 total_alloc_freed_bytes = total_page_free_bytes - total_page_nomatch_bytes;
+	u64 nr_alloc_freed = nr_page_frees - nr_page_yesmatch;
+	u64 total_alloc_freed_bytes = total_page_free_bytes - total_page_yesmatch_bytes;
 
 	printf("\nSUMMARY (page allocator)");
 	printf("\n========================\n");
@@ -1192,7 +1192,7 @@ static void print_page_summary(void)
 	       nr_page_allocs - nr_alloc_freed,
 	       (total_page_alloc_bytes - total_alloc_freed_bytes) / 1024);
 	printf("%-30s: %'16lu   [ %'16"PRIu64" KB ]\n", "Total free-only requests",
-	       nr_page_nomatch, total_page_nomatch_bytes / 1024);
+	       nr_page_yesmatch, total_page_yesmatch_bytes / 1024);
 	printf("\n");
 
 	printf("%-30s: %'16lu   [ %'16"PRIu64" KB ]\n", "Total allocation failures",
@@ -1253,15 +1253,15 @@ static LIST_HEAD(page_alloc_sort);
 static void sort_slab_insert(struct rb_root *root, struct alloc_stat *data,
 			     struct list_head *sort_list)
 {
-	struct rb_node **new = &(root->rb_node);
-	struct rb_node *parent = NULL;
+	struct rb_yesde **new = &(root->rb_yesde);
+	struct rb_yesde *parent = NULL;
 	struct sort_dimension *sort;
 
 	while (*new) {
 		struct alloc_stat *this;
 		int cmp = 0;
 
-		this = rb_entry(*new, struct alloc_stat, node);
+		this = rb_entry(*new, struct alloc_stat, yesde);
 		parent = *new;
 
 		list_for_each_entry(sort, sort_list, list) {
@@ -1276,23 +1276,23 @@ static void sort_slab_insert(struct rb_root *root, struct alloc_stat *data,
 			new = &((*new)->rb_right);
 	}
 
-	rb_link_node(&data->node, parent, new);
-	rb_insert_color(&data->node, root);
+	rb_link_yesde(&data->yesde, parent, new);
+	rb_insert_color(&data->yesde, root);
 }
 
 static void __sort_slab_result(struct rb_root *root, struct rb_root *root_sorted,
 			       struct list_head *sort_list)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct alloc_stat *data;
 
 	for (;;) {
-		node = rb_first(root);
-		if (!node)
+		yesde = rb_first(root);
+		if (!yesde)
 			break;
 
-		rb_erase(node, root);
-		data = rb_entry(node, struct alloc_stat, node);
+		rb_erase(yesde, root);
+		data = rb_entry(yesde, struct alloc_stat, yesde);
 		sort_slab_insert(root_sorted, data, sort_list);
 	}
 }
@@ -1300,15 +1300,15 @@ static void __sort_slab_result(struct rb_root *root, struct rb_root *root_sorted
 static void sort_page_insert(struct rb_root *root, struct page_stat *data,
 			     struct list_head *sort_list)
 {
-	struct rb_node **new = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **new = &root->rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct sort_dimension *sort;
 
 	while (*new) {
 		struct page_stat *this;
 		int cmp = 0;
 
-		this = rb_entry(*new, struct page_stat, node);
+		this = rb_entry(*new, struct page_stat, yesde);
 		parent = *new;
 
 		list_for_each_entry(sort, sort_list, list) {
@@ -1323,23 +1323,23 @@ static void sort_page_insert(struct rb_root *root, struct page_stat *data,
 			new = &parent->rb_right;
 	}
 
-	rb_link_node(&data->node, parent, new);
-	rb_insert_color(&data->node, root);
+	rb_link_yesde(&data->yesde, parent, new);
+	rb_insert_color(&data->yesde, root);
 }
 
 static void __sort_page_result(struct rb_root *root, struct rb_root *root_sorted,
 			       struct list_head *sort_list)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct page_stat *data;
 
 	for (;;) {
-		node = rb_first(root);
-		if (!node)
+		yesde = rb_first(root);
+		if (!yesde)
 			break;
 
-		rb_erase(node, root);
-		data = rb_entry(node, struct page_stat, node);
+		rb_erase(yesde, root);
+		data = rb_entry(yesde, struct page_stat, yesde);
 		sort_page_insert(root_sorted, data, sort_list);
 	}
 }
@@ -1373,8 +1373,8 @@ static int __cmd_kmem(struct perf_session *session)
 		/* slab allocator */
 		{ "kmem:kmalloc",		perf_evsel__process_alloc_event, },
     		{ "kmem:kmem_cache_alloc",	perf_evsel__process_alloc_event, },
-		{ "kmem:kmalloc_node",		perf_evsel__process_alloc_node_event, },
-    		{ "kmem:kmem_cache_alloc_node", perf_evsel__process_alloc_node_event, },
+		{ "kmem:kmalloc_yesde",		perf_evsel__process_alloc_yesde_event, },
+    		{ "kmem:kmem_cache_alloc_yesde", perf_evsel__process_alloc_yesde_event, },
 		{ "kmem:kfree",			perf_evsel__process_free_event, },
     		{ "kmem:kmem_cache_free",	perf_evsel__process_free_event, },
 		/* page allocator */
@@ -1720,7 +1720,7 @@ static int setup_slab_sorting(struct list_head *sort_list, const char *arg)
 		if (!tok)
 			break;
 		if (slab_sort_dimension__add(tok, sort_list) < 0) {
-			pr_err("Unknown slab --sort key: '%s'", tok);
+			pr_err("Unkyeswn slab --sort key: '%s'", tok);
 			free(str);
 			return -1;
 		}
@@ -1746,7 +1746,7 @@ static int setup_page_sorting(struct list_head *sort_list, const char *arg)
 		if (!tok)
 			break;
 		if (page_sort_dimension__add(tok, sort_list) < 0) {
-			pr_err("Unknown page --sort key: '%s'", tok);
+			pr_err("Unkyeswn page --sort key: '%s'", tok);
 			free(str);
 			return -1;
 		}
@@ -1835,10 +1835,10 @@ static int __cmd_record(int argc, const char **argv)
 	};
 	const char * const slab_events[] = {
 	"-e", "kmem:kmalloc",
-	"-e", "kmem:kmalloc_node",
+	"-e", "kmem:kmalloc_yesde",
 	"-e", "kmem:kfree",
 	"-e", "kmem:kmem_cache_alloc",
-	"-e", "kmem:kmem_cache_alloc_node",
+	"-e", "kmem:kmem_cache_alloc_yesde",
 	"-e", "kmem:kmem_cache_free",
 	};
 	const char * const page_events[] = {
@@ -1996,7 +1996,7 @@ int cmd_kmem(int argc, const char **argv)
 	if (!strcmp(argv[0], "stat")) {
 		setlocale(LC_ALL, "");
 
-		if (cpu__setup_cpunode_map())
+		if (cpu__setup_cpuyesde_map())
 			goto out_delete;
 
 		if (list_empty(&slab_caller_sort))

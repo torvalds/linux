@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Linux network device link state notification
+ * Linux network device link state yestification
  *
  * Author:
  *     Stefan Rompf <sux@loplof.de>
@@ -175,9 +175,9 @@ static void __linkwatch_run_queue(int urgent_only)
 
 	/*
 	 * Limit the number of linkwatch events to one
-	 * per second so that a runaway driver does not
+	 * per second so that a runaway driver does yest
 	 * cause a storm of messages on the netlink
-	 * socket.  This limit does not apply to up events
+	 * socket.  This limit does yest apply to up events
 	 * while the device qdisc is down.
 	 */
 	if (!urgent_only)

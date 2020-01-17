@@ -56,7 +56,7 @@ static int ufs_mtk_bind_mphy(struct ufs_hba *hba)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 	struct device *dev = hba->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int err = 0;
 
 	host->mphy = devm_of_phy_get_by_index(dev, np, 0);
@@ -85,18 +85,18 @@ static int ufs_mtk_bind_mphy(struct ufs_hba *hba)
  * ufs_mtk_setup_clocks - enables/disable clocks
  * @hba: host controller instance
  * @on: If true, enable clocks else disable them.
- * @status: PRE_CHANGE or POST_CHANGE notify
+ * @status: PRE_CHANGE or POST_CHANGE yestify
  *
- * Returns 0 on success, non-zero on failure.
+ * Returns 0 on success, yesn-zero on failure.
  */
 static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
-				enum ufs_notify_change_status status)
+				enum ufs_yestify_change_status status)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 	int ret = -EINVAL;
 
 	/*
-	 * In case ufs_mtk_init() is not yet done, simply ignore.
+	 * In case ufs_mtk_init() is yest yet done, simply igyesre.
 	 * This ufs_mtk_setup_clocks() shall be called from
 	 * ufs_mtk_init() after init is done.
 	 */
@@ -136,7 +136,7 @@ static int ufs_mtk_init(struct ufs_hba *hba)
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (!host) {
 		err = -ENOMEM;
-		dev_info(dev, "%s: no memory for mtk ufs host\n", __func__);
+		dev_info(dev, "%s: yes memory for mtk ufs host\n", __func__);
 		goto out;
 	}
 
@@ -199,8 +199,8 @@ static int ufs_mtk_pre_pwr_change(struct ufs_hba *hba,
 	return ret;
 }
 
-static int ufs_mtk_pwr_change_notify(struct ufs_hba *hba,
-				     enum ufs_notify_change_status stage,
+static int ufs_mtk_pwr_change_yestify(struct ufs_hba *hba,
+				     enum ufs_yestify_change_status stage,
 				     struct ufs_pa_layer_attr *dev_max_params,
 				     struct ufs_pa_layer_attr *dev_req_params)
 {
@@ -249,8 +249,8 @@ static int ufs_mtk_post_link(struct ufs_hba *hba)
 	return 0;
 }
 
-static int ufs_mtk_link_startup_notify(struct ufs_hba *hba,
-				       enum ufs_notify_change_status stage)
+static int ufs_mtk_link_startup_yestify(struct ufs_hba *hba,
+				       enum ufs_yestify_change_status stage)
 {
 	int ret = 0;
 
@@ -299,8 +299,8 @@ static struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
 	.name                = "mediatek.ufshci",
 	.init                = ufs_mtk_init,
 	.setup_clocks        = ufs_mtk_setup_clocks,
-	.link_startup_notify = ufs_mtk_link_startup_notify,
-	.pwr_change_notify   = ufs_mtk_pwr_change_notify,
+	.link_startup_yestify = ufs_mtk_link_startup_yestify,
+	.pwr_change_yestify   = ufs_mtk_pwr_change_yestify,
 	.suspend             = ufs_mtk_suspend,
 	.resume              = ufs_mtk_resume,
 };
@@ -309,7 +309,7 @@ static struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
  * ufs_mtk_probe - probe routine of the driver
  * @pdev: pointer to Platform device handle
  *
- * Return zero for success and non-zero for failure
+ * Return zero for success and yesn-zero for failure
  */
 static int ufs_mtk_probe(struct platform_device *pdev)
 {

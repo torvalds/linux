@@ -101,7 +101,7 @@ static void esp4_gso_encap(struct xfrm_state *x, struct sk_buff *skb)
 	*skb_mac_header(skb) = IPPROTO_ESP;
 
 	esph->spi = x->id.spi;
-	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.low);
+	esph->seq_yes = htonl(XFRM_SKB_CB(skb)->seq.output.low);
 
 	xo->proto = proto;
 }
@@ -259,7 +259,7 @@ static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_
 	skb_push(skb, -skb_network_offset(skb));
 
 	if (xo->flags & XFRM_GSO_SEGMENT) {
-		esph->seq_no = htonl(seq);
+		esph->seq_yes = htonl(seq);
 
 		if (!skb_is_gso(skb))
 			xo->seq.low++;
@@ -267,7 +267,7 @@ static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_
 			xo->seq.low += skb_shinfo(skb)->gso_segs;
 	}
 
-	esp.seqno = cpu_to_be64(seq + ((u64)xo->seq.hi << 32));
+	esp.seqyes = cpu_to_be64(seq + ((u64)xo->seq.hi << 32));
 
 	ip_hdr(skb)->tot_len = htons(skb->len);
 	ip_send_check(ip_hdr(skb));

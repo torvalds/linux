@@ -15,7 +15,7 @@
 
 struct realtek_smi_ops;
 struct dentry;
-struct inode;
+struct iyesde;
 struct file;
 
 struct rtl8366_mib_counter {
@@ -111,7 +111,7 @@ struct realtek_smi_variant {
 };
 
 /* SMI core calls */
-int realtek_smi_write_reg_noack(struct realtek_smi *smi, u32 addr,
+int realtek_smi_write_reg_yesack(struct realtek_smi *smi, u32 addr,
 				u32 data);
 int realtek_smi_setup_mdio(struct realtek_smi *smi);
 

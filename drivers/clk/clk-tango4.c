@@ -30,7 +30,7 @@ static void __init make_pll(int idx, const char *parent, void __iomem *base)
 	div = (extract_pll_m(val) + 1) << extract_pll_k(val);
 	clk_register_fixed_factor(NULL, name, parent, 0, mul, div);
 	if (extract_pll_isel(val) != 1)
-		panic("%s: input not set to XTAL_IN\n", name);
+		panic("%s: input yest set to XTAL_IN\n", name);
 }
 
 static void __init make_cd(int idx, void __iomem *base)
@@ -47,7 +47,7 @@ static void __init make_cd(int idx, void __iomem *base)
 		panic("%s: unsupported divider %x\n", name, val);
 }
 
-static void __init tango4_clkgen_setup(struct device_node *np)
+static void __init tango4_clkgen_setup(struct device_yesde *np)
 {
 	struct clk **pp = clk_data.clks;
 	void __iomem *base = of_iomap(np, 0);

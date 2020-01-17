@@ -165,7 +165,7 @@ struct si1145_part_info {
  * @cmdlock:	Low-level mutex to protect command execution only
  * @rsp_seq:	Next expected response number or -1 if counter reset required
  * @scan_mask:	Saved scan mask to avoid duplicate set_chlist
- * @autonomous: If automatic measurements are active (for buffer support)
+ * @autoyesmous: If automatic measurements are active (for buffer support)
  * @part_info:	Part information
  * @trig:	Pointer to iio trigger
  * @meas_rate:	Value of MEAS_RATE register. Only set in HW in auto mode
@@ -177,7 +177,7 @@ struct si1145_data {
 	int rsp_seq;
 	const struct si1145_part_info *part_info;
 	unsigned long scan_mask;
-	bool autonomous;
+	bool autoyesmous;
 	struct iio_trigger *trig;
 	int meas_rate;
 };
@@ -185,9 +185,9 @@ struct si1145_data {
 /**
  * __si1145_command_reset() - Send CMD_NOP and wait for response 0
  *
- * Does not modify data->rsp_seq
+ * Does yest modify data->rsp_seq
  *
- * Return: 0 on success and -errno on error.
+ * Return: 0 on success and -erryes on error.
  */
 static int __si1145_command_reset(struct si1145_data *data)
 {
@@ -223,7 +223,7 @@ static int __si1145_command_reset(struct si1145_data *data)
  * INVALID_SETTING is reported as -EINVAL
  * Timeouts are reported as -ETIMEDOUT
  *
- * Return: 0 on success or -errno on failure
+ * Return: 0 on success or -erryes on failure
  */
 static int si1145_command(struct si1145_data *data, u8 cmd)
 {
@@ -323,7 +323,7 @@ static int si1145_param_set(struct si1145_data *data, u8 param, u8 value)
 	return si1145_param_update(data, SI1145_CMD_PARAM_SET, param, value);
 }
 
-/* Set param. Returns negative errno or current value */
+/* Set param. Returns negative erryes or current value */
 static int si1145_param_query(struct si1145_data *data, u8 param)
 {
 	int ret;
@@ -420,7 +420,7 @@ static int si1145_store_samp_freq(struct si1145_data *data, int val)
 	meas_rate = 32000 / val;
 
 	mutex_lock(&data->lock);
-	if (data->autonomous) {
+	if (data->autoyesmous) {
 		ret = si1145_set_meas_rate(data, meas_rate);
 		if (ret)
 			goto out;
@@ -451,7 +451,7 @@ static irqreturn_t si1145_trigger_handler(int irq, void *private)
 	int ret;
 	u8 irq_status = 0;
 
-	if (!data->autonomous) {
+	if (!data->autoyesmous) {
 		ret = si1145_command(data, SI1145_CMD_PSALS_FORCE);
 		if (ret < 0 && ret != -EOVERFLOW)
 			goto done;
@@ -486,7 +486,7 @@ static irqreturn_t si1145_trigger_handler(int irq, void *private)
 		i += run - 1;
 	}
 
-	if (data->autonomous) {
+	if (data->autoyesmous) {
 		ret = i2c_smbus_write_byte_data(data->client,
 				SI1145_REG_IRQ_STATUS,
 				irq_status & SI1145_MASK_ALL_IE);
@@ -498,7 +498,7 @@ static irqreturn_t si1145_trigger_handler(int irq, void *private)
 		iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -509,7 +509,7 @@ static int si1145_set_chlist(struct iio_dev *indio_dev, unsigned long scan_mask)
 	int ret;
 	int i;
 
-	/* channel list already set, no need to reprogram */
+	/* channel list already set, yes need to reprogram */
 	if (data->scan_mask == scan_mask)
 		return 0;
 
@@ -1025,7 +1025,7 @@ static int si1145_initialize(struct si1145_data *data)
 		return ret;
 	msleep(SI1145_COMMAND_TIMEOUT_MS);
 
-	/* Turn off autonomous mode */
+	/* Turn off autoyesmous mode */
 	ret = si1145_set_meas_rate(data, 0);
 	if (ret < 0)
 		return ret;
@@ -1062,7 +1062,7 @@ static int si1145_initialize(struct si1145_data *data)
 	if (ret < 0)
 		return ret;
 
-	/* Set normal proximity measurement mode */
+	/* Set yesrmal proximity measurement mode */
 	ret = si1145_param_set(data, SI1145_PARAM_PS_ADC_MISC,
 			       SI1145_PS_ADC_MODE_NORMAL);
 	if (ret < 0)
@@ -1109,7 +1109,7 @@ static int si1145_initialize(struct si1145_data *data)
 
 	/*
 	 * Initialize UCOEF to default values in datasheet
-	 * These registers are normally zero on reset
+	 * These registers are yesrmally zero on reset
 	 */
 	if (data->part_info == &si1145_part_info[SI1132] ||
 		data->part_info == &si1145_part_info[SI1145] ||
@@ -1180,7 +1180,7 @@ static const struct iio_buffer_setup_ops si1145_buffer_setup_ops = {
 /**
  * si1145_trigger_set_state() - Set trigger state
  *
- * When not using triggers interrupts are disabled and measurement rate is
+ * When yest using triggers interrupts are disabled and measurement rate is
  * set to zero in order to minimize power consumption.
  */
 static int si1145_trigger_set_state(struct iio_trigger *trig, bool state)
@@ -1192,7 +1192,7 @@ static int si1145_trigger_set_state(struct iio_trigger *trig, bool state)
 	mutex_lock(&data->lock);
 
 	if (state) {
-		data->autonomous = true;
+		data->autoyesmous = true;
 		err = i2c_smbus_write_byte_data(data->client,
 				SI1145_REG_INT_CFG, SI1145_INT_CFG_OE);
 		if (err < 0)
@@ -1224,7 +1224,7 @@ disable:
 						SI1145_REG_INT_CFG, 0);
 		if (ret < 0 && !err)
 			err = ret;
-		data->autonomous = false;
+		data->autoyesmous = false;
 	}
 
 	mutex_unlock(&data->lock);
@@ -1333,7 +1333,7 @@ static int si1145_probe(struct i2c_client *client,
 		if (ret < 0)
 			return ret;
 	} else {
-		dev_info(&client->dev, "no irq, using polling\n");
+		dev_info(&client->dev, "yes irq, using polling\n");
 	}
 
 	return devm_iio_device_register(&client->dev, indio_dev);

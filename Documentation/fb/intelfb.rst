@@ -37,7 +37,7 @@ B.  List of available options
 
    c. "vram=<value>"
 	select amount of system RAM in MB to allocate for the video memory
-	if not enough RAM was already allocated by the BIOS.
+	if yest eyesugh RAM was already allocated by the BIOS.
 
 	Recommendation: 1 - 4 MB.
 	(default = 4 MB)
@@ -50,7 +50,7 @@ B.  List of available options
 	for the least amount).  Note, an arbitrary setting may conflict
 	with XFree86.
 
-	Recommendation: do not set
+	Recommendation: do yest set
 	(default = 48 MB)
 
    e. "accel"
@@ -77,11 +77,11 @@ B.  List of available options
    h. "fixed"
 	disable mode switching.
 
-	Recommendation: do not set
-	(default = not set)
+	Recommendation: do yest set
+	(default = yest set)
 
-   The binary parameters can be unset with a "no" prefix, example "noaccel".
-   The default parameter (not named) is the mode.
+   The binary parameters can be unset with a "yes" prefix, example "yesaccel".
+   The default parameter (yest named) is the mode.
 
 C. Kernel booting
 =================
@@ -135,7 +135,7 @@ and just do a::
 	modprobe intelfb
 
 
-E.  Acknowledgment:
+E.  Ackyeswledgment:
 ===================
 
 	1.  Geert Uytterhoeven - his excellent howto and the virtual
@@ -148,7 +148,7 @@ E.  Acknowledgment:
 	4.  The X developers.  Insights were provided just by reading the
 	    XFree86 source code.
 
-	5.  Antonino A. Daplas for his inspiring i810fb driver.
+	5.  Antoniyes A. Daplas for his inspiring i810fb driver.
 
 	6.  Andrew Morton for his kernel patches maintenance.
 

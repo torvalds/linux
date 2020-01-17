@@ -79,7 +79,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
 
 /*
  * Offsets in thread_info structure, used in assembly code
- * The "#define REGWIN_SZ 0x40" was abolished, so no multiplications.
+ * The "#define REGWIN_SZ 0x40" was abolished, so yes multiplications.
  */
 #define TI_UWINMASK	0x00	/* uwinmask */
 #define TI_TASK		0x04

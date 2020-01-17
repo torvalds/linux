@@ -108,14 +108,14 @@ startup:
 
 	/*
 	 * Enable the MMU.
-	 * From here-on code can be non-PIC.
+	 * From here-on code can be yesn-PIC.
 	 */
 	movi	SR_HARMLESS | SR_ENABLE_MMU, r22
 	putcon	r22, SSR
 	movi	1f, r22
 	putcon	r22, SPC
 	synco
-	rte				/* And now go into the hyperspace ... */
+	rte				/* And yesw go into the hyperspace ... */
 1:					/* ... that's the next instruction ! */
 
 	/* Set initial stack pointer */
@@ -146,7 +146,7 @@ startup:
 	movi	1f, r22
 	putcon	r22, SPC
 	synco
-	rte				/* And now go into the hyperspace ... */
+	rte				/* And yesw go into the hyperspace ... */
 1:					/* ... that's the next instruction ! */
 
 	/* Jump into the decompressed kernel */

@@ -219,7 +219,7 @@ static void hdac_hdmi_jack_report_sync(struct hdac_hdmi_pcm *pcm,
 
 /* MST supported verbs */
 /*
- * Get the no devices that can be connected to a port on the Pin widget.
+ * Get the yes devices that can be connected to a port on the Pin widget.
  */
 static int hdac_hdmi_get_port_len(struct hdac_device *hdev, hda_nid_t nid)
 {
@@ -242,7 +242,7 @@ static int hdac_hdmi_get_port_len(struct hdac_device *hdev, hda_nid_t nid)
 /*
  * Get the port entry select on the pin. Return the port entry
  * id selected on the pin. Return 0 means the first port entry
- * is selected or MST is not supported.
+ * is selected or MST is yest supported.
  */
 static int hdac_hdmi_port_select_get(struct hdac_device *hdev,
 					struct hdac_hdmi_port *port)
@@ -253,7 +253,7 @@ static int hdac_hdmi_port_select_get(struct hdac_device *hdev,
 
 /*
  * Sets the selected port entry for the configuring Pin widget verb.
- * returns error if port set is not equal to port get otherwise success
+ * returns error if port set is yest equal to port get otherwise success
  */
 static int hdac_hdmi_port_select_set(struct hdac_device *hdev,
 					struct hdac_hdmi_port *port)
@@ -493,7 +493,7 @@ static int hdac_hdmi_query_port_connlist(struct hdac_device *hdev,
 {
 	if (!(get_wcaps(hdev, pin->nid) & AC_WCAP_CONN_LIST)) {
 		dev_warn(&hdev->dev,
-			"HDMI: pin %d wcaps %#x does not support connection list\n",
+			"HDMI: pin %d wcaps %#x does yest support connection list\n",
 			pin->nid, get_wcaps(hdev, pin->nid));
 		return -EINVAL;
 	}
@@ -520,7 +520,7 @@ static int hdac_hdmi_query_port_connlist(struct hdac_device *hdev,
  * Also query connection list of the pin, to validate the cvt to port map.
  *
  * Same stream rendering to multiple ports simultaneously can be done
- * possibly, but not supported for now in driver. So return the first port
+ * possibly, but yest supported for yesw in driver. So return the first port
  * connected.
  */
 static struct hdac_hdmi_port *hdac_hdmi_get_port_from_cvt(
@@ -583,7 +583,7 @@ static void hdac_hdmi_verify_connect_sel_all_pins(struct hdac_device *hdev)
 
 /*
  * This tries to get a valid pin and set the HW constraints based on the
- * ELD. Even if a valid pin is not found return success so that device open
+ * ELD. Even if a valid pin is yest found return success so that device open
  * doesn't fail.
  */
 static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
@@ -603,7 +603,7 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 
 	/*
 	 * To make PA and other userland happy.
-	 * userland scans devices so returning error does not help.
+	 * userland scans devices so returning error does yest help.
 	 */
 	if (!port)
 		return 0;
@@ -931,8 +931,8 @@ static int hdac_hdmi_set_pin_port_mux(struct snd_kcontrol *kcontrol,
 	}
 
 	/*
-	 * Jack status is not reported during device probe as the
-	 * PCMs are not registered by then. So report it here.
+	 * Jack status is yest reported during device probe as the
+	 * PCMs are yest registered by then. So report it here.
 	 */
 	list_for_each_entry(pcm, &hdmi->pcm_list, head) {
 		if (!strcmp(cvt_name, pcm->cvt->name)) {
@@ -1231,7 +1231,7 @@ static int hdac_hdmi_parse_eld(struct hdac_device *hdev,
 						>> DRM_ELD_VER_SHIFT;
 
 	if (ver != ELD_VER_CEA_861D && ver != ELD_VER_PARTIAL) {
-		dev_err(&hdev->dev, "HDMI: Unknown ELD version %d\n", ver);
+		dev_err(&hdev->dev, "HDMI: Unkyeswn ELD version %d\n", ver);
 		return -EINVAL;
 	}
 
@@ -1261,7 +1261,7 @@ static void hdac_hdmi_present_sense(struct hdac_hdmi_pin *pin,
 		return;
 
 	/*
-	 * In case of non MST pin, get_eld info API expectes port
+	 * In case of yesn MST pin, get_eld info API expectes port
 	 * to be -1.
 	 */
 	mutex_lock(&hdmi->pin_mutex);
@@ -1297,7 +1297,7 @@ static void hdac_hdmi_present_sense(struct hdac_hdmi_pin *pin,
 						__func__, pin->nid, port->id);
 
 		/*
-		 * PCMs are not registered during device probe, so don't
+		 * PCMs are yest registered during device probe, so don't
 		 * report jack here. It will be done in usermode mux
 		 * control select.
 		 */
@@ -1497,27 +1497,27 @@ static int hdac_hdmi_create_dais(struct hdac_device *hdev,
 }
 
 /*
- * Parse all nodes and store the cvt/pin nids in array
+ * Parse all yesdes and store the cvt/pin nids in array
  * Add one time initialization for pin and cvt widgets
  */
 static int hdac_hdmi_parse_and_map_nid(struct hdac_device *hdev,
 		struct snd_soc_dai_driver **dais, int *num_dais)
 {
 	hda_nid_t nid;
-	int i, num_nodes;
+	int i, num_yesdes;
 	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(hdev);
 	int ret;
 
 	hdac_hdmi_skl_enable_all_pins(hdev);
 	hdac_hdmi_skl_enable_dp12(hdev);
 
-	num_nodes = snd_hdac_get_sub_nodes(hdev, hdev->afg, &nid);
-	if (!nid || num_nodes <= 0) {
-		dev_warn(&hdev->dev, "HDMI: failed to get afg sub nodes\n");
+	num_yesdes = snd_hdac_get_sub_yesdes(hdev, hdev->afg, &nid);
+	if (!nid || num_yesdes <= 0) {
+		dev_warn(&hdev->dev, "HDMI: failed to get afg sub yesdes\n");
 		return -EINVAL;
 	}
 
-	for (i = 0; i < num_nodes; i++, nid++) {
+	for (i = 0; i < num_yesdes; i++, nid++) {
 		unsigned int caps;
 		unsigned int type;
 
@@ -1588,7 +1588,7 @@ static int hdac_hdmi_pin2port(void *aptr, int pin)
 	return -1;
 }
 
-static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
+static void hdac_hdmi_eld_yestify_cb(void *aptr, int port, int pipe)
 {
 	struct hdac_device *hdev = aptr;
 	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(hdev);
@@ -1613,7 +1613,7 @@ static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 							pin_nid, pipe);
 
 	/*
-	 * skip notification during system suspend (but not in runtime PM);
+	 * skip yestification during system suspend (but yest in runtime PM);
 	 * the state will be updated at resume. Also since the ELD and
 	 * connection states are updated in anyway at the end of the resume,
 	 * we can skip it when received during PM process.
@@ -1629,10 +1629,10 @@ static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 		if (pin->nid != pin_nid)
 			continue;
 
-		/* In case of non MST pin, pipe is -1 */
+		/* In case of yesn MST pin, pipe is -1 */
 		if (pipe == -1) {
 			pin->mst_capable = false;
-			/* if not MST, default is port[0] */
+			/* if yest MST, default is port[0] */
 			hport = &pin->ports[0];
 		} else {
 			for (i = 0; i < pin->num_ports; i++) {
@@ -1652,7 +1652,7 @@ static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
 
 static struct drm_audio_component_audio_ops aops = {
 	.pin2port	= hdac_hdmi_pin2port,
-	.pin_eld_notify	= hdac_hdmi_eld_notify_cb,
+	.pin_eld_yestify	= hdac_hdmi_eld_yestify_cb,
 };
 
 static struct snd_pcm *hdac_hdmi_get_pcm_from_id(struct snd_soc_card *card,
@@ -1863,12 +1863,12 @@ static int hdmi_codec_probe(struct snd_soc_component *component)
 	hdmi->component = component;
 
 	/*
-	 * hold the ref while we probe, also no need to drop the ref on
+	 * hold the ref while we probe, also yes need to drop the ref on
 	 * exit, we call pm_runtime_suspend() so that will do for us
 	 */
 	hlink = snd_hdac_ext_bus_get_link(hdev->bus, dev_name(&hdev->dev));
 	if (!hlink) {
-		dev_err(&hdev->dev, "hdac link not found\n");
+		dev_err(&hdev->dev, "hdac link yest found\n");
 		return -EIO;
 	}
 
@@ -1879,9 +1879,9 @@ static int hdmi_codec_probe(struct snd_soc_component *component)
 		return ret;
 
 	aops.audio_ptr = hdev;
-	ret = snd_hdac_acomp_register_notifier(hdev->bus, &aops);
+	ret = snd_hdac_acomp_register_yestifier(hdev->bus, &aops);
 	if (ret < 0) {
-		dev_err(&hdev->dev, "notifier register failed: err: %d\n", ret);
+		dev_err(&hdev->dev, "yestifier register failed: err: %d\n", ret);
 		return ret;
 	}
 
@@ -1902,7 +1902,7 @@ static int hdmi_codec_probe(struct snd_soc_component *component)
 			DL_FLAG_AUTOREMOVE_CONSUMER);
 	/*
 	 * hdac_device core already sets the state to active and calls
-	 * get_noresume. So enable runtime and set the device to suspend.
+	 * get_yesresume. So enable runtime and set the device to suspend.
 	 */
 	pm_runtime_enable(&hdev->dev);
 	pm_runtime_put(&hdev->dev);
@@ -1917,9 +1917,9 @@ static void hdmi_codec_remove(struct snd_soc_component *component)
 	struct hdac_device *hdev = hdmi->hdev;
 	int ret;
 
-	ret = snd_hdac_acomp_register_notifier(hdev->bus, NULL);
+	ret = snd_hdac_acomp_register_yestifier(hdev->bus, NULL);
 	if (ret < 0)
-		dev_err(&hdev->dev, "notifier unregister failed: err: %d\n",
+		dev_err(&hdev->dev, "yestifier unregister failed: err: %d\n",
 				ret);
 
 	pm_runtime_disable(&hdev->dev);
@@ -1936,9 +1936,9 @@ static int hdmi_codec_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 	/*
-	 * As the ELD notify callback request is not entertained while the
+	 * As the ELD yestify callback request is yest entertained while the
 	 * device is in suspend state. Need to manually check detection of
-	 * all pins here. pin capablity change is not support, so use the
+	 * all pins here. pin capablity change is yest support, so use the
 	 * already set pin caps.
 	 *
 	 * NOTE: this is safe to call even if the codec doesn't actually resume.
@@ -1957,7 +1957,7 @@ static const struct snd_soc_component_driver hdmi_hda_codec = {
 	.remove			= hdmi_codec_remove,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static void hdac_hdmi_get_chmap(struct hdac_device *hdev, int pcm_idx,
@@ -2052,7 +2052,7 @@ static int hdac_hdmi_dev_probe(struct hdac_device *hdev)
 	/* hold the ref while we probe */
 	hlink = snd_hdac_ext_bus_get_link(hdev->bus, dev_name(&hdev->dev));
 	if (!hlink) {
-		dev_err(&hdev->dev, "hdac link not found\n");
+		dev_err(&hdev->dev, "hdac link yest found\n");
 		return -EIO;
 	}
 
@@ -2136,7 +2136,7 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 
 	dev_dbg(dev, "Enter: %s\n", __func__);
 
-	/* controller may not have been initialized for the first time */
+	/* controller may yest have been initialized for the first time */
 	if (!bus)
 		return 0;
 
@@ -2154,7 +2154,7 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 
 	hlink = snd_hdac_ext_bus_get_link(bus, dev_name(dev));
 	if (!hlink) {
-		dev_err(dev, "hdac link not found\n");
+		dev_err(dev, "hdac link yest found\n");
 		return -EIO;
 	}
 
@@ -2174,13 +2174,13 @@ static int hdac_hdmi_runtime_resume(struct device *dev)
 
 	dev_dbg(dev, "Enter: %s\n", __func__);
 
-	/* controller may not have been initialized for the first time */
+	/* controller may yest have been initialized for the first time */
 	if (!bus)
 		return 0;
 
 	hlink = snd_hdac_ext_bus_get_link(bus, dev_name(dev));
 	if (!hlink) {
-		dev_err(dev, "hdac link not found\n");
+		dev_err(dev, "hdac link yest found\n");
 		return -EIO;
 	}
 
@@ -2212,7 +2212,7 @@ static const struct hda_device_id hdmi_list[] = {
 	HDA_CODEC_EXT_ENTRY(0x80862809, 0x100000, "Skylake HDMI", 0),
 	HDA_CODEC_EXT_ENTRY(0x8086280a, 0x100000, "Broxton HDMI", 0),
 	HDA_CODEC_EXT_ENTRY(0x8086280b, 0x100000, "Kabylake HDMI", 0),
-	HDA_CODEC_EXT_ENTRY(0x8086280c, 0x100000, "Cannonlake HDMI",
+	HDA_CODEC_EXT_ENTRY(0x8086280c, 0x100000, "Canyesnlake HDMI",
 						   &intel_glk_drv_data),
 	HDA_CODEC_EXT_ENTRY(0x8086280d, 0x100000, "Geminilake HDMI",
 						   &intel_glk_drv_data),

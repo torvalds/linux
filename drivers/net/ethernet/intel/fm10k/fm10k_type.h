@@ -253,10 +253,10 @@ struct fm10k_hw;
 #define FM10K_TDBAL(_n)		((0x40 * (_n)) + 0x8000)
 #define FM10K_TDBAH(_n)		((0x40 * (_n)) + 0x8001)
 #define FM10K_TDLEN(_n)		((0x40 * (_n)) + 0x8002)
-/* When fist initialized, VFs need to know the Interrupt Throttle Rate (ITR)
+/* When fist initialized, VFs need to kyesw the Interrupt Throttle Rate (ITR)
  * scale which is based on the PCIe speed but the speed information in the PCI
- * configuration space may not be accurate. The PF already knows the ITR scale
- * but there is no defined method to pass that information from the PF to the
+ * configuration space may yest be accurate. The PF already kyesws the ITR scale
+ * but there is yes defined method to pass that information from the PF to the
  * VF. This is accomplished during VF initialization by temporarily co-opting
  * the yet-to-be-used TDLEN register to have the PF store the ITR shift for
  * the VF to retrieve before the VF needs to use the TDLEN register for its
@@ -340,7 +340,7 @@ struct fm10k_hw;
 #define FM10K_VLAN_ALL \
 	((FM10K_VLAN_TABLE_VID_MAX - 1) << FM10K_VLAN_LENGTH_SHIFT)
 
-/* VF FLR event notification registers */
+/* VF FLR event yestification registers */
 #define FM10K_PFVFLRE(_n)	((0x1 * (_n)) + 0x18844)
 #define FM10K_PFVFLREC(_n)	((0x1 * (_n)) + 0x18846)
 
@@ -376,7 +376,7 @@ enum fm10k_int_source {
 
 /* PCIe bus speeds */
 enum fm10k_bus_speed {
-	fm10k_bus_speed_unknown	= 0,
+	fm10k_bus_speed_unkyeswn	= 0,
 	fm10k_bus_speed_2500	= 2500,
 	fm10k_bus_speed_5000	= 5000,
 	fm10k_bus_speed_8000	= 8000,
@@ -385,7 +385,7 @@ enum fm10k_bus_speed {
 
 /* PCIe bus widths */
 enum fm10k_bus_width {
-	fm10k_bus_width_unknown	= 0,
+	fm10k_bus_width_unkyeswn	= 0,
 	fm10k_bus_width_pcie_x1	= 1,
 	fm10k_bus_width_pcie_x2	= 2,
 	fm10k_bus_width_pcie_x4	= 4,
@@ -395,7 +395,7 @@ enum fm10k_bus_width {
 
 /* PCIe payload sizes */
 enum fm10k_bus_payload {
-	fm10k_bus_payload_unknown = 0,
+	fm10k_bus_payload_unkyeswn = 0,
 	fm10k_bus_payload_128	  = 1,
 	fm10k_bus_payload_256	  = 2,
 	fm10k_bus_payload_512	  = 3,
@@ -435,7 +435,7 @@ struct fm10k_hw_stats {
 	struct fm10k_hw_stat	xec;
 	struct fm10k_hw_stat	vlan_drop;
 	struct fm10k_hw_stat	loopback_drop;
-	struct fm10k_hw_stat	nodesc_drop;
+	struct fm10k_hw_stat	yesdesc_drop;
 	struct fm10k_hw_stats_q q[FM10K_MAX_QUEUES_PF];
 };
 
@@ -460,7 +460,7 @@ struct fm10k_dglort_cfg {
 	u8  pc_l;	/* Priority Class indices */
 	u8  vsi_l;	/* Number of bits from GLORT used to determine VSI */
 	u8  queue_l;	/* Number of bits from GLORT used to determine queue */
-	u8  shared_l;	/* Ignored bits from GLORT resulting in shared VSI */
+	u8  shared_l;	/* Igyesred bits from GLORT resulting in shared VSI */
 	u8  inner_rss;	/* Boolean value if inner header is used for RSS */
 };
 
@@ -530,7 +530,7 @@ struct fm10k_mac_ops {
 };
 
 enum fm10k_mac_type {
-	fm10k_mac_unknown = 0,
+	fm10k_mac_unkyeswn = 0,
 	fm10k_mac_pf,
 	fm10k_mac_vf,
 	fm10k_num_macs

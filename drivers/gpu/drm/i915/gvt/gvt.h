@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -79,8 +79,8 @@ struct intel_gvt_device_info {
 struct intel_vgpu_gm {
 	u64 aperture_sz;
 	u64 hidden_sz;
-	struct drm_mm_node low_gm_node;
-	struct drm_mm_node high_gm_node;
+	struct drm_mm_yesde low_gm_yesde;
+	struct drm_mm_yesde high_gm_yesde;
 };
 
 #define INTEL_GVT_MAX_NUM_FENCES 32
@@ -171,13 +171,13 @@ struct intel_vgpu {
 	int id;
 	unsigned long handle; /* vGPU handle used by hypervisor MPT modules */
 	bool active;
-	bool pv_notified;
+	bool pv_yestified;
 	bool failsafe;
 	unsigned int resetting_eng;
 
 	/* Both sched_data and sched_ctl can be seen a part of the global gvt
 	 * scheduler structure. So below 2 vgpu data are protected
-	 * by sched_lock, not vgpu_lock.
+	 * by sched_lock, yest vgpu_lock.
 	 */
 	void *sched_data;
 	struct vgpu_sched_ctl sched_ctl;
@@ -213,8 +213,8 @@ struct intel_vgpu {
 		unsigned long nr_cache_entries;
 		struct mutex cache_lock;
 
-		struct notifier_block iommu_notifier;
-		struct notifier_block group_notifier;
+		struct yestifier_block iommu_yestifier;
+		struct yestifier_block group_yestifier;
 		struct kvm *kvm;
 		struct work_struct release_work;
 		atomic_t released;
@@ -228,7 +228,7 @@ struct intel_vgpu {
 
 	struct completion vblank_done;
 
-	u32 scan_nonprivbb;
+	u32 scan_yesnprivbb;
 };
 
 /* validating GM healthy status*/
@@ -300,7 +300,7 @@ struct intel_vgpu_type {
 
 struct intel_gvt {
 	/* GVT scope lock, protect GVT itself, and all resource currently
-	 * not yet protected by special locks(vgpu and scheduler lock).
+	 * yest yet protected by special locks(vgpu and scheduler lock).
 	 */
 	struct mutex lock;
 	/* scheduler scope lock, protect gvt and vgpu schedule related data */
@@ -317,7 +317,7 @@ struct intel_gvt {
 	struct intel_gvt_irq irq;
 	struct intel_gvt_gtt gtt;
 	struct intel_gvt_workload_scheduler scheduler;
-	struct notifier_block shadow_ctx_notifier_block[I915_NUM_ENGINES];
+	struct yestifier_block shadow_ctx_yestifier_block[I915_NUM_ENGINES];
 	DECLARE_HASHTABLE(cmd_table, GVT_CMD_HASH_BITS);
 	struct intel_vgpu_type *types;
 	unsigned int num_types;
@@ -327,7 +327,7 @@ struct intel_gvt {
 	wait_queue_head_t service_thread_wq;
 
 	/* service_request is always used in bit operation, we should always
-	 * use it with atomic bit ops so that no need to use gvt big lock.
+	 * use it with atomic bit ops so that yes need to use gvt big lock.
 	 */
 	unsigned long service_request;
 
@@ -397,8 +397,8 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 #define gvt_fence_sz(gvt) ((gvt)->dev_priv->ggtt.num_fences)
 
 /* Aperture/GM space definitions for vGPU */
-#define vgpu_aperture_offset(vgpu)	((vgpu)->gm.low_gm_node.start)
-#define vgpu_hidden_offset(vgpu)	((vgpu)->gm.high_gm_node.start)
+#define vgpu_aperture_offset(vgpu)	((vgpu)->gm.low_gm_yesde.start)
+#define vgpu_hidden_offset(vgpu)	((vgpu)->gm.high_gm_yesde.start)
 #define vgpu_aperture_sz(vgpu)		((vgpu)->gm.aperture_sz)
 #define vgpu_hidden_sz(vgpu)		((vgpu)->gm.hidden_sz)
 

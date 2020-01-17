@@ -5,7 +5,7 @@
  *			   Santiago Leon (santil@us.ibm.com) IBM Corp.
  *			   Linda Xie (lxie@us.ibm.com) IBM Corp.
  *
- * Copyright (C) 2005-2011 FUJITA Tomonori <tomof@acm.org>
+ * Copyright (C) 2005-2011 FUJITA Tomoyesri <tomof@acm.org>
  * Copyright (C) 2010 Nicholas A. Bellinger <nab@kernel.org>
  * Copyright (C) 2016 Bryant G. Ly <bryantly@linux.vnet.ibm.com> IBM Corp.
  *
@@ -56,7 +56,7 @@ struct target_dds {
 #define REMOTE 1
 	struct dma_window  window[NUM_DMA_WINDOWS];
 
-	/* root node property "ibm,partition-no" */
+	/* root yesde property "ibm,partition-yes" */
 	uint partition_num;
 	char partition_name[PARTITION_NAMELEN];
 };
@@ -68,7 +68,7 @@ struct target_dds {
 
 /* Return codes */
 #define ADAPT_SUCCESS            0L
-/* choose error codes that do not conflict with PHYP */
+/* choose error codes that do yest conflict with PHYP */
 #define ERROR                   -40L
 
 struct format_code {
@@ -79,9 +79,9 @@ struct format_code {
 struct client_info {
 #define SRP_VERSION "16.a"
 	char srp_version[8];
-	/* root node property ibm,partition-name */
+	/* root yesde property ibm,partition-name */
 	char partition_name[PARTITION_NAMELEN];
-	/* root node property ibm,partition-no */
+	/* root yesde property ibm,partition-yes */
 	u32 partition_number;
 	/* initially 1 */
 	u32 mad_version;
@@ -145,7 +145,7 @@ enum cmd_type {
 
 struct iu_rsp {
 	u8 format;
-	u8 sol_not;
+	u8 sol_yest;
 	u16 len;
 	/* tag is just to help client identify cmd, so don't translate be/le */
 	u64 tag;
@@ -205,7 +205,7 @@ struct scsi_info {
 #define SRP_PROCESSING              0x10
 	/* remove request received */
 #define UNCONFIGURING               0x20
-	/* disconnect by letting adapter go idle, no error */
+	/* disconnect by letting adapter go idle, yes error */
 #define WAIT_IDLE                   0x40
 	/* disconnecting to clear an error */
 #define ERR_DISCONNECT              0x80
@@ -259,7 +259,7 @@ struct scsi_info {
 #define PREP_FOR_SUSPEND_PENDING      0x04000
 	/* Resume from Suspend event sent */
 #define PREP_FOR_SUSPEND_ABORTED      0x08000
-	/* Prepare for Suspend event overwrote another CRQ entry */
+	/* Prepare for Suspend event overwrote ayesther CRQ entry */
 #define PREP_FOR_SUSPEND_OVERWRITE    0x10000
 	u32 flags;
 	/* adapter lock */
@@ -282,7 +282,7 @@ struct scsi_info {
 	 * The following two fields capture state and flag changes that
 	 * can occur when the lock is given up.  In the orginal design,
 	 * the lock was held during calls into phyp;
-	 * however, phyp did not meet PAPR architecture.  This is
+	 * however, phyp did yest meet PAPR architecture.  This is
 	 * a work around.
 	 */
 	u16  phyp_acr_state;
@@ -308,14 +308,14 @@ struct scsi_info {
 
 /*
  * Provide a constant that can be used with interrupt handling that
- * essentially lets the interrupt handler know that all requests should
+ * essentially lets the interrupt handler kyesw that all requests should
  * be thrown out,
  */
 #define DONT_PROCESS_STATE (IS_DISCONNECTING | UNDEFINED | \
 			    ERR_DISCONNECTED  | WAIT_IDLE)
 
 /*
- * If any of these flag bits are set then do not allow the interrupt
+ * If any of these flag bits are set then do yest allow the interrupt
  * handler to schedule the off level handler.
  */
 #define BLOCK (DISCONNECT_SCHEDULED)
@@ -329,7 +329,7 @@ struct scsi_info {
 				 PREP_FOR_SUSPEND_ABORTED | \
 				 PREP_FOR_SUSPEND_OVERWRITE)
 
-/* flag bit that are not reset during disconnect */
+/* flag bit that are yest reset during disconnect */
 #define PRESERVE_FLAG_FIELDS (PREP_FOR_SUSPEND_FLAGS)
 
 #define vio_iu(IUE) ((union viosrp_iu *)((IUE)->sbuf->buf))
@@ -349,14 +349,14 @@ struct scsi_info {
 
 
 #define h_copy_rdma(l, sa, sb, da, db) \
-		plpar_hcall_norets(H_COPY_RDMA, l, sa, sb, da, db)
+		plpar_hcall_yesrets(H_COPY_RDMA, l, sa, sb, da, db)
 #define h_vioctl(u, o, a, u1, u2, u3, u4) \
-		plpar_hcall_norets(H_VIOCTL, u, o, a, u1, u2)
+		plpar_hcall_yesrets(H_VIOCTL, u, o, a, u1, u2)
 #define h_reg_crq(ua, tok, sz) \
-		plpar_hcall_norets(H_REG_CRQ, ua, tok, sz)
+		plpar_hcall_yesrets(H_REG_CRQ, ua, tok, sz)
 #define h_free_crq(ua) \
-		plpar_hcall_norets(H_FREE_CRQ, ua)
+		plpar_hcall_yesrets(H_FREE_CRQ, ua)
 #define h_send_crq(ua, d1, d2) \
-		plpar_hcall_norets(H_SEND_CRQ, ua, d1, d2)
+		plpar_hcall_yesrets(H_SEND_CRQ, ua, d1, d2)
 
 #endif

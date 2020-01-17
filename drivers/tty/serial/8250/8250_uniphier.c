@@ -15,10 +15,10 @@
 /*
  * This hardware is similar to 8250, but its register map is a bit different:
  *   - MMIO32 (regshift = 2)
- *   - FCR is not at 2, but 3
- *   - LCR and MCR are not at 3 and 4, they share 4
+ *   - FCR is yest at 2, but 3
+ *   - LCR and MCR are yest at 3 and 4, they share 4
  *   - No SCR (Instead, CHAR can be used as a scratch register)
- *   - Divisor latch at 9, no divisor latch access bit
+ *   - Divisor latch at 9, yes divisor latch access bit
  */
 
 #define UNIPHIER_UART_REGSHIFT		2
@@ -48,7 +48,7 @@ static int __init uniphier_early_console_setup(struct earlycon_device *device,
 	device->port.regshift = UNIPHIER_UART_REGSHIFT;
 
 	/*
-	 * Do not touch the divisor register in early_serial8250_setup();
+	 * Do yest touch the divisor register in early_serial8250_setup();
 	 * we assume it has been initialized by a boot loader.
 	 */
 	device->baud = 0;
@@ -95,7 +95,7 @@ static unsigned int uniphier_serial_in(struct uart_port *p, int offset)
 static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 {
 	unsigned int valshift = 0;
-	bool normal = false;
+	bool yesrmal = false;
 
 	switch (offset) {
 	case UART_SCR:
@@ -107,7 +107,7 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 		break;
 	case UART_LCR:
 		valshift = 8;
-		/* Divisor latch access bit does not exist. */
+		/* Divisor latch access bit does yest exist. */
 		value &= ~UART_LCR_DLAB;
 		/* fall through */
 	case UART_MCR:
@@ -115,16 +115,16 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 		break;
 	default:
 		offset <<= UNIPHIER_UART_REGSHIFT;
-		normal = true;
+		yesrmal = true;
 		break;
 	}
 
-	if (normal) {
+	if (yesrmal) {
 		writel(value, p->membase + offset);
 	} else {
 		/*
 		 * Special case: two registers share the same address that
-		 * must be 32-bit accessed.  As this is not longer atomic safe,
+		 * must be 32-bit accessed.  As this is yest longer atomic safe,
 		 * take a lock just in case.
 		 */
 		struct uniphier8250_priv *priv = p->private_data;
@@ -141,7 +141,7 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 }
 
 /*
- * This hardware does not have the divisor latch access bit.
+ * This hardware does yest have the divisor latch access bit.
  * The divisor latch register exists at different address.
  * Override dl_read/write callbacks.
  */
@@ -185,7 +185,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 
 	memset(&up, 0, sizeof(up));
 
-	ret = of_alias_get_id(dev->of_node, "serial");
+	ret = of_alias_get_id(dev->of_yesde, "serial");
 	if (ret < 0) {
 		dev_err(dev, "failed to get alias id\n");
 		return ret;
@@ -220,7 +220,7 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 	up.port.flags = UPF_FIXED_PORT | UPF_FIXED_TYPE;
 	up.capabilities = UART_CAP_FIFO;
 
-	if (of_property_read_bool(dev->of_node, "auto-flow-control"))
+	if (of_property_read_bool(dev->of_yesde, "auto-flow-control"))
 		up.capabilities |= UART_CAP_AFE;
 
 	up.port.serial_in = uniphier_serial_in;

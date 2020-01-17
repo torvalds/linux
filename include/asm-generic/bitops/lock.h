@@ -40,7 +40,7 @@ static inline int test_and_set_bit_lock(unsigned int nr,
 static inline void clear_bit_unlock(unsigned int nr, volatile unsigned long *p)
 {
 	p += BIT_WORD(nr);
-	atomic_long_fetch_andnot_release(BIT_MASK(nr), (atomic_long_t *)p);
+	atomic_long_fetch_andyest_release(BIT_MASK(nr), (atomic_long_t *)p);
 }
 
 /**
@@ -82,7 +82,7 @@ static inline bool clear_bit_unlock_is_negative_byte(unsigned int nr,
 	unsigned long mask = BIT_MASK(nr);
 
 	p += BIT_WORD(nr);
-	old = atomic_long_fetch_andnot_release(mask, (atomic_long_t *)p);
+	old = atomic_long_fetch_andyest_release(mask, (atomic_long_t *)p);
 	return !!(old & BIT(7));
 }
 #define clear_bit_unlock_is_negative_byte clear_bit_unlock_is_negative_byte

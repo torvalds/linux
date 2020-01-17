@@ -107,7 +107,7 @@ static void bcma_pmu2_pll_init0(struct bcma_drv_cc *cc, u32 xtalfreq)
 	}
 
 	if (!freq_tgt_target) {
-		bcma_err(bus, "Unknown TGT frequency for xtalfreq %d\n",
+		bcma_err(bus, "Unkyeswn TGT frequency for xtalfreq %d\n",
 			 xtalfreq);
 		return;
 	}
@@ -189,7 +189,7 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 		max_msk = 0x3FFFFFFF;
 		break;
 	default:
-		bcma_debug(bus, "PMU resource config unknown or not needed for device 0x%04X\n",
+		bcma_debug(bus, "PMU resource config unkyeswn or yest needed for device 0x%04X\n",
 			   bus->chipinfo.id);
 	}
 
@@ -206,7 +206,7 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
 	usleep_range(2000, 2500);
 }
 
-/* Disable to allow reading SPROM. Don't know the adventages of enabling it. */
+/* Disable to allow reading SPROM. Don't kyesw the adventages of enabling it. */
 void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable)
 {
 	struct bcma_bus *bus = cc->core->bus;
@@ -266,7 +266,7 @@ static void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 		}
 		break;
 	default:
-		bcma_debug(bus, "Workarounds unknown or not needed for device 0x%04X\n",
+		bcma_debug(bus, "Workarounds unkyeswn or yest needed for device 0x%04X\n",
 			   bus->chipinfo.id);
 	}
 }
@@ -627,7 +627,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 		/* LCNXN */
 		/*
 		 * PLL Settings for spur avoidance on/off mode,
-		 * no on2 support for 43228A0
+		 * yes on2 support for 43228A0
 		 */
 		if (spuravoid == 1) {
 			bcma_pmu_spuravoid_pll_write(cc, BCMA_CC_PMU_PLL_CTL0,
@@ -659,7 +659,7 @@ void bcma_pmu_spuravoid_pllupdate(struct bcma_drv_cc *cc, int spuravoid)
 		tmp = BCMA_CC_PMU_CTL_PLL_UPD;
 		break;
 	default:
-		bcma_err(bus, "Unknown spuravoidance settings for chip 0x%04X, not changing PLL\n",
+		bcma_err(bus, "Unkyeswn spuravoidance settings for chip 0x%04X, yest changing PLL\n",
 			 bus->chipinfo.id);
 		break;
 	}

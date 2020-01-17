@@ -92,7 +92,7 @@ static int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
 			}
 			if (!r) {
 				dev_err(chip->card->dev,
-					"no gameport ports available\n");
+					"yes gameport ports available\n");
 				return -EBUSY;
 			}
 		}
@@ -117,7 +117,7 @@ static int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		dev_err(chip->card->dev,
-			"cannot allocate memory for gameport\n");
+			"canyest allocate memory for gameport\n");
 		release_and_free_resource(r);
 		return -ENOMEM;
 	}
@@ -299,7 +299,7 @@ static int snd_card_ymfpci_probe(struct pci_dev *pci,
 					       MPU401_INFO_IRQ_HOOK,
 					       -1, &chip->rawmidi)) < 0) {
 			dev_warn(card->dev,
-				 "cannot initialize MPU401 at 0x%lx, skipping...\n",
+				 "canyest initialize MPU401 at 0x%lx, skipping...\n",
 				 mpu_port[dev]);
 			legacy_ctrl &= ~YMFPCI_LEGACY_MIEN; /* disable MPU401 irq */
 			pci_write_config_word(pci, PCIR_DSXG_LEGACY, legacy_ctrl);
@@ -311,12 +311,12 @@ static int snd_card_ymfpci_probe(struct pci_dev *pci,
 					   fm_port[dev] + 2,
 					   OPL3_HW_OPL3, 1, &opl3)) < 0) {
 			dev_warn(card->dev,
-				 "cannot initialize FM OPL3 at 0x%lx, skipping...\n",
+				 "canyest initialize FM OPL3 at 0x%lx, skipping...\n",
 				 fm_port[dev]);
 			legacy_ctrl &= ~YMFPCI_LEGACY_FMEN;
 			pci_write_config_word(pci, PCIR_DSXG_LEGACY, legacy_ctrl);
 		} else if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
-			dev_err(card->dev, "cannot create opl3 hwdep\n");
+			dev_err(card->dev, "canyest create opl3 hwdep\n");
 			goto free_card;
 		}
 	}

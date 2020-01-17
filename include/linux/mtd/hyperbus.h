@@ -16,7 +16,7 @@ enum hyperbus_memtype {
 /**
  * struct hyperbus_device - struct representing HyperBus slave device
  * @map: map_info struct for accessing MMIO HyperBus flash memory
- * @np: pointer to HyperBus slave device node
+ * @np: pointer to HyperBus slave device yesde
  * @mtd: pointer to MTD struct
  * @ctlr: pointer to HyperBus controller struct
  * @memtype: type of memory device: HyperFlash or HyperRAM
@@ -24,7 +24,7 @@ enum hyperbus_memtype {
 
 struct hyperbus_device {
 	struct map_info map;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct mtd_info *mtd;
 	struct hyperbus_ctlr *ctlr;
 	enum hyperbus_memtype memtype;
@@ -33,7 +33,7 @@ struct hyperbus_device {
 /**
  * struct hyperbus_ops - struct representing custom HyperBus operations
  * @read16: read 16 bit of data from flash in a single burst. Used to read
- *          from non default address space, such as ID/CFI space
+ *          from yesn default address space, such as ID/CFI space
  * @write16: write 16 bit of data to flash in a single burst. Used to
  *           send cmd to flash or write single 16 bit word at a time.
  * @copy_from: copy data from flash memory

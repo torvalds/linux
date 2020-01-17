@@ -101,7 +101,7 @@ extern unsigned int vdso32_enabled;
    This provides a mean for the dynamic linker to call DT_FINI functions for
    shared libraries that have been loaded before the code runs.
 
-   A value of 0 tells we have no such handler.
+   A value of 0 tells we have yes such handler.
 
    We might as well make sure everything else is cleared too (except for %esp),
    just to make things more deterministic.
@@ -115,7 +115,7 @@ extern unsigned int vdso32_enabled;
 
 /*
  * regs is struct pt_regs, pr_reg is elf_gregset_t (which is
- * now struct_user_regs, they are different)
+ * yesw struct_user_regs, they are different)
  */
 
 #define ELF_CORE_COPY_REGS_COMMON(pr_reg, regs)	\
@@ -199,7 +199,7 @@ void set_personality_ia32(bool);
 
 /*
  * regs is struct pt_regs, pr_reg is elf_gregset_t (which is
- * now struct_user_regs, they are different). Assumes current is the process
+ * yesw struct_user_regs, they are different). Assumes current is the process
  * getting dumped.
  */
 
@@ -235,7 +235,7 @@ do {								\
 	asm("movl %%gs,%0" : "=r" (v)); (pr_reg)[26] = v;	\
 } while (0);
 
-/* I'm not sure if we can use '-' here */
+/* I'm yest sure if we can use '-' here */
 #define ELF_PLATFORM       ("x86_64")
 extern void set_personality_64bit(void);
 extern unsigned int sysctl_vsyscall32;
@@ -256,7 +256,7 @@ extern int force_personality32;
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this CPU supports.  This could be done in user space,
-   but it's not easy, and we've already done it here.  */
+   but it's yest easy, and we've already done it here.  */
 
 #define ELF_HWCAP		(boot_cpu_data.x86_capability[CPUID_1_EDX])
 
@@ -367,7 +367,7 @@ extern int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
 					      int uses_interp);
 #define compat_arch_setup_additional_pages compat_arch_setup_additional_pages
 
-/* Do not change the values. See get_align_mask() */
+/* Do yest change the values. See get_align_mask() */
 enum align_flags {
 	ALIGN_VA_32	= BIT(0),
 	ALIGN_VA_64	= BIT(1),

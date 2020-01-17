@@ -90,7 +90,7 @@ static const struct reset_control_ops mtk_reset_ops_set_clr = {
 	.reset = mtk_reset_set_clr,
 };
 
-static void mtk_register_reset_controller_common(struct device_node *np,
+static void mtk_register_reset_controller_common(struct device_yesde *np,
 			unsigned int num_regs, int regofs,
 			const struct reset_control_ops *reset_ops)
 {
@@ -98,9 +98,9 @@ static void mtk_register_reset_controller_common(struct device_node *np,
 	int ret;
 	struct regmap *regmap;
 
-	regmap = syscon_node_to_regmap(np);
+	regmap = syscon_yesde_to_regmap(np);
 	if (IS_ERR(regmap)) {
-		pr_err("Cannot find regmap for %pOF: %ld\n", np,
+		pr_err("Canyest find regmap for %pOF: %ld\n", np,
 				PTR_ERR(regmap));
 		return;
 	}
@@ -114,24 +114,24 @@ static void mtk_register_reset_controller_common(struct device_node *np,
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = num_regs * 32;
 	data->rcdev.ops = reset_ops;
-	data->rcdev.of_node = np;
+	data->rcdev.of_yesde = np;
 
 	ret = reset_controller_register(&data->rcdev);
 	if (ret) {
-		pr_err("could not register reset controller: %d\n", ret);
+		pr_err("could yest register reset controller: %d\n", ret);
 		kfree(data);
 		return;
 	}
 }
 
-void mtk_register_reset_controller(struct device_node *np,
+void mtk_register_reset_controller(struct device_yesde *np,
 	unsigned int num_regs, int regofs)
 {
 	mtk_register_reset_controller_common(np, num_regs, regofs,
 		&mtk_reset_ops);
 }
 
-void mtk_register_reset_controller_set_clr(struct device_node *np,
+void mtk_register_reset_controller_set_clr(struct device_yesde *np,
 	unsigned int num_regs, int regofs)
 {
 	mtk_register_reset_controller_common(np, num_regs, regofs,

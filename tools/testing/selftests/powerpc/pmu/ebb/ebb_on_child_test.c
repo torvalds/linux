@@ -25,12 +25,12 @@ static int victim_child(union pipe read_pipe, union pipe write_pipe)
 	int i;
 
 	FAIL_IF(wait_for_parent(read_pipe));
-	FAIL_IF(notify_parent(write_pipe));
+	FAIL_IF(yestify_parent(write_pipe));
 
 	/* Parent creates EBB event */
 
 	FAIL_IF(wait_for_parent(read_pipe));
-	FAIL_IF(notify_parent(write_pipe));
+	FAIL_IF(yestify_parent(write_pipe));
 
 	/* Check the EBB is enabled by writing PMC1 */
 	write_pmc1();
@@ -60,7 +60,7 @@ int ebb_on_child(void)
 
 	FAIL_IF(sync_with_child(read_pipe, write_pipe));
 
-	/* Child is running now */
+	/* Child is running yesw */
 
 	event_init_named(&event, 0x1001e, "cycles");
 	event_leader_ebb_init(&event);

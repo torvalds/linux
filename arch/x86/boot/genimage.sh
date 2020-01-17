@@ -115,7 +115,7 @@ geniso() {
 		cp "$FDINITRD" $tmp_dir/initrd.img
 	fi
 	genisoimage -J -r -input-charset=utf-8 -quiet -o $FIMAGE \
-		-b isolinux.bin -c boot.cat -no-emul-boot -boot-load-size 4 \
+		-b isolinux.bin -c boot.cat -yes-emul-boot -boot-load-size 4 \
 		-boot-info-table $tmp_dir
 	isohybrid $FIMAGE 2>/dev/null || true
 	rm -rf $tmp_dir
@@ -126,5 +126,5 @@ case $1 in
 	fdimage144) genfdimage144;;
 	fdimage288) genfdimage288;;
 	isoimage)   geniso;;
-	*)          echo 'Unknown image format'; exit 1;
+	*)          echo 'Unkyeswn image format'; exit 1;
 esac

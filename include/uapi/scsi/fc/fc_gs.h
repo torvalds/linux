@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright(c) 2007 Intel Corporation. All rights reserved.
  *
@@ -65,20 +65,20 @@ enum fc_ct_reason {
 	FC_FS_RJT_BSY =		0x05,	/* logical busy */
 	FC_FS_RJT_PROTO =	0x07,	/* protocol error */
 	FC_FS_RJT_UNABL =	0x09,	/* unable to perform command request */
-	FC_FS_RJT_UNSUP =	0x0b,	/* command not supported */
+	FC_FS_RJT_UNSUP =	0x0b,	/* command yest supported */
 };
 
 /*
  * FS_RJT reason code explanations.
  */
 enum fc_ct_explan {
-	FC_FS_EXP_NONE =	0x00,	/* no additional explanation */
-	FC_FS_EXP_PID =		0x01,	/* port ID not registered */
-	FC_FS_EXP_PNAM =	0x02,	/* port name not registered */
-	FC_FS_EXP_NNAM =	0x03,	/* node name not registered */
-	FC_FS_EXP_COS =		0x04,	/* class of service not registered */
-	FC_FS_EXP_FTNR =	0x07,	/* FC-4 types not registered */
-	/* definitions not complete */
+	FC_FS_EXP_NONE =	0x00,	/* yes additional explanation */
+	FC_FS_EXP_PID =		0x01,	/* port ID yest registered */
+	FC_FS_EXP_PNAM =	0x02,	/* port name yest registered */
+	FC_FS_EXP_NNAM =	0x03,	/* yesde name yest registered */
+	FC_FS_EXP_COS =		0x04,	/* class of service yest registered */
+	FC_FS_EXP_FTNR =	0x07,	/* FC-4 types yest registered */
+	/* definitions yest complete */
 };
 
 #endif /* _FC_GS_H_ */

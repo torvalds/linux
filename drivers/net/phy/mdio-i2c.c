@@ -15,7 +15,7 @@
 #include "mdio-i2c.h"
 
 /*
- * I2C bus addresses 0x50 and 0x51 are normally an EEPROM, which is
+ * I2C bus addresses 0x50 and 0x51 are yesrmally an EEPROM, which is
  * specified to be present in SFP modules.  These correspond with PHY
  * addresses 16 and 17.  Disallow access to these "phy" addresses.
  */

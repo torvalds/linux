@@ -76,7 +76,7 @@ __kvm_hyp_vector_ic_inv:
 	W(add)	sp, sp, #1	/* Data abort	  3 */
 	W(add)	sp, sp, #1	/* HVC		  2 */
 	W(add)	sp, sp, #1	/* IRQ		  1 */
-	W(nop)			/* FIQ		  0 */
+	W(yesp)			/* FIQ		  0 */
 
 	mcr	p15, 0, r0, c7, c5, 0	/* ICIALLU */
 	isb
@@ -98,7 +98,7 @@ __kvm_hyp_vector_bp_inv:
 	W(add)	sp, sp, #1	/* Data abort	  3 */
 	W(add)	sp, sp, #1	/* HVC		  2 */
 	W(add)	sp, sp, #1	/* IRQ		  1 */
-	W(nop)			/* FIQ		  0 */
+	W(yesp)			/* FIQ		  0 */
 
 	mcr	p15, 0, r0, c7, c5, 6	/* BPIALL */
 	isb
@@ -107,8 +107,8 @@ decode_vectors:
 
 #ifdef CONFIG_THUMB2_KERNEL
 	/*
-	 * Yet another silly hack: Use VPIDR as a temp register.
-	 * Thumb2 is really a pain, as SP cannot be used with most
+	 * Yet ayesther silly hack: Use VPIDR as a temp register.
+	 * Thumb2 is really a pain, as SP canyest be used with most
 	 * of the bitwise instructions. The vect_br macro ensures
 	 * things gets cleaned-up.
 	 */

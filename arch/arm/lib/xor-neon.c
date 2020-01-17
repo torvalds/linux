@@ -23,14 +23,14 @@ MODULE_LICENSE("GPL");
 #pragma GCC optimize "tree-vectorize"
 #else
 /*
- * While older versions of GCC do not generate incorrect code, they fail to
+ * While older versions of GCC do yest generate incorrect code, they fail to
  * recognize the parallel nature of these functions, and emit plain ARM code,
- * which is known to be slower than the optimized ARM code in asm-arm/xor.h.
+ * which is kyeswn to be slower than the optimized ARM code in asm-arm/xor.h.
  */
 #warning This code requires at least version 4.6 of GCC
 #endif
 
-#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagyesstic igyesred "-Wunused-variable"
 #include <asm-generic/xor.h>
 
 struct xor_block_template const xor_block_neon_inner = {

@@ -20,19 +20,19 @@ cleanup()
 
 nft --version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nft tool"
+	echo "SKIP: Could yest run test without nft tool"
 	exit $ksft_skip
 fi
 
 ip -Version > /dev/null 2>&1
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could yest run test without ip tool"
 	exit $ksft_skip
 fi
 
 ip netns add "$ns0"
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace $ns0"
+	echo "SKIP: Could yest create net namespace $ns0"
 	exit $ksft_skip
 fi
 
@@ -40,13 +40,13 @@ trap cleanup EXIT
 
 ip netns add "$ns1"
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace $ns1"
+	echo "SKIP: Could yest create net namespace $ns1"
 	exit $ksft_skip
 fi
 
 ip netns add "$ns2"
 if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace $ns2"
+	echo "SKIP: Could yest create net namespace $ns2"
 	exit $ksft_skip
 fi
 
@@ -190,7 +190,7 @@ table $family nat {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add add $family dnat hook"
+		echo "SKIP: Could yest add add $family dnat hook"
 		return $ksft_skip
 	fi
 
@@ -270,7 +270,7 @@ EOF
 			test_inet_nat=false
 			return $ksft_skip
 		fi
-		echo "SKIP: Could not add add $family dnat hook"
+		echo "SKIP: Could yest add add $family dnat hook"
 		return $ksft_skip
 	fi
 
@@ -385,7 +385,7 @@ test_masquerade6()
 
 	ip netns exec "$ns2" ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 via ipv6"
+		echo "ERROR: canyest ping $ns1 from $ns2 via ipv6"
 		return 1
 		lret=1
 	fi
@@ -417,13 +417,13 @@ table $family nat {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add add $family masquerade hook"
+		echo "SKIP: Could yest add add $family masquerade hook"
 		return $ksft_skip
 	fi
 
 	ip netns exec "$ns2" ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 with active $family masquerade $natflags"
+		echo "ERROR: canyest ping $ns1 from $ns2 with active $family masquerade $natflags"
 		lret=1
 	fi
 
@@ -443,7 +443,7 @@ EOF
 		fi
 	done
 
-	# ns1 should not have seen packets from ns2, due to masquerade
+	# ns1 should yest have seen packets from ns2, due to masquerade
 	expect="packets 0 bytes 0"
 	for dir in "in6" "out6" ; do
 		cnt=$(ip netns exec "$ns1" nft list counter inet filter ns2${dir} | grep -q "$expect")
@@ -461,13 +461,13 @@ EOF
 
 	ip netns exec "$ns2" ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 with active ipv6 masquerade $natflags (attempt 2)"
+		echo "ERROR: canyest ping $ns1 from $ns2 with active ipv6 masquerade $natflags (attempt 2)"
 		lret=1
 	fi
 
 	ip netns exec "$ns0" nft flush chain $family nat postrouting
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not flush $family nat postrouting" 1>&2
+		echo "ERROR: Could yest flush $family nat postrouting" 1>&2
 		lret=1
 	fi
 
@@ -487,7 +487,7 @@ test_masquerade()
 
 	ip netns exec "$ns2" ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from "$ns2" $natflags"
+		echo "ERROR: canyest ping $ns1 from "$ns2" $natflags"
 		lret=1
 	fi
 
@@ -518,13 +518,13 @@ table $family nat {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add add $family masquerade hook"
+		echo "SKIP: Could yest add add $family masquerade hook"
 		return $ksft_skip
 	fi
 
 	ip netns exec "$ns2" ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 with active $family masquerade $natflags"
+		echo "ERROR: canyest ping $ns1 from $ns2 with active $family masquerade $natflags"
 		lret=1
 	fi
 
@@ -544,7 +544,7 @@ EOF
 		fi
 	done
 
-	# ns1 should not have seen packets from ns2, due to masquerade
+	# ns1 should yest have seen packets from ns2, due to masquerade
 	expect="packets 0 bytes 0"
 	for dir in "in" "out" ; do
 		cnt=$(ip netns exec "$ns1" nft list counter inet filter ns2${dir} | grep -q "$expect")
@@ -562,13 +562,13 @@ EOF
 
 	ip netns exec "$ns2" ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 with active ip masquerade $natflags (attempt 2)"
+		echo "ERROR: canyest ping $ns1 from $ns2 with active ip masquerade $natflags (attempt 2)"
 		lret=1
 	fi
 
 	ip netns exec "$ns0" nft flush chain $family nat postrouting
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not flush $family nat postrouting" 1>&2
+		echo "ERROR: Could yest flush $family nat postrouting" 1>&2
 		lret=1
 	fi
 
@@ -586,7 +586,7 @@ test_redirect6()
 
 	ip netns exec "$ns2" ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannnot ping $ns1 from $ns2 via ipv6"
+		echo "ERROR: cannyest ping $ns1 from $ns2 via ipv6"
 		lret=1
 	fi
 
@@ -617,17 +617,17 @@ table $family nat {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add add $family redirect hook"
+		echo "SKIP: Could yest add add $family redirect hook"
 		return $ksft_skip
 	fi
 
 	ip netns exec "$ns2" ping -q -c 1 dead:1::99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 via ipv6 with active $family redirect"
+		echo "ERROR: canyest ping $ns1 from $ns2 via ipv6 with active $family redirect"
 		lret=1
 	fi
 
-	# ns1 should have seen no packets from ns2, due to redirection
+	# ns1 should have seen yes packets from ns2, due to redirection
 	expect="packets 0 bytes 0"
 	for dir in "in6" "out6" ; do
 		cnt=$(ip netns exec "$ns1" nft list counter inet filter ns2${dir} | grep -q "$expect")
@@ -649,7 +649,7 @@ EOF
 
 	ip netns exec "$ns0" nft delete table $family nat
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not delete $family nat table" 1>&2
+		echo "ERROR: Could yest delete $family nat table" 1>&2
 		lret=1
 	fi
 
@@ -668,7 +668,7 @@ test_redirect()
 
 	ip netns exec "$ns2" ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2"
+		echo "ERROR: canyest ping $ns1 from $ns2"
 		lret=1
 	fi
 
@@ -699,17 +699,17 @@ table $family nat {
 }
 EOF
 	if [ $? -ne 0 ]; then
-		echo "SKIP: Could not add add $family redirect hook"
+		echo "SKIP: Could yest add add $family redirect hook"
 		return $ksft_skip
 	fi
 
 	ip netns exec "$ns2" ping -q -c 1 10.0.1.99 > /dev/null # ping ns2->ns1
 	if [ $? -ne 0 ] ; then
-		echo "ERROR: cannot ping $ns1 from $ns2 with active $family ip redirect"
+		echo "ERROR: canyest ping $ns1 from $ns2 with active $family ip redirect"
 		lret=1
 	fi
 
-	# ns1 should have seen no packets from ns2, due to redirection
+	# ns1 should have seen yes packets from ns2, due to redirection
 	expect="packets 0 bytes 0"
 	for dir in "in" "out" ; do
 
@@ -732,7 +732,7 @@ EOF
 
 	ip netns exec "$ns0" nft delete table $family nat
 	if [ $? -ne 0 ]; then
-		echo "ERROR: Could not delete $family nat table" 1>&2
+		echo "ERROR: Could yest delete $family nat table" 1>&2
 		lret=1
 	fi
 
@@ -813,13 +813,13 @@ sleep 3
 for i in 1 2; do
   ip netns exec "$ns0" ping -c 1 -q 10.0.$i.99 > /dev/null
   if [ $? -ne 0 ];then
-  	echo "ERROR: Could not reach other namespace(s)" 1>&2
+  	echo "ERROR: Could yest reach other namespace(s)" 1>&2
 	ret=1
   fi
 
   ip netns exec "$ns0" ping -c 1 -q dead:$i::99 > /dev/null
   if [ $? -ne 0 ];then
-	echo "ERROR: Could not reach other namespace(s) via ipv6" 1>&2
+	echo "ERROR: Could yest reach other namespace(s) via ipv6" 1>&2
 	ret=1
   fi
   check_counters ns$i-$sfx

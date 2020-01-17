@@ -24,9 +24,9 @@
  * This is the PCMCIA-specific support split off from the
  * das08 driver.
  *
- * Configuration Options: none, uses PCMCIA auto config
+ * Configuration Options: yesne, uses PCMCIA auto config
  *
- * Command support does not exist, but could be added for this board.
+ * Command support does yest exist, but could be added for this board.
  */
 
 #include <linux/module.h>

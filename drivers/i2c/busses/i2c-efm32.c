@@ -307,7 +307,7 @@ static int efm32_i2c_probe(struct platform_device *pdev)
 	struct efm32_i2c_ddata *ddata;
 	struct resource *res;
 	unsigned long rate;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	u32 location, frequency;
 	int ret;
 	u32 clkdiv;
@@ -325,7 +325,7 @@ static int efm32_i2c_probe(struct platform_device *pdev)
 	ddata->adapter.owner = THIS_MODULE;
 	ddata->adapter.algo = &efm32_i2c_algo;
 	ddata->adapter.dev.parent = &pdev->dev;
-	ddata->adapter.dev.of_node = pdev->dev.of_node;
+	ddata->adapter.dev.of_yesde = pdev->dev.of_yesde;
 	i2c_set_adapdata(&ddata->adapter, ddata);
 
 	ddata->clk = devm_clk_get(&pdev->dev, NULL);
@@ -395,7 +395,7 @@ static int efm32_i2c_probe(struct platform_device *pdev)
 
 	rate = clk_get_rate(ddata->clk);
 	if (!rate) {
-		dev_err(&pdev->dev, "there is no input clock available\n");
+		dev_err(&pdev->dev, "there is yes input clock available\n");
 		ret = -EINVAL;
 		goto err_disable_clk;
 	}

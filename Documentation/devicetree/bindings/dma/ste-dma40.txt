@@ -9,9 +9,9 @@ Required properties:
 - memcpy-channels: Channels to be used for memcpy
 
 Optional properties:
-- dma-channels: Number of channels supported by hardware - if not present
+- dma-channels: Number of channels supported by hardware - if yest present
 		the driver will attempt to obtain the information from H/W
-- disabled-channels: Channels which can not be used
+- disabled-channels: Channels which can yest be used
 
 Example:
 
@@ -67,8 +67,8 @@ bidirectional, i.e. the same for RX and TX operations:
 5:  I2C port 3
 6:  I2C port 2
 7:  I2C port 4
-8:  Synchronous Serial Port SSP0
-9:  Synchronous Serial Port SSP1
+8:  Synchroyesus Serial Port SSP0
+9:  Synchroyesus Serial Port SSP1
 10: Multi-Channel Display Engine MCDE RX
 11: UART port 2
 12: UART port 1

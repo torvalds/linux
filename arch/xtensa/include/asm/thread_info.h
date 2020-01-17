@@ -48,7 +48,7 @@ typedef struct xtregs_coprocessor {
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
 	unsigned long		flags;		/* low level flags */
-	unsigned long		status;		/* thread-synchronous flags */
+	unsigned long		status;		/* thread-synchroyesus flags */
 	__u32			cpu;		/* current CPU */
 	__s32			preempt_count;	/* 0 => preemptable,< 0 => BUG*/
 

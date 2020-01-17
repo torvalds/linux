@@ -11,8 +11,8 @@
 
 #include <linux/kasan-checks.h>
 
-#define __nops(n)	".rept	" #n "\nnop\n.endr\n"
-#define nops(n)		asm volatile(__nops(n))
+#define __yesps(n)	".rept	" #n "\nyesp\n.endr\n"
+#define yesps(n)		asm volatile(__yesps(n))
 
 #define sev()		asm volatile("sev" : : : "memory")
 #define wfe()		asm volatile("wfe" : : : "memory")
@@ -26,7 +26,7 @@
 #define csdb()		asm volatile("hint #20" : : : "memory")
 
 #define spec_bar()	asm volatile(ALTERNATIVE("dsb nsh\nisb\n",		\
-						 SB_BARRIER_INSN"nop\n",	\
+						 SB_BARRIER_INSN"yesp\n",	\
 						 ARM64_HAS_SB))
 
 #ifdef CONFIG_ARM64_PSEUDO_NMI
@@ -49,11 +49,11 @@
 #define dma_wmb()	dmb(oshst)
 
 /*
- * Generate a mask for array_index__nospec() that is ~0UL when 0 <= idx < sz
+ * Generate a mask for array_index__yesspec() that is ~0UL when 0 <= idx < sz
  * and 0 otherwise.
  */
-#define array_index_mask_nospec array_index_mask_nospec
-static inline unsigned long array_index_mask_nospec(unsigned long idx,
+#define array_index_mask_yesspec array_index_mask_yesspec
+static inline unsigned long array_index_mask_yesspec(unsigned long idx,
 						    unsigned long sz)
 {
 	unsigned long mask;

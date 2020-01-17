@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * arch/sh/mm/nommu.c
+ * arch/sh/mm/yesmmu.c
  *
  * Various helper routines and stubs for MMUless SH.
  *

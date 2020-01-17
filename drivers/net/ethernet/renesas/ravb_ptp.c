@@ -68,7 +68,7 @@ static int ravb_ptp_update_compare(struct ravb_private *priv, u32 ns)
 	/* When the comparison value (GPTC.PTCV) is in range of
 	 * [x-1 to x+1] (x is the configured increment value in
 	 * GTI.TIV), it may happen that a comparison match is
-	 * not detected when the timer wraps around.
+	 * yest detected when the timer wraps around.
 	 */
 	u32 gti_ns_plus_1 = (priv->ptp.current_addend >> 20) + 1;
 	u32 gccr;
@@ -135,9 +135,9 @@ static int ravb_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	spin_lock_irqsave(&priv->lock, flags);
 	error = ravb_ptp_time_read(priv, &ts);
 	if (!error) {
-		u64 now = ktime_to_ns(timespec64_to_ktime(ts));
+		u64 yesw = ktime_to_ns(timespec64_to_ktime(ts));
 
-		ts = ns_to_timespec64(now + delta);
+		ts = ns_to_timespec64(yesw + delta);
 		error = ravb_ptp_time_write(priv, &ts);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);

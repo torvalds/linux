@@ -31,9 +31,9 @@ void wfx_tx_flush(struct wfx_dev *wdev)
 {
 	int ret;
 
-	WARN(!atomic_read(&wdev->tx_lock), "tx_lock is not locked");
+	WARN(!atomic_read(&wdev->tx_lock), "tx_lock is yest locked");
 
-	// Do not wait for any reply if chip is frozen
+	// Do yest wait for any reply if chip is frozen
 	if (wdev->chip_frozen)
 		return;
 
@@ -42,7 +42,7 @@ void wfx_tx_flush(struct wfx_dev *wdev)
 				 !wdev->hif.tx_buffers_used,
 				 msecs_to_jiffies(3000));
 	if (!ret) {
-		dev_warn(wdev->dev, "cannot flush tx buffers (%d still busy)\n",
+		dev_warn(wdev->dev, "canyest flush tx buffers (%d still busy)\n",
 			 wdev->hif.tx_buffers_used);
 		wfx_pending_dump_old_frames(wdev, 3000);
 		// FIXME: drop pending frames here
@@ -302,14 +302,14 @@ struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id)
 		}
 	}
 	spin_unlock_bh(&stats->pending.lock);
-	WARN(1, "cannot find packet in pending queue");
+	WARN(1, "canyest find packet in pending queue");
 	return NULL;
 }
 
 void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms)
 {
 	struct wfx_queue_stats *stats = &wdev->tx_queue_stats;
-	ktime_t now = ktime_get();
+	ktime_t yesw = ktime_get();
 	struct wfx_tx_priv *tx_priv;
 	struct hif_req_tx *req;
 	struct sk_buff *skb;
@@ -319,7 +319,7 @@ void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms)
 	skb_queue_walk(&stats->pending, skb) {
 		tx_priv = wfx_skb_tx_priv(skb);
 		req = wfx_skb_txreq(skb);
-		if (ktime_after(now, ktime_add_ms(tx_priv->xmit_timestamp,
+		if (ktime_after(yesw, ktime_add_ms(tx_priv->xmit_timestamp,
 						  limit_ms))) {
 			if (first) {
 				dev_info(wdev->dev, "frames stuck in firmware since %dms or more:\n",
@@ -328,7 +328,7 @@ void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms)
 			}
 			dev_info(wdev->dev, "   id %08x sent %lldms ago\n",
 				 req->packet_id,
-				 ktime_ms_delta(now, tx_priv->xmit_timestamp));
+				 ktime_ms_delta(yesw, tx_priv->xmit_timestamp));
 		}
 	}
 	spin_unlock_bh(&stats->pending.lock);
@@ -337,10 +337,10 @@ void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms)
 unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev,
 					  struct sk_buff *skb)
 {
-	ktime_t now = ktime_get();
+	ktime_t yesw = ktime_get();
 	struct wfx_tx_priv *tx_priv = wfx_skb_tx_priv(skb);
 
-	return ktime_us_delta(now, tx_priv->xmit_timestamp);
+	return ktime_us_delta(yesw, tx_priv->xmit_timestamp);
 }
 
 bool wfx_tx_queues_is_empty(struct wfx_dev *wdev)
@@ -432,7 +432,7 @@ static bool hif_handle_tx_data(struct wfx_vif *wvif, struct sk_buff *skb,
 	case do_tx:
 		break;
 	default:
-		/* Do nothing */
+		/* Do yesthing */
 		break;
 	}
 	return handled;
@@ -530,7 +530,7 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 	/* More is used only for broadcasts. */
 	bool more = false;
 	bool vif_more = false;
-	int not_found;
+	int yest_found;
 	int burst;
 
 	for (;;) {
@@ -545,11 +545,11 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 		while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
 			spin_lock_bh(&wvif->ps_state_lock);
 
-			not_found = wfx_tx_queue_mask_get(wvif, &vif_queue,
+			yest_found = wfx_tx_queue_mask_get(wvif, &vif_queue,
 							  &vif_tx_allowed_mask,
 							  &vif_more);
 
-			if (wvif->mcast_buffered && (not_found || !vif_more) &&
+			if (wvif->mcast_buffered && (yest_found || !vif_more) &&
 					(wvif->mcast_tx ||
 					 !wvif->sta_asleep_mask)) {
 				wvif->mcast_buffered = false;
@@ -567,7 +567,7 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 				queue = vif_queue;
 				ret = 0;
 				break;
-			} else if (!not_found) {
+			} else if (!yest_found) {
 				if (queue && queue != vif_queue)
 					dev_info(wdev->dev, "vifs disagree about queue priority\n");
 				tx_allowed_mask |= vif_tx_allowed_mask;

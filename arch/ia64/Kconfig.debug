@@ -24,7 +24,7 @@ config IA64_PRINT_HAZARDS
 	help
 	  Selecting this option prints more information for Illegal Dependency
 	  Faults, that is, for Read-after-Write (RAW), Write-after-Write (WAW),
-	  or Write-after-Read (WAR) violations.  This option is ignored if you
+	  or Write-after-Read (WAR) violations.  This option is igyesred if you
 	  are compiling for an Itanium A step processor
 	  (CONFIG_ITANIUM_ASTEP_SPECIFIC).  If you're unsure, select Y.
 

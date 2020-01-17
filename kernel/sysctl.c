@@ -5,7 +5,7 @@
  * Begun 24 March 1995, Stephen Tweedie
  * Added /proc support, Dec 1995
  * Added bdflush entry and intvec min/max checking, 2/23/96, Tom Dyas.
- * Added hooks for /proc/sys/net (minor, minor patch), 96/4/1, Mike Shaver.
+ * Added hooks for /proc/sys/net (miyesr, miyesr patch), 96/4/1, Mike Shaver.
  * Added kernel/java-{interpreter,appletviewer}, 96/5/10, Mike Shaver.
  * Dynamic registration fixes, Stephen Tweedie.
  * Added kswapd-interval, ctrl-alt-del, printk stuff, 1/8/97, Chris Horn.
@@ -48,7 +48,7 @@
 #include <linux/times.h>
 #include <linux/limits.h>
 #include <linux/dcache.h>
-#include <linux/dnotify.h>
+#include <linux/dyestify.h>
 #include <linux/syscalls.h>
 #include <linux/vmstat.h>
 #include <linux/nfs_fs.h>
@@ -103,7 +103,7 @@
 
 #if defined(CONFIG_SYSCTL)
 
-/* External variables not in a header file. */
+/* External variables yest in a header file. */
 extern int suid_dumpable;
 #ifdef CONFIG_COREDUMP
 extern int core_uses_pid;
@@ -144,7 +144,7 @@ static unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
 
 /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
 static int maxolduid = 65535;
-static int minolduid;
+static int miyeslduid;
 
 static int ngroups_max = NGROUPS_MAX;
 static const int cap_last_cap = CAP_LAST_CAP;
@@ -158,7 +158,7 @@ static unsigned long hung_task_timeout_max = (LONG_MAX/HZ);
 #endif
 
 #ifdef CONFIG_INOTIFY_USER
-#include <linux/inotify.h>
+#include <linux/iyestify.h>
 #endif
 #ifdef CONFIG_SPARC
 #endif
@@ -176,7 +176,7 @@ extern int unaligned_dump_stack;
 #endif
 
 #ifdef CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN
-extern int no_unaligned_warning;
+extern int yes_unaligned_warning;
 #endif
 
 #ifdef CONFIG_PROC_SYSCTL
@@ -187,14 +187,14 @@ extern int no_unaligned_warning;
  * @SYSCTL_WRITES_LEGACY: each write syscall must fully contain the sysctl value
  *	to be written, and multiple writes on the same sysctl file descriptor
  *	will rewrite the sysctl value, regardless of file position. No warning
- *	is issued when the initial position is not 0.
+ *	is issued when the initial position is yest 0.
  * @SYSCTL_WRITES_WARN: same as above but warn when the initial file position is
- *	not 0.
+ *	yest 0.
  * @SYSCTL_WRITES_STRICT: writes to numeric sysctl entries must always be at
  *	file position 0 and the value must be fully contained in the buffer
  *	sent to the write syscall. If dealing with strings respect the file
  *	position, but restrict this to the max length of the buffer, anything
- *	passed the max length will be ignored. Multiple writes will append
+ *	passed the max length will be igyesred. Multiple writes will append
  *	to the buffer.
  *
  * These write modes control how current file position affects the behavior of
@@ -792,7 +792,7 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &minolduid,
+		.extra1		= &miyeslduid,
 		.extra2		= &maxolduid,
 	},
 	{
@@ -801,7 +801,7 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &minolduid,
+		.extra1		= &miyeslduid,
 		.extra2		= &maxolduid,
 	},
 #ifdef CONFIG_S390
@@ -1008,8 +1008,8 @@ static struct ctl_table kern_table[] = {
 
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86)
 	{
-		.procname       = "unknown_nmi_panic",
-		.data           = &unknown_nmi_panic,
+		.procname       = "unkyeswn_nmi_panic",
+		.data           = &unkyeswn_nmi_panic,
 		.maxlen         = sizeof (int),
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec,
@@ -1090,8 +1090,8 @@ static struct ctl_table kern_table[] = {
 #endif
 #ifdef CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN
 	{
-		.procname	= "ignore-unaligned-usertrap",
-		.data		= &no_unaligned_warning,
+		.procname	= "igyesre-unaligned-usertrap",
+		.data		= &yes_unaligned_warning,
 		.maxlen		= sizeof (int),
 	 	.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -1177,12 +1177,12 @@ static struct ctl_table kern_table[] = {
 	 * User-space scripts rely on the existence of this file
 	 * as a feature check for perf_events being enabled.
 	 *
-	 * So it's an ABI, do not remove!
+	 * So it's an ABI, do yest remove!
 	 */
 	{
-		.procname	= "perf_event_paranoid",
-		.data		= &sysctl_perf_event_paranoid,
-		.maxlen		= sizeof(sysctl_perf_event_paranoid),
+		.procname	= "perf_event_parayesid",
+		.data		= &sysctl_perf_event_parayesid,
+		.maxlen		= sizeof(sysctl_perf_event_parayesid),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
@@ -1588,8 +1588,8 @@ static struct ctl_table vm_table[] = {
 #ifdef CONFIG_NUMA
 	{
 		.procname	= "zone_reclaim_mode",
-		.data		= &node_reclaim_mode,
-		.maxlen		= sizeof(node_reclaim_mode),
+		.data		= &yesde_reclaim_mode,
+		.maxlen		= sizeof(yesde_reclaim_mode),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 		.extra1		= SYSCTL_ZERO,
@@ -1746,18 +1746,18 @@ static struct ctl_table vm_table[] = {
 
 static struct ctl_table fs_table[] = {
 	{
-		.procname	= "inode-nr",
-		.data		= &inodes_stat,
+		.procname	= "iyesde-nr",
+		.data		= &iyesdes_stat,
 		.maxlen		= 2*sizeof(long),
 		.mode		= 0444,
-		.proc_handler	= proc_nr_inodes,
+		.proc_handler	= proc_nr_iyesdes,
 	},
 	{
-		.procname	= "inode-state",
-		.data		= &inodes_stat,
+		.procname	= "iyesde-state",
+		.data		= &iyesdes_stat,
 		.maxlen		= 7*sizeof(long),
 		.mode		= 0444,
-		.proc_handler	= proc_nr_inodes,
+		.proc_handler	= proc_nr_iyesdes,
 	},
 	{
 		.procname	= "file-nr",
@@ -1797,7 +1797,7 @@ static struct ctl_table fs_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &minolduid,
+		.extra1		= &miyeslduid,
 		.extra2		= &maxolduid,
 	},
 	{
@@ -1806,7 +1806,7 @@ static struct ctl_table fs_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &minolduid,
+		.extra1		= &miyeslduid,
 		.extra2		= &maxolduid,
 	},
 #ifdef CONFIG_FILE_LOCKING
@@ -1820,8 +1820,8 @@ static struct ctl_table fs_table[] = {
 #endif
 #ifdef CONFIG_DNOTIFY
 	{
-		.procname	= "dir-notify-enable",
-		.data		= &dir_notify_enable,
+		.procname	= "dir-yestify-enable",
+		.data		= &dir_yestify_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -1855,9 +1855,9 @@ static struct ctl_table fs_table[] = {
 #endif /* CONFIG_AIO */
 #ifdef CONFIG_INOTIFY_USER
 	{
-		.procname	= "inotify",
+		.procname	= "iyestify",
 		.mode		= 0555,
-		.child		= inotify_table,
+		.child		= iyestify_table,
 	},
 #endif	
 #ifdef CONFIG_EPOLL
@@ -1985,7 +1985,7 @@ int __init sysctl_init(void)
 	struct ctl_table_header *hdr;
 
 	hdr = register_sysctl_table(sysctl_base_table);
-	kmemleak_not_leak(hdr);
+	kmemleak_yest_leak(hdr);
 	return 0;
 }
 
@@ -2012,7 +2012,7 @@ static int _proc_do_string(char *data, int maxlen, int write,
 
 	if (write) {
 		if (sysctl_writes_strict == SYSCTL_WRITES_STRICT) {
-			/* Only continue writes not past the end of buffer. */
+			/* Only continue writes yest past the end of buffer. */
 			len = strlen(data);
 			if (len > maxlen - 1)
 				len = maxlen - 1;
@@ -2066,22 +2066,22 @@ static int _proc_do_string(char *data, int maxlen, int write,
 
 static void warn_sysctl_write(struct ctl_table *table)
 {
-	pr_warn_once("%s wrote to %s when file position was not 0!\n"
-		"This will not be supported in the future. To silence this\n"
+	pr_warn_once("%s wrote to %s when file position was yest 0!\n"
+		"This will yest be supported in the future. To silence this\n"
 		"warning, set kernel.sysctl_writes_strict = -1\n",
 		current->comm, table->procname);
 }
 
 /**
- * proc_first_pos_non_zero_ignore - check if first position is allowed
+ * proc_first_pos_yesn_zero_igyesre - check if first position is allowed
  * @ppos: file position
  * @table: the sysctl table
  *
- * Returns true if the first position is non-zero and the sysctl_writes_strict
- * mode indicates this is not allowed for numeric input types. String proc
- * handlers can ignore the return value.
+ * Returns true if the first position is yesn-zero and the sysctl_writes_strict
+ * mode indicates this is yest allowed for numeric input types. String proc
+ * handlers can igyesre the return value.
  */
-static bool proc_first_pos_non_zero_ignore(loff_t *ppos,
+static bool proc_first_pos_yesn_zero_igyesre(loff_t *ppos,
 					   struct ctl_table *table)
 {
 	if (!*ppos)
@@ -2107,11 +2107,11 @@ static bool proc_first_pos_non_zero_ignore(loff_t *ppos,
  * @ppos: file position
  *
  * Reads/writes a string from/to the user buffer. If the kernel
- * buffer provided is not large enough to hold the string, the
+ * buffer provided is yest large eyesugh to hold the string, the
  * string is truncated. The copied string is %NULL-terminated.
  * If the string is being read by the user process, it is copied
  * and a newline '\n' is added. It is truncated if the buffer is
- * not large enough.
+ * yest large eyesugh.
  *
  * Returns 0 on success.
  */
@@ -2119,7 +2119,7 @@ int proc_dostring(struct ctl_table *table, int write,
 		  void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (write)
-		proc_first_pos_non_zero_ignore(ppos, table);
+		proc_first_pos_yesn_zero_igyesre(ppos, table);
 
 	return _proc_do_string((char *)(table->data), table->maxlen, write,
 			       (char __user *)buffer, lenp, ppos);
@@ -2192,8 +2192,8 @@ static int strtoul_lenient(const char *cp, char **endp, unsigned int base,
  * @tr: pointer to store the trailer character
  *
  * In case of success %0 is returned and @buf and @size are updated with
- * the amount of bytes read. If @tr is non-NULL and a trailing
- * character exists (size is non-zero after returning from this
+ * the amount of bytes read. If @tr is yesn-NULL and a trailing
+ * character exists (size is yesn-zero after returning from this
  * function), @tr is updated with the trailing character.
  */
 static int proc_get_long(char **buf, size_t *size,
@@ -2227,9 +2227,9 @@ static int proc_get_long(char **buf, size_t *size,
 
 	len = p - tmp;
 
-	/* We don't know if the next char is whitespace thus we may accept
+	/* We don't kyesw if the next char is whitespace thus we may accept
 	 * invalid integers (e.g. 1234...a) or two integers instead of one
-	 * (e.g. 123...1). So lets not allow such large numbers. */
+	 * (e.g. 123...1). So lets yest allow such large numbers. */
 	if (len == TMPBUFLEN - 1)
 		return -EINVAL;
 
@@ -2354,7 +2354,7 @@ static int __do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 		conv = do_proc_dointvec_conv;
 
 	if (write) {
-		if (proc_first_pos_non_zero_ignore(ppos, table))
+		if (proc_first_pos_yesn_zero_igyesre(ppos, table))
 			goto out;
 
 		if (left > PAGE_SIZE - 1)
@@ -2439,7 +2439,7 @@ static int do_proc_douintvec_w(unsigned int *tbl_data,
 
 	left = *lenp;
 
-	if (proc_first_pos_non_zero_ignore(ppos, table))
+	if (proc_first_pos_yesn_zero_igyesre(ppos, table))
 		goto bail_early;
 
 	if (left > PAGE_SIZE - 1)
@@ -2534,7 +2534,7 @@ static int __do_proc_douintvec(void *tbl_data, struct ctl_table *table,
 	vleft = table->maxlen / sizeof(*i);
 
 	/*
-	 * Arrays are not supported, keep this simple. *Do not* add
+	 * Arrays are yest supported, keep this simple. *Do yest* add
 	 * support for them.
 	 */
 	if (vleft != 1) {
@@ -2763,7 +2763,7 @@ static int do_proc_douintvec_minmax_conv(unsigned long *lvalp,
  *
  * Reads/writes up to table->maxlen/sizeof(unsigned int) unsigned integer
  * values from/to the user buffer, treated as an ASCII string. Negative
- * strings are not allowed.
+ * strings are yest allowed.
  *
  * This routine will ensure the values are within the range specified by
  * table->extra1 (min) and table->extra2 (max). There is a final sanity
@@ -2867,7 +2867,7 @@ static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table, int 
 	left = *lenp;
 
 	if (write) {
-		if (proc_first_pos_non_zero_ignore(ppos, table))
+		if (proc_first_pos_yesn_zero_igyesre(ppos, table))
 			goto out;
 
 		if (left > PAGE_SIZE - 1)

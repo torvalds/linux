@@ -774,7 +774,7 @@ static void qlcnic_dcb_data_cee_param_map(struct qlcnic_adapter *adapter)
 	for (i = 0; i < QLC_DCB_NUM_PARAM; i++)
 		qlcnic_dcb_map_cee_params(adapter, i);
 
-	dcbnl_cee_notify(adapter->netdev, RTM_GETDCB, DCB_CMD_CEE_GET, 0, 0);
+	dcbnl_cee_yestify(adapter->netdev, RTM_GETDCB, DCB_CMD_CEE_GET, 0, 0);
 }
 
 static u8 qlcnic_dcb_get_state(struct net_device *netdev)

@@ -51,7 +51,7 @@ static void mtk_atomic_complete(struct mtk_drm_private *private,
 	drm_atomic_helper_wait_for_fences(drm, state, false);
 
 	/*
-	 * Mediatek drm supports runtime PM, so plane registers cannot be
+	 * Mediatek drm supports runtime PM, so plane registers canyest be
 	 * written when their crtc is disabled.
 	 *
 	 * The comment for drm_atomic_helper_commit states:
@@ -207,18 +207,18 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 {
 	struct mtk_drm_private *private = drm->dev_private;
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct device *dma_dev;
 	int ret;
 
 	if (!iommu_present(&platform_bus_type))
 		return -EPROBE_DEFER;
 
-	pdev = of_find_device_by_node(private->mutex_node);
+	pdev = of_find_device_by_yesde(private->mutex_yesde);
 	if (!pdev) {
 		dev_err(drm->dev, "Waiting for disp-mutex device %pOF\n",
-			private->mutex_node);
-		of_node_put(private->mutex_node);
+			private->mutex_yesde);
+		of_yesde_put(private->mutex_yesde);
 		return -EPROBE_DEFER;
 	}
 	private->mutex_dev = &pdev->dev;
@@ -262,9 +262,9 @@ static int mtk_drm_kms_init(struct drm_device *drm)
 		goto err_component_unbind;
 
 	/* Use OVL device for all DMA memory allocations */
-	np = private->comp_node[private->data->main_path[0]] ?:
-	     private->comp_node[private->data->ext_path[0]];
-	pdev = of_find_device_by_node(np);
+	np = private->comp_yesde[private->data->main_path[0]] ?:
+	     private->comp_yesde[private->data->ext_path[0]];
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev) {
 		ret = -ENODEV;
 		dev_err(drm->dev, "Need at least one OVL device\n");
@@ -348,7 +348,7 @@ static const struct file_operations mtk_drm_fops = {
 
 /*
  * We need to override this because the device used to import the memory is
- * not dev->dev, as drm_gem_prime_import() expects.
+ * yest dev->dev, as drm_gem_prime_import() expects.
  */
 struct drm_gem_object *mtk_drm_gem_prime_import(struct drm_device *dev,
 						struct dma_buf *dma_buf)
@@ -379,12 +379,12 @@ static struct drm_driver mtk_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.miyesr = DRIVER_MINOR,
 };
 
 static int compare_of(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->of_yesde == data;
 }
 
 static int mtk_drm_bind(struct device *dev)
@@ -486,7 +486,7 @@ static int mtk_drm_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct mtk_drm_private *private;
 	struct resource *mem;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct component_match *match = NULL;
 	int ret;
 	int i;
@@ -509,36 +509,36 @@ static int mtk_drm_probe(struct platform_device *pdev)
 	}
 
 	/* Iterate over sibling DISP function blocks */
-	for_each_child_of_node(dev->of_node->parent, node) {
+	for_each_child_of_yesde(dev->of_yesde->parent, yesde) {
 		const struct of_device_id *of_id;
 		enum mtk_ddp_comp_type comp_type;
 		int comp_id;
 
-		of_id = of_match_node(mtk_ddp_comp_dt_ids, node);
+		of_id = of_match_yesde(mtk_ddp_comp_dt_ids, yesde);
 		if (!of_id)
 			continue;
 
-		if (!of_device_is_available(node)) {
+		if (!of_device_is_available(yesde)) {
 			dev_dbg(dev, "Skipping disabled component %pOF\n",
-				node);
+				yesde);
 			continue;
 		}
 
 		comp_type = (enum mtk_ddp_comp_type)of_id->data;
 
 		if (comp_type == MTK_DISP_MUTEX) {
-			private->mutex_node = of_node_get(node);
+			private->mutex_yesde = of_yesde_get(yesde);
 			continue;
 		}
 
-		comp_id = mtk_ddp_comp_get_id(node, comp_type);
+		comp_id = mtk_ddp_comp_get_id(yesde, comp_type);
 		if (comp_id < 0) {
-			dev_warn(dev, "Skipping unknown component %pOF\n",
-				 node);
+			dev_warn(dev, "Skipping unkyeswn component %pOF\n",
+				 yesde);
 			continue;
 		}
 
-		private->comp_node[comp_id] = of_node_get(node);
+		private->comp_yesde[comp_id] = of_yesde_get(yesde);
 
 		/*
 		 * Currently only the COLOR, OVL, RDMA, DSI, and DPI blocks have
@@ -552,33 +552,33 @@ static int mtk_drm_probe(struct platform_device *pdev)
 		    comp_type == MTK_DSI ||
 		    comp_type == MTK_DPI) {
 			dev_info(dev, "Adding component match for %pOF\n",
-				 node);
+				 yesde);
 			drm_of_component_match_add(dev, &match, compare_of,
-						   node);
+						   yesde);
 		} else {
 			struct mtk_ddp_comp *comp;
 
 			comp = devm_kzalloc(dev, sizeof(*comp), GFP_KERNEL);
 			if (!comp) {
 				ret = -ENOMEM;
-				of_node_put(node);
-				goto err_node;
+				of_yesde_put(yesde);
+				goto err_yesde;
 			}
 
-			ret = mtk_ddp_comp_init(dev, node, comp, comp_id, NULL);
+			ret = mtk_ddp_comp_init(dev, yesde, comp, comp_id, NULL);
 			if (ret) {
-				of_node_put(node);
-				goto err_node;
+				of_yesde_put(yesde);
+				goto err_yesde;
 			}
 
 			private->ddp_comp[comp_id] = comp;
 		}
 	}
 
-	if (!private->mutex_node) {
-		dev_err(dev, "Failed to find disp-mutex node\n");
+	if (!private->mutex_yesde) {
+		dev_err(dev, "Failed to find disp-mutex yesde\n");
 		ret = -ENODEV;
-		goto err_node;
+		goto err_yesde;
 	}
 
 	pm_runtime_enable(dev);
@@ -593,10 +593,10 @@ static int mtk_drm_probe(struct platform_device *pdev)
 
 err_pm:
 	pm_runtime_disable(dev);
-err_node:
-	of_node_put(private->mutex_node);
+err_yesde:
+	of_yesde_put(private->mutex_yesde);
 	for (i = 0; i < DDP_COMPONENT_ID_MAX; i++)
-		of_node_put(private->comp_node[i]);
+		of_yesde_put(private->comp_yesde[i]);
 	return ret;
 }
 
@@ -607,9 +607,9 @@ static int mtk_drm_remove(struct platform_device *pdev)
 
 	component_master_del(&pdev->dev, &mtk_drm_ops);
 	pm_runtime_disable(&pdev->dev);
-	of_node_put(private->mutex_node);
+	of_yesde_put(private->mutex_yesde);
 	for (i = 0; i < DDP_COMPONENT_ID_MAX; i++)
-		of_node_put(private->comp_node[i]);
+		of_yesde_put(private->comp_yesde[i]);
 
 	return 0;
 }

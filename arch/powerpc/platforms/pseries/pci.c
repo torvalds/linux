@@ -22,12 +22,12 @@
 #if 0
 void pcibios_name_device(struct pci_dev *dev)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
 	/*
 	 * Add IBM loc code (slot) as a prefix to the device names for service
 	 */
-	dn = pci_device_to_OF_node(dev);
+	dn = pci_device_to_OF_yesde(dev);
 	if (dn) {
 		const char *loc_code = of_get_property(dn, "ibm,loc-code",
 				NULL);
@@ -68,7 +68,7 @@ int pseries_send_map_pe(struct pci_dev *pdev,
 		return -EINVAL;
 
 	pdn = pci_get_pdn(pdev);
-	addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	addr = rtas_config_addr(pdn->busyes, pdn->devfn, 0);
 	buid = pdn->phb->buid;
 	spin_lock(&rtas_data_buf_lock);
 	memcpy(rtas_data_buf, vf_pe_array,
@@ -152,7 +152,7 @@ int pseries_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 	int                    rc;
 	const int *max_vfs;
 	int max_config_vfs;
-	struct device_node *dn = pci_device_to_OF_node(pdev);
+	struct device_yesde *dn = pci_device_to_OF_yesde(pdev);
 
 	max_vfs = of_get_property(dn, "ibm,number-of-configurable-vfs", NULL);
 
@@ -235,11 +235,11 @@ void __init pSeries_final_fixup(void)
 	ppc_md.pcibios_sriov_enable = pseries_pcibios_sriov_enable;
 	ppc_md.pcibios_sriov_disable = pseries_pcibios_sriov_disable;
 #endif
-	list_for_each_entry(hose, &hose_list, list_node) {
-		struct device_node *dn = hose->dn, *nvdn;
+	list_for_each_entry(hose, &hose_list, list_yesde) {
+		struct device_yesde *dn = hose->dn, *nvdn;
 
 		while (1) {
-			dn = of_find_all_nodes(dn);
+			dn = of_find_all_yesdes(dn);
 			if (!dn)
 				break;
 			nvdn = of_parse_phandle(dn, "ibm,nvlink", 0);
@@ -292,7 +292,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105,
 
 int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
-	struct device_node *dn, *pdn;
+	struct device_yesde *dn, *pdn;
 	struct pci_bus *bus;
 	u32 pcie_link_speed_stats[2];
 	int rc;
@@ -303,7 +303,7 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 	pci_set_host_bridge_release(bridge, pcibios_free_controller_deferred,
 					(void *) pci_bus_to_host(bus));
 
-	dn = pcibios_get_phb_of_node(bus);
+	dn = pcibios_get_phb_of_yesde(bus);
 	if (!dn)
 		return 0;
 
@@ -315,10 +315,10 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 			break;
 	}
 
-	of_node_put(pdn);
+	of_yesde_put(pdn);
 
 	if (rc) {
-		pr_debug("no ibm,pcie-link-speed-stats property\n");
+		pr_debug("yes ibm,pcie-link-speed-stats property\n");
 		return 0;
 	}
 

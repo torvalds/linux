@@ -189,7 +189,7 @@ void csc_set_coeff(struct csc_data *csc, u32 *csc_reg0,
 		/* Y2R */
 
 		/*
-		 * These are not the standard default values but are
+		 * These are yest the standard default values but are
 		 * set this way for historical compatibility
 		 */
 		if (src_ycbcr_enc == V4L2_YCBCR_ENC_DEFAULT)
@@ -217,7 +217,7 @@ void csc_set_coeff(struct csc_data *csc, u32 *csc_reg0,
 		/* R2Y */
 
 		/*
-		 * These are not the standard default values but are
+		 * These are yest the standard default values but are
 		 * set this way for historical compatibility
 		 */
 		if (dst_ycbcr_enc == V4L2_YCBCR_ENC_DEFAULT)

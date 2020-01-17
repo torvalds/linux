@@ -369,7 +369,7 @@
 &mmc2 {
 	status = "okay";
 	vmmc-supply = <&wl12xx_vmmc>;
-	ti,non-removable;
+	ti,yesn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 	pinctrl-names = "default";
@@ -394,9 +394,9 @@
 };
 
 &gpio0 {
-	ti,no-reset-on-init;
+	ti,yes-reset-on-init;
 };
 
 &gpio3 {
-	ti,no-reset-on-init;
+	ti,yes-reset-on-init;
 };

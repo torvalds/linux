@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,12 +24,12 @@
 #include <nvif/class.h>
 
 int
-nv50_oimm_init(struct nouveau_drm *drm, struct nv50_wndw *wndw)
+nv50_oimm_init(struct yesuveau_drm *drm, struct nv50_wndw *wndw)
 {
 	static const struct {
 		s32 oclass;
 		int version;
-		int (*init)(struct nouveau_drm *, s32, struct nv50_wndw *);
+		int (*init)(struct yesuveau_drm *, s32, struct nv50_wndw *);
 	} oimms[] = {
 		{ GK104_DISP_OVERLAY, 0, oimm507b_init },
 		{ GF110_DISP_OVERLAY, 0, oimm507b_init },

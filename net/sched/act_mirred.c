@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -76,7 +76,7 @@ static void tcf_mirred_release(struct tc_action *a)
 	list_del(&m->tcfm_list);
 	spin_unlock(&mirred_list_lock);
 
-	/* last reference to action, no need to lock */
+	/* last reference to action, yes need to lock */
 	dev = rcu_dereference_protected(m->tcfm_dev, 1);
 	if (dev)
 		dev_put(dev);
@@ -138,14 +138,14 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			tcf_idr_release(*a, bind);
 		else
 			tcf_idr_cleanup(tn, index);
-		NL_SET_ERR_MSG_MOD(extack, "Unknown mirred option");
+		NL_SET_ERR_MSG_MOD(extack, "Unkyeswn mirred option");
 		return -EINVAL;
 	}
 
 	if (!exists) {
 		if (!parm->ifindex) {
 			tcf_idr_cleanup(tn, index);
-			NL_SET_ERR_MSG_MOD(extack, "Specified device does not exist");
+			NL_SET_ERR_MSG_MOD(extack, "Specified device does yest exist");
 			return -EINVAL;
 		}
 		ret = tcf_idr_create_from_flags(tn, index, est, a,
@@ -240,12 +240,12 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 	retval = READ_ONCE(m->tcf_action);
 	dev = rcu_dereference_bh(m->tcfm_dev);
 	if (unlikely(!dev)) {
-		pr_notice_once("tc mirred: target device is gone\n");
+		pr_yestice_once("tc mirred: target device is gone\n");
 		goto out;
 	}
 
 	if (unlikely(!(dev->flags & IFF_UP))) {
-		net_notice_ratelimited("tc mirred to Houston: device %s is down\n",
+		net_yestice_ratelimited("tc mirred to Houston: device %s is down\n",
 				       dev->name);
 		goto out;
 	}
@@ -377,10 +377,10 @@ static int tcf_mirred_search(struct net *net, struct tc_action **a, u32 index)
 	return tcf_idr_search(tn, a, index);
 }
 
-static int mirred_device_event(struct notifier_block *unused,
+static int mirred_device_event(struct yestifier_block *unused,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct tcf_mirred *m;
 
 	ASSERT_RTNL();
@@ -390,7 +390,7 @@ static int mirred_device_event(struct notifier_block *unused,
 			spin_lock_bh(&m->tcf_lock);
 			if (tcf_mirred_dev_dereference(m) == dev) {
 				dev_put(dev);
-				/* Note : no rcu grace period necessary, as
+				/* Note : yes rcu grace period necessary, as
 				 * net_device are already rcu protected.
 				 */
 				RCU_INIT_POINTER(m->tcfm_dev, NULL);
@@ -403,8 +403,8 @@ static int mirred_device_event(struct notifier_block *unused,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block mirred_device_notifier = {
-	.notifier_call = mirred_device_event,
+static struct yestifier_block mirred_device_yestifier = {
+	.yestifier_call = mirred_device_event,
 };
 
 static void tcf_mirred_dev_put(void *priv)
@@ -478,14 +478,14 @@ MODULE_LICENSE("GPL");
 
 static int __init mirred_init_module(void)
 {
-	int err = register_netdevice_notifier(&mirred_device_notifier);
+	int err = register_netdevice_yestifier(&mirred_device_yestifier);
 	if (err)
 		return err;
 
 	pr_info("Mirror/redirect action on\n");
 	err = tcf_register_action(&act_mirred_ops, &mirred_net_ops);
 	if (err)
-		unregister_netdevice_notifier(&mirred_device_notifier);
+		unregister_netdevice_yestifier(&mirred_device_yestifier);
 
 	return err;
 }
@@ -493,7 +493,7 @@ static int __init mirred_init_module(void)
 static void __exit mirred_cleanup_module(void)
 {
 	tcf_unregister_action(&act_mirred_ops, &mirred_net_ops);
-	unregister_netdevice_notifier(&mirred_device_notifier);
+	unregister_netdevice_yestifier(&mirred_device_yestifier);
 }
 
 module_init(mirred_init_module);

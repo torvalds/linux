@@ -41,7 +41,7 @@ static int _queue_setup(struct vb2_queue *vq,
 	sizes[0] = ctx->buf_siz;
 
 	/*
-	 * videobuf2-vmalloc allocator is context-less so no need to set
+	 * videobuf2-vmalloc allocator is context-less so yes need to set
 	 * alloc_ctxs array.
 	 */
 
@@ -57,7 +57,7 @@ static int _buffer_prepare(struct vb2_buffer *vb)
 	unsigned long size = ctx->buf_siz;
 
 	if (vb2_plane_size(vb, 0) < size) {
-		dprintk(1, "[%s] data will not fit into plane (%lu < %lu)\n",
+		dprintk(1, "[%s] data will yest fit into plane (%lu < %lu)\n",
 			ctx->name, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -164,7 +164,7 @@ static const struct vb2_buf_ops dvb_vb2_buf_ops = {
 /*
  * Videobuf operations
  */
-int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int nonblocking)
+int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int yesnblocking)
 {
 	struct vb2_queue *q = &ctx->vb_q;
 	int ret;
@@ -185,7 +185,7 @@ int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int nonblocking)
 	ret = vb2_core_queue_init(q);
 	if (ret) {
 		ctx->state = DVB_VB2_STATE_NONE;
-		dprintk(1, "[%s] errno=%d\n", ctx->name, ret);
+		dprintk(1, "[%s] erryes=%d\n", ctx->name, ret);
 		return ret;
 	}
 
@@ -194,7 +194,7 @@ int dvb_vb2_init(struct dvb_vb2_ctx *ctx, const char *name, int nonblocking)
 	INIT_LIST_HEAD(&ctx->dvb_q);
 
 	strscpy(ctx->name, name, DVB_VB2_NAME_MAX);
-	ctx->nonblocking = nonblocking;
+	ctx->yesnblocking = yesnblocking;
 	ctx->state = DVB_VB2_STATE_INIT;
 
 	dprintk(3, "[%s]\n", ctx->name);
@@ -223,7 +223,7 @@ int dvb_vb2_stream_on(struct dvb_vb2_ctx *ctx)
 	ret = vb2_core_streamon(q, q->type);
 	if (ret) {
 		ctx->state = DVB_VB2_STATE_NONE;
-		dprintk(1, "[%s] errno=%d\n", ctx->name, ret);
+		dprintk(1, "[%s] erryes=%d\n", ctx->name, ret);
 		return ret;
 	}
 	ctx->state |= DVB_VB2_STATE_STREAMON;
@@ -241,7 +241,7 @@ int dvb_vb2_stream_off(struct dvb_vb2_ctx *ctx)
 	ret = vb2_core_streamoff(q, q->type);
 	if (ret) {
 		ctx->state = DVB_VB2_STATE_NONE;
-		dprintk(1, "[%s] errno=%d\n", ctx->name, ret);
+		dprintk(1, "[%s] erryes=%d\n", ctx->name, ret);
 		return ret;
 	}
 	dprintk(3, "[%s]\n", ctx->name);
@@ -265,7 +265,7 @@ int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
 	int ll = 0;
 
 	/*
-	 * normal case: This func is called twice from demux driver
+	 * yesrmal case: This func is called twice from demux driver
 	 * one with valid src pointer, second time with NULL pointer
 	 */
 	if (!src || !len)
@@ -313,7 +313,7 @@ int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
 		}
 	}
 
-	if (ctx->nonblocking && ctx->buf) {
+	if (ctx->yesnblocking && ctx->buf) {
 		vb2_set_plane_payload(&ctx->buf->vb, 0, ll);
 		vb2_buffer_done(&ctx->buf->vb, VB2_BUF_STATE_DONE);
 		list_del(&ctx->buf->list);
@@ -345,7 +345,7 @@ int dvb_vb2_reqbufs(struct dvb_vb2_ctx *ctx, struct dmx_requestbuffers *req)
 	ret = vb2_core_reqbufs(&ctx->vb_q, VB2_MEMORY_MMAP, &req->count);
 	if (ret) {
 		ctx->state = DVB_VB2_STATE_NONE;
-		dprintk(1, "[%s] count=%d size=%d errno=%d\n", ctx->name,
+		dprintk(1, "[%s] count=%d size=%d erryes=%d\n", ctx->name,
 			ctx->buf_cnt, ctx->buf_siz, ret);
 		return ret;
 	}
@@ -371,7 +371,7 @@ int dvb_vb2_expbuf(struct dvb_vb2_ctx *ctx, struct dmx_exportbuffer *exp)
 	ret = vb2_core_expbuf(&ctx->vb_q, &exp->fd, q->type, exp->index,
 			      0, exp->flags);
 	if (ret) {
-		dprintk(1, "[%s] index=%d errno=%d\n", ctx->name,
+		dprintk(1, "[%s] index=%d erryes=%d\n", ctx->name,
 			exp->index, ret);
 		return ret;
 	}
@@ -386,7 +386,7 @@ int dvb_vb2_qbuf(struct dvb_vb2_ctx *ctx, struct dmx_buffer *b)
 
 	ret = vb2_core_qbuf(&ctx->vb_q, b->index, b, NULL);
 	if (ret) {
-		dprintk(1, "[%s] index=%d errno=%d\n", ctx->name,
+		dprintk(1, "[%s] index=%d erryes=%d\n", ctx->name,
 			b->index, ret);
 		return ret;
 	}
@@ -400,9 +400,9 @@ int dvb_vb2_dqbuf(struct dvb_vb2_ctx *ctx, struct dmx_buffer *b)
 	unsigned long flags;
 	int ret;
 
-	ret = vb2_core_dqbuf(&ctx->vb_q, &b->index, b, ctx->nonblocking);
+	ret = vb2_core_dqbuf(&ctx->vb_q, &b->index, b, ctx->yesnblocking);
 	if (ret) {
-		dprintk(1, "[%s] errno=%d\n", ctx->name, ret);
+		dprintk(1, "[%s] erryes=%d\n", ctx->name, ret);
 		return ret;
 	}
 
@@ -425,7 +425,7 @@ int dvb_vb2_mmap(struct dvb_vb2_ctx *ctx, struct vm_area_struct *vma)
 
 	ret = vb2_mmap(&ctx->vb_q, vma);
 	if (ret) {
-		dprintk(1, "[%s] errno=%d\n", ctx->name, ret);
+		dprintk(1, "[%s] erryes=%d\n", ctx->name, ret);
 		return ret;
 	}
 	dprintk(3, "[%s] ret=%d\n", ctx->name, ret);

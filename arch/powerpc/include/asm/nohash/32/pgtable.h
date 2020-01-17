@@ -3,7 +3,7 @@
 #define _ASM_POWERPC_NOHASH_32_PGTABLE_H
 
 #define __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>
@@ -36,7 +36,7 @@ extern int icache_44x_need_flush;
 #define PTRS_PER_PGD	(1 << PGD_INDEX_SIZE)
 
 /*
- * The normal case is that PTEs are 32-bits and we have a 1-page
+ * The yesrmal case is that PTEs are 32-bits and we have a 1-page
  * 1024-entry pgdir pointing to 1-page 1024-entry PTE pages.  -- paulus
  *
  * For any >32-bit physical address platform, we can use the following
@@ -71,7 +71,7 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
 
 /*
  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
- * value (for now) on others, from where we can start layout kernel
+ * value (for yesw) on others, from where we can start layout kernel
  * virtual space that goes below PKMAP and FIXMAP
  */
 #include <asm/fixmap.h>
@@ -99,7 +99,7 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced
  * area for the same reason. ;)
  *
- * We no longer map larger than phys RAM with the BATs so we don't have
+ * We yes longer map larger than phys RAM with the BATs so we don't have
  * to worry about the VMALLOC_OFFSET causing problems.  We do have to worry
  * about clashes between our early calls to ioremap() that start growing down
  * from IOREMAP_TOP being run into the VM area allocations (growing upwards
@@ -122,15 +122,15 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
  */
 
 #if defined(CONFIG_40x)
-#include <asm/nohash/32/pte-40x.h>
+#include <asm/yeshash/32/pte-40x.h>
 #elif defined(CONFIG_44x)
-#include <asm/nohash/32/pte-44x.h>
+#include <asm/yeshash/32/pte-44x.h>
 #elif defined(CONFIG_FSL_BOOKE) && defined(CONFIG_PTE_64BIT)
-#include <asm/nohash/pte-book3e.h>
+#include <asm/yeshash/pte-book3e.h>
 #elif defined(CONFIG_FSL_BOOKE)
-#include <asm/nohash/32/pte-fsl-booke.h>
+#include <asm/yeshash/32/pte-fsl-booke.h>
 #elif defined(CONFIG_PPC_8xx)
-#include <asm/nohash/32/pte-8xx.h>
+#include <asm/yeshash/32/pte-8xx.h>
 #endif
 
 /*
@@ -192,7 +192,7 @@ static inline pte_t pte_mkexec(pte_t pte)
 	return __pte(pte_val(pte) | _PAGE_EXEC);
 }
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_yesne(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
 #define	pmd_present(pmd)	(pmd_val(pmd) & _PMD_PRESENT_MASK)
 static inline void pmd_clear(pmd_t *pmdp)
@@ -204,8 +204,8 @@ static inline void pmd_clear(pmd_t *pmdp)
 
 /*
  * PTE updates. This function is called whenever an existing
- * valid PTE is updated. This does -not- include set_pte_at()
- * which nowadays only sets a new PTE.
+ * valid PTE is updated. This does -yest- include set_pte_at()
+ * which yeswadays only sets a new PTE.
  *
  * Depending on the type of MMU, we may need to use atomic updates
  * and the PTE may be either 32 or 64 bit wide. In the later case,
@@ -375,7 +375,7 @@ static inline int pte_young(pte_t pte)
 /*
  * Encode and decode a swap entry.
  * Note that the bits we use in a PTE for representing a swap entry
- * must not include the _PAGE_PRESENT bit.
+ * must yest include the _PAGE_PRESENT bit.
  *   -- paulus
  */
 #define __swp_type(entry)		((entry).val & 0x1f)

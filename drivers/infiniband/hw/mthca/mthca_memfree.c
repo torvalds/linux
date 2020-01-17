@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -302,7 +302,7 @@ void *mthca_table_find(struct mthca_icm_table *table, int obj, dma_addr_t *dma_h
 						dma_offset;
 				dma_offset -= sg_dma_len(&chunk->mem[i]);
 			}
-			/* DMA mapping can merge pages but not split them,
+			/* DMA mapping can merge pages but yest split them,
 			 * so if we found the page, dma_handle has already
 			 * been assigned to. */
 			if (chunk->mem[i].length > offset) {
@@ -355,7 +355,7 @@ void mthca_table_put_range(struct mthca_dev *dev, struct mthca_icm_table *table,
 
 struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 					      u64 virt, int obj_size,
-					      int nobj, int reserved,
+					      int yesbj, int reserved,
 					      int use_lowmem, int use_coherent)
 {
 	struct mthca_icm_table *table;
@@ -365,7 +365,7 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 	int i;
 
 	obj_per_chunk = MTHCA_TABLE_CHUNK_SIZE / obj_size;
-	num_icm = DIV_ROUND_UP(nobj, obj_per_chunk);
+	num_icm = DIV_ROUND_UP(yesbj, obj_per_chunk);
 
 	table = kmalloc(struct_size(table, icm, num_icm), GFP_KERNEL);
 	if (!table)
@@ -373,7 +373,7 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 
 	table->virt     = virt;
 	table->num_icm  = num_icm;
-	table->num_obj  = nobj;
+	table->num_obj  = yesbj;
 	table->obj_size = obj_size;
 	table->lowmem   = use_lowmem;
 	table->coherent = use_coherent;
@@ -384,8 +384,8 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 
 	for (i = 0; i * MTHCA_TABLE_CHUNK_SIZE < reserved * obj_size; ++i) {
 		chunk_size = MTHCA_TABLE_CHUNK_SIZE;
-		if ((i + 1) * MTHCA_TABLE_CHUNK_SIZE > nobj * obj_size)
-			chunk_size = nobj * obj_size - i * MTHCA_TABLE_CHUNK_SIZE;
+		if ((i + 1) * MTHCA_TABLE_CHUNK_SIZE > yesbj * obj_size)
+			chunk_size = yesbj * obj_size - i * MTHCA_TABLE_CHUNK_SIZE;
 
 		table->icm[i] = mthca_alloc_icm(dev, chunk_size >> PAGE_SHIFT,
 						(use_lowmem ? GFP_KERNEL : GFP_HIGHUSER) |
@@ -688,7 +688,7 @@ void mthca_free_db(struct mthca_dev *dev, int type, int db_index)
 
 		if (i == dev->db_tab->max_group1) {
 			--dev->db_tab->max_group1;
-			/* XXX may be able to unmap more pages now */
+			/* XXX may be able to unmap more pages yesw */
 		}
 		if (i == dev->db_tab->min_group2)
 			++dev->db_tab->min_group2;
@@ -739,14 +739,14 @@ void mthca_cleanup_db_tab(struct mthca_dev *dev)
 	 * Because we don't always free our UARC pages when they
 	 * become empty to make mthca_free_db() simpler we need to
 	 * make a sweep through the doorbell pages and free any
-	 * leftover pages now.
+	 * leftover pages yesw.
 	 */
 	for (i = 0; i < dev->db_tab->npages; ++i) {
 		if (!dev->db_tab->page[i].db_rec)
 			continue;
 
 		if (!bitmap_empty(dev->db_tab->page[i].used, MTHCA_DB_REC_PER_PAGE))
-			mthca_warn(dev, "Kernel UARC page %d not empty\n", i);
+			mthca_warn(dev, "Kernel UARC page %d yest empty\n", i);
 
 		mthca_UNMAP_ICM(dev, mthca_uarc_virt(dev, &dev->driver_uar, i), 1);
 

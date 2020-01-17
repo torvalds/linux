@@ -50,7 +50,7 @@ void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
 	const u32 stp_insn = UPROBE_STP_INSN;
 	u32 insn = *(u32 *) src;
 
-	/* Branches annulling their delay slot must be fixed to not do
+	/* Branches annulling their delay slot must be fixed to yest do
 	 * so.  Clearing the annul bit on these instructions we can be
 	 * sure the single-step breakpoint in the XOL slot will be
 	 * executed.
@@ -91,7 +91,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe,
 static unsigned long relbranch_fixup(u32 insn, struct uprobe_task *utask,
 				     struct pt_regs *regs)
 {
-	/* Branch not taken, no mods necessary.  */
+	/* Branch yest taken, yes mods necessary.  */
 	if (regs->tnpc == regs->tpc + 0x4UL)
 		return utask->autask.saved_tnpc + 0x4UL;
 
@@ -232,7 +232,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 }
 
 /* Handler for uprobe traps.  This is called from the traps table and
- * triggers the proper die notification.
+ * triggers the proper die yestification.
  */
 asmlinkage void uprobe_trap(struct pt_regs *regs,
 			    unsigned long trap_level)
@@ -240,7 +240,7 @@ asmlinkage void uprobe_trap(struct pt_regs *regs,
 	BUG_ON(trap_level != 0x173 && trap_level != 0x174);
 
 	/* We are only interested in user-mode code.  Uprobe traps
-	 * shall not be present in kernel code.
+	 * shall yest be present in kernel code.
 	 */
 	if (!user_mode(regs)) {
 		local_irq_enable();
@@ -251,15 +251,15 @@ asmlinkage void uprobe_trap(struct pt_regs *regs,
 	/* trap_level == 0x173 --> ta 0x73
 	 * trap_level == 0x174 --> ta 0x74
 	 */
-	if (notify_die((trap_level == 0x173) ? DIE_BPT : DIE_SSTEP,
+	if (yestify_die((trap_level == 0x173) ? DIE_BPT : DIE_SSTEP,
 				(trap_level == 0x173) ? "bpt" : "sstep",
 				regs, 0, trap_level, SIGTRAP) != NOTIFY_STOP)
 		bad_trap(regs, trap_level);
 }
 
-/* Callback routine for handling die notifications.
+/* Callback routine for handling die yestifications.
 */
-int arch_uprobe_exception_notify(struct notifier_block *self,
+int arch_uprobe_exception_yestify(struct yestifier_block *self,
 				 unsigned long val, void *data)
 {
 	int ret = NOTIFY_DONE;
@@ -271,12 +271,12 @@ int arch_uprobe_exception_notify(struct notifier_block *self,
 
 	switch (val) {
 	case DIE_BPT:
-		if (uprobe_pre_sstep_notifier(args->regs))
+		if (uprobe_pre_sstep_yestifier(args->regs))
 			ret = NOTIFY_STOP;
 		break;
 
 	case DIE_SSTEP:
-		if (uprobe_post_sstep_notifier(args->regs))
+		if (uprobe_post_sstep_yestifier(args->regs))
 			ret = NOTIFY_STOP;
 
 	default:

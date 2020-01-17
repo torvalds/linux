@@ -26,7 +26,7 @@ static int pn544_mei_probe(struct mei_cl_device *cldev,
 
 	phy = nfc_mei_phy_alloc(cldev);
 	if (!phy) {
-		pr_err("Cannot allocate memory for pn544 mei phy.\n");
+		pr_err("Canyest allocate memory for pn544 mei phy.\n");
 		return -ENOMEM;
 	}
 

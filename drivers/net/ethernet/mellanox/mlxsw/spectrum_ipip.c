@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <net/ip_tunnels.h>
 #include <net/ip6_tunnel.h>
@@ -166,7 +166,7 @@ mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(struct mlxsw_sp *mlxsw_sp,
 
 	/* Linux demuxes tunnels based on packet SIP (which must match tunnel
 	 * remote IP). Thus configure decap so that it filters out packets that
-	 * are not IPv4 or have the wrong SIP. IPIP_DECAP_ERROR trap is
+	 * are yest IPv4 or have the wrong SIP. IPIP_DECAP_ERROR trap is
 	 * generated for packets that fail this criterion. Linux then handles
 	 * such packets in slow path and generates ICMP destination unreachable.
 	 */
@@ -285,7 +285,7 @@ mlxsw_sp_ipip_ol_netdev_change_gre4(struct mlxsw_sp *mlxsw_sp,
 	if (!mlxsw_sp_l3addr_eq(&new_saddr, &old_saddr)) {
 		u16 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(ipip_entry->ol_dev);
 
-		/* Since the local address has changed, if there is another
+		/* Since the local address has changed, if there is ayesther
 		 * tunnel with a matching saddr, both need to be demoted.
 		 */
 		if (mlxsw_sp_ipip_demote_tunnel_by_saddr(mlxsw_sp,

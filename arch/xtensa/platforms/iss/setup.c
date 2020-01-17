@@ -15,7 +15,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/reboot.h>
 #include <linux/kdev_t.h>
 #include <linux/types.h>
@@ -24,7 +24,7 @@
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/stringify.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include <asm/platform.h>
 #include <asm/bootparam.h>
@@ -61,14 +61,14 @@ void platform_heartbeat(void)
 }
 
 static int
-iss_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
+iss_panic_event(struct yestifier_block *this, unsigned long event, void *ptr)
 {
 	simc_exit(1);
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block iss_panic_block = {
-	.notifier_call = iss_panic_event,
+static struct yestifier_block iss_panic_block = {
+	.yestifier_call = iss_panic_event,
 };
 
 void __init platform_setup(char **p_cmdline)
@@ -97,5 +97,5 @@ void __init platform_setup(char **p_cmdline)
 		}
 	}
 
-	atomic_notifier_chain_register(&panic_notifier_list, &iss_panic_block);
+	atomic_yestifier_chain_register(&panic_yestifier_list, &iss_panic_block);
 }

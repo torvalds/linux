@@ -62,7 +62,7 @@ static inline bool dma_fence_is_array(struct dma_fence *fence)
  * to_dma_fence_array - cast a fence to a dma_fence_array
  * @fence: fence to cast to a dma_fence_array
  *
- * Returns NULL if the fence is not a dma_fence_array,
+ * Returns NULL if the fence is yest a dma_fence_array,
  * or the dma_fence_array otherwise.
  */
 static inline struct dma_fence_array *
@@ -76,7 +76,7 @@ to_dma_fence_array(struct dma_fence *fence)
 
 struct dma_fence_array *dma_fence_array_create(int num_fences,
 					       struct dma_fence **fences,
-					       u64 context, unsigned seqno,
+					       u64 context, unsigned seqyes,
 					       bool signal_on_any);
 
 bool dma_fence_match_context(struct dma_fence *fence, u64 context);

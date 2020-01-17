@@ -83,7 +83,7 @@ static int bpcm_wr_rd_mask(void __iomem *master,
  */
 static DEFINE_SPINLOCK(pmb_lock);
 
-static int bcm63xx_pmb_get_resources(struct device_node *dn,
+static int bcm63xx_pmb_get_resources(struct device_yesde *dn,
 				     void __iomem **base,
 				     unsigned int *cpu,
 				     unsigned int *addr)
@@ -93,7 +93,7 @@ static int bcm63xx_pmb_get_resources(struct device_node *dn,
 
 	ret = of_property_read_u32(dn, "reg", cpu);
 	if (ret) {
-		pr_err("CPU is missing a reg node\n");
+		pr_err("CPU is missing a reg yesde\n");
 		return ret;
 	}
 
@@ -105,7 +105,7 @@ static int bcm63xx_pmb_get_resources(struct device_node *dn,
 	}
 
 	if (args.args_count != 2) {
-		pr_err("reset-controller does not conform to reset-cells\n");
+		pr_err("reset-controller does yest conform to reset-cells\n");
 		return -EINVAL;
 	}
 
@@ -115,13 +115,13 @@ static int bcm63xx_pmb_get_resources(struct device_node *dn,
 		return -ENOMEM;
 	}
 
-	/* We do not need the number of zones */
+	/* We do yest need the number of zones */
 	*addr = args.args[0];
 
 	return 0;
 }
 
-int bcm63xx_pmb_power_on_cpu(struct device_node *dn)
+int bcm63xx_pmb_power_on_cpu(struct device_yesde *dn)
 {
 	void __iomem *base;
 	unsigned int cpu, addr;
@@ -133,7 +133,7 @@ int bcm63xx_pmb_power_on_cpu(struct device_node *dn)
 	if (ret)
 		return ret;
 
-	/* We would not know how to enable a third and greater CPU */
+	/* We would yest kyesw how to enable a third and greater CPU */
 	WARN_ON(cpu > 1);
 
 	spin_lock_irqsave(&pmb_lock, flags);

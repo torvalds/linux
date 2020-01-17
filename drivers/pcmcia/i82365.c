@@ -5,7 +5,7 @@
     i82365.c 1.265 1999/11/10 18:36:21
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may yest use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -22,10 +22,10 @@
     terms of the GNU General Public License version 2 (the "GPL"), in which
     case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
+    only under the terms of the GPL and yest to allow others to use
     your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
+    by deleting the provisions above and replace them with the yestice
+    and other provisions required by the GPL.  If you do yest delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
     
@@ -38,7 +38,7 @@
 #include <linux/fcntl.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -77,8 +77,8 @@ static inline int _check_irq(int irq, int flags)
 static unsigned long i365_base = 0x3e0;
 /* Should we probe at 0x3e2 for an extra ISA controller? */
 static int extra_sockets = 0;
-/* Specify a socket number to ignore */
-static int ignore = -1;
+/* Specify a socket number to igyesre */
+static int igyesre = -1;
 /* Bit map or list of interrupts to choose from */
 static u_int irq_mask = 0xffff;
 static int irq_list[16];
@@ -90,7 +90,7 @@ static int cs_irq = 0;
 static int do_scan = 1;
 /* Poll status interval -- 0 means default to interrupt */
 static int poll_interval = 0;
-/* External clock time, in nanoseconds.  120 ns = 8.33 MHz */
+/* External clock time, in nayesseconds.  120 ns = 8.33 MHz */
 static int cycle_time = 120;
 
 /* Cirrus options */
@@ -109,7 +109,7 @@ static int cable_mode = -1;
 static int wakeup = 0;
 
 module_param_hw(i365_base, ulong, ioport, 0444);
-module_param(ignore, int, 0444);
+module_param(igyesre, int, 0444);
 module_param(extra_sockets, int, 0444);
 module_param_hw(irq_mask, int, other, 0444);
 module_param_hw_array(irq_list, int, irq, &irq_list_count, 0444);
@@ -464,7 +464,7 @@ static u_int __init set_bridge_opts(u_short s, u_short ns)
 	    m = vg46x_set_opts(i, buf);
 	set_bridge_state(i);
 	printk(KERN_INFO "    host opts [%d]:%s\n", i,
-	       (*buf) ? buf : " none");
+	       (*buf) ? buf : " yesne");
     }
     return m;
 }
@@ -553,7 +553,7 @@ static u_int __init isa_scan(u_short sock, u_int mask0)
     for (i = 0; i < 16; i++)
 	if (mask1 & (1<<i))
 	    printk("%s%d", ((mask1 & ((1<<i)-1)) ? "," : ""), i);
-    if (mask1 == 0) printk("none!");
+    if (mask1 == 0) printk("yesne!");
     
     return mask1;
 }
@@ -631,7 +631,7 @@ static int __init identify(unsigned int port, u_short sock)
 /*======================================================================
 
     See if a card is present, powered up, in IO mode, and already
-    bound to a (non PC Card) Linux driver.  We leave these alone.
+    bound to a (yesn PC Card) Linux driver.  We leave these alone.
 
     We make an exception for cards that seem to be serial devices.
     
@@ -791,7 +791,7 @@ static void __init isa_probe(void)
     id = identify(i365_base, 0);
     if ((id == IS_I82365DF) && (identify(i365_base, 1) != id)) {
 	for (i = 0; i < 4; i++) {
-	    if (i == ignore) continue;
+	    if (i == igyesre) continue;
 	    port = i365_base + ((i & 1) << 2) + ((i & 2) << 1);
 	    sock = (i & 1) << 1;
 	    if (identify(port, sock) == IS_I82365DF) {
@@ -810,7 +810,7 @@ static void __init isa_probe(void)
 
 	    for (j = ns = 0; j < 2; j++) {
 		/* Does the socket exist? */
-		if ((ignore == i+j) || (identify(port, sock+j) < 0))
+		if ((igyesre == i+j) || (identify(port, sock+j) < 0))
 		    continue;
 		/* Check for bad socket decode */
 		for (k = 0; k <= sockets; k++)
@@ -1263,7 +1263,7 @@ static int __init init_i82365(void)
     isa_probe();
 
     if (sockets == 0) {
-	printk("not found.\n");
+	printk("yest found.\n");
 	ret = -ENODEV;
 	goto err_dev_unregister;
     }
@@ -1279,7 +1279,7 @@ static int __init init_i82365(void)
     for (i = 0; i < sockets; i++) {
 	    socket[i].socket.dev.parent = &i82365_device->dev;
 	    socket[i].socket.ops = &pcic_operations;
-	    socket[i].socket.resource_ops = &pccard_nonstatic_ops;
+	    socket[i].socket.resource_ops = &pccard_yesnstatic_ops;
 	    socket[i].socket.owner = THIS_MODULE;
 	    socket[i].number = i;
 	    ret = pcmcia_register_socket(&socket[i].socket);

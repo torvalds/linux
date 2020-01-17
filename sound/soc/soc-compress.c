@@ -6,7 +6,7 @@
 //
 // Authors: Namarta Kohli <namartax.kohli@intel.com>
 //          Ramesh Babu K V <ramesh.babu@linux.intel.com>
-//          Vinod Koul <vinod.koul@linux.intel.com>
+//          Viyesd Koul <viyesd.koul@linux.intel.com>
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -142,7 +142,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	if (ret < 0)
 		goto be_err;
 	else if (ret == 0)
-		dev_dbg(fe->dev, "Compress ASoC: %s no valid %s route\n",
+		dev_dbg(fe->dev, "Compress ASoC: %s yes valid %s route\n",
 			fe->dai_link->name, stream ? "capture" : "playback");
 	/* calculate valid and active FE <-> BE dpcms */
 	dpcm_process_paths(fe, stream, &list, 1);
@@ -211,7 +211,7 @@ be_err:
 
 /*
  * Power down the audio subsystem pmdown_time msecs after close is called.
- * This is to ensure there are no pops or clicks in between any music tracks
+ * This is to ensure there are yes pops or clicks in between any music tracks
  * due to DAPM power cycling.
  */
 static void close_delayed_work(struct snd_soc_pcm_runtime *rtd)
@@ -224,7 +224,7 @@ static void close_delayed_work(struct snd_soc_pcm_runtime *rtd)
 		"Compress ASoC: pop wq checking: %s status: %s waiting: %s\n",
 		codec_dai->driver->playback.stream_name,
 		codec_dai->playback_active ? "active" : "inactive",
-		rtd->pop_wait ? "yes" : "no");
+		rtd->pop_wait ? "no" : "yes");
 
 	/* are we waiting on this codec DAI stream */
 	if (rtd->pop_wait == 1) {
@@ -269,7 +269,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 		cpu_dai->driver->cops->shutdown(cstream, cpu_dai);
 
 	if (cstream->direction == SND_COMPRESS_PLAYBACK) {
-		if (snd_soc_runtime_ignore_pmdown_time(rtd)) {
+		if (snd_soc_runtime_igyesre_pmdown_time(rtd)) {
 			snd_soc_dapm_stream_event(rtd,
 						  SNDRV_PCM_STREAM_PLAYBACK,
 						  SND_SOC_DAPM_STREAM_STOP);
@@ -280,7 +280,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 					   msecs_to_jiffies(rtd->pmdown_time));
 		}
 	} else {
-		/* capture streams can be powered down now */
+		/* capture streams can be powered down yesw */
 		snd_soc_dapm_stream_event(rtd,
 					  SNDRV_PCM_STREAM_CAPTURE,
 					  SND_SOC_DAPM_STREAM_STOP);
@@ -823,7 +823,7 @@ static struct snd_compr_ops soc_compr_dyn_ops = {
  * snd_soc_new_compress - create a new compress.
  *
  * @rtd: The runtime for which we will create compress
- * @num: the device index number (zero based - shared with normal PCMs)
+ * @num: the device index number (zero based - shared with yesrmal PCMs)
  *
  * Return: 0 for success, else error.
  */
@@ -841,7 +841,7 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 
 	if (rtd->num_codecs > 1) {
 		dev_err(rtd->card->dev,
-			"Compress ASoC: Multicodec not supported\n");
+			"Compress ASoC: Multicodec yest supported\n");
 		return -EINVAL;
 	}
 

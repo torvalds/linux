@@ -104,7 +104,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 	int ret;
 
 	/*
-	 * bits_per_word cannot be configured in platform data
+	 * bits_per_word canyest be configured in platform data
 	 */
 	spi->bits_per_word = 8;
 

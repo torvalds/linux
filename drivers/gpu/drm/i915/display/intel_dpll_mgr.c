@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -118,20 +118,20 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 	bool cur_state;
 	struct intel_dpll_hw_state hw_state;
 
-	if (WARN(!pll, "asserting DPLL %s with no DPLL\n", onoff(state)))
+	if (WARN(!pll, "asserting DPLL %s with yes DPLL\n", oyesff(state)))
 		return;
 
 	cur_state = pll->info->funcs->get_hw_state(dev_priv, pll, &hw_state);
 	I915_STATE_WARN(cur_state != state,
 	     "%s assertion failure (expected %s, current %s)\n",
-			pll->info->name, onoff(state), onoff(cur_state));
+			pll->info->name, oyesff(state), oyesff(cur_state));
 }
 
 /**
  * intel_prepare_shared_dpll - call a dpll's prepare hook
  * @crtc_state: CRTC, and its state, which has a shared dpll
  *
- * This calls the PLL's prepare hook if it has one and if the PLL is not
+ * This calls the PLL's prepare hook if it has one and if the PLL is yest
  * already enabled. The prepare hook is platform specific.
  */
 void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state)
@@ -280,7 +280,7 @@ intel_find_shared_dpll(struct intel_atomic_state *state,
 		}
 	}
 
-	/* Ok no matching timings, maybe there's a free one? */
+	/* Ok yes matching timings, maybe there's a free one? */
 	if (unused_pll) {
 		DRM_DEBUG_KMS("[CRTC:%d:%s] allocated %s\n",
 			      crtc->base.base.id, crtc->base.name,
@@ -342,10 +342,10 @@ static void intel_put_dpll(struct intel_atomic_state *state,
  * @state: atomic state
  *
  * This is the dpll version of drm_atomic_helper_swap_state() since the
- * helper does not handle driver-specific global state.
+ * helper does yest handle driver-specific global state.
  *
  * For consistency with atomic helpers this function does a complete swap,
- * i.e. it also puts the current state into @state, even though there is no
+ * i.e. it also puts the current state into @state, even though there is yes
  * need for that at this moment.
  */
 void intel_shared_dpll_swap_state(struct intel_atomic_state *state)
@@ -742,7 +742,7 @@ static void hsw_wrpll_update_rnp(u64 freq2k, unsigned int budget,
 			best->r2 = r2;
 		}
 	}
-	/* Otherwise a < c && b >= d, do nothing */
+	/* Otherwise a < c && b >= d, do yesthing */
 }
 
 static void
@@ -1018,7 +1018,7 @@ static void skl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 		   I915_READ(regs[id].ctl) | LCPLL_PLL_ENABLE);
 
 	if (intel_de_wait_for_set(dev_priv, DPLL_STATUS, DPLL_LOCK(id), 5))
-		DRM_ERROR("DPLL %d not locked\n", id);
+		DRM_ERROR("DPLL %d yest locked\n", id);
 }
 
 static void skl_ddi_dpll0_enable(struct drm_i915_private *dev_priv,
@@ -1068,7 +1068,7 @@ static bool skl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	val = I915_READ(DPLL_CTRL1);
 	hw_state->ctrl1 = (val >> (id * 6)) & 0x3f;
 
-	/* avoid reading back stale values if HDMI mode is not enabled */
+	/* avoid reading back stale values if HDMI mode is yest enabled */
 	if (val & DPLL_CTRL1_HDMI_MODE(id)) {
 		hw_state->cfgcr1 = I915_READ(regs[id].cfgcr1);
 		hw_state->cfgcr2 = I915_READ(regs[id].cfgcr2);
@@ -1448,13 +1448,13 @@ static bool skl_get_dpll(struct intel_atomic_state *state,
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		bret = skl_ddi_hdmi_pll_dividers(crtc_state);
 		if (!bret) {
-			DRM_DEBUG_KMS("Could not get HDMI pll dividers.\n");
+			DRM_DEBUG_KMS("Could yest get HDMI pll dividers.\n");
 			return false;
 		}
 	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
 		bret = skl_ddi_dp_set_dpll_hw_state(crtc_state);
 		if (!bret) {
-			DRM_DEBUG_KMS("Could not set DP dpll HW state.\n");
+			DRM_DEBUG_KMS("Could yest set DP dpll HW state.\n");
 			return false;
 		}
 	} else {
@@ -1526,7 +1526,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 
 		if (wait_for_us((I915_READ(BXT_PORT_PLL_ENABLE(port)) &
 				 PORT_PLL_POWER_STATE), 200))
-			DRM_ERROR("Power state not set for PLL:%d\n", port);
+			DRM_ERROR("Power state yest set for PLL:%d\n", port);
 	}
 
 	/* Disable 10 bit clock */
@@ -1605,7 +1605,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 
 	if (wait_for_us((I915_READ(BXT_PORT_PLL_ENABLE(port)) & PORT_PLL_LOCK),
 			200))
-		DRM_ERROR("PLL %d not locked\n", port);
+		DRM_ERROR("PLL %d yest locked\n", port);
 
 	if (IS_GEMINILAKE(dev_priv)) {
 		temp = I915_READ(BXT_PORT_TX_DW5_LN0(phy, ch));
@@ -1642,7 +1642,7 @@ static void bxt_ddi_pll_disable(struct drm_i915_private *dev_priv,
 
 		if (wait_for_us(!(I915_READ(BXT_PORT_PLL_ENABLE(port)) &
 				PORT_PLL_POWER_STATE), 200))
-			DRM_ERROR("Power state not reset for PLL:%d\n", port);
+			DRM_ERROR("Power state yest reset for PLL:%d\n", port);
 	}
 }
 
@@ -1706,7 +1706,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	/*
 	 * While we write to the group register to program all lanes at once we
 	 * can read only lane registers. We configure all lanes the same way, so
-	 * here just read out lanes 0/1 and output a note if lanes 2/3 differ.
+	 * here just read out lanes 0/1 and output a yeste if lanes 2/3 differ.
 	 */
 	hw_state->pcsdw12 = I915_READ(BXT_PORT_PCS_DW12_LN01(phy, ch));
 	if (I915_READ(BXT_PORT_PCS_DW12_LN23(phy, ch)) != hw_state->pcsdw12)
@@ -1760,7 +1760,7 @@ bxt_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state,
 	 * i9xx_crtc_compute_clock
 	 */
 	if (!bxt_find_best_dpll(crtc_state, &best_clock)) {
-		DRM_DEBUG_DRIVER("no PLL dividers found for clock %d pipe %c\n",
+		DRM_DEBUG_DRIVER("yes PLL dividers found for clock %d pipe %c\n",
 				 crtc_state->port_clock,
 				 pipe_name(crtc->pipe));
 		return false;
@@ -2031,7 +2031,7 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	/* 2. Wait for DPLL power state enabled in DPLL_ENABLE. */
 	if (intel_de_wait_for_set(dev_priv, CNL_DPLL_ENABLE(id),
 				  PLL_POWER_STATE, 5))
-		DRM_ERROR("PLL %d Power not enabled\n", id);
+		DRM_ERROR("PLL %d Power yest enabled\n", id);
 
 	/*
 	 * 3. Configure DPLL_CFGCR0 to set SSC enable/disable,
@@ -2044,7 +2044,7 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	POSTING_READ(CNL_DPLL_CFGCR0(id));
 
 	/* 3. Configure DPLL_CFGCR0 */
-	/* Avoid touch CFGCR1 if HDMI mode is not enabled */
+	/* Avoid touch CFGCR1 if HDMI mode is yest enabled */
 	if (pll->state.hw_state.cfgcr0 & DPLL_CFGCR0_HDMI_MODE) {
 		val = pll->state.hw_state.cfgcr1;
 		I915_WRITE(CNL_DPLL_CFGCR1(id), val);
@@ -2058,7 +2058,7 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	 * Sequence Before Frequency Change
 	 *
 	 * Note: DVFS is actually handled via the cdclk code paths,
-	 * hence we do nothing here.
+	 * hence we do yesthing here.
 	 */
 
 	/* 6. Enable DPLL in DPLL_ENABLE. */
@@ -2068,7 +2068,7 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 
 	/* 7. Wait for PLL lock status in DPLL_ENABLE. */
 	if (intel_de_wait_for_set(dev_priv, CNL_DPLL_ENABLE(id), PLL_LOCK, 5))
-		DRM_ERROR("PLL %d not locked\n", id);
+		DRM_ERROR("PLL %d yest locked\n", id);
 
 	/*
 	 * 8. If the frequency will result in a change to the voltage
@@ -2076,7 +2076,7 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	 * Sequence After Frequency Change
 	 *
 	 * Note: DVFS is actually handled via the cdclk code paths,
-	 * hence we do nothing here.
+	 * hence we do yesthing here.
 	 */
 
 	/*
@@ -2102,7 +2102,7 @@ static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	 * Sequence Before Frequency Change
 	 *
 	 * Note: DVFS is actually handled via the cdclk code paths,
-	 * hence we do nothing here.
+	 * hence we do yesthing here.
 	 */
 
 	/* 3. Disable DPLL through DPLL_ENABLE. */
@@ -2110,7 +2110,7 @@ static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	val &= ~PLL_ENABLE;
 	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
-	/* 4. Wait for PLL not locked status in DPLL_ENABLE. */
+	/* 4. Wait for PLL yest locked status in DPLL_ENABLE. */
 	if (intel_de_wait_for_clear(dev_priv, CNL_DPLL_ENABLE(id), PLL_LOCK, 5))
 		DRM_ERROR("PLL %d locked\n", id);
 
@@ -2120,7 +2120,7 @@ static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	 * Sequence After Frequency Change
 	 *
 	 * Note: DVFS is actually handled via the cdclk code paths,
-	 * hence we do nothing here.
+	 * hence we do yesthing here.
 	 */
 
 	/* 6. Disable DPLL power in DPLL_ENABLE. */
@@ -2131,7 +2131,7 @@ static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	/* 7. Wait for DPLL power state disabled in DPLL_ENABLE. */
 	if (intel_de_wait_for_clear(dev_priv, CNL_DPLL_ENABLE(id),
 				    PLL_POWER_STATE, 5))
-		DRM_ERROR("PLL %d Power not disabled\n", id);
+		DRM_ERROR("PLL %d Power yest disabled\n", id);
 }
 
 static bool cnl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
@@ -2157,7 +2157,7 @@ static bool cnl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	val = I915_READ(CNL_DPLL_CFGCR0(id));
 	hw_state->cfgcr0 = val;
 
-	/* avoid reading back stale values if HDMI mode is not enabled */
+	/* avoid reading back stale values if HDMI mode is yest enabled */
 	if (val & DPLL_CFGCR0_HDMI_MODE) {
 		hw_state->cfgcr1 = I915_READ(CNL_DPLL_CFGCR1(id));
 	}
@@ -2401,13 +2401,13 @@ static bool cnl_get_dpll(struct intel_atomic_state *state,
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		bret = cnl_ddi_hdmi_pll_dividers(crtc_state);
 		if (!bret) {
-			DRM_DEBUG_KMS("Could not get HDMI pll dividers.\n");
+			DRM_DEBUG_KMS("Could yest get HDMI pll dividers.\n");
 			return false;
 		}
 	} else if (intel_crtc_has_dp_encoder(crtc_state)) {
 		bret = cnl_ddi_dp_set_dpll_hw_state(crtc_state);
 		if (!bret) {
-			DRM_DEBUG_KMS("Could not set DP dpll HW state.\n");
+			DRM_DEBUG_KMS("Could yest set DP dpll HW state.\n");
 			return false;
 		}
 	} else {
@@ -2470,7 +2470,7 @@ struct icl_combo_pll_params {
 
 /*
  * These values alrea already adjusted: they're the bits we write to the
- * registers, not the logical values.
+ * registers, yest the logical values.
  */
 static const struct icl_combo_pll_params icl_dp_combo_pll_24MHz_values[] = {
 	{ 540000,
@@ -2687,7 +2687,7 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 
 			if (div2 >= 2) {
 				/*
-				 * Note: a_divratio not matching TGL BSpec
+				 * Note: a_divratio yest matching TGL BSpec
 				 * algorithm but matching hardcoded values and
 				 * working on HW for DP alt-mode at least
 				 */
@@ -2815,7 +2815,7 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 	 * the formula to avoid early divisions so we don't multiply the
 	 * rounding errors.
 	 *
-	 * 0.000003 * 8 * 50 * 1.1 = 0.00132, also known as 132 / 100000, which
+	 * 0.000003 * 8 * 50 * 1.1 = 0.00132, also kyeswn as 132 / 100000, which
 	 * we also rearrange to work with integers.
 	 *
 	 * The 0.5 transformed to 5 results in a multiplication by 10 and the
@@ -2825,7 +2825,7 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 
 	/*
 	 * Here we divide dco_khz by 10 in order to allow the dividend to fit in
-	 * 32 bits. That's not a problem since we round the division down
+	 * 32 bits. That's yest a problem since we round the division down
 	 * anyway.
 	 */
 	feedfwgain = (use_ssc || m2div_rem > 0) ?
@@ -2996,7 +2996,7 @@ static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 	unsigned long dpll_mask;
 
 	if (!icl_calc_dpll_state(crtc_state, encoder, &port_dpll->hw_state)) {
-		DRM_DEBUG_KMS("Could not calculate combo PHY PLL state.\n");
+		DRM_DEBUG_KMS("Could yest calculate combo PHY PLL state.\n");
 
 		return false;
 	}
@@ -3038,7 +3038,7 @@ static bool icl_get_tc_phy_dplls(struct intel_atomic_state *state,
 
 	port_dpll = &crtc_state->icl_port_dplls[ICL_PORT_DPLL_DEFAULT];
 	if (!icl_calc_dpll_state(crtc_state, encoder, &port_dpll->hw_state)) {
-		DRM_DEBUG_KMS("Could not calculate TBT PLL state.\n");
+		DRM_DEBUG_KMS("Could yest calculate TBT PLL state.\n");
 		return false;
 	}
 
@@ -3055,7 +3055,7 @@ static bool icl_get_tc_phy_dplls(struct intel_atomic_state *state,
 
 	port_dpll = &crtc_state->icl_port_dplls[ICL_PORT_DPLL_MG_PHY];
 	if (!icl_calc_mg_pll_state(crtc_state, &port_dpll->hw_state)) {
-		DRM_DEBUG_KMS("Could not calculate MG PHY PLL state.\n");
+		DRM_DEBUG_KMS("Could yest calculate MG PHY PLL state.\n");
 		goto err_unreference_tbt_pll;
 	}
 
@@ -3477,7 +3477,7 @@ static void icl_pll_power_enable(struct drm_i915_private *dev_priv,
 	 * immediate.
 	 */
 	if (intel_de_wait_for_set(dev_priv, enable_reg, PLL_POWER_STATE, 1))
-		DRM_ERROR("PLL %d Power not enabled\n", pll->info->id);
+		DRM_ERROR("PLL %d Power yest enabled\n", pll->info->id);
 }
 
 static void icl_pll_enable(struct drm_i915_private *dev_priv,
@@ -3492,7 +3492,7 @@ static void icl_pll_enable(struct drm_i915_private *dev_priv,
 
 	/* Timeout is actually 600us. */
 	if (intel_de_wait_for_set(dev_priv, enable_reg, PLL_LOCK, 1))
-		DRM_ERROR("PLL %d not locked\n", pll->info->id);
+		DRM_ERROR("PLL %d yest locked\n", pll->info->id);
 }
 
 static void combo_pll_enable(struct drm_i915_private *dev_priv,
@@ -3520,7 +3520,7 @@ static void combo_pll_enable(struct drm_i915_private *dev_priv,
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
 	 * paths should already be setting the appropriate voltage, hence we do
-	 * nothing here.
+	 * yesthing here.
 	 */
 
 	icl_pll_enable(dev_priv, pll, enable_reg);
@@ -3538,7 +3538,7 @@ static void tbt_pll_enable(struct drm_i915_private *dev_priv,
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
 	 * paths should already be setting the appropriate voltage, hence we do
-	 * nothing here.
+	 * yesthing here.
 	 */
 
 	icl_pll_enable(dev_priv, pll, TBT_PLL_ENABLE);
@@ -3562,7 +3562,7 @@ static void mg_pll_enable(struct drm_i915_private *dev_priv,
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
 	 * paths should already be setting the appropriate voltage, hence we do
-	 * nothing here.
+	 * yesthing here.
 	 */
 
 	icl_pll_enable(dev_priv, pll, enable_reg);
@@ -3581,7 +3581,7 @@ static void icl_pll_disable(struct drm_i915_private *dev_priv,
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
 	 * paths should already be setting the appropriate voltage, hence we do
-	 * nothign here.
+	 * yesthign here.
 	 */
 
 	val = I915_READ(enable_reg);
@@ -3603,7 +3603,7 @@ static void icl_pll_disable(struct drm_i915_private *dev_priv,
 	 * immediate.
 	 */
 	if (intel_de_wait_for_clear(dev_priv, enable_reg, PLL_POWER_STATE, 1))
-		DRM_ERROR("PLL %d Power not disabled\n", pll->info->id);
+		DRM_ERROR("PLL %d Power yest disabled\n", pll->info->id);
 }
 
 static void combo_pll_disable(struct drm_i915_private *dev_priv,
@@ -3840,7 +3840,7 @@ void intel_release_shared_dplls(struct intel_atomic_state *state,
 	/*
 	 * FIXME: this function is called for every platform having a
 	 * compute_clock hook, even though the platform doesn't yet support
-	 * the shared DPLL framework and intel_reserve_shared_dplls() is not
+	 * the shared DPLL framework and intel_reserve_shared_dplls() is yest
 	 * called on those.
 	 */
 	if (!dpll_mgr)

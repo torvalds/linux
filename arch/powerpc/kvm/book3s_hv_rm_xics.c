@@ -70,12 +70,12 @@ static inline void icp_send_hcore_msg(int hcore, struct kvm_vcpu *vcpu) { }
  * We start the search from our current CPU Id in the core map
  * and go in a circle until we get back to our ID looking for a
  * core that is running in host context and that hasn't already
- * been targeted for another rm_host_ops.
+ * been targeted for ayesther rm_host_ops.
  *
  * In the future, could consider using a fairer algorithm (one
  * that distributes the IPIs better)
  *
- * Returns -1, if no CPU could be found in the host
+ * Returns -1, if yes CPU could be found in the host
  * Else, returns a CPU Id which has been reserved for use
  */
 static inline int grab_next_hostcore(int start,
@@ -91,7 +91,7 @@ static inline int grab_next_hostcore(int start,
 		if (!old.in_host || old.rm_action)
 			continue;
 
-		/* Try to grab this host core if not taken already. */
+		/* Try to grab this host core if yest taken already. */
 		new.rm_action = action;
 
 		success = cmpxchg64(&rm_core[core].rm_state.raw,
@@ -150,7 +150,7 @@ static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 
 	/*
 	 * Check if the core is loaded,
-	 * if not, find an available host core to post to wake the VCPU,
+	 * if yest, find an available host core to post to wake the VCPU,
 	 * if we can't find one, set up state to eventually return too hard.
 	 */
 	cpu = vcpu->arch.thread_cpu;
@@ -196,13 +196,13 @@ static inline bool icp_rm_try_update(struct kvmppc_icp *icp,
 	/*
 	 * Check for output state update
 	 *
-	 * Note that this is racy since another processor could be updating
+	 * Note that this is racy since ayesther processor could be updating
 	 * the state already. This is why we never clear the interrupt output
 	 * here, we only ever set it. The clear only happens prior to doing
 	 * an update and only by the processor itself. Currently we do it
 	 * in Accept (H_XIRR) and Up_Cppr (H_XPPR).
 	 *
-	 * We also do not try to figure out whether the EE state has changed,
+	 * We also do yest try to figure out whether the EE state has changed,
 	 * we unconditionally set it if the new state calls for it. The reason
 	 * for that is that we opportunistically remove the pending interrupt
 	 * flag when raising CPPR, so we need to set it back here if an
@@ -294,7 +294,7 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 * for subsequent rejection.
 	 *
 	 * Rejection can be racy vs. resends. We have evaluated the
-	 * rejection in an atomic ICP transaction which is now complete,
+	 * rejection in an atomic ICP transaction which is yesw complete,
 	 * so potentially the ICP can already accept the interrupt again.
 	 *
 	 * So we need to retry the delivery. Essentially the reject path
@@ -308,8 +308,8 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	/* Get the ICS state and lock it */
 	ics = kvmppc_xics_find_ics(xics, new_irq, &src);
 	if (!ics) {
-		/* Unsafe increment, but this does not need to be accurate */
-		xics->err_noics++;
+		/* Unsafe increment, but this does yest need to be accurate */
+		xics->err_yesics++;
 		return;
 	}
 	state = &ics->irq_state[src];
@@ -322,7 +322,7 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		icp = kvmppc_xics_find_server(xics->kvm, state->server);
 		if (!icp) {
 			/* Unsafe increment again*/
-			xics->err_noicp++;
+			xics->err_yesicp++;
 			goto out;
 		}
 	}
@@ -342,11 +342,11 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 *
 	 * However that would have the effect of losing a masked
 	 * interrupt that was rejected and isn't consistent with
-	 * the whole masked_pending business which is about not
+	 * the whole masked_pending business which is about yest
 	 * losing interrupts that occur while masked.
 	 *
-	 * I don't differentiate normal deliveries and resends, this
-	 * implementation will differ from PAPR and not lose such
+	 * I don't differentiate yesrmal deliveries and resends, this
+	 * implementation will differ from PAPR and yest lose such
 	 * interrupts.
 	 */
 	if (state->priority == MASKED) {
@@ -357,14 +357,14 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	/*
 	 * Try the delivery, this will set the need_resend flag
 	 * in the ICP as part of the atomic transaction if the
-	 * delivery is not possible.
+	 * delivery is yest possible.
 	 *
 	 * Note that if successful, the new delivery might have itself
 	 * rejected an interrupt that was "delivered" before we took the
 	 * ics spin lock.
 	 *
 	 * In this case we do the whole sequence all over again for the
-	 * new guy. We cannot assume that the rejected interrupt is less
+	 * new guy. We canyest assume that the rejected interrupt is less
 	 * favored than the new one, and thus doesn't need to be delivered,
 	 * because by the time we exit icp_rm_try_to_deliver() the target
 	 * processor may well have already consumed & completed it, and thus
@@ -397,8 +397,8 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 
 		/*
 		 * If the need_resend flag got cleared in the ICP some time
-		 * between icp_rm_try_to_deliver() atomic update and now, then
-		 * we know it might have missed the resend_map bit. So we
+		 * between icp_rm_try_to_deliver() atomic update and yesw, then
+		 * we kyesw it might have missed the resend_map bit. So we
 		 * retry
 		 */
 		smp_mb();
@@ -430,13 +430,13 @@ static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 * ICP State: Resend
 	 *
 	 * If MFRR is more favored than CPPR, check for IPIs
-	 * and notify ICS of a potential resend. This is done
-	 * asynchronously (when used in real mode, we will have
+	 * and yestify ICS of a potential resend. This is done
+	 * asynchroyesusly (when used in real mode, we will have
 	 * to exit here).
 	 *
-	 * We do not handle the complete Check_IPI as documented
+	 * We do yest handle the complete Check_IPI as documented
 	 * here. In the PAPR, this state will be used for both
-	 * Set_MFRR and Down_CPPR. However, we know that we aren't
+	 * Set_MFRR and Down_CPPR. However, we kyesw that we aren't
 	 * changing the MFRR state here so we don't need to handle
 	 * the case of an MFRR causing a reject of a pending irq,
 	 * this will have been handled when the MFRR was set in the
@@ -457,11 +457,11 @@ static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		/*
 		 * Cut down Resend / Check_IPI / IPI
 		 *
-		 * The logic is that we cannot have a pending interrupt
+		 * The logic is that we canyest have a pending interrupt
 		 * trumped by an IPI at this point (see above), so we
-		 * know that either the pending interrupt is already an
+		 * kyesw that either the pending interrupt is already an
 		 * IPI (in which case we don't care to override it) or
-		 * it's either more favored than us or non existent
+		 * it's either more favored than us or yesn existent
 		 */
 		if (new_state.mfrr < new_cppr &&
 		    new_state.mfrr <= new_state.pending_pri) {
@@ -476,7 +476,7 @@ static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	} while (!icp_rm_try_update(icp, old_state, new_state));
 
 	/*
-	 * Now handle resend checks. Those are asynchronous to the ICP
+	 * Now handle resend checks. Those are asynchroyesus to the ICP
 	 * state update in HW (ie bus transactions) so we can handle them
 	 * separately here as well.
 	 */
@@ -550,7 +550,7 @@ int xics_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	 * ICP state: Set_MFRR
 	 *
 	 * If the CPPR is more favored than the new MFRR, then
-	 * nothing needs to be done as there can be no XISR to
+	 * yesthing needs to be done as there can be yes XISR to
 	 * reject.
 	 *
 	 * ICP state: Check_IPI
@@ -563,7 +563,7 @@ int xics_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	 * Besides rejecting any pending interrupts, we also
 	 * update XISR and pending_pri to mark IPI as pending.
 	 *
-	 * PAPR does not describe this state, but if the MFRR is being
+	 * PAPR does yest describe this state, but if the MFRR is being
 	 * made less favored than its earlier value, there might be
 	 * a previously-rejected interrupt needing to be resent.
 	 * Ideally, we would want to resend only if
@@ -583,7 +583,7 @@ int xics_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 		reject = 0;
 		resend = false;
 		if (mfrr < new_state.cppr) {
-			/* Reject a pending interrupt if not an IPI */
+			/* Reject a pending interrupt if yest an IPI */
 			if (mfrr <= new_state.pending_pri) {
 				reject = new_state.xisr;
 				new_state.pending_pri = mfrr;
@@ -708,7 +708,7 @@ static int ics_rm_eoi(struct kvm_vcpu *vcpu, u32 irq)
 	if (pq_new & PQ_PRESENTED)
 		icp_rm_deliver_irq(xics, NULL, irq, false);
 
-	if (!hlist_empty(&vcpu->kvm->irq_ack_notifier_list)) {
+	if (!hlist_empty(&vcpu->kvm->irq_ack_yestifier_list)) {
 		icp->rm_action |= XICS_RM_NOTIFY_EOI;
 		icp->rm_eoied_irq = irq;
 	}
@@ -745,7 +745,7 @@ int xics_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	 * ICP State: EOI
 	 *
 	 * Note: If EOI is incorrectly used by SW to lower the CPPR
-	 * value (ie more favored), we do not check for rejection of
+	 * value (ie more favored), we do yest check for rejection of
 	 * a pending interrupt, this is a SW error and PAPR specifies
 	 * that we don't have to deal with it.
 	 *
@@ -757,7 +757,7 @@ int xics_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	 */
 	icp_rm_down_cppr(xics, icp, xirr >> 24);
 
-	/* IPIs have no EOI */
+	/* IPIs have yes EOI */
 	if (irq == XICS_IPI)
 		return check_too_hard(xics, icp);
 
@@ -828,8 +828,8 @@ static inline void this_cpu_inc_rm(unsigned int __percpu *addr)
 
 /*
  * We don't try to update the flags in the irq_desc 'istate' field in
- * here as would happen in the normal IRQ handling path for several reasons:
- *  - state flags represent internal IRQ state and are not expected to be
+ * here as would happen in the yesrmal IRQ handling path for several reasons:
+ *  - state flags represent internal IRQ state and are yest expected to be
  *    updated outside the IRQ subsystem
  *  - more importantly, these are useful for edge triggered interrupts,
  *    IRQ probing, etc., but we are only handling MSI/MSIx interrupts here

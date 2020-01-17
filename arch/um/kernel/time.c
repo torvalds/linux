@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Anton Ivanov (aivanov@{brocade.com,kot-begemot.co.uk})
+ * Copyright (C) 2015 Anton Ivayesv (aivayesv@{brocade.com,kot-begemot.co.uk})
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2012-2014 Cisco Systems
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
@@ -44,7 +44,7 @@ void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 	 * (signals) but since we don't read time from the OS, we
 	 * must update the simulated time here to the expiry when
 	 * we get a signal.
-	 * This is not the case in inf-cpu mode, since there we
+	 * This is yest the case in inf-cpu mode, since there we
 	 * never get any real signals from the OS.
 	 */
 	if (time_travel_mode == TT_MODE_BASIC)
@@ -117,7 +117,7 @@ static struct clock_event_device timer_clockevent = {
 	.max_delta_ns		= 0xffffffff,
 	.max_delta_ticks	= 0xffffffff,
 	.min_delta_ns		= TIMER_MIN_DELTA,
-	.min_delta_ticks	= TIMER_MIN_DELTA, // microsecond resolution should be enough for anyone, same as 640K RAM
+	.min_delta_ticks	= TIMER_MIN_DELTA, // microsecond resolution should be eyesugh for anyone, same as 640K RAM
 	.irq			= 0,
 	.mult			= 1,
 };
@@ -166,11 +166,11 @@ static void __init um_timer_setup(void)
 	err = request_irq(TIMER_IRQ, um_timer, IRQF_TIMER, "hr timer", NULL);
 	if (err != 0)
 		printk(KERN_ERR "register_timer : request_irq failed - "
-		       "errno = %d\n", -err);
+		       "erryes = %d\n", -err);
 
 	err = os_timer_create();
 	if (err != 0) {
-		printk(KERN_ERR "creation of timer failed - errno = %d\n", -err);
+		printk(KERN_ERR "creation of timer failed - erryes = %d\n", -err);
 		return;
 	}
 
@@ -191,7 +191,7 @@ void read_persistent_clock64(struct timespec64 *ts)
 	else
 		nsecs = os_persistent_clock_emulation();
 
-	set_normalized_timespec64(ts, nsecs / NSEC_PER_SEC,
+	set_yesrmalized_timespec64(ts, nsecs / NSEC_PER_SEC,
 				  nsecs % NSEC_PER_SEC);
 }
 
@@ -202,7 +202,7 @@ void __init time_init(void)
 }
 
 #ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
-unsigned long calibrate_delay_is_known(void)
+unsigned long calibrate_delay_is_kyeswn(void)
 {
 	if (time_travel_mode == TT_MODE_INFCPU)
 		return 1;
@@ -232,14 +232,14 @@ __setup("time-travel", setup_time_travel);
 __uml_help(setup_time_travel,
 "time-travel\n"
 "This option just enables basic time travel mode, in which the clock/timers\n"
-"inside the UML instance skip forward when there's nothing to do, rather than\n"
+"inside the UML instance skip forward when there's yesthing to do, rather than\n"
 "waiting for real time to elapse. However, instance CPU speed is limited by\n"
 "the real CPU speed, so e.g. a 10ms timer will always fire after ~10ms wall\n"
-"clock (but quicker when there's nothing to do).\n"
+"clock (but quicker when there's yesthing to do).\n"
 "\n"
 "time-travel=inf-cpu\n"
 "This enables time travel mode with infinite processing power, in which there\n"
-"are no wall clock timers, and any CPU processing happens - as seen from the\n"
+"are yes wall clock timers, and any CPU processing happens - as seen from the\n"
 "guest - instantly. This can be useful for accurate simulation regardless of\n"
 "debug overhead, physical CPU speed, etc. but is somewhat dangerous as it can\n"
 "easily lead to getting stuck (e.g. if anything in the system busy loops).\n");

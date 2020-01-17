@@ -84,7 +84,7 @@ static inline int to_reg(int gpio, enum ctrl_register reg_type)
 
 	if (gpio >= CRYSTALCOVE_GPIO_NUM) {
 		/*
-		 * Virtual GPIO called from ACPI, for now we only support
+		 * Virtual GPIO called from ACPI, for yesw we only support
 		 * the panel ctl.
 		 */
 		switch (gpio) {

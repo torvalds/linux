@@ -257,7 +257,7 @@ static const u32 pl111_realview_pixel_formats[] = {
 };
 
 /*
- * The Integrator variant is a PL110 with a bunch of broken, or not
+ * The Integrator variant is a PL110 with a bunch of broken, or yest
  * yet implemented features
  */
 static const struct pl111_variant_data pl110_integrator = {
@@ -312,11 +312,11 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 {
 	const struct of_device_id *clcd_id;
 	enum versatile_clcd versatile_clcd_type;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct regmap *map;
 	int ret;
 
-	np = of_find_matching_node_and_match(NULL, versatile_clcd_of_match,
+	np = of_find_matching_yesde_and_match(NULL, versatile_clcd_of_match,
 					     &clcd_id);
 	if (!np) {
 		/* Non-ARM reference designs, just bail out */
@@ -332,31 +332,31 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 		ret = vexpress_muxfpga_init();
 		if (ret) {
 			dev_err(dev, "unable to initialize muxfpga driver\n");
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 
 		/* Call into deep Vexpress configuration API */
-		pdev = of_find_device_by_node(np);
+		pdev = of_find_device_by_yesde(np);
 		if (!pdev) {
 			dev_err(dev, "can't find the sysreg device, deferring\n");
-			of_node_put(np);
+			of_yesde_put(np);
 			return -EPROBE_DEFER;
 		}
 		map = dev_get_drvdata(&pdev->dev);
 		if (!map) {
-			dev_err(dev, "sysreg has not yet probed\n");
+			dev_err(dev, "sysreg has yest yet probed\n");
 			platform_device_put(pdev);
-			of_node_put(np);
+			of_yesde_put(np);
 			return -EPROBE_DEFER;
 		}
 	} else {
-		map = syscon_node_to_regmap(np);
+		map = syscon_yesde_to_regmap(np);
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (IS_ERR(map)) {
-		dev_err(dev, "no Versatile syscon regmap\n");
+		dev_err(dev, "yes Versatile syscon regmap\n");
 		return PTR_ERR(map);
 	}
 
@@ -401,7 +401,7 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 			return ret;
 		break;
 	default:
-		dev_info(dev, "unknown Versatile system controller\n");
+		dev_info(dev, "unkyeswn Versatile system controller\n");
 		break;
 	}
 

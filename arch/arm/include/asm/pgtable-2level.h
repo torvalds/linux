@@ -51,7 +51,7 @@
  * iff the page is marked "writable" and "dirty" in the Linux PTE.  This
  * means that a write to a clean page will cause a permission fault, and
  * the Linux MM layer will mark the page dirty via handle_pte_fault().
- * For the hardware to notice the permission change, the TLB entry must
+ * For the hardware to yestice the permission change, the TLB entry must
  * be flushed, and ptep_set_access_flags() does that for us.
  *
  * The "accessed" or "young" bit is emulated by a similar method; we only
@@ -62,7 +62,7 @@
  * up to date.
  *
  * However, when the "young" bit is cleared, we deny access to the page
- * by clearing the hardware PTE.  Currently Linux does not flush the TLB
+ * by clearing the hardware PTE.  Currently Linux does yest flush the TLB
  * for us in this case, which means the TLB will retain the transation
  * until either the TLB entry is evicted under pressure, or a context
  * switch which changes the user space mapping occurs.
@@ -132,28 +132,28 @@
  *
  * MT type		Pre-ARMv6	ARMv6+ type / cacheable status
  * UNCACHED		Uncached	Strongly ordered
- * BUFFERABLE		Bufferable	Normal memory / non-cacheable
+ * BUFFERABLE		Bufferable	Normal memory / yesn-cacheable
  * WRITETHROUGH		Writethrough	Normal memory / write through
  * WRITEBACK		Writeback	Normal memory / write back, read alloc
  * MINICACHE		Minicache	N/A
  * WRITEALLOC		Writeback	Normal memory / write back, write alloc
  * DEV_SHARED		Uncached	Device memory (shared)
- * DEV_NONSHARED	Uncached	Device memory (non-shared)
- * DEV_WC		Bufferable	Normal memory / non-cacheable
+ * DEV_NONSHARED	Uncached	Device memory (yesn-shared)
+ * DEV_WC		Bufferable	Normal memory / yesn-cacheable
  * DEV_CACHED		Writeback	Normal memory / write back, read alloc
  * VECTORS		Variable	Normal memory / variable
  *
- * All normal memory mappings have the following properties:
- * - reads can be repeated with no side effects
+ * All yesrmal memory mappings have the following properties:
+ * - reads can be repeated with yes side effects
  * - repeated reads return the last value written
  * - reads can fetch additional locations without side effects
- * - writes can be repeated (in certain cases) with no side effects
+ * - writes can be repeated (in certain cases) with yes side effects
  * - writes can be merged before accessing the target
  * - unaligned accesses can be supported
  *
  * All device mappings have the following properties:
- * - no access speculation
- * - no repetition (eg, on return from an exception)
+ * - yes access speculation
+ * - yes repetition (eg, on return from an exception)
  * - number, order and size of accesses are maintained
  * - unaligned accesses are "unpredictable"
  */
@@ -177,7 +177,7 @@
  * the pud: the pud entry is never bad, always exists, and can't be set or
  * cleared.
  */
-#define pud_none(pud)		(0)
+#define pud_yesne(pud)		(0)
 #define pud_bad(pud)		(0)
 #define pud_present(pud)	(1)
 #define pud_clear(pudp)		do { } while (0)

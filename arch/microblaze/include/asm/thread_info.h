@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -38,7 +38,7 @@ struct cpu_context {
 	__u32	r16;
 	__u32	r17;
 	__u32	r18;
-	/* non-volatile registers */
+	/* yesn-volatile registers */
 	__u32	r19;
 	__u32	r20;
 	__u32	r21;
@@ -66,7 +66,7 @@ typedef struct {
 struct thread_info {
 	struct task_struct	*task; /* main task structure */
 	unsigned long		flags; /* low level flags */
-	unsigned long		status; /* thread-synchronous flags */
+	unsigned long		status; /* thread-synchroyesus flags */
 	__u32			cpu; /* current CPU */
 	__s32			preempt_count; /* 0 => preemptable,< 0 => BUG*/
 	mm_segment_t		addr_limit; /* thread address space */
@@ -105,7 +105,7 @@ static inline struct thread_info *current_thread_info(void)
  * - other flags in MSW
  */
 #define TIF_SYSCALL_TRACE	0 /* syscall trace active */
-#define TIF_NOTIFY_RESUME	1 /* resumption notification requested */
+#define TIF_NOTIFY_RESUME	1 /* resumption yestification requested */
 #define TIF_SIGPENDING		2 /* signal pending */
 #define TIF_NEED_RESCHED	3 /* rescheduling necessary */
 /* restore singlestep on return to user mode */
@@ -137,10 +137,10 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_ALLWORK_MASK	0x0000FFFF
 
 /*
- * Thread-synchronous status.
+ * Thread-synchroyesus status.
  *
- * This is different from the flags in that nobody else
- * ever touches our thread-synchronous status, so we don't
+ * This is different from the flags in that yesbody else
+ * ever touches our thread-synchroyesus status, so we don't
  * have to worry about atomic accesses.
  */
 /* FPU was used by this task this quantum (SMP) */

@@ -40,7 +40,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv,
 	msleep_interruptible(1000);
 
 	if (priv->wdev->iftype == NL80211_IFTYPE_STATION)
-		lbs_send_disconnect_notification(priv, locally_generated);
+		lbs_send_disconnect_yestification(priv, locally_generated);
 
 	/* report disconnect to upper layer */
 	netif_stop_queue(priv->dev);
@@ -137,7 +137,7 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 			lbs_deb_host("CMD_RESP: PS command failed with 0x%x\n",
 				    result);
 			/*
-			 * We should not re-try enter-ps command in
+			 * We should yest re-try enter-ps command in
 			 * ad-hoc mode. It takes place in
 			 * lbs_execute_next_command().
 			 */
@@ -179,7 +179,7 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 		goto done;
 	}
 
-	/* If the command is not successful, cleanup and return failure */
+	/* If the command is yest successful, cleanup and return failure */
 	if ((result != 0 || !(respcmd & 0x8000))) {
 		lbs_deb_host("CMD_RESP: error 0x%04x in command reply 0x%04x\n",
 		       result, respcmd);
@@ -251,11 +251,11 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 		/* handle unexpected PS SLEEP event */
 		if (priv->psstate == PS_STATE_FULL_POWER) {
 			lbs_deb_cmd(
-			       "EVENT: in FULL POWER mode, ignoring PS_SLEEP\n");
+			       "EVENT: in FULL POWER mode, igyesring PS_SLEEP\n");
 			break;
 		}
 		if (!list_empty(&priv->cmdpendingq)) {
-			lbs_deb_cmd("EVENT: commands in queue, do not sleep\n");
+			lbs_deb_cmd("EVENT: commands in queue, do yest sleep\n");
 			break;
 		}
 		priv->psstate = PS_STATE_PRE_SLEEP;
@@ -289,7 +289,7 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 		/* handle unexpected PS AWAKE event */
 		if (priv->psstate == PS_STATE_FULL_POWER) {
 			lbs_deb_cmd(
-			       "EVENT: In FULL POWER mode - ignore PS AWAKE\n");
+			       "EVENT: In FULL POWER mode - igyesre PS AWAKE\n");
 			break;
 		}
 
@@ -343,12 +343,12 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 		break;
 
 	case MACREG_INT_CODE_MESH_AUTO_STARTED:
-		/* Ignore spurious autostart events */
-		netdev_info(priv->dev, "EVENT: MESH_AUTO_STARTED (ignoring)\n");
+		/* Igyesre spurious autostart events */
+		netdev_info(priv->dev, "EVENT: MESH_AUTO_STARTED (igyesring)\n");
 		break;
 
 	default:
-		netdev_alert(priv->dev, "EVENT: unknown event id %d\n", event);
+		netdev_alert(priv->dev, "EVENT: unkyeswn event id %d\n", event);
 		break;
 	}
 

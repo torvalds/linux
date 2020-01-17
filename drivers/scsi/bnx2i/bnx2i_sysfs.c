@@ -79,7 +79,7 @@ static ssize_t bnx2i_set_sq_info(struct device *dev,
 	return count;
 
 skip_config:
-	printk(KERN_ERR "bnx2i: device busy, cannot change SQ size\n");
+	printk(KERN_ERR "bnx2i: device busy, canyest change SQ size\n");
 	return 0;
 }
 
@@ -128,7 +128,7 @@ static ssize_t bnx2i_set_ccell_info(struct device *dev,
 	return count;
 
 skip_config:
-	printk(KERN_ERR "bnx2i: device busy, cannot change CCELL size\n");
+	printk(KERN_ERR "bnx2i: device busy, canyest change CCELL size\n");
 	return 0;
 }
 

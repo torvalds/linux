@@ -81,7 +81,7 @@ void lkdtm_REFCOUNT_TIMING(void);
 void lkdtm_ATOMIC_TIMING(void);
 
 /* lkdtm_rodata.c */
-void lkdtm_rodata_do_nothing(void);
+void lkdtm_rodata_do_yesthing(void);
 
 /* lkdtm_usercopy.c */
 void __init lkdtm_usercopy_init(void);

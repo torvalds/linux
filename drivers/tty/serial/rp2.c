@@ -178,7 +178,7 @@ struct rp2_card;
 struct rp2_uart_port {
 	struct uart_port		port;
 	int				idx;
-	int				ignore_rx;
+	int				igyesre_rx;
 	struct rp2_card			*card;
 	void __iomem			*asic_base;
 	void __iomem			*base;
@@ -190,7 +190,7 @@ struct rp2_card {
 	struct rp2_uart_port		*ports;
 	int				n_ports;
 	int				initialized_ports;
-	int				minor_start;
+	int				miyesr_start;
 	int				smpte;
 	void __iomem			*bar0;
 	void __iomem			*bar1;
@@ -208,20 +208,20 @@ static inline void rp2_decode_cap(const struct pci_device_id *id,
 	*smpte = id->driver_data & 0xff;
 }
 
-static DEFINE_SPINLOCK(rp2_minor_lock);
-static int rp2_minor_next;
+static DEFINE_SPINLOCK(rp2_miyesr_lock);
+static int rp2_miyesr_next;
 
 static int rp2_alloc_ports(int n_ports)
 {
 	int ret = -ENOSPC;
 
-	spin_lock(&rp2_minor_lock);
-	if (rp2_minor_next + n_ports <= CONFIG_SERIAL_RP2_NR_UARTS) {
-		/* sorry, no support for hot unplugging individual cards */
-		ret = rp2_minor_next;
-		rp2_minor_next += n_ports;
+	spin_lock(&rp2_miyesr_lock);
+	if (rp2_miyesr_next + n_ports <= CONFIG_SERIAL_RP2_NR_UARTS) {
+		/* sorry, yes support for hot unplugging individual cards */
+		ret = rp2_miyesr_next;
+		rp2_miyesr_next += n_ports;
 	}
-	spin_unlock(&rp2_minor_lock);
+	spin_unlock(&rp2_miyesr_lock);
 
 	return ret;
 }
@@ -273,7 +273,7 @@ static unsigned int rp2_uart_tx_empty(struct uart_port *port)
 	unsigned long tx_fifo_bytes, flags;
 
 	/*
-	 * This should probably check the transmitter, not the FIFO.
+	 * This should probably check the transmitter, yest the FIFO.
 	 * But the TXEMPTY bit doesn't seem to work unless the TX IRQ is
 	 * enabled.
 	 */
@@ -387,8 +387,8 @@ static void rp2_uart_set_termios(struct uart_port *port,
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	/* ignore all characters if CREAD is not set */
-	port->ignore_status_mask = (new->c_cflag & CREAD) ? 0 : RP2_DUMMY_READ;
+	/* igyesre all characters if CREAD is yest set */
+	port->igyesre_status_mask = (new->c_cflag & CREAD) ? 0 : RP2_DUMMY_READ;
 
 	__rp2_uart_set_termios(up, new->c_cflag, new->c_iflag, baud_div);
 	uart_update_timeout(port, new->c_cflag, baud);
@@ -671,9 +671,9 @@ static void rp2_fw_cb(const struct firmware *fw, void *context)
 	int i, rc = -ENOENT;
 
 	if (!fw) {
-		dev_err(&card->pdev->dev, "cannot find '%s' firmware image\n",
+		dev_err(&card->pdev->dev, "canyest find '%s' firmware image\n",
 			RP2_FW_NAME);
-		goto no_fw;
+		goto yes_fw;
 	}
 
 	phys_base = pci_resource_start(card->pdev, 1);
@@ -690,7 +690,7 @@ static void rp2_fw_cb(const struct firmware *fw, void *context)
 		rp->idx = j;
 
 		p = &rp->port;
-		p->line = card->minor_start + i;
+		p->line = card->miyesr_start + i;
 		p->dev = &card->pdev->dev;
 		p->type = PORT_RP2;
 		p->iotype = UPIO_MEM32;
@@ -721,11 +721,11 @@ static void rp2_fw_cb(const struct firmware *fw, void *context)
 	}
 
 	release_firmware(fw);
-no_fw:
+yes_fw:
 	/*
 	 * rp2_fw_cb() is called from a workqueue long after rp2_probe()
 	 * has already returned success.  So if something failed here,
-	 * we'll just leave the now-dormant device in place until somebody
+	 * we'll just leave the yesw-dormant device in place until somebody
 	 * unbinds it.
 	 */
 	if (rc)
@@ -765,8 +765,8 @@ static int rp2_probe(struct pci_dev *pdev,
 	rp2_decode_cap(id, &card->n_ports, &card->smpte);
 	dev_info(&pdev->dev, "found new card with %d ports\n", card->n_ports);
 
-	card->minor_start = rp2_alloc_ports(card->n_ports);
-	if (card->minor_start < 0) {
+	card->miyesr_start = rp2_alloc_ports(card->n_ports);
+	if (card->miyesr_start < 0) {
 		dev_err(&pdev->dev,
 			"too many ports (try increasing CONFIG_SERIAL_RP2_NR_UARTS)\n");
 		return -EINVAL;
@@ -790,7 +790,7 @@ static int rp2_probe(struct pci_dev *pdev,
 	 * If the FW image is missing, we'll find out in rp2_fw_cb()
 	 * and print an error message.
 	 */
-	rc = request_firmware_nowait(THIS_MODULE, 1, RP2_FW_NAME, &pdev->dev,
+	rc = request_firmware_yeswait(THIS_MODULE, 1, RP2_FW_NAME, &pdev->dev,
 				     GFP_KERNEL, card, rp2_fw_cb);
 	if (rc)
 		return rc;

@@ -756,7 +756,7 @@ static int cs35l33_set_bst_ipk(struct snd_soc_component *component, unsigned int
 	}
 
 	if (bst % 15625) {
-		dev_err(component->dev, "Current not a multiple of 15625uA (%d)\n",
+		dev_err(component->dev, "Current yest a multiple of 15625uA (%d)\n",
 			bst);
 		ret = -EINVAL;
 		goto err;
@@ -839,7 +839,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l33 = {
 	.num_dapm_routes	= ARRAY_SIZE(cs35l33_audio_map),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs35l33_regmap = {
@@ -918,10 +918,10 @@ static const struct dev_pm_ops cs35l33_pm_ops = {
 			   NULL)
 };
 
-static int cs35l33_get_hg_data(const struct device_node *np,
+static int cs35l33_get_hg_data(const struct device_yesde *np,
 			       struct cs35l33_pdata *pdata)
 {
-	struct device_node *hg;
+	struct device_yesde *hg;
 	struct cs35l33_hg *hg_config = &pdata->hg_config;
 	u32 val32;
 
@@ -954,7 +954,7 @@ static int cs35l33_get_hg_data(const struct device_node *np,
 			hg_config->vp_hg_va = val32;
 	}
 
-	of_node_put(hg);
+	of_yesde_put(hg);
 
 	return 0;
 }
@@ -973,7 +973,7 @@ static irqreturn_t cs35l33_irq_thread(int irq, void *data)
 	regmap_read(cs35l33->regmap, CS35L33_INT_MASK_1, &mask1);
 
 	/* Check to see if the unmasked bits are active,
-	 *  if not then exit.
+	 *  if yest then exit.
 	 */
 	if (!(sticky_val1 & ~mask1) && !(sticky_val2 & ~mask2))
 		return IRQ_NONE;
@@ -1079,7 +1079,7 @@ static const char * const cs35l33_core_supplies[] = {
 static int cs35l33_of_get_pdata(struct device *dev,
 				struct cs35l33_private *cs35l33)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct cs35l33_pdata *pdata = &cs35l33->pdata;
 	u32 val32;
 

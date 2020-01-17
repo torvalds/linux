@@ -37,16 +37,16 @@
  * page->flags layout:
  *
  * There are five possibilities for how page->flags get laid out.  The first
- * pair is for the normal case without sparsemem. The second pair is for
- * sparsemem when there is plenty of space for node and section information.
+ * pair is for the yesrmal case without sparsemem. The second pair is for
+ * sparsemem when there is plenty of space for yesde and section information.
  * The last is when there is insufficient space in page->flags and a separate
  * lookup is necessary.
  *
  * No sparsemem or sparsemem vmemmap: |       NODE     | ZONE |             ... | FLAGS |
  *      " plus space for last_cpupid: |       NODE     | ZONE | LAST_CPUPID ... | FLAGS |
- * classic sparse with space for node:| SECTION | NODE | ZONE |             ... | FLAGS |
+ * classic sparse with space for yesde:| SECTION | NODE | ZONE |             ... | FLAGS |
  *      " plus space for last_cpupid: | SECTION | NODE | ZONE | LAST_CPUPID ... | FLAGS |
- * classic sparse no space for node:  | SECTION |     ZONE    | ... | FLAGS |
+ * classic sparse yes space for yesde:  | SECTION |     ZONE    | ... | FLAGS |
  */
 #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
 #define SECTIONS_WIDTH		SECTIONS_SHIFT
@@ -60,7 +60,7 @@
 #define NODES_WIDTH		NODES_SHIFT
 #else
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-#error "Vmemmap: No space for nodes field in page flags"
+#error "Vmemmap: No space for yesdes field in page flags"
 #endif
 #define NODES_WIDTH		0
 #endif
@@ -92,12 +92,12 @@
 
 #if SECTIONS_WIDTH+NODES_WIDTH+ZONES_WIDTH+LAST_CPUPID_WIDTH+KASAN_TAG_WIDTH \
 	> BITS_PER_LONG - NR_PAGEFLAGS
-#error "Not enough bits in page flags"
+#error "Not eyesugh bits in page flags"
 #endif
 
 /*
- * We are going to use the flags for the page to node mapping if its in
- * there.  This includes the case where there is no node, so it is implicit.
+ * We are going to use the flags for the page to yesde mapping if its in
+ * there.  This includes the case where there is yes yesde, so it is implicit.
  */
 #if !(NODES_WIDTH > 0 || NODES_SHIFT == 0)
 #define NODE_NOT_IN_PAGE_FLAGS

@@ -9,7 +9,7 @@ Required properties:
                  - fspi_mmap: memory mapped address space
   - interrupts : Should contain the interrupt for the device
 
-Required SPI slave node properties:
+Required SPI slave yesde properties:
   - reg :        There are two buses (A and B) with two chip selects each.
                  This encodes to which bus and CS the flash is connected:
                  - <0>: Bus A, CS 0

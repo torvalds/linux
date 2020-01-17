@@ -234,12 +234,12 @@ log_params:
 	if (srate != XLNX_PARAM_UNKNOWN)
 		dev_info(dev, "sample rate = %d\n", srate);
 	else
-		dev_info(dev, "sample rate = unknown\n");
+		dev_info(dev, "sample rate = unkyeswn\n");
 
 	if (bit_depth != XLNX_PARAM_UNKNOWN)
 		dev_info(dev, "bit_depth = %d\n", bit_depth);
 	else
-		dev_info(dev, "bit_depth = unknown\n");
+		dev_info(dev, "bit_depth = unkyeswn\n");
 }
 
 static int xlnx_formatter_pcm_reset(void __iomem *mmio_base)

@@ -1,7 +1,7 @@
 /*
  * Marvell Berlin2 ADC driver
  *
- * Copyright (C) 2015 Marvell Technology Group Ltd.
+ * Copyright (C) 2015 Marvell Techyeslogy Group Ltd.
  *
  * Antoine Tenart <antoine.tenart@free-electrons.com>
  *
@@ -284,7 +284,7 @@ static int berlin2_adc_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
 	struct berlin2_adc_priv *priv;
-	struct device_node *parent_np = of_get_parent(pdev->dev.of_node);
+	struct device_yesde *parent_np = of_get_parent(pdev->dev.of_yesde);
 	int irq, tsen_irq;
 	int ret;
 
@@ -295,8 +295,8 @@ static int berlin2_adc_probe(struct platform_device *pdev)
 	priv = iio_priv(indio_dev);
 	platform_set_drvdata(pdev, indio_dev);
 
-	priv->regmap = syscon_node_to_regmap(parent_np);
-	of_node_put(parent_np);
+	priv->regmap = syscon_yesde_to_regmap(parent_np);
+	of_yesde_put(parent_np);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 

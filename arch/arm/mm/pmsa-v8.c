@@ -114,7 +114,7 @@ void __init pmsav8_adjust_lowmem_bounds(void)
 			 * all blocks afterwards in one go (we can't remove
 			 * blocks separately while iterating)
 			 */
-			pr_notice("Ignoring RAM after %pa, memory at %pa ignored\n",
+			pr_yestice("Igyesring RAM after %pa, memory at %pa igyesred\n",
 				  &mem_end, &reg->base);
 			memblock_remove(reg->base, 0 - reg->base);
 			break;

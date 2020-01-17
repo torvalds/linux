@@ -35,7 +35,7 @@ extern void hv_init_clocksource(void);
 
 extern struct ms_hyperv_tsc_page *hv_get_tsc_page(void);
 
-static inline notrace u64
+static inline yestrace u64
 hv_read_tsc_page_tsc(const struct ms_hyperv_tsc_page *tsc_pg, u64 *cur_tsc)
 {
 	u64 scale, offset;
@@ -82,7 +82,7 @@ hv_read_tsc_page_tsc(const struct ms_hyperv_tsc_page *tsc_pg, u64 *cur_tsc)
 	return mul_u64_u64_shr(*cur_tsc, scale, 64) + offset;
 }
 
-static inline notrace u64
+static inline yestrace u64
 hv_read_tsc_page(const struct ms_hyperv_tsc_page *tsc_pg)
 {
 	u64 cur_tsc;

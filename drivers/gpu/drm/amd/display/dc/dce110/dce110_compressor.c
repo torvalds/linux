@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -100,7 +100,7 @@ static void reset_lb_on_vblank(struct compressor *compressor, uint32_t crtc_inst
 			udelay(10);
 		}
 		if (!retry)
-			dm_error("Frame count did not increase for 100ms.\n");
+			dm_error("Frame count did yest increase for 100ms.\n");
 
 		/* Resetting LB on VBlank */
 		value = dm_read_reg(compressor->ctx, DCP_REG(mmLB_SYNC_RESET_SEL));
@@ -130,7 +130,7 @@ static void wait_for_fbc_state_changed(
 	}
 
 	if (counter == 1000) {
-		DC_LOG_WARNING("%s: wait counter exceeded, changes to HW not applied",
+		DC_LOG_WARNING("%s: wait counter exceeded, changes to HW yest applied",
 			__func__);
 	} else {
 		DC_LOG_SYNC("FBC status changed to %d", enabled);
@@ -210,7 +210,7 @@ void dce110_compressor_enable_fbc(
 		/* Keep track of enum controller_id FBC is attached to */
 		compressor->is_enabled = true;
 		/* attached_inst is SW CRTC instance start from 1
-		 * 0 = CONTROLLER_ID_UNDEFINED means not attached crtc
+		 * 0 = CONTROLLER_ID_UNDEFINED means yest attached crtc
 		 */
 		compressor->attached_inst = params->inst + CONTROLLER_ID_D0;
 
@@ -348,7 +348,7 @@ void dce110_compressor_set_fbc_invalidation_triggers(
 	uint32_t fbc_trigger)
 {
 	/* Disable region hit event, FBC_MEMORY_REGION_MASK = 0 (bits 16-19)
-	 * for DCE 11 regions cannot be used - does not work with S/G
+	 * for DCE 11 regions canyest be used - does yest work with S/G
 	 */
 	uint32_t addr = mmFBC_CLIENT_REGION_MASK;
 	uint32_t value = dm_read_reg(compressor->ctx, addr);
@@ -366,7 +366,7 @@ void dce110_compressor_set_fbc_invalidation_triggers(
 	 * Used as the initial value of the metadata sent to the compressor
 	 * after invalidation, to indicate that the compressor should attempt
 	 * to compress all chunks on the current pass.  Also used when the chunk
-	 * is not successfully written to memory.
+	 * is yest successfully written to memory.
 	 * When this CSM value is detected, FBC reads from the uncompressed
 	 * buffer. Set events according to passed in value, these events are
 	 * valid for DCE11:
@@ -426,8 +426,8 @@ bool dce110_get_required_compressed_surfacesize(struct fbc_input_info fbc_input_
 		 * For DCE11 here use Max HW supported size:  HW Support up to 3840x2400 resolution
 		 * or 18000 chunks.
 		 */
-		size.preferred_size = size.min_size = align_to_chunks_number_per_line(max_x) * max_y * 4;  /* (For FBC when LPT not supported). */
-		size.preferred_size_alignment = size.min_size_alignment = 0x100;       /* For FBC when LPT not supported */
+		size.preferred_size = size.min_size = align_to_chunks_number_per_line(max_x) * max_y * 4;  /* (For FBC when LPT yest supported). */
+		size.preferred_size_alignment = size.min_size_alignment = 0x100;       /* For FBC when LPT yest supported */
 		size.bits.preferred_must_be_framebuffer_pool = 1;
 		size.bits.min_must_be_framebuffer_pool = 1;
 
@@ -503,7 +503,7 @@ void dce110_compressor_construct(struct dce110_compressor *compressor,
 
 	/*
 	 * check if this system has more than 1 dram channel; if only 1 then lpt
-	 * should not be supported
+	 * should yest be supported
 	 */
 
 

@@ -58,9 +58,9 @@ static int __init setup_bcm1x80_bcm1x55(void)
 		pass_str = "B0 (pass2)";
 		break;
 	default:
-		printk("Unknown %s rev %x\n", soc_str, soc_pass);
+		printk("Unkyeswn %s rev %x\n", soc_str, soc_pass);
 		periph_rev = 1;
-		pass_str = "Unknown Revision";
+		pass_str = "Unkyeswn Revision";
 		break;
 	}
 
@@ -95,7 +95,7 @@ static int __init sys_rev_decode(void)
 		break;
 
 	default:
-		printk("Unknown part type %x\n", part_type);
+		printk("Unkyeswn part type %x\n", part_type);
 		ret = 1;
 		break;
 	}

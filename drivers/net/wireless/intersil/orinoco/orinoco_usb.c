@@ -1,10 +1,10 @@
 /*
- * USB Orinoco driver
+ * USB Oriyesco driver
  *
  * Copyright (c) 2003 Manuel Estrada Sainz
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may yest use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -17,10 +17,10 @@
  * terms of the GNU General Public License version 2 (the "GPL"), in
  * which case the provisions of the GPL are applicable instead of the
  * above.  If you wish to allow the use of your version of this file
- * only under the terms of the GPL and not to allow others to use your
+ * only under the terms of the GPL and yest to allow others to use your
  * version of this file under the MPL, indicate your decision by
- * deleting the provisions above and replace them with the notice and
- * other provisions required by the GPL.  If you do not delete the
+ * deleting the provisions above and replace them with the yestice and
+ * other provisions required by the GPL.  If you do yest delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
  *
@@ -43,14 +43,14 @@
  * gone so MPL/GPL applies.
  */
 
-#define DRIVER_NAME "orinoco_usb"
+#define DRIVER_NAME "oriyesco_usb"
 #define PFX DRIVER_NAME ": "
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/fcntl.h>
@@ -67,7 +67,7 @@
 #include <linux/refcount.h>
 
 #include "mic.h"
-#include "orinoco.h"
+#include "oriyesco.h"
 
 #ifndef URB_ASYNC_UNLINK
 #define URB_ASYNC_UNLINK 0
@@ -102,15 +102,15 @@ static struct ez_usb_fw firmware = {
 #define err(format, arg...) \
 	do { printk(KERN_ERR PFX format "\n", ## arg); } while (0)
 
-MODULE_FIRMWARE("orinoco_ezusb_fw");
+MODULE_FIRMWARE("oriyesco_ezusb_fw");
 
 /*
  * Under some conditions, the card gets stuck and stops paying attention
  * to the world (i.e. data communication stalls) until we do something to
- * it.  Sending an INQ_TALLIES command seems to be enough and should be
+ * it.  Sending an INQ_TALLIES command seems to be eyesugh and should be
  * harmless otherwise.  This behaviour has been observed when using the
  * driver on a systemimager client during installation.  In the past a
- * timer was used to send INQ_TALLIES commands when there was no other
+ * timer was used to send INQ_TALLIES commands when there was yes other
  * activity, but it was troublesome and was removed.
  */
 
@@ -124,8 +124,8 @@ MODULE_FIRMWARE("orinoco_ezusb_fw");
 #define USB_BUFFALO_L11G_WR_ID   0x000B /* BUFFALO WLI-USB-L11G-WR */
 #define USB_BUFFALO_L11G_ID      0x000D /* BUFFALO WLI-USB-L11G */
 
-#define USB_LUCENT_VENDOR_ID     0x047E /* Lucent Technologies */
-#define USB_LUCENT_ORINOCO_ID    0x0300 /* Lucent/Agere Orinoco USB Client */
+#define USB_LUCENT_VENDOR_ID     0x047E /* Lucent Techyeslogies */
+#define USB_LUCENT_ORINOCO_ID    0x0300 /* Lucent/Agere Oriyesco USB Client */
 
 #define USB_AVAYA8_VENDOR_ID     0x0D98
 #define USB_AVAYAE_VENDOR_ID     0x0D9E
@@ -416,15 +416,15 @@ static void ezusb_ctx_complete(struct request_context *ctx)
 	default:
 		spin_unlock_irqrestore(&upriv->req_lock, flags);
 		if (!upriv->udev) {
-			/* This is normal, as all request contexts get flushed
+			/* This is yesrmal, as all request contexts get flushed
 			 * when the device is disconnected */
-			err("Called, CTX not terminating, but device gone");
+			err("Called, CTX yest terminating, but device gone");
 			ezusb_complete_all(&ctx->done);
 			ezusb_request_context_put(ctx);
 			break;
 		}
 
-		err("Called, CTX not in terminating state.");
+		err("Called, CTX yest in terminating state.");
 		/* Things are really bad if this happens. Just leak
 		 * the CTX because it may still be linked to the
 		 * queue or the OUT urb may still be active.
@@ -437,7 +437,7 @@ static void ezusb_ctx_complete(struct request_context *ctx)
 /**
  * ezusb_req_queue_run:
  * Description:
- *	Note: Only one active CTX at any one time, because there's no
+ *	Note: Only one active CTX at any one time, because there's yes
  *	other (reliable) way to match the response URB to the correct
  *	CTX.
  **/
@@ -637,7 +637,7 @@ static void ezusb_request_in_callback(struct ezusb_priv *upriv,
 	switch (state) {
 	case EZUSB_CTX_REQ_SUBMITTED:
 		/* We have received our response URB before
-		 * our request has been acknowledged. Do NOT
+		 * our request has been ackyeswledged. Do NOT
 		 * destroy our CTX yet, because our OUT URB
 		 * is still alive ...
 		 */
@@ -649,8 +649,8 @@ static void ezusb_request_in_callback(struct ezusb_priv *upriv,
 
 	case EZUSB_CTX_REQ_COMPLETE:
 		/* This is the usual path: our request
-		 * has already been acknowledged, and
-		 * we have now received the reply.
+		 * has already been ackyeswledged, and
+		 * we have yesw received the reply.
 		 */
 		ctx->state = EZUSB_CTX_COMPLETE;
 
@@ -667,7 +667,7 @@ static void ezusb_request_in_callback(struct ezusb_priv *upriv,
 
 		pr_warn("Matched IN URB, unexpected context state(0x%x)\n",
 			state);
-		/* Throw this CTX away and try submitting another */
+		/* Throw this CTX away and try submitting ayesther */
 		del_timer(&ctx->timer);
 		ctx->outurb->transfer_flags |= URB_ASYNC_UNLINK;
 		usb_unlink_urb(ctx->outurb);
@@ -698,7 +698,7 @@ static void ezusb_req_ctx_wait(struct ezusb_priv *upriv,
 		}
 		break;
 	default:
-		/* Done or failed - nothing to wait for */
+		/* Done or failed - yesthing to wait for */
 		break;
 	}
 }
@@ -748,7 +748,7 @@ static int ezusb_submit_in_urb(struct ezusb_priv *upriv)
 	void *cur_buf = upriv->read_urb->transfer_buffer;
 
 	if (upriv->read_urb->status == -EINPROGRESS) {
-		netdev_dbg(upriv->dev, "urb busy, not resubmiting\n");
+		netdev_dbg(upriv->dev, "urb busy, yest resubmiting\n");
 		retval = -EBUSY;
 		goto exit;
 	}
@@ -878,7 +878,7 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 	}
 
 	if (upriv->read_urb->status != -EINPROGRESS)
-		err("%s: in urb not pending", __func__);
+		err("%s: in urb yest pending", __func__);
 
 	/* protect upriv->reply_count, guarantee sequential numbers */
 	spin_lock_bh(&upriv->reply_count_lock);
@@ -1094,11 +1094,11 @@ static int ezusb_read_pda(struct hermes *hw, __le16 *pda,
 	if (!ctx)
 		return -ENOMEM;
 
-	/* wl_lkm does not include PDA size in the PDA area.
+	/* wl_lkm does yest include PDA size in the PDA area.
 	 * We will pad the information into pda, so other routines
 	 * don't have to be modified */
 	pda[0] = cpu_to_le16(pda_len - 2);
-	/* Includes CFG_PROD_DATA but not itself */
+	/* Includes CFG_PROD_DATA but yest itself */
 	pda[1] = cpu_to_le16(0x0800); /* CFG_PROD_DATA */
 
 	return ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
@@ -1192,7 +1192,7 @@ static int ezusb_program(struct hermes *hw, const char *buf,
 
 static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct orinoco_private *priv = ndev_priv(dev);
+	struct oriyesco_private *priv = ndev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
 	struct ezusb_priv *upriv = priv->card;
 	u8 mic[MICHAEL_MIC_LEN + 1];
@@ -1215,7 +1215,7 @@ static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	if (orinoco_lock(priv, &flags) != 0) {
+	if (oriyesco_lock(priv, &flags) != 0) {
 		printk(KERN_ERR
 		       "%s: ezusb_xmit() called while hw_unavailable\n",
 		       dev->name);
@@ -1243,7 +1243,7 @@ static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_control = 0;
 
-	err = orinoco_process_xmit_skb(skb, dev, priv, &tx_control,
+	err = oriyesco_process_xmit_skb(skb, dev, priv, &tx_control,
 				       &mic[0]);
 	if (err)
 		goto drop;
@@ -1294,12 +1294,12 @@ static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 	stats->tx_dropped++;
 
  ok:
-	orinoco_unlock(priv, &flags);
+	oriyesco_unlock(priv, &flags);
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 
  busy:
-	orinoco_unlock(priv, &flags);
+	oriyesco_unlock(priv, &flags);
 	return NETDEV_TX_BUSY;
 }
 
@@ -1310,7 +1310,7 @@ static int ezusb_allocate(struct hermes *hw, u16 size, u16 *fid)
 }
 
 
-static int ezusb_hard_reset(struct orinoco_private *priv)
+static int ezusb_hard_reset(struct oriyesco_private *priv)
 {
 	struct ezusb_priv *upriv = priv->card;
 	int retval = ezusb_8051_cpucs(upriv, 1);
@@ -1365,7 +1365,7 @@ static int ezusb_init(struct hermes *hw)
 
 	upriv->reply_count = 0;
 	/* Write the MAGIC number on the simulated registers to keep
-	 * orinoco.c happy */
+	 * oriyesco.c happy */
 	hermes_write_regn(hw, SWSUPPORT0, HERMES_MAGIC);
 	hermes_write_regn(hw, RXFID, EZUSB_RID_RX);
 
@@ -1402,7 +1402,7 @@ static void ezusb_bulk_in_callback(struct urb *urb)
 		/* When a device gets unplugged we get this every time
 		 * we resubmit, flooding the logs.  Since we don't use
 		 * USB timeouts, it shouldn't happen any other time*/
-		pr_warn("%s: urb timed out, not resubmitting\n", __func__);
+		pr_warn("%s: urb timed out, yest resubmitting\n", __func__);
 		return;
 	}
 	if (urb->status == -ECONNABORTED) {
@@ -1413,7 +1413,7 @@ static void ezusb_bulk_in_callback(struct urb *urb)
 	if ((urb->status == -EILSEQ)
 	    || (urb->status == -ENOENT)
 	    || (urb->status == -ECONNRESET)) {
-		netdev_dbg(upriv->dev, "status %d, not resubmiting\n",
+		netdev_dbg(upriv->dev, "status %d, yest resubmiting\n",
 			   urb->status);
 		return;
 	}
@@ -1421,12 +1421,12 @@ static void ezusb_bulk_in_callback(struct urb *urb)
 		netdev_dbg(upriv->dev, "status: %d length: %d\n",
 			   urb->status, urb->actual_length);
 	if (urb->actual_length < sizeof(*ans)) {
-		err("%s: short read, ignoring", __func__);
+		err("%s: short read, igyesring", __func__);
 		goto resubmit;
 	}
 	crc = build_crc(ans);
 	if (le16_to_cpu(ans->crc) != crc) {
-		err("CRC error, ignoring packet");
+		err("CRC error, igyesring packet");
 		goto resubmit;
 	}
 
@@ -1435,15 +1435,15 @@ static void ezusb_bulk_in_callback(struct urb *urb)
 		ezusb_request_in_callback(upriv, urb);
 	} else if (upriv->dev) {
 		struct net_device *dev = upriv->dev;
-		struct orinoco_private *priv = ndev_priv(dev);
+		struct oriyesco_private *priv = ndev_priv(dev);
 		struct hermes *hw = &priv->hw;
 
 		if (hermes_rid == EZUSB_RID_RX) {
-			__orinoco_ev_rx(dev, hw);
+			__oriyesco_ev_rx(dev, hw);
 		} else {
 			hermes_write_regn(hw, INFOFID,
 					  le16_to_cpu(ans->hermes_rid));
-			__orinoco_ev_info(dev, hw);
+			__oriyesco_ev_info(dev, hw);
 		}
 	}
 
@@ -1508,10 +1508,10 @@ static inline void ezusb_delete(struct ezusb_priv *upriv)
 	}
 	kfree(upriv->bap_buf);
 	if (upriv->dev) {
-		struct orinoco_private *priv = ndev_priv(upriv->dev);
-		orinoco_if_del(priv);
+		struct oriyesco_private *priv = ndev_priv(upriv->dev);
+		oriyesco_if_del(priv);
 		wiphy_unregister(priv_to_wiphy(upriv));
-		free_orinocodev(priv);
+		free_oriyescodev(priv);
 	}
 }
 
@@ -1556,21 +1556,21 @@ static const struct hermes_ops ezusb_ops = {
 };
 
 static const struct net_device_ops ezusb_netdev_ops = {
-	.ndo_open		= orinoco_open,
-	.ndo_stop		= orinoco_stop,
+	.ndo_open		= oriyesco_open,
+	.ndo_stop		= oriyesco_stop,
 	.ndo_start_xmit		= ezusb_xmit,
-	.ndo_set_rx_mode	= orinoco_set_multicast_list,
-	.ndo_change_mtu		= orinoco_change_mtu,
+	.ndo_set_rx_mode	= oriyesco_set_multicast_list,
+	.ndo_change_mtu		= oriyesco_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_tx_timeout		= orinoco_tx_timeout,
+	.ndo_tx_timeout		= oriyesco_tx_timeout,
 };
 
 static int ezusb_probe(struct usb_interface *interface,
 		       const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
-	struct orinoco_private *priv;
+	struct oriyesco_private *priv;
 	struct hermes *hw;
 	struct ezusb_priv *upriv = NULL;
 	struct usb_interface_descriptor *iface_desc;
@@ -1579,10 +1579,10 @@ static int ezusb_probe(struct usb_interface *interface,
 	int retval = 0;
 	int i;
 
-	priv = alloc_orinocodev(sizeof(*upriv), &udev->dev,
+	priv = alloc_oriyescodev(sizeof(*upriv), &udev->dev,
 				ezusb_hard_reset, NULL);
 	if (!priv) {
-		err("Couldn't allocate orinocodev");
+		err("Couldn't allocate oriyescodev");
 		retval = -ENOMEM;
 		goto exit;
 	}
@@ -1615,7 +1615,7 @@ static int ezusb_probe(struct usb_interface *interface,
 		if (usb_endpoint_is_bulk_in(ep)) {
 			/* we found a bulk in endpoint */
 			if (upriv->read_urb != NULL) {
-				pr_warn("Found a second bulk in ep, ignored\n");
+				pr_warn("Found a second bulk in ep, igyesred\n");
 				continue;
 			}
 
@@ -1641,7 +1641,7 @@ static int ezusb_probe(struct usb_interface *interface,
 		if (usb_endpoint_is_bulk_out(ep)) {
 			/* we found a bulk out endpoint */
 			if (upriv->bap_buf != NULL) {
-				pr_warn("Found a second bulk out ep, ignored\n");
+				pr_warn("Found a second bulk out ep, igyesred\n");
 				continue;
 			}
 
@@ -1665,7 +1665,7 @@ static int ezusb_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	if (request_firmware(&fw_entry, "orinoco_ezusb_fw",
+	if (request_firmware(&fw_entry, "oriyesco_ezusb_fw",
 			     &interface->dev) == 0) {
 		firmware.size = fw_entry->size;
 		firmware.code = fw_entry->data;
@@ -1679,29 +1679,29 @@ static int ezusb_probe(struct usb_interface *interface,
 	}
 
 	if (ezusb_hard_reset(priv) < 0) {
-		err("Cannot reset the device");
+		err("Canyest reset the device");
 		goto error;
 	}
 
-	/* If the firmware is already downloaded orinoco.c will call
-	 * ezusb_init but if the firmware is not already there, that will make
+	/* If the firmware is already downloaded oriyesco.c will call
+	 * ezusb_init but if the firmware is yest already there, that will make
 	 * the kernel very unstable, so we try initializing here and quit in
 	 * case of error */
 	if (ezusb_init(hw) < 0) {
 		err("Couldn't initialize the device");
-		err("Firmware may not be downloaded or may be wrong.");
+		err("Firmware may yest be downloaded or may be wrong.");
 		goto error;
 	}
 
 	/* Initialise the main driver */
-	if (orinoco_init(priv) != 0) {
-		err("orinoco_init() failed\n");
+	if (oriyesco_init(priv) != 0) {
+		err("oriyesco_init() failed\n");
 		goto error;
 	}
 
-	if (orinoco_if_add(priv, 0, 0, &ezusb_netdev_ops) != 0) {
+	if (oriyesco_if_add(priv, 0, 0, &ezusb_netdev_ops) != 0) {
 		upriv->dev = NULL;
-		err("%s: orinoco_if_add() failed", __func__);
+		err("%s: oriyesco_if_add() failed", __func__);
 		wiphy_unregister(priv_to_wiphy(priv));
 		goto error;
 	}
@@ -1713,7 +1713,7 @@ static int ezusb_probe(struct usb_interface *interface,
 	ezusb_delete(upriv);
 	if (upriv->dev) {
 		/* upriv->dev was 0, so ezusb_delete() didn't free it */
-		free_orinocodev(priv);
+		free_oriyescodev(priv);
 	}
 	upriv = NULL;
 	retval = -EFAULT;
@@ -1738,7 +1738,7 @@ static void ezusb_disconnect(struct usb_interface *intf)
 
 
 /* usb specific object needed to register this driver with the usb subsystem */
-static struct usb_driver orinoco_driver = {
+static struct usb_driver oriyesco_driver = {
 	.name = DRIVER_NAME,
 	.probe = ezusb_probe,
 	.disconnect = ezusb_disconnect,
@@ -1746,8 +1746,8 @@ static struct usb_driver orinoco_driver = {
 	.disable_hub_initiated_lpm = 1,
 };
 
-module_usb_driver(orinoco_driver);
+module_usb_driver(oriyesco_driver);
 
 MODULE_AUTHOR("Manuel Estrada Sainz");
-MODULE_DESCRIPTION("Driver for Orinoco wireless LAN cards using EZUSB bridge");
+MODULE_DESCRIPTION("Driver for Oriyesco wireless LAN cards using EZUSB bridge");
 MODULE_LICENSE("Dual MPL/GPL");

@@ -132,13 +132,13 @@ static int ixp4xx_irq_domain_translate(struct irq_domain *domain,
 				       unsigned int *type)
 {
 	/* We support standard DT translation */
-	if (is_of_node(fwspec->fwnode) && fwspec->param_count == 2) {
+	if (is_of_yesde(fwspec->fwyesde) && fwspec->param_count == 2) {
 		*hwirq = fwspec->param[0];
 		*type = fwspec->param[1];
 		return 0;
 	}
 
-	if (is_fwnode_irqchip(fwspec->fwnode)) {
+	if (is_fwyesde_irqchip(fwspec->fwyesde)) {
 		if (fwspec->param_count != 2)
 			return -EINVAL;
 		*hwirq = fwspec->param[0];
@@ -211,7 +211,7 @@ EXPORT_SYMBOL_GPL(ixp4xx_get_irq_domain);
 /*
  * This is the Linux IRQ to hwirq mapping table. This goes away when
  * we have DT support as all IRQ resources are defined in the device
- * tree. It will register all the IRQs that are not used by the hierarchical
+ * tree. It will register all the IRQs that are yest used by the hierarchical
  * GPIO IRQ chip. The "holes" inbetween these IRQs will be requested by
  * the GPIO driver using . This is a step-gap solution.
  */
@@ -249,12 +249,12 @@ static const struct ixp4xx_irq_chunk ixp4xx_irq_chunks[] = {
  * ixp4x_irq_setup() - Common setup code for the IXP4xx interrupt controller
  * @ixi: State container
  * @irqbase: Virtual memory base for the interrupt controller
- * @fwnode: Corresponding fwnode abstraction for this controller
+ * @fwyesde: Corresponding fwyesde abstraction for this controller
  * @is_356: if this is an IXP43x, IXP45x or IXP46x SoC variant
  */
 static int __init ixp4xx_irq_setup(struct ixp4xx_irq *ixi,
 				   void __iomem *irqbase,
-				   struct fwnode_handle *fwnode,
+				   struct fwyesde_handle *fwyesde,
 				   bool is_356)
 {
 	int nr_irqs;
@@ -285,11 +285,11 @@ static int __init ixp4xx_irq_setup(struct ixp4xx_irq *ixi,
 	ixi->irqchip.irq_unmask	= ixp4xx_irq_unmask;
 	ixi->irqchip.irq_set_type = ixp4xx_set_irq_type;
 
-	ixi->domain = irq_domain_create_linear(fwnode, nr_irqs,
+	ixi->domain = irq_domain_create_linear(fwyesde, nr_irqs,
 					       &ixp4xx_irqdomain_ops,
 					       ixi);
 	if (!ixi->domain) {
-		pr_crit("IXP4XX: can not add primary irqdomain\n");
+		pr_crit("IXP4XX: can yest add primary irqdomain\n");
 		return -ENODEV;
 	}
 
@@ -308,7 +308,7 @@ void __init ixp4xx_irq_init(resource_size_t irqbase,
 {
 	struct ixp4xx_irq *ixi = &ixirq;
 	void __iomem *base;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	struct irq_fwspec fwspec;
 	int nr_chunks;
 	int ret;
@@ -316,18 +316,18 @@ void __init ixp4xx_irq_init(resource_size_t irqbase,
 
 	base = ioremap(irqbase, 0x100);
 	if (!base) {
-		pr_crit("IXP4XX: could not ioremap interrupt controller\n");
+		pr_crit("IXP4XX: could yest ioremap interrupt controller\n");
 		return;
 	}
-	fwnode = irq_domain_alloc_fwnode(&irqbase);
-	if (!fwnode) {
-		pr_crit("IXP4XX: no domain handle\n");
+	fwyesde = irq_domain_alloc_fwyesde(&irqbase);
+	if (!fwyesde) {
+		pr_crit("IXP4XX: yes domain handle\n");
 		return;
 	}
-	ret = ixp4xx_irq_setup(ixi, base, fwnode, is_356);
+	ret = ixp4xx_irq_setup(ixi, base, fwyesde, is_356);
 	if (ret) {
 		pr_crit("IXP4XX: failed to set up irqchip\n");
-		irq_domain_free_fwnode(fwnode);
+		irq_domain_free_fwyesde(fwyesde);
 	}
 
 	nr_chunks = ARRAY_SIZE(ixp4xx_irq_chunks);
@@ -335,8 +335,8 @@ void __init ixp4xx_irq_init(resource_size_t irqbase,
 		nr_chunks--;
 
 	/*
-	 * After adding OF support, this is no longer needed: irqs
-	 * will be allocated for the respective fwnodes.
+	 * After adding OF support, this is yes longer needed: irqs
+	 * will be allocated for the respective fwyesdes.
 	 */
 	for (i = 0; i < nr_chunks; i++) {
 		const struct ixp4xx_irq_chunk *chunk = &ixp4xx_irq_chunks[i];
@@ -344,7 +344,7 @@ void __init ixp4xx_irq_init(resource_size_t irqbase,
 		pr_info("Allocate Linux IRQs %d..%d HW IRQs %d..%d\n",
 			chunk->irq, chunk->irq + chunk->nr_irqs - 1,
 			chunk->hwirq, chunk->hwirq + chunk->nr_irqs - 1);
-		fwspec.fwnode = fwnode;
+		fwspec.fwyesde = fwyesde;
 		fwspec.param[0] = chunk->hwirq;
 		fwspec.param[1] = IRQ_TYPE_LEVEL_HIGH;
 		fwspec.param_count = 2;
@@ -356,7 +356,7 @@ void __init ixp4xx_irq_init(resource_size_t irqbase,
 					      false,
 					      NULL);
 		if (ret < 0) {
-			pr_crit("IXP4XX: can not allocate irqs in hierarchy %d\n",
+			pr_crit("IXP4XX: can yest allocate irqs in hierarchy %d\n",
 				ret);
 			return;
 		}
@@ -365,28 +365,28 @@ void __init ixp4xx_irq_init(resource_size_t irqbase,
 EXPORT_SYMBOL_GPL(ixp4xx_irq_init);
 
 #ifdef CONFIG_OF
-int __init ixp4xx_of_init_irq(struct device_node *np,
-			      struct device_node *parent)
+int __init ixp4xx_of_init_irq(struct device_yesde *np,
+			      struct device_yesde *parent)
 {
 	struct ixp4xx_irq *ixi = &ixirq;
 	void __iomem *base;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	bool is_356;
 	int ret;
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		pr_crit("IXP4XX: could not ioremap interrupt controller\n");
+		pr_crit("IXP4XX: could yest ioremap interrupt controller\n");
 		return -ENODEV;
 	}
-	fwnode = of_node_to_fwnode(np);
+	fwyesde = of_yesde_to_fwyesde(np);
 
 	/* These chip variants have 64 interrupts */
 	is_356 = of_device_is_compatible(np, "intel,ixp43x-interrupt") ||
 		of_device_is_compatible(np, "intel,ixp45x-interrupt") ||
 		of_device_is_compatible(np, "intel,ixp46x-interrupt");
 
-	ret = ixp4xx_irq_setup(ixi, base, fwnode, is_356);
+	ret = ixp4xx_irq_setup(ixi, base, fwyesde, is_356);
 	if (ret)
 		pr_crit("IXP4XX: failed to set up irqchip\n");
 

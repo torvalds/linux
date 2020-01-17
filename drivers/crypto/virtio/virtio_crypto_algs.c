@@ -312,12 +312,12 @@ static int virtio_crypto_skcipher_setkey(struct crypto_skcipher *tfm,
 
 	if (!ctx->vcrypto) {
 		/* New key */
-		int node = virtio_crypto_get_current_node();
+		int yesde = virtio_crypto_get_current_yesde();
 		struct virtio_crypto *vcrypto =
-				      virtcrypto_get_dev_node(node,
+				      virtcrypto_get_dev_yesde(yesde,
 				      VIRTIO_CRYPTO_SERVICE_CIPHER, alg);
 		if (!vcrypto) {
-			pr_err("virtio_crypto: Could not find a virtio device in the system or unsupported algo\n");
+			pr_err("virtio_crypto: Could yest find a virtio device in the system or unsupported algo\n");
 			return -ENODEV;
 		}
 
@@ -368,13 +368,13 @@ __virtio_crypto_skcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 
 	/* Why 3?  outhdr + iv + inhdr */
 	sg_total = src_nents + dst_nents + 3;
-	sgs = kcalloc_node(sg_total, sizeof(*sgs), GFP_KERNEL,
-				dev_to_node(&vcrypto->vdev->dev));
+	sgs = kcalloc_yesde(sg_total, sizeof(*sgs), GFP_KERNEL,
+				dev_to_yesde(&vcrypto->vdev->dev));
 	if (!sgs)
 		return -ENOMEM;
 
-	req_data = kzalloc_node(sizeof(*req_data), GFP_KERNEL,
-				dev_to_node(&vcrypto->vdev->dev));
+	req_data = kzalloc_yesde(sizeof(*req_data), GFP_KERNEL,
+				dev_to_yesde(&vcrypto->vdev->dev));
 	if (!req_data) {
 		kfree(sgs);
 		return -ENOMEM;
@@ -429,8 +429,8 @@ __virtio_crypto_skcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 	 * Avoid to do DMA from the stack, switch to using
 	 * dynamically-allocated for the IV
 	 */
-	iv = kzalloc_node(ivsize, GFP_ATOMIC,
-				dev_to_node(&vcrypto->vdev->dev));
+	iv = kzalloc_yesde(ivsize, GFP_ATOMIC,
+				dev_to_yesde(&vcrypto->vdev->dev));
 	if (!iv) {
 		err = -ENOMEM;
 		goto free;

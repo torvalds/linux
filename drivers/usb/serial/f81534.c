@@ -5,7 +5,7 @@
  * F81532 => 2 Serial Ports
  * F81534 => 4 Serial Ports
  *
- * Copyright (C) 2016 Feature Integration Technology Inc., (Fintek)
+ * Copyright (C) 2016 Feature Integration Techyeslogy Inc., (Fintek)
  * Copyright (C) 2016 Tom Tsai (Tom_Tsai@fintek.com.tw)
  * Copyright (C) 2016 Peter Hong (Peter_Hong@fintek.com.tw)
  *
@@ -226,7 +226,7 @@ static int f81534_set_register(struct usb_serial *serial, u16 reg, u8 data)
 	*tmp = data;
 
 	/*
-	 * Our device maybe not reply when heavily loading, We'll retry for
+	 * Our device maybe yest reply when heavily loading, We'll retry for
 	 * F81534_USB_MAX_RETRY times.
 	 */
 	while (count--) {
@@ -265,7 +265,7 @@ static int f81534_get_register(struct usb_serial *serial, u16 reg, u8 *data)
 		return -ENOMEM;
 
 	/*
-	 * Our device maybe not reply when heavily loading, We'll retry for
+	 * Our device maybe yest reply when heavily loading, We'll retry for
 	 * F81534_USB_MAX_RETRY times.
 	 */
 	while (count--) {
@@ -685,7 +685,7 @@ static int f81534_update_mctrl(struct usb_serial_port *port, unsigned int set,
 	u8 tmp;
 
 	if (((set | clear) & (TIOCM_DTR | TIOCM_RTS)) == 0)
-		return 0;	/* no change */
+		return 0;	/* yes change */
 
 	mutex_lock(&port_priv->mcr_mutex);
 
@@ -721,7 +721,7 @@ static int f81534_update_mctrl(struct usb_serial_port *port, unsigned int set,
 
 /*
  * This function will search the data area with token F81534_CUSTOM_VALID_TOKEN
- * for latest configuration index. If nothing found
+ * for latest configuration index. If yesthing found
  * (*index = F81534_CUSTOM_NO_CUSTOM_DATA), We'll load default configure in
  * F81534_DEF_CONF_ADDRESS_START section.
  *
@@ -751,7 +751,7 @@ static int f81534_find_config_idx(struct usb_serial *serial, u8 *index)
 }
 
 /*
- * The F81532/534 will not report serial port to USB serial subsystem when
+ * The F81532/534 will yest report serial port to USB serial subsystem when
  * H/W DCD/DSR/CTS/RI/RX pin connected to ground.
  *
  * To detect RX pin status, we'll enable MCR interal loopback, disable it and
@@ -817,7 +817,7 @@ static bool f81534_check_port_hw_disabled(struct usb_serial *serial, int phy)
 /*
  * We had 2 generation of F81532/534 IC. All has an internal storage.
  *
- * 1st is pure USB-to-TTL RS232 IC and designed for 4 ports only, no any
+ * 1st is pure USB-to-TTL RS232 IC and designed for 4 ports only, yes any
  * internal data will used. All mode and gpio control should manually set
  * by AP or Driver and all storage space value are 0xff. The
  * f81534_calc_num_ports() will run to final we marked as "oldest version"
@@ -916,7 +916,7 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 
 	if (!num_port) {
 		dev_warn(&serial->interface->dev,
-			"no config found, assuming 4 ports\n");
+			"yes config found, assuming 4 ports\n");
 		num_port = 4;		/* Nothing found, oldest version IC */
 	}
 
@@ -1152,7 +1152,7 @@ static int f81534_get_serial_info(struct tty_struct *tty,
 
 	ss->type = PORT_16550A;
 	ss->port = port->port_number;
-	ss->line = port->minor;
+	ss->line = port->miyesr;
 	ss->baud_base = port_priv->baud_base;
 	return 0;
 }
@@ -1207,7 +1207,7 @@ static void f81534_process_per_serial_block(struct usb_serial_port *port,
 		break;
 
 	default:
-		dev_warn(&port->dev, "%s: unknown token: %02x\n", __func__,
+		dev_warn(&port->dev, "%s: unkyeswn token: %02x\n", __func__,
 				data[1]);
 		return;
 	}
@@ -1304,7 +1304,7 @@ static void f81534_write_usb_callback(struct urb *urb)
 				__func__, urb->status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status: %d\n",
+		dev_dbg(&port->dev, "%s - yesnzero urb status: %d\n",
 				__func__, urb->status);
 		break;
 	}

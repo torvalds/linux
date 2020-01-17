@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Copyright (C) 2019 Renesas Electronics Corporation
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -12,13 +12,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 #ifndef RENESAS_USB_H
 #define RENESAS_USB_H
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
 
@@ -92,9 +92,9 @@ struct renesas_usbhs_platform_callback {
 
 	/*
 	 * option:
-	 * extcon notifier to set host/peripheral mode.
+	 * extcon yestifier to set host/peripheral mode.
 	 */
-	int (*notifier)(struct notifier_block *nb, unsigned long event,
+	int (*yestifier)(struct yestifier_block *nb, unsigned long event,
 			void *data);
 };
 
@@ -137,7 +137,7 @@ struct renesas_usbhs_driver_param {
 	/*
 	 * option:
 	 *
-	 * delay time from notify_hotplug callback
+	 * delay time from yestify_hotplug callback
 	 */
 	int detection_delay; /* msec */
 

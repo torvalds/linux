@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -25,12 +25,12 @@
 #include <nvif/class.h>
 
 int
-nv50_ovly_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
+nv50_ovly_new(struct yesuveau_drm *drm, int head, struct nv50_wndw **pwndw)
 {
 	static const struct {
 		s32 oclass;
 		int version;
-		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
+		int (*new)(struct yesuveau_drm *, int, s32, struct nv50_wndw **);
 	} ovlys[] = {
 		{ GK104_DISP_OVERLAY_CONTROL_DMA, 0, ovly917e_new },
 		{ GF110_DISP_OVERLAY_CONTROL_DMA, 0, ovly907e_new },

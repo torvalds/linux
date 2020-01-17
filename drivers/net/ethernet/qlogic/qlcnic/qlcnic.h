@@ -45,12 +45,12 @@
 
 #define QLCNIC_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
-#define _minor(v)	(((v) >> 16) & 0xff)
+#define _miyesr(v)	(((v) >> 16) & 0xff)
 #define _build(v)	((v) & 0xffff)
 
 /* version in image has weird encoding:
  *  7:0  - major
- * 15:8  - minor
+ * 15:8  - miyesr
  * 31:16 - build (little endian)
  */
 #define QLCNIC_DECODE_VERSION(v) \
@@ -127,7 +127,7 @@ enum qlcnic_queue_type {
 #define PHAN_INITIALIZE_FAILED		0xffff
 #define PHAN_INITIALIZE_COMPLETE	0xff01
 
-/* Host writes the following to notify that it has done the init-handshake */
+/* Host writes the following to yestify that it has done the init-handshake */
 #define PHAN_INITIALIZE_ACK		0xf00f
 #define PHAN_PEG_RCV_INITIALIZED	0xff01
 
@@ -288,7 +288,7 @@ struct qlcnic_fdt {
 	u8	protected_sec_cmd;
 	u8	resvd[65];
 };
-/* Magic number to let user know flash is programmed */
+/* Magic number to let user kyesw flash is programmed */
 #define	QLCNIC_BDINFO_MAGIC 0x12345678
 
 #define QLCNIC_BRDTYPE_P3P_REF_QG	0x0021
@@ -363,7 +363,7 @@ struct qlcnic_cmd_buffer {
 	u32 frag_count;
 };
 
-/* In rx_buffer, we do not need multiple fragments as is a single buffer */
+/* In rx_buffer, we do yest need multiple fragments as is a single buffer */
 struct qlcnic_rx_buffer {
 	u16 ref_handle;
 	struct sk_buff *skb;
@@ -571,7 +571,7 @@ struct qlcnic_adapter_stats {
 
 /*
  * Rcv Descriptor Context. One such per Rcv Descriptor. There may
- * be one Rcv Descriptor for normal packets, one for jumbo and may be others.
+ * be one Rcv Descriptor for yesrmal packets, one for jumbo and may be others.
  */
 struct qlcnic_host_rds_ring {
 	void __iomem *crb_rcv_producer;
@@ -585,7 +585,7 @@ struct qlcnic_host_rds_ring {
 	struct list_head free_list;
 	spinlock_t lock;
 	dma_addr_t phys_addr;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 struct qlcnic_host_sds_ring {
 	u32 consumer;
@@ -603,7 +603,7 @@ struct qlcnic_host_sds_ring {
 
 	dma_addr_t phys_addr;
 	char name[IFNAMSIZ + 12];
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 struct qlcnic_tx_queue_stats {
 	u64 xmit_on;
@@ -638,7 +638,7 @@ struct qlcnic_host_tx_ring {
 	struct netdev_queue *txq;
 	/* Lock to protect Tx descriptors cleanup */
 	spinlock_t tx_clean_lock;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 /*
  * Receive context. There is one such structure per instance of the
@@ -687,7 +687,7 @@ struct qlcnic_recv_context {
 #define QLCNIC_DESTROY_CTX_RESET	0
 
 /*
- * Capabilities Announced
+ * Capabilities Anyesunced
  */
 #define QLCNIC_CAP0_LEGACY_CONTEXT	(1)
 #define QLCNIC_CAP0_LEGACY_MN		(1 << 2)
@@ -1074,7 +1074,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_ILB_MAX_RCV_LOOP	10
 
 struct qlcnic_filter {
-	struct hlist_node fnode;
+	struct hlist_yesde fyesde;
 	u8 faddr[ETH_ALEN];
 	u16 vlan_id;
 	unsigned long ftime;
@@ -1753,7 +1753,7 @@ struct qlcnic_mbx_ops {
 	void (*dequeue_cmd) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
 	void (*decode_resp) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
 	void (*encode_cmd) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
-	void (*nofity_fw) (struct qlcnic_adapter *, u8);
+	void (*yesfity_fw) (struct qlcnic_adapter *, u8);
 };
 
 int qlcnic_83xx_init_mailbox_work(struct qlcnic_adapter *);
@@ -1774,7 +1774,7 @@ struct qlcnic_hardware_ops {
 	int (*alloc_mbx_args)(struct qlcnic_cmd_args *,
 			      struct qlcnic_adapter *, u32);
 	int (*mbx_cmd) (struct qlcnic_adapter *, struct qlcnic_cmd_args *);
-	void (*get_func_no) (struct qlcnic_adapter *);
+	void (*get_func_yes) (struct qlcnic_adapter *);
 	int (*api_lock) (struct qlcnic_adapter *);
 	void (*api_unlock) (struct qlcnic_adapter *);
 	void (*add_sysfs) (struct qlcnic_adapter *);
@@ -1912,9 +1912,9 @@ static inline int qlcnic_issue_cmd(struct qlcnic_adapter *adapter,
 	return -EIO;
 }
 
-static inline void qlcnic_get_func_no(struct qlcnic_adapter *adapter)
+static inline void qlcnic_get_func_yes(struct qlcnic_adapter *adapter)
 {
-	adapter->ahw->hw_ops->get_func_no(adapter);
+	adapter->ahw->hw_ops->get_func_yes(adapter);
 }
 
 static inline int qlcnic_api_lock(struct qlcnic_adapter *adapter)

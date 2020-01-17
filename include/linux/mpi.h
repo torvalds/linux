@@ -6,7 +6,7 @@
  * This file is part of GNUPG.
  *
  * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ *	 Actually it's the same code with only miyesr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -32,7 +32,7 @@ struct gcry_mpi {
 	int nbits;		/* the real number of valid bits (info only) */
 	int sign;		/* indicates a negative number */
 	unsigned flags;		/* bit 0: array must be allocated in secure memory space */
-	/* bit 1: not used */
+	/* bit 1: yest used */
 	/* bit 2: the limb is a pointer to some m_alloced data */
 	mpi_limb_t *d;		/* array with the limbs */
 };
@@ -64,7 +64,7 @@ int mpi_cmp_ui(MPI u, ulong v);
 int mpi_cmp(MPI u, MPI v);
 
 /*-- mpi-bit.c --*/
-void mpi_normalize(MPI a);
+void mpi_yesrmalize(MPI a);
 unsigned mpi_get_nbits(MPI a);
 
 /* inline functions */

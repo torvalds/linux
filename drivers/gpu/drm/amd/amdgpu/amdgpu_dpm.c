@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -36,7 +36,7 @@ void amdgpu_dpm_print_class_info(u32 class, u32 class2)
 	switch (class & ATOM_PPLIB_CLASSIFICATION_UI_MASK) {
 	case ATOM_PPLIB_CLASSIFICATION_UI_NONE:
 	default:
-		s = "none";
+		s = "yesne";
 		break;
 	case ATOM_PPLIB_CLASSIFICATION_UI_BATTERY:
 		s = "battery";
@@ -52,7 +52,7 @@ void amdgpu_dpm_print_class_info(u32 class, u32 class2)
 	printk("\tinternal class:");
 	if (((class & ~ATOM_PPLIB_CLASSIFICATION_UI_MASK) == 0) &&
 	    (class2 == 0))
-		pr_cont(" none");
+		pr_cont(" yesne");
 	else {
 		if (class & ATOM_PPLIB_CLASSIFICATION_BOOT)
 			pr_cont(" boot");
@@ -98,7 +98,7 @@ void amdgpu_dpm_print_cap_info(u32 caps)
 	if (caps & ATOM_PPLIB_SUPPORTS_VIDEO_PLAYBACK)
 		pr_cont(" video");
 	if (caps & ATOM_PPLIB_DISALLOW_ON_DC)
-		pr_cont(" no_dc");
+		pr_cont(" yes_dc");
 	pr_cont("\n");
 }
 
@@ -778,7 +778,7 @@ void amdgpu_add_thermal_controller(struct amdgpu_device *adev)
 	/* add the i2c bus for thermal/fan chip */
 	if (controller->ucType > 0) {
 		if (controller->ucFanParameters & ATOM_PP_FANPARAMETERS_NOFAN)
-			adev->pm.no_fan = true;
+			adev->pm.yes_fan = true;
 		adev->pm.fan_pulses_per_revolution =
 			controller->ucFanParameters & ATOM_PP_FANPARAMETERS_TACHOMETER_PULSES_PER_REVOLUTION_MASK;
 		if (adev->pm.fan_pulses_per_revolution) {
@@ -859,7 +859,7 @@ void amdgpu_add_thermal_controller(struct amdgpu_device *adev)
 				i2c_new_device(&adev->pm.i2c_bus->adapter, &info);
 			}
 		} else {
-			DRM_INFO("Unknown thermal controller type %d at 0x%02x %s fan control\n",
+			DRM_INFO("Unkyeswn thermal controller type %d at 0x%02x %s fan control\n",
 				 controller->ucType,
 				 controller->ucI2cAddress >> 1,
 				 (controller->ucFanParameters &

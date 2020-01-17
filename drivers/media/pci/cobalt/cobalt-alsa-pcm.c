@@ -94,7 +94,7 @@ static void sample_cpy(u8 *dst, const u8 *src, u32 len, bool is_s32)
 	}
 }
 
-static void cobalt_alsa_announce_pcm_data(struct snd_cobalt_card *cobsc,
+static void cobalt_alsa_anyesunce_pcm_data(struct snd_cobalt_card *cobsc,
 					u8 *pcm_data,
 					size_t skip,
 					size_t samples)
@@ -108,7 +108,7 @@ static void cobalt_alsa_announce_pcm_data(struct snd_cobalt_card *cobsc,
 	int period_elapsed = 0;
 	bool is_s32;
 
-	dprintk("cobalt alsa announce ptr=%p data=%p num_bytes=%zd\n", cobsc,
+	dprintk("cobalt alsa anyesunce ptr=%p data=%p num_bytes=%zd\n", cobsc,
 		pcm_data, samples);
 
 	substream = cobsc->capture_pcm_substream;
@@ -136,7 +136,7 @@ static void cobalt_alsa_announce_pcm_data(struct snd_cobalt_card *cobsc,
 	}
 
 	if (runtime->dma_area == NULL) {
-		dprintk("dma area was NULL - ignoring\n");
+		dprintk("dma area was NULL - igyesring\n");
 		return;
 	}
 
@@ -197,7 +197,7 @@ static int alsa_fnc(struct vb2_buffer *vb, void *priv)
 		}
 		pr_cont("\n");
 	}
-	cobalt_alsa_announce_pcm_data(s->alsa,
+	cobalt_alsa_anyesunce_pcm_data(s->alsa,
 			vb2_plane_vaddr(vb, 0),
 			8 * 4,
 			vb2_get_plane_payload(vb, 0) / (8 * 4));
@@ -383,7 +383,7 @@ static void cobalt_alsa_pb_pcm_data(struct snd_cobalt_card *cobsc,
 	}
 
 	if (runtime->dma_area == NULL) {
-		dprintk("dma area was NULL - ignoring\n");
+		dprintk("dma area was NULL - igyesring\n");
 		return;
 	}
 

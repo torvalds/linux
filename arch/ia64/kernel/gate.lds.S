@@ -20,13 +20,13 @@ SECTIONS
 	.gnu.version_d		: { *(.gnu.version_d) }
 	.gnu.version_r		: { *(.gnu.version_r) }
 
-	.note			: { *(.note*) }		:readable	:note
+	.yeste			: { *(.yeste*) }		:readable	:yeste
 
 	.dynamic		: { *(.dynamic) }	:readable	:dynamic
 
 	/*
 	 * This linker script is used both with -r and with -shared.  For
-	 * the layouts to match, we need to skip more than enough space for
+	 * the layouts to match, we need to skip more than eyesugh space for
 	 * the dynamic symbol table et al.  If this amount is insufficient,
 	 * ld -shared will barf.  Just increase it here.
 	 */
@@ -70,7 +70,7 @@ SECTIONS
 }
 
 /*
- * ld does not recognize this name token; use the constant.
+ * ld does yest recognize this name token; use the constant.
  */
 #define	PT_IA_64_UNWIND	0x70000001
 
@@ -85,7 +85,7 @@ PHDRS
 	epc		PT_LOAD	FILEHDR PHDRS	FLAGS(1);	/* PF_X */
 #endif
 	dynamic		PT_DYNAMIC		FLAGS(4);	/* PF_R */
-	note		PT_NOTE			FLAGS(4);	/* PF_R */
+	yeste		PT_NOTE			FLAGS(4);	/* PF_R */
 	unwind		PT_IA_64_UNWIND;
 }
 

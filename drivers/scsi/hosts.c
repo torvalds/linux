@@ -80,7 +80,7 @@ int scsi_host_set_state(struct Scsi_Host *shost, enum scsi_host_state state)
 
 	switch (state) {
 	case SHOST_CREATED:
-		/* There are no legal states that come back to
+		/* There are yes legal states that come back to
 		 * created.  This is the manually initialised start
 		 * state */
 		goto illegal;
@@ -216,7 +216,7 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 
 	if (!shost->can_queue) {
 		shost_printk(KERN_ERR, shost,
-			     "can_queue = 0 no longer supported\n");
+			     "can_queue = 0 yes longer supported\n");
 		goto fail;
 	}
 
@@ -238,9 +238,9 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	/*
 	 * Increase usage count temporarily here so that calling
 	 * scsi_autopm_put_host() will trigger runtime idle if there is
-	 * nothing else preventing suspending the device.
+	 * yesthing else preventing suspending the device.
 	 */
-	pm_runtime_get_noresume(&shost->shost_gendev);
+	pm_runtime_get_yesresume(&shost->shost_gendev);
 	pm_runtime_set_active(&shost->shost_gendev);
 	pm_runtime_enable(&shost->shost_gendev);
 	device_enable_async_suspend(&shost->shost_gendev);
@@ -271,7 +271,7 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 
 	if (shost->transportt->create_work_queue) {
 		snprintf(shost->work_q_name, sizeof(shost->work_q_name),
-			 "scsi_wq_%d", shost->host_no);
+			 "scsi_wq_%d", shost->host_yes);
 		shost->work_q = create_singlethread_workqueue(
 					shost->work_q_name);
 		if (!shost->work_q) {
@@ -301,7 +301,7 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	device_disable_async_suspend(&shost->shost_gendev);
 	pm_runtime_disable(&shost->shost_gendev);
 	pm_runtime_set_suspended(&shost->shost_gendev);
-	pm_runtime_put_noidle(&shost->shost_gendev);
+	pm_runtime_put_yesidle(&shost->shost_gendev);
 	scsi_mq_destroy_tags(shost);
  fail:
 	return error;
@@ -329,7 +329,7 @@ static void scsi_host_dev_release(struct device *dev)
 		/*
 		 * Free the shost_dev device name here if scsi_host_alloc()
 		 * and scsi_host_put() have been called but neither
-		 * scsi_host_add() nor scsi_host_remove() has been called.
+		 * scsi_host_add() yesr scsi_host_remove() has been called.
 		 * This avoids that the memory allocated for the shost_dev
 		 * name is leaked.
 		 */
@@ -341,7 +341,7 @@ static void scsi_host_dev_release(struct device *dev)
 
 	kfree(shost->shost_data);
 
-	ida_simple_remove(&host_index_ida, shost->host_no);
+	ida_simple_remove(&host_index_ida, shost->host_yes);
 
 	if (parent)
 		put_device(parent);
@@ -360,7 +360,7 @@ static struct device_type scsi_host_type = {
  *
  * Note:
  * 	Allocate a new Scsi_Host and perform basic initialization.
- * 	The host is not published to the scsi midlayer until scsi_add_host
+ * 	The host is yest published to the scsi midlayer until scsi_add_host
  * 	is called.
  *
  * Return value:
@@ -392,7 +392,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	index = ida_simple_get(&host_index_ida, 0, 0, GFP_KERNEL);
 	if (index < 0)
 		goto fail_kfree;
-	shost->host_no = index;
+	shost->host_yes = index;
 
 	shost->dma_channel = 0xff;
 
@@ -405,7 +405,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->transportt = &blank_transport_template;
 
 	/*
-	 * All drivers right now should be able to handle 12 byte
+	 * All drivers right yesw should be able to handle 12 byte
 	 * commands.  Every so often there are requests for 16 byte
 	 * commands, but individual low-level drivers need to certify that
 	 * they actually do something sensible with such commands.
@@ -418,7 +418,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->sg_prot_tablesize = sht->sg_prot_tablesize;
 	shost->cmd_per_lun = sht->cmd_per_lun;
 	shost->unchecked_isa_dma = sht->unchecked_isa_dma;
-	shost->no_write_same = sht->no_write_same;
+	shost->yes_write_same = sht->yes_write_same;
 
 	if (shost_eh_deadline == -1 || !sht->eh_host_reset_handler)
 		shost->eh_deadline = -1;
@@ -442,7 +442,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 		shost->max_host_blocked = SCSI_DEFAULT_HOST_BLOCKED;
 
 	/*
-	 * If the driver imposes no hard sector transfer limit, start at
+	 * If the driver imposes yes hard sector transfer limit, start at
 	 * machine infinity initially.
 	 */
 	if (sht->max_sectors)
@@ -456,7 +456,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 		shost->max_segment_size = BLK_MAX_SEGMENT_SIZE;
 
 	/*
-	 * assume a 4GB boundary, if not set
+	 * assume a 4GB boundary, if yest set
 	 */
 	if (sht->dma_boundary)
 		shost->dma_boundary = sht->dma_boundary;
@@ -467,18 +467,18 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 		shost->virt_boundary_mask = sht->virt_boundary_mask;
 
 	device_initialize(&shost->shost_gendev);
-	dev_set_name(&shost->shost_gendev, "host%d", shost->host_no);
+	dev_set_name(&shost->shost_gendev, "host%d", shost->host_yes);
 	shost->shost_gendev.bus = &scsi_bus_type;
 	shost->shost_gendev.type = &scsi_host_type;
 
 	device_initialize(&shost->shost_dev);
 	shost->shost_dev.parent = &shost->shost_gendev;
 	shost->shost_dev.class = &shost_class;
-	dev_set_name(&shost->shost_dev, "host%d", shost->host_no);
+	dev_set_name(&shost->shost_dev, "host%d", shost->host_yes);
 	shost->shost_dev.groups = scsi_sysfs_shost_attr_groups;
 
 	shost->ehandler = kthread_run(scsi_error_handler, shost,
-			"scsi_eh_%d", shost->host_no);
+			"scsi_eh_%d", shost->host_yes);
 	if (IS_ERR(shost->ehandler)) {
 		shost_printk(KERN_WARNING, shost,
 			"error handler thread failed to spawn, error = %ld\n",
@@ -488,7 +488,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 
 	shost->tmf_work_q = alloc_workqueue("scsi_tmf_%d",
 					    WQ_UNBOUND | WQ_MEM_RECLAIM,
-					   1, shost->host_no);
+					   1, shost->host_yes);
 	if (!shost->tmf_work_q) {
 		shost_printk(KERN_WARNING, shost,
 			     "failed to create tmf workq\n");
@@ -500,7 +500,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
  fail_kthread:
 	kthread_stop(shost->ehandler);
  fail_index_remove:
-	ida_simple_remove(&host_index_ida, shost->host_no);
+	ida_simple_remove(&host_index_ida, shost->host_yes);
  fail_kfree:
 	kfree(shost);
 	return NULL;
@@ -513,11 +513,11 @@ static int __scsi_host_match(struct device *dev, const void *data)
 	const unsigned short *hostnum = data;
 
 	p = class_to_shost(dev);
-	return p->host_no == *hostnum;
+	return p->host_yes == *hostnum;
 }
 
 /**
- * scsi_host_lookup - get a reference to a Scsi_Host by host no
+ * scsi_host_lookup - get a reference to a Scsi_Host by host yes
  * @hostnum:	host number to locate
  *
  * Return value:
@@ -623,7 +623,7 @@ int scsi_queue_work(struct Scsi_Host *shost, struct work_struct *work)
 	if (unlikely(!shost->work_q)) {
 		shost_printk(KERN_ERR, shost,
 			"ERROR: Scsi host '%s' attempted to queue scsi-work, "
-			"when no workqueue created.\n", shost->hostt->name);
+			"when yes workqueue created.\n", shost->hostt->name);
 		dump_stack();
 
 		return -EINVAL;
@@ -642,7 +642,7 @@ void scsi_flush_work(struct Scsi_Host *shost)
 	if (!shost->work_q) {
 		shost_printk(KERN_ERR, shost,
 			"ERROR: Scsi host '%s' attempted to flush scsi-work, "
-			"when no workqueue created.\n", shost->hostt->name);
+			"when yes workqueue created.\n", shost->hostt->name);
 		dump_stack();
 		return;
 	}

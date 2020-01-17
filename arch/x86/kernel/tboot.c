@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * tboot.c: main implementation of helper functions used by kernel for
- *          runtime support of Intel(R) Trusted Execution Technology
+ *          runtime support of Intel(R) Trusted Execution Techyeslogy
  *
  * Copyright (c) 2006-2009, Intel Corporation
  */
@@ -34,7 +34,7 @@
 
 #include "../realmode/rm/wakeup.h"
 
-/* Global pointer to shared data; NULL means no measured launch. */
+/* Global pointer to shared data; NULL means yes measured launch. */
 struct tboot *tboot __read_mostly;
 EXPORT_SYMBOL(tboot);
 
@@ -57,7 +57,7 @@ void __init tboot_probe(void)
 	 */
 	if (!e820__mapped_any(boot_params.tboot_addr,
 			     boot_params.tboot_addr, E820_TYPE_RESERVED)) {
-		pr_warn("non-0 tboot_addr but it is not of type E820_TYPE_RESERVED\n");
+		pr_warn("yesn-0 tboot_addr but it is yest of type E820_TYPE_RESERVED\n");
 		return;
 	}
 
@@ -203,11 +203,11 @@ static int tboot_setup_sleep(void)
 	return 0;
 }
 
-#else /* no CONFIG_ACPI_SLEEP */
+#else /* yes CONFIG_ACPI_SLEEP */
 
 static int tboot_setup_sleep(void)
 {
-	/* S3 shutdown requested, but S3 not supported by the kernel... */
+	/* S3 shutdown requested, but S3 yest supported by the kernel... */
 	BUG();
 	return -1;
 }
@@ -223,7 +223,7 @@ void tboot_shutdown(u32 shutdown_type)
 
 	/*
 	 * if we're being called before the 1:1 mapping is set up then just
-	 * return and let the normal shutdown happen; this should only be
+	 * return and let the yesrmal shutdown happen; this should only be
 	 * due to very early panic()
 	 */
 	if (!tboot_pg_dir)
@@ -241,7 +241,7 @@ void tboot_shutdown(u32 shutdown_type)
 	shutdown = (void(*)(void))(unsigned long)tboot->shutdown_entry;
 	shutdown();
 
-	/* should not reach here */
+	/* should yest reach here */
 	while (1)
 		halt();
 }
@@ -301,7 +301,7 @@ static int tboot_extended_sleep(u8 sleep_state, u32 val_a, u32 val_b)
 	if (!tboot_enabled())
 		return 0;
 
-	pr_warn("tboot is not able to suspend on platforms with reduced hardware sleep (ACPIv5)");
+	pr_warn("tboot is yest able to suspend on platforms with reduced hardware sleep (ACPIv5)");
 	return -ENODEV;
 }
 
@@ -354,7 +354,7 @@ static ssize_t tboot_log_read(struct file *file, char __user *user_buf, size_t c
 	void *kbuf;
 	int ret = -EFAULT;
 
-	log_base = ioremap_nocache(TBOOT_SERIAL_LOG_ADDR, TBOOT_SERIAL_LOG_SIZE);
+	log_base = ioremap_yescache(TBOOT_SERIAL_LOG_ADDR, TBOOT_SERIAL_LOG_SIZE);
 	if (!log_base)
 		return ret;
 
@@ -470,7 +470,7 @@ struct acpi_table_header *tboot_get_dmar_table(struct acpi_table_header *dmar_tb
 		return dmar_tbl;
 
 	/*
-	 * ACPI tables may not be DMA protected by tboot, so use DMAR copy
+	 * ACPI tables may yest be DMA protected by tboot, so use DMAR copy
 	 * SINIT saved in SinitMleData in TXT heap (which is DMA protected)
 	 */
 
@@ -480,7 +480,7 @@ struct acpi_table_header *tboot_get_dmar_table(struct acpi_table_header *dmar_tb
 	if (!config)
 		return NULL;
 
-	/* now map TXT heap */
+	/* yesw map TXT heap */
 	heap_base = ioremap(*(u64 *)(config + TXTCR_HEAP_BASE),
 			    *(u64 *)(config + TXTCR_HEAP_SIZE));
 	iounmap(config);
@@ -494,7 +494,7 @@ struct acpi_table_header *tboot_get_dmar_table(struct acpi_table_header *dmar_tb
 	heap_ptr += *(u64 *)heap_ptr;
 	/* skip OsSinitData */
 	heap_ptr += *(u64 *)heap_ptr;
-	/* now points to SinitMleDataSize; set to SinitMleData */
+	/* yesw points to SinitMleDataSize; set to SinitMleData */
 	heap_ptr += sizeof(u64);
 	/* get addr of DMAR table */
 	dmar_tbl = (struct acpi_table_header *)(heap_ptr +
@@ -511,17 +511,17 @@ int tboot_force_iommu(void)
 	if (!tboot_enabled())
 		return 0;
 
-	if (intel_iommu_tboot_noforce)
+	if (intel_iommu_tboot_yesforce)
 		return 1;
 
-	if (no_iommu || swiotlb || dmar_disabled)
+	if (yes_iommu || swiotlb || dmar_disabled)
 		pr_warn("Forcing Intel-IOMMU to enabled\n");
 
 	dmar_disabled = 0;
 #ifdef CONFIG_SWIOTLB
 	swiotlb = 0;
 #endif
-	no_iommu = 0;
+	yes_iommu = 0;
 
 	return 1;
 }

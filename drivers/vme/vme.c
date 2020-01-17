@@ -14,7 +14,7 @@
 #include <linux/mm.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/poll.h>
 #include <linux/highmem.h>
@@ -66,7 +66,7 @@ static struct vme_bridge *find_bridge(struct vme_resource *resource)
 			list)->parent;
 		break;
 	default:
-		printk(KERN_ERR "Unknown resource type\n");
+		printk(KERN_ERR "Unkyeswn resource type\n");
 		return NULL;
 		break;
 	}
@@ -105,7 +105,7 @@ void *vme_alloc_consistent(struct vme_resource *resource, size_t size,
 	}
 
 	if (!bridge->alloc_consistent) {
-		printk(KERN_ERR "alloc_consistent not supported by bridge %s\n",
+		printk(KERN_ERR "alloc_consistent yest supported by bridge %s\n",
 		       bridge->name);
 		return NULL;
 	}
@@ -145,7 +145,7 @@ void vme_free_consistent(struct vme_resource *resource, size_t size,
 	}
 
 	if (!bridge->free_consistent) {
-		printk(KERN_ERR "free_consistent not supported by bridge %s\n",
+		printk(KERN_ERR "free_consistent yest supported by bridge %s\n",
 		       bridge->name);
 		return;
 	}
@@ -192,7 +192,7 @@ size_t vme_get_size(struct vme_resource *resource)
 		return 0;
 		break;
 	default:
-		printk(KERN_ERR "Unknown resource type\n");
+		printk(KERN_ERR "Unkyeswn resource type\n");
 		return 0;
 		break;
 	}
@@ -362,7 +362,7 @@ EXPORT_SYMBOL(vme_slave_request);
  *
  * Set configuration for provided VME slave window.
  *
- * Return: Zero on success, -EINVAL if operation is not supported on this
+ * Return: Zero on success, -EINVAL if operation is yest supported on this
  *         device, if an invalid resource has been provided or invalid
  *         attributes are provided. Hardware specific errors may also be
  *         returned.
@@ -383,7 +383,7 @@ int vme_slave_set(struct vme_resource *resource, int enabled,
 	image = list_entry(resource->entry, struct vme_slave_resource, list);
 
 	if (!bridge->slave_set) {
-		printk(KERN_ERR "Function not supported\n");
+		printk(KERN_ERR "Function yest supported\n");
 		return -ENOSYS;
 	}
 
@@ -414,7 +414,7 @@ EXPORT_SYMBOL(vme_slave_set);
  *
  * Return configuration for provided VME slave window.
  *
- * Return: Zero on success, -EINVAL if operation is not supported on this
+ * Return: Zero on success, -EINVAL if operation is yest supported on this
  *         device or if an invalid resource has been provided.
  */
 int vme_slave_get(struct vme_resource *resource, int *enabled,
@@ -432,7 +432,7 @@ int vme_slave_get(struct vme_resource *resource, int *enabled,
 	image = list_entry(resource->entry, struct vme_slave_resource, list);
 
 	if (!bridge->slave_get) {
-		printk(KERN_ERR "vme_slave_get not supported\n");
+		printk(KERN_ERR "vme_slave_get yest supported\n");
 		return -EINVAL;
 	}
 
@@ -566,7 +566,7 @@ EXPORT_SYMBOL(vme_master_request);
  *
  * Set configuration for provided VME master window.
  *
- * Return: Zero on success, -EINVAL if operation is not supported on this
+ * Return: Zero on success, -EINVAL if operation is yest supported on this
  *         device, if an invalid resource has been provided or invalid
  *         attributes are provided. Hardware specific errors may also be
  *         returned.
@@ -587,7 +587,7 @@ int vme_master_set(struct vme_resource *resource, int enabled,
 	image = list_entry(resource->entry, struct vme_master_resource, list);
 
 	if (!bridge->master_set) {
-		printk(KERN_WARNING "vme_master_set not supported\n");
+		printk(KERN_WARNING "vme_master_set yest supported\n");
 		return -EINVAL;
 	}
 
@@ -619,7 +619,7 @@ EXPORT_SYMBOL(vme_master_set);
  *
  * Return configuration for provided VME master window.
  *
- * Return: Zero on success, -EINVAL if operation is not supported on this
+ * Return: Zero on success, -EINVAL if operation is yest supported on this
  *         device or if an invalid resource has been provided.
  */
 int vme_master_get(struct vme_resource *resource, int *enabled,
@@ -637,7 +637,7 @@ int vme_master_get(struct vme_resource *resource, int *enabled,
 	image = list_entry(resource->entry, struct vme_master_resource, list);
 
 	if (!bridge->master_get) {
-		printk(KERN_WARNING "%s not supported\n", __func__);
+		printk(KERN_WARNING "%s yest supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -656,8 +656,8 @@ EXPORT_SYMBOL(vme_master_get);
  * Perform read of count bytes of data from location on VME bus which maps into
  * the VME master window at offset to buf.
  *
- * Return: Number of bytes read, -EINVAL if resource is not a VME master
- *         resource or read operation is not supported. -EFAULT returned if
+ * Return: Number of bytes read, -EINVAL if resource is yest a VME master
+ *         resource or read operation is yest supported. -EFAULT returned if
  *         invalid offset is provided. Hardware specific errors may also be
  *         returned.
  */
@@ -669,7 +669,7 @@ ssize_t vme_master_read(struct vme_resource *resource, void *buf, size_t count,
 	size_t length;
 
 	if (!bridge->master_read) {
-		printk(KERN_WARNING "Reading from resource not supported\n");
+		printk(KERN_WARNING "Reading from resource yest supported\n");
 		return -EINVAL;
 	}
 
@@ -705,8 +705,8 @@ EXPORT_SYMBOL(vme_master_read);
  * Perform write of count bytes of data from buf to location on VME bus which
  * maps into the VME master window at offset.
  *
- * Return: Number of bytes written, -EINVAL if resource is not a VME master
- *         resource or write operation is not supported. -EFAULT returned if
+ * Return: Number of bytes written, -EINVAL if resource is yest a VME master
+ *         resource or write operation is yest supported. -EFAULT returned if
  *         invalid offset is provided. Hardware specific errors may also be
  *         returned.
  */
@@ -718,7 +718,7 @@ ssize_t vme_master_write(struct vme_resource *resource, void *buf,
 	size_t length;
 
 	if (!bridge->master_write) {
-		printk(KERN_WARNING "Writing to resource not supported\n");
+		printk(KERN_WARNING "Writing to resource yest supported\n");
 		return -EINVAL;
 	}
 
@@ -758,8 +758,8 @@ EXPORT_SYMBOL(vme_master_write);
  * the bit is swapped.
  * - Result written back to location on VME bus.
  *
- * Return: Bytes written on success, -EINVAL if resource is not a VME master
- *         resource or RMW operation is not supported. Hardware specific
+ * Return: Bytes written on success, -EINVAL if resource is yest a VME master
+ *         resource or RMW operation is yest supported. Hardware specific
  *         errors may also be returned.
  */
 unsigned int vme_master_rmw(struct vme_resource *resource, unsigned int mask,
@@ -769,7 +769,7 @@ unsigned int vme_master_rmw(struct vme_resource *resource, unsigned int mask,
 	struct vme_master_resource *image;
 
 	if (!bridge->master_rmw) {
-		printk(KERN_WARNING "Writing to resource not supported\n");
+		printk(KERN_WARNING "Writing to resource yest supported\n");
 		return -EINVAL;
 	}
 
@@ -791,7 +791,7 @@ EXPORT_SYMBOL(vme_master_rmw);
  *
  * Memory map a region of the VME master window into user space.
  *
- * Return: Zero on success, -EINVAL if resource is not a VME master
+ * Return: Zero on success, -EINVAL if resource is yest a VME master
  *         resource or -EFAULT if map exceeds window size. Other generic mmap
  *         errors may also be returned.
  */
@@ -811,11 +811,11 @@ int vme_master_mmap(struct vme_resource *resource, struct vm_area_struct *vma)
 	vma_size = vma->vm_end - vma->vm_start;
 
 	if (phys_addr + vma_size > image->bus_resource.end + 1) {
-		pr_err("Map size cannot exceed the window size\n");
+		pr_err("Map size canyest exceed the window size\n");
 		return -EFAULT;
 	}
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	return vm_iomap_memory(vma, phys_addr, vma->vm_end - vma->vm_start);
 }
@@ -934,7 +934,7 @@ EXPORT_SYMBOL(vme_dma_request);
  * @resource: Pointer to VME DMA resource.
  *
  * Create a new VME DMA list. It is the responsibility of the user to free
- * the list once it is no longer required with vme_dma_list_free().
+ * the list once it is yes longer required with vme_dma_list_free().
  *
  * Return: Pointer to new VME DMA list, NULL on allocation failure or invalid
  *         VME DMA resource.
@@ -1108,10 +1108,10 @@ EXPORT_SYMBOL(vme_dma_free_attribute);
  * Add an entry to the provided VME DMA list. Entry requires pointers to source
  * and destination DMA attributes and a count.
  *
- * Please note, the attributes supported as source and destinations for
+ * Please yeste, the attributes supported as source and destinations for
  * transfers are hardware dependent.
  *
- * Return: Zero on success, -EINVAL if operation is not supported on this
+ * Return: Zero on success, -EINVAL if operation is yest supported on this
  *         device or if the link list has already been submitted for execution.
  *         Hardware specific errors also possible.
  */
@@ -1122,7 +1122,7 @@ int vme_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 	int retval;
 
 	if (!bridge->dma_list_add) {
-		printk(KERN_WARNING "Link List DMA generation not supported\n");
+		printk(KERN_WARNING "Link List DMA generation yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1146,7 +1146,7 @@ EXPORT_SYMBOL(vme_dma_list_add);
  * Queue the provided VME DMA list for execution. The call will return once the
  * list has been executed.
  *
- * Return: Zero on success, -EINVAL if operation is not supported on this
+ * Return: Zero on success, -EINVAL if operation is yest supported on this
  *         device. Hardware specific errors also possible.
  */
 int vme_dma_list_exec(struct vme_dma_list *list)
@@ -1155,7 +1155,7 @@ int vme_dma_list_exec(struct vme_dma_list *list)
 	int retval;
 
 	if (!bridge->dma_list_exec) {
-		printk(KERN_ERR "Link List DMA execution not supported\n");
+		printk(KERN_ERR "Link List DMA execution yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1184,7 +1184,7 @@ int vme_dma_list_free(struct vme_dma_list *list)
 	int retval;
 
 	if (!bridge->dma_list_empty) {
-		printk(KERN_WARNING "Emptying of Link Lists not supported\n");
+		printk(KERN_WARNING "Emptying of Link Lists yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1336,7 +1336,7 @@ EXPORT_SYMBOL(vme_irq_handler);
  * level and statid.
  *
  * Return: Zero on success, -EINVAL on invalid vme device, level or if the
- *         function is not supported, -EBUSY if the level/statid combination is
+ *         function is yest supported, -EBUSY if the level/statid combination is
  *         already in use. Hardware specific errors also possible.
  */
 int vme_irq_request(struct vme_dev *vdev, int level, int statid,
@@ -1357,7 +1357,7 @@ int vme_irq_request(struct vme_dev *vdev, int level, int statid,
 	}
 
 	if (!bridge->irq_set) {
-		printk(KERN_ERR "Configuring interrupts not supported\n");
+		printk(KERN_ERR "Configuring interrupts yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1406,7 +1406,7 @@ void vme_irq_free(struct vme_dev *vdev, int level, int statid)
 	}
 
 	if (!bridge->irq_set) {
-		printk(KERN_ERR "Configuring interrupts not supported\n");
+		printk(KERN_ERR "Configuring interrupts yest supported\n");
 		return;
 	}
 
@@ -1414,7 +1414,7 @@ void vme_irq_free(struct vme_dev *vdev, int level, int statid)
 
 	bridge->irq[level - 1].count--;
 
-	/* Disable IRQ level if no more interrupts attached at this level*/
+	/* Disable IRQ level if yes more interrupts attached at this level*/
 	if (bridge->irq[level - 1].count == 0)
 		bridge->irq_set(bridge, level, 0, 1);
 
@@ -1435,7 +1435,7 @@ EXPORT_SYMBOL(vme_irq_free);
  * statid.
  *
  * Return: Zero on success, -EINVAL on invalid vme device, level or if the
- *         function is not supported. Hardware specific errors also possible.
+ *         function is yest supported. Hardware specific errors also possible.
  */
 int vme_irq_generate(struct vme_dev *vdev, int level, int statid)
 {
@@ -1453,7 +1453,7 @@ int vme_irq_generate(struct vme_dev *vdev, int level, int statid)
 	}
 
 	if (!bridge->irq_generate) {
-		printk(KERN_WARNING "Interrupt generation not supported\n");
+		printk(KERN_WARNING "Interrupt generation yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1566,7 +1566,7 @@ EXPORT_SYMBOL(vme_lm_count);
  * monitored by the location monitor.
  *
  * Return: Zero on success, -EINVAL when provided with an invalid location
- *	   monitor resource or function is not supported. Hardware specific
+ *	   monitor resource or function is yest supported. Hardware specific
  *	   errors may also be returned.
  */
 int vme_lm_set(struct vme_resource *resource, unsigned long long lm_base,
@@ -1583,7 +1583,7 @@ int vme_lm_set(struct vme_resource *resource, unsigned long long lm_base,
 	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
 	if (!bridge->lm_set) {
-		printk(KERN_ERR "vme_lm_set not supported\n");
+		printk(KERN_ERR "vme_lm_set yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1602,7 +1602,7 @@ EXPORT_SYMBOL(vme_lm_set);
  * be monitored by the location monitor.
  *
  * Return: Zero on success, -EINVAL when provided with an invalid location
- *	   monitor resource or function is not supported. Hardware specific
+ *	   monitor resource or function is yest supported. Hardware specific
  *	   errors may also be returned.
  */
 int vme_lm_get(struct vme_resource *resource, unsigned long long *lm_base,
@@ -1619,7 +1619,7 @@ int vme_lm_get(struct vme_resource *resource, unsigned long long *lm_base,
 	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
 	if (!bridge->lm_get) {
-		printk(KERN_ERR "vme_lm_get not supported\n");
+		printk(KERN_ERR "vme_lm_get yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1639,7 +1639,7 @@ EXPORT_SYMBOL(vme_lm_get);
  * passed to the callback when called.
  *
  * Return: Zero on success, -EINVAL when provided with an invalid location
- *	   monitor resource or function is not supported. Hardware specific
+ *	   monitor resource or function is yest supported. Hardware specific
  *	   errors may also be returned.
  */
 int vme_lm_attach(struct vme_resource *resource, int monitor,
@@ -1656,7 +1656,7 @@ int vme_lm_attach(struct vme_resource *resource, int monitor,
 	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
 	if (!bridge->lm_attach) {
-		printk(KERN_ERR "vme_lm_attach not supported\n");
+		printk(KERN_ERR "vme_lm_attach yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1673,7 +1673,7 @@ EXPORT_SYMBOL(vme_lm_attach);
  * location monitors monitored addresses.
  *
  * Return: Zero on success, -EINVAL when provided with an invalid location
- *	   monitor resource or function is not supported. Hardware specific
+ *	   monitor resource or function is yest supported. Hardware specific
  *	   errors may also be returned.
  */
 int vme_lm_detach(struct vme_resource *resource, int monitor)
@@ -1689,7 +1689,7 @@ int vme_lm_detach(struct vme_resource *resource, int monitor)
 	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
 	if (!bridge->lm_detach) {
-		printk(KERN_ERR "vme_lm_detach not supported\n");
+		printk(KERN_ERR "vme_lm_detach yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1741,8 +1741,8 @@ EXPORT_SYMBOL(vme_lm_free);
  *
  * Retrieve the slot ID associated with the provided VME device.
  *
- * Return: The slot ID on success, -EINVAL if VME bridge cannot be determined
- *         or the function is not supported. Hardware specific errors may also
+ * Return: The slot ID on success, -EINVAL if VME bridge canyest be determined
+ *         or the function is yest supported. Hardware specific errors may also
  *         be returned.
  */
 int vme_slot_num(struct vme_dev *vdev)
@@ -1756,7 +1756,7 @@ int vme_slot_num(struct vme_dev *vdev)
 	}
 
 	if (!bridge->slot_get) {
-		printk(KERN_WARNING "vme_slot_num not supported\n");
+		printk(KERN_WARNING "vme_slot_num yest supported\n");
 		return -EINVAL;
 	}
 
@@ -1770,7 +1770,7 @@ EXPORT_SYMBOL(vme_slot_num);
  *
  * Retrieve the bus enumeration associated with the provided VME device.
  *
- * Return: The bus number on success, -EINVAL if VME bridge cannot be
+ * Return: The bus number on success, -EINVAL if VME bridge canyest be
  *         determined.
  */
 int vme_bus_num(struct vme_dev *vdev)
@@ -1903,7 +1903,7 @@ static int __vme_register_driver(struct vme_driver *drv, unsigned int ndevs)
 	mutex_lock(&vme_buses_lock);
 	list_for_each_entry(bridge, &vme_bus_list, bus_list) {
 		/*
-		 * This cannot cause trouble as we already have vme_buses_lock
+		 * This canyest cause trouble as we already have vme_buses_lock
 		 * and if the bridge is removed, it will have to go through
 		 * vme_unregister_bridge() to do it (which calls remove() on
 		 * the bridge which in turn tries to acquire vme_buses_lock and

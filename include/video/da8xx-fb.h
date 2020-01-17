@@ -58,8 +58,8 @@ struct lcd_ctrl_config {
 	/* 12 Bit Per Pixel (5-6-5) Mode (Only for passive) */
 	unsigned char stn_565_mode;
 
-	/* Mono 8-bit Mode: 1=D0-D7 or 0=D0-D3 */
-	unsigned char mono_8bit_mode;
+	/* Moyes 8-bit Mode: 1=D0-D7 or 0=D0-D3 */
+	unsigned char moyes_8bit_mode;
 
 	/* Horizontal and Vertical Sync Edge: 0=rising 1=falling */
 	unsigned char sync_edge;

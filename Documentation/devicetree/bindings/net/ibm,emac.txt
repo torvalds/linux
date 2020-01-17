@@ -1,13 +1,13 @@
-    4xx/Axon EMAC ethernet nodes
+    4xx/Axon EMAC ethernet yesdes
 
     The EMAC ethernet controller in IBM and AMCC 4xx chips, and also
     the Axon bridge.  To operate this needs to interact with a this
     special McMAL DMA controller, and sometimes an RGMII or ZMII
-    interface.  In addition to the nodes and properties described
-    below, the node for the OPB bus on which the EMAC sits must have a
+    interface.  In addition to the yesdes and properties described
+    below, the yesde for the OPB bus on which the EMAC sits must have a
     correct clock-frequency property.
 
-      i) The EMAC node itself
+      i) The EMAC yesde itself
 
     Required properties:
     - device_type       : "network"
@@ -20,7 +20,7 @@
     - interrupts        : <interrupt mapping for EMAC IRQ and WOL IRQ>
     - reg               : <registers mapping>
     - local-mac-address : 6 bytes, MAC address
-    - mal-device        : phandle of the associated McMAL node
+    - mal-device        : phandle of the associated McMAL yesde
     - mal-tx-channel    : 1 cell, index of the tx channel on McMAL associated
 			  with this EMAC
     - mal-rx-channel    : 1 cell, index of the rx channel on McMAL associated
@@ -49,11 +49,11 @@
 			  (440EP).  phandle of the EMAC to use to drive the
 			  MDIO lines for the PHY used by this EMAC.
     - zmii-device       : 1 cell, required iff connected to a ZMII.  phandle of
-			  the ZMII device node
+			  the ZMII device yesde
     - zmii-channel      : 1 cell, required iff connected to a ZMII.  Which ZMII
 			  channel or 0xffffffff if ZMII is only used for MDIO.
     - rgmii-device      : 1 cell, required iff connected to an RGMII. phandle
-			  of the RGMII device node.
+			  of the RGMII device yesde.
 			  For Axon: phandle of plb5/plb4/opb/rgmii
     - rgmii-channel     : 1 cell, required iff connected to an RGMII.  Which
 			  RGMII channel is used by this EMAC.
@@ -68,7 +68,7 @@
 			  for, used if phy-address is absent. bit 0x00000001 is
 			  MDIO address 0.
 			  For Axon it can be absent, though my current driver
-			  doesn't handle phy-address yet so for now, keep
+			  doesn't handle phy-address yet so for yesw, keep
 			  0x00ffffff in it.
     - phy-handle	: Used to describe configurations where a external PHY
 			  is used. Please refer to:
@@ -80,17 +80,17 @@
 			  operations (if absent the value is the same as
 			  tx-fifo-size). For Axon, either absent or 2048.
     - tah-device        : 1 cell, optional. If connected to a TAH engine for
-			  offload, phandle of the TAH device node.
+			  offload, phandle of the TAH device yesde.
     - tah-channel       : 1 cell, optional. If appropriate, channel used on the
 			  TAH engine.
-    - fixed-link	: Fixed-link subnode describing a link to a non-MDIO
+    - fixed-link	: Fixed-link subyesde describing a link to a yesn-MDIO
 			  managed entity. See
 			  Documentation/devicetree/bindings/net/fixed-link.txt
 			  for details.
-    - mdio subnode	: When the EMAC has a phy connected to its local
+    - mdio subyesde	: When the EMAC has a phy connected to its local
 			  mdio, which us supported by the kernel's network
 			  PHY library in drivers/net/phy, there must be device
-			  tree subnode with the following required properties:
+			  tree subyesde with the following required properties:
 				- #address-cells: Must be <1>.
 				- #size-cells: Must be <0>.
 
@@ -162,7 +162,7 @@
 	};
 
 
-      ii) McMAL node
+      ii) McMAL yesde
 
     Required properties:
     - device_type        : "dma-controller"
@@ -183,16 +183,16 @@
     - num-tx-chans       : 1 cell, number of Tx channels
     - num-rx-chans       : 1 cell, number of Rx channels
 
-      iii) ZMII node
+      iii) ZMII yesde
 
     Required properties:
     - compatible         : compatible list, containing 2 entries, first is
 			   "ibm,zmii-CHIP" where CHIP is the host ASIC (like
 			   EMAC) and the second is "ibm,zmii".
-			   For Axon, there is no ZMII node.
+			   For Axon, there is yes ZMII yesde.
     - reg                : <registers mapping>
 
-      iv) RGMII node
+      iv) RGMII yesde
 
     Required properties:
     - compatible         : compatible list, containing 2 entries, first is

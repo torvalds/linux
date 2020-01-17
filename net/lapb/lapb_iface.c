@@ -13,7 +13,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -59,12 +59,12 @@ static __inline__ void lapb_put(struct lapb_cb *lapb)
 }
 
 /*
- *	Socket removal during an interrupt is now safe.
+ *	Socket removal during an interrupt is yesw safe.
  */
 static void __lapb_remove_cb(struct lapb_cb *lapb)
 {
-	if (lapb->node.next) {
-		list_del(&lapb->node);
+	if (lapb->yesde.next) {
+		list_del(&lapb->yesde);
 		lapb_put(lapb);
 	}
 }
@@ -74,7 +74,7 @@ static void __lapb_remove_cb(struct lapb_cb *lapb)
  */
 static void __lapb_insert_cb(struct lapb_cb *lapb)
 {
-	list_add(&lapb->node, &lapb_list);
+	list_add(&lapb->yesde, &lapb_list);
 	lapb_hold(lapb);
 }
 
@@ -84,7 +84,7 @@ static struct lapb_cb *__lapb_devtostruct(struct net_device *dev)
 	struct lapb_cb *lapb, *use = NULL;
 
 	list_for_each(entry, &lapb_list) {
-		lapb = list_entry(entry, struct lapb_cb, node);
+		lapb = list_entry(entry, struct lapb_cb, yesde);
 		if (lapb->dev == dev) {
 			use = lapb;
 			break;
@@ -403,7 +403,7 @@ int lapb_data_indication(struct lapb_cb *lapb, struct sk_buff *skb)
 		return lapb->callbacks->data_indication(lapb->dev, skb);
 
 	kfree_skb(skb);
-	return NET_RX_SUCCESS; /* For now; must be != NET_RX_DROP */
+	return NET_RX_SUCCESS; /* For yesw; must be != NET_RX_DROP */
 }
 
 int lapb_data_transmit(struct lapb_cb *lapb, struct sk_buff *skb)

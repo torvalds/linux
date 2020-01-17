@@ -14,7 +14,7 @@
  # those programs without any restriction coming from the use of this
  # file.  (The General Public License restrictions do apply in other
  # respects; for example, they cover modification of the file, and
- # distribution when not linked into another program.)
+ # distribution when yest linked into ayesther program.)
 
  # This file is distributed in the hope that it will be useful, but
  # WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
@@ -22,12 +22,12 @@
  # License for more details.
 
  # You should have received a copy of the GNU General Public License
- # along with GCC; see the file COPYING.  If not, write to the 
+ # along with GCC; see the file COPYING.  If yest, write to the 
  # Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  # MA 02111-1307, USA.
 
-        .set noreorder
-        .set noat
+        .set yesreorder
+        .set yesat
 
 	.text
 

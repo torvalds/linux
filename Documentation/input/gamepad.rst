@@ -57,7 +57,7 @@ Most gamepads have the following features:
     Analog-sticks may also provide a digital button if you press them.
   - Triggers
     Triggers are located on the upper-side of the pad in vertical direction.
-    Not all devices provide them, but the upper buttons are normally named
+    Not all devices provide them, but the upper buttons are yesrmally named
     Left- and Right-Triggers, the lower buttons Z-Left and Z-Right.
   - Rumble
     Many devices provide force-feedback features. But are mostly just
@@ -68,10 +68,10 @@ Detection
 
 All gamepads that follow the protocol described here map BTN_GAMEPAD. This is
 an alias for BTN_SOUTH/BTN_A. It can be used to identify a gamepad as such.
-However, not all gamepads provide all features, so you need to test for all
+However, yest all gamepads provide all features, so you need to test for all
 features that you need, first. How each feature is mapped is described below.
 
-Legacy drivers often don't comply to these rules. As we cannot change them
+Legacy drivers often don't comply to these rules. As we canyest change them
 for backwards-compatibility reasons, you need to provide fixup mappings in
 user-space yourself. Some of them might also provide module-options that
 change the mappings so you can advise users to set these.
@@ -88,7 +88,7 @@ But that means, that if you only support "real" gamepads, you must test
 devices for _all_ reported events that you need. Otherwise, you will also get
 devices that report a small subset of the events.
 
-No other devices, that do not look/feel like a gamepad, shall report these
+No other devices, that do yest look/feel like a gamepad, shall report these
 events.
 
 Events
@@ -103,8 +103,8 @@ Gamepads report the following events:
   of the labels on the buttons, the codes are sent according to the
   physical position of the buttons.
 
-  Please note that 2- and 3-button pads are fairly rare and old. You might
-  want to filter gamepads that do not report all four.
+  Please yeste that 2- and 3-button pads are fairly rare and old. You might
+  want to filter gamepads that do yest report all four.
 
     - 2-Button Pad:
 
@@ -131,7 +131,7 @@ Gamepads report the following events:
 
   Every gamepad provides a D-Pad with four directions: Up, Down, Left, Right
   Some of these are available as digital buttons, some as analog buttons. Some
-  may even report both. The kernel does not convert between these so
+  may even report both. The kernel does yest convert between these so
   applications should support both and choose what is more appropriate if
   both are reported.
 

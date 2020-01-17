@@ -16,7 +16,7 @@
 #include <linux/mutex.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x50, 0x51, 0x52, 0x53, 0x54,
+static const unsigned short yesrmal_i2c[] = { 0x50, 0x51, 0x52, 0x53, 0x54,
 					0x55, 0x56, 0x57, I2C_CLIENT_END };
 
 
@@ -130,8 +130,8 @@ static int eeprom_detect(struct i2c_client *client, struct i2c_board_info *info)
 	   (2) Word reads (128% overhead)
 	   (3) Consecutive byte reads (88% overhead, unsafe)
 	   (4) Regular byte data reads (265% overhead)
-	   The third and fourth methods are not implemented by this driver
-	   because all known adapters support one of the first two. */
+	   The third and fourth methods are yest implemented by this driver
+	   because all kyeswn adapters support one of the first two. */
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_WORD_DATA)
 	 && !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_I2C_BLOCK))
 		return -ENODEV;
@@ -175,8 +175,8 @@ static int eeprom_probe(struct i2c_client *client,
 		}
 	}
 
-	/* Let the users know they are using deprecated driver */
-	dev_notice(&client->dev,
+	/* Let the users kyesw they are using deprecated driver */
+	dev_yestice(&client->dev,
 		   "eeprom driver is deprecated, please use at24 instead\n");
 
 	/* create the sysfs eeprom file */
@@ -205,7 +205,7 @@ static struct i2c_driver eeprom_driver = {
 
 	.class		= I2C_CLASS_DDC | I2C_CLASS_SPD,
 	.detect		= eeprom_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(eeprom_driver);

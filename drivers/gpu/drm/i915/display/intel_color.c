@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -294,7 +294,7 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 		/*
 		 * On GLK+ both pipe CSC and degamma LUT are controlled
 		 * by csc_enable. Hence for the cases where the degama
-		 * LUT is needed but CSC is not we need to load an
+		 * LUT is needed but CSC is yest we need to load an
 		 * identity matrix.
 		 */
 		WARN_ON(!IS_CANNONLAKE(dev_priv) && !IS_GEMINILAKE(dev_priv));
@@ -566,8 +566,8 @@ static int ivb_lut_10_size(u32 prec_index)
 
 /*
  * IVB/HSW Bspec / PAL_PREC_INDEX:
- * "Restriction : Index auto increment mode is not
- *  supported and must not be enabled."
+ * "Restriction : Index auto increment mode is yest
+ *  supported and must yest be enabled."
  */
 static void ivb_load_lut_10(struct intel_crtc *crtc,
 			    const struct drm_property_blob *blob,
@@ -709,7 +709,7 @@ static void glk_load_degamma_lut(const struct intel_crtc_state *crtc_state)
 
 	/*
 	 * When setting the auto-increment bit, the hardware seems to
-	 * ignore the index bits, so we need to reset it to index 0
+	 * igyesre the index bits, so we need to reset it to index 0
 	 * separately.
 	 */
 	I915_WRITE(PRE_CSC_GAMC_INDEX(pipe), 0);
@@ -747,7 +747,7 @@ static void glk_load_degamma_lut_linear(const struct intel_crtc_state *crtc_stat
 
 	/*
 	 * When setting the auto-increment bit, the hardware seems to
-	 * ignore the index bits, so we need to reset it to index 0
+	 * igyesre the index bits, so we need to reset it to index 0
 	 * separately.
 	 */
 	I915_WRITE(PRE_CSC_GAMC_INDEX(pipe), 0);
@@ -772,7 +772,7 @@ static void glk_load_luts(const struct intel_crtc_state *crtc_state)
 	/*
 	 * On GLK+ both pipe CSC and degamma LUT are controlled
 	 * by csc_enable. Hence for the cases where the CSC is
-	 * needed but degamma LUT is not we need to load a
+	 * needed but degamma LUT is yest we need to load a
 	 * linear degamma LUT. In fact we'll just always load
 	 * the degama LUT so that we don't have to reload
 	 * it every time the pipe CSC is being enabled.
@@ -889,8 +889,8 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	 * above, we need to pick every (8 * 128)th entry in LUT, and
 	 * program 256 of those.
 	 *
-	 * Spec is not very clear about if entries seg3[0] and seg3[1] are
-	 * being used or not, but we still need to program these to advance
+	 * Spec is yest very clear about if entries seg3[0] and seg3[1] are
+	 * being used or yest, but we still need to program these to advance
 	 * the index.
 	 */
 	for (i = 0; i < 256; i++) {
@@ -1063,9 +1063,9 @@ static bool glk_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
 
 	/*
 	 * The hardware degamma is active whenever the pipe
-	 * CSC is active. Thus even if the old state has no
+	 * CSC is active. Thus even if the old state has yes
 	 * software degamma we need to avoid clobbering the
-	 * linear hardware degamma mid scanout.
+	 * linear hardware degamma mid scayesut.
 	 */
 	return !old_crtc_state->csc_enable &&
 		!old_crtc_state->base.gamma_lut;
@@ -1161,7 +1161,7 @@ static int check_luts(const struct intel_crtc_state *crtc_state)
 	int gamma_length, degamma_length;
 	u32 gamma_tests, degamma_tests;
 
-	/* Always allow legacy gamma LUT with no further checking. */
+	/* Always allow legacy gamma LUT with yes further checking. */
 	if (crtc_state_is_legacy_gamma(crtc_state))
 		return 0;
 

@@ -14,11 +14,11 @@
 #include <linux/irq_work.h>
 
 /**
- * struct dma_fence_chain - fence to represent an node of a fence chain
+ * struct dma_fence_chain - fence to represent an yesde of a fence chain
  * @base: fence base class
  * @lock: spinlock for fence handling
  * @prev: previous fence of the chain
- * @prev_seqno: original previous seqno before garbage collection
+ * @prev_seqyes: original previous seqyes before garbage collection
  * @fence: encapsulated fence
  * @cb: callback structure for signaling
  * @work: irq work item for signaling
@@ -27,7 +27,7 @@ struct dma_fence_chain {
 	struct dma_fence base;
 	spinlock_t lock;
 	struct dma_fence __rcu *prev;
-	u64 prev_seqno;
+	u64 prev_seqyes;
 	struct dma_fence *fence;
 	struct dma_fence_cb cb;
 	struct irq_work work;
@@ -39,7 +39,7 @@ extern const struct dma_fence_ops dma_fence_chain_ops;
  * to_dma_fence_chain - cast a fence to a dma_fence_chain
  * @fence: fence to cast to a dma_fence_array
  *
- * Returns NULL if the fence is not a dma_fence_chain,
+ * Returns NULL if the fence is yest a dma_fence_chain,
  * or the dma_fence_chain otherwise.
  */
 static inline struct dma_fence_chain *
@@ -64,10 +64,10 @@ to_dma_fence_chain(struct dma_fence *fence)
 	     iter = dma_fence_chain_walk(iter))
 
 struct dma_fence *dma_fence_chain_walk(struct dma_fence *fence);
-int dma_fence_chain_find_seqno(struct dma_fence **pfence, uint64_t seqno);
+int dma_fence_chain_find_seqyes(struct dma_fence **pfence, uint64_t seqyes);
 void dma_fence_chain_init(struct dma_fence_chain *chain,
 			  struct dma_fence *prev,
 			  struct dma_fence *fence,
-			  uint64_t seqno);
+			  uint64_t seqyes);
 
 #endif /* __LINUX_DMA_FENCE_CHAIN_H */

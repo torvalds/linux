@@ -5,7 +5,7 @@
  * (c) 2007 Mauro Carvalho Chehab, <mchehab@kernel.org>
  *
  * Highly based on video-buf written originally by:
- * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
+ * (c) 2001,02 Gerd Kyesrr <kraxel@bytesex.org>
  * (c) 2006 Mauro Carvalho Chehab, <mchehab@kernel.org>
  * (c) 2006 Ted Walther and John Sokol
  */
@@ -72,7 +72,7 @@ struct videobuf_buffer *videobuf_alloc_vb(struct videobuf_queue *q)
 }
 EXPORT_SYMBOL_GPL(videobuf_alloc_vb);
 
-static int state_neither_active_nor_queued(struct videobuf_queue *q,
+static int state_neither_active_yesr_queued(struct videobuf_queue *q,
 					   struct videobuf_buffer *vb)
 {
 	unsigned long flags;
@@ -85,15 +85,15 @@ static int state_neither_active_nor_queued(struct videobuf_queue *q,
 };
 
 int videobuf_waiton(struct videobuf_queue *q, struct videobuf_buffer *vb,
-		int non_blocking, int intr)
+		int yesn_blocking, int intr)
 {
 	bool is_ext_locked;
 	int ret = 0;
 
 	MAGIC_CHECK(vb->magic, MAGIC_BUFFER);
 
-	if (non_blocking) {
-		if (state_neither_active_nor_queued(q, vb))
+	if (yesn_blocking) {
+		if (state_neither_active_yesr_queued(q, vb))
 			return 0;
 		return -EAGAIN;
 	}
@@ -106,9 +106,9 @@ int videobuf_waiton(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		mutex_unlock(q->ext_lock);
 	if (intr)
 		ret = wait_event_interruptible(vb->done,
-					state_neither_active_nor_queued(q, vb));
+					state_neither_active_yesr_queued(q, vb));
 	else
-		wait_event(vb->done, state_neither_active_nor_queued(q, vb));
+		wait_event(vb->done, state_neither_active_yesr_queued(q, vb));
 	/* Relock */
 	if (is_ext_locked)
 		mutex_lock(q->ext_lock);
@@ -222,7 +222,7 @@ EXPORT_SYMBOL_GPL(videobuf_queue_is_busy);
 /*
  * __videobuf_free() - free all the buffers and their control structures
  *
- * This function can only be called if streaming/reading is off, i.e. no buffers
+ * This function can only be called if streaming/reading is off, i.e. yes buffers
  * are under control of the driver.
  */
 /* Locking: Caller holds q->vb_lock */
@@ -235,7 +235,7 @@ static int __videobuf_free(struct videobuf_queue *q)
 		return 0;
 
 	if (q->streaming || q->reading) {
-		dprintk(1, "Cannot free buffers when streaming or reading\n");
+		dprintk(1, "Canyest free buffers when streaming or reading\n");
 		return -EBUSY;
 	}
 
@@ -243,7 +243,7 @@ static int __videobuf_free(struct videobuf_queue *q)
 
 	for (i = 0; i < VIDEO_MAX_FRAME; i++)
 		if (q->bufs[i] && q->bufs[i]->map) {
-			dprintk(1, "Cannot free mmapped buffers\n");
+			dprintk(1, "Canyest free mmapped buffers\n");
 			return -EBUSY;
 		}
 
@@ -337,7 +337,7 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 		b->m.offset  = vb->boff;
 		break;
 	case V4L2_MEMORY_DMABUF:
-		/* DMABUF is not handled in videobuf framework */
+		/* DMABUF is yest handled in videobuf framework */
 		break;
 	}
 
@@ -359,7 +359,7 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 		break;
 	case VIDEOBUF_NEEDS_INIT:
 	case VIDEOBUF_IDLE:
-		/* nothing */
+		/* yesthing */
 		break;
 	}
 
@@ -410,7 +410,7 @@ int __videobuf_mmap_setup(struct videobuf_queue *q,
 		case V4L2_MEMORY_USERPTR:
 		case V4L2_MEMORY_OVERLAY:
 		case V4L2_MEMORY_DMABUF:
-			/* nothing */
+			/* yesthing */
 			break;
 		}
 	}
@@ -583,7 +583,7 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 		break;
 	case V4L2_MEMORY_USERPTR:
 		if (b->length < buf->bsize) {
-			dprintk(1, "qbuf: buffer length is not enough\n");
+			dprintk(1, "qbuf: buffer length is yest eyesugh\n");
 			goto done;
 		}
 		if (VIDEOBUF_NEEDS_INIT != buf->state &&
@@ -628,7 +628,7 @@ done:
 EXPORT_SYMBOL_GPL(videobuf_qbuf);
 
 /* Locking: Caller holds q->vb_lock */
-static int stream_next_buffer_check_queue(struct videobuf_queue *q, int noblock)
+static int stream_next_buffer_check_queue(struct videobuf_queue *q, int yesblock)
 {
 	int retval;
 
@@ -640,9 +640,9 @@ checks:
 	}
 
 	if (list_empty(&q->stream)) {
-		if (noblock) {
+		if (yesblock) {
 			retval = -EAGAIN;
-			dprintk(2, "next_buffer: no buffers to dequeue\n");
+			dprintk(2, "next_buffer: yes buffers to dequeue\n");
 			goto done;
 		} else {
 			dprintk(2, "next_buffer: waiting on buffer\n");
@@ -672,17 +672,17 @@ done:
 
 /* Locking: Caller holds q->vb_lock */
 static int stream_next_buffer(struct videobuf_queue *q,
-			struct videobuf_buffer **vb, int nonblocking)
+			struct videobuf_buffer **vb, int yesnblocking)
 {
 	int retval;
 	struct videobuf_buffer *buf = NULL;
 
-	retval = stream_next_buffer_check_queue(q, nonblocking);
+	retval = stream_next_buffer_check_queue(q, yesnblocking);
 	if (retval)
 		goto done;
 
 	buf = list_entry(q->stream.next, struct videobuf_buffer, stream);
-	retval = videobuf_waiton(q, buf, nonblocking, 1);
+	retval = videobuf_waiton(q, buf, yesnblocking, 1);
 	if (retval < 0)
 		goto done;
 
@@ -692,7 +692,7 @@ done:
 }
 
 int videobuf_dqbuf(struct videobuf_queue *q,
-		   struct v4l2_buffer *b, int nonblocking)
+		   struct v4l2_buffer *b, int yesnblocking)
 {
 	struct videobuf_buffer *buf = NULL;
 	int retval;
@@ -702,7 +702,7 @@ int videobuf_dqbuf(struct videobuf_queue *q,
 	memset(b, 0, sizeof(*b));
 	videobuf_queue_lock(q);
 
-	retval = stream_next_buffer(q, &buf, nonblocking);
+	retval = stream_next_buffer(q, &buf, yesnblocking);
 	if (retval < 0) {
 		dprintk(1, "dqbuf: next_buffer error: %i\n", retval);
 		goto done;
@@ -830,7 +830,7 @@ done:
 static int __videobuf_copy_to_user(struct videobuf_queue *q,
 				   struct videobuf_buffer *buf,
 				   char __user *data, size_t count,
-				   int nonblocking)
+				   int yesnblocking)
 {
 	void *vaddr = CALLPTR(q, vaddr, buf);
 
@@ -847,7 +847,7 @@ static int __videobuf_copy_to_user(struct videobuf_queue *q,
 static int __videobuf_copy_stream(struct videobuf_queue *q,
 				  struct videobuf_buffer *buf,
 				  char __user *data, size_t count, size_t pos,
-				  int vbihack, int nonblocking)
+				  int vbihack, int yesnblocking)
 {
 	unsigned int *fc = CALLPTR(q, vaddr, buf);
 
@@ -862,7 +862,7 @@ static int __videobuf_copy_stream(struct videobuf_queue *q,
 	}
 
 	/* copy stuff using the common method */
-	count = __videobuf_copy_to_user(q, buf, data, count, nonblocking);
+	count = __videobuf_copy_to_user(q, buf, data, count, yesnblocking);
 
 	if ((count == -EFAULT) && (pos == 0))
 		return -EFAULT;
@@ -872,7 +872,7 @@ static int __videobuf_copy_stream(struct videobuf_queue *q,
 
 ssize_t videobuf_read_one(struct videobuf_queue *q,
 			  char __user *data, size_t count, loff_t *ppos,
-			  int nonblocking)
+			  int yesnblocking)
 {
 	enum v4l2_field field;
 	unsigned long flags = 0;
@@ -887,7 +887,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 
 	if (NULL == q->read_buf  &&
 	    count >= size        &&
-	    !nonblocking) {
+	    !yesnblocking) {
 		retval = videobuf_read_zerocopy(q, data, count, ppos);
 		if (retval >= 0  ||  retval == -EIO)
 			/* ok, all done */
@@ -922,7 +922,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 	}
 
 	/* wait until capture is done */
-	retval = videobuf_waiton(q, q->read_buf, nonblocking, 1);
+	retval = videobuf_waiton(q, q->read_buf, yesnblocking, 1);
 	if (0 != retval)
 		goto done;
 
@@ -938,7 +938,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 	}
 
 	/* Copy to userspace */
-	retval = __videobuf_copy_to_user(q, q->read_buf, data, count, nonblocking);
+	retval = __videobuf_copy_to_user(q, q->read_buf, data, count, yesnblocking);
 	if (retval < 0)
 		goto done;
 
@@ -1044,7 +1044,7 @@ EXPORT_SYMBOL_GPL(videobuf_stop);
 
 ssize_t videobuf_read_stream(struct videobuf_queue *q,
 			     char __user *data, size_t count, loff_t *ppos,
-			     int vbihack, int nonblocking)
+			     int vbihack, int yesnblocking)
 {
 	int rc, retval;
 	unsigned long flags = 0;
@@ -1072,7 +1072,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 			list_del(&q->read_buf->stream);
 			q->read_off = 0;
 		}
-		rc = videobuf_waiton(q, q->read_buf, nonblocking, 1);
+		rc = videobuf_waiton(q, q->read_buf, yesnblocking, 1);
 		if (rc < 0) {
 			if (0 == retval)
 				retval = rc;
@@ -1081,7 +1081,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 
 		if (q->read_buf->state == VIDEOBUF_DONE) {
 			rc = __videobuf_copy_stream(q, q->read_buf, data + retval, count,
-					retval, vbihack, nonblocking);
+					retval, vbihack, yesnblocking);
 			if (rc < 0) {
 				retval = rc;
 				break;

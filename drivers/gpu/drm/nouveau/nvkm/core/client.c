@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,7 +23,7 @@
  */
 #include <core/client.h>
 #include <core/device.h>
-#include <core/notify.h>
+#include <core/yestify.h>
 #include <core/option.h>
 
 #include <nvif/class.h>
@@ -68,30 +68,30 @@ nvkm_uclient_sclass = {
 	.ctor = nvkm_uclient_new,
 };
 
-struct nvkm_client_notify {
+struct nvkm_client_yestify {
 	struct nvkm_client *client;
-	struct nvkm_notify n;
+	struct nvkm_yestify n;
 	u8 version;
 	u8 size;
 	union {
-		struct nvif_notify_rep_v0 v0;
+		struct nvif_yestify_rep_v0 v0;
 	} rep;
 };
 
 static int
-nvkm_client_notify(struct nvkm_notify *n)
+nvkm_client_yestify(struct nvkm_yestify *n)
 {
-	struct nvkm_client_notify *notify = container_of(n, typeof(*notify), n);
-	struct nvkm_client *client = notify->client;
-	return client->ntfy(&notify->rep, notify->size, n->data, n->size);
+	struct nvkm_client_yestify *yestify = container_of(n, typeof(*yestify), n);
+	struct nvkm_client *client = yestify->client;
+	return client->ntfy(&yestify->rep, yestify->size, n->data, n->size);
 }
 
 int
-nvkm_client_notify_put(struct nvkm_client *client, int index)
+nvkm_client_yestify_put(struct nvkm_client *client, int index)
 {
-	if (index < ARRAY_SIZE(client->notify)) {
-		if (client->notify[index]) {
-			nvkm_notify_put(&client->notify[index]->n);
+	if (index < ARRAY_SIZE(client->yestify)) {
+		if (client->yestify[index]) {
+			nvkm_yestify_put(&client->yestify[index]->n);
 			return 0;
 		}
 	}
@@ -99,11 +99,11 @@ nvkm_client_notify_put(struct nvkm_client *client, int index)
 }
 
 int
-nvkm_client_notify_get(struct nvkm_client *client, int index)
+nvkm_client_yestify_get(struct nvkm_client *client, int index)
 {
-	if (index < ARRAY_SIZE(client->notify)) {
-		if (client->notify[index]) {
-			nvkm_notify_get(&client->notify[index]->n);
+	if (index < ARRAY_SIZE(client->yestify)) {
+		if (client->yestify[index]) {
+			nvkm_yestify_get(&client->yestify[index]->n);
 			return 0;
 		}
 	}
@@ -111,13 +111,13 @@ nvkm_client_notify_get(struct nvkm_client *client, int index)
 }
 
 int
-nvkm_client_notify_del(struct nvkm_client *client, int index)
+nvkm_client_yestify_del(struct nvkm_client *client, int index)
 {
-	if (index < ARRAY_SIZE(client->notify)) {
-		if (client->notify[index]) {
-			nvkm_notify_fini(&client->notify[index]->n);
-			kfree(client->notify[index]);
-			client->notify[index] = NULL;
+	if (index < ARRAY_SIZE(client->yestify)) {
+		if (client->yestify[index]) {
+			nvkm_yestify_fini(&client->yestify[index]->n);
+			kfree(client->yestify[index]);
+			client->yestify[index] = NULL;
 			return 0;
 		}
 	}
@@ -125,53 +125,53 @@ nvkm_client_notify_del(struct nvkm_client *client, int index)
 }
 
 int
-nvkm_client_notify_new(struct nvkm_object *object,
+nvkm_client_yestify_new(struct nvkm_object *object,
 		       struct nvkm_event *event, void *data, u32 size)
 {
 	struct nvkm_client *client = object->client;
-	struct nvkm_client_notify *notify;
+	struct nvkm_client_yestify *yestify;
 	union {
-		struct nvif_notify_req_v0 v0;
+		struct nvif_yestify_req_v0 v0;
 	} *req = data;
 	u8  index, reply;
 	int ret = -ENOSYS;
 
-	for (index = 0; index < ARRAY_SIZE(client->notify); index++) {
-		if (!client->notify[index])
+	for (index = 0; index < ARRAY_SIZE(client->yestify); index++) {
+		if (!client->yestify[index])
 			break;
 	}
 
-	if (index == ARRAY_SIZE(client->notify))
+	if (index == ARRAY_SIZE(client->yestify))
 		return -ENOSPC;
 
-	notify = kzalloc(sizeof(*notify), GFP_KERNEL);
-	if (!notify)
+	yestify = kzalloc(sizeof(*yestify), GFP_KERNEL);
+	if (!yestify)
 		return -ENOMEM;
 
-	nvif_ioctl(object, "notify new size %d\n", size);
+	nvif_ioctl(object, "yestify new size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, true))) {
-		nvif_ioctl(object, "notify new vers %d reply %d route %02x "
+		nvif_ioctl(object, "yestify new vers %d reply %d route %02x "
 				   "token %llx\n", req->v0.version,
 			   req->v0.reply, req->v0.route, req->v0.token);
-		notify->version = req->v0.version;
-		notify->size = sizeof(notify->rep.v0);
-		notify->rep.v0.version = req->v0.version;
-		notify->rep.v0.route = req->v0.route;
-		notify->rep.v0.token = req->v0.token;
+		yestify->version = req->v0.version;
+		yestify->size = sizeof(yestify->rep.v0);
+		yestify->rep.v0.version = req->v0.version;
+		yestify->rep.v0.route = req->v0.route;
+		yestify->rep.v0.token = req->v0.token;
 		reply = req->v0.reply;
 	}
 
 	if (ret == 0) {
-		ret = nvkm_notify_init(object, event, nvkm_client_notify,
-				       false, data, size, reply, &notify->n);
+		ret = nvkm_yestify_init(object, event, nvkm_client_yestify,
+				       false, data, size, reply, &yestify->n);
 		if (ret == 0) {
-			client->notify[index] = notify;
-			notify->client = client;
+			client->yestify[index] = yestify;
+			yestify->client = client;
 			return index;
 		}
 	}
 
-	kfree(notify);
+	kfree(yestify);
 	return ret;
 }
 
@@ -258,9 +258,9 @@ nvkm_client_fini(struct nvkm_object *object, bool suspend)
 	struct nvkm_client *client = nvkm_client(object);
 	const char *name[2] = { "fini", "suspend" };
 	int i;
-	nvif_debug(object, "%s notify\n", name[suspend]);
-	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
-		nvkm_client_notify_put(client, i);
+	nvif_debug(object, "%s yestify\n", name[suspend]);
+	for (i = 0; i < ARRAY_SIZE(client->yestify); i++)
+		nvkm_client_yestify_put(client, i);
 	return 0;
 }
 
@@ -269,8 +269,8 @@ nvkm_client_dtor(struct nvkm_object *object)
 {
 	struct nvkm_client *client = nvkm_client(object);
 	int i;
-	for (i = 0; i < ARRAY_SIZE(client->notify); i++)
-		nvkm_client_notify_del(client, i);
+	for (i = 0; i < ARRAY_SIZE(client->yestify); i++)
+		nvkm_client_yestify_del(client, i);
 	return client;
 }
 

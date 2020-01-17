@@ -9,7 +9,7 @@
  *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *   Wu Hao <hao.wu@intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enyes Luebbers <enyes.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Christopher Rauer <christopher.rauer@intel.com>
@@ -34,7 +34,7 @@ dfl_fme_region_find_by_port_id(struct dfl_fme *fme, int port_id)
 {
 	struct dfl_fme_region *fme_region;
 
-	list_for_each_entry(fme_region, &fme->region_list, node)
+	list_for_each_entry(fme_region, &fme->region_list, yesde)
 		if (fme_region->port_id == port_id)
 			return fme_region;
 
@@ -102,7 +102,7 @@ static int fme_pr(struct platform_device *pdev, unsigned long arg)
 		return -EFAULT;
 
 	/*
-	 * align PR buffer per PR bandwidth, as HW ignores the extra padding
+	 * align PR buffer per PR bandwidth, as HW igyesres the extra padding
 	 * data automatically.
 	 */
 	length = ALIGN(port_pr.buffer_size, 4);
@@ -153,7 +153,7 @@ static int fme_pr(struct platform_device *pdev, unsigned long arg)
 	/*
 	 * it allows userspace to reset the PR region's logic by disabling and
 	 * reenabling the bridge to clear things out between accleration runs.
-	 * so no need to hold the bridges after partial reconfiguration.
+	 * so yes need to hold the bridges after partial reconfiguration.
 	 */
 	if (region->get_bridges)
 		fpga_bridges_put(&region->bridge_list);
@@ -285,8 +285,8 @@ static void dfl_fme_destroy_bridges(struct dfl_feature_platform_data *pdata)
 	struct dfl_fme *priv = dfl_fpga_pdata_get_private(pdata);
 	struct dfl_fme_bridge *fbridge, *tmp;
 
-	list_for_each_entry_safe(fbridge, tmp, &priv->bridge_list, node) {
-		list_del(&fbridge->node);
+	list_for_each_entry_safe(fbridge, tmp, &priv->bridge_list, yesde) {
+		list_del(&fbridge->yesde);
 		dfl_fme_destroy_bridge(fbridge);
 	}
 }
@@ -364,8 +364,8 @@ static void dfl_fme_destroy_regions(struct dfl_feature_platform_data *pdata)
 	struct dfl_fme *priv = dfl_fpga_pdata_get_private(pdata);
 	struct dfl_fme_region *fme_region, *tmp;
 
-	list_for_each_entry_safe(fme_region, tmp, &priv->region_list, node) {
-		list_del(&fme_region->node);
+	list_for_each_entry_safe(fme_region, tmp, &priv->region_list, yesde) {
+		list_del(&fme_region->yesde);
 		dfl_fme_destroy_region(fme_region);
 	}
 }
@@ -415,7 +415,7 @@ static int pr_mgmt_init(struct platform_device *pdev,
 			goto destroy_region;
 		}
 
-		list_add(&fme_br->node, &priv->bridge_list);
+		list_add(&fme_br->yesde, &priv->bridge_list);
 
 		/* Create region for each port */
 		fme_region = dfl_fme_create_region(pdata, mgr,
@@ -425,7 +425,7 @@ static int pr_mgmt_init(struct platform_device *pdev,
 			goto destroy_region;
 		}
 
-		list_add(&fme_region->node, &priv->region_list);
+		list_add(&fme_region->yesde, &priv->region_list);
 	}
 	mutex_unlock(&pdata->lock);
 

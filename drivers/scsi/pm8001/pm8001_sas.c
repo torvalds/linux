@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -58,7 +58,7 @@ static int pm8001_find_tag(struct sas_task *task, u32 *tag)
 }
 
 /**
-  * pm8001_tag_free - free the no more needed tag
+  * pm8001_tag_free - free the yes more needed tag
   * @pm8001_ha: our hba struct
   * @tag: the found tag associated with the task
   */
@@ -144,7 +144,7 @@ struct pm8001_hba_info *pm8001_find_ha_by_dev(struct domain_device *dev)
 
 /**
   * pm8001_phy_control - this function should be registered to
-  * sas_domain_function_template to provide libsas used, note: this is just
+  * sas_domain_function_template to provide libsas used, yeste: this is just
   * control the HBA phy rather than other expander phy if you want control
   * other phy, you should use SMP command.
   * @sas_phy: which phy in HBA phys.
@@ -208,7 +208,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 				PHY_STATE_LINK_UP_SPCV) {
 				sas_ha = pm8001_ha->sas;
 				sas_phy_disconnected(&phy->sas_phy);
-				sas_ha->notify_phy_event(&phy->sas_phy,
+				sas_ha->yestify_phy_event(&phy->sas_phy,
 					PHYE_LOSS_OF_SIGNAL);
 				phy->phy_attached = 0;
 			}
@@ -217,7 +217,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 				PHY_STATE_LINK_UP_SPC) {
 				sas_ha = pm8001_ha->sas;
 				sas_phy_disconnected(&phy->sas_phy);
-				sas_ha->notify_phy_event(&phy->sas_phy,
+				sas_ha->yestify_phy_event(&phy->sas_phy,
 					PHYE_LOSS_OF_SIGNAL);
 				phy->phy_attached = 0;
 			}
@@ -268,7 +268,7 @@ void pm8001_scan_start(struct Scsi_Host *shost)
 	struct pm8001_hba_info *pm8001_ha;
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	pm8001_ha = sha->lldd_ha;
-	/* SAS_RE_INITIALIZATION not available in SPCv/ve */
+	/* SAS_RE_INITIALIZATION yest available in SPCv/ve */
 	if (pm8001_ha->chip_id == chip_8001)
 		PM8001_CHIP_DISP->sas_re_init_req(pm8001_ha);
 	for (i = 0; i < pm8001_ha->chip->n_phy; ++i)
@@ -472,7 +472,7 @@ static int pm8001_task_exec(struct sas_task *task,
 			break;
 		default:
 			dev_printk(KERN_ERR, pm8001_ha->dev,
-				"unknown sas_task proto: 0x%x\n", task_proto);
+				"unkyeswn sas_task proto: 0x%x\n", task_proto);
 			rc = -EINVAL;
 			break;
 		}
@@ -482,7 +482,7 @@ static int pm8001_task_exec(struct sas_task *task,
 				pm8001_printk("rc is %x\n", rc));
 			goto err_out_tag;
 		}
-		/* TODO: select normal or high priority */
+		/* TODO: select yesrmal or high priority */
 		spin_lock(&t->task_state_lock);
 		t->task_state_flags |= SAS_TASK_AT_INITIATOR;
 		spin_unlock(&t->task_state_lock);
@@ -544,7 +544,7 @@ void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_SSP:
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 	task->lldd_task = NULL;
@@ -569,7 +569,7 @@ static struct pm8001_device *pm8001_alloc_dev(struct pm8001_hba_info *pm8001_ha)
 	}
 	if (dev == PM8001_MAX_DEVICES) {
 		PM8001_FAIL_DBG(pm8001_ha,
-			pm8001_printk("max support %d devices, ignore ..\n",
+			pm8001_printk("max support %d devices, igyesre ..\n",
 			PM8001_MAX_DEVICES));
 	}
 	return NULL;
@@ -604,18 +604,18 @@ static void pm8001_free_dev(struct pm8001_device *pm8001_dev)
 }
 
 /**
-  * pm8001_dev_found_notify - libsas notify a device is found.
+  * pm8001_dev_found_yestify - libsas yestify a device is found.
   * @dev: the device structure which sas layer used.
   *
   * when libsas find a sas domain device, it should tell the LLDD that
   * device is found, and then LLDD register this device to HBA firmware
   * by the command "OPC_INB_REG_DEV", after that the HBA will assign a
   * device ID(according to device's sas address) and returned it to LLDD. From
-  * now on, we communicate with HBA FW with the device ID which HBA assigned
+  * yesw on, we communicate with HBA FW with the device ID which HBA assigned
   * rather than sas address. it is the necessary step for our HBA but it is
   * the optional for other HBA driver.
   */
-static int pm8001_dev_found_notify(struct domain_device *dev)
+static int pm8001_dev_found_yestify(struct domain_device *dev)
 {
 	unsigned long flags = 0;
 	int res = 0;
@@ -650,7 +650,7 @@ static int pm8001_dev_found_notify(struct domain_device *dev)
 		}
 		if (phy_id == parent_dev->ex_dev.num_phys) {
 			PM8001_FAIL_DBG(pm8001_ha,
-			pm8001_printk("Error: no attached dev:%016llx"
+			pm8001_printk("Error: yes attached dev:%016llx"
 			" at ex:%016llx.\n", SAS_ADDR(dev->sas_addr),
 				SAS_ADDR(parent_dev->sas_addr)));
 			res = -1;
@@ -677,7 +677,7 @@ found_out:
 
 int pm8001_dev_found(struct domain_device *dev)
 {
-	return pm8001_dev_found_notify(dev);
+	return pm8001_dev_found_yestify(dev);
 }
 
 void pm8001_task_done(struct sas_task *task)
@@ -706,7 +706,7 @@ static void pm8001_tmf_timedout(struct timer_list *t)
   *
   * when errors or exception happened, we may want to do something, for example
   * abort the issued task which result in this execption, it is done by calling
-  * this function, note it is also with the task execute interface.
+  * this function, yeste it is also with the task execute interface.
   */
 static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 	void *parameter, u32 para_len, struct pm8001_tmf_task *tmf)
@@ -765,7 +765,7 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
 		task->task_status.stat == SAS_DATA_UNDERRUN) {
-			/* no error, but return the number of bytes of
+			/* yes error, but return the number of bytes of
 			* underrun */
 			res = task->task_status.residual;
 			break;
@@ -869,10 +869,10 @@ ex_err:
 }
 
 /**
-  * pm8001_dev_gone_notify - see the comments for "pm8001_dev_found_notify"
+  * pm8001_dev_gone_yestify - see the comments for "pm8001_dev_found_yestify"
   * @dev: the device structure which sas layer used.
   */
-static void pm8001_dev_gone_notify(struct domain_device *dev)
+static void pm8001_dev_gone_yestify(struct domain_device *dev)
 {
 	unsigned long flags = 0;
 	struct pm8001_hba_info *pm8001_ha;
@@ -906,7 +906,7 @@ static void pm8001_dev_gone_notify(struct domain_device *dev)
 
 void pm8001_dev_gone(struct domain_device *dev)
 {
-	pm8001_dev_gone_notify(dev);
+	pm8001_dev_gone_yestify(dev);
 }
 
 static int pm8001_issue_ssp_tmf(struct domain_device *dev,
@@ -1077,7 +1077,7 @@ int pm8001_I_T_nexus_event_handler(struct domain_device *dev)
 		msleep(100);
 
 		/* deregister the target device */
-		pm8001_dev_gone_notify(dev);
+		pm8001_dev_gone_yestify(dev);
 		msleep(200);
 
 		/*send phy reset to hard reset target */
@@ -1093,7 +1093,7 @@ int pm8001_I_T_nexus_event_handler(struct domain_device *dev)
 		msleep(100);
 
 		/* deregister the target device */
-		pm8001_dev_gone_notify(dev);
+		pm8001_dev_gone_yestify(dev);
 		msleep(200);
 
 		/*send phy reset to hard reset target */
@@ -1172,11 +1172,11 @@ int pm8001_query_task(struct sas_task *task)
 			PM8001_EH_DBG(pm8001_ha,
 				pm8001_printk("The task is still in Lun\n"));
 			break;
-		/* The task is not in Lun or failed, reset the phy */
+		/* The task is yest in Lun or failed, reset the phy */
 		case TMF_RESP_FUNC_FAILED:
 		case TMF_RESP_FUNC_COMPLETE:
 			PM8001_EH_DBG(pm8001_ha,
-			pm8001_printk("The task is not in Lun or failed,"
+			pm8001_printk("The task is yest in Lun or failed,"
 			" reset the phy\n"));
 			break;
 		}
@@ -1206,7 +1206,7 @@ int pm8001_abort_task(struct sas_task *task)
 	phy_id = pm8001_dev->attached_phy;
 	ret = pm8001_find_tag(task, &tag);
 	if (ret == 0) {
-		pm8001_printk("no tag for task:%p\n", task);
+		pm8001_printk("yes tag for task:%p\n", task);
 		return TMF_RESP_FUNC_FAILED;
 	}
 	spin_lock_irqsave(&task->task_state_lock, flags);
@@ -1258,7 +1258,7 @@ int pm8001_abort_task(struct sas_task *task)
 			/* In the case of the reset timeout/fail we still
 			 * abort the command at the firmware. The assumption
 			 * here is that the drive is off doing something so
-			 * that it's not processing requests, and we want to
+			 * that it's yest processing requests, and we want to
 			 * avoid getting a completion for this and either
 			 * leaking the task in libsas or losing the race and
 			 * getting a double free.
@@ -1284,7 +1284,7 @@ int pm8001_abort_task(struct sas_task *task)
 				WARN_ON(phy->port_reset_status ==
 						PORT_RESET_TMO);
 				if (phy->port_reset_status == PORT_RESET_TMO) {
-					pm8001_dev_gone_notify(dev);
+					pm8001_dev_gone_yestify(dev);
 					goto out;
 				}
 			}

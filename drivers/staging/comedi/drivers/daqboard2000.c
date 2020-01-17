@@ -18,14 +18,14 @@
  * the source code for the Windows driver.
  *
  * The FPGA on the board requires firmware, which is available from
- * http://www.comedi.org in the comedi_nonfree_firmware tarball.
+ * http://www.comedi.org in the comedi_yesnfree_firmware tarball.
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: yest applicable, uses PCI auto config
  */
 /*
  * This card was obviously never intended to leave the Windows world,
  * since it lacked all kind of hardware documentation (except for cable
- * pinouts, plug and pray has something to catch up with yet).
+ * piyesuts, plug and pray has something to catch up with yet).
  *
  * With some help from our swedish distributor, we got the Windows sourcecode
  * for the card, and here are the findings so far.
@@ -40,7 +40,7 @@
  * 3. Analog out seems to work OK with DAC's disabled, if DAC's are enabled,
  *    you have to output values to all enabled DAC's until result appears, I
  *    guess that it has something to do with pacer clocks, but the source
- *    gives me no clues. I'll keep it simple so far.
+ *    gives me yes clues. I'll keep it simple so far.
  *
  * 4. Analog in.
  *    Each channel in the scanlist seems to be controlled by four
@@ -329,10 +329,10 @@ static int db2k_ai_insn_read(struct comedi_device *dev,
 	       dev->mmio + DB2K_REG_ACQ_CONTROL);
 
 	/*
-	 * If pacer clock is not set to some high value (> 10 us), we
+	 * If pacer clock is yest set to some high value (> 10 us), we
 	 * risk multiple samples to be put into the result FIFO.
 	 */
-	/* 1 second, should be long enough */
+	/* 1 second, should be long eyesugh */
 	writel(1000000, dev->mmio + DB2K_REG_ACQ_PACER_CLOCK_DIV_LOW);
 	writew(0, dev->mmio + DB2K_REG_ACQ_PACER_CLOCK_DIV_HIGH);
 
@@ -544,7 +544,7 @@ static int db2k_load_firmware(struct comedi_device *dev, const u8 *cpld_array,
 			break;
 	}
 	if (i + 1 >= len) {
-		dev_err(dev->class_dev, "bad firmware - no start sequence\n");
+		dev_err(dev->class_dev, "bad firmware - yes start sequence\n");
 		return -EINVAL;
 	}
 	/* Check length is even. */

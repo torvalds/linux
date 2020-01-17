@@ -55,7 +55,7 @@
 #define ETP_CAP_HAS_ROCKER		0x04
 
 /*
- * One hard to find application note states that X axis range is 0 to 576
+ * One hard to find application yeste states that X axis range is 0 to 576
  * and Y axis range is 0 to 384 for harware version 1.
  * Edge fuzz might be necessary because of bezel around the touchpad
  */

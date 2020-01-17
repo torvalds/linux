@@ -90,7 +90,7 @@ static int cros_ec_sensorhub_register(struct device *dev,
 
 		ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
 		if (ret < 0) {
-			dev_warn(dev, "no info for EC sensor %d : %d/%d\n",
+			dev_warn(dev, "yes info for EC sensor %d : %d/%d\n",
 				 i, ret, msg->result);
 			continue;
 		}
@@ -118,7 +118,7 @@ static int cros_ec_sensorhub_register(struct device *dev,
 			name = "cros-ec-activity";
 			break;
 		default:
-			dev_warn(dev, "unknown type %d\n", resp->info.type);
+			dev_warn(dev, "unkyeswn type %d\n", resp->info.type);
 			continue;
 		}
 
@@ -170,7 +170,7 @@ static int cros_ec_sensorhub_probe(struct platform_device *pdev)
 			return ret;
 	} else {
 		/*
-		 * If the device has sensors but does not claim to
+		 * If the device has sensors but does yest claim to
 		 * be a sensor hub, we are in legacy mode.
 		 */
 		for (i = 0; i < 2; i++) {
@@ -194,6 +194,6 @@ static struct platform_driver cros_ec_sensorhub_driver = {
 module_platform_driver(cros_ec_sensorhub_driver);
 
 MODULE_ALIAS("platform:" DRV_NAME);
-MODULE_AUTHOR("Gwendal Grignou <gwendal@chromium.org>");
+MODULE_AUTHOR("Gwendal Grigyesu <gwendal@chromium.org>");
 MODULE_DESCRIPTION("ChromeOS EC MEMS Sensor Hub Driver");
 MODULE_LICENSE("GPL");

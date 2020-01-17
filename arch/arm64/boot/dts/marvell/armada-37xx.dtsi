@@ -33,7 +33,7 @@
 		 */
 		psci-area@4000000 {
 			reg = <0 0x4000000 0 0x200000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -433,7 +433,7 @@
 
 			sdhci1: sdhci@d0000 {
 				compatible = "marvell,armada-3700-sdhci",
-					     "marvell,sdhci-xenon";
+					     "marvell,sdhci-xeyesn";
 				reg = <0xd0000 0x300>,
 				      <0x1e808 0x4>;
 				interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
@@ -444,7 +444,7 @@
 
 			sdhci0: sdhci@d8000 {
 				compatible = "marvell,armada-3700-sdhci",
-					     "marvell,sdhci-xenon";
+					     "marvell,sdhci-xeyesn";
 				reg = <0xd8000 0x300>,
 				      <0x17808 0x4>;
 				interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;

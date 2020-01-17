@@ -18,20 +18,20 @@
  */
 enum batadv_forw_mode {
 	/**
-	 * @BATADV_FORW_ALL: forward the packet to all nodes (currently via
+	 * @BATADV_FORW_ALL: forward the packet to all yesdes (currently via
 	 *  classic flooding)
 	 */
 	BATADV_FORW_ALL,
 
 	/**
-	 * @BATADV_FORW_SOME: forward the packet to some nodes (currently via
+	 * @BATADV_FORW_SOME: forward the packet to some yesdes (currently via
 	 *  a multicast-to-unicast conversion and the BATMAN unicast routing
 	 *  protocol)
 	 */
 	BATADV_FORW_SOME,
 
 	/**
-	 * @BATADV_FORW_SINGLE: forward the packet to a single node (currently
+	 * @BATADV_FORW_SINGLE: forward the packet to a single yesde (currently
 	 *  via the BATMAN unicast routing protocol)
 	 */
 	BATADV_FORW_SINGLE,
@@ -44,7 +44,7 @@ enum batadv_forw_mode {
 
 enum batadv_forw_mode
 batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
-		       struct batadv_orig_node **mcast_single_orig);
+		       struct batadv_orig_yesde **mcast_single_orig);
 
 int batadv_mcast_forw_send(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			   unsigned short vid);
@@ -60,13 +60,13 @@ int batadv_mcast_flags_dump(struct sk_buff *msg, struct netlink_callback *cb);
 
 void batadv_mcast_free(struct batadv_priv *bat_priv);
 
-void batadv_mcast_purge_orig(struct batadv_orig_node *orig_node);
+void batadv_mcast_purge_orig(struct batadv_orig_yesde *orig_yesde);
 
 #else
 
 static inline enum batadv_forw_mode
 batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
-		       struct batadv_orig_node **mcast_single_orig)
+		       struct batadv_orig_yesde **mcast_single_orig)
 {
 	return BATADV_FORW_ALL;
 }
@@ -100,7 +100,7 @@ static inline void batadv_mcast_free(struct batadv_priv *bat_priv)
 {
 }
 
-static inline void batadv_mcast_purge_orig(struct batadv_orig_node *orig_node)
+static inline void batadv_mcast_purge_orig(struct batadv_orig_yesde *orig_yesde)
 {
 }
 

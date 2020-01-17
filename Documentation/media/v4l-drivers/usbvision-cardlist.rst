@@ -195,7 +195,7 @@ USBvision cards list
      - 0573:4d38
 
    * - 45
-     - Camtel Technology USB TV Genie Pro FM Model TVB330
+     - Camtel Techyeslogy USB TV Genie Pro FM Model TVB330
      - 0768:0006
 
    * - 46

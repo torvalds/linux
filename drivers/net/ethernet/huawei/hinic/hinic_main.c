@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techyeslogies Co., Ltd
  */
 
 #include <linux/kernel.h>
@@ -9,7 +9,7 @@
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
@@ -30,7 +30,7 @@
 #include "hinic_rx.h"
 #include "hinic_dev.h"
 
-MODULE_AUTHOR("Huawei Technologies CO., Ltd");
+MODULE_AUTHOR("Huawei Techyeslogies CO., Ltd");
 MODULE_DESCRIPTION("Huawei Intelligent NIC driver");
 MODULE_LICENSE("GPL");
 
@@ -319,7 +319,7 @@ static void hinic_enable_rss(struct hinic_dev *nic_dev)
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	int i, node, err = 0;
+	int i, yesde, err = 0;
 	u16 num_cpus = 0;
 
 	nic_dev->max_qps = hinic_hwdev_max_num_qps(hwdev);
@@ -348,8 +348,8 @@ static void hinic_enable_rss(struct hinic_dev *nic_dev)
 	nic_dev->flags |= HINIC_RSS_ENABLE;
 
 	for (i = 0; i < num_online_cpus(); i++) {
-		node = cpu_to_node(i);
-		if (node == dev_to_node(&pdev->dev))
+		yesde = cpu_to_yesde(i);
+		if (yesde == dev_to_yesde(&pdev->dev))
 			num_cpus++;
 	}
 

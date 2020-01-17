@@ -5,7 +5,7 @@
  * OMAP Keypad Driver
  *
  * Copyright (C) 2003 Nokia Corporation
- * Written by Timo Teräs <ext-timo.teras@nokia.com>
+ * Written by Timo Teräs <ext-timo.teras@yeskia.com>
  *
  * Added support for H2 & H3 Keypad
  * Copyright (C) 2004 Texas Instruments
@@ -19,7 +19,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/platform_data/gpio-omap.h>

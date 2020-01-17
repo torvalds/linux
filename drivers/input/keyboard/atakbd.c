@@ -188,7 +188,7 @@ static int __init atakbd_init(void)
 	if (!MACH_IS_ATARI || !ATARIHW_PRESENT(ST_MFP))
 		return -ENODEV;
 
-	// need to init core driver if not already done so
+	// need to init core driver if yest already done so
 	error = atari_keyb_init();
 	if (error)
 		return error;

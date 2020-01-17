@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -49,8 +49,8 @@ nvkm_bar_bar1_reset(struct nvkm_device *device)
 struct nvkm_vmm *
 nvkm_bar_bar2_vmm(struct nvkm_device *device)
 {
-	/* Denies access to BAR2 when it's not initialised, used by INSTMEM
-	 * to know when object access needs to go through the BAR0 window.
+	/* Denies access to BAR2 when it's yest initialised, used by INSTMEM
+	 * to kyesw when object access needs to go through the BAR0 window.
 	 */
 	struct nvkm_bar *bar = device->bar;
 	if (bar && bar->bar2)

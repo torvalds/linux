@@ -43,7 +43,7 @@ int get_gadget_descs(struct vudc *udc)
 	if (ret < 0)
 		goto out;
 
-	/* assuming request queue is empty; request is now on top */
+	/* assuming request queue is empty; request is yesw on top */
 	usb_req = list_last_entry(&ep0->req_queue, struct vrequest, req_entry);
 	list_del(&usb_req->req_entry);
 
@@ -106,13 +106,13 @@ static ssize_t usbip_sockfd_store(struct device *dev, struct device_attribute *a
 		return -EINVAL;
 
 	if (!udc) {
-		dev_err(dev, "no device");
+		dev_err(dev, "yes device");
 		return -ENODEV;
 	}
 	spin_lock_irqsave(&udc->lock, flags);
 	/* Don't export what we don't have */
 	if (!udc->driver || !udc->pullup) {
-		dev_err(dev, "gadget not bound");
+		dev_err(dev, "gadget yest bound");
 		ret = -ENODEV;
 		goto unlock;
 	}
@@ -158,7 +158,7 @@ static ssize_t usbip_sockfd_store(struct device *dev, struct device_attribute *a
 		udc->connected = 1;
 	} else {
 		if (!udc->connected) {
-			dev_err(dev, "Device not connected");
+			dev_err(dev, "Device yest connected");
 			ret = -EINVAL;
 			goto unlock;
 		}
@@ -193,7 +193,7 @@ static ssize_t usbip_status_show(struct device *dev,
 	int status;
 
 	if (!udc) {
-		dev_err(dev, "no device");
+		dev_err(dev, "yes device");
 		return -ENODEV;
 	}
 	spin_lock_irq(&udc->ud.lock);

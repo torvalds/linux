@@ -53,7 +53,7 @@ enum tcpm_transmit_type {
 
 /**
  * struct tcpc_dev - Port configuration and callback functions
- * @fwnode:	Pointer to port fwnode
+ * @fwyesde:	Pointer to port fwyesde
  * @get_vbus:	Called to read current VBUS state
  * @get_current_limit:
  *		Optional; called by the tcpm core when configured as a snk
@@ -81,7 +81,7 @@ enum tcpm_transmit_type {
  * @mux:	Pointer to multiplexer data
  */
 struct tcpc_dev {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 
 	int (*init)(struct tcpc_dev *dev);
 	int (*get_vbus)(struct tcpc_dev *dev);

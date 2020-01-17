@@ -1,7 +1,7 @@
 #ifndef _CRYPTO_GCM_H
 #define _CRYPTO_GCM_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #define GCM_AES_IV_SIZE 12
 #define GCM_RFC4106_IV_SIZE 8

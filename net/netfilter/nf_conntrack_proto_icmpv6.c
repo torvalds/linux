@@ -52,7 +52,7 @@ static const u_int8_t invmap[] = {
 	[ICMPV6_NI_REPLY - 128]		= ICMPV6_NI_QUERY + 1
 };
 
-static const u_int8_t noct_valid_new[] = {
+static const u_int8_t yesct_valid_new[] = {
 	[ICMPV6_MGM_QUERY - 130] = 1,
 	[ICMPV6_MGM_REPORT - 130] = 1,
 	[ICMPV6_MGM_REDUCTION - 130] = 1,
@@ -111,7 +111,7 @@ int nf_conntrack_icmpv6_packet(struct nf_conn *ct,
 	if (!timeout)
 		timeout = icmpv6_get_timeouts(nf_ct_net(ct));
 
-	/* Do not immediately delete the connection after the first
+	/* Do yest immediately delete the connection after the first
 	   successful reply to avoid excessive conntrackd traffic
 	   and also to handle correctly ICMP echo reply duplicates. */
 	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
@@ -152,13 +152,13 @@ int nf_conntrack_icmpv6_error(struct nf_conn *tmpl,
 	}
 
 	type = icmp6h->icmp6_type - 130;
-	if (type >= 0 && type < sizeof(noct_valid_new) &&
-	    noct_valid_new[type]) {
+	if (type >= 0 && type < sizeof(yesct_valid_new) &&
+	    yesct_valid_new[type]) {
 		nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 		return NF_ACCEPT;
 	}
 
-	/* is not error message ? */
+	/* is yest error message ? */
 	if (icmp6h->icmp6_type >= 128)
 		return NF_ACCEPT;
 

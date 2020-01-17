@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -113,7 +113,7 @@ static inline struct wcn36xx_vif *get_vif_by_addr(struct wcn36xx *wcn,
 			if (memcmp(vif->addr, addr, ETH_ALEN) == 0)
 				return vif_priv;
 	}
-	wcn36xx_warn("vif %pM not found\n", addr);
+	wcn36xx_warn("vif %pM yest found\n", addr);
 	return NULL;
 }
 
@@ -143,9 +143,9 @@ static void wcn36xx_tx_start_ampdu(struct wcn36xx *wcn,
 	if (sta_priv->ampdu_state[tid] != WCN36XX_AMPDU_NONE)
 		goto out_unlock;
 
-	if (sta_priv->non_agg_frame_ct++ >= WCN36XX_AMPDU_START_THRESH) {
+	if (sta_priv->yesn_agg_frame_ct++ >= WCN36XX_AMPDU_START_THRESH) {
 		sta_priv->ampdu_state[tid] = WCN36XX_AMPDU_START;
-		sta_priv->non_agg_frame_ct = 0;
+		sta_priv->yesn_agg_frame_ct = 0;
 		ieee80211_start_tx_ba_session(sta, tid, 0);
 	}
 out_unlock:
@@ -167,7 +167,7 @@ static void wcn36xx_set_tx_data(struct wcn36xx_tx_bd *bd,
 	bd->bd_rate = WCN36XX_BD_RATE_DATA;
 
 	/*
-	 * For not unicast frames mac80211 will not set sta pointer so use
+	 * For yest unicast frames mac80211 will yest set sta pointer so use
 	 * self_sta_index instead.
 	 */
 	if (sta_priv) {
@@ -234,7 +234,7 @@ static void wcn36xx_set_tx_mgmt(struct wcn36xx_tx_bd *bd,
 	else if (ieee80211_is_ctl(hdr->frame_control))
 		bd->bd_rate = WCN36XX_BD_RATE_CTRL;
 	else
-		wcn36xx_warn("frame control type unknown\n");
+		wcn36xx_warn("frame control type unkyeswn\n");
 
 	/*
 	 * In joining state trick hardware that probe is sent as
@@ -247,7 +247,7 @@ static void wcn36xx_set_tx_mgmt(struct wcn36xx_tx_bd *bd,
 	if (bcast) {
 		/* broadcast */
 		bd->ub = 1;
-		/* No ack needed not unicast */
+		/* No ack needed yest unicast */
 		bd->ack_policy = 1;
 		bd->queue_id = WCN36XX_TX_B_WQ_ID;
 	} else
@@ -303,7 +303,7 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 		/* Only one at a time is supported by fw. Stop the TX queues
 		 * until the ack status gets back.
 		 *
-		 * TODO: Add watchdog in case FW does not answer
+		 * TODO: Add watchdog in case FW does yest answer
 		 */
 		ieee80211_stop_queues(wcn->hw);
 	}
@@ -320,7 +320,7 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 
 	ret = wcn36xx_dxe_tx_frame(wcn, vif_priv, &bd, skb, is_low);
 	if (ret && bd.tx_comp) {
-		/* If the skb has not been transmitted,
+		/* If the skb has yest been transmitted,
 		 * don't keep a reference to it.
 		 */
 		spin_lock_irqsave(&wcn->dxe_lock, flags);

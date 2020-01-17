@@ -74,15 +74,15 @@ struct ap_matrix {
  * @list:	allows the ap_matrix_mdev struct to be added to a list
  * @matrix:	the adapters, usage domains and control domains assigned to the
  *		mediated matrix device.
- * @group_notifier: notifier block used for specifying callback function for
+ * @group_yestifier: yestifier block used for specifying callback function for
  *		    handling the VFIO_GROUP_NOTIFY_SET_KVM event
  * @kvm:	the struct holding guest's state
  */
 struct ap_matrix_mdev {
-	struct list_head node;
+	struct list_head yesde;
 	struct ap_matrix matrix;
-	struct notifier_block group_notifier;
-	struct notifier_block iommu_notifier;
+	struct yestifier_block group_yestifier;
+	struct yestifier_block iommu_yestifier;
 	struct kvm *kvm;
 	struct kvm_s390_module_hook pqap_hook;
 	struct mdev_device *mdev;

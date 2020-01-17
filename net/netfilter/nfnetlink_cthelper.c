@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/capability.h>
 #include <net/netlink.h>
 #include <net/sock.h>
@@ -53,13 +53,13 @@ nfnl_userspace_cthelper(struct sk_buff *skb, unsigned int protoff,
 	if (helper == NULL)
 		return NF_DROP;
 
-	/* This is a user-space helper not yet configured, skip. */
+	/* This is a user-space helper yest yet configured, skip. */
 	if ((helper->flags &
 	    (NF_CT_HELPER_F_USERSPACE | NF_CT_HELPER_F_CONFIGURED)) ==
 	     NF_CT_HELPER_F_USERSPACE)
 		return NF_ACCEPT;
 
-	/* If the user-space helper is not available, don't block traffic. */
+	/* If the user-space helper is yest available, don't block traffic. */
 	return NF_QUEUE_NR(helper->queue_num) | NF_VERDICT_FLAG_QUEUE_BYPASS;
 }
 
@@ -581,9 +581,9 @@ nfnl_cthelper_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	for (; cb->args[0] < nf_ct_helper_hsize; cb->args[0]++) {
 restart:
 		hlist_for_each_entry_rcu(cur,
-				&nf_ct_helper_hash[cb->args[0]], hnode) {
+				&nf_ct_helper_hash[cb->args[0]], hyesde) {
 
-			/* skip non-userspace conntrack helpers. */
+			/* skip yesn-userspace conntrack helpers. */
 			if (!(cur->flags & NF_CT_HELPER_F_USERSPACE))
 				continue;
 
@@ -734,7 +734,7 @@ static int nfnl_cthelper_del(struct net *net, struct sock *nfnl,
 		}
 	}
 
-	/* Make sure we return success if we flush and there is no helpers */
+	/* Make sure we return success if we flush and there is yes helpers */
 	return (found || j == 0) ? 0 : ret;
 }
 
@@ -771,7 +771,7 @@ static int __init nfnl_cthelper_init(void)
 
 	ret = nfnetlink_subsys_register(&nfnl_cthelper_subsys);
 	if (ret < 0) {
-		pr_err("nfnl_cthelper: cannot register with nfnetlink.\n");
+		pr_err("nfnl_cthelper: canyest register with nfnetlink.\n");
 		goto err_out;
 	}
 	return 0;

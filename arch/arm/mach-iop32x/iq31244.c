@@ -115,7 +115,7 @@ ep80219_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		/* SATA */
 		irq = IRQ_IOP32X_XINT2;
 	} else {
-		printk(KERN_ERR "ep80219_pci_map_irq() called for unknown "
+		printk(KERN_ERR "ep80219_pci_map_irq() called for unkyeswn "
 			"device PCI:%d:%d:%d\n", dev->bus->number,
 			PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 		irq = -1;
@@ -150,7 +150,7 @@ iq31244_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		/* 82546 GigE */
 		irq = IRQ_IOP32X_XINT0;
 	} else {
-		printk(KERN_ERR "iq31244_pci_map_irq called for unknown "
+		printk(KERN_ERR "iq31244_pci_map_irq called for unkyeswn "
 			"device PCI:%d:%d:%d\n", dev->bus->number,
 			PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn));
 		irq = -1;
@@ -173,8 +173,8 @@ static int __init iq31244_pci_init(void)
 		pci_common_init(&ep80219_pci);
 	else if (machine_is_iq31244()) {
 		if (is_80219()) {
-			printk("note: iq31244 board type has been selected\n");
-			printk("note: to select ep80219 operation:\n");
+			printk("yeste: iq31244 board type has been selected\n");
+			printk("yeste: to select ep80219 operation:\n");
 			printk("\t1/ specify \"force_ep80219\" on the kernel"
 				" command line\n");
 			printk("\t2/ update boot loader to pass"
@@ -243,7 +243,7 @@ static struct platform_device iq31244_serial_device = {
 
 /*
  * This function will send a SHUTDOWN_COMPLETE message to the PIC
- * controller over I2C.  We are not using the i2c subsystem since
+ * controller over I2C.  We are yest using the i2c subsystem since
  * we are going to power off and it may be removed
  */
 void ep80219_power_off(void)
@@ -256,14 +256,14 @@ void ep80219_power_off(void)
 	mdelay(1);
 
 	/*
-	 * Send the START_MSG byte w/ no start or stop condition
+	 * Send the START_MSG byte w/ yes start or stop condition
 	 */
 	*IOP3XX_IDBR1 = 0x0F;
 	*IOP3XX_ICR1 = 0xE8;
 	mdelay(1);
 
 	/*
-	 * Send the SHUTDOWN_COMPLETE Message ID byte w/ no start or
+	 * Send the SHUTDOWN_COMPLETE Message ID byte w/ yes start or
 	 * stop condition
 	 */
 	*IOP3XX_IDBR1 = 0x03;
@@ -271,7 +271,7 @@ void ep80219_power_off(void)
 	mdelay(1);
 
 	/*
-	 * Send an ignored byte w/ stop condition
+	 * Send an igyesred byte w/ stop condition
 	 */
 	*IOP3XX_IDBR1 = 0x00;
 	*IOP3XX_ICR1 = 0xEA;
@@ -318,7 +318,7 @@ MACHINE_START(IQ31244, "Intel IQ31244")
 MACHINE_END
 
 /* There should have been an ep80219 machine identifier from the beginning.
- * Boot roms older than March 2007 do not know the ep80219 machine id.  Pass
+ * Boot roms older than March 2007 do yest kyesw the ep80219 machine id.  Pass
  * "force_ep80219" on the kernel command line, otherwise iq31244 operation
  * will be selected.
  */

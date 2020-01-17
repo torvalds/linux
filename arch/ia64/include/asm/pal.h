@@ -28,7 +28,7 @@
 
 /*
  * Note that some of these calls use a static-register only calling
- * convention which has nothing to do with the regular calling
+ * convention which has yesthing to do with the regular calling
  * convention.
  */
 #define PAL_CACHE_FLUSH		1	/* flush i/d cache */
@@ -81,8 +81,8 @@
 #define PAL_COPY_PAL		256	/* relocate PAL procedures and PAL PMI */
 #define PAL_HALT_INFO		257	/* return the low power capabilities of processor */
 #define PAL_TEST_PROC		258	/* perform late processor self-test */
-#define PAL_CACHE_READ		259	/* read tag & data of cacheline for diagnostic testing */
-#define PAL_CACHE_WRITE		260	/* write tag & data of cacheline for diagnostic testing */
+#define PAL_CACHE_READ		259	/* read tag & data of cacheline for diagyesstic testing */
+#define PAL_CACHE_WRITE		260	/* write tag & data of cacheline for diagyesstic testing */
 #define PAL_VM_TR_READ		261	/* read contents of translation register */
 #define PAL_GET_PSTATE		262	/* get the current P-state */
 #define PAL_SET_PSTATE		263	/* set the P-state */
@@ -112,7 +112,7 @@ typedef s64				pal_status_t;
 #define PAL_STATUS_UNIMPLEMENTED	(-1)	/* Unimplemented procedure */
 #define PAL_STATUS_EINVAL		(-2)	/* Invalid argument */
 #define PAL_STATUS_ERROR		(-3)	/* Error */
-#define PAL_STATUS_CACHE_INIT_FAIL	(-4)	/* Could not initialize the
+#define PAL_STATUS_CACHE_INIT_FAIL	(-4)	/* Could yest initialize the
 						 * specified level and type of
 						 * cache without sideeffects
 						 * and "restrict" was 1
@@ -148,7 +148,7 @@ typedef u64				pal_cache_line_state_t;
 #define PAL_CACHE_LINE_STATE_MODIFIED	3	/* Modified */
 
 typedef struct pal_freq_ratio {
-	u32 den, num;		/* numerator & denominator */
+	u32 den, num;		/* numerator & deyesminator */
 } itc_ratio, proc_ratio;
 
 typedef	union  pal_cache_config_info_1_s {
@@ -411,7 +411,7 @@ typedef struct pal_process_state_info_s {
 
 
 			hd		: 1,	/* Non-essential hw
-						 * lost (no loss of
+						 * lost (yes loss of
 						 * functionality)
 						 * causing the
 						 * processor to run in
@@ -676,7 +676,7 @@ typedef union pal_mc_error_info_u {
 	pal_uarch_check_info_t		pme_uarch;
 } pal_mc_error_info_t;
 
-#define pmci_proc_unknown_check			pme_processor.uc
+#define pmci_proc_unkyeswn_check			pme_processor.uc
 #define pmci_proc_bus_check			pme_processor.bc
 #define pmci_proc_tlb_check			pme_processor.tc
 #define pmci_proc_cache_check			pme_processor.cc
@@ -786,7 +786,7 @@ struct ia64_pal_retval {
 /*
  * Note: Currently unused PAL arguments are generally labeled
  * "reserved" so the value specified in the PAL documentation
- * (generally 0) MUST be passed.  Reserved parameters are not optional
+ * (generally 0) MUST be passed.  Reserved parameters are yest optional
  * parameters.
  */
 extern struct ia64_pal_retval ia64_pal_call_static (u64, u64, u64, u64);
@@ -967,7 +967,7 @@ ia64_pal_cache_init (u64 level, u64 cache_type, u64 rest)
 }
 
 /* Initialize the tags and data of a data or unified cache line of
- * processor controlled cache to known values without the availability
+ * processor controlled cache to kyeswn values without the availability
  * of backing memory.
  */
 static inline s64
@@ -1123,7 +1123,7 @@ ia64_pal_get_hw_policy (u64 proc_num, u64 *cur_policy, u64 *num_impacted,
 
 /* Make the processor enter HALT or one of the implementation dependent low
  * power states where prefetching and execution are suspended and cache and
- * TLB coherency is not maintained.
+ * TLB coherency is yest maintained.
  */
 static inline s64
 ia64_pal_halt (u64 halt_state)
@@ -1273,7 +1273,7 @@ ia64_pal_mc_error_inject_virt (u64 err_type_info, u64 err_struct_info,
 	return iprv.status;
 }
 
-/* Inform PALE_CHECK whether a machine check is expected so that PALE_CHECK willnot
+/* Inform PALE_CHECK whether a machine check is expected so that PALE_CHECK willyest
  * attempt to correct any expected machine checks.
  */
 static inline s64

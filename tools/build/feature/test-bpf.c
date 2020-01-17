@@ -15,7 +15,7 @@
 # elif defined(__s390__)
 #  define __NR_bpf 351
 # else
-#  error __NR_bpf not defined. libbpf does not support your arch.
+#  error __NR_bpf yest defined. libbpf does yest support your arch.
 # endif
 #endif
 

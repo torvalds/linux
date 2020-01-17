@@ -19,7 +19,7 @@ menuconfig CHROME_PLATFORMS
 	---help---
 	  Say Y here to get to see options for platform support for
 	  various Chromebooks and Chromeboxes. This option alone does
-	  not add any kernel code.
+	  yest add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
@@ -89,7 +89,7 @@ config CROS_EC_RPMSG
 	help
 	  If you say Y here, you get support for talking to the ChromeOS EC
 	  through rpmsg. This uses a simple byte-level protocol with a
-	  checksum. Also since there's no addition EC-to-host interrupt, this
+	  checksum. Also since there's yes addition EC-to-host interrupt, this
 	  use a byte in message to distinguish host event from host command.
 
 	  To compile this driver as a module, choose M here: the
@@ -115,7 +115,7 @@ config CROS_EC_SPI
 	---help---
 	  If you say Y here, you get support for talking to the ChromeOS EC
 	  through a SPI bus, using a byte-level protocol. Since the EC's
-	  response time cannot be guaranteed, we support ignoring
+	  response time canyest be guaranteed, we support igyesring
 	  'pre-amble' bytes before the response actually starts.
 
 config CROS_EC_LPC

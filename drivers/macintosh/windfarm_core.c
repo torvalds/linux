@@ -15,14 +15,14 @@
  * generically here instead of hard coded in the platform specific
  * driver as it us currently
  *
- * This however requires solving some annoying lifetime issues with
+ * This however requires solving some anyesying lifetime issues with
  * sysfs which doesn't seem to have lifetime rules for struct attribute,
  * I may have to create full features kobjects for every sensor/control
  * instead which is a bit of an overkill imho
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -66,9 +66,9 @@ static struct platform_device wf_platform_device = {
  * Utilities & tick thread
  */
 
-static inline void wf_notify(int event, void *param)
+static inline void wf_yestify(int event, void *param)
 {
-	blocking_notifier_call_chain(&wf_client_list, event, param);
+	blocking_yestifier_call_chain(&wf_client_list, event, param);
 }
 
 static int wf_critical_overtemp(void)
@@ -97,10 +97,10 @@ static int wf_thread_func(void *data)
 		try_to_freeze();
 
 		if (time_after_eq(jiffies, next)) {
-			wf_notify(WF_EVENT_TICK, NULL);
+			wf_yestify(WF_EVENT_TICK, NULL);
 			if (wf_overtemp) {
 				wf_overtemp_counter++;
-				/* 10 seconds overtemp, notify userland */
+				/* 10 seconds overtemp, yestify userland */
 				if (wf_overtemp_counter > 10)
 					wf_critical_overtemp();
 				/* 30 seconds, shutdown */
@@ -234,7 +234,7 @@ int wf_register_control(struct wf_control *new_ct)
 
 	DBG("wf: Registered control %s\n", new_ct->name);
 
-	wf_notify(WF_EVENT_NEW_CONTROL, new_ct);
+	wf_yestify(WF_EVENT_NEW_CONTROL, new_ct);
 	mutex_unlock(&wf_lock);
 
 	return 0;
@@ -329,7 +329,7 @@ int wf_register_sensor(struct wf_sensor *new_sr)
 
 	DBG("wf: Registered sensor %s\n", new_sr->name);
 
-	wf_notify(WF_EVENT_NEW_SENSOR, new_sr);
+	wf_yestify(WF_EVENT_NEW_SENSOR, new_sr);
 	mutex_unlock(&wf_lock);
 
 	return 0;
@@ -367,24 +367,24 @@ EXPORT_SYMBOL_GPL(wf_put_sensor);
 
 
 /*
- * Client & notification
+ * Client & yestification
  */
 
-int wf_register_client(struct notifier_block *nb)
+int wf_register_client(struct yestifier_block *nb)
 {
 	int rc;
 	struct wf_control *ct;
 	struct wf_sensor *sr;
 
 	mutex_lock(&wf_lock);
-	rc = blocking_notifier_chain_register(&wf_client_list, nb);
+	rc = blocking_yestifier_chain_register(&wf_client_list, nb);
 	if (rc != 0)
 		goto bail;
 	wf_client_count++;
 	list_for_each_entry(ct, &wf_controls, link)
-		wf_notify(WF_EVENT_NEW_CONTROL, ct);
+		wf_yestify(WF_EVENT_NEW_CONTROL, ct);
 	list_for_each_entry(sr, &wf_sensors, link)
-		wf_notify(WF_EVENT_NEW_SENSOR, sr);
+		wf_yestify(WF_EVENT_NEW_SENSOR, sr);
 	if (wf_client_count == 1)
 		wf_start_thread();
  bail:
@@ -393,10 +393,10 @@ int wf_register_client(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(wf_register_client);
 
-int wf_unregister_client(struct notifier_block *nb)
+int wf_unregister_client(struct yestifier_block *nb)
 {
 	mutex_lock(&wf_lock);
-	blocking_notifier_chain_unregister(&wf_client_list, nb);
+	blocking_yestifier_chain_unregister(&wf_client_list, nb);
 	wf_client_count--;
 	if (wf_client_count == 0)
 		wf_stop_thread();
@@ -413,7 +413,7 @@ void wf_set_overtemp(void)
 	if (wf_overtemp == 1) {
 		printk(KERN_WARNING "windfarm: Overtemp condition detected !\n");
 		wf_overtemp_counter = 0;
-		wf_notify(WF_EVENT_OVERTEMP, NULL);
+		wf_yestify(WF_EVENT_OVERTEMP, NULL);
 	}
 	mutex_unlock(&wf_lock);
 }
@@ -430,7 +430,7 @@ void wf_clear_overtemp(void)
 	wf_overtemp--;
 	if (wf_overtemp == 0) {
 		printk(KERN_WARNING "windfarm: Overtemp condition cleared !\n");
-		wf_notify(WF_EVENT_NORMALTEMP, NULL);
+		wf_yestify(WF_EVENT_NORMALTEMP, NULL);
 	}
 	mutex_unlock(&wf_lock);
 }

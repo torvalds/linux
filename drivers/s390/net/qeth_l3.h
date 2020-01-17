@@ -20,15 +20,15 @@ enum qeth_ip_types {
 };
 
 struct qeth_ipaddr {
-	struct hlist_node hnode;
+	struct hlist_yesde hyesde;
 	enum qeth_ip_types type;
 	u8 is_multicast:1;
 	u8 in_progress:1;
 	u8 disp_flag:2;
 	u8 ipato:1;			/* ucast only */
 
-	/* is changed only for normal ip addresses
-	 * for non-normal addresses it always is  1
+	/* is changed only for yesrmal ip addresses
+	 * for yesn-yesrmal addresses it always is  1
 	 */
 	int  ref_counter;
 	enum qeth_prot_versions proto;

@@ -628,10 +628,10 @@ static int max77693_reg_init(struct max77693_charger *chg)
 #ifdef CONFIG_OF
 static int max77693_dt_init(struct device *dev, struct max77693_charger *chg)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	if (!np) {
-		dev_err(dev, "no charger OF node\n");
+		dev_err(dev, "yes charger OF yesde\n");
 		return -EINVAL;
 	}
 

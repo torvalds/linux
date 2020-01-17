@@ -72,7 +72,7 @@ struct bd2802_led {
 	struct led_state		led[2];
 
 	/*
-	 * Making led_classdev as array is not recommended, because array
+	 * Making led_classdev as array is yest recommended, because array
 	 * members prevent using 'container_of' macro. So repetitive works
 	 * are needed.
 	 */

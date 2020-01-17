@@ -39,7 +39,7 @@
 #include <linux/string.h>
 #include <linux/time64.h>
 #include <linux/zalloc.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <poll.h>
 #include <termios.h>
@@ -110,7 +110,7 @@ static const char *get_exit_reason(struct perf_kvm_stat *kvm,
 		tbl++;
 	}
 
-	pr_err("unknown kvm exit code:%lld on %s\n",
+	pr_err("unkyeswn kvm exit code:%lld on %s\n",
 		(unsigned long long)exit_code, kvm->exit_reasons_isa);
 	return "UNKNOWN";
 }
@@ -199,7 +199,7 @@ static bool kvm_event_expand(struct kvm_event *event, int vcpu_id)
 			      event->max_vcpu * sizeof(*event->vcpu));
 	if (!event->vcpu) {
 		free(prev);
-		pr_err("Not enough memory\n");
+		pr_err("Not eyesugh memory\n");
 		return false;
 	}
 
@@ -214,7 +214,7 @@ static struct kvm_event *kvm_alloc_init_event(struct event_key *key)
 
 	event = zalloc(sizeof(*event));
 	if (!event) {
-		pr_err("Not enough memory\n");
+		pr_err("Not eyesugh memory\n");
 		return NULL;
 	}
 
@@ -357,7 +357,7 @@ static bool handle_end_event(struct perf_kvm_stat *kvm,
 	event = vcpu_record->last_event;
 	time_begin = vcpu_record->start_time;
 
-	/* The begin event is not caught. */
+	/* The begin event is yest caught. */
 	if (!time_begin)
 		return true;
 
@@ -366,7 +366,7 @@ static bool handle_end_event(struct perf_kvm_stat *kvm,
 	 * the actual event is recognized in the 'end event' (e.g. mmio-event).
 	 */
 
-	/* Both begin and end events did not get the key. */
+	/* Both begin and end events did yest get the key. */
 	if (!event && key->key == INVALID_KEY)
 		return true;
 
@@ -412,7 +412,7 @@ struct vcpu_event_record *per_vcpu_record(struct thread *thread,
 
 		vcpu_record = zalloc(sizeof(*vcpu_record));
 		if (!vcpu_record) {
-			pr_err("%s: Not enough memory\n", __func__);
+			pr_err("%s: Not eyesugh memory\n", __func__);
 			return NULL;
 		}
 
@@ -501,15 +501,15 @@ static bool select_key(struct perf_kvm_stat *kvm)
 		}
 	}
 
-	pr_err("Unknown compare key:%s\n", kvm->sort_key);
+	pr_err("Unkyeswn compare key:%s\n", kvm->sort_key);
 	return false;
 }
 
 static void insert_to_result(struct rb_root *result, struct kvm_event *event,
 			     key_cmp_fun bigger, int vcpu)
 {
-	struct rb_node **rb = &result->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **rb = &result->rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct kvm_event *p;
 
 	while (*rb) {
@@ -522,7 +522,7 @@ static void insert_to_result(struct rb_root *result, struct kvm_event *event,
 			rb = &(*rb)->rb_right;
 	}
 
-	rb_link_node(&event->rb, parent, rb);
+	rb_link_yesde(&event->rb, parent, rb);
 	rb_insert_color(&event->rb, result);
 }
 
@@ -560,13 +560,13 @@ static void sort_result(struct perf_kvm_stat *kvm)
 /* returns left most element of result, and erase it */
 static struct kvm_event *pop_from_result(struct rb_root *result)
 {
-	struct rb_node *node = rb_first(result);
+	struct rb_yesde *yesde = rb_first(result);
 
-	if (!node)
+	if (!yesde)
 		return NULL;
 
-	rb_erase(node, result);
-	return container_of(node, struct kvm_event, rb);
+	rb_erase(yesde, result);
+	return container_of(yesde, struct kvm_event, rb);
 }
 
 static void print_vcpu_info(struct perf_kvm_stat *kvm)
@@ -727,7 +727,7 @@ static int cpu_isa_config(struct perf_kvm_stat *kvm)
 
 	err = cpu_isa_init(kvm, cpuid);
 	if (err == -ENOTSUP)
-		pr_err("CPU %s is not supported.\n", cpuid);
+		pr_err("CPU %s is yest supported.\n", cpuid);
 
 	return err;
 }
@@ -865,7 +865,7 @@ static int perf_kvm__timerfd_create(struct perf_kvm_stat *kvm)
 	new_value.it_interval.tv_nsec = 0;
 
 	if (timerfd_settime(kvm->timerfd, 0, &new_value, NULL) != 0) {
-		pr_err("timerfd_settime failed: %d\n", errno);
+		pr_err("timerfd_settime failed: %d\n", erryes);
 		close(kvm->timerfd);
 		goto out;
 	}
@@ -882,10 +882,10 @@ static int perf_kvm__handle_timerfd(struct perf_kvm_stat *kvm)
 
 	rc = read(kvm->timerfd, &c, sizeof(uint64_t));
 	if (rc < 0) {
-		if (errno == EAGAIN)
+		if (erryes == EAGAIN)
 			return 0;
 
-		pr_err("Failed to read timer fd: %d\n", errno);
+		pr_err("Failed to read timer fd: %d\n", erryes);
 		return -1;
 	}
 
@@ -910,7 +910,7 @@ static int perf_kvm__handle_timerfd(struct perf_kvm_stat *kvm)
 	return 0;
 }
 
-static int fd_set_nonblock(int fd)
+static int fd_set_yesnblock(int fd)
 {
 	long arg = 0;
 
@@ -921,7 +921,7 @@ static int fd_set_nonblock(int fd)
 	}
 
 	if (fcntl(fd, F_SETFL, arg | O_NONBLOCK) < 0) {
-		pr_err("Failed to set non-block option on fd %d\n", fd);
+		pr_err("Failed to set yesn-block option on fd %d\n", fd);
 		return -1;
 	}
 
@@ -972,11 +972,11 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 	if (evlist__add_pollfd(kvm->evlist, kvm->timerfd) < 0)
 		goto out;
 
-	nr_stdin = evlist__add_pollfd(kvm->evlist, fileno(stdin));
+	nr_stdin = evlist__add_pollfd(kvm->evlist, fileyes(stdin));
 	if (nr_stdin < 0)
 		goto out;
 
-	if (fd_set_nonblock(fileno(stdin)) != 0)
+	if (fd_set_yesnblock(fileyes(stdin)) != 0)
 		goto out;
 
 	/* everything is good - enable the events and process */
@@ -1026,7 +1026,7 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 	perf_evlist__config(evlist, &kvm->opts, NULL);
 
 	/*
-	 * Note: exclude_{guest,host} do not apply here.
+	 * Note: exclude_{guest,host} do yest apply here.
 	 *       This command processes KVM tracepoints from host only
 	 */
 	evlist__for_each_entry(evlist, pos) {
@@ -1037,7 +1037,7 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 		perf_evsel__set_sample_bit(pos, TIME);
 		perf_evsel__set_sample_bit(pos, CPU);
 		perf_evsel__set_sample_bit(pos, RAW);
-		/* make sure these are *not*; want as small a sample as possible */
+		/* make sure these are *yest*; want as small a sample as possible */
 		perf_evsel__reset_sample_bit(pos, PERIOD);
 		perf_evsel__reset_sample_bit(pos, IP);
 		perf_evsel__reset_sample_bit(pos, CALLCHAIN);
@@ -1059,13 +1059,13 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 	err = evlist__open(evlist);
 	if (err < 0) {
 		printf("Couldn't create the events: %s\n",
-		       str_error_r(errno, sbuf, sizeof(sbuf)));
+		       str_error_r(erryes, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 
 	if (evlist__mmap(evlist, kvm->opts.mmap_pages) < 0) {
 		ui__error("Failed to mmap the events: %s\n",
-			  str_error_r(errno, sbuf, sizeof(sbuf)));
+			  str_error_r(erryes, sbuf, sizeof(sbuf)));
 		evlist__close(evlist);
 		goto out;
 	}
@@ -1108,7 +1108,7 @@ static int read_events(struct perf_kvm_stat *kvm)
 	}
 
 	/*
-	 * Do not use 'isa' recorded in kvm_exit tracepoint since it is not
+	 * Do yest use 'isa' recorded in kvm_exit tracepoint since it is yest
 	 * traced in the old kernel.
 	 */
 	ret = cpu_isa_config(kvm);
@@ -1239,9 +1239,9 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 	set_option_flag(record_options, 'd', "data", PARSE_OPT_DISABLED);
 	set_option_flag(record_options, 'T', "timestamp", PARSE_OPT_DISABLED);
 	set_option_flag(record_options, 'P', "period", PARSE_OPT_DISABLED);
-	set_option_flag(record_options, 'n', "no-samples", PARSE_OPT_DISABLED);
-	set_option_flag(record_options, 'N', "no-buildid-cache", PARSE_OPT_DISABLED);
-	set_option_flag(record_options, 'B', "no-buildid", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'n', "yes-samples", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'N', "yes-buildid-cache", PARSE_OPT_DISABLED);
+	set_option_flag(record_options, 'B', "yes-buildid", PARSE_OPT_DISABLED);
 	set_option_flag(record_options, 'G', "cgroup", PARSE_OPT_DISABLED);
 	set_option_flag(record_options, 'b', "branch-any", PARSE_OPT_DISABLED);
 	set_option_flag(record_options, 'j', "branch-filter", PARSE_OPT_DISABLED);
@@ -1312,7 +1312,7 @@ static struct evlist *kvm_live_event_list(void)
 		sys = tp;
 		name = strchr(tp, ':');
 		if (name == NULL) {
-			pr_err("Error parsing %s tracepoint: subsystem delimiter not found\n",
+			pr_err("Error parsing %s tracepoint: subsystem delimiter yest found\n",
 			       *events_tp);
 			free(tp);
 			goto out;
@@ -1424,7 +1424,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		ui__warning("%s", errbuf);
 	}
 
-	if (target__none(&kvm->opts.target))
+	if (target__yesne(&kvm->opts.target))
 		kvm->opts.target.system_wide = true;
 
 

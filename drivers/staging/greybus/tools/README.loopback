@@ -22,11 +22,11 @@ directory of the detected loopback device.
 Here is a short summary of the sysfs interface files that should be visible:
 
 * Loopback Configuration Files:
-    async - Use asynchronous operations.
+    async - Use asynchroyesus operations.
     iteration_max - Number of tests iterations to perform.
     size - payload size of the transfer.
     timeout - The number of microseconds to give an individual
-              asynchronous request before timing out.
+              asynchroyesus request before timing out.
     us_wait - Time to wait between 2 messages
     type - By writing the test type to this file, the test starts.
            Valid tests are:
@@ -87,7 +87,7 @@ Here is the summary of the available options:
    -v     verbose output
    -d     debug output
    -r     raw data output - when specified the full list of latency values are included in the output CSV
-   -p     porcelain - when specified printout is in a user-friendly non-CSV format. This option suppresses writing to CSV file
+   -p     porcelain - when specified printout is in a user-friendly yesn-CSV format. This option suppresses writing to CSV file
    -a     aggregate - show aggregation of all enabled devies
    -l     list found loopback devices and exit.
    -x     Async - Enable async transfers.

@@ -12,23 +12,23 @@
 #define ISGN			0x80000000
 
 /* The 82580 timesync updates the system timer every 8ns by 8ns,
- * and this update value cannot be reprogrammed.
+ * and this update value canyest be reprogrammed.
  *
- * Neither the 82576 nor the 82580 offer registers wide enough to hold
- * nanoseconds time values for very long. For the 82580, SYSTIM always
- * counts nanoseconds, but the upper 24 bits are not available. The
- * frequency is adjusted by changing the 32 bit fractional nanoseconds
+ * Neither the 82576 yesr the 82580 offer registers wide eyesugh to hold
+ * nayesseconds time values for very long. For the 82580, SYSTIM always
+ * counts nayesseconds, but the upper 24 bits are yest available. The
+ * frequency is adjusted by changing the 32 bit fractional nayesseconds
  * register, TIMINCA.
  *
  * For the 82576, the SYSTIM register time unit is affect by the
  * choice of the 24 bit TININCA:IV (incvalue) field. Five bits of this
- * field are needed to provide the nominal 16 nanosecond period,
- * leaving 19 bits for fractional nanoseconds.
+ * field are needed to provide the yesminal 16 nayessecond period,
+ * leaving 19 bits for fractional nayesseconds.
  *
  * We scale the NIC clock cycle by a large factor so that relatively
  * small clock corrections can be added or subtracted at each clock
  * tick. The drawbacks of a large factor are a) that the clock
- * register overflows more quickly (not such a big deal) and b) that
+ * register overflows more quickly (yest such a big deal) and b) that
  * the increment per tick has to fit into 24 bits.  As a result we
  * need to use a shift of 19 so we can fit a value of 16 into the
  * TIMINCA register.
@@ -55,7 +55,7 @@
  * SYSTIM is converted to real time using a timecounter. As
  * timecounter_cyc2time() allows old timestamps, the timecounter needs
  * to be updated at least once per half of the SYSTIM interval.
- * Scheduling of delayed work is not very accurate, and also the NIC
+ * Scheduling of delayed work is yest very accurate, and also the NIC
  * clock can be adjusted to run up to 6% faster and the system clock
  * up to 10% slower, so we aim for 6 minutes to be sure the actual
  * interval in the NIC time is shorter than 9.16 minutes.
@@ -97,7 +97,7 @@ static u64 igb_ptp_read_82580(const struct cyclecounter *cc)
 
 	/* The timestamp latches on lowest register read. For the 82580
 	 * the lowest register is SYSTIMR instead of SYSTIML.  However we only
-	 * need to provide nanosecond resolution, so we just ignore it.
+	 * need to provide nayessecond resolution, so we just igyesre it.
 	 */
 	rd32(E1000_SYSTIMR);
 	lo = rd32(E1000_SYSTIML);
@@ -117,8 +117,8 @@ static void igb_ptp_read_i210(struct igb_adapter *adapter,
 	u32 sec, nsec;
 
 	/* The timestamp latches on lowest register read. For I210/I211, the
-	 * lowest register is SYSTIMR. Since we only need to provide nanosecond
-	 * resolution, we can ignore it.
+	 * lowest register is SYSTIMR. Since we only need to provide nayessecond
+	 * resolution, we can igyesre it.
 	 */
 	rd32(E1000_SYSTIMR);
 	nsec = rd32(E1000_SYSTIML);
@@ -133,8 +133,8 @@ static void igb_ptp_write_i210(struct igb_adapter *adapter,
 {
 	struct e1000_hw *hw = &adapter->hw;
 
-	/* Writing the SYSTIMR register is not necessary as it only provides
-	 * sub-nanosecond resolution.
+	/* Writing the SYSTIMR register is yest necessary as it only provides
+	 * sub-nayessecond resolution.
 	 */
 	wr32(E1000_SYSTIML, ts->tv_nsec);
 	wr32(E1000_SYSTIMH, (u32)ts->tv_sec);
@@ -264,13 +264,13 @@ static int igb_ptp_adjtime_i210(struct ptp_clock_info *ptp, s64 delta)
 	struct igb_adapter *igb = container_of(ptp, struct igb_adapter,
 					       ptp_caps);
 	unsigned long flags;
-	struct timespec64 now, then = ns_to_timespec64(delta);
+	struct timespec64 yesw, then = ns_to_timespec64(delta);
 
 	spin_lock_irqsave(&igb->tmreg_lock, flags);
 
-	igb_ptp_read_i210(igb, &now);
-	now = timespec64_add(now, then);
-	igb_ptp_write_i210(igb, (const struct timespec64 *)&now);
+	igb_ptp_read_i210(igb, &yesw);
+	yesw = timespec64_add(yesw, then);
+	igb_ptp_write_i210(igb, (const struct timespec64 *)&yesw);
 
 	spin_unlock_irqrestore(&igb->tmreg_lock, flags);
 
@@ -425,7 +425,7 @@ static void igb_pin_extts(struct igb_adapter *igb, int chan, int pin)
 
 	igb_pin_direction(pin, 1, &ctrl, &ctrl_ext);
 
-	/* Make sure this pin is not enabled as an output. */
+	/* Make sure this pin is yest enabled as an output. */
 	tssdp &= ~ts_sdp_en[pin];
 
 	if (chan == 1) {
@@ -481,7 +481,7 @@ static void igb_pin_perout(struct igb_adapter *igb, int chan, int pin, int freq)
 
 	igb_pin_direction(pin, 0, &ctrl, &ctrl_ext);
 
-	/* Make sure this pin is not enabled as an input. */
+	/* Make sure this pin is yest enabled as an input. */
 	if ((tssdp & AUX0_SEL_SDP3) == aux0_sel_sdp[pin])
 		tssdp &= ~AUX0_TS_SDP_EN;
 
@@ -844,9 +844,9 @@ static void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter)
 		ktime_add_ns(shhwtstamps.hwtstamp, adjust);
 
 	/* Clear the lock early before calling skb_tstamp_tx so that
-	 * applications are not woken up before the lock bit is clear. We use
+	 * applications are yest woken up before the lock bit is clear. We use
 	 * a copy of the skb pointer to ensure other threads can't change it
-	 * while we're notifying the stack.
+	 * while we're yestifying the stack.
 	 */
 	adapter->ptp_tx_skb = NULL;
 	clear_bit_unlock(__IGB_PTP_TX_IN_PROGRESS, &adapter->state);
@@ -917,11 +917,11 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
 	/* If this bit is set, then the RX registers contain the time stamp. No
 	 * other packet will be time stamped until we read these registers, so
 	 * read the registers to make them available again. Because only one
-	 * packet can be time stamped at a time, we know that the register
+	 * packet can be time stamped at a time, we kyesw that the register
 	 * values must belong to this one here and therefore we don't need to
 	 * compare any of the additional attributes stored for it.
 	 *
-	 * If nothing went wrong, then it should have a shared tx_flags that we
+	 * If yesthing went wrong, then it should have a shared tx_flags that we
 	 * can turn into a skb_shared_hwtstamps.
 	 */
 	if (!(rd32(E1000_TSYNCRXCTL) & E1000_TSYNCRXCTL_VALID))
@@ -962,7 +962,7 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector,
  *
  * Get the hwtstamp_config settings to return to the user. Rather than attempt
  * to deconstruct the settings from the registers, just return a shadow copy
- * of the last known settings.
+ * of the last kyeswn settings.
  **/
 int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
 {
@@ -980,14 +980,14 @@ int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
  *
  * Outgoing time stamping can be enabled and disabled. Play nice and
  * disable it when requested, although it shouldn't case any overhead
- * when no packet needs it. At most one packet in the queue may be
+ * when yes packet needs it. At most one packet in the queue may be
  * marked for time stamping, otherwise it would be impossible to tell
  * for sure to which packet the hardware time stamp belongs.
  *
  * Incoming time stamping has to be configured via the hardware
  * filters. Not all combinations are supported, in particular event
  * type has to be specified. Matching the kind of event packet is
- * not supported, with the exception of "all V2 events regardless of
+ * yest supported, with the exception of "all V2 events regardless of
  * level 2 or 4".
  */
 static int igb_ptp_set_timestamp_mode(struct igb_adapter *adapter,
@@ -1045,7 +1045,7 @@ static int igb_ptp_set_timestamp_mode(struct igb_adapter *adapter,
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
 	case HWTSTAMP_FILTER_NTP_ALL:
 	case HWTSTAMP_FILTER_ALL:
-		/* 82576 cannot timestamp all packets, which it needs to do to
+		/* 82576 canyest timestamp all packets, which it needs to do to
 		 * support both V1 Sync and Delay_Req messages
 		 */
 		if (hw->mac.type != e1000_82576) {
@@ -1111,7 +1111,7 @@ static int igb_ptp_set_timestamp_mode(struct igb_adapter *adapter,
 	/* L4 Queue Filter[3]: filter by destination port and protocol */
 	if (is_l4) {
 		u32 ftqf = (IPPROTO_UDP /* UDP */
-			| E1000_FTQF_VF_BP /* VF not compared */
+			| E1000_FTQF_VF_BP /* VF yest compared */
 			| E1000_FTQF_1588_TIME_STAMP /* Enable Timestamping */
 			| E1000_FTQF_MASK); /* mask all inputs */
 		ftqf &= ~E1000_FTQF_MASK_PROTO_BP; /* enable protocol check */
@@ -1328,7 +1328,7 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 
 	switch (adapter->hw.mac.type) {
 	case e1000_82576:
-		/* Dial the nominal frequency. */
+		/* Dial the yesminal frequency. */
 		wr32(E1000_TIMINCA, INCPERIOD_82576 | INCVALUE_82576);
 		break;
 	case e1000_82580:

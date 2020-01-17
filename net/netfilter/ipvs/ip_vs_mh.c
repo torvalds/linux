@@ -188,7 +188,7 @@ static int ip_vs_mh_populate(struct ip_vs_mh_state *s,
 
 		ds = &s->dest_setup[0];
 		while (p != &svc->destinations) {
-			/* Ignore added server with zero weight */
+			/* Igyesre added server with zero weight */
 			if (ds->turns < 1) {
 				p = p->next;
 				ds++;
@@ -447,7 +447,7 @@ ip_vs_mh_get_port(const struct sk_buff *skb, struct ip_vs_iphdr *iph)
 {
 	__be16 _ports[2], *ports;
 
-	/* At this point we know that we have a valid packet of some kind.
+	/* At this point we kyesw that we have a valid packet of some kind.
 	 * Because ICMP packets are only guaranteed to have the first 8
 	 * bytes, let's just grab the ports.  Fortunately they're in the
 	 * same position for all three of the protocols we care about.
@@ -495,7 +495,7 @@ ip_vs_mh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		dest = ip_vs_mh_get(svc, s, hash_addr, port);
 
 	if (!dest) {
-		ip_vs_scheduler_err(svc, "no destination available");
+		ip_vs_scheduler_err(svc, "yes destination available");
 		return NULL;
 	}
 

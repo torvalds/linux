@@ -86,7 +86,7 @@
 /* There is a TCAM range reserved for VLAN filtering entries, range size is 33
  * 10 VLAN ID filter entries per port
  * 1 default VLAN filter entry per port
- * It is assumed that there are 3 ports for filter, not including loopback port
+ * It is assumed that there are 3 ports for filter, yest including loopback port
  */
 #define MVPP2_PRS_VLAN_FILT_MAX		11
 #define MVPP2_PRS_VLAN_FILT_RANGE_SIZE	33

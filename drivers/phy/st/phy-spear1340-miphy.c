@@ -224,14 +224,14 @@ static struct phy *spear1340_miphy_xlate(struct device *dev,
 	struct spear1340_miphy_priv *priv = dev_get_drvdata(dev);
 
 	if (args->args_count < 1) {
-		dev_err(dev, "DT did not pass correct no of args\n");
+		dev_err(dev, "DT did yest pass correct yes of args\n");
 		return ERR_PTR(-ENODEV);
 	}
 
 	priv->mode = args->args[0];
 
 	if (priv->mode != SATA && priv->mode != PCIE) {
-		dev_err(dev, "DT did not pass correct phy mode\n");
+		dev_err(dev, "DT did yest pass correct phy mode\n");
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -249,7 +249,7 @@ static int spear1340_miphy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->misc =
-		syscon_regmap_lookup_by_phandle(dev->of_node, "misc");
+		syscon_regmap_lookup_by_phandle(dev->of_yesde, "misc");
 	if (IS_ERR(priv->misc)) {
 		dev_err(dev, "failed to find misc regmap\n");
 		return PTR_ERR(priv->misc);

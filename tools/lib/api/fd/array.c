@@ -3,7 +3,7 @@
  * Copyright (C) 2014, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  */
 #include "array.h"
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <stdlib.h>

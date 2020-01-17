@@ -3,7 +3,7 @@
  * linux/arch/arm/mach-pxa/lpd270.c
  *
  * Support for the LogicPD PXA270 Card Engine.
- * Derived from the mainstone code, which carries these notices:
+ * Derived from the mainstone code, which carries these yestices:
  *
  * Author:	Nicolas Pitre
  * Created:	Nov 05, 2002
@@ -125,7 +125,7 @@ static void lpd270_irq_handler(struct irq_desc *desc)
 
 	pending = __raw_readw(LPD270_INT_STATUS) & lpd270_irq_enabled;
 	do {
-		/* clear useless edge notification */
+		/* clear useless edge yestification */
 		desc->irq_data.chip->irq_ack(&desc->irq_data);
 		if (likely(pending)) {
 			irq = LPD270_IRQ(0) + __ffs(pending);
@@ -437,7 +437,7 @@ static int __init lpd270_set_lcd(char *str)
 	} else if (!strncasecmp(str, "lq035q7db02-20", 14)) {
 		lpd270_lcd_to_use = &sharp_lq035q7db02_20;
 	} else {
-		printk(KERN_INFO "lpd270: unknown lcd panel [%s]\n", str);
+		printk(KERN_INFO "lpd270: unkyeswn lcd panel [%s]\n", str);
 	}
 
 	return 1;

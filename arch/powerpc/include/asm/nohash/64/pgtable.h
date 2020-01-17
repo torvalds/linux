@@ -3,10 +3,10 @@
 #define _ASM_POWERPC_NOHASH_64_PGTABLE_H
 /*
  * This file contains the functions and defines necessary to modify and use
- * the ppc64 non-hashed page table.
+ * the ppc64 yesn-hashed page table.
  */
 
-#include <asm/nohash/64/pgtable-4k.h>
+#include <asm/yeshash/64/pgtable-4k.h>
 #include <asm/barrier.h>
 #include <asm/asm-const.h>
 
@@ -23,7 +23,7 @@
 #define PUD_CACHE_INDEX PUD_INDEX_SIZE
 
 /*
- * Define the address range of the kernel non-linear virtual area
+ * Define the address range of the kernel yesn-linear virtual area
  */
 #define KERN_VIRT_START ASM_CONST(0x8000000000000000)
 #define KERN_VIRT_SIZE	ASM_CONST(0x0000100000000000)
@@ -80,7 +80,7 @@
 /*
  * Include the PTE bits definitions
  */
-#include <asm/nohash/pte-book3e.h>
+#include <asm/yeshash/pte-book3e.h>
 
 #define _PAGE_SAO	0
 
@@ -140,10 +140,10 @@ static inline pte_t pmd_pte(pmd_t pmd)
 	return __pte(pmd_val(pmd));
 }
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_yesne(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		(!is_kernel_addr(pmd_val(pmd)) \
 				 || (pmd_val(pmd) & PMD_BAD_BITS))
-#define	pmd_present(pmd)	(!pmd_none(pmd))
+#define	pmd_present(pmd)	(!pmd_yesne(pmd))
 #define pmd_page_vaddr(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
 extern struct page *pmd_page(pmd_t pmd);
 
@@ -157,7 +157,7 @@ static inline void pud_clear(pud_t *pudp)
 	*pudp = __pud(0);
 }
 
-#define pud_none(pud)		(!pud_val(pud))
+#define pud_yesne(pud)		(!pud_val(pud))
 #define	pud_bad(pud)		(!is_kernel_addr(pud_val(pud)) \
 				 || (pud_val(pud) & PUD_BAD_BITS))
 #define pud_present(pud)	(pud_val(pud) != 0)
@@ -201,7 +201,7 @@ static inline void pgd_set(pgd_t *pgdp, unsigned long val)
 static inline void pte_unmap(pte_t *pte) { }
 
 /* to find an entry in a kernel page-table-directory */
-/* This now only contains the vmalloc pages */
+/* This yesw only contains the vmalloc pages */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
 /* Atomic PTE updates */

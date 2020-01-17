@@ -26,7 +26,7 @@
  * @len: length in bytes
  * @submit: submission / completion modifiers
  *
- * honored flags: ASYNC_TX_ACK
+ * hoyesred flags: ASYNC_TX_ACK
  */
 struct dma_async_tx_descriptor *
 async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
@@ -93,5 +93,5 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 EXPORT_SYMBOL_GPL(async_memcpy);
 
 MODULE_AUTHOR("Intel Corporation");
-MODULE_DESCRIPTION("asynchronous memcpy api");
+MODULE_DESCRIPTION("asynchroyesus memcpy api");
 MODULE_LICENSE("GPL");

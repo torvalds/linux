@@ -22,7 +22,7 @@
 /* Subsystem Device ID */
 #define PCI_SUBSYS_DEVID_96XX                  0xB200
 
-/* PCI BAR nos */
+/* PCI BAR yess */
 #define	PCI_AF_REG_BAR_NUM			0
 #define	PCI_PF_REG_BAR_NUM			2
 #define	PCI_MBOX_BAR_NUM			4
@@ -303,7 +303,7 @@ struct rvu {
 	u16			*cgxlmac2pf_map; /* bitmap of mapped pfs for
 						  * every cgx lmac port
 						  */
-	unsigned long		pf_notify_bmap; /* Flags for PF notification */
+	unsigned long		pf_yestify_bmap; /* Flags for PF yestification */
 	void			**cgx_idmap; /* cgx id to cgx data map table */
 	struct			work_struct cgx_evh_work;
 	struct			workqueue_struct *cgx_evh_wq;

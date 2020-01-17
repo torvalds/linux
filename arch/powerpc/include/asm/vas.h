@@ -57,7 +57,7 @@ struct vas_rx_win_attr {
 	int wcreds_max;
 
 	bool pin_win;
-	bool rej_no_credit;
+	bool rej_yes_credit;
 	bool tx_wcred_mode;
 	bool rx_wcred_mode;
 	bool tx_win_ord_mode;
@@ -66,13 +66,13 @@ struct vas_rx_win_attr {
 	bool nx_win;
 	bool fault_win;
 	bool user_win;
-	bool notify_disable;
+	bool yestify_disable;
 	bool intr_disable;
-	bool notify_early;
+	bool yestify_early;
 
-	int lnotify_lpid;
-	int lnotify_pid;
-	int lnotify_tid;
+	int lyestify_lpid;
+	int lyestify_pid;
+	int lyestify_tid;
 	u32 pswid;
 
 	int tc_mode;
@@ -93,7 +93,7 @@ struct vas_tx_win_attr {
 
 	bool user_win;
 	bool pin_win;
-	bool rej_no_credit;
+	bool rej_yes_credit;
 	bool rsvd_txbuf_enable;
 	bool tx_wcred_mode;
 	bool rx_wcred_mode;
@@ -106,7 +106,7 @@ struct vas_tx_win_attr {
  * For POWER9, this is a 1:1 mapping. In the future this maybe a 1:N
  * mapping in which case, we will need to update this helper.
  *
- * Return the VAS id or -1 if no matching vasid is found.
+ * Return the VAS id or -1 if yes matching vasid is found.
  */
 int chip_to_vas_id(int chipid);
 

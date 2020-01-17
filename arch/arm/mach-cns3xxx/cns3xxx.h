@@ -22,7 +22,7 @@
 
 #define CNS3XXX_EMBEDDED_SRAM_BASE		0x70002000	/* HANT Embedded SRAM */
 
-#define CNS3XXX_SSP_BASE			0x71000000	/* Synchronous Serial Port - SPI/PCM/I2C */
+#define CNS3XXX_SSP_BASE			0x71000000	/* Synchroyesus Serial Port - SPI/PCM/I2C */
 
 #define CNS3XXX_DMC_BASE			0x72000000	/* DMC Control (DDR2 SDRAM) */
 

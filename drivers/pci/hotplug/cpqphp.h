@@ -76,7 +76,7 @@ struct smbios_entry_point {
 	u8 ep_checksum;
 	u8 ep_length;
 	u8 major_version;
-	u8 minor_version;
+	u8 miyesr_version;
 	u16 max_size_entry;
 	u8 ep_rev;
 	u8 reserved[5];
@@ -94,7 +94,7 @@ enum smbios_entry_point_offsets {
 	EP_CHECKSUM =		offsetof(struct smbios_entry_point, ep_checksum),
 	EP_LENGTH =		offsetof(struct smbios_entry_point, ep_length),
 	MAJOR_VERSION =		offsetof(struct smbios_entry_point, major_version),
-	MINOR_VERSION =		offsetof(struct smbios_entry_point, minor_version),
+	MINOR_VERSION =		offsetof(struct smbios_entry_point, miyesr_version),
 	MAX_SIZE_ENTRY =	offsetof(struct smbios_entry_point, max_size_entry),
 	EP_REV =		offsetof(struct smbios_entry_point, ep_rev),
 	INT_ANCHOR =		offsetof(struct smbios_entry_point, int_anchor[0]),
@@ -116,7 +116,7 @@ struct ctrl_reg {			/* offset */
 	u8	reserved1;		/* 0x11 */
 	u8	reserved2;		/* 0x12 */
 	u8	gen_output_AB;		/* 0x13 */
-	u32	non_int_input;		/* 0x14 */
+	u32	yesn_int_input;		/* 0x14 */
 	u32	reserved3;		/* 0x18 */
 	u32	reserved4;		/* 0x1a */
 	u32	reserved5;		/* 0x20 */
@@ -147,7 +147,7 @@ enum ctrl_offsets {
 	CTRL_RESERVED1 =	offsetof(struct ctrl_reg, reserved1),
 	CTRL_RESERVED2 =	offsetof(struct ctrl_reg, reserved1),
 	GEN_OUTPUT_AB =		offsetof(struct ctrl_reg, gen_output_AB),
-	NON_INT_INPUT =		offsetof(struct ctrl_reg, non_int_input),
+	NON_INT_INPUT =		offsetof(struct ctrl_reg, yesn_int_input),
 	CTRL_RESERVED3 =	offsetof(struct ctrl_reg, reserved3),
 	CTRL_RESERVED4 =	offsetof(struct ctrl_reg, reserved4),
 	CTRL_RESERVED5 =	offsetof(struct ctrl_reg, reserved5),
@@ -296,11 +296,11 @@ struct controller {
 	u8 first_slot;
 	u8 add_support;
 	u8 push_flag;
-	u8 push_button;			/* 0 = no pushbutton, 1 = pushbutton present */
-	u8 slot_switch_type;		/* 0 = no switch, 1 = switch present */
-	u8 defeature_PHP;		/* 0 = PHP not supported, 1 = PHP supported */
-	u8 alternate_base_address;	/* 0 = not supported, 1 = supported */
-	u8 pci_config_space;		/* Index/data access to working registers 0 = not supported, 1 = supported */
+	u8 push_button;			/* 0 = yes pushbutton, 1 = pushbutton present */
+	u8 slot_switch_type;		/* 0 = yes switch, 1 = switch present */
+	u8 defeature_PHP;		/* 0 = PHP yest supported, 1 = PHP supported */
+	u8 alternate_base_address;	/* 0 = yest supported, 1 = supported */
+	u8 pci_config_space;		/* Index/data access to working registers 0 = yest supported, 1 = supported */
 	u8 pcix_speed_capability;	/* PCI-X */
 	u8 pcix_support;		/* PCI-X */
 	u16 vendor_id;
@@ -380,13 +380,13 @@ struct resource_lists {
  */
 #define msg_initialization_err	"Initialization failure, error=%d\n"
 #define msg_HPC_rev_error	"Unsupported revision of the PCI hot plug controller found.\n"
-#define msg_HPC_non_compaq_or_intel	"The PCI hot plug controller is not supported by this driver.\n"
-#define msg_HPC_not_supported	"this system is not supported by this version of cpqphpd. Upgrade to a newer version of cpqphpd\n"
+#define msg_HPC_yesn_compaq_or_intel	"The PCI hot plug controller is yest supported by this driver.\n"
+#define msg_HPC_yest_supported	"this system is yest supported by this version of cpqphpd. Upgrade to a newer version of cpqphpd\n"
 #define msg_unable_to_save	"unable to store PCI hot plug add resource information. This system must be rebooted before adding any PCI devices.\n"
 #define msg_button_on		"PCI slot #%d - powering on due to button press.\n"
 #define msg_button_off		"PCI slot #%d - powering off due to button press.\n"
 #define msg_button_cancel	"PCI slot #%d - action canceled due to button press.\n"
-#define msg_button_ignore	"PCI slot #%d - button press ignored.  (action in progress...)\n"
+#define msg_button_igyesre	"PCI slot #%d - button press igyesred.  (action in progress...)\n"
 
 
 /* debugfs functions for the hotplug controller info */
@@ -456,15 +456,15 @@ static inline struct slot *to_slot(struct hotplug_slot *hotplug_slot)
 /*
  * return_resource
  *
- * Puts node back in the resource list pointed to by head
+ * Puts yesde back in the resource list pointed to by head
  */
 static inline void return_resource(struct pci_resource **head,
-				   struct pci_resource *node)
+				   struct pci_resource *yesde)
 {
-	if (!node || !head)
+	if (!yesde || !head)
 		return;
-	node->next = *head;
-	*head = node;
+	yesde->next = *head;
+	*head = yesde;
 }
 
 static inline void set_SOGO(struct controller *ctrl)

@@ -21,7 +21,7 @@
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/in.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -234,7 +234,7 @@ EXPORT_SYMBOL(gen_replace_estimator);
  * gen_estimator_active - test if estimator is currently in use
  * @rate_est: rate estimator
  *
- * Returns true if estimator is active, and false if not.
+ * Returns true if estimator is active, and false if yest.
  */
 bool gen_estimator_active(struct net_rate_estimator __rcu **rate_est)
 {

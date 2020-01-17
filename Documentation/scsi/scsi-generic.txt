@@ -44,10 +44,10 @@ The original documentation for the sg driver (prior to lk 2.2.6) can be
 found at http://www.torque.net/sg/p/original/SCSI-Programming-HOWTO.txt
 and in the LDP archives.
 
-A changelog with brief notes can be found in the
+A changelog with brief yestes can be found in the
 /usr/src/linux/include/scsi/sg.h file. Note that the glibc maintainers copy 
 and edit this file (removing its changelog for example) before placing it 
-in /usr/include/scsi/sg.h . Driver debugging information and other notes 
+in /usr/include/scsi/sg.h . Driver debugging information and other yestes 
 can be found at the top of the /usr/src/linux/drivers/scsi/sg.c file.
 
 A more general description of the Linux SCSI subsystem of which sg is a 
@@ -64,8 +64,8 @@ Both packages will work in the lk 2.4 series however sg3_utils offers more
 capabilities. They can be found at: http://sg.danny.cz/sg/sg3_utils.html and 
 freecode.com
 
-Another approach is to look at the applications that use the sg driver.
-These include cdrecord, cdparanoia, SANE and cdrdao.
+Ayesther approach is to look at the applications that use the sg driver.
+These include cdrecord, cdparayesia, SANE and cdrdao.
 
 
 Mapping of Linux kernel versions to sg driver versions
@@ -82,7 +82,7 @@ of the sg driver:
 
 For reference here is a list of linux kernels in the 2.2 series that had 
 new version of the sg driver:
-      lk 2.2.0 : original sg version [with no version number]
+      lk 2.2.0 : original sg version [with yes version number]
       lk 2.2.6 : sg version 2.1.31
       lk 2.2.8 : sg version 2.1.32
       lk 2.2.10 : sg version 2.1.34 [SG_GET_VERSION_NUM ioctl first appeared]

@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2006, 8D Technologies inc.
+ * Copyright (C) 2006, 8D Techyeslogies inc.
  */
 #ifndef __LINUX_V3020_H
 #define __LINUX_V3020_H

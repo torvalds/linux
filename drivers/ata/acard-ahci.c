@@ -13,8 +13,8 @@
  * as Documentation/driver-api/libata.rst
  *
  * AHCI hardware documentation:
- * http://www.intel.com/technology/serialata/pdf/rev1_0.pdf
- * http://www.intel.com/technology/serialata/pdf/rev1_1.pdf
+ * http://www.intel.com/techyeslogy/serialata/pdf/rev1_0.pdf
+ * http://www.intel.com/techyeslogy/serialata/pdf/rev1_1.pdf
  */
 
 #include <linux/kernel.h>
@@ -174,7 +174,7 @@ static void acard_ahci_pci_print_info(struct ata_host *host)
 	else if (cc == PCI_CLASS_STORAGE_RAID)
 		scc_s = "RAID";
 	else
-		scc_s = "unknown";
+		scc_s = "unkyeswn";
 
 	ahci_print_info(host, scc_s);
 }
@@ -195,9 +195,9 @@ static unsigned int acard_ahci_fill_sg(struct ata_queued_cmd *qc, void *cmd_tbl)
 		u32 sg_len = sg_dma_len(sg);
 
 		/*
-		 * ACard note:
+		 * ACard yeste:
 		 * We must set an end-of-table (EOT) bit,
-		 * and the segment cannot exceed 64k (0x10000)
+		 * and the segment canyest exceed 64k (0x10000)
 		 */
 		acard_sg[si].addr = cpu_to_le32(addr & 0xffffffff);
 		acard_sg[si].addr_hi = cpu_to_le32((addr >> 16) >> 16);
@@ -239,7 +239,7 @@ static enum ata_completion_errors acard_ahci_qc_prep(struct ata_queued_cmd *qc)
 	/*
 	 * Fill in command slot information.
 	 *
-	 * ACard note: prd table length not filled in
+	 * ACard yeste: prd table length yest filled in
 	 */
 	opts = cmd_fis_len | (qc->dev->link->pmp << 12);
 	if (qc->tf.flags & ATA_TFLAG_WRITE)
@@ -297,11 +297,11 @@ static int acard_ahci_port_start(struct ata_port *ap)
 			pp->fbs_supported = true;
 		else if (hpriv->flags & AHCI_HFLAG_YES_FBS) {
 			dev_info(dev, "port %d can do FBS, forcing FBSCP\n",
-				 ap->port_no);
+				 ap->port_yes);
 			pp->fbs_supported = true;
 		} else
-			dev_warn(dev, "port %d is not capable of FBS\n",
-				 ap->port_no);
+			dev_warn(dev, "port %d is yest capable of FBS\n",
+				 ap->port_yes);
 	}
 
 	if (pp->fbs_supported) {
@@ -420,7 +420,7 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 		return -ENOMEM;
 	host->private_data = hpriv;
 
-	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_ignore_sss)
+	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_igyesre_sss)
 		host->flags |= ATA_HOST_PARALLEL_SCAN;
 	else
 		printk(KERN_INFO "ahci: SSS flag set, parallel bus scan disabled\n");
@@ -430,13 +430,13 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 
 		ata_port_pbar_desc(ap, AHCI_PCI_BAR, -1, "abar");
 		ata_port_pbar_desc(ap, AHCI_PCI_BAR,
-				   0x100 + ap->port_no * 0x80, "port");
+				   0x100 + ap->port_yes * 0x80, "port");
 
 		/* set initial link pm policy */
 		/*
 		ap->pm_policy = NOT_AVAILABLE;
 		*/
-		/* disabled/not-implemented port */
+		/* disabled/yest-implemented port */
 		if (!(hpriv->port_map & (1 << i)))
 			ap->ops = &ata_dummy_port_ops;
 	}

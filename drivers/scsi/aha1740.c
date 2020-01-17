@@ -31,7 +31,7 @@
  * <rask@sygehus.dk>, 10/2003
  *
  * For the avoidance of doubt the "preferred form" of this code is one which
- * is in an open non patent encumbered format. Where cryptographic key signing
+ * is in an open yesn patent encumbered format. Where cryptographic key signing
  * forms part of the process of creating an executable the information
  * including keys needed to generate an equivalently functional executable
  * are deemed to be part of the source code.
@@ -142,18 +142,18 @@ static int aha1740_makecode(unchar *sense, unchar *status)
 	       status[0], status[1], status[2], status[3],
 	       sense[0], sense[1], sense[2], sense[3]);
 #endif
-	if (!status_word.don) { /* Anything abnormal was detected */
+	if (!status_word.don) { /* Anything abyesrmal was detected */
 		if ( (status[1]&0x18) || status_word.sc ) {
 			/*Additional info available*/
-			/* Use the supplied info for further diagnostics */
+			/* Use the supplied info for further diagyesstics */
 			switch ( status[2] ) {
 			case 0x12:
 				if ( status_word.dor )
 					retval=DID_ERROR; /* It's an Overrun */
-				/* If not overrun, assume underrun and
-				 * ignore it! */
-			case 0x00: /* No info, assume no error, should
-				    * not occur */
+				/* If yest overrun, assume underrun and
+				 * igyesre it! */
+			case 0x00: /* No info, assume yes error, should
+				    * yest occur */
 				break;
 			case 0x11:
 			case 0x21:
@@ -170,7 +170,7 @@ static int aha1740_makecode(unchar *sense, unchar *status)
 				break;
 			default:
 				retval=DID_ERROR; /* No further
-						   * diagnostics
+						   * diagyesstics
 						   * possible */
 			}
 		} else {
@@ -178,7 +178,7 @@ static int aha1740_makecode(unchar *sense, unchar *status)
 			if ( status_word.qf ) {
 				retval = DID_TIME_OUT; /* forces a redo */
 				/* I think this specific one should
-				 * not happen -Brad */
+				 * yest happen -Brad */
 				printk("aha1740.c: WARNING: AHA1740 queue overflow!\n");
 			} else
 				if ( status[0]&0x60 ) {
@@ -199,7 +199,7 @@ static int aha1740_test_port(unsigned int base)
 	if ( inb(PORTADR(base)) & PORTADDR_ENH )
 		return 1;   /* Okay, we're all set */
 	
-	printk("aha174x: Board detected, but not in enhanced mode, so disabled it.\n");
+	printk("aha174x: Board detected, but yest in enhanced mode, so disabled it.\n");
 	return 0;
 }
 
@@ -219,7 +219,7 @@ static irqreturn_t aha1740_intr_handle(int irq, void *dev_id)
 	struct eisa_device *edev;
 	
 	if (!host)
-		panic("aha1740.c: Irq from unknown host!\n");
+		panic("aha1740.c: Irq from unkyeswn host!\n");
 	spin_lock_irqsave(host->host_lock, flags);
 	base = host->io_port;
 	number_serviced = 0;
@@ -262,7 +262,7 @@ static irqreturn_t aha1740_intr_handle(int irq, void *dev_id)
 	    
 			/* Fetch the sense data, and tuck it away, in
 			   the required slot.  The Adaptec
-			   automatically fetches it, and there is no
+			   automatically fetches it, and there is yes
 			   guarantee that we will still have it in the
 			   cdb when we come back */
 			if ( (adapstat & G2INTST_MASK) == G2INTST_CCBERROR ) {
@@ -286,7 +286,7 @@ static irqreturn_t aha1740_intr_handle(int irq, void *dev_id)
 			panic("aha1740.c");	/* Goodbye */
 			
 		case	G2INTST_ASNEVENT:
-			printk("aha1740 asynchronous event: %02x %02x %02x %02x %02x\n",
+			printk("aha1740 asynchroyesus event: %02x %02x %02x %02x %02x\n",
 			       adapstat,
 			       inb(MBOXIN0(base)),
 			       inb(MBOXIN1(base)),
@@ -321,7 +321,7 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
 	unsigned long flags;
 	dma_addr_t sg_dma;
 	struct aha1740_sg *sgptr;
-	int ecbno, nseg;
+	int ecbyes, nseg;
 	DEB(int i);
 
 	if(*cmd == REQUEST_SENSE) {
@@ -346,31 +346,31 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
 
 	/* locate an available ecb */
 	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
-	ecbno = host->last_ecb_used + 1; /* An optimization */
-	if (ecbno >= AHA1740_ECBS)
-		ecbno = 0;
+	ecbyes = host->last_ecb_used + 1; /* An optimization */
+	if (ecbyes >= AHA1740_ECBS)
+		ecbyes = 0;
 	do {
-		if (!host->ecb[ecbno].cmdw)
+		if (!host->ecb[ecbyes].cmdw)
 			break;
-		ecbno++;
-		if (ecbno >= AHA1740_ECBS)
-			ecbno = 0;
-	} while (ecbno != host->last_ecb_used);
+		ecbyes++;
+		if (ecbyes >= AHA1740_ECBS)
+			ecbyes = 0;
+	} while (ecbyes != host->last_ecb_used);
 
-	if (host->ecb[ecbno].cmdw)
+	if (host->ecb[ecbyes].cmdw)
 		panic("Unable to find empty ecb for aha1740.\n");
 
-	host->ecb[ecbno].cmdw = AHA1740CMD_INIT; /* SCSI Initiator Command
+	host->ecb[ecbyes].cmdw = AHA1740CMD_INIT; /* SCSI Initiator Command
 						    doubles as reserved flag */
 
-	host->last_ecb_used = ecbno;    
+	host->last_ecb_used = ecbyes;    
 	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
 
 #ifdef DEBUG
-	printk("Sending command (%d %x)...", ecbno, done);
+	printk("Sending command (%d %x)...", ecbyes, done);
 #endif
 
-	host->ecb[ecbno].cdblen = SCpnt->cmd_len; /* SCSI Command
+	host->ecb[ecbyes].cdblen = SCpnt->cmd_len; /* SCSI Command
 						   * Descriptor Block
 						   * Length */
 
@@ -380,7 +380,7 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
 	else if (*cmd == WRITE_10 || *cmd == WRITE_6)
 		direction = 0;
 
-	memcpy(host->ecb[ecbno].cdb, cmd, SCpnt->cmd_len);
+	memcpy(host->ecb[ecbyes].cdb, cmd, SCpnt->cmd_len);
 
 	SCpnt->host_scribble = dma_alloc_coherent (&host->edev->dev,
 						   sizeof (struct aha1740_sg),
@@ -400,41 +400,41 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
 		int i;
 		DEB(unsigned char * ptr);
 
-		host->ecb[ecbno].sg = 1;  /* SCSI Initiator Command
+		host->ecb[ecbyes].sg = 1;  /* SCSI Initiator Command
 					   * w/scatter-gather*/
 		cptr = sgptr->sg_chain;
 		scsi_for_each_sg(SCpnt, sg, nseg, i) {
 			cptr[i].datalen = sg_dma_len (sg);
 			cptr[i].dataptr = sg_dma_address (sg);
 		}
-		host->ecb[ecbno].datalen = nseg * sizeof(struct aha1740_chain);
-		host->ecb[ecbno].dataptr = sg_dma;
+		host->ecb[ecbyes].datalen = nseg * sizeof(struct aha1740_chain);
+		host->ecb[ecbyes].dataptr = sg_dma;
 #ifdef DEBUG
 		printk("cptr %x: ",cptr);
 		ptr = (unsigned char *) cptr;
 		for(i=0;i<24;i++) printk("%02x ", ptr[i]);
 #endif
 	} else {
-		host->ecb[ecbno].datalen = 0;
-		host->ecb[ecbno].dataptr = 0;
+		host->ecb[ecbyes].datalen = 0;
+		host->ecb[ecbyes].dataptr = 0;
 	}
-	host->ecb[ecbno].lun = SCpnt->device->lun;
-	host->ecb[ecbno].ses = 1; /* Suppress underrun errors */
-	host->ecb[ecbno].dir = direction;
-	host->ecb[ecbno].ars = 1; /* Yes, get the sense on an error */
-	host->ecb[ecbno].senselen = 12;
-	host->ecb[ecbno].senseptr = ecb_cpu_to_dma (SCpnt->device->host,
-						    host->ecb[ecbno].sense);
-	host->ecb[ecbno].statusptr = ecb_cpu_to_dma (SCpnt->device->host,
-						     host->ecb[ecbno].status);
-	host->ecb[ecbno].done = done;
-	host->ecb[ecbno].SCpnt = SCpnt;
+	host->ecb[ecbyes].lun = SCpnt->device->lun;
+	host->ecb[ecbyes].ses = 1; /* Suppress underrun errors */
+	host->ecb[ecbyes].dir = direction;
+	host->ecb[ecbyes].ars = 1; /* Yes, get the sense on an error */
+	host->ecb[ecbyes].senselen = 12;
+	host->ecb[ecbyes].senseptr = ecb_cpu_to_dma (SCpnt->device->host,
+						    host->ecb[ecbyes].sense);
+	host->ecb[ecbyes].statusptr = ecb_cpu_to_dma (SCpnt->device->host,
+						     host->ecb[ecbyes].status);
+	host->ecb[ecbyes].done = done;
+	host->ecb[ecbyes].SCpnt = SCpnt;
 #ifdef DEBUG
 	{
 		int i;
 		printk("aha1740_command: sending.. ");
-		for (i = 0; i < sizeof(host->ecb[ecbno]) - 10; i++)
-			printk("%02x ", ((unchar *)&host->ecb[ecbno])[i]);
+		for (i = 0; i < sizeof(host->ecb[ecbyes]) - 10; i++)
+			printk("%02x ", ((unchar *)&host->ecb[ecbyes])[i]);
 	}
 	printk("\n");
 #endif
@@ -446,8 +446,8 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
            processors. We print a warning if the code is executed more
            often than LOOPCNT_WARN. If this happens, it should be
            investigated. If the count reaches LOOPCNT_MAX, we assume
-           something is broken; since there is no way to return an
-           error (the return value is ignored by the mid-level scsi
+           something is broken; since there is yes way to return an
+           error (the return value is igyesred by the mid-level scsi
            layer) we have to panic (and maybe that's the best thing we
            can do then anyhow). */
 
@@ -455,30 +455,30 @@ static int aha1740_queuecommand_lck(struct scsi_cmnd * SCpnt,
 #define LOOPCNT_MAX 1000000	/* mbxout deadlock -> panic() after ~ 2 sec. */
 		int loopcnt;
 		unsigned int base = SCpnt->device->host->io_port;
-		DEB(printk("aha1740[%d] critical section\n",ecbno));
+		DEB(printk("aha1740[%d] critical section\n",ecbyes));
 
 		spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
 		for (loopcnt = 0; ; loopcnt++) {
 			if (inb(G2STAT(base)) & G2STAT_MBXOUT) break;
 			if (loopcnt == LOOPCNT_WARN) {
-				printk("aha1740[%d]_mbxout wait!\n",ecbno);
+				printk("aha1740[%d]_mbxout wait!\n",ecbyes);
 			}
 			if (loopcnt == LOOPCNT_MAX)
 				panic("aha1740.c: mbxout busy!\n");
 		}
-		outl (ecb_cpu_to_dma (SCpnt->device->host, host->ecb + ecbno),
+		outl (ecb_cpu_to_dma (SCpnt->device->host, host->ecb + ecbyes),
 		      MBOXOUT0(base));
 		for (loopcnt = 0; ; loopcnt++) {
 			if (! (inb(G2STAT(base)) & G2STAT_BUSY)) break;
 			if (loopcnt == LOOPCNT_WARN) {
-				printk("aha1740[%d]_attn wait!\n",ecbno);
+				printk("aha1740[%d]_attn wait!\n",ecbyes);
 			}
 			if (loopcnt == LOOPCNT_MAX)
 				panic("aha1740.c: attn wait failed!\n");
 		}
 		outb(ATTN_START | (target & 7), ATTN(base)); /* Start it up */
 		spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
-		DEB(printk("aha1740[%d] request queued.\n",ecbno));
+		DEB(printk("aha1740[%d] request queued.\n",ecbyes));
 	} else
 		printk(KERN_ALERT "aha1740_queuecommand: done can't be NULL\n");
 	return 0;

@@ -216,7 +216,7 @@ struct key *get_user_session_keyring_rcu(const struct cred *cred)
  * Install a thread keyring to the given credentials struct if it didn't have
  * one already.  This is allowed to overrun the quota.
  *
- * Return: 0 if a thread keyring is now present; -errno on failure.
+ * Return: 0 if a thread keyring is yesw present; -erryes on failure.
  */
 int install_thread_keyring_to_cred(struct cred *new)
 {
@@ -239,7 +239,7 @@ int install_thread_keyring_to_cred(struct cred *new)
 /*
  * Install a thread keyring to the current task if it didn't have one already.
  *
- * Return: 0 if a thread keyring is now present; -errno on failure.
+ * Return: 0 if a thread keyring is yesw present; -erryes on failure.
  */
 static int install_thread_keyring(void)
 {
@@ -263,7 +263,7 @@ static int install_thread_keyring(void)
  * Install a process keyring to the given credentials struct if it didn't have
  * one already.  This is allowed to overrun the quota.
  *
- * Return: 0 if a process keyring is now present; -errno on failure.
+ * Return: 0 if a process keyring is yesw present; -erryes on failure.
  */
 int install_process_keyring_to_cred(struct cred *new)
 {
@@ -286,7 +286,7 @@ int install_process_keyring_to_cred(struct cred *new)
 /*
  * Install a process keyring to the current task if it didn't have one already.
  *
- * Return: 0 if a process keyring is now present; -errno on failure.
+ * Return: 0 if a process keyring is yesw present; -erryes on failure.
  */
 static int install_process_keyring(void)
 {
@@ -309,10 +309,10 @@ static int install_process_keyring(void)
 /*
  * Install the given keyring as the session keyring of the given credentials
  * struct, replacing the existing one if any.  If the given keyring is NULL,
- * then install a new anonymous session keyring.
- * @cred can not be in use by any task yet.
+ * then install a new ayesnymous session keyring.
+ * @cred can yest be in use by any task yet.
  *
- * Return: 0 on success; -errno on failure.
+ * Return: 0 on success; -erryes on failure.
  */
 int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 {
@@ -349,9 +349,9 @@ int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 /*
  * Install the given keyring as the session keyring of the current task,
  * replacing the existing one if any.  If the given keyring is NULL, then
- * install a new anonymous session keyring.
+ * install a new ayesnymous session keyring.
  *
- * Return: 0 on success; -errno on failure.
+ * Return: 0 on success; -erryes on failure.
  */
 static int install_session_keyring(struct key *keyring)
 {
@@ -428,7 +428,7 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
 	 * otherwise we want to return a sample error (probably -EACCES) if
-	 * none of the keyrings were searchable
+	 * yesne of the keyrings were searchable
 	 *
 	 * in terms of priority: success > -ENOKEY > -EAGAIN > other error
 	 */
@@ -444,7 +444,7 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 			goto found;
 
 		switch (PTR_ERR(key_ref)) {
-		case -EAGAIN: /* no key */
+		case -EAGAIN: /* yes key */
 		case -ENOKEY: /* negative key */
 			ret = key_ref;
 			break;
@@ -462,7 +462,7 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 			goto found;
 
 		switch (PTR_ERR(key_ref)) {
-		case -EAGAIN: /* no key */
+		case -EAGAIN: /* yes key */
 			if (ret)
 				break;
 			/* fall through */
@@ -484,7 +484,7 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 			goto found;
 
 		switch (PTR_ERR(key_ref)) {
-		case -EAGAIN: /* no key */
+		case -EAGAIN: /* yes key */
 			if (ret)
 				break;
 			/* fall through */
@@ -506,7 +506,7 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 			goto found;
 
 		switch (PTR_ERR(key_ref)) {
-		case -EAGAIN: /* no key */
+		case -EAGAIN: /* yes key */
 			if (ret)
 				break;
 			/* fall through */
@@ -519,7 +519,7 @@ key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 		}
 	}
 
-	/* no key - decide on the error we're going to go for */
+	/* yes key - decide on the error we're going to go for */
 	key_ref = ret ? ret : err;
 
 found:
@@ -570,7 +570,7 @@ key_ref_t search_process_keyrings_rcu(struct keyring_search_context *ctx)
 		}
 	}
 
-	/* no key - decide on the error we're going to go for */
+	/* yes key - decide on the error we're going to go for */
 	if (err == ERR_PTR(-ENOKEY) || ret == ERR_PTR(-ENOKEY))
 		key_ref = ERR_PTR(-ENOKEY);
 	else if (err == ERR_PTR(-EACCES))
@@ -599,7 +599,7 @@ bool lookup_user_key_possessed(const struct key *key,
  * validity and permission checks on the found key.
  *
  * Returns a pointer to the key with an incremented usage count if successful;
- * -EINVAL if the key ID is invalid; -ENOKEY if the key ID does not correspond
+ * -EINVAL if the key ID is invalid; -ENOKEY if the key ID does yest correspond
  * to a key or the best found key was a negative key; -EKEYREVOKED or
  * -EKEYEXPIRED if the best found key was revoked or expired; -EACCES if the
  * found key doesn't grant the requested permit or the LSM denied access to it;
@@ -708,7 +708,7 @@ try_again:
 		break;
 
 	case KEY_SPEC_GROUP_KEYRING:
-		/* group keyrings are not yet supported */
+		/* group keyrings are yest yet supported */
 		key_ref = ERR_PTR(-EINVAL);
 		goto error;
 
@@ -771,7 +771,7 @@ try_again:
 		break;
 	}
 
-	/* unlink does not use the nominated key in any way, so can skip all
+	/* unlink does yest use the yesminated key in any way, so can skip all
 	 * the permission checks as it is only concerned with the keyring */
 	if (lflags & KEY_LOOKUP_FOR_UNLINK) {
 		ret = 0;
@@ -828,7 +828,7 @@ EXPORT_SYMBOL(lookup_user_key);
  * Join the named keyring as the session keyring if possible else attempt to
  * create a new one of that name and join that.
  *
- * If the name is NULL, an empty anonymous keyring will be installed as the
+ * If the name is NULL, an empty ayesnymous keyring will be installed as the
  * session keyring.
  *
  * Named session keyrings are joined with a semaphore held to prevent the
@@ -847,7 +847,7 @@ long join_session_keyring(const char *name)
 		return -ENOMEM;
 	old = current_cred();
 
-	/* if no name is provided, install an anonymous keyring */
+	/* if yes name is provided, install an ayesnymous keyring */
 	if (!name) {
 		ret = install_session_keyring_to_cred(new, NULL);
 		if (ret < 0)
@@ -866,7 +866,7 @@ long join_session_keyring(const char *name)
 	/* look for an existing keyring of this name */
 	keyring = find_keyring_by_name(name, false);
 	if (PTR_ERR(keyring) == -ENOKEY) {
-		/* not found - try and create a new one */
+		/* yest found - try and create a new one */
 		keyring = keyring_alloc(
 			name, old->uid, old->gid, old,
 			KEY_POS_ALL | KEY_USR_VIEW | KEY_USR_READ | KEY_USR_LINK,
@@ -883,7 +883,7 @@ long join_session_keyring(const char *name)
 		goto error3;
 	}
 
-	/* we've got a keyring - now to install it */
+	/* we've got a keyring - yesw to install it */
 	ret = install_session_keyring_to_cred(new, keyring);
 	if (ret < 0)
 		goto error3;

@@ -7,7 +7,7 @@
 
 #include <linux/bitops.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
@@ -267,7 +267,7 @@ static int xgpio_probe(struct platform_device *pdev)
 {
 	struct xgpio_instance *chip;
 	int status = 0;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	u32 is_dual;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
@@ -284,7 +284,7 @@ static int xgpio_probe(struct platform_device *pdev)
 		chip->gpio_dir[0] = 0xFFFFFFFF;
 
 	/*
-	 * Check device node and parent device node for device width
+	 * Check device yesde and parent device yesde for device width
 	 * and assume default width of 32
 	 */
 	if (of_property_read_u32(np, "xlnx,gpio-width", &chip->gpio_width[0]))
@@ -306,7 +306,7 @@ static int xgpio_probe(struct platform_device *pdev)
 			chip->gpio_dir[1] = 0xFFFFFFFF;
 
 		/*
-		 * Check device node and parent device node for device width
+		 * Check device yesde and parent device yesde for device width
 		 * and assume default width of 32
 		 */
 		if (of_property_read_u32(np, "xlnx,gpio2-width",

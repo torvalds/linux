@@ -183,7 +183,7 @@ void em7210_power_off(void)
 
 	ret = gpio_direction_output(EM7210_HARDWARE_POWER, 1);
 	if (ret)
-		pr_crit("could not drive power off GPIO high\n");
+		pr_crit("could yest drive power off GPIO high\n");
 }
 
 static int __init em7210_request_gpios(void)
@@ -195,7 +195,7 @@ static int __init em7210_request_gpios(void)
 
 	ret = gpio_request(EM7210_HARDWARE_POWER, "power");
 	if (ret) {
-		pr_err("could not request power off GPIO\n");
+		pr_err("could yest request power off GPIO\n");
 		return 0;
 	}
 

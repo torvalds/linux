@@ -17,7 +17,7 @@
  */
 void uwb_pal_init(struct uwb_pal *pal)
 {
-	INIT_LIST_HEAD(&pal->node);
+	INIT_LIST_HEAD(&pal->yesde);
 }
 EXPORT_SYMBOL_GPL(uwb_pal_init);
 
@@ -50,7 +50,7 @@ int uwb_pal_register(struct uwb_pal *pal)
 	pal->debugfs_dir = uwb_dbg_create_pal_dir(pal);
 
 	mutex_lock(&rc->uwb_dev.mutex);
-	list_add(&pal->node, &rc->pals);
+	list_add(&pal->yesde, &rc->pals);
 	mutex_unlock(&rc->uwb_dev.mutex);
 
 	return 0;
@@ -78,7 +78,7 @@ static int find_rc(struct device *dev, const void *data)
 /**
  * Given a radio controller descriptor see if it is registered.
  *
- * @returns false if the rc does not exist or is quiescing; true otherwise.
+ * @returns false if the rc does yest exist or is quiescing; true otherwise.
  */
 static bool uwb_rc_class_device_exists(struct uwb_rc *target_rc)
 {
@@ -102,7 +102,7 @@ void uwb_pal_unregister(struct uwb_pal *pal)
 	uwb_radio_stop(pal);
 
 	mutex_lock(&rc->uwb_dev.mutex);
-	list_del(&pal->node);
+	list_del(&pal->yesde);
 	mutex_unlock(&rc->uwb_dev.mutex);
 
 	debugfs_remove(pal->debugfs_dir);

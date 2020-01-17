@@ -5,7 +5,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
-#include <linux/errno.h>	/* error codes */
+#include <linux/erryes.h>	/* error codes */
 #include <linux/kernel.h>	/* printk */
 #include <linux/skbuff.h>
 #include <linux/wait.h>
@@ -25,7 +25,7 @@ struct atm_vcc *sigd = NULL;
 static void sigd_put_skb(struct sk_buff *skb)
 {
 	if (!sigd) {
-		pr_debug("atmsvc: no signaling daemon\n");
+		pr_debug("atmsvc: yes signaling daemon\n");
 		kfree_skb(skb);
 		return;
 	}

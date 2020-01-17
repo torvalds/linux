@@ -26,7 +26,7 @@ __setup("lpj=", lpj_setup);
 
 /* This routine uses the read_current_timer() routine and gets the
  * loops per jiffy directly, instead of guessing it using delay().
- * Also, this code tries to handle non-maskable asynchronous events
+ * Also, this code tries to handle yesn-maskable asynchroyesus events
  * (like SMIs)
  */
 #define DELAY_CALIBRATION_TICKS			((HZ < 100) ? 1 : (HZ/100))
@@ -41,7 +41,7 @@ static unsigned long calibrate_delay_direct(void)
 	unsigned long good_timer_sum = 0;
 	unsigned long good_timer_count = 0;
 	unsigned long measured_times[MAX_DIRECT_CALIBRATION_RETRIES];
-	int max = -1; /* index of measured_times with max/min values or not set */
+	int max = -1; /* index of measured_times with max/min values or yest set */
 	int min = -1;
 	int i;
 
@@ -52,8 +52,8 @@ static unsigned long calibrate_delay_direct(void)
 	 * A simple loop like
 	 *	while ( jiffies < start_jiffies+1)
 	 *		start = read_current_timer();
-	 * will not do. As we don't really know whether jiffy switch
-	 * happened first or timer_value was read first. And some asynchronous
+	 * will yest do. As we don't really kyesw whether jiffy switch
+	 * happened first or timer_value was read first. And some asynchroyesus
 	 * event can happen between these two events introducing errors in lpj.
 	 *
 	 * So, we do
@@ -62,9 +62,9 @@ static unsigned long calibrate_delay_direct(void)
 	 * 3. start <- timer value before or after jiffy switch
 	 * 4. post_start <- When we are sure that jiffy switch has happened
 	 *
-	 * Note, we don't know anything about order of 2 and 3.
+	 * Note, we don't kyesw anything about order of 2 and 3.
 	 * Now, by looking at post_start and pre_start difference, we can
-	 * check whether any asynchronous event happened or not
+	 * check whether any asynchroyesus event happened or yest
 	 */
 
 	for (i = 0; i < MAX_DIRECT_CALIBRATION_RETRIES; i++) {
@@ -96,7 +96,7 @@ static unsigned long calibrate_delay_direct(void)
 		 * >= 12.5% apart, redo calibration.
 		 */
 		if (start >= post_end)
-			printk(KERN_NOTICE "calibrate_delay_direct() ignoring "
+			printk(KERN_NOTICE "calibrate_delay_direct() igyesring "
 					"timer_rate as we had a TSC wrap around"
 					" start=%lu >=post_end=%lu\n",
 				start, post_end);
@@ -179,7 +179,7 @@ static unsigned long calibrate_delay_direct(void)
  * to start with a good estimate.
  * For the boot cpu we can skip the delay calibration and assign it a value
  * calculated based on the timer frequency.
- * For the rest of the CPUs we cannot assume that the timer frequency is same as
+ * For the rest of the CPUs we canyest assume that the timer frequency is same as
  * the cpu frequency, hence do the calibration for those.
  */
 #define LPS_PREC 8
@@ -195,7 +195,7 @@ static unsigned long calibrate_delay_converge(void)
 	/* wait for "start of" clock tick */
 	ticks = jiffies;
 	while (ticks == jiffies)
-		; /* nothing */
+		; /* yesthing */
 	/* Go .. */
 	ticks = jiffies;
 	do {
@@ -227,7 +227,7 @@ recalibrate:
 		lpj += loopadd;
 		ticks = jiffies;
 		while (ticks == jiffies)
-			; /* nothing */
+			; /* yesthing */
 		ticks = jiffies;
 		__delay(lpj);
 		if (jiffies != ticks)	/* longer than 1 tick */
@@ -251,14 +251,14 @@ recalibrate:
 static DEFINE_PER_CPU(unsigned long, cpu_loops_per_jiffy) = { 0 };
 
 /*
- * Check if cpu calibration delay is already known. For example,
+ * Check if cpu calibration delay is already kyeswn. For example,
  * some processors with multi-core sockets may have all cores
  * with the same calibration delay.
  *
  * Architectures should override this function if a faster calibration
  * method is available.
  */
-unsigned long __attribute__((weak)) calibrate_delay_is_known(void)
+unsigned long __attribute__((weak)) calibrate_delay_is_kyeswn(void)
 {
 	return 0;
 }
@@ -292,7 +292,7 @@ void calibrate_delay(void)
 		lpj = lpj_fine;
 		pr_info("Calibrating delay loop (skipped), "
 			"value calculated using timer frequency.. ");
-	} else if ((lpj = calibrate_delay_is_known())) {
+	} else if ((lpj = calibrate_delay_is_kyeswn())) {
 		;
 	} else if ((lpj = calibrate_delay_direct()) != 0) {
 		if (!printed)

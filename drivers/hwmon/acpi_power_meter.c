@@ -170,7 +170,7 @@ static ssize_t set_avg_interval(struct device *dev,
 		return -EINVAL;
 	}
 
-	/* _PAI returns 0 on success, nonzero otherwise */
+	/* _PAI returns 0 on success, yesnzero otherwise */
 	if (data)
 		return -EINVAL;
 
@@ -241,7 +241,7 @@ static ssize_t set_cap(struct device *dev, struct device_attribute *devattr,
 		return -EINVAL;
 	}
 
-	/* _SHL returns 0 on success, nonzero otherwise */
+	/* _SHL returns 0 on success, yesnzero otherwise */
 	if (data)
 		return -EINVAL;
 
@@ -274,7 +274,7 @@ static int set_acpi_trip(struct acpi_power_meter_resource *resource)
 		return -EINVAL;
 	}
 
-	/* _PTP returns 0 on success, nonzero otherwise */
+	/* _PTP returns 0 on success, yesnzero otherwise */
 	if (data)
 		return -EINVAL;
 
@@ -400,7 +400,7 @@ static ssize_t show_val(struct device *dev,
 		break;
 	case 4:
 		if (resource->caps.hysteresis == UNKNOWN_HYSTERESIS)
-			return sprintf(buf, "unknown\n");
+			return sprintf(buf, "unkyeswn\n");
 
 		val = resource->caps.hysteresis * 1000;
 		break;
@@ -419,7 +419,7 @@ static ssize_t show_val(struct device *dev,
 	case 7:
 	case 8:
 		if (resource->trip[attr->index - 7] < 0)
-			return sprintf(buf, "unknown\n");
+			return sprintf(buf, "unkyeswn\n");
 
 		val = resource->trip[attr->index - 7] * 1000;
 		break;
@@ -583,7 +583,7 @@ static int read_domain_devices(struct acpi_power_meter_resource *resource)
 		struct acpi_device *obj;
 		union acpi_object *element = &(pss->package.elements[i]);
 
-		/* Refuse non-references */
+		/* Refuse yesn-references */
 		if (element->type != ACPI_TYPE_LOCAL_REFERENCE)
 			continue;
 
@@ -682,7 +682,7 @@ static int setup_attrs(struct acpi_power_meter_resource *resource)
 	if (resource->caps.flags & POWER_METER_CAN_CAP) {
 		if (!can_cap_in_hardware()) {
 			dev_warn(&resource->acpi_dev->dev,
-				 "Ignoring unsafe software power cap!\n");
+				 "Igyesring unsafe software power cap!\n");
 			goto skip_unsafe_cap;
 		}
 
@@ -767,7 +767,7 @@ static int read_capabilities(struct acpi_power_meter_resource *resource)
 
 	if (resource->caps.units) {
 		dev_err(&resource->acpi_dev->dev, ACPI_POWER_METER_NAME
-			"Unknown units %llu.\n",
+			"Unkyeswn units %llu.\n",
 			resource->caps.units);
 		res = -EINVAL;
 		goto end;
@@ -806,8 +806,8 @@ end:
 	return res;
 }
 
-/* Handle ACPI event notifications */
-static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
+/* Handle ACPI event yestifications */
+static void acpi_power_meter_yestify(struct acpi_device *device, u32 event)
 {
 	struct acpi_power_meter_resource *resource;
 	int res;
@@ -829,19 +829,19 @@ static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
 		setup_attrs(resource);
 		break;
 	case METER_NOTIFY_TRIP:
-		sysfs_notify(&device->dev.kobj, NULL, POWER_AVERAGE_NAME);
+		sysfs_yestify(&device->dev.kobj, NULL, POWER_AVERAGE_NAME);
 		update_meter(resource);
 		break;
 	case METER_NOTIFY_CAP:
-		sysfs_notify(&device->dev.kobj, NULL, POWER_CAP_NAME);
+		sysfs_yestify(&device->dev.kobj, NULL, POWER_CAP_NAME);
 		update_cap(resource);
 		break;
 	case METER_NOTIFY_INTERVAL:
-		sysfs_notify(&device->dev.kobj, NULL, POWER_AVG_INTERVAL_NAME);
+		sysfs_yestify(&device->dev.kobj, NULL, POWER_AVG_INTERVAL_NAME);
 		update_avg_interval(resource);
 		break;
 	case METER_NOTIFY_CAPPING:
-		sysfs_notify(&device->dev.kobj, NULL, POWER_ALARM_NAME);
+		sysfs_yestify(&device->dev.kobj, NULL, POWER_ALARM_NAME);
 		dev_info(&device->dev, "Capping in progress.\n");
 		break;
 	default:
@@ -949,13 +949,13 @@ static struct acpi_driver acpi_power_meter_driver = {
 	.ops = {
 		.add = acpi_power_meter_add,
 		.remove = acpi_power_meter_remove,
-		.notify = acpi_power_meter_notify,
+		.yestify = acpi_power_meter_yestify,
 		},
 	.drv.pm = &acpi_power_meter_pm,
 };
 
 /* Module init/exit routines */
-static int __init enable_cap_knobs(const struct dmi_system_id *d)
+static int __init enable_cap_kyesbs(const struct dmi_system_id *d)
 {
 	cap_in_hardware = 1;
 	return 0;
@@ -963,7 +963,7 @@ static int __init enable_cap_knobs(const struct dmi_system_id *d)
 
 static const struct dmi_system_id pm_dmi_table[] __initconst = {
 	{
-		enable_cap_knobs, "IBM Active Energy Manager",
+		enable_cap_kyesbs, "IBM Active Energy Manager",
 		{
 			DMI_MATCH(DMI_SYS_VENDOR, "IBM")
 		},

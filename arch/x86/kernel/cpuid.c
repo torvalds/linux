@@ -16,14 +16,14 @@
  * and the upper 32 bits of the file position as the incoming %ecx,
  * the latter intended for "counting" eax levels like eax=4.
  *
- * This driver uses /dev/cpu/%d/cpuid where %d is the minor number, and on
+ * This driver uses /dev/cpu/%d/cpuid where %d is the miyesr number, and on
  * an SMP box will direct the access to CPU %d.
  */
 
 #include <linux/module.h>
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -32,7 +32,7 @@
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/uaccess.h>
 #include <linux/gfp.h>
 #include <linux/completion.h>
@@ -64,7 +64,7 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 {
 	char __user *tmp = buf;
 	struct cpuid_regs_done cmd;
-	int cpu = iminor(file_inode(file));
+	int cpu = imiyesr(file_iyesde(file));
 	u64 pos = *ppos;
 	ssize_t bytes = 0;
 	int err = 0;
@@ -99,18 +99,18 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 	return bytes ? bytes : err;
 }
 
-static int cpuid_open(struct inode *inode, struct file *file)
+static int cpuid_open(struct iyesde *iyesde, struct file *file)
 {
 	unsigned int cpu;
 	struct cpuinfo_x86 *c;
 
-	cpu = iminor(file_inode(file));
+	cpu = imiyesr(file_iyesde(file));
 	if (cpu >= nr_cpu_ids || !cpu_online(cpu))
 		return -ENXIO;	/* No such CPU */
 
 	c = &cpu_data(cpu);
 	if (c->cpuid_level < 0)
-		return -EIO;	/* CPUID not supported */
+		return -EIO;	/* CPUID yest supported */
 
 	return 0;
 }
@@ -120,7 +120,7 @@ static int cpuid_open(struct inode *inode, struct file *file)
  */
 static const struct file_operations cpuid_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_seek_end_llseek,
+	.llseek = yes_seek_end_llseek,
 	.read = cpuid_read,
 	.open = cpuid_open,
 };
@@ -140,7 +140,7 @@ static int cpuid_device_destroy(unsigned int cpu)
 	return 0;
 }
 
-static char *cpuid_devnode(struct device *dev, umode_t *mode)
+static char *cpuid_devyesde(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "cpu/%u/cpuid", MINOR(dev->devt));
 }
@@ -160,7 +160,7 @@ static int __init cpuid_init(void)
 		err = PTR_ERR(cpuid_class);
 		goto out_chrdev;
 	}
-	cpuid_class->devnode = cpuid_devnode;
+	cpuid_class->devyesde = cpuid_devyesde;
 
 	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/cpuid:online",
 				cpuid_device_create, cpuid_device_destroy);

@@ -4,7 +4,7 @@
  *
  * These are the RPC server socket internals.
  *
- * The server scheduling algorithm does not always distribute the load
+ * The server scheduling algorithm does yest always distribute the load
  * evenly when servicing a single client. May need to modify the
  * svc_xprt_enqueue procedure...
  *
@@ -23,7 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fcntl.h>
 #include <linux/net.h>
 #include <linux/in.h>
@@ -305,7 +305,7 @@ static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 		break;
 #endif
 	default:
-		len = snprintf(buf, remaining, "*unknown-%d*\n",
+		len = snprintf(buf, remaining, "*unkyeswn-%d*\n",
 				sk->sk_family);
 	}
 
@@ -423,15 +423,15 @@ static void svc_tcp_kill_temp_xprt(struct svc_xprt *xprt)
 {
 	struct svc_sock *svsk;
 	struct socket *sock;
-	struct linger no_linger = {
-		.l_onoff = 1,
+	struct linger yes_linger = {
+		.l_oyesff = 1,
 		.l_linger = 0,
 	};
 
 	svsk = container_of(xprt, struct svc_sock, sk_xprt);
 	sock = svsk->sk_sock;
 	kernel_setsockopt(sock, SOL_SOCKET, SO_LINGER,
-			  (char *)&no_linger, sizeof(no_linger));
+			  (char *)&yes_linger, sizeof(yes_linger));
 }
 
 /*
@@ -515,7 +515,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 	if (test_and_clear_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags))
 	    /* udp sockets need large rcvbuf as all pending
 	     * requests are still in that buffer.  sndbuf must
-	     * also be large enough that there is enough space
+	     * also be large eyesugh that there is eyesugh space
 	     * for one reply per thread.  We count all threads
 	     * rather than threads in a particular pool, which
 	     * provides an upper bound on the number of threads
@@ -554,13 +554,13 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 	rqstp->rq_prot = IPPROTO_UDP;
 
 	if (!svc_udp_get_dest_address(rqstp, cmh)) {
-		net_warn_ratelimited("svc: received unknown control message %d/%d; dropping RPC reply datagram\n",
+		net_warn_ratelimited("svc: received unkyeswn control message %d/%d; dropping RPC reply datagram\n",
 				     cmh->cmsg_level, cmh->cmsg_type);
 		goto out_free;
 	}
 	rqstp->rq_daddrlen = svc_addr_len(svc_daddr(rqstp));
 
-	if (skb_is_nonlinear(skb)) {
+	if (skb_is_yesnlinear(skb)) {
 		/* we have to copy */
 		local_bh_disable();
 		if (csum_partial_copy_to_xdr(&rqstp->rq_arg, skb)) {
@@ -680,7 +680,7 @@ static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
 	svsk->sk_sk->sk_data_ready = svc_data_ready;
 	svsk->sk_sk->sk_write_space = svc_write_space;
 
-	/* initialise setting must have enough space to
+	/* initialise setting must have eyesugh space to
 	 * receive and respond to one request.
 	 * svc_udp_recvfrom will re-adjust if necessary
 	 */
@@ -710,7 +710,7 @@ static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
 
 /*
  * A data_ready event on a listening socket means there's a connection
- * pending. Do not use state_change as a substitute for it.
+ * pending. Do yest use state_change as a substitute for it.
  */
 static void svc_tcp_listen_data_ready(struct sock *sk)
 {
@@ -733,14 +733,14 @@ static void svc_tcp_listen_data_ready(struct sock *sk)
 	 *    when one of child sockets become ESTABLISHED.
 	 * 2) data_ready method of the child socket may be called
 	 *    when it receives data before the socket is accepted.
-	 * In case of 2, we should ignore it silently.
+	 * In case of 2, we should igyesre it silently.
 	 */
 	if (sk->sk_state == TCP_LISTEN) {
 		if (svsk) {
 			set_bit(XPT_CONN, &svsk->sk_xprt.xpt_flags);
 			svc_xprt_enqueue(&svsk->sk_xprt);
 		} else
-			printk("svc: socket %p: no user data\n", sk);
+			printk("svc: socket %p: yes user data\n", sk);
 	}
 }
 
@@ -755,7 +755,7 @@ static void svc_tcp_state_change(struct sock *sk)
 		sk, sk->sk_state, sk->sk_user_data);
 
 	if (!svsk)
-		printk("svc: socket %p: no user data\n", sk);
+		printk("svc: socket %p: yes user data\n", sk);
 	else {
 		/* Refer to svc_setup_socket() for details. */
 		rmb();
@@ -790,7 +790,7 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	err = kernel_accept(sock, &newsock, O_NONBLOCK);
 	if (err < 0) {
 		if (err == -ENOMEM)
-			printk(KERN_WARNING "%s: no more sockets!\n",
+			printk(KERN_WARNING "%s: yes more sockets!\n",
 			       serv->sv_name);
 		else if (err != -EAGAIN)
 			net_warn_ratelimited("%s: accept failed (err %d)!\n",
@@ -809,7 +809,7 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 
 	/* Ideally, we would want to reject connections from unauthorized
 	 * hosts here, but when we get encryption, the IP of the host won't
-	 * tell us anything.  For now just warn about unpriv connections.
+	 * tell us anything.  For yesw just warn about unpriv connections.
 	 */
 	if (!svc_port_is_privileged(sin)) {
 		dprintk("%s: connect from unprivileged port: %s\n",
@@ -940,7 +940,7 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 		dprintk("svc: TCP record, %d bytes\n", svc_sock_reclen(svsk));
 		if (svc_sock_reclen(svsk) + svsk->sk_datalen >
 							serv->sv_max_mesg) {
-			net_notice_ratelimited("RPC: fragment too large: %d\n",
+			net_yestice_ratelimited("RPC: fragment too large: %d\n",
 					svc_sock_reclen(svsk));
 			goto err_delete;
 		}
@@ -972,12 +972,12 @@ static int receive_cb_reply(struct svc_sock *svsk, struct svc_rqst *rqstp)
 	spin_lock(&bc_xprt->queue_lock);
 	req = xprt_lookup_rqst(bc_xprt, xid);
 	if (!req)
-		goto unlock_notfound;
+		goto unlock_yestfound;
 
 	memcpy(&req->rq_private_buf, &req->rq_rcv_buf, sizeof(struct xdr_buf));
 	/*
-	 * XXX!: cheating for now!  Only copying HEAD.
-	 * But we know this is good enough for now (in fact, for any
+	 * XXX!: cheating for yesw!  Only copying HEAD.
+	 * But we kyesw this is good eyesugh for yesw (in fact, for any
 	 * callback reply in the forseeable future).
 	 */
 	dst = &req->rq_private_buf.head[0];
@@ -989,7 +989,7 @@ static int receive_cb_reply(struct svc_sock *svsk, struct svc_rqst *rqstp)
 	rqstp->rq_arg.len = 0;
 	spin_unlock(&bc_xprt->queue_lock);
 	return 0;
-unlock_notfound:
+unlock_yestfound:
 	printk(KERN_NOTICE
 		"%s: Got unrecognized reply: "
 		"calldir 0x%x xpt_bc_xprt %p xid %08x\n",
@@ -1018,7 +1018,7 @@ static void svc_tcp_fragment_received(struct svc_sock *svsk)
 {
 	/* If we have more data, signal svc_xprt_enqueue() to try again */
 	dprintk("svc: TCP %s record (%d bytes)\n",
-		svc_sock_final_rec(svsk) ? "final" : "nonfinal",
+		svc_sock_final_rec(svsk) ? "final" : "yesnfinal",
 		svc_sock_reclen(svsk));
 	svsk->sk_tcplen = 0;
 	svsk->sk_reclen = 0;
@@ -1074,7 +1074,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 			dprintk("svc: incomplete TCP record (%d of %d)\n",
 				(int)(svsk->sk_tcplen - sizeof(rpc_fraghdr)),
 				svc_sock_reclen(svsk));
-		goto err_noclose;
+		goto err_yesclose;
 	}
 
 	if (svsk->sk_datalen < 8) {
@@ -1121,11 +1121,11 @@ error:
 	dprintk("RPC: TCP recvfrom got EAGAIN\n");
 	return 0;
 err_delete:
-	printk(KERN_NOTICE "%s: recvfrom returned errno %d\n",
+	printk(KERN_NOTICE "%s: recvfrom returned erryes %d\n",
 	       svsk->sk_xprt.xpt_server->sv_name, -len);
 	set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
-err_noclose:
-	return 0;	/* record not complete */
+err_yesclose:
+	return 0;	/* record yest complete */
 }
 
 /*
@@ -1225,7 +1225,7 @@ static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 		svsk->sk_datalen = 0;
 		memset(&svsk->sk_pages[0], 0, sizeof(svsk->sk_pages));
 
-		tcp_sk(sk)->nonagle |= TCP_NAGLE_OFF;
+		tcp_sk(sk)->yesnagle |= TCP_NAGLE_OFF;
 
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		switch (sk->sk_state) {
@@ -1336,7 +1336,7 @@ EXPORT_SYMBOL_GPL(svc_alien_sock);
  * @cred: credential
  *
  * Fills in socket name and returns positive length of name if successful.
- * Name is terminated with '\n'.  On error, returns a negative errno
+ * Name is terminated with '\n'.  On error, returns a negative erryes
  * value.
  */
 int svc_addsock(struct svc_serv *serv, const int fd, char *name_return,
@@ -1470,7 +1470,7 @@ bummer:
 }
 
 /*
- * Detach the svc_sock from the socket so that no
+ * Detach the svc_sock from the socket so that yes
  * more callbacks occur.
  */
 static void svc_sock_detach(struct svc_xprt *xprt)

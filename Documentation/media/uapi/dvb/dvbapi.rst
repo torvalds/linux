@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. include:: <isonum.txt>
 
@@ -15,9 +15,9 @@
 Part II - Digital TV API
 ########################
 
-.. note::
+.. yeste::
 
-   This API is also known as Linux **DVB API**.
+   This API is also kyeswn as Linux **DVB API**.
 
    It it was originally written to support the European digital TV
    standard (DVB), and later extended to support all digital TV standards.
@@ -30,7 +30,7 @@ Part II - Digital TV API
      - the Digital TV API version
        (e. g. DVB API version 3 or DVB API version 5);
      - digital TV data types (enums, structs, defines, etc);
-     - digital TV device nodes (``/dev/dvb/...``);
+     - digital TV device yesdes (``/dev/dvb/...``);
      - the European DVB standard.
 
 **Version 5.10**
@@ -84,7 +84,7 @@ Revision History
 :revision: 2.2.0 / 2017-09-01 (*mcc*)
 
 Most gaps between the uAPI document and the Kernel implementation
-got fixed for the non-legacy API.
+got fixed for the yesn-legacy API.
 
 :revision: 2.1.0 / 2015-05-29 (*mcc*)
 

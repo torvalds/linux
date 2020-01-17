@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -202,7 +202,7 @@ void dce120_timing_generator_get_crtc_position(
 				mmCRTC0_CRTC_NOM_VERT_POSITION,
 				tg110->offsets.crtc);
 
-	position->nominal_vcount = get_reg_field_value(value,
+	position->yesminal_vcount = get_reg_field_value(value,
 			CRTC0_CRTC_NOM_VERT_POSITION, CRTC_VERT_COUNT_NOM);
 }
 
@@ -211,18 +211,18 @@ void dce120_timing_generator_wait_for_vblank(struct timing_generator *tg)
 {
 	/* We want to catch beginning of VBlank here, so if the first try are
 	 * in VBlank, we might be very close to Active, in this case wait for
-	 * another frame
+	 * ayesther frame
 	 */
 	while (dce120_timing_generator_is_in_vertical_blank(tg)) {
 		if (!tg->funcs->is_counter_moving(tg)) {
-			/* error - no point to wait if counter is not moving */
+			/* error - yes point to wait if counter is yest moving */
 			break;
 		}
 	}
 
 	while (!dce120_timing_generator_is_in_vertical_blank(tg)) {
 		if (!tg->funcs->is_counter_moving(tg)) {
-			/* error - no point to wait if counter is not moving */
+			/* error - yes point to wait if counter is yest moving */
 			break;
 		}
 	}
@@ -233,7 +233,7 @@ void dce120_timing_generator_wait_for_vactive(struct timing_generator *tg)
 {
 	while (dce120_timing_generator_is_in_vertical_blank(tg)) {
 		if (!tg->funcs->is_counter_moving(tg)) {
-			/* error - no point to wait if counter is not moving */
+			/* error - yes point to wait if counter is yest moving */
 			break;
 		}
 	}
@@ -334,7 +334,7 @@ void dce120_timing_generator_enable_reset_trigger(
 		FD(CRTC0_CRTC_TRIGB_CNTL__CRTC_TRIGB_FALLING_EDGE_DETECT_CNTL), falling_edge,
 		/* send every signal */
 		FD(CRTC0_CRTC_TRIGB_CNTL__CRTC_TRIGB_FREQUENCY_SELECT), 0,
-		/* no delay */
+		/* yes delay */
 		FD(CRTC0_CRTC_TRIGB_CNTL__CRTC_TRIGB_DELAY), 0,
 		/* clear trigger status */
 		FD(CRTC0_CRTC_TRIGB_CNTL__CRTC_TRIGB_CLEAR), 1);
@@ -531,7 +531,7 @@ void dce120_timing_generator_set_overscan_color_black(
 		tg110->offsets.crtc,
 		value);
 
-	/* TO DO we have to program EXT registers and we need to know LB DATA
+	/* TO DO we have to program EXT registers and we need to kyesw LB DATA
 	 * format because it is used when more 10 , i.e. 12 bits per color
 	 *
 	 * m_mmDxCRTC_OVERSCAN_COLOR_EXT
@@ -625,14 +625,14 @@ void dce120_timing_generator_get_position(struct timing_generator *tg,
 			mmCRTC0_CRTC_NOM_VERT_POSITION,
 			tg110->offsets.crtc);
 
-	position->nominal_vcount = get_reg_field_value(
+	position->yesminal_vcount = get_reg_field_value(
 			value,
 			CRTC0_CRTC_NOM_VERT_POSITION,
 			CRTC_VERT_COUNT_NOM);
 }
 
 
-void dce120_timing_generator_get_crtc_scanoutpos(
+void dce120_timing_generator_get_crtc_scayesutpos(
 	struct timing_generator *tg,
 	uint32_t *v_blank_start,
 	uint32_t *v_blank_end,
@@ -831,7 +831,7 @@ static void dce120_timing_generator_set_static_screen_control(
 void dce120_timing_generator_set_test_pattern(
 	struct timing_generator *tg,
 	/* TODO: replace 'controller_dp_test_pattern' by 'test_pattern_mode'
-	 * because this is not DP-specific (which is probably somewhere in DP
+	 * because this is yest DP-specific (which is probably somewhere in DP
 	 * encoder) */
 	enum controller_dp_test_pattern test_pattern,
 	enum dc_color_depth color_depth)
@@ -959,7 +959,7 @@ void dce120_timing_generator_set_test_pattern(
 		 * but each next iteration color prepared in
 		 * previous iteration will be written within new mask,
 		 * the last component will written separately,
-		 * mask is not changing between 6th and 7th write
+		 * mask is yest changing between 6th and 7th write
 		 * and color will be prepared by last iteration
 		 */
 
@@ -1096,7 +1096,7 @@ static bool dce120_arm_vert_intr(
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 	uint32_t v_blank_start, v_blank_end, h_position, v_position;
 
-	tg->funcs->get_scanoutpos(
+	tg->funcs->get_scayesutpos(
 				tg,
 				&v_blank_start,
 				&v_blank_end,
@@ -1133,7 +1133,7 @@ static bool dce120_configure_crc(struct timing_generator *tg,
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 
-	/* Cannot configure crc on a CRTC that is disabled */
+	/* Canyest configure crc on a CRTC that is disabled */
 	if (!dce120_is_tg_enabled(tg))
 		return false;
 
@@ -1184,7 +1184,7 @@ static bool dce120_get_crc(struct timing_generator *tg, uint32_t *r_cr,
 				  tg110->offsets.crtc);
 	field = get_reg_field_value(value, CRTC0_CRTC_CRC_CNTL, CRTC_CRC_EN);
 
-	/* Early return if CRC is not enabled for this CRTC */
+	/* Early return if CRC is yest enabled for this CRTC */
 	if (!field)
 		return false;
 
@@ -1210,7 +1210,7 @@ static const struct timing_generator_funcs dce120_tg_funcs = {
 		/* never be called */
 		.get_position = dce120_timing_generator_get_crtc_position,
 		.get_frame_count = dce120_timing_generator_get_vblank_counter,
-		.get_scanoutpos = dce120_timing_generator_get_crtc_scanoutpos,
+		.get_scayesutpos = dce120_timing_generator_get_crtc_scayesutpos,
 		.set_early_control = dce120_timing_generator_set_early_control,
 		/* used by enable_timing_synchronization. Not need for FPGA */
 		.wait_for_state = dce120_tg_wait_for_state,

@@ -91,7 +91,7 @@ struct its_device;
  * spinlock must be taken to parse data structures such as the device
  * list.
  */
-struct its_node {
+struct its_yesde {
 	raw_spinlock_t		lock;
 	struct mutex		dev_alloc_lock;
 	struct list_head	entry;
@@ -101,7 +101,7 @@ struct its_node {
 	struct its_cmd_block	*cmd_write;
 	struct its_baser	tables[GITS_BASER_NR_REGS];
 	struct its_collection	*collections;
-	struct fwnode_handle	*fwnode_handle;
+	struct fwyesde_handle	*fwyesde_handle;
 	u64			(*get_msi_base)(struct its_device *its_dev);
 	u64			typer;
 	u64			cbaser_save;
@@ -109,7 +109,7 @@ struct its_node {
 	struct list_head	its_device_list;
 	u64			flags;
 	unsigned long		list_nr;
-	int			numa_node;
+	int			numa_yesde;
 	unsigned int		msi_domain_flags;
 	u32			pre_its_base; /* for Socionext Synquacer */
 	int			vlpi_redist_offset;
@@ -146,7 +146,7 @@ struct event_lpi_map {
  */
 struct its_device {
 	struct list_head	entry;
-	struct its_node		*its;
+	struct its_yesde		*its;
 	struct event_lpi_map	event_map;
 	void			*itt;
 	u32			nr_ites;
@@ -161,7 +161,7 @@ static struct {
 	int			next_victim;
 } vpe_proxy;
 
-static LIST_HEAD(its_nodes);
+static LIST_HEAD(its_yesdes);
 static DEFINE_RAW_SPINLOCK(its_lock);
 static struct rdists *gic_rdists;
 static struct irq_domain *its_parent;
@@ -179,10 +179,10 @@ static DEFINE_IDA(its_vpeid_ida);
 
 static u16 get_its_list(struct its_vm *vm)
 {
-	struct its_node *its;
+	struct its_yesde *its;
 	unsigned long its_list = 0;
 
-	list_for_each_entry(its, &its_nodes, entry) {
+	list_for_each_entry(its, &its_yesdes, entry) {
 		if (!is_v4(its))
 			continue;
 
@@ -202,7 +202,7 @@ static inline u32 its_get_event_id(struct irq_data *d)
 static struct its_collection *dev_event_to_col(struct its_device *its_dev,
 					       u32 event)
 {
-	struct its_node *its = its_dev->its;
+	struct its_yesde *its = its_dev->its;
 
 	return its->collections + its_dev->event_map.col_map[event];
 }
@@ -231,7 +231,7 @@ static struct its_collection *valid_col(struct its_collection *col)
 	return col;
 }
 
-static struct its_vpe *valid_vpe(struct its_node *its, struct its_vpe *vpe)
+static struct its_vpe *valid_vpe(struct its_yesde *its, struct its_vpe *vpe)
 {
 	if (valid_col(its->collections + vpe->col_idx))
 		return vpe;
@@ -338,11 +338,11 @@ struct its_cmd_block {
 #define ITS_CMD_QUEUE_SZ		SZ_64K
 #define ITS_CMD_QUEUE_NR_ENTRIES	(ITS_CMD_QUEUE_SZ / sizeof(struct its_cmd_block))
 
-typedef struct its_collection *(*its_cmd_builder_t)(struct its_node *,
+typedef struct its_collection *(*its_cmd_builder_t)(struct its_yesde *,
 						    struct its_cmd_block *,
 						    struct its_cmd_desc *);
 
-typedef struct its_vpe *(*its_cmd_vbuilder_t)(struct its_node *,
+typedef struct its_vpe *(*its_cmd_vbuilder_t)(struct its_yesde *,
 					      struct its_cmd_block *,
 					      struct its_cmd_desc *);
 
@@ -447,7 +447,7 @@ static inline void its_fixup_cmd(struct its_cmd_block *cmd)
 	cmd->raw_cmd_le[3] = cpu_to_le64(cmd->raw_cmd[3]);
 }
 
-static struct its_collection *its_build_mapd_cmd(struct its_node *its,
+static struct its_collection *its_build_mapd_cmd(struct its_yesde *its,
 						 struct its_cmd_block *cmd,
 						 struct its_cmd_desc *desc)
 {
@@ -468,7 +468,7 @@ static struct its_collection *its_build_mapd_cmd(struct its_node *its,
 	return NULL;
 }
 
-static struct its_collection *its_build_mapc_cmd(struct its_node *its,
+static struct its_collection *its_build_mapc_cmd(struct its_yesde *its,
 						 struct its_cmd_block *cmd,
 						 struct its_cmd_desc *desc)
 {
@@ -482,7 +482,7 @@ static struct its_collection *its_build_mapc_cmd(struct its_node *its,
 	return desc->its_mapc_cmd.col;
 }
 
-static struct its_collection *its_build_mapti_cmd(struct its_node *its,
+static struct its_collection *its_build_mapti_cmd(struct its_yesde *its,
 						  struct its_cmd_block *cmd,
 						  struct its_cmd_desc *desc)
 {
@@ -502,7 +502,7 @@ static struct its_collection *its_build_mapti_cmd(struct its_node *its,
 	return valid_col(col);
 }
 
-static struct its_collection *its_build_movi_cmd(struct its_node *its,
+static struct its_collection *its_build_movi_cmd(struct its_yesde *its,
 						 struct its_cmd_block *cmd,
 						 struct its_cmd_desc *desc)
 {
@@ -521,7 +521,7 @@ static struct its_collection *its_build_movi_cmd(struct its_node *its,
 	return valid_col(col);
 }
 
-static struct its_collection *its_build_discard_cmd(struct its_node *its,
+static struct its_collection *its_build_discard_cmd(struct its_yesde *its,
 						    struct its_cmd_block *cmd,
 						    struct its_cmd_desc *desc)
 {
@@ -539,7 +539,7 @@ static struct its_collection *its_build_discard_cmd(struct its_node *its,
 	return valid_col(col);
 }
 
-static struct its_collection *its_build_inv_cmd(struct its_node *its,
+static struct its_collection *its_build_inv_cmd(struct its_yesde *its,
 						struct its_cmd_block *cmd,
 						struct its_cmd_desc *desc)
 {
@@ -557,7 +557,7 @@ static struct its_collection *its_build_inv_cmd(struct its_node *its,
 	return valid_col(col);
 }
 
-static struct its_collection *its_build_int_cmd(struct its_node *its,
+static struct its_collection *its_build_int_cmd(struct its_yesde *its,
 						struct its_cmd_block *cmd,
 						struct its_cmd_desc *desc)
 {
@@ -575,7 +575,7 @@ static struct its_collection *its_build_int_cmd(struct its_node *its,
 	return valid_col(col);
 }
 
-static struct its_collection *its_build_clear_cmd(struct its_node *its,
+static struct its_collection *its_build_clear_cmd(struct its_yesde *its,
 						  struct its_cmd_block *cmd,
 						  struct its_cmd_desc *desc)
 {
@@ -593,7 +593,7 @@ static struct its_collection *its_build_clear_cmd(struct its_node *its,
 	return valid_col(col);
 }
 
-static struct its_collection *its_build_invall_cmd(struct its_node *its,
+static struct its_collection *its_build_invall_cmd(struct its_yesde *its,
 						   struct its_cmd_block *cmd,
 						   struct its_cmd_desc *desc)
 {
@@ -605,7 +605,7 @@ static struct its_collection *its_build_invall_cmd(struct its_node *its,
 	return NULL;
 }
 
-static struct its_vpe *its_build_vinvall_cmd(struct its_node *its,
+static struct its_vpe *its_build_vinvall_cmd(struct its_yesde *its,
 					     struct its_cmd_block *cmd,
 					     struct its_cmd_desc *desc)
 {
@@ -617,7 +617,7 @@ static struct its_vpe *its_build_vinvall_cmd(struct its_node *its,
 	return valid_vpe(its, desc->its_vinvall_cmd.vpe);
 }
 
-static struct its_vpe *its_build_vmapp_cmd(struct its_node *its,
+static struct its_vpe *its_build_vmapp_cmd(struct its_yesde *its,
 					   struct its_cmd_block *cmd,
 					   struct its_cmd_desc *desc)
 {
@@ -639,7 +639,7 @@ static struct its_vpe *its_build_vmapp_cmd(struct its_node *its,
 	return valid_vpe(its, desc->its_vmapp_cmd.vpe);
 }
 
-static struct its_vpe *its_build_vmapti_cmd(struct its_node *its,
+static struct its_vpe *its_build_vmapti_cmd(struct its_yesde *its,
 					    struct its_cmd_block *cmd,
 					    struct its_cmd_desc *desc)
 {
@@ -662,7 +662,7 @@ static struct its_vpe *its_build_vmapti_cmd(struct its_node *its,
 	return valid_vpe(its, desc->its_vmapti_cmd.vpe);
 }
 
-static struct its_vpe *its_build_vmovi_cmd(struct its_node *its,
+static struct its_vpe *its_build_vmovi_cmd(struct its_yesde *its,
 					   struct its_cmd_block *cmd,
 					   struct its_cmd_desc *desc)
 {
@@ -685,7 +685,7 @@ static struct its_vpe *its_build_vmovi_cmd(struct its_node *its,
 	return valid_vpe(its, desc->its_vmovi_cmd.vpe);
 }
 
-static struct its_vpe *its_build_vmovp_cmd(struct its_node *its,
+static struct its_vpe *its_build_vmovp_cmd(struct its_yesde *its,
 					   struct its_cmd_block *cmd,
 					   struct its_cmd_desc *desc)
 {
@@ -703,7 +703,7 @@ static struct its_vpe *its_build_vmovp_cmd(struct its_node *its,
 	return valid_vpe(its, desc->its_vmovp_cmd.vpe);
 }
 
-static struct its_vpe *its_build_vinv_cmd(struct its_node *its,
+static struct its_vpe *its_build_vinv_cmd(struct its_yesde *its,
 					  struct its_cmd_block *cmd,
 					  struct its_cmd_desc *desc)
 {
@@ -721,7 +721,7 @@ static struct its_vpe *its_build_vinv_cmd(struct its_node *its,
 	return valid_vpe(its, map->vpe);
 }
 
-static struct its_vpe *its_build_vint_cmd(struct its_node *its,
+static struct its_vpe *its_build_vint_cmd(struct its_yesde *its,
 					  struct its_cmd_block *cmd,
 					  struct its_cmd_desc *desc)
 {
@@ -739,7 +739,7 @@ static struct its_vpe *its_build_vint_cmd(struct its_node *its,
 	return valid_vpe(its, map->vpe);
 }
 
-static struct its_vpe *its_build_vclear_cmd(struct its_node *its,
+static struct its_vpe *its_build_vclear_cmd(struct its_yesde *its,
 					    struct its_cmd_block *cmd,
 					    struct its_cmd_desc *desc)
 {
@@ -757,13 +757,13 @@ static struct its_vpe *its_build_vclear_cmd(struct its_node *its,
 	return valid_vpe(its, map->vpe);
 }
 
-static u64 its_cmd_ptr_to_offset(struct its_node *its,
+static u64 its_cmd_ptr_to_offset(struct its_yesde *its,
 				 struct its_cmd_block *ptr)
 {
 	return (ptr - its->cmd_base) * sizeof(*ptr);
 }
 
-static int its_queue_full(struct its_node *its)
+static int its_queue_full(struct its_yesde *its)
 {
 	int widx;
 	int ridx;
@@ -778,7 +778,7 @@ static int its_queue_full(struct its_node *its)
 	return 0;
 }
 
-static struct its_cmd_block *its_allocate_entry(struct its_node *its)
+static struct its_cmd_block *its_allocate_entry(struct its_yesde *its)
 {
 	struct its_cmd_block *cmd;
 	u32 count = 1000000;	/* 1s! */
@@ -786,7 +786,7 @@ static struct its_cmd_block *its_allocate_entry(struct its_node *its)
 	while (its_queue_full(its)) {
 		count--;
 		if (!count) {
-			pr_err_ratelimited("ITS queue not draining\n");
+			pr_err_ratelimited("ITS queue yest draining\n");
 			return NULL;
 		}
 		cpu_relax();
@@ -808,7 +808,7 @@ static struct its_cmd_block *its_allocate_entry(struct its_node *its)
 	return cmd;
 }
 
-static struct its_cmd_block *its_post_commands(struct its_node *its)
+static struct its_cmd_block *its_post_commands(struct its_yesde *its)
 {
 	u64 wr = its_cmd_ptr_to_offset(its, its->cmd_write);
 
@@ -817,7 +817,7 @@ static struct its_cmd_block *its_post_commands(struct its_node *its)
 	return its->cmd_write;
 }
 
-static void its_flush_cmd(struct its_node *its, struct its_cmd_block *cmd)
+static void its_flush_cmd(struct its_yesde *its, struct its_cmd_block *cmd)
 {
 	/*
 	 * Make sure the commands written to memory are observable by
@@ -829,7 +829,7 @@ static void its_flush_cmd(struct its_node *its, struct its_cmd_block *cmd)
 		dsb(ishst);
 }
 
-static int its_wait_for_range_completion(struct its_node *its,
+static int its_wait_for_range_completion(struct its_yesde *its,
 					 u64	prev_idx,
 					 struct its_cmd_block *to)
 {
@@ -876,7 +876,7 @@ static int its_wait_for_range_completion(struct its_node *its,
 
 /* Warning, macro hell follows */
 #define BUILD_SINGLE_CMD_FUNC(name, buildtype, synctype, buildfn)	\
-void name(struct its_node *its,						\
+void name(struct its_yesde *its,						\
 	  buildtype builder,						\
 	  struct its_cmd_desc *desc)					\
 {									\
@@ -913,7 +913,7 @@ post:									\
 		pr_err_ratelimited("ITS cmd %ps failed\n", builder);	\
 }
 
-static void its_build_sync_cmd(struct its_node *its,
+static void its_build_sync_cmd(struct its_yesde *its,
 			       struct its_cmd_block *sync_cmd,
 			       struct its_collection *sync_col)
 {
@@ -926,7 +926,7 @@ static void its_build_sync_cmd(struct its_node *its,
 static BUILD_SINGLE_CMD_FUNC(its_send_single_command, its_cmd_builder_t,
 			     struct its_collection, its_build_sync_cmd)
 
-static void its_build_vsync_cmd(struct its_node *its,
+static void its_build_vsync_cmd(struct its_yesde *its,
 				struct its_cmd_block *sync_cmd,
 				struct its_vpe *sync_vpe)
 {
@@ -979,7 +979,7 @@ static void its_send_mapd(struct its_device *dev, int valid)
 	its_send_single_command(dev->its, its_build_mapd_cmd, &desc);
 }
 
-static void its_send_mapc(struct its_node *its, struct its_collection *col,
+static void its_send_mapc(struct its_yesde *its, struct its_collection *col,
 			  int valid)
 {
 	struct its_cmd_desc desc;
@@ -1023,7 +1023,7 @@ static void its_send_discard(struct its_device *dev, u32 id)
 	its_send_single_command(dev->its, its_build_discard_cmd, &desc);
 }
 
-static void its_send_invall(struct its_node *its, struct its_collection *col)
+static void its_send_invall(struct its_yesde *its, struct its_collection *col)
 {
 	struct its_cmd_desc desc;
 
@@ -1059,7 +1059,7 @@ static void its_send_vmovi(struct its_device *dev, u32 id)
 	its_send_single_vcommand(dev->its, its_build_vmovi_cmd, &desc);
 }
 
-static void its_send_vmapp(struct its_node *its,
+static void its_send_vmapp(struct its_yesde *its,
 			   struct its_vpe *vpe, bool valid)
 {
 	struct its_cmd_desc desc;
@@ -1074,21 +1074,21 @@ static void its_send_vmapp(struct its_node *its,
 static void its_send_vmovp(struct its_vpe *vpe)
 {
 	struct its_cmd_desc desc = {};
-	struct its_node *its;
+	struct its_yesde *its;
 	unsigned long flags;
 	int col_id = vpe->col_idx;
 
 	desc.its_vmovp_cmd.vpe = vpe;
 
 	if (!its_list_map) {
-		its = list_first_entry(&its_nodes, struct its_node, entry);
+		its = list_first_entry(&its_yesdes, struct its_yesde, entry);
 		desc.its_vmovp_cmd.col = &its->collections[col_id];
 		its_send_single_vcommand(its, its_build_vmovp_cmd, &desc);
 		return;
 	}
 
 	/*
-	 * Yet another marvel of the architecture. If using the
+	 * Yet ayesther marvel of the architecture. If using the
 	 * its_list "feature", we need to make sure that all ITSs
 	 * receive all VMOVP commands in the same order. The only way
 	 * to guarantee this is to make vmovp a serialization point.
@@ -1101,7 +1101,7 @@ static void its_send_vmovp(struct its_vpe *vpe)
 	desc.its_vmovp_cmd.its_list = get_its_list(vpe->its_vm);
 
 	/* Emit VMOVPs */
-	list_for_each_entry(its, &its_nodes, entry) {
+	list_for_each_entry(its, &its_yesdes, entry) {
 		if (!is_v4(its))
 			continue;
 
@@ -1115,7 +1115,7 @@ static void its_send_vmovp(struct its_vpe *vpe)
 	raw_spin_unlock_irqrestore(&vmovp_lock, flags);
 }
 
-static void its_send_vinvall(struct its_node *its, struct its_vpe *vpe)
+static void its_send_vinvall(struct its_yesde *its, struct its_vpe *vpe)
 {
 	struct its_cmd_desc desc;
 
@@ -1128,7 +1128,7 @@ static void its_send_vinv(struct its_device *dev, u32 event_id)
 	struct its_cmd_desc desc;
 
 	/*
-	 * There is no real VINV command. This is just a normal INV,
+	 * There is yes real VINV command. This is just a yesrmal INV,
 	 * with a VSYNC instead of a SYNC.
 	 */
 	desc.its_inv_cmd.dev = dev;
@@ -1142,7 +1142,7 @@ static void its_send_vint(struct its_device *dev, u32 event_id)
 	struct its_cmd_desc desc;
 
 	/*
-	 * There is no real VINT command. This is just a normal INT,
+	 * There is yes real VINT command. This is just a yesrmal INT,
 	 * with a VSYNC instead of a SYNC.
 	 */
 	desc.its_int_cmd.dev = dev;
@@ -1156,7 +1156,7 @@ static void its_send_vclear(struct its_device *dev, u32 event_id)
 	struct its_cmd_desc desc;
 
 	/*
-	 * There is no real VCLEAR command. This is just a normal CLEAR,
+	 * There is yes real VCLEAR command. This is just a yesrmal CLEAR,
 	 * with a VSYNC instead of a SYNC.
 	 */
 	desc.its_clear_cmd.dev = dev;
@@ -1204,7 +1204,7 @@ static void lpi_write_config(struct irq_data *d, u8 clr, u8 set)
 
 	/*
 	 * Make the above write visible to the redistributors.
-	 * And yes, we're flushing exactly: One. Single. Byte.
+	 * And no, we're flushing exactly: One. Single. Byte.
 	 * Humpf...
 	 */
 	if (gic_rdists->flags & RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING)
@@ -1300,10 +1300,10 @@ static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	if (irqd_is_forwarded_to_vcpu(d))
 		return -EINVAL;
 
-       /* lpi cannot be routed to a redistributor that is on a foreign node */
+       /* lpi canyest be routed to a redistributor that is on a foreign yesde */
 	if (its_dev->its->flags & ITS_FLAGS_WORKAROUND_CAVIUM_23144) {
-		if (its_dev->its->numa_node >= 0) {
-			cpu_mask = cpumask_of_node(its_dev->its->numa_node);
+		if (its_dev->its->numa_yesde >= 0) {
+			cpu_mask = cpumask_of_yesde(its_dev->its->numa_yesde);
 			if (!cpumask_intersects(mask_val, cpu_mask))
 				return -EINVAL;
 		}
@@ -1327,7 +1327,7 @@ static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 
 static u64 its_irq_get_msi_base(struct its_device *its_dev)
 {
-	struct its_node *its = its_dev->its;
+	struct its_yesde *its = its_dev->its;
 
 	return its->phys_base + GITS_TRANSLATER;
 }
@@ -1335,7 +1335,7 @@ static u64 its_irq_get_msi_base(struct its_device *its_dev)
 static void its_irq_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 {
 	struct its_device *its_dev = irq_data_get_irq_chip_data(d);
-	struct its_node *its;
+	struct its_yesde *its;
 	u64 addr;
 
 	its = its_dev->its;
@@ -1373,7 +1373,7 @@ static int its_irq_set_irqchip_state(struct irq_data *d,
 	return 0;
 }
 
-static void its_map_vm(struct its_node *its, struct its_vm *vm)
+static void its_map_vm(struct its_yesde *its, struct its_vm *vm)
 {
 	unsigned long flags;
 
@@ -1385,7 +1385,7 @@ static void its_map_vm(struct its_node *its, struct its_vm *vm)
 
 	/*
 	 * If the VM wasn't mapped yet, iterate over the vpes and get
-	 * them mapped now.
+	 * them mapped yesw.
 	 */
 	vm->vlpi_count[its->list_nr]++;
 
@@ -1407,7 +1407,7 @@ static void its_map_vm(struct its_node *its, struct its_vm *vm)
 	raw_spin_unlock_irqrestore(&vmovp_lock, flags);
 }
 
-static void its_unmap_vm(struct its_node *its, struct its_vm *vm)
+static void its_unmap_vm(struct its_yesde *its, struct its_vm *vm)
 {
 	unsigned long flags;
 
@@ -1705,7 +1705,7 @@ static int free_lpi_range(u32 base, u32 nr_lpis)
 	}
 	/*
 	 * old is the last element with ->base_id smaller than base,
-	 * so new goes right after it. If there are no elements with
+	 * so new goes right after it. If there are yes elements with
 	 * ->base_id smaller than base, &old->entry ends up pointing
 	 * at the head of the list, and inserting new it the start of
 	 * the list is the right thing to do in that case as well.
@@ -1831,8 +1831,8 @@ static bool gic_check_reserved_range(phys_addr_t addr, unsigned long size)
 			return true;
 	}
 
-	/* Not found, not a good sign... */
-	pr_warn("GICv3: Expected reserved range [%pa:%pa], not found\n",
+	/* Not found, yest a good sign... */
+	pr_warn("GICv3: Expected reserved range [%pa:%pa], yest found\n",
 		&addr, &addr_end);
 	add_taint(TAINT_CRAP, LOCKDEP_STILL_OK);
 	return false;
@@ -1893,14 +1893,14 @@ static const char *its_base_type_string[] = {
 	[GITS_BASER_TYPE_RESERVED7] 	= "Reserved (7)",
 };
 
-static u64 its_read_baser(struct its_node *its, struct its_baser *baser)
+static u64 its_read_baser(struct its_yesde *its, struct its_baser *baser)
 {
 	u32 idx = baser - its->tables;
 
 	return gits_read_baser(its->base + GITS_BASER + (idx << 3));
 }
 
-static void its_write_baser(struct its_node *its, struct its_baser *baser,
+static void its_write_baser(struct its_yesde *its, struct its_baser *baser,
 			    u64 val)
 {
 	u32 idx = baser - its->tables;
@@ -1909,7 +1909,7 @@ static void its_write_baser(struct its_node *its, struct its_baser *baser,
 	baser->val = its_read_baser(its, baser);
 }
 
-static int its_setup_baser(struct its_node *its, struct its_baser *baser,
+static int its_setup_baser(struct its_yesde *its, struct its_baser *baser,
 			   u64 cache, u64 shr, u32 psz, u32 order,
 			   bool indirect)
 {
@@ -1931,7 +1931,7 @@ retry_alloc_baser:
 		order = get_order(GITS_BASER_PAGES_MAX * psz);
 	}
 
-	page = alloc_pages_node(its->numa_node, GFP_KERNEL | __GFP_ZERO, order);
+	page = alloc_pages_yesde(its->numa_yesde, GFP_KERNEL | __GFP_ZERO, order);
 	if (!page)
 		return -ENOMEM;
 
@@ -1943,7 +1943,7 @@ retry_alloc_baser:
 
 		/* 52bit PA is supported only when PageSize=64K */
 		if (psz != SZ_64K) {
-			pr_err("ITS: no 52bit PA support when psz=%d\n", psz);
+			pr_err("ITS: yes 52bit PA support when psz=%d\n", psz);
 			free_pages((unsigned long)base, order);
 			return -ENXIO;
 		}
@@ -1984,7 +1984,7 @@ retry_baser:
 		 * whatever the read reported, which is likely
 		 * to be the only thing this redistributor
 		 * supports. If that's zero, make it
-		 * non-cacheable as well.
+		 * yesn-cacheable as well.
 		 */
 		shr = tmp & GITS_BASER_SHAREABILITY_MASK;
 		if (!shr) {
@@ -2036,7 +2036,7 @@ retry_baser:
 	return 0;
 }
 
-static bool its_parse_indirect_baser(struct its_node *its,
+static bool its_parse_indirect_baser(struct its_yesde *its,
 				     struct its_baser *baser,
 				     u32 psz, u32 *order, u32 ids)
 {
@@ -2074,7 +2074,7 @@ static bool its_parse_indirect_baser(struct its_node *its,
 	 * range of device IDs that the ITS can grok... The ID
 	 * space being incredibly sparse, this results in a
 	 * massive waste of memory if two-level device table
-	 * feature is not supported by hardware.
+	 * feature is yest supported by hardware.
 	 */
 	new_order = max_t(u32, get_order(esz << ids), new_order);
 	if (new_order >= MAX_ORDER) {
@@ -2090,7 +2090,7 @@ static bool its_parse_indirect_baser(struct its_node *its,
 	return indirect;
 }
 
-static void its_free_tables(struct its_node *its)
+static void its_free_tables(struct its_yesde *its)
 {
 	int i;
 
@@ -2103,7 +2103,7 @@ static void its_free_tables(struct its_node *its)
 	}
 }
 
-static int its_alloc_tables(struct its_node *its)
+static int its_alloc_tables(struct its_yesde *its)
 {
 	u64 shr = GITS_BASER_InnerShareable;
 	u64 cache = GITS_BASER_RaWaWb;
@@ -2111,7 +2111,7 @@ static int its_alloc_tables(struct its_node *its)
 	int err, i;
 
 	if (its->flags & ITS_FLAGS_WORKAROUND_CAVIUM_22375)
-		/* erratum 24313: ignore memory access type */
+		/* erratum 24313: igyesre memory access type */
 		cache = GITS_BASER_nCnB;
 
 	for (i = 0; i < GITS_BASER_NR_REGS; i++) {
@@ -2153,7 +2153,7 @@ static int its_alloc_tables(struct its_node *its)
 	return 0;
 }
 
-static int its_alloc_collections(struct its_node *its)
+static int its_alloc_collections(struct its_yesde *its)
 {
 	int i;
 
@@ -2315,7 +2315,7 @@ static void its_cpu_init_lpis(void)
 	if ((tmp ^ val) & GICR_PROPBASER_SHAREABILITY_MASK) {
 		if (!(tmp & GICR_PROPBASER_SHAREABILITY_MASK)) {
 			/*
-			 * The HW reports non-shareable, we must
+			 * The HW reports yesn-shareable, we must
 			 * remove the cacheability attributes as
 			 * well.
 			 */
@@ -2338,7 +2338,7 @@ static void its_cpu_init_lpis(void)
 
 	if (!(tmp & GICR_PENDBASER_SHAREABILITY_MASK)) {
 		/*
-		 * The HW reports non-shareable, we must remove the
+		 * The HW reports yesn-shareable, we must remove the
 		 * cacheability attributes as well.
 		 */
 		val &= ~(GICR_PENDBASER_SHAREABILITY_MASK |
@@ -2360,7 +2360,7 @@ static void its_cpu_init_lpis(void)
 		 * sheduled as a vPE, especially for the first CPU, and the
 		 * VLPI with INTID larger than 2^(IDbits+1) will be considered
 		 * as out of range and dropped by GIC.
-		 * So we initialize IDbits to known value to avoid VLPI drop.
+		 * So we initialize IDbits to kyeswn value to avoid VLPI drop.
 		 */
 		val = (LPI_NRBITS - 1) & GICR_VPROPBASER_IDBITS_MASK;
 		pr_debug("GICv4: CPU%d: Init IDbits to 0x%llx for GICR_VPROPBASER\n",
@@ -2386,23 +2386,23 @@ out:
 		&paddr);
 }
 
-static void its_cpu_init_collection(struct its_node *its)
+static void its_cpu_init_collection(struct its_yesde *its)
 {
 	int cpu = smp_processor_id();
 	u64 target;
 
-	/* avoid cross node collections and its mapping */
+	/* avoid cross yesde collections and its mapping */
 	if (its->flags & ITS_FLAGS_WORKAROUND_CAVIUM_23144) {
-		struct device_node *cpu_node;
+		struct device_yesde *cpu_yesde;
 
-		cpu_node = of_get_cpu_node(cpu, NULL);
-		if (its->numa_node != NUMA_NO_NODE &&
-			its->numa_node != of_node_to_nid(cpu_node))
+		cpu_yesde = of_get_cpu_yesde(cpu, NULL);
+		if (its->numa_yesde != NUMA_NO_NODE &&
+			its->numa_yesde != of_yesde_to_nid(cpu_yesde))
 			return;
 	}
 
 	/*
-	 * We now have to bind each collection to its target
+	 * We yesw have to bind each collection to its target
 	 * redistributor.
 	 */
 	if (gic_read_typer(its->base + GITS_TYPER) & GITS_TYPER_PTA) {
@@ -2427,17 +2427,17 @@ static void its_cpu_init_collection(struct its_node *its)
 
 static void its_cpu_init_collections(void)
 {
-	struct its_node *its;
+	struct its_yesde *its;
 
 	raw_spin_lock(&its_lock);
 
-	list_for_each_entry(its, &its_nodes, entry)
+	list_for_each_entry(its, &its_yesdes, entry)
 		its_cpu_init_collection(its);
 
 	raw_spin_unlock(&its_lock);
 }
 
-static struct its_device *its_find_device(struct its_node *its, u32 dev_id)
+static struct its_device *its_find_device(struct its_yesde *its, u32 dev_id)
 {
 	struct its_device *its_dev = NULL, *tmp;
 	unsigned long flags;
@@ -2456,7 +2456,7 @@ static struct its_device *its_find_device(struct its_node *its, u32 dev_id)
 	return its_dev;
 }
 
-static struct its_baser *its_get_baser(struct its_node *its, u32 type)
+static struct its_baser *its_get_baser(struct its_yesde *its, u32 type)
 {
 	int i;
 
@@ -2468,7 +2468,7 @@ static struct its_baser *its_get_baser(struct its_node *its, u32 type)
 	return NULL;
 }
 
-static bool its_alloc_table_entry(struct its_node *its,
+static bool its_alloc_table_entry(struct its_yesde *its,
 				  struct its_baser *baser, u32 id)
 {
 	struct page *page;
@@ -2489,7 +2489,7 @@ static bool its_alloc_table_entry(struct its_node *its,
 
 	/* Allocate memory for 2nd level table */
 	if (!table[idx]) {
-		page = alloc_pages_node(its->numa_node, GFP_KERNEL | __GFP_ZERO,
+		page = alloc_pages_yesde(its->numa_yesde, GFP_KERNEL | __GFP_ZERO,
 					get_order(baser->psz));
 		if (!page)
 			return false;
@@ -2511,7 +2511,7 @@ static bool its_alloc_table_entry(struct its_node *its,
 	return true;
 }
 
-static bool its_alloc_device_table(struct its_node *its, u32 dev_id)
+static bool its_alloc_device_table(struct its_yesde *its, u32 dev_id)
 {
 	struct its_baser *baser;
 
@@ -2526,7 +2526,7 @@ static bool its_alloc_device_table(struct its_node *its, u32 dev_id)
 
 static bool its_alloc_vpe_table(u32 vpe_id)
 {
-	struct its_node *its;
+	struct its_yesde *its;
 
 	/*
 	 * Make sure the L2 tables are allocated on *all* v4 ITSs. We
@@ -2535,7 +2535,7 @@ static bool its_alloc_vpe_table(u32 vpe_id)
 	 * complexity becomes crazy (and you have tons of memory
 	 * anyway, right?).
 	 */
-	list_for_each_entry(its, &its_nodes, entry) {
+	list_for_each_entry(its, &its_yesdes, entry) {
 		struct its_baser *baser;
 
 		if (!is_v4(its))
@@ -2552,7 +2552,7 @@ static bool its_alloc_vpe_table(u32 vpe_id)
 	return true;
 }
 
-static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
+static struct its_device *its_create_device(struct its_yesde *its, u32 dev_id,
 					    int nvecs, bool alloc_lpis)
 {
 	struct its_device *dev;
@@ -2579,7 +2579,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	nr_ites = max(2, nvecs);
 	sz = nr_ites * (FIELD_GET(GITS_TYPER_ITT_ENTRY_SIZE, its->typer) + 1);
 	sz = max(sz, ITS_ITT_ALIGN) + ITS_ITT_ALIGN - 1;
-	itt = kzalloc_node(sz, GFP_KERNEL, its->numa_node);
+	itt = kzalloc_yesde(sz, GFP_KERNEL, its->numa_yesde);
 	if (alloc_lpis) {
 		lpi_map = its_lpi_alloc(nvecs, &lpi_base, &nr_lpis);
 		if (lpi_map)
@@ -2653,16 +2653,16 @@ static int its_alloc_device_irq(struct its_device *dev, int nvecs, irq_hw_number
 static int its_msi_prepare(struct irq_domain *domain, struct device *dev,
 			   int nvec, msi_alloc_info_t *info)
 {
-	struct its_node *its;
+	struct its_yesde *its;
 	struct its_device *its_dev;
 	struct msi_domain_info *msi_info;
 	u32 dev_id;
 	int err = 0;
 
 	/*
-	 * We ignore "dev" entirely, and rely on the dev_id that has
+	 * We igyesre "dev" entirely, and rely on the dev_id that has
 	 * been passed via the scratchpad. This limits this domain's
-	 * usefulness to upper layers that definitely know that they
+	 * usefulness to upper layers that definitely kyesw that they
 	 * are built on top of the ITS.
 	 */
 	dev_id = info->scratchpad[0].ul;
@@ -2685,7 +2685,7 @@ static int its_msi_prepare(struct irq_domain *domain, struct device *dev,
 	if (its_dev) {
 		/*
 		 * We already have seen this ID, probably through
-		 * another alias (PCI bridge of some sort). No need to
+		 * ayesther alias (PCI bridge of some sort). No need to
 		 * create the device.
 		 */
 		its_dev->shared = true;
@@ -2716,14 +2716,14 @@ static int its_irq_gic_domain_alloc(struct irq_domain *domain,
 {
 	struct irq_fwspec fwspec;
 
-	if (irq_domain_get_of_node(domain->parent)) {
-		fwspec.fwnode = domain->parent->fwnode;
+	if (irq_domain_get_of_yesde(domain->parent)) {
+		fwspec.fwyesde = domain->parent->fwyesde;
 		fwspec.param_count = 3;
 		fwspec.param[0] = GIC_IRQ_TYPE_LPI;
 		fwspec.param[1] = hwirq;
 		fwspec.param[2] = IRQ_TYPE_EDGE_RISING;
-	} else if (is_fwnode_irqchip(domain->parent->fwnode)) {
-		fwspec.fwnode = domain->parent->fwnode;
+	} else if (is_fwyesde_irqchip(domain->parent->fwyesde)) {
+		fwspec.fwyesde = domain->parent->fwyesde;
 		fwspec.param_count = 2;
 		fwspec.param[0] = hwirq;
 		fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
@@ -2739,7 +2739,7 @@ static int its_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 {
 	msi_alloc_info_t *info = args;
 	struct its_device *its_dev = info->scratchpad[0].ptr;
-	struct its_node *its = its_dev->its;
+	struct its_yesde *its = its_dev->its;
 	irq_hw_number_t hwirq;
 	int err;
 	int i;
@@ -2776,9 +2776,9 @@ static int its_irq_domain_activate(struct irq_domain *domain,
 	const struct cpumask *cpu_mask = cpu_online_mask;
 	int cpu;
 
-	/* get the cpu_mask of local node */
-	if (its_dev->its->numa_node >= 0)
-		cpu_mask = cpumask_of_node(its_dev->its->numa_node);
+	/* get the cpu_mask of local yesde */
+	if (its_dev->its->numa_yesde >= 0)
+		cpu_mask = cpumask_of_yesde(its_dev->its->numa_yesde);
 
 	/* Bind the LPI to the first possible CPU */
 	cpu = cpumask_first_and(cpu_mask, cpu_online_mask);
@@ -2812,7 +2812,7 @@ static void its_irq_domain_free(struct irq_domain *domain, unsigned int virq,
 {
 	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
 	struct its_device *its_dev = irq_data_get_irq_chip_data(d);
-	struct its_node *its = its_dev->its;
+	struct its_yesde *its = its_dev->its;
 	int i;
 
 	bitmap_release_region(its_dev->event_map.lpi_map,
@@ -2830,7 +2830,7 @@ static void its_irq_domain_free(struct irq_domain *domain, unsigned int virq,
 
 	/*
 	 * If all interrupts have been freed, start mopping the
-	 * floor. This is conditionned on the device not being shared.
+	 * floor. This is conditionned on the device yest being shared.
 	 */
 	if (!its_dev->shared &&
 	    bitmap_empty(its_dev->event_map.lpi_map,
@@ -2862,7 +2862,7 @@ static const struct irq_domain_ops its_domain_ops = {
  * If a GICv4 doesn't implement Direct LPIs (which is extremely
  * likely), the only way to perform an invalidate is to use a fake
  * device to issue an INV command, implying that the LPI has first
- * been mapped to some event on that device. Since this is not exactly
+ * been mapped to some event on that device. Since this is yest exactly
  * cheap, we try to keep that mapping around as long as possible, and
  * only issue an UNMAP if we're short on available slots.
  *
@@ -2990,10 +2990,10 @@ static void its_vpe_schedule(struct its_vpe *vpe)
 	val |= GICR_VPENDBASER_RaWaWb;
 	val |= GICR_VPENDBASER_NonShareable;
 	/*
-	 * There is no good way of finding out if the pending table is
+	 * There is yes good way of finding out if the pending table is
 	 * empty as we can race against the doorbell interrupt very
 	 * easily. So in the end, vpe->pending_last is only an
-	 * indication that the vcpu has something pending, not one
+	 * indication that the vcpu has something pending, yest one
 	 * that the pending table is empty. A good implementation
 	 * would be able to read its coarse map pretty quickly anyway,
 	 * making this a tolerable issue.
@@ -3012,7 +3012,7 @@ static void its_vpe_deschedule(struct its_vpe *vpe)
 	val = its_clear_vpend_valid(vlpi_base);
 
 	if (unlikely(val & GICR_VPENDBASER_Dirty)) {
-		pr_err_ratelimited("ITS virtual pending table not cleaning\n");
+		pr_err_ratelimited("ITS virtual pending table yest cleaning\n");
 		vpe->idai = false;
 		vpe->pending_last = true;
 	} else {
@@ -3023,9 +3023,9 @@ static void its_vpe_deschedule(struct its_vpe *vpe)
 
 static void its_vpe_invall(struct its_vpe *vpe)
 {
-	struct its_node *its;
+	struct its_yesde *its;
 
-	list_for_each_entry(its, &its_nodes, entry) {
+	list_for_each_entry(its, &its_yesdes, entry) {
 		if (!is_v4(its))
 			continue;
 
@@ -3033,7 +3033,7 @@ static void its_vpe_invall(struct its_vpe *vpe)
 			continue;
 
 		/*
-		 * Sending a VINVALL to a single ITS is enough, as all
+		 * Sending a VINVALL to a single ITS is eyesugh, as all
 		 * we need is to reach the redistributors.
 		 */
 		its_send_vinvall(its, vpe);
@@ -3084,7 +3084,7 @@ static void its_vpe_send_inv(struct irq_data *d)
 	if (gic_rdists->has_direct_lpi) {
 		void __iomem *rdbase;
 
-		/* Target the redistributor this VPE is currently known on */
+		/* Target the redistributor this VPE is currently kyeswn on */
 		rdbase = per_cpu_ptr(gic_rdists->rdist, vpe->col_idx)->rd_base;
 		gic_write_lpir(d->parent_data->hwirq, rdbase + GICR_INVLPIR);
 		wait_for_syncr(rdbase);
@@ -3284,7 +3284,7 @@ static int its_vpe_irq_domain_activate(struct irq_domain *domain,
 				       struct irq_data *d, bool reserve)
 {
 	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
-	struct its_node *its;
+	struct its_yesde *its;
 
 	/* If we use the list map, we issue VMAPP on demand... */
 	if (its_list_map)
@@ -3293,7 +3293,7 @@ static int its_vpe_irq_domain_activate(struct irq_domain *domain,
 	/* Map the VPE to the first possible CPU */
 	vpe->col_idx = cpumask_first(cpu_online_mask);
 
-	list_for_each_entry(its, &its_nodes, entry) {
+	list_for_each_entry(its, &its_yesdes, entry) {
 		if (!is_v4(its))
 			continue;
 
@@ -3310,16 +3310,16 @@ static void its_vpe_irq_domain_deactivate(struct irq_domain *domain,
 					  struct irq_data *d)
 {
 	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
-	struct its_node *its;
+	struct its_yesde *its;
 
 	/*
-	 * If we use the list map, we unmap the VPE once no VLPIs are
+	 * If we use the list map, we unmap the VPE once yes VLPIs are
 	 * associated with the VM.
 	 */
 	if (its_list_map)
 		return;
 
-	list_for_each_entry(its, &its_nodes, entry) {
+	list_for_each_entry(its, &its_yesdes, entry) {
 		if (!is_v4(its))
 			continue;
 
@@ -3343,7 +3343,7 @@ static int its_force_quiescent(void __iomem *base)
 	/*
 	 * GIC architecture specification requires the ITS to be both
 	 * disabled and quiescent for writes to GITS_BASER<n> or
-	 * GITS_CBASER to not have UNPREDICTABLE results.
+	 * GITS_CBASER to yest have UNPREDICTABLE results.
 	 */
 	if ((val & GITS_CTLR_QUIESCENT) && !(val & GITS_CTLR_ENABLE))
 		return 0;
@@ -3369,7 +3369,7 @@ static int its_force_quiescent(void __iomem *base)
 
 static bool __maybe_unused its_enable_quirk_cavium_22375(void *data)
 {
-	struct its_node *its = data;
+	struct its_yesde *its = data;
 
 	/* erratum 22375: only alloc 8MB table size (20 bits) */
 	its->typer &= ~GITS_TYPER_DEVBITS;
@@ -3381,7 +3381,7 @@ static bool __maybe_unused its_enable_quirk_cavium_22375(void *data)
 
 static bool __maybe_unused its_enable_quirk_cavium_23144(void *data)
 {
-	struct its_node *its = data;
+	struct its_yesde *its = data;
 
 	its->flags |= ITS_FLAGS_WORKAROUND_CAVIUM_23144;
 
@@ -3390,7 +3390,7 @@ static bool __maybe_unused its_enable_quirk_cavium_23144(void *data)
 
 static bool __maybe_unused its_enable_quirk_qdf2400_e0065(void *data)
 {
-	struct its_node *its = data;
+	struct its_yesde *its = data;
 
 	/* On QDF2400, the size of the ITE is 16Bytes */
 	its->typer &= ~GITS_TYPER_ITT_ENTRY_SIZE;
@@ -3401,7 +3401,7 @@ static bool __maybe_unused its_enable_quirk_qdf2400_e0065(void *data)
 
 static u64 its_irq_get_msi_base_pre_its(struct its_device *its_dev)
 {
-	struct its_node *its = its_dev->its;
+	struct its_yesde *its = its_dev->its;
 
 	/*
 	 * The Socionext Synquacer SoC has a so-called 'pre-ITS',
@@ -3415,11 +3415,11 @@ static u64 its_irq_get_msi_base_pre_its(struct its_device *its_dev)
 
 static bool __maybe_unused its_enable_quirk_socionext_synquacer(void *data)
 {
-	struct its_node *its = data;
+	struct its_yesde *its = data;
 	u32 pre_its_window[2];
 	u32 ids;
 
-	if (!fwnode_property_read_u32_array(its->fwnode_handle,
+	if (!fwyesde_property_read_u32_array(its->fwyesde_handle,
 					   "socionext,synquacer-pre-its",
 					   pre_its_window,
 					   ARRAY_SIZE(pre_its_window))) {
@@ -3442,7 +3442,7 @@ static bool __maybe_unused its_enable_quirk_socionext_synquacer(void *data)
 
 static bool __maybe_unused its_enable_quirk_hip07_161600802(void *data)
 {
-	struct its_node *its = data;
+	struct its_yesde *its = data;
 
 	/*
 	 * Hip07 insists on using the wrong address for the VLPI
@@ -3502,7 +3502,7 @@ static const struct gic_quirk its_quirks[] = {
 	}
 };
 
-static void its_enable_quirks(struct its_node *its)
+static void its_enable_quirks(struct its_yesde *its)
 {
 	u32 iidr = readl_relaxed(its->base + GITS_IIDR);
 
@@ -3511,11 +3511,11 @@ static void its_enable_quirks(struct its_node *its)
 
 static int its_save_disable(void)
 {
-	struct its_node *its;
+	struct its_yesde *its;
 	int err = 0;
 
 	raw_spin_lock(&its_lock);
-	list_for_each_entry(its, &its_nodes, entry) {
+	list_for_each_entry(its, &its_yesdes, entry) {
 		void __iomem *base;
 
 		if (!(its->flags & ITS_FLAGS_SAVE_SUSPEND_STATE))
@@ -3536,7 +3536,7 @@ static int its_save_disable(void)
 
 err:
 	if (err) {
-		list_for_each_entry_continue_reverse(its, &its_nodes, entry) {
+		list_for_each_entry_continue_reverse(its, &its_yesdes, entry) {
 			void __iomem *base;
 
 			if (!(its->flags & ITS_FLAGS_SAVE_SUSPEND_STATE))
@@ -3553,11 +3553,11 @@ err:
 
 static void its_restore_enable(void)
 {
-	struct its_node *its;
+	struct its_yesde *its;
 	int ret;
 
 	raw_spin_lock(&its_lock);
-	list_for_each_entry(its, &its_nodes, entry) {
+	list_for_each_entry(its, &its_yesdes, entry) {
 		void __iomem *base;
 		int i;
 
@@ -3616,7 +3616,7 @@ static struct syscore_ops its_syscore_ops = {
 	.resume = its_restore_enable,
 };
 
-static int its_init_domain(struct fwnode_handle *handle, struct its_node *its)
+static int its_init_domain(struct fwyesde_handle *handle, struct its_yesde *its)
 {
 	struct irq_domain *inner_domain;
 	struct msi_domain_info *info;
@@ -3643,7 +3643,7 @@ static int its_init_domain(struct fwnode_handle *handle, struct its_node *its)
 
 static int its_init_vpe_domain(void)
 {
-	struct its_node *its;
+	struct its_yesde *its;
 	u32 devid;
 	int entries;
 
@@ -3652,8 +3652,8 @@ static int its_init_vpe_domain(void)
 		return 0;
 	}
 
-	/* Any ITS will do, even if not v4 */
-	its = list_first_entry(&its_nodes, struct its_node, entry);
+	/* Any ITS will do, even if yest v4 */
+	its = list_first_entry(&its_yesdes, struct its_yesde, entry);
 
 	entries = roundup_pow_of_two(nr_cpu_ids);
 	vpe_proxy.vpes = kcalloc(entries, sizeof(*vpe_proxy.vpes),
@@ -3689,8 +3689,8 @@ static int __init its_compute_its_list_map(struct resource *res,
 	u32 ctlr;
 
 	/*
-	 * This is assumed to be done early enough that we're
-	 * guaranteed to be single-threaded, hence no
+	 * This is assumed to be done early eyesugh that we're
+	 * guaranteed to be single-threaded, hence yes
 	 * locking. Should this change, we should address
 	 * this.
 	 */
@@ -3721,9 +3721,9 @@ static int __init its_compute_its_list_map(struct resource *res,
 }
 
 static int __init its_probe_one(struct resource *res,
-				struct fwnode_handle *handle, int numa_node)
+				struct fwyesde_handle *handle, int numa_yesde)
 {
-	struct its_node *its;
+	struct its_yesde *its;
 	void __iomem *its_base;
 	u32 val, ctlr;
 	u64 baser, tmp, typer;
@@ -3780,9 +3780,9 @@ static int __init its_probe_one(struct resource *res,
 		}
 	}
 
-	its->numa_node = numa_node;
+	its->numa_yesde = numa_yesde;
 
-	page = alloc_pages_node(its->numa_node, GFP_KERNEL | __GFP_ZERO,
+	page = alloc_pages_yesde(its->numa_yesde, GFP_KERNEL | __GFP_ZERO,
 				get_order(ITS_CMD_QUEUE_SZ));
 	if (!page) {
 		err = -ENOMEM;
@@ -3790,7 +3790,7 @@ static int __init its_probe_one(struct resource *res,
 	}
 	its->cmd_base = (void *)page_address(page);
 	its->cmd_write = its->cmd_base;
-	its->fwnode_handle = handle;
+	its->fwyesde_handle = handle;
 	its->get_msi_base = its_irq_get_msi_base;
 	its->msi_domain_flags = IRQ_DOMAIN_FLAG_MSI_REMAP;
 
@@ -3816,7 +3816,7 @@ static int __init its_probe_one(struct resource *res,
 	if ((tmp ^ baser) & GITS_CBASER_SHAREABILITY_MASK) {
 		if (!(tmp & GITS_CBASER_SHAREABILITY_MASK)) {
 			/*
-			 * The HW reports non-shareable, we must
+			 * The HW reports yesn-shareable, we must
 			 * remove the cacheability attributes as
 			 * well.
 			 */
@@ -3844,7 +3844,7 @@ static int __init its_probe_one(struct resource *res,
 		goto out_free_tables;
 
 	raw_spin_lock(&its_lock);
-	list_add(&its->entry, &its_nodes);
+	list_add(&its->entry, &its_yesdes);
 	raw_spin_unlock(&its_lock);
 
 	return 0;
@@ -3873,7 +3873,7 @@ static int redist_disable_lpis(void)
 	u64 val;
 
 	if (!gic_rdists_supports_plpis()) {
-		pr_info("CPU%d: LPIs not supported\n", smp_processor_id());
+		pr_info("CPU%d: LPIs yest supported\n", smp_processor_id());
 		return -ENXIO;
 	}
 
@@ -3886,7 +3886,7 @@ static int redist_disable_lpis(void)
 	 * LPIs before trying to re-enable them. They are already
 	 * configured and all is well in the world.
 	 *
-	 * If running with preallocated tables, there is nothing to do.
+	 * If running with preallocated tables, there is yesthing to do.
 	 */
 	if (gic_data_rdist()->lpi_enabled ||
 	    (gic_rdists->flags & RDIST_FLAGS_RD_TABLES_PREALLOCATED))
@@ -3936,7 +3936,7 @@ static int redist_disable_lpis(void)
 
 int its_cpu_init(void)
 {
-	if (!list_empty(&its_nodes)) {
+	if (!list_empty(&its_yesdes)) {
 		int ret;
 
 		ret = redist_disable_lpis();
@@ -3955,27 +3955,27 @@ static const struct of_device_id its_device_id[] = {
 	{},
 };
 
-static int __init its_of_probe(struct device_node *node)
+static int __init its_of_probe(struct device_yesde *yesde)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource res;
 
-	for (np = of_find_matching_node(node, its_device_id); np;
-	     np = of_find_matching_node(np, its_device_id)) {
+	for (np = of_find_matching_yesde(yesde, its_device_id); np;
+	     np = of_find_matching_yesde(np, its_device_id)) {
 		if (!of_device_is_available(np))
 			continue;
 		if (!of_property_read_bool(np, "msi-controller")) {
-			pr_warn("%pOF: no msi-controller property, ITS ignored\n",
+			pr_warn("%pOF: yes msi-controller property, ITS igyesred\n",
 				np);
 			continue;
 		}
 
 		if (of_address_to_resource(np, 0, &res)) {
-			pr_warn("%pOF: no regs?\n", np);
+			pr_warn("%pOF: yes regs?\n", np);
 			continue;
 		}
 
-		its_probe_one(&res, &np->fwnode, of_node_to_nid(np));
+		its_probe_one(&res, &np->fwyesde, of_yesde_to_nid(np));
 	}
 	return 0;
 }
@@ -3986,8 +3986,8 @@ static int __init its_of_probe(struct device_node *node)
 
 #ifdef CONFIG_ACPI_NUMA
 struct its_srat_map {
-	/* numa node id */
-	u32	numa_node;
+	/* numa yesde id */
+	u32	numa_yesde;
 	/* GIC ITS ID */
 	u32	its_id;
 };
@@ -3995,13 +3995,13 @@ struct its_srat_map {
 static struct its_srat_map *its_srat_maps __initdata;
 static int its_in_srat __initdata;
 
-static int __init acpi_get_its_numa_node(u32 its_id)
+static int __init acpi_get_its_numa_yesde(u32 its_id)
 {
 	int i;
 
 	for (i = 0; i < its_in_srat; i++) {
 		if (its_id == its_srat_maps[i].its_id)
-			return its_srat_maps[i].numa_node;
+			return its_srat_maps[i].numa_yesde;
 	}
 	return NUMA_NO_NODE;
 }
@@ -4015,7 +4015,7 @@ static int __init gic_acpi_match_srat_its(union acpi_subtable_headers *header,
 static int __init gic_acpi_parse_srat_its(union acpi_subtable_headers *header,
 			 const unsigned long end)
 {
-	int node;
+	int yesde;
 	struct acpi_srat_gic_its_affinity *its_affinity;
 
 	its_affinity = (struct acpi_srat_gic_its_affinity *)header;
@@ -4028,18 +4028,18 @@ static int __init gic_acpi_parse_srat_its(union acpi_subtable_headers *header,
 		return -EINVAL;
 	}
 
-	node = acpi_map_pxm_to_node(its_affinity->proximity_domain);
+	yesde = acpi_map_pxm_to_yesde(its_affinity->proximity_domain);
 
-	if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
-		pr_err("SRAT: Invalid NUMA node %d in ITS affinity\n", node);
+	if (yesde == NUMA_NO_NODE || yesde >= MAX_NUMNODES) {
+		pr_err("SRAT: Invalid NUMA yesde %d in ITS affinity\n", yesde);
 		return 0;
 	}
 
-	its_srat_maps[its_in_srat].numa_node = node;
+	its_srat_maps[its_in_srat].numa_yesde = yesde;
 	its_srat_maps[its_in_srat].its_id = its_affinity->its_id;
 	its_in_srat++;
 	pr_info("SRAT: PXM %d -> ITS %d -> Node %d\n",
-		its_affinity->proximity_domain, its_affinity->its_id, node);
+		its_affinity->proximity_domain, its_affinity->its_id, yesde);
 
 	return 0;
 }
@@ -4075,7 +4075,7 @@ static void __init acpi_its_srat_maps_free(void)
 }
 #else
 static void __init acpi_table_parse_srat_its(void)	{ }
-static int __init acpi_get_its_numa_node(u32 its_id) { return NUMA_NO_NODE; }
+static int __init acpi_get_its_numa_yesde(u32 its_id) { return NUMA_NO_NODE; }
 static void __init acpi_its_srat_maps_free(void) { }
 #endif
 
@@ -4083,7 +4083,7 @@ static int __init gic_acpi_parse_madt_its(union acpi_subtable_headers *header,
 					  const unsigned long end)
 {
 	struct acpi_madt_generic_translator *its_entry;
-	struct fwnode_handle *dom_handle;
+	struct fwyesde_handle *dom_handle;
 	struct resource res;
 	int err;
 
@@ -4093,7 +4093,7 @@ static int __init gic_acpi_parse_madt_its(union acpi_subtable_headers *header,
 	res.end = its_entry->base_address + ACPI_GICV3_ITS_MEM_SIZE - 1;
 	res.flags = IORESOURCE_MEM;
 
-	dom_handle = irq_domain_alloc_fwnode(&res.start);
+	dom_handle = irq_domain_alloc_fwyesde(&res.start);
 	if (!dom_handle) {
 		pr_err("ITS@%pa: Unable to allocate GICv3 ITS domain token\n",
 		       &res.start);
@@ -4109,13 +4109,13 @@ static int __init gic_acpi_parse_madt_its(union acpi_subtable_headers *header,
 	}
 
 	err = its_probe_one(&res, dom_handle,
-			acpi_get_its_numa_node(its_entry->translation_id));
+			acpi_get_its_numa_yesde(its_entry->translation_id));
 	if (!err)
 		return 0;
 
 	iort_deregister_domain_token(its_entry->translation_id);
 dom_err:
-	irq_domain_free_fwnode(dom_handle);
+	irq_domain_free_fwyesde(dom_handle);
 	return err;
 }
 
@@ -4130,23 +4130,23 @@ static void __init its_acpi_probe(void)
 static void __init its_acpi_probe(void) { }
 #endif
 
-int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
+int __init its_init(struct fwyesde_handle *handle, struct rdists *rdists,
 		    struct irq_domain *parent_domain)
 {
-	struct device_node *of_node;
-	struct its_node *its;
+	struct device_yesde *of_yesde;
+	struct its_yesde *its;
 	bool has_v4 = false;
 	int err;
 
 	its_parent = parent_domain;
-	of_node = to_of_node(handle);
-	if (of_node)
-		its_of_probe(of_node);
+	of_yesde = to_of_yesde(handle);
+	if (of_yesde)
+		its_of_probe(of_yesde);
 	else
 		its_acpi_probe();
 
-	if (list_empty(&its_nodes)) {
-		pr_warn("ITS: No ITS available, not enabling LPIs\n");
+	if (list_empty(&its_yesdes)) {
+		pr_warn("ITS: No ITS available, yest enabling LPIs\n");
 		return -ENXIO;
 	}
 
@@ -4156,7 +4156,7 @@ int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
 	if (err)
 		return err;
 
-	list_for_each_entry(its, &its_nodes, entry)
+	list_for_each_entry(its, &its_yesdes, entry)
 		has_v4 |= is_v4(its);
 
 	if (has_v4 & rdists->has_vlpis) {

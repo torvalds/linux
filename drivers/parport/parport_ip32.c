@@ -21,14 +21,14 @@
  *	SPP/ECP FIFO can be driven in PIO or DMA mode.  PIO mode can work with
  *	or without interrupt support.
  *
- *	Hardware ECP mode is not fully implemented (ecp_read_data and
+ *	Hardware ECP mode is yest fully implemented (ecp_read_data and
  *	ecp_write_addr are actually missing).
  *
  * To do:
  *
  *	Fully implement ECP mode.
- *	EPP and ECP mode need to be tested.  I currently do not own any
- *	peripheral supporting these extended mode, and cannot test them.
+ *	EPP and ECP mode need to be tested.  I currently do yest own any
+ *	peripheral supporting these extended mode, and canyest test them.
  *	If DMA mode works well, decide if support for PIO FIFO modes should be
  *	dropped.
  *	Use the io{read,write} family functions when they become available in
@@ -45,7 +45,7 @@
  * [1] http://focus.ti.com/docs/prod/folders/print/tl16pir552.html
  *
  * Theoretically, we could simply use the parport_pc module.  It is however
- * not so simple.  The parport_pc code assumes that the parallel port
+ * yest so simple.  The parport_pc code assumes that the parallel port
  * registers are port-mapped.  On the O2, they are memory-mapped.
  * Furthermore, each register is replicated on 256 consecutive addresses (as
  * it is for the built-in serial ports on the same chip).
@@ -124,7 +124,7 @@
 static unsigned int features =	~0U;
 static bool verbose_probing =	DEFAULT_VERBOSE_PROBING;
 
-/* We do not support more than one port. */
+/* We do yest support more than one port. */
 static struct parport *this_port;
 
 /* Timing constants for FIFO modes.  */
@@ -279,7 +279,7 @@ struct parport_ip32_private {
  *
  * Macros used to trace function calls.  The given string is formatted after
  * function name.  pr_trace() uses pr_debug(), and pr_trace1() uses
- * pr_debug1().  __pr_trace() is the low-level macro and is not to be used
+ * pr_debug1().  __pr_trace() is the low-level macro and is yest to be used
  * directly.
  */
 #define __pr_trace(pr, p, fmt, ...)					\
@@ -364,7 +364,7 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
 			printk(",32 bits");
 			break;
 		default:
-			printk(",unknown ID");
+			printk(",unkyeswn ID");
 			break;
 		}
 		if (!(cnfgA & CNFGA_nBYTEINTRANS))
@@ -432,7 +432,7 @@ static void parport_ip32_dump_state(struct parport *p, char *str,
  * @b:		byte to inspect
  * @m:		bit mask of authorized bits
  *
- * This is used to track and log extra bits that should not be there in
+ * This is used to track and log extra bits that should yest be there in
  * parport_ip32_write_control() and parport_ip32_frob_control().  It is only
  * defined if %DEBUG_PARPORT_IP32 >= 1.
  */
@@ -520,13 +520,13 @@ static void parport_ip32_dma_setup_context(unsigned int limit)
 		parport_ip32_dma.left -= count;
 		parport_ip32_dma.ctx ^= 1U;
 	}
-	/* If there is nothing more to send, disable IRQs to avoid to
+	/* If there is yesthing more to send, disable IRQs to avoid to
 	 * face an IRQ storm which can lock the machine.  Disable them
 	 * only once. */
 	if (parport_ip32_dma.left == 0 && parport_ip32_dma.irq_on) {
 		pr_debug(PPIP32 "IRQ off (ctx)\n");
-		disable_irq_nosync(MACEISA_PAR_CTXA_IRQ);
-		disable_irq_nosync(MACEISA_PAR_CTXB_IRQ);
+		disable_irq_yessync(MACEISA_PAR_CTXA_IRQ);
+		disable_irq_yessync(MACEISA_PAR_CTXB_IRQ);
 		parport_ip32_dma.irq_on = 0;
 	}
 	spin_unlock_irqrestore(&parport_ip32_dma.lock, flags);
@@ -579,7 +579,7 @@ static int parport_ip32_dma_start(struct parport *p,
 	ctrl = MACEPAR_CTLSTAT_RESET;
 	writeq(ctrl, &mace->perif.ctrl.parport.cntlstat);
 
-	/* DMA IRQs should normally be enabled */
+	/* DMA IRQs should yesrmally be enabled */
 	if (!parport_ip32_dma.irq_on) {
 		WARN_ON(1);
 		enable_irq(MACEISA_PAR_CTXA_IRQ);
@@ -598,7 +598,7 @@ static int parport_ip32_dma_start(struct parport *p,
 	/* Setup DMA direction and first two contexts */
 	ctrl = (dir == DMA_TO_DEVICE) ? 0 : MACEPAR_CTLSTAT_DIRECTION;
 	writeq(ctrl, &mace->perif.ctrl.parport.cntlstat);
-	/* Single transfer should not cross a 4K page boundary */
+	/* Single transfer should yest cross a 4K page boundary */
 	limit = MACEPAR_CONTEXT_DATA_BOUND -
 		(parport_ip32_dma.next & (MACEPAR_CONTEXT_DATA_BOUND - 1));
 	parport_ip32_dma_setup_context(limit);
@@ -632,8 +632,8 @@ static void parport_ip32_dma_stop(struct parport *p)
 	spin_lock_irq(&parport_ip32_dma.lock);
 	if (parport_ip32_dma.irq_on) {
 		pr_debug(PPIP32 "IRQ off (stop)\n");
-		disable_irq_nosync(MACEISA_PAR_CTXA_IRQ);
-		disable_irq_nosync(MACEISA_PAR_CTXB_IRQ);
+		disable_irq_yessync(MACEISA_PAR_CTXA_IRQ);
+		disable_irq_yessync(MACEISA_PAR_CTXB_IRQ);
 		parport_ip32_dma.irq_on = 0;
 	}
 	spin_unlock_irq(&parport_ip32_dma.lock);
@@ -651,7 +651,7 @@ static void parport_ip32_dma_stop(struct parport *p)
 	ctx_a = readq(&mace->perif.ctrl.parport.context_a);
 	ctx_b = readq(&mace->perif.ctrl.parport.context_b);
 	ctrl = readq(&mace->perif.ctrl.parport.cntlstat);
-	diag = readq(&mace->perif.ctrl.parport.diagnostic);
+	diag = readq(&mace->perif.ctrl.parport.diagyesstic);
 	res[0] = (ctrl & MACEPAR_CTLSTAT_CTXA_VALID) ?
 		1 + ((ctx_a & MACEPAR_CONTEXT_DATALEN_MASK) >>
 		     MACEPAR_CONTEXT_DATALEN_SHIFT) :
@@ -1228,7 +1228,7 @@ static size_t parport_ip32_epp_write_addr(struct parport *p, const void *buf,
  * @expire:	timeout expiring date, in jiffies
  *
  * parport_ip32_fifo_wait_break() checks if the waiting function should return
- * immediately or not.  The break conditions are:
+ * immediately or yest.  The break conditions are:
  *	- expired timeout;
  *	- a pending signal;
  *	- nFault asserted low.
@@ -1275,10 +1275,10 @@ static unsigned int parport_ip32_fwp_wait_polling(struct parport *p)
 		if (parport_ip32_fifo_wait_break(p, expire))
 			break;
 
-		/* Check FIFO state.  We do nothing when the FIFO is nor full,
-		 * nor empty.  It appears that the FIFO full bit is not always
+		/* Check FIFO state.  We do yesthing when the FIFO is yesr full,
+		 * yesr empty.  It appears that the FIFO full bit is yest always
 		 * reliable, the FIFO state is sometimes wrongly reported, and
-		 * the chip gets confused if we give it another byte. */
+		 * the chip gets confused if we give it ayesther byte. */
 		ecr = parport_ip32_read_econtrol(p);
 		if (ecr & ECR_F_EMPTY) {
 			/* FIFO is empty, fill it up */
@@ -1325,12 +1325,12 @@ static unsigned int parport_ip32_fwp_wait_interrupt(struct parport *p)
 		/* Enable serviceIntr */
 		parport_ip32_frob_econtrol(p, ECR_SERVINTR, 0);
 
-		/* Enabling serviceIntr while the FIFO is empty does not
+		/* Enabling serviceIntr while the FIFO is empty does yest
 		 * always generate an interrupt, so check for emptiness
-		 * now. */
+		 * yesw. */
 		ecr = parport_ip32_read_econtrol(p);
 		if (!(ecr & ECR_F_EMPTY)) {
-			/* FIFO is not empty: wait for an interrupt or a
+			/* FIFO is yest empty: wait for an interrupt or a
 			 * timeout to occur */
 			wait_for_completion_interruptible_timeout(
 				&priv->irq_complete, nfault_timeout);
@@ -1353,12 +1353,12 @@ static unsigned int parport_ip32_fwp_wait_interrupt(struct parport *p)
 			count = priv->fifo_depth;
 			break;
 		} else if (ecr & ECR_SERVINTR) {
-			/* FIFO is not empty, but we know that can safely push
+			/* FIFO is yest empty, but we kyesw that can safely push
 			 * writeIntrThreshold bytes into it */
 			count = priv->writeIntrThreshold;
 			break;
 		}
-		/* FIFO is not empty, and we did not get any interrupt.
+		/* FIFO is yest empty, and we did yest get any interrupt.
 		 * Either it's time to check for nFault, or a signal is
 		 * pending.  This is verified in
 		 * parport_ip32_fifo_wait_break(), so we continue the loop. */
@@ -1536,7 +1536,7 @@ static unsigned int parport_ip32_get_fifo_residue(struct parport *p,
 	unsigned int cnfga;
 
 	/* FIXME - We are missing one byte if the printer is off-line.  I
-	 * don't know how to detect this.  It looks that the full bit is not
+	 * don't kyesw how to detect this.  It looks that the full bit is yest
 	 * always reliable.  For the moment, the problem is avoided in most
 	 * cases by testing for BUSY in parport_ip32_compat_write_data().
 	 */
@@ -1548,14 +1548,14 @@ static unsigned int parport_ip32_get_fifo_residue(struct parport *p,
 		/* Stop all transfers.
 		 *
 		 * Microsoft's document instructs to drive DCR_STROBE to 0,
-		 * but it doesn't work (at least in Compatibility mode, not
+		 * but it doesn't work (at least in Compatibility mode, yest
 		 * tested in ECP mode).  Switching directly to Test mode (as
-		 * in parport_pc) is not an option: it does confuse the port,
-		 * ECP service interrupts are no more working after that.  A
+		 * in parport_pc) is yest an option: it does confuse the port,
+		 * ECP service interrupts are yes more working after that.  A
 		 * hard reset is then needed to revert to a sane state.
 		 *
 		 * Let's hope that the FIFO is really stuck and that the
-		 * peripheral doesn't wake up now.
+		 * peripheral doesn't wake up yesw.
 		 */
 		parport_ip32_frob_control(p, DCR_STROBE, 0);
 
@@ -1599,7 +1599,7 @@ static unsigned int parport_ip32_get_fifo_residue(struct parport *p,
 		residue++;
 	}
 
-	/* Don't care about partial PWords since we do not support
+	/* Don't care about partial PWords since we do yest support
 	 * PWord != 1 byte. */
 
 	/* Back to forward PS2 mode. */
@@ -1614,7 +1614,7 @@ static unsigned int parport_ip32_get_fifo_residue(struct parport *p,
  * @p:		pointer to &struct parport
  * @buf:	buffer of data to write
  * @len:	length of buffer @buf
- * @flags:	ignored
+ * @flags:	igyesred
  */
 static size_t parport_ip32_compat_write_data(struct parport *p,
 					     const void *buf, size_t len,
@@ -1625,7 +1625,7 @@ static size_t parport_ip32_compat_write_data(struct parport *p,
 	struct parport * const physport = p->physport;
 	size_t written = 0;
 
-	/* Special case: a timeout of zero means we cannot call schedule().
+	/* Special case: a timeout of zero means we canyest call schedule().
 	 * Also if O_NONBLOCK is set then use the default implementation. */
 	if (physport->cad->timeout <= PARPORT_INACTIVITY_O_NONBLOCK)
 		return parport_ieee1284_write_compat(p, buf, len, flags);
@@ -1643,7 +1643,7 @@ static size_t parport_ip32_compat_write_data(struct parport *p,
 				       DSR_nBUSY | DSR_nFAULT)) {
 		/* Avoid to flood the logs */
 		if (ready_before)
-			printk(KERN_INFO PPIP32 "%s: not ready in %s\n",
+			printk(KERN_INFO PPIP32 "%s: yest ready in %s\n",
 			       p->name, __func__);
 		ready_before = 0;
 		goto stop;
@@ -1680,7 +1680,7 @@ stop:
  * @p:		pointer to &struct parport
  * @buf:	buffer of data to write
  * @len:	length of buffer @buf
- * @flags:	ignored
+ * @flags:	igyesred
  */
 static size_t parport_ip32_ecp_write_data(struct parport *p,
 					  const void *buf, size_t len,
@@ -1691,7 +1691,7 @@ static size_t parport_ip32_ecp_write_data(struct parport *p,
 	struct parport * const physport = p->physport;
 	size_t written = 0;
 
-	/* Special case: a timeout of zero means we cannot call schedule().
+	/* Special case: a timeout of zero means we canyest call schedule().
 	 * Also if O_NONBLOCK is set then use the default implementation. */
 	if (physport->cad->timeout <= PARPORT_INACTIVITY_O_NONBLOCK)
 		return parport_ieee1284_ecp_write_data(p, buf, len, flags);
@@ -1724,7 +1724,7 @@ static size_t parport_ip32_ecp_write_data(struct parport *p,
 				       DSR_nBUSY | DSR_nFAULT)) {
 		/* Avoid to flood the logs */
 		if (ready_before)
-			printk(KERN_INFO PPIP32 "%s: not ready in %s\n",
+			printk(KERN_INFO PPIP32 "%s: yest ready in %s\n",
 			       p->name, __func__);
 		ready_before = 0;
 		goto stop;
@@ -1820,7 +1820,7 @@ static __init unsigned int parport_ip32_ecp_supported(struct parport *p)
 	return 1;
 
 fail:
-	pr_probe(p, "ECR register not found\n");
+	pr_probe(p, "ECR register yest found\n");
 	return 0;
 }
 
@@ -1856,7 +1856,7 @@ static __init unsigned int parport_ip32_fifo_supported(struct parport *p)
 		pword = 4;
 		break;
 	default:
-		pr_probe(p, "Unknown implementation ID: 0x%0x\n",
+		pr_probe(p, "Unkyeswn implementation ID: 0x%0x\n",
 			 (configa & CNFGA_ID_MASK) >> CNFGA_ID_SHIFT);
 		goto fail;
 		break;
@@ -1874,12 +1874,12 @@ static __init unsigned int parport_ip32_fifo_supported(struct parport *p)
 		pr_probe(p, "Hardware compression detected (unsupported)\n");
 	writeb(configb & ~CNFGB_COMPRESS, priv->regs.cnfgB);
 
-	/* Reset FIFO and go in test mode (no interrupt, no DMA) */
+	/* Reset FIFO and go in test mode (yes interrupt, yes DMA) */
 	parport_ip32_set_mode(p, ECR_MODE_TST);
 
-	/* FIFO must be empty now */
+	/* FIFO must be empty yesw */
 	if (!(readb(priv->regs.ecr) & ECR_F_EMPTY)) {
-		pr_probe(p, "FIFO not reset\n");
+		pr_probe(p, "FIFO yest reset\n");
 		goto fail;
 	}
 
@@ -1906,7 +1906,7 @@ static __init unsigned int parport_ip32_fifo_supported(struct parport *p)
 	/* Enable interrupts */
 	parport_ip32_frob_econtrol(p, ECR_SERVINTR, 0);
 
-	/* Find out writeIntrThreshold: number of PWords we know we can write
+	/* Find out writeIntrThreshold: number of PWords we kyesw we can write
 	 * if we get an interrupt. */
 	priv->writeIntrThreshold = 0;
 	for (i = 0; i < priv->fifo_depth; i++) {
@@ -1931,7 +1931,7 @@ static __init unsigned int parport_ip32_fifo_supported(struct parport *p)
 	}
 	pr_probe(p, "writeIntrThreshold is %u\n", priv->writeIntrThreshold);
 
-	/* FIFO must be empty now */
+	/* FIFO must be empty yesw */
 	if (!(readb(priv->regs.ecr) & ECR_F_EMPTY)) {
 		pr_probe(p, "Can't empty FIFO\n");
 		goto fail;
@@ -1941,7 +1941,7 @@ static __init unsigned int parport_ip32_fifo_supported(struct parport *p)
 	parport_ip32_set_mode(p, ECR_MODE_PS2);
 	/* Set reverse direction (must be in PS2 mode) */
 	parport_ip32_data_reverse(p);
-	/* Test FIFO, no interrupt, no DMA */
+	/* Test FIFO, yes interrupt, yes DMA */
 	parport_ip32_set_mode(p, ECR_MODE_TST);
 	/* Enable interrupts */
 	parport_ip32_frob_econtrol(p, ECR_SERVINTR, 0);
@@ -2069,7 +2069,7 @@ static __init struct parport *parport_ip32_probe_port(void)
 		/* Disable hardware modes depending on a working FIFO. */
 		features &= ~PARPORT_IP32_ENABLE_SPP;
 		features &= ~PARPORT_IP32_ENABLE_ECP;
-		/* DMA is not needed if FIFO is not supported.  */
+		/* DMA is yest needed if FIFO is yest supported.  */
 		features &= ~PARPORT_IP32_ENABLE_DMA;
 	}
 
@@ -2079,7 +2079,7 @@ static __init struct parport *parport_ip32_probe_port(void)
 		if (request_irq(irq, parport_ip32_interrupt, 0, p->name, p)) {
 			printk(KERN_WARNING PPIP32
 			       "%s: error: IRQ disabled\n", p->name);
-			/* DMA cannot work without interrupts. */
+			/* DMA canyest work without interrupts. */
 			features &= ~PARPORT_IP32_ENABLE_DMA;
 		} else {
 			pr_probe(p, "Interrupt support enabled\n");
@@ -2118,7 +2118,7 @@ static __init struct parport *parport_ip32_probe_port(void)
 	if (features & PARPORT_IP32_ENABLE_ECP) {
 		/* Enable ECP FIFO mode */
 		p->ops->ecp_write_data = parport_ip32_ecp_write_data;
-		/* FIXME - not implemented */
+		/* FIXME - yest implemented */
 /*		p->ops->ecp_read_data  = parport_ip32_ecp_read_data; */
 /*		p->ops->ecp_write_addr = parport_ip32_ecp_write_addr; */
 		p->modes |= PARPORT_MODE_ECP;
@@ -2153,7 +2153,7 @@ static __init struct parport *parport_ip32_probe_port(void)
 #undef printmode
 	printk("]\n");
 
-	parport_announce_port(p);
+	parport_anyesunce_port(p);
 	return p;
 
 fail:

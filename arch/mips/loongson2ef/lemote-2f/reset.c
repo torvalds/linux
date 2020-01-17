@@ -35,10 +35,10 @@ static void fl2f_reboot(void)
 
 	/* send a reset signal to south bridge.
 	 *
-	 * NOTE: if enable "Power Management" in kernel, rtl8169 will not reset
-	 * normally with this reset operation and it will not work in PMON, but
+	 * NOTE: if enable "Power Management" in kernel, rtl8169 will yest reset
+	 * yesrmally with this reset operation and it will yest work in PMON, but
 	 * you can type halt command and then reboot, seems the hardware reset
-	 * logic not work normally.
+	 * logic yest work yesrmally.
 	 */
 	{
 		u32 hi, lo;
@@ -70,7 +70,7 @@ static void fl2f_shutdown(void)
 	mmiowb();
 }
 
-/* reset support for yeeloong2f and mengloong2f notebook */
+/* reset support for yeeloong2f and mengloong2f yestebook */
 
 static void ml2f_reboot(void)
 {
@@ -101,7 +101,7 @@ static void ml2f_shutdown(void)
 	val = inb(EC_SHUTDOWN_IO_PORT_DATA);
 	outb(val & (~BIT_SHUTDOWN_ON), EC_SHUTDOWN_IO_PORT_DATA);
 	mmiowb();
-	/* need enough wait here... how many microseconds needs? */
+	/* need eyesugh wait here... how many microseconds needs? */
 	for (i = 0; i < 0x10000; i++)
 		delay();
 	outb(val | BIT_SHUTDOWN_ON, EC_SHUTDOWN_IO_PORT_DATA);

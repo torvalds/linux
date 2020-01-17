@@ -108,7 +108,7 @@ enum lochnagar_regulators {
 	LOCHNAGAR_VDDCORE,
 };
 
-static int lochnagar_micbias_of_parse(struct device_node *np,
+static int lochnagar_micbias_of_parse(struct device_yesde *np,
 				      const struct regulator_desc *desc,
 				      struct regulator_config *config)
 {

@@ -123,15 +123,15 @@ static const struct phy_ops cygnus_pcie_phy_ops = {
 static int cygnus_pcie_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node, *child;
+	struct device_yesde *yesde = dev->of_yesde, *child;
 	struct cygnus_pcie_phy_core *core;
 	struct phy_provider *provider;
 	struct resource *res;
 	unsigned cnt = 0;
 	int ret;
 
-	if (of_get_child_count(node) == 0) {
-		dev_err(dev, "PHY no child node\n");
+	if (of_get_child_count(yesde) == 0) {
+		dev_err(dev, "PHY yes child yesde\n");
 		return -ENODEV;
 	}
 
@@ -148,7 +148,7 @@ static int cygnus_pcie_phy_probe(struct platform_device *pdev)
 
 	mutex_init(&core->lock);
 
-	for_each_available_child_of_node(node, child) {
+	for_each_available_child_of_yesde(yesde, child) {
 		unsigned int id;
 		struct cygnus_pcie_phy *p;
 
@@ -197,7 +197,7 @@ static int cygnus_pcie_phy_probe(struct platform_device *pdev)
 
 	return 0;
 put_child:
-	of_node_put(child);
+	of_yesde_put(child);
 	return ret;
 }
 

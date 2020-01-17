@@ -98,7 +98,7 @@ EXPORT_SYMBOL_GPL(snd_hwparams_to_dma_slave_config);
  * fields will be initialized, if it is a capture stream the src fields will be
  * initialized. The {dst,src}_addr_width field will only be initialized if the
  * SND_DMAENGINE_PCM_DAI_FLAG_PACK flag is set or if the addr_width field of
- * the DAI DMA data struct is not equal to DMA_SLAVE_BUSWIDTH_UNDEFINED. If
+ * the DAI DMA data struct is yest equal to DMA_SLAVE_BUSWIDTH_UNDEFINED. If
  * both conditions are met the latter takes priority.
  */
 void snd_dmaengine_pcm_set_config_from_dai_data(
@@ -150,7 +150,7 @@ static int dmaengine_pcm_prepare_and_submit(struct snd_pcm_substream *substream)
 
 	direction = snd_pcm_substream_to_dma_direction(substream);
 
-	if (!substream->runtime->no_period_wakeup)
+	if (!substream->runtime->yes_period_wakeup)
 		flags |= DMA_PREP_INTERRUPT;
 
 	prtd->pos = 0;
@@ -217,18 +217,18 @@ int snd_dmaengine_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_trigger);
 
 /**
- * snd_dmaengine_pcm_pointer_no_residue - dmaengine based PCM pointer implementation
+ * snd_dmaengine_pcm_pointer_yes_residue - dmaengine based PCM pointer implementation
  * @substream: PCM substream
  *
- * This function is deprecated and should not be used by new drivers, as its
+ * This function is deprecated and should yest be used by new drivers, as its
  * results may be unreliable.
  */
-snd_pcm_uframes_t snd_dmaengine_pcm_pointer_no_residue(struct snd_pcm_substream *substream)
+snd_pcm_uframes_t snd_dmaengine_pcm_pointer_yes_residue(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 	return bytes_to_frames(substream->runtime, prtd->pos);
 }
-EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_pointer_no_residue);
+EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_pointer_yes_residue);
 
 /**
  * snd_dmaengine_pcm_pointer - dmaengine based PCM pointer implementation
@@ -287,7 +287,7 @@ EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_request_channel);
  *
  * The function should usually be called from the pcm open callback. Note that
  * this function will use private_data field of the substream's runtime. So it
- * is not available to your pcm driver implementation.
+ * is yest available to your pcm driver implementation.
  */
 int snd_dmaengine_pcm_open(struct snd_pcm_substream *substream,
 	struct dma_chan *chan)
@@ -326,7 +326,7 @@ EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_open);
  * This function will request a DMA channel using the passed filter function and
  * data. The function should usually be called from the pcm open callback. Note
  * that this function will use private_data field of the substream's runtime. So
- * it is not available to your pcm driver implementation.
+ * it is yest available to your pcm driver implementation.
  */
 int snd_dmaengine_pcm_open_request_chan(struct snd_pcm_substream *substream,
 	dma_filter_fn filter_fn, void *filter_data)
@@ -412,17 +412,17 @@ int snd_dmaengine_pcm_refine_runtime_hwparams(
 
 	/*
 	 * If SND_DMAENGINE_PCM_DAI_FLAG_PACK is set keep
-	 * hw.formats set to 0, meaning no restrictions are in place.
+	 * hw.formats set to 0, meaning yes restrictions are in place.
 	 * In this case it's the responsibility of the DAI driver to
 	 * provide the supported format information.
 	 */
 	if (!(dma_data->flags & SND_DMAENGINE_PCM_DAI_FLAG_PACK))
 		/*
 		 * Prepare formats mask for valid/allowed sample types. If the
-		 * dma does not have support for the given physical word size,
-		 * it needs to be masked out so user space can not use the
+		 * dma does yest have support for the given physical word size,
+		 * it needs to be masked out so user space can yest use the
 		 * format which produces corrupted audio.
-		 * In case the dma driver does not implement the slave_caps the
+		 * In case the dma driver does yest implement the slave_caps the
 		 * default assumption is that it supports 1, 2 and 4 bytes
 		 * widths.
 		 */

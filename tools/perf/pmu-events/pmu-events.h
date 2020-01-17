@@ -37,7 +37,7 @@ struct pmu_events_map {
 };
 
 /*
- * Global table mapping each known CPU for the architecture to its
+ * Global table mapping each kyeswn CPU for the architecture to its
  * table of PMU events.
  */
 extern struct pmu_events_map pmu_events_map[];

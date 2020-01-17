@@ -3,18 +3,18 @@
  *
  * This file provides the user-space API for random number generators.
  *
- * Copyright (C) 2014, Stephan Mueller <smueller@chronox.de>
+ * Copyright (C) 2014, Stephan Mueller <smueller@chroyesx.de>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    yestice, and the entire permission yestice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may yest be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -46,7 +46,7 @@
 #include <net/sock.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Stephan Mueller <smueller@chronox.de>");
+MODULE_AUTHOR("Stephan Mueller <smueller@chroyesx.de>");
 MODULE_DESCRIPTION("User-space interface for random number generators");
 
 struct rng_ctx {
@@ -71,16 +71,16 @@ static int rng_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		len = MAXSIZE;
 
 	/*
-	 * although not strictly needed, this is a precaution against coding
+	 * although yest strictly needed, this is a precaution against coding
 	 * errors
 	 */
 	memset(result, 0, len);
 
 	/*
 	 * The enforcement of a proper seeding of an RNG is done within an
-	 * RNG implementation. Some RNGs (DRBG, krng) do not need specific
+	 * RNG implementation. Some RNGs (DRBG, krng) do yest need specific
 	 * seeding as they automatically seed. The X9.31 DRNG will return
-	 * an error if it was not seeded properly.
+	 * an error if it was yest seeded properly.
 	 */
 	genlen = crypto_rng_get_bytes(ctx->drng, result, len);
 	if (genlen < 0)
@@ -95,19 +95,19 @@ static int rng_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 static struct proto_ops algif_rng_ops = {
 	.family		=	PF_ALG,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
-	.mmap		=	sock_no_mmap,
-	.bind		=	sock_no_bind,
-	.accept		=	sock_no_accept,
-	.setsockopt	=	sock_no_setsockopt,
-	.sendmsg	=	sock_no_sendmsg,
-	.sendpage	=	sock_no_sendpage,
+	.connect	=	sock_yes_connect,
+	.socketpair	=	sock_yes_socketpair,
+	.getname	=	sock_yes_getname,
+	.ioctl		=	sock_yes_ioctl,
+	.listen		=	sock_yes_listen,
+	.shutdown	=	sock_yes_shutdown,
+	.getsockopt	=	sock_yes_getsockopt,
+	.mmap		=	sock_yes_mmap,
+	.bind		=	sock_yes_bind,
+	.accept		=	sock_yes_accept,
+	.setsockopt	=	sock_yes_setsockopt,
+	.sendmsg	=	sock_yes_sendmsg,
+	.sendpage	=	sock_yes_sendpage,
 
 	.release	=	af_alg_release,
 	.recvmsg	=	rng_recvmsg,

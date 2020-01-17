@@ -19,7 +19,7 @@ kafs-y := \
 	flock.o \
 	fsclient.o \
 	fs_probe.o \
-	inode.o \
+	iyesde.o \
 	main.o \
 	misc.o \
 	mntpt.o \

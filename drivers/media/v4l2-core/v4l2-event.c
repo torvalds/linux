@@ -54,11 +54,11 @@ static int __v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event)
 }
 
 int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
-		       int nonblocking)
+		       int yesnblocking)
 {
 	int ret;
 
-	if (nonblocking)
+	if (yesnblocking)
 		return __v4l2_event_dequeue(fh, event);
 
 	/* Release the vdev lock while waiting */
@@ -113,7 +113,7 @@ static void __v4l2_event_queue_fh(struct v4l2_fh *fh,
 
 	/* Do we have any free events? */
 	if (sev->in_use == sev->elems) {
-		/* no, remove the oldest one */
+		/* yes, remove the oldest one */
 		kev = sev->events + sev_pos(sev, 0);
 		list_del(&kev->list);
 		sev->in_use--;

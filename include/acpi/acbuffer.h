@@ -16,10 +16,10 @@
  */
 
 /*
- * Note: C bitfields are not used for this reason:
+ * Note: C bitfields are yest used for this reason:
  *
  * "Bitfields are great and easy to read, but unfortunately the C language
- * does not specify the layout of bitfields in memory, which means they are
+ * does yest specify the layout of bitfields in memory, which means they are
  * essentially useless for dealing with packed data in on-disk formats or
  * binary wire protocols." (Or ACPI tables and buffers.) "If you ask me,
  * this decision was a design error in C. Ritchie could have picked an order
@@ -76,7 +76,7 @@ struct acpi_gtm_info {
  */
 struct acpi_pld_info {
 	u8 revision;
-	u8 ignore_color;
+	u8 igyesre_color;
 	u8 red;
 	u8 green;
 	u8 blue;

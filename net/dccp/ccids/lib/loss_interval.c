@@ -24,7 +24,7 @@ static inline struct tfrc_loss_interval *tfrc_lh_peek(struct tfrc_loss_hist *lh)
 	return lh->counter ? lh->ring[LIH_INDEX(lh->counter - 1)] : NULL;
 }
 
-/* given i with 0 <= i <= k, return I_i as per the rfc3448bis notation */
+/* given i with 0 <= i <= k, return I_i as per the rfc3448bis yestation */
 static inline u32 tfrc_lh_get_interval(struct tfrc_loss_hist *lh, const u8 i)
 {
 	BUG_ON(i >= lh->counter);
@@ -87,10 +87,10 @@ u8 tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)
 	u32 old_i_mean = lh->i_mean;
 	s64 len;
 
-	if (cur == NULL)			/* not initialised */
+	if (cur == NULL)			/* yest initialised */
 		return 0;
 
-	len = dccp_delta_seqno(cur->li_seqno, DCCP_SKB_CB(skb)->dccpd_seq) + 1;
+	len = dccp_delta_seqyes(cur->li_seqyes, DCCP_SKB_CB(skb)->dccpd_seq) + 1;
 
 	if (len - (s64)cur->li_length <= 0)	/* duplicate or reordered */
 		return 0;
@@ -98,7 +98,7 @@ u8 tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)
 	if (SUB16(dccp_hdr(skb)->dccph_ccval, cur->li_ccval) > 4)
 		/*
 		 * Implements RFC 4342, 10.2:
-		 * If a packet S (skb) exists whose seqno comes `after' the one
+		 * If a packet S (skb) exists whose seqyes comes `after' the one
 		 * starting the current loss interval (cur) and if the modulo-16
 		 * distance from C(cur) to C(S) is greater than 4, consider all
 		 * subsequent packets as belonging to a new loss interval. This
@@ -119,7 +119,7 @@ u8 tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)
 static inline u8 tfrc_lh_is_new_loss(struct tfrc_loss_interval *cur,
 				     struct tfrc_rx_hist_entry *new_loss)
 {
-	return	dccp_delta_seqno(cur->li_seqno, new_loss->tfrchrx_seqno) > 0 &&
+	return	dccp_delta_seqyes(cur->li_seqyes, new_loss->tfrchrx_seqyes) > 0 &&
 		(cur->li_is_closed || SUB16(new_loss->tfrchrx_ccval, cur->li_ccval) > 4);
 }
 
@@ -142,20 +142,20 @@ int tfrc_lh_interval_add(struct tfrc_loss_hist *lh, struct tfrc_rx_hist *rh,
 
 	new = tfrc_lh_demand_next(lh);
 	if (unlikely(new == NULL)) {
-		DCCP_CRIT("Cannot allocate/add loss record.");
+		DCCP_CRIT("Canyest allocate/add loss record.");
 		return 0;
 	}
 
-	new->li_seqno	  = tfrc_rx_hist_loss_prev(rh)->tfrchrx_seqno;
+	new->li_seqyes	  = tfrc_rx_hist_loss_prev(rh)->tfrchrx_seqyes;
 	new->li_ccval	  = tfrc_rx_hist_loss_prev(rh)->tfrchrx_ccval;
 	new->li_is_closed = 0;
 
 	if (++lh->counter == 1)
 		lh->i_mean = new->li_length = (*calc_first_li)(sk);
 	else {
-		cur->li_length = dccp_delta_seqno(cur->li_seqno, new->li_seqno);
-		new->li_length = dccp_delta_seqno(new->li_seqno,
-				  tfrc_rx_hist_last_rcv(rh)->tfrchrx_seqno) + 1;
+		cur->li_length = dccp_delta_seqyes(cur->li_seqyes, new->li_seqyes);
+		new->li_length = dccp_delta_seqyes(new->li_seqyes,
+				  tfrc_rx_hist_last_rcv(rh)->tfrchrx_seqyes) + 1;
 		if (lh->counter > (2*LIH_SIZE))
 			lh->counter -= LIH_SIZE;
 

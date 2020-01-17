@@ -158,7 +158,7 @@ struct hdcp2_ake_send_cert {
 	u8			rx_caps[HDCP_2_2_RXCAPS_LEN];
 } __packed;
 
-struct hdcp2_ake_no_stored_km {
+struct hdcp2_ake_yes_stored_km {
 	u8	msg_id;
 	u8	e_kpub_km[HDCP_2_2_E_KPUB_KM_LEN];
 } __packed;
@@ -282,7 +282,7 @@ struct hdcp_srm_header {
 	u8 srm_id;
 	u8 reserved;
 	__be16 srm_version;
-	u8 srm_gen_no;
+	u8 srm_gen_yes;
 } __packed;
 
 struct drm_device;

@@ -7,13 +7,13 @@
 #include <linux/net.h>		/* struct socket, struct proto_ops */
 #include <linux/atm.h>		/* ATM stuff */
 #include <linux/atmdev.h>	/* ATM devices */
-#include <linux/errno.h>	/* error codes */
+#include <linux/erryes.h>	/* error codes */
 #include <linux/kernel.h>	/* printk */
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
 #include <linux/export.h>
-#include <net/sock.h>		/* for sock_no_* */
+#include <net/sock.h>		/* for sock_yes_* */
 
 #include "resources.h"		/* devs and vccs */
 #include "common.h"		/* common for PVCs and SVCs */
@@ -110,8 +110,8 @@ static const struct proto_ops pvc_proto_ops = {
 	.release =	vcc_release,
 	.bind =		pvc_bind,
 	.connect =	pvc_connect,
-	.socketpair =	sock_no_socketpair,
-	.accept =	sock_no_accept,
+	.socketpair =	sock_yes_socketpair,
+	.accept =	sock_yes_accept,
 	.getname =	pvc_getname,
 	.poll =		vcc_poll,
 	.ioctl =	vcc_ioctl,
@@ -119,14 +119,14 @@ static const struct proto_ops pvc_proto_ops = {
 	.compat_ioctl = vcc_compat_ioctl,
 #endif
 	.gettstamp =	sock_gettstamp,
-	.listen =	sock_no_listen,
+	.listen =	sock_yes_listen,
 	.shutdown =	pvc_shutdown,
 	.setsockopt =	pvc_setsockopt,
 	.getsockopt =	pvc_getsockopt,
 	.sendmsg =	vcc_sendmsg,
 	.recvmsg =	vcc_recvmsg,
-	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
+	.mmap =		sock_yes_mmap,
+	.sendpage =	sock_yes_sendpage,
 };
 
 

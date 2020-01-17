@@ -77,7 +77,7 @@ static void mic_dp_uninit(struct mic_device *mdev)
  *
  * @mdev: pointer to mic_device instance
  *
- * returns none.
+ * returns yesne.
  */
 static void mic_ops_init(struct mic_device *mdev)
 {
@@ -134,7 +134,7 @@ static enum mic_hw_family mic_get_family(struct pci_dev *pdev)
  * @mdev: pointer to mic_device instance
  * @pdev: The pci device structure
  *
- * returns none.
+ * returns yesne.
  */
 static void
 mic_device_init(struct mic_device *mdev, struct pci_dev *pdev)
@@ -192,7 +192,7 @@ static int mic_probe(struct pci_dev *pdev,
 
 	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (rc) {
-		dev_err(&pdev->dev, "Cannot set DMA mask\n");
+		dev_err(&pdev->dev, "Canyest set DMA mask\n");
 		goto release_regions;
 	}
 
@@ -200,7 +200,7 @@ static int mic_probe(struct pci_dev *pdev,
 	mdev->mmio.len = pci_resource_len(pdev, mdev->ops->mmio_bar);
 	mdev->mmio.va = pci_ioremap_bar(pdev, mdev->ops->mmio_bar);
 	if (!mdev->mmio.va) {
-		dev_err(&pdev->dev, "Cannot remap MMIO BAR\n");
+		dev_err(&pdev->dev, "Canyest remap MMIO BAR\n");
 		rc = -EIO;
 		goto release_regions;
 	}
@@ -209,7 +209,7 @@ static int mic_probe(struct pci_dev *pdev,
 	mdev->aper.len = pci_resource_len(pdev, mdev->ops->aper_bar);
 	mdev->aper.va = ioremap_wc(mdev->aper.pa, mdev->aper.len);
 	if (!mdev->aper.va) {
-		dev_err(&pdev->dev, "Cannot remap Aperture BAR\n");
+		dev_err(&pdev->dev, "Canyest remap Aperture BAR\n");
 		rc = -EIO;
 		goto unmap_mmio;
 	}

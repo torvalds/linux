@@ -144,10 +144,10 @@ int adv7533_attach_dsi(struct adv7511 *adv)
 	int ret = 0;
 	const struct mipi_dsi_device_info info = { .type = "adv7533",
 						   .channel = 0,
-						   .node = NULL,
+						   .yesde = NULL,
 						 };
 
-	host = of_find_mipi_dsi_host_by_node(adv->host_node);
+	host = of_find_mipi_dsi_host_by_yesde(adv->host_yesde);
 	if (!host) {
 		dev_err(dev, "failed to find dsi host\n");
 		return -EPROBE_DEFER;
@@ -187,7 +187,7 @@ void adv7533_detach_dsi(struct adv7511 *adv)
 	mipi_dsi_device_unregister(adv->dsi);
 }
 
-int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv)
+int adv7533_parse_dt(struct device_yesde *np, struct adv7511 *adv)
 {
 	u32 num_lanes;
 
@@ -198,16 +198,16 @@ int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv)
 
 	adv->num_dsi_lanes = num_lanes;
 
-	adv->host_node = of_graph_get_remote_node(np, 0, 0);
-	if (!adv->host_node)
+	adv->host_yesde = of_graph_get_remote_yesde(np, 0, 0);
+	if (!adv->host_yesde)
 		return -ENODEV;
 
-	of_node_put(adv->host_node);
+	of_yesde_put(adv->host_yesde);
 
 	adv->use_timing_gen = !of_property_read_bool(np,
 						"adi,disable-timing-generator");
 
-	/* TODO: Check if these need to be parsed by DT or not */
+	/* TODO: Check if these need to be parsed by DT or yest */
 	adv->rgb = true;
 	adv->embedded_sync = false;
 

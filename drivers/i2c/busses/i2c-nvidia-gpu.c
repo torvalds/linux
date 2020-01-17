@@ -174,7 +174,7 @@ static int gpu_i2c_master_xfer(struct i2c_adapter *adap,
 	int i, j;
 
 	/*
-	 * The controller supports maximum 4 byte read due to known
+	 * The controller supports maximum 4 byte read due to kyeswn
 	 * limitation of sending STOP after every read.
 	 */
 	pm_runtime_get_sync(i2cd->dev);
@@ -245,10 +245,10 @@ static const struct i2c_algorithm gpu_i2c_algorithm = {
  * We want to identify the cards using vendor ID and class code only
  * to avoid dependency of adding product id for any new card which
  * requires this driver.
- * Currently there is no class code defined for UCSI device over PCI
- * so using UNKNOWN class for now and it will be updated when UCSI
+ * Currently there is yes class code defined for UCSI device over PCI
+ * so using UNKNOWN class for yesw and it will be updated when UCSI
  * over PCI gets a class code.
- * There is no other NVIDIA cards with UNKNOWN class code. Even if the
+ * There is yes other NVIDIA cards with UNKNOWN class code. Even if the
  * driver gets loaded for an undesired card then eventually i2c_read()
  * (initiated from UCSI i2c_client) will timeout or UCSI commands will
  * timeout.
@@ -356,7 +356,7 @@ static void gpu_i2c_remove(struct pci_dev *pdev)
 {
 	struct gpu_i2c_dev *i2cd = dev_get_drvdata(&pdev->dev);
 
-	pm_runtime_get_noresume(i2cd->dev);
+	pm_runtime_get_yesresume(i2cd->dev);
 	i2c_del_adapter(&i2cd->adapter);
 	pci_free_irq_vectors(pdev);
 }
@@ -378,8 +378,8 @@ static __maybe_unused int gpu_i2c_resume(struct device *dev)
 	gpu_enable_i2c_bus(i2cd);
 	/*
 	 * Runtime resume ccgx client so that it can see for any
-	 * connector change event. Old ccg firmware has known
-	 * issue of not triggering interrupt when a device is
+	 * connector change event. Old ccg firmware has kyeswn
+	 * issue of yest triggering interrupt when a device is
 	 * connected to runtime resume the controller.
 	 */
 	pm_request_resume(&i2cd->ccgx_client->dev);

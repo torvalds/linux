@@ -124,7 +124,7 @@ For the other clocks with "#clock-cells" = 1, the additional ID shall
 refer to the index of the output.
 
 For "allwinner,sun6i-a31-pll6-clk", there are 2 outputs. The first output
-is the normal PLL6 output, or "pll6". The second output is rate doubled
+is the yesrmal PLL6 output, or "pll6". The second output is rate doubled
 PLL6, or "pll6x2".
 
 The "allwinner,*-mmc-clk" clocks have three different outputs: the

@@ -8,12 +8,12 @@
 
 #include <linux/kernel.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/swap.h>
 #include <linux/init.h>
 #include <linux/cache.h>
 #include <linux/mman.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/initrd.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
@@ -48,7 +48,7 @@
  * We need to be able to catch inadvertent references to memstart_addr
  * that occur (potentially in generic code) before arm64_memblock_init()
  * executes, which assigns it its actual value. So use a default value
- * that cannot be mistaken for a real physical address.
+ * that canyest be mistaken for a real physical address.
  */
 s64 memstart_addr __ro_after_init = -1;
 EXPORT_SYMBOL(memstart_addr);
@@ -83,7 +83,7 @@ static void __init reserve_crashkernel(void)
 
 	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
 				&crash_size, &crash_base);
-	/* no crashkernel= or invalid value specified */
+	/* yes crashkernel= or invalid value specified */
 	if (ret || !crash_size)
 		return;
 
@@ -94,24 +94,24 @@ static void __init reserve_crashkernel(void)
 		crash_base = memblock_find_in_range(0, arm64_dma32_phys_limit,
 				crash_size, SZ_2M);
 		if (crash_base == 0) {
-			pr_warn("cannot allocate crashkernel (size:0x%llx)\n",
+			pr_warn("canyest allocate crashkernel (size:0x%llx)\n",
 				crash_size);
 			return;
 		}
 	} else {
 		/* User specifies base address explicitly. */
 		if (!memblock_is_region_memory(crash_base, crash_size)) {
-			pr_warn("cannot reserve crashkernel: region is not memory\n");
+			pr_warn("canyest reserve crashkernel: region is yest memory\n");
 			return;
 		}
 
 		if (memblock_is_region_reserved(crash_base, crash_size)) {
-			pr_warn("cannot reserve crashkernel: region overlaps reserved memory\n");
+			pr_warn("canyest reserve crashkernel: region overlaps reserved memory\n");
 			return;
 		}
 
 		if (!IS_ALIGNED(crash_base, SZ_2M)) {
-			pr_warn("cannot reserve crashkernel: base address is not 2MB aligned\n");
+			pr_warn("canyest reserve crashkernel: base address is yest 2MB aligned\n");
 			return;
 		}
 	}
@@ -130,7 +130,7 @@ static void __init reserve_crashkernel(void)
 #endif /* CONFIG_KEXEC_CORE */
 
 #ifdef CONFIG_CRASH_DUMP
-static int __init early_init_dt_scan_elfcorehdr(unsigned long node,
+static int __init early_init_dt_scan_elfcorehdr(unsigned long yesde,
 		const char *uname, int depth, void *data)
 {
 	const __be32 *reg;
@@ -139,7 +139,7 @@ static int __init early_init_dt_scan_elfcorehdr(unsigned long node,
 	if (depth != 1 || strcmp(uname, "chosen") != 0)
 		return 0;
 
-	reg = of_get_flat_dt_prop(node, "linux,elfcorehdr", &len);
+	reg = of_get_flat_dt_prop(yesde, "linux,elfcorehdr", &len);
 	if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
 		return 1;
 
@@ -205,7 +205,7 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
 #endif
 	max_zone_pfns[ZONE_NORMAL] = max;
 
-	free_area_init_nodes(max_zone_pfns);
+	free_area_init_yesdes(max_zone_pfns);
 }
 
 #else
@@ -250,12 +250,12 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
 		}
 #endif
 		if (start >= max_dma32 && start < max) {
-			unsigned long normal_end = min(end, max);
-			zhole_size[ZONE_NORMAL] -= normal_end - start;
+			unsigned long yesrmal_end = min(end, max);
+			zhole_size[ZONE_NORMAL] -= yesrmal_end - start;
 		}
 	}
 
-	free_area_init_node(0, zone_size, min, zhole_size);
+	free_area_init_yesde(0, zone_size, min, zhole_size);
 }
 
 #endif /* CONFIG_NUMA */
@@ -289,13 +289,13 @@ static int __init early_mem(char *p)
 		return 1;
 
 	memory_limit = memparse(p, &p) & PAGE_MASK;
-	pr_notice("Memory limited to %lldMB\n", memory_limit >> 20);
+	pr_yestice("Memory limited to %lldMB\n", memory_limit >> 20);
 
 	return 0;
 }
 early_param("mem", early_mem);
 
-static int __init early_init_dt_scan_usablemem(unsigned long node,
+static int __init early_init_dt_scan_usablemem(unsigned long yesde,
 		const char *uname, int depth, void *data)
 {
 	struct memblock_region *usablemem = data;
@@ -305,7 +305,7 @@ static int __init early_init_dt_scan_usablemem(unsigned long node,
 	if (depth != 1 || strcmp(uname, "chosen") != 0)
 		return 0;
 
-	reg = of_get_flat_dt_prop(node, "linux,usable-memory-range", &len);
+	reg = of_get_flat_dt_prop(yesde, "linux,usable-memory-range", &len);
 	if (!reg || (len < (dt_root_addr_cells + dt_root_size_cells)))
 		return 1;
 
@@ -349,7 +349,7 @@ void __init arm64_memblock_init(void)
 
 	/*
 	 * If we are running with a 52-bit kernel VA config on a system that
-	 * does not support it, we have to offset our vmemmap and physvirt_offset
+	 * does yest support it, we have to offset our vmemmap and physvirt_offset
 	 * s.t. we avoid the 52-bit portion of the direct linear map
 	 */
 	if (IS_ENABLED(CONFIG_ARM64_VA_BITS_52) && (vabits_actual != 52)) {
@@ -358,8 +358,8 @@ void __init arm64_memblock_init(void)
 	}
 
 	/*
-	 * Remove the memory that we will not be able to cover with the
-	 * linear mapping. Take care not to clip the kernel which may be
+	 * Remove the memory that we will yest be able to cover with the
+	 * linear mapping. Take care yest to clip the kernel which may be
 	 * high in memory.
 	 */
 	memblock_remove(max_t(u64, memstart_addr + linear_region_size,
@@ -385,7 +385,7 @@ void __init arm64_memblock_init(void)
 		/*
 		 * Add back the memory we just removed if it results in the
 		 * initrd to become inaccessible via the linear mapping.
-		 * Otherwise, this is a no-op
+		 * Otherwise, this is a yes-op
 		 */
 		u64 base = phys_initrd_start & PAGE_MASK;
 		u64 size = PAGE_ALIGN(phys_initrd_start + phys_initrd_size) - base;
@@ -401,7 +401,7 @@ void __init arm64_memblock_init(void)
 		if (WARN(base < memblock_start_of_DRAM() ||
 			 base + size > memblock_start_of_DRAM() +
 				       linear_region_size,
-			"initrd not fully accessible via the linear mapping -- please check your bootloader ...\n")) {
+			"initrd yest fully accessible via the linear mapping -- please check your bootloader ...\n")) {
 			phys_initrd_size = 0;
 		} else {
 			memblock_remove(base, size); /* clear MEMBLOCK_ flags */
@@ -524,7 +524,7 @@ static void __init free_unused_memmap(void)
 
 #ifdef CONFIG_SPARSEMEM
 		/*
-		 * Take care not to free memmap entries that don't exist due
+		 * Take care yest to free memmap entries that don't exist due
 		 * to SPARSEMEM sections which aren't present.
 		 */
 		start = min(start, ALIGN(prev_end, PAGES_PER_SECTION));
@@ -601,7 +601,7 @@ void free_initmem(void)
 	/*
 	 * Unmap the __init region but leave the VM area in place. This
 	 * prevents the region from being reused for kernel modules, which
-	 * is not supported by kallsyms.
+	 * is yest supported by kallsyms.
 	 */
 	unmap_kernel_range((u64)__init_begin, (u64)(__init_end - __init_begin));
 }
@@ -609,24 +609,24 @@ void free_initmem(void)
 /*
  * Dump out memory limit information on panic.
  */
-static int dump_mem_limit(struct notifier_block *self, unsigned long v, void *p)
+static int dump_mem_limit(struct yestifier_block *self, unsigned long v, void *p)
 {
 	if (memory_limit != PHYS_ADDR_MAX) {
 		pr_emerg("Memory Limit: %llu MB\n", memory_limit >> 20);
 	} else {
-		pr_emerg("Memory Limit: none\n");
+		pr_emerg("Memory Limit: yesne\n");
 	}
 	return 0;
 }
 
-static struct notifier_block mem_limit_notifier = {
-	.notifier_call = dump_mem_limit,
+static struct yestifier_block mem_limit_yestifier = {
+	.yestifier_call = dump_mem_limit,
 };
 
 static int __init register_mem_limit_dumper(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &mem_limit_notifier);
+	atomic_yestifier_chain_register(&panic_yestifier_list,
+				       &mem_limit_yestifier);
 	return 0;
 }
 __initcall(register_mem_limit_dumper);

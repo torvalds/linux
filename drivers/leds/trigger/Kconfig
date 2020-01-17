@@ -23,8 +23,8 @@ config LEDS_TRIGGER_ONESHOT
 	tristate "LED One-shot Trigger"
 	help
 	  This allows LEDs to blink in one-shot pulses with parameters
-	  controlled via sysfs.  It's useful to notify the user on
-	  sporadic events, when there are no clear begin and end trap points,
+	  controlled via sysfs.  It's useful to yestify the user on
+	  sporadic events, when there are yes clear begin and end trap points,
 	  or on dense events, where this blinks the LED at constant rate if
 	  rearmed continuously.
 

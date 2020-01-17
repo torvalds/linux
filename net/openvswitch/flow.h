@@ -47,7 +47,7 @@ struct ovs_tunnel_info {
 
 struct vlan_head {
 	__be16 tpid; /* Vlan type. Generally 802.1q or 802.1ad.*/
-	__be16 tci;  /* 0 if no VLAN, VLAN_CFI_MASK set otherwise. */
+	__be16 tci;  /* 0 if yes VLAN, VLAN_CFI_MASK set otherwise. */
 };
 
 #define OVS_SW_FLOW_KEY_METADATA_SIZE			\
@@ -141,7 +141,7 @@ struct sw_flow_key {
 		struct ovs_key_nsh nsh;         /* network service header */
 	};
 	struct {
-		/* Connection tracking fields not packed above. */
+		/* Connection tracking fields yest packed above. */
 		struct {
 			__be16 src;	/* CT orig tuple tp src port. */
 			__be16 dst;	/* CT orig tuple tp dst port. */
@@ -207,7 +207,7 @@ struct sw_flow_stats {
 struct sw_flow {
 	struct rcu_head rcu;
 	struct {
-		struct hlist_node node[2];
+		struct hlist_yesde yesde[2];
 		u32 hash;
 	} flow_table, ufid_table;
 	int stats_last_writer;		/* CPU id of the last writer on

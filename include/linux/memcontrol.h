@@ -5,7 +5,7 @@
  * Author Balbir Singh <balbir@linux.vnet.ibm.com>
  *
  * Copyright 2007 OpenVZ SWsoft Inc
- * Author: Pavel Emelianov <xemul@openvz.org>
+ * Author: Pavel Emeliayesv <xemul@openvz.org>
  */
 
 #ifndef _LINUX_MEMCONTROL_H
@@ -27,14 +27,14 @@ struct page;
 struct mm_struct;
 struct kmem_cache;
 
-/* Cgroup-specific page state, on top of universal node page state */
+/* Cgroup-specific page state, on top of universal yesde page state */
 enum memcg_stat_item {
 	MEMCG_CACHE = NR_VM_NODE_STAT_ITEMS,
 	MEMCG_RSS,
 	MEMCG_RSS_HUGE,
 	MEMCG_SWAP,
 	MEMCG_SOCK,
-	/* XXX: why are these zone and not node counters? */
+	/* XXX: why are these zone and yest yesde counters? */
 	MEMCG_KERNEL_STACK_KB,
 	MEMCG_NR_STAT,
 };
@@ -110,9 +110,9 @@ struct memcg_shrinker_map {
 };
 
 /*
- * per-node information in memory controller.
+ * per-yesde information in memory controller.
  */
-struct mem_cgroup_per_node {
+struct mem_cgroup_per_yesde {
 	struct lruvec		lruvec;
 
 	/* Legacy local VM stats */
@@ -128,11 +128,11 @@ struct mem_cgroup_per_node {
 
 	struct memcg_shrinker_map __rcu	*shrinker_map;
 
-	struct rb_node		tree_node;	/* RB tree node */
+	struct rb_yesde		tree_yesde;	/* RB tree yesde */
 	unsigned long		usage_in_excess;/* Set to the value by which */
 						/* the soft limit is exceeded*/
 	bool			on_tree;
-	struct mem_cgroup	*memcg;		/* Back pointer, we cannot */
+	struct mem_cgroup	*memcg;		/* Back pointer, we canyest */
 						/* use container_of	   */
 };
 
@@ -171,7 +171,7 @@ enum memcg_kmem_state {
 #if defined(CONFIG_SMP)
 struct memcg_padding {
 	char x[0];
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 #define MEMCG_PADDING(name)      struct memcg_padding name;
 #else
 #define MEMCG_PADDING(name)
@@ -179,17 +179,17 @@ struct memcg_padding {
 
 /*
  * Remember four most recent foreign writebacks with dirty pages in this
- * cgroup.  Inode sharing is expected to be uncommon and, even if we miss
+ * cgroup.  Iyesde sharing is expected to be uncommon and, even if we miss
  * one in a given round, we're likely to catch it later if it keeps
- * foreign-dirtying, so a fairly low count should be enough.
+ * foreign-dirtying, so a fairly low count should be eyesugh.
  *
  * See mem_cgroup_track_foreign_dirty_slowpath() for details.
  */
 #define MEMCG_CGWB_FRN_CNT	4
 
 struct memcg_cgwb_frn {
-	u64 bdi_id;			/* bdi->id of the foreign inode */
-	int memcg_id;			/* memcg->css.id of foreign inode */
+	u64 bdi_id;			/* bdi->id of the foreign iyesde */
+	int memcg_id;			/* memcg->css.id of foreign iyesde */
 	u64 at;				/* jiffies_64 at the time of dirtying */
 	struct wb_completion done;	/* tracks in-flight foreign writebacks */
 };
@@ -198,7 +198,7 @@ struct memcg_cgwb_frn {
  * The memory controller data structure. The memory controller controls both
  * page cache and RSS per cgroup. We would eventually like to provide
  * statistics based on the statistics developed by Rik Van Riel for clock-pro,
- * to help the administrator determine what knobs to tune.
+ * to help the administrator determine what kyesbs to tune.
  */
 struct mem_cgroup {
 	struct cgroup_subsys_state css;
@@ -215,7 +215,7 @@ struct mem_cgroup {
 	struct page_counter kmem;
 	struct page_counter tcpmem;
 
-	/* Upper bound of normal memory consumption range */
+	/* Upper bound of yesrmal memory consumption range */
 	unsigned long high;
 
 	/* Range enforcement for interrupt charges */
@@ -223,7 +223,7 @@ struct mem_cgroup {
 
 	unsigned long soft_limit;
 
-	/* vmpressure notifications */
+	/* vmpressure yestifications */
 	struct vmpressure vmpressure;
 
 	/*
@@ -260,8 +260,8 @@ struct mem_cgroup {
 	/* thresholds for mem+swap usage. RCU-protected */
 	struct mem_cgroup_thresholds memsw_thresholds;
 
-	/* For oom notifier event fd */
-	struct list_head oom_notify;
+	/* For oom yestifier event fd */
+	struct list_head oom_yestify;
 
 	/*
 	 * Should we move charges of a task when a task is moved into this
@@ -322,8 +322,8 @@ struct mem_cgroup {
 	struct deferred_split deferred_split_queue;
 #endif
 
-	struct mem_cgroup_per_node *nodeinfo[0];
-	/* WARNING: nodeinfo must be the last member here */
+	struct mem_cgroup_per_yesde *yesdeinfo[0];
+	/* WARNING: yesdeinfo must be the last member here */
 };
 
 /*
@@ -375,24 +375,24 @@ void mem_cgroup_uncharge_list(struct list_head *page_list);
 
 void mem_cgroup_migrate(struct page *oldpage, struct page *newpage);
 
-static struct mem_cgroup_per_node *
-mem_cgroup_nodeinfo(struct mem_cgroup *memcg, int nid)
+static struct mem_cgroup_per_yesde *
+mem_cgroup_yesdeinfo(struct mem_cgroup *memcg, int nid)
 {
-	return memcg->nodeinfo[nid];
+	return memcg->yesdeinfo[nid];
 }
 
 /**
- * mem_cgroup_lruvec - get the lru list vector for a memcg & node
+ * mem_cgroup_lruvec - get the lru list vector for a memcg & yesde
  * @memcg: memcg of the wanted lruvec
  *
  * Returns the lru list vector holding pages for a given @memcg &
- * @node combination. This can be the node lruvec, if the memory
+ * @yesde combination. This can be the yesde lruvec, if the memory
  * controller is disabled.
  */
 static inline struct lruvec *mem_cgroup_lruvec(struct mem_cgroup *memcg,
 					       struct pglist_data *pgdat)
 {
-	struct mem_cgroup_per_node *mz;
+	struct mem_cgroup_per_yesde *mz;
 	struct lruvec *lruvec;
 
 	if (mem_cgroup_disabled()) {
@@ -403,11 +403,11 @@ static inline struct lruvec *mem_cgroup_lruvec(struct mem_cgroup *memcg,
 	if (!memcg)
 		memcg = root_mem_cgroup;
 
-	mz = mem_cgroup_nodeinfo(memcg, pgdat->node_id);
+	mz = mem_cgroup_yesdeinfo(memcg, pgdat->yesde_id);
 	lruvec = &mz->lruvec;
 out:
 	/*
-	 * Since a node can be onlined after the mem_cgroup was created,
+	 * Since a yesde can be onlined after the mem_cgroup was created,
 	 * we have to be prepared to initialize lruvec->pgdat here;
 	 * and if offlined then reonlined, we need to reinitialize it.
 	 */
@@ -461,12 +461,12 @@ static inline struct mem_cgroup *mem_cgroup_from_seq(struct seq_file *m)
 
 static inline struct mem_cgroup *lruvec_memcg(struct lruvec *lruvec)
 {
-	struct mem_cgroup_per_node *mz;
+	struct mem_cgroup_per_yesde *mz;
 
 	if (mem_cgroup_disabled())
 		return NULL;
 
-	mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+	mz = container_of(lruvec, struct mem_cgroup_per_yesde, lruvec);
 	return mz->memcg;
 }
 
@@ -475,7 +475,7 @@ static inline struct mem_cgroup *lruvec_memcg(struct lruvec *lruvec)
  * @memcg: memcg whose parent to find
  *
  * Returns the parent memcg, or NULL if this is the root or the memory
- * controller is in legacy no-hierarchy mode.
+ * controller is in legacy yes-hierarchy mode.
  */
 static inline struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg)
 {
@@ -509,7 +509,7 @@ static inline bool mm_match_cgroup(struct mm_struct *mm,
 }
 
 struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page);
-ino_t page_cgroup_ino(struct page *page);
+iyes_t page_cgroup_iyes(struct page *page);
 
 static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
 {
@@ -521,7 +521,7 @@ static inline bool mem_cgroup_online(struct mem_cgroup *memcg)
 /*
  * For memory reclaim.
  */
-int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
+int mem_cgroup_select_victim_yesde(struct mem_cgroup *memcg);
 
 void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
 		int zid, int nr_pages);
@@ -530,9 +530,9 @@ static inline
 unsigned long mem_cgroup_get_zone_lru_size(struct lruvec *lruvec,
 		enum lru_list lru, int zone_idx)
 {
-	struct mem_cgroup_per_node *mz;
+	struct mem_cgroup_per_yesde *mz;
 
-	mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+	mz = container_of(lruvec, struct mem_cgroup_per_yesde, lruvec);
 	return mz->lru_zone_size[zone_idx][lru];
 }
 
@@ -578,7 +578,7 @@ void __unlock_page_memcg(struct mem_cgroup *memcg);
 void unlock_page_memcg(struct page *page);
 
 /*
- * idx can be of type enum memcg_stat_item or node_stat_item.
+ * idx can be of type enum memcg_stat_item or yesde_stat_item.
  * Keep in sync with memcg_exact_page_state().
  */
 static inline unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx)
@@ -592,7 +592,7 @@ static inline unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx)
 }
 
 /*
- * idx can be of type enum memcg_stat_item or node_stat_item.
+ * idx can be of type enum memcg_stat_item or yesde_stat_item.
  * Keep in sync with memcg_exact_page_state().
  */
 static inline unsigned long memcg_page_state_local(struct mem_cgroup *memcg,
@@ -612,7 +612,7 @@ static inline unsigned long memcg_page_state_local(struct mem_cgroup *memcg,
 
 void __mod_memcg_state(struct mem_cgroup *memcg, int idx, int val);
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
+/* idx can be of type enum memcg_stat_item or yesde_stat_item */
 static inline void mod_memcg_state(struct mem_cgroup *memcg,
 				   int idx, int val)
 {
@@ -631,7 +631,7 @@ static inline void mod_memcg_state(struct mem_cgroup *memcg,
  *
  * The @page must be locked or the caller must use lock_page_memcg()
  * to prevent double accounting when the page is concurrently being
- * moved to another memcg:
+ * moved to ayesther memcg:
  *
  *   lock_page(page) or lock_page_memcg(page)
  *   if (TestClearPageState(page))
@@ -655,15 +655,15 @@ static inline void mod_memcg_page_state(struct page *page,
 }
 
 static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
-					      enum node_stat_item idx)
+					      enum yesde_stat_item idx)
 {
-	struct mem_cgroup_per_node *pn;
+	struct mem_cgroup_per_yesde *pn;
 	long x;
 
 	if (mem_cgroup_disabled())
-		return node_page_state(lruvec_pgdat(lruvec), idx);
+		return yesde_page_state(lruvec_pgdat(lruvec), idx);
 
-	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+	pn = container_of(lruvec, struct mem_cgroup_per_yesde, lruvec);
 	x = atomic_long_read(&pn->lruvec_stat[idx]);
 #ifdef CONFIG_SMP
 	if (x < 0)
@@ -673,16 +673,16 @@ static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
 }
 
 static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
-						    enum node_stat_item idx)
+						    enum yesde_stat_item idx)
 {
-	struct mem_cgroup_per_node *pn;
+	struct mem_cgroup_per_yesde *pn;
 	long x = 0;
 	int cpu;
 
 	if (mem_cgroup_disabled())
-		return node_page_state(lruvec_pgdat(lruvec), idx);
+		return yesde_page_state(lruvec_pgdat(lruvec), idx);
 
-	pn = container_of(lruvec, struct mem_cgroup_per_node, lruvec);
+	pn = container_of(lruvec, struct mem_cgroup_per_yesde, lruvec);
 	for_each_possible_cpu(cpu)
 		x += per_cpu(pn->lruvec_stat_local->count[idx], cpu);
 #ifdef CONFIG_SMP
@@ -692,12 +692,12 @@ static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
 	return x;
 }
 
-void __mod_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
+void __mod_lruvec_state(struct lruvec *lruvec, enum yesde_stat_item idx,
 			int val);
-void __mod_lruvec_slab_state(void *p, enum node_stat_item idx, int val);
+void __mod_lruvec_slab_state(void *p, enum yesde_stat_item idx, int val);
 
 static inline void mod_lruvec_state(struct lruvec *lruvec,
-				    enum node_stat_item idx, int val)
+				    enum yesde_stat_item idx, int val)
 {
 	unsigned long flags;
 
@@ -707,14 +707,14 @@ static inline void mod_lruvec_state(struct lruvec *lruvec,
 }
 
 static inline void __mod_lruvec_page_state(struct page *page,
-					   enum node_stat_item idx, int val)
+					   enum yesde_stat_item idx, int val)
 {
 	pg_data_t *pgdat = page_pgdat(page);
 	struct lruvec *lruvec;
 
-	/* Untracked pages have no memcg, no lruvec. Update only the node */
+	/* Untracked pages have yes memcg, yes lruvec. Update only the yesde */
 	if (!page->mem_cgroup) {
-		__mod_node_page_state(pgdat, idx, val);
+		__mod_yesde_page_state(pgdat, idx, val);
 		return;
 	}
 
@@ -723,7 +723,7 @@ static inline void __mod_lruvec_page_state(struct page *page,
 }
 
 static inline void mod_lruvec_page_state(struct page *page,
-					 enum node_stat_item idx, int val)
+					 enum yesde_stat_item idx, int val)
 {
 	unsigned long flags;
 
@@ -776,11 +776,11 @@ static inline void memcg_memory_event(struct mem_cgroup *memcg,
 				      enum memcg_memory_event event)
 {
 	atomic_long_inc(&memcg->memory_events_local[event]);
-	cgroup_file_notify(&memcg->events_local_file);
+	cgroup_file_yestify(&memcg->events_local_file);
 
 	do {
 		atomic_long_inc(&memcg->memory_events[event]);
-		cgroup_file_notify(&memcg->events_file);
+		cgroup_file_yestify(&memcg->events_file);
 
 		if (cgrp_dfl_root.flags & CGRP_ROOT_MEMORY_LOCAL_EVENTS)
 			break;
@@ -1080,47 +1080,47 @@ static inline void mod_memcg_page_state(struct page *page,
 }
 
 static inline unsigned long lruvec_page_state(struct lruvec *lruvec,
-					      enum node_stat_item idx)
+					      enum yesde_stat_item idx)
 {
-	return node_page_state(lruvec_pgdat(lruvec), idx);
+	return yesde_page_state(lruvec_pgdat(lruvec), idx);
 }
 
 static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
-						    enum node_stat_item idx)
+						    enum yesde_stat_item idx)
 {
-	return node_page_state(lruvec_pgdat(lruvec), idx);
+	return yesde_page_state(lruvec_pgdat(lruvec), idx);
 }
 
 static inline void __mod_lruvec_state(struct lruvec *lruvec,
-				      enum node_stat_item idx, int val)
+				      enum yesde_stat_item idx, int val)
 {
-	__mod_node_page_state(lruvec_pgdat(lruvec), idx, val);
+	__mod_yesde_page_state(lruvec_pgdat(lruvec), idx, val);
 }
 
 static inline void mod_lruvec_state(struct lruvec *lruvec,
-				    enum node_stat_item idx, int val)
+				    enum yesde_stat_item idx, int val)
 {
-	mod_node_page_state(lruvec_pgdat(lruvec), idx, val);
+	mod_yesde_page_state(lruvec_pgdat(lruvec), idx, val);
 }
 
 static inline void __mod_lruvec_page_state(struct page *page,
-					   enum node_stat_item idx, int val)
+					   enum yesde_stat_item idx, int val)
 {
-	__mod_node_page_state(page_pgdat(page), idx, val);
+	__mod_yesde_page_state(page_pgdat(page), idx, val);
 }
 
 static inline void mod_lruvec_page_state(struct page *page,
-					 enum node_stat_item idx, int val)
+					 enum yesde_stat_item idx, int val)
 {
-	mod_node_page_state(page_pgdat(page), idx, val);
+	mod_yesde_page_state(page_pgdat(page), idx, val);
 }
 
-static inline void __mod_lruvec_slab_state(void *p, enum node_stat_item idx,
+static inline void __mod_lruvec_slab_state(void *p, enum yesde_stat_item idx,
 					   int val)
 {
 	struct page *page = virt_to_head_page(p);
 
-	__mod_node_page_state(page_pgdat(page), idx, val);
+	__mod_yesde_page_state(page_pgdat(page), idx, val);
 }
 
 static inline
@@ -1158,28 +1158,28 @@ void count_memcg_event_mm(struct mm_struct *mm, enum vm_event_item idx)
 }
 #endif /* CONFIG_MEMCG */
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
+/* idx can be of type enum memcg_stat_item or yesde_stat_item */
 static inline void __inc_memcg_state(struct mem_cgroup *memcg,
 				     int idx)
 {
 	__mod_memcg_state(memcg, idx, 1);
 }
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
+/* idx can be of type enum memcg_stat_item or yesde_stat_item */
 static inline void __dec_memcg_state(struct mem_cgroup *memcg,
 				     int idx)
 {
 	__mod_memcg_state(memcg, idx, -1);
 }
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
+/* idx can be of type enum memcg_stat_item or yesde_stat_item */
 static inline void __inc_memcg_page_state(struct page *page,
 					  int idx)
 {
 	__mod_memcg_page_state(page, idx, 1);
 }
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
+/* idx can be of type enum memcg_stat_item or yesde_stat_item */
 static inline void __dec_memcg_page_state(struct page *page,
 					  int idx)
 {
@@ -1187,61 +1187,61 @@ static inline void __dec_memcg_page_state(struct page *page,
 }
 
 static inline void __inc_lruvec_state(struct lruvec *lruvec,
-				      enum node_stat_item idx)
+				      enum yesde_stat_item idx)
 {
 	__mod_lruvec_state(lruvec, idx, 1);
 }
 
 static inline void __dec_lruvec_state(struct lruvec *lruvec,
-				      enum node_stat_item idx)
+				      enum yesde_stat_item idx)
 {
 	__mod_lruvec_state(lruvec, idx, -1);
 }
 
 static inline void __inc_lruvec_page_state(struct page *page,
-					   enum node_stat_item idx)
+					   enum yesde_stat_item idx)
 {
 	__mod_lruvec_page_state(page, idx, 1);
 }
 
 static inline void __dec_lruvec_page_state(struct page *page,
-					   enum node_stat_item idx)
+					   enum yesde_stat_item idx)
 {
 	__mod_lruvec_page_state(page, idx, -1);
 }
 
-static inline void __inc_lruvec_slab_state(void *p, enum node_stat_item idx)
+static inline void __inc_lruvec_slab_state(void *p, enum yesde_stat_item idx)
 {
 	__mod_lruvec_slab_state(p, idx, 1);
 }
 
-static inline void __dec_lruvec_slab_state(void *p, enum node_stat_item idx)
+static inline void __dec_lruvec_slab_state(void *p, enum yesde_stat_item idx)
 {
 	__mod_lruvec_slab_state(p, idx, -1);
 }
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
+/* idx can be of type enum memcg_stat_item or yesde_stat_item */
 static inline void inc_memcg_state(struct mem_cgroup *memcg,
 				   int idx)
 {
 	mod_memcg_state(memcg, idx, 1);
 }
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
+/* idx can be of type enum memcg_stat_item or yesde_stat_item */
 static inline void dec_memcg_state(struct mem_cgroup *memcg,
 				   int idx)
 {
 	mod_memcg_state(memcg, idx, -1);
 }
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
+/* idx can be of type enum memcg_stat_item or yesde_stat_item */
 static inline void inc_memcg_page_state(struct page *page,
 					int idx)
 {
 	mod_memcg_page_state(page, idx, 1);
 }
 
-/* idx can be of type enum memcg_stat_item or node_stat_item */
+/* idx can be of type enum memcg_stat_item or yesde_stat_item */
 static inline void dec_memcg_page_state(struct page *page,
 					int idx)
 {
@@ -1249,25 +1249,25 @@ static inline void dec_memcg_page_state(struct page *page,
 }
 
 static inline void inc_lruvec_state(struct lruvec *lruvec,
-				    enum node_stat_item idx)
+				    enum yesde_stat_item idx)
 {
 	mod_lruvec_state(lruvec, idx, 1);
 }
 
 static inline void dec_lruvec_state(struct lruvec *lruvec,
-				    enum node_stat_item idx)
+				    enum yesde_stat_item idx)
 {
 	mod_lruvec_state(lruvec, idx, -1);
 }
 
 static inline void inc_lruvec_page_state(struct page *page,
-					 enum node_stat_item idx)
+					 enum yesde_stat_item idx)
 {
 	mod_lruvec_page_state(page, idx, 1);
 }
 
 static inline void dec_lruvec_page_state(struct page *page,
-					 enum node_stat_item idx)
+					 enum yesde_stat_item idx)
 {
 	mod_lruvec_page_state(page, idx, -1);
 }
@@ -1420,7 +1420,7 @@ static inline void memcg_kmem_uncharge_memcg(struct page *page, int order,
 /*
  * helper for accessing a memcg's index. It will be used as an index in the
  * child cache array in kmem_cache, and also to derive its name. This function
- * will return -1 when this is not a kmem-limited memcg.
+ * will return -1 when this is yest a kmem-limited memcg.
  */
 static inline int memcg_cache_id(struct mem_cgroup *memcg)
 {

@@ -29,7 +29,7 @@ KBUILD_AFLAGS := $(KBUILD_AFLAGS) -D__ASSEMBLY__ \
 	-DBOOT_HEAP_SIZE=$(BOOT_HEAP_SIZE) \
 	-DKERNEL_ENTRY=$(VMLINUX_ENTRY_ADDRESS)
 
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
+# Prevents link failures: __sanitizer_cov_trace_pc() is yest linked in.
 KCOV_INSTRUMENT		:= n
 
 # decompressor objects (linked with vmlinuz)
@@ -57,7 +57,7 @@ extra-y += bswapsi.c
 $(obj)/bswapsi.c: $(obj)/%.c: $(srctree)/arch/mips/lib/%.c FORCE
 	$(call if_changed,shipped)
 
-targets := $(notdir $(vmlinuzobjs-y))
+targets := $(yestdir $(vmlinuzobjs-y))
 
 targets += vmlinux.bin
 OBJCOPYFLAGS_vmlinux.bin := $(OBJCOPYFLAGS) -O binary -R .comment -S
@@ -139,7 +139,7 @@ vmlinuz.srec: vmlinuz
 	$(call cmd,objcopy)
 
 uzImage.bin: vmlinuz.bin FORCE
-	$(call if_changed,uimage,none)
+	$(call if_changed,uimage,yesne)
 
 clean-files += $(objtree)/vmlinuz
 clean-files += $(objtree)/vmlinuz.32

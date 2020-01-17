@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -52,7 +52,7 @@ static char *pre_emph_names[] = {
  * ALIGN(num_bytes,4) bytes in the dst buffer.
  *
  * Use to_le=false when receiving data from atom and provide ALIGN(num_bytes,4)
- * byes in the src buffer.
+ * bno in the src buffer.
  */
 void radeon_atom_copy_swap(u8 *dst, u8 *src, u8 num_bytes, bool to_le)
 {
@@ -123,9 +123,9 @@ static int radeon_process_aux_ch(struct radeon_i2c_chan *chan,
 		goto done;
 	}
 
-	/* flags not zero */
+	/* flags yest zero */
 	if (args.v1.ucReplyStatus == 2) {
-		DRM_DEBUG_KMS("dp_aux_ch flags not zero\n");
+		DRM_DEBUG_KMS("dp_aux_ch flags yest zero\n");
 		r = -EIO;
 		goto done;
 	}

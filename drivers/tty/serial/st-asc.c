@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * st-asc.c: ST Asynchronous serial controller (ASC) driver
+ * st-asc.c: ST Asynchroyesus serial controller (ASC) driver
  *
  * Copyright (C) 2003-2013 STMicroelectronics (R&D) Limited
  */
@@ -294,16 +294,16 @@ static void asc_receive_chars(struct uart_port *port)
 	unsigned long status, mode;
 	unsigned long c = 0;
 	char flag;
-	bool ignore_pe = false;
+	bool igyesre_pe = false;
 
 	/*
 	 * Datasheet states: If the MODE field selects an 8-bit frame then
-	 * this [parity error] bit is undefined. Software should ignore this
+	 * this [parity error] bit is undefined. Software should igyesre this
 	 * bit when reading 8-bit frames.
 	 */
 	mode = asc_in(port, ASC_CTL) & ASC_CTL_MODE_MSK;
 	if (mode == ASC_CTL_MODE_8BIT || mode == ASC_CTL_MODE_8BIT_PAR)
-		ignore_pe = true;
+		igyesre_pe = true;
 
 	if (irqd_is_wakeup_set(irq_get_irq_data(port->irq)))
 		pm_wakeup_event(tport->tty->dev, 0);
@@ -314,7 +314,7 @@ static void asc_receive_chars(struct uart_port *port)
 		port->icount.rx++;
 
 		if (status & ASC_STA_OE || c & ASC_RXBUF_FE ||
-		    (c & ASC_RXBUF_PE && !ignore_pe)) {
+		    (c & ASC_RXBUF_PE && !igyesre_pe)) {
 
 			if (c & ASC_RXBUF_FE) {
 				if (c == (ASC_RXBUF_FE | ASC_RXBUF_DUMMY_RX)) {
@@ -367,7 +367,7 @@ static irqreturn_t asc_interrupt(int irq, void *ptr)
 	status = asc_in(port, ASC_STA);
 
 	if (status & ASC_STA_RBF) {
-		/* Receive FIFO not empty */
+		/* Receive FIFO yest empty */
 		asc_receive_chars(port);
 	}
 
@@ -400,7 +400,7 @@ static void asc_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	/*
 	 * This routine is used for seting signals of: DTR, DCD, CTS and RTS.
 	 * We use ASC's hardware for CTS/RTS when hardware flow-control is
-	 * enabled, however if the RTS line is required for another purpose,
+	 * enabled, however if the RTS line is required for ayesther purpose,
 	 * commonly controlled using HUP from userspace, then we need to toggle
 	 * it manually, using GPIO.
 	 *
@@ -448,7 +448,7 @@ static void asc_stop_rx(struct uart_port *port)
 	asc_disable_rx_interrupts(port);
 }
 
-/* Handle breaks - ignored by us */
+/* Handle breaks - igyesred by us */
 static void asc_break_ctl(struct uart_port *port, int break_state)
 {
 	/* Nothing here yet .. */
@@ -461,7 +461,7 @@ static int asc_startup(struct uart_port *port)
 {
 	if (request_irq(port->irq, asc_interrupt, 0,
 			asc_port_name(port), port)) {
-		dev_err(port->dev, "cannot allocate irq.\n");
+		dev_err(port->dev, "canyest allocate irq.\n");
 		return -ENODEV;
 	}
 
@@ -492,7 +492,7 @@ static void asc_pm(struct uart_port *port, unsigned int state,
 	case UART_PM_STATE_OFF:
 		/*
 		 * Disable the ASC baud rate generator, which is as close as
-		 * we can come to turning it off. Note this is not called with
+		 * we can come to turning it off. Note this is yest called with
 		 * the port spinlock held.
 		 */
 		spin_lock_irqsave(&port->lock, flags);
@@ -508,7 +508,7 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 			    struct ktermios *old)
 {
 	struct asc_port *ascport = to_asc_port(port);
-	struct device_node *np = port->dev->of_node;
+	struct device_yesde *np = port->dev->of_yesde;
 	struct gpio_desc *gpiod;
 	unsigned int baud;
 	u32 ctrl_val;
@@ -570,9 +570,9 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 			pinctrl_select_state(ascport->pinctrl,
 					     ascport->states[NO_HW_FLOWCTRL]);
 
-			gpiod = devm_fwnode_get_gpiod_from_child(port->dev,
+			gpiod = devm_fwyesde_get_gpiod_from_child(port->dev,
 								 "rts",
-								 &np->fwnode,
+								 &np->fwyesde,
 								 GPIOD_OUT_LOW,
 								 np->name);
 			if (!IS_ERR(gpiod))
@@ -608,26 +608,26 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 		ascport->port.read_status_mask |= ASC_RXBUF_DUMMY_BE;
 
 	/*
-	 * Characters to ignore
+	 * Characters to igyesre
 	 */
-	ascport->port.ignore_status_mask = 0;
+	ascport->port.igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		ascport->port.ignore_status_mask |= ASC_RXBUF_FE | ASC_RXBUF_PE;
+		ascport->port.igyesre_status_mask |= ASC_RXBUF_FE | ASC_RXBUF_PE;
 	if (termios->c_iflag & IGNBRK) {
-		ascport->port.ignore_status_mask |= ASC_RXBUF_DUMMY_BE;
+		ascport->port.igyesre_status_mask |= ASC_RXBUF_DUMMY_BE;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			ascport->port.ignore_status_mask |= ASC_RXBUF_DUMMY_OE;
+			ascport->port.igyesre_status_mask |= ASC_RXBUF_DUMMY_OE;
 	}
 
 	/*
-	 * Ignore all characters if CREAD is not set.
+	 * Igyesre all characters if CREAD is yest set.
 	 */
 	if (!(termios->c_cflag & CREAD))
-		ascport->port.ignore_status_mask |= ASC_RXBUF_DUMMY_RX;
+		ascport->port.igyesre_status_mask |= ASC_RXBUF_DUMMY_RX;
 
 	/* Set the timeout */
 	asc_out(port, ASC_TIMEOUT, 20);
@@ -765,9 +765,9 @@ static int asc_init_port(struct asc_port *ascport,
 		return ret;
 	}
 
-	/* "no-hw-flowctrl" state is optional */
+	/* "yes-hw-flowctrl" state is optional */
 	ascport->states[NO_HW_FLOWCTRL] =
-		pinctrl_lookup_state(ascport->pinctrl, "no-hw-flowctrl");
+		pinctrl_lookup_state(ascport->pinctrl, "yes-hw-flowctrl");
 	if (IS_ERR(ascport->states[NO_HW_FLOWCTRL]))
 		ascport->states[NO_HW_FLOWCTRL] = NULL;
 
@@ -776,7 +776,7 @@ static int asc_init_port(struct asc_port *ascport,
 
 static struct asc_port *asc_of_get_asc_port(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int id;
 
 	if (!np)
@@ -871,7 +871,7 @@ static void asc_console_putchar(struct uart_port *port, int ch)
 }
 
 /*
- *  Print a string to the serial port trying not to disturb
+ *  Print a string to the serial port trying yest to disturb
  *  any possible real use of the port...
  */
 
@@ -923,7 +923,7 @@ static int asc_console_setup(struct console *co, char *options)
 	ascport = &asc_ports[co->index];
 
 	/*
-	 * This driver does not support early console initialization
+	 * This driver does yest support early console initialization
 	 * (use ARM early printk support instead), so we only expect
 	 * this to be called during the uart port registration when the
 	 * driver gets probed and the port should be mapped at that point.
@@ -958,7 +958,7 @@ static struct uart_driver asc_uart_driver = {
 	.driver_name	= DRIVER_NAME,
 	.dev_name	= ASC_SERIAL_NAME,
 	.major		= 0,
-	.minor		= 0,
+	.miyesr		= 0,
 	.nr		= ASC_MAX_PORTS,
 	.cons		= ASC_SERIAL_CONSOLE,
 };

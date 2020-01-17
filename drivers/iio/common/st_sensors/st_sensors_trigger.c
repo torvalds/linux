@@ -20,20 +20,20 @@
 /**
  * st_sensors_new_samples_available() - check if more samples came in
  * returns:
- * 0 - no new samples available
+ * 0 - yes new samples available
  * 1 - new samples available
- * negative - error or unknown
+ * negative - error or unkyeswn
  */
 static int st_sensors_new_samples_available(struct iio_dev *indio_dev,
 					    struct st_sensor_data *sdata)
 {
 	int ret, status;
 
-	/* How would I know if I can't check it? */
+	/* How would I kyesw if I can't check it? */
 	if (!sdata->sensor_settings->drdy_irq.stat_drdy.addr)
 		return -EINVAL;
 
-	/* No scan mask, no interrupt */
+	/* No scan mask, yes interrupt */
 	if (!indio_dev->active_scan_mask)
 		return 0;
 
@@ -186,7 +186,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 		sdata->edge_irq = true;
 	else
 		/*
-		 * If we're not using edges (i.e. level interrupts) we
+		 * If we're yest using edges (i.e. level interrupts) we
 		 * just mask off the IRQ, handle one interrupt, then
 		 * if the line is still low, we return to the
 		 * interrupt handler top half again and start over.
@@ -198,7 +198,7 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	 * means that the interrupt line may be shared with other
 	 * peripherals. But to do this we also need to have a status
 	 * register and mask to figure out if this sensor was firing
-	 * the IRQ or not, so we can tell the interrupt handle that
+	 * the IRQ or yest, so we can tell the interrupt handle that
 	 * it was "our" interrupt.
 	 */
 	if (sdata->int_pin_open_drain &&

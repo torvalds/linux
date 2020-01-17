@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 
 #include <linux/platform_data/keyscan-davinci.h>
@@ -125,7 +125,7 @@ static irqreturn_t davinci_ks_interrupt(int irq, void *dev_id)
 	if (changed) {
 		/*
 		 * It goes through all bits in 'changed' to ensure
-		 * that no key changes are being missed
+		 * that yes key changes are being missed
 		 */
 		for (i = 0 ; i < keymapsize; i++) {
 			if ((changed>>i) & 0x1) {
@@ -167,14 +167,14 @@ static int __init davinci_ks_probe(struct platform_device *pdev)
 	}
 
 	if (!pdata->keymap) {
-		dev_dbg(dev, "no keymap from pdata\n");
+		dev_dbg(dev, "yes keymap from pdata\n");
 		return -EINVAL;
 	}
 
 	davinci_ks = kzalloc(sizeof(struct davinci_ks) +
 		sizeof(unsigned short) * pdata->keymapsize, GFP_KERNEL);
 	if (!davinci_ks) {
-		dev_dbg(dev, "could not allocate memory for private data\n");
+		dev_dbg(dev, "could yest allocate memory for private data\n");
 		return -ENOMEM;
 	}
 
@@ -183,7 +183,7 @@ static int __init davinci_ks_probe(struct platform_device *pdev)
 
 	key_dev = input_allocate_device();
 	if (!key_dev) {
-		dev_dbg(dev, "could not allocate input device\n");
+		dev_dbg(dev, "could yest allocate input device\n");
 		error = -ENOMEM;
 		goto fail1;
 	}
@@ -198,7 +198,7 @@ static int __init davinci_ks_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(dev, "no mem resource\n");
+		dev_err(dev, "yes mem resource\n");
 		error = -EINVAL;
 		goto fail2;
 	}
@@ -209,7 +209,7 @@ static int __init davinci_ks_probe(struct platform_device *pdev)
 	mem = request_mem_region(davinci_ks->pbase, davinci_ks->base_size,
 				 pdev->name);
 	if (!mem) {
-		dev_err(dev, "key scan registers at %08x are not free\n",
+		dev_err(dev, "key scan registers at %08x are yest free\n",
 			davinci_ks->pbase);
 		error = -EBUSY;
 		goto fail2;

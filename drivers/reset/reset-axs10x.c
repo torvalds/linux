@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2017 Synopsys.
+ * Copyright (C) 2017 Syyespsys.
  *
- * Synopsys AXS10x reset driver.
+ * Syyespsys AXS10x reset driver.
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -59,7 +59,7 @@ static int axs10x_reset_probe(struct platform_device *pdev)
 
 	rst->rcdev.owner = THIS_MODULE;
 	rst->rcdev.ops = &axs10x_reset_ops;
-	rst->rcdev.of_node = pdev->dev.of_node;
+	rst->rcdev.of_yesde = pdev->dev.of_yesde;
 	rst->rcdev.nr_resets = AXS10X_MAX_RESETS;
 
 	return devm_reset_controller_register(&pdev->dev, &rst->rcdev);
@@ -79,6 +79,6 @@ static struct platform_driver axs10x_reset_driver = {
 };
 builtin_platform_driver(axs10x_reset_driver);
 
-MODULE_AUTHOR("Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>");
-MODULE_DESCRIPTION("Synopsys AXS10x reset driver");
+MODULE_AUTHOR("Eugeniy Paltsev <Eugeniy.Paltsev@syyespsys.com>");
+MODULE_DESCRIPTION("Syyespsys AXS10x reset driver");
 MODULE_LICENSE("GPL v2");

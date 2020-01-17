@@ -159,7 +159,7 @@ int __init mxc_expio_init(u32 base, u32 intr_gpio)
 	if ((imx_readw(brd_io + MAGIC_NUMBER1_REG) != 0xAAAA) ||
 	    (imx_readw(brd_io + MAGIC_NUMBER2_REG) != 0x5555) ||
 	    (imx_readw(brd_io + MAGIC_NUMBER3_REG) != 0xCAFE)) {
-		pr_info("3-Stack Debug board not detected\n");
+		pr_info("3-Stack Debug board yest detected\n");
 		iounmap(brd_io);
 		brd_io = NULL;
 		return -ENODEV;
@@ -180,7 +180,7 @@ int __init mxc_expio_init(u32 base, u32 intr_gpio)
 	imx_writew(0, brd_io + INTR_RESET_REG);
 	imx_writew(0x1F, brd_io + INTR_MASK_REG);
 
-	irq_base = irq_alloc_descs(-1, 0, MXC_MAX_EXP_IO_LINES, numa_node_id());
+	irq_base = irq_alloc_descs(-1, 0, MXC_MAX_EXP_IO_LINES, numa_yesde_id());
 	WARN_ON(irq_base < 0);
 
 	domain = irq_domain_add_legacy(NULL, MXC_MAX_EXP_IO_LINES, irq_base, 0,

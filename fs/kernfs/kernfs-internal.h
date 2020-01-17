@@ -34,12 +34,12 @@ struct kernfs_iattrs {
 /* KERNFS_TYPE_MASK and types are defined in include/linux/kernfs.h */
 
 /**
- * kernfs_root - find out the kernfs_root a kernfs_node belongs to
- * @kn: kernfs_node of interest
+ * kernfs_root - find out the kernfs_root a kernfs_yesde belongs to
+ * @kn: kernfs_yesde of interest
  *
  * Return the kernfs_root @kn belongs to.
  */
-static inline struct kernfs_root *kernfs_root(struct kernfs_node *kn)
+static inline struct kernfs_root *kernfs_root(struct kernfs_yesde *kn)
 {
 	/* if parent exists, it's always a dir; otherwise, @sd is a dir */
 	if (kn->parent)
@@ -63,36 +63,36 @@ struct kernfs_super_info {
 	 * Each sb is associated with one namespace tag, currently the
 	 * network namespace of the task which mounted this kernfs
 	 * instance.  If multiple tags become necessary, make the following
-	 * an array and compare kernfs_node tag against every entry.
+	 * an array and compare kernfs_yesde tag against every entry.
 	 */
 	const void		*ns;
 
 	/* anchored at kernfs_root->supers, protected by kernfs_mutex */
-	struct list_head	node;
+	struct list_head	yesde;
 };
 #define kernfs_info(SB) ((struct kernfs_super_info *)(SB->s_fs_info))
 
-static inline struct kernfs_node *kernfs_dentry_node(struct dentry *dentry)
+static inline struct kernfs_yesde *kernfs_dentry_yesde(struct dentry *dentry)
 {
 	if (d_really_is_negative(dentry))
 		return NULL;
-	return d_inode(dentry)->i_private;
+	return d_iyesde(dentry)->i_private;
 }
 
 extern const struct super_operations kernfs_sops;
-extern struct kmem_cache *kernfs_node_cache, *kernfs_iattrs_cache;
+extern struct kmem_cache *kernfs_yesde_cache, *kernfs_iattrs_cache;
 
 /*
- * inode.c
+ * iyesde.c
  */
 extern const struct xattr_handler *kernfs_xattr_handlers[];
-void kernfs_evict_inode(struct inode *inode);
-int kernfs_iop_permission(struct inode *inode, int mask);
+void kernfs_evict_iyesde(struct iyesde *iyesde);
+int kernfs_iop_permission(struct iyesde *iyesde, int mask);
 int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr);
 int kernfs_iop_getattr(const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int query_flags);
 ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size);
-int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr);
+int __kernfs_setattr(struct kernfs_yesde *kn, const struct iattr *iattr);
 
 /*
  * dir.c
@@ -100,12 +100,12 @@ int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr);
 extern struct mutex kernfs_mutex;
 extern const struct dentry_operations kernfs_dops;
 extern const struct file_operations kernfs_dir_fops;
-extern const struct inode_operations kernfs_dir_iops;
+extern const struct iyesde_operations kernfs_dir_iops;
 
-struct kernfs_node *kernfs_get_active(struct kernfs_node *kn);
-void kernfs_put_active(struct kernfs_node *kn);
-int kernfs_add_one(struct kernfs_node *kn);
-struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
+struct kernfs_yesde *kernfs_get_active(struct kernfs_yesde *kn);
+void kernfs_put_active(struct kernfs_yesde *kn);
+int kernfs_add_one(struct kernfs_yesde *kn);
+struct kernfs_yesde *kernfs_new_yesde(struct kernfs_yesde *parent,
 				    const char *name, umode_t mode,
 				    kuid_t uid, kgid_t gid,
 				    unsigned flags);
@@ -115,11 +115,11 @@ struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
  */
 extern const struct file_operations kernfs_file_fops;
 
-void kernfs_drain_open_files(struct kernfs_node *kn);
+void kernfs_drain_open_files(struct kernfs_yesde *kn);
 
 /*
  * symlink.c
  */
-extern const struct inode_operations kernfs_symlink_iops;
+extern const struct iyesde_operations kernfs_symlink_iops;
 
 #endif	/* __KERNFS_INTERNAL_H */

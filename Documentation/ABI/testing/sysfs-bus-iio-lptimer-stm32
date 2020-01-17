@@ -17,7 +17,7 @@ KernelVersion:	4.13
 Contact:	fabrice.gasnier@st.com
 Description:
 		Configure the device counter quadrature modes:
-		- non-quadrature:
+		- yesn-quadrature:
 			Encoder IN1 input servers as the count input (up
 			direction).
 		- quadrature:
@@ -39,7 +39,7 @@ Description:
 		- falling-edge
 		- both-edges
 
-		In non-quadrature mode, device counts up on active edge.
+		In yesn-quadrature mode, device counts up on active edge.
 		In quadrature mode, encoder counting scenarios are as follows:
 		----------------------------------------------------------------
 		| Active  | Level on |      IN1 signal    |     IN2 signal     |

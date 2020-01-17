@@ -4,7 +4,7 @@
 
 #include "ui/browser.h"
 
-struct annotation_options;
+struct anyestation_options;
 struct evsel;
 
 struct hist_browser {
@@ -15,13 +15,13 @@ struct hist_browser {
 	struct hist_browser_timer *hbt;
 	struct pstack	    *pstack;
 	struct perf_env	    *env;
-	struct annotation_options *annotation_opts;
+	struct anyestation_options *anyestation_opts;
 	struct evsel	    *block_evsel;
 	int		     print_seq;
 	bool		     show_dso;
 	bool		     show_headers;
 	float		     min_pcnt;
-	u64		     nr_non_filtered_entries;
+	u64		     nr_yesn_filtered_entries;
 	u64		     nr_hierarchy_entries;
 	u64		     nr_callchain_rows;
 	bool		     c2c_filter;

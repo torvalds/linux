@@ -123,9 +123,9 @@ static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 	start = PTRRELOC(&__start___stf_entry_barrier_fixup),
 	end = PTRRELOC(&__stop___stf_entry_barrier_fixup);
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
+	instrs[0] = 0x60000000; /* yesp */
+	instrs[1] = 0x60000000; /* yesp */
+	instrs[2] = 0x60000000; /* yesp */
 
 	i = 0;
 	if (types & STF_BARRIER_FALLBACK) {
@@ -157,11 +157,11 @@ static void do_stf_entry_barrier_fixups(enum stf_barrier_type types)
 	}
 
 	printk(KERN_DEBUG "stf-barrier: patched %d entry locations (%s barrier)\n", i,
-		(types == STF_BARRIER_NONE)                  ? "no" :
+		(types == STF_BARRIER_NONE)                  ? "yes" :
 		(types == STF_BARRIER_FALLBACK)              ? "fallback" :
 		(types == STF_BARRIER_EIEIO)                 ? "eieio" :
 		(types == (STF_BARRIER_SYNC_ORI))            ? "hwsync"
-		                                           : "unknown");
+		                                           : "unkyeswn");
 }
 
 static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
@@ -173,12 +173,12 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 	start = PTRRELOC(&__start___stf_exit_barrier_fixup),
 	end = PTRRELOC(&__stop___stf_exit_barrier_fixup);
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
-	instrs[3] = 0x60000000; /* nop */
-	instrs[4] = 0x60000000; /* nop */
-	instrs[5] = 0x60000000; /* nop */
+	instrs[0] = 0x60000000; /* yesp */
+	instrs[1] = 0x60000000; /* yesp */
+	instrs[2] = 0x60000000; /* yesp */
+	instrs[3] = 0x60000000; /* yesp */
+	instrs[4] = 0x60000000; /* yesp */
+	instrs[5] = 0x60000000; /* yesp */
 
 	i = 0;
 	if (types & STF_BARRIER_FALLBACK || types & STF_BARRIER_SYNC_ORI) {
@@ -214,11 +214,11 @@ static void do_stf_exit_barrier_fixups(enum stf_barrier_type types)
 		patch_instruction(dest + 5, instrs[5]);
 	}
 	printk(KERN_DEBUG "stf-barrier: patched %d exit locations (%s barrier)\n", i,
-		(types == STF_BARRIER_NONE)                  ? "no" :
+		(types == STF_BARRIER_NONE)                  ? "yes" :
 		(types == STF_BARRIER_FALLBACK)              ? "fallback" :
 		(types == STF_BARRIER_EIEIO)                 ? "eieio" :
 		(types == (STF_BARRIER_SYNC_ORI))            ? "hwsync"
-		                                           : "unknown");
+		                                           : "unkyeswn");
 }
 
 
@@ -237,9 +237,9 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 	start = PTRRELOC(&__start___rfi_flush_fixup),
 	end = PTRRELOC(&__stop___rfi_flush_fixup);
 
-	instrs[0] = 0x60000000; /* nop */
-	instrs[1] = 0x60000000; /* nop */
-	instrs[2] = 0x60000000; /* nop */
+	instrs[0] = 0x60000000; /* yesp */
+	instrs[1] = 0x60000000; /* yesp */
+	instrs[2] = 0x60000000; /* yesp */
 
 	if (types & L1D_FLUSH_FALLBACK)
 		/* b .+16 to fallback flush */
@@ -265,16 +265,16 @@ void do_rfi_flush_fixups(enum l1d_flush_type types)
 	}
 
 	printk(KERN_DEBUG "rfi-flush: patched %d locations (%s flush)\n", i,
-		(types == L1D_FLUSH_NONE)       ? "no" :
+		(types == L1D_FLUSH_NONE)       ? "yes" :
 		(types == L1D_FLUSH_FALLBACK)   ? "fallback displacement" :
 		(types &  L1D_FLUSH_ORI)        ? (types & L1D_FLUSH_MTTRIG)
 							? "ori+mttrig type"
 							: "ori type" :
 		(types &  L1D_FLUSH_MTTRIG)     ? "mttrig type"
-						: "unknown");
+						: "unkyeswn");
 }
 
-void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
+void do_barrier_yesspec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
 {
 	unsigned int instr, *dest;
 	long *start, *end;
@@ -283,10 +283,10 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 	start = fixup_start;
 	end = fixup_end;
 
-	instr = 0x60000000; /* nop */
+	instr = 0x60000000; /* yesp */
 
 	if (enable) {
-		pr_info("barrier-nospec: using ORI speculation barrier\n");
+		pr_info("barrier-yesspec: using ORI speculation barrier\n");
 		instr = 0x63ff0000; /* ori 31,31,0 speculation barrier */
 	}
 
@@ -297,25 +297,25 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 		patch_instruction(dest, instr);
 	}
 
-	printk(KERN_DEBUG "barrier-nospec: patched %d locations\n", i);
+	printk(KERN_DEBUG "barrier-yesspec: patched %d locations\n", i);
 }
 
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC_BARRIER_NOSPEC
-void do_barrier_nospec_fixups(bool enable)
+void do_barrier_yesspec_fixups(bool enable)
 {
 	void *start, *end;
 
-	start = PTRRELOC(&__start___barrier_nospec_fixup),
-	end = PTRRELOC(&__stop___barrier_nospec_fixup);
+	start = PTRRELOC(&__start___barrier_yesspec_fixup),
+	end = PTRRELOC(&__stop___barrier_yesspec_fixup);
 
-	do_barrier_nospec_fixups_range(enable, start, end);
+	do_barrier_yesspec_fixups_range(enable, start, end);
 }
 #endif /* CONFIG_PPC_BARRIER_NOSPEC */
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
-void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
+void do_barrier_yesspec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
 {
 	unsigned int instr[2], *dest;
 	long *start, *end;
@@ -328,7 +328,7 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 	instr[1] = PPC_INST_NOP;
 
 	if (enable) {
-		pr_info("barrier-nospec: using isync; sync as speculation barrier\n");
+		pr_info("barrier-yesspec: using isync; sync as speculation barrier\n");
 		instr[0] = PPC_INST_ISYNC;
 		instr[1] = PPC_INST_SYNC;
 	}
@@ -341,7 +341,7 @@ void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_
 		patch_instruction(dest + 1, instr[1]);
 	}
 
-	printk(KERN_DEBUG "barrier-nospec: patched %d locations\n", i);
+	printk(KERN_DEBUG "barrier-yesspec: patched %d locations\n", i);
 }
 
 static void patch_btb_flush_section(long *curr)
@@ -421,7 +421,7 @@ void __init apply_feature_fixups(void)
 
 	/*
 	 * Apply the CPU-specific and firmware specific fixups to kernel text
-	 * (nop out sections not relevant to this CPU or this firmware).
+	 * (yesp out sections yest relevant to this CPU or this firmware).
 	 */
 	do_feature_fixups(spec->cpu_features,
 			  PTRRELOC(&__start___ftr_fixup),
@@ -564,7 +564,7 @@ static void test_alternative_case_too_big(void)
 	/* Sanity check */
 	check(memcmp(ftr_fixup_test3, ftr_fixup_test3_orig, size) == 0);
 
-	/* Expect nothing to be patched, and the error returned to us */
+	/* Expect yesthing to be patched, and the error returned to us */
 	check(patch_feature_section(0xF, &fixup) == 1);
 	check(memcmp(ftr_fixup_test3, ftr_fixup_test3_orig, size) == 0);
 	check(patch_feature_section(0, &fixup) == 1);

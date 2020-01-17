@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
@@ -167,7 +167,7 @@ static void try_bulk_dequeue_skb(struct Qdisc *q,
 		skb = nskb;
 		(*packets)++; /* GSO counts as one pkt */
 	}
-	skb_mark_not_on_list(skb);
+	skb_mark_yest_on_list(skb);
 }
 
 /* This variant of try_bulk_dequeue_skb() makes sure
@@ -193,7 +193,7 @@ static void try_bulk_dequeue_skb_slow(struct Qdisc *q,
 		skb = nskb;
 	} while (++cnt < 8);
 	(*packets) += cnt;
-	skb_mark_not_on_list(skb);
+	skb_mark_yest_on_list(skb);
 }
 
 /* Note that dequeue_skb can possibly return a SKB list (via skb->next).
@@ -216,7 +216,7 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 
 		skb = skb_peek(&q->gso_skb);
 
-		/* skb may be null if another cpu pulls gso_skb off in between
+		/* skb may be null if ayesther cpu pulls gso_skb off in between
 		 * empty check and lock.
 		 */
 		if (!skb) {
@@ -345,13 +345,13 @@ bool sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
  *  netif_tx_lock serializes accesses to device driver.
  *
  *  qdisc_lock(q) and netif_tx_lock are mutually exclusive,
- *  if one is grabbed, another must be free.
+ *  if one is grabbed, ayesther must be free.
  *
  * Note, that this procedure can be called by a watchdog timer
  *
  * Returns to the caller:
  *				0  - queue is empty or throttled.
- *				>0 - queue is not empty.
+ *				>0 - queue is yest empty.
  *
  */
 static inline bool qdisc_restart(struct Qdisc *q, int *packets)
@@ -415,7 +415,7 @@ static void dev_watchdog(struct timer_list *t)
 	struct net_device *dev = from_timer(dev, t, watchdog_timer);
 
 	netif_tx_lock(dev);
-	if (!qdisc_tx_is_noop(dev)) {
+	if (!qdisc_tx_is_yesop(dev)) {
 		if (netif_device_present(dev) &&
 		    netif_running(dev) &&
 		    netif_carrier_ok(dev)) {
@@ -519,73 +519,73 @@ EXPORT_SYMBOL(netif_carrier_off);
    cheaper.
  */
 
-static int noop_enqueue(struct sk_buff *skb, struct Qdisc *qdisc,
+static int yesop_enqueue(struct sk_buff *skb, struct Qdisc *qdisc,
 			struct sk_buff **to_free)
 {
 	__qdisc_drop(skb, to_free);
 	return NET_XMIT_CN;
 }
 
-static struct sk_buff *noop_dequeue(struct Qdisc *qdisc)
+static struct sk_buff *yesop_dequeue(struct Qdisc *qdisc)
 {
 	return NULL;
 }
 
-struct Qdisc_ops noop_qdisc_ops __read_mostly = {
-	.id		=	"noop",
+struct Qdisc_ops yesop_qdisc_ops __read_mostly = {
+	.id		=	"yesop",
 	.priv_size	=	0,
-	.enqueue	=	noop_enqueue,
-	.dequeue	=	noop_dequeue,
-	.peek		=	noop_dequeue,
+	.enqueue	=	yesop_enqueue,
+	.dequeue	=	yesop_dequeue,
+	.peek		=	yesop_dequeue,
 	.owner		=	THIS_MODULE,
 };
 
-static struct netdev_queue noop_netdev_queue = {
-	RCU_POINTER_INITIALIZER(qdisc, &noop_qdisc),
-	.qdisc_sleeping	=	&noop_qdisc,
+static struct netdev_queue yesop_netdev_queue = {
+	RCU_POINTER_INITIALIZER(qdisc, &yesop_qdisc),
+	.qdisc_sleeping	=	&yesop_qdisc,
 };
 
-struct Qdisc noop_qdisc = {
-	.enqueue	=	noop_enqueue,
-	.dequeue	=	noop_dequeue,
+struct Qdisc yesop_qdisc = {
+	.enqueue	=	yesop_enqueue,
+	.dequeue	=	yesop_dequeue,
 	.flags		=	TCQ_F_BUILTIN,
-	.ops		=	&noop_qdisc_ops,
-	.q.lock		=	__SPIN_LOCK_UNLOCKED(noop_qdisc.q.lock),
-	.dev_queue	=	&noop_netdev_queue,
-	.running	=	SEQCNT_ZERO(noop_qdisc.running),
-	.busylock	=	__SPIN_LOCK_UNLOCKED(noop_qdisc.busylock),
+	.ops		=	&yesop_qdisc_ops,
+	.q.lock		=	__SPIN_LOCK_UNLOCKED(yesop_qdisc.q.lock),
+	.dev_queue	=	&yesop_netdev_queue,
+	.running	=	SEQCNT_ZERO(yesop_qdisc.running),
+	.busylock	=	__SPIN_LOCK_UNLOCKED(yesop_qdisc.busylock),
 	.gso_skb = {
-		.next = (struct sk_buff *)&noop_qdisc.gso_skb,
-		.prev = (struct sk_buff *)&noop_qdisc.gso_skb,
+		.next = (struct sk_buff *)&yesop_qdisc.gso_skb,
+		.prev = (struct sk_buff *)&yesop_qdisc.gso_skb,
 		.qlen = 0,
-		.lock = __SPIN_LOCK_UNLOCKED(noop_qdisc.gso_skb.lock),
+		.lock = __SPIN_LOCK_UNLOCKED(yesop_qdisc.gso_skb.lock),
 	},
 	.skb_bad_txq = {
-		.next = (struct sk_buff *)&noop_qdisc.skb_bad_txq,
-		.prev = (struct sk_buff *)&noop_qdisc.skb_bad_txq,
+		.next = (struct sk_buff *)&yesop_qdisc.skb_bad_txq,
+		.prev = (struct sk_buff *)&yesop_qdisc.skb_bad_txq,
 		.qlen = 0,
-		.lock = __SPIN_LOCK_UNLOCKED(noop_qdisc.skb_bad_txq.lock),
+		.lock = __SPIN_LOCK_UNLOCKED(yesop_qdisc.skb_bad_txq.lock),
 	},
 };
-EXPORT_SYMBOL(noop_qdisc);
+EXPORT_SYMBOL(yesop_qdisc);
 
-static int noqueue_init(struct Qdisc *qdisc, struct nlattr *opt,
+static int yesqueue_init(struct Qdisc *qdisc, struct nlattr *opt,
 			struct netlink_ext_ack *extack)
 {
-	/* register_qdisc() assigns a default of noop_enqueue if unset,
-	 * but __dev_queue_xmit() treats noqueue only as such
+	/* register_qdisc() assigns a default of yesop_enqueue if unset,
+	 * but __dev_queue_xmit() treats yesqueue only as such
 	 * if this is NULL - so clear it here. */
 	qdisc->enqueue = NULL;
 	return 0;
 }
 
-struct Qdisc_ops noqueue_qdisc_ops __read_mostly = {
-	.id		=	"noqueue",
+struct Qdisc_ops yesqueue_qdisc_ops __read_mostly = {
+	.id		=	"yesqueue",
 	.priv_size	=	0,
-	.init		=	noqueue_init,
-	.enqueue	=	noop_enqueue,
-	.dequeue	=	noop_dequeue,
-	.peek		=	noop_dequeue,
+	.init		=	yesqueue_init,
+	.enqueue	=	yesop_enqueue,
+	.dequeue	=	yesop_dequeue,
+	.peek		=	yesop_dequeue,
 	.owner		=	THIS_MODULE,
 };
 
@@ -754,7 +754,7 @@ static void pfifo_fast_destroy(struct Qdisc *sch)
 		 */
 		if (!q->ring.queue)
 			continue;
-		/* Destroy ring but no need to kfree_skb because a call to
+		/* Destroy ring but yes need to kfree_skb because a call to
 		 * pfifo_fast_reset() has already done that work.
 		 */
 		ptr_ring_cleanup(&q->ring, NULL);
@@ -811,17 +811,17 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	}
 
 	dev = dev_queue->dev;
-	p = kzalloc_node(size, GFP_KERNEL,
-			 netdev_queue_numa_node_read(dev_queue));
+	p = kzalloc_yesde(size, GFP_KERNEL,
+			 netdev_queue_numa_yesde_read(dev_queue));
 
 	if (!p)
 		goto errout;
 	sch = (struct Qdisc *) QDISC_ALIGN((unsigned long) p);
-	/* if we got non aligned memory, ask more and do alignment ourself */
+	/* if we got yesn aligned memory, ask more and do alignment ourself */
 	if (sch != p) {
 		kfree(p);
-		p = kzalloc_node(size + QDISC_ALIGNTO - 1, GFP_KERNEL,
-				 netdev_queue_numa_node_read(dev_queue));
+		p = kzalloc_yesde(size + QDISC_ALIGNTO - 1, GFP_KERNEL,
+				 netdev_queue_numa_yesde_read(dev_queue));
 		if (!p)
 			goto errout;
 		sch = (struct Qdisc *) QDISC_ALIGN((unsigned long) p);
@@ -859,7 +859,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	dev_hold(dev);
 	refcount_set(&sch->refcnt, 1);
 
-	if (sch != &noop_qdisc) {
+	if (sch != &yesop_qdisc) {
 		lockdep_set_class(&sch->busylock, &dev->qdisc_tx_busylock_key);
 		lockdep_set_class(&sch->seqlock, &dev->qdisc_tx_busylock_key);
 		lockdep_set_class(&sch->running, &dev->qdisc_running_key);
@@ -1014,9 +1014,9 @@ struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
 
 	/* ... and graft new one */
 	if (qdisc == NULL)
-		qdisc = &noop_qdisc;
+		qdisc = &yesop_qdisc;
 	dev_queue->qdisc_sleeping = qdisc;
-	rcu_assign_pointer(dev_queue->qdisc, &noop_qdisc);
+	rcu_assign_pointer(dev_queue->qdisc, &yesop_qdisc);
 
 	spin_unlock_bh(root_lock);
 
@@ -1032,7 +1032,7 @@ static void attach_one_default_qdisc(struct net_device *dev,
 	const struct Qdisc_ops *ops = default_qdisc_ops;
 
 	if (dev->priv_flags & IFF_NO_QUEUE)
-		ops = &noqueue_qdisc_ops;
+		ops = &yesqueue_qdisc_ops;
 	else if(dev->type == ARPHRD_CAN)
 		ops = &pfifo_fast_ops;
 
@@ -1066,7 +1066,7 @@ static void attach_default_qdiscs(struct net_device *dev)
 		}
 	}
 #ifdef CONFIG_NET_SCHED
-	if (dev->qdisc != &noop_qdisc)
+	if (dev->qdisc != &yesop_qdisc)
 		qdisc_hash_add(dev->qdisc, false);
 #endif
 }
@@ -1094,10 +1094,10 @@ void dev_activate(struct net_device *dev)
 
 	/* No queueing discipline is attached to device;
 	 * create default one for devices, which need queueing
-	 * and noqueue_qdisc for virtual interfaces
+	 * and yesqueue_qdisc for virtual interfaces
 	 */
 
-	if (dev->qdisc == &noop_qdisc)
+	if (dev->qdisc == &yesop_qdisc)
 		attach_default_qdiscs(dev);
 
 	if (!netif_carrier_ok(dev))
@@ -1125,9 +1125,9 @@ static void dev_deactivate_queue(struct net_device *dev,
 
 	qdisc = rtnl_dereference(dev_queue->qdisc);
 	if (qdisc) {
-		bool nolock = qdisc->flags & TCQ_F_NOLOCK;
+		bool yeslock = qdisc->flags & TCQ_F_NOLOCK;
 
-		if (nolock)
+		if (yeslock)
 			spin_lock_bh(&qdisc->seqlock);
 		spin_lock_bh(qdisc_lock(qdisc));
 
@@ -1138,7 +1138,7 @@ static void dev_deactivate_queue(struct net_device *dev,
 		qdisc_reset(qdisc);
 
 		spin_unlock_bh(qdisc_lock(qdisc));
-		if (nolock)
+		if (yeslock)
 			spin_unlock_bh(&qdisc->seqlock);
 	}
 }
@@ -1172,7 +1172,7 @@ static bool some_qdisc_is_busy(struct net_device *dev)
 
 static void dev_qdisc_reset(struct net_device *dev,
 			    struct netdev_queue *dev_queue,
-			    void *none)
+			    void *yesne)
 {
 	struct Qdisc *qdisc = dev_queue->qdisc_sleeping;
 
@@ -1193,10 +1193,10 @@ void dev_deactivate_many(struct list_head *head)
 
 	list_for_each_entry(dev, head, close_list) {
 		netdev_for_each_tx_queue(dev, dev_deactivate_queue,
-					 &noop_qdisc);
+					 &yesop_qdisc);
 		if (dev_ingress_queue(dev))
 			dev_deactivate_queue(dev, dev_ingress_queue(dev),
-					     &noop_qdisc);
+					     &yesop_qdisc);
 
 		dev_watchdog_down(dev);
 	}
@@ -1280,10 +1280,10 @@ static void dev_init_scheduler_queue(struct net_device *dev,
 
 void dev_init_scheduler(struct net_device *dev)
 {
-	dev->qdisc = &noop_qdisc;
-	netdev_for_each_tx_queue(dev, dev_init_scheduler_queue, &noop_qdisc);
+	dev->qdisc = &yesop_qdisc;
+	netdev_for_each_tx_queue(dev, dev_init_scheduler_queue, &yesop_qdisc);
 	if (dev_ingress_queue(dev))
-		dev_init_scheduler_queue(dev, dev_ingress_queue(dev), &noop_qdisc);
+		dev_init_scheduler_queue(dev, dev_ingress_queue(dev), &yesop_qdisc);
 
 	timer_setup(&dev->watchdog_timer, dev_watchdog, 0);
 }
@@ -1305,11 +1305,11 @@ static void shutdown_scheduler_queue(struct net_device *dev,
 
 void dev_shutdown(struct net_device *dev)
 {
-	netdev_for_each_tx_queue(dev, shutdown_scheduler_queue, &noop_qdisc);
+	netdev_for_each_tx_queue(dev, shutdown_scheduler_queue, &yesop_qdisc);
 	if (dev_ingress_queue(dev))
-		shutdown_scheduler_queue(dev, dev_ingress_queue(dev), &noop_qdisc);
+		shutdown_scheduler_queue(dev, dev_ingress_queue(dev), &yesop_qdisc);
 	qdisc_put(dev->qdisc);
-	dev->qdisc = &noop_qdisc;
+	dev->qdisc = &yesop_qdisc;
 
 	WARN_ON(timer_pending(&dev->watchdog_timer));
 }
@@ -1334,7 +1334,7 @@ void psched_ratecfg_precompute(struct psched_ratecfg *r,
 	 *  time_in_ns = (len * mult) >> shift;
 	 *
 	 * We try to get the highest possible mult value for accuracy,
-	 * but have to make sure no overflows will ever happen.
+	 * but have to make sure yes overflows will ever happen.
 	 */
 	if (r->rate_bytes_ps > 0) {
 		u64 factor = NSEC_PER_SEC;
@@ -1385,7 +1385,7 @@ void mini_qdisc_pair_swap(struct mini_Qdisc_pair *miniqp,
 	if (miniq_old)
 		/* This is counterpart of the rcu barriers above. We need to
 		 * block potential new user of miniq_old until all readers
-		 * are not seeing it.
+		 * are yest seeing it.
 		 */
 		call_rcu(&miniq_old->rcu, mini_qdisc_rcu_func);
 }

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -80,7 +80,7 @@ struct qxl_reloc_info {
 };
 
 /*
- * dst must be validated, i.e. whole bo on vram/surfacesram (right now all bo's
+ * dst must be validated, i.e. whole bo on vram/surfacesram (right yesw all bo's
  * are on vram).
  * *(dst + dst_off) = qxl_bo_physical_address(src, src_off)
  */
@@ -136,7 +136,7 @@ static int qxlhw_handle_to_bo(struct drm_file *file_priv, uint64_t handle,
 /*
  * Usage of execbuffer:
  * Relocations need to take into account the full QXLDrawable size.
- * However, the command as passed from user space must *not* contain the initial
+ * However, the command as passed from user space must *yest* contain the initial
  * QXLReleaseInfo struct (first XXX bytes)
  */
 static int qxl_process_single_command(struct qxl_device *qdev,
@@ -186,7 +186,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 
 	/* TODO copy slow path code from i915 */
 	fb_cmd = qxl_bo_kmap_atomic_page(qdev, cmd_bo, (release->release_offset & PAGE_MASK));
-	unwritten = __copy_from_user_inatomic_nocache
+	unwritten = __copy_from_user_inatomic_yescache
 		(fb_cmd + sizeof(union qxl_release_info) + (release->release_offset & ~PAGE_MASK),
 		 u64_to_user_ptr(cmd->command), cmd->command_size);
 
@@ -217,7 +217,7 @@ static int qxl_process_single_command(struct qxl_device *qdev,
 		/* add the bos to the list of bos to validate -
 		   need to validate first then process relocs? */
 		if (reloc.reloc_type != QXL_RELOC_TYPE_BO && reloc.reloc_type != QXL_RELOC_TYPE_SURF) {
-			DRM_DEBUG("unknown reloc type %d\n", reloc.reloc_type);
+			DRM_DEBUG("unkyeswn reloc type %d\n", reloc.reloc_type);
 
 			ret = -EINVAL;
 			goto out_free_bos;
@@ -340,7 +340,7 @@ static int qxl_update_area_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto out2;
 	if (!qobj->surface_id)
-		DRM_ERROR("got update area for surface with no id %d\n", update_area->handle);
+		DRM_ERROR("got update area for surface with yes id %d\n", update_area->handle);
 	ret = qxl_io_update_area(qdev, qobj, &area);
 
 out2:

@@ -6,8 +6,8 @@
 */
 
 /*
-  IMPORTANT NOTE: Madge Networks no longer makes the adapters
-  supported by this driver and makes no commitment to maintain it.
+  IMPORTANT NOTE: Madge Networks yes longer makes the adapters
+  supported by this driver and makes yes commitment to maintain it.
 */
 
 /* too many macros - change to inline functions */
@@ -29,7 +29,7 @@
 #define PCI_DEVICE_ID_MADGE_HORIZON       0x1000
 #endif
 
-// diagnostic output
+// diagyesstic output
 
 #define PRINTK(severity,format,args...) \
   printk(severity DEV_LABEL ": " format "\n" , ## args)
@@ -51,8 +51,8 @@
 #define DBG_DATA 0x1000
 #define DBG_MASK 0x1fff
 
-/* the ## prevents the annoying double expansion of the macro arguments */
-/* KERN_INFO is used since KERN_DEBUG often does not make it to the console */
+/* the ## prevents the anyesying double expansion of the macro arguments */
+/* KERN_INFO is used since KERN_DEBUG often does yest make it to the console */
 #define PRINTDB(bits,format,args...) \
   ( (debug & (bits)) ? printk (KERN_INFO DEV_LABEL ": " format , ## args) : 1 )
 #define PRINTDM(bits,format,args...) \
@@ -420,7 +420,7 @@ struct hrz_dev {
 
   u32                 last_vc;
   
-  int                 noof_spare_buffers;
+  int                 yesof_spare_buffers;
   u16                 spare_buffers[SPARE_BUFFER_POOL_SIZE];
 
   u16                 tx_channel_record[TX_CHANS];
@@ -456,7 +456,7 @@ typedef struct hrz_dev hrz_dev;
 // 190 cells by default (192 TX buffers - 2 elbow room, see docs)
 #define TX_AAL5_LIMIT (190*ATM_CELL_PAYLOAD-ATM_AAL5_TRAILER) // 9112
 
-// Have enough RX buffers (unless we allow other buffer splits)
+// Have eyesugh RX buffers (unless we allow other buffer splits)
 #define RX_AAL5_LIMIT ATM_MAX_AAL5_PDU
 
 /* multi-statement macro protector */

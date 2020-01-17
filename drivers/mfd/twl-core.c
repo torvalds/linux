@@ -9,7 +9,7 @@
  * Copyright (C) 2006 MontaVista Software, Inc.
  *
  * Based on tlv320aic23.c:
- * Copyright (c) by Kai Svahn <kai.svahn@nokia.com>
+ * Copyright (c) by Kai Svahn <kai.svahn@yeskia.com>
  *
  * Code cleanup and modifications to IRQ handler.
  * by syed khasim <x0khasim@ti.com>
@@ -269,7 +269,7 @@ static const struct reg_default twl4030_49_defaults[] = {
 	/* End of Audio Registers */
 };
 
-static bool twl4030_49_nop_reg(struct device *dev, unsigned int reg)
+static bool twl4030_49_yesp_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case 0x00:
@@ -288,8 +288,8 @@ static const struct regmap_range twl4030_49_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table twl4030_49_volatile_table = {
-	.yes_ranges = twl4030_49_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(twl4030_49_volatile_ranges),
+	.no_ranges = twl4030_49_volatile_ranges,
+	.n_no_ranges = ARRAY_SIZE(twl4030_49_volatile_ranges),
 };
 
 static const struct regmap_config twl4030_regmap_config[4] = {
@@ -305,8 +305,8 @@ static const struct regmap_config twl4030_regmap_config[4] = {
 		.val_bits = 8,
 		.max_register = 0xff,
 
-		.readable_reg = twl4030_49_nop_reg,
-		.writeable_reg = twl4030_49_nop_reg,
+		.readable_reg = twl4030_49_yesp_reg,
+		.writeable_reg = twl4030_49_yesp_reg,
 
 		.volatile_table = &twl4030_49_volatile_table,
 
@@ -404,25 +404,25 @@ EXPORT_SYMBOL(twl_rev);
 
 /**
  * twl_get_regmap - Get the regmap associated with the given module
- * @mod_no: module number
+ * @mod_yes: module number
  *
  * Returns the regmap pointer or NULL in case of failure.
  */
-static struct regmap *twl_get_regmap(u8 mod_no)
+static struct regmap *twl_get_regmap(u8 mod_yes)
 {
 	int sid;
 	struct twl_client *twl;
 
 	if (unlikely(!twl_priv || !twl_priv->ready)) {
-		pr_err("%s: not initialized\n", DRIVER_NAME);
+		pr_err("%s: yest initialized\n", DRIVER_NAME);
 		return NULL;
 	}
-	if (unlikely(mod_no >= twl_get_last_module())) {
-		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
+	if (unlikely(mod_yes >= twl_get_last_module())) {
+		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_yes);
 		return NULL;
 	}
 
-	sid = twl_priv->twl_map[mod_no].sid;
+	sid = twl_priv->twl_map[mod_yes].sid;
 	twl = &twl_priv->twl_modules[sid];
 
 	return twl->regmap;
@@ -430,27 +430,27 @@ static struct regmap *twl_get_regmap(u8 mod_no)
 
 /**
  * twl_i2c_write - Writes a n bit register in TWL4030/TWL5030/TWL60X0
- * @mod_no: module number
+ * @mod_yes: module number
  * @value: an array of num_bytes+1 containing data to write
  * @reg: register address (just offset will do)
  * @num_bytes: number of bytes to transfer
  *
  * Returns 0 on success or else a negative error code.
  */
-int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
+int twl_i2c_write(u8 mod_yes, u8 *value, u8 reg, unsigned num_bytes)
 {
-	struct regmap *regmap = twl_get_regmap(mod_no);
+	struct regmap *regmap = twl_get_regmap(mod_yes);
 	int ret;
 
 	if (!regmap)
 		return -EPERM;
 
-	ret = regmap_bulk_write(regmap, twl_priv->twl_map[mod_no].base + reg,
+	ret = regmap_bulk_write(regmap, twl_priv->twl_map[mod_yes].base + reg,
 				value, num_bytes);
 
 	if (ret)
 		pr_err("%s: Write failed (mod %d, reg 0x%02x count %d)\n",
-		       DRIVER_NAME, mod_no, reg, num_bytes);
+		       DRIVER_NAME, mod_yes, reg, num_bytes);
 
 	return ret;
 }
@@ -458,27 +458,27 @@ EXPORT_SYMBOL(twl_i2c_write);
 
 /**
  * twl_i2c_read - Reads a n bit register in TWL4030/TWL5030/TWL60X0
- * @mod_no: module number
+ * @mod_yes: module number
  * @value: an array of num_bytes containing data to be read
  * @reg: register address (just offset will do)
  * @num_bytes: number of bytes to transfer
  *
  * Returns 0 on success or else a negative error code.
  */
-int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
+int twl_i2c_read(u8 mod_yes, u8 *value, u8 reg, unsigned num_bytes)
 {
-	struct regmap *regmap = twl_get_regmap(mod_no);
+	struct regmap *regmap = twl_get_regmap(mod_yes);
 	int ret;
 
 	if (!regmap)
 		return -EPERM;
 
-	ret = regmap_bulk_read(regmap, twl_priv->twl_map[mod_no].base + reg,
+	ret = regmap_bulk_read(regmap, twl_priv->twl_map[mod_yes].base + reg,
 			       value, num_bytes);
 
 	if (ret)
 		pr_err("%s: Read failed (mod %d, reg 0x%02x count %d)\n",
-		       DRIVER_NAME, mod_no, reg, num_bytes);
+		       DRIVER_NAME, mod_yes, reg, num_bytes);
 
 	return ret;
 }
@@ -487,14 +487,14 @@ EXPORT_SYMBOL(twl_i2c_read);
 /**
  * twl_regcache_bypass - Configure the regcache bypass for the regmap associated
  *			 with the module
- * @mod_no: module number
+ * @mod_yes: module number
  * @enable: Regcache bypass state
  *
  * Returns 0 else failure.
  */
-int twl_set_regcache_bypass(u8 mod_no, bool enable)
+int twl_set_regcache_bypass(u8 mod_yes, bool enable)
 {
-	struct regmap *regmap = twl_get_regmap(mod_no);
+	struct regmap *regmap = twl_get_regmap(mod_yes);
 
 	if (!regmap)
 		return -EPERM;
@@ -582,7 +582,7 @@ int twl_get_hfclk_rate(void)
 		rate = 38400000;
 		break;
 	default:
-		pr_err("TWL4030: HFCLK is not configured\n");
+		pr_err("TWL4030: HFCLK is yest configured\n");
 		rate = -EINVAL;
 		break;
 	}
@@ -592,7 +592,7 @@ int twl_get_hfclk_rate(void)
 EXPORT_SYMBOL_GPL(twl_get_hfclk_rate);
 
 static struct device *
-add_numbered_child(unsigned mod_no, const char *name, int num,
+add_numbered_child(unsigned mod_yes, const char *name, int num,
 		void *pdata, unsigned pdata_len,
 		bool can_wakeup, int irq0, int irq1)
 {
@@ -600,11 +600,11 @@ add_numbered_child(unsigned mod_no, const char *name, int num,
 	struct twl_client	*twl;
 	int			status, sid;
 
-	if (unlikely(mod_no >= twl_get_last_module())) {
-		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
+	if (unlikely(mod_yes >= twl_get_last_module())) {
+		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_yes);
 		return ERR_PTR(-EPERM);
 	}
-	sid = twl_priv->twl_map[mod_no].sid;
+	sid = twl_priv->twl_map[mod_yes].sid;
 	twl = &twl_priv->twl_modules[sid];
 
 	pdev = platform_device_alloc(name, num);
@@ -648,11 +648,11 @@ put_device:
 	return ERR_PTR(status);
 }
 
-static inline struct device *add_child(unsigned mod_no, const char *name,
+static inline struct device *add_child(unsigned mod_yes, const char *name,
 		void *pdata, unsigned pdata_len,
 		bool can_wakeup, int irq0, int irq1)
 {
-	return add_numbered_child(mod_no, name, -1, pdata, pdata_len,
+	return add_numbered_child(mod_yes, name, -1, pdata, pdata_len,
 		can_wakeup, irq0, irq1);
 }
 
@@ -686,7 +686,7 @@ add_regulator_linked(int num, struct regulator_init_data *pdata,
 		pdata->driver_data = &drv_data;
 	}
 
-	/* NOTE:  we currently ignore regulator IRQs, e.g. for short circuits */
+	/* NOTE:  we currently igyesre regulator IRQs, e.g. for short circuits */
 	return add_numbered_child(TWL_MODULE_PM_MASTER, "twl_reg", num,
 		pdata, sizeof(*pdata), false, 0, 0);
 }
@@ -699,7 +699,7 @@ add_regulator(int num, struct regulator_init_data *pdata,
 }
 
 /*
- * NOTE:  We know the first 8 IRQs after pdata->base_irq are
+ * NOTE:  We kyesw the first 8 IRQs after pdata->base_irq are
  * for the PIH, and the next are for the PWR_INT SIH, since
  * that's how twl_init_irq() sets things up.
  */
@@ -738,7 +738,7 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 	if (IS_ENABLED(CONFIG_RTC_DRV_TWL4030)) {
 		/*
 		 * REVISIT platform_data here currently might expose the
-		 * "msecure" line ... but for now we just expect board
+		 * "msecure" line ... but for yesw we just expect board
 		 * setup to tell the chip "it's always ok to SET_TIME".
 		 * Eventually, Linux might become more aware of such
 		 * HW security concerns, and "least privilege".
@@ -998,7 +998,7 @@ static void clocks_init(struct device *dev,
 	osc = clk_get(dev, "fck");
 	if (IS_ERR(osc)) {
 		printk(KERN_WARNING "Skipping twl internal clock init and "
-				"using bootloader value (unknown osc rate)\n");
+				"using bootloader value (unkyeswn osc rate)\n");
 		return;
 	}
 
@@ -1068,15 +1068,15 @@ static int
 twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct twl4030_platform_data	*pdata = dev_get_platdata(&client->dev);
-	struct device_node		*node = client->dev.of_node;
+	struct device_yesde		*yesde = client->dev.of_yesde;
 	struct platform_device		*pdev;
 	const struct regmap_config	*twl_regmap_config;
 	int				irq_base = 0;
 	int				status;
 	unsigned			i, num_slaves;
 
-	if (!node && !pdata) {
-		dev_err(&client->dev, "no platform data\n");
+	if (!yesde && !pdata) {
+		dev_err(&client->dev, "yes platform data\n");
 		return -EINVAL;
 	}
 
@@ -1213,10 +1213,10 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 				 TWL4030_DCDC_GLOBAL_CFG);
 	}
 
-	if (node) {
+	if (yesde) {
 		if (pdata)
 			twl_auxdata_lookup[0].platform_data = pdata->gpio;
-		status = of_platform_populate(node, NULL, twl_auxdata_lookup,
+		status = of_platform_populate(yesde, NULL, twl_auxdata_lookup,
 					      &client->dev);
 	} else {
 		status = add_children(pdata, irq_base, id->driver_data);
@@ -1259,9 +1259,9 @@ static const struct i2c_device_id twl_ids[] = {
 	{ "twl5030", 0 },		/* T2 updated */
 	{ "twl5031", TWL5031 },		/* TWL5030 updated */
 	{ "tps65950", 0 },		/* catalog version of twl5030 */
-	{ "tps65930", TPS_SUBSET },	/* fewer LDOs and DACs; no charger */
-	{ "tps65920", TPS_SUBSET },	/* fewer LDOs; no codec or charger */
-	{ "tps65921", TPS_SUBSET },	/* fewer LDOs; no codec, no LED
+	{ "tps65930", TPS_SUBSET },	/* fewer LDOs and DACs; yes charger */
+	{ "tps65920", TPS_SUBSET },	/* fewer LDOs; yes codec or charger */
+	{ "tps65921", TPS_SUBSET },	/* fewer LDOs; yes codec, yes LED
 					   and vibrator. Charger in USB module*/
 	{ "twl6030", TWL6030_CLASS },	/* "Phoenix power chip" */
 	{ "twl6032", TWL6030_CLASS | TWL6032_SUBCLASS }, /* "Phoenix lite" */

@@ -16,16 +16,16 @@
  * Simple key scheme
  * ~~~~~~~~~~~~~~~~~
  *
- * Keys are 64-bits long. First 32-bits are inode number (parent inode number
- * in case of direntry key). Next 3 bits are node type. The last 29 bits are
- * 4KiB offset in case of inode node, and direntry hash in case of a direntry
- * node. We use "r5" hash borrowed from reiserfs.
+ * Keys are 64-bits long. First 32-bits are iyesde number (parent iyesde number
+ * in case of direntry key). Next 3 bits are yesde type. The last 29 bits are
+ * 4KiB offset in case of iyesde yesde, and direntry hash in case of a direntry
+ * yesde. We use "r5" hash borrowed from reiserfs.
  */
 
 /*
  * Lot's of the key helpers require a struct ubifs_info *c as the first parameter.
- * But we are not using it at all currently. That's designed for future extensions of
- * different c->key_format. But right now, there is only one key type, UBIFS_SIMPLE_KEY_FMT.
+ * But we are yest using it at all currently. That's designed for future extensions of
+ * different c->key_format. But right yesw, there is only one key type, UBIFS_SIMPLE_KEY_FMT.
  */
 
 #ifndef __UBIFS_KEY_H__
@@ -37,7 +37,7 @@
  *
  * We use hash values as offset in directories, so values %0 and %1 are
  * reserved for "." and "..". %2 is reserved for "end of readdir" marker. This
- * function makes sure the reserved values are not used.
+ * function makes sure the reserved values are yest used.
  */
 static inline uint32_t key_mask_hash(uint32_t hash)
 {
@@ -82,26 +82,26 @@ static inline uint32_t key_test_hash(const char *str, int len)
 }
 
 /**
- * ino_key_init - initialize inode key.
+ * iyes_key_init - initialize iyesde key.
  * @c: UBIFS file-system description object
  * @key: key to initialize
- * @inum: inode number
+ * @inum: iyesde number
  */
-static inline void ino_key_init(const struct ubifs_info *c,
-				union ubifs_key *key, ino_t inum)
+static inline void iyes_key_init(const struct ubifs_info *c,
+				union ubifs_key *key, iyes_t inum)
 {
 	key->u32[0] = inum;
 	key->u32[1] = UBIFS_INO_KEY << UBIFS_S_KEY_BLOCK_BITS;
 }
 
 /**
- * ino_key_init_flash - initialize on-flash inode key.
+ * iyes_key_init_flash - initialize on-flash iyesde key.
  * @c: UBIFS file-system description object
  * @k: key to initialize
- * @inum: inode number
+ * @inum: iyesde number
  */
-static inline void ino_key_init_flash(const struct ubifs_info *c, void *k,
-				      ino_t inum)
+static inline void iyes_key_init_flash(const struct ubifs_info *c, void *k,
+				      iyes_t inum)
 {
 	union ubifs_key *key = k;
 
@@ -111,26 +111,26 @@ static inline void ino_key_init_flash(const struct ubifs_info *c, void *k,
 }
 
 /**
- * lowest_ino_key - get the lowest possible inode key.
+ * lowest_iyes_key - get the lowest possible iyesde key.
  * @c: UBIFS file-system description object
  * @key: key to initialize
- * @inum: inode number
+ * @inum: iyesde number
  */
-static inline void lowest_ino_key(const struct ubifs_info *c,
-				union ubifs_key *key, ino_t inum)
+static inline void lowest_iyes_key(const struct ubifs_info *c,
+				union ubifs_key *key, iyes_t inum)
 {
 	key->u32[0] = inum;
 	key->u32[1] = 0;
 }
 
 /**
- * highest_ino_key - get the highest possible inode key.
+ * highest_iyes_key - get the highest possible iyesde key.
  * @c: UBIFS file-system description object
  * @key: key to initialize
- * @inum: inode number
+ * @inum: iyesde number
  */
-static inline void highest_ino_key(const struct ubifs_info *c,
-				union ubifs_key *key, ino_t inum)
+static inline void highest_iyes_key(const struct ubifs_info *c,
+				union ubifs_key *key, iyes_t inum)
 {
 	key->u32[0] = inum;
 	key->u32[1] = 0xffffffff;
@@ -140,17 +140,17 @@ static inline void highest_ino_key(const struct ubifs_info *c,
  * dent_key_init - initialize directory entry key.
  * @c: UBIFS file-system description object
  * @key: key to initialize
- * @inum: parent inode number
+ * @inum: parent iyesde number
  * @nm: direntry name and length. Not a string when encrypted!
  */
 static inline void dent_key_init(const struct ubifs_info *c,
-				 union ubifs_key *key, ino_t inum,
+				 union ubifs_key *key, iyes_t inum,
 				 const struct fscrypt_name *nm)
 {
 	uint32_t hash = c->key_hash(fname_name(nm), fname_len(nm));
 
 	ubifs_assert(c, !(hash & ~UBIFS_S_KEY_HASH_MASK));
-	ubifs_assert(c, !nm->hash && !nm->minor_hash);
+	ubifs_assert(c, !nm->hash && !nm->miyesr_hash);
 	key->u32[0] = inum;
 	key->u32[1] = hash | (UBIFS_DENT_KEY << UBIFS_S_KEY_HASH_BITS);
 }
@@ -160,11 +160,11 @@ static inline void dent_key_init(const struct ubifs_info *c,
  *                      hash function.
  * @c: UBIFS file-system description object
  * @key: key to initialize
- * @inum: parent inode number
+ * @inum: parent iyesde number
  * @hash: direntry name hash
  */
 static inline void dent_key_init_hash(const struct ubifs_info *c,
-				      union ubifs_key *key, ino_t inum,
+				      union ubifs_key *key, iyes_t inum,
 				      uint32_t hash)
 {
 	ubifs_assert(c, !(hash & ~UBIFS_S_KEY_HASH_MASK));
@@ -176,11 +176,11 @@ static inline void dent_key_init_hash(const struct ubifs_info *c,
  * dent_key_init_flash - initialize on-flash directory entry key.
  * @c: UBIFS file-system description object
  * @k: key to initialize
- * @inum: parent inode number
+ * @inum: parent iyesde number
  * @nm: direntry name and length
  */
 static inline void dent_key_init_flash(const struct ubifs_info *c, void *k,
-				       ino_t inum,
+				       iyes_t inum,
 				       const struct fscrypt_name *nm)
 {
 	union ubifs_key *key = k;
@@ -197,10 +197,10 @@ static inline void dent_key_init_flash(const struct ubifs_info *c, void *k,
  * lowest_dent_key - get the lowest possible directory entry key.
  * @c: UBIFS file-system description object
  * @key: where to store the lowest key
- * @inum: parent inode number
+ * @inum: parent iyesde number
  */
 static inline void lowest_dent_key(const struct ubifs_info *c,
-				   union ubifs_key *key, ino_t inum)
+				   union ubifs_key *key, iyes_t inum)
 {
 	key->u32[0] = inum;
 	key->u32[1] = UBIFS_DENT_KEY << UBIFS_S_KEY_HASH_BITS;
@@ -210,11 +210,11 @@ static inline void lowest_dent_key(const struct ubifs_info *c,
  * xent_key_init - initialize extended attribute entry key.
  * @c: UBIFS file-system description object
  * @key: key to initialize
- * @inum: host inode number
+ * @inum: host iyesde number
  * @nm: extended attribute entry name and length
  */
 static inline void xent_key_init(const struct ubifs_info *c,
-				 union ubifs_key *key, ino_t inum,
+				 union ubifs_key *key, iyes_t inum,
 				 const struct fscrypt_name *nm)
 {
 	uint32_t hash = c->key_hash(fname_name(nm), fname_len(nm));
@@ -228,11 +228,11 @@ static inline void xent_key_init(const struct ubifs_info *c,
  * xent_key_init_flash - initialize on-flash extended attribute entry key.
  * @c: UBIFS file-system description object
  * @k: key to initialize
- * @inum: host inode number
+ * @inum: host iyesde number
  * @nm: extended attribute entry name and length
  */
 static inline void xent_key_init_flash(const struct ubifs_info *c, void *k,
-				       ino_t inum, const struct fscrypt_name *nm)
+				       iyes_t inum, const struct fscrypt_name *nm)
 {
 	union ubifs_key *key = k;
 	uint32_t hash = c->key_hash(fname_name(nm), fname_len(nm));
@@ -248,10 +248,10 @@ static inline void xent_key_init_flash(const struct ubifs_info *c, void *k,
  * lowest_xent_key - get the lowest possible extended attribute entry key.
  * @c: UBIFS file-system description object
  * @key: where to store the lowest key
- * @inum: host inode number
+ * @inum: host iyesde number
  */
 static inline void lowest_xent_key(const struct ubifs_info *c,
-				   union ubifs_key *key, ino_t inum)
+				   union ubifs_key *key, iyes_t inum)
 {
 	key->u32[0] = inum;
 	key->u32[1] = UBIFS_XENT_KEY << UBIFS_S_KEY_HASH_BITS;
@@ -261,11 +261,11 @@ static inline void lowest_xent_key(const struct ubifs_info *c,
  * data_key_init - initialize data key.
  * @c: UBIFS file-system description object
  * @key: key to initialize
- * @inum: inode number
+ * @inum: iyesde number
  * @block: block number
  */
 static inline void data_key_init(const struct ubifs_info *c,
-				 union ubifs_key *key, ino_t inum,
+				 union ubifs_key *key, iyes_t inum,
 				 unsigned int block)
 {
 	ubifs_assert(c, !(block & ~UBIFS_S_KEY_BLOCK_MASK));
@@ -274,35 +274,35 @@ static inline void data_key_init(const struct ubifs_info *c,
 }
 
 /**
- * highest_data_key - get the highest possible data key for an inode.
+ * highest_data_key - get the highest possible data key for an iyesde.
  * @c: UBIFS file-system description object
  * @key: key to initialize
- * @inum: inode number
+ * @inum: iyesde number
  */
 static inline void highest_data_key(const struct ubifs_info *c,
-				   union ubifs_key *key, ino_t inum)
+				   union ubifs_key *key, iyes_t inum)
 {
 	data_key_init(c, key, inum, UBIFS_S_KEY_BLOCK_MASK);
 }
 
 /**
- * trun_key_init - initialize truncation node key.
+ * trun_key_init - initialize truncation yesde key.
  * @c: UBIFS file-system description object
  * @key: key to initialize
- * @inum: inode number
+ * @inum: iyesde number
  *
- * Note, UBIFS does not have truncation keys on the media and this function is
+ * Note, UBIFS does yest have truncation keys on the media and this function is
  * only used for purposes of replay.
  */
 static inline void trun_key_init(const struct ubifs_info *c,
-				 union ubifs_key *key, ino_t inum)
+				 union ubifs_key *key, iyes_t inum)
 {
 	key->u32[0] = inum;
 	key->u32[1] = UBIFS_TRUN_KEY << UBIFS_S_KEY_BLOCK_BITS;
 }
 
 /**
- * invalid_key_init - initialize invalid node key.
+ * invalid_key_init - initialize invalid yesde key.
  * @c: UBIFS file-system description object
  * @key: key to initialize
  *
@@ -339,11 +339,11 @@ static inline int key_type_flash(const struct ubifs_info *c, const void *k)
 }
 
 /**
- * key_inum - fetch inode number from key.
+ * key_inum - fetch iyesde number from key.
  * @c: UBIFS file-system description object
- * @k: key to fetch inode number from
+ * @k: key to fetch iyesde number from
  */
-static inline ino_t key_inum(const struct ubifs_info *c, const void *k)
+static inline iyes_t key_inum(const struct ubifs_info *c, const void *k)
 {
 	const union ubifs_key *key = k;
 
@@ -351,11 +351,11 @@ static inline ino_t key_inum(const struct ubifs_info *c, const void *k)
 }
 
 /**
- * key_inum_flash - fetch inode number from an on-flash formatted key.
+ * key_inum_flash - fetch iyesde number from an on-flash formatted key.
  * @c: UBIFS file-system description object
- * @k: key to fetch inode number from
+ * @k: key to fetch iyesde number from
  */
-static inline ino_t key_inum_flash(const struct ubifs_info *c, const void *k)
+static inline iyes_t key_inum_flash(const struct ubifs_info *c, const void *k)
 {
 	const union ubifs_key *key = k;
 
@@ -499,7 +499,7 @@ static inline int keys_cmp(const struct ubifs_info *c,
  * @key2: the second key to compare
  *
  * This function compares 2 keys and returns %1 if @key1 is equal to @key2 and
- * %0 if not.
+ * %0 if yest.
  */
 static inline int keys_eq(const struct ubifs_info *c,
 			  const union ubifs_key *key1,
@@ -528,10 +528,10 @@ static inline int is_hash_key(const struct ubifs_info *c,
 }
 
 /**
- * key_max_inode_size - get maximum file size allowed by current key format.
+ * key_max_iyesde_size - get maximum file size allowed by current key format.
  * @c: UBIFS file-system description object
  */
-static inline unsigned long long key_max_inode_size(const struct ubifs_info *c)
+static inline unsigned long long key_max_iyesde_size(const struct ubifs_info *c)
 {
 	switch (c->key_fmt) {
 	case UBIFS_SIMPLE_KEY_FMT:

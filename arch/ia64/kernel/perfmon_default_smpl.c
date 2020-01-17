@@ -45,7 +45,7 @@ default_validate(struct task_struct *task, unsigned int flags, int cpu, void *da
 	int ret = 0;
 
 	if (data == NULL) {
-		DPRINT(("[%d] no argument passed\n", task_pid_nr(task)));
+		DPRINT(("[%d] yes argument passed\n", task_pid_nr(task)));
 		return -EINVAL;
 	}
 
@@ -108,7 +108,7 @@ default_handler(struct task_struct *task, void *buf, pfm_ovfl_arg_t *arg, struct
 	unsigned long *e, entry_size;
 	unsigned int npmds, i;
 	unsigned char ovfl_pmd;
-	unsigned char ovfl_notify;
+	unsigned char ovfl_yestify;
 
 	if (unlikely(buf == NULL || arg == NULL|| regs == NULL || task == NULL)) {
 		DPRINT(("[%d] invalid arguments buf=%p arg=%p\n", task->pid, buf, arg));
@@ -119,7 +119,7 @@ default_handler(struct task_struct *task, void *buf, pfm_ovfl_arg_t *arg, struct
 	cur         = buf+hdr->hdr_cur_offs;
 	last        = buf+hdr->hdr_buf_size;
 	ovfl_pmd    = arg->ovfl_pmd;
-	ovfl_notify = arg->ovfl_notify;
+	ovfl_yestify = arg->ovfl_yestify;
 
 	/*
 	 * precheck for sanity
@@ -139,13 +139,13 @@ default_handler(struct task_struct *task, void *buf, pfm_ovfl_arg_t *arg, struct
 
 	hdr->hdr_count++;
 
-	DPRINT_ovfl(("[%d] count=%lu cur=%p last=%p free_bytes=%lu ovfl_pmd=%d ovfl_notify=%d npmds=%u\n",
+	DPRINT_ovfl(("[%d] count=%lu cur=%p last=%p free_bytes=%lu ovfl_pmd=%d ovfl_yestify=%d npmds=%u\n",
 			task->pid,
 			hdr->hdr_count,
 			cur, last,
 			last-cur,
 			ovfl_pmd,
-			ovfl_notify, npmds));
+			ovfl_yestify, npmds));
 
 	/*
 	 * current = task running at the time of the overflow.
@@ -155,7 +155,7 @@ default_handler(struct task_struct *task, void *buf, pfm_ovfl_arg_t *arg, struct
 	 * 	  Under certain conditions, it might be a different task
 	 *
 	 * system-wide:
-	 * 	- this is not necessarily the task controlling the session
+	 * 	- this is yest necessarily the task controlling the session
 	 */
 	ent->pid            = current->pid;
 	ent->ovfl_pmd  	    = ovfl_pmd;
@@ -193,16 +193,16 @@ default_handler(struct task_struct *task, void *buf, pfm_ovfl_arg_t *arg, struct
 	if ((last - cur) < PFM_DEFAULT_MAX_ENTRY_SIZE) goto full;
 
 	/*
-	 * keep same ovfl_pmds, ovfl_notify
+	 * keep same ovfl_pmds, ovfl_yestify
 	 */
-	arg->ovfl_ctrl.bits.notify_user     = 0;
+	arg->ovfl_ctrl.bits.yestify_user     = 0;
 	arg->ovfl_ctrl.bits.block_task      = 0;
 	arg->ovfl_ctrl.bits.mask_monitoring = 0;
 	arg->ovfl_ctrl.bits.reset_ovfl_pmds = 1; /* reset before returning from interrupt handler */
 
 	return 0;
 full:
-	DPRINT_ovfl(("sampling buffer full free=%lu, count=%lu, ovfl_notify=%d\n", last-cur, hdr->hdr_count, ovfl_notify));
+	DPRINT_ovfl(("sampling buffer full free=%lu, count=%lu, ovfl_yestify=%d\n", last-cur, hdr->hdr_count, ovfl_yestify));
 
 	/*
 	 * increment number of buffer overflow.
@@ -211,18 +211,18 @@ full:
 	hdr->hdr_overflows++;
 
 	/*
-	 * if no notification requested, then we saturate the buffer
+	 * if yes yestification requested, then we saturate the buffer
 	 */
-	if (ovfl_notify == 0) {
-		arg->ovfl_ctrl.bits.notify_user     = 0;
+	if (ovfl_yestify == 0) {
+		arg->ovfl_ctrl.bits.yestify_user     = 0;
 		arg->ovfl_ctrl.bits.block_task      = 0;
 		arg->ovfl_ctrl.bits.mask_monitoring = 1;
 		arg->ovfl_ctrl.bits.reset_ovfl_pmds = 0;
 	} else {
-		arg->ovfl_ctrl.bits.notify_user     = 1;
-		arg->ovfl_ctrl.bits.block_task      = 1; /* ignored for non-blocking context */
+		arg->ovfl_ctrl.bits.yestify_user     = 1;
+		arg->ovfl_ctrl.bits.block_task      = 1; /* igyesred for yesn-blocking context */
 		arg->ovfl_ctrl.bits.mask_monitoring = 1;
-		arg->ovfl_ctrl.bits.reset_ovfl_pmds = 0; /* no reset now */
+		arg->ovfl_ctrl.bits.reset_ovfl_pmds = 0; /* yes reset yesw */
 	}
 	return -1; /* we are full, sorry */
 }
@@ -275,7 +275,7 @@ pfm_default_smpl_init_module(void)
 			PFM_DEFAULT_SMPL_VERSION_MAJ,
 			PFM_DEFAULT_SMPL_VERSION_MIN);
 	} else {
-		printk("perfmon_default_smpl: %s cannot register ret=%d\n",
+		printk("perfmon_default_smpl: %s canyest register ret=%d\n",
 			default_fmt.fmt_name,
 			ret);
 	}

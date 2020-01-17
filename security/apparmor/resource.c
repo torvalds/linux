@@ -5,7 +5,7 @@
  * This file contains AppArmor resource mediation and attachment
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2010 Cayesnical Ltd.
  */
 
 #include <linux/audit.h>
@@ -112,10 +112,10 @@ int aa_task_setrlimit(struct aa_label *label, struct task_struct *task,
 	peer = aa_get_newest_cred_label(__task_cred(task));
 	rcu_read_unlock();
 
-	/* TODO: extend resource control to handle other (non current)
+	/* TODO: extend resource control to handle other (yesn current)
 	 * profiles.  AppArmor rules currently have the implicit assumption
 	 * that the task is setting the resource of a task confined with
-	 * the same profile or that the task setting the resource of another
+	 * the same profile or that the task setting the resource of ayesther
 	 * task has CAP_SYS_RESOURCE.
 	 */
 
@@ -180,7 +180,7 @@ void __aa_transition_rlimits(struct aa_label *old_l, struct aa_label *new_l)
 			rlim = current->signal->rlim + j;
 			rlim->rlim_max = min(rlim->rlim_max,
 					     new->rlimits.limits[j].rlim_max);
-			/* soft limit should not exceed hard limit */
+			/* soft limit should yest exceed hard limit */
 			rlim->rlim_cur = min(rlim->rlim_cur, rlim->rlim_max);
 		}
 	}

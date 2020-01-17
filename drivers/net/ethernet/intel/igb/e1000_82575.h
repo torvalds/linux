@@ -160,11 +160,11 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DCA_TXCTRL_TX_WB_RO_EN BIT(11) /* Tx Desc writeback RO bit */
 #define E1000_DCA_TXCTRL_DATA_RRO_EN BIT(13) /* Tx rd data Relax Order */
 
-/* Additional DCA related definitions, note change in position of CPUID */
+/* Additional DCA related definitions, yeste change in position of CPUID */
 #define E1000_DCA_TXCTRL_CPUID_MASK_82576 0xFF000000 /* Tx CPUID Mask */
 #define E1000_DCA_RXCTRL_CPUID_MASK_82576 0xFF000000 /* Rx CPUID Mask */
-#define E1000_DCA_TXCTRL_CPUID_SHIFT 24 /* Tx CPUID now in the last byte */
-#define E1000_DCA_RXCTRL_CPUID_SHIFT 24 /* Rx CPUID now in the last byte */
+#define E1000_DCA_TXCTRL_CPUID_SHIFT 24 /* Tx CPUID yesw in the last byte */
+#define E1000_DCA_RXCTRL_CPUID_SHIFT 24 /* Rx CPUID yesw in the last byte */
 
 /* ETQF register bit definitions */
 #define E1000_ETQF_FILTER_ENABLE   BIT(26)
@@ -191,7 +191,7 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DTXSWC_VLAN_SPOOF_SHIFT 8
 #define E1000_DTXSWC_VMDQ_LOOPBACK_EN BIT(31)  /* global VF LB enable */
 
-/* Easy defines for setting default pool, would normally be left a zero */
+/* Easy defines for setting default pool, would yesrmally be left a zero */
 #define E1000_VT_CTL_DEFAULT_POOL_SHIFT 7
 #define E1000_VT_CTL_DEFAULT_POOL_MASK  (0x7 << E1000_VT_CTL_DEFAULT_POOL_SHIFT)
 

@@ -29,8 +29,8 @@ __visible struct {
 
 /*
  * These are some opcodes for a "static asmlinkage"
- * As this code is *not* executed inside the linux kernel segment, but in a
- * alias at offset 0, we need a far return that can not be compiled by
+ * As this code is *yest* executed inside the linux kernel segment, but in a
+ * alias at offset 0, we need a far return that can yest be compiled by
  * default (please, prove me wrong! this is *really* ugly!)
  * This is the only way to get the bios to return into the kernel code,
  * because the bios code runs in 16 bit protected mode and therefore can only
@@ -89,7 +89,7 @@ static inline u16 call_pnp_bios(u16 func, u16 arg1, u16 arg2, u16 arg3,
 	int cpu;
 
 	/*
-	 * PnP BIOSes are generally not terribly re-entrant.
+	 * PnP BIOSes are generally yest terribly re-entrant.
 	 * Also, don't rely on them to save everything correctly.
 	 */
 	if (pnp_bios_is_utter_crap)
@@ -167,7 +167,7 @@ void pnpbios_print_status(const char *module, u16 status)
 		break;
 	case PNP_FUNCTION_NOT_SUPPORTED:
 		printk(KERN_ERR
-		       "PnPBIOS: %s: function not supported on this system\n",
+		       "PnPBIOS: %s: function yest supported on this system\n",
 		       module);
 		break;
 	case PNP_INVALID_HANDLE:
@@ -182,30 +182,30 @@ void pnpbios_print_status(const char *module, u16 status)
 		       module);
 		break;
 	case PNP_EVENTS_NOT_PENDING:
-		printk(KERN_ERR "PnPBIOS: %s: no events are pending\n", module);
+		printk(KERN_ERR "PnPBIOS: %s: yes events are pending\n", module);
 		break;
 	case PNP_SYSTEM_NOT_DOCKED:
-		printk(KERN_ERR "PnPBIOS: %s: the system is not docked\n",
+		printk(KERN_ERR "PnPBIOS: %s: the system is yest docked\n",
 		       module);
 		break;
 	case PNP_NO_ISA_PNP_CARDS:
 		printk(KERN_ERR
-		       "PnPBIOS: %s: no isapnp cards are installed on this system\n",
+		       "PnPBIOS: %s: yes isapnp cards are installed on this system\n",
 		       module);
 		break;
 	case PNP_UNABLE_TO_DETERMINE_DOCK_CAPABILITIES:
 		printk(KERN_ERR
-		       "PnPBIOS: %s: cannot determine the capabilities of the docking station\n",
+		       "PnPBIOS: %s: canyest determine the capabilities of the docking station\n",
 		       module);
 		break;
 	case PNP_CONFIG_CHANGE_FAILED_NO_BATTERY:
 		printk(KERN_ERR
-		       "PnPBIOS: %s: unable to undock, the system does not have a battery\n",
+		       "PnPBIOS: %s: unable to undock, the system does yest have a battery\n",
 		       module);
 		break;
 	case PNP_CONFIG_CHANGE_FAILED_RESOURCE_CONFLICT:
 		printk(KERN_ERR
-		       "PnPBIOS: %s: could not dock due to resource conflicts\n",
+		       "PnPBIOS: %s: could yest dock due to resource conflicts\n",
 		       module);
 		break;
 	case PNP_BUFFER_TOO_SMALL:
@@ -249,9 +249,9 @@ void pnpbios_print_status(const char *module, u16 status)
 #define PNP_WRITE_ESCD				0x43
 
 /*
- * Call PnP BIOS with function 0x00, "get number of system device nodes"
+ * Call PnP BIOS with function 0x00, "get number of system device yesdes"
  */
-static int __pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
+static int __pnp_bios_dev_yesde_info(struct pnp_dev_yesde_info *data)
 {
 	u16 status;
 
@@ -259,17 +259,17 @@ static int __pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
 		return PNP_FUNCTION_NOT_SUPPORTED;
 	status = call_pnp_bios(PNP_GET_NUM_SYS_DEV_NODES, 0, PNP_TS1, 2,
 			       PNP_TS1, PNP_DS, 0, 0, data,
-			       sizeof(struct pnp_dev_node_info), NULL, 0);
-	data->no_nodes &= 0xff;
+			       sizeof(struct pnp_dev_yesde_info), NULL, 0);
+	data->yes_yesdes &= 0xff;
 	return status;
 }
 
-int pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
+int pnp_bios_dev_yesde_info(struct pnp_dev_yesde_info *data)
 {
-	int status = __pnp_bios_dev_node_info(data);
+	int status = __pnp_bios_dev_yesde_info(data);
 
 	if (status)
-		pnpbios_print_status("dev_node_info", status);
+		pnpbios_print_status("dev_yesde_info", status);
 	return status;
 }
 
@@ -277,52 +277,52 @@ int pnp_bios_dev_node_info(struct pnp_dev_node_info *data)
  * Note that some PnP BIOSes (e.g., on Sony Vaio laptops) die a horrible
  * death if they are asked to access the "current" configuration.
  * Therefore, if it's a matter of indifference, it's better to call
- * get_dev_node() and set_dev_node() with boot=1 rather than with boot=0.
+ * get_dev_yesde() and set_dev_yesde() with boot=1 rather than with boot=0.
  */
 
 /* 
- * Call PnP BIOS with function 0x01, "get system device node"
- * Input: *nodenum = desired node,
- *        boot = whether to get nonvolatile boot (!=0)
+ * Call PnP BIOS with function 0x01, "get system device yesde"
+ * Input: *yesdenum = desired yesde,
+ *        boot = whether to get yesnvolatile boot (!=0)
  *               or volatile current (0) config
- * Output: *nodenum=next node or 0xff if no more nodes
+ * Output: *yesdenum=next yesde or 0xff if yes more yesdes
  */
-static int __pnp_bios_get_dev_node(u8 *nodenum, char boot,
-				   struct pnp_bios_node *data)
+static int __pnp_bios_get_dev_yesde(u8 *yesdenum, char boot,
+				   struct pnp_bios_yesde *data)
 {
 	u16 status;
-	u16 tmp_nodenum;
+	u16 tmp_yesdenum;
 
 	if (!pnp_bios_present())
 		return PNP_FUNCTION_NOT_SUPPORTED;
 	if (!boot && pnpbios_dont_use_current_config)
 		return PNP_FUNCTION_NOT_SUPPORTED;
-	tmp_nodenum = *nodenum;
+	tmp_yesdenum = *yesdenum;
 	status = call_pnp_bios(PNP_GET_SYS_DEV_NODE, 0, PNP_TS1, 0, PNP_TS2,
-			       boot ? 2 : 1, PNP_DS, 0, &tmp_nodenum,
-			       sizeof(tmp_nodenum), data, 65536);
-	*nodenum = tmp_nodenum;
+			       boot ? 2 : 1, PNP_DS, 0, &tmp_yesdenum,
+			       sizeof(tmp_yesdenum), data, 65536);
+	*yesdenum = tmp_yesdenum;
 	return status;
 }
 
-int pnp_bios_get_dev_node(u8 *nodenum, char boot, struct pnp_bios_node *data)
+int pnp_bios_get_dev_yesde(u8 *yesdenum, char boot, struct pnp_bios_yesde *data)
 {
 	int status;
 
-	status = __pnp_bios_get_dev_node(nodenum, boot, data);
+	status = __pnp_bios_get_dev_yesde(yesdenum, boot, data);
 	if (status)
-		pnpbios_print_status("get_dev_node", status);
+		pnpbios_print_status("get_dev_yesde", status);
 	return status;
 }
 
 /*
- * Call PnP BIOS with function 0x02, "set system device node"
- * Input: *nodenum = desired node, 
- *        boot = whether to set nonvolatile boot (!=0)
+ * Call PnP BIOS with function 0x02, "set system device yesde"
+ * Input: *yesdenum = desired yesde, 
+ *        boot = whether to set yesnvolatile boot (!=0)
  *               or volatile current (0) config
  */
-static int __pnp_bios_set_dev_node(u8 nodenum, char boot,
-				   struct pnp_bios_node *data)
+static int __pnp_bios_set_dev_yesde(u8 yesdenum, char boot,
+				   struct pnp_bios_yesde *data)
 {
 	u16 status;
 
@@ -330,23 +330,23 @@ static int __pnp_bios_set_dev_node(u8 nodenum, char boot,
 		return PNP_FUNCTION_NOT_SUPPORTED;
 	if (!boot && pnpbios_dont_use_current_config)
 		return PNP_FUNCTION_NOT_SUPPORTED;
-	status = call_pnp_bios(PNP_SET_SYS_DEV_NODE, nodenum, 0, PNP_TS1,
+	status = call_pnp_bios(PNP_SET_SYS_DEV_NODE, yesdenum, 0, PNP_TS1,
 			       boot ? 2 : 1, PNP_DS, 0, 0, data, 65536, NULL,
 			       0);
 	return status;
 }
 
-int pnp_bios_set_dev_node(u8 nodenum, char boot, struct pnp_bios_node *data)
+int pnp_bios_set_dev_yesde(u8 yesdenum, char boot, struct pnp_bios_yesde *data)
 {
 	int status;
 
-	status = __pnp_bios_set_dev_node(nodenum, boot, data);
+	status = __pnp_bios_set_dev_yesde(yesdenum, boot, data);
 	if (status) {
-		pnpbios_print_status("set_dev_node", status);
+		pnpbios_print_status("set_dev_yesde", status);
 		return status;
 	}
 	if (!boot) {		/* Update devlist */
-		status = pnp_bios_get_dev_node(&nodenum, boot, data);
+		status = pnp_bios_get_dev_yesde(&yesdenum, boot, data);
 		if (status)
 			return status;
 	}

@@ -2,7 +2,7 @@
 /*
  * Ingenic SoC CGU driver
  *
- * Copyright (c) 2013-2015 Imagination Technologies
+ * Copyright (c) 2013-2015 Imagination Techyeslogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -43,7 +43,7 @@ ingenic_cgu_gate_get(struct ingenic_cgu *cgu,
  * ingenic_cgu_gate_set() - set the value of clock gate register bit
  * @cgu: reference to the CGU whose registers should be modified
  * @info: info struct describing the gate bit
- * @val: non-zero to gate a clock, otherwise zero
+ * @val: yesn-zero to gate a clock, otherwise zero
  *
  * Sets the given gate bit in order to gate or ungate a clock.
  *
@@ -93,7 +93,7 @@ ingenic_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	n += pll_info->n_offset;
 	od_enc = ctl >> pll_info->od_shift;
 	od_enc &= GENMASK(pll_info->od_bits - 1, 0);
-	bypass = !pll_info->no_bypass_bit &&
+	bypass = !pll_info->yes_bypass_bit &&
 		 !!(ctl & BIT(pll_info->bypass_bit));
 
 	if (bypass)
@@ -280,7 +280,7 @@ static const struct clk_ops ingenic_pll_ops = {
 };
 
 /*
- * Operations for all non-PLL clocks
+ * Operations for all yesn-PLL clocks
  */
 
 static u8 ingenic_clk_get_parent(struct clk_hw *hw)
@@ -327,7 +327,7 @@ static int ingenic_clk_set_parent(struct clk_hw *hw, u8 idx)
 		 * Convert the parent index to the hardware index by adding
 		 * 1 for any -1 in the parents array preceding the given
 		 * index. That is, we want the index of idx'th entry in
-		 * clk_info->parents which does not equal -1.
+		 * clk_info->parents which does yest equal -1.
 		 */
 		hw_idx = curr_idx = 0;
 		num_poss = 1 << clk_info->mux.bits;
@@ -608,7 +608,7 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 	if (clk_info->type == CGU_CLK_EXT) {
 		clk = of_clk_get_by_name(cgu->np, clk_info->name);
 		if (IS_ERR(clk)) {
-			pr_err("%s: no external clock '%s' provided\n",
+			pr_err("%s: yes external clock '%s' provided\n",
 			       __func__, clk_info->name);
 			err = -ENODEV;
 			goto out;
@@ -623,7 +623,7 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 	}
 
 	if (!clk_info->type) {
-		pr_err("%s: no clock type specified for '%s'\n", __func__,
+		pr_err("%s: yes clock type specified for '%s'\n", __func__,
 		       clk_info->name);
 		goto out;
 	}
@@ -677,7 +677,7 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 		caps &= ~CGU_CLK_CUSTOM;
 
 		if (caps) {
-			pr_err("%s: custom clock may not be combined with type 0x%x\n",
+			pr_err("%s: custom clock may yest be combined with type 0x%x\n",
 			       __func__, caps);
 			goto out;
 		}
@@ -688,7 +688,7 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 		caps &= ~CGU_CLK_PLL;
 
 		if (caps) {
-			pr_err("%s: PLL may not be combined with type 0x%x\n",
+			pr_err("%s: PLL may yest be combined with type 0x%x\n",
 			       __func__, caps);
 			goto out;
 		}
@@ -696,7 +696,7 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 		clk_init.ops = &ingenic_clk_ops;
 	}
 
-	/* nothing to do for gates or fixed dividers */
+	/* yesthing to do for gates or fixed dividers */
 	caps &= ~(CGU_CLK_GATE | CGU_CLK_FIXDIV);
 
 	if (caps & CGU_CLK_MUX) {
@@ -714,7 +714,7 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 	}
 
 	if (caps) {
-		pr_err("%s: unknown clock type 0x%x\n", __func__, caps);
+		pr_err("%s: unkyeswn clock type 0x%x\n", __func__, caps);
 		goto out;
 	}
 
@@ -739,7 +739,7 @@ out:
 
 struct ingenic_cgu *
 ingenic_cgu_new(const struct ingenic_cgu_clk_info *clock_info,
-		unsigned num_clocks, struct device_node *np)
+		unsigned num_clocks, struct device_yesde *np)
 {
 	struct ingenic_cgu *cgu;
 

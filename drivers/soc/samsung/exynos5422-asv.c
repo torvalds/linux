@@ -3,17 +3,17 @@
  * Copyright (c) 2019 Samsung Electronics Co., Ltd.
  *	      http://www.samsung.com/
  *
- * Samsung Exynos 5422 SoC Adaptive Supply Voltage support
+ * Samsung Exyyess 5422 SoC Adaptive Supply Voltage support
  */
 
 #include <linux/bitrev.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/regmap.h>
-#include <linux/soc/samsung/exynos-chipid.h>
+#include <linux/soc/samsung/exyyess-chipid.h>
 #include <linux/slab.h>
 
-#include "exynos-asv.h"
-#include "exynos5422-asv.h"
+#include "exyyess-asv.h"
+#include "exyyess5422-asv.h"
 
 #define ASV_GROUPS_NUM		14
 #define ASV_ARM_DVFS_NUM	20
@@ -335,7 +335,7 @@ static const struct asv_limit_entry __asv_limits[ASV_GROUPS_NUM] = {
 	{ 999, 999 },
 };
 
-static int exynos5422_asv_get_group(struct exynos_asv *asv)
+static int exyyess5422_asv_get_group(struct exyyess_asv *asv)
 {
 	unsigned int pkgid_reg, auxi_reg;
 	int hpm, ids, i;
@@ -386,9 +386,9 @@ static int __asv_offset_voltage(unsigned int index)
 	};
 }
 
-static void exynos5422_asv_offset_voltage_setup(struct exynos_asv *asv)
+static void exyyess5422_asv_offset_voltage_setup(struct exyyess_asv *asv)
 {
-	struct exynos_asv_subsys *subsys;
+	struct exyyess_asv_subsys *subsys;
 	unsigned int reg, value;
 
 	regmap_read(asv->chipid_regmap, EXYNOS_CHIPID_REG_AUX_INFO, &reg);
@@ -416,7 +416,7 @@ static void exynos5422_asv_offset_voltage_setup(struct exynos_asv *asv)
 	subsys->offset_volt_l = __asv_offset_voltage(value);
 }
 
-static int exynos5422_asv_opp_get_voltage(const struct exynos_asv_subsys *subsys,
+static int exyyess5422_asv_opp_get_voltage(const struct exyyess_asv_subsys *subsys,
 					  int level, unsigned int volt)
 {
 	unsigned int asv_volt;
@@ -424,7 +424,7 @@ static int exynos5422_asv_opp_get_voltage(const struct exynos_asv_subsys *subsys
 	if (level >= subsys->table.num_rows)
 		return volt;
 
-	asv_volt = exynos_asv_opp_get_voltage(subsys, level,
+	asv_volt = exyyess_asv_opp_get_voltage(subsys, level,
 					      subsys->asv->group);
 
 	if (volt > subsys->base_volt)
@@ -435,24 +435,24 @@ static int exynos5422_asv_opp_get_voltage(const struct exynos_asv_subsys *subsys
 	return asv_volt;
 }
 
-static unsigned int exynos5422_asv_parse_table(unsigned int pkg_id)
+static unsigned int exyyess5422_asv_parse_table(unsigned int pkg_id)
 {
 	return (pkg_id >> EXYNOS5422_TABLE_OFFSET) & EXYNOS5422_TABLE_MASK;
 }
 
-static bool exynos5422_asv_parse_bin2(unsigned int pkg_id)
+static bool exyyess5422_asv_parse_bin2(unsigned int pkg_id)
 {
 	return (pkg_id >> EXYNOS5422_BIN2_OFFSET) & EXYNOS5422_BIN2_MASK;
 }
 
-static bool exynos5422_asv_parse_sg(unsigned int pkg_id)
+static bool exyyess5422_asv_parse_sg(unsigned int pkg_id)
 {
 	return (pkg_id >> EXYNOS5422_USESG_OFFSET) & EXYNOS5422_USESG_MASK;
 }
 
-int exynos5422_asv_init(struct exynos_asv *asv)
+int exyyess5422_asv_init(struct exyyess_asv *asv)
 {
-	struct exynos_asv_subsys *subsys;
+	struct exyyess_asv_subsys *subsys;
 	unsigned int table_index;
 	unsigned int pkg_id;
 	bool bin2;
@@ -463,14 +463,14 @@ int exynos5422_asv_init(struct exynos_asv *asv)
 		bin2 = true;
 		asv->use_sg = false;
 	} else {
-		asv->use_sg = exynos5422_asv_parse_sg(pkg_id);
-		bin2 = exynos5422_asv_parse_bin2(pkg_id);
+		asv->use_sg = exyyess5422_asv_parse_sg(pkg_id);
+		bin2 = exyyess5422_asv_parse_bin2(pkg_id);
 	}
 
-	asv->group = exynos5422_asv_get_group(asv);
-	asv->table = exynos5422_asv_parse_table(pkg_id);
+	asv->group = exyyess5422_asv_get_group(asv);
+	asv->table = exyyess5422_asv_parse_table(pkg_id);
 
-	exynos5422_asv_offset_voltage_setup(asv);
+	exyyess5422_asv_offset_voltage_setup(asv);
 
 	if (bin2) {
 		table_index = 3;
@@ -499,7 +499,7 @@ int exynos5422_asv_init(struct exynos_asv *asv)
 	subsys->table.num_cols = ASV_GROUPS_NUM + 1;
 	subsys->table.buf = (u32 *)asv_kfc_table[table_index];
 
-	asv->opp_get_voltage = exynos5422_asv_opp_get_voltage;
+	asv->opp_get_voltage = exyyess5422_asv_opp_get_voltage;
 
 	return 0;
 }

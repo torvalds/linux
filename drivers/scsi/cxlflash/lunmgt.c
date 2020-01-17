@@ -2,7 +2,7 @@
 /*
  * CXL Flash Device Driver
  *
- * Written by: Manoj N. Kumar <manoj@linux.vnet.ibm.com>, IBM Corporation
+ * Written by: Mayesj N. Kumar <mayesj@linux.vnet.ibm.com>, IBM Corporation
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
@@ -36,12 +36,12 @@ static struct llun_info *create_local(struct scsi_device *sdev, u8 *wwid)
 
 	lli = kzalloc(sizeof(*lli), GFP_KERNEL);
 	if (unlikely(!lli)) {
-		dev_err(dev, "%s: could not allocate lli\n", __func__);
+		dev_err(dev, "%s: could yest allocate lli\n", __func__);
 		goto out;
 	}
 
 	lli->sdev = sdev;
-	lli->host_no = sdev->host->host_no;
+	lli->host_yes = sdev->host->host_yes;
 	lli->in_table = false;
 
 	memcpy(lli->wwid, wwid, DK_CXLFLASH_MANAGE_LUN_WWID_LEN);
@@ -64,7 +64,7 @@ static struct glun_info *create_global(struct scsi_device *sdev, u8 *wwid)
 
 	gli = kzalloc(sizeof(*gli), GFP_KERNEL);
 	if (unlikely(!gli)) {
-		dev_err(dev, "%s: could not allocate gli\n", __func__);
+		dev_err(dev, "%s: could yest allocate gli\n", __func__);
 		goto out;
 	}
 
@@ -218,11 +218,11 @@ void cxlflash_term_global_luns(void)
  * @sdev:	SCSI device associated with LUN.
  * @manage:	Manage ioctl data structure.
  *
- * This routine is used to notify the driver about a LUN's WWID and associate
+ * This routine is used to yestify the driver about a LUN's WWID and associate
  * SCSI devices (sdev) with a global LUN instance. Additionally it serves to
  * change a LUN's operating mode: legacy or superpipe.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int cxlflash_manage_lun(struct scsi_device *sdev,
 			struct dk_cxlflash_manage_lun *manage)
@@ -259,7 +259,7 @@ int cxlflash_manage_lun(struct scsi_device *sdev,
 		else {
 			/*
 			 * Clean up local LUN for this port and reset table
-			 * tracking when no more references exist.
+			 * tracking when yes more references exist.
 			 */
 			sdev->hostdata = NULL;
 			lli->port_sel &= ~CHAN2PORTMASK(chan);

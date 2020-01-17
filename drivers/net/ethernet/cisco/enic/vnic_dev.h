@@ -94,10 +94,10 @@ struct vnic_dev {
 	struct vnic_res res[RES_TYPE_MAX];
 	enum vnic_dev_intr_mode intr_mode;
 	struct vnic_devcmd __iomem *devcmd;
-	struct vnic_devcmd_notify *notify;
-	struct vnic_devcmd_notify notify_copy;
-	dma_addr_t notify_pa;
-	u32 notify_sz;
+	struct vnic_devcmd_yestify *yestify;
+	struct vnic_devcmd_yestify yestify_copy;
+	dma_addr_t yestify_pa;
+	u32 yestify_sz;
 	dma_addr_t linkstatus_pa;
 	struct vnic_stats *stats;
 	dma_addr_t stats_pa;
@@ -133,14 +133,14 @@ int vnic_dev_fw_info(struct vnic_dev *vdev,
 int vnic_dev_spec(struct vnic_dev *vdev, unsigned int offset, unsigned int size,
 	void *value);
 int vnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats);
-int vnic_dev_hang_notify(struct vnic_dev *vdev);
+int vnic_dev_hang_yestify(struct vnic_dev *vdev);
 int vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 	int broadcast, int promisc, int allmulti);
 int vnic_dev_add_addr(struct vnic_dev *vdev, const u8 *addr);
 int vnic_dev_del_addr(struct vnic_dev *vdev, const u8 *addr);
 int vnic_dev_get_mac_addr(struct vnic_dev *vdev, u8 *mac_addr);
-int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr);
-int vnic_dev_notify_unset(struct vnic_dev *vdev);
+int vnic_dev_yestify_set(struct vnic_dev *vdev, u16 intr);
+int vnic_dev_yestify_unset(struct vnic_dev *vdev);
 int vnic_dev_link_status(struct vnic_dev *vdev);
 u32 vnic_dev_port_speed(struct vnic_dev *vdev);
 u32 vnic_dev_msg_lvl(struct vnic_dev *vdev);

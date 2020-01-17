@@ -342,7 +342,7 @@ static void iproc_ts_stop(struct input_dev *dev)
 
 static int iproc_get_tsc_config(struct device *dev, struct iproc_ts_priv *priv)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	u32 val;
 
 	priv->cfg_params = iproc_default_config;
@@ -432,7 +432,7 @@ static int iproc_ts_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* touchscreen controller memory mapped regs via syscon*/
-	priv->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	priv->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							"ts_syscon");
 	if (IS_ERR(priv->regmap)) {
 		error = PTR_ERR(priv->regmap);

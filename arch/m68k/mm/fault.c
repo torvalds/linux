@@ -21,22 +21,22 @@ extern void die_if_kernel(char *, struct pt_regs *, long);
 
 int send_fault_sig(struct pt_regs *regs)
 {
-	int signo, si_code;
+	int sigyes, si_code;
 	void __user *addr;
 
-	signo = current->thread.signo;
+	sigyes = current->thread.sigyes;
 	si_code = current->thread.code;
 	addr = (void __user *)current->thread.faddr;
-	pr_debug("send_fault_sig: %p,%d,%d\n", addr, signo, si_code);
+	pr_debug("send_fault_sig: %p,%d,%d\n", addr, sigyes, si_code);
 
 	if (user_mode(regs)) {
-		force_sig_fault(signo, si_code, addr);
+		force_sig_fault(sigyes, si_code, addr);
 	} else {
 		if (fixup_exception(regs))
 			return -1;
 
-		//if (signo == SIGBUS)
-		//	force_sig_fault(si_signo, si_code, addr);
+		//if (sigyes == SIGBUS)
+		//	force_sig_fault(si_sigyes, si_code, addr);
 
 		/*
 		 * Oops. The kernel tried to access some bad page. We'll have to
@@ -59,7 +59,7 @@ int send_fault_sig(struct pt_regs *regs)
  * then passes it off to one of the appropriate routines.
  *
  * error_code:
- *	bit 0 == 0 means no page found, 1 means protection fault
+ *	bit 0 == 0 means yes page found, 1 means protection fault
  *	bit 1 == 0 means read, 1 means write
  *
  * If this routine detects a bad access, it returns 1, otherwise it
@@ -77,11 +77,11 @@ int do_page_fault(struct pt_regs *regs, unsigned long address,
 		regs->sr, regs->pc, address, error_code, mm ? mm->pgd : NULL);
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have yes user
+	 * context, we must yest take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto no_context;
+		goto yes_context;
 
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
@@ -117,14 +117,14 @@ good_area:
 	switch (error_code & 3) {
 		default:	/* 3: write, present */
 			/* fall through */
-		case 2:		/* write, not present */
+		case 2:		/* write, yest present */
 			if (!(vma->vm_flags & VM_WRITE))
 				goto acc_err;
 			flags |= FAULT_FLAG_WRITE;
 			break;
 		case 1:		/* read, present */
 			goto acc_err;
-		case 0:		/* read, not present */
+		case 0:		/* read, yest present */
 			if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
 				goto acc_err;
 	}
@@ -152,7 +152,7 @@ good_area:
 	}
 
 	/*
-	 * Major/minor page fault accounting is only done on the
+	 * Major/miyesr page fault accounting is only done on the
 	 * initial attempt. If we go through a retry, it is extremely
 	 * likely that the page will be found in page cache at that point.
 	 */
@@ -187,29 +187,29 @@ good_area:
 out_of_memory:
 	up_read(&mm->mmap_sem);
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 	pagefault_out_of_memory();
 	return 0;
 
-no_context:
-	current->thread.signo = SIGBUS;
+yes_context:
+	current->thread.sigyes = SIGBUS;
 	current->thread.faddr = address;
 	return send_fault_sig(regs);
 
 bus_err:
-	current->thread.signo = SIGBUS;
+	current->thread.sigyes = SIGBUS;
 	current->thread.code = BUS_ADRERR;
 	current->thread.faddr = address;
 	goto send_sig;
 
 map_err:
-	current->thread.signo = SIGSEGV;
+	current->thread.sigyes = SIGSEGV;
 	current->thread.code = SEGV_MAPERR;
 	current->thread.faddr = address;
 	goto send_sig;
 
 acc_err:
-	current->thread.signo = SIGSEGV;
+	current->thread.sigyes = SIGSEGV;
 	current->thread.code = SEGV_ACCERR;
 	current->thread.faddr = address;
 

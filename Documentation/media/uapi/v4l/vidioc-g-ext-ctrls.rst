@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_EXT_CTRLS:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_EXT_CTRLS - VIDIOC_S_EXT_CTRLS - VIDIOC_TRY_EXT_CTRLS - Get or set the value of several controls, try control values
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_EXT_CTRLS, struct v4l2_ext_controls *argp )
@@ -75,7 +75,7 @@ string has grown in the meantime. It is recommended to call
 ``maximum``\ +1 as the new ``size`` value. It is guaranteed that that is
 sufficient memory.
 
-N-dimensional arrays are set and retrieved row-by-row. You cannot set a
+N-dimensional arrays are set and retrieved row-by-row. You canyest set a
 partial array, all elements have to be set or retrieved. The total size
 is calculated as ``elems`` * ``elem_size``. These values can be obtained
 by calling :ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>`.
@@ -99,15 +99,15 @@ code. When the value is out of bounds drivers can choose to take the
 closest valid value or return an ``ERANGE`` error code, whatever seems more
 appropriate. In the first case the new value is set in struct
 :c:type:`v4l2_ext_control`. If the new control value
-is inappropriate (e.g. the given menu index is not supported by the menu
+is inappropriate (e.g. the given menu index is yest supported by the menu
 control), then this will also result in an ``EINVAL`` error code error.
 
-If ``request_fd`` is set to a not-yet-queued :ref:`request <media-request-api>`
+If ``request_fd`` is set to a yest-yet-queued :ref:`request <media-request-api>`
 file descriptor and ``which`` is set to ``V4L2_CTRL_WHICH_REQUEST_VAL``,
-then the controls are not applied immediately when calling
+then the controls are yest applied immediately when calling
 :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`, but instead are applied by
 the driver for the buffer associated with the same request.
-If the device does not support requests, then ``EACCES`` will be returned.
+If the device does yest support requests, then ``EACCES`` will be returned.
 If requests are supported but an invalid request file descriptor is given,
 then ``EINVAL`` will be returned.
 
@@ -118,7 +118,7 @@ If ``request_fd`` is specified and ``which`` is set to
 ``V4L2_CTRL_WHICH_REQUEST_VAL`` during a call to
 :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`, then it will return the
 values of the controls at the time of request completion.
-If the request is not yet completed, then this will result in an
+If the request is yest yet completed, then this will result in an
 ``EACCES`` error.
 
 The driver will only set/get these controls if all control values are
@@ -146,17 +146,17 @@ still cause this situation.
       - ``size``
       -
       - The total size in bytes of the payload of this control. This is
-	normally 0, but for pointer controls this should be set to the
+	yesrmally 0, but for pointer controls this should be set to the
 	size of the memory containing the payload, or that will receive
 	the payload. If :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` finds that this value is
 	less than is required to store the payload result, then it is set
-	to a value large enough to store the payload result and ``ENOSPC`` is
+	to a value large eyesugh to store the payload result and ``ENOSPC`` is
 	returned.
 
-	.. note::
+	.. yeste::
 
 	   For string controls, this ``size`` field should
-	   not be confused with the length of the string. This field refers
+	   yest be confused with the length of the string. This field refers
 	   to the size of the memory that contains the string. The actual
 	   *length* of the string may well be much smaller.
     * - __u32
@@ -165,19 +165,19 @@ still cause this situation.
       - Reserved for future extensions. Drivers and applications must set
 	the array to zero.
     * - union
-      - (anonymous)
+      - (ayesnymous)
     * -
       - __s32
       - ``value``
-      - New value or current value. Valid if this control is not of type
+      - New value or current value. Valid if this control is yest of type
 	``V4L2_CTRL_TYPE_INTEGER64`` and ``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is
-	not set.
+	yest set.
     * -
       - __s64
       - ``value64``
       - New value or current value. Valid if this control is of type
 	``V4L2_CTRL_TYPE_INTEGER64`` and ``V4L2_CTRL_FLAG_HAS_PAYLOAD`` is
-	not set.
+	yest set.
     * -
       - char *
       - ``string``
@@ -224,7 +224,7 @@ still cause this situation.
     :widths:       1 1 2 1
 
     * - union
-      - (anonymous)
+      - (ayesnymous)
     * -
       - __u32
       - ``ctrl_class``
@@ -245,22 +245,22 @@ still cause this situation.
 	these controls have to be retrieved from a request or tried/set for
 	a request. In the latter case the ``request_fd`` field contains the
 	file descriptor of the request that should be used. If the device
-	does not support requests, then ``EACCES`` will be returned.
+	does yest support requests, then ``EACCES`` will be returned.
 
-	.. note::
+	.. yeste::
 
 	   When using ``V4L2_CTRL_WHICH_DEF_VAL`` be aware that you can only
-	   get the default value of the control, you cannot set or try it.
+	   get the default value of the control, you canyest set or try it.
 
 	For backwards compatibility you can also use a control class here
 	(see :ref:`ctrl-class`). In that case all controls have to
 	belong to that control class. This usage is deprecated, instead
 	just use ``V4L2_CTRL_WHICH_CUR_VAL``. There are some very old
-	drivers that do not yet support ``V4L2_CTRL_WHICH_CUR_VAL`` and
+	drivers that do yest yet support ``V4L2_CTRL_WHICH_CUR_VAL`` and
 	that require a control class here. You can test for such drivers
 	by setting ctrl_class to ``V4L2_CTRL_WHICH_CUR_VAL`` and calling
 	VIDIOC_TRY_EXT_CTRLS with a count of 0. If that fails, then the
-	driver does not support ``V4L2_CTRL_WHICH_CUR_VAL``.
+	driver does yest support ``V4L2_CTRL_WHICH_CUR_VAL``.
     * - __u32
       - ``count``
       - The number of controls in the controls array. May also be zero.
@@ -268,14 +268,14 @@ still cause this situation.
       - ``error_idx``
       - Set by the driver in case of an error. If the error is associated
 	with a particular control, then ``error_idx`` is set to the index
-	of that control. If the error is not related to a specific
+	of that control. If the error is yest related to a specific
 	control, or the validation step failed (see below), then
 	``error_idx`` is set to ``count``. The value is undefined if the
 	ioctl returned 0 (success).
 
 	Before controls are read from/written to hardware a validation
 	step takes place: this checks if all controls in the list are
-	valid controls, if no attempt is made to write to a read-only
+	valid controls, if yes attempt is made to write to a read-only
 	control or read from a write-only control, and any other up-front
 	checks that can be done without accessing the hardware. The exact
 	validations done during this step are driver dependent since some
@@ -285,33 +285,33 @@ still cause this situation.
 
 	This check is done to avoid leaving the hardware in an
 	inconsistent state due to easy-to-avoid problems. But it leads to
-	another problem: the application needs to know whether an error
-	came from the validation step (meaning that the hardware was not
+	ayesther problem: the application needs to kyesw whether an error
+	came from the validation step (meaning that the hardware was yest
 	touched) or from an error during the actual reading from/writing
 	to hardware.
 
 	The, in hindsight quite poor, solution for that is to set
 	``error_idx`` to ``count`` if the validation failed. This has the
-	unfortunate side-effect that it is not possible to see which
+	unfortunate side-effect that it is yest possible to see which
 	control failed the validation. If the validation was successful
 	and the error happened while accessing the hardware, then
 	``error_idx`` is less than ``count`` and only the controls up to
 	``error_idx-1`` were read or written correctly, and the state of
 	the remaining controls is undefined.
 
-	Since :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` does not access hardware there is
-	also no need to handle the validation step in this special way, so
+	Since :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` does yest access hardware there is
+	also yes need to handle the validation step in this special way, so
 	``error_idx`` will just be set to the control that failed the
 	validation step instead of to ``count``. This means that if
 	:ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` fails with ``error_idx`` set to ``count``,
 	then you can call :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` to try to discover the
 	actual control that failed the validation step. Unfortunately,
-	there is no ``TRY`` equivalent for :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`.
+	there is yes ``TRY`` equivalent for :ref:`VIDIOC_G_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>`.
     * - __s32
       - ``request_fd``
       - File descriptor of the request to be used by this operation. Only
 	valid if ``which`` is set to ``V4L2_CTRL_WHICH_REQUEST_VAL``.
-	If the device does not support requests, then ``EACCES`` will be returned.
+	If the device does yest support requests, then ``EACCES`` will be returned.
 	If requests are supported but an invalid request file descriptor is
 	given, then ``EINVAL`` will be returned.
     * - __u32
@@ -323,7 +323,7 @@ still cause this situation.
       - ``controls``
       - Pointer to an array of ``count`` v4l2_ext_control structures.
 
-	Ignored if ``count`` equals zero.
+	Igyesred if ``count`` equals zero.
 
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
@@ -383,7 +383,7 @@ still cause this situation.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
@@ -392,10 +392,10 @@ EINVAL
     invalid, or the struct :c:type:`v4l2_ext_controls`
     ``which`` is invalid, or the struct
     :c:type:`v4l2_ext_control` ``value`` was
-    inappropriate (e.g. the given menu index is not supported by the
+    inappropriate (e.g. the given menu index is yest supported by the
     driver), or the ``which`` field was set to ``V4L2_CTRL_WHICH_REQUEST_VAL``
     but the given ``request_fd`` was invalid or ``V4L2_CTRL_WHICH_REQUEST_VAL``
-    is not supported by the kernel.
+    is yest supported by the kernel.
     This error code is also returned by the
     :ref:`VIDIOC_S_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` and :ref:`VIDIOC_TRY_EXT_CTRLS <VIDIOC_G_EXT_CTRLS>` ioctls if two or
     more control values are in conflict.
@@ -405,21 +405,21 @@ ERANGE
     is out of bounds.
 
 EBUSY
-    The control is temporarily not changeable, possibly because another
+    The control is temporarily yest changeable, possibly because ayesther
     applications took over control of the device function this control
     belongs to, or (if the ``which`` field was set to
-    ``V4L2_CTRL_WHICH_REQUEST_VAL``) the request was queued but not yet
+    ``V4L2_CTRL_WHICH_REQUEST_VAL``) the request was queued but yest yet
     completed.
 
 ENOSPC
     The space reserved for the control's payload is insufficient. The
-    field ``size`` is set to a value that is enough to store the payload
+    field ``size`` is set to a value that is eyesugh to store the payload
     and this error code is returned.
 
 EACCES
     Attempt to try or set a read-only control, or to get a write-only
-    control, or to get a control from a request that has not yet been
+    control, or to get a control from a request that has yest yet been
     completed.
 
     Or the ``which`` field was set to ``V4L2_CTRL_WHICH_REQUEST_VAL`` but the
-    device does not support requests.
+    device does yest support requests.

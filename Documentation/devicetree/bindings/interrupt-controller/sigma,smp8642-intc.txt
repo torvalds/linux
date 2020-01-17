@@ -3,12 +3,12 @@ Sigma Designs SMP86xx/SMP87xx secondary interrupt controller
 Required properties:
 - compatible: should be "sigma,smp8642-intc"
 - reg: physical address of MMIO region
-- ranges: address space mapping of child nodes
+- ranges: address space mapping of child yesdes
 - interrupt-controller: boolean
 - #address-cells: should be <1>
 - #size-cells: should be <1>
 
-One child node per control block with properties:
+One child yesde per control block with properties:
 - reg: address of registers for this control block
 - interrupt-controller: boolean
 - #interrupt-cells: should be <2>, interrupt index and flags per interrupts.txt

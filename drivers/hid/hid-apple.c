@@ -348,7 +348,7 @@ static int apple_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		return 1;
 	}
 
-	/* we want the hid layer to go through standard path (set and ignore) */
+	/* we want the hid layer to go through standard path (set and igyesre) */
 	return 0;
 }
 

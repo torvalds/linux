@@ -47,7 +47,7 @@ static void kone_profile_report(struct kone_device *kone, uint new_profile)
 	roccat_report.event = kone_mouse_event_switch_profile;
 	roccat_report.value = new_profile;
 	roccat_report.key = 0;
-	roccat_report_event(kone->chrdev_minor, (uint8_t *)&roccat_report);
+	roccat_report_event(kone->chrdev_miyesr, (uint8_t *)&roccat_report);
 }
 
 static int kone_receive(struct usb_device *usb_dev, uint usb_command,
@@ -106,7 +106,7 @@ static void kone_set_settings_checksum(struct kone_settings *settings)
 /*
  * Checks success after writing data to mouse
  * On success returns 0
- * On failure returns errno
+ * On failure returns erryes
  */
 static int kone_check_write(struct usb_device *usb_dev)
 {
@@ -127,7 +127,7 @@ static int kone_check_write(struct usb_device *usb_dev)
 
 		/*
 		 * value of 3 seems to mean something like
-		 * "not finished yet, but it looks good"
+		 * "yest finished yet, but it looks good"
 		 * So check again after a moment.
 		 */
 	} while (data == 3);
@@ -135,7 +135,7 @@ static int kone_check_write(struct usb_device *usb_dev)
 	if (data == 1) /* everything alright */
 		return 0;
 
-	/* unknown answer */
+	/* unkyeswn answer */
 	dev_err(&usb_dev->dev, "got retval %d when checking write\n", data);
 	return -EIO;
 }
@@ -143,7 +143,7 @@ static int kone_check_write(struct usb_device *usb_dev)
 /*
  * Reads settings from mouse and stores it in @buf
  * On success returns 0
- * On failure returns errno
+ * On failure returns erryes
  */
 static int kone_get_settings(struct usb_device *usb_dev,
 		struct kone_settings *buf)
@@ -155,7 +155,7 @@ static int kone_get_settings(struct usb_device *usb_dev,
 /*
  * Writes settings from @buf to mouse
  * On success returns 0
- * On failure returns errno
+ * On failure returns erryes
  */
 static int kone_set_settings(struct usb_device *usb_dev,
 		struct kone_settings const *settings)
@@ -173,7 +173,7 @@ static int kone_set_settings(struct usb_device *usb_dev,
  * Reads profile data from mouse and stores it in @buf
  * @number: profile number to read
  * On success returns 0
- * On failure returns errno
+ * On failure returns erryes
  */
 static int kone_get_profile(struct usb_device *usb_dev,
 		struct kone_profile *buf, int number)
@@ -199,7 +199,7 @@ static int kone_get_profile(struct usb_device *usb_dev,
  * Writes profile data to mouse.
  * @number: profile number to write
  * On success returns 0
- * On failure returns errno
+ * On failure returns erryes
  */
 static int kone_set_profile(struct usb_device *usb_dev,
 		struct kone_profile const *profile, int number)
@@ -228,7 +228,7 @@ static int kone_set_profile(struct usb_device *usb_dev,
 /*
  * Reads value of "fast-clip-weight" and stores it in @result
  * On success returns 0
- * On failure returns errno
+ * On failure returns erryes
  */
 static int kone_get_weight(struct usb_device *usb_dev, int *result)
 {
@@ -247,7 +247,7 @@ static int kone_get_weight(struct usb_device *usb_dev, int *result)
 /*
  * Reads firmware_version of mouse and stores it in @result
  * On success returns 0
- * On failure returns errno
+ * On failure returns erryes
  */
 static int kone_get_firmware_version(struct usb_device *usb_dev, int *result)
 {
@@ -510,7 +510,7 @@ static ssize_t kone_sysfs_set_tcu(struct device *dev,
 	/* calibration changes values in settings, so reread */
 	retval = kone_get_settings(usb_dev, &kone->settings);
 	if (retval)
-		goto exit_no_settings;
+		goto exit_yes_settings;
 
 	/* only write settings back if activation state is different */
 	if (kone->settings.tcu != state) {
@@ -526,7 +526,7 @@ static ssize_t kone_sysfs_set_tcu(struct device *dev,
 			 */
 			retval = kone_get_settings(usb_dev, &kone->settings);
 			if (retval)
-				goto exit_no_settings;
+				goto exit_yes_settings;
 			goto exit_unlock;
 		}
 		/* calibration resets profile */
@@ -534,7 +534,7 @@ static ssize_t kone_sysfs_set_tcu(struct device *dev,
 	}
 
 	retval = size;
-exit_no_settings:
+exit_yes_settings:
 	dev_err(&usb_dev->dev, "couldn't read settings\n");
 exit_unlock:
 	mutex_unlock(&kone->kone_lock);
@@ -676,11 +676,11 @@ static int kone_init_kone_device_struct(struct usb_device *usb_dev,
 }
 
 /*
- * Since IGNORE_MOUSE quirk moved to hid-apple, there is no way to bind only to
+ * Since IGNORE_MOUSE quirk moved to hid-apple, there is yes way to bind only to
  * mousepart if usb_hid is compiled into the kernel and kone is compiled as
  * module.
  * Secial behaviour is bound only to mousepart since only mouseevents contain
- * additional notifications.
+ * additional yestifications.
  */
 static int kone_init_specials(struct hid_device *hdev)
 {
@@ -707,10 +707,10 @@ static int kone_init_specials(struct hid_device *hdev)
 				sizeof(struct kone_roccat_report));
 		if (retval < 0) {
 			hid_err(hdev, "couldn't init char dev\n");
-			/* be tolerant about not getting chrdev */
+			/* be tolerant about yest getting chrdev */
 		} else {
 			kone->roccat_claimed = 1;
-			kone->chrdev_minor = retval;
+			kone->chrdev_miyesr = retval;
 		}
 	} else {
 		hid_set_drvdata(hdev, NULL);
@@ -731,7 +731,7 @@ static void kone_remove_specials(struct hid_device *hdev)
 			== USB_INTERFACE_PROTOCOL_MOUSE) {
 		kone = hid_get_drvdata(hdev);
 		if (kone->roccat_claimed)
-			roccat_disconnect(kone->chrdev_minor);
+			roccat_disconnect(kone->chrdev_miyesr);
 		kfree(hid_get_drvdata(hdev));
 	}
 }
@@ -804,7 +804,7 @@ static void kone_report_to_chrdev(struct kone_device const *kone,
 		roccat_report.event = event->event;
 		roccat_report.value = event->value;
 		roccat_report.key = 0;
-		roccat_report_event(kone->chrdev_minor,
+		roccat_report_event(kone->chrdev_miyesr,
 				(uint8_t *)&roccat_report);
 		break;
 	case kone_mouse_event_call_overlong_macro:
@@ -813,7 +813,7 @@ static void kone_report_to_chrdev(struct kone_device const *kone,
 			roccat_report.event = event->event;
 			roccat_report.value = kone->actual_profile;
 			roccat_report.key = event->macro_key;
-			roccat_report_event(kone->chrdev_minor,
+			roccat_report_event(kone->chrdev_miyesr,
 					(uint8_t *)&roccat_report);
 		}
 		break;

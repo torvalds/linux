@@ -46,7 +46,7 @@
 /* 3 PSD Handler */
 /* 3============================================================ */
 
-#define	AFH_PSD		1	/* 0:normal PSD scan, 1: only do 20 pts PSD */
+#define	AFH_PSD		1	/* 0:yesrmal PSD scan, 1: only do 20 pts PSD */
 #define	MODE_40M	0	/* 0:20M, 1:40M */
 #define	PSD_TH2		3
 #define	PSD_CHM		20   /*  Minimum channel number for BT AFH */
@@ -195,8 +195,8 @@ struct sw_ant_switch {
 	/*  Before link Antenna Switch check */
 	u8	SWAS_NoLink_State;
 	u32	SWAS_NoLink_BK_Reg860;
-	bool	ANTA_ON;	/* To indicate Ant A is or not */
-	bool	ANTB_ON;	/* To indicate Ant B is on or not */
+	bool	ANTA_ON;	/* To indicate Ant A is or yest */
+	bool	ANTB_ON;	/* To indicate Ant B is on or yest */
 
 	s32	RSSI_sum_A;
 	s32	RSSI_sum_B;
@@ -258,7 +258,7 @@ struct odm_phy_status_info {
 	u8	RxMIMOSignalQuality[MAX_PATH_NUM_92CS]; /* EVM */
 	u8	RxMIMOSignalStrength[MAX_PATH_NUM_92CS];/*  in 0~100 index */
 	s8	RxPower; /*  in dBm Translate from PWdB */
-	s8	RecvSignalPower;/*  Real power in dBm for this packet, no
+	s8	RecvSignalPower;/*  Real power in dBm for this packet, yes
 				 * beautification and aggregation. Keep this raw
 				 * info to be used for the other procedures.
 				 */
@@ -368,7 +368,7 @@ enum odm_common_info_def {
 	ODM_CMNINFO_BT_DISABLED,
 	ODM_CMNINFO_BT_OPERATION,
 	ODM_CMNINFO_BT_DIG,
-	ODM_CMNINFO_BT_BUSY,			/* Check Bt is using or not */
+	ODM_CMNINFO_BT_BUSY,			/* Check Bt is using or yest */
 	ODM_CMNINFO_BT_DISABLE_EDCA,
 /* CALL BY VALUE-------------*/
 
@@ -642,7 +642,7 @@ struct odm_rf_cal {
 	/* for APK */
 	u32	APKoutput[2][2]; /* path A/B; output1_1a/output1_2a */
 	u8	bAPKdone;
-	u8	bAPKThermalMeterIgnore;
+	u8	bAPKThermalMeterIgyesre;
 	u8	bDPdone;
 	u8	bDPPathAOK;
 	u8	bDPPathBOK;
@@ -1026,7 +1026,7 @@ extern	u32 OFDMSwingTable[OFDM_TABLE_SIZE_92D];
 extern	u8 CCKSwingTable_Ch1_Ch13[CCK_TABLE_SIZE][8];
 extern	u8 CCKSwingTable_Ch14[CCK_TABLE_SIZE][8];
 
-/*  check Sta pointer valid or not */
+/*  check Sta pointer valid or yest */
 #define IS_STA_VALID(pSta)		(pSta)
 /*  20100514 Joseph: Add definition for antenna switching test after link. */
 /*  This indicates two different the steps. */

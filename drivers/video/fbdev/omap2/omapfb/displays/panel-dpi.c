@@ -25,7 +25,7 @@ struct panel_drv_data {
 
 	struct omap_video_timings videomode;
 
-	/* used for non-DT boot, to be removed */
+	/* used for yesn-DT boot, to be removed */
 	int backlight_gpio;
 
 	struct gpio_desc *enable_gpio;
@@ -197,7 +197,7 @@ err_gpio:
 static int panel_dpi_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct omap_dss_device *in;
 	int r;
 	struct display_timing timing;
@@ -212,7 +212,7 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 
 	ddata->backlight_gpio = -ENOENT;
 
-	r = of_get_display_timing(node, "panel-timing", &timing);
+	r = of_get_display_timing(yesde, "panel-timing", &timing);
 	if (r) {
 		dev_err(&pdev->dev, "failed to get video timing\n");
 		return r;
@@ -221,7 +221,7 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 	videomode_from_timing(&timing, &vm);
 	videomode_to_omap_video_timings(&vm, &ddata->videomode);
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(yesde);
 	if (IS_ERR(in)) {
 		dev_err(&pdev->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -248,7 +248,7 @@ static int panel_dpi_probe(struct platform_device *pdev)
 		r = panel_dpi_probe_pdata(pdev);
 		if (r)
 			return r;
-	} else if (pdev->dev.of_node) {
+	} else if (pdev->dev.of_yesde) {
 		r = panel_dpi_probe_of(pdev);
 		if (r)
 			return r;

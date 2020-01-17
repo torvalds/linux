@@ -110,7 +110,7 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 
 		if (!enable && flag) {
 			enable = true;
-			dev_err(&ndev->dev, "promiscuity not disabled as the other interface is still in promiscuity mode\n");
+			dev_err(&ndev->dev, "promiscuity yest disabled as the other interface is still in promiscuity mode\n");
 		}
 
 		if (enable) {
@@ -168,8 +168,8 @@ static void cpsw_set_promiscious(struct net_device *ndev, bool enable)
 }
 
 /**
- * cpsw_set_mc - adds multicast entry to the table if it's not added or deletes
- * if it's not deleted
+ * cpsw_set_mc - adds multicast entry to the table if it's yest added or deletes
+ * if it's yest deleted
  * @ndev: device to sync
  * @addr: address to be added or deleted
  * @vid: vlan id, if vid < 0 set/unset address for real device
@@ -420,7 +420,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 		status &= ~CPDMA_RX_VLAN_ENCAP;
 	}
 
-	/* pass skb to netstack if no XDP prog or returned XDP_PASS */
+	/* pass skb to netstack if yes XDP prog or returned XDP_PASS */
 	skb = build_skb(pa, cpsw_rxbuf_total_len(pkt_size));
 	if (!skb) {
 		ndev->stats.rx_dropped++;
@@ -437,7 +437,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 		cpts_rx_timestamp(cpsw->cpts, skb);
 	skb->protocol = eth_type_trans(skb, ndev);
 
-	/* unmap page as no netstack skb page recycling */
+	/* unmap page as yes netstack skb page recycling */
 	page_pool_release_page(pool, page);
 	netif_receive_skb(skb);
 
@@ -607,7 +607,7 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 			  cpsw->rx_packet_max);
 	cpsw_set_slave_mac(slave, priv);
 
-	slave->mac_control = 0;	/* no link yet */
+	slave->mac_control = 0;	/* yes link yet */
 
 	slave_port = cpsw_get_slave_port(slave->slave_num);
 
@@ -617,12 +617,12 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		cpsw_ale_add_mcast(cpsw->ale, priv->ndev->broadcast,
 				   1 << slave_port, 0, 0, ALE_MCAST_FWD_2);
 
-	if (slave->data->phy_node) {
-		phy = of_phy_connect(priv->ndev, slave->data->phy_node,
+	if (slave->data->phy_yesde) {
+		phy = of_phy_connect(priv->ndev, slave->data->phy_yesde,
 				 &cpsw_adjust_link, 0, slave->data->phy_if);
 		if (!phy) {
-			dev_err(priv->dev, "phy \"%pOF\" not found on slave %d\n",
-				slave->data->phy_node,
+			dev_err(priv->dev, "phy \"%pOF\" yest found on slave %d\n",
+				slave->data->phy_yesde,
 				slave->slave_num);
 			return;
 		}
@@ -631,7 +631,7 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 				 &cpsw_adjust_link, slave->data->phy_if);
 		if (IS_ERR(phy)) {
 			dev_err(priv->dev,
-				"phy \"%s\" not found on slave %d, err %ld\n",
+				"phy \"%s\" yest found on slave %d, err %ld\n",
 				slave->data->phy_id, slave->slave_num,
 				PTR_ERR(phy));
 			return;
@@ -765,7 +765,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 
 	ret = pm_runtime_get_sync(cpsw->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+		pm_runtime_put_yesidle(cpsw->dev);
 		return ret;
 	}
 
@@ -774,13 +774,13 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	/* Notify the stack of the actual queue counts. */
 	ret = netif_set_real_num_tx_queues(ndev, cpsw->tx_ch_num);
 	if (ret) {
-		dev_err(priv->dev, "cannot set real number of tx queues\n");
+		dev_err(priv->dev, "canyest set real number of tx queues\n");
 		goto err_cleanup;
 	}
 
 	ret = netif_set_real_num_rx_queues(ndev, cpsw->rx_ch_num);
 	if (ret) {
-		dev_err(priv->dev, "cannot set real number of rx queues\n");
+		dev_err(priv->dev, "canyest set real number of rx queues\n");
 		goto err_cleanup;
 	}
 
@@ -827,7 +827,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		}
 
 		/* create rxqs for both infs in dual mac as they use same pool
-		 * and must be destroyed together when no users.
+		 * and must be destroyed together when yes users.
 		 */
 		ret = cpsw_create_xdp_rxqs(cpsw);
 		if (ret < 0)
@@ -933,7 +933,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 		goto fail;
 	}
 
-	/* If there is no more tx desc left free then we need to
+	/* If there is yes more tx desc left free then we need to
 	 * tell the kernel to stop sending us tx frames.
 	 */
 	if (unlikely(!cpdma_check_free_tx_desc(txch))) {
@@ -974,7 +974,7 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
 
 	ret = pm_runtime_get_sync(cpsw->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+		pm_runtime_put_yesidle(cpsw->dev);
 		return ret;
 	}
 
@@ -1058,12 +1058,12 @@ static int cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
 
 	ret = pm_runtime_get_sync(cpsw->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+		pm_runtime_put_yesidle(cpsw->dev);
 		return ret;
 	}
 
 	if (cpsw->data.dual_emac) {
-		/* In dual EMAC, reserved VLAN id should not be used for
+		/* In dual EMAC, reserved VLAN id should yest be used for
 		 * creating VLAN interfaces as this can break the dual
 		 * EMAC port separation
 		 */
@@ -1096,7 +1096,7 @@ static int cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 
 	ret = pm_runtime_get_sync(cpsw->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+		pm_runtime_put_yesidle(cpsw->dev);
 		return ret;
 	}
 
@@ -1243,21 +1243,21 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			 struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *slave_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *slave_yesde;
 	int i = 0, ret;
 	u32 prop;
 
-	if (!node)
+	if (!yesde)
 		return -EINVAL;
 
-	if (of_property_read_u32(node, "slaves", &prop)) {
+	if (of_property_read_u32(yesde, "slaves", &prop)) {
 		dev_err(&pdev->dev, "Missing slaves property in the DT.\n");
 		return -EINVAL;
 	}
 	data->slaves = prop;
 
-	if (of_property_read_u32(node, "active_slave", &prop)) {
+	if (of_property_read_u32(yesde, "active_slave", &prop)) {
 		dev_err(&pdev->dev, "Missing active_slave property in the DT.\n");
 		return -EINVAL;
 	}
@@ -1270,97 +1270,97 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	if (!data->slave_data)
 		return -ENOMEM;
 
-	if (of_property_read_u32(node, "cpdma_channels", &prop)) {
+	if (of_property_read_u32(yesde, "cpdma_channels", &prop)) {
 		dev_err(&pdev->dev, "Missing cpdma_channels property in the DT.\n");
 		return -EINVAL;
 	}
 	data->channels = prop;
 
-	if (of_property_read_u32(node, "ale_entries", &prop)) {
+	if (of_property_read_u32(yesde, "ale_entries", &prop)) {
 		dev_err(&pdev->dev, "Missing ale_entries property in the DT.\n");
 		return -EINVAL;
 	}
 	data->ale_entries = prop;
 
-	if (of_property_read_u32(node, "bd_ram_size", &prop)) {
+	if (of_property_read_u32(yesde, "bd_ram_size", &prop)) {
 		dev_err(&pdev->dev, "Missing bd_ram_size property in the DT.\n");
 		return -EINVAL;
 	}
 	data->bd_ram_size = prop;
 
-	if (of_property_read_u32(node, "mac_control", &prop)) {
+	if (of_property_read_u32(yesde, "mac_control", &prop)) {
 		dev_err(&pdev->dev, "Missing mac_control property in the DT.\n");
 		return -EINVAL;
 	}
 	data->mac_control = prop;
 
-	if (of_property_read_bool(node, "dual_emac"))
+	if (of_property_read_bool(yesde, "dual_emac"))
 		data->dual_emac = 1;
 
 	/*
-	 * Populate all the child nodes here...
+	 * Populate all the child yesdes here...
 	 */
-	ret = of_platform_populate(node, NULL, NULL, &pdev->dev);
-	/* We do not want to force this, as in some cases may not have child */
+	ret = of_platform_populate(yesde, NULL, NULL, &pdev->dev);
+	/* We do yest want to force this, as in some cases may yest have child */
 	if (ret)
-		dev_warn(&pdev->dev, "Doesn't have any child node\n");
+		dev_warn(&pdev->dev, "Doesn't have any child yesde\n");
 
-	for_each_available_child_of_node(node, slave_node) {
+	for_each_available_child_of_yesde(yesde, slave_yesde) {
 		struct cpsw_slave_data *slave_data = data->slave_data + i;
 		const void *mac_addr = NULL;
 		int lenp;
 		const __be32 *parp;
 
-		/* This is no slave child node, continue */
-		if (!of_node_name_eq(slave_node, "slave"))
+		/* This is yes slave child yesde, continue */
+		if (!of_yesde_name_eq(slave_yesde, "slave"))
 			continue;
 
-		slave_data->ifphy = devm_of_phy_get(&pdev->dev, slave_node,
+		slave_data->ifphy = devm_of_phy_get(&pdev->dev, slave_yesde,
 						    NULL);
 		if (!IS_ENABLED(CONFIG_TI_CPSW_PHY_SEL) &&
 		    IS_ERR(slave_data->ifphy)) {
 			ret = PTR_ERR(slave_data->ifphy);
 			dev_err(&pdev->dev,
 				"%d: Error retrieving port phy: %d\n", i, ret);
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 
-		slave_data->slave_node = slave_node;
-		slave_data->phy_node = of_parse_phandle(slave_node,
+		slave_data->slave_yesde = slave_yesde;
+		slave_data->phy_yesde = of_parse_phandle(slave_yesde,
 							"phy-handle", 0);
-		parp = of_get_property(slave_node, "phy_id", &lenp);
-		if (slave_data->phy_node) {
+		parp = of_get_property(slave_yesde, "phy_id", &lenp);
+		if (slave_data->phy_yesde) {
 			dev_dbg(&pdev->dev,
 				"slave[%d] using phy-handle=\"%pOF\"\n",
-				i, slave_data->phy_node);
-		} else if (of_phy_is_fixed_link(slave_node)) {
-			/* In the case of a fixed PHY, the DT node associated
-			 * to the PHY is the Ethernet MAC DT node.
+				i, slave_data->phy_yesde);
+		} else if (of_phy_is_fixed_link(slave_yesde)) {
+			/* In the case of a fixed PHY, the DT yesde associated
+			 * to the PHY is the Ethernet MAC DT yesde.
 			 */
-			ret = of_phy_register_fixed_link(slave_node);
+			ret = of_phy_register_fixed_link(slave_yesde);
 			if (ret) {
 				if (ret != -EPROBE_DEFER)
 					dev_err(&pdev->dev, "failed to register fixed-link phy: %d\n", ret);
-				goto err_node_put;
+				goto err_yesde_put;
 			}
-			slave_data->phy_node = of_node_get(slave_node);
+			slave_data->phy_yesde = of_yesde_get(slave_yesde);
 		} else if (parp) {
 			u32 phyid;
-			struct device_node *mdio_node;
+			struct device_yesde *mdio_yesde;
 			struct platform_device *mdio;
 
 			if (lenp != (sizeof(__be32) * 2)) {
 				dev_err(&pdev->dev, "Invalid slave[%d] phy_id property\n", i);
-				goto no_phy_slave;
+				goto yes_phy_slave;
 			}
-			mdio_node = of_find_node_by_phandle(be32_to_cpup(parp));
+			mdio_yesde = of_find_yesde_by_phandle(be32_to_cpup(parp));
 			phyid = be32_to_cpup(parp+1);
-			mdio = of_find_device_by_node(mdio_node);
-			of_node_put(mdio_node);
+			mdio = of_find_device_by_yesde(mdio_yesde);
+			of_yesde_put(mdio_yesde);
 			if (!mdio) {
 				dev_err(&pdev->dev, "Missing mdio platform device\n");
 				ret = -EINVAL;
-				goto err_node_put;
+				goto err_yesde_put;
 			}
 			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
 				 PHY_ID_FMT, mdio->name, phyid);
@@ -1369,27 +1369,27 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			dev_err(&pdev->dev,
 				"No slave[%d] phy_id, phy-handle, or fixed-link property\n",
 				i);
-			goto no_phy_slave;
+			goto yes_phy_slave;
 		}
-		ret = of_get_phy_mode(slave_node, &slave_data->phy_if);
+		ret = of_get_phy_mode(slave_yesde, &slave_data->phy_if);
 		if (ret) {
 			dev_err(&pdev->dev, "Missing or malformed slave[%d] phy-mode property\n",
 				i);
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 
-no_phy_slave:
-		mac_addr = of_get_mac_address(slave_node);
+yes_phy_slave:
+		mac_addr = of_get_mac_address(slave_yesde);
 		if (!IS_ERR(mac_addr)) {
 			ether_addr_copy(slave_data->mac_addr, mac_addr);
 		} else {
 			ret = ti_cm_get_macid(&pdev->dev, i,
 					      slave_data->mac_addr);
 			if (ret)
-				goto err_node_put;
+				goto err_yesde_put;
 		}
 		if (data->dual_emac) {
-			if (of_property_read_u32(slave_node, "dual_emac_res_vlan",
+			if (of_property_read_u32(slave_yesde, "dual_emac_res_vlan",
 						 &prop)) {
 				dev_err(&pdev->dev, "Missing dual_emac_res_vlan in DT.\n");
 				slave_data->dual_emac_res_vlan = i+1;
@@ -1403,14 +1403,14 @@ no_phy_slave:
 		i++;
 		if (i == data->slaves) {
 			ret = 0;
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 	}
 
 	return 0;
 
-err_node_put:
-	of_node_put(slave_node);
+err_yesde_put:
+	of_yesde_put(slave_yesde);
 	return ret;
 }
 
@@ -1418,24 +1418,24 @@ static void cpsw_remove_dt(struct platform_device *pdev)
 {
 	struct cpsw_common *cpsw = platform_get_drvdata(pdev);
 	struct cpsw_platform_data *data = &cpsw->data;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *slave_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *slave_yesde;
 	int i = 0;
 
-	for_each_available_child_of_node(node, slave_node) {
+	for_each_available_child_of_yesde(yesde, slave_yesde) {
 		struct cpsw_slave_data *slave_data = &data->slave_data[i];
 
-		if (!of_node_name_eq(slave_node, "slave"))
+		if (!of_yesde_name_eq(slave_yesde, "slave"))
 			continue;
 
-		if (of_phy_is_fixed_link(slave_node))
-			of_phy_deregister_fixed_link(slave_node);
+		if (of_phy_is_fixed_link(slave_yesde))
+			of_phy_deregister_fixed_link(slave_yesde);
 
-		of_node_put(slave_data->phy_node);
+		of_yesde_put(slave_data->phy_yesde);
 
 		i++;
 		if (i == data->slaves) {
-			of_node_put(slave_node);
+			of_yesde_put(slave_yesde);
 			break;
 		}
 	}
@@ -1485,7 +1485,7 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 
 	/* register the network device */
 	SET_NETDEV_DEV(ndev, cpsw->dev);
-	ndev->dev.of_node = cpsw->slaves[1].data->slave_node;
+	ndev->dev.of_yesde = cpsw->slaves[1].data->slave_yesde;
 	ret = register_netdev(ndev);
 	if (ret)
 		dev_err(cpsw->dev, "cpsw: error registering net device\n");
@@ -1541,7 +1541,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	clk = devm_clk_get(dev, "fck");
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		dev_err(dev, "fck is not found %d\n", ret);
+		dev_err(dev, "fck is yest found %d\n", ret);
 		return ret;
 	}
 	cpsw->bus_freq_mhz = clk_get_rate(clk) / 1000000;
@@ -1578,7 +1578,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	 */
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		goto clean_runtime_disable_ret;
 	}
 
@@ -1664,7 +1664,7 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	/* register the network device */
 	SET_NETDEV_DEV(ndev, dev);
-	ndev->dev.of_node = cpsw->slaves[0].data->slave_node;
+	ndev->dev.of_yesde = cpsw->slaves[0].data->slave_yesde;
 	ret = register_netdev(ndev);
 	if (ret) {
 		dev_err(dev, "error registering net device\n");
@@ -1682,7 +1682,7 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	/* Grab RX and TX IRQs. Note that we also have RX_THRESHOLD and
 	 * MISC IRQs which are always kept disabled with this driver so
-	 * we will not request them.
+	 * we will yest request them.
 	 *
 	 * If anyone wants to implement support for those, make sure to
 	 * first request and append them to irqs_table array.
@@ -1702,7 +1702,7 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_unregister_netdev_ret;
 	}
 
-	cpsw_notice(priv, probe,
+	cpsw_yestice(priv, probe,
 		    "initialized device (regs %pa, irq %d, pool size %d)\n",
 		    &ss_res->start, cpsw->irqs_table[0], descs_pool_size);
 
@@ -1730,7 +1730,7 @@ static int cpsw_remove(struct platform_device *pdev)
 
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 		return ret;
 	}
 

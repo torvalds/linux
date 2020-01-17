@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -141,19 +141,19 @@ static void get_atom_data_table_revision(
 
 	/* initialize the revision to 0 which is invalid revision */
 	tbl_revision->major = 0;
-	tbl_revision->minor = 0;
+	tbl_revision->miyesr = 0;
 
 	if (!atom_data_tbl)
 		return;
 
 	tbl_revision->major =
 			(uint32_t) atom_data_tbl->format_revision & 0x3f;
-	tbl_revision->minor =
+	tbl_revision->miyesr =
 			(uint32_t) atom_data_tbl->content_revision & 0x3f;
 }
 
 /* BIOS oject table displaypath is per connector.
- * There is extra path not for connector. BIOS fill its encoderid as 0
+ * There is extra path yest for connector. BIOS fill its encoderid as 0
  */
 static uint8_t bios_parser_get_connectors_number(struct dc_bios *dcb)
 {
@@ -205,7 +205,7 @@ static enum bp_result bios_parser_get_src_obj(struct dc_bios *dcb,
 		return bp_result;
 
 	switch (object_id.type) {
-	/* Encoder's Source is GPU.  BIOS does not provide GPU, since all
+	/* Encoder's Source is GPU.  BIOS does yest provide GPU, since all
 	 * displaypaths point to same GPU (0x1100).  Hardcode GPU object type
 	 */
 	case OBJECT_TYPE_ENCODER:
@@ -482,7 +482,7 @@ static struct atom_hpd_int_record *get_hpd_record(
  * @param gpio_id, GPIO ID
  * @param info, GpioPin information structure
  * @return Bios parser result code
- * @note
+ * @yeste
  *  to get the GPIO PIN INFO, we need:
  *  1. get the GPIO_ID from other object table, see GetHPDInfo()
  *  2. in DATA_TABLE.GPIO_Pin_LUT, search all records,
@@ -628,7 +628,7 @@ static enum bp_result bios_parser_get_device_tag(
 		return BP_RESULT_BADINPUT;
 	}
 
-	info->acpi_device = 0; /* BIOS no longer provides this */
+	info->acpi_device = 0; /* BIOS yes longer provides this */
 	info->dev_id = device_type_from_device_id(object->device_tag);
 
 	return BP_RESULT_OK;
@@ -658,7 +658,7 @@ static enum bp_result get_ss_info_v4_1(
 
 	ss_info->type.STEP_AND_DELAY_INFO = false;
 	ss_info->spread_percentage_divider = 1000;
-	/* BIOS no longer uses target clock.  Always enable for now */
+	/* BIOS yes longer uses target clock.  Always enable for yesw */
 	ss_info->target_clock_range = 0xffffffff;
 
 	switch (id) {
@@ -678,7 +678,7 @@ static enum bp_result get_ss_info_v4_1(
 		if (disp_cntl_tbl->hdmi_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
 			ss_info->type.CENTER_MODE = true;
 		break;
-	/* TODO LVDS not support anymore? */
+	/* TODO LVDS yest support anymore? */
 	case AS_SIGNAL_TYPE_DISPLAY_PORT:
 		ss_info->spread_spectrum_percentage =
 				disp_cntl_tbl->dp_ss_percentage;
@@ -744,7 +744,7 @@ static enum bp_result get_ss_info_v4_2(
 
 	ss_info->type.STEP_AND_DELAY_INFO = false;
 	ss_info->spread_percentage_divider = 1000;
-	/* BIOS no longer uses target clock.  Always enable for now */
+	/* BIOS yes longer uses target clock.  Always enable for yesw */
 	ss_info->target_clock_range = 0xffffffff;
 
 	switch (id) {
@@ -764,7 +764,7 @@ static enum bp_result get_ss_info_v4_2(
 		if (disp_cntl_tbl->hdmi_ss_mode & ATOM_SS_CENTRE_SPREAD_MODE)
 			ss_info->type.CENTER_MODE = true;
 		break;
-	/* TODO LVDS not support anymore? */
+	/* TODO LVDS yest support anymore? */
 	case AS_SIGNAL_TYPE_DISPLAY_PORT:
 		ss_info->spread_spectrum_percentage =
 				smu_info->gpuclk_ss_percentage;
@@ -794,7 +794,7 @@ static enum bp_result get_ss_info_v4_2(
  * ver 2.1 can co-exist with SS_Info table. Expect ASIC_InternalSS_Info
  * ver 3.1,
  * there is only one entry for each signal /ss id.  However, there is
- * no planning of supporting multiple spread Sprectum entry for EverGreen
+ * yes planning of supporting multiple spread Sprectum entry for EverGreen
  * @param [in] this
  * @param [in] signal, ASSignalType to be converted to info index
  * @param [in] index, number of entries that match the converted info index
@@ -824,7 +824,7 @@ static enum bp_result bios_parser_get_spread_spectrum_info(
 
 	switch (tbl_revision.major) {
 	case 4:
-		switch (tbl_revision.minor) {
+		switch (tbl_revision.miyesr) {
 		case 1:
 			return get_ss_info_v4_1(bp, signal, index, ss_info);
 		case 2:
@@ -836,7 +836,7 @@ static enum bp_result bios_parser_get_spread_spectrum_info(
 	default:
 		break;
 	}
-	/* there can not be more then one entry for SS Info table */
+	/* there can yest be more then one entry for SS Info table */
 	return result;
 }
 
@@ -866,20 +866,20 @@ static enum bp_result get_embedded_panel_info_v2_1(
 
 	/* We need to convert from 10KHz units into KHz units */
 	info->lcd_timing.pixel_clk = le16_to_cpu(lvds->lcd_timing.pixclk) * 10;
-	/* usHActive does not include borders, according to VBIOS team */
+	/* usHActive does yest include borders, according to VBIOS team */
 	info->lcd_timing.horizontal_addressable = le16_to_cpu(lvds->lcd_timing.h_active);
 	/* usHBlanking_Time includes borders, so we should really be
 	 * subtractingborders duing this translation, but LVDS generally
 	 * doesn't have borders, so we should be okay leaving this as is for
-	 * now.  May need to revisit if we ever have LVDS with borders
+	 * yesw.  May need to revisit if we ever have LVDS with borders
 	 */
 	info->lcd_timing.horizontal_blanking_time = le16_to_cpu(lvds->lcd_timing.h_blanking_time);
-	/* usVActive does not include borders, according to VBIOS team*/
+	/* usVActive does yest include borders, according to VBIOS team*/
 	info->lcd_timing.vertical_addressable = le16_to_cpu(lvds->lcd_timing.v_active);
 	/* usVBlanking_Time includes borders, so we should really be
 	 * subtracting borders duing this translation, but LVDS generally
 	 * doesn't have borders, so we should be okay leaving this as is for
-	 * now. May need to revisit if we ever have LVDS with borders
+	 * yesw. May need to revisit if we ever have LVDS with borders
 	 */
 	info->lcd_timing.vertical_blanking_time = le16_to_cpu(lvds->lcd_timing.v_blanking_time);
 	info->lcd_timing.horizontal_sync_offset = le16_to_cpu(lvds->lcd_timing.h_sync_offset);
@@ -889,7 +889,7 @@ static enum bp_result get_embedded_panel_info_v2_1(
 	info->lcd_timing.horizontal_border = lvds->lcd_timing.h_border;
 	info->lcd_timing.vertical_border = lvds->lcd_timing.v_border;
 
-	/* not provided by VBIOS */
+	/* yest provided by VBIOS */
 	info->lcd_timing.misc_info.HORIZONTAL_CUT_OFF = 0;
 
 	info->lcd_timing.misc_info.H_SYNC_POLARITY = ~(uint32_t) (lvds->lcd_timing.miscinfo
@@ -897,7 +897,7 @@ static enum bp_result get_embedded_panel_info_v2_1(
 	info->lcd_timing.misc_info.V_SYNC_POLARITY = ~(uint32_t) (lvds->lcd_timing.miscinfo
 			& ATOM_VSYNC_POLARITY);
 
-	/* not provided by VBIOS */
+	/* yest provided by VBIOS */
 	info->lcd_timing.misc_info.VERTICAL_CUT_OFF = 0;
 
 	info->lcd_timing.misc_info.H_REPLICATION_BY2 = !!(lvds->lcd_timing.miscinfo
@@ -908,9 +908,9 @@ static enum bp_result get_embedded_panel_info_v2_1(
 			& ATOM_COMPOSITESYNC);
 	info->lcd_timing.misc_info.INTERLACE = !!(lvds->lcd_timing.miscinfo & ATOM_INTERLACE);
 
-	/* not provided by VBIOS*/
+	/* yest provided by VBIOS*/
 	info->lcd_timing.misc_info.DOUBLE_CLOCK = 0;
-	/* not provided by VBIOS*/
+	/* yest provided by VBIOS*/
 	info->ss_id = 0;
 
 	info->realtek_eDPToLVDS = !!(lvds->dplvdsrxid == eDP_TO_LVDS_REALTEK_ID);
@@ -939,7 +939,7 @@ static enum bp_result bios_parser_get_embedded_panel_info(
 
 	switch (tbl_revision.major) {
 	case 2:
-		switch (tbl_revision.minor) {
+		switch (tbl_revision.miyesr) {
 		case 1:
 			return get_embedded_panel_info_v2_1(bp, info);
 		default:
@@ -1008,7 +1008,7 @@ static uint32_t bios_parser_get_ss_entry_number(
 	struct dc_bios *dcb,
 	enum as_signal_type signal)
 {
-	/* TODO: DAL2 atomfirmware implementation does not need this.
+	/* TODO: DAL2 atomfirmware implementation does yest need this.
 	 * why DAL3 need this?
 	 */
 	return 1;
@@ -1139,7 +1139,7 @@ static enum bp_result bios_parser_get_firmware_info(
 		get_atom_data_table_revision(header, &revision);
 		switch (revision.major) {
 		case 3:
-			switch (revision.minor) {
+			switch (revision.miyesr) {
 			case 1:
 				result = get_firmware_info_v3_1(bp, info);
 				break;
@@ -1190,10 +1190,10 @@ static enum bp_result get_firmware_info_v3_1(
 	 /* 27MHz for Vega10: */
 	info->pll_info.crystal_frequency = dce_info->dce_refclk_10khz * 10;
 
-	/* Hardcode frequency if BIOS gives no DCE Ref Clk */
+	/* Hardcode frequency if BIOS gives yes DCE Ref Clk */
 	if (info->pll_info.crystal_frequency == 0)
 		info->pll_info.crystal_frequency = 27000;
-	/*dp_phy_ref_clk is not correct for atom_display_controller_info_v4_2, but we don't use it*/
+	/*dp_phy_ref_clk is yest correct for atom_display_controller_info_v4_2, but we don't use it*/
 	info->dp_phy_ref_clk     = dce_info->dpphy_refclk_10khz * 10;
 	info->i2c_engine_ref_clk = dce_info->i2c_engine_refclk_10khz * 10;
 
@@ -1237,7 +1237,7 @@ static enum bp_result get_firmware_info_v3_2(
 					DATA_TABLES(smu_info));
 	get_atom_data_table_revision(header, &revision);
 
-	if (revision.minor == 2) {
+	if (revision.miyesr == 2) {
 		/* Vega12 */
 		smu_info_v3_2 = GET_IMAGE(struct atom_smu_info_v3_2,
 							DATA_TABLES(smu_info));
@@ -1246,7 +1246,7 @@ static enum bp_result get_firmware_info_v3_2(
 			return BP_RESULT_BADBIOSTABLE;
 
 		info->default_engine_clk = smu_info_v3_2->bootup_dcefclk_10khz * 10;
-	} else if (revision.minor == 3) {
+	} else if (revision.miyesr == 3) {
 		/* Vega20 */
 		smu_info_v3_3 = GET_IMAGE(struct atom_smu_info_v3_3,
 							DATA_TABLES(smu_info));
@@ -1262,23 +1262,23 @@ static enum bp_result get_firmware_info_v3_2(
 
 	 /* 27MHz for Vega10 & Vega12; 100MHz for Vega20 */
 	info->pll_info.crystal_frequency = dce_info->dce_refclk_10khz * 10;
-	/* Hardcode frequency if BIOS gives no DCE Ref Clk */
+	/* Hardcode frequency if BIOS gives yes DCE Ref Clk */
 	if (info->pll_info.crystal_frequency == 0) {
-		if (revision.minor == 2)
+		if (revision.miyesr == 2)
 			info->pll_info.crystal_frequency = 27000;
-		else if (revision.minor == 3)
+		else if (revision.miyesr == 3)
 			info->pll_info.crystal_frequency = 100000;
 	}
-	/*dp_phy_ref_clk is not correct for atom_display_controller_info_v4_2, but we don't use it*/
+	/*dp_phy_ref_clk is yest correct for atom_display_controller_info_v4_2, but we don't use it*/
 	info->dp_phy_ref_clk     = dce_info->dpphy_refclk_10khz * 10;
 	info->i2c_engine_ref_clk = dce_info->i2c_engine_refclk_10khz * 10;
 
 	/* Get GPU PLL VCO Clock */
 	if (bp->cmd_tbl.get_smu_clock_info != NULL) {
-		if (revision.minor == 2)
+		if (revision.miyesr == 2)
 			info->smu_gpu_pll_output_freq =
 					bp->cmd_tbl.get_smu_clock_info(bp, SMU9_SYSPLL0_ID) * 10;
-		else if (revision.minor == 3)
+		else if (revision.miyesr == 3)
 			info->smu_gpu_pll_output_freq =
 					bp->cmd_tbl.get_smu_clock_info(bp, SMU11_SYSPLL3_0_ID) * 10;
 	}
@@ -1623,7 +1623,7 @@ static enum bp_result construct_integrated_info(
 		get_atom_data_table_revision(header, &revision);
 
 		/* Don't need to check major revision as they are all 1 */
-		switch (revision.minor) {
+		switch (revision.miyesr) {
 		case 11:
 		case 12:
 			result = get_integrated_info_v11(bp, info);
@@ -1730,7 +1730,7 @@ static enum bp_result update_slot_layout_info(
 		record_offset += record_header->record_size;
 	}
 
-	/* return if the record not found */
+	/* return if the record yest found */
 	if (result != BP_RESULT_OK)
 		return result;
 
@@ -1849,7 +1849,7 @@ static enum bp_result bios_get_board_layout_info(
 			&board_layout_info->slots[i]);
 
 		if (record_result == BP_RESULT_NORECORD && i > 0)
-			break; /* no more slots present in bios */
+			break; /* yes more slots present in bios */
 		else if (record_result != BP_RESULT_OK)
 			return record_result;  /* fail */
 
@@ -1951,7 +1951,7 @@ static bool bios_parser_construct(
 		return false;
 
 	get_atom_data_table_revision(&rom_header->table_header, &tbl_rev);
-	if (!(tbl_rev.major >= 2 && tbl_rev.minor >= 2))
+	if (!(tbl_rev.major >= 2 && tbl_rev.miyesr >= 2))
 		return false;
 
 	bp->master_data_tbl =
@@ -1977,7 +1977,7 @@ static bool bios_parser_construct(
 		&bp->object_info_tbl.revision);
 
 	if (bp->object_info_tbl.revision.major == 1
-		&& bp->object_info_tbl.revision.minor >= 4) {
+		&& bp->object_info_tbl.revision.miyesr >= 4) {
 		struct display_object_info_table_v1_4 *tbl_v1_4;
 
 		tbl_v1_4 = GET_IMAGE(struct display_object_info_table_v1_4,

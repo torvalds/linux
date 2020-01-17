@@ -384,7 +384,7 @@ static const struct phy_ops phy_g12a_usb3_pcie_ops = {
 static int phy_g12a_usb3_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct phy_g12a_usb3_pcie_priv *priv;
 	struct resource *res;
 	struct phy_provider *phy_provider;

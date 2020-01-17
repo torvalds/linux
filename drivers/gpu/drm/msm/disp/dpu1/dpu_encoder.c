@@ -80,17 +80,17 @@
  *	This event, when received during the ON state, leave the RC STATE
  *	in the PRE_OFF state. It should be followed by the STOP event as
  *	part of encoder disable.
- *	If received during IDLE or OFF states, it will do nothing.
+ *	If received during IDLE or OFF states, it will do yesthing.
  * @DPU_ENC_RC_EVENT_STOP:
  *	This event happens at NORMAL priority.
  *	When this event is received, disable all the MDP/DSI core clocks, and
  *	disable IRQs. It should be called from the PRE_OFF or IDLE states.
- *	IDLE is expected when IDLE_PC has run, and PRE_OFF did nothing.
+ *	IDLE is expected when IDLE_PC has run, and PRE_OFF did yesthing.
  *	PRE_OFF is expected when PRE_STOP was executed during the ON state.
  *	Resource state should be in OFF at the end of the event.
  * @DPU_ENC_RC_EVENT_ENTER_IDLE:
  *	This event happens at NORMAL priority from a work item.
- *	Event signals that there were no frame updates for IDLE_TIMEOUT time.
+ *	Event signals that there were yes frame updates for IDLE_TIMEOUT time.
  *	This would disable MDP/DSI core clocks and change the resource state
  *	to IDLE.
  */
@@ -133,9 +133,9 @@ enum dpu_enc_rc_states {
  *			Only valid after enable. Cleared as disable.
  * @hw_pp		Handle to the pingpong blocks used for the display. No.
  *			pingpong blocks can be different than num_phys_encs.
- * @intfs_swapped	Whether or not the phys_enc interfaces have been swapped
+ * @intfs_swapped	Whether or yest the phys_enc interfaces have been swapped
  *			for partial update right-only cases, such as pingpong
- *			split where virtual pingpong does not generate IRQs
+ *			split where virtual pingpong does yest generate IRQs
  * @crtc:		Pointer to the currently assigned crtc. Normally you
  *			would use crtc->state->encoder_mask to determine the
  *			link between encoder/crtc. However in this case we need
@@ -144,7 +144,7 @@ enum dpu_enc_rc_states {
  * @crtc_kickoff_cb:		Callback into CRTC that will flush & start
  *				all CTL paths
  * @crtc_kickoff_cb_data:	Opaque user data given to crtc_kickoff_cb
- * @debugfs_root:		Debug file system root file node
+ * @debugfs_root:		Debug file system root file yesde
  * @enc_lock:			Lock around physical encoder
  *				create/destroy/enable/disable
  * @frame_busy_mask:		Bitmask tracking which phys_enc we are still
@@ -239,9 +239,9 @@ int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
 	}
 	irq = &phys_enc->irq[intr_idx];
 
-	/* note: do master / slave checking outside */
+	/* yeste: do master / slave checking outside */
 
-	/* return EWOULDBLOCK since we know the wait isn't necessary */
+	/* return EWOULDBLOCK since we kyesw the wait isn't necessary */
 	if (phys_enc->enable_state == DPU_ENC_DISABLED) {
 		DRM_ERROR("encoder is disabled id=%u, intr=%d, hw=%d, irq=%d",
 			  DRMID(phys_enc->parent), intr_idx, irq->hw_idx,
@@ -272,7 +272,7 @@ int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
 		if (irq_status) {
 			unsigned long flags;
 
-			DRM_DEBUG_KMS("irq not triggered id=%u, intr=%d, "
+			DRM_DEBUG_KMS("irq yest triggered id=%u, intr=%d, "
 				      "hw=%d, irq=%d, pp=%d, atomic_cnt=%d",
 				      DRMID(phys_enc->parent), intr_idx,
 				      irq->hw_idx, irq->irq_idx,
@@ -446,7 +446,7 @@ static void dpu_encoder_destroy(struct drm_encoder *drm_enc)
 	}
 
 	if (dpu_enc->num_phys_encs)
-		DPU_ERROR_ENC(dpu_enc, "expected 0 num_phys_encs not %d\n",
+		DPU_ERROR_ENC(dpu_enc, "expected 0 num_phys_encs yest %d\n",
 				dpu_enc->num_phys_encs);
 	dpu_enc->num_phys_encs = 0;
 	mutex_unlock(&dpu_enc->enc_lock);
@@ -573,7 +573,7 @@ static int dpu_encoder_virt_atomic_check(
 	/*
 	 * display drivers may populate private fields of the drm display mode
 	 * structure while registering possible modes of a connector with DRM.
-	 * These private fields are not populated back while DRM invokes
+	 * These private fields are yest populated back while DRM invokes
 	 * the mode_set callbacks. This module retrieves and populates the
 	 * private fields of the given mode.
 	 */
@@ -599,11 +599,11 @@ static int dpu_encoder_virt_atomic_check(
 
 	topology = dpu_encoder_get_topology(dpu_enc, dpu_kms, adj_mode);
 
-	/* Reserve dynamic resources now. Indicating AtomicTest phase */
+	/* Reserve dynamic resources yesw. Indicating AtomicTest phase */
 	if (!ret) {
 		/*
 		 * Avoid reserving resources when mode set is pending. Topology
-		 * info may not be available to complete reservation.
+		 * info may yest be available to complete reservation.
 		 */
 		if (drm_atomic_crtc_needs_modeset(crtc_state)
 				&& dpu_enc->mode_set_complete) {
@@ -702,7 +702,7 @@ static void _dpu_encoder_resource_control_helper(struct drm_encoder *drm_enc,
 	trace_dpu_enc_rc_helper(DRMID(drm_enc), enable);
 
 	if (!dpu_enc->cur_master) {
-		DPU_ERROR("encoder master not set\n");
+		DPU_ERROR("encoder master yest set\n");
 		return;
 	}
 
@@ -740,7 +740,7 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 						MSM_DISPLAY_CAP_VID_MODE;
 
 	/*
-	 * when idle_pc is not supported, process only KICKOFF, STOP and MODESET
+	 * when idle_pc is yest supported, process only KICKOFF, STOP and MODESET
 	 * events and return early for other events (ie wb display).
 	 */
 	if (!dpu_enc->idle_pc_supported &&
@@ -792,8 +792,8 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 
 	case DPU_ENC_RC_EVENT_FRAME_DONE:
 		/*
-		 * mutex lock is not used as this event happens at interrupt
-		 * context. And locking is not required as, the other events
+		 * mutex lock is yest used as this event happens at interrupt
+		 * context. And locking is yest required as, the other events
 		 * like KICKOFF and STOP does a wait-for-idle before executing
 		 * the resource_control
 		 */
@@ -805,7 +805,7 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 		}
 
 		/*
-		 * schedule off work item only when there are no
+		 * schedule off work item only when there are yes
 		 * frames pending
 		 */
 		if (dpu_crtc_frame_pending(drm_enc->crtc) > 1) {
@@ -897,7 +897,7 @@ static int dpu_encoder_resource_control(struct drm_encoder *drm_enc,
 
 		/*
 		 * if we are in ON but a frame was just kicked off,
-		 * ignore the IDLE event, it's probably a stale timer event
+		 * igyesre the IDLE event, it's probably a stale timer event
 		 */
 		if (dpu_enc->frame_busy_mask[0]) {
 			DRM_ERROR("id:%u, sw_event:%d, rc:%d frame pending\n",
@@ -985,7 +985,7 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 
 	topology = dpu_encoder_get_topology(dpu_enc, dpu_kms, adj_mode);
 
-	/* Reserve dynamic resources now. Indicating non-AtomicTest phase */
+	/* Reserve dynamic resources yesw. Indicating yesn-AtomicTest phase */
 	ret = dpu_rm_reserve(&dpu_kms->rm, drm_enc, drm_crtc->state,
 			     topology, false);
 	if (ret) {
@@ -1034,13 +1034,13 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 
 		if (phys) {
 			if (!dpu_enc->hw_pp[i]) {
-				DPU_ERROR_ENC(dpu_enc, "no pp block assigned"
+				DPU_ERROR_ENC(dpu_enc, "yes pp block assigned"
 					     "at idx: %d\n", i);
 				goto error;
 			}
 
 			if (!hw_ctl[i]) {
-				DPU_ERROR_ENC(dpu_enc, "no ctl block assigned"
+				DPU_ERROR_ENC(dpu_enc, "yes ctl block assigned"
 					     "at idx: %d\n", i);
 				goto error;
 			}
@@ -1063,7 +1063,7 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 
 			if (!phys->hw_intf) {
 				DPU_ERROR_ENC(dpu_enc,
-					      "no intf block assigned at idx: %d\n",
+					      "yes intf block assigned at idx: %d\n",
 					      i);
 				goto error;
 			}
@@ -1207,7 +1207,7 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 			phys->ops.disable(phys);
 	}
 
-	/* after phys waits for frame-done, should be no more frames pending */
+	/* after phys waits for frame-done, should be yes more frames pending */
 	if (atomic_xchg(&dpu_enc->frame_done_timeout_ms, 0)) {
 		DPU_ERROR("enc%d timeout pending\n", drm_enc->base.id);
 		del_timer_sync(&dpu_enc->frame_done_timer);
@@ -1350,7 +1350,7 @@ static void dpu_encoder_frame_done_callback(
 			 * suppress frame_done without waiter,
 			 * likely autorefresh
 			 */
-			trace_dpu_enc_frame_done_cb_not_busy(DRMID(drm_enc),
+			trace_dpu_enc_frame_done_cb_yest_busy(DRMID(drm_enc),
 					event, ready_phys->intf_idx);
 			return;
 		}
@@ -1631,13 +1631,13 @@ static u32 _dpu_encoder_calculate_linetime(struct dpu_encoder_virt *dpu_enc,
 		return 0;
 
 	if (!dpu_enc->cur_master->ops.get_line_count) {
-		DPU_ERROR("get_line_count function not defined\n");
+		DPU_ERROR("get_line_count function yest defined\n");
 		return 0;
 	}
 
 	pclk_rate = mode->clock; /* pixel clock in kHz */
 	if (pclk_rate == 0) {
-		DPU_ERROR("pclk is 0, cannot calculate line time\n");
+		DPU_ERROR("pclk is 0, canyest calculate line time\n");
 		return 0;
 	}
 
@@ -1694,7 +1694,7 @@ int dpu_encoder_vsync_time(struct drm_encoder *drm_enc, ktime_t *wakeup_time)
 		time_to_vsync = line_time * (vtotal - cur_line);
 
 	if (time_to_vsync == 0) {
-		DPU_ERROR("time to vsync should not be zero, vtotal=%d\n",
+		DPU_ERROR("time to vsync should yest be zero, vtotal=%d\n",
 				vtotal);
 		return -EINVAL;
 	}
@@ -1731,7 +1731,7 @@ static void dpu_encoder_vsync_event_handler(struct timer_list *t)
 	}
 	event_thread = &priv->event_thread[drm_enc->crtc->index];
 	if (!event_thread) {
-		DPU_ERROR("event_thread not found for crtc:%d\n",
+		DPU_ERROR("event_thread yest found for crtc:%d\n",
 				drm_enc->crtc->index);
 		return;
 	}
@@ -1888,10 +1888,10 @@ static int _dpu_encoder_status_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int _dpu_encoder_debugfs_status_open(struct inode *inode,
+static int _dpu_encoder_debugfs_status_open(struct iyesde *iyesde,
 		struct file *file)
 {
-	return single_open(file, _dpu_encoder_status_show, inode->i_private);
+	return single_open(file, _dpu_encoder_status_show, iyesde->i_private);
 }
 
 static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
@@ -2078,7 +2078,7 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 													intf_type,
 													controller_id);
 		if (phys_params.intf_idx == INTF_MAX) {
-			DPU_ERROR_ENC(dpu_enc, "could not get intf: type %d, id %d\n",
+			DPU_ERROR_ENC(dpu_enc, "could yest get intf: type %d, id %d\n",
 						  intf_type, controller_id);
 			ret = -EINVAL;
 		}
@@ -2254,7 +2254,7 @@ int dpu_encoder_wait_for_event(struct drm_encoder *drm_enc,
 			fn_wait = phys->ops.wait_for_vblank;
 			break;
 		default:
-			DPU_ERROR_ENC(dpu_enc, "unknown wait event %d\n",
+			DPU_ERROR_ENC(dpu_enc, "unkyeswn wait event %d\n",
 					event);
 			return -EINVAL;
 		};

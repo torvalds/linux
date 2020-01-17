@@ -26,7 +26,7 @@
 #include <linux/completion.h>
 #include <linux/moduleparam.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/freezer.h>
 #include <linux/cpu.h>
@@ -56,13 +56,13 @@ static DEFINE_MUTEX(fullstop_mutex);
 
 /*
  * Variables for online-offline handling.  Only present if CPU hotplug
- * is enabled, otherwise does nothing.
+ * is enabled, otherwise does yesthing.
  */
 
-static struct task_struct *onoff_task;
-static long onoff_holdoff;
-static long onoff_interval;
-static torture_ofl_func *onoff_f;
+static struct task_struct *oyesff_task;
+static long oyesff_holdoff;
+static long oyesff_interval;
+static torture_ofl_func *oyesff_f;
 static long n_offline_attempts;
 static long n_offline_successes;
 static unsigned long sum_offline;
@@ -76,7 +76,7 @@ static int max_online;
 
 /*
  * Attempt to take a CPU offline.  Return false if the CPU is already
- * offline or if it is not subject to CPU-hotplug operations.  The
+ * offline or if it is yest subject to CPU-hotplug operations.  The
  * caller can detect other failures by looking at the statistics.
  */
 bool torture_offline(int cpu, long *n_offl_attempts, long *n_offl_successes,
@@ -93,7 +93,7 @@ bool torture_offline(int cpu, long *n_offl_attempts, long *n_offl_successes,
 
 	if (verbose > 1)
 		pr_alert("%s" TORTURE_FLAG
-			 "torture_onoff task: offlining %d\n",
+			 "torture_oyesff task: offlining %d\n",
 			 torture_type, cpu);
 	starttime = jiffies;
 	(*n_offl_attempts)++;
@@ -101,15 +101,15 @@ bool torture_offline(int cpu, long *n_offl_attempts, long *n_offl_successes,
 	if (ret) {
 		if (verbose)
 			pr_alert("%s" TORTURE_FLAG
-				 "torture_onoff task: offline %d failed: errno %d\n",
+				 "torture_oyesff task: offline %d failed: erryes %d\n",
 				 torture_type, cpu, ret);
 	} else {
 		if (verbose > 1)
 			pr_alert("%s" TORTURE_FLAG
-				 "torture_onoff task: offlined %d\n",
+				 "torture_oyesff task: offlined %d\n",
 				 torture_type, cpu);
-		if (onoff_f)
-			onoff_f();
+		if (oyesff_f)
+			oyesff_f();
 		(*n_offl_successes)++;
 		delta = jiffies - starttime;
 		*sum_offl += delta;
@@ -129,7 +129,7 @@ EXPORT_SYMBOL_GPL(torture_offline);
 
 /*
  * Attempt to bring a CPU online.  Return false if the CPU is already
- * online or if it is not subject to CPU-hotplug operations.  The
+ * online or if it is yest subject to CPU-hotplug operations.  The
  * caller can detect other failures by looking at the statistics.
  */
 bool torture_online(int cpu, long *n_onl_attempts, long *n_onl_successes,
@@ -144,7 +144,7 @@ bool torture_online(int cpu, long *n_onl_attempts, long *n_onl_successes,
 
 	if (verbose > 1)
 		pr_alert("%s" TORTURE_FLAG
-			 "torture_onoff task: onlining %d\n",
+			 "torture_oyesff task: onlining %d\n",
 			 torture_type, cpu);
 	starttime = jiffies;
 	(*n_onl_attempts)++;
@@ -152,12 +152,12 @@ bool torture_online(int cpu, long *n_onl_attempts, long *n_onl_successes,
 	if (ret) {
 		if (verbose)
 			pr_alert("%s" TORTURE_FLAG
-				 "torture_onoff task: online %d failed: errno %d\n",
+				 "torture_oyesff task: online %d failed: erryes %d\n",
 				 torture_type, cpu, ret);
 	} else {
 		if (verbose > 1)
 			pr_alert("%s" TORTURE_FLAG
-				 "torture_onoff task: onlined %d\n",
+				 "torture_oyesff task: onlined %d\n",
 				 torture_type, cpu);
 		(*n_onl_successes)++;
 		delta = jiffies - starttime;
@@ -178,17 +178,17 @@ EXPORT_SYMBOL_GPL(torture_online);
 
 /*
  * Execute random CPU-hotplug operations at the interval specified
- * by the onoff_interval.
+ * by the oyesff_interval.
  */
 static int
-torture_onoff(void *arg)
+torture_oyesff(void *arg)
 {
 	int cpu;
 	int maxcpu = -1;
 	DEFINE_TORTURE_RANDOM(rand);
 	int ret;
 
-	VERBOSE_TOROUT_STRING("torture_onoff task started");
+	VERBOSE_TOROUT_STRING("torture_oyesff task started");
 	for_each_online_cpu(cpu)
 		maxcpu = cpu;
 	WARN_ON(maxcpu < 0);
@@ -199,7 +199,7 @@ torture_onoff(void *arg)
 			ret = cpu_up(cpu);
 			if (ret && verbose) {
 				pr_alert("%s" TORTURE_FLAG
-					 "%s: Initial online %d: errno %d\n",
+					 "%s: Initial online %d: erryes %d\n",
 					 __func__, torture_type, cpu, ret);
 			}
 		}
@@ -209,10 +209,10 @@ torture_onoff(void *arg)
 		goto stop;
 	}
 
-	if (onoff_holdoff > 0) {
-		VERBOSE_TOROUT_STRING("torture_onoff begin holdoff");
-		schedule_timeout_interruptible(onoff_holdoff);
-		VERBOSE_TOROUT_STRING("torture_onoff end holdoff");
+	if (oyesff_holdoff > 0) {
+		VERBOSE_TOROUT_STRING("torture_oyesff begin holdoff");
+		schedule_timeout_interruptible(oyesff_holdoff);
+		VERBOSE_TOROUT_STRING("torture_oyesff end holdoff");
 	}
 	while (!torture_must_stop()) {
 		cpu = (torture_random(&rand) >> 4) % (maxcpu + 1);
@@ -222,11 +222,11 @@ torture_onoff(void *arg)
 			torture_online(cpu,
 				       &n_online_attempts, &n_online_successes,
 				       &sum_online, &min_online, &max_online);
-		schedule_timeout_interruptible(onoff_interval);
+		schedule_timeout_interruptible(oyesff_interval);
 	}
 
 stop:
-	torture_kthread_stopping("torture_onoff");
+	torture_kthread_stopping("torture_oyesff");
 	return 0;
 }
 
@@ -235,42 +235,42 @@ stop:
 /*
  * Initiate online-offline handling.
  */
-int torture_onoff_init(long ooholdoff, long oointerval, torture_ofl_func *f)
+int torture_oyesff_init(long ooholdoff, long oointerval, torture_ofl_func *f)
 {
 #ifdef CONFIG_HOTPLUG_CPU
-	onoff_holdoff = ooholdoff;
-	onoff_interval = oointerval;
-	onoff_f = f;
-	if (onoff_interval <= 0)
+	oyesff_holdoff = ooholdoff;
+	oyesff_interval = oointerval;
+	oyesff_f = f;
+	if (oyesff_interval <= 0)
 		return 0;
-	return torture_create_kthread(torture_onoff, NULL, onoff_task);
+	return torture_create_kthread(torture_oyesff, NULL, oyesff_task);
 #else /* #ifdef CONFIG_HOTPLUG_CPU */
 	return 0;
 #endif /* #else #ifdef CONFIG_HOTPLUG_CPU */
 }
-EXPORT_SYMBOL_GPL(torture_onoff_init);
+EXPORT_SYMBOL_GPL(torture_oyesff_init);
 
 /*
  * Clean up after online/offline testing.
  */
-static void torture_onoff_cleanup(void)
+static void torture_oyesff_cleanup(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU
-	if (onoff_task == NULL)
+	if (oyesff_task == NULL)
 		return;
-	VERBOSE_TOROUT_STRING("Stopping torture_onoff task");
-	kthread_stop(onoff_task);
-	onoff_task = NULL;
+	VERBOSE_TOROUT_STRING("Stopping torture_oyesff task");
+	kthread_stop(oyesff_task);
+	oyesff_task = NULL;
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 }
 
 /*
  * Print online/offline testing statistics.
  */
-void torture_onoff_stats(void)
+void torture_oyesff_stats(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU
-	pr_cont("onoff: %ld/%ld:%ld/%ld %d,%d:%d,%d %lu:%lu (HZ=%d) ",
+	pr_cont("oyesff: %ld/%ld:%ld/%ld %d,%d:%d,%d %lu:%lu (HZ=%d) ",
 		n_online_successes, n_online_attempts,
 		n_offline_successes, n_offline_attempts,
 		min_online, max_online,
@@ -278,12 +278,12 @@ void torture_onoff_stats(void)
 		sum_online, sum_offline, HZ);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 }
-EXPORT_SYMBOL_GPL(torture_onoff_stats);
+EXPORT_SYMBOL_GPL(torture_oyesff_stats);
 
 /*
  * Were all the online/offline operations successful?
  */
-bool torture_onoff_failures(void)
+bool torture_oyesff_failures(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU
 	return n_online_successes != n_online_attempts ||
@@ -292,7 +292,7 @@ bool torture_onoff_failures(void)
 	return false;
 #endif /* #else #ifdef CONFIG_HOTPLUG_CPU */
 }
-EXPORT_SYMBOL_GPL(torture_onoff_failures);
+EXPORT_SYMBOL_GPL(torture_oyesff_failures);
 
 #define TORTURE_RANDOM_MULT	39916801  /* prime */
 #define TORTURE_RANDOM_ADD	479001701 /* prime */
@@ -333,7 +333,7 @@ static struct list_head shuffle_task_list = LIST_HEAD_INIT(shuffle_task_list);
 static DEFINE_MUTEX(shuffle_task_mutex);
 
 /*
- * Register a task to be shuffled.  If there is no memory, just splat
+ * Register a task to be shuffled.  If there is yes memory, just splat
  * and don't bother registering.
  */
 void torture_shuffle_task_register(struct task_struct *tp)
@@ -464,7 +464,7 @@ static void (*torture_shutdown_hook)(void);
 void torture_shutdown_absorb(const char *title)
 {
 	while (READ_ONCE(fullstop) == FULLSTOP_SHUTDOWN) {
-		pr_notice("torture thread %s parking due to system shutdown\n",
+		pr_yestice("torture thread %s parking due to system shutdown\n",
 			  title);
 		schedule_timeout_uninterruptible(MAX_SCHEDULE_TIMEOUT);
 	}
@@ -528,7 +528,7 @@ EXPORT_SYMBOL_GPL(torture_shutdown_init);
 /*
  * Detect and respond to a system shutdown.
  */
-static int torture_shutdown_notify(struct notifier_block *unused1,
+static int torture_shutdown_yestify(struct yestifier_block *unused1,
 				   unsigned long unused2, void *unused3)
 {
 	mutex_lock(&fullstop_mutex);
@@ -542,8 +542,8 @@ static int torture_shutdown_notify(struct notifier_block *unused1,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block torture_shutdown_nb = {
-	.notifier_call = torture_shutdown_notify,
+static struct yestifier_block torture_shutdown_nb = {
+	.yestifier_call = torture_shutdown_yestify,
 };
 
 /*
@@ -552,7 +552,7 @@ static struct notifier_block torture_shutdown_nb = {
  */
 static void torture_shutdown_cleanup(void)
 {
-	unregister_reboot_notifier(&torture_shutdown_nb);
+	unregister_reboot_yestifier(&torture_shutdown_nb);
 	if (shutdown_task != NULL) {
 		VERBOSE_TOROUT_STRING("Stopping torture_shutdown task");
 		kthread_stop(shutdown_task);
@@ -651,13 +651,13 @@ static void torture_stutter_cleanup(void)
 }
 
 /*
- * Initialize torture module.  Please note that this is -not- invoked via
+ * Initialize torture module.  Please yeste that this is -yest- invoked via
  * the usual module_init() mechanism, but rather by an explicit call from
  * the client torture module.  This call must be paired with a later
  * torture_init_end().
  *
- * The runnable parameter points to a flag that controls whether or not
- * the test is currently runnable.  If there is no such flag, pass in NULL.
+ * The runnable parameter points to a flag that controls whether or yest
+ * the test is currently runnable.  If there is yes such flag, pass in NULL.
  */
 bool torture_init_begin(char *ttype, int v)
 {
@@ -682,12 +682,12 @@ EXPORT_SYMBOL_GPL(torture_init_begin);
 void torture_init_end(void)
 {
 	mutex_unlock(&fullstop_mutex);
-	register_reboot_notifier(&torture_shutdown_nb);
+	register_reboot_yestifier(&torture_shutdown_nb);
 }
 EXPORT_SYMBOL_GPL(torture_init_end);
 
 /*
- * Clean up torture module.  Please note that this is -not- invoked via
+ * Clean up torture module.  Please yeste that this is -yest- invoked via
  * the usual module_exit() mechanism, but rather by an explicit call from
  * the client torture module.  Returns true if a race with system shutdown
  * is detected, otherwise, all kthreads started by functions in this file
@@ -715,7 +715,7 @@ bool torture_cleanup_begin(void)
 	torture_shutdown_cleanup();
 	torture_shuffle_cleanup();
 	torture_stutter_cleanup();
-	torture_onoff_cleanup();
+	torture_oyesff_cleanup();
 	return false;
 }
 EXPORT_SYMBOL_GPL(torture_cleanup_begin);
@@ -739,7 +739,7 @@ EXPORT_SYMBOL_GPL(torture_must_stop);
 
 /*
  * Is it time for the current torture test to stop?  This is the irq-safe
- * version, hence no check for kthread_should_stop().
+ * version, hence yes check for kthread_should_stop().
  */
 bool torture_must_stop_irq(void)
 {

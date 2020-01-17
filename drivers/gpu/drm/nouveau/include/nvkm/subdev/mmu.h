@@ -5,11 +5,11 @@
 
 struct nvkm_vma {
 	struct list_head head;
-	struct rb_node tree;
+	struct rb_yesde tree;
 	u64 addr;
 	u64 size:50;
 	bool mapref:1; /* PTs (de)referenced on (un)map (vs pre-allocated). */
-	bool sparse:1; /* Unmapped PDEs/PTEs will not trigger MMU faults. */
+	bool sparse:1; /* Unmapped PDEs/PTEs will yest trigger MMU faults. */
 #define NVKM_VMA_PAGE_NONE 7
 	u8   page:3; /* Requested page type (index, or NONE for automatic). */
 	u8   refd:3; /* Current page type (index, or NONE for unreferenced). */
@@ -63,7 +63,7 @@ struct nvkm_vmm_map {
 	struct nvkm_memory *memory;
 	u64 offset;
 
-	struct nvkm_mm_node *mem;
+	struct nvkm_mm_yesde *mem;
 	struct scatterlist *sgl;
 	dma_addr_t *dma;
 	u64 *pfn;

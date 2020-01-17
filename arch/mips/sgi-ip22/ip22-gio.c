@@ -232,7 +232,7 @@ void gio_set_master(struct gio_device *dev)
 {
 	u32 tmp = sgimc->giopar;
 
-	switch (dev->slotno) {
+	switch (dev->slotyes) {
 	case 0:
 		tmp |= SGIMC_GIOPAR_MASTERGFX;
 		break;
@@ -247,11 +247,11 @@ void gio_set_master(struct gio_device *dev)
 }
 EXPORT_SYMBOL_GPL(gio_set_master);
 
-void ip22_gio_set_64bit(int slotno)
+void ip22_gio_set_64bit(int slotyes)
 {
 	u32 tmp = sgimc->giopar;
 
-	switch (slotno) {
+	switch (slotyes) {
 	case 0:
 		tmp |= SGIMC_GIOPAR_GFX64;
 		break;
@@ -277,7 +277,7 @@ static int ip22_gio_id(unsigned long addr, u32 *res)
 	ptr32 = (void *)CKSEG1ADDR(addr);
 	if (!get_dbe(tmp32, ptr32)) {
 		/*
-		 * We got no DBE, but this doesn't mean anything.
+		 * We got yes DBE, but this doesn't mean anything.
 		 * If GIO is pipelined (which can't be disabled
 		 * for GFX slot) we don't get a DBE, but we see
 		 * the transfer size as data. So we do an 8bit
@@ -304,7 +304,7 @@ static int ip22_gio_id(unsigned long addr, u32 *res)
 			return 1;
 		}
 	}
-	return 0; /* nothing here */
+	return 0; /* yesthing here */
 }
 
 #define HQ2_MYSTERY_OFFS       0x6A07C
@@ -325,9 +325,9 @@ static int ip22_is_gr2(unsigned long addr)
 }
 
 
-static void ip22_check_gio(int slotno, unsigned long addr, int irq)
+static void ip22_check_gio(int slotyes, unsigned long addr, int irq)
 {
-	const char *name = "Unknown";
+	const char *name = "Unkyeswn";
 	struct gio_device *gio_dev;
 	u32 tmp;
 	__u8 id;
@@ -339,7 +339,7 @@ static void ip22_check_gio(int slotno, unsigned long addr, int irq)
 	else {
 		if (!ip22_gio_id(addr, &tmp)) {
 			/*
-			 * no GIO signature at start address of slot
+			 * yes GIO signature at start address of slot
 			 * since Newport doesn't have one, we check if
 			 * user status register is readable
 			 */
@@ -353,7 +353,7 @@ static void ip22_check_gio(int slotno, unsigned long addr, int irq)
 		id = GIO_ID(tmp);
 		if (tmp & GIO_32BIT_ID) {
 			if (tmp & GIO_64BIT_IFACE)
-				ip22_gio_set_64bit(slotno);
+				ip22_gio_set_64bit(slotyes);
 		}
 		for (i = 0; i < ARRAY_SIZE(gio_name_table); i++) {
 			if (id == gio_name_table[i].id) {
@@ -362,19 +362,19 @@ static void ip22_check_gio(int slotno, unsigned long addr, int irq)
 			}
 		}
 		printk(KERN_INFO "GIO: slot %d : %s (id %x)\n",
-		       slotno, name, id);
+		       slotyes, name, id);
 		gio_dev = kzalloc(sizeof *gio_dev, GFP_KERNEL);
 		gio_dev->name = name;
-		gio_dev->slotno = slotno;
+		gio_dev->slotyes = slotyes;
 		gio_dev->id.id = id;
 		gio_dev->resource.start = addr;
 		gio_dev->resource.end = addr + 0x3fffff;
 		gio_dev->resource.flags = IORESOURCE_MEM;
 		gio_dev->irq = irq;
-		dev_set_name(&gio_dev->dev, "%d", slotno);
+		dev_set_name(&gio_dev->dev, "%d", slotyes);
 		gio_device_register(gio_dev);
 	} else
-		printk(KERN_INFO "GIO: slot %d : Empty\n", slotno);
+		printk(KERN_INFO "GIO: slot %d : Empty\n", slotyes);
 }
 
 static struct bus_type gio_bus_type = {

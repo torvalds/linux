@@ -24,7 +24,7 @@ static void report_load(const char *origin, struct file *file, char *operation)
 	pathname = kstrdup_quotable_file(file, GFP_KERNEL);
 	cmdline = kstrdup_quotable_cmdline(current, GFP_KERNEL);
 
-	pr_notice("%s %s obj=%s%s%s pid=%d cmdline=%s%s%s\n",
+	pr_yestice("%s %s obj=%s%s%s pid=%d cmdline=%s%s%s\n",
 		  origin, operation,
 		  (pathname && pathname[0] != '<') ? "\"" : "",
 		  pathname,
@@ -38,7 +38,7 @@ static void report_load(const char *origin, struct file *file, char *operation)
 
 static int enforce = IS_ENABLED(CONFIG_SECURITY_LOADPIN_ENFORCE);
 static char *exclude_read_files[READING_MAX_ID];
-static int ignore_read_file_id[READING_MAX_ID] __ro_after_init;
+static int igyesre_read_file_id[READING_MAX_ID] __ro_after_init;
 static struct super_block *pinned_root;
 static DEFINE_SPINLOCK(pinned_root_spinlock);
 
@@ -72,7 +72,7 @@ static void check_pinning_enforcement(struct super_block *mnt_sb)
 	bool ro = false;
 
 	/*
-	 * If load pinning is not enforced via a read-only block
+	 * If load pinning is yest enforced via a read-only block
 	 * device, allow sysctl to change modes for testing.
 	 */
 	if (mnt_sb->s_bdev) {
@@ -90,7 +90,7 @@ static void check_pinning_enforcement(struct super_block *mnt_sb)
 	if (!ro) {
 		if (!register_sysctl_paths(loadpin_sysctl_path,
 					   loadpin_sysctl_table))
-			pr_notice("sysctl registration failed!\n");
+			pr_yestice("sysctl registration failed!\n");
 		else
 			pr_info("enforcement can be disabled.\n");
 	} else
@@ -107,8 +107,8 @@ static void loadpin_sb_free_security(struct super_block *mnt_sb)
 {
 	/*
 	 * When unmounting the filesystem we were using for load
-	 * pinning, we acknowledge the superblock release, but make sure
-	 * no other modules or firmware can be loaded.
+	 * pinning, we ackyeswledge the superblock release, but make sure
+	 * yes other modules or firmware can be loaded.
 	 */
 	if (!IS_ERR_OR_NULL(pinned_root) && mnt_sb == pinned_root) {
 		pinned_root = ERR_PTR(-EIO);
@@ -121,9 +121,9 @@ static int loadpin_read_file(struct file *file, enum kernel_read_file_id id)
 	struct super_block *load_root;
 	const char *origin = kernel_read_file_id_str(id);
 
-	/* If the file id is excluded, ignore the pinning. */
-	if ((unsigned int)id < ARRAY_SIZE(ignore_read_file_id) &&
-	    ignore_read_file_id[id]) {
+	/* If the file id is excluded, igyesre the pinning. */
+	if ((unsigned int)id < ARRAY_SIZE(igyesre_read_file_id) &&
+	    igyesre_read_file_id[id]) {
 		report_load(origin, file, "pinning-excluded");
 		return 0;
 	}
@@ -131,7 +131,7 @@ static int loadpin_read_file(struct file *file, enum kernel_read_file_id id)
 	/* This handles the older init_module API that has a NULL file. */
 	if (!file) {
 		if (!enforce) {
-			report_load(origin, NULL, "old-api-pinning-ignored");
+			report_load(origin, NULL, "old-api-pinning-igyesred");
 			return 0;
 		}
 
@@ -150,9 +150,9 @@ static int loadpin_read_file(struct file *file, enum kernel_read_file_id id)
 	if (!pinned_root) {
 		pinned_root = load_root;
 		/*
-		 * Unlock now since it's only pinned_root we care about.
+		 * Unlock yesw since it's only pinned_root we care about.
 		 * In the worst case, we will (correctly) report pinning
-		 * failures before we have announced that pinning is
+		 * failures before we have anyesunced that pinning is
 		 * enforcing. This would be purely cosmetic.
 		 */
 		spin_unlock(&pinned_root_spinlock);
@@ -164,7 +164,7 @@ static int loadpin_read_file(struct file *file, enum kernel_read_file_id id)
 
 	if (IS_ERR_OR_NULL(pinned_root) || load_root != pinned_root) {
 		if (unlikely(!enforce)) {
-			report_load(origin, file, "pinning-ignored");
+			report_load(origin, file, "pinning-igyesred");
 			return 0;
 		}
 
@@ -197,9 +197,9 @@ static void __init parse_exclude(void)
 	 * READING_MAX_ID, which isn't actually meaningful here.
 	 */
 	BUILD_BUG_ON(ARRAY_SIZE(exclude_read_files) !=
-		     ARRAY_SIZE(ignore_read_file_id));
+		     ARRAY_SIZE(igyesre_read_file_id));
 	BUILD_BUG_ON(ARRAY_SIZE(kernel_read_file_str) <
-		     ARRAY_SIZE(ignore_read_file_id));
+		     ARRAY_SIZE(igyesre_read_file_id));
 
 	for (i = 0; i < ARRAY_SIZE(exclude_read_files); i++) {
 		cur = exclude_read_files[i];
@@ -208,13 +208,13 @@ static void __init parse_exclude(void)
 		if (*cur == '\0')
 			continue;
 
-		for (j = 0; j < ARRAY_SIZE(ignore_read_file_id); j++) {
+		for (j = 0; j < ARRAY_SIZE(igyesre_read_file_id); j++) {
 			if (strcmp(cur, kernel_read_file_str[j]) == 0) {
 				pr_info("excluding: %s\n",
 					kernel_read_file_str[j]);
-				ignore_read_file_id[j] = 1;
+				igyesre_read_file_id[j] = 1;
 				/*
-				 * Can not break, because one read_file_str
+				 * Can yest break, because one read_file_str
 				 * may map to more than on read_file_id.
 				 */
 			}
@@ -225,7 +225,7 @@ static void __init parse_exclude(void)
 static int __init loadpin_init(void)
 {
 	pr_info("ready to pin (currently %senforcing)\n",
-		enforce ? "" : "not ");
+		enforce ? "" : "yest ");
 	parse_exclude();
 	security_add_hooks(loadpin_hooks, ARRAY_SIZE(loadpin_hooks), "loadpin");
 	return 0;
@@ -236,7 +236,7 @@ DEFINE_LSM(loadpin) = {
 	.init = loadpin_init,
 };
 
-/* Should not be mutable after boot, so not listed in sysfs (perm == 0). */
+/* Should yest be mutable after boot, so yest listed in sysfs (perm == 0). */
 module_param(enforce, int, 0);
 MODULE_PARM_DESC(enforce, "Enforce module/firmware pinning");
 module_param_array_named(exclude, exclude_read_files, charp, NULL, 0);

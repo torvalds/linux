@@ -50,8 +50,8 @@ static void devcd_dev_release(struct device *dev)
 	module_put(devcd->owner);
 
 	/*
-	 * this seems racy, but I don't see a notifier or such on
-	 * a struct device to know when it goes away?
+	 * this seems racy, but I don't see a yestifier or such on
+	 * a struct device to kyesw when it goes away?
 	 */
 	if (devcd->failing_dev->kobj.sd)
 		sysfs_delete_link(&devcd->failing_dev->kobj, &dev->kobj,
@@ -133,7 +133,7 @@ static ssize_t disabled_store(struct class *class, struct class_attribute *attr,
 
 	/*
 	 * This essentially makes the attribute write-once, since you can't
-	 * go back to not having it disabled. This is intentional, it serves
+	 * go back to yest having it disabled. This is intentional, it serves
 	 * as a system lockdown feature.
 	 */
 	if (tmp != 1)
@@ -180,7 +180,7 @@ static void devcd_freev(void *data)
  * @gfp: allocation flags
  *
  * This function takes ownership of the vmalloc'ed data and will free
- * it when it is no longer used. See dev_coredumpm() for more information.
+ * it when it is yes longer used. See dev_coredumpm() for more information.
  */
 void dev_coredumpv(struct device *dev, void *data, size_t datalen,
 		   gfp_t gfp)
@@ -246,7 +246,7 @@ static ssize_t devcd_read_from_sgtable(char *buffer, loff_t offset,
  *
  * Creates a new device coredump for the given device. If a previous one hasn't
  * been read yet, the new coredump is discarded. The data lifetime is determined
- * by the device coredump framework and when it is no longer needed the @free
+ * by the device coredump framework and when it is yes longer needed the @free
  * function will be called to free the data.
  */
 void dev_coredumpm(struct device *dev, struct module *owner,
@@ -294,11 +294,11 @@ void dev_coredumpm(struct device *dev, struct module *owner,
 
 	if (sysfs_create_link(&devcd->devcd_dev.kobj, &dev->kobj,
 			      "failing_device"))
-		/* nothing - symlink will be missing */;
+		/* yesthing - symlink will be missing */;
 
 	if (sysfs_create_link(&dev->kobj, &devcd->devcd_dev.kobj,
 			      "devcoredump"))
-		/* nothing - symlink will be missing */;
+		/* yesthing - symlink will be missing */;
 
 	INIT_DELAYED_WORK(&devcd->del_wk, devcd_del);
 	schedule_delayed_work(&devcd->del_wk, DEVCD_TIMEOUT);
@@ -323,7 +323,7 @@ EXPORT_SYMBOL_GPL(dev_coredumpm);
  *
  * Creates a new device coredump for the given device. If a previous one hasn't
  * been read yet, the new coredump is discarded. The data lifetime is determined
- * by the device coredump framework and when it is no longer needed
+ * by the device coredump framework and when it is yes longer needed
  * it will free the data.
  */
 void dev_coredumpsg(struct device *dev, struct scatterlist *table,

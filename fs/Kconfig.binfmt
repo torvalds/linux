@@ -11,9 +11,9 @@ config BINFMT_ELF
 	  ELF (Executable and Linkable Format) is a format for libraries and
 	  executables used across different architectures and operating
 	  systems. Saying Y here will enable your kernel to run ELF binaries
-	  and enlarge it by about 13 KB. ELF support under Linux has now all
+	  and enlarge it by about 13 KB. ELF support under Linux has yesw all
 	  but replaced the traditional Linux a.out formats (QMAGIC and ZMAGIC)
-	  because it is portable (this does *not* mean that you will be able
+	  because it is portable (this does *yest* mean that you will be able
 	  to run executables from different architectures or operating systems
 	  however) and makes building run-time libraries very easy. Many new
 	  executables are distributed solely in ELF format. You definitely
@@ -44,9 +44,9 @@ config BINFMT_ELF_FDPIC
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
 	  segments of a binary to be located in memory independently of each
-	  other. This makes this format ideal for use in environments where no
+	  other. This makes this format ideal for use in environments where yes
 	  MMU is available as it still permits text segments to be shared,
-	  even if data segments are not.
+	  even if data segments are yest.
 
 	  It is also possible to run FDPIC ELF binaries on MMU linux also.
 
@@ -85,11 +85,11 @@ config BINFMT_SCRIPT
 	  #! followed by the path to an interpreter.
 
 	  You can build this support as a module; however, until that module
-	  gets loaded, you cannot run scripts.  Thus, if you want to load this
+	  gets loaded, you canyest run scripts.  Thus, if you want to load this
 	  module from an initramfs, the portion of the initramfs before loading
 	  this module must consist of compiled binaries only.
 
-	  Most systems will not boot if you say M or N here.  If unsure, say Y.
+	  Most systems will yest boot if you say M or N here.  If unsure, say Y.
 
 config ARCH_HAS_BINFMT_FLAT
 	bool
@@ -110,7 +110,7 @@ config BINFMT_FLAT_OLD
 	bool "Enable support for very old legacy flat binaries"
 	depends on BINFMT_FLAT
 	help
-	  Support decade old uClinux FLAT format binaries.  Unless you know
+	  Support decade old uClinux FLAT format binaries.  Unless you kyesw
 	  you have some of those say N here.
 
 config BINFMT_ZFLAT
@@ -190,15 +190,15 @@ config BINFMT_MISC
 	  You can do other nice things, too. Read the file
 	  <file:Documentation/admin-guide/binfmt-misc.rst> to learn how to use this
 	  feature, <file:Documentation/admin-guide/java.rst> for information about how
-	  to include Java support. and <file:Documentation/admin-guide/mono.rst> for
-          information about how to include Mono-based .NET support.
+	  to include Java support. and <file:Documentation/admin-guide/moyes.rst> for
+          information about how to include Moyes-based .NET support.
 
           To use binfmt_misc, you will need to mount it:
 		mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc
 
 	  You may say M here for module support and later load the module when
 	  you have use for it; the module is called binfmt_misc. If you
-	  don't know what to answer at this point, say Y.
+	  don't kyesw what to answer at this point, say Y.
 
 config COREDUMP
 	bool "Enable core dump support" if EXPERT

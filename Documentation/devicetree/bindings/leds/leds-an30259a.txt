@@ -9,12 +9,12 @@ Required properties:
 	- #address-cells: Must be 1.
 	- #size-cells: Must be 0.
 
-Each LED is represented as a sub-node of the panasonic,an30259a node.
+Each LED is represented as a sub-yesde of the panasonic,an30259a yesde.
 
-Required sub-node properties:
+Required sub-yesde properties:
 	- reg: Pin that the LED is connected to. Must be 1, 2, or 3.
 
-Optional sub-node properties:
+Optional sub-yesde properties:
 	- function :
 		see Documentation/devicetree/bindings/leds/common.txt
 	- color :

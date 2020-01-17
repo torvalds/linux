@@ -70,7 +70,7 @@ void nxp_nci_fw_work_complete(struct nxp_nci_info *info, int result)
 	nfc_fw_download_done(info->ndev->nfc_dev, fw_info->name, (u32) -result);
 }
 
-/* crc_ccitt cannot be used since it is computed MSB first and not LSB first */
+/* crc_ccitt canyest be used since it is computed MSB first and yest LSB first */
 static u16 nxp_nci_fw_crc(u8 const *buffer, size_t len)
 {
 	u16 crc = 0xffff;

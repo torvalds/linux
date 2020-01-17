@@ -55,8 +55,8 @@ config USB
 	  connected to a single USB host in a tree structure.
 	  
 	  The USB host is the root of the tree, the peripherals are the
-	  leaves and the inner nodes are special USB devices called hubs.
-	  Most PCs now have USB host ports, used to connect peripherals
+	  leaves and the inner yesdes are special USB devices called hubs.
+	  Most PCs yesw have USB host ports, used to connect peripherals
 	  such as scanners, keyboards, mice, modems, cameras, disks,
 	  flash memory, network links, and printers to the PC.
 
@@ -65,8 +65,8 @@ config USB
 	  Host Controller Driver (HCD) options below.  Choose a USB 1.1
 	  controller, such as "UHCI HCD support" or "OHCI HCD support",
 	  and "EHCI HCD (USB 2.0) support" except for older systems that
-	  do not have USB 2.0 support.  It doesn't normally hurt to select
-	  them all if you are not certain.
+	  do yest have USB 2.0 support.  It doesn't yesrmally hurt to select
+	  them all if you are yest certain.
 
 	  If your system has a device-side USB port, used in the peripheral
 	  side of the USB protocol, see the "USB Gadget" framework instead.
@@ -86,10 +86,10 @@ config USB_PCI
 	---help---
 	  Many embedded system SOCs (e.g. freescale T2080) have both
 	  PCI and USB modules with the USB module directly controlled by
-	  registers and having no relationship to the PCI module.
+	  registers and having yes relationship to the PCI module.
 
 	  If you have such a device you may say N here and PCI related code
-	  will not be built in the USB driver.
+	  will yest be built in the USB driver.
 
 if USB
 
@@ -135,7 +135,7 @@ config USB_USS720
 	select PARPORT_NOT_PC
 	---help---
 	  This driver is for USB parallel port adapters that use the Lucent
-	  Technologies USS-720 chip. These cables are plugged into your USB
+	  Techyeslogies USS-720 chip. These cables are plugged into your USB
 	  port and provide USB compatibility to peripherals designed with
 	  parallel port interfaces.
 
@@ -146,11 +146,11 @@ config USB_USS720
 	  that mode, and you can say N here if you want to use the chip only
 	  in this mode.
 
-	  Manual mode is not limited to printers, any parallel port
+	  Manual mode is yest limited to printers, any parallel port
 	  device should work. This driver utilizes manual mode.
 	  Note however that some operations are three orders of magnitude
 	  slower than on a PCI/ISA Parallel Port, so timing critical
-	  applications might not work.
+	  applications might yest work.
 
 	  Say Y here if you own an USS-720 USB->Parport cable and intend to
 	  connect anything other than a printer to it.

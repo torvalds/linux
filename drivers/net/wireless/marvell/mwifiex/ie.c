@@ -21,8 +21,8 @@
 #include "main.h"
 
 /* This function checks if current IE index is used by any on other interface.
- * Return: -1: yes, current IE index is used by someone else.
- *          0: no, current IE index is NOT used by other interface.
+ * Return: -1: no, current IE index is used by someone else.
+ *          0: yes, current IE index is NOT used by other interface.
  */
 static int
 mwifiex_ie_index_used_by_other_intf(struct mwifiex_private *priv, u16 idx)
@@ -345,7 +345,7 @@ static int mwifiex_uap_parse_tail_ies(struct mwifiex_private *priv,
 	left_len = info->tail_len;
 
 	/* Many IEs are generated in FW by parsing bss configuration.
-	 * Let's not add them here; else we may end up duplicating these IEs
+	 * Let's yest add them here; else we may end up duplicating these IEs
 	 */
 	while (left_len > sizeof(struct ieee_types_header)) {
 		hdr = (void *)(info->tail + parsed_len);

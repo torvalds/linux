@@ -82,7 +82,7 @@
 #define DP_CLK_FUDGE_NUM	10
 #define DP_CLK_FUDGE_DEN	8
 
-/* Matches DP_AUX_MAX_PAYLOAD_BYTES (for now) */
+/* Matches DP_AUX_MAX_PAYLOAD_BYTES (for yesw) */
 #define SN_AUX_MAX_PAYLOAD_BYTES	16
 
 #define SN_REGULATOR_SUPPLY_NUM		4
@@ -94,7 +94,7 @@ struct ti_sn_bridge {
 	struct drm_bridge		bridge;
 	struct drm_connector		connector;
 	struct dentry			*debugfs;
-	struct device_node		*host_node;
+	struct device_yesde		*host_yesde;
 	struct mipi_dsi_device		*dsi;
 	struct clk			*refclk;
 	struct drm_panel		*panel;
@@ -107,8 +107,8 @@ static const struct regmap_range ti_sn_bridge_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table ti_sn_bridge_volatile_table = {
-	.yes_ranges = ti_sn_bridge_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(ti_sn_bridge_volatile_ranges),
+	.no_ranges = ti_sn_bridge_volatile_ranges,
+	.n_no_ranges = ARRAY_SIZE(ti_sn_bridge_volatile_ranges),
 };
 
 static const struct regmap_config ti_sn_bridge_regmap_config = {
@@ -272,7 +272,7 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge)
 	struct mipi_dsi_device *dsi;
 	const struct mipi_dsi_device_info info = { .type = "ti_sn_bridge",
 						   .channel = 0,
-						   .node = NULL,
+						   .yesde = NULL,
 						 };
 
 	ret = drm_connector_init(bridge->dev, &pdata->connector,
@@ -298,7 +298,7 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge)
 	 * will satisfy most of the existing host drivers. Once the host driver
 	 * is fixed we can move the below code to bridge probe safely.
 	 */
-	host = of_find_mipi_dsi_host_by_node(pdata->host_node);
+	host = of_find_mipi_dsi_host_by_yesde(pdata->host_yesde);
 	if (!host) {
 		DRM_ERROR("failed to find dsi host\n");
 		ret = -ENODEV;
@@ -312,12 +312,12 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge)
 		goto err_dsi_host;
 	}
 
-	/* TODO: setting to 4 lanes always for now */
+	/* TODO: setting to 4 lanes always for yesw */
 	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO;
 
-	/* check if continuous dsi clock is required or not */
+	/* check if continuous dsi clock is required or yest */
 	pm_runtime_get_sync(pdata->dev);
 	regmap_read(pdata->regmap, SN_DPPLL_SRC_REG, &val);
 	pm_runtime_put(pdata->dev);
@@ -683,12 +683,12 @@ static ssize_t ti_sn_aux_transfer(struct drm_dp_aux *aux,
 
 static int ti_sn_bridge_parse_dsi_host(struct ti_sn_bridge *pdata)
 {
-	struct device_node *np = pdata->dev->of_node;
+	struct device_yesde *np = pdata->dev->of_yesde;
 
-	pdata->host_node = of_graph_get_remote_node(np, 0, 0);
+	pdata->host_yesde = of_graph_get_remote_yesde(np, 0, 0);
 
-	if (!pdata->host_node) {
-		DRM_ERROR("remote dsi host node not found\n");
+	if (!pdata->host_yesde) {
+		DRM_ERROR("remote dsi host yesde yest found\n");
 		return -ENODEV;
 	}
 
@@ -720,10 +720,10 @@ static int ti_sn_bridge_probe(struct i2c_client *client,
 
 	pdata->dev = &client->dev;
 
-	ret = drm_of_find_panel_or_bridge(pdata->dev->of_node, 1, 0,
+	ret = drm_of_find_panel_or_bridge(pdata->dev->of_yesde, 1, 0,
 					  &pdata->panel, NULL);
 	if (ret) {
-		DRM_ERROR("could not find any panel node\n");
+		DRM_ERROR("could yest find any panel yesde\n");
 		return ret;
 	}
 
@@ -748,7 +748,7 @@ static int ti_sn_bridge_probe(struct i2c_client *client,
 		ret = PTR_ERR(pdata->refclk);
 		if (ret == -EPROBE_DEFER)
 			return ret;
-		DRM_DEBUG_KMS("refclk not found\n");
+		DRM_DEBUG_KMS("refclk yest found\n");
 		pdata->refclk = NULL;
 	}
 
@@ -766,7 +766,7 @@ static int ti_sn_bridge_probe(struct i2c_client *client,
 	drm_dp_aux_register(&pdata->aux);
 
 	pdata->bridge.funcs = &ti_sn_bridge_funcs;
-	pdata->bridge.of_node = client->dev.of_node;
+	pdata->bridge.of_yesde = client->dev.of_yesde;
 
 	drm_bridge_add(&pdata->bridge);
 
@@ -784,7 +784,7 @@ static int ti_sn_bridge_remove(struct i2c_client *client)
 
 	ti_sn_debugfs_remove(pdata);
 
-	of_node_put(pdata->host_node);
+	of_yesde_put(pdata->host_yesde);
 
 	pm_runtime_disable(pdata->dev);
 

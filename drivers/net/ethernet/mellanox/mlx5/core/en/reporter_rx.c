@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2019 Mellanox Technologies.
+// Copyright (c) 2019 Mellayesx Techyeslogies.
 
 #include "health.h"
 #include "params.h"
@@ -232,7 +232,7 @@ static int mlx5e_rx_reporter_recover(struct devlink_health_reporter *reporter,
 			 mlx5e_health_recover_channels(priv);
 }
 
-static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
+static int mlx5e_rx_reporter_build_diagyesse_output(struct mlx5e_rq *rq,
 						   struct devlink_fmsg *fmsg)
 {
 	struct mlx5e_priv *priv = rq->channel->priv;
@@ -290,7 +290,7 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_cq_diagnose(&rq->cq, fmsg);
+	err = mlx5e_reporter_cq_diagyesse(&rq->cq, fmsg);
 	if (err)
 		return err;
 
@@ -301,7 +301,7 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 	return 0;
 }
 
-static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
+static int mlx5e_rx_reporter_diagyesse(struct devlink_health_reporter *reporter,
 				      struct devlink_fmsg *fmsg,
 				      struct netlink_ext_ack *extack)
 {
@@ -344,7 +344,7 @@ static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	if (err)
 		goto unlock;
 
-	err = mlx5e_reporter_cq_common_diagnose(&generic_rq->cq, fmsg);
+	err = mlx5e_reporter_cq_common_diagyesse(&generic_rq->cq, fmsg);
 	if (err)
 		goto unlock;
 
@@ -359,7 +359,7 @@ static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	for (i = 0; i < priv->channels.num; i++) {
 		struct mlx5e_rq *rq = &priv->channels.c[i]->rq;
 
-		err = mlx5e_rx_reporter_build_diagnose_output(rq, fmsg);
+		err = mlx5e_rx_reporter_build_diagyesse_output(rq, fmsg);
 		if (err)
 			goto unlock;
 	}
@@ -374,7 +374,7 @@ unlock:
 static const struct devlink_health_reporter_ops mlx5_rx_reporter_ops = {
 	.name = "rx",
 	.recover = mlx5e_rx_reporter_recover,
-	.diagnose = mlx5e_rx_reporter_diagnose,
+	.diagyesse = mlx5e_rx_reporter_diagyesse,
 };
 
 #define MLX5E_REPORTER_RX_GRACEFUL_PERIOD 500

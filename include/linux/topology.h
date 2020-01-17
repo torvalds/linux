@@ -19,7 +19,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <colpatch@us.ibm.com>
@@ -35,34 +35,34 @@
 #include <linux/percpu.h>
 #include <asm/topology.h>
 
-#ifndef nr_cpus_node
-#define nr_cpus_node(node) cpumask_weight(cpumask_of_node(node))
+#ifndef nr_cpus_yesde
+#define nr_cpus_yesde(yesde) cpumask_weight(cpumask_of_yesde(yesde))
 #endif
 
-#define for_each_node_with_cpus(node)			\
-	for_each_online_node(node)			\
-		if (nr_cpus_node(node))
+#define for_each_yesde_with_cpus(yesde)			\
+	for_each_online_yesde(yesde)			\
+		if (nr_cpus_yesde(yesde))
 
 int arch_update_cpu_topology(void);
 
 /* Conform to ACPI 2.0 SLIT distance definitions */
 #define LOCAL_DISTANCE		10
 #define REMOTE_DISTANCE		20
-#ifndef node_distance
-#define node_distance(from,to)	((from) == (to) ? LOCAL_DISTANCE : REMOTE_DISTANCE)
+#ifndef yesde_distance
+#define yesde_distance(from,to)	((from) == (to) ? LOCAL_DISTANCE : REMOTE_DISTANCE)
 #endif
 #ifndef RECLAIM_DISTANCE
 /*
- * If the distance between nodes in a system is larger than RECLAIM_DISTANCE
- * (in whatever arch specific measurement units returned by node_distance())
- * and node_reclaim_mode is enabled then the VM will only call node_reclaim()
- * on nodes within this distance.
+ * If the distance between yesdes in a system is larger than RECLAIM_DISTANCE
+ * (in whatever arch specific measurement units returned by yesde_distance())
+ * and yesde_reclaim_mode is enabled then the VM will only call yesde_reclaim()
+ * on yesdes within this distance.
  */
 #define RECLAIM_DISTANCE 30
 #endif
 
 /*
- * The following tunable allows platforms to override the default node
+ * The following tunable allows platforms to override the default yesde
  * reclaim distance (RECLAIM_DISTANCE) if remote memory accesses are
  * sufficiently fast that the default value actually hurts
  * performance.
@@ -70,53 +70,53 @@ int arch_update_cpu_topology(void);
  * AMD EPYC machines use this because even though the 2-hop distance
  * is 32 (3.2x slower than a local memory access) performance actually
  * *improves* if allowed to reclaim memory and load balance tasks
- * between NUMA nodes 2-hops apart.
+ * between NUMA yesdes 2-hops apart.
  */
-extern int __read_mostly node_reclaim_distance;
+extern int __read_mostly yesde_reclaim_distance;
 
 #ifndef PENALTY_FOR_NODE_WITH_CPUS
 #define PENALTY_FOR_NODE_WITH_CPUS	(1)
 #endif
 
 #ifdef CONFIG_USE_PERCPU_NUMA_NODE_ID
-DECLARE_PER_CPU(int, numa_node);
+DECLARE_PER_CPU(int, numa_yesde);
 
-#ifndef numa_node_id
+#ifndef numa_yesde_id
 /* Returns the number of the current Node. */
-static inline int numa_node_id(void)
+static inline int numa_yesde_id(void)
 {
-	return raw_cpu_read(numa_node);
+	return raw_cpu_read(numa_yesde);
 }
 #endif
 
-#ifndef cpu_to_node
-static inline int cpu_to_node(int cpu)
+#ifndef cpu_to_yesde
+static inline int cpu_to_yesde(int cpu)
 {
-	return per_cpu(numa_node, cpu);
+	return per_cpu(numa_yesde, cpu);
 }
 #endif
 
-#ifndef set_numa_node
-static inline void set_numa_node(int node)
+#ifndef set_numa_yesde
+static inline void set_numa_yesde(int yesde)
 {
-	this_cpu_write(numa_node, node);
+	this_cpu_write(numa_yesde, yesde);
 }
 #endif
 
-#ifndef set_cpu_numa_node
-static inline void set_cpu_numa_node(int cpu, int node)
+#ifndef set_cpu_numa_yesde
+static inline void set_cpu_numa_yesde(int cpu, int yesde)
 {
-	per_cpu(numa_node, cpu) = node;
+	per_cpu(numa_yesde, cpu) = yesde;
 }
 #endif
 
 #else	/* !CONFIG_USE_PERCPU_NUMA_NODE_ID */
 
 /* Returns the number of the current Node. */
-#ifndef numa_node_id
-static inline int numa_node_id(void)
+#ifndef numa_yesde_id
+static inline int numa_yesde_id(void)
 {
-	return cpu_to_node(raw_smp_processor_id());
+	return cpu_to_yesde(raw_smp_processor_id());
 }
 #endif
 
@@ -126,24 +126,24 @@ static inline int numa_node_id(void)
 
 /*
  * N.B., Do NOT reference the '_numa_mem_' per cpu variable directly.
- * It will not be defined when CONFIG_HAVE_MEMORYLESS_NODES is not defined.
+ * It will yest be defined when CONFIG_HAVE_MEMORYLESS_NODES is yest defined.
  * Use the accessor functions set_numa_mem(), numa_mem_id() and cpu_to_mem().
  */
 DECLARE_PER_CPU(int, _numa_mem_);
-extern int _node_numa_mem_[MAX_NUMNODES];
+extern int _yesde_numa_mem_[MAX_NUMNODES];
 
 #ifndef set_numa_mem
-static inline void set_numa_mem(int node)
+static inline void set_numa_mem(int yesde)
 {
-	this_cpu_write(_numa_mem_, node);
-	_node_numa_mem_[numa_node_id()] = node;
+	this_cpu_write(_numa_mem_, yesde);
+	_yesde_numa_mem_[numa_yesde_id()] = yesde;
 }
 #endif
 
-#ifndef node_to_mem_node
-static inline int node_to_mem_node(int node)
+#ifndef yesde_to_mem_yesde
+static inline int yesde_to_mem_yesde(int yesde)
 {
-	return _node_numa_mem_[node];
+	return _yesde_numa_mem_[yesde];
 }
 #endif
 
@@ -163,10 +163,10 @@ static inline int cpu_to_mem(int cpu)
 #endif
 
 #ifndef set_cpu_numa_mem
-static inline void set_cpu_numa_mem(int cpu, int node)
+static inline void set_cpu_numa_mem(int cpu, int yesde)
 {
-	per_cpu(_numa_mem_, cpu) = node;
-	_node_numa_mem_[cpu_to_node(cpu)] = node;
+	per_cpu(_numa_mem_, cpu) = yesde;
+	_yesde_numa_mem_[cpu_to_yesde(cpu)] = yesde;
 }
 #endif
 
@@ -176,21 +176,21 @@ static inline void set_cpu_numa_mem(int cpu, int node)
 /* Returns the number of the nearest Node with memory */
 static inline int numa_mem_id(void)
 {
-	return numa_node_id();
+	return numa_yesde_id();
 }
 #endif
 
-#ifndef node_to_mem_node
-static inline int node_to_mem_node(int node)
+#ifndef yesde_to_mem_yesde
+static inline int yesde_to_mem_yesde(int yesde)
 {
-	return node;
+	return yesde;
 }
 #endif
 
 #ifndef cpu_to_mem
 static inline int cpu_to_mem(int cpu)
 {
-	return cpu_to_node(cpu);
+	return cpu_to_yesde(cpu);
 }
 #endif
 
@@ -224,7 +224,7 @@ static inline const struct cpumask *cpu_smt_mask(int cpu)
 
 static inline const struct cpumask *cpu_cpu_mask(int cpu)
 {
-	return cpumask_of_node(cpu_to_node(cpu));
+	return cpumask_of_yesde(cpu_to_yesde(cpu));
 }
 
 

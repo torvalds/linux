@@ -69,8 +69,8 @@ config PCIEASPM
 	  state L0/L0s/L1.
 
 	  ASPM is initially set up by the firmware. With this option enabled,
-	  Linux can modify this state in order to disable ASPM on known-bad
-	  hardware or configurations and enable it when known-safe.
+	  Linux can modify this state in order to disable ASPM on kyeswn-bad
+	  hardware or configurations and enable it when kyeswn-safe.
 
 	  ASPM can be disabled or enabled at runtime via
 	  /sys/module/pcie_aspm/parameters/policy
@@ -93,7 +93,7 @@ config PCIEASPM_POWERSAVE
 	depends on PCIEASPM
 	help
 	  Enable PCI Express ASPM L0s and L1 where possible, even if the
-	  BIOS did not.
+	  BIOS did yest.
 
 config PCIEASPM_POWER_SUPERSAVE
 	bool "Power Supersave"
@@ -121,7 +121,7 @@ config PCIE_DPC
 	  This enables PCI Express Downstream Port Containment (DPC)
 	  driver support.  DPC events from Root and Downstream ports
 	  will be handled by the DPC driver.  If your system doesn't
-	  have this capability or you do not want to use this feature,
+	  have this capability or you do yest want to use this feature,
 	  it is safe to answer N.
 
 config PCIE_PTM
@@ -138,5 +138,5 @@ config PCIE_BW
 	depends on PCIEPORTBUS
 	help
 	  This enables PCI Express Bandwidth Change Notification.  If
-	  you know link width or rate changes occur only to correct
+	  you kyesw link width or rate changes occur only to correct
 	  unreliable links, you may answer Y.

@@ -2,23 +2,23 @@
 /*
  * Programming the mspx4xx sound processor family
  *
- * (c) 1997-2001 Gerd Knorr <kraxel@bytesex.org>
+ * (c) 1997-2001 Gerd Kyesrr <kraxel@bytesex.org>
  *
  * what works and what doesn't:
  *
- *  AM-Mono
+ *  AM-Moyes
  *      Support for Hauppauge cards added (decoding handled by tuner) added by
  *      Frederic Crozat <fcrozat@mail.dotcom.fr>
  *
- *  FM-Mono
- *      should work. The stereo modes are backward compatible to FM-mono,
- *      therefore FM-Mono should be always available.
+ *  FM-Moyes
+ *      should work. The stereo modes are backward compatible to FM-moyes,
+ *      therefore FM-Moyes should be always available.
  *
  *  FM-Stereo (B/G, used in germany)
  *      should work, with autodetect
  *
  *  FM-Stereo (satellite)
- *      should work, no autodetect (i.e. default is mono, but you can
+ *      should work, yes autodetect (i.e. default is moyes, but you can
  *      switch to stereo -- untested)
  *
  *  NICAM (B/G, L , used in UK, Scandinavia, Spain and France)
@@ -49,13 +49,13 @@
 /* ---------------------------------------------------------------------- */
 
 MODULE_DESCRIPTION("device driver for msp34xx TV sound processor");
-MODULE_AUTHOR("Gerd Knorr");
+MODULE_AUTHOR("Gerd Kyesrr");
 MODULE_LICENSE("GPL");
 
 /* module parameters */
 static int opmode   = OPMODE_AUTO;
 int msp_debug;		 /* msp_debug output */
-bool msp_once;		 /* no continuous stereo monitoring */
+bool msp_once;		 /* yes continuous stereo monitoring */
 bool msp_amsound;	 /* hard-wire AM sound at 6.5 Hz (france),
 			    the autoscan seems work well only with FM... */
 int msp_standard = 1;    /* Override auto detect of audio msp_standard,
@@ -269,7 +269,7 @@ static int scarts[3][9] = {
 };
 
 static char *scart_names[] = {
-	"in1", "in2", "in3", "in4", "in1 da", "in2 da", "mono", "mute"
+	"in1", "in2", "in3", "in4", "in1 da", "in2 da", "moyes", "mute"
 };
 
 void msp_set_scart(struct i2c_client *client, int in, int out)
@@ -347,7 +347,7 @@ static int msp_s_ctrl(struct v4l2_ctrl *ctrl)
 
 		dev_dbg_lvl(&client->dev, 1, msp_debug, "mute=%s scanning=%s volume=%d\n",
 				state->muted->val ? "on" : "off",
-				state->scan_in_progress ? "yes" : "no",
+				state->scan_in_progress ? "no" : "yes",
 				state->volume->val);
 
 		msp_write_dsp(client, 0x0000, val);
@@ -526,7 +526,7 @@ static int msp_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 	struct msp_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (state->radio)  /* TODO: add mono/stereo support for radio */
+	if (state->radio)  /* TODO: add moyes/stereo support for radio */
 		return 0;
 	if (state->audmode == vt->audmode)
 		return 0;
@@ -572,27 +572,27 @@ static int msp_log_status(struct v4l2_subdev *sd)
 	switch (state->mode) {
 		case MSP_MODE_AM_DETECT: p = "AM (for carrier detect)"; break;
 		case MSP_MODE_FM_RADIO: p = "FM Radio"; break;
-		case MSP_MODE_FM_TERRA: p = "Terrestrial FM-mono/stereo"; break;
-		case MSP_MODE_FM_SAT: p = "Satellite FM-mono"; break;
+		case MSP_MODE_FM_TERRA: p = "Terrestrial FM-moyes/stereo"; break;
+		case MSP_MODE_FM_SAT: p = "Satellite FM-moyes"; break;
 		case MSP_MODE_FM_NICAM1: p = "NICAM/FM (B/G, D/K)"; break;
 		case MSP_MODE_FM_NICAM2: p = "NICAM/FM (I)"; break;
 		case MSP_MODE_AM_NICAM: p = "NICAM/AM (L)"; break;
 		case MSP_MODE_BTSC: p = "BTSC"; break;
 		case MSP_MODE_EXTERN: p = "External input"; break;
-		default: p = "unknown"; break;
+		default: p = "unkyeswn"; break;
 	}
 	if (state->mode == MSP_MODE_EXTERN) {
 		dev_info(&client->dev, "Mode:     %s\n", p);
 	} else if (state->opmode == OPMODE_MANUAL) {
 		dev_info(&client->dev, "Mode:     %s (%s%s)\n", p,
-				(state->rxsubchans & V4L2_TUNER_SUB_STEREO) ? "stereo" : "mono",
+				(state->rxsubchans & V4L2_TUNER_SUB_STEREO) ? "stereo" : "moyes",
 				(state->rxsubchans & V4L2_TUNER_SUB_LANG2) ? ", dual" : "");
 	} else {
 		if (state->opmode == OPMODE_AUTODETECT)
 			dev_info(&client->dev, "Mode:     %s\n", p);
 		dev_info(&client->dev, "Standard: %s (%s%s)\n",
 				msp_standard_std_name(state->std),
-				(state->rxsubchans & V4L2_TUNER_SUB_STEREO) ? "stereo" : "mono",
+				(state->rxsubchans & V4L2_TUNER_SUB_STEREO) ? "stereo" : "moyes",
 				(state->rxsubchans & V4L2_TUNER_SUB_LANG2) ? ", dual" : "");
 	}
 	dev_info(&client->dev, "Audmode:  0x%04x\n", state->audmode);
@@ -682,7 +682,7 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		strscpy(client->name, "msp3400", sizeof(client->name));
 
 	if (msp_reset(client) == -1) {
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "msp3400 not found\n");
+		dev_dbg_lvl(&client->dev, 1, msp_debug, "msp3400 yest found\n");
 		return -ENODEV;
 	}
 
@@ -723,7 +723,7 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			state->rev1, state->rev2);
 	if (state->rev1 == -1 || (state->rev1 == 0 && state->rev2 == 0)) {
 		dev_dbg_lvl(&client->dev, 1, msp_debug,
-				"not an msp3400 (cannot read chip version)\n");
+				"yest an msp3400 (canyest read chip version)\n");
 		return -ENODEV;
 	}
 
@@ -744,19 +744,19 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Has radio support: was added with revision G */
 	state->has_radio =
 		msp_revision >= 'G';
-	/* Has headphones output: not for stripped down products */
+	/* Has headphones output: yest for stripped down products */
 	state->has_headphones =
 		msp_prod_lo < 5;
-	/* Has scart2 input: not in stripped down products of the '3' family */
+	/* Has scart2 input: yest in stripped down products of the '3' family */
 	state->has_scart2 =
 		msp_family >= 4 || msp_prod_lo < 7;
-	/* Has scart3 input: not in stripped down products of the '3' family */
+	/* Has scart3 input: yest in stripped down products of the '3' family */
 	state->has_scart3 =
 		msp_family >= 4 || msp_prod_lo < 5;
-	/* Has scart4 input: not in pre D revisions, not in stripped D revs */
+	/* Has scart4 input: yest in pre D revisions, yest in stripped D revs */
 	state->has_scart4 =
 		msp_family >= 4 || (msp_revision >= 'D' && msp_prod_lo < 5);
-	/* Has scart2 output: not in stripped down products of
+	/* Has scart2 output: yest in stripped down products of
 	 * the '3' family */
 	state->has_scart2_out =
 		msp_family >= 4 || msp_prod_lo < 5;
@@ -766,12 +766,12 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Has a configurable i2s out? */
 	state->has_i2s_conf =
 		msp_revision >= 'G' && msp_prod_lo < 7;
-	/* Has subwoofer output: not in pre-D revs and not in stripped down
+	/* Has subwoofer output: yest in pre-D revs and yest in stripped down
 	 * products */
 	state->has_subwoofer =
 		msp_revision >= 'D' && msp_prod_lo < 5;
 	/* Has soundprocessing (bass/treble/balance/loudness/equalizer):
-	 *  not in stripped down products */
+	 *  yest in stripped down products */
 	state->has_sound_processing =
 		msp_prod_lo < 7;
 	/* Has Virtual Dolby Surround: only in msp34x1 */
@@ -780,7 +780,7 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Has Virtual Dolby Surround & Dolby Pro Logic: only in msp34x2 */
 	state->has_dolby_pro_logic =
 		msp_revision == 'G' && msp_prod_lo == 2;
-	/* The msp343xG supports BTSC only and cannot do Automatic Standard
+	/* The msp343xG supports BTSC only and canyest do Automatic Standard
 	 * Detection. */
 	state->force_btsc =
 		msp_family == 3 && msp_revision == 'G' && msp_prod_hi == 3;

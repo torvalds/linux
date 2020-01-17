@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -56,7 +56,7 @@ enum {
 static int mlx5e_set_trust_state(struct mlx5e_priv *priv, u8 trust_state);
 static int mlx5e_set_dscp2prio(struct mlx5e_priv *priv, u8 dscp, u8 prio);
 
-/* If dcbx mode is non-host set the dcbx mode to host.
+/* If dcbx mode is yesn-host set the dcbx mode to host.
  */
 static int mlx5e_dcbnl_set_dcbx_mode(struct mlx5e_priv *priv,
 				     enum mlx5_dcbx_oper_mode mode)
@@ -232,7 +232,7 @@ static void mlx5e_build_tc_tx_bw(struct ieee_ets *ets, u8 *tc_tx_bw,
 }
 
 /* If there are ETS BW 0,
- *   Set ETS group # to 1 for all ETS non zero BW tcs. Their sum must be 100%.
+ *   Set ETS group # to 1 for all ETS yesn zero BW tcs. Their sum must be 100%.
  *   Set group #0 to all the ETS BW 0 tcs and
  *     equally splits the 100% BW between them
  *   Report both group #0 and #1 as ETS type.
@@ -504,7 +504,7 @@ static int mlx5e_dcbnl_ieee_delapp(struct net_device *dev, struct dcb_app *app)
 	    (app->protocol >= MLX5E_MAX_DSCP))
 		return -EINVAL;
 
-	/* Skip if no dscp app entry */
+	/* Skip if yes dscp app entry */
 	if (!priv->dcbx.dscp_app_cnt)
 		return -ENOENT;
 
@@ -562,7 +562,7 @@ static int mlx5e_dcbnl_ieee_getmaxrate(struct net_device *netdev,
 		case MLX5_BW_NO_LIMIT:
 			break;
 		default:
-			WARN(true, "non-supported BW unit");
+			WARN(true, "yesn-supported BW unit");
 			break;
 		}
 	}
@@ -728,7 +728,7 @@ static void mlx5e_dcbnl_getpgtccfgtx(struct net_device *netdev,
 	struct mlx5_core_dev *mdev = priv->mdev;
 
 	if (!MLX5_CAP_GEN(priv->mdev, ets)) {
-		netdev_err(netdev, "%s, ets is not supported\n", __func__);
+		netdev_err(netdev, "%s, ets is yest supported\n", __func__);
 		return;
 	}
 
@@ -1020,7 +1020,7 @@ static void mlx5e_dcbnl_query_dcbx_mode(struct mlx5e_priv *priv,
 		*mode = MLX5_GET(dcbx_param, out, version_oper);
 
 	/* From driver's point of view, we only care if the mode
-	 * is host (HOST) or non-host (AUTO)
+	 * is host (HOST) or yesn-host (AUTO)
 	 */
 	if (*mode != MLX5E_DCBX_PARAM_VER_OPER_HOST)
 		*mode = MLX5E_DCBX_PARAM_VER_OPER_AUTO;
@@ -1071,7 +1071,7 @@ static void mlx5e_dcbnl_dscp_app(struct mlx5e_priv *priv, int action)
 	if (!MLX5_DSCP_SUPPORTED(priv->mdev))
 		return;
 
-	/* No SEL_DSCP entry in non DSCP state */
+	/* No SEL_DSCP entry in yesn DSCP state */
 	if (priv->dcbx_dp.trust_state != MLX5_QPTS_TRUST_DSCP)
 		return;
 

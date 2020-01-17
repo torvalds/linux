@@ -19,7 +19,7 @@
 #include <linux/mmc/host.h>
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/acpi.h>
 #include <net/cfg80211.h>
@@ -67,7 +67,7 @@ static irqreturn_t brcmf_sdiod_oob_irqhandler(int irq, void *dev_id)
 	 * be cleared until dpc
 	 */
 	if (sdiodev->irq_en) {
-		disable_irq_nosync(irq);
+		disable_irq_yessync(irq);
 		sdiodev->irq_en = false;
 	}
 
@@ -484,7 +484,7 @@ exit_queue_walk:
 		skb_queue_walk(pktlist, pkt_next) {
 			dst_offset = 0;
 
-			/* This is safe because we must have enough SKB data
+			/* This is safe because we must have eyesugh SKB data
 			 * in the local list to cover everything in pktlist.
 			 */
 			while (1) {
@@ -1014,7 +1014,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	if (func->num == 1)
 		return 0;
 
-	/* Ignore anything but func 2 */
+	/* Igyesre anything but func 2 */
 	if (func->num != 2)
 		return -ENODEV;
 
@@ -1028,7 +1028,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	}
 
 	/* store refs to functions used. mmc_card does
-	 * not hold the F0 function pointer.
+	 * yest hold the F0 function pointer.
 	 */
 	sdiodev->func1 = func->card->sdio_func[0];
 	sdiodev->func2 = func;

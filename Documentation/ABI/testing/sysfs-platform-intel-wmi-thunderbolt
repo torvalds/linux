@@ -4,7 +4,7 @@ KernelVersion:	4.15
 Contact:	"Mario Limonciello" <mario.limonciello@dell.com>
 Description:
 		Modify the platform force power state, influencing
-		Thunderbolt controllers to turn on or off when no
+		Thunderbolt controllers to turn on or off when yes
 		devices are connected (write-only)
 		There are two available states:
 		    * 0 -> Force power disabled

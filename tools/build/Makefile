@@ -29,7 +29,7 @@ endif
 
 export Q srctree CC LD
 
-MAKEFLAGS := --no-print-directory
+MAKEFLAGS := --yes-print-directory
 build     := -f $(srctree)/tools/build/Makefile.build dir=. obj
 
 all: $(OUTPUT)fixdep

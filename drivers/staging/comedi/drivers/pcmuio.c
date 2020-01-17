@@ -23,7 +23,7 @@
  * basis). Also, each chip supports edge-triggered interrupts for the first
  * 24 I/O lines. Of course, since the 96-channel version of the board has
  * two ASICs, it can detect polarity changes on up to 48 I/O lines. Since
- * this is essentially an (non-PnP) ISA board, I/O Address and IRQ selection
+ * this is essentially an (yesn-PnP) ISA board, I/O Address and IRQ selection
  * are done through jumpers on the board. You need to pass that information
  * to this driver as the first and second comedi_config option, respectively.
  * Note that the 48-channel version uses 16 bytes of IO memory and the 96-
@@ -40,9 +40,9 @@
  * should be concatenated to form one 32-bit unsigned int.  This value is
  * the mask of channels that had edges detected from your channel list. Note
  * that the bits positions in the mask correspond to positions in your
- * chanlist when you specified the command and *not* channel id's!
+ * chanlist when you specified the command and *yest* channel id's!
  *
- * To set the polarity of the edge-detection interrupts pass a nonzero value
+ * To set the polarity of the edge-detection interrupts pass a yesnzero value
  * for either CR_RANGE or CR_AREF for edge-up polarity, or a zero value for
  * both CR_RANGE and CR_AREF if you want edge-down polarity.
  *
@@ -553,7 +553,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (board->num_asics == 2) {
 		if (it->options[2] == dev->irq) {
-			/* the same irq (or none) is used by both asics */
+			/* the same irq (or yesne) is used by both asics */
 			devpriv->irq2 = it->options[2];
 		} else if (it->options[2]) {
 			/* request the irq for the 2nd asic */

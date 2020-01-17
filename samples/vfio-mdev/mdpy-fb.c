@@ -17,7 +17,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/io.h>
 #include <linux/pci.h>
@@ -55,7 +55,7 @@ struct mdpy_fb_par {
 	u32 palette[PSEUDO_PALETTE_SIZE];
 };
 
-static int mdpy_fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int mdpy_fb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			      u_int transp, struct fb_info *info)
 {
 	u32 *pal = info->pseudo_palette;
@@ -64,7 +64,7 @@ static int mdpy_fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	u32 cb = blue >> (16 - info->var.blue.length);
 	u32 value, mask;
 
-	if (regno >= PSEUDO_PALETTE_SIZE)
+	if (regyes >= PSEUDO_PALETTE_SIZE)
 		return -EINVAL;
 
 	value = (cr << info->var.red.offset) |
@@ -75,7 +75,7 @@ static int mdpy_fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		mask <<= info->var.transp.offset;
 		value |= mask;
 	}
-	pal[regno] = value;
+	pal[regyes] = value;
 
 	return 0;
 }
@@ -174,7 +174,7 @@ static int mdpy_fb_probe(struct pci_dev *pdev,
 		goto err_unmap;
 	}
 
-	pci_info(pdev, "fb%d registered\n", info->node);
+	pci_info(pdev, "fb%d registered\n", info->yesde);
 	return 0;
 
 err_unmap:

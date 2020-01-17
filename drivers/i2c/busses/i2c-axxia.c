@@ -106,7 +106,7 @@
 #define   SLV_STATUS_WTC	BIT(1)  /* Write transfer complete */
 #define   SLV_STATUS_SRS1	BIT(2)  /* Slave read from addr 1 */
 #define   SLV_STATUS_SRRS1	BIT(3)  /* Repeated start from addr 1 */
-#define   SLV_STATUS_SRND1	BIT(4)  /* Read request not following start condition */
+#define   SLV_STATUS_SRND1	BIT(4)  /* Read request yest following start condition */
 #define   SLV_STATUS_SRC1	BIT(5)  /* Read canceled */
 #define   SLV_STATUS_SRAT1	BIT(6)  /* Slave Read timed out */
 #define   SLV_STATUS_SRDRE1	BIT(7)  /* Data written after timed out */
@@ -599,7 +599,7 @@ out:
 
 /* This function checks if the msgs[] array contains messages compatible with
  * Sequence mode of operation. This mode assumes there will be exactly one
- * write of non-zero length followed by exactly one read of non-zero length,
+ * write of yesn-zero length followed by exactly one read of yesn-zero length,
  * both targeted at the same client device.
  */
 static bool axxia_i2c_sequence_ok(struct i2c_msg msgs[], int num)
@@ -732,7 +732,7 @@ static const struct i2c_adapter_quirks axxia_i2c_quirks = {
 
 static int axxia_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct axxia_i2c_dev *idev = NULL;
 	struct resource *res;
 	void __iomem *base;
@@ -793,7 +793,7 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 	idev->adapter.bus_recovery_info = &axxia_i2c_recovery_info;
 	idev->adapter.quirks = &axxia_i2c_quirks;
 	idev->adapter.dev.parent = &pdev->dev;
-	idev->adapter.dev.of_node = pdev->dev.of_node;
+	idev->adapter.dev.of_yesde = pdev->dev.of_yesde;
 
 	platform_set_drvdata(pdev, idev);
 

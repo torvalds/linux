@@ -130,7 +130,7 @@ static const struct of_device_id m41t80_of_match[] = {
 		.compatible = "microcrystal,rv4162",
 		.data = (void *)(M41T80_FEATURE_SQ | M41T80_FEATURE_WD | M41T80_FEATURE_SQ_ALT)
 	},
-	/* DT compatibility only, do not use compatibles below: */
+	/* DT compatibility only, do yest use compatibles below: */
 	{
 		.compatible = "st,rv4162",
 		.data = (void *)(M41T80_FEATURE_SQ | M41T80_FEATURE_WD | M41T80_FEATURE_SQ_ALT)
@@ -223,7 +223,7 @@ static int m41t80_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_wday = buf[M41T80_REG_WDAY] & 0x07;
 	tm->tm_mon = bcd2bin(buf[M41T80_REG_MON] & 0x1f) - 1;
 
-	/* assume 20YY not 19YY, and ignore the Century Bit */
+	/* assume 20YY yest 19YY, and igyesre the Century Bit */
 	tm->tm_year = bcd2bin(buf[M41T80_REG_YEAR]) + 100;
 	return 0;
 }
@@ -541,7 +541,7 @@ static const struct clk_ops m41t80_sqw_ops = {
 static struct clk *m41t80_sqw_register_clk(struct m41t80_data *m41t80)
 {
 	struct i2c_client *client = m41t80->client;
-	struct device_node *node = client->dev.of_node;
+	struct device_yesde *yesde = client->dev.of_yesde;
 	struct clk *clk;
 	struct clk_init_data init;
 	int ret;
@@ -564,12 +564,12 @@ static struct clk *m41t80_sqw_register_clk(struct m41t80_data *m41t80)
 	m41t80->freq = m41t80_get_freq(m41t80);
 
 	/* optional override of the clockname */
-	of_property_read_string(node, "clock-output-names", &init.name);
+	of_property_read_string(yesde, "clock-output-names", &init.name);
 
 	/* register the clock */
 	clk = clk_register(&client->dev, &m41t80->sqw);
 	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 
 	return clk;
 }
@@ -677,7 +677,7 @@ static void wdt_disable(void)
 /**
  *	wdt_write:
  *	@file: file handle to the watchdog
- *	@buf: buffer to write (unused as data does not matter here
+ *	@buf: buffer to write (unused as data does yest matter here
  *	@count: count of bytes
  *	@ppos: pointer to the position to write. No seeks allowed
  *
@@ -777,13 +777,13 @@ static long wdt_unlocked_ioctl(struct file *file, unsigned int cmd,
 
 /**
  *	wdt_open:
- *	@inode: inode of device
+ *	@iyesde: iyesde of device
  *	@file: file handle to device
  *
  */
-static int wdt_open(struct inode *inode, struct file *file)
+static int wdt_open(struct iyesde *iyesde, struct file *file)
 {
-	if (MINOR(inode->i_rdev) == WATCHDOG_MINOR) {
+	if (MINOR(iyesde->i_rdev) == WATCHDOG_MINOR) {
 		mutex_lock(&m41t80_rtc_mutex);
 		if (test_and_set_bit(0, &wdt_is_open)) {
 			mutex_unlock(&m41t80_rtc_mutex);
@@ -794,36 +794,36 @@ static int wdt_open(struct inode *inode, struct file *file)
 		 */
 		wdt_is_open = 1;
 		mutex_unlock(&m41t80_rtc_mutex);
-		return stream_open(inode, file);
+		return stream_open(iyesde, file);
 	}
 	return -ENODEV;
 }
 
 /**
  *	wdt_close:
- *	@inode: inode to board
+ *	@iyesde: iyesde to board
  *	@file: file handle to board
  *
  */
-static int wdt_release(struct inode *inode, struct file *file)
+static int wdt_release(struct iyesde *iyesde, struct file *file)
 {
-	if (MINOR(inode->i_rdev) == WATCHDOG_MINOR)
+	if (MINOR(iyesde->i_rdev) == WATCHDOG_MINOR)
 		clear_bit(0, &wdt_is_open);
 	return 0;
 }
 
 /**
- *	notify_sys:
- *	@this: our notifier block
+ *	yestify_sys:
+ *	@this: our yestifier block
  *	@code: the event being reported
  *	@unused: unused
  *
- *	Our notifier is called on system shutdowns. We want to turn the card
+ *	Our yestifier is called on system shutdowns. We want to turn the card
  *	off at reboot otherwise the machine will reboot again during memory
  *	test or worse yet during the following fsck. This would suck, in fact
  *	trust me - if it happens it does suck.
  */
-static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
+static int wdt_yestify_sys(struct yestifier_block *this, unsigned long code,
 			  void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
@@ -840,11 +840,11 @@ static const struct file_operations wdt_fops = {
 	.write	= wdt_write,
 	.open	= wdt_open,
 	.release = wdt_release,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static struct miscdevice wdt_dev = {
-	.minor = WATCHDOG_MINOR,
+	.miyesr = WATCHDOG_MINOR,
 	.name = "watchdog",
 	.fops = &wdt_fops,
 };
@@ -853,8 +853,8 @@ static struct miscdevice wdt_dev = {
  *	The WDT card needs to learn about soft shutdowns in order to
  *	turn the timebomb registers off.
  */
-static struct notifier_block wdt_notifier = {
-	.notifier_call = wdt_notify_sys,
+static struct yestifier_block wdt_yestifier = {
+	.yestifier_call = wdt_yestify_sys,
 };
 #endif /* CONFIG_RTC_DRV_M41T80_WDT */
 
@@ -887,7 +887,7 @@ static int m41t80_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	m41t80_data->client = client;
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		m41t80_data->features = (unsigned long)
 			of_device_get_match_data(&client->dev);
 	else
@@ -899,7 +899,7 @@ static int m41t80_probe(struct i2c_client *client,
 		return PTR_ERR(m41t80_data->rtc);
 
 #ifdef CONFIG_OF
-	wakeup_source = of_property_read_bool(client->dev.of_node,
+	wakeup_source = of_property_read_bool(client->dev.of_yesde,
 					      "wakeup-source");
 #endif
 	if (client->irq > 0) {
@@ -926,7 +926,7 @@ static int m41t80_probe(struct i2c_client *client,
 	m41t80_data->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	if (client->irq <= 0) {
-		/* We cannot support UIE mode if we do not have an IRQ line */
+		/* We canyest support UIE mode if we do yest have an IRQ line */
 		m41t80_data->rtc->uie_unsupported = 1;
 	}
 
@@ -965,7 +965,7 @@ static int m41t80_probe(struct i2c_client *client,
 		rc = misc_register(&wdt_dev);
 		if (rc)
 			return rc;
-		rc = register_reboot_notifier(&wdt_notifier);
+		rc = register_reboot_yestifier(&wdt_yestifier);
 		if (rc) {
 			misc_deregister(&wdt_dev);
 			return rc;
@@ -991,7 +991,7 @@ static int m41t80_remove(struct i2c_client *client)
 
 	if (clientdata->features & M41T80_FEATURE_HT) {
 		misc_deregister(&wdt_dev);
-		unregister_reboot_notifier(&wdt_notifier);
+		unregister_reboot_yestifier(&wdt_yestifier);
 	}
 #endif
 

@@ -4,11 +4,11 @@
 |*                                                                           *|
 |*     NOTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
 |*     international laws.  Users and possessors of this source code are     *|
-|*     hereby granted a nonexclusive,  royalty-free copyright license to     *|
+|*     hereby granted a yesnexclusive,  royalty-free copyright license to     *|
 |*     use this code in individual and commercial software.                  *|
 |*                                                                           *|
 |*     Any use of this source code must include,  in the user documenta-     *|
-|*     tion and  internal comments to the code,  notices to the end user     *|
+|*     tion and  internal comments to the code,  yestices to the end user     *|
 |*     as follows:                                                           *|
 |*                                                                           *|
 |*       Copyright 1993-2003 NVIDIA, Corporation.  All rights reserved.      *|
@@ -41,10 +41,10 @@
  * GPL Licensing Note - According to Mark Vojkovich, author of the Xorg/
  * XFree86 'nv' driver, this source code is provided under MIT-style licensing
  * where the source code is provided "as is" without warranty of any kind.
- * The only usage restriction is for the copyright notices to be retained
+ * The only usage restriction is for the copyright yestices to be retained
  * whenever code is used.
  *
- * Antonino Daplas <adaplas@pol.net> 2005-03-11
+ * Antoniyes Daplas <adaplas@pol.net> 2005-03-11
  */
 
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_hw.c,v 1.4 2003/11/03 05:11:25 tsi Exp $ */
@@ -88,7 +88,7 @@ int NVShowHideCursor(struct nvidia_par *par, int ShowHide)
 /****************************************************************************\
 *                                                                            *
 * The video arbitration routines calculate some "magic" numbers.  Fixes      *
-* the snow seen when accessing the framebuffer without it.                   *
+* the syesw seen when accessing the framebuffer without it.                   *
 * It just works (I hope).                                                    *
 *                                                                            *
 \****************************************************************************/
@@ -731,7 +731,7 @@ static void nForceUpdateArbitrationSettings(unsigned VClk,
 		dimm[2] = (dimm[2] >> 8) & 0x4f;
 
 		if ((dimm[0] + dimm[1]) != dimm[2]) {
-			printk("nvidiafb: your nForce DIMMs are not arranged "
+			printk("nvidiafb: your nForce DIMMs are yest arranged "
 			       "in optimal banks!\n");
 		}
 		pci_dev_put(dev);
@@ -819,7 +819,7 @@ static void CalcVClock2Stage(int clockIn,
 
 	DeltaOld = 0xFFFFFFFF;
 
-	*pllBOut = 0x80000401;	/* fixed at x4 for now */
+	*pllBOut = 0x80000401;	/* fixed at x4 for yesw */
 
 	VClk = (unsigned)clockIn;
 
@@ -863,7 +863,7 @@ void NVCalcStateExt(struct nvidia_par *par,
 	/*
 	 * Save mode parameters.
 	 */
-	state->bpp = bpp;	/* this is not bitsPerPixel, it's 8,15,16,32 */
+	state->bpp = bpp;	/* this is yest bitsPerPixel, it's 8,15,16,32 */
 	state->width = width;
 	state->height = height;
 	/*

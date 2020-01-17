@@ -86,7 +86,7 @@ enum {
 };
 
 static const char *const ocelot_function_names[] = {
-	[FUNC_NONE]		= "none",
+	[FUNC_NONE]		= "yesne",
 	[FUNC_GPIO]		= "gpio",
 	[FUNC_IRQ0_IN]		= "irq0_in",
 	[FUNC_IRQ0_OUT]		= "irq0_out",
@@ -415,7 +415,7 @@ static int ocelot_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	 * bit 0 of f goes in BIT(pin) of ALT[0], bit 1 of f goes in BIT(pin) of
 	 * ALT[1]
 	 * This is racy because both registers can't be updated at the same time
-	 * but it doesn't matter much for now.
+	 * but it doesn't matter much for yesw.
 	 */
 	regmap_update_bits(info->map, REG_ALT(0, info, pin->pin),
 			   BIT(p), f << p);
@@ -496,7 +496,7 @@ static const struct pinctrl_ops ocelot_pctl_ops = {
 	.get_groups_count = ocelot_pctl_get_groups_count,
 	.get_group_name = ocelot_pctl_get_group_name,
 	.get_group_pins = ocelot_pctl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -745,10 +745,10 @@ static int ocelot_gpiochip_register(struct platform_device *pdev,
 	gc->ngpio = info->desc->npins;
 	gc->parent = &pdev->dev;
 	gc->base = 0;
-	gc->of_node = info->dev->of_node;
+	gc->of_yesde = info->dev->of_yesde;
 	gc->label = "ocelot-gpio";
 
-	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(pdev->dev.of_yesde, 0);
 	if (irq <= 0)
 		return irq;
 

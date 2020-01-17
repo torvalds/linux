@@ -3,7 +3,7 @@
 /// Use zeroing allocator rather than allocator followed by memset with 0
 ///
 /// This considers some simple cases that are common and easy to validate
-/// Note in particular that there are no ...s in the rule, so all of the
+/// Note in particular that there are yes ...s in the rule, so all of the
 /// matched code has to be contiguous
 ///
 // Confidence: High
@@ -11,7 +11,7 @@
 // Copyright: (C) 2009-2010 Gilles Muller, INRIA/LiP6.
 // Copyright: (C) 2017 Himanshu Jha
 // URL: http://coccinelle.lip6.fr/rules/kzalloc.html
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 //
 // Keywords: kmalloc, kzalloc
 // Version min: < 2.6.12 kmalloc
@@ -35,8 +35,8 @@ statement S;
 @@
 
 * x = (T)\(kmalloc(E1, ...)\|vmalloc(E1)\|dma_alloc_coherent(...,E1,...)\|
-  kmalloc_node(E1, ...)\|kmem_cache_alloc(...)\|kmem_alloc(E1, ...)\|
-  devm_kmalloc(...,E1,...)\|kvmalloc(E1, ...)\|kvmalloc_node(E1,...)\);
+  kmalloc_yesde(E1, ...)\|kmem_cache_alloc(...)\|kmem_alloc(E1, ...)\|
+  devm_kmalloc(...,E1,...)\|kvmalloc(E1, ...)\|kvmalloc_yesde(E1,...)\);
   if ((x==NULL) || ...) S
 * memset((T2)x,0,E1);
 
@@ -70,14 +70,14 @@ statement S;
 - x = (T)vmalloc(E1);
 + x = (T)vzalloc(E1);
 |
-- x = kmalloc_node(E1,E2,E3);
-+ x = kzalloc_node(E1,E2,E3);
+- x = kmalloc_yesde(E1,E2,E3);
++ x = kzalloc_yesde(E1,E2,E3);
 |
-- x = (T *)kmalloc_node(E1,E2,E3);
-+ x = kzalloc_node(E1,E2,E3);
+- x = (T *)kmalloc_yesde(E1,E2,E3);
++ x = kzalloc_yesde(E1,E2,E3);
 |
-- x = (T)kmalloc_node(E1,E2,E3);
-+ x = (T)kzalloc_node(E1,E2,E3);
+- x = (T)kmalloc_yesde(E1,E2,E3);
++ x = (T)kzalloc_yesde(E1,E2,E3);
 |
 - x = kmem_cache_alloc(E3,E4);
 + x = kmem_cache_zalloc(E3,E4);
@@ -115,14 +115,14 @@ statement S;
 - x = (T)kvmalloc(E1,E2);
 + x = (T)kvzalloc(E1,E2);
 |
-- x = kvmalloc_node(E1,E2,E3);
-+ x = kvzalloc_node(E1,E2,E3);
+- x = kvmalloc_yesde(E1,E2,E3);
++ x = kvzalloc_yesde(E1,E2,E3);
 |
-- x = (T *)kvmalloc_node(E1,E2,E3);
-+ x = kvzalloc_node(E1,E2,E3);
+- x = (T *)kvmalloc_yesde(E1,E2,E3);
++ x = kvzalloc_yesde(E1,E2,E3);
 |
-- x = (T)kvmalloc_node(E1,E2,E3);
-+ x = (T)kvzalloc_node(E1,E2,E3);
+- x = (T)kvmalloc_yesde(E1,E2,E3);
++ x = (T)kvzalloc_yesde(E1,E2,E3);
 )
   if ((x==NULL) || ...) S
 - memset((T2)x,0,E1);
@@ -217,7 +217,7 @@ p << r2.p;
 x << r2.x;
 @@
 
-msg="WARNING: dma_alloc_coherent use in %s already zeroes out memory,  so memset is not needed" % (x)
+msg="WARNING: dma_alloc_coherent use in %s already zeroes out memory,  so memset is yest needed" % (x)
 coccilib.report.print_report(p[0], msg)
 
 //-----------------------------------------------------------------
@@ -229,7 +229,7 @@ statement S;
 position p;
 @@
 
- x = (T)kmalloc_node@p(E1,E2,E3);
+ x = (T)kmalloc_yesde@p(E1,E2,E3);
  if ((x==NULL) || ...) S
  memset((T2)x,0,E1);
 
@@ -247,7 +247,7 @@ p << r3.p;
 x << r3.x;
 @@
 
-msg="WARNING: kzalloc_node should be used for %s, instead of kmalloc_node/memset" % (x)
+msg="WARNING: kzalloc_yesde should be used for %s, instead of kmalloc_yesde/memset" % (x)
 coccilib.report.print_report(p[0], msg)
 
 //-----------------------------------------------------------------
@@ -379,7 +379,7 @@ statement S;
 position p;
 @@
 
- x = (T)kvmalloc_node@p(E1,E2,E3);
+ x = (T)kvmalloc_yesde@p(E1,E2,E3);
  if ((x==NULL) || ...) S
  memset((T2)x,0,E1);
 
@@ -397,5 +397,5 @@ p << r9.p;
 x << r9.x;
 @@
 
-msg="WARNING: kvzalloc_node should be used for %s, instead of kvmalloc_node/memset" % (x)
+msg="WARNING: kvzalloc_yesde should be used for %s, instead of kvmalloc_yesde/memset" % (x)
 coccilib.report.print_report(p[0], msg)

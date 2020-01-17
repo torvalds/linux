@@ -108,7 +108,7 @@ netxen_get_minidump_template(struct netxen_adapter *adapter)
 	size = adapter->mdump.md_template_size;
 
 	if (size == 0) {
-		dev_err(&adapter->pdev->dev, "Can not capture Minidump "
+		dev_err(&adapter->pdev->dev, "Can yest capture Minidump "
 			"template. Invalid template size.\n");
 		return NX_RCODE_INVALID_ARGS;
 	}
@@ -163,7 +163,7 @@ netxen_setup_minidump(struct netxen_adapter *adapter)
 		if ((err == NX_RCODE_CMD_INVALID) ||
 			(err == NX_RCODE_CMD_NOT_IMPL)) {
 			dev_info(&adapter->pdev->dev,
-				"Flashed firmware version does not support minidump, minimum version required is [ %u.%u.%u ]\n",
+				"Flashed firmware version does yest support minidump, minimum version required is [ %u.%u.%u ]\n",
 				NX_MD_SUPPORT_MAJOR, NX_MD_SUPPORT_MINOR,
 				NX_MD_SUPPORT_SUBVERSION);
 		}
@@ -172,7 +172,7 @@ netxen_setup_minidump(struct netxen_adapter *adapter)
 
 	if (!adapter->mdump.md_template_size) {
 		dev_err(&adapter->pdev->dev, "Error : Invalid template size "
-		",should be non-zero.\n");
+		",should be yesn-zero.\n");
 		return -EIO;
 	}
 	adapter->mdump.md_template =

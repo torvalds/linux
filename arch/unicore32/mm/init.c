@@ -5,12 +5,12 @@
  *  Copyright (C) 2010 GUAN Xue-tao
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/swap.h>
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/mman.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/initrd.h>
 #include <linux/highmem.h>
 #include <linux/gfp.h>
@@ -75,13 +75,13 @@ static void __init uc32_bootmem_free(unsigned long min, unsigned long max_low,
 	/*
 	 * The memory size has already been determined.  If we need
 	 * to do anything fancy with the allocation of this memory
-	 * to the zones, now is the time to do it.
+	 * to the zones, yesw is the time to do it.
 	 */
 	zone_size[0] = max_low - min;
 
 	/*
 	 * Calculate the size of the holes.
-	 *  holes = node_size - sum(bank_sizes)
+	 *  holes = yesde_size - sum(bank_sizes)
 	 */
 	memcpy(zhole_size, zone_size, sizeof(zhole_size));
 	for_each_memblock(memory, reg) {
@@ -100,7 +100,7 @@ static void __init uc32_bootmem_free(unsigned long min, unsigned long max_low,
 	 */
 	arch_adjust_zones(zone_size, zhole_size);
 
-	free_area_init_node(0, zone_size, min, zhole_size);
+	free_area_init_yesde(0, zone_size, min, zhole_size);
 }
 
 int pfn_valid(unsigned long pfn)
@@ -162,7 +162,7 @@ void __init bootmem_init(void)
 
 	find_limits(&min, &max_low, &max_high);
 
-	node_set_online(0);
+	yesde_set_online(0);
 
 	/*
 	 * Sparsemem tries to allocate bootmem in memory_present(),
@@ -176,7 +176,7 @@ void __init bootmem_init(void)
 	sparse_init();
 
 	/*
-	 * Now free the memory - free_area_init_node needs
+	 * Now free the memory - free_area_init_yesde needs
 	 * the sparse mem_map arrays initialized by sparse_init()
 	 * for memmap_init_zone(), otherwise all PFNs are invalid.
 	 */
@@ -190,7 +190,7 @@ void __init bootmem_init(void)
 	 * also get rid of some of the stuff above as well.
 	 *
 	 * Note: max_low_pfn and max_pfn reflect the number of _pages_ in
-	 * the system, not the maximum PFN.
+	 * the system, yest the maximum PFN.
 	 */
 	max_low_pfn = max_low - PHYS_PFN_OFFSET;
 	max_pfn = max_high - PHYS_PFN_OFFSET;

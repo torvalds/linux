@@ -16,7 +16,7 @@
  * The software must write this register twice to post any command. First,
  * it writes the register with hi=1 and the upper bits of the physical address
  * for the MAILBOX structure. Software must poll the ready bit until this
- * is acknowledged. Then, sotware writes the register with hi=0 with the lower
+ * is ackyeswledged. Then, sotware writes the register with hi=0 with the lower
  * bits in the address. It must poll the ready bit until the command is
  * complete. Upon completion, the MAILBOX will contain a valid completion
  * queue entry.

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -35,7 +35,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
@@ -88,7 +88,7 @@ static int c4iw_alloc_ucontext(struct ib_ucontext *ucontext,
 	spin_lock_init(&context->mmap_lock);
 
 	if (udata->outlen < sizeof(uresp) - sizeof(uresp.reserved)) {
-		pr_err_once("Warning - downlevel libcxgb4 (non-fatal), device status page disabled\n");
+		pr_err_once("Warning - downlevel libcxgb4 (yesn-fatal), device status page disabled\n");
 		rhp->rdev.flags |= T4_STATUS_PAGE_DISABLED;
 	} else {
 		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
@@ -153,7 +153,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		/*
 		 * MA_SYNC register...
 		 */
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 		ret = io_remap_pfn_range(vma, vma->vm_start,
 					 addr >> PAGE_SHIFT,
 					 len, vma->vm_page_prot);
@@ -172,7 +172,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 					t4_pgprot_wc(vma->vm_page_prot);
 			else
 				vma->vm_page_prot =
-					pgprot_noncached(vma->vm_page_prot);
+					pgprot_yesncached(vma->vm_page_prot);
 		}
 		ret = io_remap_pfn_range(vma, vma->vm_start,
 					 addr >> PAGE_SHIFT,
@@ -512,7 +512,7 @@ static const struct ib_device_ops c4iw_dev_ops = {
 	.query_port = c4iw_query_port,
 	.query_qp = c4iw_ib_query_qp,
 	.reg_user_mr = c4iw_reg_user_mr,
-	.req_notify_cq = c4iw_arm_cq,
+	.req_yestify_cq = c4iw_arm_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, c4iw_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_cq, c4iw_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_srq, c4iw_srq, ibsrq),
@@ -540,8 +540,8 @@ void c4iw_register_device(struct work_struct *work)
 	struct c4iw_dev *dev = ctx->dev;
 
 	pr_debug("c4iw_dev %p\n", dev);
-	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
-	memcpy(&dev->ibdev.node_guid, dev->rdev.lldi.ports[0]->dev_addr, 6);
+	memset(&dev->ibdev.yesde_guid, 0, sizeof(dev->ibdev.yesde_guid));
+	memcpy(&dev->ibdev.yesde_guid, dev->rdev.lldi.ports[0]->dev_addr, 6);
 	dev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY | IB_DEVICE_MEM_WINDOW;
 	if (fastreg_support)
 		dev->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
@@ -568,9 +568,9 @@ void c4iw_register_device(struct work_struct *work)
 	    (1ull << IB_USER_VERBS_CMD_CREATE_SRQ) |
 	    (1ull << IB_USER_VERBS_CMD_MODIFY_SRQ) |
 	    (1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
-	dev->ibdev.node_type = RDMA_NODE_RNIC;
+	dev->ibdev.yesde_type = RDMA_NODE_RNIC;
 	BUILD_BUG_ON(sizeof(C4IW_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
-	memcpy(dev->ibdev.node_desc, C4IW_NODE_DESC, sizeof(C4IW_NODE_DESC));
+	memcpy(dev->ibdev.yesde_desc, C4IW_NODE_DESC, sizeof(C4IW_NODE_DESC));
 	dev->ibdev.phys_port_cnt = dev->rdev.lldi.nports;
 	dev->ibdev.num_comp_vectors =  dev->rdev.lldi.nciq;
 	dev->ibdev.dev.parent = &dev->rdev.lldi.pdev->dev;

@@ -24,7 +24,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/genhd.h>
 #include <linux/cdrom.h>
 #include <linux/ide.h>
@@ -107,7 +107,7 @@ static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 static void ide_floppy_report_error(struct ide_disk_obj *floppy,
 				    struct ide_atapi_pc *pc)
 {
-	/* suppress error messages resulting from Medium not present */
+	/* suppress error messages resulting from Medium yest present */
 	if (floppy->sense_key == 0x02 &&
 	    floppy->asc       == 0x3a &&
 	    floppy->ascq      == 0x00)
@@ -309,7 +309,7 @@ out_end:
 }
 
 /*
- * Look at the flexible disk page parameters. We ignore the CHS capacity
+ * Look at the flexible disk page parameters. We igyesre the CHS capacity
  * parameters and use the LBA parameters instead.
  */
 static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive,
@@ -423,7 +423,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 		case CAPACITY_UNFORMATTED:
 			if (!(drive->atapi_flags & IDE_AFLAG_CLIK_DRIVE))
 				/*
-				 * If it is not a clik drive, break out
+				 * If it is yest a clik drive, break out
 				 * (maintains previous driver behaviour)
 				 */
 				break;
@@ -439,14 +439,14 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 
 			if (!length || length % 512) {
 				printk(KERN_NOTICE PFX "%s: %d bytes block size"
-				       " not supported\n", drive->name, length);
+				       " yest supported\n", drive->name, length);
 			} else {
 				floppy->blocks = blocks;
 				floppy->block_size = length;
 				floppy->bs_factor = length / 512;
 				if (floppy->bs_factor != 1)
 					printk(KERN_NOTICE PFX "%s: Warning: "
-					       "non 512 bytes block size not "
+					       "yesn 512 bytes block size yest "
 					       "fully supported\n",
 					       drive->name);
 				drive->capacity64 =
@@ -471,7 +471,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 					     pc_buf[desc_start + 4] & 0x03);
 	}
 
-	/* Clik! disk does not support get_flexible_disk_page */
+	/* Clik! disk does yest support get_flexible_disk_page */
 	if (!(drive->atapi_flags & IDE_AFLAG_CLIK_DRIVE))
 		(void) ide_floppy_get_flexible_disk_page(drive, &pc);
 
@@ -503,12 +503,12 @@ static void ide_floppy_setup(ide_drive_t *drive)
 
 	/*
 	 * Guess what? The IOMEGA Clik! drive also needs the above fix. It makes
-	 * nasty clicking noises without it, so please don't remove this.
+	 * nasty clicking yesises without it, so please don't remove this.
 	 */
 	if (strstarts((char *)&id[ATA_ID_PROD], "IOMEGA Clik!")) {
 		blk_queue_max_hw_sectors(drive->queue, 64);
 		drive->atapi_flags |= IDE_AFLAG_CLIK_DRIVE;
-		/* IOMEGA Clik! drives do not support lock/unlock commands */
+		/* IOMEGA Clik! drives do yest support lock/unlock commands */
 		drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
 	}
 

@@ -2,7 +2,7 @@
 /*
  * Hi3516CV300 Clock and Reset Generator Driver
  *
- * Copyright (c) 2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016 HiSilicon Techyeslogies Co., Ltd.
  */
 
 #include <dt-bindings/clock/hi3516cv300-clock.h>
@@ -151,7 +151,7 @@ static struct hisi_clock_data *hi3516cv300_clk_register(
 	if (ret)
 		goto unregister_mux;
 
-	ret = of_clk_add_provider(pdev->dev.of_node,
+	ret = of_clk_add_provider(pdev->dev.of_yesde,
 			of_clk_src_onecell_get, &clk_data->clk_data);
 	if (ret)
 		goto unregister_gate;
@@ -174,7 +174,7 @@ static void hi3516cv300_clk_unregister(struct platform_device *pdev)
 {
 	struct hisi_crg_dev *crg = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
 	hisi_clk_unregister_gate(hi3516cv300_gate_clks,
 			ARRAY_SIZE(hi3516cv300_gate_clks), crg->clk_data);
@@ -216,7 +216,7 @@ static struct hisi_clock_data *hi3516cv300_sysctrl_clk_register(
 		return ERR_PTR(ret);
 
 
-	ret = of_clk_add_provider(pdev->dev.of_node,
+	ret = of_clk_add_provider(pdev->dev.of_yesde,
 			of_clk_src_onecell_get, &clk_data->clk_data);
 	if (ret)
 		goto unregister_mux;
@@ -233,7 +233,7 @@ static void hi3516cv300_sysctrl_clk_unregister(struct platform_device *pdev)
 {
 	struct hisi_crg_dev *crg = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
 	hisi_clk_unregister_mux(hi3516cv300_sysctrl_mux_clks,
 			ARRAY_SIZE(hi3516cv300_sysctrl_mux_clks),

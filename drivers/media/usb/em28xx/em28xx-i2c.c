@@ -38,7 +38,7 @@ MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
 static unsigned int i2c_debug;
 module_param(i2c_debug, int, 0644);
-MODULE_PARM_DESC(i2c_debug, "i2c debug message level (1: normal debug, 2: show I2C transfers)");
+MODULE_PARM_DESC(i2c_debug, "i2c debug message level (1: yesrmal debug, 2: show I2C transfers)");
 
 #define dprintk(level, fmt, arg...) do {				\
 	if (i2c_debug > level)						\
@@ -216,7 +216,7 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		return -EOPNOTSUPP;
 	/*
 	 * NOTE: limited by the USB ctrl message constraints
-	 * Zero length reads always succeed, even if no device is connected
+	 * Zero length reads always succeed, even if yes device is connected
 	 */
 
 	/* Write to i2c device */
@@ -267,7 +267,7 @@ static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 	}
 
 	dev_warn(&dev->intf->dev,
-		 "write to i2c device at 0x%x failed with unknown error (status=%i)\n",
+		 "write to i2c device at 0x%x failed with unkyeswn error (status=%i)\n",
 		 addr, ret);
 	return -EIO;
 }
@@ -284,7 +284,7 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 		return -EOPNOTSUPP;
 	/*
 	 * NOTE: limited by the USB ctrl message constraints
-	 * Zero length reads always succeed, even if no device is connected
+	 * Zero length reads always succeed, even if yes device is connected
 	 */
 
 	/* Read data from i2c device */
@@ -297,11 +297,11 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 	}
 	/*
 	 * NOTE: some devices with two i2c buses have the bad habit to return 0
-	 * bytes if we are on bus B AND there was no write attempt to the
-	 * specified slave address before AND no device is present at the
+	 * bytes if we are on bus B AND there was yes write attempt to the
+	 * specified slave address before AND yes device is present at the
 	 * requested slave address.
 	 * Anyway, the next check will fail with -ENXIO in this case, so avoid
-	 * spamming the system log on device probing and do nothing here.
+	 * spamming the system log on device probing and do yesthing here.
 	 */
 
 	/* Check success of the i2c operation */
@@ -329,7 +329,7 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf, u16 len)
 	}
 
 	dev_warn(&dev->intf->dev,
-		 "write to i2c device at 0x%x failed with unknown error (status=%i)\n",
+		 "write to i2c device at 0x%x failed with unkyeswn error (status=%i)\n",
 		 addr, ret);
 	return -EIO;
 }
@@ -362,7 +362,7 @@ static int em25xx_bus_B_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		return -EOPNOTSUPP;
 	/*
 	 * NOTE: limited by the USB ctrl message constraints
-	 * Zero length reads always succeed, even if no device is connected
+	 * Zero length reads always succeed, even if yes device is connected
 	 */
 
 	/* Set register and write value */
@@ -384,7 +384,7 @@ static int em25xx_bus_B_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 	ret = dev->em28xx_read_reg_req(dev, 0x08, 0x0000);
 	/*
 	 * NOTE: the only error we've seen so far is
-	 * 0x01 when the slave device is not present
+	 * 0x01 when the slave device is yest present
 	 */
 	if (!ret)
 		return len;
@@ -397,8 +397,8 @@ static int em25xx_bus_B_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 	return ret;
 	/*
 	 * NOTE: With chip types (other chip IDs) which actually don't support
-	 * this operation, it seems to succeed ALWAYS ! (even if there is no
-	 * slave device or even no second i2c bus provided)
+	 * this operation, it seems to succeed ALWAYS ! (even if there is yes
+	 * slave device or even yes second i2c bus provided)
 	 */
 }
 
@@ -415,7 +415,7 @@ static int em25xx_bus_B_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 		return -EOPNOTSUPP;
 	/*
 	 * NOTE: limited by the USB ctrl message constraints
-	 * Zero length reads always succeed, even if no device is connected
+	 * Zero length reads always succeed, even if yes device is connected
 	 */
 
 	/* Read value */
@@ -428,18 +428,18 @@ static int em25xx_bus_B_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 	}
 	/*
 	 * NOTE: some devices with two i2c buses have the bad habit to return 0
-	 * bytes if we are on bus B AND there was no write attempt to the
-	 * specified slave address before AND no device is present at the
+	 * bytes if we are on bus B AND there was yes write attempt to the
+	 * specified slave address before AND yes device is present at the
 	 * requested slave address.
 	 * Anyway, the next check will fail with -ENXIO in this case, so avoid
-	 * spamming the system log on device probing and do nothing here.
+	 * spamming the system log on device probing and do yesthing here.
 	 */
 
 	/* Check success */
 	ret = dev->em28xx_read_reg_req(dev, 0x08, 0x0000);
 	/*
 	 * NOTE: the only error we've seen so far is
-	 * 0x01 when the slave device is not present
+	 * 0x01 when the slave device is yest present
 	 */
 	if (!ret)
 		return len;
@@ -452,8 +452,8 @@ static int em25xx_bus_B_recv_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 	return ret;
 	/*
 	 * NOTE: With chip types (other chip IDs) which actually don't support
-	 * this operation, it seems to succeed ALWAYS ! (even if there is no
-	 * slave device or even no second i2c bus provided)
+	 * this operation, it seems to succeed ALWAYS ! (even if there is yes
+	 * slave device or even yes second i2c bus provided)
 	 */
 }
 
@@ -472,8 +472,8 @@ static int em25xx_bus_B_check_for_device(struct em28xx *dev, u16 addr)
 
 	return 0;
 	/*
-	 * NOTE: With chips which do not support this operation,
-	 * it seems to succeed ALWAYS ! (even if no device connected)
+	 * NOTE: With chips which do yest support this operation,
+	 * it seems to succeed ALWAYS ! (even if yes device connected)
 	 */
 }
 
@@ -563,7 +563,7 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 		addr = msgs[i].addr << 1;
 		if (!msgs[i].len) {
 			/*
-			 * no len: check only for device presence
+			 * yes len: check only for device presence
 			 * This code is only called during device probe.
 			 */
 			rc = i2c_check_for_device(i2c_bus, addr);
@@ -583,7 +583,7 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 		dprintk(2, "%s %s addr=%02x len=%d: %*ph\n",
 			(msgs[i].flags & I2C_M_RD) ? "read" : "write",
-			i == num - 1 ? "stop" : "nonstop",
+			i == num - 1 ? "stop" : "yesnstop",
 			addr, msgs[i].len,
 			msgs[i].len, msgs[i].buf);
 	}
@@ -594,9 +594,9 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 error:
 	dprintk(2, "%s %s addr=%02x len=%d: %sERROR: %i\n",
 		(msgs[i].flags & I2C_M_RD) ? "read" : "write",
-		i == num - 1 ? "stop" : "nonstop",
+		i == num - 1 ? "stop" : "yesnstop",
 		addr, msgs[i].len,
-		(rc == -ENODEV) ? "no device " : "",
+		(rc == -ENODEV) ? "yes device " : "",
 		rc);
 
 	rt_mutex_unlock(&dev->i2c_bus_lock);
@@ -689,14 +689,14 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned int bus,
 	*eedata = NULL;
 	*eedata_len = 0;
 
-	/* EEPROM is always on i2c bus 0 on all known devices. */
+	/* EEPROM is always on i2c bus 0 on all kyeswn devices. */
 
 	dev->i2c_client[bus].addr = 0xa0 >> 1;
 
 	/* Check if board has eeprom */
 	err = i2c_master_recv(&dev->i2c_client[bus], &buf, 0);
 	if (err < 0) {
-		dev_info(&dev->intf->dev, "board has no eeprom\n");
+		dev_info(&dev->intf->dev, "board has yes eeprom\n");
 		return -ENODEV;
 	}
 
@@ -746,7 +746,7 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned int bus,
 		 * [0]   microcode download speed: 1 = 400 kHz; 0 = 100 kHz
 		 * [1]   always selects 12 kb RAM
 		 * [2]   USB device speed: 1 = force Full Speed; 0 = auto detect
-		 * [4]   1 = force fast mode and no suspend for device testing
+		 * [4]   1 = force fast mode and yes suspend for device testing
 		 * [5:7] USB PHY tuning registers; determined by device
 		 *       characterization
 		 */
@@ -771,7 +771,7 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned int bus,
 		/*
 		 * NOTE: the microcode copy can be multiple pages long, but
 		 * we assume the hardware config dataset is the same as in
-		 * the old eeprom and not longer than 256 bytes.
+		 * the old eeprom and yest longer than 256 bytes.
 		 * tveeprom is currently also limited to 256 bytes.
 		 */
 		err = em28xx_i2c_read_block(dev, bus, hwconf_offset, 1, len,
@@ -784,11 +784,11 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned int bus,
 		}
 
 		/* Verify hardware config dataset */
-		/* NOTE: not all devices provide this type of dataset */
+		/* NOTE: yest all devices provide this type of dataset */
 		if (data[0] != 0x1a || data[1] != 0xeb ||
 		    data[2] != 0x67 || data[3] != 0x95) {
 			dev_info(&dev->intf->dev,
-				 "\tno hardware configuration dataset found in eeprom\n");
+				 "\tyes hardware configuration dataset found in eeprom\n");
 			kfree(data);
 			return 0;
 		}
@@ -809,7 +809,7 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned int bus,
 			 "EEPROM info:\n");
 	} else {
 		dev_info(&dev->intf->dev,
-			 "unknown eeprom format or eeprom corrupted !\n");
+			 "unkyeswn eeprom format or eeprom corrupted !\n");
 		err = -ENODEV;
 		goto error;
 	}
@@ -894,7 +894,7 @@ static u32 functionality(struct i2c_adapter *i2c_adap)
 			~I2C_FUNC_SMBUS_WRITE_BLOCK_DATA;
 	}
 
-	WARN(1, "Unknown i2c bus algorithm.\n");
+	WARN(1, "Unkyeswn i2c bus algorithm.\n");
 	return 0;
 }
 
@@ -917,7 +917,7 @@ static const struct i2c_client em28xx_client_template = {
 
 /*
  * i2c_devs
- * incomplete list of known devices
+ * incomplete list of kyeswn devices
  */
 static char *i2c_devs[128] = {
 	[0x1c >> 1] = "lgdt330x",
@@ -1004,7 +1004,7 @@ int em28xx_i2c_register(struct em28xx *dev, unsigned int bus,
 	dev->i2c_client[bus] = em28xx_client_template;
 	dev->i2c_client[bus].adapter = &dev->i2c_adap[bus];
 
-	/* Up to now, all eeproms are at bus 0 */
+	/* Up to yesw, all eeproms are at bus 0 */
 	if (!bus) {
 		retval = em28xx_i2c_eeprom(dev, bus,
 					   &dev->eedata, &dev->eedata_len);

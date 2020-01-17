@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * fscrypt user API
  *
@@ -29,10 +29,10 @@
 #define __FSCRYPT_MODE_MAX			9
 
 /*
- * Legacy policy version; ad-hoc KDF and no key verification.
+ * Legacy policy version; ad-hoc KDF and yes key verification.
  * For new encrypted directories, use fscrypt_policy_v2 instead.
  *
- * Careful: the .version field for this is actually 0, not 1.
+ * Careful: the .version field for this is actually 0, yest 1.
  */
 #define FSCRYPT_POLICY_V1		0
 #define FSCRYPT_KEY_DESCRIPTOR_SIZE	8

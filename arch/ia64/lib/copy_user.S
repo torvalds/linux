@@ -110,7 +110,7 @@ GLOBAL_ENTRY(__copy_user)
 	//
 	// Now we do the byte by byte loop with software pipeline
 	//
-	// p7 is necessarily false by now
+	// p7 is necessarily false by yesw
 1:
 	EX(.failure_in_pipe1,(p16) ld1 val1[0]=[src1],1)
 	EX(.failure_out,(EPI) st1 [dst1]=val1[PIPE_DEPTH-1],1)
@@ -125,8 +125,8 @@ GLOBAL_ENTRY(__copy_user)
 	// Not 8-byte aligned
 	//
 .diff_align_copy_user:
-	// At this point we know we have more than 16 bytes to copy
-	// and also that src and dest do _not_ have the same alignment.
+	// At this point we kyesw we have more than 16 bytes to copy
+	// and also that src and dest do _yest_ have the same alignment.
 	and src2=0x7,src1				// src offset
 	and dst2=0x7,dst1				// dst offset
 	;;
@@ -152,7 +152,7 @@ GLOBAL_ENTRY(__copy_user)
 	//
 	// Optimization. If dst1 is 8-byte aligned (quite common), we don't need
 	// to copy the head to dst1, to start 8-byte copy software pipeline.
-	// We know src1 is not 8-byte aligned in this case.
+	// We kyesw src1 is yest 8-byte aligned in this case.
 	//
 	cmp.eq p14,p15=r0,dst2
 (p15)	br.cond.spnt 1f
@@ -293,8 +293,8 @@ GLOBAL_ENTRY(__copy_user)
 4:
 	// Tail correction.
 	//
-	// The problem with this piplelined loop is that the last word is not
-	// loaded and thus parf of the last word written is not correct.
+	// The problem with this piplelined loop is that the last word is yest
+	// loaded and thus parf of the last word written is yest correct.
 	// To fix that, we simply copy the tail byte by byte.
 
 	sub len1=endsrc,src1,1
@@ -325,10 +325,10 @@ GLOBAL_ENTRY(__copy_user)
 	mov len1=len		// copy because of rotation
 (p8)	br.cond.dpnt .diff_align_copy_user
 	;;
-	// At this point we know we have more than 16 bytes to copy
+	// At this point we kyesw we have more than 16 bytes to copy
 	// and also that both src and dest have the same alignment
-	// which may not be the one we want. So for now we must move
-	// forward slowly until we reach 16byte alignment: no need to
+	// which may yest be the one we want. So for yesw we must move
+	// forward slowly until we reach 16byte alignment: yes need to
 	// worry about reaching the end of buffer.
 	//
 	EX(.failure_in1,(p6) ld1 val1[0]=[src1],1)	// 1-byte aligned
@@ -340,8 +340,8 @@ GLOBAL_ENTRY(__copy_user)
 	tbit.nz p8,p0=src1,2
 	;;
 	//
-	// Stop bit not required after ld4 because if we fail on ld4
-	// we have never executed the ld1, therefore st1 is not executed.
+	// Stop bit yest required after ld4 because if we fail on ld4
+	// we have never executed the ld1, therefore st1 is yest executed.
 	//
 	EX(.failure_in1,(p8) ld4 val2[0]=[src1],4)	// 4-byte aligned
 	;;
@@ -349,8 +349,8 @@ GLOBAL_ENTRY(__copy_user)
 	tbit.nz p9,p0=src1,3
 	;;
 	//
-	// Stop bit not required after ld8 because if we fail on ld8
-	// we have never executed the ld2, therefore st2 is not executed.
+	// Stop bit yest required after ld8 because if we fail on ld8
+	// we have never executed the ld2, therefore st2 is yest executed.
 	//
 	EX(.failure_in1,(p9) ld8 val2[1]=[src1],8)	// 8-byte aligned
 	EX(.failure_out,(p7) st2 [dst1]=val1[1],2)
@@ -417,15 +417,15 @@ GLOBAL_ENTRY(__copy_user)
 	// on the load.
 	// Several factors make the zeroing of the rest of the buffer kind of
 	// tricky:
-	//	- the pipeline: loads/stores are not in sync (pipeline)
+	//	- the pipeline: loads/stores are yest in sync (pipeline)
 	//
-	//	  In the same loop iteration, the dst1 pointer does not directly
+	//	  In the same loop iteration, the dst1 pointer does yest directly
 	//	  reflect where the faulty load was.
 	//
 	//	- pipeline effect
 	//	  When you get a fault on load, you may have valid data from
-	//	  previous loads not yet store in transit. Such data must be
-	//	  store normally before moving onto zeroing the rest.
+	//	  previous loads yest yet store in transit. Such data must be
+	//	  store yesrmally before moving onto zeroing the rest.
 	//
 	//	- single/multi dispersal independence.
 	//
@@ -437,7 +437,7 @@ GLOBAL_ENTRY(__copy_user)
 	//	  p16 is always reset to 1 when lc > 0.
 	//
 .failure_in_pipe1:
-	sub ret0=endsrc,src1	// number of bytes to zero, i.e. not copied
+	sub ret0=endsrc,src1	// number of bytes to zero, i.e. yest copied
 1:
 (p16)	mov val1[0]=r0
 (EPI)	st1 [dst1]=val1[PIPE_DEPTH-1],1
@@ -454,7 +454,7 @@ GLOBAL_ENTRY(__copy_user)
 	// zeros for the rest of the destination. Since this happens
 	// at the top we still need to fill the body and tail.
 .failure_in_pipe2:
-	sub ret0=endsrc,src1	// number of bytes to zero, i.e. not copied
+	sub ret0=endsrc,src1	// number of bytes to zero, i.e. yest copied
 2:
 (p16)	mov val1[0]=r0
 (EPI)	st1 [dst1]=val1[PIPE_DEPTH-1],1
@@ -490,14 +490,14 @@ GLOBAL_ENTRY(__copy_user)
 	//	     |4 x
 	//
 	// page_size >= 4k (2^12).  (x means 4, 2, 1)
-	// Here we suppose Page A exists and Page B does not.
+	// Here we suppose Page A exists and Page B does yest.
 	//
 	// As we move towards eight byte alignment we may encounter faults.
 	// The numbers on each page show the size of the load (current alignment).
 	//
 	// Key point:
 	//	- if you fail on 1, 2, 4 then you have never executed any smaller
-	//	  size loads, e.g. failing ld4 means no ld1 nor ld2 executed
+	//	  size loads, e.g. failing ld4 means yes ld1 yesr ld2 executed
 	//	  before.
 	//
 	// This allows us to simplify the cleanup code, because basically you
@@ -518,7 +518,7 @@ GLOBAL_ENTRY(__copy_user)
 	//
 	//
 	// 2) TAIL
-	// Here we now we have less than 16 bytes AND we are either 8 or 16 byte
+	// Here we yesw we have less than 16 bytes AND we are either 8 or 16 byte
 	// aligned.
 	//
 	// Key point:
@@ -526,21 +526,21 @@ GLOBAL_ENTRY(__copy_user)
 	//		- are right on a page boundary
 	//	OR
 	//		- are at more than 16 bytes from a page boundary with
-	//		  at most 15 bytes to copy: no chance of crossing.
+	//		  at most 15 bytes to copy: yes chance of crossing.
 	//
 	// This allows us to assume that if we fail on a load we haven't possibly
 	// executed any of the previous (tail) ones, so we don't need to do
 	// any stores. For instance, if we fail on ld2, this means we had
-	// 2 or 3 bytes left to copy and we did not execute the ld8 nor ld4.
+	// 2 or 3 bytes left to copy and we did yest execute the ld8 yesr ld4.
 	//
 	// This means that we are in a situation similar the a fault in the
 	// head part. That's nice!
 	//
 .failure_in1:
-	sub ret0=endsrc,src1	// number of bytes to zero, i.e. not copied
+	sub ret0=endsrc,src1	// number of bytes to zero, i.e. yest copied
 	sub len=endsrc,src1,1
 	//
-	// we know that ret0 can never be zero at this point
+	// we kyesw that ret0 can never be zero at this point
 	// because we failed why trying to do a load, i.e. there is still
 	// some work to do.
 	// The failure_in1bis and length problem is taken care of at the
@@ -566,11 +566,11 @@ GLOBAL_ENTRY(__copy_user)
 	// data in transit in the pipeline.
 	// ar.lc and ar.ec are setup correctly at this point
 	//
-	// we MUST use src1/endsrc here and not dst1/enddst because
+	// we MUST use src1/endsrc here and yest dst1/enddst because
 	// of the pipeline effect.
 	//
 .failure_in3:
-	sub ret0=endsrc,src1	// number of bytes to zero, i.e. not copied
+	sub ret0=endsrc,src1	// number of bytes to zero, i.e. yest copied
 	;;
 2:
 (p16)	mov val1[0]=r0

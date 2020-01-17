@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/altera-sysmgr.h>
 #include <linux/mfd/syscon.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -189,7 +189,7 @@ static const struct file_operations altr_sdr_mc_debug_inject_fops = {
 	.llseek = generic_file_llseek,
 };
 
-static void altr_sdr_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
+static void altr_sdr_mc_create_debugfs_yesdes(struct mem_ctl_info *mci)
 {
 	if (!IS_ENABLED(CONFIG_EDAC_DEBUG))
 		return;
@@ -204,12 +204,12 @@ static void altr_sdr_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
 /* Get total memory size from Open Firmware DTB */
 static unsigned long get_total_mem(void)
 {
-	struct device_node *np = NULL;
+	struct device_yesde *np = NULL;
 	struct resource res;
 	int ret;
 	unsigned long total_mem = 0;
 
-	for_each_node_by_type(np, "memory") {
+	for_each_yesde_by_type(np, "memory") {
 		ret = of_address_to_resource(np, 0, &res);
 		if (ret)
 			continue;
@@ -294,7 +294,7 @@ static int altr_sdram_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* Grab the register range from the sdr controller in device tree */
-	mc_vbase = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	mc_vbase = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 						   "altr,sdr-syscon");
 	if (IS_ERR(mc_vbase)) {
 		edac_printk(KERN_ERR, EDAC_MC,
@@ -303,8 +303,8 @@ static int altr_sdram_probe(struct platform_device *pdev)
 	}
 
 	/* Check specific dependencies for the module */
-	priv = of_match_node(altr_sdram_ctrl_of_match,
-			     pdev->dev.of_node)->data;
+	priv = of_match_yesde(altr_sdram_ctrl_of_match,
+			     pdev->dev.of_yesde)->data;
 
 	/* Validate the SDRAM controller has ECC enabled */
 	if (regmap_read(mc_vbase, priv->ecc_ctrl_offset, &read_reg) ||
@@ -440,7 +440,7 @@ static int altr_sdram_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	altr_sdr_mc_create_debugfs_nodes(mci);
+	altr_sdr_mc_create_debugfs_yesdes(mci);
 
 	devres_close_group(&pdev->dev, NULL);
 
@@ -476,7 +476,7 @@ static int altr_sdram_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int altr_sdram_prepare(struct device *dev)
 {
-	pr_err("Suspend not allowed when EDAC is enabled.\n");
+	pr_err("Suspend yest allowed when EDAC is enabled.\n");
 
 	return -EPERM;
 }
@@ -514,7 +514,7 @@ MODULE_DEVICE_TABLE(of, altr_edac_of_match);
 
 static int altr_edac_probe(struct platform_device *pdev)
 {
-	of_platform_populate(pdev->dev.of_node, altr_edac_device_of_match,
+	of_platform_populate(pdev->dev.of_yesde, altr_edac_device_of_match,
 			     NULL, &pdev->dev);
 	return 0;
 }
@@ -708,7 +708,7 @@ static int altr_edac_device_probe(struct platform_device *pdev)
 	struct altr_edac_device_dev *drvdata;
 	struct resource *r;
 	int res = 0;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	char *ecc_name = (char *)np->name;
 	static int dev_instance;
 
@@ -757,7 +757,7 @@ static int altr_edac_device_probe(struct platform_device *pdev)
 	}
 
 	/* Get driver specific data for this EDAC device */
-	drvdata->data = of_match_node(altr_edac_device_of_match, np)->data;
+	drvdata->data = of_match_yesde(altr_edac_device_of_match, np)->data;
 
 	/* Check specific dependencies for the module */
 	if (drvdata->data->setup) {
@@ -876,7 +876,7 @@ static irqreturn_t __maybe_unused altr_edac_a10_ecc_irq(int irq, void *dev_id)
 
 /******************* Arria10 Memory Buffer Functions *********************/
 
-static inline int a10_get_irq_mask(struct device_node *np)
+static inline int a10_get_irq_mask(struct device_yesde *np)
 {
 	int irq;
 	const u32 *handle = of_get_property(np, "interrupts", NULL);
@@ -947,14 +947,14 @@ static int __maybe_unused altr_init_memory_port(void __iomem *ioaddr, int port)
 }
 
 static __init int __maybe_unused
-altr_init_a10_ecc_block(struct device_node *np, u32 irq_mask,
+altr_init_a10_ecc_block(struct device_yesde *np, u32 irq_mask,
 			u32 ecc_ctrl_en_mask, bool dual_port)
 {
 	int ret = 0;
 	void __iomem *ecc_block_base;
 	struct regmap *ecc_mgr_map;
 	char *ecc_name;
-	struct device_node *np_eccmgr;
+	struct device_yesde *np_eccmgr;
 
 	ecc_name = (char *)np->name;
 
@@ -965,7 +965,7 @@ altr_init_a10_ecc_block(struct device_node *np, u32 irq_mask,
 		altr_sysmgr_regmap_lookup_by_phandle(np_eccmgr,
 						     "altr,sysmgr-syscon");
 
-	of_node_put(np_eccmgr);
+	of_yesde_put(np_eccmgr);
 	if (IS_ERR(ecc_mgr_map)) {
 		edac_printk(KERN_ERR, EDAC_DEVICE,
 			    "Unable to get syscon altr,sysmgr-syscon\n");
@@ -992,7 +992,7 @@ altr_init_a10_ecc_block(struct device_node *np, u32 irq_mask,
 	ret = altr_init_memory_port(ecc_block_base, 0);
 	if (ret) {
 		edac_printk(KERN_ERR, EDAC_DEVICE,
-			    "ECC: cannot init %s PORTA memory\n", ecc_name);
+			    "ECC: canyest init %s PORTA memory\n", ecc_name);
 		goto out;
 	}
 
@@ -1000,7 +1000,7 @@ altr_init_a10_ecc_block(struct device_node *np, u32 irq_mask,
 		ret = altr_init_memory_port(ecc_block_base, 1);
 		if (ret) {
 			edac_printk(KERN_ERR, EDAC_DEVICE,
-				    "ECC: cannot init %s PORTB memory\n",
+				    "ECC: canyest init %s PORTB memory\n",
 				    ecc_name);
 			goto out;
 		}
@@ -1022,21 +1022,21 @@ out:
 	return ret;
 }
 
-static int validate_parent_available(struct device_node *np);
+static int validate_parent_available(struct device_yesde *np);
 static const struct of_device_id altr_edac_a10_device_of_match[];
 static int __init __maybe_unused altr_init_a10_ecc_device_type(char *compat)
 {
 	int irq;
-	struct device_node *child, *np;
+	struct device_yesde *child, *np;
 
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_yesde(NULL, NULL,
 				     "altr,socfpga-a10-ecc-manager");
 	if (!np) {
-		edac_printk(KERN_ERR, EDAC_DEVICE, "ECC Manager not found\n");
+		edac_printk(KERN_ERR, EDAC_DEVICE, "ECC Manager yest found\n");
 		return -ENODEV;
 	}
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		const struct of_device_id *pdev_id;
 		const struct edac_device_prv_data *prv;
 
@@ -1052,8 +1052,8 @@ static int __init __maybe_unused altr_init_a10_ecc_device_type(char *compat)
 		if (irq < 0)
 			continue;
 
-		/* Get matching node and check for valid result */
-		pdev_id = of_match_node(altr_edac_a10_device_of_match, child);
+		/* Get matching yesde and check for valid result */
+		pdev_id = of_match_yesde(altr_edac_a10_device_of_match, child);
 		if (IS_ERR_OR_NULL(pdev_id))
 			continue;
 
@@ -1066,7 +1066,7 @@ static int __init __maybe_unused altr_init_a10_ecc_device_type(char *compat)
 					prv->ecc_enable_mask, 0);
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 	return 0;
 }
 
@@ -1094,16 +1094,16 @@ static const struct edac_device_prv_data s10_sdramecc_data = {
 
 static void *ocram_alloc_mem(size_t size, void **other)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct gen_pool *gp;
 	void *sram_addr;
 
-	np = of_find_compatible_node(NULL, NULL, "altr,socfpga-ocram-ecc");
+	np = of_find_compatible_yesde(NULL, NULL, "altr,socfpga-ocram-ecc");
 	if (!np)
 		return NULL;
 
 	gp = of_gen_pool_get(np, "iram", 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!gp)
 		return NULL;
 
@@ -1224,7 +1224,7 @@ static void l2_free_mem(void *p, size_t size, void *other)
  *	Test for L2 cache ECC dependencies upon entry because
  *	platform specific startup should have initialized the L2
  *	memory and enabled the ECC.
- *	Bail if ECC is not enabled.
+ *	Bail if ECC is yest enabled.
  *	Note that L2 Cache Enable is forced at build time.
  */
 static int altr_l2_check_deps(struct altr_edac_device_dev *device)
@@ -1460,16 +1460,16 @@ static int altr_portb_setup(struct altr_edac_device_dev *device)
 	struct altr_edac_device_dev *altdev;
 	char *ecc_name = "sdmmcb-ecc";
 	int edac_idx, rc;
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct edac_device_prv_data *prv = &a10_sdmmceccb_data;
 
 	rc = altr_check_ecc_deps(device);
 	if (rc)
 		return rc;
 
-	np = of_find_compatible_node(NULL, NULL, "altr,socfpga-sdmmc-ecc");
+	np = of_find_compatible_yesde(NULL, NULL, "altr,socfpga-sdmmc-ecc");
 	if (!np) {
-		edac_printk(KERN_WARNING, EDAC_DEVICE, "SDMMC node not found\n");
+		edac_printk(KERN_WARNING, EDAC_DEVICE, "SDMMC yesde yest found\n");
 		return -ENODEV;
 	}
 
@@ -1572,9 +1572,9 @@ err_release_group_1:
 static int __init socfpga_init_sdmmc_ecc(struct altr_edac_device_dev *device)
 {
 	int rc = -ENODEV;
-	struct device_node *child;
+	struct device_yesde *child;
 
-	child = of_find_compatible_node(NULL, NULL, "altr,socfpga-sdmmc-ecc");
+	child = of_find_compatible_yesde(NULL, NULL, "altr,socfpga-sdmmc-ecc");
 	if (!child)
 		return -ENODEV;
 
@@ -1594,7 +1594,7 @@ static int __init socfpga_init_sdmmc_ecc(struct altr_edac_device_dev *device)
 	return altr_portb_setup(device);
 
 exit:
-	of_node_put(child);
+	of_yesde_put(child);
 	return rc;
 }
 
@@ -1807,28 +1807,28 @@ static void altr_edac_a10_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static int validate_parent_available(struct device_node *np)
+static int validate_parent_available(struct device_yesde *np)
 {
-	struct device_node *parent;
+	struct device_yesde *parent;
 	int ret = 0;
 
 	/* SDRAM must be present for Linux (implied parent) */
 	if (of_device_is_compatible(np, "altr,sdram-edac-s10"))
 		return 0;
 
-	/* Ensure parent device is enabled if parent node exists */
+	/* Ensure parent device is enabled if parent yesde exists */
 	parent = of_parse_phandle(np, "altr,ecc-parent", 0);
 	if (parent && !of_device_is_available(parent))
 		ret = -ENODEV;
 
-	of_node_put(parent);
+	of_yesde_put(parent);
 	return ret;
 }
 
-static int get_s10_sdram_edac_resource(struct device_node *np,
+static int get_s10_sdram_edac_resource(struct device_yesde *np,
 				       struct resource *res)
 {
-	struct device_node *parent;
+	struct device_yesde *parent;
 	int ret;
 
 	parent = of_parse_phandle(np, "altr,sdr-syscon", 0);
@@ -1836,13 +1836,13 @@ static int get_s10_sdram_edac_resource(struct device_node *np,
 		return -ENODEV;
 
 	ret = of_address_to_resource(parent, 0, res);
-	of_node_put(parent);
+	of_yesde_put(parent);
 
 	return ret;
 }
 
 static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
-				    struct device_node *np)
+				    struct device_yesde *np)
 {
 	struct edac_device_ctl_info *dci;
 	struct altr_edac_device_dev *altdev;
@@ -1851,9 +1851,9 @@ static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 	int edac_idx;
 	int rc = 0;
 	const struct edac_device_prv_data *prv;
-	/* Get matching node and check for valid result */
+	/* Get matching yesde and check for valid result */
 	const struct of_device_id *pdev_id =
-		of_match_node(altr_edac_a10_device_of_match, np);
+		of_match_yesde(altr_edac_a10_device_of_match, np);
 	if (IS_ERR_OR_NULL(pdev_id))
 		return -ENODEV;
 
@@ -1875,7 +1875,7 @@ static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 
 	if (rc < 0) {
 		edac_printk(KERN_ERR, EDAC_DEVICE,
-			    "%s: no resource address\n", ecc_name);
+			    "%s: yes resource address\n", ecc_name);
 		goto err_release_group;
 	}
 
@@ -2003,7 +2003,7 @@ static int a10_eccmgr_irqdomain_map(struct irq_domain *d, unsigned int irq,
 
 	irq_set_chip_and_handler(irq, &edac->irq_chip, handle_simple_irq);
 	irq_set_chip_data(irq, edac);
-	irq_set_noprobe(irq);
+	irq_set_yesprobe(irq);
 
 	return 0;
 }
@@ -2017,17 +2017,17 @@ static const struct irq_domain_ops a10_eccmgr_ic_ops = {
 #define to_a10edac(p, m) container_of(p, struct altr_arria10_edac, m)
 
 #ifdef CONFIG_ARCH_STRATIX10
-/* panic routine issues reboot on non-zero panic_timeout */
+/* panic routine issues reboot on yesn-zero panic_timeout */
 extern int panic_timeout;
 
 /*
  * The double bit error is handled through SError which is fatal. This is
- * called as a panic notifier to printout ECC error info as part of the panic.
+ * called as a panic yestifier to printout ECC error info as part of the panic.
  */
-static int s10_edac_dberr_handler(struct notifier_block *this,
+static int s10_edac_dberr_handler(struct yestifier_block *this,
 				  unsigned long event, void *ptr)
 {
-	struct altr_arria10_edac *edac = to_a10edac(this, panic_notifier);
+	struct altr_arria10_edac *edac = to_a10edac(this, panic_yestifier);
 	int err_addr, dberror;
 
 	regmap_read(edac->ecc_mgr_map, S10_SYSMGR_ECC_INTSTAT_DERR_OFST,
@@ -2069,7 +2069,7 @@ static int s10_edac_dberr_handler(struct notifier_block *this,
 static int altr_edac_a10_probe(struct platform_device *pdev)
 {
 	struct altr_arria10_edac *edac;
-	struct device_node *child;
+	struct device_yesde *child;
 
 	edac = devm_kzalloc(&pdev->dev, sizeof(*edac), GFP_KERNEL);
 	if (!edac)
@@ -2080,7 +2080,7 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&edac->a10_ecc_devices);
 
 	edac->ecc_mgr_map =
-		altr_sysmgr_regmap_lookup_by_phandle(pdev->dev.of_node,
+		altr_sysmgr_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 						     "altr,sysmgr-syscon");
 
 	if (IS_ERR(edac->ecc_mgr_map)) {
@@ -2089,10 +2089,10 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 		return PTR_ERR(edac->ecc_mgr_map);
 	}
 
-	edac->irq_chip.name = pdev->dev.of_node->name;
+	edac->irq_chip.name = pdev->dev.of_yesde->name;
 	edac->irq_chip.irq_mask = a10_eccmgr_irq_mask;
 	edac->irq_chip.irq_unmask = a10_eccmgr_irq_unmask;
-	edac->domain = irq_domain_add_linear(pdev->dev.of_node, 64,
+	edac->domain = irq_domain_add_linear(pdev->dev.of_yesde, 64,
 					     &a10_eccmgr_ic_ops, edac);
 	if (!edac->domain) {
 		dev_err(&pdev->dev, "Error adding IRQ domain\n");
@@ -2113,9 +2113,9 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 	{
 		int dberror, err_addr;
 
-		edac->panic_notifier.notifier_call = s10_edac_dberr_handler;
-		atomic_notifier_chain_register(&panic_notifier_list,
-					       &edac->panic_notifier);
+		edac->panic_yestifier.yestifier_call = s10_edac_dberr_handler;
+		atomic_yestifier_chain_register(&panic_yestifier_list,
+					       &edac->panic_yestifier);
 
 		/* Printout a message if uncorrectable error previously. */
 		regmap_read(edac->ecc_mgr_map, S10_SYSMGR_UE_VAL_OFST,
@@ -2143,16 +2143,16 @@ static int altr_edac_a10_probe(struct platform_device *pdev)
 					 altr_edac_a10_irq_handler, edac);
 #endif
 
-	for_each_child_of_node(pdev->dev.of_node, child) {
+	for_each_child_of_yesde(pdev->dev.of_yesde, child) {
 		if (!of_device_is_available(child))
 			continue;
 
-		if (of_match_node(altr_edac_a10_device_of_match, child))
+		if (of_match_yesde(altr_edac_a10_device_of_match, child))
 			altr_edac_a10_device_add(edac, child);
 
 #ifdef CONFIG_EDAC_ALTERA_SDRAM
 		else if (of_device_is_compatible(child, "altr,sdram-edac-a10"))
-			of_platform_populate(pdev->dev.of_node,
+			of_platform_populate(pdev->dev.of_yesde,
 					     altr_sdram_ctrl_of_match,
 					     NULL, &pdev->dev);
 #endif

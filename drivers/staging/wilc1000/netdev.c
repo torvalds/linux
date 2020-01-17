@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techyeslogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -52,7 +52,7 @@ static int init_irq(struct net_device *dev)
 
 	ret = gpiod_direction_input(wl->gpio_irq);
 	if (ret) {
-		netdev_err(dev, "could not obtain gpio for WILC_INTR\n");
+		netdev_err(dev, "could yest obtain gpio for WILC_INTR\n");
 		return ret;
 	}
 
@@ -200,7 +200,7 @@ static int wilc_wlan_get_firmware(struct net_device *dev)
 	netdev_info(dev, "loading firmware %s\n", firmware);
 
 	if (request_firmware(&wilc_firmware, firmware, wilc->dev) != 0) {
-		netdev_err(dev, "%s - firmware not available\n", firmware);
+		netdev_err(dev, "%s - firmware yest available\n", firmware);
 		ret = -1;
 		goto fail;
 	}
@@ -469,7 +469,7 @@ static void wilc_wlan_deinitialize(struct net_device *dev)
 
 		netdev_dbg(dev, "wilc1000 deinitialization Done\n");
 	} else {
-		netdev_dbg(dev, "wilc1000 is not initialized\n");
+		netdev_dbg(dev, "wilc1000 is yest initialized\n");
 	}
 }
 
@@ -596,7 +596,7 @@ static int wilc_mac_open(struct net_device *ndev)
 	int ret = 0;
 
 	if (!wl || !wl->dev) {
-		netdev_err(ndev, "device not ready\n");
+		netdev_err(ndev, "device yest ready\n");
 		return -ENODEV;
 	}
 
@@ -702,7 +702,7 @@ netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	int queue_count;
 
 	if (skb->dev != ndev) {
-		netdev_err(ndev, "Packet not destined to this device\n");
+		netdev_err(ndev, "Packet yest destined to this device\n");
 		return 0;
 	}
 

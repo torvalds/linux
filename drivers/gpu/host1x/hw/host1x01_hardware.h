@@ -86,7 +86,7 @@ static inline u32 host1x_opcode_incr(unsigned offset, unsigned count)
 	return (1 << 28) | (offset << 16) | count;
 }
 
-static inline u32 host1x_opcode_nonincr(unsigned offset, unsigned count)
+static inline u32 host1x_opcode_yesnincr(unsigned offset, unsigned count)
 {
 	return (2 << 28) | (offset << 16) | count;
 }
@@ -117,7 +117,7 @@ static inline u32 host1x_opcode_gather(unsigned count)
 	return (6 << 28) | count;
 }
 
-static inline u32 host1x_opcode_gather_nonincr(unsigned offset,	unsigned count)
+static inline u32 host1x_opcode_gather_yesnincr(unsigned offset,	unsigned count)
 {
 	return (6 << 28) | (offset << 16) | BIT(15) | count;
 }
@@ -127,6 +127,6 @@ static inline u32 host1x_opcode_gather_incr(unsigned offset, unsigned count)
 	return (6 << 28) | (offset << 16) | BIT(15) | BIT(14) | count;
 }
 
-#define HOST1X_OPCODE_NOP host1x_opcode_nonincr(0, 0)
+#define HOST1X_OPCODE_NOP host1x_opcode_yesnincr(0, 0)
 
 #endif

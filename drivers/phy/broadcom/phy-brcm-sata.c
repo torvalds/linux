@@ -344,8 +344,8 @@ static int brcm_ns2_sata_init(struct brcm_sata_port *port)
 		try--;
 	}
 	if (!try) {
-		/* PLL did not lock; give up */
-		dev_err(dev, "port%d PLL did not lock\n", port->portnum);
+		/* PLL did yest lock; give up */
+		dev_err(dev, "port%d PLL did yest lock\n", port->portnum);
 		return -ETIMEDOUT;
 	}
 
@@ -411,8 +411,8 @@ static int brcm_nsp_sata_init(struct brcm_sata_port *port)
 		msleep(20);
 	}
 	if (!try) {
-		/* PLL did not lock; give up */
-		dev_err(dev, "port%d PLL did not lock\n", port->portnum);
+		/* PLL did yest lock; give up */
+		dev_err(dev, "port%d PLL did yest lock\n", port->portnum);
 		return -ETIMEDOUT;
 	}
 
@@ -460,8 +460,8 @@ static int brcm_sr_sata_init(struct brcm_sata_port *port)
 	} while (try);
 
 	if ((val & BLOCK0_XGXSSTATUS_PLL_LOCK) == 0) {
-		/* PLL did not lock; give up */
-		dev_err(dev, "port%d PLL did not lock\n", port->portnum);
+		/* PLL did yest lock; give up */
+		dev_err(dev, "port%d PLL did yest lock\n", port->portnum);
 		return -ETIMEDOUT;
 	}
 
@@ -528,8 +528,8 @@ static int brcm_dsl_sata_init(struct brcm_sata_port *port)
 	};
 
 	if (!try) {
-		/* PLL did not lock; give up */
-		dev_err(dev, "port%d PLL did not lock\n", port->portnum);
+		/* PLL did yest lock; give up */
+		dev_err(dev, "port%d PLL did yest lock\n", port->portnum);
 		return -ETIMEDOUT;
 	}
 
@@ -621,7 +621,7 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 {
 	const char *rxaeq_mode;
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node, *child;
+	struct device_yesde *dn = dev->of_yesde, *child;
 	const struct of_device_id *of_id;
 	struct brcm_sata_phy *priv;
 	struct resource *res;
@@ -642,7 +642,7 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->phy_base))
 		return PTR_ERR(priv->phy_base);
 
-	of_id = of_match_node(brcm_sata_phy_of_match, dn);
+	of_id = of_match_yesde(brcm_sata_phy_of_match, dn);
 	if (of_id)
 		priv->version = (enum brcm_sata_phy_version)of_id->data;
 	else
@@ -656,12 +656,12 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 			return PTR_ERR(priv->ctrl_base);
 	}
 
-	for_each_available_child_of_node(dn, child) {
+	for_each_available_child_of_yesde(dn, child) {
 		unsigned int id;
 		struct brcm_sata_port *port;
 
 		if (of_property_read_u32(child, "reg", &id)) {
-			dev_err(dev, "missing reg property in node %pOFn\n",
+			dev_err(dev, "missing reg property in yesde %pOFn\n",
 					child);
 			ret = -EINVAL;
 			goto put_child;
@@ -702,7 +702,7 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 
 	provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (IS_ERR(provider)) {
-		dev_err(dev, "could not register PHY provider\n");
+		dev_err(dev, "could yest register PHY provider\n");
 		return PTR_ERR(provider);
 	}
 
@@ -710,7 +710,7 @@ static int brcm_sata_phy_probe(struct platform_device *pdev)
 
 	return 0;
 put_child:
-	of_node_put(child);
+	of_yesde_put(child);
 	return ret;
 }
 
@@ -725,6 +725,6 @@ module_platform_driver(brcm_sata_phy_driver);
 
 MODULE_DESCRIPTION("Broadcom SATA PHY driver");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Marc Carino");
+MODULE_AUTHOR("Marc Cariyes");
 MODULE_AUTHOR("Brian Norris");
 MODULE_ALIAS("platform:phy-brcm-sata");

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -357,7 +357,7 @@ void tc35876x_configure_lvds_bridge(struct drm_device *dev)
 	if (!tc35876x_regr(i2c, IDREG, &id))
 		dev_info(&tc35876x_client->dev, "tc35876x ID 0x%08x\n", id);
 	else
-		dev_err(&tc35876x_client->dev, "Cannot read ID\n");
+		dev_err(&tc35876x_client->dev, "Canyest read ID\n");
 
 	ppi_lptxtimecnt = 4;
 	txtagocnt = (5 * ppi_lptxtimecnt - 3) / 4;
@@ -423,7 +423,7 @@ void tc35876x_configure_lvds_bridge(struct drm_device *dev)
 	/* Enable LVDS transmitter. */
 	tc35876x_regw(i2c, LVCFG, BIT(0));
 
-	/* Clear notifications. Don't write reserved bits. Was write 0xffffffff
+	/* Clear yestifications. Don't write reserved bits. Was write 0xffffffff
 	 * to 0x0288, must be in error?! */
 	tc35876x_regw(i2c, DSI_INTCLR, FLD_MASK(31, 30) | FLD_MASK(22, 0));
 }
@@ -455,7 +455,7 @@ static void tc35876x_brightness_init(struct drm_device *dev)
 		if (ret)
 			dev_err(&dev->pdev->dev, "GPIOPWMCTRL read failed\n");
 		else
-			dev_warn(&dev->pdev->dev, "GPIOPWMCTRL was not set to system clock (pwmctrl = 0x%02x)\n", pwmctrl);
+			dev_warn(&dev->pdev->dev, "GPIOPWMCTRL was yest set to system clock (pwmctrl = 0x%02x)\n", pwmctrl);
 
 		ret = intel_scu_ipc_iowrite8(GPIOPWMCTRL, 0x01);
 		if (ret)
@@ -549,7 +549,7 @@ void tc35876x_toshiba_bridge_panel_on(struct drm_device *dev)
 		/* Bit 4 is average_saving. Setting it to 1, the brightness is
 		 * referenced to the average of the frame content. 0 means
 		 * reference to the maximum of frame contents. Bits 3:0 are
-		 * allow_distort. When set to a nonzero value, all color values
+		 * allow_distort. When set to a yesnzero value, all color values
 		 * between 255-allow_distort*2 and 255 are mapped to the
 		 * 255-allow_distort*2 value.
 		 */
@@ -647,7 +647,7 @@ static int tc35876x_bridge_probe(struct i2c_client *client,
 
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
-		dev_err(&client->dev, "%s: no platform data\n", __func__);
+		dev_err(&client->dev, "%s: yes platform data\n", __func__);
 		return -ENODEV;
 	}
 
@@ -747,7 +747,7 @@ static struct i2c_driver cmi_lcd_i2c_driver = {
 	.remove = cmi_lcd_i2c_remove,
 };
 
-/* HACK to create I2C device while it's not created by platform code */
+/* HACK to create I2C device while it's yest created by platform code */
 #define CMI_LCD_I2C_ADAPTER	2
 #define CMI_LCD_I2C_ADDR	0x60
 

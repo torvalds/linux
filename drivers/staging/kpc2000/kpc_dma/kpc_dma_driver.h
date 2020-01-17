@@ -54,7 +54,7 @@ struct dev_private_data {
 	u64                         user_sts;
 };
 
-struct kpc_dma_device *kpc_dma_lookup_device(int minor);
+struct kpc_dma_device *kpc_dma_lookup_device(int miyesr);
 
 extern const struct file_operations  kpc_dma_fops;
 

@@ -30,12 +30,12 @@ struct mpu_data
 	u32	input_clk_freq_high;	/* 0x10 - Input clock frequency high */
 	u8	cpu_nb_target_cycles;	/* 0x14 - ??? */
 	u8	cpu_statlat;		/* 0x15 - ??? */
-	u8	cpu_snooplat;		/* 0x16 - ??? */
-	u8	cpu_snoopacc;		/* 0x17 - ??? */
+	u8	cpu_syesoplat;		/* 0x16 - ??? */
+	u8	cpu_syesopacc;		/* 0x17 - ??? */
 	u8	nb_paamwin;		/* 0x18 - ??? */
 	u8	nb_statlat;		/* 0x19 - ??? */
-	u8	nb_snooplat;		/* 0x1a - ??? */
-	u8	nb_snoopwin;		/* 0x1b - ??? */
+	u8	nb_syesoplat;		/* 0x1a - ??? */
+	u8	nb_syesopwin;		/* 0x1b - ??? */
 	u8	api_bus_mode;		/* 0x1c - ??? */
 	u8	reserved2[3];		/* 0x1d - */
 	u32	input_clk_freq_low;	/* 0x20 - Input clock frequency low */
@@ -73,30 +73,30 @@ struct mpu_data
 
 static inline const struct mpu_data *wf_get_mpu(int cpu)
 {
-	struct device_node *np;
-	char nodename[64];
+	struct device_yesde *np;
+	char yesdename[64];
 	const void *data;
 	int len;
 
 	/*
-	 * prom.c routine for finding a node by path is a bit brain dead
+	 * prom.c routine for finding a yesde by path is a bit brain dead
 	 * and requires exact @xxx unit numbers. This is a bit ugly but
 	 * will work for these machines
 	 */
-	sprintf(nodename, "/u3@0,f8000000/i2c@f8001000/cpuid@a%d", cpu ? 2 : 0);
-	np = of_find_node_by_path(nodename);
+	sprintf(yesdename, "/u3@0,f8000000/i2c@f8001000/cpuid@a%d", cpu ? 2 : 0);
+	np = of_find_yesde_by_path(yesdename);
 	if (!np)
 		return NULL;
 	data = of_get_property(np, "cpuid", &len);	
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!data)
 		return NULL;
 
 	/*
 	 * We are naughty, we have dropped the reference to the device
-	 * node and still return a pointer to the content. We know we
+	 * yesde and still return a pointer to the content. We kyesw we
 	 * can do that though as this is only ever called on PowerMac
-	 * which cannot remove those nodes
+	 * which canyest remove those yesdes
 	 */
 	return data;
 }

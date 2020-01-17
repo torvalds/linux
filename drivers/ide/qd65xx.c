@@ -78,7 +78,7 @@
  * bit 2-4 : always 0
  * bit 5 : status, but of what ?
  * bit 6 : always set 1 by dos driver
- * bit 7 : set 1 for non-ATAPI devices on primary port
+ * bit 7 : set 1 for yesn-ATAPI devices on primary port
  *	(maybe read-ahead and post-write buffer ?)
  */
 
@@ -280,7 +280,7 @@ static int __init qd_testreg(int port)
 	if (savereg == QD_TESTVAL) {
 		printk(KERN_ERR "Outch ! the probe for qd65xx isn't reliable !\n");
 		printk(KERN_ERR "Please contact maintainers to tell about your hardware\n");
-		printk(KERN_ERR "Assuming qd65xx is not present.\n");
+		printk(KERN_ERR "Assuming qd65xx is yest present.\n");
 		return 1;
 	}
 
@@ -349,7 +349,7 @@ static const struct ide_port_info qd65xx_port_info __initconst = {
  * qd_probe:
  *
  * looks at the specified baseport, and if qd found, registers & initialises it
- * return 1 if another qd may be probed
+ * return 1 if ayesther qd may be probed
  */
 
 static int __init qd_probe(int base)

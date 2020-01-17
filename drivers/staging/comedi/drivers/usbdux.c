@@ -6,7 +6,7 @@
 
 /*
  * Driver: usbdux
- * Description: University of Stirling USB DAQ & INCITE Technology Limited
+ * Description: University of Stirling USB DAQ & INCITE Techyeslogy Limited
  * Devices: [ITL] USB-DUX (usbdux)
  * Author: Bernd Porr <mail@berndporr.me.uk>
  * Updated: 10 Oct 2014
@@ -31,22 +31,22 @@
  *
  *
  * Revision history:
- * 0.94: D/A output should work now with any channel list combinations
+ * 0.94: D/A output should work yesw with any channel list combinations
  * 0.95: .owner commented out for kernel vers below 2.4.19
  *       sanity checks in ai/ao_cmd
  * 0.96: trying to get it working with 2.6, moved all memory alloc to comedi's
  *       attach final USB IDs
  *       moved memory allocation completely to the corresponding comedi
- *       functions firmware upload is by fxload and no longer by comedi (due to
+ *       functions firmware upload is by fxload and yes longer by comedi (due to
  *       enumeration)
  * 0.97: USB IDs received, adjusted table
  * 0.98: SMP, locking, memory alloc: moved all usb memory alloc
  *       to the usb subsystem and moved all comedi related memory
  *       alloc to comedi.
  *       | kernel | registration | usbdux-usb | usbdux-comedi | comedi |
- * 0.99: USB 2.0: changed protocol to isochronous transfer
+ * 0.99: USB 2.0: changed protocol to isochroyesus transfer
  *                IRQ transfer is too buggy and too risky in 2.0
- *                for the high speed ISO transfer is now a working version
+ *                for the high speed ISO transfer is yesw a working version
  *                available
  * 0.99b: Increased the iso transfer buffer for high sp.to 10 buffers. Some VIA
  *        chipsets miss out IRQs. Deeper buffering is needed.
@@ -58,7 +58,7 @@
  *       bulk transfers.
  * 1.1:  moved EP4 transfers to EP1 to make space for a PWM output on EP4
  * 1.2:  added PWM support via EP4
- * 2.0:  PWM seems to be stable and is not interfering with the other functions
+ * 2.0:  PWM seems to be stable and is yest interfering with the other functions
  * 2.1:  changed PWM API
  * 2.2:  added firmware kernel request to fix an udev problem
  * 2.3:  corrected a bug in bulk timeouts which were far too short
@@ -127,7 +127,7 @@
 #define SIZEOUTBUF		(8 * SIZEDAOUT)
 
 /*
- * Size of the buffer for the dux commands: just now max size is determined
+ * Size of the buffer for the dux commands: just yesw max size is determined
  * by the analogue out + command byte + panic bytes...
  */
 #define SIZEOFDUXBUFFER		(8 * SIZEDAOUT + 2)
@@ -227,7 +227,7 @@ static int usbdux_ai_cancel(struct comedi_device *dev,
 {
 	struct usbdux_private *devpriv = dev->private;
 
-	/* prevent other CPUs from submitting new commands just now */
+	/* prevent other CPUs from submitting new commands just yesw */
 	mutex_lock(&devpriv->mut);
 	/* unlink only if the urb really has been submitted */
 	usbdux_ai_stop(dev, devpriv->ai_cmd_running);
@@ -292,7 +292,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 	struct comedi_async *async = s->async;
 	struct usbdux_private *devpriv = dev->private;
 
-	/* exit if not running a command, do not resubmit urb */
+	/* exit if yest running a command, do yest resubmit urb */
 	if (!devpriv->ai_cmd_running)
 		return;
 
@@ -305,7 +305,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 
 	case -EILSEQ:
 		/*
-		 * error in the ISOchronous data
+		 * error in the ISOchroyesus data
 		 * we don't copy the data into the transfer buffer
 		 * and recycle the last data byte
 		 */
@@ -331,7 +331,7 @@ static void usbduxsub_ai_isoc_irq(struct urb *urb)
 	}
 
 	/*
-	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * comedi_handle_events() canyest be used in this driver. The (*cancel)
 	 * operation would unlink the urb.
 	 */
 	if (async->events & COMEDI_CB_CANCEL_MASK)
@@ -355,7 +355,7 @@ static int usbdux_ao_cancel(struct comedi_device *dev,
 {
 	struct usbdux_private *devpriv = dev->private;
 
-	/* prevent other CPUs from submitting a command just now */
+	/* prevent other CPUs from submitting a command just yesw */
 	mutex_lock(&devpriv->mut);
 	/* unlink only if it is really running */
 	usbdux_ao_stop(dev, devpriv->ao_cmd_running);
@@ -439,7 +439,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 	struct comedi_async *async = s->async;
 	struct usbdux_private *devpriv = dev->private;
 
-	/* exit if not running a command, do not resubmit urb */
+	/* exit if yest running a command, do yest resubmit urb */
 	if (!devpriv->ao_cmd_running)
 		return;
 
@@ -466,7 +466,7 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 	}
 
 	/*
-	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * comedi_handle_events() canyest be used in this driver. The (*cancel)
 	 * operation would unlink the urb.
 	 */
 	if (async->events & COMEDI_CB_CANCEL_MASK)
@@ -622,7 +622,7 @@ static int receive_dux_commands(struct comedi_device *dev, unsigned int command)
 		if (le16_to_cpu(devpriv->insn_buf[0]) == command)
 			return ret;
 	}
-	/* command not received */
+	/* command yest received */
 	return -EFAULT;
 }
 
@@ -926,7 +926,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 						    1000000);
 	}
 
-	/* not used now, is for later use */
+	/* yest used yesw, is for later use */
 	if (cmd->convert_src == TRIG_TIMER)
 		err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 125000);
 
@@ -956,7 +956,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		goto ao_cmd_exit;
 
 	/* we count in steps of 1ms (125us) */
-	/* 125us mode not used yet */
+	/* 125us mode yest used yet */
 	if (0) {		/* (devpriv->high_speed) */
 		/* 125us */
 		/* timing of the conversion itself: every 125 us */
@@ -1111,7 +1111,7 @@ static int usbdux_counter_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
-	/* nothing to do so far */
+	/* yesthing to do so far */
 	return 2;
 }
 
@@ -1164,7 +1164,7 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 	case -ECONNABORTED:
 		/*
 		 * after an unlink command, unplug, ... etc
-		 * no unlink needed here. Already shutting down.
+		 * yes unlink needed here. Already shutting down.
 		 */
 		if (devpriv->pwm_cmd_running)
 			usbdux_pwm_stop(dev, 0);
@@ -1314,7 +1314,7 @@ static int usbdux_pwm_write(struct comedi_device *dev,
 
 	/*
 	 * The sign is set via a special INSN only, this gives us 8 bits
-	 * for normal operation, sign is 0 by default.
+	 * for yesrmal operation, sign is 0 by default.
 	 */
 	usbdux_pwm_pattern(dev, s, chan, data[0], 0);
 
@@ -1332,8 +1332,8 @@ static int usbdux_pwm_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case INSN_CONFIG_ARM:
 		/*
-		 * if not zero the PWM is limited to a certain time which is
-		 * not supported here
+		 * if yest zero the PWM is limited to a certain time which is
+		 * yest supported here
 		 */
 		if (data[1] != 0)
 			return -EINVAL;
@@ -1356,7 +1356,7 @@ static int usbdux_pwm_config(struct comedi_device *dev,
 		usbdux_pwm_pattern(dev, s, chan, data[1], (data[2] != 0));
 		return 0;
 	case INSN_CONFIG_PWM_GET_H_BRIDGE:
-		/* values are not kept in this driver, nothing to return here */
+		/* values are yest kept in this driver, yesthing to return here */
 		return -EINVAL;
 	}
 	return -EINVAL;
@@ -1401,7 +1401,7 @@ static int usbdux_firmware_upload(struct comedi_device *dev,
 			      tmp, 1,
 			      BULK_TIMEOUT);
 	if (ret < 0) {
-		dev_err(dev->class_dev, "can not stop firmware\n");
+		dev_err(dev->class_dev, "can yest stop firmware\n");
 		goto done;
 	}
 
@@ -1426,7 +1426,7 @@ static int usbdux_firmware_upload(struct comedi_device *dev,
 			      tmp, 1,
 			      BULK_TIMEOUT);
 	if (ret < 0)
-		dev_err(dev->class_dev, "can not start firmware\n");
+		dev_err(dev->class_dev, "can yest start firmware\n");
 
 done:
 	kfree(tmp);
@@ -1589,7 +1589,7 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 				3);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
-			"could not set alternate setting 3 in high speed\n");
+			"could yest set alternate setting 3 in high speed\n");
 		return ret;
 	}
 

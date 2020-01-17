@@ -18,7 +18,7 @@ struct nlm_host;
 struct nfs4_sequence_args;
 struct nfs4_sequence_res;
 struct nfs_server;
-struct nfs4_minor_version_ops;
+struct nfs4_miyesr_version_ops;
 struct nfs41_server_scope;
 struct nfs41_impl_id;
 
@@ -36,7 +36,7 @@ struct nfs_client {
 #define NFS_CS_CALLBACK		1		/* - callback started */
 #define NFS_CS_IDMAP		2		/* - idmap started */
 #define NFS_CS_RENEWD		3		/* - renewd started */
-#define NFS_CS_STOP_RENEW	4		/* no more state to renew */
+#define NFS_CS_STOP_RENEW	4		/* yes more state to renew */
 #define NFS_CS_CHECK_LEASE_TIME	5		/* need to check lease time */
 	unsigned long		cl_flags;	/* behavior switches */
 #define NFS_CS_NORESVPORT	0		/* - use ephemeral src port */
@@ -60,7 +60,7 @@ struct nfs_client {
 	int			cl_proto;	/* Network transport protocol */
 	struct nfs_subversion *	cl_nfs_mod;	/* pointer to nfs version module */
 
-	u32			cl_minorversion;/* NFSv4 minorversion */
+	u32			cl_miyesrversion;/* NFSv4 miyesrversion */
 	unsigned int		cl_nconnect;	/* Number of connections */
 	const char *		cl_principal;  /* used for machine cred */
 
@@ -85,7 +85,7 @@ struct nfs_client {
 	const char *		cl_owner_id;
 
 	u32			cl_cb_ident;	/* v4.0 callback identifier */
-	const struct nfs4_minor_version_ops *cl_mvops;
+	const struct nfs4_miyesr_version_ops *cl_mvops;
 	unsigned long		cl_mig_gen;
 
 	/* NFSv4.0 transport blocking */
@@ -218,7 +218,7 @@ struct nfs_server {
 	/* the following fields are protected by nfs_client->cl_lock */
 	struct rb_root		state_owners;
 #endif
-	struct ida		openowner_id;
+	struct ida		opeyeswner_id;
 	struct ida		lockowner_id;
 	struct list_head	state_owners_lru;
 	struct list_head	layouts;

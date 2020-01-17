@@ -90,7 +90,7 @@ static int unstripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	tmp_len = ti->len;
 	if (sector_div(tmp_len, uc->chunk_size)) {
-		ti->error = "Target length not divisible by chunk size";
+		ti->error = "Target length yest divisible by chunk size";
 		goto err;
 	}
 

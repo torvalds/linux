@@ -230,13 +230,13 @@ static int arizona_micsupp_of_get_pdata(struct arizona_micsupp_pdata *pdata,
 					const struct regulator_desc *desc)
 {
 	struct arizona_micsupp *micsupp = config->driver_data;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct regulator_init_data *init_data;
 
-	np = of_get_child_by_name(config->dev->of_node, "micvdd");
+	np = of_get_child_by_name(config->dev->of_yesde, "micvdd");
 
 	if (np) {
-		config->of_node = np;
+		config->of_yesde = np;
 
 		init_data = of_get_regulator_init_data(config->dev, np, desc);
 
@@ -292,7 +292,7 @@ static int arizona_micsupp_common_init(struct platform_device *pdev,
 						     desc,
 						     &config);
 
-	of_node_put(config.of_node);
+	of_yesde_put(config.of_yesde);
 
 	if (IS_ERR(micsupp->regulator)) {
 		ret = PTR_ERR(micsupp->regulator);

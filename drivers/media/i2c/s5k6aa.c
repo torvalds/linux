@@ -162,7 +162,7 @@ module_param(debug, int, 0644);
 #define  S5K6AAFX_FW_APIVER		0x0001
 #define REG_FW_REVISION			0x0130
 
-/* For now we use only one user configuration register set */
+/* For yesw we use only one user configuration register set */
 #define S5K6AA_MAX_PRESETS		1
 
 static const char * const s5k6aa_supply_names[] = {
@@ -681,8 +681,8 @@ static int s5k6aa_configure_video_bus(struct s5k6aa *s5k6aa,
 
 	/*
 	 * TODO: The sensor is supposed to support BT.601 and BT.656
-	 * but there is nothing indicating how to switch between both
-	 * in the datasheet. For now default BT.601 interface is assumed.
+	 * but there is yesthing indicating how to switch between both
+	 * in the datasheet. For yesw default BT.601 interface is assumed.
 	 */
 	if (bus_type == V4L2_MBUS_CSI2_DPHY)
 		cfg = nlanes;
@@ -951,10 +951,10 @@ static int __s5k6aa_set_frame_interval(struct s5k6aa *s5k6aa,
 	unsigned int err, min_err = UINT_MAX;
 	unsigned int i, fr_time;
 
-	if (fi->interval.denominator == 0)
+	if (fi->interval.deyesminator == 0)
 		return -EINVAL;
 
-	fr_time = fi->interval.numerator * 10000 / fi->interval.denominator;
+	fr_time = fi->interval.numerator * 10000 / fi->interval.deyesminator;
 
 	for (i = 0; i < ARRAY_SIZE(s5k6aa_intervals); i++) {
 		const struct s5k6aa_interval *iv = &s5k6aa_intervals[i];
@@ -983,7 +983,7 @@ static int s5k6aa_s_frame_interval(struct v4l2_subdev *sd,
 	int ret;
 
 	v4l2_dbg(1, debug, sd, "Setting %d/%d frame interval\n",
-		 fi->interval.numerator, fi->interval.denominator);
+		 fi->interval.numerator, fi->interval.deyesminator);
 
 	mutex_lock(&s5k6aa->lock);
 	ret = __s5k6aa_set_frame_interval(s5k6aa, fi);
@@ -1258,8 +1258,8 @@ static int s5k6aa_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	mutex_lock(&s5k6aa->lock);
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any controls to H/W at this time. Instead
+	 * If the device is yest powered up by the host driver do
+	 * yest apply any controls to H/W at this time. Instead
 	 * the controls will be restored right after power-up.
 	 */
 	if (s5k6aa->power == 0)
@@ -1548,12 +1548,12 @@ static int s5k6aa_probe(struct i2c_client *client,
 	int i, ret;
 
 	if (pdata == NULL) {
-		dev_err(&client->dev, "Platform data not specified\n");
+		dev_err(&client->dev, "Platform data yest specified\n");
 		return -EINVAL;
 	}
 
 	if (pdata->mclk_frequency == 0) {
-		dev_err(&client->dev, "MCLK frequency not specified\n");
+		dev_err(&client->dev, "MCLK frequency yest specified\n");
 		return -EINVAL;
 	}
 

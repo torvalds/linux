@@ -48,7 +48,7 @@ struct mbus_device {
  * mbus_driver - operations for a mbus I/O driver
  * @driver: underlying device driver (populate name and owner).
  * @id_table: the ids serviced by this driver.
- * @probe: the function to call when a device is found.  Returns 0 or -errno.
+ * @probe: the function to call when a device is found.  Returns 0 or -erryes.
  * @remove: the function to call when a device is removed.
  */
 struct mbus_driver {

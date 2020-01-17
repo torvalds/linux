@@ -8,9 +8,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -35,7 +35,7 @@
 
 #include <linux/hil_mlc.h>
 #include <linux/hp_sdc.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -84,7 +84,7 @@ static void hp_sdc_mlc_isr (int irq, void *dev_id,
 		}
 		goto check;
 	}
-	/* We know status is 5X */
+	/* We kyesw status is 5X */
 	if (data & HP_SDC_HIL_ISERR)
 		goto err;
 	mlc->ipacket[idx] =
@@ -125,7 +125,7 @@ static void hp_sdc_mlc_isr (int irq, void *dev_id,
 		break;
 
 	default:
-		printk(KERN_WARNING PREFIX "Unknown HIL Error status (%x)!\n", data);
+		printk(KERN_WARNING PREFIX "Unkyeswn HIL Error status (%x)!\n", data);
 		break;
 	}
 
@@ -263,16 +263,16 @@ static void hp_sdc_mlc_out(hil_mlc *mlc)
  do_control:
 	priv->emtestmode = mlc->opacket & HIL_CTRL_TEST;
 
-	/* we cannot emulate this, it should not be used. */
+	/* we canyest emulate this, it should yest be used. */
 	BUG_ON((mlc->opacket & (HIL_CTRL_APE | HIL_CTRL_IPF)) == HIL_CTRL_APE);
 
 	if ((mlc->opacket & HIL_CTRL_ONLY) == HIL_CTRL_ONLY)
 		goto control_only;
 
-	/* Should not send command/data after engaging APE */
+	/* Should yest send command/data after engaging APE */
 	BUG_ON(mlc->opacket & HIL_CTRL_APE);
 
-	/* Disengaging APE this way would not be valid either since
+	/* Disengaging APE this way would yest be valid either since
 	 * the loop must be allowed to idle.
 	 *
 	 * So, it works out that we really never actually send control

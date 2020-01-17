@@ -43,8 +43,8 @@ struct cflayer *cfctrl_create(void)
 	memset(&dev_info, 0, sizeof(dev_info));
 	dev_info.id = 0xff;
 	cfsrvl_init(&this->serv, 0, &dev_info, false);
-	atomic_set(&this->req_seq_no, 1);
-	atomic_set(&this->rsp_seq_no, 1);
+	atomic_set(&this->req_seq_yes, 1);
+	atomic_set(&this->rsp_seq_yes, 1);
 	this->serv.layer.receive = cfctrl_recv;
 	sprintf(this->serv.layer.name, "ctrl");
 	this->serv.layer.ctrlcmd = cfctrl_ctrlcmd;
@@ -130,8 +130,8 @@ static void cfctrl_insert_req(struct cfctrl *ctrl,
 			      struct cfctrl_request_info *req)
 {
 	spin_lock_bh(&ctrl->info_list_lock);
-	atomic_inc(&ctrl->req_seq_no);
-	req->sequence_no = atomic_read(&ctrl->req_seq_no);
+	atomic_inc(&ctrl->req_seq_yes);
+	req->sequence_yes = atomic_read(&ctrl->req_seq_yes);
 	list_add_tail(&req->list, &ctrl->list);
 	spin_unlock_bh(&ctrl->info_list_lock);
 }
@@ -147,10 +147,10 @@ static struct cfctrl_request_info *cfctrl_remove_req(struct cfctrl *ctrl,
 	list_for_each_entry_safe(p, tmp, &ctrl->list, list) {
 		if (cfctrl_req_eq(req, p)) {
 			if (p != first)
-				pr_warn("Requests are not received in order\n");
+				pr_warn("Requests are yest received in order\n");
 
-			atomic_set(&ctrl->rsp_seq_no,
-					 p->sequence_no);
+			atomic_set(&ctrl->rsp_seq_yes,
+					 p->sequence_yes);
 			list_del(&p->list);
 			goto out;
 		}
@@ -180,7 +180,7 @@ void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 	struct cflayer *dn = cfctrl->serv.layer.dn;
 
 	if (!dn) {
-		pr_debug("not able to send enum request\n");
+		pr_debug("yest able to send enum request\n");
 		return;
 	}
 	pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
@@ -211,12 +211,12 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	struct cflayer *dn = cfctrl->serv.layer.dn;
 
 	if (!dn) {
-		pr_debug("not able to send linkup request\n");
+		pr_debug("yest able to send linkup request\n");
 		return -ENODEV;
 	}
 
 	if (cfctrl_cancel_req(layer, user_layer) > 0) {
-		/* Slight Paranoia, check if already connecting */
+		/* Slight Parayesia, check if already connecting */
 		pr_err("Duplicate connect request for same client\n");
 		WARN_ON(1);
 		return -EALREADY;
@@ -294,7 +294,7 @@ int cfctrl_linkup_request(struct cflayer *layer,
 		count = cfctrl_cancel_req(&cfctrl->serv.layer,
 						user_layer);
 		if (count != 1) {
-			pr_err("Could not remove request (%d)", count);
+			pr_err("Could yest remove request (%d)", count);
 			return -ENODEV;
 		}
 	}
@@ -310,7 +310,7 @@ int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
 	struct cflayer *dn = cfctrl->serv.layer.dn;
 
 	if (!dn) {
-		pr_debug("not able to send link-down request\n");
+		pr_debug("yest able to send link-down request\n");
 		return -ENODEV;
 	}
 	pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);

@@ -826,7 +826,7 @@ static int clk_rcg2_set_force_enable(struct clk_hw *hw)
 		udelay(1);
 	}
 
-	pr_err("%s: RCG did not turn on\n", name);
+	pr_err("%s: RCG did yest turn on\n", name);
 	return -ETIMEDOUT;
 }
 

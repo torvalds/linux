@@ -25,12 +25,12 @@
  * Get a unique NFSv4.0 callback identifier which will be used
  * by the V4.0 callback service to lookup the nfs_client struct
  */
-static int nfs_get_cb_ident_idr(struct nfs_client *clp, int minorversion)
+static int nfs_get_cb_ident_idr(struct nfs_client *clp, int miyesrversion)
 {
 	int ret = 0;
 	struct nfs_net *nn = net_generic(clp->cl_net, nfs_net_id);
 
-	if (clp->rpc_ops->version != 4 || minorversion != 0)
+	if (clp->rpc_ops->version != 4 || miyesrversion != 0)
 		return ret;
 	idr_preload(GFP_KERNEL);
 	spin_lock(&nn->nfs_client_lock);
@@ -123,16 +123,16 @@ nfs4_free_ds_server(struct nfs4_ds_server *dss)
 /**
  * nfs4_find_or_create_ds_client - Find or create a DS rpc client
  * @ds_clp: pointer to the DS's nfs_client
- * @inode: pointer to the inode
+ * @iyesde: pointer to the iyesde
  *
  * Find or create a DS rpc client with th MDS server rpc client auth flavor
  * in the nfs_client cl_ds_clients list.
  */
 struct rpc_clnt *
-nfs4_find_or_create_ds_client(struct nfs_client *ds_clp, struct inode *inode)
+nfs4_find_or_create_ds_client(struct nfs_client *ds_clp, struct iyesde *iyesde)
 {
 	struct nfs4_ds_server *dss, *new;
-	rpc_authflavor_t flavor = NFS_SERVER(inode)->client->cl_auth->au_flavor;
+	rpc_authflavor_t flavor = NFS_SERVER(iyesde)->client->cl_auth->au_flavor;
 
 	dss = nfs4_find_ds_client(ds_clp, flavor);
 	if (dss != NULL)
@@ -202,11 +202,11 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 	if (IS_ERR(clp))
 		return clp;
 
-	err = nfs_get_cb_ident_idr(clp, cl_init->minorversion);
+	err = nfs_get_cb_ident_idr(clp, cl_init->miyesrversion);
 	if (err)
 		goto error;
 
-	if (cl_init->minorversion > NFS4_MAX_MINOR_VERSION) {
+	if (cl_init->miyesrversion > NFS4_MAX_MINOR_VERSION) {
 		err = -EINVAL;
 		goto error;
 	}
@@ -216,8 +216,8 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 	INIT_LIST_HEAD(&clp->cl_ds_clients);
 	rpc_init_wait_queue(&clp->cl_rpcwaitq, "NFS client");
 	clp->cl_state = 1 << NFS4CLNT_LEASE_EXPIRED;
-	clp->cl_minorversion = cl_init->minorversion;
-	clp->cl_mvops = nfs_v4_minor_ops[cl_init->minorversion];
+	clp->cl_miyesrversion = cl_init->miyesrversion;
+	clp->cl_mvops = nfs_v4_miyesr_ops[cl_init->miyesrversion];
 	clp->cl_mig_gen = 1;
 #if IS_ENABLED(CONFIG_NFS_V4_1)
 	init_waitqueue_head(&clp->cl_lock_waitq);
@@ -236,7 +236,7 @@ error:
 static void nfs4_destroy_callback(struct nfs_client *clp)
 {
 	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
-		nfs_callback_down(clp->cl_mvops->minor_version, clp->cl_net);
+		nfs_callback_down(clp->cl_mvops->miyesr_version, clp->cl_net);
 }
 
 static void nfs4_shutdown_client(struct nfs_client *clp)
@@ -277,7 +277,7 @@ static int nfs4_init_callback(struct nfs_client *clp)
 			return error;
 	}
 
-	error = nfs_callback_up(clp->cl_mvops->minor_version, xprt);
+	error = nfs_callback_up(clp->cl_mvops->miyesr_version, xprt);
 	if (error < 0) {
 		dprintk("%s: failed to start callback. Error = %d\n",
 			__func__, error);
@@ -292,7 +292,7 @@ static int nfs4_init_callback(struct nfs_client *clp)
  * nfs40_init_client - nfs_client initialization tasks for NFSv4.0
  * @clp: nfs_client to initialize
  *
- * Returns zero on success, or a negative errno if some error occurred.
+ * Returns zero on success, or a negative erryes if some error occurred.
  */
 int nfs40_init_client(struct nfs_client *clp)
 {
@@ -320,7 +320,7 @@ int nfs40_init_client(struct nfs_client *clp)
  * nfs41_init_client - nfs_client initialization tasks for NFSv4.1+
  * @clp: nfs_client to initialize
  *
- * Returns zero on success, or a negative errno if some error occurred.
+ * Returns zero on success, or a negative erryes if some error occurred.
  */
 int nfs41_init_client(struct nfs_client *clp)
 {
@@ -350,9 +350,9 @@ int nfs41_init_client(struct nfs_client *clp)
 #endif	/* CONFIG_NFS_V4_1 */
 
 /*
- * Initialize the minor version specific parts of an NFS4 client record
+ * Initialize the miyesr version specific parts of an NFS4 client record
  */
-static int nfs4_init_client_minor_version(struct nfs_client *clp)
+static int nfs4_init_client_miyesr_version(struct nfs_client *clp)
 {
 	int ret;
 
@@ -385,7 +385,7 @@ struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 	/* Check NFS protocol revision and initialize RPC op vector */
 	clp->rpc_ops = &nfs_v4_clientops;
 
-	if (clp->cl_minorversion != 0)
+	if (clp->cl_miyesrversion != 0)
 		__set_bit(NFS_CS_INFINITE_SLOTS, &clp->cl_flags);
 	__set_bit(NFS_CS_DISCRTRY, &clp->cl_flags);
 	__set_bit(NFS_CS_NO_RETRANS_TIMEOUT, &clp->cl_flags);
@@ -396,7 +396,7 @@ struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 	if (error < 0)
 		goto error;
 
-	/* If no clientaddr= option was specified, find a usable cb address */
+	/* If yes clientaddr= option was specified, find a usable cb address */
 	if (ip_addr == NULL) {
 		struct sockaddr_storage cb_addr;
 		struct sockaddr *sap = (struct sockaddr *)&cb_addr;
@@ -419,7 +419,7 @@ struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 	}
 	__set_bit(NFS_CS_IDMAP, &clp->cl_res_state);
 
-	error = nfs4_init_client_minor_version(clp);
+	error = nfs4_init_client_miyesr_version(clp);
 	if (error < 0)
 		goto error;
 
@@ -450,7 +450,7 @@ error:
  * SETCLIENTID just did a callback update with the callback ident in
  * "drop," but server trunking discovery claims "drop" and "keep" are
  * actually the same server.  Swap the callback IDs so that "keep"
- * will continue to use the callback ident the server now knows about,
+ * will continue to use the callback ident the server yesw kyesws about,
  * and so that "keep"'s original callback ident is destroyed when
  * "drop" is freed.
  */
@@ -498,7 +498,7 @@ static int nfs4_match_client(struct nfs_client  *pos,  struct nfs_client *new,
 	if (pos->rpc_ops != new->rpc_ops)
 		return 1;
 
-	if (pos->cl_minorversion != new->cl_minorversion)
+	if (pos->cl_miyesrversion != new->cl_miyesrversion)
 		return 1;
 
 	/* If "pos" isn't marked ready, we can't trust the
@@ -541,7 +541,7 @@ static int nfs4_match_client(struct nfs_client  *pos,  struct nfs_client *new,
  * @result: OUT: found nfs_client, or new
  * @cred: credential to use for trunking test
  *
- * Returns zero, a negative errno, or a negative NFS4ERR status.
+ * Returns zero, a negative erryes, or a negative NFS4ERR status.
  * If zero is returned, an nfs_client pointer is planted in "result."
  *
  * NB: nfs40_walk_client_list() relies on the new nfs_client being
@@ -680,8 +680,8 @@ int nfs4_detect_session_trunking(struct nfs_client *clp,
 					     res->server_owner))
 		goto out_err;
 
-	/* Check eir_server_owner so_minor_id */
-	if (clp->cl_serverowner->minor_id != res->server_owner->minor_id)
+	/* Check eir_server_owner so_miyesr_id */
+	if (clp->cl_serverowner->miyesr_id != res->server_owner->miyesr_id)
 		goto out_err;
 
 	/* Check eir_server_scope */
@@ -707,7 +707,7 @@ out_err:
  * @result: OUT: found nfs_client, or new
  * @cred: credential to use for trunking test
  *
- * Returns zero, a negative errno, or a negative NFS4ERR status.
+ * Returns zero, a negative erryes, or a negative NFS4ERR status.
  * If zero is returned, an nfs_client pointer is planted in "result."
  *
  * NB: nfs41_walk_client_list() relies on the new nfs_client being
@@ -788,7 +788,7 @@ nfs4_find_client_ident(struct net *net, int cb_ident)
 #if defined(CONFIG_NFS_V4_1)
 /* Common match routine for v4.0 and v4.1 callback services */
 static bool nfs4_cb_match_client(const struct sockaddr *addr,
-		struct nfs_client *clp, u32 minorversion)
+		struct nfs_client *clp, u32 miyesrversion)
 {
 	struct sockaddr *clap = (struct sockaddr *)&clp->cl_addr;
 
@@ -799,32 +799,32 @@ static bool nfs4_cb_match_client(const struct sockaddr *addr,
 
 	smp_rmb();
 
-	/* Match the version and minorversion */
+	/* Match the version and miyesrversion */
 	if (clp->rpc_ops->version != 4 ||
-	    clp->cl_minorversion != minorversion)
+	    clp->cl_miyesrversion != miyesrversion)
 		return false;
 
-	/* Match only the IP address, not the port number */
+	/* Match only the IP address, yest the port number */
 	return rpc_cmp_addr(addr, clap);
 }
 
 /*
  * NFSv4.1 callback thread helper
  * For CB_COMPOUND calls, find a client by IP address, protocol version,
- * minorversion, and sessionID
+ * miyesrversion, and sessionID
  *
- * Returns NULL if no such client
+ * Returns NULL if yes such client
  */
 struct nfs_client *
 nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
-			   struct nfs4_sessionid *sid, u32 minorversion)
+			   struct nfs4_sessionid *sid, u32 miyesrversion)
 {
 	struct nfs_client *clp;
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
 	spin_lock(&nn->nfs_client_lock);
 	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
-		if (!nfs4_cb_match_client(addr, clp, minorversion))
+		if (!nfs4_cb_match_client(addr, clp, miyesrversion))
 			continue;
 
 		if (!nfs4_has_session(clp))
@@ -847,7 +847,7 @@ nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
 
 struct nfs_client *
 nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
-			   struct nfs4_sessionid *sid, u32 minorversion)
+			   struct nfs4_sessionid *sid, u32 miyesrversion)
 {
 	return NULL;
 }
@@ -862,7 +862,7 @@ static int nfs4_set_client(struct nfs_server *server,
 		const size_t addrlen,
 		const char *ip_addr,
 		int proto, const struct rpc_timeout *timeparms,
-		u32 minorversion, unsigned int nconnect,
+		u32 miyesrversion, unsigned int nconnect,
 		struct net *net)
 {
 	struct nfs_client_initdata cl_init = {
@@ -872,14 +872,14 @@ static int nfs4_set_client(struct nfs_server *server,
 		.ip_addr = ip_addr,
 		.nfs_mod = &nfs_v4,
 		.proto = proto,
-		.minorversion = minorversion,
+		.miyesrversion = miyesrversion,
 		.net = net,
 		.timeparms = timeparms,
 		.cred = server->cred,
 	};
 	struct nfs_client *clp;
 
-	if (minorversion == 0)
+	if (miyesrversion == 0)
 		__set_bit(NFS_CS_REUSEPORT, &cl_init.init_flags);
 	else if (proto == XPRT_TRANSPORT_TCP)
 		cl_init.nconnect = nconnect;
@@ -906,7 +906,7 @@ static int nfs4_set_client(struct nfs_server *server,
 	 * Query for the lease time on clientid setup or renewal
 	 *
 	 * Note that this will be set on nfs_clients that were created
-	 * only for the DS role and did not set this bit, but now will
+	 * only for the DS role and did yest set this bit, but yesw will
 	 * serve a dual role.
 	 */
 	set_bit(NFS_CS_CHECK_LEASE_TIME, &clp->cl_res_state);
@@ -919,7 +919,7 @@ static int nfs4_set_client(struct nfs_server *server,
  * Set up a pNFS Data Server client.
  *
  * Return any existing nfs_client that matches server address,port,version
- * and minorversion.
+ * and miyesrversion.
  *
  * For a new nfs_client, use a soft mount (default), a low retrans and a
  * low timeout interval so that if a connection is lost, we retry through
@@ -928,18 +928,18 @@ static int nfs4_set_client(struct nfs_server *server,
 struct nfs_client *nfs4_set_ds_client(struct nfs_server *mds_srv,
 		const struct sockaddr *ds_addr, int ds_addrlen,
 		int ds_proto, unsigned int ds_timeo, unsigned int ds_retrans,
-		u32 minor_version)
+		u32 miyesr_version)
 {
 	struct rpc_timeout ds_timeout;
 	struct nfs_client *mds_clp = mds_srv->nfs_client;
 	struct nfs_client_initdata cl_init = {
 		.addr = ds_addr,
 		.addrlen = ds_addrlen,
-		.nodename = mds_clp->cl_rpcclient->cl_nodename,
+		.yesdename = mds_clp->cl_rpcclient->cl_yesdename,
 		.ip_addr = mds_clp->cl_ipaddr,
 		.nfs_mod = &nfs_v4,
 		.proto = ds_proto,
-		.minorversion = minor_version,
+		.miyesrversion = miyesr_version,
 		.net = mds_clp->cl_net,
 		.timeparms = &ds_timeout,
 		.cred = mds_srv->cred,
@@ -1032,7 +1032,7 @@ static int nfs4_server_common_setup(struct nfs_server *server,
 
 	dprintk("Server FSID: %llx:%llx\n",
 			(unsigned long long) server->fsid.major,
-			(unsigned long long) server->fsid.minor);
+			(unsigned long long) server->fsid.miyesr);
 	nfs_display_fhandle(mntfh, "Pseudo-fs root FH");
 
 	error = nfs_probe_fsinfo(server, mntfh, fattr);
@@ -1085,7 +1085,7 @@ static int nfs4_init_server(struct nfs_server *server,
 			data->client_address,
 			data->nfs_server.protocol,
 			&timeparms,
-			data->minorversion,
+			data->miyesrversion,
 			data->nfs_server.nconnect,
 			data->net);
 	if (error < 0)
@@ -1175,7 +1175,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 				parent_client->cl_ipaddr,
 				XPRT_TRANSPORT_RDMA,
 				parent_server->client->cl_timeout,
-				parent_client->cl_mvops->minor_version,
+				parent_client->cl_mvops->miyesr_version,
 				parent_client->cl_nconnect,
 				parent_client->cl_net);
 	if (!error)
@@ -1189,7 +1189,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 				parent_client->cl_ipaddr,
 				XPRT_TRANSPORT_TCP,
 				parent_server->client->cl_timeout,
-				parent_client->cl_mvops->minor_version,
+				parent_client->cl_mvops->miyesr_version,
 				parent_client->cl_nconnect,
 				parent_client->cl_net);
 	if (error < 0)
@@ -1223,7 +1223,7 @@ error:
  */
 static int nfs_probe_destination(struct nfs_server *server)
 {
-	struct inode *inode = d_inode(server->super->s_root);
+	struct iyesde *iyesde = d_iyesde(server->super->s_root);
 	struct nfs_fattr *fattr;
 	int error;
 
@@ -1232,8 +1232,8 @@ static int nfs_probe_destination(struct nfs_server *server)
 		return -ENOMEM;
 
 	/* Sanity: the probe won't work if the destination server
-	 * does not recognize the migrated FH. */
-	error = nfs_probe_fsinfo(server, NFS_FH(inode), fattr);
+	 * does yest recognize the migrated FH. */
+	error = nfs_probe_fsinfo(server, NFS_FH(iyesde), fattr);
 
 	nfs_free_fattr(fattr);
 	return error;
@@ -1252,7 +1252,7 @@ static int nfs_probe_destination(struct nfs_server *server)
  * Either its session is drained (NFSv4.1+), or its transport is
  * plugged and drained (NFSv4.0).
  *
- * Returns zero on success, or a negative errno value.
+ * Returns zero on success, or a negative erryes value.
  */
 int nfs4_update_server(struct nfs_server *server, const char *hostname,
 		       struct sockaddr *sap, size_t salen, struct net *net)
@@ -1286,7 +1286,7 @@ int nfs4_update_server(struct nfs_server *server, const char *hostname,
 	set_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status);
 	error = nfs4_set_client(server, hostname, sap, salen, buf,
 				clp->cl_proto, clnt->cl_timeout,
-				clp->cl_minorversion,
+				clp->cl_miyesrversion,
 				clp->cl_nconnect, net);
 	clear_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status);
 	if (error != 0) {

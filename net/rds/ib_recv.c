@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -467,7 +467,7 @@ void rds_ib_recv_refill(struct rds_connection *conn, int prefill, gfp_t gfp)
  * the recyclee, as well as the cache to put it on.
  *
  * First, we put the memory on a percpu list. When this reaches a certain size,
- * We move it to an intermediate non-percpu list in a lockless manner, with some
+ * We move it to an intermediate yesn-percpu list in a lockless manner, with some
  * xchg/compxchg wizardry.
  *
  * N.B. Instead of a list_head as the anchor, we use a single pointer, which can
@@ -592,20 +592,20 @@ void rds_ib_recv_init_ack(struct rds_ib_connection *ic)
  * an ack message before it has DMAed the message into memory.  This creates a
  * potential message loss if the HCA is disabled for any reason between when it
  * sends the ack and before the message is DMAed and processed.  This is only a
- * potential issue if another HCA is available for fail-over.
+ * potential issue if ayesther HCA is available for fail-over.
  *
  * When the remote host receives our ack they'll free the sent message from
  * their send queue.  To decrease the latency of this we always send an ack
  * immediately after we've received messages.
  *
  * For simplicity, we only have one ack in flight at a time.  This puts
- * pressure on senders to have deep enough send queues to absorb the latency of
- * a single ack frame being in flight.  This might not be good enough.
+ * pressure on senders to have deep eyesugh send queues to absorb the latency of
+ * a single ack frame being in flight.  This might yest be good eyesugh.
  *
  * This is implemented by have a long-lived send_wr and sge which point to a
- * statically allocated ack frame.  This ack wr does not fall under the ring
+ * statically allocated ack frame.  This ack wr does yest fall under the ring
  * accounting that the tx and rx wrs do.  The QP attribute specifically makes
- * room for it beyond the ring size.  Send completion notices its special
+ * room for it beyond the ring size.  Send completion yestices its special
  * wr_id and avoids working with the ring in that case.
  */
 #ifndef KERNEL_HAS_ATOMIC64
@@ -671,7 +671,7 @@ static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credi
 	ret = ib_post_send(ic->i_cm_id->qp, &ic->i_ack_wr, NULL);
 	if (unlikely(ret)) {
 		/* Failed to send. Release the WR, and
-		 * force another ACK.
+		 * force ayesther ACK.
 		 */
 		clear_bit(IB_ACK_IN_FLIGHT, &ic->i_ack_flags);
 		set_bit(IB_ACK_REQUESTED, &ic->i_ack_flags);
@@ -684,28 +684,28 @@ static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credi
 }
 
 /*
- * There are 3 ways of getting acknowledgements to the peer:
+ * There are 3 ways of getting ackyeswledgements to the peer:
  *  1.	We call rds_ib_attempt_ack from the recv completion handler
  *	to send an ACK-only frame.
  *	However, there can be only one such frame in the send queue
  *	at any time, so we may have to postpone it.
- *  2.	When another (data) packet is transmitted while there's
+ *  2.	When ayesther (data) packet is transmitted while there's
  *	an ACK in the queue, we piggyback the ACK sequence number
  *	on the data packet.
  *  3.	If the ACK WR is done sending, we get called from the
  *	send queue completion handler, and check whether there's
- *	another ACK pending (postponed because the WR was on the
+ *	ayesther ACK pending (postponed because the WR was on the
  *	queue). If so, we transmit it.
  *
  * We maintain 2 variables:
  *  -	i_ack_flags, which keeps track of whether the ACK WR
- *	is currently in the send queue or not (IB_ACK_IN_FLIGHT)
+ *	is currently in the send queue or yest (IB_ACK_IN_FLIGHT)
  *  -	i_ack_next, which is the last sequence number we received
  *
  * Potentially, send queue and receive queue handlers can run concurrently.
- * It would be nice to not have to use a spinlock to synchronize things,
+ * It would be nice to yest have to use a spinlock to synchronize things,
  * but the one problem that rules this out is that 64bit updates are
- * not atomic on all platforms. Things would be a lot simpler if
+ * yest atomic on all platforms. Things would be a lot simpler if
  * we had atomic64 or maybe cmpxchg64 everywhere.
  *
  * Reconnecting complicates this picture just slightly. When we
@@ -714,7 +714,7 @@ static void rds_ib_send_ack(struct rds_ib_connection *ic, unsigned int adv_credi
  * them. It is important that we ACK these.
  *
  * ACK mitigation adds a header flag "ACK_REQUIRED"; any packet with
- * this flag set *MUST* be acknowledged immediately.
+ * this flag set *MUST* be ackyeswledged immediately.
  */
 
 /*
@@ -1001,10 +1001,10 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 	}
 
 	/* rds_ib_process_recv() doesn't always consume the frag, and
-	 * we might not have called it at all if the wc didn't indicate
+	 * we might yest have called it at all if the wc didn't indicate
 	 * success. We already unmapped the frag's pages, though, and
 	 * the following rds_ib_ring_free() call tells the refill path
-	 * that it will not find an allocated frag here. Make sure we
+	 * that it will yest find an allocated frag here. Make sure we
 	 * keep that promise by freeing a frag that's still on the ring.
 	 */
 	if (recv->r_frag) {

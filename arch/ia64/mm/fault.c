@@ -34,15 +34,15 @@ mapped_kernel_page_is_present (unsigned long address)
 	pte_t *ptep, pte;
 
 	pgd = pgd_offset_k(address);
-	if (pgd_none(*pgd) || pgd_bad(*pgd))
+	if (pgd_yesne(*pgd) || pgd_bad(*pgd))
 		return 0;
 
 	pud = pud_offset(pgd, address);
-	if (pud_none(*pud) || pud_bad(*pud))
+	if (pud_yesne(*pud) || pud_bad(*pud))
 		return 0;
 
 	pmd = pmd_offset(pud, address);
-	if (pmd_none(*pmd) || pmd_bad(*pmd))
+	if (pmd_yesne(*pmd) || pmd_bad(*pmd))
 		return 0;
 
 	ptep = pte_offset_kernel(pmd, address);
@@ -74,21 +74,21 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 	prefetchw(&mm->mmap_sem);
 
 	/*
-	 * If we're in an interrupt or have no user context, we must not take the fault..
+	 * If we're in an interrupt or have yes user context, we must yest take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto no_context;
+		goto yes_context;
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
 	/*
 	 * If fault is in region 5 and we are in the kernel, we may already
 	 * have the mmap_sem (pfn_valid macro is called during mmap). There
-	 * is no vma for region 5 addr's anyway, so skip getting the semaphore
+	 * is yes vma for region 5 addr's anyway, so skip getting the semaphore
 	 * and go directly to the exception handling code.
 	 */
 
 	if ((REGION_NUMBER(address) == 5) && !user_mode(regs))
-		goto bad_area_no_up;
+		goto bad_area_yes_up;
 #endif
 
 	/*
@@ -111,9 +111,9 @@ retry:
         /*
          * find_vma_prev() returns vma such that address < vma->vm_end or NULL
          *
-         * May find no vma, but could be that the last vm area is the
+         * May find yes vma, but could be that the last vm area is the
          * register backing store that needs to expand upwards, in
-         * this case vma will be null, but prev_vma will ne non-null
+         * this case vma will be null, but prev_vma will ne yesn-null
          */
         if (( !vma && prev_vma ) || (address < vma->vm_start) )
 		goto check_expansion;
@@ -212,7 +212,7 @@ retry:
   bad_area:
 	up_read(&mm->mmap_sem);
 #ifdef CONFIG_VIRTUAL_MEM_MAP
-  bad_area_no_up:
+  bad_area_yes_up:
 #endif
 	if ((isr & IA64_ISR_SP)
 	    || ((isr & IA64_ISR_NA) && (isr & IA64_ISR_CODE_MASK) == IA64_ISR_CODE_LFETCH))
@@ -231,7 +231,7 @@ retry:
 		return;
 	}
 
-  no_context:
+  yes_context:
 	if ((isr & IA64_ISR_SP)
 	    || ((isr & IA64_ISR_NA) && (isr & IA64_ISR_CODE_MASK) == IA64_ISR_CODE_LFETCH))
 	{
@@ -245,9 +245,9 @@ retry:
 	}
 
 	/*
-	 * Since we have no vma's for region 5, we might get here even if the address is
-	 * valid, due to the VHPT walker inserting a non present translation that becomes
-	 * stale. If that happens, the non present fault handler already purged the stale
+	 * Since we have yes vma's for region 5, we might get here even if the address is
+	 * valid, due to the VHPT walker inserting a yesn present translation that becomes
+	 * stale. If that happens, the yesn present fault handler already purged the stale
 	 * translation, which fixed the problem. So, we check to see if the translation is
 	 * valid, and return if it is.
 	 */
@@ -278,6 +278,6 @@ retry:
   out_of_memory:
 	up_read(&mm->mmap_sem);
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 	pagefault_out_of_memory();
 }

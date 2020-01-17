@@ -652,7 +652,7 @@ static void vortex_Eqlzr_ReadAndSetActiveCoefSet(vortex_t * vortex)
 	/* Set EQ BiQuad filter coeficients */
 	memcpy(&(eq->coefset), &asEqCoefsNormal, sizeof(auxxEqCoeffSet_t));
 	/* Set EQ Band gain levels and dump into hardware registers. */
-	vortex_Eqlzr_SetAllBands(vortex, eq_gains_normal, eq->this10 * 2);
+	vortex_Eqlzr_SetAllBands(vortex, eq_gains_yesrmal, eq->this10 * 2);
 }
 
 static int vortex_Eqlzr_GetAllPeaks(vortex_t * vortex, u16 * peaks, int *count)
@@ -716,7 +716,7 @@ static void vortex_Eqlzr_shutdown(vortex_t * vortex)
 /* ALSA interface */
 
 /* Control interface */
-#define snd_vortex_eqtoggle_info	snd_ctl_boolean_mono_info
+#define snd_vortex_eqtoggle_info	snd_ctl_boolean_moyes_info
 
 static int
 snd_vortex_eqtoggle_get(struct snd_kcontrol *kcontrol,

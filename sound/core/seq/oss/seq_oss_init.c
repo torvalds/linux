@@ -37,7 +37,7 @@ static struct seq_oss_devinfo *client_table[SNDRV_SEQ_OSS_MAX_CLIENTS];
 /*
  * prototypes
  */
-static int receive_announce(struct snd_seq_event *ev, int direct, void *private, int atomic, int hop);
+static int receive_anyesunce(struct snd_seq_event *ev, int direct, void *private, int atomic, int hop);
 static int translate_mode(struct file *file);
 static int create_port(struct seq_oss_devinfo *dp);
 static int delete_port(struct seq_oss_devinfo *dp);
@@ -48,7 +48,7 @@ static void free_devinfo(void *private);
 #define call_ctl(type,rec) snd_seq_kernel_client_ctl(system_client, type, rec)
 
 
-/* call snd_seq_oss_midi_lookup_ports() asynchronously */
+/* call snd_seq_oss_midi_lookup_ports() asynchroyesusly */
 static void async_call_lookup_ports(struct work_struct *work)
 {
 	snd_seq_oss_midi_lookup_ports(system_client);
@@ -80,7 +80,7 @@ snd_seq_oss_create_client(void)
 
 	system_client = rc;
 
-	/* create annoucement receiver port */
+	/* create anyesucement receiver port */
 	memset(port, 0, sizeof(*port));
 	strcpy(port->name, "Receiver");
 	port->addr.client = system_client;
@@ -89,9 +89,9 @@ snd_seq_oss_create_client(void)
 
 	memset(&port_callback, 0, sizeof(port_callback));
 	/* don't set port_callback.owner here. otherwise the module counter
-	 * is incremented and we can no longer release the module..
+	 * is incremented and we can yes longer release the module..
 	 */
-	port_callback.event_input = receive_announce;
+	port_callback.event_input = receive_anyesunce;
 	port->kernel = &port_callback;
 	
 	call_ctl(SNDRV_SEQ_IOCTL_CREATE_PORT, port);
@@ -117,21 +117,21 @@ snd_seq_oss_create_client(void)
 
 
 /*
- * receive annoucement from system port, and check the midi device
+ * receive anyesucement from system port, and check the midi device
  */
 static int
-receive_announce(struct snd_seq_event *ev, int direct, void *private, int atomic, int hop)
+receive_anyesunce(struct snd_seq_event *ev, int direct, void *private, int atomic, int hop)
 {
 	struct snd_seq_port_info pinfo;
 
 	if (atomic)
-		return 0; /* it must not happen */
+		return 0; /* it must yest happen */
 
 	switch (ev->type) {
 	case SNDRV_SEQ_EVENT_PORT_START:
 	case SNDRV_SEQ_EVENT_PORT_CHANGE:
 		if (ev->data.addr.client == system_client)
-			break; /* ignore myself */
+			break; /* igyesre myself */
 		memset(&pinfo, 0, sizeof(pinfo));
 		pinfo.addr = ev->data.addr;
 		if (call_ctl(SNDRV_SEQ_IOCTL_GET_PORT_INFO, &pinfo) >= 0)
@@ -140,7 +140,7 @@ receive_announce(struct snd_seq_event *ev, int direct, void *private, int atomic
 
 	case SNDRV_SEQ_EVENT_PORT_EXIT:
 		if (ev->data.addr.client == system_client)
-			break; /* ignore myself */
+			break; /* igyesre myself */
 		snd_seq_oss_midi_check_exit_port(ev->data.addr.client,
 						ev->data.addr.port);
 		break;
@@ -199,7 +199,7 @@ snd_seq_oss_open(struct file *file, int level)
 	snd_seq_oss_midi_setup(dp);
 
 	if (dp->synth_opened == 0 && dp->max_mididev == 0) {
-		/* pr_err("ALSA: seq_oss: no device found\n"); */
+		/* pr_err("ALSA: seq_oss: yes device found\n"); */
 		rc = -ENODEV;
 		goto _error;
 	}
@@ -306,7 +306,7 @@ create_port(struct seq_oss_devinfo *dp)
 	memset(&port, 0, sizeof(port));
 	port.addr.client = dp->cseq;
 	sprintf(port.name, "Sequencer-%d", dp->index);
-	port.capability = SNDRV_SEQ_PORT_CAP_READ|SNDRV_SEQ_PORT_CAP_WRITE; /* no subscription */
+	port.capability = SNDRV_SEQ_PORT_CAP_READ|SNDRV_SEQ_PORT_CAP_WRITE; /* yes subscription */
 	port.type = SNDRV_SEQ_PORT_TYPE_SPECIFIC;
 	port.midi_channels = 128;
 	port.synth_voices = 128;
@@ -464,7 +464,7 @@ static char *
 filemode_str(int val)
 {
 	static char *str[] = {
-		"none", "read", "write", "read/write",
+		"yesne", "read", "write", "read/write",
 	};
 	return str[val & SNDRV_SEQ_OSS_FILE_ACMODE];
 }

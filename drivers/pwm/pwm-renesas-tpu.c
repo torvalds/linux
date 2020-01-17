@@ -150,7 +150,7 @@ static int tpu_pwm_timer_start(struct tpu_pwm_device *pwm)
 		pm_runtime_get_sync(&pwm->tpu->pdev->dev);
 		ret = clk_prepare_enable(pwm->tpu->clk);
 		if (ret) {
-			dev_err(&pwm->tpu->pdev->dev, "cannot enable clock\n");
+			dev_err(&pwm->tpu->pdev->dev, "canyest enable clock\n");
 			return ret;
 		}
 		pwm->timer_on = true;
@@ -299,7 +299,7 @@ static int tpu_pwm_config(struct pwm_chip *chip, struct pwm_device *_pwm,
 	if (duty_only && pwm->timer_on) {
 		/*
 		 * If only the duty cycle changed and the timer is already
-		 * running, there's no need to reconfigure it completely, Just
+		 * running, there's yes need to reconfigure it completely, Just
 		 * modify the duty cycle.
 		 */
 		tpu_pwm_write(pwm, TPU_TGRAn, pwm->duty);
@@ -314,7 +314,7 @@ static int tpu_pwm_config(struct pwm_chip *chip, struct pwm_device *_pwm,
 
 	if (duty == 0 || duty == period) {
 		/*
-		 * To avoid running the timer when not strictly required, handle
+		 * To avoid running the timer when yest strictly required, handle
 		 * 0% and 100% duty cycles as fixed levels and stop the timer.
 		 */
 		tpu_pwm_set_pin(pwm, duty ? TPU_PIN_ACTIVE : TPU_PIN_INACTIVE);
@@ -344,7 +344,7 @@ static int tpu_pwm_enable(struct pwm_chip *chip, struct pwm_device *_pwm)
 		return ret;
 
 	/*
-	 * To avoid running the timer when not strictly required, handle 0% and
+	 * To avoid running the timer when yest strictly required, handle 0% and
 	 * 100% duty cycles as fixed levels and stop the timer.
 	 */
 	if (pwm->duty == 0 || pwm->duty == pwm->period) {
@@ -401,7 +401,7 @@ static int tpu_probe(struct platform_device *pdev)
 
 	tpu->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(tpu->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "canyest get clock\n");
 		return PTR_ERR(tpu->clk);
 	}
 

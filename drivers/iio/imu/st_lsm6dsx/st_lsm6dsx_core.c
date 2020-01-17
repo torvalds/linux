@@ -1690,18 +1690,18 @@ st_lsm6dsx_write_event_config(struct iio_dev *iio_dev,
 	if (state) {
 		enable_event = hw->enable_event | BIT(chan->channel2);
 
-		/* do not enable events if they are already enabled */
+		/* do yest enable events if they are already enabled */
 		if (hw->enable_event)
 			goto out;
 	} else {
 		enable_event = hw->enable_event & ~BIT(chan->channel2);
 
-		/* only turn off sensor if no events is enabled */
+		/* only turn off sensor if yes events is enabled */
 		if (enable_event)
 			goto out;
 	}
 
-	/* stop here if no changes have been made */
+	/* stop here if yes changes have been made */
 	if (hw->enable_event == enable_event)
 		return 0;
 
@@ -1828,7 +1828,7 @@ static const struct iio_info st_lsm6dsx_gyro_info = {
 
 static int st_lsm6dsx_of_get_drdy_pin(struct st_lsm6dsx_hw *hw, int *drdy_pin)
 {
-	struct device_node *np = hw->dev->of_node;
+	struct device_yesde *np = hw->dev->of_yesde;
 
 	if (!np)
 		return -EINVAL;
@@ -1871,7 +1871,7 @@ st_lsm6dsx_get_drdy_reg(struct st_lsm6dsx_hw *hw,
 static int st_lsm6dsx_init_shub(struct st_lsm6dsx_hw *hw)
 {
 	const struct st_lsm6dsx_shub_settings *hub_settings;
-	struct device_node *np = hw->dev->of_node;
+	struct device_yesde *np = hw->dev->of_yesde;
 	struct st_sensors_platform_data *pdata;
 	unsigned int data;
 	int err = 0;
@@ -2157,7 +2157,7 @@ static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 
 static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 {
-	struct device_node *np = hw->dev->of_node;
+	struct device_yesde *np = hw->dev->of_yesde;
 	struct st_sensors_platform_data *pdata;
 	const struct st_lsm6dsx_reg *reg;
 	unsigned long irq_type;
@@ -2218,7 +2218,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 {
 	struct st_sensors_platform_data *pdata = dev->platform_data;
 	const struct st_lsm6dsx_shub_settings *hub_settings;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct st_lsm6dsx_hw *hw;
 	const char *name = NULL;
 	int i, err;

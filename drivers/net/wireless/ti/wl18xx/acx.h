@@ -80,7 +80,7 @@ struct wl18xx_acx_checksum_state {
 
 
 struct wl18xx_acx_error_stats {
-	u32 error_frame_non_ctrl;
+	u32 error_frame_yesn_ctrl;
 	u32 error_frame_ctrl;
 	u32 error_frame_during_protection;
 	u32 null_frame_tx_start;
@@ -131,7 +131,7 @@ struct wl18xx_acx_tx_stats {
 	u32 frag_init_called;
 	u32 frag_in_process_called;
 	u32 frag_tkip_called;
-	u32 frag_key_not_found;
+	u32 frag_key_yest_found;
 	u32 frag_need_fragmentation;
 	u32 frag_bad_mblk_num;
 	u32 frag_failed;
@@ -141,7 +141,7 @@ struct wl18xx_acx_tx_stats {
 
 struct wl18xx_acx_rx_stats {
 	u32 rx_beacon_early_term;
-	u32 rx_out_of_mpdu_nodes;
+	u32 rx_out_of_mpdu_yesdes;
 	u32 rx_hdr_overflow;
 	u32 rx_dropped_frame;
 	u32 rx_done_stage;
@@ -161,7 +161,7 @@ struct wl18xx_acx_rx_stats {
 	u32 defrag_tkip_called;
 	u32 defrag_need_defrag;
 	u32 defrag_decrypt_failed;
-	u32 decrypt_key_not_found;
+	u32 decrypt_key_yest_found;
 	u32 defrag_need_decrypt;
 	u32 rx_tkip_replays;
 	u32 rx_xfr;
@@ -317,7 +317,7 @@ struct wlcore_acx_peer_cap {
 	u8 hlid;
 
 	/*
-	 * This the maximum A-MPDU length supported by the AP. The FW may not
+	 * This the maximum A-MPDU length supported by the AP. The FW may yest
 	 * exceed this length when sending A-MPDUs
 	 */
 	u8 ampdu_max_length;
@@ -330,9 +330,9 @@ struct wlcore_acx_peer_cap {
 
 /*
  * ACX_INTERRUPT_NOTIFY
- * enable/disable fast-link/PSM notification from FW
+ * enable/disable fast-link/PSM yestification from FW
  */
-struct wl18xx_acx_interrupt_notify {
+struct wl18xx_acx_interrupt_yestify {
 	struct acx_header header;
 	u32 enable;
 };
@@ -357,7 +357,7 @@ struct acx_ap_sleep_cfg {
 	 */
 	u8 connected_duty_cycle;
 	/* Maximum stations that are allowed to be connected to AP
-	 *  (255: no limit)
+	 *  (255: yes limit)
 	 */
 	u8 max_stations_thresh;
 	/* Timeout till enabling the Sleep Mechanism after data stops
@@ -396,7 +396,7 @@ int wl18xx_acx_set_peer_cap(struct wl1271 *wl,
 			    struct ieee80211_sta_ht_cap *ht_cap,
 			    bool allow_ht_operation,
 			    u32 rate_set, u8 hlid);
-int wl18xx_acx_interrupt_notify_config(struct wl1271 *wl, bool action);
+int wl18xx_acx_interrupt_yestify_config(struct wl1271 *wl, bool action);
 int wl18xx_acx_rx_ba_filter(struct wl1271 *wl, bool action);
 int wl18xx_acx_ap_sleep(struct wl1271 *wl);
 int wl18xx_acx_dynamic_fw_traces(struct wl1271 *wl);

@@ -248,7 +248,7 @@ static int sharpsl_nand_read_laddr(struct mtd_info *mtd,
 	block_ofs = mtd_mod_by_eb((u32)from, mtd);
 
 	err = mtd_read(mtd, block_adr + block_ofs, len, &retlen, buf);
-	/* Ignore corrected ECC errors */
+	/* Igyesre corrected ECC errors */
 	if (mtd_is_bitflip(err))
 		err = 0;
 

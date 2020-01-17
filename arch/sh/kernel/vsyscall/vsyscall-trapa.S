@@ -5,7 +5,7 @@
 __kernel_vsyscall:
 .LSTART_vsyscall:
 	trapa	#0x10
-	 nop
+	 yesp
 .LEND_vsyscall:
 	.size __kernel_vsyscall,.-.LSTART_vsyscall
 	.previous

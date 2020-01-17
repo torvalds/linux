@@ -38,7 +38,7 @@
 
     Tobias Ringstrom <tori@unhappy.mine.nu> :
     Use time_after for jiffies calculation.  Added ethtool
-    support.  Updated PCI resource allocation.  Do not
+    support.  Updated PCI resource allocation.  Do yest
     forget to unmap PCI mapped skbs.
 
     Alan Cox <alan@lxorguk.ukuu.org.uk>
@@ -50,7 +50,7 @@
     Check on 64 bit boxes.
     Check and fix on big endian boxes.
 
-    Test and make sure PCI latency is now correct for all cases.
+    Test and make sure PCI latency is yesw correct for all cases.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -64,7 +64,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -148,9 +148,9 @@
 #define dr16(reg)	ioread16(ioaddr + (reg))
 #define dr8(reg)	ioread8(ioaddr + (reg))
 
-#define DMFE_DBUG(dbug_now, msg, value)			\
+#define DMFE_DBUG(dbug_yesw, msg, value)			\
 	do {						\
-		if (dmfe_debug || (dbug_now))		\
+		if (dmfe_debug || (dbug_yesw))		\
 			pr_err("%s %lx\n",		\
 			       (msg), (long) (value));	\
 	} while (0)
@@ -239,7 +239,7 @@ struct dmfe_board_info {
 	u16 NIC_capability;		/* NIC media capability */
 	u16 PHY_reg4;			/* Saved Phyxcer register 4 value */
 
-	u8 HPNA_present;		/* 0:none, 1:DM9801, 2:DM9802 */
+	u8 HPNA_present;		/* 0:yesne, 1:DM9801, 2:DM9802 */
 	u8 chip_type;			/* Keep DM9102A chip type */
 	u8 media_mode;			/* user specify media mode */
 	u8 op_mode;			/* real work media mode */
@@ -253,7 +253,7 @@ struct dmfe_board_info {
 	/* Driver defined statistic counter */
 	unsigned long tx_fifo_underrun;
 	unsigned long tx_loss_carrier;
-	unsigned long tx_no_carrier;
+	unsigned long tx_yes_carrier;
 	unsigned long tx_late_collision;
 	unsigned long tx_excessive_collision;
 	unsigned long tx_jabber_timeout;
@@ -374,7 +374,7 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef CONFIG_TULIP_DM910X
 	if ((ent->driver_data == PCI_DM9100_ID && pdev->revision >= 0x30) ||
 	    ent->driver_data == PCI_DM9102_ID) {
-		struct device_node *dp = pci_device_to_OF_node(pdev);
+		struct device_yesde *dp = pci_device_to_OF_yesde(pdev);
 
 		if (dp && of_get_property(dp, "local-mac-address", NULL)) {
 			pr_info("skipping on-board DM910x (use tulip)\n");
@@ -390,7 +390,7 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
-		pr_warn("32-bit PCI DMA not available\n");
+		pr_warn("32-bit PCI DMA yest available\n");
 		err = -ENODEV;
 		goto err_out_free;
 	}
@@ -412,7 +412,7 @@ static int dmfe_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_disable;
 	}
 
-#if 0	/* pci_{enable_device,set_master} sets minimum latency for us now */
+#if 0	/* pci_{enable_device,set_master} sets minimum latency for us yesw */
 
 	/* Set Latency Timer 80h */
 	/* FIXME: setting values > 32 breaks some SiS 559x stuff.
@@ -574,7 +574,7 @@ static int dmfe_open(struct net_device *dev)
 		(db->chip_revision >= 0x30) ) {
     		db->cr6_data |= DMFE_TXTH_256;
 		db->cr0_data = CR0_DEFAULT;
-		db->dm910x_chk_mode=4;		/* Enter the normal mode */
+		db->dm910x_chk_mode=4;		/* Enter the yesrmal mode */
  	} else {
 		db->cr6_data |= CR6_SFT;	/* Store & Forward mode */
 		db->cr0_data = 0;
@@ -768,7 +768,7 @@ static int dmfe_stop(struct net_device *dev)
 	/* show statistic counter */
 	printk("FU:%lx EC:%lx LC:%lx NC:%lx LOC:%lx TXJT:%lx RESET:%lx RCR8:%lx FAL:%lx TT:%lx\n",
 	       db->tx_fifo_underrun, db->tx_excessive_collision,
-	       db->tx_late_collision, db->tx_no_carrier, db->tx_loss_carrier,
+	       db->tx_late_collision, db->tx_yes_carrier, db->tx_loss_carrier,
 	       db->tx_jabber_timeout, db->reset_count, db->reset_cr8,
 	       db->reset_fatal, db->reset_TXtimeout);
 #endif
@@ -844,7 +844,7 @@ static irqreturn_t dmfe_interrupt(int irq, void *dev_id)
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
+ * without having to re-enable interrupts. It's yest called while
  * the interrupt routine is executing.
  */
 
@@ -853,8 +853,8 @@ static void poll_dmfe (struct net_device *dev)
 	struct dmfe_board_info *db = netdev_priv(dev);
 	const int irq = db->pdev->irq;
 
-	/* disable_irq here is not very nice, but with the lockless
-	   interrupt handler we have no other choice. */
+	/* disable_irq here is yest very nice, but with the lockless
+	   interrupt handler we have yes other choice. */
 	disable_irq(irq);
 	dmfe_interrupt (irq, dev);
 	enable_irq(irq);
@@ -900,7 +900,7 @@ static void dmfe_free_tx_pkt(struct net_device *dev, struct dmfe_board_info *db)
 				if (tdes0 & 0x0200)
 					db->tx_late_collision++;
 				if (tdes0 & 0x0400)
-					db->tx_no_carrier++;
+					db->tx_yes_carrier++;
 				if (tdes0 & 0x0800)
 					db->tx_loss_carrier++;
 				if (tdes0 & 0x4000)
@@ -932,7 +932,7 @@ static void dmfe_free_tx_pkt(struct net_device *dev, struct dmfe_board_info *db)
 /*
  *	Calculate the CRC valude of the Rx packet
  *	flag = 	1 : return the reverse CRC (for the received packet CRC)
- *		0 : return the normal CRC (for Hash Table index)
+ *		0 : return the yesrmal CRC (for Hash Table index)
  */
 
 static inline u32 cal_CRC(unsigned char * Data, unsigned int Len, u8 flag)
@@ -992,7 +992,7 @@ static void dmfe_rx_packet(struct net_device *dev, struct dmfe_board_info *db)
 				((db->cr6_data & CR6_PM) && (rxlen>6)) ) {
 				skb = rxptr->rx_skb_ptr;
 
-				/* Received Packet CRC check need or not */
+				/* Received Packet CRC check need or yest */
 				if ( (db->dm910x_chk_mode & 1) &&
 					(cal_CRC(skb->data, rxlen, 1) !=
 					(*(u32 *) (skb->data+rxlen) ))) { /* FIXME (?) */
@@ -1211,7 +1211,7 @@ static void dmfe_timer(struct timer_list *t)
 
 
 	/* If chip reports that link is failed it could be because external
-		PHY link status pin is not connected correctly to chip
+		PHY link status pin is yest connected correctly to chip
 		To be sure ask PHY too.
 	*/
 
@@ -1930,7 +1930,7 @@ static void dmfe_parse_srom(struct dmfe_board_info * db)
 			}
 		}
 
-		/* Media Mode Force or not check */
+		/* Media Mode Force or yest check */
 		dmfe_mode = (le32_to_cpup((__le32 *) (srom + 34)) &
 			     le32_to_cpup((__le32 *) (srom + 36)));
 		switch(dmfe_mode) {
@@ -1958,7 +1958,7 @@ static void dmfe_parse_srom(struct dmfe_board_info * db)
 	/* Parse HPNA parameter */
 	db->HPNA_command = 1;
 
-	/* Accept remote command or not */
+	/* Accept remote command or yest */
 	if (HPNA_rx_cmd == 0)
 		db->HPNA_command |= 0x8000;
 
@@ -1978,7 +1978,7 @@ static void dmfe_parse_srom(struct dmfe_board_info * db)
 		case 3: db->HPNA_command |= 0x0002; break;
 		}
 
-	/* Check DM9801 or DM9802 present or not */
+	/* Check DM9801 or DM9802 present or yest */
 	db->HPNA_present = 0;
 	update_cr6(db->cr6_data | 0x40000, db->ioaddr);
 	tmp_reg = dmfe_phy_read(db->ioaddr, db->phy_addr, 3, db->chip_id);
@@ -2054,7 +2054,7 @@ static void dmfe_program_DM9802(struct dmfe_board_info * db)
 
 
 /*
- *	Check remote HPNA power and speed status. If not correct,
+ *	Check remote HPNA power and speed status. If yest correct,
  *	issue command again.
 */
 
@@ -2071,7 +2071,7 @@ static void dmfe_HPNA_remote_cmd_chk(struct dmfe_board_info * db)
 	case 0x60: phy_reg = 0x0500;break; /* HP/HS */
 	}
 
-	/* Check remote device status match our setting ot not */
+	/* Check remote device status match our setting ot yest */
 	if ( phy_reg != (db->HPNA_command & 0x0f00) ) {
 		dmfe_phy_write(db->ioaddr, db->phy_addr, 16, db->HPNA_command,
 			       db->chip_id);
@@ -2229,7 +2229,7 @@ static int __init dmfe_init_module(void)
 	if (HPNA_mode > 4)
 		HPNA_mode = 0;		/* Default: LP/HS */
 	if (HPNA_rx_cmd > 1)
-		HPNA_rx_cmd = 0;	/* Default: Ignored remote cmd */
+		HPNA_rx_cmd = 0;	/* Default: Igyesred remote cmd */
 	if (HPNA_tx_cmd > 1)
 		HPNA_tx_cmd = 0;	/* Default: Don't issue remote cmd */
 	if (HPNA_NoiseFloor > 15)

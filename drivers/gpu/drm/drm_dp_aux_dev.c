@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -21,7 +21,7 @@
  * IN THE SOFTWARE.
  *
  * Authors:
- *    Rafael Antognolli <rafael.antognolli@intel.com>
+ *    Rafael Antogyeslli <rafael.antogyeslli@intel.com>
  *
  */
 
@@ -57,7 +57,7 @@ static DEFINE_MUTEX(aux_idr_mutex);
 static struct class *drm_dp_aux_dev_class;
 static int drm_dev_major = -1;
 
-static struct drm_dp_aux_dev *drm_dp_aux_dev_get_by_minor(unsigned index)
+static struct drm_dp_aux_dev *drm_dp_aux_dev_get_by_miyesr(unsigned index)
 {
 	struct drm_dp_aux_dev *aux_dev = NULL;
 
@@ -107,7 +107,7 @@ static ssize_t name_show(struct device *dev,
 {
 	ssize_t res;
 	struct drm_dp_aux_dev *aux_dev =
-		drm_dp_aux_dev_get_by_minor(MINOR(dev->devt));
+		drm_dp_aux_dev_get_by_miyesr(MINOR(dev->devt));
 
 	if (!aux_dev)
 		return -ENODEV;
@@ -125,12 +125,12 @@ static struct attribute *drm_dp_aux_attrs[] = {
 };
 ATTRIBUTE_GROUPS(drm_dp_aux);
 
-static int auxdev_open(struct inode *inode, struct file *file)
+static int auxdev_open(struct iyesde *iyesde, struct file *file)
 {
-	unsigned int minor = iminor(inode);
+	unsigned int miyesr = imiyesr(iyesde);
 	struct drm_dp_aux_dev *aux_dev;
 
-	aux_dev = drm_dp_aux_dev_get_by_minor(minor);
+	aux_dev = drm_dp_aux_dev_get_by_miyesr(miyesr);
 	if (!aux_dev)
 		return -ENODEV;
 
@@ -149,7 +149,7 @@ static ssize_t auxdev_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	loff_t pos = iocb->ki_pos;
 	ssize_t res = 0;
 
-	if (!atomic_inc_not_zero(&aux_dev->usecount))
+	if (!atomic_inc_yest_zero(&aux_dev->usecount))
 		return -ENODEV;
 
 	iov_iter_truncate(to, AUX_MAX_OFFSET - pos);
@@ -196,7 +196,7 @@ static ssize_t auxdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	loff_t pos = iocb->ki_pos;
 	ssize_t res = 0;
 
-	if (!atomic_inc_not_zero(&aux_dev->usecount))
+	if (!atomic_inc_yest_zero(&aux_dev->usecount))
 		return -ENODEV;
 
 	iov_iter_truncate(from, AUX_MAX_OFFSET - pos);
@@ -237,7 +237,7 @@ static ssize_t auxdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	return res;
 }
 
-static int auxdev_release(struct inode *inode, struct file *file)
+static int auxdev_release(struct iyesde *iyesde, struct file *file)
 {
 	struct drm_dp_aux_dev *aux_dev = file->private_data;
 
@@ -262,8 +262,8 @@ static struct drm_dp_aux_dev *drm_dp_aux_dev_get_by_aux(struct drm_dp_aux *aux)
 	int id;
 
 	/* don't increase kref count here because this function should only be
-	 * used by drm_dp_aux_unregister_devnode. Thus, it will always have at
-	 * least one reference - the one that drm_dp_aux_register_devnode
+	 * used by drm_dp_aux_unregister_devyesde. Thus, it will always have at
+	 * least one reference - the one that drm_dp_aux_register_devyesde
 	 * created
 	 */
 	mutex_lock(&aux_idr_mutex);
@@ -277,10 +277,10 @@ static struct drm_dp_aux_dev *drm_dp_aux_dev_get_by_aux(struct drm_dp_aux *aux)
 	return aux_dev;
 }
 
-void drm_dp_aux_unregister_devnode(struct drm_dp_aux *aux)
+void drm_dp_aux_unregister_devyesde(struct drm_dp_aux *aux)
 {
 	struct drm_dp_aux_dev *aux_dev;
-	unsigned int minor;
+	unsigned int miyesr;
 
 	aux_dev = drm_dp_aux_dev_get_by_aux(aux);
 	if (!aux_dev) /* attach must have failed */
@@ -293,16 +293,16 @@ void drm_dp_aux_unregister_devnode(struct drm_dp_aux *aux)
 	atomic_dec(&aux_dev->usecount);
 	wait_var_event(&aux_dev->usecount, !atomic_read(&aux_dev->usecount));
 
-	minor = aux_dev->index;
+	miyesr = aux_dev->index;
 	if (aux_dev->dev)
 		device_destroy(drm_dp_aux_dev_class,
-			       MKDEV(drm_dev_major, minor));
+			       MKDEV(drm_dev_major, miyesr));
 
 	DRM_DEBUG("drm_dp_aux_dev: aux [%s] unregistering\n", aux->name);
 	kref_put(&aux_dev->refcount, release_drm_dp_aux_dev);
 }
 
-int drm_dp_aux_register_devnode(struct drm_dp_aux *aux)
+int drm_dp_aux_register_devyesde(struct drm_dp_aux *aux)
 {
 	struct drm_dp_aux_dev *aux_dev;
 	int res;
@@ -320,11 +320,11 @@ int drm_dp_aux_register_devnode(struct drm_dp_aux *aux)
 		goto error;
 	}
 
-	DRM_DEBUG("drm_dp_aux_dev: aux [%s] registered as minor %d\n",
+	DRM_DEBUG("drm_dp_aux_dev: aux [%s] registered as miyesr %d\n",
 		  aux->name, aux_dev->index);
 	return 0;
 error:
-	drm_dp_aux_unregister_devnode(aux);
+	drm_dp_aux_unregister_devyesde(aux);
 	return res;
 }
 

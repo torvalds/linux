@@ -11,17 +11,17 @@ extern const u16 b43legacy_ilt_finefreqa[B43legacy_ILT_FINEFREQA_SIZE];
 #define B43legacy_ILT_FINEFREQG_SIZE	256
 extern const u16 b43legacy_ilt_finefreqg[B43legacy_ILT_FINEFREQG_SIZE];
 #define B43legacy_ILT_NOISEA2_SIZE	8
-extern const u16 b43legacy_ilt_noisea2[B43legacy_ILT_NOISEA2_SIZE];
+extern const u16 b43legacy_ilt_yesisea2[B43legacy_ILT_NOISEA2_SIZE];
 #define B43legacy_ILT_NOISEA3_SIZE	8
-extern const u16 b43legacy_ilt_noisea3[B43legacy_ILT_NOISEA3_SIZE];
+extern const u16 b43legacy_ilt_yesisea3[B43legacy_ILT_NOISEA3_SIZE];
 #define B43legacy_ILT_NOISEG1_SIZE	8
-extern const u16 b43legacy_ilt_noiseg1[B43legacy_ILT_NOISEG1_SIZE];
+extern const u16 b43legacy_ilt_yesiseg1[B43legacy_ILT_NOISEG1_SIZE];
 #define B43legacy_ILT_NOISEG2_SIZE	8
-extern const u16 b43legacy_ilt_noiseg2[B43legacy_ILT_NOISEG2_SIZE];
+extern const u16 b43legacy_ilt_yesiseg2[B43legacy_ILT_NOISEG2_SIZE];
 #define B43legacy_ILT_NOISESCALEG_SIZE	27
-extern const u16 b43legacy_ilt_noisescaleg1[B43legacy_ILT_NOISESCALEG_SIZE];
-extern const u16 b43legacy_ilt_noisescaleg2[B43legacy_ILT_NOISESCALEG_SIZE];
-extern const u16 b43legacy_ilt_noisescaleg3[B43legacy_ILT_NOISESCALEG_SIZE];
+extern const u16 b43legacy_ilt_yesisescaleg1[B43legacy_ILT_NOISESCALEG_SIZE];
+extern const u16 b43legacy_ilt_yesisescaleg2[B43legacy_ILT_NOISESCALEG_SIZE];
+extern const u16 b43legacy_ilt_yesisescaleg3[B43legacy_ILT_NOISESCALEG_SIZE];
 #define B43legacy_ILT_SIGMASQR_SIZE	53
 extern const u16 b43legacy_ilt_sigmasqr1[B43legacy_ILT_SIGMASQR_SIZE];
 extern const u16 b43legacy_ilt_sigmasqr2[B43legacy_ILT_SIGMASQR_SIZE];

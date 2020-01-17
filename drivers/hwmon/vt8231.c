@@ -122,12 +122,12 @@ static const u8 regtempmin[] = { 0x3a, 0x3e, 0x2c, 0x2e, 0x30, 0x32 };
  *     All the on-chip hardware temperature comparisons for the alarms are only
  *     8-bits wide, and compare against the 8 MSBs of the temperature.  The bits
  *     in the registers VT8231_REG_TEMP_LOW01 and VT8231_REG_TEMP_LOW25 are
- *     ignored.
+ *     igyesred.
  */
 
 /*
  ****** FAN RPM CONVERSIONS ********
- * This chip saturates back at 0, not at 255 like many the other chips.
+ * This chip saturates back at 0, yest at 255 like many the other chips.
  * So, 0 means 0 RPM
  */
 static inline u8 FAN_TO_REG(long rpm, int div)
@@ -573,7 +573,7 @@ static ssize_t fan_div_store(struct device *dev,
 		break;
 	default:
 		dev_err(dev,
-			"fan_div value %ld not supported. Choose one of 1, 2, 4 or 8!\n",
+			"fan_div value %ld yest supported. Choose one of 1, 2, 4 or 8!\n",
 			val);
 		mutex_unlock(&data->update_lock);
 		return -EINVAL;
@@ -998,7 +998,7 @@ static int vt8231_pci_probe(struct pci_dev *dev,
 
 	address = val & ~(VT8231_EXTENT - 1);
 	if (address == 0) {
-		dev_err(&dev->dev, "base address not set - upgrade BIOS or use force_addr=0xaddr\n");
+		dev_err(&dev->dev, "base address yest set - upgrade BIOS or use force_addr=0xaddr\n");
 		return -ENODEV;
 	}
 

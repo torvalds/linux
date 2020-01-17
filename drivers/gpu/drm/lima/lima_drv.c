@@ -252,7 +252,7 @@ static struct drm_driver lima_drm_driver = {
 	.desc               = "lima DRM",
 	.date               = "20190217",
 	.major              = 1,
-	.minor              = 0,
+	.miyesr              = 0,
 	.patchlevel         = 0,
 
 	.gem_create_object  = lima_gem_create_object,

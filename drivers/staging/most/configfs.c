@@ -2,7 +2,7 @@
 /*
  * configfs.c - Implementation of configfs interface to the driver stack
  *
- * Copyright (C) 2013-2015 Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2013-2015 Microchip Techyeslogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -452,7 +452,7 @@ static void most_common_disconnect(struct config_group *group,
 
 static struct configfs_group_operations most_common_group_ops = {
 	.make_item	= most_common_make_item,
-	.disconnect_notify = most_common_disconnect,
+	.disconnect_yestify = most_common_disconnect,
 };
 
 static const struct config_item_type most_common_type = {
@@ -611,7 +611,7 @@ static void most_sound_disconnect(struct config_group *group,
 
 static struct configfs_group_operations most_sound_group_ops = {
 	.make_group	= most_sound_make_group,
-	.disconnect_notify = most_sound_disconnect,
+	.disconnect_yestify = most_sound_disconnect,
 };
 
 static const struct config_item_type most_sound_type = {
@@ -658,7 +658,7 @@ int most_register_configfs_subsys(struct core_component *c)
 }
 EXPORT_SYMBOL_GPL(most_register_configfs_subsys);
 
-void most_interface_register_notify(const char *mdev)
+void most_interface_register_yestify(const char *mdev)
 {
 	bool register_snd_card = false;
 	struct mdev_link *mdev_link;

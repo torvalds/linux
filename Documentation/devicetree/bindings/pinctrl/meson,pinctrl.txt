@@ -1,6 +1,6 @@
 == Amlogic Meson pinmux controller ==
 
-Required properties for the root node:
+Required properties for the root yesde:
  - compatible: one of "amlogic,meson8-cbus-pinctrl"
 		      "amlogic,meson8b-cbus-pinctrl"
 		      "amlogic,meson8m2-cbus-pinctrl"
@@ -18,37 +18,37 @@ Required properties for the root node:
 		      "amlogic,meson-a1-periphs-pinctrl"
  - reg: address and size of registers controlling irq functionality
 
-=== GPIO sub-nodes ===
+=== GPIO sub-yesdes ===
 
-The GPIO bank for the controller is represented as a sub-node and it acts as a
+The GPIO bank for the controller is represented as a sub-yesde and it acts as a
 GPIO controller.
 
-Required properties for sub-nodes are:
+Required properties for sub-yesdes are:
  - reg: should contain a list of address and size, one tuple for each entry
    in reg-names.
  - reg-names: an array of strings describing the "reg" entries.
    Must contain "mux" and "gpio".
    May contain "pull", "pull-enable" and "ds" when appropriate.
- - gpio-controller: identifies the node as a gpio controller
+ - gpio-controller: identifies the yesde as a gpio controller
  - #gpio-cells: must be 2
 
-=== Other sub-nodes ===
+=== Other sub-yesdes ===
 
-Child nodes without the "gpio-controller" represent some desired
-configuration for a pin or a group. Those nodes can be pinmux nodes or
-configuration nodes.
+Child yesdes without the "gpio-controller" represent some desired
+configuration for a pin or a group. Those yesdes can be pinmux yesdes or
+configuration yesdes.
 
-Required properties for pinmux nodes are:
+Required properties for pinmux yesdes are:
  - groups: a list of pinmux groups. The list of all available groups
    depends on the SoC and can be found in driver sources.
  - function: the name of a function to activate for the specified set
    of groups. The list of all available functions depends on the SoC
    and can be found in driver sources.
 
-Required properties for configuration nodes:
+Required properties for configuration yesdes:
  - pins: a list of pin names
 
-Configuration nodes support the following generic properties, as
+Configuration yesdes support the following generic properties, as
 described in file pinctrl-bindings.txt:
  - "bias-disable"
  - "bias-pull-up"

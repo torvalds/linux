@@ -68,7 +68,7 @@ static int regulator_haptic_set_voltage(struct regulator_haptic *haptic,
 				      intensity + haptic->min_volt,
 				      haptic->max_volt);
 	if (error) {
-		dev_err(haptic->dev, "cannot set regulator voltage to %d: %d\n",
+		dev_err(haptic->dev, "canyest set regulator voltage to %d: %d\n",
 			intensity + haptic->min_volt, error);
 		return error;
 	}
@@ -116,24 +116,24 @@ static void regulator_haptic_close(struct input_dev *input)
 static int __maybe_unused
 regulator_haptic_parse_dt(struct device *dev, struct regulator_haptic *haptic)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int error;
 
-	node = dev->of_node;
-	if(!node) {
+	yesde = dev->of_yesde;
+	if(!yesde) {
 		dev_err(dev, "Missing device tree data\n");
 		return -EINVAL;
 	}
 
-	error = of_property_read_u32(node, "max-microvolt", &haptic->max_volt);
+	error = of_property_read_u32(yesde, "max-microvolt", &haptic->max_volt);
 	if (error) {
-		dev_err(dev, "cannot parse max-microvolt\n");
+		dev_err(dev, "canyest parse max-microvolt\n");
 		return error;
 	}
 
-	error = of_property_read_u32(node, "min-microvolt", &haptic->min_volt);
+	error = of_property_read_u32(yesde, "min-microvolt", &haptic->min_volt);
 	if (error) {
-		dev_err(dev, "cannot parse min-microvolt\n");
+		dev_err(dev, "canyest parse min-microvolt\n");
 		return error;
 	}
 

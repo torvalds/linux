@@ -15,7 +15,7 @@
 #define	__LIBCXGBI_H__
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/debugfs.h>
 #include <linux/list.h>
@@ -78,7 +78,7 @@ do {									\
 
 /*
  * For iscsi connections HW may inserts digest bytes into the pdu. Those digest
- * bytes are not sent by the host but are part of the TCP payload and therefore
+ * bytes are yest sent by the host but are part of the TCP payload and therefore
  * consume TCP sequence space.
  */
 static const unsigned int ulp2_extra_len[] = { 0, 4, 4, 8 };
@@ -461,7 +461,7 @@ struct cxgbi_ports_map {
 
 struct cxgbi_device {
 	struct list_head list_head;
-	struct list_head rcu_node;
+	struct list_head rcu_yesde;
 	unsigned int flags;
 	struct net_device **ports;
 	void *lldev;

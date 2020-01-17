@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/bindings/clock/qcom,rpmhcc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. RPMh Clocks Bindings
+title: Qualcomm Techyeslogies, Inc. RPMh Clocks Bindings
 
 maintainers:
   - Taniya Das <tdas@codeaurora.org>
 
 description: |
   Resource Power Manager Hardened (RPMh) manages shared resources on
-  some Qualcomm Technologies Inc. SoCs. It accepts clock requests from
+  some Qualcomm Techyeslogies Inc. SoCs. It accepts clock requests from
   other hardware subsystems via RSC to control clocks.
 
 properties:
@@ -36,8 +36,8 @@ required:
   - '#clock-cells'
 
 examples:
-  # Example for GCC for SDM845: The below node should be defined inside
-  # &apps_rsc node.
+  # Example for GCC for SDM845: The below yesde should be defined inside
+  # &apps_rsc yesde.
   - |
     #include <dt-bindings/clock/qcom,rpmh.h>
     rpmhcc: clock-controller {

@@ -4,7 +4,7 @@
 source "../../../../net/forwarding/devlink_lib.sh"
 
 if [ "$DEVLINK_VIDDID" != "15b3:cb84" ]; then
-	echo "SKIP: test is tailored for Mellanox Spectrum"
+	echo "SKIP: test is tailored for Mellayesx Spectrum"
 	exit 1
 fi
 
@@ -114,6 +114,6 @@ devlink_sp_resource_kvd_profile_set()
 		devlink_reload
 		;;
 	*)
-		check_err 1 "Unknown profile $profile"
+		check_err 1 "Unkyeswn profile $profile"
 	esac
 }

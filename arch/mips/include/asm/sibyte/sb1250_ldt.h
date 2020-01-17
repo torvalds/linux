@@ -33,8 +33,8 @@
 #define R_LDT_TYPE1_CMDSTATUS	0x0004
 #define R_LDT_TYPE1_CLASSREV	0x0008
 #define R_LDT_TYPE1_DEVHDR	0x000C
-#define R_LDT_TYPE1_BAR0	0x0010	/* not used */
-#define R_LDT_TYPE1_BAR1	0x0014	/* not used */
+#define R_LDT_TYPE1_BAR0	0x0010	/* yest used */
+#define R_LDT_TYPE1_BAR1	0x0014	/* yest used */
 
 #define R_LDT_TYPE1_BUSID	0x0018	/* bus ID register */
 #define R_LDT_TYPE1_SECSTATUS	0x001C	/* secondary status / I/O base/limit */

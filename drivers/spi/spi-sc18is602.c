@@ -75,7 +75,7 @@ static int sc18is602_txrx(struct sc18is602 *hw, struct spi_message *msg,
 		hw->rindex = 0;
 	}
 	/*
-	 * We can not immediately send data to the chip, since each I2C message
+	 * We can yest immediately send data to the chip, since each I2C message
 	 * resembles a full SPI message (from CS active to CS inactive).
 	 * Enqueue messages up to the first read or until do_transfer is true.
 	 */
@@ -155,7 +155,7 @@ static int sc18is602_setup_transfer(struct sc18is602 *hw, u32 hz, u8 mode)
 	}
 
 	/*
-	 * Don't do anything if the control value did not change. The initial
+	 * Don't do anything if the control value did yest change. The initial
 	 * value of 0xff for hw->ctrl ensures that the correct mode will be set
 	 * with the first call to this function.
 	 */
@@ -223,7 +223,7 @@ static int sc18is602_setup(struct spi_device *spi)
 {
 	struct sc18is602 *hw = spi_master_get_devdata(spi->master);
 
-	/* SC18IS602 does not support CS2 */
+	/* SC18IS602 does yest support CS2 */
 	if (hw->id == sc18is602 && spi->chip_select == 2)
 		return -ENXIO;
 
@@ -234,7 +234,7 @@ static int sc18is602_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct sc18is602_platform_data *pdata = dev_get_platdata(dev);
 	struct sc18is602 *hw;
 	struct spi_master *master;
@@ -262,7 +262,7 @@ static int sc18is602_probe(struct i2c_client *client,
 	hw->dev = dev;
 	hw->ctrl = 0xff;
 
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		hw->id = (enum chips)of_device_get_match_data(&client->dev);
 	else
 		hw->id = id->driver_data;
@@ -294,7 +294,7 @@ static int sc18is602_probe(struct i2c_client *client,
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->setup = sc18is602_setup;
 	master->transfer_one_message = sc18is602_transfer_one;
-	master->dev.of_node = np;
+	master->dev.of_yesde = np;
 	master->min_speed_hz = hw->freq / 128;
 	master->max_speed_hz = hw->freq / 4;
 

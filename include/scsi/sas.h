@@ -704,7 +704,7 @@ struct smp_resp {
 } __attribute__ ((packed));
 
 #else
-#error "Bitfield order not defined!"
+#error "Bitfield order yest defined!"
 #endif
 
 #endif /* _SAS_H_ */

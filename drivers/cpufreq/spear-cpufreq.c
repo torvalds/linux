@@ -68,8 +68,8 @@ static struct clk *spear1340_cpu_get_possible_parent(unsigned long newfreq)
 }
 
 /*
- * In SPEAr1340, we cannot use newfreq directly because we need to actually
- * access a source clock (clk) which might not be ancestor of cpu at present.
+ * In SPEAr1340, we canyest use newfreq directly because we need to actually
+ * access a source clock (clk) which might yest be ancestor of cpu at present.
  * Hence in SPEAr1340 we would operate on source clock directly before switching
  * cpu clock to it.
  */
@@ -170,15 +170,15 @@ static struct cpufreq_driver spear_cpufreq_driver = {
 
 static int spear_cpufreq_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct property *prop;
 	struct cpufreq_frequency_table *freq_tbl;
 	const __be32 *val;
 	int cnt, i, ret;
 
-	np = of_cpu_device_node_get(0);
+	np = of_cpu_device_yesde_get(0);
 	if (!np) {
-		pr_err("No cpu node found\n");
+		pr_err("No cpu yesde found\n");
 		return -ENODEV;
 	}
 
@@ -190,7 +190,7 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
 	if (!prop || !prop->value) {
 		pr_err("Invalid cpufreq_tbl\n");
 		ret = -ENODEV;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	cnt = prop->length / sizeof(u32);
@@ -199,7 +199,7 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
 	freq_tbl = kcalloc(cnt + 1, sizeof(*freq_tbl), GFP_KERNEL);
 	if (!freq_tbl) {
 		ret = -ENOMEM;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	for (i = 0; i < cnt; i++)
@@ -209,7 +209,7 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
 
 	spear_cpufreq.freq_tbl = freq_tbl;
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	spear_cpufreq.clk = clk_get(NULL, "cpu_clk");
 	if (IS_ERR(spear_cpufreq.clk)) {
@@ -229,8 +229,8 @@ out_put_mem:
 	kfree(freq_tbl);
 	return ret;
 
-out_put_node:
-	of_node_put(np);
+out_put_yesde:
+	of_yesde_put(np);
 	return ret;
 }
 

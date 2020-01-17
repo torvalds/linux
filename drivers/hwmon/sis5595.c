@@ -6,7 +6,7 @@
  * Copyright (C) 1998 - 2001 Frodo Looijaard <frodol@dds.nl>,
  *			     Kyösti Mälkki <kmalkki@cc.hut.fi>, and
  *			     Mark D. Studebaker <mdsxyz123@yahoo.com>
- * Ported to Linux 2.6 by Aurelien Jarno <aurelien@aurel32.net> with
+ * Ported to Linux 2.6 by Aurelien Jaryes <aurelien@aurel32.net> with
  * the help of Jean Delvare <jdelvare@suse.de>
  */
 
@@ -446,7 +446,7 @@ static ssize_t fan_div_store(struct device *dev, struct device_attribute *da,
 		break;
 	default:
 		dev_err(dev,
-			"fan_div value %ld not supported. Choose one of 1, 2, 4 or 8!\n",
+			"fan_div value %ld yest supported. Choose one of 1, 2, 4 or 8!\n",
 			val);
 		mutex_unlock(&data->update_lock);
 		return -EINVAL;
@@ -603,7 +603,7 @@ static int sis5595_probe(struct platform_device *pdev)
 	if (data->revision >= REV2MIN) {
 		pci_read_config_byte(s_bridge, SIS5595_PIN_REG, &val);
 		if (!(val & 0x80))
-			/* 5 voltages, no temps */
+			/* 5 voltages, yes temps */
 			data->maxins = 4;
 	}
 
@@ -834,7 +834,7 @@ static int sis5595_pci_probe(struct pci_dev *dev,
 	address &= ~(SIS5595_EXTENT - 1);
 	if (!address) {
 		dev_err(&dev->dev,
-			"Base address not set - upgrade BIOS or use force_addr=0xaddr\n");
+			"Base address yest set - upgrade BIOS or use force_addr=0xaddr\n");
 		return -ENODEV;
 	}
 	if (force_addr && address != force_addr) {
@@ -907,7 +907,7 @@ static void __exit sm_sis5595_exit(void)
 	}
 }
 
-MODULE_AUTHOR("Aurelien Jarno <aurelien@aurel32.net>");
+MODULE_AUTHOR("Aurelien Jaryes <aurelien@aurel32.net>");
 MODULE_DESCRIPTION("SiS 5595 Sensor device");
 MODULE_LICENSE("GPL");
 

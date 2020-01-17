@@ -11,7 +11,7 @@ Contact:	linux-i3c@vger.kernel.org
 Description:
 		Expose the master that owns the bus (<bus-id>-<master-pid>) at
 		the time this file is read. Note that bus ownership can change
-		overtime, so there's no guarantee that when the read() call
+		overtime, so there's yes guarantee that when the read() call
 		returns, the value returned is still valid.
 
 What:		/sys/bus/i3c/devices/i3c-<bus-id>/mode

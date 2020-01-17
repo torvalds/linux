@@ -36,9 +36,9 @@ struct fixed_phy {
 	struct phy_device *phydev;
 	seqcount_t seqcount;
 	struct fixed_phy_status status;
-	bool no_carrier;
+	bool yes_carrier;
 	int (*link_update)(struct net_device *, struct fixed_phy_status *);
-	struct list_head node;
+	struct list_head yesde;
 	struct gpio_desc *link_gpiod;
 };
 
@@ -56,9 +56,9 @@ int fixed_phy_change_carrier(struct net_device *dev, bool new_carrier)
 	if (!phydev || !phydev->mdio.bus)
 		return -EINVAL;
 
-	list_for_each_entry(fp, &fmb->phys, node) {
+	list_for_each_entry(fp, &fmb->phys, yesde) {
 		if (fp->addr == phydev->mdio.addr) {
-			fp->no_carrier = !new_carrier;
+			fp->yes_carrier = !new_carrier;
 			return 0;
 		}
 	}
@@ -68,7 +68,7 @@ EXPORT_SYMBOL_GPL(fixed_phy_change_carrier);
 
 static void fixed_phy_update(struct fixed_phy *fp)
 {
-	if (!fp->no_carrier && fp->link_gpiod)
+	if (!fp->yes_carrier && fp->link_gpiod)
 		fp->status.link = !!gpiod_get_value_cansleep(fp->link_gpiod);
 }
 
@@ -77,14 +77,14 @@ static int fixed_mdio_read(struct mii_bus *bus, int phy_addr, int reg_num)
 	struct fixed_mdio_bus *fmb = bus->priv;
 	struct fixed_phy *fp;
 
-	list_for_each_entry(fp, &fmb->phys, node) {
+	list_for_each_entry(fp, &fmb->phys, yesde) {
 		if (fp->addr == phy_addr) {
 			struct fixed_phy_status state;
 			int s;
 
 			do {
 				s = read_seqcount_begin(&fp->seqcount);
-				fp->status.link = !fp->no_carrier;
+				fp->status.link = !fp->yes_carrier;
 				/* Issue callback if user registered it. */
 				if (fp->link_update)
 					fp->link_update(fp->phydev->attached_dev,
@@ -122,7 +122,7 @@ int fixed_phy_set_link_update(struct phy_device *phydev,
 	if (!phydev || !phydev->mdio.bus)
 		return -EINVAL;
 
-	list_for_each_entry(fp, &fmb->phys, node) {
+	list_for_each_entry(fp, &fmb->phys, yesde) {
 		if (fp->addr == phydev->mdio.addr) {
 			fp->link_update = link_update;
 			fp->phydev = phydev;
@@ -161,7 +161,7 @@ static int fixed_phy_add_gpiod(unsigned int irq, int phy_addr,
 
 	fixed_phy_update(fp);
 
-	list_add_tail(&fp->node, &fmb->phys);
+	list_add_tail(&fp->yesde, &fmb->phys);
 
 	return 0;
 }
@@ -180,9 +180,9 @@ static void fixed_phy_del(int phy_addr)
 	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct fixed_phy *fp, *tmp;
 
-	list_for_each_entry_safe(fp, tmp, &fmb->phys, node) {
+	list_for_each_entry_safe(fp, tmp, &fmb->phys, yesde) {
 		if (fp->addr == phy_addr) {
-			list_del(&fp->node);
+			list_del(&fp->yesde);
 			if (fp->link_gpiod)
 				gpiod_put(fp->link_gpiod);
 			kfree(fp);
@@ -193,40 +193,40 @@ static void fixed_phy_del(int phy_addr)
 }
 
 #ifdef CONFIG_OF_GPIO
-static struct gpio_desc *fixed_phy_get_gpiod(struct device_node *np)
+static struct gpio_desc *fixed_phy_get_gpiod(struct device_yesde *np)
 {
-	struct device_node *fixed_link_node;
+	struct device_yesde *fixed_link_yesde;
 	struct gpio_desc *gpiod;
 
 	if (!np)
 		return NULL;
 
-	fixed_link_node = of_get_child_by_name(np, "fixed-link");
-	if (!fixed_link_node)
+	fixed_link_yesde = of_get_child_by_name(np, "fixed-link");
+	if (!fixed_link_yesde)
 		return NULL;
 
 	/*
-	 * As the fixed link is just a device tree node without any
+	 * As the fixed link is just a device tree yesde without any
 	 * Linux device associated with it, we simply have obtain
 	 * the GPIO descriptor from the device tree like this.
 	 */
-	gpiod = gpiod_get_from_of_node(fixed_link_node, "link-gpios", 0,
+	gpiod = gpiod_get_from_of_yesde(fixed_link_yesde, "link-gpios", 0,
 				       GPIOD_IN, "mdio");
-	of_node_put(fixed_link_node);
+	of_yesde_put(fixed_link_yesde);
 	if (IS_ERR(gpiod)) {
 		if (PTR_ERR(gpiod) == -EPROBE_DEFER)
 			return gpiod;
 
 		if (PTR_ERR(gpiod) != -ENOENT)
 			pr_err("error getting GPIO for fixed link %pOF, proceed without\n",
-			       fixed_link_node);
+			       fixed_link_yesde);
 		gpiod = NULL;
 	}
 
 	return gpiod;
 }
 #else
-static struct gpio_desc *fixed_phy_get_gpiod(struct device_node *np)
+static struct gpio_desc *fixed_phy_get_gpiod(struct device_yesde *np)
 {
 	return NULL;
 }
@@ -234,7 +234,7 @@ static struct gpio_desc *fixed_phy_get_gpiod(struct device_node *np)
 
 static struct phy_device *__fixed_phy_register(unsigned int irq,
 					       struct fixed_phy_status *status,
-					       struct device_node *np,
+					       struct device_yesde *np,
 					       struct gpio_desc *gpiod)
 {
 	struct fixed_mdio_bus *fmb = &platform_fmb;
@@ -278,8 +278,8 @@ static struct phy_device *__fixed_phy_register(unsigned int irq,
 		phy->asym_pause = status->asym_pause;
 	}
 
-	of_node_get(np);
-	phy->mdio.dev.of_node = np;
+	of_yesde_get(np);
+	phy->mdio.dev.of_yesde = np;
 	phy->is_pseudo_fixed_link = true;
 
 	switch (status->speed) {
@@ -308,7 +308,7 @@ static struct phy_device *__fixed_phy_register(unsigned int irq,
 	ret = phy_device_register(phy);
 	if (ret) {
 		phy_device_free(phy);
-		of_node_put(np);
+		of_yesde_put(np);
 		fixed_phy_del(phy_addr);
 		return ERR_PTR(ret);
 	}
@@ -318,7 +318,7 @@ static struct phy_device *__fixed_phy_register(unsigned int irq,
 
 struct phy_device *fixed_phy_register(unsigned int irq,
 				      struct fixed_phy_status *status,
-				      struct device_node *np)
+				      struct device_yesde *np)
 {
 	return __fixed_phy_register(irq, status, np, NULL);
 }
@@ -336,7 +336,7 @@ EXPORT_SYMBOL_GPL(fixed_phy_register_with_gpiod);
 void fixed_phy_unregister(struct phy_device *phy)
 {
 	phy_device_remove(phy);
-	of_node_put(phy->mdio.dev.of_node);
+	of_yesde_put(phy->mdio.dev.of_yesde);
 	fixed_phy_del(phy->mdio.addr);
 }
 EXPORT_SYMBOL_GPL(fixed_phy_unregister);
@@ -386,8 +386,8 @@ static void __exit fixed_mdio_bus_exit(void)
 	mdiobus_free(fmb->mii_bus);
 	platform_device_unregister(pdev);
 
-	list_for_each_entry_safe(fp, tmp, &fmb->phys, node) {
-		list_del(&fp->node);
+	list_for_each_entry_safe(fp, tmp, &fmb->phys, yesde) {
+		list_del(&fp->yesde);
 		kfree(fp);
 	}
 	ida_destroy(&phy_fixed_ida);

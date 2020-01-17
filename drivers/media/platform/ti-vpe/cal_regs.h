@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2015 Texas Instruments Inc.
  *
- * Benoit Parrot, <bparrot@ti.com>
+ * Beyesit Parrot, <bparrot@ti.com>
  */
 
 #ifndef __TI_CAL_REGS_H

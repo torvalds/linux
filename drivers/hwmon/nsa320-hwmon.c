@@ -187,7 +187,7 @@ static int nsa320_hwmon_probe(struct platform_device *pdev)
 
 }
 
-/* All allocations use devres so remove() is not needed. */
+/* All allocations use devres so remove() is yest needed. */
 
 static struct platform_driver nsa320_hwmon_driver = {
 	.probe = nsa320_hwmon_probe,

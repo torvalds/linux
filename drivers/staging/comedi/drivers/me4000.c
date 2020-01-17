@@ -22,10 +22,10 @@
  *	- Digital I/O
  *	- Counter
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: yest applicable, uses PCI auto config
  *
  * The firmware required by these boards is available in the
- * comedi_nonfree_firmware tarball available from
+ * comedi_yesnfree_firmware tarball available from
  * http://www.comedi.org.
  */
 
@@ -369,8 +369,8 @@ static int me4000_xilinx_download(struct comedi_device *dev,
 	/* If done flag is high download was successful */
 	val = inl(devpriv->plx_regbase + PLX9052_CNTRL);
 	if (!(val & PLX9052_CNTRL_UIO0_DATA)) {
-		dev_err(dev->class_dev, "DONE flag is not set\n");
-		dev_err(dev->class_dev, "Download not successful\n");
+		dev_err(dev->class_dev, "DONE flag is yest set\n");
+		dev_err(dev->class_dev, "Download yest successful\n");
 		return -EIO;
 	}
 
@@ -473,7 +473,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 	if (aref == AREF_DIFF) {
 		if (!(s->subdev_flags & SDF_DIFF)) {
 			dev_err(dev->class_dev,
-				"Differential inputs are not available\n");
+				"Differential inputs are yest available\n");
 			return -EINVAL;
 		}
 
@@ -485,7 +485,7 @@ static int me4000_ai_insn_read(struct comedi_device *dev,
 
 		if (chan >= (s->n_chan / 2)) {
 			dev_err(dev->class_dev,
-				"Analog input is not available\n");
+				"Analog input is yest available\n");
 			return -EINVAL;
 		}
 		entry |= ME4000_AI_LIST_INPUT_DIFFERENTIAL;
@@ -545,14 +545,14 @@ static int me4000_ai_check_chanlist(struct comedi_device *dev,
 
 		if (aref != aref0) {
 			dev_dbg(dev->class_dev,
-				"Mode is not equal for all entries\n");
+				"Mode is yest equal for all entries\n");
 			return -EINVAL;
 		}
 
 		if (aref == AREF_DIFF) {
 			if (!(s->subdev_flags & SDF_DIFF)) {
 				dev_err(dev->class_dev,
-					"Differential inputs are not available\n");
+					"Differential inputs are yest available\n");
 				return -EINVAL;
 			}
 
@@ -564,7 +564,7 @@ static int me4000_ai_check_chanlist(struct comedi_device *dev,
 
 			if (!comedi_range_is_bipolar(s, range)) {
 				dev_dbg(dev->class_dev,
-					"Bipolar is not selected in differential mode\n");
+					"Bipolar is yest selected in differential mode\n");
 				return -EINVAL;
 			}
 		}

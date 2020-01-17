@@ -15,11 +15,11 @@ a pending enabled interrupt and then release it once it has been handled.
 
 Each interrupt has a configurable priority.  Higher priority interrupts are
 serviced first.  Each context can specify a priority threshold. Interrupts
-with priority below this threshold will not cause the PLIC to raise its
+with priority below this threshold will yest cause the PLIC to raise its
 interrupt line leading to the context.
 
 While the PLIC supports both edge-triggered and level-triggered interrupts,
-interrupt handlers are oblivious to this distinction and therefore it is not
+interrupt handlers are oblivious to this distinction and therefore it is yest
 specified in the PLIC device-tree binding.
 
 While the RISC-V ISA doesn't specify a memory layout for the PLIC, the
@@ -32,11 +32,11 @@ Required properties:
   detailed implementation in case that specific bugs need to be worked around.
 - #address-cells : should be <0> or more.
 - #interrupt-cells : should be <1> or more.
-- interrupt-controller : Identifies the node as an interrupt controller.
+- interrupt-controller : Identifies the yesde as an interrupt controller.
 - reg : Should contain 1 register range (address and length).
 - interrupts-extended : Specifies which contexts are connected to the PLIC,
-  with "-1" specifying that a context is not present.  Each node pointed
-  to should be a riscv,cpu-intc node, which has a riscv node as parent.
+  with "-1" specifying that a context is yest present.  Each yesde pointed
+  to should be a riscv,cpu-intc yesde, which has a riscv yesde as parent.
 - riscv,ndev: Specifies how many external interrupts are supported by
   this controller.
 

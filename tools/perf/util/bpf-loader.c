@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include "debug.h"
 #include "evlist.h"
@@ -173,7 +173,7 @@ static int
 prog_config__inlines(const char *value,
 		     struct perf_probe_event *pev __maybe_unused)
 {
-	return prog_config__bool(value, &probe_conf.no_inlines, true);
+	return prog_config__bool(value, &probe_conf.yes_inlines, true);
 }
 
 static int
@@ -203,13 +203,13 @@ static struct {
 	},
 	{
 		.key	= "inlines",
-		.usage	= "inlines=[yes|no]        ",
+		.usage	= "inlines=[no|yes]        ",
 		.desc	= "Probe at inline symbol",
 		.func	= prog_config__inlines,
 	},
 	{
 		.key	= "force",
-		.usage	= "force=[yes|no]          ",
+		.usage	= "force=[no|yes]          ",
 		.desc	= "Forcibly add events with existing name",
 		.func	= prog_config__force,
 	},
@@ -247,7 +247,7 @@ parse_prog_config_kvpair(const char *config_str, struct perf_probe_event *pev)
 	int err = 0;
 
 	if (!text) {
-		pr_debug("Not enough memory: dup config_str failed\n");
+		pr_debug("Not eyesugh memory: dup config_str failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -295,7 +295,7 @@ parse_prog_config(const char *config_str, const char **p_main_str,
 		const char *s = strchr(main_str, ':');
 
 		if (!s) {
-			pr_debug("bpf: '%s' is not a valid tracepoint\n",
+			pr_debug("bpf: '%s' is yest a valid tracepoint\n",
 				 config_str);
 			return -BPF_LOADER_ERRNO__CONFIG;
 		}
@@ -307,7 +307,7 @@ parse_prog_config(const char *config_str, const char **p_main_str,
 	*is_tp = false;
 	err = parse_perf_probe_command(main_str, pev);
 	if (err < 0) {
-		pr_debug("bpf: '%s' is not a valid config string\n",
+		pr_debug("bpf: '%s' is yest a valid config string\n",
 			 config_str);
 		/* parse failed, don't need clear pev. */
 		return -BPF_LOADER_ERRNO__CONFIG;
@@ -325,7 +325,7 @@ config_bpf_program(struct bpf_program *prog)
 	int err;
 
 	/* Initialize per-program probing setting */
-	probe_conf.no_inlines = false;
+	probe_conf.yes_inlines = false;
 	probe_conf.force_add = false;
 
 	config_str = bpf_program__title(prog, false);
@@ -356,7 +356,7 @@ config_bpf_program(struct bpf_program *prog)
 	}
 
 	if (pev->group && strcmp(pev->group, PERF_BPF_PROBE_GROUP)) {
-		pr_debug("bpf: '%s': group for event is set and not '%s'.\n",
+		pr_debug("bpf: '%s': group for event is set and yest '%s'.\n",
 			 config_str, PERF_BPF_PROBE_GROUP);
 		err = -BPF_LOADER_ERRNO__GROUP;
 		goto errout;
@@ -441,7 +441,7 @@ preproc_gen_prologue(struct bpf_program *prog, int n,
 	}
 
 	if (i >= pev->ntevs) {
-		pr_debug("Internal error: prologue type %d not found\n", n);
+		pr_debug("Internal error: prologue type %d yest found\n", n);
 		return -BPF_LOADER_ERRNO__PROLOGUE;
 	}
 
@@ -456,7 +456,7 @@ preproc_gen_prologue(struct bpf_program *prog, int n,
 
 		title = bpf_program__title(prog, false);
 		if (!title)
-			title = "[unknown]";
+			title = "[unkyeswn]";
 
 		pr_debug("Failed to generate prologue for program %s\n",
 			 title);
@@ -537,7 +537,7 @@ static int map_prologue(struct perf_probe_event *pev, int *mapping,
 
 	ptevs = malloc(array_sz);
 	if (!ptevs) {
-		pr_debug("Not enough memory: alloc ptevs failed\n");
+		pr_debug("Not eyesugh memory: alloc ptevs failed\n");
 		return -ENOMEM;
 	}
 
@@ -610,13 +610,13 @@ static int hook_load_preprocessor(struct bpf_program *prog)
 	priv->need_prologue = true;
 	priv->insns_buf = malloc(sizeof(struct bpf_insn) * BPF_MAXINSNS);
 	if (!priv->insns_buf) {
-		pr_debug("Not enough memory: alloc insns_buf failed\n");
+		pr_debug("Not eyesugh memory: alloc insns_buf failed\n");
 		return -ENOMEM;
 	}
 
 	priv->type_mapping = malloc(sizeof(int) * pev->ntevs);
 	if (!priv->type_mapping) {
-		pr_debug("Not enough memory: alloc type_mapping failed\n");
+		pr_debug("Not eyesugh memory: alloc type_mapping failed\n");
 		return -ENOMEM;
 	}
 	memset(priv->type_mapping, -1,
@@ -872,7 +872,7 @@ bpf_map_op_setkey(struct bpf_map_op *op, struct parse_events_term *term)
 
 		op->k.array.ranges = memdup(term->array.ranges, memsz);
 		if (!op->k.array.ranges) {
-			pr_debug("Not enough memory to alloc indices for map\n");
+			pr_debug("Not eyesugh memory to alloc indices for map\n");
 			return -ENOMEM;
 		}
 		op->key_type = BPF_MAP_KEY_RANGES;
@@ -937,7 +937,7 @@ bpf_map_priv__clone(struct bpf_map_priv *priv)
 
 	newpriv = zalloc(sizeof(*newpriv));
 	if (!newpriv) {
-		pr_debug("Not enough memory to alloc map private\n");
+		pr_debug("Not eyesugh memory to alloc map private\n");
 		return NULL;
 	}
 	INIT_LIST_HEAD(&newpriv->ops_list);
@@ -968,7 +968,7 @@ bpf_map__add_op(struct bpf_map *map, struct bpf_map_op *op)
 	if (!priv) {
 		priv = zalloc(sizeof(*priv));
 		if (!priv) {
-			pr_debug("Not enough memory to alloc map private\n");
+			pr_debug("Not eyesugh memory to alloc map private\n");
 			return -ENOMEM;
 		}
 		INIT_LIST_HEAD(&priv->ops_list);
@@ -1016,7 +1016,7 @@ __bpf_map__config_value(struct bpf_map *map,
 	}
 
 	if (def->type != BPF_MAP_TYPE_ARRAY) {
-		pr_debug("Map %s type is not BPF_MAP_TYPE_ARRAY\n",
+		pr_debug("Map %s type is yest BPF_MAP_TYPE_ARRAY\n",
 			 map_name);
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE;
 	}
@@ -1049,7 +1049,7 @@ bpf_map__config_value(struct bpf_map *map,
 		      struct evlist *evlist __maybe_unused)
 {
 	if (!term->err_val) {
-		pr_debug("Config value not set\n");
+		pr_debug("Config value yest set\n");
 		return -BPF_LOADER_ERRNO__OBJCONF_CONF;
 	}
 
@@ -1090,7 +1090,7 @@ __bpf_map__config_event(struct bpf_map *map,
 	 * kernel has already checked them.
 	 */
 	if (def->type != BPF_MAP_TYPE_PERF_EVENT_ARRAY) {
-		pr_debug("Map %s type is not BPF_MAP_TYPE_PERF_EVENT_ARRAY\n",
+		pr_debug("Map %s type is yest BPF_MAP_TYPE_PERF_EVENT_ARRAY\n",
 			 map_name);
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_TYPE;
 	}
@@ -1109,7 +1109,7 @@ bpf_map__config_event(struct bpf_map *map,
 		      struct evlist *evlist)
 {
 	if (!term->err_val) {
-		pr_debug("Config value not set\n");
+		pr_debug("Config value yest set\n");
 		return -BPF_LOADER_ERRNO__OBJCONF_CONF;
 	}
 
@@ -1321,7 +1321,7 @@ bpf_map_config_foreach_key(struct bpf_map *map,
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
 	if (!priv || list_empty(&priv->ops_list)) {
-		pr_debug("INFO: nothing to config for map %s\n", name);
+		pr_debug("INFO: yesthing to config for map %s\n", name);
 		return 0;
 	}
 
@@ -1397,8 +1397,8 @@ apply_config_value_for_key(int map_fd, void *pkey,
 		pr_debug("ERROR: invalid value size\n");
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_VALUESIZE;
 	}
-	if (err && errno)
-		err = -errno;
+	if (err && erryes)
+		err = -erryes;
 	return err;
 }
 
@@ -1414,7 +1414,7 @@ apply_config_evsel_for_key(const char *name, int map_fd, void *pkey,
 	int err;
 
 	if (!xy) {
-		pr_debug("ERROR: evsel not ready for map %s\n", name);
+		pr_debug("ERROR: evsel yest ready for map %s\n", name);
 		return -BPF_LOADER_ERRNO__INTERNAL;
 	}
 
@@ -1444,14 +1444,14 @@ apply_config_evsel_for_key(const char *name, int map_fd, void *pkey,
 	events = xy->entries / (xy->row_size / xy->entry_size);
 	key = *((unsigned int *)pkey);
 	if (key >= events) {
-		pr_debug("ERROR: there is no event %d for map %s\n",
+		pr_debug("ERROR: there is yes event %d for map %s\n",
 			 key, name);
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_MAPSIZE;
 	}
 	evt_fd = xyarray__entry(xy, key, 0);
 	err = bpf_map_update_elem(map_fd, pkey, evt_fd, BPF_ANY);
-	if (err && errno)
-		err = -errno;
+	if (err && erryes)
+		err = -erryes;
 	return err;
 }
 
@@ -1474,7 +1474,7 @@ apply_obj_config_map_for_key(const char *name, int map_fd,
 						 op->v.evsel);
 		break;
 	default:
-		pr_debug("ERROR: unknown value type for '%s'\n", name);
+		pr_debug("ERROR: unkyeswn value type for '%s'\n", name);
 		err = -BPF_LOADER_ERRNO__INTERNAL;
 	}
 	return err;
@@ -1557,7 +1557,7 @@ struct evsel *bpf__setup_output_event(struct evlist *evlist, const char *name)
 	if (!tmpl_priv) {
 		char *event_definition = NULL;
 
-		if (asprintf(&event_definition, "bpf-output/no-inherit=1,name=%s/", name) < 0)
+		if (asprintf(&event_definition, "bpf-output/yes-inherit=1,name=%s/", name) < 0)
 			return ERR_PTR(-ENOMEM);
 
 		err = parse_events(evlist, event_definition, NULL);
@@ -1624,14 +1624,14 @@ static const char *bpf_loader_strerror_table[NR_ERRNO] = {
 	[ERRCODE_OFFSET(PROLOGUE2BIG)]	= "Prologue too big for program",
 	[ERRCODE_OFFSET(PROLOGUEOOB)]	= "Offset out of bound for prologue",
 	[ERRCODE_OFFSET(OBJCONF_OPT)]	= "Invalid object config option",
-	[ERRCODE_OFFSET(OBJCONF_CONF)]	= "Config value not set (missing '=')",
+	[ERRCODE_OFFSET(OBJCONF_CONF)]	= "Config value yest set (missing '=')",
 	[ERRCODE_OFFSET(OBJCONF_MAP_OPT)]	= "Invalid object map config option",
 	[ERRCODE_OFFSET(OBJCONF_MAP_NOTEXIST)]	= "Target map doesn't exist",
 	[ERRCODE_OFFSET(OBJCONF_MAP_VALUE)]	= "Incorrect value type for map",
 	[ERRCODE_OFFSET(OBJCONF_MAP_TYPE)]	= "Incorrect map type",
 	[ERRCODE_OFFSET(OBJCONF_MAP_KEYSIZE)]	= "Incorrect map key size",
 	[ERRCODE_OFFSET(OBJCONF_MAP_VALUESIZE)]	= "Incorrect map value size",
-	[ERRCODE_OFFSET(OBJCONF_MAP_NOEVT)]	= "Event not found for map setting",
+	[ERRCODE_OFFSET(OBJCONF_MAP_NOEVT)]	= "Event yest found for map setting",
 	[ERRCODE_OFFSET(OBJCONF_MAP_MAPSIZE)]	= "Invalid map size for event setting",
 	[ERRCODE_OFFSET(OBJCONF_MAP_EVTDIM)]	= "Event dimension too large",
 	[ERRCODE_OFFSET(OBJCONF_MAP_EVTINH)]	= "Doesn't support inherit event",
@@ -1661,7 +1661,7 @@ bpf_loader_strerror(int err, char *buf, size_t size)
 	}
 
 	if (err >= __BPF_LOADER_ERRNO__END)
-		snprintf(buf, size, "Unknown bpf loader error %d", err);
+		snprintf(buf, size, "Unkyeswn bpf loader error %d", err);
 	else
 		snprintf(buf, size, "%s",
 			 str_error_r(err, sbuf, sizeof(sbuf)));
@@ -1721,7 +1721,7 @@ int bpf__strerror_probe(struct bpf_object *obj __maybe_unused,
 		scnprintf(buf, size, "%s (add -v to see detail)", emsg);
 		break;
 	}
-	bpf__strerror_entry(EEXIST, "Probe point exist. Try 'perf probe -d \"*\"' and set 'force=yes'");
+	bpf__strerror_entry(EEXIST, "Probe point exist. Try 'perf probe -d \"*\"' and set 'force=no'");
 	bpf__strerror_entry(EACCES, "You need to be root");
 	bpf__strerror_entry(EPERM, "You need to be root, and /proc/sys/kernel/kptr_restrict should be 0");
 	bpf__strerror_entry(ENOENT, "You need to check probing points in BPF file");
@@ -1750,7 +1750,7 @@ int bpf__strerror_load(struct bpf_object *obj,
 			break;
 		}
 
-		scnprintf(buf, size, "Failed to load program for unknown reason");
+		scnprintf(buf, size, "Failed to load program for unkyeswn reason");
 		break;
 	}
 	bpf__strerror_end(buf, size);
@@ -1774,7 +1774,7 @@ int bpf__strerror_apply_obj_config(int err, char *buf, size_t size)
 {
 	bpf__strerror_head(err, buf, size);
 	bpf__strerror_entry(BPF_LOADER_ERRNO__OBJCONF_MAP_EVTDIM,
-			    "Cannot set event to BPF map in multi-thread tracing");
+			    "Canyest set event to BPF map in multi-thread tracing");
 	bpf__strerror_entry(BPF_LOADER_ERRNO__OBJCONF_MAP_EVTINH,
 			    "%s (Hint: use -i to turn off inherit)", emsg);
 	bpf__strerror_entry(BPF_LOADER_ERRNO__OBJCONF_MAP_EVTTYPE,

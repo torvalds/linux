@@ -20,8 +20,8 @@
 
 long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
-	struct ext2_inode_info *ei = EXT2_I(inode);
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct ext2_iyesde_info *ei = EXT2_I(iyesde);
 	unsigned int flags;
 	unsigned short rsv_window_size;
 	int ret;
@@ -39,7 +39,7 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (ret)
 			return ret;
 
-		if (!inode_owner_or_capable(inode)) {
+		if (!iyesde_owner_or_capable(iyesde)) {
 			ret = -EACCES;
 			goto setflags_out;
 		}
@@ -49,20 +49,20 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto setflags_out;
 		}
 
-		flags = ext2_mask_flags(inode->i_mode, flags);
+		flags = ext2_mask_flags(iyesde->i_mode, flags);
 
-		inode_lock(inode);
-		/* Is it quota file? Do not allow user to mess with it */
-		if (IS_NOQUOTA(inode)) {
-			inode_unlock(inode);
+		iyesde_lock(iyesde);
+		/* Is it quota file? Do yest allow user to mess with it */
+		if (IS_NOQUOTA(iyesde)) {
+			iyesde_unlock(iyesde);
 			ret = -EPERM;
 			goto setflags_out;
 		}
 		oldflags = ei->i_flags;
 
-		ret = vfs_ioc_setflags_prepare(inode, oldflags, flags);
+		ret = vfs_ioc_setflags_prepare(iyesde, oldflags, flags);
 		if (ret) {
-			inode_unlock(inode);
+			iyesde_unlock(iyesde);
 			goto setflags_out;
 		}
 
@@ -70,21 +70,21 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		flags |= oldflags & ~EXT2_FL_USER_MODIFIABLE;
 		ei->i_flags = flags;
 
-		ext2_set_inode_flags(inode);
-		inode->i_ctime = current_time(inode);
-		inode_unlock(inode);
+		ext2_set_iyesde_flags(iyesde);
+		iyesde->i_ctime = current_time(iyesde);
+		iyesde_unlock(iyesde);
 
-		mark_inode_dirty(inode);
+		mark_iyesde_dirty(iyesde);
 setflags_out:
 		mnt_drop_write_file(filp);
 		return ret;
 	}
 	case EXT2_IOC_GETVERSION:
-		return put_user(inode->i_generation, (int __user *) arg);
+		return put_user(iyesde->i_generation, (int __user *) arg);
 	case EXT2_IOC_SETVERSION: {
 		__u32 generation;
 
-		if (!inode_owner_or_capable(inode))
+		if (!iyesde_owner_or_capable(iyesde))
 			return -EPERM;
 		ret = mnt_want_write_file(filp);
 		if (ret)
@@ -94,30 +94,30 @@ setflags_out:
 			goto setversion_out;
 		}
 
-		inode_lock(inode);
-		inode->i_ctime = current_time(inode);
-		inode->i_generation = generation;
-		inode_unlock(inode);
+		iyesde_lock(iyesde);
+		iyesde->i_ctime = current_time(iyesde);
+		iyesde->i_generation = generation;
+		iyesde_unlock(iyesde);
 
-		mark_inode_dirty(inode);
+		mark_iyesde_dirty(iyesde);
 setversion_out:
 		mnt_drop_write_file(filp);
 		return ret;
 	}
 	case EXT2_IOC_GETRSVSZ:
-		if (test_opt(inode->i_sb, RESERVATION)
-			&& S_ISREG(inode->i_mode)
+		if (test_opt(iyesde->i_sb, RESERVATION)
+			&& S_ISREG(iyesde->i_mode)
 			&& ei->i_block_alloc_info) {
-			rsv_window_size = ei->i_block_alloc_info->rsv_window_node.rsv_goal_size;
+			rsv_window_size = ei->i_block_alloc_info->rsv_window_yesde.rsv_goal_size;
 			return put_user(rsv_window_size, (int __user *)arg);
 		}
 		return -ENOTTY;
 	case EXT2_IOC_SETRSVSZ: {
 
-		if (!test_opt(inode->i_sb, RESERVATION) ||!S_ISREG(inode->i_mode))
+		if (!test_opt(iyesde->i_sb, RESERVATION) ||!S_ISREG(iyesde->i_mode))
 			return -ENOTTY;
 
-		if (!inode_owner_or_capable(inode))
+		if (!iyesde_owner_or_capable(iyesde))
 			return -EACCES;
 
 		if (get_user(rsv_window_size, (int __user *)arg))
@@ -131,7 +131,7 @@ setversion_out:
 			rsv_window_size = EXT2_MAX_RESERVE_BLOCKS;
 
 		/*
-		 * need to allocate reservation structure for this inode
+		 * need to allocate reservation structure for this iyesde
 		 * before set the window size
 		 */
 		/*
@@ -140,10 +140,10 @@ setversion_out:
 		 */
 		mutex_lock(&ei->truncate_mutex);
 		if (!ei->i_block_alloc_info)
-			ext2_init_block_alloc_info(inode);
+			ext2_init_block_alloc_info(iyesde);
 
 		if (ei->i_block_alloc_info){
-			struct ext2_reserve_window_node *rsv = &ei->i_block_alloc_info->rsv_window_node;
+			struct ext2_reserve_window_yesde *rsv = &ei->i_block_alloc_info->rsv_window_yesde;
 			rsv->rsv_goal_size = rsv_window_size;
 		} else {
 			ret = -ENOMEM;

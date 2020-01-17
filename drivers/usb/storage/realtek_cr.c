@@ -269,7 +269,7 @@ static int rts51x_bulk_transport(struct us_data *us, u8 lun,
 	/* based on the status code, we report good or bad */
 	switch (bcs->Status) {
 	case US_BULK_STAT_OK:
-		/* command good -- note that data could be short */
+		/* command good -- yeste that data could be short */
 		return USB_STOR_TRANSPORT_GOOD;
 
 	case US_BULK_STAT_FAIL:
@@ -278,7 +278,7 @@ static int rts51x_bulk_transport(struct us_data *us, u8 lun,
 
 	case US_BULK_STAT_PHASE:
 		/*
-		 * phase error -- note that a transport reset will be
+		 * phase error -- yeste that a transport reset will be
 		 * invoked by the invoke_transport() function
 		 */
 		return USB_STOR_TRANSPORT_ERROR;
@@ -770,15 +770,15 @@ static void rts51x_suspend_timer_fn(struct timer_list *t)
 		if (atomic_read(&us->pusb_intf->dev.power.usage_count) > 0) {
 			usb_stor_dbg(us, "Ready to enter SS state\n");
 			rts51x_set_stat(chip, RTS51X_STAT_SS);
-			/* ignore mass storage interface's children */
-			pm_suspend_ignore_children(&us->pusb_intf->dev, true);
+			/* igyesre mass storage interface's children */
+			pm_suspend_igyesre_children(&us->pusb_intf->dev, true);
 			usb_autopm_put_interface_async(us->pusb_intf);
 			usb_stor_dbg(us, "RTS51X_STAT_SS 01, power.usage:%d\n",
 				     atomic_read(&us->pusb_intf->dev.power.usage_count));
 		}
 		break;
 	default:
-		usb_stor_dbg(us, "Unknown state !!!\n");
+		usb_stor_dbg(us, "Unkyeswn state !!!\n");
 		break;
 	}
 }
@@ -797,7 +797,7 @@ static void rts51x_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	struct rts51x_chip *chip = (struct rts51x_chip *)(us->extra);
 	static int card_first_show = 1;
-	static u8 media_not_present[] = { 0x70, 0, 0x02, 0, 0, 0, 0,
+	static u8 media_yest_present[] = { 0x70, 0, 0x02, 0, 0, 0, 0,
 		10, 0, 0, 0, 0, 0x3A, 0, 0, 0, 0, 0
 	};
 	static u8 invalid_cmd_field[] = { 0x70, 0, 0x05, 0, 0, 0, 0,
@@ -826,7 +826,7 @@ static void rts51x_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 				} else {
 					srb->result = SAM_STAT_CHECK_CONDITION;
 					memcpy(srb->sense_buffer,
-					       media_not_present,
+					       media_yest_present,
 					       US_SENSE_SIZE);
 				}
 				usb_stor_dbg(us, "TEST_UNIT_READY\n");
@@ -846,7 +846,7 @@ static void rts51x_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 				goto out;
 			}
 		} else {
-			usb_stor_dbg(us, "NOT working scsi, not SS\n");
+			usb_stor_dbg(us, "NOT working scsi, yest SS\n");
 			chip->proto_handler_backup(srb, us);
 			/* Check whether card is plugged in */
 			if (srb->cmnd[0] == TEST_UNIT_READY) {
@@ -946,7 +946,7 @@ static int realtek_cr_suspend(struct usb_interface *iface, pm_message_t message)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
-	/* wait until no command is running */
+	/* wait until yes command is running */
 	mutex_lock(&us->dev_mutex);
 
 	config_autodelink_before_power_down(us);
@@ -1064,7 +1064,7 @@ static struct usb_driver realtek_cr_driver = {
 	.id_table = realtek_cr_ids,
 	.soft_unbind = 1,
 	.supports_autosuspend = 1,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 };
 
 module_usb_stor_driver(realtek_cr_driver, realtek_cr_host_template, DRV_NAME);

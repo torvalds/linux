@@ -51,11 +51,11 @@ struct ceph_fs_client;
 struct ceph_cap;
 
 /*
- * parsed info about a single inode.  pointers are into the encoded
+ * parsed info about a single iyesde.  pointers are into the encoded
  * on-wire structures within the mds reply message payload.
  */
 struct ceph_mds_reply_info_in {
-	struct ceph_mds_reply_inode *in;
+	struct ceph_mds_reply_iyesde *in;
 	struct ceph_dir_layout dir_layout;
 	u32 symlink_len;
 	char *symlink;
@@ -78,13 +78,13 @@ struct ceph_mds_reply_dir_entry {
 	char                          *name;
 	u32                           name_len;
 	struct ceph_mds_reply_lease   *lease;
-	struct ceph_mds_reply_info_in inode;
+	struct ceph_mds_reply_info_in iyesde;
 	loff_t			      offset;
 };
 
 /*
  * parsed info about an mds reply, including information about
- * either: 1) the target inode and/or its parent directory and dentry,
+ * either: 1) the target iyesde and/or its parent directory and dentry,
  * and directory contents (for readdir results), or
  * 2) the file range lock info (for fcntl F_GETLK results).
  */
@@ -117,8 +117,8 @@ struct ceph_mds_reply_info_parsed {
 
 		/* for create results */
 		struct {
-			bool has_create_ino;
-			u64 ino;
+			bool has_create_iyes;
+			u64 iyes;
 		};
 	};
 
@@ -184,7 +184,7 @@ struct ceph_mds_session {
 	struct work_struct s_cap_release_work;
 
 	/* protected by mutex */
-	struct list_head  s_cap_flushing;     /* inodes w/ flushing caps */
+	struct list_head  s_cap_flushing;     /* iyesdes w/ flushing caps */
 	unsigned long     s_renew_requested; /* last time we sent a renew req */
 	u64               s_renew_seq;
 
@@ -221,21 +221,21 @@ typedef int (*ceph_mds_request_wait_callback_t) (struct ceph_mds_client *mdsc,
  */
 struct ceph_mds_request {
 	u64 r_tid;                   /* transaction id */
-	struct rb_node r_node;
+	struct rb_yesde r_yesde;
 	struct ceph_mds_client *r_mdsc;
 
 	int r_op;                    /* mds op code */
 
 	/* operation on what? */
-	struct inode *r_inode;              /* arg1 */
+	struct iyesde *r_iyesde;              /* arg1 */
 	struct dentry *r_dentry;            /* arg1 */
 	struct dentry *r_old_dentry;        /* arg2: rename from or link from */
-	struct inode *r_old_dentry_dir;     /* arg2: old dentry's parent dir */
+	struct iyesde *r_old_dentry_dir;     /* arg2: old dentry's parent dir */
 	char *r_path1, *r_path2;
-	struct ceph_vino r_ino1, r_ino2;
+	struct ceph_viyes r_iyes1, r_iyes2;
 
-	struct inode *r_parent;		    /* parent dir inode */
-	struct inode *r_target_inode;       /* resulting inode */
+	struct iyesde *r_parent;		    /* parent dir iyesde */
+	struct iyesde *r_target_iyesde;       /* resulting iyesde */
 
 #define CEPH_MDS_R_DIRECT_IS_HASH	(1) /* r_direct_hash is valid */
 #define CEPH_MDS_R_ABORTED		(2) /* call was aborted */
@@ -262,11 +262,11 @@ struct ceph_mds_request {
 	struct ceph_pagelist *r_pagelist;
 
 	/* what caps shall we drop? */
-	int r_inode_drop, r_inode_unless;
+	int r_iyesde_drop, r_iyesde_unless;
 	int r_dentry_drop, r_dentry_unless;
 	int r_old_dentry_drop, r_old_dentry_unless;
-	struct inode *r_old_inode;
-	int r_old_inode_drop, r_old_inode_unless;
+	struct iyesde *r_old_iyesde;
+	int r_old_iyesde_drop, r_old_iyesde_unless;
 
 	struct ceph_msg  *r_request;  /* original request */
 	int r_request_release_offset;
@@ -281,10 +281,10 @@ struct ceph_mds_request {
 					    used to measure lease durations */
 
 	/* link unsafe requests to parent directory, for fsync */
-	struct inode	*r_unsafe_dir;
+	struct iyesde	*r_unsafe_dir;
 	struct list_head r_unsafe_dir_item;
 
-	/* unsafe requests that modify the target inode */
+	/* unsafe requests that modify the target iyesde */
 	struct list_head r_unsafe_target_item;
 
 	struct ceph_mds_session *r_session;
@@ -312,7 +312,7 @@ struct ceph_mds_request {
 };
 
 struct ceph_pool_perm {
-	struct rb_node node;
+	struct rb_yesde yesde;
 	int perm;
 	s64 pool;
 	size_t pool_ns_len;
@@ -320,7 +320,7 @@ struct ceph_pool_perm {
 };
 
 struct ceph_snapid_map {
-	struct rb_node node;
+	struct rb_yesde yesde;
 	struct list_head lru;
 	atomic_t ref;
 	u64 snap;
@@ -329,20 +329,20 @@ struct ceph_snapid_map {
 };
 
 /*
- * node for list of quotarealm inodes that are not visible from the filesystem
+ * yesde for list of quotarealm iyesdes that are yest visible from the filesystem
  * mountpoint, but required to handle, e.g. quotas.
  */
-struct ceph_quotarealm_inode {
-	struct rb_node node;
-	u64 ino;
-	unsigned long timeout; /* last time a lookup failed for this inode */
+struct ceph_quotarealm_iyesde {
+	struct rb_yesde yesde;
+	u64 iyes;
+	unsigned long timeout; /* last time a lookup failed for this iyesde */
 	struct mutex mutex;
-	struct inode *inode;
+	struct iyesde *iyesde;
 };
 
 struct cap_wait {
 	struct list_head	list;
-	unsigned long		ino;
+	unsigned long		iyes;
 	pid_t			tgid;
 	int			need;
 	int			want;
@@ -361,24 +361,24 @@ struct ceph_mds_client {
 	struct list_head        waiting_for_map;
 	int 			mdsmap_err;
 
-	struct ceph_mds_session **sessions;    /* NULL for mds if no session */
+	struct ceph_mds_session **sessions;    /* NULL for mds if yes session */
 	atomic_t		num_sessions;
 	int                     max_sessions;  /* len of s_mds_sessions */
 	int                     stopping;      /* true if shutting down */
 
 	atomic64_t		quotarealms_count; /* # realms with quota */
 	/*
-	 * We keep a list of inodes we don't see in the mountpoint but that we
+	 * We keep a list of iyesdes we don't see in the mountpoint but that we
 	 * need to track quota realms.
 	 */
-	struct rb_root		quotarealms_inodes;
-	struct mutex		quotarealms_inodes_mutex;
+	struct rb_root		quotarealms_iyesdes;
+	struct mutex		quotarealms_iyesdes_mutex;
 
 	/*
 	 * snap_rwsem will cover cap linkage into snaprealms, and
 	 * realm snap contexts.  (later, we can do per-realm snap
-	 * contexts locks..)  the empty list contains realms with no
-	 * references (implying they contain no inodes with caps) that
+	 * contexts locks..)  the empty list contains realms with yes
+	 * references (implying they contain yes iyesdes with caps) that
 	 * should be destroyed.
 	 */
 	u64			last_snap_seq;
@@ -401,7 +401,7 @@ struct ceph_mds_client {
 
 	u64               last_cap_flush_tid;
 	struct list_head  cap_flush_list;
-	struct list_head  cap_dirty;        /* inodes with dirty caps */
+	struct list_head  cap_dirty;        /* iyesdes with dirty caps */
 	struct list_head  cap_dirty_migrating; /* ...that are migration... */
 	int               num_cap_flushing; /* # caps we are flushing */
 	spinlock_t        cap_dirty_lock;   /* protects above items */
@@ -443,7 +443,7 @@ struct ceph_mds_client {
 	struct rw_semaphore     pool_perm_rwsem;
 	struct rb_root		pool_perm_tree;
 
-	char nodename[__NEW_UTS_LEN + 1];
+	char yesdename[__NEW_UTS_LEN + 1];
 };
 
 extern const char *ceph_mds_op_name(int op);
@@ -474,14 +474,14 @@ extern void ceph_mdsc_sync(struct ceph_mds_client *mdsc);
 
 extern void ceph_invalidate_dir_request(struct ceph_mds_request *req);
 extern int ceph_alloc_readdir_reply_buffer(struct ceph_mds_request *req,
-					   struct inode *dir);
+					   struct iyesde *dir);
 extern struct ceph_mds_request *
 ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode);
 extern int ceph_mdsc_submit_request(struct ceph_mds_client *mdsc,
-				    struct inode *dir,
+				    struct iyesde *dir,
 				    struct ceph_mds_request *req);
 extern int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
-				struct inode *dir,
+				struct iyesde *dir,
 				struct ceph_mds_request *req);
 static inline void ceph_mdsc_get_request(struct ceph_mds_request *req)
 {
@@ -500,7 +500,7 @@ extern void ceph_flush_cap_releases(struct ceph_mds_client *mdsc,
 extern void ceph_queue_cap_reclaim_work(struct ceph_mds_client *mdsc);
 extern void ceph_reclaim_caps_nr(struct ceph_mds_client *mdsc, int nr);
 extern int ceph_iterate_session_caps(struct ceph_mds_session *session,
-				     int (*cb)(struct inode *,
+				     int (*cb)(struct iyesde *,
 					       struct ceph_cap *, void *),
 				     void *arg);
 extern void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc);
@@ -512,7 +512,7 @@ static inline void ceph_mdsc_free_path(char *path, int len)
 }
 
 extern char *ceph_mdsc_build_path(struct dentry *dentry, int *plen, u64 *base,
-				  int stop_on_nosnap);
+				  int stop_on_yessnap);
 
 extern void __ceph_mdsc_drop_dentry_lease(struct dentry *dentry);
 extern void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,

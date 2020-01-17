@@ -5,75 +5,75 @@
 
 
 struct device;
-struct device_node;
+struct device_yesde;
 
 #ifdef CONFIG_NUMA
 
 /*
  * If zone_reclaim_mode is enabled, a RECLAIM_DISTANCE of 10 will mean that
- * all zones on all nodes will be eligible for zone_reclaim().
+ * all zones on all yesdes will be eligible for zone_reclaim().
  */
 #define RECLAIM_DISTANCE 10
 
 #include <asm/mmzone.h>
 
-#define cpumask_of_node(node) ((node) == -1 ?				\
+#define cpumask_of_yesde(yesde) ((yesde) == -1 ?				\
 			       cpu_all_mask :				\
-			       node_to_cpumask_map[node])
+			       yesde_to_cpumask_map[yesde])
 
 struct pci_bus;
 #ifdef CONFIG_PCI
-extern int pcibus_to_node(struct pci_bus *bus);
+extern int pcibus_to_yesde(struct pci_bus *bus);
 #else
-static inline int pcibus_to_node(struct pci_bus *bus)
+static inline int pcibus_to_yesde(struct pci_bus *bus)
 {
 	return -1;
 }
 #endif
 
-#define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ?		\
+#define cpumask_of_pcibus(bus)	(pcibus_to_yesde(bus) == -1 ?		\
 				 cpu_all_mask :				\
-				 cpumask_of_node(pcibus_to_node(bus)))
+				 cpumask_of_yesde(pcibus_to_yesde(bus)))
 
 extern int cpu_distance(__be32 *cpu1_assoc, __be32 *cpu2_assoc);
-extern int __node_distance(int, int);
-#define node_distance(a, b) __node_distance(a, b)
+extern int __yesde_distance(int, int);
+#define yesde_distance(a, b) __yesde_distance(a, b)
 
 extern void __init dump_numa_cpu_topology(void);
 
-extern int sysfs_add_device_to_node(struct device *dev, int nid);
-extern void sysfs_remove_device_from_node(struct device *dev, int nid);
+extern int sysfs_add_device_to_yesde(struct device *dev, int nid);
+extern void sysfs_remove_device_from_yesde(struct device *dev, int nid);
 extern int numa_update_cpu_topology(bool cpus_locked);
 
-static inline void update_numa_cpu_lookup_table(unsigned int cpu, int node)
+static inline void update_numa_cpu_lookup_table(unsigned int cpu, int yesde)
 {
-	numa_cpu_lookup_table[cpu] = node;
+	numa_cpu_lookup_table[cpu] = yesde;
 }
 
-static inline int early_cpu_to_node(int cpu)
+static inline int early_cpu_to_yesde(int cpu)
 {
 	int nid;
 
 	nid = numa_cpu_lookup_table[cpu];
 
 	/*
-	 * Fall back to node 0 if nid is unset (it should be, except bugs).
-	 * This allows callers to safely do NODE_DATA(early_cpu_to_node(cpu)).
+	 * Fall back to yesde 0 if nid is unset (it should be, except bugs).
+	 * This allows callers to safely do NODE_DATA(early_cpu_to_yesde(cpu)).
 	 */
 	return (nid < 0) ? 0 : nid;
 }
 #else
 
-static inline int early_cpu_to_node(int cpu) { return 0; }
+static inline int early_cpu_to_yesde(int cpu) { return 0; }
 
 static inline void dump_numa_cpu_topology(void) {}
 
-static inline int sysfs_add_device_to_node(struct device *dev, int nid)
+static inline int sysfs_add_device_to_yesde(struct device *dev, int nid)
 {
 	return 0;
 }
 
-static inline void sysfs_remove_device_from_node(struct device *dev,
+static inline void sysfs_remove_device_from_yesde(struct device *dev,
 						int nid)
 {
 }
@@ -83,7 +83,7 @@ static inline int numa_update_cpu_topology(bool cpus_locked)
 	return 0;
 }
 
-static inline void update_numa_cpu_lookup_table(unsigned int cpu, int node) {}
+static inline void update_numa_cpu_lookup_table(unsigned int cpu, int yesde) {}
 
 static inline int cpu_distance(__be32 *cpu1_assoc, __be32 *cpu2_assoc)
 {

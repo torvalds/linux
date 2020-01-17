@@ -151,8 +151,8 @@ static int snd_gusextreme_detect(struct snd_gus_card *gus,
 
 	/*
 	 * This is main stuff - enable access to GF1 chip...
-	 * I'm not sure, if this will work for card which have
-	 * ES1688 chip in another place than 0x220.
+	 * I'm yest sure, if this will work for card which have
+	 * ES1688 chip in ayesther place than 0x220.
          *
          * I used reverse-engineering in DOSEMU. [--jk]
 	 *
@@ -263,7 +263,7 @@ static int snd_gusextreme_probe(struct device *dev, unsigned int n)
 
 	error = -ENODEV;
 	if (!gus->ess_flag) {
-		dev_err(dev, "GUS Extreme soundcard was not "
+		dev_err(dev, "GUS Extreme soundcard was yest "
 			"detected at 0x%lx\n", gus->gf1.port);
 		goto out;
 	}
@@ -295,7 +295,7 @@ static int snd_gusextreme_probe(struct device *dev, unsigned int n)
 
 	if (snd_opl3_create(card, es1688->port, es1688->port + 2,
 			OPL3_HW_OPL3, 0, &opl3) < 0)
-		dev_warn(dev, "opl3 not detected at 0x%lx\n", es1688->port);
+		dev_warn(dev, "opl3 yest detected at 0x%lx\n", es1688->port);
 	else {
 		error = snd_opl3_hwdep_new(opl3, 0, 2, NULL);
 		if (error < 0)

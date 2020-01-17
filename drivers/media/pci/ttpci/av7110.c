@@ -87,7 +87,7 @@ MODULE_PARM_DESC(rgb_on, "For Siemens DVB-C cards only: Enable RGB control signa
 module_param(volume, int, 0444);
 MODULE_PARM_DESC(volume, "initial volume: default 255 (range 0-255)");
 module_param(budgetpatch, int, 0444);
-MODULE_PARM_DESC(budgetpatch, "use budget-patch hardware modification: default 0 (0 no, 1 autodetect, 2 always)");
+MODULE_PARM_DESC(budgetpatch, "use budget-patch hardware modification: default 0 (0 yes, 1 autodetect, 2 always)");
 module_param(full_ts, int, 0444);
 MODULE_PARM_DESC(full_ts, "enable code for full-ts hardware modification: 0 disable (default), 1 enable");
 module_param(wss_cfg_4_3, int, 0444);
@@ -123,7 +123,7 @@ static void init_av7110_av(struct av7110 *av7110)
 	av7110->adac_type = DVB_ADAC_TI;
 	ret = av7110_set_volume(av7110, av7110->mixer.volume_left, av7110->mixer.volume_right);
 	if (ret < 0)
-		printk("dvb-ttpci:cannot set internal volume to maximum:%d\n",ret);
+		printk("dvb-ttpci:canyest set internal volume to maximum:%d\n",ret);
 
 	ret = av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetMonitorType,
 			    1, (u16) av7110->display_ar);
@@ -143,7 +143,7 @@ static void init_av7110_av(struct av7110 *av7110)
 
 	ret = av7710_set_video_mode(av7110, vidmode);
 	if (ret < 0)
-		printk("dvb-ttpci:cannot set video mode:%d\n",ret);
+		printk("dvb-ttpci:canyest set video mode:%d\n",ret);
 
 	/* handle different card types */
 	/* remaining inits according to card and frontend type */
@@ -181,10 +181,10 @@ static void init_av7110_av(struct av7110 *av7110)
 		// switch DVB SCART on
 		ret = av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, MainSwitch, 1, 0);
 		if (ret < 0)
-			printk("dvb-ttpci:cannot switch on SCART(Main):%d\n",ret);
+			printk("dvb-ttpci:canyest switch on SCART(Main):%d\n",ret);
 		ret = av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, ADSwitch, 1, 1);
 		if (ret < 0)
-			printk("dvb-ttpci:cannot switch on SCART(AD):%d\n",ret);
+			printk("dvb-ttpci:canyest switch on SCART(AD):%d\n",ret);
 		if (rgb_on &&
 		    ((av7110->dev->pci->subsystem_vendor == 0x110a) ||
 		     (av7110->dev->pci->subsystem_vendor == 0x13c2)) &&
@@ -199,7 +199,7 @@ static void init_av7110_av(struct av7110 *av7110)
 
 	ret = av7110_set_volume(av7110, av7110->mixer.volume_left, av7110->mixer.volume_right);
 	if (ret < 0)
-		printk("dvb-ttpci:cannot set volume :%d\n",ret);
+		printk("dvb-ttpci:canyest set volume :%d\n",ret);
 }
 
 static void recover_arm(struct av7110 *av7110)
@@ -299,7 +299,7 @@ static int DvbDmxFilterCallback(u8 *buffer1, size_t buffer1_len,
 
 			for (i = 0; i < DVB_DEMUX_MASK_MAX; i++) {
 				xor = filter->filter_value[i] ^ buffer1[i];
-				neq |= dvbdmxfilter->maskandnotmode[i] & xor;
+				neq |= dvbdmxfilter->maskandyestmode[i] & xor;
 			}
 			if (!neq)
 				return 0;
@@ -664,7 +664,7 @@ static void gpioirq(unsigned long cookie)
 		break;
 
 	default:
-		printk("dvb-ttpci: gpioirq unknown type=%d len=%d\n",
+		printk("dvb-ttpci: gpioirq unkyeswn type=%d len=%d\n",
 		       av7110->debitype, av7110->debilen);
 		break;
 	}
@@ -697,7 +697,7 @@ static const struct file_operations dvb_osd_fops = {
 	.unlocked_ioctl	= dvb_generic_ioctl,
 	.open		= dvb_generic_open,
 	.release	= dvb_generic_release,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct dvb_device dvbdev_osd = {
@@ -1104,7 +1104,7 @@ static int dvb_get_stc(struct dmx_demux *demux, unsigned int num,
 	struct dvb_demux *dvbdemux;
 	struct av7110 *av7110;
 
-	/* pointer casting paranoia... */
+	/* pointer casting parayesia... */
 	BUG_ON(!demux);
 	dvbdemux = demux->priv;
 	BUG_ON(!dvbdemux);
@@ -1259,7 +1259,7 @@ static void vpeirq(unsigned long cookie)
 #endif
 
 	if (newdma > olddma)
-		/* no wraparound, dump olddma..newdma */
+		/* yes wraparound, dump olddma..newdma */
 		dvb_dmx_swfilter_packets(demux, mem + olddma, (newdma - olddma) / 188);
 	else {
 		/* wraparound, dump olddma..buflen and 0..newdma */
@@ -1445,7 +1445,7 @@ static int check_firmware(struct av7110* av7110)
 	ptr = av7110->bin_fw;
 	if (ptr[0] != 'A' || ptr[1] != 'V' ||
 	    ptr[2] != 'F' || ptr[3] != 'W') {
-		printk("dvb-ttpci: this is not an av7110 firmware\n");
+		printk("dvb-ttpci: this is yest an av7110 firmware\n");
 		return -EINVAL;
 	}
 	ptr += 4;
@@ -1460,7 +1460,7 @@ static int check_firmware(struct av7110* av7110)
 		return -EINVAL;
 	}
 	if (crc != crc32_le(0, ptr, len)) {
-		printk("dvb-ttpci: crc32 of dpram file does not match.\n");
+		printk("dvb-ttpci: crc32 of dpram file does yest match.\n");
 		return -EINVAL;
 	}
 	av7110->bin_dpram = ptr;
@@ -1479,7 +1479,7 @@ static int check_firmware(struct av7110* av7110)
 		return -EINVAL;
 	}
 	if( crc != crc32_le(0, ptr, len)) {
-		printk("dvb-ttpci: crc32 of root file does not match.\n");
+		printk("dvb-ttpci: crc32 of root file does yest match.\n");
 		return -EINVAL;
 	}
 	av7110->bin_root = ptr;
@@ -1501,11 +1501,11 @@ static int get_firmware(struct av7110* av7110)
 	ret = request_firmware(&fw, "dvb-ttpci-01.fw", &av7110->dev->pci->dev);
 	if (ret) {
 		if (ret == -ENOENT) {
-			printk(KERN_ERR "dvb-ttpci: could not load firmware, file not found: dvb-ttpci-01.fw\n");
+			printk(KERN_ERR "dvb-ttpci: could yest load firmware, file yest found: dvb-ttpci-01.fw\n");
 			printk(KERN_ERR "dvb-ttpci: usually this should be in /usr/lib/hotplug/firmware or /lib/firmware\n");
 			printk(KERN_ERR "dvb-ttpci: and can be downloaded from https://linuxtv.org/download/dvb/firmware/\n");
 		} else
-			printk(KERN_ERR "dvb-ttpci: cannot request firmware (error %i)\n",
+			printk(KERN_ERR "dvb-ttpci: canyest request firmware (error %i)\n",
 			       ret);
 		return -EINVAL;
 	}
@@ -2118,7 +2118,7 @@ static int frontend_init(struct av7110 *av7110)
 				break;
 			}
 
-			// try the ALPS BSRU6 now
+			// try the ALPS BSRU6 yesw
 			av7110->fe = dvb_attach(stv0299_attach, &alps_bsru6_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				av7110->fe->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
@@ -2240,7 +2240,7 @@ static int frontend_init(struct av7110 *av7110)
 				av7110->fe->tuner_priv = &av7110->i2c_adap;
 
 				if (dvb_attach(lnbp21_attach, av7110->fe, &av7110->i2c_adap, 0, 0) == NULL) {
-					printk("dvb-ttpci: LNBP21 not found!\n");
+					printk("dvb-ttpci: LNBP21 yest found!\n");
 					if (av7110->fe->ops.release)
 						av7110->fe->ops.release(av7110->fe);
 					av7110->fe = NULL;
@@ -2256,7 +2256,7 @@ static int frontend_init(struct av7110 *av7110)
 	if (!av7110->fe) {
 		/* FIXME: propagate the failure code from the lower layers */
 		ret = -ENOMEM;
-		printk("dvb-ttpci: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		printk("dvb-ttpci: A frontend driver was yest found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       av7110->dev->pci->vendor,
 		       av7110->dev->pci->device,
 		       av7110->dev->pci->subsystem_vendor,
@@ -2282,7 +2282,7 @@ static int frontend_init(struct av7110 *av7110)
 	return ret;
 }
 
-/* Budgetpatch note:
+/* Budgetpatch yeste:
  * Original hardware design by Roberto Deza:
  * There is a DVB_Wiki at
  * https://linuxtv.org
@@ -2313,13 +2313,13 @@ static int frontend_init(struct av7110 *av7110)
  *   22k transponder = 33814 kbit/s
  * 27.5k transponder = 38045 kbit/s
  * by experiment it is found that the best results
- * (stable bandwidths and almost no packet loss)
+ * (stable bandwidths and almost yes packet loss)
  * are obtained using DD1_INIT triggering number 2
  * (Va at rising edge of VS Fa = HS x VS-failing forced toggle)
  * and a VSYNC phase that occurs in the middle of DMA transfer
  * (about byte 188*512=96256 in the DMA window).
  *
- * Phase of HS is still not clear to me how to control,
+ * Phase of HS is still yest clear to me how to control,
  * It just happens to be so. It can be seen if one enables
  * RPS_IRQ and print Event Counter 1 in vpeirq(). Every
  * time RPS_INTERRUPT is called, the Event Counter 1 will
@@ -2328,7 +2328,7 @@ static int frontend_init(struct av7110 *av7110)
  * I *think* HPS setting has something to do with the phase
  * of HS but I can't be 100% sure in that.
  *
- * hardware debug note: a working budget card (including budget patch)
+ * hardware debug yeste: a working budget card (including budget patch)
  * with vpeirq() interrupt setup in mode "0x90" (every 64K) will
  * generate 3 interrupts per 25-Hz DMA frame of 2*188*512 bytes
  * and that means 3*25=75 Hz of interrupt frequency, as seen by
@@ -2337,7 +2337,7 @@ static int frontend_init(struct av7110 *av7110)
  * If this frequency is 3x lower (and data received in the DMA
  * buffer don't start with 0x47, but in the middle of packets,
  * whose lengths appear to be like 188 292 188 104 etc.
- * this means VSYNC line is not connected in the hardware.
+ * this means VSYNC line is yest connected in the hardware.
  * (check soldering pcb and pins)
  * The same behaviour of missing VSYNC can be duplicated on budget
  * cards, by setting DD1_INIT trigger mode 7 in 3rd nibble.
@@ -2425,7 +2425,7 @@ static int av7110_attach(struct saa7146_dev* dev,
 		saa7146_write(dev, MC1, (MASK_13 | MASK_29 ));
 
 		mdelay(10);
-		/* now send VSYNC_B to rps1 by rising GPIO3 */
+		/* yesw send VSYNC_B to rps1 by rising GPIO3 */
 		saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTHI);
 		mdelay(10);
 		/* if rps1 responded by lowering the GPIO3,
@@ -2814,7 +2814,7 @@ static void av7110_irq(struct saa7146_dev* dev, u32 *isr)
 		 * immediately, or it will be signalled all the time while
 		 * DEBI is idle.
 		 * Note 2: You would think that an irq which is masked is
-		 * not signalled by the hardware. Not so for the SAA7146:
+		 * yest signalled by the hardware. Not so for the SAA7146:
 		 * An irq is signalled as long as the corresponding bit
 		 * in the ISR is set, and disabling irqs just prevents the
 		 * hardware from setting the ISR bit. This means a) that we
@@ -2846,14 +2846,14 @@ static struct saa7146_pci_extension_data x_var = { \
 	.ext_priv = x_name, \
 	.ext = &av7110_extension_driver }
 
-MAKE_AV7110_INFO(tts_1_X_fsc,"Technotrend/Hauppauge WinTV DVB-S rev1.X or Fujitsu Siemens DVB-C");
-MAKE_AV7110_INFO(ttt_1_X,    "Technotrend/Hauppauge WinTV DVB-T rev1.X");
-MAKE_AV7110_INFO(ttc_1_X,    "Technotrend/Hauppauge WinTV Nexus-CA rev1.X");
-MAKE_AV7110_INFO(ttc_2_X,    "Technotrend/Hauppauge WinTV DVB-C rev2.X");
-MAKE_AV7110_INFO(tts_2_X,    "Technotrend/Hauppauge WinTV Nexus-S rev2.X");
-MAKE_AV7110_INFO(tts_2_3,    "Technotrend/Hauppauge WinTV Nexus-S rev2.3");
-MAKE_AV7110_INFO(tts_1_3se,  "Technotrend/Hauppauge WinTV DVB-S rev1.3 SE");
-MAKE_AV7110_INFO(ttt,        "Technotrend/Hauppauge DVB-T");
+MAKE_AV7110_INFO(tts_1_X_fsc,"Techyestrend/Hauppauge WinTV DVB-S rev1.X or Fujitsu Siemens DVB-C");
+MAKE_AV7110_INFO(ttt_1_X,    "Techyestrend/Hauppauge WinTV DVB-T rev1.X");
+MAKE_AV7110_INFO(ttc_1_X,    "Techyestrend/Hauppauge WinTV Nexus-CA rev1.X");
+MAKE_AV7110_INFO(ttc_2_X,    "Techyestrend/Hauppauge WinTV DVB-C rev2.X");
+MAKE_AV7110_INFO(tts_2_X,    "Techyestrend/Hauppauge WinTV Nexus-S rev2.X");
+MAKE_AV7110_INFO(tts_2_3,    "Techyestrend/Hauppauge WinTV Nexus-S rev2.3");
+MAKE_AV7110_INFO(tts_1_3se,  "Techyestrend/Hauppauge WinTV DVB-S rev1.3 SE");
+MAKE_AV7110_INFO(ttt,        "Techyestrend/Hauppauge DVB-T");
 MAKE_AV7110_INFO(fsc,        "Fujitsu Siemens DVB-C");
 MAKE_AV7110_INFO(fss,        "Fujitsu Siemens DVB-S rev1.6");
 MAKE_AV7110_INFO(gxs_1_3,    "Galaxis DVB-S rev1.3");
@@ -2910,6 +2910,6 @@ static void __exit av7110_exit(void)
 module_init(av7110_init);
 module_exit(av7110_exit);
 
-MODULE_DESCRIPTION("driver for the SAA7146 based AV110 PCI DVB cards by Siemens, Technotrend, Hauppauge");
+MODULE_DESCRIPTION("driver for the SAA7146 based AV110 PCI DVB cards by Siemens, Techyestrend, Hauppauge");
 MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, others");
 MODULE_LICENSE("GPL");

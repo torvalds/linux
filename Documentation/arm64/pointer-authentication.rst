@@ -19,7 +19,7 @@ the contents of some memory (e.g. the stack).
 
 The extension uses a Pointer Authentication Code (PAC) to determine
 whether pointers have been modified unexpectedly. A PAC is derived from
-a pointer, another value (such as the stack pointer), and a secret key
+a pointer, ayesther value (such as the stack pointer), and a secret key
 held in system registers.
 
 The extension adds instructions to insert a valid PAC into a pointer,
@@ -77,7 +77,7 @@ userspace can acquire via PTRACE_GETREGSET.
 The regset is exposed only when HWCAP_PACA is set. Separate masks are
 exposed for data pointers and instruction pointers, as the set of PAC
 bits can vary between the two. Note that the masks apply to TTBR0
-addresses, and are not valid to apply to TTBR1 addresses (e.g. kernel
+addresses, and are yest valid to apply to TTBR1 addresses (e.g. kernel
 pointers).
 
 Additionally, when CONFIG_CHECKPOINT_RESTORE is also set, the kernel
@@ -94,15 +94,15 @@ initialised by passing flags KVM_ARM_VCPU_PTRAUTH_[ADDRESS/GENERIC] and
 requesting these two separate cpu features to be enabled. The current KVM
 guest implementation works by enabling both features together, so both
 these userspace flags are checked before enabling pointer authentication.
-The separate userspace flag will allow to have no userspace ABI changes
+The separate userspace flag will allow to have yes userspace ABI changes
 if support is added in the future to allow these two features to be
-enabled independently of one another.
+enabled independently of one ayesther.
 
 As Arm Architecture specifies that Pointer Authentication feature is
 implemented along with the VHE feature so KVM arm64 ptrauth code relies
 on VHE mode to be present.
 
-Additionally, when these vcpu feature flags are not set then KVM will
+Additionally, when these vcpu feature flags are yest set then KVM will
 filter out the Pointer Authentication system key registers from
 KVM_GET/SET_REG_* ioctls and mask those features from cpufeature ID
 register. Any attempt to use the Pointer Authentication instructions will

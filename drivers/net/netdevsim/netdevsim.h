@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017 Netroyesme Systems, Inc.
  *
  * This software is licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -66,7 +66,7 @@ struct netdevsim {
 	struct xdp_attachment_info xdp_hw;
 
 	bool bpf_tc_accept;
-	bool bpf_tc_non_bound_accept;
+	bool bpf_tc_yesn_bound_accept;
 	bool bpf_xdpdrv_accept;
 	bool bpf_xdpoffload_accept;
 

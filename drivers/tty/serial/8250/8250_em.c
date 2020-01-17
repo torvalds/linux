@@ -38,7 +38,7 @@ static void serial8250_em_serial_out(struct uart_port *p, int offset, int value)
 		writel(value, p->membase + ((offset + 1) << 2));
 		break;
 	case UART_IER: /* IER @ 0x04 */
-		value &= 0x0f; /* only 4 valid bits - not Xscale */
+		value &= 0x0f; /* only 4 valid bits - yest Xscale */
 		/* fall-through */
 	case UART_DLL_EM: /* DLL @ 0x24 (+9) */
 	case UART_DLM_EM: /* DLM @ 0x28 (+9) */

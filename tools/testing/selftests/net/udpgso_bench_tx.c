@@ -3,7 +3,7 @@
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erryes.h>
 #include <error.h>
 #include <linux/errqueue.h>
 #include <linux/net_tstamp.h>
@@ -151,7 +151,7 @@ static void flush_cmsg(struct cmsghdr *cmsg)
 			if (tss->ts[i].tv_sec == 0)
 				stat_tx_ts_errors++;
 		} else {
-			error(1, 0, "unknown SOL_SOCKET cmsg type=%u\n",
+			error(1, 0, "unkyeswn SOL_SOCKET cmsg type=%u\n",
 			      cmsg->cmsg_type);
 		}
 		break;
@@ -178,7 +178,7 @@ static void flush_cmsg(struct cmsghdr *cmsg)
 			{
 				lo = err->ee_info;
 				hi = err->ee_data;
-				/* range of IDs acknowledged */
+				/* range of IDs ackyeswledged */
 				stat_zcopies += hi - lo + 1;
 				break;
 			}
@@ -195,13 +195,13 @@ static void flush_cmsg(struct cmsghdr *cmsg)
 			break;
 		}
 		default:
-			error(0, 1, "unknown IP msg type=%u\n",
+			error(0, 1, "unkyeswn IP msg type=%u\n",
 			      cmsg->cmsg_type);
 			break;
 		}
 		break;
 	default:
-		error(0, 1, "unknown cmsg level=%u\n",
+		error(0, 1, "unkyeswn cmsg level=%u\n",
 		      cmsg->cmsg_level);
 	}
 }
@@ -219,10 +219,10 @@ static void flush_errqueue_recv(int fd)
 		msg.msg_control = control;
 		msg.msg_controllen = sizeof(control);
 		ret = recvmsg(fd, &msg, MSG_ERRQUEUE);
-		if (ret == -1 && errno == EAGAIN)
+		if (ret == -1 && erryes == EAGAIN)
 			break;
 		if (ret == -1)
-			error(1, errno, "errqueue");
+			error(1, erryes, "errqueue");
 		if (msg.msg_flags != MSG_ERRQUEUE)
 			error(1, 0, "errqueue: flags 0x%x\n", msg.msg_flags);
 		if (cfg_audit) {
@@ -247,7 +247,7 @@ static void flush_errqueue(int fd, const bool do_poll)
 			if (cfg_verbose)
 				fprintf(stderr, "poll timeout\n");
 		} else if (ret < 0) {
-			error(1, errno, "poll");
+			error(1, erryes, "poll");
 		}
 	}
 
@@ -262,7 +262,7 @@ static int send_tcp(int fd, char *data)
 		ret = send(fd, data + done, cfg_payload_len - done,
 			   cfg_zerocopy ? MSG_ZEROCOPY : 0);
 		if (ret == -1)
-			error(1, errno, "write");
+			error(1, erryes, "write");
 
 		done += ret;
 		count++;
@@ -284,9 +284,9 @@ static int send_udp(int fd, char *data)
 			     cfg_connected ? NULL : (void *)&cfg_dst_addr,
 			     cfg_connected ? 0 : cfg_alen);
 		if (ret == -1)
-			error(1, errno, "write");
+			error(1, erryes, "write");
 		if (ret != len)
-			error(1, errno, "write: %uB != %uB\n", ret, len);
+			error(1, erryes, "write: %uB != %uB\n", ret, len);
 
 		total_len -= len;
 		count++;
@@ -354,7 +354,7 @@ static int send_udp_sendmmsg(int fd, char *data)
 
 	ret = sendmmsg(fd, mmsgs, i, cfg_zerocopy ? MSG_ZEROCOPY : 0);
 	if (ret == -1)
-		error(1, errno, "sendmmsg");
+		error(1, erryes, "sendmmsg");
 
 	return ret;
 }
@@ -403,7 +403,7 @@ static int send_udp_segment(int fd, char *data)
 
 	ret = sendmsg(fd, &msg, cfg_zerocopy ? MSG_ZEROCOPY : 0);
 	if (ret == -1)
-		error(1, errno, "sendmsg");
+		error(1, erryes, "sendmsg");
 	if (ret != iov.iov_len)
 		error(1, 0, "sendmsg: %u != %llu\n", ret,
 			(unsigned long long)iov.iov_len);
@@ -498,9 +498,9 @@ static void parse_opts(int argc, char **argv)
 	if (cfg_family == PF_UNSPEC)
 		error(1, 0, "must pass one of -4 or -6");
 	if (cfg_tcp && !cfg_connected)
-		error(1, 0, "connectionless tcp makes no sense");
+		error(1, 0, "connectionless tcp makes yes sense");
 	if (cfg_segment && cfg_sendmmsg)
-		error(1, 0, "cannot combine segment offload and sendmmsg");
+		error(1, 0, "canyest combine segment offload and sendmmsg");
 	if (cfg_tx_tstamp && !(cfg_segment || cfg_sendmmsg))
 		error(1, 0, "Options -T and -H require either -S or -m option");
 
@@ -534,7 +534,7 @@ static void set_pmtu_discover(int fd, bool is_ipv4)
 	}
 
 	if (setsockopt(fd, level, name, &val, sizeof(val)))
-		error(1, errno, "setsockopt path mtu");
+		error(1, erryes, "setsockopt path mtu");
 }
 
 static void set_tx_timestamping(int fd)
@@ -548,7 +548,7 @@ static void set_tx_timestamping(int fd)
 		val |= SOF_TIMESTAMPING_RAW_HARDWARE;
 
 	if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(val)))
-		error(1, errno, "setsockopt tx timestamping");
+		error(1, erryes, "setsockopt tx timestamping");
 }
 
 static void print_audit_report(unsigned long num_msgs, unsigned long num_sends)
@@ -609,7 +609,7 @@ static void print_report(unsigned long num_msgs, unsigned long num_sends)
 int main(int argc, char **argv)
 {
 	unsigned long num_msgs, num_sends;
-	unsigned long tnow, treport, tstop;
+	unsigned long tyesw, treport, tstop;
 	int fd, i, val, ret;
 
 	parse_opts(argc, argv);
@@ -626,7 +626,7 @@ int main(int argc, char **argv)
 
 	fd = socket(cfg_family, cfg_tcp ? SOCK_STREAM : SOCK_DGRAM, 0);
 	if (fd == -1)
-		error(1, errno, "socket");
+		error(1, erryes, "socket");
 
 	if (cfg_zerocopy) {
 		val = 1;
@@ -634,17 +634,17 @@ int main(int argc, char **argv)
 		ret = setsockopt(fd, SOL_SOCKET, SO_ZEROCOPY,
 				 &val, sizeof(val));
 		if (ret) {
-			if (errno == ENOPROTOOPT || errno == ENOTSUPP) {
-				fprintf(stderr, "SO_ZEROCOPY not supported");
+			if (erryes == ENOPROTOOPT || erryes == ENOTSUPP) {
+				fprintf(stderr, "SO_ZEROCOPY yest supported");
 				exit(KSFT_SKIP);
 			}
-			error(1, errno, "setsockopt zerocopy");
+			error(1, erryes, "setsockopt zerocopy");
 		}
 	}
 
 	if (cfg_connected &&
 	    connect(fd, (void *)&cfg_dst_addr, cfg_alen))
-		error(1, errno, "connect");
+		error(1, erryes, "connect");
 
 	if (cfg_segment)
 		set_pmtu_discover(fd, cfg_family == PF_INET);
@@ -653,11 +653,11 @@ int main(int argc, char **argv)
 		set_tx_timestamping(fd);
 
 	num_msgs = num_sends = 0;
-	tnow = gettimeofday_ms();
-	tstart = tnow;
-	tend = tnow;
-	tstop = tnow + cfg_runtime_ms;
-	treport = tnow + 1000;
+	tyesw = gettimeofday_ms();
+	tstart = tyesw;
+	tend = tyesw;
+	tstop = tyesw + cfg_runtime_ms;
+	treport = tyesw + 1000;
 
 	i = 0;
 	do {
@@ -676,27 +676,27 @@ int main(int argc, char **argv)
 		if (cfg_msg_nr && num_msgs >= cfg_msg_nr)
 			break;
 
-		tnow = gettimeofday_ms();
-		if (tnow >= treport) {
+		tyesw = gettimeofday_ms();
+		if (tyesw >= treport) {
 			print_report(num_msgs, num_sends);
 			num_msgs = num_sends = 0;
-			treport = tnow + 1000;
+			treport = tyesw + 1000;
 		}
 
 		/* cold cache when writing buffer */
 		if (cfg_cache_trash)
 			i = ++i < NUM_PKT ? i : 0;
 
-	} while (!interrupted && (cfg_runtime_ms == -1 || tnow < tstop));
+	} while (!interrupted && (cfg_runtime_ms == -1 || tyesw < tstop));
 
 	if (cfg_zerocopy || cfg_tx_tstamp)
 		flush_errqueue(fd, true);
 
 	if (close(fd))
-		error(1, errno, "close");
+		error(1, erryes, "close");
 
 	if (cfg_audit) {
-		tend = tnow;
+		tend = tyesw;
 		total_num_msgs += num_msgs;
 		total_num_sends += num_sends;
 		print_audit_report(total_num_msgs, total_num_sends);

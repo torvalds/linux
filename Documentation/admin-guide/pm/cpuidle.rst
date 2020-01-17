@@ -17,10 +17,10 @@ Concepts
 ========
 
 Modern processors are generally able to enter states in which the execution of
-a program is suspended and instructions belonging to it are not fetched from
+a program is suspended and instructions belonging to it are yest fetched from
 memory or executed.  Those states are the *idle* states of the processor.
 
-Since part of the processor hardware is not used in idle states, entering them
+Since part of the processor hardware is yest used in idle states, entering them
 generally allows power drawn by the processor to be reduced and, in consequence,
 it is an opportunity to save energy.
 
@@ -33,10 +33,10 @@ Logical CPUs
 CPU idle time management operates on CPUs as seen by the *CPU scheduler* (that
 is the part of the kernel responsible for the distribution of computational
 work in the system).  In its view, CPUs are *logical* units.  That is, they need
-not be separate physical entities and may just be interfaces appearing to
+yest be separate physical entities and may just be interfaces appearing to
 software as individual single-core processors.  In other words, a CPU is an
 entity which appears to be fetching instructions that belong to one sequence
-(program) from memory and executing them, but it need not work this way
+(program) from memory and executing them, but it need yest work this way
 physically.  Generally, three different cases can be consider here.
 
 First, if the whole processor can only follow one sequence of instructions (one
@@ -44,7 +44,7 @@ program) at a time, it is a CPU.  In that case, if the hardware is asked to
 enter an idle state, that applies to the processor as a whole.
 
 Second, if the processor is multi-core, each core in it is able to follow at
-least one program at a time.  The cores need not be entirely independent of each
+least one program at a time.  The cores need yest be entirely independent of each
 other (for example, they may share caches), but still most of the time they
 work physically in parallel with each other, so if each of them executes only
 one program, those programs run mostly independently of each other at the same
@@ -61,14 +61,14 @@ other cores in that unit.
 Finally, each core in a multi-core processor may be able to follow more than one
 program in the same time frame (that is, each core may be able to fetch
 instructions from multiple locations in memory and execute them in the same time
-frame, but not necessarily entirely in parallel with each other).  In that case
+frame, but yest necessarily entirely in parallel with each other).  In that case
 the cores present themselves to software as "bundles" each consisting of
 multiple individual single-core "processors", referred to as *hardware threads*
 (or hyper-threads specifically on Intel hardware), that each can follow one
 sequence of instructions.  Then, the hardware threads are CPUs from the CPU idle
 time management perspective and if the processor is asked to enter an idle state
 by one of them, the hardware thread (or CPU) that asked for it is stopped, but
-nothing more happens, unless all of the other hardware threads within the same
+yesthing more happens, unless all of the other hardware threads within the same
 core also have asked the processor to enter an idle state.  In that situation,
 the core may be put into an idle state individually or a larger unit containing
 it may be put into an idle state as a whole (if the other cores within the
@@ -78,7 +78,7 @@ Idle CPUs
 ---------
 
 Logical CPUs, simply referred to as "CPUs" in what follows, are regarded as
-*idle* by the Linux kernel when there are no tasks to run on them except for the
+*idle* by the Linux kernel when there are yes tasks to run on them except for the
 special "idle" task.
 
 Tasks are the CPU scheduler's representation of work.  Each task consists of a
@@ -88,22 +88,22 @@ processor every time the task's code is run by a CPU.  The CPU scheduler
 distributes work by assigning tasks to run to the CPUs present in the system.
 
 Tasks can be in various states.  In particular, they are *runnable* if there are
-no specific conditions preventing their code from being run by a CPU as long as
-there is a CPU available for that (for example, they are not waiting for any
+yes specific conditions preventing their code from being run by a CPU as long as
+there is a CPU available for that (for example, they are yest waiting for any
 events to occur or similar).  When a task becomes runnable, the CPU scheduler
-assigns it to one of the available CPUs to run and if there are no more runnable
+assigns it to one of the available CPUs to run and if there are yes more runnable
 tasks assigned to it, the CPU will load the given task's context and run its
 code (from the instruction following the last one executed so far, possibly by
-another CPU).  [If there are multiple runnable tasks assigned to one CPU
+ayesther CPU).  [If there are multiple runnable tasks assigned to one CPU
 simultaneously, they will be subject to prioritization and time sharing in order
 to allow them to make some progress over time.]
 
-The special "idle" task becomes runnable if there are no other runnable tasks
+The special "idle" task becomes runnable if there are yes other runnable tasks
 assigned to the given CPU and the CPU is then regarded as idle.  In other words,
 in Linux idle CPUs run the code of the "idle" task called *the idle loop*.  That
 code may cause the processor to be put into one of its idle states, if they are
-supported, in order to save energy, but if the processor does not support any
-idle states, or there is not enough time to spend in an idle state before the
+supported, in order to save energy, but if the processor does yest support any
+idle states, or there is yest eyesugh time to spend in an idle state before the
 next wakeup event, or there are strict latency constraints preventing any of the
 available idle states from being used, the CPU will simply execute more or less
 useless instructions in a loop until it is assigned a new task to run.
@@ -115,23 +115,23 @@ The Idle Loop
 =============
 
 The idle loop code takes two major steps in every iteration of it.  First, it
-calls into a code module referred to as the *governor* that belongs to the CPU
+calls into a code module referred to as the *goveryesr* that belongs to the CPU
 idle time management subsystem called ``CPUIdle`` to select an idle state for
-the CPU to ask the hardware to enter.  Second, it invokes another code module
+the CPU to ask the hardware to enter.  Second, it invokes ayesther code module
 from the ``CPUIdle`` subsystem, called the *driver*, to actually ask the
-processor hardware to enter the idle state selected by the governor.
+processor hardware to enter the idle state selected by the goveryesr.
 
-The role of the governor is to find an idle state most suitable for the
+The role of the goveryesr is to find an idle state most suitable for the
 conditions at hand.  For this purpose, idle states that the hardware can be
 asked to enter by logical CPUs are represented in an abstract way independent of
 the platform or the processor architecture and organized in a one-dimensional
 (linear) array.  That array has to be prepared and supplied by the ``CPUIdle``
 driver matching the platform the kernel is running on at the initialization
-time.  This allows ``CPUIdle`` governors to be independent of the underlying
+time.  This allows ``CPUIdle`` goveryesrs to be independent of the underlying
 hardware and to work with any platforms that the Linux kernel can run on.
 
 Each idle state present in that array is characterized by two parameters to be
-taken into account by the governor, the *target residency* and the (worst-case)
+taken into account by the goveryesr, the *target residency* and the (worst-case)
 *exit latency*.  The target residency is the minimum time the hardware must
 spend in the given state, including the time needed to enter it (which may be
 substantial), in order to save more energy than it would save by entering one of
@@ -144,30 +144,30 @@ the time needed to enter the given state in case the wakeup occurs when the
 hardware is entering it and it must be entered completely to be exited in an
 ordered manner.
 
-There are two types of information that can influence the governor's decisions.
-First of all, the governor knows the time until the closest timer event.  That
-time is known exactly, because the kernel programs timers and it knows exactly
+There are two types of information that can influence the goveryesr's decisions.
+First of all, the goveryesr kyesws the time until the closest timer event.  That
+time is kyeswn exactly, because the kernel programs timers and it kyesws exactly
 when they will trigger, and it is the maximum time the hardware that the given
 CPU depends on can spend in an idle state, including the time necessary to enter
-and exit it.  However, the CPU may be woken up by a non-timer event at any time
-(in particular, before the closest timer triggers) and it generally is not known
-when that may happen.  The governor can only see how much time the CPU actually
+and exit it.  However, the CPU may be woken up by a yesn-timer event at any time
+(in particular, before the closest timer triggers) and it generally is yest kyeswn
+when that may happen.  The goveryesr can only see how much time the CPU actually
 was idle after it has been woken up (that time will be referred to as the *idle
-duration* from now on) and it can use that information somehow along with the
+duration* from yesw on) and it can use that information somehow along with the
 time until the closest timer to estimate the idle duration in future.  How the
-governor uses that information depends on what algorithm is implemented by it
-and that is the primary reason for having more than one governor in the
+goveryesr uses that information depends on what algorithm is implemented by it
+and that is the primary reason for having more than one goveryesr in the
 ``CPUIdle`` subsystem.
 
-There are three ``CPUIdle`` governors available, ``menu``, `TEO <teo-gov_>`_
+There are three ``CPUIdle`` goveryesrs available, ``menu``, `TEO <teo-gov_>`_
 and ``ladder``.  Which of them is used by default depends on the configuration
-of the kernel and in particular on whether or not the scheduler tick can be
+of the kernel and in particular on whether or yest the scheduler tick can be
 `stopped by the idle loop <idle-cpus-and-tick_>`_.  It is possible to change the
-governor at run time if the ``cpuidle_sysfs_switch`` command line parameter has
-been passed to the kernel, but that is not safe in general, so it should not be
+goveryesr at run time if the ``cpuidle_sysfs_switch`` command line parameter has
+been passed to the kernel, but that is yest safe in general, so it should yest be
 done on production systems (that may change in the future, though).  The name of
-the ``CPUIdle`` governor currently used by the kernel can be read from the
-:file:`current_governor_ro` (or :file:`current_governor` if
+the ``CPUIdle`` goveryesr currently used by the kernel can be read from the
+:file:`current_goveryesr_ro` (or :file:`current_goveryesr` if
 ``cpuidle_sysfs_switch`` is present in the kernel command line) file under
 :file:`/sys/devices/system/cpu/cpuidle/` in ``sysfs``.
 
@@ -177,10 +177,10 @@ matching driver.  For example, there are two drivers that can work with the
 majority of Intel platforms, ``intel_idle`` and ``acpi_idle``, one with
 hardcoded idle states information and the other able to read that information
 from the system's ACPI tables, respectively.  Still, even in those cases, the
-driver chosen at the system initialization time cannot be replaced later, so the
+driver chosen at the system initialization time canyest be replaced later, so the
 decision on which one of them to use has to be made early (on Intel platforms
 the ``acpi_idle`` driver will be used if ``intel_idle`` is disabled for some
-reason or if it does not recognize the processor).  The name of the ``CPUIdle``
+reason or if it does yest recognize the processor).  The name of the ``CPUIdle``
 driver currently used by the kernel can be read from the :file:`current_driver`
 file under :file:`/sys/devices/system/cpu/cpuidle/` in ``sysfs``.
 
@@ -197,75 +197,75 @@ allow them to make reasonable progress in a given time frame is to make them
 share the available CPU time.  Namely, in rough approximation, each task is
 given a slice of the CPU time to run its code, subject to the scheduling class,
 prioritization and so on and when that time slice is used up, the CPU should be
-switched over to running (the code of) another task.  The currently running task
-may not want to give the CPU away voluntarily, however, and the scheduler tick
-is there to make the switch happen regardless.  That is not the only role of the
+switched over to running (the code of) ayesther task.  The currently running task
+may yest want to give the CPU away voluntarily, however, and the scheduler tick
+is there to make the switch happen regardless.  That is yest the only role of the
 tick, but it is the primary reason for using it.
 
 The scheduler tick is problematic from the CPU idle time management perspective,
 because it triggers periodically and relatively often (depending on the kernel
 configuration, the length of the tick period is between 1 ms and 10 ms).
-Thus, if the tick is allowed to trigger on idle CPUs, it will not make sense
+Thus, if the tick is allowed to trigger on idle CPUs, it will yest make sense
 for them to ask the hardware to enter idle states with target residencies above
 the tick period length.  Moreover, in that case the idle duration of any CPU
 will never exceed the tick period length and the energy used for entering and
 exiting idle states due to the tick wakeups on idle CPUs will be wasted.
 
-Fortunately, it is not really necessary to allow the tick to trigger on idle
-CPUs, because (by definition) they have no tasks to run except for the special
+Fortunately, it is yest really necessary to allow the tick to trigger on idle
+CPUs, because (by definition) they have yes tasks to run except for the special
 "idle" one.  In other words, from the CPU scheduler perspective, the only user
 of the CPU time on them is the idle loop.  Since the time of an idle CPU need
-not be shared between multiple runnable tasks, the primary reason for using the
+yest be shared between multiple runnable tasks, the primary reason for using the
 tick goes away if the given CPU is idle.  Consequently, it is possible to stop
-the scheduler tick entirely on idle CPUs in principle, even though that may not
+the scheduler tick entirely on idle CPUs in principle, even though that may yest
 always be worth the effort.
 
-Whether or not it makes sense to stop the scheduler tick in the idle loop
-depends on what is expected by the governor.  First, if there is another
-(non-tick) timer due to trigger within the tick range, stopping the tick clearly
-would be a waste of time, even though the timer hardware may not need to be
-reprogrammed in that case.  Second, if the governor is expecting a non-timer
-wakeup within the tick range, stopping the tick is not necessary and it may even
-be harmful.  Namely, in that case the governor will select an idle state with
+Whether or yest it makes sense to stop the scheduler tick in the idle loop
+depends on what is expected by the goveryesr.  First, if there is ayesther
+(yesn-tick) timer due to trigger within the tick range, stopping the tick clearly
+would be a waste of time, even though the timer hardware may yest need to be
+reprogrammed in that case.  Second, if the goveryesr is expecting a yesn-timer
+wakeup within the tick range, stopping the tick is yest necessary and it may even
+be harmful.  Namely, in that case the goveryesr will select an idle state with
 the target residency within the time until the expected wakeup, so that state is
-going to be relatively shallow.  The governor really cannot select a deep idle
+going to be relatively shallow.  The goveryesr really canyest select a deep idle
 state then, as that would contradict its own expectation of a wakeup in short
 order.  Now, if the wakeup really occurs shortly, stopping the tick would be a
 waste of time and in this case the timer hardware would need to be reprogrammed,
 which is expensive.  On the other hand, if the tick is stopped and the wakeup
-does not occur any time soon, the hardware may spend indefinite amount of time
-in the shallow idle state selected by the governor, which will be a waste of
-energy.  Hence, if the governor is expecting a wakeup of any kind within the
+does yest occur any time soon, the hardware may spend indefinite amount of time
+in the shallow idle state selected by the goveryesr, which will be a waste of
+energy.  Hence, if the goveryesr is expecting a wakeup of any kind within the
 tick range, it is better to allow the tick trigger.  Otherwise, however, the
-governor will select a relatively deep idle state, so the tick should be stopped
-so that it does not wake up the CPU too early.
+goveryesr will select a relatively deep idle state, so the tick should be stopped
+so that it does yest wake up the CPU too early.
 
-In any case, the governor knows what it is expecting and the decision on whether
-or not to stop the scheduler tick belongs to it.  Still, if the tick has been
+In any case, the goveryesr kyesws what it is expecting and the decision on whether
+or yest to stop the scheduler tick belongs to it.  Still, if the tick has been
 stopped already (in one of the previous iterations of the loop), it is better
-to leave it as is and the governor needs to take that into account.
+to leave it as is and the goveryesr needs to take that into account.
 
 The kernel can be configured to disable stopping the scheduler tick in the idle
 loop altogether.  That can be done through the build-time configuration of it
 (by unsetting the ``CONFIG_NO_HZ_IDLE`` configuration option) or by passing
-``nohz=off`` to it in the command line.  In both cases, as the stopping of the
-scheduler tick is disabled, the governor's decisions regarding it are simply
-ignored by the idle loop code and the tick is never stopped.
+``yeshz=off`` to it in the command line.  In both cases, as the stopping of the
+scheduler tick is disabled, the goveryesr's decisions regarding it are simply
+igyesred by the idle loop code and the tick is never stopped.
 
 The systems that run kernels configured to allow the scheduler tick to be
 stopped on idle CPUs are referred to as *tickless* systems and they are
 generally regarded as more energy-efficient than the systems running kernels in
-which the tick cannot be stopped.  If the given system is tickless, it will use
-the ``menu`` governor by default and if it is not tickless, the default
-``CPUIdle`` governor on it will be ``ladder``.
+which the tick canyest be stopped.  If the given system is tickless, it will use
+the ``menu`` goveryesr by default and if it is yest tickless, the default
+``CPUIdle`` goveryesr on it will be ``ladder``.
 
 
 .. _menu-gov:
 
-The ``menu`` Governor
+The ``menu`` Goveryesr
 =====================
 
-The ``menu`` governor is the default ``CPUIdle`` governor for tickless systems.
+The ``menu`` goveryesr is the default ``CPUIdle`` goveryesr for tickless systems.
 It is quite complex, but the basic principle of its design is straightforward.
 Namely, when invoked to select an idle state for a CPU (i.e. an idle state that
 the CPU will ask the processor hardware to enter), it attempts to predict the
@@ -277,9 +277,9 @@ length* in what follows, is the upper bound on the time before the next CPU
 wakeup.  It is used to determine the sleep length range, which in turn is needed
 to get the sleep length correction factor.
 
-The ``menu`` governor maintains two arrays of sleep length correction factors.
+The ``menu`` goveryesr maintains two arrays of sleep length correction factors.
 One of them is used when tasks previously running on the given CPU are waiting
-for some I/O operations to complete and the other one is used when that is not
+for some I/O operations to complete and the other one is used when that is yest
 the case.  Each array contains several correction factor values that correspond
 to different sleep length ranges organized so that each range represented in the
 array is approximately 10 times wider than the previous one.
@@ -291,7 +291,7 @@ to 1 the correction factor becomes (it must fall between 0 and 1 inclusive).
 The sleep length is multiplied by the correction factor for the range that it
 falls into to obtain the first approximation of the predicted idle duration.
 
-Next, the governor uses a simple pattern recognition algorithm to refine its
+Next, the goveryesr uses a simple pattern recognition algorithm to refine its
 idle duration prediction.  Namely, it saves the last 8 observed idle duration
 values and, when predicting the idle duration next time, it computes the average
 and variance of them.  If the variance is small (smaller than 400 square
@@ -307,7 +307,7 @@ integer value).  The "typical interval" computed this way is compared with the
 sleep length multiplied by the correction factor and the minimum of the two is
 taken as the predicted idle duration.
 
-Then, the governor computes an extra latency limit to help "interactive"
+Then, the goveryesr computes an extra latency limit to help "interactive"
 workloads.  It uses the observation that if the exit latency of the selected
 idle state is comparable with the predicted idle duration, the total time spent
 in that state probably will be very short and the amount of energy to save by
@@ -316,51 +316,51 @@ overhead related to entering that state and exiting it.  Thus selecting a
 shallower state is likely to be a better option then.   The first approximation
 of the extra latency limit is the predicted idle duration itself which
 additionally is divided by a value depending on the number of tasks that
-previously ran on the given CPU and now they are waiting for I/O operations to
+previously ran on the given CPU and yesw they are waiting for I/O operations to
 complete.  The result of that division is compared with the latency limit coming
 from the power management quality of service, or `PM QoS <cpu-pm-qos_>`_,
 framework and the minimum of the two is taken as the limit for the idle states'
 exit latency.
 
-Now, the governor is ready to walk the list of idle states and choose one of
+Now, the goveryesr is ready to walk the list of idle states and choose one of
 them.  For this purpose, it compares the target residency of each state with
 the predicted idle duration and the exit latency of it with the computed latency
 limit.  It selects the state with the target residency closest to the predicted
-idle duration, but still below it, and exit latency that does not exceed the
+idle duration, but still below it, and exit latency that does yest exceed the
 limit.
 
-In the final step the governor may still need to refine the idle state selection
-if it has not decided to `stop the scheduler tick <idle-cpus-and-tick_>`_.  That
+In the final step the goveryesr may still need to refine the idle state selection
+if it has yest decided to `stop the scheduler tick <idle-cpus-and-tick_>`_.  That
 happens if the idle duration predicted by it is less than the tick period and
-the tick has not been stopped already (in a previous iteration of the idle
-loop).  Then, the sleep length used in the previous computations may not reflect
+the tick has yest been stopped already (in a previous iteration of the idle
+loop).  Then, the sleep length used in the previous computations may yest reflect
 the real time until the closest timer event and if it really is greater than
-that time, the governor may need to select a shallower state with a suitable
+that time, the goveryesr may need to select a shallower state with a suitable
 target residency.
 
 
 .. _teo-gov:
 
-The Timer Events Oriented (TEO) Governor
+The Timer Events Oriented (TEO) Goveryesr
 ========================================
 
-The timer events oriented (TEO) governor is an alternative ``CPUIdle`` governor
+The timer events oriented (TEO) goveryesr is an alternative ``CPUIdle`` goveryesr
 for tickless systems.  It follows the same basic strategy as the ``menu`` `one
 <menu-gov_>`_: it always tries to find the deepest idle state suitable for the
 given conditions.  However, it applies a different approach to that problem.
 
-First, it does not use sleep length correction factors, but instead it attempts
+First, it does yest use sleep length correction factors, but instead it attempts
 to correlate the observed idle duration values with the available idle states
 and use that information to pick up the idle state that is most likely to
-"match" the upcoming CPU idle interval.   Second, it does not take the tasks
+"match" the upcoming CPU idle interval.   Second, it does yest take the tasks
 that were running on the given CPU in the past and are waiting on some I/O
-operations to complete now at all (there is no guarantee that they will run on
+operations to complete yesw at all (there is yes guarantee that they will run on
 the same CPU when they become runnable again) and the pattern detection code in
 it avoids taking timer wakeups into account.  It also only uses idle duration
 values less than the current time till the closest timer (with the scheduler
 tick excluded) for that purpose.
 
-Like in the ``menu`` governor `case <menu-gov_>`_, the first step is to obtain
+Like in the ``menu`` goveryesr `case <menu-gov_>`_, the first step is to obtain
 the *sleep length*, which is the time until the closest timer event with the
 assumption that the scheduler tick will be stopped (that also is the upper bound
 on the time until the next CPU wakeup).  That value is then used to preselect an
@@ -383,19 +383,19 @@ increased when the given idle state "matches" the sleep length only and the
 observed idle duration is too short for its target residency.
 
 The ``early_hits`` metric measures the likelihood that a given idle state will
-"match" the observed (post-wakeup) idle duration if it does not "match" the
+"match" the observed (post-wakeup) idle duration if it does yest "match" the
 sleep length.  It is subject to decay on every CPU wakeup and it is increased
 when the idle state corresponding to it "matches" the observed (post-wakeup)
 idle duration and the target residency of the next idle state is less than or
 equal to the sleep length (i.e. the idle state "matching" the sleep length is
 deeper than the given one).
 
-The governor walks the list of idle states provided by the ``CPUIdle`` driver
+The goveryesr walks the list of idle states provided by the ``CPUIdle`` driver
 and finds the last (deepest) one with the target residency less than or equal
 to the sleep length.  Then, the ``hits`` and ``misses`` metrics of that idle
 state are compared with each other and it is preselected if the ``hits`` one is
 greater (which means that that idle state is likely to "match" the observed idle
-duration after CPU wakeup).  If the ``misses`` one is greater, the governor
+duration after CPU wakeup).  If the ``misses`` one is greater, the goveryesr
 preselects the shallower idle state with the maximum ``early_hits`` metric
 (or if there are multiple shallower idle states with equal ``early_hits``
 metric which also is the maximum, the shallowest of them will be preselected).
@@ -405,21 +405,21 @@ target residency within the sleep length, the deepest idle state with the exit
 latency within the constraint is preselected without consulting the ``hits``,
 ``misses`` and ``early_hits`` metrics.]
 
-Next, the governor takes several idle duration values observed most recently
+Next, the goveryesr takes several idle duration values observed most recently
 into consideration and if at least a half of them are greater than or equal to
 the target residency of the preselected idle state, that idle state becomes the
 final candidate to ask for.  Otherwise, the average of the most recent idle
 duration values below the target residency of the preselected idle state is
-computed and the governor walks the idle states shallower than the preselected
+computed and the goveryesr walks the idle states shallower than the preselected
 one and finds the deepest of them with the target residency within that average.
 That idle state is then taken as the final candidate to ask for.
 
-Still, at this point the governor may need to refine the idle state selection if
-it has not decided to `stop the scheduler tick <idle-cpus-and-tick_>`_.  That
+Still, at this point the goveryesr may need to refine the idle state selection if
+it has yest decided to `stop the scheduler tick <idle-cpus-and-tick_>`_.  That
 generally happens if the target residency of the idle state selected so far is
-less than the tick period and the tick has not been stopped already (in a
-previous iteration of the idle loop).  Then, like in the ``menu`` governor
-`case <menu-gov_>`_, the sleep length used in the previous computations may not
+less than the tick period and the tick has yest been stopped already (in a
+previous iteration of the idle loop).  Then, like in the ``menu`` goveryesr
+`case <menu-gov_>`_, the sleep length used in the previous computations may yest
 reflect the real time until the closest timer event and if it really is greater
 than that time, a shallower state with a suitable target residency may need to
 be selected.
@@ -447,7 +447,7 @@ a "module" and suppose that asking the hardware to enter a specific idle state
 enter a specific idle state of its own (say "MX") if the other core is in idle
 state "X" already.  In other words, asking for idle state "X" at the "core"
 level gives the hardware a license to go as deep as to idle state "MX" at the
-"module" level, but there is no guarantee that this is going to happen (the core
+"module" level, but there is yes guarantee that this is going to happen (the core
 asking for idle state "X" may just end up in that state by itself instead).
 Then, the target residency of the |struct cpuidle_state| object representing
 idle state "X" must reflect the minimum time to spend in idle state "MX" of
@@ -462,14 +462,14 @@ becomes operational as a whole).
 
 There are processors without direct coordination between different levels of the
 hierarchy of units inside them, however.  In those cases asking for an idle
-state at the "core" level does not automatically affect the "module" level, for
+state at the "core" level does yest automatically affect the "module" level, for
 example, in any way and the ``CPUIdle`` driver is responsible for the entire
 handling of the hierarchy.  Then, the definition of the idle state objects is
 entirely up to the driver, but still the physical properties of the idle state
 that the processor hardware finally goes into must always follow the parameters
-used by the governor for idle state selection (for instance, the actual exit
-latency of that idle state must not exceed the exit latency parameter of the
-idle state object selected by the governor).
+used by the goveryesr for idle state selection (for instance, the actual exit
+latency of that idle state must yest exceed the exit latency parameter of the
+idle state object selected by the goveryesr).
 
 In addition to the target residency and exit latency idle state parameters
 discussed above, the objects representing idle states each contain a few other
@@ -504,7 +504,7 @@ object corresponding to it, as follows:
 	Description of the idle state.
 
 ``disable``
-	Whether or not this idle state is disabled.
+	Whether or yest this idle state is disabled.
 
 ``latency``
 	Exit latency of the idle state in microseconds.
@@ -534,36 +534,36 @@ The other files listed above contain integer numbers.
 
 The :file:`disable` attribute is the only writeable one.  If it contains 1, the
 given idle state is disabled for this particular CPU, which means that the
-governor will never select it for this particular CPU and the ``CPUIdle``
+goveryesr will never select it for this particular CPU and the ``CPUIdle``
 driver will never ask the hardware to enter it for that CPU as a result.
-However, disabling an idle state for one CPU does not prevent it from being
+However, disabling an idle state for one CPU does yest prevent it from being
 asked for by the other CPUs, so it must be disabled for all of them in order to
 never be asked for by any of them.  [Note that, due to the way the ``ladder``
-governor is implemented, disabling an idle state prevents that governor from
+goveryesr is implemented, disabling an idle state prevents that goveryesr from
 selecting any idle states deeper than the disabled one too.]
 
 If the :file:`disable` attribute contains 0, the given idle state is enabled for
 this particular CPU, but it still may be disabled for some or all of the other
 CPUs in the system at the same time.  Writing 1 to it causes the idle state to
-be disabled for this particular CPU and writing 0 to it allows the governor to
+be disabled for this particular CPU and writing 0 to it allows the goveryesr to
 take it into consideration for the given CPU and the driver to ask for it,
-unless that state was disabled globally in the driver (in which case it cannot
+unless that state was disabled globally in the driver (in which case it canyest
 be used at all).
 
-The :file:`power` attribute is not defined very well, especially for idle state
+The :file:`power` attribute is yest defined very well, especially for idle state
 objects representing combinations of idle states at different levels of the
 hierarchy of units in the processor, and it generally is hard to obtain idle
-state power numbers for complex hardware, so :file:`power` often contains 0 (not
-available) and if it contains a nonzero number, that number may not be very
-accurate and it should not be relied on for anything meaningful.
+state power numbers for complex hardware, so :file:`power` often contains 0 (yest
+available) and if it contains a yesnzero number, that number may yest be very
+accurate and it should yest be relied on for anything meaningful.
 
 The number in the :file:`time` file generally may be greater than the total time
 really spent by the given CPU in the given idle state, because it is measured by
-the kernel and it may not cover the cases in which the hardware refused to enter
-this idle state and entered a shallower one instead of it (or even it did not
+the kernel and it may yest cover the cases in which the hardware refused to enter
+this idle state and entered a shallower one instead of it (or even it did yest
 enter any idle state at all).  The kernel can only measure the time span between
 asking the hardware to enter an idle state and the subsequent wakeup of the CPU
-and it cannot say what really happened in the meantime at the hardware level.
+and it canyest say what really happened in the meantime at the hardware level.
 Moreover, if the idle state object in question represents a combination of idle
 states at different levels of the hierarchy of units in the processor,
 the kernel can never say how deep the hardware went down the hierarchy in any
@@ -599,8 +599,8 @@ string (representing a signed 32-bit integer) to the
 will be rejected in both cases and, also in both cases, the written integer
 number will be interpreted as a requested PM QoS constraint in microseconds.
 
-The requested value is not automatically applied as a new constraint, however,
-as it may be less restrictive (greater in this particular case) than another
+The requested value is yest automatically applied as a new constraint, however,
+as it may be less restrictive (greater in this particular case) than ayesther
 constraint previously requested by someone else.  For this reason, the PM QoS
 framework maintains a list of requests that have been made so far in each
 global class and for each device, aggregates them and applies the effective
@@ -640,10 +640,10 @@ practice is to pin a process to the CPU in question and let it use the
 ``sysfs`` interface to control the resume latency constraint for it.]  It
 still only is a request, however.  It is a member of a priority list used to
 determine the effective value to be set as the resume latency constraint for the
-CPU in question every time the list of requests is updated this way or another
+CPU in question every time the list of requests is updated this way or ayesther
 (there may be other requests coming from kernel code in that list).
 
-CPU idle time governors are expected to regard the minimum of the global
+CPU idle time goveryesrs are expected to regard the minimum of the global
 effective ``PM_QOS_CPU_DMA_LATENCY`` class constraint and the effective
 resume latency constraint for the given CPU as the upper limit for the exit
 latency of the idle states they can select for that CPU.  They should never
@@ -658,21 +658,21 @@ In addition to the ``sysfs`` interface allowing individual idle states to be
 command line parameters affecting CPU idle time management.
 
 The ``cpuidle.off=1`` kernel command line option can be used to disable the
-CPU idle time management entirely.  It does not prevent the idle loop from
-running on idle CPUs, but it prevents the CPU idle time governors and drivers
+CPU idle time management entirely.  It does yest prevent the idle loop from
+running on idle CPUs, but it prevents the CPU idle time goveryesrs and drivers
 from being invoked.  If it is added to the kernel command line, the idle loop
 will ask the hardware to enter idle states on idle CPUs via the CPU architecture
 support code that is expected to provide a default mechanism for this purpose.
-That default mechanism usually is the least common denominator for all of the
+That default mechanism usually is the least common deyesminator for all of the
 processors implementing the architecture (i.e. CPU instruction set) in question,
-however, so it is rather crude and not very energy-efficient.  For this reason,
-it is not recommended for production use.
+however, so it is rather crude and yest very energy-efficient.  For this reason,
+it is yest recommended for production use.
 
-The ``cpuidle.governor=`` kernel command line switch allows the ``CPUIdle``
-governor to use to be specified.  It has to be appended with a string matching
-the name of an available governor (e.g. ``cpuidle.governor=menu``) and that
-governor will be used instead of the default one.  It is possible to force
-the ``menu`` governor to be used on the systems that use the ``ladder`` governor
+The ``cpuidle.goveryesr=`` kernel command line switch allows the ``CPUIdle``
+goveryesr to use to be specified.  It has to be appended with a string matching
+the name of an available goveryesr (e.g. ``cpuidle.goveryesr=menu``) and that
+goveryesr will be used instead of the default one.  It is possible to force
+the ``menu`` goveryesr to be used on the systems that use the ``ladder`` goveryesr
 by default this way, for example.
 
 The other kernel command line parameters controlling CPU idle time management
@@ -681,7 +681,7 @@ them affect Intel processors only.
 
 The *x86* architecture support code recognizes three kernel command line
 options related to CPU idle time management: ``idle=poll``, ``idle=halt``,
-and ``idle=nomwait``.  The first two of them disable the ``acpi_idle`` and
+and ``idle=yesmwait``.  The first two of them disable the ``acpi_idle`` and
 ``intel_idle`` drivers altogether, which effectively causes the entire
 ``CPUIdle`` subsystem to be disabled and makes the idle loop invoke the
 architecture support code to deal with idle CPUs.  How it does that depends on
@@ -692,16 +692,16 @@ and causes the hardware to attempt to enter the shallowest available idle state)
 for this purpose, and if ``idle=poll`` is used, idle CPUs will execute a
 more or less ``lightweight'' sequence of instructions in a tight loop.  [Note
 that using ``idle=poll`` is somewhat drastic in many cases, as preventing idle
-CPUs from saving almost any energy at all may not be the only effect of it.
+CPUs from saving almost any energy at all may yest be the only effect of it.
 For example, on Intel hardware it effectively prevents CPUs from using
 P-states (see |cpufreq|) that require any number of CPUs in a package to be
 idle, so it very well may hurt single-thread computations performance as well as
-energy-efficiency.  Thus using it for performance reasons may not be a good idea
+energy-efficiency.  Thus using it for performance reasons may yest be a good idea
 at all.]
 
-The ``idle=nomwait`` option disables the ``intel_idle`` driver and causes
+The ``idle=yesmwait`` option disables the ``intel_idle`` driver and causes
 ``acpi_idle`` to be used (as long as all of the information needed by it is
-there in the system's ACPI tables), but it is not allowed to use the
+there in the system's ACPI tables), but it is yest allowed to use the
 ``MWAIT`` instruction of the CPUs to ask the hardware to enter idle states.
 
 In addition to the architecture-level kernel command line options affecting CPU
@@ -713,7 +713,7 @@ state's directory in ``sysfs`` (see
 `Representation of Idle States <idle-states-representation_>`_), causes the
 ``intel_idle`` and ``acpi_idle`` drivers, respectively, to discard all of the
 idle states deeper than idle state ``<n>``.  In that case, they will never ask
-for any of those idle states or expose them to the governor.  [The behavior of
+for any of those idle states or expose them to the goveryesr.  [The behavior of
 the two drivers is different for ``<n>`` equal to ``0``.  Adding
 ``intel_idle.max_cstate=0`` to the kernel command line disables the
 ``intel_idle`` driver and allows ``acpi_idle`` to be used, whereas

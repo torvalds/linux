@@ -458,7 +458,7 @@ static inline void iproc_pcie_apb_err_disable(struct pci_bus *bus,
 }
 
 static void __iomem *iproc_pcie_map_ep_cfg_reg(struct iproc_pcie *pcie,
-					       unsigned int busno,
+					       unsigned int busyes,
 					       unsigned int slot,
 					       unsigned int fn,
 					       int where)
@@ -467,7 +467,7 @@ static void __iomem *iproc_pcie_map_ep_cfg_reg(struct iproc_pcie *pcie,
 	u32 val;
 
 	/* EP device access */
-	val = (busno << CFG_ADDR_BUS_NUM_SHIFT) |
+	val = (busyes << CFG_ADDR_BUS_NUM_SHIFT) |
 		(slot << CFG_ADDR_DEV_NUM_SHIFT) |
 		(fn << CFG_ADDR_FUNC_NUM_SHIFT) |
 		(where & CFG_ADDR_REG_NUM_MASK) |
@@ -501,7 +501,7 @@ static unsigned int iproc_pcie_cfg_retry(struct iproc_pcie *pcie,
 	 * partial workaround for this, we retry in software any read that
 	 * returns CFG_RETRY_STATUS.
 	 *
-	 * Note that a non-Vendor ID config register may have a value of
+	 * Note that a yesn-Vendor ID config register may have a value of
 	 * CFG_RETRY_STATUS.  If we read that, we can't distinguish it from
 	 * a CRS completion, so we will incorrectly retry the read and
 	 * eventually return the wrong data (0xffffffff).
@@ -576,13 +576,13 @@ static int iproc_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
 	struct iproc_pcie *pcie = iproc_data(bus);
 	unsigned int slot = PCI_SLOT(devfn);
 	unsigned int fn = PCI_FUNC(devfn);
-	unsigned int busno = bus->number;
+	unsigned int busyes = bus->number;
 	void __iomem *cfg_data_p;
 	unsigned int data;
 	int ret;
 
 	/* root complex access */
-	if (busno == 0) {
+	if (busyes == 0) {
 		ret = pci_generic_config_read32(bus, devfn, where, size, val);
 		if (ret == PCIBIOS_SUCCESSFUL)
 			iproc_pcie_fix_cap(pcie, where, val);
@@ -590,7 +590,7 @@ static int iproc_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
 		return ret;
 	}
 
-	cfg_data_p = iproc_pcie_map_ep_cfg_reg(pcie, busno, slot, fn, where);
+	cfg_data_p = iproc_pcie_map_ep_cfg_reg(pcie, busyes, slot, fn, where);
 
 	if (!cfg_data_p)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -604,7 +604,7 @@ static int iproc_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
 	/*
 	 * For PAXC and PAXCv2, the total number of PFs that one can enumerate
 	 * depends on the firmware configuration. Unfortunately, due to an ASIC
-	 * bug, unconfigured PFs cannot be properly hidden from the root
+	 * bug, unconfigured PFs canyest be properly hidden from the root
 	 * complex. As a result, write access to these PFs will cause bus lock
 	 * up on the embedded processor
 	 *
@@ -628,7 +628,7 @@ static int iproc_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
  * by 'pci_lock' in drivers/pci/access.c
  */
 static void __iomem *iproc_pcie_map_cfg_bus(struct iproc_pcie *pcie,
-					    int busno, unsigned int devfn,
+					    int busyes, unsigned int devfn,
 					    int where)
 {
 	unsigned slot = PCI_SLOT(devfn);
@@ -636,7 +636,7 @@ static void __iomem *iproc_pcie_map_cfg_bus(struct iproc_pcie *pcie,
 	u16 offset;
 
 	/* root complex access */
-	if (busno == 0) {
+	if (busyes == 0) {
 		if (slot > 0 || fn > 0)
 			return NULL;
 
@@ -649,7 +649,7 @@ static void __iomem *iproc_pcie_map_cfg_bus(struct iproc_pcie *pcie,
 			return (pcie->base + offset);
 	}
 
-	return iproc_pcie_map_ep_cfg_reg(pcie, busno, slot, fn, where);
+	return iproc_pcie_map_ep_cfg_reg(pcie, busyes, slot, fn, where);
 }
 
 static void __iomem *iproc_pcie_bus_map_cfg_bus(struct pci_bus *bus,
@@ -743,7 +743,7 @@ static void iproc_pcie_perst_ctrl(struct iproc_pcie *pcie, bool assert)
 	u32 val;
 
 	/*
-	 * PAXC and the internal emulated endpoint device downstream should not
+	 * PAXC and the internal emulated endpoint device downstream should yest
 	 * be reset.  If firmware has been loaded on the endpoint device at an
 	 * earlier boot stage, reset here causes issues.
 	 */
@@ -780,7 +780,7 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie)
 	bool link_is_active = false;
 
 	/*
-	 * PAXC connects to emulated endpoint devices directly and does not
+	 * PAXC connects to emulated endpoint devices directly and does yest
 	 * have a Serdes.  Therefore skip the link detection logic here.
 	 */
 	if (pcie->ep_is_internal)
@@ -792,7 +792,7 @@ static int iproc_pcie_check_link(struct iproc_pcie *pcie)
 		return -ENODEV;
 	}
 
-	/* make sure we are not in EP mode */
+	/* make sure we are yest in EP mode */
 	iproc_pci_raw_config_read32(pcie, 0, PCI_HEADER_TYPE, 1, &hdr_type);
 	if ((hdr_type & 0x7f) != PCI_HEADER_TYPE_BRIDGE) {
 		dev_err(dev, "in EP mode, hdr=%#02x\n", hdr_type);
@@ -887,7 +887,7 @@ static inline int iproc_pcie_ob_write(struct iproc_pcie *pcie, int window_idx,
 	       OARR_VALID, pcie->base + oarr_offset);
 	writel(upper_32_bits(axi_addr), pcie->base + oarr_offset + 4);
 
-	/* now program the OMAP registers */
+	/* yesw program the OMAP registers */
 	writel(lower_32_bits(pci_addr), pcie->base + omap_offset);
 	writel(upper_32_bits(pci_addr), pcie->base + omap_offset + 4);
 
@@ -978,7 +978,7 @@ static int iproc_pcie_setup_ob(struct iproc_pcie *pcie, u64 axi_addr,
 			if (!IS_ALIGNED(axi_addr, window_size) ||
 			    !IS_ALIGNED(pci_addr, window_size)) {
 				dev_err(dev,
-					"axi %pap or pci %pap not aligned\n",
+					"axi %pap or pci %pap yest aligned\n",
 					&axi_addr, &pci_addr);
 				return -EINVAL;
 			}
@@ -998,7 +998,7 @@ static int iproc_pcie_setup_ob(struct iproc_pcie *pcie, u64 axi_addr,
 
 			/*
 			 * If we are here, we are done with the current window,
-			 * but not yet finished all mappings.  Need to move on
+			 * but yest yet finished all mappings.  Need to move on
 			 * to the next window.
 			 */
 			axi_addr += window_size;
@@ -1139,7 +1139,7 @@ static int iproc_pcie_setup_ib(struct iproc_pcie *pcie,
 			&pcie->ib_map[region_idx];
 
 		/*
-		 * If current inbound region is already in use or not a
+		 * If current inbound region is already in use or yest a
 		 * compatible type, move on to the next.
 		 */
 		if (iproc_pcie_ib_is_in_use(pcie, region_idx) ||
@@ -1157,7 +1157,7 @@ static int iproc_pcie_setup_ib(struct iproc_pcie *pcie,
 			if (!IS_ALIGNED(axi_addr, region_size) ||
 			    !IS_ALIGNED(pci_addr, region_size)) {
 				dev_err(dev,
-					"axi %pap or pci %pap not aligned\n",
+					"axi %pap or pci %pap yest aligned\n",
 					&axi_addr, &pci_addr);
 				return -EINVAL;
 			}
@@ -1226,7 +1226,7 @@ static void iproc_pcie_invalidate_mapping(struct iproc_pcie *pcie)
 }
 
 static int iproce_pcie_get_msi(struct iproc_pcie *pcie,
-			       struct device_node *msi_node,
+			       struct device_yesde *msi_yesde,
 			       u64 *msi_addr)
 {
 	struct device *dev = pcie->dev;
@@ -1237,13 +1237,13 @@ static int iproce_pcie_get_msi(struct iproc_pcie *pcie,
 	 * Check if 'msi-map' points to ARM GICv3 ITS, which is the only
 	 * supported external MSI controller that requires steering.
 	 */
-	if (!of_device_is_compatible(msi_node, "arm,gic-v3-its")) {
+	if (!of_device_is_compatible(msi_yesde, "arm,gic-v3-its")) {
 		dev_err(dev, "unable to find compatible MSI controller\n");
 		return -ENODEV;
 	}
 
 	/* derive GITS_TRANSLATER address from GICv3 */
-	ret = of_address_to_resource(msi_node, 0, &res);
+	ret = of_address_to_resource(msi_yesde, 0, &res);
 	if (ret < 0) {
 		dev_err(dev, "unable to obtain MSI controller resources\n");
 		return ret;
@@ -1277,7 +1277,7 @@ static void iproc_pcie_paxc_v2_msi_steer(struct iproc_pcie *pcie, u64 msi_addr,
 	if (!enable) {
 		/*
 		 * Disable PAXC MSI steering. All write transfers will be
-		 * treated as non-MSI transfers
+		 * treated as yesn-MSI transfers
 		 */
 		val = iproc_pcie_read_reg(pcie, IPROC_PCIE_MSI_EN_CFG);
 		val &= ~MSI_ENABLE_CFG;
@@ -1319,13 +1319,13 @@ static void iproc_pcie_paxc_v2_msi_steer(struct iproc_pcie *pcie, u64 msi_addr,
 }
 
 static int iproc_pcie_msi_steer(struct iproc_pcie *pcie,
-				struct device_node *msi_node)
+				struct device_yesde *msi_yesde)
 {
 	struct device *dev = pcie->dev;
 	int ret;
 	u64 msi_addr;
 
-	ret = iproce_pcie_get_msi(pcie, msi_node, &msi_addr);
+	ret = iproce_pcie_get_msi(pcie, msi_yesde, &msi_addr);
 	if (ret < 0) {
 		dev_err(dev, "msi steering failed\n");
 		return ret;
@@ -1349,27 +1349,27 @@ static int iproc_pcie_msi_steer(struct iproc_pcie *pcie,
 
 static int iproc_pcie_msi_enable(struct iproc_pcie *pcie)
 {
-	struct device_node *msi_node;
+	struct device_yesde *msi_yesde;
 	int ret;
 
 	/*
 	 * Either the "msi-parent" or the "msi-map" phandle needs to exist
-	 * for us to obtain the MSI node.
+	 * for us to obtain the MSI yesde.
 	 */
 
-	msi_node = of_parse_phandle(pcie->dev->of_node, "msi-parent", 0);
-	if (!msi_node) {
+	msi_yesde = of_parse_phandle(pcie->dev->of_yesde, "msi-parent", 0);
+	if (!msi_yesde) {
 		const __be32 *msi_map = NULL;
 		int len;
 		u32 phandle;
 
-		msi_map = of_get_property(pcie->dev->of_node, "msi-map", &len);
+		msi_map = of_get_property(pcie->dev->of_yesde, "msi-map", &len);
 		if (!msi_map)
 			return -ENODEV;
 
 		phandle = be32_to_cpup(msi_map + 1);
-		msi_node = of_find_node_by_phandle(phandle);
-		if (!msi_node)
+		msi_yesde = of_find_yesde_by_phandle(phandle);
+		if (!msi_yesde)
 			return -ENODEV;
 	}
 
@@ -1379,19 +1379,19 @@ static int iproc_pcie_msi_enable(struct iproc_pcie *pcie)
 	 * controller.
 	 */
 	if (pcie->need_msi_steer) {
-		ret = iproc_pcie_msi_steer(pcie, msi_node);
+		ret = iproc_pcie_msi_steer(pcie, msi_yesde);
 		if (ret)
-			goto out_put_node;
+			goto out_put_yesde;
 	}
 
 	/*
-	 * If another MSI controller is being used, the call below should fail
+	 * If ayesther MSI controller is being used, the call below should fail
 	 * but that is okay
 	 */
-	ret = iproc_msi_init(pcie, msi_node);
+	ret = iproc_msi_init(pcie, msi_yesde);
 
-out_put_node:
-	of_node_put(msi_node);
+out_put_yesde:
+	of_yesde_put(msi_yesde);
 	return ret;
 }
 
@@ -1514,7 +1514,7 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 
 	ret = iproc_pcie_check_link(pcie);
 	if (ret) {
-		dev_err(dev, "no PCIe EP device detected\n");
+		dev_err(dev, "yes PCIe EP device detected\n");
 		goto err_power_off_phy;
 	}
 
@@ -1522,7 +1522,7 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		if (iproc_pcie_msi_enable(pcie))
-			dev_info(dev, "not using iProc MSI\n");
+			dev_info(dev, "yest using iProc MSI\n");
 
 	host->busnr = 0;
 	host->dev.parent = dev;
@@ -1541,7 +1541,7 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 
 	pcie->root_bus = host->bus;
 
-	list_for_each_entry(child, &host->bus->children, node)
+	list_for_each_entry(child, &host->bus->children, yesde)
 		pcie_bus_configure_settings(child);
 
 	pci_bus_add_devices(host->bus);
@@ -1572,7 +1572,7 @@ EXPORT_SYMBOL(iproc_pcie_remove);
 
 /*
  * The MSI parsing logic in certain revisions of Broadcom PAXC based root
- * complex does not work and needs to be disabled
+ * complex does yest work and needs to be disabled
  */
 static void quirk_paxc_disable_msi_parsing(struct pci_dev *pdev)
 {

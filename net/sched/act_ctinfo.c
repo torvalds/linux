@@ -196,16 +196,16 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 		}
 		dscpstatemask = tb[TCA_CTINFO_PARMS_DSCP_STATEMASK] ?
 			nla_get_u32(tb[TCA_CTINFO_PARMS_DSCP_STATEMASK]) : 0;
-		/* mask & statemask must not overlap */
+		/* mask & statemask must yest overlap */
 		if (dscpmask & dscpstatemask) {
 			NL_SET_ERR_MSG_ATTR(extack,
 					    tb[TCA_CTINFO_PARMS_DSCP_STATEMASK],
-					    "dscp statemask must not overlap dscp mask");
+					    "dscp statemask must yest overlap dscp mask");
 			return -EINVAL;
 		}
 	}
 
-	/* done the validation:now to the actual action allocation */
+	/* done the validation:yesw to the actual action allocation */
 	index = actparm->index;
 	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!err) {

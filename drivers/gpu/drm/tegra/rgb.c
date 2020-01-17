@@ -98,9 +98,9 @@ tegra_rgb_connector_mode_valid(struct drm_connector *connector,
 			       struct drm_display_mode *mode)
 {
 	/*
-	 * FIXME: For now, always assume that the mode is okay. There are
+	 * FIXME: For yesw, always assume that the mode is okay. There are
 	 * unresolved issues with clk_round_rate(), which doesn't always
-	 * reliably report whether a frequency can be set or not.
+	 * reliably report whether a frequency can be set or yest.
 	 */
 	return MODE_OK;
 }
@@ -177,7 +177,7 @@ tegra_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	int err;
 
 	/*
-	 * We may not want to change the frequency of the parent clock, since
+	 * We may yest want to change the frequency of the parent clock, since
 	 * it may be a parent for other peripherals. This is due to the fact
 	 * that on Tegra20 there's only a single clock dedicated to display
 	 * (pll_d_out0), whereas later generations have a second one that can
@@ -213,11 +213,11 @@ static const struct drm_encoder_helper_funcs tegra_rgb_encoder_helper_funcs = {
 
 int tegra_dc_rgb_probe(struct tegra_dc *dc)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct tegra_rgb *rgb;
 	int err;
 
-	np = of_get_child_by_name(dc->dev->of_node, "rgb");
+	np = of_get_child_by_name(dc->dev->of_yesde, "rgb");
 	if (!np || !of_device_is_available(np))
 		return -ENODEV;
 
@@ -226,7 +226,7 @@ int tegra_dc_rgb_probe(struct tegra_dc *dc)
 		return -ENOMEM;
 
 	rgb->output.dev = dc->dev;
-	rgb->output.of_node = np;
+	rgb->output.of_yesde = np;
 	rgb->dc = dc;
 
 	err = tegra_output_probe(&rgb->output);

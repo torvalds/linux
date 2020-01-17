@@ -28,7 +28,7 @@ static int arizona_spi_probe(struct spi_device *spi)
 	unsigned long type;
 	int ret;
 
-	if (spi->dev.of_node)
+	if (spi->dev.of_yesde)
 		type = arizona_of_get_type(&spi->dev);
 	else
 		type = id->driver_data;
@@ -49,7 +49,7 @@ static int arizona_spi_probe(struct spi_device *spi)
 			regmap_config = &cs47l24_spi_regmap;
 		break;
 	default:
-		dev_err(&spi->dev, "Unknown device type %ld\n", type);
+		dev_err(&spi->dev, "Unkyeswn device type %ld\n", type);
 		return -EINVAL;
 	}
 

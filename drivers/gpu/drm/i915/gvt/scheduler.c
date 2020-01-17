@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -77,8 +77,8 @@ static void update_shadow_pdps(struct intel_vgpu_workload *workload)
 }
 
 /*
- * when populating shadow ctx from guest, we should not overrride oa related
- * registers, so that they will not be overlapped by guest oa configs. Thus
+ * when populating shadow ctx from guest, we should yest overrride oa related
+ * registers, so that they will yest be overlapped by guest oa configs. Thus
  * made it possible to capture oa data from host for both host and guests.
  */
 static void sr_oa_regs(struct intel_vgpu_workload *workload,
@@ -224,12 +224,12 @@ static void save_ring_hw_state(struct intel_vgpu *vgpu, int ring_id)
 	vgpu_vreg(vgpu, i915_mmio_reg_offset(reg)) = I915_READ_FW(reg);
 }
 
-static int shadow_context_status_change(struct notifier_block *nb,
+static int shadow_context_status_change(struct yestifier_block *nb,
 		unsigned long action, void *data)
 {
 	struct i915_request *req = data;
 	struct intel_gvt *gvt = container_of(nb, struct intel_gvt,
-				shadow_ctx_notifier_block[req->engine->id]);
+				shadow_ctx_yestifier_block[req->engine->id]);
 	struct intel_gvt_workload_scheduler *scheduler = &gvt->scheduler;
 	enum intel_engine_id ring_id = req->engine->id;
 	struct intel_vgpu_workload *workload;
@@ -454,10 +454,10 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 	int ret;
 
 	list_for_each_entry(bb, &workload->shadow_bb, list) {
-		/* For privilge batch buffer and not wa_ctx, the bb_start_cmd_va
-		 * is only updated into ring_scan_buffer, not real ring address
-		 * allocated in later copy_workload_to_ring_buffer. pls be noted
-		 * shadow_ring_buffer_va is now pointed to real ring buffer va
+		/* For privilge batch buffer and yest wa_ctx, the bb_start_cmd_va
+		 * is only updated into ring_scan_buffer, yest real ring address
+		 * allocated in later copy_workload_to_ring_buffer. pls be yested
+		 * shadow_ring_buffer_va is yesw pointed to real ring buffer va
 		 * in copy_workload_to_ring_buffer.
 		 */
 
@@ -466,7 +466,7 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 				+ bb->bb_offset;
 
 		if (bb->ppgtt) {
-			/* for non-priv bb, scan&shadow is only for
+			/* for yesn-priv bb, scan&shadow is only for
 			 * debugging purpose, so the content of shadow bb
 			 * is the same as original bb. Therefore,
 			 * here, rather than switch to shadow bb's gma
@@ -495,7 +495,7 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 			if (gmadr_bytes == 8)
 				bb->bb_start_cmd_va[2] = 0;
 
-			/* No one is going to touch shadow bb from now on. */
+			/* No one is going to touch shadow bb from yesw on. */
 			if (bb->clflush & CLFLUSH_AFTER) {
 				drm_clflush_virt_range(bb->va,
 						bb->obj->base.size);
@@ -554,7 +554,7 @@ static int prepare_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	/* FIXME: we are not tracking our pinned VMA leaving it
+	/* FIXME: we are yest tracking our pinned VMA leaving it
 	 * up to the core to fix up the stray pin_count upon
 	 * free.
 	 */
@@ -734,11 +734,11 @@ static struct intel_vgpu_workload *pick_next_workload(
 	mutex_lock(&gvt->sched_lock);
 
 	/*
-	 * no current vgpu / will be scheduled out / no workload
+	 * yes current vgpu / will be scheduled out / yes workload
 	 * bail out
 	 */
 	if (!scheduler->current_vgpu) {
-		gvt_dbg_sched("ring id %d stop - no current vgpu\n", ring_id);
+		gvt_dbg_sched("ring id %d stop - yes current vgpu\n", ring_id);
 		goto out;
 	}
 
@@ -941,7 +941,7 @@ static void complete_current_workload(struct intel_gvt *gvt, int ring_id)
 	list_del_init(&workload->list);
 
 	if (workload->status || vgpu->resetting_eng & BIT(ring_id)) {
-		/* if workload->status is not successful means HW GPU
+		/* if workload->status is yest successful means HW GPU
 		 * has occurred GPU hang or something wrong with i915/GVT,
 		 * and GVT won't inject context switch interrupt to guest.
 		 * So this error is a vGPU hang actually to the guest.
@@ -1077,9 +1077,9 @@ void intel_gvt_clean_workload_scheduler(struct intel_gvt *gvt)
 	gvt_dbg_core("clean workload scheduler\n");
 
 	for_each_engine(engine, gvt->dev_priv, i) {
-		atomic_notifier_chain_unregister(
-					&engine->context_status_notifier,
-					&gvt->shadow_ctx_notifier_block[i]);
+		atomic_yestifier_chain_unregister(
+					&engine->context_status_yestifier,
+					&gvt->shadow_ctx_yestifier_block[i]);
 		kthread_stop(scheduler->thread[i]);
 	}
 }
@@ -1116,10 +1116,10 @@ int intel_gvt_init_workload_scheduler(struct intel_gvt *gvt)
 			goto err;
 		}
 
-		gvt->shadow_ctx_notifier_block[i].notifier_call =
+		gvt->shadow_ctx_yestifier_block[i].yestifier_call =
 					shadow_context_status_change;
-		atomic_notifier_chain_register(&engine->context_status_notifier,
-					&gvt->shadow_ctx_notifier_block[i]);
+		atomic_yestifier_chain_register(&engine->context_status_yestifier,
+					&gvt->shadow_ctx_yestifier_block[i]);
 	}
 	return 0;
 err:
@@ -1426,7 +1426,7 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 		root_entry_type = GTT_TYPE_PPGTT_ROOT_L4_ENTRY;
 		break;
 	default:
-		gvt_vgpu_err("Advanced Context mode(SVM) is not supported!\n");
+		gvt_vgpu_err("Advanced Context mode(SVM) is yest supported!\n");
 		return -EINVAL;
 	}
 
@@ -1496,8 +1496,8 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 			gvt_dbg_el("ctx head %x real head %lx\n", head,
 					last_workload->rb_tail);
 			/*
-			 * cannot use guest context head pointer here,
-			 * as it might not be updated at this time
+			 * canyest use guest context head pointer here,
+			 * as it might yest be updated at this time
 			 */
 			head = last_workload->rb_tail;
 			break;

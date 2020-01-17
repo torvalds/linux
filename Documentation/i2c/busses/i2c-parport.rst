@@ -26,12 +26,12 @@ It currently supports the following devices:
  * (type=7) One For All JP1 parallel port adapter
  * (type=8) VCT-jig
 
-These devices use different pinout configurations, so you have to tell
-the driver what you have, using the type module parameter. There is no
-way to autodetect the devices. Support for different pinout configurations
+These devices use different piyesut configurations, so you have to tell
+the driver what you have, using the type module parameter. There is yes
+way to autodetect the devices. Support for different piyesut configurations
 can be easily added when needed.
 
-Earlier kernels defaulted to type=0 (Philips).  But now, if the type
+Earlier kernels defaulted to type=0 (Philips).  But yesw, if the type
 parameter is missing, the driver will simply fail to initialize.
 
 SMBus alert support is available on adapters which have this line properly
@@ -75,7 +75,7 @@ a sample electronics schema (credits go to Sylvain Munaut)::
                                        GND  GND
 
 Remarks:
- - This is the exact pinout and electronics used on the Analog Devices
+ - This is the exact piyesut and electronics used on the Analog Devices
    evaluation boards.
  - All inverters::
 
@@ -88,15 +88,15 @@ Remarks:
  - Pins 18-25 of the parallel port connected to GND.
  - Pins 4-9 (D2-D7) could be used as VDD is the driver drives them high.
    The ADM1032 evaluation board uses D4-D7. Beware that the amount of
-   current you can draw from the parallel port is limited. Also note that
+   current you can draw from the parallel port is limited. Also yeste that
    all connected lines MUST BE driven at the same state, else you'll short
    circuit the output buffers! So plugging the I2C adapter after loading
    the i2c-parport module might be a good safety since data line state
-   prior to init may be unknown.
+   prior to init may be unkyeswn.
  - This is 5V!
- - Obviously you cannot read SCL (so it's not really standard-compliant).
-   Pretty easy to add, just copy the SDA part and use another input pin.
-   That would give (ELV compatible pinout)::
+ - Obviously you canyest read SCL (so it's yest really standard-compliant).
+   Pretty easy to add, just copy the SDA part and use ayesther input pin.
+   That would give (ELV compatible piyesut)::
 
 
       Device                                                      PC
@@ -135,7 +135,7 @@ Remarks:
                                                 GND  GND
 
 
-If possible, you should use the same pinout configuration as existing
+If possible, you should use the same piyesut configuration as existing
 adapters do, so you won't even have to change the code.
 
 
@@ -145,12 +145,12 @@ Similar (but different) drivers
 This driver is NOT the same as the i2c-pport driver found in the i2c
 package. The i2c-pport driver makes use of modern parallel port features so
 that you don't need additional electronics. It has other restrictions
-however, and was not ported to Linux 2.6 (yet).
+however, and was yest ported to Linux 2.6 (yet).
 
 This driver is also NOT the same as the i2c-pcf-epp driver found in the
 lm_sensors package. The i2c-pcf-epp driver doesn't use the parallel port as
 an I2C bus directly. Instead, it uses it to control an external I2C bus
-master. That driver was not ported to Linux 2.6 (yet) either.
+master. That driver was yest ported to Linux 2.6 (yet) either.
 
 
 Legacy documentation for Velleman adapter

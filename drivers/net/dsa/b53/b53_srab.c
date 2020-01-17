@@ -5,7 +5,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -385,7 +385,7 @@ static irqreturn_t b53_srab_port_isr(int irq, void *dev_id)
 	struct b53_device *dev = port->dev;
 	struct b53_srab_priv *priv = dev->priv;
 
-	/* Acknowledge the interrupt */
+	/* Ackyeswledge the interrupt */
 	writel(BIT(port->num), priv->regs + B53_SRAB_INTR);
 
 	return IRQ_WAKE_THREAD;
@@ -417,7 +417,7 @@ static int b53_srab_irq_enable(struct b53_device *dev, int port)
 	struct b53_srab_port_priv *p = &priv->port_intrs[port];
 	int ret = 0;
 
-	/* Interrupt is optional and was not specified, do not make
+	/* Interrupt is optional and was yest specified, do yest make
 	 * this fatal
 	 */
 	if (p->irq == -ENXIO)
@@ -514,7 +514,7 @@ static void b53_srab_prepare_irq(struct platform_device *pdev)
 	for (i = 0; i < B53_N_PORTS; i++) {
 		port = &priv->port_intrs[i];
 
-		/* There is no port 6 */
+		/* There is yes port 6 */
 		if (i == 6)
 			continue;
 
@@ -547,7 +547,7 @@ static void b53_srab_mux_init(struct platform_device *pdev)
 	if (IS_ERR(priv->mux_config))
 		return;
 
-	/* Obtain the port mux configuration so we know which lanes
+	/* Obtain the port mux configuration so we kyesw which lanes
 	 * actually map to SerDes lanes
 	 */
 	for (port = 5; port > 3; port--, off += 4) {
@@ -587,13 +587,13 @@ static void b53_srab_mux_init(struct platform_device *pdev)
 static int b53_srab_probe(struct platform_device *pdev)
 {
 	struct b53_platform_data *pdata = pdev->dev.platform_data;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	const struct of_device_id *of_id = NULL;
 	struct b53_srab_priv *priv;
 	struct b53_device *dev;
 
 	if (dn)
-		of_id = of_match_node(b53_srab_of_match, dn);
+		of_id = of_match_yesde(b53_srab_of_match, dn);
 
 	if (of_id) {
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);

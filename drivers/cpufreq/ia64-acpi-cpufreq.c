@@ -271,8 +271,8 @@ acpi_cpufreq_cpu_init (
 
 	policy->freq_table = freq_table;
 
-	/* notify BIOS that we exist */
-	acpi_processor_notify_smm(THIS_MODULE);
+	/* yestify BIOS that we exist */
+	acpi_processor_yestify_smm(THIS_MODULE);
 
 	pr_info("CPU%u - ACPI performance management activated\n", cpu);
 

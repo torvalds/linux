@@ -3,9 +3,9 @@
 // ak4613.c  --  Asahi Kasei ALSA Soc Audio driver
 //
 // Copyright (C) 2015 Renesas Electronics Corporation
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
 //
-// Based on ak4642.c by Kuninori Morimoto
+// Based on ak4642.c by Kuniyesri Morimoto
 // Based on wm8731.c by Richard Purdie
 // Based on ak4535.c by Richard Purdie
 // Based on wm8753.c by Liam Girdwood
@@ -141,7 +141,7 @@ static const struct reg_default ak4613_reg[] = {
 #define AUDIO_IFACE(b, fmt) { b, SND_SOC_DAIFMT_##fmt }
 static const struct ak4613_interface ak4613_iface[] = {
 	/* capture */				/* playback */
-	/* [0] - [2] are not supported */
+	/* [0] - [2] are yest supported */
 	[3] = {	AUDIO_IFACE(24, LEFT_J),	AUDIO_IFACE(24, LEFT_J) },
 	[4] = {	AUDIO_IFACE(24, I2S),		AUDIO_IFACE(24, I2S) },
 };
@@ -514,7 +514,7 @@ static int ak4613_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	 *
 	 * But, unfortunately, we can't "write" here because here is atomic
 	 * context (It uses I2C access for writing).
-	 * Thus, use schedule_work() to switching to normal context
+	 * Thus, use schedule_work() to switching to yesrmal context
 	 * immediately.
 	 *
 	 * Note
@@ -607,13 +607,13 @@ static const struct snd_soc_component_driver soc_component_dev_ak4613 = {
 	.num_dapm_routes	= ARRAY_SIZE(ak4613_intercon),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static void ak4613_parse_of(struct ak4613_priv *priv,
 			    struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	char prop[32];
 	int i;
 
@@ -636,7 +636,7 @@ static int ak4613_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct device *dev = &i2c->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct regmap_config *regmap_cfg;
 	struct regmap *regmap;
 	struct ak4613_priv *priv;
@@ -696,5 +696,5 @@ static struct i2c_driver ak4613_i2c_driver = {
 module_i2c_driver(ak4613_i2c_driver);
 
 MODULE_DESCRIPTION("Soc AK4613 driver");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>");
 MODULE_LICENSE("GPL v2");

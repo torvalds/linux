@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
  * Copyright (C) 2001 - 2009  Paul Mundt
- * Copyright (C) 2003  Richard Curnow
+ * Copyright (C) 2003  Richard Curyesw
  * Copyright (c) 2007 STMicroelectronics (R&D) Ltd.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -139,7 +139,7 @@ static void flush_icache_all(void)
 
 	/*
 	 * back_to_cached() will take care of the barrier for us, don't add
-	 * another one!
+	 * ayesther one!
 	 */
 
 	back_to_cached();
@@ -181,7 +181,7 @@ static void sh4_flush_cache_all(void *unused)
  * D-cache.  The assumption elsewhere, e.g. flush_cache_range, is that
  * lines can stay resident so long as the virtual address they were
  * accessed with (hence cache set) is in accord with the physical
- * address (i.e. tag).  It's no different here.
+ * address (i.e. tag).  It's yes different here.
  *
  * Caller takes mm->mmap_sem.
  */
@@ -228,7 +228,7 @@ static void sh4_flush_cache_page(void *args)
 	pmd = pmd_offset(pud, address);
 	pte = pte_offset_kernel(pmd, address);
 
-	/* If the page isn't present, there is nothing to do here. */
+	/* If the page isn't present, there is yesthing to do here. */
 	if (!(pte_val(*pte) & _PAGE_PRESENT))
 		return;
 
@@ -237,7 +237,7 @@ static void sh4_flush_cache_page(void *args)
 	else {
 		/*
 		 * Use kmap_coherent or kmap_atomic to do flushes for
-		 * another ASID than the current one.
+		 * ayesther ASID than the current one.
 		 */
 		map_coherent = (current_cpu_data.dcache.n_aliases &&
 			test_bit(PG_dcache_clean, &page->flags) &&
@@ -270,7 +270,7 @@ static void sh4_flush_cache_page(void *args)
  * START, END: Virtual Address (U0 address)
  *
  * NOTE: We need to flush the _physical_ page entry.
- * Flushing the cache lines for U0 only isn't enough.
+ * Flushing the cache lines for U0 only isn't eyesugh.
  * We need to flush for P1 too, which may contain aliases.
  */
 static void sh4_flush_cache_range(void *args)
@@ -340,13 +340,13 @@ static void __flush_cache_one(unsigned long addr, unsigned long phys,
 	asm volatile("mov.l 1f, %0\n\t"
 		     "add   %1, %0\n\t"
 		     "jmp   @%0\n\t"
-		     "nop\n\t"
+		     "yesp\n\t"
 		     ".balign 4\n\t"
 		     "1:  .long 2f\n\t"
 		     "2:\n" : "=&r" (temp_pc) : "r" (exec_offset));
 
 	/*
-	 * We know there will be >=1 iteration, so write as do-while to avoid
+	 * We kyesw there will be >=1 iteration, so write as do-while to avoid
 	 * pointless nead-of-loop check for 0 iterations.
 	 */
 	do {
@@ -357,7 +357,7 @@ static void __flush_cache_one(unsigned long addr, unsigned long phys,
 		do {
 			*(volatile unsigned long *)a = p;
 			/*
-			 * Next line: intentionally not p+32, saves an add, p
+			 * Next line: intentionally yest p+32, saves an add, p
 			 * will do since only the cache tag bits need to
 			 * match.
 			 */

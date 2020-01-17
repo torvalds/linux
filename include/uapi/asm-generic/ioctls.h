@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __ASM_GENERIC_IOCTLS_H
 #define __ASM_GENERIC_IOCTLS_H
 
@@ -6,7 +6,7 @@
 
 /*
  * These are the most common definitions for tty ioctl numbers.
- * Most of them do not use the recommended _IOC(), but there is
+ * Most of them do yest use the recommended _IOC(), but there is
  * probably some source code out there hardcoding the number,
  * so we might as well use them for all new platforms.
  *
@@ -68,7 +68,7 @@
 #endif
 #define TIOCGPTN	_IOR('T', 0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
 #define TIOCSPTLCK	_IOW('T', 0x31, int)  /* Lock/unlock Pty */
-#define TIOCGDEV	_IOR('T', 0x32, unsigned int) /* Get primary device node of /dev/console */
+#define TIOCGDEV	_IOR('T', 0x32, unsigned int) /* Get primary device yesde of /dev/console */
 #define TCGETX		0x5432 /* SYS5 TCGETX compatibility */
 #define TCSETX		0x5433
 #define TCSETXF		0x5434
@@ -100,7 +100,7 @@
 
 /*
  * Some arches already define FIOQSIZE due to a historical
- * conflict with a Hayes modem-specific ioctl value.
+ * conflict with a Hano modem-specific ioctl value.
  */
 #ifndef FIOQSIZE
 # define FIOQSIZE	0x5460

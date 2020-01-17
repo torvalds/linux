@@ -99,9 +99,9 @@ static int _dpu_danger_signal_status(struct seq_file *s,
 }
 
 #define DEFINE_DPU_DEBUGFS_SEQ_FOPS(__prefix)				\
-static int __prefix ## _open(struct inode *inode, struct file *file)	\
+static int __prefix ## _open(struct iyesde *iyesde, struct file *file)	\
 {									\
-	return single_open(file, __prefix ## _show, inode->i_private);	\
+	return single_open(file, __prefix ## _show, iyesde->i_private);	\
 }									\
 static const struct file_operations __prefix ## _fops = {		\
 	.owner = THIS_MODULE,						\
@@ -172,10 +172,10 @@ static int _dpu_debugfs_show_regset32(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int dpu_debugfs_open_regset32(struct inode *inode,
+static int dpu_debugfs_open_regset32(struct iyesde *iyesde,
 		struct file *file)
 {
-	return single_open(file, _dpu_debugfs_show_regset32, inode->i_private);
+	return single_open(file, _dpu_debugfs_show_regset32, iyesde->i_private);
 }
 
 static const struct file_operations dpu_fops_regset32 = {
@@ -207,7 +207,7 @@ void dpu_debugfs_create_regset32(const char *name, umode_t mode,
 	debugfs_create_file(name, mode, parent, regset, &dpu_fops_regset32);
 }
 
-static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
+static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_miyesr *miyesr)
 {
 	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
 	void *p = dpu_hw_util_get_log_mask_ptr();
@@ -216,7 +216,7 @@ static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 	if (!p)
 		return -EINVAL;
 
-	entry = debugfs_create_dir("debug", minor->debugfs_root);
+	entry = debugfs_create_dir("debug", miyesr->debugfs_root);
 
 	debugfs_create_x32(DPU_DEBUGFS_HWMASKNAME, 0600, entry, p);
 
@@ -352,12 +352,12 @@ static void dpu_kms_wait_for_commit_done(struct msm_kms *kms,
 	dev = crtc->dev;
 
 	if (!crtc->state->enable) {
-		DPU_DEBUG("[crtc:%d] not enable\n", crtc->base.id);
+		DPU_DEBUG("[crtc:%d] yest enable\n", crtc->base.id);
 		return;
 	}
 
 	if (!crtc->state->active) {
-		DPU_DEBUG("[crtc:%d] not active\n", crtc->base.id);
+		DPU_DEBUG("[crtc:%d] yest active\n", crtc->base.id);
 		return;
 	}
 
@@ -367,7 +367,7 @@ static void dpu_kms_wait_for_commit_done(struct msm_kms *kms,
 		/*
 		 * Wait for post-flush if necessary to delay before
 		 * plane_cleanup. For example, wait for vsync in case of video
-		 * mode panels. This may be a no-op for command mode panels.
+		 * mode panels. This may be a yes-op for command mode panels.
 		 */
 		trace_dpu_kms_wait_for_commit_done(DRMID(crtc));
 		ret = dpu_encoder_wait_for_event(encoder, MSM_ENC_COMMIT_DONE);
@@ -795,7 +795,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	dpu_kms->vbif[VBIF_NRT] = msm_ioremap(dpu_kms->pdev, "vbif_nrt", "vbif_nrt");
 	if (IS_ERR(dpu_kms->vbif[VBIF_NRT])) {
 		dpu_kms->vbif[VBIF_NRT] = NULL;
-		DPU_DEBUG("VBIF NRT is not defined");
+		DPU_DEBUG("VBIF NRT is yest defined");
 	} else {
 		dpu_kms->vbif_len[VBIF_NRT] = dpu_iomap_size(dpu_kms->pdev,
 							     "vbif_nrt");
@@ -804,7 +804,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	dpu_kms->reg_dma = msm_ioremap(dpu_kms->pdev, "regdma", "regdma");
 	if (IS_ERR(dpu_kms->reg_dma)) {
 		dpu_kms->reg_dma = NULL;
-		DPU_DEBUG("REG_DMA is not defined");
+		DPU_DEBUG("REG_DMA is yest defined");
 	} else {
 		dpu_kms->reg_dma_len = dpu_iomap_size(dpu_kms->pdev, "regdma");
 	}
@@ -933,14 +933,14 @@ struct msm_kms *dpu_kms_init(struct drm_device *dev)
 	int irq;
 
 	if (!dev) {
-		DPU_ERROR("drm device node invalid\n");
+		DPU_ERROR("drm device yesde invalid\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	priv = dev->dev_private;
 	dpu_kms = to_dpu_kms(priv->kms);
 
-	irq = irq_of_parse_and_map(dpu_kms->pdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(dpu_kms->pdev->dev.of_yesde, 0);
 	if (irq < 0) {
 		DPU_ERROR("failed to get irq: %d\n", irq);
 		return ERR_PTR(irq);

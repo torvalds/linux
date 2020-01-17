@@ -12,10 +12,10 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -156,7 +156,7 @@ struct fw_ri_immd {
 struct fw_ri_tpte {
 	__be32 valid_to_pdid;
 	__be32 locread_to_qpid;
-	__be32 nosnoop_pbladdr;
+	__be32 yessyesop_pbladdr;
 	__be32 len_lo;
 	__be32 va_hi;
 	__be32 va_lo_fbo;

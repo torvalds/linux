@@ -82,7 +82,7 @@ struct rm3100_data {
 	/*
 	 * This lock is for protecting the consistency of series of i2c
 	 * operations, that is, to make sure a measurement process will
-	 * not be interrupted by a set frequency operation, which should
+	 * yest be interrupted by a set frequency operation, which should
 	 * be taken where a series of i2c operation starts, released where
 	 * the operation ends.
 	 */
@@ -94,8 +94,8 @@ static const struct regmap_range rm3100_readable_ranges[] = {
 };
 
 const struct regmap_access_table rm3100_readable_table = {
-	.yes_ranges = rm3100_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(rm3100_readable_ranges),
+	.no_ranges = rm3100_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(rm3100_readable_ranges),
 };
 EXPORT_SYMBOL_GPL(rm3100_readable_table);
 
@@ -104,8 +104,8 @@ static const struct regmap_range rm3100_writable_ranges[] = {
 };
 
 const struct regmap_access_table rm3100_writable_table = {
-	.yes_ranges = rm3100_writable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(rm3100_writable_ranges),
+	.no_ranges = rm3100_writable_ranges,
+	.n_no_ranges = ARRAY_SIZE(rm3100_writable_ranges),
 };
 EXPORT_SYMBOL_GPL(rm3100_writable_table);
 
@@ -114,8 +114,8 @@ static const struct regmap_range rm3100_volatile_ranges[] = {
 };
 
 const struct regmap_access_table rm3100_volatile_table = {
-	.yes_ranges = rm3100_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(rm3100_volatile_ranges),
+	.no_ranges = rm3100_volatile_ranges,
+	.n_no_ranges = ARRAY_SIZE(rm3100_volatile_ranges),
 };
 EXPORT_SYMBOL_GPL(rm3100_volatile_table);
 
@@ -169,7 +169,7 @@ static int rm3100_wait_measurement(struct rm3100_data *data)
 	 * called before measuring_done is reinitialized, it will wait
 	 * forever for data that has already been ready.
 	 * Reinitialize measuring_done before looking up makes sure we
-	 * will always capture interrupt no matter when it happens.
+	 * will always capture interrupt yes matter when it happens.
 	 */
 	if (data->use_interrupt)
 		reinit_completion(&data->measuring_done);
@@ -527,7 +527,7 @@ static irqreturn_t rm3100_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 					   pf->timestamp);
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -601,7 +601,7 @@ int rm3100_common_probe(struct device *dev, struct regmap *regmap, int irq)
 	data->conversion_time = rm3100_samp_rates[tmp - RM3100_TMRC_OFFSET][2]
 				* 2;
 
-	/* Cycle count values may not be what we want. */
+	/* Cycle count values may yest be what we want. */
 	if ((tmp - RM3100_TMRC_OFFSET) == 0)
 		rm3100_set_cycle_count(data, 100);
 	else

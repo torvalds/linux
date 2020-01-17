@@ -8,7 +8,7 @@
 #include "tegra210.dtsi"
 
 / {
-	model = "NVIDIA Jetson Nano Developer Kit";
+	model = "NVIDIA Jetson Nayes Developer Kit";
 	compatible = "nvidia,p3450-0000", "nvidia,tegra210";
 
 	aliases {
@@ -406,7 +406,7 @@
 	};
 
 	hda@70030000 {
-		nvidia,model = "jetson-nano-hda";
+		nvidia,model = "jetson-nayes-hda";
 
 		status = "okay";
 	};

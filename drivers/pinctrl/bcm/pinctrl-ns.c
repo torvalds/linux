@@ -181,7 +181,7 @@ static const struct pinctrl_ops ns_pinctrl_ops = {
 	.get_groups_count = ns_pinctrl_get_groups_count,
 	.get_group_name = ns_pinctrl_get_group_name,
 	.get_group_pins = ns_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_group,
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
@@ -266,7 +266,7 @@ static const struct of_device_id ns_pinctrl_of_match_table[] = {
 static int ns_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct of_device_id *of_id;
 	struct ns_pinctrl *ns_pinctrl;
 	struct pinctrl_desc *pctldesc;
@@ -290,7 +290,7 @@ static int ns_pinctrl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	ns_pinctrl->chipset_flag = (uintptr_t)of_id->data;
 
-	ns_pinctrl->regmap = syscon_node_to_regmap(of_get_parent(np));
+	ns_pinctrl->regmap = syscon_yesde_to_regmap(of_get_parent(np));
 	if (IS_ERR(ns_pinctrl->regmap)) {
 		int err = PTR_ERR(ns_pinctrl->regmap);
 

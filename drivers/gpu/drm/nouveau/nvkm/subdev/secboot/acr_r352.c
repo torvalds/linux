@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -32,13 +32,13 @@
 
 /**
  * struct acr_r352_flcn_bl_desc - DMEM bootloader descriptor
- * @signature:		16B signature for secure code. 0s if no secure code
+ * @signature:		16B signature for secure code. 0s if yes secure code
  * @ctx_dma:		DMA context to be used by BL while loading code/data
  * @code_dma_base:	256B-aligned Physical FB Address where code is located
  *			(falcon's $xcbase register)
- * @non_sec_code_off:	offset from code_dma_base where the non-secure code is
+ * @yesn_sec_code_off:	offset from code_dma_base where the yesn-secure code is
  *                      located. The offset must be multiple of 256 to help perf
- * @non_sec_code_size:	the size of the nonSecure code part.
+ * @yesn_sec_code_size:	the size of the yesnSecure code part.
  * @sec_code_off:	offset from code_dma_base where the secure code is
  *                      located. The offset must be multiple of 256 to help perf
  * @sec_code_size:	offset from code_dma_base where the secure code is
@@ -58,8 +58,8 @@ struct acr_r352_flcn_bl_desc {
 	u32 signature[4];
 	u32 ctx_dma;
 	u32 code_dma_base;
-	u32 non_sec_code_off;
-	u32 non_sec_code_size;
+	u32 yesn_sec_code_off;
+	u32 yesn_sec_code_size;
 	u32 sec_code_off;
 	u32 sec_code_size;
 	u32 code_entry_point;
@@ -88,8 +88,8 @@ acr_r352_generate_flcn_bl_desc(const struct nvkm_acr *acr,
 	desc->ctx_dma = FALCON_DMAIDX_UCODE;
 	desc->code_dma_base = lower_32_bits(addr_code);
 	desc->code_dma_base1 = upper_32_bits(addr_code);
-	desc->non_sec_code_off = pdesc->app_resident_code_offset;
-	desc->non_sec_code_size = pdesc->app_resident_code_size;
+	desc->yesn_sec_code_off = pdesc->app_resident_code_offset;
+	desc->yesn_sec_code_size = pdesc->app_resident_code_size;
 	desc->code_entry_point = pdesc->app_imem_entry;
 	desc->data_dma_base = lower_32_bits(addr_data);
 	desc->data_dma_base1 = upper_32_bits(addr_data);
@@ -106,8 +106,8 @@ acr_r352_generate_flcn_bl_desc(const struct nvkm_acr *acr,
  * @wpr_region_id:	region ID holding the WPR header and its details
  * @wpr_offset:		offset from the WPR region holding the wpr header
  * @regions:		region descriptors
- * @nonwpr_ucode_blob_size:	size of LS blob
- * @nonwpr_ucode_blob_start:	FB location of LS blob is
+ * @yesnwpr_ucode_blob_size:	size of LS blob
+ * @yesnwpr_ucode_blob_start:	FB location of LS blob is
  */
 struct hsflcn_acr_desc {
 	union {
@@ -119,7 +119,7 @@ struct hsflcn_acr_desc {
 	u32 mmu_mem_range;
 #define FLCN_ACR_MAX_REGIONS 2
 	struct {
-		u32 no_regions;
+		u32 yes_regions;
 		struct {
 			u32 start_addr;
 			u32 end_addr;
@@ -275,7 +275,7 @@ acr_r352_ls_ucode_img_load(const struct acr_r352 *acr,
 	/* Copy signature to the right place */
 	memcpy(&img->lsb_header.signature, img->base.sig, img->base.sig_size);
 
-	/* not needed? the signature should already have the right value */
+	/* yest needed? the signature should already have the right value */
 	img->lsb_header.signature.falcon_id = falcon_id;
 
 	return &img->base;
@@ -401,7 +401,7 @@ acr_r352_ls_fill_headers(struct acr_r352 *acr, struct list_head *imgs)
 	 * Walk the managed falcons, accounting for the LSB structs
 	 * as well as the ucode images.
 	 */
-	list_for_each_entry(img, imgs, base.node) {
+	list_for_each_entry(img, imgs, base.yesde) {
 		offset = acr_r352_ls_img_fill_headers(acr, img, offset);
 	}
 
@@ -421,7 +421,7 @@ acr_r352_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 	u8 *gdesc;
 
 	/* Figure out how large we need gdesc to be. */
-	list_for_each_entry(_img, imgs, node) {
+	list_for_each_entry(_img, imgs, yesde) {
 		struct ls_ucode_img_r352 *img = ls_ucode_img_r352(_img);
 		const struct acr_r352_lsf_func *ls_func = img->func;
 
@@ -434,7 +434,7 @@ acr_r352_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 
 	nvkm_kmap(wpr_blob);
 
-	list_for_each_entry(_img, imgs, node) {
+	list_for_each_entry(_img, imgs, yesde) {
 		struct ls_ucode_img_r352 *img = ls_ucode_img_r352(_img);
 		const struct acr_r352_lsf_func *ls_func = img->func;
 
@@ -509,11 +509,11 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, struct nvkm_secboot *sb)
 			goto cleanup;
 		}
 
-		list_add_tail(&img->node, &imgs);
+		list_add_tail(&img->yesde, &imgs);
 		managed_count++;
 	}
 
-	/* Commit the actual list of falcons we will manage from now on */
+	/* Commit the actual list of falcons we will manage from yesw on */
 	acr->base.managed_falcons = managed_falcons;
 
 	/*
@@ -556,7 +556,7 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	nvkm_debug(subdev, "%d managed LS falcons, WPR size is %d bytes\n",
 		    managed_count, image_wpr_size);
 
-	/* If WPR address and size are not fixed, set them to fit the LS blob */
+	/* If WPR address and size are yest fixed, set them to fit the LS blob */
 	if (wpr_size == 0) {
 		wpr_addr = acr->ls_blob->addr;
 		if (acr->func->shadow_blob)
@@ -581,7 +581,7 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, struct nvkm_secboot *sb)
 		nvkm_gpuobj_del(&acr->ls_blob);
 
 cleanup:
-	list_for_each_entry_safe(img, t, &imgs, node) {
+	list_for_each_entry_safe(img, t, &imgs, yesde) {
 		kfree(img->ucode_data);
 		kfree(img->sig);
 		kfree(img);
@@ -600,13 +600,13 @@ acr_r352_fixup_hs_desc(struct acr_r352 *acr, struct nvkm_secboot *sb,
 	struct hsflcn_acr_desc *desc = _desc;
 	struct nvkm_gpuobj *ls_blob = acr->ls_blob;
 
-	/* WPR region information if WPR is not fixed */
+	/* WPR region information if WPR is yest fixed */
 	if (sb->wpr_size == 0) {
 		u64 wpr_start = ls_blob->addr;
 		u64 wpr_end = wpr_start + ls_blob->size;
 
 		desc->wpr_region_id = 1;
-		desc->regions.no_regions = 2;
+		desc->regions.yes_regions = 2;
 		desc->regions.region_props[0].start_addr = wpr_start >> 8;
 		desc->regions.region_props[0].end_addr = wpr_end >> 8;
 		desc->regions.region_props[0].region_id = 1;
@@ -631,8 +631,8 @@ acr_r352_generate_hs_bl_desc(const struct hsf_load_header *hdr, void *_bl_desc,
 
 	bl_desc->ctx_dma = FALCON_DMAIDX_VIRT;
 	bl_desc->code_dma_base = lower_32_bits(addr_code);
-	bl_desc->non_sec_code_off = hdr->non_sec_code_off;
-	bl_desc->non_sec_code_size = hdr->non_sec_code_size;
+	bl_desc->yesn_sec_code_off = hdr->yesn_sec_code_off;
+	bl_desc->yesn_sec_code_size = hdr->yesn_sec_code_size;
 	bl_desc->sec_code_off = hsf_load_header_app_off(hdr, 0);
 	bl_desc->sec_code_size = hsf_load_header_app_size(hdr, 0);
 	bl_desc->code_entry_point = 0;
@@ -851,7 +851,7 @@ acr_r352_shutdown(struct acr_r352 *acr, struct nvkm_secboot *sb)
 		if (ret < 0)
 			return ret;
 		/*
-		 * Unload blob will return this error code - it is not an error
+		 * Unload blob will return this error code - it is yest an error
 		 * and the expected behavior on RM as well
 		 */
 		if (ret && ret != 0x1d) {
@@ -930,7 +930,7 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	nvkm_debug(subdev, "HS load blob completed\n");
 	/* WPR must be set at this point */
 	if (!sb->wpr_set) {
-		nvkm_error(subdev, "ACR blob completed but WPR not set!\n");
+		nvkm_error(subdev, "ACR blob completed but WPR yest set!\n");
 		return -EINVAL;
 	}
 
@@ -950,13 +950,13 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 }
 
 /**
- * acr_r352_reset_nopmu - dummy reset method when no PMU firmware is loaded
+ * acr_r352_reset_yespmu - dummy reset method when yes PMU firmware is loaded
  *
  * Reset is done by re-executing secure boot from scratch, with lazy bootstrap
  * disabled. This has the effect of making all managed falcons ready-to-run.
  */
 static int
-acr_r352_reset_nopmu(struct acr_r352 *acr, struct nvkm_secboot *sb,
+acr_r352_reset_yespmu(struct acr_r352 *acr, struct nvkm_secboot *sb,
 		     unsigned long falcon_mask)
 {
 	int falcon;
@@ -1010,7 +1010,7 @@ acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 	if (!nvkm_secboot_is_managed(sb, _acr->boot_falcon)) {
 		/* Redo secure boot entirely if it was already done */
 		if (wpr_already_set)
-			return acr_r352_reset_nopmu(acr, sb, falcon_mask);
+			return acr_r352_reset_yespmu(acr, sb, falcon_mask);
 		/* Else return the result of the initial invokation */
 		else
 			return ret;

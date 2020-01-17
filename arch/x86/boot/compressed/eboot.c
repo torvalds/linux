@@ -119,12 +119,12 @@ free_struct:
 }
 
 /*
- * There's no way to return an informative status from this function,
+ * There's yes way to return an informative status from this function,
  * because any analysis (and printing of error messages) needs to be
  * done directly at the EFI function call-site.
  *
  * For example, EFI_INVALID_PARAMETER could indicate a bug or maybe we
- * just didn't find any PCI devices, but there's no way to tell outside
+ * just didn't find any PCI devices, but there's yes way to tell outside
  * the context of the call.
  */
 static void setup_efi_pci(struct boot_params *params)
@@ -721,7 +721,7 @@ static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
 	if (status != EFI_SUCCESS)
 		return status;
 
-	/* Might as well exit boot services now */
+	/* Might as well exit boot services yesw */
 	status = efi_exit_boot_services(sys_table, handle, &map, &priv,
 					exit_boot_func);
 	if (status != EFI_SUCCESS)
@@ -771,7 +771,7 @@ efi_main(struct efi_config *c, struct boot_params *boot_params)
 	/*
 	 * make_boot_params() may have been called before efi_main(), in which
 	 * case this is the second time we parse the cmdline. This is ok,
-	 * parsing the cmdline multiple times does not have side-effects.
+	 * parsing the cmdline multiple times does yest have side-effects.
 	 */
 	cmdline_paddr = ((u64)hdr->cmd_line_ptr |
 			 ((u64)boot_params->ext_cmd_line_ptr << 32));

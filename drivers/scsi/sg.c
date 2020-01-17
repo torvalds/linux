@@ -15,7 +15,7 @@ static int sg_version_num = 30536;	/* 2 digits for each component */
 #define SG_VERSION_STR "3.5.36"
 
 /*
- *  D. P. Gilbert (dgilbert@interlog.com), notes:
+ *  D. P. Gilbert (dgilbert@interlog.com), yestes:
  *      - scsi logging is available via SCSI_LOG_TIMEOUT macros. First
  *        the kernel/module needs to be built with CONFIG_SCSI_LOGGING
  *        (otherwise the macros compile to empty statements).
@@ -28,7 +28,7 @@ static int sg_version_num = 30536;	/* 2 digits for each component */
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mtio.h>
 #include <linux/ioctl.h>
 #include <linux/slab.h>
@@ -79,10 +79,10 @@ static int sg_proc_init(void);
 int sg_big_buff = SG_DEF_RESERVED_SIZE;
 /* N.B. This variable is readable and writeable via
    /proc/scsi/sg/def_reserved_size . Each time sg_open() is called a buffer
-   of this size (or less if there is not enough memory) will be reserved
+   of this size (or less if there is yest eyesugh memory) will be reserved
    for use by this file descriptor. [Deprecated usage: this variable is also
    readable via /proc/sys/kernel/sg-big-buff if the sg driver is built into
-   the kernel (i.e. it is not a module).] */
+   the kernel (i.e. it is yest a module).] */
 static int def_reserved_size = -1;	/* picks up init parameter */
 static int sg_allow_dio = SG_ALLOW_DIO_DEF;
 
@@ -118,12 +118,12 @@ struct sg_fd;
 
 typedef struct sg_request {	/* SG_MAX_QUEUE requests outstanding per file */
 	struct list_head entry;	/* list entry */
-	struct sg_fd *parentfp;	/* NULL -> not in use */
+	struct sg_fd *parentfp;	/* NULL -> yest in use */
 	Sg_scatter_hold data;	/* hold buffer, perhaps scatter list */
 	sg_io_hdr_t header;	/* scsi command+info, see <scsi/sg.h> */
 	unsigned char sense_b[SCSI_SENSE_BUFFERSIZE];
-	char res_used;		/* 1 -> using reserve buffer, 0 -> not ... */
-	char orphan;		/* 1 -> drop on sight, 0 -> normal */
+	char res_used;		/* 1 -> using reserve buffer, 0 -> yest ... */
+	char orphan;		/* 1 -> drop on sight, 0 -> yesrmal */
 	char sg_io_owned;	/* 1 -> packet belongs to SG_IO */
 	/* done protected by rq_list_lock */
 	char done;		/* 0->before bh, 1->before read, 2->read */
@@ -142,9 +142,9 @@ typedef struct sg_fd {		/* holds the state of a file descriptor */
 	int timeout_user;	/* defaults to SG_DEFAULT_TIMEOUT_USER */
 	Sg_scatter_hold reserve;	/* buffer held for this file descriptor */
 	struct list_head rq_list; /* head of request list */
-	struct fasync_struct *async_qp;	/* used by asynchronous notification */
+	struct fasync_struct *async_qp;	/* used by asynchroyesus yestification */
 	Sg_request req_arr[SG_MAX_QUEUE];	/* used as singly-linked list */
-	char force_packid;	/* 1 -> pack_id input to read(), 0 -> ignored */
+	char force_packid;	/* 1 -> pack_id input to read(), 0 -> igyesred */
 	char cmd_q;		/* 1 -> allow command queuing, 0 -> don't */
 	unsigned char next_cmd_len; /* 0: automatic, >0: use on next write() */
 	char keep_orphan;	/* 0 -> drop orphan (def), 1 -> keep for read() */
@@ -206,7 +206,7 @@ static void sg_device_destroy(struct kref *kref);
 			   (sdp)->disk->disk_name, fmt, ##a)
 
 /*
- * The SCSI interfaces that use read() and write() as an asynchronous variant of
+ * The SCSI interfaces that use read() and write() as an asynchroyesus variant of
  * ioctl(..., SG_IO, ...) are fundamentally unsafe, since there are lots of ways
  * to trigger read() and write() calls from various contexts with elevated
  * privileges. This can lead to kernel memory corruption (e.g. if these
@@ -220,12 +220,12 @@ static void sg_device_destroy(struct kref *kref);
 static int sg_check_file_access(struct file *filp, const char *caller)
 {
 	if (filp->f_cred != current_real_cred()) {
-		pr_err_once("%s: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+		pr_err_once("%s: process %d (%s) changed security contexts after opening file descriptor, this is yest allowed.\n",
 			caller, task_tgid_vnr(current), current->comm);
 		return -EPERM;
 	}
 	if (uaccess_kernel()) {
-		pr_err_once("%s: process %d (%s) called from kernel context, this is not allowed.\n",
+		pr_err_once("%s: process %d (%s) called from kernel context, this is yest allowed.\n",
 			caller, task_tgid_vnr(current), current->comm);
 		return -EACCES;
 	}
@@ -278,18 +278,18 @@ open_wait(Sg_device *sdp, int flags)
 	return retval;
 }
 
-/* Returns 0 on success, else a negated errno value */
+/* Returns 0 on success, else a negated erryes value */
 static int
-sg_open(struct inode *inode, struct file *filp)
+sg_open(struct iyesde *iyesde, struct file *filp)
 {
-	int dev = iminor(inode);
+	int dev = imiyesr(iyesde);
 	int flags = filp->f_flags;
 	struct request_queue *q;
 	Sg_device *sdp;
 	Sg_fd *sfp;
 	int retval;
 
-	nonseekable_open(inode, filp);
+	yesnseekable_open(iyesde, filp);
 	if ((flags & O_EXCL) && (O_RDONLY == (flags & O_ACCMODE)))
 		return -EPERM; /* Can't lock it with read only access */
 	sdp = sg_get_dev(dev);
@@ -342,7 +342,7 @@ sg_open(struct inode *inode, struct file *filp)
 	if (flags & O_EXCL)
 		sdp->exclude = true;
 
-	if (sdp->open_cnt < 1) {  /* no existing opens */
+	if (sdp->open_cnt < 1) {  /* yes existing opens */
 		sdp->sgdebug = 0;
 		q = sdp->device->request_queue;
 		sdp->sg_tablesize = queue_max_segments(q);
@@ -377,9 +377,9 @@ sdp_put:
 }
 
 /* Release resources associated with a successful sg_open()
- * Returns 0 on success, else a negated errno value */
+ * Returns 0 on success, else a negated erryes value */
 static int
-sg_release(struct inode *inode, struct file *filp)
+sg_release(struct iyesde *iyesde, struct file *filp)
 {
 	Sg_device *sdp;
 	Sg_fd *sfp;
@@ -467,7 +467,7 @@ sg_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 			req_pack_id = old_hdr->pack_id;
 	}
 	srp = sg_get_rq_mark(sfp, req_pack_id);
-	if (!srp) {		/* now wait on packet to arrive */
+	if (!srp) {		/* yesw wait on packet to arrive */
 		if (atomic_read(&sdp->detaching)) {
 			retval = -ENODEV;
 			goto free_old_hdr;
@@ -516,7 +516,7 @@ sg_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 		       sizeof (old_hdr->sense_buffer));
 	switch (hp->host_status) {
 	/* This setup of 'result' is for backward compatibility and is best
-	   ignored by the user who should use target, host + driver status */
+	   igyesred by the user who should use target, host + driver status */
 	case DID_OK:
 	case DID_PASSTHROUGH:
 	case DID_SOFT_ERROR:
@@ -670,7 +670,7 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	input_size -= SZ_SG_HEADER;
 	if (input_size < 0) {
 		sg_remove_request(sfp, srp);
-		return -EIO;	/* User did not pass enough bytes for this command. */
+		return -EIO;	/* User did yest pass eyesugh bytes for this command. */
 	}
 	hp = &srp->header;
 	hp->interface_id = '\0';	/* indicator of old interface tunnelled */
@@ -698,13 +698,13 @@ sg_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
 	/*
 	 * SG_DXFER_TO_FROM_DEV is functionally equivalent to SG_DXFER_FROM_DEV,
 	 * but is is possible that the app intended SG_DXFER_TO_DEV, because there
-	 * is a non-zero input_size, so emit a warning.
+	 * is a yesn-zero input_size, so emit a warning.
 	 */
 	if (hp->dxfer_direction == SG_DXFER_TO_FROM_DEV) {
 		printk_ratelimited(KERN_WARNING
 				   "sg_write: data in/out %d/%d bytes "
 				   "for SCSI command 0x%x-- guessing "
-				   "data in;\n   program %s not setting "
+				   "data in;\n   program %s yest setting "
 				   "count and/or reply_len properly\n",
 				   old_hdr.reply_len - (int)SZ_SG_HEADER,
 				   input_size, (unsigned int) cmnd[0],
@@ -752,7 +752,7 @@ sg_new_write(Sg_fd *sfp, struct file *file, const char __user *buf,
 		}
 		if (hp->flags & SG_FLAG_DIRECT_IO) {
 			sg_remove_request(sfp, srp);
-			return -EINVAL;	/* either MMAP_IO or DIRECT_IO (not both) */
+			return -EINVAL;	/* either MMAP_IO or DIRECT_IO (yest both) */
 		}
 		if (sfp->res_in_use) {
 			sg_remove_request(sfp, srp);
@@ -833,7 +833,7 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 
 	srp->rq->timeout = timeout;
 	kref_get(&sfp->f_ref); /* sg_rq_end_io() does kref_put(). */
-	blk_execute_rq_nowait(sdp->device->request_queue, sdp->disk,
+	blk_execute_rq_yeswait(sdp->device->request_queue, sdp->disk,
 			      srp->rq, at_head, sg_rq_end_io);
 	return 0;
 }
@@ -992,7 +992,7 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 			if (atomic_read(&sdp->detaching))
 				return -ENODEV;
 			memset(&v, 0, sizeof(v));
-			v.host_no = sdp->device->host->host_no;
+			v.host_yes = sdp->device->host->host_yes;
 			v.channel = sdp->device->channel;
 			v.scsi_id = sdp->device->id;
 			v.lun = sdp->device->lun;
@@ -1146,7 +1146,7 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 		break;
 	default:
 		if (read_only)
-			return -EPERM;	/* don't know so take safe approach */
+			return -EPERM;	/* don't kyesw so take safe approach */
 		break;
 	}
 
@@ -1289,11 +1289,11 @@ sg_mmap(struct file *filp, struct vm_area_struct *vma)
 				      "sg_mmap starting, vm_start=%p, len=%d\n",
 				      (void *) vma->vm_start, (int) req_sz));
 	if (vma->vm_pgoff)
-		return -EINVAL;	/* want no offset */
+		return -EINVAL;	/* want yes offset */
 	rsv_schp = &sfp->reserve;
 	mutex_lock(&sfp->f_mutex);
 	if (req_sz > rsv_schp->bufflen) {
-		ret = -ENOMEM;	/* cannot map more than reserved buffer */
+		ret = -ENOMEM;	/* canyest map more than reserved buffer */
 		goto out;
 	}
 
@@ -1379,7 +1379,7 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 
 		/* Following if statement is a patch supplied by Eric Youngdale */
 		if (driver_byte(result) != 0
-		    && scsi_normalize_sense(sense, SCSI_SENSE_BUFFERSIZE, &sshdr)
+		    && scsi_yesrmalize_sense(sense, SCSI_SENSE_BUFFERSIZE, &sshdr)
 		    && !scsi_sense_is_deferred(&sshdr)
 		    && sshdr.sense_key == UNIT_ATTENTION
 		    && sdp->device->removable) {
@@ -1392,7 +1392,7 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 	if (req->sense_len)
 		memcpy(srp->sense_b, req->sense, SCSI_SENSE_BUFFERSIZE);
 
-	/* Rely on write phase to clean out srp status values, so no "else" */
+	/* Rely on write phase to clean out srp status values, so yes "else" */
 
 	/*
 	 * Free the request as soon as it is complete so that its resources
@@ -1440,7 +1440,7 @@ static const struct file_operations sg_fops = {
 	.mmap = sg_mmap,
 	.release = sg_release,
 	.fasync = sg_fasync,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static struct class *sg_sysfs_class;
@@ -1470,7 +1470,7 @@ sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 	if (error < 0) {
 		if (error == -ENOSPC) {
 			sdev_printk(KERN_WARNING, scsidp,
-				    "Unable to attach sg device type=%d, minor number exceeds %d\n",
+				    "Unable to attach sg device type=%d, miyesr number exceeds %d\n",
 				    scsidp->type, SG_MAX_DEVS - 1);
 			error = -ENODEV;
 		} else {
@@ -1485,7 +1485,7 @@ sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 	SCSI_LOG_TIMEOUT(3, sdev_printk(KERN_INFO, scsidp,
 					"sg_alloc: dev=%d \n", k));
 	sprintf(disk->disk_name, "sg%d", k);
-	disk->first_minor = k;
+	disk->first_miyesr = k;
 	sdp->disk = disk;
 	sdp->device = scsidp;
 	mutex_init(&sdp->open_rel_lock);
@@ -1620,7 +1620,7 @@ sg_remove_device(struct device *cl_dev, struct class_interface *cl_intf)
 
 	if (!sdp)
 		return;
-	/* want sdp->detaching non-zero as soon as possible */
+	/* want sdp->detaching yesn-zero as soon as possible */
 	val = atomic_inc_return(&sdp->detaching);
 	if (val > 1)
 		return; /* only want to do following once per device */
@@ -1746,9 +1746,9 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 	 * requests equal in number to shost->can_queue.  If all of the
 	 * preallocated requests are already in use, then blk_get_request()
 	 * will sleep until an active command completes, freeing up a request.
-	 * Although waiting in an asynchronous interface is less than ideal, we
-	 * do not want to use BLK_MQ_REQ_NOWAIT here because userspace might
-	 * not expect an EWOULDBLOCK from this condition.
+	 * Although waiting in an asynchroyesus interface is less than ideal, we
+	 * do yest want to use BLK_MQ_REQ_NOWAIT here because userspace might
+	 * yest expect an EWOULDBLOCK from this condition.
 	 */
 	rq = blk_get_request(q, hp->dxfer_direction == SG_DXFER_TO_DEV ?
 			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, 0);
@@ -1900,7 +1900,7 @@ sg_build_indirect(Sg_scatter_hold * schp, Sg_fd * sfp, int buff_size)
 	if (blk_size < 0)
 		return -EFAULT;
 	if (0 == blk_size)
-		++blk_size;	/* don't know why */
+		++blk_size;	/* don't kyesw why */
 	/* round request up to next highest SG_SECTOR_SZ byte boundary */
 	blk_size = ALIGN(blk_size, SG_SECTOR_SZ);
 	SCSI_LOG_TIMEOUT(4, sg_printk(KERN_INFO, sfp->parentdp,
@@ -2101,7 +2101,7 @@ sg_get_rq_mark(Sg_fd * sfp, int pack_id)
 
 	write_lock_irqsave(&sfp->rq_list_lock, iflags);
 	list_for_each_entry(resp, &sfp->rq_list, entry) {
-		/* look for requests that are ready + not SG_IO owned */
+		/* look for requests that are ready + yest SG_IO owned */
 		if ((1 == resp->done) && (!resp->sg_io_owned) &&
 		    ((-1 == pack_id) || (resp->header.pack_id == pack_id))) {
 			resp->done = 2;	/* guard against other readers */
@@ -2144,7 +2144,7 @@ out_unlock:
 	return NULL;
 }
 
-/* Return of 1 for found; 0 for not found */
+/* Return of 1 for found; 0 for yest found */
 static int
 sg_remove_request(Sg_fd * sfp, Sg_request * srp)
 {
@@ -2317,7 +2317,7 @@ sg_get_dev(int dev)
 #ifdef CONFIG_SCSI_PROC_FS
 static int sg_proc_seq_show_int(struct seq_file *s, void *v);
 
-static int sg_proc_single_open_adio(struct inode *inode, struct file *file);
+static int sg_proc_single_open_adio(struct iyesde *iyesde, struct file *file);
 static ssize_t sg_proc_write_adio(struct file *filp, const char __user *buffer,
 			          size_t count, loff_t *off);
 static const struct file_operations adio_fops = {
@@ -2329,7 +2329,7 @@ static const struct file_operations adio_fops = {
 	.release = single_release,
 };
 
-static int sg_proc_single_open_dressz(struct inode *inode, struct file *file);
+static int sg_proc_single_open_dressz(struct iyesde *iyesde, struct file *file);
 static ssize_t sg_proc_write_dressz(struct file *filp, 
 		const char __user *buffer, size_t count, loff_t *off);
 static const struct file_operations dressz_fops = {
@@ -2396,7 +2396,7 @@ static int sg_proc_seq_show_int(struct seq_file *s, void *v)
 	return 0;
 }
 
-static int sg_proc_single_open_adio(struct inode *inode, struct file *file)
+static int sg_proc_single_open_adio(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, sg_proc_seq_show_int, &sg_allow_dio);
 }
@@ -2417,7 +2417,7 @@ sg_proc_write_adio(struct file *filp, const char __user *buffer,
 	return count;
 }
 
-static int sg_proc_single_open_dressz(struct inode *inode, struct file *file)
+static int sg_proc_single_open_dressz(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, sg_proc_seq_show_int, &sg_big_buff);
 }
@@ -2503,7 +2503,7 @@ static int sg_proc_seq_show_dev(struct seq_file *s, void *v)
 	else {
 		scsidp = sdp->device;
 		seq_printf(s, "%d\t%d\t%d\t%llu\t%d\t%d\t%d\t%d\t%d\n",
-			      scsidp->host->host_no, scsidp->channel,
+			      scsidp->host->host_yes, scsidp->channel,
 			      scsidp->id, scsidp->lun, (int) scsidp->type,
 			      1,
 			      (int) scsidp->queue_depth,
@@ -2528,7 +2528,7 @@ static int sg_proc_seq_show_devstrs(struct seq_file *s, void *v)
 		seq_printf(s, "%8.8s\t%16.16s\t%4.4s\n",
 			   scsidp->vendor, scsidp->model, scsidp->rev);
 	else
-		seq_puts(s, "<no active device>\n");
+		seq_puts(s, "<yes active device>\n");
 	read_unlock_irqrestore(&sg_index_lock, iflags);
 	return 0;
 }
@@ -2620,7 +2620,7 @@ static int sg_proc_seq_show_debug(struct seq_file *s, void *v)
 			struct scsi_device *scsidp = sdp->device;
 
 			seq_printf(s, "%d:%d:%d:%llu   em=%d",
-				   scsidp->host->host_no,
+				   scsidp->host->host_yes,
 				   scsidp->channel, scsidp->id,
 				   scsidp->lun,
 				   scsidp->host->hostt->emulated);

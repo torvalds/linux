@@ -50,17 +50,17 @@ void __key_check(const struct key *key)
 struct key_user *key_user_lookup(kuid_t uid)
 {
 	struct key_user *candidate = NULL, *user;
-	struct rb_node *parent, **p;
+	struct rb_yesde *parent, **p;
 
 try_again:
 	parent = NULL;
-	p = &key_user_tree.rb_node;
+	p = &key_user_tree.rb_yesde;
 	spin_lock(&key_user_lock);
 
 	/* search the tree for a user record with a matching UID */
 	while (*p) {
 		parent = *p;
-		user = rb_entry(parent, struct key_user, node);
+		user = rb_entry(parent, struct key_user, yesde);
 
 		if (uid_lt(uid, user->uid))
 			p = &(*p)->rb_left;
@@ -98,8 +98,8 @@ try_again:
 	spin_lock_init(&candidate->lock);
 	mutex_init(&candidate->cons_lock);
 
-	rb_link_node(&candidate->node, parent, p);
-	rb_insert_color(&candidate->node, &key_user_tree);
+	rb_link_yesde(&candidate->yesde, parent, p);
+	rb_insert_color(&candidate->yesde, &key_user_tree);
 	spin_unlock(&key_user_lock);
 	user = candidate;
 	goto out;
@@ -119,7 +119,7 @@ out:
 void key_user_put(struct key_user *user)
 {
 	if (refcount_dec_and_lock(&user->usage, &key_user_lock)) {
-		rb_erase(&user->node, &key_user_tree);
+		rb_erase(&user->yesde, &key_user_tree);
 		spin_unlock(&key_user_lock);
 
 		kfree(user);
@@ -132,7 +132,7 @@ void key_user_put(struct key_user *user)
  */
 static inline void key_alloc_serial(struct key *key)
 {
-	struct rb_node *parent, **p;
+	struct rb_yesde *parent, **p;
 	struct key *xkey;
 
 	/* propose a random serial number and look for a hole for it in the
@@ -140,18 +140,18 @@ static inline void key_alloc_serial(struct key *key)
 	do {
 		get_random_bytes(&key->serial, sizeof(key->serial));
 
-		key->serial >>= 1; /* negative numbers are not permitted */
+		key->serial >>= 1; /* negative numbers are yest permitted */
 	} while (key->serial < 3);
 
 	spin_lock(&key_serial_lock);
 
 attempt_insertion:
 	parent = NULL;
-	p = &key_serial_tree.rb_node;
+	p = &key_serial_tree.rb_yesde;
 
 	while (*p) {
 		parent = *p;
-		xkey = rb_entry(parent, struct key, serial_node);
+		xkey = rb_entry(parent, struct key, serial_yesde);
 
 		if (key->serial < xkey->serial)
 			p = &(*p)->rb_left;
@@ -162,8 +162,8 @@ attempt_insertion:
 	}
 
 	/* we've found a suitable hole - arrange for this key to occupy it */
-	rb_link_node(&key->serial_node, parent, p);
-	rb_insert_color(&key->serial_node, &key_serial_tree);
+	rb_link_yesde(&key->serial_yesde, parent, p);
+	rb_insert_color(&key->serial_yesde, &key_serial_tree);
 
 	spin_unlock(&key_serial_lock);
 	return;
@@ -182,7 +182,7 @@ serial_exists:
 		if (!parent)
 			goto attempt_insertion;
 
-		xkey = rb_entry(parent, struct key, serial_node);
+		xkey = rb_entry(parent, struct key, serial_yesde);
 		if (key->serial < xkey->serial)
 			goto attempt_insertion;
 	}
@@ -203,7 +203,7 @@ serial_exists:
  * returned in an uninstantiated state and the caller needs to instantiate the
  * key before returning.
  *
- * The restrict_link structure (if not NULL) will be freed when the
+ * The restrict_link structure (if yest NULL) will be freed when the
  * keyring is destroyed, so it must be dynamically allocated.
  *
  * The user's key count quota is updated to reflect the creation of the key and
@@ -249,9 +249,9 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	/* get hold of the key tracking for this user */
 	user = key_user_lookup(uid);
 	if (!user)
-		goto no_memory_1;
+		goto yes_memory_1;
 
-	/* check that the user's quota permits allocation of another key and
+	/* check that the user's quota permits allocation of ayesther key and
 	 * its description */
 	if (!(flags & KEY_ALLOC_NOT_IN_QUOTA)) {
 		unsigned maxkeys = uid_eq(uid, GLOBAL_ROOT_UID) ?
@@ -264,7 +264,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 			if (user->qnkeys + 1 > maxkeys ||
 			    user->qnbytes + quotalen > maxbytes ||
 			    user->qnbytes + quotalen < user->qnbytes)
-				goto no_quota;
+				goto yes_quota;
 		}
 
 		user->qnkeys++;
@@ -275,12 +275,12 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	/* allocate and initialise the key and its description */
 	key = kmem_cache_zalloc(key_jar, GFP_KERNEL);
 	if (!key)
-		goto no_memory_2;
+		goto yes_memory_2;
 
 	key->index_key.desc_len = desclen;
 	key->index_key.description = kmemdup(desc, desclen + 1, GFP_KERNEL);
 	if (!key->index_key.description)
-		goto no_memory_3;
+		goto yes_memory_3;
 	key->index_key.type = type;
 	key_set_index_key(&key->index_key);
 
@@ -307,7 +307,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	key->magic = KEY_DEBUG_MAGIC;
 #endif
 
-	/* let the security module know about the key */
+	/* let the security module kyesw about the key */
 	ret = security_key_alloc(key, cred, flags);
 	if (ret < 0)
 		goto security_error;
@@ -333,9 +333,9 @@ security_error:
 	key = ERR_PTR(ret);
 	goto error;
 
-no_memory_3:
+yes_memory_3:
 	kmem_cache_free(key_jar, key);
-no_memory_2:
+yes_memory_2:
 	if (!(flags & KEY_ALLOC_NOT_IN_QUOTA)) {
 		spin_lock(&user->lock);
 		user->qnkeys--;
@@ -343,11 +343,11 @@ no_memory_2:
 		spin_unlock(&user->lock);
 	}
 	key_user_put(user);
-no_memory_1:
+yes_memory_1:
 	key = ERR_PTR(-ENOMEM);
 	goto error;
 
-no_quota:
+yes_quota:
 	spin_unlock(&user->lock);
 	key_user_put(user);
 	key = ERR_PTR(-EDQUOT);
@@ -358,11 +358,11 @@ EXPORT_SYMBOL(key_alloc);
 /**
  * key_payload_reserve - Adjust data quota reservation for the key's payload
  * @key: The key to make the reservation for.
- * @datalen: The amount of data payload the caller now wants.
+ * @datalen: The amount of data payload the caller yesw wants.
  *
  * Adjust the amount of the owning user's key data quota that a key reserves.
  * If the amount is increased, then -EDQUOT may be returned if there isn't
- * enough free quota available.
+ * eyesugh free quota available.
  *
  * If successful, 0 is returned.
  */
@@ -415,7 +415,7 @@ static void mark_key_instantiated(struct key *key, int reject_error)
 /*
  * Instantiate a key and link it into the target keyring atomically.  Must be
  * called with the target keyring's semaphore writelocked.  The target key's
- * semaphore need not be locked as instantiation is serialised by
+ * semaphore need yest be locked as instantiation is serialised by
  * key_construction_mutex.
  */
 static int __key_instantiate_and_link(struct key *key,
@@ -654,15 +654,15 @@ EXPORT_SYMBOL(key_put);
  */
 struct key *key_lookup(key_serial_t id)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 	struct key *key;
 
 	spin_lock(&key_serial_lock);
 
 	/* search the tree for the specified key */
-	n = key_serial_tree.rb_node;
+	n = key_serial_tree.rb_yesde;
 	while (n) {
-		key = rb_entry(n, struct key, serial_node);
+		key = rb_entry(n, struct key, serial_yesde);
 
 		if (id < key->serial)
 			n = n->rb_left;
@@ -672,7 +672,7 @@ struct key *key_lookup(key_serial_t id)
 			goto found;
 	}
 
-not_found:
+yest_found:
 	key = ERR_PTR(-ENOKEY);
 	goto error;
 
@@ -680,8 +680,8 @@ found:
 	/* A key is allowed to be looked up only if someone still owns a
 	 * reference to it - otherwise it's awaiting the gc.
 	 */
-	if (!refcount_inc_not_zero(&key->usage))
-		goto not_found;
+	if (!refcount_inc_yest_zero(&key->usage))
+		goto yest_found;
 
 error:
 	spin_unlock(&key_serial_lock);
@@ -799,7 +799,7 @@ error:
  *
  * Returns a pointer to the new key if successful, -ENODEV if the key type
  * wasn't available, -ENOTDIR if the keyring wasn't a keyring, -EACCES if the
- * caller isn't permitted to modify the keyring or the LSM did not permit
+ * caller isn't permitted to modify the keyring or the LSM did yest permit
  * creation of the key.
  *
  * On success, the possession flag from the keyring ref will be tacked on to
@@ -979,8 +979,8 @@ EXPORT_SYMBOL(key_create_or_update);
  * caller must be granted Write permission on the key.  Negative keys can be
  * instantiated by this method.
  *
- * Returns 0 on success, -EACCES if not permitted and -EOPNOTSUPP if the key
- * type does not support updating.  The key type may return other errors.
+ * Returns 0 on success, -EACCES if yest permitted and -EOPNOTSUPP if the key
+ * type does yest support updating.  The key type may return other errors.
  */
 int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 {
@@ -1033,7 +1033,7 @@ EXPORT_SYMBOL(key_update);
  * Mark a key as being revoked and ask the type to free up its resources.  The
  * revocation timeout is set and the key and all its links will be
  * automatically garbage collected after key_gc_delay amount of time if they
- * are not manually dealt with first.
+ * are yest manually dealt with first.
  */
 void key_revoke(struct key *key)
 {
@@ -1041,7 +1041,7 @@ void key_revoke(struct key *key)
 
 	key_check(key);
 
-	/* make sure no one's trying to change or use the key when we mark it
+	/* make sure yes one's trying to change or use the key when we mark it
 	 * - we tell lockdep that we might nest because we might be revoking an
 	 *   authorisation key whilst holding the sem on a key we've just
 	 *   instantiated
@@ -1051,7 +1051,7 @@ void key_revoke(struct key *key)
 	    key->type->revoke)
 		key->type->revoke(key);
 
-	/* set the death time to no more than the expiry time */
+	/* set the death time to yes more than the expiry time */
 	time = ktime_get_real_seconds();
 	if (key->revoked_at == 0 || key->revoked_at > time) {
 		key->revoked_at = time;
@@ -1067,7 +1067,7 @@ EXPORT_SYMBOL(key_revoke);
  * @key: The key to be invalidated.
  *
  * Mark a key as being invalidated and have it cleaned up immediately.  The key
- * is ignored by all searches and other operations from this point.
+ * is igyesred by all searches and other operations from this point.
  */
 void key_invalidate(struct key *key)
 {
@@ -1143,7 +1143,7 @@ int register_key_type(struct key_type *ktype)
 	/* store the type */
 	list_add(&ktype->link, &key_types_list);
 
-	pr_notice("Key type %s registered\n", ktype->name);
+	pr_yestice("Key type %s registered\n", ktype->name);
 	ret = 0;
 
 out:
@@ -1166,7 +1166,7 @@ void unregister_key_type(struct key_type *ktype)
 	list_del_init(&ktype->link);
 	downgrade_write(&key_types_sem);
 	key_gc_keytype(ktype);
-	pr_notice("Key type %s unregistered\n", ktype->name);
+	pr_yestice("Key type %s unregistered\n", ktype->name);
 	up_read(&key_types_sem);
 }
 EXPORT_SYMBOL(unregister_key_type);
@@ -1187,10 +1187,10 @@ void __init key_init(void)
 	list_add_tail(&key_type_logon.link, &key_types_list);
 
 	/* record the root user tracking */
-	rb_link_node(&root_key_user.node,
+	rb_link_yesde(&root_key_user.yesde,
 		     NULL,
-		     &key_user_tree.rb_node);
+		     &key_user_tree.rb_yesde);
 
-	rb_insert_color(&root_key_user.node,
+	rb_insert_color(&root_key_user.yesde,
 			&key_user_tree);
 }

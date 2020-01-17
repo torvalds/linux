@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/mman.h>
 #include <sys/time.h>
 
@@ -32,7 +32,7 @@
  * till it reaches 512TB. One with size 128TB and the
  * other being 384TB.
  *
- * On Arm64 the address space is 256TB and no high mappings
+ * On Arm64 the address space is 256TB and yes high mappings
  * are supported so far.
  */
 

@@ -30,8 +30,8 @@ struct aspeed_lpc_ctrl {
 	struct clk		*clk;
 	phys_addr_t		mem_base;
 	resource_size_t		mem_size;
-	u32		pnor_size;
-	u32		pnor_base;
+	u32		pyesr_size;
+	u32		pyesr_base;
 };
 
 static struct aspeed_lpc_ctrl *file_aspeed_lpc_ctrl(struct file *file)
@@ -49,8 +49,8 @@ static int aspeed_lpc_ctrl_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_pgoff + vsize > lpc_ctrl->mem_base + lpc_ctrl->mem_size)
 		return -EINVAL;
 
-	/* ast2400/2500 AHB accesses are not cache coherent */
-	prot = pgprot_noncached(prot);
+	/* ast2400/2500 AHB accesses are yest cache coherent */
+	prot = pgprot_yesncached(prot);
 
 	if (remap_pfn_range(vma, vma->vm_start,
 		(lpc_ctrl->mem_base >> PAGE_SHIFT) + vma->vm_pgoff,
@@ -87,7 +87,7 @@ static long aspeed_lpc_ctrl_ioctl(struct file *file, unsigned int cmd,
 		if (map.window_id != 0)
 			return -EINVAL;
 
-		/* If memory-region is not described in device tree */
+		/* If memory-region is yest described in device tree */
 		if (!lpc_ctrl->mem_size) {
 			dev_dbg(dev, "Didn't find reserved memory\n");
 			return -ENXIO;
@@ -105,7 +105,7 @@ static long aspeed_lpc_ctrl_ioctl(struct file *file, unsigned int cmd,
 		 * firmware space address of the mapping.
 		 *
 		 * The 1 bits in the top of half of HICR8 represent the bits
-		 * (in the requested address) that should be ignored and
+		 * (in the requested address) that should be igyesred and
 		 * replaced with those from the top half of HICR7.
 		 * The 1 bits in the bottom half of HICR8 represent the bits
 		 * (in the requested address) that should be kept and pass
@@ -129,14 +129,14 @@ static long aspeed_lpc_ctrl_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 
 		if (map.window_type == ASPEED_LPC_CTRL_WINDOW_FLASH) {
-			if (!lpc_ctrl->pnor_size) {
-				dev_dbg(dev, "Didn't find host pnor flash\n");
+			if (!lpc_ctrl->pyesr_size) {
+				dev_dbg(dev, "Didn't find host pyesr flash\n");
 				return -ENXIO;
 			}
-			addr = lpc_ctrl->pnor_base;
-			size = lpc_ctrl->pnor_size;
+			addr = lpc_ctrl->pyesr_base;
+			size = lpc_ctrl->pyesr_size;
 		} else if (map.window_type == ASPEED_LPC_CTRL_WINDOW_MEMORY) {
-			/* If memory-region is not described in device tree */
+			/* If memory-region is yest described in device tree */
 			if (!lpc_ctrl->mem_size) {
 				dev_dbg(dev, "Didn't find reserved memory\n");
 				return -ENXIO;
@@ -160,7 +160,7 @@ static long aspeed_lpc_ctrl_ioctl(struct file *file, unsigned int cmd,
 		/*
 		 * addr (host lpc address) is safe regardless of values. This
 		 * simply changes the address the host has to request on its
-		 * side of the LPC bus. This cannot impact the hosts own
+		 * side of the LPC bus. This canyest impact the hosts own
 		 * memory space by surprise as LPC specific accessors are
 		 * required. The only strange thing that could be done is
 		 * setting the lower 16 bits but the shift takes care of that.
@@ -197,7 +197,7 @@ static const struct file_operations aspeed_lpc_ctrl_fops = {
 static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 {
 	struct aspeed_lpc_ctrl *lpc_ctrl;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct resource resm;
 	struct device *dev;
 	int rc;
@@ -209,31 +209,31 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* If flash is described in device tree then store */
-	node = of_parse_phandle(dev->of_node, "flash", 0);
-	if (!node) {
-		dev_dbg(dev, "Didn't find host pnor flash node\n");
+	yesde = of_parse_phandle(dev->of_yesde, "flash", 0);
+	if (!yesde) {
+		dev_dbg(dev, "Didn't find host pyesr flash yesde\n");
 	} else {
-		rc = of_address_to_resource(node, 1, &resm);
-		of_node_put(node);
+		rc = of_address_to_resource(yesde, 1, &resm);
+		of_yesde_put(yesde);
 		if (rc) {
 			dev_err(dev, "Couldn't address to resource for flash\n");
 			return rc;
 		}
 
-		lpc_ctrl->pnor_size = resource_size(&resm);
-		lpc_ctrl->pnor_base = resm.start;
+		lpc_ctrl->pyesr_size = resource_size(&resm);
+		lpc_ctrl->pyesr_base = resm.start;
 	}
 
 
 	dev_set_drvdata(&pdev->dev, lpc_ctrl);
 
 	/* If memory-region is described in device tree then store */
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!node) {
+	yesde = of_parse_phandle(dev->of_yesde, "memory-region", 0);
+	if (!yesde) {
 		dev_dbg(dev, "Didn't find reserved memory\n");
 	} else {
-		rc = of_address_to_resource(node, 0, &resm);
-		of_node_put(node);
+		rc = of_address_to_resource(yesde, 0, &resm);
+		of_yesde_put(yesde);
 		if (rc) {
 			dev_err(dev, "Couldn't address to resource for reserved memory\n");
 			return -ENXIO;
@@ -243,8 +243,8 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 		lpc_ctrl->mem_base = resm.start;
 	}
 
-	lpc_ctrl->regmap = syscon_node_to_regmap(
-			pdev->dev.parent->of_node);
+	lpc_ctrl->regmap = syscon_yesde_to_regmap(
+			pdev->dev.parent->of_yesde);
 	if (IS_ERR(lpc_ctrl->regmap)) {
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;
@@ -261,7 +261,7 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	lpc_ctrl->miscdev.minor = MISC_DYNAMIC_MINOR;
+	lpc_ctrl->miscdev.miyesr = MISC_DYNAMIC_MINOR;
 	lpc_ctrl->miscdev.name = DEVICE_NAME;
 	lpc_ctrl->miscdev.fops = &aspeed_lpc_ctrl_fops;
 	lpc_ctrl->miscdev.parent = dev;

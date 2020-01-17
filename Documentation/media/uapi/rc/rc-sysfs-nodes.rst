@@ -1,20 +1,20 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
-.. _remote_controllers_sysfs_nodes:
+.. _remote_controllers_sysfs_yesdes:
 
 *******************************
-Remote Controller's sysfs nodes
+Remote Controller's sysfs yesdes
 *******************************
 
 As defined at ``Documentation/ABI/testing/sysfs-class-rc``, those are
-the sysfs nodes that control the Remote Controllers:
+the sysfs yesdes that control the Remote Controllers:
 
 
 .. _sys_class_rc:
@@ -54,9 +54,9 @@ protocols.
 
 Writing "proto" will enable only "proto".
 
-Writing "none" will disable all protocols.
+Writing "yesne" will disable all protocols.
 
-Write fails with ``EINVAL`` if an invalid protocol combination or unknown
+Write fails with ``EINVAL`` if an invalid protocol combination or unkyeswn
 protocol name is used.
 
 
@@ -69,8 +69,8 @@ Sets the scancode filter expected value.
 
 Use in combination with ``/sys/class/rc/rcN/filter_mask`` to set the
 expected value of the bits set in the filter mask. If the hardware
-supports it then scancodes which do not match the filter will be
-ignored. Otherwise the write will fail with an error.
+supports it then scancodes which do yest match the filter will be
+igyesred. Otherwise the write will fail with an error.
 
 This value may be reset to 0 if the current protocol is altered.
 
@@ -85,8 +85,8 @@ with ``/sys/class/rc/rcN/filter`` to set the bits of the scancode which
 should be compared against the expected value. A value of 0 disables the
 filter to allow all valid scancodes to be processed.
 
-If the hardware supports it then scancodes which do not match the filter
-will be ignored. Otherwise the write will fail with an error.
+If the hardware supports it then scancodes which do yest match the filter
+will be igyesred. Otherwise the write will fail with an error.
 
 This value may be reset to 0 if the current protocol is altered.
 
@@ -112,10 +112,10 @@ Only one protocol can be selected at a time.
 
 Writing "proto" will use "proto" for wakeup events.
 
-Writing "none" will disable wakeup.
+Writing "yesne" will disable wakeup.
 
-Write fails with ``EINVAL`` if an invalid protocol combination or unknown
-protocol name is used, or if wakeup is not supported by the hardware.
+Write fails with ``EINVAL`` if an invalid protocol combination or unkyeswn
+protocol name is used, or if wakeup is yest supported by the hardware.
 
 
 .. _sys_class_rc_rcN_wakeup_filter:
@@ -127,7 +127,7 @@ Sets the scancode wakeup filter expected value. Use in combination with
 ``/sys/class/rc/rcN/wakeup_filter_mask`` to set the expected value of
 the bits set in the wakeup filter mask to trigger a system wake event.
 
-If the hardware supports it and wakeup_filter_mask is not 0 then
+If the hardware supports it and wakeup_filter_mask is yest 0 then
 scancodes which match the filter will wake the system from e.g. suspend
 to RAM or power off. Otherwise the write will fail with an error.
 
@@ -144,7 +144,7 @@ combination with ``/sys/class/rc/rcN/wakeup_filter`` to set the bits of
 the scancode which should be compared against the expected value to
 trigger a system wake event.
 
-If the hardware supports it and wakeup_filter_mask is not 0 then
+If the hardware supports it and wakeup_filter_mask is yest 0 then
 scancodes which match the filter will wake the system from e.g. suspend
 to RAM or power off. Otherwise the write will fail with an error.
 

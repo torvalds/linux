@@ -161,7 +161,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 				  sd->vcur.backlight);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 
@@ -426,7 +426,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	s32 nToSkip =
 		sd->swapRB * (gspca_dev->cam.cam_mode[mode].bytesperline + 1);
 
-	/* Test only against 0202h, so endianness does not matter */
+	/* Test only against 0202h, so endianness does yest matter */
 	switch (*(s16 *) data) {
 	case 0x0202:		/* End of frame, start a new one */
 		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
@@ -722,7 +722,7 @@ static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
 	} else if (_OV2640_) {
 		gspca_dbg(gspca_dev, D_PROBE, "05e3:0503 sensor OV2640 (2.0M)\n");
 	} else {
-		gspca_dbg(gspca_dev, D_PROBE, "***** Unknown sensor *****\n");
+		gspca_dbg(gspca_dev, D_PROBE, "***** Unkyeswn sensor *****\n");
 		return -1;
 	}
 

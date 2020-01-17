@@ -76,7 +76,7 @@ EXPORT_SYMBOL_GPL(can_len2dlc);
  */
 static int
 can_update_sample_point(const struct can_bittiming_const *btc,
-			unsigned int sample_point_nominal, unsigned int tseg,
+			unsigned int sample_point_yesminal, unsigned int tseg,
 			unsigned int *tseg1_ptr, unsigned int *tseg2_ptr,
 			unsigned int *sample_point_error_ptr)
 {
@@ -87,7 +87,7 @@ can_update_sample_point(const struct can_bittiming_const *btc,
 
 	for (i = 0; i <= 1; i++) {
 		tseg2 = tseg + CAN_CALC_SYNC_SEG -
-			(sample_point_nominal * (tseg + CAN_CALC_SYNC_SEG)) /
+			(sample_point_yesminal * (tseg + CAN_CALC_SYNC_SEG)) /
 			1000 - i;
 		tseg2 = clamp(tseg2, btc->tseg2_min, btc->tseg2_max);
 		tseg1 = tseg - tseg2;
@@ -98,9 +98,9 @@ can_update_sample_point(const struct can_bittiming_const *btc,
 
 		sample_point = 1000 * (tseg + CAN_CALC_SYNC_SEG - tseg2) /
 			(tseg + CAN_CALC_SYNC_SEG);
-		sample_point_error = abs(sample_point_nominal - sample_point);
+		sample_point_error = abs(sample_point_yesminal - sample_point);
 
-		if (sample_point <= sample_point_nominal &&
+		if (sample_point <= sample_point_yesminal &&
 		    sample_point_error < best_sample_point_error) {
 			best_sample_point = sample_point;
 			best_sample_point_error = sample_point_error;
@@ -120,11 +120,11 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 {
 	struct can_priv *priv = netdev_priv(dev);
 	unsigned int bitrate;			/* current bitrate */
-	unsigned int bitrate_error;		/* difference between current and nominal value */
+	unsigned int bitrate_error;		/* difference between current and yesminal value */
 	unsigned int best_bitrate_error = UINT_MAX;
-	unsigned int sample_point_error;	/* difference between current and nominal value */
+	unsigned int sample_point_error;	/* difference between current and yesminal value */
 	unsigned int best_sample_point_error = UINT_MAX;
-	unsigned int sample_point_nominal;	/* nominal sample point */
+	unsigned int sample_point_yesminal;	/* yesminal sample point */
 	unsigned int best_tseg = 0;		/* current best value for tseg */
 	unsigned int best_brp = 0;		/* current best value for brp */
 	unsigned int brp, tsegall, tseg, tseg1 = 0, tseg2 = 0;
@@ -132,14 +132,14 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 
 	/* Use CiA recommended sample points */
 	if (bt->sample_point) {
-		sample_point_nominal = bt->sample_point;
+		sample_point_yesminal = bt->sample_point;
 	} else {
 		if (bt->bitrate > 800000)
-			sample_point_nominal = 750;
+			sample_point_yesminal = 750;
 		else if (bt->bitrate > 500000)
-			sample_point_nominal = 800;
+			sample_point_yesminal = 800;
 		else
-			sample_point_nominal = 875;
+			sample_point_yesminal = 875;
 	}
 
 	/* tseg even = round down, odd = round up */
@@ -166,7 +166,7 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 		if (bitrate_error < best_bitrate_error)
 			best_sample_point_error = UINT_MAX;
 
-		can_update_sample_point(btc, sample_point_nominal, tseg / 2,
+		can_update_sample_point(btc, sample_point_yesminal, tseg / 2,
 					&tseg1, &tseg2, &sample_point_error);
 		if (sample_point_error > best_sample_point_error)
 			continue;
@@ -196,7 +196,7 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 	}
 
 	/* real sample point */
-	bt->sample_point = can_update_sample_point(btc, sample_point_nominal,
+	bt->sample_point = can_update_sample_point(btc, sample_point_yesminal,
 						   best_tseg, &tseg1, &tseg2,
 						   NULL);
 
@@ -214,7 +214,7 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 		/* bt->sjw is at least 1 -> sanitize upper bound to sjw_max */
 		if (bt->sjw > btc->sjw_max)
 			bt->sjw = btc->sjw_max;
-		/* bt->sjw must not be higher than tseg2 */
+		/* bt->sjw must yest be higher than tseg2 */
 		if (tseg2 < bt->sjw)
 			bt->sjw = tseg2;
 	}
@@ -231,7 +231,7 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 			      const struct can_bittiming_const *btc)
 {
-	netdev_err(dev, "bit-timing calculation not available\n");
+	netdev_err(dev, "bit-timing calculation yest available\n");
 	return -EINVAL;
 }
 #endif /* CONFIG_CAN_CALC_BITTIMING */
@@ -378,7 +378,7 @@ void can_change_state(struct net_device *dev, struct can_frame *cf,
 	enum can_state new_state = max(tx_state, rx_state);
 
 	if (unlikely(new_state == priv->state)) {
-		netdev_warn(dev, "%s: oops, state did not change", __func__);
+		netdev_warn(dev, "%s: oops, state did yest change", __func__);
 		return;
 	}
 
@@ -407,8 +407,8 @@ EXPORT_SYMBOL_GPL(can_change_state);
  *
  * CAN network devices *should* support a local echo functionality
  * (see Documentation/networking/can.rst). To test the handling of CAN
- * interfaces that do not support the local echo both driver types are
- * implemented. In the case that the driver does not support the echo
+ * interfaces that do yest support the local echo both driver types are
+ * implemented. In the case that the driver does yest support the echo
  * the IFF_ECHO remains clear in dev->flags. This causes the PF_CAN core
  * to perform the echo as a fallback solution.
  */
@@ -547,7 +547,7 @@ static void can_restart(struct net_device *dev)
 	BUG_ON(netif_carrier_ok(dev));
 
 	/* No synchronization needed because the device is bus-off and
-	 * no messages can come in or go out.
+	 * yes messages can come in or go out.
 	 */
 	can_flush_echo_skb(dev);
 
@@ -584,7 +584,7 @@ static void can_restart_work(struct work_struct *work)
 	can_restart(priv->dev);
 }
 
-int can_restart_now(struct net_device *dev)
+int can_restart_yesw(struct net_device *dev)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
@@ -605,7 +605,7 @@ int can_restart_now(struct net_device *dev)
 /* CAN bus-off
  *
  * This functions should be called when the device goes bus-off to
- * tell the netif layer that no more packets can be sent or received.
+ * tell the netif layer that yes more packets can be sent or received.
  * If enabled, a timer is started to trigger bus-off recovery.
  */
 void can_bus_off(struct net_device *dev)
@@ -768,14 +768,14 @@ int can_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct can_priv *priv = netdev_priv(dev);
 
-	/* Do not allow changing the MTU while running */
+	/* Do yest allow changing the MTU while running */
 	if (dev->flags & IFF_UP)
 		return -EBUSY;
 
 	/* allow change of MTU according to the CANFD ability of the device */
 	switch (new_mtu) {
 	case CAN_MTU:
-		/* 'CANFD-only' controllers can not switch to CAN_MTU */
+		/* 'CANFD-only' controllers can yest switch to CAN_MTU */
 		if (priv->ctrlmode_static & CAN_CTRLMODE_FD)
 			return -EINVAL;
 
@@ -810,7 +810,7 @@ int open_candev(struct net_device *dev)
 	struct can_priv *priv = netdev_priv(dev);
 
 	if (!priv->bittiming.bitrate) {
-		netdev_err(dev, "bit-timing not yet defined\n");
+		netdev_err(dev, "bit-timing yest yet defined\n");
 		return -EINVAL;
 	}
 
@@ -832,14 +832,14 @@ EXPORT_SYMBOL_GPL(open_candev);
 
 #ifdef CONFIG_OF
 /* Common function that can be used to understand the limitation of
- * a transceiver when it provides no means to determine these limitations
+ * a transceiver when it provides yes means to determine these limitations
  * at runtime.
  */
 void of_can_transceiver(struct net_device *dev)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct can_priv *priv = netdev_priv(dev);
-	struct device_node *np = dev->dev.parent->of_node;
+	struct device_yesde *np = dev->dev.parent->of_yesde;
 	int ret;
 
 	dn = of_get_child_by_name(np, "can-transceiver");
@@ -847,9 +847,9 @@ void of_can_transceiver(struct net_device *dev)
 		return;
 
 	ret = of_property_read_u32(dn, "max-bitrate", &priv->bitrate_max);
-	of_node_put(dn);
+	of_yesde_put(dn);
 	if ((ret && ret != -EINVAL) || (!ret && !priv->bitrate_max))
-		netdev_warn(dev, "Invalid value for transceiver max bitrate. Ignoring bitrate limit.\n");
+		netdev_warn(dev, "Invalid value for transceiver max bitrate. Igyesring bitrate limit.\n");
 }
 EXPORT_SYMBOL_GPL(of_can_transceiver);
 #endif
@@ -891,7 +891,7 @@ static int can_validate(struct nlattr *tb[], struct nlattr *data[],
 	bool is_can_fd = false;
 
 	/* Make sure that valid CAN FD configurations always consist of
-	 * - nominal/arbitration bittiming
+	 * - yesminal/arbitration bittiming
 	 * - data bittiming
 	 * - control mode with CAN_CTRLMODE_FD set
 	 */
@@ -931,7 +931,7 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 	if (data[IFLA_CAN_BITTIMING]) {
 		struct can_bittiming bt;
 
-		/* Do not allow changing bittiming while running */
+		/* Do yest allow changing bittiming while running */
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 
@@ -972,7 +972,7 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 		u32 ctrlstatic;
 		u32 maskedflags;
 
-		/* Do not allow changing controller mode while running */
+		/* Do yest allow changing controller mode while running */
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 		cm = nla_data(data[IFLA_CAN_CTRLMODE]);
@@ -983,7 +983,7 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 		if (cm->mask & ~(priv->ctrlmode_supported | ctrlstatic))
 			return -EOPNOTSUPP;
 
-		/* do not check for static fd-non-iso if 'fd' is disabled */
+		/* do yest check for static fd-yesn-iso if 'fd' is disabled */
 		if (!(maskedflags & CAN_CTRLMODE_FD))
 			ctrlstatic &= ~CAN_CTRLMODE_FD_NON_ISO;
 
@@ -1003,17 +1003,17 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 	}
 
 	if (data[IFLA_CAN_RESTART_MS]) {
-		/* Do not allow changing restart delay while running */
+		/* Do yest allow changing restart delay while running */
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 		priv->restart_ms = nla_get_u32(data[IFLA_CAN_RESTART_MS]);
 	}
 
 	if (data[IFLA_CAN_RESTART]) {
-		/* Do not allow a restart while not running */
+		/* Do yest allow a restart while yest running */
 		if (!(dev->flags & IFF_UP))
 			return -EINVAL;
-		err = can_restart_now(dev);
+		err = can_restart_yesw(dev);
 		if (err)
 			return err;
 	}
@@ -1021,7 +1021,7 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 	if (data[IFLA_CAN_DATA_BITTIMING]) {
 		struct can_bittiming dbt;
 
-		/* Do not allow changing bittiming while running */
+		/* Do yest allow changing bittiming while running */
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 
@@ -1278,7 +1278,7 @@ static __init int can_dev_init(void)
 {
 	int err;
 
-	can_led_notifier_init();
+	can_led_yestifier_init();
 
 	err = rtnl_link_register(&can_link_ops);
 	if (!err)
@@ -1292,7 +1292,7 @@ static __exit void can_dev_exit(void)
 {
 	rtnl_link_unregister(&can_link_ops);
 
-	can_led_notifier_exit();
+	can_led_yestifier_exit();
 }
 module_exit(can_dev_exit);
 

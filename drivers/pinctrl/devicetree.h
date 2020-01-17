@@ -12,10 +12,10 @@ struct of_phandle_args;
 void pinctrl_dt_free_maps(struct pinctrl *p);
 int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev);
 
-int pinctrl_count_index_with_args(const struct device_node *np,
+int pinctrl_count_index_with_args(const struct device_yesde *np,
 				  const char *list_name);
 
-int pinctrl_parse_index_with_args(const struct device_node *np,
+int pinctrl_parse_index_with_args(const struct device_yesde *np,
 				  const char *list_name, int index,
 				  struct of_phandle_args *out_args);
 
@@ -31,14 +31,14 @@ static inline void pinctrl_dt_free_maps(struct pinctrl *p)
 {
 }
 
-static inline int pinctrl_count_index_with_args(const struct device_node *np,
+static inline int pinctrl_count_index_with_args(const struct device_yesde *np,
 						const char *list_name)
 {
 	return -ENODEV;
 }
 
 static inline int
-pinctrl_parse_index_with_args(const struct device_node *np,
+pinctrl_parse_index_with_args(const struct device_yesde *np,
 			      const char *list_name, int index,
 			      struct of_phandle_args *out_args)
 {

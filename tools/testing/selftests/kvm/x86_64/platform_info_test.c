@@ -84,13 +84,13 @@ int main(int argc, char *argv[])
 	int rv;
 	uint64_t msr_platform_info;
 
-	/* Tell stdout not to buffer its content */
+	/* Tell stdout yest to buffer its content */
 	setbuf(stdout, NULL);
 
 	rv = kvm_check_cap(KVM_CAP_MSR_PLATFORM_INFO);
 	if (!rv) {
 		fprintf(stderr,
-			"KVM_CAP_MSR_PLATFORM_INFO not supported, skip test\n");
+			"KVM_CAP_MSR_PLATFORM_INFO yest supported, skip test\n");
 		exit(KSFT_SKIP);
 	}
 

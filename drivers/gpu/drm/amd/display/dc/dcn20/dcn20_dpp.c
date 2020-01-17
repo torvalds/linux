@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -57,7 +57,7 @@ void dpp20_read_state(struct dpp *dpp_base,
 			DPP_CLOCK_ENABLE, &s->is_enabled);
 	REG_GET(CM_DGAM_CONTROL,
 			CM_DGAM_LUT_MODE, &s->dgam_lut_mode);
-	// BGAM has no ROM, and definition is different, can't reuse same dump
+	// BGAM has yes ROM, and definition is different, can't reuse same dump
 	//REG_GET(CM_BLNDGAM_CONTROL,
 	//		CM_BLNDGAM_LUT_MODE, &s->rgam_lut_mode);
 	REG_GET(CM_GAMUT_REMAP_CONTROL,
@@ -376,7 +376,7 @@ bool dpp2_get_optimal_number_of_taps(
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps)
 {
-	/* Some ASICs does not support  FP16 scaling, so we reject modes require this*/
+	/* Some ASICs does yest support  FP16 scaling, so we reject modes require this*/
 	if (scl_data->viewport.width  != scl_data->h_active &&
 		scl_data->viewport.height != scl_data->v_active &&
 		dpp->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT &&
@@ -400,7 +400,7 @@ bool dpp2_get_optimal_number_of_taps(
 	if (scl_data->ratios.vert_c.value == (8ll << 32))
 		scl_data->ratios.vert_c.value--;
 
-	/* Set default taps if none are provided */
+	/* Set default taps if yesne are provided */
 	if (in_taps->h_taps == 0) {
 		if (dc_fixpt_ceil(scl_data->ratios.horz) > 4)
 			scl_data->taps.h_taps = 8;

@@ -47,7 +47,7 @@ Creating pci-epf-test Device
 PCI endpoint function device can be created using the configfs. To create
 pci-epf-test device, the following commands can be used::
 
-	# mount -t configfs none /sys/kernel/config
+	# mount -t configfs yesne /sys/kernel/config
 	# cd /sys/kernel/config/pci_ep/
 	# mkdir functions/pci_epf_test/func1
 

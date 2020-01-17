@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -30,7 +30,7 @@ u32 r600_gpu_check_soft_reset(struct radeon_device *rdev);
 
 /*
  * DMA
- * Starting with R600, the GPU has an asynchronous
+ * Starting with R600, the GPU has an asynchroyesus
  * DMA engine.  The programming model is very similar
  * to the 3D engine (ring buffer, IBs, etc.), but the
  * DMA controller has it's own packet format that is
@@ -139,7 +139,7 @@ int r600_dma_resume(struct radeon_device *rdev)
 	WREG32(DMA_RB_RPTR, 0);
 	WREG32(DMA_RB_WPTR, 0);
 
-	/* set the wb address whether it's enabled or not */
+	/* set the wb address whether it's enabled or yest */
 	WREG32(DMA_RB_RPTR_ADDR_HI,
 	       upper_32_bits(rdev->wb.gpu_addr + R600_WB_DMA_RPTR_OFFSET) & 0xFF);
 	WREG32(DMA_RB_RPTR_ADDR_LO,
@@ -203,7 +203,7 @@ void r600_dma_fini(struct radeon_device *rdev)
  * @ring: radeon_ring structure holding ring information
  *
  * Check if the async DMA engine is locked up.
- * Returns true if the engine appears to be locked up, false if not.
+ * Returns true if the engine appears to be locked up, false if yest.
  */
 bool r600_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {

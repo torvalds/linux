@@ -40,7 +40,7 @@
  *	      filesystem corruption (possibly other FS too).
  */
 #if defined(GCC_VERSION) && GCC_VERSION >= 40800 && GCC_VERSION < 40803
-#error Your compiler is too buggy; it is known to miscompile kernels
+#error Your compiler is too buggy; it is kyeswn to miscompile kernels
 #error and result in filesystem corruption and oopses.
 #endif
 

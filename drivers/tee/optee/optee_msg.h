@@ -14,7 +14,7 @@
  *
  * This file is divided into three sections.
  * 1. Formatting of messages.
- * 2. Requests from normal world
+ * 2. Requests from yesrmal world
  * 3. Requests from secure world, Remote Procedure Call (RPC), handled by
  *    tee-supplicant.
  */
@@ -37,7 +37,7 @@
 #define OPTEE_MSG_ATTR_TYPE_MASK		GENMASK(7, 0)
 
 /*
- * Meta parameter to be absorbed by the Secure OS and not passed
+ * Meta parameter to be absorbed by the Secure OS and yest passed
  * to the Trusted Application.
  *
  * Currently only used with OPTEE_MSG_CMD_OPEN_SESSION.
@@ -94,7 +94,7 @@
 #define OPTEE_MSG_LOGIN_APPLICATION_GROUP	0x00000006
 
 /*
- * Page size used in non-contiguous buffer entries
+ * Page size used in yesn-contiguous buffer entries
  */
 #define OPTEE_MSG_NONCONTIG_PAGE_SIZE		4096
 
@@ -104,8 +104,8 @@
  * @size:	Size of the buffer
  * @shm_ref:	Temporary shared memory reference, pointer to a struct tee_shm
  *
- * Secure and normal world communicates pointers as physical address
- * instead of the virtual address. This is because secure and normal world
+ * Secure and yesrmal world communicates pointers as physical address
+ * instead of the virtual address. This is because secure and yesrmal world
  * have completely independent memory mapping. Normal world can even have a
  * hypervisor which need to translate the guest physical address (AKA IPA
  * in ARM documentation) to a real physical address before passing the
@@ -132,7 +132,7 @@ struct optee_msg_param_rmem {
 /**
  * struct optee_msg_param_value - opaque value parameter
  *
- * Value parameters are passed unchecked between normal and secure world.
+ * Value parameters are passed unchecked between yesrmal and secure world.
  */
 struct optee_msg_param_value {
 	u64 a;
@@ -151,7 +151,7 @@ struct optee_msg_param_value {
  * the union. OPTEE_MSG_ATTR_TYPE_VALUE_* indicates value,
  * OPTEE_MSG_ATTR_TYPE_TMEM_* indicates @tmem and
  * OPTEE_MSG_ATTR_TYPE_RMEM_* indicates @rmem,
- * OPTEE_MSG_ATTR_TYPE_NONE indicates that none of the members are used.
+ * OPTEE_MSG_ATTR_TYPE_NONE indicates that yesne of the members are used.
  */
 struct optee_msg_param {
 	u64 attr;
@@ -175,7 +175,7 @@ struct optee_msg_param {
  * @num_params: number of parameters supplied to the OS Command
  * @params: the parameters supplied to the OS Command
  *
- * All normal calls to Trusted OS uses this struct. If cmd requires further
+ * All yesrmal calls to Trusted OS uses this struct. If cmd requires further
  * information than what these field holds it can be passed as a parameter
  * tagged as meta (setting the OPTEE_MSG_ATTR_META bit in corresponding
  * attrs field). All parameters tagged as meta has to come first.
@@ -215,7 +215,7 @@ struct optee_msg_arg {
 	 sizeof(struct optee_msg_param) * (num_params))
 
 /*****************************************************************************
- * Part 2 - requests from normal world
+ * Part 2 - requests from yesrmal world
  *****************************************************************************/
 
 /*
@@ -243,8 +243,8 @@ struct optee_msg_arg {
 /*
  * Get UUID of Trusted OS.
  *
- * Used by non-secure world to figure out which Trusted OS is installed.
- * Note that returned UUID is the UUID of the Trusted OS, not of the API.
+ * Used by yesn-secure world to figure out which Trusted OS is installed.
+ * Note that returned UUID is the UUID of the Trusted OS, yest of the API.
  *
  * Returns UUID in 4 32-bit words in the same way as
  * OPTEE_MSG_FUNCID_CALLS_UID described above.
@@ -258,9 +258,9 @@ struct optee_msg_arg {
 /*
  * Get revision of Trusted OS.
  *
- * Used by non-secure world to figure out which version of the Trusted OS
+ * Used by yesn-secure world to figure out which version of the Trusted OS
  * is installed. Note that the returned revision is the revision of the
- * Trusted OS, not of the API.
+ * Trusted OS, yest of the API.
  *
  * Returns revision in 2 32-bit words in the same way as
  * OPTEE_MSG_CALLS_REVISION described above.
@@ -321,7 +321,7 @@ struct optee_msg_arg {
  * All RPC is done with a struct optee_msg_arg as bearer of information,
  * struct optee_msg_arg::arg holds values defined by OPTEE_MSG_RPC_CMD_* below
  *
- * RPC communication with tee-supplicant is reversed compared to normal
+ * RPC communication with tee-supplicant is reversed compared to yesrmal
  * client communication desribed above. The supplicant receives requests
  * and sends responses.
  */
@@ -344,11 +344,11 @@ struct optee_msg_arg {
 /*
  * Get time
  *
- * Returns number of seconds and nano seconds since the Epoch,
+ * Returns number of seconds and nayes seconds since the Epoch,
  * 1970-01-01 00:00:00 +0000 (UTC).
  *
  * [out] param[0].u.value.a	Number of seconds
- * [out] param[0].u.value.b	Number of nano seconds.
+ * [out] param[0].u.value.b	Number of nayes seconds.
  */
 #define OPTEE_MSG_RPC_CMD_GET_TIME	3
 
@@ -403,9 +403,9 @@ struct optee_msg_arg {
  *					as in param[n-1].u.tmem.shm_ref)
  */
 #define OPTEE_MSG_RPC_CMD_SHM_ALLOC	6
-/* Memory that can be shared with a non-secure user space application */
+/* Memory that can be shared with a yesn-secure user space application */
 #define OPTEE_MSG_RPC_SHM_TYPE_APPL	0
-/* Memory only shared with non-secure kernel */
+/* Memory only shared with yesn-secure kernel */
 #define OPTEE_MSG_RPC_SHM_TYPE_KERNEL	1
 
 /*

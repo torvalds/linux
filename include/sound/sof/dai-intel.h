@@ -97,13 +97,13 @@ struct sof_ipc_dai_hda_params {
  * and/or the absolute polarity matters the PCM signal from a microphone
  * can be inverted with the controls.
  *
- * 2. If the microphones in a stereo pair do not appear in captured stream
+ * 2. If the microphones in a stereo pair do yest appear in captured stream
  * in desired order due to board schematics choises they can be swapped with
  * the clk_edge parameter.
  *
  * 3. If PDM bit errors are seen in capture (poor quality) the skew parameter
  * that delays the sampling time of data by half cycles of DMIC source clock
- * can be tried for improvement. However there is no guarantee for this to fix
+ * can be tried for improvement. However there is yes guarantee for this to fix
  * data integrity problems.
  */
 struct sof_ipc_dai_dmic_pdm_ctrl {
@@ -135,7 +135,7 @@ struct sof_ipc_dai_dmic_pdm_ctrl {
  * the modes. In such case set the clock range limits of the desired mode to
  * avoid the driver to set clock to an illegal rate.
  *
- * The duty cycle could be set to 48-52% if not known. Generally these
+ * The duty cycle could be set to 48-52% if yest kyeswn. Generally these
  * parameters can be altered within data sheet specified limits to match
  * required audio application performance power.
  *
@@ -147,7 +147,7 @@ struct sof_ipc_dai_dmic_pdm_ctrl {
  * for the data line to produce valid output from mic clock start. The driver
  * will mute the captured audio for the given time. The min_clock_on_time
  * parameter is used to prevent too short clock bursts to happen. The driver
- * will keep the clock active after capture stop if this time is not yet
+ * will keep the clock active after capture stop if this time is yest yet
  * met. The unit for both is microseconds (us). Exceed of 100 ms will be
  * treated as an error.
  */

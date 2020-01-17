@@ -56,7 +56,7 @@ struct zx_tvenc_mode {
 };
 
 /*
- * The CRM cannot directly provide a suitable frequency, and we have to
+ * The CRM canyest directly provide a suitable frequency, and we have to
  * ask a multiplied rate from CRM and use the divider in VOU to get the
  * desired one.
  */
@@ -308,12 +308,12 @@ static int zx_tvenc_pwrctrl_init(struct zx_tvenc *tvenc)
 	struct regmap *regmap;
 	int ret;
 
-	ret = of_parse_phandle_with_fixed_args(dev->of_node,
+	ret = of_parse_phandle_with_fixed_args(dev->of_yesde,
 				"zte,tvenc-power-control", 2, 0, &out_args);
 	if (ret)
 		return ret;
 
-	regmap = syscon_node_to_regmap(out_args.np);
+	regmap = syscon_yesde_to_regmap(out_args.np);
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
 		goto out;
@@ -324,7 +324,7 @@ static int zx_tvenc_pwrctrl_init(struct zx_tvenc *tvenc)
 	pwrctrl->mask = out_args.args[1];
 
 out:
-	of_node_put(out_args.np);
+	of_yesde_put(out_args.np);
 	return ret;
 }
 

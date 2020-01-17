@@ -54,14 +54,14 @@ struct squashfs_sb_info {
 	struct mutex				meta_index_mutex;
 	struct meta_index			*meta_index;
 	struct squashfs_stream			*stream;
-	__le64					*inode_lookup_table;
-	u64					inode_table;
+	__le64					*iyesde_lookup_table;
+	u64					iyesde_table;
 	u64					directory_table;
 	u64					xattr_table;
 	unsigned int				block_size;
 	unsigned short				block_log;
 	long long				bytes_used;
-	unsigned int				inodes;
+	unsigned int				iyesdes;
 	unsigned int				fragments;
 	int					xattr_ids;
 };

@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -68,8 +68,8 @@
 #include "iwl-op-mode.h"
 #include "fw/img.h"
 #include "iwl-debug.h"
-#include "iwl-csr.h" /* for iwl_mvm_rx_card_state_notif */
-#include "iwl-io.h" /* for iwl_mvm_rx_card_state_notif */
+#include "iwl-csr.h" /* for iwl_mvm_rx_card_state_yestif */
+#include "iwl-io.h" /* for iwl_mvm_rx_card_state_yestif */
 #include "iwl-prph.h"
 #include "fw/acpi.h"
 
@@ -116,7 +116,7 @@ static int iwl_send_rss_cfg_cmd(struct iwl_mvm *mvm)
 	if (mvm->trans->num_rx_queues == 1)
 		return 0;
 
-	/* Do not direct RSS traffic to Q 0 which is our fallback queue */
+	/* Do yest direct RSS traffic to Q 0 which is our fallback queue */
 	for (i = 0; i < ARRAY_SIZE(cmd.indirection_table); i++)
 		cmd.indirection_table[i] =
 			1 + (i % (mvm->trans->num_rx_queues - 1));
@@ -134,7 +134,7 @@ static int iwl_configure_rxq(struct iwl_mvm *mvm)
 		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
 	};
 
-	/* Do not configure default queue, it is configured via context info */
+	/* Do yest configure default queue, it is configured via context info */
 	num_queues = mvm->trans->num_rx_queues - 1;
 
 	size = struct_size(cmd, data, num_queues);
@@ -185,32 +185,32 @@ static int iwl_mvm_send_dqa_cmd(struct iwl_mvm *mvm)
 	return ret;
 }
 
-void iwl_mvm_mfu_assert_dump_notif(struct iwl_mvm *mvm,
+void iwl_mvm_mfu_assert_dump_yestif(struct iwl_mvm *mvm,
 				   struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_mfu_assert_dump_notif *mfu_dump_notif = (void *)pkt->data;
-	__le32 *dump_data = mfu_dump_notif->data;
-	int n_words = le32_to_cpu(mfu_dump_notif->data_size) / sizeof(__le32);
+	struct iwl_mfu_assert_dump_yestif *mfu_dump_yestif = (void *)pkt->data;
+	__le32 *dump_data = mfu_dump_yestif->data;
+	int n_words = le32_to_cpu(mfu_dump_yestif->data_size) / sizeof(__le32);
 	int i;
 
-	if (mfu_dump_notif->index_num == 0)
+	if (mfu_dump_yestif->index_num == 0)
 		IWL_INFO(mvm, "MFUART assert id 0x%x occurred\n",
-			 le32_to_cpu(mfu_dump_notif->assert_id));
+			 le32_to_cpu(mfu_dump_yestif->assert_id));
 
 	for (i = 0; i < n_words; i++)
 		IWL_DEBUG_INFO(mvm,
 			       "MFUART assert dump, dword %u: 0x%08x\n",
-			       le16_to_cpu(mfu_dump_notif->index_num) *
+			       le16_to_cpu(mfu_dump_yestif->index_num) *
 			       n_words + i,
 			       le32_to_cpu(dump_data[i]));
 }
 
-static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_alive_fn(struct iwl_yestif_wait_data *yestif_wait,
 			 struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_mvm *mvm =
-		container_of(notif_wait, struct iwl_mvm, notif_wait);
+		container_of(yestif_wait, struct iwl_mvm, yestif_wait);
 	struct iwl_mvm_alive_data *alive_data = data;
 	struct mvm_alive_resp_v3 *palive3;
 	struct mvm_alive_resp *palive;
@@ -272,16 +272,16 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 		IWL_DEBUG_FW(mvm, "Alive ucode CDB\n");
 
 	IWL_DEBUG_FW(mvm,
-		     "UMAC version: Major - 0x%x, Minor - 0x%x\n",
+		     "UMAC version: Major - 0x%x, Miyesr - 0x%x\n",
 		     le32_to_cpu(umac->umac_major),
-		     le32_to_cpu(umac->umac_minor));
+		     le32_to_cpu(umac->umac_miyesr));
 
 	iwl_fwrt_update_fw_versions(&mvm->fwrt, lmac1, umac);
 
 	return true;
 }
 
-static bool iwl_wait_init_complete(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_wait_init_complete(struct iwl_yestif_wait_data *yestif_wait,
 				   struct iwl_rx_packet *pkt, void *data)
 {
 	WARN_ON(pkt->hdr.cmd != INIT_COMPLETE_NOTIF);
@@ -289,7 +289,7 @@ static bool iwl_wait_init_complete(struct iwl_notif_wait_data *notif_wait,
 	return true;
 }
 
-static bool iwl_wait_phy_db_entry(struct iwl_notif_wait_data *notif_wait,
+static bool iwl_wait_phy_db_entry(struct iwl_yestif_wait_data *yestif_wait,
 				  struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_phy_db *phy_db = data;
@@ -307,7 +307,7 @@ static bool iwl_wait_phy_db_entry(struct iwl_notif_wait_data *notif_wait,
 static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 					 enum iwl_ucode_type ucode_type)
 {
-	struct iwl_notification_wait alive_wait;
+	struct iwl_yestification_wait alive_wait;
 	struct iwl_mvm_alive_data alive_data = {};
 	const struct fw_img *fw;
 	int ret;
@@ -328,27 +328,27 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	iwl_fw_set_current_image(&mvm->fwrt, ucode_type);
 	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
 
-	iwl_init_notification_wait(&mvm->notif_wait, &alive_wait,
+	iwl_init_yestification_wait(&mvm->yestif_wait, &alive_wait,
 				   alive_cmd, ARRAY_SIZE(alive_cmd),
 				   iwl_alive_fn, &alive_data);
 
 	/*
 	 * We want to load the INIT firmware even in RFKILL
-	 * For the unified firmware case, the ucode_type is not
+	 * For the unified firmware case, the ucode_type is yest
 	 * INIT, but we still need to run it.
 	 */
 	ret = iwl_trans_start_fw(mvm->trans, fw, run_in_rfkill);
 	if (ret) {
 		iwl_fw_set_current_image(&mvm->fwrt, old_type);
-		iwl_remove_notification(&mvm->notif_wait, &alive_wait);
+		iwl_remove_yestification(&mvm->yestif_wait, &alive_wait);
 		return ret;
 	}
 
 	/*
-	 * Some things may run in the background now, but we
-	 * just wait for the ALIVE notification here.
+	 * Some things may run in the background yesw, but we
+	 * just wait for the ALIVE yestification here.
 	 */
-	ret = iwl_wait_notification(&mvm->notif_wait, &alive_wait,
+	ret = iwl_wait_yestification(&mvm->yestif_wait, &alive_wait,
 				    MVM_UCODE_ALIVE_TIMEOUT);
 	if (ret) {
 		struct iwl_trans *trans = mvm->trans;
@@ -374,7 +374,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	}
 
 	if (!alive_data.valid) {
-		IWL_ERR(mvm, "Loaded ucode is not valid!\n");
+		IWL_ERR(mvm, "Loaded ucode is yest valid!\n");
 		iwl_fw_set_current_image(&mvm->fwrt, old_type);
 		return -EIO;
 	}
@@ -386,14 +386,14 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 * initialization, but in firmware restart scenarios they
 	 * could be stopped, so wake them up. In firmware restart,
 	 * mac80211 will have the queues stopped as well until the
-	 * reconfiguration completes. During normal startup, they
+	 * reconfiguration completes. During yesrmal startup, they
 	 * will be empty.
 	 */
 
 	memset(&mvm->queue_info, 0, sizeof(mvm->queue_info));
 	/*
 	 * Set a 'fake' TID for the command queue, since we use the
-	 * hweight() of the tid_bitmap as a refcount now. Not that
+	 * hweight() of the tid_bitmap as a refcount yesw. Not that
 	 * we ever even consider the command queue as one we might
 	 * want to reuse, but be safe nevertheless.
 	 */
@@ -410,7 +410,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 
 static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 {
-	struct iwl_notification_wait init_wait;
+	struct iwl_yestification_wait init_wait;
 	struct iwl_nvm_access_complete_cmd nvm_complete = {};
 	struct iwl_init_extended_cfg_cmd init_cfg = {
 		.init_flags = cpu_to_le32(BIT(IWL_INIT_NVM)),
@@ -427,7 +427,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	mvm->rfkill_safe_init_done = false;
 
-	iwl_init_notification_wait(&mvm->notif_wait,
+	iwl_init_yestification_wait(&mvm->yestif_wait,
 				   &init_wait,
 				   init_complete,
 				   ARRAY_SIZE(init_complete),
@@ -483,13 +483,13 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		goto error;
 	}
 
-	/* We wait for the INIT complete notification */
-	ret = iwl_wait_notification(&mvm->notif_wait, &init_wait,
+	/* We wait for the INIT complete yestification */
+	ret = iwl_wait_yestification(&mvm->yestif_wait, &init_wait,
 				    MVM_UCODE_ALIVE_TIMEOUT);
 	if (ret)
 		return ret;
 
-	/* Read the NVM only at driver load time, no need to do this twice */
+	/* Read the NVM only at driver load time, yes need to do this twice */
 	if (!IWL_MVM_PARSE_NVM && read_nvm) {
 		mvm->nvm_data = iwl_get_nvm(mvm->trans, mvm->fw);
 		if (IS_ERR(mvm->nvm_data)) {
@@ -505,7 +505,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	return 0;
 
 error:
-	iwl_remove_notification(&mvm->notif_wait, &init_wait);
+	iwl_remove_yestification(&mvm->yestif_wait, &init_wait);
 	return ret;
 }
 
@@ -547,7 +547,7 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 
 int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 {
-	struct iwl_notification_wait calib_wait;
+	struct iwl_yestification_wait calib_wait;
 	static const u16 init_complete[] = {
 		INIT_COMPLETE_NOTIF,
 		CALIB_RES_NOTIF_PHY_DB
@@ -561,7 +561,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	mvm->rfkill_safe_init_done = false;
 
-	iwl_init_notification_wait(&mvm->notif_wait,
+	iwl_init_yestification_wait(&mvm->yestif_wait,
 				   &calib_wait,
 				   init_complete,
 				   ARRAY_SIZE(init_complete),
@@ -572,21 +572,21 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_INIT);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to start INIT ucode: %d\n", ret);
-		goto remove_notif;
+		goto remove_yestif;
 	}
 
 	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_8000) {
 		ret = iwl_mvm_send_bt_init_conf(mvm);
 		if (ret)
-			goto remove_notif;
+			goto remove_yestif;
 	}
 
-	/* Read the NVM only at driver load time, no need to do this twice */
+	/* Read the NVM only at driver load time, yes need to do this twice */
 	if (read_nvm) {
 		ret = iwl_nvm_init(mvm);
 		if (ret) {
 			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
-			goto remove_notif;
+			goto remove_yestif;
 		}
 	}
 
@@ -605,7 +605,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	if (iwl_mvm_is_radio_hw_killed(mvm)) {
 		IWL_DEBUG_RF_KILL(mvm,
 				  "jump over all phy activities due to RF kill\n");
-		goto remove_notif;
+		goto remove_yestif;
 	}
 
 	mvm->rfkill_safe_init_done = true;
@@ -613,20 +613,20 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	/* Send TX valid antennas before triggering calibrations */
 	ret = iwl_send_tx_ant_cfg(mvm, iwl_mvm_get_valid_tx_ant(mvm));
 	if (ret)
-		goto remove_notif;
+		goto remove_yestif;
 
 	ret = iwl_send_phy_cfg_cmd(mvm);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to run INIT calibrations: %d\n",
 			ret);
-		goto remove_notif;
+		goto remove_yestif;
 	}
 
 	/*
-	 * Some things may run in the background now, but we
-	 * just wait for the calibration complete notification.
+	 * Some things may run in the background yesw, but we
+	 * just wait for the calibration complete yestification.
 	 */
-	ret = iwl_wait_notification(&mvm->notif_wait, &calib_wait,
+	ret = iwl_wait_yestification(&mvm->yestif_wait, &calib_wait,
 				    MVM_UCODE_CALIB_TIMEOUT);
 	if (!ret)
 		goto out;
@@ -641,12 +641,12 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	goto out;
 
-remove_notif:
-	iwl_remove_notification(&mvm->notif_wait, &calib_wait);
+remove_yestif:
+	iwl_remove_yestification(&mvm->yestif_wait, &calib_wait);
 out:
 	mvm->rfkill_safe_init_done = false;
 	if (iwlmvm_mod_params.init_dbg && !mvm->nvm_data) {
-		/* we want to debug INIT and we have no NVM - fake */
+		/* we want to debug INIT and we have yes NVM - fake */
 		mvm->nvm_data = kzalloc(sizeof(struct iwl_nvm_data) +
 					sizeof(struct ieee80211_channel) +
 					sizeof(struct ieee80211_rate),
@@ -837,7 +837,7 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SET_PPAG)) {
 		IWL_DEBUG_RADIO(mvm,
-				"PPAG capability not supported by FW, command not sent.\n");
+				"PPAG capability yest supported by FW, command yest sent.\n");
 		return 0;
 	}
 
@@ -924,12 +924,12 @@ void iwl_mvm_send_recovery_cmd(struct iwl_mvm *mvm, u32 flags)
 		.len = {sizeof(recovery_cmd), },
 	};
 
-	/* no error log was defined in TLV */
+	/* yes error log was defined in TLV */
 	if (!error_log_size)
 		return;
 
 	if (flags & ERROR_RECOVERY_UPDATE_DB) {
-		/* no buf was allocated while HW reset */
+		/* yes buf was allocated while HW reset */
 		if (!mvm->error_recovery_buf)
 			return;
 
@@ -968,14 +968,14 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 				"WRDS SAR BIOS table invalid or unavailable. (%d)\n",
 				ret);
 		/*
-		 * If not available, don't fail and don't bother with EWRD.
+		 * If yest available, don't fail and don't bother with EWRD.
 		 * Return 1 to tell that we can't use WGDS either.
 		 */
 		return 1;
 	}
 
 	ret = iwl_sar_get_ewrd_table(&mvm->fwrt);
-	/* if EWRD is not available, we can still use WRDS, so don't fail */
+	/* if EWRD is yest available, we can still use WRDS, so don't fail */
 	if (ret < 0)
 		IWL_DEBUG_RADIO(mvm,
 				"EWRD SAR BIOS table invalid or unavailable. (%d)\n",
@@ -984,7 +984,7 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 	ret = iwl_mvm_sar_select_profile(mvm, 1, 1);
 	/*
 	 * If we don't have profile 0 from BIOS, just skip it.  This
-	 * means that SAR Geo will not be enabled either, even if we
+	 * means that SAR Geo will yest be enabled either, even if we
 	 * have other valid profiles.
 	 */
 	if (ret == -ENOENT)
@@ -1140,7 +1140,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		/*
 		 * The channel used here isn't relevant as it's
 		 * going to be overwritten in the other flows.
-		 * For now use the first channel we have.
+		 * For yesw use the first channel we have.
 		 */
 		ret = iwl_mvm_phy_ctxt_add(mvm, &mvm->phy_ctxts[i],
 					   &chandef, 1, 1);
@@ -1163,7 +1163,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	/* TODO: read the budget from BIOS / Platform NVM */
 
 	/*
-	 * In case there is no budget from BIOS / Platform NVM the default
+	 * In case there is yes budget from BIOS / Platform NVM the default
 	 * budget should be 2000mW (cooling state 0).
 	 */
 	if (iwl_mvm_is_ctdp_supported(mvm)) {
@@ -1182,7 +1182,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 
 	/*
-	 * RTNL is not taken during Ct-kill, but we don't need to scan/Tx
+	 * RTNL is yest taken during Ct-kill, but we don't need to scan/Tx
 	 * anyway, so don't init MCC.
 	 */
 	if (!test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status)) {
@@ -1214,12 +1214,12 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		ret = iwl_mvm_sar_geo_init(mvm);
 	} else if (ret > 0 && !iwl_sar_get_wgds_table(&mvm->fwrt)) {
 		/*
-		 * If basic SAR is not available, we check for WGDS,
-		 * which should *not* be available either.  If it is
+		 * If basic SAR is yest available, we check for WGDS,
+		 * which should *yest* be available either.  If it is
 		 * available, issue an error, because we can't use SAR
 		 * Geo without basic SAR.
 		 */
-		IWL_ERR(mvm, "BIOS contains WGDS but no WRDS\n");
+		IWL_ERR(mvm, "BIOS contains WGDS but yes WRDS\n");
 	}
 
 	if (ret < 0)
@@ -1279,12 +1279,12 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 	return ret;
 }
 
-void iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_card_state_yestif(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_card_state_notif *card_state_notif = (void *)pkt->data;
-	u32 flags = le32_to_cpu(card_state_notif->flags);
+	struct iwl_card_state_yestif *card_state_yestif = (void *)pkt->data;
+	u32 flags = le32_to_cpu(card_state_yestif->flags);
 
 	IWL_DEBUG_RF_KILL(mvm, "Card state received: HW:%s SW:%s CT:%s\n",
 			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
@@ -1293,21 +1293,21 @@ void iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
 			  "Reached" : "Not reached");
 }
 
-void iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_mfuart_yestif(struct iwl_mvm *mvm,
 			     struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_mfuart_load_notif *mfuart_notif = (void *)pkt->data;
+	struct iwl_mfuart_load_yestif *mfuart_yestif = (void *)pkt->data;
 
 	IWL_DEBUG_INFO(mvm,
 		       "MFUART: installed ver: 0x%08x, external ver: 0x%08x, status: 0x%08x, duration: 0x%08x\n",
-		       le32_to_cpu(mfuart_notif->installed_ver),
-		       le32_to_cpu(mfuart_notif->external_ver),
-		       le32_to_cpu(mfuart_notif->status),
-		       le32_to_cpu(mfuart_notif->duration));
+		       le32_to_cpu(mfuart_yestif->installed_ver),
+		       le32_to_cpu(mfuart_yestif->external_ver),
+		       le32_to_cpu(mfuart_yestif->status),
+		       le32_to_cpu(mfuart_yestif->duration));
 
-	if (iwl_rx_packet_payload_len(pkt) == sizeof(*mfuart_notif))
+	if (iwl_rx_packet_payload_len(pkt) == sizeof(*mfuart_yestif))
 		IWL_DEBUG_INFO(mvm,
 			       "MFUART: image size: 0x%08x\n",
-			       le32_to_cpu(mfuart_notif->image_size));
+			       le32_to_cpu(mfuart_yestif->image_size));
 }

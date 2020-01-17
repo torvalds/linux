@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -119,7 +119,7 @@ typedef u64 gen8_pte_t;
  * GEN8 32b style address is defined as a 3 level page table:
  * 31:30 | 29:21 | 20:12 |  11:0
  * PDPE  |  PDE  |  PTE  | offset
- * The difference as compared to normal x86 3 level page table is the PDPEs are
+ * The difference as compared to yesrmal x86 3 level page table is the PDPEs are
  * programmed via register.
  *
  * GEN8 48b style address is defined as a 4 level page table:
@@ -205,7 +205,7 @@ static inline void assert_i915_gem_gtt_types(void)
 struct i915_ggtt_view {
 	enum i915_ggtt_view_type type;
 	union {
-		/* Members need to contain no holes/padding */
+		/* Members need to contain yes holes/padding */
 		struct intel_partial_info partial;
 		struct intel_rotation_info rotated;
 		struct intel_remapped_info remapped;
@@ -295,7 +295,7 @@ struct i915_address_space {
 	struct device *dma;
 	/* Every address space belongs to a struct file - except for the global
 	 * GTT that is owned by the driver (and so @file is set to NULL). In
-	 * principle, no information should leak from one context to another
+	 * principle, yes information should leak from one context to ayesther
 	 * (or between files/processes etc) unless explicitly shared by the
 	 * owner. Tracking the owner is important in order to free up per-file
 	 * objects along with the file, to aide resource tracking, and to
@@ -311,7 +311,7 @@ struct i915_address_space {
 	 * Each active user context has its own address space (in full-ppgtt).
 	 * Since the vm may be shared between multiple contexts, we count how
 	 * many contexts keep us "open". Once open hits zero, we are closed
-	 * and do not allow any new attachments, and proceed to shutdown our
+	 * and do yest allow any new attachments, and proceed to shutdown our
 	 * vma and page directories.
 	 */
 	atomic_t open;
@@ -387,7 +387,7 @@ i915_vm_has_cache_coloring(struct i915_address_space *vm)
 }
 
 /* The Graphics Translation Table is the way in which GEN hardware translates a
- * Graphics Virtual Address into a Physical Address. In addition to the normal
+ * Graphics Virtual Address into a Physical Address. In addition to the yesrmal
  * collateral associated with any va->pa translations GEN hardware also has a
  * portion of the GTT which can be mapped by the CPU and remain both coherent
  * and correct (in cases like swizzling). That region is referred to as GMADR in
@@ -430,8 +430,8 @@ struct i915_ggtt {
 	/* Manual runtime pm autosuspend delay for user GGTT mmaps */
 	struct intel_wakeref_auto userfault_wakeref;
 
-	struct drm_mm_node error_capture;
-	struct drm_mm_node uc_fw;
+	struct drm_mm_yesde error_capture;
+	struct drm_mm_yesde uc_fw;
 };
 
 struct i915_ppgtt {
@@ -462,11 +462,11 @@ static inline struct gen6_ppgtt *to_gen6_ppgtt(struct i915_ppgtt *base)
 
 /*
  * gen6_for_each_pde() iterates over every pde from start until start+length.
- * If start and start+length are not perfectly divisible, the macro will round
+ * If start and start+length are yest perfectly divisible, the macro will round
  * down and up as needed. Start=0 and length=2G effectively iterates over
  * every PDE in the system. The macro modifies ALL its parameters except 'pd',
  * so each of the other parameters should preferably be a simple variable, or
- * at most an lvalue with no side-effects!
+ * at most an lvalue with yes side-effects!
  */
 #define gen6_for_each_pde(pt, pd, start, length, iter)			\
 	for (iter = gen6_pde_index(start);				\
@@ -490,7 +490,7 @@ static inline u32 i915_pte_index(u64 address, unsigned int pde_shift)
 }
 
 /* Helper to counts the number of PTEs within the given length. This count
- * does not cross a page table boundary, so the max value would be
+ * does yest cross a page table boundary, so the max value would be
  * GEN6_PTES for GEN6, and GEN8_PTES for GEN8.
 */
 static inline u32 i915_pte_count(u64 addr, u64 length, unsigned int pde_shift)
@@ -640,12 +640,12 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 			       struct sg_table *pages);
 
 int i915_gem_gtt_reserve(struct i915_address_space *vm,
-			 struct drm_mm_node *node,
+			 struct drm_mm_yesde *yesde,
 			 u64 size, u64 offset, unsigned long color,
 			 unsigned int flags);
 
 int i915_gem_gtt_insert(struct i915_address_space *vm,
-			struct drm_mm_node *node,
+			struct drm_mm_yesde *yesde,
 			u64 size, u64 alignment, unsigned long color,
 			u64 start, u64 end, unsigned int flags);
 

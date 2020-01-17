@@ -76,7 +76,7 @@ unsigned int intlog2(u32 value)
 	msb = fls(value) - 1;
 
 	/**
-	 *	now we use a logtable after the following method:
+	 *	yesw we use a logtable after the following method:
 	 *
 	 *	log2(2^x * y) * 2^24 = x * 2^24 + log2(y) * 2^24
 	 *	where x = msb and therefore 1 <= y < 2
@@ -111,7 +111,7 @@ unsigned int intlog2(u32 value)
 			((logtable[(logentry + 1) & 0xff] -
 			  logtable[logentry]) & 0xffff)) >> 15;
 
-	/* now we return the result */
+	/* yesw we return the result */
 	return ((msb << 24) + (logtable[logentry] << 8) + interpolation);
 }
 EXPORT_SYMBOL(intlog2);

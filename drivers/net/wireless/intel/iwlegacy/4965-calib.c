@@ -17,7 +17,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
  * USA
  *
@@ -38,12 +38,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -84,15 +84,15 @@ struct stats_general_data {
  *****************************************************************************/
 
 /* "false alarms" are signals that our DSP tries to lock onto,
- *   but then determines that they are either noise, or transmissions
- *   from a distant wireless network (also "noise", really) that get
+ *   but then determines that they are either yesise, or transmissions
+ *   from a distant wireless network (also "yesise", really) that get
  *   "stepped on" by stronger transmissions within our own network.
  * This algorithm attempts to set a sensitivity level that is high
- *   enough to receive all of our own network traffic, but not so
- *   high that our DSP gets too busy trying to lock onto non-network
- *   activity/noise. */
+ *   eyesugh to receive all of our own network traffic, but yest so
+ *   high that our DSP gets too busy trying to lock onto yesn-network
+ *   activity/yesise. */
 static int
-il4965_sens_energy_cck(struct il_priv *il, u32 norm_fa, u32 rx_enable_time,
+il4965_sens_energy_cck(struct il_priv *il, u32 yesrm_fa, u32 rx_enable_time,
 		       struct stats_general_data *rx_info)
 {
 	u32 max_nrg_cck = 0;
@@ -107,13 +107,13 @@ il4965_sens_energy_cck(struct il_priv *il, u32 norm_fa, u32 rx_enable_time,
 	/* "false_alarms" values below are cross-multiplications to assess the
 	 *   numbers of false alarms within the measured period of actual Rx
 	 *   (Rx is off when we're txing), vs the min/max expected false alarms
-	 *   (some should be expected if rx is sensitive enough) in a
+	 *   (some should be expected if rx is sensitive eyesugh) in a
 	 *   hypothetical listening period of 200 time units (TU), 204.8 msec:
 	 *
 	 * MIN_FA/fixed-time < false_alarms/actual-rx-time < MAX_FA/beacon-time
 	 *
 	 * */
-	u32 false_alarms = norm_fa * 200 * 1024;
+	u32 false_alarms = yesrm_fa * 200 * 1024;
 	u32 max_false_alarms = MAX_FA_CCK * rx_enable_time;
 	u32 min_false_alarms = MIN_FA_CCK * rx_enable_time;
 	struct il_sensitivity_data *data = NULL;
@@ -124,7 +124,7 @@ il4965_sens_energy_cck(struct il_priv *il, u32 norm_fa, u32 rx_enable_time,
 	data->nrg_auto_corr_silence_diff = 0;
 
 	/* Find max silence rssi among all 3 receivers.
-	 * This is background noise, which may include transmissions from other
+	 * This is background yesise, which may include transmissions from other
 	 *    networks, measured during silence before our network's beacon */
 	silence_rssi_a =
 	    (u8) ((rx_info->beacon_silence_rssi_a & ALL_BAND_FILTER) >> 8);
@@ -177,16 +177,16 @@ il4965_sens_energy_cck(struct il_priv *il, u32 norm_fa, u32 rx_enable_time,
 	/* Count number of consecutive beacons with fewer-than-desired
 	 *   false alarms. */
 	if (false_alarms < min_false_alarms)
-		data->num_in_cck_no_fa++;
+		data->num_in_cck_yes_fa++;
 	else
-		data->num_in_cck_no_fa = 0;
+		data->num_in_cck_yes_fa = 0;
 	D_CALIB("consecutive bcns with few false alarms = %u\n",
-		data->num_in_cck_no_fa);
+		data->num_in_cck_yes_fa);
 
 	/* If we got too many false alarms this time, reduce sensitivity */
 	if (false_alarms > max_false_alarms &&
 	    data->auto_corr_cck > AUTO_CORR_MAX_TH_CCK) {
-		D_CALIB("norm FA %u > max FA %u\n", false_alarms,
+		D_CALIB("yesrm FA %u > max FA %u\n", false_alarms,
 			max_false_alarms);
 		D_CALIB("... reducing sensitivity\n");
 		data->nrg_curr_state = IL_FA_TOO_MANY;
@@ -205,26 +205,26 @@ il4965_sens_energy_cck(struct il_priv *il, u32 norm_fa, u32 rx_enable_time,
 		data->nrg_auto_corr_silence_diff =
 		    (s32) data->nrg_silence_ref - (s32) silence_ref;
 
-		D_CALIB("norm FA %u < min FA %u, silence diff %d\n",
+		D_CALIB("yesrm FA %u < min FA %u, silence diff %d\n",
 			false_alarms, min_false_alarms,
 			data->nrg_auto_corr_silence_diff);
 
 		/* Increase value to increase sensitivity, but only if:
-		 * 1a) previous beacon did *not* have *too many* false alarms
+		 * 1a) previous beacon did *yest* have *too many* false alarms
 		 * 1b) AND there's a significant difference in Rx levels
 		 *      from a previous beacon with too many, or healthy # FAs
 		 * OR 2) We've seen a lot of beacons (100) with too few
 		 *       false alarms */
 		if (data->nrg_prev_state != IL_FA_TOO_MANY &&
 		    (data->nrg_auto_corr_silence_diff > NRG_DIFF ||
-		     data->num_in_cck_no_fa > MAX_NUMBER_CCK_NO_FA)) {
+		     data->num_in_cck_yes_fa > MAX_NUMBER_CCK_NO_FA)) {
 
 			D_CALIB("... increasing sensitivity\n");
 			/* Increase nrg value to increase sensitivity */
 			val = data->nrg_th_cck + NRG_STEP_CCK;
 			data->nrg_th_cck = min((u32) ranges->min_nrg_cck, val);
 		} else {
-			D_CALIB("... but not changing sensitivity\n");
+			D_CALIB("... but yest changing sensitivity\n");
 		}
 
 		/* Else we got a healthy number of false alarms, keep status quo */
@@ -247,7 +247,7 @@ il4965_sens_energy_cck(struct il_priv *il, u32 norm_fa, u32 rx_enable_time,
 		}
 	}
 
-	/* Make sure the energy threshold does not go above the measured
+	/* Make sure the energy threshold does yest go above the measured
 	 * energy of the desired Rx signals (reduced by backoff margin),
 	 * or else we might start missing Rx frames.
 	 * Lower value is higher energy, so we use max()!
@@ -261,7 +261,7 @@ il4965_sens_energy_cck(struct il_priv *il, u32 norm_fa, u32 rx_enable_time,
 	if (false_alarms > min_false_alarms) {
 
 		/* increase auto_corr values to decrease sensitivity
-		 * so the DSP won't be disturbed by the noise
+		 * so the DSP won't be disturbed by the yesise
 		 */
 		if (data->auto_corr_cck < AUTO_CORR_MAX_TH_CCK)
 			data->auto_corr_cck = AUTO_CORR_MAX_TH_CCK + 1;
@@ -275,7 +275,7 @@ il4965_sens_energy_cck(struct il_priv *il, u32 norm_fa, u32 rx_enable_time,
 		    min((u32) ranges->auto_corr_max_cck_mrc, val);
 	} else if (false_alarms < min_false_alarms &&
 		   (data->nrg_auto_corr_silence_diff > NRG_DIFF ||
-		    data->num_in_cck_no_fa > MAX_NUMBER_CCK_NO_FA)) {
+		    data->num_in_cck_yes_fa > MAX_NUMBER_CCK_NO_FA)) {
 
 		/* Decrease auto_corr values to increase sensitivity */
 		val = data->auto_corr_cck - AUTO_CORR_STEP_CCK;
@@ -289,10 +289,10 @@ il4965_sens_energy_cck(struct il_priv *il, u32 norm_fa, u32 rx_enable_time,
 }
 
 static int
-il4965_sens_auto_corr_ofdm(struct il_priv *il, u32 norm_fa, u32 rx_enable_time)
+il4965_sens_auto_corr_ofdm(struct il_priv *il, u32 yesrm_fa, u32 rx_enable_time)
 {
 	u32 val;
-	u32 false_alarms = norm_fa * 200 * 1024;
+	u32 false_alarms = yesrm_fa * 200 * 1024;
 	u32 max_false_alarms = MAX_FA_OFDM * rx_enable_time;
 	u32 min_false_alarms = MIN_FA_OFDM * rx_enable_time;
 	struct il_sensitivity_data *data = NULL;
@@ -303,7 +303,7 @@ il4965_sens_auto_corr_ofdm(struct il_priv *il, u32 norm_fa, u32 rx_enable_time)
 	/* If we got too many false alarms this time, reduce sensitivity */
 	if (false_alarms > max_false_alarms) {
 
-		D_CALIB("norm FA %u > max FA %u)\n", false_alarms,
+		D_CALIB("yesrm FA %u > max FA %u)\n", false_alarms,
 			max_false_alarms);
 
 		val = data->auto_corr_ofdm + AUTO_CORR_STEP_OFDM;
@@ -326,7 +326,7 @@ il4965_sens_auto_corr_ofdm(struct il_priv *il, u32 norm_fa, u32 rx_enable_time)
 	/* Else if we got fewer than desired, increase sensitivity */
 	else if (false_alarms < min_false_alarms) {
 
-		D_CALIB("norm FA %u < min FA %u\n", false_alarms,
+		D_CALIB("yesrm FA %u < min FA %u\n", false_alarms,
 			min_false_alarms);
 
 		val = data->auto_corr_ofdm - AUTO_CORR_STEP_OFDM;
@@ -345,7 +345,7 @@ il4965_sens_auto_corr_ofdm(struct il_priv *il, u32 norm_fa, u32 rx_enable_time)
 		data->auto_corr_ofdm_mrc_x1 =
 		    max((u32) ranges->auto_corr_min_ofdm_mrc_x1, val);
 	} else {
-		D_CALIB("min FA %u < norm FA %u < max FA %u OK\n",
+		D_CALIB("min FA %u < yesrm FA %u < max FA %u OK\n",
 			min_false_alarms, false_alarms, max_false_alarms);
 	}
 	return 0;
@@ -410,7 +410,7 @@ il4965_sensitivity_write(struct il_priv *il)
 	/* Update uCode's "work" table, and copy it to DSP */
 	cmd.control = C_SENSITIVITY_CONTROL_WORK_TBL;
 
-	/* Don't send command to uCode if nothing has changed */
+	/* Don't send command to uCode if yesthing has changed */
 	if (!memcmp
 	    (&cmd.table[0], &(il->sensitivity_tbl[0]),
 	     sizeof(u16) * HD_TBL_SIZE)) {
@@ -446,7 +446,7 @@ il4965_init_sensitivity(struct il_priv *il)
 
 	memset(data, 0, sizeof(struct il_sensitivity_data));
 
-	data->num_in_cck_no_fa = 0;
+	data->num_in_cck_yes_fa = 0;
 	data->nrg_curr_state = IL_FA_TOO_MANY;
 	data->nrg_prev_state = IL_FA_TOO_MANY;
 	data->nrg_silence_ref = 0;
@@ -488,10 +488,10 @@ il4965_sensitivity_calibration(struct il_priv *il, void *resp)
 	u32 fa_ofdm;
 	u32 bad_plcp_cck;
 	u32 bad_plcp_ofdm;
-	u32 norm_fa_ofdm;
-	u32 norm_fa_cck;
+	u32 yesrm_fa_ofdm;
+	u32 yesrm_fa_cck;
 	struct il_sensitivity_data *data = NULL;
-	struct stats_rx_non_phy *rx_info;
+	struct stats_rx_yesn_phy *rx_info;
 	struct stats_rx_phy *ofdm, *cck;
 	unsigned long flags;
 	struct stats_general_data statis;
@@ -502,15 +502,15 @@ il4965_sensitivity_calibration(struct il_priv *il, void *resp)
 	data = &(il->sensitivity_data);
 
 	if (!il_is_any_associated(il)) {
-		D_CALIB("<< - not associated\n");
+		D_CALIB("<< - yest associated\n");
 		return;
 	}
 
 	spin_lock_irqsave(&il->lock, flags);
 
-	rx_info = &(((struct il_notif_stats *)resp)->rx.general);
-	ofdm = &(((struct il_notif_stats *)resp)->rx.ofdm);
-	cck = &(((struct il_notif_stats *)resp)->rx.cck);
+	rx_info = &(((struct il_yestif_stats *)resp)->rx.general);
+	ofdm = &(((struct il_yestif_stats *)resp)->rx.ofdm);
+	cck = &(((struct il_yestif_stats *)resp)->rx.cck);
 
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		D_CALIB("<< invalid data.\n");
@@ -544,7 +544,7 @@ il4965_sensitivity_calibration(struct il_priv *il, void *resp)
 		return;
 	}
 
-	/* These stats increase monotonically, and do not reset
+	/* These stats increase moyestonically, and do yest reset
 	 *   at each beacon.  Calculate difference from last value, or just
 	 *   use the new stats value if it has reset or wrapped around. */
 	if (data->last_bad_plcp_cnt_cck > bad_plcp_cck)
@@ -576,14 +576,14 @@ il4965_sensitivity_calibration(struct il_priv *il, void *resp)
 	}
 
 	/* Total aborted signal locks */
-	norm_fa_ofdm = fa_ofdm + bad_plcp_ofdm;
-	norm_fa_cck = fa_cck + bad_plcp_cck;
+	yesrm_fa_ofdm = fa_ofdm + bad_plcp_ofdm;
+	yesrm_fa_cck = fa_cck + bad_plcp_cck;
 
 	D_CALIB("cck: fa %u badp %u  ofdm: fa %u badp %u\n", fa_cck,
 		bad_plcp_cck, fa_ofdm, bad_plcp_ofdm);
 
-	il4965_sens_auto_corr_ofdm(il, norm_fa_ofdm, rx_enable_time);
-	il4965_sens_energy_cck(il, norm_fa_cck, rx_enable_time, &statis);
+	il4965_sens_auto_corr_ofdm(il, yesrm_fa_ofdm, rx_enable_time);
+	il4965_sens_energy_cck(il, yesrm_fa_cck, rx_enable_time, &statis);
 
 	il4965_sensitivity_write(il);
 }
@@ -604,7 +604,7 @@ il4965_find_first_chain(u8 mask)
  */
 static void
 il4965_find_disconn_antenna(struct il_priv *il, u32 * average_sig,
-			    struct il_chain_noise_data *data)
+			    struct il_chain_yesise_data *data)
 {
 	u32 active_chains = 0;
 	u32 max_average_sig;
@@ -615,13 +615,13 @@ il4965_find_disconn_antenna(struct il_priv *il, u32 * average_sig,
 
 	average_sig[0] =
 	    data->chain_signal_a /
-	    il->cfg->chain_noise_num_beacons;
+	    il->cfg->chain_yesise_num_beacons;
 	average_sig[1] =
 	    data->chain_signal_b /
-	    il->cfg->chain_noise_num_beacons;
+	    il->cfg->chain_yesise_num_beacons;
 	average_sig[2] =
 	    data->chain_signal_c /
-	    il->cfg->chain_noise_num_beacons;
+	    il->cfg->chain_yesise_num_beacons;
 
 	if (average_sig[0] >= average_sig[1]) {
 		max_average_sig = average_sig[0];
@@ -663,13 +663,13 @@ il4965_find_disconn_antenna(struct il_priv *il, u32 * average_sig,
 
 	/*
 	 * The above algorithm sometimes fails when the ucode
-	 * reports 0 for all chains. It's not clear why that
+	 * reports 0 for all chains. It's yest clear why that
 	 * happens to start with, but it is then causing trouble
 	 * because this can make us enable more chains than the
 	 * hardware really has.
 	 *
-	 * To be safe, simply mask out any chains that we know
-	 * are not on the device.
+	 * To be safe, simply mask out any chains that we kyesw
+	 * are yest on the device.
 	 */
 	active_chains &= il->hw_params.valid_rx_ant;
 
@@ -702,8 +702,8 @@ il4965_find_disconn_antenna(struct il_priv *il, u32 * average_sig,
 	}
 
 	if (active_chains != il->hw_params.valid_rx_ant &&
-	    active_chains != il->chain_noise_data.active_chains)
-		D_CALIB("Detected that not all antennas are connected! "
+	    active_chains != il->chain_yesise_data.active_chains)
+		D_CALIB("Detected that yest all antennas are connected! "
 			"Connected: %#x, valid: %#x.\n", active_chains,
 			il->hw_params.valid_rx_ant);
 
@@ -713,14 +713,14 @@ il4965_find_disconn_antenna(struct il_priv *il, u32 * average_sig,
 }
 
 static void
-il4965_gain_computation(struct il_priv *il, u32 * average_noise,
-			u16 min_average_noise_antenna_i, u32 min_average_noise,
+il4965_gain_computation(struct il_priv *il, u32 * average_yesise,
+			u16 min_average_yesise_antenna_i, u32 min_average_yesise,
 			u8 default_chain)
 {
 	int i, ret;
-	struct il_chain_noise_data *data = &il->chain_noise_data;
+	struct il_chain_yesise_data *data = &il->chain_yesise_data;
 
-	data->delta_gain_code[min_average_noise_antenna_i] = 0;
+	data->delta_gain_code[min_average_yesise_antenna_i] = 0;
 
 	for (i = default_chain; i < NUM_RX_CHAINS; i++) {
 		s32 delta_g = 0;
@@ -728,7 +728,7 @@ il4965_gain_computation(struct il_priv *il, u32 * average_noise,
 		if (!data->disconn_array[i] &&
 		    data->delta_gain_code[i] ==
 		    CHAIN_NOISE_DELTA_GAIN_INIT_VAL) {
-			delta_g = average_noise[i] - min_average_noise;
+			delta_g = average_yesise[i] - min_average_yesise;
 			data->delta_gain_code[i] = (u8) ((delta_g * 10) / 15);
 			data->delta_gain_code[i] =
 			    min(data->delta_gain_code[i],
@@ -766,52 +766,52 @@ il4965_gain_computation(struct il_priv *il, u32 * average_noise,
 }
 
 /*
- * Accumulate 16 beacons of signal and noise stats for each of
+ * Accumulate 16 beacons of signal and yesise stats for each of
  *   3 receivers/antennas/rx-chains, then figure out:
  * 1)  Which antennas are connected.
  * 2)  Differential rx gain settings to balance the 3 receivers.
  */
 void
-il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
+il4965_chain_yesise_calibration(struct il_priv *il, void *stat_resp)
 {
-	struct il_chain_noise_data *data = NULL;
+	struct il_chain_yesise_data *data = NULL;
 
-	u32 chain_noise_a;
-	u32 chain_noise_b;
-	u32 chain_noise_c;
+	u32 chain_yesise_a;
+	u32 chain_yesise_b;
+	u32 chain_yesise_c;
 	u32 chain_sig_a;
 	u32 chain_sig_b;
 	u32 chain_sig_c;
 	u32 average_sig[NUM_RX_CHAINS] = { INITIALIZATION_VALUE };
-	u32 average_noise[NUM_RX_CHAINS] = { INITIALIZATION_VALUE };
-	u32 min_average_noise = MIN_AVERAGE_NOISE_MAX_VALUE;
-	u16 min_average_noise_antenna_i = INITIALIZATION_VALUE;
+	u32 average_yesise[NUM_RX_CHAINS] = { INITIALIZATION_VALUE };
+	u32 min_average_yesise = MIN_AVERAGE_NOISE_MAX_VALUE;
+	u16 min_average_yesise_antenna_i = INITIALIZATION_VALUE;
 	u16 i = 0;
 	u16 rxon_chnum = INITIALIZATION_VALUE;
 	u16 stat_chnum = INITIALIZATION_VALUE;
 	u8 rxon_band24;
 	u8 stat_band24;
 	unsigned long flags;
-	struct stats_rx_non_phy *rx_info;
+	struct stats_rx_yesn_phy *rx_info;
 
-	if (il->disable_chain_noise_cal)
+	if (il->disable_chain_yesise_cal)
 		return;
 
-	data = &(il->chain_noise_data);
+	data = &(il->chain_yesise_data);
 
 	/*
-	 * Accumulate just the first "chain_noise_num_beacons" after
+	 * Accumulate just the first "chain_yesise_num_beacons" after
 	 * the first association, then we're done forever.
 	 */
 	if (data->state != IL_CHAIN_NOISE_ACCUMULATE) {
 		if (data->state == IL_CHAIN_NOISE_ALIVE)
-			D_CALIB("Wait for noise calib reset\n");
+			D_CALIB("Wait for yesise calib reset\n");
 		return;
 	}
 
 	spin_lock_irqsave(&il->lock, flags);
 
-	rx_info = &(((struct il_notif_stats *)stat_resp)->rx.general);
+	rx_info = &(((struct il_yestif_stats *)stat_resp)->rx.general);
 
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		D_CALIB(" << Interference data unavailable\n");
@@ -823,15 +823,15 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 	rxon_chnum = le16_to_cpu(il->staging.channel);
 
 	stat_band24 =
-	    !!(((struct il_notif_stats *)stat_resp)->
+	    !!(((struct il_yestif_stats *)stat_resp)->
 	       flag & STATS_REPLY_FLG_BAND_24G_MSK);
 	stat_chnum =
-	    le32_to_cpu(((struct il_notif_stats *)stat_resp)->flag) >> 16;
+	    le32_to_cpu(((struct il_yestif_stats *)stat_resp)->flag) >> 16;
 
 	/* Make sure we accumulate data for just the associated channel
 	 *   (even if scanning). */
 	if (rxon_chnum != stat_chnum || rxon_band24 != stat_band24) {
-		D_CALIB("Stats not from chan=%d, band24=%d\n", rxon_chnum,
+		D_CALIB("Stats yest from chan=%d, band24=%d\n", rxon_chnum,
 			rxon_band24);
 		spin_unlock_irqrestore(&il->lock, flags);
 		return;
@@ -839,13 +839,13 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 
 	/*
 	 *  Accumulate beacon stats values across
-	 * "chain_noise_num_beacons"
+	 * "chain_yesise_num_beacons"
 	 */
-	chain_noise_a =
+	chain_yesise_a =
 	    le32_to_cpu(rx_info->beacon_silence_rssi_a) & IN_BAND_FILTER;
-	chain_noise_b =
+	chain_yesise_b =
 	    le32_to_cpu(rx_info->beacon_silence_rssi_b) & IN_BAND_FILTER;
-	chain_noise_c =
+	chain_yesise_c =
 	    le32_to_cpu(rx_info->beacon_silence_rssi_c) & IN_BAND_FILTER;
 
 	chain_sig_a = le32_to_cpu(rx_info->beacon_rssi_a) & IN_BAND_FILTER;
@@ -856,9 +856,9 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 
 	data->beacon_count++;
 
-	data->chain_noise_a = (chain_noise_a + data->chain_noise_a);
-	data->chain_noise_b = (chain_noise_b + data->chain_noise_b);
-	data->chain_noise_c = (chain_noise_c + data->chain_noise_c);
+	data->chain_yesise_a = (chain_yesise_a + data->chain_yesise_a);
+	data->chain_yesise_b = (chain_yesise_b + data->chain_yesise_b);
+	data->chain_yesise_c = (chain_yesise_c + data->chain_yesise_c);
 
 	data->chain_signal_a = (chain_sig_a + data->chain_signal_a);
 	data->chain_signal_b = (chain_sig_b + data->chain_signal_b);
@@ -868,44 +868,44 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 		data->beacon_count);
 	D_CALIB("chain_sig: a %d b %d c %d\n", chain_sig_a, chain_sig_b,
 		chain_sig_c);
-	D_CALIB("chain_noise: a %d b %d c %d\n", chain_noise_a, chain_noise_b,
-		chain_noise_c);
+	D_CALIB("chain_yesise: a %d b %d c %d\n", chain_yesise_a, chain_yesise_b,
+		chain_yesise_c);
 
-	/* If this is the "chain_noise_num_beacons", determine:
+	/* If this is the "chain_yesise_num_beacons", determine:
 	 * 1)  Disconnected antennas (using signal strengths)
-	 * 2)  Differential gain (using silence noise) to balance receivers */
-	if (data->beacon_count != il->cfg->chain_noise_num_beacons)
+	 * 2)  Differential gain (using silence yesise) to balance receivers */
+	if (data->beacon_count != il->cfg->chain_yesise_num_beacons)
 		return;
 
 	/* Analyze signal for disconnected antenna */
 	il4965_find_disconn_antenna(il, average_sig, data);
 
-	/* Analyze noise for rx balance */
-	average_noise[0] =
-	    data->chain_noise_a / il->cfg->chain_noise_num_beacons;
-	average_noise[1] =
-	    data->chain_noise_b / il->cfg->chain_noise_num_beacons;
-	average_noise[2] =
-	    data->chain_noise_c / il->cfg->chain_noise_num_beacons;
+	/* Analyze yesise for rx balance */
+	average_yesise[0] =
+	    data->chain_yesise_a / il->cfg->chain_yesise_num_beacons;
+	average_yesise[1] =
+	    data->chain_yesise_b / il->cfg->chain_yesise_num_beacons;
+	average_yesise[2] =
+	    data->chain_yesise_c / il->cfg->chain_yesise_num_beacons;
 
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
 		if (!data->disconn_array[i] &&
-		    average_noise[i] <= min_average_noise) {
+		    average_yesise[i] <= min_average_yesise) {
 			/* This means that chain i is active and has
-			 * lower noise values so far: */
-			min_average_noise = average_noise[i];
-			min_average_noise_antenna_i = i;
+			 * lower yesise values so far: */
+			min_average_yesise = average_yesise[i];
+			min_average_yesise_antenna_i = i;
 		}
 	}
 
-	D_CALIB("average_noise: a %d b %d c %d\n", average_noise[0],
-		average_noise[1], average_noise[2]);
+	D_CALIB("average_yesise: a %d b %d c %d\n", average_yesise[0],
+		average_yesise[1], average_yesise[2]);
 
-	D_CALIB("min_average_noise = %d, antenna %d\n", min_average_noise,
-		min_average_noise_antenna_i);
+	D_CALIB("min_average_yesise = %d, antenna %d\n", min_average_yesise,
+		min_average_yesise_antenna_i);
 
-	il4965_gain_computation(il, average_noise, min_average_noise_antenna_i,
-				min_average_noise,
+	il4965_gain_computation(il, average_yesise, min_average_yesise_antenna_i,
+				min_average_yesise,
 				il4965_find_first_chain(il->cfg->valid_rx_ant));
 
 	/* Some power changes may have been made during the calibration.
@@ -923,12 +923,12 @@ il4965_reset_run_time_calib(struct il_priv *il)
 {
 	int i;
 	memset(&(il->sensitivity_data), 0, sizeof(struct il_sensitivity_data));
-	memset(&(il->chain_noise_data), 0, sizeof(struct il_chain_noise_data));
+	memset(&(il->chain_yesise_data), 0, sizeof(struct il_chain_yesise_data));
 	for (i = 0; i < NUM_RX_CHAINS; i++)
-		il->chain_noise_data.delta_gain_code[i] =
+		il->chain_yesise_data.delta_gain_code[i] =
 		    CHAIN_NOISE_DELTA_GAIN_INIT_VAL;
 
-	/* Ask for stats now, the uCode will send notification
+	/* Ask for stats yesw, the uCode will send yestification
 	 * periodically after association */
 	il_send_stats_request(il, CMD_ASYNC, true);
 }

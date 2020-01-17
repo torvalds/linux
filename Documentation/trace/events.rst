@@ -82,7 +82,7 @@ When reading one of these enable files, there are four results:
  - 0 - all events this file affects are disabled
  - 1 - all events this file affects are enabled
  - X - there is a mixture of events enabled and disabled
- - ? - this file does not affect any event
+ - ? - this file does yest affect any event
 
 2.3 Boot option
 ---------------
@@ -158,8 +158,8 @@ Trace events can be filtered in the kernel by associating boolean
 the trace buffer, its fields are checked against the filter expression
 associated with that event type.  An event with field values that
 'match' the filter will appear in the trace output, and an event whose
-values don't match will be discarded.  An event with no filter
-associated with it matches everything, and is the default when no
+values don't match will be discarded.  An event with yes filter
+associated with it matches everything, and is the default when yes
 filter has been set for an event.
 
 5.1 Expression syntax
@@ -224,7 +224,7 @@ an error message can be seen by looking at the filter e.g.::
 	# cat filter
 	((sig >= 10 && sig < 15) || dsig == 17) && comm != bash
 	^
-	parse_error: Field not found
+	parse_error: Field yest found
 
 Currently the caret ('^') for an error always appears at the beginning of
 the filter string; the error message should still be useful though
@@ -261,9 +261,9 @@ Clear the filters on all events in the sched subsystem::
 	# cd /sys/kernel/debug/tracing/events/sched
 	# echo 0 > filter
 	# cat sched_switch/filter
-	none
+	yesne
 	# cat sched_wakeup/filter
-	none
+	yesne
 
 Set a filter using only common fields for all events in the sched
 subsystem (all events end up with the same filter)::
@@ -275,7 +275,7 @@ subsystem (all events end up with the same filter)::
 	# cat sched_wakeup/filter
 	common_pid == 0
 
-Attempt to set a filter using a non-common field for all events in the
+Attempt to set a filter using a yesn-common field for all events in the
 sched subsystem (all events but those that have a prev_pid field retain
 their old filters)::
 
@@ -290,7 +290,7 @@ their old filters)::
 -----------------
 
 The set_event_pid file in the same directory as the top events directory
-exists, will filter all events from tracing any task that does not have the
+exists, will filter all events from tracing any task that does yest have the
 PID listed in the set_event_pid file.
 ::
 
@@ -318,7 +318,7 @@ associated with that event is invoked.  Any given trigger can
 additionally have an event filter of the same form as described in
 section 5 (Event filtering) associated with it - the command will only
 be invoked if the event being invoked passes the associated filter.
-If no filter is associated with the trigger, it always passes.
+If yes filter is associated with the trigger, it always passes.
 
 Triggers are added to and removed from a particular event by writing
 trigger expressions to the 'trigger' file for the given event.
@@ -331,7 +331,7 @@ Event triggers are implemented on top of "soft" mode, which means that
 whenever a trace event has one or more triggers associated with it,
 the event is activated even if it isn't actually enabled, but is
 disabled in a "soft" mode.  That is, the tracepoint will be called,
-but just will not be traced, unless of course it's actually enabled.
+but just will yest be traced, unless of course it's actually enabled.
 This scheme allows triggers to be invoked even for events that aren't
 enabled, and also allows the current event filter implementation to be
 used for conditionally invoking triggers.
@@ -366,7 +366,7 @@ The filter syntax is the same as that described in the 'Event
 filtering' section above.
 
 For ease of use, writing to the trigger file using '>' currently just
-adds or removes a single trigger and there's no explicit '>>' support
+adds or removes a single trigger and there's yes explicit '>>' support
 ('>' actually behaves like '>>') or truncation support to remove all
 triggers (you have to use '!' for each one added.)
 
@@ -377,10 +377,10 @@ The following commands are supported:
 
 - enable_event/disable_event
 
-  These commands can enable or disable another trace event whenever
+  These commands can enable or disable ayesther trace event whenever
   the triggering event is hit.  When these commands are registered,
   the other trace event is activated, but disabled in a "soft" mode.
-  That is, the tracepoint will be called, but just will not be traced.
+  That is, the tracepoint will be called, but just will yest be traced.
   The event tracepoint stays in this mode as long as there's a trigger
   in effect that can trigger it.
 
@@ -490,7 +490,7 @@ The following commands are supported:
 
   These commands turn tracing on and off when the specified events are
   hit. The parameter determines how many times the tracing system is
-  turned on and off. If unspecified, there is no limit.
+  turned on and off. If unspecified, there is yes limit.
 
   The following command turns tracing off the first time a block
   request queue is unplugged with a depth > 1.  If you were tracing a

@@ -23,7 +23,7 @@ struct device;
  * @npins: Number of pins in this groups
  * @mode: Native mode in which the group is muxed out @pins. Used if @modes
  *        is %NULL.
- * @modes: If not %NULL this will hold mode for each pin in @pins
+ * @modes: If yest %NULL this will hold mode for each pin in @pins
  */
 struct intel_pingroup {
 	const char *name;
@@ -51,10 +51,10 @@ struct intel_function {
  * @base: Starting pin of this group
  * @size: Size of this group (maximum is 32).
  * @gpio_base: Starting GPIO base of this group (%0 if matches with @base,
- *	       and %-1 if no GPIO mapping should be created)
+ *	       and %-1 if yes GPIO mapping should be created)
  * @padown_num: PAD_OWN register number (assigned by the core driver)
  *
- * If pad groups of a community are not the same size, use this structure
+ * If pad groups of a community are yest the same size, use this structure
  * to specify them.
  */
 struct intel_padgroup {
@@ -67,11 +67,11 @@ struct intel_padgroup {
 
 /**
  * struct intel_community - Intel pin community description
- * @barno: MMIO BAR number where registers for this community reside
+ * @baryes: MMIO BAR number where registers for this community reside
  * @padown_offset: Register offset of PAD_OWN register from @regs. If %0
- *                 then there is no support for owner.
+ *                 then there is yes support for owner.
  * @padcfglock_offset: Register offset of PADCFGLOCK from @regs. If %0 then
- *                     locking is not supported.
+ *                     locking is yest supported.
  * @hostown_offset: Register offset of HOSTSW_OWN from @regs. If %0 then it
  *                  is assumed that the host owns the pin (rather than
  *                  ACPI).
@@ -87,7 +87,7 @@ struct intel_padgroup {
  * @npins: Number of pins in this community
  * @gpps: Pad groups if the controller has variable size pad groups
  * @ngpps: Number of pad groups in this community
- * @pad_map: Optional non-linear mapping of the pads
+ * @pad_map: Optional yesn-linear mapping of the pads
  * @regs: Community specific common registers (reserved for core driver)
  * @pad_regs: Community specific pad registers (reserved for core driver)
  *
@@ -98,7 +98,7 @@ struct intel_padgroup {
  * pass custom @gpps and @ngpps instead.
  */
 struct intel_community {
-	unsigned int barno;
+	unsigned int baryes;
 	unsigned int padown_offset;
 	unsigned int padcfglock_offset;
 	unsigned int hostown_offset;
@@ -178,14 +178,14 @@ int intel_pinctrl_probe_by_hid(struct platform_device *pdev);
 int intel_pinctrl_probe_by_uid(struct platform_device *pdev);
 
 #ifdef CONFIG_PM_SLEEP
-int intel_pinctrl_suspend_noirq(struct device *dev);
-int intel_pinctrl_resume_noirq(struct device *dev);
+int intel_pinctrl_suspend_yesirq(struct device *dev);
+int intel_pinctrl_resume_yesirq(struct device *dev);
 #endif
 
 #define INTEL_PINCTRL_PM_OPS(_name)					\
 const struct dev_pm_ops _name = {					\
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend_noirq,	\
-				      intel_pinctrl_resume_noirq)	\
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(intel_pinctrl_suspend_yesirq,	\
+				      intel_pinctrl_resume_yesirq)	\
 }
 
 #endif /* PINCTRL_INTEL_H */

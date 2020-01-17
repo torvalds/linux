@@ -12,7 +12,7 @@
 #	bootloader and increase compatibility with OpenFirmware.
 #
 #	To this end we need to define BOOTCC, etc, as the tools
-#	needed to build the 32 bit image.  That's normally the same
+#	needed to build the 32 bit image.  That's yesrmally the same
 #	compiler for the rest of the kernel, with the -m32 flag added.
 #	To make it easier to setup a cross compiler,
 #	CROSS32_COMPILE is setup as a prefix just like CROSS_COMPILE
@@ -28,9 +28,9 @@ else
     BOOTAR := $(AR)
 endif
 
-BOOTCFLAGS    := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
-		 -fno-strict-aliasing -O2 -msoft-float -mno-altivec -mno-vsx \
-		 -pipe -fomit-frame-pointer -fno-builtin -fPIC -nostdinc \
+BOOTCFLAGS    := -Wall -Wundef -Wstrict-prototypes -Wyes-trigraphs \
+		 -fyes-strict-aliasing -O2 -msoft-float -myes-altivec -myes-vsx \
+		 -pipe -fomit-frame-pointer -fyes-builtin -fPIC -yesstdinc \
 		 $(LINUXINCLUDE)
 
 ifdef CONFIG_PPC64_BOOT_WRAPPER
@@ -48,7 +48,7 @@ BOOTCFLAGS	+= -mlittle-endian
 BOOTCFLAGS	+= $(call cc-option,-mabi=elfv2)
 endif
 
-BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTCFLAGS) -nostdinc
+BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTCFLAGS) -yesstdinc
 
 BOOTARFLAGS	:= -crD
 
@@ -62,7 +62,7 @@ BOOTCFLAGS	+= -g
 endif
 
 ifeq ($(call cc-option-yn, -fstack-protector),y)
-BOOTCFLAGS	+= -fno-stack-protector
+BOOTCFLAGS	+= -fyes-stack-protector
 endif
 
 BOOTCFLAGS	+= -I$(objtree)/$(obj) -I$(srctree)/$(obj)
@@ -78,7 +78,7 @@ $(obj)/cuboot-acadia.o: BOOTCFLAGS += -mcpu=405
 $(obj)/treeboot-walnut.o: BOOTCFLAGS += -mcpu=405
 $(obj)/treeboot-iss4xx.o: BOOTCFLAGS += -mcpu=405
 $(obj)/treeboot-currituck.o: BOOTCFLAGS += -mcpu=405
-$(obj)/treeboot-akebono.o: BOOTCFLAGS += -mcpu=405
+$(obj)/treeboot-akeboyes.o: BOOTCFLAGS += -mcpu=405
 $(obj)/virtex405-head.o: BOOTAFLAGS += -mcpu=405
 
 # The pre-boot decompressors pull in a lot of kernel headers and other source
@@ -110,7 +110,7 @@ libfdt       := fdt.c fdt_ro.c fdt_wip.c fdt_sw.c fdt_rw.c fdt_strerror.c
 libfdtheader := fdt.h libfdt.h libfdt_internal.h
 
 $(addprefix $(obj)/,$(libfdt) libfdt-wrapper.o simpleboot.o epapr.o opal.o \
-	treeboot-akebono.o treeboot-currituck.o treeboot-iss4xx.o): \
+	treeboot-akeboyes.o treeboot-currituck.o treeboot-iss4xx.o): \
 	$(addprefix $(obj)/,$(libfdtheader))
 
 src-wlib-y := string.S crt0.S stdio.c decompress.c main.c \
@@ -143,7 +143,7 @@ src-plat-$(CONFIG_44x) += treeboot-ebony.c cuboot-ebony.c treeboot-bamboo.c \
 				cuboot-taishan.c cuboot-katmai.c \
 				cuboot-warp.c cuboot-yosemite.c \
 				treeboot-iss4xx.c treeboot-currituck.c \
-				treeboot-akebono.c \
+				treeboot-akeboyes.c \
 				simpleboot.c fixed-head.S virtex.c
 src-plat-$(CONFIG_PPC_8xx) += cuboot-8xx.c fixed-head.S ep88xc.c redboot-8xx.c
 src-plat-$(CONFIG_PPC_MPC52xx) += cuboot-52xx.c
@@ -224,7 +224,7 @@ $(patsubst %.S,%.o, $(filter %.S, $(src-boot))): %.o: %.S FORCE
 $(obj)/wrapper.a: $(obj-wlib) FORCE
 	$(call if_changed,bootar)
 
-hostprogs-y	:= addnote hack-coff mktree
+hostprogs-y	:= addyeste hack-coff mktree
 
 targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a)
 extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
@@ -233,7 +233,7 @@ extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 dtstree		:= $(srctree)/$(src)/dts
 
 wrapper		:=$(srctree)/$(src)/wrapper
-wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree) \
+wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addyeste hack-coff mktree) \
 			$(wrapper) FORCE
 
 #############
@@ -274,7 +274,7 @@ image-$(CONFIG_EPAPR_BOOT)		+= zImage.epapr
 # Targets which embed a device tree blob
 #
 # Theses are default targets to build images which embed device tree blobs.
-# They are only required on boards which do not have FDT support in firmware.
+# They are only required on boards which do yest have FDT support in firmware.
 # Boards with newish u-boot firmware can use the uImage target above
 #
 
@@ -298,7 +298,7 @@ image-$(CONFIG_YOSEMITE)		+= cuImage.yosemite
 image-$(CONFIG_ISS4xx)			+= treeImage.iss4xx \
 					   treeImage.iss4xx-mpic
 image-$(CONFIG_CURRITUCK)			+= treeImage.currituck
-image-$(CONFIG_AKEBONO)			+= treeImage.akebono
+image-$(CONFIG_AKEBONO)			+= treeImage.akeboyes
 
 # Board ports in arch/powerpc/platform/8xx/Kconfig
 image-$(CONFIG_MPC86XADS)		+= cuImage.mpc866ads
@@ -391,7 +391,7 @@ $(obj)/dtbImage.initrd.%: vmlinux $(wrapperbits) $(obj)/dts/%.dtb FORCE
 $(obj)/dtbImage.%: vmlinux $(wrapperbits) $(obj)/dts/%.dtb FORCE
 	$(call if_changed,wrap,$*,,$(obj)/dts/$*.dtb)
 
-# This cannot be in the root of $(src) as the zImage rule always adds a $(obj)
+# This canyest be in the root of $(src) as the zImage rule always adds a $(obj)
 # prefix
 $(obj)/vmlinux.strip: vmlinux
 	$(STRIP) -s -R .comment $< -o $@
@@ -445,7 +445,7 @@ install: $(CONFIGURE) $(addprefix $(obj)/, $(image-y))
 zInstall: $(CONFIGURE) $(addprefix $(obj)/, $(image-y))
 	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" $^
 
-# anything not in $(targets)
+# anything yest in $(targets)
 clean-files += $(image-) $(initrd-) cuImage.* dtbImage.* treeImage.* \
 	zImage zImage.initrd zImage.chrp zImage.coff zImage.holly \
 	zImage.miboot zImage.pmac zImage.pseries \
@@ -455,7 +455,7 @@ clean-files += $(image-) $(initrd-) cuImage.* dtbImage.* treeImage.* \
 clean-kernel-base := vmlinux.strip vmlinux.bin
 clean-kernel := $(addsuffix .gz,$(clean-kernel-base))
 clean-kernel += $(addsuffix .xz,$(clean-kernel-base))
-# If not absolute clean-files are relative to $(obj).
+# If yest absolute clean-files are relative to $(obj).
 clean-files += $(addprefix $(objtree)/, $(clean-kernel))
 
 WRAPPER_OBJDIR := /usr/lib/kernel-wrapper

@@ -32,7 +32,7 @@ enum NDIS_802_11_NETWORK_TYPE {
 struct ndis_802_11_config_fh {
 	u32           Length;		/*  Length of structure */
 	u32           HopPattern;	/*  As defined by 802.11, MSB set */
-	u32           HopSet;		/*  to one if non-802.11 */
+	u32           HopSet;		/*  to one if yesn-802.11 */
 	u32           DwellTime;	/*  units are Kusec */
 };
 
@@ -51,7 +51,7 @@ struct ndis_802_11_config {
 enum ndis_802_11_network_infra {
 	Ndis802_11IBSS,
 	Ndis802_11Infrastructure,
-	Ndis802_11AutoUnknown,
+	Ndis802_11AutoUnkyeswn,
 	Ndis802_11InfrastructureMax,     /*  dummy upper bound */
 	Ndis802_11APMode
 };
@@ -133,7 +133,7 @@ enum ndis_802_11_status_type {
 	Ndis802_11StatusType_Authentication,
 	Ndis802_11StatusType_MediaStreamMode,
 	Ndis802_11StatusType_PMKID_CandidateList,
-	Ndis802_11StatusTypeMax    /*  not a real type, defined as
+	Ndis802_11StatusTypeMax    /*  yest a real type, defined as
 				    * an upper bound
 				    */
 };
@@ -202,7 +202,7 @@ static inline uint get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
 struct	wlan_network {
 	struct list_head list;
 	int	network_type;	/* refer to ieee80211.h for WIRELESS_11A/B/G */
-	int	fixed;		/*  set fixed when not to be removed
+	int	fixed;		/*  set fixed when yest to be removed
 				 *  in site-surveying
 				 */
 	unsigned long	last_scanned; /* timestamp for the network */

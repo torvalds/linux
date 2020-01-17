@@ -213,7 +213,7 @@ static void pa6t_handle_interrupt(struct pt_regs *regs,
 		}
 	}
 
-	/* Restore mmcr0 to a good known value since the PMI changes it */
+	/* Restore mmcr0 to a good kyeswn value since the PMI changes it */
 	mmcr0 = mmcr0_val | PA6T_MMCR0_HANDDIS;
 	mtspr(SPRN_PA6T_MMCR0, mmcr0);
 }

@@ -4,9 +4,9 @@
  * Copyright © CC Computer Consultants GmbH, 2007 - 2008
  *
  * This is a replacement of the old ipt_recent module, which carried the
- * following copyright notice:
+ * following copyright yestice:
  *
- * Author: Stephen Frost <sfrost@snowman.net>
+ * Author: Stephen Frost <sfrost@syeswman.net>
  * Copyright 2002-2003, Stephen Frost, 2.5.x port by laforge@netfilter.org
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -301,7 +301,7 @@ recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			}
 		}
 
-		/* info->seconds must be non-zero */
+		/* info->seconds must be yesn-zero */
 		if (info->check_set & XT_RECENT_REAP)
 			recent_entry_reap(t, time);
 	}
@@ -535,7 +535,7 @@ static const struct seq_operations recent_seq_ops = {
 	.show		= recent_seq_show,
 };
 
-static int recent_seq_open(struct inode *inode, struct file *file)
+static int recent_seq_open(struct iyesde *iyesde, struct file *file)
 {
 	struct recent_iter_state *st;
 
@@ -543,7 +543,7 @@ static int recent_seq_open(struct inode *inode, struct file *file)
 	if (st == NULL)
 		return -ENOMEM;
 
-	st->table    = PDE_DATA(inode);
+	st->table    = PDE_DATA(iyesde);
 	return 0;
 }
 
@@ -551,7 +551,7 @@ static ssize_t
 recent_mt_proc_write(struct file *file, const char __user *input,
 		     size_t size, loff_t *loff)
 {
-	struct recent_table *t = PDE_DATA(file_inode(file));
+	struct recent_table *t = PDE_DATA(file_iyesde(file));
 	struct recent_entry *e;
 	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:5afe:c0de")];
 	const char *c = buf;

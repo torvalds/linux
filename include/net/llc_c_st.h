@@ -1,7 +1,7 @@
 #ifndef LLC_C_ST_H
 #define LLC_C_ST_H
 /*
- * Copyright (c) 1997 by Procom Technology,Inc.
+ * Copyright (c) 1997 by Procom Techyeslogy,Inc.
  *		2001 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the

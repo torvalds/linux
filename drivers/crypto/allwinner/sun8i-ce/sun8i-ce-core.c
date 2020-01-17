@@ -132,7 +132,7 @@ int sun8i_ce_run_task(struct sun8i_ce_dev *ce, int flow, const char *name)
 		err = -EFAULT;
 	}
 	/* No need to lock for this read, the channel is locked so
-	 * nothing could modify the error value for this channel
+	 * yesthing could modify the error value for this channel
 	 */
 	v = readl(ce->base + CE_ESR);
 	if (v) {
@@ -143,7 +143,7 @@ int sun8i_ce_run_task(struct sun8i_ce_dev *ce, int flow, const char *name)
 			err = -EFAULT;
 		}
 		if (v & CE_ERR_ALGO_NOTSUP)
-			dev_err(ce->dev, "CE ERROR: algorithm not supported\n");
+			dev_err(ce->dev, "CE ERROR: algorithm yest supported\n");
 		if (v & CE_ERR_DATALEN)
 			dev_err(ce->dev, "CE ERROR: data length error\n");
 		if (v & CE_ERR_KEYSRAM)
@@ -302,9 +302,9 @@ static int sun8i_ce_dbgfs_read(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int sun8i_ce_dbgfs_open(struct inode *inode, struct file *file)
+static int sun8i_ce_dbgfs_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, sun8i_ce_dbgfs_read, inode->i_private);
+	return single_open(file, sun8i_ce_dbgfs_read, iyesde->i_private);
 }
 
 static const struct file_operations sun8i_ce_debugfs_fops = {
@@ -345,14 +345,14 @@ static int sun8i_ce_allocate_chanlist(struct sun8i_ce_dev *ce)
 
 		ce->chanlist[i].engine = crypto_engine_alloc_init(ce->dev, true);
 		if (!ce->chanlist[i].engine) {
-			dev_err(ce->dev, "Cannot allocate engine\n");
+			dev_err(ce->dev, "Canyest allocate engine\n");
 			i--;
 			err = -ENOMEM;
 			goto error_engine;
 		}
 		err = crypto_engine_start(ce->chanlist[i].engine);
 		if (err) {
-			dev_err(ce->dev, "Cannot start engine\n");
+			dev_err(ce->dev, "Canyest start engine\n");
 			goto error_engine;
 		}
 		ce->chanlist[i].tl = dma_alloc_coherent(ce->dev,
@@ -360,7 +360,7 @@ static int sun8i_ce_allocate_chanlist(struct sun8i_ce_dev *ce)
 							&ce->chanlist[i].t_phy,
 							GFP_KERNEL);
 		if (!ce->chanlist[i].tl) {
-			dev_err(ce->dev, "Cannot get DMA memory for task %d\n",
+			dev_err(ce->dev, "Canyest get DMA memory for task %d\n",
 				i);
 			err = -ENOMEM;
 			goto error_engine;
@@ -397,14 +397,14 @@ static int sun8i_ce_pm_resume(struct device *dev)
 			continue;
 		err = clk_prepare_enable(ce->ceclks[i]);
 		if (err) {
-			dev_err(ce->dev, "Cannot prepare_enable %s\n",
+			dev_err(ce->dev, "Canyest prepare_enable %s\n",
 				ce->variant->ce_clks[i].name);
 			goto error;
 		}
 	}
 	err = reset_control_deassert(ce->reset);
 	if (err) {
-		dev_err(ce->dev, "Cannot deassert reset control\n");
+		dev_err(ce->dev, "Canyest deassert reset control\n");
 		goto error;
 	}
 	return 0;
@@ -447,7 +447,7 @@ static int sun8i_ce_get_clks(struct sun8i_ce_dev *ce)
 		ce->ceclks[i] = devm_clk_get(ce->dev, ce->variant->ce_clks[i].name);
 		if (IS_ERR(ce->ceclks[i])) {
 			err = PTR_ERR(ce->ceclks[i]);
-			dev_err(ce->dev, "Cannot get %s CE clock err=%d\n",
+			dev_err(ce->dev, "Canyest get %s CE clock err=%d\n",
 				ce->variant->ce_clks[i].name, err);
 			return err;
 		}
@@ -488,7 +488,7 @@ static int sun8i_ce_register_algs(struct sun8i_ce_dev *ce)
 			ce_method = ce->variant->alg_cipher[id];
 			if (ce_method == CE_ID_NOTSUPP) {
 				dev_dbg(ce->dev,
-					"DEBUG: Algo of %s not supported\n",
+					"DEBUG: Algo of %s yest supported\n",
 					ce_algs[i].alg.skcipher.base.cra_name);
 				ce_algs[i].ce = NULL;
 				break;
@@ -496,7 +496,7 @@ static int sun8i_ce_register_algs(struct sun8i_ce_dev *ce)
 			id = ce_algs[i].ce_blockmode;
 			ce_method = ce->variant->op_mode[id];
 			if (ce_method == CE_ID_NOTSUPP) {
-				dev_dbg(ce->dev, "DEBUG: Blockmode of %s not supported\n",
+				dev_dbg(ce->dev, "DEBUG: Blockmode of %s yest supported\n",
 					ce_algs[i].alg.skcipher.base.cra_name);
 				ce_algs[i].ce = NULL;
 				break;
@@ -513,7 +513,7 @@ static int sun8i_ce_register_algs(struct sun8i_ce_dev *ce)
 			break;
 		default:
 			ce_algs[i].ce = NULL;
-			dev_err(ce->dev, "ERROR: tried to register an unknown algo\n");
+			dev_err(ce->dev, "ERROR: tried to register an unkyeswn algo\n");
 		}
 	}
 	return 0;
@@ -566,7 +566,7 @@ static int sun8i_ce_probe(struct platform_device *pdev)
 	/* Get Non Secure IRQ */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(ce->dev, "Cannot get CryptoEngine Non-secure IRQ\n");
+		dev_err(ce->dev, "Canyest get CryptoEngine Non-secure IRQ\n");
 		return irq;
 	}
 
@@ -591,7 +591,7 @@ static int sun8i_ce_probe(struct platform_device *pdev)
 	err = devm_request_irq(&pdev->dev, irq, ce_irq_handler, 0,
 			       "sun8i-ce-ns", ce);
 	if (err) {
-		dev_err(ce->dev, "Cannot request CryptoEngine Non-secure IRQ (err=%d)\n", err);
+		dev_err(ce->dev, "Canyest request CryptoEngine Non-secure IRQ (err=%d)\n", err);
 		goto error_irq;
 	}
 
@@ -611,7 +611,7 @@ static int sun8i_ce_probe(struct platform_device *pdev)
 	pm_runtime_put_sync(ce->dev);
 
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_CE_DEBUG
-	/* Ignore error of debugfs */
+	/* Igyesre error of debugfs */
 	ce->dbgfs_dir = debugfs_create_dir("sun8i-ce", NULL);
 	ce->dbgfs_stats = debugfs_create_file("stats", 0444,
 					      ce->dbgfs_dir, ce,

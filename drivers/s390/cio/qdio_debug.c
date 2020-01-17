@@ -70,8 +70,8 @@ int qdio_allocate_dbf(struct qdio_initialize *init_data,
 	DBF_HEX(&init_data->qib_param_field, sizeof(void *));
 	DBF_HEX(&init_data->input_slib_elements, sizeof(void *));
 	DBF_HEX(&init_data->output_slib_elements, sizeof(void *));
-	DBF_EVENT("niq:%1d noq:%1d", init_data->no_input_qs,
-		  init_data->no_output_qs);
+	DBF_EVENT("niq:%1d yesq:%1d", init_data->yes_input_qs,
+		  init_data->yes_output_qs);
 	DBF_HEX(&init_data->input_handler, sizeof(void *));
 	DBF_HEX(&init_data->output_handler, sizeof(void *));
 	DBF_HEX(&init_data->int_parm, sizeof(long));
@@ -184,7 +184,7 @@ static int qstat_show(struct seq_file *m, void *v)
 	for (i = 0; i < ARRAY_SIZE(q->q_stats.nr_sbals); i++)
 		seq_printf(m, "%-10u ", q->q_stats.nr_sbals[i]);
 	seq_printf(m, "\nError      NOP        Total\n%-10u %-10u %-10u\n\n",
-		   q->q_stats.nr_sbal_error, q->q_stats.nr_sbal_nop,
+		   q->q_stats.nr_sbal_error, q->q_stats.nr_sbal_yesp,
 		   q->q_stats.nr_sbal_total);
 	return 0;
 }
@@ -270,10 +270,10 @@ static ssize_t qperf_seq_write(struct file *file, const char __user *ubuf,
 	return count;
 }
 
-static int qperf_seq_open(struct inode *inode, struct file *filp)
+static int qperf_seq_open(struct iyesde *iyesde, struct file *filp)
 {
 	return single_open(filp, qperf_show,
-			   file_inode(filp)->i_private);
+			   file_iyesde(filp)->i_private);
 }
 
 static const struct file_operations debugfs_perf_fops = {

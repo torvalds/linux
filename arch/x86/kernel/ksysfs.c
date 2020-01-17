@@ -223,13 +223,13 @@ static const struct attribute_group setup_data_attr_group = {
 	.bin_attrs = setup_data_data_attrs,
 };
 
-static int __init create_setup_data_node(struct kobject *parent,
+static int __init create_setup_data_yesde(struct kobject *parent,
 					 struct kobject **kobjp, int nr)
 {
 	int ret = 0;
 	size_t size;
 	struct kobject *kobj;
-	char name[16]; /* should be enough for setup_data nodes numbers */
+	char name[16]; /* should be eyesugh for setup_data yesdes numbers */
 	snprintf(name, 16, "%d", nr);
 
 	kobj = kobject_create_and_add(name, parent);
@@ -252,7 +252,7 @@ out_kobj:
 	return ret;
 }
 
-static void __init cleanup_setup_data_node(struct kobject *kobj)
+static void __init cleanup_setup_data_yesde(struct kobject *kobj)
 {
 	sysfs_remove_group(kobj, &setup_data_attr_group);
 	kobject_put(kobj);
@@ -279,7 +279,7 @@ out:
 	return ret;
 }
 
-static int __init create_setup_data_nodes(struct kobject *parent)
+static int __init create_setup_data_yesdes(struct kobject *parent)
 {
 	struct kobject *setup_data_kobj, **kobjp;
 	u64 pa_data;
@@ -306,17 +306,17 @@ static int __init create_setup_data_nodes(struct kobject *parent)
 	}
 
 	for (i = 0; i < nr; i++) {
-		ret = create_setup_data_node(setup_data_kobj, kobjp + i, i);
+		ret = create_setup_data_yesde(setup_data_kobj, kobjp + i, i);
 		if (ret)
-			goto out_clean_nodes;
+			goto out_clean_yesdes;
 	}
 
 	kfree(kobjp);
 	return 0;
 
-out_clean_nodes:
+out_clean_yesdes:
 	for (j = i - 1; j >= 0; j--)
-		cleanup_setup_data_node(*(kobjp + j));
+		cleanup_setup_data_yesde(*(kobjp + j));
 	kfree(kobjp);
 out_setup_data_kobj:
 	kobject_put(setup_data_kobj);
@@ -340,7 +340,7 @@ static int __init boot_params_ksysfs_init(void)
 	if (ret)
 		goto out_boot_params_kobj;
 
-	ret = create_setup_data_nodes(boot_params_kobj);
+	ret = create_setup_data_yesdes(boot_params_kobj);
 	if (ret)
 		goto out_create_group;
 

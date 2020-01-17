@@ -91,7 +91,7 @@ int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
 
 	if (ieee->current_network.channel == 0)
 		return -1;
-	/* NM 0.7.0 will not accept channel any more. */
+	/* NM 0.7.0 will yest accept channel any more. */
 	fwrq->m = ieee80211_wlan_frequencies[ieee->current_network.channel - 1] * 100000;
 	fwrq->e = 1;
 	/* fwrq->m = ieee->current_network.channel; */
@@ -160,7 +160,7 @@ int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
 		ieee80211_stop_protocol(ieee);
 
 	/* just to avoid to give inconsistent infos in the
-	 * get wx method. not really needed otherwise
+	 * get wx method. yest really needed otherwise
 	 */
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -261,7 +261,7 @@ int ieee80211_wx_get_rts(struct ieee80211_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	wrqu->rts.value = ieee->rts;
-	wrqu->rts.fixed = 0;	/* no auto select */
+	wrqu->rts.fixed = 0;	/* yes auto select */
 	wrqu->rts.disabled = (wrqu->rts.value == DEFAULT_RTS_THRESHOLD);
 	return 0;
 }
@@ -409,7 +409,7 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 
 
 	/* this is just to be sure that the GET wx callback
-	 * has consisten infos. not needed otherwise
+	 * has consisten infos. yest needed otherwise
 	 */
 	spin_lock_irqsave(&ieee->lock, flags);
 

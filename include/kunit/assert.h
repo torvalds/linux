@@ -16,10 +16,10 @@ struct kunit;
 
 /**
  * enum kunit_assert_type - Type of expectation/assertion.
- * @KUNIT_ASSERTION: Used to denote that a kunit_assert represents an assertion.
- * @KUNIT_EXPECTATION: Denotes that a kunit_assert represents an expectation.
+ * @KUNIT_ASSERTION: Used to deyeste that a kunit_assert represents an assertion.
+ * @KUNIT_EXPECTATION: Deyestes that a kunit_assert represents an expectation.
  *
- * Used in conjunction with a &struct kunit_assert to denote whether it
+ * Used in conjunction with a &struct kunit_assert to deyeste whether it
  * represents an expectation or an assertion.
  */
 enum kunit_assert_type {
@@ -145,46 +145,46 @@ void kunit_unary_assert_format(const struct kunit_assert *assert,
 }
 
 /**
- * struct kunit_ptr_not_err_assert - An expectation/assertion that a pointer is
- *	not NULL and not a -errno.
+ * struct kunit_ptr_yest_err_assert - An expectation/assertion that a pointer is
+ *	yest NULL and yest a -erryes.
  * @assert: The parent of this type.
  * @text: A string representation of the expression passed to the expectation.
  * @value: The actual evaluated pointer value of the expression.
  *
- * Represents an expectation/assertion that a pointer is not null and is does
- * not contain a -errno. (See IS_ERR_OR_NULL().)
+ * Represents an expectation/assertion that a pointer is yest null and is does
+ * yest contain a -erryes. (See IS_ERR_OR_NULL().)
  */
-struct kunit_ptr_not_err_assert {
+struct kunit_ptr_yest_err_assert {
 	struct kunit_assert assert;
 	const char *text;
 	const void *value;
 };
 
-void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
+void kunit_ptr_yest_err_assert_format(const struct kunit_assert *assert,
 				     struct string_stream *stream);
 
 /**
  * KUNIT_INIT_PTR_NOT_ERR_ASSERT_STRUCT() - Initializes a
- *	&struct kunit_ptr_not_err_assert.
+ *	&struct kunit_ptr_yest_err_assert.
  * @test: The test case that this expectation/assertion is associated with.
  * @type: The type (assertion or expectation) of this kunit_assert.
  * @txt: A string representation of the expression passed to the expectation.
  * @val: The actual evaluated pointer value of the expression.
  *
- * Initializes a &struct kunit_ptr_not_err_assert. Intended to be used in
+ * Initializes a &struct kunit_ptr_yest_err_assert. Intended to be used in
  * KUNIT_EXPECT_* and KUNIT_ASSERT_* macros.
  */
 #define KUNIT_INIT_PTR_NOT_ERR_STRUCT(test, type, txt, val) {		       \
 	.assert = KUNIT_INIT_ASSERT_STRUCT(test,			       \
 					   type,			       \
-					   kunit_ptr_not_err_assert_format),   \
+					   kunit_ptr_yest_err_assert_format),   \
 	.text = txt,							       \
 	.value = val							       \
 }
 
 /**
  * struct kunit_binary_assert - An expectation/assertion that compares two
- *	non-pointer values (for example, KUNIT_EXPECT_EQ(test, 1 + 1, 2)).
+ *	yesn-pointer values (for example, KUNIT_EXPECT_EQ(test, 1 + 1, 2)).
  * @assert: The parent of this type.
  * @operation: A string representation of the comparison operator (e.g. "==").
  * @left_text: A string representation of the expression in the left slot.
@@ -192,7 +192,7 @@ void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
  * @right_text: A string representation of the expression in the right slot.
  * @right_value: The actual evaluated value of the expression in the right slot.
  *
- * Represents an expectation/assertion that compares two non-pointer values. For
+ * Represents an expectation/assertion that compares two yesn-pointer values. For
  * example, to expect that 1 + 1 == 2, you can use the expectation
  * KUNIT_EXPECT_EQ(test, 1 + 1, 2);
  */

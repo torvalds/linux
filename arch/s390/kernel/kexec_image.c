@@ -7,7 +7,7 @@
  * Author(s): Philipp Rudo <prudo@linux.vnet.ibm.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/kexec.h>
 #include <asm/ipl.h>

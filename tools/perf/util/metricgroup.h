@@ -11,7 +11,7 @@ struct option;
 struct rblist;
 
 struct metric_event {
-	struct rb_node nd;
+	struct rb_yesde nd;
 	struct evsel *evsel;
 	struct list_head head; /* list of metric_expr */
 };

@@ -137,7 +137,7 @@ struct drxd_state {
 	struct SCfgAgc if_agc_cfg;
 	struct SCfgAgc rf_agc_cfg;
 
-	struct SNoiseCal noise_cal;
+	struct SNoiseCal yesise_cal;
 
 	u32 fe_fs_add_incr;
 	u32 org_fe_fs_add_incr;
@@ -918,7 +918,7 @@ static int DownloadMicrocode(struct drxd_state *state,
 	int i, status = 0;
 
 	pSrc = (u8 *) pMCImage;
-	/* We're not using Flags */
+	/* We're yest using Flags */
 	/* Flags = (pSrc[0] << 8) | pSrc[1]; */
 	pSrc += sizeof(u16);
 	offset += sizeof(u16);
@@ -936,12 +936,12 @@ static int DownloadMicrocode(struct drxd_state *state,
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
 
-		/* We're not using Flags */
+		/* We're yest using Flags */
 		/* u16 Flags = (pSrc[0] << 8) | pSrc[1]; */
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
 
-		/* We're not using BlockCRC */
+		/* We're yest using BlockCRC */
 		/* u16 BlockCRC = (pSrc[0] << 8) | pSrc[1]; */
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
@@ -1201,7 +1201,7 @@ static int SetCfgPga(struct drxd_state *state, int pgaSwitch)
 				break;
 
 			/* enable fine and coarse gain, enable AAF,
-			   no ext resistor */
+			   yes ext resistor */
 			status = Write16(state, B_FE_AG_REG_AG_PGA_MODE__A, B_FE_AG_REG_AG_PGA_MODE_PFY_PCY_AFY_REN, 0x0000);
 			if (status < 0)
 				break;
@@ -1229,7 +1229,7 @@ static int SetCfgPga(struct drxd_state *state, int pgaSwitch)
 				break;
 
 			/* disable fine and coarse gain, enable AAF,
-			   no ext resistor */
+			   yes ext resistor */
 			status = Write16(state, B_FE_AG_REG_AG_PGA_MODE__A, B_FE_AG_REG_AG_PGA_MODE_PFN_PCN_AFY_REN, 0x0000);
 			if (status < 0)
 				break;
@@ -1282,7 +1282,7 @@ static int InitFE(struct drxd_state *state)
 static int InitFT(struct drxd_state *state)
 {
 	/*
-	   norm OFFSET,  MB says =2 voor 8K en =3 voor 2K waarschijnlijk
+	   yesrm OFFSET,  MB says =2 voor 8K en =3 voor 2K waarschijnlijk
 	   SC stuff
 	 */
 	return Write16(state, FT_REG_COMM_EXEC__A, 0x0001, 0x0000);
@@ -1583,7 +1583,7 @@ static int CorrectSysClockDeviation(struct drxd_state *state)
 {
 	int status;
 	s32 incr = 0;
-	s32 nomincr = 0;
+	s32 yesmincr = 0;
 	u32 bandwidth = 0;
 	u32 sysClockInHz = 0;
 	u32 sysClockFreq = 0;	/* in kHz */
@@ -1595,7 +1595,7 @@ static int CorrectSysClockDeviation(struct drxd_state *state)
 
 		/* These accesses should be AtomicReadReg32, but that
 		   causes trouble (at least for diversity */
-		status = Read32(state, LC_RA_RAM_IFINCR_NOM_L__A, ((u32 *) &nomincr), 0);
+		status = Read32(state, LC_RA_RAM_IFINCR_NOM_L__A, ((u32 *) &yesmincr), 0);
 		if (status < 0)
 			break;
 		status = Read32(state, FE_IF_REG_INCR0__A, (u32 *) &incr, 0);
@@ -1603,10 +1603,10 @@ static int CorrectSysClockDeviation(struct drxd_state *state)
 			break;
 
 		if (state->type_A) {
-			if ((nomincr - incr < -500) || (nomincr - incr > 500))
+			if ((yesmincr - incr < -500) || (yesmincr - incr > 500))
 				break;
 		} else {
-			if ((nomincr - incr < -2000) || (nomincr - incr > 2000))
+			if ((yesmincr - incr < -2000) || (yesmincr - incr > 2000))
 				break;
 		}
 
@@ -1860,7 +1860,7 @@ static int SetFrequencyShift(struct drxd_state *state,
 }
 
 static int SetCfgNoiseCalibration(struct drxd_state *state,
-				  struct SNoiseCal *noiseCal)
+				  struct SNoiseCal *yesiseCal)
 {
 	u16 beOptEna;
 	int status = 0;
@@ -1869,11 +1869,11 @@ static int SetCfgNoiseCalibration(struct drxd_state *state,
 		status = Read16(state, SC_RA_RAM_BE_OPT_ENA__A, &beOptEna, 0);
 		if (status < 0)
 			break;
-		if (noiseCal->cpOpt) {
+		if (yesiseCal->cpOpt) {
 			beOptEna |= (1 << SC_RA_RAM_BE_OPT_ENA_CP_OPT);
 		} else {
 			beOptEna &= ~(1 << SC_RA_RAM_BE_OPT_ENA_CP_OPT);
-			status = Write16(state, CP_REG_AC_NEXP_OFFS__A, noiseCal->cpNexpOfs, 0);
+			status = Write16(state, CP_REG_AC_NEXP_OFFS__A, yesiseCal->cpNexpOfs, 0);
 			if (status < 0)
 				break;
 		}
@@ -1882,10 +1882,10 @@ static int SetCfgNoiseCalibration(struct drxd_state *state,
 			break;
 
 		if (!state->type_A) {
-			status = Write16(state, B_SC_RA_RAM_CO_TD_CAL_2K__A, noiseCal->tdCal2k, 0);
+			status = Write16(state, B_SC_RA_RAM_CO_TD_CAL_2K__A, yesiseCal->tdCal2k, 0);
 			if (status < 0)
 				break;
-			status = Write16(state, B_SC_RA_RAM_CO_TD_CAL_8K__A, noiseCal->tdCal8k, 0);
+			status = Write16(state, B_SC_RA_RAM_CO_TD_CAL_8K__A, yesiseCal->tdCal8k, 0);
 			if (status < 0)
 				break;
 		}
@@ -2102,7 +2102,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			break;
 		case HIERARCHY_AUTO:
 		default:
-			/* Not set, detect it automatically, start with none */
+			/* Not set, detect it automatically, start with yesne */
 			operationMode |= SC_RA_RAM_OP_AUTO_HIER__M;
 			transmissionParams |= SC_RA_RAM_OP_PARAM_HIER_NO;
 			if (state->type_A) {
@@ -2292,8 +2292,8 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			break;
 
 		/* First determine real bandwidth (Hz) */
-		/* Also set delay for impulse noise cruncher (only A2) */
-		/* Also set parameters for EC_OC fix, note
+		/* Also set delay for impulse yesise cruncher (only A2) */
+		/* Also set parameters for EC_OC fix, yeste
 		   EC_OC_REG_TMD_HIL_MAR is changed
 		   by SC for fix for some 8K,1/8 guard but is restored by
 		   InitEC and ResetEC
@@ -2355,7 +2355,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 				break;
 		}
 
-		status = SetCfgNoiseCalibration(state, &state->noise_cal);
+		status = SetCfgNoiseCalibration(state, &state->yesise_cal);
 		if (status < 0)
 			break;
 
@@ -2520,16 +2520,16 @@ static int CDRXD(struct drxd_state *state, u32 IntermediateFrequency)
 
 	if (ulIFFilter == IFFILTER_DISCRETE) {
 		/* discrete filter */
-		state->noise_cal.cpOpt = 0;
-		state->noise_cal.cpNexpOfs = 40;
-		state->noise_cal.tdCal2k = -40;
-		state->noise_cal.tdCal8k = -24;
+		state->yesise_cal.cpOpt = 0;
+		state->yesise_cal.cpNexpOfs = 40;
+		state->yesise_cal.tdCal2k = -40;
+		state->yesise_cal.tdCal8k = -24;
 	} else {
 		/* SAW filter */
-		state->noise_cal.cpOpt = 1;
-		state->noise_cal.cpNexpOfs = 0;
-		state->noise_cal.tdCal2k = -21;
-		state->noise_cal.tdCal8k = -24;
+		state->yesise_cal.cpOpt = 1;
+		state->yesise_cal.cpNexpOfs = 0;
+		state->yesise_cal.tdCal2k = -21;
+		state->yesise_cal.tdCal8k = -24;
 	}
 	state->m_EcOcRegOcModeLop = (u16) (ulEcOcRegOcModeLop);
 
@@ -2565,12 +2565,12 @@ static int CDRXD(struct drxd_state *state, u32 IntermediateFrequency)
 	state->enable_parallel = (ulSerialMode != 1);
 
 	/* Timing div, 250ns/Psys */
-	/* Timing div, = ( delay (nano seconds) * sysclk (kHz) )/ 1000 */
+	/* Timing div, = ( delay (nayes seconds) * sysclk (kHz) )/ 1000 */
 
 	state->hi_cfg_timing_div = (u16) ((state->sys_clock_freq / 1000) *
 					  ulHiI2cDelay) / 1000;
 	/* Bridge delay, uses oscilator clock */
-	/* Delay = ( delay (nano seconds) * oscclk (kHz) )/ 1000 */
+	/* Delay = ( delay (nayes seconds) * oscclk (kHz) )/ 1000 */
 	state->hi_cfg_bridge_delay = (u16) ((state->osc_clock_freq / 1000) *
 					    ulHiI2cBridgeDelay) / 1000;
 
@@ -2750,7 +2750,7 @@ static int DRXD_status(struct drxd_state *state, u32 *pLockStatus)
 	/*if (*pLockStatus&DRX_LOCK_MPEG) */
 	if (*pLockStatus & DRX_LOCK_FEC) {
 		ConfigureMPEGOutput(state, 1);
-		/* Get status again, in case we have MPEG lock now */
+		/* Get status again, in case we have MPEG lock yesw */
 		/*DRX_GetLockStatus(state, pLockStatus); */
 	}
 
@@ -2805,14 +2805,14 @@ static int drxd_init(struct dvb_frontend *fe)
 	return DRXD_init(state, NULL, 0);
 }
 
-static int drxd_config_i2c(struct dvb_frontend *fe, int onoff)
+static int drxd_config_i2c(struct dvb_frontend *fe, int oyesff)
 {
 	struct drxd_state *state = fe->demodulator_priv;
 
 	if (state->config.disable_i2c_gate_ctrl == 1)
 		return 0;
 
-	return DRX_ConfigureI2CBridge(state, onoff);
+	return DRX_ConfigureI2CBridge(state, oyesff);
 }
 
 static int drxd_get_tune_settings(struct dvb_frontend *fe,
@@ -2944,7 +2944,7 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 	return &state->frontend;
 
 error:
-	printk(KERN_ERR "drxd: not found\n");
+	printk(KERN_ERR "drxd: yest found\n");
 	kfree(state);
 	return NULL;
 }

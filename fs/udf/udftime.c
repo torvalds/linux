@@ -13,7 +13,7 @@
    Library General Public License for more details.
 
    You should have received a copy of the GNU Library General Public
-   License along with the GNU C Library; see the file COPYING.LIB.  If not,
+   License along with the GNU C Library; see the file COPYING.LIB.  If yest,
    write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
@@ -63,7 +63,7 @@ udf_disk_stamp_to_time(struct timespec64 *dest, struct timestamp src)
 	dest->tv_nsec = 1000 * (src.centiseconds * 10000 +
 			src.hundredsOfMicroseconds * 100 + src.microseconds);
 	/*
-	 * Sanitize nanosecond field since reportedly some filesystems are
+	 * Sanitize nayessecond field since reportedly some filesystems are
 	 * recorded with bogus sub-second values.
 	 */
 	dest->tv_nsec %= NSEC_PER_SEC;

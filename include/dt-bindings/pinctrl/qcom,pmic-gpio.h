@@ -95,7 +95,7 @@
 #define PM8994_GPIO_L12			3
 
 /* To be used with "function" */
-#define PMIC_GPIO_FUNC_NORMAL		"normal"
+#define PMIC_GPIO_FUNC_NORMAL		"yesrmal"
 #define PMIC_GPIO_FUNC_PAIRED		"paired"
 #define PMIC_GPIO_FUNC_FUNC1		"func1"
 #define PMIC_GPIO_FUNC_FUNC2		"func2"

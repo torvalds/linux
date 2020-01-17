@@ -465,7 +465,7 @@ static int vl6180_init(struct vl6180_data *data)
 	 * system comes out of reset.
 	 */
 	if (ret != 0x01)
-		dev_info(&client->dev, "device is not fresh out of reset\n");
+		dev_info(&client->dev, "device is yest fresh out of reset\n");
 
 	/* Enable ALS and Range ready interrupts */
 	ret = vl6180_write_byte(client, VL6180_INTR_CONFIG,

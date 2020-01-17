@@ -5,7 +5,7 @@
  * Copyright (C) 1998 Pauline Middelink <middelin@polyware.nl>
  *
  * Copyright (C) 1999 Wolfgang Scherr <scherr@net4you.net>
- * Copyright (C) 2000 Serguei Miridonov <mirsev@cicese.mx>
+ * Copyright (C) 2000 Serguei Miridoyesv <mirsev@cicese.mx>
  *    - some corrections for Pinnacle Systems Inc. DC10plus card.
  *
  * Changes by Ronald Bultje <rbultje@ronald.bitfreak.net>
@@ -43,7 +43,7 @@ struct saa7110 {
 	struct v4l2_ctrl_handler hdl;
 	u8 reg[SAA7110_NR_REG];
 
-	v4l2_std_id norm;
+	v4l2_std_id yesrm;
 	int input;
 	int enable;
 
@@ -174,7 +174,7 @@ static const unsigned char initseq[1 + SAA7110_NR_REG] = {
 	/* 0x30 */ 0x44, 0x71, 0x02, 0x8C, 0x02
 };
 
-static v4l2_std_id determine_norm(struct v4l2_subdev *sd)
+static v4l2_std_id determine_yesrm(struct v4l2_subdev *sd)
 {
 	DEFINE_WAIT(wait);
 	struct saa7110 *decoder = to_saa7110(sd);
@@ -188,17 +188,17 @@ static v4l2_std_id determine_norm(struct v4l2_subdev *sd)
 	finish_wait(&decoder->wq, &wait);
 	status = saa7110_read(sd);
 	if (status & 0x40) {
-		v4l2_dbg(1, debug, sd, "status=0x%02x (no signal)\n", status);
+		v4l2_dbg(1, debug, sd, "status=0x%02x (yes signal)\n", status);
 		return V4L2_STD_UNKNOWN;
 	}
 	if ((status & 3) == 0) {
 		saa7110_write(sd, 0x06, 0x83);
 		if (status & 0x20) {
-			v4l2_dbg(1, debug, sd, "status=0x%02x (NTSC/no color)\n", status);
+			v4l2_dbg(1, debug, sd, "status=0x%02x (NTSC/yes color)\n", status);
 			/*saa7110_write(sd,0x2E,0x81);*/
 			return V4L2_STD_NTSC;
 		}
-		v4l2_dbg(1, debug, sd, "status=0x%02x (PAL/no color)\n", status);
+		v4l2_dbg(1, debug, sd, "status=0x%02x (PAL/yes color)\n", status);
 		/*saa7110_write(sd,0x2E,0x9A);*/
 		return V4L2_STD_PAL;
 	}
@@ -238,8 +238,8 @@ static int saa7110_g_input_status(struct v4l2_subdev *sd, u32 *pstatus)
 	int res = V4L2_IN_ST_NO_SIGNAL;
 	int status = saa7110_read(sd);
 
-	v4l2_dbg(1, debug, sd, "status=0x%02x norm=%llx\n",
-		       status, (unsigned long long)decoder->norm);
+	v4l2_dbg(1, debug, sd, "status=0x%02x yesrm=%llx\n",
+		       status, (unsigned long long)decoder->yesrm);
 	if (!(status & 0x40))
 		res = 0;
 	if (!(status & 0x03))
@@ -251,7 +251,7 @@ static int saa7110_g_input_status(struct v4l2_subdev *sd, u32 *pstatus)
 
 static int saa7110_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 {
-	*std &= determine_norm(sd);
+	*std &= determine_yesrm(sd);
 	return 0;
 }
 
@@ -259,8 +259,8 @@ static int saa7110_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct saa7110 *decoder = to_saa7110(sd);
 
-	if (decoder->norm != std) {
-		decoder->norm = std;
+	if (decoder->yesrm != std) {
+		decoder->yesrm = std;
 		/*saa7110_write(sd, 0x06, 0x03);*/
 		if (std & V4L2_STD_NTSC) {
 			saa7110_write(sd, 0x0D, 0x86);
@@ -293,7 +293,7 @@ static int saa7110_s_routing(struct v4l2_subdev *sd,
 	struct saa7110 *decoder = to_saa7110(sd);
 
 	if (input >= SAA7110_MAX_INPUT) {
-		v4l2_dbg(1, debug, sd, "input=%d not available\n", input);
+		v4l2_dbg(1, debug, sd, "input=%d yest available\n", input);
 		return -EINVAL;
 	}
 	if (decoder->input != input) {
@@ -378,7 +378,7 @@ static int saa7110_probe(struct i2c_client *client,
 		return -ENOMEM;
 	sd = &decoder->sd;
 	v4l2_i2c_subdev_init(sd, client, &saa7110_ops);
-	decoder->norm = V4L2_STD_PAL;
+	decoder->yesrm = V4L2_STD_PAL;
 	decoder->input = 0;
 	decoder->enable = 1;
 	v4l2_ctrl_handler_init(&decoder->hdl, 2);
@@ -422,7 +422,7 @@ static int saa7110_probe(struct i2c_client *client,
 	}
 
 	/*saa7110_selmux(sd,0);*/
-	/*determine_norm(sd);*/
+	/*determine_yesrm(sd);*/
 	/* setup and implicit mode 0 select has been performed */
 
 	return 0;

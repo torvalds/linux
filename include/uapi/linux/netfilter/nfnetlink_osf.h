@@ -14,14 +14,14 @@
 
 #define NF_OSF_LOGLEVEL_ALL		0	/* log all matched fingerprints */
 #define NF_OSF_LOGLEVEL_FIRST		1	/* log only the first matced fingerprint */
-#define NF_OSF_LOGLEVEL_ALL_KNOWN	2	/* do not log unknown packets */
+#define NF_OSF_LOGLEVEL_ALL_KNOWN	2	/* do yest log unkyeswn packets */
 
 #define NF_OSF_TTL_TRUE			0	/* True ip and fingerprint TTL comparison */
 
 /* Check if ip TTL is less than fingerprint one */
 #define NF_OSF_TTL_LESS			1
 
-/* Do not compare ip and fingerprint TTL at all */
+/* Do yest compare ip and fingerprint TTL at all */
 #define NF_OSF_TTL_NOCHECK		2
 
 #define NF_OSF_FLAGMASK		(NF_OSF_GENRE | NF_OSF_TTL | \
@@ -86,13 +86,13 @@ enum iana_options {
 	OSFOPT_POCP,		/* Partial Order Connection Permitted */
 	OSFOPT_POSP,		/* Partial Order Service Profile */
 
-	/* Others are not used in the current OSF */
+	/* Others are yest used in the current OSF */
 	OSFOPT_EMPTY = 255,
 };
 
 /* Initial window size option state machine: multiple of mss, mtu or
  * plain numeric value. Can also be made as plain numeric value which
- * is not a multiple of specified value.
+ * is yest a multiple of specified value.
  */
 enum nf_osf_window_size_options {
 	OSF_WSS_PLAIN	= 0,

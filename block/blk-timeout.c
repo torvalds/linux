@@ -75,7 +75,7 @@ ssize_t part_timeout_store(struct device *dev, struct device_attribute *attr,
  *
  * This function requests that the block layer start recovery for the
  * request by deleting the timer and calling the q's timeout function.
- * LLDDs who implement their own error recovery MAY ignore the timeout
+ * LLDDs who implement their own error recovery MAY igyesre the timeout
  * event if they generated blk_abort_request.
  */
 void blk_abort_request(struct request *req)

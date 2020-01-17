@@ -14,7 +14,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -141,7 +141,7 @@ void __init paging_init(void)
 		swapper_pg_dir[i] = __pgd(0);
 
 	/* make sure the current pgd table points to something sane
-	 * (even if it is most probably not used until the next
+	 * (even if it is most probably yest used until the next
 	 *  switch_mm)
 	 */
 	current_pgd[smp_processor_id()] = init_mm.pgd;
@@ -153,7 +153,7 @@ void __init paging_init(void)
 	zone_sizes_init();
 
 	/* self modifying code ;) */
-	/* Since the old TLB miss handler has been running up until now,
+	/* Since the old TLB miss handler has been running up until yesw,
 	 * the kernel pages are still all RW, so we can still modify the
 	 * text directly... after this change and a TLB flush, the kernel
 	 * pages will become RO.
@@ -189,7 +189,7 @@ void __init paging_init(void)
 	mtspr(SPR_ICBIR, 0x900);
 	mtspr(SPR_ICBIR, 0xa00);
 
-	/* New TLB miss handlers and kernel page tables are in now place.
+	/* New TLB miss handlers and kernel page tables are in yesw place.
 	 * Make sure that page flags get updated for all pages in TLB by
 	 * flushing the TLB and forcing all TLB entries to be recreated
 	 * from their page table flags.

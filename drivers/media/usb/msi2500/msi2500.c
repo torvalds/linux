@@ -34,7 +34,7 @@ MODULE_PARM_DESC(emulated_formats, "enable emulated formats (disappears in futur
  *     bNumEndpoints           1
  *       bEndpointAddress     0x81  EP 1 IN
  *       bmAttributes            1
- *         Transfer Type            Isochronous
+ *         Transfer Type            Isochroyesus
  *       wMaxPacketSize     0x1400  3x 1024 bytes
  *       bInterval               1
  */
@@ -46,7 +46,7 @@ MODULE_PARM_DESC(emulated_formats, "enable emulated formats (disappears in futur
 
 /*
  * TODO: These formats should be moved to V4L2 API. Formats are currently
- * disabled from formats[] table, not visible to userspace.
+ * disabled from formats[] table, yest visible to userspace.
  */
  /* signed 12-bit */
 #define MSI2500_PIX_FMT_SDR_S12         v4l2_fourcc('D', 'S', '1', '2')
@@ -260,7 +260,7 @@ static int msi2500_convert_stream(struct msi2500_dev *dev, u8 *dst, u8 *src,
 		}
 
 		/*
-		 * Dump all unknown 'garbage' data - maybe we will discover
+		 * Dump all unkyeswn 'garbage' data - maybe we will discover
 		 * someday if there is something rational...
 		 */
 		dev_dbg_ratelimited(dev->dev, "%*ph\n", 12, &src[4]);
@@ -305,7 +305,7 @@ static int msi2500_convert_stream(struct msi2500_dev *dev, u8 *dst, u8 *src,
 			break;
 		}
 		case MSI2500_PIX_FMT_SDR_MSI2500_384: /* 384 x IQ samples */
-			/* Dump unknown 'garbage' data */
+			/* Dump unkyeswn 'garbage' data */
 			dev_dbg_ratelimited(dev->dev, "%*ph\n", 24, &src[1000]);
 			memcpy(dst, src, 984);
 			src += 984 + 24;
@@ -357,8 +357,8 @@ static int msi2500_convert_stream(struct msi2500_dev *dev, u8 *dst, u8 *src,
 }
 
 /*
- * This gets called for the Isochronous pipe (stream). This is done in interrupt
- * time, so it has to be fast, not crash, and not stall. Neat.
+ * This gets called for the Isochroyesus pipe (stream). This is done in interrupt
+ * time, so it has to be fast, yest crash, and yest stall. Neat.
  */
 static void msi2500_isoc_handler(struct urb *urb)
 {
@@ -370,7 +370,7 @@ static void msi2500_isoc_handler(struct urb *urb)
 	if (unlikely(urb->status == -ENOENT ||
 		     urb->status == -ECONNRESET ||
 		     urb->status == -ESHUTDOWN)) {
-		dev_dbg(dev->dev, "URB (%p) unlinked %ssynchronously\n",
+		dev_dbg(dev->dev, "URB (%p) unlinked %ssynchroyesusly\n",
 			urb, urb->status == -ENOENT ? "" : "a");
 		return;
 	}
@@ -621,7 +621,7 @@ static void msi2500_buf_queue(struct vb2_buffer *vb)
 						     vb);
 	unsigned long flags;
 
-	/* Check the device has not disconnected between prep and queuing */
+	/* Check the device has yest disconnected between prep and queuing */
 	if (unlikely(!dev->udev)) {
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		return;
@@ -1204,7 +1204,7 @@ static int msi2500_probe(struct usb_interface *intf,
 	dev->vb_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	ret = vb2_queue_init(&dev->vb_queue);
 	if (ret) {
-		dev_err(dev->dev, "Could not initialize vb2 queue\n");
+		dev_err(dev->dev, "Could yest initialize vb2 queue\n");
 		goto err_free_mem;
 	}
 
@@ -1244,7 +1244,7 @@ static int msi2500_probe(struct usb_interface *intf,
 	sd = v4l2_spi_new_subdev(&dev->v4l2_dev, master, &board_info);
 	dev->v4l2_subdev = sd;
 	if (sd == NULL) {
-		dev_err(dev->dev, "cannot get v4l2 subdevice\n");
+		dev_err(dev->dev, "canyest get v4l2 subdevice\n");
 		ret = -ENODEV;
 		goto err_unregister_master;
 	}
@@ -1253,7 +1253,7 @@ static int msi2500_probe(struct usb_interface *intf,
 	v4l2_ctrl_handler_init(&dev->hdl, 0);
 	if (dev->hdl.error) {
 		ret = dev->hdl.error;
-		dev_err(dev->dev, "Could not initialize controls\n");
+		dev_err(dev->dev, "Could yest initialize controls\n");
 		goto err_free_controls;
 	}
 
@@ -1273,8 +1273,8 @@ static int msi2500_probe(struct usb_interface *intf,
 		goto err_unregister_v4l2_dev;
 	}
 	dev_info(dev->dev, "Registered as %s\n",
-		 video_device_node_name(&dev->vdev));
-	dev_notice(dev->dev,
+		 video_device_yesde_name(&dev->vdev));
+	dev_yestice(dev->dev,
 		   "SDR API is still slightly experimental and functionality changes may follow\n");
 	return 0;
 err_free_controls:

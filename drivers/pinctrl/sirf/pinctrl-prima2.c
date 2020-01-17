@@ -258,19 +258,19 @@ static const struct sirfsoc_padmux uart0_padmux = {
 
 static const unsigned uart0_pins[] = { 55, 60, 68, 69 };
 
-static const struct sirfsoc_muxmask uart0_nostreamctrl_muxmask[] = {
+static const struct sirfsoc_muxmask uart0_yesstreamctrl_muxmask[] = {
 	{
 		.group = 2,
 		.mask = BIT(4) | BIT(5),
 	},
 };
 
-static const struct sirfsoc_padmux uart0_nostreamctrl_padmux = {
-	.muxmask_counts = ARRAY_SIZE(uart0_nostreamctrl_muxmask),
-	.muxmask = uart0_nostreamctrl_muxmask,
+static const struct sirfsoc_padmux uart0_yesstreamctrl_padmux = {
+	.muxmask_counts = ARRAY_SIZE(uart0_yesstreamctrl_muxmask),
+	.muxmask = uart0_yesstreamctrl_muxmask,
 };
 
-static const unsigned uart0_nostreamctrl_pins[] = { 68, 69 };
+static const unsigned uart0_yesstreamctrl_pins[] = { 68, 69 };
 
 static const struct sirfsoc_muxmask uart1_muxmask[] = {
 	{
@@ -303,19 +303,19 @@ static const struct sirfsoc_padmux uart2_padmux = {
 
 static const unsigned uart2_pins[] = { 48, 50, 56, 59 };
 
-static const struct sirfsoc_muxmask uart2_nostreamctrl_muxmask[] = {
+static const struct sirfsoc_muxmask uart2_yesstreamctrl_muxmask[] = {
 	{
 		.group = 1,
 		.mask = BIT(16) | BIT(18),
 	},
 };
 
-static const struct sirfsoc_padmux uart2_nostreamctrl_padmux = {
-	.muxmask_counts = ARRAY_SIZE(uart2_nostreamctrl_muxmask),
-	.muxmask = uart2_nostreamctrl_muxmask,
+static const struct sirfsoc_padmux uart2_yesstreamctrl_padmux = {
+	.muxmask_counts = ARRAY_SIZE(uart2_yesstreamctrl_muxmask),
+	.muxmask = uart2_yesstreamctrl_muxmask,
 };
 
-static const unsigned uart2_nostreamctrl_pins[] = { 48, 50 };
+static const unsigned uart2_yesstreamctrl_pins[] = { 48, 50 };
 
 static const struct sirfsoc_muxmask sdmmc3_muxmask[] = {
 	{
@@ -434,20 +434,20 @@ static const struct sirfsoc_padmux i2s_padmux = {
 
 static const unsigned i2s_pins[] = { 43, 44, 45, 46 };
 
-static const struct sirfsoc_muxmask i2s_no_din_muxmask[] = {
+static const struct sirfsoc_muxmask i2s_yes_din_muxmask[] = {
 	{
 		.group = 1,
 		.mask = BIT(11) | BIT(12) | BIT(14),
 	},
 };
 
-static const struct sirfsoc_padmux i2s_no_din_padmux = {
-	.muxmask_counts = ARRAY_SIZE(i2s_no_din_muxmask),
-	.muxmask = i2s_no_din_muxmask,
+static const struct sirfsoc_padmux i2s_yes_din_padmux = {
+	.muxmask_counts = ARRAY_SIZE(i2s_yes_din_muxmask),
+	.muxmask = i2s_yes_din_muxmask,
 	.ctrlreg = SIRFSOC_RSC_PIN_MUX,
 };
 
-static const unsigned i2s_no_din_pins[] = { 43, 44, 46 };
+static const unsigned i2s_yes_din_pins[] = { 43, 44, 46 };
 
 static const struct sirfsoc_muxmask i2s_6chn_muxmask[] = {
 	{
@@ -600,19 +600,19 @@ static const struct sirfsoc_padmux usp0_only_urfs_padmux = {
 
 static const unsigned usp0_only_urfs_pins[] = { 51, 52, 53, 55 };
 
-static const struct sirfsoc_muxmask usp0_uart_nostreamctrl_muxmask[] = {
+static const struct sirfsoc_muxmask usp0_uart_yesstreamctrl_muxmask[] = {
 	{
 		.group = 1,
 		.mask = BIT(20) | BIT(21),
 	},
 };
 
-static const struct sirfsoc_padmux usp0_uart_nostreamctrl_padmux = {
-	.muxmask_counts = ARRAY_SIZE(usp0_uart_nostreamctrl_muxmask),
-	.muxmask = usp0_uart_nostreamctrl_muxmask,
+static const struct sirfsoc_padmux usp0_uart_yesstreamctrl_padmux = {
+	.muxmask_counts = ARRAY_SIZE(usp0_uart_yesstreamctrl_muxmask),
+	.muxmask = usp0_uart_yesstreamctrl_muxmask,
 };
 
-static const unsigned usp0_uart_nostreamctrl_pins[] = { 52, 53 };
+static const unsigned usp0_uart_yesstreamctrl_pins[] = { 52, 53 };
 
 static const struct sirfsoc_muxmask usp1_muxmask[] = {
 	{
@@ -631,19 +631,19 @@ static const struct sirfsoc_padmux usp1_padmux = {
 
 static const unsigned usp1_pins[] = { 56, 57, 58, 59, 60 };
 
-static const struct sirfsoc_muxmask usp1_uart_nostreamctrl_muxmask[] = {
+static const struct sirfsoc_muxmask usp1_uart_yesstreamctrl_muxmask[] = {
 	{
 		.group = 1,
 		.mask = BIT(25) | BIT(26),
 	},
 };
 
-static const struct sirfsoc_padmux usp1_uart_nostreamctrl_padmux = {
-	.muxmask_counts = ARRAY_SIZE(usp1_uart_nostreamctrl_muxmask),
-	.muxmask = usp1_uart_nostreamctrl_muxmask,
+static const struct sirfsoc_padmux usp1_uart_yesstreamctrl_padmux = {
+	.muxmask_counts = ARRAY_SIZE(usp1_uart_yesstreamctrl_muxmask),
+	.muxmask = usp1_uart_yesstreamctrl_muxmask,
 };
 
-static const unsigned usp1_uart_nostreamctrl_pins[] = { 57, 58 };
+static const unsigned usp1_uart_yesstreamctrl_pins[] = { 57, 58 };
 
 static const struct sirfsoc_muxmask usp2_muxmask[] = {
 	{
@@ -665,19 +665,19 @@ static const struct sirfsoc_padmux usp2_padmux = {
 
 static const unsigned usp2_pins[] = { 61, 62, 63, 64, 65 };
 
-static const struct sirfsoc_muxmask usp2_uart_nostreamctrl_muxmask[] = {
+static const struct sirfsoc_muxmask usp2_uart_yesstreamctrl_muxmask[] = {
 	{
 		.group = 1,
 		.mask = BIT(30) | BIT(31),
 	},
 };
 
-static const struct sirfsoc_padmux usp2_uart_nostreamctrl_padmux = {
-	.muxmask_counts = ARRAY_SIZE(usp2_uart_nostreamctrl_muxmask),
-	.muxmask = usp2_uart_nostreamctrl_muxmask,
+static const struct sirfsoc_padmux usp2_uart_yesstreamctrl_padmux = {
+	.muxmask_counts = ARRAY_SIZE(usp2_uart_yesstreamctrl_muxmask),
+	.muxmask = usp2_uart_yesstreamctrl_muxmask,
 };
 
-static const unsigned usp2_uart_nostreamctrl_pins[] = { 62, 63 };
+static const unsigned usp2_uart_yesstreamctrl_pins[] = { 62, 63 };
 
 static const struct sirfsoc_muxmask nand_muxmask[] = {
 	{
@@ -951,21 +951,21 @@ static const struct sirfsoc_pin_group sirfsoc_pin_groups[] = {
 	SIRFSOC_PIN_GROUP("lcd_24bitsgrp", lcd_24bits_pins),
 	SIRFSOC_PIN_GROUP("lcdrom_grp", lcdrom_pins),
 	SIRFSOC_PIN_GROUP("uart0grp", uart0_pins),
-	SIRFSOC_PIN_GROUP("uart0_nostreamctrlgrp", uart0_nostreamctrl_pins),
+	SIRFSOC_PIN_GROUP("uart0_yesstreamctrlgrp", uart0_yesstreamctrl_pins),
 	SIRFSOC_PIN_GROUP("uart1grp", uart1_pins),
 	SIRFSOC_PIN_GROUP("uart2grp", uart2_pins),
-	SIRFSOC_PIN_GROUP("uart2_nostreamctrlgrp", uart2_nostreamctrl_pins),
+	SIRFSOC_PIN_GROUP("uart2_yesstreamctrlgrp", uart2_yesstreamctrl_pins),
 	SIRFSOC_PIN_GROUP("usp0grp", usp0_pins),
-	SIRFSOC_PIN_GROUP("usp0_uart_nostreamctrl_grp",
-					usp0_uart_nostreamctrl_pins),
+	SIRFSOC_PIN_GROUP("usp0_uart_yesstreamctrl_grp",
+					usp0_uart_yesstreamctrl_pins),
 	SIRFSOC_PIN_GROUP("usp0_only_utfs_grp", usp0_only_utfs_pins),
 	SIRFSOC_PIN_GROUP("usp0_only_urfs_grp", usp0_only_urfs_pins),
 	SIRFSOC_PIN_GROUP("usp1grp", usp1_pins),
-	SIRFSOC_PIN_GROUP("usp1_uart_nostreamctrl_grp",
-					usp1_uart_nostreamctrl_pins),
+	SIRFSOC_PIN_GROUP("usp1_uart_yesstreamctrl_grp",
+					usp1_uart_yesstreamctrl_pins),
 	SIRFSOC_PIN_GROUP("usp2grp", usp2_pins),
-	SIRFSOC_PIN_GROUP("usp2_uart_nostreamctrl_grp",
-					usp2_uart_nostreamctrl_pins),
+	SIRFSOC_PIN_GROUP("usp2_uart_yesstreamctrl_grp",
+					usp2_uart_yesstreamctrl_pins),
 	SIRFSOC_PIN_GROUP("i2c0grp", i2c0_pins),
 	SIRFSOC_PIN_GROUP("i2c1grp", i2c1_pins),
 	SIRFSOC_PIN_GROUP("pwm0grp", pwm0_pins),
@@ -991,7 +991,7 @@ static const struct sirfsoc_pin_group sirfsoc_pin_groups[] = {
 	SIRFSOC_PIN_GROUP("i2smclkgrp", i2s_mclk_pins),
 	SIRFSOC_PIN_GROUP("i2s_ext_clk_inputgrp", i2s_ext_clk_input_pins),
 	SIRFSOC_PIN_GROUP("i2sgrp", i2s_pins),
-	SIRFSOC_PIN_GROUP("i2s_no_dingrp", i2s_no_din_pins),
+	SIRFSOC_PIN_GROUP("i2s_yes_dingrp", i2s_yes_din_pins),
 	SIRFSOC_PIN_GROUP("i2s_6chngrp", i2s_6chn_pins),
 	SIRFSOC_PIN_GROUP("ac97grp", ac97_pins),
 	SIRFSOC_PIN_GROUP("nandgrp", nand_pins),
@@ -1005,23 +1005,23 @@ static const char * const lcd_18bitsgrp[] = { "lcd_18bitsgrp" };
 static const char * const lcd_24bitsgrp[] = { "lcd_24bitsgrp" };
 static const char * const lcdromgrp[] = { "lcdromgrp" };
 static const char * const uart0grp[] = { "uart0grp" };
-static const char * const uart0_nostreamctrlgrp[] = { "uart0_nostreamctrlgrp" };
+static const char * const uart0_yesstreamctrlgrp[] = { "uart0_yesstreamctrlgrp" };
 static const char * const uart1grp[] = { "uart1grp" };
 static const char * const uart2grp[] = { "uart2grp" };
-static const char * const uart2_nostreamctrlgrp[] = { "uart2_nostreamctrlgrp" };
+static const char * const uart2_yesstreamctrlgrp[] = { "uart2_yesstreamctrlgrp" };
 static const char * const usp0grp[] = { "usp0grp" };
-static const char * const usp0_uart_nostreamctrl_grp[] = {
-	"usp0_uart_nostreamctrl_grp"
+static const char * const usp0_uart_yesstreamctrl_grp[] = {
+	"usp0_uart_yesstreamctrl_grp"
 };
 static const char * const usp0_only_utfs_grp[] = { "usp0_only_utfs_grp" };
 static const char * const usp0_only_urfs_grp[] = { "usp0_only_urfs_grp" };
 static const char * const usp1grp[] = { "usp1grp" };
-static const char * const usp1_uart_nostreamctrl_grp[] = {
-	"usp1_uart_nostreamctrl_grp"
+static const char * const usp1_uart_yesstreamctrl_grp[] = {
+	"usp1_uart_yesstreamctrl_grp"
 };
 static const char * const usp2grp[] = { "usp2grp" };
-static const char * const usp2_uart_nostreamctrl_grp[] = {
-	"usp2_uart_nostreamctrl_grp"
+static const char * const usp2_uart_yesstreamctrl_grp[] = {
+	"usp2_uart_yesstreamctrl_grp"
 };
 static const char * const i2c0grp[] = { "i2c0grp" };
 static const char * const i2c1grp[] = { "i2c1grp" };
@@ -1049,7 +1049,7 @@ static const char * const pulse_countgrp[] = { "pulse_countgrp" };
 static const char * const i2smclkgrp[] = { "i2smclkgrp" };
 static const char * const i2s_ext_clk_inputgrp[] = { "i2s_ext_clk_inputgrp" };
 static const char * const i2sgrp[] = { "i2sgrp" };
-static const char * const i2s_no_dingrp[] = { "i2s_no_dingrp" };
+static const char * const i2s_yes_dingrp[] = { "i2s_yes_dingrp" };
 static const char * const i2s_6chngrp[] = { "i2s_6chngrp" };
 static const char * const ac97grp[] = { "ac97grp" };
 static const char * const nandgrp[] = { "nandgrp" };
@@ -1063,25 +1063,25 @@ static const struct sirfsoc_pmx_func sirfsoc_pmx_functions[] = {
 	SIRFSOC_PMX_FUNCTION("lcd_24bits", lcd_24bitsgrp, lcd_24bits_padmux),
 	SIRFSOC_PMX_FUNCTION("lcdrom", lcdromgrp, lcdrom_padmux),
 	SIRFSOC_PMX_FUNCTION("uart0", uart0grp, uart0_padmux),
-	SIRFSOC_PMX_FUNCTION("uart0_nostreamctrl",
-		uart0_nostreamctrlgrp, uart0_nostreamctrl_padmux),
+	SIRFSOC_PMX_FUNCTION("uart0_yesstreamctrl",
+		uart0_yesstreamctrlgrp, uart0_yesstreamctrl_padmux),
 	SIRFSOC_PMX_FUNCTION("uart1", uart1grp, uart1_padmux),
 	SIRFSOC_PMX_FUNCTION("uart2", uart2grp, uart2_padmux),
-	SIRFSOC_PMX_FUNCTION("uart2_nostreamctrl",
-		uart2_nostreamctrlgrp, uart2_nostreamctrl_padmux),
+	SIRFSOC_PMX_FUNCTION("uart2_yesstreamctrl",
+		uart2_yesstreamctrlgrp, uart2_yesstreamctrl_padmux),
 	SIRFSOC_PMX_FUNCTION("usp0", usp0grp, usp0_padmux),
-	SIRFSOC_PMX_FUNCTION("usp0_uart_nostreamctrl",
-		usp0_uart_nostreamctrl_grp, usp0_uart_nostreamctrl_padmux),
+	SIRFSOC_PMX_FUNCTION("usp0_uart_yesstreamctrl",
+		usp0_uart_yesstreamctrl_grp, usp0_uart_yesstreamctrl_padmux),
 	SIRFSOC_PMX_FUNCTION("usp0_only_utfs",
 		usp0_only_utfs_grp, usp0_only_utfs_padmux),
 	SIRFSOC_PMX_FUNCTION("usp0_only_urfs",
 		usp0_only_urfs_grp, usp0_only_urfs_padmux),
 	SIRFSOC_PMX_FUNCTION("usp1", usp1grp, usp1_padmux),
-	SIRFSOC_PMX_FUNCTION("usp1_uart_nostreamctrl",
-		usp1_uart_nostreamctrl_grp, usp1_uart_nostreamctrl_padmux),
+	SIRFSOC_PMX_FUNCTION("usp1_uart_yesstreamctrl",
+		usp1_uart_yesstreamctrl_grp, usp1_uart_yesstreamctrl_padmux),
 	SIRFSOC_PMX_FUNCTION("usp2", usp2grp, usp2_padmux),
-	SIRFSOC_PMX_FUNCTION("usp2_uart_nostreamctrl",
-		usp2_uart_nostreamctrl_grp, usp2_uart_nostreamctrl_padmux),
+	SIRFSOC_PMX_FUNCTION("usp2_uart_yesstreamctrl",
+		usp2_uart_yesstreamctrl_grp, usp2_uart_yesstreamctrl_padmux),
 	SIRFSOC_PMX_FUNCTION("i2c0", i2c0grp, i2c0_padmux),
 	SIRFSOC_PMX_FUNCTION("i2c1", i2c1grp, i2c1_padmux),
 	SIRFSOC_PMX_FUNCTION("pwm0", pwm0grp, pwm0_padmux),
@@ -1111,7 +1111,7 @@ static const struct sirfsoc_pmx_func sirfsoc_pmx_functions[] = {
 	SIRFSOC_PMX_FUNCTION("i2s_ext_clk_input", i2s_ext_clk_inputgrp,
 						i2s_ext_clk_input_padmux),
 	SIRFSOC_PMX_FUNCTION("i2s", i2sgrp, i2s_padmux),
-	SIRFSOC_PMX_FUNCTION("i2s_no_din", i2s_no_dingrp, i2s_no_din_padmux),
+	SIRFSOC_PMX_FUNCTION("i2s_yes_din", i2s_yes_dingrp, i2s_yes_din_padmux),
 	SIRFSOC_PMX_FUNCTION("i2s_6chn", i2s_6chngrp, i2s_6chn_padmux),
 	SIRFSOC_PMX_FUNCTION("ac97", ac97grp, ac97_padmux),
 	SIRFSOC_PMX_FUNCTION("nand", nandgrp, nand_padmux),

@@ -168,7 +168,7 @@ static void sclp_request_timeout_restart(struct timer_list *unused)
 	sclp_request_timeout(true);
 }
 
-static void sclp_request_timeout_normal(struct timer_list *unused)
+static void sclp_request_timeout_yesrmal(struct timer_list *unused)
 {
 	sclp_request_timeout(false);
 }
@@ -189,7 +189,7 @@ static void sclp_request_timeout(bool force_restart)
 		}
 	} else {
 		__sclp_set_request_timer(SCLP_BUSY_INTERVAL * HZ,
-					 sclp_request_timeout_normal);
+					 sclp_request_timeout_yesrmal);
 	}
 	spin_unlock_irqrestore(&sclp_lock, flags);
 	sclp_process_queue();
@@ -219,16 +219,16 @@ static unsigned long __sclp_req_queue_find_next_timeout(void)
  */
 static struct sclp_req *__sclp_req_queue_remove_expired_req(void)
 {
-	unsigned long flags, now;
+	unsigned long flags, yesw;
 	struct sclp_req *req;
 
 	spin_lock_irqsave(&sclp_lock, flags);
-	now = jiffies;
+	yesw = jiffies;
 	/* Don't need list_for_each_safe because we break out after list_del */
 	list_for_each_entry(req, &sclp_req_queue, list) {
 		if (!req->queue_expires)
 			continue;
-		if (time_before_eq(req->queue_expires, now)) {
+		if (time_before_eq(req->queue_expires, yesw)) {
 			if (req->status == SCLP_REQ_QUEUED) {
 				req->status = SCLP_REQ_QUEUED_TIMEOUT;
 				list_del(&req->list);
@@ -266,7 +266,7 @@ static void sclp_req_queue_timeout(struct timer_list *unused)
 }
 
 /* Try to start a request. Return zero if the request was successfully
- * started or if it will be started at a later time. Return non-zero otherwise.
+ * started or if it will be started at a later time. Return yesn-zero otherwise.
  * Called while sclp_lock is locked. */
 static int
 __sclp_start_request(struct sclp_req *req)
@@ -289,7 +289,7 @@ __sclp_start_request(struct sclp_req *req)
 	} else if (rc == -EBUSY) {
 		/* Try again later */
 		__sclp_set_request_timer(SCLP_BUSY_INTERVAL * HZ,
-					 sclp_request_timeout_normal);
+					 sclp_request_timeout_yesrmal);
 		return 0;
 	}
 	/* Request failed */
@@ -320,10 +320,10 @@ sclp_process_queue(void)
 			break;
 		/* Request failed */
 		if (req->start_count > 1) {
-			/* Cannot abort already submitted request - could still
+			/* Canyest abort already submitted request - could still
 			 * be active at the SCLP */
 			__sclp_set_request_timer(SCLP_BUSY_INTERVAL * HZ,
-						 sclp_request_timeout_normal);
+						 sclp_request_timeout_yesrmal);
 			break;
 		}
 do_post:
@@ -351,7 +351,7 @@ static int __sclp_can_add_request(struct sclp_req *req)
 	return 1;
 }
 
-/* Queue a new request. Return zero on success, non-zero otherwise. */
+/* Queue a new request. Return zero on success, yesn-zero otherwise. */
 int
 sclp_add_request(struct sclp_req *req)
 {
@@ -394,7 +394,7 @@ out:
 EXPORT_SYMBOL(sclp_add_request);
 
 /* Dispatch events found in request buffer to registered listeners. Return 0
- * if all events were dispatched, non-zero otherwise. */
+ * if all events were dispatched, yesn-zero otherwise. */
 static int
 sclp_dispatch_evbufs(struct sccb_header *sccb)
 {
@@ -528,7 +528,7 @@ sclp_tod_from_jiffies(unsigned long jiffies)
 }
 
 /* Wait until a currently running request finished. Note: while this function
- * is running, no timers are served on the calling CPU. */
+ * is running, yes timers are served on the calling CPU. */
 void
 sclp_sync_wait(void)
 {
@@ -670,7 +670,7 @@ __sclp_get_mask(sccb_mask_t *receive_mask, sccb_mask_t *send_mask)
 	}
 }
 
-/* Register event listener. Return 0 on success, non-zero otherwise. */
+/* Register event listener. Return 0 on success, yesn-zero otherwise. */
 int
 sclp_register(struct sclp_register *reg)
 {
@@ -774,9 +774,9 @@ __sclp_make_init_req(sccb_mask_t receive_mask, sccb_mask_t send_mask)
 	sccb_set_sclp_send_mask(sccb, 0);
 }
 
-/* Start init mask request. If calculate is non-zero, calculate the mask as
+/* Start init mask request. If calculate is yesn-zero, calculate the mask as
  * requested by registered listeners. Use zero mask otherwise. Return 0 on
- * success, non-zero otherwise. */
+ * success, yesn-zero otherwise. */
 static int
 sclp_init_mask(int calculate)
 {
@@ -846,7 +846,7 @@ sclp_init_mask(int calculate)
 }
 
 /* Deactivate SCLP interface. On success, new requests will be rejected,
- * events will no longer be dispatched. Return 0 on success, non-zero
+ * events will yes longer be dispatched. Return 0 on success, yesn-zero
  * otherwise. */
 int
 sclp_deactivate(void)
@@ -876,7 +876,7 @@ EXPORT_SYMBOL(sclp_deactivate);
 
 /* Reactivate SCLP interface after sclp_deactivate. On success, new
  * requests will be accepted, events will be dispatched again. Return 0 on
- * success, non-zero otherwise. */
+ * success, yesn-zero otherwise. */
 int
 sclp_reactivate(void)
 {
@@ -941,8 +941,8 @@ sclp_check_timeout(struct timer_list *unused)
 }
 
 /* Perform a check of the SCLP interface. Return zero if the interface is
- * available and there are no pending requests from a previous instance.
- * Return non-zero otherwise. */
+ * available and there are yes pending requests from a previous instance.
+ * Return yesn-zero otherwise. */
 static int
 sclp_check_interface(void)
 {
@@ -1000,18 +1000,18 @@ sclp_check_interface(void)
 /* Reboot event handler. Reset send and receive mask to prevent pending SCLP
  * events from interfering with rebooted system. */
 static int
-sclp_reboot_event(struct notifier_block *this, unsigned long event, void *ptr)
+sclp_reboot_event(struct yestifier_block *this, unsigned long event, void *ptr)
 {
 	sclp_deactivate();
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block sclp_reboot_notifier = {
-	.notifier_call = sclp_reboot_event
+static struct yestifier_block sclp_reboot_yestifier = {
+	.yestifier_call = sclp_reboot_event
 };
 
 /*
- * Suspend/resume SCLP notifier implementation
+ * Suspend/resume SCLP yestifier implementation
  */
 
 static void sclp_pm_event(enum sclp_pm_event sclp_pm_event, int rollback)
@@ -1161,7 +1161,7 @@ static struct platform_driver sclp_pdrv = {
 
 static struct platform_device *sclp_pdev;
 
-/* Initialize SCLP driver. Return zero if driver is operational, non-zero
+/* Initialize SCLP driver. Return zero if driver is operational, yesn-zero
  * otherwise. */
 static int
 sclp_init(void)
@@ -1190,13 +1190,13 @@ sclp_init(void)
 	if (rc)
 		goto fail_init_state_uninitialized;
 	/* Register reboot handler */
-	rc = register_reboot_notifier(&sclp_reboot_notifier);
+	rc = register_reboot_yestifier(&sclp_reboot_yestifier);
 	if (rc)
 		goto fail_init_state_uninitialized;
 	/* Register interrupt handler */
 	rc = register_external_irq(EXT_IRQ_SERVICE_SIG, sclp_interrupt_handler);
 	if (rc)
-		goto fail_unregister_reboot_notifier;
+		goto fail_unregister_reboot_yestifier;
 	sclp_init_state = sclp_init_state_initialized;
 	spin_unlock_irqrestore(&sclp_lock, flags);
 	/* Enable service-signal external interruption - needs to happen with
@@ -1205,8 +1205,8 @@ sclp_init(void)
 	sclp_init_mask(1);
 	return 0;
 
-fail_unregister_reboot_notifier:
-	unregister_reboot_notifier(&sclp_reboot_notifier);
+fail_unregister_reboot_yestifier:
+	unregister_reboot_yestifier(&sclp_reboot_yestifier);
 fail_init_state_uninitialized:
 	sclp_init_state = sclp_init_state_uninitialized;
 	free_page((unsigned long) sclp_read_sccb);
@@ -1217,10 +1217,10 @@ fail_unlock:
 }
 
 /*
- * SCLP panic notifier: If we are suspended, we thaw SCLP in order to be able
+ * SCLP panic yestifier: If we are suspended, we thaw SCLP in order to be able
  * to print the panic message.
  */
-static int sclp_panic_notify(struct notifier_block *self,
+static int sclp_panic_yestify(struct yestifier_block *self,
 			     unsigned long event, void *data)
 {
 	if (sclp_suspend_state == sclp_suspend_state_suspended)
@@ -1228,8 +1228,8 @@ static int sclp_panic_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block sclp_on_panic_nb = {
-	.notifier_call = sclp_panic_notify,
+static struct yestifier_block sclp_on_panic_nb = {
+	.yestifier_call = sclp_panic_yestify,
 	.priority = SCLP_PANIC_PRIO,
 };
 
@@ -1246,7 +1246,7 @@ static __init int sclp_initcall(void)
 	if (rc)
 		goto fail_platform_driver_unregister;
 
-	rc = atomic_notifier_chain_register(&panic_notifier_list,
+	rc = atomic_yestifier_chain_register(&panic_yestifier_list,
 					    &sclp_on_panic_nb);
 	if (rc)
 		goto fail_platform_device_unregister;

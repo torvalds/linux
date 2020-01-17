@@ -5,9 +5,9 @@
  * Copyright (C) 2010 Samsung Electronics
  * Author: Michal Nazarewicz <mina86@mina86.com>
  *
- * Based on inode.c (GadgetFS) which was:
+ * Based on iyesde.c (GadgetFS) which was:
  * Copyright (C) 2003-2004 David Brownell
- * Copyright (C) 2003 Agilent Technologies
+ * Copyright (C) 2003 Agilent Techyeslogies
  */
 
 
@@ -142,12 +142,12 @@ struct ffs_epfile {
 	 * The pointer is initialised with NULL value and may be set by
 	 * __ffs_epfile_read_data function to point to a temporary buffer.
 	 *
-	 * In normal operation, calls to __ffs_epfile_read_buffered will consume
+	 * In yesrmal operation, calls to __ffs_epfile_read_buffered will consume
 	 * data from said buffer and eventually free it.  Importantly, while the
 	 * function is using the buffer, it sets the pointer to NULL.  This is
 	 * all right since __ffs_epfile_read_data and __ffs_epfile_read_buffered
 	 * can never run concurrently (they are synchronised by epfile->mutex)
-	 * so the latter will not assign a new value to the pointer.
+	 * so the latter will yest assign a new value to the pointer.
 	 *
 	 * Meanwhile ffs_func_eps_disable frees the buffer (if the pointer is
 	 * valid) and sets the pointer to READ_BUFFER_DROP value.  This special
@@ -156,27 +156,27 @@ struct ffs_epfile {
 	 *
 	 * Once __ffs_epfile_read_data is about to finish it will try to set the
 	 * pointer back to its old value (as described above), but seeing as the
-	 * pointer is not-NULL (namely READ_BUFFER_DROP) it will instead free
+	 * pointer is yest-NULL (namely READ_BUFFER_DROP) it will instead free
 	 * the buffer.
 	 *
 	 * == State transitions ==
 	 *
 	 * • ptr == NULL:  (initial state)
 	 *   ◦ __ffs_epfile_read_buffer_free: go to ptr == DROP
-	 *   ◦ __ffs_epfile_read_buffered:    nop
+	 *   ◦ __ffs_epfile_read_buffered:    yesp
 	 *   ◦ __ffs_epfile_read_data allocates temp buffer: go to ptr == buf
-	 *   ◦ reading finishes:              n/a, not in ‘and reading’ state
+	 *   ◦ reading finishes:              n/a, yest in ‘and reading’ state
 	 * • ptr == DROP:
-	 *   ◦ __ffs_epfile_read_buffer_free: nop
+	 *   ◦ __ffs_epfile_read_buffer_free: yesp
 	 *   ◦ __ffs_epfile_read_buffered:    go to ptr == NULL
-	 *   ◦ __ffs_epfile_read_data allocates temp buffer: free buf, nop
-	 *   ◦ reading finishes:              n/a, not in ‘and reading’ state
+	 *   ◦ __ffs_epfile_read_data allocates temp buffer: free buf, yesp
+	 *   ◦ reading finishes:              n/a, yest in ‘and reading’ state
 	 * • ptr == buf:
 	 *   ◦ __ffs_epfile_read_buffer_free: free buf, go to ptr == DROP
 	 *   ◦ __ffs_epfile_read_buffered:    go to ptr == NULL and reading
 	 *   ◦ __ffs_epfile_read_data:        n/a, __ffs_epfile_read_buffered
 	 *                                    is always called first
-	 *   ◦ reading finishes:              n/a, not in ‘and reading’ state
+	 *   ◦ reading finishes:              n/a, yest in ‘and reading’ state
 	 * • ptr == NULL and reading:
 	 *   ◦ __ffs_epfile_read_buffer_free: go to ptr == DROP and reading
 	 *   ◦ __ffs_epfile_read_buffered:    n/a, mutex is held
@@ -185,7 +185,7 @@ struct ffs_epfile {
 	 *     … all data read:               free buf, go to ptr == NULL
 	 *     … otherwise:                   go to ptr == buf and reading
 	 * • ptr == DROP and reading:
-	 *   ◦ __ffs_epfile_read_buffer_free: nop
+	 *   ◦ __ffs_epfile_read_buffer_free: yesp
 	 *   ◦ __ffs_epfile_read_buffered:    n/a, mutex is held
 	 *   ◦ __ffs_epfile_read_data:        n/a, mutex is held
 	 *   ◦ reading finishes:              free buf, go to ptr == DROP
@@ -257,10 +257,10 @@ static void ffs_closed(struct ffs_data *ffs);
 
 /* Misc helper functions ****************************************************/
 
-static int ffs_mutex_lock(struct mutex *mutex, unsigned nonblock)
-	__attribute__((warn_unused_result, nonnull));
+static int ffs_mutex_lock(struct mutex *mutex, unsigned yesnblock)
+	__attribute__((warn_unused_result, yesnnull));
 static char *ffs_prepare_buffer(const char __user *buf, size_t len)
-	__attribute__((warn_unused_result, nonnull));
+	__attribute__((warn_unused_result, yesnnull));
 
 
 /* Control file aka ep0 *****************************************************/
@@ -287,7 +287,7 @@ static int __ffs_ep0_queue_wait(struct ffs_data *ffs, char *data, size_t len)
 
 	/*
 	 * UDC layer requires to provide a buffer even for ZLP, but should
-	 * not use it at all. Let's provide some poisoned pointer to catch
+	 * yest use it at all. Let's provide some poisoned pointer to catch
 	 * possible bug in the driver.
 	 */
 	if (req->buf == NULL)
@@ -417,7 +417,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 			break;
 		}
 
-		/* FFS_SETUP_PENDING and not stall */
+		/* FFS_SETUP_PENDING and yest stall */
 		len = min(len, (size_t)le16_to_cpu(ffs->ev.setup.wLength));
 
 		spin_unlock_irq(&ffs->ev.waitq.lock);
@@ -437,7 +437,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 		 * to check for that.  If that happened we copied data
 		 * from user space in vain but it's unlikely.
 		 *
-		 * For sure we are not in FFS_NO_SETUP since this is
+		 * For sure we are yest in FFS_NO_SETUP since this is
 		 * the only place FFS_SETUP_PENDING -> FFS_NO_SETUP
 		 * transition can be performed and it's protected by
 		 * mutex.
@@ -469,7 +469,7 @@ static ssize_t __ffs_ep0_read_events(struct ffs_data *ffs, char __user *buf,
 	__releases(&ffs->ev.waitq.lock)
 {
 	/*
-	 * n cannot be bigger than ffs->ev.count, which cannot be bigger than
+	 * n canyest be bigger than ffs->ev.count, which canyest be bigger than
 	 * size of ffs->ev.types array (which is four) so that's how much space
 	 * we reserve.
 	 */
@@ -602,9 +602,9 @@ done_mutex:
 	return ret;
 }
 
-static int ffs_ep0_open(struct inode *inode, struct file *file)
+static int ffs_ep0_open(struct iyesde *iyesde, struct file *file)
 {
-	struct ffs_data *ffs = inode->i_private;
+	struct ffs_data *ffs = iyesde->i_private;
 
 	ENTER();
 
@@ -617,7 +617,7 @@ static int ffs_ep0_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ffs_ep0_release(struct inode *inode, struct file *file)
+static int ffs_ep0_release(struct iyesde *iyesde, struct file *file)
 {
 	struct ffs_data *ffs = file->private_data;
 
@@ -690,7 +690,7 @@ static __poll_t ffs_ep0_poll(struct file *file, poll_table *wait)
 }
 
 static const struct file_operations ffs_ep0_operations = {
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 
 	.open =		ffs_ep0_open,
 	.write =	ffs_ep0_write,
@@ -734,19 +734,19 @@ static ssize_t ffs_copy_to_iter(void *data, int data_len, struct iov_iter *iter)
 	 * internally uses a larger, aligned buffer so that such UDCs are happy.
 	 *
 	 * Unfortunately, this means that host may send more data than was
-	 * requested in read(2) system call.  f_fs doesn’t know what to do with
+	 * requested in read(2) system call.  f_fs doesn’t kyesw what to do with
 	 * that excess data so it simply drops it.
 	 *
-	 * Was the buffer aligned in the first place, no such problem would
+	 * Was the buffer aligned in the first place, yes such problem would
 	 * happen.
 	 *
-	 * Data may be dropped only in AIO reads.  Synchronous reads are handled
+	 * Data may be dropped only in AIO reads.  Synchroyesus reads are handled
 	 * by splitting a request into multiple parts.  This splitting may still
 	 * be a problem though so it’s likely best to align the buffer
-	 * regardless of it being AIO or not..
+	 * regardless of it being AIO or yest..
 	 *
 	 * This only affects OUT endpoints, i.e. reading data with a read(2),
-	 * aio_read(2) etc. system calls.  Writing data to an IN endpoint is not
+	 * aio_read(2) etc. system calls.  Writing data to an IN endpoint is yest
 	 * affected.
 	 */
 	pr_err("functionfs read size %d > requested size %zd, dropping excess data. "
@@ -874,7 +874,7 @@ static ssize_t __ffs_epfile_read_buffered(struct ffs_epfile *epfile,
 					  struct iov_iter *iter)
 {
 	/*
-	 * Null out epfile->read_buffer so ffs_func_eps_disable does not free
+	 * Null out epfile->read_buffer so ffs_func_eps_disable does yest free
 	 * the buffer while we are using it.  See comment in struct ffs_epfile
 	 * for full read_buffer pointer synchronisation story.
 	 */
@@ -981,8 +981,8 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 
 		/*
 		 * Do we have buffered data from previous partial read?  Check
-		 * that for synchronous case only because we do not have
-		 * facility to ‘wake up’ a pending asynchronous read and push
+		 * that for synchroyesus case only because we do yest have
+		 * facility to ‘wake up’ a pending asynchroyesus read and push
 		 * buffered data to it which we would need to make things behave
 		 * consistently.
 		 */
@@ -994,7 +994,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 
 		/*
 		 * if we _do_ wait above, the epfile->ffs->gadget might be NULL
-		 * before the waiting completes, so do not assign to 'gadget'
+		 * before the waiting completes, so do yest assign to 'gadget'
 		 * earlier
 		 */
 		gadget = epfile->ffs->gadget;
@@ -1044,7 +1044,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 		 * compilers complain about this situation.
 		 * In order to keep the code clean from warnings, data_len is
 		 * being initialized to -EINVAL during its declaration, which
-		 * means we can't rely on compiler anymore to warn no future
+		 * means we can't rely on compiler anymore to warn yes future
 		 * changes won't result in data_len being used uninitialized.
 		 * For such reason, we're adding this redundant sanity check
 		 * here.
@@ -1080,7 +1080,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 			/*
 			 * To avoid race condition with ffs_epfile_io_complete,
 			 * dequeue the request first then check
-			 * status. usb_ep_dequeue API should guarantee no race
+			 * status. usb_ep_dequeue API should guarantee yes race
 			 * condition with req->complete callback.
 			 */
 			usb_ep_dequeue(ep->ep, req);
@@ -1124,7 +1124,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 
 		ret = -EIOCBQUEUED;
 		/*
-		 * Do not kfree the buffer in this function.  It will be freed
+		 * Do yest kfree the buffer in this function.  It will be freed
 		 * by ffs_user_copy_worker.
 		 */
 		data = NULL;
@@ -1141,9 +1141,9 @@ error:
 }
 
 static int
-ffs_epfile_open(struct inode *inode, struct file *file)
+ffs_epfile_open(struct iyesde *iyesde, struct file *file)
 {
-	struct ffs_epfile *epfile = inode->i_private;
+	struct ffs_epfile *epfile = iyesde->i_private;
 
 	ENTER();
 
@@ -1263,9 +1263,9 @@ static ssize_t ffs_epfile_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 }
 
 static int
-ffs_epfile_release(struct inode *inode, struct file *file)
+ffs_epfile_release(struct iyesde *iyesde, struct file *file)
 {
-	struct ffs_epfile *epfile = inode->i_private;
+	struct ffs_epfile *epfile = iyesde->i_private;
 
 	ENTER();
 
@@ -1353,7 +1353,7 @@ static long ffs_epfile_ioctl(struct file *file, unsigned code,
 }
 
 static const struct file_operations ffs_epfile_operations = {
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 
 	.open =		ffs_epfile_open,
 	.write_iter =	ffs_epfile_write_iter,
@@ -1371,36 +1371,36 @@ static const struct file_operations ffs_epfile_operations = {
  * function configuration then later for event monitoring.
  */
 
-static struct inode *__must_check
-ffs_sb_make_inode(struct super_block *sb, void *data,
+static struct iyesde *__must_check
+ffs_sb_make_iyesde(struct super_block *sb, void *data,
 		  const struct file_operations *fops,
-		  const struct inode_operations *iops,
+		  const struct iyesde_operations *iops,
 		  struct ffs_file_perms *perms)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	ENTER();
 
-	inode = new_inode(sb);
+	iyesde = new_iyesde(sb);
 
-	if (likely(inode)) {
-		struct timespec64 ts = current_time(inode);
+	if (likely(iyesde)) {
+		struct timespec64 ts = current_time(iyesde);
 
-		inode->i_ino	 = get_next_ino();
-		inode->i_mode    = perms->mode;
-		inode->i_uid     = perms->uid;
-		inode->i_gid     = perms->gid;
-		inode->i_atime   = ts;
-		inode->i_mtime   = ts;
-		inode->i_ctime   = ts;
-		inode->i_private = data;
+		iyesde->i_iyes	 = get_next_iyes();
+		iyesde->i_mode    = perms->mode;
+		iyesde->i_uid     = perms->uid;
+		iyesde->i_gid     = perms->gid;
+		iyesde->i_atime   = ts;
+		iyesde->i_mtime   = ts;
+		iyesde->i_ctime   = ts;
+		iyesde->i_private = data;
 		if (fops)
-			inode->i_fop = fops;
+			iyesde->i_fop = fops;
 		if (iops)
-			inode->i_op  = iops;
+			iyesde->i_op  = iops;
 	}
 
-	return inode;
+	return iyesde;
 }
 
 /* Create "regular" file */
@@ -1410,7 +1410,7 @@ static struct dentry *ffs_sb_create_file(struct super_block *sb,
 {
 	struct ffs_data	*ffs = sb->s_fs_info;
 	struct dentry	*dentry;
-	struct inode	*inode;
+	struct iyesde	*iyesde;
 
 	ENTER();
 
@@ -1418,34 +1418,34 @@ static struct dentry *ffs_sb_create_file(struct super_block *sb,
 	if (unlikely(!dentry))
 		return NULL;
 
-	inode = ffs_sb_make_inode(sb, data, fops, NULL, &ffs->file_perms);
-	if (unlikely(!inode)) {
+	iyesde = ffs_sb_make_iyesde(sb, data, fops, NULL, &ffs->file_perms);
+	if (unlikely(!iyesde)) {
 		dput(dentry);
 		return NULL;
 	}
 
-	d_add(dentry, inode);
+	d_add(dentry, iyesde);
 	return dentry;
 }
 
 /* Super block */
 static const struct super_operations ffs_sb_operations = {
 	.statfs =	simple_statfs,
-	.drop_inode =	generic_delete_inode,
+	.drop_iyesde =	generic_delete_iyesde,
 };
 
 struct ffs_sb_fill_data {
 	struct ffs_file_perms perms;
 	umode_t root_mode;
 	const char *dev_name;
-	bool no_disconnect;
+	bool yes_disconnect;
 	struct ffs_data *ffs_data;
 };
 
 static int ffs_sb_fill(struct super_block *sb, struct fs_context *fc)
 {
 	struct ffs_sb_fill_data *data = fc->fs_private;
-	struct inode	*inode;
+	struct iyesde	*iyesde;
 	struct ffs_data	*ffs = data->ffs_data;
 
 	ENTER();
@@ -1459,13 +1459,13 @@ static int ffs_sb_fill(struct super_block *sb, struct fs_context *fc)
 	sb->s_op             = &ffs_sb_operations;
 	sb->s_time_gran      = 1;
 
-	/* Root inode */
+	/* Root iyesde */
 	data->perms.mode = data->root_mode;
-	inode = ffs_sb_make_inode(sb, NULL,
+	iyesde = ffs_sb_make_iyesde(sb, NULL,
 				  &simple_dir_operations,
-				  &simple_dir_inode_operations,
+				  &simple_dir_iyesde_operations,
 				  &data->perms);
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(iyesde);
 	if (unlikely(!sb->s_root))
 		return -ENOMEM;
 
@@ -1478,7 +1478,7 @@ static int ffs_sb_fill(struct super_block *sb, struct fs_context *fc)
 }
 
 enum {
-	Opt_no_disconnect,
+	Opt_yes_disconnect,
 	Opt_rmode,
 	Opt_fmode,
 	Opt_mode,
@@ -1487,7 +1487,7 @@ enum {
 };
 
 static const struct fs_parameter_spec ffs_fs_param_specs[] = {
-	fsparam_bool	("no_disconnect",	Opt_no_disconnect),
+	fsparam_bool	("yes_disconnect",	Opt_yes_disconnect),
 	fsparam_u32	("rmode",		Opt_rmode),
 	fsparam_u32	("fmode",		Opt_fmode),
 	fsparam_u32	("mode",		Opt_mode),
@@ -1514,8 +1514,8 @@ static int ffs_fs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		return opt;
 
 	switch (opt) {
-	case Opt_no_disconnect:
-		data->no_disconnect = result.boolean;
+	case Opt_yes_disconnect:
+		data->yes_disconnect = result.boolean;
 		break;
 	case Opt_rmode:
 		data->root_mode  = (result.uint_32 & 0555) | S_IFDIR;
@@ -1567,7 +1567,7 @@ static int ffs_fs_get_tree(struct fs_context *fc)
 	if (unlikely(!ffs))
 		return -ENOMEM;
 	ffs->file_perms = ctx->perms;
-	ffs->no_disconnect = ctx->no_disconnect;
+	ffs->yes_disconnect = ctx->yes_disconnect;
 
 	ffs->dev_name = kstrdup(fc->source, GFP_KERNEL);
 	if (unlikely(!ffs->dev_name)) {
@@ -1583,7 +1583,7 @@ static int ffs_fs_get_tree(struct fs_context *fc)
 
 	ffs->private_data = ffs_dev;
 	ctx->ffs_data = ffs;
-	return get_tree_nodev(fc, ffs_sb_fill);
+	return get_tree_yesdev(fc, ffs_sb_fill);
 }
 
 static void ffs_fs_free_fc(struct fs_context *fc)
@@ -1618,7 +1618,7 @@ static int ffs_fs_init_fs_context(struct fs_context *fc)
 	ctx->perms.uid = GLOBAL_ROOT_UID;
 	ctx->perms.gid = GLOBAL_ROOT_GID;
 	ctx->root_mode = S_IFDIR | 0500;
-	ctx->no_disconnect = false;
+	ctx->yes_disconnect = false;
 
 	fc->fs_private = ctx;
 	fc->ops = &ffs_fs_context_ops;
@@ -1718,7 +1718,7 @@ static void ffs_data_closed(struct ffs_data *ffs)
 	ENTER();
 
 	if (atomic_dec_and_test(&ffs->opened)) {
-		if (ffs->no_disconnect) {
+		if (ffs->yes_disconnect) {
 			ffs->state = FFS_DEACTIVATED;
 			if (ffs->epfiles) {
 				ffs_epfiles_destroy(ffs->epfiles,
@@ -2092,7 +2092,7 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 				goto inv_length;
 			break;
 		} else {
-			pr_vdebug("unknown descriptor: %d for class %d\n",
+			pr_vdebug("unkyeswn descriptor: %d for class %d\n",
 			      _ds->bDescriptorType, *current_class);
 			return -EINVAL;
 		}
@@ -2129,7 +2129,7 @@ static int __must_check ffs_do_single_desc(char *data, unsigned len,
 
 	default:
 		/* We should never be here */
-		pr_vdebug("unknown descriptor: %d\n", _ds->bDescriptorType);
+		pr_vdebug("unkyeswn descriptor: %d\n", _ds->bDescriptorType);
 		return -EINVAL;
 
 inv_length:
@@ -2376,7 +2376,7 @@ static int __ffs_data_do_os_desc(enum ffs_os_desc_type type,
 		if (d->Reserved1 != 1) {
 			/*
 			 * According to the spec, Reserved1 must be set to 1
-			 * but older kernels incorrectly rejected non-zero
+			 * but older kernels incorrectly rejected yesn-zero
 			 * values.  We fix it here to avoid returning EINVAL
 			 * in response to values we used to accept.
 			 */
@@ -2426,7 +2426,7 @@ static int __ffs_data_do_os_desc(enum ffs_os_desc_type type,
 	}
 		break;
 	default:
-		pr_vdebug("unknown descriptor: %d\n", type);
+		pr_vdebug("unkyeswn descriptor: %d\n", type);
 		return -EINVAL;
 	}
 	return length;
@@ -2656,14 +2656,14 @@ static int __ffs_data_got_strings(struct ffs_data *ffs,
 
 			/*
 			 * User may provide more strings then we need,
-			 * if that's the case we simply ignore the
+			 * if that's the case we simply igyesre the
 			 * rest
 			 */
 			if (likely(needed)) {
 				/*
 				 * s->id will be set while adding
 				 * function to configuration so for
-				 * now just leave garbage here.
+				 * yesw just leave garbage here.
 				 */
 				s->s = data;
 				--needed;
@@ -2709,10 +2709,10 @@ static void __ffs_event_add(struct ffs_data *ffs,
 	/*
 	 * Abort any unhandled setup
 	 *
-	 * We do not need to worry about some cmpxchg() changing value
+	 * We do yest need to worry about some cmpxchg() changing value
 	 * of ffs->setup_state without holding the lock because when
 	 * state is FFS_SETUP_PENDING cmpxchg() in several places in
-	 * the source does nothing.
+	 * the source does yesthing.
 	 */
 	if (ffs->setup_state == FFS_SETUP_PENDING)
 		ffs->setup_state = FFS_SETUP_CANCELLED;
@@ -2745,7 +2745,7 @@ static void __ffs_event_add(struct ffs_data *ffs,
 		break;
 
 	default:
-		WARN(1, "%d: unknown event, this should not happen\n", type);
+		WARN(1, "%d: unkyeswn event, this should yest happen\n", type);
 		return;
 	}
 
@@ -2803,8 +2803,8 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 		return 0;
 
 	/*
-	 * If ss_descriptors is not NULL, we are reading super speed
-	 * descriptors; if hs_descriptors is not NULL, we are reading high
+	 * If ss_descriptors is yest NULL, we are reading super speed
+	 * descriptors; if hs_descriptors is yest NULL, we are reading high
 	 * speed descriptors; otherwise, we are reading full speed
 	 * descriptors.
 	 */
@@ -3016,7 +3016,7 @@ static int __ffs_func_bind_do_os_desc(enum ffs_os_desc_type type,
 	}
 		break;
 	default:
-		pr_vdebug("unknown descriptor: %d\n", type);
+		pr_vdebug("unkyeswn descriptor: %d\n", type);
 	}
 
 	return length;
@@ -3039,11 +3039,11 @@ static inline struct f_fs_opts *ffs_do_functionfs_bind(struct usb_function *f,
 	 *
 	 * Configfs-enabled gadgets however do need ffs_dev_lock.
 	 */
-	if (!ffs_opts->no_configfs)
+	if (!ffs_opts->yes_configfs)
 		ffs_dev_lock();
 	ret = ffs_opts->dev->desc_ready ? 0 : -ENODEV;
 	func->ffs = ffs_opts->dev->ffs_data;
-	if (!ffs_opts->no_configfs)
+	if (!ffs_opts->yes_configfs)
 		ffs_dev_unlock();
 	if (ret)
 		return ERR_PTR(ret);
@@ -3055,7 +3055,7 @@ static inline struct f_fs_opts *ffs_do_functionfs_bind(struct usb_function *f,
 	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
 	 * configurations are bound in sequence with list_for_each_entry,
 	 * in each configuration its functions are bound in sequence
-	 * with list_for_each_entry, so we assume no race condition
+	 * with list_for_each_entry, so we assume yes race condition
 	 * with regard to ffs_opts->bound access
 	 */
 	if (!ffs_opts->refcnt) {
@@ -3109,7 +3109,7 @@ static int _ffs_func_bind(struct usb_configuration *c,
 
 	ENTER();
 
-	/* Has descriptors only for speeds gadget does not support */
+	/* Has descriptors only for speeds gadget does yest support */
 	if (unlikely(!(full | high | super)))
 		return -ENOTSUPP;
 
@@ -3189,7 +3189,7 @@ static int _ffs_func_bind(struct usb_configuration *c,
 	/*
 	 * Now handle interface numbers allocation and interface and
 	 * endpoint numbers rewriting.  We can do that in one go
-	 * now.
+	 * yesw.
 	 */
 	ret = ffs_do_descs(ffs->fs_descs_count +
 			   (high ? ffs->hs_descs_count : 0) +
@@ -3321,7 +3321,7 @@ static int ffs_func_setup(struct usb_function *f,
 
 	/*
 	 * Most requests directed to interface go through here
-	 * (notable exceptions are set/get interface) so we need to
+	 * (yestable exceptions are set/get interface) so we need to
 	 * handle them.  All other either handled by composite or
 	 * passed to usb_configuration->setup() (if one is set).  No
 	 * matter, we will handle requests directed to endpoint here
@@ -3791,7 +3791,7 @@ static void ffs_closed(struct ffs_data *ffs)
 	else
 		goto done;
 
-	if (opts->no_configfs || !opts->func_inst.group.cg_item.ci_parent
+	if (opts->yes_configfs || !opts->func_inst.group.cg_item.ci_parent
 	    || !kref_read(&opts->func_inst.group.cg_item.ci_kref))
 		goto done;
 
@@ -3807,9 +3807,9 @@ done:
 
 /* Misc helper functions ****************************************************/
 
-static int ffs_mutex_lock(struct mutex *mutex, unsigned nonblock)
+static int ffs_mutex_lock(struct mutex *mutex, unsigned yesnblock)
 {
-	return nonblock
+	return yesnblock
 		? likely(mutex_trylock(mutex)) ? 0 : -EAGAIN
 		: mutex_lock_interruptible(mutex);
 }

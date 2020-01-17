@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,17 +23,17 @@
 #include "priv.h"
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_X86)
-int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len);
-bool nouveau_acpi_rom_supported(struct device *);
+int yesuveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len);
+bool yesuveau_acpi_rom_supported(struct device *);
 #else
 static inline bool
-nouveau_acpi_rom_supported(struct device *dev)
+yesuveau_acpi_rom_supported(struct device *dev)
 {
 	return false;
 }
 
 static inline int
-nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len)
+yesuveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len)
 {
 	return -EINVAL;
 }
@@ -41,7 +41,7 @@ nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len)
 
 /* This version of the shadow function disobeys the ACPI spec and tries
  * to fetch in units of more than 4KiB at a time.  This is a LOT faster
- * on some systems, such as Lenovo W530.
+ * on some systems, such as Leyesvo W530.
  */
 static u32
 acpi_read_fast(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
@@ -51,7 +51,7 @@ acpi_read_fast(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 	u32 fetch = limit - start;
 
 	if (nvbios_extend(bios, limit) >= 0) {
-		int ret = nouveau_acpi_get_bios_chunk(bios->data, start, fetch);
+		int ret = yesuveau_acpi_get_bios_chunk(bios->data, start, fetch);
 		if (ret == fetch)
 			return fetch;
 	}
@@ -73,7 +73,7 @@ acpi_read_slow(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 
 	if (nvbios_extend(bios, limit) >= 0) {
 		while (start + fetch < limit) {
-			int ret = nouveau_acpi_get_bios_chunk(bios->data,
+			int ret = yesuveau_acpi_get_bios_chunk(bios->data,
 							      start + fetch,
 							      0x1000);
 			if (ret != 0x1000)
@@ -88,7 +88,7 @@ acpi_read_slow(void *data, u32 offset, u32 length, struct nvkm_bios *bios)
 static void *
 acpi_init(struct nvkm_bios *bios, const char *name)
 {
-	if (!nouveau_acpi_rom_supported(bios->subdev.device->dev))
+	if (!yesuveau_acpi_rom_supported(bios->subdev.device->dev))
 		return ERR_PTR(-ENODEV);
 	return NULL;
 }

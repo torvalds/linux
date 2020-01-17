@@ -55,8 +55,8 @@ static struct snd_soc_card pcm030_card = {
 
 static int pcm030_fabric_probe(struct platform_device *op)
 {
-	struct device_node *np = op->dev.of_node;
-	struct device_node *platform_np;
+	struct device_yesde *np = op->dev.of_yesde;
+	struct device_yesde *platform_np;
 	struct snd_soc_card *card = &pcm030_card;
 	struct pcm030_audio_data *pdata;
 	struct snd_soc_dai_link *dai_link;
@@ -77,12 +77,12 @@ static int pcm030_fabric_probe(struct platform_device *op)
 
 	platform_np = of_parse_phandle(np, "asoc-platform", 0);
 	if (!platform_np) {
-		dev_err(&op->dev, "ac97 not registered\n");
+		dev_err(&op->dev, "ac97 yest registered\n");
 		return -ENODEV;
 	}
 
 	for_each_card_prelinks(card, i, dai_link)
-		dai_link->platforms->of_node = platform_np;
+		dai_link->platforms->of_yesde = platform_np;
 
 	ret = request_module("snd-soc-wm9712");
 	if (ret)

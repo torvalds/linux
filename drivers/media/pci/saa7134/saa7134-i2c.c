@@ -4,7 +4,7 @@
  * device driver for philips saa7134 based TV cards
  * i2c interface support
  *
- * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2001,02 Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #include "saa7134.h"
@@ -50,7 +50,7 @@ static char *str_i2c_status[] = {
 };
 
 enum i2c_status {
-	IDLE          = 0,  // no I2C command pending
+	IDLE          = 0,  // yes I2C command pending
 	DONE_STOP     = 1,  // I2C command done and STOP executed
 	BUSY          = 2,  // executing I2C command
 	TO_SCL        = 3,  // executing I2C command, time out on clock stretching
@@ -59,8 +59,8 @@ enum i2c_status {
 	DONE_READ     = 6,  // I2C command done and awaiting next read command
 	DONE_WRITE_TO = 7,  // see 5, and time out on status echo
 	DONE_READ_TO  = 8,  // see 6, and time out on status echo
-	NO_DEVICE     = 9,  // no acknowledge on device slave address
-	NO_ACKN       = 10, // no acknowledge after data byte transfer
+	NO_DEVICE     = 9,  // yes ackyeswledge on device slave address
+	NO_ACKN       = 10, // yes ackyeswledge after data byte transfer
 	BUS_ERR       = 11, // bus error
 	ARB_LOST      = 12, // arbitration lost during transfer
 	SEQ_ERR       = 13, // erroneous programming sequence
@@ -73,8 +73,8 @@ static char *str_i2c_attr[] = {
 };
 
 enum i2c_attr {
-	NOP           = 0,  // no operation on I2C bus
-	STOP          = 1,  // stop condition, no associated byte transfer
+	NOP           = 0,  // yes operation on I2C bus
+	STOP          = 1,  // stop condition, yes associated byte transfer
 	CONTINUE      = 2,  // continue with byte transfer
 	START         = 3   // start condition with byte transfer
 };
@@ -276,7 +276,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 			}
 			/* discard mysterious extra byte when reading
 			   from Samsung S5H1411.  i2c bus gets error
-			   if we do not. */
+			   if we do yest. */
 			if (0x19 == msgs[i].addr) {
 				i2c_cont(1, " ?");
 				rc = i2c_recv_byte(dev);
@@ -386,7 +386,7 @@ saa7134_i2c_eeprom(struct saa7134_dev *dev, unsigned char *eedata, int len)
 	dev->i2c_client.addr = 0xa0 >> 1;
 	buf = 0;
 	if (1 != (err = i2c_master_send(&dev->i2c_client,&buf,1))) {
-		pr_info("%s: Huh, no eeprom present (err=%d)?\n",
+		pr_info("%s: Huh, yes eeprom present (err=%d)?\n",
 		       dev->name,err);
 		return -1;
 	}

@@ -24,7 +24,7 @@
  * This is the PKUnity sched_clock implementation.  This has
  * a resolution of 271ns, and a maximum value of 32025597s (370 days).
  *
- * The return value is guaranteed to be monotonic in that range as
+ * The return value is guaranteed to be moyestonic in that range as
  * long as there is always less than 582 seconds between successive
  * calls to this function.
  *
@@ -219,7 +219,7 @@ static int puv3_cpu_pm_valid(suspend_state_t state)
 
 static void puv3_cpu_pm_finish(void)
 {
-	/* ensure not to come back here if it wasn't intended */
+	/* ensure yest to come back here if it wasn't intended */
 	/* PSPR = 0; */
 }
 

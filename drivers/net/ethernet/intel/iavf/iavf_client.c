@@ -2,7 +2,7 @@
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include "iavf.h"
 #include "iavf_prototype.h"
@@ -48,14 +48,14 @@ void iavf_client_get_params(struct iavf_vsi *vsi, struct iavf_params *params)
 }
 
 /**
- * iavf_notify_client_message - call the client message receive callback
+ * iavf_yestify_client_message - call the client message receive callback
  * @vsi: the VSI associated with this client
  * @msg: message buffer
  * @len: length of message
  *
  * If there is a client to this VSI, call the client
  **/
-void iavf_notify_client_message(struct iavf_vsi *vsi, u8 *msg, u16 len)
+void iavf_yestify_client_message(struct iavf_vsi *vsi, u8 *msg, u16 len)
 {
 	struct iavf_client_instance *cinst;
 
@@ -66,7 +66,7 @@ void iavf_notify_client_message(struct iavf_vsi *vsi, u8 *msg, u16 len)
 	if (!cinst || !cinst->client || !cinst->client->ops ||
 	    !cinst->client->ops->virtchnl_receive) {
 		dev_dbg(&vsi->back->pdev->dev,
-			"Cannot locate client instance virtchnl_receive function\n");
+			"Canyest locate client instance virtchnl_receive function\n");
 		return;
 	}
 	cinst->client->ops->virtchnl_receive(&cinst->lan_info,  cinst->client,
@@ -74,12 +74,12 @@ void iavf_notify_client_message(struct iavf_vsi *vsi, u8 *msg, u16 len)
 }
 
 /**
- * iavf_notify_client_l2_params - call the client notify callback
+ * iavf_yestify_client_l2_params - call the client yestify callback
  * @vsi: the VSI with l2 param changes
  *
  * If there is a client to this VSI, call the client
  **/
-void iavf_notify_client_l2_params(struct iavf_vsi *vsi)
+void iavf_yestify_client_l2_params(struct iavf_vsi *vsi)
 {
 	struct iavf_client_instance *cinst;
 	struct iavf_params params;
@@ -92,7 +92,7 @@ void iavf_notify_client_l2_params(struct iavf_vsi *vsi)
 	if (!cinst || !cinst->client || !cinst->client->ops ||
 	    !cinst->client->ops->l2_param_change) {
 		dev_dbg(&vsi->back->pdev->dev,
-			"Cannot locate client instance l2_param_change function\n");
+			"Canyest locate client instance l2_param_change function\n");
 		return;
 	}
 	iavf_client_get_params(vsi, &params);
@@ -102,12 +102,12 @@ void iavf_notify_client_l2_params(struct iavf_vsi *vsi)
 }
 
 /**
- * iavf_notify_client_open - call the client open callback
+ * iavf_yestify_client_open - call the client open callback
  * @vsi: the VSI with netdev opened
  *
  * If there is a client to this netdev, call the client with open
  **/
-void iavf_notify_client_open(struct iavf_vsi *vsi)
+void iavf_yestify_client_open(struct iavf_vsi *vsi)
 {
 	struct iavf_adapter *adapter = vsi->back;
 	struct iavf_client_instance *cinst = adapter->cinst;
@@ -116,7 +116,7 @@ void iavf_notify_client_open(struct iavf_vsi *vsi)
 	if (!cinst || !cinst->client || !cinst->client->ops ||
 	    !cinst->client->ops->open) {
 		dev_dbg(&vsi->back->pdev->dev,
-			"Cannot locate client instance open function\n");
+			"Canyest locate client instance open function\n");
 		return;
 	}
 	if (!(test_bit(__IAVF_CLIENT_INSTANCE_OPENED, &cinst->state))) {
@@ -153,13 +153,13 @@ static int iavf_client_release_qvlist(struct iavf_info *ldev)
 }
 
 /**
- * iavf_notify_client_close - call the client close callback
+ * iavf_yestify_client_close - call the client close callback
  * @vsi: the VSI with netdev closed
  * @reset: true when close called due to reset pending
  *
  * If there is a client to this netdev, call the client with close
  **/
-void iavf_notify_client_close(struct iavf_vsi *vsi, bool reset)
+void iavf_yestify_client_close(struct iavf_vsi *vsi, bool reset)
 {
 	struct iavf_adapter *adapter = vsi->back;
 	struct iavf_client_instance *cinst = adapter->cinst;
@@ -167,7 +167,7 @@ void iavf_notify_client_close(struct iavf_vsi *vsi, bool reset)
 	if (!cinst || !cinst->client || !cinst->client->ops ||
 	    !cinst->client->ops->close) {
 		dev_dbg(&vsi->back->pdev->dev,
-			"Cannot locate client instance close function\n");
+			"Canyest locate client instance close function\n");
 		return;
 	}
 	cinst->client->ops->close(&cinst->lan_info, cinst->client, reset);
@@ -209,7 +209,7 @@ iavf_client_add_instance(struct iavf_adapter *adapter)
 	cinst->lan_info.hw_addr = adapter->hw.hw_addr;
 	cinst->lan_info.ops = &iavf_lan_ops;
 	cinst->lan_info.version.major = IAVF_CLIENT_VERSION_MAJOR;
-	cinst->lan_info.version.minor = IAVF_CLIENT_VERSION_MINOR;
+	cinst->lan_info.version.miyesr = IAVF_CLIENT_VERSION_MINOR;
 	cinst->lan_info.version.build = IAVF_CLIENT_VERSION_BUILD;
 	iavf_client_get_params(vsi, &params);
 	cinst->lan_info.params = params;
@@ -287,7 +287,7 @@ void iavf_client_subtask(struct iavf_adapter *adapter)
  * iavf_lan_add_device - add a lan device struct to the list of lan devices
  * @adapter: pointer to the board struct
  *
- * Returns 0 on success or none 0 on error
+ * Returns 0 on success or yesne 0 on error
  **/
 int iavf_lan_add_device(struct iavf_adapter *adapter)
 {
@@ -327,7 +327,7 @@ out:
  * iavf_lan_del_device - removes a lan device from the device list
  * @adapter: pointer to the board struct
  *
- * Returns 0 on success or non-0 on error
+ * Returns 0 on success or yesn-0 on error
  **/
 int iavf_lan_del_device(struct iavf_adapter *adapter)
 {
@@ -501,7 +501,7 @@ out:
  * iavf_register_client - Register a iavf client driver with the L2 driver
  * @client: pointer to the iavf_client struct
  *
- * Returns 0 on success or non-0 on error
+ * Returns 0 on success or yesn-0 on error
  **/
 int iavf_register_client(struct iavf_client *client)
 {
@@ -513,7 +513,7 @@ int iavf_register_client(struct iavf_client *client)
 	}
 
 	if (strlen(client->name) == 0) {
-		pr_info("iavf: Failed to register client with no name\n");
+		pr_info("iavf: Failed to register client with yes name\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -526,11 +526,11 @@ int iavf_register_client(struct iavf_client *client)
 	}
 
 	if ((client->version.major != IAVF_CLIENT_VERSION_MAJOR) ||
-	    (client->version.minor != IAVF_CLIENT_VERSION_MINOR)) {
+	    (client->version.miyesr != IAVF_CLIENT_VERSION_MINOR)) {
 		pr_info("iavf: Failed to register client %s due to mismatched client interface version\n",
 			client->name);
 		pr_info("Client is using version: %02d.%02d.%02d while LAN driver supports %s\n",
-			client->version.major, client->version.minor,
+			client->version.major, client->version.miyesr,
 			client->version.build,
 			iavf_client_interface_version_str);
 		ret = -EIO;
@@ -552,7 +552,7 @@ EXPORT_SYMBOL(iavf_register_client);
  * iavf_unregister_client - Unregister a iavf client driver with the L2 driver
  * @client: pointer to the iavf_client struct
  *
- * Returns 0 on success or non-0 on error
+ * Returns 0 on success or yesn-0 on error
  **/
 int iavf_unregister_client(struct iavf_client *client)
 {
@@ -565,7 +565,7 @@ int iavf_unregister_client(struct iavf_client *client)
 	iavf_client_release(client);
 
 	if (vf_registered_client != client) {
-		pr_info("iavf: Client %s has not been registered\n",
+		pr_info("iavf: Client %s has yest been registered\n",
 			client->name);
 		ret = -ENODEV;
 		goto out;

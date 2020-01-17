@@ -4,14 +4,14 @@
 # Apply kernel-specific tweaks after the initial document processing
 # has been done.
 #
-from docutils import nodes
-from sphinx import addnodes
+from docutils import yesdes
+from sphinx import addyesdes
 from sphinx.environment import NoUri
 import re
 
 #
 # Regex nastiness.  Of course.
-# Try to identify "function()" that's not already marked up some
+# Try to identify "function()" that's yest already marked up some
 # other way.  Sphinx doesn't like a lot of stuff right after a
 # :c:func: block (i.e. ":c:func:`mmap()`s" flakes out), so the last
 # bit tries to restrict matches to things that won't create trouble.
@@ -20,7 +20,7 @@ RE_function = re.compile(r'([\w_][\w\d_]+\(\))')
 
 #
 # Many places in the docs refer to common system calls.  It is
-# pointless to try to cross-reference them and, as has been known
+# pointless to try to cross-reference them and, as has been kyeswn
 # to happen, somebody defining a function by these names can lead
 # to the creation of incorrect and confusing cross references.  So
 # just don't even try with these names.
@@ -33,33 +33,33 @@ Skipfuncs = [ 'open', 'close', 'read', 'write', 'fcntl', 'mmap',
 # Find all occurrences of function() and try to replace them with
 # appropriate cross references.
 #
-def markup_funcs(docname, app, node):
+def markup_funcs(docname, app, yesde):
     cdom = app.env.domains['c']
-    t = node.astext()
+    t = yesde.astext()
     done = 0
     repl = [ ]
     for m in RE_function.finditer(t):
         #
-        # Include any text prior to function() as a normal text node.
+        # Include any text prior to function() as a yesrmal text yesde.
         #
         if m.start() > done:
-            repl.append(nodes.Text(t[done:m.start()]))
+            repl.append(yesdes.Text(t[done:m.start()]))
         #
         # Go through the dance of getting an xref out of the C domain
         #
         target = m.group(1)[:-2]
-        target_text = nodes.Text(target + '()')
+        target_text = yesdes.Text(target + '()')
         xref = None
-        if target not in Skipfuncs:
-            lit_text = nodes.literal(classes=['xref', 'c', 'c-func'])
+        if target yest in Skipfuncs:
+            lit_text = yesdes.literal(classes=['xref', 'c', 'c-func'])
             lit_text += target_text
-            pxref = addnodes.pending_xref('', refdomain = 'c',
+            pxref = addyesdes.pending_xref('', refdomain = 'c',
                                           reftype = 'function',
                                           reftarget = target, modname = None,
                                           classname = None)
             #
             # XXX The Latex builder will throw NoUri exceptions here,
-            # work around that by ignoring them.
+            # work around that by igyesring them.
             #
             try:
                 xref = cdom.resolve_xref(app.env, docname, app.builder,
@@ -76,23 +76,23 @@ def markup_funcs(docname, app, node):
             repl.append(target_text)
         done = m.end()
     if done < len(t):
-        repl.append(nodes.Text(t[done:]))
+        repl.append(yesdes.Text(t[done:]))
     return repl
 
 def auto_markup(app, doctree, name):
     #
     # This loop could eventually be improved on.  Someday maybe we
     # want a proper tree traversal with a lot of awareness of which
-    # kinds of nodes to prune.  But this works well for now.
+    # kinds of yesdes to prune.  But this works well for yesw.
     #
-    # The nodes.literal test catches ``literal text``, its purpose is to
+    # The yesdes.literal test catches ``literal text``, its purpose is to
     # avoid adding cross-references to functions that have been explicitly
     # marked with cc:func:.
     #
-    for para in doctree.traverse(nodes.paragraph):
-        for node in para.traverse(nodes.Text):
-            if not isinstance(node.parent, nodes.literal):
-                node.parent.replace(node, markup_funcs(name, app, node))
+    for para in doctree.traverse(yesdes.paragraph):
+        for yesde in para.traverse(yesdes.Text):
+            if yest isinstance(yesde.parent, yesdes.literal):
+                yesde.parent.replace(yesde, markup_funcs(name, app, yesde))
 
 def setup(app):
     app.connect('doctree-resolved', auto_markup)

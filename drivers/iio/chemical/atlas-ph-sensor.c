@@ -2,8 +2,8 @@
 /*
  * atlas-ph-sensor.c - Support for Atlas Scientific OEM pH-SM sensor
  *
- * Copyright (C) 2015-2018 Matt Ranostay
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Copyright (C) 2015-2018 Matt Rayesstay
+ * Author: Matt Rayesstay <matt.rayesstay@konsulko.com>
  */
 
 #include <linux/module.h>
@@ -184,7 +184,7 @@ static int atlas_check_ph_calibration(struct atlas_data *data)
 		return ret;
 
 	if (!(val & ATLAS_REG_PH_CALIB_STATUS_MASK)) {
-		dev_warn(dev, "device has not been calibrated\n");
+		dev_warn(dev, "device has yest been calibrated\n");
 		return 0;
 	}
 
@@ -219,7 +219,7 @@ static int atlas_check_ec_calibration(struct atlas_data *data)
 		return ret;
 
 	if (!(val & ATLAS_REG_EC_CALIB_STATUS_MASK)) {
-		dev_warn(dev, "device has not been calibrated\n");
+		dev_warn(dev, "device has yest been calibrated\n");
 		return 0;
 	}
 
@@ -250,7 +250,7 @@ static int atlas_check_orp_calibration(struct atlas_data *data)
 		return ret;
 
 	if (!val)
-		dev_warn(dev, "device has not been calibrated\n");
+		dev_warn(dev, "device has yest been calibrated\n");
 
 	return 0;
 };
@@ -311,7 +311,7 @@ static int atlas_buffer_postenable(struct iio_dev *indio_dev)
 
 	ret = pm_runtime_get_sync(&data->client->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&data->client->dev);
+		pm_runtime_put_yesidle(&data->client->dev);
 		return ret;
 	}
 
@@ -365,7 +365,7 @@ static irqreturn_t atlas_trigger_handler(int irq, void *private)
 		iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 				iio_get_time_ns(indio_dev));
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -388,7 +388,7 @@ static int atlas_read_measurement(struct atlas_data *data, int reg, __be32 *val)
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		return ret;
 	}
 
@@ -563,7 +563,7 @@ static int atlas_probe(struct i2c_client *client,
 		return ret;
 
 	if (client->irq <= 0) {
-		dev_err(&client->dev, "no valid irq defined\n");
+		dev_err(&client->dev, "yes valid irq defined\n");
 		return -EINVAL;
 	}
 
@@ -580,7 +580,7 @@ static int atlas_probe(struct i2c_client *client,
 	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
 		&atlas_trigger_handler, &atlas_buffer_setup_ops);
 	if (ret) {
-		dev_err(&client->dev, "cannot setup iio trigger\n");
+		dev_err(&client->dev, "canyest setup iio trigger\n");
 		goto unregister_trigger;
 	}
 
@@ -600,7 +600,7 @@ static int atlas_probe(struct i2c_client *client,
 
 	ret = atlas_set_powermode(data, 1);
 	if (ret) {
-		dev_err(&client->dev, "cannot power device on");
+		dev_err(&client->dev, "canyest power device on");
 		goto unregister_buffer;
 	}
 
@@ -640,7 +640,7 @@ static int atlas_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	return atlas_set_powermode(data, 0);
 }
@@ -680,6 +680,6 @@ static struct i2c_driver atlas_driver = {
 };
 module_i2c_driver(atlas_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_AUTHOR("Matt Rayesstay <matt.rayesstay@konsulko.com>");
 MODULE_DESCRIPTION("Atlas Scientific pH-SM sensor");
 MODULE_LICENSE("GPL");

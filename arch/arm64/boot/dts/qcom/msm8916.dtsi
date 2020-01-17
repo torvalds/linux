@@ -35,59 +35,59 @@
 
 		tz-apps@86000000 {
 			reg = <0x0 0x86000000 0x0 0x300000>;
-			no-map;
+			yes-map;
 		};
 
 		smem_mem: smem_region@86300000 {
 			reg = <0x0 0x86300000 0x0 0x100000>;
-			no-map;
+			yes-map;
 		};
 
 		hypervisor@86400000 {
 			reg = <0x0 0x86400000 0x0 0x100000>;
-			no-map;
+			yes-map;
 		};
 
 		tz@86500000 {
 			reg = <0x0 0x86500000 0x0 0x180000>;
-			no-map;
+			yes-map;
 		};
 
 		reserved@8668000 {
 			reg = <0x0 0x86680000 0x0 0x80000>;
-			no-map;
+			yes-map;
 		};
 
 		rmtfs@86700000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x86700000 0x0 0xe0000>;
-			no-map;
+			yes-map;
 
 			qcom,client-id = <1>;
 		};
 
 		rfsa@867e00000 {
 			reg = <0x0 0x867e0000 0x0 0x20000>;
-			no-map;
+			yes-map;
 		};
 
 		mpss_mem: mpss@86800000 {
 			reg = <0x0 0x86800000 0x0 0x2b00000>;
-			no-map;
+			yes-map;
 		};
 
 		wcnss_mem: wcnss@89300000 {
 			reg = <0x0 0x89300000 0x0 0x600000>;
-			no-map;
+			yes-map;
 		};
 
 		venus_mem: venus@89900000 {
 			reg = <0x0 0x89900000 0x0 0x600000>;
-			no-map;
+			yes-map;
 		};
 
 		mba_mem: mba@8ea00000 {
-			no-map;
+			yes-map;
 			reg = <0 0x8ea00000 0 0x100000>;
 		};
 	};
@@ -614,8 +614,8 @@
 				 <&gcc GCC_ULTAUDIO_LPAIF_AUX_I2S_CLK>;
 
 			clock-names = "ahbix-clk",
-					"pcnoc-mport-clk",
-					"pcnoc-sway-clk",
+					"pcyesc-mport-clk",
+					"pcyesc-sway-clk",
 					"mi2s-bit-clk0",
 					"mi2s-bit-clk1",
 					"mi2s-bit-clk2",
@@ -650,7 +650,7 @@
 			clock-names = "core", "iface", "xo";
 			mmc-ddr-1_8v;
 			bus-width = <8>;
-			non-removable;
+			yesn-removable;
 			status = "disabled";
 		};
 
@@ -880,7 +880,7 @@
 		};
 
 		gpu@1c00000 {
-			compatible = "qcom,adreno-306.0", "qcom,adreno";
+			compatible = "qcom,adreyes-306.0", "qcom,adreyes";
 			reg = <0x01c00000 0x20000>;
 			reg-names = "kgsl_3d0_reg_memory";
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
@@ -1180,10 +1180,10 @@
 				/*
 				 * Not described input ports:
 				 * 0 - connected to Resource and Power Manger CPU ETM
-				 * 1 - not-connected
+				 * 1 - yest-connected
 				 * 2 - connected to Modem CPU ETM
-				 * 3 - not-connected
-				 * 5 - not-connected
+				 * 3 - yest-connected
+				 * 5 - yest-connected
 				 * 6 - connected trought funnel to Wireless CPU ETM
 				 * 7 - connected to STM component
 				 */

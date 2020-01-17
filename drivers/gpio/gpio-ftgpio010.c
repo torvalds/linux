@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Faraday Technolog FTGPIO010 gpiochip and interrupt routines
+ * Faraday Techyeslog FTGPIO010 gpiochip and interrupt routines
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  *
  * Based on arch/arm/mach-gemini/gpio.c:
@@ -207,8 +207,8 @@ static int ftgpio_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
 	val = readl(g->base + GPIO_DEBOUNCE_EN);
 	if (val) {
 		/*
-		 * Oh no! Someone is already using the debounce with
-		 * another setting than what we need. Bummer.
+		 * Oh yes! Someone is already using the debounce with
+		 * ayesther setting than what we need. Bummer.
 		 */
 		return -ENOTSUPP;
 	}

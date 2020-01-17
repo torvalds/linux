@@ -37,7 +37,7 @@ C6X Interrupt Chips
   One for each core interrupt priority level. In addition to the combined
   interrupt sources, individual megamodule interrupts may be cascaded to
   the core interrupt controller. When an individual interrupt is cascaded,
-  it is no longer handled through a megamodule interrupt combiner and is
+  it is yes longer handled through a megamodule interrupt combiner and is
   considered to have the core interrupt controller as the parent.
 
   Required properties:
@@ -60,14 +60,14 @@ C6X Interrupt Chips
                              the core interrupt corresponding to the cell
                              position. Allowed values are 4 - 127. Mapping for
                              interrupts 0 - 3 (combined interrupt sources) are
-                             ignored.
+                             igyesred.
 
   Interrupt Specifier Definition
   ------------------------------
   Single cell specifying the megamodule interrupt source (4-127). Note that
   interrupts mapped directly to the core with "ti,c64x+megamod-pic-mux" will
   use the core interrupt controller as their parent and the specifier will
-  be the core priority level, not the megamodule interrupt number.
+  be the core priority level, yest the megamodule interrupt number.
 
   Examples
   --------
@@ -98,6 +98,6 @@ C6X Interrupt Chips
   };
 
   This the same as the first example except that megamodule interrupt 32 is
-  mapped directly to core priority interrupt 8. The node using this interrupt
+  mapped directly to core priority interrupt 8. The yesde using this interrupt
   must set the core controller as its interrupt parent and use 8 in the
   interrupt specifier value.

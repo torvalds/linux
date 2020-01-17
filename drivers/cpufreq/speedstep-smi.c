@@ -249,7 +249,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	if (result) {
 		/* fall back to speedstep_lib.c dection mechanism:
 		 * try both states out */
-		pr_debug("could not detect low and high frequencies "
+		pr_debug("could yest detect low and high frequencies "
 				"by SMI call.\n");
 		result = speedstep_get_freqs(speedstep_processor,
 				low, high,
@@ -257,7 +257,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 				&speedstep_set_state);
 
 		if (result) {
-			pr_debug("could not detect two different speeds"
+			pr_debug("could yest detect two different speeds"
 					" -- aborting.\n");
 			return result;
 		} else
@@ -342,7 +342,7 @@ static int __init speedstep_init(void)
 		ist_info.signature, ist_info.command,
 		ist_info.event, ist_info.perf_level);
 
-	/* Error if no IST-SMI BIOS or no PARM
+	/* Error if yes IST-SMI BIOS or yes PARM
 		 sig= 'ISGE' aka 'Intel Speedstep Gate E' */
 	if ((ist_info.signature !=  0x47534943) && (
 	    (smi_port == 0) || (smi_cmd == 0)))

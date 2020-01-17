@@ -3,7 +3,7 @@
  * Public License.  See the file "COPYING" in the main directory of this
  * archive for more details.
  *
- * Copyright (C) 2000 - 2001 by Kanoj Sarcar (kanoj@sgi.com)
+ * Copyright (C) 2000 - 2001 by Kayesj Sarcar (kayesj@sgi.com)
  * Copyright (C) 2000 - 2001 by Silicon Graphics, Inc.
  */
 #include <linux/kernel.h>
@@ -65,11 +65,11 @@ static void per_hub_init(nasid_t nasid)
 	hub_rtc_init(nasid);
 
 	if (nasid) {
-		/* copy exception handlers from first node to current node */
+		/* copy exception handlers from first yesde to current yesde */
 		memcpy((void *)NODE_OFFSET_TO_K0(nasid, 0),
 		       (void *)CKSEG0, 0x200);
 		__flush_cache_all();
-		/* switch to node local exception handlers */
+		/* switch to yesde local exception handlers */
 		REMOTE_HUB_S(nasid, PI_CALIAS_SIZE, PI_CALIAS_SIZE_8K);
 	}
 }
@@ -99,7 +99,7 @@ void per_cpu_init(void)
 }
 
 /*
- * get_nasid() returns the physical node id number of the caller.
+ * get_nasid() returns the physical yesde id number of the caller.
  */
 nasid_t
 get_nasid(void)
@@ -121,18 +121,18 @@ void __init plat_mem_setup(void)
 	 * hub_rtc init and cpu clock intr enabled for later calibrate_delay.
 	 */
 	nid = get_nasid();
-	printk("IP27: Running on node %d.\n", nid);
+	printk("IP27: Running on yesde %d.\n", nid);
 
 	p = LOCAL_HUB_L(PI_CPU_PRESENT_A) & 1;
 	e = LOCAL_HUB_L(PI_CPU_ENABLE_A) & 1;
 	printk("Node %d has %s primary CPU%s.\n", nid,
-	       p ? "a" : "no",
+	       p ? "a" : "yes",
 	       e ? ", CPU is running" : "");
 
 	p = LOCAL_HUB_L(PI_CPU_PRESENT_B) & 1;
 	e = LOCAL_HUB_L(PI_CPU_ENABLE_B) & 1;
 	printk("Node %d has %s secondary CPU%s.\n", nid,
-	       p ? "a" : "no",
+	       p ? "a" : "yes",
 	       e ? ", CPU is running" : "");
 
 	/*

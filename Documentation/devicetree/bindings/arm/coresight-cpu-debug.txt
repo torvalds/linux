@@ -26,7 +26,7 @@ Required properties:
 		processor core is clocked by the internal CPU clock, so it
 		is enabled with CPU clock by default.
 
-- cpu : the CPU phandle the debug module is affined to. Do not assume it
+- cpu : the CPU phandle the debug module is affined to. Do yest assume it
         to default to CPU0 if omitted.
 
 Optional properties:
@@ -34,7 +34,7 @@ Optional properties:
 - power-domains: a phandle to the debug power domain. We use "power-domains"
                  binding to turn on the debug logic if it has own dedicated
 		 power domain and if necessary to use "cpuidle.off=1" or
-		 "nohlt" in the kernel command line or sysfs node to
+		 "yeshlt" in the kernel command line or sysfs yesde to
 		 constrain idle states to ensure registers in the CPU power
 		 domain are accessible.
 

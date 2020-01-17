@@ -14,8 +14,8 @@ Architectures: ARM64
 Parameters: in kvm_device_attr.addr the address for PMU overflow interrupt is a
             pointer to an int
 Returns: -EBUSY: The PMU overflow interrupt is already set
-         -ENXIO: The overflow interrupt not set when attempting to get it
-         -ENODEV: PMUv3 not supported
+         -ENXIO: The overflow interrupt yest set when attempting to get it
+         -ENODEV: PMUv3 yest supported
          -EINVAL: Invalid PMU overflow interrupt number supplied or
                   trying to set the IRQ number without using an in-kernel
                   irqchip.
@@ -26,9 +26,9 @@ type must be same for each vcpu. As a PPI, the interrupt number is the same for
 all vcpus, while as an SPI it must be a separate number per vcpu.
 
 1.2 ATTRIBUTE: KVM_ARM_VCPU_PMU_V3_INIT
-Parameters: no additional parameter in kvm_device_attr.addr
-Returns: -ENODEV: PMUv3 not supported or GIC not initialized
-         -ENXIO: PMUv3 not properly configured or in-kernel irqchip not
+Parameters: yes additional parameter in kvm_device_attr.addr
+Returns: -ENODEV: PMUv3 yest supported or GIC yest initialized
+         -ENXIO: PMUv3 yest properly configured or in-kernel irqchip yest
                  configured as required prior to calling this attribute
          -EBUSY: PMUv3 already initialized
 
@@ -66,9 +66,9 @@ Architectures: ARM64
 
 3.1 ATTRIBUTE: KVM_ARM_VCPU_PVTIME_IPA
 Parameters: 64-bit base address
-Returns: -ENXIO:  Stolen time not implemented
+Returns: -ENXIO:  Stolen time yest implemented
          -EEXIST: Base address already set for this VCPU
-         -EINVAL: Base address not 64 byte aligned
+         -EINVAL: Base address yest 64 byte aligned
 
 Specifies the base address of the stolen time structure for this VCPU. The
 base address must be 64 byte aligned and exist within a valid guest memory

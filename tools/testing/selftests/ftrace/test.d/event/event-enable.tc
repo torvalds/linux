@@ -14,7 +14,7 @@ fail() { #msg
 }
 
 if [ ! -f set_event -o ! -d events/sched ]; then
-    echo "event tracing is not supported"
+    echo "event tracing is yest supported"
     exit_unsupported
 fi
 
@@ -24,7 +24,7 @@ yield
 
 count=`cat trace | grep sched_switch | wc -l`
 if [ $count -eq 0 ]; then
-    fail "sched_switch events are not recorded"
+    fail "sched_switch events are yest recorded"
 fi
 
 do_reset
@@ -35,7 +35,7 @@ yield
 
 count=`cat trace | grep sched_switch | wc -l`
 if [ $count -eq 0 ]; then
-    fail "sched_switch events are not recorded"
+    fail "sched_switch events are yest recorded"
 fi
 
 do_reset
@@ -46,7 +46,7 @@ yield
 
 count=`cat trace | grep sched_switch | wc -l`
 if [ $count -ne 0 ]; then
-    fail "sched_switch events should not be recorded"
+    fail "sched_switch events should yest be recorded"
 fi
 
 exit 0

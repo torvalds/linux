@@ -33,7 +33,7 @@ DEFINE_RAW_SPINLOCK(pci_lock);
 #endif
 
 #define PCI_OP_READ(size, type, len) \
-int noinline pci_bus_read_config_##size \
+int yesinline pci_bus_read_config_##size \
 	(struct pci_bus *bus, unsigned int devfn, int pos, type *value)	\
 {									\
 	int res;							\
@@ -48,7 +48,7 @@ int noinline pci_bus_read_config_##size \
 }
 
 #define PCI_OP_WRITE(size, type, len) \
-int noinline pci_bus_write_config_##size \
+int yesinline pci_bus_write_config_##size \
 	(struct pci_bus *bus, unsigned int devfn, int pos, type value)	\
 {									\
 	int res;							\
@@ -153,7 +153,7 @@ int pci_generic_config_write32(struct pci_bus *bus, unsigned int devfn,
 
 	/*
 	 * In general, hardware that supports only 32-bit writes on PCI is
-	 * not spec-compliant.  For example, software may perform a 16-bit
+	 * yest spec-compliant.  For example, software may perform a 16-bit
 	 * write.  If the hardware only supports 32-bit accesses, we must
 	 * do a 32-bit read, merge in the 16 bits we intend to write,
 	 * followed by a 32-bit write.  If the 16 bits we *don't* intend to
@@ -203,7 +203,7 @@ EXPORT_SYMBOL(pci_bus_set_ops);
  */
 static DECLARE_WAIT_QUEUE_HEAD(pci_cfg_wait);
 
-static noinline void pci_wait_cfg(struct pci_dev *dev)
+static yesinline void pci_wait_cfg(struct pci_dev *dev)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
@@ -233,7 +233,7 @@ int pci_user_read_config_##size						\
 					pos, sizeof(type), &data);	\
 	raw_spin_unlock_irq(&pci_lock);				\
 	*val = (type)data;						\
-	return pcibios_err_to_errno(ret);				\
+	return pcibios_err_to_erryes(ret);				\
 }									\
 EXPORT_SYMBOL_GPL(pci_user_read_config_##size);
 
@@ -251,7 +251,7 @@ int pci_user_write_config_##size					\
 	ret = dev->bus->ops->write(dev->bus, dev->devfn,		\
 					pos, sizeof(type), val);	\
 	raw_spin_unlock_irq(&pci_lock);				\
-	return pcibios_err_to_errno(ret);				\
+	return pcibios_err_to_erryes(ret);				\
 }									\
 EXPORT_SYMBOL_GPL(pci_user_write_config_##size);
 
@@ -400,7 +400,7 @@ static bool pcie_capability_reg_implemented(struct pci_dev *dev, int pos)
 
 /*
  * Note that these accessor functions are only for the "PCI Express
- * Capability" (see PCIe spec r3.0, sec 7.8).  They do not apply to the
+ * Capability" (see PCIe spec r3.0, sec 7.8).  They do yest apply to the
  * other "PCI Express Extended Capabilities" (AER, VC, ACS, MFVC, etc.)
  */
 int pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *val)
@@ -424,7 +424,7 @@ int pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *val)
 	}
 
 	/*
-	 * For Functions that do not implement the Slot Capabilities,
+	 * For Functions that do yest implement the Slot Capabilities,
 	 * Slot Status, and Slot Control registers, these spaces must
 	 * be hardwired to 0b, with the exception of the Presence Detect
 	 * State bit in the Slot Status register of Downstream Ports,

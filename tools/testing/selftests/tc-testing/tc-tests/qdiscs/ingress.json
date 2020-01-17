@@ -61,7 +61,7 @@
     },
     {
         "id": "f769",
-        "name": "Delete nonexistent ingress qdisc",
+        "name": "Delete yesnexistent ingress qdisc",
         "category": [
             "qdisc",
             "ingress"

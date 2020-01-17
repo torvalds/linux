@@ -63,7 +63,7 @@
  * Each _queue has its own locks, already.
  * Other items are protected by mlme_priv.lock.
  * To avoid possible dead lock, any thread trying to modify mlme_priv
- * SHALL not lock up more than one lock at a time!
+ * SHALL yest lock up more than one lock at a time!
  */
 
 #define traffic_threshold	10

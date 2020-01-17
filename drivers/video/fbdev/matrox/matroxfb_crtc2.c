@@ -28,12 +28,12 @@ MODULE_PARM_DESC(mem, "Memory size reserved for dualhead (default=8MB)");
 
 /* **************************************************** */
 
-static int matroxfb_dh_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int matroxfb_dh_setcolreg(unsigned regyes, unsigned red, unsigned green,
 		unsigned blue, unsigned transp, struct fb_info* info) {
 	u_int32_t col;
 #define m2info (container_of(info, struct matroxfb_dh_fb_info, fbcon))
 
-	if (regno >= 16)
+	if (regyes >= 16)
 		return 1;
 	if (m2info->fbcon.var.grayscale) {
 		/* gray = 0.30*R + 0.59*G + 0.11*B */
@@ -51,10 +51,10 @@ static int matroxfb_dh_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 	switch (m2info->fbcon.var.bits_per_pixel) {
 		case 16:
-			m2info->cmap[regno] = col | (col << 16);
+			m2info->cmap[regyes] = col | (col << 16);
 			break;
 		case 32:
-			m2info->cmap[regno] = col;
+			m2info->cmap[regyes] = col;
 			break;
 	}
 	return 0;
@@ -86,7 +86,7 @@ static void matroxfb_dh_restore(struct matroxfb_dh_fb_info* m2info,
 	if (minfo->outputs[1].src == MATROXFB_SRC_CRTC2) {
 		if (minfo->devflags.g450dac) {
 			tmp |= 0x00000006; /* source from secondary pixel PLL */
-			/* no vidrst when in monitor mode */
+			/* yes vidrst when in monitor mode */
 			if (minfo->outputs[1].mode != MATROXFB_OUTPUT_MODE_MONITOR) {
 				tmp |=  0xC0001000; /* Enable H/V vidrst */
 			}
@@ -103,7 +103,7 @@ static void matroxfb_dh_restore(struct matroxfb_dh_fb_info* m2info,
 		tmp |= 0x00100000;	/* connect CRTC2 to DAC */
 	}
 	if (mt->interlaced) {
-		tmp |= 0x02000000;	/* interlaced, second field is bigger, as G450 apparently ignores it */
+		tmp |= 0x02000000;	/* interlaced, second field is bigger, as G450 apparently igyesres it */
 		mt->VDisplay >>= 1;
 		mt->VSyncStart >>= 1;
 		mt->VSyncEnd >>= 1;
@@ -293,7 +293,7 @@ static int matroxfb_dh_release(struct fb_info* info, int user) {
 
 /*
  * This function is called before the register_framebuffer so
- * no locking is needed.
+ * yes locking is needed.
  */
 static void matroxfb_dh_init_fix(struct matroxfb_dh_fb_info *m2info)
 {
@@ -308,7 +308,7 @@ static void matroxfb_dh_init_fix(struct matroxfb_dh_fb_info *m2info)
 	fix->xpanstep = 8;	/* TBD */
 	fix->mmio_start = m2info->mmio.base;
 	fix->mmio_len = m2info->mmio.len;
-	fix->accel = 0;		/* no accel... */
+	fix->accel = 0;		/* yes accel... */
 }
 
 static int matroxfb_dh_check_var(struct fb_var_screeninfo* var, struct fb_info* info) {
@@ -587,12 +587,12 @@ static struct fb_var_screeninfo matroxfb_dh_defined = {
 		{0,0,0},	/* G */
 		{0,0,0},	/* B */
 		{0,0,0},	/* alpha */
-		0,		/* nonstd */
+		0,		/* yesnstd */
 		FB_ACTIVATE_NOW,
 		-1,-1,		/* display size */
 		0,		/* accel flags */
 		39721L,48L,16L,33L,10L,
-		96L,2,0,	/* no sync info */
+		96L,2,0,	/* yes sync info */
 		FB_VMODE_NONINTERLACED,
 };
 
@@ -657,7 +657,7 @@ static int matroxfb_dh_registerfb(struct matroxfb_dh_fb_info* m2info) {
 		return -1;
 	}
 	printk(KERN_INFO "matroxfb_crtc2: secondary head of fb%u was registered as fb%u\n",
-		minfo->fbcon.node, m2info->fbcon.node);
+		minfo->fbcon.yesde, m2info->fbcon.yesde);
 	m2info->fbcon_registered = 1;
 	return 0;
 #undef minfo
@@ -680,7 +680,7 @@ static void matroxfb_dh_deregisterfb(struct matroxfb_dh_fb_info* m2info) {
 			printk(KERN_ERR "matroxfb_crtc2: Expect kernel crash after module unload.\n");
 			return;
 		}
-		id = m2info->fbcon.node;
+		id = m2info->fbcon.yesde;
 		unregister_framebuffer(&m2info->fbcon);
 		/* return memory back to primary head */
 		minfo->video.len_usable += m2info->video.borrowed;
@@ -736,4 +736,4 @@ MODULE_DESCRIPTION("Matrox G400 CRTC2 driver");
 MODULE_LICENSE("GPL");
 module_init(matroxfb_crtc2_init);
 module_exit(matroxfb_crtc2_exit);
-/* we do not have __setup() yet */
+/* we do yest have __setup() yet */

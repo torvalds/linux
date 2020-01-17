@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -83,8 +83,8 @@ void optc2_set_timing_db_mode(struct timing_generator *optc, bool enable)
 }
 
 /**
- *For the below, I'm not sure how your GSL parameters are stored in your env,
- * so I will assume a gsl_params struct for now
+ *For the below, I'm yest sure how your GSL parameters are stored in your env,
+ * so I will assume a gsl_params struct for yesw
  */
 void optc2_set_gsl(struct timing_generator *optc,
 		   const struct gsl_params *params)
@@ -239,7 +239,7 @@ void optc2_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_c
 	int memory_mask = mpcc_hactive <= 2560 ? 0x3 : 0xf;
 	uint32_t data_fmt = 0;
 
-	/* TODO: In pseudocode but does not affect maximus, delete comment if we dont need on asic
+	/* TODO: In pseudocode but does yest affect maximus, delete comment if we dont need on asic
 	 * REG_SET(OTG_GLOBAL_CONTROL2, 0, GLOBAL_UPDATE_LOCK_EN, 1);
 	 * Program OTG register MASTER_UPDATE_LOCK_DB_X/Y to the position before DP frame start
 	 * REG_SET_2(OTG_GLOBAL_CONTROL1, 0,
@@ -288,7 +288,7 @@ void optc2_get_optc_source(struct timing_generator *optc,
 	else
 		*num_of_src_opp = 1;
 
-	/* Work around VBIOS not updating OPTC_NUM_OF_INPUT_SEGMENT */
+	/* Work around VBIOS yest updating OPTC_NUM_OF_INPUT_SEGMENT */
 	if (*src_opp_id_1 == 0xf)
 		*num_of_src_opp = 1;
 }
@@ -417,7 +417,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.is_counter_moving = optc1_is_counter_moving,
 		.get_position = optc1_get_position,
 		.get_frame_count = optc1_get_vblank_counter,
-		.get_scanoutpos = optc1_get_crtc_scanoutpos,
+		.get_scayesutpos = optc1_get_crtc_scayesutpos,
 		.get_otg_active_size = optc1_get_otg_active_size,
 		.set_early_control = optc1_set_early_control,
 		/* used by enable_timing_synchronization. Not need for FPGA */
@@ -473,7 +473,7 @@ void dcn20_timing_generator_init(struct optc *optc1)
 	optc1->min_h_blank = 32;
 	optc1->min_v_blank = 3;
 	optc1->min_v_blank_interlace = 5;
-	optc1->min_h_sync_width = 4;//	Minimum HSYNC = 8 pixels asked By HW in the first place for no actual reason. Oculus Rift S will not light up with 8 as it's hsyncWidth is 6. Changing it to 4 to fix that issue.
+	optc1->min_h_sync_width = 4;//	Minimum HSYNC = 8 pixels asked By HW in the first place for yes actual reason. Oculus Rift S will yest light up with 8 as it's hsyncWidth is 6. Changing it to 4 to fix that issue.
 	optc1->min_v_sync_width = 1;
 }
 

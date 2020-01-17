@@ -277,7 +277,7 @@ static int phy_gmii_sel_init_ports(struct phy_gmii_sel_priv *priv)
 		}
 
 		if_phys[i].if_phy = devm_phy_create(dev,
-						    priv->dev->of_node,
+						    priv->dev->of_yesde,
 						    &phy_gmii_sel_ops);
 		if (IS_ERR(if_phys[i].if_phy)) {
 			ret = PTR_ERR(if_phys[i].if_phy);
@@ -294,12 +294,12 @@ static int phy_gmii_sel_init_ports(struct phy_gmii_sel_priv *priv)
 static int phy_gmii_sel_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	const struct of_device_id *of_id;
 	struct phy_gmii_sel_priv *priv;
 	int ret;
 
-	of_id = of_match_node(phy_gmii_sel_id_table, pdev->dev.of_node);
+	of_id = of_match_yesde(phy_gmii_sel_id_table, pdev->dev.of_yesde);
 	if (!of_id)
 		return -EINVAL;
 
@@ -310,7 +310,7 @@ static int phy_gmii_sel_probe(struct platform_device *pdev)
 	priv->dev = &pdev->dev;
 	priv->soc_data = of_id->data;
 
-	priv->regmap = syscon_node_to_regmap(node->parent);
+	priv->regmap = syscon_yesde_to_regmap(yesde->parent);
 	if (IS_ERR(priv->regmap)) {
 		ret = PTR_ERR(priv->regmap);
 		dev_err(dev, "Failed to get syscon %d\n", ret);

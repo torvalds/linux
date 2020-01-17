@@ -302,7 +302,7 @@ static int clk_pll14xx_prepare(struct clk_hw *hw)
 	int ret;
 
 	/*
-	 * RESETB = 1 from 0, PLL starts its normal
+	 * RESETB = 1 from 0, PLL starts its yesrmal
 	 * operation after lock time
 	 */
 	val = readl_relaxed(pll->base + GNRL_CTL);
@@ -398,7 +398,7 @@ struct clk *imx_clk_pll14xx(const char *name, const char *parent_name,
 		init.ops = &clk_pll1443x_ops;
 		break;
 	default:
-		pr_err("%s: Unknown pll type for pll clk %s\n",
+		pr_err("%s: Unkyeswn pll type for pll clk %s\n",
 		       __func__, name);
 	};
 

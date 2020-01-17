@@ -13,7 +13,7 @@
  */
 #include <linux/module.h>
 #include <linux/kthread.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -171,14 +171,14 @@ bfad_sm_uninit(struct bfad_s *bfad, enum bfad_sm_event event)
 						"%s", "bfad_worker");
 		if (IS_ERR(bfad->bfad_tsk)) {
 			printk(KERN_INFO "bfad[%d]: Kernel thread "
-				"creation failed!\n", bfad->inst_no);
+				"creation failed!\n", bfad->inst_yes);
 			bfa_sm_send_event(bfad, BFAD_E_KTHREAD_CREATE_FAILED);
 		}
 		bfa_sm_send_event(bfad, BFAD_E_INIT);
 		break;
 
 	case BFAD_E_STOP:
-		/* Ignore stop; already in uninit */
+		/* Igyesre stop; already in uninit */
 		break;
 
 	default:
@@ -206,7 +206,7 @@ bfad_sm_created(struct bfad_s *bfad, enum bfad_sm_event event)
 		/* Enable Interrupt and wait bfa_init completion */
 		if (bfad_setup_intr(bfad)) {
 			printk(KERN_WARNING "bfad%d: bfad_setup_intr failed\n",
-					bfad->inst_no);
+					bfad->inst_yes);
 			bfa_sm_send_event(bfad, BFAD_E_INIT_FAILED);
 			break;
 		}
@@ -219,7 +219,7 @@ bfad_sm_created(struct bfad_s *bfad, enum bfad_sm_event event)
 		if ((bfad->bfad_flags & BFAD_MSIX_ON) &&
 			bfad_install_msix_handler(bfad)) {
 			printk(KERN_WARNING "%s: install_msix failed, bfad%d\n",
-				__func__, bfad->inst_no);
+				__func__, bfad->inst_yes);
 		}
 
 		bfad_init_timer(bfad);
@@ -780,7 +780,7 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 			pcie_set_readrq(pdev, pcie_max_read_reqsz);
 		} else {
 			printk(KERN_WARNING "BFA[%s]: invalid "
-			       "pcie_max_read_request_size %d ignored\n",
+			       "pcie_max_read_request_size %d igyesred\n",
 			       bfad->pci_name, pcie_max_read_reqsz);
 		}
 	}
@@ -822,9 +822,9 @@ bfad_drv_init(struct bfad_s *bfad)
 	rc = bfad_hal_mem_alloc(bfad);
 	if (rc != BFA_STATUS_OK) {
 		printk(KERN_WARNING "bfad%d bfad_hal_mem_alloc failure\n",
-		       bfad->inst_no);
+		       bfad->inst_yes);
 		printk(KERN_WARNING
-			"Not enough memory to attach all QLogic BR-series HBA ports. System may need more memory.\n");
+			"Not eyesugh memory to attach all QLogic BR-series HBA ports. System may need more memory.\n");
 		return BFA_STATUS_FAILED;
 	}
 
@@ -1030,7 +1030,7 @@ bfad_start_ops(struct bfad_s *bfad) {
 		vid.roles = FC_PORT_ROLE_FCP_INITIATOR;
 		vid.vport_type = FC_PORTTYPE_NPIV;
 		vid.disable = false;
-		vid.node_name = wwn_to_u64((u8 *)
+		vid.yesde_name = wwn_to_u64((u8 *)
 				(&((vport->fcs_vport).lport.port_cfg.nwwn)));
 		vid.port_name = wwn_to_u64((u8 *)
 				(&((vport->fcs_vport).lport.port_cfg.pwwn)));
@@ -1038,7 +1038,7 @@ bfad_start_ops(struct bfad_s *bfad) {
 		if (!fc_vport) {
 			wwn2str(pwwn_buf, vid.port_name);
 			printk(KERN_WARNING "bfad%d: failed to create pbc vport"
-				" %s\n", bfad->inst_no, pwwn_buf);
+				" %s\n", bfad->inst_yes, pwwn_buf);
 		}
 		list_del(&vport->list_entry);
 		kfree(vport);
@@ -1231,7 +1231,7 @@ bfad_setup_intr(struct bfad_s *bfad)
 			printk(KERN_WARNING "bfad%d: "
 			       "pci_enable_msix_exact failed (%d), "
 			       "use line based.\n",
-				bfad->inst_no, error);
+				bfad->inst_yes, error);
 			goto line_based;
 		}
 
@@ -1333,7 +1333,7 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	}
 
 	mutex_lock(&bfad_mutex);
-	bfad->inst_no = bfad_inst++;
+	bfad->inst_yes = bfad_inst++;
 	list_add_tail(&bfad->list_entry, &bfad_list);
 	mutex_unlock(&bfad_mutex);
 
@@ -1350,7 +1350,7 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	INIT_LIST_HEAD(&bfad->pbc_vport_list);
 	INIT_LIST_HEAD(&bfad->vport_list);
 
-	/* Setup the debugfs node for this bfad */
+	/* Setup the debugfs yesde for this bfad */
 	if (bfa_debugfs_enable)
 		bfad_debugfs_init(&bfad->pport);
 
@@ -1368,7 +1368,7 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 out_bfad_sm_failure:
 	bfad_hal_mem_release(bfad);
 out_drv_init_failure:
-	/* Remove the debugfs node for this bfad */
+	/* Remove the debugfs yesde for this bfad */
 	kfree(bfad->regdata);
 	bfad_debugfs_exit(&bfad->pport);
 	mutex_lock(&bfad_mutex);
@@ -1393,7 +1393,7 @@ bfad_pci_remove(struct pci_dev *pdev)
 	struct bfad_s	      *bfad = pci_get_drvdata(pdev);
 	unsigned long	flags;
 
-	bfa_trc(bfad, bfad->inst_no);
+	bfa_trc(bfad, bfad->inst_yes);
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	if (bfad->bfad_tsk != NULL) {
@@ -1412,7 +1412,7 @@ bfad_pci_remove(struct pci_dev *pdev)
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	bfad_hal_mem_release(bfad);
 
-	/* Remove the debugfs node for this bfad */
+	/* Remove the debugfs yesde for this bfad */
 	kfree(bfad->regdata);
 	bfad_debugfs_exit(&bfad->pport);
 
@@ -1442,7 +1442,7 @@ bfad_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		   state, bfad->bfad_flags);
 
 	switch (state) {
-	case pci_channel_io_normal: /* non-fatal error */
+	case pci_channel_io_yesrmal: /* yesn-fatal error */
 		spin_lock_irqsave(&bfad->bfad_lock, flags);
 		bfad->bfad_flags &= ~BFAD_EEH_BUSY;
 		/* Suspend/fail all bfa operations */
@@ -1535,7 +1535,7 @@ bfad_pci_slot_reset(struct pci_dev *pdev)
 		   "bfad_pci_slot_reset flags: 0x%x\n", bfad->bfad_flags);
 
 	if (pci_enable_device(pdev)) {
-		dev_printk(KERN_ERR, &pdev->dev, "Cannot re-enable "
+		dev_printk(KERN_ERR, &pdev->dev, "Canyest re-enable "
 			   "PCI device after reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
@@ -1544,13 +1544,13 @@ bfad_pci_slot_reset(struct pci_dev *pdev)
 
 	/*
 	 * Read some byte (e.g. DMA max. payload size which can't
-	 * be 0xff any time) to make sure - we did not hit another PCI error
+	 * be 0xff any time) to make sure - we did yest hit ayesther PCI error
 	 * in the middle of recovery. If we did, then declare permanent failure.
 	 */
 	pci_read_config_byte(pdev, 0x68, &byte);
 	if (byte == 0xff) {
 		dev_printk(KERN_ERR, &pdev->dev,
-			   "slot_reset failed ... got another PCI error !\n");
+			   "slot_reset failed ... got ayesther PCI error !\n");
 		goto out_disable_device;
 	}
 
@@ -1586,7 +1586,7 @@ bfad_pci_mmio_enabled(struct pci_dev *pdev)
 
 	dev_printk(KERN_INFO, &pdev->dev, "mmio_enabled\n");
 
-	/* Fetch FW diagnostic information */
+	/* Fetch FW diagyesstic information */
 	bfa_ioc_debug_save_ftrc(&bfad->bfa.ioc);
 
 	/* Cancel all pending IOs */

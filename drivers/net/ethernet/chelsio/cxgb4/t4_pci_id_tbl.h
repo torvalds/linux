@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -61,13 +61,13 @@
  *   -- will be adding a trailing semi-colon (";") here.
  */
 #ifndef CH_PCI_DEVICE_ID_FUNCTION
-#error CH_PCI_DEVICE_ID_FUNCTION not defined!
+#error CH_PCI_DEVICE_ID_FUNCTION yest defined!
 #endif
 #ifndef CH_PCI_ID_TABLE_ENTRY
-#error CH_PCI_ID_TABLE_ENTRY not defined!
+#error CH_PCI_ID_TABLE_ENTRY yest defined!
 #endif
 #ifndef CH_PCI_DEVICE_ID_TABLE_DEFINE_END
-#error CH_PCI_DEVICE_ID_TABLE_DEFINE_END not defined!
+#error CH_PCI_DEVICE_ID_TABLE_DEFINE_END yest defined!
 #endif
 
 /* T4 and later ASICs use a PCI Device ID scheme of 0xVFPP where:

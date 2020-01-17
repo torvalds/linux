@@ -11,9 +11,9 @@ static  __attribute__((constructor)) void bpf_rlimit_ctor(void)
 	getrlimit(RLIMIT_MEMLOCK, &rlim_old);
 	/* For the sake of running the test cases, we temporarily
 	 * set rlimit to infinity in order for kernel to focus on
-	 * errors from actual test cases and not getting noise
+	 * errors from actual test cases and yest getting yesise
 	 * from hitting memlock limits. The limit is on per-process
-	 * basis and not a global one, hence destructor not really
+	 * basis and yest a global one, hence destructor yest really
 	 * needed here.
 	 */
 	if (setrlimit(RLIMIT_MEMLOCK, &rlim_new) < 0) {

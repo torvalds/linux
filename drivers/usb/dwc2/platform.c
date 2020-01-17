@@ -8,12 +8,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
+ * 3. The names of the above-listed copyright holders may yest be used
  *    to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -92,14 +92,14 @@ static int dwc2_get_dr_mode(struct dwc2_hsotg *hsotg)
 	if (dwc2_hw_is_device(hsotg)) {
 		if (IS_ENABLED(CONFIG_USB_DWC2_HOST)) {
 			dev_err(hsotg->dev,
-				"Controller does not support host mode.\n");
+				"Controller does yest support host mode.\n");
 			return -EINVAL;
 		}
 		mode = USB_DR_MODE_PERIPHERAL;
 	} else if (dwc2_hw_is_host(hsotg)) {
 		if (IS_ENABLED(CONFIG_USB_DWC2_PERIPHERAL)) {
 			dev_err(hsotg->dev,
-				"Controller does not support device mode.\n");
+				"Controller does yest support device mode.\n");
 			return -EINVAL;
 		}
 		mode = USB_DR_MODE_HOST;
@@ -274,7 +274,7 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 	/* Clock */
 	hsotg->clk = devm_clk_get_optional(hsotg->dev, "otg");
 	if (IS_ERR(hsotg->clk)) {
-		dev_err(hsotg->dev, "cannot get otg clock\n");
+		dev_err(hsotg->dev, "canyest get otg clock\n");
 		return PTR_ERR(hsotg->clk);
 	}
 
@@ -298,7 +298,7 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
  * @dev: Platform device
  *
  * This routine is called, for example, when the rmmod command is executed. The
- * device may or may not be electrically present. If it is present, the driver
+ * device may or may yest be electrically present. If it is present, the driver
  * stops device processing. Any resources used on behalf of this device are
  * freed.
  */
@@ -437,7 +437,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		goto error;
 
 	hsotg->need_phy_for_wake =
-		of_property_read_bool(dev->dev.of_node,
+		of_property_read_bool(dev->dev.of_yesde,
 				      "snps,need-phy-for-wake");
 
 	/*
@@ -455,7 +455,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	/*
 	 * For OTG cores, set the force mode bits to reflect the value
-	 * of dr_mode. Force mode bits should not be touched at any
+	 * of dr_mode. Force mode bits should yest be touched at any
 	 * other time after this.
 	 */
 	dwc2_force_dr_mode(hsotg);
@@ -480,7 +480,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		device_set_wakeup_capable(&dev->dev, true);
 
 	hsotg->reset_phy_on_wake =
-		of_property_read_bool(dev->dev.of_node,
+		of_property_read_bool(dev->dev.of_yesde,
 				      "snps,reset-phy-on-wake");
 	if (hsotg->reset_phy_on_wake && !hsotg->phy) {
 		dev_warn(hsotg->dev,

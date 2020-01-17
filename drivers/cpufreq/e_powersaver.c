@@ -48,7 +48,7 @@ static int voltage_failsafe_off;
 static int set_max_voltage;
 
 #if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
-static int ignore_acpi_limit;
+static int igyesre_acpi_limit;
 
 static struct acpi_processor_performance *eps_acpi_cpu_perf;
 
@@ -286,7 +286,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 
 #if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
 	/* Check for ACPI processor speed limit */
-	if (!ignore_acpi_limit && !eps_acpi_init()) {
+	if (!igyesre_acpi_limit && !eps_acpi_init()) {
 		if (!acpi_processor_get_bios_limit(policy->cpu, &limit)) {
 			pr_info("ACPI limit %u.%uGHz\n",
 				limit/1000000,
@@ -411,8 +411,8 @@ MODULE_PARM_DESC(freq_failsafe_off, "Disable current vs max frequency check");
 module_param(voltage_failsafe_off, int, 0644);
 MODULE_PARM_DESC(voltage_failsafe_off, "Disable current vs max voltage check");
 #if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
-module_param(ignore_acpi_limit, int, 0644);
-MODULE_PARM_DESC(ignore_acpi_limit, "Don't check ACPI's processor speed limit");
+module_param(igyesre_acpi_limit, int, 0644);
+MODULE_PARM_DESC(igyesre_acpi_limit, "Don't check ACPI's processor speed limit");
 #endif
 module_param(set_max_voltage, int, 0644);
 MODULE_PARM_DESC(set_max_voltage, "Set maximum CPU voltage (mV) C7-M only");

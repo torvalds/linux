@@ -779,7 +779,7 @@ static void free_all_descbuffers(struct b43_dmaring *ring)
 	if (!ring->used_slots)
 		return;
 	for (i = 0; i < ring->nr_slots; i++) {
-		/* get meta - ignore returned value */
+		/* get meta - igyesre returned value */
 		ring->ops->idx2desc(ring, i, &meta);
 
 		if (!meta->skb || b43_dma_ptr_is_poisoned(meta->skb)) {
@@ -998,7 +998,7 @@ static void b43_destroy_dmaring(struct b43_dmaring *ring,
 #endif /* DEBUG */
 
 	/* Device IRQs are disabled prior entering this function,
-	 * so no need to take care of concurrency with rx handler stuff.
+	 * so yes need to take care of concurrency with rx handler stuff.
 	 */
 	dmacontroller_cleanup(ring);
 	free_all_descbuffers(ring);
@@ -1057,7 +1057,7 @@ int b43_dma_init(struct b43_wldev *dev)
 
 	err = dma_set_mask_and_coherent(dev->dev->dma_dev, DMA_BIT_MASK(type));
 	if (err) {
-		b43err(dev->wl, "The machine/kernel does not support "
+		b43err(dev->wl, "The machine/kernel does yest support "
 		       "the required %u-bit DMA mask\n", type);
 		return err;
 	}
@@ -1142,7 +1142,7 @@ static u16 generate_cookie(struct b43_dmaring *ring, int slot)
 	 * in the lower 12 bits.
 	 * Note that the cookie must never be 0, as this
 	 * is a special value used in RX path.
-	 * It can also not be 0xFFFF because that is special
+	 * It can also yest be 0xFFFF because that is special
 	 * for multicast frames.
 	 */
 	cookie = (((u16)ring->index + 1) << 12);
@@ -1201,7 +1201,7 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 	u16 cookie;
 	size_t hdrsize = b43_txhdr_size(ring->dev);
 
-	/* Important note: If the number of used DMA slots per TX frame
+	/* Important yeste: If the number of used DMA slots per TX frame
 	 * is changed here, the TX_SLOTS_PER_FRAME definition at the top of
 	 * the file has to be updated, too!
 	 */
@@ -1289,7 +1289,7 @@ static inline int should_inject_overflow(struct b43_dmaring *ring)
 {
 #ifdef CONFIG_B43_DEBUG
 	if (unlikely(b43_debug(ring->dev, B43_DBG_DMAOVERFLOW))) {
-		/* Check if we should inject another ringbuffer overflow
+		/* Check if we should inject ayesther ringbuffer overflow
 		 * to test handling of this situation in the stack. */
 		unsigned long next_overflow;
 
@@ -1363,7 +1363,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		/* We get here only because of a bug in mac80211.
 		 * Because of a race, one packet may be queued after
 		 * the queue is stopped, thus we got called when we shouldn't.
-		 * For now, just refuse the transmit. */
+		 * For yesw, just refuse the transmit. */
 		if (b43_debug(dev, B43_DBG_DMAVERBOSE))
 			b43err(dev->wl, "Packet after queue stopped\n");
 		err = -ENOSPC;
@@ -1372,13 +1372,13 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 
 	if (WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME)) {
 		/* If we get here, we have a real error with the queue
-		 * full, but queues not stopped. */
+		 * full, but queues yest stopped. */
 		b43err(dev->wl, "DMA queue overflow\n");
 		err = -ENOSPC;
 		goto out;
 	}
 
-	/* Assign the queue number to the ring (if not already done before)
+	/* Assign the queue number to the ring (if yest already done before)
 	 * so TX status handling can use it. The queue to ring mapping is
 	 * static, so we don't need to store it per frame. */
 	ring->queue_prio = skb_get_queue_mapping(skb);
@@ -1386,7 +1386,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	err = dma_tx_fragment(ring, skb);
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
-		 * anymore and must not transmit it unencrypted. */
+		 * anymore and must yest transmit it unencrypted. */
 		ieee80211_free_txskb(dev->wl->hw, skb);
 		err = 0;
 		goto out;
@@ -1472,7 +1472,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 	ops = ring->ops;
 	while (1) {
 		B43_WARN_ON(slot < 0 || slot >= ring->nr_slots);
-		/* get meta - ignore returned value */
+		/* get meta - igyesre returned value */
 		ops->idx2desc(ring, slot, &meta);
 
 		if (b43_dma_ptr_is_poisoned(meta->skb)) {
@@ -1500,7 +1500,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 
 			if (unlikely(!meta->skb)) {
 				/* This is a scatter-gather fragment of a frame,
-				 * so the skb pointer must not be NULL.
+				 * so the skb pointer must yest be NULL.
 				 */
 				b43dbg(dev->wl, "TX status unexpected NULL skb "
 				       "at slot %d (first=%d) on ring %d\n",
@@ -1514,8 +1514,8 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			 * Call back to inform the ieee80211 subsystem about
 			 * the status of the transmission. When skipping over
 			 * a missed TX status report, use a status structure
-			 * filled with zeros to indicate that the frame was not
-			 * sent (frame_count 0) and not acknowledged
+			 * filled with zeros to indicate that the frame was yest
+			 * sent (frame_count 0) and yest ackyeswledged
 			 */
 			if (unlikely(skip))
 				txstat = &fake;
@@ -1538,17 +1538,17 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			meta->skb = B43_DMA_PTR_POISON;
 		} else {
 			/* No need to call free_descriptor_buffer here, as
-			 * this is only the txhdr, which is not allocated.
+			 * this is only the txhdr, which is yest allocated.
 			 */
 			if (unlikely(meta->skb)) {
-				b43dbg(dev->wl, "TX status unexpected non-NULL skb "
+				b43dbg(dev->wl, "TX status unexpected yesn-NULL skb "
 				       "at slot %d (first=%d) on ring %d\n",
 				       slot, firstused, ring->index);
 				break;
 			}
 		}
 
-		/* Everything unmapped and free'd. So it's not used anymore. */
+		/* Everything unmapped and free'd. So it's yest used anymore. */
 		ring->used_slots--;
 
 		if (meta->is_last_fragment && !skip) {
@@ -1612,16 +1612,16 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
 	}
 	if (unlikely(b43_rx_buffer_is_poisoned(ring, skb))) {
 		/* Something went wrong with the DMA.
-		 * The device did not touch the buffer and did not overwrite the poison. */
+		 * The device did yest touch the buffer and did yest overwrite the poison. */
 		b43dbg(ring->dev->wl, "DMA RX: Dropping poisoned buffer.\n");
 		dmaaddr = meta->dmaaddr;
 		goto drop_recycle_buffer;
 	}
 	if (unlikely(len + ring->frameoffset > ring->rx_buffersize)) {
-		/* The data did not fit into one descriptor buffer
+		/* The data did yest fit into one descriptor buffer
 		 * and is split over multiple buffers.
 		 * This should never happen, as we try to allocate buffers
-		 * big enough. So simply ignore this packet.
+		 * big eyesugh. So simply igyesre this packet.
 		 */
 		int cnt = 0;
 		s32 tmp = len;
@@ -1757,7 +1757,7 @@ static void direct_fifo_rx(struct b43_wldev *dev, enum b43_dmatype type,
 }
 
 /* Enable/Disable Direct FIFO Receive Mode (PIO) on a RX engine.
- * This is called from PIO code, so DMA structures are not available. */
+ * This is called from PIO code, so DMA structures are yest available. */
 void b43_dma_direct_fifo_rx(struct b43_wldev *dev,
 			    unsigned int engine_index, bool enable)
 {

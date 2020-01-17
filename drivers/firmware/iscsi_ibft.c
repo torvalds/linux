@@ -5,16 +5,16 @@
  *  Copyright 2008 IBM, Inc.
  *  by Konrad Rzeszutek <konradr@linux.vnet.ibm.com>
  *  Copyright 2008
- *  by Konrad Rzeszutek <ketuzsezr@darnok.org>
+ *  by Konrad Rzeszutek <ketuzsezr@daryesk.org>
  *
  * This code exposes the iSCSI Boot Format Table to userland via sysfs.
  *
  * Changelog:
  *
  *  06 Jan 2010 - Peter Jones <pjones@redhat.com>
- *    New changelog entries are in the git log from now on.  Not here.
+ *    New changelog entries are in the git log from yesw on.  Not here.
  *
- *  14 Mar 2008 - Konrad Rzeszutek <ketuzsezr@darnok.org>
+ *  14 Mar 2008 - Konrad Rzeszutek <ketuzsezr@daryesk.org>
  *    Updated comments and copyrights. (v0.4.9)
  *
  *  11 Feb 2008 - Konrad Rzeszutek <konradr@linux.vnet.ibm.com>
@@ -27,7 +27,7 @@
  *   Added logic to handle IPv6 addresses. (v0.4.6)
  *
  *  25 Jan 2008 - Konrad Rzeszutek <konradr@linux.vnet.ibm.com>
- *   Added logic to handle badly not-to-spec iBFT. (v0.4.5)
+ *   Added logic to handle badly yest-to-spec iBFT. (v0.4.5)
  *
  *   4 Jan 2008 - Konrad Rzeszutek <konradr@linux.vnet.ibm.com>
  *   Added __init to function declarations. (v0.4.4)
@@ -79,7 +79,7 @@
 #define IBFT_ISCSI_DATE "2010-Feb-25"
 
 MODULE_AUTHOR("Peter Jones <pjones@redhat.com> and "
-	      "Konrad Rzeszutek <ketuzsezr@darnok.org>");
+	      "Konrad Rzeszutek <ketuzsezr@daryesk.org>");
 MODULE_DESCRIPTION("sysfs interface to BIOS iBFT information");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(IBFT_ISCSI_VERSION);
@@ -157,7 +157,7 @@ struct ibft_tgt {
 */
 enum ibft_id {
 	id_reserved = 0, /* We don't support. */
-	id_control = 1, /* Should show up only once and is not exported. */
+	id_control = 1, /* Should show up only once and is yest exported. */
 	id_initiator = 2,
 	id_nic = 3,
 	id_target = 4,
@@ -190,7 +190,7 @@ static const char mapped_nulls[16] = { 0x00, 0x00, 0x00, 0x00,
                                        0x00, 0x00, 0xff, 0xff,
                                        0x00, 0x00, 0x00, 0x00 };
 
-static int address_not_null(u8 *ip)
+static int address_yest_null(u8 *ip)
 {
 	return (memcmp(ip, nulls, 16) && memcmp(ip, mapped_nulls, 16));
 }
@@ -480,7 +480,7 @@ static umode_t ibft_check_nic_for(void *data, int type)
 		rc = S_IRUGO;
 		break;
 	case ISCSI_BOOT_ETH_IP_ADDR:
-		if (address_not_null(nic->ip_addr))
+		if (address_yest_null(nic->ip_addr))
 			rc = S_IRUGO;
 		break;
 	case ISCSI_BOOT_ETH_PREFIX_LEN:
@@ -492,19 +492,19 @@ static umode_t ibft_check_nic_for(void *data, int type)
 		rc = S_IRUGO;
 		break;
 	case ISCSI_BOOT_ETH_GATEWAY:
-		if (address_not_null(nic->gateway))
+		if (address_yest_null(nic->gateway))
 			rc = S_IRUGO;
 		break;
 	case ISCSI_BOOT_ETH_PRIMARY_DNS:
-		if (address_not_null(nic->primary_dns))
+		if (address_yest_null(nic->primary_dns))
 			rc = S_IRUGO;
 		break;
 	case ISCSI_BOOT_ETH_SECONDARY_DNS:
-		if (address_not_null(nic->secondary_dns))
+		if (address_yest_null(nic->secondary_dns))
 			rc = S_IRUGO;
 		break;
 	case ISCSI_BOOT_ETH_DHCP:
-		if (address_not_null(nic->dhcp))
+		if (address_yest_null(nic->dhcp))
 			rc = S_IRUGO;
 		break;
 	case ISCSI_BOOT_ETH_VLAN:
@@ -571,19 +571,19 @@ static umode_t __init ibft_check_initiator_for(void *data, int type)
 		rc = S_IRUGO;
 		break;
 	case ISCSI_BOOT_INI_ISNS_SERVER:
-		if (address_not_null(init->isns_server))
+		if (address_yest_null(init->isns_server))
 			rc = S_IRUGO;
 		break;
 	case ISCSI_BOOT_INI_SLP_SERVER:
-		if (address_not_null(init->slp_server))
+		if (address_yest_null(init->slp_server))
 			rc = S_IRUGO;
 		break;
 	case ISCSI_BOOT_INI_PRI_RADIUS_SERVER:
-		if (address_not_null(init->pri_radius_server))
+		if (address_yest_null(init->pri_radius_server))
 			rc = S_IRUGO;
 		break;
 	case ISCSI_BOOT_INI_SEC_RADIUS_SERVER:
-		if (address_not_null(init->sec_radius_server))
+		if (address_yest_null(init->sec_radius_server))
 			rc = S_IRUGO;
 		break;
 	case ISCSI_BOOT_INI_INITIATOR_NAME:
@@ -691,11 +691,11 @@ static int __init ibft_create_kobject(struct acpi_table_ibft *header,
 	case id_reserved:
 	case id_control:
 	case id_extensions:
-		/* Fields which we don't support. Ignore them */
+		/* Fields which we don't support. Igyesre them */
 		rc = 1;
 		break;
 	default:
-		printk(KERN_ERR "iBFT has unknown structure type (%d). " \
+		printk(KERN_ERR "iBFT has unkyeswn structure type (%d). " \
 				"Report this bug to %.6s!\n", hdr->id,
 				header->header.oem_id);
 		rc = 1;
@@ -703,7 +703,7 @@ static int __init ibft_create_kobject(struct acpi_table_ibft *header,
 	}
 
 	if (rc) {
-		/* Skip adding this kobject, but exit with non-fatal error. */
+		/* Skip adding this kobject, but exit with yesn-fatal error. */
 		rc = 0;
 		goto free_ibft_obj;
 	}
@@ -733,7 +733,7 @@ free_ibft_obj:
 
 /*
  * Scan the IBFT table structure for the NIC and Target fields. When
- * found add them on the passed-in list. We do not support the other
+ * found add them on the passed-in list. We do yest support the other
  * fields at this point, so they are skipped.
  */
 static int __init ibft_register_kobjects(struct acpi_table_ibft *header)

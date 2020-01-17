@@ -42,7 +42,7 @@ ENTRY(__c6xabi_divremu)
    [b1]	subc	.l1x	A4,B4,A4
 || [b1]	add	.s2	-1, B1, B1
 
-	;; RETURN A may happen here (note: must happen before the next branch)
+	;; RETURN A may happen here (yeste: must happen before the next branch)
 __divremu0:
 	cmpgt	.l2	B1, 7, B0
 || [b1]	subc	.l1x	A4,B4,A4
@@ -71,5 +71,5 @@ __divremu0:
 ||	sub	.l1	A6, 1, A6
 	or	.l1	A2, A4, A4
 	shru	.s1	A4, A6, A4
-	nop
+	yesp
 ENDPROC(__c6xabi_divremu)

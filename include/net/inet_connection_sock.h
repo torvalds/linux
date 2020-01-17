@@ -20,7 +20,7 @@
 #include <net/inet_sock.h>
 #include <net/request_sock.h>
 
-/* Cancel timers, when they are not required. */
+/* Cancel timers, when they are yest required. */
 #undef INET_CSK_CLEAR_TIMERS
 
 struct inet_bind_bucket;
@@ -63,9 +63,9 @@ struct inet_connection_sock_af_ops {
 /** inet_connection_sock - INET connection oriented sock
  *
  * @icsk_accept_queue:	   FIFO of established children
- * @icsk_bind_hash:	   Bind node
+ * @icsk_bind_hash:	   Bind yesde
  * @icsk_timeout:	   Timeout
- * @icsk_retransmit_timer: Resend (no ack)
+ * @icsk_retransmit_timer: Resend (yes ack)
  * @icsk_rto:		   Retransmit timeout
  * @icsk_pmtu_cookie	   Last pmtu seen by socket
  * @icsk_ca_ops		   Pluggable congestion control hook
@@ -73,7 +73,7 @@ struct inet_connection_sock_af_ops {
  * @icsk_ulp_ops	   Pluggable ULP control hook
  * @icsk_ulp_data	   ULP private data
  * @icsk_clean_acked	   Clean acked data hook
- * @icsk_listen_portaddr_node	hash to the portaddr listener hashtable
+ * @icsk_listen_portaddr_yesde	hash to the portaddr listener hashtable
  * @icsk_ca_state:	   Congestion control state
  * @icsk_retransmits:	   Number of unrecovered [RTO] timeouts
  * @icsk_pending:	   Scheduled timer event
@@ -99,7 +99,7 @@ struct inet_connection_sock {
 	const struct tcp_ulp_ops  *icsk_ulp_ops;
 	void __rcu		  *icsk_ulp_data;
 	void (*icsk_clean_acked)(struct sock *sk, u32 acked_seq);
-	struct hlist_node         icsk_listen_portaddr_node;
+	struct hlist_yesde         icsk_listen_portaddr_yesde;
 	unsigned int		  (*icsk_sync_mss)(struct sock *sk, u32 pmtu);
 	__u8			  icsk_ca_state:6,
 				  icsk_ca_setsockopt:1,
@@ -207,7 +207,7 @@ static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
 		sk_stop_timer(sk, &icsk->icsk_delack_timer);
 #endif
 	} else {
-		pr_debug("inet_csk BUG: unknown timer value\n");
+		pr_debug("inet_csk BUG: unkyeswn timer value\n");
 	}
 }
 
@@ -237,7 +237,7 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 		icsk->icsk_ack.timeout = jiffies + when;
 		sk_reset_timer(sk, &icsk->icsk_delack_timer, icsk->icsk_ack.timeout);
 	} else {
-		pr_debug("inet_csk BUG: unknown timer value\n");
+		pr_debug("inet_csk BUG: unkyeswn timer value\n");
 	}
 }
 

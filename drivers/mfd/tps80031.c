@@ -18,7 +18,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  * 02111-1307, USA
  */
@@ -188,7 +188,7 @@ int tps80031_ext_power_req_config(struct device *dev,
 		return ret;
 	}
 
-	/* Switch regulator control to resource now */
+	/* Switch regulator control to resource yesw */
 	if (ext_ctrl_flag & (TPS80031_PWR_REQ_INPUT_PREQ2 |
 					TPS80031_PWR_REQ_INPUT_PREQ3)) {
 		ret = tps80031_update(dev, TPS80031_SLAVE_ID1, state_reg_add,
@@ -278,22 +278,22 @@ static int tps80031_irq_init(struct tps80031 *tps80031, int irq, int irq_base)
 	 * interrupt occurs and LINE register used to pass the status
 	 * to actual interrupt line.  As per datasheet:
 	 * When INT_MSK_LINE [i] is set to 1, the associated interrupt
-	 * number i is INT line masked, which means that no interrupt is
+	 * number i is INT line masked, which means that yes interrupt is
 	 * generated on the INT line.
 	 * When INT_MSK_LINE [i] is set to 0, the associated interrupt
 	 * number i is  line enabled: An interrupt is generated on the
 	 * INT line.
-	 * In any case, the INT_STS [i] status bit may or may not be updated,
+	 * In any case, the INT_STS [i] status bit may or may yest be updated,
 	 * only linked to the INT_MSK_STS [i] configuration register bit.
 	 *
 	 * When INT_MSK_STS [i] is set to 1, the associated interrupt number
-	 * i is status masked, which means that no interrupt is stored in
-	 * the INT_STS[i] status bit. Note that no interrupt number i is
+	 * i is status masked, which means that yes interrupt is stored in
+	 * the INT_STS[i] status bit. Note that yes interrupt number i is
 	 * generated on the INT line, even if the INT_MSK_LINE [i] register
 	 * bit is set to 0.
 	 * When INT_MSK_STS [i] is set to 0, the associated interrupt number i
 	 * is status enabled: An interrupt status is updated in the INT_STS [i]
-	 * register. The interrupt may or may not be generated on the INT line,
+	 * register. The interrupt may or may yest be generated on the INT line,
 	 * depending on the INT_MSK_LINE [i] configuration register bit.
 	 */
 	for (i = 0; i < 3; i++)

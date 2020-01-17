@@ -266,7 +266,7 @@ static int pmcmsptwi_probe(struct platform_device *pldev)
 	/* get the static platform resources */
 	res = platform_get_resource(pldev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pldev->dev, "IOMEM resource not found\n");
+		dev_err(&pldev->dev, "IOMEM resource yest found\n");
 		goto ret_err;
 	}
 
@@ -281,7 +281,7 @@ static int pmcmsptwi_probe(struct platform_device *pldev)
 	}
 
 	/* remap the memory */
-	pmcmsptwi_data.iobase = ioremap_nocache(res->start,
+	pmcmsptwi_data.iobase = ioremap_yescache(res->start,
 						resource_size(res));
 	if (!pmcmsptwi_data.iobase) {
 		dev_err(&pldev->dev,
@@ -300,7 +300,7 @@ static int pmcmsptwi_probe(struct platform_device *pldev)
 			 * Enable 'DONE' interrupt only.
 			 *
 			 * If you enable all interrupts, you will get one on
-			 * error and another when the operation completes.
+			 * error and ayesther when the operation completes.
 			 * This way you only have to handle one interrupt,
 			 * but you can still check all result flags.
 			 */
@@ -309,7 +309,7 @@ static int pmcmsptwi_probe(struct platform_device *pldev)
 					MSP_TWI_INT_MSK_REG_OFFSET);
 		} else {
 			dev_warn(&pldev->dev,
-				"Could not assign TWI IRQ handler "
+				"Could yest assign TWI IRQ handler "
 				"to irq %d (continuing with poll)\n",
 				pmcmsptwi_data.irq);
 			pmcmsptwi_data.irq = 0;

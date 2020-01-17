@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -22,7 +22,7 @@
 #include "rate.h"
 
 /*
- * Rate info per rate: It tells whether a rate is ofdm or not and its phy_rate
+ * Rate info per rate: It tells whether a rate is ofdm or yest and its phy_rate
  * value
  */
 const u8 rate_info[BRCM_MAXRATE + 1] = {
@@ -279,7 +279,7 @@ static bool brcms_c_rateset_valid(struct brcms_c_rateset *rs, bool check_brate)
 	if (!check_brate)
 		return true;
 
-	/* error if no basic rates */
+	/* error if yes basic rates */
 	for (idx = 0; idx < rs->count; idx++) {
 		if (rs->rates[idx] & BRCMS_RATE_FLAG)
 			return true;
@@ -372,7 +372,7 @@ u32 brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp)
 		case PRXS0_STDN:
 			/* fallthru */
 		default:
-			/* not supported, error condition */
+			/* yest supported, error condition */
 			break;
 		}
 		if (plcp3_issgi(plcp[3]))
@@ -388,7 +388,7 @@ u32 brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp)
 	return rspec;
 }
 
-/* copy rateset src to dst as-is (no masking or sorting) */
+/* copy rateset src to dst as-is (yes masking or sorting) */
 void brcms_c_rateset_copy(const struct brcms_c_rateset *src,
 			  struct brcms_c_rateset *dst)
 {
@@ -396,7 +396,7 @@ void brcms_c_rateset_copy(const struct brcms_c_rateset *src,
 }
 
 /*
- * Copy and selectively filter one rateset to another.
+ * Copy and selectively filter one rateset to ayesther.
  * 'basic_only' means only copy basic rates.
  * 'rates' indicates cck (11b) and ofdm rates combinations.
  *    - 0: cck and ofdm
@@ -464,11 +464,11 @@ brcms_c_rateset_default(struct brcms_c_rateset *rs_tgt,
 	} else if (PHYTYPE_IS(phy_type, PHY_TYPE_G)) {
 		rs_dflt = &cck_ofdm_rates;
 	} else {
-		/* should not happen, error condition */
+		/* should yest happen, error condition */
 		rs_dflt = &cck_rates;	/* force cck */
 	}
 
-	/* if hw rateset is not supplied, assign selected rateset to it */
+	/* if hw rateset is yest supplied, assign selected rateset to it */
 	if (!rs_hw)
 		rs_hw = rs_dflt;
 

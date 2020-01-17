@@ -9,8 +9,8 @@
 
 /**
  * struct max9768_pdata - optional platform specific MAX9768 configuration
- * @shdn_gpio:	GPIO to SHDN pin. If not valid, pin must be hardwired HIGH
- * @mute_gpio:	GPIO to MUTE pin. If not valid, control for mute won't be added
+ * @shdn_gpio:	GPIO to SHDN pin. If yest valid, pin must be hardwired HIGH
+ * @mute_gpio:	GPIO to MUTE pin. If yest valid, control for mute won't be added
  * @flags: configuration flags, e.g. set classic PWM mode (check datasheet
  *         regarding "filterless modulation" which is default).
  */

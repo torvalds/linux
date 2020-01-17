@@ -127,15 +127,15 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	u32 max_freq;
 	int cur_astate, idx;
 	struct resource res;
-	struct device_node *cpu, *dn;
+	struct device_yesde *cpu, *dn;
 	int err = -ENODEV;
 
-	cpu = of_get_cpu_node(policy->cpu, NULL);
+	cpu = of_get_cpu_yesde(policy->cpu, NULL);
 	if (!cpu)
 		goto out;
 
 	max_freqp = of_get_property(cpu, "clock-frequency", NULL);
-	of_node_put(cpu);
+	of_yesde_put(cpu);
 	if (!max_freqp) {
 		err = -EINVAL;
 		goto out;
@@ -144,14 +144,14 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	/* we need the freq in kHz */
 	max_freq = *max_freqp / 1000;
 
-	dn = of_find_compatible_node(NULL, NULL, "1682m-sdc");
+	dn = of_find_compatible_yesde(NULL, NULL, "1682m-sdc");
 	if (!dn)
-		dn = of_find_compatible_node(NULL, NULL,
+		dn = of_find_compatible_yesde(NULL, NULL,
 					     "pasemi,pwrficient-sdc");
 	if (!dn)
 		goto out;
 	err = of_address_to_resource(dn, 0, &res);
-	of_node_put(dn);
+	of_yesde_put(dn);
 	if (err)
 		goto out;
 	sdcasr_mapbase = ioremap(res.start + SDCASR_OFFSET, 0x2000);
@@ -160,16 +160,16 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		goto out;
 	}
 
-	dn = of_find_compatible_node(NULL, NULL, "1682m-gizmo");
+	dn = of_find_compatible_yesde(NULL, NULL, "1682m-gizmo");
 	if (!dn)
-		dn = of_find_compatible_node(NULL, NULL,
+		dn = of_find_compatible_yesde(NULL, NULL,
 					     "pasemi,pwrficient-gizmo");
 	if (!dn) {
 		err = -ENODEV;
 		goto out_unmap_sdcasr;
 	}
 	err = of_address_to_resource(dn, 0, &res);
-	of_node_put(dn);
+	of_yesde_put(dn);
 	if (err)
 		goto out_unmap_sdcasr;
 	sdcpwr_mapbase = ioremap(res.start, 0x1000);

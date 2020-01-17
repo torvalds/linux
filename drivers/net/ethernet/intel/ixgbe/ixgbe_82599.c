@@ -65,7 +65,7 @@ static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 	struct ixgbe_mac_info *mac = &hw->mac;
 
 	/* enable the laser control functions for SFP+ fiber
-	 * and MNG not enabled
+	 * and MNG yest enabled
 	 */
 	if ((mac->ops.get_media_type(hw) == ixgbe_media_type_fiber) &&
 	    !ixgbe_mng_enabled(hw)) {
@@ -103,7 +103,7 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 	s32 ret_val;
 	u16 list_offset, data_offset, data_value;
 
-	if (hw->phy.sfp_type != ixgbe_sfp_type_unknown) {
+	if (hw->phy.sfp_type != ixgbe_sfp_type_unkyeswn) {
 		ixgbe_init_mac_link_ops_82599(hw);
 
 		hw->phy.ops.reset = NULL;
@@ -143,7 +143,7 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 			false);
 
 		if (ret_val) {
-			hw_dbg(hw, " sfp module setup not complete\n");
+			hw_dbg(hw, " sfp module setup yest complete\n");
 			return IXGBE_ERR_SFP_SETUP_NOT_COMPLETE;
 		}
 	}
@@ -258,9 +258,9 @@ static s32 ixgbe_get_invariants_82599(struct ixgbe_hw *hw)
  *  ixgbe_init_phy_ops_82599 - PHY/SFP specific init
  *  @hw: pointer to hardware structure
  *
- *  Initialize any function pointers that were not able to be
+ *  Initialize any function pointers that were yest able to be
  *  set during get_invariants because the PHY/SFP type was
- *  not known.  Perform the SFP init if necessary.
+ *  yest kyeswn.  Perform the SFP init if necessary.
  *
  **/
 static s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
@@ -342,7 +342,7 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 
 	/*
 	 * Determine link capabilities based on the stored value of AUTOC,
-	 * which represents EEPROM defaults.  If AUTOC value has not been
+	 * which represents EEPROM defaults.  If AUTOC value has yest been
 	 * stored, use the current register value.
 	 */
 	if (hw->mac.orig_link_settings_stored)
@@ -407,7 +407,7 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 		*speed |= IXGBE_LINK_SPEED_10GB_FULL |
 			  IXGBE_LINK_SPEED_1GB_FULL;
 
-		/* QSFP must not enable auto-negotiation */
+		/* QSFP must yest enable auto-negotiation */
 		if (hw->phy.media_type == ixgbe_media_type_fiber_qsfp)
 			*autoneg = false;
 		else
@@ -427,7 +427,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 {
 	/* Detect if there is a copper PHY attached. */
 	switch (hw->phy.type) {
-	case ixgbe_phy_cu_unknown:
+	case ixgbe_phy_cu_unkyeswn:
 	case ixgbe_phy_tn:
 		return ixgbe_media_type_copper;
 
@@ -466,7 +466,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 		return ixgbe_media_type_fiber_qsfp;
 
 	default:
-		return ixgbe_media_type_unknown;
+		return ixgbe_media_type_unkyeswn;
 	}
 }
 
@@ -542,12 +542,12 @@ static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
 			}
 			if (!(links_reg & IXGBE_LINKS_KX_AN_COMP)) {
 				status = IXGBE_ERR_AUTONEG_NOT_COMPLETE;
-				hw_dbg(hw, "Autoneg did not complete.\n");
+				hw_dbg(hw, "Autoneg did yest complete.\n");
 			}
 		}
 	}
 
-	/* Add delay to filter out noises during initial link setup */
+	/* Add delay to filter out yesises during initial link setup */
 	msleep(50);
 
 	return status;
@@ -863,12 +863,12 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 				if (!(links_reg & IXGBE_LINKS_KX_AN_COMP)) {
 					status =
 						IXGBE_ERR_AUTONEG_NOT_COMPLETE;
-					hw_dbg(hw, "Autoneg did not complete.\n");
+					hw_dbg(hw, "Autoneg did yest complete.\n");
 				}
 			}
 		}
 
-		/* Add delay to filter out noises during initial link setup */
+		/* Add delay to filter out yesises during initial link setup */
 		msleep(50);
 	}
 
@@ -991,7 +991,7 @@ mac_reset_top:
 	}
 
 	/*
-	 * Store the original AUTOC/AUTOC2 values if they have not been
+	 * Store the original AUTOC/AUTOC2 values if they have yest been
 	 * stored off yet.  Otherwise restore the stored original
 	 * values since the reset operation sets back to defaults.
 	 */
@@ -1115,14 +1115,14 @@ s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw)
 	 */
 	err = ixgbe_fdir_check_cmd_complete(hw, &fdircmd);
 	if (err) {
-		hw_dbg(hw, "Flow Director previous command did not complete, aborting table re-initialization.\n");
+		hw_dbg(hw, "Flow Director previous command did yest complete, aborting table re-initialization.\n");
 		return err;
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRFREE, 0);
 	IXGBE_WRITE_FLUSH(hw);
 	/*
-	 * 82599 adapters flow director init flow cannot be restarted,
+	 * 82599 adapters flow director init flow canyest be restarted,
 	 * Workaround 82599 silicon errata by performing the following steps
 	 * before re-writing the FDIRCTRL control register with the same value.
 	 * - write 1 to bit 8 of FDIRCMD register &
@@ -1191,8 +1191,8 @@ static void ixgbe_fdir_enable_82599(struct ixgbe_hw *hw, u32 fdirctrl)
 	 *
 	 * So we'll poll for IXGBE_FDIR_INIT_DONE_POLL times, sleeping for
 	 * 1 msec per poll time.  If we're at line rate and drop to 100M, then
-	 * this might not finish in our poll time, but we can live with that
-	 * for now.
+	 * this might yest finish in our poll time, but we can live with that
+	 * for yesw.
 	 */
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRCTRL, fdirctrl);
 	IXGBE_WRITE_FLUSH(hw);
@@ -1317,8 +1317,8 @@ static u32 ixgbe_atr_compute_sig_hash_82599(union ixgbe_atr_hash_dword input,
 
 	/*
 	 * apply flow ID/VM pool/VLAN ID bits to lo hash dword, we had to
-	 * delay this because bit 0 of the stream should not be processed
-	 * so we do not add the vlan until after bit 0 was processed
+	 * delay this because bit 0 of the stream should yest be processed
+	 * so we do yest add the vlan until after bit 0 was processed
 	 */
 	lo_hash_dword ^= flow_vm_vlan ^ (flow_vm_vlan << 16);
 
@@ -1357,8 +1357,8 @@ static u32 ixgbe_atr_compute_sig_hash_82599(union ixgbe_atr_hash_dword input,
  *  @common: compressed common input dword
  *  @queue: queue index to direct traffic to
  *
- * Note that the tunnel bit in input must not be set when the hardware
- * tunneling support does not exist.
+ * Note that the tunnel bit in input must yest be set when the hardware
+ * tunneling support does yest exist.
  **/
 s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
 					  union ixgbe_atr_hash_dword input,
@@ -1463,8 +1463,8 @@ void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 
 	/*
 	 * apply flow ID/VM pool/VLAN ID bits to lo hash dword, we had to
-	 * delay this because bit 0 of the stream should not be processed
-	 * so we do not add the vlan until after bit 0 was processed
+	 * delay this because bit 0 of the stream should yest be processed
+	 * so we do yest add the vlan until after bit 0 was processed
 	 */
 	lo_hash_dword ^= flow_vm_vlan ^ (flow_vm_vlan << 16);
 
@@ -1520,7 +1520,7 @@ static u32 ixgbe_get_fdirtcpm_82599(union ixgbe_atr_input *input_mask)
 s32 ixgbe_fdir_set_input_mask_82599(struct ixgbe_hw *hw,
 				    union ixgbe_atr_input *input_mask)
 {
-	/* mask IPv6 since it is currently not supported */
+	/* mask IPv6 since it is currently yest supported */
 	u32 fdirm = IXGBE_FDIRM_DIPv6;
 	u32 fdirtcpm;
 
@@ -1528,7 +1528,7 @@ s32 ixgbe_fdir_set_input_mask_82599(struct ixgbe_hw *hw,
 	 * Program the relevant mask registers.  If src/dst_port or src/dst_addr
 	 * are zero, then assume a full mask for that field.  Also assume that
 	 * a VLAN of 0 is unspecified, so mask that out as well.  L4type
-	 * cannot be masked out in this implementation.
+	 * canyest be masked out in this implementation.
 	 *
 	 * This also assumes IPv4 only.  IPv6 masking isn't supported at this
 	 * point in time.
@@ -1578,7 +1578,7 @@ s32 ixgbe_fdir_set_input_mask_82599(struct ixgbe_hw *hw,
 		fdirm |= IXGBE_FDIRM_VLANID;
 		/* fall through */
 	case 0xEFFF:
-		/* no VLAN fields masked */
+		/* yes VLAN fields masked */
 		break;
 	default:
 		hw_dbg(hw, " Error on VLAN mask\n");
@@ -1634,7 +1634,7 @@ s32 ixgbe_fdir_write_perfect_filter_82599(struct ixgbe_hw *hw,
 	u32 fdirport, fdirvlan, fdirhash, fdircmd;
 	s32 err;
 
-	/* currently IPv6 is not supported, must be programmed with 0 */
+	/* currently IPv6 is yest supported, must be programmed with 0 */
 	IXGBE_WRITE_REG_BE32(hw, IXGBE_FDIRSIPv6(0),
 			     input->formatted.src_ip[0]);
 	IXGBE_WRITE_REG_BE32(hw, IXGBE_FDIRSIPv6(1),
@@ -1683,7 +1683,7 @@ s32 ixgbe_fdir_write_perfect_filter_82599(struct ixgbe_hw *hw,
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRCMD, fdircmd);
 	err = ixgbe_fdir_check_cmd_complete(hw, &fdircmd);
 	if (err) {
-		hw_dbg(hw, "Flow Director command did not complete!\n");
+		hw_dbg(hw, "Flow Director command did yest complete!\n");
 		return err;
 	}
 
@@ -1711,7 +1711,7 @@ s32 ixgbe_fdir_erase_perfect_filter_82599(struct ixgbe_hw *hw,
 
 	err = ixgbe_fdir_check_cmd_complete(hw, &fdircmd);
 	if (err) {
-		hw_dbg(hw, "Flow Director command did not complete!\n");
+		hw_dbg(hw, "Flow Director command did yest complete!\n");
 		return err;
 	}
 
@@ -1806,7 +1806,7 @@ static s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
 {
 	s32 status;
 
-	/* Detect PHY if not unknown - returns success if already detected. */
+	/* Detect PHY if yest unkyeswn - returns success if already detected. */
 	status = ixgbe_identify_phy_generic(hw);
 	if (status) {
 		/* 82599 10GBASE-T requires an external PHY */
@@ -1815,13 +1815,13 @@ static s32 ixgbe_identify_phy_82599(struct ixgbe_hw *hw)
 		status = ixgbe_identify_module_generic(hw);
 	}
 
-	/* Set PHY type none if no PHY detected */
-	if (hw->phy.type == ixgbe_phy_unknown) {
-		hw->phy.type = ixgbe_phy_none;
+	/* Set PHY type yesne if yes PHY detected */
+	if (hw->phy.type == ixgbe_phy_unkyeswn) {
+		hw->phy.type = ixgbe_phy_yesne;
 		status = 0;
 	}
 
-	/* Return error if SFP module has been detected but is not supported */
+	/* Return error if SFP module has been detected but is yest supported */
 	if (hw->phy.type == ixgbe_phy_sfp_unsupported)
 		return IXGBE_ERR_SFP_NOT_SUPPORTED;
 
@@ -1862,8 +1862,8 @@ static s32 ixgbe_enable_rx_dma_82599(struct ixgbe_hw *hw, u32 regval)
  *  Verifies that installed the firmware version is 0.6 or higher
  *  for SFI devices. All 82599 SFI devices should have version 0.6 or higher.
  *
- *  Returns IXGBE_ERR_EEPROM_VERSION if the FW is not present or
- *  if the FW version is not supported.
+ *  Returns IXGBE_ERR_EEPROM_VERSION if the FW is yest present or
+ *  if the FW version is yest supported.
  **/
 static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw)
 {
@@ -2036,7 +2036,7 @@ static s32 ixgbe_reset_pipeline_82599(struct ixgbe_hw *hw)
 	}
 
 	if (!(anlp1_reg & IXGBE_ANLP1_AN_STATE_MASK)) {
-		hw_dbg(hw, "auto negotiation not completed\n");
+		hw_dbg(hw, "auto negotiation yest completed\n");
 		ret_val = IXGBE_ERR_RESET_FAILED;
 		goto reset_pipeline_out;
 	}

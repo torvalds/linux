@@ -43,7 +43,7 @@ struct Symbios_nvram {
 
 /* Controller set up 20 bytes */
 	u_char	v_major;	/* 0x00 */
-	u_char	v_minor;	/* 0x30 */
+	u_char	v_miyesr;	/* 0x30 */
 	u32	boot_crc;
 	u_short	flags;
 #define SYMBIOS_SCAM_ENABLE	(1)
@@ -71,7 +71,7 @@ struct Symbios_nvram {
 
 /* Boot order 14 bytes * 4 */
 	struct Symbios_host{
-		u_short	type;		/* 4:8xx / 0:nok */
+		u_short	type;		/* 4:8xx / 0:yesk */
 		u_short	device_id;	/* PCI device id */
 		u_short	vendor_id;	/* PCI vendor id */
 		u_char	bus_nr;		/* PCI bus number */

@@ -134,7 +134,7 @@ static const struct firmware_ops trusted_foundations_ops = {
 void register_trusted_foundations(struct trusted_foundations_platform_data *pd)
 {
 	/*
-	 * we are not using version information for now since currently
+	 * we are yest using version information for yesw since currently
 	 * supported SMCs are compatible with all TF releases
 	 */
 	register_firmware_ops(&trusted_foundations_ops);
@@ -142,22 +142,22 @@ void register_trusted_foundations(struct trusted_foundations_platform_data *pd)
 
 void of_register_trusted_foundations(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct trusted_foundations_platform_data pdata;
 	int err;
 
-	node = of_find_compatible_node(NULL, NULL, "tlm,trusted-foundations");
-	if (!node)
+	yesde = of_find_compatible_yesde(NULL, NULL, "tlm,trusted-foundations");
+	if (!yesde)
 		return;
 
-	err = of_property_read_u32(node, "tlm,version-major",
+	err = of_property_read_u32(yesde, "tlm,version-major",
 				   &pdata.version_major);
 	if (err != 0)
 		panic("Trusted Foundation: missing version-major property\n");
-	err = of_property_read_u32(node, "tlm,version-minor",
-				   &pdata.version_minor);
+	err = of_property_read_u32(yesde, "tlm,version-miyesr",
+				   &pdata.version_miyesr);
 	if (err != 0)
-		panic("Trusted Foundation: missing version-minor property\n");
+		panic("Trusted Foundation: missing version-miyesr property\n");
 	register_trusted_foundations(&pdata);
 }
 

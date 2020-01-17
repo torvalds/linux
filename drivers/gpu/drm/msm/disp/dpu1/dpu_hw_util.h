@@ -33,7 +33,7 @@ struct dpu_hw_blk_reg_map {
 /**
  * struct dpu_hw_scaler3_de_cfg : QSEEDv3 detail enhancer configuration
  * @enable:         detail enhancer enable/disable
- * @sharpen_level1: sharpening strength for noise
+ * @sharpen_level1: sharpening strength for yesise
  * @sharpen_level2: sharpening strength for signal
  * @ clip:          clip shift
  * @ limit:         limit value
@@ -182,7 +182,7 @@ struct dpu_drm_pix_ext_v1 {
 /**
  * struct dpu_drm_de_v1 - version 1 of detail enhancer structure
  * @enable:         Enables/disables detail enhancer
- * @sharpen_level1: Sharpening strength for noise
+ * @sharpen_level1: Sharpening strength for yesise
  * @sharpen_level2: Sharpening strength for context
  * @clip:           Clip coefficient
  * @limit:          Detail enhancer limit factor

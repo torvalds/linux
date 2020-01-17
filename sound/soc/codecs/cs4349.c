@@ -146,9 +146,9 @@ static int cs4349_digital_mute(struct snd_soc_dai *dai, int mute)
 static DECLARE_TLV_DB_SCALE(dig_tlv, -12750, 50, 0);
 
 static const char * const chan_mix_texts[] = {
-	"Mute", "MuteA", "MuteA SwapB", "MuteA MonoB", "SwapA MuteB",
-	"BothR", "Swap", "SwapA MonoB", "MuteB", "Normal", "BothL",
-	"MonoB", "MonoA MuteB", "MonoA", "MonoA SwapB", "Mono",
+	"Mute", "MuteA", "MuteA SwapB", "MuteA MoyesB", "SwapA MuteB",
+	"BothR", "Swap", "SwapA MoyesB", "MuteB", "Normal", "BothL",
+	"MoyesB", "MoyesA MuteB", "MoyesA", "MoyesA SwapB", "Moyes",
 	/*Normal == Channel A = Left, Channel B = Right*/
 };
 
@@ -262,7 +262,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs4349 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs4349_regmap = {

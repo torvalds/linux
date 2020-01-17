@@ -37,7 +37,7 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	/* HDRC controls CPEN, but beware current surges during device
 	 * connect.  They can trigger transient overcurrent conditions
-	 * that must be ignored.
+	 * that must be igyesred.
 	 */
 
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
@@ -91,12 +91,12 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 		musb_readb(musb->mregs, MUSB_DEVCTL));
 }
 
-static int musb_otg_notifications(struct notifier_block *nb,
+static int musb_otg_yestifications(struct yestifier_block *nb,
 		unsigned long event, void *unused)
 {
 	struct musb *musb = container_of(nb, struct musb, nb);
 
-	dev_dbg(musb->controller, "musb_otg_notifications %ld %s\n",
+	dev_dbg(musb->controller, "musb_otg_yestifications %ld %s\n",
 			event, usb_otg_state_string(musb->xceiv->otg->state));
 
 	switch (event) {
@@ -147,14 +147,14 @@ static int ux500_musb_init(struct musb *musb)
 
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv)) {
-		pr_err("HS USB OTG: no transceiver configured\n");
+		pr_err("HS USB OTG: yes transceiver configured\n");
 		return -EPROBE_DEFER;
 	}
 
-	musb->nb.notifier_call = musb_otg_notifications;
-	status = usb_register_notifier(musb->xceiv, &musb->nb);
+	musb->nb.yestifier_call = musb_otg_yestifications;
+	status = usb_register_yestifier(musb->xceiv, &musb->nb);
 	if (status < 0) {
-		dev_dbg(musb->controller, "notification register failed\n");
+		dev_dbg(musb->controller, "yestification register failed\n");
 		return status;
 	}
 
@@ -165,7 +165,7 @@ static int ux500_musb_init(struct musb *musb)
 
 static int ux500_musb_exit(struct musb *musb)
 {
-	usb_unregister_notifier(musb->xceiv, &musb->nb);
+	usb_unregister_yestifier(musb->xceiv, &musb->nb);
 
 	usb_put_phy(musb->xceiv);
 
@@ -186,7 +186,7 @@ static const struct musb_platform_ops ux500_ops = {
 };
 
 static struct musb_hdrc_platform_data *
-ux500_of_probe(struct platform_device *pdev, struct device_node *np)
+ux500_of_probe(struct platform_device *pdev, struct device_yesde *np)
 {
 	struct musb_hdrc_platform_data *pdata;
 	const char *mode;
@@ -218,7 +218,7 @@ static int ux500_probe(struct platform_device *pdev)
 {
 	struct resource musb_resources[2];
 	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
-	struct device_node		*np = pdev->dev.of_node;
+	struct device_yesde		*np = pdev->dev.of_yesde;
 	struct platform_device		*musb;
 	struct ux500_glue		*glue;
 	struct clk			*clk;
@@ -232,7 +232,7 @@ static int ux500_probe(struct platform_device *pdev)
 
 			pdev->dev.platform_data = pdata;
 		} else {
-			dev_err(&pdev->dev, "no pdata or device tree found\n");
+			dev_err(&pdev->dev, "yes pdata or device tree found\n");
 			goto err0;
 		}
 	}

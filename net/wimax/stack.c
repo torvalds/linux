@@ -80,7 +80,7 @@ static const struct nla_policy wimax_gnl_re_status_change[WIMAX_GNL_ATTR_MAX + 1
  * Use wimax_gnl_re_state_change_send() to send the returned skb.
  *
  * Returns: skb with the genl message if ok, IS_ERR() ptr on error
- *     with an errno code.
+ *     with an erryes code.
  */
 static
 struct sk_buff *wimax_gnl_re_state_change_alloc(
@@ -145,7 +145,7 @@ error_new:
  * @report_skb: as returned by wimax_gnl_re_state_change_alloc()
  * @header: as returned by wimax_gnl_re_state_change_alloc()
  *
- * Returns: 0 if ok, < 0 errno code on error.
+ * Returns: 0 if ok, < 0 erryes code on error.
  *
  * If the message is  NULL, pretend it didn't happen.
  */
@@ -266,7 +266,7 @@ void __wimax_state_change(struct wimax_dev *wimax_dev, enum wimax_st new_state)
 		break;
 	case __WIMAX_ST_INVALID:
 	default:
-		dev_err(dev, "SW BUG: wimax_dev %p is in unknown state %u\n",
+		dev_err(dev, "SW BUG: wimax_dev %p is in unkyeswn state %u\n",
 			wimax_dev, wimax_dev->state);
 		WARN_ON(1);
 		goto out;
@@ -318,8 +318,8 @@ out:
  *
  * This implements the state changes for the wimax devices. It will
  *
- * - verify that the state transition is legal (for now it'll just
- *   print a warning if not) according to the table in
+ * - verify that the state transition is legal (for yesw it'll just
+ *   print a warning if yest) according to the table in
  *   linux/wimax.h's documentation for 'enum wimax_st'.
  *
  * - perform the actions needed for leaving the current state and
@@ -333,13 +333,13 @@ out:
 void wimax_state_change(struct wimax_dev *wimax_dev, enum wimax_st new_state)
 {
 	/*
-	 * A driver cannot take the wimax_dev out of the
+	 * A driver canyest take the wimax_dev out of the
 	 * __WIMAX_ST_NULL state unless by calling wimax_dev_add(). If
-	 * the wimax_dev's state is still NULL, we ignore any request
+	 * the wimax_dev's state is still NULL, we igyesre any request
 	 * to change its state because it means it hasn't been yet
 	 * registered.
 	 *
-	 * There is no need to complain about it, as routines that
+	 * There is yes need to complain about it, as routines that
 	 * call this might be shared from different code paths that
 	 * are called before or after wimax_dev_add() has done its
 	 * job.
@@ -381,7 +381,7 @@ EXPORT_SYMBOL_GPL(wimax_state_get);
  */
 void wimax_dev_init(struct wimax_dev *wimax_dev)
 {
-	INIT_LIST_HEAD(&wimax_dev->id_table_node);
+	INIT_LIST_HEAD(&wimax_dev->id_table_yesde);
 	__wimax_state_set(wimax_dev, __WIMAX_ST_NULL);
 	mutex_init(&wimax_dev->mutex);
 	mutex_init(&wimax_dev->mutex_reset);
@@ -511,7 +511,7 @@ EXPORT_SYMBOL_GPL(wimax_dev_add);
  *
  * IMPORTANT! Must call before calling unregister_netdev().
  *
- * After this function returns, you will not get any more user space
+ * After this function returns, you will yest get any more user space
  * control requests (via netlink or debugfs) and thus to wimax_dev->ops.
  *
  * Reentrancy control is ensured by setting the state to
@@ -580,7 +580,7 @@ int __init wimax_subsys_init(void)
 
 	result = genl_register_family(&wimax_gnl_family);
 	if (unlikely(result < 0)) {
-		pr_err("cannot register generic netlink family: %d\n", result);
+		pr_err("canyest register generic netlink family: %d\n", result);
 		goto error_register_family;
 	}
 

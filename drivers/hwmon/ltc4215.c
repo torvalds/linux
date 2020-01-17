@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver for Linear Technology LTC4215 I2C Hot Swap Controller
+ * Driver for Linear Techyeslogy LTC4215 I2C Hot Swap Controller
  *
  * Copyright (C) 2009 Ira W. Snyder <iws@ovro.caltech.edu>
  *
@@ -111,7 +111,7 @@ static unsigned int ltc4215_get_current(struct device *dev)
 
 	/*
 	 * The strange looking conversions that follow are fixed-point
-	 * math, since we cannot do floating point in the kernel.
+	 * math, since we canyest do floating point in the kernel.
 	 *
 	 * Step 1: convert sense register to microVolts
 	 * Step 2: convert voltage to milliAmperes
@@ -121,7 +121,7 @@ static unsigned int ltc4215_get_current(struct device *dev)
 	 *
 	 * With the resistors that are fractions of a milliOhm, we multiply
 	 * the voltage and resistance by 10, to shift the decimal point.
-	 * Now we can use the normal division operator again.
+	 * Now we can use the yesrmal division operator again.
 	 */
 
 	/* Calculate voltage in microVolts (151 uV per increment) */

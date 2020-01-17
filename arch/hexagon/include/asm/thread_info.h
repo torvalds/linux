@@ -46,7 +46,7 @@ struct thread_info {
 	struct pt_regs		*regs;
 	/*
 	 * saved kernel sp at switch_to time;
-	 * not sure if this is used (it's not in the VM model it seems;
+	 * yest sure if this is used (it's yest in the VM model it seems;
 	 * see thread_struct)
 	 */
 	unsigned long		sp;
@@ -90,7 +90,7 @@ register struct thread_info *__current_thread_info asm(QUOTED_THREADINFO_REG);
  */
 
 #define TIF_SYSCALL_TRACE       0       /* syscall trace active */
-#define TIF_NOTIFY_RESUME       1       /* resumption notification requested */
+#define TIF_NOTIFY_RESUME       1       /* resumption yestification requested */
 #define TIF_SIGPENDING          2       /* signal pending */
 #define TIF_NEED_RESCHED        3       /* rescheduling necessary */
 #define TIF_SINGLESTEP          4       /* restore ss @ return to usr mode */

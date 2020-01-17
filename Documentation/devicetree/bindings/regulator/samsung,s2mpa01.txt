@@ -6,8 +6,8 @@ More information can be found in bindings/mfd/sec-core.txt file.
 
 The S2MPA01 device provide buck and LDO regulators.
 
-To register these with regulator framework instantiate under main device node
-a sub-node named "regulators" with more sub-nodes for each regulator using the
+To register these with regulator framework instantiate under main device yesde
+a sub-yesde named "regulators" with more sub-yesdes for each regulator using the
 common regulator binding documented in:
  - Documentation/devicetree/bindings/regulator/regulator.txt
 
@@ -23,7 +23,7 @@ Note: The 'n' in LDOn and BUCKn represents the LDO or BUCK number
 as per the datasheet of device.
 
 
-Optional properties of buck regulator nodes under "regulators" sub-node:
+Optional properties of buck regulator yesdes under "regulators" sub-yesde:
  - regulator-ramp-delay: ramp delay in uV/us. May be 6250, 12500
    (default), 25000, or 50000. May be 0 for disabling the ramp delay on
    BUCK{1,2,3,4}.

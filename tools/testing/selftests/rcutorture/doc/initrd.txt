@@ -5,7 +5,7 @@ over a very long sleep() call.  In both cases, this creation is done
 by tools/testing/selftests/rcutorture/bin/mkinitrd.sh.
 
 However, if you are attempting to run rcutorture on a system that does
-not have dracut installed, and if you don't like the notion of static
+yest have dracut installed, and if you don't like the yestion of static
 linking, you might wish to press an existing initrd into service:
 
 ------------------------------------------------------------------------
@@ -17,7 +17,7 @@ cpio -id < /tmp/initrd.img.zcat
 # Manually verify that initrd contains needed binaries and libraries.
 ------------------------------------------------------------------------
 
-Interestingly enough, if you are running rcutorture, you don't really
+Interestingly eyesugh, if you are running rcutorture, you don't really
 need userspace in many cases.  Running without userspace has the
 advantage of allowing you to test your kernel independently of the
 distro in place, the root-filesystem layout, and so on.  To make this

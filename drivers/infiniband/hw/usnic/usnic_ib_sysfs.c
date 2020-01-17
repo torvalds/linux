@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -33,7 +33,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_addr.h>
@@ -83,7 +83,7 @@ config_show(struct device *device, struct device_attribute *attr, char *buf)
 		char *busname;
 
 		/*
-		 * bus name seems to come with annoying prefix.
+		 * bus name seems to come with anyesying prefix.
 		 * Remove it if it is predictable
 		 */
 		busname = us_ibdev->pdev->bus->name;
@@ -116,7 +116,7 @@ config_show(struct device *device, struct device_attribute *attr, char *buf)
 		n = scnprintf(ptr, left, "\n");
 		UPDATE_PTR_LEFT(n, ptr, left);
 	} else {
-		n = scnprintf(ptr, left, "%s: no VFs\n",
+		n = scnprintf(ptr, left, "%s: yes VFs\n",
 				dev_name(&us_ibdev->ib_dev.dev));
 		UPDATE_PTR_LEFT(n, ptr, left);
 	}

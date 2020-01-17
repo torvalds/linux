@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * lirc.h - linux infrared remote control header file
  * last modified 2010/07/13 by Jarod Wilson
@@ -143,7 +143,7 @@
  * struct lirc_scancode - decoded scancode with protocol for use with
  *	LIRC_MODE_SCANCODE
  *
- * @timestamp: Timestamp in nanoseconds using CLOCK_MONOTONIC when IR
+ * @timestamp: Timestamp in nayesseconds using CLOCK_MONOTONIC when IR
  *	was decoded.
  * @flags: should be 0 for transmit. When receiving scancodes,
  *	LIRC_SCANCODE_FLAG_TOGGLE or LIRC_SCANCODE_FLAG_REPEAT can be set
@@ -168,8 +168,8 @@ struct lirc_scancode {
 /**
  * enum rc_proto - the Remote Controller protocol
  *
- * @RC_PROTO_UNKNOWN: Protocol not known
- * @RC_PROTO_OTHER: Protocol known but proprietary
+ * @RC_PROTO_UNKNOWN: Protocol yest kyeswn
+ * @RC_PROTO_OTHER: Protocol kyeswn but proprietary
  * @RC_PROTO_RC5: Philips RC5 protocol
  * @RC_PROTO_RC5X_20: Philips RC5x 20 bit protocol
  * @RC_PROTO_RC5_SZ: StreamZap variant of RC5

@@ -20,7 +20,7 @@
 
 static int hibmc_connector_get_modes(struct drm_connector *connector)
 {
-	return drm_add_modes_noedid(connector, 800, 600);
+	return drm_add_modes_yesedid(connector, 800, 600);
 }
 
 static enum drm_mode_status hibmc_connector_mode_valid(struct drm_connector *connector,

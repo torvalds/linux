@@ -100,22 +100,22 @@ static inline void iowrite64be_hi_lo(u64 val, void __iomem *addr)
 #endif
 
 #ifndef ioread64
-#define ioread64_is_nonatomic
+#define ioread64_is_yesnatomic
 #define ioread64 ioread64_hi_lo
 #endif
 
 #ifndef iowrite64
-#define iowrite64_is_nonatomic
+#define iowrite64_is_yesnatomic
 #define iowrite64 iowrite64_hi_lo
 #endif
 
 #ifndef ioread64be
-#define ioread64be_is_nonatomic
+#define ioread64be_is_yesnatomic
 #define ioread64be ioread64be_hi_lo
 #endif
 
 #ifndef iowrite64be
-#define iowrite64be_is_nonatomic
+#define iowrite64be_is_yesnatomic
 #define iowrite64be iowrite64be_hi_lo
 #endif
 

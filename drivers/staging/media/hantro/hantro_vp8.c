@@ -168,7 +168,7 @@ int hantro_vp8_dec_init(struct hantro_ctx *ctx)
 
 	/*
 	 * Allocate probability table buffer,
-	 * total 1208 bytes, 4K page is far enough.
+	 * total 1208 bytes, 4K page is far eyesugh.
 	 */
 	aux_buf = &ctx->vp8_dec.prob_tbl;
 	aux_buf->size = sizeof(struct vp8_prob_tbl_packed);

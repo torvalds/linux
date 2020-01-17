@@ -7,18 +7,18 @@ include $(srctree)/lib/vdso/Makefile
 
 hostprogs-y := vdsomunge
 
-obj-vdso := vgettimeofday.o datapage.o note.o
+obj-vdso := vgettimeofday.o datapage.o yeste.o
 
 # Build rules
 targets := $(obj-vdso) vdso.so vdso.so.dbg vdso.so.raw vdso.lds
 obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
 
-ccflags-y := -fPIC -fno-common -fno-builtin -fno-stack-protector
+ccflags-y := -fPIC -fyes-common -fyes-builtin -fyes-stack-protector
 ccflags-y += -DDISABLE_BRANCH_PROFILING
 
 ldflags-$(CONFIG_CPU_ENDIAN_BE8) := --be8
-ldflags-y := -Bsymbolic --no-undefined -soname=linux-vdso.so.1 \
-	    -z max-page-size=4096 -nostdlib -shared $(ldflags-y) \
+ldflags-y := -Bsymbolic --yes-undefined -soname=linux-vdso.so.1 \
+	    -z max-page-size=4096 -yesstdlib -shared $(ldflags-y) \
 	    --hash-style=sysv --build-id \
 	    -T
 
@@ -39,7 +39,7 @@ endif
 # Disable gcov profiling for VDSO code
 GCOV_PROFILE := n
 
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
+# Prevents link failures: __sanitizer_cov_trace_pc() is yest linked in.
 KCOV_INSTRUMENT := n
 
 # Force dependency

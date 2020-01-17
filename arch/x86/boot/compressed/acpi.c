@@ -108,7 +108,7 @@ static acpi_physical_address kexec_get_rsdp_addr(void)
 	/* Get systab from boot params. */
 	systab = (efi_system_table_64_t *) (ei->efi_systab | ((__u64)ei->efi_systab_hi << 32));
 	if (!systab)
-		error("EFI system table not found in kexec boot_params.");
+		error("EFI system table yest found in kexec boot_params.");
 
 	return __efi_get_rsdp_addr((unsigned long)esd->tables, systab->nr_tables, true);
 }
@@ -148,7 +148,7 @@ static acpi_physical_address efi_get_rsdp_addr(void)
 	systab = ei->efi_systab;
 #endif
 	if (!systab)
-		error("EFI system table not found.");
+		error("EFI system table yest found.");
 
 	/* Handle EFI bitness properly */
 	if (efi_64) {
@@ -164,7 +164,7 @@ static acpi_physical_address efi_get_rsdp_addr(void)
 	}
 
 	if (!config_tables)
-		error("EFI config tables not found.");
+		error("EFI config tables yest found.");
 
 	return __efi_get_rsdp_addr(config_tables, nr_tables, efi_64);
 #else
@@ -369,7 +369,7 @@ static unsigned long get_acpi_srat_table(void)
  * Return the number of immovable memory regions on success, 0 on failure:
  *
  * - Too many immovable memory regions
- * - ACPI off or no SRAT found
+ * - ACPI off or yes SRAT found
  * - No immovable memory region found.
  */
 int count_immovable_mem_regions(void)

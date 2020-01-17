@@ -46,7 +46,7 @@ static const u32 udlfb_info_flags = FBINFO_DEFAULT | FBINFO_READS_FAST |
  * There are many DisplayLink-based graphics products, all with unique PIDs.
  * So we match on DisplayLink's VID + Vendor-Defined Interface Class (0xff)
  * We also require a match on SubClass (0x00) and Protocol (0x00),
- * which is compatible with all known USB 2.0 era graphics chips and firmware,
+ * which is compatible with all kyeswn USB 2.0 era graphics chips and firmware,
  * but allows DisplayLink to increment those for any future incompatible chips
  */
 static const struct usb_device_id id_table[] = {
@@ -417,7 +417,7 @@ static int dlfb_trim_hline(const u8 *bback, const u8 **bfront, int *width_bytes)
  * It also processes all data (read and write) in a single pass.
  * Performance benchmarks of common cases show it having just slightly better
  * compression than 256 pixel raw or rle commands, with similar CPU consumpion.
- * But for very rl friendly data, will compress not quite as well.
+ * But for very rl friendly data, will compress yest quite as well.
  */
 static void dlfb_compress_hline(
 	const uint16_t **pixel_start_ptr,
@@ -453,10 +453,10 @@ static void dlfb_compress_hline(
 		*cmd++ = dev_addr >> 8;
 		*cmd++ = dev_addr;
 
-		cmd_pixels_count_byte = cmd++; /*  we'll know this later */
+		cmd_pixels_count_byte = cmd++; /*  we'll kyesw this later */
 		cmd_pixel_start = pixel;
 
-		raw_pixels_count_byte = cmd++; /*  we'll know this later */
+		raw_pixels_count_byte = cmd++; /*  we'll kyesw this later */
 		raw_pixel_start = pixel;
 
 		cmd_pixel_end = pixel + min3(MAX_CMD_PIXELS + 1UL,
@@ -464,7 +464,7 @@ static void dlfb_compress_hline(
 					(unsigned long)(cmd_buffer_end - 1 - cmd) / BPP);
 
 		if (back_buffer_offset) {
-			/* note: the framebuffer may change under us, so we must test for underflow */
+			/* yeste: the framebuffer may change under us, so we must test for underflow */
 			while (cmd_pixel_end - 1 > pixel &&
 			       *(cmd_pixel_end - 1) == *(u16 *)((u8 *)(cmd_pixel_end - 1) + back_buffer_offset))
 				cmd_pixel_end--;
@@ -496,7 +496,7 @@ static void dlfb_compress_hline(
 				/* immediately after raw data is repeat byte */
 				*cmd++ = ((pixel - repeating_pixel) - 1) & 0xFF;
 
-				/* Then start another raw pixel span */
+				/* Then start ayesther raw pixel span */
 				raw_pixel_start = pixel;
 				raw_pixels_count_byte = cmd++;
 			}
@@ -515,7 +515,7 @@ static void dlfb_compress_hline(
 	}
 
 	if (cmd_buffer_end - MIN_RLX_CMD_BYTES <= cmd) {
-		/* Fill leftover bytes with no-ops */
+		/* Fill leftover bytes with yes-ops */
 		if (cmd_buffer_end > cmd)
 			memset(cmd, 0xAF, cmd_buffer_end - cmd);
 		cmd = (uint8_t *) cmd_buffer_end;
@@ -737,7 +737,7 @@ static ssize_t dlfb_ops_write(struct fb_info *info, const char __user *buf,
 	return result;
 }
 
-/* hardware has native COPY command (see libdlo), but not worth it for fbcon */
+/* hardware has native COPY command (see libdlo), but yest worth it for fbcon */
 static void dlfb_ops_copyarea(struct fb_info *info,
 				const struct fb_copyarea *area)
 {
@@ -898,7 +898,7 @@ static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
 		 * To avoid perf imact of unnecessary page fault handling.
 		 * Done by resetting the delay for this fb_info to a very
 		 * long period. Pages will become writable and stay that way.
-		 * Reset to normal value when all clients have closed this fb.
+		 * Reset to yesrmal value when all clients have closed this fb.
 		 */
 		if (info->fbdefio)
 			info->fbdefio->delay = DL_DEFIO_WRITE_DISABLE;
@@ -923,23 +923,23 @@ static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
 
 /* taken from vesafb */
 static int
-dlfb_ops_setcolreg(unsigned regno, unsigned red, unsigned green,
+dlfb_ops_setcolreg(unsigned regyes, unsigned red, unsigned green,
 	       unsigned blue, unsigned transp, struct fb_info *info)
 {
 	int err = 0;
 
-	if (regno >= info->cmap.len)
+	if (regyes >= info->cmap.len)
 		return 1;
 
-	if (regno < 16) {
+	if (regyes < 16) {
 		if (info->var.red.offset == 10) {
 			/* 1:5:5:5 */
-			((u32 *) (info->pseudo_palette))[regno] =
+			((u32 *) (info->pseudo_palette))[regyes] =
 			    ((red & 0xf800) >> 1) |
 			    ((green & 0xf800) >> 6) | ((blue & 0xf800) >> 11);
 		} else {
 			/* 0:5:6:5 */
-			((u32 *) (info->pseudo_palette))[regno] =
+			((u32 *) (info->pseudo_palette))[regyes] =
 			    ((red & 0xf800)) |
 			    ((green & 0xfc00) >> 5) | ((blue & 0xf800) >> 11);
 		}
@@ -960,7 +960,7 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 	/*
 	 * fbcon aggressively connects to first framebuffer it finds,
 	 * preventing other clients (X) from working properly. Usually
-	 * not what the user wants. Fail by default with option to enable.
+	 * yest what the user wants. Fail by default with option to enable.
 	 */
 	if ((user == 0) && (!console))
 		return -EBUSY;
@@ -972,7 +972,7 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 	dlfb->fb_count++;
 
 	if (fb_defio && (info->fbdefio == NULL)) {
-		/* enable defio at last moment if not disabled by client */
+		/* enable defio at last moment if yest disabled by client */
 
 		struct fb_deferred_io *fbdefio;
 
@@ -1213,7 +1213,7 @@ static void dlfb_deferred_vfree(struct dlfb_data *dlfb, void *mem)
 
 /*
  * Assumes &info->lock held by caller
- * Assumes no active clients have framebuffer open
+ * Assumes yes active clients have framebuffer open
  */
 static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info, u32 new_len)
 {
@@ -1274,7 +1274,7 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info
  * fb_info.monspecs is full parsed EDID info, including monspecs.modedb
  * fb_info.modelist is a linked list of all monitor & VESA modes which work
  *
- * If EDID is not readable/valid, then modelist is all VESA modes,
+ * If EDID is yest readable/valid, then modelist is all VESA modes,
  * monspecs is NULL, and fb_var_screeninfo is set to safe VESA mode
  * Returns 0 if successful
  */
@@ -1306,8 +1306,8 @@ static int dlfb_setup_modes(struct dlfb_data *dlfb,
 
 	/*
 	 * Try to (re)read EDID from hardware first
-	 * EDID data may return, but not parse as valid
-	 * Try again a few times, in case of e.g. analog cable noise
+	 * EDID data may return, but yest parse as valid
+	 * Try again a few times, in case of e.g. analog cable yesise
 	 */
 	while (tries--) {
 
@@ -1399,14 +1399,14 @@ static int dlfb_setup_modes(struct dlfb_data *dlfb,
 						     &info->modelist);
 	}
 
-	/* If we have good mode and no active clients*/
+	/* If we have good mode and yes active clients*/
 	if ((default_vmode != NULL) && (dlfb->fb_count == 0)) {
 
 		fb_videomode_to_var(&info->var, default_vmode);
 		dlfb_var_color_format(&info->var);
 
 		/*
-		 * with mode size info, we can now alloc our framebuffer.
+		 * with mode size info, we can yesw alloc our framebuffer.
 		 */
 		memcpy(&info->fix, &dlfb_fix, sizeof(dlfb_fix));
 	} else
@@ -1485,7 +1485,7 @@ static ssize_t edid_store(
 	struct dlfb_data *dlfb = fb_info->par;
 	int ret;
 
-	/* We only support write of entire EDID at once, no offset*/
+	/* We only support write of entire EDID at once, yes offset*/
 	if ((src_size != EDID_LENGTH) || (src_off != 0))
 		return -EINVAL;
 
@@ -1579,7 +1579,7 @@ static int dlfb_parse_vendor_descriptor(struct dlfb_data *dlfb,
 					0x5f, /* vendor specific */
 					0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
 
-	/* if not found, look in configuration descriptor */
+	/* if yest found, look in configuration descriptor */
 	if (total_len < 0) {
 		if (0 == usb_get_extra_descriptor(intf->cur_altsetting,
 			0x5f, &desc))
@@ -1627,14 +1627,14 @@ static int dlfb_parse_vendor_descriptor(struct dlfb_data *dlfb,
 			desc += length;
 		}
 	} else {
-		dev_info(&intf->dev, "vendor descriptor not available (%d)\n",
+		dev_info(&intf->dev, "vendor descriptor yest available (%d)\n",
 			 total_len);
 	}
 
 	goto success;
 
 unrecognized:
-	/* allow udlfb to load for now even if firmware unrecognized */
+	/* allow udlfb to load for yesw even if firmware unrecognized */
 	dev_err(&intf->dev, "Unrecognized vendor firmware descriptor\n");
 
 success:
@@ -1672,7 +1672,7 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 
 	if (!dlfb_parse_vendor_descriptor(dlfb, intf)) {
 		dev_err(&intf->dev,
-			"firmware not recognized, incompatible device?\n");
+			"firmware yest recognized, incompatible device?\n");
 		goto error;
 	}
 
@@ -1684,7 +1684,7 @@ static int dlfb_usb_probe(struct usb_interface *intf,
 	}
 
 
-	/* allocates framebuffer driver structure, not framebuffer memory */
+	/* allocates framebuffer driver structure, yest framebuffer memory */
 	info = framebuffer_alloc(0, &dlfb->udev->dev);
 	if (!info)
 		goto error;
@@ -1785,7 +1785,7 @@ static void dlfb_usb_disconnect(struct usb_interface *intf)
 	/* we virtualize until all fb clients release. Then we free */
 	dlfb->virtualized = true;
 
-	/* When non-active we'll update virtual framebuffer, but no new urbs */
+	/* When yesn-active we'll update virtual framebuffer, but yes new urbs */
 	atomic_set(&dlfb->usb_active, 0);
 
 	/* this function will wait for all in-flight urbs to complete */
@@ -1810,8 +1810,8 @@ module_usb_driver(dlfb_driver);
 
 static void dlfb_urb_completion(struct urb *urb)
 {
-	struct urb_node *unode = urb->context;
-	struct dlfb_data *dlfb = unode->dlfb;
+	struct urb_yesde *uyesde = urb->context;
+	struct dlfb_data *dlfb = uyesde->dlfb;
 	unsigned long flags;
 
 	switch (urb->status) {
@@ -1825,7 +1825,7 @@ static void dlfb_urb_completion(struct urb *urb)
 		break;
 	default:
 		dev_err(&dlfb->udev->dev,
-			"%s - nonzero write bulk status received: %d\n",
+			"%s - yesnzero write bulk status received: %d\n",
 			__func__, urb->status);
 		atomic_set(&dlfb->lost_pixels, 1);
 		break;
@@ -1834,7 +1834,7 @@ static void dlfb_urb_completion(struct urb *urb)
 	urb->transfer_buffer_length = dlfb->urbs.size; /* reset to actual */
 
 	spin_lock_irqsave(&dlfb->urbs.lock, flags);
-	list_add_tail(&unode->entry, &dlfb->urbs.list);
+	list_add_tail(&uyesde->entry, &dlfb->urbs.list);
 	dlfb->urbs.available++;
 	spin_unlock_irqrestore(&dlfb->urbs.lock, flags);
 
@@ -1844,8 +1844,8 @@ static void dlfb_urb_completion(struct urb *urb)
 static void dlfb_free_urb_list(struct dlfb_data *dlfb)
 {
 	int count = dlfb->urbs.count;
-	struct list_head *node;
-	struct urb_node *unode;
+	struct list_head *yesde;
+	struct urb_yesde *uyesde;
 	struct urb *urb;
 
 	/* keep waiting and freeing, until we've got 'em all */
@@ -1854,19 +1854,19 @@ static void dlfb_free_urb_list(struct dlfb_data *dlfb)
 
 		spin_lock_irq(&dlfb->urbs.lock);
 
-		node = dlfb->urbs.list.next; /* have reserved one with sem */
-		list_del_init(node);
+		yesde = dlfb->urbs.list.next; /* have reserved one with sem */
+		list_del_init(yesde);
 
 		spin_unlock_irq(&dlfb->urbs.lock);
 
-		unode = list_entry(node, struct urb_node, entry);
-		urb = unode->urb;
+		uyesde = list_entry(yesde, struct urb_yesde, entry);
+		urb = uyesde->urb;
 
 		/* Free each separately allocated piece */
 		usb_free_coherent(urb->dev, dlfb->urbs.size,
 				  urb->transfer_buffer, urb->transfer_dma);
 		usb_free_urb(urb);
-		kfree(node);
+		kfree(yesde);
 	}
 
 	dlfb->urbs.count = 0;
@@ -1875,7 +1875,7 @@ static void dlfb_free_urb_list(struct dlfb_data *dlfb)
 static int dlfb_alloc_urb_list(struct dlfb_data *dlfb, int count, size_t size)
 {
 	struct urb *urb;
-	struct urb_node *unode;
+	struct urb_yesde *uyesde;
 	char *buf;
 	size_t wanted_size = count * size;
 
@@ -1890,22 +1890,22 @@ retry:
 	dlfb->urbs.available = 0;
 
 	while (dlfb->urbs.count * size < wanted_size) {
-		unode = kzalloc(sizeof(*unode), GFP_KERNEL);
-		if (!unode)
+		uyesde = kzalloc(sizeof(*uyesde), GFP_KERNEL);
+		if (!uyesde)
 			break;
-		unode->dlfb = dlfb;
+		uyesde->dlfb = dlfb;
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			kfree(unode);
+			kfree(uyesde);
 			break;
 		}
-		unode->urb = urb;
+		uyesde->urb = urb;
 
 		buf = usb_alloc_coherent(dlfb->udev, size, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
-			kfree(unode);
+			kfree(uyesde);
 			usb_free_urb(urb);
 			if (size > PAGE_SIZE) {
 				size /= 2;
@@ -1917,10 +1917,10 @@ retry:
 
 		/* urb->transfer_buffer_length set to actual before submit */
 		usb_fill_bulk_urb(urb, dlfb->udev, usb_sndbulkpipe(dlfb->udev, 1),
-			buf, size, dlfb_urb_completion, unode);
+			buf, size, dlfb_urb_completion, uyesde);
 		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-		list_add_tail(&unode->entry, &dlfb->urbs.list);
+		list_add_tail(&uyesde->entry, &dlfb->urbs.list);
 
 		up(&dlfb->urbs.limit_sem);
 		dlfb->urbs.count++;
@@ -1934,7 +1934,7 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dlfb)
 {
 	int ret;
 	struct list_head *entry;
-	struct urb_node *unode;
+	struct urb_yesde *uyesde;
 
 	/* Wait for an in-flight buffer to complete and get re-queued */
 	ret = down_timeout(&dlfb->urbs.limit_sem, GET_URB_TIMEOUT);
@@ -1955,8 +1955,8 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dlfb)
 
 	spin_unlock_irq(&dlfb->urbs.lock);
 
-	unode = list_entry(entry, struct urb_node, entry);
-	return unode->urb;
+	uyesde = list_entry(entry, struct urb_yesde, entry);
+	return uyesde->urb;
 }
 
 static int dlfb_submit_urb(struct dlfb_data *dlfb, struct urb *urb, size_t len)
@@ -1968,7 +1968,7 @@ static int dlfb_submit_urb(struct dlfb_data *dlfb, struct urb *urb, size_t len)
 	urb->transfer_buffer_length = len; /* set to actual payload len */
 	ret = usb_submit_urb(urb, GFP_KERNEL);
 	if (ret) {
-		dlfb_urb_completion(urb); /* because no one else will */
+		dlfb_urb_completion(urb); /* because yes one else will */
 		atomic_set(&dlfb->lost_pixels, 1);
 		dev_err(&dlfb->udev->dev, "submit urb error: %d\n", ret);
 	}

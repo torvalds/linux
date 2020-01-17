@@ -144,7 +144,7 @@ ida_fail:
  *
  * @mdev: pointer to the mic_device instance
  * @idx: The callback structure id to be unregistered.
- * Return the source id that was unregistered or MIC_NUM_OFFSETS if no
+ * Return the source id that was unregistered or MIC_NUM_OFFSETS if yes
  * such callback handler was found.
  */
 static u8 mic_unregister_intr_callback(struct mic_device *mdev, u32 idx)
@@ -193,7 +193,7 @@ static int mic_setup_msix(struct mic_device *mdev, struct pci_dev *pdev)
 						    entry_size, GFP_KERNEL);
 	if (!mdev->irq_info.msix_entries) {
 		rc = -ENOMEM;
-		goto err_nomem1;
+		goto err_yesmem1;
 	}
 
 	for (i = 0; i < MIC_MIN_MSIX; i++)
@@ -212,17 +212,17 @@ static int mic_setup_msix(struct mic_device *mdev, struct pci_dev *pdev)
 
 	if (!mdev->irq_info.mic_msi_map) {
 		rc = -ENOMEM;
-		goto err_nomem2;
+		goto err_yesmem2;
 	}
 
 	dev_dbg(&mdev->pdev->dev,
 		"%d MSIx irqs setup\n", mdev->irq_info.num_vectors);
 	return 0;
-err_nomem2:
+err_yesmem2:
 	pci_disable_msix(pdev);
 err_enable_msix:
 	kfree(mdev->irq_info.msix_entries);
-err_nomem1:
+err_yesmem1:
 	mdev->irq_info.num_vectors = 0;
 	return rc;
 }
@@ -308,13 +308,13 @@ static int mic_setup_msi(struct mic_device *mdev, struct pci_dev *pdev)
 
 	if (!mdev->irq_info.mic_msi_map) {
 		rc = -ENOMEM;
-		goto err_nomem1;
+		goto err_yesmem1;
 	}
 
 	rc = mic_setup_callbacks(mdev);
 	if (rc) {
 		dev_err(&pdev->dev, "Error setting up callbacks\n");
-		goto err_nomem2;
+		goto err_yesmem2;
 	}
 
 	rc = request_threaded_irq(pdev->irq, mic_interrupt, mic_thread_fn,
@@ -328,9 +328,9 @@ static int mic_setup_msi(struct mic_device *mdev, struct pci_dev *pdev)
 	return 0;
 err_irq_req_fail:
 	mic_release_callbacks(mdev);
-err_nomem2:
+err_yesmem2:
 	kfree(mdev->irq_info.mic_msi_map);
-err_nomem1:
+err_yesmem1:
 	pci_disable_msi(pdev);
 	mdev->irq_info.num_vectors = 0;
 	return rc;
@@ -353,7 +353,7 @@ static int mic_setup_intx(struct mic_device *mdev, struct pci_dev *pdev)
 	rc = mic_setup_callbacks(mdev);
 	if (rc) {
 		dev_err(&pdev->dev, "Error setting up callbacks\n");
-		goto err_nomem;
+		goto err_yesmem;
 	}
 
 	rc = request_threaded_irq(pdev->irq, mic_interrupt, mic_thread_fn,
@@ -365,7 +365,7 @@ static int mic_setup_intx(struct mic_device *mdev, struct pci_dev *pdev)
 	return 0;
 err:
 	mic_release_callbacks(mdev);
-err_nomem:
+err_yesmem:
 	return rc;
 }
 
@@ -496,7 +496,7 @@ err:
  * @data: private data specified by the calling function during the
  * mic_request_threaded_irq
  *
- * returns: none.
+ * returns: yesne.
  */
 void mic_free_irq(struct mic_device *mdev,
 		  struct mic_irq *cookie, void *data)
@@ -562,7 +562,7 @@ int mic_setup_interrupts(struct mic_device *mdev, struct pci_dev *pdev)
 
 	rc = mic_setup_intx(mdev, pdev);
 	if (rc) {
-		dev_err(&mdev->pdev->dev, "no usable interrupts\n");
+		dev_err(&mdev->pdev->dev, "yes usable interrupts\n");
 		return rc;
 	}
 done:
@@ -576,7 +576,7 @@ done:
  * @mdev: pointer to mic_device instance
  * @pdev: PCI device structure
  *
- * returns none.
+ * returns yesne.
  */
 void mic_free_interrupts(struct mic_device *mdev, struct pci_dev *pdev)
 {

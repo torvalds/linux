@@ -6,17 +6,17 @@
  *
  * Inspired by if_cs.c, Copyright 2007 Holger Schurig
  *
- * This hardware has more or less no CMD53 support, so all registers
+ * This hardware has more or less yes CMD53 support, so all registers
  * must be accessed using sdio_readb()/sdio_writeb().
  *
  * Transfers must be in one transaction or the firmware goes bonkers.
- * This means that the transfer must either be small enough to do a
+ * This means that the transfer must either be small eyesugh to do a
  * byte based transfer or it must be padded to a multiple of the
  * current block size.
  *
  * As SDIO is still new to the kernel, it is unfortunately common with
  * bugs in the host controllers related to that. One such bug is that
- * controllers cannot do transfers that aren't a multiple of 4 bytes.
+ * controllers canyest do transfers that aren't a multiple of 4 bytes.
  * If you don't have time to fix the host controller driver, you can
  * work around the problem by modifying if_sdio_host_to_card() and
  * if_sdio_card_to_host() to pad the data.
@@ -52,7 +52,7 @@ static void if_sdio_interrupt(struct sdio_func *func);
  * differently for SD8688 combo chip.
  * If the user is removing the module, the FUNC_SHUTDOWN
  * command for SD8688 is sent to the firmware.
- * If the card is removed, there is no need to send this command.
+ * If the card is removed, there is yes need to send this command.
  *
  * The variable 'user_rmmod' is used to distinguish these two
  * scenarios. This flag is initialized as FALSE in case the card
@@ -220,7 +220,7 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 	BUG_ON(priv->resp_len[i]);
 	priv->resp_len[i] = size;
 	memcpy(priv->resp_buf[i], buffer, size);
-	lbs_notify_command_response(priv, i);
+	lbs_yestify_command_response(priv, i);
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
@@ -336,7 +336,7 @@ static int if_sdio_card_to_host(struct if_sdio_card *card)
 
 	/*
 	 * The transfer must be in one transaction or the firmware
-	 * goes suicidal. There's no way to guarantee that for all
+	 * goes suicidal. There's yes way to guarantee that for all
 	 * controllers, but we can at least try.
 	 */
 	chunk = sdio_align_size(card->func, size);
@@ -574,7 +574,7 @@ static int if_sdio_prog_real(struct if_sdio_card *card,
 				goto release;
 
 			/*
-			 * For SD8688 wait until the length is not 0, 1 or 2
+			 * For SD8688 wait until the length is yest 0, 1 or 2
 			 * before downloading the first FW block,
 			 * since BOOT code writes the register to indicate the
 			 * helper/FW download winner,
@@ -713,12 +713,12 @@ static int if_sdio_prog_firmware(struct if_sdio_card *card)
 
 	/*
 	 * The manual clearly describes that FEDC is the right code to use
-	 * to detect firmware presence, but for SD8686 it is not that simple.
+	 * to detect firmware presence, but for SD8686 it is yest that simple.
 	 * Scratch is also used to store the RX packet length, so we lose
-	 * the FEDC value early on. So we use a non-zero check in order
+	 * the FEDC value early on. So we use a yesn-zero check in order
 	 * to validate firmware presence.
 	 * Additionally, the SD8686 in the Gumstix always has the high scratch
-	 * bit set, even when the firmware is not loaded. So we have to
+	 * bit set, even when the firmware is yest loaded. So we have to
 	 * exclude that from the test.
 	 */
 	if (scratch == IF_SDIO_FIRMWARE_OK) {
@@ -754,7 +754,7 @@ static void if_sdio_finish_power_on(struct if_sdio_card *card)
 
 	/*
 	 * Get rx_unit if the chip is SD8688 or newer.
-	 * SD8385 & SD8686 do not have rx_unit.
+	 * SD8385 & SD8686 do yest have rx_unit.
 	 */
 	if ((card->model != MODEL_8385)
 			&& (card->model != MODEL_8686))
@@ -770,7 +770,7 @@ static void if_sdio_finish_power_on(struct if_sdio_card *card)
 	 * CCCR_INTx = 0.
 	 *
 	 * We register the interrupt handler late so that we can handle any
-	 * spurious interrupts, and also to avoid generation of that known
+	 * spurious interrupts, and also to avoid generation of that kyeswn
 	 * spurious interrupt in the first place.
 	 */
 	ret = sdio_claim_irq(func, if_sdio_interrupt);
@@ -778,7 +778,7 @@ static void if_sdio_finish_power_on(struct if_sdio_card *card)
 		goto release;
 
 	/*
-	 * Enable interrupts now that everything is set up
+	 * Enable interrupts yesw that everything is set up
 	 */
 	sdio_writeb(func, 0x0f, IF_SDIO_H_INT_MASK, &ret);
 	if (ret)
@@ -813,7 +813,7 @@ static void if_sdio_finish_power_on(struct if_sdio_card *card)
 		if (ret == 0) {
 			card->started = true;
 			/* Tell PM core that we don't need the card to be
-			 * powered now */
+			 * powered yesw */
 			pm_runtime_put(&func->dev);
 		}
 	}
@@ -840,7 +840,7 @@ static int if_sdio_power_on(struct if_sdio_card *card)
 
 	/* For 1-bit transfers to the 8686 model, we need to enable the
 	 * interrupt flag in the CCCR register. Set the MMC_QUIRK_LENIENT_FN0
-	 * bit to allow access to non-vendor registers. */
+	 * bit to allow access to yesn-vendor registers. */
 	if ((card->model == MODEL_8686) &&
 	    (host->caps & MMC_CAP_SDIO_IRQ) &&
 	    (host->ios.bus_width == MMC_BUS_WIDTH_1)) {
@@ -922,7 +922,7 @@ static int if_sdio_host_to_card(struct lbs_private *priv,
 
 	/*
 	 * The transfer must be in one transaction or the firmware
-	 * goes suicidal. There's no way to guarantee that for all
+	 * goes suicidal. There's yes way to guarantee that for all
 	 * controllers, but we can at least try.
 	 */
 	size = sdio_align_size(card->func, nb + 4);
@@ -966,7 +966,7 @@ static int if_sdio_host_to_card(struct lbs_private *priv,
 		priv->dnld_sent = DNLD_DATA_SENT;
 		break;
 	default:
-		lbs_deb_sdio("unknown packet type %d\n", (int)type);
+		lbs_deb_sdio("unkyeswn packet type %d\n", (int)type);
 	}
 
 	spin_unlock_irqrestore(&card->lock, flags);
@@ -1069,7 +1069,7 @@ static int if_sdio_power_save(struct lbs_private *priv)
 
 	ret = if_sdio_power_off(card);
 
-	/* Let runtime PM know the card is powered off */
+	/* Let runtime PM kyesw the card is powered off */
 	pm_runtime_put_sync(&card->func->dev);
 
 	return ret;
@@ -1080,7 +1080,7 @@ static int if_sdio_power_restore(struct lbs_private *priv)
 	struct if_sdio_card *card = priv->card;
 	int r;
 
-	/* Make sure the card will not be powered off by runtime PM */
+	/* Make sure the card will yest be powered off by runtime PM */
 	pm_runtime_get_sync(&card->func->dev);
 
 	r = if_sdio_power_on(card);
@@ -1115,7 +1115,7 @@ static void if_sdio_interrupt(struct sdio_func *func)
 		return;
 
 	/*
-	 * Ignore the define name, this really means the card has
+	 * Igyesre the define name, this really means the card has
 	 * successfully received the command.
 	 */
 	card->priv->is_activity_detected = 1;
@@ -1192,7 +1192,7 @@ static int if_sdio_probe(struct sdio_func *func,
 			break;
 	}
 	if (i == ARRAY_SIZE(fw_table)) {
-		pr_err("unknown card model 0x%x\n", card->model);
+		pr_err("unkyeswn card model 0x%x\n", card->model);
 		ret = -ENODEV;
 		goto free;
 	}
@@ -1254,7 +1254,7 @@ static void if_sdio_remove(struct sdio_func *func)
 	card = sdio_get_drvdata(func);
 
 	/* Undo decrement done above in if_sdio_probe */
-	pm_runtime_get_noresume(&func->dev);
+	pm_runtime_get_yesresume(&func->dev);
 
 	if (user_rmmod && (card->model == MODEL_8688)) {
 		/*
@@ -1330,7 +1330,7 @@ static int if_sdio_suspend(struct device *dev)
 	}
 
 	if (!(flags & MMC_PM_KEEP_POWER)) {
-		dev_err(dev, "%s: cannot remain alive while host is suspended\n",
+		dev_err(dev, "%s: canyest remain alive while host is suspended\n",
 			sdio_func_id(func));
 		return -ENOSYS;
 	}

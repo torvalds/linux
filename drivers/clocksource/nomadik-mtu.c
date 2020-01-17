@@ -46,7 +46,7 @@
 #define MTU_CRn_32BITS		0x02
 #define MTU_CRn_ONESHOT		0x01	/* if 0 = wraps reloading from BGLR*/
 
-/* Other registers are usual amba/primecell registers, currently not used */
+/* Other registers are usual amba/primecell registers, currently yest used */
 #define MTU_ITCR	0xff0
 #define MTU_ITOP	0xff4
 
@@ -71,7 +71,7 @@ static struct delay_timer mtu_delay_timer;
  * local implementation which uses the clocksource to get some
  * better resolution when scheduling the kernel.
  */
-static u64 notrace nomadik_read_sched_clock(void)
+static u64 yestrace yesmadik_read_sched_clock(void)
 {
 	if (unlikely(!mtu_base))
 		return 0;
@@ -229,7 +229,7 @@ static int __init nmdk_timer_init(void __iomem *base, int irq,
 		return ret;
 	}
 
-	sched_clock_register(nomadik_read_sched_clock, 32, rate);
+	sched_clock_register(yesmadik_read_sched_clock, 32, rate);
 
 	/* Timer 1 is used for events, register irq and clockevents */
 	setup_irq(irq, &nmdk_timer_irq);
@@ -244,32 +244,32 @@ static int __init nmdk_timer_init(void __iomem *base, int irq,
 	return 0;
 }
 
-static int __init nmdk_timer_of_init(struct device_node *node)
+static int __init nmdk_timer_of_init(struct device_yesde *yesde)
 {
 	struct clk *pclk;
 	struct clk *clk;
 	void __iomem *base;
 	int irq;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	if (!base) {
 		pr_err("Can't remap registers\n");
 		return -ENXIO;
 	}
 
-	pclk = of_clk_get_by_name(node, "apb_pclk");
+	pclk = of_clk_get_by_name(yesde, "apb_pclk");
 	if (IS_ERR(pclk)) {
-		pr_err("could not get apb_pclk\n");
+		pr_err("could yest get apb_pclk\n");
 		return PTR_ERR(pclk);
 	}
 
-	clk = of_clk_get_by_name(node, "timclk");
+	clk = of_clk_get_by_name(yesde, "timclk");
 	if (IS_ERR(clk)) {
-		pr_err("could not get timclk\n");
+		pr_err("could yest get timclk\n");
 		return PTR_ERR(clk);
 	}
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (irq <= 0) {
 		pr_err("Can't parse IRQ\n");
 		return -EINVAL;
@@ -277,5 +277,5 @@ static int __init nmdk_timer_of_init(struct device_node *node)
 
 	return nmdk_timer_init(base, irq, pclk, clk);
 }
-TIMER_OF_DECLARE(nomadik_mtu, "st,nomadik-mtu",
+TIMER_OF_DECLARE(yesmadik_mtu, "st,yesmadik-mtu",
 		       nmdk_timer_of_init);

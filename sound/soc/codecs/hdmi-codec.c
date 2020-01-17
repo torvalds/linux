@@ -592,9 +592,9 @@ static const struct snd_soc_dai_ops hdmi_codec_spdif_dai_ops = {
 
 /*
  * This list is only for formats allowed on the I2S bus. So there is
- * some formats listed that are not supported by HDMI interface. For
+ * some formats listed that are yest supported by HDMI interface. For
  * instance allowing the 32-bit formats enables 24-precision with CPU
- * DAIs that do not support 24-bit formats. If the extra formats cause
+ * DAIs that do yest support 24-bit formats. If the extra formats cause
  * problems, we should add the video side driver an option to disable
  * them.
  */
@@ -764,7 +764,7 @@ static const struct snd_soc_dai_driver hdmi_spdif_dai = {
 };
 
 static int hdmi_of_xlate_dai_id(struct snd_soc_component *component,
-				 struct device_node *endpoint)
+				 struct device_yesde *endpoint)
 {
 	struct hdmi_codec_priv *hcp = snd_soc_component_get_drvdata(component);
 	int ret = -ENOTSUPP; /* see snd_soc_get_dai_id() */
@@ -782,7 +782,7 @@ static const struct snd_soc_component_driver hdmi_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int hdmi_codec_probe(struct platform_device *pdev)

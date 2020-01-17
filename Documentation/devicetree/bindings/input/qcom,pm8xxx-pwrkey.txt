@@ -20,7 +20,7 @@ PROPERTIES
 	Definition: the first interrupt specifies the key release interrupt
 		    and the second interrupt specifies the key press interrupt.
 		    The format of the specifier is defined by the binding
-		    document describing the node's interrupt parent.
+		    document describing the yesde's interrupt parent.
 
 - debounce:
 	Usage: optional

@@ -32,14 +32,14 @@ struct snd_compr_stream;
 #define SND_SOC_DAIFMT_AC97		SND_SOC_DAI_FORMAT_AC97
 #define SND_SOC_DAIFMT_PDM		SND_SOC_DAI_FORMAT_PDM
 
-/* left and right justified also known as MSB and LSB respectively */
+/* left and right justified also kyeswn as MSB and LSB respectively */
 #define SND_SOC_DAIFMT_MSB		SND_SOC_DAIFMT_LEFT_J
 #define SND_SOC_DAIFMT_LSB		SND_SOC_DAIFMT_RIGHT_J
 
 /*
  * DAI Clock gating.
  *
- * DAI bit clocks can be be gated (disabled) when the DAI is not
+ * DAI bit clocks can be be gated (disabled) when the DAI is yest
  * sending or receiving PCM data in a frame. This can be used to save power.
  */
 #define SND_SOC_DAIFMT_CONT		(1 << 4) /* continuous clock */
@@ -52,10 +52,10 @@ struct snd_compr_stream;
  * format.
  *
  * BCLK:
- * - "normal" polarity means signal is available at rising edge of BCLK
+ * - "yesrmal" polarity means signal is available at rising edge of BCLK
  * - "inverted" polarity means signal is available at falling edge of BCLK
  *
- * FSYNC "normal" polarity depends on the frame format:
+ * FSYNC "yesrmal" polarity depends on the frame format:
  * - I2S: frame consists of left then right channel data. Left channel starts
  *      with falling FSYNC edge, right channel starts with rising FSYNC edge.
  * - Left/Right Justified: frame consists of left then right channel data.
@@ -64,11 +64,11 @@ struct snd_compr_stream;
  * - DSP A/B: Frame starts with rising FSYNC edge.
  * - AC97: Frame starts with rising FSYNC edge.
  *
- * "Negative" FSYNC polarity is the one opposite of "normal" polarity.
+ * "Negative" FSYNC polarity is the one opposite of "yesrmal" polarity.
  */
-#define SND_SOC_DAIFMT_NB_NF		(0 << 8) /* normal bit clock + frame */
-#define SND_SOC_DAIFMT_NB_IF		(2 << 8) /* normal BCLK + inv FRM */
-#define SND_SOC_DAIFMT_IB_NF		(3 << 8) /* invert BCLK + nor FRM */
+#define SND_SOC_DAIFMT_NB_NF		(0 << 8) /* yesrmal bit clock + frame */
+#define SND_SOC_DAIFMT_NB_IF		(2 << 8) /* yesrmal BCLK + inv FRM */
+#define SND_SOC_DAIFMT_IB_NF		(3 << 8) /* invert BCLK + yesr FRM */
 #define SND_SOC_DAIFMT_IB_IF		(4 << 8) /* invert BCLK + FRM */
 
 /*
@@ -173,7 +173,7 @@ bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int stream);
 struct snd_soc_dai_ops {
 	/*
 	 * DAI clocking configuration, all optional.
-	 * Called by soc_card drivers, normally in their hw_params.
+	 * Called by soc_card drivers, yesrmally in their hw_params.
 	 */
 	int (*set_sysclk)(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir);
@@ -184,7 +184,7 @@ struct snd_soc_dai_ops {
 
 	/*
 	 * DAI format configuration
-	 * Called by soc_card drivers, normally in their hw_params.
+	 * Called by soc_card drivers, yesrmally in their hw_params.
 	 */
 	int (*set_fmt)(struct snd_soc_dai *dai, unsigned int fmt);
 	int (*xlate_tdm_slot_mask)(unsigned int slots,
@@ -224,10 +224,10 @@ struct snd_soc_dai_ops {
 	int (*prepare)(struct snd_pcm_substream *,
 		struct snd_soc_dai *);
 	/*
-	 * NOTE: Commands passed to the trigger function are not necessarily
+	 * NOTE: Commands passed to the trigger function are yest necessarily
 	 * compatible with the current state of the dai. For example this
 	 * sequence of commands is possible: START STOP STOP.
-	 * So do not unconditionally use refcounting functions in the trigger
+	 * So do yest unconditionally use refcounting functions in the trigger
 	 * function, e.g. clk_enable/disable.
 	 */
 	int (*trigger)(struct snd_pcm_substream *, int,
@@ -393,7 +393,7 @@ static inline void *snd_soc_dai_get_drvdata(struct snd_soc_dai *dai)
  * @dai: DAI
  * @stream: STREAM
  * @direction: Stream direction(Playback/Capture)
- * SoundWire subsystem doesn't have a notion of direction and we reuse
+ * SoundWire subsystem doesn't have a yestion of direction and we reuse
  * the ASoC stream direction to configure sink/source ports.
  * Playback maps to source ports and Capture for sink ports.
  *

@@ -25,7 +25,7 @@
  *
  * Test hardware: Intel SE440BX-2 desktop motherboard --Grant
  *
- * LM81 extended temp reading not implemented
+ * LM81 extended temp reading yest implemented
  */
 
 #include <linux/init.h>
@@ -40,7 +40,7 @@
 #include <linux/jiffies.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 					I2C_CLIENT_END };
 
 enum chips { adm9240, ds1780, lm81 };
@@ -76,17 +76,17 @@ static inline int SCALE(long val, int mul, int div)
 }
 
 /* adm9240 internally scales voltage measurements */
-static const u16 nom_mv[] = { 2500, 2700, 3300, 5000, 12000, 2700 };
+static const u16 yesm_mv[] = { 2500, 2700, 3300, 5000, 12000, 2700 };
 
 static inline unsigned int IN_FROM_REG(u8 reg, int n)
 {
-	return SCALE(reg, nom_mv[n], 192);
+	return SCALE(reg, yesm_mv[n], 192);
 }
 
 static inline u8 IN_TO_REG(unsigned long val, int n)
 {
-	val = clamp_val(val, 0, nom_mv[n] * 255 / 192);
-	return SCALE(val, 192, nom_mv[n]);
+	val = clamp_val(val, 0, yesm_mv[n] * 255 / 192);
+	return SCALE(val, 192, yesm_mv[n]);
 }
 
 /* temperature range: -40..125, 127 disables temperature alarm */
@@ -139,7 +139,7 @@ struct adm9240_data {
 	u16 alarms;		/* ro	alarms */
 	u8 aout;		/* rw	aout_output */
 	u8 vid;			/* ro	vid */
-	u8 vrm;			/* --	vrm set on startup, no accessor */
+	u8 vrm;			/* --	vrm set on startup, yes accessor */
 };
 
 /* write new fan div, callers must hold data->update_lock */
@@ -181,7 +181,7 @@ static struct adm9240_data *adm9240_update_device(struct device *dev)
 
 		/*
 		 * read temperature: assume temperature changes less than
-		 * 0.5'C per two measurement cycles thus ignore possible
+		 * 0.5'C per two measurement cycles thus igyesre possible
 		 * but unlikely aliasing error on lsb reading. --Grant
 		 */
 		data->temp = (i2c_smbus_read_byte_data(client,
@@ -200,7 +200,7 @@ static struct adm9240_data *adm9240_update_device(struct device *dev)
 				adm9240_write_fan_div(client, i,
 						++data->fan_div[i]);
 
-				/* adjust fan_min if active, but not to 0 */
+				/* adjust fan_min if active, but yest to 0 */
 				if (data->fan_min[i] < 255 &&
 						data->fan_min[i] >= 2)
 					data->fan_min[i] /= 2;
@@ -637,7 +637,7 @@ static int adm9240_detect(struct i2c_client *new_client,
 		return -ENODEV;
 	}
 
-	/* check known chip manufacturer */
+	/* check kyeswn chip manufacturer */
 	man_id = i2c_smbus_read_byte_data(new_client, ADM9240_REG_MAN_ID);
 	if (man_id == 0x23) {
 		name = "adm9240";
@@ -646,7 +646,7 @@ static int adm9240_detect(struct i2c_client *new_client,
 	} else if (man_id == 0x01) {
 		name = "lm81";
 	} else {
-		dev_err(&adapter->dev, "detect fail: unknown manuf, 0x%02x\n",
+		dev_err(&adapter->dev, "detect fail: unkyeswn manuf, 0x%02x\n",
 			man_id);
 		return -ENODEV;
 	}
@@ -744,7 +744,7 @@ static struct i2c_driver adm9240_driver = {
 	.probe		= adm9240_probe,
 	.id_table	= adm9240_id,
 	.detect		= adm9240_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(adm9240_driver);

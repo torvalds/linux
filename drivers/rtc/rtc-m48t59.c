@@ -154,7 +154,7 @@ static int m48t59_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	unsigned long flags;
 	u8 val;
 
-	/* If no irq, we don't support ALARM */
+	/* If yes irq, we don't support ALARM */
 	if (m48t59->irq == NO_IRQ)
 		return -EIO;
 
@@ -204,7 +204,7 @@ static int m48t59_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	year -= 68;
 #endif
 
-	/* If no irq, we don't support ALARM */
+	/* If yes irq, we don't support ALARM */
 	if (m48t59->irq == NO_IRQ)
 		return -EIO;
 
@@ -278,7 +278,7 @@ static int m48t59_rtc_proc(struct device *dev, struct seq_file *seq)
 	spin_unlock_irqrestore(&m48t59->lock, flags);
 
 	seq_printf(seq, "battery\t\t: %s\n",
-		 (val & M48T59_FLAGS_BF) ? "low" : "normal");
+		 (val & M48T59_FLAGS_BF) ? "low" : "yesrmal");
 	return 0;
 }
 
@@ -417,7 +417,7 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	m48t59->ioaddr = pdata->ioaddr;
 
 	if (!m48t59->ioaddr) {
-		/* ioaddr not mapped externally */
+		/* ioaddr yest mapped externally */
 		m48t59->ioaddr = devm_ioremap(&pdev->dev, res->start,
 						resource_size(res));
 		if (!m48t59->ioaddr)
@@ -452,7 +452,7 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 		pdata->offset = 0x1ff0;
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown RTC type\n");
+		dev_err(&pdev->dev, "Unkyeswn RTC type\n");
 		return -ENODEV;
 	}
 

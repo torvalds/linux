@@ -5,7 +5,7 @@
  *
  * KVM/MIPS MMU handling in the KVM module.
  *
- * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012  MIPS Techyeslogies, Inc.  All rights reserved.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
  */
 
@@ -31,29 +31,29 @@ static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
 	void *page;
 
 	BUG_ON(max > KVM_NR_MEM_OBJS);
-	if (cache->nobjs >= min)
+	if (cache->yesbjs >= min)
 		return 0;
-	while (cache->nobjs < max) {
+	while (cache->yesbjs < max) {
 		page = (void *)__get_free_page(GFP_KERNEL);
 		if (!page)
 			return -ENOMEM;
-		cache->objects[cache->nobjs++] = page;
+		cache->objects[cache->yesbjs++] = page;
 	}
 	return 0;
 }
 
 static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
 {
-	while (mc->nobjs)
-		free_page((unsigned long)mc->objects[--mc->nobjs]);
+	while (mc->yesbjs)
+		free_page((unsigned long)mc->objects[--mc->yesbjs]);
 }
 
 static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc)
 {
 	void *p;
 
-	BUG_ON(!mc || !mc->nobjs);
-	p = mc->objects[--mc->nobjs];
+	BUG_ON(!mc || !mc->yesbjs);
+	p = mc->objects[--mc->yesbjs];
 	return p;
 }
 
@@ -67,8 +67,8 @@ void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu)
  * @page:	Pointer to page directory (PGD) for KVM GPA.
  *
  * Initialise a KVM GPA page directory with pointers to the invalid table, i.e.
- * representing no mappings. This is similar to pgd_init(), however it
- * initialises all the page directory pointers, not just the ones corresponding
+ * representing yes mappings. This is similar to pgd_init(), however it
+ * initialises all the page directory pointers, yest just the ones corresponding
  * to the userland address space (since it is for the guest physical address
  * space rather than a virtual address space).
  */
@@ -127,7 +127,7 @@ pgd_t *kvm_pgd_alloc(void)
  *
  * Walk the page tables pointed to by @pgd to find the PTE corresponding to the
  * address @addr. If page tables don't exist for @addr, they will be created
- * from the MMU cache if @cache is not NULL.
+ * from the MMU cache if @cache is yest NULL.
  *
  * Returns:	Pointer to pte_t corresponding to @addr.
  *		NULL if a page table doesn't exist for @addr and !@cache.
@@ -141,14 +141,14 @@ static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
 	pmd_t *pmd;
 
 	pgd += pgd_index(addr);
-	if (pgd_none(*pgd)) {
+	if (pgd_yesne(*pgd)) {
 		/* Not used on MIPS yet */
 		BUG();
 		return NULL;
 	}
 	p4d = p4d_offset(pgd, addr);
 	pud = pud_offset(p4d, addr);
-	if (pud_none(*pud)) {
+	if (pud_yesne(*pud)) {
 		pmd_t *new_pmd;
 
 		if (!cache)
@@ -159,7 +159,7 @@ static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
 		pud_populate(NULL, pud, new_pmd);
 	}
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd)) {
+	if (pmd_yesne(*pmd)) {
 		pte_t *new_pte;
 
 		if (!cache)
@@ -685,7 +685,7 @@ out:
  * Returns:	0 on success, in which case the caller may use the @out_entry
  *		and @out_buddy PTEs to update derived mappings and resume guest
  *		execution.
- *		-EFAULT if there is no memory region at @gpa or a write was
+ *		-EFAULT if there is yes memory region at @gpa or a write was
  *		attempted to a read-only memory region. This is usually handled
  *		as an MMIO access.
  */
@@ -721,33 +721,33 @@ retry:
 	 * Used to check for invalidations in progress, of the pfn that is
 	 * returned by pfn_to_pfn_prot below.
 	 */
-	mmu_seq = kvm->mmu_notifier_seq;
+	mmu_seq = kvm->mmu_yestifier_seq;
 	/*
-	 * Ensure the read of mmu_notifier_seq isn't reordered with PTE reads in
+	 * Ensure the read of mmu_yestifier_seq isn't reordered with PTE reads in
 	 * gfn_to_pfn_prot() (which calls get_user_pages()), so that we don't
 	 * risk the page we get a reference to getting unmapped before we have a
-	 * chance to grab the mmu_lock without mmu_notifier_retry() noticing.
+	 * chance to grab the mmu_lock without mmu_yestifier_retry() yesticing.
 	 *
 	 * This smp_rmb() pairs with the effective smp_wmb() of the combination
 	 * of the pte_unmap_unlock() after the PTE is zapped, and the
-	 * spin_lock() in kvm_mmu_notifier_invalidate_<page|range_end>() before
-	 * mmu_notifier_seq is incremented.
+	 * spin_lock() in kvm_mmu_yestifier_invalidate_<page|range_end>() before
+	 * mmu_yestifier_seq is incremented.
 	 */
 	smp_rmb();
 
 	/* Slow path - ask KVM core whether we can access this GPA */
 	pfn = gfn_to_pfn_prot(kvm, gfn, write_fault, &writeable);
-	if (is_error_noslot_pfn(pfn)) {
+	if (is_error_yesslot_pfn(pfn)) {
 		err = -EFAULT;
 		goto out;
 	}
 
 	spin_lock(&kvm->mmu_lock);
 	/* Check if an invalidation has taken place since we got pfn */
-	if (mmu_notifier_retry(kvm, mmu_seq)) {
+	if (mmu_yestifier_retry(kvm, mmu_seq)) {
 		/*
-		 * This can happen when mappings are changed asynchronously, but
-		 * also synchronously if a COW is triggered by
+		 * This can happen when mappings are changed asynchroyesusly, but
+		 * also synchroyesusly if a COW is triggered by
 		 * gfn_to_pfn_prot().
 		 */
 		spin_unlock(&kvm->mmu_lock);
@@ -848,7 +848,7 @@ static bool kvm_mips_flush_gva_pte(pte_t *pte, unsigned long start_gva,
 	int i;
 
 	/*
-	 * There's no freeing to do, so there's no point clearing individual
+	 * There's yes freeing to do, so there's yes point clearing individual
 	 * entries unless only part of the last level page table needs flushing.
 	 */
 	if (safe_to_remove)
@@ -973,7 +973,7 @@ static pte_t kvm_mips_gpa_pte_to_gva_unmapped(pte_t pte)
 {
 	/*
 	 * Don't leak writeable but clean entries from GPA page tables. We don't
-	 * want the normal Linux tlbmod handler to handle dirtying when KVM
+	 * want the yesrmal Linux tlbmod handler to handle dirtying when KVM
 	 * accesses guest memory.
 	 */
 	if (!pte_dirty(pte))
@@ -1060,7 +1060,7 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 	tlb_lo[1] = tlb->tlb_lo[1];
 
 	/*
-	 * The commpage address must not be mapped to anything else if the guest
+	 * The commpage address must yest be mapped to anything else if the guest
 	 * TLB contains entries nearby, or commpage accesses will break.
 	 */
 	if (!((gva ^ KVM_GUEST_COMMPAGE_ADDR) & VPN2_MASK & (PAGE_MASK << 1)))
@@ -1155,7 +1155,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			  vcpu->arch.last_sched_cpu, cpu, vcpu->vcpu_id);
 		/*
 		 * Migrate the timer interrupt to the current CPU so that it
-		 * always interrupts the guest and synchronously triggers a
+		 * always interrupts the guest and synchroyesusly triggers a
 		 * guest timer interrupt.
 		 */
 		kvm_mips_migrate_count(vcpu);
@@ -1167,7 +1167,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	local_irq_restore(flags);
 }
 
-/* ASID can change if another task is scheduled during preemption */
+/* ASID can change if ayesther task is scheduled during preemption */
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
@@ -1197,8 +1197,8 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
  * Returns:	KVM_MIPS_MAPPED on success.
  *		KVM_MIPS_GVA if bad guest virtual address.
  *		KVM_MIPS_GPA if bad guest physical address.
- *		KVM_MIPS_TLB if guest TLB not present.
- *		KVM_MIPS_TLBINV if guest TLB present but not valid.
+ *		KVM_MIPS_TLB if guest TLB yest present.
+ *		KVM_MIPS_TLBINV if guest TLB present but yest valid.
  *		KVM_MIPS_TLBMOD if guest TLB read only.
  */
 enum kvm_mips_fault_result kvm_trap_emul_gva_fault(struct kvm_vcpu *vcpu,
@@ -1262,7 +1262,7 @@ retry:
 			return -EFAULT;
 		}
 
-		/* Hopefully it'll work now */
+		/* Hopefully it'll work yesw */
 		goto retry;
 	}
 	return 0;

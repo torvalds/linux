@@ -7,7 +7,7 @@
  *
  *  This code is based on gt9xx.c authored by andrew@goodix.com:
  *
- *  2010 - 2012 Goodix Technology.
+ *  2010 - 2012 Goodix Techyeslogy.
  */
 
 
@@ -158,10 +158,10 @@ static const struct dmi_system_id rotated_screen[] = {
 static const struct dmi_system_id nine_bytes_report[] = {
 #if defined(CONFIG_DMI) && defined(CONFIG_X86)
 	{
-		.ident = "Lenovo YogaBook",
+		.ident = "Leyesvo YogaBook",
 		/* YB1-X91L/F and YB1-X90L/F */
 		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X9")
+			DMI_MATCH(DMI_PRODUCT_NAME, "Leyesvo YB1-X9")
 		}
 	},
 #endif
@@ -267,7 +267,7 @@ static int goodix_ts_read_input_report(struct goodix_ts_data *ts, u8 *data)
 
 	/*
 	 * The 'buffer status' bit, which indicates that the data is valid, is
-	 * not set as soon as the interrupt is raised, but slightly after.
+	 * yest set as soon as the interrupt is raised, but slightly after.
 	 * This takes around 10 ms to happen, so we poll for 20 ms.
 	 */
 	max_timeout = jiffies + msecs_to_jiffies(GOODIX_BUFFER_STATUS_TIMEOUT);
@@ -417,7 +417,7 @@ static int goodix_check_cfg_8(struct goodix_ts_data *ts,
 	check_sum = (~check_sum) + 1;
 	if (check_sum != cfg->data[raw_cfg_len]) {
 		dev_err(&ts->client->dev,
-			"The checksum of the config fw is not correct");
+			"The checksum of the config fw is yest correct");
 		return -EINVAL;
 	}
 
@@ -441,7 +441,7 @@ static int goodix_check_cfg_16(struct goodix_ts_data *ts,
 	check_sum = (~check_sum) + 1;
 	if (check_sum != get_unaligned_be16(&cfg->data[raw_cfg_len])) {
 		dev_err(&ts->client->dev,
-			"The checksum of the config fw is not correct");
+			"The checksum of the config fw is yest correct");
 		return -EINVAL;
 	}
 
@@ -465,7 +465,7 @@ static int goodix_check_cfg(struct goodix_ts_data *ts,
 {
 	if (cfg->size > GOODIX_CONFIG_MAX_LENGTH) {
 		dev_err(&ts->client->dev,
-			"The length of the config fw is not correct");
+			"The length of the config fw is yest correct");
 		return -EINVAL;
 	}
 
@@ -716,7 +716,7 @@ static int goodix_i2c_test(struct i2c_client *client)
  *
  * Must be called from probe to finish initialization of the device.
  * Contains the common initialization code for both devices that
- * declare gpio pins and devices that do not. It is either called
+ * declare gpio pins and devices that do yest. It is either called
  * directly from probe or from request_firmware_wait callback.
  */
 static int goodix_configure_dev(struct goodix_ts_data *ts)
@@ -919,7 +919,7 @@ static int goodix_ts_probe(struct i2c_client *client,
 		if (!ts->cfg_name)
 			return -ENOMEM;
 
-		error = request_firmware_nowait(THIS_MODULE, true, ts->cfg_name,
+		error = request_firmware_yeswait(THIS_MODULE, true, ts->cfg_name,
 						&client->dev, GFP_KERNEL, ts,
 						goodix_config_cb);
 		if (error) {

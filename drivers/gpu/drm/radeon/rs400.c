@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -162,7 +162,7 @@ int rs400_gart_enable(struct radeon_device *rdev)
 		tmp = RREG32(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
 		WREG32(RADEON_BUS_CNTL, tmp);
 	}
-	/* Table should be in 32bits address space so ignore bits above. */
+	/* Table should be in 32bits address space so igyesre bits above. */
 	tmp = (u32)rdev->gart.table_addr & 0xfffff000;
 	tmp |= (upper_32_bits(rdev->gart.table_addr) & 0xff) << 4;
 
@@ -171,7 +171,7 @@ int rs400_gart_enable(struct radeon_device *rdev)
 	WREG32_MC(RS480_GART_FEATURE_ID,
 		  (RS480_TLB_ENABLE |
 		   RS480_GTW_LAC_EN | RS480_1LEVEL_GART));
-	/* Disable snooping */
+	/* Disable syesoping */
 	WREG32_MC(RS480_AGP_MODE_CNTL,
 		  (1 << RS480_REQ_TYPE_SNOOP_SHIFT) | RS480_REQ_TYPE_SNOOP_DIS);
 	/* Disable AGP mode */
@@ -309,8 +309,8 @@ void rs400_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 #if defined(CONFIG_DEBUG_FS)
 static int rs400_debugfs_gart_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t tmp;
 
@@ -465,7 +465,7 @@ int rs400_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Make sur GART are not working */
+	/* Make sur GART are yest working */
 	rs400_gart_disable(rdev);
 	/* Resume clock before doing reset */
 	r300_clock_startup(rdev);
@@ -551,7 +551,7 @@ int rs400_init(struct radeon_device *rdev)
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
 	}
-	/* check if cards are posted or not */
+	/* check if cards are posted or yest */
 	if (radeon_boot_test_post_card(rdev) == false)
 		return -EINVAL;
 

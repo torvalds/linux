@@ -14,8 +14,8 @@
 struct txx9ndfmc_platform_data {
 	unsigned int shift;
 	unsigned int gbus_clock;
-	unsigned int hold;		/* hold time in nanosecond */
-	unsigned int spw;		/* strobe pulse width in nanosecond */
+	unsigned int hold;		/* hold time in nayessecond */
+	unsigned int spw;		/* strobe pulse width in nayessecond */
 	unsigned int flags;
 	unsigned char ch_mask;		/* available channel bitmask */
 	unsigned char wp_mask;		/* write-protect bitmask */

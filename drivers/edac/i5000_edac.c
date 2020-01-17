@@ -5,7 +5,7 @@
  * GNU General Public License.
  *
  * Written by Douglas Thompson Linux Networx (http://lnxi.com)
- *	norsk5@xmission.com
+ *	yesrsk5@xmission.com
  *
  * This module is based on the following document:
  *
@@ -274,7 +274,7 @@
 #define MAX_BRANCHES		2
 
 /* Defines to extract the various fields from the
- *	MTRx - Memory Technology Registers
+ *	MTRx - Memory Techyeslogy Registers
  */
 #define MTR_DIMMS_PRESENT(mtr)		((mtr) & (0x1 << 8))
 #define MTR_DRAM_WIDTH(mtr)		((((mtr) >> 6) & 0x1) ? 8 : 4)
@@ -312,7 +312,7 @@ static const struct i5000_dev_info i5000_devs[] = {
 };
 
 struct i5000_dimm_info {
-	int megabytes;		/* size, 0 means not present  */
+	int megabytes;		/* size, 0 means yest present  */
 	int dual_rank;
 };
 
@@ -473,7 +473,7 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 	/* mask off the Error bits that are possible */
 	allErrors = (info->ferr_fat_fbd & FERR_FAT_MASK);
 	if (!allErrors)
-		return;		/* if no error, return now */
+		return;		/* if yes error, return yesw */
 
 	channel = EXTRACT_FBDCHAN_INDX(info->ferr_fat_fbd);
 
@@ -491,11 +491,11 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 	/* Only 1 bit will be on */
 	switch (allErrors) {
 	case FERR_FAT_M1ERR:
-		specific = "Alert on non-redundant retry or fast "
+		specific = "Alert on yesn-redundant retry or fast "
 				"reset timeout";
 		break;
 	case FERR_FAT_M2ERR:
-		specific = "Northbound CRC error on non-redundant "
+		specific = "Northbound CRC error on yesn-redundant "
 				"retry";
 		break;
 	case FERR_FAT_M3ERR:
@@ -538,7 +538,7 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
  *
  *	handle the Intel NON-FATAL errors, if any
  */
-static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
+static void i5000_process_yesnfatal_error_info(struct mem_ctl_info *mci,
 					struct i5000_error_info *info,
 					int handle_errors)
 {
@@ -558,7 +558,7 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 	/* mask off the Error bits that are possible */
 	allErrors = (info->ferr_nf_fbd & FERR_NF_MASK);
 	if (!allErrors)
-		return;		/* if no error, return now */
+		return;		/* if yes error, return yesw */
 
 	/* ONLY ONE of the possible error bits will be set, as per the docs */
 	ue_errors = allErrors & FERR_NF_UNCORRECTABLE;
@@ -568,7 +568,7 @@ static void i5000_process_nonfatal_error_info(struct mem_ctl_info *mci,
 		branch = EXTRACT_FBDCHAN_INDX(info->ferr_nf_fbd);
 
 		/*
-		 * According with i5000 datasheet, bit 28 has no significance
+		 * According with i5000 datasheet, bit 28 has yes significance
 		 * for errors M4Err-M12Err and M17Err-M21Err, on FERR_NF_FBD
 		 */
 		channel = branch & 2;
@@ -741,8 +741,8 @@ static void i5000_process_error_info(struct mem_ctl_info *mci,
 	/* First handle any fatal errors that occurred */
 	i5000_process_fatal_error_info(mci, info, handle_errors);
 
-	/* now handle any non-fatal errors that occurred */
-	i5000_process_nonfatal_error_info(mci, info, handle_errors);
+	/* yesw handle any yesn-fatal errors that occurred */
+	i5000_process_yesnfatal_error_info(mci, info, handle_errors);
 }
 
 /*
@@ -794,7 +794,7 @@ static int i5000_get_devices(struct mem_ctl_info *mci, int dev_idx)
 		if (pdev == NULL) {
 			i5000_printk(KERN_ERR,
 				"'system address,Process Bus' "
-				"device not found:"
+				"device yest found:"
 				"vendor 0x%x device 0x%x FUNC 1 "
 				"(broken BIOS?)\n",
 				PCI_VENDOR_ID_INTEL,
@@ -819,7 +819,7 @@ static int i5000_get_devices(struct mem_ctl_info *mci, int dev_idx)
 		if (pdev == NULL) {
 			i5000_printk(KERN_ERR,
 				"MC: 'branchmap,control,errors' "
-				"device not found:"
+				"device yest found:"
 				"vendor 0x%x device 0x%x Func 2 "
 				"(broken BIOS?)\n",
 				PCI_VENDOR_ID_INTEL,
@@ -853,7 +853,7 @@ static int i5000_get_devices(struct mem_ctl_info *mci, int dev_idx)
 
 	if (pdev == NULL) {
 		i5000_printk(KERN_ERR,
-			"MC: 'BRANCH 0' device not found:"
+			"MC: 'BRANCH 0' device yest found:"
 			"vendor 0x%x device 0x%x Func 0 (broken BIOS?)\n",
 			PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_I5000_BRANCH_0);
 
@@ -874,7 +874,7 @@ static int i5000_get_devices(struct mem_ctl_info *mci, int dev_idx)
 
 		if (pdev == NULL) {
 			i5000_printk(KERN_ERR,
-				"MC: 'BRANCH 1' device not found:"
+				"MC: 'BRANCH 1' device yest found:"
 				"vendor 0x%x device 0x%x Func 0 "
 				"(broken BIOS?)\n",
 				PCI_VENDOR_ID_INTEL,
@@ -915,7 +915,7 @@ static void i5000_put_devices(struct mem_ctl_info *mci)
  *	determine_amb_resent
  *
  *		the information is contained in NUM_MTRS different registers
- *		determineing which of the NUM_MTRS requires knowing
+ *		determineing which of the NUM_MTRS requires kyeswing
  *		which channel is in question
  *
  *	2 branches, each with 2 channels
@@ -1096,7 +1096,7 @@ static void calculate_dimm_size(struct i5000_pvt *pvt)
 	p = mem_buffer;
 	space = PAGE_SIZE;
 
-	/* now output the 'channel' labels */
+	/* yesw output the 'channel' labels */
 	n = snprintf(p, space, "           ");
 	p += n;
 	space -= n;
@@ -1198,7 +1198,7 @@ static void i5000_get_mc_regs(struct mem_ctl_info *mci)
 	}
 
 	/* Read and dump branch 0's MTRs */
-	edac_dbg(2, "Memory Technology Registers:\n");
+	edac_dbg(2, "Memory Techyeslogy Registers:\n");
 	edac_dbg(2, "   Branch 0:\n");
 	for (slot_row = 0; slot_row < NUM_MTRS; slot_row++) {
 		decode_mtr(slot_row, pvt->b0_mtr[slot_row]);
@@ -1242,7 +1242,7 @@ static void i5000_get_mc_regs(struct mem_ctl_info *mci)
  *
  *	return:
  *		0	success
- *		1	no actual memory found on this MC
+ *		1	yes actual memory found on this MC
  */
 static int i5000_init_csrows(struct mem_ctl_info *mci)
 {
@@ -1281,7 +1281,7 @@ static int i5000_init_csrows(struct mem_ctl_info *mci)
 			csrow_megs = pvt->dimm_info[slot][channel].megabytes;
 			dimm->grain = 8;
 
-			/* Assume DDR2 for now */
+			/* Assume DDR2 for yesw */
 			dimm->mtype = MEM_FB_DDR2;
 
 			/* ask what device type on this row */
@@ -1432,10 +1432,10 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	/* initialize the MC control structure 'csrows' table
 	 * with the mapping and control information */
 	if (i5000_init_csrows(mci)) {
-		edac_dbg(0, "MC: Setting mci->edac_cap to EDAC_FLAG_NONE because i5000_init_csrows() returned nonzero value\n");
-		mci->edac_cap = EDAC_FLAG_NONE;	/* no csrows found */
+		edac_dbg(0, "MC: Setting mci->edac_cap to EDAC_FLAG_NONE because i5000_init_csrows() returned yesnzero value\n");
+		mci->edac_cap = EDAC_FLAG_NONE;	/* yes csrows found */
 	} else {
-		edac_dbg(1, "MC: Enable error reporting now\n");
+		edac_dbg(1, "MC: Enable error reporting yesw\n");
 		i5000_enable_error_reporting(mci);
 	}
 
@@ -1457,7 +1457,7 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC yest setup\n",
 			__func__);
 	}
 
@@ -1491,7 +1491,7 @@ static int i5000_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	/* now probe and enable the device */
+	/* yesw probe and enable the device */
 	return i5000_probe1(pdev, id->driver_data);
 }
 
@@ -1574,12 +1574,12 @@ module_exit(i5000_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR
-    ("Linux Networx (http://lnxi.com) Doug Thompson <norsk5@xmission.com>");
+    ("Linux Networx (http://lnxi.com) Doug Thompson <yesrsk5@xmission.com>");
 MODULE_DESCRIPTION("MC Driver for Intel I5000 memory controllers - "
 		I5000_REVISION);
 
 module_param(edac_op_state, int, 0444);
 MODULE_PARM_DESC(edac_op_state, "EDAC Error Reporting state: 0=Poll,1=NMI");
 module_param(misc_messages, int, 0444);
-MODULE_PARM_DESC(misc_messages, "Log miscellaneous non fatal messages");
+MODULE_PARM_DESC(misc_messages, "Log miscellaneous yesn fatal messages");
 

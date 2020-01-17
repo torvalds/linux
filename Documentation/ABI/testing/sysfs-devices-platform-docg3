@@ -9,7 +9,7 @@ Description:
 		The protection has information embedded whether it blocks reads,
 		writes or both.
 		The result is:
-		0 -> the DPS is not keylocked
+		0 -> the DPS is yest keylocked
 		1 -> the DPS is keylocked
 Users:		None identified so far.
 

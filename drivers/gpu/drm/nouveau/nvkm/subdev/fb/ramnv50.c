@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -92,7 +92,7 @@ nv50_ram_timing_calc(struct nv50_ram *ram, u32 *timing)
 		break;
 	}
 
-	/* XXX: N=1 is not proper statistics */
+	/* XXX: N=1 is yest proper statistics */
 	if (device->chipset == 0xa0) {
 		unkt3b = 0x19 + ram->base.next->bios.rammap_00_16_40;
 		timing[6] = (0x2d + T(CL) - T(CWL) +
@@ -298,7 +298,7 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 	}
 
 	if (ret) {
-		nvkm_error(subdev, "Could not calculate MR\n");
+		nvkm_error(subdev, "Could yest calculate MR\n");
 		return ret;
 	}
 
@@ -439,7 +439,7 @@ nv50_ram_calc(struct nvkm_ram *base, u32 freq)
 	ram_mask(hwsq, 0x100718, 0xffffffff, unk718);
 	ram_mask(hwsq, 0x100710, 0xffffffff, unk710);
 
-	/* XXX: G94 does not even test these regs in trace. Harmless we do it,
+	/* XXX: G94 does yest even test these regs in trace. Harmless we do it,
 	 * but why is it omitted? */
 	if (next->bios.rammap_00_16_20) {
 		ram_wr32(hwsq, 0x1005a0, next->bios.ramcfg_00_07 << 16 |

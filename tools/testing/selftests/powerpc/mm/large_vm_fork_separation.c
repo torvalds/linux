@@ -4,7 +4,7 @@
 //
 // Test that allocating memory beyond the memory limit and then forking is
 // handled correctly, ie. the child is able to access the mappings beyond the
-// memory limit and the child's writes are not visible to the parent.
+// memory limit and the child's writes are yest visible to the parent.
 
 #include <stdio.h>
 #include <stdlib.h>

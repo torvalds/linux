@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -244,7 +244,7 @@ nvkm_volt_init(struct nvkm_subdev *subdev)
 	int ret = nvkm_volt_get(volt);
 	if (ret < 0) {
 		if (ret != -ENODEV)
-			nvkm_debug(subdev, "current voltage unknown\n");
+			nvkm_debug(subdev, "current voltage unkyeswn\n");
 		return 0;
 	}
 	nvkm_debug(subdev, "current voltage: %duv\n", ret);
@@ -289,7 +289,7 @@ nvkm_volt_ctor(const struct nvkm_volt_func *func, struct nvkm_device *device,
 	nvkm_subdev_ctor(&nvkm_volt, device, index, &volt->subdev);
 	volt->func = func;
 
-	/* Assuming the non-bios device should build the voltage table later */
+	/* Assuming the yesn-bios device should build the voltage table later */
 	if (bios) {
 		u8 ver, hdr, cnt, len;
 		struct nvbios_vmap vmap;

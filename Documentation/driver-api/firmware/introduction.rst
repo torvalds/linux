@@ -16,12 +16,12 @@ Types of firmware requests
 
 There are two types of calls:
 
-* Synchronous
-* Asynchronous
+* Synchroyesus
+* Asynchroyesus
 
 Which one you use vary depending on your requirements, the rule of thumb
-however is you should strive to use the asynchronous APIs unless you also
-are already using asynchronous initialization mechanisms which will not
-stall or delay boot. Even if loading firmware does not take a lot of time
+however is you should strive to use the asynchroyesus APIs unless you also
+are already using asynchroyesus initialization mechanisms which will yest
+stall or delay boot. Even if loading firmware does yest take a lot of time
 processing firmware might, and this can still delay boot or initialization,
-as such mechanisms such as asynchronous probe can help supplement drivers.
+as such mechanisms such as asynchroyesus probe can help supplement drivers.

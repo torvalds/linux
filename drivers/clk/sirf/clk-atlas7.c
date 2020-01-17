@@ -478,7 +478,7 @@ static struct clk_pll clk_sys3pll = {
 /*
  *  DTO in clkc, default enable double resolution mode
  *  double resolution mode:fout = fin * finc / 2^29
- *  normal mode:fout = fin * finc / 2^28
+ *  yesrmal mode:fout = fin * finc / 2^28
  */
 #define DTO_RESL_DOUBLE	(1ULL << 29)
 #define DTO_RESL_NORMAL	(1ULL << 28)
@@ -984,7 +984,7 @@ static const char * const vip_clk_parents[] = {
 	"sys1pll_a17",
 };
 
-static const char * const nocd_clk_parents[] = {
+static const char * const yescd_clk_parents[] = {
 	"xin",
 	"xinw",
 	"sys2pll_a20",
@@ -995,7 +995,7 @@ static const char * const nocd_clk_parents[] = {
 	"sys1pll_a17",
 };
 
-static const char * const nocr_clk_parents[] = {
+static const char * const yescr_clk_parents[] = {
 	"xin",
 	"xinw",
 	"sys2pll_a20",
@@ -1046,8 +1046,8 @@ static struct atlas7_mux_init_data mux_list[] __initdata = {
 	{ "sec_mux", sec_clk_parents, ARRAY_SIZE(sec_clk_parents), 0, 0, SIRFSOC_CLKC_SEC_CLK_SEL, 0, 3 },
 	{ "sdr_mux", sdr_clk_parents, ARRAY_SIZE(sdr_clk_parents), 0, 0, SIRFSOC_CLKC_SDR_CLK_SEL, 0, 3 },
 	{ "vip_mux", vip_clk_parents, ARRAY_SIZE(vip_clk_parents), 0, 0, SIRFSOC_CLKC_VIP_CLK_SEL, 0, 3 },
-	{ "nocd_mux", nocd_clk_parents, ARRAY_SIZE(nocd_clk_parents), 0, 0, SIRFSOC_CLKC_NOCD_CLK_SEL, 0, 3 },
-	{ "nocr_mux", nocr_clk_parents, ARRAY_SIZE(nocr_clk_parents), 0, 0, SIRFSOC_CLKC_NOCR_CLK_SEL, 0, 3 },
+	{ "yescd_mux", yescd_clk_parents, ARRAY_SIZE(yescd_clk_parents), 0, 0, SIRFSOC_CLKC_NOCD_CLK_SEL, 0, 3 },
+	{ "yescr_mux", yescr_clk_parents, ARRAY_SIZE(yescr_clk_parents), 0, 0, SIRFSOC_CLKC_NOCR_CLK_SEL, 0, 3 },
 	{ "tpiu_mux", tpiu_clk_parents, ARRAY_SIZE(tpiu_clk_parents), 0, 0, SIRFSOC_CLKC_TPIU_CLK_SEL, 0, 3 },
 };
 
@@ -1080,19 +1080,19 @@ static struct atlas7_unit_init_data unit_list[] __initdata = {
 	{ 23, "btm_btss", "btss_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 0, 0, 0, &root1_gate_lock },
 	{ 24, "mediam_usbphy", "usbphy_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 1, 0, 0, &root1_gate_lock },
 	{ 25, "rtcm_kas", "kas_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 2, 0, 0, &root1_gate_lock },
-	{ 26, "audmscm_nocd", "nocd_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 3, 0, 0, &root1_gate_lock },
-	{ 27, "vdifm_nocd", "nocd_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 4, 0, 0, &root1_gate_lock },
-	{ 28, "gnssm_nocd", "nocd_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 5, 0, 0, &root1_gate_lock },
-	{ 29, "mediam_nocd", "nocd_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 6, 0, 0, &root1_gate_lock },
-	{ 30, "cpum_nocd", "nocd_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 8, 0, 0, &root1_gate_lock },
-	{ 31, "gpum_nocd", "nocd_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 9, 0, 0, &root1_gate_lock },
-	{ 32, "audmscm_nocr", "nocr_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 11, 0, 0, &root1_gate_lock },
-	{ 33, "vdifm_nocr", "nocr_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 12, 0, 0, &root1_gate_lock },
-	{ 34, "gnssm_nocr", "nocr_mux", CLK_IGNORE_UNUSED, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 13, 0, 0, &root1_gate_lock },
-	{ 35, "mediam_nocr", "nocr_mux", CLK_IGNORE_UNUSED, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 14, 0, 0, &root1_gate_lock },
-	{ 36, "ddrm_nocr", "nocr_mux", CLK_IGNORE_UNUSED, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 15, 0, 0, &root1_gate_lock },
+	{ 26, "audmscm_yescd", "yescd_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 3, 0, 0, &root1_gate_lock },
+	{ 27, "vdifm_yescd", "yescd_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 4, 0, 0, &root1_gate_lock },
+	{ 28, "gnssm_yescd", "yescd_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 5, 0, 0, &root1_gate_lock },
+	{ 29, "mediam_yescd", "yescd_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 6, 0, 0, &root1_gate_lock },
+	{ 30, "cpum_yescd", "yescd_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 8, 0, 0, &root1_gate_lock },
+	{ 31, "gpum_yescd", "yescd_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 9, 0, 0, &root1_gate_lock },
+	{ 32, "audmscm_yescr", "yescr_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 11, 0, 0, &root1_gate_lock },
+	{ 33, "vdifm_yescr", "yescr_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 12, 0, 0, &root1_gate_lock },
+	{ 34, "gnssm_yescr", "yescr_mux", CLK_IGNORE_UNUSED, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 13, 0, 0, &root1_gate_lock },
+	{ 35, "mediam_yescr", "yescr_mux", CLK_IGNORE_UNUSED, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 14, 0, 0, &root1_gate_lock },
+	{ 36, "ddrm_yescr", "yescr_mux", CLK_IGNORE_UNUSED, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 15, 0, 0, &root1_gate_lock },
 	{ 37, "cpum_tpiu", "tpiu_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 16, 0, 0, &root1_gate_lock },
-	{ 38, "gpum_nocr", "nocr_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 17, 0, 0, &root1_gate_lock },
+	{ 38, "gpum_yescr", "yescr_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 17, 0, 0, &root1_gate_lock },
 	{ 39, "gnssm_rgmii", "rgmii_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 20, 0, 0, &root1_gate_lock },
 	{ 40, "mediam_vdec", "vdec_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 21, 0, 0, &root1_gate_lock },
 	{ 41, "gpum_sdr", "sdr_mux", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 22, 0, 0, &root1_gate_lock },
@@ -1137,7 +1137,7 @@ static struct atlas7_unit_init_data unit_list[] __initdata = {
 	{ 80, "vpp1_disp1", "vdifm_disp1", 0, SIRFSOC_CLKC_LEAF_CLK_EN2_SET, 13, CLK_UNIT_NOC_CLOCK, 23, &leaf2_gate_lock },
 	{ 81, "lcd1_disp1", "vdifm_disp1", 0, SIRFSOC_CLKC_LEAF_CLK_EN2_SET, 14, CLK_UNIT_NOC_CLOCK, 19, &leaf2_gate_lock },
 	{ 82, "dcu_deint", "vdifm_deint", 0, SIRFSOC_CLKC_LEAF_CLK_EN2_SET, 15,  CLK_UNIT_NOC_CLOCK, 17, &leaf2_gate_lock },
-	{ 83, "vdifm_dapa_r_nocr", "vdifm_nocr", 0, SIRFSOC_CLKC_LEAF_CLK_EN2_SET, 17, 0, 0, &leaf2_gate_lock },
+	{ 83, "vdifm_dapa_r_yescr", "vdifm_yescr", 0, SIRFSOC_CLKC_LEAF_CLK_EN2_SET, 17, 0, 0, &leaf2_gate_lock },
 	{ 84, "gpio1_io", "vdifm_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN2_SET, 18, 0, 0, &leaf2_gate_lock },
 	{ 85, "thvdifm_io", "vdifm_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN2_SET, 19, 0, 0, &leaf2_gate_lock },
 	{ 86, "gmac_rgmii", "gnssm_rgmii", 0, SIRFSOC_CLKC_LEAF_CLK_EN3_SET, 0, 0, 0, &leaf3_gate_lock },
@@ -1154,7 +1154,7 @@ static struct atlas7_unit_init_data unit_list[] __initdata = {
 	{ 97, "canbus1_can", "gnssm_can", 0, SIRFSOC_CLKC_LEAF_CLK_EN3_SET, 12, CLK_UNIT_NOC_CLOCK, 7, &leaf3_gate_lock },
 	{ 98, "ccsec_sec", "gnssm_sec", 0, SIRFSOC_CLKC_LEAF_CLK_EN3_SET, 15, CLK_UNIT_NOC_CLOCK, 9, &leaf3_gate_lock },
 	{ 99,  "ccpub_sec", "gnssm_sec", 0, SIRFSOC_CLKC_LEAF_CLK_EN3_SET, 16, CLK_UNIT_NOC_CLOCK, 8, &leaf3_gate_lock },
-	{ 100, "gnssm_dapa_r_nocr", "gnssm_nocr", 0, SIRFSOC_CLKC_LEAF_CLK_EN3_SET, 13, 0, 0, &leaf3_gate_lock },
+	{ 100, "gnssm_dapa_r_yescr", "gnssm_yescr", 0, SIRFSOC_CLKC_LEAF_CLK_EN3_SET, 13, 0, 0, &leaf3_gate_lock },
 	{ 101, "thgnssm_io", "gnssm_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN3_SET, 14, 0, 0, &leaf3_gate_lock },
 	{ 102, "media_vdec", "mediam_vdec", 0, SIRFSOC_CLKC_LEAF_CLK_EN4_SET, 0, CLK_UNIT_NOC_CLOCK, 3, &leaf4_gate_lock },
 	{ 103, "media_jpenc", "mediam_jpenc", 0, SIRFSOC_CLKC_LEAF_CLK_EN4_SET, 1, CLK_UNIT_NOC_CLOCK, 1, &leaf4_gate_lock },
@@ -1174,21 +1174,21 @@ static struct atlas7_unit_init_data unit_list[] __initdata = {
 	{ 117, "thmediam_io", "mediam_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN4_SET, 15, 0, 0, &leaf4_gate_lock },
 	{ 118, "memc_mem", "mempll_clk1", CLK_IGNORE_UNUSED, SIRFSOC_CLKC_LEAF_CLK_EN5_SET, 0, 0, 0, &leaf5_gate_lock },
 	{ 119, "dapa_mem", "mempll_clk1", 0, SIRFSOC_CLKC_LEAF_CLK_EN5_SET, 1, 0, 0, &leaf5_gate_lock },
-	{ 120, "nocddrm_nocr", "ddrm_nocr", 0, SIRFSOC_CLKC_LEAF_CLK_EN5_SET, 2, 0, 0, &leaf5_gate_lock },
-	{ 121, "thddrm_nocr", "ddrm_nocr", 0, SIRFSOC_CLKC_LEAF_CLK_EN5_SET, 3, 0, 0, &leaf5_gate_lock },
+	{ 120, "yescddrm_yescr", "ddrm_yescr", 0, SIRFSOC_CLKC_LEAF_CLK_EN5_SET, 2, 0, 0, &leaf5_gate_lock },
+	{ 121, "thddrm_yescr", "ddrm_yescr", 0, SIRFSOC_CLKC_LEAF_CLK_EN5_SET, 3, 0, 0, &leaf5_gate_lock },
 	{ 122, "spram1_cpudiv2", "cpum_cpu", 0, SIRFSOC_CLKC_LEAF_CLK_EN6_SET, 0, CLK_UNIT_NOC_SOCKET, 9, &leaf6_gate_lock },
 	{ 123, "spram2_cpudiv2", "cpum_cpu", 0, SIRFSOC_CLKC_LEAF_CLK_EN6_SET, 1, CLK_UNIT_NOC_SOCKET, 10, &leaf6_gate_lock },
 	{ 124, "coresight_cpudiv2", "cpum_cpu", 0, SIRFSOC_CLKC_LEAF_CLK_EN6_SET, 2, 0, 0, &leaf6_gate_lock },
 	{ 125, "coresight_tpiu", "cpum_tpiu", 0, SIRFSOC_CLKC_LEAF_CLK_EN6_SET, 3, 0, 0, &leaf6_gate_lock },
 	{ 126, "graphic_gpu", "gpum_gpu", 0, SIRFSOC_CLKC_LEAF_CLK_EN7_SET, 0, CLK_UNIT_NOC_CLOCK, 0, &leaf7_gate_lock },
 	{ 127, "vss_sdr", "gpum_sdr", 0, SIRFSOC_CLKC_LEAF_CLK_EN7_SET, 1, CLK_UNIT_NOC_CLOCK, 11, &leaf7_gate_lock },
-	{ 128, "thgpum_nocr", "gpum_nocr", 0, SIRFSOC_CLKC_LEAF_CLK_EN7_SET, 2, 0, 0, &leaf7_gate_lock },
+	{ 128, "thgpum_yescr", "gpum_yescr", 0, SIRFSOC_CLKC_LEAF_CLK_EN7_SET, 2, 0, 0, &leaf7_gate_lock },
 	{ 129, "a7ca_btss", "btm_btss", 0, SIRFSOC_CLKC_LEAF_CLK_EN8_SET, 1, 0, 0, &leaf8_gate_lock },
 	{ 130, "dmac4_io", "a7ca_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN8_SET, 2, 0, 0, &leaf8_gate_lock },
 	{ 131, "uart6_io", "dmac4_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN8_SET, 3, 0, 0, &leaf8_gate_lock },
 	{ 132, "usp3_io", "dmac4_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN8_SET, 4, 0, 0, &leaf8_gate_lock },
-	{ 133, "a7ca_io", "noc_btm_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN8_SET, 5, 0, 0, &leaf8_gate_lock },
-	{ 134, "noc_btm_io", "btm_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN8_SET, 6, 0, 0, &leaf8_gate_lock },
+	{ 133, "a7ca_io", "yesc_btm_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN8_SET, 5, 0, 0, &leaf8_gate_lock },
+	{ 134, "yesc_btm_io", "btm_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN8_SET, 6, 0, 0, &leaf8_gate_lock },
 	{ 135, "thbtm_io", "btm_io", 0, SIRFSOC_CLKC_LEAF_CLK_EN8_SET, 7, 0, 0, &leaf8_gate_lock },
 	{ 136, "btslow", "xinw_fixdiv_btslow", 0, SIRFSOC_CLKC_ROOT_CLK_EN1_SET, 25, 0, 0, &root1_gate_lock },
 	{ 137, "a7ca_btslow", "btslow", 0, SIRFSOC_CLKC_LEAF_CLK_EN8_SET, 0, 0, 0, &leaf8_gate_lock },
@@ -1398,11 +1398,11 @@ static int atlas7_reset_module(struct reset_controller_dev *rcdev,
 	 * delay 16 clocks
 	 * disable clock (sw clk_en = 0)
 	 * de-assert reset (1)
-	 * after this sequence, restore clock or not is decided by SW
+	 * after this sequence, restore clock or yest is decided by SW
 	 */
 
 	spin_lock_irqsave(reset->lock, flags);
-	/* clock enable or not */
+	/* clock enable or yest */
 	if (clkc_readl(reset->clk_ofs + 8) & (1 << reset->clk_bit)) {
 		clkc_writel(1 << reset->rst_bit, reset->rst_ofs + 4);
 		udelay(2);
@@ -1432,7 +1432,7 @@ static struct reset_controller_dev atlas7_rst_ctlr = {
 	.of_reset_n_cells = 1,
 };
 
-static void __init atlas7_clk_init(struct device_node *np)
+static void __init atlas7_clk_init(struct device_yesde *np)
 {
 	struct clk *clk;
 	struct atlas7_div_init_data *div;
@@ -1445,7 +1445,7 @@ static void __init atlas7_clk_init(struct device_node *np)
 	if (!sirfsoc_clk_vbase)
 		panic("unable to map clkc registers\n");
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	clk = clk_register(NULL, &clk_cpupll.hw);
 	BUG_ON(!clk);
@@ -1650,7 +1650,7 @@ static void __init atlas7_clk_init(struct device_node *np)
 				div->gate_bit, 0, div->lock);
 		BUG_ON(!clk);
 	}
-	/* ignore selector status register check */
+	/* igyesre selector status register check */
 	for (i = 0; i < ARRAY_SIZE(mux_list); i++) {
 		mux = &mux_list[i];
 		clk = clk_register_mux(NULL, mux->mux_name, mux->parent_names,
@@ -1675,7 +1675,7 @@ static void __init atlas7_clk_init(struct device_node *np)
 	ret = of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 	BUG_ON(ret);
 
-	atlas7_rst_ctlr.of_node = np;
+	atlas7_rst_ctlr.of_yesde = np;
 	atlas7_rst_ctlr.nr_resets = ARRAY_SIZE(atlas7_reset_unit);
 	reset_controller_register(&atlas7_rst_ctlr);
 }

@@ -2,7 +2,7 @@
 /*
  * Support for the FTS Systemmonitoring Chip "Teutates"
  *
- * Copyright (C) 2016 Fujitsu Technology Solutions GmbH,
+ * Copyright (C) 2016 Fujitsu Techyeslogy Solutions GmbH,
  *		  Thilo Cestonaro <thilo.cestonaro@ts.fujitsu.com>
  */
 #include <linux/err.h>
@@ -48,7 +48,7 @@
 #define FTS_NO_TEMP_SENSORS		0x10
 #define FTS_NO_VOLT_SENSORS		0x04
 
-static const unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x73, I2C_CLIENT_END };
 
 static const struct i2c_device_id fts_id[] = {
 	{ "ftsteutates", 0 },
@@ -157,7 +157,7 @@ static int fts_update_device(struct fts_data *data)
 	if (err < 0)
 		goto exit;
 
-	data->valid = !!(err & 0x02); /* Data not ready yet */
+	data->valid = !!(err & 0x02); /* Data yest ready yet */
 	if (unlikely(!data->valid)) {
 		err = -EAGAIN;
 		goto exit;
@@ -257,7 +257,7 @@ static int fts_wd_set_timeout(struct watchdog_device *wdd, unsigned int timeout)
 	int ret;
 
 	data = watchdog_get_drvdata(wdd);
-	/* switch watchdog resolution to minutes if timeout does not fit
+	/* switch watchdog resolution to minutes if timeout does yest fit
 	 * into a byte
 	 */
 	if (timeout > 0xFF) {
@@ -311,7 +311,7 @@ static int fts_watchdog_init(struct fts_data *data)
 	if (timeout < 0)
 		return timeout;
 
-	/* watchdog not running, set timeout to a default of 60 sec. */
+	/* watchdog yest running, set timeout to a default of 60 sec. */
 	if (timeout == 0) {
 		ret = fts_wd_set_resolution(data, seconds);
 		if (ret < 0)
@@ -822,7 +822,7 @@ static struct i2c_driver fts_driver = {
 	.probe = fts_probe,
 	.remove = fts_remove,
 	.detect = fts_detect,
-	.address_list = normal_i2c,
+	.address_list = yesrmal_i2c,
 };
 
 module_i2c_driver(fts_driver);

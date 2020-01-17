@@ -2,7 +2,7 @@
 /*
  * Just-In-Time compiler for BPF filters on MIPS
  *
- * Copyright (c) 2014 Imagination Technologies Ltd.
+ * Copyright (c) 2014 Imagination Techyeslogies Ltd.
  * Author: Markos Chandras <markos.chandras@imgtec.com>
  */
 
@@ -43,7 +43,7 @@
 
 /*
  * Use 2 scratch registers to avoid pipeline interlocks.
- * There is no overhead during epilogue and prologue since
+ * There is yes overhead during epilogue and prologue since
  * any of the $s0-$s6 registers will only be preserved if
  * they are going to actually be used.
  */

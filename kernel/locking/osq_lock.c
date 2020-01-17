@@ -7,14 +7,14 @@
  * An MCS like lock especially tailored for optimistic spinning for sleeping
  * lock implementations (mutex, rwsem, etc).
  *
- * Using a single mcs node per CPU is safe because sleeping locks should not be
+ * Using a single mcs yesde per CPU is safe because sleeping locks should yest be
  * called from interrupt context and we have preemption disabled while
  * spinning.
  */
-static DEFINE_PER_CPU_SHARED_ALIGNED(struct optimistic_spin_node, osq_node);
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct optimistic_spin_yesde, osq_yesde);
 
 /*
- * We use the value 0 to represent "no CPU", thus the encoded value
+ * We use the value 0 to represent "yes CPU", thus the encoded value
  * will be the CPU number incremented by 1.
  */
 static inline int encode_cpu(int cpu_nr)
@@ -22,34 +22,34 @@ static inline int encode_cpu(int cpu_nr)
 	return cpu_nr + 1;
 }
 
-static inline int node_cpu(struct optimistic_spin_node *node)
+static inline int yesde_cpu(struct optimistic_spin_yesde *yesde)
 {
-	return node->cpu - 1;
+	return yesde->cpu - 1;
 }
 
-static inline struct optimistic_spin_node *decode_cpu(int encoded_cpu_val)
+static inline struct optimistic_spin_yesde *decode_cpu(int encoded_cpu_val)
 {
 	int cpu_nr = encoded_cpu_val - 1;
 
-	return per_cpu_ptr(&osq_node, cpu_nr);
+	return per_cpu_ptr(&osq_yesde, cpu_nr);
 }
 
 /*
- * Get a stable @node->next pointer, either for unlock() or unqueue() purposes.
+ * Get a stable @yesde->next pointer, either for unlock() or unqueue() purposes.
  * Can return NULL in case we were the last queued and we updated @lock instead.
  */
-static inline struct optimistic_spin_node *
+static inline struct optimistic_spin_yesde *
 osq_wait_next(struct optimistic_spin_queue *lock,
-	      struct optimistic_spin_node *node,
-	      struct optimistic_spin_node *prev)
+	      struct optimistic_spin_yesde *yesde,
+	      struct optimistic_spin_yesde *prev)
 {
-	struct optimistic_spin_node *next = NULL;
+	struct optimistic_spin_yesde *next = NULL;
 	int curr = encode_cpu(smp_processor_id());
 	int old;
 
 	/*
-	 * If there is a prev node in queue, then the 'old' value will be
-	 * the prev node's CPU #, else it's set to OSQ_UNLOCKED_VAL since if
+	 * If there is a prev yesde in queue, then the 'old' value will be
+	 * the prev yesde's CPU #, else it's set to OSQ_UNLOCKED_VAL since if
 	 * we're currently last in queue, then the queue will then become empty.
 	 */
 	old = prev ? prev->cpu : OSQ_UNLOCKED_VAL;
@@ -59,24 +59,24 @@ osq_wait_next(struct optimistic_spin_queue *lock,
 		    atomic_cmpxchg_acquire(&lock->tail, curr, old) == curr) {
 			/*
 			 * We were the last queued, we moved @lock back. @prev
-			 * will now observe @lock and will complete its
+			 * will yesw observe @lock and will complete its
 			 * unlock()/unqueue().
 			 */
 			break;
 		}
 
 		/*
-		 * We must xchg() the @node->next value, because if we were to
+		 * We must xchg() the @yesde->next value, because if we were to
 		 * leave it in, a concurrent unlock()/unqueue() from
-		 * @node->next might complete Step-A and think its @prev is
+		 * @yesde->next might complete Step-A and think its @prev is
 		 * still valid.
 		 *
 		 * If the concurrent unlock()/unqueue() wins the race, we'll
 		 * wait for either @lock to point to us, through its Step-B, or
-		 * wait for a new @node->next from its Step-C.
+		 * wait for a new @yesde->next from its Step-C.
 		 */
-		if (node->next) {
-			next = xchg(&node->next, NULL);
+		if (yesde->next) {
+			next = xchg(&yesde->next, NULL);
 			if (next)
 				break;
 		}
@@ -89,19 +89,19 @@ osq_wait_next(struct optimistic_spin_queue *lock,
 
 bool osq_lock(struct optimistic_spin_queue *lock)
 {
-	struct optimistic_spin_node *node = this_cpu_ptr(&osq_node);
-	struct optimistic_spin_node *prev, *next;
+	struct optimistic_spin_yesde *yesde = this_cpu_ptr(&osq_yesde);
+	struct optimistic_spin_yesde *prev, *next;
 	int curr = encode_cpu(smp_processor_id());
 	int old;
 
-	node->locked = 0;
-	node->next = NULL;
-	node->cpu = curr;
+	yesde->locked = 0;
+	yesde->next = NULL;
+	yesde->cpu = curr;
 
 	/*
 	 * We need both ACQUIRE (pairs with corresponding RELEASE in
 	 * unlock() uncontended, or fastpath) and RELEASE (to publish
-	 * the node fields we just initialised) semantics when updating
+	 * the yesde fields we just initialised) semantics when updating
 	 * the lock tail.
 	 */
 	old = atomic_xchg(&lock->tail, curr);
@@ -109,38 +109,38 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 		return true;
 
 	prev = decode_cpu(old);
-	node->prev = prev;
+	yesde->prev = prev;
 
 	/*
 	 * osq_lock()			unqueue
 	 *
-	 * node->prev = prev		osq_wait_next()
+	 * yesde->prev = prev		osq_wait_next()
 	 * WMB				MB
-	 * prev->next = node		next->prev = prev // unqueue-C
+	 * prev->next = yesde		next->prev = prev // unqueue-C
 	 *
-	 * Here 'node->prev' and 'next->prev' are the same variable and we need
+	 * Here 'yesde->prev' and 'next->prev' are the same variable and we need
 	 * to ensure these stores happen in-order to avoid corrupting the list.
 	 */
 	smp_wmb();
 
-	WRITE_ONCE(prev->next, node);
+	WRITE_ONCE(prev->next, yesde);
 
 	/*
 	 * Normally @prev is untouchable after the above store; because at that
-	 * moment unlock can proceed and wipe the node element from stack.
+	 * moment unlock can proceed and wipe the yesde element from stack.
 	 *
-	 * However, since our nodes are static per-cpu storage, we're
+	 * However, since our yesdes are static per-cpu storage, we're
 	 * guaranteed their existence -- this allows us to apply
 	 * cmpxchg in an attempt to undo our queueing.
 	 */
 
-	while (!READ_ONCE(node->locked)) {
+	while (!READ_ONCE(yesde->locked)) {
 		/*
 		 * If we need to reschedule bail... so we can block.
 		 * Use vcpu_is_preempted() to avoid waiting for a preempted
 		 * lock holder:
 		 */
-		if (need_resched() || vcpu_is_preempted(node_cpu(node->prev)))
+		if (need_resched() || vcpu_is_preempted(yesde_cpu(yesde->prev)))
 			goto unqueue;
 
 		cpu_relax();
@@ -157,35 +157,35 @@ unqueue:
 	 */
 
 	for (;;) {
-		if (prev->next == node &&
-		    cmpxchg(&prev->next, node, NULL) == node)
+		if (prev->next == yesde &&
+		    cmpxchg(&prev->next, yesde, NULL) == yesde)
 			break;
 
 		/*
 		 * We can only fail the cmpxchg() racing against an unlock(),
-		 * in which case we should observe @node->locked becomming
+		 * in which case we should observe @yesde->locked becomming
 		 * true.
 		 */
-		if (smp_load_acquire(&node->locked))
+		if (smp_load_acquire(&yesde->locked))
 			return true;
 
 		cpu_relax();
 
 		/*
 		 * Or we race against a concurrent unqueue()'s step-B, in which
-		 * case its step-C will write us a new @node->prev pointer.
+		 * case its step-C will write us a new @yesde->prev pointer.
 		 */
-		prev = READ_ONCE(node->prev);
+		prev = READ_ONCE(yesde->prev);
 	}
 
 	/*
 	 * Step - B -- stabilize @next
 	 *
-	 * Similar to unlock(), wait for @node->next or move @lock from @node
+	 * Similar to unlock(), wait for @yesde->next or move @lock from @yesde
 	 * back to @prev.
 	 */
 
-	next = osq_wait_next(lock, node, prev);
+	next = osq_wait_next(lock, yesde, prev);
 	if (!next)
 		return false;
 
@@ -193,7 +193,7 @@ unqueue:
 	 * Step - C -- unlink
 	 *
 	 * @prev is stable because its still waiting for a new @prev->next
-	 * pointer, @next is stable because our @node->next pointer is NULL and
+	 * pointer, @next is stable because our @yesde->next pointer is NULL and
 	 * it will wait in Step-A.
 	 */
 
@@ -205,7 +205,7 @@ unqueue:
 
 void osq_unlock(struct optimistic_spin_queue *lock)
 {
-	struct optimistic_spin_node *node, *next;
+	struct optimistic_spin_yesde *yesde, *next;
 	int curr = encode_cpu(smp_processor_id());
 
 	/*
@@ -218,14 +218,14 @@ void osq_unlock(struct optimistic_spin_queue *lock)
 	/*
 	 * Second most likely case.
 	 */
-	node = this_cpu_ptr(&osq_node);
-	next = xchg(&node->next, NULL);
+	yesde = this_cpu_ptr(&osq_yesde);
+	next = xchg(&yesde->next, NULL);
 	if (next) {
 		WRITE_ONCE(next->locked, 1);
 		return;
 	}
 
-	next = osq_wait_next(lock, node, NULL);
+	next = osq_wait_next(lock, yesde, NULL);
 	if (next)
 		WRITE_ONCE(next->locked, 1);
 }

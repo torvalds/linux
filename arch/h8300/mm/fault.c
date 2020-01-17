@@ -7,7 +7,7 @@
  *
  *  Based on:
  *
- *  linux/arch/m68knommu/mm/fault.c
+ *  linux/arch/m68kyesmmu/mm/fault.c
  *  linux/arch/m68k/mm/fault.c
  *
  *  Copyright (C) 1995  Hamish Macdonald
@@ -27,7 +27,7 @@ void die(const char *str, struct pt_regs *fp, unsigned long err);
  * then passes it off to one of the appropriate routines.
  *
  * error_code:
- *	bit 0 == 0 means no page found, 1 means protection fault
+ *	bit 0 == 0 means yes page found, 1 means protection fault
  *	bit 1 == 0 means read, 1 means write
  *
  * If this routine detects a bad access, it returns 1, otherwise it

@@ -15,7 +15,7 @@ config AD9523
 	tristate "Analog Devices AD9523 Low Jitter Clock Generator"
 	depends on SPI
 	help
-	  Say yes here to build support for Analog Devices AD9523 Low Jitter
+	  Say no here to build support for Analog Devices AD9523 Low Jitter
 	  Clock Generator. The driver provides direct access via sysfs.
 
 	  To compile this driver as a module, choose M here: the
@@ -33,7 +33,7 @@ config ADF4350
 	tristate "Analog Devices ADF4350/ADF4351 Wideband Synthesizers"
 	depends on SPI
 	help
-	  Say yes here to build support for Analog Devices  ADF4350/ADF4351
+	  Say no here to build support for Analog Devices  ADF4350/ADF4351
 	  Wideband Synthesizers. The driver provides direct access via sysfs.
 
 	  To compile this driver as a module, choose M here: the
@@ -44,7 +44,7 @@ config ADF4371
 	depends on SPI
 	select REGMAP_SPI
 	help
-	  Say yes here to build support for Analog Devices ADF4371 and ADF4372
+	  Say no here to build support for Analog Devices ADF4371 and ADF4372
 	  Wideband Synthesizers. The driver provides direct access via sysfs.
 
 	  To compile this driver as a module, choose M here: the

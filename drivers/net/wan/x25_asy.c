@@ -6,7 +6,7 @@
  *	o	allow users to set the parameters
  *	o	sync/async switching ?
  *
- *	Note: This does _not_ implement CCITT X.25 asynchronous framing
+ *	Note: This does _yest_ implement CCITT X.25 asynchroyesus framing
  *	recommendations. Its primarily for testing purposes. If you wanted
  *	to do CCITT then in theory all you need is to nick the HDLC async
  *	checksum routines from ppp.c
@@ -26,7 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -76,7 +76,7 @@ static struct x25_asy *x25_asy_alloc(void)
 	if (i >= x25_asy_maxdev)
 		return NULL;
 
-	/* If no channels are available, allocate one */
+	/* If yes channels are available, allocate one */
 	if (!dev) {
 		char name[IFNAMSIZ];
 		sprintf(name, "x25asy%d", i);
@@ -238,7 +238,7 @@ static void x25_asy_encaps(struct x25_asy *sl, unsigned char *icp, int len)
 	 * the transfer may be completed inside driver.write()
 	 * routine, because it's running with interrupts enabled.
 	 * In this case we *never* got WRITE_WAKEUP event,
-	 * if we did not request it before write operation.
+	 * if we did yest request it before write operation.
 	 *       14 Oct 1994  Dmitry Gorodchanin.
 	 */
 	set_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
@@ -264,7 +264,7 @@ static void x25_asy_write_wakeup(struct tty_struct *tty)
 
 	if (sl->xleft <= 0) {
 		/* Now serial buffer is almost free & we can start
-		 * transmission of another packet */
+		 * transmission of ayesther packet */
 		sl->dev->stats.tx_packets++;
 		clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 		x25_asy_unlock(sl);
@@ -312,14 +312,14 @@ static netdev_tx_t x25_asy_xmit(struct sk_buff *skb,
 	switch (skb->data[0]) {
 	case X25_IFACE_DATA:
 		break;
-	case X25_IFACE_CONNECT: /* Connection request .. do nothing */
+	case X25_IFACE_CONNECT: /* Connection request .. do yesthing */
 		err = lapb_connect_request(dev);
 		if (err != LAPB_OK)
 			netdev_err(dev, "lapb_connect_request error: %d\n",
 				   err);
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
-	case X25_IFACE_DISCONNECT: /* do nothing - hang up ?? */
+	case X25_IFACE_DISCONNECT: /* do yesthing - hang up ?? */
 		err = lapb_disconnect_request(dev);
 		if (err != LAPB_OK)
 			netdev_err(dev, "lapb_disconnect_request error: %d\n",
@@ -337,7 +337,7 @@ static netdev_tx_t x25_asy_xmit(struct sk_buff *skb,
 	 * -----------------------------------------------------
 	 * I hate queues in X.25 driver. May be it's efficient,
 	 * but for me latency is more important. ;)
-	 * So, no queues !
+	 * So, yes queues !
 	 *        14 Oct 1994  Dmitry Gorodchanin.
 	 */
 
@@ -382,7 +382,7 @@ static void x25_asy_data_transmit(struct net_device *dev, struct sk_buff *skb)
 		kfree_skb(skb);
 		return;
 	}
-	/* We were not busy, so we are now... :-) */
+	/* We were yest busy, so we are yesw... :-) */
 	if (skb != NULL) {
 		x25_asy_lock(sl);
 		dev->stats.tx_bytes += skb->len;
@@ -465,10 +465,10 @@ static int x25_asy_open(struct net_device *dev)
 
 	sl->rbuff = kmalloc(len + 4, GFP_KERNEL);
 	if (sl->rbuff == NULL)
-		goto norbuff;
+		goto yesrbuff;
 	sl->xbuff = kmalloc(len + 4, GFP_KERNEL);
 	if (sl->xbuff == NULL)
-		goto noxbuff;
+		goto yesxbuff;
 
 	sl->buffsize = len;
 	sl->rcount   = 0;
@@ -487,10 +487,10 @@ static int x25_asy_open(struct net_device *dev)
 	/* Cleanup */
 	kfree(sl->xbuff);
 	sl->xbuff = NULL;
-noxbuff:
+yesxbuff:
 	kfree(sl->rbuff);
 	sl->rbuff = NULL;
-norbuff:
+yesrbuff:
 	return -ENOMEM;
 }
 
@@ -514,7 +514,7 @@ static int x25_asy_close(struct net_device *dev)
 /*
  * Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
- * a block of X.25 data has been received, which can now be decapsulated
+ * a block of X.25 data has been received, which can yesw be decapsulated
  * and sent on to some IP layer for further processing.
  */
 
@@ -622,7 +622,7 @@ static int x25_asy_esc(unsigned char *s, unsigned char *d, int len)
 	/*
 	 * Send an initial END character to flush out any
 	 * data that may have accumulated in the receiver
-	 * due to line noise.
+	 * due to line yesise.
 	 */
 
 	*ptr++ = X25_END;	/* Send 10111110 bit seq */

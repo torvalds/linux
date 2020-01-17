@@ -58,7 +58,7 @@ static int l2cap_validate_bredr_psm(u16 psm)
 	if ((psm & 0x0101) != 0x0001)
 		return -EINVAL;
 
-	/* Restrict usage of well-known PSMs */
+	/* Restrict usage of well-kyeswn PSMs */
 	if (psm < L2CAP_PSM_DYN_START && !capable(CAP_NET_BIND_SERVICE))
 		return -EACCES;
 
@@ -152,7 +152,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 		chan->sec_level = BT_SECURITY_SDP;
 		break;
 	case L2CAP_CHAN_FIXED:
-		/* Fixed channels default to the L2CAP core not holding a
+		/* Fixed channels default to the L2CAP core yest holding a
 		 * hci_conn reference for them. For fixed channels mapping to
 		 * L2CAP sockets we do want to hold a reference so set the
 		 * appropriate flag to request it.
@@ -199,7 +199,7 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 	/* Check that the socket wasn't bound to something that
 	 * conflicts with the address given to connect(). If chan->src
 	 * is BDADDR_ANY it means bind() was never used, in which case
-	 * chan->src_type and la.l2_bdaddr_type do not need to match.
+	 * chan->src_type and la.l2_bdaddr_type do yest need to match.
 	 */
 	if (chan->src_type == BDADDR_BREDR && bacmp(&chan->src, BDADDR_ANY) &&
 	    bdaddr_type_is_le(la.l2_bdaddr_type)) {
@@ -216,8 +216,8 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 		/* We don't have the hdev available here to make a
 		 * better decision on random vs public, but since all
 		 * user space versions that exhibit this issue anyway do
-		 * not support random local addresses assuming public
-		 * here is good enough.
+		 * yest support random local addresses assuming public
+		 * here is good eyesugh.
 		 */
 		chan->src_type = BDADDR_LE_PUBLIC;
 	}
@@ -287,7 +287,7 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 	sk->sk_max_ack_backlog = backlog;
 	sk->sk_ack_backlog = 0;
 
-	/* Listening channels need to use nested locking in order not to
+	/* Listening channels need to use nested locking in order yest to
 	 * cause lockdep warnings when the created child channels end up
 	 * being locked in the same thread as the parent channel.
 	 */
@@ -333,7 +333,7 @@ static int l2cap_sock_accept(struct socket *sock, struct socket *newsock,
 		}
 
 		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erryes(timeo);
 			break;
 		}
 
@@ -850,7 +850,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 			conn = chan->conn;
 			/* proceed further only when we have l2cap_conn and
 			   No Flush support in the LM */
-			if (!conn || !lmp_no_flush_capable(conn->hcon->hdev)) {
+			if (!conn || !lmp_yes_flush_capable(conn->hcon->hdev)) {
 				err = -EINVAL;
 				break;
 			}
@@ -914,7 +914,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 			break;
 		}
 
-		/* Setting is not supported as it's the remote side that
+		/* Setting is yest supported as it's the remote side that
 		 * decides this.
 		 */
 		err = -EPERM;
@@ -1077,7 +1077,7 @@ static int __l2cap_wait_ack(struct sock *sk, struct l2cap_chan *chan)
 			timeo = L2CAP_WAIT_ACK_POLL_PERIOD;
 
 		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erryes(timeo);
 			break;
 		}
 
@@ -1215,7 +1215,7 @@ static void l2cap_sock_cleanup_listen(struct sock *parent)
 	BT_DBG("parent %p state %s", parent,
 	       state_to_string(parent->sk_state));
 
-	/* Close not yet accepted channels */
+	/* Close yest yet accepted channels */
 	while ((sk = bt_accept_dequeue(parent, NULL))) {
 		struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 
@@ -1276,7 +1276,7 @@ static int l2cap_sock_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 
 	if (chan->mode != L2CAP_MODE_ERTM &&
 	    chan->mode != L2CAP_MODE_STREAMING) {
-		/* Even if no filter is attached, we could potentially
+		/* Even if yes filter is attached, we could potentially
 		 * get errors from security modules, etc.
 		 */
 		err = sk_filter(sk, skb);
@@ -1288,10 +1288,10 @@ static int l2cap_sock_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 
 	/* For ERTM, handle one skb that doesn't fit into the recv
 	 * buffer.  This is important to do because the data frames
-	 * have already been acked, so the skb cannot be discarded.
+	 * have already been acked, so the skb canyest be discarded.
 	 *
 	 * Notify the l2cap core that the buffer is full, so the
-	 * LOCAL_BUSY state is entered and no more frames are
+	 * LOCAL_BUSY state is entered and yes more frames are
 	 * acked and reassembled until there is buffer space
 	 * available.
 	 */
@@ -1322,7 +1322,7 @@ static void l2cap_sock_teardown_cb(struct l2cap_chan *chan, int err)
 	BT_DBG("chan %p state %s", chan, state_to_string(chan->state));
 
 	/* This callback can be called both for server (BT_LISTEN)
-	 * sockets as well as "normal" ones. To avoid lockdep warnings
+	 * sockets as well as "yesrmal" ones. To avoid lockdep warnings
 	 * with child socket locking (through l2cap_sock_cleanup_listen)
 	 * we need separation into separate nesting levels. The simplest
 	 * way to accomplish this is to inherit the nesting level used
@@ -1659,8 +1659,8 @@ static const struct proto_ops l2cap_sock_ops = {
 	.poll		= bt_sock_poll,
 	.ioctl		= bt_sock_ioctl,
 	.gettstamp	= sock_gettstamp,
-	.mmap		= sock_no_mmap,
-	.socketpair	= sock_no_socketpair,
+	.mmap		= sock_yes_mmap,
+	.socketpair	= sock_yes_socketpair,
 	.shutdown	= l2cap_sock_shutdown,
 	.setsockopt	= l2cap_sock_setsockopt,
 	.getsockopt	= l2cap_sock_getsockopt

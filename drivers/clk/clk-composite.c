@@ -110,7 +110,7 @@ static int clk_composite_determine_rate(struct clk_hw *hw,
 		__clk_hw_set_clk(mux_hw, hw);
 		return mux_ops->determine_rate(mux_hw, req);
 	} else {
-		pr_err("clk: clk_composite_determine_rate function called, but no mux or rate callback set!\n");
+		pr_err("clk: clk_composite_determine_rate function called, but yes mux or rate callback set!\n");
 		return -EINVAL;
 	}
 }

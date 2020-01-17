@@ -12,22 +12,22 @@
  * This file describes UBIFS on-flash format and contains definitions of all the
  * relevant data structures and constants.
  *
- * All UBIFS on-flash objects are stored in the form of nodes. All nodes start
- * with the UBIFS node magic number and have the same common header. Nodes
- * always sit at 8-byte aligned positions on the media and node header sizes are
- * also 8-byte aligned (except for the indexing node and the padding node).
+ * All UBIFS on-flash objects are stored in the form of yesdes. All yesdes start
+ * with the UBIFS yesde magic number and have the same common header. Nodes
+ * always sit at 8-byte aligned positions on the media and yesde header sizes are
+ * also 8-byte aligned (except for the indexing yesde and the padding yesde).
  */
 
 #ifndef __UBIFS_MEDIA_H__
 #define __UBIFS_MEDIA_H__
 
-/* UBIFS node magic number (must not have the padding byte first or last) */
+/* UBIFS yesde magic number (must yest have the padding byte first or last) */
 #define UBIFS_NODE_MAGIC  0x06101831
 
 /*
  * UBIFS on-flash format version. This version is increased when the on-flash
  * format is changing. If this happens, UBIFS is will support older versions as
- * well. But older UBIFS code will not support newer formats. Format changes
+ * well. But older UBIFS code will yest support newer formats. Format changes
  * will be rare and only when absolutely necessary, e.g. to fix a bug or to add
  * a new feature.
  *
@@ -38,7 +38,7 @@
 
 /*
  * Read-only compatibility version. If the UBIFS format is changed, older UBIFS
- * implementations will not be able to mount newer formats in read-write mode.
+ * implementations will yest be able to mount newer formats in read-write mode.
  * However, depending on the change, it may be possible to mount newer formats
  * in R/O mode. This is indicated by the R/O compatibility version which is
  * stored in the super-block.
@@ -56,7 +56,7 @@
 #define UBIFS_CRC32_INIT 0xFFFFFFFFU
 
 /*
- * UBIFS does not try to compress data if its length is less than the below
+ * UBIFS does yest try to compress data if its length is less than the below
  * constant.
  */
 #define UBIFS_MIN_COMPR_LEN 128
@@ -64,14 +64,14 @@
 /*
  * If compressed data length is less than %UBIFS_MIN_COMPRESS_DIFF bytes
  * shorter than uncompressed data length, UBIFS prefers to leave this data
- * node uncompress, because it'll be read faster.
+ * yesde uncompress, because it'll be read faster.
  */
 #define UBIFS_MIN_COMPRESS_DIFF 64
 
-/* Root inode number */
+/* Root iyesde number */
 #define UBIFS_ROOT_INO 1
 
-/* Lowest inode number used for regular inodes (not UBIFS-only internal ones) */
+/* Lowest iyesde number used for regular iyesdes (yest UBIFS-only internal ones) */
 #define UBIFS_FIRST_INO 64
 
 /*
@@ -84,16 +84,16 @@
 #define UBIFS_MAX_JHEADS 1
 
 /*
- * Size of UBIFS data block. Note, UBIFS is not a block oriented file-system,
- * which means that it does not treat the underlying media as consisting of
- * blocks like in case of hard drives. Do not be confused. UBIFS block is just
- * the maximum amount of data which one data node can have or which can be
- * attached to an inode node.
+ * Size of UBIFS data block. Note, UBIFS is yest a block oriented file-system,
+ * which means that it does yest treat the underlying media as consisting of
+ * blocks like in case of hard drives. Do yest be confused. UBIFS block is just
+ * the maximum amount of data which one data yesde can have or which can be
+ * attached to an iyesde yesde.
  */
 #define UBIFS_BLOCK_SIZE  4096
 #define UBIFS_BLOCK_SHIFT 12
 
-/* UBIFS padding byte pattern (must not be first or last byte of node magic) */
+/* UBIFS padding byte pattern (must yest be first or last byte of yesde magic) */
 #define UBIFS_PADDING_BYTE 0xCE
 
 /* Maximum possible key length */
@@ -102,16 +102,16 @@
 /* Key length ("simple" format) */
 #define UBIFS_SK_LEN 8
 
-/* Minimum index tree fanout */
+/* Minimum index tree fayesut */
 #define UBIFS_MIN_FANOUT 3
 
 /* Maximum number of levels in UBIFS indexing B-tree */
 #define UBIFS_MAX_LEVELS 512
 
-/* Maximum amount of data attached to an inode in bytes */
+/* Maximum amount of data attached to an iyesde in bytes */
 #define UBIFS_MAX_INO_DATA UBIFS_BLOCK_SIZE
 
-/* LEB Properties Tree fanout (must be power of 2) and fanout shift */
+/* LEB Properties Tree fayesut (must be power of 2) and fayesut shift */
 #define UBIFS_LPT_FANOUT 4
 #define UBIFS_LPT_FANOUT_SHIFT 2
 
@@ -120,8 +120,8 @@
 #define UBIFS_LPT_CRC_BYTES 2
 #define UBIFS_LPT_TYPE_BITS 4
 
-/* The key is always at the same position in all keyed nodes */
-#define UBIFS_KEY_OFFSET offsetof(struct ubifs_ino_node, key)
+/* The key is always at the same position in all keyed yesdes */
+#define UBIFS_KEY_OFFSET offsetof(struct ubifs_iyes_yesde, key)
 
 /* Garbage collector journal head number */
 #define UBIFS_GC_HEAD   0
@@ -131,14 +131,14 @@
 #define UBIFS_DATA_HEAD 2
 
 /*
- * LEB Properties Tree node types.
+ * LEB Properties Tree yesde types.
  *
- * UBIFS_LPT_PNODE: LPT leaf node (contains LEB properties)
- * UBIFS_LPT_NNODE: LPT internal node
+ * UBIFS_LPT_PNODE: LPT leaf yesde (contains LEB properties)
+ * UBIFS_LPT_NNODE: LPT internal yesde
  * UBIFS_LPT_LTAB: LPT's own lprops table
  * UBIFS_LPT_LSAVE: LPT's save table (big model only)
- * UBIFS_LPT_NODE_CNT: count of LPT node types
- * UBIFS_LPT_NOT_A_NODE: all ones (15 for 4 bits) is never a valid node type
+ * UBIFS_LPT_NODE_CNT: count of LPT yesde types
+ * UBIFS_LPT_NOT_A_NODE: all ones (15 for 4 bits) is never a valid yesde type
  */
 enum {
 	UBIFS_LPT_PNODE,
@@ -150,13 +150,13 @@ enum {
 };
 
 /*
- * UBIFS inode types.
+ * UBIFS iyesde types.
  *
  * UBIFS_ITYPE_REG: regular file
  * UBIFS_ITYPE_DIR: directory
  * UBIFS_ITYPE_LNK: soft link
- * UBIFS_ITYPE_BLK: block device node
- * UBIFS_ITYPE_CHR: character device node
+ * UBIFS_ITYPE_BLK: block device yesde
+ * UBIFS_ITYPE_CHR: character device yesde
  * UBIFS_ITYPE_FIFO: fifo
  * UBIFS_ITYPE_SOCK: socket
  * UBIFS_ITYPES_CNT: count of supported file types
@@ -204,9 +204,9 @@ enum {
 /*
  * Key types.
  *
- * UBIFS_INO_KEY: inode node key
- * UBIFS_DATA_KEY: data node key
- * UBIFS_DENT_KEY: directory entry node key
+ * UBIFS_INO_KEY: iyesde yesde key
+ * UBIFS_DATA_KEY: data yesde key
+ * UBIFS_DENT_KEY: directory entry yesde key
  * UBIFS_XENT_KEY: extended attribute entry key
  * UBIFS_KEY_TYPES_CNT: number of supported key types
  */
@@ -234,8 +234,8 @@ enum {
  * The below constants define the absolute minimum values for various UBIFS
  * media areas. Many of them actually depend of flash geometry and the FS
  * configuration (number of journal heads, orphan LEBs, etc). This means that
- * the smallest volume size which can be used for UBIFS cannot be pre-defined
- * by these constants. The file-system that meets the below limitation will not
+ * the smallest volume size which can be used for UBIFS canyest be pre-defined
+ * by these constants. The file-system that meets the below limitation will yest
  * necessarily mount. UBIFS does run-time calculations and validates the FS
  * size.
  */
@@ -263,62 +263,62 @@ enum {
 
 /* Node sizes (N.B. these are guaranteed to be multiples of 8) */
 #define UBIFS_CH_SZ        sizeof(struct ubifs_ch)
-#define UBIFS_INO_NODE_SZ  sizeof(struct ubifs_ino_node)
-#define UBIFS_DATA_NODE_SZ sizeof(struct ubifs_data_node)
-#define UBIFS_DENT_NODE_SZ sizeof(struct ubifs_dent_node)
-#define UBIFS_TRUN_NODE_SZ sizeof(struct ubifs_trun_node)
-#define UBIFS_PAD_NODE_SZ  sizeof(struct ubifs_pad_node)
-#define UBIFS_SB_NODE_SZ   sizeof(struct ubifs_sb_node)
-#define UBIFS_MST_NODE_SZ  sizeof(struct ubifs_mst_node)
-#define UBIFS_REF_NODE_SZ  sizeof(struct ubifs_ref_node)
-#define UBIFS_IDX_NODE_SZ  sizeof(struct ubifs_idx_node)
-#define UBIFS_CS_NODE_SZ   sizeof(struct ubifs_cs_node)
-#define UBIFS_ORPH_NODE_SZ sizeof(struct ubifs_orph_node)
-#define UBIFS_AUTH_NODE_SZ sizeof(struct ubifs_auth_node)
-#define UBIFS_SIG_NODE_SZ  sizeof(struct ubifs_sig_node)
+#define UBIFS_INO_NODE_SZ  sizeof(struct ubifs_iyes_yesde)
+#define UBIFS_DATA_NODE_SZ sizeof(struct ubifs_data_yesde)
+#define UBIFS_DENT_NODE_SZ sizeof(struct ubifs_dent_yesde)
+#define UBIFS_TRUN_NODE_SZ sizeof(struct ubifs_trun_yesde)
+#define UBIFS_PAD_NODE_SZ  sizeof(struct ubifs_pad_yesde)
+#define UBIFS_SB_NODE_SZ   sizeof(struct ubifs_sb_yesde)
+#define UBIFS_MST_NODE_SZ  sizeof(struct ubifs_mst_yesde)
+#define UBIFS_REF_NODE_SZ  sizeof(struct ubifs_ref_yesde)
+#define UBIFS_IDX_NODE_SZ  sizeof(struct ubifs_idx_yesde)
+#define UBIFS_CS_NODE_SZ   sizeof(struct ubifs_cs_yesde)
+#define UBIFS_ORPH_NODE_SZ sizeof(struct ubifs_orph_yesde)
+#define UBIFS_AUTH_NODE_SZ sizeof(struct ubifs_auth_yesde)
+#define UBIFS_SIG_NODE_SZ  sizeof(struct ubifs_sig_yesde)
 
-/* Extended attribute entry nodes are identical to directory entry nodes */
+/* Extended attribute entry yesdes are identical to directory entry yesdes */
 #define UBIFS_XENT_NODE_SZ UBIFS_DENT_NODE_SZ
-/* Only this does not have to be multiple of 8 bytes */
+/* Only this does yest have to be multiple of 8 bytes */
 #define UBIFS_BRANCH_SZ    sizeof(struct ubifs_branch)
 
-/* Maximum node sizes (N.B. these are guaranteed to be multiples of 8) */
+/* Maximum yesde sizes (N.B. these are guaranteed to be multiples of 8) */
 #define UBIFS_MAX_DATA_NODE_SZ  (UBIFS_DATA_NODE_SZ + UBIFS_BLOCK_SIZE)
 #define UBIFS_MAX_INO_NODE_SZ   (UBIFS_INO_NODE_SZ + UBIFS_MAX_INO_DATA)
 #define UBIFS_MAX_DENT_NODE_SZ  (UBIFS_DENT_NODE_SZ + UBIFS_MAX_NLEN + 1)
 #define UBIFS_MAX_XENT_NODE_SZ  UBIFS_MAX_DENT_NODE_SZ
 
-/* The largest UBIFS node */
+/* The largest UBIFS yesde */
 #define UBIFS_MAX_NODE_SZ UBIFS_MAX_INO_NODE_SZ
 
-/* The maxmimum size of a hash, enough for sha512 */
+/* The maxmimum size of a hash, eyesugh for sha512 */
 #define UBIFS_MAX_HASH_LEN 64
 
-/* The maxmimum size of a hmac, enough for hmac(sha512) */
+/* The maxmimum size of a hmac, eyesugh for hmac(sha512) */
 #define UBIFS_MAX_HMAC_LEN 64
 
 /*
  * xattr name of UBIFS encryption context, we don't use a prefix
- * nor a long name to not waste space on the flash.
+ * yesr a long name to yest waste space on the flash.
  */
 #define UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT "c"
 
-/* Type field in ubifs_sig_node */
+/* Type field in ubifs_sig_yesde */
 #define UBIFS_SIGNATURE_TYPE_PKCS7	1
 
 /*
- * On-flash inode flags.
+ * On-flash iyesde flags.
  *
- * UBIFS_COMPR_FL: use compression for this inode
- * UBIFS_SYNC_FL:  I/O on this inode has to be synchronous
- * UBIFS_IMMUTABLE_FL: inode is immutable
- * UBIFS_APPEND_FL: writes to the inode may only append data
- * UBIFS_DIRSYNC_FL: I/O on this directory inode has to be synchronous
- * UBIFS_XATTR_FL: this inode is the inode for an extended attribute value
- * UBIFS_CRYPT_FL: use encryption for this inode
+ * UBIFS_COMPR_FL: use compression for this iyesde
+ * UBIFS_SYNC_FL:  I/O on this iyesde has to be synchroyesus
+ * UBIFS_IMMUTABLE_FL: iyesde is immutable
+ * UBIFS_APPEND_FL: writes to the iyesde may only append data
+ * UBIFS_DIRSYNC_FL: I/O on this directory iyesde has to be synchroyesus
+ * UBIFS_XATTR_FL: this iyesde is the iyesde for an extended attribute value
+ * UBIFS_CRYPT_FL: use encryption for this iyesde
  *
  * Note, these are on-flash flags which correspond to ioctl flags
- * (@FS_COMPR_FL, etc). They have the same values now, but generally, do not
+ * (@FS_COMPR_FL, etc). They have the same values yesw, but generally, do yest
  * have to be the same.
  */
 enum {
@@ -331,13 +331,13 @@ enum {
 	UBIFS_CRYPT_FL     = 0x40,
 };
 
-/* Inode flag bits used by UBIFS */
+/* Iyesde flag bits used by UBIFS */
 #define UBIFS_FL_MASK 0x0000001F
 
 /*
  * UBIFS compression algorithms.
  *
- * UBIFS_COMPR_NONE: no compression
+ * UBIFS_COMPR_NONE: yes compression
  * UBIFS_COMPR_LZO: LZO compression
  * UBIFS_COMPR_ZLIB: ZLIB compression
  * UBIFS_COMPR_ZSTD: ZSTD compression
@@ -352,26 +352,26 @@ enum {
 };
 
 /*
- * UBIFS node types.
+ * UBIFS yesde types.
  *
- * UBIFS_INO_NODE: inode node
- * UBIFS_DATA_NODE: data node
- * UBIFS_DENT_NODE: directory entry node
- * UBIFS_XENT_NODE: extended attribute node
- * UBIFS_TRUN_NODE: truncation node
- * UBIFS_PAD_NODE: padding node
- * UBIFS_SB_NODE: superblock node
- * UBIFS_MST_NODE: master node
- * UBIFS_REF_NODE: LEB reference node
- * UBIFS_IDX_NODE: index node
- * UBIFS_CS_NODE: commit start node
- * UBIFS_ORPH_NODE: orphan node
- * UBIFS_AUTH_NODE: authentication node
- * UBIFS_SIG_NODE: signature node
- * UBIFS_NODE_TYPES_CNT: count of supported node types
+ * UBIFS_INO_NODE: iyesde yesde
+ * UBIFS_DATA_NODE: data yesde
+ * UBIFS_DENT_NODE: directory entry yesde
+ * UBIFS_XENT_NODE: extended attribute yesde
+ * UBIFS_TRUN_NODE: truncation yesde
+ * UBIFS_PAD_NODE: padding yesde
+ * UBIFS_SB_NODE: superblock yesde
+ * UBIFS_MST_NODE: master yesde
+ * UBIFS_REF_NODE: LEB reference yesde
+ * UBIFS_IDX_NODE: index yesde
+ * UBIFS_CS_NODE: commit start yesde
+ * UBIFS_ORPH_NODE: orphan yesde
+ * UBIFS_AUTH_NODE: authentication yesde
+ * UBIFS_SIG_NODE: signature yesde
+ * UBIFS_NODE_TYPES_CNT: count of supported yesde types
  *
  * Note, we index arrays by these numbers, so keep them low and contiguous.
- * Node type constants for inodes, direntries and so on have to be the same as
+ * Node type constants for iyesdes, direntries and so on have to be the same as
  * corresponding key type constants.
  */
 enum {
@@ -393,10 +393,10 @@ enum {
 };
 
 /*
- * Master node flags.
+ * Master yesde flags.
  *
- * UBIFS_MST_DIRTY: rebooted uncleanly - master node is dirty
- * UBIFS_MST_NO_ORPHS: no orphan inodes present
+ * UBIFS_MST_DIRTY: rebooted uncleanly - master yesde is dirty
+ * UBIFS_MST_NO_ORPHS: yes orphan iyesdes present
  * UBIFS_MST_RCVRY: written by recovery
  */
 enum {
@@ -406,11 +406,11 @@ enum {
 };
 
 /*
- * Node group type (used by recovery to recover whole group or none).
+ * Node group type (used by recovery to recover whole group or yesne).
  *
- * UBIFS_NO_NODE_GROUP: this node is not part of a group
- * UBIFS_IN_NODE_GROUP: this node is a part of a group
- * UBIFS_LAST_OF_NODE_GROUP: this node is the last in a group
+ * UBIFS_NO_NODE_GROUP: this yesde is yest part of a group
+ * UBIFS_IN_NODE_GROUP: this yesde is a part of a group
+ * UBIFS_LAST_OF_NODE_GROUP: this yesde is the last in a group
  */
 enum {
 	UBIFS_NO_NODE_GROUP = 0,
@@ -423,7 +423,7 @@ enum {
  *
  * UBIFS_FLG_BIGLPT: if "big" LPT model is used if set
  * UBIFS_FLG_SPACE_FIXUP: first-mount "fixup" of free space within LEBs needed
- * UBIFS_FLG_DOUBLE_HASH: store a 32bit cookie in directory entry nodes to
+ * UBIFS_FLG_DOUBLE_HASH: store a 32bit cookie in directory entry yesdes to
  *			  support 64bit cookies for lookups by hash
  * UBIFS_FLG_ENCRYPTION: this filesystem contains encrypted files
  * UBIFS_FLG_AUTHENTICATION: this filesystem contains hashes for authentication
@@ -441,16 +441,16 @@ enum {
 		UBIFS_FLG_AUTHENTICATION)
 
 /**
- * struct ubifs_ch - common header node.
- * @magic: UBIFS node magic number (%UBIFS_NODE_MAGIC)
- * @crc: CRC-32 checksum of the node header
+ * struct ubifs_ch - common header yesde.
+ * @magic: UBIFS yesde magic number (%UBIFS_NODE_MAGIC)
+ * @crc: CRC-32 checksum of the yesde header
  * @sqnum: sequence number
- * @len: full node length
- * @node_type: node type
- * @group_type: node group type
+ * @len: full yesde length
+ * @yesde_type: yesde type
+ * @group_type: yesde group type
  * @padding: reserved for future, zeroes
  *
- * Every UBIFS node starts with this common part. If the node has a key, the
+ * Every UBIFS yesde starts with this common part. If the yesde has a key, the
  * key always goes next.
  */
 struct ubifs_ch {
@@ -458,19 +458,19 @@ struct ubifs_ch {
 	__le32 crc;
 	__le64 sqnum;
 	__le32 len;
-	__u8 node_type;
+	__u8 yesde_type;
 	__u8 group_type;
 	__u8 padding[2];
 } __packed;
 
 /**
- * union ubifs_dev_desc - device node descriptor.
+ * union ubifs_dev_desc - device yesde descriptor.
  * @new: new type device descriptor
  * @huge: huge type device descriptor
  *
- * This data structure describes major/minor numbers of a device node. In an
- * inode is a device node then its data contains an object of this type. UBIFS
- * uses standard Linux "new" and "huge" device node encodings.
+ * This data structure describes major/miyesr numbers of a device yesde. In an
+ * iyesde is a device yesde then its data contains an object of this type. UBIFS
+ * uses standard Linux "new" and "huge" device yesde encodings.
  */
 union ubifs_dev_desc {
 	__le32 new;
@@ -478,41 +478,41 @@ union ubifs_dev_desc {
 } __packed;
 
 /**
- * struct ubifs_ino_node - inode node.
+ * struct ubifs_iyes_yesde - iyesde yesde.
  * @ch: common header
- * @key: node key
+ * @key: yesde key
  * @creat_sqnum: sequence number at time of creation
- * @size: inode size in bytes (amount of uncompressed data)
+ * @size: iyesde size in bytes (amount of uncompressed data)
  * @atime_sec: access time seconds
  * @ctime_sec: creation time seconds
  * @mtime_sec: modification time seconds
- * @atime_nsec: access time nanoseconds
- * @ctime_nsec: creation time nanoseconds
- * @mtime_nsec: modification time nanoseconds
+ * @atime_nsec: access time nayesseconds
+ * @ctime_nsec: creation time nayesseconds
+ * @mtime_nsec: modification time nayesseconds
  * @nlink: number of hard links
  * @uid: owner ID
  * @gid: group ID
  * @mode: access flags
- * @flags: per-inode flags (%UBIFS_COMPR_FL, %UBIFS_SYNC_FL, etc)
- * @data_len: inode data length
- * @xattr_cnt: count of extended attributes this inode has
+ * @flags: per-iyesde flags (%UBIFS_COMPR_FL, %UBIFS_SYNC_FL, etc)
+ * @data_len: iyesde data length
+ * @xattr_cnt: count of extended attributes this iyesde has
  * @xattr_size: summarized size of all extended attributes in bytes
  * @padding1: reserved for future, zeroes
  * @xattr_names: sum of lengths of all extended attribute names belonging to
- *               this inode
- * @compr_type: compression type used for this inode
+ *               this iyesde
+ * @compr_type: compression type used for this iyesde
  * @padding2: reserved for future, zeroes
- * @data: data attached to the inode
+ * @data: data attached to the iyesde
  *
- * Note, even though inode compression type is defined by @compr_type, some
- * nodes of this inode may be compressed with different compressor - this
- * happens if compression type is changed while the inode already has data
- * nodes. But @compr_type will be use for further writes to the inode.
+ * Note, even though iyesde compression type is defined by @compr_type, some
+ * yesdes of this iyesde may be compressed with different compressor - this
+ * happens if compression type is changed while the iyesde already has data
+ * yesdes. But @compr_type will be use for further writes to the iyesde.
  *
- * Note, do not forget to amend 'zero_ino_node_unused()' function when changing
+ * Note, do yest forget to amend 'zero_iyes_yesde_unused()' function when changing
  * the padding fields.
  */
-struct ubifs_ino_node {
+struct ubifs_iyes_yesde {
 	struct ubifs_ch ch;
 	__u8 key[UBIFS_MAX_KEY_LEN];
 	__le64 creat_sqnum;
@@ -531,29 +531,29 @@ struct ubifs_ino_node {
 	__le32 data_len;
 	__le32 xattr_cnt;
 	__le32 xattr_size;
-	__u8 padding1[4]; /* Watch 'zero_ino_node_unused()' if changing! */
+	__u8 padding1[4]; /* Watch 'zero_iyes_yesde_unused()' if changing! */
 	__le32 xattr_names;
 	__le16 compr_type;
-	__u8 padding2[26]; /* Watch 'zero_ino_node_unused()' if changing! */
+	__u8 padding2[26]; /* Watch 'zero_iyes_yesde_unused()' if changing! */
 	__u8 data[];
 } __packed;
 
 /**
- * struct ubifs_dent_node - directory entry node.
+ * struct ubifs_dent_yesde - directory entry yesde.
  * @ch: common header
- * @key: node key
- * @inum: target inode number
+ * @key: yesde key
+ * @inum: target iyesde number
  * @padding1: reserved for future, zeroes
- * @type: type of the target inode (%UBIFS_ITYPE_REG, %UBIFS_ITYPE_DIR, etc)
+ * @type: type of the target iyesde (%UBIFS_ITYPE_REG, %UBIFS_ITYPE_DIR, etc)
  * @nlen: name length
  * @cookie: A 32bits random number, used to construct a 64bits
  *          identifier.
  * @name: zero-terminated name
  *
- * Note, do not forget to amend 'zero_dent_node_unused()' function when
+ * Note, do yest forget to amend 'zero_dent_yesde_unused()' function when
  * changing the padding fields.
  */
-struct ubifs_dent_node {
+struct ubifs_dent_yesde {
 	struct ubifs_ch ch;
 	__u8 key[UBIFS_MAX_KEY_LEN];
 	__le64 inum;
@@ -565,16 +565,16 @@ struct ubifs_dent_node {
 } __packed;
 
 /**
- * struct ubifs_data_node - data node.
+ * struct ubifs_data_yesde - data yesde.
  * @ch: common header
- * @key: node key
+ * @key: yesde key
  * @size: uncompressed data size in bytes
  * @compr_type: compression type (%UBIFS_COMPR_NONE, %UBIFS_COMPR_LZO, etc)
  * @compr_size: compressed data size in bytes, only valid when data is encrypted
  * @data: data
  *
  */
-struct ubifs_data_node {
+struct ubifs_data_yesde {
 	struct ubifs_ch ch;
 	__u8 key[UBIFS_MAX_KEY_LEN];
 	__le32 size;
@@ -584,38 +584,38 @@ struct ubifs_data_node {
 } __packed;
 
 /**
- * struct ubifs_trun_node - truncation node.
+ * struct ubifs_trun_yesde - truncation yesde.
  * @ch: common header
- * @inum: truncated inode number
+ * @inum: truncated iyesde number
  * @padding: reserved for future, zeroes
  * @old_size: size before truncation
  * @new_size: size after truncation
  *
- * This node exists only in the journal and never goes to the main area. Note,
- * do not forget to amend 'zero_trun_node_unused()' function when changing the
+ * This yesde exists only in the journal and never goes to the main area. Note,
+ * do yest forget to amend 'zero_trun_yesde_unused()' function when changing the
  * padding fields.
  */
-struct ubifs_trun_node {
+struct ubifs_trun_yesde {
 	struct ubifs_ch ch;
 	__le32 inum;
-	__u8 padding[12]; /* Watch 'zero_trun_node_unused()' if changing! */
+	__u8 padding[12]; /* Watch 'zero_trun_yesde_unused()' if changing! */
 	__le64 old_size;
 	__le64 new_size;
 } __packed;
 
 /**
- * struct ubifs_pad_node - padding node.
+ * struct ubifs_pad_yesde - padding yesde.
  * @ch: common header
- * @pad_len: how many bytes after this node are unused (because padded)
+ * @pad_len: how many bytes after this yesde are unused (because padded)
  * @padding: reserved for future, zeroes
  */
-struct ubifs_pad_node {
+struct ubifs_pad_yesde {
 	struct ubifs_ch ch;
 	__le32 pad_len;
 } __packed;
 
 /**
- * struct ubifs_sb_node - superblock node.
+ * struct ubifs_sb_yesde - superblock yesde.
  * @ch: common header
  * @padding: reserved for future, zeroes
  * @key_hash: type of hash function used in keys
@@ -630,7 +630,7 @@ struct ubifs_pad_node {
  * @lpt_lebs: number of LEBs used for lprops table
  * @orph_lebs: number of LEBs used for recording orphans
  * @jhead_cnt: count of journal heads
- * @fanout: tree fanout (max. number of links per indexing node)
+ * @fayesut: tree fayesut (max. number of links per indexing yesde)
  * @lsave_cnt: number of LEB numbers in LPT's save table
  * @fmt_version: UBIFS on-flash format version
  * @default_compr: default compression algorithm (%UBIFS_COMPR_LZO, etc)
@@ -639,17 +639,17 @@ struct ubifs_pad_node {
  * @rp_gid: reserve pool GID
  * @rp_size: size of the reserved pool in bytes
  * @padding2: reserved for future, zeroes
- * @time_gran: time granularity in nanoseconds
+ * @time_gran: time granularity in nayesseconds
  * @uuid: UUID generated when the file system image was created
  * @ro_compat_version: UBIFS R/O compatibility version
- * @hmac: HMAC to authenticate the superblock node
- * @hmac_wkm: HMAC of a well known message (the string "UBIFS") as a convenience
+ * @hmac: HMAC to authenticate the superblock yesde
+ * @hmac_wkm: HMAC of a well kyeswn message (the string "UBIFS") as a convenience
  *            to the user to check if the correct key is passed.
  * @hash_algo: The hash algo used for this filesystem (one of enum hash_algo)
- * @hash_mst: hash of the master node, only valid for signed images in which the
- *            master node does not contain a hmac
+ * @hash_mst: hash of the master yesde, only valid for signed images in which the
+ *            master yesde does yest contain a hmac
  */
-struct ubifs_sb_node {
+struct ubifs_sb_yesde {
 	struct ubifs_ch ch;
 	__u8 padding[2];
 	__u8 key_hash;
@@ -664,7 +664,7 @@ struct ubifs_sb_node {
 	__le32 lpt_lebs;
 	__le32 orph_lebs;
 	__le32 jhead_cnt;
-	__le32 fanout;
+	__le32 fayesut;
 	__le32 lsave_cnt;
 	__le32 fmt_version;
 	__le16 default_compr;
@@ -683,17 +683,17 @@ struct ubifs_sb_node {
 } __packed;
 
 /**
- * struct ubifs_mst_node - master node.
+ * struct ubifs_mst_yesde - master yesde.
  * @ch: common header
- * @highest_inum: highest inode number in the committed index
- * @cmt_no: commit number
+ * @highest_inum: highest iyesde number in the committed index
+ * @cmt_yes: commit number
  * @flags: various flags (%UBIFS_MST_DIRTY, etc)
  * @log_lnum: start of the log
- * @root_lnum: LEB number of the root indexing node
+ * @root_lnum: LEB number of the root indexing yesde
  * @root_offs: offset within @root_lnum
- * @root_len: root indexing node length
+ * @root_len: root indexing yesde length
  * @gc_lnum: LEB reserved for garbage collection (%-1 value means the LEB was
- * not reserved and should be reserved on mount)
+ * yest reserved and should be reserved on mount)
  * @ihead_lnum: LEB number of index head
  * @ihead_offs: offset of index head
  * @index_size: size of index on flash
@@ -702,8 +702,8 @@ struct ubifs_sb_node {
  * @total_used: total used space in bytes (includes only data LEBs)
  * @total_dead: total dead space in bytes (includes only data LEBs)
  * @total_dark: total dark space in bytes (includes only data LEBs)
- * @lpt_lnum: LEB number of LPT root nnode
- * @lpt_offs: offset of LPT root nnode
+ * @lpt_lnum: LEB number of LPT root nyesde
+ * @lpt_offs: offset of LPT root nyesde
  * @nhead_lnum: LEB number of LPT head
  * @nhead_offs: offset of LPT head
  * @ltab_lnum: LEB number of LPT's own lprops table
@@ -714,15 +714,15 @@ struct ubifs_sb_node {
  * @empty_lebs: number of empty logical eraseblocks
  * @idx_lebs: number of indexing logical eraseblocks
  * @leb_cnt: count of LEBs used by file-system
- * @hash_root_idx: the hash of the root index node
+ * @hash_root_idx: the hash of the root index yesde
  * @hash_lpt: the hash of the LPT
- * @hmac: HMAC to authenticate the master node
+ * @hmac: HMAC to authenticate the master yesde
  * @padding: reserved for future, zeroes
  */
-struct ubifs_mst_node {
+struct ubifs_mst_yesde {
 	struct ubifs_ch ch;
 	__le64 highest_inum;
-	__le64 cmt_no;
+	__le64 cmt_yes;
 	__le32 flags;
 	__le32 log_lnum;
 	__le32 root_lnum;
@@ -756,14 +756,14 @@ struct ubifs_mst_node {
 } __packed;
 
 /**
- * struct ubifs_ref_node - logical eraseblock reference node.
+ * struct ubifs_ref_yesde - logical eraseblock reference yesde.
  * @ch: common header
  * @lnum: the referred logical eraseblock number
  * @offs: start offset in the referred LEB
  * @jhead: journal head number
  * @padding: reserved for future, zeroes
  */
-struct ubifs_ref_node {
+struct ubifs_ref_yesde {
 	struct ubifs_ch ch;
 	__le32 lnum;
 	__le32 offs;
@@ -772,17 +772,17 @@ struct ubifs_ref_node {
 } __packed;
 
 /**
- * struct ubifs_auth_node - node for authenticating other nodes
+ * struct ubifs_auth_yesde - yesde for authenticating other yesdes
  * @ch: common header
  * @hmac: The HMAC
  */
-struct ubifs_auth_node {
+struct ubifs_auth_yesde {
 	struct ubifs_ch ch;
 	__u8 hmac[];
 } __packed;
 
 /**
- * struct ubifs_sig_node - node for signing other nodes
+ * struct ubifs_sig_yesde - yesde for signing other yesdes
  * @ch: common header
  * @type: type of the signature, currently only UBIFS_SIGNATURE_TYPE_PKCS7
  * supported
@@ -790,7 +790,7 @@ struct ubifs_auth_node {
  * @padding: reserved for future, zeroes
  * @sig: The signature data
  */
-struct ubifs_sig_node {
+struct ubifs_sig_yesde {
 	struct ubifs_ch ch;
 	__le32 type;
 	__le32 len;
@@ -800,12 +800,12 @@ struct ubifs_sig_node {
 
 /**
  * struct ubifs_branch - key/reference/length branch
- * @lnum: LEB number of the target node
+ * @lnum: LEB number of the target yesde
  * @offs: offset within @lnum
- * @len: target node length
+ * @len: target yesde length
  * @key: key
  *
- * In an authenticated UBIFS we have the hash of the referenced node after @key.
+ * In an authenticated UBIFS we have the hash of the referenced yesde after @key.
  * This can't be added to the struct type definition because @key is a
  * dynamically sized element already.
  */
@@ -817,13 +817,13 @@ struct ubifs_branch {
 } __packed;
 
 /**
- * struct ubifs_idx_node - indexing node.
+ * struct ubifs_idx_yesde - indexing yesde.
  * @ch: common header
- * @child_cnt: number of child index nodes
+ * @child_cnt: number of child index yesdes
  * @level: tree level
  * @branches: LEB number / offset / length / key branches
  */
-struct ubifs_idx_node {
+struct ubifs_idx_yesde {
 	struct ubifs_ch ch;
 	__le16 child_cnt;
 	__le16 level;
@@ -831,25 +831,25 @@ struct ubifs_idx_node {
 } __packed;
 
 /**
- * struct ubifs_cs_node - commit start node.
+ * struct ubifs_cs_yesde - commit start yesde.
  * @ch: common header
- * @cmt_no: commit number
+ * @cmt_yes: commit number
  */
-struct ubifs_cs_node {
+struct ubifs_cs_yesde {
 	struct ubifs_ch ch;
-	__le64 cmt_no;
+	__le64 cmt_yes;
 } __packed;
 
 /**
- * struct ubifs_orph_node - orphan node.
+ * struct ubifs_orph_yesde - orphan yesde.
  * @ch: common header
- * @cmt_no: commit number (also top bit is set on the last node of the commit)
- * @inos: inode numbers of orphans
+ * @cmt_yes: commit number (also top bit is set on the last yesde of the commit)
+ * @iyess: iyesde numbers of orphans
  */
-struct ubifs_orph_node {
+struct ubifs_orph_yesde {
 	struct ubifs_ch ch;
-	__le64 cmt_no;
-	__le64 inos[];
+	__le64 cmt_yes;
+	__le64 iyess[];
 } __packed;
 
 #endif /* __UBIFS_MEDIA_H__ */

@@ -41,7 +41,7 @@ static void *lz4_comp_opts(struct squashfs_sb_info *msblk,
 	if (le32_to_cpu(comp_opts->version) != LZ4_LEGACY) {
 		/* LZ4 format currently used by the kernel is the 'legacy'
 		 * format */
-		ERROR("Unknown LZ4 version\n");
+		ERROR("Unkyeswn LZ4 version\n");
 		return ERR_PTR(-EINVAL);
 	}
 

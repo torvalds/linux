@@ -9,11 +9,11 @@ Required properties:
 - #phy-cells: must be 0
 
 Initialization of USB 3.0 PHY depends on Northstar version. There are currently
-three known series: Ax, Bx and Cx.
-Known A0: BCM4707 rev 0
-Known B0: BCM4707 rev 4, BCM53573 rev 2
-Known B1: BCM4707 rev 6
-Known C0: BCM47094 rev 0
+three kyeswn series: Ax, Bx and Cx.
+Kyeswn A0: BCM4707 rev 0
+Kyeswn B0: BCM4707 rev 4, BCM53573 rev 2
+Kyeswn B1: BCM4707 rev 6
+Kyeswn C0: BCM47094 rev 0
 
 Example:
 	mdio: mdio@0 {

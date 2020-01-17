@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: LGPL-2.1 OR MIT */
-/* nolibc.h
+/* yeslibc.h
  * Copyright (C) 2017-2018 Willy Tarreau <w@1wt.eu>
  */
 
@@ -8,7 +8,7 @@
  * with very limited requirements. It consists of a small number of syscall and
  * type definitions, and the minimal startup code needed to call main().
  * All syscalls are declared as static functions so that they can be optimized
- * away by the compiler when not used.
+ * away by the compiler when yest used.
  *
  * Syscalls are split into 3 levels:
  *   - The lower level is the arch-specific syscall() definition, consisting in
@@ -17,30 +17,30 @@
  *     implementation is limited to 5 arguments. All input arguments are cast
  *     to a long stored in a register. These expressions always return the
  *     syscall's return value as a signed long value which is often either a
- *     pointer or the negated errno value.
+ *     pointer or the negated erryes value.
  *
  *   - The second level is mostly architecture-independent. It is made of
  *     static functions called sys_<name>() which rely on my_syscallN()
  *     depending on the syscall definition. These functions are responsible
  *     for exposing the appropriate types for the syscall arguments (int,
  *     pointers, etc) and for setting the appropriate return type (often int).
- *     A few of them are architecture-specific because the syscalls are not all
+ *     A few of them are architecture-specific because the syscalls are yest all
  *     mapped exactly the same among architectures. For example, some archs do
- *     not implement select() and need pselect6() instead, so the sys_select()
+ *     yest implement select() and need pselect6() instead, so the sys_select()
  *     function will have to abstract this.
  *
  *   - The third level is the libc call definition. It exposes the lower raw
  *     sys_<name>() calls in a way that looks like what a libc usually does,
- *     takes care of specific input values, and of setting errno upon error.
- *     There can be minor variations compared to standard libc calls. For
+ *     takes care of specific input values, and of setting erryes upon error.
+ *     There can be miyesr variations compared to standard libc calls. For
  *     example the open() call always takes 3 args here.
  *
- * The errno variable is declared static and unused. This way it can be
- * optimized away if not used. However this means that a program made of
- * multiple C files may observe different errno values (one per C file). For
- * the type of programs this project targets it usually is not a problem. The
+ * The erryes variable is declared static and unused. This way it can be
+ * optimized away if yest used. However this means that a program made of
+ * multiple C files may observe different erryes values (one per C file). For
+ * the type of programs this project targets it usually is yest a problem. The
  * resulting program may even be reduced by defining the NOLIBC_IGNORE_ERRNO
- * macro, in which case the errno value will never be assigned.
+ * macro, in which case the erryes value will never be assigned.
  *
  * Some stdint-like integer types are defined. These are valid on all currently
  * supported architectures, because signs are enforced, ints are assumed to be
@@ -51,9 +51,9 @@
  * structures like the sys_stat struct depend on the architecture.
  *
  * The definitions start with the architecture-specific parts, which are picked
- * based on what the compiler knows about the target architecture, and are
+ * based on what the compiler kyesws about the target architecture, and are
  * completed with the generic code. Since it is the compiler which sets the
- * target architecture, cross-compiling normally works out of the box without
+ * target architecture, cross-compiling yesrmally works out of the box without
  * having to specify anything.
  *
  * Finally some very common libc-level functions are provided. It is the case
@@ -61,29 +61,29 @@
  * is currently provided regarding stdio emulation.
  *
  * The macro NOLIBC is always defined, so that it is possible for a program to
- * check this macro to know if it is being built against and decide to disable
- * some features or simply not to include some standard libc files.
+ * check this macro to kyesw if it is being built against and decide to disable
+ * some features or simply yest to include some standard libc files.
  *
  * Ideally this file should be split in multiple files for easier long term
- * maintenance, but provided as a single file as it is now, it's quite
+ * maintenance, but provided as a single file as it is yesw, it's quite
  * convenient to use. Maybe some variations involving a set of includes at the
  * top could work.
  *
  * A simple static executable may be built this way :
- *      $ gcc -fno-asynchronous-unwind-tables -fno-ident -s -Os -nostdlib \
- *            -static -include nolibc.h -lgcc -o hello hello.c
+ *      $ gcc -fyes-asynchroyesus-unwind-tables -fyes-ident -s -Os -yesstdlib \
+ *            -static -include yeslibc.h -lgcc -o hello hello.c
  *
  * A very useful calling convention table may be found here :
  *      http://man7.org/linux/man-pages/man2/syscall.2.html
  *
- * This doc is quite convenient though not necessarily up to date :
+ * This doc is quite convenient though yest necessarily up to date :
  *      https://w3challs.com/syscalls/
  *
  */
 
 /* Some archs (at least aarch64) don't expose the regular syscalls anymore by
  * default, either because they have an "_at" replacement, or because there are
- * more modern alternatives. For now we'd rather still use them.
+ * more modern alternatives. For yesw we'd rather still use them.
  */
 #define __ARCH_WANT_SYSCALL_NO_AT
 #define __ARCH_WANT_SYSCALL_NO_FLAGS
@@ -91,22 +91,22 @@
 
 #include <asm/unistd.h>
 #include <asm/ioctls.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <linux/fs.h>
 #include <linux/loop.h>
 
 #define NOLIBC
 
 /* this way it will be removed if unused */
-static int errno;
+static int erryes;
 
 #ifndef NOLIBC_IGNORE_ERRNO
-#define SET_ERRNO(v) do { errno = (v); } while (0)
+#define SET_ERRNO(v) do { erryes = (v); } while (0)
 #else
 #define SET_ERRNO(v) do { } while (0)
 #endif
 
-/* errno codes all ensure that they will not conflict with a valid pointer
+/* erryes codes all ensure that they will yest conflict with a valid pointer
  * because they all correspond to the highest addressable memry page.
  */
 #define MAX_ERRNO 4095
@@ -134,7 +134,7 @@ typedef   signed long     ptrdiff_t;
 
 /* for stat() */
 typedef unsigned int          dev_t;
-typedef unsigned long         ino_t;
+typedef unsigned long         iyes_t;
 typedef unsigned int         mode_t;
 typedef   signed int          pid_t;
 typedef unsigned int          uid_t;
@@ -172,7 +172,7 @@ struct timezone {
 
 /* for getdents64() */
 struct linux_dirent64 {
-	uint64_t       d_ino;
+	uint64_t       d_iyes;
 	int64_t        d_off;
 	unsigned short d_reclen;
 	unsigned char  d_type;
@@ -254,7 +254,7 @@ struct rusage {
  */
 struct stat {
 	dev_t     st_dev;     /* ID of device containing file */
-	ino_t     st_ino;     /* inode number */
+	iyes_t     st_iyes;     /* iyesde number */
 	mode_t    st_mode;    /* protection */
 	nlink_t   st_nlink;   /* number of hard links */
 	uid_t     st_uid;     /* user ID of owner */
@@ -276,7 +276,7 @@ struct stat {
  * the syscall declarations and the _start code definition. This is the only
  * global part. On all architectures the kernel puts everything in the stack
  * before jumping to _start just above us, without any return address (_start
- * is not a function but an entry pint). So at the stack pointer we find argc.
+ * is yest a function but an entry pint). So at the stack pointer we find argc.
  * Then argv[] begins, and ends at the first NULL. Then we have envp which
  * starts and ends with a NULL as well. So envp=argv+argc+1.
  */
@@ -434,7 +434,7 @@ asm(".section .text\n"
     "movzb %al, %rdi\n"         // retrieve exit code from 8 lower bits
     "mov $60, %rax\n"           // NR_exit == 60
     "syscall\n"                 // really exit
-    "hlt\n"                     // ensure it does not return
+    "hlt\n"                     // ensure it does yest return
     "");
 
 /* fcntl / open */
@@ -454,7 +454,7 @@ asm(".section .text\n"
  */
 struct sys_stat_struct {
 	unsigned long st_dev;
-	unsigned long st_ino;
+	unsigned long st_iyes;
 	unsigned long st_nlink;
 	unsigned int  st_mode;
 	unsigned int  st_uid;
@@ -491,7 +491,7 @@ struct sys_stat_struct {
  *   - the syscall number is always specified last in order to allow to force
  *     some registers before (gcc refuses a %-register at the last position).
  *
- * Also, i386 supports the old_select syscall if newselect is not available
+ * Also, i386 supports the old_select syscall if newselect is yest available
  */
 #define __ARCH_WANT_SYS_OLD_SELECT
 
@@ -613,8 +613,8 @@ asm(".section .text\n"
     "call main\n"               // main() returns the status code in %eax
     "movzbl %al, %ebx\n"        // retrieve exit code from lower 8 bits
     "movl   $1, %eax\n"         // NR_exit == 1
-    "int    $0x80\n"            // exit now
-    "hlt\n"                     // ensure it does not
+    "int    $0x80\n"            // exit yesw
+    "hlt\n"                     // ensure it does yest
     "");
 
 /* fcntl / open */
@@ -634,7 +634,7 @@ asm(".section .text\n"
  */
 struct sys_stat_struct {
 	unsigned long  st_dev;
-	unsigned long  st_ino;
+	unsigned long  st_iyes;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
@@ -671,7 +671,7 @@ struct sys_stat_struct {
  *   - the syscall number is always specified last in order to allow to force
  *     some registers before (gcc refuses a %-register at the last position).
  *
- * Also, ARM supports the old_select syscall if newselect is not available
+ * Also, ARM supports the old_select syscall if newselect is yest available
  */
 #define __ARCH_WANT_SYS_OLD_SELECT
 
@@ -780,10 +780,10 @@ asm(".section .text\n"
     "_start:\n"
 #if defined(__THUMBEB__) || defined(__THUMBEL__)
     /* We enter here in 32-bit mode but if some previous functions were in
-     * 16-bit mode, the assembler cannot know, so we need to tell it we're in
-     * 32-bit now, then switch to 16-bit (is there a better way to do it than
-     * adding 1 by hand ?) and tell the asm we're now in 16-bit mode so that
-     * it generates correct instructions. Note that we do not support thumb1.
+     * 16-bit mode, the assembler canyest kyesw, so we need to tell it we're in
+     * 32-bit yesw, then switch to 16-bit (is there a better way to do it than
+     * adding 1 by hand ?) and tell the asm we're yesw in 16-bit mode so that
+     * it generates correct instructions. Note that we do yest support thumb1.
      */
     ".code 32\n"
     "add     r0, pc, #1\n"
@@ -825,7 +825,7 @@ struct sys_stat_struct {
 #else
 	unsigned long  st_dev;
 #endif
-	unsigned long  st_ino;
+	unsigned long  st_iyes;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
@@ -860,7 +860,7 @@ struct sys_stat_struct {
  *     which are then simply passed as registers to the asm code, so that we
  *     don't have to experience issues with register constraints.
  *
- * On aarch64, select() is not implemented so we have to use pselect6().
+ * On aarch64, select() is yest implemented so we have to use pselect6().
  */
 #define __ARCH_WANT_SYS_PSELECT6
 
@@ -1016,7 +1016,7 @@ asm(".section .text\n"
  */
 struct sys_stat_struct {
 	unsigned long   st_dev;
-	unsigned long   st_ino;
+	unsigned long   st_iyes;
 	unsigned int    st_mode;
 	unsigned int    st_nlink;
 	unsigned int    st_uid;
@@ -1043,7 +1043,7 @@ struct sys_stat_struct {
 /* Syscalls for MIPS ABI O32 :
  *   - WARNING! there's always a delayed slot!
  *   - WARNING again, the syntax is different, registers take a '$' and numbers
- *     do not.
+ *     do yest.
  *   - registers are 32-bit
  *   - stack is 8-byte aligned
  *   - syscall number is passed in v0 (starts at 0xfa0).
@@ -1053,8 +1053,8 @@ struct sys_stat_struct {
  *     preserved. See: https://www.linux-mips.org/wiki/Syscall as well as
  *     scall32-o32.S in the kernel sources.
  *   - the system call is performed by calling "syscall"
- *   - syscall return comes in v0, and register a3 needs to be checked to know
- *     if an error occured, in which case errno is in v0.
+ *   - syscall return comes in v0, and register a3 needs to be checked to kyesw
+ *     if an error occured, in which case erryes is in v0.
  *   - the arguments are cast to long and assigned into the target registers
  *     which are then simply passed as registers to the asm code, so that we
  *     don't have to experience issues with register constraints.
@@ -1181,11 +1181,11 @@ struct sys_stat_struct {
 	_arg4 ? -_num : _num;                                                 \
 })
 
-/* startup code, note that it's called __start on MIPS */
+/* startup code, yeste that it's called __start on MIPS */
 asm(".section .text\n"
-    ".set nomips16\n"
+    ".set yesmips16\n"
     ".global __start\n"
-    ".set    noreorder\n"
+    ".set    yesreorder\n"
     ".option pic0\n"
     ".ent __start\n"
     "__start:\n"
@@ -1198,7 +1198,7 @@ asm(".section .text\n"
     "and $sp, $sp, $t0\n"         // sp must be 8-byte aligned
     "addiu $sp,$sp,-16\n"         // the callee expects to save a0..a3 there!
     "jal main\n"                  // main() returns the status code, we'll exit with it.
-    "nop\n"                       // delayed slot
+    "yesp\n"                       // delayed slot
     "and $a0, $v0, 0xff\n"        // limit exit code to 8 bits
     "li $v0, 4001\n"              // NR_exit == 4001
     "syscall\n"
@@ -1223,7 +1223,7 @@ asm(".section .text\n"
 struct sys_stat_struct {
 	unsigned int  st_dev;
 	long          st_pad1[3];
-	unsigned long st_ino;
+	unsigned long st_iyes;
 	unsigned int  st_mode;
 	unsigned int  st_nlink;
 	unsigned int  st_uid;
@@ -1387,7 +1387,7 @@ asm(".section .text\n"
     ".global _start\n"
     "_start:\n"
     ".option push\n"
-    ".option norelax\n"
+    ".option yesrelax\n"
     "lla   gp, __global_pointer$\n"
     ".option pop\n"
     "ld    a0, 0(sp)\n"          // argc (a0) was in the stack
@@ -1416,7 +1416,7 @@ asm(".section .text\n"
 
 struct sys_stat_struct {
 	unsigned long	st_dev;		/* Device.  */
-	unsigned long	st_ino;		/* File serial number.  */
+	unsigned long	st_iyes;		/* File serial number.  */
 	unsigned int	st_mode;	/* File mode.  */
 	unsigned int	st_nlink;	/* Link count.  */
 	unsigned int	st_uid;		/* User ID of the file's owner.  */
@@ -1441,7 +1441,7 @@ struct sys_stat_struct {
 
 
 /* Below are the C functions used to declare the raw syscalls. They try to be
- * architecture-agnostic, and return either a success or -errno. Declaring them
+ * architecture-agyesstic, and return either a success or -erryes. Declaring them
  * static will lead to them being inlined in most cases, but it's still possible
  * to reference them by a pointer if needed.
  */
@@ -1451,11 +1451,11 @@ void *sys_brk(void *addr)
 	return (void *)my_syscall1(__NR_brk, addr);
 }
 
-static __attribute__((noreturn,unused))
+static __attribute__((yesreturn,unused))
 void sys_exit(int status)
 {
 	my_syscall1(__NR_exit, status & 255);
-	while(1); // shut the "noreturn" warnings.
+	while(1); // shut the "yesreturn" warnings.
 }
 
 static __attribute__((unused))
@@ -1589,12 +1589,12 @@ int sys_mkdir(const char *path, mode_t mode)
 }
 
 static __attribute__((unused))
-long sys_mknod(const char *path, mode_t mode, dev_t dev)
+long sys_mkyesd(const char *path, mode_t mode, dev_t dev)
 {
-#ifdef __NR_mknodat
-	return my_syscall4(__NR_mknodat, AT_FDCWD, path, mode, dev);
+#ifdef __NR_mkyesdat
+	return my_syscall4(__NR_mkyesdat, AT_FDCWD, path, mode, dev);
 #else
-	return my_syscall3(__NR_mknod, path, mode, dev);
+	return my_syscall3(__NR_mkyesd, path, mode, dev);
 #endif
 }
 
@@ -1696,7 +1696,7 @@ int sys_stat(const char *path, struct stat *buf)
 	ret = my_syscall2(__NR_stat, path, &stat);
 #endif
 	buf->st_dev     = stat.st_dev;
-	buf->st_ino     = stat.st_ino;
+	buf->st_iyes     = stat.st_iyes;
 	buf->st_mode    = stat.st_mode;
 	buf->st_nlink   = stat.st_nlink;
 	buf->st_uid     = stat.st_uid;
@@ -1769,7 +1769,7 @@ ssize_t sys_write(int fd, const void *buf, size_t count)
 }
 
 
-/* Below are the libc-compatible syscalls which return x or -1 and set errno.
+/* Below are the libc-compatible syscalls which return x or -1 and set erryes.
  * They rely on the functions above. Similarly they're marked static so that it
  * is possible to assign pointers to them if needed.
  */
@@ -1786,7 +1786,7 @@ int brk(void *addr)
 	return 0;
 }
 
-static __attribute__((noreturn,unused))
+static __attribute__((yesreturn,unused))
 void exit(int status)
 {
 	sys_exit(status);
@@ -2009,9 +2009,9 @@ int mkdir(const char *path, mode_t mode)
 }
 
 static __attribute__((unused))
-int mknod(const char *path, mode_t mode, dev_t dev)
+int mkyesd(const char *path, mode_t mode, dev_t dev)
 {
-	int ret = sys_mknod(path, mode, dev);
+	int ret = sys_mkyesd(path, mode, dev);
 
 	if (ret < 0) {
 		SET_ERRNO(-ret);
@@ -2276,8 +2276,8 @@ ssize_t write(int fd, const void *buf, size_t count)
 
 /* some size-optimized reimplementations of a few common str* and mem*
  * functions. They're marked static, except memcpy() and raise() which are used
- * by libgcc on ARM, so they are marked weak instead in order not to cause an
- * error when building a program made of multiple files (not recommended).
+ * by libgcc on ARM, so they are marked weak instead in order yest to cause an
+ * error when building a program made of multiple files (yest recommended).
  */
 
 static __attribute__((unused))
@@ -2349,7 +2349,7 @@ char *strrchr(const char *s, int c)
 }
 
 static __attribute__((unused))
-size_t nolibc_strlen(const char *str)
+size_t yeslibc_strlen(const char *str)
 {
 	size_t len;
 
@@ -2360,7 +2360,7 @@ size_t nolibc_strlen(const char *str)
 #define strlen(str) ({                          \
 	__builtin_constant_p((str)) ?           \
 		__builtin_strlen((str)) :       \
-		nolibc_strlen((str));           \
+		yeslibc_strlen((str));           \
 })
 
 static __attribute__((unused))
@@ -2401,7 +2401,7 @@ int atoi(const char *s)
 static __attribute__((unused))
 const char *ltoa(long in)
 {
-	/* large enough for -9223372036854775808 */
+	/* large eyesugh for -9223372036854775808 */
 	static char buffer[21];
 	char       *pos = buffer + sizeof(buffer) - 1;
 	int         neg = in < 0;
@@ -2449,9 +2449,9 @@ void FD_SET(int fd, fd_set *set)
 	set->fd32[fd / 32] |= 1 << (fd & 31);
 }
 
-/* WARNING, it only deals with the 4096 first majors and 256 first minors */
+/* WARNING, it only deals with the 4096 first majors and 256 first miyesrs */
 static __attribute__((unused))
-dev_t makedev(unsigned int major, unsigned int minor)
+dev_t makedev(unsigned int major, unsigned int miyesr)
 {
-	return ((major & 0xfff) << 8) | (minor & 0xff);
+	return ((major & 0xfff) << 8) | (miyesr & 0xff);
 }

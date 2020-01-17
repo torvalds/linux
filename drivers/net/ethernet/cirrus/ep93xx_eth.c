@@ -249,9 +249,9 @@ static int ep93xx_rx(struct net_device *dev, int budget)
 		rstat->rstat1 = 0;
 
 		if (!(rstat0 & RSTAT0_EOF))
-			pr_crit("not end-of-frame %.8x %.8x\n", rstat0, rstat1);
+			pr_crit("yest end-of-frame %.8x %.8x\n", rstat0, rstat1);
 		if (!(rstat0 & RSTAT0_EOB))
-			pr_crit("not end-of-buffer %.8x %.8x\n", rstat0, rstat1);
+			pr_crit("yest end-of-buffer %.8x %.8x\n", rstat0, rstat1);
 		if ((rstat1 & RSTAT1_BUFFER_INDEX) >> 16 != entry)
 			pr_crit("entry mismatch %.8x %.8x\n", rstat0, rstat1);
 
@@ -270,7 +270,7 @@ static int ep93xx_rx(struct net_device *dev, int budget)
 
 		length = rstat1 & RSTAT1_FRAME_LENGTH;
 		if (length > MAX_PKT_SIZE) {
-			pr_notice("invalid length %.8x %.8x\n", rstat0, rstat1);
+			pr_yestice("invalid length %.8x %.8x\n", rstat0, rstat1);
 			goto err;
 		}
 
@@ -821,7 +821,7 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 	ep->res = request_mem_region(mem->start, resource_size(mem),
 				     dev_name(&pdev->dev));
 	if (ep->res == NULL) {
-		dev_err(&pdev->dev, "Could not reserve memory region\n");
+		dev_err(&pdev->dev, "Could yest reserve memory region\n");
 		err = -ENOMEM;
 		goto err_out;
 	}

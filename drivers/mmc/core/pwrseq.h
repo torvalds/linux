@@ -23,7 +23,7 @@ struct mmc_pwrseq_ops {
 struct mmc_pwrseq {
 	const struct mmc_pwrseq_ops *ops;
 	struct device *dev;
-	struct list_head pwrseq_node;
+	struct list_head pwrseq_yesde;
 	struct module *owner;
 };
 

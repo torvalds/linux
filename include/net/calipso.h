@@ -27,7 +27,7 @@
 #include <linux/refcount.h>
 #include <asm/unaligned.h>
 
-/* known doi values */
+/* kyeswn doi values */
 #define CALIPSO_DOI_UNKNOWN          0x00000000
 
 /* doi mapping types */

@@ -66,7 +66,7 @@ int cxgb4_thermal_init(struct adapter *adap)
 	u32 param, val;
 	int ret;
 
-	/* on older firmwares we may not get the trip temperature,
+	/* on older firmwares we may yest get the trip temperature,
 	 * set the num of trips to 0.
 	 */
 	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
@@ -76,7 +76,7 @@ int cxgb4_thermal_init(struct adapter *adap)
 	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1,
 			      &param, &val);
 	if (ret < 0) {
-		num_trip = 0; /* could not get trip temperature */
+		num_trip = 0; /* could yest get trip temperature */
 	} else {
 		ch_thermal->trip_temp = val * 1000;
 		ch_thermal->trip_type = THERMAL_TRIP_CRITICAL;

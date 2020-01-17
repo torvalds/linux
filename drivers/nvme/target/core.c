@@ -41,11 +41,11 @@ u32 nvmet_ana_group_enabled[NVMET_MAX_ANAGRPS + 1];
 u64 nvmet_ana_chgcnt;
 DECLARE_RWSEM(nvmet_ana_sem);
 
-inline u16 errno_to_nvme_status(struct nvmet_req *req, int errno)
+inline u16 erryes_to_nvme_status(struct nvmet_req *req, int erryes)
 {
 	u16 status;
 
-	switch (errno) {
+	switch (erryes) {
 	case 0:
 		status = NVME_SC_SUCCESS;
 		break;
@@ -309,7 +309,7 @@ int nvmet_enable_port(struct nvmet_port *port)
 		down_write(&nvmet_config_sem);
 		ops = nvmet_transports[port->disc_addr.trtype];
 		if (!ops) {
-			pr_err("transport type %d not supported\n",
+			pr_err("transport type %d yest supported\n",
 				port->disc_addr.trtype);
 			return -EINVAL;
 		}
@@ -436,12 +436,12 @@ static int nvmet_p2pmem_ns_enable(struct nvmet_ns *ns)
 		return 0;
 
 	if (!ns->bdev) {
-		pr_err("peer-to-peer DMA is not supported by non-block device namespaces\n");
+		pr_err("peer-to-peer DMA is yest supported by yesn-block device namespaces\n");
 		return -EINVAL;
 	}
 
 	if (!blk_queue_pci_p2pdma(ns->bdev->bd_queue)) {
-		pr_err("peer-to-peer DMA is not supported by the driver of %s\n",
+		pr_err("peer-to-peer DMA is yest supported by the driver of %s\n",
 		       ns->device_path);
 		return -EINVAL;
 	}
@@ -452,15 +452,15 @@ static int nvmet_p2pmem_ns_enable(struct nvmet_ns *ns)
 			return -EINVAL;
 	} else {
 		/*
-		 * Right now we just check that there is p2pmem available so
+		 * Right yesw we just check that there is p2pmem available so
 		 * we can report an error to the user right away if there
-		 * is not. We'll find the actual device to use once we
+		 * is yest. We'll find the actual device to use once we
 		 * setup the controller when the port's device is available.
 		 */
 
 		p2p_dev = pci_p2pmem_find(nvmet_ns_dev(ns));
 		if (!p2p_dev) {
-			pr_err("no peer-to-peer memory is available for %s\n",
+			pr_err("yes peer-to-peer memory is available for %s\n",
 			       ns->device_path);
 			return -EINVAL;
 		}
@@ -496,7 +496,7 @@ static void nvmet_p2pmem_ns_add_p2p(struct nvmet_ctrl *ctrl,
 
 		p2p_dev = pci_p2pmem_find_many(clients, ARRAY_SIZE(clients));
 		if (!p2p_dev) {
-			pr_err("no peer-to-peer memory is available that's supported by %s and %s\n",
+			pr_err("yes peer-to-peer memory is available that's supported by %s and %s\n",
 			       dev_name(ctrl->p2p_client), ns->device_path);
 			return;
 		}
@@ -873,7 +873,7 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 
 	trace_nvmet_req_init(req, req->cmd);
 
-	/* no support for fused commands yet */
+	/* yes support for fused commands yet */
 	if (unlikely(flags & (NVME_CMD_FUSE_FIRST | NVME_CMD_FUSE_SECOND))) {
 		req->error_loc = offsetof(struct nvme_common_command, flags);
 		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
@@ -892,7 +892,7 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	}
 
 	if (unlikely(!req->sq->ctrl))
-		/* will return an error for any non-connect command: */
+		/* will return an error for any yesn-connect command: */
 		status = nvmet_parse_connect_cmd(req);
 	else if (likely(req->sq->qid != 0))
 		status = nvmet_parse_io_cmd(req);
@@ -958,7 +958,7 @@ int nvmet_req_alloc_sgl(struct nvmet_req *req)
 		}
 
 		/*
-		 * If no P2P memory was available we fallback to using
+		 * If yes P2P memory was available we fallback to using
 		 * regular memory
 		 */
 	}
@@ -1034,7 +1034,7 @@ static void nvmet_start_ctrl(struct nvmet_ctrl *ctrl)
 	ctrl->csts = NVME_CSTS_RDY;
 
 	/*
-	 * Controllers that are not yet enabled should not really enforce the
+	 * Controllers that are yest yet enabled should yest really enforce the
 	 * keep alive timeout, but we still want to track a timeout and cleanup
 	 * in case a host died before it enabled the controller.  Hence, simply
 	 * reset the keep alive timer when the controller is enabled.
@@ -1112,7 +1112,7 @@ u16 nvmet_ctrl_find_get(const char *subsysnqn, const char *hostnqn, u16 cntlid,
 		}
 	}
 
-	pr_warn("could not find controller %d for subsys %s / host %s\n",
+	pr_warn("could yest find controller %d for subsys %s / host %s\n",
 		cntlid, subsysnqn, hostnqn);
 	req->cqe->result.u32 = IPO_IATTR_CONNECT_DATA(cntlid);
 	status = NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
@@ -1219,7 +1219,7 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	status = NVME_SC_CONNECT_INVALID_PARAM | NVME_SC_DNR;
 	down_read(&nvmet_config_sem);
 	if (!nvmet_host_allowed(subsys, hostnqn)) {
-		pr_info("connect by host %s for subsystem %s not allowed\n",
+		pr_info("connect by host %s for subsystem %s yest allowed\n",
 			hostnqn, subsysnqn);
 		req->cqe->result.u32 = IPO_IATTR_CONNECT_DATA(hostnqn);
 		up_read(&nvmet_config_sem);
@@ -1405,7 +1405,7 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		subsys->max_qid = 0;
 		break;
 	default:
-		pr_err("%s: Unknown Subsystem type - %d\n", __func__, type);
+		pr_err("%s: Unkyeswn Subsystem type - %d\n", __func__, type);
 		kfree(subsys);
 		return ERR_PTR(-EINVAL);
 	}

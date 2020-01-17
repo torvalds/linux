@@ -22,24 +22,24 @@
 int
 xchk_setup_ag_allocbt(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	return xchk_setup_ag_btree(sc, ip, false);
 }
 
 /* Free space btree scrubber. */
 /*
- * Ensure there's a corresponding cntbt/bnobt record matching this
- * bnobt/cntbt record, respectively.
+ * Ensure there's a corresponding cntbt/byesbt record matching this
+ * byesbt/cntbt record, respectively.
  */
 STATIC void
 xchk_allocbt_xref_other(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbyes,
 	xfs_extlen_t		len)
 {
 	struct xfs_btree_cur	**pcur;
-	xfs_agblock_t		fbno;
+	xfs_agblock_t		fbyes;
 	xfs_extlen_t		flen;
 	int			has_otherrec;
 	int			error;
@@ -47,11 +47,11 @@ xchk_allocbt_xref_other(
 	if (sc->sm->sm_type == XFS_SCRUB_TYPE_BNOBT)
 		pcur = &sc->sa.cnt_cur;
 	else
-		pcur = &sc->sa.bno_cur;
+		pcur = &sc->sa.byes_cur;
 	if (!*pcur || xchk_skip_xref(sc->sm))
 		return;
 
-	error = xfs_alloc_lookup_le(*pcur, agbno, len, &has_otherrec);
+	error = xfs_alloc_lookup_le(*pcur, agbyes, len, &has_otherrec);
 	if (!xchk_should_check_xref(sc, &error, pcur))
 		return;
 	if (!has_otherrec) {
@@ -59,7 +59,7 @@ xchk_allocbt_xref_other(
 		return;
 	}
 
-	error = xfs_alloc_get_rec(*pcur, &fbno, &flen, &has_otherrec);
+	error = xfs_alloc_get_rec(*pcur, &fbyes, &flen, &has_otherrec);
 	if (!xchk_should_check_xref(sc, &error, pcur))
 		return;
 	if (!has_otherrec) {
@@ -67,7 +67,7 @@ xchk_allocbt_xref_other(
 		return;
 	}
 
-	if (fbno != agbno || flen != len)
+	if (fbyes != agbyes || flen != len)
 		xchk_btree_xref_set_corrupt(sc, *pcur, 0);
 }
 
@@ -75,38 +75,38 @@ xchk_allocbt_xref_other(
 STATIC void
 xchk_allocbt_xref(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbyes,
 	xfs_extlen_t		len)
 {
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return;
 
-	xchk_allocbt_xref_other(sc, agbno, len);
-	xchk_xref_is_not_inode_chunk(sc, agbno, len);
-	xchk_xref_has_no_owner(sc, agbno, len);
-	xchk_xref_is_not_shared(sc, agbno, len);
+	xchk_allocbt_xref_other(sc, agbyes, len);
+	xchk_xref_is_yest_iyesde_chunk(sc, agbyes, len);
+	xchk_xref_has_yes_owner(sc, agbyes, len);
+	xchk_xref_is_yest_shared(sc, agbyes, len);
 }
 
-/* Scrub a bnobt/cntbt record. */
+/* Scrub a byesbt/cntbt record. */
 STATIC int
 xchk_allocbt_rec(
 	struct xchk_btree	*bs,
 	union xfs_btree_rec	*rec)
 {
 	struct xfs_mount	*mp = bs->cur->bc_mp;
-	xfs_agnumber_t		agno = bs->cur->bc_private.a.agno;
-	xfs_agblock_t		bno;
+	xfs_agnumber_t		agyes = bs->cur->bc_private.a.agyes;
+	xfs_agblock_t		byes;
 	xfs_extlen_t		len;
 
-	bno = be32_to_cpu(rec->alloc.ar_startblock);
+	byes = be32_to_cpu(rec->alloc.ar_startblock);
 	len = be32_to_cpu(rec->alloc.ar_blockcount);
 
-	if (bno + len <= bno ||
-	    !xfs_verify_agbno(mp, agno, bno) ||
-	    !xfs_verify_agbno(mp, agno, bno + len - 1))
+	if (byes + len <= byes ||
+	    !xfs_verify_agbyes(mp, agyes, byes) ||
+	    !xfs_verify_agbyes(mp, agyes, byes + len - 1))
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
-	xchk_allocbt_xref(bs->sc, bno, len);
+	xchk_allocbt_xref(bs->sc, byes, len);
 
 	return 0;
 }
@@ -119,12 +119,12 @@ xchk_allocbt(
 {
 	struct xfs_btree_cur	*cur;
 
-	cur = which == XFS_BTNUM_BNO ? sc->sa.bno_cur : sc->sa.cnt_cur;
+	cur = which == XFS_BTNUM_BNO ? sc->sa.byes_cur : sc->sa.cnt_cur;
 	return xchk_btree(sc, cur, xchk_allocbt_rec, &XFS_RMAP_OINFO_AG, NULL);
 }
 
 int
-xchk_bnobt(
+xchk_byesbt(
 	struct xfs_scrub	*sc)
 {
 	return xchk_allocbt(sc, XFS_BTNUM_BNO);
@@ -137,22 +137,22 @@ xchk_cntbt(
 	return xchk_allocbt(sc, XFS_BTNUM_CNT);
 }
 
-/* xref check that the extent is not free */
+/* xref check that the extent is yest free */
 void
 xchk_xref_is_used_space(
 	struct xfs_scrub	*sc,
-	xfs_agblock_t		agbno,
+	xfs_agblock_t		agbyes,
 	xfs_extlen_t		len)
 {
 	bool			is_freesp;
 	int			error;
 
-	if (!sc->sa.bno_cur || xchk_skip_xref(sc->sm))
+	if (!sc->sa.byes_cur || xchk_skip_xref(sc->sm))
 		return;
 
-	error = xfs_alloc_has_record(sc->sa.bno_cur, agbno, len, &is_freesp);
-	if (!xchk_should_check_xref(sc, &error, &sc->sa.bno_cur))
+	error = xfs_alloc_has_record(sc->sa.byes_cur, agbyes, len, &is_freesp);
+	if (!xchk_should_check_xref(sc, &error, &sc->sa.byes_cur))
 		return;
 	if (is_freesp)
-		xchk_btree_xref_set_corrupt(sc, sc->sa.bno_cur, 0);
+		xchk_btree_xref_set_corrupt(sc, sc->sa.byes_cur, 0);
 }

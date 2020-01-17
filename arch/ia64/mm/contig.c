@@ -51,7 +51,7 @@ void *per_cpu_init(void)
 	first_time = false;
 
 	/*
-	 * get_free_pages() cannot be used before cpu_init() done.
+	 * get_free_pages() canyest be used before cpu_init() done.
 	 * BSP allocates PERCPU_PAGE_SIZE bytes for all possible CPUs
 	 * to avoid that AP calls get_zeroed_page().
 	 */
@@ -66,7 +66,7 @@ void *per_cpu_init(void)
 		 * percpu area for cpu0 is moved from the __init area
 		 * which is setup by head.S and used till this point.
 		 * Update ar.k3.  This move is ensures that percpu
-		 * area for cpu0 is on the correct node and its
+		 * area for cpu0 is on the correct yesde and its
 		 * virtual address isn't insanely far from other
 		 * percpu areas which is important for congruent
 		 * percpu allocator.
@@ -160,7 +160,7 @@ find_memory (void)
 #ifdef CONFIG_VIRTUAL_MEM_MAP
 	efi_memmap_walk(filter_memory, register_active_ranges);
 #else
-	memblock_add_node(0, PFN_PHYS(max_low_pfn), 0);
+	memblock_add_yesde(0, PFN_PHYS(max_low_pfn), 0);
 #endif
 
 	find_initrd();
@@ -201,15 +201,15 @@ paging_init (void)
 		efi_memmap_walk(create_mem_map_page_table, NULL);
 
 		/*
-		 * alloc_node_mem_map makes an adjustment for mem_map
+		 * alloc_yesde_mem_map makes an adjustment for mem_map
 		 * which isn't compatible with vmem_map.
 		 */
-		NODE_DATA(0)->node_mem_map = vmem_map +
+		NODE_DATA(0)->yesde_mem_map = vmem_map +
 			find_min_pfn_with_active_regions();
 
 		printk("Virtual mem_map starts at 0x%p\n", mem_map);
 	}
 #endif /* !CONFIG_VIRTUAL_MEM_MAP */
-	free_area_init_nodes(max_zone_pfns);
+	free_area_init_yesdes(max_zone_pfns);
 	zero_page_memmap_ptr = virt_to_page(ia64_imva(empty_zero_page));
 }

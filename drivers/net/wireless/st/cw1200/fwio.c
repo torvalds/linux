@@ -3,7 +3,7 @@
  * Firmware I/O code for mac80211 ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.yes>
  *
  * Based on:
  * ST-Ericsson UMAC CW1200 driver which is
@@ -164,7 +164,7 @@ static int cw1200_load_firmware_cw1200(struct cw1200_common *priv)
 	} /* End of for loop */
 
 	if (val32 != DOWNLOAD_I_AM_HERE) {
-		pr_err("Bootloader is not ready.\n");
+		pr_err("Bootloader is yest ready.\n");
 		ret = -ETIMEDOUT;
 		goto free_buffer;
 	}
@@ -381,7 +381,7 @@ int cw1200_load_firmware(struct cw1200_common *priv)
 	}
 
 	if ((val16 & ST90TDS_CONT_RDY_BIT) == 0) {
-		pr_err("wait_for_wakeup: device is not responding.\n");
+		pr_err("wait_for_wakeup: device is yest responding.\n");
 		ret = -ETIMEDOUT;
 		goto out;
 	}
@@ -506,7 +506,7 @@ int cw1200_load_firmware(struct cw1200_common *priv)
 	}
 
 	/* Unless we read the CONFIG Register we are
-	 * not able to get an interrupt
+	 * yest able to get an interrupt
 	 */
 	mdelay(10);
 	config_reg_read(priv, &val32);

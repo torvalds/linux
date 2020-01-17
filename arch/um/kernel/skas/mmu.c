@@ -86,7 +86,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	ret = init_new_ldt(to_mm, from_mm);
 	if (ret < 0) {
 		printk(KERN_ERR "init_new_context_skas - init_ldt"
-		       " failed, errno = %d\n", ret);
+		       " failed, erryes = %d\n", ret);
 		goto out_free;
 	}
 

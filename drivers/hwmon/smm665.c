@@ -210,11 +210,11 @@ static int smm665_read_adc(struct smm665_data *data, int adc)
 	/*
 	 * Now read two bytes.
 	 *
-	 * Neither i2c_smbus_read_byte() nor
+	 * Neither i2c_smbus_read_byte() yesr
 	 * i2c_smbus_read_block_data() worked here,
 	 * so use i2c_smbus_read_word_swapped() instead.
 	 * We could also try to use i2c_master_recv(),
-	 * but that is not always supported.
+	 * but that is yest always supported.
 	 */
 	rv = i2c_smbus_read_word_swapped(client, 0);
 	if (rv < 0) {
@@ -624,7 +624,7 @@ static int smm665_probe(struct i2c_client *client,
 	 * value. The second value overwrites either the critical or the
 	 * alarm value, depending on its configuration. This ensures that both
 	 * critical and alarm values are initialized, even if both registers are
-	 * configured as critical or non-critical.
+	 * configured as critical or yesn-critical.
 	 */
 	for (i = 0; i < SMM665_NUM_ADC; i++) {
 		int val;

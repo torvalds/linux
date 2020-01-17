@@ -31,16 +31,16 @@
 						 is a good time to retry */
 #define H_LONG_BUSY_END_RANGE		9905  /* End of long busy range */
 
-/* Internal value used in book3s_hv kvm support; not returned to guests */
+/* Internal value used in book3s_hv kvm support; yest returned to guests */
 #define H_TOO_HARD	9999
 
 #define H_HARDWARE	-1	/* Hardware error */
-#define H_FUNCTION	-2	/* Function not supported */
-#define H_PRIVILEGE	-3	/* Caller not privileged */
+#define H_FUNCTION	-2	/* Function yest supported */
+#define H_PRIVILEGE	-3	/* Caller yest privileged */
 #define H_PARAMETER	-4	/* Parameter invalid, out-of-range or conflicting */
 #define H_BAD_MODE	-5	/* Illegal msr value */
 #define H_PTEG_FULL	-6	/* PTEG is full */
-#define H_NOT_FOUND	-7	/* PTE was not found" */
+#define H_NOT_FOUND	-7	/* PTE was yest found" */
 #define H_RESERVED_DABR	-8	/* DABR address is reserved by the hypervisor on this processor" */
 #define H_NO_MEM	-9
 #define H_AUTHORITY	-10
@@ -104,9 +104,9 @@
 
 
 /* Long Busy is a condition that can be returned by the firmware
- * when a call cannot be completed now, but the identical call
+ * when a call canyest be completed yesw, but the identical call
  * should be retried later.  This prevents calls blocking in the
- * firmware for long periods of time.  Annoyingly the firmware can return
+ * firmware for long periods of time.  Anyesyingly the firmware can return
  * a range of return codes, hinting at how long we should wait before
  * retrying.  If you don't care for the hint, the macro below is a good
  * way to check for the long_busy return codes
@@ -127,10 +127,10 @@
 #define H_AVPN			(1UL<<(63-32))	/* An avpn is provided as a sanity test */
 #define H_ANDCOND		(1UL<<(63-33))
 #define H_LOCAL			(1UL<<(63-35))
-#define H_ICACHE_INVALIDATE	(1UL<<(63-40))	/* icbi, etc.  (ignored for IO pages) */
-#define H_ICACHE_SYNCHRONIZE	(1UL<<(63-41))	/* dcbst, icbi, etc (ignored for IO pages */
+#define H_ICACHE_INVALIDATE	(1UL<<(63-40))	/* icbi, etc.  (igyesred for IO pages) */
+#define H_ICACHE_SYNCHRONIZE	(1UL<<(63-41))	/* dcbst, icbi, etc (igyesred for IO pages */
 #define H_COALESCE_CAND	(1UL<<(63-42))	/* page is a good candidate for coalescing */
-#define H_ZERO_PAGE		(1UL<<(63-48))	/* zero the page before mapping (ignored for IO pages) */
+#define H_ZERO_PAGE		(1UL<<(63-48))	/* zero the page before mapping (igyesred for IO pages) */
 #define H_COPY_PAGE		(1UL<<(63-49))
 #define H_N			(1UL<<(63-61))
 #define H_PP1			(1UL<<(63-62))
@@ -392,14 +392,14 @@
 #include <linux/types.h>
 
 /**
- * plpar_hcall_norets: - Make a pseries hypervisor call with no return arguments
+ * plpar_hcall_yesrets: - Make a pseries hypervisor call with yes return arguments
  * @opcode: The hypervisor call to make.
  *
  * This call supports up to 7 arguments and only returns the status of
  * the hcall. Use this version where possible, its slightly faster than
  * the other plpar_hcalls.
  */
-long plpar_hcall_norets(unsigned long opcode, ...);
+long plpar_hcall_yesrets(unsigned long opcode, ...);
 
 /**
  * plpar_hcall: - Make a pseries hypervisor call
@@ -423,7 +423,7 @@ long plpar_hcall(unsigned long opcode, unsigned long *retbuf, ...);
  * PLPAR_HCALL_BUFSIZE to size the return argument buffer.
  *
  * Used when phyp interface needs to be called in real mode. Similar to
- * plpar_hcall, but plpar_hcall_raw works in real mode and does not
+ * plpar_hcall, but plpar_hcall_raw works in real mode and does yest
  * calculate hypervisor call statistics.
  */
 long plpar_hcall_raw(unsigned long opcode, unsigned long *retbuf, ...);

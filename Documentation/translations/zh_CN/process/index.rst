@@ -40,7 +40,7 @@
 
    submitting-drivers
    submit-checklist
-   stable-api-nonsense
+   stable-api-yesnsense
    stable-kernel-rules
    management-style
 

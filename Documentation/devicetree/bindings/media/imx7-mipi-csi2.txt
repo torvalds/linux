@@ -1,10 +1,10 @@
 Freescale i.MX7 Mipi CSI2
 =========================
 
-mipi_csi2 node
+mipi_csi2 yesde
 --------------
 
-This is the device node for the MIPI CSI-2 receiver core in i.MX7 SoC. It is
+This is the device yesde for the MIPI CSI-2 receiver core in i.MX7 SoC. It is
 compatible with previous version of Samsung D-phy.
 
 Required properties:
@@ -27,22 +27,22 @@ Required properties:
 Optional properties:
 
 - clock-frequency : The IP's main (system bus) clock frequency in Hz, default
-		    value when this property is not specified is 166 MHz;
+		    value when this property is yest specified is 166 MHz;
 - fsl,csis-hs-settle : differential receiver (HS-RX) settle time;
 
-The device node should contain two 'port' child nodes with one child 'endpoint'
-node, according to the bindings defined in:
+The device yesde should contain two 'port' child yesdes with one child 'endpoint'
+yesde, according to the bindings defined in:
  Documentation/devicetree/bindings/ media/video-interfaces.txt.
- The following are properties specific to those nodes.
+ The following are properties specific to those yesdes.
 
-port node
+port yesde
 ---------
 
 - reg		  : (required) can take the values 0 or 1, where 0 shall be
                      related to the sink port and port 1 shall be the source
                      one;
 
-endpoint node
+endpoint yesde
 -------------
 
 - data-lanes    : (required) an array specifying active physical MIPI-CSI2

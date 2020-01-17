@@ -36,7 +36,7 @@ int decnet_dn_count = 1;
 int decnet_di_count = 3;
 int decnet_dr_count = 3;
 int decnet_log_martians = 1;
-int decnet_no_fc_max_cwnd = NSP_MIN_WINDOW;
+int decnet_yes_fc_max_cwnd = NSP_MIN_WINDOW;
 
 /* Reasonable defaults, I hope, based on tcp's defaults */
 long sysctl_decnet_mem[3] = { 768 << 3, 1024 << 3, 1536 << 3 };
@@ -51,9 +51,9 @@ static int min_state_count[] = { 1 };
 static int max_state_count[] = { NSP_MAXRXTSHIFT };
 static int min_decnet_dst_gc_interval[] = { 1 };
 static int max_decnet_dst_gc_interval[] = { 60 };
-static int min_decnet_no_fc_max_cwnd[] = { NSP_MIN_WINDOW };
-static int max_decnet_no_fc_max_cwnd[] = { NSP_MAX_WINDOW };
-static char node_name[7] = "???";
+static int min_decnet_yes_fc_max_cwnd[] = { NSP_MIN_WINDOW };
+static int max_decnet_yes_fc_max_cwnd[] = { NSP_MAX_WINDOW };
+static char yesde_name[7] = "???";
 
 static struct ctl_table_header *dn_table_header = NULL;
 
@@ -89,7 +89,7 @@ static void strip_it(char *str)
  */
 static int parse_addr(__le16 *addr, char *str)
 {
-	__u16 area, node;
+	__u16 area, yesde;
 
 	while(*str && !ISNUM(*str)) str++;
 
@@ -108,32 +108,32 @@ static int parse_addr(__le16 *addr, char *str)
 	if (!ISNUM(*str))
 		return -1;
 
-	node = *str++ - '0';
+	yesde = *str++ - '0';
 	if (ISNUM(*str)) {
-		node *= 10;
-		node += (*str++ - '0');
+		yesde *= 10;
+		yesde += (*str++ - '0');
 	}
 	if (ISNUM(*str)) {
-		node *= 10;
-		node += (*str++ - '0');
+		yesde *= 10;
+		yesde += (*str++ - '0');
 	}
 	if (ISNUM(*str)) {
-		node *= 10;
-		node += (*str++ - '0');
+		yesde *= 10;
+		yesde += (*str++ - '0');
 	}
 
-	if ((node > 1023) || (area > 63))
+	if ((yesde > 1023) || (area > 63))
 		return -1;
 
 	if (INVALID_END_CHAR(*str))
 		return -1;
 
-	*addr = cpu_to_le16((area << 10) | node);
+	*addr = cpu_to_le16((area << 10) | yesde);
 
 	return 0;
 }
 
-static int dn_node_address_handler(struct ctl_table *table, int write,
+static int dn_yesde_address_handler(struct ctl_table *table, int write,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
 {
@@ -249,14 +249,14 @@ static int dn_def_dev_handler(struct ctl_table *table, int write,
 
 static struct ctl_table dn_table[] = {
 	{
-		.procname = "node_address",
+		.procname = "yesde_address",
 		.maxlen = 7,
 		.mode = 0644,
-		.proc_handler = dn_node_address_handler,
+		.proc_handler = dn_yesde_address_handler,
 	},
 	{
-		.procname = "node_name",
-		.data = node_name,
+		.procname = "yesde_name",
+		.data = yesde_name,
 		.maxlen = 7,
 		.mode = 0644,
 		.proc_handler = proc_dostring,
@@ -313,13 +313,13 @@ static struct ctl_table dn_table[] = {
 		.extra2 = &max_decnet_dst_gc_interval
 	},
 	{
-		.procname = "no_fc_max_cwnd",
-		.data = &decnet_no_fc_max_cwnd,
+		.procname = "yes_fc_max_cwnd",
+		.data = &decnet_yes_fc_max_cwnd,
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.extra1 = &min_decnet_no_fc_max_cwnd,
-		.extra2 = &max_decnet_no_fc_max_cwnd
+		.extra1 = &min_decnet_yes_fc_max_cwnd,
+		.extra2 = &max_decnet_yes_fc_max_cwnd
 	},
        {
 		.procname = "decnet_mem",

@@ -34,7 +34,7 @@ enum psi_res {
  * Pressure states for each resource:
  *
  * SOME: Stalled tasks & working tasks
- * FULL: Stalled tasks & no working tasks
+ * FULL: Stalled tasks & yes working tasks
  */
 enum psi_states {
 	PSI_IO_SOME,
@@ -56,7 +56,7 @@ enum psi_aggregators {
 struct psi_group_cpu {
 	/* 1st cacheline updated by the scheduler */
 
-	/* Aggregator needs to know of concurrent changes */
+	/* Aggregator needs to kyesw of concurrent changes */
 	seqcount_t seq ____cacheline_aligned_in_smp;
 
 	/* States of the tasks belonging to this group */
@@ -100,8 +100,8 @@ struct psi_trigger {
 	/* User-spacified threshold in ns */
 	u64 threshold;
 
-	/* List node inside triggers list */
-	struct list_head node;
+	/* List yesde inside triggers list */
+	struct list_head yesde;
 
 	/* Backpointer needed during trigger destruction */
 	struct psi_group *group;

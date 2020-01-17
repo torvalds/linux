@@ -5,8 +5,8 @@
 
 #include "msm_drv.h"
 #include "msm_mmu.h"
-#include "adreno/adreno_gpu.h"
-#include "adreno/a2xx.xml.h"
+#include "adreyes/adreyes_gpu.h"
+#include "adreyes/a2xx.xml.h"
 
 struct msm_gpummu {
 	struct msm_mmu base;

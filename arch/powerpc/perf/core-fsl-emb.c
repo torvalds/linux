@@ -371,9 +371,9 @@ static void fsl_emb_pmu_del(struct perf_event *event, int flags)
 
 	/*
 	 * TODO: if at least one restricted event exists, and we
-	 * just freed up a non-restricted-capable counter, and
+	 * just freed up a yesn-restricted-capable counter, and
 	 * there is a restricted-capable counter occupied by
-	 * a non-restricted event, migrate that event to the
+	 * a yesn-restricted event, migrate that event to the
 	 * vacated counter.
 	 */
 
@@ -561,12 +561,12 @@ static int fsl_emb_pmu_event_init(struct perf_event *event)
 
 	/*
 	 * See if we need to reserve the PMU.
-	 * If no events are currently in use, then we have to take a
-	 * mutex to ensure that we don't race with another task doing
+	 * If yes events are currently in use, then we have to take a
+	 * mutex to ensure that we don't race with ayesther task doing
 	 * reserve_pmc_hardware or release_pmc_hardware.
 	 */
 	err = 0;
-	if (!atomic_inc_not_zero(&num_events)) {
+	if (!atomic_inc_yest_zero(&num_events)) {
 		mutex_lock(&pmc_reserve_mutex);
 		if (atomic_read(&num_events) == 0 &&
 		    reserve_pmc_hardware(perf_event_interrupt))
@@ -597,7 +597,7 @@ static struct pmu fsl_emb_pmu = {
 /*
  * A counter has overflowed; update its count and record
  * things if requested.  Note that interrupts are hard-disabled
- * here so there is no possibility of being interrupted.
+ * here so there is yes possibility of being interrupted.
  */
 static void record_and_restart(struct perf_event *event, unsigned long val,
 			       struct pt_regs *regs)

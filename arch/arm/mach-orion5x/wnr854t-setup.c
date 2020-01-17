@@ -53,7 +53,7 @@ static unsigned int wnr854t_mpp_modes[] __initdata = {
 #define WNR854T_NOR_BOOT_BASE	0xf4000000
 #define WNR854T_NOR_BOOT_SIZE	SZ_8M
 
-static struct mtd_partition wnr854t_nor_flash_partitions[] = {
+static struct mtd_partition wnr854t_yesr_flash_partitions[] = {
 	{
 		.name		= "kernel",
 		.offset		= 0x00000000,
@@ -69,26 +69,26 @@ static struct mtd_partition wnr854t_nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data wnr854t_nor_flash_data = {
+static struct physmap_flash_data wnr854t_yesr_flash_data = {
 	.width		= 2,
-	.parts		= wnr854t_nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(wnr854t_nor_flash_partitions),
+	.parts		= wnr854t_yesr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(wnr854t_yesr_flash_partitions),
 };
 
-static struct resource wnr854t_nor_flash_resource = {
+static struct resource wnr854t_yesr_flash_resource = {
 	.flags		= IORESOURCE_MEM,
 	.start		= WNR854T_NOR_BOOT_BASE,
 	.end		= WNR854T_NOR_BOOT_BASE + WNR854T_NOR_BOOT_SIZE - 1,
 };
 
-static struct platform_device wnr854t_nor_flash = {
+static struct platform_device wnr854t_yesr_flash = {
 	.name			= "physmap-flash",
 	.id			= 0,
 	.dev		= {
-		.platform_data	= &wnr854t_nor_flash_data,
+		.platform_data	= &wnr854t_yesr_flash_data,
 	},
 	.num_resources		= 1,
-	.resource		= &wnr854t_nor_flash_resource,
+	.resource		= &wnr854t_yesr_flash_resource,
 };
 
 static struct mv643xx_eth_platform_data wnr854t_eth_data = {
@@ -126,7 +126,7 @@ static void __init wnr854t_init(void)
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
 				    WNR854T_NOR_BOOT_BASE,
 				    WNR854T_NOR_BOOT_SIZE);
-	platform_device_register(&wnr854t_nor_flash);
+	platform_device_register(&wnr854t_yesr_flash);
 }
 
 static int __init wnr854t_pci_map_irq(const struct pci_dev *dev, u8 slot,

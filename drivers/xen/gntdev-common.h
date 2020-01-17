@@ -13,7 +13,7 @@
 
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/types.h>
 
 struct gntdev_dmabuf_priv;
@@ -34,7 +34,7 @@ struct gntdev_priv {
 #endif
 };
 
-struct gntdev_unmap_notify {
+struct gntdev_unmap_yestify {
 	int flags;
 	/* Address relative to the start of the gntdev_grant_map. */
 	int addr;
@@ -42,14 +42,14 @@ struct gntdev_unmap_notify {
 };
 
 struct gntdev_grant_map {
-	struct mmu_interval_notifier notifier;
+	struct mmu_interval_yestifier yestifier;
 	struct list_head next;
 	struct vm_area_struct *vma;
 	int index;
 	int count;
 	int flags;
 	refcount_t users;
-	struct gntdev_unmap_notify notify;
+	struct gntdev_unmap_yestify yestify;
 	struct ioctl_gntdev_grant_ref *grants;
 	struct gnttab_map_grant_ref   *map_ops;
 	struct gnttab_unmap_grant_ref *unmap_ops;
@@ -60,7 +60,7 @@ struct gntdev_grant_map {
 
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
 	/*
-	 * If dmabuf_vaddr is not NULL then this mapping is backed by DMA
+	 * If dmabuf_vaddr is yest NULL then this mapping is backed by DMA
 	 * capable memory.
 	 */
 

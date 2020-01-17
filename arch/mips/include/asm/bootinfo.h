@@ -17,12 +17,12 @@
 
 /*
  * The MACH_ IDs are sort of equivalent to PCI product IDs.  As such the
- * numbers do not necessarily reflect technical relations or similarities
+ * numbers do yest necessarily reflect technical relations or similarities
  * between systems.
  */
 
 /*
- * Valid machtype values for group unknown
+ * Valid machtype values for group unkyeswn
  */
 #define  MACH_UNKNOWN		0	/* whatever...			*/
 
@@ -50,7 +50,7 @@
 #define MACH_MSP7120_EVAL	3	/* PMC-Sierra MSP7120 Evaluation */
 #define MACH_MSP7120_GW		4	/* PMC-Sierra MSP7120 Residential GW */
 #define MACH_MSP7120_FPGA	5	/* PMC-Sierra MSP7120 Emulation */
-#define MACH_MSP_OTHER	      255	/* PMC-Sierra unknown board type */
+#define MACH_MSP_OTHER	      255	/* PMC-Sierra unkyeswn board type */
 
 /*
  * Valid machtype for group Mikrotik
@@ -142,7 +142,7 @@ static inline void plat_swiotlb_setup(void) {}
  *
  * This function provides a platform independent API to get a pointer to the
  * flattened device tree blob. The interface between bootloader and kernel
- * is not consistent across platforms so it is necessary to provide this
+ * is yest consistent across platforms so it is necessary to provide this
  * API such that common startup code can locate the FDT.
  *
  * This is used by the KASLR code to get command line arguments and random

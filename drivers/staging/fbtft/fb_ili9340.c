@@ -18,7 +18,7 @@
 #define WIDTH		240
 #define HEIGHT		320
 
-/* Init sequence taken from: Arduino Library for the Adafruit 2.2" display */
+/* Init sequence taken from: Arduiyes Library for the Adafruit 2.2" display */
 static int init_display(struct fbtft_par *par)
 {
 	par->fbtftops.reset(par);

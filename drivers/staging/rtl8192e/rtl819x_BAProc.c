@@ -254,7 +254,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	    (ieee->pHTInfo->IOTAction & HT_IOT_ACT_REJECT_ADDBA_REQ)) {
 		rc = ADDBA_STATUS_REFUSED;
 		netdev_warn(ieee->dev,
-			    "Failed to reply on ADDBA_REQ as some capability is not ready(%d, %d)\n",
+			    "Failed to reply on ADDBA_REQ as some capability is yest ready(%d, %d)\n",
 			    ieee->current_network.qos_data.active,
 			    ieee->pHTInfo->bCurrentHTSupport);
 		goto OnADDBAReq_Fail;
@@ -269,7 +269,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 
 	if (pBaParamSet->field.BAPolicy == BA_POLICY_DELAYED) {
 		rc = ADDBA_STATUS_INVALID_PARAM;
-		netdev_warn(ieee->dev, "%s(): BA Policy is not correct\n",
+		netdev_warn(ieee->dev, "%s(): BA Policy is yest correct\n",
 			    __func__);
 		goto OnADDBAReq_Fail;
 	}
@@ -336,7 +336,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	    !ieee->pHTInfo->bCurrentHTSupport ||
 	    !ieee->pHTInfo->bCurrentAMPDUEnable) {
 		netdev_warn(ieee->dev,
-			    "reject to ADDBA_RSP as some capability is not ready(%d, %d, %d)\n",
+			    "reject to ADDBA_RSP as some capability is yest ready(%d, %d, %d)\n",
 			    ieee->current_network.qos_data.active,
 			    ieee->pHTInfo->bCurrentHTSupport,
 			    ieee->pHTInfo->bCurrentAMPDUEnable);
@@ -426,7 +426,7 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 	if (!ieee->current_network.qos_data.active ||
 		!ieee->pHTInfo->bCurrentHTSupport) {
 		netdev_warn(ieee->dev,
-			    "received DELBA while QOS or HT is not supported(%d, %d)\n",
+			    "received DELBA while QOS or HT is yest supported(%d, %d)\n",
 			    ieee->current_network. qos_data.active,
 			    ieee->pHTInfo->bCurrentHTSupport);
 		return -1;

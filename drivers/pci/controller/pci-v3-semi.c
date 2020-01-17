@@ -241,9 +241,9 @@ struct v3_pci {
 	void __iomem *config_base;
 	struct pci_bus *bus;
 	u32 config_mem;
-	u32 non_pre_mem;
+	u32 yesn_pre_mem;
 	u32 pre_mem;
-	phys_addr_t non_pre_bus_addr;
+	phys_addr_t yesn_pre_bus_addr;
 	phys_addr_t pre_bus_addr;
 	struct regmap *map;
 };
@@ -251,13 +251,13 @@ struct v3_pci {
 /*
  * The V3 PCI interface chip in Integrator provides several windows from
  * local bus memory into the PCI memory areas. Unfortunately, there
- * are not really enough windows for our usage, therefore we reuse
+ * are yest really eyesugh windows for our usage, therefore we reuse
  * one of the windows for access to PCI configuration space. On the
  * Integrator/AP, the memory map is as follows:
  *
  * Local Bus Memory         Usage
  *
- * 40000000 - 4FFFFFFF      PCI memory.  256M non-prefetchable
+ * 40000000 - 4FFFFFFF      PCI memory.  256M yesn-prefetchable
  * 50000000 - 5FFFFFFF      PCI memory.  256M prefetchable
  * 60000000 - 60FFFFFF      PCI IO.  16M
  * 61000000 - 61FFFFFF      PCI Configuration. 16M
@@ -304,9 +304,9 @@ struct v3_pci {
  * At the end of the PCI Configuration space accesses,
  * LB_BASE1/LB_MAP1 is reset to map PCI Memory.  Finally the window
  * mapped by LB_BASE0/LB_MAP0 is reduced in size from 512M to 256M to
- * reveal the now restored LB_BASE1/LB_MAP1 window.
+ * reveal the yesw restored LB_BASE1/LB_MAP1 window.
  *
- * NOTE: We do not set up I2O mapping.  I suspect that this is only
+ * NOTE: We do yest set up I2O mapping.  I suspect that this is only
  * for an intelligent (target) device.  Using I2O disables most of
  * the mappings into PCI memory.
  */
@@ -345,7 +345,7 @@ static void __iomem *v3_map_bus(struct pci_bus *bus,
 			address |= BIT(slot + 11);
 	} else {
 		/*
-		 * not the local bus segment so need a type 1 config cycle
+		 * yest the local bus segment so need a type 1 config cycle
 		 *
 		 * address:
 		 *  23:16 = bus number
@@ -361,11 +361,11 @@ static void __iomem *v3_map_bus(struct pci_bus *bus,
 	}
 
 	/*
-	 * Set up base0 to see all 512Mbytes of memory space (not
+	 * Set up base0 to see all 512Mbytes of memory space (yest
 	 * prefetchable), this frees up base1 for re-use by
 	 * configuration memory
 	 */
-	writel(v3_addr_to_lb_base(v3->non_pre_mem) |
+	writel(v3_addr_to_lb_base(v3->yesn_pre_mem) |
 	       V3_LB_BASE_ADR_SIZE_512MB | V3_LB_BASE_ENABLE,
 	       v3->base + V3_LB_BASE0);
 
@@ -397,7 +397,7 @@ static void v3_unmap_bus(struct v3_pci *v3)
 	/*
 	 * And shrink base0 back to a 256M window (NOTE: MAP0 already correct)
 	 */
-	writel(v3_addr_to_lb_base(v3->non_pre_mem) |
+	writel(v3_addr_to_lb_base(v3->yesn_pre_mem) |
 	       V3_LB_BASE_ADR_SIZE_256MB | V3_LB_BASE_ENABLE,
 	       v3->base + V3_LB_BASE0);
 }
@@ -487,7 +487,7 @@ static int v3_integrator_init(struct v3_pci *v3)
 	v3->map =
 		syscon_regmap_lookup_by_compatible("arm,integrator-ap-syscon");
 	if (IS_ERR(v3->map)) {
-		dev_err(v3->dev, "no syscon\n");
+		dev_err(v3->dev, "yes syscon\n");
 		return -ENODEV;
 	}
 
@@ -545,13 +545,13 @@ static int v3_pci_setup_resource(struct v3_pci *v3,
 			dev_dbg(dev, "PREFETCHABLE MEM window %pR, bus addr %pap\n",
 				mem, &v3->pre_bus_addr);
 			if (resource_size(mem) != SZ_256M) {
-				dev_err(dev, "prefetchable memory range is not 256MB\n");
+				dev_err(dev, "prefetchable memory range is yest 256MB\n");
 				return -EINVAL;
 			}
-			if (v3->non_pre_mem &&
-			    (mem->start != v3->non_pre_mem + SZ_256M)) {
+			if (v3->yesn_pre_mem &&
+			    (mem->start != v3->yesn_pre_mem + SZ_256M)) {
 				dev_err(dev,
-					"prefetchable memory is not adjacent to non-prefetchable memory\n");
+					"prefetchable memory is yest adjacent to yesn-prefetchable memory\n");
 				return -EINVAL;
 			}
 			/* Setup window 1 - PCI prefetchable memory */
@@ -565,21 +565,21 @@ static int v3_pci_setup_resource(struct v3_pci *v3,
 			       v3->base + V3_LB_MAP1);
 		} else {
 			mem->name = "V3 PCI NON-PRE-MEM";
-			v3->non_pre_mem = mem->start;
-			v3->non_pre_bus_addr = mem->start - win->offset;
+			v3->yesn_pre_mem = mem->start;
+			v3->yesn_pre_bus_addr = mem->start - win->offset;
 			dev_dbg(dev, "NON-PREFETCHABLE MEM window %pR, bus addr %pap\n",
-				mem, &v3->non_pre_bus_addr);
+				mem, &v3->yesn_pre_bus_addr);
 			if (resource_size(mem) != SZ_256M) {
 				dev_err(dev,
-					"non-prefetchable memory range is not 256MB\n");
+					"yesn-prefetchable memory range is yest 256MB\n");
 				return -EINVAL;
 			}
-			/* Setup window 0 - PCI non-prefetchable memory */
-			writel(v3_addr_to_lb_base(v3->non_pre_mem) |
+			/* Setup window 0 - PCI yesn-prefetchable memory */
+			writel(v3_addr_to_lb_base(v3->yesn_pre_mem) |
 			       V3_LB_BASE_ADR_SIZE_256MB |
 			       V3_LB_BASE_ENABLE,
 			       v3->base + V3_LB_BASE0);
-			writew(v3_addr_to_lb_map(v3->non_pre_bus_addr) |
+			writew(v3_addr_to_lb_map(v3->yesn_pre_bus_addr) |
 			       V3_LB_MAP_TYPE_MEM,
 			       v3->base + V3_LB_MAP0);
 		}
@@ -589,7 +589,7 @@ static int v3_pci_setup_resource(struct v3_pci *v3,
 		host->busnr = win->res->start;
 		break;
 	default:
-		dev_info(dev, "Unknown resource type %lu\n",
+		dev_info(dev, "Unkyeswn resource type %lu\n",
 			 resource_type(win->res));
 		break;
 	}
@@ -677,7 +677,7 @@ static int v3_get_dma_range_config(struct v3_pci *v3,
 }
 
 static int v3_pci_parse_map_dma_ranges(struct v3_pci *v3,
-				       struct device_node *np)
+				       struct device_yesde *np)
 {
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(v3);
 	struct device *dev = v3->dev;
@@ -700,7 +700,7 @@ static int v3_pci_parse_map_dma_ranges(struct v3_pci *v3,
 			writel(pci_map, v3->base + V3_PCI_MAP1);
 		} else {
 			dev_err(dev, "too many ranges, only two supported\n");
-			dev_err(dev, "range %d ignored\n", i);
+			dev_err(dev, "range %d igyesred\n", i);
 		}
 		i++;
 	}
@@ -710,7 +710,7 @@ static int v3_pci_parse_map_dma_ranges(struct v3_pci *v3,
 static int v3_pci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct resource *regs;
 	struct resource_entry *win;
 	struct v3_pci *v3;
@@ -737,7 +737,7 @@ static int v3_pci_probe(struct platform_device *pdev)
 	/* Get and enable host clock */
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk)) {
-		dev_err(dev, "clock not found\n");
+		dev_err(dev, "clock yest found\n");
 		return PTR_ERR(clk);
 	}
 	ret = clk_prepare_enable(clk);
@@ -762,7 +762,7 @@ static int v3_pci_probe(struct platform_device *pdev)
 	/* Configuration space is 16MB directly mapped */
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (resource_size(regs) != SZ_16M) {
-		dev_err(dev, "config mem is not 16MB!\n");
+		dev_err(dev, "config mem is yest 16MB!\n");
 		return -EINVAL;
 	}
 	v3->config_mem = regs->start;

@@ -2,7 +2,7 @@
 NMI Trace Events
 ================
 
-These events normally show up here:
+These events yesrmally show up here:
 
 	/sys/kernel/debug/tracing/events/nmi
 
@@ -29,7 +29,7 @@ specifically.  You need to find its address::
 Let's also say you are only interested in when that function is
 really hogging a lot of CPU time, like a millisecond at a time.
 Note that the kernel's output is in milliseconds, but the input
-to the filter is in nanoseconds!  You can filter on 'delta_ns'::
+to the filter is in nayesseconds!  You can filter on 'delta_ns'::
 
 	cd /sys/kernel/debug/tracing/events/nmi/nmi_handler
 	echo 'handler==0xffffffff81625600 && delta_ns>1000000' > filter

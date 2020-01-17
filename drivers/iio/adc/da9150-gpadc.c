@@ -129,7 +129,7 @@ static int da9150_gpadc_read_adc(struct da9150_gpadc *gpadc, int hw_chan)
 	return result;
 }
 
-static inline int da9150_gpadc_gpio_6v_voltage_now(int raw_val)
+static inline int da9150_gpadc_gpio_6v_voltage_yesw(int raw_val)
 {
 	/* Convert to mV */
 	return (6 * ((raw_val * 1000) + 500)) / 1024;
@@ -141,13 +141,13 @@ static inline int da9150_gpadc_ibus_current_avg(int raw_val)
 	return (4 * ((raw_val * 1000) + 500)) / 2048;
 }
 
-static inline int da9150_gpadc_vbus_21v_voltage_now(int raw_val)
+static inline int da9150_gpadc_vbus_21v_voltage_yesw(int raw_val)
 {
 	/* Convert to mV */
 	return (21 * ((raw_val * 1000) + 500)) / 1024;
 }
 
-static inline int da9150_gpadc_vsys_6v_voltage_now(int raw_val)
+static inline int da9150_gpadc_vsys_6v_voltage_yesw(int raw_val)
 {
 	/* Convert to mV */
 	return (3 * ((raw_val * 1000) + 500)) / 512;
@@ -167,16 +167,16 @@ static int da9150_gpadc_read_processed(struct da9150_gpadc *gpadc, int channel,
 	case DA9150_GPADC_CHAN_GPIOB:
 	case DA9150_GPADC_CHAN_GPIOC:
 	case DA9150_GPADC_CHAN_GPIOD:
-		*val = da9150_gpadc_gpio_6v_voltage_now(raw_val);
+		*val = da9150_gpadc_gpio_6v_voltage_yesw(raw_val);
 		break;
 	case DA9150_GPADC_CHAN_IBUS:
 		*val = da9150_gpadc_ibus_current_avg(raw_val);
 		break;
 	case DA9150_GPADC_CHAN_VBUS:
-		*val = da9150_gpadc_vbus_21v_voltage_now(raw_val);
+		*val = da9150_gpadc_vbus_21v_voltage_yesw(raw_val);
 		break;
 	case DA9150_GPADC_CHAN_VSYS:
-		*val = da9150_gpadc_vsys_6v_voltage_now(raw_val);
+		*val = da9150_gpadc_vsys_6v_voltage_yesw(raw_val);
 		break;
 	default:
 		/* No processing for other channels so return raw value */
@@ -355,7 +355,7 @@ static int da9150_gpadc_probe(struct platform_device *pdev)
 
 	indio_dev->name = dev_name(dev);
 	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
 	indio_dev->info = &da9150_gpadc_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = da9150_gpadc_channels;

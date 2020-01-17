@@ -13,17 +13,17 @@
  *		Alan Cox	: 	Sanity checks and avoid tx overruns.
  *					Has a new sl->mtu field.
  *		Alan Cox	: 	Found cause of overrun. ifconfig sl0
- *					mtu upwards. Driver now spots this
+ *					mtu upwards. Driver yesw spots this
  *					and grows/shrinks its buffers(hack!).
  *					Memory leak if you run out of memory
  *					setting up a slip driver fixed.
  *		Matt Dillon	:	Printable slip (borrowed from NET2E)
  *	Pauline Middelink	:	Slip driver fixes.
- *		Alan Cox	:	Honours the old SL_COMPRESSED flag
+ *		Alan Cox	:	Hoyesurs the old SL_COMPRESSED flag
  *		Alan Cox	:	KISS AX.25 and AXUI IP support
  *		Michael Riepe	:	Automatic CSLIP recognition added
  *		Charles Hedrick :	CSLIP header length problem fix.
- *		Alan Cox	:	Corrected non-IP cases of the above.
+ *		Alan Cox	:	Corrected yesn-IP cases of the above.
  *		Alan Cox	:	Now uses hardware type as per FvK.
  *		Alan Cox	:	Default to 192.168.0.0 (RFC 1597)
  *		A.N.Kuznetsov	:	dev_tint() recursion fix.
@@ -32,7 +32,7 @@
  *                                      buffering from 4096 to 256 bytes.
  *                                      Improving SLIP response time.
  *                                      CONFIG_SLIP_MODE_SLIP6.
- *                                      ifconfig sl? up & down now works
+ *                                      ifconfig sl? up & down yesw works
  *					correctly.
  *					Modularization.
  *              Alan Cox        :       Oops - fix AX.25 buffer lengths
@@ -73,7 +73,7 @@
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -147,7 +147,7 @@ static int sl_alloc_bufs(struct slip *sl, int mtu)
 	len = mtu * 2;
 
 	/*
-	 * allow for arrival of larger UDP packets, even if we say not to
+	 * allow for arrival of larger UDP packets, even if we say yest to
 	 * also fixes a bug in which SunOS sends 512-byte packets even with
 	 * an MSS of 128
 	 */
@@ -228,7 +228,7 @@ static int sl_realloc_bufs(struct slip *sl, int mtu)
 	int len = mtu * 2;
 
 /*
- * allow for arrival of larger UDP packets, even if we say not to
+ * allow for arrival of larger UDP packets, even if we say yest to
  * also fixes a bug in which SunOS sends 512-byte packets even with
  * an MSS of 128
  */
@@ -327,12 +327,12 @@ static void sl_bump(struct slip *sl)
 	if (sl->mode & (SL_MODE_ADAPTIVE | SL_MODE_CSLIP)) {
 		unsigned char c = sl->rbuff[0];
 		if (c & SL_TYPE_COMPRESSED_TCP) {
-			/* ignore compressed packets when CSLIP is off */
+			/* igyesre compressed packets when CSLIP is off */
 			if (!(sl->mode & SL_MODE_CSLIP)) {
-				printk(KERN_WARNING "%s: compressed packet ignored\n", dev->name);
+				printk(KERN_WARNING "%s: compressed packet igyesred\n", dev->name);
 				return;
 			}
-			/* make sure we've reserved enough space for uncompress
+			/* make sure we've reserved eyesugh space for uncompress
 			   to use */
 			if (count + 80 > sl->buffsize) {
 				dev->stats.rx_over_errors++;
@@ -401,7 +401,7 @@ static void sl_encaps(struct slip *sl, unsigned char *icp, int len)
 	 * the transfer may be completed inside the ops->write()
 	 * routine, because it's running with interrupts enabled.
 	 * In this case we *never* got WRITE_WAKEUP event,
-	 * if we did not request it before write operation.
+	 * if we did yest request it before write operation.
 	 *       14 Oct 1994  Dmitry Gorodchanin.
 	 */
 	set_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
@@ -432,7 +432,7 @@ static void slip_transmit(struct work_struct *work)
 
 	if (sl->xleft <= 0)  {
 		/* Now serial buffer is almost free & we can start
-		 * transmission of another packet */
+		 * transmission of ayesther packet */
 		sl->dev->stats.tx_packets++;
 		clear_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
 		spin_unlock_bh(&sl->lock);
@@ -472,7 +472,7 @@ static void sl_tx_timeout(struct net_device *dev)
 		 */
 #ifdef SL_CHECK_TRANSMIT
 		if (time_before(jiffies, dev_trans_start(dev) + 20 * HZ))  {
-			/* 20 sec timeout not reached */
+			/* 20 sec timeout yest reached */
 			goto out;
 		}
 		printk(KERN_WARNING "%s: transmit timed out, %s?\n",
@@ -674,8 +674,8 @@ static void sl_setup(struct net_device *dev)
 /*
  * Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
- * a block of SLIP data has been received, which can now be decapsulated
- * and sent on to some IP layer for further processing. This will not
+ * a block of SLIP data has been received, which can yesw be decapsulated
+ * and sent on to some IP layer for further processing. This will yest
  * be re-entered while running but other ldisc functions may be called
  * in parallel
  */
@@ -803,7 +803,7 @@ static int slip_open(struct tty_struct *tty)
 	sl = tty->disc_data;
 
 	err = -EEXIST;
-	/* First make sure we're not already connected. */
+	/* First make sure we're yest already connected. */
 	if (sl && sl->magic == SLIP_MAGIC)
 		goto err_exit;
 
@@ -915,7 +915,7 @@ static int slip_esc(unsigned char *s, unsigned char *d, int len)
 	/*
 	 * Send an initial END character to flush out any
 	 * data that may have accumulated in the receiver
-	 * due to line noise.
+	 * due to line yesise.
 	 */
 
 	*ptr++ = END;
@@ -1001,7 +1001,7 @@ static int slip_esc6(unsigned char *s, unsigned char *d, int len)
 	/*
 	 * Send an initial END character to flush out any
 	 * data that may have accumulated in the receiver
-	 * due to line noise.
+	 * due to line yesise.
 	 */
 
 	*ptr++ = 0x70;
@@ -1232,7 +1232,7 @@ static int sl_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	case SIOCSLEASE:
 		/* Resolve race condition, when ioctl'ing hanged up
-		   and opened by another process device.
+		   and opened by ayesther process device.
 		 */
 		if (sl->tty != current->signal->tty &&
 						sl->pid != current->pid) {
@@ -1377,7 +1377,7 @@ static void sl_outfill(struct timer_list *t)
 
 	if (sl->outfill) {
 		if (test_bit(SLF_OUTWAIT, &sl->flags)) {
-			/* no packets were transmitted, do outfill */
+			/* yes packets were transmitted, do outfill */
 #ifdef CONFIG_SLIP_MODE_SLIP6
 			unsigned char s = (sl->mode & SL_MODE_SLIP6)?0x70:END;
 #else
@@ -1385,7 +1385,7 @@ static void sl_outfill(struct timer_list *t)
 #endif
 			/* put END into tty queue. Is it right ??? */
 			if (!netif_queue_stopped(sl->dev)) {
-				/* if device busy no outfill */
+				/* if device busy yes outfill */
 				sl->tty->ops->write(sl->tty, &s, 1);
 			}
 		} else
@@ -1412,10 +1412,10 @@ static void sl_keepalive(struct timer_list *t)
 			if (sl->outfill)
 				/* outfill timer must be deleted too */
 				(void)del_timer(&sl->outfill_timer);
-			printk(KERN_DEBUG "%s: no packets received during keepalive timeout, hangup.\n", sl->dev->name);
+			printk(KERN_DEBUG "%s: yes packets received during keepalive timeout, hangup.\n", sl->dev->name);
 			/* this must hangup tty & close slip */
 			tty_hangup(sl->tty);
-			/* I think we need not something else */
+			/* I think we need yest something else */
 			goto out;
 		} else
 			set_bit(SLF_KEEPTEST, &sl->flags);

@@ -23,7 +23,7 @@
 /*
  * kmap atomic:
  * The usage of the slots must be completely encapsulated within a spinlock, and
- * no other functions that may be using the locks for other purposed may be
+ * yes other functions that may be using the locks for other purposed may be
  * called from within the locked region.
  * Since the slots are per processor, this will guarantee that we are the only
  * user.
@@ -473,7 +473,7 @@ struct psb_mmu_driver *psb_mmu_driver_init(struct drm_device *dev,
 		uint32_t tfms, misc, cap0, cap4, clflush_size;
 
 		/*
-		 * clflush size is determined at kernel setup for x86_64 but not
+		 * clflush size is determined at kernel setup for x86_64 but yest
 		 * for i386. We have to do it here.
 		 */
 

@@ -45,10 +45,10 @@ int ion_import_buffer_fd(struct ion_buffer_info *ion_info);
 /* This is used to close all references for the ION client */
 void ion_close_buffer_fd(struct ion_buffer_info *ion_info);
 
-/* This is used to send FD to another process using socket IPC */
+/* This is used to send FD to ayesther process using socket IPC */
 int socket_send_fd(struct socket_info *skinfo);
 
-/* This is used to receive FD from another process using socket IPC */
+/* This is used to receive FD from ayesther process using socket IPC */
 int socket_receive_fd(struct socket_info *skinfo);
 
 

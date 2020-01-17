@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2017 Sanechips Technology Co., Ltd.
+ * Copyright (C) 2017 Sanechips Techyeslogy Co., Ltd.
  * Copyright 2017 Linaro Ltd.
  */
 
@@ -36,16 +36,16 @@ struct zx_pinctrl {
 	struct zx_pinctrl_soc_info *info;
 };
 
-static int zx_dt_node_to_map(struct pinctrl_dev *pctldev,
-			     struct device_node *np_config,
+static int zx_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+			     struct device_yesde *np_config,
 			     struct pinctrl_map **map, u32 *num_maps)
 {
-	return pinconf_generic_dt_node_to_map(pctldev, np_config, map,
+	return pinconf_generic_dt_yesde_to_map(pctldev, np_config, map,
 					      num_maps, PIN_MAP_TYPE_INVALID);
 }
 
 static const struct pinctrl_ops zx_pinctrl_ops = {
-	.dt_node_to_map = zx_dt_node_to_map,
+	.dt_yesde_to_map = zx_dt_yesde_to_map,
 	.dt_free_map = pinctrl_utils_free_map,
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
@@ -121,7 +121,7 @@ static int zx_set_mux(struct pinctrl_dev *pctldev, unsigned int func_selector,
 
 			/*
 			 * In this case, the AON pinmux register needs to be
-			 * set up to select non-AON function.
+			 * set up to select yesn-AON function.
 			 */
 			val = readl(zpctl->aux_base + aoffset);
 			val &= ~(0x3 << abitpos);
@@ -302,7 +302,7 @@ static int zx_pinctrl_build_state(struct platform_device *pdev)
 		struct zx_pin_data *data = pindesc->drv_data;
 		struct zx_mux_desc *mux;
 
-		/* Reserved pins do not have a drv_data at all */
+		/* Reserved pins do yest have a drv_data at all */
 		if (!data)
 			continue;
 
@@ -386,7 +386,7 @@ int zx_pinctrl_init(struct platform_device *pdev,
 {
 	struct pinctrl_desc *pctldesc;
 	struct zx_pinctrl *zpctl;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
 	zpctl = devm_kzalloc(&pdev->dev, sizeof(*zpctl), GFP_KERNEL);
@@ -399,14 +399,14 @@ int zx_pinctrl_init(struct platform_device *pdev,
 	if (IS_ERR(zpctl->base))
 		return PTR_ERR(zpctl->base);
 
-	np = of_parse_phandle(pdev->dev.of_node, "zte,auxiliary-controller", 0);
+	np = of_parse_phandle(pdev->dev.of_yesde, "zte,auxiliary-controller", 0);
 	if (!np) {
 		dev_err(&pdev->dev, "failed to find auxiliary controller\n");
 		return -ENODEV;
 	}
 
 	zpctl->aux_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!zpctl->aux_base)
 		return -ENOMEM;
 

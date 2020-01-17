@@ -76,15 +76,15 @@ SYM_CODE_START_NOALIGN(relocate_kernel)
 	movq	%r8, %r12
 
 	/*
-	 * get physical address of control page now
+	 * get physical address of control page yesw
 	 * this is impossible after page table switch
 	 */
 	movq	PTR(PA_CONTROL_PAGE)(%rsi), %r8
 
-	/* get physical address of page table now too */
+	/* get physical address of page table yesw too */
 	movq	PTR(PA_TABLE_PAGE)(%rsi), %r9
 
-	/* get physical address of swap page now */
+	/* get physical address of swap page yesw */
 	movq	PTR(PA_SWAP_PAGE)(%rsi), %r10
 
 	/* save some information for jumping back */
@@ -105,13 +105,13 @@ SYM_CODE_START_NOALIGN(relocate_kernel)
 SYM_CODE_END(relocate_kernel)
 
 SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
-	/* set return address to 0 if not preserving context */
+	/* set return address to 0 if yest preserving context */
 	pushq	$0
 	/* store the start address on the stack */
 	pushq   %rdx
 
 	/*
-	 * Set cr0 to a known state:
+	 * Set cr0 to a kyeswn state:
 	 *  - Paging enabled
 	 *  - Alignment check disabled
 	 *  - Write protect disabled
@@ -125,7 +125,7 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 	movq	%rax, %cr0
 
 	/*
-	 * Set cr4 to a known state:
+	 * Set cr4 to a kyeswn state:
 	 *  - physical address extension enabled
 	 *  - 5-level paging, if it was enabled before
 	 */
@@ -144,7 +144,7 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 
 	/*
 	 * If SME is active, there could be old encrypted cache line
-	 * entries that will conflict with the now unencrypted memory
+	 * entries that will conflict with the yesw unencrypted memory
 	 * used by kexec. Flush the caches before copying the kernel.
 	 */
 	testq	%r12, %r12
@@ -159,13 +159,13 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 	 * To be certain of avoiding problems with self-modifying code
 	 * I need to execute a serializing instruction here.
 	 * So I flush the TLB by reloading %cr3 here, it's handy,
-	 * and not processor dependent.
+	 * and yest processor dependent.
 	 */
 	movq	%cr3, %rax
 	movq	%rax, %cr3
 
 	/*
-	 * set all of the registers to known values
+	 * set all of the registers to kyeswn values
 	 * leave %rsp alone
 	 */
 
@@ -238,7 +238,7 @@ SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
 	xorl	%esi, %esi
 	jmp	1f
 
-0:	/* top, read another word for the indirection page */
+0:	/* top, read ayesther word for the indirection page */
 
 	movq	(%rbx), %rcx
 	addq	$8,	%rbx
@@ -260,7 +260,7 @@ SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
 	jmp	3f
 2:
 	testb	$0x8,	%cl   /* is it the source indicator? */
-	jz	0b	      /* Ignore it otherwise */
+	jz	0b	      /* Igyesre it otherwise */
 	movq	%rcx,   %rsi  /* For ever source page do a copy */
 	andq	$0xfffffffffffff000, %rsi
 

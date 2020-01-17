@@ -1409,7 +1409,7 @@ static int __tegra_xudc_ep_set_halt(struct tegra_xudc_ep *ep, bool halt)
 
 	if (!!(xudc_readl(xudc, EP_HALT) & BIT(ep->index)) == halt) {
 		dev_dbg(xudc->dev, "EP %u already %s\n", ep->index,
-			halt ? "halted" : "not halted");
+			halt ? "halted" : "yest halted");
 		return 0;
 	}
 
@@ -1643,7 +1643,7 @@ static int __tegra_xudc_ep_enable(struct tegra_xudc_ep *ep,
 		!usb_endpoint_xfer_control(desc) && !ep->usb_ep.comp_desc)
 		return -EINVAL;
 
-	/* Disable the EP if it is not disabled */
+	/* Disable the EP if it is yest disabled */
 	if (ep_ctx_read_state(ep->context) != EP_STATE_DISABLED)
 		__tegra_xudc_ep_disable(ep);
 
@@ -1678,7 +1678,7 @@ static int __tegra_xudc_ep_enable(struct tegra_xudc_ep *ep,
 		goto out;
 
 	/*
-	 * Transition to configured state once the first non-control
+	 * Transition to configured state once the first yesn-control
 	 * endpoint is enabled.
 	 */
 	if (xudc->device_state == USB_STATE_ADDRESS) {
@@ -1693,7 +1693,7 @@ static int __tegra_xudc_ep_enable(struct tegra_xudc_ep *ep,
 	if (usb_endpoint_xfer_isoc(desc)) {
 		/*
 		 * Pause all bulk endpoints when enabling an isoch endpoint
-		 * to ensure the isoch endpoint is allocated enough bandwidth.
+		 * to ensure the isoch endpoint is allocated eyesugh bandwidth.
 		 */
 		for (i = 0; i < ARRAY_SIZE(xudc->ep); i++) {
 			if (xudc->ep[i].desc &&
@@ -2017,7 +2017,7 @@ static struct usb_gadget_ops tegra_xudc_gadget_ops = {
 	.set_selfpowered = tegra_xudc_set_selfpowered,
 };
 
-static void no_op_complete(struct usb_ep *ep, struct usb_request *req)
+static void yes_op_complete(struct usb_ep *ep, struct usb_request *req)
 {
 }
 
@@ -2051,11 +2051,11 @@ static void tegra_xudc_ep0_req_done(struct tegra_xudc *xudc)
 	switch (xudc->setup_state) {
 	case DATA_STAGE_XFER:
 		xudc->setup_state = STATUS_STAGE_RECV;
-		tegra_xudc_ep0_queue_status(xudc, no_op_complete);
+		tegra_xudc_ep0_queue_status(xudc, yes_op_complete);
 		break;
 	case DATA_STAGE_RECV:
 		xudc->setup_state = STATUS_STAGE_XFER;
-		tegra_xudc_ep0_queue_status(xudc, no_op_complete);
+		tegra_xudc_ep0_queue_status(xudc, yes_op_complete);
 		break;
 	default:
 		xudc->setup_state = WAIT_FOR_SETUP;
@@ -2257,7 +2257,7 @@ static int tegra_xudc_ep0_get_status(struct tegra_xudc *xudc,
 	xudc->status_buf = cpu_to_le16(status);
 	return tegra_xudc_ep0_queue_data(xudc, &xudc->status_buf,
 					 sizeof(xudc->status_buf),
-					 no_op_complete);
+					 yes_op_complete);
 }
 
 static void set_sel_complete(struct usb_ep *ep, struct usb_request *req)
@@ -2444,7 +2444,7 @@ static void tegra_xudc_handle_ep0_event(struct tegra_xudc *xudc,
 
 	if (xudc->setup_state != WAIT_FOR_SETUP) {
 		/*
-		 * The controller is in the process of handling another
+		 * The controller is in the process of handling ayesther
 		 * setup request.  Queue subsequent requests and handle
 		 * the last one once the controller reports a sequence
 		 * number error.
@@ -3587,9 +3587,9 @@ static int tegra_xudc_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&xudc->port_reset_war_work,
 				tegra_xudc_port_reset_war_work);
 
-	if (of_property_read_bool(xudc->dev->of_node, "usb-role-switch")) {
+	if (of_property_read_bool(xudc->dev->of_yesde, "usb-role-switch")) {
 		role_sx_desc.set = tegra_xudc_usb_role_sw_set;
-		role_sx_desc.fwnode = dev_fwnode(xudc->dev);
+		role_sx_desc.fwyesde = dev_fwyesde(xudc->dev);
 
 		xudc->usb_role_sw = usb_role_switch_register(xudc->dev,
 							&role_sx_desc);

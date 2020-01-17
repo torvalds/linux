@@ -33,9 +33,9 @@ static inline void indy_sc_wipe(unsigned long first, unsigned long last)
 
 	__asm__ __volatile__(
 	"	.set	push			# indy_sc_wipe		\n"
-	"	.set	noreorder					\n"
+	"	.set	yesreorder					\n"
 	"	.set	mips3						\n"
-	"	.set	noat						\n"
+	"	.set	yesat						\n"
 	"	mfc0	%2, $12						\n"
 	"	li	$1, 0x80		# Go 64 bit		\n"
 	"	mtc0	$1, $12						\n"
@@ -61,10 +61,10 @@ static inline void indy_sc_wipe(unsigned long first, unsigned long last)
 	"	 daddu	%0, 32						\n"
 	"								\n"
 	"	mtc0	%2, $12			# Back to 32 bit	\n"
-	"	nop				# pipeline hazard	\n"
-	"	nop							\n"
-	"	nop							\n"
-	"	nop							\n"
+	"	yesp				# pipeline hazard	\n"
+	"	yesp							\n"
+	"	yesp							\n"
+	"	yesp							\n"
 	"	.set	pop						\n"
 	: "=r" (first), "=r" (last), "=&r" (tmp)
 	: "0" (first), "1" (last));
@@ -108,13 +108,13 @@ static void indy_sc_enable(void)
 #endif
 	__asm__ __volatile__(
 	".set\tpush\n\t"
-	".set\tnoreorder\n\t"
+	".set\tyesreorder\n\t"
 	".set\tmips3\n\t"
 	"mfc0\t%2, $12\n\t"
-	"nop; nop; nop; nop;\n\t"
+	"yesp; yesp; yesp; yesp;\n\t"
 	"li\t%1, 0x80\n\t"
 	"mtc0\t%1, $12\n\t"
-	"nop; nop; nop; nop;\n\t"
+	"yesp; yesp; yesp; yesp;\n\t"
 	"li\t%0, 0x1\n\t"
 	"dsll\t%0, 31\n\t"
 	"lui\t%1, 0x9000\n\t"
@@ -122,9 +122,9 @@ static void indy_sc_enable(void)
 	"or\t%0, %1, %0\n\t"
 	"sb\t$0, 0(%0)\n\t"
 	"mtc0\t$0, $12\n\t"
-	"nop; nop; nop; nop;\n\t"
+	"yesp; yesp; yesp; yesp;\n\t"
 	"mtc0\t%2, $12\n\t"
-	"nop; nop; nop; nop;\n\t"
+	"yesp; yesp; yesp; yesp;\n\t"
 	".set\tpop"
 	: "=r" (tmp1), "=r" (tmp2), "=r" (addr));
 }
@@ -138,7 +138,7 @@ static void indy_sc_disable(void)
 #endif
 	__asm__ __volatile__(
 	".set\tpush\n\t"
-	".set\tnoreorder\n\t"
+	".set\tyesreorder\n\t"
 	".set\tmips3\n\t"
 	"li\t%0, 0x1\n\t"
 	"dsll\t%0, 31\n\t"
@@ -146,15 +146,15 @@ static void indy_sc_disable(void)
 	"dsll32\t%1, 0\n\t"
 	"or\t%0, %1, %0\n\t"
 	"mfc0\t%2, $12\n\t"
-	"nop; nop; nop; nop\n\t"
+	"yesp; yesp; yesp; yesp\n\t"
 	"li\t%1, 0x80\n\t"
 	"mtc0\t%1, $12\n\t"
-	"nop; nop; nop; nop\n\t"
+	"yesp; yesp; yesp; yesp\n\t"
 	"sh\t$0, 0(%0)\n\t"
 	"mtc0\t$0, $12\n\t"
-	"nop; nop; nop; nop\n\t"
+	"yesp; yesp; yesp; yesp\n\t"
 	"mtc0\t%2, $12\n\t"
-	"nop; nop; nop; nop\n\t"
+	"yesp; yesp; yesp; yesp\n\t"
 	".set\tpop"
 	: "=r" (tmp1), "=r" (tmp2), "=r" (tmp3));
 }

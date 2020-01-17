@@ -17,7 +17,7 @@ impossible for the kernel to keep all of the available physical memory mapped
 at all times.  This means the kernel needs to start using temporary mappings of
 the pieces of physical memory that it wants to access.
 
-The part of (physical) memory not covered by a permanent mapping is what we
+The part of (physical) memory yest covered by a permanent mapping is what we
 refer to as 'highmem'.  There are various architecture dependent constraints on
 where exactly that border lies.
 
@@ -58,7 +58,7 @@ The kernel contains several ways of creating temporary mappings:
 
 * kmap().  This permits a short duration mapping of a single page.  It needs
   global synchronization, but is amortized somewhat.  It is also prone to
-  deadlocks when using in a nested fashion, and so it is not recommended for
+  deadlocks when using in a nested fashion, and so it is yest recommended for
   new code.
 
 * kmap_atomic().  This permits a very short duration mapping of a single
@@ -66,8 +66,8 @@ The kernel contains several ways of creating temporary mappings:
   performs well, but the issuing task is therefore required to stay on that
   CPU until it has finished, lest some other task displace its mappings.
 
-  kmap_atomic() may also be used by interrupt contexts, since it is does not
-  sleep and the caller may not sleep until after kunmap_atomic() is called.
+  kmap_atomic() may also be used by interrupt contexts, since it is does yest
+  sleep and the caller may yest sleep until after kunmap_atomic() is called.
 
   It may be assumed that k[un]map_atomic() won't fail.
 
@@ -93,10 +93,10 @@ functions, and they can be used in a manner similar to the following::
 	kunmap_atomic(vaddr);
 
 Note that the kunmap_atomic() call takes the result of the kmap_atomic() call
-not the argument.
+yest the argument.
 
 If you need to map two pages because you want to copy from one page to
-another you need to keep the kmap_atomic calls strictly nested, like::
+ayesther you need to keep the kmap_atomic calls strictly nested, like::
 
 	vaddr1 = kmap_atomic(page1);
 	vaddr2 = kmap_atomic(page2);
@@ -113,12 +113,12 @@ Cost of Temporary Mappings
 The cost of creating temporary mappings can be quite high.  The arch has to
 manipulate the kernel's page tables, the data TLB and/or the MMU's registers.
 
-If CONFIG_HIGHMEM is not set, then the kernel will try and create a mapping
+If CONFIG_HIGHMEM is yest set, then the kernel will try and create a mapping
 simply with a bit of arithmetic that will convert the page struct address into
 a pointer to the page contents rather than juggling mappings about.  In such a
 case, the unmap operation may be a null operation.
 
-If CONFIG_MMU is not set, then there can be no temporary mappings and no
+If CONFIG_MMU is yest set, then there can be yes temporary mappings and yes
 highmem.  In such a case, the arithmetic approach will also be used.
 
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <regex.h>
 #include <stdlib.h>
@@ -23,7 +23,7 @@
 #include "strbuf.h"
 #include <traceevent/event-parse.h>
 #include "mem-events.h"
-#include "annotate.h"
+#include "anyestate.h"
 #include "time-utils.h"
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -33,14 +33,14 @@ const char	default_parent_pattern[] = "^sys_|^do_page_fault";
 const char	*parent_pattern = default_parent_pattern;
 const char	*default_sort_order = "comm,dso,symbol";
 const char	default_branch_sort_order[] = "comm,dso_from,symbol_from,symbol_to,cycles";
-const char	default_mem_sort_order[] = "local_weight,mem,sym,dso,symbol_daddr,dso_daddr,snoop,tlb,locked";
+const char	default_mem_sort_order[] = "local_weight,mem,sym,dso,symbol_daddr,dso_daddr,syesop,tlb,locked";
 const char	default_top_sort_order[] = "dso,symbol";
 const char	default_diff_sort_order[] = "dso,symbol";
 const char	default_tracepoint_sort_order[] = "trace";
 const char	*sort_order;
 const char	*field_order;
-regex_t		ignore_callees_regex;
-int		have_ignore_callees = 0;
+regex_t		igyesre_callees_regex;
+int		have_igyesre_callees = 0;
 enum sort_mode	sort__mode = SORT_MODE__NORMAL;
 
 /*
@@ -50,7 +50,7 @@ enum sort_mode	sort__mode = SORT_MODE__NORMAL;
  *
  * option, that uses a special separator character and don't pad with spaces,
  * replacing all occurrences of this separator in symbol names (and other
- * output) with a '.' character, that thus it's the only non valid separator.
+ * output) with a '.' character, that thus it's the only yesn valid separator.
 */
 static int repsep_snprintf(char *bf, size_t size, const char *fmt, ...)
 {
@@ -200,7 +200,7 @@ static int _hist_entry__dso_snprintf(struct map *map, char *bf,
 		return repsep_snprintf(bf, size, "%-*.*s", width, width, dso_name);
 	}
 
-	return repsep_snprintf(bf, size, "%-*.*s", width, width, "[unknown]");
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, "[unkyeswn]");
 }
 
 static int hist_entry__dso_snprintf(struct hist_entry *he, char *bf,
@@ -266,7 +266,7 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 		return _sort__addr_cmp(left->ip, right->ip);
 
 	/*
-	 * comparing symbol address alone is not enough since it's a
+	 * comparing symbol address alone is yest eyesugh since it's a
 	 * relative address within a dso.
 	 */
 	if (!hists__has(left->hists, dso) || hists__has(right->hists, dso)) {
@@ -448,21 +448,21 @@ static int hist_entry__sym_ipc_snprintf(struct hist_entry *he, char *bf,
 {
 
 	struct symbol *sym = he->ms.sym;
-	struct annotation *notes;
+	struct anyestation *yestes;
 	double ipc = 0.0, coverage = 0.0;
 	char tmp[64];
 
 	if (!sym)
 		return repsep_snprintf(bf, size, "%-*s", width, "-");
 
-	notes = symbol__annotation(sym);
+	yestes = symbol__anyestation(sym);
 
-	if (notes->hit_cycles)
-		ipc = notes->hit_insn / ((double)notes->hit_cycles);
+	if (yestes->hit_cycles)
+		ipc = yestes->hit_insn / ((double)yestes->hit_cycles);
 
-	if (notes->total_insn) {
-		coverage = notes->cover_insn * 100.0 /
-			((double)notes->total_insn);
+	if (yestes->total_insn) {
+		coverage = yestes->cover_insn * 100.0 /
+			((double)yestes->total_insn);
 	}
 
 	snprintf(tmp, sizeof(tmp), "%-5.2f [%5.1f%%]", ipc, coverage);
@@ -496,7 +496,7 @@ struct sort_entry sort_sym_ipc_null = {
 
 /* --sort srcfile */
 
-static char no_srcfile[1];
+static char yes_srcfile[1];
 
 static char *hist_entry__get_srcfile(struct hist_entry *e)
 {
@@ -504,19 +504,19 @@ static char *hist_entry__get_srcfile(struct hist_entry *e)
 	struct map *map = e->ms.map;
 
 	if (!map)
-		return no_srcfile;
+		return yes_srcfile;
 
 	sf = __get_srcline(map->dso, map__rip_2objdump(map, e->ip),
 			 e->ms.sym, false, true, true, e->ip);
 	if (!strcmp(sf, SRCLINE_UNKNOWN))
-		return no_srcfile;
+		return yes_srcfile;
 	p = strchr(sf, ':');
 	if (p && *sf) {
 		*p = 0;
 		return sf;
 	}
 	free(sf);
-	return no_srcfile;
+	return yes_srcfile;
 }
 
 static int64_t
@@ -602,9 +602,9 @@ static int64_t _sort__cgroup_dev_cmp(u64 left_dev, u64 right_dev)
 	return (int64_t)(right_dev - left_dev);
 }
 
-static int64_t _sort__cgroup_inode_cmp(u64 left_ino, u64 right_ino)
+static int64_t _sort__cgroup_iyesde_cmp(u64 left_iyes, u64 right_iyes)
 {
-	return (int64_t)(right_ino - left_ino);
+	return (int64_t)(right_iyes - left_iyes);
 }
 
 static int64_t
@@ -616,8 +616,8 @@ sort__cgroup_id_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (ret != 0)
 		return ret;
 
-	return _sort__cgroup_inode_cmp(right->cgroup_id.ino,
-				       left->cgroup_id.ino);
+	return _sort__cgroup_iyesde_cmp(right->cgroup_id.iyes,
+				       left->cgroup_id.iyes);
 }
 
 static int hist_entry__cgroup_id_snprintf(struct hist_entry *he,
@@ -625,11 +625,11 @@ static int hist_entry__cgroup_id_snprintf(struct hist_entry *he,
 					  unsigned int width __maybe_unused)
 {
 	return repsep_snprintf(bf, size, "%lu/0x%lx", he->cgroup_id.dev,
-			       he->cgroup_id.ino);
+			       he->cgroup_id.iyes);
 }
 
 struct sort_entry sort_cgroup_id = {
-	.se_header      = "cgroup id (dev/inode)",
+	.se_header      = "cgroup id (dev/iyesde)",
 	.se_cmp	        = sort__cgroup_id_cmp,
 	.se_snprintf    = hist_entry__cgroup_id_snprintf,
 	.se_width_idx	= HISTC_CGROUP_ID,
@@ -680,7 +680,7 @@ static int hist_entry__time_snprintf(struct hist_entry *he, char *bf,
 {
 	char he_time[32];
 
-	if (symbol_conf.nanosecs)
+	if (symbol_conf.nayessecs)
 		timestamp__scnprintf_nsec(he->time, he_time,
 					  sizeof(he_time));
 	else
@@ -719,7 +719,7 @@ static char *get_trace_output(struct hist_entry *he)
 				&seq, &rec, "%s", TEP_PRINT_INFO);
 	}
 	/*
-	 * Trim the buffer, it starts at 4KB and we're not going to
+	 * Trim the buffer, it starts at 4KB and we're yest going to
 	 * add anything more to this buffer.
 	 */
 	return realloc(seq.buffer, seq.len + 1);
@@ -1162,7 +1162,7 @@ static int hist_entry__lvl_snprintf(struct hist_entry *he, char *bf,
 }
 
 static int64_t
-sort__snoop_cmp(struct hist_entry *left, struct hist_entry *right)
+sort__syesop_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	union perf_mem_data_src data_src_l;
 	union perf_mem_data_src data_src_r;
@@ -1170,17 +1170,17 @@ sort__snoop_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (left->mem_info)
 		data_src_l = left->mem_info->data_src;
 	else
-		data_src_l.mem_snoop = PERF_MEM_SNOOP_NA;
+		data_src_l.mem_syesop = PERF_MEM_SNOOP_NA;
 
 	if (right->mem_info)
 		data_src_r = right->mem_info->data_src;
 	else
-		data_src_r.mem_snoop = PERF_MEM_SNOOP_NA;
+		data_src_r.mem_syesop = PERF_MEM_SNOOP_NA;
 
-	return (int64_t)(data_src_r.mem_snoop - data_src_l.mem_snoop);
+	return (int64_t)(data_src_r.mem_syesop - data_src_l.mem_syesop);
 }
 
-static int hist_entry__snoop_snprintf(struct hist_entry *he, char *bf,
+static int hist_entry__syesop_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
 	char out[64];
@@ -1217,18 +1217,18 @@ sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (rc)
 		return rc;
 	/*
-	 * Addresses with no major/minor numbers are assumed to be
-	 * anonymous in userspace.  Sort those on pid then address.
+	 * Addresses with yes major/miyesr numbers are assumed to be
+	 * ayesnymous in userspace.  Sort those on pid then address.
 	 *
-	 * The kernel and non-zero major/minor mapped areas are
+	 * The kernel and yesn-zero major/miyesr mapped areas are
 	 * assumed to be unity mapped.  Sort those on address.
 	 */
 
 	if ((left->cpumode != PERF_RECORD_MISC_KERNEL) &&
 	    (!(l_map->flags & MAP_SHARED)) &&
 	    !l_map->dso->id.maj && !l_map->dso->id.min &&
-	    !l_map->dso->id.ino && !l_map->dso->id.ino_generation) {
-		/* userspace anonymous */
+	    !l_map->dso->id.iyes && !l_map->dso->id.iyes_generation) {
+		/* userspace ayesnymous */
 
 		if (left->thread->pid_ > right->thread->pid_) return -1;
 		if (left->thread->pid_ < right->thread->pid_) return 1;
@@ -1264,7 +1264,7 @@ static int hist_entry__dcacheline_snprintf(struct hist_entry *he, char *bf,
 		     map && !(map->prot & PROT_EXEC) &&
 		    (map->flags & MAP_SHARED) &&
 		    (map->dso->id.maj || map->dso->id.min ||
-		     map->dso->id.ino || map->dso->id.ino_generation))
+		     map->dso->id.iyes || map->dso->id.iyes_generation))
 			level = 's';
 		else if (!map)
 			level = 'X';
@@ -1364,10 +1364,10 @@ struct sort_entry sort_mem_lvl = {
 	.se_width_idx	= HISTC_MEM_LVL,
 };
 
-struct sort_entry sort_mem_snoop = {
-	.se_header	= "Snoop",
-	.se_cmp		= sort__snoop_cmp,
-	.se_snprintf	= hist_entry__snoop_snprintf,
+struct sort_entry sort_mem_syesop = {
+	.se_header	= "Syesop",
+	.se_cmp		= sort__syesop_cmp,
+	.se_snprintf	= hist_entry__syesop_snprintf,
 	.se_width_idx	= HISTC_MEM_SNOOP,
 };
 
@@ -1578,7 +1578,7 @@ static int _hist_entry__sym_size_snprintf(struct symbol *sym, char *bf,
 	if (sym)
 		return repsep_snprintf(bf, bf_size, "%*d", width, symbol__size(sym));
 
-	return repsep_snprintf(bf, bf_size, "%*s", width, "unknown");
+	return repsep_snprintf(bf, bf_size, "%*s", width, "unkyeswn");
 }
 
 static int hist_entry__sym_size_snprintf(struct hist_entry *he, char *bf,
@@ -1618,7 +1618,7 @@ static int _hist_entry__dso_size_snprintf(struct map *map, char *bf,
 		return repsep_snprintf(bf, bf_size, "%*d", width,
 				       map__size(map));
 
-	return repsep_snprintf(bf, bf_size, "%*s", width, "unknown");
+	return repsep_snprintf(bf, bf_size, "%*s", width, "unkyeswn");
 }
 
 static int hist_entry__dso_size_snprintf(struct hist_entry *he, char *bf,
@@ -1693,7 +1693,7 @@ static struct sort_dimension memory_sort_dimensions[] = {
 	DIM(SORT_MEM_LOCKED, "locked", sort_mem_locked),
 	DIM(SORT_MEM_TLB, "tlb", sort_mem_tlb),
 	DIM(SORT_MEM_LVL, "mem", sort_mem_lvl),
-	DIM(SORT_MEM_SNOOP, "snoop", sort_mem_snoop),
+	DIM(SORT_MEM_SNOOP, "syesop", sort_mem_syesop),
 	DIM(SORT_MEM_DCACHELINE, "dcacheline", sort_mem_dcacheline),
 	DIM(SORT_MEM_PHYS_DADDR, "phys_daddr", sort_mem_phys_daddr),
 };
@@ -1932,7 +1932,7 @@ int hist_entry__filter(struct hist_entry *he, int type, const void *arg)
 
 		/*
 		 * hist entry is filtered if any of sort key in the hpp list
-		 * is applied.  But it should skip non-matched filter types.
+		 * is applied.  But it should skip yesn-matched filter types.
 		 */
 		r = hse->se->se_filter(he, type, arg);
 		if (r >= 0) {
@@ -2299,7 +2299,7 @@ static int parse_field_name(char *str, char **event, char **field, char **opt)
 /* find match evsel using a given event name.  The event name can be:
  *   1. '%' + event index (e.g. '%1' for first event)
  *   2. full event name (e.g. sched:sched_switch)
- *   3. partial event name (should not contain ':')
+ *   3. partial event name (should yest contain ':')
  */
 static struct evsel *find_evsel(struct evlist *evlist, char *event_name)
 {
@@ -2453,13 +2453,13 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 
 	evsel = find_evsel(evlist, event_name);
 	if (evsel == NULL) {
-		pr_debug("Cannot find event: %s\n", event_name);
+		pr_debug("Canyest find event: %s\n", event_name);
 		ret = -ENOENT;
 		goto out;
 	}
 
 	if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT) {
-		pr_debug("%s is not a tracepoint event\n", event_name);
+		pr_debug("%s is yest a tracepoint event\n", event_name);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2469,7 +2469,7 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 	} else {
 		field = tep_find_any_field(evsel->tp_format, field_name);
 		if (field == NULL) {
-			pr_debug("Cannot find event field for %s.%s\n",
+			pr_debug("Canyest find event field for %s.%s\n",
 				 event_name, field_name);
 			return -ENOENT;
 		}
@@ -2581,7 +2581,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			/*
 			 * perf diff displays the performance difference amongst
 			 * two or more perf.data files. Those files could come
-			 * from different binaries. So we should not compare
+			 * from different binaries. So we should yest compare
 			 * their ips, but the name of symbol.
 			 */
 			if (sort__mode == SORT_MODE__DIFF)
@@ -2681,12 +2681,12 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 			ret = sort_dimension__add(list, tok, evlist, level);
 			if (ret == -EINVAL) {
 				if (!cacheline_size() && !strncasecmp(tok, "dcacheline", strlen(tok)))
-					ui__error("The \"dcacheline\" --sort key needs to know the cacheline size and it couldn't be determined on this system");
+					ui__error("The \"dcacheline\" --sort key needs to kyesw the cacheline size and it couldn't be determined on this system");
 				else
 					ui__error("Invalid --sort key: `%s'", tok);
 				break;
 			} else if (ret == -ESRCH) {
-				ui__error("Unknown --sort key: `%s'", tok);
+				ui__error("Unkyeswn --sort key: `%s'", tok);
 				break;
 			}
 		}
@@ -2713,7 +2713,7 @@ static const char *get_default_sort_order(struct evlist *evlist)
 	BUG_ON(sort__mode >= ARRAY_SIZE(default_sort_orders));
 
 	if (evlist == NULL || perf_evlist__empty(evlist))
-		goto out_no_evlist;
+		goto out_yes_evlist;
 
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT) {
@@ -2727,7 +2727,7 @@ static const char *get_default_sort_order(struct evlist *evlist)
 		if (symbol_conf.raw_trace)
 			return "trace_fields";
 	}
-out_no_evlist:
+out_yes_evlist:
 	return default_sort_orders[sort__mode];
 }
 
@@ -2753,7 +2753,7 @@ static int setup_sort_order(struct evlist *evlist)
 	 */
 	if (asprintf(&new_sort_order, "%s,%s",
 		     get_default_sort_order(evlist), sort_order + 1) < 0) {
-		pr_err("Not enough memory to set up --sort");
+		pr_err("Not eyesugh memory to set up --sort");
 		return -ENOMEM;
 	}
 
@@ -2763,9 +2763,9 @@ static int setup_sort_order(struct evlist *evlist)
 
 /*
  * Adds 'pre,' prefix into 'str' is 'pre' is
- * not already part of 'str'.
+ * yest already part of 'str'.
  */
-static char *prefix_if_not_in(const char *pre, char *str)
+static char *prefix_if_yest_in(const char *pre, char *str)
 {
 	char *n;
 
@@ -2784,10 +2784,10 @@ static char *setup_overhead(char *keys)
 	if (sort__mode == SORT_MODE__DIFF)
 		return keys;
 
-	keys = prefix_if_not_in("overhead", keys);
+	keys = prefix_if_yest_in("overhead", keys);
 
 	if (symbol_conf.cumulate_callchain)
-		keys = prefix_if_not_in("overhead_children", keys);
+		keys = prefix_if_yest_in("overhead_children", keys);
 
 	return keys;
 }
@@ -2806,8 +2806,8 @@ static int __setup_sorting(struct evlist *evlist)
 	if (sort_keys == NULL) {
 		if (is_strict_order(field_order)) {
 			/*
-			 * If user specified field order but no sort order,
-			 * we'll honor it and not add default sort orders.
+			 * If user specified field order but yes sort order,
+			 * we'll hoyesr it and yest add default sort orders.
 			 */
 			return 0;
 		}
@@ -2817,7 +2817,7 @@ static int __setup_sorting(struct evlist *evlist)
 
 	str = strdup(sort_keys);
 	if (str == NULL) {
-		pr_err("Not enough memory to setup sort keys");
+		pr_err("Not eyesugh memory to setup sort keys");
 		return -ENOMEM;
 	}
 
@@ -2827,7 +2827,7 @@ static int __setup_sorting(struct evlist *evlist)
 	if (!is_strict_order(field_order)) {
 		str = setup_overhead(str);
 		if (str == NULL) {
-			pr_err("Not enough memory to setup overhead keys");
+			pr_err("Not eyesugh memory to setup overhead keys");
 			return -ENOMEM;
 		}
 	}
@@ -2912,7 +2912,7 @@ void sort__setup_elide(FILE *output)
 	}
 
 	/*
-	 * It makes no sense to elide all of sort entries.
+	 * It makes yes sense to elide all of sort entries.
 	 * Just revert them to show up again.
 	 */
 	perf_hpp_list__for_each_format(&perf_hpp_list, fmt) {
@@ -2992,7 +2992,7 @@ static int setup_output_list(struct perf_hpp_list *list, char *str)
 			ui__error("Invalid --fields key: `%s'", tok);
 			break;
 		} else if (ret == -ESRCH) {
-			ui__error("Unknown --fields key: `%s'", tok);
+			ui__error("Unkyeswn --fields key: `%s'", tok);
 			break;
 		}
 	}
@@ -3032,7 +3032,7 @@ static int __setup_output_field(void)
 
 	strp = str = strdup(field_order);
 	if (str == NULL) {
-		pr_err("Not enough memory to setup output fields");
+		pr_err("Not eyesugh memory to setup output fields");
 		return -ENOMEM;
 	}
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_TIME_H
 #define _UAPI_LINUX_TIME_H
 
@@ -9,7 +9,7 @@
 #define _STRUCT_TIMESPEC
 struct timespec {
 	__kernel_old_time_t	tv_sec;		/* seconds */
-	long			tv_nsec;	/* nanoseconds */
+	long			tv_nsec;	/* nayesseconds */
 };
 #endif
 
@@ -56,7 +56,7 @@ struct itimerval {
 #define CLOCK_BOOTTIME_ALARM		9
 /*
  * The driver implementing this got removed. The clock ID is kept as a
- * place holder. Do not reuse!
+ * place holder. Do yest reuse!
  */
 #define CLOCK_SGI_CYCLE			10
 #define CLOCK_TAI			11

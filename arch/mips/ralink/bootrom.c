@@ -19,7 +19,7 @@ static int bootrom_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int bootrom_open(struct inode *inode, struct file *file)
+static int bootrom_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, bootrom_show, NULL);
 }

@@ -20,8 +20,8 @@ struct f_serial_opts {
 };
 
 /*
- * One non-multiplexed "serial" I/O port ... there can be several of these
- * on any given USB peripheral device, if it provides enough endpoints.
+ * One yesn-multiplexed "serial" I/O port ... there can be several of these
+ * on any given USB peripheral device, if it provides eyesugh endpoints.
  *
  * The "u_serial" utility component exists to do one thing:  manage TTY
  * style I/O using the USB peripheral endpoints listed here, including
@@ -43,7 +43,7 @@ struct gserial {
 	/* REVISIT avoid this CDC-ACM support harder ... */
 	struct usb_cdc_line_coding port_line_coding;	/* 9600-8-N-1 etc */
 
-	/* notification callbacks */
+	/* yestification callbacks */
 	void (*connect)(struct gserial *p);
 	void (*disconnect)(struct gserial *p);
 	int (*send_break)(struct gserial *p, int duration);
@@ -54,7 +54,7 @@ struct usb_request *gs_alloc_req(struct usb_ep *ep, unsigned len, gfp_t flags);
 void gs_free_req(struct usb_ep *, struct usb_request *req);
 
 /* management of individual TTY ports */
-int gserial_alloc_line_no_console(unsigned char *port_line);
+int gserial_alloc_line_yes_console(unsigned char *port_line);
 int gserial_alloc_line(unsigned char *port_line);
 void gserial_free_line(unsigned char port_line);
 

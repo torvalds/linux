@@ -19,12 +19,12 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       yestice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of Intel Corporation yesr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
@@ -117,7 +117,7 @@ static int gen3_init_isr(struct intel_ntb_dev *ndev)
 	int i;
 
 	/*
-	 * The MSIX vectors and the interrupt status bits are not lined up
+	 * The MSIX vectors and the interrupt status bits are yest lined up
 	 * on Skylake. By default the link status bit is bit 32, however it
 	 * is by default MSIX vector0. We need to fixup to line them up.
 	 * The vectors at reset is 1-32,0. We need to reprogram to 0-32.
@@ -180,7 +180,7 @@ static int gen3_init_ntb(struct intel_ntb_dev *ndev)
 	ndev->db_count = GEN3_DB_COUNT;
 	ndev->db_link_mask = GEN3_DB_LINK_BIT;
 
-	/* DB fixup for using 31 right now */
+	/* DB fixup for using 31 right yesw */
 	if (ndev->hwerr_flags & NTB_HWERR_MSIX_VECTOR32_BAD)
 		ndev->db_link_mask |= BIT_ULL(31);
 
@@ -429,9 +429,9 @@ static int intel_ntb3_link_enable(struct ntb_dev *ntb,
 		max_speed, max_width);
 
 	if (max_speed != NTB_SPEED_AUTO)
-		dev_dbg(&ntb->pdev->dev, "ignoring max_speed %d\n", max_speed);
+		dev_dbg(&ntb->pdev->dev, "igyesring max_speed %d\n", max_speed);
 	if (max_width != NTB_WIDTH_AUTO)
-		dev_dbg(&ntb->pdev->dev, "ignoring max_width %d\n", max_width);
+		dev_dbg(&ntb->pdev->dev, "igyesring max_width %d\n", max_width);
 
 	ntb_ctl = ioread32(ndev->self_mmio + ndev->reg->ntb_ctl);
 	ntb_ctl &= ~(NTB_CTL_DISABLE | NTB_CTL_CFG_LOCK);
@@ -481,7 +481,7 @@ static int intel_ntb3_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 	limit_reg = ndev->xlat_reg->bar2_limit + (idx * 0x10);
 	base = pci_resource_start(ndev->ntb.pdev, bar);
 
-	/* Set the limit if supported, if size is not mw_size */
+	/* Set the limit if supported, if size is yest mw_size */
 	if (limit_reg && size != mw_size)
 		limit = base + size;
 	else

@@ -62,7 +62,7 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	u32 fw_major = 0;
-	u32 fw_minor = 0;
+	u32 fw_miyesr = 0;
 	u32 fw_build = 0;
 
 	strlcpy(drvinfo->driver, netxen_nic_driver_name,
@@ -70,10 +70,10 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	strlcpy(drvinfo->version, NETXEN_NIC_LINUX_VERSIONID,
 		sizeof(drvinfo->version));
 	fw_major = NXRD32(adapter, NETXEN_FW_VERSION_MAJOR);
-	fw_minor = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
+	fw_miyesr = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
 	fw_build = NXRD32(adapter, NETXEN_FW_VERSION_SUB);
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-		"%d.%d.%d", fw_major, fw_minor, fw_build);
+		"%d.%d.%d", fw_major, fw_miyesr, fw_build);
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
@@ -510,7 +510,7 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 		else
 			pause->tx_pause = !(netxen_xg_get_xg1_mask(val));
 	} else {
-		printk(KERN_ERR"%s: Unknown board type: %x\n",
+		printk(KERN_ERR"%s: Unkyeswn board type: %x\n",
 				netxen_nic_driver_name, adapter->ahw.port_type);
 	}
 }
@@ -523,7 +523,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 	__u32 val;
 	int port = adapter->physical_port;
 
-	/* not supported */
+	/* yest supported */
 	if (pause->autoneg)
 		return -EINVAL;
 
@@ -588,7 +588,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 		}
 		NXWR32(adapter, NETXEN_NIU_XG_PAUSE_CTL, val);
 	} else {
-		printk(KERN_ERR "%s: Unknown board type: %x\n",
+		printk(KERN_ERR "%s: Unkyeswn board type: %x\n",
 				netxen_nic_driver_name,
 				adapter->ahw.port_type);
 	}
@@ -726,7 +726,7 @@ netxen_nic_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 }
 
 /*
- * Set the coalescing parameters. Currently only normal is supported.
+ * Set the coalescing parameters. Currently only yesrmal is supported.
  * If rx_coalesce_usecs == 0 or rx_max_coalesced_frames == 0 then set the
  * firmware coalescing to default.
  */
@@ -771,19 +771,19 @@ static int netxen_set_intr_coalesce(struct net_device *netdev,
 	if (!ethcoal->rx_coalesce_usecs ||
 		!ethcoal->rx_max_coalesced_frames) {
 		adapter->coal.flags = NETXEN_NIC_INTR_DEFAULT;
-		adapter->coal.normal.data.rx_time_us =
+		adapter->coal.yesrmal.data.rx_time_us =
 			NETXEN_DEFAULT_INTR_COALESCE_RX_TIME_US;
-		adapter->coal.normal.data.rx_packets =
+		adapter->coal.yesrmal.data.rx_packets =
 			NETXEN_DEFAULT_INTR_COALESCE_RX_PACKETS;
 	} else {
 		adapter->coal.flags = 0;
-		adapter->coal.normal.data.rx_time_us =
+		adapter->coal.yesrmal.data.rx_time_us =
 		ethcoal->rx_coalesce_usecs;
-		adapter->coal.normal.data.rx_packets =
+		adapter->coal.yesrmal.data.rx_packets =
 		ethcoal->rx_max_coalesced_frames;
 	}
-	adapter->coal.normal.data.tx_time_us = ethcoal->tx_coalesce_usecs;
-	adapter->coal.normal.data.tx_packets =
+	adapter->coal.yesrmal.data.tx_time_us = ethcoal->tx_coalesce_usecs;
+	adapter->coal.yesrmal.data.tx_packets =
 	ethcoal->tx_max_coalesced_frames;
 
 	netxen_config_intr_coalesce(adapter);
@@ -802,12 +802,12 @@ static int netxen_get_intr_coalesce(struct net_device *netdev,
 	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
 		return -EINVAL;
 
-	ethcoal->rx_coalesce_usecs = adapter->coal.normal.data.rx_time_us;
-	ethcoal->tx_coalesce_usecs = adapter->coal.normal.data.tx_time_us;
+	ethcoal->rx_coalesce_usecs = adapter->coal.yesrmal.data.rx_time_us;
+	ethcoal->tx_coalesce_usecs = adapter->coal.yesrmal.data.tx_time_us;
 	ethcoal->rx_max_coalesced_frames =
-		adapter->coal.normal.data.rx_packets;
+		adapter->coal.yesrmal.data.rx_packets;
 	ethcoal->tx_max_coalesced_frames =
-		adapter->coal.normal.data.tx_packets;
+		adapter->coal.yesrmal.data.tx_packets;
 
 	return 0;
 }
@@ -841,11 +841,11 @@ netxen_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 	switch (val->flag) {
 	case NX_FORCE_FW_DUMP_KEY:
 		if (!mdump->md_enabled) {
-			netdev_info(netdev, "FW dump not enabled\n");
+			netdev_info(netdev, "FW dump yest enabled\n");
 			return 0;
 		}
 		if (adapter->fw_mdump_rdy) {
-			netdev_info(netdev, "Previous dump not cleared, not forcing dump\n");
+			netdev_info(netdev, "Previous dump yest cleared, yest forcing dump\n");
 			return 0;
 		}
 		netdev_info(netdev, "Forcing a fw dump\n");
@@ -897,7 +897,7 @@ netxen_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 
 
 	if (!adapter->fw_mdump_rdy) {
-		netdev_info(netdev, "Dump not available\n");
+		netdev_info(netdev, "Dump yest available\n");
 		return -EINVAL;
 	}
 	/* Copy template header first */

@@ -419,7 +419,7 @@ static void set_ak5385_params(struct oxygen *chip,
 			      value, GPIO_AK5385_DFS_MASK);
 }
 
-static void set_no_params(struct oxygen *chip, struct snd_pcm_hw_params *params)
+static void set_yes_params(struct oxygen *chip, struct snd_pcm_hw_params *params)
 {
 }
 
@@ -807,7 +807,7 @@ static int get_oxygen_model(struct oxygen *chip,
 			chip->model.init = stereo_output_init;
 		chip->model.resume = stereo_resume;
 		chip->model.mixer_init = generic_mixer_init;
-		chip->model.set_adc_params = set_no_params;
+		chip->model.set_adc_params = set_yes_params;
 		chip->model.dump_registers = dump_ak4396_registers;
 		chip->model.device_config = PLAYBACK_0_TO_I2S |
 					    PLAYBACK_1_TO_SPDIF;

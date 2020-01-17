@@ -60,7 +60,7 @@ static struct vgastate vgastate;
 
 #define BLANK 0x0020
 
-#define VGA_FONTWIDTH       8   /* VGA does not support fontwidths != 8 */
+#define VGA_FONTWIDTH       8   /* VGA does yest support fontwidths != 8 */
 /*
  *  Interface used by the world
  */
@@ -113,34 +113,34 @@ static int __init text_mode(char *str)
 {
 	vgacon_text_mode_force = true;
 
-	pr_warn("You have booted with nomodeset. This means your GPU drivers are DISABLED\n");
-	pr_warn("Any video related functionality will be severely degraded, and you may not even be able to suspend the system properly\n");
-	pr_warn("Unless you actually understand what nomodeset does, you should reboot without enabling it\n");
+	pr_warn("You have booted with yesmodeset. This means your GPU drivers are DISABLED\n");
+	pr_warn("Any video related functionality will be severely degraded, and you may yest even be able to suspend the system properly\n");
+	pr_warn("Unless you actually understand what yesmodeset does, you should reboot without enabling it\n");
 
 	return 1;
 }
 
 /* force text mode - used by kernel modesetting */
-__setup("nomodeset", text_mode);
+__setup("yesmodeset", text_mode);
 
-static int __init no_scroll(char *str)
+static int __init yes_scroll(char *str)
 {
 	/*
 	 * Disabling scrollback is required for the Braillex ib80-piezo
 	 * Braille reader made by F.H. Papenmeier (Germany).
-	 * Use the "no-scroll" bootflag.
+	 * Use the "yes-scroll" bootflag.
 	 */
 	vga_hardscroll_user_enable = vga_hardscroll_enabled = false;
 	return 1;
 }
 
-__setup("no-scroll", no_scroll);
+__setup("yes-scroll", yes_scroll);
 
 /*
  * By replacing the four outb_p with two back to back outw, we can reduce
  * the window of opportunity to see text mislocated to the RHS of the
  * console during heavy scrolling activity. However there is the remote
- * possibility that some pre-dinosaur hardware won't like the back to back
+ * possibility that some pre-diyessaur hardware won't like the back to back
  * I/O. Since the Xservers get away with it, we should be able to as well.
  */
 static inline void write_vga(unsigned char reg, unsigned int val)
@@ -395,7 +395,7 @@ static const char *vgacon_startup(void)
 
 	if (screen_info.orig_video_isVGA == VIDEO_TYPE_VLFB ||
 	    screen_info.orig_video_isVGA == VIDEO_TYPE_EFI) {
-	      no_vga:
+	      yes_vga:
 #ifdef CONFIG_DUMMY_CONSOLE
 		conswitchp = &dummy_con;
 		return conswitchp->con_startup();
@@ -407,22 +407,22 @@ static const char *vgacon_startup(void)
 	/* boot_params.screen_info reasonably initialized? */
 	if ((screen_info.orig_video_lines == 0) ||
 	    (screen_info.orig_video_cols  == 0))
-		goto no_vga;
+		goto yes_vga;
 
-	/* VGA16 modes are not handled by VGACON */
+	/* VGA16 modes are yest handled by VGACON */
 	if ((screen_info.orig_video_mode == 0x0D) ||	/* 320x200/4 */
 	    (screen_info.orig_video_mode == 0x0E) ||	/* 640x200/4 */
 	    (screen_info.orig_video_mode == 0x10) ||	/* 640x350/4 */
 	    (screen_info.orig_video_mode == 0x12) ||	/* 640x480/4 */
 	    (screen_info.orig_video_mode == 0x6A))	/* 800x600/4 (VESA) */
-		goto no_vga;
+		goto yes_vga;
 
 	vga_video_num_lines = screen_info.orig_video_lines;
 	vga_video_num_columns = screen_info.orig_video_cols;
 	vgastate.vgabase = NULL;
 
 	if (screen_info.orig_video_mode == 7) {
-		/* Monochrome display */
+		/* Moyeschrome display */
 		vga_vram_base = 0xb0000;
 		vga_video_port_reg = VGA_CRT_IM;
 		vga_video_port_val = VGA_CRT_DM;
@@ -458,7 +458,7 @@ static const char *vgacon_startup(void)
 			vga_video_font_height = 14;
 		}
 	} else {
-		/* If not, it is color. */
+		/* If yest, it is color. */
 		vga_can_do_color = true;
 		vga_vram_base = 0xb8000;
 		vga_video_port_reg = VGA_CRT_IC;
@@ -543,14 +543,14 @@ static const char *vgacon_startup(void)
 	if (scr_readw(p) != 0xAA55 || scr_readw(p + 1) != 0x55AA) {
 		scr_writew(saved1, p);
 		scr_writew(saved2, p + 1);
-		goto no_vga;
+		goto yes_vga;
 	}
 	scr_writew(0x55AA, p);
 	scr_writew(0xAA55, p + 1);
 	if (scr_readw(p) != 0x55AA || scr_readw(p + 1) != 0xAA55) {
 		scr_writew(saved1, p);
 		scr_writew(saved2, p + 1);
-		goto no_vga;
+		goto yes_vga;
 	}
 	scr_writew(saved1, p);
 	scr_writew(saved2, p + 1);
@@ -582,9 +582,9 @@ static void vgacon_init(struct vc_data *c, int init)
 	struct uni_pagedir *p;
 
 	/*
-	 * We cannot be loaded as a module, therefore init is always 1,
+	 * We canyest be loaded as a module, therefore init is always 1,
 	 * but vgacon_init can be called more than once, and init will
-	 * not be 1.
+	 * yest be 1.
 	 */
 	c->vc_can_do_color = vga_can_do_color;
 
@@ -864,7 +864,7 @@ static int vgacon_switch(struct vc_data *c)
 	}
 
 	vgacon_scrollback_switch(c->vc_num);
-	return 0;		/* Redrawing not needed */
+	return 0;		/* Redrawing yest needed */
 }
 
 static void vga_set_palette(struct vc_data *vc, const unsigned char *table)
@@ -1064,7 +1064,7 @@ static int vgacon_blank(struct vc_data *c, int blank, int mode_switch)
  * reference is: "From: p. 307 of _Programmer's Guide to PC & PS/2
  * Video Systems_ by Richard Wilton. 1987.  Microsoft Press".)
  *
- * Change for certain monochrome monitors by Yury Shevchuck
+ * Change for certain moyeschrome monitors by Yury Shevchuck
  * (sizif@botik.yaroslavl.su).
  */
 
@@ -1095,7 +1095,7 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 	 */
 
 	if (!arg)
-		return -EINVAL;	/* Return to default font not supported */
+		return -EINVAL;	/* Return to default font yest supported */
 
 	vga_font_is_default = false;
 	font_select = ch512 ? 0x04 : 0x00;
@@ -1123,7 +1123,7 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 	vga_wseq(state->vgabase, VGA_SEQ_PLANE_WRITE, 0x04);	
 	/* Sequential addressing */
 	vga_wseq(state->vgabase, VGA_SEQ_MEMORY_MODE, 0x07);	
-	/* Clear synchronous reset */
+	/* Clear synchroyesus reset */
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x03);
 
 	/* Now, the graphics controller, select map 2 */
@@ -1147,7 +1147,7 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 			}
 
 		/*
-		 * In 512-character mode, the character map is not contiguous if
+		 * In 512-character mode, the character map is yest contiguous if
 		 * we want to remain EGA compatible -- which we do
 		 */
 
@@ -1168,7 +1168,7 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 	}
 
 	raw_spin_lock_irq(&vga_lock);
-	/* First, the sequencer, Synchronous reset */
+	/* First, the sequencer, Synchroyesus reset */
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x01);	
 	/* CPU writes to maps 0 and 1 */
 	vga_wseq(state->vgabase, VGA_SEQ_PLANE_WRITE, 0x03);
@@ -1177,7 +1177,7 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 	/* Character Map Select */
 	if (set)
 		vga_wseq(state->vgabase, VGA_SEQ_CHARACTER_MAP, font_select);
-	/* clear synchronous reset */
+	/* clear synchroyesus reset */
 	vga_wseq(state->vgabase, VGA_SEQ_RESET, 0x03);
 
 	/* Now, the graphics controller, select map 0 for CPU */
@@ -1195,7 +1195,7 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 		inb_p(video_port_status);	/* clear address flip-flop */
 		/* color plane enable register */
 		vga_wattr(state->vgabase, VGA_ATC_PLANE_ENABLE, ch512 ? 0x07 : 0x0f);
-		/* Wilton (1987) mentions the following; I don't know what
+		/* Wilton (1987) mentions the following; I don't kyesw what
 		   it means, but it works, and it appears necessary */
 		inb_p(video_port_status);
 		vga_wattr(state->vgabase, VGA_AR_ENABLE_DISPLAY, 0);	
@@ -1323,7 +1323,7 @@ static int vgacon_resize(struct vc_data *c, unsigned int width,
 		   return success */
 		return (user) ? 0 : -EINVAL;
 
-	if (con_is_visible(c) && !vga_is_gfx) /* who knows */
+	if (con_is_visible(c) && !vga_is_gfx) /* who kyesws */
 		vgacon_doresize(c, width, height);
 	return 0;
 }

@@ -35,7 +35,7 @@
 /*
  * The ST-RAM allocator allocates memory from a pool of reserved ST-RAM of
  * configurable size, set aside on ST-RAM init.
- * As long as this pool is not exhausted, allocation of real ST-RAM can be
+ * As long as this pool is yest exhausted, allocation of real ST-RAM can be
  * guaranteed.
  */
 
@@ -83,7 +83,7 @@ void __init atari_stram_init(void)
 	}
 
 	/* Should never come here! (There is always ST-Ram!) */
-	panic("atari_stram_init: no ST-RAM found!");
+	panic("atari_stram_init: yes ST-RAM found!");
 }
 
 
@@ -114,7 +114,7 @@ void __init atari_stram_reserve_pages(void *start_mem)
 
 /*
  * This function is called as arch initcall to reserve the pages needed for
- * ST-RAM management, if the kernel does not reside in ST-RAM.
+ * ST-RAM management, if the kernel does yest reside in ST-RAM.
  */
 int __init atari_stram_map_pages(void)
 {
@@ -122,7 +122,7 @@ int __init atari_stram_map_pages(void)
 		/*
 		 * Skip page 0, as the fhe first 2 KiB are supervisor-only!
 		 */
-		pr_debug("atari_stram pool: kernel not in ST-RAM, using ioremap!\n");
+		pr_debug("atari_stram pool: kernel yest in ST-RAM, using ioremap!\n");
 		stram_pool.start = PAGE_SIZE;
 		stram_pool.end = stram_pool.start + pool_size - 1;
 		request_resource(&iomem_resource, &stram_pool);
@@ -190,7 +190,7 @@ void atari_stram_free(void *addr)
 
 	res = lookup_resource(&stram_pool, start);
 	if (!res) {
-		pr_err("atari_stram_free: trying to free nonexistent region "
+		pr_err("atari_stram_free: trying to free yesnexistent region "
 		       "at %p\n", addr);
 		return;
 	}

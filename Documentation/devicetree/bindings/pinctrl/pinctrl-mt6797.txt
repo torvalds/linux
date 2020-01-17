@@ -9,25 +9,25 @@ Required properties:
               iocfgr and iocfgt register bases.
 - reg-names:  An array of strings describing the "reg" entries. Must
               contain "gpio", "iocfgl", "iocfgb", "iocfgr", "iocfgt".
-- gpio-controller: Marks the device node as a gpio controller.
+- gpio-controller: Marks the device yesde as a gpio controller.
 - #gpio-cells: Should be two. The first cell is the gpio pin number
                and the second cell is used for optional parameters.
 
 Optional properties:
-- interrupt-controller: Marks the device node as an interrupt controller.
+- interrupt-controller: Marks the device yesde as an interrupt controller.
 - #interrupt-cells: Should be two.
 - interrupts : The interrupt outputs from the controller.
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices.
 
-Subnode format
-A pinctrl node should contain at least one subnodes representing the
-pinctrl groups available on the machine. Each subnode will list the
+Subyesde format
+A pinctrl yesde should contain at least one subyesdes representing the
+pinctrl groups available on the machine. Each subyesde will list the
 pins it needs, and how they should be configured, with regard to muxer
 configuration, pullups, drive strength, input enable/disable and input schmitt.
 
-    node {
+    yesde {
         pinmux = <PIN_NUMBER_PINMUX>;
         GENERIC_PINCONFIG;
     };
@@ -43,12 +43,12 @@ Optional properties:
     input-schmitt-disable, output-enable output-low, output-high,
     drive-strength, and slew-rate are valid.
 
-    Valid arguments for 'slew-rate' are '0' for no slew rate controlled and
+    Valid arguments for 'slew-rate' are '0' for yes slew rate controlled and
     '1' for slower slew rate respectively. Valid arguments for 'drive-strength'
     is limited, such as 2, 4, 8, 12, or 16 in mA.
 
     Some optional vendor properties as defined are valid to specify in a
-    pinconf subnode:
+    pinconf subyesde:
     - mediatek,tdsel: An integer describing the steps for output level shifter
       duty cycle when asserted (high pulse width adjustment). Valid arguments
       are from 0 to 15.

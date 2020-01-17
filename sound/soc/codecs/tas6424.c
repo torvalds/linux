@@ -8,7 +8,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
@@ -65,7 +65,7 @@ static const struct snd_kcontrol_new tas6424_snd_controls[] = {
 		       TAS6424_CH3_VOL_CTRL, 0, 0xff, 0, dac_tlv),
 	SOC_SINGLE_TLV("Speaker Driver CH4 Playback Volume",
 		       TAS6424_CH4_VOL_CTRL, 0, 0xff, 0, dac_tlv),
-	SOC_SINGLE_STROBE("Auto Diagnostics Switch", TAS6424_DC_DIAG_CTRL1,
+	SOC_SINGLE_STROBE("Auto Diagyesstics Switch", TAS6424_DC_DIAG_CTRL1,
 			  TAS6424_LDGBYPASS_SHIFT, 1),
 };
 
@@ -187,9 +187,9 @@ static int tas6424_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
 		/*
-		 * We can use the fact that the TAS6424 does not care about the
+		 * We can use the fact that the TAS6424 does yest care about the
 		 * LRCLK duty cycle during TDM to receive DSP_B formatted data
-		 * in LEFTJ mode (no delaying of the 1st data bit).
+		 * in LEFTJ mode (yes delaying of the 1st data bit).
 		 */
 		serial_format |= TAS6424_SAP_LEFTJ;
 		break;
@@ -219,12 +219,12 @@ static int tas6424_set_dai_tdm_slot(struct snd_soc_dai *dai,
 		tx_mask, rx_mask);
 
 	if (!tx_mask || !rx_mask)
-		return 0; /* nothing needed to disable TDM mode */
+		return 0; /* yesthing needed to disable TDM mode */
 
 	/*
 	 * Determine the first slot and last slot that is being requested so
 	 * we'll be able to more easily enforce certain constraints as the
-	 * TAS6424's TDM interface is not fully configurable.
+	 * TAS6424's TDM interface is yest fully configurable.
 	 */
 	first_slot = __ffs(tx_mask);
 	last_slot = __fls(rx_mask);
@@ -300,11 +300,11 @@ static int tas6424_power_on(struct snd_soc_component *component)
 	struct tas6424_data *tas6424 = snd_soc_component_get_drvdata(component);
 	int ret;
 	u8 chan_states;
-	int no_auto_diags = 0;
+	int yes_auto_diags = 0;
 	unsigned int reg_val;
 
 	if (!regmap_read(tas6424->regmap, TAS6424_DC_DIAG_CTRL1, &reg_val))
-		no_auto_diags = reg_val & TAS6424_LDGBYPASS_MASK;
+		yes_auto_diags = reg_val & TAS6424_LDGBYPASS_MASK;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(tas6424->supplies),
 				    tas6424->supplies);
@@ -326,7 +326,7 @@ static int tas6424_power_on(struct snd_soc_component *component)
 		/*
 		 * channels are muted via the mute pin.  Don't also mute
 		 * them via the registers so that subsequent register
-		 * access is not necessary to un-mute the channels
+		 * access is yest necessary to un-mute the channels
 		 */
 		chan_states = TAS6424_ALL_STATE_PLAY;
 	} else {
@@ -335,10 +335,10 @@ static int tas6424_power_on(struct snd_soc_component *component)
 	snd_soc_component_write(component, TAS6424_CH_STATE_CTRL, chan_states);
 
 	/* any time we come out of HIZ, the output channels automatically run DC
-	 * load diagnostics if autodiagnotics are enabled. wait here until this
+	 * load diagyesstics if autodiagyestics are enabled. wait here until this
 	 * completes.
 	 */
-	if (!no_auto_diags)
+	if (!yes_auto_diags)
 		msleep(230);
 
 	return 0;
@@ -375,7 +375,7 @@ static struct snd_soc_component_driver soc_codec_dev_tas6424 = {
 	.num_dapm_routes	= ARRAY_SIZE(tas6424_audio_map),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_dai_ops tas6424_speaker_dai_ops = {
@@ -459,10 +459,10 @@ check_global_fault1_reg:
 	}
 
 	/*
-	 * Ignore any clock faults as there is no clean way to check for them.
+	 * Igyesre any clock faults as there is yes clean way to check for them.
 	 * We would need to start checking for those faults *after* the SAIF
 	 * stream has been setup, and stop checking *before* the stream is
-	 * stopped to avoid any false-positives. However there are no
+	 * stopped to avoid any false-positives. However there are yes
 	 * appropriate hooks to monitor these events.
 	 */
 	reg &= TAS6424_FAULT_PVDD_OV |

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009-2010 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #include <linux/module.h>
@@ -180,7 +180,7 @@ int wlcore_cmd_wait_for_event_or_timeout(struct wl1271 *wl,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto free_vector;
 	}
 
@@ -326,7 +326,7 @@ int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 
 	/*
 	 * take the last "freed packets" value from the current FW status.
-	 * on recovery, we might not have fw_status yet, and
+	 * on recovery, we might yest have fw_status yet, and
 	 * tx_lnk_free_pkts will be NULL. check for it.
 	 */
 	if (wl->fw_status->counters.tx_lnk_free_pkts)
@@ -366,7 +366,7 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	eth_zero_addr(wl->links[*hlid].addr);
 
 	/*
-	 * At this point op_tx() will not add more packets to the queues. We
+	 * At this point op_tx() will yest add more packets to the queues. We
 	 * can purge them.
 	 */
 	wl1271_tx_reset_link_queues(wl, *hlid);
@@ -549,7 +549,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	/*
 	 * We don't have the correct remote rates in this stage.  The
 	 * rates will be reconfigured later, after association, if the
-	 * firmware supports ACX_PEER_CAP.  Otherwise, there's nothing
+	 * firmware supports ACX_PEER_CAP.  Otherwise, there's yesthing
 	 * we can do, so use all supported_rates here.
 	 */
 	cmd->sta.remote_rates = cpu_to_le32(supported_rates);
@@ -699,7 +699,7 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		cmd->band = WLCORE_BAND_5GHZ;
 		break;
 	default:
-		wl1271_warning("ap start - unknown band: %d", (int)wlvif->band);
+		wl1271_warning("ap start - unkyeswn band: %d", (int)wlvif->band);
 		cmd->band = WLCORE_BAND_2_4GHZ;
 		break;
 	}
@@ -867,7 +867,7 @@ int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf,
 
 	acx->id = cpu_to_le16(id);
 
-	/* response payload length, does not include any headers */
+	/* response payload length, does yest include any headers */
 	acx->len = cpu_to_le16(res_len - sizeof(*acx));
 
 	ret = wl1271_cmd_send(wl, CMD_INTERROGATE, acx, cmd_len, res_len);
@@ -900,7 +900,7 @@ int wlcore_cmd_configure_failsafe(struct wl1271 *wl, u16 id, void *buf,
 
 	acx->id = cpu_to_le16(id);
 
-	/* payload length, does not include any headers */
+	/* payload length, does yest include any headers */
 	acx->len = cpu_to_le16(len - sizeof(*acx));
 
 	ret = wlcore_cmd_send_failsafe(wl, CMD_CONFIGURE, acx, len, 0,
@@ -1263,7 +1263,7 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		extra = 0;
 		break;
 	default:
-		wl1271_warning("Unknown encryption type: %d",
+		wl1271_warning("Unkyeswn encryption type: %d",
 			       wlvif->encryption_type);
 		ret = -EINVAL;
 		goto out;
@@ -1317,7 +1317,7 @@ int wl1271_build_qos_null_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 					     IEEE80211_STYPE_QOS_NULLFUNC |
 					     IEEE80211_FCTL_TODS);
 
-	/* FIXME: not sure what priority to use here */
+	/* FIXME: yest sure what priority to use here */
 	template.qos_ctrl = cpu_to_le16(0);
 
 	return wl1271_cmd_template_set(wl, wlvif->role_id,
@@ -1412,7 +1412,7 @@ int wl1271_cmd_set_sta_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	ret = wl1271_cmd_send(wl, CMD_SET_KEYS, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
-		wl1271_warning("could not set keys");
+		wl1271_warning("could yest set keys");
 		goto out;
 	}
 
@@ -1424,7 +1424,7 @@ out:
 
 /*
  * TODO: merge with sta/ibss into 1 set_key function.
- * note there are slight diffs
+ * yeste there are slight diffs
  */
 int wl1271_cmd_set_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			  u16 action, u8 id, u8 key_type,
@@ -1479,7 +1479,7 @@ int wl1271_cmd_set_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	ret = wl1271_cmd_send(wl, CMD_SET_KEYS, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
-		wl1271_warning("could not set ap keys");
+		wl1271_warning("could yest set ap keys");
 		goto out;
 	}
 
@@ -1567,7 +1567,7 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	if (!cmd->supported_rates) {
 		wl1271_debug(DEBUG_CMD,
-			     "peer has no supported rates yet, configuring basic rates: 0x%x",
+			     "peer has yes supported rates yet, configuring basic rates: 0x%x",
 			     wlvif->basic_rate_set);
 		cmd->supported_rates = cpu_to_le32(wlvif->basic_rate_set);
 	}
@@ -1620,8 +1620,8 @@ int wl12xx_cmd_remove_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				      &timeout);
 
 	/*
-	 * We are ok with a timeout here. The event is sometimes not sent
-	 * due to a firmware bug. In case of another error (like SDIO timeout)
+	 * We are ok with a timeout here. The event is sometimes yest sent
+	 * due to a firmware bug. In case of ayesther error (like SDIO timeout)
 	 * queue a recovery.
 	 */
 	if (ret)
@@ -1671,7 +1671,7 @@ static int wlcore_get_reg_conf_ch_idx(enum nl80211_band band, u16 ch)
 		break;
 	}
 
-	wl1271_error("%s: unknown band/channel: %d/%d", __func__, band, ch);
+	wl1271_error("%s: unkyeswn band/channel: %d/%d", __func__, band, ch);
 	return -1;
 }
 
@@ -1880,7 +1880,7 @@ static int wl12xx_cmd_roc(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		cmd->band = WLCORE_BAND_5GHZ;
 		break;
 	default:
-		wl1271_error("roc - unknown band: %d", (int)wlvif->band);
+		wl1271_error("roc - unkyeswn band: %d", (int)wlvif->band);
 		ret = -EINVAL;
 		goto out_free;
 	}

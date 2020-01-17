@@ -3,10 +3,10 @@
  * linux/arch/arm/plat-omap/dma.c
  *
  * Copyright (C) 2003 - 2008 Nokia Corporation
- * Author: Juha Yrjölä <juha.yrjola@nokia.com>
- * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@nokia.com>
+ * Author: Juha Yrjölä <juha.yrjola@yeskia.com>
+ * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@yeskia.com>
  * Graphics DMA and LCD DMA graphics tranformations
- * by Imre Deak <imre.deak@nokia.com>
+ * by Imre Deak <imre.deak@yeskia.com>
  * OMAP2/3 support Copyright (C) 2004-2007 Texas Instruments, Inc.
  * Merged to support both OMAP1 and OMAP2 by Tony Lindgren <tony@atomide.com>
  * Some functions based on earlier dma-omap.c Copyright (C) 2001 RidgeRun, Inc.
@@ -25,7 +25,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
@@ -79,7 +79,7 @@ static struct omap_dma_global_context_registers {
 
 struct dma_link_info {
 	int *linked_dmach_q;
-	int no_of_lchs_linked;
+	int yes_of_lchs_linked;
 
 	int q_count;
 	int q_tail;
@@ -102,17 +102,17 @@ static struct dma_link_info *dma_linked_lch;
 		dma_linked_lch[chain_id].q_count = 0;			\
 	} while (0)
 #define OMAP_DMA_CHAIN_QFULL(chain_id)					\
-		(dma_linked_lch[chain_id].no_of_lchs_linked ==		\
+		(dma_linked_lch[chain_id].yes_of_lchs_linked ==		\
 		dma_linked_lch[chain_id].q_count)
 #define OMAP_DMA_CHAIN_QLAST(chain_id)					\
 	do {								\
-		((dma_linked_lch[chain_id].no_of_lchs_linked-1) ==	\
+		((dma_linked_lch[chain_id].yes_of_lchs_linked-1) ==	\
 		dma_linked_lch[chain_id].q_count)			\
 	} while (0)
 #define OMAP_DMA_CHAIN_QEMPTY(chain_id)					\
 		(0 == dma_linked_lch[chain_id].q_count)
 #define __OMAP_DMA_CHAIN_INCQ(end)					\
-	((end) = ((end)+1) % dma_linked_lch[chain_id].no_of_lchs_linked)
+	((end) = ((end)+1) % dma_linked_lch[chain_id].yes_of_lchs_linked)
 #define OMAP_DMA_CHAIN_INCQHEAD(chain_id)				\
 	do {								\
 		__OMAP_DMA_CHAIN_INCQ(dma_linked_lch[chain_id].q_head);	\
@@ -137,7 +137,7 @@ static inline void disable_lnk(int lch);
 static void omap_disable_channel_irq(int lch);
 static inline void omap_enable_channel_irq(int lch);
 
-#define REVISIT_24XX()		printk(KERN_ERR "FIXME: no %s on 24xx\n", \
+#define REVISIT_24XX()		printk(KERN_ERR "FIXME: yes %s on 24xx\n", \
 						__func__);
 
 #ifdef CONFIG_ARCH_OMAP15XX
@@ -386,7 +386,7 @@ void omap_set_dma_src_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 			break;
 		}
 		/*
-		 * not supported by current hardware on OMAP1
+		 * yest supported by current hardware on OMAP1
 		 * w |= (0x03 << 7);
 		 */
 		/* fall through */
@@ -727,7 +727,7 @@ omap_dma_set_global_params(int arb_rate, int max_fifo_depth, int tparams)
 	u32 reg;
 
 	if (dma_omap1()) {
-		printk(KERN_ERR "FIXME: no %s on 15xx/16xx\n", __func__);
+		printk(KERN_ERR "FIXME: yes %s on 15xx/16xx\n", __func__);
 		return;
 	}
 
@@ -840,7 +840,7 @@ void omap_start_dma(int lch)
 
 	/*
 	 * As dma_write() uses IO accessors which are weakly ordered, there
-	 * is no guarantee that data in coherent DMA memory will be visible
+	 * is yes guarantee that data in coherent DMA memory will be visible
 	 * to the DMA device.  Add a memory barrier here to ensure that any
 	 * such data is visible prior to enabling DMA.
 	 */
@@ -884,7 +884,7 @@ void omap_stop_dma(int lch)
 			l = p->dma_read(CCR, lch);
 		}
 		if (i >= 100)
-			pr_err("DMA drain did not complete on lch %d\n", lch);
+			pr_err("DMA drain did yest complete on lch %d\n", lch);
 		/* Restore OCP_SYSCONFIG */
 		p->dma_write(sys_cf, OCP_SYSCONFIG, lch);
 	} else {
@@ -937,7 +937,7 @@ int omap_set_dma_callback(int lch,
 
 	spin_lock_irqsave(&dma_chan_lock, flags);
 	if (dma_chan[lch].dev_id == -1) {
-		printk(KERN_ERR "DMA callback for not set for free channel\n");
+		printk(KERN_ERR "DMA callback for yest set for free channel\n");
 		spin_unlock_irqrestore(&dma_chan_lock, flags);
 		return -EINVAL;
 	}
@@ -972,7 +972,7 @@ dma_addr_t omap_get_dma_src_pos(int lch)
 	if (!dma_omap15xx()) {
 		/*
 		 * CDAC == 0 indicates that the DMA transfer on the channel has
-		 * not been started (no data has been transferred so far).
+		 * yest been started (yes data has been transferred so far).
 		 * Return the programmed source start address in this case.
 		 */
 		if (likely(p->dma_read(CDAC, lch)))
@@ -1013,7 +1013,7 @@ dma_addr_t omap_get_dma_dst_pos(int lch)
 		offset = p->dma_read(CDAC, lch);
 		/*
 		 * CDAC == 0 indicates that the DMA transfer on the channel has
-		 * not been started (no data has been transferred so far).
+		 * yest been started (yes data has been transferred so far).
 		 * Return the programmed destination start address in this case.
 		 */
 		if (unlikely(!offset))
@@ -1061,14 +1061,14 @@ void omap_dma_link_lch(int lch_head, int lch_queue)
 								CCR, lch_head);
 			return;
 		}
-		printk(KERN_ERR "DMA linking is not supported in 1510 mode\n");
+		printk(KERN_ERR "DMA linking is yest supported in 1510 mode\n");
 		BUG();
 		return;
 	}
 
 	if ((dma_chan[lch_head].dev_id == -1) ||
 	    (dma_chan[lch_queue].dev_id == -1)) {
-		pr_err("omap_dma: trying to link non requested channels\n");
+		pr_err("omap_dma: trying to link yesn requested channels\n");
 		dump_stack();
 	}
 
@@ -1119,14 +1119,14 @@ static irqreturn_t omap1_dma_irq_handler(int irq, void *dev_id)
 	int handled = 0;
 
 	for (;;) {
-		int handled_now = 0;
+		int handled_yesw = 0;
 
-		handled_now += omap1_dma_handle_ch(ch);
+		handled_yesw += omap1_dma_handle_ch(ch);
 		if (enable_1510_mode && dma_chan[ch + 6].saved_csr)
-			handled_now += omap1_dma_handle_ch(ch + 6);
-		if (!handled_now)
+			handled_yesw += omap1_dma_handle_ch(ch + 6);
+		if (!handled_yesw)
 			break;
-		handled += handled_now;
+		handled += handled_yesw;
 	}
 
 	return handled ? IRQ_HANDLED : IRQ_NONE;
@@ -1150,7 +1150,7 @@ static int omap2_dma_handle_ch(int ch)
 	}
 	if (unlikely(dma_chan[ch].dev_id == -1)) {
 		if (printk_ratelimit())
-			pr_warn("IRQ %04x for non-allocated DMA channel %d\n",
+			pr_warn("IRQ %04x for yesn-allocated DMA channel %d\n",
 				status, ch);
 		return 0;
 	}
@@ -1181,7 +1181,7 @@ static int omap2_dma_handle_ch(int ch)
 	/* read back the register to flush the write */
 	p->dma_read(IRQSTATUS_L0, ch);
 
-	/* If the ch is not chained then chain_id will be -1 */
+	/* If the ch is yest chained then chain_id will be -1 */
 	if (dma_chan[ch].chain_id != -1) {
 		int chain_id = dma_chan[ch].chain_id;
 		dma_chan[ch].state = DMA_CH_NOTSTARTED;
@@ -1241,8 +1241,8 @@ static struct irqaction omap24xx_dma_irq;
 
 /*
  * Note that we are currently using only IRQENABLE_L0 and L1.
- * As the DSP may be using IRQENABLE_L2 and L3, let's not
- * touch those for now.
+ * As the DSP may be using IRQENABLE_L2 and L3, let's yest
+ * touch those for yesw.
  */
 void omap_dma_global_context_save(void)
 {

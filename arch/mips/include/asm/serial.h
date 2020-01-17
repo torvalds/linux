@@ -7,7 +7,7 @@
 
 #ifdef CONFIG_MIPS_GENERIC
 /*
- * Generic kernels cannot know a correct value for all platforms at
+ * Generic kernels canyest kyesw a correct value for all platforms at
  * compile time. Set it to 0 to prevent 8250_early using it
  */
 #define BASE_BAUD 0

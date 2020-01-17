@@ -4,7 +4,7 @@ Broadcom Cygnus device tree bindings
 
 Boards with Cygnus SoCs shall have the following properties:
 
-Required root node property:
+Required root yesde property:
 
 BCM11300
 compatible = "brcm,bcm11300", "brcm,cygnus";

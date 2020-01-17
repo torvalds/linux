@@ -23,7 +23,7 @@ int saa7146_res_get(struct saa7146_fh *fh, unsigned int bit)
 	if (vv->resources & bit) {
 		DEB_D("locked! vv->resources:0x%02x, we want:0x%02x\n",
 		      vv->resources, bit);
-		/* no, someone else uses it */
+		/* yes, someone else uses it */
 		return 0;
 	}
 	/* it's free, grab it */
@@ -101,7 +101,7 @@ void saa7146_buffer_finish(struct saa7146_dev *dev,
 
 	/* finish current buffer */
 	if (NULL == q->curr) {
-		DEB_D("aiii. no current buffer\n");
+		DEB_D("aiii. yes current buffer\n");
 		return;
 	}
 
@@ -133,12 +133,12 @@ void saa7146_buffer_next(struct saa7146_dev *dev,
 			buf, q->queue.prev, q->queue.next);
 		buf->activate(dev,buf,next);
 	} else {
-		DEB_INT("no next buffer. stopping.\n");
+		DEB_INT("yes next buffer. stopping.\n");
 		if( 0 != vbi ) {
 			/* turn off video-dma3 */
 			saa7146_write(dev,MC1, MASK_20);
 		} else {
-			/* nothing to do -- just prevent next video-dma1 transfer
+			/* yesthing to do -- just prevent next video-dma1 transfer
 			   by lowering the protection address */
 
 			// fixme: fix this for vflip != 0
@@ -180,9 +180,9 @@ void saa7146_buffer_timeout(struct timer_list *t)
 
 	/* we don't restart the transfer here like other drivers do. when
 	   a streaming capture is disabled, the timeout function will be
-	   called for the current buffer. if we activate the next buffer now,
-	   we mess up our capture logic. if a timeout occurs on another buffer,
-	   then something is seriously broken before, so no need to buffer the
+	   called for the current buffer. if we activate the next buffer yesw,
+	   we mess up our capture logic. if a timeout occurs on ayesther buffer,
+	   then something is seriously broken before, so yes need to buffer the
 	   next capture IMHO... */
 /*
 	saa7146_buffer_next(dev,q);
@@ -200,7 +200,7 @@ static int fops_open(struct file *file)
 	struct saa7146_fh *fh = NULL;
 	int result = 0;
 
-	DEB_EE("file:%p, dev:%s\n", file, video_device_node_name(vdev));
+	DEB_EE("file:%p, dev:%s\n", file, video_device_yesde_name(vdev));
 
 	if (mutex_lock_interruptible(vdev->lock))
 		return -ERESTARTSYS;
@@ -209,7 +209,7 @@ static int fops_open(struct file *file)
 
 	/* check if an extension is registered */
 	if( NULL == dev->ext ) {
-		DEB_S("no extension registered for this device\n");
+		DEB_S("yes extension registered for this device\n");
 		result = -ENODEV;
 		goto out;
 	}
@@ -217,7 +217,7 @@ static int fops_open(struct file *file)
 	/* allocate per open data */
 	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
 	if (NULL == fh) {
-		DEB_S("cannot allocate memory for per open data\n");
+		DEB_S("canyest allocate memory for per open data\n");
 		result = -ENOMEM;
 		goto out;
 	}
@@ -356,7 +356,7 @@ static __poll_t __fops_poll(struct file *file, struct poll_table_struct *wait)
 		return res | EPOLLIN | EPOLLRDNORM;
 	}
 
-	DEB_D("nothing to poll for, buf->state:%d\n", buf->state);
+	DEB_D("yesthing to poll for, buf->state:%d\n", buf->state);
 	return res;
 }
 
@@ -604,9 +604,9 @@ int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 	vfd->release = video_device_release_empty;
 	vfd->lock = &dev->v4l2_lock;
 	vfd->v4l2_dev = &dev->v4l2_dev;
-	vfd->tvnorms = 0;
+	vfd->tvyesrms = 0;
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
-		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;
+		vfd->tvyesrms |= dev->ext_vv_data->stds[i].id;
 	strscpy(vfd->name, name, sizeof(vfd->name));
 	vfd->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY |
 			   V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
@@ -621,12 +621,12 @@ int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 
 	err = video_register_device(vfd, type, -1);
 	if (err < 0) {
-		ERR("cannot register v4l2 device. skipping.\n");
+		ERR("canyest register v4l2 device. skipping.\n");
 		return err;
 	}
 
 	pr_info("%s: registered device %s [v4l2]\n",
-		dev->name, video_device_node_name(vfd));
+		dev->name, video_device_yesde_name(vfd));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(saa7146_register_device);
@@ -653,6 +653,6 @@ static void __exit saa7146_vv_cleanup_module(void)
 module_init(saa7146_vv_init_module);
 module_exit(saa7146_vv_cleanup_module);
 
-MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
+MODULE_AUTHOR("Michael Huyesld <michael@mihu.de>");
 MODULE_DESCRIPTION("video4linux driver for saa7146-based hardware");
 MODULE_LICENSE("GPL");

@@ -18,7 +18,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -32,10 +32,10 @@
  * We store the last allocated bo in "hole", we always try to allocate
  * after the last allocated bo. Principle is that in a linear GPU ring
  * progression was is after last is the oldest bo we allocated and thus
- * the first one that should no longer be in use by the GPU.
+ * the first one that should yes longer be in use by the GPU.
  *
- * If it's not the case we skip over the bo after last to the closest
- * done bo if such one exist. If none exist and we are not asked to
+ * If it's yest the case we skip over the bo after last to the closest
+ * done bo if such one exist. If yesne exist and we are yest asked to
  * block we report failure to allocate.
  *
  * If we are asked to block we wait on all the oldest fence of all
@@ -83,7 +83,7 @@ void radeon_sa_bo_manager_fini(struct radeon_device *rdev,
 		sa_manager->hole = &sa_manager->olist,
 		radeon_sa_bo_try_free(sa_manager);
 		if (!list_empty(&sa_manager->olist)) {
-			dev_err(rdev->dev, "sa_manager is not empty, clearing anyway\n");
+			dev_err(rdev->dev, "sa_manager is yest empty, clearing anyway\n");
 		}
 	}
 	list_for_each_entry_safe(sa_bo, tmp, &sa_manager->olist, olist) {
@@ -99,7 +99,7 @@ int radeon_sa_bo_manager_start(struct radeon_device *rdev,
 	int r;
 
 	if (sa_manager->bo == NULL) {
-		dev_err(rdev->dev, "no bo for sa manager\n");
+		dev_err(rdev->dev, "yes bo for sa manager\n");
 		return -EINVAL;
 	}
 
@@ -126,7 +126,7 @@ int radeon_sa_bo_manager_suspend(struct radeon_device *rdev,
 	int r;
 
 	if (sa_manager->bo == NULL) {
-		dev_err(rdev->dev, "no bo for sa manager\n");
+		dev_err(rdev->dev, "yes bo for sa manager\n");
 		return -EINVAL;
 	}
 
@@ -219,7 +219,7 @@ static bool radeon_sa_bo_try_alloc(struct radeon_sa_manager *sa_manager,
  * @align: alignment we need to match
  *
  * Check if either there is a fence we can wait for or
- * enough free memory to satisfy the allocation directly
+ * eyesugh free memory to satisfy the allocation directly
  */
 static bool radeon_sa_event(struct radeon_sa_manager *sa_manager,
 			    unsigned size, unsigned align)
@@ -357,7 +357,7 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 		for (i = 0; i < RADEON_NUM_RINGS; ++i)
 			radeon_fence_unref(&fences[i]);
 		spin_lock(&sa_manager->wq.lock);
-		/* if we have nothing to wait for block */
+		/* if we have yesthing to wait for block */
 		if (r == -ENOENT) {
 			r = wait_event_interruptible_locked(
 				sa_manager->wq, 

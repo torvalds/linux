@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -79,13 +79,13 @@ virtio_gpu_framebuffer_init(struct drm_device *dev,
 	return 0;
 }
 
-static void virtio_gpu_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void virtio_gpu_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_output *output = drm_crtc_to_virtio_gpu_output(crtc);
 
-	virtio_gpu_cmd_set_scanout(vgdev, output->index, 0,
+	virtio_gpu_cmd_set_scayesut(vgdev, output->index, 0,
 				   crtc->mode.hdisplay,
 				   crtc->mode.vdisplay, 0, 0);
 }
@@ -105,7 +105,7 @@ static void virtio_gpu_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_output *output = drm_crtc_to_virtio_gpu_output(crtc);
 
-	virtio_gpu_cmd_set_scanout(vgdev, output->index, 0, 0, 0, 0, 0);
+	virtio_gpu_cmd_set_scayesut(vgdev, output->index, 0, 0, 0, 0, 0);
 	output->enabled = false;
 }
 
@@ -128,7 +128,7 @@ static void virtio_gpu_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs virtio_gpu_crtc_helper_funcs = {
-	.mode_set_nofb = virtio_gpu_crtc_mode_set_nofb,
+	.mode_set_yesfb = virtio_gpu_crtc_mode_set_yesfb,
 	.atomic_check  = virtio_gpu_crtc_atomic_check,
 	.atomic_flush  = virtio_gpu_crtc_atomic_flush,
 	.atomic_enable = virtio_gpu_crtc_atomic_enable,
@@ -164,7 +164,7 @@ static int virtio_gpu_conn_get_modes(struct drm_connector *connector)
 
 	width  = le32_to_cpu(output->info.r.width);
 	height = le32_to_cpu(output->info.r.height);
-	count = drm_add_modes_noedid(connector, XRES_MAX, YRES_MAX);
+	count = drm_add_modes_yesedid(connector, XRES_MAX, YRES_MAX);
 
 	if (width == 0 || height == 0) {
 		width = XRES_DEF;
@@ -360,7 +360,7 @@ void virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
 	vgdev->ddev->mode_config.max_width = XRES_MAX;
 	vgdev->ddev->mode_config.max_height = YRES_MAX;
 
-	for (i = 0 ; i < vgdev->num_scanouts; ++i)
+	for (i = 0 ; i < vgdev->num_scayesuts; ++i)
 		vgdev_output_init(vgdev, i);
 
 	drm_mode_config_reset(vgdev->ddev);
@@ -370,7 +370,7 @@ void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev)
 {
 	int i;
 
-	for (i = 0 ; i < vgdev->num_scanouts; ++i)
+	for (i = 0 ; i < vgdev->num_scayesuts; ++i)
 		kfree(vgdev->outputs[i].edid);
 	drm_atomic_helper_shutdown(vgdev->ddev);
 	drm_mode_config_cleanup(vgdev->ddev);

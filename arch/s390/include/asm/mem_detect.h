@@ -23,7 +23,7 @@ struct mem_detect_block {
  * According to architecture one storage element could have as much as
  * 1020 subincrements. 255 mem_detect_blocks are embedded in mem_detect_info.
  * If more mem_detect_blocks are required, a block of memory from already
- * known mem_detect_block is taken (entries_extended points to it).
+ * kyeswn mem_detect_block is taken (entries_extended points to it).
  */
 #define MEM_INLINED_ENTRIES 255 /* (PAGE_SIZE - 16) / 16 */
 

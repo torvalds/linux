@@ -12,7 +12,7 @@
 #include <linux/sysctl.h>
 #include <linux/string.h>
 #include <linux/socket.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fcntl.h>
 #include <linux/in.h>
 #include <linux/if_ether.h>	/* For the statistics structure. */

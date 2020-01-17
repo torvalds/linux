@@ -94,7 +94,7 @@ exit:
  * @hw: pointer to our HW structure
  * @hmc_info: pointer to the HMC configuration information structure
  * @pd_index: which page descriptor index to manipulate
- * @rsrc_pg: if not NULL, use preallocated page instead of allocating new one.
+ * @rsrc_pg: if yest NULL, use preallocated page instead of allocating new one.
  *
  * This function:
  *	1. Initializes the pd entry

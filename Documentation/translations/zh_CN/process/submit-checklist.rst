@@ -23,7 +23,7 @@ Linux内核补丁提交清单
    a) 使用适用或修改的 ``CONFIG`` 选项 ``=y``、``=m`` 和 ``=n`` 。没有GCC
       警告/错误，没有链接器警告/错误。
 
-   b) 通过allnoconfig、allmodconfig
+   b) 通过allyesconfig、allmodconfig
 
    c) 使用 ``O=builddir`` 时可以成功编译
 
@@ -51,7 +51,7 @@ Linux内核补丁提交清单
 10) 使用 ``make checkstack`` 和 ``make namespacecheck`` 并修复他们发现的任何
     问题。
 
-    .. note::
+    .. yeste::
 
         ``checkstack`` 并没有明确指出问题，但是任何一个在堆栈上使用超过512
         字节的函数都可以进行更改。

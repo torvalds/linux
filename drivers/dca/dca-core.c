@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/device.h>
 #include <linux/dca.h>
 #include <linux/slab.h>
@@ -55,7 +55,7 @@ static struct dca_domain *dca_allocate_domain(struct pci_bus *rc)
 
 static void dca_free_domain(struct dca_domain *domain)
 {
-	list_del(&domain->node);
+	list_del(&domain->yesde);
 	kfree(domain);
 }
 
@@ -81,7 +81,7 @@ static void unregister_dca_providers(void)
 	struct dca_domain *domain;
 	unsigned long flags;
 
-	blocking_notifier_call_chain(&dca_provider_chain,
+	blocking_yestifier_call_chain(&dca_provider_chain,
 				     DCA_PROVIDER_REMOVE, NULL);
 
 	INIT_LIST_HEAD(&unregistered_providers);
@@ -94,18 +94,18 @@ static void unregister_dca_providers(void)
 	}
 
 	/* at this point only one domain in the list is expected */
-	domain = list_first_entry(&dca_domains, struct dca_domain, node);
+	domain = list_first_entry(&dca_domains, struct dca_domain, yesde);
 
-	list_for_each_entry_safe(dca, _dca, &domain->dca_providers, node)
-		list_move(&dca->node, &unregistered_providers);
+	list_for_each_entry_safe(dca, _dca, &domain->dca_providers, yesde)
+		list_move(&dca->yesde, &unregistered_providers);
 
 	dca_free_domain(domain);
 
 	raw_spin_unlock_irqrestore(&dca_lock, flags);
 
-	list_for_each_entry_safe(dca, _dca, &unregistered_providers, node) {
+	list_for_each_entry_safe(dca, _dca, &unregistered_providers, yesde) {
 		dca_sysfs_remove_provider(dca);
-		list_del(&dca->node);
+		list_del(&dca->yesde);
 	}
 }
 
@@ -113,7 +113,7 @@ static struct dca_domain *dca_find_domain(struct pci_bus *rc)
 {
 	struct dca_domain *domain;
 
-	list_for_each_entry(domain, &dca_domains, node)
+	list_for_each_entry(domain, &dca_domains, yesde)
 		if (domain->pci_rc == rc)
 			return domain;
 
@@ -151,12 +151,12 @@ static struct dca_provider *dca_find_provider_by_dev(struct device *dev)
 		if (!list_empty(&dca_domains))
 			domain = list_first_entry(&dca_domains,
 						  struct dca_domain,
-						  node);
+						  yesde);
 		else
 			return NULL;
 	}
 
-	list_for_each_entry(dca, &domain->dca_providers, node)
+	list_for_each_entry(dca, &domain->dca_providers, yesde)
 		if ((!dev) || (dca->ops->dev_managed(dca, dev)))
 			return dca;
 
@@ -180,7 +180,7 @@ int dca_add_requester(struct device *dev)
 
 	raw_spin_lock_irqsave(&dca_lock, flags);
 
-	/* check if the requester has not been added already */
+	/* check if the requester has yest been added already */
 	dca = dca_find_provider_by_dev(dev);
 	if (dca) {
 		raw_spin_unlock_irqrestore(&dca_lock, flags);
@@ -194,7 +194,7 @@ int dca_add_requester(struct device *dev)
 		return -ENODEV;
 	}
 
-	list_for_each_entry(dca, &domain->dca_providers, node) {
+	list_for_each_entry(dca, &domain->dca_providers, yesde) {
 		slot = dca->ops->add_requester(dca, dev);
 		if (slot >= 0)
 			break;
@@ -377,13 +377,13 @@ int register_dca_provider(struct dca_provider *dca, struct device *dev)
 		if (!domain) {
 			domain = newdomain;
 			newdomain = NULL;
-			list_add(&domain->node, &dca_domains);
+			list_add(&domain->yesde, &dca_domains);
 		}
 	}
-	list_add(&dca->node, &domain->dca_providers);
+	list_add(&dca->yesde, &domain->dca_providers);
 	raw_spin_unlock_irqrestore(&dca_lock, flags);
 
-	blocking_notifier_call_chain(&dca_provider_chain,
+	blocking_yestifier_call_chain(&dca_provider_chain,
 				     DCA_PROVIDER_ADD, NULL);
 	kfree(newdomain);
 	return 0;
@@ -400,7 +400,7 @@ void unregister_dca_provider(struct dca_provider *dca, struct device *dev)
 	struct pci_bus *pci_rc;
 	struct dca_domain *domain;
 
-	blocking_notifier_call_chain(&dca_provider_chain,
+	blocking_yestifier_call_chain(&dca_provider_chain,
 				     DCA_PROVIDER_REMOVE, NULL);
 
 	raw_spin_lock_irqsave(&dca_lock, flags);
@@ -410,7 +410,7 @@ void unregister_dca_provider(struct dca_provider *dca, struct device *dev)
 		return;
 	}
 
-	list_del(&dca->node);
+	list_del(&dca->yesde);
 
 	pci_rc = dca_pci_rc_from_dev(dev);
 	domain = dca_find_domain(pci_rc);
@@ -424,22 +424,22 @@ void unregister_dca_provider(struct dca_provider *dca, struct device *dev)
 EXPORT_SYMBOL_GPL(unregister_dca_provider);
 
 /**
- * dca_register_notify - register a client's notifier callback
+ * dca_register_yestify - register a client's yestifier callback
  */
-void dca_register_notify(struct notifier_block *nb)
+void dca_register_yestify(struct yestifier_block *nb)
 {
-	blocking_notifier_chain_register(&dca_provider_chain, nb);
+	blocking_yestifier_chain_register(&dca_provider_chain, nb);
 }
-EXPORT_SYMBOL_GPL(dca_register_notify);
+EXPORT_SYMBOL_GPL(dca_register_yestify);
 
 /**
- * dca_unregister_notify - remove a client's notifier callback
+ * dca_unregister_yestify - remove a client's yestifier callback
  */
-void dca_unregister_notify(struct notifier_block *nb)
+void dca_unregister_yestify(struct yestifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&dca_provider_chain, nb);
+	blocking_yestifier_chain_unregister(&dca_provider_chain, nb);
 }
-EXPORT_SYMBOL_GPL(dca_unregister_notify);
+EXPORT_SYMBOL_GPL(dca_unregister_yestify);
 
 static int __init dca_init(void)
 {

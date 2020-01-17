@@ -7,7 +7,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -151,7 +151,7 @@ ath5k_hw_init_core_clock(struct ath5k_hw *ah)
 		break;
 	}
 
-	/* Use clock multiplier for non-default
+	/* Use clock multiplier for yesn-default
 	 * bwmode */
 	switch (ah->ah_bwmode) {
 	case AR5K_BWMODE_40MHZ:
@@ -271,7 +271,7 @@ ath5k_hw_init_core_clock(struct ath5k_hw *ah)
  *
  * If there is an external 32KHz crystal available, use it
  * as ref. clock instead of 32/40MHz clock and baseband clocks
- * to save power during sleep or restore normal 32/40MHz
+ * to save power during sleep or restore yesrmal 32/40MHz
  * operation.
  *
  * NOTE: When operating on 32KHz certain PHY registers (27 - 31,
@@ -450,7 +450,7 @@ ath5k_hw_wisoc_reset(struct ath5k_hw *ah, u32 flags)
 	u32 regval;
 	u32 val = 0;
 
-	/* ah->ah_mac_srev is not available at this point yet */
+	/* ah->ah_mac_srev is yest available at this point yet */
 	if (ah->devid >= AR5K_SREV_AR2315_R6) {
 		reg = (u32 __iomem *) AR5K_AR2315_RESET;
 		if (mask & AR5K_RESET_CTL_PCU)
@@ -625,7 +625,7 @@ ath5k_hw_on_hold(struct ath5k_hw *ah)
 	 *
 	 * Note: putting PCI core on warm reset on PCI-E cards
 	 * results card to hang and always return 0xffff... so
-	 * we ignore that flag for PCI-E cards. On PCI cards
+	 * we igyesre that flag for PCI-E cards. On PCI cards
 	 * this flag gets cleared after 64 PCI clocks.
 	 */
 	bus_flags = (pdev && pci_is_pcie(pdev)) ? 0 : AR5K_RESET_CTL_PCI;
@@ -690,7 +690,7 @@ ath5k_hw_nic_wakeup(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 	 *
 	 * Note: putting PCI core on warm reset on PCI-E cards
 	 * results card to hang and always return 0xffff... so
-	 * we ignore that flag for PCI-E cards. On PCI cards
+	 * we igyesre that flag for PCI-E cards. On PCI cards
 	 * this flag gets cleared after 64 PCI clocks.
 	 */
 	bus_flags = (pdev && pci_is_pcie(pdev)) ? 0 : AR5K_RESET_CTL_PCI;
@@ -759,8 +759,8 @@ ath5k_hw_nic_wakeup(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 			if (channel->hw_value == AR5K_MODE_11B) {
 				mode |= AR5K_PHY_MODE_MOD_CCK;
 			} else {
-				/* XXX Dynamic OFDM/CCK is not supported by the
-				 * AR5211 so we set MOD_OFDM for plain g (no
+				/* XXX Dynamic OFDM/CCK is yest supported by the
+				 * AR5211 so we set MOD_OFDM for plain g (yes
 				 * CCK headers) operation. We need to test
 				 * this, 5211 might support ofdm-only g after
 				 * all, there are also initial register values
@@ -787,7 +787,7 @@ ath5k_hw_nic_wakeup(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 
 		/*XXX: Can bwmode be used with dynamic mode ?
 		 * (I don't think it supports 44MHz) */
-		/* On 2425 initvals TURBO_SHORT is not present */
+		/* On 2425 initvals TURBO_SHORT is yest present */
 		if (ah->ah_bwmode == AR5K_BWMODE_40MHZ) {
 			turbo = AR5K_PHY_TURBO_MODE;
 			if (ah->ah_radio != AR5K_RF2425)
@@ -838,7 +838,7 @@ ath5k_hw_nic_wakeup(struct ath5k_hw *ah, struct ieee80211_channel *channel)
  * @ah: The &struct ath5k_hw
  * @channel: The &struct ieee80211_channel
  *
- * Some settings are not handled on initvals, e.g. bwmode
+ * Some settings are yest handled on initvals, e.g. bwmode
  * settings, some phy settings, workarounds etc that in general
  * don't fit anywhere else or are too small to introduce a separate
  * function for each one. So we have this function to handle
@@ -958,7 +958,7 @@ ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 						3);
 		}
 	} else if (ah->ah_version == AR5K_AR5210) {
-		/* Set Frame Control Register for normal operation */
+		/* Set Frame Control Register for yesrmal operation */
 		ath5k_hw_reg_write(ah, (AR5K_PHY_FRAME_CTL_INI | 0x1020),
 						AR5K_PHY_FRAME_CTL_5210);
 	}
@@ -1021,7 +1021,7 @@ ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 
 	/* Noise floor threshold */
 	ath5k_hw_reg_write(ah,
-		AR5K_PHY_NF_SVAL(ee->ee_noise_floor_thr[ee_mode]),
+		AR5K_PHY_NF_SVAL(ee->ee_yesise_floor_thr[ee_mode]),
 		AR5K_PHY_NFTHRES);
 
 	if ((ah->ah_bwmode == AR5K_BWMODE_40MHZ) &&
@@ -1095,9 +1095,9 @@ ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 			ee->ee_thr_62[ee_mode]);
 
 	/* False detect backoff for channels
-	 * that have spur noise. Write the new
+	 * that have spur yesise. Write the new
 	 * cyclic power RSSI threshold. */
-	if (ath5k_hw_chan_has_spur_noise(ah, channel))
+	if (ath5k_hw_chan_has_spur_yesise(ah, channel))
 		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_OFDM_SELFCORR,
 				AR5K_PHY_OFDM_SELFCORR_CYPWR_THR1,
 				AR5K_INIT_CYCRSSI_THR1 +
@@ -1117,7 +1117,7 @@ ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_ENABLE);
 	}
 
-	/* Heavy clipping -disable for now */
+	/* Heavy clipping -disable for yesw */
 	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_5_1)
 		ath5k_hw_reg_write(ah, 0, AR5K_PHY_HEAVY_CLIP_ENABLE);
 }
@@ -1176,14 +1176,14 @@ ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	case AR5K_MODE_11G:
 		if (ah->ah_version <= AR5K_AR5211) {
 			ATH5K_ERR(ah,
-				"G mode not available on 5210/5211");
+				"G mode yest available on 5210/5211");
 			return -EINVAL;
 		}
 		break;
 	case AR5K_MODE_11B:
 		if (ah->ah_version < AR5K_AR5211) {
 			ATH5K_ERR(ah,
-				"B mode not available on 5210");
+				"B mode yest available on 5210");
 			return -EINVAL;
 		}
 		break;
@@ -1195,13 +1195,13 @@ ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 
 	/*
 	 * If driver requested fast channel change and DMA has stopped
-	 * go on. If it fails continue with a normal reset.
+	 * go on. If it fails continue with a yesrmal reset.
 	 */
 	if (fast) {
 		ret = ath5k_hw_phy_init(ah, channel, mode, true);
 		if (ret) {
 			ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
-				"fast chan change failed, falling back to normal reset\n");
+				"fast chan change failed, falling back to yesrmal reset\n");
 			/* Non fatal, can happen eg.
 			 * on mode change */
 			ret = 0;
@@ -1364,7 +1364,7 @@ ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 * external 32KHz crystal when sleeping if one
 	 * exists.
 	 * Disabled by default because it is also disabled in
-	 * other drivers and it is known to cause stability
+	 * other drivers and it is kyeswn to cause stability
 	 * issues on some devices
 	 */
 	if (ah->ah_use_32khz_clock && ah->ah_version == AR5K_AR5212 &&

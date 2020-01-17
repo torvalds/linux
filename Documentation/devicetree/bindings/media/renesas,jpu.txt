@@ -16,7 +16,7 @@ Required properties:
   - interrupts: JPU interrupt specifier.
   - clocks: A phandle + clock-specifier pair for the JPU functional clock.
 
-Example: R8A7790 (R-Car H2) JPU node
+Example: R8A7790 (R-Car H2) JPU yesde
 	jpeg-codec@fe980000 {
 		compatible = "renesas,jpu-r8a7790", "renesas,rcar-gen2-jpu";
 		reg = <0 0xfe980000 0 0x10300>;

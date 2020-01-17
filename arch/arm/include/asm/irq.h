@@ -10,8 +10,8 @@
 #define NR_IRQS NR_IRQS_LEGACY
 #endif
 
-#ifndef irq_canonicalize
-#define irq_canonicalize(i)	(i)
+#ifndef irq_cayesnicalize
+#define irq_cayesnicalize(i)	(i)
 #endif
 
 /*

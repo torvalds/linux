@@ -25,23 +25,23 @@ static struct tpm2_hash tpm2_hash_map[] = {
  *
  * @buf: an allocated tpm_buf instance
  * @session_handle: session handle
- * @nonce: the session nonce, may be NULL if not used
- * @nonce_len: the session nonce length, may be 0 if not used
+ * @yesnce: the session yesnce, may be NULL if yest used
+ * @yesnce_len: the session yesnce length, may be 0 if yest used
  * @attributes: the session attributes
- * @hmac: the session HMAC or password, may be NULL if not used
- * @hmac_len: the session HMAC or password length, maybe 0 if not used
+ * @hmac: the session HMAC or password, may be NULL if yest used
+ * @hmac_len: the session HMAC or password length, maybe 0 if yest used
  */
 static void tpm2_buf_append_auth(struct tpm_buf *buf, u32 session_handle,
-				 const u8 *nonce, u16 nonce_len,
+				 const u8 *yesnce, u16 yesnce_len,
 				 u8 attributes,
 				 const u8 *hmac, u16 hmac_len)
 {
-	tpm_buf_append_u32(buf, 9 + nonce_len + hmac_len);
+	tpm_buf_append_u32(buf, 9 + yesnce_len + hmac_len);
 	tpm_buf_append_u32(buf, session_handle);
-	tpm_buf_append_u16(buf, nonce_len);
+	tpm_buf_append_u16(buf, yesnce_len);
 
-	if (nonce && nonce_len)
-		tpm_buf_append(buf, nonce, nonce_len);
+	if (yesnce && yesnce_len)
+		tpm_buf_append(buf, yesnce, yesnce_len);
 
 	tpm_buf_append_u8(buf, attributes);
 	tpm_buf_append_u16(buf, hmac_len);
@@ -85,7 +85,7 @@ int tpm2_seal_trusted(struct tpm_chip *chip,
 
 	tpm_buf_append_u32(&buf, options->keyhandle);
 	tpm2_buf_append_auth(&buf, TPM2_RS_PW,
-			     NULL /* nonce */, 0,
+			     NULL /* yesnce */, 0,
 			     0 /* session_attributes */,
 			     options->keyauth /* hmac */,
 			     TPM_DIGEST_SIZE);
@@ -199,7 +199,7 @@ static int tpm2_load_cmd(struct tpm_chip *chip,
 
 	tpm_buf_append_u32(&buf, options->keyhandle);
 	tpm2_buf_append_auth(&buf, TPM2_RS_PW,
-			     NULL /* nonce */, 0,
+			     NULL /* yesnce */, 0,
 			     0 /* session_attributes */,
 			     options->keyauth /* hmac */,
 			     TPM_DIGEST_SIZE);
@@ -255,7 +255,7 @@ static int tpm2_unseal_cmd(struct tpm_chip *chip,
 	tpm2_buf_append_auth(&buf,
 			     options->policyhandle ?
 			     options->policyhandle : TPM2_RS_PW,
-			     NULL /* nonce */, 0,
+			     NULL /* yesnce */, 0,
 			     TPM2_SA_CONTINUE_SESSION,
 			     options->blobauth /* hmac */,
 			     TPM_DIGEST_SIZE);

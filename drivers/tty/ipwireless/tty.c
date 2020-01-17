@@ -77,7 +77,7 @@ static struct ipw_tty *get_tty(int index)
 	/*
 	 * The 'ras_raw' channel is only available when 'loopback' mode
 	 * is enabled.
-	 * Number of minor starts with 16 (_RANGE * _RAS_RAW).
+	 * Number of miyesr starts with 16 (_RANGE * _RAS_RAW).
 	 */
 	if (!ipwireless_loopback && index >=
 			 IPWIRELESS_PCMCIA_MINOR_RANGE * TTYTYPE_RAS_RAW)
@@ -169,7 +169,7 @@ void ipwireless_tty_received(struct ipw_tty *tty, unsigned char *data,
 
 	if (work != length)
 		printk(KERN_DEBUG IPWIRELESS_PCCARD_NAME
-				": %d chars not inserted to flip buffer!\n",
+				": %d chars yest inserted to flip buffer!\n",
 				length - work);
 
 	if (work)
@@ -532,7 +532,7 @@ void ipwireless_tty_free(struct ipw_tty *tty)
 				tty_vhangup(ttyj->port.tty);
 				/* FIXME: Exactly how is the tty object locked here
 				   against a parallel ioctl etc */
-				/* FIXME2: hangup does not mean all processes
+				/* FIXME2: hangup does yest mean all processes
 				 * are gone */
 				mutex_lock(&ttyj->ipw_tty_mutex);
 			}
@@ -574,7 +574,7 @@ int ipwireless_tty_init(void)
 	ipw_tty_driver->driver_name = IPWIRELESS_PCCARD_NAME;
 	ipw_tty_driver->name = "ttyIPWp";
 	ipw_tty_driver->major = 0;
-	ipw_tty_driver->minor_start = IPWIRELESS_PCMCIA_START;
+	ipw_tty_driver->miyesr_start = IPWIRELESS_PCMCIA_START;
 	ipw_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	ipw_tty_driver->subtype = SERIAL_TYPE_NORMAL;
 	ipw_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
@@ -612,7 +612,7 @@ int ipwireless_tty_is_modem(struct ipw_tty *tty)
 }
 
 void
-ipwireless_tty_notify_control_line_change(struct ipw_tty *tty,
+ipwireless_tty_yestify_control_line_change(struct ipw_tty *tty,
 					  unsigned int channel_idx,
 					  unsigned int control_lines,
 					  unsigned int changed_mask)

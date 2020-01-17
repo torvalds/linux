@@ -409,12 +409,12 @@ static void mtk_hsdma_chan_done(struct mtk_hsdam_engine *hsdma,
 	desc = chan->desc;
 	if (likely(desc)) {
 		if (chan->next_sg == desc->num_sgs) {
-			list_del(&desc->vdesc.node);
+			list_del(&desc->vdesc.yesde);
 			vchan_cookie_complete(&desc->vdesc);
 			chan_issued = gdma_next_desc(chan);
 		}
 	} else {
-		dev_dbg(hsdma->ddev.dev, "no desc to complete\n");
+		dev_dbg(hsdma->ddev.dev, "yes desc to complete\n");
 	}
 
 	if (chan_issued)
@@ -452,7 +452,7 @@ static void mtk_hsdma_issue_pending(struct dma_chan *c)
 			set_bit(chan->id, &hsdma->chan_issued);
 			tasklet_schedule(&hsdma->task);
 		} else {
-			dev_dbg(hsdma->ddev.dev, "no desc to issue\n");
+			dev_dbg(hsdma->ddev.dev, "yes desc to issue\n");
 		}
 	}
 	spin_unlock_bh(&chan->vchan.lock);
@@ -507,7 +507,7 @@ static void mtk_hsdma_tx(struct mtk_hsdam_engine *hsdma)
 		if (chan->desc)
 			mtk_hsdma_start_transfer(hsdma, chan);
 		else
-			dev_dbg(hsdma->ddev.dev, "chan 0 no desc to issue\n");
+			dev_dbg(hsdma->ddev.dev, "chan 0 yes desc to issue\n");
 	}
 }
 
@@ -552,7 +552,7 @@ static int mtk_hsdam_alloc_desc(struct mtk_hsdam_engine *hsdma,
 					   sizeof(*chan->tx_ring),
 			&chan->desc_addr, GFP_ATOMIC | __GFP_ZERO);
 	if (!chan->tx_ring)
-		goto no_mem;
+		goto yes_mem;
 
 	chan->rx_ring = &chan->tx_ring[HSDMA_DESCS_NUM];
 
@@ -561,7 +561,7 @@ static int mtk_hsdam_alloc_desc(struct mtk_hsdam_engine *hsdma,
 		chan->tx_ring[i].flags = HSDMA_DESC_LS0 | HSDMA_DESC_DONE;
 
 	return 0;
-no_mem:
+yes_mem:
 	return -ENOMEM;
 }
 
@@ -716,7 +716,7 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_yesde,
 					 of_dma_xlate_by_chan_id, hsdma);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register of dma controller\n");
@@ -738,7 +738,7 @@ static int mtk_hsdma_remove(struct platform_device *pdev)
 
 	mtk_hsdma_uninit(hsdma);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	dma_async_device_unregister(&hsdma->ddev);
 
 	return 0;

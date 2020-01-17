@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * see notice in hfc_multi.c
+ * see yestice in hfc_multi.c
  */
 
 #define DEBUG_HFCMULTI_FIFO	0x00010000
@@ -54,7 +54,7 @@ struct hfc_chan {
 	int		bank_rx;
 	int		conf;	/* conference setting of TX slot */
 	int		txpending;	/* if there is currently data in */
-					/* the FIFO 0=no, 1=yes, 2=splloop */
+					/* the FIFO 0=yes, 1=no, 2=splloop */
 	int		Zfill;	/* rx-fifo level on last hfcmulti_tx */
 	int		rx_off; /* set to turn fifo receive off */
 	int		coeff_count; /* curren coeff block */
@@ -116,7 +116,7 @@ struct hfcm_hw {
 #define	HFC_CHIP_PLXSD		14 /* whether we have a Speech-Design PLX */
 #define	HFC_CHIP_EMBSD          15 /* whether we have a SD Embedded board */
 
-#define HFC_IO_MODE_PCIMEM	0x00 /* normal memory mapped IO */
+#define HFC_IO_MODE_PCIMEM	0x00 /* yesrmal memory mapped IO */
 #define HFC_IO_MODE_REGIO	0x01 /* PCI io access */
 #define HFC_IO_MODE_PLXSD	0x02 /* access HFC via PLX9030 */
 #define HFC_IO_MODE_EMBSD	0x03 /* direct access */
@@ -150,31 +150,31 @@ struct hfc_multi {
 #ifdef HFC_REGISTER_DEBUG
 	void		(*HFC_outb)(struct hfc_multi *hc, u_char reg,
 				    u_char val, const char *function, int line);
-	void		(*HFC_outb_nodebug)(struct hfc_multi *hc, u_char reg,
+	void		(*HFC_outb_yesdebug)(struct hfc_multi *hc, u_char reg,
 					    u_char val, const char *function, int line);
 	u_char		(*HFC_inb)(struct hfc_multi *hc, u_char reg,
 				   const char *function, int line);
-	u_char		(*HFC_inb_nodebug)(struct hfc_multi *hc, u_char reg,
+	u_char		(*HFC_inb_yesdebug)(struct hfc_multi *hc, u_char reg,
 					   const char *function, int line);
 	u_short		(*HFC_inw)(struct hfc_multi *hc, u_char reg,
 				   const char *function, int line);
-	u_short		(*HFC_inw_nodebug)(struct hfc_multi *hc, u_char reg,
+	u_short		(*HFC_inw_yesdebug)(struct hfc_multi *hc, u_char reg,
 					   const char *function, int line);
 	void		(*HFC_wait)(struct hfc_multi *hc,
 				    const char *function, int line);
-	void		(*HFC_wait_nodebug)(struct hfc_multi *hc,
+	void		(*HFC_wait_yesdebug)(struct hfc_multi *hc,
 					    const char *function, int line);
 #else
 	void		(*HFC_outb)(struct hfc_multi *hc, u_char reg,
 				    u_char val);
-	void		(*HFC_outb_nodebug)(struct hfc_multi *hc, u_char reg,
+	void		(*HFC_outb_yesdebug)(struct hfc_multi *hc, u_char reg,
 					    u_char val);
 	u_char		(*HFC_inb)(struct hfc_multi *hc, u_char reg);
-	u_char		(*HFC_inb_nodebug)(struct hfc_multi *hc, u_char reg);
+	u_char		(*HFC_inb_yesdebug)(struct hfc_multi *hc, u_char reg);
 	u_short		(*HFC_inw)(struct hfc_multi *hc, u_char reg);
-	u_short		(*HFC_inw_nodebug)(struct hfc_multi *hc, u_char reg);
+	u_short		(*HFC_inw_yesdebug)(struct hfc_multi *hc, u_char reg);
 	void		(*HFC_wait)(struct hfc_multi *hc);
-	void		(*HFC_wait_nodebug)(struct hfc_multi *hc);
+	void		(*HFC_wait_yesdebug)(struct hfc_multi *hc);
 #endif
 	void		(*read_fifo)(struct hfc_multi *hc, u_char *data,
 				     int len);

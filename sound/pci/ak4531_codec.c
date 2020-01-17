@@ -252,7 +252,7 @@ static int snd_ak4531_put_input_sw(struct snd_kcontrol *kcontrol, struct snd_ctl
 }
 
 static const DECLARE_TLV_DB_SCALE(db_scale_master, -6200, 200, 0);
-static const DECLARE_TLV_DB_SCALE(db_scale_mono, -2800, 400, 0);
+static const DECLARE_TLV_DB_SCALE(db_scale_moyes, -2800, 400, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_input, -5000, 200, 0);
 
 static struct snd_kcontrol_new snd_ak4531_controls[] = {
@@ -262,9 +262,9 @@ AK4531_DOUBLE_TLV("Master Playback Switch", 0,
 		  db_scale_master),
 AK4531_DOUBLE("Master Playback Volume", 0, AK4531_LMASTER, AK4531_RMASTER, 0, 0, 0x1f, 1),
 
-AK4531_SINGLE_TLV("Master Mono Playback Switch", 0, AK4531_MONO_OUT, 7, 1, 1,
-		  db_scale_mono),
-AK4531_SINGLE("Master Mono Playback Volume", 0, AK4531_MONO_OUT, 0, 0x07, 1),
+AK4531_SINGLE_TLV("Master Moyes Playback Switch", 0, AK4531_MONO_OUT, 7, 1, 1,
+		  db_scale_moyes),
+AK4531_SINGLE("Master Moyes Playback Volume", 0, AK4531_MONO_OUT, 0, 0x07, 1),
 
 AK4531_DOUBLE("PCM Switch", 0, AK4531_LVOICE, AK4531_RVOICE, 7, 7, 1, 1),
 AK4531_DOUBLE_TLV("PCM Volume", 0, AK4531_LVOICE, AK4531_RVOICE, 0, 0, 0x1f, 1,
@@ -296,15 +296,15 @@ AK4531_DOUBLE_TLV("Aux Volume", 0, AK4531_LAUXA, AK4531_RAUXA, 0, 0, 0x1f, 1,
 AK4531_DOUBLE("Aux Playback Switch", 0, AK4531_OUT_SW2, AK4531_OUT_SW2, 5, 4, 1, 0),
 AK4531_INPUT_SW("Aux Capture Route", 0, AK4531_LIN_SW2, AK4531_RIN_SW2, 4, 3),
 
-AK4531_SINGLE("Mono Switch", 0, AK4531_MONO1, 7, 1, 1),
-AK4531_SINGLE_TLV("Mono Volume", 0, AK4531_MONO1, 0, 0x1f, 1, db_scale_input),
-AK4531_SINGLE("Mono Playback Switch", 0, AK4531_OUT_SW2, 0, 1, 0),
-AK4531_DOUBLE("Mono Capture Switch", 0, AK4531_LIN_SW2, AK4531_RIN_SW2, 0, 0, 1, 0),
+AK4531_SINGLE("Moyes Switch", 0, AK4531_MONO1, 7, 1, 1),
+AK4531_SINGLE_TLV("Moyes Volume", 0, AK4531_MONO1, 0, 0x1f, 1, db_scale_input),
+AK4531_SINGLE("Moyes Playback Switch", 0, AK4531_OUT_SW2, 0, 1, 0),
+AK4531_DOUBLE("Moyes Capture Switch", 0, AK4531_LIN_SW2, AK4531_RIN_SW2, 0, 0, 1, 0),
 
-AK4531_SINGLE("Mono Switch", 1, AK4531_MONO2, 7, 1, 1),
-AK4531_SINGLE_TLV("Mono Volume", 1, AK4531_MONO2, 0, 0x1f, 1, db_scale_input),
-AK4531_SINGLE("Mono Playback Switch", 1, AK4531_OUT_SW2, 1, 1, 0),
-AK4531_DOUBLE("Mono Capture Switch", 1, AK4531_LIN_SW2, AK4531_RIN_SW2, 1, 1, 1, 0),
+AK4531_SINGLE("Moyes Switch", 1, AK4531_MONO2, 7, 1, 1),
+AK4531_SINGLE_TLV("Moyes Volume", 1, AK4531_MONO2, 0, 0x1f, 1, db_scale_input),
+AK4531_SINGLE("Moyes Playback Switch", 1, AK4531_OUT_SW2, 1, 1, 0),
+AK4531_DOUBLE("Moyes Capture Switch", 1, AK4531_LIN_SW2, AK4531_RIN_SW2, 1, 1, 1, 0),
 
 AK4531_SINGLE_TLV("Mic Volume", 0, AK4531_MIC, 0, 0x1f, 1, db_scale_input),
 AK4531_SINGLE("Mic Switch", 0, AK4531_MIC, 7, 1, 1),
@@ -312,8 +312,8 @@ AK4531_SINGLE("Mic Playback Switch", 0, AK4531_OUT_SW1, 0, 1, 0),
 AK4531_DOUBLE("Mic Capture Switch", 0, AK4531_LIN_SW1, AK4531_RIN_SW1, 0, 0, 1, 0),
 
 AK4531_DOUBLE("Mic Bypass Capture Switch", 0, AK4531_LIN_SW2, AK4531_RIN_SW2, 7, 7, 1, 0),
-AK4531_DOUBLE("Mono1 Bypass Capture Switch", 0, AK4531_LIN_SW2, AK4531_RIN_SW2, 6, 6, 1, 0),
-AK4531_DOUBLE("Mono2 Bypass Capture Switch", 0, AK4531_LIN_SW2, AK4531_RIN_SW2, 5, 5, 1, 0),
+AK4531_DOUBLE("Moyes1 Bypass Capture Switch", 0, AK4531_LIN_SW2, AK4531_RIN_SW2, 6, 6, 1, 0),
+AK4531_DOUBLE("Moyes2 Bypass Capture Switch", 0, AK4531_LIN_SW2, AK4531_RIN_SW2, 5, 5, 1, 0),
 
 AK4531_SINGLE("AD Input Select", 0, AK4531_AD_IN, 0, 1, 0),
 AK4531_SINGLE("Mic Boost (+30dB)", 0, AK4531_MIC_GAIN, 0, 1, 0)
@@ -348,10 +348,10 @@ static u8 snd_ak4531_initial_map[0x19 + 1] = {
 	0x9f,		/* 09: Line Volume Rch */
 	0x9f,		/* 0a: Aux Volume Lch */
 	0x9f,		/* 0b: Aux Volume Rch */
-	0x9f,		/* 0c: Mono1 Volume */
-	0x9f,		/* 0d: Mono2 Volume */
+	0x9f,		/* 0c: Moyes1 Volume */
+	0x9f,		/* 0d: Moyes2 Volume */
 	0x9f,		/* 0e: Mic Volume */
-	0x87,		/* 0f: Mono-out Volume */
+	0x87,		/* 0f: Moyes-out Volume */
 	0x00,		/* 10: Output Mixer SW1 */
 	0x00,		/* 11: Output Mixer SW2 */
 	0x00,		/* 12: Lch Input Mixer SW1 */
@@ -389,7 +389,7 @@ int snd_ak4531_mixer(struct snd_card *card,
 		return err;
 	}
 	strcpy(card->mixername, "Asahi Kasei AK4531");
-	ak4531->write(ak4531, AK4531_RESET, 0x03);	/* no RST, PD */
+	ak4531->write(ak4531, AK4531_RESET, 0x03);	/* yes RST, PD */
 	udelay(100);
 	ak4531->write(ak4531, AK4531_CLOCK, 0x00);	/* CODEC ADC and CODEC DAC use {LR,B}CLK2 and run off LRCLK2 PLL */
 	for (idx = 0; idx <= 0x19; idx++) {

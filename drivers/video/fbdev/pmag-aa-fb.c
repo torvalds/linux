@@ -28,7 +28,7 @@
  */
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -180,7 +180,7 @@ static int pmagaafb_probe(struct device *dev)
 	start = tdev->resource.start;
 	len = tdev->resource.end - start + 1;
 	if (!request_mem_region(start, len, dev_name(dev))) {
-		printk(KERN_ERR "%s: Cannot reserve FB region\n",
+		printk(KERN_ERR "%s: Canyest reserve FB region\n",
 		       dev_name(dev));
 		err = -EBUSY;
 		goto err_alloc;
@@ -188,9 +188,9 @@ static int pmagaafb_probe(struct device *dev)
 
 	/* MMIO mapping setup. */
 	info->fix.mmio_start = start + PMAG_AA_BT455_OFFSET;
-	par->mmio = ioremap_nocache(info->fix.mmio_start, info->fix.mmio_len);
+	par->mmio = ioremap_yescache(info->fix.mmio_start, info->fix.mmio_len);
 	if (!par->mmio) {
-		printk(KERN_ERR "%s: Cannot map MMIO\n", dev_name(dev));
+		printk(KERN_ERR "%s: Canyest map MMIO\n", dev_name(dev));
 		err = -ENOMEM;
 		goto err_resource;
 	}
@@ -199,10 +199,10 @@ static int pmagaafb_probe(struct device *dev)
 
 	/* Frame buffer mapping setup. */
 	info->fix.smem_start = start + PMAG_AA_ONBOARD_FBMEM_OFFSET;
-	info->screen_base = ioremap_nocache(info->fix.smem_start,
+	info->screen_base = ioremap_yescache(info->fix.smem_start,
 					    info->fix.smem_len);
 	if (!info->screen_base) {
-		printk(KERN_ERR "%s: Cannot map FB\n", dev_name(dev));
+		printk(KERN_ERR "%s: Canyest map FB\n", dev_name(dev));
 		err = -ENOMEM;
 		goto err_mmio_map;
 	}
@@ -218,7 +218,7 @@ static int pmagaafb_probe(struct device *dev)
 
 	err = register_framebuffer(info);
 	if (err < 0) {
-		printk(KERN_ERR "%s: Cannot register framebuffer\n",
+		printk(KERN_ERR "%s: Canyest register framebuffer\n",
 		       dev_name(dev));
 		goto err_smem_map;
 	}
@@ -226,7 +226,7 @@ static int pmagaafb_probe(struct device *dev)
 	get_device(dev);
 
 	pr_info("fb%d: %s frame buffer device at %s\n",
-		info->node, info->fix.id, dev_name(dev));
+		info->yesde, info->fix.id, dev_name(dev));
 
 	return 0;
 

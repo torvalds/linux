@@ -161,7 +161,7 @@ static void __hw_addr_unsync_one(struct netdev_hw_addr_list *to_list,
 	if (err)
 		return;
 	ha->sync_cnt--;
-	/* address on from list is not marked synced */
+	/* address on from list is yest marked synced */
 	__hw_addr_del_entry(from_list, ha, false, false);
 }
 
@@ -230,9 +230,9 @@ EXPORT_SYMBOL(__hw_addr_unsync);
  *
  *  This funciton is intended to be called from the ndo_set_rx_mode
  *  function of devices that require explicit address add/remove
- *  notifications.  The unsync function may be NULL in which case
+ *  yestifications.  The unsync function may be NULL in which case
  *  the addresses requiring removal will simply be removed without
- *  any notification to the device.
+ *  any yestification to the device.
  **/
 int __hw_addr_sync_dev(struct netdev_hw_addr_list *list,
 		       struct net_device *dev,
@@ -283,9 +283,9 @@ EXPORT_SYMBOL(__hw_addr_sync_dev);
  *
  *  This function is intended to be called from the ndo_set_rx_mode
  *  function of devices that require explicit address or references on it
- *  add/remove notifications. The unsync function may be NULL in which case
+ *  add/remove yestifications. The unsync function may be NULL in which case
  *  the addresses or references on it requiring removal will simply be
- *  removed without any notification to the device. That is responsibility of
+ *  removed without any yestification to the device. That is responsibility of
  *  the driver to identify and distribute address or references on it between
  *  internal address tables.
  **/
@@ -301,7 +301,7 @@ int __hw_addr_ref_sync_dev(struct netdev_hw_addr_list *list,
 
 	/* first go through and flush out any unsynced/stale entries */
 	list_for_each_entry_safe(ha, tmp, &list->list, list) {
-		/* sync if address is not used */
+		/* sync if address is yest used */
 		if ((ha->sync_cnt << 1) <= ha->refcount)
 			continue;
 
@@ -344,7 +344,7 @@ EXPORT_SYMBOL(__hw_addr_ref_sync_dev);
  *  Remove all addresses that were added to the device by
  *  __hw_addr_ref_sync_dev(). This function is intended to be called from the
  *  ndo_stop or ndo_open functions on devices that require explicit address (or
- *  references on it) add/remove notifications. If the unsync function pointer
+ *  references on it) add/remove yestifications. If the unsync function pointer
  *  is NULL then this function can be used to just reset the sync_cnt for the
  *  addresses in the list.
  **/
@@ -379,7 +379,7 @@ EXPORT_SYMBOL(__hw_addr_ref_unsync_dev);
  *  Remove all addresses that were added to the device by __hw_addr_sync_dev().
  *  This function is intended to be called from the ndo_stop or ndo_open
  *  functions on devices that require explicit address add/remove
- *  notifications.  If the unsync function pointer is NULL then this function
+ *  yestifications.  If the unsync function pointer is NULL then this function
  *  can be used to just reset the sync_cnt for the addresses in the list.
  **/
 void __hw_addr_unsync_dev(struct netdev_hw_addr_list *list,
@@ -494,12 +494,12 @@ int dev_addr_add(struct net_device *dev, const unsigned char *addr,
 
 	ASSERT_RTNL();
 
-	err = dev_pre_changeaddr_notify(dev, addr, NULL);
+	err = dev_pre_changeaddr_yestify(dev, addr, NULL);
 	if (err)
 		return err;
 	err = __hw_addr_add(&dev->dev_addrs, addr, dev->addr_len, addr_type);
 	if (!err)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+		call_netdevice_yestifiers(NETDEV_CHANGEADDR, dev);
 	return err;
 }
 EXPORT_SYMBOL(dev_addr_add);
@@ -524,7 +524,7 @@ int dev_addr_del(struct net_device *dev, const unsigned char *addr,
 	ASSERT_RTNL();
 
 	/*
-	 * We can not remove the first address from the list because
+	 * We can yest remove the first address from the list because
 	 * dev->dev_addr points to that.
 	 */
 	ha = list_first_entry(&dev->dev_addrs.list,
@@ -536,7 +536,7 @@ int dev_addr_del(struct net_device *dev, const unsigned char *addr,
 	err = __hw_addr_del(&dev->dev_addrs, addr, dev->addr_len,
 			    addr_type);
 	if (!err)
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+		call_netdevice_yestifiers(NETDEV_CHANGEADDR, dev);
 	return err;
 }
 EXPORT_SYMBOL(dev_addr_del);
@@ -618,17 +618,17 @@ int dev_uc_del(struct net_device *dev, const unsigned char *addr)
 EXPORT_SYMBOL(dev_uc_del);
 
 /**
- *	dev_uc_sync - Synchronize device's unicast list to another device
+ *	dev_uc_sync - Synchronize device's unicast list to ayesther device
  *	@to: destination device
  *	@from: source device
  *
  *	Add newly added addresses to the destination device and release
- *	addresses that have no users left. The source device must be
+ *	addresses that have yes users left. The source device must be
  *	locked by netif_addr_lock_bh.
  *
  *	This function is intended to be called from the dev->set_rx_mode
  *	function of layered software devices.  This function assumes that
- *	addresses will only ever be synced to the @to devices and no other.
+ *	addresses will only ever be synced to the @to devices and yes other.
  */
 int dev_uc_sync(struct net_device *to, struct net_device *from)
 {
@@ -647,7 +647,7 @@ int dev_uc_sync(struct net_device *to, struct net_device *from)
 EXPORT_SYMBOL(dev_uc_sync);
 
 /**
- *	dev_uc_sync_multiple - Synchronize device's unicast list to another
+ *	dev_uc_sync_multiple - Synchronize device's unicast list to ayesther
  *	device, but allow for multiple calls to sync to multiple devices.
  *	@to: destination device
  *	@from: source device
@@ -840,12 +840,12 @@ int dev_mc_del_global(struct net_device *dev, const unsigned char *addr)
 EXPORT_SYMBOL(dev_mc_del_global);
 
 /**
- *	dev_mc_sync - Synchronize device's multicast list to another device
+ *	dev_mc_sync - Synchronize device's multicast list to ayesther device
  *	@to: destination device
  *	@from: source device
  *
  *	Add newly added addresses to the destination device and release
- *	addresses that have no users left. The source device must be
+ *	addresses that have yes users left. The source device must be
  *	locked by netif_addr_lock_bh.
  *
  *	This function is intended to be called from the ndo_set_rx_mode
@@ -868,13 +868,13 @@ int dev_mc_sync(struct net_device *to, struct net_device *from)
 EXPORT_SYMBOL(dev_mc_sync);
 
 /**
- *	dev_mc_sync_multiple - Synchronize device's multicast list to another
+ *	dev_mc_sync_multiple - Synchronize device's multicast list to ayesther
  *	device, but allow for multiple calls to sync to multiple devices.
  *	@to: destination device
  *	@from: source device
  *
  *	Add newly added addresses to the destination device and release
- *	addresses that have no users left. The source device must be
+ *	addresses that have yes users left. The source device must be
  *	locked by netif_addr_lock_bh.
  *
  *	This function is intended to be called from the ndo_set_rx_mode

@@ -135,10 +135,10 @@ static bool crb_wait_for_reg_32(u32 __iomem *reg, u32 mask, u32 value,
  *
  * Write CRB_CTRL_REQ_GO_IDLE to TPM_CRB_CTRL_REQ
  * The device should respond within TIMEOUT_C by clearing the bit.
- * Anyhow, we do not wait here as a consequent CMD_READY request
- * will be handled correctly even if idle was not completed.
+ * Anyhow, we do yest wait here as a consequent CMD_READY request
+ * will be handled correctly even if idle was yest completed.
  *
- * The function does nothing for devices with ACPI-start method
+ * The function does yesthing for devices with ACPI-start method
  * or SMC-start method.
  *
  * Return: 0 always
@@ -178,10 +178,10 @@ static int crb_go_idle(struct tpm_chip *chip)
  * @priv: crb private data
  *
  * Write CRB_CTRL_REQ_CMD_READY to TPM_CRB_CTRL_REQ
- * and poll till the device acknowledge it by clearing the bit.
+ * and poll till the device ackyeswledge it by clearing the bit.
  * The device should respond within TIMEOUT_C.
  *
- * The function does nothing for devices with ACPI-start method
+ * The function does yesthing for devices with ACPI-start method
  * or SMC-start method.
  *
  * Return: 0 on success -ETIME on timeout;
@@ -360,7 +360,7 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	struct crb_priv *priv = dev_get_drvdata(&chip->dev);
 	int rc = 0;
 
-	/* Zero the cancel register so that the next command will not get
+	/* Zero the cancel register so that the next command will yest get
 	 * canceled.
 	 */
 	iowrite32(0, &priv->regs_t->ctrl_cancel);
@@ -481,7 +481,7 @@ static void __iomem *crb_map_res(struct device *dev, struct resource *iores,
 /*
  * Work around broken BIOSs that return inconsistent values from the ACPI
  * region vs the registers. Trust the ACPI region. Such broken systems
- * probably cannot send large TPM commands since the buffer will be truncated.
+ * probably canyest send large TPM commands since the buffer will be truncated.
  */
 static u64 crb_fixup_cmd_size(struct device *dev, struct resource *io_res,
 			      u64 start, u64 size)
@@ -493,7 +493,7 @@ static u64 crb_fixup_cmd_size(struct device *dev, struct resource *io_res,
 		return size;
 
 	dev_err(dev,
-		FW_BUG "ACPI region does not cover the entire command/response buffer. %pr vs %llx %llx\n",
+		FW_BUG "ACPI region does yest cover the entire command/response buffer. %pr vs %llx %llx\n",
 		io_res, start, size);
 
 	return io_res->end - start + 1;
@@ -525,7 +525,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	acpi_dev_free_resource_list(&acpi_resource_list);
 
 	if (resource_type(iores_array) != IORESOURCE_MEM) {
-		dev_err(dev, FW_BUG "TPM2 ACPI table does not define a memory resource\n");
+		dev_err(dev, FW_BUG "TPM2 ACPI table does yest define a memory resource\n");
 		return -EINVAL;
 	} else if (resource_type(iores_array + TPM_CRB_MAX_RESOURCES) ==
 		IORESOURCE_MEM) {
@@ -573,7 +573,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 
 	/*
 	 * PTT HW bug w/a: wake up the device to access
-	 * possibly not retained registers.
+	 * possibly yest retained registers.
 	 */
 	ret = __crb_cmd_ready(dev, priv);
 	if (ret)
@@ -636,7 +636,7 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 	 * buffer sizes must be identical.
 	 */
 	if (cmd_size != rsp_size) {
-		dev_err(dev, FW_BUG "overlapping command and response buffer sizes are not identical");
+		dev_err(dev, FW_BUG "overlapping command and response buffer sizes are yest identical");
 		ret = -EINVAL;
 		goto out;
 	}

@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fsl/guts.h>
 #include <linux/pci.h>
 #include <linux/of_platform.h>
@@ -32,7 +32,7 @@ static void __init twr_p1025_pic_init(void)
 	struct mpic *mpic;
 
 #ifdef CONFIG_QUICC_ENGINE
-	struct device_node *np;
+	struct device_yesde *np;
 #endif
 
 	mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
@@ -43,13 +43,13 @@ static void __init twr_p1025_pic_init(void)
 	mpic_init(mpic);
 
 #ifdef CONFIG_QUICC_ENGINE
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,qe-ic");
 	if (np) {
 		qe_ic_init(np, 0, qe_ic_cascade_low_mpic,
 				qe_ic_cascade_high_mpic);
-		of_node_put(np);
+		of_yesde_put(np);
 	} else
-		pr_err("Could not find qe-ic node\n");
+		pr_err("Could yest find qe-ic yesde\n");
 #endif
 }
 
@@ -61,7 +61,7 @@ static void __init twr_p1025_pic_init(void)
 static void __init twr_p1025_setup_arch(void)
 {
 #ifdef CONFIG_QUICC_ENGINE
-	struct device_node *np;
+	struct device_yesde *np;
 #endif
 
 	if (ppc_md.progress)
@@ -78,11 +78,11 @@ static void __init twr_p1025_setup_arch(void)
 	if (machine_is(twr_p1025)) {
 		struct ccsr_guts __iomem *guts;
 
-		np = of_find_compatible_node(NULL, NULL, "fsl,p1021-guts");
+		np = of_find_compatible_yesde(NULL, NULL, "fsl,p1021-guts");
 		if (np) {
 			guts = of_iomap(np, 0);
 			if (!guts)
-				pr_err("twr_p1025: could not map global utilities register\n");
+				pr_err("twr_p1025: could yest map global utilities register\n");
 			else {
 			/* P1025 has pins muxed for QE and other functions. To
 			 * enable QE UEC mode, we need to set bit QE0 for UCC1
@@ -110,7 +110,7 @@ static void __init twr_p1025_setup_arch(void)
 			par_io_config_pin(1, 29, 1, 0, 0, 0);
 			par_io_data_set(1, 29, 0);
 			}
-			of_node_put(np);
+			of_yesde_put(np);
 		}
 	}
 #endif

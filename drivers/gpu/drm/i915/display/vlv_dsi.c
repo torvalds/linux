@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -86,7 +86,7 @@ void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port)
 
 	if (intel_de_wait_for_set(dev_priv, MIPI_GEN_FIFO_STAT(port),
 				  mask, 100))
-		DRM_ERROR("DPI FIFOs are not empty\n");
+		DRM_ERROR("DPI FIFOs are yest empty\n");
 }
 
 static void write_data(struct drm_i915_private *dev_priv,
@@ -151,7 +151,7 @@ static ssize_t intel_dsi_host_transfer(struct mipi_dsi_host *host,
 		ctrl_mask = HS_CTRL_FIFO_FULL;
 	}
 
-	/* note: this is never true for reads */
+	/* yeste: this is never true for reads */
 	if (packet.payload_length) {
 		if (intel_de_wait_for_clear(dev_priv, MIPI_GEN_FIFO_STAT(port),
 					    data_mask, 50))
@@ -325,7 +325,7 @@ static bool glk_dsi_enable_io(struct intel_encoder *encoder)
 	bool cold_boot = false;
 
 	/* Set the MIPI mode
-	 * If MIPI_Mode is off, then writing to LP_Wake bit is not reflecting.
+	 * If MIPI_Mode is off, then writing to LP_Wake bit is yest reflecting.
 	 * Power ON MIPI IO first and then write into IO reset and LP wake bits
 	 */
 	for_each_dsi_port(port, intel_dsi->ports) {
@@ -375,7 +375,7 @@ static void glk_dsi_device_ready(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		if (intel_de_wait_for_set(dev_priv, MIPI_CTRL(port),
 					  GLK_PHY_STATUS_PORT_READY, 20))
-			DRM_ERROR("PHY is not ON\n");
+			DRM_ERROR("PHY is yest ON\n");
 	}
 
 	/* Get IO out of reset */
@@ -400,7 +400,7 @@ static void glk_dsi_device_ready(struct intel_encoder *encoder)
 			/* Wait for ULPS active */
 			if (intel_de_wait_for_clear(dev_priv, MIPI_CTRL(port),
 						    GLK_ULPS_NOT_ACTIVE, 20))
-				DRM_ERROR("ULPS not active\n");
+				DRM_ERROR("ULPS yest active\n");
 
 			/* Exit ULPS */
 			val = I915_READ(MIPI_DEVICE_READY(port));
@@ -424,14 +424,14 @@ static void glk_dsi_device_ready(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		if (intel_de_wait_for_set(dev_priv, MIPI_CTRL(port),
 					  GLK_DATA_LANE_STOP_STATE, 20))
-			DRM_ERROR("Date lane not in STOP state\n");
+			DRM_ERROR("Date lane yest in STOP state\n");
 	}
 
 	/* Wait for AFE LATCH */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		if (intel_de_wait_for_set(dev_priv, BXT_MIPI_PORT_CTRL(port),
 					  AFE_LATCHOUT, 20))
-			DRM_ERROR("D-PHY not entering LP-11 state\n");
+			DRM_ERROR("D-PHY yest entering LP-11 state\n");
 	}
 }
 
@@ -532,14 +532,14 @@ static void glk_dsi_enter_low_power_mode(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		if (intel_de_wait_for_clear(dev_priv, MIPI_CTRL(port),
 					    GLK_PHY_STATUS_PORT_READY, 20))
-			DRM_ERROR("PHY is not turning OFF\n");
+			DRM_ERROR("PHY is yest turning OFF\n");
 	}
 
 	/* Wait for Pwr ACK bit to unset */
 	for_each_dsi_port(port, intel_dsi->ports) {
 		if (intel_de_wait_for_clear(dev_priv, MIPI_CTRL(port),
 					    GLK_MIPIIO_PORT_POWERED, 20))
-			DRM_ERROR("MIPI IO Port is not powergated\n");
+			DRM_ERROR("MIPI IO Port is yest powergated\n");
 	}
 }
 
@@ -559,7 +559,7 @@ static void glk_dsi_disable_mipi_io(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		if (intel_de_wait_for_clear(dev_priv, MIPI_CTRL(port),
 					    GLK_PHY_STATUS_PORT_READY, 20))
-			DRM_ERROR("PHY is not turning OFF\n");
+			DRM_ERROR("PHY is yest turning OFF\n");
 	}
 
 	/* Clear MIPI mode */
@@ -603,12 +603,12 @@ static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 
 		/*
 		 * On VLV/CHV, wait till Clock lanes are in LP-00 state for MIPI
-		 * Port A only. MIPI Port C has no similar bit for checking.
+		 * Port A only. MIPI Port C has yes similar bit for checking.
 		 */
 		if ((IS_GEN9_LP(dev_priv) || port == PORT_A) &&
 		    intel_de_wait_for_clear(dev_priv, port_ctrl,
 					    AFE_LATCHOUT, 30))
-			DRM_ERROR("DSI LP not going Low\n");
+			DRM_ERROR("DSI LP yest going Low\n");
 
 		/* Disable MIPI PHY transparent latch */
 		val = I915_READ(port_ctrl);
@@ -704,10 +704,10 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder);
  * Panel enable/disable sequences from the VBT spec.
  *
  * Note the spec has AssertReset / DeassertReset swapped from their
- * usual naming. We use the normal names to avoid confusion (so below
+ * usual naming. We use the yesrmal names to avoid confusion (so below
  * they are swapped compared to the spec).
  *
- * Steps starting with MIPI refer to VBT sequences, note that for v2
+ * Steps starting with MIPI refer to VBT sequences, yeste that for v2
  * VBTs several steps which have a VBT in v2 are expected to be handled
  * directly by the driver, by directly driving gpios for example.
  *
@@ -813,7 +813,7 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	/* Put device in ready state (LP-11) */
 	intel_dsi_device_ready(encoder);
 
-	/* Prepare port in normal boot scenario */
+	/* Prepare port in yesrmal boot scenario */
 	if (IS_GEMINILAKE(dev_priv) && !glk_cold_boot)
 		intel_dsi_prepare(encoder, pipe_config);
 
@@ -946,7 +946,7 @@ static void intel_dsi_post_disable(struct intel_encoder *encoder,
 		gpiod_set_value_cansleep(intel_dsi->gpio_panel, 0);
 
 	/*
-	 * FIXME As we do with eDP, just make a note of the time here
+	 * FIXME As we do with eDP, just make a yeste of the time here
 	 * and perform the wait before the next panel power on.
 	 */
 	intel_dsi_msleep(intel_dsi, intel_dsi->panel_pwr_cycle_delay);
@@ -984,14 +984,14 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 
 		/*
 		 * Due to some hardware limitations on VLV/CHV, the DPI enable
-		 * bit in port C control register does not get set. As a
+		 * bit in port C control register does yest get set. As a
 		 * workaround, check pipe B conf instead.
 		 */
 		if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 		    port == PORT_C)
 			enabled = I915_READ(PIPECONF(PIPE_B)) & PIPECONF_ENABLE;
 
-		/* Try command mode if video mode not enabled */
+		/* Try command mode if video mode yest enabled */
 		if (!enabled) {
 			u32 tmp = I915_READ(MIPI_DSI_FUNC_PRG(port));
 			enabled = tmp & CMD_MODE_DATA_WIDTH_MASK;
@@ -1044,7 +1044,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	u16 crtc_htotal_sw, crtc_hsync_start_sw, crtc_hsync_end_sw,
 				crtc_hblank_start_sw, crtc_hblank_end_sw;
 
-	/* FIXME: hw readout should not depend on SW state */
+	/* FIXME: hw readout should yest depend on SW state */
 	adjusted_mode_sw = &crtc->config->base.adjusted_mode;
 
 	/*
@@ -1078,8 +1078,8 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	hfp = I915_READ(MIPI_HFP_COUNT(port));
 
 	/*
-	 * Meaningful for video mode non-burst sync pulse mode only,
-	 * can be zero for non-burst sync events and burst modes
+	 * Meaningful for video mode yesn-burst sync pulse mode only,
+	 * can be zero for yesn-burst sync events and burst modes
 	 */
 	hsync = I915_READ(MIPI_HSYNC_PADDING_COUNT(port));
 	hbp = I915_READ(MIPI_HBP_COUNT(port));
@@ -1115,7 +1115,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	adjusted_mode->crtc_vblank_end = adjusted_mode->crtc_vtotal;
 
 	/*
-	 * In BXT DSI there is no regs programmed with few horizontal timings
+	 * In BXT DSI there is yes regs programmed with few horizontal timings
 	 * in Pixels but txbyteclkhs.. So retrieval process adds some
 	 * ROUND_UP ERRORS in the process of PIXELS<==>txbyteclkhs.
 	 * Actually here for the given adjusted_mode, we are calculating the
@@ -1280,8 +1280,8 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 		I915_WRITE(MIPI_HACTIVE_AREA_COUNT(port), hactive);
 		I915_WRITE(MIPI_HFP_COUNT(port), hfp);
 
-		/* meaningful for video mode non-burst sync pulse mode only,
-		 * can be zero for non-burst sync events and burst modes */
+		/* meaningful for video mode yesn-burst sync pulse mode only,
+		 * can be zero for yesn-burst sync events and burst modes */
 		I915_WRITE(MIPI_HSYNC_PADDING_COUNT(port), hsync);
 		I915_WRITE(MIPI_HBP_COUNT(port), hbp);
 
@@ -1404,7 +1404,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 		 * clock (txbyteclkhs) To timeout this timer 1+ of the above
 		 * said value is recommended.
 		 *
-		 * In non-burst mode, Value greater than one DPI frame time in
+		 * In yesn-burst mode, Value greater than one DPI frame time in
 		 * byte clock(txbyteclkhs) To timeout this timer 1+ of the above
 		 * said value is recommended.
 		 *
@@ -1443,7 +1443,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 			 * BXT spec says write MIPI_INIT_COUNT for
 			 * both the ports, even if only one is
 			 * getting used. So write the other port
-			 * if not in dual link mode.
+			 * if yest in dual link mode.
 			 */
 			I915_WRITE(MIPI_INIT_COUNT(port ==
 						PORT_A ? PORT_C : PORT_A),
@@ -1492,7 +1492,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 		intel_dsi->clk_hs_to_lp_count << HS_LP_PWR_SW_CNT_SHIFT);
 
 		if (is_vid_mode(intel_dsi))
-			/* Some panels might have resolution which is not a
+			/* Some panels might have resolution which is yest a
 			 * multiple of 64 like 1366 x 768. Enable RANDOM
 			 * resolution support for such panels by default */
 			I915_WRITE(MIPI_VIDEO_MODE_FORMAT(port),
@@ -1768,7 +1768,7 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 
 	/* B044 */
 	/* FIXME:
-	 * The comment above does not match with the code */
+	 * The comment above does yest match with the code */
 	lp_to_hs_switch = DIV_ROUND_UP(4 * tlpx_ui + prepare_cnt * mul +
 						exit_zero_cnt * mul + 10, 8);
 
@@ -1822,7 +1822,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	DRM_DEBUG_KMS("\n");
 
-	/* There is no detection method for MIPI so rely on VBT */
+	/* There is yes detection method for MIPI so rely on VBT */
 	if (!intel_bios_is_dsi_present(dev_priv, &port))
 		return;
 
@@ -1897,7 +1897,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (!intel_dsi_vbt_init(intel_dsi, MIPI_DSI_GENERIC_PANEL_ID)) {
-		DRM_DEBUG_KMS("no device found\n");
+		DRM_DEBUG_KMS("yes device found\n");
 		goto err;
 	}
 
@@ -1948,7 +1948,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev->mode_config.mutex);
 
 	if (!fixed_mode) {
-		DRM_DEBUG_KMS("no fixed mode\n");
+		DRM_DEBUG_KMS("yes fixed mode\n");
 		goto err_cleanup_connector;
 	}
 

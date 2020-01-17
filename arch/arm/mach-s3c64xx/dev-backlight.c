@@ -29,14 +29,14 @@ static int samsung_bl_init(struct device *dev)
 					struct samsung_bl_drvdata, plat_data);
 	struct samsung_bl_gpio_info *bl_gpio_info = drvdata->gpio_info;
 
-	ret = gpio_request(bl_gpio_info->no, "Backlight");
+	ret = gpio_request(bl_gpio_info->yes, "Backlight");
 	if (ret) {
 		printk(KERN_ERR "failed to request GPIO for LCD Backlight\n");
 		return ret;
 	}
 
 	/* Configure GPIO pin with specific GPIO function for PWM timer */
-	s3c_gpio_cfgpin(bl_gpio_info->no, bl_gpio_info->func);
+	s3c_gpio_cfgpin(bl_gpio_info->yes, bl_gpio_info->func);
 
 	return 0;
 }
@@ -48,8 +48,8 @@ static void samsung_bl_exit(struct device *dev)
 					struct samsung_bl_drvdata, plat_data);
 	struct samsung_bl_gpio_info *bl_gpio_info = drvdata->gpio_info;
 
-	s3c_gpio_cfgpin(bl_gpio_info->no, S3C_GPIO_OUTPUT);
-	gpio_free(bl_gpio_info->no);
+	s3c_gpio_cfgpin(bl_gpio_info->yes, S3C_GPIO_OUTPUT);
+	gpio_free(bl_gpio_info->yes);
 }
 
 /* Initialize few important fields of platform_pwm_backlight_data
@@ -115,10 +115,10 @@ void __init samsung_bl_set(struct samsung_bl_gpio_info *gpio_info,
 		samsung_bl_data->enable_gpio = bl_data->enable_gpio;
 	if (bl_data->init)
 		samsung_bl_data->init = bl_data->init;
-	if (bl_data->notify)
-		samsung_bl_data->notify = bl_data->notify;
-	if (bl_data->notify_after)
-		samsung_bl_data->notify_after = bl_data->notify_after;
+	if (bl_data->yestify)
+		samsung_bl_data->yestify = bl_data->yestify;
+	if (bl_data->yestify_after)
+		samsung_bl_data->yestify_after = bl_data->yestify_after;
 	if (bl_data->exit)
 		samsung_bl_data->exit = bl_data->exit;
 	if (bl_data->check_fb)

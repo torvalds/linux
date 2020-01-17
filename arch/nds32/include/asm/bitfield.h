@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef __NDS32_BITFIELD_H__
 #define __NDS32_BITFIELD_H__
 /******************************************************************************
  * cr0: CPU_VER (CPU Version Register)
  *****************************************************************************/
-#define CPU_VER_offCFGID	0	/* Minor configuration */
+#define CPU_VER_offCFGID	0	/* Miyesr configuration */
 #define CPU_VER_offREV		16	/* Revision of the CPU version */
 #define CPU_VER_offCPUID	24	/* Major CPU versions */
 
@@ -55,10 +55,10 @@
  *****************************************************************************/
 #define MMU_CFG_offMMPS		0	/* Memory management protection scheme */
 #define MMU_CFG_offMMPV		2	/* Memory management protection version number */
-#define MMU_CFG_offFATB		7	/* Fully-associative or non-fully-associative TLB */
+#define MMU_CFG_offFATB		7	/* Fully-associative or yesn-fully-associative TLB */
 
-#define MMU_CFG_offTBW		8	/* TLB ways(non-associative) TBS */
-#define MMU_CFG_offTBS		11	/* TLB sets per way(non-associative) TBS */
+#define MMU_CFG_offTBW		8	/* TLB ways(yesn-associative) TBS */
+#define MMU_CFG_offTBS		11	/* TLB sets per way(yesn-associative) TBS */
 /* bit 14:14 reserved */
 
 #define MMU_CFG_offEP8MIN4	15	/* 8KB page supported while minimum page is 4KB */
@@ -66,7 +66,7 @@
 #define MMU_CFG_offTLBLCK	24	/* TLB locking support */
 #define MMU_CFG_offHPTWK	25	/* Hardware Page Table Walker implemented */
 #define MMU_CFG_offDE		26	/* Default endian */
-#define MMU_CFG_offNTPT		27	/* Partitions for non-translated attributes */
+#define MMU_CFG_offNTPT		27	/* Partitions for yesn-translated attributes */
 #define MMU_CFG_offIVTB		28	/* Invisible TLB */
 #define MMU_CFG_offVLPT		29	/* VLPT for fast TLB fill handling implemented */
 #define MMU_CFG_offNTME		30	/* Non-translated VA to PA mapping */
@@ -271,7 +271,7 @@
 #define ENTRY_GENERAL_EXCPETION		7
 #define ENTRY_SYSCALL			8
 
-/* PTE not present exception definition */
+/* PTE yest present exception definition */
 #define ETYPE_NON_LEAF_PTE_NOT_PRESENT	0
 #define ETYPE_LEAF_PTE_NOT_PRESENT	1
 
@@ -524,7 +524,7 @@
 #define HSMP_SADDR_offEN	0	/* Enable control bit for the High Speed Memory port */
 /* bit 1:19 reserved */
 
-#define HSMP_SADDR_offRANGE	1	/* Denote the address range (only defined in HSMP v2 ) */
+#define HSMP_SADDR_offRANGE	1	/* Deyeste the address range (only defined in HSMP v2 ) */
 #define HSMP_SADDR_offSADDR	20	/* Starting base PA of the High Speed Memory Port region */
 
 #define HSMP_SADDR_mskEN	( 0x1  << HSMP_SADDR_offEN )

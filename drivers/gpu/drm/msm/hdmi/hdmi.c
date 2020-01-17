@@ -83,22 +83,22 @@ static int msm_hdmi_get_phy(struct hdmi *hdmi)
 {
 	struct platform_device *pdev = hdmi->pdev;
 	struct platform_device *phy_pdev;
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 
-	phy_node = of_parse_phandle(pdev->dev.of_node, "phys", 0);
-	if (!phy_node) {
-		DRM_DEV_ERROR(&pdev->dev, "cannot find phy device\n");
+	phy_yesde = of_parse_phandle(pdev->dev.of_yesde, "phys", 0);
+	if (!phy_yesde) {
+		DRM_DEV_ERROR(&pdev->dev, "canyest find phy device\n");
 		return -ENXIO;
 	}
 
-	phy_pdev = of_find_device_by_node(phy_node);
+	phy_pdev = of_find_device_by_yesde(phy_yesde);
 	if (phy_pdev)
 		hdmi->phy = platform_get_drvdata(phy_pdev);
 
-	of_node_put(phy_node);
+	of_yesde_put(phy_yesde);
 
 	if (!phy_pdev || !hdmi->phy) {
-		DRM_DEV_ERROR(&pdev->dev, "phy driver is not ready\n");
+		DRM_DEV_ERROR(&pdev->dev, "phy driver is yest ready\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -271,7 +271,7 @@ fail:
 
 /* Second part of initialization, the drm/kms level modeset_init,
  * constructs/initializes mode objects, etc, is called from master
- * driver (not hdmi sub-device's probe/bind!)
+ * driver (yest hdmi sub-device's probe/bind!)
  *
  * Any resource (regulator/clk/etc) which could be missing at boot
  * should be handled in msm_hdmi_init() so that failure happens from
@@ -305,7 +305,7 @@ int msm_hdmi_modeset_init(struct hdmi *hdmi,
 		goto fail;
 	}
 
-	hdmi->irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	hdmi->irq = irq_of_parse_and_map(pdev->dev.of_yesde, 0);
 	if (hdmi->irq < 0) {
 		ret = hdmi->irq;
 		DRM_DEV_ERROR(dev->dev, "failed to get irq: %d\n", ret);
@@ -339,7 +339,7 @@ int msm_hdmi_modeset_init(struct hdmi *hdmi,
 	return 0;
 
 fail:
-	/* bridge is normally destroyed by drm: */
+	/* bridge is yesrmally destroyed by drm: */
 	if (hdmi->bridge) {
 		msm_hdmi_bridge_destroy(hdmi->bridge);
 		hdmi->bridge = NULL;
@@ -360,8 +360,8 @@ fail:
 	.item ## _names = item ##_names_ ## entry, \
 	.item ## _cnt   = ARRAY_SIZE(item ## _names_ ## entry)
 
-static const char *pwr_reg_names_none[] = {};
-static const char *hpd_reg_names_none[] = {};
+static const char *pwr_reg_names_yesne[] = {};
+static const char *hpd_reg_names_yesne[] = {};
 
 static struct hdmi_platform_config hdmi_tx_8660_config;
 
@@ -399,15 +399,15 @@ static struct hdmi_platform_config hdmi_tx_8084_config = {
 
 static struct hdmi_platform_config hdmi_tx_8994_config = {
 		HDMI_CFG(pwr_reg, 8x74),
-		HDMI_CFG(hpd_reg, none),
+		HDMI_CFG(hpd_reg, yesne),
 		HDMI_CFG(pwr_clk, 8x74),
 		HDMI_CFG(hpd_clk, 8x74),
 		.hpd_freq      = hpd_clk_freq_8x74,
 };
 
 static struct hdmi_platform_config hdmi_tx_8996_config = {
-		HDMI_CFG(pwr_reg, none),
-		HDMI_CFG(hpd_reg, none),
+		HDMI_CFG(pwr_reg, yesne),
+		HDMI_CFG(hpd_reg, yesne),
 		HDMI_CFG(pwr_clk, 8x74),
 		HDMI_CFG(hpd_clk, 8x74),
 		.hpd_freq      = hpd_clk_freq_8x74,
@@ -492,7 +492,7 @@ static int msm_hdmi_audio_hw_params(struct device *dev, void *data,
 		rate = HDMI_SAMPLE_RATE_192KHZ;
 		break;
 	default:
-		DRM_DEV_ERROR(dev, "rate[%d] not supported!\n",
+		DRM_DEV_ERROR(dev, "rate[%d] yest supported!\n",
 			params->sample_rate);
 		return -EINVAL;
 	}
@@ -538,13 +538,13 @@ static int msm_hdmi_bind(struct device *dev, struct device *master, void *data)
 	struct msm_drm_private *priv = drm->dev_private;
 	struct hdmi_platform_config *hdmi_cfg;
 	struct hdmi *hdmi;
-	struct device_node *of_node = dev->of_node;
+	struct device_yesde *of_yesde = dev->of_yesde;
 	int i, err;
 
 	hdmi_cfg = (struct hdmi_platform_config *)
 			of_device_get_match_data(dev);
 	if (!hdmi_cfg) {
-		DRM_DEV_ERROR(dev, "unknown hdmi_cfg: %pOFn\n", of_node);
+		DRM_DEV_ERROR(dev, "unkyeswn hdmi_cfg: %pOFn\n", of_yesde);
 		return -ENXIO;
 	}
 

@@ -62,7 +62,7 @@ static int mpl3115_request(struct mpl3115_data *data)
 	}
 
 	if (tries < 0) {
-		dev_err(&data->client->dev, "data not ready\n");
+		dev_err(&data->client->dev, "data yest ready\n");
 		return -EIO;
 	}
 
@@ -179,7 +179,7 @@ static irqreturn_t mpl3115_trigger_handler(int irq, void *p)
 		iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 

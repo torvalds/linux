@@ -89,9 +89,9 @@ void ocelot_set_cpu_port(struct ocelot *ocelot, int cpu,
 			 enum ocelot_tag_prefix injection,
 			 enum ocelot_tag_prefix extraction);
 
-extern struct notifier_block ocelot_netdevice_nb;
-extern struct notifier_block ocelot_switchdev_nb;
-extern struct notifier_block ocelot_switchdev_blocking_nb;
+extern struct yestifier_block ocelot_netdevice_nb;
+extern struct yestifier_block ocelot_switchdev_nb;
+extern struct yestifier_block ocelot_switchdev_blocking_nb;
 
 #define ocelot_field_write(ocelot, reg, val) regmap_field_write((ocelot)->regfields[(reg)], (val))
 #define ocelot_field_read(ocelot, reg, val) regmap_field_read((ocelot)->regfields[(reg)], (val))

@@ -108,27 +108,27 @@ static int a370db_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	a370db_dai[0].cpus->of_node =
-		of_parse_phandle(pdev->dev.of_node,
+	a370db_dai[0].cpus->of_yesde =
+		of_parse_phandle(pdev->dev.of_yesde,
 				 "marvell,audio-controller", 0);
-	a370db_dai[0].platforms->of_node = a370db_dai[0].cpus->of_node;
+	a370db_dai[0].platforms->of_yesde = a370db_dai[0].cpus->of_yesde;
 
-	a370db_dai[0].codecs->of_node =
-		of_parse_phandle(pdev->dev.of_node,
+	a370db_dai[0].codecs->of_yesde =
+		of_parse_phandle(pdev->dev.of_yesde,
 				 "marvell,audio-codec", 0);
 
-	a370db_dai[1].cpus->of_node = a370db_dai[0].cpus->of_node;
-	a370db_dai[1].platforms->of_node = a370db_dai[0].cpus->of_node;
+	a370db_dai[1].cpus->of_yesde = a370db_dai[0].cpus->of_yesde;
+	a370db_dai[1].platforms->of_yesde = a370db_dai[0].cpus->of_yesde;
 
-	a370db_dai[1].codecs->of_node =
-		of_parse_phandle(pdev->dev.of_node,
+	a370db_dai[1].codecs->of_yesde =
+		of_parse_phandle(pdev->dev.of_yesde,
 				 "marvell,audio-codec", 1);
 
-	a370db_dai[2].cpus->of_node = a370db_dai[0].cpus->of_node;
-	a370db_dai[2].platforms->of_node = a370db_dai[0].cpus->of_node;
+	a370db_dai[2].cpus->of_yesde = a370db_dai[0].cpus->of_yesde;
+	a370db_dai[2].platforms->of_yesde = a370db_dai[0].cpus->of_yesde;
 
-	a370db_dai[2].codecs->of_node =
-		of_parse_phandle(pdev->dev.of_node,
+	a370db_dai[2].codecs->of_yesde =
+		of_parse_phandle(pdev->dev.of_yesde,
 				 "marvell,audio-codec", 2);
 
 	return devm_snd_soc_register_card(card->dev, card);

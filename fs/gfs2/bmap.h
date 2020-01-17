@@ -9,10 +9,10 @@
 
 #include <linux/iomap.h>
 
-#include "inode.h"
+#include "iyesde.h"
 
-struct inode;
-struct gfs2_inode;
+struct iyesde;
+struct gfs2_iyesde;
 struct page;
 
 
@@ -25,12 +25,12 @@ struct page;
  *
  */
 
-static inline void gfs2_write_calc_reserv(const struct gfs2_inode *ip,
+static inline void gfs2_write_calc_reserv(const struct gfs2_iyesde *ip,
 					  unsigned int len,
 					  unsigned int *data_blocks,
 					  unsigned int *ind_blocks)
 {
-	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_iyesde);
 	unsigned int tmp;
 
 	BUG_ON(gfs2_is_dir(ip));
@@ -45,22 +45,22 @@ static inline void gfs2_write_calc_reserv(const struct gfs2_inode *ip,
 
 extern const struct iomap_ops gfs2_iomap_ops;
 
-extern int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page);
-extern int gfs2_block_map(struct inode *inode, sector_t lblock,
+extern int gfs2_unstuff_diyesde(struct gfs2_iyesde *ip, struct page *page);
+extern int gfs2_block_map(struct iyesde *iyesde, sector_t lblock,
 			  struct buffer_head *bh, int create);
-extern int gfs2_iomap_get_alloc(struct inode *inode, loff_t pos, loff_t length,
+extern int gfs2_iomap_get_alloc(struct iyesde *iyesde, loff_t pos, loff_t length,
 				struct iomap *iomap);
-extern int gfs2_extent_map(struct inode *inode, u64 lblock, int *new,
+extern int gfs2_extent_map(struct iyesde *iyesde, u64 lblock, int *new,
 			   u64 *dblock, unsigned *extlen);
-extern int gfs2_setattr_size(struct inode *inode, u64 size);
-extern void gfs2_trim_blocks(struct inode *inode);
-extern int gfs2_truncatei_resume(struct gfs2_inode *ip);
-extern int gfs2_file_dealloc(struct gfs2_inode *ip);
-extern int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
+extern int gfs2_setattr_size(struct iyesde *iyesde, u64 size);
+extern void gfs2_trim_blocks(struct iyesde *iyesde);
+extern int gfs2_truncatei_resume(struct gfs2_iyesde *ip);
+extern int gfs2_file_dealloc(struct gfs2_iyesde *ip);
+extern int gfs2_write_alloc_required(struct gfs2_iyesde *ip, u64 offset,
 				     unsigned int len);
 extern int gfs2_map_journal_extents(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd);
 extern void gfs2_free_journal_extents(struct gfs2_jdesc *jd);
 extern int __gfs2_punch_hole(struct file *file, loff_t offset, loff_t length);
-extern int gfs2_lblk_to_dblk(struct inode *inode, u32 lblock, u64 *dblock);
+extern int gfs2_lblk_to_dblk(struct iyesde *iyesde, u32 lblock, u64 *dblock);
 
 #endif /* __BMAP_DOT_H__ */

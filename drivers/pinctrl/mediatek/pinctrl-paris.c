@@ -126,7 +126,7 @@ static int mtk_pinconf_get(struct pinctrl_dev *pctldev,
 		if (err)
 			return err;
 
-		/* HW takes input mode as zero; output mode as non-zero */
+		/* HW takes input mode as zero; output mode as yesn-zero */
 		if ((val && param == PIN_CONFIG_INPUT_ENABLE) ||
 		    (!val && param == PIN_CONFIG_OUTPUT_ENABLE))
 			return -EINVAL;
@@ -394,7 +394,7 @@ static bool mtk_pctrl_is_function_valid(struct mtk_pinctrl *hw, u32 pin_num,
 	return false;
 }
 
-static int mtk_pctrl_dt_node_to_map_func(struct mtk_pinctrl *pctl,
+static int mtk_pctrl_dt_yesde_to_map_func(struct mtk_pinctrl *pctl,
 					 u32 pin, u32 fnum,
 					 struct mtk_pinctrl_group *grp,
 					 struct pinctrl_map **map,
@@ -422,8 +422,8 @@ static int mtk_pctrl_dt_node_to_map_func(struct mtk_pinctrl *pctl,
 	return 0;
 }
 
-static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-				       struct device_node *node,
+static int mtk_pctrl_dt_subyesde_to_map(struct pinctrl_dev *pctldev,
+				       struct device_yesde *yesde,
 				       struct pinctrl_map **map,
 				       unsigned *reserved_maps,
 				       unsigned *num_maps)
@@ -438,14 +438,14 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	struct property *pins;
 	unsigned reserve = 0;
 
-	pins = of_find_property(node, "pinmux", NULL);
+	pins = of_find_property(yesde, "pinmux", NULL);
 	if (!pins) {
-		dev_err(hw->dev, "missing pins property in node %pOFn .\n",
-			node);
+		dev_err(hw->dev, "missing pins property in yesde %pOFn .\n",
+			yesde);
 		return -EINVAL;
 	}
 
-	err = pinconf_generic_parse_dt_config(node, pctldev, &configs,
+	err = pinconf_generic_parse_dt_config(yesde, pctldev, &configs,
 					      &num_configs);
 	if (err)
 		return err;
@@ -474,7 +474,7 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		goto exit;
 
 	for (i = 0; i < num_pins; i++) {
-		err = of_property_read_u32_index(node, "pinmux", i, &pinfunc);
+		err = of_property_read_u32_index(yesde, "pinmux", i, &pinfunc);
 		if (err)
 			goto exit;
 
@@ -496,7 +496,7 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 			goto exit;
 		}
 
-		err = mtk_pctrl_dt_node_to_map_func(hw, pin, func, grp, map,
+		err = mtk_pctrl_dt_yesde_to_map_func(hw, pin, func, grp, map,
 						    reserved_maps, num_maps);
 		if (err < 0)
 			goto exit;
@@ -521,12 +521,12 @@ exit:
 	return err;
 }
 
-static int mtk_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				    struct device_node *np_config,
+static int mtk_pctrl_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+				    struct device_yesde *np_config,
 				    struct pinctrl_map **map,
 				    unsigned *num_maps)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned reserved_maps;
 	int ret;
 
@@ -534,13 +534,13 @@ static int mtk_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = 0;
 	reserved_maps = 0;
 
-	for_each_child_of_node(np_config, np) {
-		ret = mtk_pctrl_dt_subnode_to_map(pctldev, np, map,
+	for_each_child_of_yesde(np_config, np) {
+		ret = mtk_pctrl_dt_subyesde_to_map(pctldev, np, map,
 						  &reserved_maps,
 						  num_maps);
 		if (ret < 0) {
 			pinctrl_utils_free_map(pctldev, *map, *num_maps);
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 	}
@@ -576,7 +576,7 @@ static int mtk_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinctrl_ops mtk_pctlops = {
-	.dt_node_to_map		= mtk_pctrl_dt_node_to_map,
+	.dt_yesde_to_map		= mtk_pctrl_dt_yesde_to_map,
 	.dt_free_map		= pinctrl_utils_free_map,
 	.get_groups_count	= mtk_pctrl_get_groups_count,
 	.get_group_name		= mtk_pctrl_get_group_name,
@@ -775,7 +775,7 @@ static int mtk_gpio_set_config(struct gpio_chip *chip, unsigned int offset,
 	return mtk_eint_set_debounce(hw->eint, desc->eint.eint_n, debounce);
 }
 
-static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
+static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_yesde *np)
 {
 	struct gpio_chip *chip = &hw->chip;
 	int ret;
@@ -793,7 +793,7 @@ static int mtk_build_gpiochip(struct mtk_pinctrl *hw, struct device_node *np)
 	chip->set_config	= mtk_gpio_set_config,
 	chip->base		= -1;
 	chip->ngpio		= hw->soc->npins;
-	chip->of_node		= np;
+	chip->of_yesde		= np;
 	chip->of_gpio_n_cells	= 2;
 
 	ret = gpiochip_add_data(chip, hw);
@@ -916,7 +916,7 @@ int mtk_paris_pinctrl_probe(struct platform_device *pdev,
 			 "Failed to add EINT, but pinctrl still can work\n");
 
 	/* Build gpiochip should be after pinctrl_enable is done */
-	err = mtk_build_gpiochip(hw, pdev->dev.of_node);
+	err = mtk_build_gpiochip(hw, pdev->dev.of_yesde);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add gpio_chip\n");
 		return err;
@@ -942,6 +942,6 @@ static int mtk_paris_pinctrl_resume(struct device *device)
 }
 
 const struct dev_pm_ops mtk_paris_pinctrl_pm_ops = {
-	.suspend_noirq = mtk_paris_pinctrl_suspend,
-	.resume_noirq = mtk_paris_pinctrl_resume,
+	.suspend_yesirq = mtk_paris_pinctrl_suspend,
+	.resume_yesirq = mtk_paris_pinctrl_resume,
 };

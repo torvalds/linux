@@ -15,10 +15,10 @@ struct record_opts {
 	struct target target;
 	bool	      group;
 	bool	      inherit_stat;
-	bool	      no_buffering;
-	bool	      no_inherit;
-	bool	      no_inherit_set;
-	bool	      no_samples;
+	bool	      yes_buffering;
+	bool	      yes_inherit;
+	bool	      yes_inherit_set;
+	bool	      yes_samples;
 	bool	      raw_samples;
 	bool	      sample_address;
 	bool	      sample_phys_addr;
@@ -41,10 +41,10 @@ struct record_opts {
 	bool	      user_callchains;
 	bool	      tail_synthesize;
 	bool	      overwrite;
-	bool	      ignore_missing_thread;
+	bool	      igyesre_missing_thread;
 	bool	      strict_freq;
 	bool	      sample_id;
-	bool	      no_bpf_event;
+	bool	      yes_bpf_event;
 	bool	      kcore;
 	unsigned int  freq;
 	unsigned int  mmap_pages;

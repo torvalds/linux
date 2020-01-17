@@ -47,11 +47,11 @@ struct atmel_tc *atmel_tc_alloc(unsigned block)
 	struct platform_device	*pdev = NULL;
 
 	spin_lock(&tc_list_lock);
-	list_for_each_entry(tc, &tc_list, node) {
+	list_for_each_entry(tc, &tc_list, yesde) {
 		if (tc->allocated)
 			continue;
 
-		if ((tc->pdev->dev.of_node && tc->id == block) ||
+		if ((tc->pdev->dev.of_yesde && tc->id == block) ||
 		    (tc->pdev->id == block)) {
 			pdev = tc->pdev;
 			tc->allocated = true;
@@ -111,7 +111,7 @@ static int __init tc_probe(struct platform_device *pdev)
 	int		irq;
 	unsigned int	i;
 
-	if (of_get_child_count(pdev->dev.of_node))
+	if (of_get_child_count(pdev->dev.of_yesde))
 		return -EBUSY;
 
 	irq = platform_get_irq(pdev, 0);
@@ -137,13 +137,13 @@ static int __init tc_probe(struct platform_device *pdev)
 		return PTR_ERR(tc->regs);
 
 	/* Now take SoC information if available */
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		const struct of_device_id *match;
-		match = of_match_node(atmel_tcb_dt_ids, pdev->dev.of_node);
+		match = of_match_yesde(atmel_tcb_dt_ids, pdev->dev.of_yesde);
 		if (match)
 			tc->tcb_config = match->data;
 
-		tc->id = of_alias_get_id(tc->pdev->dev.of_node, "tcb");
+		tc->id = of_alias_get_id(tc->pdev->dev.of_yesde, "tcb");
 	} else {
 		tc->id = pdev->id;
 	}
@@ -168,7 +168,7 @@ static int __init tc_probe(struct platform_device *pdev)
 		writel(ATMEL_TC_ALL_IRQ, tc->regs + ATMEL_TC_REG(i, IDR));
 
 	spin_lock(&tc_list_lock);
-	list_add_tail(&tc->node, &tc_list);
+	list_add_tail(&tc->yesde, &tc_list);
 	spin_unlock(&tc_list_lock);
 
 	platform_set_drvdata(pdev, tc);

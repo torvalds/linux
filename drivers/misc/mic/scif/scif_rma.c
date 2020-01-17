@@ -205,7 +205,7 @@ retry:
 		msg.payload[1] = window->alloc_handle.vaddr;
 		msg.payload[2] = (u64)window;
 		msg.payload[3] = SCIF_REGISTER;
-		_scif_nodeqp_send(ep->remote_dev, &msg);
+		_scif_yesdeqp_send(ep->remote_dev, &msg);
 	}
 	mutex_unlock(&ep->rma_info.rma_lock);
 
@@ -345,7 +345,7 @@ int scif_destroy_window(struct scif_endpt *ep, struct scif_window *window)
  *
  * Allocate and prepare lookup entries for the remote
  * end to copy over the physical addresses.
- * Returns 0 on success and appropriate errno on failure.
+ * Returns 0 on success and appropriate erryes on failure.
  */
 static int scif_create_remote_lookup(struct scif_dev *remote_dev,
 				     struct scif_window *window)
@@ -598,9 +598,9 @@ scif_map_window(struct scif_dev *remote_dev, struct scif_window *window)
 		}
 		window->num_pages[j] = nr_contig_pages;
 		window->nr_contig_chunks++;
-		if (scif_is_mgmt_node()) {
+		if (scif_is_mgmt_yesde()) {
 			/*
-			 * Management node has to deal with SMPT on X100 and
+			 * Management yesde has to deal with SMPT on X100 and
 			 * hence the DMA mapping is required
 			 */
 			err = scif_map_single(&window->dma_addr[j],
@@ -633,7 +633,7 @@ static int scif_send_scif_unregister(struct scif_endpt *ep,
 	msg.src = ep->port;
 	msg.payload[0] = window->alloc_handle.vaddr;
 	msg.payload[1] = (u64)window;
-	return scif_nodeqp_send(ep->remote_dev, &msg);
+	return scif_yesdeqp_send(ep->remote_dev, &msg);
 }
 
 /**
@@ -751,7 +751,7 @@ static int scif_send_alloc_request(struct scif_endpt *ep,
 	msg.uop = SCIF_ALLOC_REQ;
 	msg.payload[1] = window->nr_pages;
 	msg.payload[2] = (u64)&window->alloc_handle;
-	return _scif_nodeqp_send(ep->remote_dev, &msg);
+	return _scif_yesdeqp_send(ep->remote_dev, &msg);
 }
 
 /**
@@ -814,7 +814,7 @@ retry:
 		msg.payload[3] = SCIF_REGISTER;
 		spin_lock(&ep->lock);
 		if (ep->state == SCIFEP_CONNECTED)
-			err = _scif_nodeqp_send(ep->remote_dev, &msg);
+			err = _scif_yesdeqp_send(ep->remote_dev, &msg);
 		else
 			err = -ENOTCONN;
 		spin_unlock(&ep->lock);
@@ -847,7 +847,7 @@ retry:
 		/* #2/2 - Copy DMA addresses (addresses that are fed into the
 		 * DMA engine) We transfer bus addresses which are then
 		 * converted into a MIC physical address on the remote
-		 * side if it is a MIC, if the remote node is a mgmt node we
+		 * side if it is a MIC, if the remote yesde is a mgmt yesde we
 		 * transfer the MIC physical address
 		 */
 		tmp = scif_ioremap(dma_phys_lookup[j],
@@ -858,7 +858,7 @@ retry:
 				    loop_nr_contig_chunks *
 				    sizeof(*window->num_pages),
 				    ep->remote_dev);
-		if (scif_is_mgmt_node()) {
+		if (scif_is_mgmt_yesde()) {
 			memcpy_toio((void __force __iomem *)tmp,
 				    &window->dma_addr[i], loop_nr_contig_chunks
 				    * sizeof(*window->dma_addr));
@@ -868,7 +868,7 @@ retry:
 		} else {
 			if (scifdev_is_p2p(ep->remote_dev)) {
 				/*
-				 * add remote node's base address for this node
+				 * add remote yesde's base address for this yesde
 				 * to convert it into a MIC address
 				 */
 				int m;
@@ -885,12 +885,12 @@ retry:
 					    loop_nr_contig_chunks
 					    * sizeof(*window->num_pages));
 			} else {
-				/* Mgmt node or loopback - transfer DMA
+				/* Mgmt yesde or loopback - transfer DMA
 				 * addresses as is, this is the same as a
 				 * MIC physical address (we use the dma_addr
-				 * and not the phys_addr array since the
+				 * and yest the phys_addr array since the
 				 * phys_addr is only setup if there is a mmap()
-				 * request from the mgmt node)
+				 * request from the mgmt yesde)
 				 */
 				memcpy_toio((void __force __iomem *)tmp,
 					    &window->dma_addr[i],
@@ -953,7 +953,7 @@ static int scif_send_scif_register(struct scif_endpt *ep,
 	if (ep->state == SCIFEP_CONNECTED) {
 		msg.uop = SCIF_REGISTER;
 		window->reg_state = OP_IN_PROGRESS;
-		err = _scif_nodeqp_send(ep->remote_dev, &msg);
+		err = _scif_yesdeqp_send(ep->remote_dev, &msg);
 		spin_unlock(&ep->lock);
 		if (!err) {
 retry:
@@ -971,7 +971,7 @@ retry:
 	} else {
 		msg.uop = SCIF_FREE_VIRT;
 		msg.payload[3] = SCIF_REGISTER;
-		err = _scif_nodeqp_send(ep->remote_dev, &msg);
+		err = _scif_yesdeqp_send(ep->remote_dev, &msg);
 		spin_unlock(&ep->lock);
 		if (!err)
 			err = -ENOTCONN;
@@ -1054,7 +1054,7 @@ void scif_alloc_req(struct scif_dev *scifdev, struct scifmsg *msg)
 	msg->uop = SCIF_ALLOC_GNT;
 	msg->payload[0] = (u64)window;
 	msg->payload[1] = window->mapped_offset;
-	err = scif_nodeqp_send(scifdev, msg);
+	err = scif_yesdeqp_send(scifdev, msg);
 	if (err)
 		scif_destroy_remote_window(window);
 	return;
@@ -1064,7 +1064,7 @@ error:
 		"%s %d error %d alloc_ptr %p nr_pages 0x%x\n",
 		__func__, __LINE__, err, window, nr_pages);
 	msg->uop = SCIF_ALLOC_REJ;
-	scif_nodeqp_send(scifdev, msg);
+	scif_yesdeqp_send(scifdev, msg);
 }
 
 /**
@@ -1112,7 +1112,7 @@ scif_fixup_aper_base(struct scif_dev *dev, struct scif_window *window)
 	phys_addr_t apt_base = 0;
 
 	/*
-	 * Add the aperture base if the DMA address is not card relative
+	 * Add the aperture base if the DMA address is yest card relative
 	 * since the DMA addresses need to be an offset into the bar
 	 */
 	if (!scifdev_self(dev) && window->type == SCIF_WINDOW_PEER &&
@@ -1145,20 +1145,20 @@ void scif_recv_reg(struct scif_dev *scifdev, struct scifmsg *msg)
 	spin_lock(&ep->lock);
 	if (ep->state == SCIFEP_CONNECTED) {
 		msg->uop = SCIF_REGISTER_ACK;
-		scif_nodeqp_send(ep->remote_dev, msg);
+		scif_yesdeqp_send(ep->remote_dev, msg);
 		scif_fixup_aper_base(ep->remote_dev, window);
 		/* No further failures expected. Insert new window */
 		scif_insert_window(window, &ep->rma_info.remote_reg_list);
 	} else {
 		msg->uop = SCIF_REGISTER_NACK;
-		scif_nodeqp_send(ep->remote_dev, msg);
+		scif_yesdeqp_send(ep->remote_dev, msg);
 	}
 	spin_unlock(&ep->lock);
 	mutex_unlock(&ep->rma_info.rma_lock);
-	/* free up any lookup resources now that page lists are transferred */
+	/* free up any lookup resources yesw that page lists are transferred */
 	scif_destroy_remote_lookup(ep->remote_dev, window);
 	/*
-	 * We could not insert the window but we need to
+	 * We could yest insert the window but we need to
 	 * destroy the window.
 	 */
 	if (msg->uop == SCIF_REGISTER_NACK)
@@ -1216,7 +1216,7 @@ void scif_recv_unreg(struct scif_dev *scifdev, struct scifmsg *msg)
 			msg->uop = SCIF_UNREGISTER_NACK;
 		}
 	} else {
-		/* The window did not make its way to the list at all. ACK */
+		/* The window did yest make its way to the list at all. ACK */
 		msg->uop = SCIF_UNREGISTER_ACK;
 		scif_destroy_remote_window(recv_window);
 	}
@@ -1225,7 +1225,7 @@ error:
 	if (del_window)
 		scif_drain_dma_intr(ep->remote_dev->sdev,
 				    ep->rma_info.dma_chan);
-	scif_nodeqp_send(ep->remote_dev, msg);
+	scif_yesdeqp_send(ep->remote_dev, msg);
 	if (del_window)
 		scif_queue_for_cleanup(window, &scif_info.rma);
 }
@@ -1253,7 +1253,7 @@ void scif_recv_reg_ack(struct scif_dev *scifdev, struct scifmsg *msg)
  * @msg:        Interrupt message
  *
  * Wake up the window waiting to inform it that registration
- * cannot be completed.
+ * canyest be completed.
  */
 void scif_recv_reg_nack(struct scif_dev *scifdev, struct scifmsg *msg)
 {
@@ -1290,7 +1290,7 @@ void scif_recv_unreg_ack(struct scif_dev *scifdev, struct scifmsg *msg)
  * @msg:        Interrupt message
  *
  * Wake up the window waiting to inform it that unregistration
- * cannot be completed immediately.
+ * canyest be completed immediately.
  */
 void scif_recv_unreg_nack(struct scif_dev *scifdev, struct scifmsg *msg)
 {
@@ -1324,7 +1324,7 @@ int __scif_pin_pages(void *addr, size_t len, int *out_prot,
 	if (prot & ~(SCIF_PROT_READ | SCIF_PROT_WRITE))
 		return -EINVAL;
 
-	/* addr/len must be page aligned. len should be non zero */
+	/* addr/len must be page aligned. len should be yesn zero */
 	if (!len ||
 	    (ALIGN((u64)addr, PAGE_SIZE) != (u64)addr) ||
 	    (ALIGN((u64)len, PAGE_SIZE) != (u64)len))
@@ -1481,7 +1481,7 @@ off_t scif_register_pinned_pages(scif_epd_t epd,
 	len = pinned_pages->nr_pages << PAGE_SHIFT;
 
 	/*
-	 * Offset is not page aligned/negative or offset+len
+	 * Offset is yest page aligned/negative or offset+len
 	 * wraps around with SCIF_MAP_FIXED.
 	 */
 	if ((map_flags & SCIF_MAP_FIXED) &&
@@ -1584,7 +1584,7 @@ off_t scif_register(scif_epd_t epd, void *addr, size_t len, off_t offset,
 		return -EINVAL;
 
 	/*
-	 * Offset is not page aligned/negative or offset+len
+	 * Offset is yest page aligned/negative or offset+len
 	 * wraps around with SCIF_MAP_FIXED.
 	 */
 	if ((map_flags & SCIF_MAP_FIXED) &&
@@ -1597,7 +1597,7 @@ off_t scif_register(scif_epd_t epd, void *addr, size_t len, off_t offset,
 	if (prot & ~(SCIF_PROT_READ | SCIF_PROT_WRITE))
 		return -EINVAL;
 
-	/* addr/len must be page aligned. len should be non zero */
+	/* addr/len must be page aligned. len should be yesn zero */
 	if (!len || (ALIGN((u64)addr, PAGE_SIZE) != (u64)addr) ||
 	    (ALIGN(len, PAGE_SIZE) != len))
 		return -EINVAL;
@@ -1701,12 +1701,12 @@ scif_unregister(scif_epd_t epd, off_t offset, size_t len)
 	dev_dbg(scif_info.mdev.this_device,
 		"SCIFAPI unregister: ep %p offset 0x%lx len 0x%lx\n",
 		ep, offset, len);
-	/* len must be page aligned. len should be non zero */
+	/* len must be page aligned. len should be yesn zero */
 	if (!len ||
 	    (ALIGN((u64)len, PAGE_SIZE) != (u64)len))
 		return -EINVAL;
 
-	/* Offset is not page aligned or offset+len wraps around */
+	/* Offset is yest page aligned or offset+len wraps around */
 	if ((ALIGN(offset, PAGE_SIZE) != offset) ||
 	    (offset < 0) ||
 	    (len > LONG_MAX - offset))

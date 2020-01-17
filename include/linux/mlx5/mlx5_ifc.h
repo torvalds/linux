@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -759,7 +759,7 @@ struct mlx5_ifc_e_switch_cap_bits {
 	u8         vport_svlan_strip[0x1];
 	u8         vport_cvlan_strip[0x1];
 	u8         vport_svlan_insert[0x1];
-	u8         vport_cvlan_insert_if_not_exist[0x1];
+	u8         vport_cvlan_insert_if_yest_exist[0x1];
 	u8         vport_cvlan_insert_overwrite[0x1];
 	u8         reserved_at_5[0x3];
 	u8         esw_uplink_ingress_acl[0x1];
@@ -769,7 +769,7 @@ struct mlx5_ifc_e_switch_cap_bits {
 	u8         ecpf_vport_exists[0x1];
 	u8         counter_eswitch_affinity[0x1];
 	u8         merged_eswitch[0x1];
-	u8         nic_vport_node_guid_modify[0x1];
+	u8         nic_vport_yesde_guid_modify[0x1];
 	u8         nic_vport_port_guid_modify[0x1];
 
 	u8         vxlan_encap_decap[0x1];
@@ -1240,7 +1240,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         max_tc[0x4];
 	u8         temp_warn_event[0x1];
 	u8         dcbx[0x1];
-	u8         general_notification_event[0x1];
+	u8         general_yestification_event[0x1];
 	u8         reserved_at_1d3[0x2];
 	u8         fpga[0x1];
 	u8         rol_s[0x1];
@@ -1858,9 +1858,9 @@ struct mlx5_ifc_phys_layer_cntrs_bits {
 
 	u8         rs_fec_uncorrectable_blocks_low[0x20];
 
-	u8         rs_fec_no_errors_blocks_high[0x20];
+	u8         rs_fec_yes_errors_blocks_high[0x20];
 
-	u8         rs_fec_no_errors_blocks_low[0x20];
+	u8         rs_fec_yes_errors_blocks_low[0x20];
 
 	u8         rs_fec_single_error_blocks_high[0x20];
 
@@ -1966,9 +1966,9 @@ struct mlx5_ifc_eth_per_tc_prio_grp_data_layout_bits {
 
 	u8         transmit_queue_low[0x20];
 
-	u8         no_buffer_discard_uc_high[0x20];
+	u8         yes_buffer_discard_uc_high[0x20];
 
-	u8         no_buffer_discard_uc_low[0x20];
+	u8         yes_buffer_discard_uc_low[0x20];
 
 	u8         reserved_at_80[0x740];
 };
@@ -2028,9 +2028,9 @@ struct mlx5_ifc_eth_per_prio_grp_data_layout_bits {
 
 	u8         reserved_at_3c0[0x40];
 
-	u8         device_stall_minor_watermark_cnt_high[0x20];
+	u8         device_stall_miyesr_watermark_cnt_high[0x20];
 
-	u8         device_stall_minor_watermark_cnt_low[0x20];
+	u8         device_stall_miyesr_watermark_cnt_low[0x20];
 
 	u8         device_stall_critical_watermark_cnt_high[0x20];
 
@@ -2114,9 +2114,9 @@ struct mlx5_ifc_eth_3635_cntrs_grp_data_layout_bits {
 
 	u8         dot3stats_symbol_errors_low[0x20];
 
-	u8         dot3control_in_unknown_opcodes_high[0x20];
+	u8         dot3control_in_unkyeswn_opcodes_high[0x20];
 
-	u8         dot3control_in_unknown_opcodes_low[0x20];
+	u8         dot3control_in_unkyeswn_opcodes_low[0x20];
 
 	u8         dot3in_pause_frames_high[0x20];
 
@@ -2234,9 +2234,9 @@ struct mlx5_ifc_eth_2863_cntrs_grp_data_layout_bits {
 
 	u8         if_in_errors_low[0x20];
 
-	u8         if_in_unknown_protos_high[0x20];
+	u8         if_in_unkyeswn_protos_high[0x20];
 
-	u8         if_in_unknown_protos_low[0x20];
+	u8         if_in_unkyeswn_protos_low[0x20];
 
 	u8         if_out_octets_high[0x20];
 
@@ -2611,7 +2611,7 @@ struct mlx5_ifc_qpc_bits {
 	u8         reserved_at_48[0x1];
 	u8         log_rq_size[0x4];
 	u8         log_rq_stride[0x3];
-	u8         no_sq[0x1];
+	u8         yes_sq[0x1];
 	u8         log_sq_size[0x4];
 	u8         reserved_at_55[0x6];
 	u8         rlky[0x1];
@@ -2864,7 +2864,7 @@ struct mlx5_ifc_xrc_srqc_bits {
 	u8         reserved_at_180[0x80];
 };
 
-struct mlx5_ifc_vnic_diagnostic_statistics_bits {
+struct mlx5_ifc_vnic_diagyesstic_statistics_bits {
 	u8         counter_error_queues[0x20];
 
 	u8         total_error_queues[0x20];
@@ -3199,7 +3199,7 @@ struct mlx5_ifc_nic_vport_context_bits {
 
 	u8         system_image_guid[0x40];
 	u8         port_guid[0x40];
-	u8         node_guid[0x40];
+	u8         yesde_guid[0x40];
 
 	u8         reserved_at_200[0x140];
 	u8         qkey_violation_counter[0x10];
@@ -3307,7 +3307,7 @@ struct mlx5_ifc_hca_vport_context_bits {
 
 	u8         port_guid[0x40];
 
-	u8         node_guid[0x40];
+	u8         yesde_guid[0x40];
 
 	u8         cap_mask1[0x20];
 
@@ -3554,7 +3554,7 @@ struct mlx5_ifc_cqc_bits {
 	u8         reserved_at_e0[0x20];
 
 	u8         reserved_at_100[0x8];
-	u8         last_notified_index[0x18];
+	u8         last_yestified_index[0x18];
 
 	u8         reserved_at_120[0x8];
 	u8         last_solicit_index[0x18];
@@ -3709,7 +3709,7 @@ struct mlx5_ifc_health_buffer_bits {
 };
 
 struct mlx5_ifc_register_loopback_control_bits {
-	u8         no_lb[0x1];
+	u8         yes_lb[0x1];
 	u8         reserved_at_1[0x7];
 	u8         port[0x8];
 	u8         reserved_at_10[0x10];
@@ -4274,7 +4274,7 @@ struct mlx5_ifc_query_vnic_env_out_bits {
 
 	u8         reserved_at_40[0x40];
 
-	struct mlx5_ifc_vnic_diagnostic_statistics_bits vport_env;
+	struct mlx5_ifc_vnic_diagyesstic_statistics_bits vport_env;
 };
 
 enum {
@@ -5655,9 +5655,9 @@ struct mlx5_ifc_query_cong_statistics_out_bits {
 
 	u8         sum_flows[0x20];
 
-	u8         rp_cnp_ignored_high[0x20];
+	u8         rp_cnp_igyesred_high[0x20];
 
-	u8         rp_cnp_ignored_low[0x20];
+	u8         rp_cnp_igyesred_low[0x20];
 
 	u8         rp_cnp_handled_high[0x20];
 
@@ -5809,7 +5809,7 @@ struct mlx5_ifc_page_fault_resume_in_bits {
 	u8         token[0x18];
 };
 
-struct mlx5_ifc_nop_out_bits {
+struct mlx5_ifc_yesp_out_bits {
 	u8         status[0x8];
 	u8         reserved_at_8[0x18];
 
@@ -5818,7 +5818,7 @@ struct mlx5_ifc_nop_out_bits {
 	u8         reserved_at_40[0x40];
 };
 
-struct mlx5_ifc_nop_in_bits {
+struct mlx5_ifc_yesp_in_bits {
 	u8         opcode[0x10];
 	u8         reserved_at_10[0x10];
 
@@ -6116,7 +6116,7 @@ struct mlx5_ifc_modify_nic_vport_field_select_bits {
 	u8	   reserved_at_13[0x1];
 	u8         disable_uc_local_lb[0x1];
 	u8         disable_mc_local_lb[0x1];
-	u8         node_guid[0x1];
+	u8         yesde_guid[0x1];
 	u8         port_guid[0x1];
 	u8         min_inline[0x1];
 	u8         mtu[0x1];
@@ -8331,7 +8331,7 @@ struct mlx5_ifc_pqdr_reg_bits {
 	u8         max_threshold[0x10];
 
 	u8         reserved_at_80[0x10];
-	u8         mark_probability_denominator[0x10];
+	u8         mark_probability_deyesminator[0x10];
 
 	u8         reserved_at_a0[0x60];
 };
@@ -8426,7 +8426,7 @@ struct mlx5_ifc_mpein_reg_bits {
 	u8         reserved_at_0[0x2];
 	u8         depth[0x6];
 	u8         pcie_index[0x8];
-	u8         node[0x8];
+	u8         yesde[0x8];
 	u8         reserved_at_18[0x8];
 
 	u8         capability_mask[0x20];
@@ -8651,7 +8651,7 @@ struct mlx5_ifc_pfcc_reg_bits {
 	u8         local_port[0x8];
 	u8         reserved_at_10[0xb];
 	u8         ppan_mask_n[0x1];
-	u8         minor_stall_mask[0x1];
+	u8         miyesr_stall_mask[0x1];
 	u8         critical_stall_mask[0x1];
 	u8         reserved_at_1e[0x2];
 
@@ -8675,7 +8675,7 @@ struct mlx5_ifc_pfcc_reg_bits {
 	u8         pfcrx[0x8];
 	u8         reserved_at_70[0x10];
 
-	u8         device_stall_minor_watermark[0x10];
+	u8         device_stall_miyesr_watermark[0x10];
 	u8         device_stall_critical_watermark[0x10];
 
 	u8         reserved_at_a0[0x60];
@@ -8964,8 +8964,8 @@ struct mlx5_ifc_bufferx_reg_bits {
 	u8         xon_threshold[0x10];
 };
 
-struct mlx5_ifc_set_node_in_bits {
-	u8         node_description[64][0x8];
+struct mlx5_ifc_set_yesde_in_bits {
+	u8         yesde_description[64][0x8];
 };
 
 struct mlx5_ifc_register_power_settings_bits {
@@ -9201,11 +9201,11 @@ enum {
 };
 
 struct mlx5_ifc_initial_seg_bits {
-	u8         fw_rev_minor[0x10];
+	u8         fw_rev_miyesr[0x10];
 	u8         fw_rev_major[0x10];
 
 	u8         cmd_interface_rev[0x10];
-	u8         fw_rev_subminor[0x10];
+	u8         fw_rev_submiyesr[0x10];
 
 	u8         reserved_at_40[0x40];
 
@@ -9229,7 +9229,7 @@ struct mlx5_ifc_initial_seg_bits {
 
 	struct mlx5_ifc_health_buffer_bits health_buffer;
 
-	u8         no_dram_nic_offset[0x20];
+	u8         yes_dram_nic_offset[0x20];
 
 	u8         reserved_at_1220[0x6e40];
 

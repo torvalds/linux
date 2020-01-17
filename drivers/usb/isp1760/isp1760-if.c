@@ -50,7 +50,7 @@ static int isp1761_pci_init(struct pci_dev *dev)
 	}
 
 	/* map available memory */
-	iobase = ioremap_nocache(mem_start, mem_length);
+	iobase = ioremap_yescache(mem_start, mem_length);
 	if (!iobase) {
 		printk(KERN_ERR "Error ioremap failed\n");
 		release_mem_region(mem_start, mem_length);
@@ -66,7 +66,7 @@ static int isp1761_pci_init(struct pci_dev *dev)
 	}
 
 	/* Try to check whether we can access Scratch Register of
-	 * Host Controller or not. The initial PCI access is retried until
+	 * Host Controller or yest. The initial PCI access is retried until
 	 * local init for the PCI bridge is completed
 	 */
 	retry_count = 20;
@@ -85,7 +85,7 @@ static int isp1761_pci_init(struct pci_dev *dev)
 	release_mem_region(mem_start, mem_length);
 
 	/* Host Controller presence is detected by writing to scratch register
-	 * and reading back and checking the contents are same or not
+	 * and reading back and checking the contents are same or yest
 	 */
 	if (reg_data != 0xFACE) {
 		dev_err(&dev->dev, "scratch register mismatch %x\n", reg_data);
@@ -101,7 +101,7 @@ static int isp1761_pci_init(struct pci_dev *dev)
 		return -EBUSY;
 	}
 
-	iobase = ioremap_nocache(mem_start, mem_length);
+	iobase = ioremap_yescache(mem_start, mem_length);
 	if (!iobase) {
 		printk(KERN_ERR "ioremap #1\n");
 		release_mem_region(mem_start, mem_length);
@@ -197,13 +197,13 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
-		pr_warn("isp1760: IRQ resource not available\n");
+		pr_warn("isp1760: IRQ resource yest available\n");
 		return -ENODEV;
 	}
 	irqflags = irq_res->flags & IRQF_TRIGGER_MASK;
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node) {
-		struct device_node *dp = pdev->dev.of_node;
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_yesde) {
+		struct device_yesde *dp = pdev->dev.of_yesde;
 		u32 bus_width = 0;
 
 		if (of_device_is_compatible(dp, "nxp,usb-isp1761"))

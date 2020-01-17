@@ -58,8 +58,8 @@ static void s3c2412_print_timing(const char *pfx, struct s3c_iotimings *iot)
 
 /**
  * to_div - turn a cycle length into a divisor setting.
- * @cyc_tns: The cycle time in 10ths of nanoseconds.
- * @clk_tns: The clock period in 10ths of nanoseconds.
+ * @cyc_tns: The cycle time in 10ths of nayesseconds.
+ * @clk_tns: The clock period in 10ths of nayesseconds.
  */
 static inline unsigned int to_div(unsigned int cyc_tns, unsigned int clk_tns)
 {
@@ -68,8 +68,8 @@ static inline unsigned int to_div(unsigned int cyc_tns, unsigned int clk_tns)
 
 /**
  * calc_timing - calculate timing divisor value and check in range.
- * @hwtm: The hardware timing in 10ths of nanoseconds.
- * @clk_tns: The clock period in 10ths of nanoseconds.
+ * @hwtm: The hardware timing in 10ths of nayesseconds.
+ * @clk_tns: The clock period in 10ths of nayesseconds.
  * @err: Pointer to err variable to update in event of failure.
  */
 static unsigned int calc_timing(unsigned int hwtm, unsigned int clk_tns,
@@ -149,7 +149,7 @@ int s3c2412_iotiming_calc(struct s3c_cpufreq_config *cfg,
 
 		ret = s3c2412_calc_bank(cfg, bt);
 		if (ret) {
-			printk(KERN_ERR "%s: cannot calculate bank %d io\n",
+			printk(KERN_ERR "%s: canyest calculate bank %d io\n",
 			       __func__, bank);
 			goto err;
 		}
@@ -262,7 +262,7 @@ void s3c2412_cpufreq_setrefresh(struct s3c_cpufreq_config *cfg)
 	WARN_ON(board == NULL);
 
 	/* Reduce both the refresh time (in ns) and the frequency (in MHz)
-	 * down to ensure that we do not overflow 32 bit numbers.
+	 * down to ensure that we do yest overflow 32 bit numbers.
 	 *
 	 * This should work for HCLK up to 133MHz and refresh period up
 	 * to 30usec.

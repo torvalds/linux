@@ -33,20 +33,20 @@ MODULE_PARM_DESC(debug, "enable debug message");
 static inline void print_err_status(struct tm6000_core *dev,
 				    int packet, int status)
 {
-	char *errmsg = "Unknown";
+	char *errmsg = "Unkyeswn";
 
 	switch (status) {
 	case -ENOENT:
-		errmsg = "unlinked synchronously";
+		errmsg = "unlinked synchroyesusly";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronously";
+		errmsg = "unlinked asynchroyesusly";
 		break;
 	case -ENOSR:
 		errmsg = "Buffer error (overrun)";
 		break;
 	case -EPIPE:
-		errmsg = "Stalled (device not responding)";
+		errmsg = "Stalled (device yest responding)";
 		break;
 	case -EOVERFLOW:
 		errmsg = "Babble (bad cable?)";
@@ -58,7 +58,7 @@ static inline void print_err_status(struct tm6000_core *dev,
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
 	case -ETIME:
-		errmsg = "Device does not respond";
+		errmsg = "Device does yest respond";
 		break;
 	}
 	if (packet < 0) {
@@ -225,7 +225,7 @@ static int tm6000_dvb_attach_frontend(struct tm6000_core *dev)
 	if (dev->caps.has_zl10353) {
 		struct zl10353_config config = {
 				     .demod_address = dev->demod_addr,
-				     .no_tuner = 1,
+				     .yes_tuner = 1,
 				     .parallel_ts = 1,
 				     .if2 = 45700,
 				     .disable_i2c_gate_ctrl = 1,
@@ -234,7 +234,7 @@ static int tm6000_dvb_attach_frontend(struct tm6000_core *dev)
 		dvb->frontend = dvb_attach(zl10353_attach, &config,
 							   &dev->i2c_adap);
 	} else {
-		printk(KERN_ERR "tm6000: no frontend defined for the device!\n");
+		printk(KERN_ERR "tm6000: yes frontend defined for the device!\n");
 		return -1;
 	}
 
@@ -315,7 +315,7 @@ static int register_dvb(struct tm6000_core *dev)
 			}
 		}
 	} else
-		printk(KERN_ERR "tm6000: no frontend found\n");
+		printk(KERN_ERR "tm6000: yes frontend found\n");
 
 	dvb->demux.dmx.capabilities = DMX_TS_FILTERING | DMX_SECTION_FILTERING
 							    | DMX_MEMORY_BASED_FILTERING;
@@ -327,7 +327,7 @@ static int register_dvb(struct tm6000_core *dev)
 	dvb->demux.write_to_decoder = NULL;
 	ret = dvb_dmx_init(&dvb->demux);
 	if (ret < 0) {
-		printk(KERN_ERR "tm6000: dvb_dmx_init failed (errno = %d)\n", ret);
+		printk(KERN_ERR "tm6000: dvb_dmx_init failed (erryes = %d)\n", ret);
 		goto frontend_err;
 	}
 
@@ -337,7 +337,7 @@ static int register_dvb(struct tm6000_core *dev)
 
 	ret =  dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (ret < 0) {
-		printk(KERN_ERR "tm6000: dvb_dmxdev_init failed (errno = %d)\n", ret);
+		printk(KERN_ERR "tm6000: dvb_dmxdev_init failed (erryes = %d)\n", ret);
 		goto dvb_dmx_err;
 	}
 
@@ -394,7 +394,7 @@ static int dvb_init(struct tm6000_core *dev)
 		return 0;
 
 	if (dev->udev->speed == USB_SPEED_FULL) {
-		printk(KERN_INFO "This USB2.0 device cannot be run on a USB1.1 port. (it lacks a hardware PID filter)\n");
+		printk(KERN_INFO "This USB2.0 device canyest be run on a USB1.1 port. (it lacks a hardware PID filter)\n");
 		return 0;
 	}
 

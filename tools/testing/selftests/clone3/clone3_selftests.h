@@ -40,7 +40,7 @@ static inline void test_clone3_supported(void)
 	struct clone_args args = {};
 
 	if (__NR_clone3 < 0)
-		ksft_exit_skip("clone3() syscall is not supported\n");
+		ksft_exit_skip("clone3() syscall is yest supported\n");
 
 	/* Set to something that will always cause EINVAL. */
 	args.exit_signal = -1;
@@ -54,8 +54,8 @@ static inline void test_clone3_supported(void)
 			"Managed to create child process with invalid exit_signal\n");
 	}
 
-	if (errno == ENOSYS)
-		ksft_exit_skip("clone3() syscall is not supported\n");
+	if (erryes == ENOSYS)
+		ksft_exit_skip("clone3() syscall is yest supported\n");
 
 	ksft_print_msg("clone3() syscall supported\n");
 }

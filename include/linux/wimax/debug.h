@@ -15,7 +15,7 @@
  * allows it.
  *
  * The decission power is at two levels: at compile-time (what does
- * not make it is compiled out) and at run-time. The run-time
+ * yest make it is compiled out) and at run-time. The run-time
  * selection is done per-submodule (as they are declared by the user
  * of the framework).
  *
@@ -31,7 +31,7 @@
  *
  * It is up to the caller to define how much a debugging level is.
  *
- * Convention sets 0 as "no debug" (so an action marked as debug level 0
+ * Convention sets 0 as "yes debug" (so an action marked as debug level 0
  * will always be taken). The increasing debug levels are used for
  * increased verbosity.
  *
@@ -123,7 +123,7 @@
  *
  * If their debug level is lower or equal than D_MASTER but greater
  * than the current debug level of their submodule, they'll be
- * ignored.
+ * igyesred.
  *
  * Otherwise, the action will be performed.
  */
@@ -227,7 +227,7 @@ extern size_t D_LEVEL_SIZE;
  */
 
 #ifndef D_MODULENAME
-#error D_MODULENAME is not defined in your debug-levels.h file
+#error D_MODULENAME is yest defined in your debug-levels.h file
 /**
  * D_MODULE - Name of the current module
  *
@@ -239,17 +239,17 @@ extern size_t D_LEVEL_SIZE;
 
 
 #ifndef D_MASTER
-#warning D_MASTER not defined, but debug.h included! [see docs]
+#warning D_MASTER yest defined, but debug.h included! [see docs]
 /**
  * D_MASTER - Compile time maximum debug level
  *
  * #define in your debug-levels.h file to the maximum debug level the
  * runtime code will be allowed to have. This allows you to provide a
- * main knob.
+ * main kyesb.
  *
  * Anything above that level will be optimized out of the compile.
  *
- * Defaults to zero (no debug code compiled in).
+ * Defaults to zero (yes debug code compiled in).
  *
  * Maximum one definition per module (at the debug-levels.h file).
  */
@@ -257,7 +257,7 @@ extern size_t D_LEVEL_SIZE;
 #endif
 
 #ifndef D_SUBMODULE
-#error D_SUBMODULE not defined, but debug.h included! [see docs]
+#error D_SUBMODULE yest defined, but debug.h included! [see docs]
 /**
  * D_SUBMODULE - Name of the current submodule
  *
@@ -355,7 +355,7 @@ extern size_t D_LEVEL_SIZE;
  * d_fnstart - log message at function start if debugging enabled
  *
  * @l: intended debug level
- * @_dev: 'struct device' pointer, NULL if none (for context)
+ * @_dev: 'struct device' pointer, NULL if yesne (for context)
  * @f: printf-like format and arguments
  */
 #define d_fnstart(l, _dev, f, a...) _d_printf(l, " FNSTART", _dev, f, ## a)
@@ -365,7 +365,7 @@ extern size_t D_LEVEL_SIZE;
  * d_fnend - log message at function end if debugging enabled
  *
  * @l: intended debug level
- * @_dev: 'struct device' pointer, NULL if none (for context)
+ * @_dev: 'struct device' pointer, NULL if yesne (for context)
  * @f: printf-like format and arguments
  */
 #define d_fnend(l, _dev, f, a...) _d_printf(l, " FNEND", _dev, f, ## a)
@@ -375,7 +375,7 @@ extern size_t D_LEVEL_SIZE;
  * d_printf - log message if debugging enabled
  *
  * @l: intended debug level
- * @_dev: 'struct device' pointer, NULL if none (for context)
+ * @_dev: 'struct device' pointer, NULL if yesne (for context)
  * @f: printf-like format and arguments
  */
 #define d_printf(l, _dev, f, a...) _d_printf(l, "", _dev, f, ## a)
@@ -385,7 +385,7 @@ extern size_t D_LEVEL_SIZE;
  * d_dump - log buffer hex dump if debugging enabled
  *
  * @l: intended debug level
- * @_dev: 'struct device' pointer, NULL if none (for context)
+ * @_dev: 'struct device' pointer, NULL if yesne (for context)
  * @f: printf-like format and arguments
  */
 #define d_dump(l, dev, ptr, size)			\
@@ -403,7 +403,7 @@ do {							\
  * Export a submodule's debug level over debugfs as PREFIXSUBMODULE
  *
  * @prefix: string to prefix the name with
- * @submodule: name of submodule (not a string, just the name)
+ * @submodule: name of submodule (yest a string, just the name)
  * @dentry: debugfs parent dentry
  *
  * For removing, just use debugfs_remove_recursive() on the parent.
@@ -435,7 +435,7 @@ void d_submodule_set(struct d_level *d_level, size_t d_level_size,
 			return;
 		}
 	}
-	printk(KERN_ERR "%s: unknown submodule %s\n", tag, submodule);
+	printk(KERN_ERR "%s: unkyeswn submodule %s\n", tag, submodule);
 }
 
 
@@ -446,7 +446,7 @@ void d_submodule_set(struct d_level *d_level, size_t d_level_size,
  * @d_level: level structure (D_LEVEL)
  * @d_level_size: number of items in the level structure
  *     (D_LEVEL_SIZE).
- * @_params: string with the parameters; this is a space (not tab!)
+ * @_params: string with the parameters; this is a space (yest tab!)
  *     separated list of NAME:VALUE, where value is the debug level
  *     and NAME is the name of the submodule.
  * @tag: string for error messages (example: MODULE.ARGNAME).

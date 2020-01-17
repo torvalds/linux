@@ -5,7 +5,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -293,7 +293,7 @@ static int b53_mdio_probe(struct mdio_device *mdiodev)
 	u32 phy_id;
 	int ret;
 
-	/* allow the generic PHY driver to take over the non-management MDIO
+	/* allow the generic PHY driver to take over the yesn-management MDIO
 	 * addresses
 	 */
 	if (mdiodev->addr != BRCM_PSEUDO_PHY_ADDR && mdiodev->addr != 0) {

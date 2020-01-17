@@ -108,11 +108,11 @@ typedef struct { /* rbd */
 	unsigned short rbd_len;
 } rbd_t;
 
-typedef struct { /* nop */
-	unsigned short nop_status;
-	unsigned short nop_command;
-	unsigned short nop_link;
-} nop_t;
+typedef struct { /* yesp */
+	unsigned short yesp_status;
+	unsigned short yesp_command;
+	unsigned short yesp_link;
+} yesp_t;
 
 typedef struct { /* set multicast */
 	unsigned short mc_status;
@@ -184,8 +184,8 @@ typedef struct { /* scb */
 #define SCB_STCUIDLE		(0 << 8)	/* Idle				*/
 #define SCB_STCUSUSP		(1 << 8)	/* Suspended			*/
 #define SCB_STCUACTV		(2 << 8)	/* Active			*/
-#define SCB_STRNR		(1 << 12)	/* Receive unit not ready	*/
-#define SCB_STCNA		(1 << 13)	/* Command unit not ready	*/
+#define SCB_STRNR		(1 << 12)	/* Receive unit yest ready	*/
+#define SCB_STCNA		(1 << 13)	/* Command unit yest ready	*/
 #define SCB_STFR		(1 << 14)	/* Frame received		*/
 #define SCB_STCX		(1 << 15)	/* Command completed		*/
 	unsigned short scb_command;	/* Next command				*/
@@ -197,15 +197,15 @@ typedef struct { /* scb */
 #define SCB_CMDCUCRESUME	(2 << 8)	/* Resume execution		*/
 #define SCB_CMDCUCSUSPEND	(3 << 8)	/* Suspend execution		*/
 #define SCB_CMDCUCABORT		(4 << 8)	/* Abort execution		*/
-#define SCB_CMDACKRNR		(1 << 12)	/* Ack RU not ready		*/
-#define SCB_CMDACKCNA		(1 << 13)	/* Ack CU not ready		*/
+#define SCB_CMDACKRNR		(1 << 12)	/* Ack RU yest ready		*/
+#define SCB_CMDACKCNA		(1 << 13)	/* Ack CU yest ready		*/
 #define SCB_CMDACKFR		(1 << 14)	/* Ack Frame received		*/
 #define SCB_CMDACKCX		(1 << 15)	/* Ack Command complete		*/
 	unsigned short scb_cbl_offset;	/* Offset of first command unit		*/
 	unsigned short scb_rfa_offset;	/* Offset of first receive frame area	*/
 	unsigned short scb_crc_errors;	/* Properly aligned frame with CRC error*/
 	unsigned short scb_aln_errors;	/* Misaligned frames			*/
-	unsigned short scb_rsc_errors;	/* Frames lost due to no space		*/
+	unsigned short scb_rsc_errors;	/* Frames lost due to yes space		*/
 	unsigned short scb_ovn_errors;	/* Frames lost due to slow bus		*/
 } scb_t;
 

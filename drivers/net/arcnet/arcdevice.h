@@ -23,9 +23,9 @@
  * default value should be fine.
  *
  * After that, a "cabling restored" message will be printed on the next IRQ
- * if no RECON messages have been received for 10 seconds.
+ * if yes RECON messages have been received for 10 seconds.
  *
- * Do not define RECON_THRESHOLD at all if you want to disable this feature.
+ * Do yest define RECON_THRESHOLD at all if you want to disable this feature.
  */
 #define RECON_THRESHOLD 30
 
@@ -45,17 +45,17 @@
  * Debugging bitflags: each option can be enabled individually.
  *
  * Note: only debug flags included in the ARCNET_DEBUG_MAX define will
- *   actually be available.  GCC will (at least, GCC 2.7.0 will) notice
- *   lines using a BUGLVL not in ARCNET_DEBUG_MAX and automatically optimize
+ *   actually be available.  GCC will (at least, GCC 2.7.0 will) yestice
+ *   lines using a BUGLVL yest in ARCNET_DEBUG_MAX and automatically optimize
  *   them out.
  */
 #define D_NORMAL	1	/* important operational info             */
-#define D_EXTRA		2	/* useful, but non-vital information      */
+#define D_EXTRA		2	/* useful, but yesn-vital information      */
 #define	D_INIT		4	/* show init/probe messages               */
 #define D_INIT_REASONS	8	/* show reasons for discarding probes     */
 #define D_RECON		32	/* print a message whenever token is lost */
 #define D_PROTO		64	/* debug auto-protocol support            */
-/* debug levels below give LOTS of output during normal operation! */
+/* debug levels below give LOTS of output during yesrmal operation! */
 #define D_DURING	128	/* trace operations (including irq's)     */
 #define D_TX	        256	/* show tx packets                        */
 #define D_RX		512	/* show rx packets                        */
@@ -119,15 +119,15 @@ do {									\
 #define RESETtime (300)
 
 /*
- * These are the max/min lengths of packet payload, not including the
+ * These are the max/min lengths of packet payload, yest including the
  * arc_hardware header, but definitely including the soft header.
  *
  * Note: packet sizes 254, 255, 256 are impossible because of the way
  * ARCnet registers work  That's why RFC1201 defines "exception" packets.
- * In non-RFC1201 protocols, we have to just tack some extra bytes on the
+ * In yesn-RFC1201 protocols, we have to just tack some extra bytes on the
  * end.
  */
-#define MTU	253		/* normal packet max size */
+#define MTU	253		/* yesrmal packet max size */
 #define MinTU	257		/* extended packet min size */
 #define XMTU	508		/* extended packet max size */
 
@@ -144,7 +144,7 @@ do {									\
 
 /* Flags used for IO-mapped memory operations */
 #define AUTOINCflag     0x40	/* Increase location with each access */
-#define IOMAPflag       0x02	/* (for 90xx) Use IO mapped memory, not mmap */
+#define IOMAPflag       0x02	/* (for 90xx) Use IO mapped memory, yest mmap */
 #define ENABLE16flag    0x80	/* (for 90xx) Enable 16-bit mode */
 
 /* in the command register, the following bits have these meanings:
@@ -165,10 +165,10 @@ do {									\
 #define RESETclear      0x08	/* power-on-reset */
 #define CONFIGclear     0x10	/* system reconfigured */
 
-#define EXCNAKclear     0x0E    /* Clear and acknowledge the excive nak bit */
+#define EXCNAKclear     0x0E    /* Clear and ackyeswledge the excive nak bit */
 
 /* flags for "load test flags" command */
-#define TESTload        0x08	/* test flag (diagnostic) */
+#define TESTload        0x08	/* test flag (diagyesstic) */
 
 /* byte deposited into first address of buffers on reset */
 #define TESTvalue       0321	/* that's octal for 0xD1 :) */
@@ -191,14 +191,14 @@ do {									\
 struct ArcProto {
 	char suffix;		/* a for RFC1201, e for ether-encap, etc. */
 	int mtu;		/* largest possible packet */
-	int is_ip;              /* This is a ip plugin - not a raw thing */
+	int is_ip;              /* This is a ip plugin - yest a raw thing */
 
 	void (*rx)(struct net_device *dev, int bufnum,
 		   struct archdr *pkthdr, int length);
 	int (*build_header)(struct sk_buff *skb, struct net_device *dev,
 			    unsigned short ethproto, uint8_t daddr);
 
-	/* these functions return '1' if the skb can now be freed */
+	/* these functions return '1' if the skb can yesw be freed */
 	int (*prepare_tx)(struct net_device *dev, struct archdr *pkt,
 			  int length, int bufnum);
 	int (*continue_tx)(struct net_device *dev, int bufnum);
@@ -222,7 +222,7 @@ struct Incoming {
 /* only needed for RFC1201 */
 struct Outgoing {
 	struct ArcProto *proto;	/* protocol driver that owns this:
-				 *   if NULL, no packet is pending.
+				 *   if NULL, yes packet is pending.
 				 */
 	struct sk_buff *skb;	/* buffer from upper levels */
 	struct archdr *pkt;	/* a pointer into the skb */
@@ -305,7 +305,7 @@ struct arcnet_local {
 		struct Incoming incoming[256];	/* one from each address */
 	} rfc1201;
 
-	/* really only used by rfc1201, but we'll pretend it's not */
+	/* really only used by rfc1201, but we'll pretend it's yest */
 	struct Outgoing outgoing;	/* packet currently being sent */
 
 	/* hardware-specific functions */

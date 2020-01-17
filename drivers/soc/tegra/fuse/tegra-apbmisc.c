@@ -28,7 +28,7 @@ static bool long_ram_code;
 u32 tegra_read_chipid(void)
 {
 	if (!apbmisc_base) {
-		WARN(1, "Tegra Chip ID not yet available\n");
+		WARN(1, "Tegra Chip ID yest yet available\n");
 		return 0;
 	}
 
@@ -68,14 +68,14 @@ static const struct of_device_id apbmisc_match[] __initconst = {
 
 void __init tegra_init_revision(void)
 {
-	u32 id, chip_id, minor_rev;
+	u32 id, chip_id, miyesr_rev;
 	int rev;
 
 	id = tegra_read_chipid();
 	chip_id = (id >> 8) & 0xff;
-	minor_rev = (id >> 16) & 0xf;
+	miyesr_rev = (id >> 16) & 0xf;
 
-	switch (minor_rev) {
+	switch (miyesr_rev) {
 	case 1:
 		rev = TEGRA_REVISION_A01;
 		break;
@@ -104,17 +104,17 @@ void __init tegra_init_revision(void)
 void __init tegra_init_apbmisc(void)
 {
 	struct resource apbmisc, straps;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_matching_node(NULL, apbmisc_match);
+	np = of_find_matching_yesde(NULL, apbmisc_match);
 	if (!np) {
 		/*
 		 * Fall back to legacy initialization for 32-bit ARM only. All
 		 * 64-bit ARM device tree files for Tegra are required to have
-		 * an APBMISC node.
+		 * an APBMISC yesde.
 		 *
 		 * This is for backwards-compatibility with old device trees
-		 * that didn't contain an APBMISC node.
+		 * that didn't contain an APBMISC yesde.
 		 */
 		if (IS_ENABLED(CONFIG_ARM) && soc_is_tegra()) {
 			/* APBMISC registers (chip revision, ...) */
@@ -138,7 +138,7 @@ void __init tegra_init_apbmisc(void)
 				&straps);
 		} else {
 			/*
-			 * At this point we're not running on Tegra, so play
+			 * At this point we're yest running on Tegra, so play
 			 * nice with multi-platform kernels.
 			 */
 			return;
@@ -146,7 +146,7 @@ void __init tegra_init_apbmisc(void)
 	} else {
 		/*
 		 * Extract information from the device tree if we've found a
-		 * matching node.
+		 * matching yesde.
 		 */
 		if (of_address_to_resource(np, 0, &apbmisc) < 0) {
 			pr_err("failed to get APBMISC registers\n");
@@ -159,11 +159,11 @@ void __init tegra_init_apbmisc(void)
 		}
 	}
 
-	apbmisc_base = ioremap_nocache(apbmisc.start, resource_size(&apbmisc));
+	apbmisc_base = ioremap_yescache(apbmisc.start, resource_size(&apbmisc));
 	if (!apbmisc_base)
 		pr_err("failed to map APBMISC registers\n");
 
-	strapping_base = ioremap_nocache(straps.start, resource_size(&straps));
+	strapping_base = ioremap_yescache(straps.start, resource_size(&straps));
 	if (!strapping_base)
 		pr_err("failed to map strapping options registers\n");
 

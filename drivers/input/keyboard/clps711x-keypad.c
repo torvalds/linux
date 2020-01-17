@@ -86,7 +86,7 @@ static int clps711x_keypad_probe(struct platform_device *pdev)
 {
 	struct clps711x_keypad_data *priv;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct input_dev *input;
 	u32 poll_interval;
 	int i, err;

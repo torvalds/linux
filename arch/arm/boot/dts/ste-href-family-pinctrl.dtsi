@@ -3,7 +3,7 @@
  * Copyright 2013 Linaro Ltd.
  */
 
-#include "ste-nomadik-pinctrl.dtsi"
+#include "ste-yesmadik-pinctrl.dtsi"
 
 / {
 	soc {
@@ -186,7 +186,7 @@
 			};
 
 			/*
-			 * Activating I2C4 will conflict with UART1 about the same pins so do not
+			 * Activating I2C4 will conflict with UART1 about the same pins so do yest
 			 * enable I2C4 and UART1 at the same time.
 			 */
 			i2c4 {
@@ -235,8 +235,8 @@
 				spi2_idle_mode: spi_idle {
 					/*
 					 * The idle mode is basically sleep mode sans wakeups. Also
-					 * note that we have muxes the pins off the function here
-					 * as we do not state any muxing.
+					 * yeste that we have muxes the pins off the function here
+					 * as we do yest state any muxing.
 					 */
 					idle_cfg1 {
 						pins = "GPIO218_AH11"; /* RXD */
@@ -287,7 +287,7 @@
 					};
 					default_cfg2 {
 						pins = "GPIO22_AA3"; /* FBCLK */
-						ste,config = <&in_nopull>;
+						ste,config = <&in_yespull>;
 					};
 					default_cfg3 {
 						pins = "GPIO23_AA4"; /* CLK */
@@ -342,7 +342,7 @@
 					};
 					default_cfg2 {
 						pins = "GPIO209_AG15"; /* FBCLK */
-						ste,config = <&in_nopull>;
+						ste,config = <&in_yespull>;
 					};
 					default_cfg3 {
 						pins =
@@ -386,7 +386,7 @@
 					};
 					default_cfg2 {
 						pins = "GPIO130_C8"; /* FBCLK */
-						ste,config = <&in_nopull>;
+						ste,config = <&in_yespull>;
 					};
 					default_cfg3 {
 						pins =
@@ -442,7 +442,7 @@
 					};
 					default_cfg2 {
 						pins = "GPIO202_AF25"; /* FBCLK */
-						ste,config = <&in_nopull>;
+						ste,config = <&in_yespull>;
 					};
 					default_cfg3 {
 						pins =
@@ -483,7 +483,7 @@
 
 			/*
 			 * Multi-rate serial ports (MSPs) - MSP3 output is internal and
-			 * cannot be muxed onto any pins.
+			 * canyest be muxed onto any pins.
 			 */
 			msp0 {
 				msp0_default_mode: msp0_default {
@@ -497,7 +497,7 @@
 						"GPIO15_AC3", /* RXD */
 						"GPIO13_AF3", /* TFS */
 						"GPIO14_AE3"; /* TCK */
-						ste,config = <&in_nopull>;
+						ste,config = <&in_yespull>;
 					};
 				};
 			};
@@ -517,7 +517,7 @@
 						"GPIO34_AE1",
 						"GPIO35_AE2",
 						"GPIO36_AG2";
-						ste,config = <&in_nopull>;
+						ste,config = <&in_yespull>;
 					};
 
 				};
@@ -564,7 +564,7 @@
 						"GPIO265_AD27", /* DAT2 */
 						"GPIO266_AC28", /* DAT1 */
 						"GPIO267_AC27"; /* DAT0 */
-						ste,config = <&in_nopull>;
+						ste,config = <&in_yespull>;
 					};
 					default_cfg2 {
 						pins = "GPIO257_AE29"; /* STP */

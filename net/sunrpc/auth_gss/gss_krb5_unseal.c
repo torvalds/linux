@@ -10,15 +10,15 @@
  */
 
 /*
- * Copyright 1993 by OpenVision Technologies, Inc.
+ * Copyright 1993 by OpenVision Techyeslogies, Inc.
  *
  * Permission to use, copy, modify, distribute, and sell this software
  * and its documentation for any purpose is hereby granted without fee,
- * provided that the above copyright notice appears in all copies and
- * that both that copyright notice and this permission notice appear in
- * supporting documentation, and that the name of OpenVision not be used
+ * provided that the above copyright yestice appears in all copies and
+ * that both that copyright yestice and this permission yestice appear in
+ * supporting documentation, and that the name of OpenVision yest be used
  * in advertising or publicity pertaining to distribution of the software
- * without specific, written prior permission. OpenVision makes no
+ * without specific, written prior permission. OpenVision makes yes
  * representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied warranty.
  *
@@ -44,11 +44,11 @@
  * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
  * distribute this software and its documentation for any purpose and
  * without fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright notice and
- * this permission notice appear in supporting documentation, and that
- * the name of FundsXpress. not be used in advertising or publicity pertaining
+ * yestice appear in all copies and that both that copyright yestice and
+ * this permission yestice appear in supporting documentation, and that
+ * the name of FundsXpress. yest be used in advertising or publicity pertaining
  * to distribution of the software without specific, written prior
- * permission.  FundsXpress makes no representations about the suitability of
+ * permission.  FundsXpress makes yes representations about the suitability of
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
  *
@@ -79,7 +79,7 @@ gss_verify_mic_v1(struct krb5_ctx *ctx,
 	char			cksumdata[GSS_KRB5_MAX_CKSUM_LEN];
 	struct xdr_netobj	md5cksum = {.len = sizeof(cksumdata),
 					    .data = cksumdata};
-	s32			now;
+	s32			yesw;
 	int			direction;
 	u32			seqnum;
 	unsigned char		*ptr = (unsigned char *)read_token->data;
@@ -124,9 +124,9 @@ gss_verify_mic_v1(struct krb5_ctx *ctx,
 
 	/* it got through unscathed.  Make sure the context is unexpired */
 
-	now = get_seconds();
+	yesw = get_seconds();
 
-	if (now > ctx->endtime)
+	if (yesw > ctx->endtime)
 		return GSS_S_CONTEXT_EXPIRED;
 
 	/* do sequencing checks */
@@ -149,7 +149,7 @@ gss_verify_mic_v2(struct krb5_ctx *ctx,
 	char cksumdata[GSS_KRB5_MAX_CKSUM_LEN];
 	struct xdr_netobj cksumobj = {.len = sizeof(cksumdata),
 				      .data = cksumdata};
-	s32 now;
+	s32 yesw;
 	u8 *ptr = read_token->data;
 	u8 *cksumkey;
 	u8 flags;
@@ -194,8 +194,8 @@ gss_verify_mic_v2(struct krb5_ctx *ctx,
 		return GSS_S_BAD_SIG;
 
 	/* it got through unscathed.  Make sure the context is unexpired */
-	now = get_seconds();
-	if (now > ctx->endtime)
+	yesw = get_seconds();
+	if (yesw > ctx->endtime)
 		return GSS_S_CONTEXT_EXPIRED;
 
 	/*

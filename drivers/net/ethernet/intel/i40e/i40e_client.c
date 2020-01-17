@@ -2,7 +2,7 @@
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include "i40e.h"
 #include "i40e_prototype.h"
@@ -53,7 +53,7 @@ int i40e_client_get_params(struct i40e_vsi *vsi, struct i40e_params *params)
 		u8 tc = dcb_cfg->etscfg.prioritytable[i];
 		u16 qs_handle;
 
-		/* If TC is not enabled for VSI use TC0 for UP */
+		/* If TC is yest enabled for VSI use TC0 for UP */
 		if (!(vsi->tc_config.enabled_tc & BIT(tc)))
 			tc = 0;
 
@@ -72,7 +72,7 @@ int i40e_client_get_params(struct i40e_vsi *vsi, struct i40e_params *params)
 }
 
 /**
- * i40e_notify_client_of_vf_msg - call the client vf message callback
+ * i40e_yestify_client_of_vf_msg - call the client vf message callback
  * @vsi: the VSI with the message
  * @vf_id: the absolute VF id that sent the message
  * @msg: message buffer
@@ -81,7 +81,7 @@ int i40e_client_get_params(struct i40e_vsi *vsi, struct i40e_params *params)
  * If there is a client to this VSI, call the client
  **/
 void
-i40e_notify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id, u8 *msg, u16 len)
+i40e_yestify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id, u8 *msg, u16 len)
 {
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_client_instance *cdev = pf->cinst;
@@ -90,11 +90,11 @@ i40e_notify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id, u8 *msg, u16 len)
 		return;
 	if (!cdev->client->ops || !cdev->client->ops->virtchnl_receive) {
 		dev_dbg(&pf->pdev->dev,
-			"Cannot locate client instance virtual channel receive routine\n");
+			"Canyest locate client instance virtual channel receive routine\n");
 		return;
 	}
 	if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state)) {
-		dev_dbg(&pf->pdev->dev, "Client is not open, abort virtchnl_receive\n");
+		dev_dbg(&pf->pdev->dev, "Client is yest open, abort virtchnl_receive\n");
 		return;
 	}
 	cdev->client->ops->virtchnl_receive(&cdev->lan_info, cdev->client,
@@ -102,12 +102,12 @@ i40e_notify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id, u8 *msg, u16 len)
 }
 
 /**
- * i40e_notify_client_of_l2_param_changes - call the client notify callback
+ * i40e_yestify_client_of_l2_param_changes - call the client yestify callback
  * @vsi: the VSI with l2 param changes
  *
  * If there is a client to this VSI, call the client
  **/
-void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi)
+void i40e_yestify_client_of_l2_param_changes(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_client_instance *cdev = pf->cinst;
@@ -117,11 +117,11 @@ void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi)
 		return;
 	if (!cdev->client->ops || !cdev->client->ops->l2_param_change) {
 		dev_dbg(&vsi->back->pdev->dev,
-			"Cannot locate client instance l2_param_change routine\n");
+			"Canyest locate client instance l2_param_change routine\n");
 		return;
 	}
 	if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state)) {
-		dev_dbg(&vsi->back->pdev->dev, "Client is not open, abort l2 param change\n");
+		dev_dbg(&vsi->back->pdev->dev, "Client is yest open, abort l2 param change\n");
 		return;
 	}
 	memset(&params, 0, sizeof(params));
@@ -160,13 +160,13 @@ static void i40e_client_release_qvlist(struct i40e_info *ldev)
 }
 
 /**
- * i40e_notify_client_of_netdev_close - call the client close callback
+ * i40e_yestify_client_of_netdev_close - call the client close callback
  * @vsi: the VSI with netdev closed
  * @reset: true when close called due to a reset pending
  *
  * If there is a client to this netdev, call the client with close
  **/
-void i40e_notify_client_of_netdev_close(struct i40e_vsi *vsi, bool reset)
+void i40e_yestify_client_of_netdev_close(struct i40e_vsi *vsi, bool reset)
 {
 	struct i40e_pf *pf = vsi->back;
 	struct i40e_client_instance *cdev = pf->cinst;
@@ -175,7 +175,7 @@ void i40e_notify_client_of_netdev_close(struct i40e_vsi *vsi, bool reset)
 		return;
 	if (!cdev->client->ops || !cdev->client->ops->close) {
 		dev_dbg(&vsi->back->pdev->dev,
-			"Cannot locate client instance close routine\n");
+			"Canyest locate client instance close routine\n");
 		return;
 	}
 	cdev->client->ops->close(&cdev->lan_info, cdev->client, reset);
@@ -184,13 +184,13 @@ void i40e_notify_client_of_netdev_close(struct i40e_vsi *vsi, bool reset)
 }
 
 /**
- * i40e_notify_client_of_vf_reset - call the client vf reset callback
+ * i40e_yestify_client_of_vf_reset - call the client vf reset callback
  * @pf: PF device pointer
  * @vf_id: asolute id of VF being reset
  *
- * If there is a client attached to this PF, notify when a VF is reset
+ * If there is a client attached to this PF, yestify when a VF is reset
  **/
-void i40e_notify_client_of_vf_reset(struct i40e_pf *pf, u32 vf_id)
+void i40e_yestify_client_of_vf_reset(struct i40e_pf *pf, u32 vf_id)
 {
 	struct i40e_client_instance *cdev = pf->cinst;
 
@@ -198,24 +198,24 @@ void i40e_notify_client_of_vf_reset(struct i40e_pf *pf, u32 vf_id)
 		return;
 	if (!cdev->client->ops || !cdev->client->ops->vf_reset) {
 		dev_dbg(&pf->pdev->dev,
-			"Cannot locate client instance VF reset routine\n");
+			"Canyest locate client instance VF reset routine\n");
 		return;
 	}
 	if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED,  &cdev->state)) {
-		dev_dbg(&pf->pdev->dev, "Client is not open, abort vf-reset\n");
+		dev_dbg(&pf->pdev->dev, "Client is yest open, abort vf-reset\n");
 		return;
 	}
 	cdev->client->ops->vf_reset(&cdev->lan_info, cdev->client, vf_id);
 }
 
 /**
- * i40e_notify_client_of_vf_enable - call the client vf notification callback
+ * i40e_yestify_client_of_vf_enable - call the client vf yestification callback
  * @pf: PF device pointer
  * @num_vfs: the number of VFs currently enabled, 0 for disable
  *
- * If there is a client attached to this PF, call its VF notification routine
+ * If there is a client attached to this PF, call its VF yestification routine
  **/
-void i40e_notify_client_of_vf_enable(struct i40e_pf *pf, u32 num_vfs)
+void i40e_yestify_client_of_vf_enable(struct i40e_pf *pf, u32 num_vfs)
 {
 	struct i40e_client_instance *cdev = pf->cinst;
 
@@ -223,12 +223,12 @@ void i40e_notify_client_of_vf_enable(struct i40e_pf *pf, u32 num_vfs)
 		return;
 	if (!cdev->client->ops || !cdev->client->ops->vf_enable) {
 		dev_dbg(&pf->pdev->dev,
-			"Cannot locate client instance VF enable routine\n");
+			"Canyest locate client instance VF enable routine\n");
 		return;
 	}
 	if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED,
 		      &cdev->state)) {
-		dev_dbg(&pf->pdev->dev, "Client is not open, abort vf-enable\n");
+		dev_dbg(&pf->pdev->dev, "Client is yest open, abort vf-enable\n");
 		return;
 	}
 	cdev->client->ops->vf_enable(&cdev->lan_info, cdev->client, num_vfs);
@@ -251,7 +251,7 @@ int i40e_vf_client_capable(struct i40e_pf *pf, u32 vf_id)
 		goto out;
 	if (!cdev->client->ops || !cdev->client->ops->vf_capable) {
 		dev_dbg(&pf->pdev->dev,
-			"Cannot locate client instance VF capability routine\n");
+			"Canyest locate client instance VF capability routine\n");
 		goto out;
 	}
 	if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state))
@@ -303,7 +303,7 @@ static void i40e_client_add_instance(struct i40e_pf *pf)
 	cdev->lan_info.hw_addr = pf->hw.hw_addr;
 	cdev->lan_info.ops = &i40e_lan_ops;
 	cdev->lan_info.version.major = I40E_CLIENT_VERSION_MAJOR;
-	cdev->lan_info.version.minor = I40E_CLIENT_VERSION_MINOR;
+	cdev->lan_info.version.miyesr = I40E_CLIENT_VERSION_MINOR;
 	cdev->lan_info.version.build = I40E_CLIENT_VERSION_BUILD;
 	cdev->lan_info.fw_maj_ver = pf->hw.aq.fw_maj_ver;
 	cdev->lan_info.fw_min_ver = pf->hw.aq.fw_min_ver;
@@ -398,7 +398,7 @@ void i40e_client_subtask(struct i40e_pf *pf)
  * i40e_lan_add_device - add a lan device struct to the list of lan devices
  * @pf: pointer to the board struct
  *
- * Returns 0 on success or none 0 on error
+ * Returns 0 on success or yesne 0 on error
  **/
 int i40e_lan_add_device(struct i40e_pf *pf)
 {
@@ -446,7 +446,7 @@ out:
  * i40e_lan_del_device - removes a lan device from the device list
  * @pf: pointer to the board struct
  *
- * Returns 0 on success or non-0 on error
+ * Returns 0 on success or yesn-0 on error
  **/
 int i40e_lan_del_device(struct i40e_pf *pf)
 {
@@ -686,7 +686,7 @@ static int i40e_client_update_vsi_ctxt(struct i40e_info *ldev,
 	bool update = true;
 	i40e_status err;
 
-	/* TODO: for now do not allow setting VF's VSI setting */
+	/* TODO: for yesw do yest allow setting VF's VSI setting */
 	if (is_vf)
 		return -EINVAL;
 
@@ -737,7 +737,7 @@ static int i40e_client_update_vsi_ctxt(struct i40e_info *ldev,
  * i40e_register_client - Register a i40e client driver with the L2 driver
  * @client: pointer to the i40e_client struct
  *
- * Returns 0 on success or non-0 on error
+ * Returns 0 on success or yesn-0 on error
  **/
 int i40e_register_client(struct i40e_client *client)
 {
@@ -749,7 +749,7 @@ int i40e_register_client(struct i40e_client *client)
 	}
 
 	if (strlen(client->name) == 0) {
-		pr_info("i40e: Failed to register client with no name\n");
+		pr_info("i40e: Failed to register client with yes name\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -762,11 +762,11 @@ int i40e_register_client(struct i40e_client *client)
 	}
 
 	if ((client->version.major != I40E_CLIENT_VERSION_MAJOR) ||
-	    (client->version.minor != I40E_CLIENT_VERSION_MINOR)) {
+	    (client->version.miyesr != I40E_CLIENT_VERSION_MINOR)) {
 		pr_info("i40e: Failed to register client %s due to mismatched client interface version\n",
 			client->name);
 		pr_info("Client is using version: %02d.%02d.%02d while LAN driver supports %s\n",
-			client->version.major, client->version.minor,
+			client->version.major, client->version.miyesr,
 			client->version.build,
 			i40e_client_interface_version_str);
 		ret = -EIO;
@@ -787,14 +787,14 @@ EXPORT_SYMBOL(i40e_register_client);
  * i40e_unregister_client - Unregister a i40e client driver with the L2 driver
  * @client: pointer to the i40e_client struct
  *
- * Returns 0 on success or non-0 on error
+ * Returns 0 on success or yesn-0 on error
  **/
 int i40e_unregister_client(struct i40e_client *client)
 {
 	int ret = 0;
 
 	if (registered_client != client) {
-		pr_info("i40e: Client %s has not been registered\n",
+		pr_info("i40e: Client %s has yest been registered\n",
 			client->name);
 		ret = -ENODEV;
 		goto out;

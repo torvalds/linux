@@ -18,7 +18,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -186,7 +186,7 @@ long mga_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	DRM_DEBUG("pid=%d, dev=0x%lx, auth=%d, %s\n",
 		  task_pid_nr(current),
-		  (long)old_encode_dev(file_priv->minor->kdev->devt),
+		  (long)old_encode_dev(file_priv->miyesr->kdev->devt),
 		  file_priv->authenticated,
 		  mga_compat_ioctls[nr - DRM_COMMAND_BASE].name);
 	ret = (*fn) (filp, cmd, arg);

@@ -221,7 +221,7 @@ static ssize_t dmi_entry_attr_show(struct kobject *kobj,
 		.buf  = buf,
 	};
 	/* Find the entry according to our parent and call the
-	 * normalized show method hanging off of the attribute */
+	 * yesrmalized show method hanging off of the attribute */
 	return find_dmi_entry(to_entry(kobj->parent),
 			      dmi_entry_attr_show_helper, &data);
 }
@@ -421,7 +421,7 @@ static ssize_t dmi_sel_raw_read_helper(struct dmi_sysfs_entry *entry,
 		pr_info("dmi-sysfs: GPNV support missing.\n");
 		return -EIO;
 	default:
-		pr_info("dmi-sysfs: Unknown access method %02x\n",
+		pr_info("dmi-sysfs: Unkyeswn access method %02x\n",
 			sel.access_method);
 		return -EIO;
 	}

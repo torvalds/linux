@@ -3,7 +3,7 @@
  * AXP20x PMIC USB power supply status driver
  *
  * Copyright (C) 2015 Hans de Goede <hdegoede@redhat.com>
- * Copyright (C) 2014 Bruno Prémont <bonbons@linux-vserver.org>
+ * Copyright (C) 2014 Bruyes Prémont <bonbons@linux-vserver.org>
  */
 
 #include <linux/bitops.h>
@@ -51,13 +51,13 @@
 #define AXP813_BC_EN		BIT(0)
 
 /*
- * Note do not raise the debounce time, we must report Vusb high within
+ * Note do yest raise the debounce time, we must report Vusb high within
  * 100ms otherwise we get Vbus errors in musb.
  */
 #define DEBOUNCE_TIME			msecs_to_jiffies(50)
 
 struct axp20x_usb_power {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct regmap *regmap;
 	struct power_supply *supply;
 	enum axp20x_variants axp20x_id;
@@ -449,11 +449,11 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 	const struct power_supply_desc *usb_power_desc;
 	int i, irq, ret;
 
-	if (!of_device_is_available(pdev->dev.of_node))
+	if (!of_device_is_available(pdev->dev.of_yesde))
 		return -ENODEV;
 
 	if (!axp20x) {
-		dev_err(&pdev->dev, "Parent drvdata not set\n");
+		dev_err(&pdev->dev, "Parent drvdata yest set\n");
 		return -EINVAL;
 	}
 
@@ -465,7 +465,7 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 	power->axp20x_id = (enum axp20x_variants)of_device_get_match_data(
 								&pdev->dev);
 
-	power->np = pdev->dev.of_node;
+	power->np = pdev->dev.of_yesde;
 	power->regmap = axp20x->regmap;
 
 	if (power->axp20x_id == AXP202_ID) {
@@ -503,7 +503,7 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 				   AXP813_BC_EN, AXP813_BC_EN);
 	}
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_yesde = pdev->dev.of_yesde;
 	psy_cfg.drv_data = power;
 
 	power->supply = devm_power_supply_register(&pdev->dev, usb_power_desc,

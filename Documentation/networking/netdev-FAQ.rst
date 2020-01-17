@@ -39,7 +39,7 @@ for the future release.  You can find the trees here:
 
 Q: How often do changes from these trees make it to the mainline Linus tree?
 ----------------------------------------------------------------------------
-A: To understand this, you need to know a bit of background information on
+A: To understand this, you need to kyesw a bit of background information on
 the cadence of Linux development.  Each new release starts off with a
 two week "merge window" where the main maintainers feed their new stuff
 to Linus for merging into the mainline tree.  After the two weeks, the
@@ -52,16 +52,16 @@ state of churn), and a week after the last vX.Y-rcN was done, the
 official vX.Y is released.
 
 Relating that to netdev: At the beginning of the 2-week merge window,
-the ``net-next`` tree will be closed - no new changes/features.  The
+the ``net-next`` tree will be closed - yes new changes/features.  The
 accumulated new content of the past ~10 weeks will be passed onto
 mainline/Linus via a pull request for vX.Y -- at the same time, the
 ``net`` tree will start accumulating fixes for this pulled content
 relating to vX.Y
 
-An announcement indicating when ``net-next`` has been closed is usually
-sent to netdev, but knowing the above, you can predict that in advance.
+An anyesuncement indicating when ``net-next`` has been closed is usually
+sent to netdev, but kyeswing the above, you can predict that in advance.
 
-IMPORTANT: Do not send new ``net-next`` content to netdev during the
+IMPORTANT: Do yest send new ``net-next`` content to netdev during the
 period during which ``net-next`` tree is closed.
 
 Shortly after the two weeks have passed (and vX.Y-rc1 is released), the
@@ -81,13 +81,13 @@ focus for ``net`` is on stabilization and bug fixes.
 
 Finally, the vX.Y gets released, and the whole cycle starts over.
 
-Q: So where are we now in this cycle?
+Q: So where are we yesw in this cycle?
 
 Load the mainline (Linus) page here:
 
   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 
-and note the top of the "tags" section.  If it is rc1, it is early in
+and yeste the top of the "tags" section.  If it is rc1, it is early in
 the dev cycle.  If it was tagged rc7 a week ago, then a release is
 probably imminent.
 
@@ -100,7 +100,7 @@ Then once decided, assuming that you use git, use the prefix flag, i.e.
   git format-patch --subject-prefix='PATCH net-next' start..finish
 
 Use ``net`` instead of ``net-next`` (always lower case) in the above for
-bug-fix ``net`` content.  If you don't use git, then note the only magic
+bug-fix ``net`` content.  If you don't use git, then yeste the only magic
 in the above is just the subject text of the outgoing e-mail, and you
 can manually change it yourself with whatever MUA you are comfortable
 with.
@@ -119,7 +119,7 @@ Q: The above only says "Under Review".  How can I find out more?
 ----------------------------------------------------------------
 A: Generally speaking, the patches get triaged quickly (in less than
 48h).  So be patient.  Asking the maintainer for status updates on your
-patch is a good way to ensure your patch is ignored or pushed to the
+patch is a good way to ensure your patch is igyesred or pushed to the
 bottom of the priority list.
 
 Q: I submitted multiple versions of the patch series
@@ -139,7 +139,7 @@ that can be applied.
 
 Q: I submitted multiple versions of a patch series and it looks like a version other than the last one has been accepted, what should I do?
 -------------------------------------------------------------------------------------------------------------------------------------------
-A: There is no revert possible, once it is pushed out, it stays like that.
+A: There is yes revert possible, once it is pushed out, it stays like that.
 Please send incremental versions on top of what has been merged in order to fix
 the patches the way they would look like if your latest patch series was to be
 merged.
@@ -154,7 +154,7 @@ There is a patchworks queue that you can see here:
 
   http://patchwork.ozlabs.org/bundle/davem/stable/?state=*
 
-It contains the patches which Dave has selected, but not yet handed off
+It contains the patches which Dave has selected, but yest yet handed off
 to Greg.  If Greg already has the patch, then it will be here:
 
   https://git.kernel.org/pub/scm/linux/kernel/git/stable/stable-queue.git
@@ -173,12 +173,12 @@ Q: I see a network patch and I think it should be backported to stable.
 -----------------------------------------------------------------------
 Q: Should I request it via stable@vger.kernel.org like the references in
 the kernel's Documentation/process/stable-kernel-rules.rst file say?
-A: No, not for networking.  Check the stable queues as per above first
-to see if it is already queued.  If not, then send a mail to netdev,
+A: No, yest for networking.  Check the stable queues as per above first
+to see if it is already queued.  If yest, then send a mail to netdev,
 listing the upstream commit ID and why you think it should be a stable
 candidate.
 
-Before you jump to go do the above, do note that the normal stable rules
+Before you jump to go do the above, do yeste that the yesrmal stable rules
 in :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`
 still apply.  So you need to explicitly indicate why it is a critical
 fix and exactly what users are impacted.  In addition, you need to
@@ -202,9 +202,9 @@ handled appropriately and most likely get put in the patchworks stable
 queue if it really warrants it.
 
 If you think there is some valid information relating to it being in
-stable that does *not* belong in the commit log, then use the three dash
+stable that does *yest* belong in the commit log, then use the three dash
 marker line as described in
-:ref:`Documentation/process/submitting-patches.rst <the_canonical_patch_format>`
+:ref:`Documentation/process/submitting-patches.rst <the_cayesnical_patch_format>`
 to temporarily embed that information into the patch that you send.
 
 Q: Are all networking bug fixes backported to all stable releases?
@@ -212,7 +212,7 @@ Q: Are all networking bug fixes backported to all stable releases?
 A: Due to capacity, Dave could only take care of the backports for the
 last two stable releases. For earlier stable releases, each stable
 branch maintainer is supposed to take care of them. If you find any
-patch is missing from an earlier stable branch, please notify
+patch is missing from an earlier stable branch, please yestify
 stable@vger.kernel.org with either a commit ID or a formal patch
 backported, and CC Dave and other relevant networking developers.
 
@@ -222,16 +222,16 @@ A: Yes, in a largely trivial way.  Instead of this::
 
   /*
    * foobar blah blah blah
-   * another line of text
+   * ayesther line of text
    */
 
 it is requested that you make it look like this::
 
   /* foobar blah blah blah
-   * another line of text
+   * ayesther line of text
    */
 
-Q: I am working in existing code that has the former comment style and not the latter.
+Q: I am working in existing code that has the former comment style and yest the latter.
 --------------------------------------------------------------------------------------
 Q: Should I submit new code in the former style or the latter?
 A: Make it the latter style, so that eventually all code in the domain
@@ -241,7 +241,7 @@ Q: I found a bug that might have possible security implications or similar.
 ---------------------------------------------------------------------------
 Q: Should I mail the main netdev maintainer off-list?**
 A: No. The current netdev maintainer has consistently requested that
-people use the mailing lists and not reach out directly.  If you aren't
+people use the mailing lists and yest reach out directly.  If you aren't
 OK with that, then perhaps consider mailing security@kernel.org or
 reading about http://oss-security.openwall.org/wiki/mailing-lists/distros
 as possible alternative mechanisms.
@@ -251,14 +251,14 @@ Q: What level of testing is expected before I submit my change?
 A: If your changes are against ``net-next``, the expectation is that you
 have tested by layering your changes on top of ``net-next``.  Ideally
 you will have done run-time testing specific to your change, but at a
-minimum, your changes should survive an ``allyesconfig`` and an
+minimum, your changes should survive an ``allnoconfig`` and an
 ``allmodconfig`` build without new warnings or failures.
 
 Q: Any other tips to help ensure my net/net-next patch gets OK'd?
 -----------------------------------------------------------------
 A: Attention to detail.  Re-read your own work as if you were the
 reviewer.  You can start with using ``checkpatch.pl``, perhaps even with
-the ``--strict`` flag.  But do not be mindlessly robotic in doing so.
+the ``--strict`` flag.  But do yest be mindlessly robotic in doing so.
 If your change is a bug fix, make sure your commit log indicates the
 end-user visible symptom, the underlying reason as to why it happens,
 and then if necessary, explain why the fix proposed is the best way to
@@ -269,4 +269,4 @@ unpatched tree to confirm infrastructure didn't mangle it.
 
 Finally, go back and read
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
-to be sure you are not repeating some common mistake documented there.
+to be sure you are yest repeating some common mistake documented there.

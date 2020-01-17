@@ -77,7 +77,7 @@ int snd_vx_setup_firmware(struct vx_core *chip)
 	}
 
 	/* ok, we reached to the last one */
-	/* create the devices if not built yet */
+	/* create the devices if yest built yet */
 	if ((err = snd_vx_pcm_new(chip)) < 0)
 		return err;
 

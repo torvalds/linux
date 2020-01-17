@@ -15,9 +15,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -550,7 +550,7 @@ static void bnxt_qplib_free_pkey_tbl(struct bnxt_qplib_res *res,
 				     struct bnxt_qplib_pkey_tbl *pkey_tbl)
 {
 	if (!pkey_tbl->tbl)
-		dev_dbg(&res->pdev->dev, "PKEY tbl not present\n");
+		dev_dbg(&res->pdev->dev, "PKEY tbl yest present\n");
 	else
 		kfree(pkey_tbl->tbl);
 
@@ -704,7 +704,7 @@ static int bnxt_qplib_alloc_dpi_tbl(struct bnxt_qplib_res     *res,
 		return -ENOMEM;
 	}
 
-	dpit->dbr_bar_reg_iomem = ioremap_nocache(bar_reg_base + dbr_offset,
+	dpit->dbr_bar_reg_iomem = ioremap_yescache(bar_reg_base + dbr_offset,
 						  dbr_len);
 	if (!dpit->dbr_bar_reg_iomem) {
 		dev_err(&res->pdev->dev,
@@ -775,7 +775,7 @@ static int bnxt_qplib_alloc_stats_ctx(struct pci_dev *pdev,
 	memset(stats, 0, sizeof(*stats));
 	stats->fw_id = -1;
 	/* 128 byte aligned context memory is required only for 57500.
-	 * However making this unconditional, it does not harm previous
+	 * However making this unconditional, it does yest harm previous
 	 * generation.
 	 */
 	stats->size = ALIGN(sizeof(struct ctx_hw_stats), 128);

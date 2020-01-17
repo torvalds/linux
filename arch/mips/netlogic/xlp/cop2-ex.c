@@ -12,7 +12,7 @@
 #include <linux/capability.h>
 #include <linux/init.h>
 #include <linux/irqflags.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/prefetch.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
@@ -33,7 +33,7 @@ void nlm_cop2_save(struct nlm_cop2_state *r)
 {
 	asm volatile(
 		".set	push\n"
-		".set	noat\n"
+		".set	yesat\n"
 		"dmfc2	$1, $0, 0\n"
 		"sd	$1, 0(%1)\n"
 		"dmfc2	$1, $0, 1\n"
@@ -64,7 +64,7 @@ void nlm_cop2_restore(struct nlm_cop2_state *r)
 
 	asm volatile(
 		".set	push\n"
-		".set	noat\n"
+		".set	yesat\n"
 		"ld	$1, 0(%1)\n"
 		"dmtc2	$1, $0, 0\n"
 		"ld	$1, 8(%1)\n"
@@ -89,7 +89,7 @@ void nlm_cop2_restore(struct nlm_cop2_state *r)
 	__write_32bit_c2_register($3, 0, r->rx_msg_status | rstat);
 }
 
-static int nlm_cu2_call(struct notifier_block *nfb, unsigned long action,
+static int nlm_cu2_call(struct yestifier_block *nfb, unsigned long action,
 	void *data)
 {
 	unsigned long flags;
@@ -108,14 +108,14 @@ static int nlm_cu2_call(struct notifier_block *nfb, unsigned long action,
 		local_irq_restore(flags);
 		pr_info("COP2 access enabled for pid %d (%s)\n",
 					current->pid, current->comm);
-		return NOTIFY_BAD;	/* Don't call default notifier */
+		return NOTIFY_BAD;	/* Don't call default yestifier */
 	}
 
-	return NOTIFY_OK;		/* Let default notifier send signals */
+	return NOTIFY_OK;		/* Let default yestifier send signals */
 }
 
 static int __init nlm_cu2_setup(void)
 {
-	return cu2_notifier(nlm_cu2_call, 0);
+	return cu2_yestifier(nlm_cu2_call, 0);
 }
 early_initcall(nlm_cu2_setup);

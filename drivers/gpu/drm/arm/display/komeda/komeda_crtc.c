@@ -69,7 +69,7 @@ static void komeda_crtc_update_clock_ratio(struct komeda_crtc_state *kcrtc_st)
  * the unclaimed pipeline resources.
  *
  * RETURNS:
- * Zero for success or -errno
+ * Zero for success or -erryes
  */
 static int
 komeda_crtc_atomic_check(struct drm_crtc *crtc,
@@ -130,9 +130,9 @@ komeda_crtc_prepare(struct komeda_crtc *kcrtc)
 	}
 
 	mdev->dpmode = new_mode;
-	/* Only need to enable aclk on single display mode, but no need to
+	/* Only need to enable aclk on single display mode, but yes need to
 	 * enable aclk it on dual display mode, since the dual mode always
-	 * switch from single display mode, the aclk already enabled, no need
+	 * switch from single display mode, the aclk already enabled, yes need
 	 * to enable it again.
 	 */
 	if (new_mode != KOMEDA_MODE_DUAL_DISP) {
@@ -208,7 +208,7 @@ void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
 		if (wb_conn)
 			drm_writeback_signal_completion(&wb_conn->base, 0);
 		else
-			DRM_WARN("CRTC[%d]: EOW happen but no wb_connector.\n",
+			DRM_WARN("CRTC[%d]: EOW happen but yes wb_connector.\n",
 				 drm_crtc_index(&kcrtc->base));
 	}
 	/* will handle it together with the write back support */
@@ -226,13 +226,13 @@ void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
 		} else if (crtc->state->event) {
 			event = crtc->state->event;
 			/*
-			 * Consume event before notifying drm core that flip
+			 * Consume event before yestifying drm core that flip
 			 * happened.
 			 */
 			crtc->state->event = NULL;
 			drm_crtc_send_vblank_event(crtc, event);
 		} else {
-			DRM_WARN("CRTC[%d]: FLIP happen but no pending commit.\n",
+			DRM_WARN("CRTC[%d]: FLIP happen but yes pending commit.\n",
 				 drm_crtc_index(&kcrtc->base));
 		}
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
@@ -266,7 +266,7 @@ komeda_crtc_do_flush(struct drm_crtc *crtc,
 	if (conn_st && conn_st->writeback_job)
 		drm_writeback_queue_job(&wb_conn->base, conn_st);
 
-	/* step 2: notify the HW to kickoff the update */
+	/* step 2: yestify the HW to kickoff the update */
 	mdev->funcs->flush(mdev, master->id, kcrtc_st->active_pipes);
 }
 
@@ -342,12 +342,12 @@ komeda_crtc_atomic_disable(struct drm_crtc *crtc,
 	 *    or done after the disable operation. on this case we can directly
 	 *    use the crtc->state->event to tracking the HW disable operation.
 	 * 2. active -> active
-	 *    the crtc->commit is not for disable, but a modeset operation when
+	 *    the crtc->commit is yest for disable, but a modeset operation when
 	 *    crtc is active, such commit actually has been completed by 3
 	 *    DRM operations:
 	 *    crtc_disable, update_planes(crtc_flush), crtc_enable
 	 *    so on this case the crtc->commit is for the whole process.
-	 *    we can not use it for tracing the disable, we need a temporary
+	 *    we can yest use it for tracing the disable, we need a temporary
 	 *    flip_done for tracing the disable. and crtc->state->event for
 	 *    the crtc_enable operation.
 	 *    That's also the reason why skip modeset commit in

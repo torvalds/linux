@@ -7,7 +7,7 @@
 
 #include "builtin.h"
 
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -34,9 +34,9 @@ struct perf_ftrace {
 	struct target		target;
 	const char		*tracer;
 	struct list_head	filters;
-	struct list_head	notrace;
+	struct list_head	yestrace;
 	struct list_head	graph_funcs;
-	struct list_head	nograph_funcs;
+	struct list_head	yesgraph_funcs;
 	int			graph_depth;
 };
 
@@ -59,11 +59,11 @@ static void sig_handler(int sig __maybe_unused)
  *
  * XXX We need to handle this more appropriately, emitting an error, etc.
  */
-static void ftrace__workload_exec_failed_signal(int signo __maybe_unused,
+static void ftrace__workload_exec_failed_signal(int sigyes __maybe_unused,
 						siginfo_t *info __maybe_unused,
 						void *ucontext __maybe_unused)
 {
-	/* workload_exec_errno = info->si_value.sival_int; */
+	/* workload_exec_erryes = info->si_value.sival_int; */
 	done = true;
 }
 
@@ -78,7 +78,7 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 
 	file = get_tracing_file(name);
 	if (!file) {
-		pr_debug("cannot get tracing file: %s\n", name);
+		pr_debug("canyest get tracing file: %s\n", name);
 		return -1;
 	}
 
@@ -89,8 +89,8 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 
 	fd = open(file, flags);
 	if (fd < 0) {
-		pr_debug("cannot open tracing file: %s: %s\n",
-			 name, str_error_r(errno, errbuf, sizeof(errbuf)));
+		pr_debug("canyest open tracing file: %s: %s\n",
+			 name, str_error_r(erryes, errbuf, sizeof(errbuf)));
 		goto out;
 	}
 
@@ -107,7 +107,7 @@ static int __write_tracing_file(const char *name, const char *val, bool append)
 		ret = 0;
 	else
 		pr_debug("write '%s' to tracing/%s failed: %s\n",
-			 val, name, str_error_r(errno, errbuf, sizeof(errbuf)));
+			 val, name, str_error_r(erryes, errbuf, sizeof(errbuf)));
 
 	free(val_copy);
 out_close:
@@ -135,7 +135,7 @@ static int reset_tracing_files(struct perf_ftrace *ftrace __maybe_unused)
 	if (write_tracing_file("tracing_on", "0") < 0)
 		return -1;
 
-	if (write_tracing_file("current_tracer", "nop") < 0)
+	if (write_tracing_file("current_tracer", "yesp") < 0)
 		return -1;
 
 	if (write_tracing_file("set_ftrace_pid", " ") < 0)
@@ -233,7 +233,7 @@ static int set_tracing_filters(struct perf_ftrace *ftrace)
 	if (ret < 0)
 		return ret;
 
-	ret = __set_tracing_filter("set_ftrace_notrace", &ftrace->notrace);
+	ret = __set_tracing_filter("set_ftrace_yestrace", &ftrace->yestrace);
 	if (ret < 0)
 		return ret;
 
@@ -241,8 +241,8 @@ static int set_tracing_filters(struct perf_ftrace *ftrace)
 	if (ret < 0)
 		return ret;
 
-	/* old kernels do not have this filter */
-	__set_tracing_filter("set_graph_notrace", &ftrace->nograph_funcs);
+	/* old kernels do yest have this filter */
+	__set_tracing_filter("set_graph_yestrace", &ftrace->yesgraph_funcs);
 
 	return ret;
 }
@@ -250,9 +250,9 @@ static int set_tracing_filters(struct perf_ftrace *ftrace)
 static void reset_tracing_filters(void)
 {
 	write_tracing_file("set_ftrace_filter", " ");
-	write_tracing_file("set_ftrace_notrace", " ");
+	write_tracing_file("set_ftrace_yestrace", " ");
 	write_tracing_file("set_graph_function", " ");
-	write_tracing_file("set_graph_notrace", " ");
+	write_tracing_file("set_graph_yestrace", " ");
 }
 
 static int set_tracing_depth(struct perf_ftrace *ftrace)
@@ -470,21 +470,21 @@ int cmd_ftrace(int argc, const char **argv)
 		    "list of cpus to monitor"),
 	OPT_CALLBACK('T', "trace-funcs", &ftrace.filters, "func",
 		     "trace given functions only", parse_filter_func),
-	OPT_CALLBACK('N', "notrace-funcs", &ftrace.notrace, "func",
-		     "do not trace given functions", parse_filter_func),
+	OPT_CALLBACK('N', "yestrace-funcs", &ftrace.yestrace, "func",
+		     "do yest trace given functions", parse_filter_func),
 	OPT_CALLBACK('G', "graph-funcs", &ftrace.graph_funcs, "func",
 		     "Set graph filter on given functions", parse_filter_func),
-	OPT_CALLBACK('g', "nograph-funcs", &ftrace.nograph_funcs, "func",
-		     "Set nograph filter on given functions", parse_filter_func),
+	OPT_CALLBACK('g', "yesgraph-funcs", &ftrace.yesgraph_funcs, "func",
+		     "Set yesgraph filter on given functions", parse_filter_func),
 	OPT_INTEGER('D', "graph-depth", &ftrace.graph_depth,
 		    "Max depth for function graph tracer"),
 	OPT_END()
 	};
 
 	INIT_LIST_HEAD(&ftrace.filters);
-	INIT_LIST_HEAD(&ftrace.notrace);
+	INIT_LIST_HEAD(&ftrace.yestrace);
 	INIT_LIST_HEAD(&ftrace.graph_funcs);
-	INIT_LIST_HEAD(&ftrace.nograph_funcs);
+	INIT_LIST_HEAD(&ftrace.yesgraph_funcs);
 
 	ret = perf_config(perf_ftrace_config, &ftrace);
 	if (ret < 0)
@@ -492,7 +492,7 @@ int cmd_ftrace(int argc, const char **argv)
 
 	argc = parse_options(argc, argv, ftrace_options, ftrace_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && target__none(&ftrace.target))
+	if (!argc && target__yesne(&ftrace.target))
 		usage_with_options(ftrace_usage, ftrace_options);
 
 	ret = target__validate(&ftrace.target);
@@ -521,9 +521,9 @@ out_delete_evlist:
 
 out_delete_filters:
 	delete_filter_func(&ftrace.filters);
-	delete_filter_func(&ftrace.notrace);
+	delete_filter_func(&ftrace.yestrace);
 	delete_filter_func(&ftrace.graph_funcs);
-	delete_filter_func(&ftrace.nograph_funcs);
+	delete_filter_func(&ftrace.yesgraph_funcs);
 
 	return ret;
 }

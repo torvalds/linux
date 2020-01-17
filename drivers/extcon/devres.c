@@ -29,24 +29,24 @@ static void devm_extcon_dev_unreg(struct device *dev, void *res)
 	extcon_dev_unregister(*(struct extcon_dev **)res);
 }
 
-struct extcon_dev_notifier_devres {
+struct extcon_dev_yestifier_devres {
 	struct extcon_dev *edev;
 	unsigned int id;
-	struct notifier_block *nb;
+	struct yestifier_block *nb;
 };
 
-static void devm_extcon_dev_notifier_unreg(struct device *dev, void *res)
+static void devm_extcon_dev_yestifier_unreg(struct device *dev, void *res)
 {
-	struct extcon_dev_notifier_devres *this = res;
+	struct extcon_dev_yestifier_devres *this = res;
 
-	extcon_unregister_notifier(this->edev, this->id, this->nb);
+	extcon_unregister_yestifier(this->edev, this->id, this->nb);
 }
 
-static void devm_extcon_dev_notifier_all_unreg(struct device *dev, void *res)
+static void devm_extcon_dev_yestifier_all_unreg(struct device *dev, void *res)
 {
-	struct extcon_dev_notifier_devres *this = res;
+	struct extcon_dev_yestifier_devres *this = res;
 
-	extcon_unregister_notifier_all(this->edev, this->nb);
+	extcon_unregister_yestifier_all(this->edev, this->nb);
 }
 
 /**
@@ -153,34 +153,34 @@ void devm_extcon_dev_unregister(struct device *dev, struct extcon_dev *edev)
 EXPORT_SYMBOL_GPL(devm_extcon_dev_unregister);
 
 /**
- * devm_extcon_register_notifier() - Resource-managed extcon_register_notifier()
+ * devm_extcon_register_yestifier() - Resource-managed extcon_register_yestifier()
  * @dev:	the device owning the extcon device being created
  * @edev:	the extcon device
  * @id:		the unique id among the extcon enumeration
- * @nb:		a notifier block to be registered
+ * @nb:		a yestifier block to be registered
  *
- * This function manages automatically the notifier of extcon device using
+ * This function manages automatically the yestifier of extcon device using
  * device resource management and simplify the control of unregistering
- * the notifier of extcon device.
+ * the yestifier of extcon device.
  *
  * Note that the second parameter given to the callback of nb (val) is
- * "old_state", not the current state. The current state can be retrieved
+ * "old_state", yest the current state. The current state can be retrieved
  * by looking at the third pameter (edev pointer)'s state value.
  *
  * Returns 0 if success or negaive error number if failure.
  */
-int devm_extcon_register_notifier(struct device *dev, struct extcon_dev *edev,
-				unsigned int id, struct notifier_block *nb)
+int devm_extcon_register_yestifier(struct device *dev, struct extcon_dev *edev,
+				unsigned int id, struct yestifier_block *nb)
 {
-	struct extcon_dev_notifier_devres *ptr;
+	struct extcon_dev_yestifier_devres *ptr;
 	int ret;
 
-	ptr = devres_alloc(devm_extcon_dev_notifier_unreg, sizeof(*ptr),
+	ptr = devres_alloc(devm_extcon_dev_yestifier_unreg, sizeof(*ptr),
 				GFP_KERNEL);
 	if (!ptr)
 		return -ENOMEM;
 
-	ret = extcon_register_notifier(edev, id, nb);
+	ret = extcon_register_yestifier(edev, id, nb);
 	if (ret) {
 		devres_free(ptr);
 		return ret;
@@ -193,50 +193,50 @@ int devm_extcon_register_notifier(struct device *dev, struct extcon_dev *edev,
 
 	return 0;
 }
-EXPORT_SYMBOL(devm_extcon_register_notifier);
+EXPORT_SYMBOL(devm_extcon_register_yestifier);
 
 /**
- * devm_extcon_unregister_notifier()
- *			- Resource-managed extcon_unregister_notifier()
+ * devm_extcon_unregister_yestifier()
+ *			- Resource-managed extcon_unregister_yestifier()
  * @dev:	the device owning the extcon device being created
  * @edev:	the extcon device
  * @id:		the unique id among the extcon enumeration
- * @nb:		a notifier block to be registered
+ * @nb:		a yestifier block to be registered
  */
-void devm_extcon_unregister_notifier(struct device *dev,
+void devm_extcon_unregister_yestifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb)
+				struct yestifier_block *nb)
 {
-	WARN_ON(devres_release(dev, devm_extcon_dev_notifier_unreg,
+	WARN_ON(devres_release(dev, devm_extcon_dev_yestifier_unreg,
 			       devm_extcon_dev_match, edev));
 }
-EXPORT_SYMBOL(devm_extcon_unregister_notifier);
+EXPORT_SYMBOL(devm_extcon_unregister_yestifier);
 
 /**
- * devm_extcon_register_notifier_all()
- *		- Resource-managed extcon_register_notifier_all()
+ * devm_extcon_register_yestifier_all()
+ *		- Resource-managed extcon_register_yestifier_all()
  * @dev:	the device owning the extcon device being created
  * @edev:	the extcon device
- * @nb:		a notifier block to be registered
+ * @nb:		a yestifier block to be registered
  *
- * This function manages automatically the notifier of extcon device using
+ * This function manages automatically the yestifier of extcon device using
  * device resource management and simplify the control of unregistering
- * the notifier of extcon device. To get more information, refer that function.
+ * the yestifier of extcon device. To get more information, refer that function.
  *
  * Returns 0 if success or negaive error number if failure.
  */
-int devm_extcon_register_notifier_all(struct device *dev, struct extcon_dev *edev,
-				struct notifier_block *nb)
+int devm_extcon_register_yestifier_all(struct device *dev, struct extcon_dev *edev,
+				struct yestifier_block *nb)
 {
-	struct extcon_dev_notifier_devres *ptr;
+	struct extcon_dev_yestifier_devres *ptr;
 	int ret;
 
-	ptr = devres_alloc(devm_extcon_dev_notifier_all_unreg, sizeof(*ptr),
+	ptr = devres_alloc(devm_extcon_dev_yestifier_all_unreg, sizeof(*ptr),
 				GFP_KERNEL);
 	if (!ptr)
 		return -ENOMEM;
 
-	ret = extcon_register_notifier_all(edev, nb);
+	ret = extcon_register_yestifier_all(edev, nb);
 	if (ret) {
 		devres_free(ptr);
 		return ret;
@@ -248,20 +248,20 @@ int devm_extcon_register_notifier_all(struct device *dev, struct extcon_dev *ede
 
 	return 0;
 }
-EXPORT_SYMBOL(devm_extcon_register_notifier_all);
+EXPORT_SYMBOL(devm_extcon_register_yestifier_all);
 
 /**
- * devm_extcon_unregister_notifier_all()
- *		- Resource-managed extcon_unregister_notifier_all()
+ * devm_extcon_unregister_yestifier_all()
+ *		- Resource-managed extcon_unregister_yestifier_all()
  * @dev:	the device owning the extcon device being created
  * @edev:	the extcon device
- * @nb:		a notifier block to be registered
+ * @nb:		a yestifier block to be registered
  */
-void devm_extcon_unregister_notifier_all(struct device *dev,
+void devm_extcon_unregister_yestifier_all(struct device *dev,
 				struct extcon_dev *edev,
-				struct notifier_block *nb)
+				struct yestifier_block *nb)
 {
-	WARN_ON(devres_release(dev, devm_extcon_dev_notifier_all_unreg,
+	WARN_ON(devres_release(dev, devm_extcon_dev_yestifier_all_unreg,
 			       devm_extcon_dev_match, edev));
 }
-EXPORT_SYMBOL(devm_extcon_unregister_notifier_all);
+EXPORT_SYMBOL(devm_extcon_unregister_yestifier_all);

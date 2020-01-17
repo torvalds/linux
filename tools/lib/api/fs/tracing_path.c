@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include "fs.h"
 
@@ -133,13 +133,13 @@ int tracing_path__strerror_open_tp(int err, char *buf, size_t size,
 			/* sdt markers */
 			if (!strncmp(filename, "sdt_", 4)) {
 				snprintf(buf, size,
-					"Error:\tFile %s/%s not found.\n"
-					"Hint:\tSDT event cannot be directly recorded on.\n"
+					"Error:\tFile %s/%s yest found.\n"
+					"Hint:\tSDT event canyest be directly recorded on.\n"
 					"\tPlease first use 'perf probe %s:%s' before recording it.\n",
 					tracing_events_path, filename, sys, name);
 			} else {
 				snprintf(buf, size,
-					 "Error:\tFile %s/%s not found.\n"
+					 "Error:\tFile %s/%s yest found.\n"
 					 "Hint:\tPerhaps this kernel misses some CONFIG_ setting to enable this feature?.\n",
 					 tracing_events_path, filename);
 			}
@@ -149,7 +149,7 @@ int tracing_path__strerror_open_tp(int err, char *buf, size_t size,
 			 "Error:\tUnable to find debugfs/tracefs\n"
 			 "Hint:\tWas your kernel compiled with debugfs/tracefs support?\n"
 			 "Hint:\tIs the debugfs/tracefs filesystem mounted?\n"
-			 "Hint:\tTry 'sudo mount -t debugfs nodev /sys/kernel/debug'");
+			 "Hint:\tTry 'sudo mount -t debugfs yesdev /sys/kernel/debug'");
 		break;
 	case EACCES: {
 		snprintf(buf, size,

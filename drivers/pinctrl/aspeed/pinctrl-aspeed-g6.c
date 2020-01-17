@@ -2327,7 +2327,7 @@ static const struct pinctrl_ops aspeed_g6_pinctrl_ops = {
 	.get_group_name = aspeed_pinctrl_get_group_name,
 	.get_group_pins = aspeed_pinctrl_get_group_pins,
 	.pin_dbg_show = aspeed_pinctrl_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 

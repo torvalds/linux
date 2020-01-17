@@ -72,7 +72,7 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	u32			size;
 	u32			count;
 
-	/* This check is no longer done by usbnet */
+	/* This check is yes longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len)
 		return 0;
 
@@ -205,7 +205,7 @@ static const struct usb_device_id	products [] = {
 	.driver_info =	(unsigned long) &genelink_info,
 },
 	/* NOT: USB_DEVICE(0x05e3, 0x0501),	// GL620USB
-	 * that's half duplex, not currently supported
+	 * that's half duplex, yest currently supported
 	 */
 	{ },		// END
 };

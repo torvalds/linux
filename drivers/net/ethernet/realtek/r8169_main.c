@@ -295,7 +295,7 @@ enum rtl_registers {
 	RxDescAddrHigh	= 0xe8,
 	EarlyTxThres	= 0xec,	/* 8169. Unit of 32 bytes. */
 
-#define NoEarlyTx	0x3f	/* Max value : no early transmit. */
+#define NoEarlyTx	0x3f	/* Max value : yes early transmit. */
 
 	MaxTxPacketSize	= 0xec,	/* 8101/8168. Unit of 128 bytes. */
 
@@ -696,7 +696,7 @@ typedef void (*rtl_generic_fct)(struct rtl8169_private *tp);
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
 MODULE_DESCRIPTION("RealTek RTL-8169 Gigabit Ethernet driver");
 module_param_named(debug, debug.msg_enable, int, 0);
-MODULE_PARM_DESC(debug, "Debug verbosity level (0=none, ..., 16=all)");
+MODULE_PARM_DESC(debug, "Debug verbosity level (0=yesne, ..., 16=all)");
 MODULE_SOFTDEP("pre: realtek");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(FIRMWARE_8168D_1);
@@ -1229,7 +1229,7 @@ static void r8168ep_ocp_write(struct rtl8169_private *tp, u8 mask, u16 reg,
 		       data, ERIAR_OOB);
 }
 
-static void r8168dp_oob_notify(struct rtl8169_private *tp, u8 cmd)
+static void r8168dp_oob_yestify(struct rtl8169_private *tp, u8 cmd)
 {
 	rtl_eri_write(tp, 0xe8, ERIAR_MASK_0001, cmd);
 
@@ -1274,7 +1274,7 @@ static void rtl8168ep_stop_cmac(struct rtl8169_private *tp)
 
 static void rtl8168dp_driver_start(struct rtl8169_private *tp)
 {
-	r8168dp_oob_notify(tp, OOB_CMD_DRIVER_START);
+	r8168dp_oob_yestify(tp, OOB_CMD_DRIVER_START);
 	rtl_msleep_loop_wait_high(tp, &rtl_dp_ocp_read_cond, 10, 10);
 }
 
@@ -1305,7 +1305,7 @@ static void rtl8168_driver_start(struct rtl8169_private *tp)
 
 static void rtl8168dp_driver_stop(struct rtl8169_private *tp)
 {
-	r8168dp_oob_notify(tp, OOB_CMD_DRIVER_STOP);
+	r8168dp_oob_yestify(tp, OOB_CMD_DRIVER_STOP);
 	rtl_msleep_loop_wait_low(tp, &rtl_dp_ocp_read_cond, 10, 10);
 }
 
@@ -1553,7 +1553,7 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts & ~WAKE_ANY)
 		return -EINVAL;
 
-	pm_runtime_get_noresume(d);
+	pm_runtime_get_yesresume(d);
 
 	rtl_lock_work(tp);
 
@@ -1564,7 +1564,7 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	rtl_unlock_work(tp);
 
-	pm_runtime_put_noidle(d);
+	pm_runtime_put_yesidle(d);
 
 	return 0;
 }
@@ -1772,7 +1772,7 @@ static bool rtl8169_init_counter_offsets(struct rtl8169_private *tp)
 	 *
 	 * To make sure the HW values returned by @get_stats64 match the SW
 	 * values, we collect the initial values at first open(*) and use them
-	 * as offsets to normalize the values returned by @get_stats64.
+	 * as offsets to yesrmalize the values returned by @get_stats64.
 	 *
 	 * (*) We can't call rtl8169_init_counter_offsets from rtl_init_one
 	 * for the reason stated in rtl8169_update_counters; CmdRxEnb is only
@@ -1806,12 +1806,12 @@ static void rtl8169_get_ethtool_stats(struct net_device *dev,
 
 	ASSERT_RTNL();
 
-	pm_runtime_get_noresume(d);
+	pm_runtime_get_yesresume(d);
 
 	if (pm_runtime_active(d))
 		rtl8169_update_counters(tp);
 
-	pm_runtime_put_noidle(d);
+	pm_runtime_put_yesidle(d);
 
 	data[0] = le64_to_cpu(counters->tx_packets);
 	data[1] = le64_to_cpu(counters->rx_packets);
@@ -2019,14 +2019,14 @@ static int rtl_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 
 		/*
 		 * accept max_frames=1 we returned in rtl_get_coalesce.
-		 * accept it not only when usecs=0 because of e.g. the following scenario:
+		 * accept it yest only when usecs=0 because of e.g. the following scenario:
 		 *
-		 * - both rx_usecs=0 & rx_frames=0 in hardware (no delay on RX)
+		 * - both rx_usecs=0 & rx_frames=0 in hardware (yes delay on RX)
 		 * - rtl_get_coalesce returns rx_usecs=0, rx_frames=1
 		 * - then user does `ethtool -C eth0 rx-usecs 100`
 		 *
 		 * since ethtool sends to kernel whole ethtool_coalesce
-		 * settings, if we do not handle rx_usecs=!0, rx_frames=1
+		 * settings, if we do yest handle rx_usecs=!0, rx_frames=1
 		 * we'll reject it below in `frames % 4 != 0`.
 		 */
 		if (p->frames == 1) {
@@ -2065,7 +2065,7 @@ static int rtl8169_get_eee(struct net_device *dev, struct ethtool_eee *data)
 	if (!rtl_supports_eee(tp))
 		return -EOPNOTSUPP;
 
-	pm_runtime_get_noresume(d);
+	pm_runtime_get_yesresume(d);
 
 	if (!pm_runtime_active(d)) {
 		ret = -EOPNOTSUPP;
@@ -2073,7 +2073,7 @@ static int rtl8169_get_eee(struct net_device *dev, struct ethtool_eee *data)
 		ret = phy_ethtool_get_eee(tp->phydev, data);
 	}
 
-	pm_runtime_put_noidle(d);
+	pm_runtime_put_yesidle(d);
 
 	return ret;
 }
@@ -2087,7 +2087,7 @@ static int rtl8169_set_eee(struct net_device *dev, struct ethtool_eee *data)
 	if (!rtl_supports_eee(tp))
 		return -EOPNOTSUPP;
 
-	pm_runtime_get_noresume(d);
+	pm_runtime_get_yesresume(d);
 
 	if (!pm_runtime_active(d)) {
 		ret = -EOPNOTSUPP;
@@ -2106,7 +2106,7 @@ static int rtl8169_set_eee(struct net_device *dev, struct ethtool_eee *data)
 		tp->eee_adv = phy_read_mmd(dev->phydev, MDIO_MMD_AN,
 					   MDIO_AN_EEE_ADV);
 out:
-	pm_runtime_put_noidle(d);
+	pm_runtime_put_yesidle(d);
 	return ret;
 }
 
@@ -2257,7 +2257,7 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp)
 	tp->mac_version = p->mac_version;
 
 	if (tp->mac_version == RTL_GIGA_MAC_NONE) {
-		dev_err(tp_to_dev(tp), "unknown chip XID %03x\n", reg & 0xfcf);
+		dev_err(tp_to_dev(tp), "unkyeswn chip XID %03x\n", reg & 0xfcf);
 	} else if (!tp->supports_gmii) {
 		if (tp->mac_version == RTL_GIGA_MAC_VER_42)
 			tp->mac_version = RTL_GIGA_MAC_VER_43;
@@ -2667,7 +2667,7 @@ static const struct phy_reg rtl8168d_1_phy_reg_init_0[] = {
 	{ 0x06, 0x5561 },
 
 	/*
-	 * Can not link to 1Gbps with bad cable
+	 * Can yest link to 1Gbps with bad cable
 	 * Decrease SNR threshold form 21.07dB to 19.04dB
 	 */
 	{ 0x1f, 0x0001 },
@@ -2696,7 +2696,7 @@ static void rtl8168d_apply_firmware_cond(struct rtl8169_private *tp, u16 val)
 	rtl_writephy(tp, 0x1f, 0x0000);
 
 	if (reg_val != val)
-		netif_warn(tp, hw, tp->dev, "chipset not ready for firmware\n");
+		netif_warn(tp, hw, tp->dev, "chipset yest ready for firmware\n");
 	else
 		rtl_apply_firmware(tp);
 }
@@ -3665,12 +3665,12 @@ static int rtl_set_mac_address(struct net_device *dev, void *p)
 	if (ret)
 		return ret;
 
-	pm_runtime_get_noresume(d);
+	pm_runtime_get_yesresume(d);
 
 	if (pm_runtime_active(d))
 		rtl_rar_set(tp, dev->dev_addr);
 
-	pm_runtime_put_noidle(d);
+	pm_runtime_put_yesidle(d);
 
 	return 0;
 }
@@ -3929,7 +3929,7 @@ static void rtl_request_firmware(struct rtl8169_private *tp)
 {
 	struct rtl_fw *rtl_fw;
 
-	/* firmware loaded already or no firmware available */
+	/* firmware loaded already or yes firmware available */
 	if (tp->rtl_fw || !tp->fw_name)
 		return;
 
@@ -4051,7 +4051,7 @@ static void rtl_set_rx_mode(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {
 		/* Unconditionally log net taps. */
-		netif_notice(tp, link, dev, "Promiscuous mode enabled\n");
+		netif_yestice(tp, link, dev, "Promiscuous mode enabled\n");
 		rx_mode |= AcceptAllPhys;
 	} else if (netdev_mc_count(dev) > MC_FILTER_LIMIT ||
 		   dev->flags & IFF_ALLMULTI ||
@@ -4125,7 +4125,7 @@ static void rtl_csi_access_enable(struct rtl8169_private *tp, u8 val)
 	    pci_write_config_byte(pdev, 0x070f, val) == PCIBIOS_SUCCESSFUL)
 		return;
 
-	netdev_notice_once(tp->dev,
+	netdev_yestice_once(tp->dev,
 		"No native access to PCI extended config space, falling back to CSI\n");
 	csi = rtl_csi_read(tp, 0x070c) & 0x00ffffff;
 	rtl_csi_write(tp, 0x070c, csi | val << 24);
@@ -4192,7 +4192,7 @@ static void rtl_set_fifo_size(struct rtl8169_private *tp, u16 rx_stat,
 			      u16 tx_stat, u16 rx_dyn, u16 tx_dyn)
 {
 	/* Usage of dynamic vs. static FIFO is controlled by bit
-	 * TXCFG_AUTO_FIFO. Exact meaning of FIFO values isn't known.
+	 * TXCFG_AUTO_FIFO. Exact meaning of FIFO values isn't kyeswn.
 	 */
 	rtl_eri_write(tp, 0xc8, ERIAR_MASK_1111, (rx_stat << 16) | rx_dyn);
 	rtl_eri_write(tp, 0xe8, ERIAR_MASK_1111, (tx_stat << 16) | tx_dyn);
@@ -4949,7 +4949,7 @@ static void rtl_hw_start_8105e_1(struct rtl8169_private *tp)
 		{ 0x0a,	0, 0x0020 }
 	};
 
-	/* Force LAN exit from ASPM if Rx/Tx are not idle */
+	/* Force LAN exit from ASPM if Rx/Tx are yest idle */
 	RTL_W32(tp, FuncEvent, RTL_R32(tp, FuncEvent) | 0x002800);
 
 	/* Disable Early Tally Counter */
@@ -4978,7 +4978,7 @@ static void rtl_hw_start_8402(struct rtl8169_private *tp)
 
 	rtl_set_def_aspm_entry_latency(tp);
 
-	/* Force LAN exit from ASPM if Rx/Tx are not idle */
+	/* Force LAN exit from ASPM if Rx/Tx are yest idle */
 	RTL_W32(tp, FuncEvent, RTL_R32(tp, FuncEvent) | 0x002800);
 
 	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~NOW_IS_OOB);
@@ -4998,7 +4998,7 @@ static void rtl_hw_start_8106(struct rtl8169_private *tp)
 {
 	rtl_hw_aspm_clkreq_enable(tp, false);
 
-	/* Force LAN exit from ASPM if Rx/Tx are not idle */
+	/* Force LAN exit from ASPM if Rx/Tx are yest idle */
 	RTL_W32(tp, FuncEvent, RTL_R32(tp, FuncEvent) | 0x002800);
 
 	RTL_W32(tp, MISC, (RTL_R32(tp, MISC) | DISABLE_LAN_EN) & ~EARLY_TALLY_EN);
@@ -5299,11 +5299,11 @@ static struct page *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 					  struct RxDesc *desc)
 {
 	struct device *d = tp_to_dev(tp);
-	int node = dev_to_node(d);
+	int yesde = dev_to_yesde(d);
 	dma_addr_t mapping;
 	struct page *data;
 
-	data = alloc_pages_node(node, GFP_KERNEL, get_order(R8169_RX_BUF_SIZE));
+	data = alloc_pages_yesde(yesde, GFP_KERNEL, get_order(R8169_RX_BUF_SIZE));
 	if (!data)
 		return NULL;
 
@@ -5699,7 +5699,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	txd->opts1 = rtl8169_get_txd_opts1(opts[0], len, entry);
 
-	/* Force all memory writes to complete before notifying device */
+	/* Force all memory writes to complete before yestifying device */
 	wmb();
 
 	tp->cur_tx += frags + 1;
@@ -5707,7 +5707,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	stop_queue = !rtl_tx_slots_avail(tp, MAX_SKB_FRAGS);
 	if (unlikely(stop_queue)) {
 		/* Avoid wrongly optimistic queue wake-up: rtl_tx thread must
-		 * not miss a ring update when it notices a stopped queue.
+		 * yest miss a ring update when it yestices a stopped queue.
 		 */
 		smp_wmb();
 		netif_stop_queue(dev);
@@ -5793,7 +5793,7 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 	/*
 	 * The recovery sequence below admits a very elaborated explanation:
 	 * - it seems to work;
-	 * - I did not see what else could be done;
+	 * - I did yest see what else could be done;
 	 * - it makes iop3xx happy.
 	 *
 	 * Feel free to adjust to your needs.
@@ -5833,7 +5833,7 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 
 		/* This barrier is needed to keep us from reading
 		 * any other fields out of the Tx descriptor until
-		 * we know the status of DescOwn
+		 * we kyesw the status of DescOwn
 		 */
 		dma_rmb();
 
@@ -5873,8 +5873,8 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 		/*
 		 * 8168 hack: TxPoll requests are lost when the Tx packets are
 		 * too close. Let's kick an extra TxPoll request when a burst
-		 * of start_xmit activity is detected (if it is not detected,
-		 * it is slow enough). -- FR
+		 * of start_xmit activity is detected (if it is yest detected,
+		 * it is slow eyesugh). -- FR
 		 */
 		if (tp->cur_tx != dirty_tx)
 			rtl8169_doorbell(tp);
@@ -5894,7 +5894,7 @@ static inline void rtl8169_rx_csum(struct sk_buff *skb, u32 opts1)
 	    ((status == RxProtoUDP) && !(opts1 & UDPFail)))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 }
 
 static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget)
@@ -5916,7 +5916,7 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
 
 		/* This barrier is needed to keep us from reading
 		 * any other fields out of the Rx descriptor until
-		 * we know the status of DescOwn
+		 * we kyesw the status of DescOwn
 		 */
 		dma_rmb();
 
@@ -5941,7 +5941,7 @@ process_pkt:
 			if (likely(!(dev->features & NETIF_F_RXFCS)))
 				pkt_size -= ETH_FCS_LEN;
 			/*
-			 * The driver does not support incoming fragmented
+			 * The driver does yest support incoming fragmented
 			 * frames. They are seen as a symptom of over-mtu
 			 * sized frames.
 			 */
@@ -6137,8 +6137,8 @@ static void rtl8169_down(struct net_device *dev)
 
 	rtl8169_hw_reset(tp);
 	/*
-	 * At this point device interrupts can not be enabled in any function,
-	 * as netif_running is not true (rtl8169_interrupt, rtl8169_reset_task)
+	 * At this point device interrupts can yest be enabled in any function,
+	 * as netif_running is yest true (rtl8169_interrupt, rtl8169_reset_task)
 	 * and napi is disabled (rtl8169_poll).
 	 */
 	rtl8169_rx_missed(dev);
@@ -6272,7 +6272,7 @@ err_free_tx_0:
 			  tp->TxPhyAddr);
 	tp->TxDescArray = NULL;
 err_pm_runtime_put:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	goto out;
 }
 
@@ -6284,7 +6284,7 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	struct rtl8169_counters *counters = tp->counters;
 	unsigned int start;
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 
 	if (netif_running(dev) && pm_runtime_active(&pdev->dev))
 		rtl8169_rx_missed(dev);
@@ -6328,7 +6328,7 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->tx_aborted_errors = le16_to_cpu(counters->tx_aborted) -
 		le16_to_cpu(tp->tc_offset.tx_aborted);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 }
 
 static void rtl8169_net_suspend(struct net_device *dev)
@@ -6524,7 +6524,7 @@ static void rtl_remove_one(struct pci_dev *pdev)
 	rtl_release_firmware(tp);
 
 	if (pci_dev_run_wake(pdev))
-		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_get_yesresume(&pdev->dev);
 
 	/* restore original MAC address */
 	rtl_rar_set(tp, dev->perm_addr);
@@ -6863,7 +6863,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* use first MMIO region */
 	region = ffs(pci_select_bars(pdev, IORESOURCE_MEM)) - 1;
 	if (region < 0) {
-		dev_err(&pdev->dev, "no MMIO resource found\n");
+		dev_err(&pdev->dev, "yes MMIO resource found\n");
 		return -ENODEV;
 	}
 
@@ -6875,7 +6875,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rc = pcim_iomap_regions(pdev, BIT(region), MODULENAME);
 	if (rc < 0) {
-		dev_err(&pdev->dev, "cannot remap MMIO, aborting\n");
+		dev_err(&pdev->dev, "canyest remap MMIO, aborting\n");
 		return rc;
 	}
 
@@ -6953,7 +6953,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev->gso_max_segs = RTL_GSO_MAX_SEGS_V1;
 	}
 
-	/* RTL8168e-vl and one RTL8168c variant are known to have a
+	/* RTL8168e-vl and one RTL8168c variant are kyeswn to have a
 	 * HW issue with TSO.
 	 */
 	if (tp->mac_version == RTL_GIGA_MAC_VER_34 ||

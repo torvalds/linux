@@ -16,7 +16,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -35,7 +35,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
@@ -60,7 +60,7 @@
  * - 2.4.0 - add crtc id query
  * - 2.5.0 - add get accel 2 to work around ddx breakage for evergreen
  * - 2.6.0 - add tiling config query (r6xx+), add initial HiZ support (r300->r500)
- *   2.7.0 - fixups for r600 2D tiling support. (no external ABI change), add eg dyn gpr regs
+ *   2.7.0 - fixups for r600 2D tiling support. (yes external ABI change), add eg dyn gpr regs
  *   2.8.0 - pageflip support, r500 US_FORMAT regs. r500 ARGB2101010 colorbuf, r300->r500 CMASK, clock crystal query
  *   2.9.0 - r600 tiling (s3tc,rgtc) working, SET_PREDICATION packet 3 on r600 + eg, backend query
  *   2.10.0 - fusion 2D tiling
@@ -133,7 +133,7 @@ void radeon_gem_object_close(struct drm_gem_object *obj,
 				struct drm_file *file_priv);
 struct dma_buf *radeon_gem_prime_export(struct drm_gem_object *gobj,
 					int flags);
-extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int crtc,
+extern int radeon_get_crtc_scayesutpos(struct drm_device *dev, unsigned int crtc,
 				      unsigned int flags, int *vpos, int *hpos,
 				      ktime_t *stime, ktime_t *etime,
 				      const struct drm_display_mode *mode);
@@ -169,7 +169,7 @@ static inline bool radeon_has_atpx_dgpu_power_cntl(void) { return false; }
 static inline bool radeon_is_atpx_hybrid(void) { return false; }
 #endif
 
-int radeon_no_wb;
+int radeon_yes_wb;
 int radeon_modeset = -1;
 int radeon_dynclks = -1;
 int radeon_r4xx_atom = 0;
@@ -207,8 +207,8 @@ int radeon_mst = 0;
 int radeon_uvd = 1;
 int radeon_vce = 1;
 
-MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
-module_param_named(no_wb, radeon_no_wb, int, 0444);
+MODULE_PARM_DESC(yes_wb, "Disable AGP writeback for scratch registers");
+module_param_named(yes_wb, radeon_yes_wb, int, 0444);
 
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, radeon_modeset, int, 0400);
@@ -243,7 +243,7 @@ module_param_named(tv, radeon_tv, int, 0444);
 MODULE_PARM_DESC(audio, "Audio enable (-1 = auto, 0 = disable, 1 = enable)");
 module_param_named(audio, radeon_audio, int, 0444);
 
-MODULE_PARM_DESC(disp_priority, "Display Priority (0 = auto, 1 = normal, 2 = high)");
+MODULE_PARM_DESC(disp_priority, "Display Priority (0 = auto, 1 = yesrmal, 2 = high)");
 module_param_named(disp_priority, radeon_disp_priority, int, 0444);
 
 MODULE_PARM_DESC(hw_i2c, "hw i2c engine enable (0 = disable)");
@@ -391,7 +391,7 @@ radeon_pci_shutdown(struct pci_dev *pdev)
 	 * shutdown occurs in order to prevent an error
 	 * during kexec.
 	 * Make this power specific becauase it breaks
-	 * some non-power boards.
+	 * some yesn-power boards.
 	 */
 	radeon_suspend_kms(pci_get_drvdata(pdev), true, true, false);
 #endif
@@ -446,7 +446,7 @@ static int radeon_pmops_runtime_suspend(struct device *dev)
 	ret = radeon_suspend_kms(drm_dev, false, false, false);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
-	pci_ignore_hotplug(pdev);
+	pci_igyesre_hotplug(pdev);
 	if (radeon_is_atpx_hybrid())
 		pci_set_power_state(pdev, PCI_D3cold);
 	else if (!radeon_has_atpx_dgpu_power_cntl())
@@ -511,7 +511,7 @@ long radeon_drm_ioctl(struct file *filp,
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev;
 	long ret;
-	dev = file_priv->minor->dev;
+	dev = file_priv->miyesr->dev;
 	ret = pm_runtime_get_sync(dev->dev);
 	if (ret < 0)
 		return ret;
@@ -564,12 +564,12 @@ static const struct file_operations radeon_driver_kms_fops = {
 };
 
 static bool
-radeon_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
+radeon_get_crtc_scayesut_position(struct drm_device *dev, unsigned int pipe,
 				 bool in_vblank_irq, int *vpos, int *hpos,
 				 ktime_t *stime, ktime_t *etime,
 				 const struct drm_display_mode *mode)
 {
-	return radeon_get_crtc_scanoutpos(dev, pipe, 0, vpos, hpos,
+	return radeon_get_crtc_scayesutpos(dev, pipe, 0, vpos, hpos,
 					  stime, etime, mode);
 }
 
@@ -584,8 +584,8 @@ static struct drm_driver kms_driver = {
 	.get_vblank_counter = radeon_get_vblank_counter_kms,
 	.enable_vblank = radeon_enable_vblank_kms,
 	.disable_vblank = radeon_disable_vblank_kms,
-	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
-	.get_scanout_position = radeon_get_crtc_scanout_position,
+	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scayesutpos,
+	.get_scayesut_position = radeon_get_crtc_scayesut_position,
 	.irq_preinstall = radeon_driver_irq_preinstall_kms,
 	.irq_postinstall = radeon_driver_irq_postinstall_kms,
 	.irq_uninstall = radeon_driver_irq_uninstall_kms,
@@ -612,7 +612,7 @@ static struct drm_driver kms_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = KMS_DRIVER_MAJOR,
-	.minor = KMS_DRIVER_MINOR,
+	.miyesr = KMS_DRIVER_MINOR,
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,
 };
 
@@ -634,7 +634,7 @@ static int __init radeon_init(void)
 		DRM_INFO("VGACON disable radeon kernel modesetting.\n");
 		radeon_modeset = 0;
 	}
-	/* set to modesetting by default if not nomodeset */
+	/* set to modesetting by default if yest yesmodeset */
 	if (radeon_modeset == -1)
 		radeon_modeset = 1;
 
@@ -658,7 +658,7 @@ static void __exit radeon_exit(void)
 {
 	pci_unregister_driver(pdriver);
 	radeon_unregister_atpx_handler();
-	mmu_notifier_synchronize();
+	mmu_yestifier_synchronize();
 }
 
 module_init(radeon_init);

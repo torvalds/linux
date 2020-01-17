@@ -14,7 +14,7 @@
 
 /*
  * There should be 128 bits to cover all of the MCS rates. However, since
- * 8190 does not support too much rates, one integer is quite enough.
+ * 8190 does yest support too much rates, one integer is quite eyesugh.
  */
 #define HTCLNG	4
 
@@ -117,7 +117,7 @@ typedef enum _HT_AGGRE_MODE_E {
 
 /*
  *  The Data structure is used to keep HT related variables when card is
- *  configured as non-AP STA mode.  **Note**  Current_xxx should be set
+ *  configured as yesn-AP STA mode.  **Note**  Current_xxx should be set
  *  to default value in HTInitializeHTInfo()
  */
 typedef struct _RT_HIGH_THROUGHPUT {
@@ -250,7 +250,7 @@ extern u8 MCS_FILTER_1SS[16];
  */
 #define PICK_RATE(_nLegacyRate, _nMcsRate)	\
 		(_nMcsRate == 0) ? (_nLegacyRate & 0x7f) : (_nMcsRate)
-/* 2007/07/12 MH We only define legacy and HT wireless mode now. */
+/* 2007/07/12 MH We only define legacy and HT wireless mode yesw. */
 #define	LEGACY_WIRELESS_MODE	IEEE_MODE_MASK
 
 #define CURRENT_RATE(WirelessMode, LegacyRate, HTRate)           \

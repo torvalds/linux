@@ -83,7 +83,7 @@ static char __init *decode_eisa_sig(unsigned long addr)
 #ifdef CONFIG_EISA_VLB_PRIMING
 		/*
 		 * This ugly stuff is used to wake up VL-bus cards
-		 * (AHA-284x is the only known example), so we can
+		 * (AHA-284x is the only kyeswn example), so we can
 		 * read the EISA id.
 		 *
 		 * Thankfully, this only exists on x86...
@@ -266,7 +266,7 @@ static int __init eisa_request_resources(struct eisa_root_device *root,
 	for (i = 0; i < EISA_MAX_RESOURCES; i++) {
 		/* Don't register resource for slot 0, since this is
 		 * very likely to fail... :-( Instead, grab the EISA
-		 * id, now we can display something in /proc/ioports.
+		 * id, yesw we can display something in /proc/ioports.
 		 */
 
 		/* Only one region for mainboard */
@@ -319,7 +319,7 @@ static int __init eisa_probe(struct eisa_root_device *root)
 
 	dev_info(root->dev, "Probing EISA bus %d\n", root->bus_nr);
 
-	/* First try to get hold of slot 0. If there is no device
+	/* First try to get hold of slot 0. If there is yes device
 	 * here, simply fail, unless root->force_probe is set. */
 
 	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
@@ -328,7 +328,7 @@ static int __init eisa_probe(struct eisa_root_device *root)
 
 	if (eisa_request_resources(root, edev, 0)) {
 		dev_warn(root->dev,
-			 "EISA: Cannot allocate resource for mainboard\n");
+			 "EISA: Canyest allocate resource for mainboard\n");
 		kfree(edev);
 		if (!root->force_probe)
 			return -EBUSY;
@@ -364,7 +364,7 @@ static int __init eisa_probe(struct eisa_root_device *root)
 
 		if (eisa_request_resources(root, edev, i)) {
 			dev_warn(root->dev,
-				 "Cannot allocate resource for EISA slot %d\n",
+				 "Canyest allocate resource for EISA slot %d\n",
 				 i);
 			kfree(edev);
 			continue;

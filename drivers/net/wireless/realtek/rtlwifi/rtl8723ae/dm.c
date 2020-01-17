@@ -586,7 +586,7 @@ static void rtl8723e_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		rtlpriv->dm.current_turbo_edca = false;
 		return;
 	}
-	if ((bt_change_edca) || ((!rtlpriv->dm.is_any_nonbepkts) &&
+	if ((bt_change_edca) || ((!rtlpriv->dm.is_any_yesnbepkts) &&
 	     (!rtlpriv->dm.disable_framebursting))) {
 
 		cur_txok_cnt = rtlpriv->stats.txbytesunicast - last_txok_cnt;
@@ -620,7 +620,7 @@ static void rtl8723e_dm_check_edca_turbo(struct ieee80211_hw *hw)
 		}
 	}
 
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_yesnbepkts = false;
 	last_txok_cnt = rtlpriv->stats.txbytesunicast;
 	last_rxok_cnt = rtlpriv->stats.rxbytesunicast;
 }
@@ -680,7 +680,7 @@ static void rtl8723e_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 
 	if (!rtlpriv->dm.useramask) {
 		RT_TRACE(rtlpriv, COMP_RATE, DBG_LOUD,
-			 " driver does not control rate adaptive mask\n");
+			 " driver does yest control rate adaptive mask\n");
 		return;
 	}
 
@@ -746,7 +746,7 @@ static void rtl8723e_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 	}
 }
 
-void rtl8723e_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal)
+void rtl8723e_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_yesrmal)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct ps_t *dm_pstable = &rtlpriv->dm_pstable;
@@ -768,7 +768,7 @@ void rtl8723e_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal)
 		initialize = 1;
 	}
 
-	if (!bforce_in_normal) {
+	if (!bforce_in_yesrmal) {
 		if (dm_pstable->rssi_val_min != 0) {
 			if (dm_pstable->pre_rfstate == RF_NORMAL) {
 				if (dm_pstable->rssi_val_min >= 30)
@@ -933,7 +933,7 @@ void rtl8723e_dm_bt_coexist(struct ieee80211_hw *hw)
 	u8 tmp_byte = 0;
 	if (!rtlpriv->btcoexist.bt_coexistence) {
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			 "[DM]{BT], BT not exist!!\n");
+			 "[DM]{BT], BT yest exist!!\n");
 		return;
 	}
 

@@ -8,15 +8,15 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans.h"
 #include "xfs_bmap.h"
 #include "xfs_iomap.h"
 #include "xfs_pnfs.h"
 
 /*
- * Ensure that we do not have any outstanding pNFS layouts that can be used by
- * clients to directly read from or write to this inode.  This must be called
+ * Ensure that we do yest have any outstanding pNFS layouts that can be used by
+ * clients to directly read from or write to this iyesde.  This must be called
  * before every operation that can remove blocks from the extent map.
  * Additionally we call it during the write operation, where aren't concerned
  * about exposing unallocated blocks but just want to provide basic
@@ -26,17 +26,17 @@
  */
 int
 xfs_break_leased_layouts(
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	uint			*iolock,
 	bool			*did_unlock)
 {
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	int			error;
 
-	while ((error = break_layout(inode, false)) == -EWOULDBLOCK) {
+	while ((error = break_layout(iyesde, false)) == -EWOULDBLOCK) {
 		xfs_iunlock(ip, *iolock);
 		*did_unlock = true;
-		error = break_layout(inode, true);
+		error = break_layout(iyesde, true);
 		*iolock &= ~XFS_IOLOCK_SHARED;
 		*iolock |= XFS_IOLOCK_EXCL;
 		xfs_ilock(ip, *iolock);
@@ -76,14 +76,14 @@ xfs_fs_get_uuid(
  */
 int
 xfs_fs_map_blocks(
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	loff_t			offset,
 	u64			length,
 	struct iomap		*iomap,
 	bool			write,
 	u32			*device_generation)
 {
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_bmbt_irec	imap;
 	xfs_fileoff_t		offset_fsb, end_fsb;
@@ -97,8 +97,8 @@ xfs_fs_map_blocks(
 		return -EIO;
 
 	/*
-	 * We can't export inodes residing on the realtime device.  The realtime
-	 * device doesn't have a UUID to identify it, so the client has no way
+	 * We can't export iyesdes residing on the realtime device.  The realtime
+	 * device doesn't have a UUID to identify it, so the client has yes way
 	 * to find it.
 	 */
 	if (XFS_IS_REALTIME_INODE(ip))
@@ -108,7 +108,7 @@ xfs_fs_map_blocks(
 	 * The pNFS block layout spec actually supports reflink like
 	 * functionality, but the Linux pNFS server doesn't implement it yet.
 	 */
-	if (xfs_is_reflink_inode(ip))
+	if (xfs_is_reflink_iyesde(ip))
 		return -ENXIO;
 
 	/*
@@ -123,17 +123,17 @@ xfs_fs_map_blocks(
 	error = -EINVAL;
 	limit = mp->m_super->s_maxbytes;
 	if (!write)
-		limit = max(limit, round_up(i_size_read(inode),
-				     inode->i_sb->s_blocksize));
+		limit = max(limit, round_up(i_size_read(iyesde),
+				     iyesde->i_sb->s_blocksize));
 	if (offset > limit)
 		goto out_unlock;
 	if (offset > limit - length)
 		length = limit - offset;
 
-	error = filemap_write_and_wait(inode->i_mapping);
+	error = filemap_write_and_wait(iyesde->i_mapping);
 	if (error)
 		goto out_unlock;
-	error = invalidate_inode_pages2(inode->i_mapping);
+	error = invalidate_iyesde_pages2(iyesde->i_mapping);
 	if (WARN_ON_ONCE(error))
 		return error;
 
@@ -161,7 +161,7 @@ xfs_fs_map_blocks(
 			goto out_unlock;
 
 		/*
-		 * Ensure the next transaction is committed synchronously so
+		 * Ensure the next transaction is committed synchroyesusly so
 		 * that the blocks allocated and handed out to the client are
 		 * guaranteed to be present even after a server crash.
 		 */
@@ -187,7 +187,7 @@ out_unlock:
  */
 static int
 xfs_pnfs_validate_isize(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	xfs_off_t		isize)
 {
 	struct xfs_bmbt_irec	imap;
@@ -216,16 +216,16 @@ xfs_pnfs_validate_isize(
  * Note that we rely on the caller to always send us a timestamp update so that
  * we always commit a transaction here.  If that stops being true we will have
  * to manually flush the cache here similar to what the fsync code path does
- * for datasyncs on files that have no dirty metadata.
+ * for datasyncs on files that have yes dirty metadata.
  */
 int
 xfs_fs_commit_blocks(
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	struct iomap		*maps,
 	int			nr_maps,
 	struct iattr		*iattr)
 {
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	bool			update_isize = false;
@@ -236,7 +236,7 @@ xfs_fs_commit_blocks(
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
 
-	size = i_size_read(inode);
+	size = i_size_read(iyesde);
 	if ((iattr->ia_valid & ATTR_SIZE) && iattr->ia_size > size) {
 		update_isize = true;
 		size = iattr->ia_size;
@@ -260,7 +260,7 @@ xfs_fs_commit_blocks(
 		/*
 		 * Make sure reads through the pagecache see the new data.
 		 */
-		error = invalidate_inode_pages2_range(inode->i_mapping,
+		error = invalidate_iyesde_pages2_range(iyesde->i_mapping,
 					start >> PAGE_SHIFT,
 					(end - 1) >> PAGE_SHIFT);
 		WARN_ON_ONCE(error);
@@ -282,11 +282,11 @@ xfs_fs_commit_blocks(
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_iyesde(tp, ip, XFS_ILOG_CORE);
 
 	xfs_setattr_time(ip, iattr);
 	if (update_isize) {
-		i_size_write(inode, iattr->ia_size);
+		i_size_write(iyesde, iattr->ia_size);
 		ip->i_d.di_size = iattr->ia_size;
 	}
 

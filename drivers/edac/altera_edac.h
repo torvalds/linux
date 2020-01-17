@@ -140,7 +140,7 @@
 #define A10_DERRADDR_OFST          0x2C
 #define A10_SERRADDR_OFST          0x30
 
-/* SDRAM Controller ECC Diagnostic Register */
+/* SDRAM Controller ECC Diagyesstic Register */
 #define A10_DIAGINTTEST_OFST       0x24
 
 #define A10_DIAGINT_TSERRA_MASK    0x0001
@@ -392,7 +392,7 @@ struct altr_arria10_edac {
 	struct irq_domain	*domain;
 	struct irq_chip		irq_chip;
 	struct list_head	a10_ecc_devices;
-	struct notifier_block	panic_notifier;
+	struct yestifier_block	panic_yestifier;
 };
 
 #endif	/* #ifndef _ALTERA_EDAC_H */

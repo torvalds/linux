@@ -7,11 +7,11 @@
  *		IP/TCP/UDP checksumming routines
  *
  * Authors:	Jorge Cwik, <jorge@laser.satlink.net>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.yes>
  *		Tom May, <ftom@netcom.com>
  *              Pentium Pro/II routines:
- *              Alexander Kjeldaas <astor@guardian.no>
- *              Finn Arne Gangstad <finnag@guardian.no>
+ *              Alexander Kjeldaas <astor@guardian.yes>
+ *              Finn Arne Gangstad <finnag@guardian.yes>
  *		Lots of code moved from tcp.c and ip.c; see those files
  *		for more names.
  *
@@ -21,7 +21,7 @@
  *                   converted to pure assembler
  */
 
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/asm.h>
 #include <asm/export.h>
 				
@@ -198,7 +198,7 @@ csum_partial:
 	jz 80f
 
 	# Handle the last 1-3 bytes without jumping
-	notl %ecx		# 1->2, 2->1, 3->0, higher bits are masked
+	yestl %ecx		# 1->2, 2->1, 3->0, higher bits are masked
 	movl $0xffffff,%ebx	# by the shll and shrl instructions
 	shll $3,%ecx
 	shrl %cl,%ebx

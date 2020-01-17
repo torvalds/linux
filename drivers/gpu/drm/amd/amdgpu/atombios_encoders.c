@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -429,12 +429,12 @@ amdgpu_atombios_encoder_setup_dvo(struct drm_encoder *encoder, int action)
 			args.dvo_v4.ucBitPerColor = amdgpu_atombios_encoder_get_bpc(encoder);
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 			break;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 		break;
 	}
 
@@ -594,7 +594,7 @@ amdgpu_atombios_encoder_setup_dig_encoder(struct drm_encoder *encoder,
 		hpd_id = amdgpu_connector->hpd.hpd;
 	}
 
-	/* no dig encoder assigned */
+	/* yes dig encoder assigned */
 	if (dig->dig_encoder == -1)
 		return;
 
@@ -735,12 +735,12 @@ amdgpu_atombios_encoder_setup_dig_encoder(struct drm_encoder *encoder,
 			}
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 			break;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 		break;
 	}
 
@@ -804,7 +804,7 @@ amdgpu_atombios_encoder_setup_dig_transmitter(struct drm_encoder *encoder, int a
 		pll_id = amdgpu_crtc->pll_id;
 	}
 
-	/* no dig encoder assigned */
+	/* yes dig encoder assigned */
 	if (dig_encoder == -1)
 		return;
 
@@ -1160,12 +1160,12 @@ amdgpu_atombios_encoder_setup_dig_transmitter(struct drm_encoder *encoder, int a
 			args.v6.ucDigEncoderSel = 1 << dig_encoder;
 			break;
 		default:
-			DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+			DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 			break;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version %d, %d\n", frev, crev);
 		break;
 	}
 
@@ -1260,7 +1260,7 @@ amdgpu_atombios_encoder_setup_external_encoder(struct drm_encoder *encoder,
 
 	switch (frev) {
 	case 1:
-		/* no params on frev 1 */
+		/* yes params on frev 1 */
 		break;
 	case 2:
 		switch (crev) {
@@ -1313,12 +1313,12 @@ amdgpu_atombios_encoder_setup_external_encoder(struct drm_encoder *encoder,
 			args.v3.sExtEncoder.ucBitPerColor = amdgpu_atombios_encoder_get_bpc(encoder);
 			break;
 		default:
-			DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
+			DRM_ERROR("Unkyeswn table version: %d, %d\n", frev, crev);
 			return;
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version: %d, %d\n", frev, crev);
 		return;
 	}
 	amdgpu_atom_execute_table(adev->mode_info.atom_context, index, (uint32_t *)&args);
@@ -1662,7 +1662,7 @@ amdgpu_atombios_encoder_set_crtc_source(struct drm_encoder *encoder)
 		}
 		break;
 	default:
-		DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
+		DRM_ERROR("Unkyeswn table version: %d, %d\n", frev, crev);
 		return;
 	}
 
@@ -1758,7 +1758,7 @@ amdgpu_atombios_encoder_dac_detect(struct drm_encoder *encoder,
 
 	if (!amdgpu_atombios_encoder_dac_load_detect(encoder, connector)) {
 		DRM_DEBUG_KMS("detect returned false \n");
-		return connector_status_unknown;
+		return connector_status_unkyeswn;
 	}
 
 	bios_0_scratch = RREG32(mmBIOS_SCRATCH_0);
@@ -1797,10 +1797,10 @@ amdgpu_atombios_encoder_dig_detect(struct drm_encoder *encoder,
 	u32 bios_0_scratch;
 
 	if (!ext_encoder)
-		return connector_status_unknown;
+		return connector_status_unkyeswn;
 
 	if ((amdgpu_connector->devices & ATOM_DEVICE_CRT_SUPPORT) == 0)
-		return connector_status_unknown;
+		return connector_status_unkyeswn;
 
 	/* load detect on the dp bridge */
 	amdgpu_atombios_encoder_setup_external_encoder(encoder, ext_encoder,

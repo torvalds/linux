@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-// Copyright (c) 2018 Mellanox Technologies
+// Copyright (c) 2018 Mellayesx Techyeslogies
 
 #include <linux/mlx5/driver.h>
 
@@ -16,47 +16,47 @@ struct mlx5_event_nb {
  *
  * Other Major feature specific events such as
  * clock/eswitch/fpga/FW trace and many others, are handled elsewhere, with
- * separate notifiers callbacks, specifically by those mlx5 components.
+ * separate yestifiers callbacks, specifically by those mlx5 components.
  */
-static int any_notifier(struct notifier_block *, unsigned long, void *);
-static int temp_warn(struct notifier_block *, unsigned long, void *);
-static int port_module(struct notifier_block *, unsigned long, void *);
-static int pcie_core(struct notifier_block *, unsigned long, void *);
+static int any_yestifier(struct yestifier_block *, unsigned long, void *);
+static int temp_warn(struct yestifier_block *, unsigned long, void *);
+static int port_module(struct yestifier_block *, unsigned long, void *);
+static int pcie_core(struct yestifier_block *, unsigned long, void *);
 
-/* handler which forwards the event to events->nh, driver notifiers */
-static int forward_event(struct notifier_block *, unsigned long, void *);
+/* handler which forwards the event to events->nh, driver yestifiers */
+static int forward_event(struct yestifier_block *, unsigned long, void *);
 
 static struct mlx5_nb events_nbs_ref[] = {
 	/* Events to be proccessed by mlx5_core */
-	{.nb.notifier_call = any_notifier,  .event_type = MLX5_EVENT_TYPE_NOTIFY_ANY },
-	{.nb.notifier_call = temp_warn,     .event_type = MLX5_EVENT_TYPE_TEMP_WARN_EVENT },
-	{.nb.notifier_call = port_module,   .event_type = MLX5_EVENT_TYPE_PORT_MODULE_EVENT },
-	{.nb.notifier_call = pcie_core,     .event_type = MLX5_EVENT_TYPE_GENERAL_EVENT },
+	{.nb.yestifier_call = any_yestifier,  .event_type = MLX5_EVENT_TYPE_NOTIFY_ANY },
+	{.nb.yestifier_call = temp_warn,     .event_type = MLX5_EVENT_TYPE_TEMP_WARN_EVENT },
+	{.nb.yestifier_call = port_module,   .event_type = MLX5_EVENT_TYPE_PORT_MODULE_EVENT },
+	{.nb.yestifier_call = pcie_core,     .event_type = MLX5_EVENT_TYPE_GENERAL_EVENT },
 
 	/* Events to be forwarded (as is) to mlx5 core interfaces (mlx5e/mlx5_ib) */
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_PORT_CHANGE },
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_GENERAL_EVENT },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_PORT_CHANGE },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_GENERAL_EVENT },
 	/* QP/WQ resource events to forward */
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_DCT_DRAINED },
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_PATH_MIG },
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_COMM_EST },
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_SQ_DRAINED },
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_SRQ_LAST_WQE },
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_WQ_CATAS_ERROR },
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_PATH_MIG_FAILED },
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR },
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_WQ_ACCESS_ERROR },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_DCT_DRAINED },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_PATH_MIG },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_COMM_EST },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_SQ_DRAINED },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_SRQ_LAST_WQE },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_WQ_CATAS_ERROR },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_PATH_MIG_FAILED },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_WQ_ACCESS_ERROR },
 	/* SRQ events */
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_SRQ_CATAS_ERROR },
-	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_SRQ_RQ_LIMIT },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_SRQ_CATAS_ERROR },
+	{.nb.yestifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_SRQ_RQ_LIMIT },
 };
 
 struct mlx5_events {
 	struct mlx5_core_dev *dev;
 	struct workqueue_struct *wq;
-	struct mlx5_event_nb  notifiers[ARRAY_SIZE(events_nbs_ref)];
-	/* driver notifier chain */
-	struct atomic_notifier_head nh;
+	struct mlx5_event_nb  yestifiers[ARRAY_SIZE(events_nbs_ref)];
+	/* driver yestifier chain */
+	struct atomic_yestifier_head nh;
 	/* port module events stats */
 	struct mlx5_pme_stats pme_stats;
 	/*pcie_core*/
@@ -134,7 +134,7 @@ static const char *eqe_type_str(u8 type)
 }
 
 /* handles all FW events, type == eqe->type */
-static int any_notifier(struct notifier_block *nb,
+static int any_yestifier(struct yestifier_block *nb,
 			unsigned long type, void *data)
 {
 	struct mlx5_event_nb *event_nb = mlx5_nb_cof(nb, struct mlx5_event_nb, nb);
@@ -147,7 +147,7 @@ static int any_notifier(struct notifier_block *nb,
 }
 
 /* type == MLX5_EVENT_TYPE_TEMP_WARN_EVENT */
-static int temp_warn(struct notifier_block *nb, unsigned long type, void *data)
+static int temp_warn(struct yestifier_block *nb, unsigned long type, void *data)
 {
 	struct mlx5_event_nb *event_nb = mlx5_nb_cof(nb, struct mlx5_event_nb, nb);
 	struct mlx5_events   *events   = event_nb->ctx;
@@ -178,7 +178,7 @@ static const char *mlx5_pme_status_to_string(enum port_module_event_status_type 
 	case MLX5_MODULE_STATUS_DISABLED:
 		return "Cable disabled";
 	default:
-		return "Unknown status";
+		return "Unkyeswn status";
 	}
 }
 
@@ -188,7 +188,7 @@ static const char *mlx5_pme_error_to_string(enum port_module_event_error_type er
 	case MLX5_MODULE_EVENT_ERROR_POWER_BUDGET_EXCEEDED:
 		return "Power budget exceeded";
 	case MLX5_MODULE_EVENT_ERROR_LONG_RANGE_FOR_NON_MLNX:
-		return "Long Range for non MLNX cable";
+		return "Long Range for yesn MLNX cable";
 	case MLX5_MODULE_EVENT_ERROR_BUS_STUCK:
 		return "Bus stuck (I2C or data shorted)";
 	case MLX5_MODULE_EVENT_ERROR_NO_EEPROM_RETRY_TIMEOUT:
@@ -196,7 +196,7 @@ static const char *mlx5_pme_error_to_string(enum port_module_event_error_type er
 	case MLX5_MODULE_EVENT_ERROR_ENFORCE_PART_NUMBER_LIST:
 		return "Enforce part number list";
 	case MLX5_MODULE_EVENT_ERROR_UNKNOWN_IDENTIFIER:
-		return "Unknown identifier";
+		return "Unkyeswn identifier";
 	case MLX5_MODULE_EVENT_ERROR_HIGH_TEMPERATURE:
 		return "High Temperature";
 	case MLX5_MODULE_EVENT_ERROR_BAD_CABLE:
@@ -204,12 +204,12 @@ static const char *mlx5_pme_error_to_string(enum port_module_event_error_type er
 	case MLX5_MODULE_EVENT_ERROR_PCIE_POWER_SLOT_EXCEEDED:
 		return "One or more network ports have been powered down due to insufficient/unadvertised power on the PCIe slot";
 	default:
-		return "Unknown error";
+		return "Unkyeswn error";
 	}
 }
 
 /* type == MLX5_EVENT_TYPE_PORT_MODULE_EVENT */
-static int port_module(struct notifier_block *nb, unsigned long type, void *data)
+static int port_module(struct yestifier_block *nb, unsigned long type, void *data)
 {
 	struct mlx5_event_nb *event_nb = mlx5_nb_cof(nb, struct mlx5_event_nb, nb);
 	struct mlx5_events   *events   = event_nb->ctx;
@@ -283,7 +283,7 @@ static void mlx5_pcie_event(struct work_struct *work)
 	switch (power_status) {
 	case MLX5_PCI_POWER_COULD_NOT_BE_READ:
 		mlx5_core_info_rl(dev,
-				  "PCIe slot power capability was not advertised.\n");
+				  "PCIe slot power capability was yest advertised.\n");
 		break;
 	case MLX5_PCI_POWER_INSUFFICIENT_REPORTED:
 		mlx5_core_warn_rl(dev,
@@ -298,7 +298,7 @@ static void mlx5_pcie_event(struct work_struct *work)
 	}
 }
 
-static int pcie_core(struct notifier_block *nb, unsigned long type, void *data)
+static int pcie_core(struct yestifier_block *nb, unsigned long type, void *data)
 {
 	struct mlx5_event_nb    *event_nb = mlx5_nb_cof(nb,
 							struct mlx5_event_nb,
@@ -323,7 +323,7 @@ void mlx5_get_pme_stats(struct mlx5_core_dev *dev, struct mlx5_pme_stats *stats)
 }
 
 /* forward event as is to registered interfaces (mlx5e/mlx5_ib) */
-static int forward_event(struct notifier_block *nb, unsigned long event, void *data)
+static int forward_event(struct yestifier_block *nb, unsigned long event, void *data)
 {
 	struct mlx5_event_nb *event_nb = mlx5_nb_cof(nb, struct mlx5_event_nb, nb);
 	struct mlx5_events   *events   = event_nb->ctx;
@@ -331,7 +331,7 @@ static int forward_event(struct notifier_block *nb, unsigned long event, void *d
 
 	mlx5_core_dbg(events->dev, "Async eqe type %s, subtype (%d) forward to interfaces\n",
 		      eqe_type_str(eqe->type), eqe->sub_type);
-	atomic_notifier_call_chain(&events->nh, event, data);
+	atomic_yestifier_call_chain(&events->nh, event, data);
 	return NOTIFY_OK;
 }
 
@@ -365,9 +365,9 @@ void mlx5_events_start(struct mlx5_core_dev *dev)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(events_nbs_ref); i++) {
-		events->notifiers[i].nb  = events_nbs_ref[i];
-		events->notifiers[i].ctx = events;
-		mlx5_eq_notifier_register(dev, &events->notifiers[i].nb);
+		events->yestifiers[i].nb  = events_nbs_ref[i];
+		events->yestifiers[i].ctx = events;
+		mlx5_eq_yestifier_register(dev, &events->yestifiers[i].nb);
 	}
 }
 
@@ -377,27 +377,27 @@ void mlx5_events_stop(struct mlx5_core_dev *dev)
 	int i;
 
 	for (i = ARRAY_SIZE(events_nbs_ref) - 1; i >= 0 ; i--)
-		mlx5_eq_notifier_unregister(dev, &events->notifiers[i].nb);
+		mlx5_eq_yestifier_unregister(dev, &events->yestifiers[i].nb);
 	flush_workqueue(events->wq);
 }
 
-int mlx5_notifier_register(struct mlx5_core_dev *dev, struct notifier_block *nb)
+int mlx5_yestifier_register(struct mlx5_core_dev *dev, struct yestifier_block *nb)
 {
 	struct mlx5_events *events = dev->priv.events;
 
-	return atomic_notifier_chain_register(&events->nh, nb);
+	return atomic_yestifier_chain_register(&events->nh, nb);
 }
-EXPORT_SYMBOL(mlx5_notifier_register);
+EXPORT_SYMBOL(mlx5_yestifier_register);
 
-int mlx5_notifier_unregister(struct mlx5_core_dev *dev, struct notifier_block *nb)
+int mlx5_yestifier_unregister(struct mlx5_core_dev *dev, struct yestifier_block *nb)
 {
 	struct mlx5_events *events = dev->priv.events;
 
-	return atomic_notifier_chain_unregister(&events->nh, nb);
+	return atomic_yestifier_chain_unregister(&events->nh, nb);
 }
-EXPORT_SYMBOL(mlx5_notifier_unregister);
+EXPORT_SYMBOL(mlx5_yestifier_unregister);
 
-int mlx5_notifier_call_chain(struct mlx5_events *events, unsigned int event, void *data)
+int mlx5_yestifier_call_chain(struct mlx5_events *events, unsigned int event, void *data)
 {
-	return atomic_notifier_call_chain(&events->nh, event, data);
+	return atomic_yestifier_call_chain(&events->nh, event, data);
 }

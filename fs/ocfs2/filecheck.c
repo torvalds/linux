@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * filecheck.c
  *
@@ -23,7 +23,7 @@
 #include "ocfs2.h"
 #include "ocfs2_fs.h"
 #include "stackglue.h"
-#include "inode.h"
+#include "iyesde.h"
 
 #include "filecheck.h"
 
@@ -47,7 +47,7 @@ static const char * const ocfs2_filecheck_errs[] = {
 
 struct ocfs2_filecheck_entry {
 	struct list_head fe_list;
-	unsigned long fe_ino;
+	unsigned long fe_iyes;
 	unsigned int fe_type;
 	unsigned int fe_done:1;
 	unsigned int fe_status:31;
@@ -56,20 +56,20 @@ struct ocfs2_filecheck_entry {
 struct ocfs2_filecheck_args {
 	unsigned int fa_type;
 	union {
-		unsigned long fa_ino;
+		unsigned long fa_iyes;
 		unsigned int fa_len;
 	};
 };
 
 static const char *
-ocfs2_filecheck_error(int errno)
+ocfs2_filecheck_error(int erryes)
 {
-	if (!errno)
-		return ocfs2_filecheck_errs[errno];
+	if (!erryes)
+		return ocfs2_filecheck_errs[erryes];
 
-	BUG_ON(errno < OCFS2_FILECHECK_ERR_START ||
-	       errno > OCFS2_FILECHECK_ERR_END);
-	return ocfs2_filecheck_errs[errno - OCFS2_FILECHECK_ERR_START + 1];
+	BUG_ON(erryes < OCFS2_FILECHECK_ERR_START ||
+	       erryes > OCFS2_FILECHECK_ERR_END);
+	return ocfs2_filecheck_errs[erryes - OCFS2_FILECHECK_ERR_START + 1];
 }
 
 static ssize_t ocfs2_filecheck_attr_show(struct kobject *kobj,
@@ -220,7 +220,7 @@ ocfs2_filecheck_adjust_max(struct ocfs2_filecheck_sysfs_entry *ent,
 	spin_lock(&ent->fs_fcheck->fc_lock);
 	if (len < (ent->fs_fcheck->fc_size - ent->fs_fcheck->fc_done)) {
 		mlog(ML_NOTICE,
-		"Cannot set online file check maximum entry number "
+		"Canyest set online file check maximum entry number "
 		"to %u due to too many pending entries(%u)\n",
 		len, ent->fs_fcheck->fc_size - ent->fs_fcheck->fc_done);
 		ret = -EBUSY;
@@ -291,7 +291,7 @@ ocfs2_filecheck_args_parse(const char *name, const char *buf, size_t count,
 	if (type == OCFS2_FILECHECK_TYPE_SET)
 		args->fa_len = (unsigned int)val;
 	else
-		args->fa_ino = val;
+		args->fa_iyes = val;
 
 	return 0;
 }
@@ -326,7 +326,7 @@ static ssize_t ocfs2_filecheck_attr_show(struct kobject *kobj,
 			continue;
 
 		ret = snprintf(buf + total, remain, "%lu\t\t%u\t%s\n",
-			       p->fe_ino, p->fe_done,
+			       p->fe_iyes, p->fe_done,
 			       ocfs2_filecheck_error(p->fe_status));
 		if (ret < 0) {
 			total = ret;
@@ -348,13 +348,13 @@ exit:
 
 static inline int
 ocfs2_filecheck_is_dup_entry(struct ocfs2_filecheck_sysfs_entry *ent,
-				unsigned long ino)
+				unsigned long iyes)
 {
 	struct ocfs2_filecheck_entry *p;
 
 	list_for_each_entry(p, &ent->fs_fcheck->fc_head, fe_list) {
 		if (!p->fe_done) {
-			if (p->fe_ino == ino)
+			if (p->fe_iyes == iyes)
 				return 1;
 		}
 	}
@@ -409,22 +409,22 @@ ocfs2_filecheck_done_entry(struct ocfs2_filecheck_sysfs_entry *ent,
 
 static unsigned int
 ocfs2_filecheck_handle(struct ocfs2_super *osb,
-		       unsigned long ino, unsigned int flags)
+		       unsigned long iyes, unsigned int flags)
 {
 	unsigned int ret = OCFS2_FILECHECK_ERR_SUCCESS;
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	int rc;
 
-	inode = ocfs2_iget(osb, ino, flags, 0);
-	if (IS_ERR(inode)) {
-		rc = (int)(-(long)inode);
+	iyesde = ocfs2_iget(osb, iyes, flags, 0);
+	if (IS_ERR(iyesde)) {
+		rc = (int)(-(long)iyesde);
 		if (rc >= OCFS2_FILECHECK_ERR_START &&
 		    rc < OCFS2_FILECHECK_ERR_END)
 			ret = rc;
 		else
 			ret = OCFS2_FILECHECK_ERR_FAILED;
 	} else
-		iput(inode);
+		iput(iyesde);
 
 	return ret;
 }
@@ -438,10 +438,10 @@ ocfs2_filecheck_handle_entry(struct ocfs2_filecheck_sysfs_entry *ent,
 
 	if (entry->fe_type == OCFS2_FILECHECK_TYPE_CHK)
 		entry->fe_status = ocfs2_filecheck_handle(osb,
-				entry->fe_ino, OCFS2_FI_FLAG_FILECHECK_CHK);
+				entry->fe_iyes, OCFS2_FI_FLAG_FILECHECK_CHK);
 	else if (entry->fe_type == OCFS2_FILECHECK_TYPE_FIX)
 		entry->fe_status = ocfs2_filecheck_handle(osb,
-				entry->fe_ino, OCFS2_FI_FLAG_FILECHECK_FIX);
+				entry->fe_iyes, OCFS2_FI_FLAG_FILECHECK_FIX);
 	else
 		entry->fe_status = OCFS2_FILECHECK_ERR_UNSUPPORTED;
 
@@ -476,14 +476,14 @@ static ssize_t ocfs2_filecheck_attr_store(struct kobject *kobj,
 	}
 
 	spin_lock(&ent->fs_fcheck->fc_lock);
-	if (ocfs2_filecheck_is_dup_entry(ent, args.fa_ino)) {
+	if (ocfs2_filecheck_is_dup_entry(ent, args.fa_iyes)) {
 		ret = -EEXIST;
 		kfree(entry);
 	} else if ((ent->fs_fcheck->fc_size >= ent->fs_fcheck->fc_max) &&
 		(ent->fs_fcheck->fc_done == 0)) {
 		mlog(ML_NOTICE,
-		"Cannot do more file check "
-		"since file check queue(%u) is full now\n",
+		"Canyest do more file check "
+		"since file check queue(%u) is full yesw\n",
 		ent->fs_fcheck->fc_max);
 		ret = -EAGAIN;
 		kfree(entry);
@@ -492,12 +492,12 @@ static ssize_t ocfs2_filecheck_attr_store(struct kobject *kobj,
 		    (ent->fs_fcheck->fc_done > 0)) {
 			/* Delete the oldest entry which was done,
 			 * make sure the entry size in list does
-			 * not exceed maximum value
+			 * yest exceed maximum value
 			 */
 			BUG_ON(!ocfs2_filecheck_erase_entry(ent));
 		}
 
-		entry->fe_ino = args.fa_ino;
+		entry->fe_iyes = args.fa_iyes;
 		entry->fe_type = args.fa_type;
 		entry->fe_done = 0;
 		entry->fe_status = OCFS2_FILECHECK_ERR_INPROGRESS;

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -57,8 +57,8 @@
  */
 static struct rb_root qib_user_sdma_rb_root = RB_ROOT;
 
-struct qib_user_sdma_rb_node {
-	struct rb_node node;
+struct qib_user_sdma_rb_yesde {
+	struct rb_yesde yesde;
 	int refcount;
 	pid_t pid;
 };
@@ -121,9 +121,9 @@ struct qib_user_sdma_queue {
 	/* as packets go on the queued queue, they are counted... */
 	u32 counter;
 	u32 sent_counter;
-	/* pending packets, not sending yet */
+	/* pending packets, yest sending yet */
 	u32 num_pending;
-	/* sending packets, not complete yet */
+	/* sending packets, yest complete yet */
 	u32 num_sending;
 	/* global descq number of entry of last sending packet */
 	u64 added;
@@ -131,51 +131,51 @@ struct qib_user_sdma_queue {
 	/* dma page table */
 	struct rb_root dma_pages_root;
 
-	struct qib_user_sdma_rb_node *sdma_rb_node;
+	struct qib_user_sdma_rb_yesde *sdma_rb_yesde;
 
 	/* protect everything above... */
 	struct mutex lock;
 };
 
-static struct qib_user_sdma_rb_node *
+static struct qib_user_sdma_rb_yesde *
 qib_user_sdma_rb_search(struct rb_root *root, pid_t pid)
 {
-	struct qib_user_sdma_rb_node *sdma_rb_node;
-	struct rb_node *node = root->rb_node;
+	struct qib_user_sdma_rb_yesde *sdma_rb_yesde;
+	struct rb_yesde *yesde = root->rb_yesde;
 
-	while (node) {
-		sdma_rb_node = rb_entry(node, struct qib_user_sdma_rb_node,
-					node);
-		if (pid < sdma_rb_node->pid)
-			node = node->rb_left;
-		else if (pid > sdma_rb_node->pid)
-			node = node->rb_right;
+	while (yesde) {
+		sdma_rb_yesde = rb_entry(yesde, struct qib_user_sdma_rb_yesde,
+					yesde);
+		if (pid < sdma_rb_yesde->pid)
+			yesde = yesde->rb_left;
+		else if (pid > sdma_rb_yesde->pid)
+			yesde = yesde->rb_right;
 		else
-			return sdma_rb_node;
+			return sdma_rb_yesde;
 	}
 	return NULL;
 }
 
 static int
-qib_user_sdma_rb_insert(struct rb_root *root, struct qib_user_sdma_rb_node *new)
+qib_user_sdma_rb_insert(struct rb_root *root, struct qib_user_sdma_rb_yesde *new)
 {
-	struct rb_node **node = &(root->rb_node);
-	struct rb_node *parent = NULL;
-	struct qib_user_sdma_rb_node *got;
+	struct rb_yesde **yesde = &(root->rb_yesde);
+	struct rb_yesde *parent = NULL;
+	struct qib_user_sdma_rb_yesde *got;
 
-	while (*node) {
-		got = rb_entry(*node, struct qib_user_sdma_rb_node, node);
-		parent = *node;
+	while (*yesde) {
+		got = rb_entry(*yesde, struct qib_user_sdma_rb_yesde, yesde);
+		parent = *yesde;
 		if (new->pid < got->pid)
-			node = &((*node)->rb_left);
+			yesde = &((*yesde)->rb_left);
 		else if (new->pid > got->pid)
-			node = &((*node)->rb_right);
+			yesde = &((*yesde)->rb_right);
 		else
 			return 0;
 	}
 
-	rb_link_node(&new->node, parent, node);
-	rb_insert_color(&new->node, root);
+	rb_link_yesde(&new->yesde, parent, yesde);
+	rb_insert_color(&new->yesde, root);
 	return 1;
 }
 
@@ -184,7 +184,7 @@ qib_user_sdma_queue_create(struct device *dev, int unit, int ctxt, int sctxt)
 {
 	struct qib_user_sdma_queue *pq =
 		kmalloc(sizeof(struct qib_user_sdma_queue), GFP_KERNEL);
-	struct qib_user_sdma_rb_node *sdma_rb_node;
+	struct qib_user_sdma_rb_yesde *sdma_rb_yesde;
 
 	if (!pq)
 		goto done;
@@ -194,7 +194,7 @@ qib_user_sdma_queue_create(struct device *dev, int unit, int ctxt, int sctxt)
 	pq->num_pending = 0;
 	pq->num_sending = 0;
 	pq->added = 0;
-	pq->sdma_rb_node = NULL;
+	pq->sdma_rb_yesde = NULL;
 
 	INIT_LIST_HEAD(&pq->sent);
 	spin_lock_init(&pq->sent_lock);
@@ -220,22 +220,22 @@ qib_user_sdma_queue_create(struct device *dev, int unit, int ctxt, int sctxt)
 
 	pq->dma_pages_root = RB_ROOT;
 
-	sdma_rb_node = qib_user_sdma_rb_search(&qib_user_sdma_rb_root,
+	sdma_rb_yesde = qib_user_sdma_rb_search(&qib_user_sdma_rb_root,
 					current->pid);
-	if (sdma_rb_node) {
-		sdma_rb_node->refcount++;
+	if (sdma_rb_yesde) {
+		sdma_rb_yesde->refcount++;
 	} else {
-		sdma_rb_node = kmalloc(sizeof(
-			struct qib_user_sdma_rb_node), GFP_KERNEL);
-		if (!sdma_rb_node)
+		sdma_rb_yesde = kmalloc(sizeof(
+			struct qib_user_sdma_rb_yesde), GFP_KERNEL);
+		if (!sdma_rb_yesde)
 			goto err_rb;
 
-		sdma_rb_node->refcount = 1;
-		sdma_rb_node->pid = current->pid;
+		sdma_rb_yesde->refcount = 1;
+		sdma_rb_yesde->pid = current->pid;
 
-		qib_user_sdma_rb_insert(&qib_user_sdma_rb_root, sdma_rb_node);
+		qib_user_sdma_rb_insert(&qib_user_sdma_rb_root, sdma_rb_yesde);
 	}
-	pq->sdma_rb_node = sdma_rb_node;
+	pq->sdma_rb_yesde = sdma_rb_yesde;
 
 	goto done;
 
@@ -312,9 +312,9 @@ static int qib_user_sdma_page_to_frags(const struct qib_devdata *dd,
 
 	if (dma_mapping_error(&dd->pcidev->dev, dma_addr)) {
 		/*
-		 * dma mapping error, pkt has not managed
+		 * dma mapping error, pkt has yest managed
 		 * this page yet, return the page here so
-		 * the caller can ignore this page.
+		 * the caller can igyesre this page.
 		 */
 		if (put) {
 			put_user_page(page);
@@ -346,7 +346,7 @@ next_fragment:
 	 * the last descriptor flag is determined by:
 	 * 1. the current packet is at frag size length.
 	 * 2. the current tid page is done if tid-sdma.
-	 * 3. there is no more byte togo if sdma.
+	 * 3. there is yes more byte togo if sdma.
 	 */
 	lastdesc = 0;
 	if ((pkt->payload_size + newlen) >= pkt->frag_size) {
@@ -375,9 +375,9 @@ next_fragment:
 		goto done;
 	}
 
-	/* If there is no more byte togo. (lastdesc==1) */
+	/* If there is yes more byte togo. (lastdesc==1) */
 	if (pkt->bytes_togo == 0) {
-		/* The packet is done, header is not dma mapped yet.
+		/* The packet is done, header is yest dma mapped yet.
 		 * it should be from kmalloc */
 		if (!pkt->addr[pkt->index].addr) {
 			pkt->addr[pkt->index].addr =
@@ -412,7 +412,7 @@ next_fragment:
 
 	/*
 	 * If this is NOT the last descriptor. (newlen==len)
-	 * the current packet is not done yet, but the current
+	 * the current packet is yest done yet, but the current
 	 * send side page is done.
 	 */
 	if (lastdesc == 0)
@@ -420,7 +420,7 @@ next_fragment:
 
 	/*
 	 * If running this driver under PSM with message size
-	 * fitting into one transfer unit, it is not possible
+	 * fitting into one transfer unit, it is yest possible
 	 * to pass this line. otherwise, it is a buggggg.
 	 */
 
@@ -468,7 +468,7 @@ next_fragment:
 		((vcto>>16)&0xFFFF) - (vcto&0xFFFF) -
 		le16_to_cpu(hdr->iph.pkt_flags));
 
-	/* The packet is done, header is not dma mapped yet.
+	/* The packet is done, header is yest dma mapped yet.
 	 * it should be from kmalloc */
 	if (!pkt->addr[pkt->index].addr) {
 		pkt->addr[pkt->index].addr =
@@ -648,7 +648,7 @@ static void qib_user_sdma_free_pkt_frag(struct device *dev,
 			dma_pool_free(pq->header_cache,
 			      pkt->addr[i].kvaddr, pkt->addr[i].addr);
 		} else {
-			/* from kmalloc but not dma mapped */
+			/* from kmalloc but yest dma mapped */
 			kfree(pkt->addr[i].kvaddr);
 		}
 	}
@@ -703,7 +703,7 @@ static int qib_user_sdma_pin_pages(const struct qib_devdata *dd,
 
 	goto done;
 
-	/* if error, return all pages not managed by pkt */
+	/* if error, return all pages yest managed by pkt */
 free_pages:
 	while (i < j)
 		put_user_page(pages[i++]);
@@ -734,13 +734,13 @@ static int qib_user_sdma_pin_pkt(const struct qib_devdata *dd,
 	goto done;
 
 free_pkt:
-	/* we need to ignore the first entry here */
+	/* we need to igyesre the first entry here */
 	for (idx = 1; idx < pkt->naddr; idx++)
 		qib_user_sdma_free_pkt_frag(&dd->pcidev->dev, pq, pkt, idx);
 
 	/* need to dma unmap the first entry, this is to restore to
 	 * the original state so that caller can free the memory in
-	 * error condition. Caller does not know if dma mapped or not*/
+	 * error condition. Caller does yest kyesw if dma mapped or yest*/
 	if (pkt->addr[0].dma_mapped) {
 		dma_unmap_single(&dd->pcidev->dev,
 		       pkt->addr[0].addr,
@@ -859,10 +859,10 @@ static int qib_user_sdma_queue_pkts(const struct qib_devdata *dd,
 
 		/*
 		 * pktnw computation yields the number of 32 bit words
-		 * that the caller has indicated in the PBC.  note that
+		 * that the caller has indicated in the PBC.  yeste that
 		 * this is one less than the total number of words that
 		 * goes to the send DMA engine as the first 32 bit word
-		 * of the PBC itself is not counted.  Armed with this count,
+		 * of the PBC itself is yest counted.  Armed with this count,
 		 * we can verify that the packet is consistent with the
 		 * iovec lengths.
 		 */
@@ -987,13 +987,13 @@ static int qib_user_sdma_queue_pkts(const struct qib_devdata *dd,
 			if (ret < 0)
 				goto free_pkt;
 		} else {
-			/* since there is no payload, mark the
+			/* since there is yes payload, mark the
 			 * header as the last desc. */
 			pkt->addr[0].last_desc = 1;
 
 			if (dma_addr == 0) {
 				/*
-				 * the header is not dma mapped yet.
+				 * the header is yest dma mapped yet.
 				 * it should be from kmalloc.
 				 */
 				dma_addr = dma_map_single(&dd->pcidev->dev,
@@ -1062,7 +1062,7 @@ static int qib_user_sdma_queue_clean(struct qib_pportdata *ppd,
 	/*
 	 * We need this spin lock here because interrupt handler
 	 * might modify this list in qib_user_sdma_send_desc(), also
-	 * we can not get interrupted, otherwise it is a deadlock.
+	 * we can yest get interrupted, otherwise it is a deadlock.
 	 */
 	spin_lock_irqsave(&pq->sent_lock, flags);
 	list_for_each_entry_safe(pkt, pkt_prev, &pq->sent, list) {
@@ -1098,10 +1098,10 @@ void qib_user_sdma_queue_destroy(struct qib_user_sdma_queue *pq)
 	if (!pq)
 		return;
 
-	pq->sdma_rb_node->refcount--;
-	if (pq->sdma_rb_node->refcount == 0) {
-		rb_erase(&pq->sdma_rb_node->node, &qib_user_sdma_rb_root);
-		kfree(pq->sdma_rb_node);
+	pq->sdma_rb_yesde->refcount--;
+	if (pq->sdma_rb_yesde->refcount == 0) {
+		rb_erase(&pq->sdma_rb_yesde->yesde, &qib_user_sdma_rb_root);
+		kfree(pq->sdma_rb_yesde);
 	}
 	dma_pool_destroy(pq->header_cache);
 	kmem_cache_destroy(pq->pkt_slab);
@@ -1166,7 +1166,7 @@ void qib_user_sdma_queue_drain(struct qib_pportdata *ppd,
 		}
 		spin_unlock_irqrestore(&ppd->sdma_lock, flags);
 
-		qib_dev_err(dd, "user sdma lists not empty: forcing!\n");
+		qib_dev_err(dd, "user sdma lists yest empty: forcing!\n");
 		INIT_LIST_HEAD(&free_list);
 		list_splice_init(&pq->sent, &free_list);
 		pq->num_sending = 0;
@@ -1327,8 +1327,8 @@ static int qib_user_sdma_push_pkts(struct qib_pportdata *ppd,
 	if (unlikely(!(ppd->lflags & QIBL_LINKACTIVE)))
 		return -ECOMM;
 
-	/* non-blocking mode */
-	if (pq->sdma_rb_node->refcount > 1) {
+	/* yesn-blocking mode */
+	if (pq->sdma_rb_yesde->refcount > 1) {
 		spin_lock_irqsave(&ppd->sdma_lock, flags);
 		if (unlikely(!__qib_sdma_running(ppd))) {
 			spin_unlock_irqrestore(&ppd->sdma_lock, flags);
@@ -1341,7 +1341,7 @@ static int qib_user_sdma_push_pkts(struct qib_pportdata *ppd,
 		return 0;
 	}
 
-	/* In this case, descriptors from this process are not
+	/* In this case, descriptors from this process are yest
 	 * linked to ppd pending queue, interrupt handler
 	 * won't update this process, it is OK to directly
 	 * modify without sdma lock.
@@ -1385,11 +1385,11 @@ int qib_user_sdma_writev(struct qib_ctxtdata *rcd,
 
 	mutex_lock(&pq->lock);
 
-	/* why not -ECOMM like qib_user_sdma_push_pkts() below? */
+	/* why yest -ECOMM like qib_user_sdma_push_pkts() below? */
 	if (!qib_sdma_running(ppd))
 		goto done_unlock;
 
-	/* if I have packets not complete yet */
+	/* if I have packets yest complete yet */
 	if (pq->added > ppd->sdma_descq_removed)
 		qib_user_sdma_hwqueue_clean(ppd);
 	/* if I have complete packets to be freed */

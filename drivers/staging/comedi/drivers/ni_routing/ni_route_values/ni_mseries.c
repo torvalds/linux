@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
+/* vim: set ts=8 sw=8 yeset tw=80 yeswrap: */
 /*
  *  comedi/drivers/ni_routing/ni_route_values/ni_mseries.c
  *  Route information for NI_MSERIES boards.
@@ -20,16 +20,16 @@
 
 /*
  * This file includes a list of all the values of various signals routes
- * available on NI 660x hardware.  In many cases, one does not explicitly make
+ * available on NI 660x hardware.  In many cases, one does yest explicitly make
  * these routes, rather one might indicate that something is used as the source
- * of one particular trigger or another (using *_src=TRIG_EXT).
+ * of one particular trigger or ayesther (using *_src=TRIG_EXT).
  *
  * The contents of this file can be generated using the tools in
- * comedi/drivers/ni_routing/tools.  This file also contains specific notes to
+ * comedi/drivers/ni_routing/tools.  This file also contains specific yestes to
  * this family of devices.
  *
  * Please use those tools to help maintain the contents of this file, but be
- * mindful to not lose the notes already made in this file, since these notes
+ * mindful to yest lose the yestes already made in this file, since these yestes
  * are critical to a complete undertsanding of the register values of this
  * family.
  */
@@ -39,7 +39,7 @@
 
 /*
  * GATE SELECT NOTE:
- * CtrAux and CtrArmStartrigger register values are not documented in the
+ * CtrAux and CtrArmStartrigger register values are yest documented in the
  * DAQ-STC.  There is some evidence that using CtrGate values is valid (see
  * comedi.h).  Some information and hints exist in the M-Series user manual
  * (ni-62xx user-manual 371022K-01).
@@ -807,7 +807,7 @@ const struct family_route_values ni_mseries_route_values = {
 			[B(NI_AnalogComparisonEvent)]	= I(14),
 		},
 		[B(NI_CtrSource(0))] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -843,7 +843,7 @@ const struct family_route_values ni_mseries_route_values = {
 			[B(NI_LogicLow)]	= U(31),
 		},
 		[B(NI_CtrSource(1))] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -1338,7 +1338,7 @@ const struct family_route_values ni_mseries_route_values = {
 			[B(NI_LogicLow)]	= I(31),
 		},
 		[B(NI_AI_SampleClockTimebase)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -1409,7 +1409,7 @@ const struct family_route_values ni_mseries_route_values = {
 			[B(NI_LogicLow)]	= I(31),
 		},
 		[B(NI_AI_ReferenceTrigger)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -1473,12 +1473,12 @@ const struct family_route_values ni_mseries_route_values = {
 			[B(NI_LogicLow)]	= I(31),
 		},
 		[B(NI_AI_ConvertClockTimebase)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_AI_SampleClockTimebase)]	= U(0),
 			[B(NI_20MHzTimebase)]	= U(1),
 		},
 		[B(NI_AI_PauseTrigger)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -1540,7 +1540,7 @@ const struct family_route_values ni_mseries_route_values = {
 			[B(NI_LogicLow)]	= I(31),
 		},
 		[B(NI_AO_SampleClockTimebase)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -1613,7 +1613,7 @@ const struct family_route_values ni_mseries_route_values = {
 			 * for the route
 			 * (NI_AI_ReferenceTrigger->NI_AO_StartTrigger).  The
 			 * m-series devices are supposed to have DAQ-STC2.
-			 * There are no DAQ-STC2 docs to compare with.
+			 * There are yes DAQ-STC2 docs to compare with.
 			 */
 			[B(NI_AI_StartTrigger)]	= I(19),
 			[B(NI_AI_ReferenceTrigger)]	= I(18),
@@ -1621,7 +1621,7 @@ const struct family_route_values ni_mseries_route_values = {
 			[B(NI_LogicLow)]	= I(31),
 		},
 		[B(NI_AO_PauseTrigger)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(NI_PFI(0))]	= U(1),
 			[B(NI_PFI(1))]	= U(2),
 			[B(NI_PFI(2))]	= U(3),
@@ -1721,7 +1721,7 @@ const struct family_route_values ni_mseries_route_values = {
 			[B(NI_CaseGround)]	= I(0),
 		},
 		[B(NI_MasterTimebase)] = {
-			/* These are not currently implemented in ni modules */
+			/* These are yest currently implemented in ni modules */
 			[B(TRIGGER_LINE(0))]	= U(11),
 			[B(TRIGGER_LINE(1))]	= U(12),
 			[B(TRIGGER_LINE(2))]	= U(13),
@@ -1735,11 +1735,11 @@ const struct family_route_values ni_mseries_route_values = {
 			[B(NI_10MHzRefClock)]	= U(0),
 		},
 		/*
-		 * This symbol is not defined and nothing for this is
+		 * This symbol is yest defined and yesthing for this is
 		 * implemented--just including this because data was found in
 		 * the NI-STC for it--can't remember where.
 		 * [B(NI_FrequencyOutTimebase)] = {
-		 *	** These are not currently implemented in ni modules **
+		 *	** These are yest currently implemented in ni modules **
 		 *	[B(NI_20MHzTimebase)]	= U(0),
 		 *	[B(NI_100kHzTimebase)]	= U(1),
 		 * },

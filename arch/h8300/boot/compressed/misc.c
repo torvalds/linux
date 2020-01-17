@@ -7,7 +7,7 @@
  *
  * malloc by Hannu Savolainen 1993 and Matthias Urlichs 1994
  *
- * Adapted for h8300 by Yoshinori Sato 2006
+ * Adapted for h8300 by Yoshiyesri Sato 2006
  */
 
 #include <linux/uaccess.h>

@@ -5,7 +5,7 @@
  *
  *	The Opti DMA controllers are related to the older PIO PCI controllers
  *	and indeed the VLB ones. The main differences are that the timing
- *	numbers are now based off PCI clocks not VLB and differ, and that
+ *	numbers are yesw based off PCI clocks yest VLB and differ, and that
  *	MWDMA is supported.
  *
  *	This driver should support Viper-N+, FireStar, FireStar Plus.
@@ -15,7 +15,7 @@
  *	so you have to get this right. We don't support the virtual DMA
  *	but we do handle UDMA.
  *
- *	Bits that are worth knowing
+ *	Bits that are worth kyeswing
  *		Most control registers are shadowed into I/O registers
  *		0x1F5 bit 0 tells you if the PCI/VLB clock is 33 or 25Mhz
  *		Virtual DMA registers *move* between rev 0x02 and rev 0x10
@@ -60,7 +60,7 @@ static int optidma_pre_reset(struct ata_link *link, unsigned long deadline)
 		0x40, 1, 0x08, 0x00
 	};
 
-	if (ap->port_no && !pci_test_config_bits(pdev, &optidma_enable_bits))
+	if (ap->port_yes && !pci_test_config_bits(pdev, &optidma_enable_bits))
 		return -ENOENT;
 
 	return ata_sff_prereset(link, deadline);
@@ -70,7 +70,7 @@ static int optidma_pre_reset(struct ata_link *link, unsigned long deadline)
  *	optidma_unlock		-	unlock control registers
  *	@ap: ATA port
  *
- *	Unlock the control register block for this adapter. Registers must not
+ *	Unlock the control register block for this adapter. Registers must yest
  *	be unlocked in a situation where libata might look at them.
  */
 
@@ -163,7 +163,7 @@ static void optidma_mode_setup(struct ata_port *ap, struct ata_device *adev, u8 
 
 	/* Commence primary programming sequence */
 	/* First we load the device number into the timing select */
-	iowrite8(adev->devno, regio + MISC_REG);
+	iowrite8(adev->devyes, regio + MISC_REG);
 	/* Now we load the data timings into read data/write data */
 	if (mode < XFER_MW_DMA_0) {
 		iowrite8(data_rec_timing[pci_clock][pio], regio + READ_REG);
@@ -173,7 +173,7 @@ static void optidma_mode_setup(struct ata_port *ap, struct ata_device *adev, u8 
 		iowrite8(dma_data_rec_timing[pci_clock][dma], regio + WRITE_REG);
 	}
 	/* Finally we load the address setup into the misc register */
-	iowrite8(addr | adev->devno, regio + MISC_REG);
+	iowrite8(addr | adev->devyes, regio + MISC_REG);
 
 	/* Programming sequence complete, timing 0 dev 0, timing 1 dev 1 */
 	iowrite8(0x85, regio + CNTRL_REG);
@@ -182,7 +182,7 @@ static void optidma_mode_setup(struct ata_port *ap, struct ata_device *adev, u8 
 	optidma_lock(ap);
 
 	/* Note: at this point our programming is incomplete. We are
-	   not supposed to program PCI 0x43 "things we hacked onto the chip"
+	   yest supposed to program PCI 0x43 "things we hacked onto the chip"
 	   until we've done both sets of PIO/DMA timings */
 }
 
@@ -203,8 +203,8 @@ static void optiplus_mode_setup(struct ata_port *ap, struct ata_device *adev, u8
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u8 udcfg;
 	u8 udslave;
-	int dev2 = 2 * adev->devno;
-	int unit = 2 * ap->port_no + adev->devno;
+	int dev2 = 2 * adev->devyes;
+	int unit = 2 * ap->port_yes + adev->devyes;
 	int udma = mode - XFER_UDMA_0;
 
 	pci_read_config_byte(pdev, 0x44, &udcfg);
@@ -213,7 +213,7 @@ static void optiplus_mode_setup(struct ata_port *ap, struct ata_device *adev, u8
 		optidma_mode_setup(ap, adev, adev->dma_mode);
 	} else {
 		udcfg |=  (1 << unit);
-		if (ap->port_no) {
+		if (ap->port_yes) {
 			pci_read_config_byte(pdev, 0x45, &udslave);
 			udslave &= ~(0x03 << dev2);
 			udslave |= (udma << dev2);
@@ -319,7 +319,7 @@ static int optidma_set_mode(struct ata_link *link, struct ata_device **r_failed)
 {
 	struct ata_port *ap = link->ap;
 	u8 r;
-	int nybble = 4 * ap->port_no;
+	int nybble = 4 * ap->port_yes;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int rc  = ata_do_set_mode(link, r_failed);
 	if (rc == 0) {
@@ -372,7 +372,7 @@ static int optiplus_with_udma(struct pci_dev *pdev)
 	/* Rev must be >= 0x10 */
 	pci_read_config_byte(dev1, 0x08, &r);
 	if (r < 0x10)
-		goto done_nomsg;
+		goto done_yesmsg;
 	/* Read the chipset system configuration to check our mode */
 	pci_read_config_byte(dev1, 0x5F, &r);
 	ioport |= (r << 8);
@@ -389,8 +389,8 @@ static int optiplus_with_udma(struct pci_dev *pdev)
 	if (r & 0x80)	/* IDEDIR disabled */
 		ret = 1;
 done:
-	printk(KERN_WARNING "UDMA not supported in this configuration.\n");
-done_nomsg:		/* Wrong chip revision */
+	printk(KERN_WARNING "UDMA yest supported in this configuration.\n");
+done_yesmsg:		/* Wrong chip revision */
 	pci_dev_put(dev1);
 	return ret;
 }

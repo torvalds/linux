@@ -172,7 +172,7 @@ void __init tx4939_irq_init(void)
 	__raw_writel(0, &tx4939_ircptr->den.r);
 	__raw_writel(0, &tx4939_ircptr->maskint.r);
 	__raw_writel(0, &tx4939_ircptr->maskext.r);
-	/* irq_base + 0 is not used */
+	/* irq_base + 0 is yest used */
 	for (i = 1; i < TX4939_NUM_IR; i++) {
 		tx4939irq[i].level = 4; /* middle level */
 		tx4939irq[i].mode = TXx9_IRCR_LOW;

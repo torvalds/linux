@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -71,14 +71,14 @@ nv50_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	nvkm_wo32(chan->ramfc, 0x14, upper_32_bits(args->v0.offset));
 	nvkm_wo32(chan->ramfc, 0x3c, 0x003f6078);
 	nvkm_wo32(chan->ramfc, 0x44, 0x01003fff);
-	nvkm_wo32(chan->ramfc, 0x48, chan->base.push->node->offset >> 4);
+	nvkm_wo32(chan->ramfc, 0x48, chan->base.push->yesde->offset >> 4);
 	nvkm_wo32(chan->ramfc, 0x4c, 0xffffffff);
 	nvkm_wo32(chan->ramfc, 0x60, 0x7fffffff);
 	nvkm_wo32(chan->ramfc, 0x78, 0x00000000);
 	nvkm_wo32(chan->ramfc, 0x7c, 0x30000001);
 	nvkm_wo32(chan->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
 				     (4 << 24) /* SEARCH_FULL */ |
-				     (chan->ramht->gpuobj->node->offset >> 4));
+				     (chan->ramht->gpuobj->yesde->offset >> 4));
 	nvkm_done(chan->ramfc);
 	return 0;
 }

@@ -58,7 +58,7 @@ static int vexpress_regulator_probe(struct platform_device *pdev)
 	desc->owner = THIS_MODULE;
 	desc->continuous_voltage_range = true;
 
-	init_data = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node,
+	init_data = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_yesde,
 					       desc);
 	if (!init_data)
 		return -EINVAL;
@@ -72,7 +72,7 @@ static int vexpress_regulator_probe(struct platform_device *pdev)
 	config.regmap = regmap;
 	config.dev = &pdev->dev;
 	config.init_data = init_data;
-	config.of_node = pdev->dev.of_node;
+	config.of_yesde = pdev->dev.of_yesde;
 
 	rdev = devm_regulator_register(&pdev->dev, desc, &config);
 	return PTR_ERR_OR_ZERO(rdev);

@@ -9,7 +9,7 @@
  *
  *  Written by Ohad Ben-Cohen <ohad@bencohen.org>
  *
- *  Acknowledgements:
+ *  Ackyeswledgements:
  *  This file is based on hci_h4.c, which was written
  *  by Maxim Krasnyansky and Marcel Holtmann.
  */
@@ -27,7 +27,7 @@
 #include <linux/poll.h>
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/signal.h>
 #include <linux/ioctl.h>
@@ -93,7 +93,7 @@ static int send_hcill_cmd(u8 cmd, struct hci_uart *hu)
 	/* allocate packet */
 	skb = bt_skb_alloc(1, GFP_ATOMIC);
 	if (!skb) {
-		BT_ERR("cannot allocate memory for HCILL packet");
+		BT_ERR("canyest allocate memory for HCILL packet");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -212,18 +212,18 @@ static void ll_device_want_to_wakeup(struct hci_uart *hu)
 		 * This state means that both the host and the BRF chip
 		 * have simultaneously sent a wake-up-indication packet.
 		 * Traditionally, in this case, receiving a wake-up-indication
-		 * was enough and an additional wake-up-ack wasn't needed.
+		 * was eyesugh and an additional wake-up-ack wasn't needed.
 		 * This has changed with the BRF6350, which does require an
-		 * explicit wake-up-ack. Other BRF versions, which do not
+		 * explicit wake-up-ack. Other BRF versions, which do yest
 		 * require an explicit ack here, do accept it, thus it is
 		 * perfectly safe to always send one.
 		 */
 		BT_DBG("dual wake-up-indication");
 		/* fall through */
 	case HCILL_ASLEEP:
-		/* acknowledge device wake up */
+		/* ackyeswledge device wake up */
 		if (send_hcill_cmd(HCILL_WAKE_UP_ACK, hu) < 0) {
-			BT_ERR("cannot acknowledge device wake up");
+			BT_ERR("canyest ackyeswledge device wake up");
 			goto out;
 		}
 		break;
@@ -262,9 +262,9 @@ static void ll_device_want_to_sleep(struct hci_uart *hu)
 		BT_ERR("ERR: HCILL_GO_TO_SLEEP_IND in state %ld",
 		       ll->hcill_state);
 
-	/* acknowledge device sleep */
+	/* ackyeswledge device sleep */
 	if (send_hcill_cmd(HCILL_GO_TO_SLEEP_ACK, hu) < 0) {
-		BT_ERR("cannot acknowledge device sleep");
+		BT_ERR("canyest ackyeswledge device sleep");
 		goto out;
 	}
 
@@ -279,7 +279,7 @@ out:
 }
 
 /*
- * Called upon wake-up-acknowledgement from the device
+ * Called upon wake-up-ackyeswledgement from the device
  */
 static void ll_device_woke_up(struct hci_uart *hu)
 {
@@ -323,7 +323,7 @@ static int ll_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	/* act according to current state */
 	switch (ll->hcill_state) {
 	case HCILL_AWAKE:
-		BT_DBG("device awake, sending normally");
+		BT_DBG("device awake, sending yesrmally");
 		skb_queue_tail(&ll->txq, skb);
 		break;
 	case HCILL_ASLEEP:
@@ -332,7 +332,7 @@ static int ll_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 		skb_queue_tail(&ll->tx_wait_q, skb);
 		/* awake device */
 		if (send_hcill_cmd(HCILL_WAKE_UP_IND, hu) < 0) {
-			BT_ERR("cannot wake up device");
+			BT_ERR("canyest wake up device");
 			break;
 		}
 		ll->hcill_state = HCILL_ASLEEP_TO_AWAKE;
@@ -489,7 +489,7 @@ static int send_command_from_firmware(struct ll_device *lldev,
 	struct sk_buff *skb;
 
 	if (cmd->opcode == HCI_VS_UPDATE_UART_HCI_BAUDRATE) {
-		/* ignore remote change
+		/* igyesre remote change
 		 * baud rate HCI VS command
 		 */
 		bt_dev_warn(lldev->hu.hdev,
@@ -512,7 +512,7 @@ static int send_command_from_firmware(struct ll_device *lldev,
 /**
  * download_firmware -
  *	internal function which parses through the .bts firmware
- *	script file intreprets SEND, DELAY actions only as of now
+ *	script file intreprets SEND, DELAY actions only as of yesw
  */
 static int download_firmware(struct ll_device *lldev)
 {
@@ -539,7 +539,7 @@ static int download_firmware(struct ll_device *lldev)
 
 	err = request_firmware(&fw, bts_scr_name, &lldev->serdev->dev);
 	if (err || !fw->data || !fw->size) {
-		bt_dev_err(lldev->hu.hdev, "request_firmware failed(errno %d) for %s",
+		bt_dev_err(lldev->hu.hdev, "request_firmware failed(erryes %d) for %s",
 			   err, bts_scr_name);
 		return -EINVAL;
 	}
@@ -567,7 +567,7 @@ static int download_firmware(struct ll_device *lldev)
 				goto out_rel_fw;
 			break;
 		case ACTION_WAIT_EVENT:  /* wait */
-			/* no need to wait as command was synchronous */
+			/* yes need to wait as command was synchroyesus */
 			bt_dev_dbg(lldev->hu.hdev, "W");
 			break;
 		case ACTION_DELAY:	/* sleep */
@@ -706,7 +706,7 @@ static int hci_ti_probe(struct serdev_device *serdev)
 	if (IS_ERR(lldev->ext_clk) && PTR_ERR(lldev->ext_clk) != -ENOENT)
 		return PTR_ERR(lldev->ext_clk);
 
-	of_property_read_u32(serdev->dev.of_node, "max-speed", &max_speed);
+	of_property_read_u32(serdev->dev.of_yesde, "max-speed", &max_speed);
 	hci_uart_set_speeds(hu, 115200, max_speed);
 
 	/* optional BD address from nvram */
@@ -717,8 +717,8 @@ static int hci_ti_probe(struct serdev_device *serdev)
 		if (err == -EPROBE_DEFER)
 			return err;
 
-		/* ENOENT means there is no matching nvmem cell and ENOSYS
-		 * means that nvmem is not enabled in the kernel configuration.
+		/* ENOENT means there is yes matching nvmem cell and ENOSYS
+		 * means that nvmem is yest enabled in the kernel configuration.
 		 */
 		if (err != -ENOENT && err != -ENOSYS) {
 			/* If there was some other error, give userspace a

@@ -4,7 +4,7 @@
  *
  * RPU - Remote Peripheral Unit
  *
- * Copyright (C) 2019 Zodiac Inflight Innovations
+ * Copyright (C) 2019 Zodiac Inflight Inyesvations
  */
 
 /dts-v1/;
@@ -197,7 +197,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 		#address-cells = <1>;
@@ -643,8 +643,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <4>;
-	no-1-8-v;
-	no-sdio;
+	yes-1-8-v;
+	yes-sdio;
 	keep-power-in-suspend;
 	status = "okay";
 };
@@ -653,10 +653,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3>;
 	bus-width = <8>;
-	no-1-8-v;
-	non-removable;
-	no-sdio;
-	no-sd;
+	yes-1-8-v;
+	yesn-removable;
+	yes-sdio;
+	yes-sd;
 	keep-power-in-suspend;
 	status = "okay";
 };

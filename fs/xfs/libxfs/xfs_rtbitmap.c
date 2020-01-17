@@ -11,7 +11,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_bmap.h"
 #include "xfs_trans.h"
 #include "xfs_rtalloc.h"
@@ -55,11 +55,11 @@ xfs_rtbuf_get(
 	xfs_mount_t	*mp,		/* file system mount structure */
 	xfs_trans_t	*tp,		/* transaction pointer */
 	xfs_rtblock_t	block,		/* block number in bitmap or summary */
-	int		issum,		/* is summary not bitmap */
+	int		issum,		/* is summary yest bitmap */
 	xfs_buf_t	**bpp)		/* output: buffer for the block */
 {
 	xfs_buf_t	*bp;		/* block buffer, result */
-	xfs_inode_t	*ip;		/* bitmap or summary inode */
+	xfs_iyesde_t	*ip;		/* bitmap or summary iyesde */
 	xfs_bmbt_irec_t	map;
 	int		nmap = 1;
 	int		error;		/* error value */
@@ -134,7 +134,7 @@ xfs_rtfind_back(
 	 */
 	want = (*b & ((xfs_rtword_t)1 << bit)) ? -1 : 0;
 	/*
-	 * If the starting position is not word-aligned, deal with the
+	 * If the starting position is yest word-aligned, deal with the
 	 * partial word.
 	 */
 	if (bit < XFS_NBWORD - 1) {
@@ -183,7 +183,7 @@ xfs_rtfind_back(
 		}
 	} else {
 		/*
-		 * Starting on a word boundary, no partial word.
+		 * Starting on a word boundary, yes partial word.
 		 */
 		i = 0;
 	}
@@ -229,7 +229,7 @@ xfs_rtfind_back(
 		}
 	}
 	/*
-	 * If not ending on a word boundary, deal with the last
+	 * If yest ending on a word boundary, deal with the last
 	 * (partial) word.
 	 */
 	if (len - i) {
@@ -309,7 +309,7 @@ xfs_rtfind_forw(
 	 */
 	want = (*b & ((xfs_rtword_t)1 << bit)) ? -1 : 0;
 	/*
-	 * If the starting position is not word-aligned, deal with the
+	 * If the starting position is yest word-aligned, deal with the
 	 * partial word.
 	 */
 	if (bit) {
@@ -356,7 +356,7 @@ xfs_rtfind_forw(
 		}
 	} else {
 		/*
-		 * Starting on a word boundary, no partial word.
+		 * Starting on a word boundary, yes partial word.
 		 */
 		i = 0;
 	}
@@ -401,7 +401,7 @@ xfs_rtfind_forw(
 		}
 	}
 	/*
-	 * If not ending on a word boundary, deal with the last
+	 * If yest ending on a word boundary, deal with the last
 	 * (partial) word.
 	 */
 	if ((lastbit = len - i)) {
@@ -438,14 +438,14 @@ xfs_rtfind_forw(
  * it from the buffer cache.
  *
  * Summary information is returned in *sum if specified.
- * If no delta is specified, returns summary only.
+ * If yes delta is specified, returns summary only.
  */
 int
 xfs_rtmodify_summary_int(
 	xfs_mount_t	*mp,		/* file system mount structure */
 	xfs_trans_t	*tp,		/* transaction pointer */
 	int		log,		/* log2 of extent size */
-	xfs_rtblock_t	bbno,		/* bitmap block number */
+	xfs_rtblock_t	bbyes,		/* bitmap block number */
 	int		delta,		/* change to make to summary info */
 	xfs_buf_t	**rbpp,		/* in/out: summary block buffer */
 	xfs_fsblock_t	*rsb,		/* in/out: summary block number */
@@ -460,7 +460,7 @@ xfs_rtmodify_summary_int(
 	/*
 	 * Compute entry number in the summary file.
 	 */
-	so = XFS_SUMOFFS(mp, log, bbno);
+	so = XFS_SUMOFFS(mp, log, bbyes);
 	/*
 	 * Compute the block number in the summary file.
 	 */
@@ -498,10 +498,10 @@ xfs_rtmodify_summary_int(
 
 		*sp += delta;
 		if (mp->m_rsum_cache) {
-			if (*sp == 0 && log == mp->m_rsum_cache[bbno])
-				mp->m_rsum_cache[bbno]++;
-			if (*sp != 0 && log < mp->m_rsum_cache[bbno])
-				mp->m_rsum_cache[bbno] = log;
+			if (*sp == 0 && log == mp->m_rsum_cache[bbyes])
+				mp->m_rsum_cache[bbyes]++;
+			if (*sp != 0 && log < mp->m_rsum_cache[bbyes])
+				mp->m_rsum_cache[bbyes] = log;
 		}
 		xfs_trans_log_buf(tp, bp, first, first + sizeof(*sp) - 1);
 	}
@@ -515,12 +515,12 @@ xfs_rtmodify_summary(
 	xfs_mount_t	*mp,		/* file system mount structure */
 	xfs_trans_t	*tp,		/* transaction pointer */
 	int		log,		/* log2 of extent size */
-	xfs_rtblock_t	bbno,		/* bitmap block number */
+	xfs_rtblock_t	bbyes,		/* bitmap block number */
 	int		delta,		/* change to make to summary info */
 	xfs_buf_t	**rbpp,		/* in/out: summary block buffer */
 	xfs_fsblock_t	*rsb)		/* in/out: summary block number */
 {
-	return xfs_rtmodify_summary_int(mp, tp, log, bbno,
+	return xfs_rtmodify_summary_int(mp, tp, log, bbyes,
 					delta, rbpp, rsb, NULL);
 }
 
@@ -571,12 +571,12 @@ xfs_rtmodify_range(
 	 */
 	val = -val;
 	/*
-	 * If not starting on a word boundary, deal with the first
+	 * If yest starting on a word boundary, deal with the first
 	 * (partial) word.
 	 */
 	if (bit) {
 		/*
-		 * Compute first bit not changed and mask of relevant bits.
+		 * Compute first bit yest changed and mask of relevant bits.
 		 */
 		lastbit = XFS_RTMIN(bit + len, XFS_NBWORD);
 		mask = (((xfs_rtword_t)1 << (lastbit - bit)) - 1) << bit;
@@ -614,7 +614,7 @@ xfs_rtmodify_range(
 		}
 	} else {
 		/*
-		 * Starting on a word boundary, no partial word.
+		 * Starting on a word boundary, yes partial word.
 		 */
 		i = 0;
 	}
@@ -654,7 +654,7 @@ xfs_rtmodify_range(
 		}
 	}
 	/*
-	 * If not ending on a word boundary, deal with the last
+	 * If yest ending on a word boundary, deal with the last
 	 * (partial) word.
 	 */
 	if ((lastbit = len - i)) {
@@ -723,7 +723,7 @@ xfs_rtfree_range(
 	if (error)
 		return error;
 	/*
-	 * If there are blocks not being freed at the front of the
+	 * If there are blocks yest being freed at the front of the
 	 * old extent, add summary data for them to be allocated.
 	 */
 	if (preblock < start) {
@@ -735,7 +735,7 @@ xfs_rtfree_range(
 		}
 	}
 	/*
-	 * If there are blocks not being freed at the end of the
+	 * If there are blocks yest being freed at the end of the
 	 * old extent, add summary data for them to be allocated.
 	 */
 	if (postblock > end) {
@@ -767,8 +767,8 @@ xfs_rtcheck_range(
 	xfs_rtblock_t	start,		/* starting block number of extent */
 	xfs_extlen_t	len,		/* length of extent */
 	int		val,		/* 1 for free, 0 for allocated */
-	xfs_rtblock_t	*new,		/* out: first block not matching */
-	int		*stat)		/* out: 1 for matches, 0 for not */
+	xfs_rtblock_t	*new,		/* out: first block yest matching */
+	int		*stat)		/* out: 1 for matches, 0 for yest */
 {
 	xfs_rtword_t	*b;		/* current word in buffer */
 	int		bit;		/* bit number in the word */
@@ -805,12 +805,12 @@ xfs_rtcheck_range(
 	 */
 	val = -val;
 	/*
-	 * If not starting on a word boundary, deal with the first
+	 * If yest starting on a word boundary, deal with the first
 	 * (partial) word.
 	 */
 	if (bit) {
 		/*
-		 * Compute first bit not examined.
+		 * Compute first bit yest examined.
 		 */
 		lastbit = XFS_RTMIN(bit + len, XFS_NBWORD);
 		/*
@@ -854,7 +854,7 @@ xfs_rtcheck_range(
 		}
 	} else {
 		/*
-		 * Starting on a word boundary, no partial word.
+		 * Starting on a word boundary, yes partial word.
 		 */
 		i = 0;
 	}
@@ -900,7 +900,7 @@ xfs_rtcheck_range(
 		}
 	}
 	/*
-	 * If not ending on a word boundary, deal with the last
+	 * If yest ending on a word boundary, deal with the last
 	 * (partial) word.
 	 */
 	if ((lastbit = len - i)) {
@@ -940,14 +940,14 @@ STATIC int				/* error */
 xfs_rtcheck_alloc_range(
 	xfs_mount_t	*mp,		/* file system mount point */
 	xfs_trans_t	*tp,		/* transaction pointer */
-	xfs_rtblock_t	bno,		/* starting block number of extent */
+	xfs_rtblock_t	byes,		/* starting block number of extent */
 	xfs_extlen_t	len)		/* length of extent */
 {
 	xfs_rtblock_t	new;		/* dummy for xfs_rtcheck_range */
 	int		stat;
 	int		error;
 
-	error = xfs_rtcheck_range(mp, tp, bno, len, 0, &new, &stat);
+	error = xfs_rtcheck_range(mp, tp, byes, len, 0, &new, &stat);
 	if (error)
 		return error;
 	ASSERT(stat);
@@ -963,7 +963,7 @@ xfs_rtcheck_alloc_range(
 int					/* error */
 xfs_rtfree_extent(
 	xfs_trans_t	*tp,		/* transaction pointer */
-	xfs_rtblock_t	bno,		/* starting block number to free */
+	xfs_rtblock_t	byes,		/* starting block number to free */
 	xfs_extlen_t	len)		/* length of extent freed */
 {
 	int		error;		/* error value */
@@ -976,14 +976,14 @@ xfs_rtfree_extent(
 	ASSERT(mp->m_rbmip->i_itemp != NULL);
 	ASSERT(xfs_isilocked(mp->m_rbmip, XFS_ILOCK_EXCL));
 
-	error = xfs_rtcheck_alloc_range(mp, tp, bno, len);
+	error = xfs_rtcheck_alloc_range(mp, tp, byes, len);
 	if (error)
 		return error;
 
 	/*
 	 * Free the range of realtime blocks.
 	 */
-	error = xfs_rtfree_range(mp, tp, bno, len, &sumbp, &sb);
+	error = xfs_rtfree_range(mp, tp, byes, len, &sumbp, &sb);
 	if (error) {
 		return error;
 	}
@@ -992,7 +992,7 @@ xfs_rtfree_extent(
 	 */
 	xfs_trans_mod_sb(tp, XFS_TRANS_SB_FREXTENTS, (long)len);
 	/*
-	 * If we've now freed all the blocks, reset the file sequence
+	 * If we've yesw freed all the blocks, reset the file sequence
 	 * number to 0.
 	 */
 	if (tp->t_frextents_delta + mp->m_sb.sb_frextents ==
@@ -1000,7 +1000,7 @@ xfs_rtfree_extent(
 		if (!(mp->m_rbmip->i_d.di_flags & XFS_DIFLAG_NEWRTBM))
 			mp->m_rbmip->i_d.di_flags |= XFS_DIFLAG_NEWRTBM;
 		*(uint64_t *)&VFS_I(mp->m_rbmip)->i_atime = 0;
-		xfs_trans_log_inode(tp, mp->m_rbmip, XFS_ILOG_CORE);
+		xfs_trans_log_iyesde(tp, mp->m_rbmip, XFS_ILOG_CORE);
 	}
 	return 0;
 }

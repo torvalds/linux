@@ -149,7 +149,7 @@ static struct device *wakeup_source_device_create(struct device *parent,
 	dev->groups = wakeup_source_groups;
 	dev->release = device_create_release;
 	dev_set_drvdata(dev, ws);
-	device_set_pm_not_required(dev);
+	device_set_pm_yest_required(dev);
 
 	retval = kobject_set_name(&dev->kobj, "wakeup%d", ws->id);
 	if (retval)

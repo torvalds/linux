@@ -22,7 +22,7 @@
 #define RTL8711_RF_MAX_SENS		6
 #define RTL8711_RF_DEF_SENS		4
 
-/*  We now define the following channels as the max channels in each
+/*  We yesw define the following channels as the max channels in each
  * channel plan.
  */
 /*  2G, total 14 chnls */

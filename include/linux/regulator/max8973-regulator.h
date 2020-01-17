@@ -49,7 +49,7 @@
  *		voltage output will be enabled/disabled through EN bit of
  *		device register.
  * @enable_gpio: Enable GPIO. If EN pin is controlled through GPIO from host
- *		then GPIO number can be provided. If no GPIO controlled then
+ *		then GPIO number can be provided. If yes GPIO controlled then
  *		it should be -1.
  * @dvs_gpio: GPIO for dvs. It should be -1 if this is tied with fixed logic.
  * @dvs_def_state: Default state of dvs. 1 if it is high else 0.

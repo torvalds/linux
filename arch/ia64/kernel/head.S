@@ -271,7 +271,7 @@ start_ap:
 	;;
 	rfi
 	;;
-1:	// now we are in virtual mode
+1:	// yesw we are in virtual mode
 
 	SET_AREA_FOR_BOOTING_CPU(r2, r16);
 
@@ -314,7 +314,7 @@ start_ap:
 	;;
 	tpa r3=r2		// r3 == phys addr of task struct
 	mov r16=-1
-(isBP)	br.cond.dpnt .load_current // BP stack is on region 5 --- no need to map it
+(isBP)	br.cond.dpnt .load_current // BP stack is on region 5 --- yes need to map it
 
 	// load mapping for stack (virtaddr in r2, physaddr in r3)
 	rsm psr.ic
@@ -768,7 +768,7 @@ END(__ia64_load_fpu)
 GLOBAL_ENTRY(__ia64_init_fpu)
 	stf.spill [sp]=f0		// M3
 	mov	 f32=f0			// F
-	nop.b	 0
+	yesp.b	 0
 
 	ldfps	 f33,f34=[sp]		// M0
 	ldfps	 f35,f36=[sp]		// M1
@@ -978,7 +978,7 @@ END(ia64_switch_mode_virt)
 
 GLOBAL_ENTRY(ia64_delay_loop)
 	.prologue
-{	nop 0			// work around GAS unwind info generation bug...
+{	yesp 0			// work around GAS unwind info generation bug...
 	.save ar.lc,r2
 	mov r2=ar.lc
 	.body
@@ -986,9 +986,9 @@ GLOBAL_ENTRY(ia64_delay_loop)
 	mov ar.lc=r32
 }
 	;;
-	// force loop to be 32-byte aligned (GAS bug means we cannot use .align
+	// force loop to be 32-byte aligned (GAS bug means we canyest use .align
 	// inside function body without corrupting unwind info).
-{	nop 0 }
+{	yesp 0 }
 1:	br.cloop.sptk.few 1b
 	;;
 	mov ar.lc=r2
@@ -996,9 +996,9 @@ GLOBAL_ENTRY(ia64_delay_loop)
 END(ia64_delay_loop)
 
 /*
- * Return a CPU-local timestamp in nano-seconds.  This timestamp is
+ * Return a CPU-local timestamp in nayes-seconds.  This timestamp is
  * NOT synchronized across CPUs its return value must never be
- * compared against the values returned on another CPU.  The usage in
+ * compared against the values returned on ayesther CPU.  The usage in
  * kernel/sched/core.c ensures that.
  *
  * The return-value of sched_clock() is NOT supposed to wrap-around.
@@ -1097,7 +1097,7 @@ GLOBAL_ENTRY(ia64_jump_to_sal)
 	movl r16=SAL_PSR_BITS_TO_SET;;
 	mov cr.ipsr=r16
 	mov cr.ifs=r0;;
-	rfi;;			// note: this unmask MCA/INIT (psr.mc)
+	rfi;;			// yeste: this unmask MCA/INIT (psr.mc)
 1:
 	/*
 	 * Invalidate all TLB data/inst
@@ -1123,7 +1123,7 @@ tlb_purge_done:
 	RESTORE_REG(cr.dcr, r25, r17);;
 	RESTORE_REG(cr.iva, r25, r17);;
 	RESTORE_REG(cr.pta, r25, r17);;
-	srlz.d;;	// required not to violate RAW dependency
+	srlz.d;;	// required yest to violate RAW dependency
 	RESTORE_REG(cr.itv, r25, r17);;
 	RESTORE_REG(cr.pmv, r25, r17);;
 	RESTORE_REG(cr.cmcv, r25, r17);;
@@ -1162,7 +1162,7 @@ tlb_purge_done:
 
 	/*
 	 * Now that we have done all the register restores
-	 * we are now ready for the big DIVE to SAL Land
+	 * we are yesw ready for the big DIVE to SAL Land
 	 */
 	ssm psr.ic;;
 	srlz.d;;

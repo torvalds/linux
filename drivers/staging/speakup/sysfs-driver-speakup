@@ -61,15 +61,15 @@ Description:	Speakup keymap remaps keys to Speakup functions.
 		textual  keymap into the binary format which is then loaded into
 		/sys/accessibility/speakup/keymap.
 
-What:		/sys/accessibility/speakup/no_interrupt
+What:		/sys/accessibility/speakup/yes_interrupt
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Controls if typing interrupts output from speakup. With
-		no_interrupt set to zero, typing on the keyboard will interrupt
+		yes_interrupt set to zero, typing on the keyboard will interrupt
 		speakup if for example
 		the say screen command is used before the
 		entire screen  is read.
-		With no_interrupt set to one, if the say
+		With yes_interrupt set to one, if the say
 		screen command is used, and one then types on the keyboard,
 		speakup will continue to say the whole screen regardless until
 		it finishes.
@@ -84,12 +84,12 @@ What:		/sys/accessibility/speakup/punc_level
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Controls the level of punctuation spoken as the screen is
-		displayed, not reviewed. Levels range from zero no punctuation,
+		displayed, yest reviewed. Levels range from zero yes punctuation,
 		to four, all punctuation. One corresponds to punc_some, two
 		corresponds to punc_most, and three as well as four both
 		correspond to punc_all. Some hardware synthesizers may have
 		different levels each corresponding to  three and four for
-		punc_level. Also note that if punc_level is set to zero, and
+		punc_level. Also yeste that if punc_level is set to zero, and
 		key_echo is set to one, typed punctuation is still spoken as it
 		is typed.
 
@@ -130,7 +130,7 @@ KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	If set to one, speakup speaks shift, alt and control when those
 		keys are pressed. If say_control is set to zero, shift, ctrl,
-		and alt are not spoken when they are pressed.
+		and alt are yest spoken when they are pressed.
 
 What:		/sys/accessibility/speakup/say_word_ctl
 KernelVersion:	2.6
@@ -149,7 +149,7 @@ Description:	This controls how fast a word is spelled
 		when speakup's say word
 		review command is pressed twice quickly to speak the current
 		word being reviewed. Zero just speaks the letters one after
-		another, while values one through four
+		ayesther, while values one through four
 		seem to introduce more of
 		a pause between the spelling of each letter by speakup.
 
@@ -177,11 +177,11 @@ Contact:	speakup@linux-speakup.org
 Description:	Reading version returns the version of speakup, and the version
 		of the synthesizer driver currently in use.
 
-What:		/sys/accessibility/speakup/i18n/announcements
+What:		/sys/accessibility/speakup/i18n/anyesuncements
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
-Description:	This file contains various general announcements, most of which
-		cannot be categorized.  You will find messages such as "You
+Description:	This file contains various general anyesuncements, most of which
+		canyest be categorized.  You will find messages such as "You
 		killed Speakup", "I'm alive", "leaving help", "parked",
 		"unparked", and others. You will also find the names of the
 		screen edges and cursor tracking modes here.
@@ -223,9 +223,9 @@ What:		/sys/accessibility/speakup/i18n/characters
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Through this sys entry, Speakup gives you the ability to change
-		how Speakup pronounces a given character. You could, for
+		how Speakup proyesunces a given character. You could, for
 		example, change how some punctuation characters are spoken. You
-		can even change how Speakup will pronounce certain letters. For
+		can even change how Speakup will proyesunce certain letters. For
 		further details see '12.  Changing the Pronunciation of
 		Characters' in Speakup User's Guide (file spkguide.txt in
 		source).
@@ -343,7 +343,7 @@ What:		/sys/accessibility/speakup/soft/tone
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	Gets or sets the tone of the speech synthesizer. The range for
-		the soft driver seems to be 0-2. This seems to make no
+		the soft driver seems to be 0-2. This seems to make yes
 		difference if using espeak and the espeakup connector.
 		TODO: does espeakup support different tonalities?
 
@@ -358,7 +358,7 @@ Contact:	speakup@linux-speakup.org
 Description:	Gets or sets the voice used by the synthesizer if the
 		synthesizer can speak in more than one voice. The range for the
 		soft driver is 0-7. Note that while espeak supports multiple
-		voices, this parameter will not set the voice when the espeakup
+		voices, this parameter will yest set the voice when the espeakup
 		connector is used  between speakup and espeak.
 
 What:		/sys/accessibility/speakup/soft/vol

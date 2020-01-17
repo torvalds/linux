@@ -31,7 +31,7 @@
 #define block_state_name(x) __print_symbolic(x,			\
 			    { GFS2_BLKST_FREE, "free" },	\
 			    { GFS2_BLKST_USED, "used" },	\
-			    { GFS2_BLKST_DINODE, "dinode" },	\
+			    { GFS2_BLKST_DINODE, "diyesde" },	\
 			    { GFS2_BLKST_UNLINKED, "unlinked" })
 
 #define TRACE_RS_DELETE  0
@@ -331,7 +331,7 @@ TRACE_EVENT(gfs2_pin,
 		__field(	int,	pin			)
 		__field(	u32,	len			)
 		__field(	sector_t,	block		)
-		__field(	u64,	ino			)
+		__field(	u64,	iyes			)
 	),
 
 	TP_fast_assign(
@@ -339,15 +339,15 @@ TRACE_EVENT(gfs2_pin,
 		__entry->pin		= pin;
 		__entry->len		= bd->bd_bh->b_size;
 		__entry->block		= bd->bd_bh->b_blocknr;
-		__entry->ino		= bd->bd_gl->gl_name.ln_number;
+		__entry->iyes		= bd->bd_gl->gl_name.ln_number;
 	),
 
-	TP_printk("%u,%u log %s %llu/%lu inode %llu",
+	TP_printk("%u,%u log %s %llu/%lu iyesde %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->pin ? "pin" : "unpin",
 		  (unsigned long long)__entry->block,
 		  (unsigned long)__entry->len,
-		  (unsigned long long)__entry->ino)
+		  (unsigned long long)__entry->iyes)
 );
 
 /* Flushing the log */
@@ -422,7 +422,7 @@ TRACE_EVENT(gfs2_ail_flush,
 
 	TP_printk("%u,%u ail flush %s %s %ld", MAJOR(__entry->dev),
 		  MINOR(__entry->dev), __entry->start ? "start" : "end",
-		  __entry->sync_mode == WB_SYNC_ALL ? "all" : "none",
+		  __entry->sync_mode == WB_SYNC_ALL ? "all" : "yesne",
 		  __entry->nr_to_write)
 );
 
@@ -437,10 +437,10 @@ TRACE_EVENT(gfs2_ail_flush,
 /* Map an extent of blocks, possibly a new allocation */
 TRACE_EVENT(gfs2_bmap,
 
-	TP_PROTO(const struct gfs2_inode *ip, const struct buffer_head *bh,
-		sector_t lblock, int create, int errno),
+	TP_PROTO(const struct gfs2_iyesde *ip, const struct buffer_head *bh,
+		sector_t lblock, int create, int erryes),
 
-	TP_ARGS(ip, bh, lblock, create, errno),
+	TP_ARGS(ip, bh, lblock, create, erryes),
 
 	TP_STRUCT__entry(
 		__field(        dev_t,  dev                     )
@@ -450,18 +450,18 @@ TRACE_EVENT(gfs2_bmap,
 		__field(	unsigned long, state		)
 		__field(	u32,	len			)
 		__field(	int,	create			)
-		__field(	int,	errno			)
+		__field(	int,	erryes			)
 	),
 
 	TP_fast_assign(
 		__entry->dev            = ip->i_gl->gl_name.ln_sbd->sd_vfs->s_dev;
 		__entry->lblock		= lblock;
 		__entry->pblock		= buffer_mapped(bh) ?  bh->b_blocknr : 0;
-		__entry->inum		= ip->i_no_addr;
+		__entry->inum		= ip->i_yes_addr;
 		__entry->state		= bh->b_state;
 		__entry->len		= bh->b_size;
 		__entry->create		= create;
-		__entry->errno		= errno;
+		__entry->erryes		= erryes;
 	),
 
 	TP_printk("%u,%u bmap %llu map %llu/%lu to %llu flags:%08lx %s %d",
@@ -470,13 +470,13 @@ TRACE_EVENT(gfs2_bmap,
 		  (unsigned long long)__entry->lblock,
 		  (unsigned long)__entry->len,
 		  (unsigned long long)__entry->pblock,
-		  __entry->state, __entry->create ? "create " : "nocreate",
-		  __entry->errno)
+		  __entry->state, __entry->create ? "create " : "yescreate",
+		  __entry->erryes)
 );
 
 TRACE_EVENT(gfs2_iomap_start,
 
-	TP_PROTO(const struct gfs2_inode *ip, loff_t pos, ssize_t length,
+	TP_PROTO(const struct gfs2_iyesde *ip, loff_t pos, ssize_t length,
 		 u16 flags),
 
 	TP_ARGS(ip, pos, length, flags),
@@ -491,7 +491,7 @@ TRACE_EVENT(gfs2_iomap_start,
 
 	TP_fast_assign(
 		__entry->dev            = ip->i_gl->gl_name.ln_sbd->sd_vfs->s_dev;
-		__entry->inum		= ip->i_no_addr;
+		__entry->inum		= ip->i_yes_addr;
 		__entry->pos		= pos;
 		__entry->length		= length;
 		__entry->flags		= flags;
@@ -506,7 +506,7 @@ TRACE_EVENT(gfs2_iomap_start,
 
 TRACE_EVENT(gfs2_iomap_end,
 
-	TP_PROTO(const struct gfs2_inode *ip, struct iomap *iomap, int ret),
+	TP_PROTO(const struct gfs2_iyesde *ip, struct iomap *iomap, int ret),
 
 	TP_ARGS(ip, iomap, ret),
 
@@ -523,11 +523,11 @@ TRACE_EVENT(gfs2_iomap_end,
 
 	TP_fast_assign(
 		__entry->dev            = ip->i_gl->gl_name.ln_sbd->sd_vfs->s_dev;
-		__entry->inum		= ip->i_no_addr;
+		__entry->inum		= ip->i_yes_addr;
 		__entry->offset		= iomap->offset;
 		__entry->length		= iomap->length;
 		__entry->pblock		= iomap->addr == IOMAP_NULL_ADDR ? 0 :
-					 (iomap->addr >> ip->i_inode.i_blkbits);
+					 (iomap->addr >> ip->i_iyesde.i_blkbits);
 		__entry->flags		= iomap->flags;
 		__entry->type		= iomap->type;
 		__entry->ret		= ret;
@@ -546,7 +546,7 @@ TRACE_EVENT(gfs2_iomap_end,
 /* Keep track of blocks as they are allocated/freed */
 TRACE_EVENT(gfs2_block_alloc,
 
-	TP_PROTO(const struct gfs2_inode *ip, struct gfs2_rgrpd *rgd,
+	TP_PROTO(const struct gfs2_iyesde *ip, struct gfs2_rgrpd *rgd,
 		 u64 block, unsigned len, u8 block_state),
 
 	TP_ARGS(ip, rgd, block, len, block_state),
@@ -565,7 +565,7 @@ TRACE_EVENT(gfs2_block_alloc,
 	TP_fast_assign(
 		__entry->dev		= rgd->rd_gl->gl_name.ln_sbd->sd_vfs->s_dev;
 		__entry->start		= block;
-		__entry->inum		= ip->i_no_addr;
+		__entry->inum		= ip->i_yes_addr;
 		__entry->len		= len;
 		__entry->block_state	= block_state;
 		__entry->rd_addr	= rgd->rd_addr;
@@ -606,8 +606,8 @@ TRACE_EVENT(gfs2_rs,
 		__entry->rd_addr	= rs->rs_rbm.rgd->rd_addr;
 		__entry->rd_free_clone	= rs->rs_rbm.rgd->rd_free_clone;
 		__entry->rd_reserved	= rs->rs_rbm.rgd->rd_reserved;
-		__entry->inum		= container_of(rs, struct gfs2_inode,
-						       i_res)->i_no_addr;
+		__entry->inum		= container_of(rs, struct gfs2_iyesde,
+						       i_res)->i_yes_addr;
 		__entry->start		= gfs2_rbm_to_block(&rs->rs_rbm);
 		__entry->free		= rs->rs_free;
 		__entry->func		= func;

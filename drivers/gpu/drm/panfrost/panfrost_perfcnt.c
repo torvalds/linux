@@ -49,7 +49,7 @@ static int panfrost_perfcnt_dump_locked(struct panfrost_device *pfdev)
 	int ret;
 
 	reinit_completion(&pfdev->perfcnt->dump_comp);
-	gpuva = pfdev->perfcnt->bo->node.start << PAGE_SHIFT;
+	gpuva = pfdev->perfcnt->bo->yesde.start << PAGE_SHIFT;
 	gpu_write(pfdev, GPU_PERFCNT_BASE_LO, gpuva);
 	gpu_write(pfdev, GPU_PERFCNT_BASE_HI, gpuva >> 32);
 	gpu_write(pfdev, GPU_INT_CLEAR,
@@ -122,7 +122,7 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 	perfcnt->user = user;
 
 	/*
-	 * Always use address space 0 for now.
+	 * Always use address space 0 for yesw.
 	 * FIXME: this needs to be updated when we start using different
 	 * address space.
 	 */
@@ -131,7 +131,7 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 
 	/*
 	 * Bifrost GPUs have 2 set of counters, but we're only interested by
-	 * the first one for now.
+	 * the first one for yesw.
 	 */
 	if (panfrost_model_is_bifrost(pfdev))
 		cfg |= GPU_PERFCNT_CFG_SETSEL(counterset);

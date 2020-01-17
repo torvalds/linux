@@ -27,12 +27,12 @@ static const struct iio_buffer_setup_ops iio_triggered_buffer_setup_ops = {
  *			If NULL the default setup functions for triggered
  *			buffers will be used.
  *
- * This function combines some common tasks which will normally be performed
+ * This function combines some common tasks which will yesrmally be performed
  * when setting up a triggered buffer. It will allocate the buffer and the
  * pollfunc.
  *
  * Before calling this function the indio_dev structure should already be
- * completely initialized, but not yet registered. In practice this means that
+ * completely initialized, but yest yet registered. In practice this means that
  * this function should be called right before iio_device_register().
  *
  * To free the resources allocated by this function call

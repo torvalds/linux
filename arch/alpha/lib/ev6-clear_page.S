@@ -30,27 +30,27 @@ clear_page:
 	stq	$31,8($16)
 	stq	$31,16($16)
 	addq	$17,64,$2
-	nop
+	yesp
 
 	stq	$31,24($16)
 	stq	$31,32($16)
 	cmovgt	$1,$2,$17
-	nop
+	yesp
 
 	stq	$31,40($16)
 	stq	$31,48($16)
-	nop
-	nop
+	yesp
+	yesp
 
 	stq	$31,56($16)
 	addq	$16,64,$16
-	nop
+	yesp
 	bne	$0,1b
 
 	ret
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
 
 	.end clear_page
 	EXPORT_SYMBOL(clear_page)

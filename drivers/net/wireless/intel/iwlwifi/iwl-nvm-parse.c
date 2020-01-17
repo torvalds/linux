@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -379,7 +379,7 @@ static int iwl_init_channel_map(struct device *dev, const struct iwl_cfg *cfg,
 
 		/*
 		 * Default value - highest tx power value.  max_power
-		 * is not used in mvm, and is used for backwards compatibility
+		 * is yest used in mvm, and is used for backwards compatibility
 		 */
 		channel->max_power = IWL_DEFAULT_MAX_TX_POWER;
 
@@ -453,7 +453,7 @@ static void iwl_init_vht_hw_capab(struct iwl_trans *trans,
 			vht_cap->cap |=
 				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454;
 		else
-			WARN(1, "RB size of 2K is not supported by this device\n");
+			WARN(1, "RB size of 2K is yest supported by this device\n");
 		break;
 	case IWL_AMSDU_4K:
 		vht_cap->cap |= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
@@ -662,7 +662,7 @@ static void iwl_init_he_hw_capab(struct ieee80211_supported_band *sband,
 	sband->iftype_data = iwl_he_capa;
 	sband->n_iftype_data = ARRAY_SIZE(iwl_he_capa);
 
-	/* If not 2x2, we need to indicate 1x1 in the Midamble RX Max NSTS */
+	/* If yest 2x2, we need to indicate 1x1 in the Midamble RX Max NSTS */
 	if ((tx_chains & rx_chains) != ANT_AB) {
 		int i;
 
@@ -855,7 +855,7 @@ static void iwl_set_hw_address_family_8000(struct iwl_trans *trans,
 			return;
 
 		IWL_ERR(trans,
-			"mac address from nvm override section is not valid\n");
+			"mac address from nvm override section is yest valid\n");
 	}
 
 	if (nvm_hw) {
@@ -870,7 +870,7 @@ static void iwl_set_hw_address_family_8000(struct iwl_trans *trans,
 		return;
 	}
 
-	IWL_ERR(trans, "mac address is not found\n");
+	IWL_ERR(trans, "mac address is yest found\n");
 }
 
 static int iwl_set_hw_address(struct iwl_trans *trans,
@@ -896,7 +896,7 @@ static int iwl_set_hw_address(struct iwl_trans *trans,
 	}
 
 	if (!is_valid_ether_addr(data->hw_addr)) {
-		IWL_ERR(trans, "no valid mac address was found\n");
+		IWL_ERR(trans, "yes valid mac address was found\n");
 		return -EINVAL;
 	}
 
@@ -906,7 +906,7 @@ static int iwl_set_hw_address(struct iwl_trans *trans,
 }
 
 static bool
-iwl_nvm_no_wide_in_5ghz(struct iwl_trans *trans, const struct iwl_cfg *cfg,
+iwl_nvm_yes_wide_in_5ghz(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 			const __be16 *nvm_hw)
 {
 	/*
@@ -1016,7 +1016,7 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		ch_section = &regulatory[NVM_CHANNELS_EXTENDED];
 	}
 
-	/* If no valid mac address was found - bail out */
+	/* If yes valid mac address was found - bail out */
 	if (iwl_set_hw_address(trans, cfg, data, nvm_hw, mac_override)) {
 		kfree(data);
 		return NULL;
@@ -1025,7 +1025,7 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	if (lar_fw_supported && lar_enabled)
 		sbands_flags |= IWL_NVM_SBANDS_FLAGS_LAR;
 
-	if (iwl_nvm_no_wide_in_5ghz(trans, cfg, nvm_hw))
+	if (iwl_nvm_yes_wide_in_5ghz(trans, cfg, nvm_hw))
 		sbands_flags |= IWL_NVM_SBANDS_FLAGS_NO_WIDE_IN_5GHZ;
 
 	iwl_init_sbands(trans, data, ch_section, tx_chains, rx_chains,
@@ -1157,7 +1157,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 
 		rule->freq_range.end_freq_khz = MHZ_TO_KHZ(center_freq + 10);
 
-		/* this doesn't matter - not used by FW */
+		/* this doesn't matter - yest used by FW */
 		rule->power_rule.max_antenna_gain = DBI_TO_MBI(6);
 		rule->power_rule.max_eirp =
 			DBM_TO_MBM(IWL_DEFAULT_MAX_TX_POWER);
@@ -1271,9 +1271,9 @@ int iwl_read_external_nvm(struct iwl_trans *trans,
 
 	/*
 	 * Obtain NVM image via request_firmware. Since we already used
-	 * request_firmware_nowait() for the firmware binary load and only
+	 * request_firmware_yeswait() for the firmware binary load and only
 	 * get here after that we assume the NVM request can be satisfied
-	 * synchronously.
+	 * synchroyesusly.
 	 */
 	ret = request_firmware(&fw_entry, nvm_file_name, trans->dev);
 	if (ret) {
@@ -1451,7 +1451,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	/* TODO: if platform NVM has MAC address - override it here */
 
 	if (!is_valid_ether_addr(nvm->hw_addr)) {
-		IWL_ERR(trans, "no valid mac address was found\n");
+		IWL_ERR(trans, "yes valid mac address was found\n");
 		ret = -EINVAL;
 		goto err_free;
 	}
@@ -1463,7 +1463,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 	nvm->n_hw_addrs = rsp->general.n_hw_addrs;
 	if (nvm->n_hw_addrs == 0)
 		IWL_WARN(trans,
-			 "Firmware declares no reserved mac addresses. OTP is empty: %d\n",
+			 "Firmware declares yes reserved mac addresses. OTP is empty: %d\n",
 			 empty_otp);
 
 	/* Initialize MAC sku data */

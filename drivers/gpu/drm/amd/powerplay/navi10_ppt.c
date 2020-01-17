@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -1350,7 +1350,7 @@ static int navi10_get_profiling_clk_mask(struct smu_context *smu,
 	return ret;
 }
 
-static int navi10_notify_smc_dispaly_config(struct smu_context *smu)
+static int navi10_yestify_smc_dispaly_config(struct smu_context *smu)
 {
 	struct smu_clocks min_clocks = {0};
 	struct pp_display_clock_request clock_req;
@@ -1708,7 +1708,7 @@ static int navi10_get_power_limit(struct smu_context *smu,
 		} else {
 			/* the last hope to figure out the ppt limit */
 			if (!pptable) {
-				pr_err("Cannot get PPT limit due to pptable missing!");
+				pr_err("Canyest get PPT limit due to pptable missing!");
 				return -EINVAL;
 			}
 			asic_default_power_limit =
@@ -1834,12 +1834,12 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 	od_table = (OverDriveTable_t *)table_context->overdrive_table;
 
 	if (!smu->od_enabled) {
-		pr_warn("OverDrive is not enabled!\n");
+		pr_warn("OverDrive is yest enabled!\n");
 		return -EINVAL;
 	}
 
 	if (!smu->od_settings) {
-		pr_err("OD board limits are not set!\n");
+		pr_err("OD board limits are yest set!\n");
 		return -ENOENT;
 	}
 
@@ -1848,11 +1848,11 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 	switch (type) {
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_LIMITS)) {
-			pr_warn("GFXCLK_LIMITS not supported!\n");
+			pr_warn("GFXCLK_LIMITS yest supported!\n");
 			return -ENOTSUPP;
 		}
 		if (!table_context->overdrive_table) {
-			pr_err("Overdrive is not initialized\n");
+			pr_err("Overdrive is yest initialized\n");
 			return -EINVAL;
 		}
 		for (i = 0; i < size; i += 2) {
@@ -1894,7 +1894,7 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		break;
 	case PP_OD_EDIT_MCLK_VDDC_TABLE:
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_UCLK_MAX)) {
-			pr_warn("UCLK_MAX not supported!\n");
+			pr_warn("UCLK_MAX yest supported!\n");
 			return -ENOTSUPP;
 		}
 		if (size < 2) {
@@ -1918,7 +1918,7 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 			pr_err("Failed to import overdrive table!\n");
 			return ret;
 		}
-		// no lock needed because smu_od_edit_dpm_table has it
+		// yes lock needed because smu_od_edit_dpm_table has it
 		ret = smu_handle_task(smu, smu->smu_dpm.dpm_level,
 			AMD_PP_TASK_READJUST_POWER_STATE,
 			false);
@@ -1928,7 +1928,7 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		break;
 	case PP_OD_EDIT_VDDC_CURVE:
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODFEATURE_GFXCLK_CURVE)) {
-			pr_warn("GFXCLK_CURVE not supported!\n");
+			pr_warn("GFXCLK_CURVE yest supported!\n");
 			return -ENOTSUPP;
 		}
 		if (size < 3) {
@@ -1936,7 +1936,7 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 			return -EINVAL;
 		}
 		if (!od_table) {
-			pr_info("Overdrive is not initialized\n");
+			pr_info("Overdrive is yest initialized\n");
 			return -EINVAL;
 		}
 
@@ -2022,7 +2022,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_clock_by_type_with_latency = navi10_get_clock_by_type_with_latency,
 	.pre_display_config_changed = navi10_pre_display_config_changed,
 	.display_config_changed = navi10_display_config_changed,
-	.notify_smc_dispaly_config = navi10_notify_smc_dispaly_config,
+	.yestify_smc_dispaly_config = navi10_yestify_smc_dispaly_config,
 	.force_dpm_limit_value = navi10_force_dpm_limit_value,
 	.unforce_dpm_levels = navi10_unforce_dpm_levels,
 	.is_dpm_running = navi10_is_dpm_running,
@@ -2056,14 +2056,14 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.write_pptable = smu_v11_0_write_pptable,
 	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
-	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
+	.yestify_memory_pool_location = smu_v11_0_yestify_memory_pool_location,
 	.system_features_control = smu_v11_0_system_features_control,
 	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
 	.read_smc_arg = smu_v11_0_read_arg,
 	.init_display_count = smu_v11_0_init_display_count,
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
-	.notify_display_change = smu_v11_0_notify_display_change,
+	.yestify_display_change = smu_v11_0_yestify_display_change,
 	.set_power_limit = smu_v11_0_set_power_limit,
 	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,

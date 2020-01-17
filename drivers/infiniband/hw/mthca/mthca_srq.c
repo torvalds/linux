@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -652,7 +652,7 @@ int mthca_max_srq_sge(struct mthca_dev *dev)
 	 * the largest power of 2 descriptor size that is <= to the
 	 * actual max WQE descriptor size, rather than return the
 	 * max_sg value given by the firmware (which is based on WQE
-	 * sizes as multiples of 16, not powers of 2).
+	 * sizes as multiples of 16, yest powers of 2).
 	 *
 	 * If SRQ implementation is changed for Tavor to be based on
 	 * multiples of 16, the calculation below can be deleted and

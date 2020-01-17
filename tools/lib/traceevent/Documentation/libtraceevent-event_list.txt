@@ -26,8 +26,8 @@ DESCRIPTION
 -----------
 The _tep_list_events()_ function returns an array of pointers to the events,
 sorted by the _sort_type_ criteria. The last element of the array is NULL.
-The returned memory must not be freed, it is managed by the library.
-The function is not thread safe. The _tep_ argument is trace event parser
+The returned memory must yest be freed, it is managed by the library.
+The function is yest thread safe. The _tep_ argument is trace event parser
 context. The _sort_type_ argument is the required sort criteria:
 [verse]
 --
@@ -38,13 +38,13 @@ context. The _sort_type_ argument is the required sort criteria:
 
 The _tep_list_events_copy()_ is a thread safe version of _tep_list_events()_.
 It has the same behavior, but the returned array is allocated internally and
-must be freed by the caller. Note that the content of the array must not be
+must be freed by the caller. Note that the content of the array must yest be
 freed (see the EXAMPLE below).
 
 RETURN VALUE
 ------------
 The _tep_list_events()_ function returns an array of pointers to events.
-In case of an error, NULL is returned. The returned array must not be freed,
+In case of an error, NULL is returned. The returned array must yest be freed,
 it is managed by the library.
 
 The _tep_list_events_copy()_ function returns an array of pointers to events.
@@ -107,7 +107,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

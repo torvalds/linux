@@ -7,7 +7,7 @@
 
 #include <asm/openprom.h>
 
-struct device_node;
+struct device_yesde;
 struct platform_device;
 
 struct dev_archdata {
@@ -15,7 +15,7 @@ struct dev_archdata {
 	void			*stc;
 	void			*host_controller;
 	struct platform_device	*op;
-	int			numa_node;
+	int			numa_yesde;
 };
 
 void of_propagate_archdata(struct platform_device *bus);

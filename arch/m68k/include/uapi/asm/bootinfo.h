@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * asm/bootinfo.h -- Definition of the Linux/m68k boot information structure
  *
@@ -148,14 +148,14 @@ struct mem_info {
      * together :-)
      *
      * If incompatible changes are made to the bootinfo interface, the major
-     * number below should be stepped (and the minor reset to 0) for the
-     * appropriate machine. If a change is backward-compatible, the minor
+     * number below should be stepped (and the miyesr reset to 0) for the
+     * appropriate machine. If a change is backward-compatible, the miyesr
      * should be stepped. "Backwards-compatible" means that booting will work,
-     * but certain features may not.
+     * but certain features may yest.
      */
 
 #define BOOTINFOV_MAGIC			0x4249561A	/* 'BIV^Z' */
-#define MK_BI_VERSION(major, minor)	(((major) << 16) + (minor))
+#define MK_BI_VERSION(major, miyesr)	(((major) << 16) + (miyesr))
 #define BI_VERSION_MAJOR(v)		(((v) >> 16) & 0xffff)
 #define BI_VERSION_MINOR(v)		((v) & 0xffff)
 

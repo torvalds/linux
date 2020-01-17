@@ -18,13 +18,13 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  * 02111-1307, USA
  */
 
 #include <linux/bcd.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -241,10 +241,10 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 	bool enable_bb_charging = false;
 	bool high_bb_charging = false;
 
-	if (pdev->dev.of_node) {
-		enable_bb_charging = of_property_read_bool(pdev->dev.of_node,
+	if (pdev->dev.of_yesde) {
+		enable_bb_charging = of_property_read_bool(pdev->dev.of_yesde,
 					"ti,backup-battery-chargeable");
-		high_bb_charging = of_property_read_bool(pdev->dev.of_node,
+		high_bb_charging = of_property_read_bool(pdev->dev.of_yesde,
 					"ti,backup-battery-charge-high-current");
 	}
 

@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -77,9 +77,9 @@
 #define ULI526X_TX_TIMEOUT ((16*HZ)/2)	/* tx packet time-out time 8 s" */
 #define ULI526X_TX_KICK 	(4*HZ/2)	/* tx packet Kick-out time 2 s" */
 
-#define ULI526X_DBUG(dbug_now, msg, value)			\
+#define ULI526X_DBUG(dbug_yesw, msg, value)			\
 do {								\
-	if (uli526x_debug || (dbug_now))			\
+	if (uli526x_debug || (dbug_yesw))			\
 		pr_err("%s %lx\n", (msg), (long) (value));	\
 } while (0)
 
@@ -168,7 +168,7 @@ struct uli526x_board_info {
 	/* Driver defined statistic counter */
 	unsigned long tx_fifo_underrun;
 	unsigned long tx_loss_carrier;
-	unsigned long tx_no_carrier;
+	unsigned long tx_yes_carrier;
 	unsigned long tx_late_collision;
 	unsigned long tx_excessive_collision;
 	unsigned long tx_jabber_timeout;
@@ -292,7 +292,7 @@ static int uli526x_init_one(struct pci_dev *pdev,
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
-		pr_warn("32-bit PCI DMA not available\n");
+		pr_warn("32-bit PCI DMA yest available\n");
 		err = -ENODEV;
 		goto err_out_free;
 	}
@@ -375,8 +375,8 @@ static int uli526x_init_one(struct pci_dev *pdev,
 	/* Set Node address */
 	if(((u16 *) db->srom)[0] == 0xffff || ((u16 *) db->srom)[0] == 0)		/* SROM absent, so read MAC address from ID Table */
 	{
-		uw32(DCR0, 0x10000);	//Diagnosis mode
-		uw32(DCR13, 0x1c0);	//Reset dianostic pointer port
+		uw32(DCR0, 0x10000);	//Diagyessis mode
+		uw32(DCR13, 0x1c0);	//Reset diayesstic pointer port
 		uw32(DCR14, 0);		//Clear reset port
 		uw32(DCR14, 0x10);	//Reset ID Table pointer
 		uw32(DCR14, 0);		//Clear reset port
@@ -529,7 +529,7 @@ static void uli526x_init(struct net_device *dev)
 	}
 
 	if (phy_tmp == 32)
-		pr_warn("Can not find the phy address!!!\n");
+		pr_warn("Can yest find the phy address!!!\n");
 	/* Parser SROM and media mode */
 	db->media_mode = uli526x_media_mode;
 
@@ -776,7 +776,7 @@ static void uli526x_free_tx_pkt(struct net_device *dev,
 				if (tdes0 & 0x0200)
 					db->tx_late_collision++;
 				if (tdes0 & 0x0400)
-					db->tx_no_carrier++;
+					db->tx_yes_carrier++;
 				if (tdes0 & 0x0800)
 					db->tx_loss_carrier++;
 				if (tdes0 & 0x4000)
@@ -1228,7 +1228,7 @@ static int uli526x_resume(struct pci_dev *pdev)
 
 	err = pci_set_power_state(pdev, PCI_D0);
 	if (err) {
-		netdev_warn(dev, "Could not put device into D0\n");
+		netdev_warn(dev, "Could yest put device into D0\n");
 		return err;
 	}
 

@@ -261,7 +261,7 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 	 * Total number of dependencies:
 	 *
 	 * All irq-safe locks may nest inside irq-unsafe locks,
-	 * plus all the other known dependencies:
+	 * plus all the other kyeswn dependencies:
 	 */
 	seq_printf(m, " all direct dependencies:       %11lu\n",
 			nr_irq_unsafe * nr_irq_safe +
@@ -584,7 +584,7 @@ static const struct seq_operations lockstat_ops = {
 	.show	= ls_show,
 };
 
-static int lock_stat_open(struct inode *inode, struct file *file)
+static int lock_stat_open(struct iyesde *iyesde, struct file *file)
 {
 	int res;
 	struct lock_class *class;
@@ -635,12 +635,12 @@ static ssize_t lock_stat_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static int lock_stat_release(struct inode *inode, struct file *file)
+static int lock_stat_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 
 	vfree(seq->private);
-	return seq_release(inode, file);
+	return seq_release(iyesde, file);
 }
 
 static const struct file_operations proc_lock_stat_operations = {

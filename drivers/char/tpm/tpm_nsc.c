@@ -55,7 +55,7 @@ enum tpm_nsc_status {
 
 /* command bits */
 enum tpm_nsc_cmd_mode {
-	NSC_COMMAND_NORMAL = 0x01,	/* normal mode */
+	NSC_COMMAND_NORMAL = 0x01,	/* yesrmal mode */
 	NSC_COMMAND_EOC = 0x03,
 	NSC_COMMAND_CANCEL = 0x22
 };
@@ -138,7 +138,7 @@ static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 
 	data = inb(priv->base + NSC_DATA);
 	if (data != NSC_COMMAND_NORMAL) {
-		dev_err(&chip->dev, "not in normal mode (0x%x)\n",
+		dev_err(&chip->dev, "yest in yesrmal mode (0x%x)\n",
 			data);
 		return -EIO;
 	}
@@ -158,7 +158,7 @@ static int tpm_nsc_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 
 	if ((data & NSC_STATUS_F0) == 0 &&
 	(wait_for_stat(chip, NSC_STATUS_F0, NSC_STATUS_F0, &data) < 0)) {
-		dev_err(&chip->dev, "F0 not set\n");
+		dev_err(&chip->dev, "F0 yest set\n");
 		return -EIO;
 	}
 

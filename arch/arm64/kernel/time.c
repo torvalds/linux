@@ -16,7 +16,7 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/timex.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/profile.h>
 #include <linux/syscore_ops.h>
 #include <linux/timer.h>

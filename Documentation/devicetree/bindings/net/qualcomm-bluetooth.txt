@@ -4,7 +4,7 @@ Qualcomm Bluetooth Chips
 This documents the binding structure and common properties for serial
 attached Qualcomm devices.
 
-Serial attached Qualcomm devices shall be a child node of the host UART
+Serial attached Qualcomm devices shall be a child yesde of the host UART
 device the slave device is attached to.
 
 Required properties:

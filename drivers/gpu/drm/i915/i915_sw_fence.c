@@ -112,12 +112,12 @@ static inline void debug_fence_assert(struct i915_sw_fence *fence)
 
 #endif
 
-static int __i915_sw_fence_notify(struct i915_sw_fence *fence,
-				  enum i915_sw_fence_notify state)
+static int __i915_sw_fence_yestify(struct i915_sw_fence *fence,
+				  enum i915_sw_fence_yestify state)
 {
-	i915_sw_fence_notify_t fn;
+	i915_sw_fence_yestify_t fn;
 
-	fn = (i915_sw_fence_notify_t)(fence->flags & I915_SW_FENCE_MASK);
+	fn = (i915_sw_fence_yestify_t)(fence->flags & I915_SW_FENCE_MASK);
 	return fn(fence, state);
 }
 
@@ -184,7 +184,7 @@ static void __i915_sw_fence_complete(struct i915_sw_fence *fence,
 
 	debug_fence_set_state(fence, DEBUG_FENCE_IDLE, DEBUG_FENCE_NOTIFY);
 
-	if (__i915_sw_fence_notify(fence, FENCE_COMPLETE) != NOTIFY_DONE)
+	if (__i915_sw_fence_yestify(fence, FENCE_COMPLETE) != NOTIFY_DONE)
 		return;
 
 	debug_fence_set_state(fence, DEBUG_FENCE_NOTIFY, DEBUG_FENCE_IDLE);
@@ -192,7 +192,7 @@ static void __i915_sw_fence_complete(struct i915_sw_fence *fence,
 	__i915_sw_fence_wake_up_all(fence, continuation);
 
 	debug_fence_destroy(fence);
-	__i915_sw_fence_notify(fence, FENCE_FREE);
+	__i915_sw_fence_yestify(fence, FENCE_FREE);
 }
 
 void i915_sw_fence_complete(struct i915_sw_fence *fence)
@@ -212,7 +212,7 @@ void i915_sw_fence_await(struct i915_sw_fence *fence)
 }
 
 void __i915_sw_fence_init(struct i915_sw_fence *fence,
-			  i915_sw_fence_notify_t fn,
+			  i915_sw_fence_yestify_t fn,
 			  const char *name,
 			  struct lock_class_key *key)
 {
@@ -396,10 +396,10 @@ static void timer_i915_sw_fence_wake(struct timer_list *t)
 	if (!fence)
 		return;
 
-	pr_notice("Asynchronous wait on fence %s:%s:%llx timed out (hint:%pS)\n",
+	pr_yestice("Asynchroyesus wait on fence %s:%s:%llx timed out (hint:%pS)\n",
 		  cb->dma->ops->get_driver_name(cb->dma),
 		  cb->dma->ops->get_timeline_name(cb->dma),
-		  cb->dma->seqno,
+		  cb->dma->seqyes,
 		  i915_sw_fence_debug_hint(fence));
 
 	i915_sw_fence_set_error_once(fence, -ETIMEDOUT);

@@ -129,7 +129,7 @@ static int __init osk_soc_init(void)
 
 	tlv320aic23_mclk = clk_get(dev, "mclk");
 	if (IS_ERR(tlv320aic23_mclk)) {
-		printk(KERN_ERR "Could not get mclk clock\n");
+		printk(KERN_ERR "Could yest get mclk clock\n");
 		err = PTR_ERR(tlv320aic23_mclk);
 		goto err2;
 	}
@@ -140,7 +140,7 @@ static int __init osk_soc_init(void)
 	curRate = (uint) clk_get_rate(tlv320aic23_mclk);
 	if (curRate != CODEC_CLOCK) {
 		if (clk_set_rate(tlv320aic23_mclk, CODEC_CLOCK)) {
-			printk(KERN_ERR "Cannot set MCLK for AIC23 CODEC\n");
+			printk(KERN_ERR "Canyest set MCLK for AIC23 CODEC\n");
 			err = -ECANCELED;
 			goto err3;
 		}

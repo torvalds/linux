@@ -13,7 +13,7 @@
 /* ---------------------------------------------------------------------- */
 
 /* This macro is allowed for *constants* only, gcc must calculate it
-   at compile time.  Remember -- no floats in kernel mode */
+   at compile time.  Remember -- yes floats in kernel mode */
 #define MSP_CARRIER(freq) ((int)((float)(freq / 18.432) * (1 << 24)))
 
 #define MSP_MODE_AM_DETECT   0

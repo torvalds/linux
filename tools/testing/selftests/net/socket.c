@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
@@ -17,10 +17,10 @@ struct socket_testcase {
 	 */
 	int	expect;
 
-	/* If non-zero, accept EAFNOSUPPORT to handle the case
-	 * of the protocol not being configured into the kernel.
+	/* If yesn-zero, accept EAFNOSUPPORT to handle the case
+	 * of the protocol yest being configured into the kernel.
 	 */
-	int	nosupport_ok;
+	int	yessupport_ok;
 };
 
 static struct socket_testcase tests[] = {
@@ -47,16 +47,16 @@ static int run_tests(void)
 
 		fd = socket(s->domain, s->type, s->protocol);
 		if (fd < 0) {
-			if (s->nosupport_ok &&
-			    errno == EAFNOSUPPORT)
+			if (s->yessupport_ok &&
+			    erryes == EAFNOSUPPORT)
 				continue;
 
 			if (s->expect < 0 &&
-			    errno == -s->expect)
+			    erryes == -s->expect)
 				continue;
 
 			strerror_r(-s->expect, err_string1, ERR_STRING_SZ);
-			strerror_r(errno, err_string2, ERR_STRING_SZ);
+			strerror_r(erryes, err_string2, ERR_STRING_SZ);
 
 			fprintf(stderr, "socket(%d, %d, %d) expected "
 				"err (%s) got (%s)\n",
@@ -69,7 +69,7 @@ static int run_tests(void)
 			close(fd);
 
 			if (s->expect < 0) {
-				strerror_r(errno, err_string1, ERR_STRING_SZ);
+				strerror_r(erryes, err_string1, ERR_STRING_SZ);
 
 				fprintf(stderr, "socket(%d, %d, %d) expected "
 					"success got err (%s)\n",

@@ -21,20 +21,20 @@ enum io_pgtable_fmt {
 /**
  * struct iommu_flush_ops - IOMMU callbacks for TLB and page table management.
  *
- * @tlb_flush_all:  Synchronously invalidate the entire TLB context.
- * @tlb_flush_walk: Synchronously invalidate all intermediate TLB state
+ * @tlb_flush_all:  Synchroyesusly invalidate the entire TLB context.
+ * @tlb_flush_walk: Synchroyesusly invalidate all intermediate TLB state
  *                  (sometimes referred to as the "walk cache") for a virtual
  *                  address range.
- * @tlb_flush_leaf: Synchronously invalidate all leaf TLB state for a virtual
+ * @tlb_flush_leaf: Synchroyesusly invalidate all leaf TLB state for a virtual
  *                  address range.
  * @tlb_add_page:   Optional callback to queue up leaf TLB invalidation for a
- *                  single page.  IOMMUs that cannot batch TLB invalidation
+ *                  single page.  IOMMUs that canyest batch TLB invalidation
  *                  operations efficiently will typically issue them here, but
  *                  others may decide to update the iommu_iotlb_gather structure
  *                  and defer the invalidation until iommu_tlb_sync() instead.
  *
  * Note that these can all be called in atomic context and must therefore
- * not block.
+ * yest block.
  */
 struct iommu_flush_ops {
 	void (*tlb_flush_all)(void *cookie);
@@ -55,7 +55,7 @@ struct iommu_flush_ops {
  *                 tables.
  * @ias:           Input address (iova) size, in bits.
  * @oas:           Output address (paddr) size, in bits.
- * @coherent_walk  A flag to indicate whether or not page table walks made
+ * @coherent_walk  A flag to indicate whether or yest page table walks made
  *                 by the IOMMU are coherent with the CPU caches.
  * @tlb:           TLB management callbacks for this set of tables.
  * @iommu_dev:     The device representing the DMA configuration for the
@@ -65,11 +65,11 @@ struct io_pgtable_cfg {
 	/*
 	 * IO_PGTABLE_QUIRK_ARM_NS: (ARM formats) Set NS and NSTABLE bits in
 	 *	stage 1 PTEs, for hardware which insists on validating them
-	 *	even in	non-secure state where they should normally be ignored.
+	 *	even in	yesn-secure state where they should yesrmally be igyesred.
 	 *
-	 * IO_PGTABLE_QUIRK_NO_PERMS: Ignore the IOMMU_READ, IOMMU_WRITE and
+	 * IO_PGTABLE_QUIRK_NO_PERMS: Igyesre the IOMMU_READ, IOMMU_WRITE and
 	 *	IOMMU_NOEXEC flags and map everything with full access, for
-	 *	hardware which does not implement the permissions of a given
+	 *	hardware which does yest implement the permissions of a given
 	 *	format, and/or requires some format-specific default value.
 	 *
 	 * IO_PGTABLE_QUIRK_TLBI_ON_MAP: If the format forbids caching invalid
@@ -80,7 +80,7 @@ struct io_pgtable_cfg {
 	 *	to support up to 34 bits PA where the bit32 and bit33 are
 	 *	encoded in the bit9 and bit4 of the PTE respectively.
 	 *
-	 * IO_PGTABLE_QUIRK_NON_STRICT: Skip issuing synchronous leaf TLBIs
+	 * IO_PGTABLE_QUIRK_NON_STRICT: Skip issuing synchroyesus leaf TLBIs
 	 *	on unmap, for DMA domains using the flush queue mechanism for
 	 *	delayed invalidation.
 	 */
@@ -159,7 +159,7 @@ struct io_pgtable_ops *alloc_io_pgtable_ops(enum io_pgtable_fmt fmt,
 
 /**
  * free_io_pgtable_ops() - Free an io_pgtable_ops structure. The caller
- *                         *must* ensure that the page table is no longer
+ *                         *must* ensure that the page table is yes longer
  *                         live, but the TLB can be dirty.
  *
  * @ops: The ops returned from alloc_io_pgtable_ops.

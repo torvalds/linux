@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/video/console/fbcon_ccw.c -- Software Rotation - 270 degrees
  *
- *      Copyright (C) 2005 Antonino Daplas <adaplas @pol.net>
+ *      Copyright (C) 2005 Antoniyes Daplas <adaplas @pol.net>
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive for
@@ -180,7 +180,7 @@ static void ccw_putcs(struct vc_data *vc, struct fb_info *info,
 		s -= cnt;
 	}
 
-	/* buf is always NULL except when in monochrome mode, so in this case
+	/* buf is always NULL except when in moyeschrome mode, so in this case
 	   it's a gain to check buf against NULL even though kfree() handles
 	   NULL pointers just fine */
 	if (unlikely(buf))

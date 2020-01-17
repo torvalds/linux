@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __ASM_GENERIC_SIGNAL_DEFS_H
 #define __ASM_GENERIC_SIGNAL_DEFS_H
 
@@ -22,7 +22,7 @@ typedef void __restorefn_t(void);
 typedef __restorefn_t __user *__sigrestore_t;
 
 #define SIG_DFL	((__force __sighandler_t)0)	/* default signal handling */
-#define SIG_IGN	((__force __sighandler_t)1)	/* ignore signal */
+#define SIG_IGN	((__force __sighandler_t)1)	/* igyesre signal */
 #define SIG_ERR	((__force __sighandler_t)-1)	/* error return from signal */
 #endif
 

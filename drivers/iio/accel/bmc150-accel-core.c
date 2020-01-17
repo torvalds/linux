@@ -388,7 +388,7 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 		dev_err(dev,
 			"Failed: %s for %d\n", __func__, on);
 		if (on)
-			pm_runtime_put_noidle(dev);
+			pm_runtime_put_yesidle(dev);
 
 		return ret;
 	}
@@ -878,11 +878,11 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 		return 0;
 
 	/*
-	 * If we getting called from IRQ handler we know the stored timestamp is
+	 * If we getting called from IRQ handler we kyesw the stored timestamp is
 	 * fairly accurate for the last stored sample. Otherwise, if we are
 	 * called as a result of a read operation from userspace and hence
 	 * before the watermark interrupt was triggered, take a timestamp
-	 * now. We can fall anywhere in between two samples so the error in this
+	 * yesw. We can fall anywhere in between two samples so the error in this
 	 * case is at most one sample period.
 	 */
 	if (!irq) {
@@ -917,9 +917,9 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 
 	/*
 	 * Ideally we want the IIO core to handle the demux when running in fifo
-	 * mode but not when running in triggered buffer mode. Unfortunately
-	 * this does not seem to be possible, so stick with driver demux for
-	 * now.
+	 * mode but yest when running in triggered buffer mode. Unfortunately
+	 * this does yest seem to be possible, so stick with driver demux for
+	 * yesw.
 	 */
 	for (i = 0; i < count; i++) {
 		u16 sample[8];
@@ -1120,7 +1120,7 @@ static irqreturn_t bmc150_accel_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 					   pf->timestamp);
 err_read:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1482,7 +1482,7 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 	unsigned int val;
 
 	/*
-	 * Reset chip to get it in a known good state. A delay of 1.8ms after
+	 * Reset chip to get it in a kyeswn good state. A delay of 1.8ms after
 	 * reset is required according to the data sheets of supported chips.
 	 */
 	regmap_write(data->regmap, BMC150_ACCEL_REG_RESET,
@@ -1604,7 +1604,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 
 		/*
 		 * Set latched mode interrupt. While certain interrupts are
-		 * non-latched regardless of this settings (e.g. new data) we
+		 * yesn-latched regardless of this settings (e.g. new data) we
 		 * want to use latch mode when we can to prevent interrupt
 		 * flooding.
 		 */
@@ -1663,7 +1663,7 @@ int bmc150_accel_core_remove(struct device *dev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 
 	bmc150_accel_unregister_triggers(data, BMC150_ACCEL_TRIGGERS - 1);
 

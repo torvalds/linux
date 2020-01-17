@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -29,7 +29,7 @@ nvkm_falcon_load_imem(struct nvkm_falcon *falcon, void *data, u32 start,
 {
 	if (secure && !falcon->secret) {
 		nvkm_warn(falcon->user,
-			  "writing with secure tag on a non-secure falcon!\n");
+			  "writing with secure tag on a yesn-secure falcon!\n");
 		return;
 	}
 
@@ -64,7 +64,7 @@ nvkm_falcon_bind_context(struct nvkm_falcon *falcon, struct nvkm_memory *inst)
 {
 	if (!falcon->func->bind_context) {
 		nvkm_error(falcon->user,
-			   "Context binding not supported on this falcon!\n");
+			   "Context binding yest supported on this falcon!\n");
 		return;
 	}
 

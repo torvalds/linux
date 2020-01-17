@@ -5,12 +5,12 @@
 
 #ifdef __KERNEL__
 
-#include <asm/nops.h>
+#include <asm/yesps.h>
 #include <asm/processor-flags.h>
 #include <linux/jump_label.h>
 
 /*
- * Volatile isn't enough to prevent the compiler from reordering the
+ * Volatile isn't eyesugh to prevent the compiler from reordering the
  * read/write functions for the control registers and messing everything up.
  * A memory clobber would solve the problem, but would prevent reordering of
  * all loads stores around it, which can hurt performance. Solution is to
@@ -56,7 +56,7 @@ static inline unsigned long native_read_cr4(void)
 	unsigned long val;
 #ifdef CONFIG_X86_32
 	/*
-	 * This could fault if CR4 does not exist.  Non-existent CR4
+	 * This could fault if CR4 does yest exist.  Non-existent CR4
 	 * is functionally equivalent to CR4 == 0.  Keep it simple and pretend
 	 * that CR4 == 0 on CPUs that don't have CR4.
 	 */
@@ -105,7 +105,7 @@ static inline void __write_pkru(u32 pkru)
 {
 	/*
 	 * WRPKRU is relatively expensive compared to RDPKRU.
-	 * Avoid WRPKRU when it would not change the value.
+	 * Avoid WRPKRU when it would yest change the value.
 	 */
 	if (pkru == rdpkru())
 		return;
@@ -222,7 +222,7 @@ static inline void clwb(volatile void *__p)
 		: [pax] "a" (p));
 }
 
-#define nop() asm volatile ("nop")
+#define yesp() asm volatile ("yesp")
 
 
 #endif /* __KERNEL__ */

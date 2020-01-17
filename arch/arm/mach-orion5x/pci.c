@@ -50,8 +50,8 @@ static int pcie_valid_config(int bus, int dev)
 {
 	/*
 	 * Don't go out when trying to access --
-	 * 1. nonexisting device on local bus
-	 * 2. where there's no device connected (no link)
+	 * 1. yesnexisting device on local bus
+	 * 2. where there's yes device connected (yes link)
 	 */
 	if (bus == 0 && dev == 0)
 		return 1;
@@ -102,7 +102,7 @@ static int pcie_rd_conf_wa(struct pci_bus *bus, u32 devfn,
 	}
 
 	/*
-	 * We only support access to the non-extended configuration
+	 * We only support access to the yesn-extended configuration
 	 * space when using the WA access method (or we would have to
 	 * sacrifice 256M of CPU virtual address space.)
 	 */
@@ -330,7 +330,7 @@ static int orion5x_pci_valid_config(int bus, u32 devfn)
 
 		/*
 		 * When the PCI signals are directly connected to a
-		 * Cardbus slot, ignore all but device IDs 0 and 1.
+		 * Cardbus slot, igyesre all but device IDs 0 and 1.
 		 */
 		if (orion5x_pci_cardbus_mode && PCI_SLOT(devfn) > 1)
 			return 0;

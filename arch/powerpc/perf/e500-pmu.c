@@ -28,12 +28,12 @@ static int e500_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means yest supported, -1 means yesnsensical, other values
  * are event codes.
  */
 static int e500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	/*
-	 * D-cache misses are not split into read/write/prefetch;
+	 * D-cache misses are yest split into read/write/prefetch;
 	 * use raw event 41.
 	 */
 	[C(L1D)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
@@ -47,9 +47,9 @@ static int e500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 		[C(OP_PREFETCH)] = {	0,		0	},
 	},
 	/*
-	 * Assuming LL means L2, it's not a good match for this model.
+	 * Assuming LL means L2, it's yest a good match for this model.
 	 * It allocates only on L1 castout or explicit prefetch, and
-	 * does not have separate read/write events (but it does have
+	 * does yest have separate read/write events (but it does have
 	 * separate instruction/data events).
 	 */
 	[C(LL)] = {		/* 	RESULT_ACCESS	RESULT_MISS */
@@ -59,7 +59,7 @@ static int e500_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 	},
 	/*
 	 * There are data/instruction MMU misses, but that's a miss on
-	 * the chip's internal level-one TLB which is probably not
+	 * the chip's internal level-one TLB which is probably yest
 	 * what the user wants.  Instead, unified level-two TLB misses
 	 * are reported here.
 	 */
@@ -99,7 +99,7 @@ static u64 e500_xlate_event(u64 event_id)
 		       (FSL_EMB_EVENT_THRESHMUL | FSL_EMB_EVENT_THRESH);
 	} else if (event_id &
 	           (FSL_EMB_EVENT_THRESHMUL | FSL_EMB_EVENT_THRESH)) {
-		/* Threshold requested on non-threshold event */
+		/* Threshold requested on yesn-threshold event */
 		return 0;
 	}
 

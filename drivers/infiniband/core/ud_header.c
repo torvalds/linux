@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -31,7 +31,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/export.h>
 #include <linux/if_ether.h>
@@ -306,9 +306,9 @@ EXPORT_SYMBOL(ib_ud_ip4_csum);
  * @lrh_present: specify if LRH is present
  * @eth_present: specify if Eth header is present
  * @vlan_present: packet is tagged vlan
- * @grh_present: GRH flag (if non-zero, GRH will be included)
- * @ip_version: if non-zero, IP header, V4 or V6, will be included
- * @udp_present :if non-zero, UDP header will be included
+ * @grh_present: GRH flag (if yesn-zero, GRH will be included)
+ * @ip_version: if yesn-zero, IP header, V4 or V6, will be included
+ * @udp_present :if yesn-zero, UDP header will be included
  * @immediate_present: specify if immediate data is present
  * @header:Structure to initialize
  */

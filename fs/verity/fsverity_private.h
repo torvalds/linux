@@ -20,8 +20,8 @@
 struct ahash_request;
 
 /*
- * Implementation limit: maximum depth of the Merkle tree.  For now 8 is plenty;
- * it's enough for over U64_MAX bytes of data using SHA-256 and 4K blocks.
+ * Implementation limit: maximum depth of the Merkle tree.  For yesw 8 is plenty;
+ * it's eyesugh for over U64_MAX bytes of data using SHA-256 and 4K blocks.
  */
 #define FS_VERITY_MAX_LEVELS		8
 
@@ -59,19 +59,19 @@ struct merkle_tree_params {
 };
 
 /**
- * fsverity_info - cached verity metadata for an inode
+ * fsverity_info - cached verity metadata for an iyesde
  *
  * When a verity file is first opened, an instance of this struct is allocated
- * and stored in ->i_verity_info; it remains until the inode is evicted.  It
+ * and stored in ->i_verity_info; it remains until the iyesde is evicted.  It
  * caches information about the Merkle tree that's needed to efficiently verify
  * data read from the file.  It also caches the file measurement.  The Merkle
- * tree pages themselves are not cached here, but the filesystem may cache them.
+ * tree pages themselves are yest cached here, but the filesystem may cache them.
  */
 struct fsverity_info {
 	struct merkle_tree_params tree_params;
 	u8 root_hash[FS_VERITY_MAX_DIGEST_SIZE];
 	u8 measurement[FS_VERITY_MAX_DIGEST_SIZE];
-	const struct inode *inode;
+	const struct iyesde *iyesde;
 };
 
 /*
@@ -82,8 +82,8 @@ struct fsverity_descriptor {
 	__u8 version;		/* must be 1 */
 	__u8 hash_algorithm;	/* Merkle tree hash algorithm */
 	__u8 log_blocksize;	/* log2 of size of data and tree blocks */
-	__u8 salt_size;		/* size of salt in bytes; 0 if none */
-	__le32 sig_size;	/* size of signature in bytes; 0 if none */
+	__u8 salt_size;		/* size of salt in bytes; 0 if yesne */
+	__le32 sig_size;	/* size of signature in bytes; 0 if yesne */
 	__le64 data_size;	/* size of file the Merkle tree is built over */
 	__u8 root_hash[64];	/* Merkle tree root hash */
 	__u8 salt[32];		/* salt prepended to each hashed block */
@@ -101,7 +101,7 @@ struct fsverity_descriptor {
  * Format in which verity file measurements are signed.  This is the same as
  * 'struct fsverity_digest', except here some magic bytes are prepended to
  * provide some context about what is being signed in case the same key is used
- * for non-fsverity purposes, and here the fields have fixed endianness.
+ * for yesn-fsverity purposes, and here the fields have fixed endianness.
  */
 struct fsverity_signed_digest {
 	char magic[8];			/* must be "FSVerity" */
@@ -114,12 +114,12 @@ struct fsverity_signed_digest {
 
 extern struct fsverity_hash_alg fsverity_hash_algs[];
 
-const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
+const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct iyesde *iyesde,
 						      unsigned int num);
 const u8 *fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
 				      const u8 *salt, size_t salt_size);
 int fsverity_hash_page(const struct merkle_tree_params *params,
-		       const struct inode *inode,
+		       const struct iyesde *iyesde,
 		       struct ahash_request *req, struct page *page, u8 *out);
 int fsverity_hash_buffer(const struct fsverity_hash_alg *alg,
 			 const void *data, size_t size, u8 *out);
@@ -128,26 +128,26 @@ void __init fsverity_check_hash_algs(void);
 /* init.c */
 
 extern void __printf(3, 4) __cold
-fsverity_msg(const struct inode *inode, const char *level,
+fsverity_msg(const struct iyesde *iyesde, const char *level,
 	     const char *fmt, ...);
 
-#define fsverity_warn(inode, fmt, ...)		\
-	fsverity_msg((inode), KERN_WARNING, fmt, ##__VA_ARGS__)
-#define fsverity_err(inode, fmt, ...)		\
-	fsverity_msg((inode), KERN_ERR, fmt, ##__VA_ARGS__)
+#define fsverity_warn(iyesde, fmt, ...)		\
+	fsverity_msg((iyesde), KERN_WARNING, fmt, ##__VA_ARGS__)
+#define fsverity_err(iyesde, fmt, ...)		\
+	fsverity_msg((iyesde), KERN_ERR, fmt, ##__VA_ARGS__)
 
 /* open.c */
 
 int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
-				     const struct inode *inode,
+				     const struct iyesde *iyesde,
 				     unsigned int hash_algorithm,
 				     unsigned int log_blocksize,
 				     const u8 *salt, size_t salt_size);
 
-struct fsverity_info *fsverity_create_info(const struct inode *inode,
+struct fsverity_info *fsverity_create_info(const struct iyesde *iyesde,
 					   void *desc, size_t desc_size);
 
-void fsverity_set_info(struct inode *inode, struct fsverity_info *vi);
+void fsverity_set_info(struct iyesde *iyesde, struct fsverity_info *vi);
 
 void fsverity_free_info(struct fsverity_info *vi);
 

@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * The file intends to implement dynamic creation of EEH device, which will
- * be bound with OF node and PCI device simutaneously. The EEH devices would
+ * be bound with OF yesde and PCI device simutaneously. The EEH devices would
  * be foundamental information for EEH core components to work proerly. Besides,
  * We have to support multiple situations where dynamic creation of EEH device
  * is required:
  *
  * 1) Before PCI emunation starts, we need create EEH devices according to the
- *    PCI sensitive OF nodes.
+ *    PCI sensitive OF yesdes.
  * 2) When PCI emunation is done, we need do the binding between PCI device and
  *    the associated EEH device.
- * 3) DR (Dynamic Reconfiguration) would create PCI sensitive OF node. EEH device
- *    will be created while PCI sensitive OF node is detected from DR.
+ * 3) DR (Dynamic Reconfiguration) would create PCI sensitive OF yesde. EEH device
+ *    will be created while PCI sensitive OF yesde is detected from DR.
  * 4) PCI hotplug needs redoing the binding between PCI device and EEH device. If
  *    PHB is newly inserted, we also need create EEH devices accordingly.
  *
@@ -29,10 +29,10 @@
 #include <asm/ppc-pci.h>
 
 /**
- * eeh_dev_init - Create EEH device according to OF node
- * @pdn: PCI device node
+ * eeh_dev_init - Create EEH device according to OF yesde
+ * @pdn: PCI device yesde
  *
- * It will create EEH device according to the given OF node. The function
+ * It will create EEH device according to the given OF yesde. The function
  * might be called by PCI emunation, DR, PHB hotplug.
  */
 struct eeh_dev *eeh_dev_init(struct pci_dn *pdn)
@@ -44,10 +44,10 @@ struct eeh_dev *eeh_dev_init(struct pci_dn *pdn)
 	if (!edev)
 		return NULL;
 
-	/* Associate EEH device with OF node */
+	/* Associate EEH device with OF yesde */
 	pdn->edev = edev;
 	edev->pdn = pdn;
-	edev->bdfn = (pdn->busno << 8) | pdn->devfn;
+	edev->bdfn = (pdn->busyes << 8) | pdn->devfn;
 	edev->controller = pdn->phb;
 
 	return edev;
@@ -57,7 +57,7 @@ struct eeh_dev *eeh_dev_init(struct pci_dn *pdn)
  * eeh_dev_phb_init_dynamic - Create EEH devices for devices included in PHB
  * @phb: PHB
  *
- * Scan the PHB OF node and its child association, then create the
+ * Scan the PHB OF yesde and its child association, then create the
  * EEH devices accordingly
  */
 void eeh_dev_phb_init_dynamic(struct pci_controller *phb)

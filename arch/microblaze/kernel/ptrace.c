@@ -17,7 +17,7 @@
  * Copyright (C) 1994, 95, 96, 97, 98, 2000 Ralf Baechle
  * Copyright (C) 1996 David S. Miller
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999 MIPS Technologies, Inc.
+ * Copyright (C) 1999 MIPS Techyeslogies, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License. See the file COPYING in the main directory of this
@@ -35,7 +35,7 @@
 #include <linux/seccomp.h>
 #include <linux/tracehook.h>
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/processor.h>
 #include <linux/uaccess.h>
 #include <asm/asm-offsets.h>
@@ -52,24 +52,24 @@ static microblaze_reg_t *reg_save_addr(unsigned reg_offs,
 	/*
 	 * Three basic cases:
 	 *
-	 * (1)	A register normally saved before calling the scheduler, is
+	 * (1)	A register yesrmally saved before calling the scheduler, is
 	 *	available in the kernel entry pt_regs structure at the top
 	 *	of the kernel stack. The kernel trap/irq exit path takes
 	 *	care to save/restore almost all registers for ptrace'd
 	 *	processes.
 	 *
 	 * (2)	A call-clobbered register, where the process P entered the
-	 *	kernel via [syscall] trap, is not stored anywhere; that's
-	 *	OK, because such registers are not expected to be preserved
+	 *	kernel via [syscall] trap, is yest stored anywhere; that's
+	 *	OK, because such registers are yest expected to be preserved
 	 *	when the trap returns anyway (so we don't actually bother to
 	 *	test for this case).
 	 *
-	 * (3)	A few registers not used at all by the kernel, and so
-	 *	normally never saved except by context-switches, are in the
+	 * (3)	A few registers yest used at all by the kernel, and so
+	 *	yesrmally never saved except by context-switches, are in the
 	 *	context switch state.
 	 */
 
-	/* Register saved during kernel entry (or not available). */
+	/* Register saved during kernel entry (or yest available). */
 	regs = task_pt_regs(t);
 
 	return (microblaze_reg_t *)((char *)regs + reg_offs);
@@ -142,7 +142,7 @@ asmlinkage unsigned long do_syscall_trace_enter(struct pt_regs *regs)
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(regs))
 		/*
-		 * Tracing decided this syscall should not happen.
+		 * Tracing decided this syscall should yest happen.
 		 * We'll return a bogus call number to get an ENOSYS
 		 * error, but leave the original number in regs->regs[0].
 		 */
@@ -166,5 +166,5 @@ asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
 
 void ptrace_disable(struct task_struct *child)
 {
-	/* nothing to do */
+	/* yesthing to do */
 }

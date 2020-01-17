@@ -179,7 +179,7 @@ static irqreturn_t wm831x_dcdc_uv_irq(int irq, void *data)
 	struct wm831x_dcdc *dcdc = data;
 
 	regulator_lock(dcdc->regulator);
-	regulator_notifier_call_chain(dcdc->regulator,
+	regulator_yestifier_call_chain(dcdc->regulator,
 				      REGULATOR_EVENT_UNDER_VOLTAGE,
 				      NULL);
 	regulator_unlock(dcdc->regulator);
@@ -192,7 +192,7 @@ static irqreturn_t wm831x_dcdc_oc_irq(int irq, void *data)
 	struct wm831x_dcdc *dcdc = data;
 
 	regulator_lock(dcdc->regulator);
-	regulator_notifier_call_chain(dcdc->regulator,
+	regulator_yestifier_call_chain(dcdc->regulator,
 				      REGULATOR_EVENT_OVER_CURRENT,
 				      NULL);
 	regulator_unlock(dcdc->regulator);
@@ -220,7 +220,7 @@ static int wm831x_buckv_set_dvs(struct regulator_dev *rdev, int state)
 	gpiod_set_value(dcdc->dvs_gpiod, state);
 
 	/* Should wait for DVS state change to be asserted if we have
-	 * a GPIO for it, for now assume the device is configured
+	 * a GPIO for it, for yesw assume the device is configured
 	 * for the fastest possible transition.
 	 */
 
@@ -252,7 +252,7 @@ static int wm831x_buckv_set_voltage_sel(struct regulator_dev *rdev,
 	if (!dcdc->dvs_gpiod)
 		return ret;
 
-	/* Kick the voltage transition now */
+	/* Kick the voltage transition yesw */
 	ret = wm831x_buckv_set_dvs(rdev, 0);
 	if (ret < 0)
 		return ret;

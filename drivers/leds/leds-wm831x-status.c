@@ -87,7 +87,7 @@ static int wm831x_status_blink_set(struct led_classdev *led_cdev,
 	unsigned long flags;
 	int ret = 0;
 
-	/* Pick some defaults if we've not been given times */
+	/* Pick some defaults if we've yest been given times */
 	if (*delay_on == 0 && *delay_off == 0) {
 		*delay_on = 250;
 		*delay_off = 250;

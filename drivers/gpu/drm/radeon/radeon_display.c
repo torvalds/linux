@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -180,7 +180,7 @@ static void dce5_crtc_load_lut(struct drm_crtc *crtc)
 	WREG32(0x6940 + radeon_crtc->crtc_offset, 0);
 	if (ASIC_IS_DCE8(rdev)) {
 		/* XXX this only needs to be programmed once per crtc at startup,
-		 * not sure where the best place for it is
+		 * yest sure where the best place for it is
 		 */
 		WREG32(CIK_ALPHA_CONTROL + radeon_crtc->crtc_offset,
 		       CIK_CURSOR_ALPHA_BLND_ENA);
@@ -320,28 +320,28 @@ void radeon_crtc_handle_vblank(struct radeon_device *rdev, int crtc_id)
 	 * start of real vblank in hpos. vpos >= 0 && hpos < 0 means we are in
 	 * the last few scanlines before start of real vblank, where the vblank
 	 * irq can fire, so we have sampled update_pending a bit too early and
-	 * know the flip will complete at leading edge of the upcoming real
+	 * kyesw the flip will complete at leading edge of the upcoming real
 	 * vblank. On pre-AVIVO hardware, flips also complete inside the real
-	 * vblank, not only at leading edge, so if update_pending for hpos >= 0
+	 * vblank, yest only at leading edge, so if update_pending for hpos >= 0
 	 *  == inside real vblank, the flip will complete almost immediately.
-	 * Note that this method of completion handling is still not 100% race
+	 * Note that this method of completion handling is still yest 100% race
 	 * free, as we could execute before the radeon_flip_work_func managed
-	 * to run and set the RADEON_FLIP_SUBMITTED status, thereby we no-op,
+	 * to run and set the RADEON_FLIP_SUBMITTED status, thereby we yes-op,
 	 * but the flip still gets programmed into hw and completed during
 	 * vblank, leading to a delayed emission of the flip completion event.
 	 * This applies at least to pre-AVIVO hardware, where flips are always
-	 * completing inside vblank, not only at leading edge of vblank.
+	 * completing inside vblank, yest only at leading edge of vblank.
 	 */
 	if (update_pending &&
 	    (DRM_SCANOUTPOS_VALID &
-	     radeon_get_crtc_scanoutpos(rdev->ddev, crtc_id,
+	     radeon_get_crtc_scayesutpos(rdev->ddev, crtc_id,
 					GET_DISTANCE_TO_VBLANKSTART,
 					&vpos, &hpos, NULL, NULL,
 					&rdev->mode_info.crtcs[crtc_id]->base.hwmode)) &&
 	    ((vpos >= 0 && hpos < 0) || (hpos >= 0 && !ASIC_IS_AVIVO(rdev)))) {
 		/* crtc didn't flip in this target vblank interval,
 		 * but flip is pending in crtc. Based on the current
-		 * scanout position we know that the current frame is
+		 * scayesut position we kyesw that the current frame is
 		 * (nearly) complete and the flip will (likely)
 		 * complete before the start of the next frame.
 		 */
@@ -451,7 +451,7 @@ static void radeon_flip_work_func(struct work_struct *__work)
 	 * have reliable pageflip completion interrupts.
 	 */
 	while (radeon_crtc->enabled &&
-		(radeon_get_crtc_scanoutpos(dev, work->crtc_id, 0,
+		(radeon_get_crtc_scayesutpos(dev, work->crtc_id, 0,
 					    &vpos, &hpos, NULL, NULL,
 					    &crtc->hwmode)
 		& (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
@@ -538,7 +538,7 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 	radeon_bo_unreserve(new_rbo);
 
 	if (!ASIC_IS_AVIVO(rdev)) {
-		/* crtc offset is from display base addr not FB location */
+		/* crtc offset is from display base addr yest FB location */
 		base -= radeon_crtc->legacy_display_base_addr;
 		pitch_pixels = fb->pitches[0] / fb->format->cpp[0];
 
@@ -647,7 +647,7 @@ radeon_crtc_set_config(struct drm_mode_set *set,
 		rdev->have_disp_power_ref = true;
 		return ret;
 	}
-	/* if we have no active crtcs, then drop the power ref
+	/* if we have yes active crtcs, then drop the power ref
 	   we got before */
 	if (!active && rdev->have_disp_power_ref) {
 		pm_runtime_put_autosuspend(dev->dev);
@@ -804,7 +804,7 @@ static void radeon_print_display_setup(struct drm_device *dev)
 			    connector->connector_type == DRM_MODE_CONNECTOR_DVIA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)
-				DRM_INFO("  DDC: no ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
+				DRM_INFO("  DDC: yes ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
 		}
 		DRM_INFO("  Encoders:\n");
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
@@ -871,36 +871,36 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 /**
  * avivo_reduce_ratio - fractional number reduction
  *
- * @nom: nominator
- * @den: denominator
- * @nom_min: minimum value for nominator
- * @den_min: minimum value for denominator
+ * @yesm: yesminator
+ * @den: deyesminator
+ * @yesm_min: minimum value for yesminator
+ * @den_min: minimum value for deyesminator
  *
- * Find the greatest common divisor and apply it on both nominator and
- * denominator, but make nominator and denominator are at least as large
+ * Find the greatest common divisor and apply it on both yesminator and
+ * deyesminator, but make yesminator and deyesminator are at least as large
  * as their minimum values.
  */
-static void avivo_reduce_ratio(unsigned *nom, unsigned *den,
-			       unsigned nom_min, unsigned den_min)
+static void avivo_reduce_ratio(unsigned *yesm, unsigned *den,
+			       unsigned yesm_min, unsigned den_min)
 {
 	unsigned tmp;
 
 	/* reduce the numbers to a simpler ratio */
-	tmp = gcd(*nom, *den);
-	*nom /= tmp;
+	tmp = gcd(*yesm, *den);
+	*yesm /= tmp;
 	*den /= tmp;
 
-	/* make sure nominator is large enough */
-	if (*nom < nom_min) {
-		tmp = DIV_ROUND_UP(nom_min, *nom);
-		*nom *= tmp;
+	/* make sure yesminator is large eyesugh */
+	if (*yesm < yesm_min) {
+		tmp = DIV_ROUND_UP(yesm_min, *yesm);
+		*yesm *= tmp;
 		*den *= tmp;
 	}
 
-	/* make sure the denominator is large enough */
+	/* make sure the deyesminator is large eyesugh */
 	if (*den < den_min) {
 		tmp = DIV_ROUND_UP(den_min, *den);
-		*nom *= tmp;
+		*yesm *= tmp;
 		*den *= tmp;
 	}
 }
@@ -908,8 +908,8 @@ static void avivo_reduce_ratio(unsigned *nom, unsigned *den,
 /**
  * avivo_get_fb_ref_div - feedback and ref divider calculation
  *
- * @nom: nominator
- * @den: denominator
+ * @yesm: yesminator
+ * @den: deyesminator
  * @post_div: post divider
  * @fb_div_max: feedback divider maximum
  * @ref_div_max: reference divider maximum
@@ -919,7 +919,7 @@ static void avivo_reduce_ratio(unsigned *nom, unsigned *den,
  * Calculate feedback and reference divider for a given post divider. Makes
  * sure we stay within the limits.
  */
-static void avivo_get_fb_ref_div(unsigned nom, unsigned den, unsigned post_div,
+static void avivo_get_fb_ref_div(unsigned yesm, unsigned den, unsigned post_div,
 				 unsigned fb_div_max, unsigned ref_div_max,
 				 unsigned *fb_div, unsigned *ref_div)
 {
@@ -928,7 +928,7 @@ static void avivo_get_fb_ref_div(unsigned nom, unsigned den, unsigned post_div,
 
 	/* get matching reference and feedback divider */
 	*ref_div = min(max(den/post_div, 1u), ref_div_max);
-	*fb_div = DIV_ROUND_CLOSEST(nom * *ref_div * post_div, den);
+	*fb_div = DIV_ROUND_CLOSEST(yesm * *ref_div * post_div, den);
 
 	/* limit fb divider to its maximum */
 	if (*fb_div > fb_div_max) {
@@ -965,7 +965,7 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	unsigned post_div_min, post_div_max, post_div;
 	unsigned ref_div_min, ref_div_max, ref_div;
 	unsigned post_div_best, diff_best;
-	unsigned nom, den;
+	unsigned yesm, den;
 
 	/* determine allowed feedback divider range */
 	fb_div_min = pll->min_feedback_div;
@@ -1025,13 +1025,13 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	}
 
 	/* represent the searched ratio as fractional number */
-	nom = target_clock;
+	yesm = target_clock;
 	den = pll->reference_freq;
 
 	/* reduce the numbers to a simpler ratio */
-	avivo_reduce_ratio(&nom, &den, fb_div_min, post_div_min);
+	avivo_reduce_ratio(&yesm, &den, fb_div_min, post_div_min);
 
-	/* now search for a post divider */
+	/* yesw search for a post divider */
 	if (pll->flags & RADEON_PLL_PREFER_MINM_OVER_MAXP)
 		post_div_best = post_div_min;
 	else
@@ -1040,7 +1040,7 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 
 	for (post_div = post_div_min; post_div <= post_div_max; ++post_div) {
 		unsigned diff;
-		avivo_get_fb_ref_div(nom, den, post_div, fb_div_max,
+		avivo_get_fb_ref_div(yesm, den, post_div, fb_div_max,
 				     ref_div_max, &fb_div, &ref_div);
 		diff = abs(target_clock - (pll->reference_freq * fb_div) /
 			(ref_div * post_div));
@@ -1055,11 +1055,11 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	post_div = post_div_best;
 
 	/* get the feedback and reference divider for the optimal value */
-	avivo_get_fb_ref_div(nom, den, post_div, fb_div_max, ref_div_max,
+	avivo_get_fb_ref_div(yesm, den, post_div, fb_div_max, ref_div_max,
 			     &fb_div, &ref_div);
 
 	/* reduce the numbers to a simpler ratio once more */
-	/* this also makes sure that the reference divider is large enough */
+	/* this also makes sure that the reference divider is large eyesugh */
 	avivo_reduce_ratio(&fb_div, &ref_div, fb_div_min, ref_div_min);
 
 	/* avoid high jitter with small fractional dividers */
@@ -1326,9 +1326,9 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-ENOENT);
 	}
 
-	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
+	/* Handle is imported dma-buf, so canyest be migrated to VRAM for scayesut */
 	if (obj->import_attach) {
-		DRM_DEBUG_KMS("Cannot create framebuffer from imported dma_buf\n");
+		DRM_DEBUG_KMS("Canyest create framebuffer from imported dma_buf\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1496,7 +1496,7 @@ static void radeon_afmt_init(struct radeon_device *rdev)
 		rdev->mode_info.afmt[i] = NULL;
 
 	if (ASIC_IS_NODCE(rdev)) {
-		/* nothing to do */
+		/* yesthing to do */
 	} else if (ASIC_IS_DCE4(rdev)) {
 		static uint32_t eg_offsets[] = {
 			EVERGREEN_CRTC0_REGISTER_OFFSET,
@@ -1744,13 +1744,13 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 			first = false;
 		} else {
 			if (radeon_crtc->rmx_type != radeon_encoder->rmx_type) {
-				/* WARNING: Right now this can't happen but
+				/* WARNING: Right yesw this can't happen but
 				 * in the future we need to check that scaling
 				 * are consistent across different encoder
 				 * (ie all encoder can work with the same
 				 *  scaling).
 				 */
-				DRM_ERROR("Scaling not consistent across encoder.\n");
+				DRM_ERROR("Scaling yest consistent across encoder.\n");
 				return false;
 			}
 		}
@@ -1771,7 +1771,7 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 }
 
 /*
- * Retrieve current video scanout position of crtc on a given gpu, and
+ * Retrieve current video scayesut position of crtc on a given gpu, and
  * an optional accurate timestamp of when query happened.
  *
  * \param dev Device to query.
@@ -1786,17 +1786,17 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  *              fudged earlier start of vblank in *vpos and the distance
  *              to true start of vblank in *hpos.
  *
- * \param *vpos Location where vertical scanout position should be stored.
- * \param *hpos Location where horizontal scanout position should go.
+ * \param *vpos Location where vertical scayesut position should be stored.
+ * \param *hpos Location where horizontal scayesut position should go.
  * \param *stime Target location for timestamp taken immediately before
- *               scanout position query. Can be NULL to skip timestamp.
+ *               scayesut position query. Can be NULL to skip timestamp.
  * \param *etime Target location for timestamp taken immediately after
- *               scanout position query. Can be NULL to skip timestamp.
+ *               scayesut position query. Can be NULL to skip timestamp.
  *
- * Returns vpos as a positive number while in active scanout area.
+ * Returns vpos as a positive number while in active scayesut area.
  * Returns vpos as a negative number inside vblank, counting the number
  * of scanlines to go until end of vblank, e.g., -1 means "one scanline
- * until start of active scanout / end of vblank."
+ * until start of active scayesut / end of vblank."
  *
  * \return Flags, or'ed together as follows:
  *
@@ -1804,10 +1804,10 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * DRM_SCANOUTPOS_INVBL = Inside vblank.
  * DRM_SCANOUTPOS_ACCURATE = Returned position is accurate. A lack of
  * this flag means that returned position may be offset by a constant but
- * unknown small number of scanlines wrt. real scanout position.
+ * unkyeswn small number of scanlines wrt. real scayesut position.
  *
  */
-int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
+int radeon_get_crtc_scayesutpos(struct drm_device *dev, unsigned int pipe,
 			       unsigned int flags, int *vpos, int *hpos,
 			       ktime_t *stime, ktime_t *etime,
 			       const struct drm_display_mode *mode)
@@ -1879,7 +1879,7 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 			ret |= DRM_SCANOUTPOS_VALID;
 		}
 	} else {
-		/* Pre-AVIVO: Different encoding of scanout pos and vblank interval. */
+		/* Pre-AVIVO: Different encoding of scayesut pos and vblank interval. */
 		if (pipe == 0) {
 			/* Assume vbl_end == 0, get vbl_start from
 			 * upper 16 bits.
@@ -1912,7 +1912,7 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 
 	/* preempt_enable_rt() should go right here in PREEMPT_RT patchset. */
 
-	/* Decode into vertical and horizontal scanout position. */
+	/* Decode into vertical and horizontal scayesut position. */
 	*vpos = position & 0x1fff;
 	*hpos = (position >> 16) & 0x1fff;
 
@@ -1942,13 +1942,13 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	 *
 	 * The cause of the "early" vblank irq is that the irq is triggered
 	 * by the line buffer logic when the line buffer read position enters
-	 * the vblank, whereas our crtc scanout position naturally lags the
+	 * the vblank, whereas our crtc scayesut position naturally lags the
 	 * line buffer read position.
 	 */
 	if (!(flags & USE_REAL_VBLANKSTART))
 		vbl_start -= rdev->mode_info.crtcs[pipe]->lb_vblank_lead_lines;
 
-	/* Test scanout position against vblank region. */
+	/* Test scayesut position against vblank region. */
 	if ((*vpos < vbl_start) && (*vpos >= vbl_end))
 		in_vbl = false;
 
@@ -1964,9 +1964,9 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	}
 
 	/* Check if inside vblank area and apply corrective offsets:
-	 * vpos will then be >=0 in video scanout area, but negative
+	 * vpos will then be >=0 in video scayesut area, but negative
 	 * within vblank area, counting down the number of lines until
-	 * start of scanout.
+	 * start of scayesut.
 	 */
 
 	/* Inside "upper part" of vblank area? Apply corrective offset if so: */

@@ -16,7 +16,7 @@
  *
  * Long term, we should support evicting pages from the MMU when under
  * memory pressure (thus the v3d_bo_get_pages() refcounting), but
- * that's not a high priority since our systems tend to not have swap.
+ * that's yest a high priority since our systems tend to yest have swap.
  */
 
 #include <linux/dma-buf.h>
@@ -41,7 +41,7 @@ void v3d_free_object(struct drm_gem_object *obj)
 	mutex_unlock(&v3d->bo_lock);
 
 	spin_lock(&v3d->mm_lock);
-	drm_mm_remove_node(&bo->node);
+	drm_mm_remove_yesde(&bo->yesde);
 	spin_unlock(&v3d->mm_lock);
 
 	/* GPU execution may have dirtied any pages in the BO. */
@@ -104,7 +104,7 @@ v3d_bo_create_finish(struct drm_gem_object *obj)
 	 * Inserting PTEs will happen later, but the offset is for the
 	 * lifetime of the BO.
 	 */
-	ret = drm_mm_insert_node_generic(&v3d->mm, &bo->node,
+	ret = drm_mm_insert_yesde_generic(&v3d->mm, &bo->yesde,
 					 obj->size >> PAGE_SHIFT,
 					 GMP_GRANULARITY >> PAGE_SHIFT, 0, 0);
 	spin_unlock(&v3d->mm_lock);
@@ -174,7 +174,7 @@ int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (args->flags != 0) {
-		DRM_INFO("unknown create_bo flags: %d\n", args->flags);
+		DRM_INFO("unkyeswn create_bo flags: %d\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -182,7 +182,7 @@ int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
-	args->offset = bo->node.start << PAGE_SHIFT;
+	args->offset = bo->yesde.start << PAGE_SHIFT;
 
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
 	drm_gem_object_put_unlocked(&bo->base.base);
@@ -197,7 +197,7 @@ int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *gem_obj;
 
 	if (args->flags != 0) {
-		DRM_INFO("unknown mmap_bo flags: %d\n", args->flags);
+		DRM_INFO("unkyeswn mmap_bo flags: %d\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -207,7 +207,7 @@ int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 	}
 
-	args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
+	args->offset = drm_vma_yesde_offset_addr(&gem_obj->vma_yesde);
 	drm_gem_object_put_unlocked(gem_obj);
 
 	return 0;
@@ -227,7 +227,7 @@ int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 	}
 	bo = to_v3d_bo(gem_obj);
 
-	args->offset = bo->node.start << PAGE_SHIFT;
+	args->offset = bo->yesde.start << PAGE_SHIFT;
 
 	drm_gem_object_put_unlocked(gem_obj);
 	return 0;

@@ -66,7 +66,7 @@ struct xsd_sockmsg
 {
     uint32_t type;  /* XS_??? */
     uint32_t req_id;/* Request identifier, echoed in daemon's response.  */
-    uint32_t tx_id; /* Transaction id (0 if not related to a transaction). */
+    uint32_t tx_id; /* Transaction id (0 if yest related to a transaction). */
     uint32_t len;   /* Length of data following this. */
 
     /* Generally followed by nul-terminated string(s). */

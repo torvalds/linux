@@ -2,14 +2,14 @@
 /*
  *  linux/arch/h8300/kernel/process.c
  *
- * Yoshinori Sato <ysato@users.sourceforge.jp>
+ * Yoshiyesri Sato <ysato@users.sourceforge.jp>
  *
  *  Based on:
  *
- *  linux/arch/m68knommu/kernel/process.c
+ *  linux/arch/m68kyesmmu/kernel/process.c
  *
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@ryeham.ee.ryerson.ca>,
- *                      Kenneth Albanowski <kjahds@kjahds.com>,
+ *                      Kenneth Albayeswski <kjahds@kjahds.com>,
  *                      The Silver Hammer Group, Ltd.
  *
  *  linux/arch/m68k/kernel/process.c
@@ -23,7 +23,7 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -88,14 +88,14 @@ void show_regs(struct pt_regs *regs)
 {
 	show_regs_print_info(KERN_DEFAULT);
 
-	pr_notice("\n");
-	pr_notice("PC: %08lx  Status: %02x\n",
+	pr_yestice("\n");
+	pr_yestice("PC: %08lx  Status: %02x\n",
 	       regs->pc, regs->ccr);
-	pr_notice("ORIG_ER0: %08lx ER0: %08lx ER1: %08lx\n",
+	pr_yestice("ORIG_ER0: %08lx ER0: %08lx ER1: %08lx\n",
 	       regs->orig_er0, regs->er0, regs->er1);
-	pr_notice("ER2: %08lx ER3: %08lx ER4: %08lx ER5: %08lx\n",
+	pr_yestice("ER2: %08lx ER3: %08lx ER4: %08lx ER5: %08lx\n",
 	       regs->er2, regs->er3, regs->er4, regs->er5);
-	pr_notice("ER6' %08lx ", regs->er6);
+	pr_yestice("ER6' %08lx ", regs->er6);
 	if (user_mode(regs))
 		printk("USP: %08lx\n", rdusp());
 	else
@@ -153,7 +153,7 @@ unsigned long get_wchan(struct task_struct *p)
 	return 0;
 }
 
-/* generic sys_clone is not enough registers */
+/* generic sys_clone is yest eyesugh registers */
 asmlinkage int sys_clone(unsigned long __user *args)
 {
 	unsigned long clone_flags;

@@ -46,14 +46,14 @@ context.
 
 
 These APIs can be used to find function name and start address, by given
-address. The given address does not have to be exact, it will select
+address. The given address does yest have to be exact, it will select
 the function that would contain it.
 
 The _tep_find_function()_ function returns the function name, which contains the
 given address _addr_. The _tep_ argument is the trace event parser context.
 
 The _tep_find_function_address()_ function returns the function start address,
-by given address _addr_. The _addr_ does not have to be exact, it will select
+by given address _addr_. The _addr_ does yest have to be exact, it will select
 the function that would contain it. The _tep_ argument is the trace event
 parser context.
 
@@ -64,12 +64,12 @@ the kallsyms function names with their corresponding addresses with this
 function. The _tep_ argument is the trace event parser context. The _name_ is
 the name of the function, the string is copied internally. The _addr_ is the
 start address of the function. The _mod_ is the kernel module the function may
-be in (NULL for none).
+be in (NULL for yesne).
 
 The _tep_register_print_string()_ function  registers a string by the address
 it was stored in the kernel. Some strings internal to the kernel with static
 address are passed to certain events. The "%s" in the event's format field
-which has an address needs to know what string would be at that address. The
+which has an address needs to kyesw what string would be at that address. The
 tep_register_print_string() supplies the parsing with the mapping between kernel
 addresses and those strings. The _tep_ argument is the trace event parser
 context. The _fmt_ is the string to register, it is copied internally.
@@ -82,16 +82,16 @@ The _tep_set_function_resolver()_ function returns 0 in case of success, or -1
 in case of an error.
 
 The _tep_find_function()_ function returns the function name, or NULL in case
-it cannot be found.
+it canyest be found.
 
 The _tep_find_function_address()_ function returns the function start address,
-or 0 in case it cannot be found.
+or 0 in case it canyest be found.
 
 The _tep_register_function()_ function returns 0 in case of success. In case of
-an error -1 is returned, and errno is set to the appropriate error number.
+an error -1 is returned, and erryes is set to the appropriate error number.
 
 The _tep_register_print_string()_ function returns 0 in case of success. In case
-of an error -1 is returned, and errno is set to the appropriate error number.
+of an error -1 is returned, and erryes is set to the appropriate error number.
 
 EXAMPLE
 -------
@@ -168,7 +168,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

@@ -5,7 +5,7 @@
  * CPU init code
  *
  * Copyright (C) 2002 - 2009  Paul Mundt
- * Copyright (C) 2003  Richard Curnow
+ * Copyright (C) 2003  Richard Curyesw
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -37,7 +37,7 @@
 
 /*
  * Generic wrapper for command line arguments to disable on-chip
- * peripherals (nofpu, nodsp, and so forth).
+ * peripherals (yesfpu, yesdsp, and so forth).
  */
 #define onchip_setup(x)					\
 static int x##_disabled = !cpu_has_##x;			\
@@ -47,7 +47,7 @@ static int x##_setup(char *opts)			\
 	x##_disabled = 1;				\
 	return 1;					\
 }							\
-__setup("no" __stringify(x), x##_setup);
+__setup("yes" __stringify(x), x##_setup);
 
 onchip_setup(fpu);
 onchip_setup(dsp);
@@ -82,7 +82,7 @@ static void expmask_init(void)
 	/*
 	 * Future proofing.
 	 *
-	 * Disable support for slottable sleep instruction, non-nop
+	 * Disable support for slottable sleep instruction, yesn-yesp
 	 * instructions in the rte delay slot, and associative writes to
 	 * the memory-mapped cache array.
 	 */
@@ -112,13 +112,13 @@ static void cache_init(void)
 	ccr = __raw_readl(SH_CCR);
 
 	/*
-	 * At this point we don't know whether the cache is enabled or not - a
+	 * At this point we don't kyesw whether the cache is enabled or yest - a
 	 * bootloader may have enabled it.  There are at least 2 things that
 	 * could be dirty in the cache at this point:
 	 * 1. kernel command line set up by boot loader
 	 * 2. spilled registers from the prolog of this function
 	 * => before re-initialising the cache, we must do a purge of the whole
-	 * cache out to memory for safety.  As long as nothing is spilled
+	 * cache out to memory for safety.  As long as yesthing is spilled
 	 * during the loop to lines that have already been done, this is safe.
 	 * - RPC
 	 */
@@ -139,7 +139,7 @@ static void cache_init(void)
 		waysize <<= current_cpu_data.dcache.entry_shift;
 
 #ifdef CCR_CACHE_EMODE
-		/* If EMODE is not set, we only have 1 way to flush. */
+		/* If EMODE is yest set, we only have 1 way to flush. */
 		if (!(ccr & CCR_CACHE_EMODE))
 			ways = 1;
 		else
@@ -253,7 +253,7 @@ static void dsp_init(void)
 		"stc\tsr, %0\n\t"
 		"or\t%1, %0\n\t"
 		"ldc\t%0, sr\n\t"
-		"nop\n\t"
+		"yesp\n\t"
 		"stc\tsr, %0\n\t"
 		: "=&r" (sr)
 		: "r" (SR_DSP)
@@ -300,7 +300,7 @@ asmlinkage void cpu_init(void)
 	cpu_probe();
 
 	if (current_cpu_data.type == CPU_SH_NONE)
-		panic("Unknown CPU");
+		panic("Unkyeswn CPU");
 
 	/* First setup the rest of the I-cache info */
 	current_cpu_data.icache.entry_mask = current_cpu_data.icache.way_incr -

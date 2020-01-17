@@ -16,7 +16,7 @@
 #include <linux/sched/debug.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -61,31 +61,31 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long cause,
 	 * NOTE! We MUST NOT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * yesthing more.
 	 */
 	if (unlikely(address >= VMALLOC_START && address <= VMALLOC_END)) {
 		if (user_mode(regs))
-			goto bad_area_nosemaphore;
+			goto bad_area_yessemaphore;
 		else
 			goto vmalloc_fault;
 	}
 
 	if (unlikely(address >= TASK_SIZE))
-		goto bad_area_nosemaphore;
+		goto bad_area_yessemaphore;
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have yes user
+	 * context, we must yest take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto bad_area_nosemaphore;
+		goto bad_area_yessemaphore;
 
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
 
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if (!user_mode(regs) && !search_exception_tables(regs->ea))
-			goto bad_area_nosemaphore;
+			goto bad_area_yessemaphore;
 retry:
 		down_read(&mm->mmap_sem);
 	}
@@ -147,7 +147,7 @@ good_area:
 	}
 
 	/*
-	 * Major/minor page fault accounting is only done on the
+	 * Major/miyesr page fault accounting is only done on the
 	 * initial attempt. If we go through a retry, it is extremely
 	 * likely that the page will be found in page cache at that point.
 	 */
@@ -182,7 +182,7 @@ good_area:
 bad_area:
 	up_read(&mm->mmap_sem);
 
-bad_area_nosemaphore:
+bad_area_yessemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 	if (user_mode(regs)) {
 		if (unhandled_signal(current, SIGSEGV) && printk_ratelimit()) {
@@ -194,7 +194,7 @@ bad_area_nosemaphore:
 		return;
 	}
 
-no_context:
+yes_context:
 	/* Are we prepared to handle this kernel fault? */
 	if (fixup_exception(regs))
 		return;
@@ -220,7 +220,7 @@ no_context:
 out_of_memory:
 	up_read(&mm->mmap_sem);
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 	pagefault_out_of_memory();
 	return;
 
@@ -229,7 +229,7 @@ do_sigbus:
 
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 
 	_exception(SIGBUS, regs, BUS_ADRERR, address);
 	return;
@@ -240,7 +240,7 @@ vmalloc_fault:
 		 * Synchronize this task's top level page-table
 		 * with the 'reference' page table.
 		 *
-		 * Do _not_ use "tsk" here. We might be inside
+		 * Do _yest_ use "tsk" here. We might be inside
 		 * an interrupt in the middle of a task switch..
 		 */
 		int offset = pgd_index(address);
@@ -253,22 +253,22 @@ vmalloc_fault:
 		pgd_k = init_mm.pgd + offset;
 
 		if (!pgd_present(*pgd_k))
-			goto no_context;
+			goto yes_context;
 		set_pgd(pgd, *pgd_k);
 
 		pud = pud_offset(pgd, address);
 		pud_k = pud_offset(pgd_k, address);
 		if (!pud_present(*pud_k))
-			goto no_context;
+			goto yes_context;
 		pmd = pmd_offset(pud, address);
 		pmd_k = pmd_offset(pud_k, address);
 		if (!pmd_present(*pmd_k))
-			goto no_context;
+			goto yes_context;
 		set_pmd(pmd, *pmd_k);
 
 		pte_k = pte_offset_kernel(pmd_k, address);
 		if (!pte_present(*pte_k))
-			goto no_context;
+			goto yes_context;
 
 		flush_tlb_kernel_page(address);
 		return;

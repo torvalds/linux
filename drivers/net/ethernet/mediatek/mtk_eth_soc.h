@@ -791,7 +791,7 @@ struct mtk_soc_data {
 	netdev_features_t hw_features;
 };
 
-/* currently no SoC has more than 2 macs */
+/* currently yes SoC has more than 2 macs */
 #define MTK_MAX_DEVS			2
 
 #define MTK_SGMII_PHYSPEED_AN          BIT(31)
@@ -893,7 +893,7 @@ struct mtk_eth {
  *			SoC
  * @id:			The number of the MAC
  * @interface:		Interface mode kept for detecting change in hw settings
- * @of_node:		Our devicetree node
+ * @of_yesde:		Our devicetree yesde
  * @hw:			Backpointer to our main datastruture
  * @hw_stats:		Packet statistics counter
  */
@@ -902,7 +902,7 @@ struct mtk_mac {
 	phy_interface_t			interface;
 	unsigned int			mode;
 	int				speed;
-	struct device_node		*of_node;
+	struct device_yesde		*of_yesde;
 	struct phylink			*phylink;
 	struct phylink_config		phylink_config;
 	struct mtk_eth			*hw;
@@ -920,7 +920,7 @@ void mtk_stats_update_mac(struct mtk_mac *mac);
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
 u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
 
-int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *np,
+int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_yesde *np,
 		   u32 ana_rgc3);
 int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id);
 int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id,

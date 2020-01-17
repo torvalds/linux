@@ -111,7 +111,7 @@ static bool cfg80211_edmg_chandef_valid(const struct cfg80211_chan_def *chandef)
 		return false;
 	}
 
-	/* check bw_config against aggregated (non contiguous) edmg channels */
+	/* check bw_config against aggregated (yesn contiguous) edmg channels */
 	switch (chandef->edmg.bw_config) {
 	case IEEE80211_EDMG_BW_CONFIG_4:
 	case IEEE80211_EDMG_BW_CONFIG_5:
@@ -173,7 +173,7 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 			return false;
 		if (!chandef->center_freq2)
 			return false;
-		/* adjacent is not allowed -- that's a 160 MHz channel */
+		/* adjacent is yest allowed -- that's a 160 MHz channel */
 		if (chandef->center_freq1 - chandef->center_freq2 == 80 ||
 		    chandef->center_freq2 - chandef->center_freq1 == 80)
 			return false;
@@ -501,7 +501,7 @@ static int cfg80211_get_chans_dfs_usable(struct wiphy *wiphy,
 	 * Check entire range of channels for the bandwidth.
 	 * Check all channels are DFS channels (DFS_USABLE or
 	 * DFS_AVAILABLE). Return number of usable channels
-	 * (require CAC). Allow DFS and non-DFS channel mix.
+	 * (require CAC). Allow DFS and yesn-DFS channel mix.
 	 */
 	for (freq = start_freq; freq <= end_freq; freq += 20) {
 		c = ieee80211_get_channel(wiphy, freq);
@@ -691,7 +691,7 @@ static bool cfg80211_get_chans_dfs_available(struct wiphy *wiphy,
 
 	/*
 	 * Check entire range of channels for the bandwidth.
-	 * If any channel in between is disabled or has not
+	 * If any channel in between is disabled or has yest
 	 * had gone through CAC return false
 	 */
 	for (freq = start_freq; freq <= end_freq; freq += 20) {
@@ -963,7 +963,7 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 	 *	 For 40 MHz the driver can set the NO_HT40 flags, but for
 	 *	 80/160 MHz and in particular 80+80 MHz this isn't really
 	 *	 feasible and we only have NO_80MHZ/NO_160MHZ so far but
-	 *	 no way to cover 80+80 MHz or more complex restrictions.
+	 *	 yes way to cover 80+80 MHz or more complex restrictions.
 	 *	 Note that such restrictions also need to be advertised to
 	 *	 userspace, for example for P2P channel selection.
 	 */
@@ -1023,7 +1023,7 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 		return false;
 
 	/*
-	 * Generally, it is possible to rely on another device/driver to allow
+	 * Generally, it is possible to rely on ayesther device/driver to allow
 	 * the IR concurrent relaxation, however, since the device can further
 	 * enforce the relaxation (by doing a similar verifications as this),
 	 * and thus fail the GO instantiation, consider only the interfaces of
@@ -1042,8 +1042,8 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 		 * If a GO already operates on the same GO_CONCURRENT channel,
 		 * this one (maybe the same one) can beacon as well. We allow
 		 * the operation even if the station we relied on with
-		 * GO_CONCURRENT is disconnected now. But then we must make sure
-		 * we're not outdoor on an indoor-only channel.
+		 * GO_CONCURRENT is disconnected yesw. But then we must make sure
+		 * we're yest outdoor on an indoor-only channel.
 		 */
 		if (iftype == NL80211_IFTYPE_P2P_GO &&
 		    wdev->iftype == NL80211_IFTYPE_P2P_GO &&
@@ -1075,7 +1075,7 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 			 * station interface connected to an AP on channel 165,
 			 * it is assumed that channels 149-161 are allowed for
 			 * GO operations. However, having a station interface
-			 * connected to an AP on channels 149-161, does not
+			 * connected to an AP on channels 149-161, does yest
 			 * allow GO operation on channel 165.
 			 */
 			if (chan->center_freq == 5825 &&
@@ -1091,15 +1091,15 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 static bool _cfg80211_reg_can_beacon(struct wiphy *wiphy,
 				     struct cfg80211_chan_def *chandef,
 				     enum nl80211_iftype iftype,
-				     bool check_no_ir)
+				     bool check_yes_ir)
 {
 	bool res;
 	u32 prohibited_flags = IEEE80211_CHAN_DISABLED |
 			       IEEE80211_CHAN_RADAR;
 
-	trace_cfg80211_reg_can_beacon(wiphy, chandef, iftype, check_no_ir);
+	trace_cfg80211_reg_can_beacon(wiphy, chandef, iftype, check_yes_ir);
 
-	if (check_no_ir)
+	if (check_yes_ir)
 		prohibited_flags |= IEEE80211_CHAN_NO_IR;
 
 	if (cfg80211_chandef_dfs_required(wiphy, chandef, iftype) > 0 &&
@@ -1126,20 +1126,20 @@ bool cfg80211_reg_can_beacon_relax(struct wiphy *wiphy,
 				   struct cfg80211_chan_def *chandef,
 				   enum nl80211_iftype iftype)
 {
-	bool check_no_ir;
+	bool check_yes_ir;
 
 	ASSERT_RTNL();
 
 	/*
 	 * Under certain conditions suggested by some regulatory bodies a
 	 * GO/STA can IR on channels marked with IEEE80211_NO_IR. Set this flag
-	 * only if such relaxations are not enabled and the conditions are not
+	 * only if such relaxations are yest enabled and the conditions are yest
 	 * met.
 	 */
-	check_no_ir = !cfg80211_ir_permissive_chan(wiphy, iftype,
+	check_yes_ir = !cfg80211_ir_permissive_chan(wiphy, iftype,
 						   chandef->chan);
 
-	return _cfg80211_reg_can_beacon(wiphy, chandef, iftype, check_no_ir);
+	return _cfg80211_reg_can_beacon(wiphy, chandef, iftype, check_yes_ir);
 }
 EXPORT_SYMBOL(cfg80211_reg_can_beacon_relax);
 

@@ -12,7 +12,7 @@
 #define _LSM_COMMON_LOGGING_
 
 #include <linux/stddef.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/kdev_t.h>
 #include <linux/spinlock.h>
@@ -77,7 +77,7 @@ struct common_audit_data {
 	union 	{
 		struct path path;
 		struct dentry *dentry;
-		struct inode *inode;
+		struct iyesde *iyesde;
 		struct lsm_network_audit *net;
 		int cap;
 		int ipc_id;

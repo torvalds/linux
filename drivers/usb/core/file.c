@@ -18,7 +18,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -27,34 +27,34 @@
 #include "usb.h"
 
 #define MAX_USB_MINORS	256
-static const struct file_operations *usb_minors[MAX_USB_MINORS];
-static DECLARE_RWSEM(minor_rwsem);
+static const struct file_operations *usb_miyesrs[MAX_USB_MINORS];
+static DECLARE_RWSEM(miyesr_rwsem);
 static DEFINE_MUTEX(init_usb_class_mutex);
 
-static int usb_open(struct inode *inode, struct file *file)
+static int usb_open(struct iyesde *iyesde, struct file *file)
 {
 	int err = -ENODEV;
 	const struct file_operations *new_fops;
 
-	down_read(&minor_rwsem);
-	new_fops = fops_get(usb_minors[iminor(inode)]);
+	down_read(&miyesr_rwsem);
+	new_fops = fops_get(usb_miyesrs[imiyesr(iyesde)]);
 
 	if (!new_fops)
 		goto done;
 
 	replace_fops(file, new_fops);
-	/* Curiouser and curiouser... NULL ->open() as "no device" ? */
+	/* Curiouser and curiouser... NULL ->open() as "yes device" ? */
 	if (file->f_op->open)
-		err = file->f_op->open(inode, file);
+		err = file->f_op->open(iyesde, file);
  done:
-	up_read(&minor_rwsem);
+	up_read(&miyesr_rwsem);
 	return err;
 }
 
 static const struct file_operations usb_fops = {
 	.owner =	THIS_MODULE,
 	.open =		usb_open,
-	.llseek =	noop_llseek,
+	.llseek =	yesop_llseek,
 };
 
 static struct usb_class {
@@ -62,14 +62,14 @@ static struct usb_class {
 	struct class *class;
 } *usb_class;
 
-static char *usb_devnode(struct device *dev, umode_t *mode)
+static char *usb_devyesde(struct device *dev, umode_t *mode)
 {
 	struct usb_class_driver *drv;
 
 	drv = dev_get_drvdata(dev);
-	if (!drv || !drv->devnode)
+	if (!drv || !drv->devyesde)
 		return NULL;
-	return drv->devnode(dev, mode);
+	return drv->devyesde(dev, mode);
 }
 
 static int init_usb_class(void)
@@ -96,7 +96,7 @@ static int init_usb_class(void)
 		usb_class = NULL;
 		goto exit;
 	}
-	usb_class->class->devnode = usb_devnode;
+	usb_class->class->devyesde = usb_devyesde;
 
 exit:
 	return result;
@@ -104,7 +104,7 @@ exit:
 
 static void release_usb_class(struct kref *kref)
 {
-	/* Ok, we cheat as we know we only have one usb_class */
+	/* Ok, we cheat as we kyesw we only have one usb_class */
 	class_destroy(usb_class->class);
 	kfree(usb_class);
 	usb_class = NULL;
@@ -135,20 +135,20 @@ void usb_major_cleanup(void)
 }
 
 /**
- * usb_register_dev - register a USB device, and ask for a minor number
+ * usb_register_dev - register a USB device, and ask for a miyesr number
  * @intf: pointer to the usb_interface that is being registered
  * @class_driver: pointer to the usb_class_driver for this device
  *
  * This should be called by all USB drivers that use the USB major number.
- * If CONFIG_USB_DYNAMIC_MINORS is enabled, the minor number will be
- * dynamically allocated out of the list of available ones.  If it is not
- * enabled, the minor number will be based on the next available free minor,
- * starting at the class_driver->minor_base.
+ * If CONFIG_USB_DYNAMIC_MINORS is enabled, the miyesr number will be
+ * dynamically allocated out of the list of available ones.  If it is yest
+ * enabled, the miyesr number will be based on the next available free miyesr,
+ * starting at the class_driver->miyesr_base.
  *
  * This function also creates a usb class device in the sysfs tree.
  *
  * usb_deregister_dev() must be called when the driver is done with
- * the minor numbers given out by this function.
+ * the miyesr numbers given out by this function.
  *
  * Return: -EINVAL if something bad happens with trying to register a
  * device, and 0 on success.
@@ -157,22 +157,22 @@ int usb_register_dev(struct usb_interface *intf,
 		     struct usb_class_driver *class_driver)
 {
 	int retval;
-	int minor_base = class_driver->minor_base;
-	int minor;
+	int miyesr_base = class_driver->miyesr_base;
+	int miyesr;
 	char name[20];
 
 #ifdef CONFIG_USB_DYNAMIC_MINORS
 	/*
 	 * We don't care what the device tries to start at, we want to start
 	 * at zero to pack the devices into the smallest available space with
-	 * no holes in the minor range.
+	 * yes holes in the miyesr range.
 	 */
-	minor_base = 0;
+	miyesr_base = 0;
 #endif
 
 	if (class_driver->fops == NULL)
 		return -EINVAL;
-	if (intf->minor >= 0)
+	if (intf->miyesr >= 0)
 		return -EADDRINUSE;
 
 	mutex_lock(&init_usb_class_mutex);
@@ -182,44 +182,44 @@ int usb_register_dev(struct usb_interface *intf,
 	if (retval)
 		return retval;
 
-	dev_dbg(&intf->dev, "looking for a minor, starting at %d\n", minor_base);
+	dev_dbg(&intf->dev, "looking for a miyesr, starting at %d\n", miyesr_base);
 
-	down_write(&minor_rwsem);
-	for (minor = minor_base; minor < MAX_USB_MINORS; ++minor) {
-		if (usb_minors[minor])
+	down_write(&miyesr_rwsem);
+	for (miyesr = miyesr_base; miyesr < MAX_USB_MINORS; ++miyesr) {
+		if (usb_miyesrs[miyesr])
 			continue;
 
-		usb_minors[minor] = class_driver->fops;
-		intf->minor = minor;
+		usb_miyesrs[miyesr] = class_driver->fops;
+		intf->miyesr = miyesr;
 		break;
 	}
-	if (intf->minor < 0) {
-		up_write(&minor_rwsem);
+	if (intf->miyesr < 0) {
+		up_write(&miyesr_rwsem);
 		return -EXFULL;
 	}
 
 	/* create a usb class device for this usb interface */
-	snprintf(name, sizeof(name), class_driver->name, minor - minor_base);
+	snprintf(name, sizeof(name), class_driver->name, miyesr - miyesr_base);
 	intf->usb_dev = device_create(usb_class->class, &intf->dev,
-				      MKDEV(USB_MAJOR, minor), class_driver,
+				      MKDEV(USB_MAJOR, miyesr), class_driver,
 				      "%s", kbasename(name));
 	if (IS_ERR(intf->usb_dev)) {
-		usb_minors[minor] = NULL;
-		intf->minor = -1;
+		usb_miyesrs[miyesr] = NULL;
+		intf->miyesr = -1;
 		retval = PTR_ERR(intf->usb_dev);
 	}
-	up_write(&minor_rwsem);
+	up_write(&miyesr_rwsem);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(usb_register_dev);
 
 /**
- * usb_deregister_dev - deregister a USB device's dynamic minor.
+ * usb_deregister_dev - deregister a USB device's dynamic miyesr.
  * @intf: pointer to the usb_interface that is being deregistered
  * @class_driver: pointer to the usb_class_driver for this device
  *
  * Used in conjunction with usb_register_dev().  This function is called
- * when the USB driver is finished with the minor numbers gotten from a
+ * when the USB driver is finished with the miyesr numbers gotten from a
  * call to usb_register_dev() (usually when the device is disconnected
  * from the system.)
  *
@@ -230,18 +230,18 @@ EXPORT_SYMBOL_GPL(usb_register_dev);
 void usb_deregister_dev(struct usb_interface *intf,
 			struct usb_class_driver *class_driver)
 {
-	if (intf->minor == -1)
+	if (intf->miyesr == -1)
 		return;
 
-	dev_dbg(&intf->dev, "removing %d minor\n", intf->minor);
-	device_destroy(usb_class->class, MKDEV(USB_MAJOR, intf->minor));
+	dev_dbg(&intf->dev, "removing %d miyesr\n", intf->miyesr);
+	device_destroy(usb_class->class, MKDEV(USB_MAJOR, intf->miyesr));
 
-	down_write(&minor_rwsem);
-	usb_minors[intf->minor] = NULL;
-	up_write(&minor_rwsem);
+	down_write(&miyesr_rwsem);
+	usb_miyesrs[intf->miyesr] = NULL;
+	up_write(&miyesr_rwsem);
 
 	intf->usb_dev = NULL;
-	intf->minor = -1;
+	intf->miyesr = -1;
 	destroy_usb_class();
 }
 EXPORT_SYMBOL_GPL(usb_deregister_dev);

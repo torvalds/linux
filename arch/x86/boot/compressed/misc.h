@@ -3,7 +3,7 @@
 #define BOOT_COMPRESSED_MISC_H
 
 /*
- * Special hack: we have to be careful, because no indirections are allowed here,
+ * Special hack: we have to be careful, because yes indirections are allowed here,
  * and paravirt_ops is a kind of one. As it will only run in baremetal anyway,
  * we just keep it from happening. (This list needs to be extended when new
  * paravirt and debugging variants are added.)
@@ -13,7 +13,7 @@
 #undef CONFIG_PARAVIRT_SPINLOCKS
 #undef CONFIG_KASAN
 
-/* cpu_feature_enabled() cannot be used this early */
+/* cpu_feature_enabled() canyest be used this early */
 #define USE_EARLY_PGTABLE_L5
 
 #include <linux/linkage.h>

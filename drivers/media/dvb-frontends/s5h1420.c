@@ -42,7 +42,7 @@ struct s5h1420_state {
 	u32 symbol_rate;
 
 	/* FIXME: ugly workaround for flexcop's incapable i2c-controller
-	 * it does not support repeated-start, workaround: write addr-1
+	 * it does yest support repeated-start, workaround: write addr-1
 	 * and then read
 	 */
 	u8 shadow[256];
@@ -231,7 +231,7 @@ static int s5h1420_recv_slave_reply (struct dvb_frontend* fe,
 		goto exit;
 	}
 
-	/* check error flag - FIXME: not sure what this does - docs do not describe
+	/* check error flag - FIXME: yest sure what this does - docs do yest describe
 	 * beyond "error flag for diseqc receive data :( */
 	if (s5h1420_readreg(state, 0x49)) {
 		result = -EIO;
@@ -908,7 +908,7 @@ struct dvb_frontend *s5h1420_attach(const struct s5h1420_config *config,
 	state->tuner_i2c_adapter.algo_data = NULL;
 	i2c_set_adapdata(&state->tuner_i2c_adapter, state);
 	if (i2c_add_adapter(&state->tuner_i2c_adapter) < 0) {
-		printk(KERN_ERR "S5H1420/PN1010: tuner i2c bus could not be initialized\n");
+		printk(KERN_ERR "S5H1420/PN1010: tuner i2c bus could yest be initialized\n");
 		goto error;
 	}
 

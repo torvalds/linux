@@ -34,7 +34,7 @@ struct flexgen {
 	struct clk_gate fgate;
 	/* Final divisor */
 	struct clk_divider fdiv;
-	/* Asynchronous mode control */
+	/* Asynchroyesus mode control */
 	struct clk_gate sync;
 	/* hw control flags */
 	bool control_mode;
@@ -267,7 +267,7 @@ static struct clk *clk_register_flexgen(const char *name,
 	return clk;
 }
 
-static const char ** __init flexgen_get_parents(struct device_node *np,
+static const char ** __init flexgen_get_parents(struct device_yesde *np,
 						       int *num_parents)
 {
 	const char **parents;
@@ -307,9 +307,9 @@ static const struct of_device_id flexgen_of_match[] = {
 	{}
 };
 
-static void __init st_of_flexgen_setup(struct device_node *np)
+static void __init st_of_flexgen_setup(struct device_yesde *np)
 {
-	struct device_node *pnode;
+	struct device_yesde *pyesde;
 	void __iomem *reg;
 	struct clk_onecell_data *clk_data;
 	const char **parents;
@@ -321,12 +321,12 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 	int ret;
 	bool clk_mode = 0;
 
-	pnode = of_get_parent(np);
-	if (!pnode)
+	pyesde = of_get_parent(np);
+	if (!pyesde)
 		return;
 
-	reg = of_iomap(pnode, 0);
-	of_node_put(pnode);
+	reg = of_iomap(pyesde, 0);
+	of_yesde_put(pyesde);
 	if (!reg)
 		return;
 
@@ -336,7 +336,7 @@ static void __init st_of_flexgen_setup(struct device_node *np)
 		return;
 	}
 
-	match = of_match_node(flexgen_of_match, np);
+	match = of_match_yesde(flexgen_of_match, np);
 	if (match) {
 		data = (struct clkgen_data *)match->data;
 		flex_flags = data->flags;

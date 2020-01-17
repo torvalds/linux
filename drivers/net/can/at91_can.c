@@ -7,7 +7,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_arp.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -492,7 +492,7 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * tx_next buffer prio and mailbox equals 0.
 	 *
 	 * also stop the queue if next buffer is still in use
-	 * (== not ready)
+	 * (== yest ready)
 	 */
 	priv->tx_next++;
 	if (!(at91_read(priv, AT91_MSR(get_tx_next_mb(priv))) &
@@ -636,15 +636,15 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
  * on the chip are reserved for RX. We split them into 2 groups. The
  * lower group ranges from get_mb_rx_first() to get_mb_rx_low_last().
  *
- * Like it or not, but the chip always saves a received CAN message
+ * Like it or yest, but the chip always saves a received CAN message
  * into the first free mailbox it finds (starting with the
  * lowest). This makes it very difficult to read the messages in the
  * right order from the chip. This is how we work around that problem:
  *
  * The first message goes into mb nr. 1 and issues an interrupt. All
  * rx ints are disabled in the interrupt handler and a napi poll is
- * scheduled. We read the mailbox, but do _not_ reenable the mb (to
- * receive another message).
+ * scheduled. We read the mailbox, but do _yest_ reenable the mb (to
+ * receive ayesther message).
  *
  *    lower mbxs      upper
  *     ____^______    __^__
@@ -661,7 +661,7 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
  *
  * The variable priv->rx_next points to the next mailbox to read a
  * message from. As long we're in the lower mailboxes we just read the
- * mailbox but not reenable it.
+ * mailbox but yest reenable it.
  *
  * With completion of the last of the lower mailboxes, we reenable the
  * whole first group, but continue to look for filled mailboxes in the
@@ -685,7 +685,7 @@ static int at91_poll_rx(struct net_device *dev, int quota)
 	if (priv->rx_next > get_mb_rx_low_last(priv) &&
 	    reg_sr & get_mb_rx_low_mask(priv))
 		netdev_info(dev,
-			"order of incoming frames cannot be guaranteed\n");
+			"order of incoming frames canyest be guaranteed\n");
 
  again:
 	for (mb = find_next_bit(addr, get_mb_tx_first(priv), priv->rx_next);
@@ -739,7 +739,7 @@ static void at91_poll_err_frame(struct net_device *dev,
 		cf->data[2] |= CAN_ERR_PROT_STUFF;
 	}
 
-	/* Acknowledgement Error */
+	/* Ackyeswledgement Error */
 	if (reg_sr & AT91_IRQ_AERR) {
 		netdev_dbg(dev, "AERR irq\n");
 		dev->stats.tx_errors++;
@@ -820,12 +820,12 @@ static int at91_poll(struct napi_struct *napi, int quota)
  * theory of operation:
  *
  * priv->tx_echo holds the number of the oldest can_frame put for
- * transmission into the hardware, but not yet ACKed by the CAN tx
+ * transmission into the hardware, but yest yet ACKed by the CAN tx
  * complete IRQ.
  *
  * We iterate from priv->tx_echo to priv->tx_next and check if the
  * packet has been transmitted, echo it back to the CAN framework. If
- * we discover a not yet transmitted package, stop looking for more.
+ * we discover a yest yet transmitted package, stop looking for more.
  *
  */
 static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
@@ -834,12 +834,12 @@ static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
 	u32 reg_msr;
 	unsigned int mb;
 
-	/* masking of reg_sr not needed, already done by at91_irq */
+	/* masking of reg_sr yest needed, already done by at91_irq */
 
 	for (/* nix */; (priv->tx_next - priv->tx_echo) > 0; priv->tx_echo++) {
 		mb = get_tx_echo_mb(priv);
 
-		/* no event in mailbox? */
+		/* yes event in mailbox? */
 		if (!(reg_sr & (1 << mb)))
 			break;
 
@@ -1066,7 +1066,7 @@ static irqreturn_t at91_irq(int irq, void *dev_id)
 	reg_sr = at91_read(priv, AT91_SR);
 	reg_imr = at91_read(priv, AT91_IMR);
 
-	/* Ignore masked interrupts */
+	/* Igyesre masked interrupts */
 	reg_sr &= reg_imr;
 	if (!reg_sr)
 		goto exit;
@@ -1250,12 +1250,12 @@ MODULE_DEVICE_TABLE(of, at91_can_dt_ids);
 
 static const struct at91_devtype_data *at91_can_get_driver_data(struct platform_device *pdev)
 {
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		const struct of_device_id *match;
 
-		match = of_match_node(at91_can_dt_ids, pdev->dev.of_node);
+		match = of_match_yesde(at91_can_dt_ids, pdev->dev.of_yesde);
 		if (!match) {
-			dev_err(&pdev->dev, "no matching node found in dtb\n");
+			dev_err(&pdev->dev, "yes matching yesde found in dtb\n");
 			return NULL;
 		}
 		return (const struct at91_devtype_data *)match->data;
@@ -1276,14 +1276,14 @@ static int at91_can_probe(struct platform_device *pdev)
 
 	devtype_data = at91_can_get_driver_data(pdev);
 	if (!devtype_data) {
-		dev_err(&pdev->dev, "no driver data\n");
+		dev_err(&pdev->dev, "yes driver data\n");
 		err = -ENODEV;
 		goto exit;
 	}
 
 	clk = clk_get(&pdev->dev, "can_clk");
 	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "no clock defined\n");
+		dev_err(&pdev->dev, "yes clock defined\n");
 		err = -ENODEV;
 		goto exit;
 	}
@@ -1302,7 +1302,7 @@ static int at91_can_probe(struct platform_device *pdev)
 		goto exit_put;
 	}
 
-	addr = ioremap_nocache(res->start, resource_size(res));
+	addr = ioremap_yescache(res->start, resource_size(res));
 	if (!addr) {
 		err = -ENOMEM;
 		goto exit_release;

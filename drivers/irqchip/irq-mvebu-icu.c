@@ -117,8 +117,8 @@ static void mvebu_icu_write_msg(struct msi_desc *desc, struct msi_msg *msg)
 	 * port. The ahci sata driver supports only one irq interrupt
 	 * per SATA unit. To solve this conflict, we configure the 2
 	 * SATA wired interrupts in the south bridge into 1 GIC
-	 * interrupt in the north bridge. Even if only a single port
-	 * is enabled, if sata node is enabled, both interrupts are
+	 * interrupt in the yesrth bridge. Even if only a single port
+	 * is enabled, if sata yesde is enabled, both interrupts are
 	 * configured (regardless of which port is actually in use).
 	 */
 	if (d->hwirq == ICU_SATA0_ICU_ID || d->hwirq == ICU_SATA1_ICU_ID) {
@@ -177,7 +177,7 @@ mvebu_icu_irq_domain_translate(struct irq_domain *d, struct irq_fwspec *fwspec,
 		/*
 		 * The ICU receives level interrupts. While the NSR are also
 		 * level interrupts, SEI are edge interrupts. Force the type
-		 * here in this case. Please note that this makes the interrupt
+		 * here in this case. Please yeste that this makes the interrupt
 		 * handling unreliable.
 		 */
 		if (msi_data->subset_data->icu_group == ICU_GRP_SEI)
@@ -227,7 +227,7 @@ mvebu_icu_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 		goto free_irqd;
 	}
 
-	/* Make sure there is no interrupt left pending by the firmware */
+	/* Make sure there is yes interrupt left pending by the firmware */
 	err = irq_set_irqchip_state(virq, IRQCHIP_STATE_PENDING, false);
 	if (err)
 		goto free_msi;
@@ -298,7 +298,7 @@ static const struct of_device_id mvebu_icu_subset_of_match[] = {
 static int mvebu_icu_subset_probe(struct platform_device *pdev)
 {
 	struct mvebu_icu_msi_data *msi_data;
-	struct device_node *msi_parent_dn;
+	struct device_yesde *msi_parent_dn;
 	struct device *dev = &pdev->dev;
 	struct irq_domain *irq_domain;
 
@@ -314,12 +314,12 @@ static int mvebu_icu_subset_probe(struct platform_device *pdev)
 		msi_data->subset_data = of_device_get_match_data(dev);
 	}
 
-	dev->msi_domain = of_msi_get_domain(dev, dev->of_node,
+	dev->msi_domain = of_msi_get_domain(dev, dev->of_yesde,
 					    DOMAIN_BUS_PLATFORM_MSI);
 	if (!dev->msi_domain)
 		return -EPROBE_DEFER;
 
-	msi_parent_dn = irq_domain_get_of_node(dev->msi_domain);
+	msi_parent_dn = irq_domain_get_of_yesde(dev->msi_domain);
 	if (!msi_parent_dn)
 		return -ENODEV;
 
@@ -365,13 +365,13 @@ static int mvebu_icu_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Legacy bindings: ICU is one node with one MSI parent: force manually
+	 * Legacy bindings: ICU is one yesde with one MSI parent: force manually
 	 *                  the probe of the NSR interrupts side.
-	 * New bindings: ICU node has children, one per interrupt controller
+	 * New bindings: ICU yesde has children, one per interrupt controller
 	 *               having its own MSI parent: call platform_populate().
 	 * All ICU instances should use the same bindings.
 	 */
-	if (!of_get_child_count(pdev->dev.of_node))
+	if (!of_get_child_count(pdev->dev.of_yesde))
 		static_branch_enable(&legacy_bindings);
 
 	/*

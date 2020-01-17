@@ -222,10 +222,10 @@
 	status = "okay";
 };
 
-/* SD0 only supports 3.3V, no level shifter */
+/* SD0 only supports 3.3V, yes level shifter */
 &sdhci0 {
 	status = "okay";
-	no-1-8-v;
+	yes-1-8-v;
 	broken-cd; /* CD has to be enabled by default */
 	disable-wp;
 };
@@ -233,7 +233,7 @@
 &sdhci1 {
 	status = "okay";
 	bus-width = <0x4>;
-	non-removable;
+	yesn-removable;
 	disable-wp;
 	cap-power-off-card;
 	mmc-pwrseq = <&sdio_pwrseq>;

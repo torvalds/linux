@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -48,7 +48,7 @@ struct gvt_firmware_header {
 	unsigned char data[1];
 };
 
-#define dev_to_drm_minor(d) dev_get_drvdata((d))
+#define dev_to_drm_miyesr(d) dev_get_drvdata((d))
 
 static ssize_t
 gvt_firmware_read(struct file *filp, struct kobject *kobj,
@@ -70,7 +70,7 @@ static int mmio_snapshot_handler(struct intel_gvt *gvt, u32 offset, void *data)
 {
 	struct drm_i915_private *i915 = gvt->dev_priv;
 
-	*(u32 *)(data + offset) = intel_uncore_read_notrace(&i915->uncore,
+	*(u32 *)(data + offset) = intel_uncore_read_yestrace(&i915->uncore,
 							    _MMIO(offset));
 	return 0;
 }

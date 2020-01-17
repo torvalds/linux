@@ -822,7 +822,7 @@ static int cx2072x_config_i2spcm(struct cx2072x_priv *cx2072x)
 		reg6.r.tx_pause_start_pos = i2s_right_pause_pos;
 		reg6.r.tx_pause_cycles = i2s_right_pause_interval;
 	} else {
-		dev_err(dev, "TDM mode is not implemented yet\n");
+		dev_err(dev, "TDM mode is yest implemented yet\n");
 		return -EINVAL;
 	}
 	regdbt2.r.i2s_bclk_invert = is_bclk_inv;
@@ -920,7 +920,7 @@ static int cx2072x_hw_params(struct snd_pcm_substream *substream,
 	const unsigned int sample_rate = params_rate(params);
 	int sample_size, frame_size;
 
-	/* Data sizes if not using TDM */
+	/* Data sizes if yest using TDM */
 	sample_size = params_width(params);
 
 	if (sample_size < 0)
@@ -931,7 +931,7 @@ static int cx2072x_hw_params(struct snd_pcm_substream *substream,
 		return frame_size;
 
 	if (cx2072x->mclk_rate == 0) {
-		dev_err(dev, "Master clock rate is not configured\n");
+		dev_err(dev, "Master clock rate is yest configured\n");
 		return -EINVAL;
 	}
 
@@ -1366,8 +1366,8 @@ static int cx2072x_set_bias_level(struct snd_soc_component *codec,
 /*
  * FIXME: the whole jack detection code below is pretty platform-specific;
  * it has lots of implicit assumptions about the pins, etc.
- * However, since we have no other code and reference, take this hard-coded
- * setup for now.  Once when we have different platform implementations,
+ * However, since we have yes other code and reference, take this hard-coded
+ * setup for yesw.  Once when we have different platform implementations,
  * this needs to be rewritten in a more generic form, or moving into the
  * platform data.
  */
@@ -1385,7 +1385,7 @@ static void cx2072x_enable_jack_detect(struct snd_soc_component *codec)
 	/* Enables unsolitited message on PortA */
 	regmap_write(cx2072x->regmap, CX2072X_PORTA_UNSOLICITED_RESPONSE, 0x80);
 
-	/* support both nokia and apple headset set. Monitor time = 275 ms */
+	/* support both yeskia and apple headset set. Monitor time = 275 ms */
 	regmap_write(cx2072x->regmap, CX2072X_DIGITAL_TEST15, 0x73);
 
 	/* Disable TIP detection */
@@ -1495,10 +1495,10 @@ static int cx2072x_probe(struct snd_soc_component *codec)
 	/*
 	 * FIXME: below is, again, a very platform-specific init sequence,
 	 * but we keep the code here just for simplicity.  It seems that all
-	 * existing hardware implementations require this, so there is no very
+	 * existing hardware implementations require this, so there is yes very
 	 * much reason to move this out of the codec driver to the platform
 	 * data.
-	 * But of course it's no "right" thing; if you are a good boy, don't
+	 * But of course it's yes "right" thing; if you are a good boy, don't
 	 * read and follow the code like this!
 	 */
 	pm_runtime_get_sync(codec->dev);

@@ -105,11 +105,11 @@ static long posix_clock_compat_ioctl(struct file *fp,
 }
 #endif
 
-static int posix_clock_open(struct inode *inode, struct file *fp)
+static int posix_clock_open(struct iyesde *iyesde, struct file *fp)
 {
 	int err;
 	struct posix_clock *clk =
-		container_of(inode->i_cdev, struct posix_clock, cdev);
+		container_of(iyesde->i_cdev, struct posix_clock, cdev);
 
 	down_read(&clk->rwsem);
 
@@ -131,7 +131,7 @@ out:
 	return err;
 }
 
-static int posix_clock_release(struct inode *inode, struct file *fp)
+static int posix_clock_release(struct iyesde *iyesde, struct file *fp)
 {
 	struct posix_clock *clk = fp->private_data;
 	int err = 0;
@@ -148,7 +148,7 @@ static int posix_clock_release(struct inode *inode, struct file *fp)
 
 static const struct file_operations posix_clock_file_operations = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.read		= posix_clock_read,
 	.poll		= posix_clock_poll,
 	.unlocked_ioctl	= posix_clock_ioctl,

@@ -8,7 +8,7 @@ Each "port" features up to 16 pins, each of them configurable for GPIO
 function (port mode) or in alternate function mode.
 Up to 8 different alternate function modes exist for each single pin.
 
-Pin controller node
+Pin controller yesde
 -------------------
 
 Required properties:
@@ -22,7 +22,7 @@ Required properties:
     hardware is mapped to.
 
 Example:
-Pin controller node for RZ/A1H SoC (r7s72100)
+Pin controller yesde for RZ/A1H SoC (r7s72100)
 
 pinctrl: pin-controller@fcfe3000 {
 	compatible = "renesas,r7s72100-ports";
@@ -30,16 +30,16 @@ pinctrl: pin-controller@fcfe3000 {
 	reg = <0xfcfe3000 0x4230>;
 };
 
-Sub-nodes
+Sub-yesdes
 ---------
 
-The child nodes of the pin controller node describe a pin multiplexing
+The child yesdes of the pin controller yesde describe a pin multiplexing
 function or a GPIO controller alternatively.
 
-- Pin multiplexing sub-nodes:
-  A pin multiplexing sub-node describes how to configure a set of
+- Pin multiplexing sub-yesdes:
+  A pin multiplexing sub-yesde describes how to configure a set of
   (or a single) pin in some desired alternate function mode.
-  A single sub-node may define several pin configurations.
+  A single sub-yesde may define several pin configurations.
   A few alternate function require special pin configuration flags to be
   supplied along with the alternate function configuration number.
   The hardware reference manual specifies when a pin function requires
@@ -47,31 +47,31 @@ function or a GPIO controller alternatively.
   properties from the <include/linux/pinctrl/pinconf_generic.h> header file
   to instruct the pin controller to perform the desired pin configuration
   operation.
-  Please refer to pinctrl-bindings.txt to get to know more on generic
+  Please refer to pinctrl-bindings.txt to get to kyesw more on generic
   pin properties usage.
 
-  The allowed generic formats for a pin multiplexing sub-node are the
+  The allowed generic formats for a pin multiplexing sub-yesde are the
   following ones:
 
-  node-1 {
+  yesde-1 {
       pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ... ;
       GENERIC_PINCONFIG;
   };
 
-  node-2 {
-      sub-node-1 {
+  yesde-2 {
+      sub-yesde-1 {
           pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ... ;
           GENERIC_PINCONFIG;
       };
 
-      sub-node-2 {
+      sub-yesde-2 {
           pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ... ;
           GENERIC_PINCONFIG;
       };
 
       ...
 
-      sub-node-n {
+      sub-yesde-n {
           pinmux = <PIN_ID_AND_MUX>, <PIN_ID_AND_MUX>, ... ;
           GENERIC_PINCONFIG;
       };
@@ -80,20 +80,20 @@ function or a GPIO controller alternatively.
   Use the second format when pins part of the same logical group need to have
   different generic pin configuration flags applied.
 
-  Client sub-nodes shall refer to pin multiplexing sub-nodes using the phandle
+  Client sub-yesdes shall refer to pin multiplexing sub-yesdes using the phandle
   of the most external one.
 
   Eg.
 
   client-1 {
       ...
-      pinctrl-0 = <&node-1>;
+      pinctrl-0 = <&yesde-1>;
       ...
   };
 
   client-2 {
       ...
-      pinctrl-0 = <&node-2>;
+      pinctrl-0 = <&yesde-2>;
       ...
   };
 
@@ -120,7 +120,7 @@ function or a GPIO controller alternatively.
     - output-high:
       enable output buffer for pins requiring software driven IO output
       operations. output-low can be used alternatively, as line value is
-      ignored by the driver.
+      igyesred by the driver.
 
   The hardware reference manual specifies when a pin has to be configured to
   work in bi-directional mode and when the IO direction has to be specified
@@ -183,12 +183,12 @@ function or a GPIO controller alternatively.
   Pin #1 on port #4 is configured as alternate function #1 with IO direction
   specified by software as output.
 
-- GPIO controller sub-nodes:
+- GPIO controller sub-yesdes:
   Each port of the r7s72100 pin controller hardware is itself a GPIO controller.
   Different SoCs have different numbers of available pins per port, but
   generally speaking, each of them can be configured in GPIO ("port") mode
   on this hardware.
-  Describe GPIO controllers using sub-nodes with the following properties.
+  Describe GPIO controllers using sub-yesdes with the following properties.
 
   Required properties:
     - gpio-controller
@@ -204,7 +204,7 @@ function or a GPIO controller alternatively.
       description.
 
   Example:
-  A GPIO controller node, controlling 16 pins indexed from 0.
+  A GPIO controller yesde, controlling 16 pins indexed from 0.
   The GPIO controller base in the global pin indexing space is pin 48, thus
   pins [0 - 15] on this controller map to pins [48 - 63] in the global pin
   indexing space.
@@ -215,7 +215,7 @@ function or a GPIO controller alternatively.
 	gpio-ranges = <&pinctrl 0 48 16>;
   };
 
-  A device node willing to use pins controlled by this GPIO controller, shall
+  A device yesde willing to use pins controlled by this GPIO controller, shall
   refer to it as follows:
 
   led1 {

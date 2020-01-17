@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -113,10 +113,10 @@ static const struct ar9300_eeprom ar9300_default = {
 		.spurChans = {0, 0, 0, 0, 0},
 
 		/*
-		 * noiseFloorThreshCh[AR9300_MAX_CHAINS]; 3 Check
+		 * yesiseFloorThreshCh[AR9300_MAX_CHAINS]; 3 Check
 		 * if the register is per chain
 		 */
-		.noiseFloorThreshCh = {-1, 0, 0},
+		.yesiseFloorThreshCh = {-1, 0, 0},
 		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		.quick_drop = 0,
 		.xpaBiasLvl = 0,
@@ -318,8 +318,8 @@ static const struct ar9300_eeprom ar9300_default = {
 		.voltSlope = 0,
 		/* spurChans spur channels in usual fbin coding format */
 		.spurChans = {0, 0, 0, 0, 0},
-		/* noiseFloorThreshCh Check if the register is per chain */
-		.noiseFloorThreshCh = {-1, 0, 0},
+		/* yesiseFloorThreshCh Check if the register is per chain */
+		.yesiseFloorThreshCh = {-1, 0, 0},
 		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		.quick_drop = 0,
 		.xpaBiasLvl = 0,
@@ -691,10 +691,10 @@ static const struct ar9300_eeprom ar9300_x113 = {
 		.spurChans = {FREQ2FBIN(2464, 1), 0, 0, 0, 0},
 
 		/*
-		 * noiseFloorThreshCh[AR9300_MAX_CHAINS]; 3 Check
+		 * yesiseFloorThreshCh[AR9300_MAX_CHAINS]; 3 Check
 		 * if the register is per chain
 		 */
-		.noiseFloorThreshCh = {-1, 0, 0},
+		.yesiseFloorThreshCh = {-1, 0, 0},
 		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		.quick_drop = 0,
 		.xpaBiasLvl = 0,
@@ -896,8 +896,8 @@ static const struct ar9300_eeprom ar9300_x113 = {
 		.voltSlope = 0,
 		/* spurChans spur channels in usual fbin coding format */
 		.spurChans = {FREQ2FBIN(5500, 0), 0, 0, 0, 0},
-		/* noiseFloorThreshCh Check if the register is per chain */
-		.noiseFloorThreshCh = {-1, 0, 0},
+		/* yesiseFloorThreshCh Check if the register is per chain */
+		.yesiseFloorThreshCh = {-1, 0, 0},
 		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		.quick_drop = 0,
 		.xpaBiasLvl = 0xf,
@@ -1270,10 +1270,10 @@ static const struct ar9300_eeprom ar9300_h112 = {
 		.spurChans = {FREQ2FBIN(2464, 1), 0, 0, 0, 0},
 
 		/*
-		 * noiseFloorThreshCh[AR9300_MAX_CHAINS]; 3 Check
+		 * yesiseFloorThreshCh[AR9300_MAX_CHAINS]; 3 Check
 		 * if the register is per chain
 		 */
-		.noiseFloorThreshCh = {-1, 0, 0},
+		.yesiseFloorThreshCh = {-1, 0, 0},
 		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		.quick_drop = 0,
 		.xpaBiasLvl = 0,
@@ -1475,8 +1475,8 @@ static const struct ar9300_eeprom ar9300_h112 = {
 		.voltSlope = 0,
 		/* spurChans spur channels in usual fbin coding format */
 		.spurChans = {0, 0, 0, 0, 0},
-		/* noiseFloorThreshCh Check if the register is per chain */
-		.noiseFloorThreshCh = {-1, 0, 0},
+		/* yesiseFloorThreshCh Check if the register is per chain */
+		.yesiseFloorThreshCh = {-1, 0, 0},
 		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		.quick_drop = 0,
 		.xpaBiasLvl = 0,
@@ -1849,10 +1849,10 @@ static const struct ar9300_eeprom ar9300_x112 = {
 		.spurChans = {FREQ2FBIN(2464, 1), 0, 0, 0, 0},
 
 		/*
-		 * noiseFloorThreshch[ar9300_max_cHAINS]; 3 Check
+		 * yesiseFloorThreshch[ar9300_max_cHAINS]; 3 Check
 		 * if the register is per chain
 		 */
-		.noiseFloorThreshCh = {-1, 0, 0},
+		.yesiseFloorThreshCh = {-1, 0, 0},
 		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		.quick_drop = 0,
 		.xpaBiasLvl = 0,
@@ -2054,8 +2054,8 @@ static const struct ar9300_eeprom ar9300_x112 = {
 		.voltSlope = 15,
 		/* spurChans spur channels in usual fbin coding format */
 		.spurChans = {0, 0, 0, 0, 0},
-		/* noiseFloorThreshch check if the register is per chain */
-		.noiseFloorThreshCh = {-1, 0, 0},
+		/* yesiseFloorThreshch check if the register is per chain */
+		.yesiseFloorThreshCh = {-1, 0, 0},
 		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		.quick_drop = 0,
 		.xpaBiasLvl = 0,
@@ -2427,10 +2427,10 @@ static const struct ar9300_eeprom ar9300_h116 = {
 		.spurChans = {FREQ2FBIN(2464, 1), 0, 0, 0, 0},
 
 		/*
-		 * noiseFloorThreshCh[AR9300_MAX_CHAINS]; 3 Check
+		 * yesiseFloorThreshCh[AR9300_MAX_CHAINS]; 3 Check
 		 * if the register is per chain
 		 */
-		.noiseFloorThreshCh = {-1, 0, 0},
+		.yesiseFloorThreshCh = {-1, 0, 0},
 		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		.quick_drop = 0,
 		.xpaBiasLvl = 0,
@@ -2632,8 +2632,8 @@ static const struct ar9300_eeprom ar9300_h116 = {
 		.voltSlope = 0,
 		/* spurChans spur channels in usual fbin coding format */
 		.spurChans = {0, 0, 0, 0, 0},
-		/* noiseFloorThreshCh Check if the register is per chain */
-		.noiseFloorThreshCh = {-1, 0, 0},
+		/* yesiseFloorThreshCh Check if the register is per chain */
+		.yesiseFloorThreshCh = {-1, 0, 0},
 		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		.quick_drop = 0,
 		.xpaBiasLvl = 0,
@@ -3046,7 +3046,7 @@ static bool ar9300_read_eeprom(struct ath_hw *ah, int address, u8 *buffer,
 	int i;
 
 	if ((address < 0) || ((address + count) / 2 > AR9300_EEPROM_SIZE - 1)) {
-		ath_dbg(common, EEPROM, "eeprom address not in range\n");
+		ath_dbg(common, EEPROM, "eeprom address yest in range\n");
 		return false;
 	}
 
@@ -3113,7 +3113,7 @@ static bool ar9300_read_otp(struct ath_hw *ah, int address, u8 *buffer,
 
 
 static void ar9300_comp_hdr_unpack(u8 *best, int *code, int *reference,
-				   int *length, int *major, int *minor)
+				   int *length, int *major, int *miyesr)
 {
 	unsigned long value[4];
 
@@ -3125,7 +3125,7 @@ static void ar9300_comp_hdr_unpack(u8 *best, int *code, int *reference,
 	*reference = (value[0] & 0x001f) | ((value[1] >> 2) & 0x0020);
 	*length = ((value[1] << 4) & 0x07f0) | ((value[2] >> 4) & 0x000f);
 	*major = (value[2] & 0x000f);
-	*minor = (value[3] & 0x00ff);
+	*miyesr = (value[3] & 0x00ff);
 }
 
 static u16 ar9300_comp_cksum(u8 *data, int dsize)
@@ -3218,7 +3218,7 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 					(word + COMP_HDR_LEN), length);
 		break;
 	default:
-		ath_dbg(common, EEPROM, "unknown compression code %d\n", code);
+		ath_dbg(common, EEPROM, "unkyeswn compression code %d\n", code);
 		return -1;
 	}
 	return 0;
@@ -3271,7 +3271,7 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 	int cptr;
 	u8 *word;
 	int code;
-	int reference, length, major, minor;
+	int reference, length, major, miyesr;
 	int osize;
 	int it;
 	u16 checksum, mchecksum;
@@ -3346,10 +3346,10 @@ found:
 			break;
 
 		ar9300_comp_hdr_unpack(word, &code, &reference,
-				       &length, &major, &minor);
+				       &length, &major, &miyesr);
 		ath_dbg(common, EEPROM,
-			"Found block at %x: code=%d ref=%d length=%d major=%d minor=%d\n",
-			cptr, code, reference, length, major, minor);
+			"Found block at %x: code=%d ref=%d length=%d major=%d miyesr=%d\n",
+			cptr, code, reference, length, major, miyesr);
 		if ((!AR_SREV_9485(ah) && length >= 1024) ||
 		    (AR_SREV_9485(ah) && length > EEPROM_DATA_LEN_9485)) {
 			ath_dbg(common, EEPROM, "Skipping bad header\n");
@@ -3421,9 +3421,9 @@ static u32 ar9003_dump_modal_eeprom(char *buf, u32 len, u32 size,
 	PR_EEP("spur Channels2", modal_hdr->spurChans[2]);
 	PR_EEP("spur Channels3", modal_hdr->spurChans[3]);
 	PR_EEP("spur Channels4", modal_hdr->spurChans[4]);
-	PR_EEP("Chain0 NF Threshold", modal_hdr->noiseFloorThreshCh[0]);
-	PR_EEP("Chain1 NF Threshold", modal_hdr->noiseFloorThreshCh[1]);
-	PR_EEP("Chain2 NF Threshold", modal_hdr->noiseFloorThreshCh[2]);
+	PR_EEP("Chain0 NF Threshold", modal_hdr->yesiseFloorThreshCh[0]);
+	PR_EEP("Chain1 NF Threshold", modal_hdr->yesiseFloorThreshCh[1]);
+	PR_EEP("Chain2 NF Threshold", modal_hdr->yesiseFloorThreshCh[2]);
 	PR_EEP("Quick Drop", modal_hdr->quick_drop);
 	PR_EEP("txEndToXpaOff", modal_hdr->txEndToXpaOff);
 	PR_EEP("xPA Bias Level", modal_hdr->xpaBiasLvl);
@@ -3583,7 +3583,7 @@ static int ath9k_hw_ar9300_get_eeprom_ver(struct ath_hw *ah)
 	return ah->eeprom.ar9300_eep.eepromVersion;
 }
 
-/* XXX: could be read from the eepromVersion, not sure yet */
+/* XXX: could be read from the eepromVersion, yest sure yet */
 static int ath9k_hw_ar9300_get_eeprom_rev(struct ath_hw *ah)
 {
 	return 0;
@@ -4224,7 +4224,7 @@ static void ar9003_hw_apply_minccapwr_thresh(struct ath_hw *ah,
 		if (!(ah->caps.tx_chainmask & BIT(chain)))
 			continue;
 
-		val = ar9003_modal_header(ah, is2ghz)->noiseFloorThreshCh[chain];
+		val = ar9003_modal_header(ah, is2ghz)->yesiseFloorThreshCh[chain];
 		REG_RMW_FIELD(ah, cca_ctrl[chain],
 			      AR_PHY_EXT_CCA0_THRESH62_1, val);
 	}
@@ -4259,7 +4259,7 @@ static void ath9k_hw_ar9300_set_addac(struct ath_hw *ah,
 /*
  * Returns the interpolated y value corresponding to the specified x value
  * from the np ordered pairs of data (px,py).
- * The pairs do not have to be in any order.
+ * The pairs do yest have to be in any order.
  * If the specified x value is less than any of the px,
  * the returned y value is equal to the py for the lowest px.
  * If the specified x value is greater than any of the px,
@@ -4314,7 +4314,7 @@ static int ar9003_hw_power_interpolate(int32_t x,
 			y = ly;
 	} else if (hhave)	/* only high is good, use it */
 		y = hy;
-	else /* nothing is good,this should never happen unless np=0, ???? */
+	else /* yesthing is good,this should never happen unless np=0, ???? */
 		y = -(1 << 30);
 	return y;
 }
@@ -4474,7 +4474,7 @@ static void ar9003_hw_selfgen_tpc_txpower(struct ath_hw *ah,
 int ar9003_hw_tx_power_regwrite(struct ath_hw *ah, u8 * pPwrArray)
 {
 #define POW_SM(_r, _s)     (((_r) & 0x3f) << (_s))
-	/* make sure forced gain is not set */
+	/* make sure forced gain is yest set */
 	REG_WRITE(ah, AR_PHY_TX_FORCED_GAIN, 0);
 
 	/* Write the OFDM power per rate set */
@@ -4672,7 +4672,7 @@ static void ar9003_hw_get_ht40_target_powers(struct ath_hw *ah,
 						   u8 *targetPowerValT2,
 						   bool is2GHz)
 {
-	/* XXX: hard code for now, need to get from eeprom struct */
+	/* XXX: hard code for yesw, need to get from eeprom struct */
 	u8 ht40PowerIncForPdadc = 0;
 
 	targetPowerValT2[ALL_TARGET_HT40_0_8_16] =
@@ -4896,7 +4896,7 @@ tempslope:
 
 		/*
 		 * AR955x has tempSlope register for each chain.
-		 * Check whether temp_compensation feature is enabled or not.
+		 * Check whether temp_compensation feature is enabled or yest.
 		 */
 		if (eep->baseEepHeader.featureEnable & 0x1) {
 			if (frequency < 4000) {
@@ -4928,7 +4928,7 @@ tempslope:
 			}
 		} else {
 			/*
-			 * If temp compensation is not enabled,
+			 * If temp compensation is yest enabled,
 			 * set all registers to 0.
 			 */
 			if (txmask & BIT(0))
@@ -5108,7 +5108,7 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 			voltage[ichain] = hvoltage[ichain];
 			nf_cal[ichain] = hnf_cal[ichain];
 			nf_pwr[ichain] = hnf_pwr[ichain];
-		} else {	/* nothing is good, presume 0???? */
+		} else {	/* yesthing is good, presume 0???? */
 			correction[ichain] = 0;
 			temperature[ichain] = 0;
 			voltage[ichain] = 0;
@@ -5124,7 +5124,7 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 		"for frequency=%d, calibration correction = %d %d %d\n",
 		frequency, correction[0], correction[1], correction[2]);
 
-	/* Store calibrated noise floor values */
+	/* Store calibrated yesise floor values */
 	for (ichain = 0; ichain < AR5416_MAX_CHAINS; ichain++)
 		if (mode) {
 			ah->nf_5g.cal[ichain] = nf_cal[ichain];
@@ -5212,8 +5212,8 @@ static u16 ar9003_hw_get_max_edge_power(struct ar9300_eeprom *eep,
 								  edge, freq,
 								  is2GHz);
 			/*
-			 * Leave loop - no more affecting edges possible in
-			 * this monotonic increasing list
+			 * Leave loop - yes more affecting edges possible in
+			 * this moyestonic increasing list
 			 */
 			break;
 		}

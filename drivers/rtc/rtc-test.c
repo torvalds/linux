@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * An RTC test device/driver
- * Copyright (C) 2005 Tower Technologies
+ * Copyright (C) 2005 Tower Techyeslogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  */
 
@@ -92,7 +92,7 @@ static int test_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 	return 0;
 }
 
-static const struct rtc_class_ops test_rtc_ops_noalm = {
+static const struct rtc_class_ops test_rtc_ops_yesalm = {
 	.read_time = test_rtc_read_time,
 	.set_time = test_rtc_set_time,
 	.alarm_irq_enable = test_rtc_alarm_irq_enable,
@@ -129,7 +129,7 @@ static int test_probe(struct platform_device *plat_dev)
 
 	switch (plat_dev->id) {
 	case 0:
-		rtd->rtc->ops = &test_rtc_ops_noalm;
+		rtd->rtc->ops = &test_rtc_ops_yesalm;
 		break;
 	default:
 		rtd->rtc->ops = &test_rtc_ops;

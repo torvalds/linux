@@ -76,7 +76,7 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 
 	/* This would be sb_bread(sb, mmp_block), except we need to be sure
 	 * that the MD RAID device cache has been bypassed, and that the read
-	 * is not blocked in the elevator. */
+	 * is yest blocked in the elevator. */
 	if (!*bh) {
 		*bh = sb_getblk(sb, mmp_block);
 		if (!*bh) {
@@ -121,9 +121,9 @@ void __dump_mmp_msg(struct super_block *sb, struct mmp_struct *mmp,
 	__ext4_warning(sb, function, line, "%s", msg);
 	__ext4_warning(sb, function, line,
 		       "MMP failure info: last update time: %llu, last update "
-		       "node: %s, last update device: %s",
+		       "yesde: %s, last update device: %s",
 		       (long long unsigned int) le64_to_cpu(mmp->mmp_time),
-		       mmp->mmp_nodename, mmp->mmp_bdevname);
+		       mmp->mmp_yesdename, mmp->mmp_bdevname);
 }
 
 /*
@@ -156,8 +156,8 @@ static int kmmpd(void *data)
 	mmp->mmp_check_interval = cpu_to_le16(mmp_check_interval);
 	bdevname(bh->b_bdev, mmp->mmp_bdevname);
 
-	memcpy(mmp->mmp_nodename, init_utsname()->nodename,
-	       sizeof(mmp->mmp_nodename));
+	memcpy(mmp->mmp_yesdename, init_utsname()->yesdename,
+	       sizeof(mmp->mmp_yesdename));
 
 	while (!kthread_should_stop()) {
 		if (++seq > EXT4_MMP_SEQ_MAX)
@@ -195,7 +195,7 @@ static int kmmpd(void *data)
 
 		/*
 		 * We need to make sure that more than mmp_check_interval
-		 * seconds have not passed since writing. If that has happened
+		 * seconds have yest passed since writing. If that has happened
 		 * we need to check if the MMP block is as we left it.
 		 */
 		diff = jiffies - last_update_time;
@@ -212,8 +212,8 @@ static int kmmpd(void *data)
 
 			mmp_check = (struct mmp_struct *)(bh_check->b_data);
 			if (mmp->mmp_seq != mmp_check->mmp_seq ||
-			    memcmp(mmp->mmp_nodename, mmp_check->mmp_nodename,
-				   sizeof(mmp->mmp_nodename))) {
+			    memcmp(mmp->mmp_yesdename, mmp_check->mmp_yesdename,
+				   sizeof(mmp->mmp_yesdename))) {
 				dump_mmp_msg(sb, mmp_check,
 					     "Error while updating MMP info. "
 					     "The filesystem seems to have been"
@@ -252,7 +252,7 @@ exit_thread:
 }
 
 /*
- * Get a random new sequence number but make sure it is not greater than
+ * Get a random new sequence number but make sure it is yest greater than
  * EXT4_MMP_SEQ_MAX.
  */
 static unsigned int mmp_new_seq(void)
@@ -331,7 +331,7 @@ int ext4_multi_mount_protect(struct super_block *sb,
 	mmp = (struct mmp_struct *)(bh->b_data);
 	if (seq != le32_to_cpu(mmp->mmp_seq)) {
 		dump_mmp_msg(sb, mmp,
-			     "Device is already active on another node.");
+			     "Device is already active on ayesther yesde.");
 		goto failed;
 	}
 
@@ -360,13 +360,13 @@ skip:
 	mmp = (struct mmp_struct *)(bh->b_data);
 	if (seq != le32_to_cpu(mmp->mmp_seq)) {
 		dump_mmp_msg(sb, mmp,
-			     "Device is already active on another node.");
+			     "Device is already active on ayesther yesde.");
 		goto failed;
 	}
 
 	mmpd_data = kmalloc(sizeof(*mmpd_data), GFP_KERNEL);
 	if (!mmpd_data) {
-		ext4_warning(sb, "not enough memory for mmpd_data");
+		ext4_warning(sb, "yest eyesugh memory for mmpd_data");
 		goto failed;
 	}
 	mmpd_data->sb = sb;

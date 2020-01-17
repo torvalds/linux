@@ -550,7 +550,7 @@ smc_pxa_dma_outsl(struct smc911x_local *lp, u_long physaddr,
 
 /* MAC_CR - MAC Control Register */
 #define MAC_CR_RXALL_			(0x80000000)
-// TODO: delete this bit? It is not described in the data sheet.
+// TODO: delete this bit? It is yest described in the data sheet.
 #define MAC_CR_HBDIS_			(0x10000000)
 #define MAC_CR_RCVOWN_			(0x00800000)
 #define MAC_CR_LOOPBK_			(0x00200000)
@@ -686,7 +686,7 @@ static const struct chip_id chip_ids[] =  {
 
 /*
  * Macros to abstract register access according to the data bus
- * capabilities.  Please use those and not the in/out primitives.
+ * capabilities.  Please use those and yest the in/out primitives.
  */
 /* FIFO read/write macros */
 #define SMC_PUSH_DATA(lp, p, l)	SMC_outsl( lp, TX_DATA_FIFO, p, (l) >> 2 )

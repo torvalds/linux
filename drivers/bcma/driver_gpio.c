@@ -185,7 +185,7 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->owner		= THIS_MODULE;
 	chip->parent		= bus->dev;
 #if IS_BUILTIN(CONFIG_OF)
-	chip->of_node		= cc->core->dev.of_node;
+	chip->of_yesde		= cc->core->dev.of_yesde;
 #endif
 	switch (bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM4707:

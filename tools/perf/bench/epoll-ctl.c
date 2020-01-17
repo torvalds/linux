@@ -10,7 +10,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -54,7 +54,7 @@ enum {
 
 static int epollfd;
 static int *epollfdp;
-static bool noaffinity;
+static bool yesaffinity;
 static unsigned int nested = 0;
 
 /* amount of fds to monitor, per thread */
@@ -76,8 +76,8 @@ static const struct option options[] = {
 	OPT_UINTEGER('t', "threads", &nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('r', "runtime", &nsecs,    "Specify runtime (in seconds)"),
 	OPT_UINTEGER('f', "nfds", &nfds, "Specify amount of file descriptors to monitor for each thread"),
-	OPT_BOOLEAN( 'n', "noaffinity",  &noaffinity,   "Disables CPU affinity"),
-	OPT_UINTEGER( 'N', "nested",  &nested,   "Nesting level epoll hierarchy (default is 0, no nesting)"),
+	OPT_BOOLEAN( 'n', "yesaffinity",  &yesaffinity,   "Disables CPU affinity"),
+	OPT_UINTEGER( 'N', "nested",  &nested,   "Nesting level epoll hierarchy (default is 0, yes nesting)"),
 	OPT_BOOLEAN( 'R', "randomize", &randomize,   "Perform random operations on random fds"),
 	OPT_BOOLEAN( 'v', "verbose",  &__verbose,   "Verbose mode"),
 	OPT_END()
@@ -196,7 +196,7 @@ static void *workerfn(void *arg)
 			}
 		}
 
-		nanosleep(&ts, NULL);
+		nayessleep(&ts, NULL);
 	}  while (!done);
 
 	return NULL;
@@ -228,7 +228,7 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 	unsigned int i, j;
 	int ret = 0;
 
-	if (!noaffinity)
+	if (!yesaffinity)
 		pthread_attr_init(&thread_attr);
 
 	for (i = 0; i < nthreads; i++) {
@@ -253,7 +253,7 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 		if (randomize)
 			init_fdmaps(w, 50);
 
-		if (!noaffinity) {
+		if (!yesaffinity) {
 			CPU_ZERO(&cpuset);
 			CPU_SET(cpu->map[i % cpu->nr], &cpuset);
 
@@ -270,7 +270,7 @@ static int do_threads(struct worker *worker, struct perf_cpu_map *cpu)
 			err(EXIT_FAILURE, "pthread_create");
 	}
 
-	if (!noaffinity)
+	if (!yesaffinity)
 		pthread_attr_destroy(&thread_attr);
 
 	return ret;

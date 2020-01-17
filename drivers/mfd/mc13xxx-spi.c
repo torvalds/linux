@@ -104,14 +104,14 @@ static int mc13xxx_spi_write(void *context, const void *data, size_t count)
 }
 
 /*
- * We cannot use regmap-spi generic bus implementation here.
+ * We canyest use regmap-spi generic bus implementation here.
  * The MC13783 chip will get corrupted if CS signal is deasserted
  * and on i.Mx31 SoC (the target SoC for MC13783 PMIC) the SPI controller
  * has the following errata (DSPhl22960):
  * "The CSPI negates SS when the FIFO becomes empty with
- * SSCTL= 0. Software cannot guarantee that the FIFO will not
+ * SSCTL= 0. Software canyest guarantee that the FIFO will yest
  * drain because of higher priority interrupts and the
- * non-realtime characteristics of the operating system. As a
+ * yesn-realtime characteristics of the operating system. As a
  * result, the SS will negate before all of the data has been
  * transferred to/from the peripheral."
  * We workaround this by accessing the SPI controller with a
@@ -152,7 +152,7 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	if (spi->dev.of_node) {
+	if (spi->dev.of_yesde) {
 		const struct of_device_id *of_id =
 			of_match_device(mc13xxx_dt_ids, &spi->dev);
 

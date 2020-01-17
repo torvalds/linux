@@ -11,7 +11,7 @@
 #include <linux/clk-provider.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>

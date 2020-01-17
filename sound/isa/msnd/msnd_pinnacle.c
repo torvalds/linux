@@ -4,12 +4,12 @@
  * Linux multisound pinnacle/fiji driver for ALSA.
  *
  * 2002/06/30 Karsten Wiese:
- *	for now this is only used to build a pinnacle / fiji driver.
+ *	for yesw this is only used to build a pinnacle / fiji driver.
  *	the OSS parent of this code is designed to also support
  *	the multisound classic via the file msnd_classic.c.
  *	to make it easier for some brave heart to implemt classic
  *	support in alsa, i left all the MSND_CLASSIC tokens in this file.
- *	but for now this untested & undone.
+ *	but for yesw this untested & undone.
  *
  * ripped from linux kernel 2.4.18 by Karsten Wiese.
  *
@@ -197,7 +197,7 @@ static int snd_msnd_reset_dsp(long io, unsigned char *info)
 			return 0;
 		msleep(1);
 	}
-	snd_printk(KERN_ERR LOGNAME ": Cannot reset DSP\n");
+	snd_printk(KERN_ERR LOGNAME ": Canyest reset DSP\n");
 
 	return -EIO;
 }
@@ -246,7 +246,7 @@ static int snd_msnd_probe(struct snd_card *card)
 		xv = "1.4";
 		break;
 	default:
-		xv = "unknown";
+		xv = "unkyeswn";
 		break;
 	}
 
@@ -425,7 +425,7 @@ static int snd_msnd_initialize(struct snd_card *card)
 #endif
 	err = snd_msnd_init_sma(chip);
 	if (err < 0) {
-		printk(KERN_WARNING LOGNAME ": Cannot initialize SMA\n");
+		printk(KERN_WARNING LOGNAME ": Canyest initialize SMA\n");
 		return err;
 	}
 
@@ -435,7 +435,7 @@ static int snd_msnd_initialize(struct snd_card *card)
 
 	err = upload_dsp_code(card);
 	if (err < 0) {
-		printk(KERN_WARNING LOGNAME ": Cannot upload DSP code\n");
+		printk(KERN_WARNING LOGNAME ": Canyest upload DSP code\n");
 		return err;
 	}
 
@@ -551,7 +551,7 @@ static int snd_msnd_attach(struct snd_card *card)
 		free_irq(chip->irq, chip);
 		return -EBUSY;
 	}
-	chip->mappedbase = ioremap_nocache(chip->base, 0x8000);
+	chip->mappedbase = ioremap_yescache(chip->base, 0x8000);
 	if (!chip->mappedbase) {
 		printk(KERN_ERR LOGNAME
 			": unable to map memory region 0x%lx-0x%lx\n",
@@ -1083,7 +1083,7 @@ static int snd_msnd_pnp_detect(struct pnp_card_link *pcard,
 		return -ENODEV;
 
 	/*
-	 * Check that we still have room for another sound card ...
+	 * Check that we still have room for ayesther sound card ...
 	 */
 	pnp_dev = pnp_request_card_device(pcard, pid->devs[0].id, NULL);
 	if (!pnp_dev)

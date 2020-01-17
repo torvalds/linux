@@ -10,7 +10,7 @@
 #include "flask.h"
 
 struct selinux_avc;
-int avc_ss_reset(struct selinux_avc *avc, u32 seqno);
+int avc_ss_reset(struct selinux_avc *avc, u32 seqyes);
 
 /* Class/perm mapping support */
 struct security_class_mapping {

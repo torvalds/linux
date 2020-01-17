@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2012 Linutronix GmbH
  * Copyright (c) 2014 sigma star gmbh
- * Author: Richard Weinberger <richard@nod.at>
+ * Author: Richard Weinberger <richard@yesd.at>
  */
 
 /**
@@ -25,7 +25,7 @@ static void update_fastmap_work_fn(struct work_struct *wrk)
  */
 static struct ubi_wl_entry *find_anchor_wl_entry(struct rb_root *root)
 {
-	struct rb_node *p;
+	struct rb_yesde *p;
 	struct ubi_wl_entry *e, *victim = NULL;
 	int max_ec = UBI_MAX_ERASECOUNTER;
 
@@ -70,7 +70,7 @@ struct ubi_wl_entry *ubi_wl_get_fm_peb(struct ubi_device *ubi, int anchor)
 {
 	struct ubi_wl_entry *e = NULL;
 
-	if (!ubi->free.rb_node || (ubi->free_count - ubi->beb_rsvd_pebs < 1))
+	if (!ubi->free.rb_yesde || (ubi->free_count - ubi->beb_rsvd_pebs < 1))
 		goto out;
 
 	if (anchor)
@@ -84,7 +84,7 @@ struct ubi_wl_entry *ubi_wl_get_fm_peb(struct ubi_device *ubi, int anchor)
 	self_check_in_wl_tree(ubi, e, &ubi->free);
 
 	/* remove it from the free list,
-	 * the wl subsystem does no longer know this erase block */
+	 * the wl subsystem does yes longer kyesw this erase block */
 	rb_erase(&e->u.rb, &ubi->free);
 	ubi->free_count--;
 out:
@@ -100,7 +100,7 @@ void ubi_refill_pools(struct ubi_device *ubi)
 	struct ubi_fm_pool *wl_pool = &ubi->fm_wl_pool;
 	struct ubi_fm_pool *pool = &ubi->fm_pool;
 	struct ubi_wl_entry *e;
-	int enough;
+	int eyesugh;
 
 	spin_lock(&ubi->wl_lock);
 
@@ -111,9 +111,9 @@ void ubi_refill_pools(struct ubi_device *ubi)
 	pool->size = 0;
 
 	for (;;) {
-		enough = 0;
+		eyesugh = 0;
 		if (pool->size < pool->max_size) {
-			if (!ubi->free.rb_node)
+			if (!ubi->free.rb_yesde)
 				break;
 
 			e = wl_get_wle(ubi);
@@ -123,10 +123,10 @@ void ubi_refill_pools(struct ubi_device *ubi)
 			pool->pebs[pool->size] = e->pnum;
 			pool->size++;
 		} else
-			enough++;
+			eyesugh++;
 
 		if (wl_pool->size < wl_pool->max_size) {
-			if (!ubi->free.rb_node ||
+			if (!ubi->free.rb_yesde ||
 			   (ubi->free_count - ubi->beb_rsvd_pebs < 5))
 				break;
 
@@ -138,9 +138,9 @@ void ubi_refill_pools(struct ubi_device *ubi)
 			wl_pool->pebs[wl_pool->size] = e->pnum;
 			wl_pool->size++;
 		} else
-			enough++;
+			eyesugh++;
 
-		if (enough == 2)
+		if (eyesugh == 2)
 			break;
 	}
 
@@ -154,7 +154,7 @@ void ubi_refill_pools(struct ubi_device *ubi)
  * produce_free_peb - produce a free physical eraseblock.
  * @ubi: UBI device description object
  *
- * This function tries to make a free PEB by means of synchronous execution of
+ * This function tries to make a free PEB by means of synchroyesus execution of
  * pending works. This may be needed if, for example the background thread is
  * disabled. Returns zero in case of success and a negative error code in case
  * of failure.
@@ -163,8 +163,8 @@ static int produce_free_peb(struct ubi_device *ubi)
 {
 	int err;
 
-	while (!ubi->free.rb_node && ubi->works_count) {
-		dbg_wl("do one work synchronously");
+	while (!ubi->free.rb_yesde && ubi->works_count) {
+		dbg_wl("do one work synchroyesusly");
 		err = do_work(ubi);
 
 		if (err)
@@ -193,7 +193,7 @@ again:
 	spin_lock(&ubi->wl_lock);
 
 	/* We check here also for the WL pool because at this point we can
-	 * refill the WL pool synchronous. */
+	 * refill the WL pool synchroyesus. */
 	if (pool->used == pool->size || wl_pool->used == wl_pool->size) {
 		spin_unlock(&ubi->wl_lock);
 		up_read(&ubi->fm_eba_sem);
@@ -244,7 +244,7 @@ static struct ubi_wl_entry *get_peb_for_wl(struct ubi_device *ubi)
 	ubi_assert(rwsem_is_locked(&ubi->fm_eba_sem));
 
 	if (pool->used == pool->size) {
-		/* We cannot update the fastmap here because this
+		/* We canyest update the fastmap here because this
 		 * function is called in atomic context.
 		 * Let's fail here and refill/update it as soon as possible. */
 		if (!ubi->fm_work_scheduled) {
@@ -330,7 +330,7 @@ int ubi_wl_put_fm_peb(struct ubi_device *ubi, struct ubi_wl_entry *fm_e,
 	e = ubi->lookuptbl[pnum];
 
 	/* This can happen if we recovered from a fastmap the very
-	 * first time and writing now a new one. In this case the wl system
+	 * first time and writing yesw a new one. In this case the wl system
 	 * has never seen any PEB used by the original fastmap.
 	 */
 	if (!e) {
@@ -381,7 +381,7 @@ static struct ubi_wl_entry *may_reserve_for_fm(struct ubi_device *ubi,
 					   struct rb_root *root) {
 	if (e && !ubi->fm_disabled && !ubi->fm &&
 	    e->pnum < UBI_FM_MAX_START)
-		e = rb_entry(rb_next(root->rb_node),
+		e = rb_entry(rb_next(root->rb_yesde),
 			     struct ubi_wl_entry, u.rb);
 
 	return e;

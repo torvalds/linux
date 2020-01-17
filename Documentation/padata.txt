@@ -47,9 +47,9 @@ There are functions for enabling and disabling the instance::
     void padata_stop(struct padata_instance *pinst);
 
 These functions are setting or clearing the "PADATA_INIT" flag;
-if that flag is not set, other functions will refuse to work.
+if that flag is yest set, other functions will refuse to work.
 padata_start returns zero on success (flag set) or -EINVAL if the
-padata cpumask contains no active CPU (flag not set).
+padata cpumask contains yes active CPU (flag yest set).
 padata_stop clears the flag and blocks until the padata instance
 is unused.
 
@@ -63,7 +63,7 @@ The list of CPUs to be used can be adjusted with these functions::
     int padata_add_cpu(struct padata_instance *pinst, int cpu, int mask);
     int padata_remove_cpu(struct padata_instance *pinst, int cpu, int mask);
 
-Changing the CPU masks are expensive operations, though, so it should not be
+Changing the CPU masks are expensive operations, though, so it should yest be
 done with great frequency.
 
 It's possible to change both cpumasks of a padata instance with
@@ -76,26 +76,26 @@ padata_add_cpu/padata_remove_cpu are used. cpu specifies the CPU to add or
 remove and mask is one of PADATA_CPU_SERIAL, PADATA_CPU_PARALLEL.
 
 If a user is interested in padata cpumask changes, he can register to
-the padata cpumask change notifier::
+the padata cpumask change yestifier::
 
-    int padata_register_cpumask_notifier(struct padata_instance *pinst,
-					 struct notifier_block *nblock);
+    int padata_register_cpumask_yestifier(struct padata_instance *pinst,
+					 struct yestifier_block *nblock);
 
-To unregister from that notifier::
+To unregister from that yestifier::
 
-    int padata_unregister_cpumask_notifier(struct padata_instance *pinst,
-					   struct notifier_block *nblock);
+    int padata_unregister_cpumask_yestifier(struct padata_instance *pinst,
+					   struct yestifier_block *nblock);
 
-The padata cpumask change notifier notifies about changes of the usable
+The padata cpumask change yestifier yestifies about changes of the usable
 cpumasks, i.e. the subset of active CPUs in the user supplied cpumask.
 
-Padata calls the notifier chain with::
+Padata calls the yestifier chain with::
 
-    blocking_notifier_call_chain(&pinst->cpumask_change_notifier,
-				 notification_mask,
+    blocking_yestifier_call_chain(&pinst->cpumask_change_yestifier,
+				 yestification_mask,
 				 &pd_new->cpumask);
 
-Here cpumask_change_notifier is registered notifier, notification_mask
+Here cpumask_change_yestifier is registered yestifier, yestification_mask
 is one of PADATA_CPU_SERIAL, PADATA_CPU_PARALLEL and cpumask is a pointer
 to a struct padata_cpumask that contains the new cpumask information.
 
@@ -125,20 +125,20 @@ specifies which CPU will be used for the final callback when the work is
 done; it must be in the current instance's CPU mask.  The return value from
 padata_do_parallel() is zero on success, indicating that the work is in
 progress. -EBUSY means that somebody, somewhere else is messing with the
-instance's CPU mask, while -EINVAL is a complaint about cb_cpu not being
-in that CPU mask or about a not running instance.
+instance's CPU mask, while -EINVAL is a complaint about cb_cpu yest being
+in that CPU mask or about a yest running instance.
 
 Each task submitted to padata_do_parallel() will, in turn, be passed to
 exactly one call to the above-mentioned parallel() function, on one CPU, so
 true parallelism is achieved by submitting multiple tasks.  parallel() runs with
-software interrupts disabled and thus cannot sleep.  The parallel()
+software interrupts disabled and thus canyest sleep.  The parallel()
 function gets the padata_priv structure pointer as its lone parameter;
 information about the actual work to be done is probably obtained by using
 container_of() to find the enclosing structure.
 
-Note that parallel() has no return value; the padata subsystem assumes that
+Note that parallel() has yes return value; the padata subsystem assumes that
 parallel() will take responsibility for the task from this point.  The work
-need not be completed during this call, but, if parallel() leaves work
+need yest be completed during this call, but, if parallel() leaves work
 outstanding, it should be prepared to be called again with a new job before
 the previous one completes.  When a task does complete, parallel() (or
 whatever function actually finishes the job) should inform padata of the
@@ -155,9 +155,9 @@ pains to ensure that tasks are completed in the order in which they were
 submitted.
 
 The one remaining function in the padata API should be called to clean up
-when a padata instance is no longer needed::
+when a padata instance is yes longer needed::
 
     void padata_free(struct padata_instance *pinst);
 
 This function will busy-wait while any remaining tasks are completed, so it
-might be best not to call it while there is work outstanding.
+might be best yest to call it while there is work outstanding.

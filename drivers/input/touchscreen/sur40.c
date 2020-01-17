@@ -18,7 +18,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -47,7 +47,7 @@ struct sur40_header {
 	__le32 packet_id;  /* unique ID for all packets in one frame */
 
 	__le32 timestamp;  /* milliseconds (inc. by 16 or 17 each frame) */
-	__le32 unknown;    /* "epoch?" always 02/03 00 00 00 */
+	__le32 unkyeswn;    /* "epoch?" always 02/03 00 00 00 */
 
 } __packed;
 
@@ -70,7 +70,7 @@ struct sur40_blob {
 	__le16 ctr_x;      /* centroid position */
 	__le16 ctr_y;
 
-	__le16 axis_x;     /* somehow related to major/minor axis, mostly: */
+	__le16 axis_x;     /* somehow related to major/miyesr axis, mostly: */
 	__le16 axis_y;     /* axis_x == bb_size_y && axis_y == bb_size_x */
 
 	__le32 angle;      /* orientation in radians relative to x axis -
@@ -81,7 +81,7 @@ struct sur40_blob {
 	u8 padding[24];
 
 	__le32 tag_id;     /* valid when type == 0x04 (SUR40_TAG) */
-	__le32 unknown;
+	__le32 unkyeswn;
 
 } __packed;
 
@@ -98,7 +98,7 @@ struct sur40_image_header {
 	__le32 packet_id;
 	__le32 size;      /* always 0x0007e900 = 960x540 */
 	__le32 timestamp; /* milliseconds (increases by 16 or 17 each frame) */
-	__le32 unknown;   /* "epoch?" always 02/03 00 00 00 */
+	__le32 unkyeswn;   /* "epoch?" always 02/03 00 00 00 */
 } __packed;
 
 /* version information */
@@ -243,7 +243,7 @@ static const struct v4l2_ctrl_ops sur40_ctrl_ops = {
 };
 
 /*
- * Note: an earlier, non-public version of this driver used USB_RECIP_ENDPOINT
+ * Note: an earlier, yesn-public version of this driver used USB_RECIP_ENDPOINT
  * here by mistake which is very likely to have corrupted the firmware EEPROM
  * on two separate SUR40 devices. Thanks to Alan Stern who spotted this bug.
  * Should you ever run into a similar problem, the background story to this
@@ -376,7 +376,7 @@ static int sur40_init(struct sur40_state *dev)
 	result = 0;
 
 	/*
-	 * Discard the result buffer - no known data inside except
+	 * Discard the result buffer - yes kyeswn data inside except
 	 * some version strings, maybe extract these sometime...
 	 */
 error:
@@ -388,7 +388,7 @@ error:
  * Callback routines from input_dev
  */
 
-/* Enable the device, polling will now start. */
+/* Enable the device, polling will yesw start. */
 static int sur40_open(struct input_dev *input)
 {
 	struct sur40_state *sur40 = input_get_drvdata(input);
@@ -404,7 +404,7 @@ static void sur40_close(struct input_dev *input)
 
 	dev_dbg(sur40->dev, "close\n");
 	/*
-	 * There is no known way to stop the device, so we simply
+	 * There is yes kyeswn way to stop the device, so we simply
 	 * stop polling.
 	 */
 }
@@ -415,7 +415,7 @@ static void sur40_close(struct input_dev *input)
  */
 static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 {
-	int wide, major, minor;
+	int wide, major, miyesr;
 	int bb_size_x, bb_size_y, pos_x, pos_y, ctr_x, ctr_y, slotnum;
 
 	if (blob->type != SUR40_TOUCH)
@@ -438,7 +438,7 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 	input_mt_report_slot_state(input, MT_TOOL_FINGER, 1);
 	wide = (bb_size_x > bb_size_y);
 	major = max(bb_size_x, bb_size_y);
-	minor = min(bb_size_x, bb_size_y);
+	miyesr = min(bb_size_x, bb_size_y);
 
 	input_report_abs(input, ABS_MT_POSITION_X, pos_x);
 	input_report_abs(input, ABS_MT_POSITION_Y, pos_y);
@@ -448,7 +448,7 @@ static void sur40_report_blob(struct sur40_blob *blob, struct input_dev *input)
 	/* TODO: use a better orientation measure */
 	input_report_abs(input, ABS_MT_ORIENTATION, wide);
 	input_report_abs(input, ABS_MT_TOUCH_MAJOR, major);
-	input_report_abs(input, ABS_MT_TOUCH_MINOR, minor);
+	input_report_abs(input, ABS_MT_TOUCH_MINOR, miyesr);
 }
 
 /* core function: poll for new input data */
@@ -630,7 +630,7 @@ static int sur40_input_setup_events(struct input_dev *input_dev)
 	input_set_abs_params(input_dev, ABS_MT_TOOL_Y,
 			     0, SENSOR_RES_Y, 0, 0);
 
-	/* max value unknown, but major/minor axis
+	/* max value unkyeswn, but major/miyesr axis
 	 * can never be larger than screen */
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
 			     0, SENSOR_RES_X, 0, 0);
@@ -799,9 +799,9 @@ static int sur40_probe(struct usb_interface *interface,
 		goto err_unreg_video;
 	}
 
-	/* we can register the device now, as it is ready */
+	/* we can register the device yesw, as it is ready */
 	usb_set_intfdata(interface, sur40);
-	dev_dbg(&interface->dev, "%s is now attached\n", DRIVER_DESC);
+	dev_dbg(&interface->dev, "%s is yesw attached\n", DRIVER_DESC);
 
 	return 0;
 
@@ -833,7 +833,7 @@ static void sur40_disconnect(struct usb_interface *interface)
 	kfree(sur40);
 
 	usb_set_intfdata(interface, NULL);
-	dev_dbg(&interface->dev, "%s is now disconnected\n", DRIVER_DESC);
+	dev_dbg(&interface->dev, "%s is yesw disconnected\n", DRIVER_DESC);
 }
 
 /*
@@ -841,7 +841,7 @@ static void sur40_disconnect(struct usb_interface *interface)
  * per buffer and the size and allocation context of each plane, it also
  * checks if sufficient buffers have been allocated. Usually 3 is a good
  * minimum number: many DMA engines need a minimum of 2 buffers in the
- * queue and you need to have another available for userspace processing.
+ * queue and you need to have ayesther available for userspace processing.
  */
 static int sur40_queue_setup(struct vb2_queue *q,
 		       unsigned int *nbuffers, unsigned int *nplanes,
@@ -896,10 +896,10 @@ static void sur40_buffer_queue(struct vb2_buffer *vb)
 static void return_all_buffers(struct sur40_state *sur40,
 			       enum vb2_buffer_state state)
 {
-	struct sur40_buffer *buf, *node;
+	struct sur40_buffer *buf, *yesde;
 
 	spin_lock(&sur40->qlock);
-	list_for_each_entry_safe(buf, node, &sur40->buf_list, list) {
+	list_for_each_entry_safe(buf, yesde, &sur40->buf_list, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -908,8 +908,8 @@ static void return_all_buffers(struct sur40_state *sur40,
 
 /*
  * Start streaming. First check if the minimum number of buffers have been
- * queued. If not, then return -ENOBUFS and the vb2 framework will call
- * this function again the next time a buffer has been queued until enough
+ * queued. If yest, then return -ENOBUFS and the vb2 framework will call
+ * this function again the next time a buffer has been queued until eyesugh
  * buffers are available to actually start the DMA engine.
  */
 static int sur40_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -1046,7 +1046,7 @@ static int sur40_ioctl_parm(struct file *file, void *priv,
 
 	p->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
 	p->parm.capture.timeperframe.numerator = 1;
-	p->parm.capture.timeperframe.denominator = 60;
+	p->parm.capture.timeperframe.deyesminator = 60;
 	p->parm.capture.readbuffers = 3;
 	return 0;
 }
@@ -1089,7 +1089,7 @@ static int sur40_vidioc_enum_frameintervals(struct file *file, void *priv,
 		return -EINVAL;
 
 	f->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-	f->discrete.denominator  = 60;
+	f->discrete.deyesminator  = 60;
 	f->discrete.numerator = 1;
 	return 0;
 }
@@ -1115,8 +1115,8 @@ static const struct vb2_ops sur40_queue_ops = {
 static const struct vb2_queue sur40_queue = {
 	.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
 	/*
-	 * VB2_USERPTR in currently not enabled: passing a user pointer to
-	 * dma-sg will result in segment sizes that are not a multiple of
+	 * VB2_USERPTR in currently yest enabled: passing a user pointer to
+	 * dma-sg will result in segment sizes that are yest a multiple of
 	 * 512 bytes, which is required by the host controller.
 	*/
 	.io_modes = VB2_MMAP | VB2_READ | VB2_DMABUF,

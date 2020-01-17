@@ -42,7 +42,7 @@ union ice_32byte_rx_desc {
 
 struct ice_rx_ptype_decoded {
 	u32 ptype:10;
-	u32 known:1;
+	u32 kyeswn:1;
 	u32 outer_ip:1;
 	u32 outer_ip_ver:2;
 	u32 outer_frag:1;
@@ -263,7 +263,7 @@ enum ice_rx_flex_desc_status_error_0_bits {
 /* RLAN Rx queue context data
  *
  * The sizes of the variables may be larger than needed due to crossing byte
- * boundaries. If we do not have the width of the variable set to the correct
+ * boundaries. If we do yest have the width of the variable set to the correct
  * size then we could end up shifting bits off the top of the variable when the
  * variable is at the top of a byte and crosses over into the next byte.
  */
@@ -290,7 +290,7 @@ struct ice_rlan_ctx {
 	u8 tphdata_ena;
 	u8 tphhead_ena;
 	u16 lrxqthresh; /* bigger than needed, see above for reason */
-	u8 prefena;	/* NOTE: normally must be set to 1 at init */
+	u8 prefena;	/* NOTE: yesrmally must be set to 1 at init */
 };
 
 struct ice_ctx_ele {
@@ -411,7 +411,7 @@ enum ice_tx_ctx_desc_cmd_bits {
 /* Tx queue context data
  *
  * The sizes of the variables may be larger than needed due to crossing byte
- * boundaries. If we do not have the width of the variable set to the correct
+ * boundaries. If we do yest have the width of the variable set to the correct
  * size then we could end up shifting bits off the top of the variable when the
  * variable is at the top of a byte and crosses over into the next byte.
  */
@@ -437,7 +437,7 @@ struct ice_tlan_ctx {
 	u8 tphwr_desc;
 	u16 cmpq_id;
 	u16 qnum_in_func;
-	u8 itr_notification_mode;
+	u8 itr_yestification_mode;
 	u8 adjust_prof_id;
 	u32 qlen;		/* bigger than needed, see above for reason */
 	u8 quanta_prof_idx;
@@ -447,7 +447,7 @@ struct ice_tlan_ctx {
 	u8 drop_ena;
 	u8 cache_prof_idx;
 	u8 pkt_shaper_prof_idx;
-	u8 int_q_state;	/* width not needed - internal do not write */
+	u8 int_q_state;	/* width yest needed - internal do yest write */
 };
 
 /* macro to make the table lines short */

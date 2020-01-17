@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -80,9 +80,9 @@ int mlx5_query_nic_vport_mtu(struct mlx5_core_dev *mdev, u16 *mtu);
 int mlx5_modify_nic_vport_mtu(struct mlx5_core_dev *mdev, u16 mtu);
 int mlx5_query_nic_vport_system_image_guid(struct mlx5_core_dev *mdev,
 					   u64 *system_image_guid);
-int mlx5_query_nic_vport_node_guid(struct mlx5_core_dev *mdev, u64 *node_guid);
-int mlx5_modify_nic_vport_node_guid(struct mlx5_core_dev *mdev,
-				    u16 vport, u64 node_guid);
+int mlx5_query_nic_vport_yesde_guid(struct mlx5_core_dev *mdev, u64 *yesde_guid);
+int mlx5_modify_nic_vport_yesde_guid(struct mlx5_core_dev *mdev,
+				    u16 vport, u64 yesde_guid);
 int mlx5_query_nic_vport_qkey_viol_cntr(struct mlx5_core_dev *mdev,
 					u16 *qkey_viol_cntr);
 int mlx5_query_hca_vport_gid(struct mlx5_core_dev *dev, u8 other_vport,
@@ -97,8 +97,8 @@ int mlx5_query_hca_vport_context(struct mlx5_core_dev *dev,
 				 struct mlx5_hca_vport_context *rep);
 int mlx5_query_hca_vport_system_image_guid(struct mlx5_core_dev *dev,
 					   u64 *sys_image_guid);
-int mlx5_query_hca_vport_node_guid(struct mlx5_core_dev *dev,
-				   u64 *node_guid);
+int mlx5_query_hca_vport_yesde_guid(struct mlx5_core_dev *dev,
+				   u64 *yesde_guid);
 int mlx5_query_nic_vport_mac_list(struct mlx5_core_dev *dev,
 				  u16 vport,
 				  enum mlx5_list_type list_type,

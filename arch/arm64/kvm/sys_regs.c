@@ -71,11 +71,11 @@ u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg)
 		goto immediate_read;
 
 	/*
-	 * System registers listed in the switch are not saved on every
+	 * System registers listed in the switch are yest saved on every
 	 * exit from the guest but are only saved on vcpu_put.
 	 *
 	 * Note that MPIDR_EL1 for the guest is set by KVM via VMPIDR_EL2 but
-	 * should never be listed below, because the guest cannot modify its
+	 * should never be listed below, because the guest canyest modify its
 	 * own MPIDR_EL1 and MPIDR_EL1 is accessed for VCPU A from VCPU B's
 	 * thread when emulating cross-VCPU communication.
 	 */
@@ -115,7 +115,7 @@ void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg)
 		goto immediate_write;
 
 	/*
-	 * System registers listed in the switch are not restored on every
+	 * System registers listed in the switch are yest restored on every
 	 * entry to the guest but are only restored on vcpu_load.
 	 *
 	 * Note that MPIDR_EL1 for the guest is set by KVM via VMPIDR_EL2 but
@@ -152,7 +152,7 @@ immediate_write:
 	 __vcpu_sys_reg(vcpu, reg) = val;
 }
 
-/* 3 bits per cache level, as per CLIDR, but non-existent caches always 0 */
+/* 3 bits per cache level, as per CLIDR, but yesn-existent caches always 0 */
 static u32 cache_levels;
 
 /* CSSELR values; used to index KVM_REG_ARM_DEMUX_ID_CCSIDR */
@@ -163,7 +163,7 @@ static u32 get_ccsidr(u32 csselr)
 {
 	u32 ccsidr;
 
-	/* Make sure noone else changes CSSELR during this! */
+	/* Make sure yesone else changes CSSELR during this! */
 	local_irq_disable();
 	write_sysreg(csselr, csselr_el1);
 	isb();
@@ -174,7 +174,7 @@ static u32 get_ccsidr(u32 csselr)
 }
 
 /*
- * See note at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are not easily virtualized).
+ * See yeste at ARMv7 ARM B1.14.4 (TL;DR: S/W ops are yest easily virtualized).
  */
 static bool access_dcsw(struct kvm_vcpu *vcpu,
 			struct sys_reg_params *p,
@@ -186,8 +186,8 @@ static bool access_dcsw(struct kvm_vcpu *vcpu,
 	/*
 	 * Only track S/W ops if we don't have FWB. It still indicates
 	 * that the guest is a bit broken (S/W operations should only
-	 * be done by firmware, knowing that there is only a single
-	 * CPU left in the system, and certainly not from non-secure
+	 * be done by firmware, kyeswing that there is only a single
+	 * CPU left in the system, and certainly yest from yesn-secure
 	 * software).
 	 */
 	if (!cpus_have_const_cap(ARM64_HAS_STAGE2_FWB))
@@ -250,7 +250,7 @@ static bool access_gic_sgi(struct kvm_vcpu *vcpu,
 	 * In a system where GICD_CTLR.DS=1, a ICC_SGI0R_EL1 access generates
 	 * Group0 SGIs only, while ICC_SGI1R_EL1 can generate either group,
 	 * depending on the SGI configuration. ICC_ASGI1R_EL1 is effectively
-	 * equivalent to ICC_SGI0R_EL1, as there is no "alternative" secure
+	 * equivalent to ICC_SGI0R_EL1, as there is yes "alternative" secure
 	 * group.
 	 */
 	if (p->is_aarch32) {
@@ -287,7 +287,7 @@ static bool access_gic_sre(struct kvm_vcpu *vcpu,
 			   const struct sys_reg_desc *r)
 {
 	if (p->is_write)
-		return ignore_write(vcpu, p);
+		return igyesre_write(vcpu, p);
 
 	p->regval = vcpu->arch.vgic_cpu.vgic_v3.vgic_sre;
 	return true;
@@ -298,7 +298,7 @@ static bool trap_raz_wi(struct kvm_vcpu *vcpu,
 			const struct sys_reg_desc *r)
 {
 	if (p->is_write)
-		return ignore_write(vcpu, p);
+		return igyesre_write(vcpu, p);
 	else
 		return read_zero(vcpu, p);
 }
@@ -333,7 +333,7 @@ static bool trap_oslsr_el1(struct kvm_vcpu *vcpu,
 			   const struct sys_reg_desc *r)
 {
 	if (p->is_write) {
-		return ignore_write(vcpu, p);
+		return igyesre_write(vcpu, p);
 	} else {
 		p->regval = (1 << 3);
 		return true;
@@ -345,7 +345,7 @@ static bool trap_dbgauthstatus_el1(struct kvm_vcpu *vcpu,
 				   const struct sys_reg_desc *r)
 {
 	if (p->is_write) {
-		return ignore_write(vcpu, p);
+		return igyesre_write(vcpu, p);
 	} else {
 		p->regval = read_sysreg(dbgauthstatus_el1);
 		return true;
@@ -377,7 +377,7 @@ static bool trap_dbgauthstatus_el1(struct kvm_vcpu *vcpu,
  * On guest exit:
  * - If the dirty bit is set, save guest registers, restore host
  *   registers and clear the dirty bit. This ensure that the host can
- *   now use the debug registers.
+ *   yesw use the debug registers.
  */
 static bool trap_debug_regs(struct kvm_vcpu *vcpu,
 			    struct sys_reg_params *p,
@@ -996,12 +996,12 @@ static bool access_pmuserenr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 /* Macro to expand the PMEVCNTRn_EL0 register */
 #define PMU_PMEVCNTR_EL0(n)						\
 	{ SYS_DESC(SYS_PMEVCNTRn_EL0(n)),					\
-	  access_pmu_evcntr, reset_unknown, (PMEVCNTR0_EL0 + n), }
+	  access_pmu_evcntr, reset_unkyeswn, (PMEVCNTR0_EL0 + n), }
 
 /* Macro to expand the PMEVTYPERn_EL0 register */
 #define PMU_PMEVTYPER_EL0(n)						\
 	{ SYS_DESC(SYS_PMEVTYPERn_EL0(n)),					\
-	  access_pmu_evtyper, reset_unknown, (PMEVTYPER0_EL0 + n), }
+	  access_pmu_evtyper, reset_unkyeswn, (PMEVTYPER0_EL0 + n), }
 
 static bool trap_ptrauth(struct kvm_vcpu *vcpu,
 			 struct sys_reg_params *p,
@@ -1015,7 +1015,7 @@ static bool trap_ptrauth(struct kvm_vcpu *vcpu,
 	 *
 	 * - Either we re-execute the same key register access instruction
 	 *   after enabling ptrauth.
-	 * - Or an UNDEF is injected as ptrauth is not supported/enabled.
+	 * - Or an UNDEF is injected as ptrauth is yest supported/enabled.
 	 */
 	return false;
 }
@@ -1027,7 +1027,7 @@ static unsigned int ptrauth_visibility(const struct kvm_vcpu *vcpu,
 }
 
 #define __PTRAUTH_KEY(k)						\
-	{ SYS_DESC(SYS_## k), trap_ptrauth, reset_unknown, k,		\
+	{ SYS_DESC(SYS_## k), trap_ptrauth, reset_unkyeswn, k,		\
 	.visibility = ptrauth_visibility}
 
 #define PTRAUTH_KEY(k)							\
@@ -1200,7 +1200,7 @@ static int set_id_aa64zfr0_el1(struct kvm_vcpu *vcpu,
 /*
  * cpufeature ID register user accessors
  *
- * For now, these registers are immutable for userspace, so no values
+ * For yesw, these registers are immutable for userspace, so yes values
  * are stored, and for set_id_reg() we don't allow the effective value
  * to be changed.
  */
@@ -1299,15 +1299,15 @@ static bool access_ccsidr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	p->regval = get_ccsidr(csselr);
 
 	/*
-	 * Guests should not be doing cache operations by set/way at all, and
+	 * Guests should yest be doing cache operations by set/way at all, and
 	 * for this reason, we trap them and attempt to infer the intent, so
 	 * that we can flush the entire guest's address space at the appropriate
 	 * time.
 	 * To prevent this trapping from causing performance problems, let's
 	 * expose the geometry of all data and unified caches (which are
-	 * guaranteed to be PIPT and thus non-aliasing) as 1 set and 1 way.
+	 * guaranteed to be PIPT and thus yesn-aliasing) as 1 set and 1 way.
 	 * [If guests should attempt to infer aliasing properties from the
-	 * geometry (which is not permitted by the architecture), they would
+	 * geometry (which is yest permitted by the architecture), they would
 	 * only do so for virtually indexed caches.]
 	 */
 	if (!(csselr & 1)) // data or unified cache
@@ -1315,7 +1315,7 @@ static bool access_ccsidr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	return true;
 }
 
-/* sys_reg_desc initialiser for known cpufeature ID registers */
+/* sys_reg_desc initialiser for kyeswn cpufeature ID registers */
 #define ID_SANITISED(name) {			\
 	SYS_DESC(SYS_##name),			\
 	.access	= access_id_reg,		\
@@ -1336,8 +1336,8 @@ static bool access_ccsidr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 }
 
 /*
- * sys_reg_desc initialiser for known ID registers that we hide from guests.
- * For now, these are exposed just like unallocated ID regs: they appear
+ * sys_reg_desc initialiser for kyeswn ID registers that we hide from guests.
+ * For yesw, these are exposed just like unallocated ID regs: they appear
  * RAZ for the guest.
  */
 #define ID_HIDDEN(name) {			\
@@ -1351,10 +1351,10 @@ static bool access_ccsidr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
  * Architected system registers.
  * Important: Must be sorted ascending by Op0, Op1, CRn, CRm, Op2
  *
- * Debug handling: We do trap most, if not all debug related system
- * registers. The implementation is good enough to ensure that a guest
+ * Debug handling: We do trap most, if yest all debug related system
+ * registers. The implementation is good eyesugh to ensure that a guest
  * can use these with minimal performance degradation. The drawback is
- * that we don't implement any of the external debug, none of the
+ * that we don't implement any of the external debug, yesne of the
  * OSlock protocol. This should be revisited if we ever encounter a
  * more demanding guest...
  */
@@ -1480,8 +1480,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_SCTLR_EL1), access_vm_reg, reset_val, SCTLR_EL1, 0x00C50078 },
 	{ SYS_DESC(SYS_CPACR_EL1), NULL, reset_val, CPACR_EL1, 0 },
 	{ SYS_DESC(SYS_ZCR_EL1), NULL, reset_val, ZCR_EL1, 0, .visibility = sve_visibility },
-	{ SYS_DESC(SYS_TTBR0_EL1), access_vm_reg, reset_unknown, TTBR0_EL1 },
-	{ SYS_DESC(SYS_TTBR1_EL1), access_vm_reg, reset_unknown, TTBR1_EL1 },
+	{ SYS_DESC(SYS_TTBR0_EL1), access_vm_reg, reset_unkyeswn, TTBR0_EL1 },
+	{ SYS_DESC(SYS_TTBR1_EL1), access_vm_reg, reset_unkyeswn, TTBR1_EL1 },
 	{ SYS_DESC(SYS_TCR_EL1), access_vm_reg, reset_val, TCR_EL1, 0 },
 
 	PTRAUTH_KEY(APIA),
@@ -1490,9 +1490,9 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	PTRAUTH_KEY(APDB),
 	PTRAUTH_KEY(APGA),
 
-	{ SYS_DESC(SYS_AFSR0_EL1), access_vm_reg, reset_unknown, AFSR0_EL1 },
-	{ SYS_DESC(SYS_AFSR1_EL1), access_vm_reg, reset_unknown, AFSR1_EL1 },
-	{ SYS_DESC(SYS_ESR_EL1), access_vm_reg, reset_unknown, ESR_EL1 },
+	{ SYS_DESC(SYS_AFSR0_EL1), access_vm_reg, reset_unkyeswn, AFSR0_EL1 },
+	{ SYS_DESC(SYS_AFSR1_EL1), access_vm_reg, reset_unkyeswn, AFSR1_EL1 },
+	{ SYS_DESC(SYS_ESR_EL1), access_vm_reg, reset_unkyeswn, ESR_EL1 },
 
 	{ SYS_DESC(SYS_ERRIDR_EL1), trap_raz_wi },
 	{ SYS_DESC(SYS_ERRSELR_EL1), trap_raz_wi },
@@ -1503,13 +1503,13 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_ERXMISC0_EL1), trap_raz_wi },
 	{ SYS_DESC(SYS_ERXMISC1_EL1), trap_raz_wi },
 
-	{ SYS_DESC(SYS_FAR_EL1), access_vm_reg, reset_unknown, FAR_EL1 },
-	{ SYS_DESC(SYS_PAR_EL1), NULL, reset_unknown, PAR_EL1 },
+	{ SYS_DESC(SYS_FAR_EL1), access_vm_reg, reset_unkyeswn, FAR_EL1 },
+	{ SYS_DESC(SYS_PAR_EL1), NULL, reset_unkyeswn, PAR_EL1 },
 
-	{ SYS_DESC(SYS_PMINTENSET_EL1), access_pminten, reset_unknown, PMINTENSET_EL1 },
+	{ SYS_DESC(SYS_PMINTENSET_EL1), access_pminten, reset_unkyeswn, PMINTENSET_EL1 },
 	{ SYS_DESC(SYS_PMINTENCLR_EL1), access_pminten, NULL, PMINTENSET_EL1 },
 
-	{ SYS_DESC(SYS_MAIR_EL1), access_vm_reg, reset_unknown, MAIR_EL1 },
+	{ SYS_DESC(SYS_MAIR_EL1), access_vm_reg, reset_unkyeswn, MAIR_EL1 },
 	{ SYS_DESC(SYS_AMAIR_EL1), access_vm_reg, reset_amair_el1, AMAIR_EL1 },
 
 	{ SYS_DESC(SYS_LORSA_EL1), trap_loregion },
@@ -1535,35 +1535,35 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_ICC_SRE_EL1), access_gic_sre },
 
 	{ SYS_DESC(SYS_CONTEXTIDR_EL1), access_vm_reg, reset_val, CONTEXTIDR_EL1, 0 },
-	{ SYS_DESC(SYS_TPIDR_EL1), NULL, reset_unknown, TPIDR_EL1 },
+	{ SYS_DESC(SYS_TPIDR_EL1), NULL, reset_unkyeswn, TPIDR_EL1 },
 
 	{ SYS_DESC(SYS_CNTKCTL_EL1), NULL, reset_val, CNTKCTL_EL1, 0},
 
 	{ SYS_DESC(SYS_CCSIDR_EL1), access_ccsidr },
 	{ SYS_DESC(SYS_CLIDR_EL1), access_clidr },
-	{ SYS_DESC(SYS_CSSELR_EL1), access_csselr, reset_unknown, CSSELR_EL1 },
+	{ SYS_DESC(SYS_CSSELR_EL1), access_csselr, reset_unkyeswn, CSSELR_EL1 },
 	{ SYS_DESC(SYS_CTR_EL0), access_ctr },
 
 	{ SYS_DESC(SYS_PMCR_EL0), access_pmcr, reset_pmcr, PMCR_EL0 },
-	{ SYS_DESC(SYS_PMCNTENSET_EL0), access_pmcnten, reset_unknown, PMCNTENSET_EL0 },
+	{ SYS_DESC(SYS_PMCNTENSET_EL0), access_pmcnten, reset_unkyeswn, PMCNTENSET_EL0 },
 	{ SYS_DESC(SYS_PMCNTENCLR_EL0), access_pmcnten, NULL, PMCNTENSET_EL0 },
 	{ SYS_DESC(SYS_PMOVSCLR_EL0), access_pmovs, NULL, PMOVSSET_EL0 },
-	{ SYS_DESC(SYS_PMSWINC_EL0), access_pmswinc, reset_unknown, PMSWINC_EL0 },
-	{ SYS_DESC(SYS_PMSELR_EL0), access_pmselr, reset_unknown, PMSELR_EL0 },
+	{ SYS_DESC(SYS_PMSWINC_EL0), access_pmswinc, reset_unkyeswn, PMSWINC_EL0 },
+	{ SYS_DESC(SYS_PMSELR_EL0), access_pmselr, reset_unkyeswn, PMSELR_EL0 },
 	{ SYS_DESC(SYS_PMCEID0_EL0), access_pmceid },
 	{ SYS_DESC(SYS_PMCEID1_EL0), access_pmceid },
-	{ SYS_DESC(SYS_PMCCNTR_EL0), access_pmu_evcntr, reset_unknown, PMCCNTR_EL0 },
+	{ SYS_DESC(SYS_PMCCNTR_EL0), access_pmu_evcntr, reset_unkyeswn, PMCCNTR_EL0 },
 	{ SYS_DESC(SYS_PMXEVTYPER_EL0), access_pmu_evtyper },
 	{ SYS_DESC(SYS_PMXEVCNTR_EL0), access_pmu_evcntr },
 	/*
-	 * PMUSERENR_EL0 resets as unknown in 64bit mode while it resets as zero
+	 * PMUSERENR_EL0 resets as unkyeswn in 64bit mode while it resets as zero
 	 * in 32bit mode. Here we choose to reset it as zero for consistency.
 	 */
 	{ SYS_DESC(SYS_PMUSERENR_EL0), access_pmuserenr, reset_val, PMUSERENR_EL0, 0 },
-	{ SYS_DESC(SYS_PMOVSSET_EL0), access_pmovs, reset_unknown, PMOVSSET_EL0 },
+	{ SYS_DESC(SYS_PMOVSSET_EL0), access_pmovs, reset_unkyeswn, PMOVSSET_EL0 },
 
-	{ SYS_DESC(SYS_TPIDR_EL0), NULL, reset_unknown, TPIDR_EL0 },
-	{ SYS_DESC(SYS_TPIDRRO_EL0), NULL, reset_unknown, TPIDRRO_EL0 },
+	{ SYS_DESC(SYS_TPIDR_EL0), NULL, reset_unkyeswn, TPIDR_EL0 },
+	{ SYS_DESC(SYS_TPIDRRO_EL0), NULL, reset_unkyeswn, TPIDRRO_EL0 },
 
 	{ SYS_DESC(SYS_CNTP_TVAL_EL0), access_arch_timer },
 	{ SYS_DESC(SYS_CNTP_CTL_EL0), access_arch_timer },
@@ -1634,13 +1634,13 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	PMU_PMEVTYPER_EL0(29),
 	PMU_PMEVTYPER_EL0(30),
 	/*
-	 * PMCCFILTR_EL0 resets as unknown in 64bit mode while it resets as zero
+	 * PMCCFILTR_EL0 resets as unkyeswn in 64bit mode while it resets as zero
 	 * in 32bit mode. Here we choose to reset it as zero for consistency.
 	 */
 	{ SYS_DESC(SYS_PMCCFILTR_EL0), access_pmu_evtyper, reset_val, PMCCFILTR_EL0, 0 },
 
-	{ SYS_DESC(SYS_DACR32_EL2), NULL, reset_unknown, DACR32_EL2 },
-	{ SYS_DESC(SYS_IFSR32_EL2), NULL, reset_unknown, IFSR32_EL2 },
+	{ SYS_DESC(SYS_DACR32_EL2), NULL, reset_unkyeswn, DACR32_EL2 },
+	{ SYS_DESC(SYS_IFSR32_EL2), NULL, reset_unkyeswn, IFSR32_EL2 },
 	{ SYS_DESC(SYS_FPEXC32_EL2), NULL, reset_val, FPEXC32_EL2, 0x700 },
 };
 
@@ -1649,7 +1649,7 @@ static bool trap_dbgidr(struct kvm_vcpu *vcpu,
 			const struct sys_reg_desc *r)
 {
 	if (p->is_write) {
-		return ignore_write(vcpu, p);
+		return igyesre_write(vcpu, p);
 	} else {
 		u64 dfr = read_sanitised_ftr_reg(SYS_ID_AA64DFR0_EL1);
 		u64 pfr = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
@@ -1725,7 +1725,7 @@ static bool trap_xvr(struct kvm_vcpu *vcpu,
 	{ Op1( 0), CRn( 1), CRm((n)), Op2( 1), trap_xvr, NULL, n }
 
 /*
- * Trapped cp14 registers. We generally ignore most of the external
+ * Trapped cp14 registers. We generally igyesre most of the external
  * debug, on the principle that they don't really make sense to a
  * guest. Revisit this one day, would this principle change.
  */
@@ -2038,7 +2038,7 @@ static void perform_access(struct kvm_vcpu *vcpu,
 
 	/*
 	 * Not having an accessor means that we have configured a trap
-	 * that we don't know how to handle. This certainly qualifies
+	 * that we don't kyesw how to handle. This certainly qualifies
 	 * as a gross bug that should be fixed right away.
 	 */
 	BUG_ON(!r->access);
@@ -2056,7 +2056,7 @@ static void perform_access(struct kvm_vcpu *vcpu,
  * @table: array of trap descriptors
  * @num: size of the trap descriptor array
  *
- * Return 0 if the access has been handled, and -1 if not.
+ * Return 0 if the access has been handled, and -1 if yest.
  */
 static int emulate_cp(struct kvm_vcpu *vcpu,
 		      struct sys_reg_params *params,
@@ -2320,7 +2320,7 @@ static bool index_to_params(u64 id, struct sys_reg_params *params)
 {
 	switch (id & KVM_REG_SIZE_MASK) {
 	case KVM_REG_SIZE_U64:
-		/* Any unused index bits means it's not valid. */
+		/* Any unused index bits means it's yest valid. */
 		if (id & ~(KVM_REG_ARCH_MASK | KVM_REG_SIZE_MASK
 			      | KVM_REG_ARM_COPROC_MASK
 			      | KVM_REG_ARM64_SYSREG_OP0_MASK
@@ -2364,7 +2364,7 @@ static const struct sys_reg_desc *index_to_sys_reg_desc(struct kvm_vcpu *vcpu,
 	const struct sys_reg_desc *table, *r;
 	struct sys_reg_params params;
 
-	/* We only do sys_reg for now. */
+	/* We only do sys_reg for yesw. */
 	if ((id & KVM_REG_ARM_COPROC_MASK) != KVM_REG_ARM64_SYSREG)
 		return NULL;
 
@@ -2376,7 +2376,7 @@ static const struct sys_reg_desc *index_to_sys_reg_desc(struct kvm_vcpu *vcpu,
 	if (!r)
 		r = find_reg(&params, sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
 
-	/* Not saved in the sys_reg array and not otherwise accessible? */
+	/* Not saved in the sys_reg array and yest otherwise accessible? */
 	if (r && !(r->reg || r->get_user))
 		r = NULL;
 
@@ -2488,7 +2488,7 @@ static bool is_valid_cache(u32 val)
 		return !(val & 1);
 	case 3: /* Separate instruction and data caches */
 		return true;
-	default: /* Reserved: we can't know instruction or data. */
+	default: /* Reserved: we can't kyesw instruction or data. */
 		return false;
 	}
 }
@@ -2498,7 +2498,7 @@ static int demux_c15_get(u64 id, void __user *uaddr)
 	u32 val;
 	u32 __user *uval = uaddr;
 
-	/* Fail if we have unknown bits set. */
+	/* Fail if we have unkyeswn bits set. */
 	if (id & ~(KVM_REG_ARCH_MASK|KVM_REG_SIZE_MASK|KVM_REG_ARM_COPROC_MASK
 		   | ((1 << KVM_REG_ARM_COPROC_SHIFT)-1)))
 		return -ENOENT;
@@ -2523,7 +2523,7 @@ static int demux_c15_set(u64 id, void __user *uaddr)
 	u32 val, newval;
 	u32 __user *uval = uaddr;
 
-	/* Fail if we have unknown bits set. */
+	/* Fail if we have unkyeswn bits set. */
 	if (id & ~(KVM_REG_ARCH_MASK|KVM_REG_SIZE_MASK|KVM_REG_ARM_COPROC_MASK
 		   | ((1 << KVM_REG_ARM_COPROC_SHIFT)-1)))
 		return -ENOENT;
@@ -2655,8 +2655,8 @@ static int walk_one_sys_reg(const struct kvm_vcpu *vcpu,
 			    unsigned int *total)
 {
 	/*
-	 * Ignore registers we trap but don't save,
-	 * and for which no custom user accessor is provided.
+	 * Igyesre registers we trap but don't save,
+	 * and for which yes custom user accessor is provided.
 	 */
 	if (!(rd->reg || rd->get_user))
 		return 0;
@@ -2769,11 +2769,11 @@ void kvm_sys_reg_table_init(void)
 	 * CLIDR format is awkward, so clean it up.  See ARM B4.1.20:
 	 *
 	 *   If software reads the Cache Type fields from Ctype1
-	 *   upwards, once it has seen a value of 0b000, no caches
+	 *   upwards, once it has seen a value of 0b000, yes caches
 	 *   exist at further-out levels of the hierarchy. So, for
 	 *   example, if Ctype3 is the first Cache Type field with a
 	 *   value of 0b000, the values of Ctype4 to Ctype7 must be
-	 *   ignored.
+	 *   igyesred.
 	 */
 	get_clidr_el1(NULL, &clidr); /* Ugly... */
 	cache_levels = clidr.val;

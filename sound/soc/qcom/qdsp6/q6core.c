@@ -12,7 +12,7 @@
 #include <linux/jiffies.h>
 #include <linux/soc/qcom/apr.h>
 #include "q6core.h"
-#include "q6dsp-errno.h"
+#include "q6dsp-erryes.h"
 
 #define ADSP_STATE_READY_TIMEOUT_MS    3000
 #define Q6_READY_TIMEOUT_MS 100
@@ -43,7 +43,7 @@ struct avcs_svc_api_info {
 
 struct avcs_cmdrsp_get_fwk_version {
 	uint32_t build_major_version;
-	uint32_t build_minor_version;
+	uint32_t build_miyesr_version;
 	uint32_t build_branch_version;
 	uint32_t build_subbranch_version;
 	uint32_t num_services;
@@ -229,7 +229,7 @@ static bool __q6core_is_adsp_ready(struct q6core *core)
 			return true;
 	}
 
-	/* assume that the adsp is up if we not support this command */
+	/* assume that the adsp is up if we yest support this command */
 	if (!core->get_state_supported)
 		return true;
 
@@ -296,7 +296,7 @@ EXPORT_SYMBOL_GPL(q6core_get_svc_api_info);
 /**
  * q6core_is_adsp_ready() - Get status of adsp
  *
- * Return: Will be an true if adsp is ready and false if not.
+ * Return: Will be an true if adsp is ready and false if yest.
  */
 bool q6core_is_adsp_ready(void)
 {

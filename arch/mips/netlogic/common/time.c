@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -51,7 +51,7 @@
 #include <asm/netlogic/xlr/pic.h>
 #include <asm/netlogic/xlr/xlr.h>
 #else
-#error "Unknown CPU"
+#error "Unkyeswn CPU"
 #endif
 
 unsigned int get_c0_compare_int(void)
@@ -61,14 +61,14 @@ unsigned int get_c0_compare_int(void)
 
 static u64 nlm_get_pic_timer(struct clocksource *cs)
 {
-	uint64_t picbase = nlm_get_node(0)->picbase;
+	uint64_t picbase = nlm_get_yesde(0)->picbase;
 
 	return ~nlm_pic_read_timer(picbase, PIC_CLOCK_TIMER);
 }
 
 static u64 nlm_get_pic_timer32(struct clocksource *cs)
 {
-	uint64_t picbase = nlm_get_node(0)->picbase;
+	uint64_t picbase = nlm_get_yesde(0)->picbase;
 
 	return ~nlm_pic_read_timer32(picbase, PIC_CLOCK_TIMER);
 }
@@ -80,7 +80,7 @@ static struct clocksource csrc_pic = {
 
 static void nlm_init_pic_timer(void)
 {
-	uint64_t picbase = nlm_get_node(0)->picbase;
+	uint64_t picbase = nlm_get_yesde(0)->picbase;
 	u32 picfreq;
 
 	nlm_pic_set_timer(picbase, PIC_CLOCK_TIMER, ~0ULL, 0, 0);

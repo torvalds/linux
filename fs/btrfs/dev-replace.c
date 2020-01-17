@@ -54,7 +54,7 @@ int btrfs_init_dev_replace(struct btrfs_fs_info *fs_info)
 	key.offset = 0;
 	ret = btrfs_search_slot(NULL, dev_root, &key, path, 0, 0);
 	if (ret) {
-no_valid_dev_replace_entry_found:
+yes_valid_dev_replace_entry_found:
 		ret = 0;
 		dev_replace->replace_state =
 			BTRFS_IOCTL_DEV_REPLACE_STATE_NEVER_STARTED;
@@ -75,14 +75,14 @@ no_valid_dev_replace_entry_found:
 		goto out;
 	}
 	slot = path->slots[0];
-	eb = path->nodes[0];
+	eb = path->yesdes[0];
 	item_size = btrfs_item_size_nr(eb, slot);
 	ptr = btrfs_item_ptr(eb, slot, struct btrfs_dev_replace_item);
 
 	if (item_size != sizeof(struct btrfs_dev_replace_item)) {
 		btrfs_warn(fs_info,
-			"dev_replace entry found has unexpected size, ignore entry");
-		goto no_valid_dev_replace_entry_found;
+			"dev_replace entry found has unexpected size, igyesre entry");
+		goto yes_valid_dev_replace_entry_found;
 	}
 
 	src_devid = btrfs_dev_replace_src_devid(eb, ptr);
@@ -125,7 +125,7 @@ no_valid_dev_replace_entry_found:
 		    !btrfs_test_opt(fs_info, DEGRADED)) {
 			ret = -EIO;
 			btrfs_warn(fs_info,
-			   "cannot mount because device replace operation is ongoing and");
+			   "canyest mount because device replace operation is ongoing and");
 			btrfs_warn(fs_info,
 			   "srcdev (devid %llu) is missing, need to run 'btrfs dev scan'?",
 			   src_devid);
@@ -134,7 +134,7 @@ no_valid_dev_replace_entry_found:
 		    !btrfs_test_opt(fs_info, DEGRADED)) {
 			ret = -EIO;
 			btrfs_warn(fs_info,
-			   "cannot mount because device replace operation is ongoing and");
+			   "canyest mount because device replace operation is ongoing and");
 			btrfs_warn(fs_info,
 			   "tgtdev (devid %llu) is missing, need to run 'btrfs dev scan'?",
 				BTRFS_DEV_REPLACE_DEVID);
@@ -215,7 +215,7 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	}
 
 
-	if (i_size_read(bdev->bd_inode) <
+	if (i_size_read(bdev->bd_iyesde) <
 	    btrfs_device_get_total_bytes(srcdev)) {
 		btrfs_err(fs_info,
 			  "target device is smaller than source device!");
@@ -312,10 +312,10 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans)
 	}
 
 	if (ret == 0 &&
-	    btrfs_item_size_nr(path->nodes[0], path->slots[0]) < sizeof(*ptr)) {
+	    btrfs_item_size_nr(path->yesdes[0], path->slots[0]) < sizeof(*ptr)) {
 		/*
 		 * need to delete old one and insert a new one.
-		 * Since no attempt is made to recover any old state, if the
+		 * Since yes attempt is made to recover any old state, if the
 		 * dev_replace state is 'running', the data on the target
 		 * drive is lost.
 		 * It would be possible to recover the state: just make sure
@@ -346,7 +346,7 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans)
 		}
 	}
 
-	eb = path->nodes[0];
+	eb = path->yesdes[0];
 	ptr = btrfs_item_ptr(eb, path->slots[0],
 			     struct btrfs_dev_replace_item);
 
@@ -409,7 +409,7 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 
 	if (btrfs_pinned_by_swapfile(fs_info, src_device)) {
 		btrfs_warn_in_rcu(fs_info,
-	  "cannot replace device %s (devid %llu) due to active swapfile",
+	  "canyest replace device %s (devid %llu) due to active swapfile",
 			btrfs_dev_name(src_device), src_device->devid);
 		return -ETXTBSY;
 	}
@@ -457,7 +457,7 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 		      rcu_str_deref(tgt_device->name));
 
 	/*
-	 * from now on, the writes to the srcdev are all duplicated to
+	 * from yesw on, the writes to the srcdev are all duplicated to
 	 * go to the tgtdev as well (refer to btrfs_map_block()).
 	 */
 	dev_replace->replace_state = BTRFS_IOCTL_DEV_REPLACE_STATE_STARTED;
@@ -590,7 +590,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	up_read(&dev_replace->rwsem);
 
 	/*
-	 * flush all outstanding I/O and inode extent mappings before the
+	 * flush all outstanding I/O and iyesde extent mappings before the
 	 * copy operation is declared as being finished
 	 */
 	ret = btrfs_start_delalloc_roots(fs_info, -1);
@@ -696,10 +696,10 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	atomic_inc(&tgt_device->dev_stats_ccnt);
 
 	/*
-	 * this is again a consistent state where no dev_replace procedure
+	 * this is again a consistent state where yes dev_replace procedure
 	 * is running, the target device is part of the filesystem, the
-	 * source device is not part of the filesystem anymore and its 1st
-	 * superblock is scratched out so that it is no longer marked to
+	 * source device is yest part of the filesystem anymore and its 1st
+	 * superblock is scratched out so that it is yes longer marked to
 	 * belong to this filesystem.
 	 */
 	mutex_unlock(&fs_info->chunk_mutex);
@@ -780,7 +780,7 @@ void btrfs_dev_replace_status(struct btrfs_fs_info *fs_info,
 	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
 
 	down_read(&dev_replace->rwsem);
-	/* even if !dev_replace_is_valid, the values are good enough for
+	/* even if !dev_replace_is_valid, the values are good eyesugh for
 	 * the replace_status ioctl */
 	args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR;
 	args->status.replace_state = dev_replace->replace_state;
@@ -852,7 +852,7 @@ int btrfs_dev_replace_cancel(struct btrfs_fs_info *fs_info)
 
 		up_write(&dev_replace->rwsem);
 
-		/* Scrub for replace must not be running in suspended state */
+		/* Scrub for replace must yest be running in suspended state */
 		ret = btrfs_scrub_cancel(fs_info);
 		ASSERT(ret != -ENOTCONN);
 
@@ -930,7 +930,7 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 	}
 	if (!dev_replace->tgtdev || !dev_replace->tgtdev->bdev) {
 		btrfs_info(fs_info,
-			   "cannot continue dev_replace, tgtdev is missing");
+			   "canyest continue dev_replace, tgtdev is missing");
 		btrfs_info(fs_info,
 			   "you may cancel the operation after 'mount -o degraded'");
 		dev_replace->replace_state =
@@ -951,7 +951,7 @@ int btrfs_resume_dev_replace_async(struct btrfs_fs_info *fs_info)
 					BTRFS_IOCTL_DEV_REPLACE_STATE_SUSPENDED;
 		up_write(&dev_replace->rwsem);
 		btrfs_info(fs_info,
-		"cannot resume dev-replace, other exclusive operation running");
+		"canyest resume dev-replace, other exclusive operation running");
 		return 0;
 	}
 
@@ -1003,8 +1003,8 @@ int __pure btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
 		 * something that can happen if the dev_replace
 		 * procedure is suspended by an umount and then
 		 * the tgtdev is missing (or "btrfs dev scan") was
-		 * not called and the filesystem is remounted
-		 * in degraded state. This does not stop the
+		 * yest called and the filesystem is remounted
+		 * in degraded state. This does yest stop the
 		 * dev_replace procedure. It needs to be canceled
 		 * manually if the cancellation is wanted.
 		 */
@@ -1013,7 +1013,7 @@ int __pure btrfs_dev_replace_is_ongoing(struct btrfs_dev_replace *dev_replace)
 	return 1;
 }
 
-void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)
+void btrfs_bio_counter_inc_yesblocked(struct btrfs_fs_info *fs_info)
 {
 	percpu_counter_inc(&fs_info->dev_replace.bio_counter);
 }
@@ -1021,7 +1021,7 @@ void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)
 void btrfs_bio_counter_sub(struct btrfs_fs_info *fs_info, s64 amount)
 {
 	percpu_counter_sub(&fs_info->dev_replace.bio_counter, amount);
-	cond_wake_up_nomb(&fs_info->dev_replace.replace_wait);
+	cond_wake_up_yesmb(&fs_info->dev_replace.replace_wait);
 }
 
 void btrfs_bio_counter_inc_blocked(struct btrfs_fs_info *fs_info)

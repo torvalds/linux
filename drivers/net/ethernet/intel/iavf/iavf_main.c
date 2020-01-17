@@ -40,7 +40,7 @@ static const char iavf_copyright[] =
  * Last entry must be all 0s
  *
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
- *   Class, Class Mask, private data (not used) }
+ *   Class, Class Mask, private data (yest used) }
  */
 static const struct pci_device_id iavf_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, IAVF_DEV_ID_VF), 0},
@@ -265,7 +265,7 @@ static irqreturn_t iavf_msix_aq(int irq, void *data)
 	struct iavf_adapter *adapter = netdev_priv(netdev);
 	struct iavf_hw *hw = &adapter->hw;
 
-	/* handle non-queue interrupts, these reads clear the registers */
+	/* handle yesn-queue interrupts, these reads clear the registers */
 	rd32(hw, IAVF_VFINT_ICR01);
 	rd32(hw, IAVF_VFINT_ICR0_ENA1);
 
@@ -377,29 +377,29 @@ static void iavf_map_rings_to_vectors(struct iavf_adapter *adapter)
 }
 
 /**
- * iavf_irq_affinity_notify - Callback for affinity changes
- * @notify: context as to what irq was changed
+ * iavf_irq_affinity_yestify - Callback for affinity changes
+ * @yestify: context as to what irq was changed
  * @mask: the new affinity mask
  *
- * This is a callback function used by the irq_set_affinity_notifier function
+ * This is a callback function used by the irq_set_affinity_yestifier function
  * so that we may register to receive changes to the irq affinity masks.
  **/
-static void iavf_irq_affinity_notify(struct irq_affinity_notify *notify,
+static void iavf_irq_affinity_yestify(struct irq_affinity_yestify *yestify,
 				     const cpumask_t *mask)
 {
 	struct iavf_q_vector *q_vector =
-		container_of(notify, struct iavf_q_vector, affinity_notify);
+		container_of(yestify, struct iavf_q_vector, affinity_yestify);
 
 	cpumask_copy(&q_vector->affinity_mask, mask);
 }
 
 /**
- * iavf_irq_affinity_release - Callback for affinity notifier release
+ * iavf_irq_affinity_release - Callback for affinity yestifier release
  * @ref: internal core kernel usage
  *
- * This is a callback function used by the irq_set_affinity_notifier function
- * to inform the current notification subscriber that they will no longer
- * receive notifications.
+ * This is a callback function used by the irq_set_affinity_yestifier function
+ * to inform the current yestification subscriber that they will yes longer
+ * receive yestifications.
  **/
 static void iavf_irq_affinity_release(struct kref *ref) {}
 
@@ -452,11 +452,11 @@ iavf_request_traffic_irqs(struct iavf_adapter *adapter, char *basename)
 				 "Request_irq failed, error: %d\n", err);
 			goto free_queue_irqs;
 		}
-		/* register for affinity change notifications */
-		q_vector->affinity_notify.notify = iavf_irq_affinity_notify;
-		q_vector->affinity_notify.release =
+		/* register for affinity change yestifications */
+		q_vector->affinity_yestify.yestify = iavf_irq_affinity_yestify;
+		q_vector->affinity_yestify.release =
 						   iavf_irq_affinity_release;
-		irq_set_affinity_notifier(irq_num, &q_vector->affinity_notify);
+		irq_set_affinity_yestifier(irq_num, &q_vector->affinity_yestify);
 		/* Spread the IRQ affinity hints across online CPUs. Note that
 		 * get_cpu_mask returns a mask with a permanent lifetime so
 		 * it's safe to use as a hint for irq_set_affinity_hint.
@@ -471,7 +471,7 @@ free_queue_irqs:
 	while (vector) {
 		vector--;
 		irq_num = adapter->msix_entries[vector + NONQ_VECS].vector;
-		irq_set_affinity_notifier(irq_num, NULL);
+		irq_set_affinity_yestifier(irq_num, NULL);
 		irq_set_affinity_hint(irq_num, NULL);
 		free_irq(irq_num, &adapter->q_vectors[vector]);
 	}
@@ -523,7 +523,7 @@ static void iavf_free_traffic_irqs(struct iavf_adapter *adapter)
 
 	for (vector = 0; vector < q_vectors; vector++) {
 		irq_num = adapter->msix_entries[vector + NONQ_VECS].vector;
-		irq_set_affinity_notifier(irq_num, NULL);
+		irq_set_affinity_yestifier(irq_num, NULL);
 		irq_set_affinity_hint(irq_num, NULL);
 		free_irq(irq_num, &adapter->q_vectors[vector]);
 	}
@@ -584,7 +584,7 @@ static void iavf_configure_rx(struct iavf_adapter *adapter)
 		rx_buf_len = IAVF_RXBUFFER_3072;
 
 		/* We use a 1536 buffer size for configurations with
-		 * standard Ethernet mtu.  On x86 this gives us enough room
+		 * standard Ethernet mtu.  On x86 this gives us eyesugh room
 		 * for shared info and 192 bytes of padding.
 		 */
 		if (!IAVF_2K_TOO_SMALL_WITH_PADDING &&
@@ -629,7 +629,7 @@ iavf_vlan_filter *iavf_find_vlan(struct iavf_adapter *adapter, u16 vlan)
  * @adapter: board private structure
  * @vlan: VLAN tag
  *
- * Returns ptr to the filter object or NULL when no memory available.
+ * Returns ptr to the filter object or NULL when yes memory available.
  **/
 static struct
 iavf_vlan_filter *iavf_add_vlan(struct iavf_adapter *adapter, u16 vlan)
@@ -741,7 +741,7 @@ iavf_mac_filter *iavf_find_filter(struct iavf_adapter *adapter,
  * @adapter: board private structure
  * @macaddr: the MAC address
  *
- * Returns ptr to the filter object or NULL when no memory available.
+ * Returns ptr to the filter object or NULL when yes memory available.
  **/
 static struct
 iavf_mac_filter *iavf_add_filter(struct iavf_adapter *adapter,
@@ -842,8 +842,8 @@ static int iavf_addr_unsync(struct net_device *netdev, const u8 *addr)
 
 	/* Under some circumstances, we might receive a request to delete
 	 * our own device address from our uc list. Because we store the
-	 * device address in the VSI's MAC/VLAN filter list, we need to ignore
-	 * such requests and not delete our device address from this list.
+	 * device address in the VSI's MAC/VLAN filter list, we need to igyesre
+	 * such requests and yest delete our device address from this list.
 	 */
 	if (ether_addr_equal(addr, netdev->dev_addr))
 		return 0;
@@ -1047,7 +1047,7 @@ iavf_acquire_msix_vectors(struct iavf_adapter *adapter, int vectors)
 
 	/* The more we get, the more we will assign to Tx/Rx Cleanup
 	 * for the separate queues...where Rx Cleanup >= Tx Cleanup.
-	 * Right now, we simply care about how many we'll get; we'll
+	 * Right yesw, we simply care about how many we'll get; we'll
 	 * set them up later while requesting irq's.
 	 */
 	err = pci_enable_msix_range(adapter->pdev, adapter->msix_entries,
@@ -1088,7 +1088,7 @@ static void iavf_free_queues(struct iavf_adapter *adapter)
  * iavf_alloc_queues - Allocate memory for all rings
  * @adapter: board private structure to initialize
  *
- * We allocate one ring per queue at run-time since we don't know the
+ * We allocate one ring per queue at run-time since we don't kyesw the
  * number of queues at compile-time.  The polling_netdev array is
  * intended for Multiqueue, but should work fine with a single queue.
  **/
@@ -1096,7 +1096,7 @@ static int iavf_alloc_queues(struct iavf_adapter *adapter)
 {
 	int i, num_active_queues;
 
-	/* If we're in reset reallocating queues we don't actually know yet for
+	/* If we're in reset reallocating queues we don't actually kyesw yet for
 	 * certain the PF gave us the number of queues we asked for but we'll
 	 * assume it did.  Once basic reset is finished we'll confirm once we
 	 * start negotiating config with PF.
@@ -1153,7 +1153,7 @@ err_out:
 }
 
 /**
- * iavf_set_interrupt_capability - set MSI-X or FAIL if not supported
+ * iavf_set_interrupt_capability - set MSI-X or FAIL if yest supported
  * @adapter: board private structure to initialize
  *
  * Attempt to configure the interrupts using the best available
@@ -1173,7 +1173,7 @@ static int iavf_set_interrupt_capability(struct iavf_adapter *adapter)
 
 	/* It's easy to be greedy for MSI-X vectors, but it really doesn't do
 	 * us much good if we have more vectors than CPUs. However, we already
-	 * limit the total number of queues by the number of CPUs so we do not
+	 * limit the total number of queues by the number of CPUs so we do yest
 	 * need any further limiting here.
 	 */
 	v_budget = min_t(int, pairs + NONQ_VECS,
@@ -1212,14 +1212,14 @@ static int iavf_config_rss_aq(struct iavf_adapter *adapter)
 
 	if (adapter->current_op != VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
-		dev_err(&adapter->pdev->dev, "Cannot configure RSS, command %d pending\n",
+		dev_err(&adapter->pdev->dev, "Canyest configure RSS, command %d pending\n",
 			adapter->current_op);
 		return -EBUSY;
 	}
 
 	ret = iavf_aq_set_rss_key(hw, adapter->vsi.id, rss_key);
 	if (ret) {
-		dev_err(&adapter->pdev->dev, "Cannot set RSS key, err %s aq_err %s\n",
+		dev_err(&adapter->pdev->dev, "Canyest set RSS key, err %s aq_err %s\n",
 			iavf_stat_str(hw, ret),
 			iavf_aq_str(hw, hw->aq.asq_last_status));
 		return ret;
@@ -1229,7 +1229,7 @@ static int iavf_config_rss_aq(struct iavf_adapter *adapter)
 	ret = iavf_aq_set_rss_lut(hw, adapter->vsi.id, false,
 				  adapter->rss_lut, adapter->rss_lut_size);
 	if (ret) {
-		dev_err(&adapter->pdev->dev, "Cannot set RSS lut, err %s aq_err %s\n",
+		dev_err(&adapter->pdev->dev, "Canyest set RSS lut, err %s aq_err %s\n",
 			iavf_stat_str(hw, ret),
 			iavf_aq_str(hw, hw->aq.asq_last_status));
 	}
@@ -1515,7 +1515,7 @@ err:
  * @adapter: pointer to iavf adapter structure
  *
  * Returns 0 on success
- * Returns error code if no command was sent
+ * Returns error code if yes command was sent
  * or error code if the command failed.
  **/
 static int iavf_process_aq_command(struct iavf_adapter *adapter)
@@ -1573,9 +1573,9 @@ static int iavf_process_aq_command(struct iavf_adapter *adapter)
 	}
 
 	if (adapter->aq_required & IAVF_FLAG_AQ_CONFIGURE_RSS) {
-		/* This message goes straight to the firmware, not the
+		/* This message goes straight to the firmware, yest the
 		 * PF, so we don't have to set current_op as we will
-		 * not get a response through the ARQ.
+		 * yest get a response through the ARQ.
 		 */
 		adapter->aq_required &= ~IAVF_FLAG_AQ_CONFIGURE_RSS;
 		return 0;
@@ -1726,7 +1726,7 @@ static int iavf_init_version_check(struct iavf_adapter *adapter)
 		else
 			dev_err(&pdev->dev, "Unsupported PF API version %d.%d, expected %d.%d\n",
 				adapter->pf_version.major,
-				adapter->pf_version.minor,
+				adapter->pf_version.miyesr,
 				VIRTCHNL_VERSION_MAJOR,
 				VIRTCHNL_VERSION_MINOR);
 		goto err;
@@ -1776,10 +1776,10 @@ static int iavf_init_get_resources(struct iavf_adapter *adapter)
 	} else if (err == IAVF_ERR_PARAM) {
 		/* We only get ERR_PARAM if the device is in a very bad
 		 * state or if we've been disabled for previous bad
-		 * behavior. Either way, we're done now.
+		 * behavior. Either way, we're done yesw.
 		 */
 		iavf_shutdown_adminq(hw);
-		dev_err(&pdev->dev, "Unable to get VF config due to PF error condition, not retrying\n");
+		dev_err(&pdev->dev, "Unable to get VF config due to PF error condition, yest retrying\n");
 		return 0;
 	}
 	if (err) {
@@ -1996,7 +1996,7 @@ static void iavf_disable_vf(struct iavf_adapter *adapter)
 
 	/* We don't use netif_running() because it may be true prior to
 	 * ndo_open() returning, so we can't assume it means all our open
-	 * tasks have finished, since we're not holding the rtnl_lock here.
+	 * tasks have finished, since we're yest holding the rtnl_lock here.
 	 */
 	if (adapter->state == __IAVF_RUNNING) {
 		set_bit(__IAVF_VSI_DOWN, adapter->vsi.state);
@@ -2044,7 +2044,7 @@ static void iavf_disable_vf(struct iavf_adapter *adapter)
 	adapter->flags &= ~IAVF_FLAG_RESET_PENDING;
 	adapter->state = __IAVF_DOWN;
 	wake_up(&adapter->down_waitqueue);
-	dev_info(&adapter->pdev->dev, "Reset task did not complete, VF disabled\n");
+	dev_info(&adapter->pdev->dev, "Reset task did yest complete, VF disabled\n");
 }
 
 #define IAVF_RESET_WAIT_MS 10
@@ -2087,7 +2087,7 @@ static void iavf_reset_task(struct work_struct *work)
 				    IAVF_FLAG_CLIENT_NEEDS_L2_PARAMS |
 				    IAVF_FLAG_SERVICE_CLIENT_REQUESTED);
 		cancel_delayed_work_sync(&adapter->client_task);
-		iavf_notify_client_close(&adapter->vsi, true);
+		iavf_yestify_client_close(&adapter->vsi, true);
 	}
 	iavf_misc_irq_disable(adapter);
 	if (adapter->flags & IAVF_FLAG_RESET_NEEDED) {
@@ -2132,13 +2132,13 @@ static void iavf_reset_task(struct work_struct *work)
 			reg_val);
 		iavf_disable_vf(adapter);
 		clear_bit(__IAVF_IN_CLIENT_TASK, &adapter->crit_section);
-		return; /* Do not attempt to reinit. It's dead, Jim. */
+		return; /* Do yest attempt to reinit. It's dead, Jim. */
 	}
 
 continue_reset:
 	/* We don't use netif_running() because it may be true prior to
 	 * ndo_open() returning, so we can't assume it means all our open
-	 * tasks have finished, since we're not holding the rtnl_lock here.
+	 * tasks have finished, since we're yest holding the rtnl_lock here.
 	 */
 	running = ((adapter->state == __IAVF_RUNNING) ||
 		   (adapter->state == __IAVF_RESETTING));
@@ -2362,17 +2362,17 @@ static void iavf_client_task(struct work_struct *work)
 		goto out;
 	}
 	if (adapter->flags & IAVF_FLAG_CLIENT_NEEDS_L2_PARAMS) {
-		iavf_notify_client_l2_params(&adapter->vsi);
+		iavf_yestify_client_l2_params(&adapter->vsi);
 		adapter->flags &= ~IAVF_FLAG_CLIENT_NEEDS_L2_PARAMS;
 		goto out;
 	}
 	if (adapter->flags & IAVF_FLAG_CLIENT_NEEDS_CLOSE) {
-		iavf_notify_client_close(&adapter->vsi, false);
+		iavf_yestify_client_close(&adapter->vsi, false);
 		adapter->flags &= ~IAVF_FLAG_CLIENT_NEEDS_CLOSE;
 		goto out;
 	}
 	if (adapter->flags & IAVF_FLAG_CLIENT_NEEDS_OPEN) {
-		iavf_notify_client_open(&adapter->vsi);
+		iavf_yestify_client_open(&adapter->vsi);
 		adapter->flags &= ~IAVF_FLAG_CLIENT_NEEDS_OPEN;
 	}
 out:
@@ -2402,7 +2402,7 @@ void iavf_free_all_tx_resources(struct iavf_adapter *adapter)
  * @adapter: board private structure
  *
  * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
+ * more of the rings is populated (while the rest are yest).  It is the
  * callers duty to clean those orphaned rings.
  *
  * Return 0 on success, negative on failure
@@ -2429,7 +2429,7 @@ static int iavf_setup_all_tx_resources(struct iavf_adapter *adapter)
  * @adapter: board private structure
  *
  * If this function returns with an error, then it's possible one or
- * more of the rings is populated (while the rest are not).  It is the
+ * more of the rings is populated (while the rest are yest).  It is the
  * callers duty to clean those orphaned rings.
  *
  * Return 0 on success, negative on failure
@@ -2516,7 +2516,7 @@ static int iavf_validate_tx_bandwidth(struct iavf_adapter *adapter,
  * @mqprio_qopt: queue parameters
  *
  * This function validates if the config provided by the user to
- * configure queue channels is valid or not. Returns 0 on a valid
+ * configure queue channels is valid or yest. Returns 0 on a valid
  * config.
  **/
 static int iavf_validate_ch_config(struct iavf_adapter *adapter,
@@ -2615,7 +2615,7 @@ static int __iavf_setup_tc(struct net_device *netdev, void *type_data)
 	/* add queue channel */
 	if (mode == TC_MQPRIO_MODE_CHANNEL) {
 		if (!(vfres->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_ADQ)) {
-			dev_err(&adapter->pdev->dev, "ADq not supported\n");
+			dev_err(&adapter->pdev->dev, "ADq yest supported\n");
 			return -EOPNOTSUPP;
 		}
 		if (adapter->ch_config.state != __IAVF_TC_INVALID) {
@@ -2832,7 +2832,7 @@ static int iavf_parse_cls_flower(struct iavf_adapter *adapter,
 		}
 
 		if (field_flags & IAVF_CLOUD_FIELD_TEN_ID) {
-			dev_info(&adapter->pdev->dev, "Tenant id not allowed for ip filter\n");
+			dev_info(&adapter->pdev->dev, "Tenant id yest allowed for ip filter\n");
 			return IAVF_ERR_CONFIG;
 		}
 		if (match.key->dst) {
@@ -2850,20 +2850,20 @@ static int iavf_parse_cls_flower(struct iavf_adapter *adapter,
 
 		flow_rule_match_ipv6_addrs(rule, &match);
 
-		/* validate mask, make sure it is not IPV6_ADDR_ANY */
+		/* validate mask, make sure it is yest IPV6_ADDR_ANY */
 		if (ipv6_addr_any(&match.mask->dst)) {
 			dev_err(&adapter->pdev->dev, "Bad ipv6 dst mask 0x%02x\n",
 				IPV6_ADDR_ANY);
 			return IAVF_ERR_CONFIG;
 		}
 
-		/* src and dest IPv6 address should not be LOOPBACK
+		/* src and dest IPv6 address should yest be LOOPBACK
 		 * (0:0:0:0:0:0:0:1) which can be represented as ::1
 		 */
 		if (ipv6_addr_loopback(&match.key->dst) ||
 		    ipv6_addr_loopback(&match.key->src)) {
 			dev_err(&adapter->pdev->dev,
-				"ipv6 addr should not be loopback\n");
+				"ipv6 addr should yest be loopback\n");
 			return IAVF_ERR_CONFIG;
 		}
 		if (!ipv6_addr_any(&match.mask->dst) ||
@@ -3127,7 +3127,7 @@ static int iavf_setup_tc(struct net_device *netdev, enum tc_setup_type type,
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is yestified that the interface is ready.
  **/
 static int iavf_open(struct net_device *netdev)
 {
@@ -3196,7 +3196,7 @@ err_unlock:
  * iavf_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is yest allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -3240,7 +3240,7 @@ static int iavf_close(struct net_device *netdev)
 				    adapter->state == __IAVF_DOWN,
 				    msecs_to_jiffies(500));
 	if (!status)
-		netdev_warn(netdev, "Device resources not yet released\n");
+		netdev_warn(netdev, "Device resources yest yet released\n");
 	return 0;
 }
 
@@ -3257,7 +3257,7 @@ static int iavf_change_mtu(struct net_device *netdev, int new_mtu)
 
 	netdev->mtu = new_mtu;
 	if (CLIENT_ENABLED(adapter)) {
-		iavf_notify_client_l2_params(&adapter->vsi);
+		iavf_yestify_client_l2_params(&adapter->vsi);
 		adapter->flags |= IAVF_FLAG_SERVICE_CLIENT_REQUESTED;
 	}
 	adapter->flags |= IAVF_FLAG_RESET_NEEDED;
@@ -3277,7 +3277,7 @@ static int iavf_set_features(struct net_device *netdev,
 {
 	struct iavf_adapter *adapter = netdev_priv(netdev);
 
-	/* Don't allow changing VLAN_RX flag when adapter is not capable
+	/* Don't allow changing VLAN_RX flag when adapter is yest capable
 	 * of VLAN offload
 	 */
 	if (!VLAN_ALLOWED(adapter)) {
@@ -3307,14 +3307,14 @@ static netdev_features_t iavf_features_check(struct sk_buff *skb,
 {
 	size_t len;
 
-	/* No point in doing any of this if neither checksum nor GSO are
+	/* No point in doing any of this if neither checksum yesr GSO are
 	 * being requested for this frame.  We can rule out both by just
 	 * checking for CHECKSUM_PARTIAL
 	 */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return features;
 
-	/* We cannot support GSO if the MSS is going to be less than
+	/* We canyest support GSO if the MSS is going to be less than
 	 * 64 bytes.  If it is then we need to drop support for GSO.
 	 */
 	if (skb_is_gso(skb) && (skb_shinfo(skb)->gso_size < 64))
@@ -3428,7 +3428,7 @@ int iavf_process_config(struct iavf_adapter *adapter)
 	netdev_features_t hw_enc_features;
 	netdev_features_t hw_features;
 
-	/* got VF config message back from PF, now we can parse it */
+	/* got VF config message back from PF, yesw we can parse it */
 	for (i = 0; i < vfres->num_vsis; i++) {
 		if (vfres->vsi_res[i].vsi_type == VIRTCHNL_VSI_SRIOV)
 			adapter->vsi_res = &vfres->vsi_res[i];
@@ -3515,7 +3515,7 @@ int iavf_process_config(struct iavf_adapter *adapter)
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
-	/* Do not turn on offloads when they are requested to be turned off.
+	/* Do yest turn on offloads when they are requested to be turned off.
 	 * TSO needs minimum 576 bytes to work correctly.
 	 */
 	if (netdev->wanted_features) {
@@ -3806,7 +3806,7 @@ static int iavf_resume(struct pci_dev *pdev)
 
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable PCI device from suspend.\n");
+		dev_err(&pdev->dev, "Canyest enable PCI device from suspend.\n");
 		return err;
 	}
 	pci_set_master(pdev);
@@ -3815,13 +3815,13 @@ static int iavf_resume(struct pci_dev *pdev)
 	err = iavf_set_interrupt_capability(adapter);
 	if (err) {
 		rtnl_unlock();
-		dev_err(&pdev->dev, "Cannot enable MSI-X interrupts.\n");
+		dev_err(&pdev->dev, "Canyest enable MSI-X interrupts.\n");
 		return err;
 	}
 	err = iavf_request_misc_irq(adapter);
 	rtnl_unlock();
 	if (err) {
-		dev_err(&pdev->dev, "Cannot get interrupt vector.\n");
+		dev_err(&pdev->dev, "Canyest get interrupt vector.\n");
 		return err;
 	}
 
@@ -3851,7 +3851,7 @@ static void iavf_remove(struct pci_dev *pdev)
 	struct iavf_cloud_filter *cf, *cftmp;
 	struct iavf_hw *hw = &adapter->hw;
 	int err;
-	/* Indicate we are in remove and not to run reset_task */
+	/* Indicate we are in remove and yest to run reset_task */
 	set_bit(__IAVF_IN_REMOVE_TASK, &adapter->crit_section);
 	cancel_delayed_work_sync(&adapter->init_task);
 	cancel_work_sync(&adapter->reset_task);

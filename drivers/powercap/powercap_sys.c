@@ -32,7 +32,7 @@ static ssize_t _attr##_show(struct device *dev, \
 	return len; \
 }
 
-/* The only meaningful input is 0 (reset), others are silently ignored */
+/* The only meaningful input is 0 (reset), others are silently igyesred */
 #define define_power_zone_store(_attr)		\
 static ssize_t _attr##_store(struct device *dev,\
 				struct device_attribute *dev_attr, \
@@ -333,7 +333,7 @@ static bool control_type_valid(void *control_type)
 
 	mutex_lock(&powercap_cntrl_list_lock);
 
-	list_for_each_entry(pos, &powercap_cntrl_list, node) {
+	list_for_each_entry(pos, &powercap_cntrl_list, yesde) {
 		if (pos == control_type) {
 			found = true;
 			break;
@@ -618,7 +618,7 @@ struct powercap_control_type *powercap_register_control_type(
 	}
 	mutex_init(&control_type->lock);
 	control_type->ops = ops;
-	INIT_LIST_HEAD(&control_type->node);
+	INIT_LIST_HEAD(&control_type->yesde);
 	control_type->dev.class = &powercap_class;
 	dev_set_name(&control_type->dev, "%s", name);
 	result = device_register(&control_type->dev);
@@ -630,7 +630,7 @@ struct powercap_control_type *powercap_register_control_type(
 	idr_init(&control_type->idr);
 
 	mutex_lock(&powercap_cntrl_list_lock);
-	list_add_tail(&control_type->node, &powercap_cntrl_list);
+	list_add_tail(&control_type->yesde, &powercap_cntrl_list);
 	mutex_unlock(&powercap_cntrl_list_lock);
 
 	return control_type;
@@ -642,13 +642,13 @@ int powercap_unregister_control_type(struct powercap_control_type *control_type)
 	struct powercap_control_type *pos = NULL;
 
 	if (control_type->nr_zones) {
-		dev_err(&control_type->dev, "Zones of this type still not freed\n");
+		dev_err(&control_type->dev, "Zones of this type still yest freed\n");
 		return -EINVAL;
 	}
 	mutex_lock(&powercap_cntrl_list_lock);
-	list_for_each_entry(pos, &powercap_cntrl_list, node) {
+	list_for_each_entry(pos, &powercap_cntrl_list, yesde) {
 		if (pos == control_type) {
-			list_del(&control_type->node);
+			list_del(&control_type->yesde);
 			mutex_unlock(&powercap_cntrl_list_lock);
 			device_unregister(&control_type->dev);
 			return 0;

@@ -20,7 +20,7 @@
  * Updated: Thu, 02 Jun 2016 13:12:46 -0700
  * Status: untested
  *
- * Configuration Options: not applicable, uses comedi PCI auto config
+ * Configuration Options: yest applicable, uses comedi PCI auto config
  *
  * This board has the following features:
  *   - 32 optically isolated digital inputs (24V), 16 of which can
@@ -29,7 +29,7 @@
  *   - 1 8-bit watchdog for resetting the outputs
  *   - 1 12-bit timer
  *   - 3 32-bit counters
- *   - 2 diagnostic inputs
+ *   - 2 diagyesstic inputs
  *
  * The COS, timer, and counter subdevices all use the dev->read_subdev to
  * return the interrupt status. The sample data is updated and returned when
@@ -42,27 +42,27 @@
  *    29    counter 2 interrupt
  *    28    counter 1 interrupt
  *    27    counter 0 interrupt
- *   26:20  not used
+ *   26:20  yest used
  *   19:4   COS digital input state (channels 19 to 4)
- *    3:0   not used
+ *    3:0   yest used
  *
  * The COS interrupts must be configured using an INSN_CONFIG_DIGITAL_TRIG
  * instruction before they can be enabled by an async command. The COS
  * interrupts will stay active until canceled.
  *
- * The timer subdevice does not use an async command. All control is handled
+ * The timer subdevice does yest use an async command. All control is handled
  * by the (*insn_config).
  *
- * FIXME: The format of the ADDI_TCW_TIMEBASE_REG is not descibed in the
+ * FIXME: The format of the ADDI_TCW_TIMEBASE_REG is yest descibed in the
  * datasheet I have. The INSN_CONFIG_SET_CLOCK_SRC currently just writes
  * the raw data[1] to this register along with the raw data[2] value to the
  * ADDI_TCW_RELOAD_REG. If anyone tests this and can determine the actual
- * timebase/reload operation please let me know.
+ * timebase/reload operation please let me kyesw.
  *
- * The counter subdevice also does not use an async command. All control is
+ * The counter subdevice also does yest use an async command. All control is
  * handled by the (*insn_config).
  *
- * FIXME: The operation of the counters is not really described in the
+ * FIXME: The operation of the counters is yest really described in the
  * datasheet I have. The (*insn_config) needs more work.
  */
 
@@ -318,7 +318,7 @@ static int apci1564_diag_insn_bits(struct comedi_device *dev,
  *	data[0] : INSN_CONFIG_DIGITAL_TRIG
  *	data[1] : trigger number (= 0)
  *	data[2] : configuration operation:
- *	          COMEDI_DIGITAL_TRIG_DISABLE = no interrupts
+ *	          COMEDI_DIGITAL_TRIG_DISABLE = yes interrupts
  *	          COMEDI_DIGITAL_TRIG_ENABLE_EDGES = OR (edge) interrupts
  *	          COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = AND (level) interrupts
  *	data[3] : left-shift for data[4] and data[5]
@@ -585,8 +585,8 @@ static int apci1564_counter_insn_config(struct comedi_device *dev,
 		break;
 	case INSN_CONFIG_SET_COUNTER_MODE:
 		/*
-		 * FIXME: The counter operation is not described in the
-		 * datasheet. For now just write the raw data[1] value to
+		 * FIXME: The counter operation is yest described in the
+		 * datasheet. For yesw just write the raw data[1] value to
 		 * the control register.
 		 */
 		outl(data[1], iobase + ADDI_TCW_CTRL_REG);
@@ -761,7 +761,7 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/* Initialize the diagnostic status subdevice */
+	/* Initialize the diagyesstic status subdevice */
 	s = &dev->subdevices[6];
 	s->type		= COMEDI_SUBD_DI;
 	s->subdev_flags	= SDF_READABLE;

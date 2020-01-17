@@ -143,7 +143,7 @@ static int amd_fch_gpio_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform_data\n");
+		dev_err(&pdev->dev, "yes platform_data\n");
 		return -ENOENT;
 	}
 

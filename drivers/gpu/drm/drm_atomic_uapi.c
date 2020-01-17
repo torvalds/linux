@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -59,7 +59,7 @@
  * the enable property.
  *
  * RETURNS:
- * Zero on success, error code on failure. Cannot return -EDEADLK.
+ * Zero on success, error code on failure. Canyest return -EDEADLK.
  */
 int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 				 const struct drm_display_mode *mode)
@@ -67,7 +67,7 @@ int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_mode_modeinfo umode;
 
-	/* Early return for no change. */
+	/* Early return for yes change. */
 	if (mode && memcmp(&state->mode, mode, sizeof(*mode)) == 0)
 		return 0;
 
@@ -109,7 +109,7 @@ EXPORT_SYMBOL(drm_atomic_set_mode_for_crtc);
  * was set.
  *
  * RETURNS:
- * Zero on success, error code on failure. Cannot return -EDEADLK.
+ * Zero on success, error code on failure. Canyest return -EDEADLK.
  */
 int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
                                       struct drm_property_blob *blob)
@@ -246,14 +246,14 @@ EXPORT_SYMBOL(drm_atomic_set_fb_for_plane);
  * @plane_state: atomic state object for the plane
  * @fence: dma_fence to use for the plane
  *
- * Helper to setup the plane_state fence in case it is not set yet.
+ * Helper to setup the plane_state fence in case it is yest set yet.
  * By using this drivers doesn't need to worry if the user choose
  * implicit or explicit fencing.
  *
- * This function will not set the fence to the state if it was set
+ * This function will yest set the fence to the state if it was set
  * via explicit fencing interfaces on the atomic ioctl. In that case it will
- * drop the reference to the fence as we are not storing it anywhere.
- * Otherwise, if &drm_plane_state.fence is not set this function we just set it
+ * drop the reference to the fence as we are yest storing it anywhere.
+ * Otherwise, if &drm_plane_state.fence is yest set this function we just set it
  * with the received implicit fence. In both cases this function consumes a
  * reference for @fence.
  *
@@ -472,7 +472,7 @@ static int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 	} else if (crtc->funcs->atomic_set_property) {
 		return crtc->funcs->atomic_set_property(crtc, state, property, val);
 	} else {
-		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] unknown property [PROP:%d:%s]]\n",
+		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] unkyeswn property [PROP:%d:%s]]\n",
 				 crtc->base.id, crtc->name,
 				 property->base.id, property->name);
 		return -EINVAL;
@@ -587,7 +587,7 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 		return plane->funcs->atomic_set_property(plane, state,
 				property, val);
 	} else {
-		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] unknown property [PROP:%d:%s]]\n",
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] unkyeswn property [PROP:%d:%s]]\n",
 				 plane->base.id, plane->name,
 				 property->base.id, property->name);
 		return -EINVAL;
@@ -687,7 +687,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 	} else if (property == config->dpms_property) {
 		/* setting DPMS property requires special handling, which
 		 * is done in legacy setprop path for us.  Disallow (for
-		 * now?) atomic writes to DPMS property:
+		 * yesw?) atomic writes to DPMS property:
 		 */
 		return -EINVAL;
 	} else if (property == config->tv_select_subconnector_property) {
@@ -770,7 +770,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
 	} else {
-		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] unknown property [PROP:%d:%s]]\n",
+		DRM_DEBUG_ATOMIC("[CONNECTOR:%d:%s] unkyeswn property [PROP:%d:%s]]\n",
 				 connector->base.id, connector->name,
 				 property->base.id, property->name);
 		return -EINVAL;
@@ -1044,9 +1044,9 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
  * "IN_FENCE_FD”:
  *	Use this property to pass a fence that DRM should wait on before
  *	proceeding with the Atomic Commit request and show the framebuffer for
- *	the plane on the screen. The fence can be either a normal fence or a
+ *	the plane on the screen. The fence can be either a yesrmal fence or a
  *	merged one, the sync_file framework will handle both cases and use a
- *	fence_array if a merged fence is received. Passing -1 here means no
+ *	fence_array if a merged fence is received. Passing -1 here means yes
  *	fences to wait on.
  *
  *	If the Atomic Commit request has the DRM_MODE_ATOMIC_TEST_ONLY flag
@@ -1073,7 +1073,7 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
  *
  *	Note that out-fences don't have a special interface to drivers and are
  *	internally represented by a &struct drm_pending_vblank_event in struct
- *	&drm_crtc_state, which is also used by the nonblocking atomic commit
+ *	&drm_crtc_state, which is also used by the yesnblocking atomic commit
  *	helpers and for the DRM event handling for existing userspace.
  */
 
@@ -1288,13 +1288,13 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	int ret = 0;
 	unsigned int i, j, num_fences;
 
-	/* disallow for drivers not supporting atomic: */
+	/* disallow for drivers yest supporting atomic: */
 	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
 		return -EOPNOTSUPP;
 
-	/* disallow for userspace that has not enabled atomic cap (even
+	/* disallow for userspace that has yest enabled atomic cap (even
 	 * though this may be a bit overkill, since legacy userspace
-	 * wouldn't know how to call this ioctl)
+	 * wouldn't kyesw how to call this ioctl)
 	 */
 	if (!file_priv->atomic)
 		return -EINVAL;
@@ -1403,7 +1403,7 @@ retry:
 	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY) {
 		ret = drm_atomic_check_only(state);
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
-		ret = drm_atomic_nonblocking_commit(state);
+		ret = drm_atomic_yesnblocking_commit(state);
 	} else {
 		if (drm_debug_enabled(DRM_UT_STATE))
 			drm_atomic_print_state(state);

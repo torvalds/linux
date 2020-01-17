@@ -35,7 +35,7 @@ enum ocb_deferred_task_flags {
 	OCB_WORK_HOUSEKEEPING,
 };
 
-void ieee80211_ocb_rx_no_sta(struct ieee80211_sub_if_data *sdata,
+void ieee80211_ocb_rx_yes_sta(struct ieee80211_sub_if_data *sdata,
 			     const u8 *bssid, const u8 *addr,
 			     u32 supp_rates)
 {
@@ -72,7 +72,7 @@ void ieee80211_ocb_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 	if (!sta)
 		return;
 
-	/* Add only mandatory rates for now */
+	/* Add only mandatory rates for yesw */
 	sband = local->hw.wiphy->bands[band];
 	sta->sta.supp_rates[band] =
 		ieee80211_mandatory_rates(sband, scan_width);
@@ -100,7 +100,7 @@ static struct sta_info *ieee80211_ocb_finish_sta(struct sta_info *sta)
 
 	rate_control_rate_init(sta);
 
-	/* If it fails, maybe we raced another insertion? */
+	/* If it fails, maybe we raced ayesther insertion? */
 	if (sta_info_insert_rcu(sta))
 		return sta_info_get(sdata, addr);
 	return sta;
@@ -191,7 +191,7 @@ int ieee80211_ocb_join(struct ieee80211_sub_if_data *sdata,
 	if (err)
 		return err;
 
-	ieee80211_bss_info_change_notify(sdata, changed);
+	ieee80211_bss_info_change_yestify(sdata, changed);
 
 	ifocb->joined = true;
 
@@ -225,7 +225,7 @@ int ieee80211_ocb_leave(struct ieee80211_sub_if_data *sdata)
 
 	netif_carrier_off(sdata->dev);
 	clear_bit(SDATA_STATE_OFFCHANNEL, &sdata->state);
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_OCB);
+	ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_OCB);
 
 	mutex_lock(&sdata->local->mtx);
 	ieee80211_vif_release_channel(sdata);
@@ -236,8 +236,8 @@ int ieee80211_ocb_leave(struct ieee80211_sub_if_data *sdata)
 	del_timer_sync(&sdata->u.ocb.housekeeping_timer);
 	/* If the timer fired while we waited for it, it will have
 	 * requeued the work. Now the work will be running again
-	 * but will not rearm the timer again because it checks
-	 * whether we are connected to the network or not -- at this
+	 * but will yest rearm the timer again because it checks
+	 * whether we are connected to the network or yest -- at this
 	 * point we shouldn't be anymore.
 	 */
 

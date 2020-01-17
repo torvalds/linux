@@ -127,7 +127,7 @@ static int scpi_cpufreq_init(struct cpufreq_policy *policy)
 
 	ret = dev_pm_opp_get_opp_count(cpu_dev);
 	if (ret <= 0) {
-		dev_dbg(cpu_dev, "OPP table is not ready, deferring probe\n");
+		dev_dbg(cpu_dev, "OPP table is yest ready, deferring probe\n");
 		ret = -EPROBE_DEFER;
 		goto out_free_opp;
 	}

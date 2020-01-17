@@ -1,7 +1,7 @@
 /*
  * SMI (Serial Memory Controller) device driver for Serial NOR Flash on
  * SPEAr platform
- * The serial nor interface is largely based on m25p80.c, however the SPI
+ * The serial yesr interface is largely based on m25p80.c, however the SPI
  * interface has been replaced by SMI.
  *
  * Copyright © 2010 STMicroelectronics.
@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -151,7 +151,7 @@ static struct flash_device flash_devices[] = {
 
 /* Define spear specific structures */
 
-struct spear_snor_flash;
+struct spear_syesr_flash;
 
 /**
  * struct spear_smi - Structure for SMI Device
@@ -175,11 +175,11 @@ struct spear_smi {
 	struct platform_device *pdev;
 	wait_queue_head_t cmd_complete;
 	u32 num_flashes;
-	struct spear_snor_flash *flash[MAX_NUM_FLASH_CHIP];
+	struct spear_syesr_flash *flash[MAX_NUM_FLASH_CHIP];
 };
 
 /**
- * struct spear_snor_flash - Structure for Serial NOR Flash
+ * struct spear_syesr_flash - Structure for Serial NOR Flash
  *
  * @bank: Bank number(0, 1, 2, 3) for each NOR-flash.
  * @dev_id: Device ID of NOR-flash.
@@ -192,7 +192,7 @@ struct spear_smi {
  * @erase_cmd: erase command may vary on different flash types
  * @fast_mode: flash supports read in fast mode
  */
-struct spear_snor_flash {
+struct spear_syesr_flash {
 	u32 bank;
 	u32 dev_id;
 	struct mutex lock;
@@ -205,9 +205,9 @@ struct spear_snor_flash {
 	u8 fast_mode;
 };
 
-static inline struct spear_snor_flash *get_flash_data(struct mtd_info *mtd)
+static inline struct spear_syesr_flash *get_flash_data(struct mtd_info *mtd)
 {
-	return container_of(mtd, struct spear_snor_flash, mtd);
+	return container_of(mtd, struct spear_syesr_flash, mtd);
 }
 
 /**
@@ -348,9 +348,9 @@ static void spear_smi_hw_init(struct spear_smi *dev)
 
 /**
  * get_flash_index - match chip id from a flash list.
- * @flash_id: a valid nor flash chip id obtained from board.
+ * @flash_id: a valid yesr flash chip id obtained from board.
  *
- * try to validate the chip id by matching from a list, if not found then simply
+ * try to validate the chip id by matching from a list, if yest found then simply
  * returns negative. In case of success returns index in to the flash devices
  * array.
  */
@@ -358,13 +358,13 @@ static int get_flash_index(u32 flash_id)
 {
 	int index;
 
-	/* Matches chip-id to entire list of 'serial-nor flash' ids */
+	/* Matches chip-id to entire list of 'serial-yesr flash' ids */
 	for (index = 0; index < ARRAY_SIZE(flash_devices); index++) {
 		if (flash_devices[index].device_id == flash_id)
 			return index;
 	}
 
-	/* Memory chip is not listed and not supported */
+	/* Memory chip is yest listed and yest supported */
 	return -ENODEV;
 }
 
@@ -417,7 +417,7 @@ static int spear_smi_write_enable(struct spear_smi *dev, u32 bank)
 }
 
 static inline u32
-get_sector_erase_cmd(struct spear_snor_flash *flash, u32 offset)
+get_sector_erase_cmd(struct spear_syesr_flash *flash, u32 offset)
 {
 	u32 cmd;
 	u8 *x = (u8 *)&cmd;
@@ -439,7 +439,7 @@ get_sector_erase_cmd(struct spear_snor_flash *flash, u32 offset)
  *
  * Erase one sector of flash memory at offset ``offset'' which is any
  * address within the sector which should be erased.
- * Returns 0 if successful, non-zero otherwise.
+ * Returns 0 if successful, yesn-zero otherwise.
  */
 static int spear_smi_erase_sector(struct spear_smi *dev,
 		u32 bank, u32 command, u32 bytes)
@@ -493,7 +493,7 @@ static int spear_smi_erase_sector(struct spear_smi *dev,
  */
 static int spear_mtd_erase(struct mtd_info *mtd, struct erase_info *e_info)
 {
-	struct spear_snor_flash *flash = get_flash_data(mtd);
+	struct spear_syesr_flash *flash = get_flash_data(mtd);
 	struct spear_smi *dev = mtd->priv;
 	u32 addr, command, bank;
 	int len, ret;
@@ -512,7 +512,7 @@ static int spear_mtd_erase(struct mtd_info *mtd, struct erase_info *e_info)
 
 	mutex_lock(&flash->lock);
 
-	/* now erase sectors in loop */
+	/* yesw erase sectors in loop */
 	while (len) {
 		command = get_sector_erase_cmd(flash, addr);
 		/* preparing the command for flash */
@@ -540,12 +540,12 @@ static int spear_mtd_erase(struct mtd_info *mtd, struct erase_info *e_info)
  *
  * Read an address range from the flash chip. The address range
  * may be any size provided it is within the physical boundaries.
- * Returns 0 on success, non zero otherwise
+ * Returns 0 on success, yesn zero otherwise
  */
 static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, u8 *buf)
 {
-	struct spear_snor_flash *flash = get_flash_data(mtd);
+	struct spear_syesr_flash *flash = get_flash_data(mtd);
 	struct spear_smi *dev = mtd->priv;
 	void __iomem *src;
 	u32 ctrlreg1, val;
@@ -572,7 +572,7 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 	}
 
 	mutex_lock(&dev->lock);
-	/* put smi in hw mode not wbt mode */
+	/* put smi in hw mode yest wbt mode */
 	ctrlreg1 = val = readl(dev->io_base + SMI_CR1);
 	val &= ~(SW_MODE | WB_MODE);
 	if (flash->fast_mode)
@@ -595,8 +595,8 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 /*
  * The purpose of this function is to ensure a memcpy_toio() with byte writes
  * only. Its structure is inspired from the ARM implementation of _memcpy_toio()
- * which also does single byte writes but cannot be used here as this is just an
- * implementation detail and not part of the API. Not mentioning the comment
+ * which also does single byte writes but canyest be used here as this is just an
+ * implementation detail and yest part of the API. Not mentioning the comment
  * stating that _memcpy_toio() should be optimized.
  */
 static void spear_smi_memcpy_toio_b(volatile void __iomem *dest,
@@ -641,8 +641,8 @@ static inline int spear_smi_cpy_toio(struct spear_smi *dev, u32 bank,
 	 * The ARM implementation of memcpy_toio() will optimize the number of
 	 * I/O by using as much 4-byte writes as possible, surrounded by
 	 * 2-byte/1-byte access if:
-	 * - the destination is not 4-byte aligned
-	 * - the length is not a multiple of 4-byte.
+	 * - the destination is yest 4-byte aligned
+	 * - the length is yest a multiple of 4-byte.
 	 * Avoid this alternance of write access size by using our own 'byte
 	 * access' helper if at least one of the two conditions above is true.
 	 */
@@ -669,12 +669,12 @@ static inline int spear_smi_cpy_toio(struct spear_smi *dev, u32 bank,
  * Write an address range to the flash chip. Data must be written in
  * flash_page_size chunks. The address range may be any size provided
  * it is within the physical boundaries.
- * Returns 0 on success, non zero otherwise
+ * Returns 0 on success, yesn zero otherwise
  */
 static int spear_mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 		size_t *retlen, const u8 *buf)
 {
-	struct spear_snor_flash *flash = get_flash_data(mtd);
+	struct spear_syesr_flash *flash = get_flash_data(mtd);
 	struct spear_smi *dev = mtd->priv;
 	void __iomem *dest;
 	u32 page_offset, page_size;
@@ -790,10 +790,10 @@ err_probe:
 
 #ifdef CONFIG_OF
 static int spear_smi_probe_config_dt(struct platform_device *pdev,
-				     struct device_node *np)
+				     struct device_yesde *np)
 {
 	struct spear_smi_plat_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *pp = NULL;
+	struct device_yesde *pp = NULL;
 	const __be32 *addr;
 	u32 val;
 	int len;
@@ -811,7 +811,7 @@ static int spear_smi_probe_config_dt(struct platform_device *pdev,
 	if (!pdata->board_flash_info)
 		return -ENOMEM;
 
-	/* Fill structs for each subnode (flash device) */
+	/* Fill structs for each subyesde (flash device) */
 	while ((pp = of_get_next_child(np, pp))) {
 		pdata->np[i] = pp;
 
@@ -832,19 +832,19 @@ static int spear_smi_probe_config_dt(struct platform_device *pdev,
 }
 #else
 static int spear_smi_probe_config_dt(struct platform_device *pdev,
-				     struct device_node *np)
+				     struct device_yesde *np)
 {
 	return -ENOSYS;
 }
 #endif
 
 static int spear_smi_setup_banks(struct platform_device *pdev,
-				 u32 bank, struct device_node *np)
+				 u32 bank, struct device_yesde *np)
 {
 	struct spear_smi *dev = platform_get_drvdata(pdev);
 	struct spear_smi_flash_info *flash_info;
 	struct spear_smi_plat_data *pdata;
-	struct spear_snor_flash *flash;
+	struct spear_syesr_flash *flash;
 	struct mtd_partition *parts = NULL;
 	int count = 0;
 	int flash_index;
@@ -865,13 +865,13 @@ static int spear_smi_setup_banks(struct platform_device *pdev,
 	flash->fast_mode = flash_info->fast_mode ? 1 : 0;
 	mutex_init(&flash->lock);
 
-	/* verify whether nor flash is really present on board */
+	/* verify whether yesr flash is really present on board */
 	flash_index = spear_smi_probe_flash(dev, bank);
 	if (flash_index < 0) {
-		dev_info(&dev->pdev->dev, "smi-nor%d not found\n", bank);
+		dev_info(&dev->pdev->dev, "smi-yesr%d yest found\n", bank);
 		return flash_index;
 	}
-	/* map the memory for nor flash chip */
+	/* map the memory for yesr flash chip */
 	flash->base_addr = devm_ioremap(&pdev->dev, flash_info->mem_base,
 					flash_info->size);
 	if (!flash->base_addr)
@@ -886,7 +886,7 @@ static int spear_smi_setup_banks(struct platform_device *pdev,
 		flash->mtd.name = flash_devices[flash_index].name;
 
 	flash->mtd.dev.parent = &pdev->dev;
-	mtd_set_of_node(&flash->mtd, np);
+	mtd_set_of_yesde(&flash->mtd, np);
 	flash->mtd.type = MTD_NORFLASH;
 	flash->mtd.writesize = 1;
 	flash->mtd.flags = MTD_CAP_NORFLASH;
@@ -930,11 +930,11 @@ static int spear_smi_setup_banks(struct platform_device *pdev,
  * This is the first routine which gets invoked during booting and does all
  * initialization/allocation work. The routine looks for available memory banks,
  * and do proper init for any found one.
- * Returns 0 on success, non zero otherwise
+ * Returns 0 on success, yesn zero otherwise
  */
 static int spear_smi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct spear_smi_plat_data *pdata = NULL;
 	struct spear_smi *dev;
 	struct resource *smi_base;
@@ -951,14 +951,14 @@ static int spear_smi_probe(struct platform_device *pdev)
 		ret = spear_smi_probe_config_dt(pdev, np);
 		if (ret) {
 			ret = -ENODEV;
-			dev_err(&pdev->dev, "no platform data\n");
+			dev_err(&pdev->dev, "yes platform data\n");
 			goto err;
 		}
 	} else {
 		pdata = dev_get_platdata(&pdev->dev);
 		if (!pdata) {
 			ret = -ENODEV;
-			dev_err(&pdev->dev, "no platform data\n");
+			dev_err(&pdev->dev, "yes platform data\n");
 			goto err;
 		}
 	}
@@ -1018,7 +1018,7 @@ static int spear_smi_probe(struct platform_device *pdev)
 	spear_smi_hw_init(dev);
 	platform_set_drvdata(pdev, dev);
 
-	/* loop for each serial nor-flash which is connected to smi */
+	/* loop for each serial yesr-flash which is connected to smi */
 	for (i = 0; i < dev->num_flashes; i++) {
 		ret = spear_smi_setup_banks(pdev, i, pdata->np[i]);
 		if (ret) {
@@ -1044,7 +1044,7 @@ err:
 static int spear_smi_remove(struct platform_device *pdev)
 {
 	struct spear_smi *dev;
-	struct spear_snor_flash *flash;
+	struct spear_syesr_flash *flash;
 	int ret, i;
 
 	dev = platform_get_drvdata(pdev);
@@ -1053,7 +1053,7 @@ static int spear_smi_remove(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* clean up for all nor flash */
+	/* clean up for all yesr flash */
 	for (i = 0; i < dev->num_flashes; i++) {
 		flash = dev->flash[i];
 		if (!flash)
@@ -1119,4 +1119,4 @@ module_platform_driver(spear_smi_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ashish Priyadarshi, Shiraz Hashim <shiraz.linux.kernel@gmail.com>");
-MODULE_DESCRIPTION("MTD SMI driver for serial nor flash chips");
+MODULE_DESCRIPTION("MTD SMI driver for serial yesr flash chips");

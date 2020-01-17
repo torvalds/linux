@@ -55,7 +55,7 @@ static int n_baud_table = ARRAY_SIZE(baud_table);
  *	structure. May change the termios data. Device drivers can call this
  *	function but should use ->c_[io]speed directly as they are updated.
  *
- *	Locking: none
+ *	Locking: yesne
  */
 
 speed_t tty_termios_baud_rate(struct ktermios *termios)
@@ -90,7 +90,7 @@ EXPORT_SYMBOL(tty_termios_baud_rate);
  *	structure. May change the termios data. Device drivers can call this
  *	function but should use ->c_[io]speed directly as they are updated.
  *
- *	Locking: none
+ *	Locking: yesne
  */
 
 speed_t tty_termios_input_baud_rate(struct ktermios *termios)
@@ -131,7 +131,7 @@ EXPORT_SYMBOL(tty_termios_input_baud_rate);
  *	the actual speed selected when it differs from the speed requested
  *
  *	For maximal back compatibility with legacy SYS5/POSIX *nix behaviour
- *	we need to carefully set the bits when the user does not get the
+ *	we need to carefully set the bits when the user does yest get the
  *	desired speed. We allow small margins and preserve as much of possible
  *	of the input intent to keep compatibility.
  *
@@ -163,7 +163,7 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 #ifdef BOTHER
 	/* If the user asked for a precise weird speed give a precise weird
 	   answer. If they asked for a Bfoo speed they may have problems
-	   digesting non-exact replies so fuzz a bit */
+	   digesting yesn-exact replies so fuzz a bit */
 
 	if ((termios->c_cflag & CBAUD) == BOTHER) {
 		oclose = 0;
@@ -207,8 +207,8 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 	} while (++i < n_baud_table);
 
 	/*
-	 *	If we found no match then use BOTHER if provided or warn
-	 *	the user their platform maintainer needs to wake up if not.
+	 *	If we found yes match then use BOTHER if provided or warn
+	 *	the user their platform maintainer needs to wake up if yest.
 	 */
 #ifdef BOTHER
 	if (ofound == -1)

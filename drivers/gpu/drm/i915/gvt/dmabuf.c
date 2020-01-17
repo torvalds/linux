@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -516,7 +516,7 @@ out_free_info:
 out_free_dmabuf:
 	kfree(dmabuf_obj);
 out:
-	/* ENODEV means plane isn't ready, which might be a normal case. */
+	/* ENODEV means plane isn't ready, which might be a yesrmal case. */
 	return (ret == -ENODEV) ? 0 : ret;
 }
 

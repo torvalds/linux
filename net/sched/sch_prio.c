@@ -3,7 +3,7 @@
  * net/sched/sch_prio.c	Simple 3-band priority "scheduler".
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
- * Fixes:       19990609: J Hadi Salim <hadi@nortelnetworks.com>:
+ * Fixes:       19990609: J Hadi Salim <hadi@yesrtelnetworks.com>:
  *              Init --  EINVAL when opt undefined
  */
 
@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
@@ -217,7 +217,7 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt,
 
 	for (i = oldbands; i < q->bands; i++) {
 		q->queues[i] = queues[i];
-		if (q->queues[i] != &noop_qdisc)
+		if (q->queues[i] != &yesop_qdisc)
 			qdisc_hash_add(q->queues[i], true);
 	}
 
@@ -296,7 +296,7 @@ static int prio_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		new = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 					TC_H_MAKE(sch->handle, arg), extack);
 		if (!new)
-			new = &noop_qdisc;
+			new = &yesop_qdisc;
 		else
 			qdisc_hash_add(new, true);
 	}

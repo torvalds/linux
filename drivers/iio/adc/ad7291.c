@@ -25,11 +25,11 @@
 /*
  * Simplified handling
  *
- * If no events enabled - single polled channel read
+ * If yes events enabled - single polled channel read
  * If event enabled direct reads disable unless channel
  * is in the read mask.
  *
- * The noise-delayed bit as per datasheet suggestion is always enabled.
+ * The yesise-delayed bit as per datasheet suggestion is always enabled.
  */
 
 /*
@@ -131,7 +131,7 @@ static irqreturn_t ad7291_event_handler(int irq, void *private)
 	command = chip->command & ~AD7291_ALERT_CLEAR;
 	ad7291_i2c_write(chip, AD7291_COMMAND, command);
 
-	/* For now treat t_sense and t_sense_average the same */
+	/* For yesw treat t_sense and t_sense_average the same */
 	if ((t_status & AD7291_T_LOW) || (t_status & AD7291_T_AVG_LOW))
 		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_TEMP,
@@ -503,7 +503,7 @@ static int ad7291_probe(struct i2c_client *client,
 	indio_dev->num_channels = ARRAY_SIZE(ad7291_channels);
 
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
+	indio_dev->dev.of_yesde = client->dev.of_yesde;
 	indio_dev->info = &ad7291_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 

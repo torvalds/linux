@@ -107,7 +107,7 @@
 #define DS_SOURCE_TIMEOUT		3
 /*
  * bits put together from HRP_LB_BAU_SB_ACTIVATION_STATUS_0/1/2
- * values 1 and 3 will not occur
+ * values 1 and 3 will yest occur
  *        Decoded meaning              ERROR  BUSY    AUX ERR
  * -------------------------------     ----   -----   -------
  * IDLE                                 0       0        0
@@ -199,9 +199,9 @@ enum uv_bau_version {
  * has been set to 0, then endpoint multi-unicast mode is selected.
  * The distribution specification (32 bytes) is interpreted as a 256-bit
  * distribution vector. Adjacent bits correspond to consecutive even numbered
- * nodeIDs. The result of adding the index of a given bit to the 15-bit
+ * yesdeIDs. The result of adding the index of a given bit to the 15-bit
  * 'base_dest_nasid' field of the header corresponds to the
- * destination nodeID associated with that specified bit.
+ * destination yesdeID associated with that specified bit.
  */
 struct pnmask {
 	unsigned long		bits[BITS_TO_LONGS(UV_DISTRIBUTION_SIZE)];
@@ -210,7 +210,7 @@ struct pnmask {
 /*
  * mask of cpu's on a uvhub
  * (during initialization we need to check that unsigned long has
- *  enough bits for max. cpu's per uvhub)
+ *  eyesugh bits for max. cpu's per uvhub)
  */
 struct bau_local_cpumask {
 	unsigned long		bits;
@@ -226,7 +226,7 @@ struct bau_local_cpumask {
  * But the first byte of the Suppl_A becomes bits 127:120 (the 16th byte)
  * of the destination payload queue, which is written by the hardware
  * with the s/w ack resource bit vector.
- * [ effective message contents (16 bytes (128 bits) maximum), not counting
+ * [ effective message contents (16 bytes (128 bits) maximum), yest counting
  *   the s/w ack bit vector  ]
  */
 
@@ -234,25 +234,25 @@ struct bau_local_cpumask {
  * struct uv1_2_3_bau_msg_payload - defines payload for INTD transactions
  * @address:		Signifies a page or all TLB's of the cpu
  * @sending_cpu:	CPU from which the message originates
- * @acknowledge_count:	CPUs on the destination Hub that received the interrupt
+ * @ackyeswledge_count:	CPUs on the destination Hub that received the interrupt
  */
 struct uv1_2_3_bau_msg_payload {
 	u64 address;
 	u16 sending_cpu;
-	u16 acknowledge_count;
+	u16 ackyeswledge_count;
 };
 
 /**
  * struct uv4_bau_msg_payload - defines payload for INTD transactions
  * @address:		Signifies a page or all TLB's of the cpu
  * @sending_cpu:	CPU from which the message originates
- * @acknowledge_count:	CPUs on the destination Hub that received the interrupt
+ * @ackyeswledge_count:	CPUs on the destination Hub that received the interrupt
  * @qualifier:		Set by source to verify origin of INTD broadcast
  */
 struct uv4_bau_msg_payload {
 	u64 address;
 	u16 sending_cpu;
-	u16 acknowledge_count;
+	u16 ackyeswledge_count;
 	u32 reserved:8;
 	u32 qualifier:24;
 };
@@ -262,7 +262,7 @@ struct uv4_bau_msg_payload {
  * see table 4.2.3.0.1 in broacast_assist spec.
  */
 struct uv1_bau_msg_header {
-	unsigned int	dest_subnodeid:6;	/* must be 0x10, for the LB */
+	unsigned int	dest_subyesdeid:6;	/* must be 0x10, for the LB */
 	/* bits 5:0 */
 	unsigned int	base_dest_nasid:15;	/* nasid of the first bit */
 	/* bits 20:6 */				/* in uvhub map */
@@ -296,30 +296,30 @@ struct uv1_bau_msg_header {
 	unsigned int	canceled:1;		/* message canceled, resource
 						   is to be freed*/
 	/* bit 62 */
-	unsigned int	payload_1a:1;		/* not currently used */
+	unsigned int	payload_1a:1;		/* yest currently used */
 	/* bit 63 */
-	unsigned int	payload_1b:2;		/* not currently used */
+	unsigned int	payload_1b:2;		/* yest currently used */
 	/* bits 65:64 */
 
 	/* bits 73:66 land in byte 13 */
-	unsigned int	payload_1ca:6;		/* not currently used */
+	unsigned int	payload_1ca:6;		/* yest currently used */
 	/* bits 71:66 */
-	unsigned int	payload_1c:2;		/* not currently used */
+	unsigned int	payload_1c:2;		/* yest currently used */
 	/* bits 73:72 */
 
 	/* bits 81:74 land in byte 14 */
-	unsigned int	payload_1d:6;		/* not currently used */
+	unsigned int	payload_1d:6;		/* yest currently used */
 	/* bits 79:74 */
-	unsigned int	payload_1e:2;		/* not currently used */
+	unsigned int	payload_1e:2;		/* yest currently used */
 	/* bits 81:80 */
 
 	unsigned int	rsvd_4:7;		/* must be zero */
 	/* bits 88:82 */
-	unsigned int	swack_flag:1;		/* software acknowledge flag */
+	unsigned int	swack_flag:1;		/* software ackyeswledge flag */
 	/* bit 89 */
 						/* INTD trasactions at
 						   destination are to wait for
-						   software acknowledge */
+						   software ackyeswledge */
 	unsigned int	rsvd_5:6;		/* must be zero */
 	/* bits 95:90 */
 	unsigned int	rsvd_6:5;		/* must be zero */
@@ -348,7 +348,7 @@ struct uv1_bau_msg_header {
 struct uv2_3_bau_msg_header {
 	unsigned int	base_dest_nasid:15;	/* nasid of the first bit */
 	/* bits 14:0 */				/* in uvhub map */
-	unsigned int	dest_subnodeid:5;	/* must be 0x10, for the LB */
+	unsigned int	dest_subyesdeid:5;	/* must be 0x10, for the LB */
 	/* bits 19:15 */
 	unsigned int	rsvd_1:1;		/* must be zero */
 	/* bit 20 */
@@ -365,21 +365,21 @@ struct uv2_3_bau_msg_header {
 	unsigned int	canceled:1;		/* message canceled, resource
 						   is to be freed*/
 	/* bit 25 */
-	unsigned int	payload_1:3;		/* not currently used */
+	unsigned int	payload_1:3;		/* yest currently used */
 	/* bits 28:26 */
 
 	/* bits 36:29 land in byte 13 */
-	unsigned int	payload_2a:3;		/* not currently used */
-	unsigned int	payload_2b:5;		/* not currently used */
+	unsigned int	payload_2a:3;		/* yest currently used */
+	unsigned int	payload_2b:5;		/* yest currently used */
 	/* bits 36:29 */
 
 	/* bits 44:37 land in byte 14 */
-	unsigned int	payload_3:8;		/* not currently used */
+	unsigned int	payload_3:8;		/* yest currently used */
 	/* bits 44:37 */
 
 	unsigned int	rsvd_2:7;		/* reserved */
 	/* bits 51:45 */
-	unsigned int	swack_flag:1;		/* software acknowledge flag */
+	unsigned int	swack_flag:1;		/* software ackyeswledge flag */
 	/* bit 52 */
 	unsigned int	rsvd_3a:3;		/* must be zero */
 	unsigned int	rsvd_3b:8;		/* must be zero */
@@ -397,8 +397,8 @@ struct uv2_3_bau_msg_header {
 	unsigned int	multilevel:1;		/* multi-level multicast
 						   format */
 	/* bit 95 */
-	unsigned int	rsvd_4:24;		/* ordered / source node /
-						   source subnode / aging
+	unsigned int	rsvd_4:24;		/* ordered / source yesde /
+						   source subyesde / aging
 						   must be zero */
 	/* bits 119:96 */
 	unsigned int	command:8;		/* message type */
@@ -448,13 +448,13 @@ struct bau_desc {
 
 /*
  * The payload queue on the destination side is an array of these.
- * With BAU_MISC_CONTROL set for software acknowledge mode, the messages
+ * With BAU_MISC_CONTROL set for software ackyeswledge mode, the messages
  * are 32 bytes (2 micropackets) (256 bits) in length, but contain only 17
  * bytes of usable data, including the sw ack vector in byte 15 (bits 127:120)
  * (12 bytes come from bau_msg_payload, 3 from payload_1, 2 from
  *  swack_vec and payload_2)
- * "Enabling Software Acknowledgment mode (see Section 4.3.3 Software
- *  Acknowledge Processing) also selects 32 byte (17 bytes usable) payload
+ * "Enabling Software Ackyeswledgment mode (see Section 4.3.3 Software
+ *  Ackyeswledge Processing) also selects 32 byte (17 bytes usable) payload
  *  operation."
  */
 struct bau_pq_entry {
@@ -463,27 +463,27 @@ struct bau_pq_entry {
 	/* 64 bits, bytes 0-7 */
 	unsigned short	sending_cpu;	/* cpu that sent the message */
 	/* 16 bits, bytes 8-9 */
-	unsigned short	acknowledge_count; /* filled in by destination */
+	unsigned short	ackyeswledge_count; /* filled in by destination */
 	/* 16 bits, bytes 10-11 */
 	/* these next 3 bytes come from bits 58-81 of the message header */
 	unsigned short	replied_to:1;	/* sent as 0 by the source */
 	unsigned short	msg_type:3;	/* software message type */
 	unsigned short	canceled:1;	/* sent as 0 by the source */
-	unsigned short	unused1:3;	/* not currently using */
+	unsigned short	unused1:3;	/* yest currently using */
 	/* byte 12 */
-	unsigned char	unused2a;	/* not currently using */
+	unsigned char	unused2a;	/* yest currently using */
 	/* byte 13 */
-	unsigned char	unused2;	/* not currently using */
+	unsigned char	unused2;	/* yest currently using */
 	/* byte 14 */
 	unsigned char	swack_vec;	/* filled in by the hardware */
 	/* byte 15 (bits 127:120) */
 	unsigned short	sequence;	/* message sequence number */
 	/* bytes 16-17 */
-	unsigned char	unused4[2];	/* not currently using bytes 18-19 */
+	unsigned char	unused4[2];	/* yest currently using bytes 18-19 */
 	/* bytes 18-19 */
 	int		number_of_cpus;	/* filled in at destination */
 	/* 32 bits, bytes 20-23 (aligned) */
-	unsigned char	unused5[8];	/* not using */
+	unsigned char	unused5[8];	/* yest using */
 	/* bytes 24-31 */
 };
 
@@ -560,7 +560,7 @@ struct ptc_stats {
 						   cpu was flushed */
 	unsigned long	d_multmsg;		/* interrupts with multiple
 						   messages */
-	unsigned long	d_nomsg;		/* interrupts with no message */
+	unsigned long	d_yesmsg;		/* interrupts with yes message */
 	unsigned long	d_time;			/* time spent on destination
 						   side */
 	unsigned long	d_requestee;		/* number of messages
@@ -569,7 +569,7 @@ struct ptc_stats {
 						   processed */
 	unsigned long	d_canceled;		/* number of messages canceled
 						   by retries */
-	unsigned long	d_nocanceled;		/* retries that found nothing
+	unsigned long	d_yescanceled;		/* retries that found yesthing
 						   to cancel */
 	unsigned long	d_resets;		/* number of ipi-style requests
 						   processed */
@@ -582,9 +582,9 @@ struct tunables {
 	int			deflt;
 };
 
-struct hub_and_pnode {
+struct hub_and_pyesde {
 	short			uvhub;
-	short			pnode;
+	short			pyesde;
 };
 
 struct socket_desc {
@@ -596,7 +596,7 @@ struct uvhub_desc {
 	unsigned short		socket_mask;
 	short			num_cpus;
 	short			uvhub;
-	short			pnode;
+	short			pyesde;
 	struct socket_desc	socket[2];
 };
 
@@ -625,20 +625,20 @@ struct bau_control {
 	int			conseccompletes;
 	u64			status_mmr;
 	int			status_index;
-	bool			nobau;
+	bool			yesbau;
 	short			baudisabled;
 	short			cpu;
-	short			osnode;
+	short			osyesde;
 	short			uvhub_cpu;
 	short			uvhub;
 	short			uvhub_version;
 	short			cpus_in_socket;
 	short			cpus_in_uvhub;
-	short			partition_base_pnode;
+	short			partition_base_pyesde;
 	short			busy;       /* all were busy (war) */
 	unsigned short		message_number;
 	unsigned short		uvhub_quiesce;
-	short			socket_acknowledge_count[DEST_Q_SIZE];
+	short			socket_ackyeswledge_count[DEST_Q_SIZE];
 	cycles_t		send_message;
 	cycles_t		period_end;
 	cycles_t		period_time;
@@ -659,30 +659,30 @@ struct bau_control {
 	int			period_giveups;
 	int			giveup_limit;
 	long			period_requests;
-	struct hub_and_pnode	*thp;
+	struct hub_and_pyesde	*thp;
 };
 
 /* Abstracted BAU functions */
 struct bau_operations {
 	unsigned long	(*read_l_sw_ack)(void);
-	unsigned long	(*read_g_sw_ack)(int pnode);
+	unsigned long	(*read_g_sw_ack)(int pyesde);
 	unsigned long	(*bau_gpa_to_offset)(unsigned long vaddr);
 	void		(*write_l_sw_ack)(unsigned long mmr);
-	void		(*write_g_sw_ack)(int pnode, unsigned long mmr);
-	void		(*write_payload_first)(int pnode, unsigned long mmr);
-	void		(*write_payload_last)(int pnode, unsigned long mmr);
+	void		(*write_g_sw_ack)(int pyesde, unsigned long mmr);
+	void		(*write_payload_first)(int pyesde, unsigned long mmr);
+	void		(*write_payload_last)(int pyesde, unsigned long mmr);
 	int		(*wait_completion)(struct bau_desc*,
 				struct bau_control*, long try);
 };
 
-static inline void write_mmr_data_broadcast(int pnode, unsigned long mmr_image)
+static inline void write_mmr_data_broadcast(int pyesde, unsigned long mmr_image)
 {
-	write_gmmr(pnode, UVH_BAU_DATA_BROADCAST, mmr_image);
+	write_gmmr(pyesde, UVH_BAU_DATA_BROADCAST, mmr_image);
 }
 
-static inline void write_mmr_descriptor_base(int pnode, unsigned long mmr_image)
+static inline void write_mmr_descriptor_base(int pyesde, unsigned long mmr_image)
 {
-	write_gmmr(pnode, UVH_LB_BAU_SB_DESCRIPTOR_BASE, mmr_image);
+	write_gmmr(pyesde, UVH_LB_BAU_SB_DESCRIPTOR_BASE, mmr_image);
 }
 
 static inline void write_mmr_activation(unsigned long index)
@@ -690,44 +690,44 @@ static inline void write_mmr_activation(unsigned long index)
 	write_lmmr(UVH_LB_BAU_SB_ACTIVATION_CONTROL, index);
 }
 
-static inline void write_gmmr_activation(int pnode, unsigned long mmr_image)
+static inline void write_gmmr_activation(int pyesde, unsigned long mmr_image)
 {
-	write_gmmr(pnode, UVH_LB_BAU_SB_ACTIVATION_CONTROL, mmr_image);
+	write_gmmr(pyesde, UVH_LB_BAU_SB_ACTIVATION_CONTROL, mmr_image);
 }
 
-static inline void write_mmr_proc_payload_first(int pnode, unsigned long mmr_image)
+static inline void write_mmr_proc_payload_first(int pyesde, unsigned long mmr_image)
 {
-	write_gmmr(pnode, UV4H_LB_PROC_INTD_QUEUE_FIRST, mmr_image);
+	write_gmmr(pyesde, UV4H_LB_PROC_INTD_QUEUE_FIRST, mmr_image);
 }
 
-static inline void write_mmr_proc_payload_last(int pnode, unsigned long mmr_image)
+static inline void write_mmr_proc_payload_last(int pyesde, unsigned long mmr_image)
 {
-	write_gmmr(pnode, UV4H_LB_PROC_INTD_QUEUE_LAST, mmr_image);
+	write_gmmr(pyesde, UV4H_LB_PROC_INTD_QUEUE_LAST, mmr_image);
 }
 
-static inline void write_mmr_payload_first(int pnode, unsigned long mmr_image)
+static inline void write_mmr_payload_first(int pyesde, unsigned long mmr_image)
 {
-	write_gmmr(pnode, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_FIRST, mmr_image);
+	write_gmmr(pyesde, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_FIRST, mmr_image);
 }
 
-static inline void write_mmr_payload_tail(int pnode, unsigned long mmr_image)
+static inline void write_mmr_payload_tail(int pyesde, unsigned long mmr_image)
 {
-	write_gmmr(pnode, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_TAIL, mmr_image);
+	write_gmmr(pyesde, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_TAIL, mmr_image);
 }
 
-static inline void write_mmr_payload_last(int pnode, unsigned long mmr_image)
+static inline void write_mmr_payload_last(int pyesde, unsigned long mmr_image)
 {
-	write_gmmr(pnode, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_LAST, mmr_image);
+	write_gmmr(pyesde, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_LAST, mmr_image);
 }
 
-static inline void write_mmr_misc_control(int pnode, unsigned long mmr_image)
+static inline void write_mmr_misc_control(int pyesde, unsigned long mmr_image)
 {
-	write_gmmr(pnode, UVH_LB_BAU_MISC_CONTROL, mmr_image);
+	write_gmmr(pyesde, UVH_LB_BAU_MISC_CONTROL, mmr_image);
 }
 
-static inline unsigned long read_mmr_misc_control(int pnode)
+static inline unsigned long read_mmr_misc_control(int pyesde)
 {
-	return read_gmmr(pnode, UVH_LB_BAU_MISC_CONTROL);
+	return read_gmmr(pyesde, UVH_LB_BAU_MISC_CONTROL);
 }
 
 static inline void write_mmr_sw_ack(unsigned long mr)
@@ -735,9 +735,9 @@ static inline void write_mmr_sw_ack(unsigned long mr)
 	uv_write_local_mmr(UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE_ALIAS, mr);
 }
 
-static inline void write_gmmr_sw_ack(int pnode, unsigned long mr)
+static inline void write_gmmr_sw_ack(int pyesde, unsigned long mr)
 {
-	write_gmmr(pnode, UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE_ALIAS, mr);
+	write_gmmr(pyesde, UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE_ALIAS, mr);
 }
 
 static inline unsigned long read_mmr_sw_ack(void)
@@ -745,9 +745,9 @@ static inline unsigned long read_mmr_sw_ack(void)
 	return read_lmmr(UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE);
 }
 
-static inline unsigned long read_gmmr_sw_ack(int pnode)
+static inline unsigned long read_gmmr_sw_ack(int pyesde)
 {
-	return read_gmmr(pnode, UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE);
+	return read_gmmr(pyesde, UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE);
 }
 
 static inline void write_mmr_proc_sw_ack(unsigned long mr)
@@ -755,9 +755,9 @@ static inline void write_mmr_proc_sw_ack(unsigned long mr)
 	uv_write_local_mmr(UV4H_LB_PROC_INTD_SOFT_ACK_CLEAR, mr);
 }
 
-static inline void write_gmmr_proc_sw_ack(int pnode, unsigned long mr)
+static inline void write_gmmr_proc_sw_ack(int pyesde, unsigned long mr)
 {
-	write_gmmr(pnode, UV4H_LB_PROC_INTD_SOFT_ACK_CLEAR, mr);
+	write_gmmr(pyesde, UV4H_LB_PROC_INTD_SOFT_ACK_CLEAR, mr);
 }
 
 static inline unsigned long read_mmr_proc_sw_ack(void)
@@ -765,23 +765,23 @@ static inline unsigned long read_mmr_proc_sw_ack(void)
 	return read_lmmr(UV4H_LB_PROC_INTD_SOFT_ACK_PENDING);
 }
 
-static inline unsigned long read_gmmr_proc_sw_ack(int pnode)
+static inline unsigned long read_gmmr_proc_sw_ack(int pyesde)
 {
-	return read_gmmr(pnode, UV4H_LB_PROC_INTD_SOFT_ACK_PENDING);
+	return read_gmmr(pyesde, UV4H_LB_PROC_INTD_SOFT_ACK_PENDING);
 }
 
-static inline void write_mmr_data_config(int pnode, unsigned long mr)
+static inline void write_mmr_data_config(int pyesde, unsigned long mr)
 {
-	uv_write_global_mmr64(pnode, UVH_BAU_DATA_CONFIG, mr);
+	uv_write_global_mmr64(pyesde, UVH_BAU_DATA_CONFIG, mr);
 }
 
 static inline int bau_uvhub_isset(int uvhub, struct pnmask *dstp)
 {
 	return constant_test_bit(uvhub, &dstp->bits[0]);
 }
-static inline void bau_uvhub_set(int pnode, struct pnmask *dstp)
+static inline void bau_uvhub_set(int pyesde, struct pnmask *dstp)
 {
-	__set_bit(pnode, &dstp->bits[0]);
+	__set_bit(pyesde, &dstp->bits[0]);
 }
 static inline void bau_uvhubs_clear(struct pnmask *dstp,
 				    int nbits)
@@ -838,7 +838,7 @@ static inline int atom_asr(short i, struct atomic_short *v)
 
 /*
  * conditionally add 1 to *v, unless *v is >= u
- * return 0 if we cannot add 1 to *v because it is >= u
+ * return 0 if we canyest add 1 to *v because it is >= u
  * return 1 if we can add 1 to *v because it is < u
  * the add is atomic
  *

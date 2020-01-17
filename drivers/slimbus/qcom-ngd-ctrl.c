@@ -168,7 +168,7 @@ struct qcom_slim_ngd_ctrl {
 };
 
 enum slimbus_mode_enum_type_v01 {
-	/* To force a 32 bit signed enum. Do not change or use*/
+	/* To force a 32 bit signed enum. Do yest change or use*/
 	SLIMBUS_MODE_ENUM_TYPE_MIN_ENUM_VAL_V01 = INT_MIN,
 	SLIMBUS_MODE_SATELLITE_V01 = 1,
 	SLIMBUS_MODE_MASTER_V01 = 2,
@@ -176,7 +176,7 @@ enum slimbus_mode_enum_type_v01 {
 };
 
 enum slimbus_pm_enum_type_v01 {
-	/* To force a 32 bit signed enum. Do not change or use*/
+	/* To force a 32 bit signed enum. Do yest change or use*/
 	SLIMBUS_PM_ENUM_TYPE_MIN_ENUM_VAL_V01 = INT_MIN,
 	SLIMBUS_PM_INACTIVE_V01 = 1,
 	SLIMBUS_PM_ACTIVE_V01 = 2,
@@ -940,7 +940,7 @@ static int qcom_slim_ngd_enable_stream(struct slim_stream_runtime *rt)
 			wbuf[txn.msg->num_bytes] = rt->bps >> 2 |
 						   (port->ch.aux_fmt << 6);
 
-			/* Data channel segment interval not multiple of 3 */
+			/* Data channel segment interval yest multiple of 3 */
 			exp = seg_interval % 3;
 			if (exp)
 				wbuf[txn.msg->num_bytes] |= BIT(5);
@@ -1068,7 +1068,7 @@ static void qcom_slim_ngd_setup(struct qcom_slim_ngd_ctrl *ctrl)
 	cfg |= NGD_CFG_RX_MSGQ_EN;
 	cfg |= NGD_CFG_TX_MSGQ_EN;
 
-	/* Enable NGD if it's not already enabled*/
+	/* Enable NGD if it's yest already enabled*/
 	if (!(cfg & NGD_CFG_ENABLE))
 		cfg |= NGD_CFG_ENABLE;
 
@@ -1131,13 +1131,13 @@ static int qcom_slim_ngd_power_up(struct qcom_slim_ngd_ctrl *ctrl)
 	return 0;
 }
 
-static void qcom_slim_ngd_notify_slaves(struct qcom_slim_ngd_ctrl *ctrl)
+static void qcom_slim_ngd_yestify_slaves(struct qcom_slim_ngd_ctrl *ctrl)
 {
 	struct slim_device *sbdev;
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	for_each_child_of_node(ctrl->ngd->pdev->dev.of_node, node) {
-		sbdev = of_slim_get_device(&ctrl->ctrl, node);
+	for_each_child_of_yesde(ctrl->ngd->pdev->dev.of_yesde, yesde) {
+		sbdev = of_slim_get_device(&ctrl->ctrl, yesde);
 		if (!sbdev)
 			continue;
 
@@ -1182,7 +1182,7 @@ capability_retry:
 						ctrl->state);
 
 		if (ctrl->state == QCOM_SLIM_NGD_CTRL_DOWN)
-			qcom_slim_ngd_notify_slaves(ctrl);
+			qcom_slim_ngd_yestify_slaves(ctrl);
 
 	} else if (ret == -EIO) {
 		dev_err(ctrl->dev, "capability message NACKed, retrying\n");
@@ -1260,7 +1260,7 @@ static int qcom_slim_ngd_qmi_new_server(struct qmi_handle *hdl,
 		container_of(qmi, struct qcom_slim_ngd_ctrl, qmi);
 
 	qmi->svc_info.sq_family = AF_QIPCRTR;
-	qmi->svc_info.sq_node = service->node;
+	qmi->svc_info.sq_yesde = service->yesde;
 	qmi->svc_info.sq_port = service->port;
 
 	qcom_slim_ngd_enable(ctrl, true);
@@ -1274,7 +1274,7 @@ static void qcom_slim_ngd_qmi_del_server(struct qmi_handle *hdl,
 	struct qcom_slim_ngd_qmi *qmi =
 		container_of(hdl, struct qcom_slim_ngd_qmi, svc_event_hdl);
 
-	qmi->svc_info.sq_node = 0;
+	qmi->svc_info.sq_yesde = 0;
 	qmi->svc_info.sq_port = 0;
 }
 
@@ -1328,31 +1328,31 @@ static int of_qcom_slim_ngd_register(struct device *parent,
 	const struct ngd_reg_offset_data *data;
 	struct qcom_slim_ngd *ngd;
 	const struct of_device_id *match;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	u32 id;
 
-	match = of_match_node(qcom_slim_ngd_dt_match, parent->of_node);
+	match = of_match_yesde(qcom_slim_ngd_dt_match, parent->of_yesde);
 	data = match->data;
-	for_each_available_child_of_node(parent->of_node, node) {
-		if (of_property_read_u32(node, "reg", &id))
+	for_each_available_child_of_yesde(parent->of_yesde, yesde) {
+		if (of_property_read_u32(yesde, "reg", &id))
 			continue;
 
 		ngd = kzalloc(sizeof(*ngd), GFP_KERNEL);
 		if (!ngd) {
-			of_node_put(node);
+			of_yesde_put(yesde);
 			return -ENOMEM;
 		}
 
 		ngd->pdev = platform_device_alloc(QCOM_SLIM_NGD_DRV_NAME, id);
 		if (!ngd->pdev) {
 			kfree(ngd);
-			of_node_put(node);
+			of_yesde_put(yesde);
 			return -ENOMEM;
 		}
 		ngd->id = id;
 		ngd->pdev->dev.parent = parent;
 		ngd->pdev->driver_override = QCOM_SLIM_NGD_DRV_NAME;
-		ngd->pdev->dev.of_node = node;
+		ngd->pdev->dev.of_yesde = yesde;
 		ctrl->ngd = ngd;
 		platform_set_drvdata(ngd->pdev, ctrl);
 
@@ -1379,7 +1379,7 @@ static int qcom_slim_ngd_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(dev, QCOM_SLIM_NGD_AUTOSUSPEND);
 	pm_runtime_set_suspended(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	ret = qcom_slim_ngd_qmi_svc_event_init(ctrl);
 	if (ret) {
 		dev_err(&pdev->dev, "QMI service registration failed:%d", ret);
@@ -1423,7 +1423,7 @@ static int qcom_slim_ngd_ctrl_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "no slimbus IRQ resource\n");
+		dev_err(&pdev->dev, "yes slimbus IRQ resource\n");
 		return -ENODEV;
 	}
 
@@ -1495,7 +1495,7 @@ static int __maybe_unused qcom_slim_ngd_runtime_suspend(struct device *dev)
 
 	ret = qcom_slim_qmi_power_request(ctrl, false);
 	if (ret && ret != -EBUSY)
-		dev_info(ctrl->dev, "slim resource not idle:%d\n", ret);
+		dev_info(ctrl->dev, "slim resource yest idle:%d\n", ret);
 	if (!ret || ret == -ETIMEDOUT)
 		ctrl->state = QCOM_SLIM_NGD_CTRL_ASLEEP;
 

@@ -11,8 +11,8 @@
  * where
  *
  *  E = the number of edges of the graph
- *  N = the number of nodes of the graph
- *  P = the number of connected components (exit nodes).
+ *  N = the number of yesdes of the graph
+ *  P = the number of connected components (exit yesdes).
  *
  * Usage (4.5 - 5):
  * $ make clean; make run

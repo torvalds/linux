@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2016 Hisilicon Limited.
  *
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -62,7 +62,7 @@ struct hns_roce_ib_create_qp {
 	__aligned_u64 db_addr;
 	__u8    log_sq_bb_count;
 	__u8    log_sq_stride;
-	__u8    sq_no_prefetch;
+	__u8    sq_yes_prefetch;
 	__u8    reserved[5];
 	__aligned_u64 sdb_addr;
 };

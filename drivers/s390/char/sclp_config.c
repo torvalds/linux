@@ -8,7 +8,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/cpu.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
@@ -43,7 +43,7 @@ struct sclp_ofb_sccb {
 static struct work_struct sclp_cpu_capability_work;
 static struct work_struct sclp_cpu_change_work;
 
-static void sclp_cpu_capability_notify(struct work_struct *work)
+static void sclp_cpu_capability_yestify(struct work_struct *work)
 {
 	int cpu;
 	struct device *dev;
@@ -58,7 +58,7 @@ static void sclp_cpu_capability_notify(struct work_struct *work)
 	put_online_cpus();
 }
 
-static void __ref sclp_cpu_change_notify(struct work_struct *work)
+static void __ref sclp_cpu_change_yestify(struct work_struct *work)
 {
 	lock_device_hotplug();
 	smp_rescan_cpus();
@@ -109,7 +109,7 @@ static int sclp_ofb_send_req(char *ev_data, size_t len)
 	memcpy(sccb->ofb_evbuf.ev_data, ev_data, len);
 
 	if (!(sclp_conf_register.sclp_receive_mask & EVTYP_CONFMGMDATA_MASK))
-		pr_warn("SCLP receiver did not register to receive "
+		pr_warn("SCLP receiver did yest register to receive "
 			"Configuration Management Data Events.\n");
 
 	mutex_lock(&send_mutex);
@@ -169,8 +169,8 @@ static int __init sclp_conf_init(void)
 {
 	int rc;
 
-	INIT_WORK(&sclp_cpu_capability_work, sclp_cpu_capability_notify);
-	INIT_WORK(&sclp_cpu_change_work, sclp_cpu_change_notify);
+	INIT_WORK(&sclp_cpu_capability_work, sclp_cpu_capability_yestify);
+	INIT_WORK(&sclp_cpu_change_work, sclp_cpu_change_yestify);
 	rc = sclp_register(&sclp_conf_register);
 	if (rc)
 		return rc;

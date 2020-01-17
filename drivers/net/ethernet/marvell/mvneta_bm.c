@@ -129,7 +129,7 @@ static int mvneta_bm_pool_create(struct mvneta_bm *priv,
 	if (!IS_ALIGNED((u32)bm_pool->virt_addr, MVNETA_BM_POOL_PTR_ALIGN)) {
 		dma_free_coherent(&pdev->dev, size_bytes, bm_pool->virt_addr,
 				  bm_pool->phys_addr);
-		dev_err(&pdev->dev, "BM pool %d is not %d bytes aligned\n",
+		dev_err(&pdev->dev, "BM pool %d is yest %d bytes aligned\n",
 			bm_pool->id, MVNETA_BM_POOL_PTR_ALIGN);
 		return -ENOMEM;
 	}
@@ -165,7 +165,7 @@ struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,
 	if (new_pool->type == MVNETA_BM_LONG &&
 	    new_pool->port_map != 1 << port_id) {
 		dev_err(&priv->pdev->dev,
-			"long pool cannot be shared by the ports\n");
+			"long pool canyest be shared by the ports\n");
 		return NULL;
 	}
 
@@ -267,7 +267,7 @@ void mvneta_bm_pool_destroy(struct mvneta_bm *priv,
 
 	mvneta_bm_bufs_free(priv, bm_pool, port_map);
 	if (hwbm_pool->buf_num)
-		WARN(1, "cannot free all buffers in pool %d\n", bm_pool->id);
+		WARN(1, "canyest free all buffers in pool %d\n", bm_pool->id);
 
 	if (bm_pool->virt_addr) {
 		dma_free_coherent(&priv->pdev->dev,
@@ -282,7 +282,7 @@ EXPORT_SYMBOL_GPL(mvneta_bm_pool_destroy);
 
 static void mvneta_bm_pools_init(struct mvneta_bm *priv)
 {
-	struct device_node *dn = priv->pdev->dev.of_node;
+	struct device_yesde *dn = priv->pdev->dev.of_yesde;
 	struct mvneta_bm_pool *bm_pool;
 	char prop[15];
 	u32 size;
@@ -371,7 +371,7 @@ static int mvneta_bm_init(struct mvneta_bm *priv)
 	return 0;
 }
 
-static int mvneta_bm_get_sram(struct device_node *dn,
+static int mvneta_bm_get_sram(struct device_yesde *dn,
 			      struct mvneta_bm *priv)
 {
 	priv->bppi_pool = of_gen_pool_get(dn, "internal-mem", 0);
@@ -393,9 +393,9 @@ static void mvneta_bm_put_sram(struct mvneta_bm *priv)
 		      MVNETA_BM_BPPI_SIZE);
 }
 
-struct mvneta_bm *mvneta_bm_get(struct device_node *node)
+struct mvneta_bm *mvneta_bm_get(struct device_yesde *yesde)
 {
-	struct platform_device *pdev = of_find_device_by_node(node);
+	struct platform_device *pdev = of_find_device_by_yesde(yesde);
 
 	return pdev ? platform_get_drvdata(pdev) : NULL;
 }
@@ -409,7 +409,7 @@ EXPORT_SYMBOL_GPL(mvneta_bm_put);
 
 static int mvneta_bm_probe(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	struct mvneta_bm *priv;
 	int err;
 

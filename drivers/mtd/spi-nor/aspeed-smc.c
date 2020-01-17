@@ -12,7 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <linux/mtd/spi-nor.h>
+#include <linux/mtd/spi-yesr.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/sizes.h>
@@ -24,7 +24,7 @@
  * The driver only support SPI flash
  */
 enum aspeed_smc_flash_type {
-	smc_type_nor  = 0,
+	smc_type_yesr  = 0,
 	smc_type_nand = 1,
 	smc_type_spi  = 2,
 };
@@ -97,7 +97,7 @@ struct aspeed_smc_chip {
 	u32 ahb_window_size;			/* chip mapping window size */
 	u32 ctl_val[smc_max];			/* control settings */
 	enum aspeed_smc_flash_type type;	/* what type of flash */
-	struct spi_nor nor;
+	struct spi_yesr yesr;
 };
 
 struct aspeed_smc_controller {
@@ -117,7 +117,7 @@ struct aspeed_smc_controller {
  *     or
  * Type setting Register (AST2500 FMC).
  * CE0 and CE1 can only be of type SPI. CE2 can be of type NOR but the
- * driver does not support it.
+ * driver does yest support it.
  */
 #define CONFIG_REG			0x0
 #define CONFIG_DISABLE_LEGACY		BIT(31) /* 1 */
@@ -201,19 +201,19 @@ struct aspeed_smc_controller {
  * In user mode all data bytes read or written to the chip decode address
  * range are transferred to or from the SPI bus. The range is treated as a
  * fifo of arbitratry 1, 2, or 4 byte width but each write has to be aligned
- * to its size. The address within the multiple 8kB range is ignored when
+ * to its size. The address within the multiple 8kB range is igyesred when
  * sending bytes to the SPI bus.
  *
  * On the arm architecture, as of Linux version 4.3, memcpy_fromio and
  * memcpy_toio on little endian targets use the optimized memcpy routines
  * that were designed for well behavied memory storage. These routines
- * have a stutter if the source and destination are not both word aligned,
+ * have a stutter if the source and destination are yest both word aligned,
  * once with a duplicate access to the source after aligning to the
  * destination to a word boundary, and again with a duplicate access to
- * the source when the final byte count is not word aligned.
+ * the source when the final byte count is yest word aligned.
  *
  * When writing or reading the fifo this stutter discards data or sends
- * too much data to the fifo and can not be used by this driver.
+ * too much data to the fifo and can yest be used by this driver.
  *
  * While the low level io string routines that implement the insl family do
  * the desired accesses and memory increments, the cross architecture io
@@ -268,15 +268,15 @@ static void aspeed_smc_chip_check_config(struct aspeed_smc_chip *chip)
 	if (reg & aspeed_smc_chip_write_bit(chip))
 		return;
 
-	dev_dbg(controller->dev, "config write is not set ! @%p: 0x%08x\n",
+	dev_dbg(controller->dev, "config write is yest set ! @%p: 0x%08x\n",
 		controller->regs + CONFIG_REG, reg);
 	reg |= aspeed_smc_chip_write_bit(chip);
 	writel(reg, controller->regs + CONFIG_REG);
 }
 
-static void aspeed_smc_start_user(struct spi_nor *nor)
+static void aspeed_smc_start_user(struct spi_yesr *yesr)
 {
-	struct aspeed_smc_chip *chip = nor->priv;
+	struct aspeed_smc_chip *chip = yesr->priv;
 	u32 ctl = chip->ctl_val[smc_base];
 
 	/*
@@ -293,9 +293,9 @@ static void aspeed_smc_start_user(struct spi_nor *nor)
 	writel(ctl, chip->ctl);
 }
 
-static void aspeed_smc_stop_user(struct spi_nor *nor)
+static void aspeed_smc_stop_user(struct spi_yesr *yesr)
 {
-	struct aspeed_smc_chip *chip = nor->priv;
+	struct aspeed_smc_chip *chip = yesr->priv;
 
 	u32 ctl = chip->ctl_val[smc_read];
 	u32 ctl2 = ctl | CONTROL_COMMAND_MODE_USER |
@@ -305,55 +305,55 @@ static void aspeed_smc_stop_user(struct spi_nor *nor)
 	writel(ctl, chip->ctl);		/* default to fread or read mode */
 }
 
-static int aspeed_smc_prep(struct spi_nor *nor, enum spi_nor_ops ops)
+static int aspeed_smc_prep(struct spi_yesr *yesr, enum spi_yesr_ops ops)
 {
-	struct aspeed_smc_chip *chip = nor->priv;
+	struct aspeed_smc_chip *chip = yesr->priv;
 
 	mutex_lock(&chip->controller->mutex);
 	return 0;
 }
 
-static void aspeed_smc_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
+static void aspeed_smc_unprep(struct spi_yesr *yesr, enum spi_yesr_ops ops)
 {
-	struct aspeed_smc_chip *chip = nor->priv;
+	struct aspeed_smc_chip *chip = yesr->priv;
 
 	mutex_unlock(&chip->controller->mutex);
 }
 
-static int aspeed_smc_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
+static int aspeed_smc_read_reg(struct spi_yesr *yesr, u8 opcode, u8 *buf,
 			       size_t len)
 {
-	struct aspeed_smc_chip *chip = nor->priv;
+	struct aspeed_smc_chip *chip = yesr->priv;
 
-	aspeed_smc_start_user(nor);
+	aspeed_smc_start_user(yesr);
 	aspeed_smc_write_to_ahb(chip->ahb_base, &opcode, 1);
 	aspeed_smc_read_from_ahb(buf, chip->ahb_base, len);
-	aspeed_smc_stop_user(nor);
+	aspeed_smc_stop_user(yesr);
 	return 0;
 }
 
-static int aspeed_smc_write_reg(struct spi_nor *nor, u8 opcode, const u8 *buf,
+static int aspeed_smc_write_reg(struct spi_yesr *yesr, u8 opcode, const u8 *buf,
 				size_t len)
 {
-	struct aspeed_smc_chip *chip = nor->priv;
+	struct aspeed_smc_chip *chip = yesr->priv;
 
-	aspeed_smc_start_user(nor);
+	aspeed_smc_start_user(yesr);
 	aspeed_smc_write_to_ahb(chip->ahb_base, &opcode, 1);
 	aspeed_smc_write_to_ahb(chip->ahb_base, buf, len);
-	aspeed_smc_stop_user(nor);
+	aspeed_smc_stop_user(yesr);
 	return 0;
 }
 
-static void aspeed_smc_send_cmd_addr(struct spi_nor *nor, u8 cmd, u32 addr)
+static void aspeed_smc_send_cmd_addr(struct spi_yesr *yesr, u8 cmd, u32 addr)
 {
-	struct aspeed_smc_chip *chip = nor->priv;
+	struct aspeed_smc_chip *chip = yesr->priv;
 	__be32 temp;
 	u32 cmdaddr;
 
-	switch (nor->addr_width) {
+	switch (yesr->addr_width) {
 	default:
 		WARN_ONCE(1, "Unexpected address width %u, defaulting to 3\n",
-			  nor->addr_width);
+			  yesr->addr_width);
 		/* FALLTHROUGH */
 	case 3:
 		cmdaddr = addr & 0xFFFFFF;
@@ -370,32 +370,32 @@ static void aspeed_smc_send_cmd_addr(struct spi_nor *nor, u8 cmd, u32 addr)
 	}
 }
 
-static ssize_t aspeed_smc_read_user(struct spi_nor *nor, loff_t from,
+static ssize_t aspeed_smc_read_user(struct spi_yesr *yesr, loff_t from,
 				    size_t len, u_char *read_buf)
 {
-	struct aspeed_smc_chip *chip = nor->priv;
+	struct aspeed_smc_chip *chip = yesr->priv;
 	int i;
 	u8 dummy = 0xFF;
 
-	aspeed_smc_start_user(nor);
-	aspeed_smc_send_cmd_addr(nor, nor->read_opcode, from);
-	for (i = 0; i < chip->nor.read_dummy / 8; i++)
+	aspeed_smc_start_user(yesr);
+	aspeed_smc_send_cmd_addr(yesr, yesr->read_opcode, from);
+	for (i = 0; i < chip->yesr.read_dummy / 8; i++)
 		aspeed_smc_write_to_ahb(chip->ahb_base, &dummy, sizeof(dummy));
 
 	aspeed_smc_read_from_ahb(read_buf, chip->ahb_base, len);
-	aspeed_smc_stop_user(nor);
+	aspeed_smc_stop_user(yesr);
 	return len;
 }
 
-static ssize_t aspeed_smc_write_user(struct spi_nor *nor, loff_t to,
+static ssize_t aspeed_smc_write_user(struct spi_yesr *yesr, loff_t to,
 				     size_t len, const u_char *write_buf)
 {
-	struct aspeed_smc_chip *chip = nor->priv;
+	struct aspeed_smc_chip *chip = yesr->priv;
 
-	aspeed_smc_start_user(nor);
-	aspeed_smc_send_cmd_addr(nor, nor->program_opcode, to);
+	aspeed_smc_start_user(yesr);
+	aspeed_smc_send_cmd_addr(yesr, yesr->program_opcode, to);
 	aspeed_smc_write_to_ahb(chip->ahb_base, write_buf, len);
-	aspeed_smc_stop_user(nor);
+	aspeed_smc_stop_user(yesr);
 	return len;
 }
 
@@ -407,7 +407,7 @@ static int aspeed_smc_unregister(struct aspeed_smc_controller *controller)
 	for (n = 0; n < controller->info->nce; n++) {
 		chip = controller->chips[n];
 		if (chip)
-			mtd_device_unregister(&chip->nor.mtd);
+			mtd_device_unregister(&chip->yesr.mtd);
 	}
 
 	return 0;
@@ -473,7 +473,7 @@ static u32 chip_set_segment(struct aspeed_smc_chip *chip, u32 cs, u32 start,
 	seg_oldval = readl(seg_reg);
 
 	/*
-	 * If the chip size is not specified, use the default segment
+	 * If the chip size is yest specified, use the default segment
 	 * size, but take into account the possible overlap with the
 	 * previous segment
 	 */
@@ -481,12 +481,12 @@ static u32 chip_set_segment(struct aspeed_smc_chip *chip, u32 cs, u32 start,
 		size = SEGMENT_ADDR_END(seg_oldval) - start;
 
 	/*
-	 * The segment cannot exceed the maximum window size of the
+	 * The segment canyest exceed the maximum window size of the
 	 * controller.
 	 */
 	if (start + size > ahb_base_phy + controller->ahb_window_size) {
 		size = ahb_base_phy + controller->ahb_window_size - start;
-		dev_warn(chip->nor.dev, "CE%d window resized to %dMB",
+		dev_warn(chip->yesr.dev, "CE%d window resized to %dMB",
 			 cs, size >> 20);
 	}
 
@@ -500,14 +500,14 @@ static u32 chip_set_segment(struct aspeed_smc_chip *chip, u32 cs, u32 start,
 	 * to the chip.
 	 */
 	if (seg_newval != readl(seg_reg)) {
-		dev_err(chip->nor.dev, "CE%d window invalid", cs);
+		dev_err(chip->yesr.dev, "CE%d window invalid", cs);
 		writel(seg_oldval, seg_reg);
 		start = SEGMENT_ADDR_START(seg_oldval);
 		end = SEGMENT_ADDR_END(seg_oldval);
 		size = end - start;
 	}
 
-	dev_info(chip->nor.dev, "CE%d window [ 0x%.8x - 0x%.8x ] %dMB",
+	dev_info(chip->yesr.dev, "CE%d window [ 0x%.8x - 0x%.8x ] %dMB",
 		 cs, start, end, size >> 20);
 
 	return size;
@@ -525,7 +525,7 @@ static u32 aspeed_smc_chip_set_segment(struct aspeed_smc_chip *chip)
 {
 	struct aspeed_smc_controller *controller = chip->controller;
 	u32 ahb_base_phy, start;
-	u32 size = chip->nor.mtd.size;
+	u32 size = chip->yesr.mtd.size;
 
 	/*
 	 * Each controller has a chip size limit for direct memory
@@ -536,7 +536,7 @@ static u32 aspeed_smc_chip_set_segment(struct aspeed_smc_chip *chip)
 
 	/*
 	 * The AST2400 SPI controller only handles one chip and does
-	 * not have segment registers. Let's use the chip size for the
+	 * yest have segment registers. Let's use the chip size for the
 	 * AHB window.
 	 */
 	if (controller->info == &spi_2400_info)
@@ -551,7 +551,7 @@ static u32 aspeed_smc_chip_set_segment(struct aspeed_smc_chip *chip)
 	if (chip->cs == 0 && controller->info == &spi_2500_info &&
 	    size == SZ_128M) {
 		size = 120 << 20;
-		dev_info(chip->nor.dev,
+		dev_info(chip->yesr.dev,
 			 "CE%d window resized to %dMB (AST2500 HW quirk)",
 			 chip->cs, size >> 20);
 	}
@@ -577,18 +577,18 @@ static u32 aspeed_smc_chip_set_segment(struct aspeed_smc_chip *chip)
 	chip->ahb_base = controller->ahb_base + (start - ahb_base_phy);
 
 	/*
-	 * Now, make sure the next segment does not overlap with the
-	 * current one we just configured, even if there is no
+	 * Now, make sure the next segment does yest overlap with the
+	 * current one we just configured, even if there is yes
 	 * available chip. That could break access in Command Mode.
 	 */
 	if (chip->cs < controller->info->nce - 1)
 		chip_set_segment(chip, chip->cs + 1, start + size, 0);
 
 out:
-	if (size < chip->nor.mtd.size)
-		dev_warn(chip->nor.dev,
+	if (size < chip->yesr.mtd.size)
+		dev_warn(chip->yesr.dev,
 			 "CE%d window too small for chip %dMB",
-			 chip->cs, (u32)chip->nor.mtd.size >> 20);
+			 chip->cs, (u32)chip->yesr.mtd.size >> 20);
 
 	return size;
 }
@@ -633,7 +633,7 @@ static void aspeed_smc_chip_set_4b(struct aspeed_smc_chip *chip)
 }
 
 /*
- * The AST2400 SPI flash controller does not have a CE Control
+ * The AST2400 SPI flash controller does yest have a CE Control
  * register. It uses the CE0 control register to set 4Byte mode at the
  * controller level.
  */
@@ -665,7 +665,7 @@ static int aspeed_smc_chip_setup_init(struct aspeed_smc_chip *chip,
 	 */
 	chip->ahb_base = aspeed_smc_chip_base(chip, res);
 	if (!chip->ahb_base) {
-		dev_warn(chip->nor.dev, "CE%d window closed", chip->cs);
+		dev_warn(chip->yesr.dev, "CE%d window closed", chip->cs);
 		return -EINVAL;
 	}
 
@@ -688,7 +688,7 @@ static int aspeed_smc_chip_setup_init(struct aspeed_smc_chip *chip,
 
 	/*
 	 * Retain the prior value of the control register as the
-	 * default if it was normal access mode. Otherwise start with
+	 * default if it was yesrmal access mode. Otherwise start with
 	 * the sanitized base value set to read mode.
 	 */
 	if ((reg & CONTROL_COMMAND_MODE_MASK) ==
@@ -709,17 +709,17 @@ static int aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
 	const struct aspeed_smc_info *info = controller->info;
 	u32 cmd;
 
-	if (chip->nor.addr_width == 4 && info->set_4b)
+	if (chip->yesr.addr_width == 4 && info->set_4b)
 		info->set_4b(chip);
 
 	/* This is for direct AHB access when using Command Mode. */
 	chip->ahb_window_size = aspeed_smc_chip_set_segment(chip);
 
 	/*
-	 * base mode has not been optimized yet. use it for writes.
+	 * base mode has yest been optimized yet. use it for writes.
 	 */
 	chip->ctl_val[smc_write] = chip->ctl_val[smc_base] |
-		chip->nor.program_opcode << CONTROL_COMMAND_SHIFT |
+		chip->yesr.program_opcode << CONTROL_COMMAND_SHIFT |
 		CONTROL_COMMAND_MODE_WRITE;
 
 	dev_dbg(controller->dev, "write control register: %08x\n",
@@ -729,25 +729,25 @@ static int aspeed_smc_chip_setup_finish(struct aspeed_smc_chip *chip)
 	 * TODO: Adjust clocks if fast read is supported and interpret
 	 * SPI-NOR flags to adjust controller settings.
 	 */
-	if (chip->nor.read_proto == SNOR_PROTO_1_1_1) {
-		if (chip->nor.read_dummy == 0)
+	if (chip->yesr.read_proto == SNOR_PROTO_1_1_1) {
+		if (chip->yesr.read_dummy == 0)
 			cmd = CONTROL_COMMAND_MODE_NORMAL;
 		else
 			cmd = CONTROL_COMMAND_MODE_FREAD;
 	} else {
-		dev_err(chip->nor.dev, "unsupported SPI read mode\n");
+		dev_err(chip->yesr.dev, "unsupported SPI read mode\n");
 		return -EINVAL;
 	}
 
 	chip->ctl_val[smc_read] |= cmd |
-		CONTROL_IO_DUMMY_SET(chip->nor.read_dummy / 8);
+		CONTROL_IO_DUMMY_SET(chip->yesr.read_dummy / 8);
 
 	dev_dbg(controller->dev, "base control register: %08x\n",
 		chip->ctl_val[smc_read]);
 	return 0;
 }
 
-static const struct spi_nor_controller_ops aspeed_smc_controller_ops = {
+static const struct spi_yesr_controller_ops aspeed_smc_controller_ops = {
 	.prepare = aspeed_smc_prep,
 	.unprepare = aspeed_smc_unprep,
 	.read_reg = aspeed_smc_read_reg,
@@ -757,31 +757,31 @@ static const struct spi_nor_controller_ops aspeed_smc_controller_ops = {
 };
 
 static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
-				  struct device_node *np, struct resource *r)
+				  struct device_yesde *np, struct resource *r)
 {
-	const struct spi_nor_hwcaps hwcaps = {
+	const struct spi_yesr_hwcaps hwcaps = {
 		.mask = SNOR_HWCAPS_READ |
 			SNOR_HWCAPS_READ_FAST |
 			SNOR_HWCAPS_PP,
 	};
 	const struct aspeed_smc_info *info = controller->info;
 	struct device *dev = controller->dev;
-	struct device_node *child;
+	struct device_yesde *child;
 	unsigned int cs;
 	int ret = -ENODEV;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		struct aspeed_smc_chip *chip;
-		struct spi_nor *nor;
+		struct spi_yesr *yesr;
 		struct mtd_info *mtd;
 
-		/* This driver does not support NAND or NOR flash devices. */
-		if (!of_device_is_compatible(child, "jedec,spi-nor"))
+		/* This driver does yest support NAND or NOR flash devices. */
+		if (!of_device_is_compatible(child, "jedec,spi-yesr"))
 			continue;
 
 		ret = of_property_read_u32(child, "reg", &cs);
 		if (ret) {
-			dev_err(dev, "Couldn't not read chip select.\n");
+			dev_err(dev, "Couldn't yest read chip select.\n");
 			break;
 		}
 
@@ -794,7 +794,7 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 
 		if (controller->chips[cs]) {
 			dev_err(dev, "Chip select %d already in use by %s\n",
-				cs, dev_name(controller->chips[cs]->nor.dev));
+				cs, dev_name(controller->chips[cs]->yesr.dev));
 			ret = -EBUSY;
 			break;
 		}
@@ -809,13 +809,13 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 		chip->ctl = controller->regs + info->ctl0 + cs * 4;
 		chip->cs = cs;
 
-		nor = &chip->nor;
-		mtd = &nor->mtd;
+		yesr = &chip->yesr;
+		mtd = &yesr->mtd;
 
-		nor->dev = dev;
-		nor->priv = chip;
-		spi_nor_set_flash_node(nor, child);
-		nor->controller_ops = &aspeed_smc_controller_ops;
+		yesr->dev = dev;
+		yesr->priv = chip;
+		spi_yesr_set_flash_yesde(yesr, child);
+		yesr->controller_ops = &aspeed_smc_controller_ops;
 
 		ret = aspeed_smc_chip_setup_init(chip, r);
 		if (ret)
@@ -826,7 +826,7 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 		 * attach when board support is present as determined
 		 * by of property.
 		 */
-		ret = spi_nor_scan(nor, NULL, &hwcaps);
+		ret = spi_yesr_scan(yesr, NULL, &hwcaps);
 		if (ret)
 			break;
 
@@ -842,7 +842,7 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 	}
 
 	if (ret) {
-		of_node_put(child);
+		of_yesde_put(child);
 		aspeed_smc_unregister(controller);
 	}
 
@@ -851,7 +851,7 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 
 static int aspeed_smc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	struct aspeed_smc_controller *controller;
 	const struct of_device_id *match;

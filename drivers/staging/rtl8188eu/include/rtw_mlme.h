@@ -82,7 +82,7 @@ enum SCAN_RESULT_TYPE {
  * Other items are protected by mlme_priv.lock.
  *
  * To avoid possible dead lock, any thread trying to modifiying mlme_priv
- * SHALL not lock up more than one lock at a time!
+ * SHALL yest lock up more than one lock at a time!
  */
 
 #define traffic_threshold	10
@@ -106,7 +106,7 @@ struct rt_link_detect {
 
 struct mlme_priv {
 	spinlock_t lock;
-	int fw_state;	/* shall we protect this variable? maybe not necessarily... */
+	int fw_state;	/* shall we protect this variable? maybe yest necessarily... */
 	u8 bScanInProcess;
 	u8 to_join; /* flag */
 	u8 to_roaming; /*  roaming trying times */
@@ -133,8 +133,8 @@ struct mlme_priv {
 
 	struct qos_priv qospriv;
 
-	/* Number of non-HT AP/stations */
-	int num_sta_no_ht;
+	/* Number of yesn-HT AP/stations */
+	int num_sta_yes_ht;
 
 	/* Number of HT AP/stations 20 MHz */
 	/* int num_sta_ht_20mhz; */
@@ -163,21 +163,21 @@ struct mlme_priv {
 	/* Number of associated Non-ERP stations (i.e., stations using 802.11b
 	 * in 802.11g BSS)
 	 */
-	int num_sta_non_erp;
+	int num_sta_yesn_erp;
 
-	/* Number of associated stations that do not support Short Slot Time */
-	int num_sta_no_short_slot_time;
+	/* Number of associated stations that do yest support Short Slot Time */
+	int num_sta_yes_short_slot_time;
 
-	/* Number of associated stations that do not support Short Preamble */
-	int num_sta_no_short_preamble;
+	/* Number of associated stations that do yest support Short Preamble */
+	int num_sta_yes_short_preamble;
 
 	int olbc; /* Overlapping Legacy BSS Condition */
 
-	/* Number of HT assoc sta that do not support greenfield */
-	int num_sta_ht_no_gf;
+	/* Number of HT assoc sta that do yest support greenfield */
+	int num_sta_ht_yes_gf;
 
-	/* Number of associated non-HT stations */
-	/* int num_sta_no_ht; */
+	/* Number of associated yesn-HT stations */
+	/* int num_sta_yes_ht; */
 
 	/* Number of HT associated stations 20 MHz */
 	int num_sta_ht_20mhz;

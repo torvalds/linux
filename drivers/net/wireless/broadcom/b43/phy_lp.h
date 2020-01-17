@@ -280,9 +280,9 @@
 #define B43_LPPHY_GPIO_OUTEN			B43_PHY_OFDM(0xBE) /* GPIO Out enable */
 #define B43_LPPHY_GPIO_SELECT			B43_PHY_OFDM(0xBF) /* GPIO Select */
 #define B43_LPPHY_GPIO_OUT			B43_PHY_OFDM(0xC0) /* GPIO Out */
-#define B43_LPPHY_4C3				B43_PHY_OFDM(0xC3) /* unknown, used during BB init */
-#define B43_LPPHY_4C4				B43_PHY_OFDM(0xC4) /* unknown, used during BB init */
-#define B43_LPPHY_4C5				B43_PHY_OFDM(0xC5) /* unknown, used during BB init */
+#define B43_LPPHY_4C3				B43_PHY_OFDM(0xC3) /* unkyeswn, used during BB init */
+#define B43_LPPHY_4C4				B43_PHY_OFDM(0xC4) /* unkyeswn, used during BB init */
+#define B43_LPPHY_4C5				B43_PHY_OFDM(0xC5) /* unkyeswn, used during BB init */
 #define B43_LPPHY_TR_LOOKUP_5			B43_PHY_OFDM(0xC7) /* TR Lookup 5 */
 #define B43_LPPHY_TR_LOOKUP_6			B43_PHY_OFDM(0xC8) /* TR Lookup 6 */
 #define B43_LPPHY_TR_LOOKUP_7			B43_PHY_OFDM(0xC9) /* TR Lookup 7 */
@@ -298,112 +298,112 @@
 
 
 /*** Broadcom 2062 NORTH radio registers ***/
-#define B2062_N_COMM1				B43_LP_NORTH(0x000) /* Common 01 (north) */
-#define B2062_N_COMM2				B43_LP_NORTH(0x002) /* Common 02 (north) */
-#define B2062_N_COMM3				B43_LP_NORTH(0x003) /* Common 03 (north) */
-#define B2062_N_COMM4				B43_LP_NORTH(0x004) /* Common 04 (north) */
-#define B2062_N_COMM5				B43_LP_NORTH(0x005) /* Common 05 (north) */
-#define B2062_N_COMM6				B43_LP_NORTH(0x006) /* Common 06 (north) */
-#define B2062_N_COMM7				B43_LP_NORTH(0x007) /* Common 07 (north) */
-#define B2062_N_COMM8				B43_LP_NORTH(0x008) /* Common 08 (north) */
-#define B2062_N_COMM9				B43_LP_NORTH(0x009) /* Common 09 (north) */
-#define B2062_N_COMM10				B43_LP_NORTH(0x00A) /* Common 10 (north) */
-#define B2062_N_COMM11				B43_LP_NORTH(0x00B) /* Common 11 (north) */
-#define B2062_N_COMM12				B43_LP_NORTH(0x00C) /* Common 12 (north) */
-#define B2062_N_COMM13				B43_LP_NORTH(0x00D) /* Common 13 (north) */
-#define B2062_N_COMM14				B43_LP_NORTH(0x00E) /* Common 14 (north) */
-#define B2062_N_COMM15				B43_LP_NORTH(0x00F) /* Common 15 (north) */
-#define B2062_N_PDN_CTL0			B43_LP_NORTH(0x010) /* PDN Control 0 (north) */
-#define B2062_N_PDN_CTL1			B43_LP_NORTH(0x011) /* PDN Control 1 (north) */
-#define B2062_N_PDN_CTL2			B43_LP_NORTH(0x012) /* PDN Control 2 (north) */
-#define B2062_N_PDN_CTL3			B43_LP_NORTH(0x013) /* PDN Control 3 (north) */
-#define B2062_N_PDN_CTL4			B43_LP_NORTH(0x014) /* PDN Control 4 (north) */
-#define B2062_N_GEN_CTL0			B43_LP_NORTH(0x015) /* GEN Control 0 (north) */
-#define B2062_N_IQ_CALIB			B43_LP_NORTH(0x016) /* IQ Calibration (north) */
-#define B2062_N_LGENC				B43_LP_NORTH(0x017) /* LGENC (north) */
-#define B2062_N_LGENA_LPF			B43_LP_NORTH(0x018) /* LGENA LPF (north) */
-#define B2062_N_LGENA_BIAS0			B43_LP_NORTH(0x019) /* LGENA Bias 0 (north) */
-#define B2062_N_LGNEA_BIAS1			B43_LP_NORTH(0x01A) /* LGNEA Bias 1 (north) */
-#define B2062_N_LGENA_CTL0			B43_LP_NORTH(0x01B) /* LGENA Control 0 (north) */
-#define B2062_N_LGENA_CTL1			B43_LP_NORTH(0x01C) /* LGENA Control 1 (north) */
-#define B2062_N_LGENA_CTL2			B43_LP_NORTH(0x01D) /* LGENA Control 2 (north) */
-#define B2062_N_LGENA_TUNE0			B43_LP_NORTH(0x01E) /* LGENA Tune 0 (north) */
-#define B2062_N_LGENA_TUNE1			B43_LP_NORTH(0x01F) /* LGENA Tune 1 (north) */
-#define B2062_N_LGENA_TUNE2			B43_LP_NORTH(0x020) /* LGENA Tune 2 (north) */
-#define B2062_N_LGENA_TUNE3			B43_LP_NORTH(0x021) /* LGENA Tune 3 (north) */
-#define B2062_N_LGENA_CTL3			B43_LP_NORTH(0x022) /* LGENA Control 3 (north) */
-#define B2062_N_LGENA_CTL4			B43_LP_NORTH(0x023) /* LGENA Control 4 (north) */
-#define B2062_N_LGENA_CTL5			B43_LP_NORTH(0x024) /* LGENA Control 5 (north) */
-#define B2062_N_LGENA_CTL6			B43_LP_NORTH(0x025) /* LGENA Control 6 (north) */
-#define B2062_N_LGENA_CTL7			B43_LP_NORTH(0x026) /* LGENA Control 7 (north) */
-#define B2062_N_RXA_CTL0			B43_LP_NORTH(0x027) /* RXA Control 0 (north) */
-#define B2062_N_RXA_CTL1			B43_LP_NORTH(0x028) /* RXA Control 1 (north) */
-#define B2062_N_RXA_CTL2			B43_LP_NORTH(0x029) /* RXA Control 2 (north) */
-#define B2062_N_RXA_CTL3			B43_LP_NORTH(0x02A) /* RXA Control 3 (north) */
-#define B2062_N_RXA_CTL4			B43_LP_NORTH(0x02B) /* RXA Control 4 (north) */
-#define B2062_N_RXA_CTL5			B43_LP_NORTH(0x02C) /* RXA Control 5 (north) */
-#define B2062_N_RXA_CTL6			B43_LP_NORTH(0x02D) /* RXA Control 6 (north) */
-#define B2062_N_RXA_CTL7			B43_LP_NORTH(0x02E) /* RXA Control 7 (north) */
-#define B2062_N_RXBB_CTL0			B43_LP_NORTH(0x02F) /* RXBB Control 0 (north) */
-#define B2062_N_RXBB_CTL1			B43_LP_NORTH(0x030) /* RXBB Control 1 (north) */
-#define B2062_N_RXBB_CTL2			B43_LP_NORTH(0x031) /* RXBB Control 2 (north) */
-#define B2062_N_RXBB_GAIN0			B43_LP_NORTH(0x032) /* RXBB Gain 0 (north) */
-#define B2062_N_RXBB_GAIN1			B43_LP_NORTH(0x033) /* RXBB Gain 1 (north) */
-#define B2062_N_RXBB_GAIN2			B43_LP_NORTH(0x034) /* RXBB Gain 2 (north) */
-#define B2062_N_RXBB_GAIN3			B43_LP_NORTH(0x035) /* RXBB Gain 3 (north) */
-#define B2062_N_RXBB_RSSI0			B43_LP_NORTH(0x036) /* RXBB RSSI 0 (north) */
-#define B2062_N_RXBB_RSSI1			B43_LP_NORTH(0x037) /* RXBB RSSI 1 (north) */
-#define B2062_N_RXBB_CALIB0			B43_LP_NORTH(0x038) /* RXBB Calibration0 (north) */
-#define B2062_N_RXBB_CALIB1			B43_LP_NORTH(0x039) /* RXBB Calibration1 (north) */
-#define B2062_N_RXBB_CALIB2			B43_LP_NORTH(0x03A) /* RXBB Calibration2 (north) */
-#define B2062_N_RXBB_BIAS0			B43_LP_NORTH(0x03B) /* RXBB Bias 0 (north) */
-#define B2062_N_RXBB_BIAS1			B43_LP_NORTH(0x03C) /* RXBB Bias 1 (north) */
-#define B2062_N_RXBB_BIAS2			B43_LP_NORTH(0x03D) /* RXBB Bias 2 (north) */
-#define B2062_N_RXBB_BIAS3			B43_LP_NORTH(0x03E) /* RXBB Bias 3 (north) */
-#define B2062_N_RXBB_BIAS4			B43_LP_NORTH(0x03F) /* RXBB Bias 4 (north) */
-#define B2062_N_RXBB_BIAS5			B43_LP_NORTH(0x040) /* RXBB Bias 5 (north) */
-#define B2062_N_RXBB_RSSI2			B43_LP_NORTH(0x041) /* RXBB RSSI 2 (north) */
-#define B2062_N_RXBB_RSSI3			B43_LP_NORTH(0x042) /* RXBB RSSI 3 (north) */
-#define B2062_N_RXBB_RSSI4			B43_LP_NORTH(0x043) /* RXBB RSSI 4 (north) */
-#define B2062_N_RXBB_RSSI5			B43_LP_NORTH(0x044) /* RXBB RSSI 5 (north) */
-#define B2062_N_TX_CTL0				B43_LP_NORTH(0x045) /* TX Control 0 (north) */
-#define B2062_N_TX_CTL1				B43_LP_NORTH(0x046) /* TX Control 1 (north) */
-#define B2062_N_TX_CTL2				B43_LP_NORTH(0x047) /* TX Control 2 (north) */
-#define B2062_N_TX_CTL3				B43_LP_NORTH(0x048) /* TX Control 3 (north) */
-#define B2062_N_TX_CTL4				B43_LP_NORTH(0x049) /* TX Control 4 (north) */
-#define B2062_N_TX_CTL5				B43_LP_NORTH(0x04A) /* TX Control 5 (north) */
-#define B2062_N_TX_CTL6				B43_LP_NORTH(0x04B) /* TX Control 6 (north) */
-#define B2062_N_TX_CTL7				B43_LP_NORTH(0x04C) /* TX Control 7 (north) */
-#define B2062_N_TX_CTL8				B43_LP_NORTH(0x04D) /* TX Control 8 (north) */
-#define B2062_N_TX_CTL9				B43_LP_NORTH(0x04E) /* TX Control 9 (north) */
-#define B2062_N_TX_CTL_A			B43_LP_NORTH(0x04F) /* TX Control A (north) */
-#define B2062_N_TX_GC2G				B43_LP_NORTH(0x050) /* TX GC2G (north) */
-#define B2062_N_TX_GC5G				B43_LP_NORTH(0x051) /* TX GC5G (north) */
-#define B2062_N_TX_TUNE				B43_LP_NORTH(0x052) /* TX Tune (north) */
-#define B2062_N_TX_PAD				B43_LP_NORTH(0x053) /* TX PAD (north) */
-#define B2062_N_TX_PGA				B43_LP_NORTH(0x054) /* TX PGA (north) */
-#define B2062_N_TX_PADAUX			B43_LP_NORTH(0x055) /* TX PADAUX (north) */
-#define B2062_N_TX_PGAAUX			B43_LP_NORTH(0x056) /* TX PGAAUX (north) */
-#define B2062_N_TSSI_CTL0			B43_LP_NORTH(0x057) /* TSSI Control 0 (north) */
-#define B2062_N_TSSI_CTL1			B43_LP_NORTH(0x058) /* TSSI Control 1 (north) */
-#define B2062_N_TSSI_CTL2			B43_LP_NORTH(0x059) /* TSSI Control 2 (north) */
-#define B2062_N_IQ_CALIB_CTL0			B43_LP_NORTH(0x05A) /* IQ Calibration Control 0 (north) */
-#define B2062_N_IQ_CALIB_CTL1			B43_LP_NORTH(0x05B) /* IQ Calibration Control 1 (north) */
-#define B2062_N_IQ_CALIB_CTL2			B43_LP_NORTH(0x05C) /* IQ Calibration Control 2 (north) */
-#define B2062_N_CALIB_TS			B43_LP_NORTH(0x05D) /* Calibration TS (north) */
-#define B2062_N_CALIB_CTL0			B43_LP_NORTH(0x05E) /* Calibration Control 0 (north) */
-#define B2062_N_CALIB_CTL1			B43_LP_NORTH(0x05F) /* Calibration Control 1 (north) */
-#define B2062_N_CALIB_CTL2			B43_LP_NORTH(0x060) /* Calibration Control 2 (north) */
-#define B2062_N_CALIB_CTL3			B43_LP_NORTH(0x061) /* Calibration Control 3 (north) */
-#define B2062_N_CALIB_CTL4			B43_LP_NORTH(0x062) /* Calibration Control 4 (north) */
-#define B2062_N_CALIB_DBG0			B43_LP_NORTH(0x063) /* Calibration Debug 0 (north) */
-#define B2062_N_CALIB_DBG1			B43_LP_NORTH(0x064) /* Calibration Debug 1 (north) */
-#define B2062_N_CALIB_DBG2			B43_LP_NORTH(0x065) /* Calibration Debug 2 (north) */
-#define B2062_N_CALIB_DBG3			B43_LP_NORTH(0x066) /* Calibration Debug 3 (north) */
-#define B2062_N_PSENSE_CTL0			B43_LP_NORTH(0x069) /* PSENSE Control 0 (north) */
-#define B2062_N_PSENSE_CTL1			B43_LP_NORTH(0x06A) /* PSENSE Control 1 (north) */
-#define B2062_N_PSENSE_CTL2			B43_LP_NORTH(0x06B) /* PSENSE Control 2 (north) */
-#define B2062_N_TEST_BUF0			B43_LP_NORTH(0x06C) /* TEST BUF0 (north) */
+#define B2062_N_COMM1				B43_LP_NORTH(0x000) /* Common 01 (yesrth) */
+#define B2062_N_COMM2				B43_LP_NORTH(0x002) /* Common 02 (yesrth) */
+#define B2062_N_COMM3				B43_LP_NORTH(0x003) /* Common 03 (yesrth) */
+#define B2062_N_COMM4				B43_LP_NORTH(0x004) /* Common 04 (yesrth) */
+#define B2062_N_COMM5				B43_LP_NORTH(0x005) /* Common 05 (yesrth) */
+#define B2062_N_COMM6				B43_LP_NORTH(0x006) /* Common 06 (yesrth) */
+#define B2062_N_COMM7				B43_LP_NORTH(0x007) /* Common 07 (yesrth) */
+#define B2062_N_COMM8				B43_LP_NORTH(0x008) /* Common 08 (yesrth) */
+#define B2062_N_COMM9				B43_LP_NORTH(0x009) /* Common 09 (yesrth) */
+#define B2062_N_COMM10				B43_LP_NORTH(0x00A) /* Common 10 (yesrth) */
+#define B2062_N_COMM11				B43_LP_NORTH(0x00B) /* Common 11 (yesrth) */
+#define B2062_N_COMM12				B43_LP_NORTH(0x00C) /* Common 12 (yesrth) */
+#define B2062_N_COMM13				B43_LP_NORTH(0x00D) /* Common 13 (yesrth) */
+#define B2062_N_COMM14				B43_LP_NORTH(0x00E) /* Common 14 (yesrth) */
+#define B2062_N_COMM15				B43_LP_NORTH(0x00F) /* Common 15 (yesrth) */
+#define B2062_N_PDN_CTL0			B43_LP_NORTH(0x010) /* PDN Control 0 (yesrth) */
+#define B2062_N_PDN_CTL1			B43_LP_NORTH(0x011) /* PDN Control 1 (yesrth) */
+#define B2062_N_PDN_CTL2			B43_LP_NORTH(0x012) /* PDN Control 2 (yesrth) */
+#define B2062_N_PDN_CTL3			B43_LP_NORTH(0x013) /* PDN Control 3 (yesrth) */
+#define B2062_N_PDN_CTL4			B43_LP_NORTH(0x014) /* PDN Control 4 (yesrth) */
+#define B2062_N_GEN_CTL0			B43_LP_NORTH(0x015) /* GEN Control 0 (yesrth) */
+#define B2062_N_IQ_CALIB			B43_LP_NORTH(0x016) /* IQ Calibration (yesrth) */
+#define B2062_N_LGENC				B43_LP_NORTH(0x017) /* LGENC (yesrth) */
+#define B2062_N_LGENA_LPF			B43_LP_NORTH(0x018) /* LGENA LPF (yesrth) */
+#define B2062_N_LGENA_BIAS0			B43_LP_NORTH(0x019) /* LGENA Bias 0 (yesrth) */
+#define B2062_N_LGNEA_BIAS1			B43_LP_NORTH(0x01A) /* LGNEA Bias 1 (yesrth) */
+#define B2062_N_LGENA_CTL0			B43_LP_NORTH(0x01B) /* LGENA Control 0 (yesrth) */
+#define B2062_N_LGENA_CTL1			B43_LP_NORTH(0x01C) /* LGENA Control 1 (yesrth) */
+#define B2062_N_LGENA_CTL2			B43_LP_NORTH(0x01D) /* LGENA Control 2 (yesrth) */
+#define B2062_N_LGENA_TUNE0			B43_LP_NORTH(0x01E) /* LGENA Tune 0 (yesrth) */
+#define B2062_N_LGENA_TUNE1			B43_LP_NORTH(0x01F) /* LGENA Tune 1 (yesrth) */
+#define B2062_N_LGENA_TUNE2			B43_LP_NORTH(0x020) /* LGENA Tune 2 (yesrth) */
+#define B2062_N_LGENA_TUNE3			B43_LP_NORTH(0x021) /* LGENA Tune 3 (yesrth) */
+#define B2062_N_LGENA_CTL3			B43_LP_NORTH(0x022) /* LGENA Control 3 (yesrth) */
+#define B2062_N_LGENA_CTL4			B43_LP_NORTH(0x023) /* LGENA Control 4 (yesrth) */
+#define B2062_N_LGENA_CTL5			B43_LP_NORTH(0x024) /* LGENA Control 5 (yesrth) */
+#define B2062_N_LGENA_CTL6			B43_LP_NORTH(0x025) /* LGENA Control 6 (yesrth) */
+#define B2062_N_LGENA_CTL7			B43_LP_NORTH(0x026) /* LGENA Control 7 (yesrth) */
+#define B2062_N_RXA_CTL0			B43_LP_NORTH(0x027) /* RXA Control 0 (yesrth) */
+#define B2062_N_RXA_CTL1			B43_LP_NORTH(0x028) /* RXA Control 1 (yesrth) */
+#define B2062_N_RXA_CTL2			B43_LP_NORTH(0x029) /* RXA Control 2 (yesrth) */
+#define B2062_N_RXA_CTL3			B43_LP_NORTH(0x02A) /* RXA Control 3 (yesrth) */
+#define B2062_N_RXA_CTL4			B43_LP_NORTH(0x02B) /* RXA Control 4 (yesrth) */
+#define B2062_N_RXA_CTL5			B43_LP_NORTH(0x02C) /* RXA Control 5 (yesrth) */
+#define B2062_N_RXA_CTL6			B43_LP_NORTH(0x02D) /* RXA Control 6 (yesrth) */
+#define B2062_N_RXA_CTL7			B43_LP_NORTH(0x02E) /* RXA Control 7 (yesrth) */
+#define B2062_N_RXBB_CTL0			B43_LP_NORTH(0x02F) /* RXBB Control 0 (yesrth) */
+#define B2062_N_RXBB_CTL1			B43_LP_NORTH(0x030) /* RXBB Control 1 (yesrth) */
+#define B2062_N_RXBB_CTL2			B43_LP_NORTH(0x031) /* RXBB Control 2 (yesrth) */
+#define B2062_N_RXBB_GAIN0			B43_LP_NORTH(0x032) /* RXBB Gain 0 (yesrth) */
+#define B2062_N_RXBB_GAIN1			B43_LP_NORTH(0x033) /* RXBB Gain 1 (yesrth) */
+#define B2062_N_RXBB_GAIN2			B43_LP_NORTH(0x034) /* RXBB Gain 2 (yesrth) */
+#define B2062_N_RXBB_GAIN3			B43_LP_NORTH(0x035) /* RXBB Gain 3 (yesrth) */
+#define B2062_N_RXBB_RSSI0			B43_LP_NORTH(0x036) /* RXBB RSSI 0 (yesrth) */
+#define B2062_N_RXBB_RSSI1			B43_LP_NORTH(0x037) /* RXBB RSSI 1 (yesrth) */
+#define B2062_N_RXBB_CALIB0			B43_LP_NORTH(0x038) /* RXBB Calibration0 (yesrth) */
+#define B2062_N_RXBB_CALIB1			B43_LP_NORTH(0x039) /* RXBB Calibration1 (yesrth) */
+#define B2062_N_RXBB_CALIB2			B43_LP_NORTH(0x03A) /* RXBB Calibration2 (yesrth) */
+#define B2062_N_RXBB_BIAS0			B43_LP_NORTH(0x03B) /* RXBB Bias 0 (yesrth) */
+#define B2062_N_RXBB_BIAS1			B43_LP_NORTH(0x03C) /* RXBB Bias 1 (yesrth) */
+#define B2062_N_RXBB_BIAS2			B43_LP_NORTH(0x03D) /* RXBB Bias 2 (yesrth) */
+#define B2062_N_RXBB_BIAS3			B43_LP_NORTH(0x03E) /* RXBB Bias 3 (yesrth) */
+#define B2062_N_RXBB_BIAS4			B43_LP_NORTH(0x03F) /* RXBB Bias 4 (yesrth) */
+#define B2062_N_RXBB_BIAS5			B43_LP_NORTH(0x040) /* RXBB Bias 5 (yesrth) */
+#define B2062_N_RXBB_RSSI2			B43_LP_NORTH(0x041) /* RXBB RSSI 2 (yesrth) */
+#define B2062_N_RXBB_RSSI3			B43_LP_NORTH(0x042) /* RXBB RSSI 3 (yesrth) */
+#define B2062_N_RXBB_RSSI4			B43_LP_NORTH(0x043) /* RXBB RSSI 4 (yesrth) */
+#define B2062_N_RXBB_RSSI5			B43_LP_NORTH(0x044) /* RXBB RSSI 5 (yesrth) */
+#define B2062_N_TX_CTL0				B43_LP_NORTH(0x045) /* TX Control 0 (yesrth) */
+#define B2062_N_TX_CTL1				B43_LP_NORTH(0x046) /* TX Control 1 (yesrth) */
+#define B2062_N_TX_CTL2				B43_LP_NORTH(0x047) /* TX Control 2 (yesrth) */
+#define B2062_N_TX_CTL3				B43_LP_NORTH(0x048) /* TX Control 3 (yesrth) */
+#define B2062_N_TX_CTL4				B43_LP_NORTH(0x049) /* TX Control 4 (yesrth) */
+#define B2062_N_TX_CTL5				B43_LP_NORTH(0x04A) /* TX Control 5 (yesrth) */
+#define B2062_N_TX_CTL6				B43_LP_NORTH(0x04B) /* TX Control 6 (yesrth) */
+#define B2062_N_TX_CTL7				B43_LP_NORTH(0x04C) /* TX Control 7 (yesrth) */
+#define B2062_N_TX_CTL8				B43_LP_NORTH(0x04D) /* TX Control 8 (yesrth) */
+#define B2062_N_TX_CTL9				B43_LP_NORTH(0x04E) /* TX Control 9 (yesrth) */
+#define B2062_N_TX_CTL_A			B43_LP_NORTH(0x04F) /* TX Control A (yesrth) */
+#define B2062_N_TX_GC2G				B43_LP_NORTH(0x050) /* TX GC2G (yesrth) */
+#define B2062_N_TX_GC5G				B43_LP_NORTH(0x051) /* TX GC5G (yesrth) */
+#define B2062_N_TX_TUNE				B43_LP_NORTH(0x052) /* TX Tune (yesrth) */
+#define B2062_N_TX_PAD				B43_LP_NORTH(0x053) /* TX PAD (yesrth) */
+#define B2062_N_TX_PGA				B43_LP_NORTH(0x054) /* TX PGA (yesrth) */
+#define B2062_N_TX_PADAUX			B43_LP_NORTH(0x055) /* TX PADAUX (yesrth) */
+#define B2062_N_TX_PGAAUX			B43_LP_NORTH(0x056) /* TX PGAAUX (yesrth) */
+#define B2062_N_TSSI_CTL0			B43_LP_NORTH(0x057) /* TSSI Control 0 (yesrth) */
+#define B2062_N_TSSI_CTL1			B43_LP_NORTH(0x058) /* TSSI Control 1 (yesrth) */
+#define B2062_N_TSSI_CTL2			B43_LP_NORTH(0x059) /* TSSI Control 2 (yesrth) */
+#define B2062_N_IQ_CALIB_CTL0			B43_LP_NORTH(0x05A) /* IQ Calibration Control 0 (yesrth) */
+#define B2062_N_IQ_CALIB_CTL1			B43_LP_NORTH(0x05B) /* IQ Calibration Control 1 (yesrth) */
+#define B2062_N_IQ_CALIB_CTL2			B43_LP_NORTH(0x05C) /* IQ Calibration Control 2 (yesrth) */
+#define B2062_N_CALIB_TS			B43_LP_NORTH(0x05D) /* Calibration TS (yesrth) */
+#define B2062_N_CALIB_CTL0			B43_LP_NORTH(0x05E) /* Calibration Control 0 (yesrth) */
+#define B2062_N_CALIB_CTL1			B43_LP_NORTH(0x05F) /* Calibration Control 1 (yesrth) */
+#define B2062_N_CALIB_CTL2			B43_LP_NORTH(0x060) /* Calibration Control 2 (yesrth) */
+#define B2062_N_CALIB_CTL3			B43_LP_NORTH(0x061) /* Calibration Control 3 (yesrth) */
+#define B2062_N_CALIB_CTL4			B43_LP_NORTH(0x062) /* Calibration Control 4 (yesrth) */
+#define B2062_N_CALIB_DBG0			B43_LP_NORTH(0x063) /* Calibration Debug 0 (yesrth) */
+#define B2062_N_CALIB_DBG1			B43_LP_NORTH(0x064) /* Calibration Debug 1 (yesrth) */
+#define B2062_N_CALIB_DBG2			B43_LP_NORTH(0x065) /* Calibration Debug 2 (yesrth) */
+#define B2062_N_CALIB_DBG3			B43_LP_NORTH(0x066) /* Calibration Debug 3 (yesrth) */
+#define B2062_N_PSENSE_CTL0			B43_LP_NORTH(0x069) /* PSENSE Control 0 (yesrth) */
+#define B2062_N_PSENSE_CTL1			B43_LP_NORTH(0x06A) /* PSENSE Control 1 (yesrth) */
+#define B2062_N_PSENSE_CTL2			B43_LP_NORTH(0x06B) /* PSENSE Control 2 (yesrth) */
+#define B2062_N_TEST_BUF0			B43_LP_NORTH(0x06C) /* TEST BUF0 (yesrth) */
 
 /*** Broadcom 2062 SOUTH radio registers ***/
 #define B2062_S_COMM1				B43_LP_SOUTH(0x000) /* Common 01 (south) */

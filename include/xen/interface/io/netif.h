@@ -10,7 +10,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,11 +33,11 @@
 /*
  * Older implementation of Xen network frontend / backend has an
  * implicit dependency on the MAX_SKB_FRAGS as the maximum number of
- * ring slots a skb can use. Netfront / netback may not work as
+ * ring slots a skb can use. Netfront / netback may yest work as
  * expected when frontend and backend have different MAX_SKB_FRAGS.
  *
  * A better approach is to add mechanism for netfront / netback to
- * negotiate this value. However we cannot fix all possible
+ * negotiate this value. However we canyest fix all possible
  * frontends, so we need to define a value which states the minimum
  * slots backend must support.
  *
@@ -51,21 +51,21 @@
 /*
  * Notifications after enqueuing any type of message should be conditional on
  * the appropriate req_event or rsp_event field in the shared ring.
- * If the client sends notification for rx requests then it should specify
- * feature 'feature-rx-notify' via xenbus. Otherwise the backend will assume
- * that it cannot safely queue packets (as it may not be kicked to send them).
+ * If the client sends yestification for rx requests then it should specify
+ * feature 'feature-rx-yestify' via xenbus. Otherwise the backend will assume
+ * that it canyest safely queue packets (as it may yest be kicked to send them).
  */
 
 /*
  * "feature-split-event-channels" is introduced to separate guest TX
- * and RX notification. Backend either doesn't support this feature or
+ * and RX yestification. Backend either doesn't support this feature or
  * advertises it via xenstore as 0 (disabled) or 1 (enabled).
  *
  * To make use of this feature, frontend should allocate two event
  * channels for TX and RX, advertise them to backend as
  * "event-channel-tx" and "event-channel-rx" respectively. If frontend
  * doesn't want to use this feature, it just writes "event-channel"
- * node as before.
+ * yesde as before.
  */
 
 /*
@@ -75,12 +75,12 @@
  * number of queues.
  * Frontends that are aware of this feature and wish to use it can write the
  * key "multi-queue-num-queues", set to the number they wish to use, which
- * must be greater than zero, and no more than the value reported by the backend
+ * must be greater than zero, and yes more than the value reported by the backend
  * in "multi-queue-max-queues".
  *
  * Queues replicate the shared rings and event channels.
  * "feature-split-event-channels" may optionally be used when using
- * multiple queues, but is not mandatory.
+ * multiple queues, but is yest mandatory.
  *
  * Each queue consists of one shared ring pair, i.e. there must be the same
  * number of tx and rx rings.
@@ -90,7 +90,7 @@
  * to avoid distinguishing between a frontend that doesn't understand the
  * multi-queue feature, and one that does, but requested only one queue.
  *
- * Frontends requesting two or more queues must not write the toplevel
+ * Frontends requesting two or more queues must yest write the toplevel
  * event-channel (or event-channel-{tx,rx}) and {tx,rx}-ring-ref keys,
  * instead writing those keys under sub-keys having the name "queue-N" where
  * N is the integer ID of the queue for which those keys belong. Queues
@@ -110,19 +110,19 @@
  * /local/domain/1/device/vif/0/queue-1/event-channel-rx = "<evtchn-rx1>"
  *
  * If there is any inconsistency in the XenStore data, the backend may
- * choose not to connect any queues, instead treating the request as an
+ * choose yest to connect any queues, instead treating the request as an
  * error. This includes scenarios where more (or fewer) queues were
  * requested than the frontend provided details for.
  *
  * Mapping of packets to queues is considered to be a function of the
- * transmitting system (backend or frontend) and is not negotiated
+ * transmitting system (backend or frontend) and is yest negotiated
  * between the two. Guests are free to transmit packets on any queue
  * they choose, provided it has been set up correctly. Guests must be
  * prepared to receive packets on any queue they have requested be set up.
  */
 
 /*
- * "feature-no-csum-offload" should be used to turn IPv4 TCP/UDP checksum
+ * "feature-yes-csum-offload" should be used to turn IPv4 TCP/UDP checksum
  * offload off or on. If it is missing then the feature is assumed to be on.
  * "feature-ipv6-csum-offload" should be used to turn IPv6 TCP/UDP checksum
  * offload on or off. If it is missing then the feature is assumed to be off.
@@ -131,7 +131,7 @@
 /*
  * "feature-gso-tcpv4" and "feature-gso-tcpv6" advertise the capability to
  * handle large TCP packets (in IPv4 or IPv6 form respectively). Neither
- * frontends nor backends are assumed to be capable unless the flags are
+ * frontends yesr backends are assumed to be capable unless the flags are
  * present.
  */
 
@@ -143,20 +143,20 @@
  * "feature-multicast-control" then "request-multicast-control" must be set
  * before the frontend moves into the connected state. The backend will
  * sample the value on this state transition and any subsequent change in
- * value will have no effect. However, if the backend also advertises
+ * value will have yes effect. However, if the backend also advertises
  * "feature-dynamic-multicast-control" then "request-multicast-control"
  * may be set by the frontend at any time. In this case, the backend will
  * watch the value and re-sample on watch events.
  *
  * If the sampled value of "request-multicast-control" is set then the
- * backend transmit side should no longer flood multicast packets to the
- * frontend, it should instead drop any multicast packet that does not
+ * backend transmit side should yes longer flood multicast packets to the
+ * frontend, it should instead drop any multicast packet that does yest
  * match in a filter list.
  * The list is amended by the frontend by sending dummy transmit requests
  * containing XEN_NETIF_EXTRA_TYPE_MCAST_{ADD,DEL} extra-info fragments as
  * specified below.
  * Note that the filter list may be amended even if the sampled value of
- * "request-multicast-control" is not set, however the filter should only
+ * "request-multicast-control" is yest set, however the filter should only
  * be applied if it is set.
  */
 
@@ -166,7 +166,7 @@
  *
  * Some features, such as hashing (detailed below), require a
  * significant amount of out-of-band data to be passed from frontend to
- * backend. Use of xenstore is not suitable for large quantities of data
+ * backend. Use of xenstore is yest suitable for large quantities of data
  * because of quota limitations and so a dedicated 'control ring' is used.
  * The ability of the backend to use a control ring is advertised by
  * setting:
@@ -186,7 +186,7 @@
  * The control ring uses a fixed request/response message size and is
  * balanced (i.e. one request to one response), so operationally it is much
  * the same as a transmit or receive ring.
- * Note that there is no requirement that responses are issued in the same
+ * Note that there is yes requirement that responses are issued in the same
  * order as requests.
  */
 
@@ -281,7 +281,7 @@
  *    Buffer[] << 1
  *
  * The code below is provided for convenience where an operating system
- * does not already provide an implementation.
+ * does yest already provide an implementation.
  */
 #ifdef XEN_NETIF_DEFINE_TOEPLITZ
 static uint32_t xen_netif_toeplitz_hash(const uint8_t *key,
@@ -310,7 +310,7 @@ static uint32_t xen_netif_toeplitz_hash(const uint8_t *key,
 		}
 
 		/*
-		 * 'prefix' has now been left-shifted by 8, so
+		 * 'prefix' has yesw been left-shifted by 8, so
 		 * OR in the next byte.
 		 */
 		prefix |= (keyi < keylen) ? key[keyi] : 0;
@@ -407,9 +407,9 @@ struct xen_netif_ctrl_response {
  *
  * Response:
  *
- *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED     - Operation not
+ *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED     - Operation yest
  *                                                     supported
- *           XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER - The algorithm is not
+ *           XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER - The algorithm is yest
  *                                                     supported
  *           XEN_NETIF_CTRL_STATUS_SUCCESS           - Operation successful
  *
@@ -432,7 +432,7 @@ struct xen_netif_ctrl_response {
  *
  * Response:
  *
- *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED - Operation not supported
+ *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED - Operation yest supported
  *           XEN_NETIF_CTRL_STATUS_SUCCESS       - Operation successful
  *  data   = supported hash types (if operation was successful)
  *
@@ -447,7 +447,7 @@ struct xen_netif_ctrl_response {
  * Note that the 'maximal' type of hash should always be chosen. For
  * example, if the frontend sets both IPV4 and IPV4_TCP hash types then
  * the latter hash type should be calculated for any TCP packet and the
- * former only calculated for non-TCP packets.
+ * former only calculated for yesn-TCP packets.
  *
  * Request:
  *
@@ -458,7 +458,7 @@ struct xen_netif_ctrl_response {
  *
  * Response:
  *
- *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED     - Operation not
+ *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED     - Operation yest
  *                                                     supported
  *           XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER - One or more flag
  *                                                     value is invalid or
@@ -487,7 +487,7 @@ struct xen_netif_ctrl_response {
  *
  * Response:
  *
- *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED     - Operation not
+ *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED     - Operation yest
  *                                                     supported
  *           XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER - Key size is invalid
  *           XEN_NETIF_CTRL_STATUS_BUFFER_OVERFLOW   - Key size is larger
@@ -496,7 +496,7 @@ struct xen_netif_ctrl_response {
  *           XEN_NETIF_CTRL_STATUS_SUCCESS           - Operation successful
  *  data   = 0
  *
- * NOTE: Any key octets not specified are assumed to be zero (the key
+ * NOTE: Any key octets yest specified are assumed to be zero (the key
  *       is assumed to be empty by default) and specifying a new key
  *       invalidates any previous key, hence specifying a key size of
  *       zero will clear the key (which ensures that the calculated hash
@@ -522,11 +522,11 @@ struct xen_netif_ctrl_response {
  *
  * Response:
  *
- *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED - Operation not supported
+ *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED - Operation yest supported
  *           XEN_NETIF_CTRL_STATUS_SUCCESS       - Operation successful
  *  data   = maximum number of entries allowed in the mapping table
  *           (if operation was successful) or zero if a mapping table is
- *           not supported (i.e. hash mapping is done only by modular
+ *           yest supported (i.e. hash mapping is done only by modular
  *           arithmetic).
  *
  * XEN_NETIF_CTRL_TYPE_SET_HASH_MAPPING_SIZE
@@ -547,7 +547,7 @@ struct xen_netif_ctrl_response {
  *
  * Response:
  *
- *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED     - Operation not
+ *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED     - Operation yest
  *                                                     supported
  *           XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER - Table size is invalid
  *           XEN_NETIF_CTRL_STATUS_SUCCESS           - Operation successful
@@ -575,7 +575,7 @@ struct xen_netif_ctrl_response {
  *
  * Response:
  *
- *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED     - Operation not
+ *  status = XEN_NETIF_CTRL_STATUS_NOT_SUPPORTED     - Operation yest
  *                                                     supported
  *           XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER - Table size or content
  *                                                     is invalid
@@ -604,7 +604,7 @@ struct xen_netif_ctrl_response {
  *       The backend may support a mapping table larger than can be
  *       mapped by a single grant reference. Thus sub-tables within a
  *       larger table can be individually set by sending multiple messages
- *       with differing offset values. Specifying a new sub-table does not
+ *       with differing offset values. Specifying a new sub-table does yest
  *       invalidate any table data outside that range.
  *       The grant reference may be read-only and must remain valid until
  *       the response has been processed.
@@ -630,7 +630,7 @@ DEFINE_RING_TYPES(xen_netif_ctrl,
  *  ...
  *  Fragment N: xen_netif_tx_request_t  - (only if fragment N-1 flags include
  *                                     XEN_NETTXF_more_data - flags on preceding
- *                                     extras are not relevant here)
+ *                                     extras are yest relevant here)
  *                                    flags = 0
  *                                    size = fragment size
  *
@@ -641,7 +641,7 @@ DEFINE_RING_TYPES(xen_netif_ctrl,
  * packet the actual size of fragment 1 can only be determined by
  * subtracting the sizes of fragments 2..N from the total packet size.
  *
- * Ring slot size is 12 octets, however not all request/response
+ * Ring slot size is 12 octets, however yest all request/response
  * structs use the full size.
  *
  * tx request data (xen_netif_tx_request_t)
@@ -688,7 +688,7 @@ DEFINE_RING_TYPES(xen_netif_ctrl,
  *  ...
  *  Fragment N: xen_netif_rx_request_t  - (only if fragment N-1 flags include
  *                                     XEN_NETRXF_more_data - flags on preceding
- *                                     extras are not relevant here)
+ *                                     extras are yest relevant here)
  *                                    flags = 0
  *                                    size = fragment size
  *
@@ -726,7 +726,7 @@ DEFINE_RING_TYPES(xen_netif_ctrl,
  * status: -ve: XEN_NETIF_RSP_*; +ve: Rx'ed pkt size.
  *
  * NOTE: Historically, to support GSO on the frontend receive side, Linux
- *       netfront does not make use of the rx response id (because, as
+ *       netfront does yest make use of the rx response id (because, as
  *       described below, extra info structures overlay the id field).
  *       Instead it assumes that responses always appear in the same ring
  *       slot as their corresponding request. Thus, to maintain
@@ -742,7 +742,7 @@ DEFINE_RING_TYPES(xen_netif_ctrl,
  * is therefore limited to 8 octets.
  *
  * NOTE: Because extra info data overlays the usual request/response
- *       structures, there is no id information in the opposite direction.
+ *       structures, there is yes id information in the opposite direction.
  *       So, if an extra info overlays an rx response the frontend can
  *       assume that it is in the same ring slot as the request that was
  *       consumed to make the slot available, and the backend must ensure

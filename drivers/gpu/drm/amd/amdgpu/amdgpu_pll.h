@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,6 +33,6 @@ void amdgpu_pll_compute(struct amdgpu_pll *pll,
 			 u32 *post_div_p);
 u32 amdgpu_pll_get_use_mask(struct drm_crtc *crtc);
 int amdgpu_pll_get_shared_dp_ppll(struct drm_crtc *crtc);
-int amdgpu_pll_get_shared_nondp_ppll(struct drm_crtc *crtc);
+int amdgpu_pll_get_shared_yesndp_ppll(struct drm_crtc *crtc);
 
 #endif

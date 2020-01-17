@@ -30,7 +30,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-/* We'll be using StrongARM sa1100 serial port major/minor */
+/* We'll be using StrongARM sa1100 serial port major/miyesr */
 #define SERIAL_PNX8XXX_MAJOR	204
 #define MINOR_START		5
 
@@ -39,7 +39,7 @@
 #define PNX8XXX_ISR_PASS_LIMIT	256
 
 /*
- * Convert from ignore_status_mask or read_status_mask to FIFO
+ * Convert from igyesre_status_mask or read_status_mask to FIFO
  * and interrupt status bits
  */
 #define SM_TO_FIFO(x)	((x) >> 10)
@@ -135,7 +135,7 @@ static void pnx8xxx_stop_tx(struct uart_port *port)
 }
 
 /*
- * interrupts may not be disabled on entry
+ * interrupts may yest be disabled on entry
  */
 static void pnx8xxx_start_tx(struct uart_port *port)
 {
@@ -193,7 +193,7 @@ static void pnx8xxx_rx_chars(struct pnx8xxx_port *sport)
 		flg = TTY_NORMAL;
 
 		/*
-		 * note that the error handling code is
+		 * yeste that the error handling code is
 		 * out of the main execution path
 		 */
 		if (status & (FIFO_TO_SM(PNX8XXX_UART_FIFO_RXFE |
@@ -205,7 +205,7 @@ static void pnx8xxx_rx_chars(struct pnx8xxx_port *sport)
 					FIFO_TO_SM(PNX8XXX_UART_FIFO_RXPAR));
 				sport->port.icount.brk++;
 				if (uart_handle_break(&sport->port))
-					goto ignore_char;
+					goto igyesre_char;
 			} else if (status & FIFO_TO_SM(PNX8XXX_UART_FIFO_RXPAR))
 				sport->port.icount.parity++;
 			else if (status & FIFO_TO_SM(PNX8XXX_UART_FIFO_RXFE))
@@ -226,12 +226,12 @@ static void pnx8xxx_rx_chars(struct pnx8xxx_port *sport)
 		}
 
 		if (uart_handle_sysrq_char(&sport->port, ch))
-			goto ignore_char;
+			goto igyesre_char;
 
 		uart_insert_char(&sport->port, status,
 				ISTAT_TO_SM(PNX8XXX_UART_INT_RXOVRN), ch, flg);
 
-	ignore_char:
+	igyesre_char:
 		serial_out(sport, PNX8XXX_LCR, serial_in(sport, PNX8XXX_LCR) |
 				PNX8XXX_UART_LCR_RX_NEXT);
 		status = FIFO_TO_SM(serial_in(sport, PNX8XXX_FIFO)) |
@@ -309,7 +309,7 @@ static irqreturn_t pnx8xxx_int(int irq, void *dev_id)
 }
 
 /*
- * Return TIOCSER_TEMT when transmitter is not busy.
+ * Return TIOCSER_TEMT when transmitter is yest busy.
  */
 static unsigned int pnx8xxx_tx_empty(struct uart_port *port)
 {
@@ -488,30 +488,30 @@ pnx8xxx_set_termios(struct uart_port *port, struct ktermios *termios,
 			ISTAT_TO_SM(PNX8XXX_UART_INT_BREAK);
 
 	/*
-	 * Characters to ignore
+	 * Characters to igyesre
 	 */
-	sport->port.ignore_status_mask = 0;
+	sport->port.igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		sport->port.ignore_status_mask |=
+		sport->port.igyesre_status_mask |=
 			FIFO_TO_SM(PNX8XXX_UART_FIFO_RXFE) |
 			FIFO_TO_SM(PNX8XXX_UART_FIFO_RXPAR);
 	if (termios->c_iflag & IGNBRK) {
-		sport->port.ignore_status_mask |=
+		sport->port.igyesre_status_mask |=
 			ISTAT_TO_SM(PNX8XXX_UART_INT_BREAK);
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			sport->port.ignore_status_mask |=
+			sport->port.igyesre_status_mask |=
 				ISTAT_TO_SM(PNX8XXX_UART_INT_RXOVRN);
 	}
 
 	/*
-	 * ignore all characters if CREAD is not set
+	 * igyesre all characters if CREAD is yest set
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		sport->port.ignore_status_mask |=
+		sport->port.igyesre_status_mask |=
 			ISTAT_TO_SM(PNX8XXX_UART_INT_RX);
 
 	del_timer_sync(&sport->timer);
@@ -768,7 +768,7 @@ static struct uart_driver pnx8xxx_reg = {
 	.driver_name		= "ttyS",
 	.dev_name		= "ttyS",
 	.major			= SERIAL_PNX8XXX_MAJOR,
-	.minor			= MINOR_START,
+	.miyesr			= MINOR_START,
 	.nr			= NR_PORTS,
 	.cons			= PNX8XXX_CONSOLE,
 };

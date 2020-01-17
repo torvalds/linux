@@ -24,7 +24,7 @@ config SW_SYNC
 	depends on DEBUG_FS
 	---help---
 	  A sync object driver that uses a 32bit counter to coordinate
-	  synchronization.  Useful when there is no hardware primitive backing
+	  synchronization.  Useful when there is yes hardware primitive backing
 	  the synchronization.
 
 	  WARNING: improper use of this can result in deadlocking kernel

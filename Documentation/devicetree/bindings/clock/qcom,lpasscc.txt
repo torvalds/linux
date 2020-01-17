@@ -15,7 +15,7 @@ Optional properties :
 
 Example:
 
-The below node has to be defined in the cases where the LPASS peripheral loader
+The below yesde has to be defined in the cases where the LPASS peripheral loader
 would bring the subsystem out of reset.
 
 	lpasscc: clock-controller@17014000 {

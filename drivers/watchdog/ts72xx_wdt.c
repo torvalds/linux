@@ -1,5 +1,5 @@
 /*
- * Watchdog driver for Technologic Systems TS-72xx based SBCs
+ * Watchdog driver for Techyeslogic Systems TS-72xx based SBCs
  * (TS-7200, TS-7250 and TS-7260). These boards have external
  * glue logic CPLD chip, which includes programmable watchdog
  * timer.
@@ -24,9 +24,9 @@ static int timeout;
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds.");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Disable watchdog shutdown on close");
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Disable watchdog shutdown on close");
 
 /* priv->control_reg */
 #define TS72XX_WDT_CTRL_DISABLE		0x00
@@ -146,7 +146,7 @@ static int ts72xx_wdt_probe(struct platform_device *pdev)
 	wdd->max_hw_heartbeat_ms = 8000;
 	wdd->parent = dev;
 
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_yeswayout(wdd, yeswayout);
 
 	wdd->timeout = TS72XX_WDT_DEFAULT_TIMEOUT;
 	watchdog_init_timeout(wdd, timeout, dev);

@@ -4,7 +4,7 @@
   Broadcom B43 wireless driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>
-  Copyright (c) 2005 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005 Stefayes Brivio <stefayes.brivio@polimi.it>
   Copyright (c) 2005-2009 Michael Buesch <m@bues.ch>
   Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -48,7 +48,7 @@
 
 MODULE_DESCRIPTION("Broadcom B43 wireless driver");
 MODULE_AUTHOR("Martin Langer");
-MODULE_AUTHOR("Stefano Brivio");
+MODULE_AUTHOR("Stefayes Brivio");
 MODULE_AUTHOR("Michael Buesch");
 MODULE_AUTHOR("Gábor Stefanik");
 MODULE_AUTHOR("Rafał Miłecki");
@@ -85,9 +85,9 @@ static int modparam_hwpctl;
 module_param_named(hwpctl, modparam_hwpctl, int, 0444);
 MODULE_PARM_DESC(hwpctl, "Enable hardware-side power control (default off)");
 
-static int modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, int, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+static int modparam_yeshwcrypt;
+module_param_named(yeshwcrypt, modparam_yeshwcrypt, int, 0444);
+MODULE_PARM_DESC(yeshwcrypt, "Disable hardware encryption.");
 
 static int modparam_hwtkip;
 module_param_named(hwtkip, modparam_hwtkip, int, 0444);
@@ -884,11 +884,11 @@ static void keymac_write(struct b43_wldev *dev, u8 index, const u8 *addr)
  * - if it does, the rc4 key is computed, and decryption is tried.
  *   Either it will success and B43_RX_MAC_DEC is returned,
  *   either it fails and B43_RX_MAC_DEC|B43_RX_MAC_DECERR is returned
- *   and the packet is not usable (it got modified by the ucode).
+ *   and the packet is yest usable (it got modified by the ucode).
  * So in order to never have B43_RX_MAC_DECERR, we should provide
  * a iv32 and phase1key that match. Because we drop packets in case of
  * B43_RX_MAC_DECERR, if we have a correct iv32 but a wrong phase1key, all
- * packets will be lost without higher layer knowing (ie no resync possible
+ * packets will be lost without higher layer kyeswing (ie yes resync possible
  * until next wrap).
  *
  * NOTE : this should support 50 key like RCMTA because
@@ -952,7 +952,7 @@ static void b43_op_update_tkip_key(struct ieee80211_hw *hw,
 	keymac_write(dev, index, NULL);	/* First zero out mac to avoid race */
 
 	rx_tkip_phase1_write(dev, index, iv32, phase1key);
-	/* only pairwise TKIP keys are supported right now */
+	/* only pairwise TKIP keys are supported right yesw */
 	if (WARN_ON(!sta))
 		return;
 	keymac_write(dev, index, sta->addr);
@@ -1157,8 +1157,8 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags)
 	} else if (ps_flags & B43_PS_DISABLED) {
 		hwps = false;
 	} else {
-		//TODO: If powersave is not off and FIXME is not set and we are not in adhoc
-		//      and thus is not an AP and we are associated, set bit 25
+		//TODO: If powersave is yest off and FIXME is yest set and we are yest in adhoc
+		//      and thus is yest an AP and we are associated, set bit 25
 	}
 	if (ps_flags & B43_PS_AWAKE) {
 		awake = true;
@@ -1170,7 +1170,7 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags)
 		//      successful, set bit26
 	}
 
-/* FIXME: For now we force awake-on and hwps-off */
+/* FIXME: For yesw we force awake-on and hwps-off */
 	hwps = false;
 	awake = true;
 
@@ -1314,10 +1314,10 @@ void b43_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 #endif
 	}
 
-	/* Turn Analog ON, but only if we already know the PHY-type.
-	 * This protects against very early setup where we don't know the
+	/* Turn Analog ON, but only if we already kyesw the PHY-type.
+	 * This protects against very early setup where we don't kyesw the
 	 * PHY-type, yet. wireless_core_reset will be called once again later,
-	 * when we know the PHY-type. */
+	 * when we kyesw the PHY-type. */
 	if (dev->phy.ops)
 		dev->phy.ops->switch_analog(dev, 1);
 
@@ -1393,7 +1393,7 @@ static void b43_jssi_write(struct b43_wldev *dev, u32 jssi)
 			(jssi & 0xFFFF0000) >> 16);
 }
 
-static void b43_generate_noise_sample(struct b43_wldev *dev)
+static void b43_generate_yesise_sample(struct b43_wldev *dev)
 {
 	b43_jssi_write(dev, 0x7F7F7F7F);
 	b43_write32(dev, B43_MMIO_MACCMD,
@@ -1406,19 +1406,19 @@ static void b43_calculate_link_quality(struct b43_wldev *dev)
 
 	if (dev->phy.type != B43_PHYTYPE_G)
 		return;
-	if (dev->noisecalc.calculation_running)
+	if (dev->yesisecalc.calculation_running)
 		return;
-	dev->noisecalc.calculation_running = true;
-	dev->noisecalc.nr_samples = 0;
+	dev->yesisecalc.calculation_running = true;
+	dev->yesisecalc.nr_samples = 0;
 
-	b43_generate_noise_sample(dev);
+	b43_generate_yesise_sample(dev);
 }
 
-static void handle_irq_noise(struct b43_wldev *dev)
+static void handle_irq_yesise(struct b43_wldev *dev)
 {
 	struct b43_phy_g *phy = dev->phy.g;
 	u16 tmp;
-	u8 noise[4];
+	u8 yesise[4];
 	u8 i, j;
 	s32 average;
 
@@ -1429,37 +1429,37 @@ static void handle_irq_noise(struct b43_wldev *dev)
 
 	/* Possible race condition: It might be possible that the user
 	 * changed to a different channel in the meantime since we
-	 * started the calculation. We ignore that fact, since it's
-	 * not really that much of a problem. The background noise is
+	 * started the calculation. We igyesre that fact, since it's
+	 * yest really that much of a problem. The background yesise is
 	 * an estimation only anyway. Slightly wrong results will get damped
 	 * by the averaging of the 8 sample rounds. Additionally the
-	 * value is shortlived. So it will be replaced by the next noise
+	 * value is shortlived. So it will be replaced by the next yesise
 	 * calculation round soon. */
 
-	B43_WARN_ON(!dev->noisecalc.calculation_running);
-	*((__le32 *)noise) = cpu_to_le32(b43_jssi_read(dev));
-	if (noise[0] == 0x7F || noise[1] == 0x7F ||
-	    noise[2] == 0x7F || noise[3] == 0x7F)
+	B43_WARN_ON(!dev->yesisecalc.calculation_running);
+	*((__le32 *)yesise) = cpu_to_le32(b43_jssi_read(dev));
+	if (yesise[0] == 0x7F || yesise[1] == 0x7F ||
+	    yesise[2] == 0x7F || yesise[3] == 0x7F)
 		goto generate_new;
 
-	/* Get the noise samples. */
-	B43_WARN_ON(dev->noisecalc.nr_samples >= 8);
-	i = dev->noisecalc.nr_samples;
-	noise[0] = clamp_val(noise[0], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
-	noise[1] = clamp_val(noise[1], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
-	noise[2] = clamp_val(noise[2], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
-	noise[3] = clamp_val(noise[3], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
-	dev->noisecalc.samples[i][0] = phy->nrssi_lt[noise[0]];
-	dev->noisecalc.samples[i][1] = phy->nrssi_lt[noise[1]];
-	dev->noisecalc.samples[i][2] = phy->nrssi_lt[noise[2]];
-	dev->noisecalc.samples[i][3] = phy->nrssi_lt[noise[3]];
-	dev->noisecalc.nr_samples++;
-	if (dev->noisecalc.nr_samples == 8) {
-		/* Calculate the Link Quality by the noise samples. */
+	/* Get the yesise samples. */
+	B43_WARN_ON(dev->yesisecalc.nr_samples >= 8);
+	i = dev->yesisecalc.nr_samples;
+	yesise[0] = clamp_val(yesise[0], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
+	yesise[1] = clamp_val(yesise[1], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
+	yesise[2] = clamp_val(yesise[2], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
+	yesise[3] = clamp_val(yesise[3], 0, ARRAY_SIZE(phy->nrssi_lt) - 1);
+	dev->yesisecalc.samples[i][0] = phy->nrssi_lt[yesise[0]];
+	dev->yesisecalc.samples[i][1] = phy->nrssi_lt[yesise[1]];
+	dev->yesisecalc.samples[i][2] = phy->nrssi_lt[yesise[2]];
+	dev->yesisecalc.samples[i][3] = phy->nrssi_lt[yesise[3]];
+	dev->yesisecalc.nr_samples++;
+	if (dev->yesisecalc.nr_samples == 8) {
+		/* Calculate the Link Quality by the yesise samples. */
 		average = 0;
 		for (i = 0; i < 8; i++) {
 			for (j = 0; j < 4; j++)
-				average += dev->noisecalc.samples[i][j];
+				average += dev->yesisecalc.samples[i][j];
 		}
 		average /= (8 * 4);
 		average *= 125;
@@ -1476,12 +1476,12 @@ static void handle_irq_noise(struct b43_wldev *dev)
 		else
 			average -= 48;
 
-		dev->stats.link_noise = average;
-		dev->noisecalc.calculation_running = false;
+		dev->stats.link_yesise = average;
+		dev->yesisecalc.calculation_running = false;
 		return;
 	}
 generate_new:
-	b43_generate_noise_sample(dev);
+	b43_generate_yesise_sample(dev);
 }
 
 static void handle_irq_tbtt_indication(struct b43_wldev *dev)
@@ -1574,7 +1574,7 @@ u8 b43_ieee80211_antenna_sanitize(struct b43_wldev *dev,
 		antenna_mask = dev->dev->bus_sprom->ant_available_a;
 
 	if (!(antenna_mask & (1 << (antenna_nr - 1)))) {
-		/* This antenna is not available. Fall back to default. */
+		/* This antenna is yest available. Fall back to default. */
 		return 0;
 	}
 
@@ -1619,12 +1619,12 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 	spin_lock_irqsave(&dev->wl->beacon_lock, flags);
 	info = IEEE80211_SKB_CB(dev->wl->current_beacon);
 	rate = ieee80211_get_tx_rate(dev->wl->hw, info)->hw_value;
-	/* Clone the beacon, so it cannot go away, while we write it to hw. */
+	/* Clone the beacon, so it canyest go away, while we write it to hw. */
 	beacon_skb = skb_clone(dev->wl->current_beacon, GFP_ATOMIC);
 	spin_unlock_irqrestore(&dev->wl->beacon_lock, flags);
 
 	if (!beacon_skb) {
-		b43dbg(dev->wl, "Could not upload beacon. "
+		b43dbg(dev->wl, "Could yest upload beacon. "
 		       "Failed to clone beacon skb.");
 		return;
 	}
@@ -1733,9 +1733,9 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 	    !b43_is_mode(wl, NL80211_IFTYPE_ADHOC))
 		return;
 
-	/* This is the bottom half of the asynchronous beacon update. */
+	/* This is the bottom half of the asynchroyesus beacon update. */
 
-	/* Ignore interrupt in the future. */
+	/* Igyesre interrupt in the future. */
 	dev->irq_mask &= ~B43_IRQ_BEACON;
 
 	cmd = b43_read32(dev, B43_MMIO_MACCMD);
@@ -1751,7 +1751,7 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 
 	if (unlikely(wl->beacon_templates_virgin)) {
 		/* We never uploaded a beacon before.
-		 * Upload both templates now, but only mark one valid. */
+		 * Upload both templates yesw, but only mark one valid. */
 		wl->beacon_templates_virgin = false;
 		b43_upload_beacon0(dev);
 		b43_upload_beacon1(dev);
@@ -1788,7 +1788,7 @@ static void b43_do_beacon_update_trigger_work(struct b43_wldev *dev)
 			/* Device interrupts are currently disabled. That means
 			 * we just ran the hardirq handler and scheduled the
 			 * IRQ thread. The thread will write the IRQ mask when
-			 * it finished, so there's nothing to do here. Writing
+			 * it finished, so there's yesthing to do here. Writing
 			 * the mask _here_ would incorrectly re-enable IRQs. */
 		}
 	}
@@ -1804,7 +1804,7 @@ static void b43_beacon_update_trigger_work(struct work_struct *work)
 	dev = wl->current_dev;
 	if (likely(dev && (b43_status(dev) >= B43_STAT_INITIALIZED))) {
 		if (b43_bus_host_is_sdio(dev->dev)) {
-			/* wl->mutex is enough. */
+			/* wl->mutex is eyesugh. */
 			b43_do_beacon_update_trigger_work(dev);
 		} else {
 			spin_lock_irq(&wl->hardirq_lock);
@@ -1815,15 +1815,15 @@ static void b43_beacon_update_trigger_work(struct work_struct *work)
 	mutex_unlock(&wl->mutex);
 }
 
-/* Asynchronously update the packet templates in template RAM. */
+/* Asynchroyesusly update the packet templates in template RAM. */
 static void b43_update_templates(struct b43_wl *wl)
 {
 	struct sk_buff *beacon, *old_beacon;
 	unsigned long flags;
 
-	/* This is the top half of the asynchronous beacon update.
+	/* This is the top half of the asynchroyesus beacon update.
 	 * The bottom half is the beacon IRQ.
-	 * Beacon update must be asynchronous to avoid sending an
+	 * Beacon update must be asynchroyesus to avoid sending an
 	 * invalid beacon. This can happen for example, if the firmware
 	 * transmits a beacon while we are updating it. */
 
@@ -1872,11 +1872,11 @@ static void b43_handle_firmware_panic(struct b43_wldev *dev)
 
 	switch (reason) {
 	default:
-		b43dbg(dev->wl, "The panic reason is unknown.\n");
+		b43dbg(dev->wl, "The panic reason is unkyeswn.\n");
 		/* fallthrough */
 	case B43_FWPANIC_DIE:
-		/* Do not restart the controller or firmware.
-		 * The device is nonfunctional from now on.
+		/* Do yest restart the controller or firmware.
+		 * The device is yesnfunctional from yesw on.
 		 * Restarting would result in this panic to trigger again,
 		 * so we avoid that recursion. */
 		break;
@@ -1949,11 +1949,11 @@ static void handle_irq_ucode_debug(struct b43_wldev *dev)
 			marker_id, marker_line);
 		break;
 	default:
-		b43dbg(dev->wl, "Debug-IRQ triggered for unknown reason: %u\n",
+		b43dbg(dev->wl, "Debug-IRQ triggered for unkyeswn reason: %u\n",
 		       reason);
 	}
 out:
-	/* Acknowledge the debug-IRQ, so the firmware can continue. */
+	/* Ackyeswledge the debug-IRQ, so the firmware can continue. */
 	b43_shm_write16(dev, B43_SHM_SCRATCH,
 			B43_DEBUGIRQ_REASON_REG, B43_DEBUGIRQ_ACK);
 }
@@ -1995,8 +1995,8 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 			dma_reason[0], dma_reason[1],
 			dma_reason[2], dma_reason[3],
 			dma_reason[4], dma_reason[5]);
-		b43err(dev->wl, "This device does not support DMA "
-			       "on your system. It will now be switched to PIO.\n");
+		b43err(dev->wl, "This device does yest support DMA "
+			       "on your system. It will yesw be switched to PIO.\n");
 		/* Fall back to PIO transfers if we get fatal DMA errors! */
 		dev->use_pio = true;
 		b43_controller_restart(dev, "DMA error");
@@ -2016,7 +2016,7 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 	if (reason & B43_IRQ_TXFIFO_FLUSH_OK)
 		;/* TODO */
 	if (reason & B43_IRQ_NOISESAMPLE_OK)
-		handle_irq_noise(dev);
+		handle_irq_yesise(dev);
 
 	/* Check the DMA reason registers for received data. */
 	if (dma_reason[0] & B43_DMAIRQ_RDESC_UFLOW) {
@@ -2069,7 +2069,7 @@ static irqreturn_t b43_do_interrupt(struct b43_wldev *dev)
 {
 	u32 reason;
 
-	/* This code runs under wl->hardirq_lock, but _only_ on non-SDIO busses.
+	/* This code runs under wl->hardirq_lock, but _only_ on yesn-SDIO busses.
 	 * On SDIO, this runs under wl->mutex. */
 
 	reason = b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);
@@ -2225,9 +2225,9 @@ int b43_do_request_fw(struct b43_request_fw_context *ctx,
 		return -ENOSYS;
 	}
 	if (async) {
-		/* do this part asynchronously */
+		/* do this part asynchroyesusly */
 		init_completion(&ctx->dev->fw_load_complete);
-		err = request_firmware_nowait(THIS_MODULE, 1, ctx->fwname,
+		err = request_firmware_yeswait(THIS_MODULE, 1, ctx->fwname,
 					      ctx->dev->dev->dev, GFP_KERNEL,
 					      ctx, b43_fw_cb);
 		if (err < 0) {
@@ -2246,7 +2246,7 @@ int b43_do_request_fw(struct b43_request_fw_context *ctx,
 	if (err == -ENOENT) {
 		snprintf(ctx->errors[ctx->req_type],
 			 sizeof(ctx->errors[ctx->req_type]),
-			 "Firmware file \"%s\" not found\n",
+			 "Firmware file \"%s\" yest found\n",
 			 ctx->fwname);
 		return err;
 	} else if (err) {
@@ -2365,7 +2365,7 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 		break;
 	}
 	if (!filename)
-		goto err_no_ucode;
+		goto err_yes_ucode;
 	err = b43_do_request_fw(ctx, filename, &fw->ucode, true);
 	if (err)
 		goto err_load;
@@ -2376,11 +2376,11 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 	else if (rev >= 11)
 		filename = NULL;
 	else
-		goto err_no_pcm;
+		goto err_yes_pcm;
 	fw->pcm_request_failed = false;
 	err = b43_do_request_fw(ctx, filename, &fw->pcm, false);
 	if (err == -ENOENT) {
-		/* We did not find a PCM file? Not fatal, but
+		/* We did yest find a PCM file? Not fatal, but
 		 * core rev <= 10 must do without hwcrypto then. */
 		fw->pcm_request_failed = true;
 	} else if (err)
@@ -2441,7 +2441,7 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 		break;
 	}
 	if (!filename)
-		goto err_no_initvals;
+		goto err_yes_initvals;
 	err = b43_do_request_fw(ctx, filename, &fw->initvals, false);
 	if (err)
 		goto err_load;
@@ -2501,7 +2501,7 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 		break;
 	}
 	if (!filename)
-		goto err_no_initvals;
+		goto err_yes_initvals;
 	err = b43_do_request_fw(ctx, filename, &fw->initvals_band, false);
 	if (err)
 		goto err_load;
@@ -2510,21 +2510,21 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 
 	return 0;
 
-err_no_ucode:
+err_yes_ucode:
 	err = ctx->fatal_failure = -EOPNOTSUPP;
-	b43err(dev->wl, "The driver does not know which firmware (ucode) "
+	b43err(dev->wl, "The driver does yest kyesw which firmware (ucode) "
 	       "is required for your device (wl-core rev %u)\n", rev);
 	goto error;
 
-err_no_pcm:
+err_yes_pcm:
 	err = ctx->fatal_failure = -EOPNOTSUPP;
-	b43err(dev->wl, "The driver does not know which firmware (PCM) "
+	b43err(dev->wl, "The driver does yest kyesw which firmware (PCM) "
 	       "is required for your device (wl-core rev %u)\n", rev);
 	goto error;
 
-err_no_initvals:
+err_yes_initvals:
 	err = ctx->fatal_failure = -EOPNOTSUPP;
-	b43err(dev->wl, "The driver does not know which firmware (initvals) "
+	b43err(dev->wl, "The driver does yest kyesw which firmware (initvals) "
 	       "is required for your device (wl-core rev %u)\n", rev);
 	goto error;
 
@@ -2562,11 +2562,11 @@ static void b43_request_firmware(struct work_struct *work)
 	err = b43_try_request_fw(ctx);
 	if (!err)
 		goto start_ieee80211; /* Successfully loaded it. */
-	/* Was fw version known? */
+	/* Was fw version kyeswn? */
 	if (ctx->fatal_failure)
 		goto out;
 
-	/* proprietary fw not found, try open source */
+	/* proprietary fw yest found, try open source */
 	ctx->req_type = B43_FWTYPE_OPENSOURCE;
 	err = b43_try_request_fw(ctx);
 	if (!err)
@@ -2574,7 +2574,7 @@ static void b43_request_firmware(struct work_struct *work)
 	if(ctx->fatal_failure)
 		goto out;
 
-	/* Could not find a usable firmware. Print the errors. */
+	/* Could yest find a usable firmware. Print the errors. */
 	for (i = 0; i < B43_NR_FWTYPES; i++) {
 		errmsg = ctx->errors[i];
 		if (strlen(errmsg))
@@ -2659,7 +2659,7 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 			break;
 		i++;
 		if (i >= 20) {
-			b43err(dev->wl, "Microcode not responding\n");
+			b43err(dev->wl, "Microcode yest responding\n");
 			b43_print_fw_helptext(dev->wl, 1);
 			err = -ENODEV;
 			goto error;
@@ -2706,12 +2706,12 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 
 		fwcapa = b43_fwcapa_read(dev);
 		if (!(fwcapa & B43_FWCAPA_HWCRYPTO) || dev->fw.pcm_request_failed) {
-			b43info(dev->wl, "Hardware crypto acceleration not supported by firmware\n");
+			b43info(dev->wl, "Hardware crypto acceleration yest supported by firmware\n");
 			/* Disable hardware crypto and fall back to software crypto. */
 			dev->hwcrypto_enabled = false;
 		}
 		/* adding QoS support should use an offline discovery mechanism */
-		WARN(fwcapa & B43_FWCAPA_QOS, "QoS in OpenFW not supported\n");
+		WARN(fwcapa & B43_FWCAPA_QOS, "QoS in OpenFW yest supported\n");
 	} else {
 		b43info(dev->wl, "Loading firmware version %u.%u "
 			"(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n",
@@ -2879,7 +2879,7 @@ static int b43_gpio_init(struct b43_wldev *dev)
 		set &= 0x2; /* 0x2 is LED GPIO on BCM5354 */
 	}
 
-	if (0 /* FIXME: conditional unknown */ ) {
+	if (0 /* FIXME: conditional unkyeswn */ ) {
 		b43_write16(dev, B43_MMIO_GPIO_MASK,
 			    b43_read16(dev, B43_MMIO_GPIO_MASK)
 			    | 0x0100);
@@ -3348,7 +3348,7 @@ static void b43_periodic_every60sec(struct b43_wldev *dev)
 	if (ops->pwork_60sec)
 		ops->pwork_60sec(dev);
 
-	/* Force check the TX power emission now. */
+	/* Force check the TX power emission yesw. */
 	b43_phy_txpower_check(dev, B43_TXPWR_IGNORE_TIME);
 }
 
@@ -3419,7 +3419,7 @@ static void do_periodic_work(struct b43_wldev *dev)
 
 /* Periodic work locking policy:
  * 	The whole periodic work handler is protected by
- * 	wl->mutex. If another lock is needed somewhere in the
+ * 	wl->mutex. If ayesther lock is needed somewhere in the
  * 	pwork callchain, it's acquired in-place, where it's needed.
  */
 static void b43_periodic_work_handler(struct work_struct *work)
@@ -3475,7 +3475,7 @@ static int b43_validate_chipaccess(struct b43_wldev *dev)
 		goto error;
 
 	/* Check if unaligned 32bit SHM_SHARED access works properly.
-	 * However, don't bail out on failure, because it's noncritical. */
+	 * However, don't bail out on failure, because it's yesncritical. */
 	b43_shm_write16(dev, B43_SHM_SHARED, 0, 0x1122);
 	b43_shm_write16(dev, B43_SHM_SHARED, 2, 0x3344);
 	b43_shm_write16(dev, B43_SHM_SHARED, 4, 0x5566);
@@ -3790,8 +3790,8 @@ static int b43_op_conf_tx(struct ieee80211_hw *hw,
 	int err = -ENODEV;
 
 	if (queue >= ARRAY_SIZE(wl->qos_params)) {
-		/* Queue not available or don't support setting
-		 * params on this queue. Return success to not
+		/* Queue yest available or don't support setting
+		 * params on this queue. Return success to yest
 		 * confuse mac80211. */
 		return 0;
 	}
@@ -4162,7 +4162,7 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	int err;
 	static const u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	if (modparam_nohwcrypt)
+	if (modparam_yeshwcrypt)
 		return -ENOSPC; /* User disabled HW-crypto */
 
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||
@@ -4171,7 +4171,7 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	     key->cipher == WLAN_CIPHER_SUITE_CCMP) &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
 		/*
-		 * For now, disable hw crypto for the RSN IBSS group keys. This
+		 * For yesw, disable hw crypto for the RSN IBSS group keys. This
 		 * could be optimized in the future, but until that gets
 		 * implemented, use of software crypto for group addressed
 		 * frames is a acceptable to allow RSN IBSS to be used.
@@ -4345,7 +4345,7 @@ redo:
 	/* Disable interrupts on the device. */
 	b43_set_status(dev, B43_STAT_INITIALIZED);
 	if (b43_bus_host_is_sdio(dev->dev)) {
-		/* wl->mutex is locked. That is enough. */
+		/* wl->mutex is locked. That is eyesugh. */
 		b43_write32(dev, B43_MMIO_GEN_IRQ_MASK, 0);
 		b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);	/* Flush */
 	} else {
@@ -4401,7 +4401,7 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	if (b43_bus_host_is_sdio(dev->dev)) {
 		err = b43_sdio_request_irq(dev, b43_sdio_interrupt_handler);
 		if (err) {
-			b43err(dev->wl, "Cannot request SDIO IRQ\n");
+			b43err(dev->wl, "Canyest request SDIO IRQ\n");
 			goto out;
 		}
 	} else {
@@ -4409,7 +4409,7 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 					   b43_interrupt_thread_handler,
 					   IRQF_SHARED, KBUILD_MODNAME, dev);
 		if (err) {
-			b43err(dev->wl, "Cannot request IRQ-%d\n",
+			b43err(dev->wl, "Canyest request IRQ-%d\n",
 			       dev->dev->irq);
 			goto out;
 		}
@@ -4580,7 +4580,7 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		radio_manuf = (tmp & 0x00000FFF);
 		radio_id = (tmp & 0x0FFFF000) >> 12;
 		radio_rev = (tmp & 0xF0000000) >> 28;
-		radio_ver = 0; /* Probably not available on old hw */
+		radio_ver = 0; /* Probably yest available on old hw */
 	}
 
 	if (radio_manuf != 0x17F /* Broadcom */)
@@ -4631,7 +4631,7 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		"Found Radio: Manuf 0x%X, ID 0x%X, Revision %u, Version %u\n",
 		radio_manuf, radio_id, radio_rev, radio_ver);
 
-	/* FIXME: b43 treats "id" as "ver" and ignores the real "ver" */
+	/* FIXME: b43 treats "id" as "ver" and igyesres the real "ver" */
 	phy->radio_manuf = radio_manuf;
 	phy->radio_ver = radio_id;
 	phy->radio_rev = radio_rev;
@@ -4661,7 +4661,7 @@ static void setup_struct_wldev_for_init(struct b43_wldev *dev)
 {
 	dev->dfq_valid = false;
 
-	/* Assume the radio is enabled. If it's not enabled, the state will
+	/* Assume the radio is enabled. If it's yest enabled, the state will
 	 * immediately get fixed on the first periodic work run. */
 	dev->radio_hw_enable = true;
 
@@ -4680,7 +4680,7 @@ static void setup_struct_wldev_for_init(struct b43_wldev *dev)
 	dev->mac_suspended = 1;
 
 	/* Noise calculation context */
-	memset(&dev->noisecalc, 0, sizeof(dev->noisecalc));
+	memset(&dev->yesisecalc, 0, sizeof(dev->yesisecalc));
 }
 
 static void b43_bluetooth_coext_enable(struct b43_wldev *dev)
@@ -4919,7 +4919,7 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 		err = b43_pio_init(dev);
 	} else if (dev->use_pio) {
 		b43warn(dev->wl, "Forced PIO by use_pio module parameter. "
-			"This should not be needed and will result in lower "
+			"This should yest be needed and will result in lower "
 			"performance.\n");
 		dev->__using_pio_transfers = true;
 		err = b43_pio_init(dev);
@@ -5109,9 +5109,9 @@ static int b43_op_beacon_set_tim(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static void b43_op_sta_notify(struct ieee80211_hw *hw,
+static void b43_op_sta_yestify(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
-			      enum sta_notify_cmd notify_cmd,
+			      enum sta_yestify_cmd yestify_cmd,
 			      struct ieee80211_sta *sta)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
@@ -5119,7 +5119,7 @@ static void b43_op_sta_notify(struct ieee80211_hw *hw,
 	B43_WARN_ON(!vif || wl->vif != vif);
 }
 
-static void b43_op_sw_scan_start_notifier(struct ieee80211_hw *hw,
+static void b43_op_sw_scan_start_yestifier(struct ieee80211_hw *hw,
 					  struct ieee80211_vif *vif,
 					  const u8 *mac_addr)
 {
@@ -5135,7 +5135,7 @@ static void b43_op_sw_scan_start_notifier(struct ieee80211_hw *hw,
 	mutex_unlock(&wl->mutex);
 }
 
-static void b43_op_sw_scan_complete_notifier(struct ieee80211_hw *hw,
+static void b43_op_sw_scan_complete_yestifier(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
@@ -5162,7 +5162,7 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
 
 	survey->channel = conf->chandef.chan;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
-	survey->noise = dev->stats.link_noise;
+	survey->yesise = dev->stats.link_yesise;
 
 	return 0;
 }
@@ -5183,14 +5183,14 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.start			= b43_op_start,
 	.stop			= b43_op_stop,
 	.set_tim		= b43_op_beacon_set_tim,
-	.sta_notify		= b43_op_sta_notify,
-	.sw_scan_start		= b43_op_sw_scan_start_notifier,
-	.sw_scan_complete	= b43_op_sw_scan_complete_notifier,
+	.sta_yestify		= b43_op_sta_yestify,
+	.sw_scan_start		= b43_op_sw_scan_start_yestifier,
+	.sw_scan_complete	= b43_op_sw_scan_complete_yestifier,
 	.get_survey		= b43_op_get_survey,
 	.rfkill_poll		= b43_rfkill_poll,
 };
 
-/* Hard-reset the chip. Do not call this directly.
+/* Hard-reset the chip. Do yest call this directly.
  * Use b43_controller_restart()
  */
 static void b43_chip_reset(struct work_struct *work)
@@ -5281,7 +5281,7 @@ static int b43_setup_bands(struct b43_wldev *dev,
 
 static void b43_wireless_core_detach(struct b43_wldev *dev)
 {
-	/* We release firmware that late to not be required to re-request
+	/* We release firmware that late to yest be required to re-request
 	 * is all the time when we reinit the core. */
 	b43_release_firmware(dev);
 	b43_phy_free(dev);
@@ -5306,7 +5306,7 @@ static void b43_supported_bands(struct b43_wldev *dev, bool *have_2ghz_phy,
 	if (dev->dev->bus_sprom->dev_id)
 		dev_id = dev->dev->bus_sprom->dev_id;
 
-	/* Note: below IDs can be "virtual" (not maching e.g. real PCI ID) */
+	/* Note: below IDs can be "virtual" (yest maching e.g. real PCI ID) */
 	switch (dev_id) {
 	case 0x4324: /* BCM4306 */
 	case 0x4312: /* BCM4311 */
@@ -5469,7 +5469,7 @@ static void b43_one_core_detach(struct b43_bus_dev *dev)
 {
 	struct b43_wldev *wldev;
 
-	/* Do not cancel ieee80211-workqueue based work here.
+	/* Do yest cancel ieee80211-workqueue based work here.
 	 * See comment in b43_remove(). */
 
 	wldev = b43_bus_get_wldev(dev);
@@ -5561,7 +5561,7 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &b43_hw_ops);
 	if (!hw) {
-		b43err(NULL, "Could not allocate ieee80211 device\n");
+		b43err(NULL, "Could yest allocate ieee80211 device\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	wl = hw_to_b43_wl(hw);
@@ -5703,7 +5703,7 @@ int b43_ssb_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
 
 	wl = ssb_get_devtypedata(sdev);
 	if (wl) {
-		b43err(NULL, "Dual-core devices are not supported\n");
+		b43err(NULL, "Dual-core devices are yest supported\n");
 		err = -ENOTSUPP;
 		goto err_ssb_kfree_dev;
 	}

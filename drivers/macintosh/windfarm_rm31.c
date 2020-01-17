@@ -6,7 +6,7 @@
  * Copyright (C) 2012 Benjamin Herrenschmidt, IBM Corp.
  */
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -101,7 +101,7 @@ static void cpu_max_all_fans(void)
 	int i;
 
 	/* We max all CPU fans in case of a sensor error. We also do the
-	 * cpufreq clamping now, even if it's supposedly done later by the
+	 * cpufreq clamping yesw, even if it's supposedly done later by the
 	 * generic code anyway, we do it earlier here to react faster
 	 */
 	if (cpufreq_clamp)
@@ -180,7 +180,7 @@ static int cpu_check_overtemp(s32 temp)
 	}
 
 	/* Now handle overtemp conditions. We don't currently use the windfarm
-	 * overtemp handling core as it's not fully suited to the needs of those
+	 * overtemp handling core as it's yest fully suited to the needs of those
 	 * new machine. This will be fixed later.
 	 */
 	if (new_state) {
@@ -559,7 +559,7 @@ static void rm31_tick(void)
 	if (failure_state == 0 && last_failure && cpufreq_clamp)
 		wf_control_set_min(cpufreq_clamp);
 
-	/* That's it for now, we might want to deal with other failures
+	/* That's it for yesw, we might want to deal with other failures
 	 * differently in the future though
 	 */
 }
@@ -641,7 +641,7 @@ static void rm31_new_sensor(struct wf_sensor *sr)
 	have_all_sensors = all_sensors;
 }
 
-static int rm31_wf_notify(struct notifier_block *self,
+static int rm31_wf_yestify(struct yestifier_block *self,
 			  unsigned long event, void *data)
 {
 	switch (event) {
@@ -658,8 +658,8 @@ static int rm31_wf_notify(struct notifier_block *self,
 	return 0;
 }
 
-static struct notifier_block rm31_events = {
-	.notifier_call = rm31_wf_notify,
+static struct yestifier_block rm31_events = {
+	.yestifier_call = rm31_wf_yestify,
 };
 
 static int wf_rm31_probe(struct platform_device *dev)
@@ -686,7 +686,7 @@ static struct platform_driver wf_rm31_driver = {
 
 static int __init wf_rm31_init(void)
 {
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 	int i;
 
 	if (!of_machine_is_compatible("RackMac3,1"))
@@ -694,7 +694,7 @@ static int __init wf_rm31_init(void)
 
 	/* Count the number of CPU cores */
 	nr_chips = 0;
-	for_each_node_by_type(cpu, "cpu")
+	for_each_yesde_by_type(cpu, "cpu")
 		++nr_chips;
 	if (nr_chips > NR_CHIPS)
 		nr_chips = NR_CHIPS;

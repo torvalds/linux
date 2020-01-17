@@ -5,10 +5,10 @@
  * Reference Manual : https://static.dev.sifive.com/FU540-C000-v1.0.pdf
  *
  * Limitations:
- * - When changing both duty cycle and period, we cannot prevent in
+ * - When changing both duty cycle and period, we canyest prevent in
  *   software that the output might produce a period with mixed
  *   settings (new period length and old duty cycle).
- * - The hardware cannot generate a 100% duty cycle.
+ * - The hardware canyest generate a 100% duty cycle.
  * - The hardware generates only inverted output.
  */
 #include <linux/clk.h>
@@ -44,7 +44,7 @@
 struct pwm_sifive_ddata {
 	struct pwm_chip	chip;
 	struct mutex lock; /* lock to protect user_count */
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 	struct clk *clk;
 	void __iomem *regs;
 	unsigned int real_period;
@@ -99,7 +99,7 @@ static void pwm_sifive_update_clock(struct pwm_sifive_ddata *ddata,
 	      FIELD_PREP(PWM_SIFIVE_PWMCFG_SCALE, scale);
 	writel(val, ddata->regs + PWM_SIFIVE_PWMCFG);
 
-	/* As scale <= 15 the shift operation cannot overflow. */
+	/* As scale <= 15 the shift operation canyest overflow. */
 	num = (unsigned long long)NSEC_PER_SEC << (PWM_SIFIVE_CMPWIDTH + scale);
 	ddata->real_period = div64_ul(num, rate);
 	dev_dbg(ddata->chip.dev,
@@ -182,7 +182,7 @@ static int pwm_sifive_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	num = (u64)duty_cycle * (1U << PWM_SIFIVE_CMPWIDTH);
 	frac = DIV_ROUND_CLOSEST_ULL(num, state->period);
-	/* The hardware cannot generate a 100% duty cycle */
+	/* The hardware canyest generate a 100% duty cycle */
 	frac = min(frac, (1U << PWM_SIFIVE_CMPWIDTH) - 1);
 
 	if (state->period != ddata->approx_period) {
@@ -214,12 +214,12 @@ static const struct pwm_ops pwm_sifive_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int pwm_sifive_clock_notifier(struct notifier_block *nb,
+static int pwm_sifive_clock_yestifier(struct yestifier_block *nb,
 				     unsigned long event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_yestifier_data *ndata = data;
 	struct pwm_sifive_ddata *ddata =
-		container_of(nb, struct pwm_sifive_ddata, notifier);
+		container_of(nb, struct pwm_sifive_ddata, yestifier);
 
 	if (event == POST_RATE_CHANGE)
 		pwm_sifive_update_clock(ddata, ndata->new_rate);
@@ -267,16 +267,16 @@ static int pwm_sifive_probe(struct platform_device *pdev)
 	}
 
 	/* Watch for changes to underlying clock frequency */
-	ddata->notifier.notifier_call = pwm_sifive_clock_notifier;
-	ret = clk_notifier_register(ddata->clk, &ddata->notifier);
+	ddata->yestifier.yestifier_call = pwm_sifive_clock_yestifier;
+	ret = clk_yestifier_register(ddata->clk, &ddata->yestifier);
 	if (ret) {
-		dev_err(dev, "failed to register clock notifier: %d\n", ret);
+		dev_err(dev, "failed to register clock yestifier: %d\n", ret);
 		goto disable_clk;
 	}
 
 	ret = pwmchip_add(chip);
 	if (ret < 0) {
-		dev_err(dev, "cannot register PWM: %d\n", ret);
+		dev_err(dev, "canyest register PWM: %d\n", ret);
 		goto unregister_clk;
 	}
 
@@ -286,7 +286,7 @@ static int pwm_sifive_probe(struct platform_device *pdev)
 	return 0;
 
 unregister_clk:
-	clk_notifier_unregister(ddata->clk, &ddata->notifier);
+	clk_yestifier_unregister(ddata->clk, &ddata->yestifier);
 disable_clk:
 	clk_disable_unprepare(ddata->clk);
 
@@ -312,7 +312,7 @@ static int pwm_sifive_remove(struct platform_device *dev)
 
 	clk_disable_unprepare(ddata->clk);
 	ret = pwmchip_remove(&ddata->chip);
-	clk_notifier_unregister(ddata->clk, &ddata->notifier);
+	clk_yestifier_unregister(ddata->clk, &ddata->yestifier);
 
 	return ret;
 }

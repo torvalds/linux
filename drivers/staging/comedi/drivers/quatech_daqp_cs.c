@@ -98,12 +98,12 @@
 #define DAQP_PACER_HIGH_REG		0x06
 
 #define DAQP_CMD_REG			0x07
-/* the monostable bits are self-clearing after the function is complete */
-#define DAQP_CMD_ARM			BIT(7)	/* monostable */
-#define DAQP_CMD_RSTF			BIT(6)	/* monostable */
-#define DAQP_CMD_RSTQ			BIT(5)	/* monostable */
-#define DAQP_CMD_STOP			BIT(4)	/* monostable */
-#define DAQP_CMD_LATCH			BIT(3)	/* monostable */
+/* the moyesstable bits are self-clearing after the function is complete */
+#define DAQP_CMD_ARM			BIT(7)	/* moyesstable */
+#define DAQP_CMD_RSTF			BIT(6)	/* moyesstable */
+#define DAQP_CMD_RSTQ			BIT(5)	/* moyesstable */
+#define DAQP_CMD_STOP			BIT(4)	/* moyesstable */
+#define DAQP_CMD_LATCH			BIT(3)	/* moyesstable */
 #define DAQP_CMD_SCANRATE(x)		(((x) & 0x3) << 1)
 #define DAQP_CMD_SCANRATE_100KHZ	DAQP_CMD_SCANRATE(0)
 #define DAQP_CMD_SCANRATE_50KHZ		DAQP_CMD_SCANRATE(1)
@@ -142,7 +142,7 @@
 
 #define DAQP_FIFO_SIZE			4096
 
-#define DAQP_MAX_TIMER_SPEED		10000	/* 100 kHz in nanoseconds */
+#define DAQP_MAX_TIMER_SPEED		10000	/* 100 kHz in nayesseconds */
 
 struct daqp_private {
 	unsigned int pacer_div;
@@ -315,7 +315,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	/* Reset data FIFO (see page 28 of DAQP User's Manual) */
 	outb(DAQP_CMD_RSTF, dev->iobase + DAQP_CMD_REG);
 
-	/* Set trigger - one-shot, internal, no interrupts */
+	/* Set trigger - one-shot, internal, yes interrupts */
 	outb(DAQP_CTRL_PACER_CLK_100KHZ, dev->iobase + DAQP_CTRL_REG);
 
 	ret = daqp_clear_events(dev, 10000);
@@ -344,7 +344,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 	return ret ? ret : insn->n;
 }
 
-/* This function converts ns nanoseconds to a counter value suitable
+/* This function converts ns nayesseconds to a counter value suitable
  * for programming the device.  We always use the DAQP's 5 MHz clock,
  * which with its 24-bit counter, allows values up to 84 seconds.
  * Also, the function adjusts ns so that it cooresponds to the actual
@@ -546,25 +546,25 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * = 3^3 * 2).  Hmmm... a one-line while loop or prime
 	 * decomposition of integers... I'll leave it the way it is.
 	 *
-	 * I'll also note a mini-race condition before ignoring it in
+	 * I'll also yeste a mini-race condition before igyesring it in
 	 * the code.  Let's say we're taking 4000 samples, as before.
 	 * After 1000 samples, we get an interrupt.  But before that
-	 * interrupt is completely serviced, another sample is taken
+	 * interrupt is completely serviced, ayesther sample is taken
 	 * and loaded into the FIFO.  Since the interrupt handler
 	 * empties the FIFO before returning, it will read 1001 samples.
 	 * If that happens four times, we'll end up taking 4004 samples,
-	 * not 4000.  The interrupt handler will discard the extra four
+	 * yest 4000.  The interrupt handler will discard the extra four
 	 * samples (by halting the acquisition with four samples still
 	 * in the FIFO), but we will have to wait for them.
 	 *
 	 * In short, this code works pretty well, but for either of
-	 * the two reasons noted, might end up waiting for a few more
+	 * the two reasons yested, might end up waiting for a few more
 	 * samples than actually requested.  Shouldn't make too much
 	 * of a difference.
 	 */
 
 	/* Save away the number of conversions we should perform, and
-	 * compute the FIFO threshold (in bytes, not samples - that's
+	 * compute the FIFO threshold (in bytes, yest samples - that's
 	 * why we multiple devpriv->count by 2 = sizeof(sample))
 	 */
 
@@ -756,9 +756,9 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	 *
 	 * Chan  Normal Mode        Expansion Mode
 	 * ----  -----------------  ----------------------------
-	 *  0    DI0, ext. trigger  Same as normal mode
+	 *  0    DI0, ext. trigger  Same as yesrmal mode
 	 *  1    DI1                External gain select, lo bit
-	 *  2    DI2, ext. clock    Same as normal mode
+	 *  2    DI2, ext. clock    Same as yesrmal mode
 	 *  3    DI3                External gain select, hi bit
 	 */
 	s = &dev->subdevices[2];
@@ -772,7 +772,7 @@ static int daqp_auto_attach(struct comedi_device *dev,
 	 * Digital Output subdevice
 	 * NOTE: The digital output lines share the same pins on the
 	 * interface connector as the four external channel selection
-	 * bits. If expansion mode is used the digital outputs do not
+	 * bits. If expansion mode is used the digital outputs do yest
 	 * work.
 	 */
 	s = &dev->subdevices[3];

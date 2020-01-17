@@ -252,7 +252,7 @@ static int __init jive_mtdset(char *options)
 		/* this is already setup in the nand info */
 		break;
 	default:
-		printk(KERN_ERR "Unknown mtd set %ld specified,"
+		printk(KERN_ERR "Unkyeswn mtd set %ld specified,"
 		       "using default.", set);
 	}
 
@@ -547,7 +547,7 @@ static void __init jive_machine_init(void)
 	register_syscore_ops(&jive_pm_syscore_ops);
 
 	/* write our sleep configurations for the IO. Pull down all unused
-	 * IO, ensure that we have turned off all peripherals we do not
+	 * IO, ensure that we have turned off all peripherals we do yest
 	 * need, and configure the ones we do need. */
 
 	/* Port B sleep */
@@ -632,7 +632,7 @@ static void __init jive_machine_init(void)
 		     S3C2412_SLPCON_PULL(9) |
 		     S3C2412_SLPCON_IN(10), S3C2412_GPHSLPCON);
 
-	/* initialise the power management now we've setup everything. */
+	/* initialise the power management yesw we've setup everything. */
 
 	s3c_pm_init();
 

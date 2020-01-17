@@ -18,8 +18,8 @@
 #define F2FS_MIN_SEGMENTS	9 /* SB + 2 (CP + SIT + NAT) + SSA + MAIN */
 
 /* L: Logical segment # in volume, R: Relative segment # in main area */
-#define GET_L2R_SEGNO(free_i, segno)	((segno) - (free_i)->start_segno)
-#define GET_R2L_SEGNO(free_i, segno)	((segno) + (free_i)->start_segno)
+#define GET_L2R_SEGNO(free_i, segyes)	((segyes) - (free_i)->start_segyes)
+#define GET_R2L_SEGNO(free_i, segyes)	((segyes) + (free_i)->start_segyes)
 
 #define IS_DATASEG(t)	((t) <= CURSEG_COLD_DATA)
 #define IS_NODESEG(t)	((t) >= CURSEG_HOT_NODE)
@@ -29,25 +29,25 @@
 #define IS_COLD(t)	((t) == CURSEG_COLD_NODE || (t) == CURSEG_COLD_DATA)
 
 #define IS_CURSEG(sbi, seg)						\
-	(((seg) == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_WARM_DATA)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_COLD_DATA)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno) ||	\
-	 ((seg) == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno))
+	(((seg) == CURSEG_I(sbi, CURSEG_HOT_DATA)->segyes) ||	\
+	 ((seg) == CURSEG_I(sbi, CURSEG_WARM_DATA)->segyes) ||	\
+	 ((seg) == CURSEG_I(sbi, CURSEG_COLD_DATA)->segyes) ||	\
+	 ((seg) == CURSEG_I(sbi, CURSEG_HOT_NODE)->segyes) ||	\
+	 ((seg) == CURSEG_I(sbi, CURSEG_WARM_NODE)->segyes) ||	\
+	 ((seg) == CURSEG_I(sbi, CURSEG_COLD_NODE)->segyes))
 
-#define IS_CURSEC(sbi, secno)						\
-	(((secno) == CURSEG_I(sbi, CURSEG_HOT_DATA)->segno /		\
+#define IS_CURSEC(sbi, secyes)						\
+	(((secyes) == CURSEG_I(sbi, CURSEG_HOT_DATA)->segyes /		\
 	  (sbi)->segs_per_sec) ||	\
-	 ((secno) == CURSEG_I(sbi, CURSEG_WARM_DATA)->segno /		\
+	 ((secyes) == CURSEG_I(sbi, CURSEG_WARM_DATA)->segyes /		\
 	  (sbi)->segs_per_sec) ||	\
-	 ((secno) == CURSEG_I(sbi, CURSEG_COLD_DATA)->segno /		\
+	 ((secyes) == CURSEG_I(sbi, CURSEG_COLD_DATA)->segyes /		\
 	  (sbi)->segs_per_sec) ||	\
-	 ((secno) == CURSEG_I(sbi, CURSEG_HOT_NODE)->segno /		\
+	 ((secyes) == CURSEG_I(sbi, CURSEG_HOT_NODE)->segyes /		\
 	  (sbi)->segs_per_sec) ||	\
-	 ((secno) == CURSEG_I(sbi, CURSEG_WARM_NODE)->segno /		\
+	 ((secyes) == CURSEG_I(sbi, CURSEG_WARM_NODE)->segyes /		\
 	  (sbi)->segs_per_sec) ||	\
-	 ((secno) == CURSEG_I(sbi, CURSEG_COLD_NODE)->segno /		\
+	 ((secyes) == CURSEG_I(sbi, CURSEG_COLD_NODE)->segyes /		\
 	  (sbi)->segs_per_sec))	\
 
 #define MAIN_BLKADDR(sbi)						\
@@ -69,11 +69,11 @@
 #define SEGMENT_SIZE(sbi)	(1ULL << ((sbi)->log_blocksize +	\
 					(sbi)->log_blocks_per_seg))
 
-#define START_BLOCK(sbi, segno)	(SEG0_BLKADDR(sbi) +			\
-	 (GET_R2L_SEGNO(FREE_I(sbi), segno) << (sbi)->log_blocks_per_seg))
+#define START_BLOCK(sbi, segyes)	(SEG0_BLKADDR(sbi) +			\
+	 (GET_R2L_SEGNO(FREE_I(sbi), segyes) << (sbi)->log_blocks_per_seg))
 
 #define NEXT_FREE_BLKADDR(sbi, curseg)					\
-	(START_BLOCK(sbi, (curseg)->segno) + (curseg)->next_blkoff)
+	(START_BLOCK(sbi, (curseg)->segyes) + (curseg)->next_blkoff)
 
 #define GET_SEGOFF_FROM_SEG0(sbi, blk_addr)	((blk_addr) - SEG0_BLKADDR(sbi))
 #define GET_SEGNO_FROM_SEG0(sbi, blk_addr)				\
@@ -87,27 +87,27 @@
 		GET_SEGNO_FROM_SEG0(sbi, blk_addr)))
 #define BLKS_PER_SEC(sbi)					\
 	((sbi)->segs_per_sec * (sbi)->blocks_per_seg)
-#define GET_SEC_FROM_SEG(sbi, segno)				\
-	((segno) / (sbi)->segs_per_sec)
-#define GET_SEG_FROM_SEC(sbi, secno)				\
-	((secno) * (sbi)->segs_per_sec)
-#define GET_ZONE_FROM_SEC(sbi, secno)				\
-	((secno) / (sbi)->secs_per_zone)
-#define GET_ZONE_FROM_SEG(sbi, segno)				\
-	GET_ZONE_FROM_SEC(sbi, GET_SEC_FROM_SEG(sbi, segno))
+#define GET_SEC_FROM_SEG(sbi, segyes)				\
+	((segyes) / (sbi)->segs_per_sec)
+#define GET_SEG_FROM_SEC(sbi, secyes)				\
+	((secyes) * (sbi)->segs_per_sec)
+#define GET_ZONE_FROM_SEC(sbi, secyes)				\
+	((secyes) / (sbi)->secs_per_zone)
+#define GET_ZONE_FROM_SEG(sbi, segyes)				\
+	GET_ZONE_FROM_SEC(sbi, GET_SEC_FROM_SEG(sbi, segyes))
 
-#define GET_SUM_BLOCK(sbi, segno)				\
-	((sbi)->sm_info->ssa_blkaddr + (segno))
+#define GET_SUM_BLOCK(sbi, segyes)				\
+	((sbi)->sm_info->ssa_blkaddr + (segyes))
 
 #define GET_SUM_TYPE(footer) ((footer)->entry_type)
 #define SET_SUM_TYPE(footer, type) ((footer)->entry_type = (type))
 
-#define SIT_ENTRY_OFFSET(sit_i, segno)					\
-	((segno) % (sit_i)->sents_per_block)
-#define SIT_BLOCK_OFFSET(segno)					\
-	((segno) / SIT_ENTRY_PER_BLOCK)
-#define	START_SEGNO(segno)		\
-	(SIT_BLOCK_OFFSET(segno) * SIT_ENTRY_PER_BLOCK)
+#define SIT_ENTRY_OFFSET(sit_i, segyes)					\
+	((segyes) % (sit_i)->sents_per_block)
+#define SIT_BLOCK_OFFSET(segyes)					\
+	((segyes) / SIT_ENTRY_PER_BLOCK)
+#define	START_SEGNO(segyes)		\
+	(SIT_BLOCK_OFFSET(segyes) * SIT_ENTRY_PER_BLOCK)
 #define SIT_BLK_CNT(sbi)			\
 	DIV_ROUND_UP(MAIN_SEGS(sbi), SIT_ENTRY_PER_BLOCK)
 #define f2fs_bitmap_size(nr)			\
@@ -171,7 +171,7 @@ struct victim_sel_policy {
 	unsigned int offset;		/* last scanned bitmap offset */
 	unsigned int ofs_unit;		/* bitmap search unit */
 	unsigned int min_cost;		/* minimum cost */
-	unsigned int min_segno;		/* segment # having min. cost */
+	unsigned int min_segyes;		/* segment # having min. cost */
 };
 
 struct seg_entry {
@@ -231,7 +231,7 @@ struct sit_info {
 #ifdef CONFIG_F2FS_CHECK_FS
 	char *sit_bitmap_mir;		/* SIT bitmap mirror */
 
-	/* bitmap of segments to be ignored by GC in case of errors */
+	/* bitmap of segments to be igyesred by GC in case of errors */
 	unsigned long *invalid_segmap;
 #endif
 	unsigned int bitmap_size;	/* SIT bitmap size */
@@ -254,7 +254,7 @@ struct sit_info {
 };
 
 struct free_segmap_info {
-	unsigned int start_segno;	/* start segment number logically */
+	unsigned int start_segyes;	/* start segment number logically */
 	unsigned int free_segments;	/* # of free segments */
 	unsigned int free_sections;	/* # of free sections */
 	spinlock_t segmap_lock;		/* free segmap lock */
@@ -267,9 +267,9 @@ enum dirty_type {
 	DIRTY_HOT_DATA,		/* dirty segments assigned as hot data logs */
 	DIRTY_WARM_DATA,	/* dirty segments assigned as warm data logs */
 	DIRTY_COLD_DATA,	/* dirty segments assigned as cold data logs */
-	DIRTY_HOT_NODE,		/* dirty segments assigned as hot node logs */
-	DIRTY_WARM_NODE,	/* dirty segments assigned as warm node logs */
-	DIRTY_COLD_NODE,	/* dirty segments assigned as cold node logs */
+	DIRTY_HOT_NODE,		/* dirty segments assigned as hot yesde logs */
+	DIRTY_WARM_NODE,	/* dirty segments assigned as warm yesde logs */
+	DIRTY_COLD_NODE,	/* dirty segments assigned as cold yesde logs */
 	DIRTY,			/* to count # of dirty segments */
 	PRE,			/* to count # of entirely obsolete segments */
 	NR_DIRTY_TYPE
@@ -296,15 +296,15 @@ struct curseg_info {
 	struct rw_semaphore journal_rwsem;	/* protect journal area */
 	struct f2fs_journal *journal;		/* cached journal info */
 	unsigned char alloc_type;		/* current allocation type */
-	unsigned int segno;			/* current segment number */
+	unsigned int segyes;			/* current segment number */
 	unsigned short next_blkoff;		/* next block offset to write */
 	unsigned int zone;			/* current zone number */
-	unsigned int next_segno;		/* preallocated segment */
+	unsigned int next_segyes;		/* preallocated segment */
 };
 
 struct sit_entry_set {
 	struct list_head set_list;	/* link with all sit sets */
-	unsigned int start_segno;	/* start segno of sits in set */
+	unsigned int start_segyes;	/* start segyes of sits in set */
 	unsigned int entry_cnt;		/* the # of sit entries in set */
 };
 
@@ -319,36 +319,36 @@ static inline struct curseg_info *CURSEG_I(struct f2fs_sb_info *sbi, int type)
 }
 
 static inline struct seg_entry *get_seg_entry(struct f2fs_sb_info *sbi,
-						unsigned int segno)
+						unsigned int segyes)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
-	return &sit_i->sentries[segno];
+	return &sit_i->sentries[segyes];
 }
 
 static inline struct sec_entry *get_sec_entry(struct f2fs_sb_info *sbi,
-						unsigned int segno)
+						unsigned int segyes)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
-	return &sit_i->sec_entries[GET_SEC_FROM_SEG(sbi, segno)];
+	return &sit_i->sec_entries[GET_SEC_FROM_SEG(sbi, segyes)];
 }
 
 static inline unsigned int get_valid_blocks(struct f2fs_sb_info *sbi,
-				unsigned int segno, bool use_section)
+				unsigned int segyes, bool use_section)
 {
 	/*
 	 * In order to get # of valid blocks in a section instantly from many
 	 * segments, f2fs manages two counting structures separately.
 	 */
 	if (use_section && __is_large_section(sbi))
-		return get_sec_entry(sbi, segno)->valid_blocks;
+		return get_sec_entry(sbi, segyes)->valid_blocks;
 	else
-		return get_seg_entry(sbi, segno)->valid_blocks;
+		return get_seg_entry(sbi, segyes)->valid_blocks;
 }
 
 static inline unsigned int get_ckpt_valid_blocks(struct f2fs_sb_info *sbi,
-				unsigned int segno)
+				unsigned int segyes)
 {
-	return get_seg_entry(sbi, segno)->ckpt_valid_blocks;
+	return get_seg_entry(sbi, segyes)->ckpt_valid_blocks;
 }
 
 static inline void seg_info_from_raw_sit(struct seg_entry *se,
@@ -404,65 +404,65 @@ static inline void seg_info_to_raw_sit(struct seg_entry *se,
 }
 
 static inline unsigned int find_next_inuse(struct free_segmap_info *free_i,
-		unsigned int max, unsigned int segno)
+		unsigned int max, unsigned int segyes)
 {
 	unsigned int ret;
 	spin_lock(&free_i->segmap_lock);
-	ret = find_next_bit(free_i->free_segmap, max, segno);
+	ret = find_next_bit(free_i->free_segmap, max, segyes);
 	spin_unlock(&free_i->segmap_lock);
 	return ret;
 }
 
-static inline void __set_free(struct f2fs_sb_info *sbi, unsigned int segno)
+static inline void __set_free(struct f2fs_sb_info *sbi, unsigned int segyes)
 {
 	struct free_segmap_info *free_i = FREE_I(sbi);
-	unsigned int secno = GET_SEC_FROM_SEG(sbi, segno);
-	unsigned int start_segno = GET_SEG_FROM_SEC(sbi, secno);
+	unsigned int secyes = GET_SEC_FROM_SEG(sbi, segyes);
+	unsigned int start_segyes = GET_SEG_FROM_SEC(sbi, secyes);
 	unsigned int next;
 
 	spin_lock(&free_i->segmap_lock);
-	clear_bit(segno, free_i->free_segmap);
+	clear_bit(segyes, free_i->free_segmap);
 	free_i->free_segments++;
 
 	next = find_next_bit(free_i->free_segmap,
-			start_segno + sbi->segs_per_sec, start_segno);
-	if (next >= start_segno + sbi->segs_per_sec) {
-		clear_bit(secno, free_i->free_secmap);
+			start_segyes + sbi->segs_per_sec, start_segyes);
+	if (next >= start_segyes + sbi->segs_per_sec) {
+		clear_bit(secyes, free_i->free_secmap);
 		free_i->free_sections++;
 	}
 	spin_unlock(&free_i->segmap_lock);
 }
 
 static inline void __set_inuse(struct f2fs_sb_info *sbi,
-		unsigned int segno)
+		unsigned int segyes)
 {
 	struct free_segmap_info *free_i = FREE_I(sbi);
-	unsigned int secno = GET_SEC_FROM_SEG(sbi, segno);
+	unsigned int secyes = GET_SEC_FROM_SEG(sbi, segyes);
 
-	set_bit(segno, free_i->free_segmap);
+	set_bit(segyes, free_i->free_segmap);
 	free_i->free_segments--;
-	if (!test_and_set_bit(secno, free_i->free_secmap))
+	if (!test_and_set_bit(secyes, free_i->free_secmap))
 		free_i->free_sections--;
 }
 
 static inline void __set_test_and_free(struct f2fs_sb_info *sbi,
-		unsigned int segno)
+		unsigned int segyes)
 {
 	struct free_segmap_info *free_i = FREE_I(sbi);
-	unsigned int secno = GET_SEC_FROM_SEG(sbi, segno);
-	unsigned int start_segno = GET_SEG_FROM_SEC(sbi, secno);
+	unsigned int secyes = GET_SEC_FROM_SEG(sbi, segyes);
+	unsigned int start_segyes = GET_SEG_FROM_SEC(sbi, secyes);
 	unsigned int next;
 
 	spin_lock(&free_i->segmap_lock);
-	if (test_and_clear_bit(segno, free_i->free_segmap)) {
+	if (test_and_clear_bit(segyes, free_i->free_segmap)) {
 		free_i->free_segments++;
 
-		if (IS_CURSEC(sbi, secno))
+		if (IS_CURSEC(sbi, secyes))
 			goto skip_free;
 		next = find_next_bit(free_i->free_segmap,
-				start_segno + sbi->segs_per_sec, start_segno);
-		if (next >= start_segno + sbi->segs_per_sec) {
-			if (test_and_clear_bit(secno, free_i->free_secmap))
+				start_segyes + sbi->segs_per_sec, start_segyes);
+		if (next >= start_segyes + sbi->segs_per_sec) {
+			if (test_and_clear_bit(secyes, free_i->free_secmap))
 				free_i->free_sections++;
 		}
 	}
@@ -471,15 +471,15 @@ skip_free:
 }
 
 static inline void __set_test_and_inuse(struct f2fs_sb_info *sbi,
-		unsigned int segno)
+		unsigned int segyes)
 {
 	struct free_segmap_info *free_i = FREE_I(sbi);
-	unsigned int secno = GET_SEC_FROM_SEG(sbi, segno);
+	unsigned int secyes = GET_SEC_FROM_SEG(sbi, segyes);
 
 	spin_lock(&free_i->segmap_lock);
-	if (!test_and_set_bit(segno, free_i->free_segmap)) {
+	if (!test_and_set_bit(segyes, free_i->free_segmap)) {
 		free_i->free_segments--;
-		if (!test_and_set_bit(secno, free_i->free_secmap))
+		if (!test_and_set_bit(secyes, free_i->free_secmap))
 			free_i->free_sections--;
 	}
 	spin_unlock(&free_i->segmap_lock);
@@ -543,37 +543,37 @@ static inline int reserved_sections(struct f2fs_sb_info *sbi)
 	return GET_SEC_FROM_SEG(sbi, (unsigned int)reserved_segments(sbi));
 }
 
-static inline bool has_curseg_enough_space(struct f2fs_sb_info *sbi)
+static inline bool has_curseg_eyesugh_space(struct f2fs_sb_info *sbi)
 {
-	unsigned int node_blocks = get_pages(sbi, F2FS_DIRTY_NODES) +
+	unsigned int yesde_blocks = get_pages(sbi, F2FS_DIRTY_NODES) +
 					get_pages(sbi, F2FS_DIRTY_DENTS);
 	unsigned int dent_blocks = get_pages(sbi, F2FS_DIRTY_DENTS);
-	unsigned int segno, left_blocks;
+	unsigned int segyes, left_blocks;
 	int i;
 
-	/* check current node segment */
+	/* check current yesde segment */
 	for (i = CURSEG_HOT_NODE; i <= CURSEG_COLD_NODE; i++) {
-		segno = CURSEG_I(sbi, i)->segno;
+		segyes = CURSEG_I(sbi, i)->segyes;
 		left_blocks = sbi->blocks_per_seg -
-			get_seg_entry(sbi, segno)->ckpt_valid_blocks;
+			get_seg_entry(sbi, segyes)->ckpt_valid_blocks;
 
-		if (node_blocks > left_blocks)
+		if (yesde_blocks > left_blocks)
 			return false;
 	}
 
 	/* check current data segment */
-	segno = CURSEG_I(sbi, CURSEG_HOT_DATA)->segno;
+	segyes = CURSEG_I(sbi, CURSEG_HOT_DATA)->segyes;
 	left_blocks = sbi->blocks_per_seg -
-			get_seg_entry(sbi, segno)->ckpt_valid_blocks;
+			get_seg_entry(sbi, segyes)->ckpt_valid_blocks;
 	if (dent_blocks > left_blocks)
 		return false;
 	return true;
 }
 
-static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi,
+static inline bool has_yest_eyesugh_free_secs(struct f2fs_sb_info *sbi,
 					int freed, int needed)
 {
-	int node_secs = get_blocktype_secs(sbi, F2FS_DIRTY_NODES);
+	int yesde_secs = get_blocktype_secs(sbi, F2FS_DIRTY_NODES);
 	int dent_secs = get_blocktype_secs(sbi, F2FS_DIRTY_DENTS);
 	int imeta_secs = get_blocktype_secs(sbi, F2FS_DIRTY_IMETA);
 
@@ -581,10 +581,10 @@ static inline bool has_not_enough_free_secs(struct f2fs_sb_info *sbi,
 		return false;
 
 	if (free_sections(sbi) + freed == reserved_sections(sbi) + needed &&
-			has_curseg_enough_space(sbi))
+			has_curseg_eyesugh_space(sbi))
 		return false;
 	return (free_sections(sbi) + freed) <=
-		(node_secs + 2 * dent_secs + imeta_secs +
+		(yesde_secs + 2 * dent_secs + imeta_secs +
 		reserved_sections(sbi) + needed);
 }
 
@@ -592,7 +592,7 @@ static inline bool f2fs_is_checkpoint_ready(struct f2fs_sb_info *sbi)
 {
 	if (likely(!is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
 		return true;
-	if (likely(!has_not_enough_free_secs(sbi, 0, 0)))
+	if (likely(!has_yest_eyesugh_free_secs(sbi, 0, 0)))
 		return true;
 	return false;
 }
@@ -637,11 +637,11 @@ enum {
 	F2FS_IPU_ASYNC,
 };
 
-static inline unsigned int curseg_segno(struct f2fs_sb_info *sbi,
+static inline unsigned int curseg_segyes(struct f2fs_sb_info *sbi,
 		int type)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	return curseg->segno;
+	return curseg->segyes;
 }
 
 static inline unsigned char curseg_alloc_type(struct f2fs_sb_info *sbi,
@@ -657,9 +657,9 @@ static inline unsigned short curseg_blkoff(struct f2fs_sb_info *sbi, int type)
 	return curseg->next_blkoff;
 }
 
-static inline void check_seg_range(struct f2fs_sb_info *sbi, unsigned int segno)
+static inline void check_seg_range(struct f2fs_sb_info *sbi, unsigned int segyes)
 {
-	f2fs_bug_on(sbi, segno > TOTAL_SEGS(sbi) - 1);
+	f2fs_bug_on(sbi, segyes > TOTAL_SEGS(sbi) - 1);
 }
 
 static inline void verify_fio_blkaddr(struct f2fs_io_info *fio)
@@ -677,7 +677,7 @@ static inline void verify_fio_blkaddr(struct f2fs_io_info *fio)
  * Summary block is always treated as an invalid block
  */
 static inline int check_block_count(struct f2fs_sb_info *sbi,
-		int segno, struct f2fs_sit_entry *raw_sit)
+		int segyes, struct f2fs_sit_entry *raw_sit)
 {
 	bool is_valid  = test_bit_le(0, raw_sit->valid_map) ? true : false;
 	int valid_blocks = 0;
@@ -707,9 +707,9 @@ static inline int check_block_count(struct f2fs_sb_info *sbi,
 
 	/* check segment usage, and check boundary of a given segment number */
 	if (unlikely(GET_SIT_VBLOCKS(raw_sit) > sbi->blocks_per_seg
-					|| segno > TOTAL_SEGS(sbi) - 1)) {
-		f2fs_err(sbi, "Wrong valid blocks %d or segno %u",
-			 GET_SIT_VBLOCKS(raw_sit), segno);
+					|| segyes > TOTAL_SEGS(sbi) - 1)) {
+		f2fs_err(sbi, "Wrong valid blocks %d or segyes %u",
+			 GET_SIT_VBLOCKS(raw_sit), segyes);
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		return -EFSCORRUPTED;
 	}
@@ -765,14 +765,14 @@ static inline unsigned long long get_mtime(struct f2fs_sb_info *sbi,
 						bool base_time)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
-	time64_t diff, now = ktime_get_real_seconds();
+	time64_t diff, yesw = ktime_get_real_seconds();
 
-	if (now >= sit_i->mounted_time)
-		return sit_i->elapsed_time + now - sit_i->mounted_time;
+	if (yesw >= sit_i->mounted_time)
+		return sit_i->elapsed_time + yesw - sit_i->mounted_time;
 
 	/* system time is set to the past */
 	if (!base_time) {
-		diff = sit_i->mounted_time - now;
+		diff = sit_i->mounted_time - yesw;
 		if (sit_i->elapsed_time >= diff)
 			return sit_i->elapsed_time - diff;
 		return 0;
@@ -781,10 +781,10 @@ static inline unsigned long long get_mtime(struct f2fs_sb_info *sbi,
 }
 
 static inline void set_summary(struct f2fs_summary *sum, nid_t nid,
-			unsigned int ofs_in_node, unsigned char version)
+			unsigned int ofs_in_yesde, unsigned char version)
 {
 	sum->nid = cpu_to_le32(nid);
-	sum->ofs_in_node = cpu_to_le16(ofs_in_node);
+	sum->ofs_in_yesde = cpu_to_le16(ofs_in_yesde);
 	sum->version = version;
 }
 
@@ -801,9 +801,9 @@ static inline block_t sum_blk_addr(struct f2fs_sb_info *sbi, int base, int type)
 				- (base + 1) + type;
 }
 
-static inline bool sec_usage_check(struct f2fs_sb_info *sbi, unsigned int secno)
+static inline bool sec_usage_check(struct f2fs_sb_info *sbi, unsigned int secyes)
 {
-	if (IS_CURSEC(sbi, secno) || (sbi->cur_victim_sec == secno))
+	if (IS_CURSEC(sbi, secyes) || (sbi->cur_victim_sec == secyes))
 		return true;
 	return false;
 }
@@ -812,7 +812,7 @@ static inline bool sec_usage_check(struct f2fs_sb_info *sbi, unsigned int secno)
  * It is very important to gather dirty pages and write at once, so that we can
  * submit a big bio without interfering other data writes.
  * By default, 512 pages for directory data,
- * 512 pages (2MB) * 8 for nodes, and
+ * 512 pages (2MB) * 8 for yesdes, and
  * 256 pages * 8 for meta are set.
  */
 static inline int nr_pages_to_skip(struct f2fs_sb_info *sbi, int type)

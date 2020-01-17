@@ -73,7 +73,7 @@ void spmi_device_remove(struct spmi_device *sdev);
  * struct spmi_controller - interface to the SPMI master controller
  * @dev:	Driver model representation of the device.
  * @nr:		board-specific number identifier for this controller/bus
- * @cmd:	sends a non-data command sequence on the SPMI bus.
+ * @cmd:	sends a yesn-data command sequence on the SPMI bus.
  * @read_cmd:	sends a register read command sequence on the SPMI bus.
  * @write_cmd:	sends a register write command sequence on the SPMI bus.
  */

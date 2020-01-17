@@ -7,7 +7,7 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 /*
- * 2001/01/18 davidm	Removed CLOCK_TICK_RATE.  It makes no sense on IA-64.
+ * 2001/01/18 davidm	Removed CLOCK_TICK_RATE.  It makes yes sense on IA-64.
  *			Also removed cacheflush_time as it's entirely unused.
  */
 
@@ -22,10 +22,10 @@ extern void (*ia64_udelay)(unsigned long usecs);
  * For performance reasons, we don't want to define CLOCK_TICK_TRATE as
  * local_cpu_data->itc_rate.  Fortunately, we don't have to, either: according to George
  * Anzinger, 1/CLOCK_TICK_RATE is taken as the resolution of the timer clock.  The time
- * calculation assumes that you will use enough of these so that your tick size <= 1/HZ.
- * If the calculation shows that your CLOCK_TICK_RATE can not supply exactly 1/HZ ticks,
+ * calculation assumes that you will use eyesugh of these so that your tick size <= 1/HZ.
+ * If the calculation shows that your CLOCK_TICK_RATE can yest supply exactly 1/HZ ticks,
  * the actual value is calculated and used to update the wall clock each jiffie.  Setting
- * the CLOCK_TICK_RATE to x*HZ insures that the calculation will find no errors.  Hence we
+ * the CLOCK_TICK_RATE to x*HZ insures that the calculation will find yes errors.  Hence we
  * pick a multiple of HZ which gives us a (totally virtual) CLOCK_TICK_RATE of about
  * 100MHz.
  */

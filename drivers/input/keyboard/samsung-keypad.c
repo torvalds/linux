@@ -214,7 +214,7 @@ static void samsung_keypad_stop(struct samsung_keypad *keypad)
 	clk_disable(keypad->clk);
 
 	/*
-	 * Now that chip should not generate interrupts we can safely
+	 * Now that chip should yest generate interrupts we can safely
 	 * re-enable the handler.
 	 */
 	enable_irq(keypad->irq);
@@ -245,7 +245,7 @@ samsung_keypad_parse_dt(struct device *dev)
 	struct samsung_keypad_platdata *pdata;
 	struct matrix_keymap_data *keymap_data;
 	uint32_t *keymap, num_rows = 0, num_cols = 0;
-	struct device_node *np = dev->of_node, *key_np;
+	struct device_yesde *np = dev->of_yesde, *key_np;
 	unsigned int key_count;
 
 	if (!np) {
@@ -255,14 +255,14 @@ samsung_keypad_parse_dt(struct device *dev)
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		dev_err(dev, "could not allocate memory for platform data\n");
+		dev_err(dev, "could yest allocate memory for platform data\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
 	of_property_read_u32(np, "samsung,keypad-num-rows", &num_rows);
 	of_property_read_u32(np, "samsung,keypad-num-columns", &num_cols);
 	if (!num_rows || !num_cols) {
-		dev_err(dev, "number of keypad rows/columns not specified\n");
+		dev_err(dev, "number of keypad rows/columns yest specified\n");
 		return ERR_PTR(-EINVAL);
 	}
 	pdata->rows = num_rows;
@@ -270,7 +270,7 @@ samsung_keypad_parse_dt(struct device *dev)
 
 	keymap_data = devm_kzalloc(dev, sizeof(*keymap_data), GFP_KERNEL);
 	if (!keymap_data) {
-		dev_err(dev, "could not allocate memory for keymap data\n");
+		dev_err(dev, "could yest allocate memory for keymap data\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	pdata->keymap_data = keymap_data;
@@ -279,12 +279,12 @@ samsung_keypad_parse_dt(struct device *dev)
 	keymap_data->keymap_size = key_count;
 	keymap = devm_kcalloc(dev, key_count, sizeof(uint32_t), GFP_KERNEL);
 	if (!keymap) {
-		dev_err(dev, "could not allocate memory for keymap\n");
+		dev_err(dev, "could yest allocate memory for keymap\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	keymap_data->keymap = keymap;
 
-	for_each_child_of_node(np, key_np) {
+	for_each_child_of_yesde(np, key_np) {
 		u32 row, col, key_code;
 		of_property_read_u32(key_np, "keypad,row", &row);
 		of_property_read_u32(key_np, "keypad,column", &col);
@@ -292,8 +292,8 @@ samsung_keypad_parse_dt(struct device *dev)
 		*keymap++ = KEY(row, col, key_code);
 	}
 
-	if (of_get_property(np, "linux,input-no-autorepeat", NULL))
-		pdata->no_autorepeat = true;
+	if (of_get_property(np, "linux,input-yes-autorepeat", NULL))
+		pdata->yes_autorepeat = true;
 
 	pdata->wakeup = of_property_read_bool(np, "wakeup-source") ||
 			/* legacy name */
@@ -306,7 +306,7 @@ samsung_keypad_parse_dt(struct device *dev)
 static struct samsung_keypad_platdata *
 samsung_keypad_parse_dt(struct device *dev)
 {
-	dev_err(dev, "no platform data defined\n");
+	dev_err(dev, "yes platform data defined\n");
 
 	return ERR_PTR(-EINVAL);
 }
@@ -332,7 +332,7 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 
 	keymap_data = pdata->keymap_data;
 	if (!keymap_data) {
-		dev_err(&pdev->dev, "no keymap data defined\n");
+		dev_err(&pdev->dev, "yes keymap data defined\n");
 		return -EINVAL;
 	}
 
@@ -383,8 +383,8 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 	keypad->stopped = true;
 	init_waitqueue_head(&keypad->wait);
 
-	if (pdev->dev.of_node)
-		keypad->type = of_device_is_compatible(pdev->dev.of_node,
+	if (pdev->dev.of_yesde)
+		keypad->type = of_device_is_compatible(pdev->dev.of_yesde,
 					"samsung,s5pv210-keypad");
 	else
 		keypad->type = platform_get_device_id(pdev)->driver_data;
@@ -405,7 +405,7 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 	}
 
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
-	if (!pdata->no_autorepeat)
+	if (!pdata->yes_autorepeat)
 		__set_bit(EV_REP, input_dev->evbit);
 
 	input_set_drvdata(input_dev, keypad);
@@ -432,7 +432,7 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 	if (error)
 		goto err_disable_runtime_pm;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		devm_kfree(&pdev->dev, (void *)pdata->keymap_data->keymap);
 		devm_kfree(&pdev->dev, (void *)pdata->keymap_data);
 		devm_kfree(&pdev->dev, (void *)pdata);

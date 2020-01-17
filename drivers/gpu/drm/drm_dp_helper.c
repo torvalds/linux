@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -21,7 +21,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -273,7 +273,7 @@ unlock:
  *
  * Returns the number of bytes transferred on success, or a negative error
  * code on failure. -EIO is returned if the request was NAKed by the sink or
- * if the retry count was exceeded. If not all bytes were transferred, this
+ * if the retry count was exceeded. If yest all bytes were transferred, this
  * function returns -EPROTO. Errors from the underlying AUX channel transfer
  * function, with the exception of -EBUSY (which causes the transaction to
  * be retried), are propagated to the caller.
@@ -290,8 +290,8 @@ ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 	 * about. Afterwards things will work correctly until the monitor
 	 * gets woken up and subsequently re-enters power save mode.
 	 *
-	 * The user pressing any button on the monitor is enough to wake it
-	 * up, so there is no particularly good place to do the workaround.
+	 * The user pressing any button on the monitor is eyesugh to wake it
+	 * up, so there is yes particularly good place to do the workaround.
 	 * We just have to do it before any DPCD access and hope that the
 	 * monitor doesn't power down exactly after the throw away read.
 	 */
@@ -318,7 +318,7 @@ EXPORT_SYMBOL(drm_dp_dpcd_read);
  *
  * Returns the number of bytes transferred on success, or a negative error
  * code on failure. -EIO is returned if the request was NAKed by the sink or
- * if the retry count was exceeded. If not all bytes were transferred, this
+ * if the retry count was exceeded. If yest all bytes were transferred, this
  * function returns -EPROTO. Errors from the underlying AUX channel transfer
  * function, with the exception of -EBUSY (which causes the transaction to
  * be retried), are propagated to the caller.
@@ -359,7 +359,7 @@ EXPORT_SYMBOL(drm_dp_dpcd_read_link_status);
  * @dpcd: DisplayPort configuration data
  * @port_cap: port capabilities
  *
- * Returns max clock in kHz on success or 0 if max clock not defined
+ * Returns max clock in kHz on success or 0 if max clock yest defined
  */
 int drm_dp_downstream_max_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 				const u8 port_cap[4])
@@ -390,7 +390,7 @@ EXPORT_SYMBOL(drm_dp_downstream_max_clock);
  * @dpcd: DisplayPort configuration data
  * @port_cap: port capabilities
  *
- * Returns max bpc on success or 0 if max bpc not defined
+ * Returns max bpc on success or 0 if max bpc yest defined
  */
 int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 			      const u8 port_cap[4])
@@ -464,7 +464,7 @@ void drm_dp_downstream_debug(struct seq_file *m,
 			     DP_DWN_STRM_PORT_PRESENT;
 
 	seq_printf(m, "\tDP branch device present: %s\n",
-		   branch_device ? "yes" : "no");
+		   branch_device ? "no" : "yes");
 
 	if (!branch_device)
 		return;
@@ -638,7 +638,7 @@ MODULE_PARM_DESC(dp_aux_i2c_speed_khz,
 /*
  * Transfer a single I2C-over-AUX message and handle various error conditions,
  * retrying the transaction as appropriate.  It is assumed that the
- * &drm_dp_aux.transfer function does not modify anything in the msg other than the
+ * &drm_dp_aux.transfer function does yest modify anything in the msg other than the
  * reply field.
  *
  * Returns bytes transferred on success, or a negative error code on failure.
@@ -663,9 +663,9 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 				continue;
 
 			/*
-			 * While timeouts can be errors, they're usually normal
+			 * While timeouts can be errors, they're usually yesrmal
 			 * behavior (for instance, when a driver tries to
-			 * communicate with a non-existant DisplayPort device).
+			 * communicate with a yesn-existant DisplayPort device).
 			 * Avoid spamming the kernel log with timeout errors.
 			 */
 			if (ret == -ETIMEDOUT)
@@ -680,7 +680,7 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 		switch (msg->reply & DP_AUX_NATIVE_REPLY_MASK) {
 		case DP_AUX_NATIVE_REPLY_ACK:
 			/*
-			 * For I2C-over-AUX transactions this isn't enough, we
+			 * For I2C-over-AUX transactions this isn't eyesugh, we
 			 * need to check for the I2C ACK reply.
 			 */
 			break;
@@ -697,7 +697,7 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			 * more careful with DP-to-legacy adapters where a
 			 * long legacy cable may force very low I2C bit rates.
 			 *
-			 * For now just defer for long enough to hopefully be
+			 * For yesw just defer for long eyesugh to hopefully be
 			 * safe for all use-cases.
 			 */
 			usleep_range(AUX_RETRY_INTERVAL, AUX_RETRY_INTERVAL + 100);
@@ -787,7 +787,7 @@ static int drm_dp_i2c_drain_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *o
 
 /*
  * Bizlink designed DP->DVI-D Dual Link adapters require the I2C over AUX
- * packets to be as large as possible. If not, the I2C transactions never
+ * packets to be as large as possible. If yest, the I2C transactions never
  * succeed. Hence the default is maximum.
  */
 static int dp_aux_i2c_transfer_size __read_mostly = DP_AUX_MAX_PAYLOAD_BYTES;
@@ -1021,13 +1021,13 @@ int drm_dp_aux_register(struct drm_dp_aux *aux)
 	strlcpy(aux->ddc.name, aux->name ? aux->name : dev_name(aux->dev),
 		sizeof(aux->ddc.name));
 
-	ret = drm_dp_aux_register_devnode(aux);
+	ret = drm_dp_aux_register_devyesde(aux);
 	if (ret)
 		return ret;
 
 	ret = i2c_add_adapter(&aux->ddc);
 	if (ret) {
-		drm_dp_aux_unregister_devnode(aux);
+		drm_dp_aux_unregister_devyesde(aux);
 		return ret;
 	}
 
@@ -1041,7 +1041,7 @@ EXPORT_SYMBOL(drm_dp_aux_register);
  */
 void drm_dp_aux_unregister(struct drm_dp_aux *aux)
 {
-	drm_dp_aux_unregister_devnode(aux);
+	drm_dp_aux_unregister_devyesde(aux);
 	i2c_del_adapter(&aux->ddc);
 }
 EXPORT_SYMBOL(drm_dp_aux_unregister);
@@ -1164,7 +1164,7 @@ static const struct dpcd_quirk dpcd_quirk_list[] = {
  * ident. The quirk data is shared but it's up to the drivers to act on the
  * data.
  *
- * For now, only the OUI (first three bytes) is used, but this may be extended
+ * For yesw, only the OUI (first three bytes) is used, but this may be extended
  * to device identification string and hardware/firmware revisions later.
  */
 static u32
@@ -1228,7 +1228,7 @@ int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
 		      (int)sizeof(ident->oui), ident->oui,
 		      dev_id_len, ident->device_id,
 		      ident->hw_rev >> 4, ident->hw_rev & 0xf,
-		      ident->sw_major_rev, ident->sw_minor_rev,
+		      ident->sw_major_rev, ident->sw_miyesr_rev,
 		      desc->quirks);
 
 	return 0;

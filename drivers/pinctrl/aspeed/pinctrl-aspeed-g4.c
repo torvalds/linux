@@ -1091,7 +1091,7 @@ FUNC_GROUP_DECL(I2C14, H4, H3);
  * There are several opportunities to document USB port 4 in the datasheet, but
  * it is only mentioned in one location. Particularly, the Multi-function Pins
  * Mapping and Control table in the datasheet elides the signal names,
- * suggesting that port 4 may not actually be functional. As such we define the
+ * suggesting that port 4 may yest actually be functional. As such we define the
  * signal names and control bit, but don't export the capability's function or
  * group.
  */
@@ -1897,8 +1897,8 @@ PIN_DECL_(AB20, SIG_EXPR_LIST_PTR(AB20, USB2HDN1),
 FUNC_GROUP_DECL(USB2H1, AB21, AB20);
 FUNC_GROUP_DECL(USB2D1, AB21, AB20);
 
-/* Note we account for GPIOY4-GPIOY7 even though they're not valid, thus 216
- * pins becomes 220. Four additional non-GPIO-capable pins are present for USB.
+/* Note we account for GPIOY4-GPIOY7 even though they're yest valid, thus 216
+ * pins becomes 220. Four additional yesn-GPIO-capable pins are present for USB.
  */
 #define ASPEED_G4_NR_PINS 224
 
@@ -2526,7 +2526,7 @@ static const struct aspeed_pin_config aspeed_g4_configs[] = {
 	 * Debounce settings for GPIOs D and E passthrough mode are in
 	 * SCUA8[27:20] and so are managed by pinctrl. Normal GPIO debounce for
 	 * banks D and E is handled by the GPIO driver - GPIO passthrough is
-	 * treated like any other non-GPIO mux function. There is a catch
+	 * treated like any other yesn-GPIO mux function. There is a catch
 	 * however, in that the debounce period is configured in the GPIO
 	 * controller. Due to this tangle between GPIO and pinctrl we don't yet
 	 * fully support pass-through debounce.
@@ -2559,13 +2559,13 @@ static int aspeed_g4_sig_expr_set(struct aspeed_pinmux_data *ctx,
 		/*
 		 * Strap registers are configured in hardware or by early-boot
 		 * firmware. Treat them as read-only despite that we can write
-		 * them. This may mean that certain functions cannot be
+		 * them. This may mean that certain functions canyest be
 		 * deconfigured and is the reason we re-evaluate after writing
 		 * all descriptor bits.
 		 *
 		 * Port D and port E GPIO loopback modes are the only exception
 		 * as those are commonly used with front-panel buttons to allow
-		 * normal operation of the host when the BMC is powered off or
+		 * yesrmal operation of the host when the BMC is powered off or
 		 * fails to boot. Once the BMC has booted, the loopback mode
 		 * must be disabled for the BMC to control host power-on and
 		 * reset.
@@ -2626,7 +2626,7 @@ static const struct pinctrl_ops aspeed_g4_pinctrl_ops = {
 	.get_group_name = aspeed_pinctrl_get_group_name,
 	.get_group_pins = aspeed_pinctrl_get_group_pins,
 	.pin_dbg_show = aspeed_pinctrl_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 

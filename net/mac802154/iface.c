@@ -6,7 +6,7 @@
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  * Sergey Lapin <slapin@ossfans.org>
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 
 #include <linux/netdevice.h>
@@ -274,10 +274,10 @@ ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdata,
 		if (nsdata != sdata && ieee802154_sdata_running(nsdata)) {
 			int ret;
 
-			/* TODO currently we don't support multiple node types
+			/* TODO currently we don't support multiple yesde types
 			 * we need to run skb_clone at rx path. Check if there
 			 * exist really an use case if we need to support
-			 * multiple node types at the same time.
+			 * multiple yesde types at the same time.
 			 */
 			if (wpan_dev->iftype == NL802154_IFTYPE_NODE &&
 			    nsdata->wpan_dev.iftype == NL802154_IFTYPE_NODE)
@@ -526,8 +526,8 @@ static void ieee802154_if_setup(struct net_device *dev)
 	memset(dev->broadcast, 0xff, IEEE802154_EXTENDED_ADDR_LEN);
 
 	/* Let hard_header_len set to IEEE802154_MIN_HEADER_LEN. AF_PACKET
-	 * will not send frames without any payload, but ack frames
-	 * has no payload, so substract one that we can send a 3 bytes
+	 * will yest send frames without any payload, but ack frames
+	 * has yes payload, so substract one that we can send a 3 bytes
 	 * frame. The xmit callback assumes at least a hard header where two
 	 * bytes fc and sequence field are set.
 	 */
@@ -707,10 +707,10 @@ void ieee802154_remove_interfaces(struct ieee802154_local *local)
 	mutex_unlock(&local->iflist_mtx);
 }
 
-static int netdev_notify(struct notifier_block *nb,
+static int netdev_yestify(struct yestifier_block *nb,
 			 unsigned long state, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct ieee802154_sub_if_data *sdata;
 
 	if (state != NETDEV_CHANGENAME)
@@ -728,16 +728,16 @@ static int netdev_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block mac802154_netdev_notifier = {
-	.notifier_call = netdev_notify,
+static struct yestifier_block mac802154_netdev_yestifier = {
+	.yestifier_call = netdev_yestify,
 };
 
 int ieee802154_iface_init(void)
 {
-	return register_netdevice_notifier(&mac802154_netdev_notifier);
+	return register_netdevice_yestifier(&mac802154_netdev_yestifier);
 }
 
 void ieee802154_iface_exit(void)
 {
-	unregister_netdevice_notifier(&mac802154_netdev_notifier);
+	unregister_netdevice_yestifier(&mac802154_netdev_yestifier);
 }

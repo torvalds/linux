@@ -3,7 +3,7 @@
  *  Asihpi soundcard
  *  Copyright (c) by AudioScience Inc <support@audioscience.com>
  *
- *  The following is not a condition of use, merely a request:
+ *  The following is yest a condition of use, merely a request:
  *  If you modify this program, particularly if you fix errors, AudioScience Inc
  *  would appreciate it if you grant us the right to use those modifications
  *  for any purpose including commercial applications.
@@ -42,7 +42,7 @@ MODULE_DESCRIPTION("AudioScience ALSA ASI5xxx ASI6xxx ASI87xx ASI89xx "
  * @format: format string
  *
  * Works like snd_printk() for debugging purposes.
- * Ignored when CONFIG_SND_DEBUG_VERBOSE is not set.
+ * Igyesred when CONFIG_SND_DEBUG_VERBOSE is yest set.
  * Must set snd module debug parameter to 3 to enable at runtime.
  */
 #define snd_printddd(format, args...) \
@@ -605,7 +605,7 @@ static int snd_card_asihpi_trigger(struct snd_pcm_substream *substream,
 
 			ds->drained_count = 0;
 			if (s->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-				/* How do I know how much valid data is present
+				/* How do I kyesw how much valid data is present
 				* in buffer? Must be at least one period!
 				* Guessing 2 periods, but if
 				* buffer is bigger it may contain even more
@@ -834,8 +834,8 @@ static void snd_card_asihpi_timer_function(struct timer_list *t)
 
 	remdata = newdata % dpcm->period_bytes;
 	xfercount = newdata - remdata; /* a multiple of period_bytes */
-	/* come back when on_card_bytes has decreased enough to allow
-	   write to happen, or when data has been consumed to make another
+	/* come back when on_card_bytes has decreased eyesugh to allow
+	   write to happen, or when data has been consumed to make ayesther
 	   period
 	*/
 	if (xfercount && (on_card_bytes  > dpcm->period_bytes))
@@ -1322,7 +1322,7 @@ static int snd_card_asihpi_pcm_new(struct snd_card_asihpi *asihpi, int device)
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "Asihpi PCM");
 
-	/*? do we want to emulate MMAP for non-BBM cards?
+	/*? do we want to emulate MMAP for yesn-BBM cards?
 	Jack doesn't work with ALSAs MMAP emulation - WHY NOT? */
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      &asihpi->pci->dev,
@@ -1335,10 +1335,10 @@ static int snd_card_asihpi_pcm_new(struct snd_card_asihpi *asihpi, int device)
 struct hpi_control {
 	u32 h_control;
 	u16 control_type;
-	u16 src_node_type;
-	u16 src_node_index;
-	u16 dst_node_type;
-	u16 dst_node_index;
+	u16 src_yesde_type;
+	u16 src_yesde_index;
+	u16 dst_yesde_type;
+	u16 dst_yesde_index;
 	u16 band;
 	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN]; /* copied to snd_ctl_elem_id.name[44]; */
 };
@@ -1346,7 +1346,7 @@ struct hpi_control {
 static const char * const asihpi_tuner_band_names[] = {
 	"invalid",
 	"AM",
-	"FM mono",
+	"FM moyes",
 	"TV NTSC-M",
 	"FM stereo",
 	"AUX",
@@ -1363,7 +1363,7 @@ compile_time_assert(
 	assert_tuner_band_names_size);
 
 static const char * const asihpi_src_names[] = {
-	"no source",
+	"yes source",
 	"PCM",
 	"Line",
 	"Digital",
@@ -1387,7 +1387,7 @@ compile_time_assert(
 	assert_src_names_size);
 
 static const char * const asihpi_dst_names[] = {
-	"no destination",
+	"yes destination",
 	"PCM",
 	"Line",
 	"Digital",
@@ -1432,36 +1432,36 @@ static void asihpi_ctl_init(struct snd_kcontrol_new *snd_control,
 	snd_control->iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	snd_control->index = 0;
 
-	if (hpi_ctl->src_node_type + HPI_SOURCENODE_NONE == HPI_SOURCENODE_CLOCK_SOURCE)
-		dir = ""; /* clock is neither capture nor playback */
-	else if (hpi_ctl->dst_node_type + HPI_DESTNODE_NONE == HPI_DESTNODE_ISTREAM)
+	if (hpi_ctl->src_yesde_type + HPI_SOURCENODE_NONE == HPI_SOURCENODE_CLOCK_SOURCE)
+		dir = ""; /* clock is neither capture yesr playback */
+	else if (hpi_ctl->dst_yesde_type + HPI_DESTNODE_NONE == HPI_DESTNODE_ISTREAM)
 		dir = "Capture ";  /* On or towards a PCM capture destination*/
-	else if ((hpi_ctl->src_node_type + HPI_SOURCENODE_NONE != HPI_SOURCENODE_OSTREAM) &&
-		(!hpi_ctl->dst_node_type))
-		dir = "Capture "; /* On a source node that is not PCM playback */
-	else if (hpi_ctl->src_node_type &&
-		(hpi_ctl->src_node_type + HPI_SOURCENODE_NONE != HPI_SOURCENODE_OSTREAM) &&
-		(hpi_ctl->dst_node_type))
+	else if ((hpi_ctl->src_yesde_type + HPI_SOURCENODE_NONE != HPI_SOURCENODE_OSTREAM) &&
+		(!hpi_ctl->dst_yesde_type))
+		dir = "Capture "; /* On a source yesde that is yest PCM playback */
+	else if (hpi_ctl->src_yesde_type &&
+		(hpi_ctl->src_yesde_type + HPI_SOURCENODE_NONE != HPI_SOURCENODE_OSTREAM) &&
+		(hpi_ctl->dst_yesde_type))
 		dir = "Monitor Playback "; /* Between an input and an output */
 	else
-		dir = "Playback "; /* PCM Playback source, or  output node */
+		dir = "Playback "; /* PCM Playback source, or  output yesde */
 
-	if (hpi_ctl->src_node_type && hpi_ctl->dst_node_type)
+	if (hpi_ctl->src_yesde_type && hpi_ctl->dst_yesde_type)
 		sprintf(hpi_ctl->name, "%s %d %s %d %s%s",
-			asihpi_src_names[hpi_ctl->src_node_type],
-			hpi_ctl->src_node_index,
-			asihpi_dst_names[hpi_ctl->dst_node_type],
-			hpi_ctl->dst_node_index,
+			asihpi_src_names[hpi_ctl->src_yesde_type],
+			hpi_ctl->src_yesde_index,
+			asihpi_dst_names[hpi_ctl->dst_yesde_type],
+			hpi_ctl->dst_yesde_index,
 			dir, name);
-	else if (hpi_ctl->dst_node_type) {
+	else if (hpi_ctl->dst_yesde_type) {
 		sprintf(hpi_ctl->name, "%s %d %s%s",
-		asihpi_dst_names[hpi_ctl->dst_node_type],
-		hpi_ctl->dst_node_index,
+		asihpi_dst_names[hpi_ctl->dst_yesde_type],
+		hpi_ctl->dst_yesde_index,
 		dir, name);
 	} else {
 		sprintf(hpi_ctl->name, "%s %d %s%s",
-		asihpi_src_names[hpi_ctl->src_node_type],
-		hpi_ctl->src_node_index,
+		asihpi_src_names[hpi_ctl->src_yesde_type],
+		hpi_ctl->src_yesde_index,
 		dir, name);
 	}
 	/* printk(KERN_INFO "Adding %s %d to %d ",  hpi_ctl->name,
@@ -1535,7 +1535,7 @@ static int snd_asihpi_volume_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(db_scale_100, -10000, VOL_STEP_mB, 0);
 
-#define snd_asihpi_volume_mute_info	snd_ctl_boolean_mono_info
+#define snd_asihpi_volume_mute_info	snd_ctl_boolean_moyes_info
 
 static int snd_asihpi_volume_mute_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
@@ -1553,7 +1553,7 @@ static int snd_asihpi_volume_mute_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	u32 h_control = kcontrol->private_value;
-	/* HPI currently only supports all or none muting of multichannel volume
+	/* HPI currently only supports all or yesne muting of multichannel volume
 	ALSA Switch element has opposite sense to HPI mute: on==unmuted, off=muted
 	*/
 	int mute =  ucontrol->value.integer.value[0] ? 0 : HPI_BITMASK_ALL_CHANNELS;
@@ -1663,7 +1663,7 @@ static int snd_asihpi_level_add(struct snd_card_asihpi *asihpi,
 	struct snd_card *card = asihpi->card;
 	struct snd_kcontrol_new snd_control;
 
-	/* can't use 'volume' cos some nodes have volume as well */
+	/* can't use 'volume' cos some yesdes have volume as well */
 	asihpi_ctl_init(&snd_control, hpi_ctl, "Level");
 	snd_control.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 				SNDRV_CTL_ELEM_ACCESS_TLV_READ;
@@ -2170,9 +2170,9 @@ static int snd_card_asihpi_mux_count_sources(struct snd_kcontrol *snd_control)
 	for (s = 0; s < 32; s++) {
 		err = hpi_multiplexer_query_source(h_control, s,
 						  &hpi_ctl.
-						  src_node_type,
+						  src_yesde_type,
 						  &hpi_ctl.
-						  src_node_index);
+						  src_yesde_index);
 		if (err)
 			break;
 	}
@@ -2183,7 +2183,7 @@ static int snd_asihpi_mux_info(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_info *uinfo)
 {
 	int err;
-	u16 src_node_type, src_node_index;
+	u16 src_yesde_type, src_yesde_index;
 	u32 h_control = kcontrol->private_value;
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -2198,11 +2198,11 @@ static int snd_asihpi_mux_info(struct snd_kcontrol *kcontrol,
 	err =
 	    hpi_multiplexer_query_source(h_control,
 					uinfo->value.enumerated.item,
-					&src_node_type, &src_node_index);
+					&src_yesde_type, &src_yesde_index);
 
 	sprintf(uinfo->value.enumerated.name, "%s %d",
-		asihpi_src_names[src_node_type - HPI_SOURCENODE_NONE],
-		src_node_index);
+		asihpi_src_names[src_yesde_type - HPI_SOURCENODE_NONE],
+		src_yesde_index);
 	return 0;
 }
 
@@ -2211,7 +2211,7 @@ static int snd_asihpi_mux_get(struct snd_kcontrol *kcontrol,
 {
 	u32 h_control = kcontrol->private_value;
 	u16 source_type, source_index;
-	u16 src_node_type, src_node_index;
+	u16 src_yesde_type, src_yesde_index;
 	int s;
 
 	hpi_handle_error(hpi_multiplexer_get_source(h_control,
@@ -2219,11 +2219,11 @@ static int snd_asihpi_mux_get(struct snd_kcontrol *kcontrol,
 	/* Should cache this search result! */
 	for (s = 0; s < 256; s++) {
 		if (hpi_multiplexer_query_source(h_control, s,
-					    &src_node_type, &src_node_index))
+					    &src_yesde_type, &src_yesde_index))
 			break;
 
-		if ((source_type == src_node_type)
-		    && (source_index == src_node_index)) {
+		if ((source_type == src_yesde_type)
+		    && (source_index == src_yesde_index)) {
 			ucontrol->value.enumerated.item[0] = s;
 			return 0;
 		}
@@ -2617,10 +2617,10 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 		err = hpi_mixer_get_control_by_index(
 				asihpi->h_mixer,
 				idx,
-				&hpi_ctl.src_node_type,
-				&hpi_ctl.src_node_index,
-				&hpi_ctl.dst_node_type,
-				&hpi_ctl.dst_node_index,
+				&hpi_ctl.src_yesde_type,
+				&hpi_ctl.src_yesde_index,
+				&hpi_ctl.dst_yesde_type,
+				&hpi_ctl.dst_yesde_index,
 				&hpi_ctl.control_type,
 				&hpi_ctl.h_control);
 		if (err) {
@@ -2635,18 +2635,18 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 
 		}
 
-		hpi_ctl.src_node_type -= HPI_SOURCENODE_NONE;
-		hpi_ctl.dst_node_type -= HPI_DESTNODE_NONE;
+		hpi_ctl.src_yesde_type -= HPI_SOURCENODE_NONE;
+		hpi_ctl.dst_yesde_type -= HPI_DESTNODE_NONE;
 
-		/* ASI50xx in SSX mode has multiple meters on the same node.
+		/* ASI50xx in SSX mode has multiple meters on the same yesde.
 		   Use subindex to create distinct ALSA controls
 		   for any duplicated controls.
 		*/
 		if ((hpi_ctl.control_type == prev_ctl.control_type) &&
-		    (hpi_ctl.src_node_type == prev_ctl.src_node_type) &&
-		    (hpi_ctl.src_node_index == prev_ctl.src_node_index) &&
-		    (hpi_ctl.dst_node_type == prev_ctl.dst_node_type) &&
-		    (hpi_ctl.dst_node_index == prev_ctl.dst_node_index))
+		    (hpi_ctl.src_yesde_type == prev_ctl.src_yesde_type) &&
+		    (hpi_ctl.src_yesde_index == prev_ctl.src_yesde_index) &&
+		    (hpi_ctl.dst_yesde_type == prev_ctl.dst_yesde_type) &&
+		    (hpi_ctl.dst_yesde_index == prev_ctl.dst_yesde_index))
 			subindex++;
 		else
 			subindex = 0;
@@ -2673,7 +2673,7 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 			err = snd_asihpi_sampleclock_add(
 						asihpi, &hpi_ctl);
 			break;
-		case HPI_CONTROL_CONNECTION:	/* ignore these */
+		case HPI_CONTROL_CONNECTION:	/* igyesre these */
 			continue;
 		case HPI_CONTROL_TUNER:
 			err = snd_asihpi_tuner_add(asihpi, &hpi_ctl);
@@ -2695,10 +2695,10 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 					"Untranslated HPI Control (%d) %d %d %d %d %d\n",
 					idx,
 					hpi_ctl.control_type,
-					hpi_ctl.src_node_type,
-					hpi_ctl.src_node_index,
-					hpi_ctl.dst_node_type,
-					hpi_ctl.dst_node_index);
+					hpi_ctl.src_yesde_type,
+					hpi_ctl.src_yesde_index,
+					hpi_ctl.dst_yesde_type,
+					hpi_ctl.dst_yesde_index);
 			continue;
 		}
 		if (err < 0)
@@ -2940,12 +2940,12 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 	err = snd_card_asihpi_pcm_new(asihpi, 0);
 	if (err < 0) {
 		dev_err(&pci_dev->dev, "pcm_new failed\n");
-		goto __nodev;
+		goto __yesdev;
 	}
 	err = snd_card_asihpi_mixer_new(asihpi);
 	if (err < 0) {
 		dev_err(&pci_dev->dev, "mixer_new failed\n");
-		goto __nodev;
+		goto __yesdev;
 	}
 
 	err = hpi_mixer_get_control(asihpi->h_mixer,
@@ -2974,7 +2974,7 @@ static int snd_asihpi_probe(struct pci_dev *pci_dev,
 		dev++;
 		return 0;
 	}
-__nodev:
+__yesdev:
 	snd_card_free(card);
 	dev_err(&pci_dev->dev, "snd_asihpi_probe error %d\n", err);
 	return err;

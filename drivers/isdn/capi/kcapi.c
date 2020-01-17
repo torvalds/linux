@@ -71,7 +71,7 @@ struct capi20_appl *capi_applications[CAPI_MAXAPPL];
 
 static int ncontrollers;
 
-static BLOCKING_NOTIFIER_HEAD(ctr_notifier_list);
+static BLOCKING_NOTIFIER_HEAD(ctr_yestifier_list);
 
 /* -------- controller ref counting -------------------------------------- */
 
@@ -164,7 +164,7 @@ register_appl(struct capi_ctr *ctr, u16 applid, capi_register_params *rparam)
 	if (ctr)
 		ctr->register_appl(ctr, applid, rparam);
 	else
-		printk(KERN_WARNING "%s: cannot get controller resources\n",
+		printk(KERN_WARNING "%s: canyest get controller resources\n",
 		       __func__);
 }
 
@@ -177,7 +177,7 @@ static void release_appl(struct capi_ctr *ctr, u16 applid)
 	capi_ctr_put(ctr);
 }
 
-static void notify_up(u32 contr)
+static void yestify_up(u32 contr)
 {
 	struct capi20_appl *ap;
 	struct capi_ctr *ctr;
@@ -186,7 +186,7 @@ static void notify_up(u32 contr)
 	mutex_lock(&capi_controller_lock);
 
 	if (showcapimsgs & 1)
-		printk(KERN_DEBUG "kcapi: notify up contr %d\n", contr);
+		printk(KERN_DEBUG "kcapi: yestify up contr %d\n", contr);
 
 	ctr = get_capi_ctr_by_nr(contr);
 	if (ctr) {
@@ -233,14 +233,14 @@ static void ctr_down(struct capi_ctr *ctr, int new_state)
 	wake_up_interruptible_all(&ctr->state_wait_queue);
 }
 
-static void notify_down(u32 contr)
+static void yestify_down(u32 contr)
 {
 	struct capi_ctr *ctr;
 
 	mutex_lock(&capi_controller_lock);
 
 	if (showcapimsgs & 1)
-		printk(KERN_DEBUG "kcapi: notify down contr %d\n", contr);
+		printk(KERN_DEBUG "kcapi: yestify down contr %d\n", contr);
 
 	ctr = get_capi_ctr_by_nr(contr);
 	if (ctr)
@@ -252,43 +252,43 @@ static void notify_down(u32 contr)
 }
 
 static int
-notify_handler(struct notifier_block *nb, unsigned long val, void *v)
+yestify_handler(struct yestifier_block *nb, unsigned long val, void *v)
 {
 	u32 contr = (long)v;
 
 	switch (val) {
 	case CAPICTR_UP:
-		notify_up(contr);
+		yestify_up(contr);
 		break;
 	case CAPICTR_DOWN:
-		notify_down(contr);
+		yestify_down(contr);
 		break;
 	}
 	return NOTIFY_OK;
 }
 
-static void do_notify_work(struct work_struct *work)
+static void do_yestify_work(struct work_struct *work)
 {
 	struct capictr_event *event =
 		container_of(work, struct capictr_event, work);
 
-	blocking_notifier_call_chain(&ctr_notifier_list, event->type,
+	blocking_yestifier_call_chain(&ctr_yestifier_list, event->type,
 				     (void *)(long)event->controller);
 	kfree(event);
 }
 
 /*
- * The notifier will result in adding/deleteing of devices. Devices can
- * only removed in user process, not in bh.
+ * The yestifier will result in adding/deleteing of devices. Devices can
+ * only removed in user process, yest in bh.
  */
-static int notify_push(unsigned int event_type, u32 controller)
+static int yestify_push(unsigned int event_type, u32 controller)
 {
 	struct capictr_event *event = kmalloc(sizeof(*event), GFP_ATOMIC);
 
 	if (!event)
 		return -ENOMEM;
 
-	INIT_WORK(&event->work, do_notify_work);
+	INIT_WORK(&event->work, do_yestify_work);
 	event->type = event_type;
 	event->controller = controller;
 
@@ -296,17 +296,17 @@ static int notify_push(unsigned int event_type, u32 controller)
 	return 0;
 }
 
-int register_capictr_notifier(struct notifier_block *nb)
+int register_capictr_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&ctr_notifier_list, nb);
+	return blocking_yestifier_chain_register(&ctr_yestifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(register_capictr_notifier);
+EXPORT_SYMBOL_GPL(register_capictr_yestifier);
 
-int unregister_capictr_notifier(struct notifier_block *nb)
+int unregister_capictr_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&ctr_notifier_list, nb);
+	return blocking_yestifier_chain_unregister(&ctr_yestifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_capictr_notifier);
+EXPORT_SYMBOL_GPL(unregister_capictr_yestifier);
 
 /* -------- Receiver ------------------------------------------ */
 
@@ -351,11 +351,11 @@ void capi_ctr_handle_message(struct capi_ctr *ctr, u16 appl,
 	if (ctr->state != CAPI_CTR_RUNNING) {
 		cdb = capi_message2str(skb->data);
 		if (cdb) {
-			printk(KERN_INFO "kcapi: controller [%03d] not active, got: %s",
+			printk(KERN_INFO "kcapi: controller [%03d] yest active, got: %s",
 			       ctr->cnr, cdb->buf);
 			cdebbuf_free(cdb);
 		} else
-			printk(KERN_INFO "kcapi: controller [%03d] not active, cannot trace\n",
+			printk(KERN_INFO "kcapi: controller [%03d] yest active, canyest trace\n",
 			       ctr->cnr);
 		goto error;
 	}
@@ -385,7 +385,7 @@ void capi_ctr_handle_message(struct capi_ctr *ctr, u16 appl,
 				       ctr->cnr, cdb->buf);
 				cdebbuf_free(cdb);
 			} else
-				printk(KERN_DEBUG "kcapi: got [%03d] id#%d %s len=%u, cannot trace\n",
+				printk(KERN_DEBUG "kcapi: got [%03d] id#%d %s len=%u, canyest trace\n",
 				       ctr->cnr, CAPIMSG_APPID(skb->data),
 				       capi_cmd2str(cmd, subcmd),
 				       CAPIMSG_LEN(skb->data));
@@ -403,7 +403,7 @@ void capi_ctr_handle_message(struct capi_ctr *ctr, u16 appl,
 			       CAPIMSG_APPID(skb->data), cdb->buf);
 			cdebbuf_free(cdb);
 		} else
-			printk(KERN_ERR "kcapi: handle_message: applid %d state released (%s) cannot trace\n",
+			printk(KERN_ERR "kcapi: handle_message: applid %d state released (%s) canyest trace\n",
 			       CAPIMSG_APPID(skb->data),
 			       capi_cmd2str(cmd, subcmd));
 		goto error;
@@ -432,13 +432,13 @@ void capi_ctr_ready(struct capi_ctr *ctr)
 	printk(KERN_NOTICE "kcapi: controller [%03d] \"%s\" ready.\n",
 	       ctr->cnr, ctr->name);
 
-	notify_push(CAPICTR_UP, ctr->cnr);
+	yestify_push(CAPICTR_UP, ctr->cnr);
 }
 
 EXPORT_SYMBOL(capi_ctr_ready);
 
 /**
- * capi_ctr_down() - signal CAPI controller not ready
+ * capi_ctr_down() - signal CAPI controller yest ready
  * @ctr:	controller descriptor structure.
  *
  * Called by hardware driver to signal that the controller is down and
@@ -449,7 +449,7 @@ void capi_ctr_down(struct capi_ctr *ctr)
 {
 	printk(KERN_NOTICE "kcapi: controller [%03d] down.\n", ctr->cnr);
 
-	notify_push(CAPICTR_DOWN, ctr->cnr);
+	yestify_push(CAPICTR_DOWN, ctr->cnr);
 }
 
 EXPORT_SYMBOL(capi_ctr_down);
@@ -719,7 +719,7 @@ EXPORT_SYMBOL(capi20_register);
  *
  * Terminate an application's registration with CAPI.
  * After this function returns successfully, the message receive
- * callback function @ap->recv_message() will no longer be called.
+ * callback function @ap->recv_message() will yes longer be called.
  * Return value: CAPI result code
  */
 
@@ -824,7 +824,7 @@ u16 capi20_put_message(struct capi20_appl *ap, struct sk_buff *skb)
 				       cdb->buf);
 				cdebbuf_free(cdb);
 			} else
-				printk(KERN_DEBUG "kcapi: put [%03d] id#%d %s len=%u cannot trace\n",
+				printk(KERN_DEBUG "kcapi: put [%03d] id#%d %s len=%u canyest trace\n",
 				       CAPIMSG_CONTROLLER(skb->data),
 				       CAPIMSG_APPID(skb->data),
 				       capi_cmd2str(cmd, subcmd),
@@ -1065,10 +1065,10 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 			break;
 		}
 		if (!driver) {
-			printk(KERN_ERR "kcapi: driver not loaded.\n");
+			printk(KERN_ERR "kcapi: driver yest loaded.\n");
 			retval = -EIO;
 		} else if (!driver->add_card) {
-			printk(KERN_ERR "kcapi: driver has no add card function.\n");
+			printk(KERN_ERR "kcapi: driver has yes add card function.\n");
 			retval = -EIO;
 		} else
 			retval = driver->add_card(driver, &cparams);
@@ -1100,7 +1100,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 		}
 
 		if (ctr->load_firmware == NULL) {
-			printk(KERN_DEBUG "kcapi: load: no load function\n");
+			printk(KERN_DEBUG "kcapi: load: yes load function\n");
 			retval = -ESRCH;
 			goto load_unlock_out;
 		}
@@ -1124,7 +1124,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 		ldata.configuration.len = ldef.t4config.len;
 
 		if (ctr->state != CAPI_CTR_DETECTED) {
-			printk(KERN_INFO "kcapi: load: contr=%d not in detect state\n", ldef.contr);
+			printk(KERN_INFO "kcapi: load: contr=%d yest in detect state\n", ldef.contr);
 			retval = -EBUSY;
 			goto load_unlock_out;
 		}
@@ -1160,7 +1160,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 			goto reset_unlock_out;
 
 		if (ctr->reset_ctr == NULL) {
-			printk(KERN_DEBUG "kcapi: reset: no reset function\n");
+			printk(KERN_DEBUG "kcapi: reset: yes reset function\n");
 			retval = -ESRCH;
 			goto reset_unlock_out;
 		}
@@ -1247,11 +1247,11 @@ int capi20_manufacturer(unsigned long cmd, void __user *data)
 				break;
 		}
 		if (driver == NULL) {
-			printk(KERN_ERR "kcapi: driver \"%s\" not loaded.\n",
+			printk(KERN_ERR "kcapi: driver \"%s\" yest loaded.\n",
 			       cdef.driver);
 			retval = -ESRCH;
 		} else if (!driver->add_card) {
-			printk(KERN_ERR "kcapi: driver \"%s\" has no add card function.\n", cdef.driver);
+			printk(KERN_ERR "kcapi: driver \"%s\" has yes add card function.\n", cdef.driver);
 			retval = -EIO;
 		} else
 			retval = driver->add_card(driver, &cparams);
@@ -1261,7 +1261,7 @@ int capi20_manufacturer(unsigned long cmd, void __user *data)
 	}
 
 	default:
-		printk(KERN_ERR "kcapi: manufacturer command %lu unknown.\n",
+		printk(KERN_ERR "kcapi: manufacturer command %lu unkyeswn.\n",
 		       cmd);
 		break;
 
@@ -1279,8 +1279,8 @@ EXPORT_SYMBOL(capi20_manufacturer);
  * init / exit functions
  */
 
-static struct notifier_block capictr_nb = {
-	.notifier_call = notify_handler,
+static struct yestifier_block capictr_nb = {
+	.yestifier_call = yestify_handler,
 	.priority = INT_MAX,
 };
 
@@ -1292,11 +1292,11 @@ static int __init kcapi_init(void)
 	if (!kcapi_wq)
 		return -ENOMEM;
 
-	register_capictr_notifier(&capictr_nb);
+	register_capictr_yestifier(&capictr_nb);
 
 	err = cdebug_init();
 	if (err) {
-		unregister_capictr_notifier(&capictr_nb);
+		unregister_capictr_yestifier(&capictr_nb);
 		destroy_workqueue(kcapi_wq);
 		return err;
 	}
@@ -1309,7 +1309,7 @@ static void __exit kcapi_exit(void)
 {
 	kcapi_proc_exit();
 
-	unregister_capictr_notifier(&capictr_nb);
+	unregister_capictr_yestifier(&capictr_nb);
 	cdebug_exit();
 	destroy_workqueue(kcapi_wq);
 }

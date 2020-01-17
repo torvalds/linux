@@ -89,13 +89,13 @@ int __kprobes parisc_kprobe_break_handler(struct pt_regs *regs)
 	p = get_kprobe((unsigned long *)regs->iaoq[0]);
 
 	if (!p) {
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 		return 0;
 	}
 
 	if (kprobe_running()) {
 		/*
-		 * We have reentered the kprobe_handler, since another kprobe
+		 * We have reentered the kprobe_handler, since ayesther kprobe
 		 * was hit while within the handler, we save the original
 		 * kprobes and single step on the instruction of the new probe
 		 * without calling any user handlers to avoid recursive
@@ -112,10 +112,10 @@ int __kprobes parisc_kprobe_break_handler(struct pt_regs *regs)
 	set_current_kprobe(p);
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
-	/* If we have no pre-handler or it returned 0, we continue with
-	 * normal processing. If we have a pre-handler and it returned
-	 * non-zero - which means user handler setup registers to exit
-	 * to another instruction, we must skip the single stepping.
+	/* If we have yes pre-handler or it returned 0, we continue with
+	 * yesrmal processing. If we have a pre-handler and it returned
+	 * yesn-zero - which means user handler setup registers to exit
+	 * to ayesther instruction, we must skip the single stepping.
 	 */
 
 	if (!p->pre_handler || !p->pre_handler(p, regs)) {
@@ -123,7 +123,7 @@ int __kprobes parisc_kprobe_break_handler(struct pt_regs *regs)
 		kcb->kprobe_status = KPROBE_HIT_SS;
 	} else {
 		reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 	}
 	return 1;
 }
@@ -147,7 +147,7 @@ int __kprobes parisc_kprobe_ss_handler(struct pt_regs *regs)
 
 	/* for absolute branch instructions we can copy iaoq_b. for relative
 	 * branch instructions we need to calculate the new address based on the
-	 * difference between iaoq_f and iaoq_b. We cannot use iaoq_b without
+	 * difference between iaoq_f and iaoq_b. We canyest use iaoq_b without
 	 * modificationt because it's based on our ainsn.insn address.
 	 */
 
@@ -177,8 +177,8 @@ int __kprobes parisc_kprobe_ss_handler(struct pt_regs *regs)
 
 static inline void kretprobe_trampoline(void)
 {
-	asm volatile("nop");
-	asm volatile("nop");
+	asm volatile("yesp");
+	asm volatile("yesp");
 }
 
 static int __kprobes trampoline_probe_handler(struct kprobe *p,
@@ -193,7 +193,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 {
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head, empty_rp;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address = (unsigned long)trampoline_p.addr;
 	kprobe_opcode_t *correct_ret_addr = NULL;
@@ -216,7 +216,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	 */
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		orig_ret_address = (unsigned long)ri->ret_addr;
@@ -235,7 +235,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	correct_ret_addr = ri->ret_addr;
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		orig_ret_address = (unsigned long)ri->ret_addr;

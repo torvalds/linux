@@ -3,9 +3,9 @@ Date:		March 2018
 Contact:	linux-scsi@vger.kernel.org
 Description:
 		This file contains the auto-hibernate idle timer setting of a
-		UFS host controller. A value of '0' means auto-hibernate is not
+		UFS host controller. A value of '0' means auto-hibernate is yest
 		enabled. Otherwise the value is the number of microseconds of
-		idle time before the UFS host controller will autonomously put
+		idle time before the UFS host controller will autoyesmously put
 		the link into hibernate state. That will save power at the
 		expense of increased latency. Note that the hardware supports
 		10-bit values with a power-of-ten multiplier which allows a
@@ -56,7 +56,7 @@ Description:	This file shows number of logical units. This is one of
 What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/number_of_wluns
 Date:		February 2018
 Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
-Description:	This file shows number of well known logical units.
+Description:	This file shows number of well kyeswn logical units.
 		This is one of the UFS device descriptor parameters.
 		The full information about the descriptor could be found
 		at UFS specifications 2.1.
@@ -412,7 +412,7 @@ What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/*_memory_max_alloc
 Date:		February 2018
 Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
 Description:	This file shows the maximum number of allocation units for
-		different memory types (system code, non persistent,
+		different memory types (system code, yesn persistent,
 		enhanced type 1-4). This is one of the UFS geometry
 		descriptor parameters. The full information about the
 		descriptor could be found at UFS specifications 2.1.
@@ -422,7 +422,7 @@ What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/*_memory_capacity_
 Date:		February 2018
 Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
 Description:	This file shows the memory capacity adjustment factor for
-		different memory types (system code, non persistent,
+		different memory types (system code, yesn persistent,
 		enhanced type 1-4). This is one of the UFS geometry
 		descriptor parameters. The full information about the
 		descriptor could be found at UFS specifications 2.1.

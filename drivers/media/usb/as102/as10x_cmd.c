@@ -13,7 +13,7 @@
  * as10x_cmd_turn_on - send turn on command to AS10x
  * @adap:   pointer to AS10x bus adapter
  *
- * Return 0 when no error, < 0 in case of error.
+ * Return 0 when yes error, < 0 in case of error.
  */
 int as10x_cmd_turn_on(struct as10x_bus_adapter_t *adap)
 {

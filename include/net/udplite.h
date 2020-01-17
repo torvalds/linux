@@ -39,7 +39,7 @@ static inline int udplite_checksum_init(struct sk_buff *skb, struct udphdr *uh)
 {
 	u16 cscov;
 
-        /* In UDPv4 a zero checksum means that the transmitter generated no
+        /* In UDPv4 a zero checksum means that the transmitter generated yes
          * checksum. UDP-Lite (like IPv6) mandates checksums, hence packets
          * with a zero checksum field are illegal.                            */
 	if (uh->check == 0) {
@@ -89,7 +89,7 @@ static inline __wsum udplite_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 		}
 		/*
 		 * NOTE: Causes for the error case  `up->pcslen > up->len':
-		 *        (i)  Application error (will not be penalized).
+		 *        (i)  Application error (will yest be penalized).
 		 *       (ii)  Payload too big for send buffer: data is split
 		 *             into several packets, each with its own header.
 		 *             In this case (e.g. last segment), coverage may
@@ -99,7 +99,7 @@ static inline __wsum udplite_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 		 */
 	}
 
-	skb->ip_summed = CHECKSUM_NONE;     /* no HW support for checksumming */
+	skb->ip_summed = CHECKSUM_NONE;     /* yes HW support for checksumming */
 
 	skb_queue_walk(&sk->sk_write_queue, skb) {
 		const int off = skb_transport_offset(skb);
@@ -113,7 +113,7 @@ static inline __wsum udplite_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 	return csum;
 }
 
-/* Fast-path computation of checksum. Socket may not be locked. */
+/* Fast-path computation of checksum. Socket may yest be locked. */
 static inline __wsum udplite_csum(struct sk_buff *skb)
 {
 	const struct udp_sock *up = udp_sk(skb->sk);
@@ -125,7 +125,7 @@ static inline __wsum udplite_csum(struct sk_buff *skb)
 			len = up->pcslen;
 		udp_hdr(skb)->len = htons(up->pcslen);
 	}
-	skb->ip_summed = CHECKSUM_NONE;     /* no HW support for checksumming */
+	skb->ip_summed = CHECKSUM_NONE;     /* yes HW support for checksumming */
 
 	return skb_checksum(skb, off, len, 0);
 }

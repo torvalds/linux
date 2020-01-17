@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2012 Calxeda, Inc.
  *
- * This driver provides the clk notifier callbacks that are used when
+ * This driver provides the clk yestifier callbacks that are used when
  * the cpufreq-dt driver changes to frequency to alert the highbank
  * EnergyCore Management Engine (ECME) about the need to change
  * voltage. The ECME interfaces with the actual voltage regulators.
@@ -30,10 +30,10 @@ static int hb_voltage_change(unsigned int freq)
 	return pl320_ipc_transmit(msg);
 }
 
-static int hb_cpufreq_clk_notify(struct notifier_block *nb,
+static int hb_cpufreq_clk_yestify(struct yestifier_block *nb,
 				unsigned long action, void *hclk)
 {
-	struct clk_notifier_data *clk_data = hclk;
+	struct clk_yestifier_data *clk_data = hclk;
 	int i = 0;
 
 	if (action == PRE_RATE_CHANGE) {
@@ -51,8 +51,8 @@ static int hb_cpufreq_clk_notify(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block hb_cpufreq_clk_nb = {
-	.notifier_call = hb_cpufreq_clk_notify,
+static struct yestifier_block hb_cpufreq_clk_nb = {
+	.yestifier_call = hb_cpufreq_clk_yestify,
 };
 
 static int hb_cpufreq_driver_init(void)
@@ -60,7 +60,7 @@ static int hb_cpufreq_driver_init(void)
 	struct platform_device_info devinfo = { .name = "cpufreq-dt", };
 	struct device *cpu_dev;
 	struct clk *cpu_clk;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
 	if ((!of_machine_is_compatible("calxeda,highbank")) &&
@@ -73,9 +73,9 @@ static int hb_cpufreq_driver_init(void)
 		return -ENODEV;
 	}
 
-	np = of_node_get(cpu_dev->of_node);
+	np = of_yesde_get(cpu_dev->of_yesde);
 	if (!np) {
-		pr_err("failed to find highbank cpufreq node\n");
+		pr_err("failed to find highbank cpufreq yesde\n");
 		return -ENOENT;
 	}
 
@@ -83,20 +83,20 @@ static int hb_cpufreq_driver_init(void)
 	if (IS_ERR(cpu_clk)) {
 		ret = PTR_ERR(cpu_clk);
 		pr_err("failed to get cpu0 clock: %d\n", ret);
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
-	ret = clk_notifier_register(cpu_clk, &hb_cpufreq_clk_nb);
+	ret = clk_yestifier_register(cpu_clk, &hb_cpufreq_clk_nb);
 	if (ret) {
-		pr_err("failed to register clk notifier: %d\n", ret);
-		goto out_put_node;
+		pr_err("failed to register clk yestifier: %d\n", ret);
+		goto out_put_yesde;
 	}
 
 	/* Instantiate cpufreq-dt */
 	platform_device_register_full(&devinfo);
 
-out_put_node:
-	of_node_put(np);
+out_put_yesde:
+	of_yesde_put(np);
 	return ret;
 }
 module_init(hb_cpufreq_driver_init);

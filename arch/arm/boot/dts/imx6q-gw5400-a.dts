@@ -11,7 +11,7 @@
 	model = "Gateworks Ventana GW5400-A";
 	compatible = "gw,imx6q-gw5400-a", "gw,ventana", "fsl,imx6q";
 
-	/* these are used by bootloader for disabling nodes */
+	/* these are used by bootloader for disabling yesdes */
 	aliases {
 		i2c0 = &i2c1;
 		i2c1 = &i2c2;
@@ -138,7 +138,7 @@
 	status = "okay";
 
 	flash: m25p80@0 {
-		compatible = "sst,w25q256", "jedec,spi-nor";
+		compatible = "sst,w25q256", "jedec,spi-yesr";
 		spi-max-frequency = <30000000>;
 		reg = <0>;
 	};

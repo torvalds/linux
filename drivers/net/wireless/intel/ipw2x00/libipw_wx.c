@@ -110,7 +110,7 @@ static char *libipw_translate_scan(struct libipw_device *ieee,
 	 * more of magic - Jean II */
 	current_val = start + iwe_stream_lcp_len(info);
 	iwe.cmd = SIOCGIWRATE;
-	/* Those two flags are ignored... */
+	/* Those two flags are igyesred... */
 	iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
 
 	for (i = 0, j = 0; i < network->rates_len;) {
@@ -170,9 +170,9 @@ static char *libipw_translate_scan(struct libipw_device *ieee,
 
 	if (!(network->stats.mask & LIBIPW_STATMASK_NOISE)) {
 		iwe.u.qual.updated |= IW_QUAL_NOISE_INVALID;
-		iwe.u.qual.noise = 0;
+		iwe.u.qual.yesise = 0;
 	} else {
-		iwe.u.qual.noise = network->stats.noise;
+		iwe.u.qual.yesise = network->stats.yesise;
 	}
 
 	if (!(network->stats.mask & LIBIPW_STATMASK_SIGNAL)) {
@@ -333,7 +333,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 			LIBIPW_DEBUG_WX("Disabling encryption.\n");
 
 		/* Check all the keys to see if any are still configured,
-		 * and if no key index was provided, de-init them all */
+		 * and if yes key index was provided, de-init them all */
 		for (i = 0; i < WEP_KEYS; i++) {
 			if (ieee->crypt_info.crypt[i] != NULL) {
 				if (key_provided)
@@ -385,7 +385,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 			kfree(new_crypt);
 			new_crypt = NULL;
 
-			printk(KERN_WARNING "%s: could not initialize WEP: "
+			printk(KERN_WARNING "%s: could yest initialize WEP: "
 			       "load module lib80211_crypt_wep\n", dev->name);
 			return -EOPNOTSUPP;
 		}
@@ -407,7 +407,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 			(*crypt)->ops->set_key(sec.keys[key], len, NULL,
 					       (*crypt)->priv);
 		sec.flags |= (1 << key);
-		/* This ensures a key will be activated if no key is
+		/* This ensures a key will be activated if yes key is
 		 * explicitly set */
 		if (key == sec.active_key)
 			sec.flags |= SEC_ACTIVE_KEY;
@@ -446,7 +446,7 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 				   "OPEN" : "SHARED KEY");
 	}
 
-	/* For now we just support WEP, so only set that security level...
+	/* For yesw we just support WEP, so only set that security level...
 	 * TODO: When WPA is added this is one place that needs to change */
 	sec.flags |= SEC_LEVEL;
 	sec.level = SEC_LEVEL_1;	/* 40 and 104 bit WEP */
@@ -578,7 +578,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 		module = "lib80211_crypt_ccmp";
 		break;
 	default:
-		LIBIPW_DEBUG_WX("%s: unknown crypto alg %d\n",
+		LIBIPW_DEBUG_WX("%s: unkyeswn crypto alg %d\n",
 				   dev->name, ext->alg);
 		ret = -EINVAL;
 		goto done;
@@ -590,7 +590,7 @@ int libipw_wx_set_encodeext(struct libipw_device *ieee,
 		ops = lib80211_get_crypto_ops(alg);
 	}
 	if (ops == NULL) {
-		LIBIPW_DEBUG_WX("%s: unknown crypto alg %d\n",
+		LIBIPW_DEBUG_WX("%s: unkyeswn crypto alg %d\n",
 				   dev->name, ext->alg);
 		ret = -EINVAL;
 		goto done;

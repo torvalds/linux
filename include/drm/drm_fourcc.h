@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -62,7 +62,7 @@ struct drm_format_info {
 	 *
 	 * Color depth (number of bits per pixel excluding padding bits),
 	 * valid for a subset of RGB formats only. This is a legacy field, do
-	 * not use in new code and set to 0 for new formats.
+	 * yest use in new code and set to 0 for new formats.
 	 */
 	u8 depth;
 
@@ -88,7 +88,7 @@ struct drm_format_info {
 		 * each other in a byte aligned memory region. Together with
 		 * @block_w and @block_h this is used to properly describe tiles
 		 * in tiled formats or to describe groups of pixels in packed
-		 * formats for which the memory needed for a single pixel is not
+		 * formats for which the memory needed for a single pixel is yest
 		 * byte aligned.
 		 *
 		 * @cpp has been kept for historical reasons because there are
@@ -96,9 +96,9 @@ struct drm_format_info {
 		 * generic code paths the preferred way is to use
 		 * @char_per_block, drm_format_info_block_width() and
 		 * drm_format_info_block_height() which allows handling both
-		 * block and non-block formats in the same way.
+		 * block and yesn-block formats in the same way.
 		 *
-		 * For formats that are intended to be used only with non-linear
+		 * For formats that are intended to be used only with yesn-linear
 		 * modifiers both @cpp and @char_per_block must be 0 in the
 		 * generic format table. Drivers could supply accurate
 		 * information from their drm_mode_config.get_format_info hook

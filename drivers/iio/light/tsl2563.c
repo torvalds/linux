@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2008 Nokia Corporation
  *
- * Written by Timo O. Karjalainen <timo.o.karjalainen@nokia.com>
+ * Written by Timo O. Karjalainen <timo.o.karjalainen@yeskia.com>
  * Contact: Amit Kucheria <amit.kucheria@verdurent.com>
  *
  * Converted to IIO driver
@@ -179,7 +179,7 @@ static int tsl2563_configure(struct tsl2563_chip *chip)
 			(chip->low_thres >> 8) & 0xFF);
 /*
  * Interrupt register is automatically written anyway if it is relevant
- * so is not here.
+ * so is yest here.
  */
 error_ret:
 	return ret;
@@ -224,7 +224,7 @@ static int tsl2563_read_id(struct tsl2563_chip *chip, u8 *id)
 /*
  * "Normalized" ADC value is one obtained with 400ms of integration time and
  * 16x gain. This function returns the number of bits of shift needed to
- * convert between normalized values and HW values obtained using given
+ * convert between yesrmalized values and HW values obtained using given
  * timing and gain settings.
  */
 static int tsl2563_adc_shiftbits(u8 timing)
@@ -239,7 +239,7 @@ static int tsl2563_adc_shiftbits(u8 timing)
 		shift += 2;
 		break;
 	case TSL2563_TIMING_400MS:
-		/* no-op */
+		/* yes-op */
 		break;
 	}
 
@@ -249,8 +249,8 @@ static int tsl2563_adc_shiftbits(u8 timing)
 	return shift;
 }
 
-/* Convert a HW ADC value to normalized scale. */
-static u32 tsl2563_normalize_adc(u16 adc, u8 timing)
+/* Convert a HW ADC value to yesrmalized scale. */
+static u32 tsl2563_yesrmalize_adc(u16 adc, u8 timing)
 {
 	return adc << tsl2563_adc_shiftbits(timing);
 }
@@ -337,8 +337,8 @@ static int tsl2563_get_adc(struct tsl2563_chip *chip)
 		retry = tsl2563_adjust_gainlevel(chip, adc0);
 	}
 
-	chip->data0 = tsl2563_normalize_adc(adc0, chip->gainlevel->gaintime);
-	chip->data1 = tsl2563_normalize_adc(adc1, chip->gainlevel->gaintime);
+	chip->data0 = tsl2563_yesrmalize_adc(adc0, chip->gainlevel->gaintime);
+	chip->data1 = tsl2563_yesrmalize_adc(adc1, chip->gainlevel->gaintime);
 
 	if (!chip->int_enabled)
 		schedule_delayed_work(&chip->poweroff_work, 5 * HZ);
@@ -412,7 +412,7 @@ static const struct tsl2563_lux_coeff lux_table[] = {
 	},
 };
 
-/* Convert normalized, scaled ADC values to lux. */
+/* Convert yesrmalized, scaled ADC values to lux. */
 static unsigned int tsl2563_adc_to_lux(u32 adc0, u32 adc1)
 {
 	const struct tsl2563_lux_coeff *lp = lux_table;
@@ -657,7 +657,7 @@ static int tsl2563_write_interrupt_config(struct iio_dev *indio_dev,
 						TSL2563_CMD | TSL2563_REG_INT,
 						chip->intr);
 		chip->int_enabled = false;
-		/* now the interrupt is not enabled, we can go to sleep */
+		/* yesw the interrupt is yest enabled, we can go to sleep */
 		schedule_delayed_work(&chip->poweroff_work, 5 * HZ);
 	}
 out:
@@ -683,7 +683,7 @@ static int tsl2563_read_interrupt_config(struct iio_dev *indio_dev,
 	return !!(ret & 0x30);
 }
 
-static const struct iio_info tsl2563_info_no_irq = {
+static const struct iio_info tsl2563_info_yes_irq = {
 	.read_raw = &tsl2563_read_raw,
 	.write_raw = &tsl2563_write_raw,
 };
@@ -703,7 +703,7 @@ static int tsl2563_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	struct tsl2563_chip *chip;
 	struct tsl2563_platform_data *pdata = client->dev.platform_data;
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	int err = 0;
 	u8 id = 0;
 
@@ -756,7 +756,7 @@ static int tsl2563_probe(struct i2c_client *client,
 	if (client->irq)
 		indio_dev->info = &tsl2563_info;
 	else
-		indio_dev->info = &tsl2563_info_no_irq;
+		indio_dev->info = &tsl2563_info_yes_irq;
 
 	if (client->irq) {
 		err = devm_request_threaded_irq(&client->dev, client->irq,
@@ -779,7 +779,7 @@ static int tsl2563_probe(struct i2c_client *client,
 
 	INIT_DELAYED_WORK(&chip->poweroff_work, tsl2563_poweroff_work);
 
-	/* The interrupt cannot yet be enabled so this is fine without lock */
+	/* The interrupt canyest yet be enabled so this is fine without lock */
 	schedule_delayed_work(&chip->poweroff_work, 5 * HZ);
 
 	err = iio_device_register(indio_dev);

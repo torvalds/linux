@@ -1,7 +1,7 @@
 * Mediatek Thermal
 
 This describes the device tree binding for the Mediatek thermal controller
-which measures the on-SoC temperatures. This device does not have its own ADC,
+which measures the on-SoC temperatures. This device does yest have its own ADC,
 instead it directly controls the AUXADC via AHB bus accesses. For this reason
 this device needs phandles to the AUXADC. Also it controls a mux in the
 apmixedsys register space via AHB bus accesses, so a phandle to the APMIXEDSYS

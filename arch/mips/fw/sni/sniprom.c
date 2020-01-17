@@ -23,7 +23,7 @@
 
 /* special SNI prom calls */
 /*
- * This does not exist in all proms - SINIX compares
+ * This does yest exist in all proms - SINIX compares
  * the prom env variable "version" against "2.0008"
  * or greater. If lesser it tries to probe interesting
  * registers
@@ -94,7 +94,7 @@ void __init prom_free_prom_memory(void)
  * /proc/cpuinfo system type
  *
  */
-char *system_type = "Unknown";
+char *system_type = "Unkyeswn";
 const char *get_system_type(void)
 {
 	return system_type;

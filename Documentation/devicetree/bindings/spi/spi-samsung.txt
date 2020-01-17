@@ -9,8 +9,8 @@ Required SoC Specific Properties:
     - samsung,s3c2443-spi: for s3c2443, s3c2416 and s3c2450 platforms
     - samsung,s3c6410-spi: for s3c6410 platforms
     - samsung,s5pv210-spi: for s5pv210 and s5pc110 platforms
-    - samsung,exynos5433-spi: for exynos5433 compatible controllers
-    - samsung,exynos7-spi: for exynos7 platforms <DEPRECATED>
+    - samsung,exyyess5433-spi: for exyyess5433 compatible controllers
+    - samsung,exyyess7-spi: for exyyess7 platforms <DEPRECATED>
 
 - reg: physical base address of the controller and length of memory mapped
   region.
@@ -26,11 +26,11 @@ Required SoC Specific Properties:
 
 - clocks: specifies the clock IDs provided to the SPI controller; they are
   required for interacting with the controller itself, for synchronizing the bus
-  and as I/O clock (the latter is required by exynos5433 and exynos7).
+  and as I/O clock (the latter is required by exyyess5433 and exyyess7).
 
 - clock-names: string names of the clocks in the 'clocks' property; for all the
   the devices the names must be "spi", "spi_busclkN" (where N is determined by
-  "samsung,spi-src-clk"), while Exynos5433 should specify a third clock
+  "samsung,spi-src-clk"), while Exyyess5433 should specify a third clock
   "spi_ioclk" for the I/O clock.
 
 Required Board Specific Properties:
@@ -42,20 +42,20 @@ Optional Board Specific Properties:
 
 - samsung,spi-src-clk: If the spi controller includes a internal clock mux to
   select the clock source for the spi bus clock, this property can be used to
-  indicate the clock to be used for driving the spi bus clock. If not specified,
+  indicate the clock to be used for driving the spi bus clock. If yest specified,
   the clock number 0 is used as default.
 
 - num-cs: Specifies the number of chip select lines supported. If
-  not specified, the default number of chip select lines is set to 1.
+  yest specified, the default number of chip select lines is set to 1.
 
 - cs-gpios: should specify GPIOs used for chipselects (see spi-bus.txt)
 
-- no-cs-readback: the CS line is disconnected, therefore the device should not
+- yes-cs-readback: the CS line is disconnected, therefore the device should yest
   operate based on CS signalling.
 
-SPI Controller specific data in SPI slave nodes:
+SPI Controller specific data in SPI slave yesdes:
 
-- The spi slave nodes should provide the following information which is required
+- The spi slave yesdes should provide the following information which is required
   by the spi controller.
 
   - samsung,spi-feedback-delay: The sampling phase shift to be applied on the
@@ -69,7 +69,7 @@ SPI Controller specific data in SPI slave nodes:
 
 Aliases:
 
-- All the SPI controller nodes should be represented in the aliases node using
+- All the SPI controller yesdes should be represented in the aliases yesde using
   the following format 'spi{n}' where n is a unique number for the alias.
 
 
@@ -78,7 +78,7 @@ Example:
 - SoC Specific Portion:
 
 	spi_0: spi@12d20000 {
-		compatible = "samsung,exynos4210-spi";
+		compatible = "samsung,exyyess4210-spi";
 		reg = <0x12d20000 0x100>;
 		interrupts = <0 66 0>;
 		dmas = <&pdma0 5

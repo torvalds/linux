@@ -15,12 +15,12 @@
  *
  * - Each pad has a pad control register (IOMUXC_SW_PAD_CTRL_x) which controls
  *   things like driving strength and pullup/pulldown.
- * - Each pad can have but not necessarily does have an output routing register
+ * - Each pad can have but yest necessarily does have an output routing register
  *   (IOMUXC_SW_MUX_CTL_PAD_x).
- * - Each pad can have but not necessarily does have an input routing register
+ * - Each pad can have but yest necessarily does have an input routing register
  *   (IOMUXC_x_SELECT_INPUT)
  *
- * The three register sets do not have a fixed offset to each other,
+ * The three register sets do yest have a fixed offset to each other,
  * hence we order this table by pad control registers (which all pads
  * have) and put the optional i/o routing registers into additional
  * fields.

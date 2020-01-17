@@ -5,11 +5,11 @@
 #include <uapi/linux/netfilter/nfnetlink_osf.h>
 
 enum osf_fmatch_states {
-	/* Packet does not match the fingerprint */
+	/* Packet does yest match the fingerprint */
 	FMATCH_WRONG = 0,
 	/* Packet matches the fingerprint */
 	FMATCH_OK,
-	/* Options do not match the fingerprint, but header does */
+	/* Options do yest match the fingerprint, but header does */
 	FMATCH_OPT_WRONG,
 };
 

@@ -82,12 +82,12 @@ mwifiex_convert_mcsmap_to_maxrate(struct mwifiex_private *priv,
 		/* support 160 MHz */
 		max_rate = max_rate_lgi_160MHZ[nss - 1][mcs];
 		if (!max_rate)
-			/* MCS9 is not supported in NSS6 */
+			/* MCS9 is yest supported in NSS6 */
 			max_rate = max_rate_lgi_160MHZ[nss - 1][mcs - 1];
 	} else {
 		max_rate = max_rate_lgi_80MHZ[nss - 1][mcs];
 		if (!max_rate)
-			/* MCS9 is not supported in NSS3 */
+			/* MCS9 is yest supported in NSS3 */
 			max_rate = max_rate_lgi_80MHZ[nss - 1][mcs - 1];
 	}
 

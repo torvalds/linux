@@ -51,7 +51,7 @@
 #define EP93XX_TIMER123_RATE		508469
 #define EP93XX_TIMER4_RATE		983040
 
-static u64 notrace ep93xx_read_sched_clock(void)
+static u64 yestrace ep93xx_read_sched_clock(void)
 {
 	u64 ret;
 

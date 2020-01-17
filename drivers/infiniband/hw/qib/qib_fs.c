@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -46,38 +46,38 @@
 
 static struct super_block *qib_super;
 
-#define private2dd(file) (file_inode(file)->i_private)
+#define private2dd(file) (file_iyesde(file)->i_private)
 
-static int qibfs_mknod(struct inode *dir, struct dentry *dentry,
+static int qibfs_mkyesd(struct iyesde *dir, struct dentry *dentry,
 		       umode_t mode, const struct file_operations *fops,
 		       void *data)
 {
 	int error;
-	struct inode *inode = new_inode(dir->i_sb);
+	struct iyesde *iyesde = new_iyesde(dir->i_sb);
 
-	if (!inode) {
+	if (!iyesde) {
 		error = -EPERM;
 		goto bail;
 	}
 
-	inode->i_ino = get_next_ino();
-	inode->i_mode = mode;
-	inode->i_uid = GLOBAL_ROOT_UID;
-	inode->i_gid = GLOBAL_ROOT_GID;
-	inode->i_blocks = 0;
-	inode->i_atime = current_time(inode);
-	inode->i_mtime = inode->i_atime;
-	inode->i_ctime = inode->i_atime;
-	inode->i_private = data;
+	iyesde->i_iyes = get_next_iyes();
+	iyesde->i_mode = mode;
+	iyesde->i_uid = GLOBAL_ROOT_UID;
+	iyesde->i_gid = GLOBAL_ROOT_GID;
+	iyesde->i_blocks = 0;
+	iyesde->i_atime = current_time(iyesde);
+	iyesde->i_mtime = iyesde->i_atime;
+	iyesde->i_ctime = iyesde->i_atime;
+	iyesde->i_private = data;
 	if (S_ISDIR(mode)) {
-		inode->i_op = &simple_dir_inode_operations;
-		inc_nlink(inode);
+		iyesde->i_op = &simple_dir_iyesde_operations;
+		inc_nlink(iyesde);
 		inc_nlink(dir);
 	}
 
-	inode->i_fop = fops;
+	iyesde->i_fop = fops;
 
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 	error = 0;
 
 bail:
@@ -90,14 +90,14 @@ static int create_file(const char *name, umode_t mode,
 {
 	int error;
 
-	inode_lock(d_inode(parent));
+	iyesde_lock(d_iyesde(parent));
 	*dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(*dentry))
-		error = qibfs_mknod(d_inode(parent), *dentry,
+		error = qibfs_mkyesd(d_iyesde(parent), *dentry,
 				    mode, fops, data);
 	else
 		error = PTR_ERR(*dentry);
-	inode_unlock(d_inode(parent));
+	iyesde_unlock(d_iyesde(parent));
 
 	return error;
 }
@@ -134,7 +134,7 @@ static ssize_t driver_names_read(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	return simple_read_from_buffer(buf, count, ppos, qib_statnames,
-		sizeof(qib_statnames) - 1); /* no null */
+		sizeof(qib_statnames) - 1); /* yes null */
 }
 
 static const struct file_operations driver_ops[] = {
@@ -172,8 +172,8 @@ static const struct file_operations cntr_ops[] = {
 };
 
 /*
- * Could use file_inode(file)->i_ino to figure out which file,
- * instead of separate routine for each, but for now, this works...
+ * Could use file_iyesde(file)->i_iyes to figure out which file,
+ * instead of separate routine for each, but for yesw, this works...
  */
 
 /* read the per-port names (same for each port) */
@@ -443,7 +443,7 @@ static int remove_file(struct dentry *parent, char *name)
 	if (simple_positive(tmp)) {
 		__d_drop(tmp);
 		spin_unlock(&tmp->d_lock);
-		simple_unlink(d_inode(parent), tmp);
+		simple_unlink(d_iyesde(parent), tmp);
 	} else {
 		spin_unlock(&tmp->d_lock);
 	}
@@ -466,7 +466,7 @@ static int remove_device_files(struct super_block *sb,
 	int ret, i;
 
 	root = dget(sb->s_root);
-	inode_lock(d_inode(root));
+	iyesde_lock(d_iyesde(root));
 	snprintf(unit, sizeof(unit), "%u", dd->unit);
 	dir = lookup_one_len(unit, root, strlen(unit));
 
@@ -476,7 +476,7 @@ static int remove_device_files(struct super_block *sb,
 		goto bail;
 	}
 
-	inode_lock(d_inode(dir));
+	iyesde_lock(d_iyesde(dir));
 	remove_file(dir, "counters");
 	remove_file(dir, "counter_names");
 	remove_file(dir, "portcounter_names");
@@ -491,13 +491,13 @@ static int remove_device_files(struct super_block *sb,
 		}
 	}
 	remove_file(dir, "flash");
-	inode_unlock(d_inode(dir));
-	ret = simple_rmdir(d_inode(root), dir);
+	iyesde_unlock(d_iyesde(dir));
+	ret = simple_rmdir(d_iyesde(root), dir);
 	d_drop(dir);
 	dput(dir);
 
 bail:
-	inode_unlock(d_inode(root));
+	iyesde_unlock(d_iyesde(root));
 	dput(root);
 	return ret;
 }
@@ -564,12 +564,12 @@ int qibfs_add(struct qib_devdata *dd)
 	int ret;
 
 	/*
-	 * On first unit initialized, qib_super will not yet exist
-	 * because nobody has yet tried to mount the filesystem, so
+	 * On first unit initialized, qib_super will yest yet exist
+	 * because yesbody has yet tried to mount the filesystem, so
 	 * we can't consider that to be an error; if an error occurs
 	 * during the mount, that will get a complaint, so this is OK.
 	 * add_cntr_files() for all units is done at mount from
-	 * qibfs_fill_super(), so one way or another, everything works.
+	 * qibfs_fill_super(), so one way or ayesther, everything works.
 	 */
 	if (qib_super == NULL)
 		ret = 0;

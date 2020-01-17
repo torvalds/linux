@@ -147,7 +147,7 @@ struct mgmt_cp_set_discoverable {
 #define MGMT_OP_SET_DEV_CLASS		0x000E
 struct mgmt_cp_set_dev_class {
 	__u8	major;
-	__u8	minor;
+	__u8	miyesr;
 } __packed;
 #define MGMT_SET_DEV_CLASS_SIZE		2
 
@@ -348,7 +348,7 @@ struct mgmt_cp_stop_discovery {
 #define MGMT_OP_CONFIRM_NAME		0x0025
 struct mgmt_cp_confirm_name {
 	struct mgmt_addr_info addr;
-	__u8	name_known;
+	__u8	name_kyeswn;
 } __packed;
 #define MGMT_CONFIRM_NAME_SIZE		(MGMT_ADDR_INFO_SIZE + 1)
 struct mgmt_rp_confirm_name {
@@ -786,7 +786,7 @@ struct mgmt_ev_device_unpaired {
 } __packed;
 
 #define MGMT_EV_PASSKEY_NOTIFY		0x0017
-struct mgmt_ev_passkey_notify {
+struct mgmt_ev_passkey_yestify {
 	struct mgmt_addr_info addr;
 	__le32	passkey;
 	__u8	entered;

@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -168,8 +168,8 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 			 * driver try to read chunk from address that is
 			 * multiple of 2K and got an error since addr is empty.
 			 * meaning of (offset != 0): driver already
-			 * read valid data from another chunk so this case
-			 * is not an error.
+			 * read valid data from ayesther chunk so this case
+			 * is yest an error.
 			 */
 			IWL_DEBUG_EEPROM(mvm->trans->dev,
 					 "NVM access command failed on offset 0x%x since that section size is multiple 2K\n",
@@ -232,7 +232,7 @@ static int iwl_nvm_write_section(struct iwl_mvm *mvm, u16 section,
  * overflow and try to read more than the EEPROM size.
  * For 7000 family NICs, we supply the maximal size we can read, and
  * the uCode fills the response with as much data as we can,
- * without overflowing, so no check is needed.
+ * without overflowing, so yes check is needed.
  */
 static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 				u8 *data, u32 size_read)
@@ -247,7 +247,7 @@ static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 
 	/* Read the NVM until exhausted (reading less than requested) */
 	while (ret == length) {
-		/* Check no memory assumptions fail and cause an overflow */
+		/* Check yes memory assumptions fail and cause an overflow */
 		if ((size_read + offset + length) >
 		    mvm->trans->trans_cfg->base_params->eeprom_size) {
 			IWL_ERR(mvm, "EEPROM size is too small for NVM\n");
@@ -257,7 +257,7 @@ static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 		ret = iwl_nvm_read_chunk(mvm, section, offset, length, data);
 		if (ret < 0) {
 			IWL_DEBUG_EEPROM(mvm->trans->dev,
-					 "Cannot read NVM from section %d offset %d, length %d\n",
+					 "Canyest read NVM from section %d offset %d, length %d\n",
 					 section, offset, length);
 			return ret;
 		}
@@ -590,7 +590,7 @@ int iwl_mvm_init_mcc(struct iwl_mvm *mvm)
 	 * Driver regulatory hint for initial update, this also informs the
 	 * firmware we support wifi location updates.
 	 * Disallow scans that might crash the FW while the LAR regdomain
-	 * is not set.
+	 * is yest set.
 	 */
 	mvm->lar_regdom_set = false;
 
@@ -616,7 +616,7 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 				struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_mcc_chub_notif *notif = (void *)pkt->data;
+	struct iwl_mcc_chub_yestif *yestif = (void *)pkt->data;
 	enum iwl_mcc_source src;
 	char mcc[3];
 	struct ieee80211_regdomain *regd;
@@ -624,18 +624,18 @@ void iwl_mvm_rx_chub_update_mcc(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (iwl_mvm_is_vif_assoc(mvm) && notif->source_id == MCC_SOURCE_WIFI) {
-		IWL_DEBUG_LAR(mvm, "Ignore mcc update while associated\n");
+	if (iwl_mvm_is_vif_assoc(mvm) && yestif->source_id == MCC_SOURCE_WIFI) {
+		IWL_DEBUG_LAR(mvm, "Igyesre mcc update while associated\n");
 		return;
 	}
 
 	if (WARN_ON_ONCE(!iwl_mvm_is_lar_supported(mvm)))
 		return;
 
-	mcc[0] = le16_to_cpu(notif->mcc) >> 8;
-	mcc[1] = le16_to_cpu(notif->mcc) & 0xff;
+	mcc[0] = le16_to_cpu(yestif->mcc) >> 8;
+	mcc[1] = le16_to_cpu(yestif->mcc) & 0xff;
 	mcc[2] = '\0';
-	src = notif->source_id;
+	src = yestif->source_id;
 
 	IWL_DEBUG_LAR(mvm,
 		      "RX: received chub update mcc cmd (mcc '%s' src %d)\n",

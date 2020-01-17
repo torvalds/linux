@@ -42,7 +42,7 @@ EXPORT_SYMBOL(convert_ifc_address);
  * This function walks IFC banks comparing "Base address" field of the CSPR
  * registers with the supplied addr_base argument. When bases match this
  * function returns bank number (starting with 0), otherwise it returns
- * appropriate errno value.
+ * appropriate erryes value.
  */
 int fsl_ifc_find(phys_addr_t addr_base)
 {
@@ -104,7 +104,7 @@ static int fsl_ifc_ctrl_remove(struct platform_device *dev)
 /*
  * NAND events are split between an operational interrupt which only
  * receives OPC, and an error interrupt that receives everything else,
- * including non-NAND errors.  Whichever interrupt gets to it first
+ * including yesn-NAND errors.  Whichever interrupt gets to it first
  * records the status and wakes the wait queue.
  */
 static DEFINE_SPINLOCK(nand_irq_lock);
@@ -129,7 +129,7 @@ static u32 check_nand_stat(struct fsl_ifc_ctrl *ctrl)
 	return stat;
 }
 
-static irqreturn_t fsl_ifc_nand_irq(int irqno, void *data)
+static irqreturn_t fsl_ifc_nand_irq(int irqyes, void *data)
 {
 	struct fsl_ifc_ctrl *ctrl = data;
 
@@ -143,7 +143,7 @@ static irqreturn_t fsl_ifc_nand_irq(int irqno, void *data)
  * NOTE: This interrupt is used to report ifc events of various kinds,
  * such as transaction errors on the chipselects.
  */
-static irqreturn_t fsl_ifc_ctrl_irq(int irqno, void *data)
+static irqreturn_t fsl_ifc_ctrl_irq(int irqyes, void *data)
 {
 	struct fsl_ifc_ctrl *ctrl = data;
 	struct fsl_ifc_global __iomem *ifc = ctrl->gregs;
@@ -153,7 +153,7 @@ static irqreturn_t fsl_ifc_ctrl_irq(int irqno, void *data)
 	/* read for chip select error */
 	cs_err = ifc_in32(&ifc->cm_evter_stat);
 	if (cs_err) {
-		dev_err(ctrl->dev, "transaction sent to IFC is not mapped to"
+		dev_err(ctrl->dev, "transaction sent to IFC is yest mapped to"
 				"any memory bank 0x%08X\n", cs_err);
 		/* clear the chip select error */
 		ifc_out32(IFC_CM_EVTER_STAT_CSER, &ifc->cm_evter_stat);
@@ -215,14 +215,14 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 	dev_set_drvdata(&dev->dev, fsl_ifc_ctrl_dev);
 
 	/* IOMAP the entire IFC region */
-	fsl_ifc_ctrl_dev->gregs = of_iomap(dev->dev.of_node, 0);
+	fsl_ifc_ctrl_dev->gregs = of_iomap(dev->dev.of_yesde, 0);
 	if (!fsl_ifc_ctrl_dev->gregs) {
 		dev_err(&dev->dev, "failed to get memory region\n");
 		ret = -ENODEV;
 		goto err;
 	}
 
-	if (of_property_read_bool(dev->dev.of_node, "little-endian")) {
+	if (of_property_read_bool(dev->dev.of_yesde, "little-endian")) {
 		fsl_ifc_ctrl_dev->little_endian = true;
 		dev_dbg(&dev->dev, "IFC REGISTERS are LITTLE endian\n");
 	} else {
@@ -248,7 +248,7 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 	fsl_ifc_ctrl_dev->rregs = addr;
 
 	/* get the Controller level irq */
-	fsl_ifc_ctrl_dev->irq = irq_of_parse_and_map(dev->dev.of_node, 0);
+	fsl_ifc_ctrl_dev->irq = irq_of_parse_and_map(dev->dev.of_yesde, 0);
 	if (fsl_ifc_ctrl_dev->irq == 0) {
 		dev_err(&dev->dev, "failed to get irq resource "
 							"for IFC\n");
@@ -258,7 +258,7 @@ static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 
 	/* get the nand machine irq */
 	fsl_ifc_ctrl_dev->nand_irq =
-			irq_of_parse_and_map(dev->dev.of_node, 1);
+			irq_of_parse_and_map(dev->dev.of_yesde, 1);
 
 	fsl_ifc_ctrl_dev->dev = &dev->dev;
 

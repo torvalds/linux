@@ -592,7 +592,7 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 	/* Discard disabled bits */
 	intr_status &= intr_enable;
 
-	/* Not used events (e.g. MMC interrupts) are not handled. */
+	/* Not used events (e.g. MMC interrupts) are yest handled. */
 	if ((intr_status & mmc_tx_irq))
 		x->mmc_tx_irq_n++;
 	if (unlikely(intr_status & mmc_rx_irq))
@@ -643,7 +643,7 @@ static void dwmac4_debug(void __iomem *ioaddr, struct stmmac_extra_stats *x,
 		if (value & MTL_DEBUG_TXSTSFSTS)
 			x->mtl_tx_status_fifo_full++;
 		if (value & MTL_DEBUG_TXFSTS)
-			x->mtl_tx_fifo_not_empty++;
+			x->mtl_tx_fifo_yest_empty++;
 		if (value & MTL_DEBUG_TWCSTS)
 			x->mmtl_fifo_ctrl++;
 		if (value & MTL_DEBUG_TRCSTS_MASK) {
@@ -809,7 +809,7 @@ static void dwmac4_set_arp_offload(struct mac_device_info *hw, bool en,
 	writel(value, ioaddr + GMAC_CONFIG);
 }
 
-static int dwmac4_config_l3_filter(struct mac_device_info *hw, u32 filter_no,
+static int dwmac4_config_l3_filter(struct mac_device_info *hw, u32 filter_yes,
 				   bool en, bool ipv6, bool sa, bool inv,
 				   u32 match)
 {
@@ -820,9 +820,9 @@ static int dwmac4_config_l3_filter(struct mac_device_info *hw, u32 filter_no,
 	value |= GMAC_PACKET_FILTER_IPFE;
 	writel(value, ioaddr + GMAC_PACKET_FILTER);
 
-	value = readl(ioaddr + GMAC_L3L4_CTRL(filter_no));
+	value = readl(ioaddr + GMAC_L3L4_CTRL(filter_yes));
 
-	/* For IPv6 not both SA/DA filters can be active */
+	/* For IPv6 yest both SA/DA filters can be active */
 	if (ipv6) {
 		value |= GMAC_L3PEN0;
 		value &= ~(GMAC_L3SAM0 | GMAC_L3SAIM0);
@@ -849,21 +849,21 @@ static int dwmac4_config_l3_filter(struct mac_device_info *hw, u32 filter_no,
 		}
 	}
 
-	writel(value, ioaddr + GMAC_L3L4_CTRL(filter_no));
+	writel(value, ioaddr + GMAC_L3L4_CTRL(filter_yes));
 
 	if (sa) {
-		writel(match, ioaddr + GMAC_L3_ADDR0(filter_no));
+		writel(match, ioaddr + GMAC_L3_ADDR0(filter_yes));
 	} else {
-		writel(match, ioaddr + GMAC_L3_ADDR1(filter_no));
+		writel(match, ioaddr + GMAC_L3_ADDR1(filter_yes));
 	}
 
 	if (!en)
-		writel(0, ioaddr + GMAC_L3L4_CTRL(filter_no));
+		writel(0, ioaddr + GMAC_L3L4_CTRL(filter_yes));
 
 	return 0;
 }
 
-static int dwmac4_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
+static int dwmac4_config_l4_filter(struct mac_device_info *hw, u32 filter_yes,
 				   bool en, bool udp, bool sa, bool inv,
 				   u32 match)
 {
@@ -874,7 +874,7 @@ static int dwmac4_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
 	value |= GMAC_PACKET_FILTER_IPFE;
 	writel(value, ioaddr + GMAC_PACKET_FILTER);
 
-	value = readl(ioaddr + GMAC_L3L4_CTRL(filter_no));
+	value = readl(ioaddr + GMAC_L3L4_CTRL(filter_yes));
 	if (udp) {
 		value |= GMAC_L4PEN0;
 	} else {
@@ -893,7 +893,7 @@ static int dwmac4_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
 			value |= GMAC_L4DPIM0;
 	}
 
-	writel(value, ioaddr + GMAC_L3L4_CTRL(filter_no));
+	writel(value, ioaddr + GMAC_L3L4_CTRL(filter_yes));
 
 	if (sa) {
 		value = match & GMAC_L4SP0;
@@ -901,10 +901,10 @@ static int dwmac4_config_l4_filter(struct mac_device_info *hw, u32 filter_no,
 		value = (match << GMAC_L4DP0_SHIFT) & GMAC_L4DP0;
 	}
 
-	writel(value, ioaddr + GMAC_L4_ADDR(filter_no));
+	writel(value, ioaddr + GMAC_L4_ADDR(filter_yes));
 
 	if (!en)
-		writel(0, ioaddr + GMAC_L3L4_CTRL(filter_no));
+		writel(0, ioaddr + GMAC_L3L4_CTRL(filter_yes));
 
 	return 0;
 }

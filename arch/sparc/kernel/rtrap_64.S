@@ -29,7 +29,7 @@ __handle_preemption:
 		/* If userspace is using ADI, it could potentially pass
 		 * a pointer with version tag embedded in it. To maintain
 		 * the ADI security, we must re-enable PSTATE.mcde before
-		 * we continue execution in the kernel for another thread.
+		 * we continue execution in the kernel for ayesther thread.
 		 */
 		.section .sun_m7_1insn_patch, "ax"
 		.word	661b
@@ -45,7 +45,7 @@ __handle_user_windows:
 		/* If userspace is using ADI, it could potentially pass
 		 * a pointer with version tag embedded in it. To maintain
 		 * the ADI security, we must re-enable PSTATE.mcde before
-		 * we continue execution in the kernel for another thread.
+		 * we continue execution in the kernel for ayesther thread.
 		 */
 		.section .sun_m7_1insn_patch, "ax"
 		.word	661b
@@ -66,12 +66,12 @@ __handle_signal:
 		mov			%l5, %o1
 		add			%sp, PTREGS_OFF, %o0
 		mov			%l0, %o2
-		call			do_notify_resume
+		call			do_yestify_resume
 661:		 wrpr			%g0, RTRAP_PSTATE, %pstate
 		/* If userspace is using ADI, it could potentially pass
 		 * a pointer with version tag embedded in it. To maintain
 		 * the ADI security, we must re-enable PSTATE.mcde before
-		 * we continue execution in the kernel for another thread.
+		 * we continue execution in the kernel for ayesther thread.
 		 */
 		.section .sun_m7_1insn_patch, "ax"
 		.word	661b
@@ -98,9 +98,9 @@ rtrap_nmi:	ldx			[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 		and			%l1, %l4, %l4
 		andn			%l1, %l4, %l1
 		srl			%l4, 20, %l4
-		ba,pt			%xcc, rtrap_no_irq_enable
-		nop
-		/* Do not actually set the %pil here.  We will do that
+		ba,pt			%xcc, rtrap_yes_irq_enable
+		yesp
+		/* Do yest actually set the %pil here.  We will do that
 		 * below after we clear PSTATE_IE in the %pstate register.
 		 * If we re-enable interrupts here, we can recurse down
 		 * the hardirq stack potentially endlessly, causing a
@@ -119,36 +119,36 @@ rtrap_xcall:
 		andn			%l1, %l4, %l1
 		srl			%l4, 20, %l4
 #ifdef CONFIG_TRACE_IRQFLAGS
-		brnz,pn			%l4, rtrap_no_irq_enable
-		 nop
+		brnz,pn			%l4, rtrap_yes_irq_enable
+		 yesp
 		call			trace_hardirqs_on
-		 nop
-		/* Do not actually set the %pil here.  We will do that
+		 yesp
+		/* Do yest actually set the %pil here.  We will do that
 		 * below after we clear PSTATE_IE in the %pstate register.
 		 * If we re-enable interrupts here, we can recurse down
 		 * the hardirq stack potentially endlessly, causing a
 		 * stack overflow.
 		 *
 		 * It is tempting to put this test and trace_hardirqs_on
-		 * call at the 'rt_continue' label, but that will not work
-		 * as that path hits unconditionally and we do not want to
+		 * call at the 'rt_continue' label, but that will yest work
+		 * as that path hits unconditionally and we do yest want to
 		 * execute this in NMI return paths, for example.
 		 */
 #endif
-rtrap_no_irq_enable:
+rtrap_yes_irq_enable:
 		andcc			%l1, TSTATE_PRIV, %l3
 		bne,pn			%icc, to_kernel
-		 nop
+		 yesp
 
 		/* We must hold IRQs off and atomically test schedule+signal
 		 * state, then hold them off all the way back to userspace.
-		 * If we are returning to kernel, none of this matters.  Note
-		 * that we are disabling interrupts via PSTATE_IE, not using
+		 * If we are returning to kernel, yesne of this matters.  Note
+		 * that we are disabling interrupts via PSTATE_IE, yest using
 		 * %pil.
 		 *
-		 * If we do not do this, there is a window where we would do
+		 * If we do yest do this, there is a window where we would do
 		 * the tests, later the signal/resched event arrives but we do
-		 * not process it since we are still in kernel mode.  It would
+		 * yest process it since we are still in kernel mode.  It would
 		 * take until the next local IRQ before the signal/resched
 		 * event would be handled.
 		 *
@@ -164,7 +164,7 @@ __handle_preemption_continue:
 		or			%o0, %lo(_TIF_USER_WORK_MASK), %o0
 		andcc			%l0, %o0, %g0
 		sethi			%hi(TSTATE_PEF), %o0
-		be,pt			%xcc, user_nowork
+		be,pt			%xcc, user_yeswork
 		 andcc			%l1, %o0, %g0
 		andcc			%l0, _TIF_NEED_RESCHED, %g0
 		bne,pn			%xcc, __handle_preemption
@@ -172,12 +172,12 @@ __handle_preemption_continue:
 		bne,pn			%xcc, __handle_signal
 		 ldub			[%g6 + TI_WSAVED], %o2
 		brnz,pn			%o2, __handle_user_windows
-		 nop
+		 yesp
 		sethi			%hi(TSTATE_PEF), %o0
 		andcc			%l1, %o0, %g0
 
-		/* This fpdepth clear is necessary for non-syscall rtraps only */
-user_nowork:
+		/* This fpdepth clear is necessary for yesn-syscall rtraps only */
+user_yeswork:
 		bne,pn			%xcc, __handle_userfpu
 		 stb			%g0, [%g6 + TI_FPDEPTH]
 __handle_userfpu_continue:
@@ -199,7 +199,7 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 
 		/* Normal globals are restored, go to trap globals.  */
 661:		wrpr			%g0, RTRAP_PSTATE_AG_IRQOFF, %pstate
-		nop
+		yesp
 		.section		.sun4v_2insn_patch, "ax"
 		.word			661b
 		wrpr			%g0, RTRAP_PSTATE_IRQOFF, %pstate
@@ -257,7 +257,7 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 661:		wrpr			%l2, %g0, %canrestore
 		.section		.fast_win_ctrl_1insn_patch, "ax"
 		.word			661b
-		.word			0x89880000	! normalw
+		.word			0x89880000	! yesrmalw
 		.previous
 
 		wrpr			%l1, %g0, %wstate
@@ -265,7 +265,7 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 661:		 wrpr			%g0, %g0, %otherwin
 		.section		.fast_win_ctrl_1insn_patch, "ax"
 		.word			661b
-		 nop
+		 yesp
 		.previous
 
 		ldx			[%g6 + TI_FLAGS], %g3
@@ -276,7 +276,7 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 		bne,pt			%xcc, user_rtt_fill_32bit
 		 wrpr			%g1, %cwp
 		ba,a,pt			%xcc, user_rtt_fill_64bit
-		 nop
+		 yesp
 
 user_rtt_fill_fixup_dax:
 		ba,pt	%xcc, user_rtt_fill_fixup_common
@@ -299,11 +299,11 @@ user_rtt_restore:
 		rdpr			%canrestore, %g1
 		wrpr			%g1, 0x0, %cleanwin
 		retry
-		nop
+		yesp
 
 kern_rtt:	rdpr			%canrestore, %g1
 		brz,pn			%g1, kern_rtt_fill
-		 nop
+		 yesp
 kern_rtt_restore:
 		stw			%g0, [%sp + PTREGS_OFF + PT_V9_MAGIC]
 		restore
@@ -316,12 +316,12 @@ to_kernel:
 		 ldx			[%g6 + TI_FLAGS], %l5
 		andcc			%l5, _TIF_NEED_RESCHED, %g0
 		be,pt			%xcc, kern_fpucheck
-		 nop
+		 yesp
 		cmp			%l4, 0
 		bne,pn			%xcc, kern_fpucheck
-		 nop
+		 yesp
 		call			preempt_schedule_irq
-		 nop
+		 yesp
 		ba,pt			%xcc, rtrap
 #endif
 kern_fpucheck:	ldub			[%g6 + TI_FPDEPTH], %l5
@@ -363,7 +363,7 @@ kern_fpucheck:	ldub			[%g6 + TI_FPDEPTH], %l5
 		ldx			[%o1 + %o5], %fsr
 2:		stb			%l5, [%g6 + TI_FPDEPTH]
 		ba,pt			%xcc, rt_continue
-		 nop
+		 yesp
 5:		wr			%g0, FPRS_FEF, %fprs
 		sll			%o0, 8, %o2
 

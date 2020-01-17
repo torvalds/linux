@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -65,7 +65,7 @@ struct dc_dmdata_attributes {
 	enum hubp_dmdata_mode dmdata_mode;
 	/* Specifies if current dynamic meta data is to be used only for the current frame */
 	bool dmdata_repeat;
-	/* Specifies the size of Dynamic Metadata surface in byte.  Size of 0 means no Dynamic metadata is fetched */
+	/* Specifies the size of Dynamic Metadata surface in byte.  Size of 0 means yes Dynamic metadata is fetched */
 	uint32_t dmdata_size;
 	/* Specifies if a new dynamic meta data should be fetched for an upcoming frame */
 	bool dmdata_updated;
@@ -103,7 +103,7 @@ enum vertical_interrupt_ref_point {
 	START_V_SYNC,
 	INVALID_POINT
 
-	//For now, only v_update interrupt is used.
+	//For yesw, only v_update interrupt is used.
 	//START_V_BLANK,
 	//START_V_ACTIVE
 };
@@ -130,7 +130,7 @@ union stream_update_flags {
 };
 
 struct dc_stream_state {
-	// sink is deprecated, new code should not reference
+	// sink is deprecated, new code should yest reference
 	// this pointer
 	struct dc_sink *sink;
 
@@ -164,7 +164,7 @@ struct dc_stream_state {
 
 	enum view_3d_format view_format;
 
-	bool ignore_msa_timing_param;
+	bool igyesre_msa_timing_param;
 	bool converter_disable_audio;
 	uint8_t qs_bit;
 	uint8_t qy_bit;
@@ -213,8 +213,8 @@ struct dc_stream_state {
 
 	/* Output from DC when stream state is committed or altered
 	 * DC may only access these values during:
-	 * dc_commit_state, dc_commit_state_no_check, dc_commit_streams
-	 * values may not change outside of those calls
+	 * dc_commit_state, dc_commit_state_yes_check, dc_commit_streams
+	 * values may yest change outside of those calls
 	 */
 	struct {
 		// For interrupt management, some hardware instance
@@ -274,12 +274,12 @@ bool dc_is_stream_scaling_unchanged(
 /*
  * Set up surface attributes and associate to a stream
  * The surfaces parameter is an absolute set of all surface active for the stream.
- * If no surfaces are provided, the stream will be blanked; no memory read.
+ * If yes surfaces are provided, the stream will be blanked; yes memory read.
  * Any flip related attribute changes must be done through this interface.
  *
  * After this call:
  *   Surfaces attributes are programmed and configured to be composed into stream.
- *   This does not trigger a flip.  No surface address is programmed.
+ *   This does yest trigger a flip.  No surface address is programmed.
  */
 
 void dc_commit_updates_for_stream(struct dc *dc,
@@ -309,10 +309,10 @@ bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 		unsigned int sdp_message_size);
 
 /* TODO: Return parsed values rather than direct register read
- * This has a dependency on the caller (amdgpu_display_get_crtc_scanoutpos)
+ * This has a dependency on the caller (amdgpu_display_get_crtc_scayesutpos)
  * being refactored properly to be dce-specific
  */
-bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
+bool dc_stream_get_scayesutpos(const struct dc_stream_state *stream,
 				  uint32_t *v_blank_start,
 				  uint32_t *v_blank_end,
 				  uint32_t *h_position,
@@ -374,10 +374,10 @@ enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
  *
  * After this call:
  *   Phy, Encoder, Timing Generator are programmed and enabled.
- *   New streams are enabled with blank stream; no memory read.
+ *   New streams are enabled with blank stream; yes memory read.
  */
 /*
- * Enable stereo when commit_streams is not required,
+ * Enable stereo when commit_streams is yest required,
  * for example, frame alternate.
  */
 bool dc_enable_stereo(
@@ -433,7 +433,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 struct dc_stream_state **stream,
 				 int num_streams,
 				 unsigned int *v_pos,
-				 unsigned int *nom_v_pos);
+				 unsigned int *yesm_v_pos);
 
 bool dc_stream_configure_crc(struct dc *dc,
 			     struct dc_stream_state *stream,
@@ -467,6 +467,6 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 struct dc_stream_state **stream,
 				 int num_streams,
 				 unsigned int *v_pos,
-				 unsigned int *nom_v_pos);
+				 unsigned int *yesm_v_pos);
 
 #endif /* DC_STREAM_H_ */

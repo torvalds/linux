@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2015, Mellayesx Techyeslogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -187,7 +187,7 @@ is_eth_port_inactive_slave_filter(struct ib_device *ib_dev, u8 port,
 }
 
 /** is_ndev_for_default_gid_filter - Check if a given netdevice
- * can be considered for default GIDs or not.
+ * can be considered for default GIDs or yest.
  * @ib_dev:		IB device to check
  * @port:		Port to consider for adding default GID
  * @rdma_ndev:		rdma netdevice pointer
@@ -210,7 +210,7 @@ is_ndev_for_default_gid_filter(struct ib_device *ib_dev, u8 port,
 
 	/*
 	 * When rdma netdevice is used in bonding, bonding master netdevice
-	 * should be considered for default GIDs. Therefore, ignore slave rdma
+	 * should be considered for default GIDs. Therefore, igyesre slave rdma
 	 * netdevices when bonding is considered.
 	 * Additionally when event(cookie) netdevice is bond master device,
 	 * make sure that it the upper netdevice of rdma netdevice.
@@ -257,7 +257,7 @@ static bool upper_device_filter(struct ib_device *ib_dev, u8 port,
  *
  * is_upper_ndev_bond_master_filter() returns true if a cookie_netdev
  * is bond master device and rdma_ndev is its lower netdevice. It might
- * not have been established as slave device yet.
+ * yest have been established as slave device yet.
  */
 static bool
 is_upper_ndev_bond_master_filter(struct ib_device *ib_dev, u8 port,
@@ -477,7 +477,7 @@ static void enum_all_gids_of_dev_cb(struct ib_device *ib_dev,
 	struct net *net;
 	struct net_device *ndev;
 
-	/* Lock the rtnl to make sure the netdevs does not move under
+	/* Lock the rtnl to make sure the netdevs does yest move under
 	 * our feet
 	 */
 	rtnl_lock();
@@ -486,7 +486,7 @@ static void enum_all_gids_of_dev_cb(struct ib_device *ib_dev,
 		for_each_netdev(net, ndev) {
 			/*
 			 * Filter and add default GIDs of the primary netdevice
-			 * when not in bonding mode, or add default GIDs
+			 * when yest in bonding mode, or add default GIDs
 			 * of bond master device, when in bonding mode.
 			 */
 			if (is_ndev_for_default_gid_filter(ib_dev, port,
@@ -668,7 +668,7 @@ static const struct netdev_event_work_cmd add_cmd_upper_ips = {
 };
 
 static void
-ndev_event_unlink(struct netdev_notifier_changeupper_info *changeupper_info,
+ndev_event_unlink(struct netdev_yestifier_changeupper_info *changeupper_info,
 		  struct netdev_event_work_cmd *cmds)
 {
 	static const struct netdev_event_work_cmd
@@ -689,7 +689,7 @@ static const struct netdev_event_work_cmd bonding_default_add_cmd = {
 
 static void
 ndev_event_link(struct net_device *event_ndev,
-		struct netdev_notifier_changeupper_info *changeupper_info,
+		struct netdev_yestifier_changeupper_info *changeupper_info,
 		struct netdev_event_work_cmd *cmds)
 {
 	static const struct netdev_event_work_cmd
@@ -717,7 +717,7 @@ ndev_event_link(struct net_device *event_ndev,
 }
 
 static void netdevice_event_changeupper(struct net_device *event_ndev,
-		struct netdev_notifier_changeupper_info *changeupper_info,
+		struct netdev_yestifier_changeupper_info *changeupper_info,
 		struct netdev_event_work_cmd *cmds)
 {
 	if (changeupper_info->linking)
@@ -731,7 +731,7 @@ static const struct netdev_event_work_cmd add_default_gid_cmd = {
 	.filter	= is_ndev_for_default_gid_filter,
 };
 
-static int netdevice_event(struct notifier_block *this, unsigned long event,
+static int netdevice_event(struct yestifier_block *this, unsigned long event,
 			   void *ptr)
 {
 	static const struct netdev_event_work_cmd del_cmd = {
@@ -748,7 +748,7 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 			};
 	static const struct netdev_event_work_cmd bonding_event_ips_del_cmd = {
 		.cb = del_netdev_upper_ips, .filter = upper_device_filter};
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_yestifier_info_to_dev(ptr);
 	struct netdev_event_work_cmd cmds[ROCE_NETDEV_CALLBACK_SZ] = { {NULL} };
 
 	if (ndev->type != ARPHRD_ETHER)
@@ -779,7 +779,7 @@ static int netdevice_event(struct notifier_block *this, unsigned long event,
 
 	case NETDEV_CHANGEUPPER:
 		netdevice_event_changeupper(ndev,
-			container_of(ptr, struct netdev_notifier_changeupper_info, info),
+			container_of(ptr, struct netdev_yestifier_changeupper_info, info),
 			cmds);
 		break;
 
@@ -811,7 +811,7 @@ static void update_gid_event_work_handler(struct work_struct *_work)
 	kfree(work);
 }
 
-static int addr_event(struct notifier_block *this, unsigned long event,
+static int addr_event(struct yestifier_block *this, unsigned long event,
 		      struct sockaddr *sa, struct net_device *ndev)
 {
 	struct update_gid_event_work *work;
@@ -851,7 +851,7 @@ static int addr_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static int inetaddr_event(struct notifier_block *this, unsigned long event,
+static int inetaddr_event(struct yestifier_block *this, unsigned long event,
 			  void *ptr)
 {
 	struct sockaddr_in	in;
@@ -865,7 +865,7 @@ static int inetaddr_event(struct notifier_block *this, unsigned long event,
 	return addr_event(this, event, (struct sockaddr *)&in, ndev);
 }
 
-static int inet6addr_event(struct notifier_block *this, unsigned long event,
+static int inet6addr_event(struct yestifier_block *this, unsigned long event,
 			   void *ptr)
 {
 	struct sockaddr_in6	in6;
@@ -879,16 +879,16 @@ static int inet6addr_event(struct notifier_block *this, unsigned long event,
 	return addr_event(this, event, (struct sockaddr *)&in6, ndev);
 }
 
-static struct notifier_block nb_netdevice = {
-	.notifier_call = netdevice_event
+static struct yestifier_block nb_netdevice = {
+	.yestifier_call = netdevice_event
 };
 
-static struct notifier_block nb_inetaddr = {
-	.notifier_call = inetaddr_event
+static struct yestifier_block nb_inetaddr = {
+	.yestifier_call = inetaddr_event
 };
 
-static struct notifier_block nb_inet6addr = {
-	.notifier_call = inet6addr_event
+static struct yestifier_block nb_inet6addr = {
+	.yestifier_call = inet6addr_event
 };
 
 int __init roce_gid_mgmt_init(void)
@@ -897,15 +897,15 @@ int __init roce_gid_mgmt_init(void)
 	if (!gid_cache_wq)
 		return -ENOMEM;
 
-	register_inetaddr_notifier(&nb_inetaddr);
+	register_inetaddr_yestifier(&nb_inetaddr);
 	if (IS_ENABLED(CONFIG_IPV6))
-		register_inet6addr_notifier(&nb_inet6addr);
-	/* We relay on the netdevice notifier to enumerate all
-	 * existing devices in the system. Register to this notifier
-	 * last to make sure we will not miss any IP add/del
+		register_inet6addr_yestifier(&nb_inet6addr);
+	/* We relay on the netdevice yestifier to enumerate all
+	 * existing devices in the system. Register to this yestifier
+	 * last to make sure we will yest miss any IP add/del
 	 * callbacks.
 	 */
-	register_netdevice_notifier(&nb_netdevice);
+	register_netdevice_yestifier(&nb_netdevice);
 
 	return 0;
 }
@@ -913,13 +913,13 @@ int __init roce_gid_mgmt_init(void)
 void __exit roce_gid_mgmt_cleanup(void)
 {
 	if (IS_ENABLED(CONFIG_IPV6))
-		unregister_inet6addr_notifier(&nb_inet6addr);
-	unregister_inetaddr_notifier(&nb_inetaddr);
-	unregister_netdevice_notifier(&nb_netdevice);
+		unregister_inet6addr_yestifier(&nb_inet6addr);
+	unregister_inetaddr_yestifier(&nb_inetaddr);
+	unregister_netdevice_yestifier(&nb_netdevice);
 	/* Ensure all gid deletion tasks complete before we go down,
 	 * to avoid any reference to free'd memory. By the time
 	 * ib-core is removed, all physical devices have been removed,
-	 * so no issue with remaining hardware contexts.
+	 * so yes issue with remaining hardware contexts.
 	 */
 	destroy_workqueue(gid_cache_wq);
 }

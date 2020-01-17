@@ -21,7 +21,7 @@
 #include <uapi/linux/memfd.h>
 
 /*
- * We need a tag: a new tag would expand every xa_node by 8 bytes,
+ * We need a tag: a new tag would expand every xa_yesde by 8 bytes,
  * so reuse a tag which we firmly believe is never set or cleared on tmpfs
  * or hugetlbfs because they are memory only filesystems.
  */
@@ -55,12 +55,12 @@ static void memfd_tag_pins(struct xa_state *xas)
 }
 
 /*
- * Setting SEAL_WRITE requires us to verify there's no pending writer. However,
+ * Setting SEAL_WRITE requires us to verify there's yes pending writer. However,
  * via get_user_pages(), drivers might have some pending I/O without any active
  * user-space mappings (eg., direct-IO, AIO). Therefore, we look at all pages
  * and see whether it has an elevated ref-count. If so, we tag them and wait for
  * them to be dropped.
- * The caller must guarantee that no new user will acquire writable references
+ * The caller must guarantee that yes new user will acquire writable references
  * to those pages to avoid races.
  */
 static int memfd_wait_for_pins(struct address_space *mapping)
@@ -93,7 +93,7 @@ static int memfd_wait_for_pins(struct address_space *mapping)
 			if (page_count(page) - page_mapcount(page) != 1) {
 				/*
 				 * On the last scan, we clean up all those tags
-				 * we inserted; but make a note that we still
+				 * we inserted; but make a yeste that we still
 				 * found pages pinned.
 				 */
 				if (scan == LAST_SCAN)
@@ -120,11 +120,11 @@ static int memfd_wait_for_pins(struct address_space *mapping)
 static unsigned int *memfd_file_seals_ptr(struct file *file)
 {
 	if (shmem_file(file))
-		return &SHMEM_I(file_inode(file))->seals;
+		return &SHMEM_I(file_iyesde(file))->seals;
 
 #ifdef CONFIG_HUGETLBFS
 	if (is_file_hugepages(file))
-		return &HUGETLBFS_I(file_inode(file))->seals;
+		return &HUGETLBFS_I(file_iyesde(file))->seals;
 #endif
 
 	return NULL;
@@ -138,7 +138,7 @@ static unsigned int *memfd_file_seals_ptr(struct file *file)
 
 static int memfd_add_seals(struct file *file, unsigned int seals)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	unsigned int *file_seals;
 	int error;
 
@@ -152,7 +152,7 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
 	 * shared object.
 	 *
 	 * Seals are only supported on special tmpfs or hugetlbfs files and
-	 * always affect the whole underlying inode. Once a seal is set, it
+	 * always affect the whole underlying iyesde. Once a seal is set, it
 	 * may prevent some kinds of access to the file. Currently, the
 	 * following seals are defined:
 	 *   SEAL_SEAL: Prevent further seals from being set on this file
@@ -168,9 +168,9 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
 	 * added.
 	 *
 	 * Semantics of sealing are only defined on volatile files. Only
-	 * anonymous tmpfs and hugetlbfs files support sealing. More
+	 * ayesnymous tmpfs and hugetlbfs files support sealing. More
 	 * importantly, seals are never written to disk. Therefore, there's
-	 * no plan to support it on other file types.
+	 * yes plan to support it on other file types.
 	 */
 
 	if (!(file->f_mode & FMODE_WRITE))
@@ -178,7 +178,7 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
 	if (seals & ~(unsigned int)F_ALL_SEALS)
 		return -EINVAL;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
 	file_seals = memfd_file_seals_ptr(file);
 	if (!file_seals) {
@@ -207,7 +207,7 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
 	error = 0;
 
 unlock:
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	return error;
 }
 

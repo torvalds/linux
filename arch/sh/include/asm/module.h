@@ -21,7 +21,7 @@ struct mod_arch_specific {
 # elif defined  CONFIG_CPU_SH5
 #  define MODULE_PROC_FAMILY "SH5LE "
 # else
-#  error unknown processor family
+#  error unkyeswn processor family
 # endif
 #else
 # ifdef CONFIG_CPU_SH2
@@ -33,7 +33,7 @@ struct mod_arch_specific {
 # elif defined  CONFIG_CPU_SH5
 #  define MODULE_PROC_FAMILY "SH5BE "
 # else
-#  error unknown processor family
+#  error unkyeswn processor family
 # endif
 #endif
 

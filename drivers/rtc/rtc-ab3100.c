@@ -66,7 +66,7 @@ static int ab3100_rtc_set_time(struct device *dev, struct rtc_time *tm)
 			return err;
 	}
 
-	/* Set the flag to mark that the clock is now set */
+	/* Set the flag to mark that the clock is yesw set */
 	return abx500_mask_and_set_register_interruptible(dev, 0,
 							  AB3100_RTC,
 							  0x01, 0x01);
@@ -85,7 +85,7 @@ static int ab3100_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return err;
 
 	if (!(rtcval & 0x01)) {
-		dev_info(dev, "clock not set (lost power)");
+		dev_info(dev, "clock yest set (lost power)");
 		return -EINVAL;
 	} else {
 		u64 hw_counter;
@@ -117,7 +117,7 @@ static int ab3100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	u8 rtcval;
 	int err;
 
-	/* Figure out if alarm is enabled or not */
+	/* Figure out if alarm is enabled or yest */
 	err = abx500_get_register_interruptible(dev, 0,
 						AB3100_RTC, &rtcval);
 	if (err)
@@ -174,8 +174,8 @@ static int ab3100_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 static int ab3100_rtc_irq_enable(struct device *dev, unsigned int enabled)
 {
 	/*
-	 * It's not possible to enable/disable the alarm IRQ for this RTC.
-	 * It does not actually trigger any IRQ: instead its only function is
+	 * It's yest possible to enable/disable the alarm IRQ for this RTC.
+	 * It does yest actually trigger any IRQ: instead its only function is
 	 * to power up the system, if it wasn't on. This will manifest as
 	 * a "power up cause" in the AB3100 power driver (battery charging etc)
 	 * and need to be handled there instead.
@@ -213,7 +213,7 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 	}
 
 	if ((regval & 0xFE) != RTC_SETTING) {
-		dev_warn(&pdev->dev, "not default value in RTC reg 0x%x\n",
+		dev_warn(&pdev->dev, "yest default value in RTC reg 0x%x\n",
 			 regval);
 	}
 
@@ -225,7 +225,7 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 		regval = 1 | RTC_SETTING;
 		err = abx500_set_register_interruptible(&pdev->dev, 0,
 							AB3100_RTC, regval);
-		/* Ignore any error on this write */
+		/* Igyesre any error on this write */
 	}
 
 	rtc = devm_rtc_allocate_device(&pdev->dev);

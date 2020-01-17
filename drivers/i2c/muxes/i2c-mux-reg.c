@@ -29,7 +29,7 @@ static int i2c_mux_reg_set(const struct regmux *mux, unsigned int chan_id)
 	 * Write to the register, followed by a read to ensure the write is
 	 * completed on a "posted" bus, for example PCI or write buffers.
 	 * The endianness of reading doesn't matter and the return data
-	 * is not used.
+	 * is yest used.
 	 */
 	switch (mux->data.reg_size) {
 	case 4:
@@ -79,8 +79,8 @@ static int i2c_mux_reg_deselect(struct i2c_mux_core *muxc, u32 chan)
 static int i2c_mux_reg_probe_dt(struct regmux *mux,
 				struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *adapter_np, *child;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *adapter_np, *child;
 	struct i2c_adapter *adapter;
 	struct resource res;
 	unsigned *values;
@@ -91,11 +91,11 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
 
 	adapter_np = of_parse_phandle(np, "i2c-parent", 0);
 	if (!adapter_np) {
-		dev_err(&pdev->dev, "Cannot parse i2c-parent\n");
+		dev_err(&pdev->dev, "Canyest parse i2c-parent\n");
 		return -ENODEV;
 	}
-	adapter = of_find_i2c_adapter_by_node(adapter_np);
-	of_node_put(adapter_np);
+	adapter = of_find_i2c_adapter_by_yesde(adapter_np);
+	of_yesde_put(adapter_np);
 	if (!adapter)
 		return -EPROBE_DEFER;
 
@@ -115,7 +115,7 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
 	defined(__BIG_ENDIAN)
 		mux->data.little_endian = false;
 #else
-#error Endianness not defined?
+#error Endianness yest defined?
 #endif
 	}
 	mux->data.write_only = of_property_read_bool(np, "write-only");
@@ -126,7 +126,7 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
 	if (!values)
 		return -ENOMEM;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		of_property_read_u32(child, "reg", values + i);
 		i++;
 	}
@@ -186,7 +186,7 @@ static int i2c_mux_reg_probe(struct platform_device *pdev)
 
 	if (!mux->data.reg) {
 		dev_info(&pdev->dev,
-			"Register not set, using platform resource\n");
+			"Register yest set, using platform resource\n");
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		mux->data.reg_size = resource_size(res);
 		mux->data.reg = devm_ioremap_resource(&pdev->dev, res);

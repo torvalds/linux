@@ -1,4 +1,4 @@
-Allwinner Technologies, Inc. NVMEM CPUFreq and OPP bindings
+Allwinner Techyeslogies, Inc. NVMEM CPUFreq and OPP bindings
 ===================================
 
 For some SoCs, the CPU frequency subset and voltage value of each OPP
@@ -10,20 +10,20 @@ required information.
 
 Required properties:
 --------------------
-In 'cpus' nodes:
+In 'cpus' yesdes:
 - operating-points-v2: Phandle to the operating-points-v2 table to use.
 
 In 'operating-points-v2' table:
 - compatible: Should be
 	- 'allwinner,sun50i-h6-operating-points'.
-- nvmem-cells: A phandle pointing to a nvmem-cells node representing the
+- nvmem-cells: A phandle pointing to a nvmem-cells yesde representing the
 		efuse registers that has information about the speedbin
 		that is used to select the right frequency/voltage value
 		pair. Please refer the for nvmem-cells bindings
 		Documentation/devicetree/bindings/nvmem/nvmem.txt and
 		also examples below.
 
-In every OPP node:
+In every OPP yesde:
 - opp-microvolt-<name>: Voltage in micro Volts.
 			At runtime, the platform can pick a <name> and
 			matching opp-microvolt-<name> property.

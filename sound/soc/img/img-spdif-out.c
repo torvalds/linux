@@ -2,7 +2,7 @@
 /*
  * IMG SPDIF output controller driver
  *
- * Copyright (C) 2015 Imagination Technologies Ltd.
+ * Copyright (C) 2015 Imagination Techyeslogies Ltd.
  *
  * Author: Damien Horsley <Damien.Horsley@imgtec.com>
  */
@@ -268,7 +268,7 @@ static int img_spdif_out_hw_params(struct snd_pcm_substream *substream,
 		clk_set_rate(spdif->clk_ref, pre_div_a);
 
 	/*
-	 * Another driver (eg machine driver) may have rejected the above
+	 * Ayesther driver (eg machine driver) may have rejected the above
 	 * change. Get the current rate and set the register bit according to
 	 * the new min diff
 	 */

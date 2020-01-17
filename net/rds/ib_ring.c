@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -42,7 +42,7 @@
  * implementation).
  *
  * Freeing always happens in an interrupt, and hence only
- * races with allocations, but not with other free()s.
+ * races with allocations, but yest with other free()s.
  *
  * The interaction between allocation and freeing is that
  * the alloc code has to determine the number of free entries.
@@ -142,7 +142,7 @@ int rds_ib_ring_low(struct rds_ib_work_ring *ring)
 
 /*
  * returns the oldest alloced ring entry.  This will be the next one
- * freed.  This can't be called if there are none allocated.
+ * freed.  This can't be called if there are yesne allocated.
  */
 u32 rds_ib_ring_oldest(struct rds_ib_work_ring *ring)
 {

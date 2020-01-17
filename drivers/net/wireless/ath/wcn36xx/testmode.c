@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -32,7 +32,7 @@ static const struct nla_policy wcn36xx_tm_policy[WCN36XX_TM_ATTR_MAX + 1] = {
 
 struct build_release_number {
 	u16 drv_major;
-	u16 drv_minor;
+	u16 drv_miyesr;
 	u16 drv_patch;
 	u16 drv_build;
 	u16 ptt_max;
@@ -68,7 +68,7 @@ static int wcn36xx_tm_cmd_ptt(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 				msg->msg_response;
 
 		body->drv_major = wcn->fw_major;
-		body->drv_minor = wcn->fw_minor;
+		body->drv_miyesr = wcn->fw_miyesr;
 		body->drv_patch = wcn->fw_version;
 		body->drv_build = wcn->fw_revision;
 		body->ptt_max = 10;

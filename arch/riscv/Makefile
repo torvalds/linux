@@ -11,7 +11,7 @@
 OBJCOPYFLAGS    := -O binary
 LDFLAGS_vmlinux :=
 ifeq ($(CONFIG_DYNAMIC_FTRACE),y)
-	LDFLAGS_vmlinux := --no-relax
+	LDFLAGS_vmlinux := --yes-relax
 endif
 KBUILD_AFLAGS_MODULE += -fPIC
 KBUILD_CFLAGS_MODULE += -fPIC
@@ -42,7 +42,7 @@ riscv-march-$(CONFIG_RISCV_ISA_C)	:= $(riscv-march-y)c
 KBUILD_CFLAGS += -march=$(subst fd,,$(riscv-march-y))
 KBUILD_AFLAGS += -march=$(riscv-march-y)
 
-KBUILD_CFLAGS += -mno-save-restore
+KBUILD_CFLAGS += -myes-save-restore
 KBUILD_CFLAGS += -DCONFIG_PAGE_OFFSET=$(CONFIG_PAGE_OFFSET)
 
 ifeq ($(CONFIG_CMODEL_MEDLOW),y)
@@ -55,10 +55,10 @@ ifeq ($(CONFIG_MODULE_SECTIONS),y)
 	KBUILD_LDS_MODULE += $(srctree)/arch/riscv/kernel/module.lds
 endif
 ifeq ($(CONFIG_PERF_EVENTS),y)
-        KBUILD_CFLAGS += -fno-omit-frame-pointer
+        KBUILD_CFLAGS += -fyes-omit-frame-pointer
 endif
 
-KBUILD_CFLAGS_MODULE += $(call cc-option,-mno-relax)
+KBUILD_CFLAGS_MODULE += $(call cc-option,-myes-relax)
 
 # GCC versions that support the "-mstrict-align" option default to allowing
 # unaligned accesses.  While unaligned accesses are explicitly allowed in the
@@ -90,7 +90,7 @@ KBUILD_IMAGE := $(boot)/Image.gz
 endif
 BOOT_TARGETS := Image Image.gz loader
 
-all:	$(notdir $(KBUILD_IMAGE))
+all:	$(yestdir $(KBUILD_IMAGE))
 
 $(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@

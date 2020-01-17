@@ -167,7 +167,7 @@ static	const struct plt {
 	{ PL_T_OUT, TP_T_OUT },		/* Signaling timeout */
 	{ PL_LC_LENGTH, TP_LC_LENGTH },	/* Link Confidence Test Time */
 	{ PL_T_SCRUB, TP_T_SCRUB },	/* Scrub Time == MAC TVX time ! */
-	{ PL_NS_MAX, TP_NS_MAX },	/* max t. that noise is tolerated */
+	{ PL_NS_MAX, TP_NS_MAX },	/* max t. that yesise is tolerated */
 	{ 0,0 }
 } ;
 
@@ -399,7 +399,7 @@ void init_plc(struct s_smc *smc)
 	 * dummy
 	 * this is an obsolete public entry point that has to remain
 	 * for compat. It is used by various drivers.
-	 * the work is now done in real_init_plc()
+	 * the work is yesw done in real_init_plc()
 	 * which is called from pcm_init() ;
 	 */
 }
@@ -456,14 +456,14 @@ static void plc_init(struct s_smc *smc, int p)
 
 	(void)inpw(PLC(p,PL_INTR_EVENT)) ;	/* clear interrupt event reg */
 	plc_clear_irq(smc,p) ;
-	outpw(PLC(p,PL_INTR_MASK),plc_imsk_na); /* enable non active irq's */
+	outpw(PLC(p,PL_INTR_MASK),plc_imsk_na); /* enable yesn active irq's */
 
 	/*
 	 * if PCM is configured for class s, it will NOT go to the
 	 * REMOVE state if offline (page 3-36;)
 	 * in the concentrator, all inactive PHYS always must be in
 	 * the remove state
-	 * there's no real need to use this feature at all ..
+	 * there's yes real need to use this feature at all ..
 	 */
 #ifndef	CONCENTRATOR
 	if ((smc->s.sas == SMT_SAS) && (p == PS)) {
@@ -594,7 +594,7 @@ void pcm(struct s_smc *smc, const int np, int event)
 
 #ifndef	CONCENTRATOR
 	/*
-	 * ignore 2nd PHY if SAS
+	 * igyesre 2nd PHY if SAS
 	 */
 	if ((np != PS) && (smc->s.sas == SMT_SAS))
 		return ;
@@ -763,7 +763,7 @@ static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd)
 		for (i = 0 ; i < 3 ; i++)
 			pc_tcode_actions(smc,i,phy) ;
 
-		/* Set the non-active interrupt mask register */
+		/* Set the yesn-active interrupt mask register */
 		outpw(PLC(np,PL_INTR_MASK),plc_imsk_na) ;
 
 		/*
@@ -799,7 +799,7 @@ static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd)
 		 * the new PLCS inside the SN3.
 		 * For the usual PLCS we try it the way it is done for the
 		 * old PLC and set the XMIT registers again, if the PLC is
-		 * not in SIGNAL state. This is done according to an PLCS
+		 * yest in SIGNAL state. This is done according to an PLCS
 		 * errata workaround.
 		 */
 
@@ -1089,10 +1089,10 @@ static void lem_evaluate(struct s_smc *smc, struct s_phy *phy)
 	 * calculation is called on a intervall of 8 seconds
 	 *	-> this means, that one error in 8 sec. is one of 8*125*10E6
 	 *	the same as BER = 10E-9
-	 * Please note:
+	 * Please yeste:
 	 *	-> 9 errors in 8 seconds mean:
 	 *	   BER = 9 * 10E-9  and this is
-	 *	    < 10E-8, so the limit of 10E-8 is not reached!
+	 *	    < 10E-8, so the limit of 10E-8 is yest reached!
 	 */
 
 		if (!errors)		ber = 15 ;
@@ -1380,7 +1380,7 @@ static void pc_rcode_actions(struct s_smc *smc, int bit, struct s_phy *phy)
 			mib->fddiPORTMacIndicated.R_val = TRUE ;
 		}
 		else {
-			/* neighbor does not intend to have MAC on output */ ;
+			/* neighbor does yest intend to have MAC on output */ ;
 			mib->fddiPORTMacIndicated.R_val = FALSE ;
 		}
 		break ;
@@ -1399,7 +1399,7 @@ static void pc_tcode_actions(struct s_smc *smc, const int bit, struct s_phy *phy
 
 	switch(bit) {
 	case 0:
-		phy->t_val[0] = 0 ;		/* no escape used */
+		phy->t_val[0] = 0 ;		/* yes escape used */
 		break ;
 	case 1:
 		if (mib->fddiPORTMy_Type == TS || mib->fddiPORTMy_Type == TM)
@@ -1585,7 +1585,7 @@ int pcm_status_twisted(struct s_smc *smc)
  *	type
  *	state
  *	remote phy type
- *	remote mac yes/no
+ *	remote mac no/yes
  */
 void pcm_status_state(struct s_smc *smc, int np, int *type, int *state,
 		      int *remote, int *mac)
@@ -1715,7 +1715,7 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 		int	j ;
 
 		/*
-		 * note: PL_LINK_ERR_CTR MUST be read to clear it
+		 * yeste: PL_LINK_ERR_CTR MUST be read to clear it
 		 */
 		j = inpw(PLC(np,PL_LE_THRESHOLD)) ;
 		i = inpw(PLC(np,PL_LINK_ERR_CTR)) ;
@@ -1777,7 +1777,7 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 		return ;
 	}
 	/*
-	 * If both CODE & ENABLE are set ignore enable
+	 * If both CODE & ENABLE are set igyesre enable
 	 */
 	if (cmd & PL_PCM_CODE) { /* receive last sign.-bit | LCT complete */
 		queue_event(smc,EVENT_PCM+np,PC_SIGNAL) ;
@@ -1815,7 +1815,7 @@ void plc_irq(struct s_smc *smc, int np, unsigned int cmd)
 			queue_event(smc,EVENT_ECM,EC_PATH_TEST) ;
 		}
 	}
-	if (cmd & PL_TNE_EXPIRED) {	/* TNE: length of noise events */
+	if (cmd & PL_TNE_EXPIRED) {	/* TNE: length of yesise events */
 		/* break_required (TNE > NS_Max) */
 		if (phy->mib->fddiPORTPCMState == PC8_ACTIVE) {
 			if (!phy->tr_flag) {
@@ -1919,7 +1919,7 @@ char *get_linestate(struct s_smc *smc, int np)
 		case PL_L_HLS :	ls = "HLS" ;	break ;
 		case PL_L_ILS16:ls = "ILS16" ;	break ;
 #ifdef	lint
-		default:	ls = "unknown" ; break ;
+		default:	ls = "unkyeswn" ; break ;
 #endif
 	}
 	return ls;
@@ -1967,7 +1967,7 @@ void list_phy(struct s_smc *smc)
 						plc->vsym_ctr,plc->b_ils)  ;
 		printf("\tmingap_ctr: %ld \t\tHLS det. : %ld\n",
 						plc->mini_ctr,plc->b_hls) ;
-		printf("\tnodepr_err: %ld\n",plc->np_err) ;
+		printf("\tyesdepr_err: %ld\n",plc->np_err) ;
 		printf("\tTPC_exp : %ld\n",plc->tpc_exp) ;
 		printf("\tLEM_err : %ld\n",smc->y[np].lem.lem_errors) ;
 	}

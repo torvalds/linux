@@ -57,7 +57,7 @@ static int nft_bridge_iphdr_validate(struct sk_buff *skb)
 	return 1;
 }
 
-/* We cannot use oldskb->dev, it can be either bridge device (NF_BRIDGE INPUT)
+/* We canyest use oldskb->dev, it can be either bridge device (NF_BRIDGE INPUT)
  * or the bridge port (NF_BRIDGE PREROUTING).
  */
 static void nft_reject_br_send_v4_tcp_reset(struct net *net,

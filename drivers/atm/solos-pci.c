@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Solos PCI ADSL2+ card, designed to support Linux by
- *  Traverse Technologies -- http://www.traverse.com.au/
+ *  Traverse Techyeslogies -- http://www.traverse.com.au/
  *  Xrio Limited          -- http://www.xrio.com/
  *
- * Copyright © 2008 Traverse Technologies
+ * Copyright © 2008 Traverse Techyeslogies
  * Copyright © 2008 Intel Corporation
  *
  * Authors: Nathan Williams <nathan@traverse.com.au>
@@ -18,7 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/types.h>
 #include <linux/pci.h>
@@ -139,7 +139,7 @@ struct solos_param {
 
 #define SOLOS_CHAN(atmdev) ((int)(unsigned long)(atmdev)->phy_data)
 
-MODULE_AUTHOR("Traverse Technologies <support@traverse.com.au>");
+MODULE_AUTHOR("Traverse Techyeslogies <support@traverse.com.au>");
 MODULE_DESCRIPTION("Solos PCI driver");
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
@@ -295,7 +295,7 @@ static ssize_t solos_param_store(struct device *dev, struct device_attribute *at
 	else if (buflen == 5 && !strncmp(skb->data, "ERROR", 5))
 		ret = -EIO;
 	else {
-		/* We know we have enough space allocated for this; we allocated 
+		/* We kyesw we have eyesugh space allocated for this; we allocated 
 		   it ourselves */
 		skb->data[buflen] = 0;
 	
@@ -829,7 +829,7 @@ static void solos_bh(unsigned long card_arg)
 					       le16_to_cpu(header->vci));
 				if (!vcc) {
 					if (net_ratelimit())
-						dev_warn(&card->dev->dev, "Received packet for unknown VPI.VCI %d.%d on port %d\n",
+						dev_warn(&card->dev->dev, "Received packet for unkyeswn VPI.VCI %d.%d on port %d\n",
 							 le16_to_cpu(header->vpi), le16_to_cpu(header->vci),
 							 port);
 					dev_kfree_skb_any(skb);
@@ -1041,7 +1041,7 @@ static void fpga_queue(struct solos_card *card, int port, struct sk_buff *skb,
 	spin_unlock_irqrestore(&card->tx_queue_lock, flags);
 
 	/* Theoretically we could just schedule the tasklet here, but
-	   that introduces latency we don't want -- it's noticeable */
+	   that introduces latency we don't want -- it's yesticeable */
 	if (!old_len)
 		fpga_tx(card);
 }
@@ -1101,7 +1101,7 @@ static uint32_t fpga_tx(struct solos_card *card)
 			if (!oldskb)
 				continue;
 
-			/* Clean up and free oldskb now it's gone */
+			/* Clean up and free oldskb yesw it's gone */
 			if (atmdebug) {
 				struct pkt_hdr *header = (void *)oldskb->data;
 				int size = le16_to_cpu(header->size);
@@ -1126,7 +1126,7 @@ static uint32_t fpga_tx(struct solos_card *card)
 			}
 		}
 	}
-	/* For non-DMA TX, write the 'TX start' bit for all four ports simultaneously */
+	/* For yesn-DMA TX, write the 'TX start' bit for all four ports simultaneously */
 	if (tx_started)
 		iowrite32(tx_started, card->config_regs + FLAGS_ADDR);
 
@@ -1164,7 +1164,7 @@ static int psend(struct atm_vcc *vcc, struct sk_buff *skb)
 
 	header = skb_push(skb, sizeof(*header));
 
-	/* This does _not_ include the size of the header */
+	/* This does _yest_ include the size of the header */
 	header->size = cpu_to_le16(pktlen);
 	header->vpi = cpu_to_le16(vcc->vpi);
 	header->vci = cpu_to_le16(vcc->vci);
@@ -1194,7 +1194,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int err;
 	uint16_t fpga_ver;
-	uint8_t major_ver, minor_ver;
+	uint8_t major_ver, miyesr_ver;
 	uint32_t data32;
 	struct solos_card *card;
 
@@ -1248,19 +1248,19 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	data32 = ioread32(card->config_regs + FPGA_VER);
 	fpga_ver = (data32 & 0x0000FFFF);
 	major_ver = ((data32 & 0xFF000000) >> 24);
-	minor_ver = ((data32 & 0x00FF0000) >> 16);
-	card->fpga_version = FPGA_VERSION(major_ver,minor_ver);
+	miyesr_ver = ((data32 & 0x00FF0000) >> 16);
+	card->fpga_version = FPGA_VERSION(major_ver,miyesr_ver);
 	if (card->fpga_version > LEGACY_BUFFERS)
 		card->buffer_size = BUF_SIZE;
 	else
 		card->buffer_size = OLD_BUF_SIZE;
 	dev_info(&dev->dev, "Solos FPGA Version %d.%02d svn-%d\n",
-		 major_ver, minor_ver, fpga_ver);
+		 major_ver, miyesr_ver, fpga_ver);
 
 	if (fpga_ver < 37 && (fpga_upgrade || firmware_upgrade ||
 			      db_fpga_upgrade || db_firmware_upgrade)) {
 		dev_warn(&dev->dev,
-			 "FPGA too old; cannot upgrade flash. Use JTAG.\n");
+			 "FPGA too old; canyest upgrade flash. Use JTAG.\n");
 		fpga_upgrade = firmware_upgrade = 0;
 		db_fpga_upgrade = db_firmware_upgrade = 0;
 	}
@@ -1277,7 +1277,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (card->fpga_version >= DMA_SUPPORTED) {
 		pci_set_master(dev);
 		card->using_dma = 1;
-		if (1) { /* All known FPGA versions so far */
+		if (1) { /* All kyeswn FPGA versions so far */
 			card->dma_alignment = 3;
 			card->dma_bounce = kmalloc_array(card->nr_ports,
 							 BUF_SIZE, GFP_KERNEL);
@@ -1330,7 +1330,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (card->fpga_version >= DMA_SUPPORTED &&
 	    sysfs_create_group(&card->dev->dev.kobj, &gpio_attr_group))
-		dev_err(&card->dev->dev, "Could not register parameter group for GPIOs\n");
+		dev_err(&card->dev->dev, "Could yest register parameter group for GPIOs\n");
 
 	return 0;
 
@@ -1364,14 +1364,14 @@ static int atm_init(struct solos_card *card, struct device *parent)
 
 		card->atmdev[i] = atm_dev_register("solos-pci", parent, &fpga_ops, -1, NULL);
 		if (!card->atmdev[i]) {
-			dev_err(&card->dev->dev, "Could not register ATM device %d\n", i);
+			dev_err(&card->dev->dev, "Could yest register ATM device %d\n", i);
 			atm_remove(card);
 			return -ENODEV;
 		}
 		if (device_create_file(&card->atmdev[i]->class_dev, &dev_attr_console))
-			dev_err(&card->dev->dev, "Could not register console for ATM device %d\n", i);
+			dev_err(&card->dev->dev, "Could yest register console for ATM device %d\n", i);
 		if (sysfs_create_group(&card->atmdev[i]->class_dev.kobj, &solos_attr_group))
-			dev_err(&card->dev->dev, "Could not register parameter group for ATM device %d\n", i);
+			dev_err(&card->dev->dev, "Could yest register parameter group for ATM device %d\n", i);
 
 		dev_info(&card->dev->dev, "Registered ATM device %d\n", card->atmdev[i]->number);
 

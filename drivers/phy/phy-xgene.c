@@ -31,9 +31,9 @@
  * The Serdes CSR is accessed indirectly from the SDS offset at 0x0400.
  *
  * The Ref PLL CMU can be located within the same PHY IP or outside the PHY IP
- * due to shared Ref PLL CMU. For PHY with Ref PLL CMU shared with another IP,
+ * due to shared Ref PLL CMU. For PHY with Ref PLL CMU shared with ayesther IP,
  * it is located outside the PHY IP. This is the case for the PHY located
- * at 0x1f23a000 (SATA Port 4/5). For such PHY, another resource is required
+ * at 0x1f23a000 (SATA Port 4/5). For such PHY, ayesther resource is required
  * to located the SDS/Ref PLL CMU module and its clock for that IP enabled.
  *
  * Currently, this driver only supports Gen3 SATA mode with external clock.
@@ -1226,7 +1226,7 @@ skip_manual_cal:
 	dev_dbg(ctx->dev, "PLL calibration successful\n");
 
 	cmu_rd(ctx, cmu_type, CMU_REG15, &val);
-	dev_dbg(ctx->dev, "PHY Tx is %sready\n", val & 0x300 ? "" : "not ");
+	dev_dbg(ctx->dev, "PHY Tx is %sready\n", val & 0x300 ? "" : "yest ");
 	return 0;
 }
 
@@ -1629,13 +1629,13 @@ static void xgene_phy_get_param(struct platform_device *pdev,
 {
 	int i;
 
-	if (!of_property_read_u32_array(pdev->dev.of_node, name, buffer,
+	if (!of_property_read_u32_array(pdev->dev.of_yesde, name, buffer,
 					count)) {
 		for (i = 0; i < count; i++)
 			buffer[i] /= conv_factor;
 		return;
 	}
-	/* Does not exist, load default */
+	/* Does yest exist, load default */
 	for (i = 0; i < count; i++)
 		buffer[i] = default_val[i % 3];
 }

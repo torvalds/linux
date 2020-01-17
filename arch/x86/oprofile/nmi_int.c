@@ -12,7 +12,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/smp.h>
 #include <linux/oprofile.h>
 #include <linux/syscore_ops.h>
@@ -61,7 +61,7 @@ u64 op_x86_get_ctrl(struct op_x86_model_spec const *model,
 }
 
 
-static int profile_exceptions_notify(unsigned int val, struct pt_regs *regs)
+static int profile_exceptions_yestify(unsigned int val, struct pt_regs *regs)
 {
 	if (ctr_running)
 		model->check_ctrs(regs, this_cpu_ptr(&cpu_msrs));
@@ -259,9 +259,9 @@ static int nmi_multiplex_on(void)
 static int nmi_switch_event(void)
 {
 	if (!has_mux())
-		return -ENOSYS;		/* not implemented */
+		return -ENOSYS;		/* yest implemented */
 	if (nmi_multiplex_on() < 0)
-		return -EINVAL;		/* not necessary */
+		return -EINVAL;		/* yest necessary */
 
 	get_online_cpus();
 	if (ctr_running)
@@ -418,7 +418,7 @@ static int nmi_create_files(struct dentry *root)
 		struct dentry *dir;
 		char buf[4];
 
-		/* quick little hack to _not_ expose a counter if it is not
+		/* quick little hack to _yest_ expose a counter if it is yest
 		 * available for use.  This should protect userspace app.
 		 * NOTE:  assumes 1:1 mapping here (that counters are organized
 		 *        sequentially in their struct assignment).
@@ -478,7 +478,7 @@ static int nmi_setup(void)
 	ctr_running = 0;
 	/* make variables visible to the nmi handler: */
 	smp_mb();
-	err = register_nmi_handler(NMI_LOCAL, profile_exceptions_notify,
+	err = register_nmi_handler(NMI_LOCAL, profile_exceptions_yestify,
 					0, "oprofile");
 	if (err)
 		goto fail;
@@ -585,7 +585,7 @@ static int __init p4_init(char **cpu_type)
 }
 
 enum __force_cpu_type {
-	reserved = 0,		/* do not force */
+	reserved = 0,		/* do yest force */
 	timer,
 	arch_perfmon,
 };
@@ -662,7 +662,7 @@ static int __init ppro_init(char **cpu_type)
 		*cpu_type = "i386/atom";
 		break;
 	default:
-		/* Unknown */
+		/* Unkyeswn */
 		return 0;
 	}
 

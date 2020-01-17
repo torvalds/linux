@@ -14,12 +14,12 @@
 #define WLAN_STA_ASSOC BIT(1)
 #define WLAN_STA_PS BIT(2)
 #define WLAN_STA_TIM BIT(3) /* TIM bit is on for PS stations */
-#define WLAN_STA_PERM BIT(4) /* permanent; do not remove entry on expiration */
+#define WLAN_STA_PERM BIT(4) /* permanent; do yest remove entry on expiration */
 #define WLAN_STA_AUTHORIZED BIT(5) /* If 802.1X is used, this flag is
 				    * controlling whether STA is authorized to
-				    * send and receive non-IEEE 802.1X frames
+				    * send and receive yesn-IEEE 802.1X frames
 				    */
-#define WLAN_STA_PENDING_POLL BIT(6) /* pending activity poll not ACKed */
+#define WLAN_STA_PENDING_POLL BIT(6) /* pending activity poll yest ACKed */
 
 #define WLAN_RATE_1M BIT(0)
 #define WLAN_RATE_2M BIT(1)
@@ -40,11 +40,11 @@
 struct sta_info {
 	struct list_head list;
 	struct sta_info *hnext; /* next entry in hash table list */
-	atomic_t users; /* number of users (do not remove if > 0) */
+	atomic_t users; /* number of users (do yest remove if > 0) */
 	struct proc_dir_entry *proc;
 
 	u8 addr[6];
-	u16 aid; /* STA's unique AID (1 .. 2007) or 0 if not yet assigned */
+	u16 aid; /* STA's unique AID (1 .. 2007) or 0 if yest yet assigned */
 	u32 flags;
 	u16 capability;
 	u16 listen_interval; /* or beacon_int for APs */
@@ -113,7 +113,7 @@ struct sta_info {
 
 /* Default value for maximum station inactivity. After AP_MAX_INACTIVITY_SEC
  * has passed since last received frame from the station, a nullfunc data
- * frame is sent to the station. If this frame is not acknowledged and no other
+ * frame is sent to the station. If this frame is yest ackyeswledged and yes other
  * frames have been received, the station will be disassociated after
  * AP_DISASSOC_DELAY. Similarly, a the station will be deauthenticated after
  * AP_DEAUTH_DELAY. AP_TIMEOUT_RESOLUTION is the resolution that is used with
@@ -170,11 +170,11 @@ struct ap_data {
 			     * kernel */
 	unsigned int bridged_unicast; /* number of unicast frames bridged on
 				       * wireless media */
-	unsigned int bridged_multicast; /* number of non-unicast frames
+	unsigned int bridged_multicast; /* number of yesn-unicast frames
 					 * bridged on wireless media */
-	unsigned int tx_drop_nonassoc; /* number of unicast TX packets dropped
+	unsigned int tx_drop_yesnassoc; /* number of unicast TX packets dropped
 					* because they were to an address that
-					* was not associated */
+					* was yest associated */
 	int nullfunc_ack; /* use workaround for nullfunc frame ACKs */
 
 	spinlock_t sta_table_lock;

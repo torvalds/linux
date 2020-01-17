@@ -154,7 +154,7 @@ static void hanwang_parse_packet(struct hanwang *hanwang)
 			default:
 				hanwang->current_id = 0;
 				dev_dbg(&dev->dev,
-					"unknown tablet tool %02x\n", data[0]);
+					"unkyeswn tablet tool %02x\n", data[0]);
 				break;
 			}
 			break;
@@ -268,7 +268,7 @@ static void hanwang_irq(struct urb *urb)
 			__func__, urb->status);
 		return;
 	default:
-		dev_err(&dev->dev, "%s - nonzero urb status received: %d",
+		dev_err(&dev->dev, "%s - yesnzero urb status received: %d",
 			__func__, urb->status);
 		break;
 	}

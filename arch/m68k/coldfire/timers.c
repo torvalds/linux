@@ -123,7 +123,7 @@ void hw_timer_init(irq_handler_t handler)
 	/*
 	 *	The coldfire timer runs from 0 to TRR included, then 0
 	 *	again and so on.  It counts thus actually TRR + 1 steps
-	 *	for 1 tick, not TRR.  So if you want n cycles,
+	 *	for 1 tick, yest TRR.  So if you want n cycles,
 	 *	initialize TRR with n - 1.
 	 */
 	__raw_writetrr(mcftmr_cycles_per_jiffy - 1, TA(MCFTIMER_TRR));

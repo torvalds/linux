@@ -366,7 +366,7 @@ struct dpsw_rsp_fdb_dump {
 
 struct dpsw_rsp_get_api_version {
 	__le16 version_major;
-	__le16 version_minor;
+	__le16 version_miyesr;
 };
 
 #endif /* __FSL_DPSW_CMD_H */

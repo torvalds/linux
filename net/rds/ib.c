@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -68,17 +68,17 @@ DECLARE_RWSEM(rds_ib_devices_lock);
 struct list_head rds_ib_devices;
 
 /* NOTE: if also grabbing ibdev lock, grab this first */
-DEFINE_SPINLOCK(ib_nodev_conns_lock);
-LIST_HEAD(ib_nodev_conns);
+DEFINE_SPINLOCK(ib_yesdev_conns_lock);
+LIST_HEAD(ib_yesdev_conns);
 
-static void rds_ib_nodev_connect(void)
+static void rds_ib_yesdev_connect(void)
 {
 	struct rds_ib_connection *ic;
 
-	spin_lock(&ib_nodev_conns_lock);
-	list_for_each_entry(ic, &ib_nodev_conns, ib_node)
+	spin_lock(&ib_yesdev_conns_lock);
+	list_for_each_entry(ic, &ib_yesdev_conns, ib_yesde)
 		rds_conn_connect_if_down(ic->conn);
-	spin_unlock(&ib_nodev_conns_lock);
+	spin_unlock(&ib_yesdev_conns_lock);
 }
 
 static void rds_ib_dev_shutdown(struct rds_ib_device *rds_ibdev)
@@ -87,7 +87,7 @@ static void rds_ib_dev_shutdown(struct rds_ib_device *rds_ibdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&rds_ibdev->spinlock, flags);
-	list_for_each_entry(ic, &rds_ibdev->conn_list, ib_node)
+	list_for_each_entry(ic, &rds_ibdev->conn_list, ib_yesde)
 		rds_conn_path_drop(&ic->conn->c_path[0], true);
 	spin_unlock_irqrestore(&rds_ibdev->spinlock, flags);
 }
@@ -132,12 +132,12 @@ static void rds_ib_add_one(struct ib_device *device)
 	struct rds_ib_device *rds_ibdev;
 	bool has_fr, has_fmr;
 
-	/* Only handle IB (no iWARP) devices */
-	if (device->node_type != RDMA_NODE_IB_CA)
+	/* Only handle IB (yes iWARP) devices */
+	if (device->yesde_type != RDMA_NODE_IB_CA)
 		return;
 
-	rds_ibdev = kzalloc_node(sizeof(struct rds_ib_device), GFP_KERNEL,
-				 ibdev_to_node(device));
+	rds_ibdev = kzalloc_yesde(sizeof(struct rds_ib_device), GFP_KERNEL,
+				 ibdev_to_yesde(device));
 	if (!rds_ibdev)
 		return;
 
@@ -222,7 +222,7 @@ static void rds_ib_add_one(struct ib_device *device)
 	ib_set_client_data(device, &rds_ib_client, rds_ibdev);
 	refcount_inc(&rds_ibdev->refcount);
 
-	rds_ib_nodev_connect();
+	rds_ib_yesdev_connect();
 
 put_dev:
 	rds_ib_dev_put(rds_ibdev);
@@ -230,7 +230,7 @@ put_dev:
 
 /*
  * New connections use this to find the device to associate with the
- * connection.  It's not in the fast path so we're not concerned about the
+ * connection.  It's yest in the fast path so we're yest concerned about the
  * performance of the IB call.  (As of this writing, it uses an interrupt
  * blocking spinlock to serialize walking a per-device list of all registered
  * clients.)
@@ -257,7 +257,7 @@ struct rds_ib_device *rds_ib_get_client_data(struct ib_device *device)
 }
 
 /*
- * The IB stack is letting us know that a device is going away.  This can
+ * The IB stack is letting us kyesw that a device is going away.  This can
  * happen if the underlying HCA driver is removed or if PCI hotplug is removing
  * the pci function, for example.
  *
@@ -402,7 +402,7 @@ static void rds6_ib_ic_info(struct socket *sock, unsigned int len,
  * device with that address set.
  *
  * If it were me, I'd advocate for something more flexible.  Sending and
- * receiving should be device-agnostic.  Transports would try and maintain
+ * receiving should be device-agyesstic.  Transports would try and maintain
  * connections between peers who have messages queued.  Userspace would be
  * allowed to influence which paths have priority.  We could call userspace
  * asserting this policy "routing".
@@ -454,7 +454,7 @@ static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
 				goto out;
 			}
 
-			/* Use init_net for now as RDS is not network
+			/* Use init_net for yesw as RDS is yest network
 			 * name space aware.
 			 */
 			dev = dev_get_by_index(&init_net, scope_id);
@@ -478,14 +478,14 @@ static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
 	/* rdma_bind_addr will only succeed for IB & iWARP devices */
 	ret = rdma_bind_addr(cm_id, sa);
 	/* due to this, we will claim to support iWARP devices unless we
-	   check node_type. */
+	   check yesde_type. */
 	if (ret || !cm_id->device ||
-	    cm_id->device->node_type != RDMA_NODE_IB_CA)
+	    cm_id->device->yesde_type != RDMA_NODE_IB_CA)
 		ret = -EADDRNOTAVAIL;
 
-	rdsdebug("addr %pI6c%%%u ret %d node type %d\n",
+	rdsdebug("addr %pI6c%%%u ret %d yesde type %d\n",
 		 addr, scope_id, ret,
-		 cm_id->device ? cm_id->device->node_type : -1);
+		 cm_id->device ? cm_id->device->yesde_type : -1);
 
 out:
 	rdma_destroy_id(cm_id);
@@ -522,7 +522,7 @@ void rds_ib_exit(void)
 	rds_info_deregister_func(RDS6_INFO_IB_CONNECTIONS, rds6_ib_ic_info);
 #endif
 	rds_ib_unregister_client();
-	rds_ib_destroy_nodev_conns();
+	rds_ib_destroy_yesdev_conns();
 	rds_ib_sysctl_exit();
 	rds_ib_recv_exit();
 	rds_trans_unregister(&rds_ib_transport);

@@ -89,19 +89,19 @@ sgl_to_dbl_fcnvff(
 		}
 	}
 	/* 
- 	 * Test for zero or denormalized
+ 	 * Test for zero or deyesrmalized
  	 */
 	if (src_exponent == 0) {
 		/*
-		 * determine if zero or denormalized
+		 * determine if zero or deyesrmalized
 		 */
-		if (Sgl_isnotzero_mantissa(src)) {
+		if (Sgl_isyestzero_mantissa(src)) {
 			/*
-			 * is denormalized; want to normalize
+			 * is deyesrmalized; want to yesrmalize
 			 */
 			Sgl_clear_signexponent(src);
 			Sgl_leftshiftby1(src);
-			Sgl_normalize(src,src_exponent);
+			Sgl_yesrmalize(src,src_exponent);
 			Sgl_to_dbl_exponent(src_exponent,resultp1);
 			Sgl_to_dbl_mantissa(src,resultp1,resultp2);
 		}
@@ -198,13 +198,13 @@ dbl_to_sgl_fcnvff(
 			/* compute result, determine inexact info,
 			 * and set Underflowflag if appropriate
 			 */
-			Dbl_to_sgl_denormalized(srcp1,srcp2,dest_exponent,
+			Dbl_to_sgl_deyesrmalized(srcp1,srcp2,dest_exponent,
 			dest_mantissa,inexact,guardbit,stickybit,lsb_odd,
 			is_tiny);
 		}
 	}
         /* 
-         * Now round result if not exact
+         * Now round result if yest exact
          */
         if (inexact) {
                 switch (Rounding_mode()) {
@@ -279,7 +279,7 @@ dbl_to_sgl_fcnvff(
                         return(UNDERFLOWEXCEPTION);
                 }
                  /* 
-                  * result is denormalized or signed zero
+                  * result is deyesrmalized or signed zero
                   */
                if (inexact && is_tiny) Set_underflowflag();
 

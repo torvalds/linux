@@ -134,19 +134,19 @@ drm_connector_pick_cmdline_mode(struct drm_connector *connector)
 {
 	struct drm_cmdline_mode *cmdline_mode;
 	struct drm_display_mode *mode;
-	bool prefer_non_interlace;
+	bool prefer_yesn_interlace;
 
 	cmdline_mode = &connector->cmdline_mode;
 	if (cmdline_mode->specified == false)
 		return NULL;
 
 	/* attempt to find a matching mode in the list of modes
-	 *  we have gotten so far, if not add a CVT mode that conforms
+	 *  we have gotten so far, if yest add a CVT mode that conforms
 	 */
 	if (cmdline_mode->rb || cmdline_mode->margins)
 		goto create_mode;
 
-	prefer_non_interlace = !cmdline_mode->interlace;
+	prefer_yesn_interlace = !cmdline_mode->interlace;
 again:
 	list_for_each_entry(mode, &connector->modes, head) {
 		/* Check (optional) mode name first */
@@ -166,15 +166,15 @@ again:
 		if (cmdline_mode->interlace) {
 			if (!(mode->flags & DRM_MODE_FLAG_INTERLACE))
 				continue;
-		} else if (prefer_non_interlace) {
+		} else if (prefer_yesn_interlace) {
 			if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 				continue;
 		}
 		return mode;
 	}
 
-	if (prefer_non_interlace) {
-		prefer_non_interlace = false;
+	if (prefer_yesn_interlace) {
+		prefer_yesn_interlace = false;
 		goto again;
 	}
 
@@ -190,7 +190,7 @@ static bool drm_connector_enabled(struct drm_connector *connector, bool strict)
 {
 	bool enable;
 
-	if (connector->display_info.non_desktop)
+	if (connector->display_info.yesn_desktop)
 		return false;
 
 	if (strict)
@@ -213,7 +213,7 @@ static void drm_client_connectors_enabled(struct drm_connector **connectors,
 		connector = connectors[i];
 		enabled[i] = drm_connector_enabled(connector, true);
 		DRM_DEBUG_KMS("connector %d enabled? %s\n", connector->base.id,
-			      connector->display_info.non_desktop ? "non desktop" : enabled[i] ? "yes" : "no");
+			      connector->display_info.yesn_desktop ? "yesn desktop" : enabled[i] ? "no" : "yes");
 
 		any_enabled |= enabled[i];
 	}
@@ -250,7 +250,7 @@ static bool drm_client_target_cloned(struct drm_device *dev,
 	if (count <= 1)
 		return false;
 
-	/* check the command line or if nothing common pick 1024x768 */
+	/* check the command line or if yesthing common pick 1024x768 */
 	can_clone = true;
 	for (i = 0; i < connector_count; i++) {
 		if (!enabled[i])
@@ -322,7 +322,7 @@ static int drm_client_get_tile_offsets(struct drm_connector **connectors,
 			continue;
 
 		if (!modes[i] && (h_idx || v_idx)) {
-			DRM_DEBUG_KMS("no modes for connector tiled %d %d\n", i,
+			DRM_DEBUG_KMS("yes modes for connector tiled %d %d\n", i,
 				      connector->base.id);
 			continue;
 		}
@@ -400,7 +400,7 @@ retry:
 				break;
 		}
 		DRM_DEBUG_KMS("found mode %s\n", modes[i] ? modes[i]->name :
-			  "none");
+			  "yesne");
 		conn_configured |= BIT_ULL(i);
 	}
 
@@ -476,7 +476,7 @@ static int drm_client_pick_crtcs(struct drm_client_dev *client,
 				break;
 
 		if (o < n) {
-			/* ignore cloning unless only a single crtc */
+			/* igyesre cloning unless only a single crtc */
 			if (dev->mode_config.num_crtc > 1)
 				continue;
 
@@ -551,7 +551,7 @@ retry:
 			num_connectors_detected++;
 
 		if (!enabled[i]) {
-			DRM_DEBUG_KMS("connector %s not enabled, skipping\n",
+			DRM_DEBUG_KMS("connector %s yest enabled, skipping\n",
 				      connector->name);
 			conn_configured |= BIT(i);
 			continue;
@@ -569,7 +569,7 @@ retry:
 			if (connector->force > DRM_FORCE_OFF)
 				goto bail;
 
-			DRM_DEBUG_KMS("connector %s has no encoder or crtc, skipping\n",
+			DRM_DEBUG_KMS("connector %s has yes encoder or crtc, skipping\n",
 				      connector->name);
 			enabled[i] = false;
 			conn_configured |= BIT(i);
@@ -581,8 +581,8 @@ retry:
 		new_crtc = connector->state->crtc;
 
 		/*
-		 * Make sure we're not trying to drive multiple connectors
-		 * with a single CRTC, since our cloning support may not
+		 * Make sure we're yest trying to drive multiple connectors
+		 * with a single CRTC, since our cloning support may yest
 		 * match the BIOS.
 		 */
 		for (j = 0; j < count; j++) {
@@ -619,12 +619,12 @@ retry:
 			/*
 			 * IMPORTANT: We want to use the adjusted mode (i.e.
 			 * after the panel fitter upscaling) as the initial
-			 * config, not the input mode, which is what crtc->mode
+			 * config, yest the input mode, which is what crtc->mode
 			 * usually contains. But since our current
 			 * code puts a mode derived from the post-pfit timings
 			 * into crtc->mode this works out correctly.
 			 *
-			 * This is crtc->mode and not crtc->state->mode for the
+			 * This is crtc->mode and yest crtc->state->mode for the
 			 * fastboot check to work correctly.
 			 */
 			DRM_DEBUG_KMS("looking for current mode on connector %s\n",
@@ -851,7 +851,7 @@ bool drm_client_rotation(struct drm_mode_set *modeset, unsigned int *rotation)
 	 * on the command line needs to be added to that.
 	 *
 	 * Unfortunately, the rotations are at different bit
-	 * indices, so the math to add them up are not as
+	 * indices, so the math to add them up are yest as
 	 * trivial as they could.
 	 *
 	 * Reflections on the other hand are pretty trivial to deal with, a
@@ -923,7 +923,7 @@ retry:
 
 		plane_state->rotation = DRM_MODE_ROTATE_0;
 
-		/* disable non-primary: */
+		/* disable yesn-primary: */
 		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
 			continue;
 
@@ -939,7 +939,7 @@ retry:
 		if (drm_client_rotation(mode_set, &rotation)) {
 			struct drm_plane_state *plane_state;
 
-			/* Cannot fail as we've already gotten the plane state above */
+			/* Canyest fail as we've already gotten the plane state above */
 			plane_state = drm_atomic_get_new_plane_state(state, primary);
 			plane_state->rotation = rotation;
 		}

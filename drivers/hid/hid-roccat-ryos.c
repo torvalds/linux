@@ -111,7 +111,7 @@ static int ryos_init_specials(struct hid_device *hdev)
 	if (retval < 0) {
 		hid_err(hdev, "couldn't init char dev\n");
 	} else {
-		ryos->chrdev_minor = retval;
+		ryos->chrdev_miyesr = retval;
 		ryos->roccat_claimed = 1;
 	}
 
@@ -132,7 +132,7 @@ static void ryos_remove_specials(struct hid_device *hdev)
 
 	ryos = hid_get_drvdata(hdev);
 	if (ryos->roccat_claimed)
-		roccat_disconnect(ryos->chrdev_minor);
+		roccat_disconnect(ryos->chrdev_miyesr);
 	kfree(ryos);
 }
 
@@ -187,7 +187,7 @@ static int ryos_raw_event(struct hid_device *hdev,
 		return 0;
 
 	if (ryos != NULL && ryos->roccat_claimed)
-		roccat_report_event(ryos->chrdev_minor, data);
+		roccat_report_event(ryos->chrdev_miyesr, data);
 
 	return 0;
 }

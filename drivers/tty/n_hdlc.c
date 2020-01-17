@@ -13,12 +13,12 @@
  * Original release 01/11/99
  *
  * This module implements the tty line discipline N_HDLC for use with
- * tty device drivers that support bit-synchronous HDLC communications.
+ * tty device drivers that support bit-synchroyesus HDLC communications.
  *
  * All HDLC data is frame oriented which means:
  *
  * 1. tty write calls represent one complete transmit frame of data
- *    The device driver should accept the complete frame or none of 
+ *    The device driver should accept the complete frame or yesne of 
  *    the frame (busy) in the write method. Each write call should have
  *    a byte count in the range of 2-65535 bytes (2 is min HDLC frame
  *    with 1 addr byte and 1 ctrl byte). The max byte count of 65535
@@ -38,28 +38,28 @@
  *    buffers so complete receive frames can be returned by the
  *    tty read calls.
  *
- * 3. tty read calls returns an entire frame of data or nothing.
+ * 3. tty read calls returns an entire frame of data or yesthing.
  *    
  * 4. all send and receive data is considered raw. No processing
  *    or translation is performed by the line discipline, regardless
  *    of the tty flags
  *
  * 5. When line discipline is queried for the amount of receive
- *    data available (FIOC), 0 is returned if no data available,
+ *    data available (FIOC), 0 is returned if yes data available,
  *    otherwise the count of the next available frame is returned.
  *    (instead of the sum of all received frame counts).
  *
  * These conventions allow the standard tty programming interface
- * to be used for synchronous HDLC applications when used with
- * this line discipline (or another line discipline that is frame
+ * to be used for synchroyesus HDLC applications when used with
+ * this line discipline (or ayesther line discipline that is frame
  * oriented such as N_PPP).
  *
- * The SyncLink driver (synclink.c) implements both asynchronous
- * (using standard line discipline N_TTY) and synchronous HDLC
+ * The SyncLink driver (synclink.c) implements both asynchroyesus
+ * (using standard line discipline N_TTY) and synchroyesus HDLC
  * (using N_HDLC) communications, with the latter using the above
  * conventions.
  *
- * This implementation is very basic and does not maintain
+ * This implementation is very basic and does yest maintain
  * any statistics. The main point is to enforce the raw data
  * and frame orientation of HDLC communications.
  *
@@ -88,14 +88,14 @@
 #include <linux/ptrace.h>
 
 #undef VERSION
-#define VERSION(major,minor,patch) (((((major)<<8)+(minor))<<8)+(patch))
+#define VERSION(major,miyesr,patch) (((((major)<<8)+(miyesr))<<8)+(patch))
 
 #include <linux/poll.h>
 #include <linux/in.h>
 #include <linux/ioctl.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>	/* used in new tty drivers */
 #include <linux/signal.h>	/* used in new tty drivers */
 #include <linux/if.h>
@@ -238,7 +238,7 @@ static void n_hdlc_release(struct n_hdlc *n_hdlc)
 	if (debuglevel >= DEBUG_LEVEL_INFO)	
 		printk("%s(%d)n_hdlc_release() called\n",__FILE__,__LINE__);
 		
-	/* Ensure that the n_hdlcd process is not hanging on select()/poll() */
+	/* Ensure that the n_hdlcd process is yest hanging on select()/poll() */
 	wake_up_interruptible (&tty->read_wait);
 	wake_up_interruptible (&tty->write_wait);
 
@@ -294,7 +294,7 @@ static void n_hdlc_tty_close(struct tty_struct *tty)
 		
 	if (n_hdlc != NULL) {
 		if (n_hdlc->magic != HDLC_MAGIC) {
-			printk (KERN_WARNING"n_hdlc: trying to close unopened tty!\n");
+			printk (KERN_WARNING"n_hdlc: trying to close uyespened tty!\n");
 			return;
 		}
 #if defined(TTY_NO_WRITE_SPLIT)
@@ -332,7 +332,7 @@ static int n_hdlc_tty_open (struct tty_struct *tty)
 		__FILE__,__LINE__,
 		tty->name);
 		
-	/* There should not be an existing table for this slot. */
+	/* There should yest be an existing table for this slot. */
 	if (n_hdlc) {
 		printk (KERN_ERR"n_hdlc_tty_open:tty already associated!\n" );
 		return -EEXIST;
@@ -349,7 +349,7 @@ static int n_hdlc_tty_open (struct tty_struct *tty)
 	tty->receive_room = 65536;
 	
 #if defined(TTY_NO_WRITE_SPLIT)
-	/* change tty_io write() to not split large writes into 8K chunks */
+	/* change tty_io write() to yest split large writes into 8K chunks */
 	set_bit(TTY_NO_WRITE_SPLIT,&tty->flags);
 #endif
 	
@@ -368,7 +368,7 @@ static int n_hdlc_tty_open (struct tty_struct *tty)
  * @n_hdlc - pointer to ldisc instance data
  * @tty - pointer to tty instance data
  *
- * Send frames on pending send buffer list until the driver does not accept a
+ * Send frames on pending send buffer list until the driver does yest accept a
  * frame (busy) this function is called after adding a frame to the send buffer
  * list and by the tty wakeup callback.
  */
@@ -431,7 +431,7 @@ static void n_hdlc_send_frames(struct n_hdlc *n_hdlc, struct tty_struct *tty)
 					__FILE__,__LINE__,tbuf);
 
 			/*
-			 * the buffer was not accepted by driver,
+			 * the buffer was yest accepted by driver,
 			 * return it back into tx queue
 			 */
 			n_hdlc_buf_return(&n_hdlc->tx_buf_list, tbuf);
@@ -506,7 +506,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 		
 	/* verify line is using HDLC discipline */
 	if (n_hdlc->magic != HDLC_MAGIC) {
-		printk("%s(%d) line not using HDLC discipline\n",
+		printk("%s(%d) line yest using HDLC discipline\n",
 			__FILE__,__LINE__);
 		return;
 	}
@@ -521,7 +521,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	/* get a free HDLC buffer */	
 	buf = n_hdlc_buf_get(&n_hdlc->rx_free_buf_list);
 	if (!buf) {
-		/* no buffers in free list, attempt to allocate another rx buffer */
+		/* yes buffers in free list, attempt to allocate ayesther rx buffer */
 		/* unless the maximum count has been reached */
 		if (n_hdlc->rx_buf_list.count < MAX_RX_BUF_COUNT)
 			buf = kmalloc(N_HDLC_BUF_SIZE, GFP_ATOMIC);
@@ -529,7 +529,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 	
 	if (!buf) {
 		if (debuglevel >= DEBUG_LEVEL_INFO)	
-			printk("%s(%d) no more rx buffers, data discarded\n",
+			printk("%s(%d) yes more rx buffers, data discarded\n",
 			       __FILE__,__LINE__);
 		return;
 	}
@@ -612,8 +612,8 @@ static ssize_t n_hdlc_tty_read(struct tty_struct *tty, struct file *file,
 			break;
 		}
 			
-		/* no data */
-		if (tty_io_nonblock(tty, file)) {
+		/* yes data */
+		if (tty_io_yesnblock(tty, file)) {
 			ret = -EAGAIN;
 			break;
 		}
@@ -680,7 +680,7 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 		if (tbuf)
 			break;
 
-		if (tty_io_nonblock(tty, file)) {
+		if (tty_io_yesnblock(tty, file)) {
 			error = -EAGAIN;
 			break;
 		}
@@ -793,9 +793,9 @@ static int n_hdlc_tty_ioctl(struct tty_struct *tty, struct file *file,
  * @filp - pointer to open file object for device
  * @poll_table - wait queue for operations
  * 
- * Determine which operations (read/write) will not block and return info
+ * Determine which operations (read/write) will yest block and return info
  * to caller.
- * Returns a bit mask containing info on which ops will not block.
+ * Returns a bit mask containing info on which ops will yest block.
  */
 static __poll_t n_hdlc_tty_poll(struct tty_struct *tty, struct file *filp,
 				    poll_table *wait)

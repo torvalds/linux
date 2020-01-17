@@ -13,10 +13,10 @@
  *
  * At the lowest level, there is the standard driver for the CD/DVD device,
  * typically ide-cd.c or sr.c. This driver can handle read and write requests,
- * but it doesn't know anything about the special restrictions that apply to
+ * but it doesn't kyesw anything about the special restrictions that apply to
  * packet writing. One restriction is that write requests must be aligned to
  * packet boundaries on the physical media, and the size of a write request
- * must be equal to the packet size. Another restriction is that a
+ * must be equal to the packet size. Ayesther restriction is that a
  * GPCMD_FLUSH_CACHE command has to be issued to the drive before a read
  * command, if the previous command was a write.
  *
@@ -52,7 +52,7 @@
 #include <linux/kernel.h>
 #include <linux/compat.h>
 #include <linux/kthread.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/spinlock.h>
 #include <linux/file.h>
 #include <linux/proc_fs.h>
@@ -67,25 +67,25 @@
 #include <scsi/scsi.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <linux/uaccess.h>
 
 #define DRIVER_NAME	"pktcdvd"
 
 #define pkt_err(pd, fmt, ...)						\
 	pr_err("%s: " fmt, pd->name, ##__VA_ARGS__)
-#define pkt_notice(pd, fmt, ...)					\
-	pr_notice("%s: " fmt, pd->name, ##__VA_ARGS__)
+#define pkt_yestice(pd, fmt, ...)					\
+	pr_yestice("%s: " fmt, pd->name, ##__VA_ARGS__)
 #define pkt_info(pd, fmt, ...)						\
 	pr_info("%s: " fmt, pd->name, ##__VA_ARGS__)
 
 #define pkt_dbg(level, pd, fmt, ...)					\
 do {									\
 	if (level == 2 && PACKET_DEBUG >= 2)				\
-		pr_notice("%s: %s():" fmt,				\
+		pr_yestice("%s: %s():" fmt,				\
 			  pd->name, __func__, ##__VA_ARGS__);		\
 	else if (level == 1 && PACKET_DEBUG >= 1)			\
-		pr_notice("%s: " fmt, pd->name, ##__VA_ARGS__);		\
+		pr_yestice("%s: " fmt, pd->name, ##__VA_ARGS__);		\
 } while (0)
 
 #define MAX_SPEED 0xffff
@@ -374,14 +374,14 @@ static CLASS_ATTR_RO(device_map);
 static ssize_t add_store(struct class *c, struct class_attribute *attr,
 			 const char *buf, size_t count)
 {
-	unsigned int major, minor;
+	unsigned int major, miyesr;
 
-	if (sscanf(buf, "%u:%u", &major, &minor) == 2) {
+	if (sscanf(buf, "%u:%u", &major, &miyesr) == 2) {
 		/* pkt_setup_dev() expects caller to hold reference to self */
 		if (!try_module_get(THIS_MODULE))
 			return -ENODEV;
 
-		pkt_setup_dev(MKDEV(major, minor), NULL);
+		pkt_setup_dev(MKDEV(major, miyesr), NULL);
 
 		module_put(THIS_MODULE);
 
@@ -395,9 +395,9 @@ static CLASS_ATTR_WO(add);
 static ssize_t remove_store(struct class *c, struct class_attribute *attr,
 			    const char *buf, size_t count)
 {
-	unsigned int major, minor;
-	if (sscanf(buf, "%u:%u", &major, &minor) == 2) {
-		pkt_remove_dev(MKDEV(major, minor));
+	unsigned int major, miyesr;
+	if (sscanf(buf, "%u:%u", &major, &miyesr) == 2) {
+		pkt_remove_dev(MKDEV(major, miyesr));
 		return count;
 	}
 	return -EINVAL;
@@ -457,9 +457,9 @@ static int pkt_debugfs_seq_show(struct seq_file *m, void *p)
 	return pkt_seq_show(m, p);
 }
 
-static int pkt_debugfs_fops_open(struct inode *inode, struct file *file)
+static int pkt_debugfs_fops_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, pkt_debugfs_seq_show, inode->i_private);
+	return single_open(file, pkt_debugfs_seq_show, iyesde->i_private);
 }
 
 static const struct file_operations debug_fops = {
@@ -526,17 +526,17 @@ static struct packet_data *pkt_alloc_packet_data(int frames)
 
 	pkt = kzalloc(sizeof(struct packet_data), GFP_KERNEL);
 	if (!pkt)
-		goto no_pkt;
+		goto yes_pkt;
 
 	pkt->frames = frames;
 	pkt->w_bio = bio_kmalloc(GFP_KERNEL, frames);
 	if (!pkt->w_bio)
-		goto no_bio;
+		goto yes_bio;
 
 	for (i = 0; i < frames / FRAMES_PER_PAGE; i++) {
 		pkt->pages[i] = alloc_page(GFP_KERNEL|__GFP_ZERO);
 		if (!pkt->pages[i])
-			goto no_page;
+			goto yes_page;
 	}
 
 	spin_lock_init(&pkt->lock);
@@ -545,28 +545,28 @@ static struct packet_data *pkt_alloc_packet_data(int frames)
 	for (i = 0; i < frames; i++) {
 		struct bio *bio = bio_kmalloc(GFP_KERNEL, 1);
 		if (!bio)
-			goto no_rd_bio;
+			goto yes_rd_bio;
 
 		pkt->r_bios[i] = bio;
 	}
 
 	return pkt;
 
-no_rd_bio:
+yes_rd_bio:
 	for (i = 0; i < frames; i++) {
 		struct bio *bio = pkt->r_bios[i];
 		if (bio)
 			bio_put(bio);
 	}
 
-no_page:
+yes_page:
 	for (i = 0; i < frames / FRAMES_PER_PAGE; i++)
 		if (pkt->pages[i])
 			__free_page(pkt->pages[i]);
 	bio_put(pkt->w_bio);
-no_bio:
+yes_bio:
 	kfree(pkt);
-no_pkt:
+yes_pkt:
 	return NULL;
 }
 
@@ -620,30 +620,30 @@ static int pkt_grow_pktlist(struct pktcdvd_device *pd, int nr_packets)
 	return 1;
 }
 
-static inline struct pkt_rb_node *pkt_rbtree_next(struct pkt_rb_node *node)
+static inline struct pkt_rb_yesde *pkt_rbtree_next(struct pkt_rb_yesde *yesde)
 {
-	struct rb_node *n = rb_next(&node->rb_node);
+	struct rb_yesde *n = rb_next(&yesde->rb_yesde);
 	if (!n)
 		return NULL;
-	return rb_entry(n, struct pkt_rb_node, rb_node);
+	return rb_entry(n, struct pkt_rb_yesde, rb_yesde);
 }
 
-static void pkt_rbtree_erase(struct pktcdvd_device *pd, struct pkt_rb_node *node)
+static void pkt_rbtree_erase(struct pktcdvd_device *pd, struct pkt_rb_yesde *yesde)
 {
-	rb_erase(&node->rb_node, &pd->bio_queue);
-	mempool_free(node, &pd->rb_pool);
+	rb_erase(&yesde->rb_yesde, &pd->bio_queue);
+	mempool_free(yesde, &pd->rb_pool);
 	pd->bio_queue_size--;
 	BUG_ON(pd->bio_queue_size < 0);
 }
 
 /*
- * Find the first node in the pd->bio_queue rb tree with a starting sector >= s.
+ * Find the first yesde in the pd->bio_queue rb tree with a starting sector >= s.
  */
-static struct pkt_rb_node *pkt_rbtree_find(struct pktcdvd_device *pd, sector_t s)
+static struct pkt_rb_yesde *pkt_rbtree_find(struct pktcdvd_device *pd, sector_t s)
 {
-	struct rb_node *n = pd->bio_queue.rb_node;
-	struct rb_node *next;
-	struct pkt_rb_node *tmp;
+	struct rb_yesde *n = pd->bio_queue.rb_yesde;
+	struct rb_yesde *next;
+	struct pkt_rb_yesde *tmp;
 
 	if (!n) {
 		BUG_ON(pd->bio_queue_size > 0);
@@ -651,7 +651,7 @@ static struct pkt_rb_node *pkt_rbtree_find(struct pktcdvd_device *pd, sector_t s
 	}
 
 	for (;;) {
-		tmp = rb_entry(n, struct pkt_rb_node, rb_node);
+		tmp = rb_entry(n, struct pkt_rb_yesde, rb_yesde);
 		if (s <= tmp->bio->bi_iter.bi_sector)
 			next = n->rb_left;
 		else
@@ -671,25 +671,25 @@ static struct pkt_rb_node *pkt_rbtree_find(struct pktcdvd_device *pd, sector_t s
 }
 
 /*
- * Insert a node into the pd->bio_queue rb tree.
+ * Insert a yesde into the pd->bio_queue rb tree.
  */
-static void pkt_rbtree_insert(struct pktcdvd_device *pd, struct pkt_rb_node *node)
+static void pkt_rbtree_insert(struct pktcdvd_device *pd, struct pkt_rb_yesde *yesde)
 {
-	struct rb_node **p = &pd->bio_queue.rb_node;
-	struct rb_node *parent = NULL;
-	sector_t s = node->bio->bi_iter.bi_sector;
-	struct pkt_rb_node *tmp;
+	struct rb_yesde **p = &pd->bio_queue.rb_yesde;
+	struct rb_yesde *parent = NULL;
+	sector_t s = yesde->bio->bi_iter.bi_sector;
+	struct pkt_rb_yesde *tmp;
 
 	while (*p) {
 		parent = *p;
-		tmp = rb_entry(parent, struct pkt_rb_node, rb_node);
+		tmp = rb_entry(parent, struct pkt_rb_yesde, rb_yesde);
 		if (s < tmp->bio->bi_iter.bi_sector)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
 	}
-	rb_link_node(&node->rb_node, parent, p);
-	rb_insert_color(&node->rb_node, &pd->bio_queue);
+	rb_link_yesde(&yesde->rb_yesde, parent, p);
+	rb_insert_color(&yesde->rb_yesde, &pd->bio_queue);
 	pd->bio_queue_size++;
 }
 
@@ -756,7 +756,7 @@ static void pkt_dump_sense(struct pktcdvd_device *pd,
 			sshdr->sense_key, sshdr->asc, sshdr->ascq,
 			sense_key_string(sshdr->sense_key));
 	else
-		pkt_err(pd, "%*ph - no sense\n", CDROM_PACKET_SIZE, cgc->cmd);
+		pkt_err(pd, "%*ph - yes sense\n", CDROM_PACKET_SIZE, cgc->cmd);
 }
 
 /*
@@ -771,7 +771,7 @@ static int pkt_flush_cache(struct pktcdvd_device *pd)
 	cgc.quiet = 1;
 
 	/*
-	 * the IMMED bit -- we default to not setting it, although that
+	 * the IMMED bit -- we default to yest setting it, although that
 	 * would allow a much faster close, this is safer
 	 */
 #if 0
@@ -781,9 +781,9 @@ static int pkt_flush_cache(struct pktcdvd_device *pd)
 }
 
 /*
- * speed is given as the normal factor, e.g. 4 for 4x
+ * speed is given as the yesrmal factor, e.g. 4 for 4x
  */
-static noinline_for_stack int pkt_set_speed(struct pktcdvd_device *pd,
+static yesinline_for_stack int pkt_set_speed(struct pktcdvd_device *pd,
 				unsigned write_speed, unsigned read_speed)
 {
 	struct packet_command cgc;
@@ -1055,7 +1055,7 @@ out_account:
 
 /*
  * Find a packet matching zone, or the least recently used packet if
- * there is no match.
+ * there is yes match.
  */
 static struct packet_data *pkt_get_packet_data(struct pktcdvd_device *pd, int zone)
 {
@@ -1085,7 +1085,7 @@ static void pkt_put_packet_data(struct pktcdvd_device *pd, struct packet_data *p
 /*
  * recover a failed write, query for relocation if possible
  *
- * returns 1 if recovery is possible, or 0 if not
+ * returns 1 if recovery is possible, or 0 if yest
  *
  */
 static int pkt_start_recovery(struct packet_data *pkt)
@@ -1157,37 +1157,37 @@ static inline void pkt_set_state(struct packet_data *pkt, enum packet_data_state
 
 /*
  * Scan the work queue to see if we can start a new packet.
- * returns non-zero if any work was done.
+ * returns yesn-zero if any work was done.
  */
 static int pkt_handle_queue(struct pktcdvd_device *pd)
 {
 	struct packet_data *pkt, *p;
 	struct bio *bio = NULL;
 	sector_t zone = 0; /* Suppress gcc warning */
-	struct pkt_rb_node *node, *first_node;
-	struct rb_node *n;
+	struct pkt_rb_yesde *yesde, *first_yesde;
+	struct rb_yesde *n;
 	int wakeup;
 
 	atomic_set(&pd->scan_queue, 0);
 
 	if (list_empty(&pd->cdrw.pkt_free_list)) {
-		pkt_dbg(2, pd, "no pkt\n");
+		pkt_dbg(2, pd, "yes pkt\n");
 		return 0;
 	}
 
 	/*
-	 * Try to find a zone we are not already working on.
+	 * Try to find a zone we are yest already working on.
 	 */
 	spin_lock(&pd->lock);
-	first_node = pkt_rbtree_find(pd, pd->current_sector);
-	if (!first_node) {
+	first_yesde = pkt_rbtree_find(pd, pd->current_sector);
+	if (!first_yesde) {
 		n = rb_first(&pd->bio_queue);
 		if (n)
-			first_node = rb_entry(n, struct pkt_rb_node, rb_node);
+			first_yesde = rb_entry(n, struct pkt_rb_yesde, rb_yesde);
 	}
-	node = first_node;
-	while (node) {
-		bio = node->bio;
+	yesde = first_yesde;
+	while (yesde) {
+		bio = yesde->bio;
 		zone = get_zone(bio->bi_iter.bi_sector, pd);
 		list_for_each_entry(p, &pd->cdrw.pkt_active_list, list) {
 			if (p->sector == zone) {
@@ -1197,18 +1197,18 @@ static int pkt_handle_queue(struct pktcdvd_device *pd)
 		}
 		break;
 try_next_bio:
-		node = pkt_rbtree_next(node);
-		if (!node) {
+		yesde = pkt_rbtree_next(yesde);
+		if (!yesde) {
 			n = rb_first(&pd->bio_queue);
 			if (n)
-				node = rb_entry(n, struct pkt_rb_node, rb_node);
+				yesde = rb_entry(n, struct pkt_rb_yesde, rb_yesde);
 		}
-		if (node == first_node)
-			node = NULL;
+		if (yesde == first_yesde)
+			yesde = NULL;
 	}
 	spin_unlock(&pd->lock);
 	if (!bio) {
-		pkt_dbg(2, pd, "no bio\n");
+		pkt_dbg(2, pd, "yes bio\n");
 		return 0;
 	}
 
@@ -1225,13 +1225,13 @@ try_next_bio:
 	 */
 	spin_lock(&pd->lock);
 	pkt_dbg(2, pd, "looking for zone %llx\n", (unsigned long long)zone);
-	while ((node = pkt_rbtree_find(pd, zone)) != NULL) {
-		bio = node->bio;
+	while ((yesde = pkt_rbtree_find(pd, zone)) != NULL) {
+		bio = yesde->bio;
 		pkt_dbg(2, pd, "found zone=%llx\n", (unsigned long long)
 			get_zone(bio->bi_iter.bi_sector, pd));
 		if (get_zone(bio->bi_iter.bi_sector, pd) != zone)
 			break;
-		pkt_rbtree_erase(pd, node);
+		pkt_rbtree_erase(pd, yesde);
 		spin_lock(&pkt->lock);
 		bio_list_add(&pkt->orig_bios, bio);
 		pkt->write_size += bio->bi_iter.bi_size / CD_FRAMESIZE;
@@ -1391,7 +1391,7 @@ static void pkt_handle_packets(struct pktcdvd_device *pd)
 	}
 
 	/*
-	 * Move no longer active packets to the free list
+	 * Move yes longer active packets to the free list
 	 */
 	spin_lock(&pd->cdrw.active_list_lock);
 	list_for_each_entry_safe(pkt, next, &pd->cdrw.pkt_active_list, list) {
@@ -1501,7 +1501,7 @@ work_to_do:
 
 		/*
 		 * if pkt_handle_queue returns true, we can queue
-		 * another request.
+		 * ayesther request.
 		 */
 		while (pkt_handle_queue(pd))
 			;
@@ -1567,7 +1567,7 @@ static int pkt_get_disc_info(struct pktcdvd_device *pd, disc_information *di)
 	if (ret)
 		return ret;
 
-	/* not all drives have the same disc_info length, so requeue
+	/* yest all drives have the same disc_info length, so requeue
 	 * packet with the length the drive tells us it can supply
 	 */
 	cgc.buflen = be16_to_cpu(di->disc_information_length) +
@@ -1607,7 +1607,7 @@ static int pkt_get_track_info(struct pktcdvd_device *pd, __u16 track, __u8 type,
 	return pkt_generic_packet(pd, &cgc);
 }
 
-static noinline_for_stack int pkt_get_last_written(struct pktcdvd_device *pd,
+static yesinline_for_stack int pkt_get_last_written(struct pktcdvd_device *pd,
 						long *last_written)
 {
 	disc_information di;
@@ -1648,7 +1648,7 @@ static noinline_for_stack int pkt_get_last_written(struct pktcdvd_device *pd,
 /*
  * write mode select package based on pd->settings
  */
-static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
+static yesinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 {
 	struct packet_command cgc;
 	struct scsi_sense_hdr sshdr;
@@ -1675,7 +1675,7 @@ static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 		size = sizeof(buffer);
 
 	/*
-	 * now get it all
+	 * yesw get it all
 	 */
 	init_cdrom_command(&cgc, buffer, size, CGC_DATA_READ);
 	cgc.sshdr = &sshdr;
@@ -1714,7 +1714,7 @@ static noinline_for_stack int pkt_set_write_settings(struct pktcdvd_device *pd)
 #endif
 	} else {
 		/*
-		 * paranoia
+		 * parayesia
 		 */
 		pkt_err(pd, "write mode wrong %d\n", wp->data_block_type);
 		return 1;
@@ -1772,7 +1772,7 @@ static int pkt_writable_disc(struct pktcdvd_device *pd, disc_information *di)
 {
 	switch (pd->mmc3_profile) {
 		case 0x0a: /* CD-RW */
-		case 0xffff: /* MMC3 not supported */
+		case 0xffff: /* MMC3 yest supported */
 			break;
 		case 0x1a: /* DVD+RW */
 		case 0x13: /* DVD-RW */
@@ -1786,10 +1786,10 @@ static int pkt_writable_disc(struct pktcdvd_device *pd, disc_information *di)
 
 	/*
 	 * for disc type 0xff we should probably reserve a new track.
-	 * but i'm not sure, should we leave this to user apps? probably.
+	 * but i'm yest sure, should we leave this to user apps? probably.
 	 */
 	if (di->disc_type == 0xff) {
-		pkt_notice(pd, "unknown disc - no track?\n");
+		pkt_yestice(pd, "unkyeswn disc - yes track?\n");
 		return 0;
 	}
 
@@ -1799,7 +1799,7 @@ static int pkt_writable_disc(struct pktcdvd_device *pd, disc_information *di)
 	}
 
 	if (di->erasable == 0) {
-		pkt_notice(pd, "disc not erasable\n");
+		pkt_yestice(pd, "disc yest erasable\n");
 		return 0;
 	}
 
@@ -1811,7 +1811,7 @@ static int pkt_writable_disc(struct pktcdvd_device *pd, disc_information *di)
 	return 1;
 }
 
-static noinline_for_stack int pkt_probe_settings(struct pktcdvd_device *pd)
+static yesinline_for_stack int pkt_probe_settings(struct pktcdvd_device *pd)
 {
 	struct packet_command cgc;
 	unsigned char buf[12];
@@ -1857,7 +1857,7 @@ static noinline_for_stack int pkt_probe_settings(struct pktcdvd_device *pd)
 	 */
 	pd->settings.size = be32_to_cpu(ti.fixed_packet_size) << 2;
 	if (pd->settings.size == 0) {
-		pkt_notice(pd, "detected zero packet size!\n");
+		pkt_yestice(pd, "detected zero packet size!\n");
 		return -ENXIO;
 	}
 	if (pd->settings.size > PACKET_MAX_SECTORS) {
@@ -1875,7 +1875,7 @@ static noinline_for_stack int pkt_probe_settings(struct pktcdvd_device *pd)
 	/*
 	 * in theory we could use lra on -RW media as well and just zero
 	 * blocks that haven't been written yet, but in practice that
-	 * is just a no-go. we'll use that for -R, naturally.
+	 * is just a yes-go. we'll use that for -R, naturally.
 	 */
 	if (ti.lra_v) {
 		pd->lra = be32_to_cpu(ti.last_rec_address);
@@ -1886,7 +1886,7 @@ static noinline_for_stack int pkt_probe_settings(struct pktcdvd_device *pd)
 	}
 
 	/*
-	 * fine for now
+	 * fine for yesw
 	 */
 	pd->settings.link_loss = 7;
 	pd->settings.write_type = 0;	/* packet */
@@ -1903,7 +1903,7 @@ static noinline_for_stack int pkt_probe_settings(struct pktcdvd_device *pd)
 			pd->settings.block_mode = PACKET_BLOCK_MODE2;
 			break;
 		default:
-			pkt_err(pd, "unknown data mode\n");
+			pkt_err(pd, "unkyeswn data mode\n");
 			return -EROFS;
 	}
 	return 0;
@@ -1912,7 +1912,7 @@ static noinline_for_stack int pkt_probe_settings(struct pktcdvd_device *pd)
 /*
  * enable/disable write caching on drive
  */
-static noinline_for_stack int pkt_write_caching(struct pktcdvd_device *pd,
+static yesinline_for_stack int pkt_write_caching(struct pktcdvd_device *pd,
 						int set)
 {
 	struct packet_command cgc;
@@ -1925,7 +1925,7 @@ static noinline_for_stack int pkt_write_caching(struct pktcdvd_device *pd,
 	cgc.buflen = pd->mode_offset + 12;
 
 	/*
-	 * caching mode page might not be there, so quiet this command
+	 * caching mode page might yest be there, so quiet this command
 	 */
 	cgc.quiet = 1;
 
@@ -1941,7 +1941,7 @@ static noinline_for_stack int pkt_write_caching(struct pktcdvd_device *pd,
 		pkt_err(pd, "write caching control failed\n");
 		pkt_dump_sense(pd, &cgc);
 	} else if (!ret && set)
-		pkt_notice(pd, "enabled write caching\n");
+		pkt_yestice(pd, "enabled write caching\n");
 	return ret;
 }
 
@@ -1958,7 +1958,7 @@ static int pkt_lock_door(struct pktcdvd_device *pd, int lockflag)
 /*
  * Returns drive maximum write speed
  */
-static noinline_for_stack int pkt_get_max_speed(struct pktcdvd_device *pd,
+static yesinline_for_stack int pkt_get_max_speed(struct pktcdvd_device *pd,
 						unsigned *write_speed)
 {
 	struct packet_command cgc;
@@ -2019,7 +2019,7 @@ static char us_clv_to_speed[16] = {
 /*
  * reads the maximum media speed from ATIP
  */
-static noinline_for_stack int pkt_media_speed(struct pktcdvd_device *pd,
+static yesinline_for_stack int pkt_media_speed(struct pktcdvd_device *pd,
 						unsigned *speed)
 {
 	struct packet_command cgc;
@@ -2056,11 +2056,11 @@ static noinline_for_stack int pkt_media_speed(struct pktcdvd_device *pd,
 	}
 
 	if (!(buf[6] & 0x40)) {
-		pkt_notice(pd, "disc type is not CD-RW\n");
+		pkt_yestice(pd, "disc type is yest CD-RW\n");
 		return 1;
 	}
 	if (!(buf[6] & 0x4)) {
-		pkt_notice(pd, "A1 values on media are not valid, maybe not CDRW?\n");
+		pkt_yestice(pd, "A1 values on media are yest valid, maybe yest CDRW?\n");
 		return 1;
 	}
 
@@ -2080,19 +2080,19 @@ static noinline_for_stack int pkt_media_speed(struct pktcdvd_device *pd,
 			*speed = us_clv_to_speed[sp];
 			break;
 		default:
-			pkt_notice(pd, "unknown disc sub-type %d\n", st);
+			pkt_yestice(pd, "unkyeswn disc sub-type %d\n", st);
 			return 1;
 	}
 	if (*speed) {
 		pkt_info(pd, "maximum media speed: %d\n", *speed);
 		return 0;
 	} else {
-		pkt_notice(pd, "unknown speed %d for sub-type %d\n", sp, st);
+		pkt_yestice(pd, "unkyeswn speed %d for sub-type %d\n", sp, st);
 		return 1;
 	}
 }
 
-static noinline_for_stack int pkt_perform_opc(struct pktcdvd_device *pd)
+static yesinline_for_stack int pkt_perform_opc(struct pktcdvd_device *pd)
 {
 	struct packet_command cgc;
 	struct scsi_sense_hdr sshdr;
@@ -2200,7 +2200,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 		if (ret)
 			goto out_putdev;
 		/*
-		 * Some CDRW drives can not handle writes larger than one packet,
+		 * Some CDRW drives can yest handle writes larger than one packet,
 		 * even if the size is a multiple of the packet size.
 		 */
 		blk_queue_max_hw_sectors(q, pd->settings.size);
@@ -2216,7 +2216,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 
 	if (write) {
 		if (!pkt_grow_pktlist(pd, CONFIG_CDROM_PKTCDVD_BUFFERS)) {
-			pkt_err(pd, "not enough memory for buffers\n");
+			pkt_err(pd, "yest eyesugh memory for buffers\n");
 			ret = -ENOMEM;
 			goto out_putdev;
 		}
@@ -2238,7 +2238,7 @@ out:
 static void pkt_release_dev(struct pktcdvd_device *pd, int flush)
 {
 	if (flush && pkt_flush_cache(pd))
-		pkt_dbg(1, pd, "not flushing cache\n");
+		pkt_dbg(1, pd, "yest flushing cache\n");
 
 	pkt_lock_door(pd, 0);
 
@@ -2248,13 +2248,13 @@ static void pkt_release_dev(struct pktcdvd_device *pd, int flush)
 	pkt_shrink_pktlist(pd);
 }
 
-static struct pktcdvd_device *pkt_find_dev_from_minor(unsigned int dev_minor)
+static struct pktcdvd_device *pkt_find_dev_from_miyesr(unsigned int dev_miyesr)
 {
-	if (dev_minor >= MAX_WRITERS)
+	if (dev_miyesr >= MAX_WRITERS)
 		return NULL;
 
-	dev_minor = array_index_nospec(dev_minor, MAX_WRITERS);
-	return pkt_devs[dev_minor];
+	dev_miyesr = array_index_yesspec(dev_miyesr, MAX_WRITERS);
+	return pkt_devs[dev_miyesr];
 }
 
 static int pkt_open(struct block_device *bdev, fmode_t mode)
@@ -2264,7 +2264,7 @@ static int pkt_open(struct block_device *bdev, fmode_t mode)
 
 	mutex_lock(&pktcdvd_mutex);
 	mutex_lock(&ctl_mutex);
-	pd = pkt_find_dev_from_minor(MINOR(bdev->bd_dev));
+	pd = pkt_find_dev_from_miyesr(MINOR(bdev->bd_dev));
 	if (!pd) {
 		ret = -ENODEV;
 		goto out;
@@ -2350,7 +2350,7 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
 	sector_t zone;
 	struct packet_data *pkt;
 	int was_empty, blocked_bio;
-	struct pkt_rb_node *node;
+	struct pkt_rb_yesde *yesde;
 
 	zone = get_zone(bio->bi_iter.bi_sector, pd);
 
@@ -2385,9 +2385,9 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
 	spin_unlock(&pd->cdrw.active_list_lock);
 
  	/*
-	 * Test if there is enough room left in the bio work queue
+	 * Test if there is eyesugh room left in the bio work queue
 	 * (queue size >= congestion on mark).
-	 * If not, wait till the work queue size is below the congestion off mark.
+	 * If yest, wait till the work queue size is below the congestion off mark.
 	 */
 	spin_lock(&pd->lock);
 	if (pd->write_congestion_on > 0
@@ -2404,12 +2404,12 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
 	/*
 	 * No matching packet found. Store the bio in the work queue.
 	 */
-	node = mempool_alloc(&pd->rb_pool, GFP_NOIO);
-	node->bio = bio;
+	yesde = mempool_alloc(&pd->rb_pool, GFP_NOIO);
+	yesde->bio = bio;
 	spin_lock(&pd->lock);
 	BUG_ON(pd->bio_queue_size < 0);
 	was_empty = (pd->bio_queue_size == 0);
-	pkt_rbtree_insert(pd, node);
+	pkt_rbtree_insert(pd, yesde);
 	spin_unlock(&pd->lock);
 
 	/*
@@ -2421,7 +2421,7 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
 		wake_up(&pd->wqueue);
 	} else if (!list_empty(&pd->cdrw.pkt_free_list) && !blocked_bio) {
 		/*
-		 * This wake up is not required for correct operation,
+		 * This wake up is yest required for correct operation,
 		 * but improves performance in some cases.
 		 */
 		wake_up(&pd->wqueue);
@@ -2455,7 +2455,7 @@ static blk_qc_t pkt_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	if (!test_bit(PACKET_WRITABLE, &pd->flags)) {
-		pkt_notice(pd, "WRITE for ro device (%llu)\n",
+		pkt_yestice(pd, "WRITE for ro device (%llu)\n",
 			   (unsigned long long)bio->bi_iter.bi_sector);
 		goto end_io;
 	}
@@ -2515,7 +2515,7 @@ static int pkt_seq_show(struct seq_file *m, void *p)
 	if (pd->settings.write_type == 0)
 		msg = "Packet";
 	else
-		msg = "Unknown";
+		msg = "Unkyeswn";
 	seq_printf(m, "\twrite type:\t\t%s\n", msg);
 
 	seq_printf(m, "\tpacket type:\t\t%s\n", pd->settings.fp ? "Fixed" : "Variable");
@@ -2528,7 +2528,7 @@ static int pkt_seq_show(struct seq_file *m, void *p)
 	else if (pd->settings.block_mode == PACKET_BLOCK_MODE2)
 		msg = "Mode 2";
 	else
-		msg = "Unknown";
+		msg = "Unkyeswn";
 	seq_printf(m, "\tblock mode:\t\t%s\n", msg);
 
 	seq_printf(m, "\nStatistics:\n");
@@ -2569,7 +2569,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	struct block_device *bdev;
 
 	if (pd->pkt_dev == dev) {
-		pkt_err(pd, "recursive setup not allowed\n");
+		pkt_err(pd, "recursive setup yest allowed\n");
 		return -EBUSY;
 	}
 	for (i = 0; i < MAX_WRITERS; i++) {
@@ -2655,7 +2655,7 @@ static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, 
 		break;
 
 	default:
-		pkt_dbg(2, pd, "Unknown ioctl (%x)\n", cmd);
+		pkt_dbg(2, pd, "Unkyeswn ioctl (%x)\n", cmd);
 		ret = -ENOTTY;
 	}
 	mutex_unlock(&pktcdvd_mutex);
@@ -2675,7 +2675,7 @@ static int pkt_compat_ioctl(struct block_device *bdev, fmode_t mode, unsigned in
 		return pkt_ioctl(bdev, mode, cmd, (unsigned long)compat_ptr(arg));
 
 
-	/* FIXME: no handler so far */
+	/* FIXME: yes handler so far */
 	case CDROM_LAST_WRITTEN:
 	/* handled in compat_blkdev_driver_ioctl */
 	case CDROM_SEND_PACKET:
@@ -2712,7 +2712,7 @@ static const struct block_device_operations pktcdvd_ops = {
 	.check_events =		pkt_check_events,
 };
 
-static char *pktcdvd_devnode(struct gendisk *gd, umode_t *mode)
+static char *pktcdvd_devyesde(struct gendisk *gd, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "pktcdvd/%s", gd->disk_name);
 }
@@ -2743,7 +2743,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 		goto out_mutex;
 
 	ret = mempool_init_kmalloc_pool(&pd->rb_pool, PKT_RB_POOL_SIZE,
-					sizeof(struct pkt_rb_node));
+					sizeof(struct pkt_rb_yesde));
 	if (ret)
 		goto out_mem;
 
@@ -2768,11 +2768,11 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 		goto out_mem;
 	pd->disk = disk;
 	disk->major = pktdev_major;
-	disk->first_minor = idx;
+	disk->first_miyesr = idx;
 	disk->fops = &pktcdvd_ops;
 	disk->flags = GENHD_FL_REMOVABLE;
 	strcpy(disk->disk_name, pd->name);
-	disk->devnode = pktcdvd_devnode;
+	disk->devyesde = pktcdvd_devyesde;
 	disk->private_data = pd;
 	disk->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!disk->queue)
@@ -2826,7 +2826,7 @@ static int pkt_remove_dev(dev_t pkt_dev)
 			break;
 	}
 	if (idx == MAX_WRITERS) {
-		pr_debug("dev not setup\n");
+		pr_debug("dev yest setup\n");
 		ret = -ENXIO;
 		goto out;
 	}
@@ -2869,7 +2869,7 @@ static void pkt_get_status(struct pkt_ctrl_command *ctrl_cmd)
 
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 
-	pd = pkt_find_dev_from_minor(ctrl_cmd->dev_index);
+	pd = pkt_find_dev_from_miyesr(ctrl_cmd->dev_index);
 	if (pd) {
 		ctrl_cmd->dev = new_encode_dev(pd->bdev->bd_dev);
 		ctrl_cmd->pkt_dev = new_encode_dev(pd->pkt_dev);
@@ -2927,19 +2927,19 @@ static long pkt_ctl_compat_ioctl(struct file *file, unsigned int cmd, unsigned l
 #endif
 
 static const struct file_operations pkt_ctl_fops = {
-	.open		= nonseekable_open,
+	.open		= yesnseekable_open,
 	.unlocked_ioctl	= pkt_ctl_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= pkt_ctl_compat_ioctl,
 #endif
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice pkt_misc = {
-	.minor 		= MISC_DYNAMIC_MINOR,
+	.miyesr 		= MISC_DYNAMIC_MINOR,
 	.name  		= DRIVER_NAME,
-	.nodename	= "pktcdvd/control",
+	.yesdename	= "pktcdvd/control",
 	.fops  		= &pkt_ctl_fops
 };
 

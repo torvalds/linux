@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -47,101 +47,101 @@
 #define XLP_PCIE_BUS_BLK_SIZE		(256 * XLP_PCIE_DEV_BLK_SIZE)
 #define XLP_IO_SIZE			(64 << 20)	/* ECFG space size */
 #define XLP_IO_PCI_HDRSZ		0x100
-#define XLP_IO_DEV(node, dev)		((dev) + (node) * 8)
+#define XLP_IO_DEV(yesde, dev)		((dev) + (yesde) * 8)
 #define XLP_IO_PCI_OFFSET(b, d, f)	(((b) << 20) | ((d) << 15) | ((f) << 12))
 
-#define XLP_HDR_OFFSET(node, bus, dev, fn) \
-		XLP_IO_PCI_OFFSET(bus, XLP_IO_DEV(node, dev), fn)
+#define XLP_HDR_OFFSET(yesde, bus, dev, fn) \
+		XLP_IO_PCI_OFFSET(bus, XLP_IO_DEV(yesde, dev), fn)
 
-#define XLP_IO_BRIDGE_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 0, 0)
+#define XLP_IO_BRIDGE_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 0, 0)
 /* coherent inter chip */
-#define XLP_IO_CIC0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 0, 1)
-#define XLP_IO_CIC1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 0, 2)
-#define XLP_IO_CIC2_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 0, 3)
-#define XLP_IO_PIC_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 0, 4)
+#define XLP_IO_CIC0_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 0, 1)
+#define XLP_IO_CIC1_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 0, 2)
+#define XLP_IO_CIC2_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 0, 3)
+#define XLP_IO_PIC_OFFSET(yesde)		XLP_HDR_OFFSET(yesde, 0, 0, 4)
 
-#define XLP_IO_PCIE_OFFSET(node, i)	XLP_HDR_OFFSET(node, 0, 1, i)
-#define XLP_IO_PCIE0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 1, 0)
-#define XLP_IO_PCIE1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 1, 1)
-#define XLP_IO_PCIE2_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 1, 2)
-#define XLP_IO_PCIE3_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 1, 3)
+#define XLP_IO_PCIE_OFFSET(yesde, i)	XLP_HDR_OFFSET(yesde, 0, 1, i)
+#define XLP_IO_PCIE0_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 1, 0)
+#define XLP_IO_PCIE1_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 1, 1)
+#define XLP_IO_PCIE2_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 1, 2)
+#define XLP_IO_PCIE3_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 1, 3)
 
-#define XLP_IO_USB_OFFSET(node, i)	XLP_HDR_OFFSET(node, 0, 2, i)
-#define XLP_IO_USB_EHCI0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 0)
-#define XLP_IO_USB_OHCI0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 1)
-#define XLP_IO_USB_OHCI1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 2)
-#define XLP_IO_USB_EHCI1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 3)
-#define XLP_IO_USB_OHCI2_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 4)
-#define XLP_IO_USB_OHCI3_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 2, 5)
+#define XLP_IO_USB_OFFSET(yesde, i)	XLP_HDR_OFFSET(yesde, 0, 2, i)
+#define XLP_IO_USB_EHCI0_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 2, 0)
+#define XLP_IO_USB_OHCI0_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 2, 1)
+#define XLP_IO_USB_OHCI1_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 2, 2)
+#define XLP_IO_USB_EHCI1_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 2, 3)
+#define XLP_IO_USB_OHCI2_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 2, 4)
+#define XLP_IO_USB_OHCI3_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 2, 5)
 
-#define XLP_IO_SATA_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 3, 2)
+#define XLP_IO_SATA_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 3, 2)
 
 /* XLP2xx has an updated USB block */
-#define XLP2XX_IO_USB_OFFSET(node, i)	XLP_HDR_OFFSET(node, 0, 4, i)
-#define XLP2XX_IO_USB_XHCI0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 4, 1)
-#define XLP2XX_IO_USB_XHCI1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 4, 2)
-#define XLP2XX_IO_USB_XHCI2_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 4, 3)
+#define XLP2XX_IO_USB_OFFSET(yesde, i)	XLP_HDR_OFFSET(yesde, 0, 4, i)
+#define XLP2XX_IO_USB_XHCI0_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 4, 1)
+#define XLP2XX_IO_USB_XHCI1_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 4, 2)
+#define XLP2XX_IO_USB_XHCI2_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 4, 3)
 
-#define XLP_IO_NAE_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 3, 0)
-#define XLP_IO_POE_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 3, 1)
+#define XLP_IO_NAE_OFFSET(yesde)		XLP_HDR_OFFSET(yesde, 0, 3, 0)
+#define XLP_IO_POE_OFFSET(yesde)		XLP_HDR_OFFSET(yesde, 0, 3, 1)
 
-#define XLP_IO_CMS_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 4, 0)
+#define XLP_IO_CMS_OFFSET(yesde)		XLP_HDR_OFFSET(yesde, 0, 4, 0)
 
-#define XLP_IO_DMA_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 5, 1)
-#define XLP_IO_SEC_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 5, 2)
-#define XLP_IO_CMP_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 5, 3)
+#define XLP_IO_DMA_OFFSET(yesde)		XLP_HDR_OFFSET(yesde, 0, 5, 1)
+#define XLP_IO_SEC_OFFSET(yesde)		XLP_HDR_OFFSET(yesde, 0, 5, 2)
+#define XLP_IO_CMP_OFFSET(yesde)		XLP_HDR_OFFSET(yesde, 0, 5, 3)
 
-#define XLP_IO_UART_OFFSET(node, i)	XLP_HDR_OFFSET(node, 0, 6, i)
-#define XLP_IO_UART0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 0)
-#define XLP_IO_UART1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 1)
-#define XLP_IO_I2C_OFFSET(node, i)	XLP_HDR_OFFSET(node, 0, 6, 2 + i)
-#define XLP_IO_I2C0_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 2)
-#define XLP_IO_I2C1_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 3)
-#define XLP_IO_GPIO_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 4)
+#define XLP_IO_UART_OFFSET(yesde, i)	XLP_HDR_OFFSET(yesde, 0, 6, i)
+#define XLP_IO_UART0_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 6, 0)
+#define XLP_IO_UART1_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 6, 1)
+#define XLP_IO_I2C_OFFSET(yesde, i)	XLP_HDR_OFFSET(yesde, 0, 6, 2 + i)
+#define XLP_IO_I2C0_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 6, 2)
+#define XLP_IO_I2C1_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 6, 3)
+#define XLP_IO_GPIO_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 6, 4)
 /* on 2XX, all I2C busses are on the same block */
-#define XLP2XX_IO_I2C_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 7)
+#define XLP2XX_IO_I2C_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 6, 7)
 
 /* system management */
-#define XLP_IO_SYS_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 6, 5)
-#define XLP_IO_JTAG_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 6, 6)
+#define XLP_IO_SYS_OFFSET(yesde)		XLP_HDR_OFFSET(yesde, 0, 6, 5)
+#define XLP_IO_JTAG_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 6, 6)
 
 /* Flash */
-#define XLP_IO_NOR_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 7, 0)
-#define XLP_IO_NAND_OFFSET(node)	XLP_HDR_OFFSET(node, 0, 7, 1)
-#define XLP_IO_SPI_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 7, 2)
-#define XLP_IO_MMC_OFFSET(node)		XLP_HDR_OFFSET(node, 0, 7, 3)
+#define XLP_IO_NOR_OFFSET(yesde)		XLP_HDR_OFFSET(yesde, 0, 7, 0)
+#define XLP_IO_NAND_OFFSET(yesde)	XLP_HDR_OFFSET(yesde, 0, 7, 1)
+#define XLP_IO_SPI_OFFSET(yesde)		XLP_HDR_OFFSET(yesde, 0, 7, 2)
+#define XLP_IO_MMC_OFFSET(yesde)		XLP_HDR_OFFSET(yesde, 0, 7, 3)
 
 /* Things have changed drastically in XLP 9XX */
 #define XLP9XX_HDR_OFFSET(n, d, f)	\
 			XLP_IO_PCI_OFFSET(xlp9xx_get_socbus(n), d, f)
 
-#define XLP9XX_IO_BRIDGE_OFFSET(node)	XLP_IO_PCI_OFFSET(0, 0, node)
-#define XLP9XX_IO_PIC_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 2, 0)
-#define XLP9XX_IO_UART_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 2, 2)
-#define XLP9XX_IO_SYS_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 0)
-#define XLP9XX_IO_FUSE_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 1)
-#define XLP9XX_IO_CLOCK_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 2)
-#define XLP9XX_IO_POWER_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 3)
-#define XLP9XX_IO_JTAG_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 6, 4)
+#define XLP9XX_IO_BRIDGE_OFFSET(yesde)	XLP_IO_PCI_OFFSET(0, 0, yesde)
+#define XLP9XX_IO_PIC_OFFSET(yesde)	XLP9XX_HDR_OFFSET(yesde, 2, 0)
+#define XLP9XX_IO_UART_OFFSET(yesde)	XLP9XX_HDR_OFFSET(yesde, 2, 2)
+#define XLP9XX_IO_SYS_OFFSET(yesde)	XLP9XX_HDR_OFFSET(yesde, 6, 0)
+#define XLP9XX_IO_FUSE_OFFSET(yesde)	XLP9XX_HDR_OFFSET(yesde, 6, 1)
+#define XLP9XX_IO_CLOCK_OFFSET(yesde)	XLP9XX_HDR_OFFSET(yesde, 6, 2)
+#define XLP9XX_IO_POWER_OFFSET(yesde)	XLP9XX_HDR_OFFSET(yesde, 6, 3)
+#define XLP9XX_IO_JTAG_OFFSET(yesde)	XLP9XX_HDR_OFFSET(yesde, 6, 4)
 
-#define XLP9XX_IO_PCIE_OFFSET(node, i)	XLP9XX_HDR_OFFSET(node, 1, i)
-#define XLP9XX_IO_PCIE0_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 1, 0)
-#define XLP9XX_IO_PCIE2_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 1, 2)
-#define XLP9XX_IO_PCIE3_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 1, 3)
+#define XLP9XX_IO_PCIE_OFFSET(yesde, i)	XLP9XX_HDR_OFFSET(yesde, 1, i)
+#define XLP9XX_IO_PCIE0_OFFSET(yesde)	XLP9XX_HDR_OFFSET(yesde, 1, 0)
+#define XLP9XX_IO_PCIE2_OFFSET(yesde)	XLP9XX_HDR_OFFSET(yesde, 1, 2)
+#define XLP9XX_IO_PCIE3_OFFSET(yesde)	XLP9XX_HDR_OFFSET(yesde, 1, 3)
 
 /* XLP9xx USB block */
-#define XLP9XX_IO_USB_OFFSET(node, i)		XLP9XX_HDR_OFFSET(node, 4, i)
-#define XLP9XX_IO_USB_XHCI0_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 4, 1)
-#define XLP9XX_IO_USB_XHCI1_OFFSET(node)	XLP9XX_HDR_OFFSET(node, 4, 2)
+#define XLP9XX_IO_USB_OFFSET(yesde, i)		XLP9XX_HDR_OFFSET(yesde, 4, i)
+#define XLP9XX_IO_USB_XHCI0_OFFSET(yesde)	XLP9XX_HDR_OFFSET(yesde, 4, 1)
+#define XLP9XX_IO_USB_XHCI1_OFFSET(yesde)	XLP9XX_HDR_OFFSET(yesde, 4, 2)
 
 /* XLP9XX on-chip SATA controller */
-#define XLP9XX_IO_SATA_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 3, 2)
+#define XLP9XX_IO_SATA_OFFSET(yesde)		XLP9XX_HDR_OFFSET(yesde, 3, 2)
 
 /* Flash */
-#define XLP9XX_IO_NOR_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 0)
-#define XLP9XX_IO_NAND_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 1)
-#define XLP9XX_IO_SPI_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 2)
-#define XLP9XX_IO_MMC_OFFSET(node)		XLP9XX_HDR_OFFSET(node, 7, 3)
+#define XLP9XX_IO_NOR_OFFSET(yesde)		XLP9XX_HDR_OFFSET(yesde, 7, 0)
+#define XLP9XX_IO_NAND_OFFSET(yesde)		XLP9XX_HDR_OFFSET(yesde, 7, 1)
+#define XLP9XX_IO_SPI_OFFSET(yesde)		XLP9XX_HDR_OFFSET(yesde, 7, 2)
+#define XLP9XX_IO_MMC_OFFSET(yesde)		XLP9XX_HDR_OFFSET(yesde, 7, 3)
 
 /* PCI config header register id's */
 #define XLP_PCI_CFGREG0			0x00
@@ -200,13 +200,13 @@
 #define nlm_read_pci_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_pci_reg(b, r, v)	nlm_write_reg(b, r, v)
 
-static inline int xlp9xx_get_socbus(int node)
+static inline int xlp9xx_get_socbus(int yesde)
 {
 	uint64_t socbridge;
 
-	if (node == 0)
+	if (yesde == 0)
 		return 1;
-	socbridge = nlm_pcicfg_base(XLP9XX_IO_BRIDGE_OFFSET(node));
+	socbridge = nlm_pcicfg_base(XLP9XX_IO_BRIDGE_OFFSET(yesde));
 	return (nlm_read_pci_reg(socbridge, 0x6) >> 8) & 0xff;
 }
 #endif /* !__ASSEMBLY */

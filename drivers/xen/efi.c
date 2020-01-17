@@ -203,9 +203,9 @@ static efi_status_t xen_efi_query_variable_info(u32 attr, u64 *storage_space,
 	return efi_data(op).status;
 }
 
-static efi_status_t xen_efi_get_next_high_mono_count(u32 *count)
+static efi_status_t xen_efi_get_next_high_moyes_count(u32 *count)
 {
-	struct xen_platform_op op = INIT_EFI_OP(get_next_high_monotonic_count);
+	struct xen_platform_op op = INIT_EFI_OP(get_next_high_moyestonic_count);
 
 	if (HYPERVISOR_platform_op(&op) < 0)
 		return EFI_UNSUPPORTED;
@@ -273,7 +273,7 @@ static void xen_efi_reset_system(int reset_type, efi_status_t status,
 
 /*
  * Set XEN EFI runtime services function pointers. Other fields of struct efi,
- * e.g. efi.systab, will be set like normal EFI.
+ * e.g. efi.systab, will be set like yesrmal EFI.
  */
 void __init xen_efi_runtime_setup(void)
 {
@@ -284,11 +284,11 @@ void __init xen_efi_runtime_setup(void)
 	efi.get_variable		= xen_efi_get_variable;
 	efi.get_next_variable		= xen_efi_get_next_variable;
 	efi.set_variable		= xen_efi_set_variable;
-	efi.set_variable_nonblocking	= xen_efi_set_variable;
+	efi.set_variable_yesnblocking	= xen_efi_set_variable;
 	efi.query_variable_info		= xen_efi_query_variable_info;
-	efi.query_variable_info_nonblocking = xen_efi_query_variable_info;
+	efi.query_variable_info_yesnblocking = xen_efi_query_variable_info;
 	efi.update_capsule		= xen_efi_update_capsule;
 	efi.query_capsule_caps		= xen_efi_query_capsule_caps;
-	efi.get_next_high_mono_count	= xen_efi_get_next_high_mono_count;
+	efi.get_next_high_moyes_count	= xen_efi_get_next_high_moyes_count;
 	efi.reset_system		= xen_efi_reset_system;
 }

@@ -2,7 +2,7 @@
 /*
  * TI DaVinci DA8xx CHIPCFGx registers for syscon consumers.
  *
- * Copyright (C) 2016 David Lechner <david@lechnology.com>
+ * Copyright (C) 2016 David Lechner <david@lechyeslogy.com>
  */
 
 #ifndef __LINUX_MFD_DA8XX_CFGCHIP_H

@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 /* Test readlink /proc/self/map_files/... with minimum address. */
-#include <errno.h>
+#include <erryes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -39,7 +39,7 @@ static void fail(const char *fmt, unsigned long a, unsigned long b)
 	char buf[64];
 
 	snprintf(name, sizeof(name), fmt, a, b);
-	if (readlink(name, buf, sizeof(buf)) == -1 && errno == ENOENT)
+	if (readlink(name, buf, sizeof(buf)) == -1 && erryes == ENOENT)
 		return;
 	exit(1);
 }
@@ -48,7 +48,7 @@ int main(void)
 {
 	const int PAGE_SIZE = sysconf(_SC_PAGESIZE);
 	/*
-	 * va_max must be enough bigger than vm.mmap_min_addr, which is
+	 * va_max must be eyesugh bigger than vm.mmap_min_addr, which is
 	 * 64KB/32KB by default. (depends on CONFIG_LSM_MMAP_MIN_ADDR)
 	 */
 	const unsigned long va_max = 1UL << 20;

@@ -42,10 +42,10 @@ static int __init of_fsl_spi_probe(char *type, char *compatible, u32 sysclk,
 				   void (*cs_control)(struct spi_device *dev,
 						      bool on))
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned int i = 0;
 
-	for_each_compatible_node(np, type, compatible) {
+	for_each_compatible_yesde(np, type, compatible) {
 		int ret;
 		unsigned int j;
 		const void *prop;
@@ -173,9 +173,9 @@ static int __init mpc832x_spi_init(void)
 
 	/*
 	 * Don't bother with legacy stuff when device tree contains
-	 * mmc-spi-slot node.
+	 * mmc-spi-slot yesde.
 	 */
-	if (of_find_compatible_node(NULL, NULL, "mmc-spi-slot"))
+	if (of_find_compatible_yesde(NULL, NULL, "mmc-spi-slot"))
 		return 0;
 	return fsl_spi_init(&mpc832x_spi_boardinfo, 1, mpc83xx_spi_cs_control);
 }
@@ -190,17 +190,17 @@ machine_device_initcall(mpc832x_rdb, mpc832x_spi_init);
 static void __init mpc832x_rdb_setup_arch(void)
 {
 #if defined(CONFIG_QUICC_ENGINE)
-	struct device_node *np;
+	struct device_yesde *np;
 #endif
 
 	mpc83xx_setup_arch();
 
 #ifdef CONFIG_QUICC_ENGINE
-	if ((np = of_find_node_by_name(NULL, "par_io")) != NULL) {
+	if ((np = of_find_yesde_by_name(NULL, "par_io")) != NULL) {
 		par_io_init(np);
-		of_node_put(np);
+		of_yesde_put(np);
 
-		for_each_node_by_name(np, "ucc")
+		for_each_yesde_by_name(np, "ucc")
 			par_io_of_config(np);
 	}
 #endif				/* CONFIG_QUICC_ENGINE */

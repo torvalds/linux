@@ -1,8 +1,8 @@
 What:		/sys/bus/iio/devices/iio:deviceX/in_count_count_mode_available
-What:		/sys/bus/iio/devices/iio:deviceX/in_count_noise_error_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_count_yesise_error_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_count_quadrature_mode_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_index_index_polarity_available
-What:		/sys/bus/iio/devices/iio:deviceX/in_index_synchronous_mode_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_index_synchroyesus_mode_available
 KernelVersion:	4.10
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -18,7 +18,7 @@ Description:
 		This interface is deprecated; please use the Counter subsystem.
 
 		Count mode for channel Y. Four count modes are available:
-		normal, range limit, non-recycle, and modulo-n. The preset value
+		yesrmal, range limit, yesn-recycle, and modulo-n. The preset value
 		for channel Y is used by the count mode where required.
 
 		Normal:
@@ -44,18 +44,18 @@ Description:
 			The counter is reset to 0 at count = preset when
 			counting up, while the counter is set to the preset
 			value at count = 0 when counting down; the counter does
-			not freeze at the bundary points, but counts
+			yest freeze at the bundary points, but counts
 			continuously throughout.
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_countY_noise_error
+What:		/sys/bus/iio/devices/iio:deviceX/in_countY_yesise_error
 KernelVersion:	4.10
 Contact:	linux-iio@vger.kernel.org
 Description:
 		This interface is deprecated; please use the Counter subsystem.
 
-		Read-only attribute that indicates whether excessive noise is
+		Read-only attribute that indicates whether excessive yesise is
 		present at the channel Y count inputs in quadrature clock mode;
-		irrelevant in non-quadrature clock mode.
+		irrelevant in yesn-quadrature clock mode.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_countY_preset
 KernelVersion:	4.10
@@ -72,9 +72,9 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		This interface is deprecated; please use the Counter subsystem.
 
-		Configure channel Y counter for non-quadrature or quadrature
-		clock mode. Selecting non-quadrature clock mode will disable
-		synchronous load mode. In quadrature clock mode, the channel Y
+		Configure channel Y counter for yesn-quadrature or quadrature
+		clock mode. Selecting yesn-quadrature clock mode will disable
+		synchroyesus load mode. In quadrature clock mode, the channel Y
 		scale attribute selects the encoder phase division (scale of 1
 		selects full-cycle, scale of 0.5 selects half-cycle, scale of
 		0.25 selects quarter-cycle) processed by the channel Y counter.
@@ -106,28 +106,28 @@ Description:
 		This interface is deprecated; please use the Counter subsystem.
 
 		Active level of channel Y index input; irrelevant in
-		non-synchronous load mode.
+		yesn-synchroyesus load mode.
 
-What:		/sys/bus/iio/devices/iio:deviceX/in_indexY_synchronous_mode
+What:		/sys/bus/iio/devices/iio:deviceX/in_indexY_synchroyesus_mode
 KernelVersion:	4.10
 Contact:	linux-iio@vger.kernel.org
 Description:
 		This interface is deprecated; please use the Counter subsystem.
 
-		Configure channel Y counter for non-synchronous or synchronous
-		load mode. Synchronous load mode cannot be selected in
-		non-quadrature clock mode.
+		Configure channel Y counter for yesn-synchroyesus or synchroyesus
+		load mode. Synchroyesus load mode canyest be selected in
+		yesn-quadrature clock mode.
 
-		Non-synchronous:
+		Non-synchroyesus:
 			A logic low level is the active level at this index
 			input. The index function (as enabled via
 			set_to_preset_on_index) is performed directly on the
 			active level of the index input.
 
-		Synchronous:
+		Synchroyesus:
 			Intended for interfacing with encoder Index output in
 			quadrature clock mode. The active level is configured
 			via index_polarity. The index function (as enabled via
-			set_to_preset_on_index) is performed synchronously with
+			set_to_preset_on_index) is performed synchroyesusly with
 			the quadrature clock on the active level of the index
 			input.

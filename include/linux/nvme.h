@@ -13,7 +13,7 @@
 /* NQN names in commands fields specified one size */
 #define NVMF_NQN_FIELD_LEN	256
 
-/* However the max length of a qualified name is another size */
+/* However the max length of a qualified name is ayesther size */
 #define NVMF_NQN_SIZE		223
 
 #define NVMF_TRSVCID_SIZE	32
@@ -345,13 +345,13 @@ struct nvme_id_ns {
 	__le16			nabsn;
 	__le16			nabo;
 	__le16			nabspf;
-	__le16			noiob;
+	__le16			yesiob;
 	__u8			nvmcap[16];
 	__le16			npwg;
 	__le16			npwa;
 	__le16			npdg;
 	__le16			npda;
-	__le16			nows;
+	__le16			yesws;
 	__u8			rsvd74[18];
 	__le32			anagrpid;
 	__u8			rsvd96[3];
@@ -1114,7 +1114,7 @@ enum nvmf_capsule_command {
 		nvme_fabrics_type_name(nvme_fabrics_type_property_get))
 
 /*
- * If not fabrics command, fctype will be ignored.
+ * If yest fabrics command, fctype will be igyesred.
  */
 #define show_opcode_name(qid, opcode, fctype)			\
 	((opcode) == nvme_fabrics_command ?			\
@@ -1135,7 +1135,7 @@ struct nvmf_common_command {
 /*
  * The legal cntlid range a NVMe Target will provide.
  * Note that cntlid of value 0 is considered illegal in the fabrics world.
- * Devices based on earlier specs did not have the subsystem concept;
+ * Devices based on earlier specs did yest have the subsystem concept;
  * therefore, those devices had their cntlid value set to 0 as a result.
  */
 #define NVME_CNTLID_MIN		1
@@ -1442,8 +1442,8 @@ struct nvme_completion {
 	__le16	status;		/* did the command fail, and if so, why? */
 };
 
-#define NVME_VS(major, minor, tertiary) \
-	(((major) << 16) | ((minor) << 8) | (tertiary))
+#define NVME_VS(major, miyesr, tertiary) \
+	(((major) << 16) | ((miyesr) << 8) | (tertiary))
 
 #define NVME_MAJOR(ver)		((ver) >> 16)
 #define NVME_MINOR(ver)		(((ver) >> 8) & 0xff)

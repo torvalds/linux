@@ -13,9 +13,9 @@
  * boundary beyond i_size.  This approach works because (a) verity files are
  * readonly, and (b) pages fully beyond i_size aren't visible to userspace but
  * can be read/written internally by f2fs with only some relatively small
- * changes to f2fs.  Extended attributes cannot be used because (a) f2fs limits
- * the total size of an inode's xattr entries to 4096 bytes, which wouldn't be
- * enough for even a single Merkle tree block, and (b) f2fs encryption doesn't
+ * changes to f2fs.  Extended attributes canyest be used because (a) f2fs limits
+ * the total size of an iyesde's xattr entries to 4096 bytes, which wouldn't be
+ * eyesugh for even a single Merkle tree block, and (b) f2fs encryption doesn't
  * encrypt xattrs, yet the verity metadata *must* be encrypted when the file is
  * because it contains hashes of the plaintext data.
  *
@@ -29,16 +29,16 @@
 #include "f2fs.h"
 #include "xattr.h"
 
-static inline loff_t f2fs_verity_metadata_pos(const struct inode *inode)
+static inline loff_t f2fs_verity_metadata_pos(const struct iyesde *iyesde)
 {
-	return round_up(inode->i_size, 65536);
+	return round_up(iyesde->i_size, 65536);
 }
 
 /*
- * Read some verity metadata from the inode.  __vfs_read() can't be used because
+ * Read some verity metadata from the iyesde.  __vfs_read() can't be used because
  * we need to read beyond i_size.
  */
-static int pagecache_read(struct inode *inode, void *buf, size_t count,
+static int pagecache_read(struct iyesde *iyesde, void *buf, size_t count,
 			  loff_t pos)
 {
 	while (count) {
@@ -47,7 +47,7 @@ static int pagecache_read(struct inode *inode, void *buf, size_t count,
 		struct page *page;
 		void *addr;
 
-		page = read_mapping_page(inode->i_mapping, pos >> PAGE_SHIFT,
+		page = read_mapping_page(iyesde->i_mapping, pos >> PAGE_SHIFT,
 					 NULL);
 		if (IS_ERR(page))
 			return PTR_ERR(page);
@@ -66,13 +66,13 @@ static int pagecache_read(struct inode *inode, void *buf, size_t count,
 }
 
 /*
- * Write some verity metadata to the inode for FS_IOC_ENABLE_VERITY.
+ * Write some verity metadata to the iyesde for FS_IOC_ENABLE_VERITY.
  * kernel_write() can't be used because the file descriptor is readonly.
  */
-static int pagecache_write(struct inode *inode, const void *buf, size_t count,
+static int pagecache_write(struct iyesde *iyesde, const void *buf, size_t count,
 			   loff_t pos)
 {
-	if (pos + count > inode->i_sb->s_maxbytes)
+	if (pos + count > iyesde->i_sb->s_maxbytes)
 		return -EFBIG;
 
 	while (count) {
@@ -83,7 +83,7 @@ static int pagecache_write(struct inode *inode, const void *buf, size_t count,
 		void *addr;
 		int res;
 
-		res = pagecache_write_begin(NULL, inode->i_mapping, pos, n, 0,
+		res = pagecache_write_begin(NULL, iyesde->i_mapping, pos, n, 0,
 					    &page, &fsdata);
 		if (res)
 			return res;
@@ -92,7 +92,7 @@ static int pagecache_write(struct inode *inode, const void *buf, size_t count,
 		memcpy(addr + offset_in_page(pos), buf, n);
 		kunmap_atomic(addr);
 
-		res = pagecache_write_end(NULL, inode->i_mapping, pos, n, n,
+		res = pagecache_write_end(NULL, iyesde->i_mapping, pos, n, n,
 					  page, fsdata);
 		if (res < 0)
 			return res;
@@ -110,7 +110,7 @@ static int pagecache_write(struct inode *inode, const void *buf, size_t count,
  * Format of f2fs verity xattr.  This points to the location of the verity
  * descriptor within the file data rather than containing it directly because
  * the verity descriptor *must* be encrypted when f2fs encryption is used.  But,
- * f2fs encryption does not encrypt xattrs.
+ * f2fs encryption does yest encrypt xattrs.
  */
 struct fsverity_descriptor_location {
 	__le32 version;
@@ -120,37 +120,37 @@ struct fsverity_descriptor_location {
 
 static int f2fs_begin_enable_verity(struct file *filp)
 {
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 	int err;
 
-	if (f2fs_verity_in_progress(inode))
+	if (f2fs_verity_in_progress(iyesde))
 		return -EBUSY;
 
-	if (f2fs_is_atomic_file(inode) || f2fs_is_volatile_file(inode))
+	if (f2fs_is_atomic_file(iyesde) || f2fs_is_volatile_file(iyesde))
 		return -EOPNOTSUPP;
 
 	/*
 	 * Since the file was opened readonly, we have to initialize the quotas
-	 * here and not rely on ->open() doing it.  This must be done before
+	 * here and yest rely on ->open() doing it.  This must be done before
 	 * evicting the inline data.
 	 */
-	err = dquot_initialize(inode);
+	err = dquot_initialize(iyesde);
 	if (err)
 		return err;
 
-	err = f2fs_convert_inline_inode(inode);
+	err = f2fs_convert_inline_iyesde(iyesde);
 	if (err)
 		return err;
 
-	set_inode_flag(inode, FI_VERITY_IN_PROGRESS);
+	set_iyesde_flag(iyesde, FI_VERITY_IN_PROGRESS);
 	return 0;
 }
 
 static int f2fs_end_enable_verity(struct file *filp, const void *desc,
 				  size_t desc_size, u64 merkle_tree_size)
 {
-	struct inode *inode = file_inode(filp);
-	u64 desc_pos = f2fs_verity_metadata_pos(inode) + merkle_tree_size;
+	struct iyesde *iyesde = file_iyesde(filp);
+	u64 desc_pos = f2fs_verity_metadata_pos(iyesde) + merkle_tree_size;
 	struct fsverity_descriptor_location dloc = {
 		.version = cpu_to_le32(1),
 		.size = cpu_to_le32(desc_size),
@@ -160,33 +160,33 @@ static int f2fs_end_enable_verity(struct file *filp, const void *desc,
 
 	if (desc != NULL) {
 		/* Succeeded; write the verity descriptor. */
-		err = pagecache_write(inode, desc, desc_size, desc_pos);
+		err = pagecache_write(iyesde, desc, desc_size, desc_pos);
 
 		/* Write all pages before clearing FI_VERITY_IN_PROGRESS. */
 		if (!err)
-			err = filemap_write_and_wait(inode->i_mapping);
+			err = filemap_write_and_wait(iyesde->i_mapping);
 	}
 
 	/* If we failed, truncate anything we wrote past i_size. */
 	if (desc == NULL || err)
-		f2fs_truncate(inode);
+		f2fs_truncate(iyesde);
 
-	clear_inode_flag(inode, FI_VERITY_IN_PROGRESS);
+	clear_iyesde_flag(iyesde, FI_VERITY_IN_PROGRESS);
 
 	if (desc != NULL && !err) {
-		err = f2fs_setxattr(inode, F2FS_XATTR_INDEX_VERITY,
+		err = f2fs_setxattr(iyesde, F2FS_XATTR_INDEX_VERITY,
 				    F2FS_XATTR_NAME_VERITY, &dloc, sizeof(dloc),
 				    NULL, XATTR_CREATE);
 		if (!err) {
-			file_set_verity(inode);
-			f2fs_set_inode_flags(inode);
-			f2fs_mark_inode_dirty_sync(inode, true);
+			file_set_verity(iyesde);
+			f2fs_set_iyesde_flags(iyesde);
+			f2fs_mark_iyesde_dirty_sync(iyesde, true);
 		}
 	}
 	return err;
 }
 
-static int f2fs_get_verity_descriptor(struct inode *inode, void *buf,
+static int f2fs_get_verity_descriptor(struct iyesde *iyesde, void *buf,
 				      size_t buf_size)
 {
 	struct fsverity_descriptor_location dloc;
@@ -195,47 +195,47 @@ static int f2fs_get_verity_descriptor(struct inode *inode, void *buf,
 	u64 pos;
 
 	/* Get the descriptor location */
-	res = f2fs_getxattr(inode, F2FS_XATTR_INDEX_VERITY,
+	res = f2fs_getxattr(iyesde, F2FS_XATTR_INDEX_VERITY,
 			    F2FS_XATTR_NAME_VERITY, &dloc, sizeof(dloc), NULL);
 	if (res < 0 && res != -ERANGE)
 		return res;
 	if (res != sizeof(dloc) || dloc.version != cpu_to_le32(1)) {
-		f2fs_warn(F2FS_I_SB(inode), "unknown verity xattr format");
+		f2fs_warn(F2FS_I_SB(iyesde), "unkyeswn verity xattr format");
 		return -EINVAL;
 	}
 	size = le32_to_cpu(dloc.size);
 	pos = le64_to_cpu(dloc.pos);
 
 	/* Get the descriptor */
-	if (pos + size < pos || pos + size > inode->i_sb->s_maxbytes ||
-	    pos < f2fs_verity_metadata_pos(inode) || size > INT_MAX) {
-		f2fs_warn(F2FS_I_SB(inode), "invalid verity xattr");
+	if (pos + size < pos || pos + size > iyesde->i_sb->s_maxbytes ||
+	    pos < f2fs_verity_metadata_pos(iyesde) || size > INT_MAX) {
+		f2fs_warn(F2FS_I_SB(iyesde), "invalid verity xattr");
 		return -EFSCORRUPTED;
 	}
 	if (buf_size) {
 		if (size > buf_size)
 			return -ERANGE;
-		res = pagecache_read(inode, buf, size, pos);
+		res = pagecache_read(iyesde, buf, size, pos);
 		if (res)
 			return res;
 	}
 	return size;
 }
 
-static struct page *f2fs_read_merkle_tree_page(struct inode *inode,
+static struct page *f2fs_read_merkle_tree_page(struct iyesde *iyesde,
 					       pgoff_t index)
 {
-	index += f2fs_verity_metadata_pos(inode) >> PAGE_SHIFT;
+	index += f2fs_verity_metadata_pos(iyesde) >> PAGE_SHIFT;
 
-	return read_mapping_page(inode->i_mapping, index, NULL);
+	return read_mapping_page(iyesde->i_mapping, index, NULL);
 }
 
-static int f2fs_write_merkle_tree_block(struct inode *inode, const void *buf,
+static int f2fs_write_merkle_tree_block(struct iyesde *iyesde, const void *buf,
 					u64 index, int log_blocksize)
 {
-	loff_t pos = f2fs_verity_metadata_pos(inode) + (index << log_blocksize);
+	loff_t pos = f2fs_verity_metadata_pos(iyesde) + (index << log_blocksize);
 
-	return pagecache_write(inode, buf, 1 << log_blocksize, pos);
+	return pagecache_write(iyesde, buf, 1 << log_blocksize, pos);
 }
 
 const struct fsverity_operations f2fs_verityops = {

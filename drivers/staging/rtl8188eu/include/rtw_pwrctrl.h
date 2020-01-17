@@ -110,7 +110,7 @@ enum rt_rf_power_state {
 						 * Req in initialization.
 						 */
 #define	RT_RF_LPS_DISALBE_2R		BIT(30)	/* When LPS is on, disable 2R
-						 * if no packet is RX or TX.
+						 * if yes packet is RX or TX.
 						 */
 #define	RT_RF_LPS_LEVEL_ASPM		BIT(31)	/* LPS with ASPM */
 

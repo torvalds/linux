@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_CM4000_H_
 #define _UAPI_CM4000_H_
 
@@ -11,7 +11,7 @@
 
 /* those two structures are passed via ioctl() from/to userspace.  They are
  * used by existing userspace programs, so I kepth the awkward "bIFSD" naming
- * not to break compilation of userspace apps. -HW */
+ * yest to break compilation of userspace apps. -HW */
 
 typedef struct atreq {
 	__s32 atr_len;
@@ -27,7 +27,7 @@ typedef struct atreq {
  * will lay out the structure members differently than the 64bit kernel.
  *
  * I've changed "ptsreq.protocol" from "unsigned long" to "__u32".
- * On 32bit this will make no difference.  With 64bit kernels, it will make
+ * On 32bit this will make yes difference.  With 64bit kernels, it will make
  * 32bit apps work, too.
  */
 

@@ -37,16 +37,16 @@ static void __iomem *scu_base;
 
 /*
  * Enables the SCU when available. Obviously, this is only useful on
- * Cortex-A based SOCs, not on PJ4B based ones.
+ * Cortex-A based SOCs, yest on PJ4B based ones.
  */
 static void __init mvebu_scu_enable(void)
 {
-	struct device_node *np =
-		of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+	struct device_yesde *np =
+		of_find_compatible_yesde(NULL, NULL, "arm,cortex-a9-scu");
 	if (np) {
 		scu_base = of_iomap(np, 0);
 		scu_enable(scu_base);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 }
 
@@ -66,19 +66,19 @@ void __iomem *mvebu_get_scu_base(void)
 
 #ifdef CONFIG_SUSPEND
 #define MVEBU_DDR_TRAINING_AREA_SZ (10 * SZ_1K)
-static int __init mvebu_scan_mem(unsigned long node, const char *uname,
+static int __init mvebu_scan_mem(unsigned long yesde, const char *uname,
 				 int depth, void *data)
 {
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const char *type = of_get_flat_dt_prop(yesde, "device_type", NULL);
 	const __be32 *reg, *endp;
 	int l;
 
 	if (type == NULL || strcmp(type, "memory"))
 		return 0;
 
-	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	reg = of_get_flat_dt_prop(yesde, "linux,usable-memory", &l);
 	if (reg == NULL)
-		reg = of_get_flat_dt_prop(node, "reg", &l);
+		reg = of_get_flat_dt_prop(yesde, "reg", &l);
 	if (reg == NULL)
 		return 0;
 
@@ -113,7 +113,7 @@ static void __init mvebu_init_irq(void)
 
 static void __init i2c_quirk(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 dev, rev;
 
 	/*
@@ -124,7 +124,7 @@ static void __init i2c_quirk(void)
 	if (mvebu_get_soc_id(&dev, &rev) == 0 && rev > MV78XX0_A0_REV)
 		return;
 
-	for_each_compatible_node(np, NULL, "marvell,mv78230-i2c") {
+	for_each_compatible_yesde(np, NULL, "marvell,mv78230-i2c") {
 		struct property *new_compat;
 
 		new_compat = kzalloc(sizeof(*new_compat), GFP_KERNEL);

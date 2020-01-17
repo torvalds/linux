@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2013-2015 Red Hat, Inc.
  * Author: Asias He <asias@redhat.com>
- *         Stefan Hajnoczi <stefanha@redhat.com>
+ *         Stefan Hajyesczi <stefanha@redhat.com>
  */
 #include <linux/miscdevice.h>
 #include <linux/atomic.h>
@@ -42,7 +42,7 @@ struct vhost_vsock {
 	struct vhost_virtqueue vqs[2];
 
 	/* Link to global vhost_vsock_hash, writes use vhost_vsock_mutex */
-	struct hlist_node hash;
+	struct hlist_yesde hash;
 
 	struct vhost_work send_pkt_work;
 	spinlock_t send_pkt_list_lock;
@@ -68,7 +68,7 @@ static struct vhost_vsock *vhost_vsock_get(u32 guest_cid)
 	hash_for_each_possible_rcu(vhost_vsock_hash, vsock, hash, guest_cid) {
 		u32 other_cid = vsock->guest_cid;
 
-		/* Skip instances that have no CID yet */
+		/* Skip instances that have yes CID yet */
 		if (other_cid == 0)
 			continue;
 
@@ -95,7 +95,7 @@ vhost_transport_do_send_pkt(struct vhost_vsock *vsock,
 		goto out;
 
 	/* Avoid further vmexits, we're already processing the virtqueue */
-	vhost_disable_notify(&vsock->dev, vq);
+	vhost_disable_yestify(&vsock->dev, vq);
 
 	do {
 		struct virtio_vsock_pkt *pkt;
@@ -108,7 +108,7 @@ vhost_transport_do_send_pkt(struct vhost_vsock *vsock,
 		spin_lock_bh(&vsock->send_pkt_list_lock);
 		if (list_empty(&vsock->send_pkt_list)) {
 			spin_unlock_bh(&vsock->send_pkt_list_lock);
-			vhost_enable_notify(&vsock->dev, vq);
+			vhost_enable_yestify(&vsock->dev, vq);
 			break;
 		}
 
@@ -131,11 +131,11 @@ vhost_transport_do_send_pkt(struct vhost_vsock *vsock,
 			list_add(&pkt->list, &vsock->send_pkt_list);
 			spin_unlock_bh(&vsock->send_pkt_list_lock);
 
-			/* We cannot finish yet if more buffers snuck in while
-			 * re-enabling notify.
+			/* We canyest finish yet if more buffers snuck in while
+			 * re-enabling yestify.
 			 */
-			if (unlikely(vhost_enable_notify(&vsock->dev, vq))) {
-				vhost_disable_notify(&vsock->dev, vq);
+			if (unlikely(vhost_enable_yestify(&vsock->dev, vq))) {
+				vhost_disable_yestify(&vsock->dev, vq);
 				continue;
 			}
 			break;
@@ -410,17 +410,17 @@ static struct virtio_transport vhost_transport = {
 		.stream_is_active         = virtio_transport_stream_is_active,
 		.stream_allow             = virtio_transport_stream_allow,
 
-		.notify_poll_in           = virtio_transport_notify_poll_in,
-		.notify_poll_out          = virtio_transport_notify_poll_out,
-		.notify_recv_init         = virtio_transport_notify_recv_init,
-		.notify_recv_pre_block    = virtio_transport_notify_recv_pre_block,
-		.notify_recv_pre_dequeue  = virtio_transport_notify_recv_pre_dequeue,
-		.notify_recv_post_dequeue = virtio_transport_notify_recv_post_dequeue,
-		.notify_send_init         = virtio_transport_notify_send_init,
-		.notify_send_pre_block    = virtio_transport_notify_send_pre_block,
-		.notify_send_pre_enqueue  = virtio_transport_notify_send_pre_enqueue,
-		.notify_send_post_enqueue = virtio_transport_notify_send_post_enqueue,
-		.notify_buffer_size       = virtio_transport_notify_buffer_size,
+		.yestify_poll_in           = virtio_transport_yestify_poll_in,
+		.yestify_poll_out          = virtio_transport_yestify_poll_out,
+		.yestify_recv_init         = virtio_transport_yestify_recv_init,
+		.yestify_recv_pre_block    = virtio_transport_yestify_recv_pre_block,
+		.yestify_recv_pre_dequeue  = virtio_transport_yestify_recv_pre_dequeue,
+		.yestify_recv_post_dequeue = virtio_transport_yestify_recv_post_dequeue,
+		.yestify_send_init         = virtio_transport_yestify_send_init,
+		.yestify_send_pre_block    = virtio_transport_yestify_send_pre_block,
+		.yestify_send_pre_enqueue  = virtio_transport_yestify_send_pre_enqueue,
+		.yestify_send_post_enqueue = virtio_transport_yestify_send_post_enqueue,
+		.yestify_buffer_size       = virtio_transport_yestify_buffer_size,
 
 	},
 
@@ -443,7 +443,7 @@ static void vhost_vsock_handle_tx_kick(struct vhost_work *work)
 	if (!vq->private_data)
 		goto out;
 
-	vhost_disable_notify(&vsock->dev, vq);
+	vhost_disable_yestify(&vsock->dev, vq);
 	do {
 		u32 len;
 
@@ -452,7 +452,7 @@ static void vhost_vsock_handle_tx_kick(struct vhost_work *work)
 			 * pending replies.  Leave tx virtqueue
 			 * callbacks disabled.
 			 */
-			goto no_more_replies;
+			goto yes_more_replies;
 		}
 
 		head = vhost_get_vq_desc(vq, vq->iov, ARRAY_SIZE(vq->iov),
@@ -461,8 +461,8 @@ static void vhost_vsock_handle_tx_kick(struct vhost_work *work)
 			break;
 
 		if (head == vq->num) {
-			if (unlikely(vhost_enable_notify(&vsock->dev, vq))) {
-				vhost_disable_notify(&vsock->dev, vq);
+			if (unlikely(vhost_enable_yestify(&vsock->dev, vq))) {
+				vhost_disable_yestify(&vsock->dev, vq);
 				continue;
 			}
 			break;
@@ -493,7 +493,7 @@ static void vhost_vsock_handle_tx_kick(struct vhost_work *work)
 		added = true;
 	} while(likely(!vhost_exceeds_weight(vq, ++pkts, total_len)));
 
-no_more_replies:
+yes_more_replies:
 	if (added)
 		vhost_signal(&vsock->dev, vq);
 
@@ -591,14 +591,14 @@ static void vhost_vsock_free(struct vhost_vsock *vsock)
 	kvfree(vsock);
 }
 
-static int vhost_vsock_dev_open(struct inode *inode, struct file *file)
+static int vhost_vsock_dev_open(struct iyesde *iyesde, struct file *file)
 {
 	struct vhost_virtqueue **vqs;
 	struct vhost_vsock *vsock;
 	int ret;
 
 	/* This struct is large and allocation could fail, fall back to vmalloc
-	 * if there is no other way.
+	 * if there is yes other way.
 	 */
 	vsock = kvmalloc(sizeof(*vsock), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!vsock)
@@ -610,7 +610,7 @@ static int vhost_vsock_dev_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	vsock->guest_cid = 0; /* no CID assigned yet */
+	vsock->guest_cid = 0; /* yes CID assigned yet */
 
 	atomic_set(&vsock->queued_replies, 0);
 
@@ -649,11 +649,11 @@ static void vhost_vsock_reset_orphans(struct sock *sk)
 	struct vsock_sock *vsk = vsock_sk(sk);
 
 	/* vmci_transport.c doesn't take sk_lock here either.  At least we're
-	 * under vsock_table_lock so the sock cannot disappear while we're
+	 * under vsock_table_lock so the sock canyest disappear while we're
 	 * executing.
 	 */
 
-	/* If the peer is still valid, no need to reset connection */
+	/* If the peer is still valid, yes need to reset connection */
 	if (vhost_vsock_get(vsk->remote_addr.svm_cid))
 		return;
 
@@ -670,7 +670,7 @@ static void vhost_vsock_reset_orphans(struct sock *sk)
 	sk->sk_error_report(sk);
 }
 
-static int vhost_vsock_dev_release(struct inode *inode, struct file *file)
+static int vhost_vsock_dev_release(struct iyesde *iyesde, struct file *file)
 {
 	struct vhost_vsock *vsock = file->private_data;
 
@@ -716,7 +716,7 @@ static int vhost_vsock_set_cid(struct vhost_vsock *vsock, u64 guest_cid)
 	    guest_cid == U32_MAX)
 		return -EINVAL;
 
-	/* 64-bit CIDs are not yet supported */
+	/* 64-bit CIDs are yest yet supported */
 	if (guest_cid > U32_MAX)
 		return -EINVAL;
 
@@ -816,13 +816,13 @@ static const struct file_operations vhost_vsock_fops = {
 	.owner          = THIS_MODULE,
 	.open           = vhost_vsock_dev_open,
 	.release        = vhost_vsock_dev_release,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 	.unlocked_ioctl = vhost_vsock_dev_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
 };
 
 static struct miscdevice vhost_vsock_misc = {
-	.minor = VHOST_VSOCK_MINOR,
+	.miyesr = VHOST_VSOCK_MINOR,
 	.name = "vhost-vsock",
 	.fops = &vhost_vsock_fops,
 };

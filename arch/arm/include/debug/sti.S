@@ -25,7 +25,7 @@
 #endif
 
 #ifndef DEBUG_LL_UART_BASE
-#error "DEBUG UART is not Configured"
+#error "DEBUG UART is yest Configured"
 #endif
 
 #define ASC_TX_BUF_OFF  0x04

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef _ASM_HIGHMEM_H
 #define _ASM_HIGHMEM_H
@@ -10,7 +10,7 @@
 #include <asm/pgtable.h>
 
 /*
- * Right now we initialize only a single pte table. It can be extended
+ * Right yesw we initialize only a single pte table. It can be extended
  * easily, subsequent pte tables have to be allocated in one physical
  * chunk of RAM.
  */
@@ -51,7 +51,7 @@ extern void kmap_init(void);
 
 /*
  * The following functions are already defined by <linux/highmem.h>
- * when CONFIG_HIGHMEM is not set.
+ * when CONFIG_HIGHMEM is yest set.
  */
 #ifdef CONFIG_HIGHMEM
 extern void *kmap(struct page *page);

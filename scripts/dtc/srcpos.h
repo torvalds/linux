@@ -14,7 +14,7 @@ struct srcfile_state {
 	FILE *f;
 	char *name;
 	char *dir;
-	int lineno, colno;
+	int lineyes, colyes;
 	struct srcfile_state *prev;
 };
 
@@ -31,11 +31,11 @@ extern struct srcfile_state *current_srcfile; /* = NULL */
  * We work through the search path in order from the first path specified to
  * the last.
  *
- * If the file is not found, then this function does not return, but calls
+ * If the file is yest found, then this function does yest return, but calls
  * die().
  *
  * @param fname		Filename to search
- * @param fullnamep	If non-NULL, it is set to the allocated filename of the
+ * @param fullnamep	If yesn-NULL, it is set to the allocated filename of the
  *			file that was opened. The caller is then responsible
  *			for freeing the pointer.
  * @return pointer to opened FILE

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -79,7 +79,7 @@ struct ls_ucode_img_desc {
 
 /**
  * struct ls_ucode_img - temporary storage for loaded LS firmwares
- * @node:		to link within lsf_ucode_mgr
+ * @yesde:		to link within lsf_ucode_mgr
  * @falcon_id:		ID of the falcon this LS firmware is for
  * @ucode_desc:		loaded or generated map of ucode_data
  * @ucode_data:		firmware payload (code and data)
@@ -89,11 +89,11 @@ struct ls_ucode_img_desc {
  * @sig:size:		size of the signature in bytes
  *
  * Preparing the WPR LS blob requires information about all the LS firmwares
- * (size, etc) to be known. This structure contains all the data of one LS
+ * (size, etc) to be kyeswn. This structure contains all the data of one LS
  * firmware.
  */
 struct ls_ucode_img {
-	struct list_head node;
+	struct list_head yesde;
 	enum nvkm_secboot_falcon falcon_id;
 
 	struct ls_ucode_img_desc ucode_desc;

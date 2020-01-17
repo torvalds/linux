@@ -126,7 +126,7 @@ static unsigned int get_symbol_offset(unsigned long pos)
 
 	/*
 	 * Use the closest marker we have. We have markers every 256 positions,
-	 * so that should be close enough.
+	 * so that should be close eyesugh.
 	 */
 	name = &kallsyms_names[kallsyms_markers[pos >> 8]];
 
@@ -147,7 +147,7 @@ static unsigned long kallsyms_sym_address(int idx)
 	if (!IS_ENABLED(CONFIG_KALLSYMS_BASE_RELATIVE))
 		return kallsyms_addresses[idx];
 
-	/* values are unsigned offsets if --absolute-percpu is not in effect */
+	/* values are unsigned offsets if --absolute-percpu is yest in effect */
 	if (!IS_ENABLED(CONFIG_KALLSYMS_ABSOLUTE_PERCPU))
 		return kallsyms_relative_base + (u32)kallsyms_offsets[idx];
 
@@ -159,7 +159,7 @@ static unsigned long kallsyms_sym_address(int idx)
 	return kallsyms_relative_base - 1 - kallsyms_offsets[idx];
 }
 
-/* Lookup the address for this symbol. Returns 0 if not found. */
+/* Lookup the address for this symbol. Returns 0 if yest found. */
 unsigned long kallsyms_lookup_name(const char *name)
 {
 	char namebuf[KSYM_NAME_LEN];
@@ -229,7 +229,7 @@ static unsigned long get_symbol_pos(unsigned long addr,
 
 	symbol_start = kallsyms_sym_address(low);
 
-	/* Search for next non-aliased symbol. */
+	/* Search for next yesn-aliased symbol. */
 	for (i = low + 1; i < kallsyms_num_syms; i++) {
 		if (kallsyms_sym_address(i) > symbol_start) {
 			symbol_end = kallsyms_sym_address(i);
@@ -237,7 +237,7 @@ static unsigned long get_symbol_pos(unsigned long addr,
 		}
 	}
 
-	/* If we found no next symbol, we use the end of the section. */
+	/* If we found yes next symbol, we use the end of the section. */
 	if (!symbol_end) {
 		if (is_kernel_inittext(addr))
 			symbol_end = (unsigned long)_einittext;
@@ -385,7 +385,7 @@ static int __sprint_symbol(char *buffer, unsigned long address,
  * @address: address to lookup
  *
  * This function looks up a kernel symbol with @address and stores its name,
- * offset, size and module name to @buffer if possible. If no symbol was found,
+ * offset, size and module name to @buffer if possible. If yes symbol was found,
  * just saves its @address as is.
  *
  * This function returns the number of bytes stored in @buffer.
@@ -397,21 +397,21 @@ int sprint_symbol(char *buffer, unsigned long address)
 EXPORT_SYMBOL_GPL(sprint_symbol);
 
 /**
- * sprint_symbol_no_offset - Look up a kernel symbol and return it in a text buffer
+ * sprint_symbol_yes_offset - Look up a kernel symbol and return it in a text buffer
  * @buffer: buffer to be stored
  * @address: address to lookup
  *
  * This function looks up a kernel symbol with @address and stores its name
- * and module name to @buffer if possible. If no symbol was found, just saves
+ * and module name to @buffer if possible. If yes symbol was found, just saves
  * its @address as is.
  *
  * This function returns the number of bytes stored in @buffer.
  */
-int sprint_symbol_no_offset(char *buffer, unsigned long address)
+int sprint_symbol_yes_offset(char *buffer, unsigned long address)
 {
 	return __sprint_symbol(buffer, address, 0, 0);
 }
-EXPORT_SYMBOL_GPL(sprint_symbol_no_offset);
+EXPORT_SYMBOL_GPL(sprint_symbol_yes_offset);
 
 /**
  * sprint_backtrace - Look up a backtrace symbol and return it in a text buffer
@@ -420,7 +420,7 @@ EXPORT_SYMBOL_GPL(sprint_symbol_no_offset);
  *
  * This function is for stack backtrace and does the same thing as
  * sprint_symbol() but with modified/decreased @address. If there is a
- * tail-call to the function marked "noreturn", gcc optimized out code after
+ * tail-call to the function marked "yesreturn", gcc optimized out code after
  * the call so that the stack-saved return address could point outside of the
  * caller. This function ensures that kallsyms will find the original caller
  * by decreasing @address.
@@ -562,7 +562,7 @@ static int update_iter(struct kallsym_iter *iter, loff_t pos)
 	if (pos >= kallsyms_num_syms)
 		return update_iter_mod(iter, pos);
 
-	/* If we're not on the desired position, reset to new position. */
+	/* If we're yest on the desired position, reset to new position. */
 	if (pos != iter->pos)
 		reset_iter(iter, pos);
 
@@ -597,7 +597,7 @@ static int s_show(struct seq_file *m, void *p)
 	void *value;
 	struct kallsym_iter *iter = m->private;
 
-	/* Some debugging symbols have no name.  Ignore them. */
+	/* Some debugging symbols have yes name.  Igyesre them. */
 	if (!iter->name[0])
 		return 0;
 
@@ -608,7 +608,7 @@ static int s_show(struct seq_file *m, void *p)
 
 		/*
 		 * Label it "global" if it is exported,
-		 * "local" if not exported.
+		 * "local" if yest exported.
 		 */
 		type = iter->exported ? toupper(iter->type) :
 					tolower(iter->type);
@@ -630,17 +630,17 @@ static const struct seq_operations kallsyms_op = {
 static inline int kallsyms_for_perf(void)
 {
 #ifdef CONFIG_PERF_EVENTS
-	extern int sysctl_perf_event_paranoid;
-	if (sysctl_perf_event_paranoid <= 1)
+	extern int sysctl_perf_event_parayesid;
+	if (sysctl_perf_event_parayesid <= 1)
 		return 1;
 #endif
 	return 0;
 }
 
 /*
- * We show kallsyms information even to normal users if we've enabled
- * kernel profiling and are explicitly not paranoid (so kptr_restrict
- * is clear, and sysctl_perf_event_paranoid isn't set).
+ * We show kallsyms information even to yesrmal users if we've enabled
+ * kernel profiling and are explicitly yest parayesid (so kptr_restrict
+ * is clear, and sysctl_perf_event_parayesid isn't set).
  *
  * Otherwise, require CAP_SYSLOG (assuming kptr_restrict isn't set to
  * block even that).
@@ -653,7 +653,7 @@ int kallsyms_show_value(void)
 			return 1;
 	/* fallthrough */
 	case 1:
-		if (has_capability_noaudit(current, CAP_SYSLOG))
+		if (has_capability_yesaudit(current, CAP_SYSLOG))
 			return 1;
 	/* fallthrough */
 	default:
@@ -661,10 +661,10 @@ int kallsyms_show_value(void)
 	}
 }
 
-static int kallsyms_open(struct inode *inode, struct file *file)
+static int kallsyms_open(struct iyesde *iyesde, struct file *file)
 {
 	/*
-	 * We keep iterator in m->private, since normal case is to
+	 * We keep iterator in m->private, since yesrmal case is to
 	 * s_start from where we left off, so we avoid doing
 	 * using get_symbol_offset for every symbol.
 	 */
@@ -691,7 +691,7 @@ const char *kdb_walk_kallsyms(loff_t *pos)
 		if (!update_iter(&kdb_walk_kallsyms_iter, *pos))
 			return NULL;
 		++*pos;
-		/* Some debugging symbols have no name.  Ignore them. */
+		/* Some debugging symbols have yes name.  Igyesre them. */
 		if (kdb_walk_kallsyms_iter.name[0])
 			return kdb_walk_kallsyms_iter.name;
 	}

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -34,7 +34,7 @@
 
 #define VMID_NUM 16
 
-struct device_process_node {
+struct device_process_yesde {
 	struct qcm_process_device *qpd;
 	struct list_head list;
 };
@@ -70,7 +70,7 @@ struct device_process_node {
  *
  * @destroy_kernel_queue: Destroys kernel queue. Used for debug queue.
  *
- * @set_cache_memory_policy: Sets memory policy (cached/ non cached) for the
+ * @set_cache_memory_policy: Sets memory policy (cached/ yesn cached) for the
  * memory apertures.
  *
  * @process_termination: Clears all process queues belongs to that device.
@@ -235,18 +235,18 @@ get_sh_mem_bases_nybble_64(struct kfd_process_device *pdd)
 	return (pdd->lds_base >> 60) & 0x0E;
 }
 
-/* The DQM lock can be taken in MMU notifiers. Make sure no reclaim-FS
+/* The DQM lock can be taken in MMU yestifiers. Make sure yes reclaim-FS
  * happens while holding this lock anywhere to prevent deadlocks when
- * an MMU notifier runs in reclaim-FS context.
+ * an MMU yestifier runs in reclaim-FS context.
  */
 static inline void dqm_lock(struct device_queue_manager *dqm)
 {
 	mutex_lock(&dqm->lock_hidden);
-	dqm->saved_flags = memalloc_nofs_save();
+	dqm->saved_flags = memalloc_yesfs_save();
 }
 static inline void dqm_unlock(struct device_queue_manager *dqm)
 {
-	memalloc_nofs_restore(dqm->saved_flags);
+	memalloc_yesfs_restore(dqm->saved_flags);
 	mutex_unlock(&dqm->lock_hidden);
 }
 

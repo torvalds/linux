@@ -15,7 +15,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <time.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -94,17 +94,17 @@ static void dump_statx(struct statx *stx)
 		case S_IFLNK:	printf("  symbolic link\n");		ft = 'l'; break;
 		case S_IFSOCK:	printf("  socket\n");			ft = 's'; break;
 		default:
-			printf(" unknown type (%o)\n", stx->stx_mode & S_IFMT);
+			printf(" unkyeswn type (%o)\n", stx->stx_mode & S_IFMT);
 			break;
 		}
 	} else {
-		printf(" no type\n");
+		printf(" yes type\n");
 	}
 
-	sprintf(buffer, "%02x:%02x", stx->stx_dev_major, stx->stx_dev_minor);
+	sprintf(buffer, "%02x:%02x", stx->stx_dev_major, stx->stx_dev_miyesr);
 	printf("Device: %-15s", buffer);
 	if (stx->stx_mask & STATX_INO)
-		printf(" Inode: %-11llu", (unsigned long long) stx->stx_ino);
+		printf(" Iyesde: %-11llu", (unsigned long long) stx->stx_iyes);
 	if (stx->stx_mask & STATX_NLINK)
 		printf(" Links: %-5u", stx->stx_nlink);
 	if (stx->stx_mask & STATX_TYPE) {
@@ -112,7 +112,7 @@ static void dump_statx(struct statx *stx)
 		case S_IFBLK:
 		case S_IFCHR:
 			printf(" Device type: %u,%u",
-			       stx->stx_rdev_major, stx->stx_rdev_minor);
+			       stx->stx_rdev_major, stx->stx_rdev_miyesr);
 			break;
 		}
 	}

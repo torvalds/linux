@@ -87,7 +87,7 @@
 #define CM_SLIMDIV		0x0ac
 #define CM_SMICTL		0x0b0
 #define CM_SMIDIV		0x0b4
-/* no definition for 0x0b8  and 0x0bc */
+/* yes definition for 0x0b8  and 0x0bc */
 #define CM_TCNTCTL		0x0c0
 # define CM_TCNT_SRC1_SHIFT		12
 #define CM_TCNTCNT		0x0c4
@@ -298,7 +298,7 @@
 /*
  * Names of clocks used within the driver that need to be replaced
  * with an external parent's name.  This array is in the order that
- * the clocks node in the DT references external clocks.
+ * the clocks yesde in the DT references external clocks.
  */
 static const char *const cprman_parent_names[] = {
 	"xosc",
@@ -1139,7 +1139,7 @@ static unsigned long bcm2835_clock_choose_div_and_prate(struct clk_hw *hw,
 
 	if (data->frac_bits)
 		dev_warn(cprman->dev,
-			"frac bits are not used when propagating rate change");
+			"frac bits are yest used when propagating rate change");
 
 	/* clamp to min divider of 2 if we're dealing with a mash clock */
 	mindiv = data->is_mash_clock ? 2 : 1;
@@ -1192,7 +1192,7 @@ static int bcm2835_clock_determine_rate(struct clk_hw *hw,
 		 * unless it had been manually set that way.  PLLC's
 		 * frequency gets adjusted by the firmware due to
 		 * over-temp or under-voltage conditions, without
-		 * prior notification to our clock consumer.
+		 * prior yestification to our clock consumer.
 		 */
 		if (bcm2835_clk_is_pllc(parent) && !current_parent_is_pllc)
 			continue;
@@ -1427,7 +1427,7 @@ static struct clk_hw *bcm2835_register_clock(struct bcm2835_cprman *cprman,
 		init.ops = &bcm2835_clock_clk_ops;
 		init.flags |= CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE;
 
-		/* If the clock wasn't actually enabled at boot, it's not
+		/* If the clock wasn't actually enabled at boot, it's yest
 		 * critical.
 		 */
 		if (!(cprman_read(cprman, data->ctl_reg) & CM_ENABLE))
@@ -1946,7 +1946,7 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 	/*
 	 * VPU clock.  This doesn't have an enable bit, since it drives
 	 * the bus for everything else, and is special so it doesn't need
-	 * to be gated for rate changes.  It is also known as "clk_audio"
+	 * to be gated for rate changes.  It is also kyeswn as "clk_audio"
 	 * in various hardware documentation.
 	 */
 	[BCM2835_CLOCK_VPU]	= REGISTER_VPU_CLK(
@@ -2159,7 +2159,7 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 	 * CM_PERIICTL (and CM_PERIACTL, CM_SYSCTL and CM_VPUCTL if
 	 * you have the debug bit set in the power manager, which we
 	 * don't bother exposing) are individual gates off of the
-	 * non-stop vpu clock.
+	 * yesn-stop vpu clock.
 	 */
 	[BCM2835_CLOCK_PERI_IMAGE] = REGISTER_GATE(
 		SOC_ALL,
@@ -2216,13 +2216,13 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 
 	memcpy(cprman->real_parent_names, cprman_parent_names,
 	       sizeof(cprman_parent_names));
-	of_clk_parent_fill(dev->of_node, cprman->real_parent_names,
+	of_clk_parent_fill(dev->of_yesde, cprman->real_parent_names,
 			   ARRAY_SIZE(cprman_parent_names));
 
 	/*
 	 * Make sure the external oscillator has been registered.
 	 *
-	 * The other (DSI) clocks are not present on older device
+	 * The other (DSI) clocks are yest present on older device
 	 * trees, which we still need to support for backwards
 	 * compatibility.
 	 */
@@ -2246,7 +2246,7 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+	return of_clk_add_hw_provider(dev->of_yesde, of_clk_hw_onecell_get,
 				      &cprman->onecell);
 }
 

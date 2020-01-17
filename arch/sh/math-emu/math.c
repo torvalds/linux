@@ -8,7 +8,7 @@
  * for more details.
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/sched/signal.h>
 #include <linux/signal.h>
@@ -267,14 +267,14 @@ fmov_reg_reg(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m,
 }
 
 static int
-fnop_mn(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m, int n)
+fyesp_mn(struct sh_fpu_soft_struct *fregs, struct pt_regs *regs, int m, int n)
 {
 	return -EINVAL;
 }
 
 // 1 arg instructions.
 #define NOTYETn(i) static int i(struct sh_fpu_soft_struct *fregs, int n) \
-	{ printk( #i " not yet done.\n"); return 0; }
+	{ printk( #i " yest yet done.\n"); return 0; }
 
 NOTYETn(ftrv)
 NOTYETn(fsqrt)
@@ -378,7 +378,7 @@ static int fld1(struct sh_fpu_soft_struct *fregs, int n)
 	return 0;
 }
 
-static int fnop_n(struct sh_fpu_soft_struct *fregs, int n)
+static int fyesp_n(struct sh_fpu_soft_struct *fregs, int n)
 {
 	return -EINVAL;
 }
@@ -390,13 +390,13 @@ static int id_fnxd(struct sh_fpu_soft_struct *, struct pt_regs *, int, int);
 
 static int (*fnxd[])(struct sh_fpu_soft_struct *, int) = {
 	fsts, flds, ffloat, ftrc, fneg, fabs, fsqrt, fsrra,
-	fld0, fld1, fcnvsd, fcnvds, fnop_n, fnop_n, fipr, id_fxfd
+	fld0, fld1, fcnvsd, fcnvds, fyesp_n, fyesp_n, fipr, id_fxfd
 };
 
 static int (*fnmx[])(struct sh_fpu_soft_struct *, struct pt_regs *, int, int) = {
 	fadd, fsub, fmul, fdiv, fcmp_eq, fcmp_gt, fmov_idx_reg, fmov_reg_idx,
 	fmov_mem_reg, fmov_inc_reg, fmov_reg_mem, fmov_reg_dec,
-	fmov_reg_reg, id_fnxd, fmac, fnop_mn};
+	fmov_reg_reg, id_fnxd, fmac, fyesp_mn};
 
 static int id_fxfd(struct sh_fpu_soft_struct *fregs, int x)
 {
@@ -468,13 +468,13 @@ static int fpu_emulate(u16 code, struct sh_fpu_soft_struct *fregs, struct pt_reg
 }
 
 /**
- *	denormal_to_double - Given denormalized float number,
+ *	deyesrmal_to_double - Given deyesrmalized float number,
  *	                     store double float
  *
  *	@fpu: Pointer to sh_fpu_soft structure
  *	@n: Index to FP register
  */
-static void denormal_to_double(struct sh_fpu_soft_struct *fpu, int n)
+static void deyesrmal_to_double(struct sh_fpu_soft_struct *fpu, int n)
 {
 	unsigned long du, dl;
 	unsigned long x = fpu->fpul;
@@ -496,11 +496,11 @@ static void denormal_to_double(struct sh_fpu_soft_struct *fpu, int n)
 }
 
 /**
- *	ieee_fpe_handler - Handle denormalized number exception
+ *	ieee_fpe_handler - Handle deyesrmalized number exception
  *
  *	@regs: Pointer to register structure
  *
- *	Returns 1 when it's handled (should not cause exception).
+ *	Returns 1 when it's handled (should yest cause exception).
  */
 static int ieee_fpe_handler(struct pt_regs *regs)
 {
@@ -553,7 +553,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 
 		if ((tsk->thread.xstate->softfpu.fpscr & (1 << 17))) {
 			/* FPU error */
-			denormal_to_double (&tsk->thread.xstate->softfpu,
+			deyesrmal_to_double (&tsk->thread.xstate->softfpu,
 					    (finsn >> 8) & 0xf);
 			tsk->thread.xstate->softfpu.fpscr &=
 				~(FPSCR_CAUSE_MASK | FPSCR_FLAG_MASK);

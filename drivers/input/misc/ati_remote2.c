@@ -320,7 +320,7 @@ static void ati_remote2_input_mouse(struct ati_remote2 *ar2)
 
 	if (mode > ATI_REMOTE2_PC) {
 		dev_err(&ar2->intf[0]->dev,
-			"Unknown mode byte (%02x %02x %02x %02x)\n",
+			"Unkyeswn mode byte (%02x %02x %02x %02x)\n",
 			data[3], data[2], data[1], data[0]);
 		return;
 	}
@@ -359,7 +359,7 @@ static void ati_remote2_input_key(struct ati_remote2 *ar2)
 
 	if (mode > ATI_REMOTE2_PC) {
 		dev_err(&ar2->intf[1]->dev,
-			"Unknown mode byte (%02x %02x %02x %02x)\n",
+			"Unkyeswn mode byte (%02x %02x %02x %02x)\n",
 			data[3], data[2], data[1], data[0]);
 		return;
 	}
@@ -386,7 +386,7 @@ static void ati_remote2_input_key(struct ati_remote2 *ar2)
 	index = ati_remote2_lookup(hw_code);
 	if (index < 0) {
 		dev_err(&ar2->intf[1]->dev,
-			"Unknown code byte (%02x %02x %02x %02x)\n",
+			"Unkyeswn code byte (%02x %02x %02x %02x)\n",
 			data[3], data[2], data[1], data[0]);
 		return;
 	}
@@ -411,7 +411,7 @@ static void ati_remote2_input_key(struct ati_remote2 *ar2)
 		break;
 	default:
 		dev_err(&ar2->intf[1]->dev,
-			"Unknown state byte (%02x %02x %02x %02x)\n",
+			"Unkyeswn state byte (%02x %02x %02x %02x)\n",
 			data[3], data[2], data[1], data[0]);
 		return;
 	}

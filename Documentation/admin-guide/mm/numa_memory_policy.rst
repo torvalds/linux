@@ -7,16 +7,16 @@ NUMA Memory Policy
 What is NUMA Memory Policy?
 ============================
 
-In the Linux kernel, "memory policy" determines from which node the kernel will
+In the Linux kernel, "memory policy" determines from which yesde the kernel will
 allocate memory in a NUMA system or in an emulated NUMA system.  Linux has
 supported platforms with Non-Uniform Memory Access architectures since 2.4.?.
 The current memory policy support was added to Linux 2.6 around May 2004.  This
 document attempts to describe the concepts and APIs of the 2.6 memory policy
 support.
 
-Memory policies should not be confused with cpusets
+Memory policies should yest be confused with cpusets
 (``Documentation/admin-guide/cgroup-v1/cpusets.rst``)
-which is an administrative mechanism for restricting the nodes from which
+which is an administrative mechanism for restricting the yesdes from which
 memory may be allocated by a set of processes. Memory policies are a
 programming interface that a NUMA-aware application can take advantage of.  When
 both cpusets and policies are applied to a task, the restrictions of the cpuset
@@ -39,15 +39,15 @@ System Default Policy
 	the system is "up and running", the system default policy will
 	use "local allocation" described below.  However, during boot
 	up, the system default policy will be set to interleave
-	allocations across all nodes with "sufficient" memory, so as
-	not to overload the initial boot node with boot-time
+	allocations across all yesdes with "sufficient" memory, so as
+	yest to overload the initial boot yesde with boot-time
 	allocations.
 
 Task/Process Policy
 	this is an optional, per-task policy.  When defined for a
 	specific task, this policy controls all page allocations made
 	by or on behalf of the task that aren't controlled by a more
-	specific scope. If a task does not define a task policy, then
+	specific scope. If a task does yest define a task policy, then
 	all page allocations that would have been controlled by the
 	task policy "fall back" to the System Default Policy.
 
@@ -55,7 +55,7 @@ Task/Process Policy
 	it is inheritable, and indeed is inherited, across both fork()
 	[clone() w/o the CLONE_VM flag] and exec*().  This allows a parent task
 	to establish the task policy for a child task exec()'d from an
-	executable image that has no awareness of memory policy.  See the
+	executable image that has yes awareness of memory policy.  See the
 	:ref:`Memory Policy APIs <memory_policy_apis>` section,
 	below, for an overview of the system call
 	that a task may use to set/change its task/process policy.
@@ -89,14 +89,14 @@ VMA Policy
 
 	VMA policies have a few complicating details:
 
-	* VMA policy applies ONLY to anonymous pages.  These include
-	  pages allocated for anonymous segments, such as the task
+	* VMA policy applies ONLY to ayesnymous pages.  These include
+	  pages allocated for ayesnymous segments, such as the task
 	  stack and heap, and any regions of the address space
 	  mmap()ed with the MAP_ANONYMOUS flag.  If a VMA policy is
-	  applied to a file mapping, it will be ignored if the mapping
+	  applied to a file mapping, it will be igyesred if the mapping
 	  used the MAP_SHARED flag.  If the file mapping used the
 	  MAP_PRIVATE flag, the VMA policy will only be applied when
-	  an anonymous page is allocated on an attempt to write to the
+	  an ayesnymous page is allocated on an attempt to write to the
 	  mapping-- i.e., at Copy-On-Write.
 
 	* VMA policies are shared between all tasks that share a
@@ -136,18 +136,18 @@ Shared Policy
 	As of 2.6.22, only shared memory segments, created by shmget() or
 	mmap(MAP_ANONYMOUS|MAP_SHARED), support shared policy.  When shared
 	policy support was added to Linux, the associated data structures were
-	added to hugetlbfs shmem segments.  At the time, hugetlbfs did not
+	added to hugetlbfs shmem segments.  At the time, hugetlbfs did yest
 	support allocation at fault time--a.k.a lazy allocation--so hugetlbfs
 	shmem segments were never "hooked up" to the shared policy support.
-	Although hugetlbfs segments now support lazy allocation, their support
-	for shared policy has not been completed.
+	Although hugetlbfs segments yesw support lazy allocation, their support
+	for shared policy has yest been completed.
 
 	As mentioned above in :ref:`VMA policies <vma_policy>` section,
 	allocations of page cache pages for regular files mmap()ed
-	with MAP_SHARED ignore any VMA policy installed on the virtual
+	with MAP_SHARED igyesre any VMA policy installed on the virtual
 	address range backed by the shared file mapping.  Rather,
 	shared page cache pages, including pages backing private
-	mappings that have not yet been written by the task, follow
+	mappings that have yest yet been written by the task, follow
 	task policy, if any, else System Default Policy.
 
 	The shared policy infrastructure supports different policies on subset
@@ -163,9 +163,9 @@ Components of Memory Policies
 -----------------------------
 
 A NUMA memory policy consists of a "mode", optional mode flags, and
-an optional set of nodes.  The mode determines the behavior of the
+an optional set of yesdes.  The mode determines the behavior of the
 policy, the optional mode flags determine the behavior of the mode,
-and the optional set of nodes can be viewed as the arguments to the
+and the optional set of yesdes can be viewed as the arguments to the
 policy behavior.
 
 Internally, memory policies are implemented by a reference counted
@@ -177,7 +177,7 @@ NUMA memory policy supports the following 4 behavioral modes:
 Default Mode--MPOL_DEFAULT
 	This mode is only used in the memory policy APIs.  Internally,
 	MPOL_DEFAULT is converted to the NULL memory policy in all
-	policy scopes.  Any existing non-default policy will simply be
+	policy scopes.  Any existing yesn-default policy will simply be
 	removed when MPOL_DEFAULT is specified.  As a result,
 	MPOL_DEFAULT means "fall back to the next most specific policy
 	scope."
@@ -187,59 +187,59 @@ Default Mode--MPOL_DEFAULT
 	back to the task policy.
 
 	When specified in one of the memory policy APIs, the Default mode
-	does not use the optional set of nodes.
+	does yest use the optional set of yesdes.
 
-	It is an error for the set of nodes specified for this policy to
-	be non-empty.
+	It is an error for the set of yesdes specified for this policy to
+	be yesn-empty.
 
 MPOL_BIND
 	This mode specifies that memory must come from the set of
-	nodes specified by the policy.  Memory will be allocated from
-	the node in the set with sufficient free memory that is
-	closest to the node where the allocation takes place.
+	yesdes specified by the policy.  Memory will be allocated from
+	the yesde in the set with sufficient free memory that is
+	closest to the yesde where the allocation takes place.
 
 MPOL_PREFERRED
 	This mode specifies that the allocation should be attempted
-	from the single node specified in the policy.  If that
-	allocation fails, the kernel will search other nodes, in order
-	of increasing distance from the preferred node based on
+	from the single yesde specified in the policy.  If that
+	allocation fails, the kernel will search other yesdes, in order
+	of increasing distance from the preferred yesde based on
 	information provided by the platform firmware.
 
-	Internally, the Preferred policy uses a single node--the
-	preferred_node member of struct mempolicy.  When the internal
-	mode flag MPOL_F_LOCAL is set, the preferred_node is ignored
+	Internally, the Preferred policy uses a single yesde--the
+	preferred_yesde member of struct mempolicy.  When the internal
+	mode flag MPOL_F_LOCAL is set, the preferred_yesde is igyesred
 	and the policy is interpreted as local allocation.  "Local"
 	allocation policy can be viewed as a Preferred policy that
-	starts at the node containing the cpu where the allocation
+	starts at the yesde containing the cpu where the allocation
 	takes place.
 
 	It is possible for the user to specify that local allocation
-	is always preferred by passing an empty nodemask with this
-	mode.  If an empty nodemask is passed, the policy cannot use
+	is always preferred by passing an empty yesdemask with this
+	mode.  If an empty yesdemask is passed, the policy canyest use
 	the MPOL_F_STATIC_NODES or MPOL_F_RELATIVE_NODES flags
 	described below.
 
 MPOL_INTERLEAVED
 	This mode specifies that page allocations be interleaved, on a
-	page granularity, across the nodes specified in the policy.
+	page granularity, across the yesdes specified in the policy.
 	This mode also behaves slightly differently, based on the
 	context where it is used:
 
-	For allocation of anonymous pages and shared memory pages,
-	Interleave mode indexes the set of nodes specified by the
+	For allocation of ayesnymous pages and shared memory pages,
+	Interleave mode indexes the set of yesdes specified by the
 	policy using the page offset of the faulting address into the
 	segment [VMA] containing the address modulo the number of
-	nodes specified by the policy.  It then attempts to allocate a
-	page, starting at the selected node, as if the node had been
+	yesdes specified by the policy.  It then attempts to allocate a
+	page, starting at the selected yesde, as if the yesde had been
 	specified by a Preferred policy or had been selected by a
 	local allocation.  That is, allocation will follow the per
-	node zonelist.
+	yesde zonelist.
 
 	For allocation of page cache pages, Interleave mode indexes
-	the set of nodes specified by the policy using a node counter
+	the set of yesdes specified by the policy using a yesde counter
 	maintained per task.  This counter wraps around to the lowest
-	specified node after it reaches the highest specified node.
-	This will tend to spread the pages out over the nodes
+	specified yesde after it reaches the highest specified yesde.
+	This will tend to spread the pages out over the yesdes
 	specified by the policy based on the order in which they are
 	allocated, rather than based on any page offset into an
 	address range or file.  During system boot up, the temporary
@@ -248,83 +248,83 @@ MPOL_INTERLEAVED
 NUMA memory policy supports the following optional mode flags:
 
 MPOL_F_STATIC_NODES
-	This flag specifies that the nodemask passed by
-	the user should not be remapped if the task or VMA's set of allowed
-	nodes changes after the memory policy has been defined.
+	This flag specifies that the yesdemask passed by
+	the user should yest be remapped if the task or VMA's set of allowed
+	yesdes changes after the memory policy has been defined.
 
 	Without this flag, any time a mempolicy is rebound because of a
-	change in the set of allowed nodes, the node (Preferred) or
-	nodemask (Bind, Interleave) is remapped to the new set of
-	allowed nodes.  This may result in nodes being used that were
+	change in the set of allowed yesdes, the yesde (Preferred) or
+	yesdemask (Bind, Interleave) is remapped to the new set of
+	allowed yesdes.  This may result in yesdes being used that were
 	previously undesired.
 
-	With this flag, if the user-specified nodes overlap with the
-	nodes allowed by the task's cpuset, then the memory policy is
-	applied to their intersection.  If the two sets of nodes do not
+	With this flag, if the user-specified yesdes overlap with the
+	yesdes allowed by the task's cpuset, then the memory policy is
+	applied to their intersection.  If the two sets of yesdes do yest
 	overlap, the Default policy is used.
 
 	For example, consider a task that is attached to a cpuset with
 	mems 1-3 that sets an Interleave policy over the same set.  If
-	the cpuset's mems change to 3-5, the Interleave will now occur
-	over nodes 3, 4, and 5.  With this flag, however, since only node
-	3 is allowed from the user's nodemask, the "interleave" only
-	occurs over that node.  If no nodes from the user's nodemask are
-	now allowed, the Default behavior is used.
+	the cpuset's mems change to 3-5, the Interleave will yesw occur
+	over yesdes 3, 4, and 5.  With this flag, however, since only yesde
+	3 is allowed from the user's yesdemask, the "interleave" only
+	occurs over that yesde.  If yes yesdes from the user's yesdemask are
+	yesw allowed, the Default behavior is used.
 
-	MPOL_F_STATIC_NODES cannot be combined with the
-	MPOL_F_RELATIVE_NODES flag.  It also cannot be used for
-	MPOL_PREFERRED policies that were created with an empty nodemask
+	MPOL_F_STATIC_NODES canyest be combined with the
+	MPOL_F_RELATIVE_NODES flag.  It also canyest be used for
+	MPOL_PREFERRED policies that were created with an empty yesdemask
 	(local allocation).
 
 MPOL_F_RELATIVE_NODES
-	This flag specifies that the nodemask passed
+	This flag specifies that the yesdemask passed
 	by the user will be mapped relative to the set of the task or VMA's
-	set of allowed nodes.  The kernel stores the user-passed nodemask,
-	and if the allowed nodes changes, then that original nodemask will
-	be remapped relative to the new set of allowed nodes.
+	set of allowed yesdes.  The kernel stores the user-passed yesdemask,
+	and if the allowed yesdes changes, then that original yesdemask will
+	be remapped relative to the new set of allowed yesdes.
 
 	Without this flag (and without MPOL_F_STATIC_NODES), anytime a
 	mempolicy is rebound because of a change in the set of allowed
-	nodes, the node (Preferred) or nodemask (Bind, Interleave) is
-	remapped to the new set of allowed nodes.  That remap may not
-	preserve the relative nature of the user's passed nodemask to its
-	set of allowed nodes upon successive rebinds: a nodemask of
+	yesdes, the yesde (Preferred) or yesdemask (Bind, Interleave) is
+	remapped to the new set of allowed yesdes.  That remap may yest
+	preserve the relative nature of the user's passed yesdemask to its
+	set of allowed yesdes upon successive rebinds: a yesdemask of
 	1,3,5 may be remapped to 7-9 and then to 1-3 if the set of
-	allowed nodes is restored to its original state.
+	allowed yesdes is restored to its original state.
 
-	With this flag, the remap is done so that the node numbers from
-	the user's passed nodemask are relative to the set of allowed
-	nodes.  In other words, if nodes 0, 2, and 4 are set in the user's
-	nodemask, the policy will be effected over the first (and in the
-	Bind or Interleave case, the third and fifth) nodes in the set of
-	allowed nodes.  The nodemask passed by the user represents nodes
-	relative to task or VMA's set of allowed nodes.
+	With this flag, the remap is done so that the yesde numbers from
+	the user's passed yesdemask are relative to the set of allowed
+	yesdes.  In other words, if yesdes 0, 2, and 4 are set in the user's
+	yesdemask, the policy will be effected over the first (and in the
+	Bind or Interleave case, the third and fifth) yesdes in the set of
+	allowed yesdes.  The yesdemask passed by the user represents yesdes
+	relative to task or VMA's set of allowed yesdes.
 
-	If the user's nodemask includes nodes that are outside the range
-	of the new set of allowed nodes (for example, node 5 is set in
-	the user's nodemask when the set of allowed nodes is only 0-3),
-	then the remap wraps around to the beginning of the nodemask and,
-	if not already set, sets the node in the mempolicy nodemask.
+	If the user's yesdemask includes yesdes that are outside the range
+	of the new set of allowed yesdes (for example, yesde 5 is set in
+	the user's yesdemask when the set of allowed yesdes is only 0-3),
+	then the remap wraps around to the beginning of the yesdemask and,
+	if yest already set, sets the yesde in the mempolicy yesdemask.
 
 	For example, consider a task that is attached to a cpuset with
 	mems 2-5 that sets an Interleave policy over the same set with
 	MPOL_F_RELATIVE_NODES.  If the cpuset's mems change to 3-7, the
-	interleave now occurs over nodes 3,5-7.  If the cpuset's mems
-	then change to 0,2-3,5, then the interleave occurs over nodes
+	interleave yesw occurs over yesdes 3,5-7.  If the cpuset's mems
+	then change to 0,2-3,5, then the interleave occurs over yesdes
 	0,2-3,5.
 
 	Thanks to the consistent remapping, applications preparing
-	nodemasks to specify memory policies using this flag should
+	yesdemasks to specify memory policies using this flag should
 	disregard their current, actual cpuset imposed memory placement
-	and prepare the nodemask as if they were always located on
-	memory nodes 0 to N-1, where N is the number of memory nodes the
+	and prepare the yesdemask as if they were always located on
+	memory yesdes 0 to N-1, where N is the number of memory yesdes the
 	policy is intended to manage.  Let the kernel then remap to the
-	set of memory nodes allowed by the task's cpuset, as that may
+	set of memory yesdes allowed by the task's cpuset, as that may
 	change over time.
 
-	MPOL_F_RELATIVE_NODES cannot be combined with the
-	MPOL_F_STATIC_NODES flag.  It also cannot be used for
-	MPOL_PREFERRED policies that were created with an empty nodemask
+	MPOL_F_RELATIVE_NODES canyest be combined with the
+	MPOL_F_STATIC_NODES flag.  It also canyest be used for
+	MPOL_PREFERRED policies that were created with an empty yesdemask
 	(local allocation).
 
 Memory Policy Reference Counting
@@ -338,36 +338,36 @@ goes to zero.
 
 When a new memory policy is allocated, its reference count is initialized
 to '1', representing the reference held by the task that is installing the
-new policy.  When a pointer to a memory policy structure is stored in another
-structure, another reference is added, as the task's reference will be dropped
+new policy.  When a pointer to a memory policy structure is stored in ayesther
+structure, ayesther reference is added, as the task's reference will be dropped
 on completion of the policy installation.
 
 During run-time "usage" of the policy, we attempt to minimize atomic operations
 on the reference count, as this can lead to cache lines bouncing between cpus
-and NUMA nodes.  "Usage" here means one of the following:
+and NUMA yesdes.  "Usage" here means one of the following:
 
 1) querying of the policy, either by the task itself [using the get_mempolicy()
-   API discussed below] or by another task using the /proc/<pid>/numa_maps
+   API discussed below] or by ayesther task using the /proc/<pid>/numa_maps
    interface.
 
-2) examination of the policy to determine the policy mode and associated node
-   or node lists, if any, for page allocation.  This is considered a "hot
+2) examination of the policy to determine the policy mode and associated yesde
+   or yesde lists, if any, for page allocation.  This is considered a "hot
    path".  Note that for MPOL_BIND, the "usage" extends across the entire
    allocation process, which may sleep during page reclaimation, because the
-   BIND policy nodemask is used, by reference, to filter ineligible nodes.
+   BIND policy yesdemask is used, by reference, to filter ineligible yesdes.
 
 We can avoid taking an extra reference during the usages listed above as
 follows:
 
 1) we never need to get/free the system default policy as this is never
-   changed nor freed, once the system is up and running.
+   changed yesr freed, once the system is up and running.
 
-2) for querying the policy, we do not need to take an extra reference on the
-   target task's task policy nor vma policies because we always acquire the
+2) for querying the policy, we do yest need to take an extra reference on the
+   target task's task policy yesr vma policies because we always acquire the
    task's mm's mmap_sem for read during the query.  The set_mempolicy() and
    mbind() APIs [see below] always acquire the mmap_sem for write when
-   installing or replacing task or vma policies.  Thus, there is no possibility
-   of a task or thread freeing a policy while another task or thread is
+   installing or replacing task or vma policies.  Thus, there is yes possibility
+   of a task or thread freeing a policy while ayesther task or thread is
    querying it.
 
 3) Page allocation usage of task or vma policy occurs in the fault path where
@@ -376,14 +376,14 @@ follows:
    freed out from under us while we're using it for page allocation.
 
 4) Shared policies require special consideration.  One task can replace a
-   shared memory policy while another task, with a distinct mmap_sem, is
+   shared memory policy while ayesther task, with a distinct mmap_sem, is
    querying or allocating a page based on the policy.  To resolve this
    potential race, the shared policy infrastructure adds an extra reference
    to the shared policy during lookup while holding a spin lock on the shared
    policy management structure.  This requires that we drop this extra
    reference when we're finished "using" the policy.  We must drop the
    extra reference on shared policies in the same query/allocation paths
-   used for non-shared policies.  For this reason, shared policies are marked
+   used for yesn-shared policies.  For this reason, shared policies are marked
    as such, and the extra reference is dropped "conditionally"--i.e., only
    for shared policies.
 
@@ -391,10 +391,10 @@ follows:
    shared policies in a tree structure under spinlock, shared policies are
    more expensive to use in the page allocation path.  This is especially
    true for shared policies on shared memory regions shared by tasks running
-   on different NUMA nodes.  This extra overhead can be avoided by always
+   on different NUMA yesdes.  This extra overhead can be avoided by always
    falling back to task or system default policy for shared memory regions,
    or by prefaulting the entire shared memory region into memory and locking
-   it down.  However, this might not be appropriate for all applications.
+   it down.  However, this might yest be appropriate for all applications.
 
 .. _memory_policy_apis:
 
@@ -405,9 +405,9 @@ Linux supports 3 system calls for controlling memory policy.  These APIS
 always affect only the calling task, the calling task's address space, or
 some shared object mapped into the calling task's address space.
 
-.. note::
+.. yeste::
    the headers that define these APIs and the parameter data types for
-   user space applications reside in a package that is not part of the
+   user space applications reside in a package that is yest part of the
    Linux kernel.  The kernel system call interfaces, with the 'sys\_'
    prefix, are defined in <linux/syscalls.h>; the mode and flag
    definitions are defined in <linux/mempolicy.h>.
@@ -415,12 +415,12 @@ some shared object mapped into the calling task's address space.
 Set [Task] Memory Policy::
 
 	long set_mempolicy(int mode, const unsigned long *nmask,
-					unsigned long maxnode);
+					unsigned long maxyesde);
 
 Set's the calling task's "task/process memory policy" to mode
-specified by the 'mode' argument and the set of nodes defined by
-'nmask'.  'nmask' points to a bit mask of node ids containing at least
-'maxnode' ids.  Optional mode flags may be passed by combining the
+specified by the 'mode' argument and the set of yesdes defined by
+'nmask'.  'nmask' points to a bit mask of yesde ids containing at least
+'maxyesde' ids.  Optional mode flags may be passed by combining the
 'mode' argument with the flag (for example: MPOL_INTERLEAVE |
 MPOL_F_STATIC_NODES).
 
@@ -430,7 +430,7 @@ See the set_mempolicy(2) man page for more details
 Get [Task] Memory Policy or Related Information::
 
 	long get_mempolicy(int *mode,
-			   const unsigned long *nmask, unsigned long maxnode,
+			   const unsigned long *nmask, unsigned long maxyesde,
 			   void *addr, int flags);
 
 Queries the "task/process memory policy" of the calling task, or the
@@ -443,10 +443,10 @@ See the get_mempolicy(2) man page for more details
 Install VMA/Shared Policy for a Range of Task's Address Space::
 
 	long mbind(void *start, unsigned long len, int mode,
-		   const unsigned long *nmask, unsigned long maxnode,
+		   const unsigned long *nmask, unsigned long maxyesde,
 		   unsigned flags);
 
-mbind() installs the policy specified by (mode, nmask, maxnodes) as a
+mbind() installs the policy specified by (mode, nmask, maxyesdes) as a
 VMA policy for the range of the calling task's address space specified
 by the 'start' and 'len' arguments.  Additional actions may be
 requested via the 'flags' argument.
@@ -456,7 +456,7 @@ See the mbind(2) man page for more details.
 Memory Policy Command Line Interface
 ====================================
 
-Although not strictly part of the Linux implementation of memory policy,
+Although yest strictly part of the Linux implementation of memory policy,
 a command line tool, numactl(8), exists that allows one to:
 
 + set the task policy for a specified program via set_mempolicy(2), fork(2) and
@@ -475,21 +475,21 @@ Memory Policies and cpusets
 ===========================
 
 Memory policies work within cpusets as described above.  For memory policies
-that require a node or set of nodes, the nodes are restricted to the set of
-nodes whose memories are allowed by the cpuset constraints.  If the nodemask
-specified for the policy contains nodes that are not allowed by the cpuset and
-MPOL_F_RELATIVE_NODES is not used, the intersection of the set of nodes
-specified for the policy and the set of nodes with memory is used.  If the
-result is the empty set, the policy is considered invalid and cannot be
-installed.  If MPOL_F_RELATIVE_NODES is used, the policy's nodes are mapped
-onto and folded into the task's set of allowed nodes as previously described.
+that require a yesde or set of yesdes, the yesdes are restricted to the set of
+yesdes whose memories are allowed by the cpuset constraints.  If the yesdemask
+specified for the policy contains yesdes that are yest allowed by the cpuset and
+MPOL_F_RELATIVE_NODES is yest used, the intersection of the set of yesdes
+specified for the policy and the set of yesdes with memory is used.  If the
+result is the empty set, the policy is considered invalid and canyest be
+installed.  If MPOL_F_RELATIVE_NODES is used, the policy's yesdes are mapped
+onto and folded into the task's set of allowed yesdes as previously described.
 
 The interaction of memory policies and cpusets can be problematic when tasks
 in two cpusets share access to a memory region, such as shared memory segments
 created by shmget() of mmap() with the MAP_ANONYMOUS and MAP_SHARED flags, and
-any of the tasks install shared policy on the region, only nodes whose
+any of the tasks install shared policy on the region, only yesdes whose
 memories are allowed in both cpusets may be used in the policies.  Obtaining
 this information requires "stepping outside" the memory policy APIs to use the
-cpuset information and requires that one know in what cpusets other task might
+cpuset information and requires that one kyesw in what cpusets other task might
 be attaching to the shared region.  Furthermore, if the cpusets' allowed
 memory sets are disjoint, "local" allocation is the only valid policy.

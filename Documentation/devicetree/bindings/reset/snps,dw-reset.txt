@@ -1,4 +1,4 @@
-Synopsys DesignWare Reset controller
+Syyespsys DesignWare Reset controller
 =======================================
 
 Please also refer to reset.txt in this directory for common reset

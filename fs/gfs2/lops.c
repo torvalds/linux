@@ -20,7 +20,7 @@
 #include "dir.h"
 #include "gfs2.h"
 #include "incore.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "glock.h"
 #include "log.h"
 #include "lops.h"
@@ -91,7 +91,7 @@ static void maybe_release_space(struct gfs2_bufdata *bd)
  * @sdp: the filesystem the buffer belongs to
  * @bh: The buffer to unpin
  * @ai:
- * @flags: The inode dirty flags
+ * @flags: The iyesde dirty flags
  *
  */
 
@@ -227,7 +227,7 @@ static void gfs2_end_log_write(struct bio *bio)
  * @opf: REQ_OP | op_flags
  *
  * Submit any pending part-built or full bio to the block device. If
- * there is no pending bio, then this is a no-op.
+ * there is yes pending bio, then this is a yes-op.
  */
 
 void gfs2_log_submit_bio(struct bio **biop, int opf)
@@ -245,7 +245,7 @@ void gfs2_log_submit_bio(struct bio **biop, int opf)
 /**
  * gfs2_log_alloc_bio - Allocate a bio
  * @sdp: The super block
- * @blkno: The device block number we want to write to
+ * @blkyes: The device block number we want to write to
  * @end_io: The bi_end_io callback
  *
  * Allocate a new bio, initialize it with the given parameters and return it.
@@ -253,13 +253,13 @@ void gfs2_log_submit_bio(struct bio **biop, int opf)
  * Returns: The newly allocated bio
  */
 
-static struct bio *gfs2_log_alloc_bio(struct gfs2_sbd *sdp, u64 blkno,
+static struct bio *gfs2_log_alloc_bio(struct gfs2_sbd *sdp, u64 blkyes,
 				      bio_end_io_t *end_io)
 {
 	struct super_block *sb = sdp->sd_vfs;
 	struct bio *bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
 
-	bio->bi_iter.bi_sector = blkno * (sb->s_blocksize >> 9);
+	bio->bi_iter.bi_sector = blkyes * (sb->s_blocksize >> 9);
 	bio_set_dev(bio, sb->s_bdev);
 	bio->bi_end_io = end_io;
 	bio->bi_private = sdp;
@@ -270,7 +270,7 @@ static struct bio *gfs2_log_alloc_bio(struct gfs2_sbd *sdp, u64 blkno,
 /**
  * gfs2_log_get_bio - Get cached log bio, or allocate a new one
  * @sdp: The super block
- * @blkno: The device block number we want to write to
+ * @blkyes: The device block number we want to write to
  * @bio: The bio to get or allocate
  * @op: REQ_OP
  * @end_io: The bi_end_io callback
@@ -278,13 +278,13 @@ static struct bio *gfs2_log_alloc_bio(struct gfs2_sbd *sdp, u64 blkno,
  *
  * If there is a cached bio, then if the next block number is sequential
  * with the previous one, return it, otherwise flush the bio to the
- * device. If there is no cached bio, or we just flushed it, then
+ * device. If there is yes cached bio, or we just flushed it, then
  * allocate a new one.
  *
  * Returns: The bio to use for log writes
  */
 
-static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno,
+static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkyes,
 				    struct bio **biop, int op,
 				    bio_end_io_t *end_io, bool flush)
 {
@@ -295,12 +295,12 @@ static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno,
 
 		nblk = bio_end_sector(bio);
 		nblk >>= sdp->sd_fsb2bb_shift;
-		if (blkno == nblk && !flush)
+		if (blkyes == nblk && !flush)
 			return bio;
 		gfs2_log_submit_bio(biop, op);
 	}
 
-	*biop = gfs2_log_alloc_bio(sdp, blkno, end_io);
+	*biop = gfs2_log_alloc_bio(sdp, blkyes, end_io);
 	return *biop;
 }
 
@@ -310,7 +310,7 @@ static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno,
  * @page: the page to write
  * @size: the size of the data to write
  * @offset: the offset within the page 
- * @blkno: block number of the log entry
+ * @blkyes: block number of the log entry
  *
  * Try and add the page segment to the current bio. If that fails,
  * submit the current bio to the device and create a new one, and
@@ -318,16 +318,16 @@ static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno,
  */
 
 void gfs2_log_write(struct gfs2_sbd *sdp, struct page *page,
-		    unsigned size, unsigned offset, u64 blkno)
+		    unsigned size, unsigned offset, u64 blkyes)
 {
 	struct bio *bio;
 	int ret;
 
-	bio = gfs2_log_get_bio(sdp, blkno, &sdp->sd_log_bio, REQ_OP_WRITE,
+	bio = gfs2_log_get_bio(sdp, blkyes, &sdp->sd_log_bio, REQ_OP_WRITE,
 			       gfs2_end_log_write, false);
 	ret = bio_add_page(bio, page, size, offset);
 	if (ret == 0) {
-		bio = gfs2_log_get_bio(sdp, blkno, &sdp->sd_log_bio,
+		bio = gfs2_log_get_bio(sdp, blkyes, &sdp->sd_log_bio,
 				       REQ_OP_WRITE, gfs2_end_log_write, true);
 		ret = bio_add_page(bio, page, size, offset);
 		WARN_ON(ret == 0);
@@ -391,7 +391,7 @@ static void gfs2_end_log_read(struct bio *bio)
 	bio_for_each_segment_all(bvec, bio, iter_all) {
 		page = bvec->bv_page;
 		if (bio->bi_status) {
-			int err = blk_status_to_errno(bio->bi_status);
+			int err = blk_status_to_erryes(bio->bi_status);
 
 			SetPageError(page);
 			mapping_set_error(page->mapping, err);
@@ -414,7 +414,7 @@ static bool gfs2_jhead_pg_srch(struct gfs2_jdesc *jd,
 			      struct gfs2_log_header_host *head,
 			      struct page *page)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_iyesde);
 	struct gfs2_log_header_host uninitialized_var(lh);
 	void *kaddr = kmap_atomic(page);
 	unsigned int offset;
@@ -447,8 +447,8 @@ static bool gfs2_jhead_pg_srch(struct gfs2_jdesc *jd,
  * to obtain the page to add it to the bio and second when we do a
  * find_get_page() here to get the page to wait on while I/O on it is being
  * completed.
- * This function is also used to free up a page we might've grabbed but not
- * used. Maybe we added it to a bio, but not submitted it for I/O. Or we
+ * This function is also used to free up a page we might've grabbed but yest
+ * used. Maybe we added it to a bio, but yest submitted it for I/O. Or we
  * submitted the I/O, but we already found the jhead so we only need to drop
  * our references to the page.
  */
@@ -459,7 +459,7 @@ static void gfs2_jhead_process_page(struct gfs2_jdesc *jd, unsigned long index,
 {
 	struct page *page;
 
-	page = find_get_page(jd->jd_inode->i_mapping, index);
+	page = find_get_page(jd->jd_iyesde->i_mapping, index);
 	wait_on_page_locked(page);
 
 	if (PageError(page))
@@ -480,13 +480,13 @@ static void gfs2_jhead_process_page(struct gfs2_jdesc *jd, unsigned long index,
  * Do a search of a journal by reading it in large chunks using bios and find
  * the valid log entry with the highest sequence number.  (i.e. the log head)
  *
- * Returns: 0 on success, errno otherwise
+ * Returns: 0 on success, erryes otherwise
  */
 int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head,
 		    bool keep_cache)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
-	struct address_space *mapping = jd->jd_inode->i_mapping;
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_iyesde);
+	struct address_space *mapping = jd->jd_iyesde->i_mapping;
 	unsigned int block = 0, blocks_submitted = 0, blocks_read = 0;
 	unsigned int bsize = sdp->sd_sb.sb_bsize;
 	unsigned int bsize_shift = sdp->sd_sb.sb_bsize_shift;
@@ -568,7 +568,7 @@ out:
 		ret = filemap_check_wb_err(mapping, since);
 
 	if (!keep_cache)
-		truncate_inode_pages(mapping, 0);
+		truncate_iyesde_pages(mapping, 0);
 
 	return ret;
 }
@@ -730,12 +730,12 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 				struct gfs2_log_descriptor *ld, __be64 *ptr,
 				int pass)
 {
-	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	struct gfs2_iyesde *ip = GFS2_I(jd->jd_iyesde);
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_iyesde);
 	struct gfs2_glock *gl = ip->i_gl;
 	unsigned int blks = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh_log, *bh_ip;
-	u64 blkno;
+	u64 blkyes;
 	int error = 0;
 
 	if (pass != 1 || be32_to_cpu(ld->ld_type) != GFS2_LOG_DESC_METADATA)
@@ -744,18 +744,18 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 	gfs2_replay_incr_blk(jd, &start);
 
 	for (; blks; gfs2_replay_incr_blk(jd, &start), blks--) {
-		blkno = be64_to_cpu(*ptr++);
+		blkyes = be64_to_cpu(*ptr++);
 
 		jd->jd_found_blocks++;
 
-		if (gfs2_revoke_check(jd, blkno, start))
+		if (gfs2_revoke_check(jd, blkyes, start))
 			continue;
 
 		error = gfs2_replay_read_block(jd, start, &bh_log);
 		if (error)
 			return error;
 
-		bh_ip = gfs2_meta_new(gl, blkno);
+		bh_ip = gfs2_meta_new(gl, blkyes);
 		memcpy(bh_ip->b_data, bh_log->b_data, bh_log->b_size);
 
 		if (gfs2_meta_check(sdp, bh_ip))
@@ -767,12 +767,12 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 			if (mh->mh_type == cpu_to_be32(GFS2_METATYPE_RG)) {
 				struct gfs2_rgrpd *rgd;
 
-				rgd = gfs2_blk2rgrpd(sdp, blkno, false);
-				if (rgd && rgd->rd_addr == blkno &&
+				rgd = gfs2_blk2rgrpd(sdp, blkyes, false);
+				if (rgd && rgd->rd_addr == blkyes &&
 				    rgd->rd_bits && rgd->rd_bits->bi_bh) {
 					fs_info(sdp, "Replaying 0x%llx but we "
 						"already have a bh!\n",
-						(unsigned long long)blkno);
+						(unsigned long long)blkyes);
 					fs_info(sdp, "busy:%d, pinned:%d\n",
 						buffer_busy(rgd->rd_bits->bi_bh) ? 1 : 0,
 						buffer_pinned(rgd->rd_bits->bi_bh));
@@ -817,8 +817,8 @@ static void gfs2_meta_sync(struct gfs2_glock *gl)
 
 static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 {
-	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	struct gfs2_iyesde *ip = GFS2_I(jd->jd_iyesde);
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_iyesde);
 
 	if (error) {
 		gfs2_meta_sync(ip->i_gl);
@@ -865,7 +865,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 			offset = sizeof(struct gfs2_meta_header);
 		}
 
-		*(__be64 *)(page_address(page) + offset) = cpu_to_be64(bd->bd_blkno);
+		*(__be64 *)(page_address(page) + offset) = cpu_to_be64(bd->bd_blkyes);
 		offset += sizeof(u64);
 	}
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_revoke);
@@ -902,12 +902,12 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 				   struct gfs2_log_descriptor *ld, __be64 *ptr,
 				   int pass)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_iyesde);
 	unsigned int blks = be32_to_cpu(ld->ld_length);
 	unsigned int revokes = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh;
 	unsigned int offset;
-	u64 blkno;
+	u64 blkyes;
 	int first = 1;
 	int error;
 
@@ -925,9 +925,9 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 			gfs2_metatype_check(sdp, bh, GFS2_METATYPE_LB);
 
 		while (offset + sizeof(u64) <= sdp->sd_sb.sb_bsize) {
-			blkno = be64_to_cpu(*(__be64 *)(bh->b_data + offset));
+			blkyes = be64_to_cpu(*(__be64 *)(bh->b_data + offset));
 
-			error = gfs2_revoke_add(jd, blkno, start);
+			error = gfs2_revoke_add(jd, blkyes, start);
 			if (error < 0) {
 				brelse(bh);
 				return error;
@@ -950,7 +950,7 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 
 static void revoke_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_iyesde);
 
 	if (error) {
 		gfs2_revoke_clean(jd);
@@ -984,11 +984,11 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 				    struct gfs2_log_descriptor *ld,
 				    __be64 *ptr, int pass)
 {
-	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
+	struct gfs2_iyesde *ip = GFS2_I(jd->jd_iyesde);
 	struct gfs2_glock *gl = ip->i_gl;
 	unsigned int blks = be32_to_cpu(ld->ld_data1);
 	struct buffer_head *bh_log, *bh_ip;
-	u64 blkno;
+	u64 blkyes;
 	u64 esc;
 	int error = 0;
 
@@ -997,19 +997,19 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 
 	gfs2_replay_incr_blk(jd, &start);
 	for (; blks; gfs2_replay_incr_blk(jd, &start), blks--) {
-		blkno = be64_to_cpu(*ptr++);
+		blkyes = be64_to_cpu(*ptr++);
 		esc = be64_to_cpu(*ptr++);
 
 		jd->jd_found_blocks++;
 
-		if (gfs2_revoke_check(jd, blkno, start))
+		if (gfs2_revoke_check(jd, blkyes, start))
 			continue;
 
 		error = gfs2_replay_read_block(jd, start, &bh_log);
 		if (error)
 			return error;
 
-		bh_ip = gfs2_meta_new(gl, blkno);
+		bh_ip = gfs2_meta_new(gl, blkyes);
 		memcpy(bh_ip->b_data, bh_log->b_data, bh_log->b_size);
 
 		/* Unescape */
@@ -1032,8 +1032,8 @@ static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 
 static void databuf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 {
-	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
-	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
+	struct gfs2_iyesde *ip = GFS2_I(jd->jd_iyesde);
+	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_iyesde);
 
 	if (error) {
 		gfs2_meta_sync(ip->i_gl);

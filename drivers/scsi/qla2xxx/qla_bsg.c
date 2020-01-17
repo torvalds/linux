@@ -132,7 +132,7 @@ qla24xx_proc_fcp_prio_cfg_cmd(struct bsg_job *bsg_job)
 	/* Get the sub command */
 	oper = bsg_request->rqst_data.h_vendor.vendor_cmd[1];
 
-	/* Only set config is allowed if config memory is not allocated */
+	/* Only set config is allowed if config memory is yest allocated */
 	if (!ha->fcp_prio_cfg && (oper != QLFC_FCP_PRIO_SET_CONFIG)) {
 		ret = -EINVAL;
 		goto exit_fcp_prio_cfg;
@@ -217,7 +217,7 @@ qla24xx_proc_fcp_prio_cfg_cmd(struct bsg_job *bsg_job)
 			bsg_reply->result = (DID_ERROR << 16);
 			ret = -EINVAL;
 			/* If buffer was invalidatic int
-			 * fcp_prio_cfg is of no use
+			 * fcp_prio_cfg is of yes use
 			 */
 			vfree(ha->fcp_prio_cfg);
 			ha->fcp_prio_cfg = NULL;
@@ -271,7 +271,7 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 	}
 
 	if (!vha->flags.online) {
-		ql_log(ql_log_warn, vha, 0x7005, "Host not online.\n");
+		ql_log(ql_log_warn, vha, 0x7005, "Host yest online.\n");
 		rval = -EIO;
 		goto done;
 	}
@@ -279,16 +279,16 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 	/* pass through is supported only for ISP 4Gb or higher */
 	if (!IS_FWI2_CAPABLE(ha)) {
 		ql_dbg(ql_dbg_user, vha, 0x7001,
-		    "ELS passthru not supported for ISP23xx based adapters.\n");
+		    "ELS passthru yest supported for ISP23xx based adapters.\n");
 		rval = -EPERM;
 		goto done;
 	}
 
-	/*  Multiple SG's are not supported for ELS requests */
+	/*  Multiple SG's are yest supported for ELS requests */
 	if (bsg_job->request_payload.sg_cnt > 1 ||
 		bsg_job->reply_payload.sg_cnt > 1) {
 		ql_dbg(ql_dbg_user, vha, 0x7002,
-		    "Multiple SG's are not supported for ELS requests, "
+		    "Multiple SG's are yest supported for ELS requests, "
 		    "request_sg_cnt=%x reply_sg_cnt=%x.\n",
 		    bsg_job->request_payload.sg_cnt,
 		    bsg_job->reply_payload.sg_cnt);
@@ -299,7 +299,7 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 	/* ELS request for rport */
 	if (bsg_request->msgcode == FC_BSG_RPT_ELS) {
 		/* make sure the rport is logged in,
-		 * if not perform fabric login
+		 * if yest perform fabric login
 		 */
 		if (qla2x00_fabric_login(vha, fcport, &nextlid)) {
 			ql_dbg(ql_dbg_user, vha, 0x7003,
@@ -312,7 +312,7 @@ qla2x00_process_els(struct bsg_job *bsg_job)
 		/* Allocate a dummy fcport structure, since functions
 		 * preparing the IOCB and mailbox command retrieves port
 		 * specific information from fcport structure. For Host based
-		 * ELS commands there will be no fcport structure allocated
+		 * ELS commands there will be yes fcport structure allocated
 		 */
 		fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
 		if (!fcport) {
@@ -469,7 +469,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 
 	if (!vha->flags.online) {
 		ql_log(ql_log_warn, vha, 0x7012,
-		    "Host is not online.\n");
+		    "Host is yest online.\n");
 		rval = -EIO;
 		goto done_unmap_sg;
 	}
@@ -486,7 +486,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 		break;
 	default:
 		ql_dbg(ql_dbg_user, vha, 0x7013,
-		    "Unknown loop id: %x.\n", loop_id);
+		    "Unkyeswn loop id: %x.\n", loop_id);
 		rval = -EINVAL;
 		goto done_unmap_sg;
 	}
@@ -494,7 +494,7 @@ qla2x00_process_ct(struct bsg_job *bsg_job)
 	/* Allocate a dummy fcport structure, since functions preparing the
 	 * IOCB and mailbox command retrieves port specific information
 	 * from fcport structure. For Host based ELS commands there will be
-	 * no fcport structure allocated
+	 * yes fcport structure allocated
 	 */
 	fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
 	if (!fcport) {
@@ -578,15 +578,15 @@ qla81xx_reset_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 		    (new_config[0] & INTERNAL_LOOPBACK_MASK));
 		memcpy(&new_config[1], &config[1], sizeof(uint16_t) * 3) ;
 
-		ha->notify_dcbx_comp = wait;
-		ha->notify_lb_portup_comp = wait2;
+		ha->yestify_dcbx_comp = wait;
+		ha->yestify_lb_portup_comp = wait2;
 
 		ret = qla81xx_set_port_config(vha, new_config);
 		if (ret != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x7025,
 			    "Set port config failed.\n");
-			ha->notify_dcbx_comp = 0;
-			ha->notify_lb_portup_comp = 0;
+			ha->yestify_dcbx_comp = 0;
+			ha->yestify_lb_portup_comp = 0;
 			rval = -EINVAL;
 			goto done_reset_internal;
 		}
@@ -595,9 +595,9 @@ qla81xx_reset_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 		if (wait && !wait_for_completion_timeout(&ha->dcbx_comp,
 			(DCBX_COMP_TIMEOUT * HZ))) {
 			ql_dbg(ql_dbg_user, vha, 0x7026,
-			    "DCBX completion not received.\n");
-			ha->notify_dcbx_comp = 0;
-			ha->notify_lb_portup_comp = 0;
+			    "DCBX completion yest received.\n");
+			ha->yestify_dcbx_comp = 0;
+			ha->yestify_lb_portup_comp = 0;
 			rval = -EINVAL;
 			goto done_reset_internal;
 		} else
@@ -608,16 +608,16 @@ qla81xx_reset_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 		    !wait_for_completion_timeout(&ha->lb_portup_comp,
 		    (LB_PORTUP_COMP_TIMEOUT * HZ))) {
 			ql_dbg(ql_dbg_user, vha, 0x70c5,
-			    "Port up completion not received.\n");
-			ha->notify_lb_portup_comp = 0;
+			    "Port up completion yest received.\n");
+			ha->yestify_lb_portup_comp = 0;
 			rval = -EINVAL;
 			goto done_reset_internal;
 		} else
 			ql_dbg(ql_dbg_user, vha, 0x70c6,
 			    "Port up completion received.\n");
 
-		ha->notify_dcbx_comp = 0;
-		ha->notify_lb_portup_comp = 0;
+		ha->yestify_dcbx_comp = 0;
+		ha->yestify_lb_portup_comp = 0;
 	}
 done_reset_internal:
 	return rval;
@@ -648,12 +648,12 @@ qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 
 	memcpy(&new_config[1], &config[1], sizeof(uint16_t) * 3);
 
-	ha->notify_dcbx_comp = 1;
+	ha->yestify_dcbx_comp = 1;
 	ret = qla81xx_set_port_config(vha, new_config);
 	if (ret != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x7021,
 		    "set port config failed.\n");
-		ha->notify_dcbx_comp = 0;
+		ha->yestify_dcbx_comp = 0;
 		rval = -EINVAL;
 		goto done_set_internal;
 	}
@@ -673,7 +673,7 @@ qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 
 	if (!rem_tmo) {
 		ql_dbg(ql_dbg_user, vha, 0x7022,
-		    "DCBX completion not received.\n");
+		    "DCBX completion yest received.\n");
 		ret = qla81xx_reset_loopback_mode(vha, new_config, 0, 0);
 		/*
 		 * If the reset of the loopback mode doesn't work take a FCoE
@@ -695,7 +695,7 @@ qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 			    "DCBX completion received.\n");
 	}
 
-	ha->notify_dcbx_comp = 0;
+	ha->yestify_dcbx_comp = 0;
 	ha->idc_extend_tmo = 0;
 
 done_set_internal:
@@ -725,7 +725,7 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 	uint32_t rsp_data_len;
 
 	if (!vha->flags.online) {
-		ql_log(ql_log_warn, vha, 0x7019, "Host is not online.\n");
+		ql_log(ql_log_warn, vha, 0x7019, "Host is yest online.\n");
 		return -EIO;
 	}
 
@@ -782,7 +782,7 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 		goto done_free_dma_req;
 	}
 
-	/* Copy the request buffer in req_data now */
+	/* Copy the request buffer in req_data yesw */
 	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
 		bsg_job->request_payload.sg_cnt, req_data, req_data_len);
 
@@ -1301,7 +1301,7 @@ qla24xx_iidma(struct bsg_job *bsg_job)
 	uint8_t *rsp_ptr = NULL;
 
 	if (!IS_IIDMA_CAPABLE(vha->hw)) {
-		ql_log(ql_log_info, vha, 0x7046, "iiDMA not supported.\n");
+		ql_log(ql_log_info, vha, 0x7046, "iiDMA yest supported.\n");
 		return -EINVAL;
 	}
 
@@ -1332,13 +1332,13 @@ qla24xx_iidma(struct bsg_job *bsg_job)
 
 	if (atomic_read(&fcport->state) != FCS_ONLINE) {
 		ql_log(ql_log_warn, vha, 0x704a,
-		    "Port is not online.\n");
+		    "Port is yest online.\n");
 		return -EINVAL;
 	}
 
 	if (fcport->flags & FCF_LOGIN_NEEDED) {
 		ql_log(ql_log_warn, vha, 0x704b,
-		    "Remote port not logged in flags = 0x%x.\n", fcport->flags);
+		    "Remote port yest logged in flags = 0x%x.\n", fcport->flags);
 		return -EINVAL;
 	}
 
@@ -1498,8 +1498,8 @@ qla2x00_update_optrom(struct bsg_job *bsg_job)
 		return rval;
 	}
 
-	/* Set the isp82xx_no_md_cap not to capture minidump */
-	ha->flags.isp82xx_no_md_cap = 1;
+	/* Set the isp82xx_yes_md_cap yest to capture minidump */
+	ha->flags.isp82xx_yes_md_cap = 1;
 
 	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
 	    bsg_job->request_payload.sg_cnt, ha->optrom_buffer,
@@ -1784,7 +1784,7 @@ qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 	/* Check the type of the adapter */
 	if (!IS_BIDI_CAPABLE(ha)) {
 		ql_log(ql_log_warn, vha, 0x70a0,
-			"This adapter is not supported\n");
+			"This adapter is yest supported\n");
 		rval = EXT_STATUS_NOT_SUPPORTED;
 		goto done;
 	}
@@ -1799,12 +1799,12 @@ qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 	/* Check if host is online */
 	if (!vha->flags.online) {
 		ql_log(ql_log_warn, vha, 0x70a1,
-			"Host is not online\n");
+			"Host is yest online\n");
 		rval = EXT_STATUS_DEVICE_OFFLINE;
 		goto done;
 	}
 
-	/* Check if cable is plugged in or not */
+	/* Check if cable is plugged in or yest */
 	if (vha->device_flags & DFLG_NO_CABLE) {
 		ql_log(ql_log_warn, vha, 0x70a2,
 			"Cable is unplugged...\n");
@@ -1812,10 +1812,10 @@ qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 		goto done;
 	}
 
-	/* Check if the switch is connected or not */
+	/* Check if the switch is connected or yest */
 	if (ha->current_topology != ISP_CFG_F) {
 		ql_log(ql_log_warn, vha, 0x70a3,
-			"Host is not connected to the switch\n");
+			"Host is yest connected to the switch\n");
 		rval = EXT_STATUS_INVALID_CFG;
 		goto done;
 	}
@@ -1823,7 +1823,7 @@ qla24xx_process_bidir_cmd(struct bsg_job *bsg_job)
 	/* Check if operating mode is P2P */
 	if (ha->operating_mode != P2P) {
 		ql_log(ql_log_warn, vha, 0x70a4,
-		    "Host operating mode is not P2p\n");
+		    "Host operating mode is yest P2p\n");
 		rval = EXT_STATUS_INVALID_CFG;
 		goto done;
 	}
@@ -1967,7 +1967,7 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 
 	if (!vha->flags.online) {
 		ql_log(ql_log_warn, vha, 0x70d0,
-		    "Host is not online.\n");
+		    "Host is yest online.\n");
 		rval = -EIO;
 		goto done;
 	}
@@ -2004,7 +2004,7 @@ qlafx00_mgmt_cmd(struct bsg_job *bsg_job)
 	/* Allocate a dummy fcport structure, since functions preparing the
 	 * IOCB and mailbox command retrieves port specific information
 	 * from fcport structure. For Host based ELS commands there will be
-	 * no fcport structure allocated
+	 * yes fcport structure allocated
 	 */
 	fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
 	if (!fcport) {
@@ -2093,7 +2093,7 @@ qla26xx_serdes_op(struct bsg_job *bsg_job)
 		break;
 	default:
 		ql_dbg(ql_dbg_user, vha, 0x708c,
-		    "Unknown serdes cmd %x.\n", sr.cmd);
+		    "Unkyeswn serdes cmd %x.\n", sr.cmd);
 		rval = -EINVAL;
 		break;
 	}
@@ -2135,7 +2135,7 @@ qla8044_serdes_op(struct bsg_job *bsg_job)
 		break;
 	default:
 		ql_dbg(ql_dbg_user, vha, 0x7020,
-		    "Unknown serdes cmd %x.\n", sr.cmd);
+		    "Unkyeswn serdes cmd %x.\n", sr.cmd);
 		rval = -EINVAL;
 		break;
 	}
@@ -2347,7 +2347,7 @@ qla2x00_get_priv_stats(struct bsg_job *bsg_job)
 }
 
 static int
-qla2x00_do_dport_diagnostics(struct bsg_job *bsg_job)
+qla2x00_do_dport_diagyesstics(struct bsg_job *bsg_job)
 {
 	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
 	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
@@ -2369,7 +2369,7 @@ qla2x00_do_dport_diagnostics(struct bsg_job *bsg_job)
 	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
 	    bsg_job->request_payload.sg_cnt, dd, sizeof(*dd));
 
-	rval = qla26xx_dport_diagnostics(
+	rval = qla26xx_dport_diagyesstics(
 	    vha, dd->buf, sizeof(dd->buf), dd->options);
 	if (rval == QLA_SUCCESS) {
 		sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
@@ -2412,7 +2412,7 @@ qla2x00_get_flash_image_status(struct bsg_job *bsg_job)
 
 	ql_dbg(ql_dbg_user, vha, 0x70e1,
 	    "%s(%lu): FW=%u BCFG=%u VPDNVR=%u NPIV01=%u NPIV02=%u\n",
-	    __func__, vha->host_no, regions.global_image,
+	    __func__, vha->host_yes, regions.global_image,
 	    regions.board_config, regions.vpd_nvram,
 	    regions.npiv_config_0_1, regions.npiv_config_2_3);
 
@@ -2500,7 +2500,7 @@ qla2x00_process_vendor_specific(struct bsg_job *bsg_job)
 		return qla2x00_get_priv_stats(bsg_job);
 
 	case QL_VND_DPORT_DIAGNOSTICS:
-		return qla2x00_do_dport_diagnostics(bsg_job);
+		return qla2x00_do_dport_diagyesstics(bsg_job);
 
 	case QL_VND_SS_GET_FLASH_IMAGE_STATUS:
 		return qla2x00_get_flash_image_status(bsg_job);
@@ -2520,7 +2520,7 @@ qla24xx_bsg_request(struct bsg_job *bsg_job)
 	struct Scsi_Host *host;
 	scsi_qla_host_t *vha;
 
-	/* In case no data transferred. */
+	/* In case yes data transferred. */
 	bsg_reply->reply_payload_rcv_len = 0;
 
 	if (bsg_request->msgcode == FC_BSG_RPT_ELS) {
@@ -2608,7 +2608,7 @@ qla24xx_bsg_timeout(struct bsg_job *bsg_job)
 		}
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	ql_log(ql_log_info, vha, 0x708b, "SRB not found to abort.\n");
+	ql_log(ql_log_info, vha, 0x708b, "SRB yest found to abort.\n");
 	bsg_reply->result = -ENXIO;
 	return 0;
 

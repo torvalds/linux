@@ -2,7 +2,7 @@
 #include <linux/kdebug.h>
 #include <linux/kprobes.h>
 #include <linux/export.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/rcupdate.h>
 #include <linux/vmalloc.h>
 #include <linux/reboot.h>
@@ -12,15 +12,15 @@
  *	at shutdown. This is used to stop any idling DMA operations
  *	and the like.
  */
-BLOCKING_NOTIFIER_HEAD(reboot_notifier_list);
+BLOCKING_NOTIFIER_HEAD(reboot_yestifier_list);
 
 /*
  *	Notifier chain core routines.  The exported routines below
  *	are layered on top of these, with appropriate locking added.
  */
 
-static int notifier_chain_register(struct notifier_block **nl,
-		struct notifier_block *n)
+static int yestifier_chain_register(struct yestifier_block **nl,
+		struct yestifier_block *n)
 {
 	while ((*nl) != NULL) {
 		if (unlikely((*nl) == n)) {
@@ -36,8 +36,8 @@ static int notifier_chain_register(struct notifier_block **nl,
 	return 0;
 }
 
-static int notifier_chain_unregister(struct notifier_block **nl,
-		struct notifier_block *n)
+static int yestifier_chain_unregister(struct yestifier_block **nl,
+		struct yestifier_block *n)
 {
 	while ((*nl) != NULL) {
 		if ((*nl) == n) {
@@ -50,23 +50,23 @@ static int notifier_chain_unregister(struct notifier_block **nl,
 }
 
 /**
- * notifier_call_chain - Informs the registered notifiers about an event.
- *	@nl:		Pointer to head of the blocking notifier chain
- *	@val:		Value passed unmodified to notifier function
- *	@v:		Pointer passed unmodified to notifier function
- *	@nr_to_call:	Number of notifier functions to be called. Don't care
+ * yestifier_call_chain - Informs the registered yestifiers about an event.
+ *	@nl:		Pointer to head of the blocking yestifier chain
+ *	@val:		Value passed unmodified to yestifier function
+ *	@v:		Pointer passed unmodified to yestifier function
+ *	@nr_to_call:	Number of yestifier functions to be called. Don't care
  *			value of this parameter is -1.
- *	@nr_calls:	Records the number of notifications sent. Don't care
+ *	@nr_calls:	Records the number of yestifications sent. Don't care
  *			value of this field is NULL.
- *	@returns:	notifier_call_chain returns the value returned by the
- *			last notifier function called.
+ *	@returns:	yestifier_call_chain returns the value returned by the
+ *			last yestifier function called.
  */
-static int notifier_call_chain(struct notifier_block **nl,
+static int yestifier_call_chain(struct yestifier_block **nl,
 			       unsigned long val, void *v,
 			       int nr_to_call, int *nr_calls)
 {
 	int ret = NOTIFY_DONE;
-	struct notifier_block *nb, *next_nb;
+	struct yestifier_block *nb, *next_nb;
 
 	nb = rcu_dereference_raw(*nl);
 
@@ -74,13 +74,13 @@ static int notifier_call_chain(struct notifier_block **nl,
 		next_nb = rcu_dereference_raw(nb->next);
 
 #ifdef CONFIG_DEBUG_NOTIFIERS
-		if (unlikely(!func_ptr_is_kernel_text(nb->notifier_call))) {
-			WARN(1, "Invalid notifier called!");
+		if (unlikely(!func_ptr_is_kernel_text(nb->yestifier_call))) {
+			WARN(1, "Invalid yestifier called!");
 			nb = next_nb;
 			continue;
 		}
 #endif
-		ret = nb->notifier_call(nb, val, v);
+		ret = nb->yestifier_call(nb, val, v);
 
 		if (nr_calls)
 			(*nr_calls)++;
@@ -92,183 +92,183 @@ static int notifier_call_chain(struct notifier_block **nl,
 	}
 	return ret;
 }
-NOKPROBE_SYMBOL(notifier_call_chain);
+NOKPROBE_SYMBOL(yestifier_call_chain);
 
 /*
- *	Atomic notifier chain routines.  Registration and unregistration
- *	use a spinlock, and call_chain is synchronized by RCU (no locks).
+ *	Atomic yestifier chain routines.  Registration and unregistration
+ *	use a spinlock, and call_chain is synchronized by RCU (yes locks).
  */
 
 /**
- *	atomic_notifier_chain_register - Add notifier to an atomic notifier chain
- *	@nh: Pointer to head of the atomic notifier chain
- *	@n: New entry in notifier chain
+ *	atomic_yestifier_chain_register - Add yestifier to an atomic yestifier chain
+ *	@nh: Pointer to head of the atomic yestifier chain
+ *	@n: New entry in yestifier chain
  *
- *	Adds a notifier to an atomic notifier chain.
+ *	Adds a yestifier to an atomic yestifier chain.
  *
  *	Currently always returns zero.
  */
-int atomic_notifier_chain_register(struct atomic_notifier_head *nh,
-		struct notifier_block *n)
+int atomic_yestifier_chain_register(struct atomic_yestifier_head *nh,
+		struct yestifier_block *n)
 {
 	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&nh->lock, flags);
-	ret = notifier_chain_register(&nh->head, n);
+	ret = yestifier_chain_register(&nh->head, n);
 	spin_unlock_irqrestore(&nh->lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(atomic_notifier_chain_register);
+EXPORT_SYMBOL_GPL(atomic_yestifier_chain_register);
 
 /**
- *	atomic_notifier_chain_unregister - Remove notifier from an atomic notifier chain
- *	@nh: Pointer to head of the atomic notifier chain
- *	@n: Entry to remove from notifier chain
+ *	atomic_yestifier_chain_unregister - Remove yestifier from an atomic yestifier chain
+ *	@nh: Pointer to head of the atomic yestifier chain
+ *	@n: Entry to remove from yestifier chain
  *
- *	Removes a notifier from an atomic notifier chain.
+ *	Removes a yestifier from an atomic yestifier chain.
  *
  *	Returns zero on success or %-ENOENT on failure.
  */
-int atomic_notifier_chain_unregister(struct atomic_notifier_head *nh,
-		struct notifier_block *n)
+int atomic_yestifier_chain_unregister(struct atomic_yestifier_head *nh,
+		struct yestifier_block *n)
 {
 	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&nh->lock, flags);
-	ret = notifier_chain_unregister(&nh->head, n);
+	ret = yestifier_chain_unregister(&nh->head, n);
 	spin_unlock_irqrestore(&nh->lock, flags);
 	synchronize_rcu();
 	return ret;
 }
-EXPORT_SYMBOL_GPL(atomic_notifier_chain_unregister);
+EXPORT_SYMBOL_GPL(atomic_yestifier_chain_unregister);
 
 /**
- *	__atomic_notifier_call_chain - Call functions in an atomic notifier chain
- *	@nh: Pointer to head of the atomic notifier chain
- *	@val: Value passed unmodified to notifier function
- *	@v: Pointer passed unmodified to notifier function
- *	@nr_to_call: See the comment for notifier_call_chain.
- *	@nr_calls: See the comment for notifier_call_chain.
+ *	__atomic_yestifier_call_chain - Call functions in an atomic yestifier chain
+ *	@nh: Pointer to head of the atomic yestifier chain
+ *	@val: Value passed unmodified to yestifier function
+ *	@v: Pointer passed unmodified to yestifier function
+ *	@nr_to_call: See the comment for yestifier_call_chain.
+ *	@nr_calls: See the comment for yestifier_call_chain.
  *
- *	Calls each function in a notifier chain in turn.  The functions
- *	run in an atomic context, so they must not block.
+ *	Calls each function in a yestifier chain in turn.  The functions
+ *	run in an atomic context, so they must yest block.
  *	This routine uses RCU to synchronize with changes to the chain.
  *
- *	If the return value of the notifier can be and'ed
- *	with %NOTIFY_STOP_MASK then atomic_notifier_call_chain()
+ *	If the return value of the yestifier can be and'ed
+ *	with %NOTIFY_STOP_MASK then atomic_yestifier_call_chain()
  *	will return immediately, with the return value of
- *	the notifier function which halted execution.
+ *	the yestifier function which halted execution.
  *	Otherwise the return value is the return value
- *	of the last notifier function called.
+ *	of the last yestifier function called.
  */
-int __atomic_notifier_call_chain(struct atomic_notifier_head *nh,
+int __atomic_yestifier_call_chain(struct atomic_yestifier_head *nh,
 				 unsigned long val, void *v,
 				 int nr_to_call, int *nr_calls)
 {
 	int ret;
 
 	rcu_read_lock();
-	ret = notifier_call_chain(&nh->head, val, v, nr_to_call, nr_calls);
+	ret = yestifier_call_chain(&nh->head, val, v, nr_to_call, nr_calls);
 	rcu_read_unlock();
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__atomic_notifier_call_chain);
-NOKPROBE_SYMBOL(__atomic_notifier_call_chain);
+EXPORT_SYMBOL_GPL(__atomic_yestifier_call_chain);
+NOKPROBE_SYMBOL(__atomic_yestifier_call_chain);
 
-int atomic_notifier_call_chain(struct atomic_notifier_head *nh,
+int atomic_yestifier_call_chain(struct atomic_yestifier_head *nh,
 			       unsigned long val, void *v)
 {
-	return __atomic_notifier_call_chain(nh, val, v, -1, NULL);
+	return __atomic_yestifier_call_chain(nh, val, v, -1, NULL);
 }
-EXPORT_SYMBOL_GPL(atomic_notifier_call_chain);
-NOKPROBE_SYMBOL(atomic_notifier_call_chain);
+EXPORT_SYMBOL_GPL(atomic_yestifier_call_chain);
+NOKPROBE_SYMBOL(atomic_yestifier_call_chain);
 
 /*
- *	Blocking notifier chain routines.  All access to the chain is
+ *	Blocking yestifier chain routines.  All access to the chain is
  *	synchronized by an rwsem.
  */
 
 /**
- *	blocking_notifier_chain_register - Add notifier to a blocking notifier chain
- *	@nh: Pointer to head of the blocking notifier chain
- *	@n: New entry in notifier chain
+ *	blocking_yestifier_chain_register - Add yestifier to a blocking yestifier chain
+ *	@nh: Pointer to head of the blocking yestifier chain
+ *	@n: New entry in yestifier chain
  *
- *	Adds a notifier to a blocking notifier chain.
+ *	Adds a yestifier to a blocking yestifier chain.
  *	Must be called in process context.
  *
  *	Currently always returns zero.
  */
-int blocking_notifier_chain_register(struct blocking_notifier_head *nh,
-		struct notifier_block *n)
+int blocking_yestifier_chain_register(struct blocking_yestifier_head *nh,
+		struct yestifier_block *n)
 {
 	int ret;
 
 	/*
 	 * This code gets used during boot-up, when task switching is
-	 * not yet working and interrupts must remain disabled.  At
-	 * such times we must not call down_write().
+	 * yest yet working and interrupts must remain disabled.  At
+	 * such times we must yest call down_write().
 	 */
 	if (unlikely(system_state == SYSTEM_BOOTING))
-		return notifier_chain_register(&nh->head, n);
+		return yestifier_chain_register(&nh->head, n);
 
 	down_write(&nh->rwsem);
-	ret = notifier_chain_register(&nh->head, n);
+	ret = yestifier_chain_register(&nh->head, n);
 	up_write(&nh->rwsem);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(blocking_notifier_chain_register);
+EXPORT_SYMBOL_GPL(blocking_yestifier_chain_register);
 
 /**
- *	blocking_notifier_chain_unregister - Remove notifier from a blocking notifier chain
- *	@nh: Pointer to head of the blocking notifier chain
- *	@n: Entry to remove from notifier chain
+ *	blocking_yestifier_chain_unregister - Remove yestifier from a blocking yestifier chain
+ *	@nh: Pointer to head of the blocking yestifier chain
+ *	@n: Entry to remove from yestifier chain
  *
- *	Removes a notifier from a blocking notifier chain.
+ *	Removes a yestifier from a blocking yestifier chain.
  *	Must be called from process context.
  *
  *	Returns zero on success or %-ENOENT on failure.
  */
-int blocking_notifier_chain_unregister(struct blocking_notifier_head *nh,
-		struct notifier_block *n)
+int blocking_yestifier_chain_unregister(struct blocking_yestifier_head *nh,
+		struct yestifier_block *n)
 {
 	int ret;
 
 	/*
 	 * This code gets used during boot-up, when task switching is
-	 * not yet working and interrupts must remain disabled.  At
-	 * such times we must not call down_write().
+	 * yest yet working and interrupts must remain disabled.  At
+	 * such times we must yest call down_write().
 	 */
 	if (unlikely(system_state == SYSTEM_BOOTING))
-		return notifier_chain_unregister(&nh->head, n);
+		return yestifier_chain_unregister(&nh->head, n);
 
 	down_write(&nh->rwsem);
-	ret = notifier_chain_unregister(&nh->head, n);
+	ret = yestifier_chain_unregister(&nh->head, n);
 	up_write(&nh->rwsem);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(blocking_notifier_chain_unregister);
+EXPORT_SYMBOL_GPL(blocking_yestifier_chain_unregister);
 
 /**
- *	__blocking_notifier_call_chain - Call functions in a blocking notifier chain
- *	@nh: Pointer to head of the blocking notifier chain
- *	@val: Value passed unmodified to notifier function
- *	@v: Pointer passed unmodified to notifier function
- *	@nr_to_call: See comment for notifier_call_chain.
- *	@nr_calls: See comment for notifier_call_chain.
+ *	__blocking_yestifier_call_chain - Call functions in a blocking yestifier chain
+ *	@nh: Pointer to head of the blocking yestifier chain
+ *	@val: Value passed unmodified to yestifier function
+ *	@v: Pointer passed unmodified to yestifier function
+ *	@nr_to_call: See comment for yestifier_call_chain.
+ *	@nr_calls: See comment for yestifier_call_chain.
  *
- *	Calls each function in a notifier chain in turn.  The functions
+ *	Calls each function in a yestifier chain in turn.  The functions
  *	run in a process context, so they are allowed to block.
  *
- *	If the return value of the notifier can be and'ed
- *	with %NOTIFY_STOP_MASK then blocking_notifier_call_chain()
+ *	If the return value of the yestifier can be and'ed
+ *	with %NOTIFY_STOP_MASK then blocking_yestifier_call_chain()
  *	will return immediately, with the return value of
- *	the notifier function which halted execution.
+ *	the yestifier function which halted execution.
  *	Otherwise the return value is the return value
- *	of the last notifier function called.
+ *	of the last yestifier function called.
  */
-int __blocking_notifier_call_chain(struct blocking_notifier_head *nh,
+int __blocking_yestifier_call_chain(struct blocking_yestifier_head *nh,
 				   unsigned long val, void *v,
 				   int nr_to_call, int *nr_calls)
 {
@@ -276,185 +276,185 @@ int __blocking_notifier_call_chain(struct blocking_notifier_head *nh,
 
 	/*
 	 * We check the head outside the lock, but if this access is
-	 * racy then it does not matter what the result of the test
+	 * racy then it does yest matter what the result of the test
 	 * is, we re-check the list after having taken the lock anyway:
 	 */
 	if (rcu_access_pointer(nh->head)) {
 		down_read(&nh->rwsem);
-		ret = notifier_call_chain(&nh->head, val, v, nr_to_call,
+		ret = yestifier_call_chain(&nh->head, val, v, nr_to_call,
 					nr_calls);
 		up_read(&nh->rwsem);
 	}
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__blocking_notifier_call_chain);
+EXPORT_SYMBOL_GPL(__blocking_yestifier_call_chain);
 
-int blocking_notifier_call_chain(struct blocking_notifier_head *nh,
+int blocking_yestifier_call_chain(struct blocking_yestifier_head *nh,
 		unsigned long val, void *v)
 {
-	return __blocking_notifier_call_chain(nh, val, v, -1, NULL);
+	return __blocking_yestifier_call_chain(nh, val, v, -1, NULL);
 }
-EXPORT_SYMBOL_GPL(blocking_notifier_call_chain);
+EXPORT_SYMBOL_GPL(blocking_yestifier_call_chain);
 
 /*
- *	Raw notifier chain routines.  There is no protection;
+ *	Raw yestifier chain routines.  There is yes protection;
  *	the caller must provide it.  Use at your own risk!
  */
 
 /**
- *	raw_notifier_chain_register - Add notifier to a raw notifier chain
- *	@nh: Pointer to head of the raw notifier chain
- *	@n: New entry in notifier chain
+ *	raw_yestifier_chain_register - Add yestifier to a raw yestifier chain
+ *	@nh: Pointer to head of the raw yestifier chain
+ *	@n: New entry in yestifier chain
  *
- *	Adds a notifier to a raw notifier chain.
+ *	Adds a yestifier to a raw yestifier chain.
  *	All locking must be provided by the caller.
  *
  *	Currently always returns zero.
  */
-int raw_notifier_chain_register(struct raw_notifier_head *nh,
-		struct notifier_block *n)
+int raw_yestifier_chain_register(struct raw_yestifier_head *nh,
+		struct yestifier_block *n)
 {
-	return notifier_chain_register(&nh->head, n);
+	return yestifier_chain_register(&nh->head, n);
 }
-EXPORT_SYMBOL_GPL(raw_notifier_chain_register);
+EXPORT_SYMBOL_GPL(raw_yestifier_chain_register);
 
 /**
- *	raw_notifier_chain_unregister - Remove notifier from a raw notifier chain
- *	@nh: Pointer to head of the raw notifier chain
- *	@n: Entry to remove from notifier chain
+ *	raw_yestifier_chain_unregister - Remove yestifier from a raw yestifier chain
+ *	@nh: Pointer to head of the raw yestifier chain
+ *	@n: Entry to remove from yestifier chain
  *
- *	Removes a notifier from a raw notifier chain.
+ *	Removes a yestifier from a raw yestifier chain.
  *	All locking must be provided by the caller.
  *
  *	Returns zero on success or %-ENOENT on failure.
  */
-int raw_notifier_chain_unregister(struct raw_notifier_head *nh,
-		struct notifier_block *n)
+int raw_yestifier_chain_unregister(struct raw_yestifier_head *nh,
+		struct yestifier_block *n)
 {
-	return notifier_chain_unregister(&nh->head, n);
+	return yestifier_chain_unregister(&nh->head, n);
 }
-EXPORT_SYMBOL_GPL(raw_notifier_chain_unregister);
+EXPORT_SYMBOL_GPL(raw_yestifier_chain_unregister);
 
 /**
- *	__raw_notifier_call_chain - Call functions in a raw notifier chain
- *	@nh: Pointer to head of the raw notifier chain
- *	@val: Value passed unmodified to notifier function
- *	@v: Pointer passed unmodified to notifier function
- *	@nr_to_call: See comment for notifier_call_chain.
- *	@nr_calls: See comment for notifier_call_chain
+ *	__raw_yestifier_call_chain - Call functions in a raw yestifier chain
+ *	@nh: Pointer to head of the raw yestifier chain
+ *	@val: Value passed unmodified to yestifier function
+ *	@v: Pointer passed unmodified to yestifier function
+ *	@nr_to_call: See comment for yestifier_call_chain.
+ *	@nr_calls: See comment for yestifier_call_chain
  *
- *	Calls each function in a notifier chain in turn.  The functions
+ *	Calls each function in a yestifier chain in turn.  The functions
  *	run in an undefined context.
  *	All locking must be provided by the caller.
  *
- *	If the return value of the notifier can be and'ed
- *	with %NOTIFY_STOP_MASK then raw_notifier_call_chain()
+ *	If the return value of the yestifier can be and'ed
+ *	with %NOTIFY_STOP_MASK then raw_yestifier_call_chain()
  *	will return immediately, with the return value of
- *	the notifier function which halted execution.
+ *	the yestifier function which halted execution.
  *	Otherwise the return value is the return value
- *	of the last notifier function called.
+ *	of the last yestifier function called.
  */
-int __raw_notifier_call_chain(struct raw_notifier_head *nh,
+int __raw_yestifier_call_chain(struct raw_yestifier_head *nh,
 			      unsigned long val, void *v,
 			      int nr_to_call, int *nr_calls)
 {
-	return notifier_call_chain(&nh->head, val, v, nr_to_call, nr_calls);
+	return yestifier_call_chain(&nh->head, val, v, nr_to_call, nr_calls);
 }
-EXPORT_SYMBOL_GPL(__raw_notifier_call_chain);
+EXPORT_SYMBOL_GPL(__raw_yestifier_call_chain);
 
-int raw_notifier_call_chain(struct raw_notifier_head *nh,
+int raw_yestifier_call_chain(struct raw_yestifier_head *nh,
 		unsigned long val, void *v)
 {
-	return __raw_notifier_call_chain(nh, val, v, -1, NULL);
+	return __raw_yestifier_call_chain(nh, val, v, -1, NULL);
 }
-EXPORT_SYMBOL_GPL(raw_notifier_call_chain);
+EXPORT_SYMBOL_GPL(raw_yestifier_call_chain);
 
 #ifdef CONFIG_SRCU
 /*
- *	SRCU notifier chain routines.    Registration and unregistration
- *	use a mutex, and call_chain is synchronized by SRCU (no locks).
+ *	SRCU yestifier chain routines.    Registration and unregistration
+ *	use a mutex, and call_chain is synchronized by SRCU (yes locks).
  */
 
 /**
- *	srcu_notifier_chain_register - Add notifier to an SRCU notifier chain
- *	@nh: Pointer to head of the SRCU notifier chain
- *	@n: New entry in notifier chain
+ *	srcu_yestifier_chain_register - Add yestifier to an SRCU yestifier chain
+ *	@nh: Pointer to head of the SRCU yestifier chain
+ *	@n: New entry in yestifier chain
  *
- *	Adds a notifier to an SRCU notifier chain.
+ *	Adds a yestifier to an SRCU yestifier chain.
  *	Must be called in process context.
  *
  *	Currently always returns zero.
  */
-int srcu_notifier_chain_register(struct srcu_notifier_head *nh,
-		struct notifier_block *n)
+int srcu_yestifier_chain_register(struct srcu_yestifier_head *nh,
+		struct yestifier_block *n)
 {
 	int ret;
 
 	/*
 	 * This code gets used during boot-up, when task switching is
-	 * not yet working and interrupts must remain disabled.  At
-	 * such times we must not call mutex_lock().
+	 * yest yet working and interrupts must remain disabled.  At
+	 * such times we must yest call mutex_lock().
 	 */
 	if (unlikely(system_state == SYSTEM_BOOTING))
-		return notifier_chain_register(&nh->head, n);
+		return yestifier_chain_register(&nh->head, n);
 
 	mutex_lock(&nh->mutex);
-	ret = notifier_chain_register(&nh->head, n);
+	ret = yestifier_chain_register(&nh->head, n);
 	mutex_unlock(&nh->mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(srcu_notifier_chain_register);
+EXPORT_SYMBOL_GPL(srcu_yestifier_chain_register);
 
 /**
- *	srcu_notifier_chain_unregister - Remove notifier from an SRCU notifier chain
- *	@nh: Pointer to head of the SRCU notifier chain
- *	@n: Entry to remove from notifier chain
+ *	srcu_yestifier_chain_unregister - Remove yestifier from an SRCU yestifier chain
+ *	@nh: Pointer to head of the SRCU yestifier chain
+ *	@n: Entry to remove from yestifier chain
  *
- *	Removes a notifier from an SRCU notifier chain.
+ *	Removes a yestifier from an SRCU yestifier chain.
  *	Must be called from process context.
  *
  *	Returns zero on success or %-ENOENT on failure.
  */
-int srcu_notifier_chain_unregister(struct srcu_notifier_head *nh,
-		struct notifier_block *n)
+int srcu_yestifier_chain_unregister(struct srcu_yestifier_head *nh,
+		struct yestifier_block *n)
 {
 	int ret;
 
 	/*
 	 * This code gets used during boot-up, when task switching is
-	 * not yet working and interrupts must remain disabled.  At
-	 * such times we must not call mutex_lock().
+	 * yest yet working and interrupts must remain disabled.  At
+	 * such times we must yest call mutex_lock().
 	 */
 	if (unlikely(system_state == SYSTEM_BOOTING))
-		return notifier_chain_unregister(&nh->head, n);
+		return yestifier_chain_unregister(&nh->head, n);
 
 	mutex_lock(&nh->mutex);
-	ret = notifier_chain_unregister(&nh->head, n);
+	ret = yestifier_chain_unregister(&nh->head, n);
 	mutex_unlock(&nh->mutex);
 	synchronize_srcu(&nh->srcu);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(srcu_notifier_chain_unregister);
+EXPORT_SYMBOL_GPL(srcu_yestifier_chain_unregister);
 
 /**
- *	__srcu_notifier_call_chain - Call functions in an SRCU notifier chain
- *	@nh: Pointer to head of the SRCU notifier chain
- *	@val: Value passed unmodified to notifier function
- *	@v: Pointer passed unmodified to notifier function
- *	@nr_to_call: See comment for notifier_call_chain.
- *	@nr_calls: See comment for notifier_call_chain
+ *	__srcu_yestifier_call_chain - Call functions in an SRCU yestifier chain
+ *	@nh: Pointer to head of the SRCU yestifier chain
+ *	@val: Value passed unmodified to yestifier function
+ *	@v: Pointer passed unmodified to yestifier function
+ *	@nr_to_call: See comment for yestifier_call_chain.
+ *	@nr_calls: See comment for yestifier_call_chain
  *
- *	Calls each function in a notifier chain in turn.  The functions
+ *	Calls each function in a yestifier chain in turn.  The functions
  *	run in a process context, so they are allowed to block.
  *
- *	If the return value of the notifier can be and'ed
- *	with %NOTIFY_STOP_MASK then srcu_notifier_call_chain()
+ *	If the return value of the yestifier can be and'ed
+ *	with %NOTIFY_STOP_MASK then srcu_yestifier_call_chain()
  *	will return immediately, with the return value of
- *	the notifier function which halted execution.
+ *	the yestifier function which halted execution.
  *	Otherwise the return value is the return value
- *	of the last notifier function called.
+ *	of the last yestifier function called.
  */
-int __srcu_notifier_call_chain(struct srcu_notifier_head *nh,
+int __srcu_yestifier_call_chain(struct srcu_yestifier_head *nh,
 			       unsigned long val, void *v,
 			       int nr_to_call, int *nr_calls)
 {
@@ -462,45 +462,45 @@ int __srcu_notifier_call_chain(struct srcu_notifier_head *nh,
 	int idx;
 
 	idx = srcu_read_lock(&nh->srcu);
-	ret = notifier_call_chain(&nh->head, val, v, nr_to_call, nr_calls);
+	ret = yestifier_call_chain(&nh->head, val, v, nr_to_call, nr_calls);
 	srcu_read_unlock(&nh->srcu, idx);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(__srcu_notifier_call_chain);
+EXPORT_SYMBOL_GPL(__srcu_yestifier_call_chain);
 
-int srcu_notifier_call_chain(struct srcu_notifier_head *nh,
+int srcu_yestifier_call_chain(struct srcu_yestifier_head *nh,
 		unsigned long val, void *v)
 {
-	return __srcu_notifier_call_chain(nh, val, v, -1, NULL);
+	return __srcu_yestifier_call_chain(nh, val, v, -1, NULL);
 }
-EXPORT_SYMBOL_GPL(srcu_notifier_call_chain);
+EXPORT_SYMBOL_GPL(srcu_yestifier_call_chain);
 
 /**
- *	srcu_init_notifier_head - Initialize an SRCU notifier head
- *	@nh: Pointer to head of the srcu notifier chain
+ *	srcu_init_yestifier_head - Initialize an SRCU yestifier head
+ *	@nh: Pointer to head of the srcu yestifier chain
  *
- *	Unlike other sorts of notifier heads, SRCU notifier heads require
+ *	Unlike other sorts of yestifier heads, SRCU yestifier heads require
  *	dynamic initialization.  Be sure to call this routine before
- *	calling any of the other SRCU notifier routines for this head.
+ *	calling any of the other SRCU yestifier routines for this head.
  *
- *	If an SRCU notifier head is deallocated, it must first be cleaned
- *	up by calling srcu_cleanup_notifier_head().  Otherwise the head's
+ *	If an SRCU yestifier head is deallocated, it must first be cleaned
+ *	up by calling srcu_cleanup_yestifier_head().  Otherwise the head's
  *	per-cpu data (used by the SRCU mechanism) will leak.
  */
-void srcu_init_notifier_head(struct srcu_notifier_head *nh)
+void srcu_init_yestifier_head(struct srcu_yestifier_head *nh)
 {
 	mutex_init(&nh->mutex);
 	if (init_srcu_struct(&nh->srcu) < 0)
 		BUG();
 	nh->head = NULL;
 }
-EXPORT_SYMBOL_GPL(srcu_init_notifier_head);
+EXPORT_SYMBOL_GPL(srcu_init_yestifier_head);
 
 #endif /* CONFIG_SRCU */
 
 static ATOMIC_NOTIFIER_HEAD(die_chain);
 
-int notrace notify_die(enum die_val val, const char *str,
+int yestrace yestify_die(enum die_val val, const char *str,
 	       struct pt_regs *regs, long err, int trap, int sig)
 {
 	struct die_args args = {
@@ -512,20 +512,20 @@ int notrace notify_die(enum die_val val, const char *str,
 
 	};
 	RCU_LOCKDEP_WARN(!rcu_is_watching(),
-			   "notify_die called but RCU thinks we're quiescent");
-	return atomic_notifier_call_chain(&die_chain, val, &args);
+			   "yestify_die called but RCU thinks we're quiescent");
+	return atomic_yestifier_call_chain(&die_chain, val, &args);
 }
-NOKPROBE_SYMBOL(notify_die);
+NOKPROBE_SYMBOL(yestify_die);
 
-int register_die_notifier(struct notifier_block *nb)
+int register_die_yestifier(struct yestifier_block *nb)
 {
 	vmalloc_sync_all();
-	return atomic_notifier_chain_register(&die_chain, nb);
+	return atomic_yestifier_chain_register(&die_chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_die_notifier);
+EXPORT_SYMBOL_GPL(register_die_yestifier);
 
-int unregister_die_notifier(struct notifier_block *nb)
+int unregister_die_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&die_chain, nb);
+	return atomic_yestifier_chain_unregister(&die_chain, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_die_notifier);
+EXPORT_SYMBOL_GPL(unregister_die_yestifier);

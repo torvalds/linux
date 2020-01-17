@@ -25,12 +25,12 @@ KSM maintains reverse mapping information for KSM pages in the stable
 tree.
 
 If a KSM page is shared between less than ``max_page_sharing`` VMAs,
-the node of the stable tree that represents such KSM page points to a
+the yesde of the stable tree that represents such KSM page points to a
 list of :c:type:`struct rmap_item` and the ``page->mapping`` of the
-KSM page points to the stable tree node.
+KSM page points to the stable tree yesde.
 
 When the sharing passes this threshold, KSM adds a second dimension to
-the stable tree. The tree node becomes a "chain" that links one or
+the stable tree. The tree yesde becomes a "chain" that links one or
 more "dups". Each "dup" keeps reverse mapping information for a KSM
 page with ``page->mapping`` pointing to that "dup".
 
@@ -41,7 +41,7 @@ that content.
 
 This way the stable tree lookup computational complexity is unaffected
 if compared to an unlimited list of reverse mappings. It is still
-enforced that there cannot be KSM page content duplicates in the
+enforced that there canyest be KSM page content duplicates in the
 stable tree itself.
 
 The deduplication limit enforced by ``max_page_sharing`` is required
@@ -50,37 +50,37 @@ walk has O(N) complexity where N is the number of rmap_items
 (i.e. virtual mappings) that are sharing the page, which is in turn
 capped by ``max_page_sharing``. So this effectively spreads the linear
 O(N) computational complexity from rmap walk context over different
-KSM pages. The ksmd walk over the stable_node "chains" is also O(N),
-but N is the number of stable_node "dups", not the number of
-rmap_items, so it has not a significant impact on ksmd performance. In
-practice the best stable_node "dup" candidate will be kept and found
+KSM pages. The ksmd walk over the stable_yesde "chains" is also O(N),
+but N is the number of stable_yesde "dups", yest the number of
+rmap_items, so it has yest a significant impact on ksmd performance. In
+practice the best stable_yesde "dup" candidate will be kept and found
 at the head of the "dups" list.
 
 High values of ``max_page_sharing`` result in faster memory merging
-(because there will be fewer stable_node dups queued into the
-stable_node chain->hlist to check for pruning) and higher
+(because there will be fewer stable_yesde dups queued into the
+stable_yesde chain->hlist to check for pruning) and higher
 deduplication factor at the expense of slower worst case for rmap
 walks for any KSM page which can happen during swapping, compaction,
 NUMA balancing and page migration.
 
-The ``stable_node_dups/stable_node_chains`` ratio is also affected by the
+The ``stable_yesde_dups/stable_yesde_chains`` ratio is also affected by the
 ``max_page_sharing`` tunable, and an high ratio may indicate fragmentation
-in the stable_node dups, which could be solved by introducing
+in the stable_yesde dups, which could be solved by introducing
 fragmentation algorithms in ksmd which would refile rmap_items from
-one stable_node dup to another stable_node dup, in order to free up
-stable_node "dups" with few rmap_items in them, but that may increase
+one stable_yesde dup to ayesther stable_yesde dup, in order to free up
+stable_yesde "dups" with few rmap_items in them, but that may increase
 the ksmd CPU usage and possibly slowdown the readonly computations on
 the KSM pages of the applications.
 
-The whole list of stable_node "dups" linked in the stable_node
-"chains" is scanned periodically in order to prune stale stable_nodes.
+The whole list of stable_yesde "dups" linked in the stable_yesde
+"chains" is scanned periodically in order to prune stale stable_yesdes.
 The frequency of such scans is defined by
-``stable_node_chains_prune_millisecs`` sysfs tunable.
+``stable_yesde_chains_prune_millisecs`` sysfs tunable.
 
 Reference
 ---------
 .. kernel-doc:: mm/ksm.c
-   :functions: mm_slot ksm_scan stable_node rmap_item
+   :functions: mm_slot ksm_scan stable_yesde rmap_item
 
 --
 Izik Eidus,

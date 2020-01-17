@@ -99,7 +99,7 @@
 #ifdef CONFIG_ARM64_RAS_EXTN
 	hint    #16
 #else
-	nop
+	yesp
 #endif
 	.endm
 
@@ -114,21 +114,21 @@
  * Speculation barrier
  */
 	.macro	sb
-alternative_if_not ARM64_HAS_SB
+alternative_if_yest ARM64_HAS_SB
 	dsb	nsh
 	isb
 alternative_else
 	SB_BARRIER_INSN
-	nop
+	yesp
 alternative_endif
 	.endm
 
 /*
  * NOP sequence
  */
-	.macro	nops, num
+	.macro	yesps, num
 	.rept	\num
-	nop
+	yesp
 	.endr
 	.endm
 
@@ -207,7 +207,7 @@ lr	.req	x30		// link register
 	 * @dst: destination register (32 or 64 bit wide)
 	 * @sym: name of the symbol
 	 * @tmp: optional 64-bit scratch register to be used if <dst> is a
-	 *       32-bit wide register, in which case it cannot be used to hold
+	 *       32-bit wide register, in which case it canyest be used to hold
 	 *       the address
 	 */
 	.macro	ldr_l, dst, sym, tmp=
@@ -239,7 +239,7 @@ lr	.req	x30		// link register
 	.macro adr_this_cpu, dst, sym, tmp
 	adrp	\tmp, \sym
 	add	\dst, \tmp, #:lo12:\sym
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+alternative_if_yest ARM64_HAS_VIRT_HOST_EXTN
 	mrs	\tmp, tpidr_el1
 alternative_else
 	mrs	\tmp, tpidr_el2
@@ -254,7 +254,7 @@ alternative_endif
 	 */
 	.macro ldr_this_cpu dst, sym, tmp
 	adr_l	\dst, \sym
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+alternative_if_yest ARM64_HAS_VIRT_HOST_EXTN
 	mrs	\tmp, tpidr_el1
 alternative_else
 	mrs	\tmp, tpidr_el2
@@ -280,9 +280,9 @@ alternative_endif
  * provide the system wide safe value from arm64_ftr_reg_ctrel0.sys_val
  */
 	.macro	read_ctr, reg
-alternative_if_not ARM64_MISMATCHED_CACHE_TYPE
+alternative_if_yest ARM64_MISMATCHED_CACHE_TYPE
 	mrs	\reg, ctr_el0			// read CTR
-	nop
+	yesp
 alternative_else
 	ldr_l	\reg, arm64_ftr_reg_ctrel0 + ARM64_FTR_SYSVAL
 alternative_endif
@@ -374,7 +374,7 @@ alternative_endif
  * 	Corrupts:	kaddr, size, tmp1, tmp2
  */
 	.macro __dcache_op_workaround_clean_cache, op, kaddr
-alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
+alternative_if_yest ARM64_WORKAROUND_CLEAN_CACHE
 	dc	\op, \kaddr
 alternative_else
 	dc	civac, \kaddr
@@ -437,7 +437,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.macro	reset_pmuserenr_el0, tmpreg
 	mrs	\tmpreg, id_aa64dfr0_el1
 	sbfx	\tmpreg, \tmpreg, #ID_AA64DFR0_PMUVER_SHIFT, #4
-	cmp	\tmpreg, #1			// Skip if no PMU present
+	cmp	\tmpreg, #1			// Skip if yes PMU present
 	b.lt	9000f
 	msr	pmuserenr_el0, xzr		// Disable PMU access from EL0
 9000:
@@ -462,7 +462,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endm
 
 /*
- * Annotate a function as position independent, i.e., safe to be called before
+ * Anyestate a function as position independent, i.e., safe to be called before
  * the kernel virtual mapping is activated.
  */
 #define ENDPIPROC(x)			\
@@ -473,7 +473,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	ENDPROC(x)
 
 /*
- * Annotate a function as being unsuitable for kprobes.
+ * Anyestate a function as being unsuitable for kprobes.
  */
 #ifdef CONFIG_KPROBES
 #define NOKPROBE(x)				\
@@ -531,7 +531,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 /*
  * Offset ttbr1 to allow for 48-bit kernel VAs set with 52-bit PTRS_PER_PGD.
  * orr is used as it can cover the immediate value (and is idempotent).
- * In future this may be nop'ed out when dealing with 52-bit kernel VAs.
+ * In future this may be yesp'ed out when dealing with 52-bit kernel VAs.
  * 	ttbr: Value of ttbr to set, modified.
  */
 	.macro	offset_ttbr1, ttbr, tmp
@@ -547,7 +547,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 /*
  * Perform the reverse of offset_ttbr1.
  * bic is used as it can cover the immediate value and, in future, won't need
- * to be nop'ed out when dealing with 52-bit kernel VAs.
+ * to be yesp'ed out when dealing with 52-bit kernel VAs.
  */
 	.macro	restore_ttbr1, ttbr
 #ifdef CONFIG_ARM64_VA_BITS_52
@@ -661,7 +661,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endif
 	.ifdef		.Lframe_regcount
 	.if		.Lframe_regcount != -1
-	.error		"frame_push/frame_pop may not be nested"
+	.error		"frame_push/frame_pop may yest be nested"
 	.endif
 	.endif
 	.set		.Lframe_regcount, \regcount
@@ -679,7 +679,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 
 	.ifc		\op, ld
 	.if		.Lframe_regcount == -1
-	.error		"frame_push/frame_pop may not be nested"
+	.error		"frame_push/frame_pop may yest be nested"
 	.endif
 	ldp		x29, x30, [sp], #.Lframe_local_offset + .Lframe_extra
 	.set		.Lframe_regcount, -1
@@ -687,7 +687,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endm
 
 /*
- * Check whether to yield to another runnable task from kernel mode NEON code
+ * Check whether to yield to ayesther runnable task from kernel mode NEON code
  * (which runs with preemption disabled).
  *
  * if_will_cond_yield_neon
@@ -700,24 +700,24 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
  * after a yield has been performed. If omitted, execution resumes right after
  * the endif_yield_neon invocation. Note that the entire sequence, including
  * the provided patchup code, will be omitted from the image if CONFIG_PREEMPT
- * is not defined.
+ * is yest defined.
  *
- * As a convenience, in the case where no patchup code is required, the above
+ * As a convenience, in the case where yes patchup code is required, the above
  * sequence may be abbreviated to
  *
  * cond_yield_neon <label>
  *
- * Note that the patchup code does not support assembler directives that change
+ * Note that the patchup code does yest support assembler directives that change
  * the output section, any use of such directives is undefined.
  *
  * The yield itself consists of the following:
  * - Check whether the preempt count is exactly 1 and a reschedule is also
  *   needed. If so, calling of preempt_enable() in kernel_neon_end() will
- *   trigger a reschedule. If it is not the case, yielding is pointless.
+ *   trigger a reschedule. If it is yest the case, yielding is pointless.
  * - Disable and re-enable kernel mode NEON, and branch to the yield fixup
  *   code.
  *
- * This macro sequence may clobber all CPU state that is not guaranteed by the
+ * This macro sequence may clobber all CPU state that is yest guaranteed by the
  * AAPCS to be preserved across an ordinary function call.
  */
 

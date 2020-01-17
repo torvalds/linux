@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techyeslogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -718,7 +718,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 		}
 
 		if (associatedsta == ~0) {
-			netdev_err(dev, "sta required is not associated\n");
+			netdev_err(dev, "sta required is yest associated\n");
 			return -ENOENT;
 		}
 
@@ -1455,7 +1455,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		break;
 
 	default:
-		netdev_err(dev, "Unknown interface type= %d\n", type);
+		netdev_err(dev, "Unkyeswn interface type= %d\n", type);
 		return -EINVAL;
 	}
 
@@ -1734,7 +1734,7 @@ static int get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 	struct wilc_vif *vif = netdev_priv(wdev->netdev);
 	struct wilc *wl = vif->wilc;
 
-	/* If firmware is not started, return. */
+	/* If firmware is yest started, return. */
 	if (!wl->initialized)
 		return -EIO;
 

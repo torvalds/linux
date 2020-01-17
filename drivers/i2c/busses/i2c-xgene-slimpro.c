@@ -205,7 +205,7 @@ static int start_i2c_msg_xfer(struct slimpro_i2c_dev *ctx)
 			return -ETIMEDOUT;
 	}
 
-	/* Check of invalid data or no device */
+	/* Check of invalid data or yes device */
 	if (*ctx->resp_msg == 0xffffffff)
 		return -ENODEV;
 
@@ -457,7 +457,7 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 	cl->dev = &pdev->dev;
 	init_completion(&ctx->rd_complete);
 	cl->tx_tout = MAILBOX_OP_TIMEOUT;
-	cl->knows_txdone = false;
+	cl->kyesws_txdone = false;
 	if (acpi_disabled) {
 		cl->tx_block = true;
 		cl->rx_callback = slimpro_i2c_rx_cb;
@@ -498,13 +498,13 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 		 */
 		cppc_ss = ctx->mbox_chan->con_priv;
 		if (!cppc_ss) {
-			dev_err(&pdev->dev, "PPC subspace not found\n");
+			dev_err(&pdev->dev, "PPC subspace yest found\n");
 			rc = -ENOENT;
 			goto mbox_err;
 		}
 
 		if (!ctx->mbox_chan->mbox->txdone_irq) {
-			dev_err(&pdev->dev, "PCC IRQ not supported\n");
+			dev_err(&pdev->dev, "PCC IRQ yest supported\n");
 			rc = -ENOENT;
 			goto mbox_err;
 		}
@@ -548,7 +548,7 @@ static int xgene_slimpro_i2c_probe(struct platform_device *pdev)
 	adapter->algo = &xgene_slimpro_i2c_algorithm;
 	adapter->class = I2C_CLASS_HWMON;
 	adapter->dev.parent = &pdev->dev;
-	adapter->dev.of_node = pdev->dev.of_node;
+	adapter->dev.of_yesde = pdev->dev.of_yesde;
 	ACPI_COMPANION_SET(&adapter->dev, ACPI_COMPANION(&pdev->dev));
 	i2c_set_adapdata(adapter, ctx);
 	rc = i2c_add_adapter(adapter);

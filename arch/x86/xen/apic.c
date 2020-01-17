@@ -135,7 +135,7 @@ static int xen_x86_32_early_logical_apicid(int cpu)
 }
 #endif
 
-static void xen_noop(void)
+static void xen_yesop(void)
 {
 }
 
@@ -165,7 +165,7 @@ static struct apic xen_pv_apic = {
 	/* .dest_logical      -  default_send_IPI_ use it but we use our own. */
 	.check_apicid_used		= default_check_apicid_used, /* Used on 32-bit */
 
-	.init_apic_ldr			= xen_noop, /* setup_local_APIC calls it */
+	.init_apic_ldr			= xen_yesop, /* setup_local_APIC calls it */
 
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map, /* Used on 32-bit */
 	.setup_apic_routing		= NULL,
@@ -195,7 +195,7 @@ static struct apic xen_pv_apic = {
 
 	.icr_read 			= xen_apic_icr_read,
 	.icr_write 			= xen_apic_icr_write,
-	.wait_icr_idle 			= xen_noop,
+	.wait_icr_idle 			= xen_yesop,
 	.safe_wait_icr_idle 		= xen_safe_apic_wait_icr_idle,
 
 #ifdef CONFIG_X86_32
@@ -216,7 +216,7 @@ static void __init xen_apic_check(void)
 void __init xen_init_apic(void)
 {
 	x86_apic_ops.io_apic_read = xen_io_apic_read;
-	/* On PV guests the APIC CPUID bit is disabled so none of the
+	/* On PV guests the APIC CPUID bit is disabled so yesne of the
 	 * routines end up executing. */
 	if (!xen_initial_domain())
 		apic = &xen_pv_apic;

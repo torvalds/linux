@@ -162,12 +162,12 @@ static int pxa930_trkball_probe(struct platform_device *pdev)
 
 	trkball->pdata = dev_get_platdata(&pdev->dev);
 	if (!trkball->pdata) {
-		dev_err(&pdev->dev, "no platform data defined\n");
+		dev_err(&pdev->dev, "yes platform data defined\n");
 		error = -EINVAL;
 		goto failed;
 	}
 
-	trkball->mmio_base = ioremap_nocache(res->start, resource_size(res));
+	trkball->mmio_base = ioremap_yescache(res->start, resource_size(res));
 	if (!trkball->mmio_base) {
 		dev_err(&pdev->dev, "failed to ioremap registers\n");
 		error = -ENXIO;

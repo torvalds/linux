@@ -35,7 +35,7 @@ static DEFINE_MUTEX(acpi_dma_lock);
  * we use MMIO address and IRQ.
  *
  * Return:
- * 1 on success, 0 when no information is available, or appropriate errno value
+ * 1 on success, 0 when yes information is available, or appropriate erryes value
  * on error.
  */
 static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
@@ -55,7 +55,7 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 	if (ret <= 0)
 		return 0;
 
-	list_for_each_entry(rentry, &resource_list, node) {
+	list_for_each_entry(rentry, &resource_list, yesde) {
 		if (resource_type(rentry->res) == IORESOURCE_MEM)
 			mem = rentry->res->start;
 		else if (resource_type(rentry->res) == IORESOURCE_IRQ)
@@ -64,7 +64,7 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
 
 	acpi_dev_free_resource_list(&resource_list);
 
-	/* Consider initial zero values as resource not found */
+	/* Consider initial zero values as resource yest found */
 	if (mem == 0 && irq == 0)
 		return 0;
 
@@ -105,7 +105,7 @@ static int acpi_dma_parse_resource_group(const struct acpi_csrt_group *grp,
  * @adma:	struct acpi_dma of the given DMA controller
  *
  * CSRT or Core System Resources Table is a proprietary ACPI table
- * introduced by Microsoft. This table can contain devices that are not in
+ * introduced by Microsoft. This table can contain devices that are yest in
  * the system DSDT table. In particular DMA controllers might be described
  * here.
  *
@@ -154,7 +154,7 @@ static void acpi_dma_parse_csrt(struct acpi_device *adev, struct acpi_dma *adma)
  * call.
  *
  * Return:
- * 0 on success or appropriate errno value on error.
+ * 0 on success or appropriate erryes value on error.
  */
 int acpi_dma_controller_register(struct device *dev,
 		struct dma_chan *(*acpi_dma_xlate)
@@ -198,7 +198,7 @@ EXPORT_SYMBOL_GPL(acpi_dma_controller_register);
  * Memory allocated by acpi_dma_controller_register() is freed here.
  *
  * Return:
- * 0 on success or appropriate errno value on error.
+ * 0 on success or appropriate erryes value on error.
  */
 int acpi_dma_controller_free(struct device *dev)
 {
@@ -238,7 +238,7 @@ static void devm_acpi_dma_release(struct device *dev, void *res)
  * acpi_dma_controller_register() for more information.
  *
  * Return:
- * 0 on success or appropriate errno value on error.
+ * 0 on success or appropriate erryes value on error.
  */
 int devm_acpi_dma_controller_register(struct device *dev,
 		struct dma_chan *(*acpi_dma_xlate)
@@ -267,7 +267,7 @@ EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_register);
  * @dev:	device that is unregistering as DMA controller
  *
  * Unregister a DMA controller registered with
- * devm_acpi_dma_controller_register(). Normally this function will not need to
+ * devm_acpi_dma_controller_register(). Normally this function will yest need to
  * be called and the resource management code will ensure that the resource is
  * freed.
  */
@@ -291,7 +291,7 @@ EXPORT_SYMBOL_GPL(devm_acpi_dma_controller_free);
  * found.
  *
  * Return:
- * 0, if no information is avaiable, -1 on mismatch, and 1 otherwise.
+ * 0, if yes information is avaiable, -1 on mismatch, and 1 otherwise.
  */
 static int acpi_dma_update_dma_spec(struct acpi_dma *adma,
 		struct acpi_dma_spec *dma_spec)
@@ -391,7 +391,7 @@ struct dma_chan *acpi_dma_request_slave_chan_by_index(struct device *dev,
 
 	list_for_each_entry(adma, &acpi_dma_list, dma_controllers) {
 		/*
-		 * We are not going to call translation function if slave_id
+		 * We are yest going to call translation function if slave_id
 		 * doesn't fall to the request range.
 		 */
 		found = acpi_dma_update_dma_spec(adma, dma_spec);

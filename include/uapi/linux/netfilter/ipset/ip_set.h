@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /* Copyright (C) 2000-2002 Joakim Axelsson <gozem@linux.nu>
  *                         Patrick Schaaf <bof@bof.de>
  *                         Martin Josefsson <gandalf@wlug.westbo.se>
@@ -66,7 +66,7 @@ enum {
 	IPSET_ATTR_FLAGS,	/* 6: Flags at command level */
 	IPSET_ATTR_DATA,	/* 7: Nested attributes */
 	IPSET_ATTR_ADT,		/* 8: Multiple data containers */
-	IPSET_ATTR_LINENO,	/* 9: Restore lineno */
+	IPSET_ATTR_LINENO,	/* 9: Restore lineyes */
 	IPSET_ATTR_PROTOCOL_MIN, /* 10: Minimal supported version number */
 	IPSET_ATTR_REVISION_MIN	= IPSET_ATTR_PROTOCOL_MIN, /* type rev min */
 	IPSET_ATTR_INDEX,	/* 11: Kernel index of set */
@@ -137,7 +137,7 @@ enum {
 #define IPSET_ATTR_IPADDR_MAX	(__IPSET_ATTR_IPADDR_MAX - 1)
 
 /* Error codes */
-enum ipset_errno {
+enum ipset_erryes {
 	IPSET_ERR_PRIVATE = 4096,
 	IPSET_ERR_PROTOCOL,
 	IPSET_ERR_FIND_TYPE,
@@ -210,7 +210,7 @@ enum ipset_cadt_flags {
 	IPSET_FLAG_CADT_MAX	= 15,
 };
 
-/* The flag bits which correspond to the non-extension create flags */
+/* The flag bits which correspond to the yesn-extension create flags */
 enum ipset_create_flags {
 	IPSET_CREATE_FLAG_BIT_FORCEADD = 0,
 	IPSET_CREATE_FLAG_FORCEADD = (1 << IPSET_CREATE_FLAG_BIT_FORCEADD),

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -17,7 +17,7 @@
 #include <linux/pm.h>
 #include <linux/tick.h>
 #include <linux/random.h>
-#include <linux/user-return-notifier.h>
+#include <linux/user-return-yestifier.h>
 #include <linux/dmi.h>
 #include <linux/utsname.h>
 #include <linux/stackprotector.h>
@@ -48,7 +48,7 @@
 
 /*
  * per-CPU TSS segments. Threads are completely 'soft' on Linux,
- * no more per-task TSS's. The TSS size is kept cacheline-aligned
+ * yes more per-task TSS's. The TSS size is kept cacheline-aligned
  * so they are allowed to end up in the .data..cacheline_aligned
  * section. Since TSS's are completely CPU-local, we want them
  * on exact cacheline boundaries, to eliminate cacheline ping-pong.
@@ -58,7 +58,7 @@ __visible DEFINE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw) = {
 		/*
 		 * .sp0 is only used when entering ring 0 from a lower
 		 * privilege level.  Since the init task never runs anything
-		 * but ring 0 code, there is no need for a valid value here.
+		 * but ring 0 code, there is yes need for a valid value here.
 		 * Poison it.
 		 */
 		.sp0 = (1UL << (BITS_PER_LONG-1)) + 1,
@@ -151,7 +151,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
 	p->thread.sp0 = (unsigned long) (childregs + 1);
 	/*
 	 * Clear all status flags including IF and set fixed bit. 64bit
-	 * does not have this initialization as the frame does not contain
+	 * does yest have this initialization as the frame does yest contain
 	 * flags. The flags consistency (especially vs. AC) is there
 	 * ensured via objtool, which lacks 32bit support.
 	 */
@@ -200,7 +200,7 @@ void disable_TSC(void)
 	preempt_disable();
 	if (!test_and_set_thread_flag(TIF_NOTSC))
 		/*
-		 * Must flip the CPU state synchronously with
+		 * Must flip the CPU state synchroyesusly with
 		 * TIF_NOTSC in the current running context.
 		 */
 		cr4_set_bits(X86_CR4_TSD);
@@ -212,7 +212,7 @@ static void enable_TSC(void)
 	preempt_disable();
 	if (test_and_clear_thread_flag(TIF_NOTSC))
 		/*
-		 * Must flip the CPU state synchronously with
+		 * Must flip the CPU state synchroyesusly with
 		 * TIF_NOTSC in the current running context.
 		 */
 		cr4_clear_bits(X86_CR4_TSD);
@@ -261,7 +261,7 @@ static void disable_cpuid(void)
 	preempt_disable();
 	if (!test_and_set_thread_flag(TIF_NOCPUID)) {
 		/*
-		 * Must flip the CPU state synchronously with
+		 * Must flip the CPU state synchroyesusly with
 		 * TIF_NOCPUID in the current running context.
 		 */
 		set_cpuid_faulting(true);
@@ -274,7 +274,7 @@ static void enable_cpuid(void)
 	preempt_disable();
 	if (test_and_clear_thread_flag(TIF_NOCPUID)) {
 		/*
-		 * Must flip the CPU state synchronously with
+		 * Must flip the CPU state synchroyesusly with
 		 * TIF_NOCPUID in the current running context.
 		 */
 		set_cpuid_faulting(false);
@@ -314,10 +314,10 @@ void arch_setup_new_exec(void)
 	 * PR_SPEC_DISABLE_NOEXEC is used.
 	 */
 	if (test_thread_flag(TIF_SSBD) &&
-	    task_spec_ssb_noexec(current)) {
+	    task_spec_ssb_yesexec(current)) {
 		clear_thread_flag(TIF_SSBD);
 		task_clear_spec_ssb_disable(current);
-		task_clear_spec_ssb_noexec(current);
+		task_clear_spec_ssb_yesexec(current);
 		speculation_ctrl_update(task_thread_info(current)->flags);
 	}
 }
@@ -436,7 +436,7 @@ void speculative_store_bypass_ht_init(void)
 
 	/*
 	 * Shared state setup happens once on the first bringup
-	 * of the CPU. It's not destroyed on CPU hotunplug.
+	 * of the CPU. It's yest destroyed on CPU hotunplug.
 	 */
 	if (st->shared_state)
 		return;
@@ -549,7 +549,7 @@ static __always_inline void __speculation_ctrl_update(unsigned long tifp,
 	/*
 	 * If TIF_SSBD is different, select the proper mitigation
 	 * method. Note that if SSBD mitigation is disabled or permanentely
-	 * enabled this branch can't be taken because nothing can set
+	 * enabled this branch can't be taken because yesthing can set
 	 * TIF_SSBD.
 	 */
 	if (tif_diff & _TIF_SSBD) {
@@ -626,7 +626,7 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p)
 
 	switch_to_bitmap(tifp);
 
-	propagate_user_return_notify(prev_p, next_p);
+	propagate_user_return_yestify(prev_p, next_p);
 
 	if ((tifp & _TIF_BLOCKSTEP || tifn & _TIF_BLOCKSTEP) &&
 	    arch_has_block_step()) {
@@ -752,7 +752,7 @@ void stop_this_cpu(void *dummy)
 static void amd_e400_idle(void)
 {
 	/*
-	 * We cannot use static_cpu_has_bug() here because X86_BUG_AMD_APIC_C1E
+	 * We canyest use static_cpu_has_bug() here because X86_BUG_AMD_APIC_C1E
 	 * gets set after static_cpu_has() places have been converted via
 	 * alternatives.
 	 */
@@ -776,7 +776,7 @@ static void amd_e400_idle(void)
 
 /*
  * Intel Core2 and older machines prefer MWAIT over HALT for C1.
- * We can't rely on cpuidle installing MWAIT, because it will not load
+ * We can't rely on cpuidle installing MWAIT, because it will yest load
  * on systems that support only C1 -- so the boot default must be MWAIT.
  *
  * Some AMD machines are the opposite, they depend on using HALT.
@@ -796,8 +796,8 @@ static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
 }
 
 /*
- * MONITOR/MWAIT with no hints, used for default C1 state. This invokes MWAIT
- * with interrupts enabled and no flags, which is backwards compatible with the
+ * MONITOR/MWAIT with yes hints, used for default C1 state. This invokes MWAIT
+ * with interrupts enabled and yes flags, which is backwards compatible with the
  * original MWAIT implementation.
  */
 static __cpuidle void mwait_idle(void)
@@ -893,9 +893,9 @@ static int __init idle_setup(char *str)
 		 */
 		x86_idle = default_idle;
 		boot_option_idle_override = IDLE_HALT;
-	} else if (!strcmp(str, "nomwait")) {
+	} else if (!strcmp(str, "yesmwait")) {
 		/*
-		 * If the boot option of "idle=nomwait" is added,
+		 * If the boot option of "idle=yesmwait" is added,
 		 * it means that mwait will be disabled for CPU C2/C3
 		 * states. In such case it won't touch the variable
 		 * of boot_option_idle_override.
@@ -955,7 +955,7 @@ unsigned long get_wchan(struct task_struct *p)
 	 * ... IP FP ... IP FP
 	 *
 	 * We need to read FP and IP, so we need to adjust the upper
-	 * bound by another unsigned long.
+	 * bound by ayesther unsigned long.
 	 */
 	top = start + THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;
 	top -= 2 * sizeof(unsigned long);

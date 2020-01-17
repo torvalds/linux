@@ -8,7 +8,7 @@ Required properties:
 - reg: should contain the base physical address and size of the iomuxc
   registers.
 
-Required properties in sub-nodes:
+Required properties in sub-yesdes:
 - fsl,pins: each entry consists of 6 integers and represents the mux and config
   setting for one pin.  The first 5 integers <mux_reg conf_reg input_reg mux_val
   input_val> are specified using a PIN_FUNC_ID macro, which can be found in

@@ -14,7 +14,7 @@
 # Based on the ia64 boot/Makefile.
 #
 
-OBJCOPYFLAGS_Image :=-O binary -R .note -R .note.gnu.build-id -R .comment -S
+OBJCOPYFLAGS_Image :=-O binary -R .yeste -R .yeste.gnu.build-id -R .comment -S
 
 targets := Image Image.gz
 

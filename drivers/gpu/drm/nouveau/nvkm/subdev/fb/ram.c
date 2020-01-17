@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -31,7 +31,7 @@ struct nvkm_vram {
 	struct nvkm_memory memory;
 	struct nvkm_ram *ram;
 	u8 page;
-	struct nvkm_mm_node *mn;
+	struct nvkm_mm_yesde *mn;
 };
 
 static int
@@ -79,12 +79,12 @@ static void *
 nvkm_vram_dtor(struct nvkm_memory *memory)
 {
 	struct nvkm_vram *vram = nvkm_vram(memory);
-	struct nvkm_mm_node *next = vram->mn;
-	struct nvkm_mm_node *node;
+	struct nvkm_mm_yesde *next = vram->mn;
+	struct nvkm_mm_yesde *yesde;
 	mutex_lock(&vram->ram->fb->subdev.mutex);
-	while ((node = next)) {
-		next = node->next;
-		nvkm_mm_free(&vram->ram->vram, &node);
+	while ((yesde = next)) {
+		next = yesde->next;
+		nvkm_mm_free(&vram->ram->vram, &yesde);
 	}
 	mutex_unlock(&vram->ram->fb->subdev.mutex);
 	return vram;
@@ -106,7 +106,7 @@ nvkm_ram_get(struct nvkm_device *device, u8 heap, u8 type, u8 rpage, u64 size,
 {
 	struct nvkm_ram *ram;
 	struct nvkm_mm *mm;
-	struct nvkm_mm_node **node, *r;
+	struct nvkm_mm_yesde **yesde, *r;
 	struct nvkm_vram *vram;
 	u8   page = max(rpage, (u8)NVKM_RAM_MM_SHIFT);
 	u32 align = (1 << page) >> NVKM_RAM_MM_SHIFT;
@@ -127,7 +127,7 @@ nvkm_ram_get(struct nvkm_device *device, u8 heap, u8 type, u8 rpage, u64 size,
 	*pmemory = &vram->memory;
 
 	mutex_lock(&ram->fb->subdev.mutex);
-	node = &vram->mn;
+	yesde = &vram->mn;
 	do {
 		if (back)
 			ret = nvkm_mm_tail(mm, heap, type, max, min, align, &r);
@@ -139,8 +139,8 @@ nvkm_ram_get(struct nvkm_device *device, u8 heap, u8 type, u8 rpage, u64 size,
 			return ret;
 		}
 
-		*node = r;
-		node = &r->next;
+		*yesde = r;
+		yesde = &r->next;
 		max -= r->length;
 	} while (max);
 	mutex_unlock(&ram->fb->subdev.mutex);
@@ -173,7 +173,7 @@ nvkm_ram_ctor(const struct nvkm_ram_func *func, struct nvkm_fb *fb,
 	      enum nvkm_ram_type type, u64 size, struct nvkm_ram *ram)
 {
 	static const char *name[] = {
-		[NVKM_RAM_TYPE_UNKNOWN] = "of unknown memory type",
+		[NVKM_RAM_TYPE_UNKNOWN] = "of unkyeswn memory type",
 		[NVKM_RAM_TYPE_STOLEN ] = "stolen system memory",
 		[NVKM_RAM_TYPE_SGRAM  ] = "SGRAM",
 		[NVKM_RAM_TYPE_SDRAM  ] = "SDRAM",

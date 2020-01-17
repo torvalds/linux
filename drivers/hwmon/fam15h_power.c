@@ -330,7 +330,7 @@ static int fam15h_power_init_attrs(struct pci_dev *pdev,
 	return 0;
 }
 
-static bool should_load_on_this_node(struct pci_dev *f4)
+static bool should_load_on_this_yesde(struct pci_dev *f4)
 {
 	u32 val;
 
@@ -344,7 +344,7 @@ static bool should_load_on_this_node(struct pci_dev *f4)
 
 /*
  * Newer BKDG versions have an updated recommendation on how to properly
- * initialize the running average range (was: 0xE, now: 0x9). This avoids
+ * initialize the running average range (was: 0xE, yesw: 0x9). This avoids
  * counter saturations resulting in bogus power readings.
  * We correct this value ourselves to cope with older BIOSes.
  */
@@ -359,7 +359,7 @@ static void tweak_runavg_range(struct pci_dev *pdev)
 
 	/*
 	 * let this quirk apply only to the current version of the
-	 * northbridge, since future versions may change the behavior
+	 * yesrthbridge, since future versions may change the behavior
 	 */
 	if (!pci_match_id(affected_device, pdev))
 		return;
@@ -404,7 +404,7 @@ static int fam15h_power_init_data(struct pci_dev *f4,
 	data->tdp_to_watts = ((val & 0x3ff) << 6) | ((val >> 10) & 0x3f);
 	tmp *= data->tdp_to_watts;
 
-	/* result not allowed to be >= 256W */
+	/* result yest allowed to be >= 256W */
 	if ((tmp >> 16) >= 256)
 		dev_warn(&f4->dev,
 			 "Bogus value for ProcessorPwrWatts (processor_pwr_watts>=%u)\n",
@@ -456,13 +456,13 @@ static int fam15h_power_probe(struct pci_dev *pdev,
 	int ret;
 
 	/*
-	 * though we ignore every other northbridge, we still have to
-	 * do the tweaking on _each_ node in MCM processors as the counters
+	 * though we igyesre every other yesrthbridge, we still have to
+	 * do the tweaking on _each_ yesde in MCM processors as the counters
 	 * are working hand-in-hand
 	 */
 	tweak_runavg_range(pdev);
 
-	if (!should_load_on_this_node(pdev))
+	if (!should_load_on_this_yesde(pdev))
 		return -ENODEV;
 
 	data = devm_kzalloc(dev, sizeof(struct fam15h_power_data), GFP_KERNEL);

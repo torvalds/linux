@@ -116,7 +116,7 @@ struct s3c_pcm_info {
 
 	unsigned int sclk_per_fs;
 
-	/* Whether to keep PCMSCLK enabled even when idle(no active xfer) */
+	/* Whether to keep PCMSCLK enabled even when idle(yes active xfer) */
 	unsigned int idleclk;
 
 	struct clk	*pclk;

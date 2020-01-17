@@ -3,7 +3,7 @@
  * Copyright (C)2006 USAGI/WIDE Project
  *
  * Author:
- * 	Kazunori Miyazawa <miyazawa@linux-ipv6.org>
+ * 	Kazuyesri Miyazawa <miyazawa@linux-ipv6.org>
  */
 
 #include <crypto/internal/hash.h>

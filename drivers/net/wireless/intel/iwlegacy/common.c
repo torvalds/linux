@@ -74,7 +74,7 @@ _il_grab_nic_access(struct il_priv *il)
 	/*
 	 * These bits say the device is running, and should keep running for
 	 * at least a short while (at least as long as MAC_ACCESS_REQ stays 1),
-	 * but they do not indicate that embedded SRAM is restored yet;
+	 * but they do yest indicate that embedded SRAM is restored yet;
 	 * 3945 and 4965 have volatile SRAM, and must save/restore contents
 	 * to/from host DRAM when sleeping/waking for power-saving.
 	 * Each direction takes approximately 1/4 millisecond; with this
@@ -267,10 +267,10 @@ il_send_cmd_async(struct il_priv *il, struct il_host_cmd *cmd)
 
 	BUG_ON(!(cmd->flags & CMD_ASYNC));
 
-	/* An asynchronous command can not expect an SKB to be set. */
+	/* An asynchroyesus command can yest expect an SKB to be set. */
 	BUG_ON(cmd->flags & CMD_WANT_SKB);
 
-	/* Assign a generic callback if one is not provided */
+	/* Assign a generic callback if one is yest provided */
 	if (!cmd->callback)
 		cmd->callback = il_generic_cmd_callback;
 
@@ -296,7 +296,7 @@ il_send_cmd_sync(struct il_priv *il, struct il_host_cmd *cmd)
 
 	BUG_ON(cmd->flags & CMD_ASYNC);
 
-	/* A synchronous command can not have a callback set. */
+	/* A synchroyesus command can yest have a callback set. */
 	BUG_ON(cmd->callback);
 
 	D_INFO("Attempting to send sync command %s\n",
@@ -602,13 +602,13 @@ EXPORT_SYMBOL(il_leds_exit);
  * band_2
  *
  * A value of 0xff stored in the channel_map indicates that the channel
- * is not supported by the hardware at all.
+ * is yest supported by the hardware at all.
  *
- * A value of 0xfe in the channel_map indicates that the channel is not
+ * A value of 0xfe in the channel_map indicates that the channel is yest
  * valid for Tx with the current hardware.  This means that
- * while the system can tune and receive on a given channel, it may not
+ * while the system can tune and receive on a given channel, it may yest
  * be able to associate or transmit any frames on that
- * channel.  There is no corresponding channel information for that
+ * channel.  There is yes corresponding channel information for that
  * entry.
  *
  *********************************************************************/
@@ -690,7 +690,7 @@ EXPORT_SYMBOL(il_eeprom_query16);
  *
  * Load the EEPROM contents from adapter into il->eeprom
  *
- * NOTE:  This routine uses the non-debug IO access functions.
+ * NOTE:  This routine uses the yesn-debug IO access functions.
  */
 int
 il_eeprom_init(struct il_priv *il)
@@ -714,7 +714,7 @@ il_eeprom_init(struct il_priv *il)
 
 	ret = il_eeprom_verify_signature(il);
 	if (ret < 0) {
-		IL_ERR("EEPROM not found, EEPROM_GP=0x%08x\n", gp);
+		IL_ERR("EEPROM yest found, EEPROM_GP=0x%08x\n", gp);
 		ret = -ENOENT;
 		goto err;
 	}
@@ -839,7 +839,7 @@ il_init_band_reference(const struct il_priv *il, int eep_band,
 /**
  * il_mod_ht40_chan_info - Copy ht40 channel info into driver's il.
  *
- * Does not set up a command, or touch hardware.
+ * Does yest set up a command, or touch hardware.
  */
 static int
 il_mod_ht40_chan_info(struct il_priv *il, enum nl80211_band band, u16 channel,
@@ -862,7 +862,7 @@ il_mod_ht40_chan_info(struct il_priv *il, enum nl80211_band band, u16 channel,
 		 CHECK_AND_PRINT(DFS), eeprom_ch->flags,
 		 eeprom_ch->max_power_avg,
 		 ((eeprom_ch->flags & EEPROM_CHANNEL_IBSS) &&
-		  !(eeprom_ch->flags & EEPROM_CHANNEL_RADAR)) ? "" : "not ");
+		  !(eeprom_ch->flags & EEPROM_CHANNEL_RADAR)) ? "" : "yest ");
 
 	ch_info->ht40_eeprom = *eeprom_ch;
 	ch_info->ht40_max_power_avg = eeprom_ch->max_power_avg;
@@ -907,7 +907,7 @@ il_init_channel_map(struct il_priv *il)
 	    kcalloc(il->channel_count, sizeof(struct il_channel_info),
 		    GFP_KERNEL);
 	if (!il->channel_info) {
-		IL_ERR("Could not allocate channel_info\n");
+		IL_ERR("Could yest allocate channel_info\n");
 		il->channel_count = 0;
 		return -ENOMEM;
 	}
@@ -936,7 +936,7 @@ il_init_channel_map(struct il_priv *il)
 			/* Copy the run-time flags so they are there even on
 			 * invalid channels */
 			ch_info->flags = eeprom_ch_info[ch].flags;
-			/* First write that ht40 is not enabled, and then enable
+			/* First write that ht40 is yest enabled, and then enable
 			 * one by one */
 			ch_info->ht40_extension_channel =
 			    IEEE80211_CHAN_NO_HT40;
@@ -972,7 +972,7 @@ il_init_channel_map(struct il_priv *il)
 				   flags & EEPROM_CHANNEL_IBSS) &&
 				  !(eeprom_ch_info[ch].
 				    flags & EEPROM_CHANNEL_RADAR)) ? "" :
-				 "not ");
+				 "yest ");
 
 			ch_info++;
 		}
@@ -1055,7 +1055,7 @@ il_get_channel_info(const struct il_priv *il, enum nl80211_band band,
 EXPORT_SYMBOL(il_get_channel_info);
 
 /*
- * Setting power level allows the card to go to sleep when not busy.
+ * Setting power level allows the card to go to sleep when yest busy.
  *
  * We calculate a sleep command based on the required latency, which
  * we get from mac80211.
@@ -1077,7 +1077,7 @@ il_build_powertable_cmd(struct il_priv *il, struct il_powertable_cmd *cmd)
 		SLP_VEC(2, 4, 7, 10, 10),
 		SLP_VEC(4, 7, 10, 10, 0xFF)
 	};
-	int i, dtim_period, no_dtim;
+	int i, dtim_period, yes_dtim;
 	u32 max_sleep;
 	bool skip;
 
@@ -1086,7 +1086,7 @@ il_build_powertable_cmd(struct il_priv *il, struct il_powertable_cmd *cmd)
 	if (il->power_data.pci_pm)
 		cmd->flags |= IL_POWER_PCI_PM_MSK;
 
-	/* if no Power Save, we are done */
+	/* if yes Power Save, we are done */
 	if (il->power_data.ps_disabled)
 		return;
 
@@ -1101,20 +1101,20 @@ il_build_powertable_cmd(struct il_priv *il, struct il_powertable_cmd *cmd)
 
 	if (dtim_period <= 2) {
 		memcpy(cmd->sleep_interval, interval[0], sizeof(interval[0]));
-		no_dtim = 2;
+		yes_dtim = 2;
 	} else if (dtim_period <= 10) {
 		memcpy(cmd->sleep_interval, interval[1], sizeof(interval[1]));
-		no_dtim = 2;
+		yes_dtim = 2;
 	} else {
 		memcpy(cmd->sleep_interval, interval[2], sizeof(interval[2]));
-		no_dtim = 0;
+		yes_dtim = 0;
 	}
 
 	if (dtim_period == 0) {
 		dtim_period = 1;
 		skip = false;
 	} else {
-		skip = !!no_dtim;
+		skip = !!yes_dtim;
 	}
 
 	if (skip) {
@@ -1162,9 +1162,9 @@ il_power_set_mode(struct il_priv *il, struct il_powertable_cmd *cmd, bool force)
 
 	lockdep_assert_held(&il->mutex);
 
-	/* Don't update the RX chain when chain noise calibration is running */
-	update_chains = il->chain_noise_data.state == IL_CHAIN_NOISE_DONE ||
-	    il->chain_noise_data.state == IL_CHAIN_NOISE_ALIVE;
+	/* Don't update the RX chain when chain yesise calibration is running */
+	update_chains = il->chain_yesise_data.state == IL_CHAIN_NOISE_DONE ||
+	    il->chain_yesise_data.state == IL_CHAIN_NOISE_ALIVE;
 
 	if (!memcmp(&il->power_data.sleep_cmd, cmd, sizeof(*cmd)) && !force)
 		return 0;
@@ -1190,9 +1190,9 @@ il_power_set_mode(struct il_priv *il, struct il_powertable_cmd *cmd, bool force)
 		if (il->ops->update_chain_flags && update_chains)
 			il->ops->update_chain_flags(il);
 		else if (il->ops->update_chain_flags)
-			D_POWER("Cannot update the power, chain noise "
+			D_POWER("Canyest update the power, chain yesise "
 				"calibration running: %d\n",
-				il->chain_noise_data.state);
+				il->chain_yesise_data.state);
 
 		memcpy(&il->power_data.sleep_cmd, cmd, sizeof(*cmd));
 	} else
@@ -1228,7 +1228,7 @@ il_power_initialize(struct il_priv *il)
 EXPORT_SYMBOL(il_power_initialize);
 
 /* For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
- * sending probe req.  This should be set long enough to hear probe responses
+ * sending probe req.  This should be set long eyesugh to hear probe responses
  * from more than one AP.  */
 #define IL_ACTIVE_DWELL_TIME_24    (30)	/* all times in msec */
 #define IL_ACTIVE_DWELL_TIME_52    (20)
@@ -1254,8 +1254,8 @@ il_send_scan_abort(struct il_priv *il)
 		.flags = CMD_WANT_SKB,
 	};
 
-	/* Exit instantly with error when device is not ready
-	 * to receive scan abort command or it does not perform
+	/* Exit instantly with error when device is yest ready
+	 * to receive scan abort command or it does yest perform
 	 * hardware scan currently */
 	if (!test_bit(S_READY, &il->status) ||
 	    !test_bit(S_GEO_CONFIGURED, &il->status) ||
@@ -1272,9 +1272,9 @@ il_send_scan_abort(struct il_priv *il)
 	if (pkt->u.status != CAN_ABORT_STATUS) {
 		/* The scan abort will return 1 for success or
 		 * 2 for "failure".  A failure condition can be
-		 * due to simply not being in an active scan which
+		 * due to simply yest being in an active scan which
 		 * can occur if we send the scan abort before we
-		 * the microcode has notified us that a scan is
+		 * the microcode has yestified us that a scan is
 		 * completed. */
 		D_SCAN("SCAN_ABORT ret %d.\n", pkt->u.status);
 		ret = -EIO;
@@ -1307,7 +1307,7 @@ il_force_scan_end(struct il_priv *il)
 	lockdep_assert_held(&il->mutex);
 
 	if (!test_bit(S_SCANNING, &il->status)) {
-		D_SCAN("Forcing scan end while not scanning\n");
+		D_SCAN("Forcing scan end while yest scanning\n");
 		return;
 	}
 
@@ -1387,10 +1387,10 @@ il_hdl_scan(struct il_priv *il, struct il_rx_buf *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
-	struct il_scanreq_notification *notif =
-	    (struct il_scanreq_notification *)pkt->u.raw;
+	struct il_scanreq_yestification *yestif =
+	    (struct il_scanreq_yestification *)pkt->u.raw;
 
-	D_SCAN("Scan request status = 0x%x\n", notif->status);
+	D_SCAN("Scan request status = 0x%x\n", yestif->status);
 #endif
 }
 
@@ -1399,13 +1399,13 @@ static void
 il_hdl_scan_start(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
-	struct il_scanstart_notification *notif =
-	    (struct il_scanstart_notification *)pkt->u.raw;
-	il->scan_start_tsf = le32_to_cpu(notif->tsf_low);
+	struct il_scanstart_yestification *yestif =
+	    (struct il_scanstart_yestification *)pkt->u.raw;
+	il->scan_start_tsf = le32_to_cpu(yestif->tsf_low);
 	D_SCAN("Scan start: " "%d [802.11%s] "
-	       "(TSF: 0x%08X:%08X) - %d (beacon timer %u)\n", notif->channel,
-	       notif->band ? "bg" : "a", le32_to_cpu(notif->tsf_high),
-	       le32_to_cpu(notif->tsf_low), notif->status, notif->beacon_timer);
+	       "(TSF: 0x%08X:%08X) - %d (beacon timer %u)\n", yestif->channel,
+	       yestif->band ? "bg" : "a", le32_to_cpu(yestif->tsf_high),
+	       le32_to_cpu(yestif->tsf_low), yestif->status, yestif->beacon_timer);
 }
 
 /* Service N_SCAN_RESULTS (0x83) */
@@ -1414,14 +1414,14 @@ il_hdl_scan_results(struct il_priv *il, struct il_rx_buf *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
-	struct il_scanresults_notification *notif =
-	    (struct il_scanresults_notification *)pkt->u.raw;
+	struct il_scanresults_yestification *yestif =
+	    (struct il_scanresults_yestification *)pkt->u.raw;
 
 	D_SCAN("Scan ch.res: " "%d [802.11%s] " "(TSF: 0x%08X:%08X) - %d "
-	       "elapsed=%lu usec\n", notif->channel, notif->band ? "bg" : "a",
-	       le32_to_cpu(notif->tsf_high), le32_to_cpu(notif->tsf_low),
-	       le32_to_cpu(notif->stats[0]),
-	       le32_to_cpu(notif->tsf_low) - il->scan_start_tsf);
+	       "elapsed=%lu usec\n", yestif->channel, yestif->band ? "bg" : "a",
+	       le32_to_cpu(yestif->tsf_high), le32_to_cpu(yestif->tsf_low),
+	       le32_to_cpu(yestif->stats[0]),
+	       le32_to_cpu(yestif->tsf_low) - il->scan_start_tsf);
 #endif
 }
 
@@ -1432,14 +1432,14 @@ il_hdl_scan_complete(struct il_priv *il, struct il_rx_buf *rxb)
 
 #ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
-	struct il_scancomplete_notification *scan_notif = (void *)pkt->u.raw;
+	struct il_scancomplete_yestification *scan_yestif = (void *)pkt->u.raw;
 #endif
 
 	D_SCAN("Scan complete: %d channels (TSF 0x%08X:%08X) - %d\n",
-	       scan_notif->scanned_channels, scan_notif->tsf_low,
-	       scan_notif->tsf_high, scan_notif->status);
+	       scan_yestif->scanned_channels, scan_yestif->tsf_low,
+	       scan_yestif->tsf_high, scan_yestif->status);
 
-	/* The HW is no longer scanning */
+	/* The HW is yes longer scanning */
 	clear_bit(S_SCAN_HW, &il->status);
 
 	D_SCAN("Scan on %sGHz took %dms\n",
@@ -1523,7 +1523,7 @@ il_scan_initiate(struct il_priv *il, struct ieee80211_vif *vif)
 	cancel_delayed_work(&il->scan_check);
 
 	if (!il_is_ready_rf(il)) {
-		IL_WARN("Request scan called when driver not ready.\n");
+		IL_WARN("Request scan called when driver yest ready.\n");
 		return -EIO;
 	}
 
@@ -1563,7 +1563,7 @@ il_mac_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int ret;
 
 	if (req->n_channels == 0) {
-		IL_ERR("Can not scan on no channels.\n");
+		IL_ERR("Can yest scan on yes channels.\n");
 		return -EINVAL;
 	}
 
@@ -1599,7 +1599,7 @@ il_bg_scan_check(struct work_struct *data)
 
 	D_SCAN("Scan check work\n");
 
-	/* Since we are here firmware does not finish scan and
+	/* Since we are here firmware does yest finish scan and
 	 * most likely is in bad shape, so we don't bother to
 	 * send abort command, just force scan complete to mac80211 */
 	mutex_lock(&il->mutex);
@@ -1618,7 +1618,7 @@ il_fill_probe_req(struct il_priv *il, struct ieee80211_mgmt *frame,
 	int len = 0;
 	u8 *pos = NULL;
 
-	/* Make sure there is enough space for the probe request,
+	/* Make sure there is eyesugh space for the probe request,
 	 * two mandatory IEs and the data */
 	left -= 24;
 	if (left < 0)
@@ -1663,8 +1663,8 @@ il_bg_abort_scan(struct work_struct *work)
 
 	D_SCAN("Abort scan work\n");
 
-	/* We keep scan_check work queued in case when firmware will not
-	 * report back scan completed notification */
+	/* We keep scan_check work queued in case when firmware will yest
+	 * report back scan completed yestification */
 	mutex_lock(&il->mutex);
 	il_scan_cancel_timeout(il, 200);
 	mutex_unlock(&il->mutex);
@@ -1699,8 +1699,8 @@ out_settings:
 		goto out;
 
 	/*
-	 * We do not commit power settings while scan is pending,
-	 * do it now if the settings changed.
+	 * We do yest commit power settings while scan is pending,
+	 * do it yesw if the settings changed.
 	 */
 	il_power_set_mode(il, &il->power_data.sleep_cmd_next, false);
 	il_set_tx_power(il, il->tx_power_next, false);
@@ -1740,7 +1740,7 @@ il_sta_ucode_activate(struct il_priv *il, u8 sta_id)
 {
 
 	if (!(il->stations[sta_id].used & IL_STA_DRIVER_ACTIVE))
-		IL_ERR("ACTIVATE a non DRIVER active station id %u addr %pM\n",
+		IL_ERR("ACTIVATE a yesn DRIVER active station id %u addr %pM\n",
 		       sta_id, il->stations[sta_id].sta.sta.addr);
 
 	if (il->stations[sta_id].used & IL_STA_UCODE_ACTIVE) {
@@ -1778,14 +1778,14 @@ il_process_add_sta_resp(struct il_priv *il, struct il_addsta_cmd *addsta,
 		ret = 0;
 		break;
 	case ADD_STA_NO_ROOM_IN_TBL:
-		IL_ERR("Adding station %d failed, no room in table.\n", sta_id);
+		IL_ERR("Adding station %d failed, yes room in table.\n", sta_id);
 		break;
 	case ADD_STA_NO_BLOCK_ACK_RESOURCE:
-		IL_ERR("Adding station %d failed, no block ack resource.\n",
+		IL_ERR("Adding station %d failed, yes block ack resource.\n",
 		       sta_id);
 		break;
 	case ADD_STA_MODIFY_NON_EXIST_STA:
-		IL_ERR("Attempting to modify non-existing station %d\n",
+		IL_ERR("Attempting to modify yesn-existing station %d\n",
 		       sta_id);
 		break;
 	default:
@@ -1801,9 +1801,9 @@ il_process_add_sta_resp(struct il_priv *il, struct il_addsta_cmd *addsta,
 	/*
 	 * XXX: The MAC address in the command buffer is often changed from
 	 * the original sent to the device. That is, the MAC address
-	 * written to the command buffer often is not the same MAC address
+	 * written to the command buffer often is yest the same MAC address
 	 * read from the command buffer when the command returns. This
-	 * issue has not yet been resolved and this debugging is left to
+	 * issue has yest yet been resolved and this debugging is left to
 	 * observe the problem.
 	 */
 	D_INFO("%s station according to cmd buffer %pM\n",
@@ -1837,7 +1837,7 @@ il_send_add_sta(struct il_priv *il, struct il_addsta_cmd *sta, u8 flags)
 	};
 	u8 sta_id __maybe_unused = sta->sta.sta_id;
 
-	D_INFO("Adding sta %u (%pM) %ssynchronously\n", sta_id, sta->sta.addr,
+	D_INFO("Adding sta %u (%pM) %ssynchroyesusly\n", sta_id, sta->sta.addr,
 	       flags & CMD_ASYNC ? "a" : "");
 
 	if (flags & CMD_ASYNC)
@@ -1952,9 +1952,9 @@ il_prep_station(struct il_priv *il, const u8 *addr, bool is_ap,
 		return sta_id;
 
 	/*
-	 * uCode is not able to deal with multiple requests to add a
-	 * station. Keep track if one is in progress so that we do not send
-	 * another.
+	 * uCode is yest able to deal with multiple requests to add a
+	 * station. Keep track if one is in progress so that we do yest send
+	 * ayesther.
 	 */
 	if (il->stations[sta_id].used & IL_STA_UCODE_INPROGRESS) {
 		D_INFO("STA %d already in process of being added.\n", sta_id);
@@ -1964,7 +1964,7 @@ il_prep_station(struct il_priv *il, const u8 *addr, bool is_ap,
 	if ((il->stations[sta_id].used & IL_STA_DRIVER_ACTIVE) &&
 	    (il->stations[sta_id].used & IL_STA_UCODE_ACTIVE) &&
 	    ether_addr_equal(il->stations[sta_id].sta.sta.addr, addr)) {
-		D_ASSOC("STA %d (%pM) already added, not adding again.\n",
+		D_ASSOC("STA %d (%pM) already added, yest adding again.\n",
 			sta_id, addr);
 		return sta_id;
 	}
@@ -2022,9 +2022,9 @@ il_add_station_common(struct il_priv *il, const u8 *addr, bool is_ap,
 	}
 
 	/*
-	 * uCode is not able to deal with multiple requests to add a
-	 * station. Keep track if one is in progress so that we do not send
-	 * another.
+	 * uCode is yest able to deal with multiple requests to add a
+	 * station. Keep track if one is in progress so that we do yest send
+	 * ayesther.
 	 */
 	if (il->stations[sta_id].used & IL_STA_UCODE_INPROGRESS) {
 		D_INFO("STA %d already in process of being added.\n", sta_id);
@@ -2034,7 +2034,7 @@ il_add_station_common(struct il_priv *il, const u8 *addr, bool is_ap,
 
 	if ((il->stations[sta_id].used & IL_STA_DRIVER_ACTIVE) &&
 	    (il->stations[sta_id].used & IL_STA_UCODE_ACTIVE)) {
-		D_ASSOC("STA %d (%pM) already added, not adding again.\n",
+		D_ASSOC("STA %d (%pM) already added, yest adding again.\n",
 			sta_id, addr);
 		spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 		return -EEXIST;
@@ -2068,11 +2068,11 @@ EXPORT_SYMBOL(il_add_station_common);
 static void
 il_sta_ucode_deactivate(struct il_priv *il, u8 sta_id)
 {
-	/* Ucode must be active and driver must be non active */
+	/* Ucode must be active and driver must be yesn active */
 	if ((il->stations[sta_id].
 	     used & (IL_STA_UCODE_ACTIVE | IL_STA_DRIVER_ACTIVE)) !=
 	    IL_STA_UCODE_ACTIVE)
-		IL_ERR("removed non active STA %u\n", sta_id);
+		IL_ERR("removed yesn active STA %u\n", sta_id);
 
 	il->stations[sta_id].used &= ~IL_STA_UCODE_ACTIVE;
 
@@ -2137,7 +2137,7 @@ il_send_remove_station(struct il_priv *il, const u8 * addr, int sta_id,
 }
 
 /**
- * il_remove_station - Remove driver's knowledge of station.
+ * il_remove_station - Remove driver's kyeswledge of station.
  */
 int
 il_remove_station(struct il_priv *il, const u8 sta_id, const u8 * addr)
@@ -2145,7 +2145,7 @@ il_remove_station(struct il_priv *il, const u8 sta_id, const u8 * addr)
 	unsigned long flags;
 
 	if (!il_is_ready(il)) {
-		D_INFO("Unable to remove station %pM, device not ready.\n",
+		D_INFO("Unable to remove station %pM, device yest ready.\n",
 		       addr);
 		/*
 		 * It is typical for stations to be removed when we are
@@ -2163,12 +2163,12 @@ il_remove_station(struct il_priv *il, const u8 sta_id, const u8 * addr)
 	spin_lock_irqsave(&il->sta_lock, flags);
 
 	if (!(il->stations[sta_id].used & IL_STA_DRIVER_ACTIVE)) {
-		D_INFO("Removing %pM but non DRIVER active\n", addr);
+		D_INFO("Removing %pM but yesn DRIVER active\n", addr);
 		goto out_err;
 	}
 
 	if (!(il->stations[sta_id].used & IL_STA_UCODE_ACTIVE)) {
-		D_INFO("Removing %pM but non UCODE active\n", addr);
+		D_INFO("Removing %pM but yesn UCODE active\n", addr);
 		goto out_err;
 	}
 
@@ -2225,9 +2225,9 @@ il_clear_ucode_stations(struct il_priv *il)
 EXPORT_SYMBOL(il_clear_ucode_stations);
 
 /**
- * il_restore_stations() - Restore driver known stations to device
+ * il_restore_stations() - Restore driver kyeswn stations to device
  *
- * All stations considered active by driver, but not present in ucode, is
+ * All stations considered active by driver, but yest present in ucode, is
  * restored.
  *
  * Function sleeps.
@@ -2244,11 +2244,11 @@ il_restore_stations(struct il_priv *il)
 	bool send_lq;
 
 	if (!il_is_ready(il)) {
-		D_INFO("Not ready yet, not restoring any stations.\n");
+		D_INFO("Not ready yet, yest restoring any stations.\n");
 		return;
 	}
 
-	D_ASSOC("Restoring all known stations ... start.\n");
+	D_ASSOC("Restoring all kyeswn stations ... start.\n");
 	spin_lock_irqsave(&il->sta_lock, flags_spin);
 	for (i = 0; i < il->hw_params.max_stations; i++) {
 		if ((il->stations[i].used & IL_STA_DRIVER_ACTIVE) &&
@@ -2296,10 +2296,10 @@ il_restore_stations(struct il_priv *il)
 
 	spin_unlock_irqrestore(&il->sta_lock, flags_spin);
 	if (!found)
-		D_INFO("Restoring all known stations"
-		       " .... no stations to be restored.\n");
+		D_INFO("Restoring all kyeswn stations"
+		       " .... yes stations to be restored.\n");
 	else
-		D_INFO("Restoring all known stations" " .... complete.\n");
+		D_INFO("Restoring all kyeswn stations" " .... complete.\n");
 }
 EXPORT_SYMBOL(il_restore_stations);
 
@@ -2361,8 +2361,8 @@ il_dump_lq_cmd(struct il_priv *il, struct il_link_quality_cmd *lq)
  *
  * It sometimes happens when a HT rate has been in use and we
  * loose connectivity with AP then mac80211 will first tell us that the
- * current channel is not HT anymore before removing the station. In such a
- * scenario the RXON flags will be updated to indicate we are not
+ * current channel is yest HT anymore before removing the station. In such a
+ * scenario the RXON flags will be updated to indicate we are yest
  * communicating HT anymore, but the LQ command may still contain HT rates.
  * Test for this to prevent driver from sending LQ command between the time
  * RXON flags are updated and when LQ command is updated.
@@ -2375,7 +2375,7 @@ il_is_lq_table_valid(struct il_priv *il, struct il_link_quality_cmd *lq)
 	if (il->ht.enabled)
 		return true;
 
-	D_INFO("Channel %u is not an HT channel\n", il->active.channel);
+	D_INFO("Channel %u is yest an HT channel\n", il->active.channel);
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++) {
 		if (le32_to_cpu(lq->rs_table[i].rate_n_flags) & RATE_MCS_HT_MSK) {
 			D_INFO("idx %d of LQ expects HT channel\n", i);
@@ -2470,7 +2470,7 @@ EXPORT_SYMBOL(il_mac_sta_remove);
  *
  * Driver allocates a circular buffer of Receive Buffer Descriptors (RBDs),
  * each of which point to Receive Buffers to be filled by the NIC.  These get
- * used not only for Rx frames, but for any command response or notification
+ * used yest only for Rx frames, but for any command response or yestification
  * from the NIC.  The driver and NIC manage the Rx buffers by means
  * of idxes into the circular buffer.
  *
@@ -2478,14 +2478,14 @@ EXPORT_SYMBOL(il_mac_sta_remove);
  * The host/firmware share two idx registers for managing the Rx buffers.
  *
  * The READ idx maps to the first position that the firmware may be writing
- * to -- the driver can read up to (but not including) this position and get
+ * to -- the driver can read up to (but yest including) this position and get
  * good data.
  * The READ idx is managed by the firmware once the card is enabled.
  *
  * The WRITE idx maps to the last position the driver has read from -- the
  * position preceding WRITE is the last slot the firmware can place a packet.
  *
- * The queue is empty (no good data) if WRITE = READ - 1, and is full if
+ * The queue is empty (yes good data) if WRITE = READ - 1, and is full if
  * WRITE = READ.
  *
  * During initialization, the host sets up the READ queue position to the first
@@ -2506,9 +2506,9 @@ EXPORT_SYMBOL(il_mac_sta_remove);
  * + A received packet is processed and handed to the kernel network stack,
  *   detached from the iwl->rxq.  The driver 'processed' idx is updated.
  * + The Host/Firmware iwl->rxq is replenished at tasklet time from the rx_free
- *   list. If there are no allocated buffers in iwl->rxq->rx_free, the READ
- *   IDX is not incremented and iwl->status(RX_STALLED) is set.  If there
- *   were enough free buffers and RX_STALLED is set it is cleared.
+ *   list. If there are yes allocated buffers in iwl->rxq->rx_free, the READ
+ *   IDX is yest incremented and iwl->status(RX_STALLED) is set.  If there
+ *   were eyesugh free buffers and RX_STALLED is set it is cleared.
  *
  *
  * Driver sequence:
@@ -2540,7 +2540,7 @@ il_rx_queue_space(const struct il_rx_queue *q)
 	int s = q->read - q->write;
 	if (s <= 0)
 		s += RX_QUEUE_SIZE;
-	/* keep some buffer to not confuse full and empty queue */
+	/* keep some buffer to yest confuse full and empty queue */
 	s -= 2;
 	if (s < 0)
 		s = 0;
@@ -2619,7 +2619,7 @@ il_rx_queue_alloc(struct il_priv *il)
 		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
 
 	/* Set us so that we have processed and used all buffers, but have
-	 * not restocked the Rx queue with fresh buffers */
+	 * yest restocked the Rx queue with fresh buffers */
 	rxq->read = rxq->write = 0;
 	rxq->write_actual = 0;
 	rxq->free_count = 0;
@@ -2638,7 +2638,7 @@ void
 il_hdl_spectrum_measurement(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
-	struct il_spectrum_notification *report = &(pkt->u.spectrum_notif);
+	struct il_spectrum_yestification *report = &(pkt->u.spectrum_yestif);
 
 	if (!report->state) {
 		D_11H("Spectrum Measure Notification: Start\n");
@@ -2651,7 +2651,7 @@ il_hdl_spectrum_measurement(struct il_priv *il, struct il_rx_buf *rxb)
 EXPORT_SYMBOL(il_hdl_spectrum_measurement);
 
 /*
- * returns non-zero if packet should be dropped
+ * returns yesn-zero if packet should be dropped
  */
 int
 il_set_decrypted_flag(struct il_priv *il, struct ieee80211_hdr *hdr,
@@ -2733,9 +2733,9 @@ il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq)
 		il_wr(il, HBUS_TARG_WRPTR, txq->q.write_ptr | (txq_id << 8));
 
 		/*
-		 * else not in power-save mode,
+		 * else yest in power-save mode,
 		 * uCode will never sleep when we're
-		 * trying to tx (during RFKILL, we're not trying to tx).
+		 * trying to tx (during RFKILL, we're yest trying to tx).
 		 */
 	} else
 		_il_wr(il, HBUS_TARG_WRPTR, txq->q.write_ptr | (txq_id << 8));
@@ -2768,7 +2768,7 @@ EXPORT_SYMBOL(il_tx_queue_unmap);
  *
  * Empty queue by removing and destroying all BD's.
  * Free all buffers.
- * 0-fill, but do not free "txq" descriptor structure.
+ * 0-fill, but do yest free "txq" descriptor structure.
  */
 void
 il_tx_queue_free(struct il_priv *il, int txq_id)
@@ -2849,7 +2849,7 @@ EXPORT_SYMBOL(il_cmd_queue_unmap);
  *
  * Empty queue by removing and destroying all BD's.
  * Free all buffers.
- * 0-fill, but do not free "txq" descriptor structure.
+ * 0-fill, but do yest free "txq" descriptor structure.
  */
 void
 il_cmd_queue_free(struct il_priv *il)
@@ -2915,7 +2915,7 @@ il_queue_space(const struct il_queue *q)
 
 	if (s <= 0)
 		s += q->n_win;
-	/* keep some reserve to not confuse empty and full situations */
+	/* keep some reserve to yest confuse empty and full situations */
 	s -= 2;
 	if (s < 0)
 		s = 0;
@@ -2967,8 +2967,8 @@ il_tx_queue_alloc(struct il_priv *il, struct il_tx_queue *txq, u32 id)
 	struct device *dev = &il->pci_dev->dev;
 	size_t tfd_sz = il->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX;
 
-	/* Driver ilate data, only for Tx (not command) queues,
-	 * not shared with device. */
+	/* Driver ilate data, only for Tx (yest command) queues,
+	 * yest shared with device. */
 	if (id != il->cmd_queue) {
 		txq->skbs = kcalloc(TFD_QUEUE_SIZE_MAX,
 				    sizeof(struct sk_buff *),
@@ -3012,8 +3012,8 @@ il_tx_queue_init(struct il_priv *il, u32 txq_id)
 	 * Alloc buffer array for commands (Tx or other types of commands).
 	 * For the command queue (#4/#9), allocate command space + one big
 	 * command for scan, since scan command is very huge; the system will
-	 * not have two scans at the same time, so only one is needed.
-	 * For normal Tx queues (all other queues), no super-size command
+	 * yest have two scans at the same time, so only one is needed.
+	 * For yesrmal Tx queues (all other queues), yes super-size command
 	 * space is needed.
 	 */
 	if (txq_id == il->cmd_queue) {
@@ -3133,7 +3133,7 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	/* If any of the command structures end up being larger than
 	 * the TFD_MAX_PAYLOAD_SIZE, and it sent as a 'small' command then
 	 * we will need to increase the size of the TFD entries
-	 * Also, check to see if command buffer should not exceed the size
+	 * Also, check to see if command buffer should yest exceed the size
 	 * of device_cmd and max_cmd_size. */
 	BUG_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
 	       !(cmd->flags & CMD_SIZE_HUGE));
@@ -3174,7 +3174,7 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	out_cmd->hdr.cmd = cmd->id;
 	memcpy(&out_cmd->cmd.payload, cmd->data, cmd->len);
 
-	/* At this point, the out_cmd now has all of the incoming cmd
+	/* At this point, the out_cmd yesw has all of the incoming cmd
 	 * information */
 
 	out_cmd->hdr.flags = 0;
@@ -3238,7 +3238,7 @@ out:
  *
  * When FW advances 'R' idx, all entries between old and new 'R' idx
  * need to be reclaimed. As result, some free space forms.  If there is
- * enough free space (> low mark), wake the stack that feeds us.
+ * eyesugh free space (> low mark), wake the stack that feeds us.
  */
 static void
 il_hcmd_queue_reclaim(struct il_priv *il, int txq_id, int idx, int cmd_idx)
@@ -3343,8 +3343,8 @@ MODULE_LICENSE("GPL");
  * set bt_coex_active to true, uCode will do kill/defer
  * every time the priority line is asserted (BT is sending signals on the
  * priority line in the PCIx).
- * set bt_coex_active to false, uCode will ignore the BT activity and
- * perform the normal operation
+ * set bt_coex_active to false, uCode will igyesre the BT activity and
+ * perform the yesrmal operation
  *
  * User might experience transmit issue on some platform due to WiFi/BT
  * co-exist problem. The possible behaviors are:
@@ -3577,8 +3577,8 @@ il_is_ht40_tx_allowed(struct il_priv *il, struct ieee80211_sta_ht_cap *ht_cap)
 		return false;
 
 	/*
-	 * We do not check for IEEE80211_HT_CAP_SUP_WIDTH_20_40
-	 * the bit will not set if it is pure 40MHz case
+	 * We do yest check for IEEE80211_HT_CAP_SUP_WIDTH_20_40
+	 * the bit will yest set if it is pure 40MHz case
 	 */
 	if (ht_cap && !ht_cap->ht_supported)
 		return false;
@@ -3594,7 +3594,7 @@ il_is_ht40_tx_allowed(struct il_priv *il, struct ieee80211_sta_ht_cap *ht_cap)
 }
 EXPORT_SYMBOL(il_is_ht40_tx_allowed);
 
-static u16 noinline
+static u16 yesinline
 il_adjust_beacon_interval(u16 beacon_val, u16 max_beacon_val)
 {
 	u16 new_val;
@@ -3650,7 +3650,7 @@ il_send_rxon_timing(struct il_priv *il)
 
 	/*
 	 * TODO: For IBSS we need to get atim_win from mac80211,
-	 *       for now just always use 0
+	 *       for yesw just always use 0
 	 */
 	il->timing.atim_win = 0;
 
@@ -3708,7 +3708,7 @@ il_check_rxon_cmd(struct il_priv *il)
 		}
 	} else {
 		if (!(rxon->flags & RXON_FLG_SHORT_SLOT_MSK)) {
-			IL_WARN("check 5.2G: not short slot!\n");
+			IL_WARN("check 5.2G: yest short slot!\n");
 			error = true;
 		}
 		if (rxon->flags & RXON_FLG_CCK_MSK) {
@@ -3716,7 +3716,7 @@ il_check_rxon_cmd(struct il_priv *il)
 			error = true;
 		}
 	}
-	if ((rxon->node_addr[0] | rxon->bssid_addr[0]) & 0x1) {
+	if ((rxon->yesde_addr[0] | rxon->bssid_addr[0]) & 0x1) {
 		IL_WARN("mac/bssid mcast!\n");
 		error = true;
 	}
@@ -3724,7 +3724,7 @@ il_check_rxon_cmd(struct il_priv *il)
 	/* make sure basic rates 6Mbps and 1Mbps are supported */
 	if ((rxon->ofdm_basic_rates & RATE_6M_MASK) == 0 &&
 	    (rxon->cck_basic_rates & RATE_1M_MASK) == 0) {
-		IL_WARN("neither 1 nor 6 are basic\n");
+		IL_WARN("neither 1 yesr 6 are basic\n");
 		error = true;
 	}
 
@@ -3748,7 +3748,7 @@ il_check_rxon_cmd(struct il_priv *il)
 	if ((rxon->
 	     flags & (RXON_FLG_AUTO_DETECT_MSK | RXON_FLG_TGG_PROTECT_MSK)) ==
 	    RXON_FLG_TGG_PROTECT_MSK) {
-		IL_WARN("TGg but no auto-detect\n");
+		IL_WARN("TGg but yes auto-detect\n");
 		error = true;
 	}
 
@@ -3767,7 +3767,7 @@ EXPORT_SYMBOL(il_check_rxon_cmd);
  * il_full_rxon_required - check if full RXON (vs RXON_ASSOC) cmd is needed
  * @il: staging_rxon is compared to active_rxon
  *
- * If the RXON structure is changing enough to require a new tune,
+ * If the RXON structure is changing eyesugh to require a new tune,
  * or is clearing the RXON_FILTER_ASSOC_MSK, then return 1 to indicate that
  * a new tune (full RXON command, rather than RXON_ASSOC cmd) is required.
  */
@@ -3794,7 +3794,7 @@ il_full_rxon_required(struct il_priv *il)
 	/* These items are only settable from the full RXON command */
 	CHK(!il_is_associated(il));
 	CHK(!ether_addr_equal_64bits(staging->bssid_addr, active->bssid_addr));
-	CHK(!ether_addr_equal_64bits(staging->node_addr, active->node_addr));
+	CHK(!ether_addr_equal_64bits(staging->yesde_addr, active->yesde_addr));
 	CHK(!ether_addr_equal_64bits(staging->wlap_bssid_addr,
 				     active->wlap_bssid_addr));
 	CHK_NEQ(staging->dev_type, active->dev_type);
@@ -3810,7 +3810,7 @@ il_full_rxon_required(struct il_priv *il)
 	 * be updated with the RXON_ASSOC command -- however only some
 	 * flag transitions are allowed using RXON_ASSOC */
 
-	/* Check if we are not switching bands */
+	/* Check if we are yest switching bands */
 	CHK_NEQ(staging->flags & RXON_FLG_BAND_24G_MSK,
 		active->flags & RXON_FLG_BAND_24G_MSK);
 
@@ -3947,7 +3947,7 @@ EXPORT_SYMBOL(il_get_single_channel_number);
  * il_set_rxon_channel - Set the band and channel values in staging RXON
  * @ch: requested channel as a pointer to struct ieee80211_channel
 
- * NOTE:  Does not commit to the hardware; it sets appropriate bit fields
+ * NOTE:  Does yest commit to the hardware; it sets appropriate bit fields
  * in the staging RXON flag structure based on the ch->band
  */
 int
@@ -4054,7 +4054,7 @@ il_connection_init_rx_config(struct il_priv *il)
 	il->staging.flags &=
 	    ~(RXON_FLG_CHANNEL_MODE_MIXED | RXON_FLG_CHANNEL_MODE_PURE_40);
 	if (il->vif)
-		memcpy(il->staging.node_addr, il->vif->addr, ETH_ALEN);
+		memcpy(il->staging.yesde_addr, il->vif->addr, ETH_ALEN);
 
 	il->staging.ofdm_ht_single_stream_basic_rates = 0xff;
 	il->staging.ofdm_ht_dual_stream_basic_rates = 0xff;
@@ -4107,7 +4107,7 @@ void
 il_hdl_csa(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
-	struct il_csa_notification *csa = &(pkt->u.csa_notif);
+	struct il_csa_yestification *csa = &(pkt->u.csa_yestif);
 	struct il_rxon_cmd *rxon = (void *)&il->active;
 
 	if (!test_bit(S_CHANNEL_SWITCH_PENDING, &il->status))
@@ -4116,10 +4116,10 @@ il_hdl_csa(struct il_priv *il, struct il_rx_buf *rxb)
 	if (!le32_to_cpu(csa->status) && csa->channel == il->switch_channel) {
 		rxon->channel = csa->channel;
 		il->staging.channel = csa->channel;
-		D_11H("CSA notif: channel %d\n", le16_to_cpu(csa->channel));
+		D_11H("CSA yestif: channel %d\n", le16_to_cpu(csa->channel));
 		il_chswitch_done(il, true);
 	} else {
-		IL_ERR("CSA notif (fail) : channel %d\n",
+		IL_ERR("CSA yestif (fail) : channel %d\n",
 		       le16_to_cpu(csa->channel));
 		il_chswitch_done(il, false);
 	}
@@ -4140,7 +4140,7 @@ il_print_rx_config_cmd(struct il_priv *il)
 	D_RADIO("u8 dev_type: 0x%x\n", rxon->dev_type);
 	D_RADIO("u8 ofdm_basic_rates: 0x%02x\n", rxon->ofdm_basic_rates);
 	D_RADIO("u8 cck_basic_rates: 0x%02x\n", rxon->cck_basic_rates);
-	D_RADIO("u8[6] node_addr: %pM\n", rxon->node_addr);
+	D_RADIO("u8[6] yesde_addr: %pM\n", rxon->yesde_addr);
 	D_RADIO("u8[6] bssid_addr: %pM\n", rxon->bssid_addr);
 	D_RADIO("u16 assoc_id: 0x%x\n", le16_to_cpu(rxon->assoc_id));
 }
@@ -4240,7 +4240,7 @@ EXPORT_SYMBOL(il_apm_stop);
 /*
  * Start up NIC's basic functionality after it has been reset
  * (e.g. after platform boot, or shutdown via il_apm_stop())
- * NOTE:  This does not load uCode nor start the embedded processor
+ * NOTE:  This does yest load uCode yesr start the embedded processor
  */
 int
 il_apm_init(struct il_priv *il)
@@ -4272,7 +4272,7 @@ il_apm_init(struct il_priv *il)
 	/*
 	 * Enable HAP INTA (interrupt from management bus) to
 	 * wake device's PCI Express link L1a -> L0s
-	 * NOTE:  This is no-op for 3945 (non-existent bit)
+	 * NOTE:  This is yes-op for 3945 (yesn-existent bit)
 	 */
 	il_set_bit(il, CSR_HW_IF_CONFIG_REG,
 		   CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
@@ -4282,7 +4282,7 @@ il_apm_init(struct il_priv *il)
 	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
 	 * If so (likely), disable L0S, so device moves directly L0->L1;
 	 *    costs negligible amount of power savings.
-	 * If not (unlikely), enable L0S, so there is at least some
+	 * If yest (unlikely), enable L0S, so there is at least some
 	 *    power savings, even without L1.
 	 */
 	if (il->cfg->set_l0s) {
@@ -4330,7 +4330,7 @@ il_apm_init(struct il_priv *il)
 	 * BSM (Boostrap State Machine) is only in 3945 and 4965.
 	 *
 	 * Write to "CLK_EN_REG"; "1" bits enable clocks, while "0" bits
-	 * do not disable clocks.  This preserves any hardware bits already
+	 * do yest disable clocks.  This preserves any hardware bits already
 	 * set by default in "CLK_CTRL_REG" after reset.
 	 */
 	if (il->cfg->use_bsm)
@@ -4383,7 +4383,7 @@ il_set_tx_power(struct il_priv *il, s8 tx_power, bool force)
 	 * it always need to be updated for newest request */
 	il->tx_power_next = tx_power;
 
-	/* do not set tx power when scanning or channel changing */
+	/* do yest set tx power when scanning or channel changing */
 	defer = test_bit(S_SCANNING, &il->status) ||
 	    memcmp(&il->active, &il->staging, sizeof(il->staging));
 	if (defer && !force) {
@@ -4449,7 +4449,7 @@ il_hdl_pm_sleep(struct il_priv *il, struct il_rx_buf *rxb)
 {
 #ifdef CONFIG_IWLEGACY_DEBUG
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
-	struct il_sleep_notification *sleep = &(pkt->u.sleep_notif);
+	struct il_sleep_yestification *sleep = &(pkt->u.sleep_yestif);
 	D_RX("sleep mode: %d, src: %d\n",
 	     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
 #endif
@@ -4461,7 +4461,7 @@ il_hdl_pm_debug_stats(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	u32 len = le32_to_cpu(pkt->len_n_flags) & IL_RX_FRAME_SIZE_MSK;
-	D_RADIO("Dumping %d bytes of unhandled notification for %s:\n", len,
+	D_RADIO("Dumping %d bytes of unhandled yestification for %s:\n", len,
 		il_get_cmd_string(pkt->hdr.cmd));
 	il_print_hex_dump(il, IL_DL_RADIO, pkt->u.raw, len);
 }
@@ -4499,7 +4499,7 @@ il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	D_MAC80211("enter\n");
 
 	if (!il_is_ready_rf(il)) {
-		D_MAC80211("leave - RF not ready\n");
+		D_MAC80211("leave - RF yest ready\n");
 		return -EIO;
 	}
 
@@ -4566,13 +4566,13 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	D_MAC80211("enter: type %d, addr %pM\n", vif->type, vif->addr);
 
 	if (!il_is_ready_rf(il)) {
-		IL_WARN("Try to add interface when device not ready\n");
+		IL_WARN("Try to add interface when device yest ready\n");
 		err = -EINVAL;
 		goto out;
 	}
 
 	/*
-	 * We do not support multiple virtual interfaces, but on hardware reset
+	 * We do yest support multiple virtual interfaces, but on hardware reset
 	 * we have to add the same interface again.
 	 */
 	reset = (il->vif == vif);
@@ -4642,7 +4642,7 @@ il_alloc_txq_mem(struct il_priv *il)
 			    sizeof(struct il_tx_queue),
 			    GFP_KERNEL);
 	if (!il->txq) {
-		IL_ERR("Not enough memory for txq\n");
+		IL_ERR("Not eyesugh memory for txq\n");
 		return -ENOMEM;
 	}
 	return 0;
@@ -4787,8 +4787,8 @@ out:
 EXPORT_SYMBOL(il_mac_flush);
 
 /*
- * On every watchdog tick we check (latest) time stamp. If it does not
- * change during timeout period and queue is not empty we reset firmware.
+ * On every watchdog tick we check (latest) time stamp. If it does yest
+ * change during timeout period and queue is yest empty we reset firmware.
  */
 static int
 il_check_stuck_queue(struct il_priv *il, int cnt)
@@ -4796,11 +4796,11 @@ il_check_stuck_queue(struct il_priv *il, int cnt)
 	struct il_tx_queue *txq = &il->txq[cnt];
 	struct il_queue *q = &txq->q;
 	unsigned long timeout;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	int ret;
 
 	if (q->read_ptr == q->write_ptr) {
-		txq->time_stamp = now;
+		txq->time_stamp = yesw;
 		return 0;
 	}
 
@@ -4808,9 +4808,9 @@ il_check_stuck_queue(struct il_priv *il, int cnt)
 	    txq->time_stamp +
 	    msecs_to_jiffies(il->cfg->wd_timeout);
 
-	if (time_after(now, timeout)) {
+	if (time_after(yesw, timeout)) {
 		IL_ERR("Queue %d stuck for %u ms.\n", q->id,
-		       jiffies_to_msecs(now - txq->time_stamp));
+		       jiffies_to_msecs(yesw - txq->time_stamp));
 		ret = il_force_reset(il, false);
 		return (ret == -EAGAIN) ? 0 : 1;
 	}
@@ -4947,8 +4947,8 @@ il_pci_suspend(struct device *device)
 	/*
 	 * This function is called when system goes into suspend state
 	 * mac80211 will call il_mac_stop() from the mac80211 suspend function
-	 * first but since il_mac_stop() has no knowledge of who the caller is,
-	 * it will not call apm_ops.stop() to stop the DMA operation.
+	 * first but since il_mac_stop() has yes kyeswledge of who the caller is,
+	 * it will yest call apm_ops.stop() to stop the DMA operation.
 	 * Calling apm_ops.stop here to make sure we stop the DMA.
 	 */
 	il_apm_stop(il);
@@ -5039,7 +5039,7 @@ il_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed &
 	    (IEEE80211_CONF_CHANGE_SMPS | IEEE80211_CONF_CHANGE_CHANNEL)) {
-		/* mac80211 uses static for non-HT which is what we want */
+		/* mac80211 uses static for yesn-HT which is what we want */
 		il->current_ht_config.smps = conf->smps_mode;
 
 		/*
@@ -5071,7 +5071,7 @@ il_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 		if (il->iw_mode == NL80211_IFTYPE_ADHOC &&
 		    !il_is_channel_ibss(ch_info)) {
-			D_MAC80211("leave - not IBSS channel\n");
+			D_MAC80211("leave - yest IBSS channel\n");
 			ret = -EINVAL;
 			goto set_ch_out;
 		}
@@ -5101,13 +5101,13 @@ il_mac_config(struct ieee80211_hw *hw, u32 changed)
 			il->ht.is_40mhz = false;
 
 		/*
-		 * Default to no protection. Protection mode will
+		 * Default to yes protection. Protection mode will
 		 * later be set from BSS config in il_ht_conf
 		 */
 		il->ht.protection = IEEE80211_HT_OP_MODE_PROTECTION_NONE;
 
 		/* if we are switching from ht to 2.4 clear flags
-		 * from any ht related info since 2.4 does not
+		 * from any ht related info since 2.4 does yest
 		 * support ht */
 		if ((le16_to_cpu(il->staging.channel) != ch))
 			il->staging.flags = 0;
@@ -5146,7 +5146,7 @@ set_ch_out:
 	}
 
 	if (!il_is_ready(il)) {
-		D_MAC80211("leave - not ready\n");
+		D_MAC80211("leave - yest ready\n");
 		goto out;
 	}
 
@@ -5190,7 +5190,7 @@ il_mac_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	il_scan_cancel_timeout(il, 100);
 	if (!il_is_ready_rf(il)) {
-		D_MAC80211("leave - not ready\n");
+		D_MAC80211("leave - yest ready\n");
 		mutex_unlock(&il->mutex);
 		return;
 	}
@@ -5220,7 +5220,7 @@ il_ht_conf(struct il_priv *il, struct ieee80211_vif *vif)
 
 	il->ht.protection =
 	    bss_conf->ht_operation_mode & IEEE80211_HT_OP_MODE_PROTECTION;
-	il->ht.non_gf_sta_present =
+	il->ht.yesn_gf_sta_present =
 	    !!(bss_conf->
 	       ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 
@@ -5267,11 +5267,11 @@ il_ht_conf(struct il_priv *il, struct ieee80211_vif *vif)
 }
 
 static inline void
-il_set_no_assoc(struct il_priv *il, struct ieee80211_vif *vif)
+il_set_yes_assoc(struct il_priv *il, struct ieee80211_vif *vif)
 {
 	/*
-	 * inform the ucode that there is no longer an
-	 * association and that no more packets should be
+	 * inform the ucode that there is yes longer an
+	 * association and that yes more packets should be
 	 * sent
 	 */
 	il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
@@ -5295,7 +5295,7 @@ il_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	lockdep_assert_held(&il->mutex);
 
 	if (!il->beacon_enabled) {
-		IL_ERR("update beacon with no beaconing enabled\n");
+		IL_ERR("update beacon with yes beaconing enabled\n");
 		dev_kfree_skb(skb);
 		return;
 	}
@@ -5311,7 +5311,7 @@ il_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	spin_unlock_irqrestore(&il->lock, flags);
 
 	if (!il_is_ready_rf(il)) {
-		D_MAC80211("leave - RF not ready\n");
+		D_MAC80211("leave - RF yest ready\n");
 		return;
 	}
 
@@ -5329,7 +5329,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	D_MAC80211("enter: changes 0x%x\n", changes);
 
 	if (!il_is_alive(il)) {
-		D_MAC80211("leave - not alive\n");
+		D_MAC80211("leave - yest alive\n");
 		mutex_unlock(&il->mutex);
 		return;
 	}
@@ -5356,7 +5356,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 		/*
 		 * On passive channel we wait with blocked queues to see if
-		 * there is traffic on that channel. If no frame will be
+		 * there is traffic on that channel. If yes frame will be
 		 * received (what is very unlikely since scan detects AP on
 		 * that channel, but theoretically possible), mac80211 associate
 		 * procedure will time out and mac80211 will call us with NULL
@@ -5367,7 +5367,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 		/*
 		 * If there is currently a HW scan going on in the background,
-		 * then we need to cancel it, otherwise sometimes we are not
+		 * then we need to cancel it, otherwise sometimes we are yest
 		 * able to authenticate (FIXME: why ?)
 		 */
 		if (il_scan_cancel_timeout(il, 100)) {
@@ -5443,7 +5443,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			if (!il_is_rfkill(il))
 				il->ops->post_associate(il);
 		} else
-			il_set_no_assoc(il, vif);
+			il_set_yes_assoc(il, vif);
 	}
 
 	if (changes && il_is_associated(il) && bss_conf->aid) {
@@ -5463,7 +5463,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			memcpy(il->bssid, bss_conf->bssid, ETH_ALEN);
 			il->ops->config_ap(il);
 		} else
-			il_set_no_assoc(il, vif);
+			il_set_yes_assoc(il, vif);
 	}
 
 	if (changes & BSS_CHANGED_IBSS) {
@@ -5503,12 +5503,12 @@ il_isr(int irq, void *data)
 	inta = _il_rd(il, CSR_INT);
 	inta_fh = _il_rd(il, CSR_FH_INT_STATUS);
 
-	/* Ignore interrupt if there's nothing in NIC to service.
-	 * This may be due to IRQ shared with another device,
+	/* Igyesre interrupt if there's yesthing in NIC to service.
+	 * This may be due to IRQ shared with ayesther device,
 	 * or due to sporadic interrupts thrown from our NIC. */
 	if (!inta && !inta_fh) {
-		D_ISR("Ignore interrupt, inta == 0, inta_fh == 0\n");
-		goto none;
+		D_ISR("Igyesre interrupt, inta == 0, inta_fh == 0\n");
+		goto yesne;
 	}
 
 	if (inta == 0xFFFFFFFF || (inta & 0xFFFFFFF0) == 0xa5a5a5a0) {
@@ -5531,7 +5531,7 @@ unplugged:
 	spin_unlock_irqrestore(&il->lock, flags);
 	return IRQ_HANDLED;
 
-none:
+yesne:
 	/* re-enable interrupts here since we don't have anything to service. */
 	/* only Re-enable if disabled by irq */
 	if (test_bit(S_INT_ENABLED, &il->status))

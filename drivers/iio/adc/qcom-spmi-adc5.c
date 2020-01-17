@@ -126,7 +126,7 @@ struct adc5_channel_prop {
  * @chan_props: array of ADC channel properties.
  * @iio_chans: array of IIO channels specification.
  * @poll_eoc: use polling instead of interrupt.
- * @complete: ADC result notification after interrupt is received.
+ * @complete: ADC result yestification after interrupt is received.
  * @lock: ADC lock for access to the peripheral.
  * @data: software configuration data.
  */
@@ -332,17 +332,17 @@ static int adc5_do_conversion(struct adc5_chip *adc,
 	if (adc->poll_eoc) {
 		ret = adc5_poll_wait_eoc(adc);
 		if (ret < 0) {
-			pr_err("EOC bit not set\n");
+			pr_err("EOC bit yest set\n");
 			goto unlock;
 		}
 	} else {
 		ret = wait_for_completion_timeout(&adc->complete,
 							ADC5_CONV_TIMEOUT);
 		if (!ret) {
-			pr_debug("Did not get completion timeout.\n");
+			pr_debug("Did yest get completion timeout.\n");
 			ret = adc5_poll_wait_eoc(adc);
 			if (ret < 0) {
-				pr_err("EOC bit not set\n");
+				pr_err("EOC bit yest set\n");
 				goto unlock;
 			}
 		}
@@ -506,15 +506,15 @@ static const struct adc5_channels adc5_chans_rev2[ADC5_MAX_CHANNEL] = {
 
 static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 				    struct adc5_channel_prop *prop,
-				    struct device_node *node,
+				    struct device_yesde *yesde,
 				    const struct adc5_data *data)
 {
-	const char *name = node->name, *channel_name;
+	const char *name = yesde->name, *channel_name;
 	u32 chan, value, varr[2];
 	int ret;
 	struct device *dev = adc->dev;
 
-	ret = of_property_read_u32(node, "reg", &chan);
+	ret = of_property_read_u32(yesde, "reg", &chan);
 	if (ret) {
 		dev_err(dev, "invalid channel number %s\n", name);
 		return ret;
@@ -529,15 +529,15 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 	/* the channel has DT description */
 	prop->channel = chan;
 
-	channel_name = of_get_property(node,
-				"label", NULL) ? : node->name;
+	channel_name = of_get_property(yesde,
+				"label", NULL) ? : yesde->name;
 	if (!channel_name) {
 		pr_err("Invalid channel name\n");
 		return -EINVAL;
 	}
 	prop->datasheet_name = channel_name;
 
-	ret = of_property_read_u32(node, "qcom,decimation", &value);
+	ret = of_property_read_u32(yesde, "qcom,decimation", &value);
 	if (!ret) {
 		ret = adc5_decimation_from_dt(value, data->decimation);
 		if (ret < 0) {
@@ -550,7 +550,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 		prop->decimation = ADC5_DECIMATION_DEFAULT;
 	}
 
-	ret = of_property_read_u32_array(node, "qcom,pre-scaling", varr, 2);
+	ret = of_property_read_u32_array(yesde, "qcom,pre-scaling", varr, 2);
 	if (!ret) {
 		ret = adc5_prescaling_from_dt(varr[0], varr[1]);
 		if (ret < 0) {
@@ -564,7 +564,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 			adc->data->adc_chans[prop->channel].prescale_index;
 	}
 
-	ret = of_property_read_u32(node, "qcom,hw-settle-time", &value);
+	ret = of_property_read_u32(yesde, "qcom,hw-settle-time", &value);
 	if (!ret) {
 		u8 dig_version[2];
 
@@ -575,7 +575,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 			return ret;
 		}
 
-		pr_debug("dig_ver:minor:%d, major:%d\n", dig_version[0],
+		pr_debug("dig_ver:miyesr:%d, major:%d\n", dig_version[0],
 						dig_version[1]);
 		/* Digital controller >= 5.3 have hw_settle_2 option */
 		if (dig_version[0] >= ADC5_HW_SETTLE_DIFF_MINOR &&
@@ -596,7 +596,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 		prop->hw_settle_time = VADC_DEF_HW_SETTLE_TIME;
 	}
 
-	ret = of_property_read_u32(node, "qcom,avg-samples", &value);
+	ret = of_property_read_u32(yesde, "qcom,avg-samples", &value);
 	if (!ret) {
 		ret = adc5_avg_samples_from_dt(value);
 		if (ret < 0) {
@@ -609,7 +609,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 		prop->avg_samples = VADC_DEF_AVG_SAMPLES;
 	}
 
-	if (of_property_read_bool(node, "qcom,ratiometric"))
+	if (of_property_read_bool(yesde, "qcom,ratiometric"))
 		prop->cal_method = ADC5_RATIOMETRIC_CAL;
 	else
 		prop->cal_method = ADC5_ABSOLUTE_CAL;
@@ -666,18 +666,18 @@ static const struct of_device_id adc5_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, adc5_match_table);
 
-static int adc5_get_dt_data(struct adc5_chip *adc, struct device_node *node)
+static int adc5_get_dt_data(struct adc5_chip *adc, struct device_yesde *yesde)
 {
 	const struct adc5_channels *adc_chan;
 	struct iio_chan_spec *iio_chan;
 	struct adc5_channel_prop prop, *chan_props;
-	struct device_node *child;
+	struct device_yesde *child;
 	unsigned int index = 0;
 	const struct of_device_id *id;
 	const struct adc5_data *data;
 	int ret;
 
-	adc->nchannels = of_get_available_child_count(node);
+	adc->nchannels = of_get_available_child_count(yesde);
 	if (!adc->nchannels)
 		return -EINVAL;
 
@@ -693,17 +693,17 @@ static int adc5_get_dt_data(struct adc5_chip *adc, struct device_node *node)
 
 	chan_props = adc->chan_props;
 	iio_chan = adc->iio_chans;
-	id = of_match_node(adc5_match_table, node);
+	id = of_match_yesde(adc5_match_table, yesde);
 	if (id)
 		data = id->data;
 	else
 		data = &adc5_data_pmic;
 	adc->data = data;
 
-	for_each_available_child_of_node(node, child) {
+	for_each_available_child_of_yesde(yesde, child) {
 		ret = adc5_get_dt_channel_data(adc, &prop, child, data);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 
@@ -728,7 +728,7 @@ static int adc5_get_dt_data(struct adc5_chip *adc, struct device_node *node)
 
 static int adc5_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	struct iio_dev *indio_dev;
 	struct adc5_chip *adc;
@@ -740,7 +740,7 @@ static int adc5_probe(struct platform_device *pdev)
 	if (!regmap)
 		return -ENODEV;
 
-	ret = of_property_read_u32(node, "reg", &reg);
+	ret = of_property_read_u32(yesde, "reg", &reg);
 	if (ret < 0)
 		return ret;
 
@@ -755,7 +755,7 @@ static int adc5_probe(struct platform_device *pdev)
 	init_completion(&adc->complete);
 	mutex_init(&adc->lock);
 
-	ret = adc5_get_dt_data(adc, node);
+	ret = adc5_get_dt_data(adc, yesde);
 	if (ret) {
 		pr_err("adc get dt data failed\n");
 		return ret;
@@ -774,7 +774,7 @@ static int adc5_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = node;
+	indio_dev->dev.of_yesde = yesde;
 	indio_dev->name = pdev->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &adc5_info;
@@ -794,5 +794,5 @@ static struct platform_driver adc5_driver = {
 module_platform_driver(adc5_driver);
 
 MODULE_ALIAS("platform:qcom-spmi-adc5");
-MODULE_DESCRIPTION("Qualcomm Technologies Inc. PMIC5 ADC driver");
+MODULE_DESCRIPTION("Qualcomm Techyeslogies Inc. PMIC5 ADC driver");
 MODULE_LICENSE("GPL v2");

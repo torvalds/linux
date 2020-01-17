@@ -85,7 +85,7 @@ struct device_reg_83xx {
 	__le32 reserve7[3];
 	__le32 rsp_q_out;	/* 0x3020 */
 	__le32 reserve8[3];
-	__le32 anonymousbuff;	/* 0x3030 */
+	__le32 ayesnymousbuff;	/* 0x3030 */
 	__le32 mb_int_mask;	/* 0x3034 */
 
 	__le32 host_intr;	/* 0x3038 - Host Interrupt Register */
@@ -985,7 +985,7 @@ struct mbx_sys_info {
 
 struct about_fw_info {
 	uint16_t fw_major;		/* 00 - 01 */
-	uint16_t fw_minor;		/* 02 - 03 */
+	uint16_t fw_miyesr;		/* 02 - 03 */
 	uint16_t fw_patch;		/* 04 - 05 */
 	uint16_t fw_build;		/* 06 - 07 */
 	uint8_t fw_build_date[16];	/* 08 - 17 ASCII String */
@@ -998,9 +998,9 @@ struct about_fw_info {
 					*/
 	uint8_t reserved1[6];		/* 3A - 3F */
 	uint16_t iscsi_major;		/* 40 - 41 */
-	uint16_t iscsi_minor;		/* 42 - 43 */
+	uint16_t iscsi_miyesr;		/* 42 - 43 */
 	uint16_t bootload_major;	/* 44 - 45 */
-	uint16_t bootload_minor;	/* 46 - 47 */
+	uint16_t bootload_miyesr;	/* 46 - 47 */
 	uint16_t bootload_patch;	/* 48 - 49 */
 	uint16_t bootload_build;	/* 4A - 4B */
 	uint8_t extended_timestamp[180];/* 4C - FF */
@@ -1008,7 +1008,7 @@ struct about_fw_info {
 
 struct crash_record {
 	uint16_t fw_major_version;	/* 00 - 01 */
-	uint16_t fw_minor_version;	/* 02 - 03 */
+	uint16_t fw_miyesr_version;	/* 02 - 03 */
 	uint16_t fw_patch_version;	/* 04 - 05 */
 	uint16_t fw_build_version;	/* 06 - 07 */
 
@@ -1307,7 +1307,7 @@ struct ql_iscsi_stats {
 	uint64_t mac_tx_jumbo_frames; /* 0070–0077 */
 	uint64_t mac_rx_frames; /* 0078–007F */
 	uint64_t mac_rx_bytes; /* 0080–0087 */
-	uint64_t mac_rx_unknown_control_frames; /* 0088–008F */
+	uint64_t mac_rx_unkyeswn_control_frames; /* 0088–008F */
 	uint64_t mac_rx_pause_frames; /* 0090–0097 */
 	uint64_t mac_rx_control_frames; /* 0098–009F */
 	uint64_t mac_rx_dribble; /* 00A0–00A7 */
@@ -1385,7 +1385,7 @@ struct ql_iscsi_stats {
 	uint32_t conn_timeout_err; /* 02B8–02BB */
 	uint32_t framing_err; /* 02BC–02BF */
 
-	uint32_t tx_nopout_pdus; /* 02C0–02C3 */
+	uint32_t tx_yespout_pdus; /* 02C0–02C3 */
 	uint32_t tx_scsi_cmd_pdus;  /* 02C4–02C7 */
 	uint32_t tx_tmf_cmd_pdus; /* 02C8–02CB */
 	uint32_t tx_login_cmd_pdus; /* 02CC–02CF */
@@ -1394,7 +1394,7 @@ struct ql_iscsi_stats {
 	uint32_t tx_logout_cmd_pdus; /* 02D8–02DB */
 	uint32_t tx_snack_req_pdus; /* 02DC–02DF */
 
-	uint32_t rx_nopin_pdus; /* 02E0–02E3 */
+	uint32_t rx_yespin_pdus; /* 02E0–02E3 */
 	uint32_t rx_scsi_resp_pdus; /* 02E4–02E7 */
 	uint32_t rx_tmf_resp_pdus; /* 02E8–02EB */
 	uint32_t rx_login_resp_pdus; /* 02EC–02EF */

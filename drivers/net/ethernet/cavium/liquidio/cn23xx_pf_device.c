@@ -300,7 +300,7 @@ u32 cn23xx_pf_get_oq_ticks(struct octeon_device *oct, u32 time_intr_in_us)
 
 static void cn23xx_setup_global_mac_regs(struct octeon_device *oct)
 {
-	u16 mac_no = oct->pcie_port;
+	u16 mac_yes = oct->pcie_port;
 	u16 pf_num = oct->pf_num;
 	u64 reg_val;
 	u64 temp;
@@ -308,11 +308,11 @@ static void cn23xx_setup_global_mac_regs(struct octeon_device *oct)
 	/* programming SRN and TRS for each MAC(0..3)  */
 
 	dev_dbg(&oct->pci_dev->dev, "%s:Using pcie port %d\n",
-		__func__, mac_no);
+		__func__, mac_yes);
 	/* By default, mapping all 64 IOQs to  a single MACs */
 
 	reg_val =
-	    octeon_read_csr64(oct, CN23XX_SLI_PKT_MAC_RINFO64(mac_no, pf_num));
+	    octeon_read_csr64(oct, CN23XX_SLI_PKT_MAC_RINFO64(mac_yes, pf_num));
 
 	if (oct->rev_id == OCTEON_CN23XX_REV_1_1) {
 		/* setting SRN <6:0>  */
@@ -334,19 +334,19 @@ static void cn23xx_setup_global_mac_regs(struct octeon_device *oct)
 	reg_val |= (temp << CN23XX_PKT_MAC_CTL_RINFO_NVFS_BIT_POS);
 
 	/* write these settings to MAC register */
-	octeon_write_csr64(oct, CN23XX_SLI_PKT_MAC_RINFO64(mac_no, pf_num),
+	octeon_write_csr64(oct, CN23XX_SLI_PKT_MAC_RINFO64(mac_yes, pf_num),
 			   reg_val);
 
 	dev_dbg(&oct->pci_dev->dev, "SLI_PKT_MAC(%d)_PF(%d)_RINFO : 0x%016llx\n",
-		mac_no, pf_num, (u64)octeon_read_csr64
-		(oct, CN23XX_SLI_PKT_MAC_RINFO64(mac_no, pf_num)));
+		mac_yes, pf_num, (u64)octeon_read_csr64
+		(oct, CN23XX_SLI_PKT_MAC_RINFO64(mac_yes, pf_num)));
 }
 
 static int cn23xx_reset_io_queues(struct octeon_device *oct)
 {
 	int ret_val = 0;
 	u64 d64;
-	u32 q_no, srn, ern;
+	u32 q_yes, srn, ern;
 	u32 loop = 1000;
 
 	srn = oct->sriov_info.pf_srn;
@@ -356,40 +356,40 @@ static int cn23xx_reset_io_queues(struct octeon_device *oct)
 	/*to make the queue off, need to set the RST bit. */
 
 	/* Reset the Enable bit for all the 64 IQs.  */
-	for (q_no = srn; q_no < ern; q_no++) {
+	for (q_yes = srn; q_yes < ern; q_yes++) {
 		/* set RST bit to 1. This bit applies to both IQ and OQ */
-		d64 = octeon_read_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+		d64 = octeon_read_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes));
 		d64 = d64 | CN23XX_PKT_INPUT_CTL_RST;
-		octeon_write_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no), d64);
+		octeon_write_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes), d64);
 	}
 
 	/*wait until the RST bit is clear or the RST and quite bits are set*/
-	for (q_no = srn; q_no < ern; q_no++) {
+	for (q_yes = srn; q_yes < ern; q_yes++) {
 		u64 reg_val = octeon_read_csr64(oct,
-					CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+					CN23XX_SLI_IQ_PKT_CONTROL64(q_yes));
 		while ((READ_ONCE(reg_val) & CN23XX_PKT_INPUT_CTL_RST) &&
 		       !(READ_ONCE(reg_val) & CN23XX_PKT_INPUT_CTL_QUIET) &&
 		       loop--) {
 			WRITE_ONCE(reg_val, octeon_read_csr64(
-			    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no)));
+			    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes)));
 		}
 		if (!loop) {
 			dev_err(&oct->pci_dev->dev,
-				"clearing the reset reg failed or setting the quiet reg failed for qno: %u\n",
-				q_no);
+				"clearing the reset reg failed or setting the quiet reg failed for qyes: %u\n",
+				q_yes);
 			return -1;
 		}
 		WRITE_ONCE(reg_val, READ_ONCE(reg_val) &
 			~CN23XX_PKT_INPUT_CTL_RST);
-		octeon_write_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no),
+		octeon_write_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes),
 				   READ_ONCE(reg_val));
 
 		WRITE_ONCE(reg_val, octeon_read_csr64(
-			   oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no)));
+			   oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes)));
 		if (READ_ONCE(reg_val) & CN23XX_PKT_INPUT_CTL_RST) {
 			dev_err(&oct->pci_dev->dev,
-				"clearing the reset failed for qno: %u\n",
-				q_no);
+				"clearing the reset failed for qyes: %u\n",
+				q_yes);
 			ret_val = -1;
 		}
 	}
@@ -402,7 +402,7 @@ static int cn23xx_pf_setup_global_input_regs(struct octeon_device *oct)
 	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
 	struct octeon_instr_queue *iq;
 	u64 intr_threshold, reg_val;
-	u32 q_no, ern, srn;
+	u32 q_yes, ern, srn;
 	u64 pf_num;
 	u64 vf_num;
 
@@ -419,12 +419,12 @@ static int cn23xx_pf_setup_global_input_regs(struct octeon_device *oct)
 	 * bits 29:30 indicate the MAC num.
 	 * bits 32:47 indicate the PVF num.
 	 */
-	for (q_no = 0; q_no < ern; q_no++) {
+	for (q_yes = 0; q_yes < ern; q_yes++) {
 		reg_val = oct->pcie_port << CN23XX_PKT_INPUT_CTL_MAC_NUM_POS;
 
 		/* for VF assigned queues. */
-		if (q_no < oct->sriov_info.pf_srn) {
-			vf_num = q_no / oct->sriov_info.rings_per_vf;
+		if (q_yes < oct->sriov_info.pf_srn) {
+			vf_num = q_yes / oct->sriov_info.rings_per_vf;
 			vf_num += 1; /* VF1, VF2,........ */
 		} else {
 			vf_num = 0;
@@ -433,29 +433,29 @@ static int cn23xx_pf_setup_global_input_regs(struct octeon_device *oct)
 		reg_val |= vf_num << CN23XX_PKT_INPUT_CTL_VF_NUM_POS;
 		reg_val |= pf_num << CN23XX_PKT_INPUT_CTL_PF_NUM_POS;
 
-		octeon_write_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no),
+		octeon_write_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes),
 				   reg_val);
 	}
 
 	/* Select ES, RO, NS, RDSIZE,DPTR Fomat#0 for
 	 * pf queues
 	 */
-	for (q_no = srn; q_no < ern; q_no++) {
+	for (q_yes = srn; q_yes < ern; q_yes++) {
 		void __iomem *inst_cnt_reg;
 
-		iq = oct->instr_queue[q_no];
+		iq = oct->instr_queue[q_yes];
 		if (iq)
 			inst_cnt_reg = iq->inst_cnt_reg;
 		else
 			inst_cnt_reg = (u8 *)oct->mmio[0].hw_addr +
-				       CN23XX_SLI_IQ_INSTR_COUNT64(q_no);
+				       CN23XX_SLI_IQ_INSTR_COUNT64(q_yes);
 
 		reg_val =
-		    octeon_read_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+		    octeon_read_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes));
 
 		reg_val |= CN23XX_PKT_INPUT_CTL_MASK;
 
-		octeon_write_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no),
+		octeon_write_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes),
 				   reg_val);
 
 		/* Set WMARK level for triggering PI_INT */
@@ -475,7 +475,7 @@ static int cn23xx_pf_setup_global_input_regs(struct octeon_device *oct)
 static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 {
 	u32 reg_val;
-	u32 q_no, ern, srn;
+	u32 q_yes, ern, srn;
 	u64 time_threshold;
 
 	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
@@ -490,8 +490,8 @@ static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 		octeon_write_csr64(oct, CN23XX_SLI_OQ_WMARK, 0);
 	}
 
-	for (q_no = srn; q_no < ern; q_no++) {
-		reg_val = octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(q_no));
+	for (q_yes = srn; q_yes < ern; q_yes++) {
+		reg_val = octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(q_yes));
 
 		/* clear IPTR */
 		reg_val &= ~CN23XX_PKT_OUTPUT_CTL_IPTR;
@@ -502,7 +502,7 @@ static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 		/* reset BMODE */
 		reg_val &= ~(CN23XX_PKT_OUTPUT_CTL_BMODE);
 
-		/* No Relaxed Ordering, No Snoop, 64-bit Byte swap
+		/* No Relaxed Ordering, No Syesop, 64-bit Byte swap
 		 * for Output Queue ScatterList
 		 * reset ROR_P, NSR_P
 		 */
@@ -514,7 +514,7 @@ static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 #else
 		reg_val |= (CN23XX_PKT_OUTPUT_CTL_ES_P);
 #endif
-		/* No Relaxed Ordering, No Snoop, 64-bit Byte swap
+		/* No Relaxed Ordering, No Syesop, 64-bit Byte swap
 		 * for Output Queue Data
 		 * reset ROR, NSR
 		 */
@@ -524,7 +524,7 @@ static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 		reg_val |= (CN23XX_PKT_OUTPUT_CTL_ES);
 
 		/* write all the selected settings */
-		octeon_write_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(q_no), reg_val);
+		octeon_write_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(q_yes), reg_val);
 
 		/* Enabling these interrupt in oct->fn_list.enable_interrupt()
 		 * routine which called after IOQ init.
@@ -534,7 +534,7 @@ static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 		time_threshold = cn23xx_pf_get_oq_ticks(
 		    oct, (u32)CFG_GET_OQ_INTR_TIME(cn23xx->conf));
 
-		octeon_write_csr64(oct, CN23XX_SLI_OQ_PKT_INT_LEVELS(q_no),
+		octeon_write_csr64(oct, CN23XX_SLI_OQ_PKT_INT_LEVELS(q_yes),
 				   (CFG_GET_OQ_INTR_PKT(cn23xx->conf) |
 				    (time_threshold << 32)));
 	}
@@ -542,7 +542,7 @@ static void cn23xx_pf_setup_global_output_regs(struct octeon_device *oct)
 	/** Setting the water mark level for pko back pressure **/
 	writeq(0x40, (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_OQ_WMARK);
 
-	/** Disabling setting OQs in reset when ring has no dorebells
+	/** Disabling setting OQs in reset when ring has yes dorebells
 	 * enabling this will cause of head of line blocking
 	 */
 	/* Do it only for pass1.1. and pass1.2 */
@@ -584,27 +584,27 @@ static int cn23xx_setup_pf_device_regs(struct octeon_device *oct)
 	return 0;
 }
 
-static void cn23xx_setup_iq_regs(struct octeon_device *oct, u32 iq_no)
+static void cn23xx_setup_iq_regs(struct octeon_device *oct, u32 iq_yes)
 {
-	struct octeon_instr_queue *iq = oct->instr_queue[iq_no];
+	struct octeon_instr_queue *iq = oct->instr_queue[iq_yes];
 	u64 pkt_in_done;
 
-	iq_no += oct->sriov_info.pf_srn;
+	iq_yes += oct->sriov_info.pf_srn;
 
 	/* Write the start of the input queue's ring and its size  */
-	octeon_write_csr64(oct, CN23XX_SLI_IQ_BASE_ADDR64(iq_no),
+	octeon_write_csr64(oct, CN23XX_SLI_IQ_BASE_ADDR64(iq_yes),
 			   iq->base_addr_dma);
-	octeon_write_csr(oct, CN23XX_SLI_IQ_SIZE(iq_no), iq->max_count);
+	octeon_write_csr(oct, CN23XX_SLI_IQ_SIZE(iq_yes), iq->max_count);
 
 	/* Remember the doorbell & instruction count register addr
 	 * for this queue
 	 */
 	iq->doorbell_reg =
-	    (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_IQ_DOORBELL(iq_no);
+	    (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_IQ_DOORBELL(iq_yes);
 	iq->inst_cnt_reg =
-	    (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_IQ_INSTR_COUNT64(iq_no);
+	    (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_IQ_INSTR_COUNT64(iq_yes);
 	dev_dbg(&oct->pci_dev->dev, "InstQ[%d]:dbell reg @ 0x%p instcnt_reg @ 0x%p\n",
-		iq_no, iq->doorbell_reg, iq->inst_cnt_reg);
+		iq_yes, iq->doorbell_reg, iq->inst_cnt_reg);
 
 	/* Store the current instruction counter (used in flush_iq
 	 * calculation)
@@ -625,44 +625,44 @@ static void cn23xx_setup_iq_regs(struct octeon_device *oct, u32 iq_no)
 	iq->reset_instr_cnt = 0;
 }
 
-static void cn23xx_setup_oq_regs(struct octeon_device *oct, u32 oq_no)
+static void cn23xx_setup_oq_regs(struct octeon_device *oct, u32 oq_yes)
 {
 	u32 reg_val;
-	struct octeon_droq *droq = oct->droq[oq_no];
+	struct octeon_droq *droq = oct->droq[oq_yes];
 	struct octeon_cn23xx_pf *cn23xx = (struct octeon_cn23xx_pf *)oct->chip;
 	u64 time_threshold;
 	u64 cnt_threshold;
 
-	oq_no += oct->sriov_info.pf_srn;
+	oq_yes += oct->sriov_info.pf_srn;
 
-	octeon_write_csr64(oct, CN23XX_SLI_OQ_BASE_ADDR64(oq_no),
+	octeon_write_csr64(oct, CN23XX_SLI_OQ_BASE_ADDR64(oq_yes),
 			   droq->desc_ring_dma);
-	octeon_write_csr(oct, CN23XX_SLI_OQ_SIZE(oq_no), droq->max_count);
+	octeon_write_csr(oct, CN23XX_SLI_OQ_SIZE(oq_yes), droq->max_count);
 
-	octeon_write_csr(oct, CN23XX_SLI_OQ_BUFF_INFO_SIZE(oq_no),
+	octeon_write_csr(oct, CN23XX_SLI_OQ_BUFF_INFO_SIZE(oq_yes),
 			 droq->buffer_size);
 
 	/* Get the mapped address of the pkt_sent and pkts_credit regs */
 	droq->pkts_sent_reg =
-	    (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_OQ_PKTS_SENT(oq_no);
+	    (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_OQ_PKTS_SENT(oq_yes);
 	droq->pkts_credit_reg =
-	    (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_OQ_PKTS_CREDIT(oq_no);
+	    (u8 *)oct->mmio[0].hw_addr + CN23XX_SLI_OQ_PKTS_CREDIT(oq_yes);
 
 	if (!oct->msix_on) {
 		/* Enable this output queue to generate Packet Timer Interrupt
 		 */
 		reg_val =
-		    octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_no));
+		    octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_yes));
 		reg_val |= CN23XX_PKT_OUTPUT_CTL_TENB;
-		octeon_write_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_no),
+		octeon_write_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_yes),
 				 reg_val);
 
 		/* Enable this output queue to generate Packet Count Interrupt
 		 */
 		reg_val =
-		    octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_no));
+		    octeon_read_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_yes));
 		reg_val |= CN23XX_PKT_OUTPUT_CTL_CENB;
-		octeon_write_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_no),
+		octeon_write_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(oq_yes),
 				 reg_val);
 	} else {
 		time_threshold = cn23xx_pf_get_oq_ticks(
@@ -670,7 +670,7 @@ static void cn23xx_setup_oq_regs(struct octeon_device *oct, u32 oq_no)
 		cnt_threshold = (u32)CFG_GET_OQ_INTR_PKT(cn23xx->conf);
 
 		octeon_write_csr64(
-		    oct, CN23XX_SLI_OQ_PKT_INT_LEVELS(oq_no),
+		    oct, CN23XX_SLI_OQ_PKT_INT_LEVELS(oq_yes),
 		    ((time_threshold << 32 | cnt_threshold)));
 	}
 }
@@ -681,7 +681,7 @@ static void cn23xx_pf_mbox_thread(struct work_struct *work)
 	struct octeon_mbox *mbox = (struct octeon_mbox *)wk->ctxptr;
 	struct octeon_device *oct = mbox->oct_dev;
 	u64 mbox_int_val, val64;
-	u32 q_no, i;
+	u32 q_yes, i;
 
 	if (oct->rev_id < OCTEON_CN23XX_REV_1_1) {
 		/*read and clear by writing 1*/
@@ -689,14 +689,14 @@ static void cn23xx_pf_mbox_thread(struct work_struct *work)
 		writeq(mbox_int_val, mbox->mbox_int_reg);
 
 		for (i = 0; i < oct->sriov_info.num_vfs_alloced; i++) {
-			q_no = i * oct->sriov_info.rings_per_vf;
+			q_yes = i * oct->sriov_info.rings_per_vf;
 
-			val64 = readq(oct->mbox[q_no]->mbox_write_reg);
+			val64 = readq(oct->mbox[q_yes]->mbox_write_reg);
 
 			if (val64 && (val64 != OCTEON_PFVFACK)) {
-				if (octeon_mbox_read(oct->mbox[q_no]))
+				if (octeon_mbox_read(oct->mbox[q_yes]))
 					octeon_mbox_process_message(
-					    oct->mbox[q_no]);
+					    oct->mbox[q_yes]);
 			}
 		}
 
@@ -709,15 +709,15 @@ static void cn23xx_pf_mbox_thread(struct work_struct *work)
 static int cn23xx_setup_pf_mbox(struct octeon_device *oct)
 {
 	struct octeon_mbox *mbox = NULL;
-	u16 mac_no = oct->pcie_port;
+	u16 mac_yes = oct->pcie_port;
 	u16 pf_num = oct->pf_num;
-	u32 q_no, i;
+	u32 q_yes, i;
 
 	if (!oct->sriov_info.max_vfs)
 		return 0;
 
 	for (i = 0; i < oct->sriov_info.max_vfs; i++) {
-		q_no = i * oct->sriov_info.rings_per_vf;
+		q_yes = i * oct->sriov_info.rings_per_vf;
 
 		mbox = vmalloc(sizeof(*mbox));
 		if (!mbox)
@@ -729,28 +729,28 @@ static int cn23xx_setup_pf_mbox(struct octeon_device *oct)
 
 		mbox->oct_dev = oct;
 
-		mbox->q_no = q_no;
+		mbox->q_yes = q_yes;
 
 		mbox->state = OCTEON_MBOX_STATE_IDLE;
 
 		/* PF mbox interrupt reg */
 		mbox->mbox_int_reg = (u8 *)oct->mmio[0].hw_addr +
-				     CN23XX_SLI_MAC_PF_MBOX_INT(mac_no, pf_num);
+				     CN23XX_SLI_MAC_PF_MBOX_INT(mac_yes, pf_num);
 
 		/* PF writes into SIG0 reg */
 		mbox->mbox_write_reg = (u8 *)oct->mmio[0].hw_addr +
-				       CN23XX_SLI_PKT_PF_VF_MBOX_SIG(q_no, 0);
+				       CN23XX_SLI_PKT_PF_VF_MBOX_SIG(q_yes, 0);
 
 		/* PF reads from SIG1 reg */
 		mbox->mbox_read_reg = (u8 *)oct->mmio[0].hw_addr +
-				      CN23XX_SLI_PKT_PF_VF_MBOX_SIG(q_no, 1);
+				      CN23XX_SLI_PKT_PF_VF_MBOX_SIG(q_yes, 1);
 
 		/*Mail Box Thread creation*/
 		INIT_DELAYED_WORK(&mbox->mbox_poll_wk.work,
 				  cn23xx_pf_mbox_thread);
 		mbox->mbox_poll_wk.ctxptr = (void *)mbox;
 
-		oct->mbox[q_no] = mbox;
+		oct->mbox[q_yes] = mbox;
 
 		writeq(OCTEON_PFVFSIG, mbox->mbox_read_reg);
 	}
@@ -772,16 +772,16 @@ free_mbox:
 
 static int cn23xx_free_pf_mbox(struct octeon_device *oct)
 {
-	u32 q_no, i;
+	u32 q_yes, i;
 
 	if (!oct->sriov_info.max_vfs)
 		return 0;
 
 	for (i = 0; i < oct->sriov_info.max_vfs; i++) {
-		q_no = i * oct->sriov_info.rings_per_vf;
+		q_yes = i * oct->sriov_info.rings_per_vf;
 		cancel_delayed_work_sync(
-		    &oct->mbox[q_no]->mbox_poll_wk.work);
-		vfree(oct->mbox[q_no]);
+		    &oct->mbox[q_yes]->mbox_poll_wk.work);
+		vfree(oct->mbox[q_yes]);
 	}
 
 	return 0;
@@ -790,29 +790,29 @@ static int cn23xx_free_pf_mbox(struct octeon_device *oct)
 static int cn23xx_enable_io_queues(struct octeon_device *oct)
 {
 	u64 reg_val;
-	u32 srn, ern, q_no;
+	u32 srn, ern, q_yes;
 	u32 loop = 1000;
 
 	srn = oct->sriov_info.pf_srn;
 	ern = srn + oct->num_iqs;
 
-	for (q_no = srn; q_no < ern; q_no++) {
+	for (q_yes = srn; q_yes < ern; q_yes++) {
 		/* set the corresponding IQ IS_64B bit */
-		if (oct->io_qmask.iq64B & BIT_ULL(q_no - srn)) {
+		if (oct->io_qmask.iq64B & BIT_ULL(q_yes - srn)) {
 			reg_val = octeon_read_csr64(
-			    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+			    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes));
 			reg_val = reg_val | CN23XX_PKT_INPUT_CTL_IS_64B;
 			octeon_write_csr64(
-			    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no), reg_val);
+			    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes), reg_val);
 		}
 
 		/* set the corresponding IQ ENB bit */
-		if (oct->io_qmask.iq & BIT_ULL(q_no - srn)) {
+		if (oct->io_qmask.iq & BIT_ULL(q_yes - srn)) {
 			/* IOQs are in reset by default in PEM2 mode,
 			 * clearing reset bit
 			 */
 			reg_val = octeon_read_csr64(
-			    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+			    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes));
 
 			if (reg_val & CN23XX_PKT_INPUT_CTL_RST) {
 				while ((reg_val & CN23XX_PKT_INPUT_CTL_RST) &&
@@ -821,43 +821,43 @@ static int cn23xx_enable_io_queues(struct octeon_device *oct)
 				       --loop) {
 					reg_val = octeon_read_csr64(
 					    oct,
-					    CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+					    CN23XX_SLI_IQ_PKT_CONTROL64(q_yes));
 				}
 				if (!loop) {
 					dev_err(&oct->pci_dev->dev,
-						"clearing the reset reg failed or setting the quiet reg failed for qno: %u\n",
-						q_no);
+						"clearing the reset reg failed or setting the quiet reg failed for qyes: %u\n",
+						q_yes);
 					return -1;
 				}
 				reg_val = reg_val & ~CN23XX_PKT_INPUT_CTL_RST;
 				octeon_write_csr64(
-				    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no),
+				    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes),
 				    reg_val);
 
 				reg_val = octeon_read_csr64(
-				    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+				    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes));
 				if (reg_val & CN23XX_PKT_INPUT_CTL_RST) {
 					dev_err(&oct->pci_dev->dev,
-						"clearing the reset failed for qno: %u\n",
-						q_no);
+						"clearing the reset failed for qyes: %u\n",
+						q_yes);
 					return -1;
 				}
 			}
 			reg_val = octeon_read_csr64(
-			    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no));
+			    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes));
 			reg_val = reg_val | CN23XX_PKT_INPUT_CTL_RING_ENB;
 			octeon_write_csr64(
-			    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no), reg_val);
+			    oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes), reg_val);
 		}
 	}
-	for (q_no = srn; q_no < ern; q_no++) {
+	for (q_yes = srn; q_yes < ern; q_yes++) {
 		u32 reg_val;
 		/* set the corresponding OQ ENB bit */
-		if (oct->io_qmask.oq & BIT_ULL(q_no - srn)) {
+		if (oct->io_qmask.oq & BIT_ULL(q_yes - srn)) {
 			reg_val = octeon_read_csr(
-			    oct, CN23XX_SLI_OQ_PKT_CONTROL(q_no));
+			    oct, CN23XX_SLI_OQ_PKT_CONTROL(q_yes));
 			reg_val = reg_val | CN23XX_PKT_OUTPUT_CTL_RING_ENB;
-			octeon_write_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(q_no),
+			octeon_write_csr(oct, CN23XX_SLI_OQ_PKT_CONTROL(q_yes),
 					 reg_val);
 		}
 	}
@@ -866,7 +866,7 @@ static int cn23xx_enable_io_queues(struct octeon_device *oct)
 
 static void cn23xx_disable_io_queues(struct octeon_device *oct)
 {
-	int q_no, loop;
+	int q_yes, loop;
 	u64 d64;
 	u32 d32;
 	u32 srn, ern;
@@ -875,16 +875,16 @@ static void cn23xx_disable_io_queues(struct octeon_device *oct)
 	ern = srn + oct->num_iqs;
 
 	/*** Disable Input Queues. ***/
-	for (q_no = srn; q_no < ern; q_no++) {
+	for (q_yes = srn; q_yes < ern; q_yes++) {
 		loop = HZ;
 
 		/* start the Reset for a particular ring */
 		WRITE_ONCE(d64, octeon_read_csr64(
-			   oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no)));
+			   oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes)));
 		WRITE_ONCE(d64, READ_ONCE(d64) &
 					(~(CN23XX_PKT_INPUT_CTL_RING_ENB)));
 		WRITE_ONCE(d64, READ_ONCE(d64) | CN23XX_PKT_INPUT_CTL_RST);
-		octeon_write_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_no),
+		octeon_write_csr64(oct, CN23XX_SLI_IQ_PKT_CONTROL64(q_yes),
 				   READ_ONCE(d64));
 
 		/* Wait until hardware indicates that the particular IQ
@@ -892,22 +892,22 @@ static void cn23xx_disable_io_queues(struct octeon_device *oct)
 		 */
 		WRITE_ONCE(d64, octeon_read_csr64(
 					oct, CN23XX_SLI_PKT_IOQ_RING_RST));
-		while (!(READ_ONCE(d64) & BIT_ULL(q_no)) && loop--) {
+		while (!(READ_ONCE(d64) & BIT_ULL(q_yes)) && loop--) {
 			WRITE_ONCE(d64, octeon_read_csr64(
 					oct, CN23XX_SLI_PKT_IOQ_RING_RST));
 			schedule_timeout_uninterruptible(1);
 		}
 
 		/* Reset the doorbell register for this Input Queue. */
-		octeon_write_csr(oct, CN23XX_SLI_IQ_DOORBELL(q_no), 0xFFFFFFFF);
-		while (octeon_read_csr64(oct, CN23XX_SLI_IQ_DOORBELL(q_no)) &&
+		octeon_write_csr(oct, CN23XX_SLI_IQ_DOORBELL(q_yes), 0xFFFFFFFF);
+		while (octeon_read_csr64(oct, CN23XX_SLI_IQ_DOORBELL(q_yes)) &&
 		       loop--) {
 			schedule_timeout_uninterruptible(1);
 		}
 	}
 
 	/*** Disable Output Queues. ***/
-	for (q_no = srn; q_no < ern; q_no++) {
+	for (q_yes = srn; q_yes < ern; q_yes++) {
 		loop = HZ;
 
 		/* Wait until hardware indicates that the particular IQ
@@ -916,25 +916,25 @@ static void cn23xx_disable_io_queues(struct octeon_device *oct)
 		 */
 		WRITE_ONCE(d64, octeon_read_csr64(
 					oct, CN23XX_SLI_PKT_IOQ_RING_RST));
-		while (!(READ_ONCE(d64) & BIT_ULL(q_no)) && loop--) {
+		while (!(READ_ONCE(d64) & BIT_ULL(q_yes)) && loop--) {
 			WRITE_ONCE(d64, octeon_read_csr64(
 					oct, CN23XX_SLI_PKT_IOQ_RING_RST));
 			schedule_timeout_uninterruptible(1);
 		}
 
 		/* Reset the doorbell register for this Output Queue. */
-		octeon_write_csr(oct, CN23XX_SLI_OQ_PKTS_CREDIT(q_no),
+		octeon_write_csr(oct, CN23XX_SLI_OQ_PKTS_CREDIT(q_yes),
 				 0xFFFFFFFF);
 		while (octeon_read_csr64(oct,
-					 CN23XX_SLI_OQ_PKTS_CREDIT(q_no)) &&
+					 CN23XX_SLI_OQ_PKTS_CREDIT(q_yes)) &&
 		       loop--) {
 			schedule_timeout_uninterruptible(1);
 		}
 
 		/* clear the SLI_PKT(0..63)_CNTS[CNT] reg value */
 		WRITE_ONCE(d32, octeon_read_csr(
-					oct, CN23XX_SLI_OQ_PKTS_SENT(q_no)));
-		octeon_write_csr(oct, CN23XX_SLI_OQ_PKTS_SENT(q_no),
+					oct, CN23XX_SLI_OQ_PKTS_SENT(q_yes)));
+		octeon_write_csr(oct, CN23XX_SLI_OQ_PKTS_SENT(q_yes),
 				 READ_ONCE(d32));
 	}
 }
@@ -985,18 +985,18 @@ static void cn23xx_handle_pf_mbox_intr(struct octeon_device *oct)
 {
 	struct delayed_work *work;
 	u64 mbox_int_val;
-	u32 i, q_no;
+	u32 i, q_yes;
 
 	mbox_int_val = readq(oct->mbox[0]->mbox_int_reg);
 
 	for (i = 0; i < oct->sriov_info.num_vfs_alloced; i++) {
-		q_no = i * oct->sriov_info.rings_per_vf;
+		q_yes = i * oct->sriov_info.rings_per_vf;
 
-		if (mbox_int_val & BIT_ULL(q_no)) {
-			writeq(BIT_ULL(q_no),
+		if (mbox_int_val & BIT_ULL(q_yes)) {
+			writeq(BIT_ULL(q_yes),
 			       oct->mbox[0]->mbox_int_reg);
-			if (octeon_mbox_read(oct->mbox[q_no])) {
-				work = &oct->mbox[q_no]->mbox_poll_wk.work;
+			if (octeon_mbox_read(oct->mbox[q_yes])) {
+				work = &oct->mbox[q_yes]->mbox_poll_wk.work;
 				schedule_delayed_work(work,
 						      msecs_to_jiffies(0));
 			}
@@ -1091,7 +1091,7 @@ static u32 cn23xx_update_read_index(struct octeon_instr_queue *iq)
 
 	/* Modulo of the new index with the IQ size will give us
 	 * the new index.  The iq->reset_instr_cnt is always zero for
-	 * cn23xx, so no extra adjustments are needed.
+	 * cn23xx, so yes extra adjustments are needed.
 	 */
 	new_idx = (iq->octeon_read_index +
 		   (u32)(last_done & CN23XX_PKT_IN_DONE_CNT_MASK)) %
@@ -1192,7 +1192,7 @@ static int cn23xx_get_pf_num(struct octeon_device *oct)
 			ret = 0;
 		} else {
 			dev_err(&oct->pci_dev->dev,
-				"OCTEON: error reading PCI cfg space pfnum; could not ascertain PF number\n");
+				"OCTEON: error reading PCI cfg space pfnum; could yest ascertain PF number\n");
 		}
 	}
 
@@ -1296,7 +1296,7 @@ int cn23xx_sriov_config(struct octeon_device *oct)
 	oct->sriov_info.rings_per_vf = rings_per_vf;
 	oct->sriov_info.pf_srn = pf_srn;
 	oct->sriov_info.num_pf_rings = num_pf_rings;
-	dev_notice(&oct->pci_dev->dev, "trs:%d max_vfs:%d rings_per_vf:%d pf_srn:%d num_pf_rings:%d\n",
+	dev_yestice(&oct->pci_dev->dev, "trs:%d max_vfs:%d rings_per_vf:%d pf_srn:%d num_pf_rings:%d\n",
 		   oct->sriov_info.trs, oct->sriov_info.max_vfs,
 		   oct->sriov_info.rings_per_vf, oct->sriov_info.pf_srn,
 		   oct->sriov_info.num_pf_rings);
@@ -1452,7 +1452,7 @@ void cn23xx_tell_vf_its_macaddr_changed(struct octeon_device *oct, int vfidx,
 		mbox_cmd.fn = NULL;
 		mbox_cmd.fn_arg = NULL;
 		ether_addr_copy(mbox_cmd.msg.s.params, mac);
-		mbox_cmd.q_no = vfidx * oct->sriov_info.rings_per_vf;
+		mbox_cmd.q_yes = vfidx * oct->sriov_info.rings_per_vf;
 		octeon_mbox_write(oct, &mbox_cmd);
 	}
 }
@@ -1486,7 +1486,7 @@ int cn23xx_get_vf_stats(struct octeon_device *oct, int vfidx,
 	mbox_cmd.msg.s.resp_needed = 1;
 	mbox_cmd.msg.s.cmd = OCTEON_GET_VF_STATS;
 	mbox_cmd.msg.s.len = 1;
-	mbox_cmd.q_no = vfidx * oct->sriov_info.rings_per_vf;
+	mbox_cmd.q_yes = vfidx * oct->sriov_info.rings_per_vf;
 	mbox_cmd.recv_len = 0;
 	mbox_cmd.recv_status = 0;
 	mbox_cmd.fn = (octeon_mbox_callback_t)cn23xx_get_vf_stats_callback;

@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2003 Atheros Communications, Inc.,  All Rights Reserved.
- * Copyright (C) 2006 FON Technology, SL.
+ * Copyright (C) 2006 FON Techyeslogy, SL.
  * Copyright (C) 2006 Imre Kaloz <kaloz@openwrt.org>
  * Copyright (C) 2006-2009 Felix Fietkau <nbd@openwrt.org>
  */
@@ -29,7 +29,7 @@ static inline bool check_radio_magic(const void __iomem *addr)
 	return (__raw_readb(addr) == 0x5a) && (__raw_readb(addr + 1) == 0xa5);
 }
 
-static inline bool check_notempty(const void __iomem *addr)
+static inline bool check_yestempty(const void __iomem *addr)
 {
 	return __raw_readl(addr) != 0xffffffff;
 }
@@ -76,19 +76,19 @@ static const void __iomem * __init find_radio_config(const void __iomem *limit,
 	/*
 	 * Now find the start of Radio Configuration data, using heuristics:
 	 * Search forward from Board Configuration data by 0x1000 bytes
-	 * at a time until we find non-0xffffffff.
+	 * at a time until we find yesn-0xffffffff.
 	 */
 	begin = bcfg + 0x1000;
 	end = limit;
 	for (rcfg = begin; rcfg < end; rcfg += 0x1000)
-		if (check_notempty(rcfg) && check_radio_magic(rcfg))
+		if (check_yestempty(rcfg) && check_radio_magic(rcfg))
 			return rcfg;
 
 	/* AR2316 relocates radio config to new location */
 	begin = bcfg + 0xf8;
 	end = limit - 0x1000 + 0xf8;
 	for (rcfg = begin; rcfg < end; rcfg += 0x1000)
-		if (check_notempty(rcfg) && check_radio_magic(rcfg))
+		if (check_yestempty(rcfg) && check_radio_magic(rcfg))
 			return rcfg;
 
 	return NULL;
@@ -111,14 +111,14 @@ int __init ath25_find_config(phys_addr_t base, unsigned long size)
 	u8 *mac_addr;
 	u32 offset;
 
-	flash_base = ioremap_nocache(base, size);
+	flash_base = ioremap_yescache(base, size);
 	flash_limit = flash_base + size;
 
 	ath25_board.config = NULL;
 	ath25_board.radio = NULL;
 
 	/* Copy the board and radio data to RAM, because accessing the mapped
-	 * memory of the flash directly after booting is not safe */
+	 * memory of the flash directly after booting is yest safe */
 
 	/* Try to find valid board and radio data */
 	bcfg = find_board_config(flash_limit, false);
@@ -158,7 +158,7 @@ int __init ath25_find_config(phys_addr_t base, unsigned long size)
 
 	rcfg = find_radio_config(flash_limit, bcfg);
 	if (!rcfg) {
-		pr_warn("WARNING: Could not find Radio Configuration data\n");
+		pr_warn("WARNING: Could yest find Radio Configuration data\n");
 		goto error;
 	}
 

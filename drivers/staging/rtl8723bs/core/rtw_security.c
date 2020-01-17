@@ -459,11 +459,11 @@ void rtw_seccalctkipmic(u8 *key, u8 *header, u8 *data, u32 data_len, u8 *mic_cod
 #define _S_(v16)     (Sbox1[0][Lo8(v16)] ^ Sbox1[1][Hi8(v16)])
 
 /* fixed algorithm "parameters" */
-#define PHASE1_LOOP_CNT   8    /* this needs to be "big enough"     */
+#define PHASE1_LOOP_CNT   8    /* this needs to be "big eyesugh"     */
 #define TA_SIZE           6    /*  48-bit transmitter address       */
 #define TK_SIZE          16    /* 128-bit temporal key              */
 #define P1K_SIZE         10    /*  80-bit Phase1 key                */
-#define RC4_KEY_SIZE     16    /* 128-bit RC4KEY (104 bits unknown) */
+#define RC4_KEY_SIZE     16    /* 128-bit RC4KEY (104 bits unkyeswn) */
 
 
 /* 2-unsigned char by 2-unsigned char subset of the full AES S-box table */
@@ -600,7 +600,7 @@ static void phase1(u16 *p1k, const u8 *tk, const u8 *ta, u32 iv32)
 *     the final RC4KEY value is unique across all packets.
 *
 * Suggested implementation optimization: if PPK[] is "overlaid"
-*     appropriately on RC4KEY[], there is no need for the final
+*     appropriately on RC4KEY[], there is yes need for the final
 *     for loop below that copies the PPK[] result into RC4KEY[].
 *
 **********************************************************************
@@ -616,7 +616,7 @@ static void phase2(u8 *rc4key, const u8 *tk, const u16 *p1k, u16 iv16)
 
 	PPK[5]  =  p1k[4]+iv16;             /* next,  add in IV16          */
 
-	/* Bijective non-linear mixing of the 96 bits of PPK[0..5]           */
+	/* Bijective yesn-linear mixing of the 96 bits of PPK[0..5]           */
 	PPK[0] +=    _S_(PPK[5] ^ TK16(0));   /* Mix key in each "round"     */
 	PPK[1] +=    _S_(PPK[0] ^ TK16(1));
 	PPK[2] +=    _S_(PPK[1] ^ TK16(2));
@@ -634,7 +634,7 @@ static void phase2(u8 *rc4key, const u8 *tk, const u16 *p1k, u16 iv16)
 	/* Note: At this point, for a given key TK[0..15], the 96-bit output */
 	/*       value PPK[0..5] is guaranteed to be unique, as a function   */
 	/*       of the 96-bit "input" value   {TA, IV32, IV16}. That is, P1K  */
-	/*       is now a keyed permutation of {TA, IV32, IV16}.               */
+	/*       is yesw a keyed permutation of {TA, IV32, IV16}.               */
 
 	/* Set RC4KEY[0..3], which includes "cleartext" portion of RC4 key   */
 	rc4key[0] = Hi8(iv16);                /* RC4KEY[0..2] is the WEP IV  */
@@ -755,8 +755,8 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 		if (stainfo != NULL) {
 			if (IS_MCAST(prxattrib->ra)) {
 				static unsigned long start;
-				static u32 no_gkey_bc_cnt;
-				static u32 no_gkey_mc_cnt;
+				static u32 yes_gkey_bc_cnt;
+				static u32 yes_gkey_mc_cnt;
 
 				if (psecuritypriv->binstallGrpkey == false) {
 					res = _FAIL;
@@ -765,29 +765,29 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 						start = jiffies;
 
 					if (is_broadcast_mac_addr(prxattrib->ra))
-						no_gkey_bc_cnt++;
+						yes_gkey_bc_cnt++;
 					else
-						no_gkey_mc_cnt++;
+						yes_gkey_mc_cnt++;
 
 					if (jiffies_to_msecs(jiffies - start) > 1000) {
-						if (no_gkey_bc_cnt || no_gkey_mc_cnt) {
-							DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
-								FUNC_ADPT_ARG(padapter), no_gkey_bc_cnt, no_gkey_mc_cnt);
+						if (yes_gkey_bc_cnt || yes_gkey_mc_cnt) {
+							DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" yes_gkey_bc_cnt:%u, yes_gkey_mc_cnt:%u\n",
+								FUNC_ADPT_ARG(padapter), yes_gkey_bc_cnt, yes_gkey_mc_cnt);
 						}
 						start = jiffies;
-						no_gkey_bc_cnt = 0;
-						no_gkey_mc_cnt = 0;
+						yes_gkey_bc_cnt = 0;
+						yes_gkey_mc_cnt = 0;
 					}
 					goto exit;
 				}
 
-				if (no_gkey_bc_cnt || no_gkey_mc_cnt) {
-					DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" gkey installed. no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
-						FUNC_ADPT_ARG(padapter), no_gkey_bc_cnt, no_gkey_mc_cnt);
+				if (yes_gkey_bc_cnt || yes_gkey_mc_cnt) {
+					DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" gkey installed. yes_gkey_bc_cnt:%u, yes_gkey_mc_cnt:%u\n",
+						FUNC_ADPT_ARG(padapter), yes_gkey_bc_cnt, yes_gkey_mc_cnt);
 				}
 				start = 0;
-				no_gkey_bc_cnt = 0;
-				no_gkey_mc_cnt = 0;
+				yes_gkey_bc_cnt = 0;
+				yes_gkey_mc_cnt = 0;
 
 				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 			} else {
@@ -894,13 +894,13 @@ static void construct_mic_iv(
 	uint payload_length,
 	u8 *pn_vector,
 	uint frtype
-);/*  add for CONFIG_IEEE80211W, none 11w also can use */
+);/*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 static void construct_mic_header1(
 	u8 *mic_header1,
 	sint header_length,
 	u8 *mpdu,
 	uint frtype
-);/*  add for CONFIG_IEEE80211W, none 11w also can use */
+);/*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 static void construct_mic_header2(
 	u8 *mic_header2,
 	u8 *mpdu,
@@ -915,7 +915,7 @@ static void construct_ctr_preload(
 	u8 *pn_vector,
 	sint c,
 	uint frtype
-);/*  add for CONFIG_IEEE80211W, none 11w also can use */
+);/*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 static void xor_128(u8 *a, u8 *b, u8 *out);
 static void xor_32(u8 *a, u8 *b, u8 *out);
 static u8 sbox(u8 a);
@@ -1107,7 +1107,7 @@ static void aes128k128d(u8 *key, u8 *data, u8 *ciphertext)
 /* construct_mic_iv()                           */
 /* Builds the MIC IV from header fields and PN  */
 /* Baron think the function is construct CCM    */
-/* nonce                                        */
+/* yesnce                                        */
 /************************************************/
 static void construct_mic_iv(
 	u8 *mic_iv,
@@ -1116,7 +1116,7 @@ static void construct_mic_iv(
 	u8 *mpdu,
 	uint payload_length,
 	u8 *pn_vector,
-	uint frtype/*  add for CONFIG_IEEE80211W, none 11w also can use */
+	uint frtype/*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 )
 {
 		sint i;
@@ -1160,7 +1160,7 @@ static void construct_mic_header1(
 	u8 *mic_header1,
 	sint header_length,
 	u8 *mpdu,
-	uint frtype/*  add for CONFIG_IEEE80211W, none 11w also can use */
+	uint frtype/*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 )
 {
 		mic_header1[0] = (u8)((header_length - 2) / 256);
@@ -1242,7 +1242,7 @@ static void construct_mic_header2(
 /* Builds the last MIC header block from        */
 /* header fields.                               */
 /* Baron think the function is construct CCM    */
-/* nonce                                        */
+/* yesnce                                        */
 /************************************************/
 static void construct_ctr_preload(
 	u8 *ctr_preload,
@@ -1251,7 +1251,7 @@ static void construct_ctr_preload(
 	u8 *mpdu,
 	u8 *pn_vector,
 	sint c,
-	uint frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	uint frtype /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 )
 {
 	sint i = 0;
@@ -1341,7 +1341,7 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
 			hdrlen += 2;
 
-	} else if ((frtype == WIFI_DATA) && /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	} else if ((frtype == WIFI_DATA) && /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 		   ((frsubtype == 0x08) ||
 		   (frsubtype == 0x09) ||
 		   (frsubtype == 0x0a) ||
@@ -1367,14 +1367,14 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 			pframe,	 /* message, */
 			plen,
 			pn_vector,
-			frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
+			frtype /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 	);
 
 	construct_mic_header1(
 		mic_header1,
 		hdrlen,
 		pframe,	/* message */
-		frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
+		frtype /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 	);
 	construct_mic_header2(
 		mic_header2,
@@ -1433,7 +1433,7 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 			pn_vector,
 			i+1,
 			frtype
-		); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+		); /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 		aes128k128d(key, ctr_preload, aes_out);
 		bitwise_xor(aes_out, &pframe[payload_index], chain_buffer);
 		for (j = 0; j < 16; j++)
@@ -1451,7 +1451,7 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 			pn_vector,
 			num_blocks+1,
 			frtype
-		); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+		); /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 
 		for (j = 0; j < 16; j++)
 			padded_buffer[j] = 0x00;
@@ -1473,7 +1473,7 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 		pn_vector,
 		0,
 		frtype
-	); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	); /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 
 	for (j = 0; j < 16; j++)
 		padded_buffer[j] = 0x00;
@@ -1598,7 +1598,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN) {
 			hdrlen += 2;
 		}
-	} else if ((frtype == WIFI_DATA) && /* only for data packet . add for CONFIG_IEEE80211W, none 11w also can use */
+	} else if ((frtype == WIFI_DATA) && /* only for data packet . add for CONFIG_IEEE80211W, yesne 11w also can use */
 		   ((frsubtype == 0x08) ||
 		   (frsubtype == 0x09) ||
 		   (frsubtype == 0x0a) ||
@@ -1611,7 +1611,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 		qc_exists = 0;
 
 
-	/*  now, decrypt pframe with hdrlen offset and plen long */
+	/*  yesw, decrypt pframe with hdrlen offset and plen long */
 
 	payload_index = hdrlen + 8; /*  8 is for extiv */
 
@@ -1619,7 +1619,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 		construct_ctr_preload(ctr_preload, a4_exists,
 				      qc_exists, pframe,
 				      pn_vector, i + 1,
-				      frtype); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+				      frtype); /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 
 		aes128k128d(key, ctr_preload, aes_out);
 		bitwise_xor(aes_out, &pframe[payload_index], chain_buffer);
@@ -1638,7 +1638,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 			pframe,
 			pn_vector,
 			num_blocks+1,
-			frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
+			frtype /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 		);
 
 		for (j = 0; j < 16; j++)
@@ -1673,14 +1673,14 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 		message,
 		plen-8,
 		pn_vector,
-		frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
+		frtype /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 	);
 
 	construct_mic_header1(
 		mic_header1,
 		hdrlen,
 		message,
-		frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
+		frtype /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 	);
 	construct_mic_header2(
 		mic_header2,
@@ -1739,7 +1739,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 			pn_vector,
 			i+1,
 			frtype
-		); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+		); /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 		aes128k128d(key, ctr_preload, aes_out);
 		bitwise_xor(aes_out, &message[payload_index], chain_buffer);
 		for (j = 0; j < 16; j++)
@@ -1757,7 +1757,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 			pn_vector,
 			num_blocks+1,
 			frtype
-		); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+		); /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 
 		for (j = 0; j < 16; j++)
 			padded_buffer[j] = 0x00;
@@ -1779,7 +1779,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 		pn_vector,
 		0,
 		frtype
-	); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	); /*  add for CONFIG_IEEE80211W, yesne 11w also can use */
 
 	for (j = 0; j < 16; j++)
 		padded_buffer[j] = 0x00;
@@ -1842,8 +1842,8 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 
 			if (IS_MCAST(prxattrib->ra)) {
 				static unsigned long start;
-				static u32 no_gkey_bc_cnt;
-				static u32 no_gkey_mc_cnt;
+				static u32 yes_gkey_bc_cnt;
+				static u32 yes_gkey_mc_cnt;
 
 				if (psecuritypriv->binstallGrpkey == false) {
 					res = _FAIL;
@@ -1852,34 +1852,34 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 						start = jiffies;
 
 					if (is_broadcast_mac_addr(prxattrib->ra))
-						no_gkey_bc_cnt++;
+						yes_gkey_bc_cnt++;
 					else
-						no_gkey_mc_cnt++;
+						yes_gkey_mc_cnt++;
 
 					if (jiffies_to_msecs(jiffies - start) > 1000) {
-						if (no_gkey_bc_cnt || no_gkey_mc_cnt) {
-							DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
-								FUNC_ADPT_ARG(padapter), no_gkey_bc_cnt, no_gkey_mc_cnt);
+						if (yes_gkey_bc_cnt || yes_gkey_mc_cnt) {
+							DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" yes_gkey_bc_cnt:%u, yes_gkey_mc_cnt:%u\n",
+								FUNC_ADPT_ARG(padapter), yes_gkey_bc_cnt, yes_gkey_mc_cnt);
 						}
 						start = jiffies;
-						no_gkey_bc_cnt = 0;
-						no_gkey_mc_cnt = 0;
+						yes_gkey_bc_cnt = 0;
+						yes_gkey_mc_cnt = 0;
 					}
 
 					goto exit;
 				}
 
-				if (no_gkey_bc_cnt || no_gkey_mc_cnt) {
-					DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" gkey installed. no_gkey_bc_cnt:%u, no_gkey_mc_cnt:%u\n",
-						FUNC_ADPT_ARG(padapter), no_gkey_bc_cnt, no_gkey_mc_cnt);
+				if (yes_gkey_bc_cnt || yes_gkey_mc_cnt) {
+					DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" gkey installed. yes_gkey_bc_cnt:%u, yes_gkey_mc_cnt:%u\n",
+						FUNC_ADPT_ARG(padapter), yes_gkey_bc_cnt, yes_gkey_mc_cnt);
 				}
 				start = 0;
-				no_gkey_bc_cnt = 0;
-				no_gkey_mc_cnt = 0;
+				yes_gkey_bc_cnt = 0;
+				yes_gkey_mc_cnt = 0;
 
 				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 				if (psecuritypriv->dot118021XGrpKeyid != prxattrib->key_index) {
-					DBG_871X("not match packet_index =%d, install_index =%d\n"
+					DBG_871X("yest match packet_index =%d, install_index =%d\n"
 					, prxattrib->key_index, psecuritypriv->dot118021XGrpKeyid);
 					res = _FAIL;
 					goto exit;

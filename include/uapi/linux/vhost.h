@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_VHOST_H
 #define _LINUX_VHOST_H
 /* Userspace interface for in-kernel virtio accelerators. */
@@ -45,7 +45,7 @@
 #define VHOST_SET_LOG_FD _IOW(VHOST_VIRTIO, 0x07, int)
 
 /* Ring setup. */
-/* Set number of descriptors in ring. This parameter can not
+/* Set number of descriptors in ring. This parameter can yest
  * be modified while ring is running (bound to a device). */
 #define VHOST_SET_VRING_NUM _IOW(VHOST_VIRTIO, 0x10, struct vhost_vring_state)
 /* Set addresses for the ring. */
@@ -57,9 +57,9 @@
 
 /* Set the vring byte order in num. Valid values are VHOST_VRING_LITTLE_ENDIAN
  * or VHOST_VRING_BIG_ENDIAN (other values return -EINVAL).
- * The byte order cannot be changed while the device is active: trying to do so
+ * The byte order canyest be changed while the device is active: trying to do so
  * returns -EBUSY.
- * This is a legacy only API that is simply ignored when VIRTIO_F_VERSION_1 is
+ * This is a legacy only API that is simply igyesred when VIRTIO_F_VERSION_1 is
  * set.
  * Not all kernel configurations support this ioctl, but all configurations that
  * support SET also support GET.

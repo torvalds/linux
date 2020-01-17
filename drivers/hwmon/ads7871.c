@@ -175,7 +175,7 @@ static int ads7871_probe(struct spi_device *spi)
 
 	dev_dbg(dev, "REG_OSC_CONTROL write:%x, read:%x\n", val, ret);
 	/*
-	 * because there is no other error checking on an SPI bus
+	 * because there is yes other error checking on an SPI bus
 	 * we need to make sure we really have a chip
 	 */
 	if (val != ret)

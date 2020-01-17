@@ -10,7 +10,7 @@
 
 #include <asm/page.h>
 #include <asm/kmem_layout.h>
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 
 /*
  * We only use two ring levels, user and kernel space.
@@ -92,7 +92,7 @@
  *		|           |   Software   |   HARDWARE   |
  *		|    PPN    |          ADW | RI |Attribute|
  *		+-----------------------------------------+
- *   pte_none	|             MBZ          | 01 | 11 | 00 |
+ *   pte_yesne	|             MBZ          | 01 | 11 | 00 |
  *		+-----------------------------------------+
  *   present	|    PPN    | 0 | 00 | ADW | RI | CA | wx |
  *		+- - - - - - - - - - - - - - - - - - - - -+
@@ -113,19 +113,19 @@
  *   ADW	software: accessed (young) / dirty / writable
  *   RI         ring (0=privileged, 1=user, 2 and 3 are unused)
  *   CA		cache attribute: 00 bypass, 01 writeback, 10 writethrough
- *		(11 is invalid and used to mark pages that are not present)
+ *		(11 is invalid and used to mark pages that are yest present)
  *   w		page is writable (hw)
  *   x		page is executable (hw)
  *   index      swap offset / PAGE_SIZE (bit 11-31: 21 bits -> 8 GB)
- *		(note that the index is always non-zero)
+ *		(yeste that the index is always yesn-zero)
  *   type       swap type (5 bits -> 32 types)
  *
  *  Notes:
  *   - (PROT_NONE) is a special case of 'present' but causes an exception for
  *     any access (read, write, and execute).
  *   - 'multihit-exception' has the highest priority of all MMU exceptions,
- *     so the ring must be set to 'RING_USER' even for 'non-present' pages.
- *   - on older hardware, the exectuable flag was not supported and
+ *     so the ring must be set to 'RING_USER' even for 'yesn-present' pages.
+ *   - on older hardware, the exectuable flag was yest supported and
  *     used as a 'valid' flag, so it needs to be always set.
  *   - we need to keep track of certain flags in software (dirty and young)
  *     to do this, we use write exceptions and have a separate software w-flag.
@@ -137,7 +137,7 @@
 #define _PAGE_HW_EXEC		(1<<0)	/* hardware: page is executable */
 #define _PAGE_HW_WRITE		(1<<1)	/* hardware: page is writable */
 
-#define _PAGE_CA_BYPASS		(0<<2)	/* bypass, non-speculative */
+#define _PAGE_CA_BYPASS		(0<<2)	/* bypass, yesn-speculative */
 #define _PAGE_CA_WB		(1<<2)	/* write-back */
 #define _PAGE_CA_WT		(2<<2)	/* write-through */
 #define _PAGE_CA_MASK		(3<<2)
@@ -183,7 +183,7 @@
 # define _PAGE_DIRECTORY   (_PAGE_HW_VALID | _PAGE_ACCESSED | _PAGE_CA_WB)
 #endif
 
-#else /* no mmu */
+#else /* yes mmu */
 
 # define _PAGE_CHG_MASK  (PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 # define PAGE_NONE       __pgprot(0)
@@ -247,7 +247,7 @@ static inline void paging_init(void) { }
 /*
  * pte status.
  */
-# define pte_none(pte)	 (pte_val(pte) == (_PAGE_CA_INVALID | _PAGE_USER))
+# define pte_yesne(pte)	 (pte_val(pte) == (_PAGE_CA_INVALID | _PAGE_USER))
 #if XCHAL_HW_VERSION_MAJOR < 2000
 # define pte_present(pte) ((pte_val(pte) & _PAGE_CA_MASK) != _PAGE_CA_INVALID)
 #else
@@ -258,7 +258,7 @@ static inline void paging_init(void) { }
 #define pte_clear(mm,addr,ptep)						\
 	do { update_pte(ptep, __pte(_PAGE_CA_INVALID | _PAGE_USER)); } while (0)
 
-#define pmd_none(pmd)	 (!pmd_val(pmd))
+#define pmd_yesne(pmd)	 (!pmd_val(pmd))
 #define pmd_present(pmd) (pmd_val(pmd) & PAGE_MASK)
 #define pmd_bad(pmd)	 (pmd_val(pmd) & ~PAGE_MASK)
 #define pmd_clear(pmdp)	 do { set_pmd(pmdp, __pmd(0)); } while (0)
@@ -283,7 +283,7 @@ static inline pte_t pte_mkwrite(pte_t pte)
 static inline pte_t pte_mkspecial(pte_t pte)
 	{ return pte; }
 
-#define pgprot_noncached(prot) (__pgprot(pgprot_val(prot) & ~_PAGE_CA_MASK))
+#define pgprot_yesncached(prot) (__pgprot(pgprot_val(prot) & ~_PAGE_CA_MASK))
 
 /*
  * Conversion functions: convert a page and protection to a page entry,

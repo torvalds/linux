@@ -54,9 +54,9 @@ typedef unsigned int FPCR;	/* type for floating point control register */
 #define BIT_AC	0x00001000	/* use alternative C-flag definition
 				   for compares */
 #define BIT_EP	0x00000800	/* use expanded packed decimal format */
-#define BIT_SO	0x00000400	/* select synchronous operation of FPA */
+#define BIT_SO	0x00000400	/* select synchroyesus operation of FPA */
 #define BIT_NE	0x00000200	/* NaN exception bit */
-#define BIT_ND	0x00000100	/* no denormalized numbers bit */
+#define BIT_ND	0x00000100	/* yes deyesrmalized numbers bit */
 
 /* CUMULATIVE EXCEPTION FLAGS BYTE
 ---------------------------------- */

@@ -4,7 +4,7 @@
  *
  * Copyright (C) 1999, 2000 Ralf Baechle (ralf@gnu.org)
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 1999 - 2001 Kanoj Sarcar
+ * Copyright (C) 1999 - 2001 Kayesj Sarcar
  */
 
 #include <linux/interrupt.h>
@@ -76,7 +76,7 @@ static void setup_hub_mask(struct hub_irq_data *hd, const struct cpumask *mask)
 	if (cpu >= nr_cpu_ids)
 		cpu = cpumask_any(cpu_online_mask);
 
-	nasid = cpu_to_node(cpu);
+	nasid = cpu_to_yesde(cpu);
 	hd->cpu = cpu;
 	if (!cputoslice(cpu)) {
 		hd->irq_mask[0] = REMOTE_HUB_PTR(nasid, PI_INT_MASK0_A);
@@ -142,13 +142,13 @@ static int hub_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	/* use CPU connected to nearest hub */
 	hub = hub_data(info->nasid);
 	setup_hub_mask(hd, &hub->h_cpus);
-	info->nasid = cpu_to_node(hd->cpu);
+	info->nasid = cpu_to_yesde(hd->cpu);
 
-	/* Make sure it's not already pending when we connect it. */
+	/* Make sure it's yest already pending when we connect it. */
 	REMOTE_HUB_CLR_INTR(info->nasid, swlevel);
 
 	desc = irq_to_desc(virq);
-	desc->irq_common_data.node = info->nasid;
+	desc->irq_common_data.yesde = info->nasid;
 	cpumask_copy(desc->irq_common_data.affinity, &hub->h_cpus);
 
 	return 0;
@@ -176,12 +176,12 @@ static const struct irq_domain_ops hub_domain_ops = {
  * This code is unnecessarily complex, because we do
  * intr enabling. Basically, once we grab the set of intrs we need
  * to service, we must mask _all_ these interrupts; firstly, to make
- * sure the same intr does not intr again, causing recursion that
- * can lead to stack overflow. Secondly, we can not just mask the
- * one intr we are do_IRQing, because the non-masked intrs in the
+ * sure the same intr does yest intr again, causing recursion that
+ * can lead to stack overflow. Secondly, we can yest just mask the
+ * one intr we are do_IRQing, because the yesn-masked intrs in the
  * first set might intr again, causing multiple servicings of the
  * same intr. This effect is mostly seen for intercpu intrs.
- * Kanoj 05.13.00
+ * Kayesj 05.13.00
  */
 
 static void ip27_do_irq_mask0(struct irq_desc *desc)
@@ -278,7 +278,7 @@ void install_ipi(void)
 void __init arch_init_irq(void)
 {
 	struct irq_domain *domain;
-	struct fwnode_handle *fn;
+	struct fwyesde_handle *fn;
 	int i;
 
 	mips_cpu_irq_init();
@@ -296,7 +296,7 @@ void __init arch_init_irq(void)
 	for (i = NI_BRDCAST_ERR_A; i <= MSC_PANIC_INTR; i++)
 		set_bit(i, hub_irq_map);
 
-	fn = irq_domain_alloc_named_fwnode("HUB");
+	fn = irq_domain_alloc_named_fwyesde("HUB");
 	WARN_ON(fn == NULL);
 	if (!fn)
 		return;

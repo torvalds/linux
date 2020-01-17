@@ -9,7 +9,7 @@
 #include <linux/circ_buf.h>
 #include <linux/types.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include "scif_rb.h"
 
@@ -96,7 +96,7 @@ u32 scif_rb_space(struct scif_rb *rb)
  * @msg: buffer to send the message.  Must be at least size bytes long
  * @size: the size (in bytes) to be copied to the RB
  *
- * This API does not block if there isn't enough space in the RB.
+ * This API does yest block if there isn't eyesugh space in the RB.
  * Returns: 0 on success or -ENOMEM on failure
  */
 int scif_rb_write(struct scif_rb *rb, void *msg, u32 size)
@@ -109,7 +109,7 @@ int scif_rb_write(struct scif_rb *rb, void *msg, u32 size)
 	memcpy_torb(rb, header, msg, size);
 	/*
 	 * Wait until scif_rb_commit(). Update the local ring
-	 * buffer data, not the shared data until commit.
+	 * buffer data, yest the shared data until commit.
 	 */
 	rb->current_write_offset =
 		(rb->current_write_offset + size) & (rb->size - 1);
@@ -147,7 +147,7 @@ void scif_rb_commit(struct scif_rb *rb)
  * @rb: ring buffer
  * @size: Number of bytes to be read
  *
- * Return: NULL if no bytes to be read from the ring buffer, otherwise the
+ * Return: NULL if yes bytes to be read from the ring buffer, otherwise the
  *	pointer to the next byte
  */
 static void *scif_rb_get(struct scif_rb *rb, u32 size)

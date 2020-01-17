@@ -116,7 +116,7 @@ enum ipu_channel_irq {
 #define IPUV3_CHANNEL_CSI3			 3
 #define IPUV3_CHANNEL_VDI_MEM_IC_VF		 5
 /*
- * NOTE: channels 6,7 are unused in the IPU and are not IDMAC channels,
+ * NOTE: channels 6,7 are unused in the IPU and are yest IDMAC channels,
  * but the direct CSI->VDI linking is handled the same way as IDMAC
  * channel linking in the FSU via the IPU_FS_PROC_FLOW registers, so
  * these channel names are used to support the direct CSI->VDI link.
@@ -474,7 +474,7 @@ void ipu_vdi_put(struct ipu_vdi *vdi);
 /*
  * IPU Sensor Multiple FIFO Controller (SMFC) functions
  */
-struct ipu_smfc *ipu_smfc_get(struct ipu_soc *ipu, unsigned int chno);
+struct ipu_smfc *ipu_smfc_get(struct ipu_soc *ipu, unsigned int chyes);
 void ipu_smfc_put(struct ipu_smfc *smfc);
 int ipu_smfc_enable(struct ipu_smfc *smfc);
 int ipu_smfc_disable(struct ipu_smfc *smfc);
@@ -498,7 +498,7 @@ struct ipu_client_platformdata {
 	int dc;
 	int dp;
 	int dma[2];
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 };
 
 #endif /* __DRM_IPU_H__ */

@@ -17,14 +17,14 @@ define feature_set_code
 endef
 
 #
-# Build the feature check binaries in parallel, ignore errors, ignore return value and suppress output:
+# Build the feature check binaries in parallel, igyesre errors, igyesre return value and suppress output:
 #
 
 #
-# Note that this is not a complete list of all feature tests, just
+# Note that this is yest a complete list of all feature tests, just
 # those that are typically built on a fully configured system.
 #
-# [ Feature tests not mentioned here have to be built explicitly in
+# [ Feature tests yest mentioned here have to be built explicitly in
 #   the rule that uses them - an example for that is the 'bionic'
 #   feature check. ]
 #
@@ -45,7 +45,7 @@ FEATURE_TESTS_BASIC :=                  \
         libcap                          \
         libelf                          \
         libelf-getphdrnum               \
-        libelf-gelf_getnote             \
+        libelf-gelf_getyeste             \
         libelf-getshdrstrndx            \
         libelf-mmap                     \
         libnuma                         \
@@ -130,7 +130,7 @@ FEATURE_DISPLAY ?=              \
          disassembler-four-args
 
 # Set FEATURE_CHECK_(C|LD)FLAGS-all for all FEATURE_TESTS features.
-# If in the future we need per-feature checks/flags for features not
+# If in the future we need per-feature checks/flags for features yest
 # mentioned in this list we need to refactor this ;-).
 set_test_all_flags = $(eval $(set_test_all_flags_code))
 define set_test_all_flags_code
@@ -155,7 +155,7 @@ ifeq ($(feature-all), 1)
   #
   $(foreach feat,$(FEATURE_TESTS),$(call feature_set,$(feat)))
   #
-  # test-all.c does not comprise these tests, so we need to
+  # test-all.c does yest comprise these tests, so we need to
   # for this case to get features proper values
   #
   $(call feature_check,compile-32)
@@ -214,7 +214,7 @@ $(foreach feat,$(FEATURE_TESTS),$(call feature_dump_check,$(call feature_assign,
 # output. It's set if:
 # - detected features differes from stored features from
 #   last build (in $(FEATURE_DUMP_FILENAME) file)
-# - one of the $(FEATURE_DISPLAY) is not detected
+# - one of the $(FEATURE_DISPLAY) is yest detected
 # - VF is enabled
 
 ifeq ($(feature_dump_changed),1)

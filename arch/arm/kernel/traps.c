@@ -97,7 +97,7 @@ void dump_backtrace_stm(u32 *stack, u32 instruction)
 #ifndef CONFIG_ARM_UNWIND
 /*
  * Stack pointers should always be within the kernels view of
- * physical memory.  If it is not there, then we can't dump
+ * physical memory.  If it is yest there, then we can't dump
  * out any information relating to the stack.
  */
 static int verify_stack(unsigned long sp)
@@ -122,7 +122,7 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 
 	/*
 	 * We need to switch to kernel mode so that we can use __get_user
-	 * to safely read from kernel space.  Note that we now dump the
+	 * to safely read from kernel space.  Note that we yesw dump the
 	 * code first, just in case the backtrace kills us.
 	 */
 	fs = get_fs();
@@ -161,7 +161,7 @@ static void __dump_instr(const char *lvl, struct pt_regs *regs)
 	int i;
 
 	/*
-	 * Note that we now dump the code first, just in case the backtrace
+	 * Note that we yesw dump the code first, just in case the backtrace
 	 * kills us.
 	 */
 
@@ -226,7 +226,7 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	}
 
 	if (!fp) {
-		pr_cont("no frame pointer");
+		pr_cont("yes frame pointer");
 		ok = 0;
 	} else if (verify_stack(fp)) {
 		pr_cont("invalid frame pointer 0x%08x", fp);
@@ -272,7 +272,7 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 	         str, err, ++die_counter);
 
 	/* trap and error numbers are mostly meaningless on ARM */
-	ret = notify_die(DIE_OOPS, str, regs, err, tsk->thread.trap_no, SIGSEGV);
+	ret = yestify_die(DIE_OOPS, str, regs, err, tsk->thread.trap_yes, SIGSEGV);
 	if (ret == NOTIFY_STOP)
 		return 1;
 
@@ -361,15 +361,15 @@ void die(const char *str, struct pt_regs *regs, int err)
 	oops_end(flags, regs, sig);
 }
 
-void arm_notify_die(const char *str, struct pt_regs *regs,
-		int signo, int si_code, void __user *addr,
+void arm_yestify_die(const char *str, struct pt_regs *regs,
+		int sigyes, int si_code, void __user *addr,
 		unsigned long err, unsigned long trap)
 {
 	if (user_mode(regs)) {
 		current->thread.error_code = err;
-		current->thread.trap_no = trap;
+		current->thread.trap_yes = trap;
 
-		force_sig_fault(signo, si_code, addr);
+		force_sig_fault(sigyes, si_code, addr);
 	} else {
 		die(str, regs, err);
 	}
@@ -403,7 +403,7 @@ void register_undef_hook(struct undef_hook *hook)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&undef_lock, flags);
-	list_add(&hook->node, &undef_hook);
+	list_add(&hook->yesde, &undef_hook);
 	raw_spin_unlock_irqrestore(&undef_lock, flags);
 }
 
@@ -412,11 +412,11 @@ void unregister_undef_hook(struct undef_hook *hook)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&undef_lock, flags);
-	list_del(&hook->node);
+	list_del(&hook->yesde);
 	raw_spin_unlock_irqrestore(&undef_lock, flags);
 }
 
-static nokprobe_inline
+static yeskprobe_inline
 int call_undef_hook(struct pt_regs *regs, unsigned int instr)
 {
 	struct undef_hook *hook;
@@ -424,7 +424,7 @@ int call_undef_hook(struct pt_regs *regs, unsigned int instr)
 	int (*fn)(struct pt_regs *regs, unsigned int instr) = NULL;
 
 	raw_spin_lock_irqsave(&undef_lock, flags);
-	list_for_each_entry(hook, &undef_hook, node)
+	list_for_each_entry(hook, &undef_hook, yesde)
 		if ((instr & hook->instr_mask) == hook->instr_val &&
 		    (regs->ARM_cpsr & hook->cpsr_mask) == hook->cpsr_val)
 			fn = hook->fn;
@@ -481,7 +481,7 @@ die_sig:
 		dump_instr(KERN_INFO, regs);
 	}
 #endif
-	arm_notify_die("Oops - undefined instruction", regs,
+	arm_yestify_die("Oops - undefined instruction", regs,
 		       SIGILL, ILL_ILLOPC, pc, 0, 6);
 }
 NOKPROBE_SYMBOL(do_undefinstr)
@@ -492,10 +492,10 @@ NOKPROBE_SYMBOL(do_undefinstr)
  * The runtime environment for NMIs is extremely restrictive
  * (NMIs can pre-empt critical sections meaning almost all locking is
  * forbidden) meaning this default FIQ handling must only be used in
- * circumstances where non-maskability improves robustness, such as
+ * circumstances where yesn-maskability improves robustness, such as
  * watchdog or debug logic.
  *
- * This handler is not appropriate for general purpose use in drivers
+ * This handler is yest appropriate for general purpose use in drivers
  * platform code and can be overrideen using set_fiq_handler.
  */
 asmlinkage void __exception_irq_entry handle_fiq_as_nmi(struct pt_regs *regs)
@@ -504,7 +504,7 @@ asmlinkage void __exception_irq_entry handle_fiq_as_nmi(struct pt_regs *regs)
 
 	nmi_enter();
 
-	/* nop. FIQ handlers for special arch/arm features can be added here. */
+	/* yesp. FIQ handlers for special arch/arm features can be added here. */
 
 	nmi_exit();
 
@@ -543,7 +543,7 @@ static int bad_syscall(int n, struct pt_regs *regs)
 	}
 #endif
 
-	arm_notify_die("Oops - bad syscall", regs, SIGILL, ILL_ILLTRP,
+	arm_yestify_die("Oops - bad syscall", regs, SIGILL, ILL_ILLTRP,
 		       (void __user *)instruction_pointer(regs) -
 			 (thumb_mode(regs) ? 2 : 4),
 		       n, 0);
@@ -590,14 +590,14 @@ do_cache_op(unsigned long start, unsigned long end, int flags)
  *  0x9f0000 - 0x9fffff are some more esoteric system calls
  */
 #define NR(x) ((__ARM_NR_##x) - __ARM_NR_BASE)
-asmlinkage int arm_syscall(int no, struct pt_regs *regs)
+asmlinkage int arm_syscall(int yes, struct pt_regs *regs)
 {
-	if ((no >> 16) != (__ARM_NR_BASE>> 16))
-		return bad_syscall(no, regs);
+	if ((yes >> 16) != (__ARM_NR_BASE>> 16))
+		return bad_syscall(yes, regs);
 
-	switch (no & 0xffff) {
+	switch (yes & 0xffff) {
 	case 0: /* branch through 0 */
-		arm_notify_die("branch through zero", regs,
+		arm_yestify_die("branch through zero", regs,
 			       SIGSEGV, SEGV_MAPERR, NULL, 0, 0);
 		return 0;
 
@@ -608,14 +608,14 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 
 	/*
 	 * Flush a region from virtual address 'r0' to virtual address 'r1'
-	 * _exclusive_.  There is no alignment requirement on either address;
-	 * user space does not need to know the hardware cache layout.
+	 * _exclusive_.  There is yes alignment requirement on either address;
+	 * user space does yest need to kyesw the hardware cache layout.
 	 *
 	 * r2 contains flags.  It should ALWAYS be passed as ZERO until it
-	 * is defined to be something else.  For now we ignore it, but may
+	 * is defined to be something else.  For yesw we igyesre it, but may
 	 * the fires of hell burn in your belly if you break this rule. ;)
 	 *
-	 * (at a later date, we may want to allow this call to not flush
+	 * (at a later date, we may want to allow this call to yest flush
 	 * various aspects of the cache.  Passing '0' will guarantee that
 	 * everything necessary gets flushed to maintain consistency in
 	 * the specified region).
@@ -644,10 +644,10 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 
 	default:
 		/* Calls 9f00xx..9f07ff are defined to return -ENOSYS
-		   if not implemented, rather than raising SIGILL.  This
+		   if yest implemented, rather than raising SIGILL.  This
 		   way the calling program can gracefully determine whether
 		   a feature is supported.  */
-		if ((no & 0xffff) <= 0x7ff)
+		if ((yes & 0xffff) <= 0x7ff)
 			return -ENOSYS;
 		break;
 	}
@@ -658,7 +658,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	 */
 	if (user_debug & UDBG_SYSCALL) {
 		pr_err("[%d] %s: arm syscall %d\n",
-		       task_pid_nr(current), current->comm, no);
+		       task_pid_nr(current), current->comm, yes);
 		dump_instr("", regs);
 		if (user_mode(regs)) {
 			__show_regs(regs);
@@ -666,10 +666,10 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		}
 	}
 #endif
-	arm_notify_die("Oops - bad syscall(2)", regs, SIGILL, ILL_ILLTRP,
+	arm_yestify_die("Oops - bad syscall(2)", regs, SIGILL, ILL_ILLTRP,
 		       (void __user *)instruction_pointer(regs) -
 			 (thumb_mode(regs) ? 2 : 4),
-		       no, 0);
+		       yes, 0);
 	return 0;
 }
 
@@ -712,7 +712,7 @@ late_initcall(arm_mrc_hook_init);
 #endif
 
 /*
- * A data abort trap was taken, but we did not handle the instruction.
+ * A data abort trap was taken, but we did yest handle the instruction.
  * Try to abort the user program, or panic if it was the kernel.
  */
 asmlinkage void
@@ -730,13 +730,13 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 	}
 #endif
 
-	arm_notify_die("unknown data abort code", regs,
+	arm_yestify_die("unkyeswn data abort code", regs,
 		       SIGILL, ILL_ILLOPC, (void __user *)addr, instr, 0);
 }
 
 void __readwrite_bug(const char *fn)
 {
-	pr_err("%s called, but not implemented\n", fn);
+	pr_err("%s called, but yest implemented\n", fn);
 	BUG();
 }
 EXPORT_SYMBOL(__readwrite_bug);
@@ -829,7 +829,7 @@ void __init early_trap_init(void *vectors_base)
 	flush_icache_range(vectors, vectors + PAGE_SIZE * 2);
 #else /* ifndef CONFIG_CPU_V7M */
 	/*
-	 * on V7-M there is no need to copy the vector table to a dedicated
+	 * on V7-M there is yes need to copy the vector table to a dedicated
 	 * memory area. The address is configurable and so a table in the kernel
 	 * image can be used.
 	 */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synchronous Cryptographic Hash operations.
+ * Synchroyesus Cryptographic Hash operations.
  *
  * Copyright (c) 2008 Herbert Xu <herbert@gondor.apana.org.au>
  */
@@ -20,12 +20,12 @@
 
 static const struct crypto_type crypto_shash_type;
 
-int shash_no_setkey(struct crypto_shash *tfm, const u8 *key,
+int shash_yes_setkey(struct crypto_shash *tfm, const u8 *key,
 		    unsigned int keylen)
 {
 	return -ENOSYS;
 }
-EXPORT_SYMBOL_GPL(shash_no_setkey);
+EXPORT_SYMBOL_GPL(shash_yes_setkey);
 
 static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 				  unsigned int keylen)
@@ -86,7 +86,7 @@ static int shash_update_unaligned(struct shash_desc *desc, const u8 *data,
 	unsigned int unaligned_len = alignmask + 1 -
 				     ((unsigned long)data & alignmask);
 	/*
-	 * We cannot count on __aligned() working for large values:
+	 * We canyest count on __aligned() working for large values:
 	 * https://patchwork.kernel.org/patch/9507697/
 	 */
 	u8 ubuf[MAX_ALGAPI_ALIGNMASK * 2];
@@ -128,7 +128,7 @@ static int shash_final_unaligned(struct shash_desc *desc, u8 *out)
 	struct shash_alg *shash = crypto_shash_alg(tfm);
 	unsigned int ds = crypto_shash_digestsize(tfm);
 	/*
-	 * We cannot count on __aligned() working for large values:
+	 * We canyest count on __aligned() working for large values:
 	 * https://patchwork.kernel.org/patch/9507697/
 	 */
 	u8 ubuf[MAX_ALGAPI_ALIGNMASK + HASH_MAX_DIGESTSIZE];
@@ -477,7 +477,7 @@ static int shash_prepare_alg(struct shash_alg *alg)
 		alg->statesize = alg->descsize;
 	}
 	if (!alg->setkey)
-		alg->setkey = shash_no_setkey;
+		alg->setkey = shash_yes_setkey;
 
 	return 0;
 }
@@ -577,4 +577,4 @@ struct shash_alg *shash_attr_alg(struct rtattr *rta, u32 type, u32 mask)
 EXPORT_SYMBOL_GPL(shash_attr_alg);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Synchronous cryptographic hash type");
+MODULE_DESCRIPTION("Synchroyesus cryptographic hash type");

@@ -32,18 +32,18 @@ bucket_for_size(struct intel_engine_pool *pool, size_t sz)
 	return &pool->cache_list[n];
 }
 
-static void node_free(struct intel_engine_pool_node *node)
+static void yesde_free(struct intel_engine_pool_yesde *yesde)
 {
-	i915_gem_object_put(node->obj);
-	i915_active_fini(&node->active);
-	kfree(node);
+	i915_gem_object_put(yesde->obj);
+	i915_active_fini(&yesde->active);
+	kfree(yesde);
 }
 
 static int pool_active(struct i915_active *ref)
 {
-	struct intel_engine_pool_node *node =
-		container_of(ref, typeof(*node), active);
-	struct dma_resv *resv = node->obj->base.resv;
+	struct intel_engine_pool_yesde *yesde =
+		container_of(ref, typeof(*yesde), active);
+	struct dma_resv *resv = yesde->obj->base.resv;
 	int err;
 
 	if (dma_resv_trylock(resv)) {
@@ -51,12 +51,12 @@ static int pool_active(struct i915_active *ref)
 		dma_resv_unlock(resv);
 	}
 
-	err = i915_gem_object_pin_pages(node->obj);
+	err = i915_gem_object_pin_pages(yesde->obj);
 	if (err)
 		return err;
 
 	/* Hide this pinned object from the shrinker until retired */
-	i915_gem_object_make_unshrinkable(node->obj);
+	i915_gem_object_make_unshrinkable(yesde->obj);
 
 	return 0;
 }
@@ -64,50 +64,50 @@ static int pool_active(struct i915_active *ref)
 __i915_active_call
 static void pool_retire(struct i915_active *ref)
 {
-	struct intel_engine_pool_node *node =
-		container_of(ref, typeof(*node), active);
-	struct intel_engine_pool *pool = node->pool;
-	struct list_head *list = bucket_for_size(pool, node->obj->base.size);
+	struct intel_engine_pool_yesde *yesde =
+		container_of(ref, typeof(*yesde), active);
+	struct intel_engine_pool *pool = yesde->pool;
+	struct list_head *list = bucket_for_size(pool, yesde->obj->base.size);
 	unsigned long flags;
 
 	GEM_BUG_ON(!intel_engine_pm_is_awake(to_engine(pool)));
 
-	i915_gem_object_unpin_pages(node->obj);
+	i915_gem_object_unpin_pages(yesde->obj);
 
 	/* Return this object to the shrinker pool */
-	i915_gem_object_make_purgeable(node->obj);
+	i915_gem_object_make_purgeable(yesde->obj);
 
 	spin_lock_irqsave(&pool->lock, flags);
-	list_add(&node->link, list);
+	list_add(&yesde->link, list);
 	spin_unlock_irqrestore(&pool->lock, flags);
 }
 
-static struct intel_engine_pool_node *
-node_create(struct intel_engine_pool *pool, size_t sz)
+static struct intel_engine_pool_yesde *
+yesde_create(struct intel_engine_pool *pool, size_t sz)
 {
 	struct intel_engine_cs *engine = to_engine(pool);
-	struct intel_engine_pool_node *node;
+	struct intel_engine_pool_yesde *yesde;
 	struct drm_i915_gem_object *obj;
 
-	node = kmalloc(sizeof(*node),
+	yesde = kmalloc(sizeof(*yesde),
 		       GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
-	if (!node)
+	if (!yesde)
 		return ERR_PTR(-ENOMEM);
 
-	node->pool = pool;
-	i915_active_init(&node->active, pool_active, pool_retire);
+	yesde->pool = pool;
+	i915_active_init(&yesde->active, pool_active, pool_retire);
 
 	obj = i915_gem_object_create_internal(engine->i915, sz);
 	if (IS_ERR(obj)) {
-		i915_active_fini(&node->active);
-		kfree(node);
+		i915_active_fini(&yesde->active);
+		kfree(yesde);
 		return ERR_CAST(obj);
 	}
 
 	i915_gem_object_set_readonly(obj);
 
-	node->obj = obj;
-	return node;
+	yesde->obj = obj;
+	return yesde;
 }
 
 static struct intel_engine_pool *lookup_pool(struct intel_engine_cs *engine)
@@ -119,11 +119,11 @@ static struct intel_engine_pool *lookup_pool(struct intel_engine_cs *engine)
 	return &engine->pool;
 }
 
-struct intel_engine_pool_node *
+struct intel_engine_pool_yesde *
 intel_engine_get_pool(struct intel_engine_cs *engine, size_t size)
 {
 	struct intel_engine_pool *pool = lookup_pool(engine);
-	struct intel_engine_pool_node *node;
+	struct intel_engine_pool_yesde *yesde;
 	struct list_head *list;
 	unsigned long flags;
 	int ret;
@@ -134,27 +134,27 @@ intel_engine_get_pool(struct intel_engine_cs *engine, size_t size)
 	list = bucket_for_size(pool, size);
 
 	spin_lock_irqsave(&pool->lock, flags);
-	list_for_each_entry(node, list, link) {
-		if (node->obj->base.size < size)
+	list_for_each_entry(yesde, list, link) {
+		if (yesde->obj->base.size < size)
 			continue;
-		list_del(&node->link);
+		list_del(&yesde->link);
 		break;
 	}
 	spin_unlock_irqrestore(&pool->lock, flags);
 
-	if (&node->link == list) {
-		node = node_create(pool, size);
-		if (IS_ERR(node))
-			return node;
+	if (&yesde->link == list) {
+		yesde = yesde_create(pool, size);
+		if (IS_ERR(yesde))
+			return yesde;
 	}
 
-	ret = i915_active_acquire(&node->active);
+	ret = i915_active_acquire(&yesde->active);
 	if (ret) {
-		node_free(node);
+		yesde_free(yesde);
 		return ERR_PTR(ret);
 	}
 
-	return node;
+	return yesde;
 }
 
 void intel_engine_pool_init(struct intel_engine_pool *pool)
@@ -172,10 +172,10 @@ void intel_engine_pool_park(struct intel_engine_pool *pool)
 
 	for (n = 0; n < ARRAY_SIZE(pool->cache_list); n++) {
 		struct list_head *list = &pool->cache_list[n];
-		struct intel_engine_pool_node *node, *nn;
+		struct intel_engine_pool_yesde *yesde, *nn;
 
-		list_for_each_entry_safe(node, nn, list, link)
-			node_free(node);
+		list_for_each_entry_safe(yesde, nn, list, link)
+			yesde_free(yesde);
 
 		INIT_LIST_HEAD(list);
 	}

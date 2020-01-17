@@ -18,12 +18,12 @@ static DEFINE_SPINLOCK(lowpan_nhc_lock);
 
 static int lowpan_nhc_insert(struct lowpan_nhc *nhc)
 {
-	struct rb_node **new = &rb_root.rb_node, *parent = NULL;
+	struct rb_yesde **new = &rb_root.rb_yesde, *parent = NULL;
 
-	/* Figure out where to put new node */
+	/* Figure out where to put new yesde */
 	while (*new) {
 		struct lowpan_nhc *this = rb_entry(*new, struct lowpan_nhc,
-						   node);
+						   yesde);
 		int result, len_dif, len;
 
 		len_dif = nhc->idlen - this->idlen;
@@ -46,26 +46,26 @@ static int lowpan_nhc_insert(struct lowpan_nhc *nhc)
 			return -EEXIST;
 	}
 
-	/* Add new node and rebalance tree. */
-	rb_link_node(&nhc->node, parent, new);
-	rb_insert_color(&nhc->node, &rb_root);
+	/* Add new yesde and rebalance tree. */
+	rb_link_yesde(&nhc->yesde, parent, new);
+	rb_insert_color(&nhc->yesde, &rb_root);
 
 	return 0;
 }
 
 static void lowpan_nhc_remove(struct lowpan_nhc *nhc)
 {
-	rb_erase(&nhc->node, &rb_root);
+	rb_erase(&nhc->yesde, &rb_root);
 }
 
 static struct lowpan_nhc *lowpan_nhc_by_nhcid(const struct sk_buff *skb)
 {
-	struct rb_node *node = rb_root.rb_node;
+	struct rb_yesde *yesde = rb_root.rb_yesde;
 	const u8 *nhcid_skb_ptr = skb->data;
 
-	while (node) {
-		struct lowpan_nhc *nhc = rb_entry(node, struct lowpan_nhc,
-						  node);
+	while (yesde) {
+		struct lowpan_nhc *nhc = rb_entry(yesde, struct lowpan_nhc,
+						  yesde);
 		u8 nhcid_skb_ptr_masked[LOWPAN_NHC_MAX_ID_LEN];
 		int result, i;
 
@@ -79,9 +79,9 @@ static struct lowpan_nhc *lowpan_nhc_by_nhcid(const struct sk_buff *skb)
 
 		result = memcmp(nhcid_skb_ptr_masked, nhc->id, nhc->idlen);
 		if (result < 0)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (result > 0)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return nhc;
 	}
@@ -121,7 +121,7 @@ int lowpan_nhc_do_compression(struct sk_buff *skb, const struct ipv6hdr *hdr,
 	 * the lowpan packet but it's very unlikely.
 	 *
 	 * Solution isn't easy because we need to decide at
-	 * lowpan_nhc_check_compression if we do a compression or not.
+	 * lowpan_nhc_check_compression if we do a compression or yest.
 	 * Because the inline data which is added to skb, we can't move this
 	 * handling.
 	 */
@@ -130,7 +130,7 @@ int lowpan_nhc_do_compression(struct sk_buff *skb, const struct ipv6hdr *hdr,
 		goto out;
 	}
 
-	/* In the case of RAW sockets the transport header is not set by
+	/* In the case of RAW sockets the transport header is yest set by
 	 * the ip6 stack so we must set it ourselves
 	 */
 	if (skb->transport_header == skb->network_header)
@@ -169,13 +169,13 @@ int lowpan_nhc_do_uncompression(struct sk_buff *skb,
 			}
 		} else {
 			spin_unlock_bh(&lowpan_nhc_lock);
-			netdev_warn(dev, "received nhc id for %s which is not implemented.\n",
+			netdev_warn(dev, "received nhc id for %s which is yest implemented.\n",
 				    nhc->name);
 			return -ENOTSUPP;
 		}
 	} else {
 		spin_unlock_bh(&lowpan_nhc_lock);
-		netdev_warn(dev, "received unknown nhc id which was not found.\n");
+		netdev_warn(dev, "received unkyeswn nhc id which was yest found.\n");
 		return -ENOENT;
 	}
 

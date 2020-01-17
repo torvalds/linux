@@ -31,7 +31,7 @@ struct scsi_transport_template;
  *  convert the strings into the HBAAPI-specified binary values.
  *
  * Note: Not all HBAAPI-defined values are contained in the definitions
- *  below. Those not appropriate to an fc_host (e.g. FCP initiator) have
+ *  below. Those yest appropriate to an fc_host (e.g. FCP initiator) have
  *  been removed.
  */
 
@@ -46,7 +46,7 @@ enum fc_port_type {
 	FC_PORTTYPE_NPORT,		/* Attached to FPort */
 	FC_PORTTYPE_NLPORT,		/* (Public) Loop w/ FLPort */
 	FC_PORTTYPE_LPORT,		/* (Private) Loop w/o FLPort */
-	FC_PORTTYPE_PTP,		/* Point to Point w/ another NPort */
+	FC_PORTTYPE_PTP,		/* Point to Point w/ ayesther NPort */
 	FC_PORTTYPE_NPIV,		/* VPORT based on NPIV */
 };
 
@@ -91,7 +91,7 @@ enum fc_vport_state {
 
 /*
  * FC Classes of Service
- * Note: values are not enumerated, as they can be "or'd" together
+ * Note: values are yest enumerated, as they can be "or'd" together
  * for reporting (e.g. report supported_classes). If you alter this list,
  * you also need to alter scsi_transport_fc.c (for the ascii descriptions).
  */
@@ -104,11 +104,11 @@ enum fc_vport_state {
 
 /*
  * FC Port Speeds
- * Note: values are not enumerated, as they can be "or'd" together
+ * Note: values are yest enumerated, as they can be "or'd" together
  * for reporting (e.g. report supported_speeds). If you alter this list,
  * you also need to alter scsi_transport_fc.c (for the ascii descriptions).
  */
-#define FC_PORTSPEED_UNKNOWN		0 /* Unknown - transceiver
+#define FC_PORTSPEED_UNKNOWN		0 /* Unkyeswn - transceiver
 					     incapable of reporting */
 #define FC_PORTSPEED_1GBIT		1
 #define FC_PORTSPEED_2GBIT		2
@@ -124,7 +124,7 @@ enum fc_vport_state {
 #define FC_PORTSPEED_25GBIT		0x800
 #define FC_PORTSPEED_64GBIT		0x1000
 #define FC_PORTSPEED_128GBIT		0x2000
-#define FC_PORTSPEED_NOT_NEGOTIATED	(1 << 15) /* Speed not established */
+#define FC_PORTSPEED_NOT_NEGOTIATED	(1 << 15) /* Speed yest established */
 
 /*
  * fc_tgtid_binding_type: If you alter this, you also need to alter
@@ -139,7 +139,7 @@ enum fc_tgtid_binding_type  {
 
 /*
  * FC Port Roles
- * Note: values are not enumerated, as they can be "or'd" together
+ * Note: values are yest enumerated, as they can be "or'd" together
  * for reporting (e.g. report roles). If you alter this list,
  * you also need to alter scsi_transport_fc.c (for the ascii descriptions).
  */
@@ -170,14 +170,14 @@ struct device_attribute dev_attr_vport_##_name = 	\
  *
  * Notes:
  *   symbolic_name: The driver is to append the symbolic_name string data
- *      to the symbolic_node_name data that it generates by default.
+ *      to the symbolic_yesde_name data that it generates by default.
  *      the resulting combination should then be registered with the switch.
  *      It is expected that things like Xen may stuff a VM title into
  *      this field.
  */
 #define FC_VPORT_SYMBOLIC_NAMELEN		64
 struct fc_vport_identifiers {
-	u64 node_name;
+	u64 yesde_name;
 	u64 port_name;
 	u32 roles;
 	bool disable;
@@ -202,7 +202,7 @@ struct fc_vport_identifiers {
  *
  * --
  *
- * Fixed attributes are not expected to change. The driver is
+ * Fixed attributes are yest expected to change. The driver is
  * expected to set these values after receiving the fc_vport structure
  * via the vport_create() call from the transport.
  * The transport fully manages all get functions w/o driver interaction.
@@ -222,7 +222,7 @@ struct fc_vport {
 	/* Private (Transport-managed) Attributes */
 	enum fc_vport_state vport_state;
 	enum fc_vport_state vport_last_state;
-	u64 node_name;
+	u64 yesde_name;
 	u64 port_name;
 	u32 roles;
 	u32 vport_id;		/* Admin Identifier for the vport */
@@ -261,14 +261,14 @@ struct fc_vport {
 
 
 /* Error return codes for vport_create() callback */
-#define VPCERR_UNSUPPORTED		-ENOSYS		/* no driver/adapter
+#define VPCERR_UNSUPPORTED		-ENOSYS		/* yes driver/adapter
 							   support */
 #define VPCERR_BAD_WWN			-ENOTUNIQ	/* driver validation
 							   of WWNs failed */
 #define VPCERR_NO_FABRIC_SUPP		-EOPNOTSUPP	/* Fabric connection
 							   is loop or the
 							   Fabric Port does
-							   not support NPIV */
+							   yest support NPIV */
 
 /*
  * fc_rport_identifiers: This set of data contains all elements
@@ -278,7 +278,7 @@ struct fc_vport {
  * target id bindings.
  */
 struct fc_rport_identifiers {
-	u64 node_name;
+	u64 yesde_name;
 	u64 port_name;
 	u32 port_id;
 	u32 roles;
@@ -294,8 +294,8 @@ struct device_attribute dev_attr_rport_##_name = 	\
 /*
  * FC Remote Port Attributes
  *
- * This structure exists for each remote FC port that a LLDD notifies
- * the subsystem of.  A remote FC port may or may not be a SCSI Target,
+ * This structure exists for each remote FC port that a LLDD yestifies
+ * the subsystem of.  A remote FC port may or may yest be a SCSI Target,
  * also be a SCSI initiator, IP endpoint, etc. As such, the remote
  * port is considered a separate entity, independent of "role" (such
  * as scsi target).
@@ -306,7 +306,7 @@ struct device_attribute dev_attr_rport_##_name = 	\
  * attributes that are determinable by the local port (aka Host)
  * are contained.
  *
- * Fixed attributes are not expected to change. The driver is
+ * Fixed attributes are yest expected to change. The driver is
  * expected to set these values after successfully calling
  * fc_remote_port_add(). The transport fully manages all get functions
  * w/o driver interaction.
@@ -327,7 +327,7 @@ struct fc_rport {	/* aka fc_starget_attrs */
 	u32 dev_loss_tmo;	/* Remote Port loss timeout in seconds. */
 
 	/* Private (Transport-managed) Attributes */
-	u64 node_name;
+	u64 yesde_name;
 	u64 port_name;
 	u32 port_id;
 	u32 roles;
@@ -379,13 +379,13 @@ struct fc_rport {	/* aka fc_starget_attrs */
 
 struct fc_starget_attrs {	/* aka fc_target_attrs */
 	/* Dynamic Attributes */
-	u64 node_name;
+	u64 yesde_name;
 	u64 port_name;
 	u32 port_id;
 };
 
-#define fc_starget_node_name(x) \
-	(((struct fc_starget_attrs *)&(x)->starget_data)->node_name)
+#define fc_starget_yesde_name(x) \
+	(((struct fc_starget_attrs *)&(x)->starget_data)->yesde_name)
 #define fc_starget_port_name(x)	\
 	(((struct fc_starget_attrs *)&(x)->starget_data)->port_name)
 #define fc_starget_port_id(x) \
@@ -408,7 +408,7 @@ struct fc_host_statistics {
 	u64 rx_frames;
 	u64 rx_words;
 	u64 lip_count;
-	u64 nos_count;
+	u64 yess_count;
 	u64 error_frames;
 	u64 dumped_frames;
 	u64 link_failure_count;
@@ -429,12 +429,12 @@ struct fc_host_statistics {
 	u64 fcp_frame_alloc_failures;	/* fcp frame allocation failures */
 
 	/* fc exches statistics */
-	u64 fc_no_free_exch;		/* no free exch memory */
-	u64 fc_no_free_exch_xid;	/* no free exch id */
-	u64 fc_xid_not_found;		/* exch not found for a response */
+	u64 fc_yes_free_exch;		/* yes free exch memory */
+	u64 fc_yes_free_exch_xid;	/* yes free exch id */
+	u64 fc_xid_yest_found;		/* exch yest found for a response */
 	u64 fc_xid_busy;		/* exch exist for new a request */
-	u64 fc_seq_not_found;		/* seq is not found for exchange */
-	u64 fc_non_bls_resp;		/* a non BLS response frame with
+	u64 fc_seq_yest_found;		/* seq is yest found for exchange */
+	u64 fc_yesn_bls_resp;		/* a yesn BLS response frame with
 					   a sequence responder in new exch */
 };
 
@@ -470,7 +470,7 @@ enum fc_host_event_code  {
  * Attributes are based on HBAAPI V2.0 definitions.
  * Note: OSDeviceName is determined by user-space library
  *
- * Fixed attributes are not expected to change. The driver is
+ * Fixed attributes are yest expected to change. The driver is
  * expected to set these values after successfully calling scsi_add_host().
  * The transport fully manages all get functions w/o driver interaction.
  *
@@ -488,7 +488,7 @@ enum fc_host_event_code  {
 
 struct fc_host_attrs {
 	/* Fixed Attributes */
-	u64 node_name;
+	u64 yesde_name;
 	u64 port_name;
 	u64 permanent_port_name;
 	u32 supported_classes;
@@ -541,8 +541,8 @@ struct fc_host_attrs {
 #define shost_to_fc_host(x) \
 	((struct fc_host_attrs *)(x)->shost_data)
 
-#define fc_host_node_name(x) \
-	(((struct fc_host_attrs *)(x)->shost_data)->node_name)
+#define fc_host_yesde_name(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->yesde_name)
 #define fc_host_port_name(x)	\
 	(((struct fc_host_attrs *)(x)->shost_data)->port_name)
 #define fc_host_permanent_port_name(x)	\
@@ -621,7 +621,7 @@ struct fc_function_template {
 	void    (*get_rport_dev_loss_tmo)(struct fc_rport *);
 	void	(*set_rport_dev_loss_tmo)(struct fc_rport *, u32);
 
-	void	(*get_starget_node_name)(struct scsi_target *);
+	void	(*get_starget_yesde_name)(struct scsi_target *);
 	void	(*get_starget_port_name)(struct scsi_target *);
 	void 	(*get_starget_port_id)(struct scsi_target *);
 
@@ -659,7 +659,7 @@ struct fc_function_template {
 	/*
 	 * The driver sets these to tell the transport class it
 	 * wants the attributes displayed in sysfs.  If the show_ flag
-	 * is not set, the attribute will be private to the transport
+	 * is yest set, the attribute will be private to the transport
 	 * class
 	 */
 
@@ -673,12 +673,12 @@ struct fc_function_template {
 	 * These should all be "1" if the driver uses the remote port
 	 * add/delete functions (so attributes reflect rport values).
 	 */
-	unsigned long	show_starget_node_name:1;
+	unsigned long	show_starget_yesde_name:1;
 	unsigned long	show_starget_port_name:1;
 	unsigned long	show_starget_port_id:1;
 
 	/* host fixed attributes */
-	unsigned long	show_host_node_name:1;
+	unsigned long	show_host_yesde_name:1;
 	unsigned long	show_host_port_name:1;
 	unsigned long	show_host_permanent_port_name:1;
 	unsigned long	show_host_supported_classes:1;

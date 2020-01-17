@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -40,7 +40,7 @@
  * DOC: Video BIOS Table (VBT)
  *
  * The Video BIOS Table, or VBT, provides platform and board specific
- * configuration information to the driver that is not discoverable or available
+ * configuration information to the driver that is yest discoverable or available
  * through other means. The configuration is mostly related to display
  * hardware. The VBT is available via the ACPI OpRegion or, on older systems, in
  * the PCI ROM.
@@ -54,7 +54,7 @@
  * data. (Block 53, the MIPI Sequence Block is an exception.)
  *
  * The driver parses the VBT during load. The relevant information is stored in
- * driver private data for ease of use, and the actual VBT is not read after
+ * driver private data for ease of use, and the actual VBT is yest read after
  * that.
  */
 
@@ -258,7 +258,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 		break;
 	default:
 		dev_priv->vbt.drrs_type = DRRS_NOT_SUPPORTED;
-		DRM_DEBUG_KMS("DRRS not supported (VBT input)\n");
+		DRM_DEBUG_KMS("DRRS yest supported (VBT input)\n");
 		break;
 	}
 
@@ -321,7 +321,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 
 	dev_priv->vbt.backlight.present = entry->type == BDB_BACKLIGHT_TYPE_PWM;
 	if (!dev_priv->vbt.backlight.present) {
-		DRM_DEBUG_KMS("PWM backlight not present in VBT (type %u)\n",
+		DRM_DEBUG_KMS("PWM backlight yest present in VBT (type %u)\n",
 			      entry->type);
 		return;
 	}
@@ -359,7 +359,7 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 
 	index = i915_modparams.vbt_sdvo_panel_type;
 	if (index == -2) {
-		DRM_DEBUG_KMS("Ignore SDVO panel mode from BIOS VBT tables.\n");
+		DRM_DEBUG_KMS("Igyesre SDVO panel mode from BIOS VBT tables.\n");
 		return;
 	}
 
@@ -454,7 +454,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv, u8 bdb_version)
 
 	/*
 	 * Only parse SDVO mappings on gens that could have SDVO. This isn't
-	 * accurate and doesn't have to be, as long as it's not too strict.
+	 * accurate and doesn't have to be, as long as it's yest too strict.
 	 */
 	if (!IS_GEN_RANGE(dev_priv, 3, 7)) {
 		DRM_DEBUG_KMS("Skipping SDVO device mapping\n");
@@ -467,8 +467,8 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv, u8 bdb_version)
 		if (child->slave_addr != SLAVE_ADDR1 &&
 		    child->slave_addr != SLAVE_ADDR2) {
 			/*
-			 * If the slave address is neither 0x70 nor 0x72,
-			 * it is not a SDVO device. Skip it.
+			 * If the slave address is neither 0x70 yesr 0x72,
+			 * it is yest a SDVO device. Skip it.
 			 */
 			continue;
 		}
@@ -503,7 +503,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv, u8 bdb_version)
 		}
 		if (child->slave2_addr) {
 			/* Maybe this is a SDVO device with multiple inputs */
-			/* And the mapping info is not added */
+			/* And the mapping info is yest added */
 			DRM_DEBUG_KMS("there exists the slave2_addr. Maybe this"
 				" is a SDVO device with multiple inputs.\n");
 		}
@@ -536,15 +536,15 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 			dev_priv->vbt.int_lvds_support = 0;
 	} else {
 		/*
-		 * FIXME it's not clear which BDB version has the LVDS config
+		 * FIXME it's yest clear which BDB version has the LVDS config
 		 * bits defined. Revision history in the VBT spec says:
 		 * "0.92 | Add two definitions for VBT value of LVDS Active
 		 *  Config (00b and 11b values defined) | 06/13/2005"
-		 * but does not the specify the BDB version.
+		 * but does yest the specify the BDB version.
 		 *
 		 * So far version 134 (on i945gm) is the oldest VBT observed
 		 * in the wild with the bits correctly populated. Version
-		 * 108 (on i85x) does not have the bits correctly populated.
+		 * 108 (on i85x) does yest have the bits correctly populated.
 		 */
 		if (bdb->version >= 134 &&
 		    driver->lvds_config != BDB_DRIVER_FEATURE_INT_LVDS &&
@@ -554,9 +554,9 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 
 	DRM_DEBUG_KMS("DRRS State Enabled:%d\n", driver->drrs_enabled);
 	/*
-	 * If DRRS is not supported, drrs_type has to be set to 0.
+	 * If DRRS is yest supported, drrs_type has to be set to 0.
 	 * This is because, VBT is configured in such a way that
-	 * static DRRS is 0 and DRRS not supported is represented by
+	 * static DRRS is 0 and DRRS yest supported is represented by
 	 * driver->drrs_enabled=false
 	 */
 	if (!driver->drrs_enabled)
@@ -602,7 +602,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		dev_priv->vbt.edp.rate = DP_LINK_BW_2_7;
 		break;
 	default:
-		DRM_DEBUG_KMS("VBT has unknown eDP link rate value %u\n",
+		DRM_DEBUG_KMS("VBT has unkyeswn eDP link rate value %u\n",
 			      edp_link_params->rate);
 		break;
 	}
@@ -618,7 +618,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		dev_priv->vbt.edp.lanes = 4;
 		break;
 	default:
-		DRM_DEBUG_KMS("VBT has unknown eDP lane count value %u\n",
+		DRM_DEBUG_KMS("VBT has unkyeswn eDP lane count value %u\n",
 			      edp_link_params->lanes);
 		break;
 	}
@@ -637,7 +637,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		dev_priv->vbt.edp.preemphasis = DP_TRAIN_PRE_EMPH_LEVEL_3;
 		break;
 	default:
-		DRM_DEBUG_KMS("VBT has unknown eDP pre-emphasis value %u\n",
+		DRM_DEBUG_KMS("VBT has unkyeswn eDP pre-emphasis value %u\n",
 			      edp_link_params->preemphasis);
 		break;
 	}
@@ -656,7 +656,7 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		dev_priv->vbt.edp.vswing = DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 		break;
 	default:
-		DRM_DEBUG_KMS("VBT has unknown eDP voltage swing value %u\n",
+		DRM_DEBUG_KMS("VBT has unkyeswn eDP voltage swing value %u\n",
 			      edp_link_params->vswing);
 		break;
 	}
@@ -711,7 +711,7 @@ parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		dev_priv->vbt.psr.lines_to_wait = PSR_8_LINES_TO_WAIT;
 		break;
 	default:
-		DRM_DEBUG_KMS("VBT has unknown PSR lines to wait %u\n",
+		DRM_DEBUG_KMS("VBT has unkyeswn PSR lines to wait %u\n",
 			      psr_table->lines_to_wait);
 		break;
 	}
@@ -847,7 +847,7 @@ parse_mipi_config(struct drm_i915_private *dev_priv,
 	if (!intel_bios_is_dsi_present(dev_priv, &port))
 		return;
 
-	/* Initialize this to undefined indicating no generic MIPI support */
+	/* Initialize this to undefined indicating yes generic MIPI support */
 	dev_priv->vbt.dsi.panel_id = MIPI_DSI_UNDEFINED_PANEL_ID;
 
 	/* Block #40 is already parsed and panel_fixed_mode is
@@ -874,7 +874,7 @@ parse_mipi_config(struct drm_i915_private *dev_priv,
 	config = &start->config[panel_type];
 	pps = &start->pps[panel_type];
 
-	/* store as of now full data. Trim when we realise all is not needed */
+	/* store as of yesw full data. Trim when we realise all is yest needed */
 	dev_priv->vbt.dsi.config = kmemdup(config, sizeof(struct mipi_config), GFP_KERNEL);
 	if (!dev_priv->vbt.dsi.config)
 		return;
@@ -892,7 +892,7 @@ parse_mipi_config(struct drm_i915_private *dev_priv,
 	case ENABLE_ROTATION_0:
 		/*
 		 * Most (all?) VBTs claim 0 degrees despite having
-		 * an upside down panel, thus we do not trust this.
+		 * an upside down panel, thus we do yest trust this.
 		 */
 		dev_priv->vbt.dsi.orientation =
 			DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
@@ -959,7 +959,7 @@ find_panel_sequence_block(const struct bdb_mipi_sequence *sequence,
 		index += current_size;
 	}
 
-	DRM_ERROR("Sequence block detected but no valid configuration\n");
+	DRM_ERROR("Sequence block detected but yes valid configuration\n");
 
 	return NULL;
 }
@@ -994,7 +994,7 @@ static int goto_next_sequence(const u8 *data, int index, int total)
 			len = *(data + index + 6) + 7;
 			break;
 		default:
-			DRM_ERROR("Unknown operation byte\n");
+			DRM_ERROR("Unkyeswn operation byte\n");
 			return 0;
 		}
 	}
@@ -1062,7 +1062,7 @@ static int goto_next_sequence_v3(const u8 *data, int index, int total)
 		case MIPI_SEQ_ELEM_PMIC:
 			break;
 		default:
-			DRM_ERROR("Unknown operation byte %u\n",
+			DRM_ERROR("Unkyeswn operation byte %u\n",
 				  operation_byte);
 			break;
 		}
@@ -1113,7 +1113,7 @@ static void fixup_mipi_sequences(struct drm_i915_private *dev_priv)
 	u8 *init_otp;
 	int len;
 
-	/* Limit this to VLV for now. */
+	/* Limit this to VLV for yesw. */
 	if (!IS_VALLEYVIEW(dev_priv))
 		return;
 
@@ -1122,7 +1122,7 @@ static void fixup_mipi_sequences(struct drm_i915_private *dev_priv)
 	    dev_priv->vbt.dsi.seq_version != 1)
 		return;
 
-	/* Only do this if there are otp and assert seqs and no deassert seq */
+	/* Only do this if there are otp and assert seqs and yes deassert seq */
 	if (!dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP] ||
 	    !dev_priv->vbt.dsi.sequence[MIPI_SEQ_ASSERT_RESET] ||
 	    dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET])
@@ -1196,7 +1196,7 @@ parse_mipi_sequence(struct drm_i915_private *dev_priv,
 			break;
 
 		if (seq_id >= MIPI_SEQ_MAX) {
-			DRM_ERROR("Unknown sequence %u\n", seq_id);
+			DRM_ERROR("Unkyeswn sequence %u\n", seq_id);
 			goto err;
 		}
 
@@ -1235,7 +1235,7 @@ static u8 translate_iboost(u8 val)
 	static const u8 mapping[] = { 1, 3, 7 }; /* See VBT spec */
 
 	if (val >= ARRAY_SIZE(mapping)) {
-		DRM_DEBUG_KMS("Unsupported I_boost value found in VBT (%d), display may not work properly\n", val);
+		DRM_DEBUG_KMS("Unsupported I_boost value found in VBT (%d), display may yest work properly\n", val);
 		return 0;
 	}
 	return mapping[val];
@@ -1381,7 +1381,7 @@ static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 	if (vbt_pin < n_entries && ddc_pin_map[vbt_pin] != 0)
 		return ddc_pin_map[vbt_pin];
 
-	DRM_DEBUG_KMS("Ignoring alternate pin: VBT claims DDC pin %d, which is not valid for this platform\n",
+	DRM_DEBUG_KMS("Igyesring alternate pin: VBT claims DDC pin %d, which is yest valid for this platform\n",
 		      vbt_pin);
 	return 0;
 }
@@ -1444,7 +1444,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 	is_edp = is_dp && (child->device_type & DEVICE_TYPE_INTERNAL_CONNECTOR);
 
 	if (port == PORT_A && is_dvi) {
-		DRM_DEBUG_KMS("VBT claims port A supports DVI%s, ignoring\n",
+		DRM_DEBUG_KMS("VBT claims port A supports DVI%s, igyesring\n",
 			      is_hdmi ? "/HDMI" : "");
 		is_dvi = false;
 		is_hdmi = false;
@@ -1477,7 +1477,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 	if (is_dvi && (port == PORT_A || port == PORT_E))
 		DRM_DEBUG_KMS("Port %c is TMDS compatible\n", port_name(port));
 	if (!is_dvi && !is_dp && !is_crt)
-		DRM_DEBUG_KMS("Port %c is not DP/TMDS/CRT compatible\n",
+		DRM_DEBUG_KMS("Port %c is yest DP/TMDS/CRT compatible\n",
 			      port_name(port));
 	if (is_edp && (port == PORT_B || port == PORT_C || port == PORT_E))
 		DRM_DEBUG_KMS("Port %c is internal DP\n", port_name(port));
@@ -1600,7 +1600,7 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 
 	defs = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (!defs) {
-		DRM_DEBUG_KMS("No general definition block is found, no devices defined.\n");
+		DRM_DEBUG_KMS("No general definition block is found, yes devices defined.\n");
 		return;
 	}
 
@@ -1631,7 +1631,7 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 	} else {
 		expected_size = sizeof(*child);
 		BUILD_BUG_ON(sizeof(*child) < 39);
-		DRM_DEBUG_DRIVER("Expected child device config size for VBT version %u not known; assuming %u\n",
+		DRM_DEBUG_DRIVER("Expected child device config size for VBT version %u yest kyeswn; assuming %u\n",
 				 bdb->version, expected_size);
 	}
 
@@ -1658,7 +1658,7 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		count++;
 	}
 	if (!count) {
-		DRM_DEBUG_KMS("no child dev is parsed from VBT\n");
+		DRM_DEBUG_KMS("yes child dev is parsed from VBT\n");
 		return;
 	}
 	dev_priv->vbt.child_dev = kcalloc(count, sizeof(*child), GFP_KERNEL);
@@ -1678,7 +1678,7 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 			      child->device_type);
 
 		/*
-		 * Copy as much as we know (sizeof) and is available
+		 * Copy as much as we kyesw (sizeof) and is available
 		 * (child_dev_size) of the child device. Accessing the data must
 		 * depend on VBT version.
 		 */
@@ -1730,7 +1730,7 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	}
 }
 
-/* Defaults to initialize only if there is no VBT. */
+/* Defaults to initialize only if there is yes VBT. */
 static void
 init_vbt_missing_defaults(struct drm_i915_private *dev_priv)
 {
@@ -1834,8 +1834,8 @@ static const struct vbt_header *find_vbt(void __iomem *bios, size_t size)
  * @dev_priv: i915 device instance
  *
  * Parse and initialize settings from the Video BIOS Tables (VBT). If the VBT
- * was not found in ACPI OpRegion, try to find it in PCI ROM first. Also
- * initialize some defaults if the VBT is not present at all.
+ * was yest found in ACPI OpRegion, try to find it in PCI ROM first. Also
+ * initialize some defaults if the VBT is yest present at all.
  */
 void intel_bios_init(struct drm_i915_private *dev_priv)
 {
@@ -1851,7 +1851,7 @@ void intel_bios_init(struct drm_i915_private *dev_priv)
 
 	init_vbt_defaults(dev_priv);
 
-	/* If the OpRegion does not have VBT, look in PCI ROM. */
+	/* If the OpRegion does yest have VBT, look in PCI ROM. */
 	if (!vbt) {
 		size_t size;
 
@@ -1924,7 +1924,7 @@ void intel_bios_driver_remove(struct drm_i915_private *dev_priv)
  * intel_bios_is_tv_present - is integrated TV present in VBT
  * @dev_priv:	i915 device instance
  *
- * Return true if TV is present. If no child devices were parsed from VBT,
+ * Return true if TV is present. If yes child devices were parsed from VBT,
  * assume TV is present.
  */
 bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv)
@@ -1941,7 +1941,7 @@ bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv)
 	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
 		child = dev_priv->vbt.child_dev + i;
 		/*
-		 * If the device type is not TV, continue.
+		 * If the device type is yest TV, continue.
 		 */
 		switch (child->device_type) {
 		case DEVICE_TYPE_INT_TV:
@@ -1951,7 +1951,7 @@ bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv)
 		default:
 			continue;
 		}
-		/* Only when the addin_offset is non-zero, it is regarded
+		/* Only when the addin_offset is yesn-zero, it is regarded
 		 * as present.
 		 */
 		if (child->addin_offset)
@@ -1966,7 +1966,7 @@ bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv)
  * @dev_priv:	i915 device instance
  * @i2c_pin:	i2c pin for LVDS if present
  *
- * Return true if LVDS is present. If no child devices were parsed from VBT,
+ * Return true if LVDS is present. If yes child devices were parsed from VBT,
  * assume LVDS is present.
  */
 bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin)
@@ -1980,7 +1980,7 @@ bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin)
 	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
 		child = dev_priv->vbt.child_dev + i;
 
-		/* If the device type is not LFP, continue.
+		/* If the device type is yest LFP, continue.
 		 * We have to check both the new identifiers as well as the
 		 * old for compatibility with some BIOSes.
 		 */
@@ -1991,9 +1991,9 @@ bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin)
 		if (intel_gmbus_is_valid_pin(dev_priv, child->i2c_pin))
 			*i2c_pin = child->i2c_pin;
 
-		/* However, we cannot trust the BIOS writers to populate
+		/* However, we canyest trust the BIOS writers to populate
 		 * the VBT correctly.  Since LVDS requires additional
-		 * information from AIM blocks, a non-zero addin offset is
+		 * information from AIM blocks, a yesn-zero addin offset is
 		 * a good indicator that the LVDS is actually present.
 		 */
 		if (child->addin_offset)

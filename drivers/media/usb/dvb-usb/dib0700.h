@@ -59,7 +59,7 @@ extern int dib0700_ctrl_clock(struct dvb_usb_device *d, u32 clk_MHz, u8 clock_ou
 extern int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx, u8 rxlen);
 extern int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw);
 extern int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf);
-extern int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff);
+extern int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int oyesff);
 extern struct i2c_algorithm dib0700_i2c_algo;
 extern int dib0700_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
 			struct dvb_usb_device_description **desc, int *cold);

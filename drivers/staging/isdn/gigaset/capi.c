@@ -115,7 +115,7 @@ static struct {
 	[7] = { "88C0C6E6", NULL },	/* Packet mode */
 	[8] = { "8890218F", NULL },	/* 56 kbit/s rate adaptation */
 	[9] = { "9190A5", NULL },	/* Unrestricted digital information
-					 * with tones/announcements */
+					 * with tones/anyesuncements */
 	[16] = { "8090A3", "9181" },	/* Telephony */
 	[17] = { "9090A3", "9184" },	/* Group 2/3 facsimile */
 	[18] = { "8890", "91A1" },	/* Group 4 facsimile Class 1 */
@@ -145,11 +145,11 @@ static struct {
 /*
  * emit unsupported parameter warning
  */
-static inline void ignore_cstruct_param(struct cardstate *cs, _cstruct param,
+static inline void igyesre_cstruct_param(struct cardstate *cs, _cstruct param,
 					char *msgname, char *paramname)
 {
 	if (param && *param)
-		dev_warn(cs->dev, "%s: ignoring unsupported parameter: %s\n",
+		dev_warn(cs->dev, "%s: igyesring unsupported parameter: %s\n",
 			 msgname, paramname);
 }
 
@@ -357,7 +357,7 @@ static void send_data_b3_conf(struct cardstate *cs, struct capi_ctr *ctr,
  */
 
 /**
- * gigaset_skb_sent() - acknowledge transmission of outgoing skb
+ * gigaset_skb_sent() - ackyeswledge transmission of outgoing skb
  * @bcs:	B channel descriptor structure.
  * @skb:	sent data.
  *
@@ -407,7 +407,7 @@ EXPORT_SYMBOL_GPL(gigaset_skb_sent);
  *
  * Called by hardware module {bas,ser,usb}_gigaset when user data has
  * been successfully received, for passing to the LL.
- * Warning: skb must not be accessed anymore!
+ * Warning: skb must yest be accessed anymore!
  */
 void gigaset_skb_rcvd(struct bc_state *bcs, struct sk_buff *skb)
 {
@@ -446,11 +446,11 @@ void gigaset_skb_rcvd(struct bc_state *bcs, struct sk_buff *skb)
 	CAPIMSG_SETCONTROLLER(skb->data, iif->ctr.cnr);
 	CAPIMSG_SETPLCI_PART(skb->data, bcs->channel + 1);
 	CAPIMSG_SETNCCI_PART(skb->data, 1);
-	/* Data parameter not used */
+	/* Data parameter yest used */
 	CAPIMSG_SETDATALEN(skb->data, len);
-	/* Data handle parameter not used */
+	/* Data handle parameter yest used */
 	CAPIMSG_SETFLAGS(skb->data, 0);
-	/* Data64 parameter not present */
+	/* Data64 parameter yest present */
 
 	/* emit message */
 	dump_rawmsg(DEBUG_MCMD, __func__, skb->data);
@@ -467,9 +467,9 @@ EXPORT_SYMBOL_GPL(gigaset_skb_rcvd);
  */
 void gigaset_isdn_rcv_err(struct bc_state *bcs)
 {
-	/* if currently ignoring packets, just count down */
-	if (bcs->ignore) {
-		bcs->ignore--;
+	/* if currently igyesring packets, just count down */
+	if (bcs->igyesre) {
+		bcs->igyesre--;
 		return;
 	}
 
@@ -484,7 +484,7 @@ EXPORT_SYMBOL_GPL(gigaset_isdn_rcv_err);
  * gigaset_isdn_icall() - signal incoming call
  * @at_state:	connection state structure.
  *
- * Called by main module at tasklet level to notify the LL that an incoming
+ * Called by main module at tasklet level to yestify the LL that an incoming
  * call has been received. @at_state contains the parameters of the call.
  *
  * Return value: call disposition (ICALL_*)
@@ -522,13 +522,13 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 		/* pass on BC from Gigaset */
 		if (encode_ie(at_state->str_var[STR_ZBC], iif->bc_buf,
 			      MAX_BC_OCTETS) < 0) {
-			dev_warn(cs->dev, "RING ignored - bad BC %s\n",
+			dev_warn(cs->dev, "RING igyesred - bad BC %s\n",
 				 at_state->str_var[STR_ZBC]);
 			return ICALL_IGNORE;
 		}
 
 		/* look up corresponding CIP value */
-		iif->hcmsg.CIPValue = 0;	/* default if nothing found */
+		iif->hcmsg.CIPValue = 0;	/* default if yesthing found */
 		for (i = 0; i < ARRAY_SIZE(cip2bchlc); i++)
 			if (cip2bchlc[i].bc != NULL &&
 			    cip2bchlc[i].hlc == NULL &&
@@ -538,7 +538,7 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 				break;
 			}
 	} else {
-		/* no BC (internal call): assume CIP 1 (speech, A-law) */
+		/* yes BC (internal call): assume CIP 1 (speech, A-law) */
 		iif->hcmsg.CIPValue = 1;
 		encode_ie(cip2bchlc[1].bc, iif->bc_buf, MAX_BC_OCTETS);
 	}
@@ -550,7 +550,7 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 		/* pass on HLC from Gigaset */
 		if (encode_ie(at_state->str_var[STR_ZHLC], iif->hlc_buf,
 			      MAX_HLC_OCTETS) < 0) {
-			dev_warn(cs->dev, "RING ignored - bad HLC %s\n",
+			dev_warn(cs->dev, "RING igyesred - bad HLC %s\n",
 				 at_state->str_var[STR_ZHLC]);
 			return ICALL_IGNORE;
 		}
@@ -558,7 +558,7 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 		msgsize += iif->hcmsg.HLC[0];
 
 		/* look up corresponding CIP value */
-		/* keep BC based CIP value if none found */
+		/* keep BC based CIP value if yesne found */
 		if (at_state->str_var[STR_ZBC])
 			for (i = 0; i < ARRAY_SIZE(cip2bchlc); i++)
 				if (cip2bchlc[i].hlc != NULL &&
@@ -575,12 +575,12 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 	if (at_state->str_var[STR_ZCPN]) {
 		i = strlen(at_state->str_var[STR_ZCPN]);
 		if (i > MAX_NUMBER_DIGITS) {
-			dev_warn(cs->dev, "RING ignored - bad number %s\n",
+			dev_warn(cs->dev, "RING igyesred - bad number %s\n",
 				 at_state->str_var[STR_ZBC]);
 			return ICALL_IGNORE;
 		}
 		iif->cdpty_buf[0] = i + 1;
-		iif->cdpty_buf[1] = 0x80; /* type / numbering plan unknown */
+		iif->cdpty_buf[1] = 0x80; /* type / numbering plan unkyeswn */
 		memcpy(iif->cdpty_buf + 2, at_state->str_var[STR_ZCPN], i);
 		iif->hcmsg.CalledPartyNumber = iif->cdpty_buf;
 		msgsize += iif->hcmsg.CalledPartyNumber[0];
@@ -590,19 +590,19 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 	if (at_state->str_var[STR_NMBR]) {
 		i = strlen(at_state->str_var[STR_NMBR]);
 		if (i > MAX_NUMBER_DIGITS) {
-			dev_warn(cs->dev, "RING ignored - bad number %s\n",
+			dev_warn(cs->dev, "RING igyesred - bad number %s\n",
 				 at_state->str_var[STR_ZBC]);
 			return ICALL_IGNORE;
 		}
 		iif->cgpty_buf[0] = i + 2;
-		iif->cgpty_buf[1] = 0x00; /* type / numbering plan unknown */
-		iif->cgpty_buf[2] = 0x80; /* pres. allowed, not screened */
+		iif->cgpty_buf[1] = 0x00; /* type / numbering plan unkyeswn */
+		iif->cgpty_buf[2] = 0x80; /* pres. allowed, yest screened */
 		memcpy(iif->cgpty_buf + 3, at_state->str_var[STR_NMBR], i);
 		iif->hcmsg.CallingPartyNumber = iif->cgpty_buf;
 		msgsize += iif->hcmsg.CallingPartyNumber[0];
 	}
 
-	/* remaining parameters (not supported, always left NULL):
+	/* remaining parameters (yest supported, always left NULL):
 	 * - CalledPartySubaddress
 	 * - CallingPartySubaddress
 	 * - AdditionalInfo
@@ -625,7 +625,7 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 	/* scan application list for matching listeners */
 	spin_lock_irqsave(&bcs->aplock, flags);
 	if (bcs->ap != NULL || bcs->apconnstate != APCONN_NONE) {
-		dev_warn(cs->dev, "%s: channel not properly cleared (%p/%d)\n",
+		dev_warn(cs->dev, "%s: channel yest properly cleared (%p/%d)\n",
 			 __func__, bcs->ap, bcs->apconnstate);
 		bcs->ap = NULL;
 		bcs->apconnstate = APCONN_NONE;
@@ -675,7 +675,7 @@ int gigaset_isdn_icall(struct at_state_t *at_state)
 
 /*
  * send a DISCONNECT_IND message to an application
- * does not sleep, clobbers the controller's hcmsg structure
+ * does yest sleep, clobbers the controller's hcmsg structure
  */
 static void send_disconnect_ind(struct bc_state *bcs,
 				struct gigaset_capi_appl *ap, u16 reason)
@@ -709,7 +709,7 @@ static void send_disconnect_ind(struct bc_state *bcs,
 /*
  * send a DISCONNECT_B3_IND message to an application
  * Parameters: NCCI = 1, NCPI empty, Reason_B3 = 0
- * does not sleep, clobbers the controller's hcmsg structure
+ * does yest sleep, clobbers the controller's hcmsg structure
  */
 static void send_disconnect_b3_ind(struct bc_state *bcs,
 				   struct gigaset_capi_appl *ap)
@@ -718,7 +718,7 @@ static void send_disconnect_b3_ind(struct bc_state *bcs,
 	struct gigaset_capi_ctr *iif = cs->iif;
 	struct sk_buff *skb;
 
-	/* nothing to do if no logical connection active */
+	/* yesthing to do if yes logical connection active */
 	if (bcs->apconnstate < APCONN_ACTIVE)
 		return;
 	bcs->apconnstate = APCONN_SETUP;
@@ -745,7 +745,7 @@ static void send_disconnect_b3_ind(struct bc_state *bcs,
  * gigaset_isdn_connD() - signal D channel connect
  * @bcs:	B channel descriptor structure.
  *
- * Called by main module at tasklet level to notify the LL that the D channel
+ * Called by main module at tasklet level to yestify the LL that the D channel
  * connection has been established.
  */
 void gigaset_isdn_connD(struct bc_state *bcs)
@@ -766,7 +766,7 @@ void gigaset_isdn_connD(struct bc_state *bcs)
 	}
 	if (bcs->apconnstate == APCONN_NONE) {
 		spin_unlock_irqrestore(&bcs->aplock, flags);
-		dev_warn(cs->dev, "%s: application %u not connected\n",
+		dev_warn(cs->dev, "%s: application %u yest connected\n",
 			 __func__, ap->id);
 		return;
 	}
@@ -781,7 +781,7 @@ void gigaset_isdn_connD(struct bc_state *bcs)
 	}
 
 	/* prepare CONNECT_ACTIVE_IND message
-	 * Note: LLC not supported by device
+	 * Note: LLC yest supported by device
 	 */
 	capi_cmsg_header(&iif->hcmsg, ap->id, CAPI_CONNECT_ACTIVE, CAPI_IND,
 			 ap->nextMessageNumber++,
@@ -814,7 +814,7 @@ void gigaset_isdn_connD(struct bc_state *bcs)
  * gigaset_isdn_hupD() - signal D channel hangup
  * @bcs:	B channel descriptor structure.
  *
- * Called by main module at tasklet level to notify the LL that the D channel
+ * Called by main module at tasklet level to yestify the LL that the D channel
  * connection has been shut down.
  */
 void gigaset_isdn_hupD(struct bc_state *bcs)
@@ -844,7 +844,7 @@ void gigaset_isdn_hupD(struct bc_state *bcs)
  * gigaset_isdn_connB() - signal B channel connect
  * @bcs:	B channel descriptor structure.
  *
- * Called by main module at tasklet level to notify the LL that the B channel
+ * Called by main module at tasklet level to yestify the LL that the B channel
  * connection has been established.
  */
 void gigaset_isdn_connB(struct bc_state *bcs)
@@ -866,7 +866,7 @@ void gigaset_isdn_connB(struct bc_state *bcs)
 	}
 	if (!bcs->apconnstate) {
 		spin_unlock_irqrestore(&bcs->aplock, flags);
-		dev_warn(cs->dev, "%s: application %u not connected\n",
+		dev_warn(cs->dev, "%s: application %u yest connected\n",
 			 __func__, ap->id);
 		return;
 	}
@@ -918,7 +918,7 @@ void gigaset_isdn_connB(struct bc_state *bcs)
  * gigaset_isdn_hupB() - signal B channel hangup
  * @bcs:	B channel descriptor structure.
  *
- * Called by main module to notify the LL that the B channel connection has
+ * Called by main module to yestify the LL that the B channel connection has
  * been shut down.
  */
 void gigaset_isdn_hupB(struct bc_state *bcs)
@@ -939,7 +939,7 @@ void gigaset_isdn_hupB(struct bc_state *bcs)
  * gigaset_isdn_start() - signal device availability
  * @cs:		device descriptor structure.
  *
- * Called by main module to notify the LL that the device is available for
+ * Called by main module to yestify the LL that the device is available for
  * use.
  */
 void gigaset_isdn_start(struct cardstate *cs)
@@ -950,10 +950,10 @@ void gigaset_isdn_start(struct cardstate *cs)
 	strcpy(iif->ctr.manu, "Siemens");
 	/* CAPI and device version */
 	iif->ctr.version.majorversion = 2;		/* CAPI 2.0 */
-	iif->ctr.version.minorversion = 0;
+	iif->ctr.version.miyesrversion = 0;
 	/* ToDo: check/assert cs->gotfwver? */
 	iif->ctr.version.majormanuversion = cs->fwver[0];
-	iif->ctr.version.minormanuversion = cs->fwver[1];
+	iif->ctr.version.miyesrmanuversion = cs->fwver[1];
 	/* number of B channels supported */
 	iif->ctr.profile.nbchannel = cs->channels;
 	/* global options: internal controller, supplementary services */
@@ -965,7 +965,7 @@ void gigaset_isdn_start(struct cardstate *cs)
 	iif->ctr.profile.support2 =  0x02;
 	/* B3 protocols: transparent only */
 	iif->ctr.profile.support3 =  0x01;
-	/* no serial number */
+	/* yes serial number */
 	strcpy(iif->ctr.serial, "0");
 	capi_ctr_ready(&iif->ctr);
 }
@@ -974,7 +974,7 @@ void gigaset_isdn_start(struct cardstate *cs)
  * gigaset_isdn_stop() - signal device unavailability
  * @cs:		device descriptor structure.
  *
- * Called by main module to notify the LL that the device is no longer
+ * Called by main module to yestify the LL that the device is yes longer
  * available for use.
  */
 void gigaset_isdn_stop(struct cardstate *cs)
@@ -1004,7 +1004,7 @@ static void gigaset_register_appl(struct capi_ctr *ctr, u16 appl,
 
 	list_for_each_entry(ap, &iif->appls, ctrlist)
 		if (ap->id == appl) {
-			dev_notice(cs->dev,
+			dev_yestice(cs->dev,
 				   "application %u already registered\n", appl);
 			return;
 		}
@@ -1049,13 +1049,13 @@ static inline void remove_appl_from_channel(struct bc_state *bcs,
 			return;
 		}
 
-		/* none left, clear channel state */
+		/* yesne left, clear channel state */
 		prevconnstate = bcs->apconnstate;
 		bcs->apconnstate = APCONN_NONE;
 		spin_unlock_irqrestore(&bcs->aplock, flags);
 
 		if (prevconnstate == APCONN_ACTIVE) {
-			dev_notice(cs->dev, "%s: hanging up channel %u\n",
+			dev_yestice(cs->dev, "%s: hanging up channel %u\n",
 				   __func__, bcs->channel);
 			gigaset_add_event(cs, &bcs->at_state,
 					  EV_HUP, NULL, 0, NULL);
@@ -1158,21 +1158,21 @@ static void do_facility_req(struct gigaset_capi_ctr *iif,
 	dump_cmsg(DEBUG_CMD, __func__, cmsg);
 
 	/*
-	 * Facility Request Parameter is not decoded by capi_message2cmsg()
+	 * Facility Request Parameter is yest decoded by capi_message2cmsg()
 	 * encoding depends on Facility Selector
 	 */
 	switch (cmsg->FacilitySelector) {
 	case CAPI_FACILITY_DTMF:	/* ToDo */
 		info = CapiFacilityNotSupported;
 		confparam[0] = 2;	/* length */
-		/* DTMF information: Unknown DTMF request */
+		/* DTMF information: Unkyeswn DTMF request */
 		capimsg_setu16(confparam, 1, 2);
 		break;
 
-	case CAPI_FACILITY_V42BIS:	/* not supported */
+	case CAPI_FACILITY_V42BIS:	/* yest supported */
 		info = CapiFacilityNotSupported;
 		confparam[0] = 2;	/* length */
-		/* V.42 bis information: not available */
+		/* V.42 bis information: yest available */
 		capimsg_setu16(confparam, 1, 1);
 		break;
 
@@ -1180,7 +1180,7 @@ static void do_facility_req(struct gigaset_capi_ctr *iif,
 		/* decode Function parameter */
 		pparam = cmsg->FacilityRequestParameter;
 		if (pparam == NULL || pparam[0] < 2) {
-			dev_notice(cs->dev, "%s: %s missing\n", "FACILITY_REQ",
+			dev_yestice(cs->dev, "%s: %s missing\n", "FACILITY_REQ",
 				   "Facility Request Parameter");
 			send_conf(iif, ap, skb, CapiIllMessageParmCoding);
 			return;
@@ -1193,20 +1193,20 @@ static void do_facility_req(struct gigaset_capi_ctr *iif,
 			confparam[3] = 6;	/* length */
 			/* Supplementary services info: Success */
 			capimsg_setu16(confparam, 4, CapiSuccess);
-			/* Supported Services: none */
+			/* Supported Services: yesne */
 			capimsg_setu32(confparam, 6, 0);
 			break;
 		case CAPI_SUPPSVC_LISTEN:
 			if (pparam[0] < 7 || pparam[3] < 4) {
-				dev_notice(cs->dev, "%s: %s missing\n",
+				dev_yestice(cs->dev, "%s: %s missing\n",
 					   "FACILITY_REQ", "Notification Mask");
 				send_conf(iif, ap, skb,
 					  CapiIllMessageParmCoding);
 				return;
 			}
 			if (CAPIMSG_U32(pparam, 4) != 0) {
-				dev_notice(cs->dev,
-					   "%s: unsupported supplementary service notification mask 0x%x\n",
+				dev_yestice(cs->dev,
+					   "%s: unsupported supplementary service yestification mask 0x%x\n",
 					   "FACILITY_REQ", CAPIMSG_U32(pparam, 4));
 				info = CapiFacilitySpecificFunctionNotSupported;
 				confparam[3] = 2;	/* length */
@@ -1222,13 +1222,13 @@ static void do_facility_req(struct gigaset_capi_ctr *iif,
 		/* ToDo: add supported services */
 
 		default:
-			dev_notice(cs->dev,
+			dev_yestice(cs->dev,
 				   "%s: unsupported supplementary service function 0x%04x\n",
 				   "FACILITY_REQ", function);
 			info = CapiFacilitySpecificFunctionNotSupported;
 			/* Supplementary Service specific parameter */
 			confparam[3] = 2;	/* length */
-			/* Supplementary services info: not supported */
+			/* Supplementary services info: yest supported */
 			capimsg_setu16(confparam, 4,
 				       CapiSupplementaryServiceNotSupported);
 		}
@@ -1299,7 +1299,7 @@ static void do_listen_req(struct gigaset_capi_ctr *iif,
 
 /*
  * process ALERT_REQ message
- * nothing to do, Gigaset always alerts anyway
+ * yesthing to do, Gigaset always alerts anyway
  */
 static void do_alert_req(struct gigaset_capi_ctr *iif,
 			 struct gigaset_capi_appl *ap,
@@ -1347,14 +1347,14 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	/* get free B channel & construct PLCI */
 	bcs = gigaset_get_free_channel(cs);
 	if (!bcs) {
-		dev_notice(cs->dev, "%s: no B channel available\n",
+		dev_yestice(cs->dev, "%s: yes B channel available\n",
 			   "CONNECT_REQ");
 		send_conf(iif, ap, skb, CapiNoPlciAvailable);
 		return;
 	}
 	spin_lock_irqsave(&bcs->aplock, flags);
 	if (bcs->ap != NULL || bcs->apconnstate != APCONN_NONE)
-		dev_warn(cs->dev, "%s: channel not properly cleared (%p/%d)\n",
+		dev_warn(cs->dev, "%s: channel yest properly cleared (%p/%d)\n",
 			 __func__, bcs->ap, bcs->apconnstate);
 	ap->bcnext = NULL;
 	bcs->ap = ap;
@@ -1374,7 +1374,7 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	/* encode parameter: Called party number */
 	pp = cmsg->CalledPartyNumber;
 	if (pp == NULL || *pp == 0) {
-		dev_notice(cs->dev, "%s: %s missing\n",
+		dev_yestice(cs->dev, "%s: %s missing\n",
 			   "CONNECT_REQ", "Called party number");
 		info = CapiIllMessageParmCoding;
 		goto error;
@@ -1382,11 +1382,11 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	l = *pp++;
 	/* check type of number/numbering plan byte */
 	switch (*pp) {
-	case 0x80:	/* unknown type / unknown numbering plan */
-	case 0x81:	/* unknown type / ISDN/Telephony numbering plan */
+	case 0x80:	/* unkyeswn type / unkyeswn numbering plan */
+	case 0x81:	/* unkyeswn type / ISDN/Telephony numbering plan */
 		break;
 	default:	/* others: warn about potential misinterpretation */
-		dev_notice(cs->dev, "%s: %s type/plan 0x%02x unsupported\n",
+		dev_yestice(cs->dev, "%s: %s type/plan 0x%02x unsupported\n",
 			   "CONNECT_REQ", "Called party number", *pp);
 	}
 	pp++;
@@ -1415,11 +1415,11 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 		/* check type of number/numbering plan byte */
 		/* ToDo: allow for/handle Ext=1? */
 		switch (*pp) {
-		case 0x00:	/* unknown type / unknown numbering plan */
-		case 0x01:	/* unknown type / ISDN/Telephony num. plan */
+		case 0x00:	/* unkyeswn type / unkyeswn numbering plan */
+		case 0x01:	/* unkyeswn type / ISDN/Telephony num. plan */
 			break;
 		default:
-			dev_notice(cs->dev,
+			dev_yestice(cs->dev,
 				   "%s: %s type/plan 0x%02x unsupported\n",
 				   "CONNECT_REQ", "Calling party number", *pp);
 		}
@@ -1428,12 +1428,12 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 
 		/* check presentation indicator */
 		if (!l) {
-			dev_notice(cs->dev, "%s: %s IE truncated\n",
+			dev_yestice(cs->dev, "%s: %s IE truncated\n",
 				   "CONNECT_REQ", "Calling party number");
 			info = CapiIllMessageParmCoding;
 			goto error;
 		}
-		switch (*pp & 0xfc) { /* ignore Screening indicator */
+		switch (*pp & 0xfc) { /* igyesre Screening indicator */
 		case 0x80:	/* Presentation allowed */
 			s = "^SCLIP=1\r";
 			break;
@@ -1441,7 +1441,7 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 			s = "^SCLIP=0\r";
 			break;
 		default:
-			dev_notice(cs->dev, "%s: invalid %s 0x%02x\n",
+			dev_yestice(cs->dev, "%s: invalid %s 0x%02x\n",
 				   "CONNECT_REQ",
 				   "Presentation/Screening indicator",
 				   *pp);
@@ -1465,9 +1465,9 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	/* check parameter: CIP Value */
 	if (cmsg->CIPValue >= ARRAY_SIZE(cip2bchlc) ||
 	    (cmsg->CIPValue > 0 && cip2bchlc[cmsg->CIPValue].bc == NULL)) {
-		dev_notice(cs->dev, "%s: unknown CIP value %d\n",
+		dev_yestice(cs->dev, "%s: unkyeswn CIP value %d\n",
 			   "CONNECT_REQ", cmsg->CIPValue);
-		info = CapiCipValueUnknown;
+		info = CapiCipValueUnkyeswn;
 		goto error;
 	}
 
@@ -1482,13 +1482,13 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 		lbc = 2 * cmsg->BC[0];
 	else if (cip2bchlc[cmsg->CIPValue].bc)	/* BC derived from CIP */
 		lbc = strlen(cip2bchlc[cmsg->CIPValue].bc);
-	else					/* no BC */
+	else					/* yes BC */
 		lbc = 0;
 	if (cmsg->HLC && cmsg->HLC[0])		/* HLC specified explicitly */
 		lhlc = 2 * cmsg->HLC[0];
 	else if (cip2bchlc[cmsg->CIPValue].hlc)	/* HLC derived from CIP */
 		lhlc = strlen(cip2bchlc[cmsg->CIPValue].hlc);
-	else					/* no HLC */
+	else					/* yes HLC */
 		lhlc = 0;
 
 	if (lbc) {
@@ -1517,9 +1517,9 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 		}
 		strcpy(commands[AT_BC] + l - 2, "\r");
 	} else {
-		/* no BC */
+		/* yes BC */
 		if (lhlc) {
-			dev_notice(cs->dev, "%s: cannot set HLC without BC\n",
+			dev_yestice(cs->dev, "%s: canyest set HLC without BC\n",
 				   "CONNECT_REQ");
 			info = CapiIllMessageParmCoding; /* ? */
 			goto error;
@@ -1553,11 +1553,11 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 			dev_warn(cs->dev,
 				 "B3 Protocol %u unsupported, using Transparent\n",
 				 cmsg->B3protocol);
-		ignore_cstruct_param(cs, cmsg->B1configuration,
+		igyesre_cstruct_param(cs, cmsg->B1configuration,
 				     "CONNECT_REQ", "B1 Configuration");
-		ignore_cstruct_param(cs, cmsg->B2configuration,
+		igyesre_cstruct_param(cs, cmsg->B2configuration,
 				     "CONNECT_REQ", "B2 Configuration");
-		ignore_cstruct_param(cs, cmsg->B3configuration,
+		igyesre_cstruct_param(cs, cmsg->B3configuration,
 				     "CONNECT_REQ", "B3 Configuration");
 	}
 	commands[AT_PROTO] = kmalloc(9, GFP_KERNEL);
@@ -1566,20 +1566,20 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	snprintf(commands[AT_PROTO], 9, "^SBPR=%u\r", bcs->proto2);
 
 	/* ToDo: check/encode remaining parameters */
-	ignore_cstruct_param(cs, cmsg->CalledPartySubaddress,
+	igyesre_cstruct_param(cs, cmsg->CalledPartySubaddress,
 			     "CONNECT_REQ", "Called pty subaddr");
-	ignore_cstruct_param(cs, cmsg->CallingPartySubaddress,
+	igyesre_cstruct_param(cs, cmsg->CallingPartySubaddress,
 			     "CONNECT_REQ", "Calling pty subaddr");
-	ignore_cstruct_param(cs, cmsg->LLC,
+	igyesre_cstruct_param(cs, cmsg->LLC,
 			     "CONNECT_REQ", "LLC");
 	if (cmsg->AdditionalInfo != CAPI_DEFAULT) {
-		ignore_cstruct_param(cs, cmsg->BChannelinformation,
+		igyesre_cstruct_param(cs, cmsg->BChannelinformation,
 				     "CONNECT_REQ", "B Channel Information");
-		ignore_cstruct_param(cs, cmsg->Keypadfacility,
+		igyesre_cstruct_param(cs, cmsg->Keypadfacility,
 				     "CONNECT_REQ", "Keypad Facility");
-		ignore_cstruct_param(cs, cmsg->Useruserdata,
+		igyesre_cstruct_param(cs, cmsg->Useruserdata,
 				     "CONNECT_REQ", "User-User Data");
-		ignore_cstruct_param(cs, cmsg->Facilitydataarray,
+		igyesre_cstruct_param(cs, cmsg->Facilitydataarray,
 				     "CONNECT_REQ", "Facility Data Array");
 	}
 
@@ -1639,7 +1639,7 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 	/* extract and check channel number from PLCI */
 	channel = (cmsg->adr.adrPLCI >> 8) & 0xff;
 	if (!channel || channel > cs->channels) {
-		dev_notice(cs->dev, "%s: invalid %s 0x%02x\n",
+		dev_yestice(cs->dev, "%s: invalid %s 0x%02x\n",
 			   "CONNECT_RESP", "PLCI", cmsg->adr.adrPLCI);
 		return;
 	}
@@ -1695,29 +1695,29 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 				dev_warn(cs->dev,
 					 "B3 Protocol %u unsupported, using Transparent\n",
 					 cmsg->B3protocol);
-			ignore_cstruct_param(cs, cmsg->B1configuration,
+			igyesre_cstruct_param(cs, cmsg->B1configuration,
 					     "CONNECT_RESP", "B1 Configuration");
-			ignore_cstruct_param(cs, cmsg->B2configuration,
+			igyesre_cstruct_param(cs, cmsg->B2configuration,
 					     "CONNECT_RESP", "B2 Configuration");
-			ignore_cstruct_param(cs, cmsg->B3configuration,
+			igyesre_cstruct_param(cs, cmsg->B3configuration,
 					     "CONNECT_RESP", "B3 Configuration");
 		}
 
 		/* ToDo: check/encode remaining parameters */
-		ignore_cstruct_param(cs, cmsg->ConnectedNumber,
+		igyesre_cstruct_param(cs, cmsg->ConnectedNumber,
 				     "CONNECT_RESP", "Connected Number");
-		ignore_cstruct_param(cs, cmsg->ConnectedSubaddress,
+		igyesre_cstruct_param(cs, cmsg->ConnectedSubaddress,
 				     "CONNECT_RESP", "Connected Subaddress");
-		ignore_cstruct_param(cs, cmsg->LLC,
+		igyesre_cstruct_param(cs, cmsg->LLC,
 				     "CONNECT_RESP", "LLC");
 		if (cmsg->AdditionalInfo != CAPI_DEFAULT) {
-			ignore_cstruct_param(cs, cmsg->BChannelinformation,
+			igyesre_cstruct_param(cs, cmsg->BChannelinformation,
 					     "CONNECT_RESP", "BChannel Information");
-			ignore_cstruct_param(cs, cmsg->Keypadfacility,
+			igyesre_cstruct_param(cs, cmsg->Keypadfacility,
 					     "CONNECT_RESP", "Keypad Facility");
-			ignore_cstruct_param(cs, cmsg->Useruserdata,
+			igyesre_cstruct_param(cs, cmsg->Useruserdata,
 					     "CONNECT_RESP", "User-User Data");
-			ignore_cstruct_param(cs, cmsg->Facilitydataarray,
+			igyesre_cstruct_param(cs, cmsg->Facilitydataarray,
 					     "CONNECT_RESP", "Facility Data Array");
 		}
 
@@ -1728,7 +1728,7 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 		gigaset_schedule_event(cs);
 		return;
 
-	case 1:			/* Ignore */
+	case 1:			/* Igyesre */
 		/* send DISCONNECT_IND to this application */
 		send_disconnect_ind(bcs, ap, 0);
 
@@ -1737,7 +1737,7 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 		if (bcs->ap == ap) {
 			bcs->ap = ap->bcnext;
 			if (bcs->ap == NULL) {
-				/* last one: stop ev-layer hupD notifications */
+				/* last one: stop ev-layer hupD yestifications */
 				bcs->apconnstate = APCONN_NONE;
 				bcs->chstate &= ~CHS_NOTIFY_LL;
 			}
@@ -1752,7 +1752,7 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 			}
 		}
 		spin_unlock_irqrestore(&bcs->aplock, flags);
-		dev_err(cs->dev, "%s: application %u not found\n",
+		dev_err(cs->dev, "%s: application %u yest found\n",
 			__func__, ap->id);
 		return;
 
@@ -1808,7 +1808,7 @@ static void do_connect_b3_req(struct gigaset_capi_ctr *iif,
 	/* extract and check channel number from PLCI */
 	channel = (cmsg->adr.adrPLCI >> 8) & 0xff;
 	if (!channel || channel > cs->channels) {
-		dev_notice(cs->dev, "%s: invalid %s 0x%02x\n",
+		dev_yestice(cs->dev, "%s: invalid %s 0x%02x\n",
 			   "CONNECT_B3_REQ", "PLCI", cmsg->adr.adrPLCI);
 		send_conf(iif, ap, skb, CapiIllContrPlciNcci);
 		return;
@@ -1821,8 +1821,8 @@ static void do_connect_b3_req(struct gigaset_capi_ctr *iif,
 	/* build NCCI: always 1 (one B3 connection only) */
 	cmsg->adr.adrNCCI |= 1 << 16;
 
-	/* NCPI parameter: not applicable for B3 Transparent */
-	ignore_cstruct_param(cs, cmsg->NCPI, "CONNECT_B3_REQ", "NCPI");
+	/* NCPI parameter: yest applicable for B3 Transparent */
+	igyesre_cstruct_param(cs, cmsg->NCPI, "CONNECT_B3_REQ", "NCPI");
 	send_conf(iif, ap, skb,
 		  (cmsg->NCPI && cmsg->NCPI[0]) ?
 		  CapiNcpiNotSupportedByProtocol : CapiSuccess);
@@ -1858,7 +1858,7 @@ static void do_connect_b3_resp(struct gigaset_capi_ctr *iif,
 	channel = (cmsg->adr.adrNCCI >> 8) & 0xff;
 	if (!channel || channel > cs->channels ||
 	    ((cmsg->adr.adrNCCI >> 16) & 0xffff) != 1) {
-		dev_notice(cs->dev, "%s: invalid %s 0x%02x\n",
+		dev_yestice(cs->dev, "%s: invalid %s 0x%02x\n",
 			   "CONNECT_B3_RESP", "NCCI", cmsg->adr.adrNCCI);
 		dev_kfree_skb_any(skb);
 		return;
@@ -1927,7 +1927,7 @@ static void do_disconnect_req(struct gigaset_capi_ctr *iif,
 	/* extract and check channel number from PLCI */
 	channel = (cmsg->adr.adrPLCI >> 8) & 0xff;
 	if (!channel || channel > cs->channels) {
-		dev_notice(cs->dev, "%s: invalid %s 0x%02x\n",
+		dev_yestice(cs->dev, "%s: invalid %s 0x%02x\n",
 			   "DISCONNECT_REQ", "PLCI", cmsg->adr.adrPLCI);
 		send_conf(iif, ap, skb, CapiIllContrPlciNcci);
 		return;
@@ -1936,13 +1936,13 @@ static void do_disconnect_req(struct gigaset_capi_ctr *iif,
 
 	/* ToDo: process parameter: Additional info */
 	if (cmsg->AdditionalInfo != CAPI_DEFAULT) {
-		ignore_cstruct_param(cs, cmsg->BChannelinformation,
+		igyesre_cstruct_param(cs, cmsg->BChannelinformation,
 				     "DISCONNECT_REQ", "B Channel Information");
-		ignore_cstruct_param(cs, cmsg->Keypadfacility,
+		igyesre_cstruct_param(cs, cmsg->Keypadfacility,
 				     "DISCONNECT_REQ", "Keypad Facility");
-		ignore_cstruct_param(cs, cmsg->Useruserdata,
+		igyesre_cstruct_param(cs, cmsg->Useruserdata,
 				     "DISCONNECT_REQ", "User-User Data");
-		ignore_cstruct_param(cs, cmsg->Facilitydataarray,
+		igyesre_cstruct_param(cs, cmsg->Facilitydataarray,
 				     "DISCONNECT_REQ", "Facility Data Array");
 	}
 
@@ -2026,14 +2026,14 @@ static void do_disconnect_b3_req(struct gigaset_capi_ctr *iif,
 	channel = (cmsg->adr.adrNCCI >> 8) & 0xff;
 	if (!channel || channel > cs->channels ||
 	    ((cmsg->adr.adrNCCI >> 16) & 0xffff) != 1) {
-		dev_notice(cs->dev, "%s: invalid %s 0x%02x\n",
+		dev_yestice(cs->dev, "%s: invalid %s 0x%02x\n",
 			   "DISCONNECT_B3_REQ", "NCCI", cmsg->adr.adrNCCI);
 		send_conf(iif, ap, skb, CapiIllContrPlciNcci);
 		return;
 	}
 	bcs = &cs->bcs[channel - 1];
 
-	/* reject if logical connection not active */
+	/* reject if logical connection yest active */
 	if (bcs->apconnstate < APCONN_ACTIVE) {
 		send_conf(iif, ap, skb,
 			  CapiMessageNotSupportedInCurrentState);
@@ -2047,8 +2047,8 @@ static void do_disconnect_b3_req(struct gigaset_capi_ctr *iif,
 	}
 	gigaset_schedule_event(cs);
 
-	/* NCPI parameter: not applicable for B3 Transparent */
-	ignore_cstruct_param(cs, cmsg->NCPI,
+	/* NCPI parameter: yest applicable for B3 Transparent */
+	igyesre_cstruct_param(cs, cmsg->NCPI,
 			     "DISCONNECT_B3_REQ", "NCPI");
 	send_conf(iif, ap, skb,
 		  (cmsg->NCPI && cmsg->NCPI[0]) ?
@@ -2077,31 +2077,31 @@ static void do_data_b3_req(struct gigaset_capi_ctr *iif,
 
 	/* check parameters */
 	if (channel == 0 || channel > cs->channels || ncci != 1) {
-		dev_notice(cs->dev, "%s: invalid %s 0x%02x\n",
+		dev_yestice(cs->dev, "%s: invalid %s 0x%02x\n",
 			   "DATA_B3_REQ", "NCCI", CAPIMSG_NCCI(skb->data));
 		send_conf(iif, ap, skb, CapiIllContrPlciNcci);
 		return;
 	}
 	bcs = &cs->bcs[channel - 1];
 	if (msglen != CAPI_DATA_B3_REQ_LEN && msglen != CAPI_DATA_B3_REQ_LEN64)
-		dev_notice(cs->dev, "%s: unexpected length %d\n",
+		dev_yestice(cs->dev, "%s: unexpected length %d\n",
 			   "DATA_B3_REQ", msglen);
 	if (msglen + datalen != skb->len)
-		dev_notice(cs->dev, "%s: length mismatch (%d+%d!=%d)\n",
+		dev_yestice(cs->dev, "%s: length mismatch (%d+%d!=%d)\n",
 			   "DATA_B3_REQ", msglen, datalen, skb->len);
 	if (msglen + datalen > skb->len) {
-		/* message too short for announced data length */
+		/* message too short for anyesunced data length */
 		send_conf(iif, ap, skb, CapiIllMessageParmCoding); /* ? */
 		return;
 	}
 	if (flags & CAPI_FLAGS_RESERVED) {
-		dev_notice(cs->dev, "%s: reserved flags set (%x)\n",
+		dev_yestice(cs->dev, "%s: reserved flags set (%x)\n",
 			   "DATA_B3_REQ", flags);
 		send_conf(iif, ap, skb, CapiIllMessageParmCoding);
 		return;
 	}
 
-	/* reject if logical connection not active */
+	/* reject if logical connection yest active */
 	if (bcs->apconnstate < APCONN_ACTIVE) {
 		send_conf(iif, ap, skb, CapiMessageNotSupportedInCurrentState);
 		return;
@@ -2120,7 +2120,7 @@ static void do_data_b3_req(struct gigaset_capi_ctr *iif,
 
 	/*
 	 * DATA_B3_CONF will be sent by gigaset_skb_sent() only if "delivery
-	 * confirmation" bit is set; otherwise we have to send it now
+	 * confirmation" bit is set; otherwise we have to send it yesw
 	 */
 	if (!(flags & CAPI_FLAGS_DELIVERY_CONFIRMATION))
 		send_data_b3_conf(cs, &iif->ctr, ap->id, msgid, channel, handle,
@@ -2130,7 +2130,7 @@ static void do_data_b3_req(struct gigaset_capi_ctr *iif,
 
 /*
  * process RESET_B3_REQ message
- * just always reply "not supported by current protocol"
+ * just always reply "yest supported by current protocol"
  */
 static void do_reset_b3_req(struct gigaset_capi_ctr *iif,
 			    struct gigaset_capi_appl *ap,
@@ -2169,9 +2169,9 @@ static void do_unsupported(struct gigaset_capi_ctr *iif,
 }
 
 /*
- * CAPI message handler: no-op
+ * CAPI message handler: yes-op
  */
-static void do_nothing(struct gigaset_capi_ctr *iif,
+static void do_yesthing(struct gigaset_capi_ctr *iif,
 		       struct gigaset_capi_appl *ap,
 		       struct sk_buff *skb)
 {
@@ -2209,36 +2209,36 @@ static struct {
 	{ CAPI_DATA_B3_RESP, do_data_b3_resp },
 
 	{ CAPI_ALERT_REQ, do_alert_req },
-	{ CAPI_CONNECT_ACTIVE_RESP, do_nothing },
-	{ CAPI_CONNECT_B3_ACTIVE_RESP, do_nothing },
+	{ CAPI_CONNECT_ACTIVE_RESP, do_yesthing },
+	{ CAPI_CONNECT_B3_ACTIVE_RESP, do_yesthing },
 	{ CAPI_CONNECT_B3_REQ, do_connect_b3_req },
 	{ CAPI_CONNECT_B3_RESP, do_connect_b3_resp },
-	{ CAPI_CONNECT_B3_T90_ACTIVE_RESP, do_nothing },
+	{ CAPI_CONNECT_B3_T90_ACTIVE_RESP, do_yesthing },
 	{ CAPI_CONNECT_REQ, do_connect_req },
 	{ CAPI_CONNECT_RESP, do_connect_resp },
 	{ CAPI_DISCONNECT_B3_REQ, do_disconnect_b3_req },
-	{ CAPI_DISCONNECT_B3_RESP, do_nothing },
+	{ CAPI_DISCONNECT_B3_RESP, do_yesthing },
 	{ CAPI_DISCONNECT_REQ, do_disconnect_req },
-	{ CAPI_DISCONNECT_RESP, do_nothing },
+	{ CAPI_DISCONNECT_RESP, do_yesthing },
 	{ CAPI_FACILITY_REQ, do_facility_req },
-	{ CAPI_FACILITY_RESP, do_nothing },
+	{ CAPI_FACILITY_RESP, do_yesthing },
 	{ CAPI_LISTEN_REQ, do_listen_req },
 	{ CAPI_SELECT_B_PROTOCOL_REQ, do_unsupported },
 	{ CAPI_RESET_B3_REQ, do_reset_b3_req },
-	{ CAPI_RESET_B3_RESP, do_nothing },
+	{ CAPI_RESET_B3_RESP, do_yesthing },
 
 	/*
 	 * ToDo: support overlap sending (requires ev-layer state
 	 * machine extension to generate additional ATD commands)
 	 */
 	{ CAPI_INFO_REQ, do_unsupported },
-	{ CAPI_INFO_RESP, do_nothing },
+	{ CAPI_INFO_RESP, do_yesthing },
 
 	/*
 	 * ToDo: what's the proper response for these?
 	 */
-	{ CAPI_MANUFACTURER_REQ, do_nothing },
-	{ CAPI_MANUFACTURER_RESP, do_nothing },
+	{ CAPI_MANUFACTURER_REQ, do_yesthing },
+	{ CAPI_MANUFACTURER_RESP, do_yesthing },
 };
 
 /* look up handler */
@@ -2279,7 +2279,7 @@ static u16 gigaset_send_message(struct capi_ctr *ctr, struct sk_buff *skb)
 	/* retrieve application data structure */
 	ap = get_appl(iif, CAPIMSG_APPID(skb->data));
 	if (!ap) {
-		dev_notice(cs->dev, "%s: application %u not registered\n",
+		dev_yestice(cs->dev, "%s: application %u yest registered\n",
 			   __func__, CAPIMSG_APPID(skb->data));
 		return CAPI_ILLAPPNR;
 	}
@@ -2287,9 +2287,9 @@ static u16 gigaset_send_message(struct capi_ctr *ctr, struct sk_buff *skb)
 	/* look up command */
 	handler = lookup_capi_send_handler(CAPIMSG_CMD(skb->data));
 	if (!handler) {
-		/* unknown/unsupported message type */
+		/* unkyeswn/unsupported message type */
 		if (printk_ratelimit())
-			dev_notice(cs->dev, "%s: unsupported message %u\n",
+			dev_yestice(cs->dev, "%s: unsupported message %u\n",
 				   __func__, CAPIMSG_CMD(skb->data));
 		return CAPI_ILLCMDORSUBCMDORMSGTOSMALL;
 	}
@@ -2358,11 +2358,11 @@ static int gigaset_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "%-16s %d.%d.%d.%d\n", "firmware",
 			   cs->fwver[0], cs->fwver[1], cs->fwver[2], cs->fwver[3]);
 	seq_printf(m, "%-16s %d\n", "channels", cs->channels);
-	seq_printf(m, "%-16s %s\n", "onechannel", cs->onechannel ? "yes" : "no");
+	seq_printf(m, "%-16s %s\n", "onechannel", cs->onechannel ? "no" : "yes");
 
 	switch (cs->mode) {
 	case M_UNKNOWN:
-		s = "unknown";
+		s = "unkyeswn";
 		break;
 	case M_CONFIG:
 		s = "config";
@@ -2402,10 +2402,10 @@ static int gigaset_proc_show(struct seq_file *m, void *v)
 	}
 	seq_printf(m, "%-16s %s\n", "mstate", s);
 
-	seq_printf(m, "%-16s %s\n", "running", cs->running ? "yes" : "no");
-	seq_printf(m, "%-16s %s\n", "connected", cs->connected ? "yes" : "no");
-	seq_printf(m, "%-16s %s\n", "isdn_up", cs->isdn_up ? "yes" : "no");
-	seq_printf(m, "%-16s %s\n", "cidmode", cs->cidmode ? "yes" : "no");
+	seq_printf(m, "%-16s %s\n", "running", cs->running ? "no" : "yes");
+	seq_printf(m, "%-16s %s\n", "connected", cs->connected ? "no" : "yes");
+	seq_printf(m, "%-16s %s\n", "isdn_up", cs->isdn_up ? "no" : "yes");
+	seq_printf(m, "%-16s %s\n", "cidmode", cs->cidmode ? "no" : "yes");
 
 	for (i = 0; i < cs->channels; i++) {
 		seq_printf(m, "[%d]%-13s %d\n", i, "corrupted",

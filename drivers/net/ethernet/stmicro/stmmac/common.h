@@ -25,7 +25,7 @@
 #include "hwif.h"
 #include "mmc.h"
 
-/* Synopsys Core versions */
+/* Syyespsys Core versions */
 #define	DWMAC_CORE_3_40		0x34
 #define	DWMAC_CORE_3_50		0x35
 #define	DWMAC_CORE_4_00		0x40
@@ -91,10 +91,10 @@ struct stmmac_extra_stats {
 	unsigned long threshold;
 	unsigned long tx_pkt_n;
 	unsigned long rx_pkt_n;
-	unsigned long normal_irq_n;
-	unsigned long rx_normal_irq_n;
+	unsigned long yesrmal_irq_n;
+	unsigned long rx_yesrmal_irq_n;
 	unsigned long napi_poll;
-	unsigned long tx_normal_irq_n;
+	unsigned long tx_yesrmal_irq_n;
 	unsigned long tx_clean;
 	unsigned long tx_set_ic_bit;
 	unsigned long irq_receive_pmt_irq_n;
@@ -114,7 +114,7 @@ struct stmmac_extra_stats {
 	unsigned long ip_csum_bypassed;
 	unsigned long ipv4_pkt_rcvd;
 	unsigned long ipv6_pkt_rcvd;
-	unsigned long no_ptp_rx_msg_type_ext;
+	unsigned long yes_ptp_rx_msg_type_ext;
 	unsigned long ptp_rx_msg_type_sync;
 	unsigned long ptp_rx_msg_type_follow_up;
 	unsigned long ptp_rx_msg_type_delay_req;
@@ -122,7 +122,7 @@ struct stmmac_extra_stats {
 	unsigned long ptp_rx_msg_type_pdelay_req;
 	unsigned long ptp_rx_msg_type_pdelay_resp;
 	unsigned long ptp_rx_msg_type_pdelay_follow_up;
-	unsigned long ptp_rx_msg_type_announce;
+	unsigned long ptp_rx_msg_type_anyesunce;
 	unsigned long ptp_rx_msg_type_management;
 	unsigned long ptp_rx_msg_pkt_reserved_type;
 	unsigned long ptp_frame_type;
@@ -133,7 +133,7 @@ struct stmmac_extra_stats {
 	unsigned long vlan_tag_priority_val;
 	unsigned long l3_filter_match;
 	unsigned long l4_filter_match;
-	unsigned long l3_l4_filter_no_match;
+	unsigned long l3_l4_filter_yes_match;
 	/* PCS */
 	unsigned long irq_pcs_ane_n;
 	unsigned long irq_pcs_link_n;
@@ -143,7 +143,7 @@ struct stmmac_extra_stats {
 	unsigned long pcs_speed;
 	/* debug register */
 	unsigned long mtl_tx_status_fifo_full;
-	unsigned long mtl_tx_fifo_not_empty;
+	unsigned long mtl_tx_fifo_yest_empty;
 	unsigned long mmtl_fifo_ctrl;
 	unsigned long mtl_tx_fifo_read_ctrl_write;
 	unsigned long mtl_tx_fifo_read_ctrl_wait;
@@ -269,16 +269,16 @@ enum packets_types {
 enum rx_frame_status {
 	good_frame = 0x0,
 	discard_frame = 0x1,
-	csum_none = 0x2,
+	csum_yesne = 0x2,
 	llc_snap = 0x4,
 	dma_own = 0x8,
-	rx_not_ls = 0x10,
+	rx_yest_ls = 0x10,
 };
 
 /* Tx status */
 enum tx_frame_status {
 	tx_done = 0x0,
-	tx_not_ls = 0x1,
+	tx_yest_ls = 0x1,
 	tx_err = 0x2,
 	tx_dma_own = 0x4,
 };

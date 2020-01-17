@@ -23,7 +23,7 @@ ACPI_MODULE_NAME("exoparg1")
  *
  * The routines that begin execution of AML opcodes are named with a common
  * convention based upon the number of arguments, the number of target operands,
- * and whether or not a value is returned:
+ * and whether or yest a value is returned:
  *
  *      AcpiExOpcode_xA_yT_zR
  *
@@ -47,7 +47,7 @@ ACPI_MODULE_NAME("exoparg1")
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute operator with no operands, one return value
+ * DESCRIPTION: Execute operator with yes operands, one return value
  *
  ******************************************************************************/
 acpi_status acpi_ex_opcode_0A_0T_1R(struct acpi_walk_state *walk_state)
@@ -73,9 +73,9 @@ acpi_status acpi_ex_opcode_0A_0T_1R(struct acpi_walk_state *walk_state)
 		}
 		break;
 
-	default:		/*  Unknown opcode  */
+	default:		/*  Unkyeswn opcode  */
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkyeswn AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		break;
@@ -152,9 +152,9 @@ acpi_status acpi_ex_opcode_1A_0T_0R(struct acpi_walk_state *walk_state)
 		status = acpi_ex_unload_table(operand[0]);
 		break;
 
-	default:		/*  Unknown opcode  */
+	default:		/*  Unkyeswn opcode  */
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkyeswn AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		break;
@@ -171,7 +171,7 @@ acpi_status acpi_ex_opcode_1A_0T_0R(struct acpi_walk_state *walk_state)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute opcode with one argument, one target, and no
+ * DESCRIPTION: Execute opcode with one argument, one target, and yes
  *              return value.
  *
  ******************************************************************************/
@@ -192,9 +192,9 @@ acpi_status acpi_ex_opcode_1A_1T_0R(struct acpi_walk_state *walk_state)
 		status = acpi_ex_load_op(operand[0], operand[1], walk_state);
 		break;
 
-	default:		/* Unknown opcode */
+	default:		/* Unkyeswn opcode */
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkyeswn AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
@@ -316,7 +316,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 
 				if (temp32 > 9) {
 					ACPI_ERROR((AE_INFO,
-						    "BCD digit too large (not decimal): 0x%X",
+						    "BCD digit too large (yest decimal): 0x%X",
 						    temp32));
 
 					status = AE_AML_NUMERIC_OVERFLOW;
@@ -377,10 +377,10 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 			 * different than the return value stored in the result descriptor
 			 * (There are really two return values)
 			 */
-			if ((struct acpi_namespace_node *)operand[0] ==
-			    acpi_gbl_root_node) {
+			if ((struct acpi_namespace_yesde *)operand[0] ==
+			    acpi_gbl_root_yesde) {
 				/*
-				 * This means that the object does not exist in the namespace,
+				 * This means that the object does yest exist in the namespace,
 				 * return FALSE
 				 */
 				return_desc->integer.value = 0;
@@ -430,7 +430,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 			/*
 			 * Normally, we would remove a reference on the Operand[0]
 			 * parameter; But since it is being used as the internal return
-			 * object (meaning we would normally increment it), the two
+			 * object (meaning we would yesrmally increment it), the two
 			 * cancel out, and we simply don't do anything.
 			 */
 			walk_state->result_obj = operand[0];
@@ -505,14 +505,14 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 		/* These are two obsolete opcodes */
 
 		ACPI_ERROR((AE_INFO,
-			    "%s is obsolete and not implemented",
+			    "%s is obsolete and yest implemented",
 			    acpi_ps_get_opcode_name(walk_state->opcode)));
 		status = AE_SUPPORT;
 		goto cleanup;
 
-	default:		/* Unknown opcode */
+	default:		/* Unkyeswn opcode */
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkyeswn AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
@@ -550,7 +550,7 @@ cleanup:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute opcode with one argument, no target, and a return value
+ * DESCRIPTION: Execute opcode with one argument, yes target, and a return value
  *
  ******************************************************************************/
 
@@ -630,7 +630,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		}
 
 		/*
-		 * temp_desc is now guaranteed to be an Integer object --
+		 * temp_desc is yesw guaranteed to be an Integer object --
 		 * Perform the actual increment or decrement
 		 */
 		if (walk_state->opcode == AML_INCREMENT_OP) {
@@ -654,8 +654,8 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 	case AML_OBJECT_TYPE_OP:	/* object_type (source_object) */
 		/*
-		 * Note: The operand is not resolved at this point because we want to
-		 * get the associated object, not its value. For example, we don't
+		 * Note: The operand is yest resolved at this point because we want to
+		 * get the associated object, yest its value. For example, we don't
 		 * want to resolve a field_unit to its value, we want the actual
 		 * field_unit object.
 		 */
@@ -680,8 +680,8 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 	case AML_SIZE_OF_OP:	/* size_of (source_object) */
 		/*
-		 * Note: The operand is not resolved at this point because we want to
-		 * get the associated object, not its value.
+		 * Note: The operand is yest resolved at this point because we want to
+		 * get the associated object, yest its value.
 		 */
 
 		/* Get the base object */
@@ -695,9 +695,9 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 		/*
 		 * The type of the base object must be integer, buffer, string, or
-		 * package. All others are not supported.
+		 * package. All others are yest supported.
 		 *
-		 * NOTE: Integer is not specifically supported by the ACPI spec,
+		 * NOTE: Integer is yest specifically supported by the ACPI spec,
 		 * but is supported implicitly via implicit operand conversion.
 		 * rather than bother with conversion, we just use the byte width
 		 * global (4 or 8 bytes).
@@ -715,7 +715,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 		case ACPI_TYPE_BUFFER:
 
-			/* Buffer arguments may not be evaluated at this point */
+			/* Buffer arguments may yest be evaluated at this point */
 
 			status = acpi_ds_get_buffer_arguments(temp_desc);
 			value = temp_desc->buffer.length;
@@ -723,7 +723,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 		case ACPI_TYPE_PACKAGE:
 
-			/* Package arguments may not be evaluated at this point */
+			/* Package arguments may yest be evaluated at this point */
 
 			status = acpi_ds_get_package_arguments(temp_desc);
 			value = temp_desc->package.count;
@@ -773,7 +773,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		    ACPI_DESC_TYPE_NAMED) {
 			temp_desc =
 			    acpi_ns_get_attached_object((struct
-							 acpi_namespace_node *)
+							 acpi_namespace_yesde *)
 							operand[0]);
 			if (temp_desc
 			    && ((temp_desc->common.type == ACPI_TYPE_STRING)
@@ -852,28 +852,28 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				 * to a named ACPI object.
 				 *
 				 * 1) Find the owning Node
-				 * 2) Dereference the node to an actual object. Could be a
-				 *    Field, so we need to resolve the node to a value.
+				 * 2) Dereference the yesde to an actual object. Could be a
+				 *    Field, so we need to resolve the yesde to a value.
 				 */
 				status =
-				    acpi_ns_get_node_unlocked(walk_state->
+				    acpi_ns_get_yesde_unlocked(walk_state->
 							      scope_info->scope.
-							      node,
+							      yesde,
 							      operand[0]->
 							      string.pointer,
 							      ACPI_NS_SEARCH_PARENT,
 							      ACPI_CAST_INDIRECT_PTR
 							      (struct
-							       acpi_namespace_node,
+							       acpi_namespace_yesde,
 							       &return_desc));
 				if (ACPI_FAILURE(status)) {
 					goto cleanup;
 				}
 
 				status =
-				    acpi_ex_resolve_node_to_value
+				    acpi_ex_resolve_yesde_to_value
 				    (ACPI_CAST_INDIRECT_PTR
-				     (struct acpi_namespace_node, &return_desc),
+				     (struct acpi_namespace_yesde, &return_desc),
 				     walk_state);
 				goto cleanup;
 			}
@@ -890,20 +890,20 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 			 * dereferenced above, or for references to device and
 			 * thermal objects.
 			 */
-			switch (((struct acpi_namespace_node *)operand[0])->
+			switch (((struct acpi_namespace_yesde *)operand[0])->
 				type) {
 			case ACPI_TYPE_DEVICE:
 			case ACPI_TYPE_THERMAL:
 
-				/* These types have no node subobject, return the NS node */
+				/* These types have yes yesde subobject, return the NS yesde */
 
 				return_desc = operand[0];
 				break;
 
 			default:
-				/* For most types, get the object attached to the node */
+				/* For most types, get the object attached to the yesde */
 
-				return_desc = acpi_ns_get_attached_object((struct acpi_namespace_node *)operand[0]);
+				return_desc = acpi_ns_get_attached_object((struct acpi_namespace_yesde *)operand[0]);
 				acpi_ut_add_reference(return_desc);
 				break;
 			}
@@ -948,13 +948,13 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				case ACPI_TYPE_PACKAGE:
 					/*
 					 * Return the referenced element of the package. We must
-					 * add another reference to the referenced object, however.
+					 * add ayesther reference to the referenced object, however.
 					 */
 					return_desc =
 					    *(operand[0]->reference.where);
 					if (!return_desc) {
 						/*
-						 * Element is NULL, do not allow the dereference.
+						 * Element is NULL, do yest allow the dereference.
 						 * This provides compatibility with other ACPI
 						 * implementations.
 						 */
@@ -968,7 +968,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				default:
 
 					ACPI_ERROR((AE_INFO,
-						    "Unknown Index TargetType 0x%X in reference object %p",
+						    "Unkyeswn Index TargetType 0x%X in reference object %p",
 						    operand[0]->reference.
 						    target_type, operand[0]));
 
@@ -985,7 +985,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 				    ACPI_DESC_TYPE_NAMED) {
 					return_desc =
 					    acpi_ns_get_attached_object((struct
-									 acpi_namespace_node
+									 acpi_namespace_yesde
 									 *)
 									return_desc);
 					if (!return_desc) {
@@ -1015,7 +1015,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 					default:
 
-						/* Add another reference to the object */
+						/* Add ayesther reference to the object */
 
 						acpi_ut_add_reference
 						    (return_desc);
@@ -1027,7 +1027,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "Unknown class in reference(%p) - 0x%2.2X",
+					    "Unkyeswn class in reference(%p) - 0x%2.2X",
 					    operand[0],
 					    operand[0]->reference.class));
 
@@ -1039,7 +1039,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkyeswn AML opcode 0x%X",
 			    walk_state->opcode));
 
 		status = AE_AML_BAD_OPCODE;

@@ -165,12 +165,12 @@ static void __iomem *qs_mmio_base(struct ata_host *host)
 
 static int qs_check_atapi_dma(struct ata_queued_cmd *qc)
 {
-	return 1;	/* ATAPI DMA not supported */
+	return 1;	/* ATAPI DMA yest supported */
 }
 
 static inline void qs_enter_reg_mode(struct ata_port *ap)
 {
-	u8 __iomem *chan = qs_mmio_base(ap->host) + (ap->port_no * 0x4000);
+	u8 __iomem *chan = qs_mmio_base(ap->host) + (ap->port_yes * 0x4000);
 	struct qs_port_priv *pp = ap->private_data;
 
 	pp->state = qs_state_mmio;
@@ -180,7 +180,7 @@ static inline void qs_enter_reg_mode(struct ata_port *ap)
 
 static inline void qs_reset_channel_logic(struct ata_port *ap)
 {
-	u8 __iomem *chan = qs_mmio_base(ap->host) + (ap->port_no * 0x4000);
+	u8 __iomem *chan = qs_mmio_base(ap->host) + (ap->port_yes * 0x4000);
 
 	writeb(QS_CTR1_RCHN, chan + QS_CCT_CTR1);
 	readb(chan + QS_CCT_CTR0);        /* flush */
@@ -302,7 +302,7 @@ static enum ata_completion_errors qs_qc_prep(struct ata_queued_cmd *qc)
 static inline void qs_packet_start(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	u8 __iomem *chan = qs_mmio_base(ap->host) + (ap->port_no * 0x4000);
+	u8 __iomem *chan = qs_mmio_base(ap->host) + (ap->port_yes * 0x4000);
 
 	VPRINTK("ENTER, ap %p\n", ap);
 
@@ -369,13 +369,13 @@ static inline unsigned int qs_intr_pkt(struct ata_host *host)
 		if (sEVLD) {
 			u8 sDST = sff0 >> 16;	/* dev status */
 			u8 sHST = sff1 & 0x3f;	/* host status */
-			unsigned int port_no = (sff1 >> 8) & 0x03;
-			struct ata_port *ap = host->ports[port_no];
+			unsigned int port_yes = (sff1 >> 8) & 0x03;
+			struct ata_port *ap = host->ports[port_yes];
 			struct qs_port_priv *pp = ap->private_data;
 			struct ata_queued_cmd *qc;
 
 			DPRINTK("SFF=%08x%08x: sCHAN=%u sHST=%d sDST=%02x\n",
-					sff1, sff0, port_no, sHST, sDST);
+					sff1, sff0, port_yes, sHST, sDST);
 			handled = 1;
 			if (!pp || pp->state != qs_state_pkt)
 				continue;
@@ -398,10 +398,10 @@ static inline unsigned int qs_intr_pkt(struct ata_host *host)
 
 static inline unsigned int qs_intr_mmio(struct ata_host *host)
 {
-	unsigned int handled = 0, port_no;
+	unsigned int handled = 0, port_yes;
 
-	for (port_no = 0; port_no < host->n_ports; ++port_no) {
-		struct ata_port *ap = host->ports[port_no];
+	for (port_yes = 0; port_yes < host->n_ports; ++port_yes) {
+		struct ata_port *ap = host->ports[port_yes];
 		struct qs_port_priv *pp = ap->private_data;
 		struct ata_queued_cmd *qc;
 
@@ -410,10 +410,10 @@ static inline unsigned int qs_intr_mmio(struct ata_host *host)
 			/*
 			 * The qstor hardware generates spurious
 			 * interrupts from time to time when switching
-			 * in and out of packet mode.  There's no
-			 * obvious way to know if we're here now due
+			 * in and out of packet mode.  There's yes
+			 * obvious way to kyesw if we're here yesw due
 			 * to that, so just ack the irq and pretend we
-			 * knew it was ours.. (ugh).  This does not
+			 * knew it was ours.. (ugh).  This does yest
 			 * affect packet mode.
 			 */
 			ata_sff_check_status(ap);
@@ -469,7 +469,7 @@ static int qs_port_start(struct ata_port *ap)
 	struct device *dev = ap->host->dev;
 	struct qs_port_priv *pp;
 	void __iomem *mmio_base = qs_mmio_base(ap->host);
-	void __iomem *chan = mmio_base + (ap->port_no * 0x4000);
+	void __iomem *chan = mmio_base + (ap->port_yes * 0x4000);
 	u64 addr;
 
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
@@ -499,22 +499,22 @@ static void qs_host_stop(struct ata_host *host)
 static void qs_host_init(struct ata_host *host, unsigned int chip_id)
 {
 	void __iomem *mmio_base = host->iomap[QS_MMIO_BAR];
-	unsigned int port_no;
+	unsigned int port_yes;
 
 	writeb(0, mmio_base + QS_HCT_CTRL); /* disable host interrupts */
 	writeb(QS_CNFG3_GSRST, mmio_base + QS_HCF_CNFG3); /* global reset */
 
 	/* reset each channel in turn */
-	for (port_no = 0; port_no < host->n_ports; ++port_no) {
-		u8 __iomem *chan = mmio_base + (port_no * 0x4000);
+	for (port_yes = 0; port_yes < host->n_ports; ++port_yes) {
+		u8 __iomem *chan = mmio_base + (port_yes * 0x4000);
 		writeb(QS_CTR1_RDEV|QS_CTR1_RCHN, chan + QS_CCT_CTR1);
 		writeb(QS_CTR0_REG, chan + QS_CCT_CTR0);
 		readb(chan + QS_CCT_CTR0);        /* flush */
 	}
 	writeb(QS_SERD3_PHY_ENA, mmio_base + QS_HVS_SERD3); /* enable phy */
 
-	for (port_no = 0; port_no < host->n_ports; ++port_no) {
-		u8 __iomem *chan = mmio_base + (port_no * 0x4000);
+	for (port_yes = 0; port_yes < host->n_ports; ++port_yes) {
+		u8 __iomem *chan = mmio_base + (port_yes * 0x4000);
 		/* set FIFO depths to same settings as Windows driver */
 		writew(32, chan + QS_CFC_HUFT);
 		writew(32, chan + QS_CFC_HDFT);
@@ -554,7 +554,7 @@ static int qs_ata_init_one(struct pci_dev *pdev,
 	unsigned int board_idx = (unsigned int) ent->driver_data;
 	const struct ata_port_info *ppi[] = { &qs_port_info[board_idx], NULL };
 	struct ata_host *host;
-	int rc, port_no;
+	int rc, port_yes;
 
 	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
@@ -580,9 +580,9 @@ static int qs_ata_init_one(struct pci_dev *pdev,
 	if (rc)
 		return rc;
 
-	for (port_no = 0; port_no < host->n_ports; ++port_no) {
-		struct ata_port *ap = host->ports[port_no];
-		unsigned int offset = port_no * 0x4000;
+	for (port_yes = 0; port_yes < host->n_ports; ++port_yes) {
+		struct ata_port *ap = host->ports[port_yes];
+		unsigned int offset = port_yes * 0x4000;
 		void __iomem *chan = host->iomap[QS_MMIO_BAR] + offset;
 
 		qs_ata_setup_port(&ap->ioaddr, chan);

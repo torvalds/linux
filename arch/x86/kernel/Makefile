@@ -12,7 +12,7 @@ extra-y	+= vmlinux.lds
 CPPFLAGS_vmlinux.lds += -U$(UTS_MACHINE)
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not profile debug and lowlevel utilities
+# Do yest profile debug and lowlevel utilities
 CFLAGS_REMOVE_tsc.o = -pg
 CFLAGS_REMOVE_paravirt-spinlocks.o = -pg
 CFLAGS_REMOVE_pvclock.o = -pg
@@ -37,9 +37,9 @@ OBJECT_FILES_NON_STANDARD_ftrace_$(BITS).o		:= y
 endif
 
 # If instrumentation of this dir is enabled, boot hangs during first second.
-# Probably could be more selective here, but note that files related to irqs,
-# boot, dumpstack/stacktrace, etc are either non-interesting or can lead to
-# non-deterministic coverage.
+# Probably could be more selective here, but yeste that files related to irqs,
+# boot, dumpstack/stacktrace, etc are either yesn-interesting or can lead to
+# yesn-deterministic coverage.
 KCOV_INSTRUMENT		:= n
 
 CFLAGS_irq.o := -I $(srctree)/$(src)/../include/asm/trace

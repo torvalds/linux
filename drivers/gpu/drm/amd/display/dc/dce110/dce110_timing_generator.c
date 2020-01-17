@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -59,7 +59,7 @@
 /*
 * apply_front_porch_workaround
 *
-* This is a workaround for a bug that has existed since R5xx and has not been
+* This is a workaround for a bug that has existed since R5xx and has yest been
 * fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
 */
 static void dce110_timing_generator_apply_front_porch_workaround(
@@ -181,7 +181,7 @@ void dce110_timing_generator_program_blank_color(
  *
  *  @brief
  *     Disables active stereo on controller
- *     Frame Packing need to be disabled in vBlank or when CRTC not running
+ *     Frame Packing need to be disabled in vBlank or when CRTC yest running
  *****************************************************************************
  */
 #if 0
@@ -546,7 +546,7 @@ void dce110_timing_generator_get_position(struct timing_generator *tg,
 
 	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_NOM_VERT_POSITION));
 
-	position->nominal_vcount = get_reg_field_value(
+	position->yesminal_vcount = get_reg_field_value(
 			value,
 			CRTC_NOM_VERT_POSITION,
 			CRTC_VERT_COUNT_NOM);
@@ -554,7 +554,7 @@ void dce110_timing_generator_get_position(struct timing_generator *tg,
 
 /**
  *****************************************************************************
- *  Function: get_crtc_scanoutpos
+ *  Function: get_crtc_scayesutpos
  *
  *  @brief
  *     Returns CRTC vertical/horizontal counters
@@ -562,7 +562,7 @@ void dce110_timing_generator_get_position(struct timing_generator *tg,
  *  @param [out] vpos, hpos
  *****************************************************************************
  */
-void dce110_timing_generator_get_crtc_scanoutpos(
+void dce110_timing_generator_get_crtc_scayesutpos(
 	struct timing_generator *tg,
 	uint32_t *v_blank_start,
 	uint32_t *v_blank_end,
@@ -699,7 +699,7 @@ void dce110_timing_generator_program_blanking(
 void dce110_timing_generator_set_test_pattern(
 	struct timing_generator *tg,
 	/* TODO: replace 'controller_dp_test_pattern' by 'test_pattern_mode'
-	 * because this is not DP-specific (which is probably somewhere in DP
+	 * because this is yest DP-specific (which is probably somewhere in DP
 	 * encoder) */
 	enum controller_dp_test_pattern test_pattern,
 	enum dc_color_depth color_depth)
@@ -862,7 +862,7 @@ void dce110_timing_generator_set_test_pattern(
 		 * but each next iteration color prepared in
 		 * previous iteration will be written within new mask,
 		 * the last component will written separately,
-		 * mask is not changing between 6th and 7th write
+		 * mask is yest changing between 6th and 7th write
 		 * and color will be prepared by last iteration
 		 */
 
@@ -1169,18 +1169,18 @@ void dce110_timing_generator_wait_for_vblank(struct timing_generator *tg)
 {
 	/* We want to catch beginning of VBlank here, so if the first try are
 	 * in VBlank, we might be very close to Active, in this case wait for
-	 * another frame
+	 * ayesther frame
 	 */
 	while (dce110_timing_generator_is_in_vertical_blank(tg)) {
 		if (!dce110_timing_generator_is_counter_moving(tg)) {
-			/* error - no point to wait if counter is not moving */
+			/* error - yes point to wait if counter is yest moving */
 			break;
 		}
 	}
 
 	while (!dce110_timing_generator_is_in_vertical_blank(tg)) {
 		if (!dce110_timing_generator_is_counter_moving(tg)) {
-			/* error - no point to wait if counter is not moving */
+			/* error - yes point to wait if counter is yest moving */
 			break;
 		}
 	}
@@ -1193,7 +1193,7 @@ void dce110_timing_generator_wait_for_vactive(struct timing_generator *tg)
 {
 	while (dce110_timing_generator_is_in_vertical_blank(tg)) {
 		if (!dce110_timing_generator_is_counter_moving(tg)) {
-			/* error - no point to wait if counter is not moving */
+			/* error - yes point to wait if counter is yest moving */
 			break;
 		}
 	}
@@ -1542,7 +1542,7 @@ void dce110_timing_generator_enable_reset_trigger(
 			CRTC_TRIGB_FREQUENCY_SELECT);
 
 	set_reg_field_value(value,
-			0, /* no delay */
+			0, /* yes delay */
 			CRTC_TRIGB_CNTL,
 			CRTC_TRIGB_DELAY);
 
@@ -1716,7 +1716,7 @@ void dce110_timing_generator_disable_reset_trigger(
 	value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_FORCE_COUNT_NOW_CNTL));
 
 	set_reg_field_value(value,
-			    0, /* force counter now mode is disabled */
+			    0, /* force counter yesw mode is disabled */
 			    CRTC_FORCE_COUNT_NOW_CNTL,
 			    CRTC_FORCE_COUNT_NOW_MODE);
 
@@ -1840,7 +1840,7 @@ void dce110_timing_generator_disable_vga(
 *
 * @param :black_color is one of the color space
 *    :this routine will set overscan black color according to the color space.
-* @return none
+* @return yesne
 */
 
 void dce110_timing_generator_set_overscan_color_black(
@@ -1881,7 +1881,7 @@ void dce110_timing_generator_set_overscan_color_black(
 	addr = CRTC_REG(mmCRTC_BLANK_DATA_COLOR);
 	dm_write_reg(ctx, addr, value);
 
-	/* TO DO we have to program EXT registers and we need to know LB DATA
+	/* TO DO we have to program EXT registers and we need to kyesw LB DATA
 	 * format because it is used when more 10 , i.e. 12 bits per color
 	 *
 	 * m_mmDxCRTC_OVERSCAN_COLOR_EXT
@@ -2054,7 +2054,7 @@ bool dce110_arm_vert_intr(struct timing_generator *tg, uint8_t width)
 	uint32_t val = 0;
 	uint32_t h_position, v_position;
 
-	tg->funcs->get_scanoutpos(
+	tg->funcs->get_scayesutpos(
 			tg,
 			&v_blank_start,
 			&v_blank_end,
@@ -2104,7 +2104,7 @@ bool dce110_configure_crc(struct timing_generator *tg,
 	uint32_t value;
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 
-	/* Cannot configure crc on a CRTC that is disabled */
+	/* Canyest configure crc on a CRTC that is disabled */
 	if (!dce110_is_tg_enabled(tg))
 		return false;
 
@@ -2185,7 +2185,7 @@ bool dce110_get_crc(struct timing_generator *tg,
 	value = dm_read_reg(tg->ctx, addr);
 	field = get_reg_field_value(value, CRTC_CRC_CNTL, CRTC_CRC_EN);
 
-	/* Early return if CRC is not enabled for this CRTC */
+	/* Early return if CRC is yest enabled for this CRTC */
 	if (!field)
 		return false;
 
@@ -2209,7 +2209,7 @@ static const struct timing_generator_funcs dce110_tg_funcs = {
 		.is_counter_moving = dce110_timing_generator_is_counter_moving,
 		.get_position = dce110_timing_generator_get_position,
 		.get_frame_count = dce110_timing_generator_get_vblank_counter,
-		.get_scanoutpos = dce110_timing_generator_get_crtc_scanoutpos,
+		.get_scayesutpos = dce110_timing_generator_get_crtc_scayesutpos,
 		.set_early_control = dce110_timing_generator_set_early_control,
 		.wait_for_state = dce110_tg_wait_for_state,
 		.set_blank = dce110_tg_set_blank,

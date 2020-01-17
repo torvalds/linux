@@ -163,7 +163,7 @@ int ath10k_htt_init(struct ath10k *ar)
 	htt->ar = ar;
 
 	/*
-	 * Prefetch enough data to satisfy target
+	 * Prefetch eyesugh data to satisfy target
 	 * classification engine.
 	 * This is for LL chips. HL chips will probably
 	 * transfer all frame in the tx fragment.
@@ -209,7 +209,7 @@ static int ath10k_htt_verify_version(struct ath10k_htt *htt)
 	struct ath10k *ar = htt->ar;
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "htt target version %d.%d\n",
-		   htt->target_version_major, htt->target_version_minor);
+		   htt->target_version_major, htt->target_version_miyesr);
 
 	if (htt->target_version_major != 2 &&
 	    htt->target_version_major != 3) {

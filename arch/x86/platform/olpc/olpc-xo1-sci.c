@@ -104,7 +104,7 @@ static void detect_lid_state(void)
 	 * the edge detector hookup on the gpio inputs on the geode is
 	 * odd, to say the least.  See http://dev.laptop.org/ticket/5703
 	 * for details, but in a nutshell:  we don't use the edge
-	 * detectors.  instead, we make use of an anomaly:  with the both
+	 * detectors.  instead, we make use of an ayesmaly:  with the both
 	 * edge detectors turned off, we still get an edge event on a
 	 * positive edge transition.  to take advantage of this, we use the
 	 * front-end inverter to ensure that that's the edge we're always
@@ -294,7 +294,7 @@ static int xo1_sci_suspend(struct platform_device *pdev, pm_message_t state)
 static int xo1_sci_resume(struct platform_device *pdev)
 {
 	/*
-	 * We don't know what may have happened while we were asleep.
+	 * We don't kyesw what may have happened while we were asleep.
 	 * Reestablish our lid setup so we're sure to catch all transitions.
 	 */
 	detect_lid_state();
@@ -377,7 +377,7 @@ static int setup_ec_sci(void)
 	 * wakeup, *and* the ability to get an interrupt when an event occurs.
 	 *
 	 * To achieve this, we map the GPIO to a PME, and then we use one
-	 * of the many generic knobs on the CS5535 PIC to additionally map the
+	 * of the many generic kyesbs on the CS5535 PIC to additionally map the
 	 * PME to the regular SCI interrupt line.
 	 */
 	cs5535_gpio_set(OLPC_GPIO_ECSCI, GPIO_EVENTS_ENABLE);
@@ -409,7 +409,7 @@ static int setup_lid_events(void)
 	cs5535_gpio_clear(OLPC_GPIO_LID, GPIO_INPUT_INVERT);
 	lid_inverted = 0;
 
-	/* Clear edge detection and event enable for now */
+	/* Clear edge detection and event enable for yesw */
 	cs5535_gpio_clear(OLPC_GPIO_LID, GPIO_EVENTS_ENABLE);
 	cs5535_gpio_clear(OLPC_GPIO_LID, GPIO_NEGATIVE_EDGE_EN);
 	cs5535_gpio_clear(OLPC_GPIO_LID, GPIO_POSITIVE_EDGE_EN);
@@ -532,7 +532,7 @@ static int xo1_sci_probe(struct platform_device *pdev)
 	struct resource *res;
 	int r;
 
-	/* don't run on non-XOs */
+	/* don't run on yesn-XOs */
 	if (!machine_is_olpc())
 		return -ENODEV;
 

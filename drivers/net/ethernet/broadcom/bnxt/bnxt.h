@@ -1100,7 +1100,7 @@ struct bnxt_pf_info {
 };
 
 struct bnxt_ntuple_filter {
-	struct hlist_node	hash;
+	struct hlist_yesde	hash;
 	u8			dst_mac_addr[ETH_ALEN];
 	u8			src_mac_addr[ETH_ALEN];
 	struct flow_keys	fkeys;
@@ -1277,7 +1277,7 @@ struct bnxt_tc_info {
 	struct rhashtable		encap_table;
 	struct rhashtable_params	encap_ht_params;
 
-	/* lock to atomically add/del an l2 node when a flow is
+	/* lock to atomically add/del an l2 yesde when a flow is
 	 * added or deleted.
 	 */
 	struct mutex			lock;
@@ -1286,7 +1286,7 @@ struct bnxt_tc_info {
 	struct rhashtable_iter		iter;
 #define BNXT_FLOW_STATS_BATCH_MAX	10
 	struct bnxt_tc_stats_batch {
-		void			  *flow_node;
+		void			  *flow_yesde;
 		struct bnxt_tc_flow_stats hw_stats;
 	} stats_batch[BNXT_FLOW_STATS_BATCH_MAX];
 
@@ -1373,7 +1373,7 @@ struct bnxt_fw_health {
 	u32 flags;
 	u32 polling_dsecs;
 	u32 master_func_wait_dsecs;
-	u32 normal_func_wait_dsecs;
+	u32 yesrmal_func_wait_dsecs;
 	u32 post_reset_wait_dsecs;
 	u32 post_reset_max_wait_dsecs;
 	u32 regs[4];
@@ -1508,7 +1508,7 @@ struct bnxt {
 #ifdef CONFIG_INET
 	#define BNXT_FLAG_GRO		0x8
 #else
-	/* Cannot support hardware GRO if CONFIG_INET is not set */
+	/* Canyest support hardware GRO if CONFIG_INET is yest set */
 	#define BNXT_FLAG_GRO		0x0
 #endif
 	#define BNXT_FLAG_TPA		(BNXT_FLAG_LRO | BNXT_FLAG_GRO)
@@ -1848,7 +1848,7 @@ struct bnxt {
 	u8			switch_id[8];
 	struct bnxt_tc_info	*tc_info;
 	struct list_head	tc_indr_block_list;
-	struct notifier_block	tc_netdev_nb;
+	struct yestifier_block	tc_netdev_nb;
 	struct dentry		*debugfs_pdev;
 	struct device		*hwmon_dev;
 };
@@ -1899,7 +1899,7 @@ do {						\
 #define writeq_relaxed writeq
 #endif
 
-/* For TX and RX ring doorbells with no ordering guarantee*/
+/* For TX and RX ring doorbells with yes ordering guarantee*/
 static inline void bnxt_db_write_relaxed(struct bnxt *bp,
 					 struct bnxt_db_info *db, u32 idx)
 {

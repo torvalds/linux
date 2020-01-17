@@ -5,12 +5,12 @@
 #ifdef __ASSEMBLY__
 
 /*
- * Check the length of an instruction sequence. The length may not be larger
+ * Check the length of an instruction sequence. The length may yest be larger
  * than 254 bytes and it has to be divisible by 2.
  */
 .macro alt_len_check start,end
 	.if ( \end - \start ) > 254
-	.error "cpu alternatives does not support instructions blocks > 254 bytes\n"
+	.error "cpu alternatives does yest support instructions blocks > 254 bytes\n"
 	.endif
 	.if ( \end - \start ) % 2
 	.error "cpu alternatives instructions length is odd\n"
@@ -20,7 +20,7 @@
 /*
  * Issue one struct alt_instr descriptor entry (need to put it into
  * the section .altinstructions, see below). This entry contains
- * enough information for the alternatives patching code to patch an
+ * eyesugh information for the alternatives patching code to patch an
  * instruction. See apply_alternatives().
  */
 .macro alt_entry orig_start, orig_end, alt_start, alt_end, feature
@@ -32,9 +32,9 @@
 .endm
 
 /*
- * Fill up @bytes with nops. The macro emits 6-byte nop instructions
+ * Fill up @bytes with yesps. The macro emits 6-byte yesp instructions
  * for the bulk of the area, possibly followed by a 4-byte and/or
- * a 2-byte nop if the size of the area is not divisible by 6.
+ * a 2-byte yesp if the size of the area is yest divisible by 6.
  */
 .macro alt_pad_fill bytes
 	.fill	( \bytes ) / 6, 6, 0xc0040000
@@ -43,9 +43,9 @@
 .endm
 
 /*
- * Fill up @bytes with nops. If the number of bytes is larger
- * than 6, emit a jg instruction to branch over all nops, then
- * fill an area of size (@bytes - 6) with nop instructions.
+ * Fill up @bytes with yesps. If the number of bytes is larger
+ * than 6, emit a jg instruction to branch over all yesps, then
+ * fill an area of size (@bytes - 6) with yesp instructions.
  */
 .macro alt_pad bytes
 	.if ( \bytes > 0 )

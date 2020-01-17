@@ -6,19 +6,19 @@ This is a summary of the most important conventions for use of fault
 codes in the I2C/SMBus stack.
 
 
-A "Fault" is not always an "Error"
+A "Fault" is yest always an "Error"
 ----------------------------------
 Not all fault reports imply errors; "page faults" should be a familiar
 example.  Software often retries idempotent operations after transient
 faults.  There may be fancier recovery schemes that are appropriate in
 some cases, such as re-initializing (and maybe resetting).  After such
-recovery, triggered by a fault report, there is no error.
+recovery, triggered by a fault report, there is yes error.
 
 In a similar way, sometimes a "fault" code just reports one defined
 result for an operation ... it doesn't indicate that anything is wrong
 at all, just that the outcome wasn't on the "golden path".
 
-In short, your I2C driver code may need to know these codes in order
+In short, your I2C driver code may need to kyesw these codes in order
 to respond correctly.  Other code may need to rely on YOUR code reporting
 the right fault code, so that it can (in turn) behave correctly.
 
@@ -26,13 +26,13 @@ the right fault code, so that it can (in turn) behave correctly.
 I2C and SMBus fault codes
 -------------------------
 These are returned as negative numbers from most calls, with zero or
-some positive number indicating a non-fault return.  The specific
+some positive number indicating a yesn-fault return.  The specific
 numbers associated with these symbols differ between architectures,
-though most Linux systems use <asm-generic/errno*.h> numbering.
+though most Linux systems use <asm-generic/erryes*.h> numbering.
 
-Note that the descriptions here are not exhaustive.  There are other
+Note that the descriptions here are yest exhaustive.  There are other
 codes that may be returned, and other cases where these codes should
-be returned.  However, drivers should not return other codes for these
+be returned.  However, drivers should yest return other codes for these
 cases (unless the hardware doesn't provide unique fault reports).
 
 Also, codes returned by adapter probe methods follow rules which are
@@ -54,7 +54,7 @@ EBADMSG
 	transaction, and is sent before the terminating STOP.  This
 	fault is only reported on read transactions; the SMBus slave
 	may have a way to report PEC mismatches on writes from the
-	host.  Note that even if PECs are in use, you should not rely
+	host.  Note that even if PECs are in use, you should yest rely
 	on these as the only way to detect incorrect data transfers.
 
 EBUSY
@@ -88,11 +88,11 @@ ENOMEM
 ENXIO
 	Returned by I2C adapters to indicate that the address phase
 	of a transfer didn't get an ACK.  While it might just mean
-	an I2C device was temporarily not responding, usually it
-	means there's nothing listening at that address.
+	an I2C device was temporarily yest responding, usually it
+	means there's yesthing listening at that address.
 
 	Returned by driver probe() methods to indicate that they
-	found no device to bind to.  (ENODEV may also be used.)
+	found yes device to bind to.  (ENODEV may also be used.)
 
 EOPNOTSUPP
 	Returned by an adapter when asked to perform an operation
@@ -111,7 +111,7 @@ EOPNOTSUPP
 	that if an adapter supports I2C it supports all of I2C.)
 
 EPROTO
-	Returned when slave does not conform to the relevant I2C
+	Returned when slave does yest conform to the relevant I2C
 	or SMBus (or chip-specific) protocol specifications.  One
 	case is when the length of an SMBus block data response
 	(from the SMBus slave) is outside the range 1-32 bytes.
@@ -126,6 +126,6 @@ ETIMEDOUT
 
 	SMBus adapters may return it when an operation took more
 	time than allowed by the SMBus specification; for example,
-	when a slave stretches clocks too far.  I2C has no such
-	timeouts, but it's normal for I2C adapters to impose some
+	when a slave stretches clocks too far.  I2C has yes such
+	timeouts, but it's yesrmal for I2C adapters to impose some
 	arbitrary limits (much longer than SMBus!) too.

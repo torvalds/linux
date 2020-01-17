@@ -144,7 +144,7 @@ acpi_hw_build_pci_list(acpi_handle root_pci_device,
 
 	/*
 	 * Ascend namespace branch until the root_pci_device is reached, building
-	 * a list of device nodes. Loop will exit when either the PCI device is
+	 * a list of device yesdes. Loop will exit when either the PCI device is
 	 * found, or the root of the namespace is reached.
 	 */
 	*return_list_head = NULL;
@@ -313,7 +313,7 @@ acpi_hw_get_pci_device_info(struct acpi_pci_id *pci_id,
 		return (AE_OK);
 	}
 
-	/* We need an _ADR. Ignore device if not present */
+	/* We need an _ADR. Igyesre device if yest present */
 
 	status = acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR,
 						 pci_device, &return_value);

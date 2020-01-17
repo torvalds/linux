@@ -7,9 +7,9 @@
  *
  * The s390_arch_random_generate() function may be called from random.c
  * in interrupt context. So this implementation does the best to be very
- * fast. There is a buffer of random data which is asynchronously checked
+ * fast. There is a buffer of random data which is asynchroyesusly checked
  * and filled by a workqueue thread.
- * If there are enough bytes in the buffer the s390_arch_random_generate()
+ * If there are eyesugh bytes in the buffer the s390_arch_random_generate()
  * just delivers these bytes. Otherwise false is returned until the
  * worker thread refills the buffer.
  * The worker fills the rng buffer by pulling fresh entropy from the
@@ -66,7 +66,7 @@ bool s390_arch_random_generate(u8 *buf, unsigned int nbytes)
 		return true;
 	}
 
-	/* not enough bytes in rng buffer, refill is done asynchronously */
+	/* yest eyesugh bytes in rng buffer, refill is done asynchroyesusly */
 	spin_unlock(&arch_rng_lock);
 
 	return false;
@@ -86,9 +86,9 @@ static void arch_rng_refill_buffer(struct work_struct *unused)
 		cpacf_trng(NULL, 0, seed, sizeof(seed));
 		/* blow this entropy up to ARCH_RNG_BUF_SIZE with PRNG */
 		memset(prng_wa, 0, sizeof(prng_wa));
-		cpacf_prno(CPACF_PRNO_SHA512_DRNG_SEED,
+		cpacf_pryes(CPACF_PRNO_SHA512_DRNG_SEED,
 			   &prng_wa, NULL, 0, seed, sizeof(seed));
-		cpacf_prno(CPACF_PRNO_SHA512_DRNG_GEN,
+		cpacf_pryes(CPACF_PRNO_SHA512_DRNG_GEN,
 			   &prng_wa, arch_rng_buf, ARCH_RNG_BUF_SIZE, NULL, 0);
 		arch_rng_buf_idx = ARCH_RNG_BUF_SIZE;
 	}

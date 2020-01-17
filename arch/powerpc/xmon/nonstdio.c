@@ -5,7 +5,7 @@
 #include <linux/string.h>
 #include <asm/udbg.h>
 #include <asm/time.h>
-#include "nonstdio.h"
+#include "yesnstdio.h"
 
 static bool paginating, paginate_skipping;
 static unsigned long paginate_lpp; /* Lines Per Page */
@@ -64,7 +64,7 @@ static int xmon_write(const char *ptr, int nb)
 					paginate_skipping = true;
 					break;
 				default:
-					/* nothing */
+					/* yesthing */
 					break;
 				}
 

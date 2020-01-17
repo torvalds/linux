@@ -10,7 +10,7 @@
 
 #include <linux/time.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fcntl.h>
 #include <linux/stat.h>
 #include <linux/mm.h>
@@ -59,17 +59,17 @@ int nfs_return_empty_page(struct page *page)
 }
 
 void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
-			      struct inode *inode, bool force_mds,
+			      struct iyesde *iyesde, bool force_mds,
 			      const struct nfs_pgio_completion_ops *compl_ops)
 {
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(iyesde);
 	const struct nfs_pageio_ops *pg_ops = &nfs_pgio_rw_ops;
 
 #ifdef CONFIG_NFS_V4_1
 	if (server->pnfs_curr_ld && !force_mds)
 		pg_ops = server->pnfs_curr_ld->pg_read_ops;
 #endif
-	nfs_pageio_init(pgio, inode, pg_ops, compl_ops, &nfs_rw_read_ops,
+	nfs_pageio_init(pgio, iyesde, pg_ops, compl_ops, &nfs_rw_read_ops,
 			server->rsize, 0);
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init_read);
@@ -87,17 +87,17 @@ void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio)
 	WARN_ON_ONCE(pgio->pg_mirror_count != 1);
 
 	mirror = &pgio->pg_mirrors[0];
-	mirror->pg_bsize = NFS_SERVER(pgio->pg_inode)->rsize;
+	mirror->pg_bsize = NFS_SERVER(pgio->pg_iyesde)->rsize;
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_read_mds);
 
 static void nfs_readpage_release(struct nfs_page *req, int error)
 {
-	struct inode *inode = d_inode(nfs_req_openctx(req)->dentry);
+	struct iyesde *iyesde = d_iyesde(nfs_req_openctx(req)->dentry);
 	struct page *page = req->wb_page;
 
-	dprintk("NFS: read done (%s/%llu %d@%lld)\n", inode->i_sb->s_id,
-		(unsigned long long)NFS_FILEID(inode), req->wb_bytes,
+	dprintk("NFS: read done (%s/%llu %d@%lld)\n", iyesde->i_sb->s_id,
+		(unsigned long long)NFS_FILEID(iyesde), req->wb_bytes,
 		(long long)req_offset(req));
 
 	if (nfs_error_is_fatal_on_server(error) && error != -ETIMEDOUT)
@@ -106,7 +106,7 @@ static void nfs_readpage_release(struct nfs_page *req, int error)
 		struct address_space *mapping = page_file_mapping(page);
 
 		if (PageUptodate(page))
-			nfs_readpage_to_fscache(inode, page, 0);
+			nfs_readpage_to_fscache(iyesde, page, 0);
 		else if (!PageError(page) && !PagePrivate(page))
 			generic_error_remove_page(mapping, page);
 		unlock_page(page);
@@ -114,7 +114,7 @@ static void nfs_readpage_release(struct nfs_page *req, int error)
 	nfs_release_request(req);
 }
 
-int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
+int nfs_readpage_async(struct nfs_open_context *ctx, struct iyesde *iyesde,
 		       struct page *page)
 {
 	struct nfs_page	*new;
@@ -133,7 +133,7 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	if (len < PAGE_SIZE)
 		zero_user_segment(page, len, PAGE_SIZE);
 
-	nfs_pageio_init_read(&pgio, inode, false,
+	nfs_pageio_init_read(&pgio, iyesde, false,
 			     &nfs_async_read_completion_ops);
 	if (!nfs_pageio_add_request(&pgio, new)) {
 		nfs_list_remove_request(new);
@@ -145,7 +145,7 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	WARN_ON_ONCE(pgio.pg_mirror_count != 1);
 
 	pgm = &pgio.pg_mirrors[0];
-	NFS_I(inode)->read_io += pgm->pg_bytes_written;
+	NFS_I(iyesde)->read_io += pgm->pg_bytes_written;
 
 	return pgio.pg_error < 0 ? pgio.pg_error : 0;
 }
@@ -170,17 +170,17 @@ static void nfs_read_completion(struct nfs_pgio_header *hdr)
 		unsigned long end = req->wb_pgbase + req->wb_bytes;
 
 		if (test_bit(NFS_IOHDR_EOF, &hdr->flags)) {
-			/* note: regions of the page not covered by a
+			/* yeste: regions of the page yest covered by a
 			 * request are zeroed in nfs_readpage_async /
 			 * readpage_async_filler */
 			if (bytes > hdr->good_bytes) {
-				/* nothing in this request was good, so zero
+				/* yesthing in this request was good, so zero
 				 * the full extent of the request */
 				zero_user_segment(page, start, end);
 
 			} else if (hdr->good_bytes - bytes < req->wb_bytes) {
 				/* part of this request has good bytes, but
-				 * not all. zero the bad bytes */
+				 * yest all. zero the bad bytes */
 				start += hdr->good_bytes - bytes;
 				WARN_ON(start < req->wb_pgbase);
 				zero_user_segment(page, start, end);
@@ -209,12 +209,12 @@ static void nfs_initiate_read(struct nfs_pgio_header *hdr,
 			      const struct nfs_rpc_ops *rpc_ops,
 			      struct rpc_task_setup *task_setup_data, int how)
 {
-	struct inode *inode = hdr->inode;
-	int swap_flags = IS_SWAPFILE(inode) ? NFS_RPC_SWAPFLAGS : 0;
+	struct iyesde *iyesde = hdr->iyesde;
+	int swap_flags = IS_SWAPFILE(iyesde) ? NFS_RPC_SWAPFLAGS : 0;
 
 	task_setup_data->flags |= swap_flags;
 	rpc_ops->read_setup(hdr, msg);
-	trace_nfs_initiate_read(inode, hdr->io_start, hdr->good_bytes);
+	trace_nfs_initiate_read(iyesde, hdr->io_start, hdr->good_bytes);
 }
 
 static void
@@ -240,19 +240,19 @@ static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops = {
  */
 static int nfs_readpage_done(struct rpc_task *task,
 			     struct nfs_pgio_header *hdr,
-			     struct inode *inode)
+			     struct iyesde *iyesde)
 {
-	int status = NFS_PROTO(inode)->read_done(task, hdr);
+	int status = NFS_PROTO(iyesde)->read_done(task, hdr);
 	if (status != 0)
 		return status;
 
-	nfs_add_stats(inode, NFSIOS_SERVERREADBYTES, hdr->res.count);
-	trace_nfs_readpage_done(inode, task->tk_status,
+	nfs_add_stats(iyesde, NFSIOS_SERVERREADBYTES, hdr->res.count);
+	trace_nfs_readpage_done(iyesde, task->tk_status,
 				hdr->args.offset, hdr->res.eof);
 
 	if (task->tk_status == -ESTALE) {
-		set_bit(NFS_INO_STALE, &NFS_I(inode)->flags);
-		nfs_mark_for_revalidate(inode);
+		set_bit(NFS_INO_STALE, &NFS_I(iyesde)->flags);
+		nfs_mark_for_revalidate(iyesde);
 	}
 	return 0;
 }
@@ -264,14 +264,14 @@ static void nfs_readpage_retry(struct rpc_task *task,
 	struct nfs_pgio_res  *resp = &hdr->res;
 
 	/* This is a short read! */
-	nfs_inc_stats(hdr->inode, NFSIOS_SHORTREAD);
+	nfs_inc_stats(hdr->iyesde, NFSIOS_SHORTREAD);
 	/* Has the server at least made some progress? */
 	if (resp->count == 0) {
 		nfs_set_pgio_error(hdr, -EIO, argp->offset);
 		return;
 	}
 
-	/* For non rpc-based layout drivers, retry-through-MDS */
+	/* For yesn rpc-based layout drivers, retry-through-MDS */
 	if (!task->tk_ops) {
 		hdr->pnfs_error = -EAGAIN;
 		return;
@@ -303,54 +303,54 @@ static void nfs_readpage_result(struct rpc_task *task,
 
 /*
  * Read a page over NFS.
- * We read the page synchronously in the following case:
+ * We read the page synchroyesusly in the following case:
  *  -	The error flag is set for this page. This happens only when a
  *	previous async read operation failed.
  */
 int nfs_readpage(struct file *file, struct page *page)
 {
 	struct nfs_open_context *ctx;
-	struct inode *inode = page_file_mapping(page)->host;
+	struct iyesde *iyesde = page_file_mapping(page)->host;
 	int		error;
 
 	dprintk("NFS: nfs_readpage (%p %ld@%lu)\n",
 		page, PAGE_SIZE, page_index(page));
-	nfs_inc_stats(inode, NFSIOS_VFSREADPAGE);
-	nfs_add_stats(inode, NFSIOS_READPAGES, 1);
+	nfs_inc_stats(iyesde, NFSIOS_VFSREADPAGE);
+	nfs_add_stats(iyesde, NFSIOS_READPAGES, 1);
 
 	/*
 	 * Try to flush any pending writes to the file..
 	 *
-	 * NOTE! Because we own the page lock, there cannot
+	 * NOTE! Because we own the page lock, there canyest
 	 * be any new pending writes generated at this point
 	 * for this page (other pages can be written to).
 	 */
-	error = nfs_wb_page(inode, page);
+	error = nfs_wb_page(iyesde, page);
 	if (error)
 		goto out_unlock;
 	if (PageUptodate(page))
 		goto out_unlock;
 
 	error = -ESTALE;
-	if (NFS_STALE(inode))
+	if (NFS_STALE(iyesde))
 		goto out_unlock;
 
 	if (file == NULL) {
 		error = -EBADF;
-		ctx = nfs_find_open_context(inode, NULL, FMODE_READ);
+		ctx = nfs_find_open_context(iyesde, NULL, FMODE_READ);
 		if (ctx == NULL)
 			goto out_unlock;
 	} else
 		ctx = get_nfs_open_context(nfs_file_open_context(file));
 
-	if (!IS_SYNC(inode)) {
-		error = nfs_readpage_from_fscache(ctx, inode, page);
+	if (!IS_SYNC(iyesde)) {
+		error = nfs_readpage_from_fscache(ctx, iyesde, page);
 		if (error == 0)
 			goto out;
 	}
 
 	xchg(&ctx->error, 0);
-	error = nfs_readpage_async(ctx, inode, page);
+	error = nfs_readpage_async(ctx, iyesde, page);
 	if (!error) {
 		error = wait_on_page_locked_killable(page);
 		if (!PageUptodate(page) && !error)
@@ -409,21 +409,21 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	struct nfs_readdesc desc = {
 		.pgio = &pgio,
 	};
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	unsigned long npages;
 	int ret = -ESTALE;
 
 	dprintk("NFS: nfs_readpages (%s/%Lu %d)\n",
-			inode->i_sb->s_id,
-			(unsigned long long)NFS_FILEID(inode),
+			iyesde->i_sb->s_id,
+			(unsigned long long)NFS_FILEID(iyesde),
 			nr_pages);
-	nfs_inc_stats(inode, NFSIOS_VFSREADPAGES);
+	nfs_inc_stats(iyesde, NFSIOS_VFSREADPAGES);
 
-	if (NFS_STALE(inode))
+	if (NFS_STALE(iyesde))
 		goto out;
 
 	if (filp == NULL) {
-		desc.ctx = nfs_find_open_context(inode, NULL, FMODE_READ);
+		desc.ctx = nfs_find_open_context(iyesde, NULL, FMODE_READ);
 		if (desc.ctx == NULL)
 			return -EBADF;
 	} else
@@ -432,12 +432,12 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	/* attempt to read as many of the pages as possible from the cache
 	 * - this returns -ENOBUFS immediately if the cookie is negative
 	 */
-	ret = nfs_readpages_from_fscache(desc.ctx, inode, mapping,
+	ret = nfs_readpages_from_fscache(desc.ctx, iyesde, mapping,
 					 pages, &nr_pages);
 	if (ret == 0)
 		goto read_complete; /* all pages were read */
 
-	nfs_pageio_init_read(&pgio, inode, false,
+	nfs_pageio_init_read(&pgio, iyesde, false,
 			     &nfs_async_read_completion_ops);
 
 	ret = read_cache_pages(mapping, pages, readpage_async_filler, &desc);
@@ -447,10 +447,10 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	WARN_ON_ONCE(pgio.pg_mirror_count != 1);
 
 	pgm = &pgio.pg_mirrors[0];
-	NFS_I(inode)->read_io += pgm->pg_bytes_written;
+	NFS_I(iyesde)->read_io += pgm->pg_bytes_written;
 	npages = (pgm->pg_bytes_written + PAGE_SIZE - 1) >>
 		 PAGE_SHIFT;
-	nfs_add_stats(inode, NFSIOS_READPAGES, npages);
+	nfs_add_stats(iyesde, NFSIOS_READPAGES, npages);
 read_complete:
 	put_nfs_open_context(desc.ctx);
 out:

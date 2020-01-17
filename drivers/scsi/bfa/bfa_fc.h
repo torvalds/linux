@@ -159,7 +159,7 @@ enum {
 };
 
 /*
- * Fabric Well Known Addresses
+ * Fabric Well Kyeswn Addresses
  */
 enum {
 	FC_MIN_WELL_KNOWN_ADDR		= 0xFFFFF0,
@@ -361,7 +361,7 @@ struct fc_logi_s {
 	struct fc_els_cmd_s	els_cmd;	/* ELS command code */
 	struct fc_plogi_csp_s	csp;		/* common service params */
 	wwn_t			port_name;
-	wwn_t			node_name;
+	wwn_t			yesde_name;
 	struct fc_plogi_clp_s	class1;		/* class 1 service parameters */
 	struct fc_plogi_clp_s	class2;		/* class 2 service parameters */
 	struct fc_plogi_clp_s	class3;		/* class 3 service parameters */
@@ -387,7 +387,7 @@ struct fc_adisc_s {
 	u32		res1:8;
 	u32		orig_HA:24;	/* originator hard address */
 	wwn_t		orig_port_name;	/* originator port name */
-	wwn_t		orig_node_name;	/* originator node name */
+	wwn_t		orig_yesde_name;	/* originator yesde name */
 	u32		res2:8;
 	u32		nport_id:24;	/* originator NPortID */
 };
@@ -443,7 +443,7 @@ struct fc_rec_s {
 #define FC_REC_ESB_OWN_RSP	0x80000000	/* responder owns */
 #define FC_REC_ESB_SI		0x40000000	/* SI is owned	*/
 #define FC_REC_ESB_COMP		0x20000000	/* exchange is complete	*/
-#define FC_REC_ESB_ENDCOND_ABN	0x10000000	/* abnormal ending	*/
+#define FC_REC_ESB_ENDCOND_ABN	0x10000000	/* abyesrmal ending	*/
 #define FC_REC_ESB_RQACT	0x04000000	/* recovery qual active	*/
 #define FC_REC_ESB_ERRP_MSK	0x03000000
 #define FC_REC_ESB_OXID_INV	0x00800000	/* invalid OXID		*/
@@ -518,7 +518,7 @@ struct fc_prli_params_s {
  */
 enum {
 	FC_PRLI_ACC_XQTD = 0x1,		/* request executed */
-	FC_PRLI_ACC_PREDEF_IMG = 0x5,	/* predefined image - no prli needed */
+	FC_PRLI_ACC_PREDEF_IMG = 0x5,	/* predefined image - yes prli needed */
 };
 
 struct fc_prli_params_page_s {
@@ -851,7 +851,7 @@ struct fc_echo_s {
  */
 struct fc_rnid_cmd_s {
 	struct fc_els_cmd_s els_cmd;
-	u32        node_id_data_format:8;
+	u32        yesde_id_data_format:8;
 	u32        reserved:24;
 };
 
@@ -861,15 +861,15 @@ struct fc_rnid_cmd_s {
 
 struct fc_rnid_common_id_data_s {
 	wwn_t		port_name;
-	wwn_t           node_name;
+	wwn_t           yesde_name;
 };
 
 struct fc_rnid_general_topology_data_s {
 	u32        vendor_unique[4];
 	__be32     asso_type;
 	u32        phy_port_num;
-	__be32     num_attached_nodes;
-	u32        node_mgmt:8;
+	__be32     num_attached_yesdes;
+	u32        yesde_mgmt:8;
 	u32        ip_version:8;
 	u32        udp_tcp_port_num:16;
 	u32        ip_address[4];
@@ -879,7 +879,7 @@ struct fc_rnid_general_topology_data_s {
 
 struct fc_rnid_acc_s {
 	struct fc_els_cmd_s els_cmd;
-	u32        node_id_data_format:8;
+	u32        yesde_id_data_format:8;
 	u32        common_id_data_length:8;
 	u32        reserved:8;
 	u32        specific_id_data_length:8;
@@ -920,7 +920,7 @@ enum fc_rpsc_op_speed {
 	RPSC_OP_SPEED_8G = 0x0800,
 	RPSC_OP_SPEED_16G = 0x0400,
 
-	RPSC_OP_SPEED_NOT_EST = 0x0001,	/* speed not established */
+	RPSC_OP_SPEED_NOT_EST = 0x0001,	/* speed yest established */
 };
 
 struct fc_rpsc_speed_info_s {
@@ -1025,7 +1025,7 @@ struct fc_alpabm_s {
 /*
  * virtual fabric related defines
  */
-#define FC_VF_ID_NULL    0	/*  must not be used as VF_ID */
+#define FC_VF_ID_NULL    0	/*  must yest be used as VF_ID */
 #define FC_VF_ID_MIN     1
 #define FC_VF_ID_MAX     0xEFF
 #define FC_VF_ID_CTL     0xFEF	/*  control VF_ID */
@@ -1105,8 +1105,8 @@ enum fcp_tm_cmnd {
  * FCP_RSP residue flags
  */
 enum fcp_residue {
-	FCP_NO_RESIDUE = 0,     /* no residue */
-	FCP_RESID_OVER = 1,     /* more data left that was not sent */
+	FCP_NO_RESIDUE = 0,     /* yes residue */
+	FCP_RESID_OVER = 1,     /* more data left that was yest sent */
 	FCP_RESID_UNDER = 2,    /* less data than requested */
 };
 
@@ -1272,14 +1272,14 @@ enum {
 enum {
 	GS_GID_PN	= 0x0121,	/* Get Id on port name */
 	GS_GPN_ID	= 0x0112,	/* Get port name on ID */
-	GS_GNN_ID	= 0x0113,	/* Get node name on ID */
+	GS_GNN_ID	= 0x0113,	/* Get yesde name on ID */
 	GS_GID_FT	= 0x0171,	/* Get Id on FC4 type */
 	GS_GSPN_ID	= 0x0118,	/* Get symbolic PN on ID */
 	GS_RFT_ID	= 0x0217,	/* Register fc4type on ID */
 	GS_RSPN_ID	= 0x0218,	/* Register symbolic PN on ID */
 	GS_RSNN_NN	= 0x0239,	/* Register symbolic NN on NN */
 	GS_RPN_ID	= 0x0212,	/* Register port name */
-	GS_RNN_ID	= 0x0213,	/* Register node name */
+	GS_RNN_ID	= 0x0213,	/* Register yesde name */
 	GS_RCS_ID	= 0x0214,	/* Register class of service */
 	GS_RPT_ID	= 0x021A,	/* Register port type */
 	GS_GA_NXT	= 0x0100,	/* Get all next */
@@ -1359,9 +1359,9 @@ struct fcgs_rspnid_req_s {
  * RSNN_NN
  */
 struct fcgs_rsnn_nn_req_s {
-	wwn_t	node_name;	/* Node name */
-	u8	snn_len;	/* symbolic node name length */
-	u8	snn[256];	/* symbolic node name */
+	wwn_t	yesde_name;	/* Node name */
+	u8	snn_len;	/* symbolic yesde name length */
+	u8	snn[256];	/* symbolic yesde name */
 };
 
 /*
@@ -1379,7 +1379,7 @@ struct fcgs_rpnid_req_s {
 struct fcgs_rnnid_req_s {
 	u32	rsvd:8;
 	u32	port_id:24;
-	wwn_t	node_name;
+	wwn_t	yesde_name;
 };
 
 /*
@@ -1418,7 +1418,7 @@ struct fcgs_ganxt_rsp_s {
 	wwn_t		port_name;	/* Port Name */
 	u8		spn_len;	/* Length of Symbolic Port Name */
 	char		spn[255];	/* Symbolic Port Name */
-	wwn_t		node_name;	/* Node Name */
+	wwn_t		yesde_name;	/* Node Name */
 	u8		snn_len;	/* Length of Symbolic Node Name */
 	char		snn[255];	/* Symbolic Node Name */
 	u8		ipa[8];		/* Initial Process Associator */

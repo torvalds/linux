@@ -27,9 +27,9 @@ Required properties
 
  - clocks: Handle to mclk.
  - clock-names: should be "mclk"
- - vdd-cdc-io-supply: phandle to VDD_CDC_IO regulator DT node.
- - vdd-cdc-tx-rx-cx-supply: phandle to VDD_CDC_TX/RX/CX regulator DT node.
- - vdd-micbias-supply: phandle of VDD_MICBIAS supply's regulator DT node.
+ - vdd-cdc-io-supply: phandle to VDD_CDC_IO regulator DT yesde.
+ - vdd-cdc-tx-rx-cx-supply: phandle to VDD_CDC_TX/RX/CX regulator DT yesde.
+ - vdd-micbias-supply: phandle of VDD_MICBIAS supply's regulator DT yesde.
 
 Optional Properties:
  - qcom,mbhc-vthreshold-low: Array of 5 threshold voltages in mV for 5 buttons
@@ -39,12 +39,12 @@ Optional Properties:
 			      detection on headset when mbhc is powered up
 			       from micbias.
 - qcom,micbias-lvl:  Voltage (mV) for Mic Bias
-- qcom,hphl-jack-type-normally-open: boolean, present if hphl pin on jack is a
-				     NO (Normally Open). If not specified, then
+- qcom,hphl-jack-type-yesrmally-open: boolean, present if hphl pin on jack is a
+				     NO (Normally Open). If yest specified, then
 				     its assumed that hphl pin on jack is NC
 				     (Normally Closed).
-- qcom,gnd-jack-type-normally-open: boolean, present if gnd pin on jack is
-				    NO (Normally Open). If not specified, then
+- qcom,gnd-jack-type-yesrmally-open: boolean, present if gnd pin on jack is
+				    NO (Normally Open). If yest specified, then
 				    its assumed that gnd pin on jack is NC
 				    (Normally Closed).
 - qcom,micbias1-ext-cap: boolean, present if micbias1 has external capacitor

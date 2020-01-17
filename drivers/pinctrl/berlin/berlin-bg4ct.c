@@ -2,7 +2,7 @@
 /*
  * Marvell berlin4ct pinctrl driver
  *
- * Copyright (C) 2015 Marvell Technology Group Ltd.
+ * Copyright (C) 2015 Marvell Techyeslogy Group Ltd.
  *
  * Author: Jisheng Zhang <jszhang@marvell.com>
  */

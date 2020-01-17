@@ -38,7 +38,7 @@ static int bcm47xxnflash_probe(struct platform_device *pdev)
 	if (b47n->cc->core->bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
 		err = bcm47xxnflash_ops_bcm4706_init(b47n);
 	} else {
-		pr_err("Device not supported\n");
+		pr_err("Device yest supported\n");
 		err = -ENOTSUPP;
 	}
 	if (err) {

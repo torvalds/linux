@@ -96,8 +96,8 @@ static const struct cfg_param {
 	{"nvidia,drive-type",		TEGRA_PINCONF_PARAM_DRIVE_TYPE},
 };
 
-static int tegra_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-					   struct device_node *np,
+static int tegra_pinctrl_dt_subyesde_to_map(struct pinctrl_dev *pctldev,
+					   struct device_yesde *np,
 					   struct pinctrl_map **map,
 					   unsigned *reserved_maps,
 					   unsigned *num_maps)
@@ -118,7 +118,7 @@ static int tegra_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		/* EINVAL=missing, which is fine since it's optional */
 		if (ret != -EINVAL)
 			dev_err(dev,
-				"could not parse property nvidia,function\n");
+				"could yest parse property nvidia,function\n");
 		function = NULL;
 	}
 
@@ -132,7 +132,7 @@ static int tegra_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 				goto exit;
 		/* EINVAL=missing, which is fine since it's optional */
 		} else if (ret != -EINVAL) {
-			dev_err(dev, "could not parse property %s\n",
+			dev_err(dev, "could yest parse property %s\n",
 				cfg_params[i].property);
 		}
 	}
@@ -144,7 +144,7 @@ static int tegra_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		reserve++;
 	ret = of_property_count_strings(np, "nvidia,pins");
 	if (ret < 0) {
-		dev_err(dev, "could not parse property nvidia,pins\n");
+		dev_err(dev, "could yest parse property nvidia,pins\n");
 		goto exit;
 	}
 	reserve *= ret;
@@ -180,26 +180,26 @@ exit:
 	return ret;
 }
 
-static int tegra_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-					struct device_node *np_config,
+static int tegra_pinctrl_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+					struct device_yesde *np_config,
 					struct pinctrl_map **map,
 					unsigned *num_maps)
 {
 	unsigned reserved_maps;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
 	reserved_maps = 0;
 	*map = NULL;
 	*num_maps = 0;
 
-	for_each_child_of_node(np_config, np) {
-		ret = tegra_pinctrl_dt_subnode_to_map(pctldev, np, map,
+	for_each_child_of_yesde(np_config, np) {
+		ret = tegra_pinctrl_dt_subyesde_to_map(pctldev, np, map,
 						      &reserved_maps, num_maps);
 		if (ret < 0) {
 			pinctrl_utils_free_map(pctldev, *map,
 				*num_maps);
-			of_node_put(np);
+			of_yesde_put(np);
 			return ret;
 		}
 	}
@@ -214,7 +214,7 @@ static const struct pinctrl_ops tegra_pinctrl_ops = {
 #ifdef CONFIG_DEBUG_FS
 	.pin_dbg_show = tegra_pinctrl_pin_dbg_show,
 #endif
-	.dt_node_to_map = tegra_pinctrl_dt_node_to_map,
+	.dt_yesde_to_map = tegra_pinctrl_dt_yesde_to_map,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -401,7 +401,7 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 
 	if (*reg < 0 || *bit < 0)  {
 		if (report_err) {
-			const char *prop = "unknown";
+			const char *prop = "unkyeswn";
 			int i;
 
 			for (i = 0; i < ARRAY_SIZE(cfg_params); i++) {
@@ -412,7 +412,7 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 			}
 
 			dev_err(pmx->dev,
-				"Config param %04x (%s) not supported on group %s\n",
+				"Config param %04x (%s) yest supported on group %s\n",
 				param, prop, g->name);
 		}
 		return -ENOTSUPP;
@@ -424,7 +424,7 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 static int tegra_pinconf_get(struct pinctrl_dev *pctldev,
 			     unsigned pin, unsigned long *config)
 {
-	dev_err(pctldev->dev, "pin_config_get op not supported\n");
+	dev_err(pctldev->dev, "pin_config_get op yest supported\n");
 	return -ENOTSUPP;
 }
 
@@ -432,7 +432,7 @@ static int tegra_pinconf_set(struct pinctrl_dev *pctldev,
 			     unsigned pin, unsigned long *configs,
 			     unsigned num_configs)
 {
-	dev_err(pctldev->dev, "pin_config_set op not supported\n");
+	dev_err(pctldev->dev, "pin_config_set op yest supported\n");
 	return -ENOTSUPP;
 }
 
@@ -493,12 +493,12 @@ static int tegra_pinconf_group_set(struct pinctrl_dev *pctldev,
 		/* LOCK can't be cleared */
 		if (param == TEGRA_PINCONF_PARAM_LOCK) {
 			if ((val & BIT(bit)) && !arg) {
-				dev_err(pctldev->dev, "LOCK bit cannot be cleared\n");
+				dev_err(pctldev->dev, "LOCK bit canyest be cleared\n");
 				return -EINVAL;
 			}
 		}
 
-		/* Special-case Boolean values; allow any non-zero as true */
+		/* Special-case Boolean values; allow any yesn-zero as true */
 		if (width == 1)
 			arg = !!arg;
 
@@ -568,7 +568,7 @@ static void tegra_pinconf_config_dbg_show(struct pinctrl_dev *pctldev,
 {
 	enum tegra_pinconf_param param = TEGRA_PINCONF_UNPACK_PARAM(config);
 	u16 arg = TEGRA_PINCONF_UNPACK_ARG(config);
-	const char *pname = "unknown";
+	const char *pname = "unkyeswn";
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(cfg_params); i++) {
@@ -689,18 +689,18 @@ const struct dev_pm_ops tegra_pinctrl_pm = {
 	.resume = &tegra_pinctrl_resume
 };
 
-static bool gpio_node_has_range(const char *compatible)
+static bool gpio_yesde_has_range(const char *compatible)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	bool has_prop = false;
 
-	np = of_find_compatible_node(NULL, NULL, compatible);
+	np = of_find_compatible_yesde(NULL, NULL, compatible);
 	if (!np)
 		return has_prop;
 
 	has_prop = of_find_property(np, "gpio-ranges", NULL);
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return has_prop;
 }
@@ -724,7 +724,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 
 	/*
 	 * Each mux group will appear in 4 functions' list of groups.
-	 * This over-allocates slightly, since not all groups are mux groups.
+	 * This over-allocates slightly, since yest all groups are mux groups.
 	 */
 	pmx->group_pins = devm_kcalloc(&pdev->dev,
 		soc_data->ngroups * 4, sizeof(*pmx->group_pins),
@@ -794,7 +794,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 
 	tegra_pinctrl_clear_parked_bits(pmx);
 
-	if (!gpio_node_has_range(pmx->soc->gpio_compatible))
+	if (!gpio_yesde_has_range(pmx->soc->gpio_compatible))
 		pinctrl_add_gpio_range(pmx->pctl, &tegra_pinctrl_gpio_range);
 
 	platform_set_drvdata(pdev, pmx);

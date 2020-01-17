@@ -6,7 +6,7 @@ comments in the kernel-doc format to describe the functions, types
 and design of the code. It is easier to keep documentation up-to-date
 when it is embedded in source files.
 
-.. note:: The kernel-doc format is deceptively similar to javadoc,
+.. yeste:: The kernel-doc format is deceptively similar to javadoc,
    gtk-doc or Doxygen, yet distinctively different, for historical
    reasons. The kernel source contains tens of thousands of kernel-doc
    comments. Please stick to the style described here.
@@ -24,7 +24,7 @@ comment. Functions and data structures in header files which are intended
 to be used by modules should also have kernel-doc comments.
 
 It is good practice to also provide kernel-doc formatted documentation
-for functions externally visible to other kernel files (not marked
+for functions externally visible to other kernel files (yest marked
 ``static``). We also recommend providing kernel-doc formatted
 documentation for private (file ``static``) routines, for consistency of
 kernel source code layout. This is lower priority and at the discretion
@@ -35,7 +35,7 @@ How to format kernel-doc comments
 
 The opening comment mark ``/**`` is used for kernel-doc comments. The
 ``kernel-doc`` tool will extract comments marked this way. The rest of
-the comment is formatted like a normal multi-line comment with a column
+the comment is formatted like a yesrmal multi-line comment with a column
 of asterisks on the left side, closing with ``*/`` on a line by itself.
 
 The function and type kernel-doc comments should be placed just before
@@ -48,7 +48,7 @@ Running the ``kernel-doc`` tool with increased verbosity and without actual
 output generation may be used to verify proper formatting of the
 documentation comments. For example::
 
-	scripts/kernel-doc -v -none drivers/foo/bar.c
+	scripts/kernel-doc -v -yesne drivers/foo/bar.c
 
 The documentation format is verified by the kernel build when it is
 requested to perform extra gcc checks::
@@ -91,12 +91,12 @@ Function parameters
 ~~~~~~~~~~~~~~~~~~~
 
 Each function argument should be described in order, immediately following
-the short function description.  Do not leave a blank line between the
-function description and the arguments, nor between the arguments.
+the short function description.  Do yest leave a blank line between the
+function description and the arguments, yesr between the arguments.
 
 Each ``@argument:`` description may span multiple lines.
 
-.. note::
+.. yeste::
 
    If the ``@argument`` description has multiple lines, the continuation
    of the description should start at the same column as the previous line::
@@ -111,7 +111,7 @@ Each ``@argument:`` description may span multiple lines.
       *		that continues on next lines
 
 If a function has a variable number of arguments, its description should
-be written in kernel-doc notation as::
+be written in kernel-doc yestation as::
 
       * @...: description
 
@@ -139,9 +139,9 @@ Return values
 The return value, if any, should be described in a dedicated section
 named ``Return``.
 
-.. note::
+.. yeste::
 
-  #) The multi-line descriptive text you provide does *not* recognize
+  #) The multi-line descriptive text you provide does *yest* recognize
      line breaks, so if you try to format some text nicely, as in::
 
 	* Return:
@@ -158,7 +158,7 @@ named ``Return``.
 
       * Return:
       * * 0		- OK to runtime suspend the device
-      * * -EBUSY	- Device should not be runtime suspended
+      * * -EBUSY	- Device should yest be runtime suspended
 
   #) If the descriptive text you provide has lines that begin with
      some phrase followed by a colon, each of those phrases will be taken
@@ -197,7 +197,7 @@ and may be multi-line.
 
 Inside a struct or union description, you can use the ``private:`` and
 ``public:`` comment tags. Structure fields that are inside a ``private:``
-area are not listed in the generated output documentation.
+area are yest listed in the generated output documentation.
 
 The ``private:`` and ``public:`` tags must begin immediately following a
 ``/*`` comment marker. They may optionally include comments between the
@@ -229,11 +229,11 @@ It is possible to document nested structs and unions, like::
 
       /**
        * struct nested_foobar - a struct with nested unions and structs
-       * @memb1: first member of anonymous union/anonymous struct
-       * @memb2: second member of anonymous union/anonymous struct
-       * @memb3: third member of anonymous union/anonymous struct
-       * @memb4: fourth member of anonymous union/anonymous struct
-       * @bar: non-anonymous union
+       * @memb1: first member of ayesnymous union/ayesnymous struct
+       * @memb2: second member of ayesnymous union/ayesnymous struct
+       * @memb3: third member of ayesnymous union/ayesnymous struct
+       * @memb4: fourth member of ayesnymous union/ayesnymous struct
+       * @bar: yesn-ayesnymous union
        * @bar.st1: struct st1 inside @bar
        * @bar.st2: struct st2 inside @bar
        * @bar.st1.memb1: first member of struct st1 on union bar
@@ -242,7 +242,7 @@ It is possible to document nested structs and unions, like::
        * @bar.st2.memb2: second member of struct st2 on union bar
        */
       struct nested_foobar {
-        /* Anonymous union/struct*/
+        /* Ayesnymous union/struct*/
         union {
           struct {
             int memb1;
@@ -265,12 +265,12 @@ It is possible to document nested structs and unions, like::
         } bar;
       };
 
-.. note::
+.. yeste::
 
    #) When documenting nested structs or unions, if the struct/union ``foo``
       is named, the member ``bar`` inside it should be documented as
       ``@foo.bar:``
-   #) When the nested struct/union is anonymous, the member ``bar`` in it
+   #) When the nested struct/union is ayesnymous, the member ``bar`` in it
       should be documented as ``@bar:``
 
 In-line member documentation comments
@@ -343,7 +343,7 @@ descriptive text and converted to proper reStructuredText markup and `Sphinx C
 Domain`_ references.
 
 .. attention:: The below are **only** recognized within kernel-doc comments,
-	       **not** within normal reStructuredText documents.
+	       **yest** within yesrmal reStructuredText documents.
 
 ``funcname()``
   Function reference.
@@ -356,7 +356,7 @@ Domain`_ references.
 
 ````literal````
   A literal block that should be handled as-is. The output will use a
-  ``monospaced font``.
+  ``moyesspaced font``.
 
   Useful if you need to use special characters that would otherwise have some
   meaning either by kernel-doc script or by reStructuredText.
@@ -378,7 +378,7 @@ Domain`_ references.
 
 ``&struct_name->member`` or ``&struct_name.member``
   Structure or union member reference. The cross-reference will be to the struct
-  or union definition, not the member directly.
+  or union definition, yest the member directly.
 
 ``&name``
   A generic type reference. Prefer using the full reference described above
@@ -468,7 +468,7 @@ export: *[source-pattern ...]*
 
 internal: *[source-pattern ...]*
   Include documentation for all functions and types in *source* that have
-  **not** been exported using ``EXPORT_SYMBOL`` or ``EXPORT_SYMBOL_GPL`` either
+  **yest** been exported using ``EXPORT_SYMBOL`` or ``EXPORT_SYMBOL_GPL`` either
   in *source* or in any of the files specified by *source-pattern*.
 
   Example::
@@ -478,7 +478,7 @@ internal: *[source-pattern ...]*
 
 identifiers: *[ function/type ...]*
   Include documentation for each *function* and *type* in *source*.
-  If no *function* is specified, the documentation for all functions
+  If yes *function* is specified, the documentation for all functions
   and types in the *source* will be included.
 
   Examples::
@@ -494,8 +494,8 @@ functions: *[ function/type ...]*
 
 doc: *title*
   Include documentation for the ``DOC:`` paragraph identified by *title* in
-  *source*. Spaces are allowed in *title*; do not quote the *title*. The *title*
-  is only used as an identifier for the paragraph, and is not included in the
+  *source*. Spaces are allowed in *title*; do yest quote the *title*. The *title*
+  is only used as an identifier for the paragraph, and is yest included in the
   output. Please make sure to have an appropriate heading in the enclosing
   reStructuredText document.
 
@@ -524,7 +524,7 @@ from the kernel git tree::
     $(git grep -l '/\*\*' -- :^Documentation :^tools) \
     | scripts/split-man.pl /tmp/man
 
-Some older versions of git do not support some of the variants of syntax for
+Some older versions of git do yest support some of the variants of syntax for
 path exclusion.  One of the following commands may work for those versions::
 
   $ scripts/kernel-doc -man \

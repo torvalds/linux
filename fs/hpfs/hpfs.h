@@ -16,21 +16,21 @@
    describes what HPFS looked like when it was new, and it is the source
    of most of the information given here.  The rest is conjecture.
 
-   For definitive information on the Duncan paper, see it, not this file.
+   For definitive information on the Duncan paper, see it, yest this file.
    For definitive information on HPFS, ask somebody else -- this is guesswork.
    There are certain to be many mistakes. */
 
 #if !defined(__LITTLE_ENDIAN) && !defined(__BIG_ENDIAN)
-#error unknown endian
+#error unkyeswn endian
 #endif
 
 /* Notation */
 
-typedef u32 secno;			/* sector number, partition relative */
+typedef u32 secyes;			/* sector number, partition relative */
 
-typedef secno dnode_secno;		/* sector number of a dnode */
-typedef secno fnode_secno;		/* sector number of an fnode */
-typedef secno anode_secno;		/* sector number of an anode */
+typedef secyes dyesde_secyes;		/* sector number of a dyesde */
+typedef secyes fyesde_secyes;		/* sector number of an fyesde */
+typedef secyes ayesde_secyes;		/* sector number of an ayesde */
 
 typedef u32 time32_t;		/* 32-bit time_t type */
 
@@ -60,7 +60,7 @@ struct hpfs_boot_block
   u8 drive_number;
   u8 mbz;
   u8 sig_28h;			/* 28h */
-  u8 vol_serno[4];
+  u8 vol_seryes[4];
   u8 vol_label[11];
   u8 sig_hpfs[8];		/* "HPFS    " */
   u8 pad[448];
@@ -83,7 +83,7 @@ struct hpfs_super_block
   					   of filesystem that can understand
 					   this disk */
   __le16 zero;				/* 0 */
-  __le32 root;				/* fnode of root directory */
+  __le32 root;				/* fyesde of root directory */
   __le32 n_sectors;			/* size of filesystem */
   __le32 n_badblocks;			/* number of bad blocks */
   __le32 bitmaps;			/* pointers to free space bit maps */
@@ -95,8 +95,8 @@ struct hpfs_super_block
   __le32 n_dir_band;			/* number of sectors in dir band */
   __le32 dir_band_start;			/* first sector in dir band */
   __le32 dir_band_end;			/* last sector in dir band */
-  __le32 dir_band_bitmap;		/* free space map, 1 dnode per bit */
-  u8 volume_name[32];			/* not used */
+  __le32 dir_band_bitmap;		/* free space map, 1 dyesde per bit */
+  u8 volume_name[32];			/* yest used */
   __le32 user_id_table;			/* 8 preallocated sectors - user id */
   u32 zero6[103];			/* 0 */
 };
@@ -157,17 +157,17 @@ struct hpfs_spare_block
   __le32 hotfix_map;			/* info about remapped bad sectors */
   __le32 n_spares_used;			/* number of hotfixes */
   __le32 n_spares;			/* number of spares in hotfix map */
-  __le32 n_dnode_spares_free;		/* spare dnodes unused */
-  __le32 n_dnode_spares;		/* length of spare_dnodes[] list,
+  __le32 n_dyesde_spares_free;		/* spare dyesdes unused */
+  __le32 n_dyesde_spares;		/* length of spare_dyesdes[] list,
 					   follows in this block*/
   __le32 code_page_dir;			/* code page directory block */
   __le32 n_code_pages;			/* number of code pages */
   __le32 super_crc;			/* on HPFS386 and LAN Server this is
-  					   checksum of superblock, on normal
+  					   checksum of superblock, on yesrmal
 					   OS/2 unused */
   __le32 spare_crc;			/* on HPFS386 checksum of spareblock */
   __le32 zero1[15];			/* unused */
-  __le32 spare_dnodes[100];		/* emergency free dnode list */
+  __le32 spare_dyesdes[100];		/* emergency free dyesde list */
   __le32 zero2[1];			/* room for more? */
 };
 
@@ -179,8 +179,8 @@ struct hpfs_spare_block
        
 /* The hotfix map is 4 sectors long.  It looks like
 
-       secno from[n_spares];
-       secno to[n_spares];
+       secyes from[n_spares];
+       secyes to[n_spares];
 
    The to[] list is initialized to point to n_spares preallocated empty
    sectors.  The from[] list contains the sector numbers of bad blocks
@@ -193,8 +193,8 @@ struct hpfs_spare_block
 
 
 /* The code page info pointed to by the spare block consists of an index
-   block and blocks containing uppercasing tables.  I don't know what
-   these are for (CHKDSK, maybe?) -- OS/2 does not seem to use them
+   block and blocks containing uppercasing tables.  I don't kyesw what
+   these are for (CHKDSK, maybe?) -- OS/2 does yest seem to use them
    itself.  Linux doesn't use them either. */
 
 /* block pointed to by spareblock->code_page_dir */
@@ -214,9 +214,9 @@ struct code_page_directory
     __le32 code_page_data;		/* sector number of a code_page_data
 					   containing c.p. array */
     __le16 index;			/* index in c.p. array in that sector*/
-    __le16 unknown;			/* some unknown value; usually 0;
+    __le16 unkyeswn;			/* some unkyeswn value; usually 0;
     					   2 in Japanese version */
-  } array[31];				/* unknown length */
+  } array[31];				/* unkyeswn length */
 };
 
 /* blocks pointed to by code_page_directory */
@@ -235,7 +235,7 @@ struct code_page_data
   struct {
     __le16 ix;				/* index */
     __le16 code_page_number;		/* code page number */
-    __le16 unknown;			/* the same as in cp directory */
+    __le16 unkyeswn;			/* the same as in cp directory */
     u8 map[128];			/* upcase table for chars 80..ff */
     __le16 zero2;
   } code_page[3];
@@ -260,43 +260,43 @@ struct code_page_data
    No doubt they aren't constrained to be at 18, 7ffc, 8000, ...; that is
    just where they usually are.
 
-   The "directory band" is a bunch of sectors preallocated for dnodes.
+   The "directory band" is a bunch of sectors preallocated for dyesdes.
    It has a 4-sector free space bitmap of its own.  Each bit in the map
-   corresponds to one 4-sector dnode, bit 0 of the map corresponding to
+   corresponds to one 4-sector dyesde, bit 0 of the map corresponding to
    the first 4 sectors of the directory band.  The entire band is marked
    allocated in the main bitmap.   The super block gives the locations
    of the directory band and its bitmap.  ("band" doesn't mean it is
    8 meg long; it isn't.)  */
 
 
-/* dnode: directory.  4 sectors long */
+/* dyesde: directory.  4 sectors long */
 
-/* A directory is a tree of dnodes.  The fnode for a directory
-   contains one pointer, to the root dnode of the tree.  The fnode
-   never moves, the dnodes do the B-tree thing, splitting and merging
+/* A directory is a tree of dyesdes.  The fyesde for a directory
+   contains one pointer, to the root dyesde of the tree.  The fyesde
+   never moves, the dyesdes do the B-tree thing, splitting and merging
    as files are added and removed.  */
 
 #define DNODE_MAGIC   0x77e40aae
 
-struct dnode {
+struct dyesde {
   __le32 magic;				/* 77e4 0aae */
-  __le32 first_free;			/* offset from start of dnode to
+  __le32 first_free;			/* offset from start of dyesde to
 					   first free dir entry */
 #ifdef __LITTLE_ENDIAN
-  u8 root_dnode: 1;			/* Is it root dnode? */
+  u8 root_dyesde: 1;			/* Is it root dyesde? */
   u8 increment_me: 7;			/* some kind of activity counter? */
-					/* Neither HPFS.IFS nor CHKDSK cares
+					/* Neither HPFS.IFS yesr CHKDSK cares
 					   if you change this word */
 #else
   u8 increment_me: 7;			/* some kind of activity counter? */
-					/* Neither HPFS.IFS nor CHKDSK cares
+					/* Neither HPFS.IFS yesr CHKDSK cares
 					   if you change this word */
-  u8 root_dnode: 1;			/* Is it root dnode? */
+  u8 root_dyesde: 1;			/* Is it root dyesde? */
 #endif
   u8 increment_me2[3];
-  __le32 up;				/* (root dnode) directory's fnode
-					   (nonroot) parent dnode */
-  __le32 self;			/* pointer to this dnode */
+  __le32 up;				/* (root dyesde) directory's fyesde
+					   (yesnroot) parent dyesde */
+  __le32 self;			/* pointer to this dyesde */
   u8 dirent[2028];			/* one or more dirents */
 };
 
@@ -312,11 +312,11 @@ struct hpfs_dirent {
   u8 has_xtd_perm: 1;			/* has extended perm list (???) */
   u8 has_explicit_acl: 1;
   u8 has_needea: 1;			/* ?? some EA has NEEDEA set
-					   I have no idea why this is
+					   I have yes idea why this is
 					   interesting in a dir entry */
 #else
   u8 has_needea: 1;			/* ?? some EA has NEEDEA set
-					   I have no idea why this is
+					   I have yes idea why this is
 					   interesting in a dir entry */
   u8 has_explicit_acl: 1;
   u8 has_xtd_perm: 1;			/* has extended perm list (???) */
@@ -334,11 +334,11 @@ struct hpfs_dirent {
   u8 flag11: 1;				/* would be volume label dos attrib */
   u8 directory: 1;			/* dos attrib */
   u8 archive: 1;			/* dos attrib */
-  u8 not_8x3: 1;			/* name is not 8.3 */
+  u8 yest_8x3: 1;			/* name is yest 8.3 */
   u8 flag15: 1;
 #else
   u8 flag15: 1;
-  u8 not_8x3: 1;			/* name is not 8.3 */
+  u8 yest_8x3: 1;			/* name is yest 8.3 */
   u8 archive: 1;			/* dos attrib */
   u8 directory: 1;			/* dos attrib */
   u8 flag11: 1;				/* would be volume label dos attrib */
@@ -347,70 +347,70 @@ struct hpfs_dirent {
   u8 read_only: 1;			/* dos attrib */
 #endif
 
-  __le32 fnode;				/* fnode giving allocation info */
+  __le32 fyesde;				/* fyesde giving allocation info */
   __le32 write_date;			/* mtime */
   __le32 file_size;			/* file length, bytes */
   __le32 read_date;			/* atime */
   __le32 creation_date;			/* ctime */
   __le32 ea_size;			/* total EA length, bytes */
-  u8 no_of_acls;			/* number of ACL's (low 3 bits) */
+  u8 yes_of_acls;			/* number of ACL's (low 3 bits) */
   u8 ix;				/* code page index (of filename), see
 					   struct code_page_data */
   u8 namelen, name[1];			/* file name */
-  /* dnode_secno down;	  btree down pointer, if present,
+  /* dyesde_secyes down;	  btree down pointer, if present,
      			  follows name on next word boundary, or maybe it
 			  precedes next dirent, which is on a word boundary. */
 };
 
 
-/* B+ tree: allocation info in fnodes and anodes */
+/* B+ tree: allocation info in fyesdes and ayesdes */
 
-/* dnodes point to fnodes which are responsible for listing the sectors
+/* dyesdes point to fyesdes which are responsible for listing the sectors
    assigned to the file.  This is done with trees of (length,address)
    pairs.  (Actually triples, of (length, file-address, disk-address)
    which can represent holes.  Find out if HPFS does that.)
-   At any rate, fnodes contain a small tree; if subtrees are needed
-   they occupy essentially a full block in anodes.  A leaf-level tree node
-   has 3-word entries giving sector runs, a non-leaf node has 2-word
+   At any rate, fyesdes contain a small tree; if subtrees are needed
+   they occupy essentially a full block in ayesdes.  A leaf-level tree yesde
+   has 3-word entries giving sector runs, a yesn-leaf yesde has 2-word
    entries giving subtree pointers.  A flag in the header says which. */
 
-struct bplus_leaf_node
+struct bplus_leaf_yesde
 {
-  __le32 file_secno;			/* first file sector in extent */
+  __le32 file_secyes;			/* first file sector in extent */
   __le32 length;			/* length, sectors */
-  __le32 disk_secno;			/* first corresponding disk sector */
+  __le32 disk_secyes;			/* first corresponding disk sector */
 };
 
-struct bplus_internal_node
+struct bplus_internal_yesde
 {
-  __le32 file_secno;			/* subtree maps sectors < this  */
+  __le32 file_secyes;			/* subtree maps sectors < this  */
   __le32 down;				/* pointer to subtree */
 };
 
 enum {
 	BP_hbff = 1,
-	BP_fnode_parent = 0x20,
+	BP_fyesde_parent = 0x20,
 	BP_binary_search = 0x40,
 	BP_internal = 0x80
 };
 struct bplus_header
 {
   u8 flags;				/* bit 0 - high bit of first free entry offset
-					   bit 5 - we're pointed to by an fnode,
+					   bit 5 - we're pointed to by an fyesde,
 					   the data btree or some ea or the
-					   main ea bootage pointer ea_secno
+					   main ea bootage pointer ea_secyes
 					   bit 6 - suggest binary search (unused)
-					   bit 7 - 1 -> (internal) tree of anodes
+					   bit 7 - 1 -> (internal) tree of ayesdes
 						   0 -> (leaf) list of extents */
   u8 fill[3];
-  u8 n_free_nodes;			/* free nodes in following array */
-  u8 n_used_nodes;			/* used nodes in following array */
+  u8 n_free_yesdes;			/* free yesdes in following array */
+  u8 n_used_yesdes;			/* used yesdes in following array */
   __le16 first_free;			/* offset from start of header to
-					   first free node in array */
+					   first free yesde in array */
   union {
-    struct bplus_internal_node internal[0]; /* (internal) 2-word entries giving
+    struct bplus_internal_yesde internal[0]; /* (internal) 2-word entries giving
 					       subtree pointers */
-    struct bplus_leaf_node external[0];	    /* (external) 3-word entries giving
+    struct bplus_leaf_yesde external[0];	    /* (external) 3-word entries giving
 					       sector runs */
   } u;
 };
@@ -420,84 +420,84 @@ static inline bool bp_internal(struct bplus_header *bp)
 	return bp->flags & BP_internal;
 }
 
-static inline bool bp_fnode_parent(struct bplus_header *bp)
+static inline bool bp_fyesde_parent(struct bplus_header *bp)
 {
-	return bp->flags & BP_fnode_parent;
+	return bp->flags & BP_fyesde_parent;
 }
 
-/* fnode: root of allocation b+ tree, and EA's */
+/* fyesde: root of allocation b+ tree, and EA's */
 
-/* Every file and every directory has one fnode, pointed to by the directory
-   entry and pointing to the file's sectors or directory's root dnode.  EA's
+/* Every file and every directory has one fyesde, pointed to by the directory
+   entry and pointing to the file's sectors or directory's root dyesde.  EA's
    are also stored here, and there are said to be ACL's somewhere here too. */
 
 #define FNODE_MAGIC 0xf7e40aae
 
-enum {FNODE_anode = cpu_to_le16(2), FNODE_dir = cpu_to_le16(256)};
-struct fnode
+enum {FNODE_ayesde = cpu_to_le16(2), FNODE_dir = cpu_to_le16(256)};
+struct fyesde
 {
   __le32 magic;				/* f7e4 0aae */
   __le32 zero1[2];			/* read history */
   u8 len, name[15];			/* true length, truncated name */
-  __le32 up;				/* pointer to file's directory fnode */
+  __le32 up;				/* pointer to file's directory fyesde */
   __le32 acl_size_l;
-  __le32 acl_secno;
+  __le32 acl_secyes;
   __le16 acl_size_s;
-  u8 acl_anode;
+  u8 acl_ayesde;
   u8 zero2;				/* history bit count */
   __le32 ea_size_l;			/* length of disk-resident ea's */
-  __le32 ea_secno;			/* first sector of disk-resident ea's*/
-  __le16 ea_size_s;			/* length of fnode-resident ea's */
+  __le32 ea_secyes;			/* first sector of disk-resident ea's*/
+  __le16 ea_size_s;			/* length of fyesde-resident ea's */
 
-  __le16 flags;				/* bit 1 set -> ea_secno is an anode */
+  __le16 flags;				/* bit 1 set -> ea_secyes is an ayesde */
 					/* bit 8 set -> directory.  first & only extent
-					   points to dnode. */
+					   points to dyesde. */
   struct bplus_header btree;		/* b+ tree, 8 extents or 12 subtrees */
   union {
-    struct bplus_leaf_node external[8];
-    struct bplus_internal_node internal[12];
+    struct bplus_leaf_yesde external[8];
+    struct bplus_internal_yesde internal[12];
   } u;
 
   __le32 file_size;			/* file length, bytes */
   __le32 n_needea;			/* number of EA's with NEEDEA set */
   u8 user_id[16];			/* unused */
-  __le16 ea_offs;			/* offset from start of fnode
-					   to first fnode-resident ea */
+  __le16 ea_offs;			/* offset from start of fyesde
+					   to first fyesde-resident ea */
   u8 dasd_limit_treshhold;
   u8 dasd_limit_delta;
   __le32 dasd_limit;
   __le32 dasd_usage;
   u8 ea[316];				/* zero or more EA's, packed together
-					   with no alignment padding.
-					   (Do not use this name, get here
-					   via fnode + ea_offs. I think.) */
+					   with yes alignment padding.
+					   (Do yest use this name, get here
+					   via fyesde + ea_offs. I think.) */
 };
 
-static inline bool fnode_in_anode(struct fnode *p)
+static inline bool fyesde_in_ayesde(struct fyesde *p)
 {
-	return (p->flags & FNODE_anode) != 0;
+	return (p->flags & FNODE_ayesde) != 0;
 }
 
-static inline bool fnode_is_dir(struct fnode *p)
+static inline bool fyesde_is_dir(struct fyesde *p)
 {
 	return (p->flags & FNODE_dir) != 0;
 }
 
 
-/* anode: 99.44% pure allocation tree */
+/* ayesde: 99.44% pure allocation tree */
 
 #define ANODE_MAGIC 0x37e40aae
 
-struct anode
+struct ayesde
 {
   __le32 magic;				/* 37e4 0aae */
-  __le32 self;				/* pointer to this anode */
-  __le32 up;				/* parent anode or fnode */
+  __le32 self;				/* pointer to this ayesde */
+  __le32 up;				/* parent ayesde or fyesde */
 
   struct bplus_header btree;		/* b+tree, 40 extents or 60 subtrees */
   union {
-    struct bplus_leaf_node external[40];
-    struct bplus_internal_node internal[60];
+    struct bplus_leaf_yesde external[40];
+    struct bplus_internal_yesde internal[60];
   } u;
 
   __le32 fill[3];			/* unused */
@@ -507,24 +507,24 @@ struct anode
 /* extended attributes.
 
    A file's EA info is stored as a list of (name,value) pairs.  It is
-   usually in the fnode, but (if it's large) it is moved to a single
-   sector run outside the fnode, or to multiple runs with an anode tree
+   usually in the fyesde, but (if it's large) it is moved to a single
+   sector run outside the fyesde, or to multiple runs with an ayesde tree
    that points to them.
 
    The value of a single EA is stored along with the name, or (if large)
    it is moved to a single sector run, or multiple runs pointed to by an
-   anode tree, pointed to by the value field of the (name,value) pair.
+   ayesde tree, pointed to by the value field of the (name,value) pair.
 
    Flags in the EA tell whether the value is immediate, in a single sector
-   run, or in multiple runs.  Flags in the fnode tell whether the EA list
+   run, or in multiple runs.  Flags in the fyesde tell whether the EA list
    is immediate, in a single run, or in multiple runs. */
 
-enum {EA_indirect = 1, EA_anode = 2, EA_needea = 128 };
+enum {EA_indirect = 1, EA_ayesde = 2, EA_needea = 128 };
 struct extended_attribute
 {
   u8 flags;				/* bit 0 set -> value gives sector number
 					   where real value starts */
-					/* bit 1 set -> sector is an anode
+					/* bit 1 set -> sector is an ayesde
 					   that points to fragmented value */
 					/* bit 7 set -> required ea */
   u8 namelen;				/* length of name, bytes */
@@ -533,12 +533,12 @@ struct extended_attribute
   u8 name[];
   /*
     u8 name[namelen];			ascii attrib name
-    u8 nul;				terminating '\0', not counted
+    u8 nul;				terminating '\0', yest counted
     u8 value[valuelen];			value, arbitrary
       if this.flags & 1, valuelen is 8 and the value is
         u32 length;			real length of value, bytes
-        secno secno;			sector address where it starts
-      if this.anode, the above sector number is the root of an anode tree
+        secyes secyes;			sector address where it starts
+      if this.ayesde, the above sector number is the root of an ayesde tree
         which points to the value.
   */
 };
@@ -548,9 +548,9 @@ static inline bool ea_indirect(struct extended_attribute *ea)
 	return ea->flags & EA_indirect;
 }
 
-static inline bool ea_in_anode(struct extended_attribute *ea)
+static inline bool ea_in_ayesde(struct extended_attribute *ea)
 {
-	return ea->flags & EA_anode;
+	return ea->flags & EA_ayesde;
 }
 
 /*

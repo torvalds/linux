@@ -90,7 +90,7 @@ static int dir685_tk_probe(struct i2c_client *client,
 	tk->codes[5] = KEY_WPS_BUTTON;
 	/*
 	 * This key appears in the vendor driver, but I have
-	 * not been able to activate it.
+	 * yest been able to activate it.
 	 */
 	tk->codes[6] = KEY_RESERVED;
 
@@ -112,7 +112,7 @@ static int dir685_tk_probe(struct i2c_client *client,
 		dev_warn(tk->dev, "error setting brightness level\n");
 
 	if (!client->irq) {
-		dev_err(dev, "no IRQ on the I2C device\n");
+		dev_err(dev, "yes IRQ on the I2C device\n");
 		return -ENODEV;
 	}
 	err = devm_request_threaded_irq(dev, client->irq,

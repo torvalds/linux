@@ -35,7 +35,7 @@ static int malidp_mw_connector_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 
-	return drm_add_modes_noedid(connector, dev->mode_config.max_width,
+	return drm_add_modes_yesedid(connector, dev->mode_config.max_width,
 				    dev->mode_config.max_height);
 }
 
@@ -143,7 +143,7 @@ malidp_mw_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 
 	if (fb->modifier) {
-		DRM_DEBUG_KMS("Writeback framebuffer does not support modifiers\n");
+		DRM_DEBUG_KMS("Writeback framebuffer does yest support modifiers\n");
 		return -EINVAL;
 	}
 

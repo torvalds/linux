@@ -688,17 +688,17 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 
 	rc = fc_remote_port_chkready(rport);
 	if (rc) {
-		printk(KERN_ERR PFX "els 0x%x: rport not ready\n", op);
+		printk(KERN_ERR PFX "els 0x%x: rport yest ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
 	}
 	if (lport->state != LPORT_ST_READY || !(lport->link_up)) {
-		printk(KERN_ERR PFX "els 0x%x: link is not ready\n", op);
+		printk(KERN_ERR PFX "els 0x%x: link is yest ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
 	}
 	if (!(test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags))) {
-		printk(KERN_ERR PFX "els 0x%x: tgt not ready\n", op);
+		printk(KERN_ERR PFX "els 0x%x: tgt yest ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
 	}
@@ -779,7 +779,7 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 	spin_lock_bh(&tgt->tgt_lock);
 
 	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) {
-		printk(KERN_ERR PFX "initiate_els.. session not ready\n");
+		printk(KERN_ERR PFX "initiate_els.. session yest ready\n");
 		els_req->cb_func = NULL;
 		els_req->cb_arg = NULL;
 		kref_put(&els_req->refcount, bnx2fc_cmd_release);
@@ -880,7 +880,7 @@ static void bnx2fc_flogi_resp(struct fc_seq *seq, struct fc_frame *fp,
 	 * We set the source MAC for FCoE traffic based on the Granted MAC
 	 * address from the switch.
 	 *
-	 * If granted_mac is non-zero, we use that.
+	 * If granted_mac is yesn-zero, we use that.
 	 * If the granted_mac is zeroed out, create the FCoE MAC based on
 	 * the sel_fcf->fc_map and the d_id fo the FLOGI frame.
 	 * If sel_fcf->fc_map is 0, then we use the default FCF-MAC plus the
@@ -940,7 +940,7 @@ struct fc_seq *bnx2fc_elsct_send(struct fc_lport *lport, u32 did,
 		return fc_elsct_send(lport, did, fp, op, bnx2fc_flogi_resp,
 				     fip, timeout);
 	case ELS_LOGO:
-		/* only hook onto fabric logouts, not port logouts */
+		/* only hook onto fabric logouts, yest port logouts */
 		if (ntoh24(fh->fh_d_id) != FC_FID_FLOGI)
 			break;
 		return fc_elsct_send(lport, did, fp, op, bnx2fc_logo_resp,

@@ -78,7 +78,7 @@ Example:
 	};
 };
 
-Note that #address-size and #size shoud already be defined in node mmc1, but it
+Note that #address-size and #size shoud already be defined in yesde mmc1, but it
 is rarely the case.
 
 Common properties

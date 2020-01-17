@@ -4,11 +4,11 @@
  *
  * Copyright (C) 2008,2009,2010 Nokia Corporation. All rights reserved.
  *
- * Contact: Kai Vehmanen <kai.vehmanen@nokia.com>
- * Original author: Peter Ujfalusi <peter.ujfalusi@nokia.com>
+ * Contact: Kai Vehmanen <kai.vehmanen@yeskia.com>
+ * Original author: Peter Ujfalusi <peter.ujfalusi@yeskia.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -94,7 +94,7 @@ struct cs_hsi_iface {
 	unsigned int			rx_slot;
 	unsigned int			tx_slot;
 
-	/* note: for security reasons, we do not trust the contents of
+	/* yeste: for security reasons, we do yest trust the contents of
 	 * mmap_cfg, but instead duplicate the variables here */
 	unsigned int			buf_size;
 	unsigned int			rx_bufs;
@@ -128,7 +128,7 @@ static inline void rx_ptr_shift_too_big(void)
 	BUILD_BUG_ON((1LLU << RX_PTR_MAX_SHIFT) > UINT_MAX);
 }
 
-static void cs_notify(u32 message, struct list_head *head)
+static void cs_yestify(u32 message, struct list_head *head)
 {
 	struct char_queue *entry;
 
@@ -172,20 +172,20 @@ static u32 cs_pop_entry(struct list_head *head)
 	return data;
 }
 
-static void cs_notify_control(u32 message)
+static void cs_yestify_control(u32 message)
 {
-	cs_notify(message, &cs_char_data.chardev_queue);
+	cs_yestify(message, &cs_char_data.chardev_queue);
 }
 
-static void cs_notify_data(u32 message, int maxlength)
+static void cs_yestify_data(u32 message, int maxlength)
 {
-	cs_notify(message, &cs_char_data.dataind_queue);
+	cs_yestify(message, &cs_char_data.dataind_queue);
 
 	spin_lock(&cs_char_data.lock);
 	cs_char_data.dataind_pending++;
 	while (cs_char_data.dataind_pending > maxlength &&
 				!list_empty(&cs_char_data.dataind_queue)) {
-		dev_dbg(&cs_char_data.cl->device, "data notification "
+		dev_dbg(&cs_char_data.cl->device, "data yestification "
 		"queue overrun (%u entries)\n", cs_char_data.dataind_pending);
 
 		cs_pop_entry(&cs_char_data.dataind_queue);
@@ -449,7 +449,7 @@ static void cs_hsi_read_on_control_complete(struct hsi_msg *msg)
 	}
 	spin_unlock(&hi->lock);
 
-	cs_notify_control(cmd);
+	cs_yestify_control(cmd);
 
 out:
 	cs_hsi_read_on_control(hi);
@@ -559,7 +559,7 @@ static int cs_hsi_write_on_control(struct cs_hsi_iface *hi, u32 message)
 	 * Make sure control read is always pending when issuing
 	 * new control writes. This is needed as the controller
 	 * may flush our messages if e.g. the peer device reboots
-	 * unexpectedly (and we cannot directly resubmit a new read from
+	 * unexpectedly (and we canyest directly resubmit a new read from
 	 * the message destructor; see cs_cmd_destructor()).
 	 */
 	if (!(hi->control_state & SSI_CHANNEL_STATE_READING)) {
@@ -593,7 +593,7 @@ static void cs_hsi_read_on_data_complete(struct hsi_msg *msg)
 		wake_up_interruptible(&hi->datawait);
 	spin_unlock(&hi->lock);
 
-	cs_notify_data(payload, hi->rx_bufs);
+	cs_yestify_data(payload, hi->rx_bufs);
 	cs_hsi_read_on_data(hi);
 }
 
@@ -934,7 +934,7 @@ static int cs_hsi_buf_config(struct cs_hsi_iface *hi,
 	spin_unlock_bh(&hi->lock);
 
 	/*
-	 * make sure that no non-zero data reads are ongoing before
+	 * make sure that yes yesn-zero data reads are ongoing before
 	 * proceeding to change the buffer layout
 	 */
 	r = cs_hsi_data_sync(hi);
@@ -1015,19 +1015,19 @@ static int cs_hsi_start(struct cs_hsi_iface **hi, struct hsi_client *cl,
 	err = hsi_claim_port(cl, 1);
 	if (err < 0) {
 		dev_err(&cl->device,
-				"Could not open, HSI port already claimed\n");
+				"Could yest open, HSI port already claimed\n");
 		goto leave3;
 	}
 	hsi_if->master = ssip_slave_get_master(cl);
 	if (IS_ERR(hsi_if->master)) {
 		err = PTR_ERR(hsi_if->master);
-		dev_err(&cl->device, "Could not get HSI master client\n");
+		dev_err(&cl->device, "Could yest get HSI master client\n");
 		goto leave4;
 	}
 	if (!ssip_slave_running(hsi_if->master)) {
 		err = -ENODEV;
 		dev_err(&cl->device,
-				"HSI port not initialized\n");
+				"HSI port yest initialized\n");
 		goto leave4;
 	}
 
@@ -1272,7 +1272,7 @@ static int cs_char_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int cs_char_open(struct inode *unused, struct file *file)
+static int cs_char_open(struct iyesde *unused, struct file *file)
 {
 	int ret = 0;
 	unsigned long p;
@@ -1299,7 +1299,7 @@ static int cs_char_open(struct inode *unused, struct file *file)
 		goto out3;
 	}
 
-	/* these are only used in release so lock not needed */
+	/* these are only used in release so lock yest needed */
 	cs_char_data.mmap_base = p;
 	cs_char_data.mmap_size = CS_MMAP_SIZE;
 
@@ -1332,7 +1332,7 @@ static void cs_free_char_queue(struct list_head *head)
 
 }
 
-static int cs_char_release(struct inode *unused, struct file *file)
+static int cs_char_release(struct iyesde *unused, struct file *file)
 {
 	struct cs_char *csdata = file->private_data;
 
@@ -1361,7 +1361,7 @@ static const struct file_operations cs_char_fops = {
 };
 
 static struct miscdevice cs_char_miscdev = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.miyesr	= MISC_DYNAMIC_MINOR,
 	.name	= "cmt_speech",
 	.fops	= &cs_char_fops
 };
@@ -1384,7 +1384,7 @@ static int cs_hsi_client_probe(struct device *dev)
 		"speech-control");
 	if (cs_char_data.channel_id_cmd < 0) {
 		err = cs_char_data.channel_id_cmd;
-		dev_err(dev, "Could not get cmd channel (%d)\n", err);
+		dev_err(dev, "Could yest get cmd channel (%d)\n", err);
 		return err;
 	}
 
@@ -1392,7 +1392,7 @@ static int cs_hsi_client_probe(struct device *dev)
 		"speech-data");
 	if (cs_char_data.channel_id_data < 0) {
 		err = cs_char_data.channel_id_data;
-		dev_err(dev, "Could not get data channel (%d)\n", err);
+		dev_err(dev, "Could yest get data channel (%d)\n", err);
 		return err;
 	}
 
@@ -1443,7 +1443,7 @@ static void __exit cs_char_exit(void)
 module_exit(cs_char_exit);
 
 MODULE_ALIAS("hsi:cmt-speech");
-MODULE_AUTHOR("Kai Vehmanen <kai.vehmanen@nokia.com>");
-MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@nokia.com>");
+MODULE_AUTHOR("Kai Vehmanen <kai.vehmanen@yeskia.com>");
+MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@yeskia.com>");
 MODULE_DESCRIPTION("CMT speech driver");
 MODULE_LICENSE("GPL v2");

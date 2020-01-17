@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -94,7 +94,7 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 		return VDSO_FAULT;
 	}
 	if (trans_exc_code == 1) {
-		/* access register mode, not used in the kernel */
+		/* access register mode, yest used in the kernel */
 		return USER_FAULT;
 	}
 	/* home space exception -> access via kernel ASCE */
@@ -230,7 +230,7 @@ void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault)
  * Send SIGSEGV to task.  This is an external routine
  * to keep the stack usage of do_page_fault small.
  */
-static noinline void do_sigsegv(struct pt_regs *regs, int si_code)
+static yesinline void do_sigsegv(struct pt_regs *regs, int si_code)
 {
 	report_user_fault(regs, SIGSEGV, 1);
 	force_sig_fault(SIGSEGV, si_code,
@@ -249,7 +249,7 @@ const struct exception_table_entry *s390_search_extables(unsigned long addr)
 	return fixup;
 }
 
-static noinline void do_no_context(struct pt_regs *regs)
+static yesinline void do_yes_context(struct pt_regs *regs)
 {
 	const struct exception_table_entry *fixup;
 
@@ -275,20 +275,20 @@ static noinline void do_no_context(struct pt_regs *regs)
 	do_exit(SIGKILL);
 }
 
-static noinline void do_low_address(struct pt_regs *regs)
+static yesinline void do_low_address(struct pt_regs *regs)
 {
 	/* Low-address protection hit in kernel mode means
 	   NULL pointer write access in kernel mode.  */
 	if (regs->psw.mask & PSW_MASK_PSTATE) {
-		/* Low-address protection hit in user mode 'cannot happen'. */
+		/* Low-address protection hit in user mode 'canyest happen'. */
 		die (regs, "Low-address protection");
 		do_exit(SIGKILL);
 	}
 
-	do_no_context(regs);
+	do_yes_context(regs);
 }
 
-static noinline void do_sigbus(struct pt_regs *regs)
+static yesinline void do_sigbus(struct pt_regs *regs)
 {
 	/*
 	 * Send a sigbus, regardless of whether we were in kernel
@@ -298,7 +298,7 @@ static noinline void do_sigbus(struct pt_regs *regs)
 			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK));
 }
 
-static noinline int signal_return(struct pt_regs *regs)
+static yesinline int signal_return(struct pt_regs *regs)
 {
 	u16 instruction;
 	int rc;
@@ -318,7 +318,7 @@ static noinline int signal_return(struct pt_regs *regs)
 	return -EACCES;
 }
 
-static noinline void do_fault_error(struct pt_regs *regs, int access,
+static yesinline void do_fault_error(struct pt_regs *regs, int access,
 					vm_fault_t fault)
 {
 	int si_code;
@@ -341,28 +341,28 @@ static noinline void do_fault_error(struct pt_regs *regs, int access,
 	case VM_FAULT_BADCONTEXT:
 		/* fallthrough */
 	case VM_FAULT_PFAULT:
-		do_no_context(regs);
+		do_yes_context(regs);
 		break;
 	case VM_FAULT_SIGNAL:
 		if (!user_mode(regs))
-			do_no_context(regs);
+			do_yes_context(regs);
 		break;
 	default: /* fault & VM_FAULT_ERROR */
 		if (fault & VM_FAULT_OOM) {
 			if (!user_mode(regs))
-				do_no_context(regs);
+				do_yes_context(regs);
 			else
 				pagefault_out_of_memory();
 		} else if (fault & VM_FAULT_SIGSEGV) {
 			/* Kernel mode? Handle exceptions or die */
 			if (!user_mode(regs))
-				do_no_context(regs);
+				do_yes_context(regs);
 			else
 				do_sigsegv(regs, SEGV_MAPERR);
 		} else if (fault & VM_FAULT_SIGBUS) {
 			/* Kernel mode? Handle exceptions or die */
 			if (!user_mode(regs))
-				do_no_context(regs);
+				do_yes_context(regs);
 			else
 				do_sigbus(regs);
 		} else
@@ -409,7 +409,7 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 
 	/*
 	 * Verify that the fault happened in user space, that
-	 * we are not in an interrupt and that there is a 
+	 * we are yest in an interrupt and that there is a 
 	 * user context.
 	 */
 	fault = VM_FAULT_BADCONTEXT;
@@ -491,7 +491,7 @@ retry:
 		goto out_up;
 
 	/*
-	 * Major/minor page fault accounting is only done on the
+	 * Major/miyesr page fault accounting is only done on the
 	 * initial attempt. If we go through a retry, it is extremely
 	 * likely that the page will be found in page cache at that point.
 	 */
@@ -509,7 +509,7 @@ retry:
 			if (IS_ENABLED(CONFIG_PGSTE) && gmap &&
 			    (flags & FAULT_FLAG_RETRY_NOWAIT)) {
 				/* FAULT_FLAG_RETRY_NOWAIT has been set,
-				 * mmap_sem has not been released */
+				 * mmap_sem has yest been released */
 				current->thread.gmap_pfault = 1;
 				fault = VM_FAULT_PFAULT;
 				goto out_up;
@@ -559,7 +559,7 @@ void do_protection_exception(struct pt_regs *regs)
 	/*
 	 * Check for low-address protection.  This needs to be treated
 	 * as a special case because the translation exception code
-	 * field is not guaranteed to contain valid data in this case.
+	 * field is yest guaranteed to contain valid data in this case.
 	 */
 	if (unlikely(!(trans_exc_code & 4))) {
 		do_low_address(regs);
@@ -597,13 +597,13 @@ NOKPROBE_SYMBOL(do_dat_exception);
  */
 static int pfault_disable;
 
-static int __init nopfault(char *str)
+static int __init yespfault(char *str)
 {
 	pfault_disable = 1;
 	return 1;
 }
 
-__setup("nopfault", nopfault);
+__setup("yespfault", yespfault);
 
 struct pfault_refbk {
 	u16 refdiagc;
@@ -660,7 +660,7 @@ void pfault_fini(void)
 	diag_stat_inc(DIAG_STAT_X258);
 	asm volatile(
 		"	diag	%0,0,0x258\n"
-		"0:	nopr	%%r7\n"
+		"0:	yespr	%%r7\n"
 		EX_TABLE(0b,0b)
 		: : "a" (&pfault_fini_refbk), "m" (pfault_fini_refbk) : "cc");
 }
@@ -682,7 +682,7 @@ static LIST_HEAD(pfault_list);
  * So when we get such an interrupt then we set the state of the current task
  * to uninterruptible and also set the need_resched flag. Both happens within
  * interrupt context(!). If we later on want to return to user space we
- * recognize the need_resched flag and then call schedule().  It's not very
+ * recognize the need_resched flag and then call schedule().  It's yest very
  * obvious how this works...
  *
  * Of course we have a lot of additional fun with the completion interrupt (->
@@ -733,7 +733,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 			/* Completion interrupt was faster than initial
 			 * interrupt. Set pfault_wait to -1 so the initial
 			 * interrupt doesn't put the task to sleep.
-			 * If the task is not running, ignore the completion
+			 * If the task is yest running, igyesre the completion
 			 * interrupt since it must be a leftover of a PFAULT
 			 * CANCEL operation which didn't remove all pending
 			 * completion interrupts. */
@@ -741,7 +741,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 				tsk->thread.pfault_wait = -1;
 		}
 	} else {
-		/* signal bit not set -> a real page is missing. */
+		/* signal bit yest set -> a real page is missing. */
 		if (WARN_ON_ONCE(tsk != current))
 			goto out;
 		if (tsk->thread.pfault_wait == 1) {
@@ -763,7 +763,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 			list_add(&tsk->thread.list, &pfault_list);
 block:
 			/* Since this must be a userspace fault, there
-			 * is no kernel task state to trample. Rely on the
+			 * is yes kernel task state to trample. Rely on the
 			 * return to userspace schedule() to block. */
 			__set_current_state(TASK_UNINTERRUPTIBLE);
 			set_tsk_need_resched(tsk);
@@ -803,7 +803,7 @@ static int __init pfault_irq_init(void)
 	if (rc)
 		goto out_pfault;
 	irq_subclass_register(IRQ_SUBCLASS_SERVICE_SIGNAL);
-	cpuhp_setup_state_nocalls(CPUHP_S390_PFAULT_DEAD, "s390/pfault:dead",
+	cpuhp_setup_state_yescalls(CPUHP_S390_PFAULT_DEAD, "s390/pfault:dead",
 				  NULL, pfault_cpu_dead);
 	return 0;
 

@@ -149,7 +149,7 @@ static unsigned long vpac270_pin_config[] __initdata = {
  * NOR Flash
  ******************************************************************************/
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
-static struct mtd_partition vpac270_nor_partitions[] = {
+static struct mtd_partition vpac270_yesr_partitions[] = {
 	{
 		.name		= "Flash",
 		.offset		= 0x00000000,
@@ -160,8 +160,8 @@ static struct mtd_partition vpac270_nor_partitions[] = {
 static struct physmap_flash_data vpac270_flash_data[] = {
 	{
 		.width		= 2,	/* bankwidth in bytes */
-		.parts		= vpac270_nor_partitions,
-		.nr_parts	= ARRAY_SIZE(vpac270_nor_partitions)
+		.parts		= vpac270_yesr_partitions,
+		.nr_parts	= ARRAY_SIZE(vpac270_yesr_partitions)
 	}
 };
 
@@ -180,12 +180,12 @@ static struct platform_device vpac270_flash = {
 		.platform_data = vpac270_flash_data,
 	},
 };
-static void __init vpac270_nor_init(void)
+static void __init vpac270_yesr_init(void)
 {
 	platform_device_register(&vpac270_flash);
 }
 #else
-static inline void vpac270_nor_init(void) {}
+static inline void vpac270_yesr_init(void) {}
 #endif
 
 /******************************************************************************
@@ -296,7 +296,7 @@ static inline void vpac270_keys_init(void) {}
 struct gpio_led vpac270_gpio_leds[] = {
 {
 	.name			= "vpac270:orange:user",
-	.default_trigger	= "none",
+	.default_trigger	= "yesne",
 	.gpio			= GPIO15_VPAC270_LED_ORANGE,
 	.active_low		= 1,
 }
@@ -709,7 +709,7 @@ static void __init vpac270_init(void)
 	vpac270_pmic_init();
 	vpac270_lcd_init();
 	vpac270_mmc_init();
-	vpac270_nor_init();
+	vpac270_yesr_init();
 	vpac270_onenand_init();
 	vpac270_leds_init();
 	vpac270_keys_init();

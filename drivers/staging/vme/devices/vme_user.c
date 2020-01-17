@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/ioctl.h>
 #include <linux/kernel.h>
@@ -62,10 +62,10 @@ static unsigned int bus_num;
  *
  * However the VME driver at http://www.vmelinux.org/ is rather old and doesn't
  * even support the tsi148 chipset (which has 8 master and 8 slave windows).
- * We'll run with this for now as far as possible, however it probably makes
+ * We'll run with this for yesw as far as possible, however it probably makes
  * sense to get rid of the old mappings and just do everything dynamically.
  *
- * So for now, we'll restrict the driver to providing 4 masters and 4 slaves as
+ * So for yesw, we'll restrict the driver to providing 4 masters and 4 slaves as
  * defined above and try to support at least some of the interface from
  * http://www.vmelinux.org/ as an alternative the driver can be written
  * providing a saner interface later.
@@ -112,60 +112,60 @@ static const int type[VME_DEVS] = {	MASTER_MINOR,	MASTER_MINOR,
 				};
 
 struct vme_user_vma_priv {
-	unsigned int minor;
+	unsigned int miyesr;
 	refcount_t refcnt;
 };
 
-static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
+static ssize_t resource_to_user(int miyesr, char __user *buf, size_t count,
 				loff_t *ppos)
 {
 	ssize_t copied = 0;
 
-	if (count > image[minor].size_buf)
-		count = image[minor].size_buf;
+	if (count > image[miyesr].size_buf)
+		count = image[miyesr].size_buf;
 
-	copied = vme_master_read(image[minor].resource, image[minor].kern_buf,
+	copied = vme_master_read(image[miyesr].resource, image[miyesr].kern_buf,
 				 count, *ppos);
 	if (copied < 0)
 		return (int)copied;
 
-	if (copy_to_user(buf, image[minor].kern_buf, (unsigned long)copied))
+	if (copy_to_user(buf, image[miyesr].kern_buf, (unsigned long)copied))
 		return -EFAULT;
 
 	return copied;
 }
 
-static ssize_t resource_from_user(unsigned int minor, const char __user *buf,
+static ssize_t resource_from_user(unsigned int miyesr, const char __user *buf,
 				  size_t count, loff_t *ppos)
 {
-	if (count > image[minor].size_buf)
-		count = image[minor].size_buf;
+	if (count > image[miyesr].size_buf)
+		count = image[miyesr].size_buf;
 
-	if (copy_from_user(image[minor].kern_buf, buf, (unsigned long)count))
+	if (copy_from_user(image[miyesr].kern_buf, buf, (unsigned long)count))
 		return -EFAULT;
 
-	return vme_master_write(image[minor].resource, image[minor].kern_buf,
+	return vme_master_write(image[miyesr].resource, image[miyesr].kern_buf,
 				count, *ppos);
 }
 
-static ssize_t buffer_to_user(unsigned int minor, char __user *buf,
+static ssize_t buffer_to_user(unsigned int miyesr, char __user *buf,
 			      size_t count, loff_t *ppos)
 {
 	void *image_ptr;
 
-	image_ptr = image[minor].kern_buf + *ppos;
+	image_ptr = image[miyesr].kern_buf + *ppos;
 	if (copy_to_user(buf, image_ptr, (unsigned long)count))
 		return -EFAULT;
 
 	return count;
 }
 
-static ssize_t buffer_from_user(unsigned int minor, const char __user *buf,
+static ssize_t buffer_from_user(unsigned int miyesr, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	void *image_ptr;
 
-	image_ptr = image[minor].kern_buf + *ppos;
+	image_ptr = image[miyesr].kern_buf + *ppos;
 	if (copy_from_user(image_ptr, buf, (unsigned long)count))
 		return -EFAULT;
 
@@ -175,40 +175,40 @@ static ssize_t buffer_from_user(unsigned int minor, const char __user *buf,
 static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
 			     loff_t *ppos)
 {
-	unsigned int minor = MINOR(file_inode(file)->i_rdev);
+	unsigned int miyesr = MINOR(file_iyesde(file)->i_rdev);
 	ssize_t retval;
 	size_t image_size;
 
-	if (minor == CONTROL_MINOR)
+	if (miyesr == CONTROL_MINOR)
 		return 0;
 
-	mutex_lock(&image[minor].mutex);
+	mutex_lock(&image[miyesr].mutex);
 
 	/* XXX Do we *really* want this helper - we can use vme_*_get ? */
-	image_size = vme_get_size(image[minor].resource);
+	image_size = vme_get_size(image[miyesr].resource);
 
 	/* Ensure we are starting at a valid location */
 	if ((*ppos < 0) || (*ppos > (image_size - 1))) {
-		mutex_unlock(&image[minor].mutex);
+		mutex_unlock(&image[miyesr].mutex);
 		return 0;
 	}
 
-	/* Ensure not reading past end of the image */
+	/* Ensure yest reading past end of the image */
 	if (*ppos + count > image_size)
 		count = image_size - *ppos;
 
-	switch (type[minor]) {
+	switch (type[miyesr]) {
 	case MASTER_MINOR:
-		retval = resource_to_user(minor, buf, count, ppos);
+		retval = resource_to_user(miyesr, buf, count, ppos);
 		break;
 	case SLAVE_MINOR:
-		retval = buffer_to_user(minor, buf, count, ppos);
+		retval = buffer_to_user(miyesr, buf, count, ppos);
 		break;
 	default:
 		retval = -EINVAL;
 	}
 
-	mutex_unlock(&image[minor].mutex);
+	mutex_unlock(&image[miyesr].mutex);
 	if (retval > 0)
 		*ppos += retval;
 
@@ -218,39 +218,39 @@ static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
 static ssize_t vme_user_write(struct file *file, const char __user *buf,
 			      size_t count, loff_t *ppos)
 {
-	unsigned int minor = MINOR(file_inode(file)->i_rdev);
+	unsigned int miyesr = MINOR(file_iyesde(file)->i_rdev);
 	ssize_t retval;
 	size_t image_size;
 
-	if (minor == CONTROL_MINOR)
+	if (miyesr == CONTROL_MINOR)
 		return 0;
 
-	mutex_lock(&image[minor].mutex);
+	mutex_lock(&image[miyesr].mutex);
 
-	image_size = vme_get_size(image[minor].resource);
+	image_size = vme_get_size(image[miyesr].resource);
 
 	/* Ensure we are starting at a valid location */
 	if ((*ppos < 0) || (*ppos > (image_size - 1))) {
-		mutex_unlock(&image[minor].mutex);
+		mutex_unlock(&image[miyesr].mutex);
 		return 0;
 	}
 
-	/* Ensure not reading past end of the image */
+	/* Ensure yest reading past end of the image */
 	if (*ppos + count > image_size)
 		count = image_size - *ppos;
 
-	switch (type[minor]) {
+	switch (type[miyesr]) {
 	case MASTER_MINOR:
-		retval = resource_from_user(minor, buf, count, ppos);
+		retval = resource_from_user(miyesr, buf, count, ppos);
 		break;
 	case SLAVE_MINOR:
-		retval = buffer_from_user(minor, buf, count, ppos);
+		retval = buffer_from_user(miyesr, buf, count, ppos);
 		break;
 	default:
 		retval = -EINVAL;
 	}
 
-	mutex_unlock(&image[minor].mutex);
+	mutex_unlock(&image[miyesr].mutex);
 
 	if (retval > 0)
 		*ppos += retval;
@@ -260,17 +260,17 @@ static ssize_t vme_user_write(struct file *file, const char __user *buf,
 
 static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 {
-	unsigned int minor = MINOR(file_inode(file)->i_rdev);
+	unsigned int miyesr = MINOR(file_iyesde(file)->i_rdev);
 	size_t image_size;
 	loff_t res;
 
-	switch (type[minor]) {
+	switch (type[miyesr]) {
 	case MASTER_MINOR:
 	case SLAVE_MINOR:
-		mutex_lock(&image[minor].mutex);
-		image_size = vme_get_size(image[minor].resource);
+		mutex_lock(&image[miyesr].mutex);
+		image_size = vme_get_size(image[miyesr].resource);
 		res = fixed_size_llseek(file, off, whence, image_size);
-		mutex_unlock(&image[minor].mutex);
+		mutex_unlock(&image[miyesr].mutex);
 		return res;
 	}
 
@@ -281,25 +281,25 @@ static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
  * The ioctls provided by the old VME access method (the one at vmelinux.org)
  * are most certainly wrong as the effectively push the registers layout
  * through to user space. Given that the VME core can handle multiple bridges,
- * with different register layouts this is most certainly not the way to go.
+ * with different register layouts this is most certainly yest the way to go.
  *
  * We aren't using the structures defined in the Motorola driver either - these
  * are also quite low level, however we should use the definitions that have
  * already been defined.
  */
-static int vme_user_ioctl(struct inode *inode, struct file *file,
+static int vme_user_ioctl(struct iyesde *iyesde, struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
 	struct vme_master master;
 	struct vme_slave slave;
 	struct vme_irq_id irq_req;
 	unsigned long copied;
-	unsigned int minor = MINOR(inode->i_rdev);
+	unsigned int miyesr = MINOR(iyesde->i_rdev);
 	int retval;
 	dma_addr_t pci_addr;
 	void __user *argp = (void __user *)arg;
 
-	switch (type[minor]) {
+	switch (type[miyesr]) {
 	case CONTROL_MINOR:
 		switch (cmd) {
 		case VME_IRQ_GEN:
@@ -320,10 +320,10 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 		case VME_GET_MASTER:
 			memset(&master, 0, sizeof(master));
 
-			/* XXX	We do not want to push aspace, cycle and width
+			/* XXX	We do yest want to push aspace, cycle and width
 			 *	to userspace as they are
 			 */
-			retval = vme_master_get(image[minor].resource,
+			retval = vme_master_get(image[miyesr].resource,
 						&master.enable,
 						&master.vme_addr,
 						&master.size, &master.aspace,
@@ -340,7 +340,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 
 		case VME_SET_MASTER:
 
-			if (image[minor].mmap_count != 0) {
+			if (image[miyesr].mmap_count != 0) {
 				pr_warn("Can't adjust mapped window\n");
 				return -EPERM;
 			}
@@ -351,10 +351,10 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 				return -EFAULT;
 			}
 
-			/* XXX	We do not want to push aspace, cycle and width
+			/* XXX	We do yest want to push aspace, cycle and width
 			 *	to userspace as they are
 			 */
-			return vme_master_set(image[minor].resource,
+			return vme_master_set(image[miyesr].resource,
 				master.enable, master.vme_addr, master.size,
 				master.aspace, master.cycle, master.dwidth);
 
@@ -366,10 +366,10 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 		case VME_GET_SLAVE:
 			memset(&slave, 0, sizeof(slave));
 
-			/* XXX	We do not want to push aspace, cycle and width
+			/* XXX	We do yest want to push aspace, cycle and width
 			 *	to userspace as they are
 			 */
-			retval = vme_slave_get(image[minor].resource,
+			retval = vme_slave_get(image[miyesr].resource,
 					       &slave.enable, &slave.vme_addr,
 					       &slave.size, &pci_addr,
 					       &slave.aspace, &slave.cycle);
@@ -391,12 +391,12 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 				return -EFAULT;
 			}
 
-			/* XXX	We do not want to push aspace, cycle and width
+			/* XXX	We do yest want to push aspace, cycle and width
 			 *	to userspace as they are
 			 */
-			return vme_slave_set(image[minor].resource,
+			return vme_slave_set(image[miyesr].resource,
 				slave.enable, slave.vme_addr, slave.size,
-				image[minor].pci_buf, slave.aspace,
+				image[miyesr].pci_buf, slave.aspace,
 				slave.cycle);
 
 			break;
@@ -411,12 +411,12 @@ static long
 vme_user_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret;
-	struct inode *inode = file_inode(file);
-	unsigned int minor = MINOR(inode->i_rdev);
+	struct iyesde *iyesde = file_iyesde(file);
+	unsigned int miyesr = MINOR(iyesde->i_rdev);
 
-	mutex_lock(&image[minor].mutex);
-	ret = vme_user_ioctl(inode, file, cmd, arg);
-	mutex_unlock(&image[minor].mutex);
+	mutex_lock(&image[miyesr].mutex);
+	ret = vme_user_ioctl(iyesde, file, cmd, arg);
+	mutex_unlock(&image[miyesr].mutex);
 
 	return ret;
 }
@@ -431,14 +431,14 @@ static void vme_user_vm_open(struct vm_area_struct *vma)
 static void vme_user_vm_close(struct vm_area_struct *vma)
 {
 	struct vme_user_vma_priv *vma_priv = vma->vm_private_data;
-	unsigned int minor = vma_priv->minor;
+	unsigned int miyesr = vma_priv->miyesr;
 
 	if (!refcount_dec_and_test(&vma_priv->refcnt))
 		return;
 
-	mutex_lock(&image[minor].mutex);
-	image[minor].mmap_count--;
-	mutex_unlock(&image[minor].mutex);
+	mutex_lock(&image[miyesr].mutex);
+	image[miyesr].mmap_count--;
+	mutex_unlock(&image[miyesr].mutex);
 
 	kfree(vma_priv);
 }
@@ -448,43 +448,43 @@ static const struct vm_operations_struct vme_user_vm_ops = {
 	.close = vme_user_vm_close,
 };
 
-static int vme_user_master_mmap(unsigned int minor, struct vm_area_struct *vma)
+static int vme_user_master_mmap(unsigned int miyesr, struct vm_area_struct *vma)
 {
 	int err;
 	struct vme_user_vma_priv *vma_priv;
 
-	mutex_lock(&image[minor].mutex);
+	mutex_lock(&image[miyesr].mutex);
 
-	err = vme_master_mmap(image[minor].resource, vma);
+	err = vme_master_mmap(image[miyesr].resource, vma);
 	if (err) {
-		mutex_unlock(&image[minor].mutex);
+		mutex_unlock(&image[miyesr].mutex);
 		return err;
 	}
 
 	vma_priv = kmalloc(sizeof(*vma_priv), GFP_KERNEL);
 	if (!vma_priv) {
-		mutex_unlock(&image[minor].mutex);
+		mutex_unlock(&image[miyesr].mutex);
 		return -ENOMEM;
 	}
 
-	vma_priv->minor = minor;
+	vma_priv->miyesr = miyesr;
 	refcount_set(&vma_priv->refcnt, 1);
 	vma->vm_ops = &vme_user_vm_ops;
 	vma->vm_private_data = vma_priv;
 
-	image[minor].mmap_count++;
+	image[miyesr].mmap_count++;
 
-	mutex_unlock(&image[minor].mutex);
+	mutex_unlock(&image[miyesr].mutex);
 
 	return 0;
 }
 
 static int vme_user_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	unsigned int minor = MINOR(file_inode(file)->i_rdev);
+	unsigned int miyesr = MINOR(file_iyesde(file)->i_rdev);
 
-	if (type[minor] == MASTER_MINOR)
-		return vme_user_master_mmap(minor, vma);
+	if (type[miyesr] == MASTER_MINOR)
+		return vme_user_master_mmap(miyesr, vma);
 
 	return -ENODEV;
 }
@@ -539,7 +539,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		image[i].resource = NULL;
 	}
 
-	/* Assign major and minor numbers for the driver */
+	/* Assign major and miyesr numbers for the driver */
 	err = register_chrdev_region(MKDEV(VME_MAJOR, 0), VME_DEVS,
 				     driver_name);
 	if (err) {
@@ -715,7 +715,7 @@ static int vme_user_remove(struct vme_dev *dev)
 	/* Unregister device driver */
 	cdev_del(vme_user_cdev);
 
-	/* Unregister the major and minor device numbers */
+	/* Unregister the major and miyesr device numbers */
 	unregister_chrdev_region(MKDEV(VME_MAJOR, 0), VME_DEVS);
 
 	return 0;
@@ -737,7 +737,7 @@ static int __init vme_user_init(void)
 	if (bus_num == 0) {
 		pr_err("No cards, skipping registration\n");
 		retval = -ENODEV;
-		goto err_nocard;
+		goto err_yescard;
 	}
 
 	/* Let's start by supporting one bus, we can support more than one
@@ -762,7 +762,7 @@ static int __init vme_user_init(void)
 	return retval;
 
 err_reg:
-err_nocard:
+err_yescard:
 	return retval;
 }
 

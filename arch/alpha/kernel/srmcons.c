@@ -220,7 +220,7 @@ srmcons_init(void)
 		driver->driver_name = "srm";
 		driver->name = "srm";
 		driver->major = 0; 	/* dynamic */
-		driver->minor_start = 0;
+		driver->miyesr_start = 0;
 		driver->type = TTY_DRIVER_TYPE_SYSTEM;
 		driver->subtype = SYSTEM_TYPE_SYSCONS;
 		driver->init_termios = tty_std_termios;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdbool.h>
@@ -66,7 +66,7 @@ static int wait_for_pid(pid_t pid)
 again:
 	ret = waitpid(pid, &status, 0);
 	if (ret == -1) {
-		if (errno == EINTR)
+		if (erryes == EINTR)
 			goto again;
 		return -1;
 	}
@@ -105,13 +105,13 @@ static int do_tiocgptpeer(char *ptmx, char *expected_procfd_contents)
 	master = open(ptmx, O_RDWR | O_NOCTTY | O_CLOEXEC);
 	if (master < 0) {
 		fprintf(stderr, "Failed to open \"%s\": %s\n", ptmx,
-			strerror(errno));
+			strerror(erryes));
 		return -1;
 	}
 
 	/*
-	 * grantpt() makes assumptions about /dev/pts/ so ignore it. It's also
-	 * not really needed.
+	 * grantpt() makes assumptions about /dev/pts/ so igyesre it. It's also
+	 * yest really needed.
 	 */
 	ret = unlockpt(master);
 	if (ret < 0) {
@@ -123,8 +123,8 @@ static int do_tiocgptpeer(char *ptmx, char *expected_procfd_contents)
 	slave = ioctl(master, TIOCGPTPEER, O_RDWR | O_NOCTTY | O_CLOEXEC);
 #endif
 	if (slave < 0) {
-		if (errno == EINVAL) {
-			fprintf(stderr, "TIOCGPTPEER is not supported. "
+		if (erryes == EINVAL) {
+			fprintf(stderr, "TIOCGPTPEER is yest supported. "
 					"Skipping test.\n");
 			fret = KSFT_SKIP;
 		} else {
@@ -184,7 +184,7 @@ do_cleanup:
 	return fret;
 }
 
-static int verify_non_standard_devpts_mount(void)
+static int verify_yesn_standard_devpts_mount(void)
 {
 	char *mntpoint;
 	int ret = -1;
@@ -194,7 +194,7 @@ static int verify_non_standard_devpts_mount(void)
 	ret = umount("/dev/pts");
 	if (ret < 0) {
 		fprintf(stderr, "Failed to unmount \"/dev/pts\": %s\n",
-				strerror(errno));
+				strerror(erryes));
 		return -1;
 	}
 
@@ -203,7 +203,7 @@ static int verify_non_standard_devpts_mount(void)
 	mntpoint = mkdtemp(devpts);
 	if (!mntpoint) {
 		fprintf(stderr, "Failed to create temporary mountpoint: %s\n",
-				 strerror(errno));
+				 strerror(erryes));
 		return -1;
 	}
 
@@ -212,7 +212,7 @@ static int verify_non_standard_devpts_mount(void)
 	if (ret < 0) {
 		fprintf(stderr, "Failed to mount devpts fs to \"%s\" in new "
 				"mount namespace: %s\n", mntpoint,
-				strerror(errno));
+				strerror(erryes));
 		unlink(mntpoint);
 		return -1;
 	}
@@ -258,7 +258,7 @@ static int verify_invalid_ptmx_bind_mount(void)
 	mntpoint_fd = mkstemp(ptmx);
 	if (mntpoint_fd < 0) {
 		fprintf(stderr, "Failed to create temporary directory: %s\n",
-				 strerror(errno));
+				 strerror(erryes));
 		return -1;
 	}
 
@@ -282,7 +282,7 @@ int main(int argc, char *argv[])
 	int ret;
 
 	if (!isatty(STDIN_FILENO)) {
-		fprintf(stderr, "Standard input file descriptor is not attached "
+		fprintf(stderr, "Standard input file descriptor is yest attached "
 				"to a terminal. Skipping test\n");
 		exit(KSFT_SKIP);
 	}
@@ -308,7 +308,7 @@ int main(int argc, char *argv[])
 	if (ret < 0)
 		exit(EXIT_FAILURE);
 
-	ret = verify_non_standard_devpts_mount();
+	ret = verify_yesn_standard_devpts_mount();
 	if (ret < 0)
 		exit(EXIT_FAILURE);
 

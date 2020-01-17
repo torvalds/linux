@@ -5,12 +5,12 @@ RS485 Serial Communications
 1. Introduction
 ===============
 
-   EIA-485, also known as TIA/EIA-485 or RS-485, is a standard defining the
+   EIA-485, also kyeswn as TIA/EIA-485 or RS-485, is a standard defining the
    electrical characteristics of drivers and receivers for use in balanced
    digital multipoint systems.
    This standard is widely used for communications in industrial automation
    because it can be used effectively over long distances and in electrically
-   noisy environments.
+   yesisy environments.
 
 2. Hardware-related Considerations
 ==================================
@@ -57,7 +57,7 @@ RS485 Serial Communications
 	/* Open your specific device (e.g., /dev/mydevice): */
 	int fd = open ("/dev/mydevice", O_RDWR);
 	if (fd < 0) {
-		/* Error handling. See errno. */
+		/* Error handling. See erryes. */
 	}
 
 	struct serial_rs485 rs485conf;
@@ -85,14 +85,14 @@ RS485 Serial Communications
 	rs485conf.flags |= SER_RS485_RX_DURING_TX;
 
 	if (ioctl (fd, TIOCSRS485, &rs485conf) < 0) {
-		/* Error handling. See errno. */
+		/* Error handling. See erryes. */
 	}
 
 	/* Use read() and write() syscalls here... */
 
 	/* Close the device when finished: */
 	if (close (fd) < 0) {
-		/* Error handling. See errno. */
+		/* Error handling. See erryes. */
 	}
 
 5. References

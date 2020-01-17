@@ -14,9 +14,9 @@
 
 /*
  * Extended attributes are stored on disk blocks allocated outside of
- * any inode. The i_file_acl field is then made to point to this allocated
- * block. If all extended attributes of an inode are identical, these
- * inodes may share the same extended attribute block. Such situations
+ * any iyesde. The i_file_acl field is then made to point to this allocated
+ * block. If all extended attributes of an iyesde are identical, these
+ * iyesdes may share the same extended attribute block. Such situations
  * are automatically detected by keeping a cache of recent attribute block
  * numbers and hashes over the block's contents in memory.
  *
@@ -41,14 +41,14 @@
  * so that two extended attribute blocks can be compared efficiently.
  *
  * Attribute values are aligned to the end of the block, stored in
- * no specific order. They are also padded to EXT2_XATTR_PAD byte
+ * yes specific order. They are also padded to EXT2_XATTR_PAD byte
  * boundaries. No additional gaps are left between them.
  *
  * Locking strategy
  * ----------------
- * EXT2_I(inode)->i_file_acl is protected by EXT2_I(inode)->xattr_sem.
- * EA blocks are only changed if they are exclusive to an inode, so
- * holding xattr_sem also means that nothing but the EA block's reference
+ * EXT2_I(iyesde)->i_file_acl is protected by EXT2_I(iyesde)->xattr_sem.
+ * EA blocks are only changed if they are exclusive to an iyesde, so
+ * holding xattr_sem also means that yesthing but the EA block's reference
  * count will change. Multiple writers to an EA block are synchronized
  * by the bh lock. No more than a single bh lock is held at any time
  * to avoid deadlocks.
@@ -71,9 +71,9 @@
 #define IS_LAST_ENTRY(entry) (*(__u32 *)(entry) == 0)
 
 #ifdef EXT2_XATTR_DEBUG
-# define ea_idebug(inode, f...) do { \
-		printk(KERN_DEBUG "inode %s:%ld: ", \
-			inode->i_sb->s_id, inode->i_ino); \
+# define ea_idebug(iyesde, f...) do { \
+		printk(KERN_DEBUG "iyesde %s:%ld: ", \
+			iyesde->i_sb->s_id, iyesde->i_iyes); \
 		printk(f); \
 		printk("\n"); \
 	} while (0)
@@ -88,11 +88,11 @@
 # define ea_bdebug(f...)
 #endif
 
-static int ext2_xattr_set2(struct inode *, struct buffer_head *,
+static int ext2_xattr_set2(struct iyesde *, struct buffer_head *,
 			   struct ext2_xattr_header *);
 
 static int ext2_xattr_cache_insert(struct mb_cache *, struct buffer_head *);
-static struct buffer_head *ext2_xattr_cache_find(struct inode *,
+static struct buffer_head *ext2_xattr_cache_find(struct iyesde *,
 						 struct ext2_xattr_header *);
 static void ext2_xattr_rehash(struct ext2_xattr_header *,
 			      struct ext2_xattr_entry *);
@@ -122,7 +122,7 @@ const struct xattr_handler *ext2_xattr_handlers[] = {
 	NULL
 };
 
-#define EA_BLOCK_CACHE(inode)	(EXT2_SB(inode->i_sb)->s_ea_block_cache)
+#define EA_BLOCK_CACHE(iyesde)	(EXT2_SB(iyesde->i_sb)->s_ea_block_cache)
 
 static inline const struct xattr_handler *
 ext2_xattr_handler(int name_index)
@@ -192,17 +192,17 @@ ext2_xattr_cmp_entry(int name_index, size_t name_len, const char *name,
  * used / required on success.
  */
 int
-ext2_xattr_get(struct inode *inode, int name_index, const char *name,
+ext2_xattr_get(struct iyesde *iyesde, int name_index, const char *name,
 	       void *buffer, size_t buffer_size)
 {
 	struct buffer_head *bh = NULL;
 	struct ext2_xattr_entry *entry;
 	size_t name_len, size;
 	char *end;
-	int error, not_found;
-	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(inode);
+	int error, yest_found;
+	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(iyesde);
 
-	ea_idebug(inode, "name=%d.%s, buffer=%p, buffer_size=%ld",
+	ea_idebug(iyesde, "name=%d.%s, buffer=%p, buffer_size=%ld",
 		  name_index, name, buffer, (long)buffer_size);
 
 	if (name == NULL)
@@ -211,12 +211,12 @@ ext2_xattr_get(struct inode *inode, int name_index, const char *name,
 	if (name_len > 255)
 		return -ERANGE;
 
-	down_read(&EXT2_I(inode)->xattr_sem);
+	down_read(&EXT2_I(iyesde)->xattr_sem);
 	error = -ENODATA;
-	if (!EXT2_I(inode)->i_file_acl)
+	if (!EXT2_I(iyesde)->i_file_acl)
 		goto cleanup;
-	ea_idebug(inode, "reading block %d", EXT2_I(inode)->i_file_acl);
-	bh = sb_bread(inode->i_sb, EXT2_I(inode)->i_file_acl);
+	ea_idebug(iyesde, "reading block %d", EXT2_I(iyesde)->i_file_acl);
+	bh = sb_bread(iyesde->i_sb, EXT2_I(iyesde)->i_file_acl);
 	error = -EIO;
 	if (!bh)
 		goto cleanup;
@@ -225,9 +225,9 @@ ext2_xattr_get(struct inode *inode, int name_index, const char *name,
 	end = bh->b_data + bh->b_size;
 	if (!ext2_xattr_header_valid(HDR(bh))) {
 bad_block:
-		ext2_error(inode->i_sb, "ext2_xattr_get",
-			"inode %ld: bad block %d", inode->i_ino,
-			EXT2_I(inode)->i_file_acl);
+		ext2_error(iyesde->i_sb, "ext2_xattr_get",
+			"iyesde %ld: bad block %d", iyesde->i_iyes,
+			EXT2_I(iyesde)->i_file_acl);
 		error = -EIO;
 		goto cleanup;
 	}
@@ -236,26 +236,26 @@ bad_block:
 	entry = FIRST_ENTRY(bh);
 	while (!IS_LAST_ENTRY(entry)) {
 		if (!ext2_xattr_entry_valid(entry, end,
-		    inode->i_sb->s_blocksize))
+		    iyesde->i_sb->s_blocksize))
 			goto bad_block;
 
-		not_found = ext2_xattr_cmp_entry(name_index, name_len, name,
+		yest_found = ext2_xattr_cmp_entry(name_index, name_len, name,
 						 entry);
-		if (!not_found)
+		if (!yest_found)
 			goto found;
-		if (not_found < 0)
+		if (yest_found < 0)
 			break;
 
 		entry = EXT2_XATTR_NEXT(entry);
 	}
 	if (ext2_xattr_cache_insert(ea_block_cache, bh))
-		ea_idebug(inode, "cache insert failed");
+		ea_idebug(iyesde, "cache insert failed");
 	error = -ENODATA;
 	goto cleanup;
 found:
 	size = le32_to_cpu(entry->e_value_size);
 	if (ext2_xattr_cache_insert(ea_block_cache, bh))
-		ea_idebug(inode, "cache insert failed");
+		ea_idebug(iyesde, "cache insert failed");
 	if (buffer) {
 		error = -ERANGE;
 		if (size > buffer_size)
@@ -268,7 +268,7 @@ found:
 
 cleanup:
 	brelse(bh);
-	up_read(&EXT2_I(inode)->xattr_sem);
+	up_read(&EXT2_I(iyesde)->xattr_sem);
 
 	return error;
 }
@@ -286,23 +286,23 @@ cleanup:
 static int
 ext2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 	struct buffer_head *bh = NULL;
 	struct ext2_xattr_entry *entry;
 	char *end;
 	size_t rest = buffer_size;
 	int error;
-	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(inode);
+	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(iyesde);
 
-	ea_idebug(inode, "buffer=%p, buffer_size=%ld",
+	ea_idebug(iyesde, "buffer=%p, buffer_size=%ld",
 		  buffer, (long)buffer_size);
 
-	down_read(&EXT2_I(inode)->xattr_sem);
+	down_read(&EXT2_I(iyesde)->xattr_sem);
 	error = 0;
-	if (!EXT2_I(inode)->i_file_acl)
+	if (!EXT2_I(iyesde)->i_file_acl)
 		goto cleanup;
-	ea_idebug(inode, "reading block %d", EXT2_I(inode)->i_file_acl);
-	bh = sb_bread(inode->i_sb, EXT2_I(inode)->i_file_acl);
+	ea_idebug(iyesde, "reading block %d", EXT2_I(iyesde)->i_file_acl);
+	bh = sb_bread(iyesde->i_sb, EXT2_I(iyesde)->i_file_acl);
 	error = -EIO;
 	if (!bh)
 		goto cleanup;
@@ -311,9 +311,9 @@ ext2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 	end = bh->b_data + bh->b_size;
 	if (!ext2_xattr_header_valid(HDR(bh))) {
 bad_block:
-		ext2_error(inode->i_sb, "ext2_xattr_list",
-			"inode %ld: bad block %d", inode->i_ino,
-			EXT2_I(inode)->i_file_acl);
+		ext2_error(iyesde->i_sb, "ext2_xattr_list",
+			"iyesde %ld: bad block %d", iyesde->i_iyes,
+			EXT2_I(iyesde)->i_file_acl);
 		error = -EIO;
 		goto cleanup;
 	}
@@ -322,12 +322,12 @@ bad_block:
 	entry = FIRST_ENTRY(bh);
 	while (!IS_LAST_ENTRY(entry)) {
 		if (!ext2_xattr_entry_valid(entry, end,
-		    inode->i_sb->s_blocksize))
+		    iyesde->i_sb->s_blocksize))
 			goto bad_block;
 		entry = EXT2_XATTR_NEXT(entry);
 	}
 	if (ext2_xattr_cache_insert(ea_block_cache, bh))
-		ea_idebug(inode, "cache insert failed");
+		ea_idebug(iyesde, "cache insert failed");
 
 	/* list the attribute names */
 	for (entry = FIRST_ENTRY(bh); !IS_LAST_ENTRY(entry);
@@ -358,15 +358,15 @@ bad_block:
 
 cleanup:
 	brelse(bh);
-	up_read(&EXT2_I(inode)->xattr_sem);
+	up_read(&EXT2_I(iyesde)->xattr_sem);
 
 	return error;
 }
 
 /*
- * Inode operation listxattr()
+ * Iyesde operation listxattr()
  *
- * d_inode(dentry)->i_mutex: don't care
+ * d_iyesde(dentry)->i_mutex: don't care
  */
 ssize_t
 ext2_listxattr(struct dentry *dentry, char *buffer, size_t size)
@@ -376,7 +376,7 @@ ext2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 /*
  * If the EXT2_FEATURE_COMPAT_EXT_ATTR feature of this file system is
- * not set, set it.
+ * yest set, set it.
  */
 static void ext2_xattr_update_super_block(struct super_block *sb)
 {
@@ -393,25 +393,25 @@ static void ext2_xattr_update_super_block(struct super_block *sb)
 /*
  * ext2_xattr_set()
  *
- * Create, replace or remove an extended attribute for this inode.  Value
- * is NULL to remove an existing extended attribute, and non-NULL to
+ * Create, replace or remove an extended attribute for this iyesde.  Value
+ * is NULL to remove an existing extended attribute, and yesn-NULL to
  * either replace an existing extended attribute, or create a new extended
  * attribute. The flags XATTR_REPLACE and XATTR_CREATE
- * specify that an extended attribute must exist and must not exist
+ * specify that an extended attribute must exist and must yest exist
  * previous to the call, respectively.
  *
  * Returns 0, or a negative error number on failure.
  */
 int
-ext2_xattr_set(struct inode *inode, int name_index, const char *name,
+ext2_xattr_set(struct iyesde *iyesde, int name_index, const char *name,
 	       const void *value, size_t value_len, int flags)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct buffer_head *bh = NULL;
 	struct ext2_xattr_header *header = NULL;
 	struct ext2_xattr_entry *here = NULL, *last = NULL;
 	size_t name_len, free, min_offs = sb->s_blocksize;
-	int not_found = 1, error;
+	int yest_found = 1, error;
 	char *end;
 	
 	/*
@@ -426,7 +426,7 @@ ext2_xattr_set(struct inode *inode, int name_index, const char *name,
 	 * end -- Points right after the block pointed to by header.
 	 */
 	
-	ea_idebug(inode, "name=%d.%s, value=%p, value_len=%ld",
+	ea_idebug(iyesde, "name=%d.%s, value=%p, value_len=%ld",
 		  name_index, name, value, (long)value_len);
 
 	if (value == NULL)
@@ -436,10 +436,10 @@ ext2_xattr_set(struct inode *inode, int name_index, const char *name,
 	name_len = strlen(name);
 	if (name_len > 255 || value_len > sb->s_blocksize)
 		return -ERANGE;
-	down_write(&EXT2_I(inode)->xattr_sem);
-	if (EXT2_I(inode)->i_file_acl) {
-		/* The inode already has an extended attribute block. */
-		bh = sb_bread(sb, EXT2_I(inode)->i_file_acl);
+	down_write(&EXT2_I(iyesde)->xattr_sem);
+	if (EXT2_I(iyesde)->i_file_acl) {
+		/* The iyesde already has an extended attribute block. */
+		bh = sb_bread(sb, EXT2_I(iyesde)->i_file_acl);
 		error = -EIO;
 		if (!bh)
 			goto cleanup;
@@ -451,13 +451,13 @@ ext2_xattr_set(struct inode *inode, int name_index, const char *name,
 		if (!ext2_xattr_header_valid(header)) {
 bad_block:
 			ext2_error(sb, "ext2_xattr_set",
-				"inode %ld: bad block %d", inode->i_ino, 
-				   EXT2_I(inode)->i_file_acl);
+				"iyesde %ld: bad block %d", iyesde->i_iyes, 
+				   EXT2_I(iyesde)->i_file_acl);
 			error = -EIO;
 			goto cleanup;
 		}
 		/*
-		 * Find the named attribute. If not found, 'here' will point
+		 * Find the named attribute. If yest found, 'here' will point
 		 * to entry where the new attribute should be inserted to
 		 * maintain sorting.
 		 */
@@ -470,19 +470,19 @@ bad_block:
 				if (offs < min_offs)
 					min_offs = offs;
 			}
-			if (not_found > 0) {
-				not_found = ext2_xattr_cmp_entry(name_index,
+			if (yest_found > 0) {
+				yest_found = ext2_xattr_cmp_entry(name_index,
 								 name_len,
 								 name, last);
-				if (not_found <= 0)
+				if (yest_found <= 0)
 					here = last;
 			}
 			last = EXT2_XATTR_NEXT(last);
 		}
-		if (not_found > 0)
+		if (yest_found > 0)
 			here = last;
 
-		/* Check whether we have enough space left. */
+		/* Check whether we have eyesugh space left. */
 		free = min_offs - ((char*)last - (char*)header) - sizeof(__u32);
 	} else {
 		/* We will use a new extended attribute block. */
@@ -490,8 +490,8 @@ bad_block:
 			sizeof(struct ext2_xattr_header) - sizeof(__u32);
 	}
 
-	if (not_found) {
-		/* Request to remove a nonexistent attribute? */
+	if (yest_found) {
+		/* Request to remove a yesnexistent attribute? */
 		error = -ENODATA;
 		if (flags & XATTR_REPLACE)
 			goto cleanup;
@@ -510,7 +510,7 @@ bad_block:
 	if (free < EXT2_XATTR_LEN(name_len) + EXT2_XATTR_SIZE(value_len))
 		goto cleanup;
 
-	/* Here we know that we can set the new attribute. */
+	/* Here we kyesw that we can set the new attribute. */
 
 	if (header) {
 		/* assert(header == HDR(bh)); */
@@ -523,7 +523,7 @@ bad_block:
 			 * This must happen under buffer lock for
 			 * ext2_xattr_set2() to reliably detect modified block
 			 */
-			mb_cache_entry_delete(EA_BLOCK_CACHE(inode), hash,
+			mb_cache_entry_delete(EA_BLOCK_CACHE(iyesde), hash,
 					      bh->b_blocknr);
 
 			/* keep the buffer locked while modifying it. */
@@ -557,7 +557,7 @@ bad_block:
 
 	/* Iff we are modifying the block in-place, bh is locked here. */
 
-	if (not_found) {
+	if (yest_found) {
 		/* Insert the new name. */
 		size_t size = EXT2_XATTR_LEN(name_len);
 		size_t rest = (char *)last - (char *)here;
@@ -626,22 +626,22 @@ bad_block:
 
 skip_replace:
 	if (IS_LAST_ENTRY(ENTRY(header+1))) {
-		/* This block is now empty. */
+		/* This block is yesw empty. */
 		if (bh && header == HDR(bh))
 			unlock_buffer(bh);  /* we were modifying in-place. */
-		error = ext2_xattr_set2(inode, bh, NULL);
+		error = ext2_xattr_set2(iyesde, bh, NULL);
 	} else {
 		ext2_xattr_rehash(header, here);
 		if (bh && header == HDR(bh))
 			unlock_buffer(bh);  /* we were modifying in-place. */
-		error = ext2_xattr_set2(inode, bh, header);
+		error = ext2_xattr_set2(iyesde, bh, header);
 	}
 
 cleanup:
 	if (!(bh && header == HDR(bh)))
 		kfree(header);
 	brelse(bh);
-	up_write(&EXT2_I(inode)->xattr_sem);
+	up_write(&EXT2_I(iyesde)->xattr_sem);
 
 	return error;
 }
@@ -650,32 +650,32 @@ cleanup:
  * Second half of ext2_xattr_set(): Update the file system.
  */
 static int
-ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
+ext2_xattr_set2(struct iyesde *iyesde, struct buffer_head *old_bh,
 		struct ext2_xattr_header *header)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct buffer_head *new_bh = NULL;
 	int error;
-	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(inode);
+	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(iyesde);
 
 	if (header) {
-		new_bh = ext2_xattr_cache_find(inode, header);
+		new_bh = ext2_xattr_cache_find(iyesde, header);
 		if (new_bh) {
 			/* We found an identical block in the cache. */
 			if (new_bh == old_bh) {
 				ea_bdebug(new_bh, "keeping this block");
 			} else {
 				/* The old block is released after updating
-				   the inode.  */
+				   the iyesde.  */
 				ea_bdebug(new_bh, "reusing block");
 
-				error = dquot_alloc_block(inode, 1);
+				error = dquot_alloc_block(iyesde, 1);
 				if (error) {
 					unlock_buffer(new_bh);
 					goto cleanup;
 				}
 				le32_add_cpu(&HDR(new_bh)->h_refcount, 1);
-				ea_bdebug(new_bh, "refcount now=%d",
+				ea_bdebug(new_bh, "refcount yesw=%d",
 					le32_to_cpu(HDR(new_bh)->h_refcount));
 			}
 			unlock_buffer(new_bh);
@@ -687,17 +687,17 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 			ext2_xattr_cache_insert(ea_block_cache, new_bh);
 		} else {
 			/* We need to allocate a new block */
-			ext2_fsblk_t goal = ext2_group_first_block_no(sb,
-						EXT2_I(inode)->i_block_group);
-			int block = ext2_new_block(inode, goal, &error);
+			ext2_fsblk_t goal = ext2_group_first_block_yes(sb,
+						EXT2_I(iyesde)->i_block_group);
+			int block = ext2_new_block(iyesde, goal, &error);
 			if (error)
 				goto cleanup;
-			ea_idebug(inode, "creating block %d", block);
+			ea_idebug(iyesde, "creating block %d", block);
 
 			new_bh = sb_getblk(sb, block);
 			if (unlikely(!new_bh)) {
-				ext2_free_blocks(inode, block, 1);
-				mark_inode_dirty(inode);
+				ext2_free_blocks(iyesde, block, 1);
+				mark_iyesde_dirty(iyesde);
 				error = -ENOMEM;
 				goto cleanup;
 			}
@@ -710,7 +710,7 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 			ext2_xattr_update_super_block(sb);
 		}
 		mark_buffer_dirty(new_bh);
-		if (IS_SYNC(inode)) {
+		if (IS_SYNC(iyesde)) {
 			sync_dirty_buffer(new_bh);
 			error = -EIO;
 			if (buffer_req(new_bh) && !buffer_uptodate(new_bh))
@@ -718,28 +718,28 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 		}
 	}
 
-	/* Update the inode. */
-	EXT2_I(inode)->i_file_acl = new_bh ? new_bh->b_blocknr : 0;
-	inode->i_ctime = current_time(inode);
-	if (IS_SYNC(inode)) {
-		error = sync_inode_metadata(inode, 1);
-		/* In case sync failed due to ENOSPC the inode was actually
-		 * written (only some dirty data were not) so we just proceed
-		 * as if nothing happened and cleanup the unused block */
+	/* Update the iyesde. */
+	EXT2_I(iyesde)->i_file_acl = new_bh ? new_bh->b_blocknr : 0;
+	iyesde->i_ctime = current_time(iyesde);
+	if (IS_SYNC(iyesde)) {
+		error = sync_iyesde_metadata(iyesde, 1);
+		/* In case sync failed due to ENOSPC the iyesde was actually
+		 * written (only some dirty data were yest) so we just proceed
+		 * as if yesthing happened and cleanup the unused block */
 		if (error && error != -ENOSPC) {
 			if (new_bh && new_bh != old_bh) {
-				dquot_free_block_nodirty(inode, 1);
-				mark_inode_dirty(inode);
+				dquot_free_block_yesdirty(iyesde, 1);
+				mark_iyesde_dirty(iyesde);
 			}
 			goto cleanup;
 		}
 	} else
-		mark_inode_dirty(inode);
+		mark_iyesde_dirty(iyesde);
 
 	error = 0;
 	if (old_bh && old_bh != new_bh) {
 		/*
-		 * If there was an old block and we are no longer using it,
+		 * If there was an old block and we are yes longer using it,
 		 * release the old block.
 		 */
 		lock_buffer(old_bh);
@@ -754,8 +754,8 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 					      old_bh->b_blocknr);
 			/* Free the old block. */
 			ea_bdebug(old_bh, "freeing");
-			ext2_free_blocks(inode, old_bh->b_blocknr, 1);
-			mark_inode_dirty(inode);
+			ext2_free_blocks(iyesde, old_bh->b_blocknr, 1);
+			mark_iyesde_dirty(iyesde);
 			/* We let our caller release old_bh, so we
 			 * need to duplicate the buffer before. */
 			get_bh(old_bh);
@@ -763,10 +763,10 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 		} else {
 			/* Decrement the refcount only. */
 			le32_add_cpu(&HDR(old_bh)->h_refcount, -1);
-			dquot_free_block_nodirty(inode, 1);
-			mark_inode_dirty(inode);
+			dquot_free_block_yesdirty(iyesde, 1);
+			mark_iyesde_dirty(iyesde);
 			mark_buffer_dirty(old_bh);
-			ea_bdebug(old_bh, "refcount now=%d",
+			ea_bdebug(old_bh, "refcount yesw=%d",
 				le32_to_cpu(HDR(old_bh)->h_refcount));
 		}
 		unlock_buffer(old_bh);
@@ -779,40 +779,40 @@ cleanup:
 }
 
 /*
- * ext2_xattr_delete_inode()
+ * ext2_xattr_delete_iyesde()
  *
- * Free extended attribute resources associated with this inode. This
- * is called immediately before an inode is freed.
+ * Free extended attribute resources associated with this iyesde. This
+ * is called immediately before an iyesde is freed.
  */
 void
-ext2_xattr_delete_inode(struct inode *inode)
+ext2_xattr_delete_iyesde(struct iyesde *iyesde)
 {
 	struct buffer_head *bh = NULL;
-	struct ext2_sb_info *sbi = EXT2_SB(inode->i_sb);
+	struct ext2_sb_info *sbi = EXT2_SB(iyesde->i_sb);
 
-	down_write(&EXT2_I(inode)->xattr_sem);
-	if (!EXT2_I(inode)->i_file_acl)
+	down_write(&EXT2_I(iyesde)->xattr_sem);
+	if (!EXT2_I(iyesde)->i_file_acl)
 		goto cleanup;
 
-	if (!ext2_data_block_valid(sbi, EXT2_I(inode)->i_file_acl, 1)) {
-		ext2_error(inode->i_sb, "ext2_xattr_delete_inode",
-			"inode %ld: xattr block %d is out of data blocks range",
-			inode->i_ino, EXT2_I(inode)->i_file_acl);
+	if (!ext2_data_block_valid(sbi, EXT2_I(iyesde)->i_file_acl, 1)) {
+		ext2_error(iyesde->i_sb, "ext2_xattr_delete_iyesde",
+			"iyesde %ld: xattr block %d is out of data blocks range",
+			iyesde->i_iyes, EXT2_I(iyesde)->i_file_acl);
 		goto cleanup;
 	}
 
-	bh = sb_bread(inode->i_sb, EXT2_I(inode)->i_file_acl);
+	bh = sb_bread(iyesde->i_sb, EXT2_I(iyesde)->i_file_acl);
 	if (!bh) {
-		ext2_error(inode->i_sb, "ext2_xattr_delete_inode",
-			"inode %ld: block %d read error", inode->i_ino,
-			EXT2_I(inode)->i_file_acl);
+		ext2_error(iyesde->i_sb, "ext2_xattr_delete_iyesde",
+			"iyesde %ld: block %d read error", iyesde->i_iyes,
+			EXT2_I(iyesde)->i_file_acl);
 		goto cleanup;
 	}
 	ea_bdebug(bh, "b_count=%d", atomic_read(&(bh->b_count)));
 	if (!ext2_xattr_header_valid(HDR(bh))) {
-		ext2_error(inode->i_sb, "ext2_xattr_delete_inode",
-			"inode %ld: bad block %d", inode->i_ino,
-			EXT2_I(inode)->i_file_acl);
+		ext2_error(iyesde->i_sb, "ext2_xattr_delete_iyesde",
+			"iyesde %ld: bad block %d", iyesde->i_iyes,
+			EXT2_I(iyesde)->i_file_acl);
 		goto cleanup;
 	}
 	lock_buffer(bh);
@@ -823,27 +823,27 @@ ext2_xattr_delete_inode(struct inode *inode)
 		 * This must happen under buffer lock for ext2_xattr_set2() to
 		 * reliably detect freed block
 		 */
-		mb_cache_entry_delete(EA_BLOCK_CACHE(inode), hash,
+		mb_cache_entry_delete(EA_BLOCK_CACHE(iyesde), hash,
 				      bh->b_blocknr);
-		ext2_free_blocks(inode, EXT2_I(inode)->i_file_acl, 1);
+		ext2_free_blocks(iyesde, EXT2_I(iyesde)->i_file_acl, 1);
 		get_bh(bh);
 		bforget(bh);
 		unlock_buffer(bh);
 	} else {
 		le32_add_cpu(&HDR(bh)->h_refcount, -1);
-		ea_bdebug(bh, "refcount now=%d",
+		ea_bdebug(bh, "refcount yesw=%d",
 			le32_to_cpu(HDR(bh)->h_refcount));
 		unlock_buffer(bh);
 		mark_buffer_dirty(bh);
-		if (IS_SYNC(inode))
+		if (IS_SYNC(iyesde))
 			sync_dirty_buffer(bh);
-		dquot_free_block_nodirty(inode, 1);
+		dquot_free_block_yesdirty(iyesde, 1);
 	}
-	EXT2_I(inode)->i_file_acl = 0;
+	EXT2_I(iyesde)->i_file_acl = 0;
 
 cleanup:
 	brelse(bh);
-	up_write(&EXT2_I(inode)->xattr_sem);
+	up_write(&EXT2_I(iyesde)->xattr_sem);
 }
 
 /*
@@ -919,35 +919,35 @@ ext2_xattr_cmp(struct ext2_xattr_header *header1,
  * Find an identical extended attribute block.
  *
  * Returns a locked buffer head to the block found, or NULL if such
- * a block was not found or an error occurred.
+ * a block was yest found or an error occurred.
  */
 static struct buffer_head *
-ext2_xattr_cache_find(struct inode *inode, struct ext2_xattr_header *header)
+ext2_xattr_cache_find(struct iyesde *iyesde, struct ext2_xattr_header *header)
 {
 	__u32 hash = le32_to_cpu(header->h_hash);
 	struct mb_cache_entry *ce;
-	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(inode);
+	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(iyesde);
 
 	if (!header->h_hash)
 		return NULL;  /* never share */
-	ea_idebug(inode, "looking for cached blocks [%x]", (int)hash);
+	ea_idebug(iyesde, "looking for cached blocks [%x]", (int)hash);
 again:
 	ce = mb_cache_entry_find_first(ea_block_cache, hash);
 	while (ce) {
 		struct buffer_head *bh;
 
-		bh = sb_bread(inode->i_sb, ce->e_value);
+		bh = sb_bread(iyesde->i_sb, ce->e_value);
 		if (!bh) {
-			ext2_error(inode->i_sb, "ext2_xattr_cache_find",
-				"inode %ld: block %ld read error",
-				inode->i_ino, (unsigned long) ce->e_value);
+			ext2_error(iyesde->i_sb, "ext2_xattr_cache_find",
+				"iyesde %ld: block %ld read error",
+				iyesde->i_iyes, (unsigned long) ce->e_value);
 		} else {
 			lock_buffer(bh);
 			/*
 			 * We have to be careful about races with freeing or
 			 * rehashing of xattr block. Once we hold buffer lock
 			 * xattr block's state is stable so we can check
-			 * whether the block got freed / rehashed or not.
+			 * whether the block got freed / rehashed or yest.
 			 * Since we unhash mbcache entry under buffer lock when
 			 * freeing / rehashing xattr block, checking whether
 			 * entry is still hashed is reliable.
@@ -959,7 +959,7 @@ again:
 				goto again;
 			} else if (le32_to_cpu(HDR(bh)->h_refcount) >
 				   EXT2_XATTR_REFCOUNT_MAX) {
-				ea_idebug(inode, "block %ld refcount %d>%d",
+				ea_idebug(iyesde, "block %ld refcount %d>%d",
 					  (unsigned long) ce->e_value,
 					  le32_to_cpu(HDR(bh)->h_refcount),
 					  EXT2_XATTR_REFCOUNT_MAX);
@@ -1032,7 +1032,7 @@ static void ext2_xattr_rehash(struct ext2_xattr_header *header,
 	here = ENTRY(header+1);
 	while (!IS_LAST_ENTRY(here)) {
 		if (!here->e_hash) {
-			/* Block is not shared if an entry's hash value == 0 */
+			/* Block is yest shared if an entry's hash value == 0 */
 			hash = 0;
 			break;
 		}

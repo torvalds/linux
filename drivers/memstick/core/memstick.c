@@ -243,7 +243,7 @@ int memstick_next_req(struct memstick_host *host, struct memstick_request **mrq)
 EXPORT_SYMBOL(memstick_next_req);
 
 /**
- * memstick_new_req - notify the host that some requests are pending
+ * memstick_new_req - yestify the host that some requests are pending
  * @host - host to use
  */
 void memstick_new_req(struct memstick_host *host)
@@ -433,7 +433,7 @@ static void memstick_check(struct work_struct *work)
 	struct memstick_dev *card;
 
 	dev_dbg(&host->dev, "memstick_check started\n");
-	pm_runtime_get_noresume(host->dev.parent);
+	pm_runtime_get_yesresume(host->dev.parent);
 	mutex_lock(&host->lock);
 	if (!host->card) {
 		if (memstick_power_on(host))
@@ -572,7 +572,7 @@ void memstick_free_host(struct memstick_host *host)
 EXPORT_SYMBOL(memstick_free_host);
 
 /**
- * memstick_suspend_host - notify bus driver of host suspension
+ * memstick_suspend_host - yestify bus driver of host suspension
  * @host - host to use
  */
 void memstick_suspend_host(struct memstick_host *host)
@@ -584,7 +584,7 @@ void memstick_suspend_host(struct memstick_host *host)
 EXPORT_SYMBOL(memstick_suspend_host);
 
 /**
- * memstick_resume_host - notify bus driver of host resumption
+ * memstick_resume_host - yestify bus driver of host resumption
  * @host - host to use
  */
 void memstick_resume_host(struct memstick_host *host)

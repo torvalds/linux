@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -65,7 +65,7 @@ static ssize_t store_hrtbt_enb(struct qib_pportdata *ppd, const char *buf,
 
 	/*
 	 * Set the "intentional" heartbeat enable per either of
-	 * "Enable" and "Auto", as these are normally set together.
+	 * "Enable" and "Auto", as these are yesrmally set together.
 	 * This bit is consulted when leaving loopback mode,
 	 * because entering loopback mode overrides it and automatically
 	 * disables heartbeat.
@@ -240,7 +240,7 @@ static ssize_t read_cc_table_bin(struct file *filp, struct kobject *kobj,
 
 static void qib_port_release(struct kobject *kobj)
 {
-	/* nothing to do since memory is freed by qib_free_devdata() */
+	/* yesthing to do since memory is freed by qib_free_devdata() */
 }
 
 static struct kobj_type qib_port_cc_ktype = {

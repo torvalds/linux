@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI__A_OUT_GNU_H__
 #define _UAPI__A_OUT_GNU_H__
 
@@ -154,7 +154,7 @@ struct nlist {
   short n_desc;
   unsigned long n_value;
 };
-#endif /* no N_NLIST_DECLARED.  */
+#endif /* yes N_NLIST_DECLARED.  */
 
 #if !defined (N_UNDF)
 #define N_UNDF 0
@@ -186,12 +186,12 @@ struct nlist {
 #endif
 
 /* The following type indicates the definition of a symbol as being
-   an indirect reference to another symbol.  The other symbol
+   an indirect reference to ayesther symbol.  The other symbol
    appears as an undefined reference, immediately following this symbol.
 
    Indirection is asymmetrical.  The other symbol's value will be used
-   to satisfy requests for the indirect symbol, but not vice versa.
-   If the other symbol does not have a definition, libraries will
+   to satisfy requests for the indirect symbol, but yest vice versa.
+   If the other symbol does yest have a definition, libraries will
    be searched to find a definition.  */
 #define N_INDR 0xa
 
@@ -239,13 +239,13 @@ struct relocation_info
 	  in file's the symbol table.
      0 => relocate with the address of a segment.
           r_symbolnum is N_TEXT, N_DATA, N_BSS or N_ABS
-	  (the N_EXT bit may be set also, but signifies nothing).  */
+	  (the N_EXT bit may be set also, but signifies yesthing).  */
   unsigned int r_extern:1;
   /* Four bits that aren't used, but when writing an object file
      it is desirable to clear them.  */
   unsigned int r_pad:4;
 };
-#endif /* no N_RELOCATION_INFO_DECLARED.  */
+#endif /* yes N_RELOCATION_INFO_DECLARED.  */
 
 #endif /*__ASSEMBLY__ */
 #endif /* _UAPI__A_OUT_GNU_H__ */

@@ -387,7 +387,7 @@ static int snd_gus_check_version(struct snd_gus_card * gus)
 				strcpy(card->longname, "Gravis UltraSound Extreme");
 				gus->ess_flag = 1;
 			} else {
-				snd_printk(KERN_ERR "unknown GF1 revision number at 0x%lx - 0x%x (0x%x)\n", gus->gf1.port, rev, val);
+				snd_printk(KERN_ERR "unkyeswn GF1 revision number at 0x%lx - 0x%x (0x%x)\n", gus->gf1.port, rev, val);
 				snd_printk(KERN_ERR "  please - report to <perex@perex.cz>\n");
 			}
 		}

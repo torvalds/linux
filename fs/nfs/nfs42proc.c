@@ -23,7 +23,7 @@ static int nfs42_do_offload_cancel_async(struct file *dst, nfs4_stateid *std);
 
 static void nfs42_set_netaddr(struct file *filep, struct nfs42_netaddr *naddr)
 {
-	struct nfs_client *clp = (NFS_SERVER(file_inode(filep)))->nfs_client;
+	struct nfs_client *clp = (NFS_SERVER(file_iyesde(filep)))->nfs_client;
 	unsigned short port = 2049;
 
 	rcu_read_lock();
@@ -43,10 +43,10 @@ static void nfs42_set_netaddr(struct file *filep, struct nfs42_netaddr *naddr)
 static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 		struct nfs_lock_context *lock, loff_t offset, loff_t len)
 {
-	struct inode *inode = file_inode(filep);
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct iyesde *iyesde = file_iyesde(filep);
+	struct nfs_server *server = NFS_SERVER(iyesde);
 	struct nfs42_falloc_args args = {
-		.falloc_fh	= NFS_FH(inode),
+		.falloc_fh	= NFS_FH(iyesde),
 		.falloc_offset	= offset,
 		.falloc_length	= len,
 		.falloc_bitmask	= nfs4_fattr_bitmap,
@@ -71,7 +71,7 @@ static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 	status = nfs4_call_sync(server->client, server, msg,
 				&args.seq_args, &res.seq_res, 0);
 	if (status == 0)
-		status = nfs_post_op_update_inode(inode, res.falloc_fattr);
+		status = nfs_post_op_update_iyesde(iyesde, res.falloc_fattr);
 
 	kfree(res.falloc_fattr);
 	return status;
@@ -80,7 +80,7 @@ static int _nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 static int nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 				loff_t offset, loff_t len)
 {
-	struct nfs_server *server = NFS_SERVER(file_inode(filep));
+	struct nfs_server *server = NFS_SERVER(file_iyesde(filep));
 	struct nfs4_exception exception = { };
 	struct nfs_lock_context *lock;
 	int err;
@@ -89,7 +89,7 @@ static int nfs42_proc_fallocate(struct rpc_message *msg, struct file *filep,
 	if (IS_ERR(lock))
 		return PTR_ERR(lock);
 
-	exception.inode = file_inode(filep);
+	exception.iyesde = file_iyesde(filep);
 	exception.state = lock->open_context->state;
 
 	do {
@@ -110,19 +110,19 @@ int nfs42_proc_allocate(struct file *filep, loff_t offset, loff_t len)
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_ALLOCATE],
 	};
-	struct inode *inode = file_inode(filep);
+	struct iyesde *iyesde = file_iyesde(filep);
 	int err;
 
-	if (!nfs_server_capable(inode, NFS_CAP_ALLOCATE))
+	if (!nfs_server_capable(iyesde, NFS_CAP_ALLOCATE))
 		return -EOPNOTSUPP;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
 	err = nfs42_proc_fallocate(&msg, filep, offset, len);
 	if (err == -EOPNOTSUPP)
-		NFS_SERVER(inode)->caps &= ~NFS_CAP_ALLOCATE;
+		NFS_SERVER(iyesde)->caps &= ~NFS_CAP_ALLOCATE;
 
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	return err;
 }
 
@@ -131,24 +131,24 @@ int nfs42_proc_deallocate(struct file *filep, loff_t offset, loff_t len)
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_DEALLOCATE],
 	};
-	struct inode *inode = file_inode(filep);
+	struct iyesde *iyesde = file_iyesde(filep);
 	int err;
 
-	if (!nfs_server_capable(inode, NFS_CAP_DEALLOCATE))
+	if (!nfs_server_capable(iyesde, NFS_CAP_DEALLOCATE))
 		return -EOPNOTSUPP;
 
-	inode_lock(inode);
-	err = nfs_sync_inode(inode);
+	iyesde_lock(iyesde);
+	err = nfs_sync_iyesde(iyesde);
 	if (err)
 		goto out_unlock;
 
 	err = nfs42_proc_fallocate(&msg, filep, offset, len);
 	if (err == 0)
-		truncate_pagecache_range(inode, offset, (offset + len) -1);
+		truncate_pagecache_range(iyesde, offset, (offset + len) -1);
 	if (err == -EOPNOTSUPP)
-		NFS_SERVER(inode)->caps &= ~NFS_CAP_DEALLOCATE;
+		NFS_SERVER(iyesde)->caps &= ~NFS_CAP_DEALLOCATE;
 out_unlock:
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	return err;
 }
 
@@ -272,10 +272,10 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 		.rpc_argp = args,
 		.rpc_resp = res,
 	};
-	struct inode *dst_inode = file_inode(dst);
-	struct inode *src_inode = file_inode(src);
-	struct nfs_server *dst_server = NFS_SERVER(dst_inode);
-	struct nfs_server *src_server = NFS_SERVER(src_inode);
+	struct iyesde *dst_iyesde = file_iyesde(dst);
+	struct iyesde *src_iyesde = file_iyesde(src);
+	struct nfs_server *dst_server = NFS_SERVER(dst_iyesde);
+	struct nfs_server *src_server = NFS_SERVER(src_iyesde);
 	loff_t pos_src = args->src_pos;
 	loff_t pos_dst = args->dst_pos;
 	size_t count = args->count;
@@ -290,7 +290,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 		if (status)
 			return status;
 	}
-	status = nfs_filemap_write_and_wait_range(file_inode(src)->i_mapping,
+	status = nfs_filemap_write_and_wait_range(file_iyesde(src)->i_mapping,
 			pos_src, pos_src + (loff_t)count - 1);
 	if (status)
 		return status;
@@ -300,7 +300,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 	if (status)
 		return status;
 
-	status = nfs_sync_inode(dst_inode);
+	status = nfs_sync_iyesde(dst_iyesde);
 	if (status)
 		return status;
 
@@ -330,21 +330,21 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 		goto out;
 	}
 
-	if (!res->synchronous) {
+	if (!res->synchroyesus) {
 		status = handle_async_copy(res, dst_server, src_server, src,
 				dst, &args->src_stateid, restart);
 		if (status)
 			return status;
 	}
 
-	if ((!res->synchronous || !args->sync) &&
+	if ((!res->synchroyesus || !args->sync) &&
 			res->write_res.verifier.committed != NFS_FILE_SYNC) {
 		status = process_copy_commit(dst, pos_dst, res);
 		if (status)
 			return status;
 	}
 
-	truncate_pagecache_range(dst_inode, pos_dst,
+	truncate_pagecache_range(dst_iyesde, pos_dst,
 				 pos_dst + res->write_res.count);
 
 	status = res->write_res.count;
@@ -359,24 +359,24 @@ ssize_t nfs42_proc_copy(struct file *src, loff_t pos_src,
 			struct nl4_server *nss,
 			nfs4_stateid *cnr_stateid, bool sync)
 {
-	struct nfs_server *server = NFS_SERVER(file_inode(dst));
+	struct nfs_server *server = NFS_SERVER(file_iyesde(dst));
 	struct nfs_lock_context *src_lock;
 	struct nfs_lock_context *dst_lock;
 	struct nfs42_copy_args args = {
-		.src_fh		= NFS_FH(file_inode(src)),
+		.src_fh		= NFS_FH(file_iyesde(src)),
 		.src_pos	= pos_src,
-		.dst_fh		= NFS_FH(file_inode(dst)),
+		.dst_fh		= NFS_FH(file_iyesde(dst)),
 		.dst_pos	= pos_dst,
 		.count		= count,
 		.sync		= sync,
 	};
 	struct nfs42_copy_res res;
 	struct nfs4_exception src_exception = {
-		.inode		= file_inode(src),
+		.iyesde		= file_iyesde(src),
 		.stateid	= &args.src_stateid,
 	};
 	struct nfs4_exception dst_exception = {
-		.inode		= file_inode(dst),
+		.iyesde		= file_iyesde(dst),
 		.stateid	= &args.dst_stateid,
 	};
 	ssize_t err, err2;
@@ -397,12 +397,12 @@ ssize_t nfs42_proc_copy(struct file *src, loff_t pos_src,
 	dst_exception.state = dst_lock->open_context->state;
 
 	do {
-		inode_lock(file_inode(dst));
+		iyesde_lock(file_iyesde(dst));
 		err = _nfs42_proc_copy(src, src_lock,
 				dst, dst_lock,
 				&args, &res,
 				nss, cnr_stateid, &restart);
-		inode_unlock(file_inode(dst));
+		iyesde_unlock(file_iyesde(dst));
 
 		if (err >= 0)
 			break;
@@ -481,7 +481,7 @@ static const struct rpc_call_ops nfs42_offload_cancel_ops = {
 static int nfs42_do_offload_cancel_async(struct file *dst,
 					 nfs4_stateid *stateid)
 {
-	struct nfs_server *dst_server = NFS_SERVER(file_inode(dst));
+	struct nfs_server *dst_server = NFS_SERVER(file_iyesde(dst));
 	struct nfs42_offloadcancel_data *data = NULL;
 	struct nfs_open_context *ctx = nfs_file_open_context(dst);
 	struct rpc_task *task;
@@ -506,7 +506,7 @@ static int nfs42_do_offload_cancel_async(struct file *dst,
 		return -ENOMEM;
 
 	data->seq_server = dst_server;
-	data->args.osa_src_fh = NFS_FH(file_inode(dst));
+	data->args.osa_src_fh = NFS_FH(file_iyesde(dst));
 	memcpy(&data->args.osa_stateid, stateid,
 		sizeof(data->args.osa_stateid));
 	msg.rpc_argp = &data->args;
@@ -524,11 +524,11 @@ static int nfs42_do_offload_cancel_async(struct file *dst,
 	return status;
 }
 
-static int _nfs42_proc_copy_notify(struct file *src, struct file *dst,
-				   struct nfs42_copy_notify_args *args,
-				   struct nfs42_copy_notify_res *res)
+static int _nfs42_proc_copy_yestify(struct file *src, struct file *dst,
+				   struct nfs42_copy_yestify_args *args,
+				   struct nfs42_copy_yestify_res *res)
 {
-	struct nfs_server *src_server = NFS_SERVER(file_inode(src));
+	struct nfs_server *src_server = NFS_SERVER(file_iyesde(src));
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_COPY_NOTIFY],
 		.rpc_argp = args,
@@ -558,30 +558,30 @@ static int _nfs42_proc_copy_notify(struct file *src, struct file *dst,
 	return status;
 }
 
-int nfs42_proc_copy_notify(struct file *src, struct file *dst,
-				struct nfs42_copy_notify_res *res)
+int nfs42_proc_copy_yestify(struct file *src, struct file *dst,
+				struct nfs42_copy_yestify_res *res)
 {
-	struct nfs_server *src_server = NFS_SERVER(file_inode(src));
-	struct nfs42_copy_notify_args *args;
+	struct nfs_server *src_server = NFS_SERVER(file_iyesde(src));
+	struct nfs42_copy_yestify_args *args;
 	struct nfs4_exception exception = {
-		.inode = file_inode(src),
+		.iyesde = file_iyesde(src),
 	};
 	int status;
 
 	if (!(src_server->caps & NFS_CAP_COPY_NOTIFY))
 		return -EOPNOTSUPP;
 
-	args = kzalloc(sizeof(struct nfs42_copy_notify_args), GFP_NOFS);
+	args = kzalloc(sizeof(struct nfs42_copy_yestify_args), GFP_NOFS);
 	if (args == NULL)
 		return -ENOMEM;
 
-	args->cna_src_fh  = NFS_FH(file_inode(src)),
+	args->cna_src_fh  = NFS_FH(file_iyesde(src)),
 	args->cna_dst.nl4_type = NL4_NETADDR;
 	nfs42_set_netaddr(dst, &args->cna_dst.u.nl4_addr);
 	exception.stateid = &args->cna_src_stateid;
 
 	do {
-		status = _nfs42_proc_copy_notify(src, dst, args, res);
+		status = _nfs42_proc_copy_yestify(src, dst, args, res);
 		if (status == -ENOTSUPP) {
 			status = -EOPNOTSUPP;
 			goto out;
@@ -597,9 +597,9 @@ out:
 static loff_t _nfs42_proc_llseek(struct file *filep,
 		struct nfs_lock_context *lock, loff_t offset, int whence)
 {
-	struct inode *inode = file_inode(filep);
+	struct iyesde *iyesde = file_iyesde(filep);
 	struct nfs42_seek_args args = {
-		.sa_fh		= NFS_FH(inode),
+		.sa_fh		= NFS_FH(iyesde),
 		.sa_offset	= offset,
 		.sa_what	= (whence == SEEK_HOLE) ?
 					NFS4_CONTENT_HOLE : NFS4_CONTENT_DATA,
@@ -610,10 +610,10 @@ static loff_t _nfs42_proc_llseek(struct file *filep,
 		.rpc_argp = &args,
 		.rpc_resp = &res,
 	};
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_server *server = NFS_SERVER(iyesde);
 	int status;
 
-	if (!nfs_server_capable(inode, NFS_CAP_SEEK))
+	if (!nfs_server_capable(iyesde, NFS_CAP_SEEK))
 		return -ENOTSUPP;
 
 	status = nfs4_set_rw_stateid(&args.sa_stateid, lock->open_context,
@@ -621,7 +621,7 @@ static loff_t _nfs42_proc_llseek(struct file *filep,
 	if (status)
 		return status;
 
-	status = nfs_filemap_write_and_wait_range(inode->i_mapping,
+	status = nfs_filemap_write_and_wait_range(iyesde->i_mapping,
 			offset, LLONG_MAX);
 	if (status)
 		return status;
@@ -633,12 +633,12 @@ static loff_t _nfs42_proc_llseek(struct file *filep,
 	if (status)
 		return status;
 
-	return vfs_setpos(filep, res.sr_offset, inode->i_sb->s_maxbytes);
+	return vfs_setpos(filep, res.sr_offset, iyesde->i_sb->s_maxbytes);
 }
 
 loff_t nfs42_proc_llseek(struct file *filep, loff_t offset, int whence)
 {
-	struct nfs_server *server = NFS_SERVER(file_inode(filep));
+	struct nfs_server *server = NFS_SERVER(file_iyesde(filep));
 	struct nfs4_exception exception = { };
 	struct nfs_lock_context *lock;
 	loff_t err;
@@ -647,7 +647,7 @@ loff_t nfs42_proc_llseek(struct file *filep, loff_t offset, int whence)
 	if (IS_ERR(lock))
 		return PTR_ERR(lock);
 
-	exception.inode = file_inode(filep);
+	exception.iyesde = file_iyesde(filep);
 	exception.state = lock->open_context->state;
 
 	do {
@@ -670,19 +670,19 @@ static void
 nfs42_layoutstat_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs42_layoutstat_data *data = calldata;
-	struct inode *inode = data->inode;
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct iyesde *iyesde = data->iyesde;
+	struct nfs_server *server = NFS_SERVER(iyesde);
 	struct pnfs_layout_hdr *lo;
 
-	spin_lock(&inode->i_lock);
-	lo = NFS_I(inode)->layout;
+	spin_lock(&iyesde->i_lock);
+	lo = NFS_I(iyesde)->layout;
 	if (!pnfs_layout_is_valid(lo)) {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		rpc_exit(task, 0);
 		return;
 	}
 	nfs4_stateid_copy(&data->args.stateid, &lo->plh_stateid);
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 	nfs4_setup_sequence(server->nfs_client, &data->args.seq_args,
 			    &data->res.seq_res, task);
 }
@@ -691,7 +691,7 @@ static void
 nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs42_layoutstat_data *data = calldata;
-	struct inode *inode = data->inode;
+	struct iyesde *iyesde = data->iyesde;
 	struct pnfs_layout_hdr *lo;
 
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
@@ -702,15 +702,15 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 		break;
 	case -NFS4ERR_BADHANDLE:
 	case -ESTALE:
-		pnfs_destroy_layout(NFS_I(inode));
+		pnfs_destroy_layout(NFS_I(iyesde));
 		break;
 	case -NFS4ERR_EXPIRED:
 	case -NFS4ERR_ADMIN_REVOKED:
 	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_STALE_STATEID:
 	case -NFS4ERR_BAD_STATEID:
-		spin_lock(&inode->i_lock);
-		lo = NFS_I(inode)->layout;
+		spin_lock(&iyesde->i_lock);
+		lo = NFS_I(iyesde)->layout;
 		if (pnfs_layout_is_valid(lo) &&
 		    nfs4_stateid_match(&data->args.stateid,
 					     &lo->plh_stateid)) {
@@ -721,15 +721,15 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 			 * with the current stateid.
 			 */
 			pnfs_mark_layout_stateid_invalid(lo, &head);
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&iyesde->i_lock);
 			pnfs_free_lseg_list(&head);
-			nfs_commit_inode(inode, 0);
+			nfs_commit_iyesde(iyesde, 0);
 		} else
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&iyesde->i_lock);
 		break;
 	case -NFS4ERR_OLD_STATEID:
-		spin_lock(&inode->i_lock);
-		lo = NFS_I(inode)->layout;
+		spin_lock(&iyesde->i_lock);
+		lo = NFS_I(iyesde)->layout;
 		if (pnfs_layout_is_valid(lo) &&
 		    nfs4_stateid_match_other(&data->args.stateid,
 					&lo->plh_stateid)) {
@@ -739,11 +739,11 @@ nfs42_layoutstat_done(struct rpc_task *task, void *calldata)
 				rpc_delay(task, HZ);
 			rpc_restart_call_prepare(task);
 		}
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		break;
 	case -ENOTSUPP:
 	case -EOPNOTSUPP:
-		NFS_SERVER(inode)->caps &= ~NFS_CAP_LAYOUTSTATS;
+		NFS_SERVER(iyesde)->caps &= ~NFS_CAP_LAYOUTSTATS;
 	}
 }
 
@@ -759,11 +759,11 @@ nfs42_layoutstat_release(void *calldata)
 			devinfo[i].ld_private.ops->free(&devinfo[i].ld_private);
 	}
 
-	pnfs_put_layout_hdr(NFS_I(data->args.inode)->layout);
+	pnfs_put_layout_hdr(NFS_I(data->args.iyesde)->layout);
 	smp_mb__before_atomic();
-	clear_bit(NFS_INO_LAYOUTSTATS, &NFS_I(data->args.inode)->flags);
+	clear_bit(NFS_INO_LAYOUTSTATS, &NFS_I(data->args.iyesde)->flags);
 	smp_mb__after_atomic();
-	nfs_iput_and_deactive(data->inode);
+	nfs_iput_and_deactive(data->iyesde);
 	kfree(data->args.devinfo);
 	kfree(data);
 }
@@ -791,8 +791,8 @@ int nfs42_proc_layoutstats_generic(struct nfs_server *server,
 	};
 	struct rpc_task *task;
 
-	data->inode = nfs_igrab_and_active(data->args.inode);
-	if (!data->inode) {
+	data->iyesde = nfs_igrab_and_active(data->args.iyesde);
+	if (!data->iyesde) {
 		nfs42_layoutstat_release(data);
 		return -EAGAIN;
 	}
@@ -808,16 +808,16 @@ static struct nfs42_layouterror_data *
 nfs42_alloc_layouterror_data(struct pnfs_layout_segment *lseg, gfp_t gfp_flags)
 {
 	struct nfs42_layouterror_data *data;
-	struct inode *inode = lseg->pls_layout->plh_inode;
+	struct iyesde *iyesde = lseg->pls_layout->plh_iyesde;
 
 	data = kzalloc(sizeof(*data), gfp_flags);
 	if (data) {
-		data->args.inode = data->inode = nfs_igrab_and_active(inode);
-		if (data->inode) {
+		data->args.iyesde = data->iyesde = nfs_igrab_and_active(iyesde);
+		if (data->iyesde) {
 			data->lseg = pnfs_get_lseg(lseg);
 			if (data->lseg)
 				return data;
-			nfs_iput_and_deactive(data->inode);
+			nfs_iput_and_deactive(data->iyesde);
 		}
 		kfree(data);
 	}
@@ -828,7 +828,7 @@ static void
 nfs42_free_layouterror_data(struct nfs42_layouterror_data *data)
 {
 	pnfs_put_lseg(data->lseg);
-	nfs_iput_and_deactive(data->inode);
+	nfs_iput_and_deactive(data->iyesde);
 	kfree(data);
 }
 
@@ -836,21 +836,21 @@ static void
 nfs42_layouterror_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs42_layouterror_data *data = calldata;
-	struct inode *inode = data->inode;
-	struct nfs_server *server = NFS_SERVER(inode);
+	struct iyesde *iyesde = data->iyesde;
+	struct nfs_server *server = NFS_SERVER(iyesde);
 	struct pnfs_layout_hdr *lo = data->lseg->pls_layout;
 	unsigned i;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
 	if (!pnfs_layout_is_valid(lo)) {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		rpc_exit(task, 0);
 		return;
 	}
 	for (i = 0; i < data->args.num_errors; i++)
 		nfs4_stateid_copy(&data->args.errors[i].stateid,
 				&lo->plh_stateid);
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 	nfs4_setup_sequence(server->nfs_client, &data->args.seq_args,
 			    &data->res.seq_res, task);
 }
@@ -859,7 +859,7 @@ static void
 nfs42_layouterror_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs42_layouterror_data *data = calldata;
-	struct inode *inode = data->inode;
+	struct iyesde *iyesde = data->iyesde;
 	struct pnfs_layout_hdr *lo = data->lseg->pls_layout;
 
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
@@ -870,14 +870,14 @@ nfs42_layouterror_done(struct rpc_task *task, void *calldata)
 		break;
 	case -NFS4ERR_BADHANDLE:
 	case -ESTALE:
-		pnfs_destroy_layout(NFS_I(inode));
+		pnfs_destroy_layout(NFS_I(iyesde));
 		break;
 	case -NFS4ERR_EXPIRED:
 	case -NFS4ERR_ADMIN_REVOKED:
 	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_STALE_STATEID:
 	case -NFS4ERR_BAD_STATEID:
-		spin_lock(&inode->i_lock);
+		spin_lock(&iyesde->i_lock);
 		if (pnfs_layout_is_valid(lo) &&
 		    nfs4_stateid_match(&data->args.errors[0].stateid,
 					     &lo->plh_stateid)) {
@@ -888,14 +888,14 @@ nfs42_layouterror_done(struct rpc_task *task, void *calldata)
 			 * with the current stateid.
 			 */
 			pnfs_mark_layout_stateid_invalid(lo, &head);
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&iyesde->i_lock);
 			pnfs_free_lseg_list(&head);
-			nfs_commit_inode(inode, 0);
+			nfs_commit_iyesde(iyesde, 0);
 		} else
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&iyesde->i_lock);
 		break;
 	case -NFS4ERR_OLD_STATEID:
-		spin_lock(&inode->i_lock);
+		spin_lock(&iyesde->i_lock);
 		if (pnfs_layout_is_valid(lo) &&
 		    nfs4_stateid_match_other(&data->args.errors[0].stateid,
 					&lo->plh_stateid)) {
@@ -905,11 +905,11 @@ nfs42_layouterror_done(struct rpc_task *task, void *calldata)
 				rpc_delay(task, HZ);
 			rpc_restart_call_prepare(task);
 		}
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		break;
 	case -ENOTSUPP:
 	case -EOPNOTSUPP:
-		NFS_SERVER(inode)->caps &= ~NFS_CAP_LAYOUTERROR;
+		NFS_SERVER(iyesde)->caps &= ~NFS_CAP_LAYOUTERROR;
 	}
 }
 
@@ -930,7 +930,7 @@ static const struct rpc_call_ops nfs42_layouterror_ops = {
 int nfs42_proc_layouterror(struct pnfs_layout_segment *lseg,
 		const struct nfs42_layout_error *errors, size_t n)
 {
-	struct inode *inode = lseg->pls_layout->plh_inode;
+	struct iyesde *iyesde = lseg->pls_layout->plh_iyesde;
 	struct nfs42_layouterror_data *data;
 	struct rpc_task *task;
 	struct rpc_message msg = {
@@ -943,7 +943,7 @@ int nfs42_proc_layouterror(struct pnfs_layout_segment *lseg,
 	};
 	unsigned int i;
 
-	if (!nfs_server_capable(inode, NFS_CAP_LAYOUTERROR))
+	if (!nfs_server_capable(iyesde, NFS_CAP_LAYOUTERROR))
 		return -EOPNOTSUPP;
 	if (n > NFS42_LAYOUTERROR_MAX)
 		return -EINVAL;
@@ -958,7 +958,7 @@ int nfs42_proc_layouterror(struct pnfs_layout_segment *lseg,
 	msg.rpc_argp = &data->args;
 	msg.rpc_resp = &data->res;
 	task_setup.callback_data = data;
-	task_setup.rpc_client = NFS_SERVER(inode)->client;
+	task_setup.rpc_client = NFS_SERVER(iyesde)->client;
 	nfs4_init_sequence(&data->args.seq_args, &data->res.seq_res, 0, 0);
 	task = rpc_run_task(&task_setup);
 	if (IS_ERR(task))
@@ -973,12 +973,12 @@ static int _nfs42_proc_clone(struct rpc_message *msg, struct file *src_f,
 		struct nfs_lock_context *dst_lock, loff_t src_offset,
 		loff_t dst_offset, loff_t count)
 {
-	struct inode *src_inode = file_inode(src_f);
-	struct inode *dst_inode = file_inode(dst_f);
-	struct nfs_server *server = NFS_SERVER(dst_inode);
+	struct iyesde *src_iyesde = file_iyesde(src_f);
+	struct iyesde *dst_iyesde = file_iyesde(dst_f);
+	struct nfs_server *server = NFS_SERVER(dst_iyesde);
 	struct nfs42_clone_args args = {
-		.src_fh = NFS_FH(src_inode),
-		.dst_fh = NFS_FH(dst_inode),
+		.src_fh = NFS_FH(src_iyesde),
+		.dst_fh = NFS_FH(dst_iyesde),
 		.src_offset = src_offset,
 		.dst_offset = dst_offset,
 		.count = count,
@@ -1009,7 +1009,7 @@ static int _nfs42_proc_clone(struct rpc_message *msg, struct file *src_f,
 	status = nfs4_call_sync(server->client, server, msg,
 				&args.seq_args, &res.seq_res, 0);
 	if (status == 0)
-		status = nfs_post_op_update_inode(dst_inode, res.dst_fattr);
+		status = nfs_post_op_update_iyesde(dst_iyesde, res.dst_fattr);
 
 	kfree(res.dst_fattr);
 	return status;
@@ -1021,22 +1021,22 @@ int nfs42_proc_clone(struct file *src_f, struct file *dst_f,
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CLONE],
 	};
-	struct inode *inode = file_inode(src_f);
-	struct nfs_server *server = NFS_SERVER(file_inode(src_f));
+	struct iyesde *iyesde = file_iyesde(src_f);
+	struct nfs_server *server = NFS_SERVER(file_iyesde(src_f));
 	struct nfs_lock_context *src_lock;
 	struct nfs_lock_context *dst_lock;
 	struct nfs4_exception src_exception = { };
 	struct nfs4_exception dst_exception = { };
 	int err, err2;
 
-	if (!nfs_server_capable(inode, NFS_CAP_CLONE))
+	if (!nfs_server_capable(iyesde, NFS_CAP_CLONE))
 		return -EOPNOTSUPP;
 
 	src_lock = nfs_get_lock_context(nfs_file_open_context(src_f));
 	if (IS_ERR(src_lock))
 		return PTR_ERR(src_lock);
 
-	src_exception.inode = file_inode(src_f);
+	src_exception.iyesde = file_iyesde(src_f);
 	src_exception.state = src_lock->open_context->state;
 
 	dst_lock = nfs_get_lock_context(nfs_file_open_context(dst_f));
@@ -1045,14 +1045,14 @@ int nfs42_proc_clone(struct file *src_f, struct file *dst_f,
 		goto out_put_src_lock;
 	}
 
-	dst_exception.inode = file_inode(dst_f);
+	dst_exception.iyesde = file_iyesde(dst_f);
 	dst_exception.state = dst_lock->open_context->state;
 
 	do {
 		err = _nfs42_proc_clone(&msg, src_f, dst_f, src_lock, dst_lock,
 					src_offset, dst_offset, count);
 		if (err == -ENOTSUPP || err == -EOPNOTSUPP) {
-			NFS_SERVER(inode)->caps &= ~NFS_CAP_CLONE;
+			NFS_SERVER(iyesde)->caps &= ~NFS_CAP_CLONE;
 			err = -EOPNOTSUPP;
 			break;
 		}

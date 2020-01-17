@@ -5,7 +5,7 @@
 **        BY    : Nick Cheng, C.L. Huang
 **   Description: SCSI RAID Device Driver for Areca RAID Controller
 *******************************************************************************
-** Copyright (C) 2002 - 2014, Areca Technology Corporation All rights reserved
+** Copyright (C) 2002 - 2014, Areca Techyeslogy Corporation All rights reserved
 **
 **     Web site: www.areca.com.tw
 **       E-mail: support@areca.com.tw
@@ -22,11 +22,11 @@
 ** modification, are permitted provided that the following conditions
 ** are met:
 ** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
+**    yestice, this list of conditions and the following disclaimer.
 ** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
+**    yestice, this list of conditions and the following disclaimer in the
 **    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
+** 3. The name of the author may yest be used to endorse or promote products
 **    derived from this software without specific prior written permission.
 **
 ** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -50,7 +50,7 @@
 #include <linux/pci_ids.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -161,7 +161,7 @@ static struct scsi_host_template arcmsr_scsi_host_template = {
 	.max_sectors		= ARCMSR_MAX_XFER_SECTORS_C,
 	.cmd_per_lun		= ARCMSR_DEFAULT_CMD_PERLUN,
 	.shost_attrs		= arcmsr_host_attrs,
-	.no_write_same		= 1,
+	.yes_write_same		= 1,
 };
 
 static struct pci_device_id arcmsr_device_id_table[] = {
@@ -247,7 +247,7 @@ static bool arcmsr_remap_pciregion(struct AdapterControlBlock *acb)
 	case ACB_ADAPTER_TYPE_A:{
 		acb->pmuA = ioremap(pci_resource_start(pdev,0), pci_resource_len(pdev,0));
 		if (!acb->pmuA) {
-			printk(KERN_NOTICE "arcmsr%d: memory mapping region fail \n", acb->host->host_no);
+			printk(KERN_NOTICE "arcmsr%d: memory mapping region fail \n", acb->host->host_yes);
 			return false;
 		}
 		break;
@@ -256,13 +256,13 @@ static bool arcmsr_remap_pciregion(struct AdapterControlBlock *acb)
 		void __iomem *mem_base0, *mem_base1;
 		mem_base0 = ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
 		if (!mem_base0) {
-			printk(KERN_NOTICE "arcmsr%d: memory mapping region fail \n", acb->host->host_no);
+			printk(KERN_NOTICE "arcmsr%d: memory mapping region fail \n", acb->host->host_yes);
 			return false;
 		}
 		mem_base1 = ioremap(pci_resource_start(pdev, 2), pci_resource_len(pdev, 2));
 		if (!mem_base1) {
 			iounmap(mem_base0);
-			printk(KERN_NOTICE "arcmsr%d: memory mapping region fail \n", acb->host->host_no);
+			printk(KERN_NOTICE "arcmsr%d: memory mapping region fail \n", acb->host->host_yes);
 			return false;
 		}
 		acb->mem_base0 = mem_base0;
@@ -270,9 +270,9 @@ static bool arcmsr_remap_pciregion(struct AdapterControlBlock *acb)
 		break;
 	}
 	case ACB_ADAPTER_TYPE_C:{
-		acb->pmuC = ioremap_nocache(pci_resource_start(pdev, 1), pci_resource_len(pdev, 1));
+		acb->pmuC = ioremap_yescache(pci_resource_start(pdev, 1), pci_resource_len(pdev, 1));
 		if (!acb->pmuC) {
-			printk(KERN_NOTICE "arcmsr%d: memory mapping region fail \n", acb->host->host_no);
+			printk(KERN_NOTICE "arcmsr%d: memory mapping region fail \n", acb->host->host_yes);
 			return false;
 		}
 		if (readl(&acb->pmuC->outbound_doorbell) & ARCMSR_HBCMU_IOP2DRV_MESSAGE_CMD_DONE) {
@@ -290,8 +290,8 @@ static bool arcmsr_remap_pciregion(struct AdapterControlBlock *acb)
 		flags = pci_resource_flags(pdev, 0);
 		mem_base0 = ioremap(addr, range);
 		if (!mem_base0) {
-			pr_notice("arcmsr%d: memory mapping region fail\n",
-				acb->host->host_no);
+			pr_yestice("arcmsr%d: memory mapping region fail\n",
+				acb->host->host_yes);
 			return false;
 		}
 		acb->mem_base0 = mem_base0;
@@ -301,8 +301,8 @@ static bool arcmsr_remap_pciregion(struct AdapterControlBlock *acb)
 		acb->pmuE = ioremap(pci_resource_start(pdev, 1),
 			pci_resource_len(pdev, 1));
 		if (!acb->pmuE) {
-			pr_notice("arcmsr%d: memory mapping region fail \n",
-				acb->host->host_no);
+			pr_yestice("arcmsr%d: memory mapping region fail \n",
+				acb->host->host_yes);
 			return false;
 		}
 		writel(0, &acb->pmuE->host_int_status); /*clear interrupt*/
@@ -480,7 +480,7 @@ static void arcmsr_hbaA_flush_cache(struct AdapterControlBlock *acb)
 		else {
 			retry_count--;
 			printk(KERN_NOTICE "arcmsr%d: wait 'flush adapter cache' \
-			timeout, retry count down = %d \n", acb->host->host_no, retry_count);
+			timeout, retry count down = %d \n", acb->host->host_yes, retry_count);
 		}
 	} while (retry_count != 0);
 }
@@ -496,7 +496,7 @@ static void arcmsr_hbaB_flush_cache(struct AdapterControlBlock *acb)
 		else {
 			retry_count--;
 			printk(KERN_NOTICE "arcmsr%d: wait 'flush adapter cache' \
-			timeout,retry count down = %d \n", acb->host->host_no, retry_count);
+			timeout,retry count down = %d \n", acb->host->host_yes, retry_count);
 		}
 	} while (retry_count != 0);
 }
@@ -513,7 +513,7 @@ static void arcmsr_hbaC_flush_cache(struct AdapterControlBlock *pACB)
 		} else {
 			retry_count--;
 			printk(KERN_NOTICE "arcmsr%d: wait 'flush adapter cache' \
-			timeout,retry count down = %d \n", pACB->host->host_no, retry_count);
+			timeout,retry count down = %d \n", pACB->host->host_yes, retry_count);
 		}
 	} while (retry_count != 0);
 	return;
@@ -530,9 +530,9 @@ static void arcmsr_hbaD_flush_cache(struct AdapterControlBlock *pACB)
 			break;
 
 		retry_count--;
-		pr_notice("arcmsr%d: wait 'flush adapter "
+		pr_yestice("arcmsr%d: wait 'flush adapter "
 			"cache' timeout, retry count down = %d\n",
-			pACB->host->host_no, retry_count);
+			pACB->host->host_yes, retry_count);
 	} while (retry_count != 0);
 }
 
@@ -548,9 +548,9 @@ static void arcmsr_hbaE_flush_cache(struct AdapterControlBlock *pACB)
 		if (arcmsr_hbaE_wait_msgint_ready(pACB))
 			break;
 		retry_count--;
-		pr_notice("arcmsr%d: wait 'flush adapter "
+		pr_yestice("arcmsr%d: wait 'flush adapter "
 			"cache' timeout, retry count down = %d\n",
-			pACB->host->host_no, retry_count);
+			pACB->host->host_yes, retry_count);
 	} while (retry_count != 0);
 }
 
@@ -645,7 +645,7 @@ static bool arcmsr_alloc_io_queue(struct AdapterControlBlock *acb)
 		dma_coherent = dma_alloc_coherent(&pdev->dev, acb->ioqueue_size,
 			&dma_coherent_handle, GFP_KERNEL);
 		if (!dma_coherent) {
-			pr_notice("arcmsr%d: DMA allocation failed\n", acb->host->host_no);
+			pr_yestice("arcmsr%d: DMA allocation failed\n", acb->host->host_yes);
 			return false;
 		}
 		acb->dma_coherent_handle2 = dma_coherent_handle;
@@ -659,7 +659,7 @@ static bool arcmsr_alloc_io_queue(struct AdapterControlBlock *acb)
 		dma_coherent = dma_alloc_coherent(&pdev->dev, acb->ioqueue_size,
 			&dma_coherent_handle, GFP_KERNEL);
 		if (!dma_coherent) {
-			pr_notice("arcmsr%d: DMA allocation failed\n", acb->host->host_no);
+			pr_yestice("arcmsr%d: DMA allocation failed\n", acb->host->host_yes);
 			return false;
 		}
 		acb->dma_coherent_handle2 = dma_coherent_handle;
@@ -675,7 +675,7 @@ static bool arcmsr_alloc_io_queue(struct AdapterControlBlock *acb)
 		dma_coherent = dma_alloc_coherent(&pdev->dev, acb->ioqueue_size,
 			&dma_coherent_handle, GFP_KERNEL);
 		if (!dma_coherent){
-			pr_notice("arcmsr%d: DMA allocation failed\n", acb->host->host_no);
+			pr_yestice("arcmsr%d: DMA allocation failed\n", acb->host->host_yes);
 			return false;
 		}
 		acb->dma_coherent_handle2 = dma_coherent_handle;
@@ -722,7 +722,7 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 	acb->uncache_size += acb->ioqueue_size;
 	dma_coherent = dma_alloc_coherent(&pdev->dev, acb->uncache_size, &dma_coherent_handle, GFP_KERNEL);
 	if(!dma_coherent){
-		printk(KERN_NOTICE "arcmsr%d: dma_alloc_coherent got error\n", acb->host->host_no);
+		printk(KERN_NOTICE "arcmsr%d: dma_alloc_coherent got error\n", acb->host->host_yes);
 		return -ENOMEM;
 	}
 	acb->dma_coherent = dma_coherent;
@@ -873,7 +873,7 @@ arcmsr_request_irq(struct pci_dev *pdev, struct AdapterControlBlock *acb)
 	nvec = pci_alloc_irq_vectors(pdev, 1, ARCMST_NUM_MSIX_VECTORS,
 			PCI_IRQ_MSIX);
 	if (nvec > 0) {
-		pr_info("arcmsr%d: msi-x enabled\n", acb->host->host_no);
+		pr_info("arcmsr%d: msi-x enabled\n", acb->host->host_yes);
 		flags = 0;
 	} else {
 msi_int0:
@@ -896,7 +896,7 @@ msi_int1:
 		if (request_irq(pci_irq_vector(pdev, i), arcmsr_do_interrupt,
 				flags, "arcmsr", acb)) {
 			pr_warn("arcmsr%d: request_irq =%d failed!\n",
-				acb->host->host_no, pci_irq_vector(pdev, i));
+				acb->host->host_yes, pci_irq_vector(pdev, i));
 			goto out_free_irq;
 		}
 	}
@@ -1155,7 +1155,7 @@ static uint8_t arcmsr_hbaA_abort_allcmd(struct AdapterControlBlock *acb)
 	if (!arcmsr_hbaA_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE
 			"arcmsr%d: wait 'abort all outstanding command' timeout\n"
-			, acb->host->host_no);
+			, acb->host->host_yes);
 		return false;
 	}
 	return true;
@@ -1169,7 +1169,7 @@ static uint8_t arcmsr_hbaB_abort_allcmd(struct AdapterControlBlock *acb)
 	if (!arcmsr_hbaB_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE
 			"arcmsr%d: wait 'abort all outstanding command' timeout\n"
-			, acb->host->host_no);
+			, acb->host->host_yes);
 		return false;
 	}
 	return true;
@@ -1182,7 +1182,7 @@ static uint8_t arcmsr_hbaC_abort_allcmd(struct AdapterControlBlock *pACB)
 	if (!arcmsr_hbaC_wait_msgint_ready(pACB)) {
 		printk(KERN_NOTICE
 			"arcmsr%d: wait 'abort all outstanding command' timeout\n"
-			, pACB->host->host_no);
+			, pACB->host->host_yes);
 		return false;
 	}
 	return true;
@@ -1194,8 +1194,8 @@ static uint8_t arcmsr_hbaD_abort_allcmd(struct AdapterControlBlock *pACB)
 
 	writel(ARCMSR_INBOUND_MESG0_ABORT_CMD, reg->inbound_msgaddr0);
 	if (!arcmsr_hbaD_wait_msgint_ready(pACB)) {
-		pr_notice("arcmsr%d: wait 'abort all outstanding "
-			"command' timeout\n", pACB->host->host_no);
+		pr_yestice("arcmsr%d: wait 'abort all outstanding "
+			"command' timeout\n", pACB->host->host_yes);
 		return false;
 	}
 	return true;
@@ -1209,8 +1209,8 @@ static uint8_t arcmsr_hbaE_abort_allcmd(struct AdapterControlBlock *pACB)
 	pACB->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
 	writel(pACB->out_doorbell, &reg->iobound_doorbell);
 	if (!arcmsr_hbaE_wait_msgint_ready(pACB)) {
-		pr_notice("arcmsr%d: wait 'abort all outstanding "
-			"command' timeout\n", pACB->host->host_no);
+		pr_yestice("arcmsr%d: wait 'abort all outstanding "
+			"command' timeout\n", pACB->host->host_yes);
 		return false;
 	}
 	return true;
@@ -1364,8 +1364,8 @@ static void arcmsr_report_ccb_state(struct AdapterControlBlock *acb,
 		default:
 			printk(KERN_NOTICE
 				"arcmsr%d: scsi id = %d lun = %d isr get command error done, \
-				but got unknown DeviceStatus = 0x%x \n"
-				, acb->host->host_no
+				but got unkyeswn DeviceStatus = 0x%x \n"
+				, acb->host->host_yes
 				, id
 				, lun
 				, ccb->arcmsr_cdb.DeviceStatus);
@@ -1386,7 +1386,7 @@ static void arcmsr_drain_donequeue(struct AdapterControlBlock *acb, struct Comma
 				abortcmd->result |= DID_ABORT << 16;
 				arcmsr_ccb_complete(pCCB);
 				printk(KERN_NOTICE "arcmsr%d: pCCB ='0x%p' isr got aborted command \n",
-				acb->host->host_no, pCCB);
+				acb->host->host_yes, pCCB);
 			}
 			return;
 		}
@@ -1394,7 +1394,7 @@ static void arcmsr_drain_donequeue(struct AdapterControlBlock *acb, struct Comma
 				done acb = '0x%p'"
 				"ccb = '0x%p' ccbacb = '0x%p' startdone = 0x%x"
 				" ccboutstandingcount = %d \n"
-				, acb->host->host_no
+				, acb->host->host_yes
 				, acb
 				, pCCB
 				, pCCB->acb
@@ -1866,7 +1866,7 @@ static void arcmsr_hbaA_stop_bgrb(struct AdapterControlBlock *acb)
 	if (!arcmsr_hbaA_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE
 			"arcmsr%d: wait 'stop adapter background rebuild' timeout\n"
-			, acb->host->host_no);
+			, acb->host->host_yes);
 	}
 }
 
@@ -1879,7 +1879,7 @@ static void arcmsr_hbaB_stop_bgrb(struct AdapterControlBlock *acb)
 	if (!arcmsr_hbaB_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE
 			"arcmsr%d: wait 'stop adapter background rebuild' timeout\n"
-			, acb->host->host_no);
+			, acb->host->host_yes);
 	}
 }
 
@@ -1892,7 +1892,7 @@ static void arcmsr_hbaC_stop_bgrb(struct AdapterControlBlock *pACB)
 	if (!arcmsr_hbaC_wait_msgint_ready(pACB)) {
 		printk(KERN_NOTICE
 			"arcmsr%d: wait 'stop adapter background rebuild' timeout\n"
-			, pACB->host->host_no);
+			, pACB->host->host_yes);
 	}
 	return;
 }
@@ -1904,8 +1904,8 @@ static void arcmsr_hbaD_stop_bgrb(struct AdapterControlBlock *pACB)
 	pACB->acb_flags &= ~ACB_F_MSG_START_BGRB;
 	writel(ARCMSR_INBOUND_MESG0_STOP_BGRB, reg->inbound_msgaddr0);
 	if (!arcmsr_hbaD_wait_msgint_ready(pACB))
-		pr_notice("arcmsr%d: wait 'stop adapter background rebuild' "
-			"timeout\n", pACB->host->host_no);
+		pr_yestice("arcmsr%d: wait 'stop adapter background rebuild' "
+			"timeout\n", pACB->host->host_yes);
 }
 
 static void arcmsr_hbaE_stop_bgrb(struct AdapterControlBlock *pACB)
@@ -1917,8 +1917,8 @@ static void arcmsr_hbaE_stop_bgrb(struct AdapterControlBlock *pACB)
 	pACB->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
 	writel(pACB->out_doorbell, &reg->iobound_doorbell);
 	if (!arcmsr_hbaE_wait_msgint_ready(pACB)) {
-		pr_notice("arcmsr%d: wait 'stop adapter background rebuild' "
-			"timeout\n", pACB->host->host_no);
+		pr_yestice("arcmsr%d: wait 'stop adapter background rebuild' "
+			"timeout\n", pACB->host->host_yes);
 	}
 }
 
@@ -2139,7 +2139,7 @@ arcmsr_Read_iop_rqbuffer_in_DWORD(struct AdapterControlBlock *acb,
 		iop_len--;
 	}
 	kfree(buf2);
-	/* let IOP know data has been read */
+	/* let IOP kyesw data has been read */
 	arcmsr_iop_message_read(acb);
 	return 1;
 }
@@ -2294,7 +2294,7 @@ static void arcmsr_hbaC_doorbell_isr(struct AdapterControlBlock *pACB)
 	struct MessageUnit_C __iomem *reg = pACB->pmuC;
 	/*
 	*******************************************************************
-	**  Maybe here we need to check wrqbuffer_lock is lock or not
+	**  Maybe here we need to check wrqbuffer_lock is lock or yest
 	**  DOORBELL: din! don!
 	**  check if there are any mail need to pack from firmware
 	*******************************************************************
@@ -2431,7 +2431,7 @@ static void arcmsr_hbaC_postqueue_isr(struct AdapterControlBlock *acb)
 			arcmsr_cdb);
 		error = (flag_ccb & ARCMSR_CCBREPLY_FLAG_ERROR_MODE1)
 			? true : false;
-		/* check if command done with no error */
+		/* check if command done with yes error */
 		arcmsr_drain_donequeue(acb, ccb, error);
 		throttling++;
 		if (throttling == ARCMSR_HBC_ISR_THROTTLING_LEVEL) {
@@ -2800,7 +2800,7 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb,
 		ver_addr = kmalloc(ARCMSR_API_DATA_BUFLEN, GFP_ATOMIC);
 		if (!ver_addr) {
 			retvalue = ARCMSR_MESSAGE_FAIL;
-			pr_info("%s: memory not enough!\n", __func__);
+			pr_info("%s: memory yest eyesugh!\n", __func__);
 			goto message_out;
 		}
 		ptmpQbuffer = ver_addr;
@@ -3008,7 +3008,7 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb,
 	}
 	default:
 		retvalue = ARCMSR_MESSAGE_FAIL;
-		pr_info("%s: unknown controlcode!\n", __func__);
+		pr_info("%s: unkyeswn controlcode!\n", __func__);
 	}
 message_out:
 	if (use_sg) {
@@ -3157,8 +3157,8 @@ static void arcmsr_get_adapter_config(struct AdapterControlBlock *pACB, uint32_t
 	pACB->firm_sdram_size = readl(&rwbuffer[3]);
 	pACB->firm_hd_channels = readl(&rwbuffer[4]);
 	pACB->firm_cfg_version = readl(&rwbuffer[25]);
-	pr_notice("Areca RAID Controller%d: Model %s, F/W %s\n",
-		pACB->host->host_no,
+	pr_yestice("Areca RAID Controller%d: Model %s, F/W %s\n",
+		pACB->host->host_yes,
 		pACB->firm_model,
 		pACB->firm_version);
 }
@@ -3171,7 +3171,7 @@ static bool arcmsr_hbaA_get_config(struct AdapterControlBlock *acb)
 	writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, &reg->inbound_msgaddr0);
 	if (!arcmsr_hbaA_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE "arcmsr%d: wait 'get adapter firmware \
-			miscellaneous data' timeout \n", acb->host->host_no);
+			miscellaneous data' timeout \n", acb->host->host_yes);
 		return false;
 	}
 	arcmsr_get_adapter_config(acb, reg->message_rwbuffer);
@@ -3184,13 +3184,13 @@ static bool arcmsr_hbaB_get_config(struct AdapterControlBlock *acb)
 	arcmsr_wait_firmware_ready(acb);
 	writel(ARCMSR_MESSAGE_START_DRIVER_MODE, reg->drv2iop_doorbell);
 	if (!arcmsr_hbaB_wait_msgint_ready(acb)) {
-		printk(KERN_ERR "arcmsr%d: can't set driver mode.\n", acb->host->host_no);
+		printk(KERN_ERR "arcmsr%d: can't set driver mode.\n", acb->host->host_yes);
 		return false;
 	}
 	writel(ARCMSR_MESSAGE_GET_CONFIG, reg->drv2iop_doorbell);
 	if (!arcmsr_hbaB_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE "arcmsr%d: wait 'get adapter firmware \
-			miscellaneous data' timeout \n", acb->host->host_no);
+			miscellaneous data' timeout \n", acb->host->host_yes);
 		return false;
 	}
 	arcmsr_get_adapter_config(acb, reg->message_rwbuffer);
@@ -3213,7 +3213,7 @@ static bool arcmsr_hbaC_get_config(struct AdapterControlBlock *pACB)
 	/* wait message ready */
 	if (!arcmsr_hbaC_wait_msgint_ready(pACB)) {
 		printk(KERN_NOTICE "arcmsr%d: wait 'get adapter firmware \
-			miscellaneous data' timeout \n", pACB->host->host_no);
+			miscellaneous data' timeout \n", pACB->host->host_yes);
 		return false;
 	}
 	arcmsr_get_adapter_config(pACB, reg->msgcode_rwbuffer);
@@ -3234,8 +3234,8 @@ static bool arcmsr_hbaD_get_config(struct AdapterControlBlock *acb)
 	writel(ARCMSR_INBOUND_MESG0_GET_CONFIG, reg->inbound_msgaddr0);
 	/* wait message ready */
 	if (!arcmsr_hbaD_wait_msgint_ready(acb)) {
-		pr_notice("arcmsr%d: wait get adapter firmware "
-			"miscellaneous data timeout\n", acb->host->host_no);
+		pr_yestice("arcmsr%d: wait get adapter firmware "
+			"miscellaneous data timeout\n", acb->host->host_yes);
 		return false;
 	}
 	arcmsr_get_adapter_config(acb, reg->msgcode_rwbuffer);
@@ -3260,8 +3260,8 @@ static bool arcmsr_hbaE_get_config(struct AdapterControlBlock *pACB)
 	writel(pACB->out_doorbell, &reg->iobound_doorbell);
 	/* wait message ready */
 	if (!arcmsr_hbaE_wait_msgint_ready(pACB)) {
-		pr_notice("arcmsr%d: wait get adapter firmware "
-			"miscellaneous data timeout\n", pACB->host->host_no);
+		pr_yestice("arcmsr%d: wait get adapter firmware "
+			"miscellaneous data timeout\n", pACB->host->host_yes);
 		return false;
 	}
 	arcmsr_get_adapter_config(pACB, reg->msgcode_rwbuffer);
@@ -3341,7 +3341,7 @@ polling_hba_ccb_retry:
 			if ((ccb->startdone == ARCMSR_CCB_ABORTED) || (ccb == poll_ccb)) {
 				printk(KERN_NOTICE "arcmsr%d: scsi id = %d lun = %d ccb = '0x%p'"
 					" poll command abort successfully \n"
-					, acb->host->host_no
+					, acb->host->host_yes
 					, ccb->pcmd->device->id
 					, (u32)ccb->pcmd->device->lun
 					, ccb);
@@ -3352,7 +3352,7 @@ polling_hba_ccb_retry:
 			printk(KERN_NOTICE "arcmsr%d: polling get an illegal ccb"
 				" command done ccb = '0x%p'"
 				"ccboutstandingcount = %d \n"
-				, acb->host->host_no
+				, acb->host->host_yes
 				, ccb
 				, atomic_read(&acb->ccboutstandingcount));
 			continue;
@@ -3399,7 +3399,7 @@ polling_hbb_ccb_retry:
 		/*if last index number set it to 0 */
 		index %= ARCMSR_MAX_HBB_POSTQUEUE;
 		reg->doneq_index = index;
-		/* check if command done with no error*/
+		/* check if command done with yes error*/
 		ccb_cdb_phy = (flag_ccb << 5) & 0xffffffff;
 		if (acb->cdb_phyadd_hipart)
 			ccb_cdb_phy = ccb_cdb_phy | acb->cdb_phyadd_hipart;
@@ -3410,7 +3410,7 @@ polling_hbb_ccb_retry:
 			if ((ccb->startdone == ARCMSR_CCB_ABORTED) || (ccb == poll_ccb)) {
 				printk(KERN_NOTICE "arcmsr%d: scsi id = %d lun = %d ccb = '0x%p'"
 					" poll command abort successfully \n"
-					,acb->host->host_no
+					,acb->host->host_yes
 					,ccb->pcmd->device->id
 					,(u32)ccb->pcmd->device->lun
 					,ccb);
@@ -3421,7 +3421,7 @@ polling_hbb_ccb_retry:
 			printk(KERN_NOTICE "arcmsr%d: polling get an illegal ccb"
 				" command done ccb = '0x%p'"
 				"ccboutstandingcount = %d \n"
-				, acb->host->host_no
+				, acb->host->host_yes
 				, ccb
 				, atomic_read(&acb->ccboutstandingcount));
 			continue;
@@ -3467,12 +3467,12 @@ polling_hbc_ccb_retry:
 		arcmsr_cdb = (struct ARCMSR_CDB *)(acb->vir2phy_offset + ccb_cdb_phy);
 		pCCB = container_of(arcmsr_cdb, struct CommandControlBlock, arcmsr_cdb);
 		poll_ccb_done |= (pCCB == poll_ccb) ? 1 : 0;
-		/* check ifcommand done with no error*/
+		/* check ifcommand done with yes error*/
 		if ((pCCB->acb != acb) || (pCCB->startdone != ARCMSR_CCB_START)) {
 			if (pCCB->startdone == ARCMSR_CCB_ABORTED) {
 				printk(KERN_NOTICE "arcmsr%d: scsi id = %d lun = %d ccb = '0x%p'"
 					" poll command abort successfully \n"
-					, acb->host->host_no
+					, acb->host->host_yes
 					, pCCB->pcmd->device->id
 					, (u32)pCCB->pcmd->device->lun
 					, pCCB);
@@ -3483,7 +3483,7 @@ polling_hbc_ccb_retry:
 			printk(KERN_NOTICE "arcmsr%d: polling get an illegal ccb"
 				" command done ccb = '0x%p'"
 				"ccboutstandingcount = %d \n"
-				, acb->host->host_no
+				, acb->host->host_yes
 				, pCCB
 				, atomic_read(&acb->ccboutstandingcount));
 			continue;
@@ -3546,10 +3546,10 @@ polling_hbaD_ccb_retry:
 		if ((pCCB->acb != acb) ||
 			(pCCB->startdone != ARCMSR_CCB_START)) {
 			if (pCCB->startdone == ARCMSR_CCB_ABORTED) {
-				pr_notice("arcmsr%d: scsi id = %d "
+				pr_yestice("arcmsr%d: scsi id = %d "
 					"lun = %d ccb = '0x%p' poll command "
 					"abort successfully\n"
-					, acb->host->host_no
+					, acb->host->host_yes
 					, pCCB->pcmd->device->id
 					, (u32)pCCB->pcmd->device->lun
 					, pCCB);
@@ -3557,10 +3557,10 @@ polling_hbaD_ccb_retry:
 				arcmsr_ccb_complete(pCCB);
 				continue;
 			}
-			pr_notice("arcmsr%d: polling an illegal "
+			pr_yestice("arcmsr%d: polling an illegal "
 				"ccb command done ccb = '0x%p' "
 				"ccboutstandingcount = %d\n"
-				, acb->host->host_no
+				, acb->host->host_yes
 				, pCCB
 				, atomic_read(&acb->ccboutstandingcount));
 			continue;
@@ -3611,13 +3611,13 @@ static int arcmsr_hbaE_polling_ccbdone(struct AdapterControlBlock *acb,
 		spin_unlock_irqrestore(&acb->doneq_lock, flags);
 		pCCB = acb->pccb_pool[cmdSMID];
 		poll_ccb_done |= (pCCB == poll_ccb) ? 1 : 0;
-		/* check if command done with no error*/
+		/* check if command done with yes error*/
 		if ((pCCB->acb != acb) || (pCCB->startdone != ARCMSR_CCB_START)) {
 			if (pCCB->startdone == ARCMSR_CCB_ABORTED) {
-				pr_notice("arcmsr%d: scsi id = %d "
+				pr_yestice("arcmsr%d: scsi id = %d "
 					"lun = %d ccb = '0x%p' poll command "
 					"abort successfully\n"
-					, acb->host->host_no
+					, acb->host->host_yes
 					, pCCB->pcmd->device->id
 					, (u32)pCCB->pcmd->device->lun
 					, pCCB);
@@ -3625,10 +3625,10 @@ static int arcmsr_hbaE_polling_ccbdone(struct AdapterControlBlock *acb,
 				arcmsr_ccb_complete(pCCB);
 				continue;
 			}
-			pr_notice("arcmsr%d: polling an illegal "
+			pr_yestice("arcmsr%d: polling an illegal "
 				"ccb command done ccb = '0x%p' "
 				"ccboutstandingcount = %d\n"
-				, acb->host->host_no
+				, acb->host->host_yes
 				, pCCB
 				, atomic_read(&acb->ccboutstandingcount));
 			continue;
@@ -3760,7 +3760,7 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 	/*
 	********************************************************************
 	** here we need to tell iop 331 our freeccb.HighPart
-	** if freeccb.HighPart is not zero
+	** if freeccb.HighPart is yest zero
 	********************************************************************
 	*/
 	switch (acb->adapter_type) {
@@ -3798,7 +3798,7 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 			if (!arcmsr_hbaA_wait_msgint_ready(acb)) {
 				printk(KERN_NOTICE "arcmsr%d: ""set ccb high \
 				part physical address timeout\n",
-				acb->host->host_no);
+				acb->host->host_yes);
 				return 1;
 			}
 		}
@@ -3813,14 +3813,14 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 		reg->doneq_index = 0;
 		writel(ARCMSR_MESSAGE_SET_POST_WINDOW, reg->drv2iop_doorbell);
 		if (!arcmsr_hbaB_wait_msgint_ready(acb)) {
-			printk(KERN_NOTICE "arcmsr%d: cannot set driver mode\n", \
-				acb->host->host_no);
+			printk(KERN_NOTICE "arcmsr%d: canyest set driver mode\n", \
+				acb->host->host_yes);
 			return 1;
 		}
 		rwbuffer = reg->message_rwbuffer;
 		/* driver "set config" signature */
 		writel(ARCMSR_SIGNATURE_SET_CONFIG, rwbuffer++);
-		/* normal should be zero */
+		/* yesrmal should be zero */
 		writel(cdb_phyaddr_hi32, rwbuffer++);
 		/* postQ size (256 + 8)*4	 */
 		writel(cdb_phyaddr, rwbuffer++);
@@ -3832,13 +3832,13 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 		writel(ARCMSR_MESSAGE_SET_CONFIG, reg->drv2iop_doorbell);
 		if (!arcmsr_hbaB_wait_msgint_ready(acb)) {
 			printk(KERN_NOTICE "arcmsr%d: 'set command Q window' \
-			timeout \n",acb->host->host_no);
+			timeout \n",acb->host->host_yes);
 			return 1;
 		}
 		writel(ARCMSR_MESSAGE_START_DRIVER_MODE, reg->drv2iop_doorbell);
 		if (!arcmsr_hbaB_wait_msgint_ready(acb)) {
 			pr_err("arcmsr%d: can't set driver mode.\n",
-				acb->host->host_no);
+				acb->host->host_yes);
 			return 1;
 		}
 		}
@@ -3854,7 +3854,7 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 			writel(ARCMSR_HBCMU_DRV2IOP_MESSAGE_CMD_DONE, &reg->inbound_doorbell);
 			if (!arcmsr_hbaC_wait_msgint_ready(acb)) {
 				printk(KERN_NOTICE "arcmsr%d: 'set command Q window' \
-				timeout \n", acb->host->host_no);
+				timeout \n", acb->host->host_yes);
 				return 1;
 			}
 		}
@@ -3873,8 +3873,8 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 		writel(0x100, rwbuffer);
 		writel(ARCMSR_INBOUND_MESG0_SET_CONFIG, reg->inbound_msgaddr0);
 		if (!arcmsr_hbaD_wait_msgint_ready(acb)) {
-			pr_notice("arcmsr%d: 'set command Q window' timeout\n",
-				acb->host->host_no);
+			pr_yestice("arcmsr%d: 'set command Q window' timeout\n",
+				acb->host->host_yes);
 			return 1;
 		}
 		}
@@ -3896,8 +3896,8 @@ static int arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 		acb->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
 		writel(acb->out_doorbell, &reg->iobound_doorbell);
 		if (!arcmsr_hbaE_wait_msgint_ready(acb)) {
-			pr_notice("arcmsr%d: 'set command Q window' timeout \n",
-				acb->host->host_no);
+			pr_yestice("arcmsr%d: 'set command Q window' timeout \n",
+				acb->host->host_yes);
 			return 1;
 		}
 		}
@@ -4027,7 +4027,7 @@ static void arcmsr_hbaA_start_bgrb(struct AdapterControlBlock *acb)
 	writel(ARCMSR_INBOUND_MESG0_START_BGRB, &reg->inbound_msgaddr0);
 	if (!arcmsr_hbaA_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE "arcmsr%d: wait 'start adapter background \
-				rebuild' timeout \n", acb->host->host_no);
+				rebuild' timeout \n", acb->host->host_yes);
 	}
 }
 
@@ -4038,7 +4038,7 @@ static void arcmsr_hbaB_start_bgrb(struct AdapterControlBlock *acb)
 	writel(ARCMSR_MESSAGE_START_BGRB, reg->drv2iop_doorbell);
 	if (!arcmsr_hbaB_wait_msgint_ready(acb)) {
 		printk(KERN_NOTICE "arcmsr%d: wait 'start adapter background \
-				rebuild' timeout \n",acb->host->host_no);
+				rebuild' timeout \n",acb->host->host_yes);
 	}
 }
 
@@ -4050,7 +4050,7 @@ static void arcmsr_hbaC_start_bgrb(struct AdapterControlBlock *pACB)
 	writel(ARCMSR_HBCMU_DRV2IOP_MESSAGE_CMD_DONE, &phbcmu->inbound_doorbell);
 	if (!arcmsr_hbaC_wait_msgint_ready(pACB)) {
 		printk(KERN_NOTICE "arcmsr%d: wait 'start adapter background \
-				rebuild' timeout \n", pACB->host->host_no);
+				rebuild' timeout \n", pACB->host->host_yes);
 	}
 	return;
 }
@@ -4062,8 +4062,8 @@ static void arcmsr_hbaD_start_bgrb(struct AdapterControlBlock *pACB)
 	pACB->acb_flags |= ACB_F_MSG_START_BGRB;
 	writel(ARCMSR_INBOUND_MESG0_START_BGRB, pmu->inbound_msgaddr0);
 	if (!arcmsr_hbaD_wait_msgint_ready(pACB)) {
-		pr_notice("arcmsr%d: wait 'start adapter "
-			"background rebuild' timeout\n", pACB->host->host_no);
+		pr_yestice("arcmsr%d: wait 'start adapter "
+			"background rebuild' timeout\n", pACB->host->host_yes);
 	}
 }
 
@@ -4076,8 +4076,8 @@ static void arcmsr_hbaE_start_bgrb(struct AdapterControlBlock *pACB)
 	pACB->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
 	writel(pACB->out_doorbell, &pmu->iobound_doorbell);
 	if (!arcmsr_hbaE_wait_msgint_ready(pACB)) {
-		pr_notice("arcmsr%d: wait 'start adapter "
-			"background rebuild' timeout \n", pACB->host->host_no);
+		pr_yestice("arcmsr%d: wait 'start adapter "
+			"background rebuild' timeout \n", pACB->host->host_yes);
 	}
 }
 
@@ -4121,7 +4121,7 @@ static void arcmsr_clear_doorbell_queue_buffer(struct AdapterControlBlock *acb)
 		uint32_t outbound_doorbell, i;
 		writel(ARCMSR_DOORBELL_INT_CLEAR_PATTERN, reg->iop2drv_doorbell);
 		writel(ARCMSR_DRV2IOP_DATA_READ_OK, reg->drv2iop_doorbell);
-		/* let IOP know data has been read */
+		/* let IOP kyesw data has been read */
 		for(i=0; i < 200; i++) {
 			msleep(20);
 			outbound_doorbell = readl(reg->iop2drv_doorbell);
@@ -4230,7 +4230,7 @@ static void arcmsr_hardware_reset(struct AdapterControlBlock *acb)
 	struct MessageUnit_D *pmuD = acb->pmuD;
 
 	/* backup pci config data */
-	printk(KERN_NOTICE "arcmsr%d: executing hw bus reset .....\n", acb->host->host_no);
+	printk(KERN_NOTICE "arcmsr%d: executing hw bus reset .....\n", acb->host->host_yes);
 	for (i = 0; i < 64; i++) {
 		pci_read_config_byte(acb->pdev, i, &value[i]);
 	}
@@ -4246,8 +4246,8 @@ static void arcmsr_hardware_reset(struct AdapterControlBlock *acb)
 			writel(0x2, &pmuC->write_sequence);
 			writel(0x7, &pmuC->write_sequence);
 			writel(0xD, &pmuC->write_sequence);
-		} while (((readl(&pmuC->host_diagnostic) & ARCMSR_ARC1880_DiagWrite_ENABLE) == 0) && (count < 5));
-		writel(ARCMSR_ARC1880_RESET_ADAPTER, &pmuC->host_diagnostic);
+		} while (((readl(&pmuC->host_diagyesstic) & ARCMSR_ARC1880_DiagWrite_ENABLE) == 0) && (count < 5));
+		writel(ARCMSR_ARC1880_RESET_ADAPTER, &pmuC->host_diagyesstic);
 	} else if (acb->dev_id == 0x1884) {
 		struct MessageUnit_E __iomem *pmuE = acb->pmuE;
 		do {
@@ -4258,9 +4258,9 @@ static void arcmsr_hardware_reset(struct AdapterControlBlock *acb)
 			writel(0x7, &pmuE->write_sequence_3xxx);
 			writel(0xD, &pmuE->write_sequence_3xxx);
 			mdelay(10);
-		} while (((readl(&pmuE->host_diagnostic_3xxx) &
+		} while (((readl(&pmuE->host_diagyesstic_3xxx) &
 			ARCMSR_ARC1884_DiagWrite_ENABLE) == 0) && (count < 5));
-		writel(ARCMSR_ARC188X_RESET_ADAPTER, &pmuE->host_diagnostic_3xxx);
+		writel(ARCMSR_ARC188X_RESET_ADAPTER, &pmuE->host_diagyesstic_3xxx);
 	} else if (acb->dev_id == 0x1214) {
 		writel(0x20, pmuD->reset_request);
 	} else {
@@ -4294,7 +4294,7 @@ static bool arcmsr_reset_in_progress(struct AdapterControlBlock *acb)
 		break;
 	case ACB_ADAPTER_TYPE_C:{
 		struct MessageUnit_C __iomem *reg = acb->pmuC;
-		rtn = (readl(&reg->host_diagnostic) & 0x04) ? true : false;
+		rtn = (readl(&reg->host_diagyesstic) & 0x04) ? true : false;
 		}
 		break;
 	case ACB_ADAPTER_TYPE_D:{
@@ -4305,7 +4305,7 @@ static bool arcmsr_reset_in_progress(struct AdapterControlBlock *acb)
 		break;
 	case ACB_ADAPTER_TYPE_E:{
 		struct MessageUnit_E __iomem *reg = acb->pmuE;
-		rtn = (readl(&reg->host_diagnostic_3xxx) &
+		rtn = (readl(&reg->host_diagyesstic_3xxx) &
 			ARCMSR_ARC188X_RESET_ADAPTER) ? true : false;
 		}
 		break;
@@ -4372,13 +4372,13 @@ static int arcmsr_bus_reset(struct scsi_cmnd *cmd)
 	acb = (struct AdapterControlBlock *) cmd->device->host->hostdata;
 	if (acb->acb_flags & ACB_F_ADAPTER_REMOVED)
 		return SUCCESS;
-	pr_notice("arcmsr: executing bus reset eh.....num_resets = %d,"
+	pr_yestice("arcmsr: executing bus reset eh.....num_resets = %d,"
 		" num_aborts = %d \n", acb->num_resets, acb->num_aborts);
 	acb->num_resets++;
 
 	if (acb->acb_flags & ACB_F_BUS_RESET) {
 		long timeout;
-		pr_notice("arcmsr: there is a bus reset eh proceeding...\n");
+		pr_yestice("arcmsr: there is a bus reset eh proceeding...\n");
 		timeout = wait_event_timeout(wait_q, (acb->acb_flags
 			& ACB_F_BUS_RESET) == 0, 220 * HZ);
 		if (timeout)
@@ -4393,9 +4393,9 @@ wait_reset_done:
 		if (arcmsr_reset_in_progress(acb)) {
 			if (retry_count > ARCMSR_RETRYCOUNT) {
 				acb->fw_flag = FW_DEADLOCK;
-				pr_notice("arcmsr%d: waiting for hw bus reset"
+				pr_yestice("arcmsr%d: waiting for hw bus reset"
 					" return, RETRY TERMINATED!!\n",
-					acb->host->host_no);
+					acb->host->host_yes);
 				return FAILED;
 			}
 			retry_count++;
@@ -4409,7 +4409,7 @@ wait_reset_done:
 			msecs_to_jiffies(6 * HZ));
 		acb->acb_flags &= ~ACB_F_BUS_RESET;
 		rtn = SUCCESS;
-		pr_notice("arcmsr: scsi bus reset eh returns with success\n");
+		pr_yestice("arcmsr: scsi bus reset eh returns with success\n");
 	} else {
 		acb->acb_flags &= ~ACB_F_BUS_RESET;
 		atomic_set(&acb->rq_map_token, 16);
@@ -4442,7 +4442,7 @@ static int arcmsr_abort(struct scsi_cmnd *cmd)
 		return SUCCESS;
 	printk(KERN_NOTICE
 		"arcmsr%d: abort device command of scsi id = %d lun = %d\n",
-		acb->host->host_no, cmd->device->id, (u32)cmd->device->lun);
+		acb->host->host_yes, cmd->device->id, (u32)cmd->device->lun);
 	acb->acb_flags |= ACB_F_ABORT;
 	acb->num_aborts++;
 	/*
@@ -4507,7 +4507,7 @@ static const char *arcmsr_info(struct Scsi_Host *host)
 		type = "SAS/SATA";
 		break;
 	default:
-		type = "unknown";
+		type = "unkyeswn";
 		raid6 =	0;
 		break;
 	}

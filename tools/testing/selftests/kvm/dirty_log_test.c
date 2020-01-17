@@ -78,7 +78,7 @@ static uint64_t guest_test_phys_mem;
 
 /*
  * Guest virtual memory offset of the testing memory slot.
- * Must not conflict with identity mapped test code.
+ * Must yest conflict with identity mapped test code.
  */
 static uint64_t guest_test_virt_mem = DEFAULT_GUEST_TEST_MEM;
 
@@ -223,7 +223,7 @@ static void vm_dirty_log_verify(unsigned long *bmap)
 			 *     "iteration-1")
 			 * (3) get dirty log for "iteration-1"; we'll
 			 *     see that page P bit is set (dirtied),
-			 *     and not set the bit in host_bmap_track
+			 *     and yest set the bit in host_bmap_track
 			 * (4) increase loop count to "iteration"
 			 *     (which is current iteration)
 			 * (5) get dirty log for current iteration,
@@ -275,7 +275,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	 * We reserve page table for 2 times of extra dirty mem which
 	 * will definitely cover the original (1G+) test range.  Here
 	 * we do the calculation with 4K page size which is the
-	 * smallest so the page number will be enough for all archs
+	 * smallest so the page number will be eyesugh for all archs
 	 * (e.g., 64K page size guest will need even less memory for
 	 * page tables).
 	 */
@@ -286,7 +286,7 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	guest_page_size = vm_get_page_size(vm);
 	/*
 	 * A little more than 1G of guest page sized pages.  Cover the
-	 * case where the size is not aligned to 64 pages.
+	 * case where the size is yest aligned to 64 pages.
 	 */
 	guest_num_pages = (1ul << (DIRTY_MEM_BITS -
 				   vm_get_page_shift(vm))) + 16;
@@ -439,7 +439,7 @@ int main(int argc, char *argv[])
 
 #ifdef USE_CLEAR_DIRTY_LOG
 	if (!kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2)) {
-		fprintf(stderr, "KVM_CLEAR_DIRTY_LOG not available, skipping tests\n");
+		fprintf(stderr, "KVM_CLEAR_DIRTY_LOG yest available, skipping tests\n");
 		exit(KSFT_SKIP);
 	}
 #endif
@@ -504,7 +504,7 @@ int main(int argc, char *argv[])
 		if (!vm_guest_mode_params[i].enabled)
 			continue;
 		TEST_ASSERT(vm_guest_mode_params[i].supported,
-			    "Guest mode ID %d (%s) not supported.",
+			    "Guest mode ID %d (%s) yest supported.",
 			    i, vm_guest_mode_string(i));
 		run_test(i, iterations, interval, phys_offset);
 	}

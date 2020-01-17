@@ -162,7 +162,7 @@ int set_mode(u16 mode)
 	if (mode & VIDEO_RECALC)
 		vga_recalc_vertical();
 
-	/* Save the canonical mode number for the kernel, not
+	/* Save the cayesnical mode number for the kernel, yest
 	   an alias, size specification or menu position */
 #ifndef _WAKEUP
 	boot_params.hdr.vid_mode = real_mode;

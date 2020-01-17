@@ -10,7 +10,7 @@
 #include <linux/io.h>
 #include <linux/bitops.h>
 #include <linux/of_address.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cpu.h>
 #include <linux/syscore_ops.h>
 #include <linux/reboot.h>
@@ -122,7 +122,7 @@ void b15_flush_##name(void)					\
 	spin_unlock(&rac_lock);					\
 }
 
-#define nobarrier
+#define yesbarrier
 
 /* The readahead cache present in the Brahma-B15 CPU is a special piece of
  * hardware after the integrated L2 cache of the B15 CPU complex whose purpose
@@ -136,11 +136,11 @@ void b15_flush_##name(void)					\
  * cache maintenance operations: ICIMVAU, DCIMVAC, DCCMVAC, DCCMVAU and
  * DCCIMVAC.
  *
- * It is however not transparent for the following cache maintenance
+ * It is however yest transparent for the following cache maintenance
  * operations: DCISW, DCCSW, DCCISW, ICIALLUIS and ICIALLU which is precisely
  * what we are patching here with our BUILD_RAC_CACHE_OP here.
  */
-BUILD_RAC_CACHE_OP(kern_cache_all, nobarrier);
+BUILD_RAC_CACHE_OP(kern_cache_all, yesbarrier);
 
 static void b15_rac_enable(void)
 {
@@ -154,13 +154,13 @@ static void b15_rac_enable(void)
 	__b15_rac_enable(enable);
 }
 
-static int b15_rac_reboot_notifier(struct notifier_block *nb,
+static int b15_rac_reboot_yestifier(struct yestifier_block *nb,
 				   unsigned long action,
 				   void *data)
 {
-	/* During kexec, we are not yet migrated on the boot CPU, so we need to
+	/* During kexec, we are yest yet migrated on the boot CPU, so we need to
 	 * make sure we are SMP safe here. Once the RAC is disabled, flag it as
-	 * suspended such that the hotplug notifier returns early.
+	 * suspended such that the hotplug yestifier returns early.
 	 */
 	if (action == SYS_RESTART) {
 		spin_lock(&rac_lock);
@@ -173,8 +173,8 @@ static int b15_rac_reboot_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block b15_rac_reboot_nb = {
-	.notifier_call	= b15_rac_reboot_notifier,
+static struct yestifier_block b15_rac_reboot_nb = {
+	.yestifier_call	= b15_rac_reboot_yestifier,
 };
 
 /* The CPU hotplug case is the most interesting one, we basically need to make
@@ -185,7 +185,7 @@ static struct notifier_block b15_rac_reboot_nb = {
  * Once this CPU is marked dead, we can safely re-enable the RAC for the
  * remaining CPUs in the system which are still online.
  *
- * Offlining a CPU is the problematic case, onlining a CPU is not much of an
+ * Offlining a CPU is the problematic case, onlining a CPU is yest much of an
  * issue since the CPU and its cache-level hierarchy will start filling with
  * the RAC disabled, so L1 and L2 only.
  *
@@ -201,14 +201,14 @@ static struct notifier_block b15_rac_reboot_nb = {
  *      cpuhp_setup_state_*()
  *      ...
  *      set RAC_ENABLED
- *   However, there is no hotplug activity based on the Linux booting procedure.
+ *   However, there is yes hotplug activity based on the Linux booting procedure.
  *
  * Since we have to disable RAC for all cores, we keep RAC on as long as as
  * possible (disable it as late as possible) to gain the cache benefit.
  *
  * Thus, dying/dead states are chosen here
  *
- * We are choosing not do disable the RAC on a per-CPU basis, here, if we did
+ * We are choosing yest do disable the RAC on a per-CPU basis, here, if we did
  * we would want to consider disabling it as early as possible to benefit the
  * other active CPUs.
  */
@@ -216,7 +216,7 @@ static struct notifier_block b15_rac_reboot_nb = {
 /* Running on the dying CPU */
 static int b15_rac_dying_cpu(unsigned int cpu)
 {
-	/* During kexec/reboot, the RAC is disabled via the reboot notifier
+	/* During kexec/reboot, the RAC is disabled via the reboot yestifier
 	 * return early here.
 	 */
 	if (test_bit(RAC_SUSPENDED, &b15_rac_flags))
@@ -235,10 +235,10 @@ static int b15_rac_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-/* Running on a non-dying CPU */
+/* Running on a yesn-dying CPU */
 static int b15_rac_dead_cpu(unsigned int cpu)
 {
-	/* During kexec/reboot, the RAC is disabled via the reboot notifier
+	/* During kexec/reboot, the RAC is disabled via the reboot yestifier
 	 * return early here.
 	 */
 	if (test_bit(RAC_SUSPENDED, &b15_rac_flags))
@@ -261,7 +261,7 @@ static int b15_rac_suspend(void)
 	 * implementation to fallback to the regular ARMv7 calls.
 	 *
 	 * We are guaranteed to be running on the boot CPU at this point and
-	 * with every other CPU quiesced, so setting RAC_SUSPENDED is not racy
+	 * with every other CPU quiesced, so setting RAC_SUSPENDED is yest racy
 	 * here.
 	 */
 	rac_config0_reg = b15_rac_disable_and_flush();
@@ -275,7 +275,7 @@ static void b15_rac_resume(void)
 	/* Coming out of a S3 suspend/resume cycle, the read-ahead cache
 	 * register RAC_CONFIG0_REG will be restored to its default value, make
 	 * sure we re-enable it and set the enable flag, we are also guaranteed
-	 * to run on the boot CPU, so not racy again.
+	 * to run on the boot CPU, so yest racy again.
 	 */
 	__b15_rac_enable(rac_config0_reg);
 	clear_bit(RAC_SUSPENDED, &b15_rac_flags);
@@ -288,11 +288,11 @@ static struct syscore_ops b15_rac_syscore_ops = {
 
 static int __init b15_rac_init(void)
 {
-	struct device_node *dn, *cpu_dn;
+	struct device_yesde *dn, *cpu_dn;
 	int ret = 0, cpu;
 	u32 reg, en_mask = 0;
 
-	dn = of_find_compatible_node(NULL, NULL, "brcm,brcmstb-cpu-biu-ctrl");
+	dn = of_find_compatible_yesde(NULL, NULL, "brcm,brcmstb-cpu-biu-ctrl");
 	if (!dn)
 		return -ENODEV;
 
@@ -306,7 +306,7 @@ static int __init b15_rac_init(void)
 		goto out;
 	}
 
-	cpu_dn = of_get_cpu_node(0, NULL);
+	cpu_dn = of_get_cpu_yesde(0, NULL);
 	if (!cpu_dn) {
 		ret = -ENODEV;
 		goto out;
@@ -318,27 +318,27 @@ static int __init b15_rac_init(void)
 		rac_flush_offset = B53_RAC_FLUSH_REG;
 	else {
 		pr_err("Unsupported CPU\n");
-		of_node_put(cpu_dn);
+		of_yesde_put(cpu_dn);
 		ret = -EINVAL;
 		goto out;
 	}
-	of_node_put(cpu_dn);
+	of_yesde_put(cpu_dn);
 
-	ret = register_reboot_notifier(&b15_rac_reboot_nb);
+	ret = register_reboot_yestifier(&b15_rac_reboot_nb);
 	if (ret) {
-		pr_err("failed to register reboot notifier\n");
+		pr_err("failed to register reboot yestifier\n");
 		iounmap(b15_rac_base);
 		goto out;
 	}
 
 	if (IS_ENABLED(CONFIG_HOTPLUG_CPU)) {
-		ret = cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CACHE_B15_RAC_DEAD,
+		ret = cpuhp_setup_state_yescalls(CPUHP_AP_ARM_CACHE_B15_RAC_DEAD,
 					"arm/cache-b15-rac:dead",
 					NULL, b15_rac_dead_cpu);
 		if (ret)
 			goto out_unmap;
 
-		ret = cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CACHE_B15_RAC_DYING,
+		ret = cpuhp_setup_state_yescalls(CPUHP_AP_ARM_CACHE_B15_RAC_DYING,
 					"arm/cache-b15-rac:dying",
 					NULL, b15_rac_dying_cpu);
 		if (ret)
@@ -352,7 +352,7 @@ static int __init b15_rac_init(void)
 	reg = __raw_readl(b15_rac_base + RAC_CONFIG0_REG);
 	for_each_possible_cpu(cpu)
 		en_mask |= ((1 << RACPREFDATA_SHIFT) << (cpu * RAC_CPU_SHIFT));
-	WARN(reg & en_mask, "Read-ahead cache not previously disabled\n");
+	WARN(reg & en_mask, "Read-ahead cache yest previously disabled\n");
 
 	b15_rac_enable();
 	set_bit(RAC_ENABLED, &b15_rac_flags);
@@ -364,12 +364,12 @@ static int __init b15_rac_init(void)
 	goto out;
 
 out_cpu_dead:
-	cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CACHE_B15_RAC_DYING);
+	cpuhp_remove_state_yescalls(CPUHP_AP_ARM_CACHE_B15_RAC_DYING);
 out_unmap:
-	unregister_reboot_notifier(&b15_rac_reboot_nb);
+	unregister_reboot_yestifier(&b15_rac_reboot_nb);
 	iounmap(b15_rac_base);
 out:
-	of_node_put(dn);
+	of_yesde_put(dn);
 	return ret;
 }
 arch_initcall(b15_rac_init);

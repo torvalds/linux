@@ -53,7 +53,7 @@ module_exit(__nhc##_exit);
 /**
  * struct lowpan_nhc - hold 6lowpan next hdr compression ifnformation
  *
- * @node: holder for the rbtree.
+ * @yesde: holder for the rbtree.
  * @name: name of the specific next header compression
  * @nexthdr: next header value of the protocol which should be compressed.
  * @nexthdrlen: ipv6 nexthdr len for the reserved space.
@@ -65,7 +65,7 @@ module_exit(__nhc##_exit);
  * @uncompress: callback to do the header uncompression.
  */
 struct lowpan_nhc {
-	struct rb_node	node;
+	struct rb_yesde	yesde;
 	const char	*name;
 	const u8	nexthdr;
 	const size_t	nexthdrlen;

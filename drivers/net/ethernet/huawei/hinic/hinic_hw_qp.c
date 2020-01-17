@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techyeslogies Co., Ltd
  */
 
 #include <linux/kernel.h>
@@ -10,7 +10,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sizes.h>
 #include <linux/atomic.h>
 #include <linux/skbuff.h>
@@ -902,7 +902,7 @@ void hinic_rq_put_wqe(struct hinic_rq *rq, u16 cons_idx,
 
 	status = HINIC_RQ_CQE_STATUS_CLEAR(status, RXDONE);
 
-	/* Rx WQE size is 1 WQEBB, no wq shadow*/
+	/* Rx WQE size is 1 WQEBB, yes wq shadow*/
 	cqe->status = cpu_to_be32(status);
 
 	wmb();          /* clear done flag */

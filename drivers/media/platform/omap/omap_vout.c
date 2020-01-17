@@ -97,7 +97,7 @@ static const struct v4l2_fmtdesc omap_formats[] = {
 	},
 	{
 		/* Note:  V4L2 defines RGB32 as: RGB-8-8-8-8  we use
-		 *  this for RGB24 unpack mode, the last 8 bits are ignored
+		 *  this for RGB24 unpack mode, the last 8 bits are igyesred
 		 * */
 		.pixelformat = V4L2_PIX_FMT_RGB32,
 	},
@@ -733,7 +733,7 @@ static int vidioc_s_fmt_vid_overlay(struct file *file, void *fh,
 			OMAP_DSS_COLOR_KEY_GFX_DST;
 		int enable;
 
-		/* Video1 plane does not support global alpha on OMAP3 */
+		/* Video1 plane does yest support global alpha on OMAP3 */
 		if (ovl->caps & OMAP_DSS_OVL_CAP_GLOBAL_ALPHA)
 			vout->win.global_alpha = win->global_alpha;
 		else
@@ -968,7 +968,7 @@ static int omap_vout_vb2_prepare(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < vout->pix.sizeimage) {
 		v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev,
-			 "%s data will not fit into plane (%lu < %u)\n",
+			 "%s data will yest fit into plane (%lu < %u)\n",
 			__func__, vb2_plane_size(vb, 0), vout->pix.sizeimage);
 		return -EINVAL;
 	}
@@ -1174,7 +1174,7 @@ static int vidioc_s_fbuf(struct file *file, void *fh,
 	if (ovl->manager && ovl->manager->get_manager_info &&
 			ovl->manager->set_manager_info) {
 		ovl->manager->get_manager_info(ovl->manager, &info);
-		/* enable this only if there is no zorder cap */
+		/* enable this only if there is yes zorder cap */
 		if ((ovl->caps & OMAP_DSS_OVL_CAP_ZORDER) == 0)
 			info.partial_alpha_enabled = enable;
 		if (ovl->manager->set_manager_info(ovl->manager, &info))
@@ -1372,7 +1372,7 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 
 	if (!vfd) {
 		printk(KERN_ERR VOUT_NAME
-		       ": could not allocate video device struct\n");
+		       ": could yest allocate video device struct\n");
 		v4l2_ctrl_handler_free(hdl);
 		return -ENOMEM;
 	}
@@ -1385,7 +1385,7 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 	vfd->fops = &omap_vout_fops;
 	vfd->v4l2_dev = &vout->vid_dev->v4l2_dev;
 	vfd->vfl_dir = VFL_DIR_TX;
-	vfd->minor = -1;
+	vfd->miyesr = -1;
 	vfd->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_OUTPUT |
 			   V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
 	mutex_init(&vout->lock);
@@ -1453,7 +1453,7 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 
 		vout = kzalloc(sizeof(struct omap_vout_device), GFP_KERNEL);
 		if (!vout) {
-			dev_err(&pdev->dev, ": could not allocate memory\n");
+			dev_err(&pdev->dev, ": could yest allocate memory\n");
 			return -ENOMEM;
 		}
 
@@ -1502,8 +1502,8 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 		vfd = vout->vfd;
 		if (video_register_device(vfd, VFL_TYPE_GRABBER, -1) < 0) {
 			dev_err(&pdev->dev,
-				": Could not register Video for Linux device\n");
-			vfd->minor = -1;
+				": Could yest register Video for Linux device\n");
+			vfd->miyesr = -1;
 			ret = -ENODEV;
 			goto error2;
 		}
@@ -1511,7 +1511,7 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 
 		dev_info(&pdev->dev,
 			 ": registered and initialized video device %d\n",
-			 vfd->minor);
+			 vfd->miyesr);
 		if (k == (pdev->num_resources - 1))
 			return 0;
 
@@ -1606,7 +1606,7 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 	}
 
 	if (pdev->num_resources == 0) {
-		dev_err(&pdev->dev, "probed for an unknown device\n");
+		dev_err(&pdev->dev, "probed for an unkyeswn device\n");
 		ret = -ENODEV;
 		goto err_dss_init;
 	}
@@ -1622,7 +1622,7 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 		omap_dss_get_device(dssdev);
 
 		if (!dssdev->driver) {
-			dev_warn(&pdev->dev, "no driver for display: %s\n",
+			dev_warn(&pdev->dev, "yes driver for display: %s\n",
 					dssdev->name);
 			omap_dss_put_device(dssdev);
 			continue;
@@ -1632,7 +1632,7 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 	}
 
 	if (vid_dev->num_displays == 0) {
-		dev_err(&pdev->dev, "no displays\n");
+		dev_err(&pdev->dev, "yes displays\n");
 		ret = -EINVAL;
 		goto probe_err0;
 	}
@@ -1655,7 +1655,7 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 		if (dssdev) {
 			def_display = dssdev;
 		} else {
-			dev_warn(&pdev->dev, "cannot find display\n");
+			dev_warn(&pdev->dev, "canyest find display\n");
 			def_display = NULL;
 		}
 		if (def_display) {
@@ -1663,7 +1663,7 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 
 			ret = dssdrv->enable(def_display);
 			if (ret) {
-				/* Here we are not considering a error
+				/* Here we are yest considering a error
 				 *  as display may be enabled by frame
 				 *  buffer driver
 				 */
@@ -1725,7 +1725,7 @@ static struct platform_driver omap_vout_driver = {
 static int __init omap_vout_init(void)
 {
 	if (platform_driver_probe(&omap_vout_driver, omap_vout_probe) != 0) {
-		printk(KERN_ERR VOUT_NAME ":Could not register Video driver\n");
+		printk(KERN_ERR VOUT_NAME ":Could yest register Video driver\n");
 		return -EINVAL;
 	}
 	return 0;

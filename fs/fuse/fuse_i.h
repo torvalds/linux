@@ -38,7 +38,7 @@
 /** Maximum of max_pages received in init_out */
 #define FUSE_MAX_MAX_PAGES 256
 
-/** Bias for fi->writectr, meaning new writepages must not be sent */
+/** Bias for fi->writectr, meaning new writepages must yest be sent */
 #define FUSE_NOWRITE INT_MIN
 
 /** It could be as large as PATH_MAX, but would that have any uses? */
@@ -63,16 +63,16 @@ struct fuse_forget_link {
 	struct fuse_forget_link *next;
 };
 
-/** FUSE inode */
-struct fuse_inode {
-	/** Inode data */
-	struct inode inode;
+/** FUSE iyesde */
+struct fuse_iyesde {
+	/** Iyesde data */
+	struct iyesde iyesde;
 
-	/** Unique ID, which identifies the inode between userspace
+	/** Unique ID, which identifies the iyesde between userspace
 	 * and kernel */
-	u64 nodeid;
+	u64 yesdeid;
 
-	/** Number of lookups on this inode */
+	/** Number of lookups on this iyesde */
 	u64 nlookup;
 
 	/** The request used for sending the FORGET message */
@@ -84,12 +84,12 @@ struct fuse_inode {
 	/* Which attributes are invalid */
 	u32 inval_mask;
 
-	/** The sticky bit in inode->i_mode may have been removed, so
+	/** The sticky bit in iyesde->i_mode may have been removed, so
 	    preserve the original mode */
 	umode_t orig_i_mode;
 
-	/** 64 bit inode number */
-	u64 orig_ino;
+	/** 64 bit iyesde number */
+	u64 orig_iyes;
 
 	/** Version of last attribute change */
 	u64 attr_version;
@@ -140,7 +140,7 @@ struct fuse_inode {
 		} rdc;
 	};
 
-	/** Miscellaneous bits describing inode state */
+	/** Miscellaneous bits describing iyesde state */
 	unsigned long state;
 
 	/** Lock for serializing lookup and readdir for back compatibility*/
@@ -150,7 +150,7 @@ struct fuse_inode {
 	spinlock_t lock;
 };
 
-/** FUSE inode state bits */
+/** FUSE iyesde state bits */
 enum {
 	/** Advise readdirplus  */
 	FUSE_I_ADVISE_RDPLUS,
@@ -178,7 +178,7 @@ struct fuse_file {
 	u64 fh;
 
 	/** Node id of this file */
-	u64 nodeid;
+	u64 yesdeid;
 
 	/** Refcount */
 	refcount_t count;
@@ -186,14 +186,14 @@ struct fuse_file {
 	/** FOPEN_* flags returned by open */
 	u32 open_flags;
 
-	/** Entry on inode's write_files list */
+	/** Entry on iyesde's write_files list */
 	struct list_head write_entry;
 
 	/* Readdir related */
 	struct {
 		/*
 		 * Protects below fields against (crazy) parallel readdir on
-		 * same open file.  Uncontended in the normal case.
+		 * same open file.  Uncontended in the yesrmal case.
 		 */
 		struct mutex lock;
 
@@ -208,8 +208,8 @@ struct fuse_file {
 
 	} readdir;
 
-	/** RB node to be linked on fuse_conn->polled_files */
-	struct rb_node polled_node;
+	/** RB yesde to be linked on fuse_conn->polled_files */
+	struct rb_yesde polled_yesde;
 
 	/** Wait queue head for poll */
 	wait_queue_head_t poll_wait;
@@ -237,13 +237,13 @@ struct fuse_page_desc {
 };
 
 struct fuse_args {
-	uint64_t nodeid;
+	uint64_t yesdeid;
 	uint32_t opcode;
 	unsigned short in_numargs;
 	unsigned short out_numargs;
 	bool force:1;
-	bool noreply:1;
-	bool nocreds:1;
+	bool yesreply:1;
+	bool yescreds:1;
 	bool in_pages:1;
 	bool out_pages:1;
 	bool out_argvar:1;
@@ -263,7 +263,7 @@ struct fuse_args_pages {
 
 #define FUSE_ARGS(args) struct fuse_args args = {}
 
-/** The request IO state (for asynchronous processing) */
+/** The request IO state (for asynchroyesus processing) */
 struct fuse_io_priv {
 	struct kref refcnt;
 	int async;
@@ -297,7 +297,7 @@ struct fuse_io_priv {
  * FR_ABORTED:		the request was aborted
  * FR_INTERRUPTED:	the request has been interrupted
  * FR_LOCKED:		data is being copied to/from the request
- * FR_PENDING:		request is not yet in userspace
+ * FR_PENDING:		request is yest yet in userspace
  * FR_SENT:		request is in userspace, waiting for an answer
  * FR_FINISHED:		request is finished
  * FR_PRIVATE:		request is on private list
@@ -477,9 +477,9 @@ struct fuse_fs_context {
 	bool default_permissions:1;
 	bool allow_other:1;
 	bool destroy:1;
-	bool no_control:1;
-	bool no_force_umount:1;
-	bool no_mount_options:1;
+	bool yes_control:1;
+	bool yes_force_umount:1;
+	bool yes_mount_options:1;
 	unsigned int max_read;
 	unsigned int blksize;
 	const char *subtype;
@@ -575,7 +575,7 @@ struct fuse_conn {
 	/** Connection aborted via sysfs */
 	bool aborted;
 
-	/** Connection failed (version mismatch).  Cannot race with
+	/** Connection failed (version mismatch).  Canyest race with
 	    setting other bitfields since it is only set once in INIT
 	    reply, before any other request, and never cleared */
 	unsigned conn_error:1;
@@ -583,13 +583,13 @@ struct fuse_conn {
 	/** Connection successful.  Only set in INIT */
 	unsigned conn_init:1;
 
-	/** Do readpages asynchronously?  Only set in INIT */
+	/** Do readpages asynchroyesusly?  Only set in INIT */
 	unsigned async_read:1;
 
 	/** Return an unique read error after abort.  Only set in INIT */
 	unsigned abort_err:1;
 
-	/** Do not send separate SETATTR request before open(O_TRUNC)  */
+	/** Do yest send separate SETATTR request before open(O_TRUNC)  */
 	unsigned atomic_o_trunc:1;
 
 	/** Filesystem supports NFS exporting.  Only set in INIT */
@@ -609,53 +609,53 @@ struct fuse_conn {
 
 	/*
 	 * The following bitfields are only for optimization purposes
-	 * and hence races in setting them will not cause malfunction
+	 * and hence races in setting them will yest cause malfunction
 	 */
 
-	/** Is open/release not implemented by fs? */
-	unsigned no_open:1;
+	/** Is open/release yest implemented by fs? */
+	unsigned yes_open:1;
 
-	/** Is opendir/releasedir not implemented by fs? */
-	unsigned no_opendir:1;
+	/** Is opendir/releasedir yest implemented by fs? */
+	unsigned yes_opendir:1;
 
-	/** Is fsync not implemented by fs? */
-	unsigned no_fsync:1;
+	/** Is fsync yest implemented by fs? */
+	unsigned yes_fsync:1;
 
-	/** Is fsyncdir not implemented by fs? */
-	unsigned no_fsyncdir:1;
+	/** Is fsyncdir yest implemented by fs? */
+	unsigned yes_fsyncdir:1;
 
-	/** Is flush not implemented by fs? */
-	unsigned no_flush:1;
+	/** Is flush yest implemented by fs? */
+	unsigned yes_flush:1;
 
-	/** Is setxattr not implemented by fs? */
-	unsigned no_setxattr:1;
+	/** Is setxattr yest implemented by fs? */
+	unsigned yes_setxattr:1;
 
-	/** Is getxattr not implemented by fs? */
-	unsigned no_getxattr:1;
+	/** Is getxattr yest implemented by fs? */
+	unsigned yes_getxattr:1;
 
-	/** Is listxattr not implemented by fs? */
-	unsigned no_listxattr:1;
+	/** Is listxattr yest implemented by fs? */
+	unsigned yes_listxattr:1;
 
-	/** Is removexattr not implemented by fs? */
-	unsigned no_removexattr:1;
+	/** Is removexattr yest implemented by fs? */
+	unsigned yes_removexattr:1;
 
-	/** Are posix file locking primitives not implemented by fs? */
-	unsigned no_lock:1;
+	/** Are posix file locking primitives yest implemented by fs? */
+	unsigned yes_lock:1;
 
-	/** Is access not implemented by fs? */
-	unsigned no_access:1;
+	/** Is access yest implemented by fs? */
+	unsigned yes_access:1;
 
-	/** Is create not implemented by fs? */
-	unsigned no_create:1;
+	/** Is create yest implemented by fs? */
+	unsigned yes_create:1;
 
-	/** Is interrupt not implemented by fs? */
-	unsigned no_interrupt:1;
+	/** Is interrupt yest implemented by fs? */
+	unsigned yes_interrupt:1;
 
-	/** Is bmap not implemented by fs? */
-	unsigned no_bmap:1;
+	/** Is bmap yest implemented by fs? */
+	unsigned yes_bmap:1;
 
-	/** Is poll not implemented by fs? */
-	unsigned no_poll:1;
+	/** Is poll yest implemented by fs? */
+	unsigned yes_poll:1;
 
 	/** Do multi-page cached writes */
 	unsigned big_writes:1;
@@ -663,14 +663,14 @@ struct fuse_conn {
 	/** Don't apply umask to creation modes */
 	unsigned dont_mask:1;
 
-	/** Are BSD file locking primitives not implemented by fs? */
-	unsigned no_flock:1;
+	/** Are BSD file locking primitives yest implemented by fs? */
+	unsigned yes_flock:1;
 
-	/** Is fallocate not implemented by fs? */
-	unsigned no_fallocate:1;
+	/** Is fallocate yest implemented by fs? */
+	unsigned yes_fallocate:1;
 
 	/** Is rename with flags implemented by fs? */
-	unsigned no_rename2:1;
+	unsigned yes_rename2:1;
 
 	/** Use enhanced/automatic page cache invalidation. */
 	unsigned auto_inval_data:1;
@@ -684,23 +684,23 @@ struct fuse_conn {
 	/** Does the filesystem want adaptive readdirplus? */
 	unsigned readdirplus_auto:1;
 
-	/** Does the filesystem support asynchronous direct-IO submission? */
+	/** Does the filesystem support asynchroyesus direct-IO submission? */
 	unsigned async_dio:1;
 
-	/** Is lseek not implemented by fs? */
-	unsigned no_lseek:1;
+	/** Is lseek yest implemented by fs? */
+	unsigned yes_lseek:1;
 
 	/** Does the filesystem support posix acls? */
 	unsigned posix_acl:1;
 
-	/** Check permissions based on the file mode or not? */
+	/** Check permissions based on the file mode or yest? */
 	unsigned default_permissions:1;
 
 	/** Allow other than the mounter user to access the filesystem ? */
 	unsigned allow_other:1;
 
 	/** Does the filesystem support copy_file_range? */
-	unsigned no_copy_file_range:1;
+	unsigned yes_copy_file_range:1;
 
 	/* Send DESTROY request */
 	unsigned int destroy:1;
@@ -708,20 +708,20 @@ struct fuse_conn {
 	/* Delete dentries that have gone stale */
 	unsigned int delete_stale:1;
 
-	/** Do not create entry in fusectl fs */
-	unsigned int no_control:1;
+	/** Do yest create entry in fusectl fs */
+	unsigned int yes_control:1;
 
-	/** Do not allow MNT_FORCE umount */
-	unsigned int no_force_umount:1;
+	/** Do yest allow MNT_FORCE umount */
+	unsigned int yes_force_umount:1;
 
-	/* Do not show mount options */
-	unsigned int no_mount_options:1;
+	/* Do yest show mount options */
+	unsigned int yes_mount_options:1;
 
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 
-	/** Negotiated minor version */
-	unsigned minor;
+	/** Negotiated miyesr version */
+	unsigned miyesr;
 
 	/** Entry on the fuse_conn_list */
 	struct list_head entry;
@@ -759,24 +759,24 @@ static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-static inline struct fuse_conn *get_fuse_conn(struct inode *inode)
+static inline struct fuse_conn *get_fuse_conn(struct iyesde *iyesde)
 {
-	return get_fuse_conn_super(inode->i_sb);
+	return get_fuse_conn_super(iyesde->i_sb);
 }
 
-static inline struct fuse_inode *get_fuse_inode(struct inode *inode)
+static inline struct fuse_iyesde *get_fuse_iyesde(struct iyesde *iyesde)
 {
-	return container_of(inode, struct fuse_inode, inode);
+	return container_of(iyesde, struct fuse_iyesde, iyesde);
 }
 
-static inline u64 get_node_id(struct inode *inode)
+static inline u64 get_yesde_id(struct iyesde *iyesde)
 {
-	return get_fuse_inode(inode)->nodeid;
+	return get_fuse_iyesde(iyesde)->yesdeid;
 }
 
-static inline int invalid_nodeid(u64 nodeid)
+static inline int invalid_yesdeid(u64 yesdeid)
 {
-	return !nodeid || nodeid == FUSE_ROOT_ID;
+	return !yesdeid || yesdeid == FUSE_ROOT_ID;
 }
 
 static inline u64 fuse_get_attr_version(struct fuse_conn *fc)
@@ -791,25 +791,25 @@ extern const struct dentry_operations fuse_dentry_operations;
 extern const struct dentry_operations fuse_root_dentry_operations;
 
 /**
- * Inode to nodeid comparison.
+ * Iyesde to yesdeid comparison.
  */
-int fuse_inode_eq(struct inode *inode, void *_nodeidp);
+int fuse_iyesde_eq(struct iyesde *iyesde, void *_yesdeidp);
 
 /**
- * Get a filled in inode
+ * Get a filled in iyesde
  */
-struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
+struct iyesde *fuse_iget(struct super_block *sb, u64 yesdeid,
 			int generation, struct fuse_attr *attr,
 			u64 attr_valid, u64 attr_version);
 
-int fuse_lookup_name(struct super_block *sb, u64 nodeid, const struct qstr *name,
-		     struct fuse_entry_out *outarg, struct inode **inode);
+int fuse_lookup_name(struct super_block *sb, u64 yesdeid, const struct qstr *name,
+		     struct fuse_entry_out *outarg, struct iyesde **iyesde);
 
 /**
  * Send FORGET command
  */
 void fuse_queue_forget(struct fuse_conn *fc, struct fuse_forget_link *forget,
-		       u64 nodeid, u64 nlookup);
+		       u64 yesdeid, u64 nlookup);
 
 struct fuse_forget_link *fuse_alloc_forget(void);
 
@@ -843,13 +843,13 @@ void fuse_read_args_fill(struct fuse_io_args *ia, struct file *file, loff_t pos,
 /**
  * Send OPEN or OPENDIR request
  */
-int fuse_open_common(struct inode *inode, struct file *file, bool isdir);
+int fuse_open_common(struct iyesde *iyesde, struct file *file, bool isdir);
 
 struct fuse_file *fuse_file_alloc(struct fuse_conn *fc);
 void fuse_file_free(struct fuse_file *ff);
-void fuse_finish_open(struct inode *inode, struct file *file);
+void fuse_finish_open(struct iyesde *iyesde, struct file *file);
 
-void fuse_sync_release(struct fuse_inode *fi, struct fuse_file *ff, int flags);
+void fuse_sync_release(struct fuse_iyesde *fi, struct fuse_file *ff, int flags);
 
 /**
  * Send RELEASE or RELEASEDIR request
@@ -865,36 +865,36 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 /**
  * Notify poll wakeup
  */
-int fuse_notify_poll_wakeup(struct fuse_conn *fc,
-			    struct fuse_notify_poll_wakeup_out *outarg);
+int fuse_yestify_poll_wakeup(struct fuse_conn *fc,
+			    struct fuse_yestify_poll_wakeup_out *outarg);
 
 /**
  * Initialize file operations on a regular file
  */
-void fuse_init_file_inode(struct inode *inode);
+void fuse_init_file_iyesde(struct iyesde *iyesde);
 
 /**
- * Initialize inode operations on regular files and special files
+ * Initialize iyesde operations on regular files and special files
  */
-void fuse_init_common(struct inode *inode);
+void fuse_init_common(struct iyesde *iyesde);
 
 /**
- * Initialize inode and file operations on a directory
+ * Initialize iyesde and file operations on a directory
  */
-void fuse_init_dir(struct inode *inode);
+void fuse_init_dir(struct iyesde *iyesde);
 
 /**
- * Initialize inode operations on a symlink
+ * Initialize iyesde operations on a symlink
  */
-void fuse_init_symlink(struct inode *inode);
+void fuse_init_symlink(struct iyesde *iyesde);
 
 /**
- * Change attributes of an inode
+ * Change attributes of an iyesde
  */
-void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
+void fuse_change_attributes(struct iyesde *iyesde, struct fuse_attr *attr,
 			    u64 attr_valid, u64 attr_version);
 
-void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
+void fuse_change_attributes_common(struct iyesde *iyesde, struct fuse_attr *attr,
 				   u64 attr_valid);
 
 /**
@@ -927,13 +927,13 @@ void fuse_abort_conn(struct fuse_conn *fc);
 void fuse_wait_aborted(struct fuse_conn *fc);
 
 /**
- * Invalidate inode attributes
+ * Invalidate iyesde attributes
  */
-void fuse_invalidate_attr(struct inode *inode);
+void fuse_invalidate_attr(struct iyesde *iyesde);
 
 void fuse_invalidate_entry_cache(struct dentry *entry);
 
-void fuse_invalidate_atime(struct inode *inode);
+void fuse_invalidate_atime(struct iyesde *iyesde);
 
 u64 entry_attr_timeout(struct fuse_entry_out *o);
 void fuse_change_entry_timeout(struct dentry *entry, struct fuse_entry_out *o);
@@ -970,9 +970,9 @@ int fuse_fill_super_common(struct super_block *sb, struct fuse_fs_context *ctx);
 /**
  * Disassociate fuse connection from superblock and kill the superblock
  *
- * Calls kill_anon_super(), do not use with bdev mounts.
+ * Calls kill_ayesn_super(), do yest use with bdev mounts.
  */
-void fuse_kill_sb_anon(struct super_block *sb);
+void fuse_kill_sb_ayesn(struct super_block *sb);
 
 /**
  * Add connection to control filesystem
@@ -998,35 +998,35 @@ int fuse_allow_current_process(struct fuse_conn *fc);
 
 u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id);
 
-void fuse_update_ctime(struct inode *inode);
+void fuse_update_ctime(struct iyesde *iyesde);
 
-int fuse_update_attributes(struct inode *inode, struct file *file);
+int fuse_update_attributes(struct iyesde *iyesde, struct file *file);
 
-void fuse_flush_writepages(struct inode *inode);
+void fuse_flush_writepages(struct iyesde *iyesde);
 
-void fuse_set_nowrite(struct inode *inode);
-void fuse_release_nowrite(struct inode *inode);
+void fuse_set_yeswrite(struct iyesde *iyesde);
+void fuse_release_yeswrite(struct iyesde *iyesde);
 
 /**
- * File-system tells the kernel to invalidate cache for the given node id.
+ * File-system tells the kernel to invalidate cache for the given yesde id.
  */
-int fuse_reverse_inval_inode(struct super_block *sb, u64 nodeid,
+int fuse_reverse_inval_iyesde(struct super_block *sb, u64 yesdeid,
 			     loff_t offset, loff_t len);
 
 /**
  * File-system tells the kernel to invalidate parent attributes and
  * the dentry matching parent/name.
  *
- * If the child_nodeid is non-zero and:
- *    - matches the inode number for the dentry matching parent/name,
- *    - is not a mount point
+ * If the child_yesdeid is yesn-zero and:
+ *    - matches the iyesde number for the dentry matching parent/name,
+ *    - is yest a mount point
  *    - is a file or oan empty directory
  * then the dentry is unhashed (d_delete()).
  */
-int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
-			     u64 child_nodeid, struct qstr *name);
+int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_yesdeid,
+			     u64 child_yesdeid, struct qstr *name);
 
-int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
+int fuse_do_open(struct fuse_conn *fc, u64 yesdeid, struct file *file,
 		 bool isdir);
 
 /**
@@ -1036,7 +1036,7 @@ int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 /** If set, it is WRITE; otherwise - READ */
 #define FUSE_DIO_WRITE (1 << 0)
 
-/** CUSE pass fuse_direct_io() a file which f_mapping->host is not from FUSE */
+/** CUSE pass fuse_direct_io() a file which f_mapping->host is yest from FUSE */
 #define FUSE_DIO_CUSE  (1 << 1)
 
 ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
@@ -1046,34 +1046,34 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 long fuse_ioctl_common(struct file *file, unsigned int cmd,
 		       unsigned long arg, unsigned int flags);
 __poll_t fuse_file_poll(struct file *file, poll_table *wait);
-int fuse_dev_release(struct inode *inode, struct file *file);
+int fuse_dev_release(struct iyesde *iyesde, struct file *file);
 
-bool fuse_write_update_size(struct inode *inode, loff_t pos);
+bool fuse_write_update_size(struct iyesde *iyesde, loff_t pos);
 
-int fuse_flush_times(struct inode *inode, struct fuse_file *ff);
-int fuse_write_inode(struct inode *inode, struct writeback_control *wbc);
+int fuse_flush_times(struct iyesde *iyesde, struct fuse_file *ff);
+int fuse_write_iyesde(struct iyesde *iyesde, struct writeback_control *wbc);
 
 int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 		    struct file *file);
 
 void fuse_set_initialized(struct fuse_conn *fc);
 
-void fuse_unlock_inode(struct inode *inode, bool locked);
-bool fuse_lock_inode(struct inode *inode);
+void fuse_unlock_iyesde(struct iyesde *iyesde, bool locked);
+bool fuse_lock_iyesde(struct iyesde *iyesde);
 
-int fuse_setxattr(struct inode *inode, const char *name, const void *value,
+int fuse_setxattr(struct iyesde *iyesde, const char *name, const void *value,
 		  size_t size, int flags);
-ssize_t fuse_getxattr(struct inode *inode, const char *name, void *value,
+ssize_t fuse_getxattr(struct iyesde *iyesde, const char *name, void *value,
 		      size_t size);
 ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size);
-int fuse_removexattr(struct inode *inode, const char *name);
+int fuse_removexattr(struct iyesde *iyesde, const char *name);
 extern const struct xattr_handler *fuse_xattr_handlers[];
 extern const struct xattr_handler *fuse_acl_xattr_handlers[];
-extern const struct xattr_handler *fuse_no_acl_xattr_handlers[];
+extern const struct xattr_handler *fuse_yes_acl_xattr_handlers[];
 
 struct posix_acl;
-struct posix_acl *fuse_get_acl(struct inode *inode, int type);
-int fuse_set_acl(struct inode *inode, struct posix_acl *acl, int type);
+struct posix_acl *fuse_get_acl(struct iyesde *iyesde, int type);
+int fuse_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type);
 
 
 /* readdir.c */

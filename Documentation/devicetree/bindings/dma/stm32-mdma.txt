@@ -72,10 +72,10 @@ a phandle to the MDMA controller plus the following five integer cells:
 	0x01: Each MDMA request triggers a block transfer (max 64K bytes)
 	0x10: Each MDMA request triggers a repeated block transfer
 	0x11: Each MDMA request triggers a linked list transfer
-4. A 32bit value specifying the register to be used to acknowledge the request
-   if no HW ack signal is used by the MDMA client
-5. A 32bit mask specifying the value to be written to acknowledge the request
-   if no HW ack signal is used by the MDMA client
+4. A 32bit value specifying the register to be used to ackyeswledge the request
+   if yes HW ack signal is used by the MDMA client
+5. A 32bit mask specifying the value to be written to ackyeswledge the request
+   if yes HW ack signal is used by the MDMA client
 
 Example:
 

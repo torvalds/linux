@@ -49,8 +49,8 @@ enum snic_io_type {
 	/*
 	 * Misc Request types
 	 */
-	SNIC_MSG_ACK = 0x80,		/* Ack: snic_notify_msg */
-	SNIC_MSG_ASYNC_EVNOTIFY,	/* Asynchronous Event Notification */
+	SNIC_MSG_ACK = 0x80,		/* Ack: snic_yestify_msg */
+	SNIC_MSG_ASYNC_EVNOTIFY,	/* Asynchroyesus Event Notification */
 }; /* end of enum snic_io_type */
 
 
@@ -66,9 +66,9 @@ enum snic_io_status {
 	 */
 	SNIC_STAT_INVALID_HDR,	/* header contains invalid data */
 	SNIC_STAT_OUT_OF_RES,	/* out of resources to complete request */
-	SNIC_STAT_INVALID_PARM,	/* some parameter in request is not valid */
-	SNIC_STAT_REQ_NOT_SUP,	/* req type is not supported */
-	SNIC_STAT_IO_NOT_FOUND,	/* requested IO was not found */
+	SNIC_STAT_INVALID_PARM,	/* some parameter in request is yest valid */
+	SNIC_STAT_REQ_NOT_SUP,	/* req type is yest supported */
+	SNIC_STAT_IO_NOT_FOUND,	/* requested IO was yest found */
 
 	/*
 	 * Once a request is processed, the fw will usually return
@@ -87,7 +87,7 @@ enum snic_io_status {
 	SNIC_STAT_DEV_OFFLINE,		/* req sent to offline device */
 	SNIC_STAT_NO_BOOTLUN,
 	SNIC_STAT_SCSI_ERR,		/* SCSI error returned by Target. */
-	SNIC_STAT_NOT_READY,		/* sNIC Subsystem is not ready */
+	SNIC_STAT_NOT_READY,		/* sNIC Subsystem is yest ready */
 	SNIC_STAT_FATAL_ERROR,		/* sNIC is in unrecoverable state */
 }; /* end of enum snic_io_status */
 
@@ -159,7 +159,7 @@ struct snic_exch_ver_req {
  * HBA Capabilities
  * Bit 1: Reserved.
  * Bit 2: Dynamic Discovery of LUNs.
- * Bit 3: Async event notifications on on tgt online/offline events.
+ * Bit 3: Async event yestifications on on tgt online/offline events.
  * Bit 4: IO timeout support in FW.
  * Bit 5-31: Reserved.
  */
@@ -369,11 +369,11 @@ struct snic_hba_reset_cmpl {
 };
 
 /*
- * snic_notify_msg: firmware -> host response
+ * snic_yestify_msg: firmware -> host response
  *
- * Used by firmware to notify host of the last work queue entry received
+ * Used by firmware to yestify host of the last work queue entry received
  */
-struct snic_notify_msg {
+struct snic_yestify_msg {
 	__le32	wqe_num;	/* wq entry number */
 	u8	flags;		/* flags, macros */
 	u8	_resvd[4];
@@ -381,11 +381,11 @@ struct snic_notify_msg {
 
 
 #define SNIC_EVDATA_LEN		24	/* in bytes */
-/* snic_async_evnotify: firmware -> host notification
+/* snic_async_evyestify: firmware -> host yestification
  *
- * Used by firmware to notify the host about configuration/state changes
+ * Used by firmware to yestify the host about configuration/state changes
  */
-struct snic_async_evnotify {
+struct snic_async_evyestify {
 	u8	FLS_EVENT_DESC;
 	u8	vnic;			/* vnic id */
 	u8	_resvd[2];
@@ -477,18 +477,18 @@ struct snic_fw_req {
 		/* hba reset response */
 		struct snic_hba_reset_cmpl	reset_cmpl;
 
-		/* notify message */
-		struct snic_notify_msg		ack;
+		/* yestify message */
+		struct snic_yestify_msg		ack;
 
-		/* async notification event */
-		struct snic_async_evnotify	async_ev;
+		/* async yestification event */
+		struct snic_async_evyestify	async_ev;
 
 	} u;
 }; /* end of snic_fw_req structure */
 
 /*
  * Auxillary macro to verify specific snic req/cmpl structures
- * to ensure that it will be aligned to 64 bit, and not using
+ * to ensure that it will be aligned to 64 bit, and yest using
  * color bit field
  */
 #define VERIFY_REQ_SZ(x)

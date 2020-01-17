@@ -75,7 +75,7 @@ u8 MRateToHwRate(u8 rate)
 	u8 ret = DESC_RATE1M;
 
 	switch (rate) {
-		/*  CCK and OFDM non-HT rates */
+		/*  CCK and OFDM yesn-HT rates */
 	case IEEE80211_CCK_RATE_1MB:
 		ret = DESC_RATE1M;
 		break;

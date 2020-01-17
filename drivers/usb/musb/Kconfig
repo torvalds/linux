@@ -21,7 +21,7 @@ config USB_MUSB_HDRC
 
 	  Allwinner SoCs using this IP include A10, A13, A20, ...
 
-	  If you do not know what this is, please say N.
+	  If you do yest kyesw what this is, please say N.
 
 	  To compile this driver as a module, choose M here; the
 	  module will be called "musb-hdrc".
@@ -125,9 +125,9 @@ config MUSB_PIO_ONLY
 	bool 'Disable DMA (always use PIO)'
 	help
 	  All data is copied between memory and FIFO by the CPU.
-	  DMA controllers are ignored.
+	  DMA controllers are igyesred.
 
-	  Do not choose this unless DMA support for your SOC or board
+	  Do yest choose this unless DMA support for your SOC or board
 	  is unavailable (or unstable).  When DMA is enabled at compile time,
 	  you can still disable it at run time using the "use_dma=n" module
 	  parameter.

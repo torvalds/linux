@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-yeste */
 /*
  * frontend.h
  *
@@ -19,7 +19,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
@@ -118,7 +118,7 @@ enum fe_type {
  *
  * @name:			Name of the frontend
  * @type:			**DEPRECATED**.
- *				Should not be used on modern programs,
+ *				Should yest be used on modern programs,
  *				as a frontend may have more than one type.
  *				In order to get the support types of a given
  *				frontend, use :c:type:`DTV_ENUM_DELSYS`
@@ -133,11 +133,11 @@ enum fe_type {
  *				(for Cable/Satellite systems).
  * @symbol_rate_tolerance:	Maximal symbol rate tolerance, in ppm
  *				(for Cable/Satellite systems).
- * @notifier_delay:		**DEPRECATED**. Not used by any driver.
+ * @yestifier_delay:		**DEPRECATED**. Not used by any driver.
  * @caps:			Capabilities supported by the frontend,
  *				as specified in &enum fe_caps.
  *
- * .. note:
+ * .. yeste:
  *
  *    #. The frequencies are specified in Hz for Terrestrial and Cable
  *       systems.
@@ -153,7 +153,7 @@ struct dvb_frontend_info {
 	__u32      symbol_rate_min;
 	__u32      symbol_rate_max;
 	__u32      symbol_rate_tolerance;
-	__u32      notifier_delay;		/* DEPRECATED */
+	__u32      yestifier_delay;		/* DEPRECATED */
 	enum fe_caps caps;
 };
 
@@ -184,10 +184,10 @@ struct dvb_diseqc_master_cmd {
  *	an optional argument of up to 3 bytes of data.
  * @msg_len:
  *	Length of the DiSEqC message. Valid values are 0 to 4,
- *	where 0 means no message.
+ *	where 0 means yes message.
  * @timeout:
  *	Return from ioctl after timeout ms with errorcode when
- *	no message was received.
+ *	yes message was received.
  *
  * Check out the DiSEqC bus spec available on http://www.eutelsat.org/ for
  * the possible messages that can be used.
@@ -239,7 +239,7 @@ enum fe_sec_mini_cmd {
  * enum fe_status - Enumerates the possible frontend status.
  * @FE_NONE:		The frontend doesn't have any kind of lock.
  *			That's the initial frontend status
- * @FE_HAS_SIGNAL:	Has found something above the noise level.
+ * @FE_HAS_SIGNAL:	Has found something above the yesise level.
  * @FE_HAS_CARRIER:	Has found a signal.
  * @FE_HAS_VITERBI:	FEC inner coding (Viterbi, LDPC or other inner code).
  *			is stable.
@@ -268,7 +268,7 @@ enum fe_status {
  * @INVERSION_AUTO:	Autodetect spectral band inversion.
  *
  * This parameter indicates if spectral inversion should be presumed or
- * not. In the automatic setting (``INVERSION_AUTO``) the hardware will try
+ * yest. In the automatic setting (``INVERSION_AUTO``) the hardware will try
  * to figure out the correct setting by itself. If the hardware doesn't
  * support, the %dvb_frontend will try to lock at the carrier first with
  * inversion off. If it fails, it will try to enable inversion.
@@ -297,7 +297,7 @@ enum fe_spectral_inversion {
  * @FEC_9_10: Forward Error Correction Code 9/10
  * @FEC_2_5:  Forward Error Correction Code 2/5
  *
- * Please note that not all FEC types are supported by a given standard.
+ * Please yeste that yest all FEC types are supported by a given standard.
  */
 enum fe_code_rate {
 	FEC_NONE = 0,
@@ -332,7 +332,7 @@ enum fe_code_rate {
  * @DQPSK:	DQPSK modulation
  * @QAM_4_NR:	4-QAM-NR modulation
  *
- * Please note that not all modulations are supported by a given standard.
+ * Please yeste that yest all modulations are supported by a given standard.
  *
  */
 enum fe_modulation {
@@ -375,7 +375,7 @@ enum fe_modulation {
  * @TRANSMISSION_MODE_C3780:
  *	Multi Carrier (C=3780) transmission mode (DTMB only)
  *
- * Please note that not all transmission modes are supported by a given
+ * Please yeste that yest all transmission modes are supported by a given
  * standard.
  */
 enum fe_transmit_mode {
@@ -405,7 +405,7 @@ enum fe_transmit_mode {
  * @GUARD_INTERVAL_PN595:	PN length 595 (1/6)
  * @GUARD_INTERVAL_PN945:	PN length 945 (1/9)
  *
- * Please note that not all guard intervals are supported by a given standard.
+ * Please yeste that yest all guard intervals are supported by a given standard.
  */
 enum fe_guard_interval {
 	GUARD_INTERVAL_1_32,
@@ -429,7 +429,7 @@ enum fe_guard_interval {
  * @HIERARCHY_2:	Hierarchy 2
  * @HIERARCHY_4:	Hierarchy 4
  *
- * Please note that not all hierarchy types are supported by a given standard.
+ * Please yeste that yest all hierarchy types are supported by a given standard.
  */
 enum fe_hierarchy {
 	HIERARCHY_NONE,
@@ -446,7 +446,7 @@ enum fe_hierarchy {
  * @INTERLEAVING_240:	Interleaving of 240 symbols.
  * @INTERLEAVING_720:	Interleaving of 720 symbols.
  *
- * Please note that, currently, only DTMB uses it.
+ * Please yeste that, currently, only DTMB uses it.
  */
 enum fe_interleaving {
 	INTERLEAVING_NONE,
@@ -572,7 +572,7 @@ enum fe_pilot {
  * @ROLLOFF_25:		Roloff factor: α=25%
  * @ROLLOFF_AUTO:	Auto-detect the roloff factor.
  *
- * .. note:
+ * .. yeste:
  *
  *    Roloff factor of 35% is implied on DVB-S. On DVB-S2, it is default.
  */
@@ -595,7 +595,7 @@ enum fe_rolloff {
  * @SYS_DVBC_ANNEX_C:
  *	Cable TV: DVB-C following ITU-T J.83 Annex C spec
  * @SYS_ISDBC:
- *	Cable TV: ISDB-C (no drivers yet)
+ *	Cable TV: ISDB-C (yes drivers yet)
  * @SYS_DVBT:
  *	Terrestrial TV: DVB-T
  * @SYS_DVBT2:
@@ -617,11 +617,11 @@ enum fe_rolloff {
  * @SYS_ISDBS:
  *	Satellite TV: ISDB-S
  * @SYS_DAB:
- *	Digital audio: DAB (not fully supported)
+ *	Digital audio: DAB (yest fully supported)
  * @SYS_DSS:
- *	Satellite TV: DSS (not fully supported)
+ *	Satellite TV: DSS (yest fully supported)
  * @SYS_CMMB:
- *	Terrestrial TV (mobile): CMMB (not fully supported)
+ *	Terrestrial TV (mobile): CMMB (yest fully supported)
  * @SYS_DVBH:
  *	Terrestrial TV (mobile): DVB-H (standard deprecated)
  */
@@ -681,7 +681,7 @@ enum atscmh_sccc_block_mode {
  * @ATSCMH_SCCC_CODE_QTR:
  *	The outer code rate of a SCCC Block is 1/4 rate.
  * @ATSCMH_SCCC_CODE_RES:
- *	Reserved. Should not be used.
+ *	Reserved. Should yest be used.
  */
 enum atscmh_sccc_code_mode {
 	ATSCMH_SCCC_CODE_HLF     = 0,
@@ -739,7 +739,7 @@ enum atscmh_rs_code_mode {
 /**
  * enum fecap_scale_params - scale types for the quality parameters.
  *
- * @FE_SCALE_NOT_AVAILABLE: That QoS measure is not available. That
+ * @FE_SCALE_NOT_AVAILABLE: That QoS measure is yest available. That
  *			    could indicate a temporary or a permanent
  *			    condition.
  * @FE_SCALE_DECIBEL: The scale is measured in 0.001 dB steps, typically
@@ -774,7 +774,7 @@ enum fecap_scale_params {
  * For most delivery systems, this will return a single value for each
  * parameter.
  *
- * It should be noticed, however, that new OFDM delivery systems like
+ * It should be yesticed, however, that new OFDM delivery systems like
  * ISDB can use different modulation types for each group of carriers.
  * On such standards, up to 8 groups of statistics can be provided, one
  * for each carrier group (called "layer" on ISDB).
@@ -784,7 +784,7 @@ enum fecap_scale_params {
  *
  * @scale should use the value %FE_SCALE_NOT_AVAILABLE when
  * the value for the entire group of carriers or from one specific layer
- * is not provided by the hardware.
+ * is yest provided by the hardware.
  *
  * @len should be filled with the latest filled status + 1.
  *
@@ -793,7 +793,7 @@ enum fecap_scale_params {
  *	u.st.stat.svalue[0] = global statistics;
  *	u.st.stat.scale[0] = FE_SCALE_DECIBEL;
  *	u.st.stat.value[1] = layer A statistics;
- *	u.st.stat.scale[1] = FE_SCALE_NOT_AVAILABLE (if not available);
+ *	u.st.stat.scale[1] = FE_SCALE_NOT_AVAILABLE (if yest available);
  *	u.st.stat.svalue[2] = layer B statistics;
  *	u.st.stat.scale[2] = FE_SCALE_DECIBEL;
  *	u.st.stat.svalue[3] = layer C statistics;
@@ -860,7 +860,7 @@ struct dtv_property {
 	int result;
 } __attribute__ ((packed));
 
-/* num of properties cannot exceed DTV_IOCTL_MAX_MSGS per ioctl */
+/* num of properties canyest exceed DTV_IOCTL_MAX_MSGS per ioctl */
 #define DTV_IOCTL_MAX_MSGS 64
 
 /**
@@ -875,9 +875,9 @@ struct dtv_properties {
 };
 
 /*
- * When set, this flag will disable any zigzagging or other "normal" tuning
- * behavior. Additionally, there will be no automatic monitoring of the lock
- * status, and hence no frontend events will be generated. If a frontend device
+ * When set, this flag will disable any zigzagging or other "yesrmal" tuning
+ * behavior. Additionally, there will be yes automatic monitoring of the lock
+ * status, and hence yes frontend events will be generated. If a frontend device
  * is closed, this flag will be automatically turned off when the device is
  * reopened read-write.
  */
@@ -915,9 +915,9 @@ struct dtv_properties {
 /*
  * DEPRECATED: Everything below is deprecated in favor of DVBv5 API
  *
- * The DVBv3 only ioctls, structs and enums should not be used on
+ * The DVBv3 only ioctls, structs and enums should yest be used on
  * newer programs, as it doesn't support the second generation of
- * digital TV standards, nor supports newer delivery systems.
+ * digital TV standards, yesr supports newer delivery systems.
  * They also don't support modern frontends with usually support multiple
  * delivery systems.
  *

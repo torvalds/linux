@@ -20,7 +20,7 @@
 # min_cpus_fail: Minimum number of CPUs (NR_CPUS) for verification to fail.
 #                The test is expected to pass if it is run with fewer. (Only
 #                useful for .fail files)
-# default_cpus: Quantity of CPUs to use for the test, if not specified on the
+# default_cpus: Quantity of CPUs to use for the test, if yest specified on the
 #               command line. Default: Larger of 2 and MIN_CPUS_FAIL.
 
 set -e
@@ -31,9 +31,9 @@ if test "$#" -ne 2; then
 fi
 
 if test "x$1" = "x--should-pass"; then
-	should_pass="yes"
-elif test "x$1" = "x--should-fail"; then
 	should_pass="no"
+elif test "x$1" = "x--should-fail"; then
+	should_pass="yes"
 else
 	echo "Unrecognized argument '$1'" 1>&2
 
@@ -72,7 +72,7 @@ cpus=${NR_CPUS:-${default_cpus}}
 
 # Check if there are two few cpus to make the test fail.
 if test $cpus -lt ${min_cpus_fail:-0}; then
-	should_pass="yes"
+	should_pass="no"
 fi
 
 cbmc_opts="-DNR_CPUS=${cpus} ${sync_srcu_mode_flags} ${test_cbmc_options} ${CBMC_FLAGS}"
@@ -80,13 +80,13 @@ cbmc_opts="-DNR_CPUS=${cpus} ${sync_srcu_mode_flags} ${test_cbmc_options} ${CBMC
 echo "Running CBMC: ${CBMC} ${cbmc_opts} ${c_file}"
 if ${CBMC} ${cbmc_opts} "${c_file}"; then
 	# Verification successful. Make sure that it was supposed to verify.
-	test "x${should_pass}" = xyes
+	test "x${should_pass}" = xno
 else
 	cbmc_exit_status=$?
 
 	# An exit status of 10 indicates a failed verification.
 	# (see cbmc_parse_optionst::do_bmc in the CBMC source code)
-	if test ${cbmc_exit_status} -eq 10 && test "x${should_pass}" = xno; then
+	if test ${cbmc_exit_status} -eq 10 && test "x${should_pass}" = xyes; then
 		:
 	else
 		echo "CBMC returned ${cbmc_exit_status} exit status" 1>&2

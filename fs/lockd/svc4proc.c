@@ -30,18 +30,18 @@ nlm4svc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 
 	/* nfsd callbacks must have been installed for this procedure */
 	if (!nlmsvc_ops)
-		return nlm_lck_denied_nolocks;
+		return nlm_lck_denied_yeslocks;
 
 	/* Obtain host handle */
 	if (!(host = nlmsvc_lookup_host(rqstp, lock->caller, lock->len))
 	 || (argp->monitor && nsm_monitor(host) < 0))
-		goto no_locks;
+		goto yes_locks;
 	*hostp = host;
 
 	/* Obtain file pointer. Not used by FREE_ALL call. */
 	if (filp != NULL) {
 		if ((error = nlm_lookup_file(rqstp, &file, &lock->fh)) != 0)
-			goto no_locks;
+			goto yes_locks;
 		*filp = file;
 
 		/* Set up the missing parts of the file_lock structure */
@@ -52,17 +52,17 @@ nlm4svc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 		if (!lock->fl.fl_owner) {
 			/* lockowner allocation has failed */
 			nlmsvc_release_host(host);
-			return nlm_lck_denied_nolocks;
+			return nlm_lck_denied_yeslocks;
 		}
 	}
 
 	return 0;
 
-no_locks:
+yes_locks:
 	nlmsvc_release_host(host);
  	if (error)
 		return error;	
-	return nlm_lck_denied_nolocks;
+	return nlm_lck_denied_yeslocks;
 }
 
 /*
@@ -136,7 +136,7 @@ __nlm4svc_proc_lock(struct svc_rqst *rqstp, struct nlm_res *resp)
 	 * NB: We don't retrieve the remote host's state yet.
 	 */
 	if (host->h_nsmstate && host->h_nsmstate != argp->state) {
-		resp->status = nlm_lck_denied_nolocks;
+		resp->status = nlm_lck_denied_yeslocks;
 	} else
 #endif
 
@@ -449,10 +449,10 @@ nlm4svc_proc_free_all(struct svc_rqst *rqstp)
 }
 
 /*
- * SM_NOTIFY: private callback from statd (not part of official NLM proto)
+ * SM_NOTIFY: private callback from statd (yest part of official NLM proto)
  */
 static __be32
-nlm4svc_proc_sm_notify(struct svc_rqst *rqstp)
+nlm4svc_proc_sm_yestify(struct svc_rqst *rqstp)
 {
 	struct nlm_reboot *argp = rqstp->rq_argp;
 
@@ -491,15 +491,15 @@ nlm4svc_proc_granted_res(struct svc_rqst *rqstp)
  * NLM Server procedures.
  */
 
-#define nlm4svc_encode_norep	nlm4svc_encode_void
-#define nlm4svc_decode_norep	nlm4svc_decode_void
+#define nlm4svc_encode_yesrep	nlm4svc_encode_void
+#define nlm4svc_decode_yesrep	nlm4svc_decode_void
 #define nlm4svc_decode_testres	nlm4svc_decode_void
 #define nlm4svc_decode_lockres	nlm4svc_decode_void
 #define nlm4svc_decode_unlockres	nlm4svc_decode_void
 #define nlm4svc_decode_cancelres	nlm4svc_decode_void
 #define nlm4svc_decode_grantedres	nlm4svc_decode_void
 
-#define nlm4svc_proc_none	nlm4svc_proc_null
+#define nlm4svc_proc_yesne	nlm4svc_proc_null
 #define nlm4svc_proc_test_res	nlm4svc_proc_null
 #define nlm4svc_proc_lock_res	nlm4svc_proc_null
 #define nlm4svc_proc_cancel_res	nlm4svc_proc_null
@@ -527,24 +527,24 @@ const struct svc_procedure nlmsvc_procedures4[] = {
   PROC(cancel,		cancargs,	res,		args,	res, Ck+St),
   PROC(unlock,		unlockargs,	res,		args,	res, Ck+St),
   PROC(granted,		testargs,	res,		args,	res, Ck+St),
-  PROC(test_msg,	testargs,	norep,		args,	void, 1),
-  PROC(lock_msg,	lockargs,	norep,		args,	void, 1),
-  PROC(cancel_msg,	cancargs,	norep,		args,	void, 1),
-  PROC(unlock_msg,	unlockargs,	norep,		args,	void, 1),
-  PROC(granted_msg,	testargs,	norep,		args,	void, 1),
-  PROC(test_res,	testres,	norep,		res,	void, 1),
-  PROC(lock_res,	lockres,	norep,		res,	void, 1),
-  PROC(cancel_res,	cancelres,	norep,		res,	void, 1),
-  PROC(unlock_res,	unlockres,	norep,		res,	void, 1),
-  PROC(granted_res,	res,		norep,		res,	void, 1),
+  PROC(test_msg,	testargs,	yesrep,		args,	void, 1),
+  PROC(lock_msg,	lockargs,	yesrep,		args,	void, 1),
+  PROC(cancel_msg,	cancargs,	yesrep,		args,	void, 1),
+  PROC(unlock_msg,	unlockargs,	yesrep,		args,	void, 1),
+  PROC(granted_msg,	testargs,	yesrep,		args,	void, 1),
+  PROC(test_res,	testres,	yesrep,		res,	void, 1),
+  PROC(lock_res,	lockres,	yesrep,		res,	void, 1),
+  PROC(cancel_res,	cancelres,	yesrep,		res,	void, 1),
+  PROC(unlock_res,	unlockres,	yesrep,		res,	void, 1),
+  PROC(granted_res,	res,		yesrep,		res,	void, 1),
   /* statd callback */
-  PROC(sm_notify,	reboot,		void,		reboot,	void, 1),
-  PROC(none,		void,		void,		void,	void, 0),
-  PROC(none,		void,		void,		void,	void, 0),
-  PROC(none,		void,		void,		void,	void, 0),
+  PROC(sm_yestify,	reboot,		void,		reboot,	void, 1),
+  PROC(yesne,		void,		void,		void,	void, 0),
+  PROC(yesne,		void,		void,		void,	void, 0),
+  PROC(yesne,		void,		void,		void,	void, 0),
   PROC(share,		shareargs,	shareres,	args,	res, Ck+St+1),
   PROC(unshare,		shareargs,	shareres,	args,	res, Ck+St+1),
   PROC(nm_lock,		lockargs,	res,		args,	res, Ck+St),
-  PROC(free_all,	notify,		void,		args,	void, 1),
+  PROC(free_all,	yestify,		void,		args,	void, 1),
 
 };

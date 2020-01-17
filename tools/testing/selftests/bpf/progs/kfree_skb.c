@@ -100,7 +100,7 @@ BPF_TRACE_2("tp_btf/kfree_skb", trace_kfree_skb,
 	bpf_printk("cb8_0:%x cb32_0:%x\n", meta.cb8_0, meta.cb32_0);
 
 	if (users != 1 || pkt_data != bpf_htons(0x86dd) || meta.ifindex != 1)
-		/* raw tp ignores return value */
+		/* raw tp igyesres return value */
 		return 0;
 
 	/* send first 72 byte of the packet to user space */

@@ -52,35 +52,35 @@
  *
  *     DramAddr:
  *         A DramAddr is derived from a SysAddr by subtracting an offset that
- *         depends on which node the SysAddr maps to and whether the SysAddr
+ *         depends on which yesde the SysAddr maps to and whether the SysAddr
  *         is within a range affected by memory hoisting.  The DRAM Base
  *         (section 3.4.4.1) and DRAM Limit (section 3.4.4.2) registers
- *         determine which node a SysAddr maps to.
+ *         determine which yesde a SysAddr maps to.
  *
  *         If the DRAM Hole Address Register (DHAR) is enabled and the SysAddr
  *         is within the range of addresses specified by this register, then
  *         a value x from the DHAR is subtracted from the SysAddr to produce a
- *         DramAddr.  Here, x represents the base address for the node that
+ *         DramAddr.  Here, x represents the base address for the yesde that
  *         the SysAddr maps to plus an offset due to memory hoisting.  See
  *         section 3.4.8 and the comments in amd64_get_dram_hole_info() and
  *         sys_addr_to_dram_addr() below for more information.
  *
- *         If the SysAddr is not affected by the DHAR then a value y is
+ *         If the SysAddr is yest affected by the DHAR then a value y is
  *         subtracted from the SysAddr to produce a DramAddr.  Here, y is the
- *         base address for the node that the SysAddr maps to.  See section
+ *         base address for the yesde that the SysAddr maps to.  See section
  *         3.4.4 and the comments in sys_addr_to_dram_addr() below for more
  *         information.
  *
  *     InputAddr:
  *         A DramAddr is translated to an InputAddr before being passed to the
- *         memory controller for the node that the DramAddr is associated
+ *         memory controller for the yesde that the DramAddr is associated
  *         with.  The memory controller then maps the InputAddr to a csrow.
- *         If node interleaving is not in use, then the InputAddr has the same
+ *         If yesde interleaving is yest in use, then the InputAddr has the same
  *         value as the DramAddr.  Otherwise, the InputAddr is produced by
- *         discarding the bits used for node interleaving from the DramAddr.
+ *         discarding the bits used for yesde interleaving from the DramAddr.
  *         See section 3.4.4 for more information.
  *
- *         The memory controller for a given node uses its DRAM CS Base and
+ *         The memory controller for a given yesde uses its DRAM CS Base and
  *         DRAM CS Mask registers to map an InputAddr to a csrow.  See
  *         sections 3.5.4 and 3.5.5 for more information.
  */
@@ -142,7 +142,7 @@
 
 #define dram_rw(pvt, i)			((u8)(pvt->ranges[i].base.lo & 0x3))
 #define dram_intlv_sel(pvt, i)		((u8)((pvt->ranges[i].lim.lo >> 8) & 0x7))
-#define dram_dst_node(pvt, i)		((u8)(pvt->ranges[i].lim.lo & 0x7))
+#define dram_dst_yesde(pvt, i)		((u8)(pvt->ranges[i].lim.lo & 0x7))
 
 #define DHAR				0xf0
 #define dhar_mem_hoist_valid(pvt)	((pvt)->dhar & BIT(1))
@@ -340,12 +340,12 @@ struct amd64_pvt {
 	/* pci_device handles which we utilize */
 	struct pci_dev *F0, *F1, *F2, *F3, *F6;
 
-	u16 mc_node_id;		/* MC index of this MC node */
+	u16 mc_yesde_id;		/* MC index of this MC yesde */
 	u8 fam;			/* CPU family */
 	u8 model;		/* ... model */
 	u8 stepping;		/* ... stepping */
 
-	int ext_model;		/* extended model value of this node */
+	int ext_model;		/* extended model value of this yesde */
 	int channel_count;
 
 	/* Raw registers */
@@ -444,7 +444,7 @@ static inline u8 dct_sel_interleave_addr(struct amd64_pvt *pvt)
 	return	((pvt)->dct_sel_lo >> 6) & 0x3;
 }
 /*
- * per-node ECC settings descriptor
+ * per-yesde ECC settings descriptor
  */
 struct ecc_settings {
 	u32 old_nbctl;
@@ -479,7 +479,7 @@ struct low_ops {
 struct amd64_family_type {
 	const char *ctl_name;
 	u16 f0_id, f1_id, f2_id, f6_id;
-	/* Maximum number of memory controllers per die/node. */
+	/* Maximum number of memory controllers per die/yesde. */
 	u8 max_mcs;
 	struct low_ops ops;
 };

@@ -126,7 +126,7 @@ static int st21nfca_hci_control_se(struct nfc_hci_dev *hdev, u32 se_idx,
 		msecs_to_jiffies(ST21NFCA_SE_TO_HOT_PLUG));
 	info->se_info.se_active = true;
 
-	/* Ignore return value and check in any case the host_list */
+	/* Igyesre return value and check in any case the host_list */
 	wait_for_completion_interruptible(&info->se_info.req_completion);
 
 	r = nfc_hci_get_param(hdev, NFC_HCI_ADMIN_GATE,
@@ -190,7 +190,7 @@ int st21nfca_hci_enable_se(struct nfc_hci_dev *hdev, u32 se_idx)
 	} else if (r < 0) {
 		/*
 		 * The activation tentative failed, the secure element
-		 * is not connected. Remove from the list.
+		 * is yest connected. Remove from the list.
 		 */
 		nfc_remove_se(hdev->ndev, se_idx);
 		return r;
@@ -248,7 +248,7 @@ static void st21nfca_se_wt_timeout(struct timer_list *t)
 	 * within the defined timeout.
 	 * Let's send a reset request as recovery procedure.
 	 * According to the situation, we first try to send a software reset
-	 * to the secure element. If the next command is still not
+	 * to the secure element. If the next command is still yest
 	 * answering in time, we send to the CLF a secure element hardware
 	 * reset request.
 	 */
@@ -288,7 +288,7 @@ static void st21nfca_se_activation_timeout(struct timer_list *t)
 /*
  * Returns:
  * <= 0: driver handled the event, skb consumed
- *    1: driver does not handle the event, please do standard processing
+ *    1: driver does yest handle the event, please do standard processing
  */
 int st21nfca_connectivity_event_received(struct nfc_hci_dev *hdev, u8 host,
 				u8 event, struct sk_buff *skb)

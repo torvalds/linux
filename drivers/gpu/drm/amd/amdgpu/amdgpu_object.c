@@ -18,7 +18,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -105,7 +105,7 @@ static void amdgpu_bo_destroy(struct ttm_buffer_object *tbo)
  * an &amdgpu_bo.
  *
  * Returns:
- * true if the object belongs to &amdgpu_bo, false if not.
+ * true if the object belongs to &amdgpu_bo, false if yest.
  */
 bool amdgpu_bo_is_amdgpu_bo(struct ttm_buffer_object *bo)
 {
@@ -374,7 +374,7 @@ int amdgpu_bo_create_kernel_at(struct amdgpu_device *adev,
 		return r;
 
 	/*
-	 * Remove the original mem node and create a new one at the request
+	 * Remove the original mem yesde and create a new one at the request
 	 * position.
 	 */
 	if (cpu_addr)
@@ -515,7 +515,7 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = (bp->type != ttm_bo_type_kernel),
-		.no_wait_gpu = bp->no_wait_gpu,
+		.yes_wait_gpu = bp->yes_wait_gpu,
 		.resv = bp->resv,
 		.flags = bp->type != ttm_bo_type_kernel ?
 			TTM_OPT_FLAG_ALLOW_RES_EVICT : 0
@@ -872,7 +872,7 @@ void amdgpu_bo_unref(struct amdgpu_bo **bo)
  * pin_count and pin_size accordingly.
  *
  * Pinning means to lock pages in memory along with keeping them at a fixed
- * offset. It is required when a buffer can not be moved, for example, when
+ * offset. It is required when a buffer can yest be moved, for example, when
  * a display buffer is being scanned out.
  *
  * Compared with amdgpu_bo_pin(), this function gives more flexibility on
@@ -895,7 +895,7 @@ int amdgpu_bo_pin_restricted(struct amdgpu_bo *bo, u32 domain,
 	if (WARN_ON_ONCE(min_offset > max_offset))
 		return -EINVAL;
 
-	/* A shared bo cannot be migrated to VRAM */
+	/* A shared bo canyest be migrated to VRAM */
 	if (bo->prime_shared_count) {
 		if (domain & AMDGPU_GEM_DOMAIN_GTT)
 			domain = AMDGPU_GEM_DOMAIN_GTT;
@@ -971,7 +971,7 @@ error:
  * @domain: domain to be pinned to
  *
  * A simple wrapper to amdgpu_bo_pin_restricted().
- * Provides a simpler API for buffers that do not have any strict restrictions
+ * Provides a simpler API for buffers that do yest have any strict restrictions
  * on where a buffer must be located.
  *
  * Returns:
@@ -999,7 +999,7 @@ int amdgpu_bo_unpin(struct amdgpu_bo *bo)
 	int r, i;
 
 	if (WARN_ON_ONCE(!bo->pin_count)) {
-		dev_warn(adev->dev, "%p unpin not necessary\n", bo);
+		dev_warn(adev->dev, "%p unpin yest necessary\n", bo);
 		return 0;
 	}
 	bo->pin_count--;
@@ -1218,7 +1218,7 @@ int amdgpu_bo_set_metadata (struct amdgpu_bo *bo, void *metadata,
  * @metadata_size: size of the returned metadata
  * @flags: flags of the returned metadata
  *
- * Gets buffer object's metadata, its size and flags. buffer_size shall not be
+ * Gets buffer object's metadata, its size and flags. buffer_size shall yest be
  * less than metadata_size.
  * Used via GEM ioctl.
  *
@@ -1249,7 +1249,7 @@ int amdgpu_bo_get_metadata(struct amdgpu_bo *bo, void *buffer,
 }
 
 /**
- * amdgpu_bo_move_notify - notification about a memory move
+ * amdgpu_bo_move_yestify - yestification about a memory move
  * @bo: pointer to a buffer object
  * @evict: if this move is evicting the buffer from the graphics address space
  * @new_mem: new information of the bufer object
@@ -1258,7 +1258,7 @@ int amdgpu_bo_get_metadata(struct amdgpu_bo *bo, void *buffer,
  * bookkeeping.
  * TTM driver callback which is called when ttm moves a buffer.
  */
-void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
+void amdgpu_bo_move_yestify(struct ttm_buffer_object *bo,
 			   bool evict,
 			   struct ttm_mem_reg *new_mem)
 {
@@ -1282,18 +1282,18 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 	if (!new_mem)
 		return;
 
-	/* move_notify is called before move happens */
+	/* move_yestify is called before move happens */
 	trace_amdgpu_bo_move(abo, new_mem->mem_type, old_mem->mem_type);
 }
 
 /**
- * amdgpu_bo_move_notify - notification about a BO being released
+ * amdgpu_bo_move_yestify - yestification about a BO being released
  * @bo: pointer to a buffer object
  *
- * Wipes VRAM buffers whose contents should not be leaked before the
+ * Wipes VRAM buffers whose contents should yest be leaked before the
  * memory is released.
  */
-void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
+void amdgpu_bo_release_yestify(struct ttm_buffer_object *bo)
 {
 	struct dma_fence *fence = NULL;
 	struct amdgpu_bo *abo;
@@ -1307,7 +1307,7 @@ void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
 	if (abo->kfd_bo)
 		amdgpu_amdkfd_unreserve_memory_limit(abo);
 
-	if (bo->mem.mem_type != TTM_PL_VRAM || !bo->mem.mm_node ||
+	if (bo->mem.mem_type != TTM_PL_VRAM || !bo->mem.mm_yesde ||
 	    !(abo->flags & AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE))
 		return;
 
@@ -1323,7 +1323,7 @@ void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
 }
 
 /**
- * amdgpu_bo_fault_reserve_notify - notification about a memory fault
+ * amdgpu_bo_fault_reserve_yestify - yestification about a memory fault
  * @bo: pointer to a buffer object
  *
  * Notifies the driver we are taking a fault on this BO and have reserved it,
@@ -1333,7 +1333,7 @@ void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
  * Returns:
  * 0 for success or a negative error code on failure.
  */
-int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
+int amdgpu_bo_fault_reserve_yestify(struct ttm_buffer_object *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
 	struct ttm_operation_ctx ctx = { false, false };
@@ -1361,7 +1361,7 @@ int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 	if (abo->pin_count > 0)
 		return -EINVAL;
 
-	/* hurrah the memory is not visible ! */
+	/* hurrah the memory is yest visible ! */
 	atomic64_inc(&adev->num_vram_cpu_page_faults);
 	amdgpu_bo_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_VRAM |
 					AMDGPU_GEM_DOMAIN_GTT);
@@ -1410,7 +1410,7 @@ void amdgpu_bo_fence(struct amdgpu_bo *bo, struct dma_fence *fence,
  * @intr: Whether the wait is interruptible
  *
  * Returns:
- * 0 on success, errno otherwise.
+ * 0 on success, erryes otherwise.
  */
 int amdgpu_bo_sync_wait(struct amdgpu_bo *bo, void *owner, bool intr)
 {
@@ -1449,12 +1449,12 @@ u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo)
 }
 
 /**
- * amdgpu_bo_get_preferred_pin_domain - get preferred domain for scanout
+ * amdgpu_bo_get_preferred_pin_domain - get preferred domain for scayesut
  * @adev: amdgpu device object
  * @domain: allowed :ref:`memory domains <amdgpu_memory_domains>`
  *
  * Returns:
- * Which of the allowed domains is preferred for pinning the BO for scanout.
+ * Which of the allowed domains is preferred for pinning the BO for scayesut.
  */
 uint32_t amdgpu_bo_get_preferred_pin_domain(struct amdgpu_device *adev,
 					    uint32_t domain)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -501,8 +501,8 @@ int mlx5e_get_fec_mode(struct mlx5_core_dev *dev, u32 *fec_mode_active,
 
 int mlx5e_set_fec_mode(struct mlx5_core_dev *dev, u8 fec_policy)
 {
-	u8 fec_policy_nofec = BIT(MLX5E_FEC_NOFEC);
-	bool fec_mode_not_supp_in_speed = false;
+	u8 fec_policy_yesfec = BIT(MLX5E_FEC_NOFEC);
+	bool fec_mode_yest_supp_in_speed = false;
 	u32 out[MLX5_ST_SZ_DW(pplm_reg)] = {};
 	u32 in[MLX5_ST_SZ_DW(pplm_reg)] = {};
 	int sz = MLX5_ST_SZ_BYTES(pplm_reg);
@@ -532,16 +532,16 @@ int mlx5e_set_fec_mode(struct mlx5_core_dev *dev, u8 fec_policy)
 					      fec_supported_speeds[i]);
 		} else {
 			/* turn off FEC if supported. Else, leave it the same */
-			if (fec_caps & fec_policy_nofec)
-				mlx5e_fec_admin_field(out, &fec_policy_nofec, 1,
+			if (fec_caps & fec_policy_yesfec)
+				mlx5e_fec_admin_field(out, &fec_policy_yesfec, 1,
 						      fec_supported_speeds[i]);
-			fec_mode_not_supp_in_speed = true;
+			fec_mode_yest_supp_in_speed = true;
 		}
 	}
 
-	if (fec_mode_not_supp_in_speed)
+	if (fec_mode_yest_supp_in_speed)
 		mlx5_core_dbg(dev,
-			      "FEC policy 0x%x is not supported for some speeds",
+			      "FEC policy 0x%x is yest supported for some speeds",
 			      fec_policy);
 
 	return mlx5_core_access_reg(dev, out, sz, out, sz, MLX5_REG_PPLM, 0, 1);

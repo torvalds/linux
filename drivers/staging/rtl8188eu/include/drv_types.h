@@ -95,7 +95,7 @@ struct registry_priv {
 	u8	ifname[16];
 	u8	if2name[16];
 
-	u8	notch_filter;
+	u8	yestch_filter;
 	bool	monitor_enable;
 };
 

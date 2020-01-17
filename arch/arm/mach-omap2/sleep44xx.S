@@ -83,7 +83,7 @@ skip_secure_l1_clean:
 	/*
 	 * Clear the SCTLR.C bit to prevent further data cache
 	 * allocation. Clearing SCTLR.C would make all the data accesses
-	 * strongly ordered and would not hit the cache.
+	 * strongly ordered and would yest hit the cache.
 	 */
 	mrc	p15, 0, r0, c1, c0, 0
 	bic	r0, r0, #(1 << 2)		@ Disable the C bit
@@ -184,7 +184,7 @@ do_WFI:
 
 	/*
 	 * CPU is here when it failed to enter OFF/DORMANT or
-	 * no low power state was attempted.
+	 * yes low power state was attempted.
 	 */
 	mrc	p15, 0, r0, c1, c0, 0
 	tst	r0, #(1 << 2)			@ Check C bit enabled?
@@ -195,7 +195,7 @@ do_WFI:
 	/*
 	 * Ensure the CPU power state is set to NORMAL in
 	 * SCU power state so that CPU is back in coherency.
-	 * In non-coherent mode CPU can lock-up and lead to
+	 * In yesn-coherent mode CPU can lock-up and lead to
 	 * system deadlock.
 	 */
 	mrc	p15, 0, r0, c1, c0, 1
@@ -357,22 +357,22 @@ ENTRY(omap_do_wfi)
 	 * NOPs as per Cortex-A9 pipeline.
 	 */
 	wfi					@ Wait For Interrupt
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	ldmfd	sp!, {pc}
 ppa_zero_params_offset:

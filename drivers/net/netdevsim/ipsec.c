@@ -145,7 +145,7 @@ static int nsim_ipsec_add_sa(struct xfrm_state *xs)
 	}
 
 	if (xs->calg) {
-		netdev_err(dev, "Compression offload not supported\n");
+		netdev_err(dev, "Compression offload yest supported\n");
 		return -EINVAL;
 	}
 
@@ -238,14 +238,14 @@ bool nsim_ipsec_tx(struct netdevsim *ns, struct sk_buff *skb)
 		return true;
 
 	if (unlikely(!sp->len)) {
-		netdev_err(ns->netdev, "no xfrm state len = %d\n",
+		netdev_err(ns->netdev, "yes xfrm state len = %d\n",
 			   sp->len);
 		return false;
 	}
 
 	xs = xfrm_input_state(skb);
 	if (unlikely(!xs)) {
-		netdev_err(ns->netdev, "no xfrm_input_state() xs = %p\n", xs);
+		netdev_err(ns->netdev, "yes xfrm_input_state() xs = %p\n", xs);
 		return false;
 	}
 

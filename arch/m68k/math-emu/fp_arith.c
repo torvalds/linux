@@ -93,9 +93,9 @@ fp_fadd(struct fp_ext *dest, struct fp_ext *src)
 	dest->lowmant = src->lowmant = 0;
 
 	if ((diff = dest->exp - src->exp) > 0)
-		fp_denormalize(src, diff);
+		fp_deyesrmalize(src, diff);
 	else if ((diff = -diff) > 0)
-		fp_denormalize(dest, diff);
+		fp_deyesrmalize(dest, diff);
 
 	if (dest->sign == src->sign) {
 		if (fp_addmant(dest, src))
@@ -157,7 +157,7 @@ fp_fmul(struct fp_ext *dest, struct fp_ext *src)
 
 	fp_dyadic_check(dest, src);
 
-	/* calculate the correct sign now, as it's necessary for infinities */
+	/* calculate the correct sign yesw, as it's necessary for infinities */
 	dest->sign = src->sign ^ dest->sign;
 
 	/* Handle infinities */
@@ -174,8 +174,8 @@ fp_fmul(struct fp_ext *dest, struct fp_ext *src)
 		return dest;
 	}
 
-	/* Of course, as we all know, zero * anything = zero.  You may
-	   not have known that it might be a positive or negative
+	/* Of course, as we all kyesw, zero * anything = zero.  You may
+	   yest have kyeswn that it might be a positive or negative
 	   zero... */
 	if (IS_ZERO(dest) || IS_ZERO(src)) {
 		dest->exp = 0;
@@ -187,18 +187,18 @@ fp_fmul(struct fp_ext *dest, struct fp_ext *src)
 
 	exp = dest->exp + src->exp - 0x3ffe;
 
-	/* shift up the mantissa for denormalized numbers,
+	/* shift up the mantissa for deyesrmalized numbers,
 	   so that the highest bit is set, this makes the
 	   shift of the result below easier */
 	if ((long)dest->mant.m32[0] >= 0)
-		exp -= fp_overnormalize(dest);
+		exp -= fp_overyesrmalize(dest);
 	if ((long)src->mant.m32[0] >= 0)
-		exp -= fp_overnormalize(src);
+		exp -= fp_overyesrmalize(src);
 
-	/* now, do a 64-bit multiply with expansion */
+	/* yesw, do a 64-bit multiply with expansion */
 	fp_multiplymant(&temp, dest, src);
 
-	/* normalize it back to 64 bits and stuff it back into the
+	/* yesrmalize it back to 64 bits and stuff it back into the
 	   destination struct */
 	if ((long)temp.m32[0] > 0) {
 		exp--;
@@ -213,7 +213,7 @@ fp_fmul(struct fp_ext *dest, struct fp_ext *src)
 	dest->exp = exp;
 	if (exp < 0) {
 		fp_set_sr(FPSR_EXC_UNFL);
-		fp_denormalize(dest, -exp);
+		fp_deyesrmalize(dest, -exp);
 	}
 
 	return dest;
@@ -235,7 +235,7 @@ fp_fdiv(struct fp_ext *dest, struct fp_ext *src)
 
 	fp_dyadic_check(dest, src);
 
-	/* calculate the correct sign now, as it's necessary for infinities */
+	/* calculate the correct sign yesw, as it's necessary for infinities */
 	dest->sign = src->sign ^ dest->sign;
 
 	/* Handle infinities */
@@ -274,18 +274,18 @@ fp_fdiv(struct fp_ext *dest, struct fp_ext *src)
 
 	exp = dest->exp - src->exp + 0x3fff;
 
-	/* shift up the mantissa for denormalized numbers,
+	/* shift up the mantissa for deyesrmalized numbers,
 	   so that the highest bit is set, this makes lots
 	   of things below easier */
 	if ((long)dest->mant.m32[0] >= 0)
-		exp -= fp_overnormalize(dest);
+		exp -= fp_overyesrmalize(dest);
 	if ((long)src->mant.m32[0] >= 0)
-		exp -= fp_overnormalize(src);
+		exp -= fp_overyesrmalize(src);
 
-	/* now, do the 64-bit divide */
+	/* yesw, do the 64-bit divide */
 	fp_dividemant(&temp, dest, src);
 
-	/* normalize it back to 64 bits and stuff it back into the
+	/* yesrmalize it back to 64 bits and stuff it back into the
 	   destination struct */
 	if (!temp.m32[0]) {
 		exp--;
@@ -300,7 +300,7 @@ fp_fdiv(struct fp_ext *dest, struct fp_ext *src)
 	dest->exp = exp;
 	if (exp < 0) {
 		fp_set_sr(FPSR_EXC_UNFL);
-		fp_denormalize(dest, -exp);
+		fp_deyesrmalize(dest, -exp);
 	}
 
 	return dest;
@@ -315,7 +315,7 @@ fp_fsglmul(struct fp_ext *dest, struct fp_ext *src)
 
 	fp_dyadic_check(dest, src);
 
-	/* calculate the correct sign now, as it's necessary for infinities */
+	/* calculate the correct sign yesw, as it's necessary for infinities */
 	dest->sign = src->sign ^ dest->sign;
 
 	/* Handle infinities */
@@ -332,8 +332,8 @@ fp_fsglmul(struct fp_ext *dest, struct fp_ext *src)
 		return dest;
 	}
 
-	/* Of course, as we all know, zero * anything = zero.  You may
-	   not have known that it might be a positive or negative
+	/* Of course, as we all kyesw, zero * anything = zero.  You may
+	   yest have kyeswn that it might be a positive or negative
 	   zero... */
 	if (IS_ZERO(dest) || IS_ZERO(src)) {
 		dest->exp = 0;
@@ -357,7 +357,7 @@ fp_fsglmul(struct fp_ext *dest, struct fp_ext *src)
 	dest->exp = exp;
 	if (exp < 0) {
 		fp_set_sr(FPSR_EXC_UNFL);
-		fp_denormalize(dest, -exp);
+		fp_deyesrmalize(dest, -exp);
 	}
 
 	return dest;
@@ -373,7 +373,7 @@ fp_fsgldiv(struct fp_ext *dest, struct fp_ext *src)
 
 	fp_dyadic_check(dest, src);
 
-	/* calculate the correct sign now, as it's necessary for infinities */
+	/* calculate the correct sign yesw, as it's necessary for infinities */
 	dest->sign = src->sign ^ dest->sign;
 
 	/* Handle infinities */
@@ -435,7 +435,7 @@ fp_fsgldiv(struct fp_ext *dest, struct fp_ext *src)
 	dest->exp = exp;
 	if (exp < 0) {
 		fp_set_sr(FPSR_EXC_UNFL);
-		fp_denormalize(dest, -exp);
+		fp_deyesrmalize(dest, -exp);
 	}
 
 	return dest;
@@ -452,7 +452,7 @@ static void fp_roundint(struct fp_ext *dest, int mode)
 	union fp_mant64 oldmant;
 	unsigned long mask;
 
-	if (!fp_normalize_ext(dest))
+	if (!fp_yesrmalize_ext(dest))
 		return;
 
 	/* infinities and zeroes */
@@ -481,17 +481,17 @@ static void fp_roundint(struct fp_ext *dest, int mode)
 	}
 	fp_set_sr(FPSR_EXC_INEX2);
 
-	/* We might want to normalize upwards here... however, since
-	   we know that this is only called on the output of fp_fdiv,
+	/* We might want to yesrmalize upwards here... however, since
+	   we kyesw that this is only called on the output of fp_fdiv,
 	   or with the input to fp_fint or fp_fintrz, and the inputs
-	   to all these functions are either normal or denormalized
-	   (no subnormals allowed!), there's really no need.
+	   to all these functions are either yesrmal or deyesrmalized
+	   (yes subyesrmals allowed!), there's really yes need.
 
 	   In the case of fp_fdiv, observe that 0x80000000 / 0xffff =
 	   0xffff8000, and the same holds for 128-bit / 64-bit. (i.e. the
-	   smallest possible normal dividend and the largest possible normal
-	   divisor will still produce a normal quotient, therefore, (normal
-	   << 64) / normal is normal in all cases) */
+	   smallest possible yesrmal dividend and the largest possible yesrmal
+	   divisor will still produce a yesrmal quotient, therefore, (yesrmal
+	   << 64) / yesrmal is yesrmal in all cases) */
 
 	switch (mode) {
 	case FPCR_ROUND_RN:
@@ -499,7 +499,7 @@ static void fp_roundint(struct fp_ext *dest, int mode)
 		case 0 ... 0x3ffd:
 			return;
 		case 0x3ffe:
-			/* As noted above, the input is always normal, so the
+			/* As yested above, the input is always yesrmal, so the
 			   guard bit (bit 63) is always set.  therefore, the
 			   only case in which we will NOT round to 1.0 is when
 			   the input is exactly 0.5. */
@@ -690,7 +690,7 @@ fp_fscale(struct fp_ext *dest, struct fp_ext *src)
 		fp_set_ovrflw(dest);
 	} else if (scale <= 0) {
 		fp_set_sr(FPSR_EXC_UNFL);
-		fp_denormalize(dest, -scale);
+		fp_deyesrmalize(dest, -scale);
 	} else
 		dest->exp = scale;
 

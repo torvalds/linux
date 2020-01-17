@@ -47,7 +47,7 @@ module parameter "ser_use_fcs".
 
 ::
 
-    $ modprobe caif_serial ser_ttyname=/dev/ttyS0 ser_use_stx=yes
+    $ modprobe caif_serial ser_ttyname=/dev/ttyS0 ser_use_stx=no
     $ ifconfig caif_ttyS0 up
 
 PLEASE NOTE:
@@ -63,7 +63,7 @@ There are debugfs parameters provided for serial communication.
 * ser_state:   Prints the bit-mask status where
 
   - 0x02 means SENDING, this is a transient state.
-  - 0x10 means FLOW_OFF_SENT, i.e. the previous frame has not been sent
+  - 0x10 means FLOW_OFF_SENT, i.e. the previous frame has yest been sent
     and is blocking further send operation. Flow OFF has been propagated
     to all CAIF Channels using this TTY.
 
@@ -125,16 +125,16 @@ Error Scenarios
 
 - last_tx_msg contains channel setup message and last_rx_msg is empty ->
   The host seems to be able to send over the UART, at least the CAIF ldisc get
-  notified that sending is completed.
+  yestified that sending is completed.
 
 - last_tx_msg contains enumeration message and last_rx_msg is empty ->
-  The host is not able to send the message from UART, the tty has not been
+  The host is yest able to send the message from UART, the tty has yest been
   able to complete the transmit operation.
 
-- if /sys/kernel/debug/caif_serial/<tty>/tty_status is non-zero there
+- if /sys/kernel/debug/caif_serial/<tty>/tty_status is yesn-zero there
   might be problems transmitting over UART.
 
-  E.g. host and modem wiring is not correct you will typically see
+  E.g. host and modem wiring is yest correct you will typically see
   tty_status = 0x10 (hw_stopped) and ser_state = 0x10 (FLOW_OFF_SENT).
 
   You will probably see the enumeration message in last_tx_message

@@ -7,7 +7,7 @@
  *
  * Author: Max Asböck <amax@us.ibm.com>
  *
- * This driver is based on code originally written by Pete Reynolds
+ * This driver is based on code originally written by Pete Reyyeslds
  * and others.
  */
 
@@ -24,7 +24,7 @@
  * 3) Acts as a pass through for dot commands sent from user applications.
  * The interface for this is the ibmasmfs file system.
  *
- * 4) Allows user applications to register for event notification. Events
+ * 4) Allows user applications to register for event yestification. Events
  * are sent to the driver through interrupts. They can be read from user
  * space through the ibmasmfs file system.
  *
@@ -189,7 +189,7 @@ static struct pci_driver ibmasm_driver = {
 
 static void __exit ibmasm_exit (void)
 {
-	ibmasm_unregister_panic_notifier();
+	ibmasm_unregister_panic_yestifier();
 	ibmasmfs_unregister();
 	pci_unregister_driver(&ibmasm_driver);
 	info(DRIVER_DESC " version " DRIVER_VERSION " unloaded");
@@ -208,7 +208,7 @@ static int __init ibmasm_init(void)
 		return result;
 	}
 
-	ibmasm_register_panic_notifier();
+	ibmasm_register_panic_yestifier();
 	info(DRIVER_DESC " version " DRIVER_VERSION " loaded");
 	return 0;
 }

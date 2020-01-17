@@ -98,7 +98,7 @@ int ql_soft_reset_mpi_risc(struct ql_adapter *qdev)
 /* Determine if we are in charge of the firwmare. If
  * we are the lower of the 2 NIC pcie functions, or if
  * we are the higher function and the lower function
- * is not enabled.
+ * is yest enabled.
  */
 int ql_own_firmware(struct ql_adapter *qdev)
 {
@@ -112,7 +112,7 @@ int ql_own_firmware(struct ql_adapter *qdev)
 		return 1;
 
 	/* If we are the higher of the 2 NIC functions
-	 * on the chip and the lower function is not
+	 * on the chip and the lower function is yest
 	 * enabled, then we are responsible for
 	 * core dump and firmware reset after an error.
 	 */
@@ -169,7 +169,7 @@ static int ql_exec_mb_cmd(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	int i, status;
 
 	/*
-	 * Make sure there's nothing pending.
+	 * Make sure there's yesthing pending.
 	 * This shouldn't happen.
 	 */
 	if (ql_read32(qdev, CSR) & CSR_HRI)
@@ -217,11 +217,11 @@ static int ql_idc_req_aen(struct ql_adapter *qdev)
 	status = ql_get_mb_sts(qdev, mbcp);
 	if (status) {
 		netif_err(qdev, drv, qdev->ndev,
-			  "Could not read MPI, resetting ASIC!\n");
+			  "Could yest read MPI, resetting ASIC!\n");
 		ql_queue_asic_error(qdev);
 	} else	{
 		/* Begin polled mode early so
-		 * we don't get another interrupt
+		 * we don't get ayesther interrupt
 		 * when we leave mpi_worker.
 		 */
 		ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16));
@@ -241,7 +241,7 @@ static int ql_idc_cmplt_aen(struct ql_adapter *qdev)
 	status = ql_get_mb_sts(qdev, mbcp);
 	if (status) {
 		netif_err(qdev, drv, qdev->ndev,
-			  "Could not read MPI, resetting RISC!\n");
+			  "Could yest read MPI, resetting RISC!\n");
 		ql_queue_fw_error(qdev);
 	} else
 		/* Wake up the sleeping mpi_idc_work thread that is
@@ -260,7 +260,7 @@ static void ql_link_up(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	status = ql_get_mb_sts(qdev, mbcp);
 	if (status) {
 		netif_err(qdev, drv, qdev->ndev,
-			  "%s: Could not get mailbox status.\n", __func__);
+			  "%s: Could yest get mailbox status.\n", __func__);
 		return;
 	}
 
@@ -281,14 +281,14 @@ static void ql_link_up(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	}
 
 	/* Queue up a worker to check the frame
-	 * size information, and fix it if it's not
+	 * size information, and fix it if it's yest
 	 * to our liking.
 	 */
 	if (!test_bit(QL_PORT_CFG, &qdev->flags)) {
 		netif_err(qdev, drv, qdev->ndev, "Queue Port Config Worker!\n");
 		set_bit(QL_PORT_CFG, &qdev->flags);
 		/* Begin polled mode early so
-		 * we don't get another interrupt
+		 * we don't get ayesther interrupt
 		 * when we leave mpi_worker dpc.
 		 */
 		ql_write32(qdev, INTR_MASK, (INTR_MASK_PI << 16));
@@ -371,7 +371,7 @@ static void ql_init_fw_done(struct ql_adapter *qdev, struct mbox_params *mbcp)
 
 	status = ql_get_mb_sts(qdev, mbcp);
 	if (status) {
-		netif_err(qdev, drv, qdev->ndev, "Firmware did not initialize!\n");
+		netif_err(qdev, drv, qdev->ndev, "Firmware did yest initialize!\n");
 	} else {
 		netif_err(qdev, drv, qdev->ndev, "Firmware Revision  = 0x%.08x.\n",
 			  mbcp->mbox_out[1]);
@@ -394,12 +394,12 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	int status;
 	int orig_count = mbcp->out_count;
 
-	/* Just get mailbox zero for now. */
+	/* Just get mailbox zero for yesw. */
 	mbcp->out_count = 1;
 	status = ql_get_mb_sts(qdev, mbcp);
 	if (status) {
 		netif_err(qdev, drv, qdev->ndev,
-			  "Could not read MPI, resetting ASIC!\n");
+			  "Could yest read MPI, resetting ASIC!\n");
 		ql_queue_asic_error(qdev);
 		goto end;
 	}
@@ -456,7 +456,7 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 
 	case AEN_FW_INIT_DONE:
 		/* If we're in process on executing the firmware,
-		 * then convert the status to normal mailbox status.
+		 * then convert the status to yesrmal mailbox status.
 		 */
 		if (mbcp->mbox_in[0] == MB_CMD_EX_FW) {
 			mbcp->out_count = orig_count;
@@ -480,7 +480,7 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 	 */
 	case AEN_FW_INIT_FAIL:
 		/* If we're in process on executing the firmware,
-		 * then convert the status to normal mailbox status.
+		 * then convert the status to yesrmal mailbox status.
 		 */
 		if (mbcp->mbox_in[0] == MB_CMD_EX_FW) {
 			mbcp->out_count = orig_count;
@@ -545,7 +545,7 @@ static int ql_mailbox_command(struct ql_adapter *qdev, struct mbox_params *mbcp)
 		goto end;
 
 
-	/* If we're generating a system error, then there's nothing
+	/* If we're generating a system error, then there's yesthing
 	 * to wait for.
 	 */
 	if (mbcp->mbox_in[0] == MB_CMD_MAKE_SYS_ERR)
@@ -668,7 +668,7 @@ int ql_mb_get_fw_state(struct ql_adapter *qdev)
 	}
 
 	/* If bit zero is set in mbx 1 then the firmware is
-	 * running, but not initialized.  This should never
+	 * running, but yest initialized.  This should never
 	 * happen.
 	 */
 	if (mbcp->mbox_out[1] & 1) {
@@ -1029,7 +1029,7 @@ int ql_mb_set_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 control)
 
 	if (mbcp->mbox_out[0] == MB_CMD_STS_INVLD_CMD) {
 		netif_err(qdev, drv, qdev->ndev,
-			  "Command not supported by firmware.\n");
+			  "Command yest supported by firmware.\n");
 		status = -EINVAL;
 	} else if (mbcp->mbox_out[0] == MB_CMD_STS_ERR) {
 		/* This indicates that the firmware is
@@ -1037,7 +1037,7 @@ int ql_mb_set_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 control)
 		 * change it to.
 		 */
 		netif_err(qdev, drv, qdev->ndev,
-			  "Command parameters make no change.\n");
+			  "Command parameters make yes change.\n");
 	}
 	return status;
 }
@@ -1068,7 +1068,7 @@ static int ql_mb_get_mgmnt_traffic_ctl(struct ql_adapter *qdev, u32 *control)
 
 	if (mbcp->mbox_out[0] == MB_CMD_STS_INVLD_CMD) {
 		netif_err(qdev, drv, qdev->ndev,
-			  "Command not supported by firmware.\n");
+			  "Command yest supported by firmware.\n");
 		status = -EINVAL;
 	} else if (mbcp->mbox_out[0] == MB_CMD_STS_ERR) {
 		netif_err(qdev, drv, qdev->ndev,
@@ -1151,7 +1151,7 @@ err:
 }
 
 /* Process an inter-device request.  This is issues by
- * the firmware in response to another function requesting
+ * the firmware in response to ayesther function requesting
  * a change to the port. We set a flag to indicate a change
  * has been made and then send a mailbox command ACKing
  * the change request.
@@ -1191,12 +1191,12 @@ void ql_mpi_idc_work(struct work_struct *work)
 					  "Bug: No pending IDC!\n");
 		} else {
 			netif_printk(qdev, drv, KERN_DEBUG, qdev->ndev,
-				     "IDC ACK not required\n");
+				     "IDC ACK yest required\n");
 			status = 0; /* success */
 		}
 		break;
 
-	/* These sub-commands issued by another (FCoE)
+	/* These sub-commands issued by ayesther (FCoE)
 	 * function are requesting to do an operation
 	 * on the shared resource (MPI environment).
 	 * We currently don't issue these so we just
@@ -1224,7 +1224,7 @@ void ql_mpi_idc_work(struct work_struct *work)
 					  "Bug: No pending IDC!\n");
 		} else {
 			netif_printk(qdev, drv, KERN_DEBUG, qdev->ndev,
-				     "IDC ACK not required\n");
+				     "IDC ACK yest required\n");
 			status = 0; /* success */
 		}
 		break;
@@ -1247,7 +1247,7 @@ void ql_mpi_work(struct work_struct *work)
 		memset(mbcp, 0, sizeof(struct mbox_params));
 		mbcp->out_count = 1;
 		/* Don't continue if an async event
-		 * did not complete properly.
+		 * did yest complete properly.
 		 */
 		err = ql_mpi_handler(qdev, mbcp);
 		if (err)
@@ -1266,8 +1266,8 @@ void ql_mpi_reset_work(struct work_struct *work)
 	cancel_delayed_work_sync(&qdev->mpi_work);
 	cancel_delayed_work_sync(&qdev->mpi_port_cfg_work);
 	cancel_delayed_work_sync(&qdev->mpi_idc_work);
-	/* If we're not the dominant NIC function,
-	 * then there is nothing to do.
+	/* If we're yest the dominant NIC function,
+	 * then there is yesthing to do.
 	 */
 	if (!ql_own_firmware(qdev)) {
 		netif_err(qdev, drv, qdev->ndev, "Don't own firmware!\n");

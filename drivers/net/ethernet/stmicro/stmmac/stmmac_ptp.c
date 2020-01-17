@@ -49,7 +49,7 @@ static int stmmac_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
  * stmmac_adjust_time
  *
  * @ptp: pointer to ptp_clock_info structure
- * @delta: desired change in nanoseconds
+ * @delta: desired change in nayesseconds
  *
  * Description: this function will shift/adjust the hardware clock time.
  */

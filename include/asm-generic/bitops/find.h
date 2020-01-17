@@ -10,7 +10,7 @@
  * @size: The bitmap size in bits
  *
  * Returns the bit number for the next set bit
- * If no bits are set, returns @size.
+ * If yes bits are set, returns @size.
  */
 extern unsigned long find_next_bit(const unsigned long *addr, unsigned long
 		size, unsigned long offset);
@@ -25,7 +25,7 @@ extern unsigned long find_next_bit(const unsigned long *addr, unsigned long
  * @size: The bitmap size in bits
  *
  * Returns the bit number for the next set bit
- * If no bits are set, returns @size.
+ * If yes bits are set, returns @size.
  */
 extern unsigned long find_next_and_bit(const unsigned long *addr1,
 		const unsigned long *addr2, unsigned long size,
@@ -40,7 +40,7 @@ extern unsigned long find_next_and_bit(const unsigned long *addr1,
  * @size: The bitmap size in bits
  *
  * Returns the bit number of the next zero bit
- * If no bits are zero, returns @size.
+ * If yes bits are zero, returns @size.
  */
 extern unsigned long find_next_zero_bit(const unsigned long *addr, unsigned
 		long size, unsigned long offset);
@@ -54,7 +54,7 @@ extern unsigned long find_next_zero_bit(const unsigned long *addr, unsigned
  * @size: The maximum number of bits to search
  *
  * Returns the bit number of the first set bit.
- * If no bits are set, returns @size.
+ * If yes bits are set, returns @size.
  */
 extern unsigned long find_first_bit(const unsigned long *addr,
 				    unsigned long size);
@@ -65,7 +65,7 @@ extern unsigned long find_first_bit(const unsigned long *addr,
  * @size: The maximum number of bits to search
  *
  * Returns the bit number of the first cleared bit.
- * If no bits are zero, returns @size.
+ * If yes bits are zero, returns @size.
  */
 extern unsigned long find_first_zero_bit(const unsigned long *addr,
 					 unsigned long size);
@@ -88,7 +88,7 @@ extern unsigned long find_first_zero_bit(const unsigned long *addr,
  * @offset: bit offset at which to start searching
  *
  * Returns the bit offset for the next set clump; the found clump value is
- * copied to the location pointed by @clump. If no bits are set, returns @size.
+ * copied to the location pointed by @clump. If yes bits are set, returns @size.
  */
 extern unsigned long find_next_clump8(unsigned long *clump,
 				      const unsigned long *addr,

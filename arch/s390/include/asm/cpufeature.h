@@ -13,11 +13,11 @@
 
 /* Hardware features on Linux on z Systems are indicated by facility bits that
  * are mapped to the so-called machine flags.  Particular machine flags are
- * then used to define ELF hardware capabilities; most notably hardware flags
+ * then used to define ELF hardware capabilities; most yestably hardware flags
  * that are essential for user space / glibc.
  *
  * Restrict the set of exposed CPU features to ELF hardware capabilities for
- * now.  Additional machine flags can be indicated by values larger than
+ * yesw.  Additional machine flags can be indicated by values larger than
  * MAX_ELF_HWCAP_FEATURES.
  */
 #define MAX_ELF_HWCAP_FEATURES	(8 * sizeof(elf_hwcap))

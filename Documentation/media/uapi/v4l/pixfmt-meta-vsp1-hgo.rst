@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _v4l2-meta-fmt-vsp1-hgo:
 
@@ -32,13 +32,13 @@ three channels (RGB data only) or on the Y channel only (YCbCr only). It can
 additionally output the histogram with 64 or 256 bins, resulting in four
 possible modes of operation.
 
-- In *64 bins normal mode*, the HGO operates on the three channels independently
+- In *64 bins yesrmal mode*, the HGO operates on the three channels independently
   to compute three 64-bins histograms. RGB, YCbCr and HSV image formats are
   supported.
 - In *64 bins maximum mode*, the HGO operates on the maximum of the (R, G, B)
   channels to compute a single 64-bins histogram. Only the RGB image format is
   supported.
-- In *256 bins normal mode*, the HGO operates on the Y channel to compute a
+- In *256 bins yesrmal mode*, the HGO operates on the Y channel to compute a
   single 256-bins histogram. Only the YCbCr image format is supported.
 - In *256 bins maximum mode*, the HGO operates on the maximum of the (R, G, B)
   channels to compute a single 256-bins histogram. Only the RGB image format is

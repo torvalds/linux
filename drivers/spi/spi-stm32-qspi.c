@@ -7,7 +7,7 @@
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/interrupt.h>
@@ -216,7 +216,7 @@ static int stm32_qspi_tx_dma(struct stm32_qspi *qspi,
 	}
 
 	/*
-	 * spi_map_buf return -EINVAL if the buffer is not DMA-able
+	 * spi_map_buf return -EINVAL if the buffer is yest DMA-able
 	 * (DMA-able: in vmalloc | kmap | virt_addr_valid)
 	 */
 	err = spi_controller_dma_map_mem_op_data(qspi->ctrl, op, &sgt);
@@ -275,7 +275,7 @@ static int stm32_qspi_tx(struct stm32_qspi *qspi, const struct spi_mem_op *op)
 	return stm32_qspi_tx_poll(qspi, op);
 }
 
-static int stm32_qspi_wait_nobusy(struct stm32_qspi *qspi)
+static int stm32_qspi_wait_yesbusy(struct stm32_qspi *qspi)
 {
 	u32 sr;
 
@@ -291,7 +291,7 @@ static int stm32_qspi_wait_cmd(struct stm32_qspi *qspi,
 	int err = 0;
 
 	if (!op->data.nbytes)
-		return stm32_qspi_wait_nobusy(qspi);
+		return stm32_qspi_wait_yesbusy(qspi);
 
 	if (readl_relaxed(qspi->io_base + QSPI_SR) & SR_TCF)
 		goto out;
@@ -336,7 +336,7 @@ static int stm32_qspi_send(struct spi_mem *mem, const struct spi_mem_op *op)
 		op->dummy.buswidth, op->data.buswidth,
 		op->addr.val, op->data.nbytes);
 
-	err = stm32_qspi_wait_nobusy(qspi);
+	err = stm32_qspi_wait_yesbusy(qspi);
 	if (err)
 		goto abort;
 
@@ -395,8 +395,8 @@ static int stm32_qspi_send(struct spi_mem *mem, const struct spi_mem_op *op)
 	 * Abort in:
 	 * -error case
 	 * -read memory map: prefetching must be stopped if we read the last
-	 *  byte of device (device size - fifo size). like device size is not
-	 *  knows, the prefetching is always stop.
+	 *  byte of device (device size - fifo size). like device size is yest
+	 *  kyesws, the prefetching is always stop.
 	 */
 	if (err || qspi->fmode == CCR_FMODE_MM)
 		goto abort;
@@ -514,7 +514,7 @@ static void stm32_qspi_dma_free(struct stm32_qspi *qspi)
 }
 
 /*
- * no special host constraint, so use default spi_mem_default_supports_op
+ * yes special host constraint, so use default spi_mem_default_supports_op
  * to check supported mode.
  */
 static const struct spi_controller_mem_ops stm32_qspi_mem_ops = {
@@ -595,7 +595,7 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(qspi->clk);
 	if (ret) {
-		dev_err(dev, "can not enable the clock\n");
+		dev_err(dev, "can yest enable the clock\n");
 		goto err;
 	}
 
@@ -617,7 +617,7 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 	ctrl->bus_num = -1;
 	ctrl->mem_ops = &stm32_qspi_mem_ops;
 	ctrl->num_chipselect = STM32_QSPI_MAX_NORCHIP;
-	ctrl->dev.of_node = dev->of_node;
+	ctrl->dev.of_yesde = dev->of_yesde;
 
 	ret = devm_spi_register_master(dev, ctrl);
 	if (!ret)

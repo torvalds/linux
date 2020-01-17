@@ -11,7 +11,7 @@
  * easier to add DMA support.
  *
  * Note 2: I'm too sick of device allocation policies for serial ports.
- * If someone else wants to request an "official" allocation of major/minor
+ * If someone else wants to request an "official" allocation of major/miyesr
  * for this driver please be my guest.  And don't forget that new hardware
  * to come from Intel might have more than 3 or 4 of those UARTs.  Let's
  * hope for a better port registration and dynamic device allocation scheme
@@ -122,11 +122,11 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 				/*
 				 * We do the SysRQ and SAK checking
 				 * here because otherwise the break
-				 * may get masked by ignore_status_mask
+				 * may get masked by igyesre_status_mask
 				 * or read_status_mask.
 				 */
 				if (uart_handle_break(&up->port))
-					goto ignore_char;
+					goto igyesre_char;
 			} else if (*status & UART_LSR_PE)
 				up->port.icount.parity++;
 			else if (*status & UART_LSR_FE)
@@ -135,7 +135,7 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 				up->port.icount.overrun++;
 
 			/*
-			 * Mask off conditions which should be ignored.
+			 * Mask off conditions which should be igyesred.
 			 */
 			*status &= up->port.read_status_mask;
 
@@ -155,11 +155,11 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 		}
 
 		if (uart_handle_sysrq_char(&up->port, ch))
-			goto ignore_char;
+			goto igyesre_char;
 
 		uart_insert_char(&up->port, *status, UART_LSR_OE, ch, flag);
 
-	ignore_char:
+	igyesre_char:
 		*status = serial_in(up, UART_LSR);
 	} while ((*status & UART_LSR_DR) && (max_count-- > 0));
 	tty_flip_buffer_push(&up->port.state->port);
@@ -471,7 +471,7 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR32;
 
 	/*
-	 * Ok, we're now changing the port state.  Do it with
+	 * Ok, we're yesw changing the port state.  Do it with
 	 * interrupts disabled.
 	 */
 	spin_lock_irqsave(&up->port.lock, flags);
@@ -494,26 +494,26 @@ serial_pxa_set_termios(struct uart_port *port, struct ktermios *termios,
 		up->port.read_status_mask |= UART_LSR_BI;
 
 	/*
-	 * Characters to ignore
+	 * Characters to igyesre
 	 */
-	up->port.ignore_status_mask = 0;
+	up->port.igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		up->port.ignore_status_mask |= UART_LSR_PE | UART_LSR_FE;
+		up->port.igyesre_status_mask |= UART_LSR_PE | UART_LSR_FE;
 	if (termios->c_iflag & IGNBRK) {
-		up->port.ignore_status_mask |= UART_LSR_BI;
+		up->port.igyesre_status_mask |= UART_LSR_BI;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			up->port.ignore_status_mask |= UART_LSR_OE;
+			up->port.igyesre_status_mask |= UART_LSR_OE;
 	}
 
 	/*
-	 * ignore all characters if CREAD is not set
+	 * igyesre all characters if CREAD is yest set
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		up->port.ignore_status_mask |= UART_LSR_DR;
+		up->port.igyesre_status_mask |= UART_LSR_DR;
 
 	/*
 	 * CTS flow control flag and modem status interrupts
@@ -632,7 +632,7 @@ static void serial_pxa_console_putchar(struct uart_port *port, int ch)
 }
 
 /*
- * Print a string to the serial port trying not to disturb
+ * Print a string to the serial port trying yest to disturb
  * any possible real use of the port...
  *
  *	The console_lock must be held when we get here.
@@ -787,7 +787,7 @@ static struct uart_driver serial_pxa_reg = {
 	.driver_name	= "PXA serial",
 	.dev_name	= "ttyS",
 	.major		= TTY_MAJOR,
-	.minor		= 64,
+	.miyesr		= 64,
 	.nr		= 4,
 	.cons		= PXA_CONSOLE,
 };
@@ -828,7 +828,7 @@ static const struct of_device_id serial_pxa_dt_ids[] = {
 static int serial_pxa_probe_dt(struct platform_device *pdev,
 			       struct uart_pxa_port *sport)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	if (!np)
@@ -836,7 +836,7 @@ static int serial_pxa_probe_dt(struct platform_device *pdev,
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get alias id, errno %d\n", ret);
+		dev_err(&pdev->dev, "failed to get alias id, erryes %d\n", ret);
 		return ret;
 	}
 	sport->port.line = ret;

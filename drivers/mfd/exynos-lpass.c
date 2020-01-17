@@ -5,7 +5,7 @@
  * Authors: Inha Song <ideal.song@samsung.com>
  *          Sylwester Nawrocki <s.nawrocki@samsung.com>
  *
- * Samsung Exynos SoC series Low Power Audio Subsystem driver.
+ * Samsung Exyyess SoC series Low Power Audio Subsystem driver.
  *
  * This module provides regmap for the Top SFR region and instantiates
  * devices for IP blocks like DMAC, I2S, UART.
@@ -21,7 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
-#include <linux/soc/samsung/exynos-regs-pmu.h>
+#include <linux/soc/samsung/exyyess-regs-pmu.h>
 #include <linux/types.h>
 
 /* LPASS Top register definitions */
@@ -49,13 +49,13 @@
 #define  LPASS_INTR_UART		BIT(1)
 #define  LPASS_INTR_SFR			BIT(0)
 
-struct exynos_lpass {
+struct exyyess_lpass {
 	/* pointer to the LPASS TOP regmap */
 	struct regmap *top;
 	struct clk *sfr0_clk;
 };
 
-static void exynos_lpass_core_sw_reset(struct exynos_lpass *lpass, int mask)
+static void exyyess_lpass_core_sw_reset(struct exyyess_lpass *lpass, int mask)
 {
 	unsigned int val = 0;
 
@@ -70,7 +70,7 @@ static void exynos_lpass_core_sw_reset(struct exynos_lpass *lpass, int mask)
 	regmap_write(lpass->top, SFR_LPASS_CORE_SW_RESET, val);
 }
 
-static void exynos_lpass_enable(struct exynos_lpass *lpass)
+static void exyyess_lpass_enable(struct exyyess_lpass *lpass)
 {
 	clk_prepare_enable(lpass->sfr0_clk);
 
@@ -82,13 +82,13 @@ static void exynos_lpass_enable(struct exynos_lpass *lpass)
 		     LPASS_INTR_SFR | LPASS_INTR_DMA | LPASS_INTR_I2S |
 		     LPASS_INTR_UART);
 
-	exynos_lpass_core_sw_reset(lpass, LPASS_I2S_SW_RESET);
-	exynos_lpass_core_sw_reset(lpass, LPASS_DMA_SW_RESET);
-	exynos_lpass_core_sw_reset(lpass, LPASS_MEM_SW_RESET);
-	exynos_lpass_core_sw_reset(lpass, LPASS_UART_SW_RESET);
+	exyyess_lpass_core_sw_reset(lpass, LPASS_I2S_SW_RESET);
+	exyyess_lpass_core_sw_reset(lpass, LPASS_DMA_SW_RESET);
+	exyyess_lpass_core_sw_reset(lpass, LPASS_MEM_SW_RESET);
+	exyyess_lpass_core_sw_reset(lpass, LPASS_UART_SW_RESET);
 }
 
-static void exynos_lpass_disable(struct exynos_lpass *lpass)
+static void exyyess_lpass_disable(struct exyyess_lpass *lpass)
 {
 	/* Mask any unmasked IP interrupt sources */
 	regmap_write(lpass->top, SFR_LPASS_INTR_CPU_MASK, 0);
@@ -97,7 +97,7 @@ static void exynos_lpass_disable(struct exynos_lpass *lpass)
 	clk_disable_unprepare(lpass->sfr0_clk);
 }
 
-static const struct regmap_config exynos_lpass_reg_conf = {
+static const struct regmap_config exyyess_lpass_reg_conf = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
 	.val_bits	= 32,
@@ -105,10 +105,10 @@ static const struct regmap_config exynos_lpass_reg_conf = {
 	.fast_io	= true,
 };
 
-static int exynos_lpass_probe(struct platform_device *pdev)
+static int exyyess_lpass_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct exynos_lpass *lpass;
+	struct exyyess_lpass *lpass;
 	void __iomem *base_top;
 	struct resource *res;
 
@@ -126,7 +126,7 @@ static int exynos_lpass_probe(struct platform_device *pdev)
 		return PTR_ERR(lpass->sfr0_clk);
 
 	lpass->top = regmap_init_mmio(dev, base_top,
-					&exynos_lpass_reg_conf);
+					&exyyess_lpass_reg_conf);
 	if (IS_ERR(lpass->top)) {
 		dev_err(dev, "LPASS top regmap initialization failed\n");
 		return PTR_ERR(lpass->top);
@@ -135,64 +135,64 @@ static int exynos_lpass_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, lpass);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	exynos_lpass_enable(lpass);
+	exyyess_lpass_enable(lpass);
 
 	return devm_of_platform_populate(dev);
 }
 
-static int exynos_lpass_remove(struct platform_device *pdev)
+static int exyyess_lpass_remove(struct platform_device *pdev)
 {
-	struct exynos_lpass *lpass = platform_get_drvdata(pdev);
+	struct exyyess_lpass *lpass = platform_get_drvdata(pdev);
 
-	exynos_lpass_disable(lpass);
+	exyyess_lpass_disable(lpass);
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
-		exynos_lpass_disable(lpass);
+		exyyess_lpass_disable(lpass);
 	regmap_exit(lpass->top);
 
 	return 0;
 }
 
-static int __maybe_unused exynos_lpass_suspend(struct device *dev)
+static int __maybe_unused exyyess_lpass_suspend(struct device *dev)
 {
-	struct exynos_lpass *lpass = dev_get_drvdata(dev);
+	struct exyyess_lpass *lpass = dev_get_drvdata(dev);
 
-	exynos_lpass_disable(lpass);
+	exyyess_lpass_disable(lpass);
 
 	return 0;
 }
 
-static int __maybe_unused exynos_lpass_resume(struct device *dev)
+static int __maybe_unused exyyess_lpass_resume(struct device *dev)
 {
-	struct exynos_lpass *lpass = dev_get_drvdata(dev);
+	struct exyyess_lpass *lpass = dev_get_drvdata(dev);
 
-	exynos_lpass_enable(lpass);
+	exyyess_lpass_enable(lpass);
 
 	return 0;
 }
 
 static const struct dev_pm_ops lpass_pm_ops = {
-	SET_RUNTIME_PM_OPS(exynos_lpass_suspend, exynos_lpass_resume, NULL)
+	SET_RUNTIME_PM_OPS(exyyess_lpass_suspend, exyyess_lpass_resume, NULL)
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				     pm_runtime_force_resume)
 };
 
-static const struct of_device_id exynos_lpass_of_match[] = {
-	{ .compatible = "samsung,exynos5433-lpass" },
+static const struct of_device_id exyyess_lpass_of_match[] = {
+	{ .compatible = "samsung,exyyess5433-lpass" },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, exynos_lpass_of_match);
+MODULE_DEVICE_TABLE(of, exyyess_lpass_of_match);
 
-static struct platform_driver exynos_lpass_driver = {
+static struct platform_driver exyyess_lpass_driver = {
 	.driver = {
-		.name		= "exynos-lpass",
+		.name		= "exyyess-lpass",
 		.pm		= &lpass_pm_ops,
-		.of_match_table	= exynos_lpass_of_match,
+		.of_match_table	= exyyess_lpass_of_match,
 	},
-	.probe	= exynos_lpass_probe,
-	.remove	= exynos_lpass_remove,
+	.probe	= exyyess_lpass_probe,
+	.remove	= exyyess_lpass_remove,
 };
-module_platform_driver(exynos_lpass_driver);
+module_platform_driver(exyyess_lpass_driver);
 
 MODULE_DESCRIPTION("Samsung Low Power Audio Subsystem driver");
 MODULE_LICENSE("GPL v2");

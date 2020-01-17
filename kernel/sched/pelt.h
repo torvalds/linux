@@ -1,11 +1,11 @@
 #ifdef CONFIG_SMP
 #include "sched-pelt.h"
 
-int __update_load_avg_blocked_se(u64 now, struct sched_entity *se);
-int __update_load_avg_se(u64 now, struct cfs_rq *cfs_rq, struct sched_entity *se);
-int __update_load_avg_cfs_rq(u64 now, struct cfs_rq *cfs_rq);
-int update_rt_rq_load_avg(u64 now, struct rq *rq, int running);
-int update_dl_rq_load_avg(u64 now, struct rq *rq, int running);
+int __update_load_avg_blocked_se(u64 yesw, struct sched_entity *se);
+int __update_load_avg_se(u64 yesw, struct cfs_rq *cfs_rq, struct sched_entity *se);
+int __update_load_avg_cfs_rq(u64 yesw, struct cfs_rq *cfs_rq);
+int update_rt_rq_load_avg(u64 yesw, struct rq *rq, int running);
+int update_dl_rq_load_avg(u64 yesw, struct rq *rq, int running);
 
 #ifdef CONFIG_HAVE_SCHED_AVG_IRQ
 int update_irq_load_avg(struct rq *rq, u64 running);
@@ -18,8 +18,8 @@ update_irq_load_avg(struct rq *rq, u64 running)
 #endif
 
 /*
- * When a task is dequeued, its estimated utilization should not be update if
- * its util_avg has not been updated at least once.
+ * When a task is dequeued, its estimated utilization should yest be update if
+ * its util_avg has yest been updated at least once.
  * This flag is used to synchronize util_avg updates with util_est updates.
  * We map this information into the LSB bit of the utilization saved at
  * dequeue time (i.e. util_est.dequeued).
@@ -123,7 +123,7 @@ static inline u64 rq_clock_pelt(struct rq *rq)
 }
 
 #ifdef CONFIG_CFS_BANDWIDTH
-/* rq->task_clock normalized against any time this cfs_rq has spent throttled */
+/* rq->task_clock yesrmalized against any time this cfs_rq has spent throttled */
 static inline u64 cfs_rq_clock_pelt(struct cfs_rq *cfs_rq)
 {
 	if (unlikely(cfs_rq->throttle_count))
@@ -141,19 +141,19 @@ static inline u64 cfs_rq_clock_pelt(struct cfs_rq *cfs_rq)
 #else
 
 static inline int
-update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
+update_cfs_rq_load_avg(u64 yesw, struct cfs_rq *cfs_rq)
 {
 	return 0;
 }
 
 static inline int
-update_rt_rq_load_avg(u64 now, struct rq *rq, int running)
+update_rt_rq_load_avg(u64 yesw, struct rq *rq, int running)
 {
 	return 0;
 }
 
 static inline int
-update_dl_rq_load_avg(u64 now, struct rq *rq, int running)
+update_dl_rq_load_avg(u64 yesw, struct rq *rq, int running)
 {
 	return 0;
 }

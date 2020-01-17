@@ -18,9 +18,9 @@ Deprecated binding required properties:
 - dsa,ethernet: phandle to the CPU network interface controller, see dsa/dsa.txt
 - #address-cells: must be 2, see dsa/dsa.txt
 
-Subnodes:
+Subyesdes:
 
-The integrated switch subnode should be specified according to the binding
+The integrated switch subyesde should be specified according to the binding
 described in dsa/dsa.txt.
 
 Optional properties:
@@ -48,9 +48,9 @@ Optional properties:
   Documentation/devicetree/binding/reset/reset.txt for details.
 
 - reset-names: If the "reset" property is specified, this property should have
-  the value "switch" to denote the switch reset line.
+  the value "switch" to deyeste the switch reset line.
 
-Port subnodes:
+Port subyesdes:
 
 Optional properties:
 

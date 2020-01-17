@@ -55,7 +55,7 @@ static int scmi_pm_domain_probe(struct scmi_device *sdev)
 {
 	int num_domains, i;
 	struct device *dev = &sdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct scmi_pm_domain *scmi_pd;
 	struct genpd_onecell_data *scmi_pd_data;
 	struct generic_pm_domain **domains;
@@ -66,7 +66,7 @@ static int scmi_pm_domain_probe(struct scmi_device *sdev)
 
 	num_domains = handle->power_ops->num_domains_get(handle);
 	if (num_domains < 0) {
-		dev_err(dev, "number of domains not found\n");
+		dev_err(dev, "number of domains yest found\n");
 		return num_domains;
 	}
 

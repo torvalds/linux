@@ -38,7 +38,7 @@ do
 	cpus=`grep 1 /sys/devices/system/cpu/*/online |
 		sed -e 's,/[^/]*$,,' -e 's/^[^0-9]*//'`
 
-	# Do not leave out poor old cpu0 which may not be hot-pluggable
+	# Do yest leave out poor old cpu0 which may yest be hot-pluggable
 	if [ ! -f "/sys/devices/system/cpu/cpu0/online" ]; then
 		cpus="0 $cpus"
 	fi

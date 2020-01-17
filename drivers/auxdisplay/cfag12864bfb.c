@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/mm.h>
 #include <linux/platform_device.h>
@@ -73,7 +73,7 @@ static int cfag12864bfb_probe(struct platform_device *device)
  	struct fb_info *info = framebuffer_alloc(0, &device->dev);
 
 	if (!info)
-		goto none;
+		goto yesne;
 
 	info->screen_base = (char __iomem *) cfag12864b_buffer;
 	info->screen_size = CFAG12864B_SIZE;
@@ -96,7 +96,7 @@ static int cfag12864bfb_probe(struct platform_device *device)
 fballoced:
 	framebuffer_release(info);
 
-none:
+yesne:
 	return ret;
 }
 
@@ -129,8 +129,8 @@ static int __init cfag12864bfb_init(void)
 	/* cfag12864b_init() must be called first */
 	if (!cfag12864b_isinited()) {
 		printk(KERN_ERR CFAG12864BFB_NAME ": ERROR: "
-			"cfag12864b is not initialized\n");
-		goto none;
+			"cfag12864b is yest initialized\n");
+		goto yesne;
 	}
 
 	if (cfag12864b_enable()) {
@@ -156,7 +156,7 @@ static int __init cfag12864bfb_init(void)
 		}
 	}
 
-none:
+yesne:
 	return ret;
 }
 

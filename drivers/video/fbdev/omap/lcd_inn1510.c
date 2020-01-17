@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * LCD panel support for the TI OMAP1510 Innovator board
+ * LCD panel support for the TI OMAP1510 Inyesvator board
  *
  * Copyright (C) 2004 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  */
 
 #include <linux/module.h>
@@ -14,18 +14,18 @@
 
 #include "omapfb.h"
 
-static int innovator1510_panel_enable(struct lcd_panel *panel)
+static int inyesvator1510_panel_enable(struct lcd_panel *panel)
 {
 	__raw_writeb(0x7, OMAP1510_FPGA_LCD_PANEL_CONTROL);
 	return 0;
 }
 
-static void innovator1510_panel_disable(struct lcd_panel *panel)
+static void inyesvator1510_panel_disable(struct lcd_panel *panel)
 {
 	__raw_writeb(0x0, OMAP1510_FPGA_LCD_PANEL_CONTROL);
 }
 
-static struct lcd_panel innovator1510_panel = {
+static struct lcd_panel inyesvator1510_panel = {
 	.name		= "inn1510",
 	.config		= OMAP_LCDC_PANEL_TFT,
 
@@ -42,25 +42,25 @@ static struct lcd_panel innovator1510_panel = {
 	.vbp		= 0,
 	.pcd		= 12,
 
-	.enable		= innovator1510_panel_enable,
-	.disable	= innovator1510_panel_disable,
+	.enable		= inyesvator1510_panel_enable,
+	.disable	= inyesvator1510_panel_disable,
 };
 
-static int innovator1510_panel_probe(struct platform_device *pdev)
+static int inyesvator1510_panel_probe(struct platform_device *pdev)
 {
-	omapfb_register_panel(&innovator1510_panel);
+	omapfb_register_panel(&inyesvator1510_panel);
 	return 0;
 }
 
-static struct platform_driver innovator1510_panel_driver = {
-	.probe		= innovator1510_panel_probe,
+static struct platform_driver inyesvator1510_panel_driver = {
+	.probe		= inyesvator1510_panel_probe,
 	.driver		= {
 		.name	= "lcd_inn1510",
 	},
 };
 
-module_platform_driver(innovator1510_panel_driver);
+module_platform_driver(inyesvator1510_panel_driver);
 
 MODULE_AUTHOR("Imre Deak");
-MODULE_DESCRIPTION("LCD panel support for the TI OMAP1510 Innovator board");
+MODULE_DESCRIPTION("LCD panel support for the TI OMAP1510 Inyesvator board");
 MODULE_LICENSE("GPL");

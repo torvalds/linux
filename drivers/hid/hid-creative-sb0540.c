@@ -169,7 +169,7 @@ static int creative_sb0540_raw_event(struct hid_device *hid,
 
 	key = get_key(creative_sb0540, main_code);
 	if (key == 0 || key == KEY_RESERVED) {
-		hid_err(hid, "Could not get a key for main_code %llX\n",
+		hid_err(hid, "Could yest get a key for main_code %llX\n",
 			main_code);
 		return 0;
 	}
@@ -211,7 +211,7 @@ static int creative_sb0540_input_mapping(struct hid_device *hid,
 		struct hid_usage *usage, unsigned long **bit, int *max)
 {
 	/*
-	 * We are remapping the keys ourselves, so ignore the hid-input
+	 * We are remapping the keys ourselves, so igyesre the hid-input
 	 * keymap processing.
 	 */
 	return -1;

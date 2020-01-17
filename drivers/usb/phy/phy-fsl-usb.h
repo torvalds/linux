@@ -237,7 +237,7 @@
 #define TA_WAIT_BCON	(10000)  /* a_wait_bcon > 1 sec, section: 6.6.5.2
 				  * This is only used to get out of
 				  * OTG_STATE_A_WAIT_BCON state if there was
-				  * no connection for these many milliseconds
+				  * yes connection for these many milliseconds
 				  */
 
 /* A-Idle to B-Disconnect */
@@ -323,8 +323,8 @@ struct usb_dr_mmap {
 	u32 endptcomplete;	/* Endpoint Complete Register */
 	u32 endptctrl[6];	/* Endpoint Control Registers */
 	u8 res9[552];
-	u32 snoop1;
-	u32 snoop2;
+	u32 syesop1;
+	u32 syesop2;
 	u32 age_cnt_thresh;	/* Age Count Threshold Register */
 	u32 pri_ctrl;		/* Priority Control Register */
 	u32 si_ctrl;		/* System Interface Control Register */

@@ -21,7 +21,7 @@
  * *: if SWIOTLB detected 'iommu=soft'/'swiotlb=force' it would skip
  * over the rest of IOMMUs and unconditionally initialize the SWIOTLB.
  * Also it would surreptitiously initialize set the swiotlb=1 if there were
- * more than 4GB and if the user did not pass in 'iommu=off'. The swiotlb
+ * more than 4GB and if the user did yest pass in 'iommu=off'. The swiotlb
  * flag would be turned off by all IOMMUs except the Calgary one.
  *
  * The IOMMU_INIT* macros allow a similar tree (or more complex if desired)
@@ -43,7 +43,7 @@ struct iommu_table_entry {
 /*
  * Macro fills out an entry in the .iommu_table that is equivalent
  * to the fields that 'struct iommu_table_entry' has. The entries
- * that are put in the .iommu_table section are not put in any order
+ * that are put in the .iommu_table section are yest put in any order
  * hence during boot-time we will have to resort them based on
  * dependency. */
 
@@ -76,7 +76,7 @@ struct iommu_table_entry {
  *      before us.
  *  c). The init routine which gets called if the detection routine
  *      returns a positive value from the pci_iommu_alloc. This means
- *      no presence of a memory allocator.
+ *      yes presence of a memory allocator.
  *  d). Similar to the 'init', except that this gets called from pci_iommu_init
  *      where we do have a memory allocator.
  *

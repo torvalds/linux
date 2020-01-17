@@ -24,7 +24,7 @@
 #define LOONGSON_INT_BIT_INT1		(1 << 12)
 
 /*
- * The generic i8259_irq() make the kernel hang on booting.  Since we cannot
+ * The generic i8259_irq() make the kernel hang on booting.  Since we canyest
  * get the irq via the IRR directly, we access the ISR instead.
  */
 int mach_i8259_irq(void)
@@ -45,7 +45,7 @@ int mach_i8259_irq(void)
 			 * This may be a spurious interrupt.
 			 *
 			 * Read the interrupt status register (ISR). If the most
-			 * significant bit is not set then there is no valid
+			 * significant bit is yest set then there is yes valid
 			 * interrupt.
 			 */
 			outb(0x0B, PIC_MASTER_ISR);	/* ISR register */
@@ -97,7 +97,7 @@ static struct irqaction ip6_irqaction = {
 };
 
 static struct irqaction cascade_irqaction = {
-	.handler = no_action,
+	.handler = yes_action,
 	.name = "cascade",
 	.flags = IRQF_NO_THREAD | IRQF_NO_SUSPEND,
 };
@@ -119,7 +119,7 @@ void __init mach_init_irq(void)
 	init_i8259_irqs();
 	bonito_irq_init();
 
-	/* setup north bridge irq (bonito) */
+	/* setup yesrth bridge irq (bonito) */
 	setup_irq(LOONGSON_NORTH_BRIDGE_IRQ, &ip6_irqaction);
 	/* setup source bridge irq (i8259) */
 	setup_irq(LOONGSON_SOUTH_BRIDGE_IRQ, &cascade_irqaction);

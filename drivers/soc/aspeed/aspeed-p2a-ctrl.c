@@ -113,8 +113,8 @@ static int aspeed_p2a_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_pgoff + vsize > ctrl->mem_base + ctrl->mem_size)
 		return -EINVAL;
 
-	/* ast2400/2500 AHB accesses are not cache coherent */
-	prot = pgprot_noncached(prot);
+	/* ast2400/2500 AHB accesses are yest cache coherent */
+	prot = pgprot_yesncached(prot);
 
 	if (remap_pfn_range(vma, vma->vm_start,
 		(ctrl->mem_base >> PAGE_SHIFT) + vma->vm_pgoff,
@@ -184,7 +184,7 @@ static long aspeed_p2a_ioctl(struct file *file, unsigned int cmd,
 	case ASPEED_P2A_CTRL_IOCTL_SET_WINDOW:
 		/* If they want a region to be read-only, since the entire
 		 * region is read-only once enabled, we just need to track this
-		 * user wants to read from the bridge, and if it's not enabled.
+		 * user wants to read from the bridge, and if it's yest enabled.
 		 * Enable it.
 		 */
 		if (map.flags == ASPEED_P2A_CTRL_READ_ONLY) {
@@ -231,10 +231,10 @@ static long aspeed_p2a_ioctl(struct file *file, unsigned int cmd,
  * flipped, and bridge enabled).  Either way, this tracking is used, s.t. when
  * they release the device references are handled.
  *
- * The bridge is not enabled until a user calls an ioctl to map a region,
- * simply opening the device does not enable it.
+ * The bridge is yest enabled until a user calls an ioctl to map a region,
+ * simply opening the device does yest enable it.
  */
-static int aspeed_p2a_open(struct inode *inode, struct file *file)
+static int aspeed_p2a_open(struct iyesde *iyesde, struct file *file)
 {
 	struct aspeed_p2a_user *priv;
 
@@ -260,7 +260,7 @@ static int aspeed_p2a_open(struct inode *inode, struct file *file)
  * for readwrite, and decrement those counts.  If at the end, this is the last
  * user, it'll close the bridge.
  */
-static int aspeed_p2a_release(struct inode *inode, struct file *file)
+static int aspeed_p2a_release(struct iyesde *iyesde, struct file *file)
 {
 	int i;
 	u32 bits = 0;
@@ -287,9 +287,9 @@ static int aspeed_p2a_release(struct inode *inode, struct file *file)
 	 * above to disable any.
 	 */
 
-	/* Note, if another user is trying to ioctl, they can't grab tracking,
+	/* Note, if ayesther user is trying to ioctl, they can't grab tracking,
 	 * and therefore can't grab either register mutex.
-	 * If another user is trying to close, they can't grab tracking either.
+	 * If ayesther user is trying to close, they can't grab tracking either.
 	 */
 	regmap_update_bits(priv->parent->regmap, SCU2C, bits, bits);
 
@@ -334,7 +334,7 @@ static int aspeed_p2a_ctrl_probe(struct platform_device *pdev)
 	struct aspeed_p2a_ctrl *misc_ctrl;
 	struct device *dev;
 	struct resource resm;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int rc = 0;
 
 	dev = &pdev->dev;
@@ -346,10 +346,10 @@ static int aspeed_p2a_ctrl_probe(struct platform_device *pdev)
 	mutex_init(&misc_ctrl->tracking);
 
 	/* optional. */
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (node) {
-		rc = of_address_to_resource(node, 0, &resm);
-		of_node_put(node);
+	yesde = of_parse_phandle(dev->of_yesde, "memory-region", 0);
+	if (yesde) {
+		rc = of_address_to_resource(yesde, 0, &resm);
+		of_yesde_put(yesde);
 		if (rc) {
 			dev_err(dev, "Couldn't address to resource for reserved memory\n");
 			return -ENODEV;
@@ -359,7 +359,7 @@ static int aspeed_p2a_ctrl_probe(struct platform_device *pdev)
 		misc_ctrl->mem_base = resm.start;
 	}
 
-	misc_ctrl->regmap = syscon_node_to_regmap(pdev->dev.parent->of_node);
+	misc_ctrl->regmap = syscon_yesde_to_regmap(pdev->dev.parent->of_yesde);
 	if (IS_ERR(misc_ctrl->regmap)) {
 		dev_err(dev, "Couldn't get regmap\n");
 		return -ENODEV;
@@ -371,7 +371,7 @@ static int aspeed_p2a_ctrl_probe(struct platform_device *pdev)
 
 	aspeed_p2a_disable_all(misc_ctrl);
 
-	misc_ctrl->miscdev.minor = MISC_DYNAMIC_MINOR;
+	misc_ctrl->miscdev.miyesr = MISC_DYNAMIC_MINOR;
 	misc_ctrl->miscdev.name = DEVICE_NAME;
 	misc_ctrl->miscdev.fops = &aspeed_p2a_ctrl_fops;
 	misc_ctrl->miscdev.parent = dev;

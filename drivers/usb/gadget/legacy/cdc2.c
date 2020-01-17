@@ -20,10 +20,10 @@
 /*-------------------------------------------------------------------------*/
 
 /* DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+ * Instead:  allocate your own, using yesrmal USB-IF procedures.
  */
 
-/* Thanks to NetChip Technologies for donating this product ID.
+/* Thanks to NetChip Techyeslogies for donating this product ID.
  * It's for devices with only this composite CDC configuration.
  */
 #define CDC_VENDOR_NUM		0x0525	/* NetChip */
@@ -142,7 +142,7 @@ static int cdc_bind(struct usb_composite_dev *cdev)
 	int			status;
 
 	if (!can_support_ecm(cdev->gadget)) {
-		dev_err(&gadget->dev, "controller '%s' not usable\n",
+		dev_err(&gadget->dev, "controller '%s' yest usable\n",
 				gadget->name);
 		return -EINVAL;
 	}
@@ -165,7 +165,7 @@ static int cdc_bind(struct usb_composite_dev *cdev)
 		goto fail;
 	}
 
-	/* Allocate string descriptor numbers ... note that string
+	/* Allocate string descriptor numbers ... yeste that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
 

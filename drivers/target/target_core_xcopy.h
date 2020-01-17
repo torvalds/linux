@@ -34,7 +34,7 @@ struct xcopy_op {
 	sector_t dst_lba;
 	unsigned short stdi;
 	unsigned short dtdi;
-	unsigned short nolb;
+	unsigned short yeslb;
 	unsigned int dbl;
 
 	struct xcopy_pt_cmd *src_pt_cmd;

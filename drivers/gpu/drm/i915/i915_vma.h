@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -43,14 +43,14 @@ enum i915_cache_level;
  * DOC: Virtual Memory Address
  *
  * A VMA represents a GEM BO that is bound into an address space. Therefore, a
- * VMA's presence cannot be guaranteed before binding, or after unbinding the
+ * VMA's presence canyest be guaranteed before binding, or after unbinding the
  * object into/from the address space.
  *
- * To make things as simple as possible (ie. no refcounting), a VMA's lifetime
+ * To make things as simple as possible (ie. yes refcounting), a VMA's lifetime
  * will always be <= an objects lifetime. So object refcounting should cover us.
  */
 struct i915_vma {
-	struct drm_mm_node node;
+	struct drm_mm_yesde yesde;
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
 	const struct i915_vma_ops *ops;
@@ -78,7 +78,7 @@ struct i915_vma {
 	 *
 	 * This is a tightly bound, fairly small number of users, so we
 	 * stuff inside the flags field so that we can both check for overflow
-	 * and detect a no-op i915_vma_pin() in a single check, while also
+	 * and detect a yes-op i915_vma_pin() in a single check, while also
 	 * pinning the vma.
 	 *
 	 * The worst case display setup would have the same vma pinned for
@@ -136,7 +136,7 @@ struct i915_vma {
 	 * This means there can be multiple VMA mappings per object and per VM.
 	 * i915_ggtt_view_type is used to distinguish between those entries.
 	 * The default one of zero (I915_GGTT_VIEW_NORMAL) is default and also
-	 * assumed in GEM functions which take no ggtt view parameter.
+	 * assumed in GEM functions which take yes ggtt view parameter.
 	 */
 	struct i915_ggtt_view ggtt_view;
 
@@ -144,8 +144,8 @@ struct i915_vma {
 	struct list_head vm_link;
 
 	struct list_head obj_link; /* Link in the object's VMA list */
-	struct rb_node obj_node;
-	struct hlist_node obj_hash;
+	struct rb_yesde obj_yesde;
+	struct hlist_yesde obj_hash;
 
 	/** This vma's place in the execbuf reservation list */
 	struct list_head exec_link;
@@ -160,7 +160,7 @@ struct i915_vma {
 	 * Used for performing relocations during execbuffer insertion.
 	 */
 	unsigned int *exec_flags;
-	struct hlist_node exec_node;
+	struct hlist_yesde exec_yesde;
 	u32 exec_handle;
 };
 
@@ -238,10 +238,10 @@ static inline bool i915_vma_is_closed(const struct i915_vma *vma)
 static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
 {
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-	GEM_BUG_ON(upper_32_bits(vma->node.start));
-	GEM_BUG_ON(upper_32_bits(vma->node.start + vma->node.size - 1));
-	return lower_32_bits(vma->node.start);
+	GEM_BUG_ON(!drm_mm_yesde_allocated(&vma->yesde));
+	GEM_BUG_ON(upper_32_bits(vma->yesde.start));
+	GEM_BUG_ON(upper_32_bits(vma->yesde.start + vma->yesde.size - 1));
+	return lower_32_bits(vma->yesde.start);
 }
 
 static inline u32 i915_ggtt_pin_bias(struct i915_vma *vma)
@@ -298,7 +298,7 @@ i915_vma_compare(struct i915_vma *vma,
 	assert_i915_gem_gtt_types();
 
 	/* ggtt_view.type also encodes its size so that we both distinguish
-	 * different views using it as a "type" and also use a compact (no
+	 * different views using it as a "type" and also use a compact (yes
 	 * accessing of uninitialised padding bytes) memcmp without storing
 	 * an extra parameter or adding more code.
 	 *
@@ -374,7 +374,7 @@ static inline void __i915_vma_unpin(struct i915_vma *vma)
 
 static inline void i915_vma_unpin(struct i915_vma *vma)
 {
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
+	GEM_BUG_ON(!drm_mm_yesde_allocated(&vma->yesde));
 	__i915_vma_unpin(vma);
 }
 
@@ -384,10 +384,10 @@ static inline bool i915_vma_is_bound(const struct i915_vma *vma,
 	return atomic_read(&vma->flags) & where;
 }
 
-static inline bool i915_node_color_differs(const struct drm_mm_node *node,
+static inline bool i915_yesde_color_differs(const struct drm_mm_yesde *yesde,
 					   unsigned long color)
 {
-	return drm_mm_node_allocated(node) && node->color != color;
+	return drm_mm_yesde_allocated(yesde) && yesde->color != color;
 }
 
 /**
@@ -397,7 +397,7 @@ static inline bool i915_node_color_differs(const struct drm_mm_node *node,
  * The passed in VMA has to be pinned in the global GTT mappable region.
  * An extra pinning of the VMA is acquired for the return iomapping,
  * the caller must call i915_vma_unpin_iomap to relinquish the pinning
- * after the iomapping is no longer required.
+ * after the iomapping is yes longer required.
  *
  * Returns a valid iomapped pointer or ERR_PTR.
  */
@@ -426,7 +426,7 @@ static inline struct page *i915_vma_first_page(struct i915_vma *vma)
  * @vma: vma to pin fencing for
  *
  * This pins the fencing state (whether tiled or untiled) to make sure the
- * vma (and its object) is ready to be used as a scanout target. Fencing
+ * vma (and its object) is ready to be used as a scayesut target. Fencing
  * status must be synchronize first by calling i915_vma_get_fence():
  *
  * The resulting fence pin reference must be released again with
@@ -453,7 +453,7 @@ static inline void __i915_vma_unpin_fence(struct i915_vma *vma)
  *
  * This releases the fence pin reference acquired through
  * i915_vma_pin_fence. It will handle both objects with and without an
- * attached fence correctly, callers do not need to distinguish this.
+ * attached fence correctly, callers do yest need to distinguish this.
  */
 static inline void
 i915_vma_unpin_fence(struct i915_vma *vma)
@@ -488,7 +488,7 @@ void i915_vma_make_purgeable(struct i915_vma *vma);
 
 static inline int i915_vma_sync(struct i915_vma *vma)
 {
-	/* Wait for the asynchronous bindings and pending GPU reads */
+	/* Wait for the asynchroyesus bindings and pending GPU reads */
 	return i915_active_wait(&vma->active);
 }
 

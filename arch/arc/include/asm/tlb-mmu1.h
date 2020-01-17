@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef __ASM_TLB_MMU_V1_H__
@@ -23,7 +23,7 @@
 ;
 ; r1 = TLBPD0 from TLB_RELOAD above
 ;
-; -- jh_ex_way_set not cleared on startup
+; -- jh_ex_way_set yest cleared on startup
 ;    didn't want to change setup.c
 ;    hence extra instruction to clean
 ;
@@ -34,7 +34,7 @@ ld  r0,[jh_ex_way_sel]  ; victim pointer
 and r0,r0,1         ; clean
 xor.f   r0,r0,1         ; flip
 st  r0,[jh_ex_way_sel]  ; store back
-asr r0,r1,12        ; get set # <<1, note bit 12=R=0
+asr r0,r1,12        ; get set # <<1, yeste bit 12=R=0
 or.nz   r0,r0,1         ; set way bit
 and r0,r0,0xff      ; clean
 sr  r0,[ARC_REG_TLBINDEX]
@@ -42,7 +42,7 @@ sr  r0,[ARC_REG_TLBINDEX]
 
 #ifdef JH_HACK2
 ; JH hack #2
-;  Faster than hack #1 in non-thrash case, but hard-coded for 2-way MMU
+;  Faster than hack #1 in yesn-thrash case, but hard-coded for 2-way MMU
 ;  Slower in thrash case (where it matters) because more code is executed
 ;  Inefficient due to two-register paradigm of this miss handler
 ;
@@ -50,7 +50,7 @@ sr  r0,[ARC_REG_TLBINDEX]
 lr      r0,[eret]               /* instruction address */
 xor     r0,r0,r1                /* compare set #       */
 and.f   r0,r0,0x000fe000        /* 2-way MMU mask      */
-bne     88f                     /* not in same set - no need to probe */
+bne     88f                     /* yest in same set - yes need to probe */
 
 lr      r0,[eret]               /* instruction address */
 and     r0,r0,PAGE_MASK         /* VPN of instruction address */
@@ -89,7 +89,7 @@ sr      r3,[ARC_REG_TLBPD0]     /* restore TLBPD0 */
 
 sr      TLBGetIndex, [ARC_REG_TLBCOMMAND]
 lr      r1,[ARC_REG_TLBINDEX]   /* r1 = index where MMU wants to put data */
-cmp     r0,r1                   /* if no match on indices, go around */
+cmp     r0,r1                   /* if yes match on indices, go around */
 xor.eq  r1,r1,1                 /* flip bottom bit of data index */
 sr      r1,[ARC_REG_TLBINDEX]   /* and put it back */
 #endif

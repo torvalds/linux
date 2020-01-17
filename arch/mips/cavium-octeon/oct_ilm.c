@@ -44,7 +44,7 @@ static int show_latency(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int oct_ilm_open(struct inode *inode, struct file *file)
+static int oct_ilm_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, show_latency, NULL);
 }
@@ -155,7 +155,7 @@ static __init int oct_ilm_module_init(void)
 	rc = request_irq(irq, cvm_oct_ciu_timer_interrupt, IRQF_NO_THREAD,
 			 "oct_ilm", 0);
 	if (rc) {
-		WARN(1, "Could not acquire IRQ %d", irq);
+		WARN(1, "Could yest acquire IRQ %d", irq);
 		goto err_irq;
 	}
 

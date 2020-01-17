@@ -31,7 +31,7 @@ enum cachefiles_obj_ref_trace {
  */
 #define cachefiles_obj_kill_traces				\
 	EM(FSCACHE_OBJECT_IS_STALE,	"stale")		\
-	EM(FSCACHE_OBJECT_NO_SPACE,	"no_space")		\
+	EM(FSCACHE_OBJECT_NO_SPACE,	"yes_space")		\
 	EM(FSCACHE_OBJECT_WAS_RETIRED,	"was_retired")		\
 	E_(FSCACHE_OBJECT_WAS_CULLED,	"was_culled")
 
@@ -99,24 +99,24 @@ TRACE_EVENT(cachefiles_ref,
 TRACE_EVENT(cachefiles_lookup,
 	    TP_PROTO(struct cachefiles_object *obj,
 		     struct dentry *de,
-		     struct inode *inode),
+		     struct iyesde *iyesde),
 
-	    TP_ARGS(obj, de, inode),
+	    TP_ARGS(obj, de, iyesde),
 
 	    TP_STRUCT__entry(
 		    __field(struct cachefiles_object *,	obj	)
 		    __field(struct dentry *,		de	)
-		    __field(struct inode *,		inode	)
+		    __field(struct iyesde *,		iyesde	)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->obj	= obj;
 		    __entry->de		= de;
-		    __entry->inode	= inode;
+		    __entry->iyesde	= iyesde;
 			   ),
 
 	    TP_printk("o=%p d=%p i=%p",
-		      __entry->obj, __entry->de, __entry->inode)
+		      __entry->obj, __entry->de, __entry->iyesde)
 	    );
 
 TRACE_EVENT(cachefiles_mkdir,
@@ -269,25 +269,25 @@ TRACE_EVENT(cachefiles_wait_active,
 TRACE_EVENT(cachefiles_mark_inactive,
 	    TP_PROTO(struct cachefiles_object *obj,
 		     struct dentry *de,
-		     struct inode *inode),
+		     struct iyesde *iyesde),
 
-	    TP_ARGS(obj, de, inode),
+	    TP_ARGS(obj, de, iyesde),
 
 	    /* Note that obj may be NULL */
 	    TP_STRUCT__entry(
 		    __field(struct cachefiles_object *,	obj		)
 		    __field(struct dentry *,		de		)
-		    __field(struct inode *,		inode		)
+		    __field(struct iyesde *,		iyesde		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->obj	= obj;
 		    __entry->de		= de;
-		    __entry->inode	= inode;
+		    __entry->iyesde	= iyesde;
 			   ),
 
 	    TP_printk("o=%p d=%p i=%p",
-		      __entry->obj, __entry->de, __entry->inode)
+		      __entry->obj, __entry->de, __entry->iyesde)
 	    );
 
 TRACE_EVENT(cachefiles_mark_buried,

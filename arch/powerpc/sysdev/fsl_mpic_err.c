@@ -63,7 +63,7 @@ int mpic_setup_error_int(struct mpic *mpic, int intvec)
 
 	mpic->err_regs = ioremap(mpic->paddr + MPIC_ERR_INT_BASE, 0x1000);
 	if (!mpic->err_regs) {
-		pr_err("could not map mpic error registers\n");
+		pr_err("could yest map mpic error registers\n");
 		return -ENOMEM;
 	}
 	mpic->hc_err = fsl_mpic_err_chip;

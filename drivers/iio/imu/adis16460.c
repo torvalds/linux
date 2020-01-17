@@ -322,7 +322,7 @@ static const struct iio_info adis16460_info = {
 static int adis16460_enable_irq(struct adis *adis, bool enable)
 {
 	/*
-	 * There is no way to gate the data-ready signal internally inside the
+	 * There is yes way to gate the data-ready signal internally inside the
 	 * ADIS16460 :(
 	 */
 	if (enable)
@@ -361,7 +361,7 @@ static int adis16460_initial_setup(struct iio_dev *indio_dev)
 		return -EINVAL;
 
 	if (prod_id != device_id)
-		dev_warn(&indio_dev->dev, "Device ID(%u) and product ID(%u) do not match.",
+		dev_warn(&indio_dev->dev, "Device ID(%u) and product ID(%u) do yest match.",
 				device_id, prod_id);
 
 	return 0;
@@ -377,7 +377,7 @@ static int adis16460_initial_setup(struct iio_dev *indio_dev)
 static const char * const adis16460_status_error_msgs[] = {
 	[ADIS16460_DIAG_STAT_IN_CLK_OOS] = "Input clock out of sync",
 	[ADIS16460_DIAG_STAT_FLASH_MEM] = "Flash memory failure",
-	[ADIS16460_DIAG_STAT_SELF_TEST] = "Self test diagnostic failure",
+	[ADIS16460_DIAG_STAT_SELF_TEST] = "Self test diagyesstic failure",
 	[ADIS16460_DIAG_STAT_OVERRANGE] = "Sensor overrange",
 	[ADIS16460_DIAG_STAT_SPI_COMM] = "SPI communication failure",
 	[ADIS16460_DIAG_STAT_FLASH_UPT] = "Flash update failure",

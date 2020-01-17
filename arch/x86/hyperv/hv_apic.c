@@ -274,7 +274,7 @@ void __init hv_apic_init(void)
 			x2apic_enabled() ? "x2apic" : "xapic");
 		/*
 		 * With x2apic, architectural x2apic MSRs are equivalent to the
-		 * respective synthetic MSRs, so there's no need to override
+		 * respective synthetic MSRs, so there's yes need to override
 		 * the apic accessors.  The only exception is
 		 * hv_apic_eoi_write, because it benefits from lazy EOI when
 		 * available, but it works for both xapic and x2apic modes.

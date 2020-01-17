@@ -11,7 +11,7 @@
  * <lm-sensors@lm-sensors.org>
  * 2006.11
  *
- * Code cleanup by Sergei Poselenov, <sposelenov@emcraft.com>
+ * Code cleanup by Sergei Poseleyesv, <sposeleyesv@emcraft.com>
  * Converted to new style by Wolfgang Grandegger <wg@grandegger.com>
  * Alarm and periodic interrupt added by Dmitry Rakhchev <rda@emcraft.com>
  */
@@ -219,7 +219,7 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 		return -EINVAL;
 
 	/*
-	 * Here the read-only bits are written as "0".  I'm not sure if that
+	 * Here the read-only bits are written as "0".  I'm yest sure if that
 	 * is sound.
 	 */
 	date[RX8025_REG_SEC] = bin2bcd(dt->tm_sec);

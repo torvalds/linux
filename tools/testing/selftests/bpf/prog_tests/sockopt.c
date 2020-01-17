@@ -38,7 +38,7 @@ static struct sockopt_test {
 	/* ==================== getsockopt ====================  */
 
 	{
-		.descr = "getsockopt: no expected_attach_type",
+		.descr = "getsockopt: yes expected_attach_type",
 		.insns = {
 			/* return 1 */
 			BPF_MOV64_IMM(BPF_REG_0, 1),
@@ -99,7 +99,7 @@ static struct sockopt_test {
 		.error = EPERM_GETSOCKOPT,
 	},
 	{
-		.descr = "getsockopt: no optval bounds check, deny loading",
+		.descr = "getsockopt: yes optval bounds check, deny loading",
 		.insns = {
 			/* r6 = ctx->optval */
 			BPF_LDX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1,
@@ -383,7 +383,7 @@ static struct sockopt_test {
 	/* ==================== setsockopt ====================  */
 
 	{
-		.descr = "setsockopt: no expected_attach_type",
+		.descr = "setsockopt: yes expected_attach_type",
 		.insns = {
 			/* return 1 */
 			BPF_MOV64_IMM(BPF_REG_0, 1),
@@ -445,7 +445,7 @@ static struct sockopt_test {
 		.error = EPERM_SETSOCKOPT,
 	},
 	{
-		.descr = "setsockopt: no optval bounds check, deny loading",
+		.descr = "setsockopt: yes optval bounds check, deny loading",
 		.insns = {
 			/* r6 = ctx->optval */
 			BPF_LDX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1,
@@ -910,9 +910,9 @@ static int run_test(int cgroup_fd, struct sockopt_test *test)
 		err = setsockopt(sock_fd, test->set_level, test->set_optname,
 				 test->set_optval, test->set_optlen);
 		if (err) {
-			if (errno == EPERM && test->error == EPERM_SETSOCKOPT)
+			if (erryes == EPERM && test->error == EPERM_SETSOCKOPT)
 				goto close_sock_fd;
-			if (errno == EFAULT && test->error == EFAULT_SETSOCKOPT)
+			if (erryes == EFAULT && test->error == EFAULT_SETSOCKOPT)
 				goto free_optval;
 
 			log_err("Failed to call setsockopt");
@@ -930,9 +930,9 @@ static int run_test(int cgroup_fd, struct sockopt_test *test)
 		err = getsockopt(sock_fd, test->get_level, test->get_optname,
 				 optval, &optlen);
 		if (err) {
-			if (errno == EPERM && test->error == EPERM_GETSOCKOPT)
+			if (erryes == EPERM && test->error == EPERM_GETSOCKOPT)
 				goto free_optval;
-			if (errno == EFAULT && test->error == EFAULT_GETSOCKOPT)
+			if (erryes == EFAULT && test->error == EFAULT_GETSOCKOPT)
 				goto free_optval;
 
 			log_err("Failed to call getsockopt");
@@ -941,14 +941,14 @@ static int run_test(int cgroup_fd, struct sockopt_test *test)
 		}
 
 		if (optlen != expected_get_optlen) {
-			errno = 0;
+			erryes = 0;
 			log_err("getsockopt returned unexpected optlen");
 			ret = -1;
 			goto free_optval;
 		}
 
 		if (memcmp(optval, test->get_optval, optlen) != 0) {
-			errno = 0;
+			erryes = 0;
 			log_err("getsockopt returned unexpected optval");
 			ret = -1;
 			goto free_optval;

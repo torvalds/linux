@@ -366,7 +366,7 @@ ap_i2c_tp: &i2c5 {
 	discrete-regulators {
 		pp1500_en: pp1500-en {
 			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO
-					 &pcfg_pull_none>;
+					 &pcfg_pull_yesne>;
 		};
 
 		pp1800_audio_en: pp1800-audio-en {
@@ -376,12 +376,12 @@ ap_i2c_tp: &i2c5 {
 
 		pp3000_en: pp3000-en {
 			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO
-					 &pcfg_pull_none>;
+					 &pcfg_pull_yesne>;
 		};
 
 		pp3300_disp_en: pp3300-disp-en {
 			rockchip,pins = <4 RK_PD3 RK_FUNC_GPIO
-					 &pcfg_pull_none>;
+					 &pcfg_pull_yesne>;
 		};
 
 		wlan_module_pd_l: wlan-module-pd-l {
@@ -393,10 +393,10 @@ ap_i2c_tp: &i2c5 {
 
 &wifi {
 	wifi_perst_l: wifi-perst-l {
-		rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+		rockchip,pins = <2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 	};
 
 	wlan_host_wake_l: wlan-host-wake-l {
-		rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_yesne>;
 	};
 };

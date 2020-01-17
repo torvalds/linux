@@ -44,8 +44,8 @@
 #  define STK_IIC_STAT		(STK_IIC_BASE+1)
 #    define STK_IIC_STAT_TX_OK	(0x04)
 #    define STK_IIC_STAT_RX_OK	(0x01)
-/* I don't know what does this register.
- * when it is 0x00 or 0x01, we cannot talk to the sensor,
+/* I don't kyesw what does this register.
+ * when it is 0x00 or 0x01, we canyest talk to the sensor,
  * other values work */
 #  define STK_IIC_ENABLE	(STK_IIC_BASE+2)
 #    define STK_IIC_ENABLE_NO	(0x00)
@@ -54,7 +54,7 @@
 /*
  * Address of the slave. Seems like the binary driver look for the
  * sensor in multiple places, attempting a reset sequence.
- * We only know about the ov9650
+ * We only kyesw about the ov9650
  */
 #  define STK_IIC_ADDR		(STK_IIC_BASE+3)
 #  define STK_IIC_TX_INDEX	(STK_IIC_BASE+4)
@@ -76,7 +76,7 @@
 #define REG_COM1	0x04	/* Control 1 */
 #define  COM1_CCIR656	  0x40  /* CCIR656 enable */
 #define  COM1_QFMT	  0x20  /* QVGA/QCIF format */
-#define  COM1_SKIP_0	  0x00  /* Do not skip any row */
+#define  COM1_SKIP_0	  0x00  /* Do yest skip any row */
 #define  COM1_SKIP_2	  0x04  /* Skip 2 rows of 4 */
 #define  COM1_SKIP_3	  0x08  /* Skip 3 rows of 4 */
 #define REG_BAVE	0x05	/* U/B Average level */
@@ -305,7 +305,7 @@ static struct regval ov_initvals[] = {
 	{REG_GAIN, 0x00},
 	{REG_BLUE, 0x80},
 	{REG_RED, 0x80},
-	/* Do not enable fast AEC for now */
+	/* Do yest enable fast AEC for yesw */
 	/*{REG_COM8, COM8_FASTAEC|COM8_AECSTEP|COM8_BFILT|COM8_AGC|COM8_AEC},*/
 	{REG_COM8, COM8_AECSTEP|COM8_BFILT|COM8_AGC|COM8_AEC},
 	{0x39, 0x50}, {0x38, 0x93},
@@ -376,7 +376,7 @@ int stk_sensor_init(struct stk_camera *dev)
 	}
 	if (stk_sensor_inb(dev, REG_PID, &idh)
 	    || stk_sensor_inb(dev, REG_VER, &idl)) {
-		pr_err("Could not read sensor model\n");
+		pr_err("Could yest read sensor model\n");
 		return -ENODEV;
 	}
 	stk_sensor_write_regvals(dev, ov_initvals);
@@ -475,7 +475,7 @@ static int stk_sensor_set_hw(struct stk_camera *dev,
 	msleep(10);
 	ret += stk_sensor_outb(dev, REG_HREF, v);
 /*
- * Vertical: similar arrangement (note: this is different from ov7670.c)
+ * Vertical: similar arrangement (yeste: this is different from ov7670.c)
  */
 	ret += stk_sensor_outb(dev, REG_VSTART, (vstart >> 3) & 0xff);
 	ret += stk_sensor_outb(dev, REG_VSTOP, (vstop >> 3) & 0xff);
@@ -566,7 +566,7 @@ int stk_sensor_configure(struct stk_camera *dev)
 	case MODE_CIF:
 	case MODE_QVGA:
 	case MODE_QCIF:
-		/*FIXME These settings seem ignored by the sensor
+		/*FIXME These settings seem igyesred by the sensor
 		if (stk_sensor_set_hw(dev, 220, 1500, 10, 1034))
 			pr_err("stk_sensor_set_hw failed (SXGA)\n");
 		*/

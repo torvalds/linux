@@ -3,7 +3,7 @@
  * These are the H.264 state controls for use with stateless H.264
  * codec drivers.
  *
- * It turns out that these structs are not stable yet and will undergo
+ * It turns out that these structs are yest stable yet and will undergo
  * more changes. So keep them private until they are stable and ready to
  * become part of the official public API.
  */
@@ -18,7 +18,7 @@
 
 /*
  * This is put insanely high to avoid conflicting with controls that
- * would be added during the phase where those controls are not
+ * would be added during the phase where those controls are yest
  * stable. It should be fixed eventually.
  */
 #define V4L2_CID_MPEG_VIDEO_H264_SPS		(V4L2_CID_MPEG_BASE+1000)
@@ -75,7 +75,7 @@ struct v4l2_ctrl_h264_sps {
 	__u8 max_num_ref_frames;
 	__u8 num_ref_frames_in_pic_order_cnt_cycle;
 	__s32 offset_for_ref_frame[255];
-	__s32 offset_for_non_ref_pic;
+	__s32 offset_for_yesn_ref_pic;
 	__s32 offset_for_top_to_bottom_field;
 	__u16 pic_width_in_mbs_minus1;
 	__u16 pic_height_in_map_units_minus1;
@@ -118,8 +118,8 @@ struct v4l2_h264_weight_factors {
 };
 
 struct v4l2_h264_pred_weight_table {
-	__u16 luma_log2_weight_denom;
-	__u16 chroma_log2_weight_denom;
+	__u16 luma_log2_weight_deyesm;
+	__u16 chroma_log2_weight_deyesm;
 	struct v4l2_h264_weight_factors weight_factors[2];
 };
 

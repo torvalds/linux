@@ -15,7 +15,7 @@
 #include <asm/asm.h>
 #include <asm/regdef.h>
 
-	.set noreorder
+	.set yesreorder
 	.cprestore
 	LEAF(start)
 start:
@@ -38,7 +38,7 @@ start:
 	PTR_LA	ra, 2f
 	PTR_LA	k0, decompress_kernel
 	jr	k0
-	 nop
+	 yesp
 2:
 	move	a0, s0
 	move	a1, s1
@@ -46,10 +46,10 @@ start:
 	move	a3, s3
 	PTR_LI	k0, KERNEL_ENTRY
 	jr	k0
-	 nop
+	 yesp
 3:
 	b	3b
-	 nop
+	 yesp
 	END(start)
 
 	.comm .heap,BOOT_HEAP_SIZE,4

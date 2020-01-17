@@ -11,7 +11,7 @@
 
 #include <linux/seqlock.h>
 #include <linux/sysctl.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 
 #include <net/sock.h>

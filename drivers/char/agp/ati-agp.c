@@ -385,7 +385,7 @@ static int ati_create_gatt_table(struct agp_bridge_data *bridge)
 	/*
 	 * Get the address for the gart region.
 	 * This is a bus address even on the alpha, b/c its
-	 * used to program the agp master not the cpu
+	 * used to program the agp master yest the cpu
 	 */
 	addr = pci_bus_address(agp_bridge->dev, AGP_APERTURE_BAR);
 	agp_bridge->gart_bus_addr = addr;
@@ -502,7 +502,7 @@ static int agp_ati_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!cap_ptr)
 		return -ENODEV;
 
-	/* probe for known chipsets */
+	/* probe for kyeswn chipsets */
 	for (j = 0; devs[j].chipset_name; j++) {
 		if (pdev->device == devs[j].device_id)
 			goto found;

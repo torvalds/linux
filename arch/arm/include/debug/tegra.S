@@ -38,7 +38,7 @@
 
 /*
  * Must be section-aligned since a section mapping is used early on.
- * Must not overlap with regions in mach-tegra/io.c:tegra_io_desc[].
+ * Must yest overlap with regions in mach-tegra/io.c:tegra_io_desc[].
  */
 #define UART_VIRTUAL_BASE		0xfe800000
 
@@ -49,7 +49,7 @@
 		ldr	rp, [rp, #0] ; \
 		/* Test UART's reset bit */ \
 		tst	rp, #(1 << bit) ; \
-		/* If set, can't use UART; jump to save no UART */ \
+		/* If set, can't use UART; jump to save yes UART */ \
 		bne	90f ; \
 		/* Load address of CLK_OUT_ENB register */ \
 		ldr	rp, =TEGRA_CLK_OUT_ENB_##lhu ; \
@@ -57,7 +57,7 @@
 		ldr	rp, [rp, #0] ; \
 		/* Test UART's clock enable bit */ \
 		tst	rp, #(1 << bit) ; \
-		/* If clear, can't use UART; jump to save no UART */ \
+		/* If clear, can't use UART; jump to save yes UART */ \
 		beq	90f ; \
 		/* Passed all tests, load address of UART registers */ \
 		ldr	rp, =TEGRA_UART##uart##_BASE ; \
@@ -72,8 +72,8 @@
 		sub	\tmp, \rp, \rv		@ actual tegra_uart_config
 		ldr	\rp, [\tmp]		@ Load tegra_uart_config
 		cmp	\rp, #1			@ needs initialization?
-		bne	100f			@ no; go load the addresses
-		mov	\rv, #0			@ yes; record init is done
+		bne	100f			@ yes; go load the addresses
+		mov	\rv, #0			@ no; record init is done
 		str	\rv, [\tmp]
 
 #ifdef CONFIG_TEGRA_DEBUG_UART_AUTO_ODMDATA
@@ -196,7 +196,7 @@
  * That's because this header is included from multiple files, and we only
  * want a single copy of the data. In particular, the UART probing code above
  * assumes it's running using physical addresses. This is true when this file
- * is included from head.o, but not when included from debug.o. So we need
+ * is included from head.o, but yest when included from debug.o. So we need
  * to share the probe results between the two copies, rather than having
  * to re-run the probing again later.
  *

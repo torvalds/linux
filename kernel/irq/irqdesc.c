@@ -52,22 +52,22 @@ static void __init init_irq_default_affinity(void)
 #endif
 
 #ifdef CONFIG_SMP
-static int alloc_masks(struct irq_desc *desc, int node)
+static int alloc_masks(struct irq_desc *desc, int yesde)
 {
-	if (!zalloc_cpumask_var_node(&desc->irq_common_data.affinity,
-				     GFP_KERNEL, node))
+	if (!zalloc_cpumask_var_yesde(&desc->irq_common_data.affinity,
+				     GFP_KERNEL, yesde))
 		return -ENOMEM;
 
 #ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
-	if (!zalloc_cpumask_var_node(&desc->irq_common_data.effective_affinity,
-				     GFP_KERNEL, node)) {
+	if (!zalloc_cpumask_var_yesde(&desc->irq_common_data.effective_affinity,
+				     GFP_KERNEL, yesde)) {
 		free_cpumask_var(desc->irq_common_data.affinity);
 		return -ENOMEM;
 	}
 #endif
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-	if (!zalloc_cpumask_var_node(&desc->pending_mask, GFP_KERNEL, node)) {
+	if (!zalloc_cpumask_var_yesde(&desc->pending_mask, GFP_KERNEL, yesde)) {
 #ifdef CONFIG_GENERIC_IRQ_EFFECTIVE_AFF_MASK
 		free_cpumask_var(desc->irq_common_data.effective_affinity);
 #endif
@@ -78,7 +78,7 @@ static int alloc_masks(struct irq_desc *desc, int node)
 	return 0;
 }
 
-static void desc_smp_init(struct irq_desc *desc, int node,
+static void desc_smp_init(struct irq_desc *desc, int yesde,
 			  const struct cpumask *affinity)
 {
 	if (!affinity)
@@ -89,18 +89,18 @@ static void desc_smp_init(struct irq_desc *desc, int node,
 	cpumask_clear(desc->pending_mask);
 #endif
 #ifdef CONFIG_NUMA
-	desc->irq_common_data.node = node;
+	desc->irq_common_data.yesde = yesde;
 #endif
 }
 
 #else
 static inline int
-alloc_masks(struct irq_desc *desc, int node) { return 0; }
+alloc_masks(struct irq_desc *desc, int yesde) { return 0; }
 static inline void
-desc_smp_init(struct irq_desc *desc, int node, const struct cpumask *affinity) { }
+desc_smp_init(struct irq_desc *desc, int yesde, const struct cpumask *affinity) { }
 #endif
 
-static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
+static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int yesde,
 			      const struct cpumask *affinity, struct module *owner)
 {
 	int cpu;
@@ -110,7 +110,7 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
 
 	desc->irq_data.common = &desc->irq_common_data;
 	desc->irq_data.irq = irq;
-	desc->irq_data.chip = &no_irq_chip;
+	desc->irq_data.chip = &yes_irq_chip;
 	desc->irq_data.chip_data = NULL;
 	irq_settings_clr_and_set(desc, ~0, _IRQ_DEFAULT_INIT_FLAGS);
 	irqd_set(&desc->irq_data, IRQD_IRQ_DISABLED);
@@ -124,7 +124,7 @@ static void desc_set_defaults(unsigned int irq, struct irq_desc *desc, int node,
 	desc->owner = owner;
 	for_each_possible_cpu(cpu)
 		*per_cpu_ptr(desc->kstat_irqs, cpu) = 0;
-	desc_smp_init(desc, node, affinity);
+	desc_smp_init(desc, yesde, affinity);
 }
 
 int nr_irqs = NR_IRQS;
@@ -287,7 +287,7 @@ static void irq_sysfs_add(int irq, struct irq_desc *desc)
 {
 	if (irq_kobj_base) {
 		/*
-		 * Continue even in case of failure as this is nothing
+		 * Continue even in case of failure as this is yesthing
 		 * crucial.
 		 */
 		if (kobject_add(&desc->kobj, irq_kobj_base, "%d", irq))
@@ -298,9 +298,9 @@ static void irq_sysfs_add(int irq, struct irq_desc *desc)
 static void irq_sysfs_del(struct irq_desc *desc)
 {
 	/*
-	 * If irq_sysfs_init() has not yet been invoked (early boot), then
+	 * If irq_sysfs_init() has yest yet been invoked (early boot), then
 	 * irq_kobj_base is NULL and the descriptor was never added.
-	 * kobject_del() complains about a object with no parent, so make
+	 * kobject_del() complains about a object with yes parent, so make
 	 * it conditional.
 	 */
 	if (irq_kobj_base)
@@ -384,13 +384,13 @@ void irq_unlock_sparse(void)
 	mutex_unlock(&sparse_irq_lock);
 }
 
-static struct irq_desc *alloc_desc(int irq, int node, unsigned int flags,
+static struct irq_desc *alloc_desc(int irq, int yesde, unsigned int flags,
 				   const struct cpumask *affinity,
 				   struct module *owner)
 {
 	struct irq_desc *desc;
 
-	desc = kzalloc_node(sizeof(*desc), GFP_KERNEL, node);
+	desc = kzalloc_yesde(sizeof(*desc), GFP_KERNEL, yesde);
 	if (!desc)
 		return NULL;
 	/* allocate based on nr_cpu_ids */
@@ -398,7 +398,7 @@ static struct irq_desc *alloc_desc(int irq, int node, unsigned int flags,
 	if (!desc->kstat_irqs)
 		goto err_desc;
 
-	if (alloc_masks(desc, node))
+	if (alloc_masks(desc, yesde))
 		goto err_kstat;
 
 	raw_spin_lock_init(&desc->lock);
@@ -406,7 +406,7 @@ static struct irq_desc *alloc_desc(int irq, int node, unsigned int flags,
 	mutex_init(&desc->request_mutex);
 	init_rcu_head(&desc->rcu);
 
-	desc_set_defaults(irq, desc, node, affinity, owner);
+	desc_set_defaults(irq, desc, yesde, affinity, owner);
 	irqd_set(&desc->irq_data, flags);
 	kobject_init(&desc->kobj, &irq_kobj_type);
 
@@ -463,7 +463,7 @@ static void free_desc(unsigned int irq)
 	call_rcu(&desc->rcu, delayed_free_desc);
 }
 
-static int alloc_descs(unsigned int start, unsigned int cnt, int node,
+static int alloc_descs(unsigned int start, unsigned int cnt, int yesde,
 		       const struct irq_affinity_desc *affinity,
 		       struct module *owner)
 {
@@ -488,11 +488,11 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 					IRQD_MANAGED_SHUTDOWN;
 			}
 			mask = &affinity->mask;
-			node = cpu_to_node(cpumask_first(mask));
+			yesde = cpu_to_yesde(cpumask_first(mask));
 			affinity++;
 		}
 
-		desc = alloc_desc(start + i, node, flags, mask, owner);
+		desc = alloc_desc(start + i, yesde, flags, mask, owner);
 		if (!desc)
 			goto err;
 		irq_insert_desc(start + i, desc);
@@ -518,7 +518,7 @@ static int irq_expand_nr_irqs(unsigned int nr)
 
 int __init early_irq_init(void)
 {
-	int i, initcnt, node = first_online_node;
+	int i, initcnt, yesde = first_online_yesde;
 	struct irq_desc *desc;
 
 	init_irq_default_affinity();
@@ -538,7 +538,7 @@ int __init early_irq_init(void)
 		nr_irqs = initcnt;
 
 	for (i = 0; i < initcnt; i++) {
-		desc = alloc_desc(i, node, 0, NULL, NULL);
+		desc = alloc_desc(i, yesde, 0, NULL, NULL);
 		set_bit(i, allocated_irqs);
 		irq_insert_desc(i, desc);
 	}
@@ -557,7 +557,7 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 
 int __init early_irq_init(void)
 {
-	int count, i, node = first_online_node;
+	int count, i, yesde = first_online_yesde;
 	struct irq_desc *desc;
 
 	init_irq_default_affinity();
@@ -569,11 +569,11 @@ int __init early_irq_init(void)
 
 	for (i = 0; i < count; i++) {
 		desc[i].kstat_irqs = alloc_percpu(unsigned int);
-		alloc_masks(&desc[i], node);
+		alloc_masks(&desc[i], yesde);
 		raw_spin_lock_init(&desc[i].lock);
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
 		mutex_init(&desc[i].request_mutex);
-		desc_set_defaults(i, &desc[i], node, NULL, NULL);
+		desc_set_defaults(i, &desc[i], yesde, NULL, NULL);
 	}
 	return arch_early_irq_init();
 }
@@ -590,11 +590,11 @@ static void free_desc(unsigned int irq)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-	desc_set_defaults(irq, desc, irq_desc_get_node(desc), NULL, NULL);
+	desc_set_defaults(irq, desc, irq_desc_get_yesde(desc), NULL, NULL);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
-static inline int alloc_descs(unsigned int start, unsigned int cnt, int node,
+static inline int alloc_descs(unsigned int start, unsigned int cnt, int yesde,
 			      const struct irq_affinity_desc *affinity,
 			      struct module *owner)
 {
@@ -651,7 +651,7 @@ EXPORT_SYMBOL_GPL(generic_handle_irq);
  * __handle_domain_irq - Invoke the handler for a HW irq belonging to a domain
  * @domain:	The domain where to perform the lookup
  * @hwirq:	The HW irq number to convert to a logical one
- * @lookup:	Whether to perform the domain lookup or not
+ * @lookup:	Whether to perform the domain lookup or yest
  * @regs:	Register file coming from the low-level handling code
  *
  * Returns:	0 on success, or -EINVAL if conversion has failed
@@ -712,7 +712,7 @@ int handle_domain_nmi(struct irq_domain *domain, unsigned int hwirq,
 	irq = irq_find_mapping(domain, hwirq);
 
 	/*
-	 * ack_bad_irq is not NMI-safe, just report
+	 * ack_bad_irq is yest NMI-safe, just report
 	 * an invalid interrupt.
 	 */
 	if (likely(irq))
@@ -754,7 +754,7 @@ EXPORT_SYMBOL_GPL(irq_free_descs);
  * @irq:	Allocate for specific irq number if irq >= 0
  * @from:	Start the search from this irq number
  * @cnt:	Number of consecutive irqs to allocate.
- * @node:	Preferred node on which the irq descriptor should be allocated
+ * @yesde:	Preferred yesde on which the irq descriptor should be allocated
  * @owner:	Owning module (can be NULL)
  * @affinity:	Optional pointer to an affinity mask array of size @cnt which
  *		hints where the irq descriptors should be allocated and which
@@ -763,7 +763,7 @@ EXPORT_SYMBOL_GPL(irq_free_descs);
  * Returns the first irq number or error code
  */
 int __ref
-__irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
+__irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int yesde,
 		  struct module *owner, const struct irq_affinity_desc *affinity)
 {
 	int start, ret;
@@ -797,7 +797,7 @@ __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
 		if (ret)
 			goto unlock;
 	}
-	ret = alloc_descs(start, cnt, node, affinity, owner);
+	ret = alloc_descs(start, cnt, yesde, affinity, owner);
 unlock:
 	mutex_unlock(&sparse_irq_lock);
 	return ret;
@@ -808,19 +808,19 @@ EXPORT_SYMBOL_GPL(__irq_alloc_descs);
 /**
  * irq_alloc_hwirqs - Allocate an irq descriptor and initialize the hardware
  * @cnt:	number of interrupts to allocate
- * @node:	node on which to allocate
+ * @yesde:	yesde on which to allocate
  *
  * Returns an interrupt number > 0 or 0, if the allocation fails.
  */
-unsigned int irq_alloc_hwirqs(int cnt, int node)
+unsigned int irq_alloc_hwirqs(int cnt, int yesde)
 {
-	int i, irq = __irq_alloc_descs(-1, 0, cnt, node, NULL, NULL);
+	int i, irq = __irq_alloc_descs(-1, 0, cnt, yesde, NULL, NULL);
 
 	if (irq < 0)
 		return 0;
 
 	for (i = irq; cnt > 0; i++, cnt--) {
-		if (arch_setup_hwirq(i, node))
+		if (arch_setup_hwirq(i, yesde))
 			goto err;
 		irq_clear_status_flags(i, _IRQ_NOREQUEST);
 	}
@@ -859,7 +859,7 @@ EXPORT_SYMBOL_GPL(irq_free_hwirqs);
  * irq_get_next_irq - get next allocated irq number
  * @offset:	where to start the search
  *
- * Returns next irq number after offset or nr_irqs if none is found.
+ * Returns next irq number after offset or nr_irqs if yesne is found.
  */
 unsigned int irq_get_next_irq(unsigned int offset)
 {
@@ -952,7 +952,7 @@ void kstat_incr_irq_this_cpu(unsigned int irq)
  * @cpu:	The cpu number
  *
  * Returns the sum of interrupt counts on @cpu since boot for
- * @irq. The caller must ensure that the interrupt is not removed
+ * @irq. The caller must ensure that the interrupt is yest removed
  * concurrently.
  */
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
@@ -973,7 +973,7 @@ static bool irq_is_nmi(struct irq_desc *desc)
  * @irq:	The interrupt number
  *
  * Returns the sum of interrupt counts on all cpus since boot for
- * @irq. The caller must ensure that the interrupt is not removed
+ * @irq. The caller must ensure that the interrupt is yest removed
  * concurrently.
  */
 unsigned int kstat_irqs(unsigned int irq)

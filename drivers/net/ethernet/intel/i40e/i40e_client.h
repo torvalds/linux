@@ -19,7 +19,7 @@
 
 struct i40e_client_version {
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 	u8 build;
 	u8 rsvd;
 };
@@ -37,7 +37,7 @@ enum i40e_client_instance_state {
 struct i40e_ops;
 struct i40e_client;
 
-/* HW does not define a type value for AEQ; only for RX/TX and CEQ.
+/* HW does yest define a type value for AEQ; only for RX/TX and CEQ.
  * In order for us to keep the interface simple, SW will define a
  * unique type value for AEQ.
  */
@@ -103,7 +103,7 @@ struct i40e_info {
 	struct msix_entry *msix_entries;
 	u16 itr_index; /* Which ITR index the PE driver is suppose to use */
 	u16 fw_maj_ver;                 /* firmware major version */
-	u16 fw_min_ver;                 /* firmware minor version */
+	u16 fw_min_ver;                 /* firmware miyesr version */
 	u32 fw_build;                   /* firmware build number */
 };
 

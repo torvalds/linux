@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* exynos_drm_crtc.h
+/* exyyess_drm_crtc.h
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  * Authors:
@@ -12,31 +12,31 @@
 #define _EXYNOS_DRM_CRTC_H_
 
 
-#include "exynos_drm_drv.h"
+#include "exyyess_drm_drv.h"
 
-struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
+struct exyyess_drm_crtc *exyyess_drm_crtc_create(struct drm_device *drm_dev,
 					struct drm_plane *plane,
-					enum exynos_drm_output_type out_type,
-					const struct exynos_drm_crtc_ops *ops,
+					enum exyyess_drm_output_type out_type,
+					const struct exyyess_drm_crtc_ops *ops,
 					void *context);
-void exynos_drm_crtc_wait_pending_update(struct exynos_drm_crtc *exynos_crtc);
-void exynos_drm_crtc_finish_update(struct exynos_drm_crtc *exynos_crtc,
-				   struct exynos_drm_plane *exynos_plane);
+void exyyess_drm_crtc_wait_pending_update(struct exyyess_drm_crtc *exyyess_crtc);
+void exyyess_drm_crtc_finish_update(struct exyyess_drm_crtc *exyyess_crtc,
+				   struct exyyess_drm_plane *exyyess_plane);
 
 /* This function gets crtc device matched with out_type. */
-struct exynos_drm_crtc *exynos_drm_crtc_get_by_type(struct drm_device *drm_dev,
-				       enum exynos_drm_output_type out_type);
+struct exyyess_drm_crtc *exyyess_drm_crtc_get_by_type(struct drm_device *drm_dev,
+				       enum exyyess_drm_output_type out_type);
 
-int exynos_drm_set_possible_crtcs(struct drm_encoder *encoder,
-		enum exynos_drm_output_type out_type);
+int exyyess_drm_set_possible_crtcs(struct drm_encoder *encoder,
+		enum exyyess_drm_output_type out_type);
 
 /*
  * This function calls the crtc device(manager)'s te_handler() callback
  * to trigger to transfer video image at the tearing effect synchronization
  * signal.
  */
-void exynos_drm_crtc_te_handler(struct drm_crtc *crtc);
+void exyyess_drm_crtc_te_handler(struct drm_crtc *crtc);
 
-void exynos_crtc_handle_event(struct exynos_drm_crtc *exynos_crtc);
+void exyyess_crtc_handle_event(struct exyyess_drm_crtc *exyyess_crtc);
 
 #endif

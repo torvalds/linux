@@ -71,7 +71,7 @@ static const struct ieee80211_regdomain rtl_regdom_12_13 = {
 		      }
 };
 
-static const struct ieee80211_regdomain rtl_regdom_no_midband = {
+static const struct ieee80211_regdomain rtl_regdom_yes_midband = {
 	.n_reg_rules = 3,
 	.alpha2 = "99",
 	.reg_rules = {
@@ -192,7 +192,7 @@ static void _rtl_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	sband = wiphy->bands[NL80211_BAND_2GHZ];
 
 	/*
-	 *If no country IE has been received always enable active scan
+	 *If yes country IE has been received always enable active scan
 	 *on these channels. This is only done for specific regulatory SKUs
 	 */
 	if (initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE) {
@@ -253,12 +253,12 @@ static void _rtl_reg_apply_radar_flags(struct wiphy *wiphy)
 		 *We always enable radar detection/DFS on this
 		 *frequency range. Additionally we also apply on
 		 *this frequency range:
-		 *- If STA mode does not yet have DFS supports disable
+		 *- If STA mode does yest yet have DFS supports disable
 		 * active scanning
-		 *- If adhoc mode does not support DFS yet then disable
+		 *- If adhoc mode does yest support DFS yet then disable
 		 * adhoc in the frequency.
-		 *- If AP mode does not yet support radar detection/DFS
-		 *do not allow AP mode
+		 *- If AP mode does yest yet support radar detection/DFS
+		 *do yest allow AP mode
 		 */
 		if (!(ch->flags & IEEE80211_CHAN_DISABLED))
 			ch->flags |= IEEE80211_CHAN_RADAR |
@@ -276,7 +276,7 @@ static void _rtl_reg_apply_world_flags(struct wiphy *wiphy,
 	return;
 }
 
-static int _rtl_reg_notifier_apply(struct wiphy *wiphy,
+static int _rtl_reg_yestifier_apply(struct wiphy *wiphy,
 				   struct regulatory_request *request,
 				   struct rtl_regulatory *reg)
 {
@@ -301,7 +301,7 @@ static const struct ieee80211_regdomain *_rtl_regdomain_select(
 {
 	switch (reg->country_code) {
 	case COUNTRY_CODE_FCC:
-		return &rtl_regdom_no_midband;
+		return &rtl_regdom_yes_midband;
 	case COUNTRY_CODE_IC:
 		return &rtl_regdom_11;
 	case COUNTRY_CODE_TELEC_NETGEAR:
@@ -322,19 +322,19 @@ static const struct ieee80211_regdomain *_rtl_regdomain_select(
 	case COUNTRY_CODE_WORLD_WIDE_13_5G_ALL:
 		return &rtl_regdom_12_13_5g_all;
 	default:
-		return &rtl_regdom_no_midband;
+		return &rtl_regdom_yes_midband;
 	}
 }
 
 static int _rtl_regd_init_wiphy(struct rtl_regulatory *reg,
 				struct wiphy *wiphy,
-				void (*reg_notifier)(struct wiphy *wiphy,
+				void (*reg_yestifier)(struct wiphy *wiphy,
 						     struct regulatory_request *
 						     request))
 {
 	const struct ieee80211_regdomain *regd;
 
-	wiphy->reg_notifier = reg_notifier;
+	wiphy->reg_yestifier = reg_yestifier;
 
 	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
 	wiphy->regulatory_flags &= ~REGULATORY_STRICT_REG;
@@ -379,7 +379,7 @@ static u8 channel_plan_to_country_code(u8 channelplan)
 }
 
 int rtl_regd_init(struct ieee80211_hw *hw,
-		  void (*reg_notifier)(struct wiphy *wiphy,
+		  void (*reg_yestifier)(struct wiphy *wiphy,
 				       struct regulatory_request *request))
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -418,17 +418,17 @@ int rtl_regd_init(struct ieee80211_hw *hw,
 		 "rtl: Country alpha2 being used: %c%c\n",
 		  rtlpriv->regd.alpha2[0], rtlpriv->regd.alpha2[1]);
 
-	_rtl_regd_init_wiphy(&rtlpriv->regd, wiphy, reg_notifier);
+	_rtl_regd_init_wiphy(&rtlpriv->regd, wiphy, reg_yestifier);
 
 	return 0;
 }
 
-void rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+void rtl_reg_yestifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	RT_TRACE(rtlpriv, COMP_REGD, DBG_LOUD, "\n");
 
-	_rtl_reg_notifier_apply(wiphy, request, &rtlpriv->regd);
+	_rtl_reg_yestifier_apply(wiphy, request, &rtlpriv->regd);
 }

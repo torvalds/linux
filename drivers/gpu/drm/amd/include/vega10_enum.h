@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -15818,7 +15818,7 @@ vgt_perf_hs_interface_stall              = 0x00000035,
 vgt_perf_hs_tfm_stall                    = 0x00000036,
 vgt_perf_te11_starved                    = 0x00000037,
 vgt_perf_gs_event_stall                  = 0x00000038,
-vgt_perf_vgt_pa_clipp_send_not_event     = 0x00000039,
+vgt_perf_vgt_pa_clipp_send_yest_event     = 0x00000039,
 vgt_perf_vgt_pa_clipp_valid_prim         = 0x0000003a,
 vgt_perf_reused_es_indices               = 0x0000003b,
 vgt_perf_vs_cache_hits                   = 0x0000003c,
@@ -16201,7 +16201,7 @@ TA_PERF_SEL_first_xnack_on_phase3        = 0x00000076,
  */
 
 typedef enum TD_PERFCOUNT_SEL {
-TD_PERF_SEL_none                         = 0x00000000,
+TD_PERF_SEL_yesne                         = 0x00000000,
 TD_PERF_SEL_td_busy                      = 0x00000001,
 TD_PERF_SEL_input_busy                   = 0x00000002,
 TD_PERF_SEL_output_busy                  = 0x00000003,
@@ -19873,7 +19873,7 @@ DB_PERF_SEL_DB_SC_tile_tiles             = 0x0000000e,
 DB_PERF_SEL_DB_SC_tile_culled            = 0x0000000f,
 DB_PERF_SEL_DB_SC_tile_hier_kill         = 0x00000010,
 DB_PERF_SEL_DB_SC_tile_fast_ops          = 0x00000011,
-DB_PERF_SEL_DB_SC_tile_no_ops            = 0x00000012,
+DB_PERF_SEL_DB_SC_tile_yes_ops            = 0x00000012,
 DB_PERF_SEL_DB_SC_tile_tile_rate         = 0x00000013,
 DB_PERF_SEL_DB_SC_tile_ssaa_kill         = 0x00000014,
 DB_PERF_SEL_DB_SC_tile_fast_z_ops        = 0x00000015,
@@ -19944,8 +19944,8 @@ DB_PERF_SEL_Depth_Tile_Cache_alloc_stall  = 0x00000055,
 DB_PERF_SEL_Depth_Tile_Cache_misses      = 0x00000056,
 DB_PERF_SEL_Depth_Tile_Cache_hits        = 0x00000057,
 DB_PERF_SEL_Depth_Tile_Cache_flushes     = 0x00000058,
-DB_PERF_SEL_Depth_Tile_Cache_noop_tile   = 0x00000059,
-DB_PERF_SEL_Depth_Tile_Cache_detailed_noop  = 0x0000005a,
+DB_PERF_SEL_Depth_Tile_Cache_yesop_tile   = 0x00000059,
+DB_PERF_SEL_Depth_Tile_Cache_detailed_yesop  = 0x0000005a,
 DB_PERF_SEL_Depth_Tile_Cache_event       = 0x0000005b,
 DB_PERF_SEL_Depth_Tile_Cache_tile_frees  = 0x0000005c,
 DB_PERF_SEL_Depth_Tile_Cache_data_frees  = 0x0000005d,
@@ -20020,8 +20020,8 @@ DB_PERF_SEL_tl_flush_expand_squads       = 0x000000a1,
 DB_PERF_SEL_tl_expand_squads             = 0x000000a2,
 DB_PERF_SEL_tl_preZ_squads               = 0x000000a3,
 DB_PERF_SEL_tl_postZ_squads              = 0x000000a4,
-DB_PERF_SEL_tl_preZ_noop_squads          = 0x000000a5,
-DB_PERF_SEL_tl_postZ_noop_squads         = 0x000000a6,
+DB_PERF_SEL_tl_preZ_yesop_squads          = 0x000000a5,
+DB_PERF_SEL_tl_postZ_yesop_squads         = 0x000000a6,
 DB_PERF_SEL_tl_tile_ops                  = 0x000000a7,
 DB_PERF_SEL_tl_in_xfc                    = 0x000000a8,
 DB_PERF_SEL_tl_in_single_stencil_expand_stall  = 0x000000a9,
@@ -20074,7 +20074,7 @@ DB_PERF_SEL_mi_rdreq_busy                = 0x000000d7,
 DB_PERF_SEL_mi_rdreq_stall               = 0x000000d8,
 DB_PERF_SEL_mi_wrreq_busy                = 0x000000d9,
 DB_PERF_SEL_mi_wrreq_stall               = 0x000000da,
-DB_PERF_SEL_recomp_tile_to_1zplane_no_fastop  = 0x000000db,
+DB_PERF_SEL_recomp_tile_to_1zplane_yes_fastop  = 0x000000db,
 DB_PERF_SEL_dkg_tile_rate_tile           = 0x000000dc,
 DB_PERF_SEL_prezl_src_in_sends           = 0x000000dd,
 DB_PERF_SEL_prezl_src_in_stall           = 0x000000de,
@@ -20138,7 +20138,7 @@ DB_PERF_SEL_DFSM_fully_cleared_pixels_out  = 0x00000117,
 DB_PERF_SEL_DFSM_lit_samples_in          = 0x00000118,
 DB_PERF_SEL_DFSM_lit_samples_out         = 0x00000119,
 DB_PERF_SEL_DFSM_cycles_above_watermark  = 0x0000011a,
-DB_PERF_SEL_DFSM_cant_accept_squads_but_not_stalled_by_downstream  = 0x0000011b,
+DB_PERF_SEL_DFSM_cant_accept_squads_but_yest_stalled_by_downstream  = 0x0000011b,
 DB_PERF_SEL_DFSM_stalled_by_downstream   = 0x0000011c,
 DB_PERF_SEL_DFSM_evicted_squads_above_watermark  = 0x0000011d,
 DB_PERF_SEL_DFSM_collisions_due_to_POPS_overflow  = 0x0000011e,
@@ -20256,7 +20256,7 @@ TEX_Clamp_MirrorOnceToBorder             = 0x00000007,
  */
 
 typedef enum TEX_COORD_TYPE {
-TEX_CoordType_Unnormalized               = 0x00000000,
+TEX_CoordType_Unyesrmalized               = 0x00000000,
 TEX_CoordType_Normalized                 = 0x00000001,
 } TEX_COORD_TYPE;
 

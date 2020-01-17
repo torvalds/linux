@@ -51,15 +51,15 @@ retry:
 		if (fw->size != size) {
 			/* Due to race conditions in firmware loading (esp. with udev <0.95)
 			   the wrong file was sometimes loaded. So we check filesizes to
-			   see if at least the right-sized file was loaded. If not, then we
+			   see if at least the right-sized file was loaded. If yest, then we
 			   retry. */
-			IVTV_INFO("Retry: file loaded was not %s (expected size %ld, got %zu)\n", fn, size, fw->size);
+			IVTV_INFO("Retry: file loaded was yest %s (expected size %ld, got %zu)\n", fn, size, fw->size);
 			release_firmware(fw);
 			retries--;
 			goto retry;
 		}
 		for (i = 0; i < fw->size; i += 4) {
-			/* no need for endianness conversion on the ppc */
+			/* yes need for endianness conversion on the ppc */
 			__raw_writel(*src, dst);
 			dst++;
 			src++;
@@ -205,7 +205,7 @@ int ivtv_firmware_init(struct ivtv *itv)
 	/* find mailboxes and ping firmware */
 	itv->enc_mbox.mbox = ivtv_search_mailbox(itv->enc_mem, IVTV_ENCODER_SIZE);
 	if (itv->enc_mbox.mbox == NULL)
-		IVTV_ERR("Encoder mailbox not found\n");
+		IVTV_ERR("Encoder mailbox yest found\n");
 	else if (ivtv_vapi(itv, CX2341X_ENC_PING_FW, 0)) {
 		IVTV_ERR("Encoder firmware dead!\n");
 		itv->enc_mbox.mbox = NULL;
@@ -218,7 +218,7 @@ int ivtv_firmware_init(struct ivtv *itv)
 
 	itv->dec_mbox.mbox = ivtv_search_mailbox(itv->dec_mem, IVTV_DECODER_SIZE);
 	if (itv->dec_mbox.mbox == NULL) {
-		IVTV_ERR("Decoder mailbox not found\n");
+		IVTV_ERR("Decoder mailbox yest found\n");
 	} else if (itv->has_cx23415 && ivtv_vapi(itv, CX2341X_DEC_PING_FW, 0)) {
 		IVTV_ERR("Decoder firmware dead!\n");
 		itv->dec_mbox.mbox = NULL;
@@ -307,7 +307,7 @@ static int ivtv_firmware_restart(struct ivtv *itv)
 		/* Restore alpha settings */
 		ivtv_set_osd_alpha(itv);
 
-		/* Restore normal output */
+		/* Restore yesrmal output */
 		ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_routing,
 		    SAA7127_INPUT_TYPE_NORMAL,
 		    itv->card->video_outputs[itv->active_output].video_output,
@@ -330,7 +330,7 @@ int ivtv_firmware_check(struct ivtv *itv, char *where)
 		res = -1;
 	}
 
-	/* Also check audio. Only check if not in use & encoder is okay */
+	/* Also check audio. Only check if yest in use & encoder is okay */
 	if (!res && !atomic_read(&itv->capturing) &&
 	    (!atomic_read(&itv->decoding) ||
 	     (atomic_read(&itv->decoding) < 2 && test_bit(IVTV_F_I_DEC_YUV,

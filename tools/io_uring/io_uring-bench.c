@@ -8,7 +8,7 @@
  * Copyright (C) 2018-2019 Jens Axboe
  */
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -99,14 +99,14 @@ static volatile int finish;
 static int polled = 1;		/* use IO polling */
 static int fixedbufs = 1;	/* use fixed user buffers */
 static int register_files = 1;	/* use fixed files */
-static int buffered = 0;	/* use buffered IO, not O_DIRECT */
+static int buffered = 0;	/* use buffered IO, yest O_DIRECT */
 static int sq_thread_poll = 0;	/* use kernel submission/poller thread */
 static int sq_thread_cpu = -1;	/* pin above thread to this CPU */
-static int do_nop = 0;		/* no-op SQ ring commands */
+static int do_yesp = 0;		/* yes-op SQ ring commands */
 
 static int io_uring_register_buffers(struct submitter *s)
 {
-	if (do_nop)
+	if (do_yesp)
 		return 0;
 
 	return io_uring_register(s->ring_fd, IORING_REGISTER_BUFFERS, s->iovecs,
@@ -117,7 +117,7 @@ static int io_uring_register_files(struct submitter *s)
 {
 	unsigned i;
 
-	if (do_nop)
+	if (do_yesp)
 		return 0;
 
 	s->fds = calloc(s->nr_files, sizeof(__s32));
@@ -147,7 +147,7 @@ static void init_io(struct submitter *s, unsigned index)
 	struct file *f;
 	long r;
 
-	if (do_nop) {
+	if (do_yesp) {
 		sqe->opcode = IORING_OP_NOP;
 		return;
 	}
@@ -255,7 +255,7 @@ static int reap_events(struct submitter *s)
 		if (head == *ring->tail)
 			break;
 		cqe = &ring->cqes[head & cq_ring_mask];
-		if (!do_nop) {
+		if (!do_yesp) {
 			f = (struct file *) (uintptr_t) cqe->user_data;
 			f->pending_ios--;
 			if (cqe->res != BS) {
@@ -303,7 +303,7 @@ submit:
 			to_wait = min(s->inflight + to_submit, BATCH_COMPLETE);
 
 		/*
-		 * Only need to call io_uring_enter if we're not using SQ thread
+		 * Only need to call io_uring_enter if we're yest using SQ thread
 		 * poll, or if IORING_SQ_NEED_WAKEUP is set.
 		 */
 		if (!sq_thread_poll || (*ring->flags & IORING_SQ_NEED_WAKEUP)) {
@@ -319,9 +319,9 @@ submit:
 		}
 
 		/*
-		 * For non SQ thread poll, we already got the events we needed
+		 * For yesn SQ thread poll, we already got the events we needed
 		 * through the io_uring_enter() above. For SQ thread poll, we
-		 * need to loop here until we find enough events.
+		 * need to loop here until we find eyesugh events.
 		 */
 		this_reap = 0;
 		do {
@@ -352,7 +352,7 @@ submit:
 			prepped = 0;
 			continue;
 		} else if (ret < 0) {
-			if (errno == EAGAIN) {
+			if (erryes == EAGAIN) {
 				if (s->finish)
 					break;
 				if (this_reap)
@@ -360,7 +360,7 @@ submit:
 				to_submit = 0;
 				goto submit;
 			}
-			printf("io_submit: %s\n", strerror(errno));
+			printf("io_submit: %s\n", strerror(erryes));
 			break;
 		}
 	} while (!s->finish);
@@ -396,7 +396,7 @@ static int setup_ring(struct submitter *s)
 
 	memset(&p, 0, sizeof(p));
 
-	if (polled && !do_nop)
+	if (polled && !do_yesp)
 		p.flags |= IORING_SETUP_IOPOLL;
 	if (sq_thread_poll) {
 		p.flags |= IORING_SETUP_SQPOLL;
@@ -485,7 +485,7 @@ int main(int argc, char *argv[])
 	char *fdepths;
 	void *ret;
 
-	if (!do_nop && argc < 2) {
+	if (!do_yesp && argc < 2) {
 		printf("%s: filename\n", argv[0]);
 		return 1;
 	}
@@ -495,7 +495,7 @@ int main(int argc, char *argv[])
 		flags |= O_DIRECT;
 
 	i = 1;
-	while (!do_nop && i < argc) {
+	while (!do_yesp && i < argc) {
 		struct file *f;
 
 		if (s->nr_files == MAX_FDS) {
@@ -551,7 +551,7 @@ int main(int argc, char *argv[])
 
 	err = setup_ring(s);
 	if (err) {
-		printf("ring setup failed: %s, %d\n", strerror(errno), err);
+		printf("ring setup failed: %s, %d\n", strerror(erryes), err);
 		return 1;
 	}
 	printf("polled=%d, fixedbufs=%d, buffered=%d", polled, fixedbufs, buffered);

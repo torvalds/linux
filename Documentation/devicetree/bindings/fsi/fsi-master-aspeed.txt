@@ -9,7 +9,7 @@ Required properties:
  - reg: base address and length
  - clocks: phandle and clock number
  - interrupts: platform dependent interrupt description
- - pinctrl-0: phandle to pinctrl node
+ - pinctrl-0: phandle to pinctrl yesde
  - pinctrl-names: pinctrl state
 
 Examples:

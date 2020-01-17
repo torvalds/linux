@@ -84,7 +84,7 @@ struct ibmpex_bmc_data {
 	int			rx_recv_type;
 
 	unsigned char		sensor_major;
-	unsigned char		sensor_minor;
+	unsigned char		sensor_miyesr;
 
 	unsigned char		num_sensors;
 	struct ibmpex_sensor_data	*sensors;
@@ -143,12 +143,12 @@ static int ibmpex_ver_check(struct ibmpex_bmc_data *data)
 		return -ENOENT;
 
 	data->sensor_major = data->rx_msg_data[0];
-	data->sensor_minor = data->rx_msg_data[1];
+	data->sensor_miyesr = data->rx_msg_data[1];
 
 	dev_info(data->bmc_device,
 		 "Found BMC with sensor interface v%d.%d %d-%02d-%02d on interface %d\n",
 		 data->sensor_major,
-		 data->sensor_minor,
+		 data->sensor_miyesr,
 		 extract_value(data->rx_msg_data, 2),
 		 data->rx_msg_data[4],
 		 data->rx_msg_data[5],

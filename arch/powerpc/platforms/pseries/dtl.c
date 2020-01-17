@@ -31,7 +31,7 @@ static u8 dtl_event_mask = DTL_LOG_ALL;
 
 /*
  * Size of per-cpu log buffers. Firmware requires that the buffer does
- * not cross a 4k boundary.
+ * yest cross a 4k boundary.
  */
 static int dtl_buf_entries = N_DISPATCH_LOG;
 
@@ -63,7 +63,7 @@ static void consume_dtle(struct dtl_entry *dtle, u64 index)
 	*wp = *dtle;
 	barrier();
 
-	/* check for hypervisor ring buffer overflow, ignore this entry if so */
+	/* check for hypervisor ring buffer overflow, igyesre this entry if so */
 	if (index + N_DISPATCH_LOG < be64_to_cpu(vpa->dtl_idx))
 		return;
 
@@ -179,12 +179,12 @@ static int dtl_enable(struct dtl *dtl)
 	if (dtl->buf)
 		return -EBUSY;
 
-	/* ensure there are no other conflicting dtl users */
+	/* ensure there are yes other conflicting dtl users */
 	if (!read_trylock(&dtl_access_lock))
 		return -EBUSY;
 
 	n_entries = dtl_buf_entries;
-	buf = kmem_cache_alloc_node(dtl_cache, GFP_KERNEL, cpu_to_node(dtl->cpu));
+	buf = kmem_cache_alloc_yesde(dtl_cache, GFP_KERNEL, cpu_to_yesde(dtl->cpu));
 	if (!buf) {
 		printk(KERN_WARNING "%s: buffer alloc failed for cpu %d\n",
 				__func__, dtl->cpu);
@@ -226,9 +226,9 @@ static void dtl_disable(struct dtl *dtl)
 
 /* file interface */
 
-static int dtl_file_open(struct inode *inode, struct file *filp)
+static int dtl_file_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct dtl *dtl = inode->i_private;
+	struct dtl *dtl = iyesde->i_private;
 	int rc;
 
 	rc = dtl_enable(dtl);
@@ -239,9 +239,9 @@ static int dtl_file_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int dtl_file_release(struct inode *inode, struct file *filp)
+static int dtl_file_release(struct iyesde *iyesde, struct file *filp)
 {
-	struct dtl *dtl = inode->i_private;
+	struct dtl *dtl = iyesde->i_private;
 	dtl_disable(dtl);
 	return 0;
 }
@@ -300,7 +300,7 @@ static ssize_t dtl_file_read(struct file *filp, char __user *buf, size_t len,
 		buf += read_size * sizeof(struct dtl_entry);
 	}
 
-	/* .. and now the head */
+	/* .. and yesw the head */
 	rc = copy_to_user(buf, &dtl->buf[i], n_req * sizeof(struct dtl_entry));
 	if (rc)
 		return -EFAULT;
@@ -314,7 +314,7 @@ static const struct file_operations dtl_fops = {
 	.open		= dtl_file_open,
 	.release	= dtl_file_release,
 	.read		= dtl_file_read,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct dentry *dtl_dir;

@@ -175,7 +175,7 @@ static irqreturn_t mtk_iommu_isr(int irq, void *dev_id)
 	fault_port = MT2701_M4U_TF_PORT(regval);
 
 	/*
-	 * MTK v1 iommu HW could not determine whether the fault is read or
+	 * MTK v1 iommu HW could yest determine whether the fault is read or
 	 * write fault, report as read fault.
 	 */
 	if (report_iommu_fault(&dom->domain, data->dev, fault_iova,
@@ -379,7 +379,7 @@ static int mtk_iommu_create_mapping(struct device *dev,
 	}
 
 	if (!fwspec) {
-		ret = iommu_fwspec_init(dev, &args->np->fwnode, &mtk_iommu_ops);
+		ret = iommu_fwspec_init(dev, &args->np->fwyesde, &mtk_iommu_ops);
 		if (ret)
 			return ret;
 		fwspec = dev_iommu_fwspec_get(dev);
@@ -389,7 +389,7 @@ static int mtk_iommu_create_mapping(struct device *dev,
 
 	if (!fwspec->iommu_priv) {
 		/* Get the m4u device */
-		m4updev = of_find_device_by_node(args->np);
+		m4updev = of_find_device_by_yesde(args->np);
 		if (WARN_ON(!m4updev))
 			return -EINVAL;
 
@@ -426,11 +426,11 @@ static int mtk_iommu_add_device(struct device *dev)
 	struct iommu_group *group;
 	int err;
 
-	of_for_each_phandle(&it, err, dev->of_node, "iommus",
+	of_for_each_phandle(&it, err, dev->of_yesde, "iommus",
 			"#iommu-cells", -1) {
 		int count = of_phandle_iterator_args(&it, iommu_spec.args,
 					MAX_PHANDLE_ARGS);
-		iommu_spec.np = of_node_get(it.node);
+		iommu_spec.np = of_yesde_get(it.yesde);
 		iommu_spec.args_count = count;
 
 		mtk_iommu_create_mapping(dev, &iommu_spec);
@@ -438,7 +438,7 @@ static int mtk_iommu_add_device(struct device *dev)
 		/* dev->iommu_fwspec might have changed */
 		fwspec = dev_iommu_fwspec_get(dev);
 
-		of_node_put(iommu_spec.np);
+		of_yesde_put(iommu_spec.np);
 	}
 
 	if (!fwspec || fwspec->ops != &mtk_iommu_ops)
@@ -447,7 +447,7 @@ static int mtk_iommu_add_device(struct device *dev)
 	/*
 	 * This is a short-term bodge because the ARM DMA code doesn't
 	 * understand multi-device groups, but we have to call into it
-	 * successfully (and not just rely on a normal IOMMU API attach
+	 * successfully (and yest just rely on a yesrmal IOMMU API attach
 	 * here) in order to set the correct DMA API ops on @dev.
 	 */
 	group = iommu_group_alloc();
@@ -587,7 +587,7 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 		return PTR_ERR(data->bclk);
 
 	larb_nr = 0;
-	of_for_each_phandle(&it, err, dev->of_node,
+	of_for_each_phandle(&it, err, dev->of_yesde,
 			"mediatek,larbs", NULL, 0) {
 		struct platform_device *plarbdev;
 		int count = of_phandle_iterator_args(&it, larb_spec.args,
@@ -596,17 +596,17 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 		if (count)
 			continue;
 
-		larb_spec.np = of_node_get(it.node);
+		larb_spec.np = of_yesde_get(it.yesde);
 		if (!of_device_is_available(larb_spec.np))
 			continue;
 
-		plarbdev = of_find_device_by_node(larb_spec.np);
+		plarbdev = of_find_device_by_yesde(larb_spec.np);
 		if (!plarbdev) {
 			plarbdev = of_platform_device_create(
 						larb_spec.np, NULL,
 						platform_bus_type.dev_root);
 			if (!plarbdev) {
-				of_node_put(larb_spec.np);
+				of_yesde_put(larb_spec.np);
 				return -EPROBE_DEFER;
 			}
 		}

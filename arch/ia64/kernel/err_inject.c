@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Written by: Fenghua Yu <fenghua.yu@intel.com>, Intel Corporation
@@ -94,7 +94,7 @@ store_call_start(struct device *dev, struct device_attribute *attr,
 			  err_data_buffer[cpu].data3);
 #endif
 	switch (call_start) {
-	    case 0: /* Do nothing. */
+	    case 0: /* Do yesthing. */
 		break;
 	    case 1: /* Call pal_mc_error_inject in physical mode. */
 		status[cpu]=ia64_pal_mc_error_inject_phys(err_type_info[cpu],
@@ -145,7 +145,7 @@ store_virtual_to_phys(struct device *dev, struct device_attribute *attr,
 	ret = get_user_pages_fast(virt_addr, 1, FOLL_WRITE, NULL);
 	if (ret<=0) {
 #ifdef ERR_INJ_DEBUG
-		printk("Virtual address %lx is not existing.\n",virt_addr);
+		printk("Virtual address %lx is yest existing.\n",virt_addr);
 #endif
 		return -EINVAL;
 	}

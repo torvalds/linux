@@ -562,7 +562,7 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	if (!phy)
 		return -ENOMEM;
 
-	match = of_match_node(dsi_phy_dt_match, dev->of_node);
+	match = of_match_yesde(dsi_phy_dt_match, dev->of_yesde);
 	if (!match)
 		return -ENODEV;
 
@@ -577,7 +577,7 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	phy->regulator_ldo_mode = of_property_read_bool(dev->of_node,
+	phy->regulator_ldo_mode = of_property_read_bool(dev->of_yesde,
 				"qcom,dsi-phy-regulator-ldo-mode");
 
 	phy->base = msm_ioremap(pdev, "dsi_phy", "DSI_PHY");

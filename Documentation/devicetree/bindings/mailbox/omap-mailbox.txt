@@ -31,8 +31,8 @@ over a limited number of common interrupt output lines of an Interrupt Router.
 
 Mailbox Device Node:
 ====================
-A Mailbox device node is used to represent a Mailbox IP instance/cluster within
-a SoC. The sub-mailboxes are represented as child nodes of this parent node.
+A Mailbox device yesde is used to represent a Mailbox IP instance/cluster within
+a SoC. The sub-mailboxes are represented as child yesdes of this parent yesde.
 
 Required properties:
 --------------------
@@ -59,13 +59,13 @@ SoC-specific Required properties:
 The following are mandatory properties for the OMAP architecture based SoCs
 only:
 - ti,hwmods:		Name of the hwmod associated with the mailbox. This
-			should be defined in the mailbox node only if the node
-			is not defined as a child node of a corresponding sysc
-			interconnect node.
+			should be defined in the mailbox yesde only if the yesde
+			is yest defined as a child yesde of a corresponding sysc
+			interconnect yesde.
 
 The following are mandatory properties for the K3 AM65x and J721E SoCs only:
 - interrupt-parent:	Should contain a phandle to the TI-SCI interrupt
-			controller node that is used to dynamically program
+			controller yesde that is used to dynamically program
 			the interrupt routes between the IP and the main GIC
 			controllers. See the following binding for additional
 			details,
@@ -73,10 +73,10 @@ The following are mandatory properties for the K3 AM65x and J721E SoCs only:
 
 Child Nodes:
 ============
-A child node is used for representing the actual sub-mailbox device that is
+A child yesde is used for representing the actual sub-mailbox device that is
 used for the communication between the host processor and a remote processor.
-Each child node should have a unique node name across all the different
-mailbox device nodes.
+Each child yesde should have a unique yesde name across all the different
+mailbox device yesdes.
 
 Required properties:
 --------------------
@@ -98,7 +98,7 @@ data that represent the following:
 
 Optional Properties:
 --------------------
-- ti,mbox-send-noirq:   Quirk flag to allow the client user of this sub-mailbox
+- ti,mbox-send-yesirq:   Quirk flag to allow the client user of this sub-mailbox
                         to send messages without triggering a Tx ready interrupt,
                         and to control the Tx ticker. Should be used only on
                         sub-mailboxes used to communicate with WkupM3 remote
@@ -110,8 +110,8 @@ A device needing to communicate with a target processor device should specify
 them using the common mailbox binding properties, "mboxes" and the optional
 "mbox-names" (please see Documentation/devicetree/bindings/mailbox/mailbox.txt
 for details). Each value of the mboxes property should contain a phandle to the
-mailbox controller device node and an args specifier that will be the phandle to
-the intended sub-mailbox child node to be used for communication. The equivalent
+mailbox controller device yesde and an args specifier that will be the phandle to
+the intended sub-mailbox child yesde to be used for communication. The equivalent
 "mbox-names" property value can be used to give a name to the communication channel
 to be used by the client user.
 

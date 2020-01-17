@@ -23,7 +23,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -89,7 +89,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	int rval;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
@@ -147,7 +147,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 static inline void __user *
 get_sigframe(struct ksignal *ksig, struct pt_regs *regs, size_t frame_size)
 {
-	/* Default to using normal stack */
+	/* Default to using yesrmal stack */
 	unsigned long sp = sigsp(regs->r1, ksig);
 
 	return (void __user *)((sp - frame_size) & -8UL);
@@ -284,7 +284,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  *
  * Note that we go through the signals twice: once to check the signals that
@@ -313,17 +313,17 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 		handle_restart(regs, NULL, 0);
 
 	/*
-	 * If there's no signal to deliver, we just put the saved sigmask
+	 * If there's yes signal to deliver, we just put the saved sigmask
 	 * back.
 	 */
 	restore_saved_sigmask();
 }
 
-asmlinkage void do_notify_resume(struct pt_regs *regs, int in_syscall)
+asmlinkage void do_yestify_resume(struct pt_regs *regs, int in_syscall)
 {
 	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal(regs, in_syscall);
 
 	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 }

@@ -177,7 +177,7 @@ of_pwm_simple_xlate(struct pwm_chip *pc, const struct of_phandle_args *args)
 
 static void of_pwmchip_add(struct pwm_chip *chip)
 {
-	if (!chip->dev || !chip->dev->of_node)
+	if (!chip->dev || !chip->dev->of_yesde)
 		return;
 
 	if (!chip->of_xlate) {
@@ -185,13 +185,13 @@ static void of_pwmchip_add(struct pwm_chip *chip)
 		chip->of_pwm_n_cells = 2;
 	}
 
-	of_node_get(chip->dev->of_node);
+	of_yesde_get(chip->dev->of_yesde);
 }
 
 static void of_pwmchip_remove(struct pwm_chip *chip)
 {
 	if (chip->dev)
-		of_node_put(chip->dev->of_node);
+		of_yesde_put(chip->dev->of_yesde);
 }
 
 /**
@@ -226,7 +226,7 @@ EXPORT_SYMBOL_GPL(pwm_get_chip_data);
 
 static bool pwm_ops_check(const struct pwm_ops *ops)
 {
-	/* driver supports legacy, non-atomic operation */
+	/* driver supports legacy, yesn-atomic operation */
 	if (ops->config && ops->enable && ops->disable)
 		return true;
 
@@ -314,7 +314,7 @@ EXPORT_SYMBOL_GPL(pwmchip_add_with_polarity);
  * @chip: the PWM chip to add
  *
  * Register a new PWM chip. If chip->base < 0 then a dynamically assigned base
- * will be used. The initial polarity for all channels is normal.
+ * will be used. The initial polarity for all channels is yesrmal.
  *
  * Returns: 0 on success or a negative error code on failure.
  */
@@ -408,8 +408,8 @@ EXPORT_SYMBOL_GPL(pwm_request);
  * @label: a literal description string of this PWM
  *
  * Returns: A pointer to the PWM device at the given index of the given PWM
- * chip. A negative error code is returned if the index is not valid for the
- * specified PWM chip or if the PWM device cannot be requested.
+ * chip. A negative error code is returned if the index is yest valid for the
+ * specified PWM chip or if the PWM device canyest be requested.
  */
 struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
 					 unsigned int index,
@@ -573,7 +573,7 @@ int pwm_adjust_config(struct pwm_device *pwm)
 
 	/*
 	 * If the current period is zero it means that either the PWM driver
-	 * does not support initial state retrieval or the PWM has not yet
+	 * does yest support initial state retrieval or the PWM has yest yet
 	 * been configured.
 	 *
 	 * In either case, we setup the new period and polarity, and assign a
@@ -611,14 +611,14 @@ int pwm_adjust_config(struct pwm_device *pwm)
 }
 EXPORT_SYMBOL_GPL(pwm_adjust_config);
 
-static struct pwm_chip *of_node_to_pwmchip(struct device_node *np)
+static struct pwm_chip *of_yesde_to_pwmchip(struct device_yesde *np)
 {
 	struct pwm_chip *chip;
 
 	mutex_lock(&pwm_lock);
 
 	list_for_each_entry(chip, &pwm_chips, list)
-		if (chip->dev && chip->dev->of_node == np) {
+		if (chip->dev && chip->dev->of_yesde == np) {
 			mutex_unlock(&pwm_lock);
 			return chip;
 		}
@@ -657,11 +657,11 @@ static struct device_link *pwm_device_link_add(struct device *dev,
 /**
  * of_pwm_get() - request a PWM via the PWM framework
  * @dev: device for PWM consumer
- * @np: device node to get the PWM from
+ * @np: device yesde to get the PWM from
  * @con_id: consumer name
  *
  * Returns the PWM device parsed from the phandle and index specified in the
- * "pwms" property of a device tree node or a negative error-code on failure.
+ * "pwms" property of a device tree yesde or a negative error-code on failure.
  * Values parsed from the device tree are stored in the returned PWM device
  * object.
  *
@@ -674,7 +674,7 @@ static struct device_link *pwm_device_link_add(struct device *dev,
  * Returns: A pointer to the requested PWM device or an ERR_PTR()-encoded
  * error code on failure.
  */
-struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
+struct pwm_device *of_pwm_get(struct device *dev, struct device_yesde *np,
 			      const char *con_id)
 {
 	struct pwm_device *pwm = NULL;
@@ -697,10 +697,10 @@ struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
 		return ERR_PTR(err);
 	}
 
-	pc = of_node_to_pwmchip(args.np);
+	pc = of_yesde_to_pwmchip(args.np);
 	if (IS_ERR(pc)) {
 		if (PTR_ERR(pc) != -EPROBE_DEFER)
-			pr_err("%s(): PWM chip not found\n", __func__);
+			pr_err("%s(): PWM chip yest found\n", __func__);
 
 		pwm = ERR_CAST(pc);
 		goto put;
@@ -719,9 +719,9 @@ struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
 	}
 
 	/*
-	 * If a consumer name was not given, try to look it up from the
+	 * If a consumer name was yest given, try to look it up from the
 	 * "pwm-names" property if it exists. Otherwise use the name of
-	 * the user device node.
+	 * the user device yesde.
 	 */
 	if (!con_id) {
 		err = of_property_read_string_index(np, "pwm-names", index,
@@ -733,7 +733,7 @@ struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
 	pwm->label = con_id;
 
 put:
-	of_node_put(args.np);
+	of_yesde_put(args.np);
 
 	return pwm;
 }
@@ -763,14 +763,14 @@ static struct pwm_chip *device_to_pwmchip(struct device *dev)
 
 /**
  * acpi_pwm_get() - request a PWM via parsing "pwms" property in ACPI
- * @fwnode: firmware node to get the "pwm" property from
+ * @fwyesde: firmware yesde to get the "pwm" property from
  *
- * Returns the PWM device parsed from the fwnode and index specified in the
+ * Returns the PWM device parsed from the fwyesde and index specified in the
  * "pwms" property or a negative error-code on failure.
  * Values parsed from the device tree are stored in the returned PWM device
  * object.
  *
- * This is analogous to of_pwm_get() except con_id is not yet supported.
+ * This is analogous to of_pwm_get() except con_id is yest yet supported.
  * ACPI entries must look like
  * Package () {"pwms", Package ()
  *     { <PWM device reference>, <PWM index>, <PWM period> [, <PWM flags>]}}
@@ -778,22 +778,22 @@ static struct pwm_chip *device_to_pwmchip(struct device *dev)
  * Returns: A pointer to the requested PWM device or an ERR_PTR()-encoded
  * error code on failure.
  */
-static struct pwm_device *acpi_pwm_get(struct fwnode_handle *fwnode)
+static struct pwm_device *acpi_pwm_get(struct fwyesde_handle *fwyesde)
 {
 	struct pwm_device *pwm = ERR_PTR(-ENODEV);
 #if IS_ENABLED(CONFIG_ACPI)
-	struct fwnode_reference_args args;
+	struct fwyesde_reference_args args;
 	struct acpi_device *acpi;
 	struct pwm_chip *chip;
 	int ret;
 
 	memset(&args, 0, sizeof(args));
 
-	ret = __acpi_node_get_property_reference(fwnode, "pwms", 0, 3, &args);
+	ret = __acpi_yesde_get_property_reference(fwyesde, "pwms", 0, 3, &args);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	acpi = to_acpi_device_node(args.fwnode);
+	acpi = to_acpi_device_yesde(args.fwyesde);
 	if (!acpi)
 		return ERR_PTR(-EINVAL);
 
@@ -857,7 +857,7 @@ void pwm_remove_table(struct pwm_lookup *table, size_t num)
  * @dev: device for PWM consumer
  * @con_id: consumer name
  *
- * Lookup is first attempted using DT. If the device was not instantiated from
+ * Lookup is first attempted using DT. If the device was yest instantiated from
  * a device tree, a PWM chip and a relative index is looked up via a table
  * supplied by board setup code (see pwm_add_table()).
  *
@@ -879,12 +879,12 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	int err;
 
 	/* look up via DT first */
-	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_node)
-		return of_pwm_get(dev, dev->of_node, con_id);
+	if (IS_ENABLED(CONFIG_OF) && dev && dev->of_yesde)
+		return of_pwm_get(dev, dev->of_yesde, con_id);
 
 	/* then lookup via ACPI */
-	if (dev && is_acpi_node(dev->fwnode)) {
-		pwm = acpi_pwm_get(dev->fwnode);
+	if (dev && is_acpi_yesde(dev->fwyesde)) {
+		pwm = acpi_pwm_get(dev->fwyesde);
 		if (!IS_ERR(pwm) || PTR_ERR(pwm) != -ENOENT)
 			return pwm;
 	}
@@ -892,7 +892,7 @@ struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 	/*
 	 * We look up the provider in the static table typically provided by
 	 * board setup code. We first try to lookup the consumer device by
-	 * name. If the consumer device was passed in as NULL or if no match
+	 * name. If the consumer device was passed in as NULL or if yes match
 	 * was found, we try to find the consumer by directly looking it up
 	 * by name.
 	 *
@@ -1044,7 +1044,7 @@ EXPORT_SYMBOL_GPL(devm_pwm_get);
 /**
  * devm_of_pwm_get() - resource managed of_pwm_get()
  * @dev: device for PWM consumer
- * @np: device node to get the PWM from
+ * @np: device yesde to get the PWM from
  * @con_id: consumer name
  *
  * This function performs like of_pwm_get() but the acquired PWM device will
@@ -1053,7 +1053,7 @@ EXPORT_SYMBOL_GPL(devm_pwm_get);
  * Returns: A pointer to the requested PWM device or an ERR_PTR()-encoded
  * error code on failure.
  */
-struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_node *np,
+struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_yesde *np,
 				   const char *con_id)
 {
 	struct pwm_device **ptr, *pwm;
@@ -1075,19 +1075,19 @@ struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_node *np,
 EXPORT_SYMBOL_GPL(devm_of_pwm_get);
 
 /**
- * devm_fwnode_pwm_get() - request a resource managed PWM from firmware node
+ * devm_fwyesde_pwm_get() - request a resource managed PWM from firmware yesde
  * @dev: device for PWM consumer
- * @fwnode: firmware node to get the PWM from
+ * @fwyesde: firmware yesde to get the PWM from
  * @con_id: consumer name
  *
- * Returns the PWM device parsed from the firmware node. See of_pwm_get() and
+ * Returns the PWM device parsed from the firmware yesde. See of_pwm_get() and
  * acpi_pwm_get() for a detailed description.
  *
  * Returns: A pointer to the requested PWM device or an ERR_PTR()-encoded
  * error code on failure.
  */
-struct pwm_device *devm_fwnode_pwm_get(struct device *dev,
-				       struct fwnode_handle *fwnode,
+struct pwm_device *devm_fwyesde_pwm_get(struct device *dev,
+				       struct fwyesde_handle *fwyesde,
 				       const char *con_id)
 {
 	struct pwm_device **ptr, *pwm = ERR_PTR(-ENODEV);
@@ -1096,10 +1096,10 @@ struct pwm_device *devm_fwnode_pwm_get(struct device *dev,
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	if (is_of_node(fwnode))
-		pwm = of_pwm_get(dev, to_of_node(fwnode), con_id);
-	else if (is_acpi_node(fwnode))
-		pwm = acpi_pwm_get(fwnode);
+	if (is_of_yesde(fwyesde))
+		pwm = of_pwm_get(dev, to_of_yesde(fwyesde), con_id);
+	else if (is_acpi_yesde(fwyesde))
+		pwm = acpi_pwm_get(fwyesde);
 
 	if (!IS_ERR(pwm)) {
 		*ptr = pwm;
@@ -1110,7 +1110,7 @@ struct pwm_device *devm_fwnode_pwm_get(struct device *dev,
 
 	return pwm;
 }
-EXPORT_SYMBOL_GPL(devm_fwnode_pwm_get);
+EXPORT_SYMBOL_GPL(devm_fwyesde_pwm_get);
 
 static int devm_pwm_match(struct device *dev, void *res, void *data)
 {
@@ -1128,7 +1128,7 @@ static int devm_pwm_match(struct device *dev, void *res, void *data)
  * @pwm: PWM device
  *
  * Release a PWM previously allocated using devm_pwm_get(). Calling this
- * function is usually not needed because devm-allocated resources are
+ * function is usually yest needed because devm-allocated resources are
  * automatically released on driver detach.
  */
 void devm_pwm_put(struct device *dev, struct pwm_device *pwm)
@@ -1159,7 +1159,7 @@ static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 		seq_printf(s, " period: %u ns", state.period);
 		seq_printf(s, " duty: %u ns", state.duty_cycle);
 		seq_printf(s, " polarity: %s",
-			   state.polarity ? "inverse" : "normal");
+			   state.polarity ? "inverse" : "yesrmal");
 
 		seq_puts(s, "\n");
 	}
@@ -1190,7 +1190,7 @@ static int pwm_seq_show(struct seq_file *s, void *v)
 	struct pwm_chip *chip = list_entry(v, struct pwm_chip, list);
 
 	seq_printf(s, "%s%s/%s, %d PWM device%s\n", (char *)s->private,
-		   chip->dev->bus ? chip->dev->bus->name : "no-bus",
+		   chip->dev->bus ? chip->dev->bus->name : "yes-bus",
 		   dev_name(chip->dev), chip->npwm,
 		   (chip->npwm != 1) ? "s" : "");
 
@@ -1206,7 +1206,7 @@ static const struct seq_operations pwm_seq_ops = {
 	.show = pwm_seq_show,
 };
 
-static int pwm_seq_open(struct inode *inode, struct file *file)
+static int pwm_seq_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &pwm_seq_ops);
 }

@@ -50,11 +50,11 @@ static inline u32 vnet_tx_dring_avail(struct vio_dring_state *dr)
 	return vio_dring_avail(dr, VNET_TX_RING_SIZE);
 }
 
-static int vnet_handle_unknown(struct vnet_port *port, void *arg)
+static int vnet_handle_unkyeswn(struct vnet_port *port, void *arg)
 {
 	struct vio_msg_tag *pkt = arg;
 
-	pr_err("Received unknown msg [%02x:%02x:%04x:%08x]\n",
+	pr_err("Received unkyeswn msg [%02x:%02x:%04x:%08x]\n",
 	       pkt->type, pkt->stype, pkt->stype_env, pkt->sid);
 	pr_err("Resetting connection\n");
 
@@ -147,7 +147,7 @@ static int handle_attr_info(struct vio_driver_state *vio,
 	pkt->tag.sid = vio_send_sid(vio);
 
 	xfer_mode = pkt->xfer_mode;
-	/* for version < 1.2, VIO_DRING_MODE = 0x3 and no bitmask */
+	/* for version < 1.2, VIO_DRING_MODE = 0x3 and yes bitmask */
 	if (vio_version_before(vio, 1, 2) && xfer_mode == VIO_DRING_MODE)
 		xfer_mode = VIO_NEW_DRING_MODE;
 
@@ -272,7 +272,7 @@ void sunvnet_handshake_complete_common(struct vio_driver_state *vio)
 EXPORT_SYMBOL_GPL(sunvnet_handshake_complete_common);
 
 /* The hypervisor interface that implements copying to/from imported
- * memory from another domain requires that copies are done to 8-byte
+ * memory from ayesther domain requires that copies are done to 8-byte
  * aligned buffers, and that the lengths of such copies are also 8-byte
  * multiples.
  *
@@ -282,7 +282,7 @@ EXPORT_SYMBOL_GPL(sunvnet_handshake_complete_common);
  *
  * The transmitter puts the actual start of the packet 6 bytes into
  * the buffer it sends over, so that the IP headers after the ethernet
- * header are aligned properly.  These 6 bytes are not in the descriptor
+ * header are aligned properly.  These 6 bytes are yest in the descriptor
  * length, they are simply implied.  This offset is represented using
  * the VNET_PACKET_SKIP macro.
  */
@@ -754,7 +754,7 @@ static int handle_mcast(struct vnet_port *port, void *msgbuf)
 }
 
 /* If the queue is stopped, wake it up so that we'll
- * send out another START message at the next TX.
+ * send out ayesther START message at the next TX.
  */
 static void maybe_tx_wakeup(struct vnet_port *port)
 {
@@ -806,7 +806,7 @@ static int vnet_event_napi(struct vnet_port *port, int budget)
 		 * This is necessary since vnet_port_reset()
 		 * clears the tx drings and thus we may never get
 		 * back a VIO_TYPE_DATA ACK packet - which is
-		 * the normal mechanism to restart the tx queue.
+		 * the yesrmal mechanism to restart the tx queue.
 		 */
 		if (netif_running(dev))
 			maybe_tx_wakeup(port);
@@ -900,7 +900,7 @@ static int vnet_event_napi(struct vnet_port *port, int budget)
 			if (err)
 				break;
 		} else {
-			err = vnet_handle_unknown(port, &msgbuf);
+			err = vnet_handle_unkyeswn(port, &msgbuf);
 		}
 		if (err == -ECONNRESET)
 			break;
@@ -919,7 +919,7 @@ int sunvnet_poll_common(struct napi_struct *napi, int budget)
 	if (processed < budget) {
 		napi_complete_done(napi, processed);
 		port->rx_event &= ~LDC_EVENT_DATA_READY;
-		vio_set_intr(vio->vdev->rx_ino, HV_INTR_ENABLED);
+		vio_set_intr(vio->vdev->rx_iyes, HV_INTR_ENABLED);
 	}
 	return processed;
 }
@@ -931,7 +931,7 @@ void sunvnet_event_common(void *arg, int event)
 	struct vio_driver_state *vio = &port->vio;
 
 	port->rx_event |= event;
-	vio_set_intr(vio->vdev->rx_ino, HV_INTR_DISABLED);
+	vio_set_intr(vio->vdev->rx_iyes, HV_INTR_DISABLED);
 	napi_schedule(&port->napi);
 }
 EXPORT_SYMBOL_GPL(sunvnet_event_common);
@@ -1010,7 +1010,7 @@ static struct sk_buff *vnet_clean_tx_ring(struct vnet_port *port,
 		}
 		if (port->tx_bufs[txi].skb) {
 			if (d->hdr.state != VIO_DESC_DONE)
-				pr_notice("invalid ring buffer state %d\n",
+				pr_yestice("invalid ring buffer state %d\n",
 					  d->hdr.state);
 			BUG_ON(port->tx_bufs[txi].skb->next);
 
@@ -1119,7 +1119,7 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 	len += VNET_PACKET_SKIP;
 	pad += 8 - (len & 7);
 
-	/* make sure we have enough cookies and alignment in every frag */
+	/* make sure we have eyesugh cookies and alignment in every frag */
 	docopy = skb_shinfo(skb)->nr_frags >= ncookies;
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
@@ -1157,7 +1157,7 @@ static inline struct sk_buff *vnet_skb_shape(struct sk_buff *skb, int ncookies)
 		if (start) {
 			int offset = start + nskb->csum_offset;
 
-			/* copy the headers, no csum here */
+			/* copy the headers, yes csum here */
 			if (skb_copy_bits(skb, 0, nskb->data, start)) {
 				dev_kfree_skb(nskb);
 				dev_kfree_skb(skb);
@@ -1240,7 +1240,7 @@ vnet_handle_offloads(struct vnet_port *port, struct sk_buff *skb,
 	} else if (proto == IPPROTO_UDP) {
 		hlen += sizeof(struct udphdr);
 	} else {
-		pr_err("vnet_handle_offloads GSO with unknown transport "
+		pr_err("vnet_handle_offloads GSO with unkyeswn transport "
 		       "protocol %d tproto %d\n", skb->protocol, proto);
 		hlen = 128; /* XXX */
 	}
@@ -1431,8 +1431,8 @@ sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
 	port->tx_bufs[txi].ncookies = err;
 
 	/* We don't rely on the ACKs to free the skb in vnet_start_xmit(),
-	 * thus it is safe to not set VIO_ACK_ENABLE for each transmission:
-	 * the protocol itself does not require it as long as the peer
+	 * thus it is safe to yest set VIO_ACK_ENABLE for each transmission:
+	 * the protocol itself does yest require it as long as the peer
 	 * sends a VIO_SUBTYPE_ACK for VIO_DRING_STOPPED.
 	 *
 	 * An ACK for every packet in the ring is expensive as the
@@ -1459,7 +1459,7 @@ sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	/* This has to be a non-SMP write barrier because we are writing
+	/* This has to be a yesn-SMP write barrier because we are writing
 	 * to memory which is shared with the peer LDOM.
 	 */
 	dma_wmb();
@@ -1467,23 +1467,23 @@ sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
 	d->hdr.state = VIO_DESC_READY;
 
 	/* Exactly one ldc "start" trigger (for dr->cons) needs to be sent
-	 * to notify the consumer that some descriptors are READY.
-	 * After that "start" trigger, no additional triggers are needed until
+	 * to yestify the consumer that some descriptors are READY.
+	 * After that "start" trigger, yes additional triggers are needed until
 	 * a DRING_STOPPED is received from the consumer. The dr->cons field
 	 * (set up by vnet_ack()) has the value of the next dring index
-	 * that has not yet been ack-ed. We send a "start" trigger here
+	 * that has yest yet been ack-ed. We send a "start" trigger here
 	 * if, and only if, start_cons is true (reset it afterward). Conversely,
 	 * vnet_ack() should check if the dring corresponding to cons
 	 * is marked READY, but start_cons was false.
 	 * If so, vnet_ack() should send out the missed "start" trigger.
 	 *
 	 * Note that the dma_wmb() above makes sure the cookies et al. are
-	 * not globally visible before the VIO_DESC_READY, and that the
+	 * yest globally visible before the VIO_DESC_READY, and that the
 	 * stores are ordered correctly by the compiler. The consumer will
-	 * not proceed until the VIO_DESC_READY is visible assuring that
-	 * the consumer does not observe anything related to descriptors
+	 * yest proceed until the VIO_DESC_READY is visible assuring that
+	 * the consumer does yest observe anything related to descriptors
 	 * out of order. The HV trap from the LDC start trigger is the
-	 * producer to consumer announcement that work is available to the
+	 * producer to consumer anyesuncement that work is available to the
 	 * consumer
 	 */
 	if (!port->start_cons) { /* previous trigger suffices */
@@ -1727,7 +1727,7 @@ void vnet_port_reset(struct vnet_port *port)
 	del_timer(&port->clean_timer);
 	sunvnet_port_free_tx_bufs_common(port);
 	port->rmtu = 0;
-	port->tso = (port->vsw == 0);  /* no tso in vsw, misbehaves in bridge */
+	port->tso = (port->vsw == 0);  /* yes tso in vsw, misbehaves in bridge */
 	port->tsolen = 0;
 }
 EXPORT_SYMBOL_GPL(vnet_port_reset);

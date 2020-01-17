@@ -95,7 +95,7 @@ struct cpu_table {
 	unsigned long	idcode;
 	unsigned long	idmask;
 	void		(*map_io)(void);
-	void		(*init_uarts)(struct s3c2410_uartcfg *cfg, int no);
+	void		(*init_uarts)(struct s3c2410_uartcfg *cfg, int yes);
 	void		(*init_clocks)(int xtal);
 	int		(*init)(void);
 	const char	*name;
@@ -113,13 +113,13 @@ extern void s5p_init_cpu(const void __iomem *cpuid_addr);
 
 extern unsigned int samsung_rev(void);
 
-extern void s3c24xx_init_uarts(struct s3c2410_uartcfg *cfg, int no);
+extern void s3c24xx_init_uarts(struct s3c2410_uartcfg *cfg, int yes);
 
 extern void s3c24xx_init_clocks(int xtal);
 
 extern void s3c24xx_init_uartdevs(char *name,
 				  struct s3c24xx_uart_resources *res,
-				  struct s3c2410_uartcfg *cfg, int no);
+				  struct s3c2410_uartcfg *cfg, int yes);
 
 extern struct syscore_ops s3c2410_pm_syscore_ops;
 extern struct syscore_ops s3c2412_pm_syscore_ops;

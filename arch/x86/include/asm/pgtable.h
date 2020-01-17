@@ -9,7 +9,7 @@
 /*
  * Macro to mark a page protection value as UC-
  */
-#define pgprot_noncached(prot)						\
+#define pgprot_yesncached(prot)						\
 	((boot_cpu_data.x86 > 3)					\
 	 ? (__pgprot(pgprot_val(prot) |					\
 		     cachemode2protval(_PAGE_CACHE_MODE_UC_MINUS)))	\
@@ -118,7 +118,7 @@ extern pmdval_t early_pmd_flags;
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 static inline int pte_dirty(pte_t pte)
 {
@@ -206,26 +206,26 @@ static inline int pte_special(pte_t pte)
 
 /* Entries that were set to PROT_NONE are inverted */
 
-static inline u64 protnone_mask(u64 val);
+static inline u64 protyesne_mask(u64 val);
 
 static inline unsigned long pte_pfn(pte_t pte)
 {
 	phys_addr_t pfn = pte_val(pte);
-	pfn ^= protnone_mask(pfn);
+	pfn ^= protyesne_mask(pfn);
 	return (pfn & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
 
 static inline unsigned long pmd_pfn(pmd_t pmd)
 {
 	phys_addr_t pfn = pmd_val(pmd);
-	pfn ^= protnone_mask(pfn);
+	pfn ^= protyesne_mask(pfn);
 	return (pfn & pmd_pfn_mask(pmd)) >> PAGE_SHIFT;
 }
 
 static inline unsigned long pud_pfn(pud_t pud)
 {
 	phys_addr_t pfn = pud_val(pud);
-	pfn ^= protnone_mask(pfn);
+	pfn ^= protyesne_mask(pfn);
 	return (pfn & pud_pfn_mask(pud)) >> PAGE_SHIFT;
 }
 
@@ -549,7 +549,7 @@ static inline pgprotval_t check_pgprot(pgprot_t pgprot)
 {
 	pgprotval_t massaged_val = massage_pgprot(pgprot);
 
-	/* mmdebug.h can not be included here because of dependencies */
+	/* mmdebug.h can yest be included here because of dependencies */
 #ifdef CONFIG_DEBUG_VM
 	WARN_ONCE(pgprot_val(pgprot) != massaged_val,
 		  "attempted to set unsupported pgprot: %016llx "
@@ -565,7 +565,7 @@ static inline pgprotval_t check_pgprot(pgprot_t pgprot)
 static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
 {
 	phys_addr_t pfn = (phys_addr_t)page_nr << PAGE_SHIFT;
-	pfn ^= protnone_mask(pgprot_val(pgprot));
+	pfn ^= protyesne_mask(pgprot_val(pgprot));
 	pfn &= PTE_PFN_MASK;
 	return __pte(pfn | check_pgprot(pgprot));
 }
@@ -573,7 +573,7 @@ static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
 static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 {
 	phys_addr_t pfn = (phys_addr_t)page_nr << PAGE_SHIFT;
-	pfn ^= protnone_mask(pgprot_val(pgprot));
+	pfn ^= protyesne_mask(pgprot_val(pgprot));
 	pfn &= PHYSICAL_PMD_PAGE_MASK;
 	return __pmd(pfn | check_pgprot(pgprot));
 }
@@ -581,24 +581,24 @@ static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 static inline pud_t pfn_pud(unsigned long page_nr, pgprot_t pgprot)
 {
 	phys_addr_t pfn = (phys_addr_t)page_nr << PAGE_SHIFT;
-	pfn ^= protnone_mask(pgprot_val(pgprot));
+	pfn ^= protyesne_mask(pgprot_val(pgprot));
 	pfn &= PHYSICAL_PUD_PAGE_MASK;
 	return __pud(pfn | check_pgprot(pgprot));
 }
 
-static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+static inline pmd_t pmd_mkyestpresent(pmd_t pmd)
 {
 	return pfn_pmd(pmd_pfn(pmd),
 		      __pgprot(pmd_flags(pmd) & ~(_PAGE_PRESENT|_PAGE_PROTNONE)));
 }
 
-static inline pud_t pud_mknotpresent(pud_t pud)
+static inline pud_t pud_mkyestpresent(pud_t pud)
 {
 	return pfn_pud(pud_pfn(pud),
 	      __pgprot(pud_flags(pud) & ~(_PAGE_PRESENT|_PAGE_PROTNONE)));
 }
 
-static inline u64 flip_protnone_guard(u64 oldval, u64 val, u64 mask);
+static inline u64 flip_protyesne_guard(u64 oldval, u64 val, u64 mask);
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
@@ -610,7 +610,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	 */
 	val &= _PAGE_CHG_MASK;
 	val |= check_pgprot(newprot) & ~_PAGE_CHG_MASK;
-	val = flip_protnone_guard(oldval, val, PTE_PFN_MASK);
+	val = flip_protyesne_guard(oldval, val, PTE_PFN_MASK);
 	return __pte(val);
 }
 
@@ -620,7 +620,7 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 
 	val &= _HPAGE_CHG_MASK;
 	val |= check_pgprot(newprot) & ~_HPAGE_CHG_MASK;
-	val = flip_protnone_guard(oldval, val, PHYSICAL_PMD_PAGE_MASK);
+	val = flip_protyesne_guard(oldval, val, PHYSICAL_PMD_PAGE_MASK);
 	return __pmd(val);
 }
 
@@ -638,11 +638,11 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 #define pud_pgprot(x) __pgprot(pud_flags(x))
 #define p4d_pgprot(x) __pgprot(p4d_flags(x))
 
-#define canon_pgprot(p) __pgprot(massage_pgprot(p))
+#define cayesn_pgprot(p) __pgprot(massage_pgprot(p))
 
 static inline pgprot_t arch_filter_pgprot(pgprot_t prot)
 {
-	return canon_pgprot(prot);
+	return cayesn_pgprot(prot);
 }
 
 static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
@@ -650,18 +650,18 @@ static inline int is_new_memtype_allowed(u64 paddr, unsigned long size,
 					 enum page_cache_mode new_pcm)
 {
 	/*
-	 * PAT type is always WB for untracked ranges, so no need to check.
+	 * PAT type is always WB for untracked ranges, so yes need to check.
 	 */
 	if (x86_platform.is_untracked_pat_range(paddr, paddr + size))
 		return 1;
 
 	/*
-	 * Certain new memtypes are not allowed with certain
+	 * Certain new memtypes are yest allowed with certain
 	 * requested memtype:
-	 * - request is uncached, return cannot be write-back
-	 * - request is write-combine, return cannot be write-back
-	 * - request is write-through, return cannot be write-back
-	 * - request is write-through, return cannot be write-combine
+	 * - request is uncached, return canyest be write-back
+	 * - request is write-combine, return canyest be write-back
+	 * - request is write-through, return canyest be write-back
+	 * - request is write-through, return canyest be write-combine
 	 */
 	if ((pcm == _PAGE_CACHE_MODE_UC_MINUS &&
 	     new_pcm == _PAGE_CACHE_MODE_WB) ||
@@ -716,7 +716,7 @@ static inline pgd_t pti_set_user_pgtbl(pgd_t *pgdp, pgd_t pgd)
 #include <linux/log2.h>
 #include <asm/fixmap.h>
 
-static inline int pte_none(pte_t pte)
+static inline int pte_yesne(pte_t pte)
 {
 	return !(pte.pte & ~(_PAGE_KNL_ERRATUM_MASK));
 }
@@ -765,23 +765,23 @@ static inline int pmd_present(pmd_t pmd)
 
 #ifdef CONFIG_NUMA_BALANCING
 /*
- * These work without NUMA balancing but the kernel does not care. See the
+ * These work without NUMA balancing but the kernel does yest care. See the
  * comment in include/asm-generic/pgtable.h
  */
-static inline int pte_protnone(pte_t pte)
+static inline int pte_protyesne(pte_t pte)
 {
 	return (pte_flags(pte) & (_PAGE_PROTNONE | _PAGE_PRESENT))
 		== _PAGE_PROTNONE;
 }
 
-static inline int pmd_protnone(pmd_t pmd)
+static inline int pmd_protyesne(pmd_t pmd)
 {
 	return (pmd_flags(pmd) & (_PAGE_PROTNONE | _PAGE_PRESENT))
 		== _PAGE_PROTNONE;
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_yesne(pmd_t pmd)
 {
 	/* Only check low word on 32-bit platforms, since it might be
 	   out of sync with upper half. */
@@ -847,7 +847,7 @@ static inline unsigned long pages_to_mb(unsigned long npg)
 }
 
 #if CONFIG_PGTABLE_LEVELS > 2
-static inline int pud_none(pud_t pud)
+static inline int pud_yesne(pud_t pud)
 {
 	return (native_pud_val(pud) & ~(_PAGE_KNL_ERRATUM_MASK)) == 0;
 }
@@ -897,7 +897,7 @@ static inline unsigned long pud_index(unsigned long address)
 }
 
 #if CONFIG_PGTABLE_LEVELS > 3
-static inline int p4d_none(p4d_t p4d)
+static inline int p4d_yesne(p4d_t p4d)
 {
 	return (native_p4d_val(p4d) & ~(_PAGE_KNL_ERRATUM_MASK)) == 0;
 }
@@ -926,12 +926,12 @@ static inline pud_t *pud_offset(p4d_t *p4d, unsigned long address)
 
 static inline int p4d_bad(p4d_t p4d)
 {
-	unsigned long ignore_flags = _KERNPG_TABLE | _PAGE_USER;
+	unsigned long igyesre_flags = _KERNPG_TABLE | _PAGE_USER;
 
 	if (IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION))
-		ignore_flags |= _PAGE_NX;
+		igyesre_flags |= _PAGE_NX;
 
-	return (p4d_flags(p4d) & ~ignore_flags) != 0;
+	return (p4d_flags(p4d) & ~igyesre_flags) != 0;
 }
 #endif  /* CONFIG_PGTABLE_LEVELS > 3 */
 
@@ -969,25 +969,25 @@ static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
 
 static inline int pgd_bad(pgd_t pgd)
 {
-	unsigned long ignore_flags = _PAGE_USER;
+	unsigned long igyesre_flags = _PAGE_USER;
 
 	if (!pgtable_l5_enabled())
 		return 0;
 
 	if (IS_ENABLED(CONFIG_PAGE_TABLE_ISOLATION))
-		ignore_flags |= _PAGE_NX;
+		igyesre_flags |= _PAGE_NX;
 
-	return (pgd_flags(pgd) & ~ignore_flags) != _KERNPG_TABLE;
+	return (pgd_flags(pgd) & ~igyesre_flags) != _KERNPG_TABLE;
 }
 
-static inline int pgd_none(pgd_t pgd)
+static inline int pgd_yesne(pgd_t pgd)
 {
 	if (!pgtable_l5_enabled())
 		return 0;
 	/*
-	 * There is no need to do a workaround for the KNL stray
+	 * There is yes need to do a workaround for the KNL stray
 	 * A/D bit erratum here.  PGDs only point to page tables
-	 * except on 32-bit non-PAE which is not supported on
+	 * except on 32-bit yesn-PAE which is yest supported on
 	 * KNL.
 	 */
 	return !native_pgd_val(pgd);
@@ -1050,12 +1050,12 @@ void __meminit init_trampoline(void);
 static inline void init_trampoline(void) { }
 #endif
 
-/* local pte updates need not use xchg for locking */
+/* local pte updates need yest use xchg for locking */
 static inline pte_t native_local_ptep_get_and_clear(pte_t *ptep)
 {
 	pte_t res = *ptep;
 
-	/* Pure native function needs no input for mm, addr */
+	/* Pure native function needs yes input for mm, addr */
 	native_pte_clear(NULL, 0, ptep);
 	return res;
 }
@@ -1132,8 +1132,8 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 	pte_t pte;
 	if (full) {
 		/*
-		 * Full address destruction in progress; paravirt does not
-		 * care about updates and native needs no locking
+		 * Full address destruction in progress; paravirt does yest
+		 * care about updates and native needs yes locking
 		 */
 		pte = native_local_ptep_get_and_clear(ptep);
 	} else {
@@ -1291,8 +1291,8 @@ static inline p4d_t *user_to_kernel_p4dp(p4d_t *p4dp)
  *  src - ""
  *  count - the number of pgds to copy.
  *
- * dst and src can be on the same page, but the range must not overlap,
- * and must not cross a page boundary.
+ * dst and src can be on the same page, but the range must yest overlap,
+ * and must yest cross a page boundary.
  */
 static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 {

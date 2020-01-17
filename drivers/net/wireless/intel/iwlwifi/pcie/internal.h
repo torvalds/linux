@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -80,7 +80,7 @@
 #include "iwl-op-mode.h"
 #include "iwl-drv.h"
 
-/* We need 2 entries for the TX command and header, and another one might
+/* We need 2 entries for the TX command and header, and ayesther one might
  * be needed for potential data in the SKB's head. The remaining ones can
  * be used for frags.
  */
@@ -104,7 +104,7 @@ struct iwl_host_cmd;
  * struct iwl_rx_mem_buffer
  * @page_dma: bus address of rxb page
  * @page: driver's pointer to the rxb page
- * @invalid: rxb is in driver ownership - not owned by HW
+ * @invalid: rxb is in driver ownership - yest owned by HW
  * @vid: index of this rxb in the global table
  */
 struct iwl_rx_mem_buffer {
@@ -180,7 +180,7 @@ struct iwl_rx_completion_desc {
  * @used_count: Number of RBDs handled to allocator to use for allocation
  * @write_actual:
  * @rx_free: list of RBDs with allocated RB ready for use
- * @rx_used: list of RBDs with no RB attached
+ * @rx_used: list of RBDs with yes RB attached
  * @need_update: flag to indicate we need to update read/write index
  * @rb_stts: driver's pointer to receive buffer status
  * @rb_stts_dma: bus address of receive buffer status
@@ -221,11 +221,11 @@ struct iwl_rxq {
 
 /**
  * struct iwl_rb_allocator - Rx allocator
- * @req_pending: number of requests the allcator had not processed yet
- * @req_ready: number of requests honored and ready for claiming
+ * @req_pending: number of requests the allcator had yest processed yet
+ * @req_ready: number of requests hoyesred and ready for claiming
  * @rbd_allocated: RBDs with pages allocated and ready to be handled to
  *	the queue. This is a list of &struct iwl_rx_mem_buffer
- * @rbd_empty: RBDs with no page attached for allocator use. This is a list
+ * @rbd_empty: RBDs with yes page attached for allocator use. This is a list
  *	of &struct iwl_rx_mem_buffer
  * @lock: protects the rbd_allocated and rbd_empty lists
  * @alloc_wq: work queue for background calls
@@ -294,12 +294,12 @@ struct iwl_cmd_meta {
 
 /*
  * The FH will write back to the first TB only, so we need to copy some data
- * into the buffer regardless of whether it should be mapped or not.
+ * into the buffer regardless of whether it should be mapped or yest.
  * This indicates how big the first TB must be to include the scratch buffer
  * and the assigned PN.
- * Since PN location is 8 bytes at offset 12, it's 20 now.
+ * Since PN location is 8 bytes at offset 12, it's 20 yesw.
  * If we make it bigger then allocations will be bigger and copy slower, so
- * that's probably not useful.
+ * that's probably yest useful.
  */
 #define IWL_FIRST_TB_SIZE	20
 #define IWL_FIRST_TB_SIZE_ALIGN ALIGN(IWL_FIRST_TB_SIZE, 64)
@@ -347,7 +347,7 @@ struct iwl_pcie_first_tb_buf {
  *
  * Note the difference between TFD_QUEUE_SIZE_MAX and n_window: the hardware
  * always assumes 256 descriptors, so TFD_QUEUE_SIZE_MAX is always 256 (unless
- * there might be HW changes in the future). For the normal TX
+ * there might be HW changes in the future). For the yesrmal TX
  * queues, n_window, which is the size of the software queue data
  * is also 256; however, for the command queue, n_window is only
  * 32 since we don't need so many commands pending. Since the HW
@@ -406,7 +406,7 @@ struct iwl_tso_hdr_page {
  * @IWL_FW_MON_DBGFS_STATE_CLOSED: the file is closed.
  * @IWL_FW_MON_DBGFS_STATE_OPEN: the file is open.
  * @IWL_FW_MON_DBGFS_STATE_DISABLED: the file is disabled, once this state is
- *	set the file can no longer be used.
+ *	set the file can yes longer be used.
  */
 enum iwl_fw_mon_dbgfs_state {
 	IWL_FW_MON_DBGFS_STATE_CLOSED,
@@ -417,7 +417,7 @@ enum iwl_fw_mon_dbgfs_state {
 
 /**
  * enum iwl_shared_irq_flags - level of sharing for irq
- * @IWL_SHARED_IRQ_NON_RX: interrupt vector serves non rx causes.
+ * @IWL_SHARED_IRQ_NON_RX: interrupt vector serves yesn rx causes.
  * @IWL_SHARED_IRQ_FIRST_RSS: interrupt vector serves first RSS queue.
  */
 enum iwl_shared_irq_flags {
@@ -502,7 +502,7 @@ struct cont_rec {
  * @shared_vec_mask: the type of causes the shared vector handles
  *	(see iwl_shared_irq_flags).
  * @alloc_vecs: the number of interrupt vectors allocated by the OS
- * @def_irq: default irq for non rx causes
+ * @def_irq: default irq for yesn rx causes
  * @fh_init_mask: initial unmasked fh causes
  * @hw_init_mask: initial unmasked hw causes
  * @fh_mask: current unmasked fh causes
@@ -569,8 +569,8 @@ struct iwl_trans_pcie {
 	u8 def_rx_queue;
 	u8 cmd_fifo;
 	unsigned int cmd_q_wdg_timeout;
-	u8 n_no_reclaim_cmds;
-	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
+	u8 n_yes_reclaim_cmds;
+	u8 yes_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 	u8 max_tbs;
 	u16 tfd_size;
 
@@ -734,7 +734,7 @@ static inline void _iwl_disable_interrupts(struct iwl_trans *trans)
 		/* disable interrupts from uCode/NIC to host */
 		iwl_write32(trans, CSR_INT_MASK, 0x00000000);
 
-		/* acknowledge/clear/reset any interrupts still pending
+		/* ackyeswledge/clear/reset any interrupts still pending
 		 * from uCode or flow handler (Rx/Tx DMA) */
 		iwl_write32(trans, CSR_INT, 0xffffffff);
 		iwl_write32(trans, CSR_FH_INT_STATUS, 0xffffffff);
@@ -883,9 +883,9 @@ static inline void iwl_enable_fw_load_int_ctx_info(struct iwl_trans *trans)
 		/*
 		 * When we'll receive the ALIVE interrupt, the ISR will call
 		 * iwl_enable_fw_load_int_ctx_info again to set the ALIVE
-		 * interrupt (which is not really needed anymore) but also the
+		 * interrupt (which is yest really needed anymore) but also the
 		 * RX interrupt which will allow us to receive the ALIVE
-		 * notification (which is Rx) and continue the flow.
+		 * yestification (which is Rx) and continue the flow.
 		 */
 		trans_pcie->inta_mask =  CSR_INT_BIT_ALIVE | CSR_INT_BIT_FH_RX;
 		iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
@@ -894,7 +894,7 @@ static inline void iwl_enable_fw_load_int_ctx_info(struct iwl_trans *trans)
 					   MSIX_HW_INT_CAUSES_REG_ALIVE);
 		/*
 		 * Leave all the FH causes enabled to get the ALIVE
-		 * notification.
+		 * yestification.
 		 */
 		iwl_enable_fh_int_msk_msix(trans, trans_pcie->fh_init_mask);
 	}
@@ -974,7 +974,7 @@ static inline void iwl_wake_queue(struct iwl_trans *trans,
 
 	if (test_and_clear_bit(txq->id, trans_pcie->queue_stopped)) {
 		IWL_DEBUG_TX_QUEUES(trans, "Wake hwq %d\n", txq->id);
-		iwl_op_mode_queue_not_full(trans->op_mode, txq->id);
+		iwl_op_mode_queue_yest_full(trans->op_mode, txq->id);
 	}
 }
 

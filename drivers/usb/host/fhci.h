@@ -102,7 +102,7 @@
 /* #define MULTI_DATA_BUS */
 
 /* Bus mode register RBMR/TBMR */
-#define BUS_MODE_GBL	0x20	/* Global snooping */
+#define BUS_MODE_GBL	0x20	/* Global syesoping */
 #define BUS_MODE_BO	0x18	/* Byte ordering */
 #define BUS_MODE_BO_BE	0x10	/* Byte ordering - Big-endian */
 #define BUS_MODE_DTB	0x02	/* Data bus */
@@ -207,7 +207,7 @@ struct fhci_ep_pram {
 struct fhci_controller_list {
 	struct list_head ctrl_list;	/* control endpoints */
 	struct list_head bulk_list;	/* bulk endpoints */
-	struct list_head iso_list;	/* isochronous endpoints */
+	struct list_head iso_list;	/* isochroyesus endpoints */
 	struct list_head intr_list;	/* interruput endpoints */
 	struct list_head done_list;	/* done transfers */
 };
@@ -311,7 +311,7 @@ enum fhci_port_status {
 
 enum fhci_mem_alloc {
 	MEM_CACHABLE_SYS = 0x00000001,	/* primary DDR,cachable */
-	MEM_NOCACHE_SYS = 0x00000004,	/* primary DDR,non-cachable */
+	MEM_NOCACHE_SYS = 0x00000004,	/* primary DDR,yesn-cachable */
 	MEM_SECONDARY = 0x00000002,	/* either secondary DDR or SDRAM */
 	MEM_PRAM = 0x00000008,		/* multi-user RAM identifier */
 };
@@ -328,7 +328,7 @@ struct ed {
 	unsigned int max_pkt_size;
 	enum fhci_ed_state state;
 	struct list_head td_list; /* a list of all queued TD to this pipe */
-	struct list_head node;
+	struct list_head yesde;
 
 	/* read only parameters, should be cleared upon initialization */
 	u8 toggle_carry;	/* toggle carry from the last TD submitted */
@@ -349,7 +349,7 @@ struct td {
 	struct ed *ed;		 /* a handle to the corresponding ED */
 	struct urb *urb;	 /* a handle to the corresponding URB */
 	bool ioc;		 /* Inform On Completion */
-	struct list_head node;
+	struct list_head yesde;
 
 	/* read only parameters should be cleared upon initialization */
 	struct packet *pkt;

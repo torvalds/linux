@@ -6,7 +6,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define nop()	asm volatile ("nop\n":::"memory")
+#define yesp()	asm volatile ("yesp\n":::"memory")
 
 /*
  * sync:        completion barrier, all sync.xx instructions

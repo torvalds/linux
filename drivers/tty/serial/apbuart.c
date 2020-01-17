@@ -38,7 +38,7 @@
 
 #define SERIAL_APBUART_MAJOR	TTY_MAJOR
 #define SERIAL_APBUART_MINOR	64
-#define UART_DUMMY_RSR_RX	0x8000	/* for ignore all read */
+#define UART_DUMMY_RSR_RX	0x8000	/* for igyesre all read */
 
 static void apbuart_tx_chars(struct uart_port *port);
 
@@ -94,7 +94,7 @@ static void apbuart_rx_chars(struct uart_port *port)
 				rsr &= ~(UART_STATUS_FE | UART_STATUS_PE);
 				port->icount.brk++;
 				if (uart_handle_break(port))
-					goto ignore_char;
+					goto igyesre_char;
 			} else if (rsr & UART_STATUS_PE) {
 				port->icount.parity++;
 			} else if (rsr & UART_STATUS_FE) {
@@ -112,12 +112,12 @@ static void apbuart_rx_chars(struct uart_port *port)
 		}
 
 		if (uart_handle_sysrq_char(port, ch))
-			goto ignore_char;
+			goto igyesre_char;
 
 		uart_insert_char(port, rsr, UART_STATUS_OE, ch, flag);
 
 
-	      ignore_char:
+	      igyesre_char:
 		status = UART_GET_STATUS(port);
 	}
 
@@ -269,14 +269,14 @@ static void apbuart_set_termios(struct uart_port *port,
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= UART_STATUS_FE | UART_STATUS_PE;
 
-	/* Characters to ignore */
-	port->ignore_status_mask = 0;
+	/* Characters to igyesre */
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= UART_STATUS_FE | UART_STATUS_PE;
+		port->igyesre_status_mask |= UART_STATUS_FE | UART_STATUS_PE;
 
-	/* Ignore all characters if CREAD is not set. */
+	/* Igyesre all characters if CREAD is yest set. */
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= UART_DUMMY_RSR_RX;
+		port->igyesre_status_mask |= UART_DUMMY_RSR_RX;
 
 	/* Set baud rate */
 	quot -= 1;
@@ -345,7 +345,7 @@ static const struct uart_ops grlib_apbuart_ops = {
 };
 
 static struct uart_port grlib_apbuart_ports[UART_NR];
-static struct device_node *grlib_apbuart_nodes[UART_NR];
+static struct device_yesde *grlib_apbuart_yesdes[UART_NR];
 
 static int apbuart_scan_fifo_size(struct uart_port *port, int portnumber)
 {
@@ -358,7 +358,7 @@ static int apbuart_scan_fifo_size(struct uart_port *port, int portnumber)
 
 	/*
 	 * Enable the transceiver and wait for it to be ready to send data.
-	 * Clear interrupts so that this process will not be externally
+	 * Clear interrupts so that this process will yest be externally
 	 * interrupted in the middle (which can cause the transceiver to
 	 * drain prematurely).
 	 */
@@ -540,7 +540,7 @@ static struct uart_driver grlib_apbuart_driver = {
 	.driver_name = "serial",
 	.dev_name = "ttyS",
 	.major = SERIAL_APBUART_MAJOR,
-	.minor = SERIAL_APBUART_MINOR,
+	.miyesr = SERIAL_APBUART_MINOR,
 	.nr = UART_NR,
 	.cons = APBUART_CONSOLE,
 };
@@ -556,7 +556,7 @@ static int apbuart_probe(struct platform_device *op)
 	struct uart_port *port = NULL;
 
 	for (i = 0; i < grlib_apbuart_port_nr; i++) {
-		if (op->dev.of_node == grlib_apbuart_nodes[i])
+		if (op->dev.of_yesde == grlib_apbuart_yesdes[i])
 			break;
 	}
 
@@ -595,10 +595,10 @@ static struct platform_driver grlib_apbuart_of_driver = {
 
 static int __init grlib_apbuart_configure(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int line = 0;
 
-	for_each_matching_node(np, apbuart_match) {
+	for_each_matching_yesde(np, apbuart_match) {
 		const int *ampopts;
 		const u32 *freq_hz;
 		const struct amba_prom_registers *regs;
@@ -607,7 +607,7 @@ static int __init grlib_apbuart_configure(void)
 
 		ampopts = of_get_property(np, "ampopts", NULL);
 		if (ampopts && (*ampopts == 0))
-			continue; /* Ignore if used by another OS instance */
+			continue; /* Igyesre if used by ayesther OS instance */
 		regs = of_get_property(np, "reg", NULL);
 		/* Frequency of APB Bus is frequency of UART */
 		freq_hz = of_get_property(np, "freq", NULL);
@@ -615,7 +615,7 @@ static int __init grlib_apbuart_configure(void)
 		if (!regs || !freq_hz || (*freq_hz == 0))
 			continue;
 
-		grlib_apbuart_nodes[line] = np;
+		grlib_apbuart_yesdes[line] = np;
 
 		addr = regs->phys_addr;
 

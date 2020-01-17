@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/input.h>
@@ -77,7 +77,7 @@ struct omap4_keypad {
 	u32 reg_offset;
 	u32 irqreg_offset;
 	unsigned int row_shift;
-	bool no_autorepeat;
+	bool yes_autorepeat;
 	unsigned char key_state[8];
 	unsigned short *keymap;
 };
@@ -209,7 +209,7 @@ static void omap4_keypad_close(struct input_dev *input)
 static int omap4_keypad_parse_dt(struct device *dev,
 				 struct omap4_keypad *keypad_data)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int err;
 
 	err = matrix_keypad_parse_properties(dev, &keypad_data->rows,
@@ -217,8 +217,8 @@ static int omap4_keypad_parse_dt(struct device *dev,
 	if (err)
 		return err;
 
-	if (of_get_property(np, "linux,input-no-autorepeat", NULL))
-		keypad_data->no_autorepeat = true;
+	if (of_get_property(np, "linux,input-yes-autorepeat", NULL))
+		keypad_data->yes_autorepeat = true;
 
 	return 0;
 }
@@ -235,13 +235,13 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "no base address specified\n");
+		dev_err(&pdev->dev, "yes base address specified\n");
 		return -EINVAL;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (!irq) {
-		dev_err(&pdev->dev, "no keyboard irq assigned\n");
+		dev_err(&pdev->dev, "yes keyboard irq assigned\n");
 		return -EINVAL;
 	}
 
@@ -319,7 +319,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 	input_dev->close = omap4_keypad_close;
 
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
-	if (!keypad_data->no_autorepeat)
+	if (!keypad_data->yes_autorepeat)
 		__set_bit(EV_REP, input_dev->evbit);
 
 	input_set_drvdata(input_dev, keypad_data);
@@ -330,7 +330,7 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 				      sizeof(keypad_data->keymap[0]),
 				      GFP_KERNEL);
 	if (!keypad_data->keymap) {
-		dev_err(&pdev->dev, "Not enough memory for keymap\n");
+		dev_err(&pdev->dev, "Not eyesugh memory for keymap\n");
 		error = -ENOMEM;
 		goto err_free_input;
 	}

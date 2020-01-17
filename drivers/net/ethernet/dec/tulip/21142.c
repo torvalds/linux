@@ -23,7 +23,7 @@ u16 t21142_csr14[] =	    { 0xFFFF, 0x0705, 0x0705, 0x0000, 0x7F3D, };
 static u16 t21142_csr15[] = { 0x0008, 0x0006, 0x000E, 0x0008, 0x0008, };
 
 
-/* Handle the 21143 uniquely: do autoselect with NWay, not the EEPROM list
+/* Handle the 21143 uniquely: do autoselect with NWay, yest the EEPROM list
    of available transceivers.  */
 void t21142_media_task(struct work_struct *work)
 {
@@ -36,7 +36,7 @@ void t21142_media_task(struct work_struct *work)
 	int new_csr6 = 0;
 	int csr14 = ioread32(ioaddr + CSR14);
 
-	/* CSR12[LS10,LS100] are not reliable during autonegotiation */
+	/* CSR12[LS10,LS100] are yest reliable during autonegotiation */
 	if ((csr14 & 0x80) && (csr12 & 0x7000) != 0x5000)
 		csr12 |= 6;
 	if (tulip_debug > 2)
@@ -143,7 +143,7 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 	int csr12 = ioread32(ioaddr + CSR12);
 	int csr14 = ioread32(ioaddr + CSR14);
 
-	/* CSR12[LS10,LS100] are not reliable during autonegotiation */
+	/* CSR12[LS10,LS100] are yest reliable during autonegotiation */
 	if ((csr14 & 0x80) && (csr12 & 0x7000) != 0x5000)
 		csr12 |= 6;
 	if (tulip_debug > 1)
@@ -157,7 +157,7 @@ void t21142_lnk_change(struct net_device *dev, int csr5)
 		int negotiated = tp->sym_advertise & (csr12 >> 16);
 		tp->lpar = csr12 >> 16;
 		tp->nwayset = 1;
-		/* If partner cannot negotiate, it is 10Mbps Half Duplex */
+		/* If partner canyest negotiate, it is 10Mbps Half Duplex */
 		if (!(csr12 & 0x8000))		dev->if_port = 0;
 		else if (negotiated & 0x0100)	dev->if_port = 5;
 		else if (negotiated & 0x0080)	dev->if_port = 3;

@@ -4,8 +4,8 @@
 /*
  * MIPI Discovery And Configuration (DisCo) Specification for SoundWire
  * specifies properties to be implemented for SoundWire Masters and Slaves.
- * The DisCo spec doesn't mandate these properties. However, SDW bus cannot
- * work without knowing these values.
+ * The DisCo spec doesn't mandate these properties. However, SDW bus canyest
+ * work without kyeswing these values.
  *
  * The helper functions read the Master and Slave properties. Implementers
  * of Master or Slave drivers can use any of the below three mechanisms:
@@ -13,7 +13,7 @@
  *    b) Implement own methods and set those as .read_prop(), but invoke
  *    APIs in this file for generic read and override the values with
  *    platform specific data
- *    c) Implement ones own methods which do not use anything provided
+ *    c) Implement ones own methods which do yest use anything provided
  *    here
  */
 
@@ -30,7 +30,7 @@
 int sdw_master_read_prop(struct sdw_bus *bus)
 {
 	struct sdw_master_prop *prop = &bus->prop;
-	struct fwnode_handle *link;
+	struct fwyesde_handle *link;
 	char name[32];
 	int nval, i;
 
@@ -42,25 +42,25 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 	snprintf(name, sizeof(name),
 		 "mipi-sdw-link-%d-subproperties", bus->link_id);
 
-	link = device_get_named_child_node(bus->dev, name);
+	link = device_get_named_child_yesde(bus->dev, name);
 	if (!link) {
-		dev_err(bus->dev, "Master node %s not found\n", name);
+		dev_err(bus->dev, "Master yesde %s yest found\n", name);
 		return -EIO;
 	}
 
-	if (fwnode_property_read_bool(link,
+	if (fwyesde_property_read_bool(link,
 				      "mipi-sdw-clock-stop-mode0-supported"))
 		prop->clk_stop_modes |= BIT(SDW_CLK_STOP_MODE0);
 
-	if (fwnode_property_read_bool(link,
+	if (fwyesde_property_read_bool(link,
 				      "mipi-sdw-clock-stop-mode1-supported"))
 		prop->clk_stop_modes |= BIT(SDW_CLK_STOP_MODE1);
 
-	fwnode_property_read_u32(link,
+	fwyesde_property_read_u32(link,
 				 "mipi-sdw-max-clock-frequency",
 				 &prop->max_clk_freq);
 
-	nval = fwnode_property_count_u32(link, "mipi-sdw-clock-frequencies-supported");
+	nval = fwyesde_property_count_u32(link, "mipi-sdw-clock-frequencies-supported");
 	if (nval > 0) {
 		prop->num_clk_freq = nval;
 		prop->clk_freq = devm_kcalloc(bus->dev, prop->num_clk_freq,
@@ -69,7 +69,7 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 		if (!prop->clk_freq)
 			return -ENOMEM;
 
-		fwnode_property_read_u32_array(link,
+		fwyesde_property_read_u32_array(link,
 				"mipi-sdw-clock-frequencies-supported",
 				prop->clk_freq, prop->num_clk_freq);
 	}
@@ -86,7 +86,7 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 		}
 	}
 
-	nval = fwnode_property_count_u32(link, "mipi-sdw-supported-clock-gears");
+	nval = fwyesde_property_count_u32(link, "mipi-sdw-supported-clock-gears");
 	if (nval > 0) {
 		prop->num_clk_gears = nval;
 		prop->clk_gears = devm_kcalloc(bus->dev, prop->num_clk_gears,
@@ -95,25 +95,25 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 		if (!prop->clk_gears)
 			return -ENOMEM;
 
-		fwnode_property_read_u32_array(link,
+		fwyesde_property_read_u32_array(link,
 					       "mipi-sdw-supported-clock-gears",
 					       prop->clk_gears,
 					       prop->num_clk_gears);
 	}
 
-	fwnode_property_read_u32(link, "mipi-sdw-default-frame-rate",
+	fwyesde_property_read_u32(link, "mipi-sdw-default-frame-rate",
 				 &prop->default_frame_rate);
 
-	fwnode_property_read_u32(link, "mipi-sdw-default-frame-row-size",
+	fwyesde_property_read_u32(link, "mipi-sdw-default-frame-row-size",
 				 &prop->default_row);
 
-	fwnode_property_read_u32(link, "mipi-sdw-default-frame-col-size",
+	fwyesde_property_read_u32(link, "mipi-sdw-default-frame-col-size",
 				 &prop->default_col);
 
-	prop->dynamic_frame =  fwnode_property_read_bool(link,
+	prop->dynamic_frame =  fwyesde_property_read_bool(link,
 			"mipi-sdw-dynamic-frame-shape");
 
-	fwnode_property_read_u32(link, "mipi-sdw-command-error-threshold",
+	fwyesde_property_read_u32(link, "mipi-sdw-command-error-threshold",
 				 &prop->err_threshold);
 
 	return 0;
@@ -121,18 +121,18 @@ int sdw_master_read_prop(struct sdw_bus *bus)
 EXPORT_SYMBOL(sdw_master_read_prop);
 
 static int sdw_slave_read_dp0(struct sdw_slave *slave,
-			      struct fwnode_handle *port,
+			      struct fwyesde_handle *port,
 			      struct sdw_dp0_prop *dp0)
 {
 	int nval;
 
-	fwnode_property_read_u32(port, "mipi-sdw-port-max-wordlength",
+	fwyesde_property_read_u32(port, "mipi-sdw-port-max-wordlength",
 				 &dp0->max_word);
 
-	fwnode_property_read_u32(port, "mipi-sdw-port-min-wordlength",
+	fwyesde_property_read_u32(port, "mipi-sdw-port-min-wordlength",
 				 &dp0->min_word);
 
-	nval = fwnode_property_count_u32(port, "mipi-sdw-port-wordlength-configs");
+	nval = fwyesde_property_count_u32(port, "mipi-sdw-port-wordlength-configs");
 	if (nval > 0) {
 
 		dp0->num_words = nval;
@@ -142,18 +142,18 @@ static int sdw_slave_read_dp0(struct sdw_slave *slave,
 		if (!dp0->words)
 			return -ENOMEM;
 
-		fwnode_property_read_u32_array(port,
+		fwyesde_property_read_u32_array(port,
 				"mipi-sdw-port-wordlength-configs",
 				dp0->words, dp0->num_words);
 	}
 
-	dp0->BRA_flow_controlled = fwnode_property_read_bool(port,
+	dp0->BRA_flow_controlled = fwyesde_property_read_bool(port,
 				"mipi-sdw-bra-flow-controlled");
 
-	dp0->simple_ch_prep_sm = fwnode_property_read_bool(port,
+	dp0->simple_ch_prep_sm = fwyesde_property_read_bool(port,
 				"mipi-sdw-simplified-channel-prepare-sm");
 
-	dp0->imp_def_interrupts = fwnode_property_read_bool(port,
+	dp0->imp_def_interrupts = fwyesde_property_read_bool(port,
 				"mipi-sdw-imp-def-dp0-interrupts-supported");
 
 	return 0;
@@ -163,7 +163,7 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 			      struct sdw_dpn_prop *dpn, int count, int ports,
 			      char *type)
 {
-	struct fwnode_handle *node;
+	struct fwyesde_handle *yesde;
 	u32 bit, i = 0;
 	int nval;
 	unsigned long addr;
@@ -179,18 +179,18 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 
 		dpn[i].num = bit;
 
-		node = device_get_named_child_node(&slave->dev, name);
-		if (!node) {
-			dev_err(&slave->dev, "%s dpN not found\n", name);
+		yesde = device_get_named_child_yesde(&slave->dev, name);
+		if (!yesde) {
+			dev_err(&slave->dev, "%s dpN yest found\n", name);
 			return -EIO;
 		}
 
-		fwnode_property_read_u32(node, "mipi-sdw-port-max-wordlength",
+		fwyesde_property_read_u32(yesde, "mipi-sdw-port-max-wordlength",
 					 &dpn[i].max_word);
-		fwnode_property_read_u32(node, "mipi-sdw-port-min-wordlength",
+		fwyesde_property_read_u32(yesde, "mipi-sdw-port-min-wordlength",
 					 &dpn[i].min_word);
 
-		nval = fwnode_property_count_u32(node, "mipi-sdw-port-wordlength-configs");
+		nval = fwyesde_property_count_u32(yesde, "mipi-sdw-port-wordlength-configs");
 		if (nval > 0) {
 			dpn[i].num_words = nval;
 			dpn[i].words = devm_kcalloc(&slave->dev,
@@ -200,36 +200,36 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 			if (!dpn[i].words)
 				return -ENOMEM;
 
-			fwnode_property_read_u32_array(node,
+			fwyesde_property_read_u32_array(yesde,
 					"mipi-sdw-port-wordlength-configs",
 					dpn[i].words, dpn[i].num_words);
 		}
 
-		fwnode_property_read_u32(node, "mipi-sdw-data-port-type",
+		fwyesde_property_read_u32(yesde, "mipi-sdw-data-port-type",
 					 &dpn[i].type);
 
-		fwnode_property_read_u32(node,
+		fwyesde_property_read_u32(yesde,
 					 "mipi-sdw-max-grouping-supported",
 					 &dpn[i].max_grouping);
 
-		dpn[i].simple_ch_prep_sm = fwnode_property_read_bool(node,
+		dpn[i].simple_ch_prep_sm = fwyesde_property_read_bool(yesde,
 				"mipi-sdw-simplified-channelprepare-sm");
 
-		fwnode_property_read_u32(node,
+		fwyesde_property_read_u32(yesde,
 					 "mipi-sdw-port-channelprepare-timeout",
 					 &dpn[i].ch_prep_timeout);
 
-		fwnode_property_read_u32(node,
+		fwyesde_property_read_u32(yesde,
 				"mipi-sdw-imp-def-dpn-interrupts-supported",
 				&dpn[i].imp_def_interrupts);
 
-		fwnode_property_read_u32(node, "mipi-sdw-min-channel-number",
+		fwyesde_property_read_u32(yesde, "mipi-sdw-min-channel-number",
 					 &dpn[i].min_ch);
 
-		fwnode_property_read_u32(node, "mipi-sdw-max-channel-number",
+		fwyesde_property_read_u32(yesde, "mipi-sdw-max-channel-number",
 					 &dpn[i].max_ch);
 
-		nval = fwnode_property_count_u32(node, "mipi-sdw-channel-number-list");
+		nval = fwyesde_property_count_u32(yesde, "mipi-sdw-channel-number-list");
 		if (nval > 0) {
 			dpn[i].num_ch = nval;
 			dpn[i].ch = devm_kcalloc(&slave->dev, dpn[i].num_ch,
@@ -238,12 +238,12 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 			if (!dpn[i].ch)
 				return -ENOMEM;
 
-			fwnode_property_read_u32_array(node,
+			fwyesde_property_read_u32_array(yesde,
 					"mipi-sdw-channel-number-list",
 					dpn[i].ch, dpn[i].num_ch);
 		}
 
-		nval = fwnode_property_count_u32(node, "mipi-sdw-channel-combination-list");
+		nval = fwyesde_property_count_u32(yesde, "mipi-sdw-channel-combination-list");
 		if (nval > 0) {
 			dpn[i].num_ch_combinations = nval;
 			dpn[i].ch_combinations = devm_kcalloc(&slave->dev,
@@ -253,22 +253,22 @@ static int sdw_slave_read_dpn(struct sdw_slave *slave,
 			if (!dpn[i].ch_combinations)
 				return -ENOMEM;
 
-			fwnode_property_read_u32_array(node,
+			fwyesde_property_read_u32_array(yesde,
 					"mipi-sdw-channel-combination-list",
 					dpn[i].ch_combinations,
 					dpn[i].num_ch_combinations);
 		}
 
-		fwnode_property_read_u32(node,
+		fwyesde_property_read_u32(yesde,
 				"mipi-sdw-modes-supported", &dpn[i].modes);
 
-		fwnode_property_read_u32(node, "mipi-sdw-max-async-buffer",
+		fwyesde_property_read_u32(yesde, "mipi-sdw-max-async-buffer",
 					 &dpn[i].max_async_buffer);
 
-		dpn[i].block_pack_mode = fwnode_property_read_bool(node,
+		dpn[i].block_pack_mode = fwyesde_property_read_bool(yesde,
 				"mipi-sdw-block-packing-mode");
 
-		fwnode_property_read_u32(node, "mipi-sdw-port-encoding-type",
+		fwyesde_property_read_u32(yesde, "mipi-sdw-port-encoding-type",
 					 &dpn[i].port_encoding);
 
 		/* TODO: Read audio mode */
@@ -287,7 +287,7 @@ int sdw_slave_read_prop(struct sdw_slave *slave)
 {
 	struct sdw_slave_prop *prop = &slave->prop;
 	struct device *dev = &slave->dev;
-	struct fwnode_handle *port;
+	struct fwyesde_handle *port;
 	int num_of_ports, nval, i, dp0 = 0;
 
 	device_property_read_u32(dev, "mipi-sdw-sw-interface-revision",
@@ -340,9 +340,9 @@ int sdw_slave_read_prop(struct sdw_slave *slave)
 				 &prop->sink_ports);
 
 	/* Read dp0 properties */
-	port = device_get_named_child_node(dev, "mipi-sdw-dp-0-subproperties");
+	port = device_get_named_child_yesde(dev, "mipi-sdw-dp-0-subproperties");
 	if (!port) {
-		dev_dbg(dev, "DP0 node not found!!\n");
+		dev_dbg(dev, "DP0 yesde yest found!!\n");
 	} else {
 		prop->dp0_prop = devm_kzalloc(&slave->dev,
 					      sizeof(*prop->dp0_prop),

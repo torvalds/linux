@@ -385,7 +385,7 @@
 };
 
 /*
- * Disable soc's rtc as we have no VBAT for it. This makes the board
+ * Disable soc's rtc as we have yes VBAT for it. This makes the board
  * rtc (Microchip MCP79400) the default rtc device 'rtc0'.
  */
 &rtc {
@@ -497,7 +497,7 @@
 &mac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&cpsw_default>;
-	dual_emac;			/* no switch, two distinct MACs */
+	dual_emac;			/* yes switch, two distinct MACs */
 	status = "okay";
 };
 
@@ -548,7 +548,7 @@
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
-	non-removable;
+	yesn-removable;
 };
 
 &mmc2 {

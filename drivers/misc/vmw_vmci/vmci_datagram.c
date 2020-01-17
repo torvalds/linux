@@ -150,7 +150,7 @@ static void dg_delayed_dispatch(struct work_struct *work)
 
 /*
  * Dispatch datagram as a host, to the host, or other vm context. This
- * function cannot dispatch to hypervisor context handlers. This should
+ * function canyest dispatch to hypervisor context handlers. This should
  * have been handled before we get here by vmci_datagram_dispatch.
  * Returns number of bytes sent on success, error code otherwise.
  */
@@ -162,13 +162,13 @@ static int dg_dispatch_as_host(u32 context_id, struct vmci_datagram *dg)
 
 	dg_size = VMCI_DG_SIZE(dg);
 
-	/* Host cannot send to the hypervisor. */
+	/* Host canyest send to the hypervisor. */
 	if (dg->dst.context == VMCI_HYPERVISOR_CONTEXT_ID)
 		return VMCI_ERROR_DST_UNREACHABLE;
 
 	/* Check that source handle matches sending context. */
 	if (dg->src.context != context_id) {
-		pr_devel("Sender context (ID=0x%x) is not owner of src datagram entry (handle=0x%x:0x%x)\n",
+		pr_devel("Sender context (ID=0x%x) is yest owner of src datagram entry (handle=0x%x:0x%x)\n",
 			 context_id, dg->src.context, dg->src.resource);
 		return VMCI_ERROR_NO_ACCESS;
 	}
@@ -210,7 +210,7 @@ static int dg_dispatch_as_host(u32 context_id, struct vmci_datagram *dg)
 
 		/*
 		 * If a VMCI datagram destined for the host is also sent by the
-		 * host, we always run it delayed. This ensures that no locks
+		 * host, we always run it delayed. This ensures that yes locks
 		 * are held when the datagram callback runs.
 		 */
 		if (dst_entry->run_delayed ||
@@ -258,10 +258,10 @@ static int dg_dispatch_as_host(u32 context_id, struct vmci_datagram *dg)
 			} else if (VMCI_CONTEXT_IS_VM(context_id)) {
 				/*
 				 * If the sending context is a VM, it
-				 * cannot reach another VM.
+				 * canyest reach ayesther VM.
 				 */
 
-				pr_devel("Datagram communication between VMs not supported (src=0x%x, dst=0x%x)\n",
+				pr_devel("Datagram communication between VMs yest supported (src=0x%x, dst=0x%x)\n",
 					 context_id, dg->dst.context);
 				return VMCI_ERROR_DST_UNREACHABLE;
 			}
@@ -342,7 +342,7 @@ int vmci_datagram_dispatch(u32 context_id,
 	if (VMCI_ROUTE_AS_GUEST == route)
 		return dg_dispatch_as_guest(dg);
 
-	pr_warn("Unknown route (%d) for datagram\n", route);
+	pr_warn("Unkyeswn route (%d) for datagram\n", route);
 	return VMCI_ERROR_DST_UNREACHABLE;
 }
 

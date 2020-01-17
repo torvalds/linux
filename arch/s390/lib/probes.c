@@ -5,13 +5,13 @@
  *    Copyright IBM Corp. 2014
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/kprobes.h>
 #include <asm/dis.h>
 
 int probe_is_prohibited_opcode(u16 *insn)
 {
-	if (!is_known_insn((unsigned char *)insn))
+	if (!is_kyeswn_insn((unsigned char *)insn))
 		return -EINVAL;
 	switch (insn[0] >> 8) {
 	case 0x0c:	/* bassm */
@@ -52,7 +52,7 @@ int probe_get_fixup_type(u16 *insn)
 	case 0x05:	/* balr	*/
 	case 0x0d:	/* basr */
 		fixup = FIXUP_RETURN_REGISTER;
-		/* if r2 = 0, no branch will be taken */
+		/* if r2 = 0, yes branch will be taken */
 		if ((insn[0] & 0x0f) == 0)
 			fixup |= FIXUP_BRANCH_NOT_TAKEN;
 		break;

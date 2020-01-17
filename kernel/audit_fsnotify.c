@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* audit_fsnotify.c -- tracking inodes
+/* audit_fsyestify.c -- tracking iyesdes
  *
  * Copyright 2003-2009,2014-2015 Red Hat, Inc.
  * Copyright 2005 Hewlett-Packard Development Company, L.P.
@@ -11,7 +11,7 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/fs.h>
-#include <linux/fsnotify_backend.h>
+#include <linux/fsyestify_backend.h>
 #include <linux/namei.h>
 #include <linux/netlink.h>
 #include <linux/sched.h>
@@ -20,63 +20,63 @@
 #include "audit.h"
 
 /*
- * this mark lives on the parent directory of the inode in question.
- * but dev, ino, and path are about the child
+ * this mark lives on the parent directory of the iyesde in question.
+ * but dev, iyes, and path are about the child
  */
-struct audit_fsnotify_mark {
+struct audit_fsyestify_mark {
 	dev_t dev;		/* associated superblock device */
-	unsigned long ino;	/* associated inode number */
+	unsigned long iyes;	/* associated iyesde number */
 	char *path;		/* insertion path */
-	struct fsnotify_mark mark; /* fsnotify mark on the inode */
+	struct fsyestify_mark mark; /* fsyestify mark on the iyesde */
 	struct audit_krule *rule;
 };
 
-/* fsnotify handle. */
-static struct fsnotify_group *audit_fsnotify_group;
+/* fsyestify handle. */
+static struct fsyestify_group *audit_fsyestify_group;
 
-/* fsnotify events we care about. */
+/* fsyestify events we care about. */
 #define AUDIT_FS_EVENTS (FS_MOVE | FS_CREATE | FS_DELETE | FS_DELETE_SELF |\
 			 FS_MOVE_SELF | FS_EVENT_ON_CHILD)
 
-static void audit_fsnotify_mark_free(struct audit_fsnotify_mark *audit_mark)
+static void audit_fsyestify_mark_free(struct audit_fsyestify_mark *audit_mark)
 {
 	kfree(audit_mark->path);
 	kfree(audit_mark);
 }
 
-static void audit_fsnotify_free_mark(struct fsnotify_mark *mark)
+static void audit_fsyestify_free_mark(struct fsyestify_mark *mark)
 {
-	struct audit_fsnotify_mark *audit_mark;
+	struct audit_fsyestify_mark *audit_mark;
 
-	audit_mark = container_of(mark, struct audit_fsnotify_mark, mark);
-	audit_fsnotify_mark_free(audit_mark);
+	audit_mark = container_of(mark, struct audit_fsyestify_mark, mark);
+	audit_fsyestify_mark_free(audit_mark);
 }
 
-char *audit_mark_path(struct audit_fsnotify_mark *mark)
+char *audit_mark_path(struct audit_fsyestify_mark *mark)
 {
 	return mark->path;
 }
 
-int audit_mark_compare(struct audit_fsnotify_mark *mark, unsigned long ino, dev_t dev)
+int audit_mark_compare(struct audit_fsyestify_mark *mark, unsigned long iyes, dev_t dev)
 {
-	if (mark->ino == AUDIT_INO_UNSET)
+	if (mark->iyes == AUDIT_INO_UNSET)
 		return 0;
-	return (mark->ino == ino) && (mark->dev == dev);
+	return (mark->iyes == iyes) && (mark->dev == dev);
 }
 
-static void audit_update_mark(struct audit_fsnotify_mark *audit_mark,
-			     const struct inode *inode)
+static void audit_update_mark(struct audit_fsyestify_mark *audit_mark,
+			     const struct iyesde *iyesde)
 {
-	audit_mark->dev = inode ? inode->i_sb->s_dev : AUDIT_DEV_UNSET;
-	audit_mark->ino = inode ? inode->i_ino : AUDIT_INO_UNSET;
+	audit_mark->dev = iyesde ? iyesde->i_sb->s_dev : AUDIT_DEV_UNSET;
+	audit_mark->iyes = iyesde ? iyesde->i_iyes : AUDIT_INO_UNSET;
 }
 
-struct audit_fsnotify_mark *audit_alloc_mark(struct audit_krule *krule, char *pathname, int len)
+struct audit_fsyestify_mark *audit_alloc_mark(struct audit_krule *krule, char *pathname, int len)
 {
-	struct audit_fsnotify_mark *audit_mark;
+	struct audit_fsyestify_mark *audit_mark;
 	struct path path;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int ret;
 
 	if (pathname[0] != '/' || pathname[len-1] == '/')
@@ -85,8 +85,8 @@ struct audit_fsnotify_mark *audit_alloc_mark(struct audit_krule *krule, char *pa
 	dentry = kern_path_locked(pathname, &path);
 	if (IS_ERR(dentry))
 		return (void *)dentry; /* returning an error */
-	inode = path.dentry->d_inode;
-	inode_unlock(inode);
+	iyesde = path.dentry->d_iyesde;
+	iyesde_unlock(iyesde);
 
 	audit_mark = kzalloc(sizeof(*audit_mark), GFP_KERNEL);
 	if (unlikely(!audit_mark)) {
@@ -94,15 +94,15 @@ struct audit_fsnotify_mark *audit_alloc_mark(struct audit_krule *krule, char *pa
 		goto out;
 	}
 
-	fsnotify_init_mark(&audit_mark->mark, audit_fsnotify_group);
+	fsyestify_init_mark(&audit_mark->mark, audit_fsyestify_group);
 	audit_mark->mark.mask = AUDIT_FS_EVENTS;
 	audit_mark->path = pathname;
-	audit_update_mark(audit_mark, dentry->d_inode);
+	audit_update_mark(audit_mark, dentry->d_iyesde);
 	audit_mark->rule = krule;
 
-	ret = fsnotify_add_inode_mark(&audit_mark->mark, inode, true);
+	ret = fsyestify_add_iyesde_mark(&audit_mark->mark, iyesde, true);
 	if (ret < 0) {
-		fsnotify_put_mark(&audit_mark->mark);
+		fsyestify_put_mark(&audit_mark->mark);
 		audit_mark = ERR_PTR(ret);
 	}
 out:
@@ -111,7 +111,7 @@ out:
 	return audit_mark;
 }
 
-static void audit_mark_log_rule_change(struct audit_fsnotify_mark *audit_mark, char *op)
+static void audit_mark_log_rule_change(struct audit_fsyestify_mark *audit_mark, char *op)
 {
 	struct audit_buffer *ab;
 	struct audit_krule *rule = audit_mark->rule;
@@ -129,20 +129,20 @@ static void audit_mark_log_rule_change(struct audit_fsnotify_mark *audit_mark, c
 	audit_log_end(ab);
 }
 
-void audit_remove_mark(struct audit_fsnotify_mark *audit_mark)
+void audit_remove_mark(struct audit_fsyestify_mark *audit_mark)
 {
-	fsnotify_destroy_mark(&audit_mark->mark, audit_fsnotify_group);
-	fsnotify_put_mark(&audit_mark->mark);
+	fsyestify_destroy_mark(&audit_mark->mark, audit_fsyestify_group);
+	fsyestify_put_mark(&audit_mark->mark);
 }
 
 void audit_remove_mark_rule(struct audit_krule *krule)
 {
-	struct audit_fsnotify_mark *mark = krule->exe;
+	struct audit_fsyestify_mark *mark = krule->exe;
 
 	audit_remove_mark(mark);
 }
 
-static void audit_autoremove_mark_rule(struct audit_fsnotify_mark *audit_mark)
+static void audit_autoremove_mark_rule(struct audit_fsyestify_mark *audit_mark)
 {
 	struct audit_krule *rule = audit_mark->rule;
 	struct audit_entry *entry = container_of(rule, struct audit_entry, rule);
@@ -151,27 +151,27 @@ static void audit_autoremove_mark_rule(struct audit_fsnotify_mark *audit_mark)
 	audit_del_rule(entry);
 }
 
-/* Update mark data in audit rules based on fsnotify events. */
-static int audit_mark_handle_event(struct fsnotify_group *group,
-				    struct inode *to_tell,
+/* Update mark data in audit rules based on fsyestify events. */
+static int audit_mark_handle_event(struct fsyestify_group *group,
+				    struct iyesde *to_tell,
 				    u32 mask, const void *data, int data_type,
 				    const struct qstr *dname, u32 cookie,
-				    struct fsnotify_iter_info *iter_info)
+				    struct fsyestify_iter_info *iter_info)
 {
-	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
-	struct audit_fsnotify_mark *audit_mark;
-	const struct inode *inode = NULL;
+	struct fsyestify_mark *iyesde_mark = fsyestify_iter_iyesde_mark(iter_info);
+	struct audit_fsyestify_mark *audit_mark;
+	const struct iyesde *iyesde = NULL;
 
-	audit_mark = container_of(inode_mark, struct audit_fsnotify_mark, mark);
+	audit_mark = container_of(iyesde_mark, struct audit_fsyestify_mark, mark);
 
-	BUG_ON(group != audit_fsnotify_group);
+	BUG_ON(group != audit_fsyestify_group);
 
 	switch (data_type) {
 	case (FSNOTIFY_EVENT_PATH):
-		inode = ((const struct path *)data)->dentry->d_inode;
+		iyesde = ((const struct path *)data)->dentry->d_iyesde;
 		break;
 	case (FSNOTIFY_EVENT_INODE):
-		inode = (const struct inode *)data;
+		iyesde = (const struct iyesde *)data;
 		break;
 	default:
 		BUG();
@@ -181,25 +181,25 @@ static int audit_mark_handle_event(struct fsnotify_group *group,
 	if (mask & (FS_CREATE|FS_MOVED_TO|FS_DELETE|FS_MOVED_FROM)) {
 		if (audit_compare_dname_path(dname, audit_mark->path, AUDIT_NAME_FULL))
 			return 0;
-		audit_update_mark(audit_mark, inode);
+		audit_update_mark(audit_mark, iyesde);
 	} else if (mask & (FS_DELETE_SELF|FS_UNMOUNT|FS_MOVE_SELF))
 		audit_autoremove_mark_rule(audit_mark);
 
 	return 0;
 }
 
-static const struct fsnotify_ops audit_mark_fsnotify_ops = {
+static const struct fsyestify_ops audit_mark_fsyestify_ops = {
 	.handle_event =	audit_mark_handle_event,
-	.free_mark = audit_fsnotify_free_mark,
+	.free_mark = audit_fsyestify_free_mark,
 };
 
-static int __init audit_fsnotify_init(void)
+static int __init audit_fsyestify_init(void)
 {
-	audit_fsnotify_group = fsnotify_alloc_group(&audit_mark_fsnotify_ops);
-	if (IS_ERR(audit_fsnotify_group)) {
-		audit_fsnotify_group = NULL;
-		audit_panic("cannot create audit fsnotify group");
+	audit_fsyestify_group = fsyestify_alloc_group(&audit_mark_fsyestify_ops);
+	if (IS_ERR(audit_fsyestify_group)) {
+		audit_fsyestify_group = NULL;
+		audit_panic("canyest create audit fsyestify group");
 	}
 	return 0;
 }
-device_initcall(audit_fsnotify_init);
+device_initcall(audit_fsyestify_init);

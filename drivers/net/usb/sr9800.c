@@ -63,7 +63,7 @@ static int sr_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	int offset = 0;
 
-	/* This check is no longer done by usbnet */
+	/* This check is yes longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len)
 		return 0;
 
@@ -257,7 +257,7 @@ static u16 sr_read_medium_status(struct usbnet *dev)
 	if (ret < 0) {
 		netdev_err(dev->net,
 			   "Error reading Medium Status register:%02x\n", ret);
-		return ret;	/* TODO: callers not checking for error ret */
+		return ret;	/* TODO: callers yest checking for error ret */
 	}
 
 	return le16_to_cpu(v);
@@ -774,7 +774,7 @@ static int sr9800_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->ethtool_ops = &sr9800_ethtool_ops;
 
 	embd_phy = ((dev->mii.phy_id & 0x1f) == 0x10 ? 1 : 0);
-	/* Reset the PHY to normal operation mode */
+	/* Reset the PHY to yesrmal operation mode */
 	ret = sr_write_cmd(dev, SR_CMD_SW_PHY_SELECT, embd_phy, 0, 0, NULL);
 	if (ret < 0) {
 		netdev_dbg(dev->net, "Select PHY #1 failed: %d\n", ret);

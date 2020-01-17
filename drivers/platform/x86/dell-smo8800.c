@@ -107,7 +107,7 @@ static ssize_t smo8800_misc_read(struct file *file, char __user *buf,
 	return retval;
 }
 
-static int smo8800_misc_open(struct inode *inode, struct file *file)
+static int smo8800_misc_open(struct iyesde *iyesde, struct file *file)
 {
 	struct smo8800_device *smo8800 = container_of(file->private_data,
 					 struct smo8800_device, miscdev);
@@ -119,7 +119,7 @@ static int smo8800_misc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int smo8800_misc_release(struct inode *inode, struct file *file)
+static int smo8800_misc_release(struct iyesde *iyesde, struct file *file)
 {
 	struct smo8800_device *smo8800 = container_of(file->private_data,
 					 struct smo8800_device, miscdev);
@@ -147,7 +147,7 @@ static int smo8800_add(struct acpi_device *device)
 	}
 
 	smo8800->dev = &device->dev;
-	smo8800->miscdev.minor = MISC_DYNAMIC_MINOR;
+	smo8800->miscdev.miyesr = MISC_DYNAMIC_MINOR;
 	smo8800->miscdev.name = "freefall";
 	smo8800->miscdev.fops = &smo8800_misc_fops;
 

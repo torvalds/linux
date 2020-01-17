@@ -31,7 +31,7 @@ struct qce_dma_data {
 	struct dma_chan *txchan;
 	struct dma_chan *rxchan;
 	struct qce_result_dump *result_buf;
-	void *ignore_buf;
+	void *igyesre_buf;
 };
 
 int qce_dma_request(struct device *dev, struct qce_dma_data *dma);

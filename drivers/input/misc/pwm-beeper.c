@@ -208,9 +208,9 @@ static int __maybe_unused pwm_beeper_suspend(struct device *dev)
 	struct pwm_beeper *beeper = dev_get_drvdata(dev);
 
 	/*
-	 * Spinlock is taken here is not to protect write to
+	 * Spinlock is taken here is yest to protect write to
 	 * beeper->suspended, but to ensure that pwm_beeper_event
-	 * does not re-submit work once flag is set.
+	 * does yest re-submit work once flag is set.
 	 */
 	spin_lock_irq(&beeper->input->event_lock);
 	beeper->suspended = true;

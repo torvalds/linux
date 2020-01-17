@@ -14,7 +14,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/phy.h>
@@ -199,7 +199,7 @@ static int gpio_mdio_write(struct mii_bus *bus, int phy_id, int location, u16 va
 
 static int gpio_mdio_reset(struct mii_bus *bus)
 {
-	/*nothing here - dunno how to reset it*/
+	/*yesthing here - dunyes how to reset it*/
 	return 0;
 }
 
@@ -207,7 +207,7 @@ static int gpio_mdio_reset(struct mii_bus *bus)
 static int gpio_mdio_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct mii_bus *new_bus;
 	struct gpio_priv *priv;
 	const unsigned int *prop;
@@ -244,7 +244,7 @@ static int gpio_mdio_probe(struct platform_device *ofdev)
 	err = of_mdiobus_register(new_bus, np);
 
 	if (err != 0) {
-		pr_err("%s: Cannot register as MDIO bus, err %d\n",
+		pr_err("%s: Canyest register as MDIO bus, err %d\n",
 				new_bus->name, err);
 		goto out_free_irq;
 	}
@@ -296,16 +296,16 @@ static struct platform_driver gpio_mdio_driver =
 
 static int gpio_mdio_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "1682m-gpio");
+	np = of_find_compatible_yesde(NULL, NULL, "1682m-gpio");
 	if (!np)
-		np = of_find_compatible_node(NULL, NULL,
+		np = of_find_compatible_yesde(NULL, NULL,
 					     "pasemi,pwrficient-gpio");
 	if (!np)
 		return -ENODEV;
 	gpio_regs = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (!gpio_regs)
 		return -ENODEV;

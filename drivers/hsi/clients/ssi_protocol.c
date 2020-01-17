@@ -7,7 +7,7 @@
  * Copyright (C) 2010 Nokia Corporation. All rights reserved.
  * Copyright (C) 2013 Sebastian Reichel <sre@kernel.org>
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@yeskia.com>
  */
 
 #include <linux/atomic.h>
@@ -23,7 +23,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/scatterlist.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
@@ -523,7 +523,7 @@ static void ssip_start_rx(struct hsi_client *cl)
 	spin_lock_bh(&ssi->lock);
 	/*
 	 * We can have two UP events in a row due to a short low
-	 * high transition. Therefore we need to ignore the sencond UP event.
+	 * high transition. Therefore we need to igyesre the sencond UP event.
 	 */
 	if ((ssi->main_state != ACTIVE) || (ssi->recv_state == RECV_READY)) {
 		spin_unlock_bh(&ssi->lock);
@@ -660,7 +660,7 @@ static void ssip_rx_bootinforeq(struct hsi_client *cl, u32 cmd)
 	struct ssi_protocol *ssi = hsi_client_drvdata(cl);
 	struct hsi_msg *msg;
 
-	/* Workaroud: Ignore CMT Loader message leftover */
+	/* Workaroud: Igyesre CMT Loader message leftover */
 	if (cmd == SSIP_CMT_LOADER_SYNC)
 		return;
 
@@ -705,10 +705,10 @@ static void ssip_rx_bootinforesp(struct hsi_client *cl, u32 cmd)
 
 	spin_lock_bh(&ssi->lock);
 	if (ssi->main_state != ACTIVE)
-		/* Use tx_wd as a boot watchdog in non ACTIVE state */
+		/* Use tx_wd as a boot watchdog in yesn ACTIVE state */
 		mod_timer(&ssi->tx_wd, jiffies + msecs_to_jiffies(SSIP_WDTOUT));
 	else
-		dev_dbg(&cl->device, "boot info resp ignored M(%d)\n",
+		dev_dbg(&cl->device, "boot info resp igyesred M(%d)\n",
 							ssi->main_state);
 	spin_unlock_bh(&ssi->lock);
 }
@@ -720,7 +720,7 @@ static void ssip_rx_waketest(struct hsi_client *cl, u32 cmd)
 
 	spin_lock_bh(&ssi->lock);
 	if (ssi->main_state != HANDSHAKE) {
-		dev_dbg(&cl->device, "wake lines test ignored M(%d)\n",
+		dev_dbg(&cl->device, "wake lines test igyesred M(%d)\n",
 							ssi->main_state);
 		spin_unlock_bh(&ssi->lock);
 		return;
@@ -735,7 +735,7 @@ static void ssip_rx_waketest(struct hsi_client *cl, u32 cmd)
 	del_timer(&ssi->tx_wd); /* Stop boot handshake timer */
 	spin_unlock_bh(&ssi->lock);
 
-	dev_notice(&cl->device, "WAKELINES TEST %s\n",
+	dev_yestice(&cl->device, "WAKELINES TEST %s\n",
 				wkres & SSIP_WAKETEST_FAILED ? "FAILED" : "OK");
 	if (wkres & SSIP_WAKETEST_FAILED) {
 		ssip_error(cl);
@@ -758,7 +758,7 @@ static void ssip_rx_ready(struct hsi_client *cl)
 		return;
 	}
 	if (ssi->send_state != WAIT4READY) {
-		dev_dbg(&cl->device, "Ignore spurious READY command\n");
+		dev_dbg(&cl->device, "Igyesre spurious READY command\n");
 		spin_unlock_bh(&ssi->lock);
 		return;
 	}
@@ -829,7 +829,7 @@ static void ssip_rxcmd_complete(struct hsi_msg *msg)
 	dev_dbg(&cl->device, "RX cmd: 0x%08x\n", cmd);
 	switch (cmdid) {
 	case SSIP_SW_BREAK:
-		/* Ignored */
+		/* Igyesred */
 		break;
 	case SSIP_BOOTINFO_REQ:
 		ssip_rx_bootinforeq(cl, cmd);
@@ -847,7 +847,7 @@ static void ssip_rxcmd_complete(struct hsi_msg *msg)
 		ssip_rx_ready(cl);
 		break;
 	default:
-		dev_warn(&cl->device, "command 0x%08x not supported\n", cmd);
+		dev_warn(&cl->device, "command 0x%08x yest supported\n", cmd);
 		break;
 	}
 }
@@ -1094,14 +1094,14 @@ static int ssi_protocol_probe(struct device *dev)
 	ssi->channel_id_cmd = hsi_get_channel_id_by_name(cl, "mcsaab-control");
 	if (ssi->channel_id_cmd < 0) {
 		err = ssi->channel_id_cmd;
-		dev_err(dev, "Could not get cmd channel (%d)\n", err);
+		dev_err(dev, "Could yest get cmd channel (%d)\n", err);
 		goto out;
 	}
 
 	ssi->channel_id_data = hsi_get_channel_id_by_name(cl, "mcsaab-data");
 	if (ssi->channel_id_data < 0) {
 		err = ssi->channel_id_data;
-		dev_err(dev, "Could not get data channel (%d)\n", err);
+		dev_err(dev, "Could yest get data channel (%d)\n", err);
 		goto out;
 	}
 
@@ -1185,7 +1185,7 @@ static void __exit ssip_exit(void)
 module_exit(ssip_exit);
 
 MODULE_ALIAS("hsi:ssi-protocol");
-MODULE_AUTHOR("Carlos Chinea <carlos.chinea@nokia.com>");
-MODULE_AUTHOR("Remi Denis-Courmont <remi.denis-courmont@nokia.com>");
+MODULE_AUTHOR("Carlos Chinea <carlos.chinea@yeskia.com>");
+MODULE_AUTHOR("Remi Denis-Courmont <remi.denis-courmont@yeskia.com>");
 MODULE_DESCRIPTION("SSI protocol improved aka McSAAB");
 MODULE_LICENSE("GPL");

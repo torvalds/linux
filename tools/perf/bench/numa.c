@@ -14,7 +14,7 @@
 
 #include "bench.h"
 
-#include <errno.h>
+#include <erryes.h>
 #include <sched.h>
 #include <stdio.h>
 #include <assert.h>
@@ -55,7 +55,7 @@
 struct thread_data {
 	int			curr_cpu;
 	cpu_set_t		bind_cpumask;
-	int			bind_node;
+	int			bind_yesde;
 	u8			*process_data;
 	int			process_nr;
 	int			thread_nr;
@@ -123,11 +123,11 @@ struct params {
 
 	int			perturb_secs;
 	int			nr_cpus;
-	int			nr_nodes;
+	int			nr_yesdes;
 
 	/* Affinity options -C and -N: */
 	char			*cpu_list_str;
-	char			*node_list_str;
+	char			*yesde_list_str;
 };
 
 
@@ -161,7 +161,7 @@ struct global_info {
 static struct global_info	*g = NULL;
 
 static int parse_cpus_opt(const struct option *opt, const char *arg, int unset);
-static int parse_nodes_opt(const struct option *opt, const char *arg, int unset);
+static int parse_yesdes_opt(const struct option *opt, const char *arg, int unset);
 
 struct params p0;
 
@@ -194,7 +194,7 @@ static const struct option options[] = {
 	OPT_INCR   ('a', "all"		, &p0.run_all,		"Run all tests in the suite"),
 	OPT_INTEGER('H', "thp"		, &p0.thp,		"MADV_NOHUGEPAGE < 0 < MADV_HUGEPAGE"),
 	OPT_BOOLEAN('c', "show_convergence", &p0.show_convergence, "show convergence details, "
-		    "convergence is reached when each process (all its threads) is running on a single NUMA node."),
+		    "convergence is reached when each process (all its threads) is running on a single NUMA yesde."),
 	OPT_BOOLEAN('m', "measure_convergence",	&p0.measure_convergence, "measure convergence latency"),
 	OPT_BOOLEAN('q', "quiet"	, &p0.show_quiet,	"quiet mode"),
 	OPT_BOOLEAN('S', "serialize-startup", &p0.serialize_startup,"serialize thread startup"),
@@ -203,9 +203,9 @@ static const struct option options[] = {
         OPT_CALLBACK('C', "cpus", NULL, "cpu[,cpu2,...cpuN]",
 			"bind the first N tasks to these specific cpus (the rest is unbound)",
 			parse_cpus_opt),
-        OPT_CALLBACK('M', "memnodes", NULL, "node[,node2,...nodeN]",
-			"bind the first N tasks to these specific memory nodes (the rest is unbound)",
-			parse_nodes_opt),
+        OPT_CALLBACK('M', "memyesdes", NULL, "yesde[,yesde2,...yesdeN]",
+			"bind the first N tasks to these specific memory yesdes (the rest is unbound)",
+			parse_yesdes_opt),
 	OPT_END()
 };
 
@@ -220,44 +220,44 @@ static const char * const numa_usage[] = {
 };
 
 /*
- * To get number of numa nodes present.
+ * To get number of numa yesdes present.
  */
-static int nr_numa_nodes(void)
+static int nr_numa_yesdes(void)
 {
-	int i, nr_nodes = 0;
+	int i, nr_yesdes = 0;
 
-	for (i = 0; i < g->p.nr_nodes; i++) {
-		if (numa_bitmask_isbitset(numa_nodes_ptr, i))
-			nr_nodes++;
+	for (i = 0; i < g->p.nr_yesdes; i++) {
+		if (numa_bitmask_isbitset(numa_yesdes_ptr, i))
+			nr_yesdes++;
 	}
 
-	return nr_nodes;
+	return nr_yesdes;
 }
 
 /*
- * To check if given numa node is present.
+ * To check if given numa yesde is present.
  */
-static int is_node_present(int node)
+static int is_yesde_present(int yesde)
 {
-	return numa_bitmask_isbitset(numa_nodes_ptr, node);
+	return numa_bitmask_isbitset(numa_yesdes_ptr, yesde);
 }
 
 /*
- * To check given numa node has cpus.
+ * To check given numa yesde has cpus.
  */
-static bool node_has_cpus(int node)
+static bool yesde_has_cpus(int yesde)
 {
 	struct bitmask *cpu = numa_allocate_cpumask();
 	unsigned int i;
 
-	if (cpu && !numa_node_to_cpus(node, cpu)) {
+	if (cpu && !numa_yesde_to_cpus(yesde, cpu)) {
 		for (i = 0; i < cpu->size; i++) {
 			if (numa_bitmask_isbitset(cpu, i))
 				return true;
 		}
 	}
 
-	return false; /* lets fall back to nocpus safely */
+	return false; /* lets fall back to yescpus safely */
 }
 
 static cpu_set_t bind_to_cpu(int target_cpu)
@@ -286,27 +286,27 @@ static cpu_set_t bind_to_cpu(int target_cpu)
 	return orig_mask;
 }
 
-static cpu_set_t bind_to_node(int target_node)
+static cpu_set_t bind_to_yesde(int target_yesde)
 {
-	int cpus_per_node = g->p.nr_cpus / nr_numa_nodes();
+	int cpus_per_yesde = g->p.nr_cpus / nr_numa_yesdes();
 	cpu_set_t orig_mask, mask;
 	int cpu;
 	int ret;
 
-	BUG_ON(cpus_per_node * nr_numa_nodes() != g->p.nr_cpus);
-	BUG_ON(!cpus_per_node);
+	BUG_ON(cpus_per_yesde * nr_numa_yesdes() != g->p.nr_cpus);
+	BUG_ON(!cpus_per_yesde);
 
 	ret = sched_getaffinity(0, sizeof(orig_mask), &orig_mask);
 	BUG_ON(ret);
 
 	CPU_ZERO(&mask);
 
-	if (target_node == NUMA_NO_NODE) {
+	if (target_yesde == NUMA_NO_NODE) {
 		for (cpu = 0; cpu < g->p.nr_cpus; cpu++)
 			CPU_SET(cpu, &mask);
 	} else {
-		int cpu_start = (target_node + 0) * cpus_per_node;
-		int cpu_stop  = (target_node + 1) * cpus_per_node;
+		int cpu_start = (target_yesde + 0) * cpus_per_yesde;
+		int cpu_stop  = (target_yesde + 1) * cpus_per_yesde;
 
 		BUG_ON(cpu_stop > g->p.nr_cpus);
 
@@ -332,24 +332,24 @@ static void mempol_restore(void)
 {
 	int ret;
 
-	ret = set_mempolicy(MPOL_DEFAULT, NULL, g->p.nr_nodes-1);
+	ret = set_mempolicy(MPOL_DEFAULT, NULL, g->p.nr_yesdes-1);
 
 	BUG_ON(ret);
 }
 
-static void bind_to_memnode(int node)
+static void bind_to_memyesde(int yesde)
 {
-	unsigned long nodemask;
+	unsigned long yesdemask;
 	int ret;
 
-	if (node == NUMA_NO_NODE)
+	if (yesde == NUMA_NO_NODE)
 		return;
 
-	BUG_ON(g->p.nr_nodes > (int)sizeof(nodemask)*8);
-	nodemask = 1L << node;
+	BUG_ON(g->p.nr_yesdes > (int)sizeof(yesdemask)*8);
+	yesdemask = 1L << yesde;
 
-	ret = set_mempolicy(MPOL_BIND, &nodemask, sizeof(nodemask)*8);
-	dprintf("binding to node %d, mask: %016lx => %d\n", node, nodemask, ret);
+	ret = set_mempolicy(MPOL_BIND, &yesdemask, sizeof(yesdemask)*8);
+	dprintf("binding to yesde %d, mask: %016lx => %d\n", yesde, yesdemask, ret);
 
 	BUG_ON(ret);
 }
@@ -377,10 +377,10 @@ static u8 *alloc_data(ssize_t bytes0, int map_flags,
 
 	/* Allocate and initialize all memory on CPU#0: */
 	if (init_cpu0) {
-		int node = numa_node_of_cpu(0);
+		int yesde = numa_yesde_of_cpu(0);
 
-		orig_mask = bind_to_node(node);
-		bind_to_memnode(node);
+		orig_mask = bind_to_yesde(yesde);
+		bind_to_memyesde(yesde);
 	}
 
 	bytes = bytes0 + HPSIZE;
@@ -393,14 +393,14 @@ static u8 *alloc_data(ssize_t bytes0, int map_flags,
 			ret = madvise(buf, bytes, MADV_HUGEPAGE);
 			if (ret && !g->print_once) {
 				g->print_once = 1;
-				printf("WARNING: Could not enable THP - do: 'echo madvise > /sys/kernel/mm/transparent_hugepage/enabled'\n");
+				printf("WARNING: Could yest enable THP - do: 'echo madvise > /sys/kernel/mm/transparent_hugepage/enabled'\n");
 			}
 		}
 		if (thp < 0) {
 			ret = madvise(buf, bytes, MADV_NOHUGEPAGE);
 			if (ret && !g->print_once) {
 				g->print_once = 1;
-				printf("WARNING: Could not disable THP: run a CONFIG_TRANSPARENT_HUGEPAGE kernel?\n");
+				printf("WARNING: Could yest disable THP: run a CONFIG_TRANSPARENT_HUGEPAGE kernel?\n");
 			}
 		}
 	}
@@ -560,7 +560,7 @@ static int parse_setup_cpu_list(void)
 		dprintf("CPUs: %d_%d-%d#%dx%d\n", bind_cpu_0, bind_len, bind_cpu_1, step, mul);
 
 		if (bind_cpu_0 >= g->p.nr_cpus || bind_cpu_1 >= g->p.nr_cpus) {
-			printf("\nTest not applicable, system has only %d CPUs.\n", g->p.nr_cpus);
+			printf("\nTest yest applicable, system has only %d CPUs.\n", g->p.nr_cpus);
 			return -1;
 		}
 
@@ -574,7 +574,7 @@ static int parse_setup_cpu_list(void)
 				int cpu;
 
 				if (t >= g->p.nr_tasks) {
-					printf("\n# NOTE: ignoring bind CPUs starting at CPU#%d\n #", bind_cpu);
+					printf("\n# NOTE: igyesring bind CPUs starting at CPU#%d\n #", bind_cpu);
 					goto out;
 				}
 				td = g->threads + t;
@@ -616,27 +616,27 @@ static int parse_cpus_opt(const struct option *opt __maybe_unused,
 	return parse_cpu_list(arg);
 }
 
-static int parse_node_list(const char *arg)
+static int parse_yesde_list(const char *arg)
 {
-	p0.node_list_str = strdup(arg);
+	p0.yesde_list_str = strdup(arg);
 
-	dprintf("got NODE list: {%s}\n", p0.node_list_str);
+	dprintf("got NODE list: {%s}\n", p0.yesde_list_str);
 
 	return 0;
 }
 
-static int parse_setup_node_list(void)
+static int parse_setup_yesde_list(void)
 {
 	struct thread_data *td;
 	char *str0, *str;
 	int t;
 
-	if (!g->p.node_list_str)
+	if (!g->p.yesde_list_str)
 		return 0;
 
 	dprintf("g->p.nr_tasks: %d\n", g->p.nr_tasks);
 
-	str0 = str = strdup(g->p.node_list_str);
+	str0 = str = strdup(g->p.yesde_list_str);
 	t = 0;
 
 	BUG_ON(!str);
@@ -645,7 +645,7 @@ static int parse_setup_node_list(void)
 	tprintf("# ");
 
 	while (true) {
-		int bind_node, bind_node_0, bind_node_1;
+		int bind_yesde, bind_yesde_0, bind_yesde_1;
 		char *tok, *tok_end, *tok_step, *tok_mul;
 		int step;
 		int mul;
@@ -659,18 +659,18 @@ static int parse_setup_node_list(void)
 		dprintf("\ntoken: {%s}, end: {%s}\n", tok, tok_end);
 		if (!tok_end) {
 			/* Single NODE specified: */
-			bind_node_0 = bind_node_1 = atol(tok);
+			bind_yesde_0 = bind_yesde_1 = atol(tok);
 		} else {
 			/* NODE range specified (for example: "5-11"): */
-			bind_node_0 = atol(tok);
-			bind_node_1 = atol(tok_end + 1);
+			bind_yesde_0 = atol(tok);
+			bind_yesde_1 = atol(tok_end + 1);
 		}
 
 		step = 1;
 		tok_step = strstr(tok, "#");
 		if (tok_step) {
 			step = atol(tok_step + 1);
-			BUG_ON(step <= 0 || step >= g->p.nr_nodes);
+			BUG_ON(step <= 0 || step >= g->p.nr_yesdes);
 		}
 
 		/* Multiplicator shortcut, "0x8" is a shortcut for: "0,0,0,0,0,0,0,0" */
@@ -681,32 +681,32 @@ static int parse_setup_node_list(void)
 			BUG_ON(mul <= 0);
 		}
 
-		dprintf("NODEs: %d-%d #%d\n", bind_node_0, bind_node_1, step);
+		dprintf("NODEs: %d-%d #%d\n", bind_yesde_0, bind_yesde_1, step);
 
-		if (bind_node_0 >= g->p.nr_nodes || bind_node_1 >= g->p.nr_nodes) {
-			printf("\nTest not applicable, system has only %d nodes.\n", g->p.nr_nodes);
+		if (bind_yesde_0 >= g->p.nr_yesdes || bind_yesde_1 >= g->p.nr_yesdes) {
+			printf("\nTest yest applicable, system has only %d yesdes.\n", g->p.nr_yesdes);
 			return -1;
 		}
 
-		BUG_ON(bind_node_0 < 0 || bind_node_1 < 0);
-		BUG_ON(bind_node_0 > bind_node_1);
+		BUG_ON(bind_yesde_0 < 0 || bind_yesde_1 < 0);
+		BUG_ON(bind_yesde_0 > bind_yesde_1);
 
-		for (bind_node = bind_node_0; bind_node <= bind_node_1; bind_node += step) {
+		for (bind_yesde = bind_yesde_0; bind_yesde <= bind_yesde_1; bind_yesde += step) {
 			int i;
 
 			for (i = 0; i < mul; i++) {
-				if (t >= g->p.nr_tasks || !node_has_cpus(bind_node)) {
-					printf("\n# NOTE: ignoring bind NODEs starting at NODE#%d\n", bind_node);
+				if (t >= g->p.nr_tasks || !yesde_has_cpus(bind_yesde)) {
+					printf("\n# NOTE: igyesring bind NODEs starting at NODE#%d\n", bind_yesde);
 					goto out;
 				}
 				td = g->threads + t;
 
 				if (!t)
-					tprintf(" %2d", bind_node);
+					tprintf(" %2d", bind_yesde);
 				else
-					tprintf(",%2d", bind_node);
+					tprintf(",%2d", bind_yesde);
 
-				td->bind_node = bind_node;
+				td->bind_yesde = bind_yesde;
 				t++;
 			}
 		}
@@ -722,13 +722,13 @@ out:
 	return 0;
 }
 
-static int parse_nodes_opt(const struct option *opt __maybe_unused,
+static int parse_yesdes_opt(const struct option *opt __maybe_unused,
 			  const char *arg, int unset __maybe_unused)
 {
 	if (!arg)
 		return -1;
 
-	return parse_node_list(arg);
+	return parse_yesde_list(arg);
 
 	return 0;
 }
@@ -744,7 +744,7 @@ static inline uint32_t lfsr_32(uint32_t lfsr)
 /*
  * Make sure there's real data dependency to RAM (when read
  * accesses are enabled), so the compiler, the CPU and the
- * kernel (KSM, zero page, etc.) cannot optimize away RAM
+ * kernel (KSM, zero page, etc.) canyest optimize away RAM
  * accesses:
  */
 static inline u64 access_data(u64 *data, u64 val)
@@ -760,7 +760,7 @@ static inline u64 access_data(u64 *data, u64 val)
  * The worker process does two types of work, a forwards going
  * loop and a backwards going loop.
  *
- * We do this so that on multiprocessor systems we do not create
+ * We do this so that on multiprocessor systems we do yest create
  * a 'train' of processing, with highly synchronized processes,
  * skewing the whole benchmark.
  */
@@ -865,50 +865,50 @@ static void update_curr_cpu(int task_nr, unsigned long bytes_worked)
 #define MAX_NR_NODES	64
 
 /*
- * Count the number of nodes a process's threads
+ * Count the number of yesdes a process's threads
  * are spread out on.
  *
  * A count of 1 means that the process is compressed
- * to a single node. A count of g->p.nr_nodes means it's
+ * to a single yesde. A count of g->p.nr_yesdes means it's
  * spread out on the whole system.
  */
-static int count_process_nodes(int process_nr)
+static int count_process_yesdes(int process_nr)
 {
-	char node_present[MAX_NR_NODES] = { 0, };
-	int nodes;
+	char yesde_present[MAX_NR_NODES] = { 0, };
+	int yesdes;
 	int n, t;
 
 	for (t = 0; t < g->p.nr_threads; t++) {
 		struct thread_data *td;
 		int task_nr;
-		int node;
+		int yesde;
 
 		task_nr = process_nr*g->p.nr_threads + t;
 		td = g->threads + task_nr;
 
-		node = numa_node_of_cpu(td->curr_cpu);
-		if (node < 0) /* curr_cpu was likely still -1 */
+		yesde = numa_yesde_of_cpu(td->curr_cpu);
+		if (yesde < 0) /* curr_cpu was likely still -1 */
 			return 0;
 
-		node_present[node] = 1;
+		yesde_present[yesde] = 1;
 	}
 
-	nodes = 0;
+	yesdes = 0;
 
 	for (n = 0; n < MAX_NR_NODES; n++)
-		nodes += node_present[n];
+		yesdes += yesde_present[n];
 
-	return nodes;
+	return yesdes;
 }
 
 /*
- * Count the number of distinct process-threads a node contains.
+ * Count the number of distinct process-threads a yesde contains.
  *
- * A count of 1 means that the node contains only a single
- * process. If all nodes on the system contain at most one
+ * A count of 1 means that the yesde contains only a single
+ * process. If all yesdes on the system contain at most one
  * process then we are well-converged.
  */
-static int count_node_processes(int node)
+static int count_yesde_processes(int yesde)
 {
 	int processes = 0;
 	int t, p;
@@ -922,8 +922,8 @@ static int count_node_processes(int node)
 			task_nr = p*g->p.nr_threads + t;
 			td = g->threads + task_nr;
 
-			n = numa_node_of_cpu(td->curr_cpu);
-			if (n == node) {
+			n = numa_yesde_of_cpu(td->curr_cpu);
+			if (n == yesde) {
 				processes++;
 				break;
 			}
@@ -935,30 +935,30 @@ static int count_node_processes(int node)
 
 static void calc_convergence_compression(int *strong)
 {
-	unsigned int nodes_min, nodes_max;
+	unsigned int yesdes_min, yesdes_max;
 	int p;
 
-	nodes_min = -1;
-	nodes_max =  0;
+	yesdes_min = -1;
+	yesdes_max =  0;
 
 	for (p = 0; p < g->p.nr_proc; p++) {
-		unsigned int nodes = count_process_nodes(p);
+		unsigned int yesdes = count_process_yesdes(p);
 
-		if (!nodes) {
+		if (!yesdes) {
 			*strong = 0;
 			return;
 		}
 
-		nodes_min = min(nodes, nodes_min);
-		nodes_max = max(nodes, nodes_max);
+		yesdes_min = min(yesdes, yesdes_min);
+		yesdes_max = max(yesdes, yesdes_max);
 	}
 
-	/* Strong convergence: all threads compress on a single node: */
-	if (nodes_min == 1 && nodes_max == 1) {
+	/* Strong convergence: all threads compress on a single yesde: */
+	if (yesdes_min == 1 && yesdes_max == 1) {
 		*strong = 1;
 	} else {
 		*strong = 0;
-		tprintf(" {%d-%d}", nodes_min, nodes_max);
+		tprintf(" {%d-%d}", yesdes_min, yesdes_max);
 	}
 }
 
@@ -966,22 +966,22 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 {
 	unsigned int loops_done_min, loops_done_max;
 	int process_groups;
-	int nodes[MAX_NR_NODES];
+	int yesdes[MAX_NR_NODES];
 	int distance;
 	int nr_min;
 	int nr_max;
 	int strong;
 	int sum;
 	int nr;
-	int node;
+	int yesde;
 	int cpu;
 	int t;
 
 	if (!g->p.show_convergence && !g->p.measure_convergence)
 		return;
 
-	for (node = 0; node < g->p.nr_nodes; node++)
-		nodes[node] = 0;
+	for (yesde = 0; yesde < g->p.nr_yesdes; yesde++)
+		yesdes[yesde] = 0;
 
 	loops_done_min = -1;
 	loops_done_max = 0;
@@ -996,9 +996,9 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 		if (cpu < 0)
 			continue;
 
-		node = numa_node_of_cpu(cpu);
+		yesde = numa_yesde_of_cpu(cpu);
 
-		nodes[node]++;
+		yesdes[yesde]++;
 
 		loops_done = td->loops_done;
 		loops_done_min = min(loops_done, loops_done_min);
@@ -1009,10 +1009,10 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 	nr_min = g->p.nr_tasks;
 	sum = 0;
 
-	for (node = 0; node < g->p.nr_nodes; node++) {
-		if (!is_node_present(node))
+	for (yesde = 0; yesde < g->p.nr_yesdes; yesde++) {
+		if (!is_yesde_present(yesde))
 			continue;
-		nr = nodes[node];
+		nr = yesdes[yesde];
 		nr_min = min(nr, nr_min);
 		nr_max = max(nr, nr_max);
 		sum += nr;
@@ -1026,18 +1026,18 @@ static void calc_convergence(double runtime_ns_max, double *convergence)
 
 	/*
 	 * Count the number of distinct process groups present
-	 * on nodes - when we are converged this will decrease
+	 * on yesdes - when we are converged this will decrease
 	 * to g->p.nr_proc:
 	 */
 	process_groups = 0;
 
-	for (node = 0; node < g->p.nr_nodes; node++) {
+	for (yesde = 0; yesde < g->p.nr_yesdes; yesde++) {
 		int processes;
 
-		if (!is_node_present(node))
+		if (!is_yesde_present(yesde))
 			continue;
-		processes = count_node_processes(node);
-		nr = nodes[node];
+		processes = count_yesde_processes(yesde);
+		nr = yesdes[yesde];
 		tprintf(" %2d/%-2d", nr, processes);
 
 		process_groups += processes;
@@ -1109,7 +1109,7 @@ static void *worker_thread(void *__tdata)
 	struct rusage rusage;
 
 	bind_to_cpumask(td->bind_cpumask);
-	bind_to_memnode(td->bind_node);
+	bind_to_memyesde(td->bind_yesde);
 
 	set_taskname("thread %d/%d", process_nr, thread_nr);
 
@@ -1300,7 +1300,7 @@ static void worker_process(int process_nr)
 	task_nr = process_nr*g->p.nr_threads;
 	td = g->threads + task_nr;
 
-	bind_to_memnode(td->bind_node);
+	bind_to_memyesde(td->bind_yesde);
 	bind_to_cpumask(td->bind_cpumask);
 
 	pthreads = zalloc(g->p.nr_threads * sizeof(pthread_t));
@@ -1342,8 +1342,8 @@ static void print_summary(void)
 		return;
 
 	printf("\n ###\n");
-	printf(" # %d %s will execute (on %d nodes, %d CPUs):\n",
-		g->p.nr_tasks, g->p.nr_tasks == 1 ? "task" : "tasks", nr_numa_nodes(), g->p.nr_cpus);
+	printf(" # %d %s will execute (on %d yesdes, %d CPUs):\n",
+		g->p.nr_tasks, g->p.nr_tasks == 1 ? "task" : "tasks", nr_numa_yesdes(), g->p.nr_cpus);
 	printf(" #      %5dx %5ldMB global  shared mem operations\n",
 			g->p.nr_loops, g->p.bytes_global/1024/1024);
 	printf(" #      %5dx %5ldMB process shared mem operations\n",
@@ -1367,8 +1367,8 @@ static void init_thread_data(void)
 		struct thread_data *td = g->threads + t;
 		int cpu;
 
-		/* Allow all nodes by default: */
-		td->bind_node = NUMA_NO_NODE;
+		/* Allow all yesdes by default: */
+		td->bind_yesde = NUMA_NO_NODE;
 
 		/* Allow all CPUs by default: */
 		CPU_ZERO(&td->bind_cpumask);
@@ -1393,10 +1393,10 @@ static int init(void)
 
 	g->p.nr_cpus = numa_num_configured_cpus();
 
-	g->p.nr_nodes = numa_max_node() + 1;
+	g->p.nr_yesdes = numa_max_yesde() + 1;
 
-	/* char array in count_process_nodes(): */
-	BUG_ON(g->p.nr_nodes > MAX_NR_NODES || g->p.nr_nodes < 0);
+	/* char array in count_process_yesdes(): */
+	BUG_ON(g->p.nr_yesdes > MAX_NR_NODES || g->p.nr_yesdes < 0);
 
 	if (g->p.show_quiet && !g->p.show_details)
 		g->p.show_details = -1;
@@ -1447,7 +1447,7 @@ static int init(void)
 	init_thread_data();
 
 	tprintf("#\n");
-	if (parse_setup_cpu_list() || parse_setup_node_list())
+	if (parse_setup_cpu_list() || parse_setup_yesde_list())
 		return -1;
 	tprintf("#\n");
 
@@ -1683,7 +1683,7 @@ static void init_params(struct params *p, const char *name, int argc, const char
 
 	memset(p, 0, sizeof(*p));
 
-	/* Initialize nonzero defaults: */
+	/* Initialize yesnzero defaults: */
 
 	p->serialize_startup		= 1;
 	p->data_reads			= true;
@@ -1717,7 +1717,7 @@ err:
 	return -1;
 }
 
-#define OPT_BW_RAM		"-s",  "20", "-zZq",    "--thp", " 1", "--no-data_rand_walk"
+#define OPT_BW_RAM		"-s",  "20", "-zZq",    "--thp", " 1", "--yes-data_rand_walk"
 #define OPT_BW_RAM_NOTHP	OPT_BW_RAM,		"--thp", "-1"
 
 #define OPT_CONV		"-s", "100", "-zZ0qcm", "--thp", " 1"
@@ -1729,7 +1729,7 @@ err:
 /*
  * The built-in test-suite executed by "perf bench numa -a".
  *
- * (A minimum of 4 nodes and 16 GB of RAM is recommended.)
+ * (A minimum of 4 yesdes and 16 GB of RAM is recommended.)
  */
 static const char *tests[][MAX_ARGS] = {
    /* Basic single-stream NUMA bandwidth measurements: */

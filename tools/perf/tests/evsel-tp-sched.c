@@ -13,7 +13,7 @@ static int perf_evsel__test_field(struct evsel *evsel, const char *name,
 	int ret = 0;
 
 	if (field == NULL) {
-		pr_debug("%s: \"%s\" field not found!\n", evsel->name, name);
+		pr_debug("%s: \"%s\" field yest found!\n", evsel->name, name);
 		return -1;
 	}
 

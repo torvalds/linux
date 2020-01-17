@@ -110,7 +110,7 @@ static int power4_reg_setup(struct op_counter_config *ctr,
 	 * events for use in the interrupt handler.  Do the calculation once
 	 * before OProfile starts.  Information is used in the interrupt
 	 * handler.  Starting with Power 7+ we only record the sample for
-	 * marked events if the SIAR valid bit is set.  For non marked events
+	 * marked events if the SIAR valid bit is set.  For yesn marked events
 	 * the sample is always recorded.
 	 */
 	if (pvr_version_is(PVR_POWER7p))
@@ -149,7 +149,7 @@ extern void ppc_enable_pmcs(void);
 /*
  * Older CPUs require the MMCRA sample bit to be always set, but newer 
  * CPUs only want it set for some groups. Eventually we will remove all
- * knowledge of this bit in the kernel, oprofile userspace should be
+ * kyeswledge of this bit in the kernel, oprofile userspace should be
  * setting it when required.
  *
  * In order to keep current installations working we force the bit for
@@ -222,7 +222,7 @@ static int power4_start(struct op_counter_config *ctr)
 	mmcr0 &= ~MMCR0_PMAO;
 
 	/*
-	 * now clear the freeze bit, counting will not start until we
+	 * yesw clear the freeze bit, counting will yest start until we
 	 * rfid from this excetion, because only at that point will
 	 * the PMM bit be cleared
 	 */
@@ -251,7 +251,7 @@ static void power4_stop(void)
 	mb();
 }
 
-/* Fake functions used by canonicalize_pc */
+/* Fake functions used by cayesnicalize_pc */
 static void __used hypervisor_bucket(void)
 {
 }
@@ -260,7 +260,7 @@ static void __used rtas_bucket(void)
 {
 }
 
-static void __used kernel_unknown_bucket(void)
+static void __used kernel_unkyeswn_bucket(void)
 {
 }
 
@@ -298,7 +298,7 @@ static unsigned long get_pc(struct pt_regs *regs)
 		/* function descriptor madness */
 		return *((unsigned long *)hypervisor_bucket);
 
-	/* We were in userspace, nothing to do */
+	/* We were in userspace, yesthing to do */
 	if (mmcra & cur_cpu_spec->oprofile_mmcra_sipr)
 		return pc;
 
@@ -316,7 +316,7 @@ static unsigned long get_pc(struct pt_regs *regs)
 	/* Not sure where we were */
 	if (!is_kernel_addr(pc))
 		/* function descriptor madness */
-		return *((unsigned long *)kernel_unknown_bucket);
+		return *((unsigned long *)kernel_unkyeswn_bucket);
 
 	return pc;
 }
@@ -386,7 +386,7 @@ static void power4_handle_interrupt(struct pt_regs *regs,
 				/* Power 7+ and newer architectures:
 				 * If the event is a marked event, then only
 				 * save the sample if the SIAR valid bit is
-				 * set.  If the event is not marked, then
+				 * set.  If the event is yest marked, then
 				 * always save the sample.
 				 * Note, the Sample enable bit in the MMCRA
 				 * register must be set to 1 if the group
@@ -421,7 +421,7 @@ static void power4_handle_interrupt(struct pt_regs *regs,
 	mtspr(SPRN_MMCRA, mmcra);
 
 	/*
-	 * now clear the freeze bit, counting will not start until we
+	 * yesw clear the freeze bit, counting will yest start until we
 	 * rfid from this exception, because only at that point will
 	 * the PMM bit be cleared
 	 */

@@ -32,7 +32,7 @@
 #define HV_UTIL_NEGO_TIMEOUT 55
 
 
-/* Definitions for the monitored notification facility */
+/* Definitions for the monitored yestification facility */
 union hv_monitor_trigger_group {
 	u64 as_uint64;
 	struct {
@@ -149,8 +149,8 @@ struct hv_context {
 	struct hv_per_cpu_context __percpu *cpu_context;
 
 	/*
-	 * To manage allocations in a NUMA node.
-	 * Array indexed by numa node ID.
+	 * To manage allocations in a NUMA yesde.
+	 * Array indexed by numa yesde ID.
 	 */
 	struct cpumask *hv_numa_map;
 };
@@ -239,8 +239,8 @@ struct vmbus_connection {
 	void *recv_int_page;
 
 	/*
-	 * 2 pages - 1st page for parent->child notification and 2nd
-	 * is child->parent notification
+	 * 2 pages - 1st page for parent->child yestification and 2nd
+	 * is child->parent yestification
 	 */
 	struct hv_monitor_page *monitor_pages[2];
 	struct list_head chn_msg_list;
@@ -262,7 +262,7 @@ struct vmbus_connection {
 	/*
 	 * The number of sub-channels and hv_sock channels that should be
 	 * cleaned up upon suspend: sub-channels will be re-created upon
-	 * resume, and hv_sock channels should not survive suspend.
+	 * resume, and hv_sock channels should yest survive suspend.
 	 */
 	atomic_t nr_chan_close_on_suspend;
 	/*

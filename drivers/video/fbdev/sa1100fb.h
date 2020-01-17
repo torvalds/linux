@@ -63,7 +63,7 @@ struct sa1100fb_info {
 	struct work_struct	task;
 
 #ifdef CONFIG_CPU_FREQ
-	struct notifier_block	freq_transition;
+	struct yestifier_block	freq_transition;
 #endif
 
 	const struct sa1100fb_mach_info *inf;

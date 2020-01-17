@@ -249,7 +249,7 @@ static int rmi_spi_xfer(struct rmi_spi_xport *rmi_spi,
  *
  * The page_mutex lock must be held when this function is entered.
  *
- * Returns zero on success, non-zero on failure.
+ * Returns zero on success, yesn-zero on failure.
  */
 static int rmi_set_page(struct rmi_spi_xport *rmi_spi, u8 page)
 {
@@ -383,7 +383,7 @@ static int rmi_spi_probe(struct spi_device *spi)
 
 	pdata = &rmi_spi->xport.pdata;
 
-	if (spi->dev.of_node) {
+	if (spi->dev.of_yesde) {
 		error = rmi_spi_of_probe(spi, pdata);
 		if (error)
 			return error;
@@ -420,7 +420,7 @@ static int rmi_spi_probe(struct spi_device *spi)
 
 	/*
 	 * Setting the page to zero will (a) make sure the PSR is in a
-	 * known state, and (b) make sure we can talk to the device.
+	 * kyeswn state, and (b) make sure we can talk to the device.
 	 */
 	error = rmi_set_page(rmi_spi, 0);
 	if (error) {

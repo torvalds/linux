@@ -7,14 +7,14 @@ The hierarchical organisation of the device tree is well suited to describe
 control flow to devices, but there can be more complex connections between
 devices that work together to form a logical compound device, following an
 arbitrarily complex graph.
-There already is a simple directed graph between devices tree nodes using
-phandle properties pointing to other nodes to describe connections that
-can not be inferred from device tree parent-child relationships. The device
+There already is a simple directed graph between devices tree yesdes using
+phandle properties pointing to other yesdes to describe connections that
+can yest be inferred from device tree parent-child relationships. The device
 tree graph bindings described herein abstract more complex devices that can
 have multiple specifiable ports, each of which can be linked to one or more
 ports of other devices.
 
-These common bindings do not contain any information about the direction or
+These common bindings do yest contain any information about the direction or
 type of the connections, they just map their existence. Specific properties
 may be described by specialized bindings depending on the type of connection.
 
@@ -27,14 +27,14 @@ correspond to multiple devices being connected to the same physical bus.
 Organisation of ports and endpoints
 -----------------------------------
 
-Ports are described by child 'port' nodes contained in the device node.
-Each port node contains an 'endpoint' subnode for each remote device port
+Ports are described by child 'port' yesdes contained in the device yesde.
+Each port yesde contains an 'endpoint' subyesde for each remote device port
 connected to this port. If a single port is connected to more than one
-remote device, an 'endpoint' child node must be provided for each link.
-If more than one port is present in a device node or there is more than one
-endpoint at a port, or a port node needs to be associated with a selected
+remote device, an 'endpoint' child yesde must be provided for each link.
+If more than one port is present in a device yesde or there is more than one
+endpoint at a port, or a port yesde needs to be associated with a selected
 hardware interface, a common scheme using '#address-cells', '#size-cells'
-and 'reg' properties is used to number the nodes.
+and 'reg' properties is used to number the yesdes.
 
 device {
         ...
@@ -63,9 +63,9 @@ device {
 	};
 };
 
-All 'port' nodes can be grouped under an optional 'ports' node, which
+All 'port' yesdes can be grouped under an optional 'ports' yesde, which
 allows to specify #address-cells, #size-cells properties for the 'port'
-nodes independently from any other child device nodes a device might
+yesdes independently from any other child device yesdes a device might
 have.
 
 device {
@@ -90,7 +90,7 @@ Links between endpoints
 Each endpoint should contain a 'remote-endpoint' phandle property that points
 to the corresponding endpoint in the port of the remote device. In turn, the
 remote endpoint should contain a 'remote-endpoint' property. If it has one, it
-must not point to anything other than the local endpoint. Two endpoints with
+must yest point to anything other than the local endpoint. Two endpoints with
 their 'remote-endpoint' phandles pointing at each other form a link between the
 containing ports.
 
@@ -113,9 +113,9 @@ device-2 {
 Required properties
 -------------------
 
-If there is more than one 'port' or more than one 'endpoint' node or 'reg'
-property present in the port and/or endpoint nodes then the following
-properties are required in a relevant parent node:
+If there is more than one 'port' or more than one 'endpoint' yesde or 'reg'
+property present in the port and/or endpoint yesdes then the following
+properties are required in a relevant parent yesde:
 
  - #address-cells : number of cells required to define port/endpoint
                     identifier, should be 1.
@@ -124,5 +124,5 @@ properties are required in a relevant parent node:
 Optional endpoint properties
 ----------------------------
 
-- remote-endpoint: phandle to an 'endpoint' subnode of a remote device node.
+- remote-endpoint: phandle to an 'endpoint' subyesde of a remote device yesde.
 

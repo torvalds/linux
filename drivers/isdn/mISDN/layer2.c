@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@yesvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@yesvell.com>
  */
 
 #include <linux/mISDNif.h>
@@ -283,7 +283,7 @@ l2_timeout(struct FsmInst *fi, int event, void *arg)
 
 	skb = mI_alloc_skb(0, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_WARNING "%s: L2(%d,%d) nr:%x timer %s no skb\n",
+		printk(KERN_WARNING "%s: L2(%d,%d) nr:%x timer %s yes skb\n",
 		       mISDNDevName4ch(&l2->ch), l2->sapi, l2->tei,
 		       l2->ch.nr, event == EV_L2_T200 ? "T200" : "T203");
 		return;
@@ -1484,7 +1484,7 @@ l2_pull_iqueue(struct FsmInst *fi, int event, void *arg)
 		header[i++] = (l2->vr << 5) | (l2->vs << 1);
 	nskb = skb_realloc_headroom(skb, i);
 	if (!nskb) {
-		printk(KERN_WARNING "%s: no headroom(%d) copy for IFrame\n",
+		printk(KERN_WARNING "%s: yes headroom(%d) copy for IFrame\n",
 		       mISDNDevName4ch(&l2->ch), i);
 		skb_queue_head(&l2->i_queue, skb);
 		return;
@@ -1866,7 +1866,7 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 		mISDN_FsmEvent(&l2->l2m, EV_L2_FRAME_ERROR, (void *) 'N');
 		return ret;
 	}
-	if (test_bit(FLG_LAPD, &l2->flag)) { /* Maybe not needed */
+	if (test_bit(FLG_LAPD, &l2->flag)) { /* Maybe yest needed */
 		psapi = *datap++;
 		ptei = *datap++;
 		if ((psapi & 1) || !(ptei & 1)) {
@@ -1878,7 +1878,7 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 		psapi >>= 2;
 		ptei >>= 1;
 		if (psapi != l2->sapi) {
-			/* not our business */
+			/* yest our business */
 			if (*debug & DEBUG_L2)
 				printk(KERN_DEBUG "%s: sapi %d/%d mismatch\n",
 				       mISDNDevName4ch(&l2->ch), psapi,
@@ -1887,7 +1887,7 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 			return 0;
 		}
 		if ((ptei != l2->tei) && (ptei != GROUP_TEI)) {
-			/* not our business */
+			/* yest our business */
 			if (*debug & DEBUG_L2)
 				printk(KERN_DEBUG "%s: tei %d/%d mismatch\n",
 				       mISDNDevName4ch(&l2->ch), ptei, l2->tei);
@@ -2020,7 +2020,7 @@ l2_send(struct mISDNchannel *ch, struct sk_buff *skb)
 		break;
 	default:
 		if (*debug & DEBUG_L2)
-			l2m_debug(&l2->l2m, "l2 unknown pr %04x",
+			l2m_debug(&l2->l2m, "l2 unkyeswn pr %04x",
 				  hh->prim);
 	}
 	if (ret) {

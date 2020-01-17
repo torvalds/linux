@@ -23,7 +23,7 @@ config KVM_MMIO
 config KVM_ASYNC_PF
        bool
 
-# Toggle to switch between direct notification and batch job
+# Toggle to switch between direct yestification and batch job
 config KVM_ASYNC_PF_SYNC
        bool
 

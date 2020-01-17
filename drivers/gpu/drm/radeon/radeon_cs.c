@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -149,7 +149,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 				r->write_domain : r->read_domains;
 
 			if (domain & RADEON_GEM_DOMAIN_CPU) {
-				DRM_ERROR("RADEON_GEM_DOMAIN_CPU is not valid "
+				DRM_ERROR("RADEON_GEM_DOMAIN_CPU is yest valid "
 					  "for command submission\n");
 				return -EINVAL;
 			}
@@ -173,11 +173,11 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			p->relocs[i].allowed_domains = domain;
 		}
 
-		/* Objects shared as dma-bufs cannot be moved to VRAM */
+		/* Objects shared as dma-bufs canyest be moved to VRAM */
 		if (p->relocs[i].robj->prime_shared_count) {
 			p->relocs[i].allowed_domains &= ~RADEON_GEM_DOMAIN_VRAM;
 			if (!p->relocs[i].allowed_domains) {
-				DRM_ERROR("BO associated with dma-buf cannot "
+				DRM_ERROR("BO associated with dma-buf canyest "
 					  "be moved to VRAM\n");
 				return -EINVAL;
 			}
@@ -212,7 +212,7 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 
 	switch (ring) {
 	default:
-		DRM_ERROR("unknown ring id: %d\n", ring);
+		DRM_ERROR("unkyeswn ring id: %d\n", ring);
 		return -EINVAL;
 	case RADEON_CS_RING_GFX:
 		p->ring = RADEON_RING_TYPE_GFX_INDEX;
@@ -242,7 +242,7 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 		p->ring = R600_RING_TYPE_UVD_INDEX;
 		break;
 	case RADEON_CS_RING_VCE:
-		/* TODO: only use the low priority ring for now */
+		/* TODO: only use the low priority ring for yesw */
 		p->ring = TN_RING_TYPE_VCE1_INDEX;
 		break;
 	}
@@ -266,7 +266,7 @@ static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 	return 0;
 }
 
-/* XXX: note that this is called from the legacy UMS CS ioctl as well */
+/* XXX: yeste that this is called from the legacy UMS CS ioctl as well */
 int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 {
 	struct drm_radeon_cs *cs = data;
@@ -369,7 +369,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	if (p->rdev) {
 		if ((p->cs_flags & RADEON_CS_USE_VM) &&
 		    !p->rdev->vm_manager.enabled) {
-			DRM_ERROR("VM not active on asic!\n");
+			DRM_ERROR("VM yest active on asic!\n");
 			return -EINVAL;
 		}
 
@@ -384,7 +384,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			}
 		} else {
 			if (p->rdev->asic->ring[p->ring]->ib_parse == NULL) {
-				DRM_ERROR("VM not supported on ring %d!\n",
+				DRM_ERROR("VM yest supported on ring %d!\n",
 					  p->ring);
 				return -EINVAL;
 			}
@@ -482,10 +482,10 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 	}
 
 	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
-		radeon_uvd_note_usage(rdev);
+		radeon_uvd_yeste_usage(rdev);
 	else if ((parser->ring == TN_RING_TYPE_VCE1_INDEX) ||
 		 (parser->ring == TN_RING_TYPE_VCE2_INDEX))
-		radeon_vce_note_usage(rdev);
+		radeon_vce_yeste_usage(rdev);
 
 	r = radeon_ib_schedule(rdev, &parser->ib, NULL, true);
 	if (r) {
@@ -510,7 +510,7 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 		return r;
 
 	if (vm->ib_bo_va == NULL) {
-		DRM_ERROR("Tmp BO not in VM!\n");
+		DRM_ERROR("Tmp BO yest in VM!\n");
 		return -EINVAL;
 	}
 
@@ -525,7 +525,7 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 		bo = p->relocs[i].robj;
 		bo_va = radeon_vm_bo_find(vm, bo);
 		if (bo_va == NULL) {
-			dev_err(rdev->dev, "bo %p not in vm %p\n", bo, vm);
+			dev_err(rdev->dev, "bo %p yest in vm %p\n", bo, vm);
 			return -EINVAL;
 		}
 
@@ -564,7 +564,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	}
 
 	if (parser->ring == R600_RING_TYPE_UVD_INDEX)
-		radeon_uvd_note_usage(rdev);
+		radeon_uvd_yeste_usage(rdev);
 
 	mutex_lock(&vm->mutex);
 	r = radeon_bo_vm_update_pte(parser, vm);
@@ -727,7 +727,7 @@ out:
  * @pkt:	where to store packet information
  *
  * Assume that chunk_ib_index is properly set. Will return -EINVAL
- * if packet is bigger than remaining ib size. or if packets is unknown.
+ * if packet is bigger than remaining ib size. or if packets is unkyeswn.
  **/
 int radeon_cs_packet_parse(struct radeon_cs_parser *p,
 			   struct radeon_cs_packet *pkt,
@@ -739,7 +739,7 @@ int radeon_cs_packet_parse(struct radeon_cs_parser *p,
 	int ret = 0, i;
 
 	if (idx >= ib_chunk->length_dw) {
-		DRM_ERROR("Can not parse packet at %d after CS end %d !\n",
+		DRM_ERROR("Can yest parse packet at %d after CS end %d !\n",
 			  idx, ib_chunk->length_dw);
 		return -EINVAL;
 	}
@@ -764,7 +764,7 @@ int radeon_cs_packet_parse(struct radeon_cs_parser *p,
 		pkt->count = -1;
 		break;
 	default:
-		DRM_ERROR("Unknown packet type %d at %d !\n", pkt->type, idx);
+		DRM_ERROR("Unkyeswn packet type %d at %d !\n", pkt->type, idx);
 		ret = -EINVAL;
 		goto dump_ib;
 	}
@@ -787,12 +787,12 @@ dump_ib:
 }
 
 /**
- * radeon_cs_packet_next_is_pkt3_nop() - test if the next packet is P3 NOP
+ * radeon_cs_packet_next_is_pkt3_yesp() - test if the next packet is P3 NOP
  * @p:		structure holding the parser context.
  *
  * Check if the next packet is NOP relocation packet3.
  **/
-bool radeon_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
+bool radeon_cs_packet_next_is_pkt3_yesp(struct radeon_cs_parser *p)
 {
 	struct radeon_cs_packet p3reloc;
 	int r;
@@ -840,7 +840,7 @@ void radeon_cs_dump_packet(struct radeon_cs_parser *p,
  **/
 int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 				struct radeon_bo_list **cs_reloc,
-				int nomm)
+				int yesmm)
 {
 	struct radeon_cs_chunk *relocs_chunk;
 	struct radeon_cs_packet p3reloc;
@@ -872,7 +872,7 @@ int radeon_cs_packet_next_reloc(struct radeon_cs_parser *p,
 		return -EINVAL;
 	}
 	/* FIXME: we assume reloc size is 4 dwords */
-	if (nomm) {
+	if (yesmm) {
 		*cs_reloc = p->relocs;
 		(*cs_reloc)->gpu_offset =
 			(u64)relocs_chunk->kdata[idx + 3] << 32;

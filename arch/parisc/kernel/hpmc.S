@@ -21,7 +21,7 @@
  *
  *      1) On MP systems we need to synchronize processors
  *         before calling pdc/iodc.
- *      2) We should be checking the system state and not
+ *      2) We should be checking the system state and yest
  *         returning to the fault handler if things are really
  *         bad.
  *
@@ -60,7 +60,7 @@ hpmc_iodc_buf:
 hpmc_raddr:
 	.block 128
 
-#define HPMC_PIM_DATA_SIZE 896 /* Enough to hold all architected 2.0 state */
+#define HPMC_PIM_DATA_SIZE 896 /* Eyesugh to hold all architected 2.0 state */
 
 	.section .bss
 	.align 8
@@ -133,7 +133,7 @@ ENTRY(os_hpmc)
 	ldo     4(%r4),%r4
 	mtctl   %r4,pcoq
 	rfi
-	nop
+	yesp
 
 os_hpmc_1:
 
@@ -250,7 +250,7 @@ os_hpmc_5:
 	ldi     1,%r8       /* Set trap code to "1" for HPMC */
 	load32	PA(intr_save),%r1
 	be      0(%sr7,%r1)
-	nop
+	yesp
 
 os_hpmc_fail:
 
@@ -275,8 +275,8 @@ os_hpmc_6:
 
 	/*
 	 * possible return values:
-	 *  -1  non-existent procedure
-	 *  -2  non-existent option
+	 *  -1  yesn-existent procedure
+	 *  -2  yesn-existent option
 	 *  -16 unaligned stack
 	 *
 	 * If call returned, do a broadcast reset.
@@ -287,7 +287,7 @@ os_hpmc_6:
 	stw     %r5,48(%r4)             /*  CMD_RESET to IO_COMMAND offset */
 
 	b .
-	nop
+	yesp
 	.align 16	/* make function length multiple of 16 bytes */
 .os_hpmc_end:
 

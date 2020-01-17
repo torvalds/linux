@@ -83,7 +83,7 @@
 #define R_MIPS_PC16		10
 #define R_MIPS_CALL16		11
 #define R_MIPS_GPREL32		12
-/* The remaining relocs are defined on Irix, although they are not
+/* The remaining relocs are defined on Irix, although they are yest
    in the MIPS ELF ABI.	 */
 #define R_MIPS_UNUSED1		13
 #define R_MIPS_UNUSED2		14
@@ -96,7 +96,7 @@
 #define R_MIPS_GOT_OFST		21
 /*
  * The following two relocation types are specified in the MIPS ABI
- * conformance guide version 1.2 but not yet in the psABI.
+ * conformance guide version 1.2 but yest yet in the psABI.
  */
 #define R_MIPS_GOTHI16		22
 #define R_MIPS_GOTLO16		23
@@ -108,7 +108,7 @@
 #define R_MIPS_HIGHEST		29
 /*
  * The following two relocation types are specified in the MIPS ABI
- * conformance guide version 1.2 but not yet in the psABI.
+ * conformance guide version 1.2 but yest yet in the psABI.
  */
 #define R_MIPS_CALLHI16		30
 #define R_MIPS_CALLLO16		31
@@ -184,7 +184,7 @@
 #define MIPS_ABI_FP_OLD_64	4	/* -mips32r2 -mfp64 */
 #define MIPS_ABI_FP_XX		5	/* -mfpxx */
 #define MIPS_ABI_FP_64		6	/* -mips32r2 -mfp64 */
-#define MIPS_ABI_FP_64A		7	/* -mips32r2 -mfp64 -mno-odd-spreg */
+#define MIPS_ABI_FP_64A		7	/* -mips32r2 -mfp64 -myes-odd-spreg */
 
 struct mips_elf_abiflags_v0 {
 	uint16_t version;	/* Version of flags structure */
@@ -261,7 +261,7 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 
 /*
  * In order to be sure that we don't attempt to execute an O32 binary which
- * requires 64 bit FP (FR=1) on a system which does not support it we refuse
+ * requires 64 bit FP (FR=1) on a system which does yest support it we refuse
  * to execute any binary which has bits specified by the following macro set
  * in its ELF header flags.
  */
@@ -277,7 +277,7 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 #define vmcore_elf64_check_arch mips_elf_check_machine
 
 /*
- * Return non-zero if HDR identifies an o32 ELF binary.
+ * Return yesn-zero if HDR identifies an o32 ELF binary.
  */
 #define elfo32_check_arch(hdr)						\
 ({									\
@@ -300,7 +300,7 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 })
 
 /*
- * Return non-zero if HDR identifies an n64 ELF binary.
+ * Return yesn-zero if HDR identifies an n64 ELF binary.
  */
 #define elfn64_check_arch(hdr)						\
 ({									\
@@ -316,7 +316,7 @@ void mips_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 })
 
 /*
- * Return non-zero if HDR identifies an n32 ELF binary.
+ * Return yesn-zero if HDR identifies an n32 ELF binary.
  */
 #define elfn32_check_arch(hdr)						\
 ({									\
@@ -430,7 +430,7 @@ do {									\
 
 /* This yields a mask that user programs can use to figure out what
    instruction set this cpu supports.  This could be done in userspace,
-   but it's not easy, and we've already done it here.  */
+   but it's yest easy, and we've already done it here.  */
 
 #define ELF_HWCAP	(elf_hwcap)
 extern unsigned int elf_hwcap;
@@ -490,7 +490,7 @@ struct arch_elf_state {
 	int overall_fp_mode;
 };
 
-#define MIPS_ABI_FP_UNKNOWN	(-1)	/* Unknown FP ABI (kernel internal) */
+#define MIPS_ABI_FP_UNKNOWN	(-1)	/* Unkyeswn FP ABI (kernel internal) */
 
 #define INIT_ARCH_ELF_STATE {			\
 	.nan_2008 = -1,				\
@@ -518,12 +518,12 @@ struct arch_elf_state;
 
 static inline void mips_set_personality_nan(struct arch_elf_state *state)
 {
-	/* no-op */
+	/* yes-op */
 }
 
 static inline void mips_set_personality_fp(struct arch_elf_state *state)
 {
-	/* no-op */
+	/* yes-op */
 }
 
 #endif /* !CONFIG_MIPS_FP_SUPPORT */

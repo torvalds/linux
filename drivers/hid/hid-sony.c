@@ -21,7 +21,7 @@
  * a Bluetooth host, the key combination Start+Enter has to be kept pressed
  * for about 7 seconds with the Bluetooth Host Controller in discovering mode.
  *
- * There will be no PIN request from the device.
+ * There will be yes PIN request from the device.
  */
 
 #include <linux/device.h>
@@ -186,8 +186,8 @@ static u8 ps3remote_rdesc[] = {
 	 0xA1, 0x02,         /* MCollection Logical (interrelated data) */
 
 	  /*
-	   * Ignore the 1st byte, maybe it is used for a controller
-	   * number but it's not needed for correct operation
+	   * Igyesre the 1st byte, maybe it is used for a controller
+	   * number but it's yest needed for correct operation
 	   */
 	  0x75, 0x08,        /* GReportSize 0x08 [8] */
 	  0x95, 0x01,        /* GReportCount 0x01 [1] */
@@ -222,7 +222,7 @@ static u8 ps3remote_rdesc[] = {
 	  0x80,              /* MInput  */
 
 	  /*
-	   * Ignore bytes from 6th to 11th, 6th to 10th are always constant at
+	   * Igyesre bytes from 6th to 11th, 6th to 10th are always constant at
 	   * 0xff and 11th is for press indication
 	   */
 	  0x75, 0x08,        /* GReportSize 0x08 [8] */
@@ -340,7 +340,7 @@ static const unsigned int buzz_keymap[] = {
 };
 
 /* The Navigation controller is a partial DS3 and uses the same HID report
- * and hence the same keymap indices, however not not all axes/buttons
+ * and hence the same keymap indices, however yest yest all axes/buttons
  * are physically present. We use the same axis and button mapping as
  * the DS3, which uses the Linux gamepad spec.
  */
@@ -350,7 +350,7 @@ static const unsigned int navigation_absmap[] = {
 	[0x33] = ABS_Z, /* L2 */
 };
 
-/* Buttons not physically available on the device, but still available
+/* Buttons yest physically available on the device, but still available
  * in the reports are explicitly set to 0 for documentation purposes.
  */
 static const unsigned int navigation_keymap[] = {
@@ -459,7 +459,7 @@ struct sixaxis_output_report {
 	u8 padding[4];
 	u8 leds_bitmap; /* bitmap of enabled LEDs: LED_1 = 0x02, LED_2 = 0x04, ... */
 	struct sixaxis_led led[4];    /* LEDx at (4 - x) */
-	struct sixaxis_led _reserved; /* LED5, not actually soldered */
+	struct sixaxis_led _reserved; /* LED5, yest actually soldered */
 } __packed;
 
 union sixaxis_output_report_01 {
@@ -498,7 +498,7 @@ struct motion_output_report_02 {
 #define SENSOR_SUFFIX " Motion Sensors"
 #define DS4_TOUCHPAD_SUFFIX " Touchpad"
 
-/* Default to 4ms poll interval, which is same as USB (not adjustable). */
+/* Default to 4ms poll interval, which is same as USB (yest adjustable). */
 #define DS4_BT_DEFAULT_POLL_INTERVAL_MS 4
 #define DS4_BT_MAX_POLL_INTERVAL_MS 62
 #define DS4_GYRO_RES_PER_DEG_S 1024
@@ -520,7 +520,7 @@ struct ds4_calibration_data {
 	 * calculations until final calibration.
 	 */
 	int sens_numer;
-	int sens_denom;
+	int sens_deyesm;
 };
 
 enum ds4_dongle_state {
@@ -537,7 +537,7 @@ enum sony_worker {
 
 struct sony_sc {
 	spinlock_t lock;
-	struct list_head list_node;
+	struct list_head list_yesde;
 	struct hid_device *hdev;
 	struct input_dev *touchpad;
 	struct input_dev *sensor_dev;
@@ -729,7 +729,7 @@ static int navigation_mapping(struct hid_device *hdev, struct hid_input *hi,
 	} else if (usage->hid == HID_GD_POINTER) {
 		/* See comment in sixaxis_mapping, basically the L2 (and R2)
 		 * triggers are reported through GD Pointer.
-		 * In addition we ignore any analog button 'axes' and only
+		 * In addition we igyesre any analog button 'axes' and only
 		 * support digital buttons.
 		 */
 		switch (usage->usage_index) {
@@ -775,8 +775,8 @@ static int sixaxis_mapping(struct hid_device *hdev, struct hid_input *hi,
 		/* The DS3 provides analog values for most buttons and even
 		 * for HAT axes through GD Pointer. L2 and R2 are reported
 		 * among these as well instead of as GD Z / RZ. Remap L2
-		 * and R2 and ignore other analog 'button axes' as there is
-		 * no good way for reporting them.
+		 * and R2 and igyesre other analog 'button axes' as there is
+		 * yes good way for reporting them.
 		 */
 		switch (usage->usage_index) {
 		case 8: /* L2 */
@@ -847,7 +847,7 @@ static u8 *sony_report_fixup(struct hid_device *hdev, u8 *rdesc,
 
 	/*
 	 * Some Sony RF receivers wrongly declare the mouse pointer as a
-	 * a constant non-data variable.
+	 * a constant yesn-data variable.
 	 */
 	if ((sc->quirks & VAIO_RDESC_CONSTANT) && *rsize >= 56 &&
 	    /* usage page: generic desktop controls */
@@ -880,7 +880,7 @@ static void sixaxis_parse_report(struct sony_sc *sc, u8 *rd, int size)
 	/*
 	 * The sixaxis is charging if the battery value is 0xee
 	 * and it is fully charged if the value is 0xef.
-	 * It does not report the actual level while charging so it
+	 * It does yest report the actual level while charging so it
 	 * is set to 100% while charging is in progress.
 	 */
 	offset = (sc->quirks & MOTION_CONTROLLER) ? 12 : 30;
@@ -948,8 +948,8 @@ static void dualshock4_parse_report(struct sony_sc *sc, u8 *rd, int size)
 	 * The reason is there were various pieces software both open and closed
 	 * source, relying on the descriptors to be the same across various
 	 * operating systems. If the descriptors wouldn't match some
-	 * applications e.g. games on Wine would not be able to function due
-	 * to different descriptors, which such applications are not parsing.
+	 * applications e.g. games on Wine would yest be able to function due
+	 * to different descriptors, which such applications are yest parsing.
 	 */
 	if (rd[0] == 17) {
 		int value;
@@ -1019,7 +1019,7 @@ static void dualshock4_parse_report(struct sony_sc *sc, u8 *rd, int size)
 		 */
 		int calib_data = mult_frac(calib->sens_numer,
 					   raw_data - calib->bias,
-					   calib->sens_denom);
+					   calib->sens_deyesm);
 
 		input_report_abs(sc->sensor_dev, calib->abs_code, calib_data);
 		offset += 2;
@@ -1077,7 +1077,7 @@ static void dualshock4_parse_report(struct sony_sc *sc, u8 *rd, int size)
 
 		/*
 		 * The first 7 bits of the first byte is a counter and bit 8 is
-		 * a touch indicator that is 0 when pressed and 1 when not
+		 * a touch indicator that is 0 when pressed and 1 when yest
 		 * pressed.
 		 * The next 3 bytes are two 12 bit touch coordinates, X and Y.
 		 * The data for the second touch is in the same format and
@@ -1163,7 +1163,7 @@ static void nsg_mrxu_parse_report(struct sony_sc *sc, u8 *rd, int size)
 			/*
 			 * The relative coordinates belong to the first touch
 			 * point, when present, or to the second touch point
-			 * when the first is not active.
+			 * when the first is yest active.
 			 */
 			if ((n == 0) || ((n == 1) && (active & 0x01))) {
 				input_report_rel(sc->touchpad, REL_X, relx);
@@ -1194,8 +1194,8 @@ static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 		 * When connected via Bluetooth the Sixaxis occasionally sends
 		 * a report with the second byte 0xff and the rest zeroed.
 		 *
-		 * This report does not reflect the actual state of the
-		 * controller must be ignored to avoid generating false input
+		 * This report does yest reflect the actual state of the
+		 * controller must be igyesred to avoid generating false input
 		 * events.
 		 */
 		if (rd[1] == 0xff)
@@ -1240,7 +1240,7 @@ static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 		/*
 		 * In the case of a DS4 USB dongle, bit[2] of byte 31 indicates
 		 * if a DS4 is actually connected (indicated by '0').
-		 * For non-dongle, this bit is always 0 (connected).
+		 * For yesn-dongle, this bit is always 0 (connected).
 		 */
 		bool connected = (rd[31] & 0x04) ? false : true;
 
@@ -1249,7 +1249,7 @@ static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 		spin_unlock_irqrestore(&sc->lock, flags);
 
 		/*
-		 * The dongle always sends input reports even when no
+		 * The dongle always sends input reports even when yes
 		 * DS4 is attached. When a DS4 is connected, we need to
 		 * obtain calibration data before we can use it.
 		 * The code below tracks dongle state and kicks of
@@ -1349,7 +1349,7 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 }
 
 static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
-		int w, int h, int touch_major, int touch_minor, int orientation)
+		int w, int h, int touch_major, int touch_miyesr, int orientation)
 {
 	size_t name_sz;
 	char *name;
@@ -1369,7 +1369,7 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 	sc->touchpad->id.version = sc->hdev->version;
 
 	/* Append a suffix to the controller name as there are various
-	 * DS4 compatible non-Sony devices with different names.
+	 * DS4 compatible yesn-Sony devices with different names.
 	 */
 	name_sz = strlen(sc->hdev->name) + sizeof(DS4_TOUCHPAD_SUFFIX);
 	name = devm_kzalloc(&sc->hdev->dev, name_sz, GFP_KERNEL);
@@ -1389,9 +1389,9 @@ static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
 	if (touch_major > 0) {
 		input_set_abs_params(sc->touchpad, ABS_MT_TOUCH_MAJOR, 
 			0, touch_major, 0, 0);
-		if (touch_minor > 0)
+		if (touch_miyesr > 0)
 			input_set_abs_params(sc->touchpad, ABS_MT_TOUCH_MINOR, 
-				0, touch_minor, 0, 0);
+				0, touch_miyesr, 0, 0);
 		if (orientation > 0)
 			input_set_abs_params(sc->touchpad, ABS_MT_ORIENTATION, 
 				0, orientation, 0, 0);
@@ -1433,7 +1433,7 @@ static int sony_register_sensors(struct sony_sc *sc)
 	sc->sensor_dev->id.version = sc->hdev->version;
 
 	/* Append a suffix to the controller name as there are various
-	 * DS4 compatible non-Sony devices with different names.
+	 * DS4 compatible yesn-Sony devices with different names.
 	 */
 	name_sz = strlen(sc->hdev->name) + sizeof(SENSOR_SUFFIX);
 	name = devm_kzalloc(&sc->hdev->dev, name_sz, GFP_KERNEL);
@@ -1487,7 +1487,7 @@ static int sony_register_sensors(struct sony_sc *sc)
 
 /*
  * Sending HID_REQ_GET_REPORT changes the operation mode of the ps3 controller
- * to "operational".  Without this, the ps3 controller will not report any
+ * to "operational".  Without this, the ps3 controller will yest report any
  * events.
  */
 static int sixaxis_set_operational_usb(struct hid_device *hdev)
@@ -1511,7 +1511,7 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 
 	/*
 	 * Some compatible controllers like the Speedlink Strike FX and
-	 * Gasia need another query plus an USB interrupt to get operational.
+	 * Gasia need ayesther query plus an USB interrupt to get operational.
 	 */
 	ret = hid_hw_raw_request(hdev, 0xf5, buf, SIXAXIS_REPORT_0xF5_SIZE,
 				 HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
@@ -1522,14 +1522,14 @@ static int sixaxis_set_operational_usb(struct hid_device *hdev)
 
 	/*
 	 * But the USB interrupt would cause SHANWAN controllers to
-	 * start rumbling non-stop, so skip step 3 for these controllers.
+	 * start rumbling yesn-stop, so skip step 3 for these controllers.
 	 */
 	if (sc->quirks & SHANWAN_GAMEPAD)
 		goto out;
 
 	ret = hid_hw_output_report(hdev, buf, 1);
 	if (ret < 0) {
-		hid_info(hdev, "can't set operational mode: step 3, ignoring\n");
+		hid_info(hdev, "can't set operational mode: step 3, igyesring\n");
 		ret = 0;
 	}
 
@@ -1656,45 +1656,45 @@ static int dualshock4_get_calibration_data(struct sony_sc *sc)
 	acc_z_plus       = get_unaligned_le16(&buf[31]);
 	acc_z_minus      = get_unaligned_le16(&buf[33]);
 
-	/* Set gyroscope calibration and normalization parameters.
-	 * Data values will be normalized to 1/DS4_GYRO_RES_PER_DEG_S degree/s.
+	/* Set gyroscope calibration and yesrmalization parameters.
+	 * Data values will be yesrmalized to 1/DS4_GYRO_RES_PER_DEG_S degree/s.
 	 */
 	speed_2x = (gyro_speed_plus + gyro_speed_minus);
 	sc->ds4_calib_data[0].abs_code = ABS_RX;
 	sc->ds4_calib_data[0].bias = gyro_pitch_bias;
 	sc->ds4_calib_data[0].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
-	sc->ds4_calib_data[0].sens_denom = gyro_pitch_plus - gyro_pitch_minus;
+	sc->ds4_calib_data[0].sens_deyesm = gyro_pitch_plus - gyro_pitch_minus;
 
 	sc->ds4_calib_data[1].abs_code = ABS_RY;
 	sc->ds4_calib_data[1].bias = gyro_yaw_bias;
 	sc->ds4_calib_data[1].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
-	sc->ds4_calib_data[1].sens_denom = gyro_yaw_plus - gyro_yaw_minus;
+	sc->ds4_calib_data[1].sens_deyesm = gyro_yaw_plus - gyro_yaw_minus;
 
 	sc->ds4_calib_data[2].abs_code = ABS_RZ;
 	sc->ds4_calib_data[2].bias = gyro_roll_bias;
 	sc->ds4_calib_data[2].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
-	sc->ds4_calib_data[2].sens_denom = gyro_roll_plus - gyro_roll_minus;
+	sc->ds4_calib_data[2].sens_deyesm = gyro_roll_plus - gyro_roll_minus;
 
-	/* Set accelerometer calibration and normalization parameters.
-	 * Data values will be normalized to 1/DS4_ACC_RES_PER_G G.
+	/* Set accelerometer calibration and yesrmalization parameters.
+	 * Data values will be yesrmalized to 1/DS4_ACC_RES_PER_G G.
 	 */
 	range_2g = acc_x_plus - acc_x_minus;
 	sc->ds4_calib_data[3].abs_code = ABS_X;
 	sc->ds4_calib_data[3].bias = acc_x_plus - range_2g / 2;
 	sc->ds4_calib_data[3].sens_numer = 2*DS4_ACC_RES_PER_G;
-	sc->ds4_calib_data[3].sens_denom = range_2g;
+	sc->ds4_calib_data[3].sens_deyesm = range_2g;
 
 	range_2g = acc_y_plus - acc_y_minus;
 	sc->ds4_calib_data[4].abs_code = ABS_Y;
 	sc->ds4_calib_data[4].bias = acc_y_plus - range_2g / 2;
 	sc->ds4_calib_data[4].sens_numer = 2*DS4_ACC_RES_PER_G;
-	sc->ds4_calib_data[4].sens_denom = range_2g;
+	sc->ds4_calib_data[4].sens_deyesm = range_2g;
 
 	range_2g = acc_z_plus - acc_z_minus;
 	sc->ds4_calib_data[5].abs_code = ABS_Z;
 	sc->ds4_calib_data[5].bias = acc_z_plus - range_2g / 2;
 	sc->ds4_calib_data[5].sens_numer = 2*DS4_ACC_RES_PER_G;
-	sc->ds4_calib_data[5].sens_denom = range_2g;
+	sc->ds4_calib_data[5].sens_deyesm = range_2g;
 
 err_stop:
 	kfree(buf);
@@ -1929,7 +1929,7 @@ static int sony_led_blink_set(struct led_classdev *led, unsigned long *delay_on,
 			break;
 	}
 
-	/* This LED is not registered on this device */
+	/* This LED is yest registered on this device */
 	if (n >= drv_data->led_count)
 		return -EINVAL;
 
@@ -2003,7 +2003,7 @@ static int sony_leds_init(struct sony_sc *sc)
 	}
 
 	/*
-	 * Clear LEDs as we have no way of reading their initial state. This is
+	 * Clear LEDs as we have yes way of reading their initial state. This is
 	 * only relevant if the driver is loaded after somebody actively set the
 	 * LEDs to on
 	 */
@@ -2258,7 +2258,7 @@ static int sony_init_ff(struct sony_sc *sc)
 	struct input_dev *input_dev;
 
 	if (list_empty(&sc->hdev->inputs)) {
-		hid_err(sc->hdev, "no inputs found\n");
+		hid_err(sc->hdev, "yes inputs found\n");
 		return -ENODEV;
 	}
 	hidinput = list_entry(sc->hdev->inputs.next, struct hid_input, list);
@@ -2368,10 +2368,10 @@ static int sony_battery_probe(struct sony_sc *sc, int append_dev_id)
 static inline int sony_compare_connection_type(struct sony_sc *sc0,
 						struct sony_sc *sc1)
 {
-	const int sc0_not_bt = !(sc0->quirks & SONY_BT_DEVICE);
-	const int sc1_not_bt = !(sc1->quirks & SONY_BT_DEVICE);
+	const int sc0_yest_bt = !(sc0->quirks & SONY_BT_DEVICE);
+	const int sc1_yest_bt = !(sc1->quirks & SONY_BT_DEVICE);
 
-	return sc0_not_bt == sc1_not_bt;
+	return sc0_yest_bt == sc1_yest_bt;
 }
 
 static int sony_check_add_dev_list(struct sony_sc *sc)
@@ -2382,7 +2382,7 @@ static int sony_check_add_dev_list(struct sony_sc *sc)
 
 	spin_lock_irqsave(&sony_dev_list_lock, flags);
 
-	list_for_each_entry(entry, &sony_device_list, list_node) {
+	list_for_each_entry(entry, &sony_device_list, list_yesde) {
 		ret = memcmp(sc->mac_address, entry->mac_address,
 				sizeof(sc->mac_address));
 		if (!ret) {
@@ -2399,7 +2399,7 @@ static int sony_check_add_dev_list(struct sony_sc *sc)
 	}
 
 	ret = 0;
-	list_add(&(sc->list_node), &sony_device_list);
+	list_add(&(sc->list_yesde), &sony_device_list);
 
 unlock:
 	spin_unlock_irqrestore(&sony_dev_list_lock, flags);
@@ -2410,9 +2410,9 @@ static void sony_remove_dev_list(struct sony_sc *sc)
 {
 	unsigned long flags;
 
-	if (sc->list_node.next) {
+	if (sc->list_yesde.next) {
 		spin_lock_irqsave(&sony_dev_list_lock, flags);
-		list_del(&(sc->list_node));
+		list_del(&(sc->list_yesde));
 		spin_unlock_irqrestore(&sony_dev_list_lock, flags);
 	}
 }
@@ -2449,11 +2449,11 @@ static int sony_check_add(struct sony_sc *sc)
 		/*
 		 * sony_get_bt_devaddr() attempts to parse the Bluetooth MAC
 		 * address from the uniq string where HIDP stores it.
-		 * As uniq cannot be guaranteed to be a MAC address in all cases
-		 * a failure of this function should not prevent the connection.
+		 * As uniq canyest be guaranteed to be a MAC address in all cases
+		 * a failure of this function should yest prevent the connection.
 		 */
 		if (sony_get_bt_devaddr(sc) < 0) {
-			hid_warn(sc->hdev, "UNIQ does not contain a MAC address; duplicate check skipped\n");
+			hid_warn(sc->hdev, "UNIQ does yest contain a MAC address; duplicate check skipped\n");
 			return 0;
 		}
 	} else if (sc->quirks & (DUALSHOCK4_CONTROLLER_USB | DUALSHOCK4_DONGLE)) {
@@ -2605,12 +2605,12 @@ static int sony_input_configured(struct hid_device *hdev,
 
 	if (sc->quirks & NAVIGATION_CONTROLLER_USB) {
 		/*
-		 * The Sony Sixaxis does not handle HID Output Reports on the
+		 * The Sony Sixaxis does yest handle HID Output Reports on the
 		 * Interrupt EP like it could, so we need to force HID Output
 		 * Reports to use HID_REQ_SET_REPORT on the Control EP.
 		 *
-		 * There is also another issue about HID Output Reports via USB,
-		 * the Sixaxis does not want the report_id as part of the data
+		 * There is also ayesther issue about HID Output Reports via USB,
+		 * the Sixaxis does yest want the report_id as part of the data
 		 * packet, so we have to discard buf[0] when sending the actual
 		 * control message, even for numbered reports, humpf!
 		 *
@@ -2647,7 +2647,7 @@ static int sony_input_configured(struct hid_device *hdev,
 		sony_init_output_report(sc, sixaxis_send_output_report);
 	} else if (sc->quirks & SIXAXIS_CONTROLLER_USB) {
 		/*
-		 * The Sony Sixaxis does not handle HID Output Reports on the
+		 * The Sony Sixaxis does yest handle HID Output Reports on the
 		 * Interrupt EP and the device only becomes active when the
 		 * PS button is pressed. See comment for Navigation controller
 		 * above for more details.
@@ -2805,7 +2805,7 @@ err_close:
 	hid_hw_close(hdev);
 err_stop:
 	/* Piggy back on the default ds4_bt_ poll_interval to determine
-	 * if we need to remove the file as we don't know for sure if we
+	 * if we need to remove the file as we don't kyesw for sure if we
 	 * executed that logic.
 	 */
 	if (sc->ds4_bt_poll_interval)
@@ -2874,7 +2874,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	/* sony_input_configured can fail, but this doesn't result
 	 * in hid_hw_start failures (intended). Check whether
 	 * the HID layer claimed the device else fail.
-	 * We don't know the actual reason for the failure, most
+	 * We don't kyesw the actual reason for the failure, most
 	 * likely it is due to EEXIST in case of double connection
 	 * of USB and Bluetooth, but could have been due to ENOMEM
 	 * or other reasons as well.

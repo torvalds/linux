@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -75,7 +75,7 @@ typedef union {
  * The packet interfaces (RGMII and SPI) must be enabled after the
  * IPD.	 This should be called by the user program after any additional
  * IPD configuration changes are made if CVMX_HELPER_ENABLE_IPD
- * is not set in the executive-config.h file.
+ * is yest set in the executive-config.h file.
  *
  * Returns 0 on success
  *	   -1 on failure
@@ -89,14 +89,14 @@ extern int cvmx_helper_ipd_and_packet_input_enable(void);
  * on CVMX_PKO_QUEUES_PER_PORT_* where each queue is lower
  * priority than the previous.
  *
- * Returns Zero on success, non-zero on failure
+ * Returns Zero on success, yesn-zero on failure
  */
 extern int cvmx_helper_initialize_packet_io_global(void);
 
 /**
  * Does core local initialization for packet io
  *
- * Returns Zero on success, non-zero on failure
+ * Returns Zero on success, yesn-zero on failure
  */
 extern int cvmx_helper_initialize_packet_io_local(void);
 
@@ -129,7 +129,7 @@ extern int cvmx_helper_get_number_of_interfaces(void);
  *
  * @interface: Interface to probe
  *
- * Returns Mode of the interface. Unknown or unsupported interfaces return
+ * Returns Mode of the interface. Unkyeswn or unsupported interfaces return
  *	   DISABLED.
  */
 extern cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int
@@ -137,7 +137,7 @@ extern cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int
 
 /**
  * Return the link state of an IPD/PKO port as returned by
- * auto negotiation. The result of this function may not match
+ * auto negotiation. The result of this function may yest match
  * Octeon's link config if auto negotiation has changed since
  * the last call to cvmx_helper_link_set().
  *
@@ -149,7 +149,7 @@ extern cvmx_helper_link_info_t cvmx_helper_link_get(int ipd_port);
 
 /**
  * Configure an IPD/PKO port for the specified link state. This
- * function does not influence auto negotiation at the PHY level.
+ * function does yest influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
  * by cvmx_helper_link_get().
  *

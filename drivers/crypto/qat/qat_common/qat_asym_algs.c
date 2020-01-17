@@ -23,12 +23,12 @@
   are met:
 
 	* Redistributions of source code must retain the above copyright
-	  notice, this list of conditions and the following disclaimer.
+	  yestice, this list of conditions and the following disclaimer.
 	* Redistributions in binary form must reproduce the above copyright
-	  notice, this list of conditions and the following disclaimer in
+	  yestice, this list of conditions and the following disclaimer in
 	  the documentation and/or other materials provided with the
 	  distribution.
-	* Neither the name of Intel Corporation nor the names of its
+	* Neither the name of Intel Corporation yesr the names of its
 	  contributors may be used to endorse or promote products derived
 	  from this software without specific prior written permission.
 
@@ -291,7 +291,7 @@ static int qat_dh_compute_value(struct kpp_request *req)
 					    QAT_COMN_CD_FLD_TYPE_64BIT_ADR);
 
 	/*
-	 * If no source is provided use g as base
+	 * If yes source is provided use g as base
 	 */
 	if (req->src) {
 		qat_req->in.dh.in.xa = ctx->dma_xa;
@@ -530,7 +530,7 @@ static int qat_dh_init_tfm(struct crypto_kpp *tfm)
 {
 	struct qat_dh_ctx *ctx = kpp_tfm_ctx(tfm);
 	struct qat_crypto_instance *inst =
-			qat_crypto_get_instance_node(get_current_node());
+			qat_crypto_get_instance_yesde(get_current_yesde());
 
 	if (!inst)
 		return -EINVAL;
@@ -1268,7 +1268,7 @@ static int qat_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
 	struct qat_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct qat_crypto_instance *inst =
-			qat_crypto_get_instance_node(get_current_node());
+			qat_crypto_get_instance_yesde(get_current_yesde());
 
 	if (!inst)
 		return -EINVAL;

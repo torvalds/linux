@@ -53,8 +53,8 @@
  *
  * This must be aligned on a 2*CACHESIZE boundary.  The code selects one of
  * the 2 areas in alternance each time the clean_d_cache macro is used.
- * Without this the XScale core exhibits cache eviction problems and no one
- * knows why.
+ * Without this the XScale core exhibits cache eviction problems and yes one
+ * kyesws why.
  *
  * Reminder: the vector table is located at 0xffff0000-0xffff0fff.
  */
@@ -167,7 +167,7 @@ ENDPROC(cpu_xscale_reset)
  *
  * Cause the processor to idle
  *
- * For now we do nothing but go to idle mode for every case
+ * For yesw we do yesthing but go to idle mode for every case
  *
  * XScale supports clock switching, but using idle mode support
  * allows external hardware to react to system state changes.
@@ -222,8 +222,8 @@ __flush_whole_cache:
  *	Invalidate a range of cache entries in the specified
  *	address space.
  *
- *	- start - start address (may not be aligned)
- *	- end	- end address (exclusive, may not be aligned)
+ *	- start - start address (may yest be aligned)
+ *	- end	- end address (exclusive, may yest be aligned)
  *	- vma	- vma_area_struct describing address space
  */
 	.align	5
@@ -249,7 +249,7 @@ ENTRY(xscale_flush_user_cache_range)
  *	coherent_kern_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start.  If you have non-snooping
+ *	region described by start.  If you have yesn-syesoping
  *	Harvard caches, you need to implement this function.
  *
  *	- start  - virtual start address
@@ -273,7 +273,7 @@ ENTRY(xscale_coherent_kern_range)
  *	coherent_user_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start.  If you have non-snooping
+ *	region described by start.  If you have yesn-syesoping
  *	Harvard caches, you need to implement this function.
  *
  *	- start  - virtual start address
@@ -294,7 +294,7 @@ ENTRY(xscale_coherent_user_range)
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
  *
- *	Ensure no D cache aliasing occurs, either with itself or
+ *	Ensure yes D cache aliasing occurs, either with itself or
  *	the I cache
  *
  *	- addr	- kernel address
@@ -316,8 +316,8 @@ ENTRY(xscale_flush_kern_dcache_area)
  *	dma_inv_range(start, end)
  *
  *	Invalidate (discard) the specified virtual address range.
- *	May not write back any entries.  If 'start' or 'end'
- *	are not cache line aligned, those lines must be written
+ *	May yest write back any entries.  If 'start' or 'end'
+ *	are yest cache line aligned, those lines must be written
  *	back.
  *
  *	- start  - virtual start address

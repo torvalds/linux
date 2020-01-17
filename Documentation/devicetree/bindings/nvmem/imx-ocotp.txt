@@ -26,7 +26,7 @@ Required properties:
 Optional properties:
 - read-only: disable write access
 
-Optional Child nodes:
+Optional Child yesdes:
 
 - Data cells of ocotp:
   Detailed bindings are described in bindings/nvmem/nvmem.txt

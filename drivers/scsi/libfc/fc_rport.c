@@ -10,7 +10,7 @@
  *
  * This file contains all processing regarding fc_rports. It contains the
  * rport state machine and does all rport interaction with the transport class.
- * There should be no other places in libfc that interact directly with the
+ * There should be yes other places in libfc that interact directly with the
  * transport class in regards to adding and deleting rports.
  *
  * fc_rport's represent N_Port's within the fabric.
@@ -28,7 +28,7 @@
  * the rport's states and is held and released by the entry points to the rport
  * block. All _enter_* functions correspond to rport states and expect the rport
  * mutex to be locked before calling them. This means that rports only handle
- * one request or response at a time, since they're not critical for the I/O
+ * one request or response at a time, since they're yest critical for the I/O
  * path this potential over-use of the mutex is acceptable.
  */
 
@@ -142,7 +142,7 @@ struct fc_rport_priv *fc_rport_create(struct fc_lport *lport, u32 port_id)
 	if (!rdata)
 		return NULL;
 
-	rdata->ids.node_name = -1;
+	rdata->ids.yesde_name = -1;
 	rdata->ids.port_name = -1;
 	rdata->ids.port_id = port_id;
 	rdata->ids.roles = FC_RPORT_ROLE_UNKNOWN;
@@ -189,7 +189,7 @@ static const char *fc_rport_state(struct fc_rport_priv *rdata)
 
 	cp = fc_rport_state_names[rdata->rp_state];
 	if (!cp)
-		cp = "Unknown";
+		cp = "Unkyeswn";
 	return cp;
 }
 
@@ -462,12 +462,12 @@ EXPORT_SYMBOL(fc_rport_login);
  *
  * Allow state change into DELETE only once.
  *
- * Call queue_work only if there's no event already pending.
- * Set the new event so that the old pending event will not occur.
+ * Call queue_work only if there's yes event already pending.
+ * Set the new event so that the old pending event will yest occur.
  * Since we have the mutex, even if fc_rport_work() is already started,
  * it'll see the new event.
  *
- * Reference counting: does not modify kref
+ * Reference counting: does yest modify kref
  */
 static void fc_rport_enter_delete(struct fc_rport_priv *rdata,
 				  enum fc_rport_event event)
@@ -508,7 +508,7 @@ int fc_rport_logoff(struct fc_rport_priv *rdata)
 
 	rdata->flags &= ~FC_RP_STARTED;
 	if (rdata->rp_state == RPORT_ST_DELETE) {
-		FC_RPORT_DBG(rdata, "Port in Delete state, not removing\n");
+		FC_RPORT_DBG(rdata, "Port in Delete state, yest removing\n");
 		goto out;
 	}
 	/*
@@ -537,7 +537,7 @@ EXPORT_SYMBOL(fc_rport_logoff);
  * fc_rport_enter_ready() - Transition to the RPORT_ST_READY state
  * @rdata: The remote port that is ready
  *
- * Reference counting: schedules workqueue, does not modify kref
+ * Reference counting: schedules workqueue, does yest modify kref
  */
 static void fc_rport_enter_ready(struct fc_rport_priv *rdata)
 {
@@ -605,7 +605,7 @@ static void fc_rport_timeout(struct work_struct *work)
  * @rdata: The remote port the error is happened on
  * @err:   The error code
  *
- * Reference counting: does not modify kref
+ * Reference counting: does yest modify kref
  */
 static void fc_rport_error(struct fc_rport_priv *rdata, int err)
 {
@@ -667,7 +667,7 @@ static void fc_rport_error_retry(struct fc_rport_priv *rdata, int err)
 		FC_RPORT_DBG(rdata, "Error %d in state %s, retrying\n",
 			     err, fc_rport_state(rdata));
 		rdata->retries++;
-		/* no additional delay on exchange timeouts */
+		/* yes additional delay on exchange timeouts */
 		if (err == -FC_EX_TIMEOUT)
 			delay = 0;
 		kref_get(&rdata->kref);
@@ -685,8 +685,8 @@ out:
  * @rdata:  The remote port which we logged into or which logged into us.
  * @fp:     The FLOGI or PLOGI request or response frame
  *
- * Returns non-zero error if a problem is detected with the frame.
- * Does not free the frame.
+ * Returns yesn-zero error if a problem is detected with the frame.
+ * Does yest free the frame.
  *
  * This is only used in point-to-multipoint mode for FIP currently.
  */
@@ -712,7 +712,7 @@ static int fc_rport_login_complete(struct fc_rport_priv *rdata,
 	} else {
 
 		/*
-		 * E_D_TOV is not valid on an incoming FLOGI request.
+		 * E_D_TOV is yest valid on an incoming FLOGI request.
 		 */
 		e_d_tov = ntohl(flogi->fl_csp.sp_e_d_tov);
 		if (csp_flags & FC_SP_FT_EDTR)
@@ -775,7 +775,7 @@ static void fc_rport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 		goto bad;
 	}
 	if (fc_rport_login_complete(rdata, fp)) {
-		FC_RPORT_DBG(rdata, "FLOGI failed, no login\n");
+		FC_RPORT_DBG(rdata, "FLOGI failed, yes login\n");
 		err = -FC_EX_INV_LOGIN;
 		goto bad;
 	}
@@ -888,13 +888,13 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	case RPORT_ST_INIT:
 		/*
 		 * If received the FLOGI request on RPORT which is INIT state
-		 * (means not transition to FLOGI either fc_rport timeout
+		 * (means yest transition to FLOGI either fc_rport timeout
 		 * function didn;t trigger or this end hasn;t received
 		 * beacon yet from other end. In that case only, allow RPORT
 		 * state machine to continue, otherwise fall through which
 		 * causes the code to send reject response.
 		 * NOTE; Not checking for FIP->state such as VNMP_UP or
-		 * VNMP_CLAIM because if FIP state is not one of those,
+		 * VNMP_CLAIM because if FIP state is yest one of those,
 		 * RPORT wouldn;t have created and 'rport_lookup' would have
 		 * failed anyway in that case.
 		 */
@@ -941,7 +941,7 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	lport->tt.frame_send(lport, fp);
 
 	/*
-	 * Do not proceed with the state machine if our
+	 * Do yest proceed with the state machine if our
 	 * FLOGI has crossed with an FLOGI from the
 	 * remote port; wait for the FLOGI response instead.
 	 */
@@ -1008,7 +1008,7 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	if (op == ELS_LS_ACC &&
 	    (plp = fc_frame_payload_get(fp, sizeof(*plp))) != NULL) {
 		rdata->ids.port_name = get_unaligned_be64(&plp->fl_wwpn);
-		rdata->ids.node_name = get_unaligned_be64(&plp->fl_wwnn);
+		rdata->ids.yesde_name = get_unaligned_be64(&plp->fl_wwnn);
 
 		/* save plogi response sp_features for further reference */
 		rdata->sp_features = ntohs(plp->fl_csp.sp_features);
@@ -1241,7 +1241,7 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 	lockdep_assert_held(&rdata->rp_mutex);
 
 	/*
-	 * If the rport is one of the well known addresses
+	 * If the rport is one of the well kyeswn addresses
 	 * we skip PRLI and RTV and go straight to READY.
 	 */
 	if (rdata->ids.port_id >= FC_FID_DOM_MGR) {
@@ -1250,8 +1250,8 @@ static void fc_rport_enter_prli(struct fc_rport_priv *rdata)
 	}
 
 	/*
-	 * And if the local port does not support the initiator function
-	 * there's no need to send a PRLI, either.
+	 * And if the local port does yest support the initiator function
+	 * there's yes need to send a PRLI, either.
 	 */
 	if (!(lport->service_params & FCP_SPPF_INIT_FCN)) {
 		    fc_rport_enter_ready(rdata);
@@ -1521,7 +1521,7 @@ static void fc_rport_adisc_resp(struct fc_seq *sp, struct fc_frame *fp,
 	if (op != ELS_LS_ACC || !adisc ||
 	    ntoh24(adisc->adisc_port_id) != rdata->ids.port_id ||
 	    get_unaligned_be64(&adisc->adisc_wwpn) != rdata->ids.port_name ||
-	    get_unaligned_be64(&adisc->adisc_wwnn) != rdata->ids.node_name) {
+	    get_unaligned_be64(&adisc->adisc_wwnn) != rdata->ids.yesde_name) {
 		FC_RPORT_DBG(rdata, "ADISC error or mismatch\n");
 		fc_rport_enter_flogi(rdata);
 	} else {
@@ -1678,7 +1678,7 @@ out:
  * Handle incoming ELS requests that require port login.
  * The ELS opcode has already been validated by the caller.
  *
- * Reference counting: does not modify kref
+ * Reference counting: does yest modify kref
  */
 static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 {
@@ -1690,7 +1690,7 @@ static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 	rdata = fc_rport_lookup(lport, fc_frame_sid(fp));
 	if (!rdata) {
 		FC_RPORT_ID_DBG(lport, fc_frame_sid(fp),
-				"Received ELS 0x%02x from non-logged-in port\n",
+				"Received ELS 0x%02x from yesn-logged-in port\n",
 				fc_frame_payload_op(fp));
 		goto reject;
 	}
@@ -1775,7 +1775,7 @@ busy:
  * @lport: The local port that received the request
  * @fp:	   The request frame
  *
- * Reference counting: does not modify kref
+ * Reference counting: does yest modify kref
  */
 void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 {
@@ -1863,7 +1863,7 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 	mutex_unlock(&disc->disc_mutex);
 
 	rdata->ids.port_name = get_unaligned_be64(&pl->fl_wwpn);
-	rdata->ids.node_name = get_unaligned_be64(&pl->fl_wwnn);
+	rdata->ids.yesde_name = get_unaligned_be64(&pl->fl_wwnn);
 
 	/*
 	 * If the rport was just created, possibly due to the incoming PLOGI,
@@ -1897,7 +1897,7 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 	case RPORT_ST_READY:
 	case RPORT_ST_ADISC:
 		FC_RPORT_DBG(rdata, "Received PLOGI in logged-in state %d "
-			     "- ignored for now\n", rdata->rp_state);
+			     "- igyesred for yesw\n", rdata->rp_state);
 		/* XXX TBD - should reset */
 		break;
 	case RPORT_ST_FLOGI:
@@ -2158,7 +2158,7 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport, struct fc_frame *fp)
 		kref_put(&rdata->kref, fc_rport_destroy);
 	} else
 		FC_RPORT_ID_DBG(lport, sid,
-				"Received LOGO from non-logged-in port\n");
+				"Received LOGO from yesn-logged-in port\n");
 	fc_frame_free(fp);
 }
 
@@ -2179,7 +2179,7 @@ EXPORT_SYMBOL(fc_rport_flush_queue);
  * @spp: response service parameter page
  *
  * Returns the value for the response code to be placed in spp_flags;
- * Returns 0 if not an initiator.
+ * Returns 0 if yest an initiator.
  */
 static int fc_rport_fcp_prli(struct fc_rport_priv *rdata, u32 spp_len,
 			     const struct fc_els_spp *rspp,

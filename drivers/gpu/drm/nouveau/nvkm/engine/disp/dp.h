@@ -4,7 +4,7 @@
 #define nvkm_dp(p) container_of((p), struct nvkm_dp, outp)
 #include "outp.h"
 
-#include <core/notify.h>
+#include <core/yestify.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dp.h>
 
@@ -19,7 +19,7 @@ struct nvkm_dp {
 
 	struct nvkm_i2c_aux *aux;
 
-	struct nvkm_notify hpd;
+	struct nvkm_yestify hpd;
 	bool present;
 	u8 dpcd[16];
 

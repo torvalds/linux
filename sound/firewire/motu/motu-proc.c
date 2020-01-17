@@ -20,7 +20,7 @@ static const char *const clock_names[] = {
 	[SND_MOTU_CLOCK_SOURCE_AESEBU_ON_XLR] = "AESEBU on XLR interface",
 	[SND_MOTU_CLOCK_SOURCE_WORD_ON_BNC] = "Word clock on BNC interface",
 	[SND_MOTU_CLOCK_SOURCE_SPH] = "Source packet header",
-	[SND_MOTU_CLOCK_SOURCE_UNKNOWN] = "Unknown",
+	[SND_MOTU_CLOCK_SOURCE_UNKNOWN] = "Unkyeswn",
 };
 
 static void proc_read_clock(struct snd_info_entry *entry,
@@ -80,7 +80,7 @@ static void proc_read_format(struct snd_info_entry *entry,
 	}
 }
 
-static void add_node(struct snd_motu *motu, struct snd_info_entry *root,
+static void add_yesde(struct snd_motu *motu, struct snd_info_entry *root,
 		     const char *name,
 		     void (*op)(struct snd_info_entry *e,
 				struct snd_info_buffer *b))
@@ -97,7 +97,7 @@ void snd_motu_proc_init(struct snd_motu *motu)
 	struct snd_info_entry *root;
 
 	/*
-	 * All nodes are automatically removed at snd_card_disconnect(),
+	 * All yesdes are automatically removed at snd_card_disconnect(),
 	 * by following to link list.
 	 */
 	root = snd_info_create_card_entry(motu->card, "firewire",
@@ -106,6 +106,6 @@ void snd_motu_proc_init(struct snd_motu *motu)
 		return;
 	root->mode = S_IFDIR | 0555;
 
-	add_node(motu, root, "clock", proc_read_clock);
-	add_node(motu, root, "format", proc_read_format);
+	add_yesde(motu, root, "clock", proc_read_clock);
+	add_yesde(motu, root, "format", proc_read_format);
 }

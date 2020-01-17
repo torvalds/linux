@@ -13,20 +13,20 @@
  * The lblc/r algorithm is as follows (pseudo code):
  *
  *       if serverSet[dest_ip] is null then
- *               n, serverSet[dest_ip] <- {weighted least-conn node};
+ *               n, serverSet[dest_ip] <- {weighted least-conn yesde};
  *       else
- *               n <- {least-conn (alive) node in serverSet[dest_ip]};
+ *               n <- {least-conn (alive) yesde in serverSet[dest_ip]};
  *               if (n is null) OR
  *                  (n.conns>n.weight AND
- *                   there is a node m with m.conns<m.weight/2) then
- *                   n <- {weighted least-conn node};
+ *                   there is a yesde m with m.conns<m.weight/2) then
+ *                   n <- {weighted least-conn yesde};
  *                   add n to serverSet[dest_ip];
  *               if |serverSet[dest_ip]| > 1 AND
- *                   now - serverSet[dest_ip].lastMod > T then
- *                   m <- {most conn node in serverSet[dest_ip]};
+ *                   yesw - serverSet[dest_ip].lastMod > T then
+ *                   m <- {most conn yesde in serverSet[dest_ip]};
  *                   remove m from serverSet[dest_ip];
  *       if serverSet[dest_ip] changed then
- *               serverSet[dest_ip].lastMod <- now;
+ *               serverSet[dest_ip].lastMod <- yesw;
  *
  *       return n;
  *
@@ -63,7 +63,7 @@
 
 /*
  *    It is for full expiration check.
- *    When there is no partial expiration check (garbage collection)
+ *    When there is yes partial expiration check (garbage collection)
  *    in a half hour, do a full expiration check to collect stale
  *    entries that haven't been touched for a day.
  */
@@ -157,7 +157,7 @@ static void ip_vs_dest_set_eraseall(struct ip_vs_dest_set *set)
 	}
 }
 
-/* get weighted least-connection node in the destination set */
+/* get weighted least-connection yesde in the destination set */
 static inline struct ip_vs_dest *ip_vs_dest_set_min(struct ip_vs_dest_set *set)
 {
 	struct ip_vs_dest_set_elem *e;
@@ -206,7 +206,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_min(struct ip_vs_dest_set *set)
 }
 
 
-/* get weighted most-connection node in the destination set */
+/* get weighted most-connection yesde in the destination set */
 static inline struct ip_vs_dest *ip_vs_dest_set_max(struct ip_vs_dest_set *set)
 {
 	struct ip_vs_dest_set_elem *e;
@@ -256,7 +256,7 @@ static inline struct ip_vs_dest *ip_vs_dest_set_max(struct ip_vs_dest_set *set)
  *      IP address and its destination server set
  */
 struct ip_vs_lblcr_entry {
-	struct hlist_node       list;
+	struct hlist_yesde       list;
 	int			af;		/* address family */
 	union nf_inet_addr      addr;           /* destination IP address */
 	struct ip_vs_dest_set   set;            /* destination server set */
@@ -276,7 +276,7 @@ struct ip_vs_lblcr_table {
 	struct timer_list       periodic_timer; /* collect stale entries */
 	struct ip_vs_service	*svc;		/* pointer back to service */
 	int                     rover;          /* rover for expire check */
-	int                     counter;        /* counter for no expire */
+	int                     counter;        /* counter for yes expire */
 	bool			dead;
 };
 
@@ -397,7 +397,7 @@ static void ip_vs_lblcr_flush(struct ip_vs_service *svc)
 	struct ip_vs_lblcr_table *tbl = svc->sched_data;
 	int i;
 	struct ip_vs_lblcr_entry *en;
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 
 	spin_lock_bh(&svc->sched_lock);
 	tbl->dead = true;
@@ -421,10 +421,10 @@ static int sysctl_lblcr_expiration(struct ip_vs_service *svc)
 static inline void ip_vs_lblcr_full_check(struct ip_vs_service *svc)
 {
 	struct ip_vs_lblcr_table *tbl = svc->sched_data;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	int i, j;
 	struct ip_vs_lblcr_entry *en;
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 
 	for (i = 0, j = tbl->rover; i < IP_VS_LBLCR_TAB_SIZE; i++) {
 		j = (j + 1) & IP_VS_LBLCR_TAB_MASK;
@@ -432,7 +432,7 @@ static inline void ip_vs_lblcr_full_check(struct ip_vs_service *svc)
 		spin_lock(&svc->sched_lock);
 		hlist_for_each_entry_safe(en, next, &tbl->bucket[j], list) {
 			if (time_after(en->lastuse +
-				       sysctl_lblcr_expiration(svc), now))
+				       sysctl_lblcr_expiration(svc), yesw))
 				continue;
 
 			ip_vs_lblcr_free(en);
@@ -450,20 +450,20 @@ static inline void ip_vs_lblcr_full_check(struct ip_vs_service *svc)
  *      exceeds the maximum size of the table.
  *
  *      Fixme: we probably need more complicated algorithm to collect
- *             entries that have not been used for a long time even
+ *             entries that have yest been used for a long time even
  *             if the number of entries doesn't exceed the maximum size
  *             of the table.
- *      The full expiration check is for this purpose now.
+ *      The full expiration check is for this purpose yesw.
  */
 static void ip_vs_lblcr_check_expire(struct timer_list *t)
 {
 	struct ip_vs_lblcr_table *tbl = from_timer(tbl, t, periodic_timer);
 	struct ip_vs_service *svc = tbl->svc;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	int goal;
 	int i, j;
 	struct ip_vs_lblcr_entry *en;
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 
 	if ((tbl->counter % COUNT_FOR_FULL_EXPIRATION) == 0) {
 		/* do full expiration check */
@@ -486,7 +486,7 @@ static void ip_vs_lblcr_check_expire(struct timer_list *t)
 
 		spin_lock(&svc->sched_lock);
 		hlist_for_each_entry_safe(en, next, &tbl->bucket[j], list) {
-			if (time_before(now, en->lastuse+ENTRY_TIMEOUT))
+			if (time_before(yesw, en->lastuse+ENTRY_TIMEOUT))
 				continue;
 
 			ip_vs_lblcr_free(en);
@@ -569,12 +569,12 @@ __ip_vs_lblcr_schedule(struct ip_vs_service *svc)
 	 * We use the following formula to estimate the load:
 	 *                (dest overhead) / dest->weight
 	 *
-	 * Remember -- no floats in kernel mode!!!
+	 * Remember -- yes floats in kernel mode!!!
 	 * The comparison of h1*w2 > h2*w1 is equivalent to that of
 	 *                h1/w1 > h2/w2
 	 * if every weight is larger than zero.
 	 *
-	 * The server with weight=0 is quiesced and will not receive any
+	 * The server with weight=0 is quiesced and will yest receive any
 	 * new connection.
 	 */
 	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
@@ -659,7 +659,7 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		/* Get the least loaded destination */
 		dest = ip_vs_dest_set_min(&en->set);
 
-		/* More than one destination + enough time passed by, cleanup */
+		/* More than one destination + eyesugh time passed by, cleanup */
 		if (atomic_read(&en->set.size) > 1 &&
 		    time_after(jiffies, en->set.lastmod +
 				sysctl_lblcr_expiration(svc))) {
@@ -674,14 +674,14 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 			spin_unlock_bh(&svc->sched_lock);
 		}
 
-		/* If the destination is not overloaded, use it */
+		/* If the destination is yest overloaded, use it */
 		if (dest && !is_overloaded(dest, svc))
 			goto out;
 
 		/* The cache entry is invalid, time to schedule */
 		dest = __ip_vs_lblcr_schedule(svc);
 		if (!dest) {
-			ip_vs_scheduler_err(svc, "no destination available");
+			ip_vs_scheduler_err(svc, "yes destination available");
 			return NULL;
 		}
 
@@ -696,7 +696,7 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 	/* No cache entry, time to schedule */
 	dest = __ip_vs_lblcr_schedule(svc);
 	if (!dest) {
-		IP_VS_DBG(1, "no destination available\n");
+		IP_VS_DBG(1, "yes destination available\n");
 		return NULL;
 	}
 

@@ -34,19 +34,19 @@ static const struct of_device_id realview_syscon_match[] = {
 
 static void __init realview_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *scu_base;
 	struct regmap *map;
 	unsigned int ncores;
 	int i;
 
-	np = of_find_matching_node(NULL, realview_scu_match);
+	np = of_find_matching_yesde(NULL, realview_scu_match);
 	if (!np) {
 		pr_err("PLATSMP: No SCU base address\n");
 		return;
 	}
 	scu_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!scu_base) {
 		pr_err("PLATSMP: No SCU remap\n");
 		return;
@@ -60,12 +60,12 @@ static void __init realview_smp_prepare_cpus(unsigned int max_cpus)
 	iounmap(scu_base);
 
 	/* The syscon contains the magic SMP start address registers */
-	np = of_find_matching_node(NULL, realview_syscon_match);
+	np = of_find_matching_yesde(NULL, realview_syscon_match);
 	if (!np) {
 		pr_err("PLATSMP: No syscon match\n");
 		return;
 	}
-	map = syscon_node_to_regmap(np);
+	map = syscon_yesde_to_regmap(np);
 	if (IS_ERR(map)) {
 		pr_err("PLATSMP: No syscon regmap\n");
 		return;

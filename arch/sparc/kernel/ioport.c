@@ -10,7 +10,7 @@
  * 2000/01/29
  * <rth> zait: as long as pci_alloc_consistent produces something addressable, 
  *	things are ok.
- * <zaitcev> rth: no, it is relevant, because get_free_pages returns you a
+ * <zaitcev> rth: yes, it is relevant, because get_free_pages returns you a
  *	pointer into the big page mapping
  * <rth> zait: so what?
  * <rth> zait: remap_it_my_way(virt_to_phys(get_free_page()))
@@ -29,7 +29,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
@@ -38,7 +38,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/scatterlist.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/of_device.h>
 
 #include <asm/io.h>
@@ -53,18 +53,18 @@
 #include <asm/leon.h>
 
 /* This function must make sure that caches and memory are coherent after DMA
- * On LEON systems without cache snooping it flushes the entire D-CACHE.
+ * On LEON systems without cache syesoping it flushes the entire D-CACHE.
  */
 static inline void dma_make_coherent(unsigned long pa, unsigned long len)
 {
 	if (sparc_cpu_model == sparc_leon) {
-		if (!sparc_leon3_snooping_enabled())
+		if (!sparc_leon3_syesoping_enabled())
 			leon_flush_dcache_all();
 	}
 }
 
 static void __iomem *_sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz);
-static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
+static void __iomem *_sparc_alloc_io(unsigned int busyes, unsigned long phys,
     unsigned long size, char *name);
 static void _sparc_free_io(struct resource *res);
 
@@ -143,7 +143,7 @@ void iounmap(volatile void __iomem *virtual)
 	 * This probably warrants some sort of hashing.
 	*/
 	if ((res = lookup_resource(&sparc_iomap, vaddr)) == NULL) {
-		printk("free_io/iounmap: cannot free %lx\n", vaddr);
+		printk("free_io/iounmap: canyest free %lx\n", vaddr);
 		return;
 	}
 	_sparc_free_io(res);
@@ -174,7 +174,7 @@ EXPORT_SYMBOL(of_iounmap);
 /*
  * Meat of mapping
  */
-static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
+static void __iomem *_sparc_alloc_io(unsigned int busyes, unsigned long phys,
     unsigned long size, char *name)
 {
 	static int printed_full;
@@ -205,8 +205,8 @@ static void __iomem *_sparc_alloc_io(unsigned int busno, unsigned long phys,
 	strlcpy(tack, name, XNMLN+1);
 	res->name = tack;
 
-	va = _sparc_ioremap(res, busno, phys, size);
-	/* printk("ioremap(0x%x:%08lx[0x%lx])=%p\n", busno, phys, size, va); */ /* P3 diag */
+	va = _sparc_ioremap(res, busyes, phys, size);
+	/* printk("ioremap(0x%x:%08lx[0x%lx])=%p\n", busyes, phys, size, va); */ /* P3 diag */
 	return va;
 }
 
@@ -220,8 +220,8 @@ _sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz)
 	if (allocate_resource(&sparc_iomap, res,
 	    (offset + sz + PAGE_SIZE-1) & PAGE_MASK,
 	    sparc_iomap.start, sparc_iomap.end, PAGE_SIZE, NULL, NULL) != 0) {
-		/* Usually we cannot see printks in this case. */
-		prom_printf("alloc_io_res(%s): cannot occupy\n",
+		/* Usually we canyest see printks in this case. */
+		prom_printf("alloc_io_res(%s): canyest occupy\n",
 		    (res->name != NULL)? res->name: "???");
 		prom_halt();
 	}
@@ -252,11 +252,11 @@ unsigned long sparc_dma_alloc_resource(struct device *dev, size_t len)
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (!res)
 		return 0;
-	res->name = dev->of_node->full_name;
+	res->name = dev->of_yesde->full_name;
 
 	if (allocate_resource(&_sparc_dvma, res, len, _sparc_dvma.start,
 			      _sparc_dvma.end, PAGE_SIZE, NULL, NULL) != 0) {
-		printk("%s: cannot occupy 0x%zx", __func__, len);
+		printk("%s: canyest occupy 0x%zx", __func__, len);
 		kfree(res);
 		return 0;
 	}
@@ -271,7 +271,7 @@ bool sparc_dma_free_resource(void *cpu_addr, size_t size)
 
 	res = lookup_resource(&_sparc_dvma, addr);
 	if (!res) {
-		printk("%s: cannot free %p\n", __func__, cpu_addr);
+		printk("%s: canyest free %p\n", __func__, cpu_addr);
 		return false;
 	}
 
@@ -327,20 +327,20 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	size = PAGE_ALIGN(size);
 	va = (void *) __get_free_pages(gfp | __GFP_ZERO, get_order(size));
 	if (!va) {
-		printk("%s: no %zd pages\n", __func__, size >> PAGE_SHIFT);
+		printk("%s: yes %zd pages\n", __func__, size >> PAGE_SHIFT);
 		return NULL;
 	}
 
 	addr = sparc_dma_alloc_resource(dev, size);
 	if (!addr)
-		goto err_nomem;
+		goto err_yesmem;
 
 	srmmu_mapiorange(0, virt_to_phys(va), addr, size);
 
 	*dma_handle = virt_to_phys(va);
 	return (void *)addr;
 
-err_nomem:
+err_yesmem:
 	free_pages((unsigned long)va, get_order(size));
 	return NULL;
 }
@@ -364,7 +364,7 @@ void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 	free_pages((unsigned long)phys_to_virt(dma_addr), get_order(size));
 }
 
-/* IIep is write-through, not flushing on cpu to device transfer. */
+/* IIep is write-through, yest flushing on cpu to device transfer. */
 
 void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
 		enum dma_data_direction dir)

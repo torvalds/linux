@@ -79,7 +79,7 @@ static int si2157_init(struct dvb_frontend *fe)
 
 	dev_dbg(&client->dev, "\n");
 
-	/* Returned IF frequency is garbage when firmware is not running */
+	/* Returned IF frequency is garbage when firmware is yest running */
 	memcpy(cmd.args, "\x15\x00\x06\x07", 4);
 	cmd.wlen = 4;
 	cmd.rlen = 4;
@@ -159,7 +159,7 @@ static int si2157_init(struct dvb_frontend *fe)
 		fw_name = NULL;
 		break;
 	default:
-		dev_err(&client->dev, "unknown chip version Si21%d-%c%c%c\n",
+		dev_err(&client->dev, "unkyeswn chip version Si21%d-%c%c%c\n",
 				cmd.args[2], cmd.args[1],
 				cmd.args[3], cmd.args[4]);
 		ret = -EINVAL;
@@ -175,7 +175,7 @@ static int si2157_init(struct dvb_frontend *fe)
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_name, &client->dev);
 	if (ret) {
-		dev_err(&client->dev, "firmware file '%s' not found\n",
+		dev_err(&client->dev, "firmware file '%s' yest found\n",
 				fw_name);
 		goto err;
 	}

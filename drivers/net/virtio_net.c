@@ -190,7 +190,7 @@ struct virtnet_info {
 	/* # of XDP queue pairs currently used by the driver */
 	u16 xdp_queue_pairs;
 
-	/* I like... big packets and I cannot lie! */
+	/* I like... big packets and I canyest lie! */
 	bool big_packets;
 
 	/* Host will merge rx buffers for big packets (shake it! shake it!) */
@@ -215,8 +215,8 @@ struct virtnet_info {
 	bool affinity_hint_set;
 
 	/* CPU hotplug instances for online & dead */
-	struct hlist_node node;
-	struct hlist_node node_dead;
+	struct hlist_yesde yesde;
+	struct hlist_yesde yesde_dead;
 
 	struct control_buf *ctrl;
 
@@ -256,7 +256,7 @@ static struct xdp_frame *ptr_to_xdp(void *ptr)
 	return (struct xdp_frame *)((unsigned long)ptr & ~VIRTIO_XDP_FLAG);
 }
 
-/* Converting between virtqueue no. and kernel tx/rx queue no.
+/* Converting between virtqueue yes. and kernel tx/rx queue yes.
  * 0:rx0 1:tx0 2:rx1 3:tx1 ... 2N:rxN 2N+1:txN 2N+2:cvq
  */
 static int vq2txq(struct virtqueue *vq)
@@ -541,7 +541,7 @@ static int virtnet_xdp_xmit(struct net_device *dev,
 	ret = n - drops;
 
 	if (flags & XDP_XMIT_FLUSH) {
-		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq))
+		if (virtqueue_kick_prepare(sq->vq) && virtqueue_yestify(sq->vq))
 			kicks = 1;
 	}
 out:
@@ -573,7 +573,7 @@ static unsigned int virtnet_get_headroom(struct virtnet_info *vi)
  * Afterwards, the conditions to enable
  * XDP should preclude the underlying device from sending packets
  * across multiple buffers (num_buf > 1), and we make sure buffers
- * have enough headroom.
+ * have eyesugh headroom.
  */
 static struct page *xdp_linearize_page(struct receive_queue *rq,
 				       u16 *num_buf,
@@ -617,7 +617,7 @@ static struct page *xdp_linearize_page(struct receive_queue *rq,
 		put_page(p);
 	}
 
-	/* Headroom does not contribute to packet length */
+	/* Headroom does yest contribute to packet length */
 	*len = page_off - VIRTIO_XDP_HEADROOM;
 	return page;
 err_buf:
@@ -814,7 +814,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			goto err_xdp;
 
 		/* This happens when rx buffer size is underestimated
-		 * or headroom is not enough because of the buffer
+		 * or headroom is yest eyesugh because of the buffer
 		 * was refilled before XDP is set. This should only
 		 * happen for the first several packets, so we don't
 		 * care much about its performance.
@@ -833,7 +833,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			xdp_page = page;
 		}
 
-		/* Allow consuming headroom but reserve enough space to push
+		/* Allow consuming headroom but reserve eyesugh space to push
 		 * the descriptor on if we get an XDP_TX return code.
 		 */
 		data = page_address(xdp_page) + offset;
@@ -849,7 +849,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		switch (act) {
 		case XDP_PASS:
 			/* recalculate offset to account for any header
-			 * adjustments. Note other cases do not build an
+			 * adjustments. Note other cases do yest build an
 			 * skb and avoid using offset
 			 */
 			offset = xdp.data -
@@ -1068,8 +1068,8 @@ frame_err:
 
 /* Unlike mergeable buffers, all buffers are allocated to the
  * same size, except for the headroom. For this reason we do
- * not need to use  mergeable_len_to_ctx here - it is enough
- * to store the headroom as the context ignoring the truesize.
+ * yest need to use  mergeable_len_to_ctx here - it is eyesugh
+ * to store the headroom as the context igyesring the truesize.
  */
 static int add_recvbuf_small(struct virtnet_info *vi, struct receive_queue *rq,
 			     gfp_t gfp)
@@ -1188,8 +1188,8 @@ static int add_recvbuf_mergeable(struct virtnet_info *vi,
 	alloc_frag->offset += len + room;
 	hole = alloc_frag->size - alloc_frag->offset;
 	if (hole < len + room) {
-		/* To avoid internal fragmentation, if there is very likely not
-		 * enough space for another buffer, add the remaining space to
+		/* To avoid internal fragmentation, if there is very likely yest
+		 * eyesugh space for ayesther buffer, add the remaining space to
 		 * the current buffer.
 		 */
 		len += hole;
@@ -1230,7 +1230,7 @@ static bool try_fill_recv(struct virtnet_info *vi, struct receive_queue *rq,
 		if (err)
 			break;
 	} while (rq->vq->num_free);
-	if (virtqueue_kick_prepare(rq->vq) && virtqueue_notify(rq->vq)) {
+	if (virtqueue_kick_prepare(rq->vq) && virtqueue_yestify(rq->vq)) {
 		u64_stats_update_begin(&rq->stats.syncp);
 		rq->stats.kicks++;
 		u64_stats_update_end(&rq->stats.syncp);
@@ -1252,7 +1252,7 @@ static void virtnet_napi_enable(struct virtqueue *vq, struct napi_struct *napi)
 	napi_enable(napi);
 
 	/* If all buffers were filled by other side before we napi_enabled, we
-	 * won't get another interrupt, so process any outstanding packets now.
+	 * won't get ayesther interrupt, so process any outstanding packets yesw.
 	 * Call local_bh_enable after to trigger softIRQ processing.
 	 */
 	local_bh_disable();
@@ -1373,7 +1373,7 @@ static void free_old_xmit_skbs(struct send_queue *sq, bool in_napi)
 		packets++;
 	}
 
-	/* Avoid overhead when no packets have been processed
+	/* Avoid overhead when yes packets have been processed
 	 * happens when called speculatively from start_xmit.
 	 */
 	if (!packets)
@@ -1436,7 +1436,7 @@ static int virtnet_poll(struct napi_struct *napi, int budget)
 
 	if (xdp_xmit & VIRTIO_XDP_TX) {
 		sq = virtnet_xdp_sq(vi);
-		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq)) {
+		if (virtqueue_kick_prepare(sq->vq) && virtqueue_yestify(sq->vq)) {
 			u64_stats_update_begin(&sq->stats.syncp);
 			sq->stats.kicks++;
 			u64_stats_update_end(&sq->stats.syncp);
@@ -1513,7 +1513,7 @@ static int xmit_skb(struct send_queue *sq, struct sk_buff *skb)
 	pr_debug("%s: xmit %p %pM\n", vi->dev->name, skb, dest);
 
 	can_push = vi->any_header_sg &&
-		!((unsigned long)skb->data & (__alignof__(*hdr) - 1)) &&
+		!((unsigned long)skb->data & (__aligyesf__(*hdr) - 1)) &&
 		!skb_header_cloned(skb) && skb_headroom(skb) >= hdr_len;
 	/* Even if we can, don't push here yet as this would skew
 	 * csum_start offset below. */
@@ -1570,7 +1570,7 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Try to transmit */
 	err = xmit_skb(sq, skb);
 
-	/* This should not happen! */
+	/* This should yest happen! */
 	if (unlikely(err)) {
 		dev->stats.tx_fifo_errors++;
 		if (net_ratelimit())
@@ -1591,10 +1591,10 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* If running out of space, stop queue to avoid getting packets that we
 	 * are then unable to transmit.
 	 * An alternative would be to force queuing layer to requeue the skb by
-	 * returning NETDEV_TX_BUSY. However, NETDEV_TX_BUSY should not be
-	 * returned in a normal path of operation: it means that driver is not
+	 * returning NETDEV_TX_BUSY. However, NETDEV_TX_BUSY should yest be
+	 * returned in a yesrmal path of operation: it means that driver is yest
 	 * maintaining the TX queue stop/start state properly, and causes
-	 * the stack to do a non-trivial amount of useless work.
+	 * the stack to do a yesn-trivial amount of useless work.
 	 * Since most packets only take 1 or 2 ring slots, stopping the queue
 	 * early means 16 slots are typically wasted.
 	 */
@@ -1612,7 +1612,7 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (kick || netif_xmit_stopped(txq)) {
-		if (virtqueue_kick_prepare(sq->vq) && virtqueue_notify(sq->vq)) {
+		if (virtqueue_kick_prepare(sq->vq) && virtqueue_yestify(sq->vq)) {
 			u64_stats_update_begin(&sq->stats.syncp);
 			sq->stats.kicks++;
 			u64_stats_update_end(&sq->stats.syncp);
@@ -1633,7 +1633,7 @@ static bool virtnet_send_command(struct virtnet_info *vi, u8 class, u8 cmd,
 	struct scatterlist *sgs[4], hdr, stat;
 	unsigned out_num = 0, tmp;
 
-	/* Caller should know better */
+	/* Caller should kyesw better */
 	BUG_ON(!virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VQ));
 
 	vi->ctrl->status = ~0;
@@ -1751,12 +1751,12 @@ static void virtnet_stats(struct net_device *dev,
 	tot->rx_frame_errors = dev->stats.rx_frame_errors;
 }
 
-static void virtnet_ack_link_announce(struct virtnet_info *vi)
+static void virtnet_ack_link_anyesunce(struct virtnet_info *vi)
 {
 	rtnl_lock();
 	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_ANNOUNCE,
 				  VIRTIO_NET_CTRL_ANNOUNCE_ACK, NULL))
-		dev_warn(&vi->dev->dev, "Failed to ack link announce.\n");
+		dev_warn(&vi->dev->dev, "Failed to ack link anyesunce.\n");
 	rtnl_unlock();
 }
 
@@ -1966,26 +1966,26 @@ static void virtnet_set_affinity(struct virtnet_info *vi)
 	free_cpumask_var(mask);
 }
 
-static int virtnet_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int virtnet_cpu_online(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct virtnet_info *vi = hlist_entry_safe(node, struct virtnet_info,
-						   node);
+	struct virtnet_info *vi = hlist_entry_safe(yesde, struct virtnet_info,
+						   yesde);
 	virtnet_set_affinity(vi);
 	return 0;
 }
 
-static int virtnet_cpu_dead(unsigned int cpu, struct hlist_node *node)
+static int virtnet_cpu_dead(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct virtnet_info *vi = hlist_entry_safe(node, struct virtnet_info,
-						   node_dead);
+	struct virtnet_info *vi = hlist_entry_safe(yesde, struct virtnet_info,
+						   yesde_dead);
 	virtnet_set_affinity(vi);
 	return 0;
 }
 
-static int virtnet_cpu_down_prep(unsigned int cpu, struct hlist_node *node)
+static int virtnet_cpu_down_prep(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct virtnet_info *vi = hlist_entry_safe(node, struct virtnet_info,
-						   node);
+	struct virtnet_info *vi = hlist_entry_safe(yesde, struct virtnet_info,
+						   yesde);
 
 	virtnet_clean_affinity(vi);
 	return 0;
@@ -1993,26 +1993,26 @@ static int virtnet_cpu_down_prep(unsigned int cpu, struct hlist_node *node)
 
 static enum cpuhp_state virtionet_online;
 
-static int virtnet_cpu_notif_add(struct virtnet_info *vi)
+static int virtnet_cpu_yestif_add(struct virtnet_info *vi)
 {
 	int ret;
 
-	ret = cpuhp_state_add_instance_nocalls(virtionet_online, &vi->node);
+	ret = cpuhp_state_add_instance_yescalls(virtionet_online, &vi->yesde);
 	if (ret)
 		return ret;
-	ret = cpuhp_state_add_instance_nocalls(CPUHP_VIRT_NET_DEAD,
-					       &vi->node_dead);
+	ret = cpuhp_state_add_instance_yescalls(CPUHP_VIRT_NET_DEAD,
+					       &vi->yesde_dead);
 	if (!ret)
 		return ret;
-	cpuhp_state_remove_instance_nocalls(virtionet_online, &vi->node);
+	cpuhp_state_remove_instance_yescalls(virtionet_online, &vi->yesde);
 	return ret;
 }
 
-static void virtnet_cpu_notif_remove(struct virtnet_info *vi)
+static void virtnet_cpu_yestif_remove(struct virtnet_info *vi)
 {
-	cpuhp_state_remove_instance_nocalls(virtionet_online, &vi->node);
-	cpuhp_state_remove_instance_nocalls(CPUHP_VIRT_NET_DEAD,
-					    &vi->node_dead);
+	cpuhp_state_remove_instance_yescalls(virtionet_online, &vi->yesde);
+	cpuhp_state_remove_instance_yescalls(CPUHP_VIRT_NET_DEAD,
+					    &vi->yesde_dead);
 }
 
 static void virtnet_get_ringparam(struct net_device *dev,
@@ -2056,7 +2056,7 @@ static int virtnet_set_channels(struct net_device *dev,
 	if (queue_pairs > vi->max_queue_pairs || queue_pairs == 0)
 		return -EINVAL;
 
-	/* For now we don't support modifying channels while XDP is loaded
+	/* For yesw we don't support modifying channels while XDP is loaded
 	 * also when XDP is loaded all RX queues have XDP programs so we only
 	 * need to check a single RX queue.
 	 */
@@ -2174,7 +2174,7 @@ virtnet_validate_ethtool_cmd(const struct ethtool_link_ksettings *cmd)
 	struct ethtool_link_ksettings diff2 = {};
 
 	/* cmd is always set so we need to clear it, validate the port type
-	 * and also without autonegotiation we can ignore advertising
+	 * and also without autonegotiation we can igyesre advertising
 	 */
 	diff1.base.speed = 0;
 	diff2.base.port = PORT_OTHER;
@@ -2238,7 +2238,7 @@ static int virtnet_set_coalesce(struct net_device *dev,
 	ec_default.tx_max_coalesced_frames = ec->tx_max_coalesced_frames;
 	napi_weight = ec->tx_max_coalesced_frames ? NAPI_POLL_WEIGHT : 0;
 
-	/* disallow changes to fields not explicitly tested above */
+	/* disallow changes to fields yest explicitly tested above */
 	if (memcmp(ec, &ec_default, sizeof(ec_default)))
 		return -EINVAL;
 
@@ -2316,7 +2316,7 @@ static void virtnet_freeze_down(struct virtio_device *vdev)
 	struct virtnet_info *vi = vdev->priv;
 	int i;
 
-	/* Make sure no work handler is accessing the device */
+	/* Make sure yes work handler is accessing the device */
 	flush_work(&vi->config_work);
 
 	netif_tx_lock_bh(vi->dev);
@@ -2448,7 +2448,7 @@ static int virtnet_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 	if (prog)
 		bpf_prog_add(prog, vi->max_queue_pairs - 1);
 
-	/* Make sure NAPI is not using any XDP TX queues for RX. */
+	/* Make sure NAPI is yest using any XDP TX queues for RX. */
 	if (netif_running(dev)) {
 		for (i = 0; i < vi->max_queue_pairs; i++) {
 			napi_disable(&vi->rq[i].napi);
@@ -2606,11 +2606,11 @@ static void virtnet_config_changed_work(struct work_struct *work)
 		return;
 
 	if (v & VIRTIO_NET_S_ANNOUNCE) {
-		netdev_notify_peers(vi->dev);
-		virtnet_ack_link_announce(vi);
+		netdev_yestify_peers(vi->dev);
+		virtnet_ack_link_anyesunce(vi);
 	}
 
-	/* Ignore unknown (future) status bits */
+	/* Igyesre unkyeswn (future) status bits */
 	v &= VIRTIO_NET_S_LINK_UP;
 
 	if (vi->status == v)
@@ -2930,7 +2930,7 @@ static bool virtnet_fail_on_feature(struct virtio_device *vdev,
 	if (!virtio_has_feature(vdev, fbit))
 		return false;
 
-	dev_err(&vdev->dev, "device advertises feature %s but not %s",
+	dev_err(&vdev->dev, "device advertises feature %s but yest %s",
 		fname, dname);
 
 	return true;
@@ -3006,7 +3006,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	if (!dev)
 		return -ENOMEM;
 
-	/* Set up network device as normal. */
+	/* Set up network device as yesrmal. */
 	dev->priv_flags |= IFF_UNICAST_FLT | IFF_LIVE_ADDR_CHANGE;
 	dev->netdev_ops = &virtnet_netdev;
 	dev->features = NETIF_F_HIGHDMA;
@@ -3101,7 +3101,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 			 * in virtnet_validate.
 			 */
 			dev_err(&vdev->dev,
-				"device MTU appears to have changed it is now %d < %d",
+				"device MTU appears to have changed it is yesw %d < %d",
 				mtu, dev->min_mtu);
 			goto free;
 		}
@@ -3154,9 +3154,9 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	virtio_device_ready(vdev);
 
-	err = virtnet_cpu_notif_add(vi);
+	err = virtnet_cpu_yestif_add(vi);
 	if (err) {
-		pr_debug("virtio_net: registering cpu notifier failed\n");
+		pr_debug("virtio_net: registering cpu yestifier failed\n");
 		goto free_unregister_netdev;
 	}
 
@@ -3216,9 +3216,9 @@ static void virtnet_remove(struct virtio_device *vdev)
 {
 	struct virtnet_info *vi = vdev->priv;
 
-	virtnet_cpu_notif_remove(vi);
+	virtnet_cpu_yestif_remove(vi);
 
-	/* Make sure no work handler is accessing the device. */
+	/* Make sure yes work handler is accessing the device. */
 	flush_work(&vi->config_work);
 
 	unregister_netdev(vi->dev);
@@ -3234,7 +3234,7 @@ static __maybe_unused int virtnet_freeze(struct virtio_device *vdev)
 {
 	struct virtnet_info *vi = vdev->priv;
 
-	virtnet_cpu_notif_remove(vi);
+	virtnet_cpu_yestif_remove(vi);
 	virtnet_freeze_down(vdev);
 	remove_vq_common(vi);
 
@@ -3251,7 +3251,7 @@ static __maybe_unused int virtnet_restore(struct virtio_device *vdev)
 		return err;
 	virtnet_set_queues(vi, vi->curr_queue_pairs);
 
-	err = virtnet_cpu_notif_add(vi);
+	err = virtnet_cpu_yestif_add(vi);
 	if (err)
 		return err;
 

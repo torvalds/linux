@@ -119,7 +119,7 @@ int mdp5_cfg_get_hw_rev(struct mdp5_cfg_handler *cfg_hnd);
 	(__val) >= INTF_VIRTUAL ? true : false; })
 
 struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
-		uint32_t major, uint32_t minor);
+		uint32_t major, uint32_t miyesr);
 void mdp5_cfg_destroy(struct mdp5_cfg_handler *cfg_hnd);
 
 #endif /* __MDP5_CFG_H__ */

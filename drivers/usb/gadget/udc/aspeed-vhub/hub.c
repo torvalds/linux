@@ -18,7 +18,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -271,9 +271,9 @@ static int ast_vhub_rep_desc(struct ast_vhub_ep *ep,
 
 	/*
 	 * Copy first to EP buffer and send from there, so
-	 * we can do some in-place patching if needed. We know
-	 * the EP buffer is big enough but ensure that doesn't
-	 * change. We do that now rather than later after we
+	 * we can do some in-place patching if needed. We kyesw
+	 * the EP buffer is big eyesugh but ensure that doesn't
+	 * change. We do that yesw rather than later after we
 	 * have checked sizes etc... to avoid a gcc bug where
 	 * it thinks len is constant and barfs about read
 	 * overflows in memcpy.
@@ -501,7 +501,7 @@ static void ast_vhub_wake_work(struct work_struct *work)
 	/*
 	 * Wake all sleeping ports. If a port is suspended by
 	 * the host suspend (without explicit state suspend),
-	 * we let the normal host wake path deal with it later.
+	 * we let the yesrmal host wake path deal with it later.
 	 */
 	spin_lock_irqsave(&vhub->lock, flags);
 	for (i = 0; i < AST_VHUB_NUM_PORTS; i++) {
@@ -737,7 +737,7 @@ enum std_req_rc ast_vhub_class_hub_request(struct ast_vhub_ep *ep,
 	case GetTTState:
 		return ast_vhub_simple_reply(ep, 0, 0, 0, 0);
 	default:
-		EPDBG(ep, "Unknown class request\n");
+		EPDBG(ep, "Unkyeswn class request\n");
 	}
 	return std_req_stall;
 }
@@ -795,7 +795,7 @@ void ast_vhub_hub_reset(struct ast_vhub *vhub)
 	UDCDBG(vhub, "USB bus reset\n");
 
 	/*
-	 * Is the speed known ? If not we don't care, we aren't
+	 * Is the speed kyeswn ? If yest we don't care, we aren't
 	 * initialized yet and ports haven't been enabled.
 	 */
 	if (vhub->speed == USB_SPEED_UNKNOWN)
@@ -807,7 +807,7 @@ void ast_vhub_hub_reset(struct ast_vhub *vhub)
 	/* No speed set */
 	vhub->speed = USB_SPEED_UNKNOWN;
 
-	/* Wakeup not enabled anymore */
+	/* Wakeup yest enabled anymore */
 	vhub->wakeup_en = false;
 
 	/*

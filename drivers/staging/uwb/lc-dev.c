@@ -32,46 +32,46 @@ static inline void uwb_mac_addr_init(struct uwb_mac_addr *addr)
 /*
  * Add callback @new to be called when an event occurs in @rc.
  */
-int uwb_notifs_register(struct uwb_rc *rc, struct uwb_notifs_handler *new)
+int uwb_yestifs_register(struct uwb_rc *rc, struct uwb_yestifs_handler *new)
 {
-	if (mutex_lock_interruptible(&rc->notifs_chain.mutex))
+	if (mutex_lock_interruptible(&rc->yestifs_chain.mutex))
 		return -ERESTARTSYS;
-	list_add(&new->list_node, &rc->notifs_chain.list);
-	mutex_unlock(&rc->notifs_chain.mutex);
+	list_add(&new->list_yesde, &rc->yestifs_chain.list);
+	mutex_unlock(&rc->yestifs_chain.mutex);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(uwb_notifs_register);
+EXPORT_SYMBOL_GPL(uwb_yestifs_register);
 
 /*
  * Remove event handler (callback)
  */
-int uwb_notifs_deregister(struct uwb_rc *rc, struct uwb_notifs_handler *entry)
+int uwb_yestifs_deregister(struct uwb_rc *rc, struct uwb_yestifs_handler *entry)
 {
-	if (mutex_lock_interruptible(&rc->notifs_chain.mutex))
+	if (mutex_lock_interruptible(&rc->yestifs_chain.mutex))
 		return -ERESTARTSYS;
-	list_del(&entry->list_node);
-	mutex_unlock(&rc->notifs_chain.mutex);
+	list_del(&entry->list_yesde);
+	mutex_unlock(&rc->yestifs_chain.mutex);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(uwb_notifs_deregister);
+EXPORT_SYMBOL_GPL(uwb_yestifs_deregister);
 
 /*
  * Notify all event handlers of a given event on @rc
  *
  * We are called with a valid reference to the device, or NULL if the
- * event is not for a particular event (e.g., a BG join event).
+ * event is yest for a particular event (e.g., a BG join event).
  */
-void uwb_notify(struct uwb_rc *rc, struct uwb_dev *uwb_dev, enum uwb_notifs event)
+void uwb_yestify(struct uwb_rc *rc, struct uwb_dev *uwb_dev, enum uwb_yestifs event)
 {
-	struct uwb_notifs_handler *handler;
-	if (mutex_lock_interruptible(&rc->notifs_chain.mutex))
+	struct uwb_yestifs_handler *handler;
+	if (mutex_lock_interruptible(&rc->yestifs_chain.mutex))
 		return;
-	if (!list_empty(&rc->notifs_chain.list)) {
-		list_for_each_entry(handler, &rc->notifs_chain.list, list_node) {
+	if (!list_empty(&rc->yestifs_chain.list)) {
+		list_for_each_entry(handler, &rc->yestifs_chain.list, list_yesde) {
 			handler->cb(handler->data, uwb_dev, event);
 		}
 	}
-	mutex_unlock(&rc->notifs_chain.mutex);
+	mutex_unlock(&rc->yestifs_chain.mutex);
 }
 
 /*
@@ -321,7 +321,7 @@ int __uwb_dev_try_get(struct device *dev, void *__target_uwb_dev)
 /**
  * Given a UWB device descriptor, validate and refcount it
  *
- * @returns NULL if the device does not exist or is quiescing; the ptr to
+ * @returns NULL if the device does yest exist or is quiescing; the ptr to
  *               it otherwise.
  */
 struct uwb_dev *uwb_dev_try_get(struct uwb_rc *rc, struct uwb_dev *uwb_dev)
@@ -349,7 +349,7 @@ int __uwb_dev_offair(struct uwb_dev *uwb_dev, struct uwb_rc *rc)
 		 uwb_dev->dev.bus->name,
 		 rc ? dev_name(&(rc->uwb_dev.dev)) : "");
 	uwb_dev_rm(uwb_dev);
-	list_del(&uwb_dev->bce->node);
+	list_del(&uwb_dev->bce->yesde);
 	uwb_bce_put(uwb_dev->bce);
 	uwb_dev_put(uwb_dev);	/* for the creation in _onair() */
 
@@ -365,7 +365,7 @@ int __uwb_dev_offair(struct uwb_dev *uwb_dev, struct uwb_rc *rc)
  * radio silence for a while.
  *
  * If this device is actually a local radio controller we don't need
- * to go through the offair process, as it is not registered as that.
+ * to go through the offair process, as it is yest registered as that.
  *
  * NOTE: uwb_bcn_cache.mutex is held!
  */
@@ -375,7 +375,7 @@ void uwbd_dev_offair(struct uwb_beca_e *bce)
 
 	uwb_dev = bce->uwb_dev;
 	if (uwb_dev) {
-		uwb_notify(uwb_dev->rc, uwb_dev, UWB_NOTIF_OFFAIR);
+		uwb_yestify(uwb_dev->rc, uwb_dev, UWB_NOTIF_OFFAIR);
 		__uwb_dev_offair(uwb_dev, uwb_dev->rc);
 	}
 }
@@ -404,7 +404,7 @@ void uwbd_dev_onair(struct uwb_rc *rc, struct uwb_beca_e *bce)
 	uwb_dev_addr_print(devbuf, sizeof(devbuf), &bce->dev_addr);
 	uwb_dev = kzalloc(sizeof(struct uwb_dev), GFP_KERNEL);
 	if (uwb_dev == NULL) {
-		dev_err(dev, "new device %s: Cannot allocate memory\n",
+		dev_err(dev, "new device %s: Canyest allocate memory\n",
 			macbuf);
 		return;
 	}
@@ -421,7 +421,7 @@ void uwbd_dev_onair(struct uwb_rc *rc, struct uwb_beca_e *bce)
 
 	result = uwb_dev_add(uwb_dev, &rc->uwb_dev.dev, rc);
 	if (result < 0) {
-		dev_err(dev, "new device %s: cannot instantiate device\n",
+		dev_err(dev, "new device %s: canyest instantiate device\n",
 			macbuf);
 		goto error_dev_add;
 	}
@@ -429,7 +429,7 @@ void uwbd_dev_onair(struct uwb_rc *rc, struct uwb_beca_e *bce)
 	dev_info(dev, "uwb device (mac %s dev %s) connected to %s %s\n",
 		 macbuf, devbuf, uwb_dev->dev.bus->name,
 		 dev_name(&(rc->uwb_dev.dev)));
-	uwb_notify(rc, uwb_dev, UWB_NOTIF_ONAIR);
+	uwb_yestify(rc, uwb_dev, UWB_NOTIF_ONAIR);
 	return;
 
 error_dev_add:
@@ -447,7 +447,7 @@ error_dev_add:
  * @rc:       radio controller for the devices.
  * @function: function to call.
  * @priv:     data to pass to @function.
- * @returns:  0 if no invocation of function() returned a value
+ * @returns:  0 if yes invocation of function() returned a value
  *            different to zero. That value otherwise.
  */
 int uwb_dev_for_each(struct uwb_rc *rc, uwb_dev_for_each_f function, void *priv)

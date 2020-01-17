@@ -60,7 +60,7 @@
 
 #define AT91_DDRSDRC_T1PR	0x10	/* Timing 1 Register */
 #define		AT91_DDRSDRC_TRFC	(0x1f << 0)		/* Row Cycle Delay */
-#define		AT91_DDRSDRC_TXSNR	(0xff << 8)		/* Exit self-refresh to non-read */
+#define		AT91_DDRSDRC_TXSNR	(0xff << 8)		/* Exit self-refresh to yesn-read */
 #define		AT91_DDRSDRC_TXSRD	(0xff << 16)		/* Exit self-refresh to read */
 #define		AT91_DDRSDRC_TXP	(0xf  << 24)		/* Exit power-down delay */
 

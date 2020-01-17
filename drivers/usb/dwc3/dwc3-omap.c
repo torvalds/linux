@@ -125,8 +125,8 @@ struct dwc3_omap {
 	u32			irq0_offset;
 
 	struct extcon_dev	*edev;
-	struct notifier_block	vbus_nb;
-	struct notifier_block	id_nb;
+	struct yestifier_block	vbus_nb;
+	struct yestifier_block	id_nb;
 
 	struct regulator	*vbus_reg;
 };
@@ -339,7 +339,7 @@ static void dwc3_omap_disable_irqs(struct dwc3_omap *omap)
 	dwc3_omap_write_irqmisc_clr(omap, reg);
 }
 
-static int dwc3_omap_id_notifier(struct notifier_block *nb,
+static int dwc3_omap_id_yestifier(struct yestifier_block *nb,
 	unsigned long event, void *ptr)
 {
 	struct dwc3_omap *omap = container_of(nb, struct dwc3_omap, id_nb);
@@ -352,7 +352,7 @@ static int dwc3_omap_id_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static int dwc3_omap_vbus_notifier(struct notifier_block *nb,
+static int dwc3_omap_vbus_yestifier(struct yestifier_block *nb,
 	unsigned long event, void *ptr)
 {
 	struct dwc3_omap *omap = container_of(nb, struct dwc3_omap, vbus_nb);
@@ -367,7 +367,7 @@ static int dwc3_omap_vbus_notifier(struct notifier_block *nb,
 
 static void dwc3_omap_map_offset(struct dwc3_omap *omap)
 {
-	struct device_node	*node = omap->dev->of_node;
+	struct device_yesde	*yesde = omap->dev->of_yesde;
 
 	/*
 	 * Differentiate between OMAP5 and AM437x.
@@ -377,7 +377,7 @@ static void dwc3_omap_map_offset(struct dwc3_omap *omap)
 	 *
 	 * Using dt compatible to differentiate AM437x.
 	 */
-	if (of_device_is_compatible(node, "ti,am437x-dwc3")) {
+	if (of_device_is_compatible(yesde, "ti,am437x-dwc3")) {
 		omap->irq_eoi_offset = USBOTGSS_EOI_OFFSET;
 		omap->irq0_offset = USBOTGSS_IRQ0_OFFSET;
 		omap->irqmisc_offset = USBOTGSS_IRQMISC_OFFSET;
@@ -389,12 +389,12 @@ static void dwc3_omap_map_offset(struct dwc3_omap *omap)
 static void dwc3_omap_set_utmi_mode(struct dwc3_omap *omap)
 {
 	u32			reg;
-	struct device_node	*node = omap->dev->of_node;
+	struct device_yesde	*yesde = omap->dev->of_yesde;
 	u32			utmi_mode = 0;
 
 	reg = dwc3_omap_read_utmi_ctrl(omap);
 
-	of_property_read_u32(node, "utmi-mode", &utmi_mode);
+	of_property_read_u32(yesde, "utmi-mode", &utmi_mode);
 
 	switch (utmi_mode) {
 	case DWC3_OMAP_UTMI_MODE_SW:
@@ -413,27 +413,27 @@ static void dwc3_omap_set_utmi_mode(struct dwc3_omap *omap)
 static int dwc3_omap_extcon_register(struct dwc3_omap *omap)
 {
 	int			ret;
-	struct device_node	*node = omap->dev->of_node;
+	struct device_yesde	*yesde = omap->dev->of_yesde;
 	struct extcon_dev	*edev;
 
-	if (of_property_read_bool(node, "extcon")) {
+	if (of_property_read_bool(yesde, "extcon")) {
 		edev = extcon_get_edev_by_phandle(omap->dev, 0);
 		if (IS_ERR(edev)) {
 			dev_vdbg(omap->dev, "couldn't get extcon device\n");
 			return -EPROBE_DEFER;
 		}
 
-		omap->vbus_nb.notifier_call = dwc3_omap_vbus_notifier;
-		ret = devm_extcon_register_notifier(omap->dev, edev,
+		omap->vbus_nb.yestifier_call = dwc3_omap_vbus_yestifier;
+		ret = devm_extcon_register_yestifier(omap->dev, edev,
 						EXTCON_USB, &omap->vbus_nb);
 		if (ret < 0)
-			dev_vdbg(omap->dev, "failed to register notifier for USB\n");
+			dev_vdbg(omap->dev, "failed to register yestifier for USB\n");
 
-		omap->id_nb.notifier_call = dwc3_omap_id_notifier;
-		ret = devm_extcon_register_notifier(omap->dev, edev,
+		omap->id_nb.yestifier_call = dwc3_omap_id_yestifier;
+		ret = devm_extcon_register_yestifier(omap->dev, edev,
 						EXTCON_USB_HOST, &omap->id_nb);
 		if (ret < 0)
-			dev_vdbg(omap->dev, "failed to register notifier for USB-HOST\n");
+			dev_vdbg(omap->dev, "failed to register yestifier for USB-HOST\n");
 
 		if (extcon_get_state(edev, EXTCON_USB) == true)
 			dwc3_omap_set_mailbox(omap, OMAP_DWC3_VBUS_VALID);
@@ -448,7 +448,7 @@ static int dwc3_omap_extcon_register(struct dwc3_omap *omap)
 
 static int dwc3_omap_probe(struct platform_device *pdev)
 {
-	struct device_node	*node = pdev->dev.of_node;
+	struct device_yesde	*yesde = pdev->dev.of_yesde;
 
 	struct dwc3_omap	*omap;
 	struct device		*dev = &pdev->dev;
@@ -461,8 +461,8 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 
 	void __iomem		*base;
 
-	if (!node) {
-		dev_err(dev, "device node not found\n");
+	if (!yesde) {
+		dev_err(dev, "device yesde yest found\n");
 		return -EINVAL;
 	}
 
@@ -480,7 +480,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	if (of_property_read_bool(node, "vbus-supply")) {
+	if (of_property_read_bool(yesde, "vbus-supply")) {
 		vbus_reg = devm_regulator_get(dev, "vbus");
 		if (IS_ERR(vbus_reg)) {
 			dev_err(dev, "vbus init failed\n");
@@ -510,7 +510,7 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err1;
 
-	ret = of_platform_populate(node, NULL, NULL, dev);
+	ret = of_platform_populate(yesde, NULL, NULL, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to create dwc3 core\n");
 		goto err1;

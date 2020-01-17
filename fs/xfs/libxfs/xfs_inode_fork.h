@@ -6,8 +6,8 @@
 #ifndef	__XFS_INODE_FORK_H__
 #define	__XFS_INODE_FORK_H__
 
-struct xfs_inode_log_item;
-struct xfs_dinode;
+struct xfs_iyesde_log_item;
+struct xfs_diyesde;
 
 /*
  * File incore extent information, present for each of data & attr forks.
@@ -26,7 +26,7 @@ struct xfs_ifork {
 };
 
 /*
- * Per-fork incore inode flags.
+ * Per-fork incore iyesde flags.
  */
 #define	XFS_IFINLINE	0x01	/* Inline data is read in */
 #define	XFS_IFEXTENTS	0x02	/* All extent pointers are read in */
@@ -91,40 +91,40 @@ struct xfs_ifork {
 	(XFS_IFORK_FORMAT((ip), (w)) == XFS_DINODE_FMT_EXTENTS || \
 	 XFS_IFORK_FORMAT((ip), (w)) == XFS_DINODE_FMT_BTREE)
 
-struct xfs_ifork *xfs_iext_state_to_fork(struct xfs_inode *ip, int state);
+struct xfs_ifork *xfs_iext_state_to_fork(struct xfs_iyesde *ip, int state);
 
-int		xfs_iformat_fork(struct xfs_inode *, struct xfs_dinode *);
-void		xfs_iflush_fork(struct xfs_inode *, struct xfs_dinode *,
-				struct xfs_inode_log_item *, int);
-void		xfs_idestroy_fork(struct xfs_inode *, int);
-void		xfs_idata_realloc(struct xfs_inode *ip, int64_t byte_diff,
+int		xfs_iformat_fork(struct xfs_iyesde *, struct xfs_diyesde *);
+void		xfs_iflush_fork(struct xfs_iyesde *, struct xfs_diyesde *,
+				struct xfs_iyesde_log_item *, int);
+void		xfs_idestroy_fork(struct xfs_iyesde *, int);
+void		xfs_idata_realloc(struct xfs_iyesde *ip, int64_t byte_diff,
 				int whichfork);
-void		xfs_iroot_realloc(struct xfs_inode *, int, int);
-int		xfs_iread_extents(struct xfs_trans *, struct xfs_inode *, int);
-int		xfs_iextents_copy(struct xfs_inode *, struct xfs_bmbt_rec *,
+void		xfs_iroot_realloc(struct xfs_iyesde *, int, int);
+int		xfs_iread_extents(struct xfs_trans *, struct xfs_iyesde *, int);
+int		xfs_iextents_copy(struct xfs_iyesde *, struct xfs_bmbt_rec *,
 				  int);
-void		xfs_init_local_fork(struct xfs_inode *ip, int whichfork,
+void		xfs_init_local_fork(struct xfs_iyesde *ip, int whichfork,
 				const void *data, int64_t size);
 
 xfs_extnum_t	xfs_iext_count(struct xfs_ifork *ifp);
-void		xfs_iext_insert(struct xfs_inode *, struct xfs_iext_cursor *cur,
+void		xfs_iext_insert(struct xfs_iyesde *, struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *, int);
-void		xfs_iext_remove(struct xfs_inode *, struct xfs_iext_cursor *,
+void		xfs_iext_remove(struct xfs_iyesde *, struct xfs_iext_cursor *,
 			int);
 void		xfs_iext_destroy(struct xfs_ifork *);
 
-bool		xfs_iext_lookup_extent(struct xfs_inode *ip,
-			struct xfs_ifork *ifp, xfs_fileoff_t bno,
+bool		xfs_iext_lookup_extent(struct xfs_iyesde *ip,
+			struct xfs_ifork *ifp, xfs_fileoff_t byes,
 			struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *gotp);
-bool		xfs_iext_lookup_extent_before(struct xfs_inode *ip,
+bool		xfs_iext_lookup_extent_before(struct xfs_iyesde *ip,
 			struct xfs_ifork *ifp, xfs_fileoff_t *end,
 			struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *gotp);
 bool		xfs_iext_get_extent(struct xfs_ifork *ifp,
 			struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *gotp);
-void		xfs_iext_update_extent(struct xfs_inode *ip, int state,
+void		xfs_iext_update_extent(struct xfs_iyesde *ip, int state,
 			struct xfs_iext_cursor *cur,
 			struct xfs_bmbt_irec *gotp);
 
@@ -178,9 +178,9 @@ static inline bool xfs_iext_peek_prev_extent(struct xfs_ifork *ifp,
 
 extern struct kmem_zone	*xfs_ifork_zone;
 
-extern void xfs_ifork_init_cow(struct xfs_inode *ip);
+extern void xfs_ifork_init_cow(struct xfs_iyesde *ip);
 
-typedef xfs_failaddr_t (*xfs_ifork_verifier_t)(struct xfs_inode *);
+typedef xfs_failaddr_t (*xfs_ifork_verifier_t)(struct xfs_iyesde *);
 
 struct xfs_ifork_ops {
 	xfs_ifork_verifier_t	verify_symlink;
@@ -189,9 +189,9 @@ struct xfs_ifork_ops {
 };
 extern struct xfs_ifork_ops	xfs_default_ifork_ops;
 
-xfs_failaddr_t xfs_ifork_verify_data(struct xfs_inode *ip,
+xfs_failaddr_t xfs_ifork_verify_data(struct xfs_iyesde *ip,
 		struct xfs_ifork_ops *ops);
-xfs_failaddr_t xfs_ifork_verify_attr(struct xfs_inode *ip,
+xfs_failaddr_t xfs_ifork_verify_attr(struct xfs_iyesde *ip,
 		struct xfs_ifork_ops *ops);
 
 #endif	/* __XFS_INODE_FORK_H__ */

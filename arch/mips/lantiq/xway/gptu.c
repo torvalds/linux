@@ -20,7 +20,7 @@
 #define GPTU_CLC	0x00
 /* id register */
 #define GPTU_ID		0x08
-/* interrupt node enable */
+/* interrupt yesde enable */
 #define GPTU_IRNEN	0xf4
 /* interrupt control register */
 #define GPTU_IRCR	0xf8
@@ -136,7 +136,7 @@ static int gptu_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct resource *res;
 
-	if (of_irq_to_resource_table(pdev->dev.of_node, irqres, 6) != 6) {
+	if (of_irq_to_resource_table(pdev->dev.of_yesde, irqres, 6) != 6) {
 		dev_err(&pdev->dev, "Failed to get IRQ list\n");
 		return -EINVAL;
 	}

@@ -40,7 +40,7 @@ struct entry_header {
  * @header_offset: entry's header at offset from the end of the cmd_db_header
  * @data_offset: entry's data at offset from the end of the cmd_db_header
  * @cnt: number of entries for HW type
- * @version: MSB is major, LSB is minor
+ * @version: MSB is major, LSB is miyesr
  * @reserved: reserved for future use.
  */
 struct rsc_hdr {
@@ -120,7 +120,7 @@ rsc_offset(const struct rsc_hdr *hdr, const struct entry_header *ent)
 /**
  * cmd_db_ready - Indicates if command DB is available
  *
- * Return: 0 on success, errno otherwise
+ * Return: 0 on success, erryes otherwise
  */
 int cmd_db_ready(void)
 {
@@ -241,7 +241,7 @@ static int cmd_db_dev_probe(struct platform_device *pdev)
 	struct reserved_mem *rmem;
 	int ret = 0;
 
-	rmem = of_reserved_mem_lookup(pdev->dev.of_node);
+	rmem = of_reserved_mem_lookup(pdev->dev.of_yesde);
 	if (!rmem) {
 		dev_err(&pdev->dev, "failed to acquire memory region\n");
 		return -EINVAL;

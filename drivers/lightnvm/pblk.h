@@ -56,7 +56,7 @@
 enum {
 	PBLK_READ		= READ,
 	PBLK_WRITE		= WRITE,/* Write from write buffer */
-	PBLK_WRITE_INT,			/* Internal write - no write buffer */
+	PBLK_WRITE_INT,			/* Internal write - yes write buffer */
 	PBLK_READ_RECOV,		/* Recovery read - errors allowed */
 	PBLK_ERASE,
 };
@@ -223,8 +223,8 @@ struct pblk_gc_rq {
 };
 
 struct pblk_gc {
-	/* These states are not protected by a lock since (i) they are in the
-	 * fast path, and (ii) they are not critical.
+	/* These states are yest protected by a lock since (i) they are in the
+	 * fast path, and (ii) they are yest critical.
 	 */
 	int gc_active;
 	int gc_enabled;
@@ -266,7 +266,7 @@ struct pblk_rl {
 	int rb_windows_pw;	/* Number of rate windows in the write buffer
 				 * given as a power-of-2. This guarantees that
 				 * when user I/O is being rate limited, there
-				 * will be reserved enough space for the GC to
+				 * will be reserved eyesugh space for the GC to
 				 * place its payload. A window is of
 				 * pblk->max_write_pgs size, which in NVMe is
 				 * 64, i.e., 256kb.
@@ -294,7 +294,7 @@ struct pblk_rl {
 	unsigned long total_blocks;
 
 	atomic_t free_blocks;		/* Total number of free blocks (+ OP) */
-	atomic_t free_user_blocks;	/* Number of user free blocks (no OP) */
+	atomic_t free_user_blocks;	/* Number of user free blocks (yes OP) */
 };
 
 #define PBLK_LINE_EMPTY (~0U)
@@ -328,7 +328,7 @@ enum {
 
 /* emeta/smeta persistent storage format versions:
  * Changes in major version requires offline migration.
- * Changes in minor version are handled automatically during
+ * Changes in miyesr version are handled automatically during
  * recovery.
  */
 
@@ -344,7 +344,7 @@ struct line_header {
 	__u8 uuid[16];		/* instance uuid */
 	__le16 type;		/* line type */
 	__u8 version_major;	/* version major */
-	__u8 version_minor;	/* version minor */
+	__u8 version_miyesr;	/* version miyesr */
 	__le32 id;		/* line id for current line */
 };
 
@@ -504,7 +504,7 @@ struct pblk_line_mgmt {
 
 	struct list_head gc_werr_list;  /* Write err recovery list */
 
-	struct list_head gc_full_list;	/* Full lines ready to GC, no valid */
+	struct list_head gc_full_list;	/* Full lines ready to GC, yes valid */
 	struct list_head gc_empty_list;	/* Full lines close, all valid */
 
 	struct pblk_line *log_line;	/* Current FTL log line */
@@ -577,7 +577,7 @@ enum {
 	PBLK_STATE_STOPPED = 3,
 };
 
-/* Internal format to support not power-of-2 device formats */
+/* Internal format to support yest power-of-2 device formats */
 struct pblk_addrf {
 	/* gen to dev */
 	int sec_stripe;
@@ -671,7 +671,7 @@ struct pblk {
 	struct task_struct *writer_ts;
 
 	/* Simple translation map of logical addresses to physical addresses.
-	 * The logical addresses is known by the host system, while the physical
+	 * The logical addresses is kyeswn by the host system, while the physical
 	 * addresses are used when writing to the disk block device.
 	 */
 	unsigned char *trans_map;

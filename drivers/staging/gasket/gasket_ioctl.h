@@ -13,7 +13,7 @@
  * @cmd: Ioctl command.
  * @arg: Ioctl argument pointer.
  *
- * Returns 0 on success and nonzero on failure.
+ * Returns 0 on success and yesnzero on failure.
  */
 long gasket_handle_ioctl(struct file *filp, uint cmd, void __user *argp);
 

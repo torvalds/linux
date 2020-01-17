@@ -73,9 +73,9 @@ struct sp805_wdt {
 	unsigned int			load_val;
 };
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
 		"Set to 1 to keep watchdog running after device release");
 
 /* returns true if wdt is running; otherwise returns false */
@@ -239,23 +239,23 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	if (adev->dev.of_node) {
+	if (adev->dev.of_yesde) {
 		wdt->clk = devm_clk_get(&adev->dev, NULL);
 		if (IS_ERR(wdt->clk)) {
-			dev_err(&adev->dev, "Clock not found\n");
+			dev_err(&adev->dev, "Clock yest found\n");
 			return PTR_ERR(wdt->clk);
 		}
 		wdt->rate = clk_get_rate(wdt->clk);
 	} else if (has_acpi_companion(&adev->dev)) {
 		/*
 		 * When Driver probe with ACPI device, clock devices
-		 * are not available, so watchdog rate get from
+		 * are yest available, so watchdog rate get from
 		 * clock-frequency property given in _DSD object.
 		 */
 		device_property_read_u64(&adev->dev, "clock-frequency",
 					 &wdt->rate);
 		if (!wdt->rate) {
-			dev_err(&adev->dev, "no clock-frequency property\n");
+			dev_err(&adev->dev, "yes clock-frequency property\n");
 			return -ENODEV;
 		}
 	}
@@ -266,7 +266,7 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 	wdt->wdd.parent = &adev->dev;
 
 	spin_lock_init(&wdt->lock);
-	watchdog_set_nowayout(&wdt->wdd, nowayout);
+	watchdog_set_yeswayout(&wdt->wdd, yeswayout);
 	watchdog_set_drvdata(&wdt->wdd, wdt);
 	watchdog_set_restart_priority(&wdt->wdd, 128);
 

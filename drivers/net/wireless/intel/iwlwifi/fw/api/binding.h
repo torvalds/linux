@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -133,7 +133,7 @@ struct iwl_time_quota_data_v1 {
  * struct iwl_time_quota_cmd - configuration of time quota between bindings
  * ( TIME_QUOTA_CMD = 0x2c )
  * @quotas: allocations per binding
- * Note: on non-CDB the fourth one is the auxilary mac and is
+ * Note: on yesn-CDB the fourth one is the auxilary mac and is
  *	essentially zero.
  *	On CDB the fourth one is a regular binding.
  */
@@ -167,7 +167,7 @@ struct iwl_time_quota_data {
 /**
  * struct iwl_time_quota_cmd - configuration of time quota between bindings
  * ( TIME_QUOTA_CMD = 0x2c )
- * Note: on non-CDB the fourth one is the auxilary mac and is essentially zero.
+ * Note: on yesn-CDB the fourth one is the auxilary mac and is essentially zero.
  * On CDB the fourth one is a regular binding.
  *
  * @quotas: allocations per binding

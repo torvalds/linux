@@ -56,7 +56,7 @@
 /* ADC conversion table limits */
 #define OMAP4430_ADC_START_VALUE			0
 #define OMAP4430_ADC_END_VALUE				127
-/* bandgap clock limits (no control on 4430) */
+/* bandgap clock limits (yes control on 4430) */
 #define OMAP4430_MAX_FREQ				32768
 #define OMAP4430_MIN_FREQ				32768
 

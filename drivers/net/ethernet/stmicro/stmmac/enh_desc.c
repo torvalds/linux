@@ -25,7 +25,7 @@ static int enh_desc_get_tx_status(void *data, struct stmmac_extra_stats *x,
 
 	/* Verify tx error by looking at the last segment. */
 	if (likely(!(tdes0 & ETDES0_LAST_SEGMENT)))
-		return tx_not_ls;
+		return tx_yest_ls;
 
 	if (unlikely(tdes0 & ETDES0_ERROR_SUMMARY)) {
 		if (unlikely(tdes0 & ETDES0_JABBER_TIMEOUT))
@@ -97,7 +97,7 @@ static int enh_desc_coe_rdes0(int ipc_err, int type, int payload_err)
 	 *      1 1 0 | IPv4/6 CSUM IP HR error
 	 *      1 1 1 | IPv4/6 IP PAYLOAD AND HEADER errorS
 	 *      0 0 1 | IPv4/6 unsupported IP PAYLOAD
-	 *      0 1 1 | COE bypassed.. no IPv4/6 frame
+	 *      0 1 1 | COE bypassed.. yes IPv4/6 frame
 	 *      0 1 0 | Reserved.
 	 */
 	if (status == 0x0)
@@ -105,11 +105,11 @@ static int enh_desc_coe_rdes0(int ipc_err, int type, int payload_err)
 	else if (status == 0x4)
 		ret = good_frame;
 	else if (status == 0x5)
-		ret = csum_none;
+		ret = csum_yesne;
 	else if (status == 0x6)
-		ret = csum_none;
+		ret = csum_yesne;
 	else if (status == 0x7)
-		ret = csum_none;
+		ret = csum_yesne;
 	else if (status == 0x1)
 		ret = discard_frame;
 	else if (status == 0x3)
@@ -138,7 +138,7 @@ static void enh_desc_get_ext_status(void *data, struct stmmac_extra_stats *x,
 			x->ipv6_pkt_rcvd++;
 
 		if (message_type == RDES_EXT_NO_PTP)
-			x->no_ptp_rx_msg_type_ext++;
+			x->yes_ptp_rx_msg_type_ext++;
 		else if (message_type == RDES_EXT_SYNC)
 			x->ptp_rx_msg_type_sync++;
 		else if (message_type == RDES_EXT_FOLLOW_UP)
@@ -154,7 +154,7 @@ static void enh_desc_get_ext_status(void *data, struct stmmac_extra_stats *x,
 		else if (message_type == RDES_EXT_PDELAY_FOLLOW_UP)
 			x->ptp_rx_msg_type_pdelay_follow_up++;
 		else if (message_type == RDES_PTP_ANNOUNCE)
-			x->ptp_rx_msg_type_announce++;
+			x->ptp_rx_msg_type_anyesunce++;
 		else if (message_type == RDES_PTP_MANAGEMENT)
 			x->ptp_rx_msg_type_management++;
 		else if (message_type == RDES_PTP_PKT_RESERVED_TYPE)
@@ -177,7 +177,7 @@ static void enh_desc_get_ext_status(void *data, struct stmmac_extra_stats *x,
 		if (rdes4 & ERDES4_L4_FILTER_MATCH)
 			x->l4_filter_match++;
 		if ((rdes4 & ERDES4_L3_L4_FILT_NO_MATCH_MASK) >> 26)
-			x->l3_l4_filter_no_match++;
+			x->l3_l4_filter_yes_match++;
 	}
 }
 
@@ -389,7 +389,7 @@ static void enh_desc_get_timestamp(void *desc, u32 ats, u64 *ts)
 	if (ats) {
 		struct dma_extended_desc *p = (struct dma_extended_desc *)desc;
 		ns = le32_to_cpu(p->des6);
-		/* convert high/sec time stamp value to nanosecond */
+		/* convert high/sec time stamp value to nayessecond */
 		ns += le32_to_cpu(p->des7) * 1000000000ULL;
 	} else {
 		struct dma_desc *p = (struct dma_desc *)desc;

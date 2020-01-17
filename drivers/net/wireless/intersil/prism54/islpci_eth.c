@@ -84,7 +84,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	/* lock the driver code */
 	spin_lock_irqsave(&priv->slock, flags);
 
-	/* check whether the destination queue has enough fragments for the frame */
+	/* check whether the destination queue has eyesugh fragments for the frame */
 	curr_frag = le32_to_cpu(cb->driver_curr_frag[ISL38XX_CB_TX_DATA_LQ]);
 	if (unlikely(curr_frag - priv->free_data_tx >= ISL38XX_CB_TX_QSIZE)) {
 		printk(KERN_ERR "%s: transmit device queue full when awake\n",
@@ -98,7 +98,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 		goto drop_free;
 	}
 	/* Check alignment and WDS frame formatting. The start of the packet should
-	 * be aligned on a 4-byte boundary. If WDS is enabled add another 6 bytes
+	 * be aligned on a 4-byte boundary. If WDS is enabled add ayesther 6 bytes
 	 * and add WDS address information */
 	if (likely(((long) skb->data & 0x03) | init_wds)) {
 		/* get the number of bytes to add and re-align */
@@ -136,7 +136,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 			newskb =
 			    dev_alloc_skb(init_wds ? skb->len + 6 : skb->len);
 			if (unlikely(newskb == NULL)) {
-				printk(KERN_ERR "%s: Cannot allocate skb\n",
+				printk(KERN_ERR "%s: Canyest allocate skb\n",
 				       ndev->name);
 				goto drop_free;
 			}
@@ -180,7 +180,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 					 (void *) skb->data, skb->len,
 					 PCI_DMA_TODEVICE);
 	if (pci_dma_mapping_error(priv->pdev, pci_map_address)) {
-		printk(KERN_WARNING "%s: cannot map buffer to PCI\n",
+		printk(KERN_WARNING "%s: canyest map buffer to PCI\n",
 		       ndev->name);
 		goto drop_free;
 	}
@@ -199,7 +199,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	curr_frag++;
 
 	/* The fragment address in the control block must have been
-	 * written before announcing the frame buffer to device. */
+	 * written before anyesuncing the frame buffer to device. */
 	wmb();
 	cb->driver_curr_frag[ISL38XX_CB_TX_DATA_LQ] = cpu_to_le32(curr_frag);
 
@@ -261,7 +261,7 @@ islpci_monitor_rx(islpci_private *priv, struct sk_buff **skb)
 				*skb = newskb;
 			} else
 				return -1;
-			/* This behavior is not very subtile... */
+			/* This behavior is yest very subtile... */
 		}
 
 		/* make room for the new header and fill it. */
@@ -274,13 +274,13 @@ islpci_monitor_rx(islpci_private *priv, struct sk_buff **skb)
 		avs->phytype = cpu_to_be32(6);	/*OFDM: 6 for (g), 8 for (a) */
 		avs->channel = cpu_to_be32(channel_of_freq(freq));
 		avs->datarate = cpu_to_be32(rate * 5);
-		avs->antenna = cpu_to_be32(0);	/*unknown */
-		avs->priority = cpu_to_be32(0);	/*unknown */
+		avs->antenna = cpu_to_be32(0);	/*unkyeswn */
+		avs->priority = cpu_to_be32(0);	/*unkyeswn */
 		avs->ssi_type = cpu_to_be32(3);	/*2: dBm, 3: raw RSSI */
 		avs->ssi_signal = cpu_to_be32(rssi & 0x7f);
-		avs->ssi_noise = cpu_to_be32(priv->local_iwstatistics.qual.noise);	/*better than 'undefined', I assume */
-		avs->preamble = cpu_to_be32(0);	/*unknown */
-		avs->encoding = cpu_to_be32(0);	/*unknown */
+		avs->ssi_yesise = cpu_to_be32(priv->local_iwstatistics.qual.yesise);	/*better than 'undefined', I assume */
+		avs->preamble = cpu_to_be32(0);	/*unkyeswn */
+		avs->encoding = cpu_to_be32(0);	/*unkyeswn */
 	} else
 		skb_pull(*skb, sizeof (struct rfmon_header));
 
@@ -307,7 +307,7 @@ islpci_eth_receive(islpci_private *priv)
 #endif
 
 	/* the device has written an Ethernet frame in the data area
-	 * of the sk_buff without updating the structure, do it now */
+	 * of the sk_buff without updating the structure, do it yesw */
 	index = priv->free_data_rx % ISL38XX_CB_RX_QSIZE;
 	size = le16_to_cpu(control_block->rx_data_low[index].size);
 	skb = priv->data_low_rx[index];
@@ -369,10 +369,10 @@ islpci_eth_receive(islpci_private *priv)
 			struct rx_annex_header *annex =
 			    (struct rx_annex_header *) skb->data;
 			wstats.level = annex->rfmon.rssi;
-			/* The noise value can be a bit outdated if nobody's
+			/* The yesise value can be a bit outdated if yesbody's
 			 * reading wireless stats... */
-			wstats.noise = priv->local_iwstatistics.qual.noise;
-			wstats.qual = wstats.level - wstats.noise;
+			wstats.yesise = priv->local_iwstatistics.qual.yesise;
+			wstats.qual = wstats.level - wstats.yesise;
 			wstats.updated = 0x07;
 			/* Update spy records */
 			wireless_spy_update(ndev, annex->addr2, &wstats);

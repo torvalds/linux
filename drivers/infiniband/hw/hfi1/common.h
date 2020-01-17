@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -55,9 +55,9 @@
  * to communicate between kernel and user code.
  */
 
-/* version of protocol header (known to chip also). In the long run,
+/* version of protocol header (kyeswn to chip also). In the long run,
  * we should be able to generate and accept a range of version numbers;
- * for now we only accept one, and it's compiled in.
+ * for yesw we only accept one, and it's compiled in.
  */
 #define IPS_PROTO_VERSION 2
 
@@ -139,7 +139,7 @@
 				  HFI1_CAP_TID_UNMAP |			\
 				  HFI1_CAP_OPFN)
 /*
- * A set of capability bits that are "global" and are not allowed to be
+ * A set of capability bits that are "global" and are yest allowed to be
  * set in the user bitmask.
  */
 #define HFI1_CAP_RESERVED_MASK   ((HFI1_CAP_SDMA |			\
@@ -193,7 +193,7 @@
  * slightly different, in that we want to tell if the driver was built as
  * part of a Intel release, or from the driver from openfabrics.org,
  * kernel.org, or a standard distribution, for support reasons.
- * The high bit is 0 for non-Intel and 1 for Intel-built/supplied.
+ * The high bit is 0 for yesn-Intel and 1 for Intel-built/supplied.
  *
  * It's returned by the driver to the user code during initialization in the
  * spi_sw_version field of hfi1_base_info, so the user code can in turn
@@ -203,7 +203,7 @@
 
 /*
  * Define the driver version number.  This is something that refers only
- * to the driver itself, not the software interfaces it supports.
+ * to the driver itself, yest the software interfaces it supports.
  */
 #ifndef HFI1_DRIVER_VERSION_BASE
 #define HFI1_DRIVER_VERSION_BASE "0.9-294"
@@ -217,7 +217,7 @@
 #endif
 
 /*
- * Diagnostics can send a packet by writing the following
+ * Diagyesstics can send a packet by writing the following
  * struct to the diag packet special file.
  *
  * This allows a custom PBC qword, so that special modes and deliberate
@@ -294,7 +294,7 @@ struct diag_pkt {
 /* RHF receive types */
 #define RHF_RCV_TYPE_EXPECTED 0
 #define RHF_RCV_TYPE_EAGER    1
-#define RHF_RCV_TYPE_IB       2 /* normal IB, IB Raw, or IPv6 */
+#define RHF_RCV_TYPE_IB       2 /* yesrmal IB, IB Raw, or IPv6 */
 #define RHF_RCV_TYPE_ERROR    3
 #define RHF_RCV_TYPE_BYPASS   4
 #define RHF_RCV_TYPE_INVALID5 5
@@ -364,7 +364,7 @@ static inline u32 rhf_rcv_type_err(u64 rhf)
 	return (rhf >> RHF_RCV_TYPE_ERR_SHIFT) & RHF_RCV_TYPE_ERR_MASK;
 }
 
-/* return size is in bytes, not DWORDs */
+/* return size is in bytes, yest DWORDs */
 static inline u32 rhf_pkt_len(u64 rhf)
 {
 	return ((rhf & RHF_PKT_LEN_SMASK) >> RHF_PKT_LEN_SHIFT) << 2;

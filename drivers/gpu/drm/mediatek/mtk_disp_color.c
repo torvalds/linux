@@ -77,7 +77,7 @@ static int mtk_disp_color_bind(struct device *dev, struct device *master,
 	ret = mtk_ddp_comp_register(drm_dev, &priv->ddp_comp);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register component %pOF: %d\n",
-			dev->of_node, ret);
+			dev->of_yesde, ret);
 		return ret;
 	}
 
@@ -109,13 +109,13 @@ static int mtk_disp_color_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DISP_COLOR);
+	comp_id = mtk_ddp_comp_get_id(dev->of_yesde, MTK_DISP_COLOR);
 	if (comp_id < 0) {
 		dev_err(dev, "Failed to identify by alias: %d\n", comp_id);
 		return comp_id;
 	}
 
-	ret = mtk_ddp_comp_init(dev, dev->of_node, &priv->ddp_comp, comp_id,
+	ret = mtk_ddp_comp_init(dev, dev->of_yesde, &priv->ddp_comp, comp_id,
 				&mtk_disp_color_funcs);
 	if (ret) {
 		dev_err(dev, "Failed to initialize component: %d\n", ret);

@@ -8,7 +8,7 @@
  */
 
 #include <linux/string.h>
-#include "nonstdio.h"
+#include "yesnstdio.h"
 #include "ansidecl.h"
 #include "spu.h"
 #include "dis-asm.h"

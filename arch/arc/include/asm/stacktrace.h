@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syyespsys, Inc. (www.syyespsys.com)
+ * Copyright (C) 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef __ASM_STACKTRACE_H
@@ -22,11 +22,11 @@
  * Returns the address of first function in stack
  *
  * Semantics:
- *  - synchronous unwinding (e.g. dump_stack): @tsk  NULL, @regs  NULL
- *  - Asynchronous unwinding of sleeping task: @tsk !NULL, @regs  NULL
- *  - Asynchronous unwinding of intr/excp etc: @tsk !NULL, @regs !NULL
+ *  - synchroyesus unwinding (e.g. dump_stack): @tsk  NULL, @regs  NULL
+ *  - Asynchroyesus unwinding of sleeping task: @tsk !NULL, @regs  NULL
+ *  - Asynchroyesus unwinding of intr/excp etc: @tsk !NULL, @regs !NULL
  */
-notrace noinline unsigned int arc_unwind_core(
+yestrace yesinline unsigned int arc_unwind_core(
 	struct task_struct *tsk, struct pt_regs *regs,
 	int (*consumer_fn) (unsigned int, void *),
 	void *arg);

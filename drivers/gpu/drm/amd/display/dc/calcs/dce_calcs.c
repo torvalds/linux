@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -121,7 +121,7 @@ static void calculate_bandwidth(
 	/*initialize variables*/
 	int32_t number_of_displays_enabled = 0;
 	int32_t number_of_displays_enabled_with_margin = 0;
-	int32_t number_of_aligned_displays_with_no_margin = 0;
+	int32_t number_of_aligned_displays_with_yes_margin = 0;
 
 	yclk[low] = vbios->low_yclk;
 	yclk[mid] = vbios->mid_yclk;
@@ -154,11 +154,11 @@ static void calculate_bandwidth(
 
 
 
-	if (data->d0_underlay_mode == bw_def_none) { d0_underlay_enable = 0; }
+	if (data->d0_underlay_mode == bw_def_yesne) { d0_underlay_enable = 0; }
 	else {
 		d0_underlay_enable = 1;
 	}
-	if (data->d1_underlay_mode == bw_def_none) { d1_underlay_enable = 0; }
+	if (data->d1_underlay_mode == bw_def_yesne) { d1_underlay_enable = 0; }
 	else {
 		d1_underlay_enable = 1;
 	}
@@ -395,8 +395,8 @@ static void calculate_bandwidth(
 	data->h_scale_ratio[maximum_number_of_surfaces - 1] = bw_int_to_fixed(1);
 	data->v_scale_ratio[maximum_number_of_surfaces - 2] = bw_int_to_fixed(1);
 	data->v_scale_ratio[maximum_number_of_surfaces - 1] = bw_int_to_fixed(1);
-	data->stereo_mode[maximum_number_of_surfaces - 2] = bw_def_mono;
-	data->stereo_mode[maximum_number_of_surfaces - 1] = bw_def_mono;
+	data->stereo_mode[maximum_number_of_surfaces - 2] = bw_def_moyes;
+	data->stereo_mode[maximum_number_of_surfaces - 1] = bw_def_moyes;
 	data->cursor_width_pixels[maximum_number_of_surfaces - 2] = bw_int_to_fixed(0);
 	data->cursor_width_pixels[maximum_number_of_surfaces - 1] = bw_int_to_fixed(0);
 	data->use_alpha[maximum_number_of_surfaces - 2] = 0;
@@ -408,7 +408,7 @@ static void calculate_bandwidth(
 	/* vsr*/
 	/* lb size*/
 	/*effective scaling source and ratios:*/
-	/*for graphics, non-stereo, non-interlace surfaces when the size of the source and destination are the same, only one tap is used*/
+	/*for graphics, yesn-stereo, yesn-interlace surfaces when the size of the source and destination are the same, only one tap is used*/
 	/*420 chroma has half the width, height, horizontal and vertical scaling ratios than luma*/
 	/*rotating a graphic or underlay surface swaps the width, height, horizontal and vertical scaling ratios*/
 	/*in top-bottom stereo mode there is 2:1 vertical downscaling for each eye*/
@@ -417,7 +417,7 @@ static void calculate_bandwidth(
 	/*in panning or bezel adjustment mode the source width has an extra 128 pixels*/
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i]) {
-			if (bw_equ(data->h_scale_ratio[i], bw_int_to_fixed(1)) && bw_equ(data->v_scale_ratio[i], bw_int_to_fixed(1)) && surface_type[i] == bw_def_graphics && data->stereo_mode[i] == bw_def_mono && data->interlace_mode[i] == 0) {
+			if (bw_equ(data->h_scale_ratio[i], bw_int_to_fixed(1)) && bw_equ(data->v_scale_ratio[i], bw_int_to_fixed(1)) && surface_type[i] == bw_def_graphics && data->stereo_mode[i] == bw_def_moyes && data->interlace_mode[i] == 0) {
 				data->h_taps[i] = bw_int_to_fixed(1);
 				data->v_taps[i] = bw_int_to_fixed(1);
 			}
@@ -474,7 +474,7 @@ static void calculate_bandwidth(
 			else {
 				data->vsr[i] = data->vsr_after_stereo;
 			}
-			if (data->panning_and_bezel_adjustment != bw_def_none) {
+			if (data->panning_and_bezel_adjustment != bw_def_yesne) {
 				data->source_width_rounded_up_to_chunks[i] = bw_add(bw_floor2(bw_sub(data->source_width_pixels[i], bw_int_to_fixed(1)), bw_int_to_fixed(128)), bw_int_to_fixed(256));
 			}
 			else {
@@ -485,20 +485,20 @@ static void calculate_bandwidth(
 	}
 	/*mode support checks:*/
 	/*the number of graphics and underlay pipes is limited by the ip support*/
-	/*maximum horizontal and vertical scale ratio is 4, and should not exceed the number of taps*/
+	/*maximum horizontal and vertical scale ratio is 4, and should yest exceed the number of taps*/
 	/*for downscaling with the pre-downscaler, the horizontal scale ratio must be more than the ceiling of one quarter of the number of taps*/
 	/*the pre-downscaler reduces the line buffer source by the horizontal scale ratio*/
 	/*the number of lines in the line buffer has to exceed the number of vertical taps*/
 	/*the size of the line in the line buffer is the product of the source width and the bits per component, rounded up to a multiple of 48*/
 	/*the size of the line in the line buffer in the case of 10 bit per component is the product of the source width rounded up to multiple of 8 and 30.023438 / 3, rounded up to a multiple of 48*/
 	/*the size of the line in the line buffer in the case of 8 bit per component is the product of the source width rounded up to multiple of 8 and 30.023438 / 3, rounded up to a multiple of 48*/
-	/*frame buffer compression is not supported with stereo mode, rotation, or non- 888 formats*/
-	/*rotation is not supported with linear of stereo modes*/
+	/*frame buffer compression is yest supported with stereo mode, rotation, or yesn- 888 formats*/
+	/*rotation is yest supported with linear of stereo modes*/
 	if (dceip->number_of_graphics_pipes >= data->number_of_displays && dceip->number_of_underlay_pipes >= data->number_of_underlay_surfaces && !(dceip->display_write_back_supported == 0 && data->d1_display_write_back_dwb_enable == 1)) {
 		pipe_check = bw_def_ok;
 	}
 	else {
-		pipe_check = bw_def_notok;
+		pipe_check = bw_def_yestok;
 	}
 	hsr_check = bw_def_ok;
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
@@ -557,7 +557,7 @@ static void calculate_bandwidth(
 			}
 			data->lb_partitions[i] = bw_floor2(bw_div(data->lb_size_per_component[i], data->lb_line_pitch), bw_int_to_fixed(1));
 			/*clamp the partitions to the maxium number supported by the lb*/
-			if ((surface_type[i] != bw_def_graphics || dceip->graphics_lb_nodownscaling_multi_line_prefetching == 1)) {
+			if ((surface_type[i] != bw_def_graphics || dceip->graphics_lb_yesdownscaling_multi_line_prefetching == 1)) {
 				data->lb_partitions_max[i] = bw_int_to_fixed(10);
 			}
 			else {
@@ -565,20 +565,20 @@ static void calculate_bandwidth(
 			}
 			data->lb_partitions[i] = bw_min2(data->lb_partitions_max[i], data->lb_partitions[i]);
 			if (bw_mtn(bw_add(data->v_taps[i], bw_int_to_fixed(1)), data->lb_partitions[i])) {
-				lb_size_check = bw_def_notok;
+				lb_size_check = bw_def_yestok;
 			}
 		}
 	}
 	fbc_check = bw_def_ok;
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
-		if (data->enable[i] && data->fbc_en[i] == 1 && (bw_equ(data->rotation_angle[i], bw_int_to_fixed(90)) || bw_equ(data->rotation_angle[i], bw_int_to_fixed(270)) || data->stereo_mode[i] != bw_def_mono || data->bytes_per_pixel[i] != 4)) {
+		if (data->enable[i] && data->fbc_en[i] == 1 && (bw_equ(data->rotation_angle[i], bw_int_to_fixed(90)) || bw_equ(data->rotation_angle[i], bw_int_to_fixed(270)) || data->stereo_mode[i] != bw_def_moyes || data->bytes_per_pixel[i] != 4)) {
 			fbc_check = bw_def_invalid_rotation_or_bpp_or_stereo;
 		}
 	}
 	rotation_check = bw_def_ok;
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i]) {
-			if ((bw_equ(data->rotation_angle[i], bw_int_to_fixed(90)) || bw_equ(data->rotation_angle[i], bw_int_to_fixed(270))) && (tiling_mode[i] == bw_def_linear || data->stereo_mode[i] != bw_def_mono)) {
+			if ((bw_equ(data->rotation_angle[i], bw_int_to_fixed(90)) || bw_equ(data->rotation_angle[i], bw_int_to_fixed(270))) && (tiling_mode[i] == bw_def_linear || data->stereo_mode[i] != bw_def_moyes)) {
 				rotation_check = bw_def_invalid_linear_or_stereo_mode;
 			}
 		}
@@ -587,7 +587,7 @@ static void calculate_bandwidth(
 		mode_check = bw_def_ok;
 	}
 	else {
-		mode_check = bw_def_notok;
+		mode_check = bw_def_yestok;
 	}
 	/*number of memory channels for write-back client*/
 	data->number_of_dram_wrchannels = vbios->number_of_dram_channels;
@@ -624,7 +624,7 @@ static void calculate_bandwidth(
 			data->dram_efficiency = bw_frc_to_fixed(8, 10);
 	}
 	/*memory request size and latency hiding:*/
-	/*request size is normally 64 byte, 2-line interleaved, with full latency hiding*/
+	/*request size is yesrmally 64 byte, 2-line interleaved, with full latency hiding*/
 	/*the display write-back requests are single line*/
 	/*for tiled graphics surfaces, or undelay surfaces with width higher than the maximum size for full efficiency, request size is 32 byte in 8 and 16 bpp or if the rotation is orthogonal to the tiling grain. only half is useful of the bytes in the request size in 8 bpp or in 32 bpp if the rotation is orthogonal to the tiling grain.*/
 	/*for undelay surfaces with width lower than the maximum size for full efficiency, requests are 4-line interleaved in 16bpp if the rotation is parallel to the tiling grain, and 8-line interleaved with 4-line latency hiding in 8bpp or if the rotation is orthogonal to the tiling grain.*/
@@ -632,7 +632,7 @@ static void calculate_bandwidth(
 		if (data->enable[i]) {
 			if ((bw_equ(data->rotation_angle[i], bw_int_to_fixed(90)) || bw_equ(data->rotation_angle[i], bw_int_to_fixed(270)))) {
 				if ((i < 4)) {
-					/*underlay portrait tiling mode is not supported*/
+					/*underlay portrait tiling mode is yest supported*/
 					data->orthogonal_rotation[i] = 1;
 				}
 				else {
@@ -762,11 +762,11 @@ static void calculate_bandwidth(
 	/*the peak bandwidth is the peak request-per-second bandwidth times the request size.*/
 	/**/
 	/*the line buffer lines in per line out in the beginning of the frame is the vertical filter initialization value*/
-	/*rounded up to even and divided by the line times for initialization, which is normally three.*/
+	/*rounded up to even and divided by the line times for initialization, which is yesrmally three.*/
 	/*the line buffer lines in per line out in the middle of the frame is at least one, or the vertical scale ratio,*/
-	/*rounded up to line pairs if not doing line buffer prefetching.*/
+	/*rounded up to line pairs if yest doing line buffer prefetching.*/
 	/**/
-	/*the non-prefetching rounding up of the vertical scale ratio can also be done up to 1 (for a 0,2 pattern), 4/3 (for a 0,2,2 pattern),*/
+	/*the yesn-prefetching rounding up of the vertical scale ratio can also be done up to 1 (for a 0,2 pattern), 4/3 (for a 0,2,2 pattern),*/
 	/*6/4 (for a 0,2,2,2 pattern), or 3 (for a 2,4 pattern).*/
 	/**/
 	/*the scaler vertical filter initialization value is calculated by the hardware as the floor of the average of the*/
@@ -783,8 +783,8 @@ static void calculate_bandwidth(
 	/*multi-line buffer prefetching is only done in the graphics pipe when the scaler is disabled or when upscaling and the vsr <= 0.8.'*/
 	/**/
 	/*the horizontal blank and chunk granularity factor is indirectly used indicate the interval of time required to transfer the source pixels.*/
-	/*the denominator of this term represents the total number of destination output pixels required for the input source pixels.*/
-	/*it applies when the lines in per line out is not 2 or 4.  it does not apply when there is a line buffer between the scl and blnd.*/
+	/*the deyesminator of this term represents the total number of destination output pixels required for the input source pixels.*/
+	/*it applies when the lines in per line out is yest 2 or 4.  it does yest apply when there is a line buffer between the scl and blnd.*/
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i]) {
 			data->v_filter_init[i] = bw_floor2(bw_div((bw_add(bw_add(bw_add(bw_int_to_fixed(1), data->v_taps[i]), data->vsr[i]), bw_mul(bw_mul(bw_int_to_fixed(data->interlace_mode[i]), bw_frc_to_fixed(5, 10)), data->vsr[i]))), bw_int_to_fixed(2)), bw_int_to_fixed(1));
@@ -856,17 +856,17 @@ static void calculate_bandwidth(
 	/**/
 	/*the pipe chunk size uses 2 for line interleaving, except for the write back, in which case it is 1.*/
 	/*graphics and underlay data buffer size is adjusted (limited) using the outstanding chunk request limit if there is more than one*/
-	/*display enabled or if the dmif request buffer is not large enough for the total data buffer size.*/
+	/*display enabled or if the dmif request buffer is yest large eyesugh for the total data buffer size.*/
 	/*the outstanding chunk request limit is the ceiling of the adjusted data buffer size divided by the chunk size in bytes*/
 	/*the adjusted data buffer size is the product of the display bandwidth and the minimum effective data buffer size in terms of time,*/
-	/*rounded up to the chunk size in bytes, but should not exceed the original data buffer size*/
+	/*rounded up to the chunk size in bytes, but should yest exceed the original data buffer size*/
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i]) {
 			if ((dceip->dmif_pipe_en_fbc_chunk_tracker + 3 == i && fbc_enabled == 0 && tiling_mode[i] != bw_def_linear)) {
-				data->max_chunks_non_fbc_mode[i] = 128 - dmif_chunk_buff_margin;
+				data->max_chunks_yesn_fbc_mode[i] = 128 - dmif_chunk_buff_margin;
 			}
 			else {
-				data->max_chunks_non_fbc_mode[i] = 16 - dmif_chunk_buff_margin;
+				data->max_chunks_yesn_fbc_mode[i] = 16 - dmif_chunk_buff_margin;
 			}
 		}
 		if (data->fbc_en[i] == 1) {
@@ -907,12 +907,12 @@ static void calculate_bandwidth(
 					}
 				}
 				else {
-					/*the effective dmif buffer size in non-fbc mode is limited by the 16 entry chunk tracker*/
+					/*the effective dmif buffer size in yesn-fbc mode is limited by the 16 entry chunk tracker*/
 					if (data->number_of_displays == 1) {
-						data->data_buffer_size[i] = bw_min2(bw_mul(bw_mul(bw_int_to_fixed(data->max_chunks_non_fbc_mode[i]), bw_int_to_fixed(pixels_per_chunk)), bw_int_to_fixed(data->bytes_per_pixel[i])), bw_mul(bw_int_to_fixed(dceip->max_dmif_buffer_allocated), bw_int_to_fixed(dceip->graphics_dmif_size)));
+						data->data_buffer_size[i] = bw_min2(bw_mul(bw_mul(bw_int_to_fixed(data->max_chunks_yesn_fbc_mode[i]), bw_int_to_fixed(pixels_per_chunk)), bw_int_to_fixed(data->bytes_per_pixel[i])), bw_mul(bw_int_to_fixed(dceip->max_dmif_buffer_allocated), bw_int_to_fixed(dceip->graphics_dmif_size)));
 					}
 					else {
-						data->data_buffer_size[i] = bw_min2(bw_mul(bw_mul(bw_int_to_fixed(data->max_chunks_non_fbc_mode[i]), bw_int_to_fixed(pixels_per_chunk)), bw_int_to_fixed(data->bytes_per_pixel[i])), bw_int_to_fixed(dceip->graphics_dmif_size));
+						data->data_buffer_size[i] = bw_min2(bw_mul(bw_mul(bw_int_to_fixed(data->max_chunks_yesn_fbc_mode[i]), bw_int_to_fixed(pixels_per_chunk)), bw_int_to_fixed(data->bytes_per_pixel[i])), bw_int_to_fixed(dceip->graphics_dmif_size));
 					}
 				}
 				break;
@@ -975,11 +975,11 @@ static void calculate_bandwidth(
 		}
 	}
 	/*outstanding pte request limit*/
-	/*in tiling mode with no rotation the sg pte requests are 8 useful pt_es, the sg row height is the page height and the sg page width x height is 64x64 for 8bpp, 64x32 for 16 bpp, 32x32 for 32 bpp*/
+	/*in tiling mode with yes rotation the sg pte requests are 8 useful pt_es, the sg row height is the page height and the sg page width x height is 64x64 for 8bpp, 64x32 for 16 bpp, 32x32 for 32 bpp*/
 	/*in tiling mode with rotation the sg pte requests are only one useful pte, and the sg row height is also the page height, but the sg page width and height are swapped*/
 	/*in linear mode the pte requests are 8 useful pt_es, the sg page width is 4096 divided by the bytes per pixel, the sg page height is 1, but there is just one row whose height is the lines of pte prefetching*/
 	/*the outstanding pte request limit is obtained by multiplying the outstanding chunk request limit by the peak pte request to eviction limiting ratio, rounding up to integer, multiplying by the pte requests per chunk, and rounding up to integer again*/
-	/*if not using peak pte request to eviction limiting, the outstanding pte request limit is the pte requests in the vblank*/
+	/*if yest using peak pte request to eviction limiting, the outstanding pte request limit is the pte requests in the vblank*/
 	/*the pte requests in the vblank is the product of the number of pte request rows times the number of pte requests in a row*/
 	/*the number of pte requests in a row is the quotient of the source width divided by 256, multiplied by the pte requests per chunk, rounded up to even, multiplied by the scatter-gather row height and divided by the scatter-gather page height*/
 	/*the pte requests per chunk is 256 divided by the scatter-gather page width and the useful pt_es per pte request*/
@@ -987,7 +987,7 @@ static void calculate_bandwidth(
 		data->peak_pte_request_to_eviction_ratio_limiting = dceip->peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display;
 	}
 	else {
-		data->peak_pte_request_to_eviction_ratio_limiting = dceip->peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation;
+		data->peak_pte_request_to_eviction_ratio_limiting = dceip->peak_pte_request_to_eviction_ratio_limiting_single_display_yes_rotation;
 	}
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i] && data->scatter_gather_enable_for_pipe[i] == 1) {
@@ -1048,7 +1048,7 @@ static void calculate_bandwidth(
 		}
 	}
 	/*pitch padding recommended for efficiency in linear mode*/
-	/*in linear mode graphics or underlay with scatter gather, a pitch that is a multiple of the channel interleave (256 bytes) times the channel-bank rotation is not efficient*/
+	/*in linear mode graphics or underlay with scatter gather, a pitch that is a multiple of the channel interleave (256 bytes) times the channel-bank rotation is yest efficient*/
 	/*if that is the case it is recommended to pad the pitch by at least 256 pixels*/
 	data->inefficient_linear_pitch_in_bytes = bw_mul(bw_mul(bw_int_to_fixed(256), bw_int_to_fixed(vbios->number_of_dram_banks)), bw_int_to_fixed(data->number_of_dram_channels));
 
@@ -1138,7 +1138,7 @@ static void calculate_bandwidth(
 			if (surface_type[i] != bw_def_display_write_back420_luma && surface_type[i] != bw_def_display_write_back420_chroma) {
 				data->display_reads_required_data = data->adjusted_data_buffer_size_in_memory[i];
 				/*for hbm memories, each channel is split into 2 pseudo-channels that are each 64 bits in width.  each*/
-				/*pseudo-channel may be read independently of one another.*/
+				/*pseudo-channel may be read independently of one ayesther.*/
 				/*the read burst length (bl) for hbm memories is 4, so each read command will access 32 bytes of data.*/
 				/*the 64 or 32 byte sized data is stored in one pseudo-channel.*/
 				/*it will take 4 memclk cycles or 8 yclk cycles to fetch 64 bytes of data from the hbm memory (2 read commands).*/
@@ -1201,7 +1201,7 @@ static void calculate_bandwidth(
 						data->dmif_buffer_transfer_time[i] = bw_mul(data->source_width_rounded_up_to_chunks[i], (bw_div(dceip->lb_write_pixels_per_dispclk, (bw_div(vbios->low_voltage_max_dispclk, dceip->display_pipe_throughput_factor)))));
 						data->line_source_transfer_time[i][j][k] = bw_max2(bw_mul((bw_add(data->total_dmifmc_urgent_latency, data->dmif_burst_time[j][k])), bw_floor2(bw_div(data->src_data_for_first_output_pixel[i], data->adjusted_data_buffer_size_in_memory[i]), bw_int_to_fixed(1))), bw_sub(bw_add(bw_mul((bw_add(data->total_dmifmc_urgent_latency, data->dmif_burst_time[j][k])), bw_floor2(bw_div(data->src_data_for_last_output_pixel[i], data->adjusted_data_buffer_size_in_memory[i]), bw_int_to_fixed(1))), data->dmif_buffer_transfer_time[i]), data->active_time[i]));
 						/*during an mclk switch the requests from the dce ip are stored in the gmc/arb.  these requests should be serviced immediately*/
-						/*after the mclk switch sequence and not incur an urgent latency penalty.  it is assumed that the gmc/arb can hold up to 256 requests*/
+						/*after the mclk switch sequence and yest incur an urgent latency penalty.  it is assumed that the gmc/arb can hold up to 256 requests*/
 						/*per memory channel.  if the dce ip is urgent after the mclk switch sequence, all pending requests and subsequent requests should be*/
 						/*immediately serviced without a gap in the urgent requests.*/
 						/*the latency incurred would be the time to issue the requests and return the data for the first or last output pixel.*/
@@ -1251,7 +1251,7 @@ static void calculate_bandwidth(
 					else {
 						data->line_source_transfer_time[i][j][k] = bw_max2(bw_mul((bw_add(vbios->mcifwrmc_urgent_latency, data->mcifwr_burst_time[j][k])), bw_floor2(bw_div(data->src_data_for_first_output_pixel[i], data->adjusted_data_buffer_size_in_memory[i]), bw_int_to_fixed(1))), bw_sub(bw_mul((bw_add(vbios->mcifwrmc_urgent_latency, data->mcifwr_burst_time[j][k])), bw_floor2(bw_div(data->src_data_for_last_output_pixel[i], data->adjusted_data_buffer_size_in_memory[i]), bw_int_to_fixed(1))), data->active_time[i]));
 						/*during an mclk switch the requests from the dce ip are stored in the gmc/arb.  these requests should be serviced immediately*/
-						/*after the mclk switch sequence and not incur an urgent latency penalty.  it is assumed that the gmc/arb can hold up to 256 requests*/
+						/*after the mclk switch sequence and yest incur an urgent latency penalty.  it is assumed that the gmc/arb can hold up to 256 requests*/
 						/*per memory channel.  if the dce ip is urgent after the mclk switch sequence, all pending requests and subsequent requests should be*/
 						/*immediately serviced without a gap in the urgent requests.*/
 						/*the latency incurred would be the time to issue the requests and return the data for the first or last output pixel.*/
@@ -1262,8 +1262,8 @@ static void calculate_bandwidth(
 		}
 	}
 	/*cpu c-state and p-state change enable*/
-	/*for cpu p-state change to be possible for a yclk(pclk) and sclk level the dispclk required has to be enough for the blackout duration*/
-	/*for cpu c-state change to be possible for a yclk(pclk) and sclk level the dispclk required has to be enough for the blackout duration and recovery*/
+	/*for cpu p-state change to be possible for a yclk(pclk) and sclk level the dispclk required has to be eyesugh for the blackout duration*/
+	/*for cpu c-state change to be possible for a yclk(pclk) and sclk level the dispclk required has to be eyesugh for the blackout duration and recovery*/
 	/*condition for the blackout duration:*/
 	/* minimum latency hiding > blackout duration + dmif burst time + line source transfer time*/
 	/*condition for the blackout recovery:*/
@@ -1299,7 +1299,7 @@ static void calculate_bandwidth(
 	}
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i]) {
-			if (dceip->graphics_lb_nodownscaling_multi_line_prefetching == 1 && (bw_equ(data->vsr[i], bw_int_to_fixed(1)) || (bw_leq(data->vsr[i], bw_frc_to_fixed(8, 10)) && bw_leq(data->v_taps[i], bw_int_to_fixed(2)) && data->lb_bpc[i] == 8)) && surface_type[i] == bw_def_graphics) {
+			if (dceip->graphics_lb_yesdownscaling_multi_line_prefetching == 1 && (bw_equ(data->vsr[i], bw_int_to_fixed(1)) || (bw_leq(data->vsr[i], bw_frc_to_fixed(8, 10)) && bw_leq(data->v_taps[i], bw_int_to_fixed(2)) && data->lb_bpc[i] == 8)) && surface_type[i] == bw_def_graphics) {
 				if (number_of_displays_enabled > 2)
 					data->minimum_latency_hiding[i] = bw_sub(bw_div(bw_mul((bw_div((bw_add(bw_sub(data->lb_partitions[i], bw_int_to_fixed(2)), bw_div(bw_div(data->data_buffer_size[i], bw_int_to_fixed(data->bytes_per_pixel[i])), data->source_width_pixels[i]))), data->vsr[i])), data->h_total[i]), data->pixel_rate[i]), data->total_dmifmc_urgent_latency);
 				else
@@ -1343,17 +1343,17 @@ static void calculate_bandwidth(
 		}
 	}
 	if (bw_mtn(data->blackout_duration_margin[high][s_high], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[high][s_high], vbios->high_voltage_max_dispclk)) {
-		data->cpup_state_change_enable = bw_def_yes;
+		data->cpup_state_change_enable = bw_def_no;
 		if (bw_ltn(data->dispclk_required_for_blackout_recovery[high][s_high], vbios->high_voltage_max_dispclk)) {
-			data->cpuc_state_change_enable = bw_def_yes;
+			data->cpuc_state_change_enable = bw_def_no;
 		}
 		else {
-			data->cpuc_state_change_enable = bw_def_no;
+			data->cpuc_state_change_enable = bw_def_yes;
 		}
 	}
 	else {
-		data->cpup_state_change_enable = bw_def_no;
-		data->cpuc_state_change_enable = bw_def_no;
+		data->cpup_state_change_enable = bw_def_yes;
+		data->cpuc_state_change_enable = bw_def_yes;
 	}
 	/*nb p-state change enable*/
 	/*for dram speed/p-state change to be possible for a yclk(pclk) and sclk level there has to be positive margin and the dispclk required has to be*/
@@ -1361,10 +1361,10 @@ static void calculate_bandwidth(
 	/*the dram speed/p-state change margin is the minimum for all surfaces of the maximum latency hiding minus the dram speed/p-state change latency,*/
 	/*minus the dmif burst time, minus the source line transfer time*/
 	/*the maximum latency hiding is the minimum latency hiding plus one source line used for de-tiling in the line buffer, plus half the urgent latency*/
-	/*if stutter and dram clock state change are gated before cursor then the cursor latency hiding does not limit stutter or dram clock state change*/
+	/*if stutter and dram clock state change are gated before cursor then the cursor latency hiding does yest limit stutter or dram clock state change*/
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i]) {
-			if (dceip->graphics_lb_nodownscaling_multi_line_prefetching == 1) {
+			if (dceip->graphics_lb_yesdownscaling_multi_line_prefetching == 1) {
 				data->maximum_latency_hiding[i] = bw_add(data->minimum_latency_hiding[i], bw_mul(bw_frc_to_fixed(5, 10), data->total_dmifmc_urgent_latency));
 			}
 			else {
@@ -1446,43 +1446,43 @@ static void calculate_bandwidth(
 			}
 		}
 	}
-	/*compute the maximum number of aligned displays with no margin*/
-	number_of_aligned_displays_with_no_margin = 0;
+	/*compute the maximum number of aligned displays with yes margin*/
+	number_of_aligned_displays_with_yes_margin = 0;
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
-		number_of_aligned_displays_with_no_margin = bw_fixed_to_int(bw_max2(bw_int_to_fixed(number_of_aligned_displays_with_no_margin), data->displays_with_same_mode[i]));
+		number_of_aligned_displays_with_yes_margin = bw_fixed_to_int(bw_max2(bw_int_to_fixed(number_of_aligned_displays_with_yes_margin), data->displays_with_same_mode[i]));
 	}
 	/*dram clock change is possible, if all displays have positive margin except for one display or a group of*/
 	/*aligned displays with the same timing.*/
 	/*the display(s) with the negative margin can be switched in the v_blank region while the other*/
 	/*displays are in v_blank or v_active.*/
-	if (number_of_displays_enabled_with_margin > 0 && (number_of_displays_enabled_with_margin + number_of_aligned_displays_with_no_margin) == number_of_displays_enabled && bw_mtn(data->min_dram_speed_change_margin[high][s_high], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[high][s_high], bw_int_to_fixed(9999)) && bw_ltn(data->dispclk_required_for_dram_speed_change[high][s_high], vbios->high_voltage_max_dispclk)) {
-		data->nbp_state_change_enable = bw_def_yes;
-	}
-	else {
+	if (number_of_displays_enabled_with_margin > 0 && (number_of_displays_enabled_with_margin + number_of_aligned_displays_with_yes_margin) == number_of_displays_enabled && bw_mtn(data->min_dram_speed_change_margin[high][s_high], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[high][s_high], bw_int_to_fixed(9999)) && bw_ltn(data->dispclk_required_for_dram_speed_change[high][s_high], vbios->high_voltage_max_dispclk)) {
 		data->nbp_state_change_enable = bw_def_no;
 	}
-	/*dram clock change is possible only in vblank if all displays are aligned and have no margin*/
-	if (number_of_aligned_displays_with_no_margin == number_of_displays_enabled) {
-		nbp_state_change_enable_blank = bw_def_yes;
+	else {
+		data->nbp_state_change_enable = bw_def_yes;
+	}
+	/*dram clock change is possible only in vblank if all displays are aligned and have yes margin*/
+	if (number_of_aligned_displays_with_yes_margin == number_of_displays_enabled) {
+		nbp_state_change_enable_blank = bw_def_no;
 	}
 	else {
-		nbp_state_change_enable_blank = bw_def_no;
+		nbp_state_change_enable_blank = bw_def_yes;
 	}
 
 	/*average bandwidth*/
-	/*the average bandwidth with no compression is the vertical active time is the source width times the bytes per pixel divided by the line time, multiplied by the vertical scale ratio and the ratio of bytes per request divided by the useful bytes per request.*/
+	/*the average bandwidth with yes compression is the vertical active time is the source width times the bytes per pixel divided by the line time, multiplied by the vertical scale ratio and the ratio of bytes per request divided by the useful bytes per request.*/
 	/*the average bandwidth with compression is the same, divided by the compression ratio*/
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i]) {
-			data->average_bandwidth_no_compression[i] = bw_div(bw_mul(bw_mul(bw_div(bw_mul(data->source_width_rounded_up_to_chunks[i], bw_int_to_fixed(data->bytes_per_pixel[i])), (bw_div(data->h_total[i], data->pixel_rate[i]))), data->vsr[i]), data->bytes_per_request[i]), data->useful_bytes_per_request[i]);
-			data->average_bandwidth[i] = bw_div(data->average_bandwidth_no_compression[i], data->compression_rate[i]);
+			data->average_bandwidth_yes_compression[i] = bw_div(bw_mul(bw_mul(bw_div(bw_mul(data->source_width_rounded_up_to_chunks[i], bw_int_to_fixed(data->bytes_per_pixel[i])), (bw_div(data->h_total[i], data->pixel_rate[i]))), data->vsr[i]), data->bytes_per_request[i]), data->useful_bytes_per_request[i]);
+			data->average_bandwidth[i] = bw_div(data->average_bandwidth_yes_compression[i], data->compression_rate[i]);
 		}
 	}
-	data->total_average_bandwidth_no_compression = bw_int_to_fixed(0);
+	data->total_average_bandwidth_yes_compression = bw_int_to_fixed(0);
 	data->total_average_bandwidth = bw_int_to_fixed(0);
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i]) {
-			data->total_average_bandwidth_no_compression = bw_add(data->total_average_bandwidth_no_compression, data->average_bandwidth_no_compression[i]);
+			data->total_average_bandwidth_yes_compression = bw_add(data->total_average_bandwidth_yes_compression, data->average_bandwidth_yes_compression[i]);
 			data->total_average_bandwidth = bw_add(data->total_average_bandwidth, data->average_bandwidth[i]);
 		}
 	}
@@ -1490,7 +1490,7 @@ static void calculate_bandwidth(
 	/*required yclk(pclk)*/
 	/*yclk requirement only makes sense if the dmif and mcifwr data total page close-open time is less than the time for data transfer and the total pte requests fit in the scatter-gather saw queque size*/
 	/*if that is the case, the yclk requirement is the maximum of the ones required by dmif and mcifwr, and the high/low yclk(pclk) is chosen accordingly*/
-	/*high yclk(pclk) has to be selected when dram speed/p-state change is not possible.*/
+	/*high yclk(pclk) has to be selected when dram speed/p-state change is yest possible.*/
 	data->min_cursor_memory_interface_buffer_size_in_time = bw_int_to_fixed(9999);
 	/* number of cursor lines stored in the cursor data return buffer*/
 	num_cursor_lines = 0;
@@ -1536,19 +1536,19 @@ static void calculate_bandwidth(
 	}
 	else {
 		data->required_dram_bandwidth_gbyte_per_second = bw_div(bw_max2(data->dmif_required_dram_bandwidth, data->mcifwr_required_dram_bandwidth), bw_int_to_fixed(1000));
-		if (bw_ltn(data->total_average_bandwidth_no_compression, bw_mul(bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation, 100),yclk[low]),bw_div(bw_int_to_fixed(vbios->dram_channel_width_in_bits),bw_int_to_fixed(8))),bw_int_to_fixed(vbios->number_of_dram_channels)))
-				&& bw_ltn(bw_mul(data->required_dram_bandwidth_gbyte_per_second, bw_int_to_fixed(1000)), bw_mul(bw_div(bw_mul(bw_mul(data->dram_efficiency, yclk[low]), bw_int_to_fixed(vbios->dram_channel_width_in_bits)), bw_int_to_fixed(8)), bw_int_to_fixed(data->number_of_dram_channels))) && (data->cpup_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[low][s_high], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[low][s_high], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[low][s_high], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[low][s_high], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[low][s_high], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_no || (bw_mtn(data->min_dram_speed_change_margin[low][s_high], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[low][s_high], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[low][s_high], vbios->high_voltage_max_dispclk) && data->num_displays_with_margin[low][s_high] == number_of_displays_enabled_with_margin))) {
+		if (bw_ltn(data->total_average_bandwidth_yes_compression, bw_mul(bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_drambw_display_can_use_in_yesrmal_system_operation, 100),yclk[low]),bw_div(bw_int_to_fixed(vbios->dram_channel_width_in_bits),bw_int_to_fixed(8))),bw_int_to_fixed(vbios->number_of_dram_channels)))
+				&& bw_ltn(bw_mul(data->required_dram_bandwidth_gbyte_per_second, bw_int_to_fixed(1000)), bw_mul(bw_div(bw_mul(bw_mul(data->dram_efficiency, yclk[low]), bw_int_to_fixed(vbios->dram_channel_width_in_bits)), bw_int_to_fixed(8)), bw_int_to_fixed(data->number_of_dram_channels))) && (data->cpup_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[low][s_high], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[low][s_high], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[low][s_high], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[low][s_high], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[low][s_high], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_yes || (bw_mtn(data->min_dram_speed_change_margin[low][s_high], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[low][s_high], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[low][s_high], vbios->high_voltage_max_dispclk) && data->num_displays_with_margin[low][s_high] == number_of_displays_enabled_with_margin))) {
 			yclk_message = bw_fixed_to_int(vbios->low_yclk);
 			data->y_clk_level = low;
 			data->dram_bandwidth = bw_mul(bw_div(bw_mul(bw_mul(data->dram_efficiency, yclk[low]), bw_int_to_fixed(vbios->dram_channel_width_in_bits)), bw_int_to_fixed(8)), bw_int_to_fixed(data->number_of_dram_channels));
 		}
-		else if (bw_ltn(data->total_average_bandwidth_no_compression, bw_mul(bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation, 100),yclk[mid]),bw_div(bw_int_to_fixed(vbios->dram_channel_width_in_bits),bw_int_to_fixed(8))),bw_int_to_fixed(vbios->number_of_dram_channels)))
-				&& bw_ltn(bw_mul(data->required_dram_bandwidth_gbyte_per_second, bw_int_to_fixed(1000)), bw_mul(bw_div(bw_mul(bw_mul(data->dram_efficiency, yclk[mid]), bw_int_to_fixed(vbios->dram_channel_width_in_bits)), bw_int_to_fixed(8)), bw_int_to_fixed(data->number_of_dram_channels))) && (data->cpup_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[mid][s_high], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[mid][s_high], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[mid][s_high], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[mid][s_high], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[mid][s_high], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_no || (bw_mtn(data->min_dram_speed_change_margin[mid][s_high], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[mid][s_high], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[mid][s_high], vbios->high_voltage_max_dispclk) && data->num_displays_with_margin[mid][s_high] == number_of_displays_enabled_with_margin))) {
+		else if (bw_ltn(data->total_average_bandwidth_yes_compression, bw_mul(bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_drambw_display_can_use_in_yesrmal_system_operation, 100),yclk[mid]),bw_div(bw_int_to_fixed(vbios->dram_channel_width_in_bits),bw_int_to_fixed(8))),bw_int_to_fixed(vbios->number_of_dram_channels)))
+				&& bw_ltn(bw_mul(data->required_dram_bandwidth_gbyte_per_second, bw_int_to_fixed(1000)), bw_mul(bw_div(bw_mul(bw_mul(data->dram_efficiency, yclk[mid]), bw_int_to_fixed(vbios->dram_channel_width_in_bits)), bw_int_to_fixed(8)), bw_int_to_fixed(data->number_of_dram_channels))) && (data->cpup_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[mid][s_high], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[mid][s_high], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[mid][s_high], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[mid][s_high], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[mid][s_high], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_yes || (bw_mtn(data->min_dram_speed_change_margin[mid][s_high], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[mid][s_high], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[mid][s_high], vbios->high_voltage_max_dispclk) && data->num_displays_with_margin[mid][s_high] == number_of_displays_enabled_with_margin))) {
 			yclk_message = bw_fixed_to_int(vbios->mid_yclk);
 			data->y_clk_level = mid;
 			data->dram_bandwidth = bw_mul(bw_div(bw_mul(bw_mul(data->dram_efficiency, yclk[mid]), bw_int_to_fixed(vbios->dram_channel_width_in_bits)), bw_int_to_fixed(8)), bw_int_to_fixed(data->number_of_dram_channels));
 		}
-		else if (bw_ltn(data->total_average_bandwidth_no_compression, bw_mul(bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation, 100),yclk[high]),bw_div(bw_int_to_fixed(vbios->dram_channel_width_in_bits),bw_int_to_fixed(8))),bw_int_to_fixed(vbios->number_of_dram_channels)))
+		else if (bw_ltn(data->total_average_bandwidth_yes_compression, bw_mul(bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_drambw_display_can_use_in_yesrmal_system_operation, 100),yclk[high]),bw_div(bw_int_to_fixed(vbios->dram_channel_width_in_bits),bw_int_to_fixed(8))),bw_int_to_fixed(vbios->number_of_dram_channels)))
 				&& bw_ltn(bw_mul(data->required_dram_bandwidth_gbyte_per_second, bw_int_to_fixed(1000)), bw_mul(bw_div(bw_mul(bw_mul(data->dram_efficiency, yclk[high]), bw_int_to_fixed(vbios->dram_channel_width_in_bits)), bw_int_to_fixed(8)), bw_int_to_fixed(data->number_of_dram_channels)))) {
 			yclk_message = bw_fixed_to_int(vbios->high_yclk);
 			data->y_clk_level = high;
@@ -1579,55 +1579,55 @@ static void calculate_bandwidth(
 	}
 	else {
 		data->required_sclk = bw_max2(data->dmif_required_sclk, data->mcifwr_required_sclk);
-		if (bw_ltn(data->total_average_bandwidth_no_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation, 100),sclk[low]),vbios->data_return_bus_width))
-				&& bw_ltn(data->required_sclk, sclk[s_low]) && (data->cpup_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_low], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_low], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_low], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_low], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_low], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_no || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_low], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_low], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_low], vbios->low_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_low] == number_of_displays_enabled_with_margin))) {
+		if (bw_ltn(data->total_average_bandwidth_yes_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation, 100),sclk[low]),vbios->data_return_bus_width))
+				&& bw_ltn(data->required_sclk, sclk[s_low]) && (data->cpup_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_low], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_low], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_low], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_low], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_low], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_yes || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_low], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_low], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_low], vbios->low_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_low] == number_of_displays_enabled_with_margin))) {
 			sclk_message = bw_def_low;
 			data->sclk_level = s_low;
 			data->required_sclk = vbios->low_sclk;
 		}
-		else if (bw_ltn(data->total_average_bandwidth_no_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation, 100),sclk[mid]),vbios->data_return_bus_width))
-				&& bw_ltn(data->required_sclk, sclk[s_mid1]) && (data->cpup_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid1], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid1], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid1], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid1], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_mid1], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_no || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid1], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid1], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_mid1], vbios->mid_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_mid1] == number_of_displays_enabled_with_margin))) {
+		else if (bw_ltn(data->total_average_bandwidth_yes_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation, 100),sclk[mid]),vbios->data_return_bus_width))
+				&& bw_ltn(data->required_sclk, sclk[s_mid1]) && (data->cpup_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid1], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid1], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid1], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid1], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_mid1], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_yes || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid1], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid1], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_mid1], vbios->mid_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_mid1] == number_of_displays_enabled_with_margin))) {
 			sclk_message = bw_def_mid;
 			data->sclk_level = s_mid1;
 			data->required_sclk = vbios->mid1_sclk;
 		}
-		else if (bw_ltn(data->total_average_bandwidth_no_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation, 100),sclk[s_mid2]),vbios->data_return_bus_width))
-				&& bw_ltn(data->required_sclk, sclk[s_mid2]) && (data->cpup_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid2], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid2], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid2], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid2], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_mid2], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_no || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid2], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid2], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_mid2], vbios->mid_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_mid2] == number_of_displays_enabled_with_margin))) {
+		else if (bw_ltn(data->total_average_bandwidth_yes_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation, 100),sclk[s_mid2]),vbios->data_return_bus_width))
+				&& bw_ltn(data->required_sclk, sclk[s_mid2]) && (data->cpup_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid2], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid2], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid2], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid2], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_mid2], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_yes || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid2], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid2], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_mid2], vbios->mid_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_mid2] == number_of_displays_enabled_with_margin))) {
 			sclk_message = bw_def_mid;
 			data->sclk_level = s_mid2;
 			data->required_sclk = vbios->mid2_sclk;
 		}
-		else if (bw_ltn(data->total_average_bandwidth_no_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation, 100),sclk[s_mid3]),vbios->data_return_bus_width))
-				&& bw_ltn(data->required_sclk, sclk[s_mid3]) && (data->cpup_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid3], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid3], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid3], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid3], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_mid3], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_no || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid3], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid3], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_mid3], vbios->mid_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_mid3] == number_of_displays_enabled_with_margin))) {
+		else if (bw_ltn(data->total_average_bandwidth_yes_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation, 100),sclk[s_mid3]),vbios->data_return_bus_width))
+				&& bw_ltn(data->required_sclk, sclk[s_mid3]) && (data->cpup_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid3], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid3], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid3], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid3], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_mid3], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_yes || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid3], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid3], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_mid3], vbios->mid_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_mid3] == number_of_displays_enabled_with_margin))) {
 			sclk_message = bw_def_mid;
 			data->sclk_level = s_mid3;
 			data->required_sclk = vbios->mid3_sclk;
 		}
-		else if (bw_ltn(data->total_average_bandwidth_no_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation, 100),sclk[s_mid4]),vbios->data_return_bus_width))
-				&& bw_ltn(data->required_sclk, sclk[s_mid4]) && (data->cpup_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid4], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid4], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid4], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid4], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_mid4], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_no || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid4], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid4], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_mid4], vbios->mid_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_mid4] == number_of_displays_enabled_with_margin))) {
+		else if (bw_ltn(data->total_average_bandwidth_yes_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation, 100),sclk[s_mid4]),vbios->data_return_bus_width))
+				&& bw_ltn(data->required_sclk, sclk[s_mid4]) && (data->cpup_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid4], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid4], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid4], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid4], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_mid4], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_yes || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid4], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid4], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_mid4], vbios->mid_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_mid4] == number_of_displays_enabled_with_margin))) {
 			sclk_message = bw_def_mid;
 			data->sclk_level = s_mid4;
 			data->required_sclk = vbios->mid4_sclk;
 		}
-		else if (bw_ltn(data->total_average_bandwidth_no_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation, 100),sclk[s_mid5]),vbios->data_return_bus_width))
-				&& bw_ltn(data->required_sclk, sclk[s_mid5]) && (data->cpup_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid5], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid5], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid5], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid5], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_mid5], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_no || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid5], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid5], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_mid5], vbios->mid_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_mid5] == number_of_displays_enabled_with_margin))) {
+		else if (bw_ltn(data->total_average_bandwidth_yes_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation, 100),sclk[s_mid5]),vbios->data_return_bus_width))
+				&& bw_ltn(data->required_sclk, sclk[s_mid5]) && (data->cpup_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid5], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid5], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid5], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid5], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_mid5], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_yes || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid5], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid5], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_mid5], vbios->mid_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_mid5] == number_of_displays_enabled_with_margin))) {
 			sclk_message = bw_def_mid;
 			data->sclk_level = s_mid5;
 			data->required_sclk = vbios->mid5_sclk;
 		}
-		else if (bw_ltn(data->total_average_bandwidth_no_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation, 100),sclk[s_mid6]),vbios->data_return_bus_width))
-				&& bw_ltn(data->required_sclk, sclk[s_mid6]) && (data->cpup_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid6], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid6], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_no || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid6], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid6], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_mid6], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_no || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid6], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid6], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_mid6], vbios->high_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_mid6] == number_of_displays_enabled_with_margin))) {
+		else if (bw_ltn(data->total_average_bandwidth_yes_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation, 100),sclk[s_mid6]),vbios->data_return_bus_width))
+				&& bw_ltn(data->required_sclk, sclk[s_mid6]) && (data->cpup_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid6], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid6], vbios->high_voltage_max_dispclk))) && (data->cpuc_state_change_enable == bw_def_yes || (bw_mtn(data->blackout_duration_margin[data->y_clk_level][s_mid6], bw_int_to_fixed(0)) && bw_ltn(data->dispclk_required_for_blackout_duration[data->y_clk_level][s_mid6], vbios->high_voltage_max_dispclk) && bw_ltn(data->dispclk_required_for_blackout_recovery[data->y_clk_level][s_mid6], vbios->high_voltage_max_dispclk))) && (!data->increase_voltage_to_support_mclk_switch || data->nbp_state_change_enable == bw_def_yes || (bw_mtn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid6], bw_int_to_fixed(0)) && bw_ltn(data->min_dram_speed_change_margin[data->y_clk_level][s_mid6], bw_int_to_fixed(9999)) && bw_leq(data->dispclk_required_for_dram_speed_change[data->y_clk_level][s_mid6], vbios->high_voltage_max_dispclk) && data->num_displays_with_margin[data->y_clk_level][s_mid6] == number_of_displays_enabled_with_margin))) {
 			sclk_message = bw_def_mid;
 			data->sclk_level = s_mid6;
 			data->required_sclk = vbios->mid6_sclk;
 		}
-		else if (bw_ltn(data->total_average_bandwidth_no_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation, 100),sclk[s_high]),vbios->data_return_bus_width))
+		else if (bw_ltn(data->total_average_bandwidth_yes_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation, 100),sclk[s_high]),vbios->data_return_bus_width))
 				&& bw_ltn(data->required_sclk, sclk[s_high])) {
 			sclk_message = bw_def_high;
 			data->sclk_level = s_high;
 			data->required_sclk = vbios->high_sclk;
 		}
-		else if (bw_meq(data->total_average_bandwidth_no_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation, 100),sclk[s_high]),vbios->data_return_bus_width))
+		else if (bw_meq(data->total_average_bandwidth_yes_compression, bw_mul(bw_mul(bw_frc_to_fixed(dceip->max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation, 100),sclk[s_high]),vbios->data_return_bus_width))
 				&& bw_ltn(data->required_sclk, sclk[s_high])) {
 			sclk_message = bw_def_high;
 			data->sclk_level = s_high;
@@ -1640,19 +1640,19 @@ static void calculate_bandwidth(
 		}
 	}
 	/*dispclk*/
-	/*if dispclk is set to the maximum, ramping is not required.  dispclk required without ramping is less than the dispclk required with ramping.*/
-	/*if dispclk required without ramping is more than the maximum dispclk, that is the dispclk required, and the mode is not supported*/
-	/*if that does not happen, but dispclk required with ramping is more than the maximum dispclk, dispclk required is just the maximum dispclk*/
-	/*if that does not happen either, dispclk required is the dispclk required with ramping.*/
+	/*if dispclk is set to the maximum, ramping is yest required.  dispclk required without ramping is less than the dispclk required with ramping.*/
+	/*if dispclk required without ramping is more than the maximum dispclk, that is the dispclk required, and the mode is yest supported*/
+	/*if that does yest happen, but dispclk required with ramping is more than the maximum dispclk, dispclk required is just the maximum dispclk*/
+	/*if that does yest happen either, dispclk required is the dispclk required with ramping.*/
 	/*dispclk required without ramping is the maximum of the one required for display pipe pixel throughput, for scaler throughput, for total read request thrrougput and for dram/np p-state change if enabled.*/
 	/*the display pipe pixel throughput is the maximum of lines in per line out in the beginning of the frame and lines in per line out in the middle of the frame multiplied by the horizontal blank and chunk granularity factor, altogether multiplied by the ratio of the source width to the line time, divided by the line buffer pixels per dispclk throughput, and multiplied by the display pipe throughput factor.*/
-	/*the horizontal blank and chunk granularity factor is the ratio of the line time divided by the line time minus half the horizontal blank and chunk time.  it applies when the lines in per line out is not 2 or 4.*/
+	/*the horizontal blank and chunk granularity factor is the ratio of the line time divided by the line time minus half the horizontal blank and chunk time.  it applies when the lines in per line out is yest 2 or 4.*/
 	/*the dispclk required for scaler throughput is the product of the pixel rate and the scaling limits factor.*/
 	/*the dispclk required for total read request throughput is the product of the peak request-per-second bandwidth and the dispclk cycles per request, divided by the request efficiency.*/
 	/*for the dispclk required with ramping, instead of multiplying just the pipe throughput by the display pipe throughput factor, we multiply the scaler and pipe throughput by the ramping factor.*/
 	/*the scaling limits factor is the product of the horizontal scale ratio, and the ratio of the vertical taps divided by the scaler efficiency clamped to at least 1.*/
 	/*the scaling limits factor itself it also clamped to at least 1*/
-	/*if doing downscaling with the pre-downscaler enabled, the horizontal scale ratio should not be considered above (use "1")*/
+	/*if doing downscaling with the pre-downscaler enabled, the horizontal scale ratio should yest be considered above (use "1")*/
 	data->downspread_factor = bw_add(bw_int_to_fixed(1), bw_div(vbios->down_spread_percentage, bw_int_to_fixed(100)));
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i]) {
@@ -1729,15 +1729,15 @@ static void calculate_bandwidth(
 	data->dispclk_required_for_total_read_request_bandwidth = bw_div(bw_mul(data->total_read_request_bandwidth, dceip->dispclk_per_request), dceip->request_efficiency);
 	data->total_dispclk_required_with_ramping_with_request_bandwidth = bw_max2(data->total_dispclk_required_with_ramping, data->dispclk_required_for_total_read_request_bandwidth);
 	data->total_dispclk_required_without_ramping_with_request_bandwidth = bw_max2(data->total_dispclk_required_without_ramping, data->dispclk_required_for_total_read_request_bandwidth);
-	if (data->cpuc_state_change_enable == bw_def_yes) {
+	if (data->cpuc_state_change_enable == bw_def_no) {
 		data->total_dispclk_required_with_ramping_with_request_bandwidth = bw_max3(data->total_dispclk_required_with_ramping_with_request_bandwidth, data->dispclk_required_for_blackout_duration[data->y_clk_level][data->sclk_level], data->dispclk_required_for_blackout_recovery[data->y_clk_level][data->sclk_level]);
 		data->total_dispclk_required_without_ramping_with_request_bandwidth = bw_max3(data->total_dispclk_required_without_ramping_with_request_bandwidth, data->dispclk_required_for_blackout_duration[data->y_clk_level][data->sclk_level], data->dispclk_required_for_blackout_recovery[data->y_clk_level][data->sclk_level]);
 	}
-	if (data->cpup_state_change_enable == bw_def_yes) {
+	if (data->cpup_state_change_enable == bw_def_no) {
 		data->total_dispclk_required_with_ramping_with_request_bandwidth = bw_max2(data->total_dispclk_required_with_ramping_with_request_bandwidth, data->dispclk_required_for_blackout_duration[data->y_clk_level][data->sclk_level]);
 		data->total_dispclk_required_without_ramping_with_request_bandwidth = bw_max2(data->total_dispclk_required_without_ramping_with_request_bandwidth, data->dispclk_required_for_blackout_duration[data->y_clk_level][data->sclk_level]);
 	}
-	if (data->nbp_state_change_enable == bw_def_yes && data->increase_voltage_to_support_mclk_switch) {
+	if (data->nbp_state_change_enable == bw_def_no && data->increase_voltage_to_support_mclk_switch) {
 		data->total_dispclk_required_with_ramping_with_request_bandwidth = bw_max2(data->total_dispclk_required_with_ramping_with_request_bandwidth, data->dispclk_required_for_dram_speed_change[data->y_clk_level][data->sclk_level]);
 		data->total_dispclk_required_without_ramping_with_request_bandwidth = bw_max2(data->total_dispclk_required_without_ramping_with_request_bandwidth, data->dispclk_required_for_dram_speed_change[data->y_clk_level][data->sclk_level]);
 	}
@@ -1754,12 +1754,12 @@ static void calculate_bandwidth(
 	/* the core voltage required is low if sclk, yclk(pclk)and dispclk are within the low limits*/
 	/* otherwise, the core voltage required is medium if yclk (pclk) is within the low limit and sclk and dispclk are within the medium limit*/
 	/* otherwise, the core voltage required is high if the three clocks are within the high limits*/
-	/* otherwise, or if the mode is not supported, core voltage requirement is not applicable*/
-	if (pipe_check == bw_def_notok) {
+	/* otherwise, or if the mode is yest supported, core voltage requirement is yest applicable*/
+	if (pipe_check == bw_def_yestok) {
 		voltage = bw_def_na;
 	}
-	else if (mode_check == bw_def_notok) {
-		voltage = bw_def_notok;
+	else if (mode_check == bw_def_yestok) {
+		voltage = bw_def_yestok;
 	}
 	else if (bw_equ(bw_int_to_fixed(yclk_message), vbios->low_yclk) && sclk_message == bw_def_low && bw_ltn(data->dispclk, vbios->low_voltage_max_dispclk)) {
 		voltage = bw_def_0_72;
@@ -1768,15 +1768,15 @@ static void calculate_bandwidth(
 		voltage = bw_def_0_8;
 	}
 	else if ((bw_equ(bw_int_to_fixed(yclk_message), vbios->low_yclk) || bw_equ(bw_int_to_fixed(yclk_message), vbios->mid_yclk) || bw_equ(bw_int_to_fixed(yclk_message), vbios->high_yclk)) && (sclk_message == bw_def_low || sclk_message == bw_def_mid || sclk_message == bw_def_high) && bw_leq(data->dispclk, vbios->high_voltage_max_dispclk)) {
-		if ((data->nbp_state_change_enable == bw_def_no && nbp_state_change_enable_blank == bw_def_no)) {
-			voltage = bw_def_high_no_nbp_state_change;
+		if ((data->nbp_state_change_enable == bw_def_yes && nbp_state_change_enable_blank == bw_def_yes)) {
+			voltage = bw_def_high_yes_nbp_state_change;
 		}
 		else {
 			voltage = bw_def_0_9;
 		}
 	}
 	else {
-		voltage = bw_def_notok;
+		voltage = bw_def_yestok;
 	}
 	if (voltage == bw_def_0_72) {
 		data->max_phyclk = vbios->low_voltage_max_phyclk;
@@ -1790,7 +1790,7 @@ static void calculate_bandwidth(
 	/*required blackout recovery time*/
 	data->blackout_recovery_time = bw_int_to_fixed(0);
 	for (k = 0; k <= maximum_number_of_surfaces - 1; k++) {
-		if (data->enable[k] && bw_mtn(vbios->blackout_duration, bw_int_to_fixed(0)) && data->cpup_state_change_enable == bw_def_yes) {
+		if (data->enable[k] && bw_mtn(vbios->blackout_duration, bw_int_to_fixed(0)) && data->cpup_state_change_enable == bw_def_no) {
 			if (surface_type[k] != bw_def_display_write_back420_luma && surface_type[k] != bw_def_display_write_back420_chroma) {
 				data->blackout_recovery_time = bw_max2(data->blackout_recovery_time, bw_add(bw_mul(bw_int_to_fixed(2), data->total_dmifmc_urgent_latency), data->dmif_burst_time[data->y_clk_level][data->sclk_level]));
 				if (bw_ltn(data->adjusted_data_buffer_size[k], bw_mul(bw_div(bw_mul(data->display_bandwidth[k], data->useful_bytes_per_request[k]), data->bytes_per_request[k]), (bw_add(vbios->blackout_duration, bw_add(bw_mul(bw_int_to_fixed(2), data->total_dmifmc_urgent_latency), data->dmif_burst_time[data->y_clk_level][data->sclk_level])))))) {
@@ -1806,7 +1806,7 @@ static void calculate_bandwidth(
 		}
 	}
 	/*sclk deep sleep*/
-	/*during self-refresh, sclk can be reduced to dispclk divided by the minimum pixels in the data fifo entry, with 15% margin, but shoudl not be set to less than the request bandwidth.*/
+	/*during self-refresh, sclk can be reduced to dispclk divided by the minimum pixels in the data fifo entry, with 15% margin, but shoudl yest be set to less than the request bandwidth.*/
 	/*the data fifo entry is 16 pixels for the writeback, 64 bytes/bytes_per_pixel for the graphics, 16 pixels for the parallel rotation underlay,*/
 	/*and 16 bytes/bytes_per_pixel for the orthogonal rotation underlay.*/
 	/*in parallel mode (underlay pipe), the data read from the dmifv buffer is variable and based on the pixel depth (8bbp - 16 bytes, 16 bpp - 32 bytes, 32 bpp - 64 bytes)*/
@@ -1838,7 +1838,7 @@ static void calculate_bandwidth(
 	data->sclk_deep_sleep = bw_max2(bw_div(bw_mul(data->dispclk, bw_frc_to_fixed(115, 100)), data->min_pixels_per_data_fifo_entry), data->total_read_request_bandwidth);
 	/*urgent, stutter and nb-p_state watermark*/
 	/*the urgent watermark is the maximum of the urgent trip time plus the pixel transfer time, the urgent trip times to get data for the first pixel, and the urgent trip times to get data for the last pixel.*/
-	/*the stutter exit watermark is the self refresh exit time plus the maximum of the data burst time plus the pixel transfer time, the data burst times to get data for the first pixel, and the data burst times to get data for the last pixel.  it does not apply to the writeback.*/
+	/*the stutter exit watermark is the self refresh exit time plus the maximum of the data burst time plus the pixel transfer time, the data burst times to get data for the first pixel, and the data burst times to get data for the last pixel.  it does yest apply to the writeback.*/
 	/*the nb p-state change watermark is the dram speed/p-state change time plus the maximum of the data burst time plus the pixel transfer time, the data burst times to get data for the first pixel, and the data burst times to get data for the last pixel.*/
 	/*the pixel transfer time is the maximum of the time to transfer the source pixels required for the first output pixel, and the time to transfer the pixels for the last output pixel minus the active line time.*/
 	/*blackout_duration is added to the urgent watermark*/
@@ -1883,14 +1883,14 @@ static void calculate_bandwidth(
 		}
 	}
 	/*stutter mode enable*/
-	/*in the multi-display case the stutter exit or entry watermark cannot exceed the minimum latency hiding capabilities of the*/
+	/*in the multi-display case the stutter exit or entry watermark canyest exceed the minimum latency hiding capabilities of the*/
 	/*display pipe.*/
 	data->stutter_mode_enable = data->cpuc_state_change_enable;
 	if (data->number_of_displays > 1) {
 		for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 			if (data->enable[i]) {
 				if ((bw_mtn(data->stutter_exit_watermark[i], data->minimum_latency_hiding[i]) || bw_mtn(data->stutter_entry_watermark[i], data->minimum_latency_hiding[i]))) {
-					data->stutter_mode_enable = bw_def_no;
+					data->stutter_mode_enable = bw_def_yes;
 				}
 			}
 		}
@@ -1903,13 +1903,13 @@ static void calculate_bandwidth(
 	/* immediate flip time (us)*/
 	/* latency for other clients due to urgent display read (us)*/
 	/* latency for other clients due to urgent display write (us)*/
-	/* average bandwidth consumed by display (no compression) (gb/s)*/
+	/* average bandwidth consumed by display (yes compression) (gb/s)*/
 	/* required dram  bandwidth (gb/s)*/
 	/* required sclk (m_hz)*/
 	/* required rd urgent latency (us)*/
 	/* nb p-state change margin (us)*/
 	/*dmif and mcifwr dram access efficiency*/
-	/*is the ratio between the ideal dram access time (which is the data buffer size in memory divided by the dram bandwidth), and the actual time which is the total page close-open time.  but it cannot exceed the dram efficiency provided by the memory subsystem*/
+	/*is the ratio between the ideal dram access time (which is the data buffer size in memory divided by the dram bandwidth), and the actual time which is the total page close-open time.  but it canyest exceed the dram efficiency provided by the memory subsystem*/
 	data->dmifdram_access_efficiency = bw_min2(bw_div(bw_div(data->total_display_reads_required_dram_access_data, data->dram_bandwidth), data->dmif_total_page_close_open_time), bw_int_to_fixed(1));
 	if (bw_mtn(data->total_display_writes_required_dram_access_data, bw_int_to_fixed(0))) {
 		data->mcifwrdram_access_efficiency = bw_min2(bw_div(bw_div(data->total_display_writes_required_dram_access_data, data->dram_bandwidth), data->mcifwr_total_page_close_open_time), bw_int_to_fixed(1));
@@ -1918,7 +1918,7 @@ static void calculate_bandwidth(
 		data->mcifwrdram_access_efficiency = bw_int_to_fixed(0);
 	}
 	/*stutter efficiency*/
-	/*the stutter efficiency is the frame-average time in self-refresh divided by the frame-average stutter cycle duration.  only applies if the display write-back is not enabled.*/
+	/*the stutter efficiency is the frame-average time in self-refresh divided by the frame-average stutter cycle duration.  only applies if the display write-back is yest enabled.*/
 	/*the frame-average stutter cycle used is the minimum for all pipes of the frame-average data buffer size in time, times the compression rate*/
 	/*the frame-average time in self-refresh is the stutter cycle minus the self refresh exit latency and the burst time*/
 	/*the stutter cycle is the dmif buffer size reduced by the excess of the stutter exit watermark over the lb size in time.*/
@@ -1973,17 +1973,17 @@ static void calculate_bandwidth(
 	data->immediate_flip_time = bw_mul(data->worst_number_of_trips_to_memory, data->total_dmifmc_urgent_latency);
 	/*worst latency for other clients*/
 	/*it is the urgent latency plus the urgent burst time*/
-	data->latency_for_non_dmif_clients = bw_add(data->total_dmifmc_urgent_latency, data->dmif_burst_time[data->y_clk_level][data->sclk_level]);
+	data->latency_for_yesn_dmif_clients = bw_add(data->total_dmifmc_urgent_latency, data->dmif_burst_time[data->y_clk_level][data->sclk_level]);
 	if (data->d1_display_write_back_dwb_enable == 1) {
-		data->latency_for_non_mcifwr_clients = bw_add(vbios->mcifwrmc_urgent_latency, dceip->mcifwr_all_surfaces_burst_time);
+		data->latency_for_yesn_mcifwr_clients = bw_add(vbios->mcifwrmc_urgent_latency, dceip->mcifwr_all_surfaces_burst_time);
 	}
 	else {
-		data->latency_for_non_mcifwr_clients = bw_int_to_fixed(0);
+		data->latency_for_yesn_mcifwr_clients = bw_int_to_fixed(0);
 	}
 	/*dmif mc urgent latency suppported in high sclk and yclk*/
 	data->dmifmc_urgent_latency_supported_in_high_sclk_and_yclk = bw_div((bw_sub(data->min_read_buffer_size_in_time, data->dmif_burst_time[high][s_high])), data->total_dmifmc_urgent_trips);
 	/*dram speed/p-state change margin*/
-	/*in the multi-display case the nb p-state change watermark cannot exceed the average lb size plus the dmif size or the cursor dcp buffer size*/
+	/*in the multi-display case the nb p-state change watermark canyest exceed the average lb size plus the dmif size or the cursor dcp buffer size*/
 	data->v_blank_nbp_state_dram_speed_change_latency_supported = bw_int_to_fixed(99999);
 	data->nbp_state_dram_speed_change_latency_supported = bw_int_to_fixed(99999);
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
@@ -2075,8 +2075,8 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
 		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
-		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
-		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_yesrmal_system_operation = 100;
 		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
 		dceip.large_cursor = false;
 		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);
@@ -2114,7 +2114,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.underlay_downscale_prefetch_enabled = true;
 		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
 		dceip.lb_size_per_component444 = bw_int_to_fixed(82176);
-		dceip.graphics_lb_nodownscaling_multi_line_prefetching = false;
+		dceip.graphics_lb_yesdownscaling_multi_line_prefetching = false;
 		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
 			bw_int_to_fixed(0);
 		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
@@ -2131,7 +2131,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 			bw_int_to_fixed(1080);
 		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
 			bw_frc_to_fixed(3, 10);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_yes_rotation =
 			bw_int_to_fixed(25);
 		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
 			2);
@@ -2152,7 +2152,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.mcifwr_all_surfaces_burst_time = bw_int_to_fixed(0); /* todo: this is a bug*/
 		break;
 	case BW_CALCS_VERSION_POLARIS10:
-		/* TODO: Treat VEGAM the same as P10 for now
+		/* TODO: Treat VEGAM the same as P10 for yesw
 		 * Need to tune the para for VEGAM if needed */
 	case BW_CALCS_VERSION_VEGAM:
 		vbios.memory_type = bw_def_gddr5;
@@ -2191,8 +2191,8 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
 		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
-		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
-		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_yesrmal_system_operation = 100;
 		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
 		dceip.large_cursor = false;
 		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);
@@ -2230,7 +2230,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.underlay_downscale_prefetch_enabled = true;
 		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
 		dceip.lb_size_per_component444 = bw_int_to_fixed(245952);
-		dceip.graphics_lb_nodownscaling_multi_line_prefetching = true;
+		dceip.graphics_lb_yesdownscaling_multi_line_prefetching = true;
 		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
 			bw_int_to_fixed(1);
 		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
@@ -2247,7 +2247,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 			bw_int_to_fixed(1080);
 		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
 			bw_frc_to_fixed(3, 10);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_yes_rotation =
 			bw_int_to_fixed(25);
 		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
 			2);
@@ -2307,8 +2307,8 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
 		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
-		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
-		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_yesrmal_system_operation = 100;
 		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
 		dceip.large_cursor = false;
 		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);
@@ -2346,7 +2346,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.underlay_downscale_prefetch_enabled = true;
 		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
 		dceip.lb_size_per_component444 = bw_int_to_fixed(245952);
-		dceip.graphics_lb_nodownscaling_multi_line_prefetching = true;
+		dceip.graphics_lb_yesdownscaling_multi_line_prefetching = true;
 		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
 			bw_int_to_fixed(1);
 		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
@@ -2363,7 +2363,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 			bw_int_to_fixed(1080);
 		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
 			bw_frc_to_fixed(3, 10);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_yes_rotation =
 			bw_int_to_fixed(25);
 		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
 			2);
@@ -2423,8 +2423,8 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
 		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
-		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
-		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_yesrmal_system_operation = 100;
 		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
 		dceip.large_cursor = false;
 		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);
@@ -2462,7 +2462,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.underlay_downscale_prefetch_enabled = true;
 		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
 		dceip.lb_size_per_component444 = bw_int_to_fixed(245952);
-		dceip.graphics_lb_nodownscaling_multi_line_prefetching = true;
+		dceip.graphics_lb_yesdownscaling_multi_line_prefetching = true;
 		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
 			bw_int_to_fixed(1);
 		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
@@ -2479,7 +2479,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 			bw_int_to_fixed(1080);
 		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
 			bw_frc_to_fixed(3, 10);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_yes_rotation =
 			bw_int_to_fixed(25);
 		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
 			2);
@@ -2536,8 +2536,8 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
 		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
-		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
-		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_yesrmal_system_operation = 100;
 		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
 		dceip.large_cursor = false;
 		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);
@@ -2575,7 +2575,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.underlay_downscale_prefetch_enabled = true;
 		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
 		dceip.lb_size_per_component444 = bw_int_to_fixed(82176);
-		dceip.graphics_lb_nodownscaling_multi_line_prefetching = false;
+		dceip.graphics_lb_yesdownscaling_multi_line_prefetching = false;
 		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
 			bw_int_to_fixed(0);
 		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
@@ -2592,7 +2592,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 			bw_int_to_fixed(1080);
 		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
 			bw_frc_to_fixed(3, 10);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_yes_rotation =
 			bw_int_to_fixed(25);
 		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
 			2);
@@ -2649,8 +2649,8 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
 		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
-		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_normal_system_operation = 100;
-		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_normal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_port_bw_display_can_use_in_yesrmal_system_operation = 100;
+		dceip.max_average_percent_of_ideal_drambw_display_can_use_in_yesrmal_system_operation = 100;
 		dceip.percent_of_ideal_port_bw_received_after_urgent_latency = 100;
 		dceip.large_cursor = false;
 		dceip.dmif_request_buffer_size = bw_int_to_fixed(2304);
@@ -2688,7 +2688,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		dceip.underlay_downscale_prefetch_enabled = false;
 		dceip.lb_write_pixels_per_dispclk = bw_int_to_fixed(1);
 		dceip.lb_size_per_component444 = bw_int_to_fixed(245952);
-		dceip.graphics_lb_nodownscaling_multi_line_prefetching = true;
+		dceip.graphics_lb_yesdownscaling_multi_line_prefetching = true;
 		dceip.stutter_and_dram_clock_state_change_gated_before_cursor =
 			bw_int_to_fixed(1);
 		dceip.underlay420_luma_lb_size_per_component = bw_int_to_fixed(
@@ -2705,7 +2705,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 			bw_int_to_fixed(1080);
 		dceip.peak_pte_request_to_eviction_ratio_limiting_multiple_displays_or_single_rotated_display =
 			bw_frc_to_fixed(3, 10);
-		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_no_rotation =
+		dceip.peak_pte_request_to_eviction_ratio_limiting_single_display_yes_rotation =
 			bw_int_to_fixed(25);
 		dceip.minimum_outstanding_pte_request_limit = bw_int_to_fixed(
 			2);
@@ -2763,7 +2763,7 @@ static void populate_initial_data(
 	int num_displays = 0;
 
 	data->underlay_surface_type = bw_def_420;
-	data->panning_and_bezel_adjustment = bw_def_none;
+	data->panning_and_bezel_adjustment = bw_def_yesne;
 	data->graphics_lb_bpc = 10;
 	data->underlay_lb_bpc = 8;
 	data->underlay_tiling_mode = bw_def_tiled;
@@ -2843,7 +2843,7 @@ static void populate_initial_data(
 			break;
 		}
 		data->interlace_mode[num_displays + 4] = false;
-		data->stereo_mode[num_displays + 4] = bw_def_mono;
+		data->stereo_mode[num_displays + 4] = bw_def_moyes;
 
 
 		for (j = 0; j < 2; j++) {
@@ -2876,7 +2876,7 @@ static void populate_initial_data(
 			default:
 				break;
 			}
-			data->stereo_mode[num_displays * 2 + j] = bw_def_mono;
+			data->stereo_mode[num_displays * 2 + j] = bw_def_moyes;
 		}
 
 		num_displays++;
@@ -2971,7 +2971,7 @@ static void populate_initial_data(
 		}
 
 		data->interlace_mode[num_displays + 4] = false;
-		data->stereo_mode[num_displays + 4] = bw_def_mono;
+		data->stereo_mode[num_displays + 4] = bw_def_moyes;
 		num_displays++;
 	}
 
@@ -3008,7 +3008,7 @@ static bool all_displays_in_sync(const struct pipe_ctx pipe[],
  * Return:
  *	true -	Display(s) configuration supported.
  *		In this case 'calcs_output' contains data for HW programming
- *	false - Display(s) configuration not supported (not enough bandwidth).
+ *	false - Display(s) configuration yest supported (yest eyesugh bandwidth).
  */
 
 bool bw_calcs(struct dc_context *ctx,
@@ -3083,7 +3083,7 @@ bool bw_calcs(struct dc_context *ctx,
 			calcs_output->yclk_khz = bw_fixed_to_int(
 				bw_mul(high_yclk, bw_int_to_fixed(1000)));
 
-		/* units: nanosecond, 16bit storage. */
+		/* units: nayessecond, 16bit storage. */
 
 		calcs_output->nbp_state_change_wm_ns[0].a_mark =
 			bw_fixed_to_int(bw_mul(data->

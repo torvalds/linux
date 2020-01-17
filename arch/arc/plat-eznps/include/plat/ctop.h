@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright(c) 2015 EZchip Technologies.
+ * Copyright(c) 2015 EZchip Techyeslogies.
  */
 
 #ifndef _PLAT_EZNPS_CTOP_H
@@ -51,7 +51,7 @@
 #define CTOP_INST_AOR_DI_R2_R2_R3		0x4A664C05
 #define CTOP_INST_AXOR_DI_R2_R2_R3		0x4A664C06
 
-/* Do not use D$ for address in 2G-3G */
+/* Do yest use D$ for address in 2G-3G */
 #define HW_COMPLY_KRN_NOT_D_CACHED		BIT(28)
 
 #define NPS_MSU_EN_CFG				0x80
@@ -183,17 +183,17 @@ struct nps_host_reg_aux_lpc {
 };
 
 /* CRG registers */
-#define REG_GEN_PURP_0          nps_host_reg_non_cl(NPS_CRG_BLKID, 0x1BF)
+#define REG_GEN_PURP_0          nps_host_reg_yesn_cl(NPS_CRG_BLKID, 0x1BF)
 
 /* GIM registers */
-#define REG_GIM_P_INT_EN_0      nps_host_reg_non_cl(NPS_GIM_BLKID, 0x100)
-#define REG_GIM_P_INT_POL_0     nps_host_reg_non_cl(NPS_GIM_BLKID, 0x110)
-#define REG_GIM_P_INT_SENS_0    nps_host_reg_non_cl(NPS_GIM_BLKID, 0x114)
-#define REG_GIM_P_INT_BLK_0     nps_host_reg_non_cl(NPS_GIM_BLKID, 0x118)
-#define REG_GIM_P_INT_DST_10    nps_host_reg_non_cl(NPS_GIM_BLKID, 0x13A)
-#define REG_GIM_P_INT_DST_11    nps_host_reg_non_cl(NPS_GIM_BLKID, 0x13B)
-#define REG_GIM_P_INT_DST_25    nps_host_reg_non_cl(NPS_GIM_BLKID, 0x149)
-#define REG_GIM_P_INT_DST_26    nps_host_reg_non_cl(NPS_GIM_BLKID, 0x14A)
+#define REG_GIM_P_INT_EN_0      nps_host_reg_yesn_cl(NPS_GIM_BLKID, 0x100)
+#define REG_GIM_P_INT_POL_0     nps_host_reg_yesn_cl(NPS_GIM_BLKID, 0x110)
+#define REG_GIM_P_INT_SENS_0    nps_host_reg_yesn_cl(NPS_GIM_BLKID, 0x114)
+#define REG_GIM_P_INT_BLK_0     nps_host_reg_yesn_cl(NPS_GIM_BLKID, 0x118)
+#define REG_GIM_P_INT_DST_10    nps_host_reg_yesn_cl(NPS_GIM_BLKID, 0x13A)
+#define REG_GIM_P_INT_DST_11    nps_host_reg_yesn_cl(NPS_GIM_BLKID, 0x13B)
+#define REG_GIM_P_INT_DST_25    nps_host_reg_yesn_cl(NPS_GIM_BLKID, 0x149)
+#define REG_GIM_P_INT_DST_26    nps_host_reg_yesn_cl(NPS_GIM_BLKID, 0x14A)
 
 #else
 

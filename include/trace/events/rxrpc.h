@@ -33,7 +33,7 @@ enum rxrpc_skb_trace {
 	rxrpc_skb_rotated,
 	rxrpc_skb_seen,
 	rxrpc_skb_unshared,
-	rxrpc_skb_unshared_nomem,
+	rxrpc_skb_unshared_yesmem,
 };
 
 enum rxrpc_local_trace {
@@ -95,7 +95,7 @@ enum rxrpc_call_trace {
 	rxrpc_call_new_service,
 	rxrpc_call_put,
 	rxrpc_call_put_kernel,
-	rxrpc_call_put_noqueue,
+	rxrpc_call_put_yesqueue,
 	rxrpc_call_put_userid,
 	rxrpc_call_queued,
 	rxrpc_call_queued_ref,
@@ -154,7 +154,7 @@ enum rxrpc_timer_trace {
 	rxrpc_timer_exp_idle,
 	rxrpc_timer_exp_keepalive,
 	rxrpc_timer_exp_lost_ack,
-	rxrpc_timer_exp_normal,
+	rxrpc_timer_exp_yesrmal,
 	rxrpc_timer_exp_ping,
 	rxrpc_timer_exp_resend,
 	rxrpc_timer_expired,
@@ -166,7 +166,7 @@ enum rxrpc_timer_trace {
 	rxrpc_timer_set_for_idle,
 	rxrpc_timer_set_for_keepalive,
 	rxrpc_timer_set_for_lost_ack,
-	rxrpc_timer_set_for_normal,
+	rxrpc_timer_set_for_yesrmal,
 	rxrpc_timer_set_for_ping,
 	rxrpc_timer_set_for_resend,
 	rxrpc_timer_set_for_send,
@@ -198,7 +198,7 @@ enum rxrpc_congest_change {
 	rxrpc_cong_begin_retransmission,
 	rxrpc_cong_cleared_nacks,
 	rxrpc_cong_new_low_nack,
-	rxrpc_cong_no_change,
+	rxrpc_cong_yes_change,
 	rxrpc_cong_progress,
 	rxrpc_cong_retransmit_again,
 	rxrpc_cong_rtt_window_end,
@@ -209,7 +209,7 @@ enum rxrpc_tx_point {
 	rxrpc_tx_point_call_abort,
 	rxrpc_tx_point_call_ack,
 	rxrpc_tx_point_call_data_frag,
-	rxrpc_tx_point_call_data_nofrag,
+	rxrpc_tx_point_call_data_yesfrag,
 	rxrpc_tx_point_call_final_resend,
 	rxrpc_tx_point_conn_abort,
 	rxrpc_tx_point_rxkad_challenge,
@@ -235,7 +235,7 @@ enum rxrpc_tx_point {
 	EM(rxrpc_skb_rotated,			"ROT") \
 	EM(rxrpc_skb_seen,			"SEE") \
 	EM(rxrpc_skb_unshared,			"UNS") \
-	E_(rxrpc_skb_unshared_nomem,		"US0")
+	E_(rxrpc_skb_unshared_yesmem,		"US0")
 
 #define rxrpc_local_traces \
 	EM(rxrpc_local_got,			"GOT") \
@@ -300,7 +300,7 @@ enum rxrpc_tx_point {
 	EM(rxrpc_call_new_service,		"NWs") \
 	EM(rxrpc_call_put,			"PUT") \
 	EM(rxrpc_call_put_kernel,		"Pke") \
-	EM(rxrpc_call_put_noqueue,		"PNQ") \
+	EM(rxrpc_call_put_yesqueue,		"PNQ") \
 	EM(rxrpc_call_put_userid,		"Pus") \
 	EM(rxrpc_call_queued,			"QUE") \
 	EM(rxrpc_call_queued_ref,		"QUR") \
@@ -354,7 +354,7 @@ enum rxrpc_tx_point {
 	EM(rxrpc_timer_exp_idle,		"ExpIdl") \
 	EM(rxrpc_timer_exp_keepalive,		"ExpKA ") \
 	EM(rxrpc_timer_exp_lost_ack,		"ExpLoA") \
-	EM(rxrpc_timer_exp_normal,		"ExpNml") \
+	EM(rxrpc_timer_exp_yesrmal,		"ExpNml") \
 	EM(rxrpc_timer_exp_ping,		"ExpPng") \
 	EM(rxrpc_timer_exp_resend,		"ExpRsn") \
 	EM(rxrpc_timer_init_for_reply,		"IniRpl") \
@@ -365,7 +365,7 @@ enum rxrpc_tx_point {
 	EM(rxrpc_timer_set_for_idle,		"SetIdl") \
 	EM(rxrpc_timer_set_for_keepalive,	"KeepAl") \
 	EM(rxrpc_timer_set_for_lost_ack,	"SetLoA") \
-	EM(rxrpc_timer_set_for_normal,		"SetNml") \
+	EM(rxrpc_timer_set_for_yesrmal,		"SetNml") \
 	EM(rxrpc_timer_set_for_ping,		"SetPng") \
 	EM(rxrpc_timer_set_for_resend,		"SetRTx") \
 	E_(rxrpc_timer_set_for_send,		"SetSnd")
@@ -400,7 +400,7 @@ enum rxrpc_tx_point {
 	EM(rxrpc_cong_begin_retransmission,	" Retrans") \
 	EM(rxrpc_cong_cleared_nacks,		" Cleared") \
 	EM(rxrpc_cong_new_low_nack,		" NewLowN") \
-	EM(rxrpc_cong_no_change,		"") \
+	EM(rxrpc_cong_yes_change,		"") \
 	EM(rxrpc_cong_progress,			" Progres") \
 	EM(rxrpc_cong_retransmit_again,		" ReTxAgn") \
 	EM(rxrpc_cong_rtt_window_end,		" RttWinE") \
@@ -448,7 +448,7 @@ enum rxrpc_tx_point {
 	EM(rxrpc_tx_point_call_abort,		"CallAbort") \
 	EM(rxrpc_tx_point_call_ack,		"CallAck") \
 	EM(rxrpc_tx_point_call_data_frag,	"CallDataFrag") \
-	EM(rxrpc_tx_point_call_data_nofrag,	"CallDataNofrag") \
+	EM(rxrpc_tx_point_call_data_yesfrag,	"CallDataNofrag") \
 	EM(rxrpc_tx_point_call_final_resend,	"CallFinalResend") \
 	EM(rxrpc_tx_point_conn_abort,		"ConnAbort") \
 	EM(rxrpc_tx_point_reject,		"Reject") \
@@ -797,16 +797,16 @@ TRACE_EVENT(rxrpc_transmit,
 
 TRACE_EVENT(rxrpc_rx_data,
 	    TP_PROTO(unsigned int call, rxrpc_seq_t seq,
-		     rxrpc_serial_t serial, u8 flags, u8 anno),
+		     rxrpc_serial_t serial, u8 flags, u8 anyes),
 
-	    TP_ARGS(call, seq, serial, flags, anno),
+	    TP_ARGS(call, seq, serial, flags, anyes),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
 		    __field(rxrpc_seq_t,		seq		)
 		    __field(rxrpc_serial_t,		serial		)
 		    __field(u8,				flags		)
-		    __field(u8,				anno		)
+		    __field(u8,				anyes		)
 			     ),
 
 	    TP_fast_assign(
@@ -814,7 +814,7 @@ TRACE_EVENT(rxrpc_rx_data,
 		    __entry->seq = seq;
 		    __entry->serial = serial;
 		    __entry->flags = flags;
-		    __entry->anno = anno;
+		    __entry->anyes = anyes;
 			   ),
 
 	    TP_printk("c=%08x DATA %08x q=%08x fl=%02x a=%02x",
@@ -822,7 +822,7 @@ TRACE_EVENT(rxrpc_rx_data,
 		      __entry->serial,
 		      __entry->seq,
 		      __entry->flags,
-		      __entry->anno)
+		      __entry->anyes)
 	    );
 
 TRACE_EVENT(rxrpc_rx_ack,
@@ -1148,14 +1148,14 @@ TRACE_EVENT(rxrpc_rtt_rx,
 
 TRACE_EVENT(rxrpc_timer,
 	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_timer_trace why,
-		     unsigned long now),
+		     unsigned long yesw),
 
-	    TP_ARGS(call, why, now),
+	    TP_ARGS(call, why, yesw),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,			call		)
 		    __field(enum rxrpc_timer_trace,		why		)
-		    __field(long,				now		)
+		    __field(long,				yesw		)
 		    __field(long,				ack_at		)
 		    __field(long,				ack_lost_at	)
 		    __field(long,				resend_at	)
@@ -1169,7 +1169,7 @@ TRACE_EVENT(rxrpc_timer,
 	    TP_fast_assign(
 		    __entry->call		= call->debug_id;
 		    __entry->why		= why;
-		    __entry->now		= now;
+		    __entry->yesw		= yesw;
 		    __entry->ack_at		= call->ack_at;
 		    __entry->ack_lost_at	= call->ack_lost_at;
 		    __entry->resend_at		= call->resend_at;
@@ -1182,13 +1182,13 @@ TRACE_EVENT(rxrpc_timer,
 	    TP_printk("c=%08x %s a=%ld la=%ld r=%ld xr=%ld xq=%ld xt=%ld t=%ld",
 		      __entry->call,
 		      __print_symbolic(__entry->why, rxrpc_timer_traces),
-		      __entry->ack_at - __entry->now,
-		      __entry->ack_lost_at - __entry->now,
-		      __entry->resend_at - __entry->now,
-		      __entry->expect_rx_by - __entry->now,
-		      __entry->expect_req_by - __entry->now,
-		      __entry->expect_term_by - __entry->now,
-		      __entry->timer - __entry->now)
+		      __entry->ack_at - __entry->yesw,
+		      __entry->ack_lost_at - __entry->yesw,
+		      __entry->resend_at - __entry->yesw,
+		      __entry->expect_rx_by - __entry->yesw,
+		      __entry->expect_req_by - __entry->yesw,
+		      __entry->expect_term_by - __entry->yesw,
+		      __entry->timer - __entry->yesw)
 	    );
 
 TRACE_EVENT(rxrpc_rx_lose,
@@ -1252,29 +1252,29 @@ TRACE_EVENT(rxrpc_propose_ack,
 	    );
 
 TRACE_EVENT(rxrpc_retransmit,
-	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq, u8 annotation,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq, u8 anyestation,
 		     s64 expiry),
 
-	    TP_ARGS(call, seq, annotation, expiry),
+	    TP_ARGS(call, seq, anyestation, expiry),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
 		    __field(rxrpc_seq_t,		seq		)
-		    __field(u8,				annotation	)
+		    __field(u8,				anyestation	)
 		    __field(s64,			expiry		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call->debug_id;
 		    __entry->seq = seq;
-		    __entry->annotation = annotation;
+		    __entry->anyestation = anyestation;
 		    __entry->expiry = expiry;
 			   ),
 
 	    TP_printk("c=%08x q=%x a=%02x xp=%lld",
 		      __entry->call,
 		      __entry->seq,
-		      __entry->annotation,
+		      __entry->anyestation,
 		      __entry->expiry)
 	    );
 
@@ -1421,19 +1421,19 @@ TRACE_EVENT(rxrpc_resend,
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
 		    __field(int,			ix		)
-		    __array(u8,				anno, 64	)
+		    __array(u8,				anyes, 64	)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call->debug_id;
 		    __entry->ix = ix;
-		    memcpy(__entry->anno, call->rxtx_annotations, 64);
+		    memcpy(__entry->anyes, call->rxtx_anyestations, 64);
 			   ),
 
 	    TP_printk("c=%08x ix=%u a=%64phN",
 		      __entry->call,
 		      __entry->ix,
-		      __entry->anno)
+		      __entry->anyes)
 	    );
 
 TRACE_EVENT(rxrpc_rx_icmp,
@@ -1461,7 +1461,7 @@ TRACE_EVENT(rxrpc_rx_icmp,
 		      __entry->ee.ee_code,
 		      __entry->ee.ee_info,
 		      __entry->ee.ee_data,
-		      __entry->ee.ee_errno,
+		      __entry->ee.ee_erryes,
 		      &__entry->srx.transport)
 	    );
 
@@ -1524,7 +1524,7 @@ TRACE_EVENT(rxrpc_call_reset,
 		      __entry->tx_seq, __entry->rx_seq)
 	    );
 
-TRACE_EVENT(rxrpc_notify_socket,
+TRACE_EVENT(rxrpc_yestify_socket,
 	    TP_PROTO(unsigned int debug_id, rxrpc_serial_t serial),
 
 	    TP_ARGS(debug_id, serial),

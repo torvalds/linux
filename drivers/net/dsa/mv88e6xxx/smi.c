@@ -17,7 +17,7 @@
  * is the only device connected to the SMI master. In this mode it responds to
  * all 32 possible SMI addresses, and thus maps directly the internal devices.
  *
- * When ADDR is non-zero, the chip uses Multi-chip Addressing Mode, allowing
+ * When ADDR is yesn-zero, the chip uses Multi-chip Addressing Mode, allowing
  * multiple devices to share the SMI interface. In this mode it responds to only
  * 2 registers, used to indirectly access the internal SMI devices.
  *

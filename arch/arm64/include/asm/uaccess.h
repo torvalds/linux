@@ -43,9 +43,9 @@ static inline void set_fs(mm_segment_t fs)
 	 * kernel memory with the unprivileged instructions.
 	 */
 	if (IS_ENABLED(CONFIG_ARM64_UAO) && fs == KERNEL_DS)
-		asm(ALTERNATIVE("nop", SET_PSTATE_UAO(1), ARM64_HAS_UAO));
+		asm(ALTERNATIVE("yesp", SET_PSTATE_UAO(1), ARM64_HAS_UAO));
 	else
-		asm(ALTERNATIVE("nop", SET_PSTATE_UAO(0), ARM64_HAS_UAO,
+		asm(ALTERNATIVE("yesp", SET_PSTATE_UAO(0), ARM64_HAS_UAO,
 				CONFIG_ARM64_UAO));
 }
 
@@ -63,7 +63,7 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
 	unsigned long ret, limit = current_thread_info()->addr_limit;
 
 	/*
-	 * Asynchronous I/O running in a kernel thread does not have the
+	 * Asynchroyesus I/O running in a kernel thread does yest have the
 	 * TIF_TAGGED_ADDR flag of the process owning the mm, so always untag
 	 * the user address before checking.
 	 */
@@ -80,7 +80,7 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
 	"	csel	%1, xzr, %1, hi\n"
 	// 3: Set X' = ~0 if X >= 2^64. For X == 2^64, this decrements X'
 	//    to compensate for the carry flag being set in step 4. For
-	//    X > 2^64, X' merely has to remain nonzero, which it does.
+	//    X > 2^64, X' merely has to remain yesnzero, which it does.
 	"	csinv	%0, %0, xzr, cc\n"
 	// 4: For X < 2^64, this gives us X' - C - 1 <= 0, where the -1
 	//    comes from the carry in being clear. Otherwise, we are
@@ -175,27 +175,27 @@ static inline bool uaccess_ttbr0_enable(void)
 
 static inline void __uaccess_disable_hw_pan(void)
 {
-	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_HAS_PAN,
+	asm(ALTERNATIVE("yesp", SET_PSTATE_PAN(0), ARM64_HAS_PAN,
 			CONFIG_ARM64_PAN));
 }
 
 static inline void __uaccess_enable_hw_pan(void)
 {
-	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,
+	asm(ALTERNATIVE("yesp", SET_PSTATE_PAN(1), ARM64_HAS_PAN,
 			CONFIG_ARM64_PAN));
 }
 
 #define __uaccess_disable(alt)						\
 do {									\
 	if (!uaccess_ttbr0_disable())					\
-		asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), alt,		\
+		asm(ALTERNATIVE("yesp", SET_PSTATE_PAN(1), alt,		\
 				CONFIG_ARM64_PAN));			\
 } while (0)
 
 #define __uaccess_enable(alt)						\
 do {									\
 	if (!uaccess_ttbr0_enable())					\
-		asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), alt,		\
+		asm(ALTERNATIVE("yesp", SET_PSTATE_PAN(0), alt,		\
 				CONFIG_ARM64_PAN));			\
 } while (0)
 
@@ -210,14 +210,14 @@ static inline void uaccess_enable(void)
 }
 
 /*
- * These functions are no-ops when UAO is present.
+ * These functions are yes-ops when UAO is present.
  */
-static inline void uaccess_disable_not_uao(void)
+static inline void uaccess_disable_yest_uao(void)
 {
 	__uaccess_disable(ARM64_ALT_PAN_NOT_UAO);
 }
 
-static inline void uaccess_enable_not_uao(void)
+static inline void uaccess_enable_yest_uao(void)
 {
 	__uaccess_enable(ARM64_ALT_PAN_NOT_UAO);
 }
@@ -245,7 +245,7 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 }
 
 /*
- * The "__xxx" versions of the user access functions do not verify the address
+ * The "__xxx" versions of the user access functions do yest verify the address
  * space - it must have been done previously with a separate "access_ok()"
  * call.
  *
@@ -271,7 +271,7 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 do {									\
 	unsigned long __gu_val;						\
 	__chk_user_ptr(ptr);						\
-	uaccess_enable_not_uao();					\
+	uaccess_enable_yest_uao();					\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
 		__get_user_asm("ldrb", "ldtrb", "%w", __gu_val, (ptr),  \
@@ -292,7 +292,7 @@ do {									\
 	default:							\
 		BUILD_BUG();						\
 	}								\
-	uaccess_disable_not_uao();					\
+	uaccess_disable_yest_uao();					\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 } while (0)
 
@@ -335,7 +335,7 @@ do {									\
 do {									\
 	__typeof__(*(ptr)) __pu_val = (x);				\
 	__chk_user_ptr(ptr);						\
-	uaccess_enable_not_uao();					\
+	uaccess_enable_yest_uao();					\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
 		__put_user_asm("strb", "sttrb", "%w", __pu_val, (ptr),	\
@@ -356,7 +356,7 @@ do {									\
 	default:							\
 		BUILD_BUG();						\
 	}								\
-	uaccess_disable_not_uao();					\
+	uaccess_disable_yest_uao();					\
 } while (0)
 
 #define __put_user_error(x, ptr, err)					\
@@ -384,10 +384,10 @@ extern unsigned long __must_check __arch_copy_from_user(void *to, const void __u
 #define raw_copy_from_user(to, from, n)					\
 ({									\
 	unsigned long __acfu_ret;					\
-	uaccess_enable_not_uao();					\
+	uaccess_enable_yest_uao();					\
 	__acfu_ret = __arch_copy_from_user((to),			\
 				      __uaccess_mask_ptr(from), (n));	\
-	uaccess_disable_not_uao();					\
+	uaccess_disable_yest_uao();					\
 	__acfu_ret;							\
 })
 
@@ -395,10 +395,10 @@ extern unsigned long __must_check __arch_copy_to_user(void __user *to, const voi
 #define raw_copy_to_user(to, from, n)					\
 ({									\
 	unsigned long __actu_ret;					\
-	uaccess_enable_not_uao();					\
+	uaccess_enable_yest_uao();					\
 	__actu_ret = __arch_copy_to_user(__uaccess_mask_ptr(to),	\
 				    (from), (n));			\
-	uaccess_disable_not_uao();					\
+	uaccess_disable_yest_uao();					\
 	__actu_ret;							\
 })
 
@@ -406,10 +406,10 @@ extern unsigned long __must_check __arch_copy_in_user(void __user *to, const voi
 #define raw_copy_in_user(to, from, n)					\
 ({									\
 	unsigned long __aciu_ret;					\
-	uaccess_enable_not_uao();					\
+	uaccess_enable_yest_uao();					\
 	__aciu_ret = __arch_copy_in_user(__uaccess_mask_ptr(to),	\
 				    __uaccess_mask_ptr(from), (n));	\
-	uaccess_disable_not_uao();					\
+	uaccess_disable_yest_uao();					\
 	__aciu_ret;							\
 })
 
@@ -420,9 +420,9 @@ extern unsigned long __must_check __arch_clear_user(void __user *to, unsigned lo
 static inline unsigned long __must_check __clear_user(void __user *to, unsigned long n)
 {
 	if (access_ok(to, n)) {
-		uaccess_enable_not_uao();
+		uaccess_enable_yest_uao();
 		n = __arch_clear_user(__uaccess_mask_ptr(to), n);
-		uaccess_disable_not_uao();
+		uaccess_disable_yest_uao();
 	}
 	return n;
 }

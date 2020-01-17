@@ -26,7 +26,7 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/crc32.h>
@@ -67,7 +67,7 @@
 #define RX_RING_MASK		(RX_RING_ENTRIES - 1)
 #define RX_RING_SIZE		(RX_RING_ENTRIES * sizeof(u64))
 
-/* 128 TX buffers (not tunable) */
+/* 128 TX buffers (yest tunable) */
 #define TX_RING_ENTRIES		128
 #define TX_RING_MASK		(TX_RING_ENTRIES - 1)
 #define TX_RING_SIZE		(TX_RING_ENTRIES * sizeof(struct ioc3_etxd))
@@ -274,7 +274,7 @@ static u64 nic_find(u32 __iomem *mcr, int *last)
 		b = nic_read_bit(mcr);
 
 		if (a && b) {
-			pr_warn("NIC search failed (not fatal).\n");
+			pr_warn("NIC search failed (yest fatal).\n");
 			*last = 0;
 			return 0;
 		}
@@ -307,8 +307,8 @@ static u64 nic_find(u32 __iomem *mcr, int *last)
 
 static int nic_init(u32 __iomem *mcr)
 {
-	const char *unknown = "unknown";
-	const char *type = unknown;
+	const char *unkyeswn = "unkyeswn";
+	const char *type = unkyeswn;
 	u8 crc;
 	u8 serial[6];
 	int save = 0, i;
@@ -347,7 +347,7 @@ static int nic_init(u32 __iomem *mcr)
 	}
 
 	pr_info("Found %s NIC", type);
-	if (type != unknown)
+	if (type != unkyeswn)
 		pr_cont(" registration number %pM, CRC %02x", serial, crc);
 	pr_cont(".\n");
 
@@ -355,7 +355,7 @@ static int nic_init(u32 __iomem *mcr)
 }
 
 /* Read the NIC (Number-In-a-Can) device used to store the MAC address on
- * SN0 / SN00 nodeboards and PCI cards.
+ * SN0 / SN00 yesdeboards and PCI cards.
  */
 static void ioc3_get_eaddr_nic(struct ioc3_private *ip)
 {
@@ -389,9 +389,9 @@ static void ioc3_get_eaddr_nic(struct ioc3_private *ip)
 		ip->dev->dev_addr[i - 2] = nic[i];
 }
 
-/* Ok, this is hosed by design.  It's necessary to know what machine the
- * NIC is in in order to know how to read the NIC address.  We also have
- * to know if it's a PCI card or a NIC in on the node board ...
+/* Ok, this is hosed by design.  It's necessary to kyesw what machine the
+ * NIC is in in order to kyesw how to read the NIC address.  We also have
+ * to kyesw if it's a PCI card or a NIC in on the yesde board ...
  */
 static void ioc3_get_eaddr(struct ioc3_private *ip)
 {
@@ -756,11 +756,11 @@ static void ioc3_timer(struct timer_list *t)
 	add_timer(&ip->ioc3_timer);
 }
 
-/* Try to find a PHY.  There is no apparent relation between the MII addresses
+/* Try to find a PHY.  There is yes apparent relation between the MII addresses
  * in the SGI documentation and what we find in reality, so we simply probe
  * for the PHY.  It seems IOC3 PHYs usually live on address 31.  One of my
  * onboard IOC3s has the special oddity that probing doesn't seem to find it
- * yet the interface seems to work fine, so if probing fails we for now will
+ * yet the interface seems to work fine, so if probing fails we for yesw will
  * simply default to PHY 31 instead of bailing out.
  */
 static int ioc3_mii_init(struct ioc3_private *ip)
@@ -866,7 +866,7 @@ static int ioc3_alloc_rx_bufs(struct net_device *dev)
 	int i;
 
 	/* Now the rx buffers.  The RX ring may be larger but
-	 * we only allocate 16 buffers for now.  Need to tune
+	 * we only allocate 16 buffers for yesw.  Need to tune
 	 * this for performance and memory later.
 	 */
 	for (i = 0; i < RX_BUFFS; i++) {
@@ -944,7 +944,7 @@ static void ioc3_start(struct ioc3_private *ip)
 
 	ring = ioc3_map(ip->txr_dma, PCI64_ATTR_PREC);
 
-	ip->txqlen = 0;					/* nothing queued  */
+	ip->txqlen = 0;					/* yesthing queued  */
 
 	/* Now the tx ring base, consume & produce registers.  */
 	writel(ring >> 32, &regs->etbr_h);
@@ -1049,20 +1049,20 @@ static int ioc3_is_menet(struct pci_dev *pdev)
 #ifdef CONFIG_SERIAL_8250
 /* Note about serial ports and consoles:
  * For console output, everyone uses the IOC3 UARTA (offset 0x178)
- * connected to the master node (look in ip27_setup_console() and
+ * connected to the master yesde (look in ip27_setup_console() and
  * ip27prom_console_write()).
  *
- * For serial (/dev/ttyS0 etc), we can not have hardcoded serial port
+ * For serial (/dev/ttyS0 etc), we can yest have hardcoded serial port
  * addresses on a partitioned machine. Since we currently use the ioc3
  * serial ports, we use dynamic serial port discovery that the serial.c
  * driver uses for pci/pnp ports (there is an entry for the SGI ioc3
  * boards in pci_boards[]). Unfortunately, UARTA's pio address is greater
- * than UARTB's, although UARTA on o200s has traditionally been known as
+ * than UARTB's, although UARTA on o200s has traditionally been kyeswn as
  * port 0. So, we just use one serial port from each ioc3 (since the
  * serial driver adds addresses to get to higher ports).
  *
  * The first one to do a register_console becomes the preferred console
- * (if there is no kernel command line console= directive). /dev/console
+ * (if there is yes kernel command line console= directive). /dev/console
  * (ie 5, 1) is then "aliased" into the device number returned by the
  * "device" routine referred to in this console structure
  * (ip27prom_console_dev).
@@ -1110,18 +1110,18 @@ static void ioc3_serial_probe(struct pci_dev *pdev, struct ioc3 *ioc3)
 	u32 sio_iec;
 
 	/* We need to recognice and treat the fourth MENET serial as it
-	 * does not have an SuperIO chip attached to it, therefore attempting
+	 * does yest have an SuperIO chip attached to it, therefore attempting
 	 * to access it will result in bus errors.  We call something an
 	 * MENET if PCI slot 0, 1, 2 and 3 of a master PCI bus all have an IOC3
-	 * in it.  This is paranoid but we want to avoid blowing up on a
+	 * in it.  This is parayesid but we want to avoid blowing up on a
 	 * showhorn PCI box that happens to have 4 IOC3 cards in it so it's
-	 * not paranoid enough ...
+	 * yest parayesid eyesugh ...
 	 */
 	if (ioc3_is_menet(pdev) && PCI_SLOT(pdev->devfn) == 3)
 		return;
 
 	/* Switch IOC3 to PIO mode.  It probably already was but let's be
-	 * paranoid
+	 * parayesid
 	 */
 	writel(GPCR_UARTA_MODESEL | GPCR_UARTB_MODESEL, &ioc3->gpcr_s);
 	readl(&ioc3->gpcr_s);
@@ -1363,7 +1363,7 @@ static netdev_tx_t ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * adds up the 1's complement checksum for the entire packet and
 	 * inserts it at an offset which can be specified in the descriptor
 	 * into the transmit packet.  This means we have to compensate for the
-	 * MAC header which should not be summed and the TCP/UDP pseudo headers
+	 * MAC header which should yest be summed and the TCP/UDP pseudo headers
 	 * manually.
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
@@ -1384,7 +1384,7 @@ static netdev_tx_t ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Skip IP header; it's sum is always zero and was
 		 * already filled in by ip_output.c
 		 */
-		csum = csum_tcpudp_nofold(ih->saddr, ih->daddr,
+		csum = csum_tcpudp_yesfold(ih->saddr, ih->daddr,
 					  ih->tot_len - (ih->ihl << 2),
 					  proto, csum_fold(ehsum));
 

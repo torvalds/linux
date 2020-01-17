@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI__SPARC_MMAN_H__
 #define _UAPI__SPARC_MMAN_H__
 
@@ -8,7 +8,7 @@
 
 #define PROT_ADI	0x10		/* ADI enabled */
 
-#define MAP_RENAME      MAP_ANONYMOUS   /* In SunOS terminology */
+#define MAP_RENAME      MAP_ANONYMOUS   /* In SunOS termiyeslogy */
 #define MAP_NORESERVE   0x40            /* don't reserve swap pages */
 #define MAP_INHERIT     0x80            /* SunOS doesn't do this, but... */
 #define MAP_LOCKED      0x100           /* lock the mapping */

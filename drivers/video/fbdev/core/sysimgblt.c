@@ -4,7 +4,7 @@
  *
  *  Based almost entirely on cfbimgblt.c
  *
- *      Copyright (C)  April 2007 Antonino Daplas <adaplas@pol.net>
+ *      Copyright (C)  April 2007 Antoniyes Daplas <adaplas@pol.net>
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License.  See the file COPYING in the main directory of this archive for
@@ -176,7 +176,7 @@ static void slow_imageblit(const struct fb_image *image, struct fb_info *p,
 }
 
 /*
- * fast_imageblit - optimized monochrome color expansion
+ * fast_imageblit - optimized moyeschrome color expansion
  *
  * Only if:  bits_per_pixel == 8, 16, or 32
  *           image->width is divisible by pixel/dword (ppw);
@@ -282,7 +282,7 @@ void sys_imageblit(struct fb_info *p, const struct fb_image *image)
 
 EXPORT_SYMBOL(sys_imageblit);
 
-MODULE_AUTHOR("Antonino Daplas <adaplas@pol.net>");
+MODULE_AUTHOR("Antoniyes Daplas <adaplas@pol.net>");
 MODULE_DESCRIPTION("1-bit/8-bit to 1-32 bit color expansion (sys-to-sys)");
 MODULE_LICENSE("GPL");
 

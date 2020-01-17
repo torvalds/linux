@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * stack_user.c
  *
@@ -32,22 +32,22 @@
  * only things supported is T01, for "Text-base version 0x01".  Next, the
  * client writes the version they would like to use, including the newline.
  * Thus, the protocol tag is 'T01\n'.  If the version tag written is
- * unknown, -EINVAL is returned.  Once the negotiation is complete, the
+ * unkyeswn, -EINVAL is returned.  Once the negotiation is complete, the
  * client can start sending messages.
  *
  * The T01 protocol has three messages.  First is the "SETN" message.
  * It has the following syntax:
  *
- *  SETN<space><8-char-hex-nodenum><newline>
+ *  SETN<space><8-char-hex-yesdenum><newline>
  *
  * This is 14 characters.
  *
  * The "SETN" message must be the first message following the protocol.
- * It tells ocfs2_control the local node number.
+ * It tells ocfs2_control the local yesde number.
  *
  * Next comes the "SETV" message.  It has the following syntax:
  *
- *  SETV<space><2-char-hex-major><space><2-char-hex-minor><newline>
+ *  SETV<space><2-char-hex-major><space><2-char-hex-miyesr><newline>
  *
  * This is 11 characters.
  *
@@ -55,14 +55,14 @@
  * negotiated by the client.  The client negotiates based on the maximum
  * version advertised in /sys/fs/ocfs2/max_locking_protocol.  The major
  * number from the "SETV" message must match
- * ocfs2_user_plugin.sp_max_proto.pv_major, and the minor number
- * must be less than or equal to ...sp_max_version.pv_minor.
+ * ocfs2_user_plugin.sp_max_proto.pv_major, and the miyesr number
+ * must be less than or equal to ...sp_max_version.pv_miyesr.
  *
  * Once this information has been set, mounts will be allowed.  From this
- * point on, the "DOWN" message can be sent for node down notification.
+ * point on, the "DOWN" message can be sent for yesde down yestification.
  * It has the following syntax:
  *
- *  DOWN<space><32-char-cap-hex-uuid><space><8-char-hex-nodenum><newline>
+ *  DOWN<space><32-char-cap-hex-uuid><space><8-char-hex-yesdenum><newline>
  *
  * eg:
  *
@@ -72,8 +72,8 @@
  */
 
 /*
- * Whether or not the client has done the handshake.
- * For now, we have just one protocol version.
+ * Whether or yest the client has done the handshake.
+ * For yesw, we have just one protocol version.
  */
 #define OCFS2_CONTROL_PROTO			"T01\n"
 #define OCFS2_CONTROL_PROTO_LEN			4
@@ -110,7 +110,7 @@ struct ocfs2_live_connection {
 	struct list_head		oc_list;
 	struct ocfs2_cluster_connection	*oc_conn;
 	enum ocfs2_connection_type	oc_type;
-	atomic_t                        oc_this_node;
+	atomic_t                        oc_this_yesde;
 	int                             oc_our_slot;
 	struct dlm_lksb                 oc_version_lksb;
 	char                            oc_lvb[DLM_LVB_LEN];
@@ -121,35 +121,35 @@ struct ocfs2_live_connection {
 struct ocfs2_control_private {
 	struct list_head op_list;
 	int op_state;
-	int op_this_node;
+	int op_this_yesde;
 	struct ocfs2_protocol_version op_proto;
 };
 
-/* SETN<space><8-char-hex-nodenum><newline> */
+/* SETN<space><8-char-hex-yesdenum><newline> */
 struct ocfs2_control_message_setn {
 	char	tag[OCFS2_CONTROL_MESSAGE_OP_LEN];
 	char	space;
-	char	nodestr[OCFS2_CONTROL_MESSAGE_NODENUM_LEN];
+	char	yesdestr[OCFS2_CONTROL_MESSAGE_NODENUM_LEN];
 	char	newline;
 };
 
-/* SETV<space><2-char-hex-major><space><2-char-hex-minor><newline> */
+/* SETV<space><2-char-hex-major><space><2-char-hex-miyesr><newline> */
 struct ocfs2_control_message_setv {
 	char	tag[OCFS2_CONTROL_MESSAGE_OP_LEN];
 	char	space1;
 	char	major[OCFS2_CONTROL_MESSAGE_VERNUM_LEN];
 	char	space2;
-	char	minor[OCFS2_CONTROL_MESSAGE_VERNUM_LEN];
+	char	miyesr[OCFS2_CONTROL_MESSAGE_VERNUM_LEN];
 	char	newline;
 };
 
-/* DOWN<space><32-char-cap-hex-uuid><space><8-char-hex-nodenum><newline> */
+/* DOWN<space><32-char-cap-hex-uuid><space><8-char-hex-yesdenum><newline> */
 struct ocfs2_control_message_down {
 	char	tag[OCFS2_CONTROL_MESSAGE_OP_LEN];
 	char	space1;
 	char	uuid[OCFS2_TEXT_UUID_LEN];
 	char	space2;
-	char	nodestr[OCFS2_CONTROL_MESSAGE_NODENUM_LEN];
+	char	yesdestr[OCFS2_CONTROL_MESSAGE_NODENUM_LEN];
 	char	newline;
 };
 
@@ -163,7 +163,7 @@ union ocfs2_control_message {
 static struct ocfs2_stack_plugin ocfs2_user_plugin;
 
 static atomic_t ocfs2_control_opened;
-static int ocfs2_control_this_node = -1;
+static int ocfs2_control_this_yesde = -1;
 static struct ocfs2_protocol_version running_proto;
 
 static LIST_HEAD(ocfs2_live_connection_list);
@@ -216,7 +216,7 @@ static int ocfs2_live_connection_attach(struct ocfs2_cluster_connection *conn,
 		list_add(&c->oc_list, &ocfs2_live_connection_list);
 	else {
 		printk(KERN_ERR
-		       "ocfs2: Userspace control daemon is not present\n");
+		       "ocfs2: Userspace control daemon is yest present\n");
 		rc = -ESRCH;
 	}
 
@@ -274,7 +274,7 @@ static ssize_t ocfs2_control_validate_protocol(struct file *file,
 }
 
 static void ocfs2_control_send_down(const char *uuid,
-				    int nodenum)
+				    int yesdenum)
 {
 	struct ocfs2_live_connection *c;
 
@@ -283,7 +283,7 @@ static void ocfs2_control_send_down(const char *uuid,
 	c = ocfs2_connection_find(uuid);
 	if (c) {
 		BUG_ON(c->oc_conn == NULL);
-		c->oc_conn->cc_recovery_handler(nodenum,
+		c->oc_conn->cc_recovery_handler(yesdenum,
 						c->oc_conn->cc_recovery_data);
 	}
 
@@ -307,10 +307,10 @@ static int ocfs2_control_install_private(struct file *file)
 
 	mutex_lock(&ocfs2_control_lock);
 
-	if (p->op_this_node < 0) {
+	if (p->op_this_yesde < 0) {
 		set_p = 0;
-	} else if ((ocfs2_control_this_node >= 0) &&
-		   (ocfs2_control_this_node != p->op_this_node)) {
+	} else if ((ocfs2_control_this_yesde >= 0) &&
+		   (ocfs2_control_this_yesde != p->op_this_yesde)) {
 		rc = -EINVAL;
 		goto out_unlock;
 	}
@@ -319,15 +319,15 @@ static int ocfs2_control_install_private(struct file *file)
 		set_p = 0;
 	} else if (!list_empty(&ocfs2_live_connection_list) &&
 		   ((running_proto.pv_major != p->op_proto.pv_major) ||
-		    (running_proto.pv_minor != p->op_proto.pv_minor))) {
+		    (running_proto.pv_miyesr != p->op_proto.pv_miyesr))) {
 		rc = -EINVAL;
 		goto out_unlock;
 	}
 
 	if (set_p) {
-		ocfs2_control_this_node = p->op_this_node;
+		ocfs2_control_this_yesde = p->op_this_yesde;
 		running_proto.pv_major = p->op_proto.pv_major;
-		running_proto.pv_minor = p->op_proto.pv_minor;
+		running_proto.pv_miyesr = p->op_proto.pv_miyesr;
 	}
 
 out_unlock:
@@ -343,24 +343,24 @@ out_unlock:
 	return rc;
 }
 
-static int ocfs2_control_get_this_node(void)
+static int ocfs2_control_get_this_yesde(void)
 {
 	int rc;
 
 	mutex_lock(&ocfs2_control_lock);
-	if (ocfs2_control_this_node < 0)
+	if (ocfs2_control_this_yesde < 0)
 		rc = -EINVAL;
 	else
-		rc = ocfs2_control_this_node;
+		rc = ocfs2_control_this_yesde;
 	mutex_unlock(&ocfs2_control_lock);
 
 	return rc;
 }
 
-static int ocfs2_control_do_setnode_msg(struct file *file,
+static int ocfs2_control_do_setyesde_msg(struct file *file,
 					struct ocfs2_control_message_setn *msg)
 {
-	long nodenum;
+	long yesdenum;
 	char *ptr = NULL;
 	struct ocfs2_control_private *p = file->private_data;
 
@@ -376,14 +376,14 @@ static int ocfs2_control_do_setnode_msg(struct file *file,
 		return -EINVAL;
 	msg->space = msg->newline = '\0';
 
-	nodenum = simple_strtol(msg->nodestr, &ptr, 16);
+	yesdenum = simple_strtol(msg->yesdestr, &ptr, 16);
 	if (!ptr || *ptr)
 		return -EINVAL;
 
-	if ((nodenum == LONG_MIN) || (nodenum == LONG_MAX) ||
-	    (nodenum > INT_MAX) || (nodenum < 0))
+	if ((yesdenum == LONG_MIN) || (yesdenum == LONG_MAX) ||
+	    (yesdenum > INT_MAX) || (yesdenum < 0))
 		return -ERANGE;
-	p->op_this_node = nodenum;
+	p->op_this_yesde = yesdenum;
 
 	return ocfs2_control_install_private(file);
 }
@@ -391,7 +391,7 @@ static int ocfs2_control_do_setnode_msg(struct file *file,
 static int ocfs2_control_do_setversion_msg(struct file *file,
 					   struct ocfs2_control_message_setv *msg)
 {
-	long major, minor;
+	long major, miyesr;
 	char *ptr = NULL;
 	struct ocfs2_control_private *p = file->private_data;
 	struct ocfs2_protocol_version *max =
@@ -413,27 +413,27 @@ static int ocfs2_control_do_setversion_msg(struct file *file,
 	major = simple_strtol(msg->major, &ptr, 16);
 	if (!ptr || *ptr)
 		return -EINVAL;
-	minor = simple_strtol(msg->minor, &ptr, 16);
+	miyesr = simple_strtol(msg->miyesr, &ptr, 16);
 	if (!ptr || *ptr)
 		return -EINVAL;
 
 	/*
-	 * The major must be between 1 and 255, inclusive.  The minor
+	 * The major must be between 1 and 255, inclusive.  The miyesr
 	 * must be between 0 and 255, inclusive.  The version passed in
 	 * must be within the maximum version supported by the filesystem.
 	 */
 	if ((major == LONG_MIN) || (major == LONG_MAX) ||
 	    (major > (u8)-1) || (major < 1))
 		return -ERANGE;
-	if ((minor == LONG_MIN) || (minor == LONG_MAX) ||
-	    (minor > (u8)-1) || (minor < 0))
+	if ((miyesr == LONG_MIN) || (miyesr == LONG_MAX) ||
+	    (miyesr > (u8)-1) || (miyesr < 0))
 		return -ERANGE;
 	if ((major != max->pv_major) ||
-	    (minor > max->pv_minor))
+	    (miyesr > max->pv_miyesr))
 		return -EINVAL;
 
 	p->op_proto.pv_major = major;
-	p->op_proto.pv_minor = minor;
+	p->op_proto.pv_miyesr = miyesr;
 
 	return ocfs2_control_install_private(file);
 }
@@ -441,7 +441,7 @@ static int ocfs2_control_do_setversion_msg(struct file *file,
 static int ocfs2_control_do_down_msg(struct file *file,
 				     struct ocfs2_control_message_down *msg)
 {
-	long nodenum;
+	long yesdenum;
 	char *p = NULL;
 
 	if (ocfs2_control_get_handshake_state(file) !=
@@ -457,15 +457,15 @@ static int ocfs2_control_do_down_msg(struct file *file,
 		return -EINVAL;
 	msg->space1 = msg->space2 = msg->newline = '\0';
 
-	nodenum = simple_strtol(msg->nodestr, &p, 16);
+	yesdenum = simple_strtol(msg->yesdestr, &p, 16);
 	if (!p || *p)
 		return -EINVAL;
 
-	if ((nodenum == LONG_MIN) || (nodenum == LONG_MAX) ||
-	    (nodenum > INT_MAX) || (nodenum < 0))
+	if ((yesdenum == LONG_MIN) || (yesdenum == LONG_MAX) ||
+	    (yesdenum > INT_MAX) || (yesdenum < 0))
 		return -ERANGE;
 
-	ocfs2_control_send_down(msg->uuid, nodenum);
+	ocfs2_control_send_down(msg->uuid, yesdenum);
 
 	return 0;
 }
@@ -489,7 +489,7 @@ static ssize_t ocfs2_control_message(struct file *file,
 	if ((count == OCFS2_CONTROL_MESSAGE_SETNODE_TOTAL_LEN) &&
 	    !strncmp(msg.tag, OCFS2_CONTROL_MESSAGE_SETNODE_OP,
 		     OCFS2_CONTROL_MESSAGE_OP_LEN))
-		ret = ocfs2_control_do_setnode_msg(file, &msg.u_setn);
+		ret = ocfs2_control_do_setyesde_msg(file, &msg.u_setn);
 	else if ((count == OCFS2_CONTROL_MESSAGE_SETVERSION_TOTAL_LEN) &&
 		 !strncmp(msg.tag, OCFS2_CONTROL_MESSAGE_SETVERSION_OP,
 			  OCFS2_CONTROL_MESSAGE_OP_LEN))
@@ -558,7 +558,7 @@ static ssize_t ocfs2_control_read(struct file *file,
 	return ret;
 }
 
-static int ocfs2_control_release(struct inode *inode, struct file *file)
+static int ocfs2_control_release(struct iyesde *iyesde, struct file *file)
 {
 	struct ocfs2_control_private *p = file->private_data;
 
@@ -578,12 +578,12 @@ static int ocfs2_control_release(struct inode *inode, struct file *file)
 			emergency_restart();
 		}
 		/*
-		 * Last valid close clears the node number and resets
+		 * Last valid close clears the yesde number and resets
 		 * the locking protocol version
 		 */
-		ocfs2_control_this_node = -1;
+		ocfs2_control_this_yesde = -1;
 		running_proto.pv_major = 0;
-		running_proto.pv_minor = 0;
+		running_proto.pv_miyesr = 0;
 	}
 
 out:
@@ -597,14 +597,14 @@ out:
 	return 0;
 }
 
-static int ocfs2_control_open(struct inode *inode, struct file *file)
+static int ocfs2_control_open(struct iyesde *iyesde, struct file *file)
 {
 	struct ocfs2_control_private *p;
 
 	p = kzalloc(sizeof(struct ocfs2_control_private), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
-	p->op_this_node = -1;
+	p->op_this_yesde = -1;
 
 	mutex_lock(&ocfs2_control_lock);
 	file->private_data = p;
@@ -624,7 +624,7 @@ static const struct file_operations ocfs2_control_fops = {
 };
 
 static struct miscdevice ocfs2_control_device = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.miyesr		= MISC_DYNAMIC_MINOR,
 	.name		= "ocfs2_control",
 	.fops		= &ocfs2_control_fops,
 };
@@ -639,7 +639,7 @@ static int ocfs2_control_init(void)
 	if (rc)
 		printk(KERN_ERR
 		       "ocfs2: Unable to register ocfs2_control device "
-		       "(errno %d)\n",
+		       "(erryes %d)\n",
 		       -rc);
 
 	return rc;
@@ -656,11 +656,11 @@ static void fsdlm_lock_ast_wrapper(void *astarg)
 	int status = lksb->lksb_fsdlm.sb_status;
 
 	/*
-	 * For now we're punting on the issue of other non-standard errors
+	 * For yesw we're punting on the issue of other yesn-standard errors
 	 * where we can't tell if the unlock_ast or lock_ast should be called.
 	 * The main "other error" that's possible is EINVAL which means the
 	 * function was called with invalid args, which shouldn't be possible
-	 * since the caller here is under our control.  Other non-standard
+	 * since the caller here is under our control.  Other yesn-standard
 	 * errors probably fall into the same category, or otherwise are fatal
 	 * which means we can't carry on anyway.
 	 */
@@ -734,7 +734,7 @@ static void user_dlm_dump_lksb(struct ocfs2_dlm_lksb *lksb)
 }
 
 static int user_plock(struct ocfs2_cluster_connection *conn,
-		      u64 ino,
+		      u64 iyes,
 		      struct file *file,
 		      int cmd,
 		      struct file_lock *fl)
@@ -746,7 +746,7 @@ static int user_plock(struct ocfs2_cluster_connection *conn,
 	 * Internally, fs/dlm will pass these to a misc device, which
 	 * a userspace daemon will read and write to.
 	 *
-	 * For now, cancel requests (which happen internally only),
+	 * For yesw, cancel requests (which happen internally only),
 	 * are turned into unlocks. Most of this function taken from
 	 * gfs2_lock.
 	 */
@@ -757,20 +757,20 @@ static int user_plock(struct ocfs2_cluster_connection *conn,
 	}
 
 	if (IS_GETLK(cmd))
-		return dlm_posix_get(conn->cc_lockspace, ino, file, fl);
+		return dlm_posix_get(conn->cc_lockspace, iyes, file, fl);
 	else if (fl->fl_type == F_UNLCK)
-		return dlm_posix_unlock(conn->cc_lockspace, ino, file, fl);
+		return dlm_posix_unlock(conn->cc_lockspace, iyes, file, fl);
 	else
-		return dlm_posix_lock(conn->cc_lockspace, ino, file, cmd, fl);
+		return dlm_posix_lock(conn->cc_lockspace, iyes, file, cmd, fl);
 }
 
 /*
  * Compare a requested locking protocol version against the current one.
  *
  * If the major numbers are different, they are incompatible.
- * If the current minor is greater than the request, they are incompatible.
- * If the current minor is less than or equal to the request, they are
- * compatible, and the requester should run at the current minor version.
+ * If the current miyesr is greater than the request, they are incompatible.
+ * If the current miyesr is less than or equal to the request, they are
+ * compatible, and the requester should run at the current miyesr version.
  */
 static int fs_protocol_compare(struct ocfs2_protocol_version *existing,
 			       struct ocfs2_protocol_version *request)
@@ -778,11 +778,11 @@ static int fs_protocol_compare(struct ocfs2_protocol_version *existing,
 	if (existing->pv_major != request->pv_major)
 		return 1;
 
-	if (existing->pv_minor > request->pv_minor)
+	if (existing->pv_miyesr > request->pv_miyesr)
 		return 1;
 
-	if (existing->pv_minor < request->pv_minor)
-		request->pv_minor = existing->pv_minor;
+	if (existing->pv_miyesr < request->pv_miyesr)
+		request->pv_miyesr = existing->pv_miyesr;
 
 	return 0;
 }
@@ -796,7 +796,7 @@ static void lvb_to_version(char *lvb, struct ocfs2_protocol_version *ver)
 	 * need any endian conversion.
 	 */
 	ver->pv_major = pv->pv_major;
-	ver->pv_minor = pv->pv_minor;
+	ver->pv_miyesr = pv->pv_miyesr;
 }
 
 static void version_to_lvb(struct ocfs2_protocol_version *ver, char *lvb)
@@ -808,7 +808,7 @@ static void version_to_lvb(struct ocfs2_protocol_version *ver, char *lvb)
 	 * need any endian conversion.
 	 */
 	pv->pv_major = ver->pv_major;
-	pv->pv_minor = ver->pv_minor;
+	pv->pv_miyesr = ver->pv_miyesr;
 }
 
 static void sync_wait_cb(void *arg)
@@ -888,7 +888,7 @@ static int version_unlock(struct ocfs2_cluster_connection *conn)
  *
  * To exchange ocfs2 versioning, we use the LVB of the version dlm lock.
  * The algorithm is:
- * 1. Attempt to take the lock in EX mode (non-blocking).
+ * 1. Attempt to take the lock in EX mode (yesn-blocking).
  * 2. If successful (which means it is the first mount), write the
  *    version number and downconvert to PR lock.
  * 3. If unsuccessful (returns -EAGAIN), read the version from the LVB after
@@ -903,15 +903,15 @@ static int get_protocol_version(struct ocfs2_cluster_connection *conn)
 
 	running_proto.pv_major =
 		ocfs2_user_plugin.sp_max_proto.pv_major;
-	running_proto.pv_minor =
-		ocfs2_user_plugin.sp_max_proto.pv_minor;
+	running_proto.pv_miyesr =
+		ocfs2_user_plugin.sp_max_proto.pv_miyesr;
 
 	lc->oc_version_lksb.sb_lvbptr = lc->oc_lvb;
 	ret = version_lock(conn, DLM_LOCK_EX,
 			DLM_LKF_VALBLK|DLM_LKF_NOQUEUE);
 	if (!ret) {
 		conn->cc_version.pv_major = running_proto.pv_major;
-		conn->cc_version.pv_minor = running_proto.pv_minor;
+		conn->cc_version.pv_miyesr = running_proto.pv_miyesr;
 		version_to_lvb(&running_proto, lc->oc_lvb);
 		version_lock(conn, DLM_LOCK_PR, DLM_LKF_CONVERT|DLM_LKF_VALBLK);
 	} else if (ret == -EAGAIN) {
@@ -921,13 +921,13 @@ static int get_protocol_version(struct ocfs2_cluster_connection *conn)
 		lvb_to_version(lc->oc_lvb, &pv);
 
 		if ((pv.pv_major != running_proto.pv_major) ||
-				(pv.pv_minor > running_proto.pv_minor)) {
+				(pv.pv_miyesr > running_proto.pv_miyesr)) {
 			ret = -EINVAL;
 			goto out;
 		}
 
 		conn->cc_version.pv_major = pv.pv_major;
-		conn->cc_version.pv_minor = pv.pv_minor;
+		conn->cc_version.pv_miyesr = pv.pv_miyesr;
 	}
 out:
 	return ret;
@@ -941,8 +941,8 @@ static void user_recover_slot(void *arg, struct dlm_slot *slot)
 {
 	struct ocfs2_cluster_connection *conn = arg;
 	printk(KERN_INFO "ocfs2: Node %d/%d down. Initiating recovery.\n",
-			slot->nodeid, slot->slot);
-	conn->cc_recovery_handler(slot->nodeid, conn->cc_recovery_data);
+			slot->yesdeid, slot->slot);
+	conn->cc_recovery_handler(slot->yesdeid, conn->cc_recovery_data);
 
 }
 
@@ -956,7 +956,7 @@ static void user_recover_done(void *arg, struct dlm_slot *slots,
 
 	for (i = 0; i < num_slots; i++)
 		if (slots[i].slot == our_slot) {
-			atomic_set(&lc->oc_this_node, slots[i].nodeid);
+			atomic_set(&lc->oc_this_yesde, slots[i].yesdeid);
 			break;
 		}
 
@@ -994,7 +994,7 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 
 	init_waitqueue_head(&lc->oc_wait);
 	init_completion(&lc->oc_sync_wait);
-	atomic_set(&lc->oc_this_node, 0);
+	atomic_set(&lc->oc_this_yesde, 0);
 	conn->cc_private = lc;
 	lc->oc_type = NO_CONTROLD;
 
@@ -1029,12 +1029,12 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 	if (lc->oc_type == NO_CONTROLD) {
 		rc = get_protocol_version(conn);
 		if (rc) {
-			printk(KERN_ERR "ocfs2: Could not determine"
+			printk(KERN_ERR "ocfs2: Could yest determine"
 					" locking version\n");
 			user_cluster_disconnect(conn);
 			goto out;
 		}
-		wait_event(lc->oc_wait, (atomic_read(&lc->oc_this_node) > 0));
+		wait_event(lc->oc_wait, (atomic_read(&lc->oc_this_yesde) > 0));
 	}
 
 	/*
@@ -1045,8 +1045,8 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 		printk(KERN_ERR
 		       "Unable to mount with fs locking protocol version "
 		       "%u.%u because negotiated protocol is %u.%u\n",
-		       conn->cc_version.pv_major, conn->cc_version.pv_minor,
-		       running_proto.pv_major, running_proto.pv_minor);
+		       conn->cc_version.pv_major, conn->cc_version.pv_miyesr,
+		       running_proto.pv_major, running_proto.pv_miyesr);
 		rc = -EPROTO;
 		ocfs2_live_connection_drop(lc);
 		lc = NULL;
@@ -1059,30 +1059,30 @@ out:
 }
 
 
-static int user_cluster_this_node(struct ocfs2_cluster_connection *conn,
-				  unsigned int *this_node)
+static int user_cluster_this_yesde(struct ocfs2_cluster_connection *conn,
+				  unsigned int *this_yesde)
 {
 	int rc;
 	struct ocfs2_live_connection *lc = conn->cc_private;
 
 	if (lc->oc_type == WITH_CONTROLD)
-		rc = ocfs2_control_get_this_node();
+		rc = ocfs2_control_get_this_yesde();
 	else if (lc->oc_type == NO_CONTROLD)
-		rc = atomic_read(&lc->oc_this_node);
+		rc = atomic_read(&lc->oc_this_yesde);
 	else
 		rc = -EINVAL;
 
 	if (rc < 0)
 		return rc;
 
-	*this_node = rc;
+	*this_yesde = rc;
 	return 0;
 }
 
 static struct ocfs2_stack_operations ocfs2_user_plugin_ops = {
 	.connect	= user_cluster_connect,
 	.disconnect	= user_cluster_disconnect,
-	.this_node	= user_cluster_this_node,
+	.this_yesde	= user_cluster_this_yesde,
 	.dlm_lock	= user_dlm_lock,
 	.dlm_unlock	= user_dlm_unlock,
 	.lock_status	= user_dlm_lock_status,

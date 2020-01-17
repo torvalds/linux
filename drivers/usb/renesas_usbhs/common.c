@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Copyright (C) 2019 Renesas Electronics Corporation
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -49,7 +49,7 @@
  *
  * renesas usb support platform callback function.
  * Below macro call it.
- * if platform doesn't have callback, it return 0 (no error)
+ * if platform doesn't have callback, it return 0 (yes error)
  */
 #define usbhs_platform_call(priv, func, args...)\
 	(!(priv) ? -ENODEV :			\
@@ -238,7 +238,7 @@ int usbhs_set_device_config(struct usbhs_priv *priv, int devnum,
 	u32 reg = DEVADD0 + (2 * devnum);
 
 	if (devnum > 10) {
-		dev_err(dev, "cannot set speed to unknown device %d\n", devnum);
+		dev_err(dev, "canyest set speed to unkyeswn device %d\n", devnum);
 		return -EIO;
 	}
 
@@ -302,15 +302,15 @@ static int usbhsc_clk_get(struct device *dev, struct usbhs_priv *priv)
 		return 0;
 
 	/* The first clock should exist */
-	priv->clks[0] = of_clk_get(dev_of_node(dev), 0);
+	priv->clks[0] = of_clk_get(dev_of_yesde(dev), 0);
 	if (IS_ERR(priv->clks[0]))
 		return PTR_ERR(priv->clks[0]);
 
 	/*
 	 * To backward compatibility with old DT, this driver checks the return
-	 * value if it's -ENOENT or not.
+	 * value if it's -ENOENT or yest.
 	 */
-	priv->clks[1] = of_clk_get(dev_of_node(dev), 1);
+	priv->clks[1] = of_clk_get(dev_of_yesde(dev), 1);
 	if (PTR_ERR(priv->clks[1]) == -ENOENT)
 		priv->clks[1] = NULL;
 	else if (IS_ERR(priv->clks[1]))
@@ -505,17 +505,17 @@ static void usbhsc_hotplug(struct usbhs_priv *priv)
 }
 
 /*
- *		notify hotplug
+ *		yestify hotplug
  */
-static void usbhsc_notify_hotplug(struct work_struct *work)
+static void usbhsc_yestify_hotplug(struct work_struct *work)
 {
 	struct usbhs_priv *priv = container_of(work,
 					       struct usbhs_priv,
-					       notify_hotplug_work.work);
+					       yestify_hotplug_work.work);
 	usbhsc_hotplug(priv);
 }
 
-int usbhsc_schedule_notify_hotplug(struct platform_device *pdev)
+int usbhsc_schedule_yestify_hotplug(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
 	int delay = usbhs_get_dparam(priv, detection_delay);
@@ -523,9 +523,9 @@ int usbhsc_schedule_notify_hotplug(struct platform_device *pdev)
 	/*
 	 * This functions will be called in interrupt.
 	 * To make sure safety context,
-	 * use workqueue for usbhs_notify_hotplug
+	 * use workqueue for usbhs_yestify_hotplug
 	 */
-	schedule_delayed_work(&priv->notify_hotplug_work,
+	schedule_delayed_work(&priv->yestify_hotplug_work,
 			      msecs_to_jiffies(delay));
 	return 0;
 }
@@ -595,22 +595,22 @@ static int usbhs_probe(struct platform_device *pdev)
 	int ret, gpio;
 	u32 tmp;
 
-	/* check device node */
-	if (dev_of_node(dev))
+	/* check device yesde */
+	if (dev_of_yesde(dev))
 		info = of_device_get_match_data(dev);
 	else
 		info = renesas_usbhs_get_info(pdev);
 
 	/* check platform information */
 	if (!info) {
-		dev_err(dev, "no platform information\n");
+		dev_err(dev, "yes platform information\n");
 		return -EINVAL;
 	}
 
 	/* platform data */
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
-		dev_err(dev, "Not enough Renesas USB platform resources.\n");
+		dev_err(dev, "Not eyesugh Renesas USB platform resources.\n");
 		return -ENODEV;
 	}
 
@@ -623,7 +623,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	if (of_property_read_bool(dev_of_node(dev), "extcon")) {
+	if (of_property_read_bool(dev_of_yesde(dev), "extcon")) {
 		priv->edev = extcon_get_edev_by_phandle(dev, 0);
 		if (IS_ERR(priv->edev))
 			return PTR_ERR(priv->edev);
@@ -640,7 +640,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	priv->dparam = info->driver_param;
 
 	if (!info->platform_callback.get_id) {
-		dev_err(dev, "no platform callbacks\n");
+		dev_err(dev, "yes platform callbacks\n");
 		return -EINVAL;
 	}
 	priv->pfunc = &info->platform_callback;
@@ -655,9 +655,9 @@ static int usbhs_probe(struct platform_device *pdev)
 	}
 	if (!priv->dparam.pio_dma_border)
 		priv->dparam.pio_dma_border = 64; /* 64byte */
-	if (!of_property_read_u32(dev_of_node(dev), "renesas,buswait", &tmp))
+	if (!of_property_read_u32(dev_of_yesde(dev), "renesas,buswait", &tmp))
 		priv->dparam.buswait_bwait = tmp;
-	gpio = of_get_named_gpio_flags(dev_of_node(dev), "renesas,enable-gpio",
+	gpio = of_get_named_gpio_flags(dev_of_yesde(dev), "renesas,enable-gpio",
 				       0, NULL);
 	if (gpio > 0)
 		priv->dparam.enable_gpio = gpio;
@@ -674,7 +674,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	if (irq_res->flags & IORESOURCE_IRQ_SHAREABLE)
 		priv->irqflags = IRQF_SHARED;
 	priv->pdev	= pdev;
-	INIT_DELAYED_WORK(&priv->notify_hotplug_work, usbhsc_notify_hotplug);
+	INIT_DELAYED_WORK(&priv->yestify_hotplug_work, usbhsc_yestify_hotplug);
 	spin_lock_init(usbhs_priv_to_lock(priv));
 
 	/* call pipe and module init */
@@ -713,7 +713,7 @@ static int usbhs_probe(struct platform_device *pdev)
 		ret = !gpio_get_value(priv->dparam.enable_gpio);
 		gpio_free(priv->dparam.enable_gpio);
 		if (ret) {
-			dev_warn(dev, "USB function not selected (GPIO %d)\n",
+			dev_warn(dev, "USB function yest selected (GPIO %d)\n",
 				 priv->dparam.enable_gpio);
 			ret = -ENOTSUPP;
 			goto probe_end_mod_exit;
@@ -740,15 +740,15 @@ static int usbhs_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	if (!usbhs_get_dparam(priv, runtime_pwctrl)) {
 		usbhsc_power_ctrl(priv, 1);
-		usbhs_mod_autonomy_mode(priv);
+		usbhs_mod_autoyesmy_mode(priv);
 	} else {
-		usbhs_mod_non_autonomy_mode(priv);
+		usbhs_mod_yesn_autoyesmy_mode(priv);
 	}
 
 	/*
-	 * manual call notify_hotplug for cold plug
+	 * manual call yestify_hotplug for cold plug
 	 */
-	usbhsc_schedule_notify_hotplug(pdev);
+	usbhsc_schedule_yestify_hotplug(pdev);
 
 	dev_info(dev, "probed\n");
 
@@ -815,12 +815,12 @@ static __maybe_unused int usbhsc_resume(struct device *dev)
 
 	if (!usbhs_get_dparam(priv, runtime_pwctrl)) {
 		usbhsc_power_ctrl(priv, 1);
-		usbhs_mod_autonomy_mode(priv);
+		usbhs_mod_autoyesmy_mode(priv);
 	}
 
 	usbhs_platform_call(priv, phy_reset, pdev);
 
-	usbhsc_schedule_notify_hotplug(pdev);
+	usbhsc_schedule_yestify_hotplug(pdev);
 
 	return 0;
 }
@@ -841,4 +841,4 @@ module_platform_driver(renesas_usbhs_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Renesas USB driver");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>");

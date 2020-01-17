@@ -53,9 +53,9 @@ static struct pccard_operations i82092aa_operations = {
 
 struct socket_info {
 	int	number;
-	int	card_state; 	/*  0 = no socket,
+	int	card_state; 	/*  0 = yes socket,
 				    1 = empty socket, 
-				    2 = card but not initialized,
+				    2 = card but yest initialized,
 				    3 = operational card */
 	unsigned int io_base; 	/* base io address of the socket */
 	
@@ -137,7 +137,7 @@ static int i82092aa_pci_probe(struct pci_dev *dev, const struct pci_device_id *i
 	for (i = 0; i<socket_count; i++) {
 		sockets[i].socket.dev.parent = &dev->dev;
 		sockets[i].socket.ops = &i82092aa_operations;
-		sockets[i].socket.resource_ops = &pccard_nonstatic_ops;
+		sockets[i].socket.resource_ops = &pccard_yesnstatic_ops;
 		ret = pcmcia_register_socket(&sockets[i].socket);
 		if (ret) {
 			goto err_out_free_sockets;
@@ -279,7 +279,7 @@ static void indirect_write16(int socket, unsigned short reg, unsigned short valu
 }
 
 /* simple helper functions */
-/* External clock time, in nanoseconds.  120 ns = 8.33 MHz */
+/* External clock time, in nayesseconds.  120 ns = 8.33 MHz */
 static int cycle_time = 120;
 
 static int to_cycles(int ns)
@@ -314,12 +314,12 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 		
 		for (i=0;i<socket_count;i++) {
 			int csc;
-			if (sockets[i].card_state==0) /* Inactive socket, should not happen */
+			if (sockets[i].card_state==0) /* Inactive socket, should yest happen */
 				continue;
 			
 			csc = indirect_read(i,I365_CSC); /* card status change register */
 			
-			if (csc==0)  /* no events on this socket */
+			if (csc==0)  /* yes events on this socket */
 			   	continue;
 			handled = 1;
 			events = 0;
@@ -345,7 +345,7 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 			active |= events;
 		}
 				
-		if (active==0) /* no more events to handle */
+		if (active==0) /* yes more events to handle */
 			break;				
 		
 	}
@@ -357,18 +357,18 @@ static irqreturn_t i82092aa_interrupt(int irq, void *dev)
 
 /* socket functions */
 
-static int card_present(int socketno)
+static int card_present(int socketyes)
 {	
 	unsigned int val;
 	enter("card_present");
 	
-	if ((socketno<0) || (socketno >= MAX_SOCKETS))
+	if ((socketyes<0) || (socketyes >= MAX_SOCKETS))
 		return 0;
-	if (sockets[socketno].io_base == 0)
+	if (sockets[socketyes].io_base == 0)
 		return 0;
 
 		
-	val = indirect_read(socketno, 1); /* Interface status register */
+	val = indirect_read(socketyes, 1); /* Interface status register */
 	if ((val&12)==12) {
 		leave("card_present 1");
 		return 1;
@@ -430,12 +430,12 @@ static int i82092aa_get_status(struct pcmcia_socket *socket, u_int *value)
 	}
 		
 	/* IO cards have a different meaning of bits 0,1 */
-	/* Also notice the inverse-logic on the bits */
+	/* Also yestice the inverse-logic on the bits */
 	if (indirect_read(sock, I365_INTCTL) & I365_PC_IOCARD)	{
 		/* IO card */
 		if (!(status & I365_CS_STSCHG))
 			*value |= SS_STSCHG;
-	} else { /* non I/O card */
+	} else { /* yesn I/O card */
 		if (!(status & I365_CS_BVD1))
 			*value |= SS_BATDEAD;
 		if (!(status & I365_CS_BVD2))
@@ -446,7 +446,7 @@ static int i82092aa_get_status(struct pcmcia_socket *socket, u_int *value)
 		(*value) |= SS_WRPROT;	/* card is write protected */
 	 
 	if (status & I365_CS_READY)
-		(*value) |= SS_READY;    /* card is not busy */
+		(*value) |= SS_READY;    /* card is yest busy */
 	 	
 	if (status & I365_CS_POWERON)
 		(*value) |= SS_POWERON;  /* power is applied to the card */
@@ -506,7 +506,7 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *sta
 	
 	switch (state->Vpp) {
 		case 0:	
-			printk("not setting Vpp on socket %i\n",sock);
+			printk("yest setting Vpp on socket %i\n",sock);
 			break;
 		case 50: 
 			printk("setting Vpp to 5.0 for socket %i\n",sock);
@@ -544,7 +544,7 @@ static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *sta
 		                        
 	}
 	
-	/* now write the value and clear the (probably bogus) pending stuff by doing a dummy read*/
+	/* yesw write the value and clear the (probably bogus) pending stuff by doing a dummy read*/
 	
 	indirect_write(sock,I365_CSCINT,reg);
 	(void)indirect_read(sock,I365_CSC);
@@ -672,7 +672,7 @@ static int i82092aa_set_mem_map(struct pcmcia_socket *socket, struct pccard_mem_
 /*		printk("requesting attribute memory for socket %i\n",sock);*/
 		i |= I365_MEM_REG;
 	} else {
-/*		printk("requesting normal memory for socket %i\n",sock);*/
+/*		printk("requesting yesrmal memory for socket %i\n",sock);*/
 	}
 	indirect_write16(sock,base+I365_W_OFF,i);
 	

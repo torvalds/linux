@@ -9,16 +9,16 @@ request-list for the block device interface. The character device
 interface, on the other hand, creates new requests, adds them
 to the request-list of the block device, and waits for their completion.
 
-The block device major and minor numbers are determined from the
+The block device major and miyesr numbers are determined from the
 tape's relative position in the ide interfaces, as explained in ide.c.
 
 The character device interface consists of the following devices::
 
-  ht0		major 37, minor 0	first  IDE tape, rewind on close.
-  ht1		major 37, minor 1	second IDE tape, rewind on close.
+  ht0		major 37, miyesr 0	first  IDE tape, rewind on close.
+  ht1		major 37, miyesr 1	second IDE tape, rewind on close.
   ...
-  nht0		major 37, minor 128	first  IDE tape, no rewind on close.
-  nht1		major 37, minor 129	second IDE tape, no rewind on close.
+  nht0		major 37, miyesr 128	first  IDE tape, yes rewind on close.
+  nht1		major 37, miyesr 129	second IDE tape, yes rewind on close.
   ...
 
 The general magnetic tape commands compatible interface, as defined by

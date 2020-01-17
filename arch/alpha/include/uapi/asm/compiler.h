@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI__ALPHA_COMPILER_H
 #define _UAPI__ALPHA_COMPILER_H
 
@@ -6,7 +6,7 @@
  * Herein are macros we use when describing various patterns we want to GCC.
  * In all cases we can get better schedules out of the compiler if we hide
  * as little as possible inside inline assembly.  However, we want to be
- * able to know what we'll get out before giving up inline assembly.  Thus
+ * able to kyesw what we'll get out before giving up inline assembly.  Thus
  * these tests and macros.
  */
 
@@ -86,7 +86,7 @@
 
 /* 
  * Beginning with EGCS 1.1, GCC defines __alpha_bwx__ when the BWX 
- * extension is enabled.  Previous versions did not define anything
+ * extension is enabled.  Previous versions did yest define anything
  * we could test during compilation -- too bad, so sad.
  */
 

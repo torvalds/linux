@@ -64,24 +64,24 @@
 #define QUIRKS_HAVE_PMUREG			(QUIRK_HAS_PMU_CONFIG | \
 						 QUIRK_HAS_RST_STAT)
 
-static bool nowayout	= WATCHDOG_NOWAYOUT;
+static bool yeswayout	= WATCHDOG_NOWAYOUT;
 static int tmr_margin;
 static int tmr_atboot	= S3C2410_WATCHDOG_ATBOOT;
-static int soft_noboot;
+static int soft_yesboot;
 
 module_param(tmr_margin,  int, 0);
 module_param(tmr_atboot,  int, 0);
-module_param(nowayout,   bool, 0);
-module_param(soft_noboot, int, 0);
+module_param(yeswayout,   bool, 0);
+module_param(soft_yesboot, int, 0);
 
 MODULE_PARM_DESC(tmr_margin, "Watchdog tmr_margin in seconds. (default="
 		__MODULE_STRING(S3C2410_WATCHDOG_DEFAULT_TIME) ")");
 MODULE_PARM_DESC(tmr_atboot,
 		"Watchdog is started at boot time if set to 1, default="
 			__MODULE_STRING(S3C2410_WATCHDOG_ATBOOT));
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
-MODULE_PARM_DESC(soft_noboot, "Watchdog action, set to 1 to ignore reboots, 0 to reboot (default 0)");
+MODULE_PARM_DESC(soft_yesboot, "Watchdog action, set to 1 to igyesre reboots, 0 to reboot (default 0)");
 
 /**
  * struct s3c2410_wdt_variant - Per-variant config data
@@ -116,7 +116,7 @@ struct s3c2410_wdt {
 	unsigned long		wtcon_save;
 	unsigned long		wtdat_save;
 	struct watchdog_device	wdt_device;
-	struct notifier_block	freq_transition;
+	struct yestifier_block	freq_transition;
 	const struct s3c2410_wdt_variant *drv_data;
 	struct regmap *pmureg;
 };
@@ -130,7 +130,7 @@ static const struct s3c2410_wdt_variant drv_data_s3c6410 = {
 	.quirks = QUIRK_HAS_WTCLRINT_REG,
 };
 
-static const struct s3c2410_wdt_variant drv_data_exynos5250  = {
+static const struct s3c2410_wdt_variant drv_data_exyyess5250  = {
 	.disable_reg = EXYNOS5_WDT_DISABLE_REG_OFFSET,
 	.mask_reset_reg = EXYNOS5_WDT_MASK_RESET_REG_OFFSET,
 	.mask_bit = 20,
@@ -140,7 +140,7 @@ static const struct s3c2410_wdt_variant drv_data_exynos5250  = {
 		  | QUIRK_HAS_WTCLRINT_REG,
 };
 
-static const struct s3c2410_wdt_variant drv_data_exynos5420 = {
+static const struct s3c2410_wdt_variant drv_data_exyyess5420 = {
 	.disable_reg = EXYNOS5_WDT_DISABLE_REG_OFFSET,
 	.mask_reset_reg = EXYNOS5_WDT_MASK_RESET_REG_OFFSET,
 	.mask_bit = 0,
@@ -150,7 +150,7 @@ static const struct s3c2410_wdt_variant drv_data_exynos5420 = {
 		  | QUIRK_HAS_WTCLRINT_REG,
 };
 
-static const struct s3c2410_wdt_variant drv_data_exynos7 = {
+static const struct s3c2410_wdt_variant drv_data_exyyess7 = {
 	.disable_reg = EXYNOS5_WDT_DISABLE_REG_OFFSET,
 	.mask_reset_reg = EXYNOS5_WDT_MASK_RESET_REG_OFFSET,
 	.mask_bit = 23,
@@ -165,12 +165,12 @@ static const struct of_device_id s3c2410_wdt_match[] = {
 	  .data = &drv_data_s3c2410 },
 	{ .compatible = "samsung,s3c6410-wdt",
 	  .data = &drv_data_s3c6410 },
-	{ .compatible = "samsung,exynos5250-wdt",
-	  .data = &drv_data_exynos5250 },
-	{ .compatible = "samsung,exynos5420-wdt",
-	  .data = &drv_data_exynos5420 },
-	{ .compatible = "samsung,exynos7-wdt",
-	  .data = &drv_data_exynos7 },
+	{ .compatible = "samsung,exyyess5250-wdt",
+	  .data = &drv_data_exyyess5250 },
+	{ .compatible = "samsung,exyyess5420-wdt",
+	  .data = &drv_data_exyyess5420 },
+	{ .compatible = "samsung,exyyess7-wdt",
+	  .data = &drv_data_exyyess7 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c2410_wdt_match);
@@ -195,7 +195,7 @@ static inline unsigned int s3c2410wdt_max_timeout(struct clk *clock)
 				       / S3C2410_WTCON_MAXDIV);
 }
 
-static inline struct s3c2410_wdt *freq_to_wdt(struct notifier_block *nb)
+static inline struct s3c2410_wdt *freq_to_wdt(struct yestifier_block *nb)
 {
 	return container_of(nb, struct s3c2410_wdt, freq_transition);
 }
@@ -206,7 +206,7 @@ static int s3c2410wdt_mask_and_disable_reset(struct s3c2410_wdt *wdt, bool mask)
 	u32 mask_val = 1 << wdt->drv_data->mask_bit;
 	u32 val = 0;
 
-	/* No need to do anything if no PMU CONFIG needed */
+	/* No need to do anything if yes PMU CONFIG needed */
 	if (!(wdt->drv_data->quirks & QUIRK_HAS_PMU_CONFIG))
 		return 0;
 
@@ -272,7 +272,7 @@ static int s3c2410wdt_start(struct watchdog_device *wdd)
 	wtcon = readl(wdt->reg_base + S3C2410_WTCON);
 	wtcon |= S3C2410_WTCON_ENABLE | S3C2410_WTCON_DIV128;
 
-	if (soft_noboot) {
+	if (soft_yesboot) {
 		wtcon |= S3C2410_WTCON_INTEN;
 		wtcon &= ~S3C2410_WTCON_RSTEN;
 	} else {
@@ -396,7 +396,7 @@ static const struct watchdog_device s3c2410_wdd = {
 
 /* interrupt handler code */
 
-static irqreturn_t s3c2410wdt_irq(int irqno, void *param)
+static irqreturn_t s3c2410wdt_irq(int irqyes, void *param)
 {
 	struct s3c2410_wdt *wdt = platform_get_drvdata(param);
 
@@ -412,7 +412,7 @@ static irqreturn_t s3c2410wdt_irq(int irqno, void *param)
 
 #ifdef CONFIG_ARM_S3C24XX_CPUFREQ
 
-static int s3c2410wdt_cpufreq_transition(struct notifier_block *nb,
+static int s3c2410wdt_cpufreq_transition(struct yestifier_block *nb,
 					  unsigned long val, void *data)
 {
 	int ret;
@@ -444,24 +444,24 @@ done:
 	return 0;
 
  err:
-	dev_err(wdt->dev, "cannot set new value for timeout %d\n",
+	dev_err(wdt->dev, "canyest set new value for timeout %d\n",
 				wdt->wdt_device.timeout);
 	return ret;
 }
 
 static inline int s3c2410wdt_cpufreq_register(struct s3c2410_wdt *wdt)
 {
-	wdt->freq_transition.notifier_call = s3c2410wdt_cpufreq_transition;
+	wdt->freq_transition.yestifier_call = s3c2410wdt_cpufreq_transition;
 
-	return cpufreq_register_notifier(&wdt->freq_transition,
+	return cpufreq_register_yestifier(&wdt->freq_transition,
 					 CPUFREQ_TRANSITION_NOTIFIER);
 }
 
 static inline void s3c2410wdt_cpufreq_deregister(struct s3c2410_wdt *wdt)
 {
-	wdt->freq_transition.notifier_call = s3c2410wdt_cpufreq_transition;
+	wdt->freq_transition.yestifier_call = s3c2410wdt_cpufreq_transition;
 
-	cpufreq_unregister_notifier(&wdt->freq_transition,
+	cpufreq_unregister_yestifier(&wdt->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
 }
 
@@ -528,7 +528,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 	wdt->drv_data = s3c2410_get_wdt_drv_data(pdev);
 	if (wdt->drv_data->quirks & QUIRKS_HAVE_PMUREG) {
-		wdt->pmureg = syscon_regmap_lookup_by_phandle(dev->of_node,
+		wdt->pmureg = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 						"samsung,syscon-phandle");
 		if (IS_ERR(wdt->pmureg)) {
 			dev_err(dev, "syscon regmap lookup failed.\n");
@@ -538,7 +538,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 	wdt_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (wdt_irq == NULL) {
-		dev_err(dev, "no irq resource specified\n");
+		dev_err(dev, "yes irq resource specified\n");
 		ret = -ENOENT;
 		goto err;
 	}
@@ -575,7 +575,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(&wdt->wdt_device, wdt);
 
 	/* see if we can actually set the requested timer margin, and if
-	 * not, try the default value */
+	 * yest, try the default value */
 
 	watchdog_init_timeout(&wdt->wdt_device, tmr_margin, dev);
 	ret = s3c2410wdt_set_heartbeat(&wdt->wdt_device,
@@ -589,7 +589,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 				 "tmr_margin value out of range, default %d used\n",
 				 S3C2410_WATCHDOG_DEFAULT_TIME);
 		else
-			dev_info(dev, "default timer value is out of range, cannot start\n");
+			dev_info(dev, "default timer value is out of range, canyest start\n");
 	}
 
 	ret = devm_request_irq(dev, wdt_irq->start, s3c2410wdt_irq, 0,
@@ -599,7 +599,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		goto err_cpufreq;
 	}
 
-	watchdog_set_nowayout(&wdt->wdt_device, nowayout);
+	watchdog_set_yeswayout(&wdt->wdt_device, yeswayout);
 	watchdog_set_restart_priority(&wdt->wdt_device, 128);
 
 	wdt->wdt_device.bootstatus = s3c2410wdt_get_bootstatus(wdt);
@@ -617,7 +617,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 		dev_info(dev, "starting watchdog timer\n");
 		s3c2410wdt_start(&wdt->wdt_device);
 	} else if (!tmr_atboot) {
-		/* if we're not enabling the watchdog, then ensure it is
+		/* if we're yest enabling the watchdog, then ensure it is
 		 * disabled if it has been left running from the bootloader
 		 * or other source */
 

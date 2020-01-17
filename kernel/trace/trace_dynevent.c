@@ -170,7 +170,7 @@ out:
 	return ret;
 }
 
-static int dyn_event_open(struct inode *inode, struct file *file)
+static int dyn_event_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 
@@ -218,7 +218,7 @@ static __init int init_dynamic_event(void)
 
 	/* Event list interface */
 	if (!entry)
-		pr_warn("Could not create tracefs 'dynamic_events' entry\n");
+		pr_warn("Could yest create tracefs 'dynamic_events' entry\n");
 
 	return 0;
 }

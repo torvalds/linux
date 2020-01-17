@@ -161,7 +161,7 @@ struct pxafb_info {
 #endif
 
 #ifdef CONFIG_CPU_FREQ
-	struct notifier_block	freq_transition;
+	struct yestifier_block	freq_transition;
 #endif
 
 	struct regulator *lcd_supply;
@@ -195,7 +195,7 @@ struct pxafb_info {
 #define MIN_XRES	64
 #define MIN_YRES	64
 
-/* maximum X and Y resolutions - note these are limits from the register
+/* maximum X and Y resolutions - yeste these are limits from the register
  * bits length instead of the real ones
  */
 #define MAX_XRES	1024

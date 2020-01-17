@@ -3,7 +3,7 @@
 // Renesas R-Car SRC support
 //
 // Copyright (C) 2013 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
 
 /*
  * you can enable below define if you don't need
@@ -72,7 +72,7 @@ static struct dma_chan *rsnd_src_dma_req(struct rsnd_dai_stream *io,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	int is_play = rsnd_io_is_play(io);
 
-	return rsnd_dma_request_channel(rsnd_src_of_node(priv),
+	return rsnd_dma_request_channel(rsnd_src_of_yesde(priv),
 					mod,
 					is_play ? "rx" : "tx");
 }
@@ -214,7 +214,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 
 	chan = rsnd_runtime_channel_original(io);
 
-	/* 6 - 1/6 are very enough ratio for SRC_BSDSR */
+	/* 6 - 1/6 are very eyesugh ratio for SRC_BSDSR */
 	if (fin == fout)
 		ratio = 0;
 	else if (fin > fout)
@@ -341,7 +341,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	return;
 
 convert_rate_err:
-	dev_err(dev, "unknown BSDSR/BSDIR settings\n");
+	dev_err(dev, "unkyeswn BSDSR/BSDIR settings\n");
 }
 
 static int rsnd_src_irq(struct rsnd_mod *mod,
@@ -359,7 +359,7 @@ static int rsnd_src_irq(struct rsnd_mod *mod,
 	int_val = 0x3300;
 
 	/*
-	 * IRQ is not supported on non-DT
+	 * IRQ is yest supported on yesn-DT
 	 * see
 	 *	rsnd_src_probe_()
 	 */
@@ -371,7 +371,7 @@ static int rsnd_src_irq(struct rsnd_mod *mod,
 	/*
 	 * WORKAROUND
 	 *
-	 * ignore over flow error when rsnd_src_sync_is_enabled()
+	 * igyesre over flow error when rsnd_src_sync_is_enabled()
 	 */
 	if (rsnd_src_sync_is_enabled(mod))
 		sys_int_val = sys_int_val & 0xffff;
@@ -404,7 +404,7 @@ static bool rsnd_src_error_occurred(struct rsnd_mod *mod)
 	/*
 	 * WORKAROUND
 	 *
-	 * ignore over flow error when rsnd_src_sync_is_enabled()
+	 * igyesre over flow error when rsnd_src_sync_is_enabled()
 	 */
 	if (rsnd_src_sync_is_enabled(mod))
 		val0 = val0 & 0xffff;
@@ -493,7 +493,7 @@ static void __rsnd_src_interrupt(struct rsnd_mod *mod,
 
 	spin_lock(&priv->lock);
 
-	/* ignore all cases if not working */
+	/* igyesre all cases if yest working */
 	if (!rsnd_io_is_working(io))
 		goto rsnd_src_interrupt_out;
 
@@ -529,7 +529,7 @@ static int rsnd_src_probe_(struct rsnd_mod *mod,
 
 	if (irq > 0) {
 		/*
-		 * IRQ is not supported on non-DT
+		 * IRQ is yest supported on yesn-DT
 		 * see
 		 *	rsnd_src_irq()
 		 */
@@ -558,7 +558,7 @@ static int rsnd_src_pcm_new(struct rsnd_mod *mod,
 	 */
 
 	/*
-	 * It can't use SRC Synchronous convert
+	 * It can't use SRC Synchroyesus convert
 	 * when Capture if it uses CMD
 	 */
 	if (rsnd_io_to_mod_cmd(io) && !rsnd_io_is_play(io))
@@ -611,8 +611,8 @@ struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id)
 
 int rsnd_src_probe(struct rsnd_priv *priv)
 {
-	struct device_node *node;
-	struct device_node *np;
+	struct device_yesde *yesde;
+	struct device_yesde *np;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_src *src;
 	struct clk *clk;
@@ -623,11 +623,11 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 	if (rsnd_is_gen1(priv))
 		return 0;
 
-	node = rsnd_src_of_node(priv);
-	if (!node)
-		return 0; /* not used is not error */
+	yesde = rsnd_src_of_yesde(priv);
+	if (!yesde)
+		return 0; /* yest used is yest error */
 
-	nr = of_get_child_count(node);
+	nr = of_get_child_count(yesde);
 	if (!nr) {
 		ret = -EINVAL;
 		goto rsnd_src_probe_done;
@@ -643,7 +643,7 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 	priv->src	= src;
 
 	i = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_yesde(yesde, np) {
 		if (!of_device_is_available(np))
 			goto skip;
 
@@ -655,21 +655,21 @@ int rsnd_src_probe(struct rsnd_priv *priv)
 		src->irq = irq_of_parse_and_map(np, 0);
 		if (!src->irq) {
 			ret = -EINVAL;
-			of_node_put(np);
+			of_yesde_put(np);
 			goto rsnd_src_probe_done;
 		}
 
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
-			of_node_put(np);
+			of_yesde_put(np);
 			goto rsnd_src_probe_done;
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(src),
 				    &rsnd_src_ops, clk, RSND_MOD_SRC, i);
 		if (ret) {
-			of_node_put(np);
+			of_yesde_put(np);
 			goto rsnd_src_probe_done;
 		}
 
@@ -680,7 +680,7 @@ skip:
 	ret = 0;
 
 rsnd_src_probe_done:
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	return ret;
 }

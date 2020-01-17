@@ -1,5 +1,5 @@
 /*
- *  entry.S -- non-mmu 68000 interrupt and exception entry points
+ *  entry.S -- yesn-mmu 68000 interrupt and exception entry points
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -13,7 +13,7 @@
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/setup.h>
 #include <asm/segment.h>
 #include <asm/traps.h>
@@ -118,7 +118,7 @@ Lsignal_return:
 	subql	#4,%sp			/* dummy return address*/
 	SAVE_SWITCH_STACK
 	pea	%sp@(SWITCH_STACK_SIZE)
-	bsrw	do_notify_resume
+	bsrw	do_yestify_resume
 	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
@@ -225,7 +225,7 @@ ENTRY(bad_interrupt)
 /*
  * Beware - when entering resume, prev (the current task) is
  * in a0, next (the new task) is in a1, so don't change these
- * registers until their contents are no longer needed.
+ * registers until their contents are yes longer needed.
  */
 ENTRY(resume)
 	movel	%a0,%d1				/* save prev thread in d1 */

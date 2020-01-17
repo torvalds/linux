@@ -44,7 +44,7 @@ int dev_pm_get_subsys_data(struct device *dev)
 
 	spin_unlock_irq(&dev->power.lock);
 
-	/* kfree() verifies that its argument is nonzero. */
+	/* kfree() verifies that its argument is yesnzero. */
 	kfree(psd);
 
 	return 0;

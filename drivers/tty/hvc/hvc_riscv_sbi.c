@@ -15,7 +15,7 @@
 
 #include "hvc_console.h"
 
-static int hvc_sbi_tty_put(uint32_t vtermno, const char *buf, int count)
+static int hvc_sbi_tty_put(uint32_t vtermyes, const char *buf, int count)
 {
 	int i;
 
@@ -25,7 +25,7 @@ static int hvc_sbi_tty_put(uint32_t vtermno, const char *buf, int count)
 	return i;
 }
 
-static int hvc_sbi_tty_get(uint32_t vtermno, char *buf, int count)
+static int hvc_sbi_tty_get(uint32_t vtermyes, char *buf, int count)
 {
 	int i, c;
 

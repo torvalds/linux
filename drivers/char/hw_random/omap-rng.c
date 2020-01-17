@@ -8,7 +8,7 @@
  * Mostly based on original driver:
  *
  * Copyright (C) 2005 Nokia Corporation
- * Author: Juha Yrjölä <juha.yrjola@nokia.com>
+ * Author: Juha Yrjölä <juha.yrjola@yeskia.com>
  *
  * This file is licensed under  the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -384,13 +384,13 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 
 	match = of_match_device(of_match_ptr(omap_rng_of_match), dev);
 	if (!match) {
-		dev_err(dev, "no compatible OF match\n");
+		dev_err(dev, "yes compatible OF match\n");
 		return -EINVAL;
 	}
 	priv->pdata = match->data;
 
-	if (of_device_is_compatible(dev->of_node, "ti,omap4-rng") ||
-	    of_device_is_compatible(dev->of_node, "inside-secure,safexcel-eip76")) {
+	if (of_device_is_compatible(dev->of_yesde, "ti,omap4-rng") ||
+	    of_device_is_compatible(dev->of_yesde, "inside-secure,safexcel-eip76")) {
 		irq = platform_get_irq(pdev, 0);
 		if (irq < 0) {
 			dev_err(dev, "%s: error getting IRQ resource - %d\n",
@@ -408,7 +408,7 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *priv,
 
 		/*
 		 * On OMAP4, enabling the shutdown_oflo interrupt is
-		 * done in the interrupt mask register. There is no
+		 * done in the interrupt mask register. There is yes
 		 * such register on EIP76, and it's enabled by the
 		 * same bit in the control register
 		 */
@@ -431,7 +431,7 @@ static int of_get_omap_rng_device_details(struct omap_rng_dev *omap_rng,
 
 static int get_omap_rng_device_details(struct omap_rng_dev *omap_rng)
 {
-	/* Only OMAP2/3 can be non-DT */
+	/* Only OMAP2/3 can be yesn-DT */
 	omap_rng->pdata = &omap2_rng_pdata;
 	return 0;
 }
@@ -471,7 +471,7 @@ static int omap_rng_probe(struct platform_device *pdev)
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to runtime_get device: %d\n", ret);
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 		goto err_ioremap;
 	}
 
@@ -500,7 +500,7 @@ static int omap_rng_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = (dev->of_node) ? of_get_omap_rng_device_details(priv, pdev) :
+	ret = (dev->of_yesde) ? of_get_omap_rng_device_details(priv, pdev) :
 				get_omap_rng_device_details(priv);
 	if (ret)
 		goto err_register;
@@ -560,7 +560,7 @@ static int __maybe_unused omap_rng_resume(struct device *dev)
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
 		dev_err(dev, "Failed to runtime_get device: %d\n", ret);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		return ret;
 	}
 

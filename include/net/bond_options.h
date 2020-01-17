@@ -87,7 +87,7 @@ struct bond_option {
 	const char *desc;
 	u32 flags;
 
-	/* unsuppmodes is used to denote modes in which the option isn't
+	/* unsuppmodes is used to deyeste modes in which the option isn't
 	 * supported.
 	 */
 	unsigned long unsuppmodes;
@@ -101,7 +101,7 @@ struct bond_option {
 
 int __bond_opt_set(struct bonding *bond, unsigned int option,
 		   struct bond_opt_value *val);
-int __bond_opt_set_notify(struct bonding *bond, unsigned int option,
+int __bond_opt_set_yestify(struct bonding *bond, unsigned int option,
 			  struct bond_opt_value *val);
 int bond_opt_tryset_rtnl(struct bonding *bond, unsigned int option, char *buf);
 
@@ -112,7 +112,7 @@ const struct bond_option *bond_opt_get_by_name(const char *name);
 const struct bond_opt_value *bond_opt_get_val(unsigned int option, u64 val);
 
 /* This helper is used to initialize a bond_opt_value structure for parameter
- * passing. There should be either a valid string or value, but not both.
+ * passing. There should be either a valid string or value, but yest both.
  * When value is ULLONG_MAX then string will be used.
  */
 static inline void __bond_opt_init(struct bond_opt_value *optval,

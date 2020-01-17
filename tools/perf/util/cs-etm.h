@@ -58,7 +58,7 @@ enum {
 /*
  * ETMv3 exception encoding number:
  * See Embedded Trace Macrocell spcification (ARM IHI 0014Q)
- * table 7-12 Encoding of Exception[3:0] for non-ARMv7-M processors.
+ * table 7-12 Encoding of Exception[3:0] for yesn-ARMv7-M processors.
  */
 enum {
 	CS_ETMV3_EXC_NONE = 0,

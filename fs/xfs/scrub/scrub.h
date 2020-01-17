@@ -13,13 +13,13 @@ enum xchk_type {
 	ST_NONE = 1,	/* disabled */
 	ST_PERAG,	/* per-AG metadata */
 	ST_FS,		/* per-FS metadata */
-	ST_INODE,	/* per-inode metadata */
+	ST_INODE,	/* per-iyesde metadata */
 };
 
 struct xchk_meta_ops {
 	/* Acquire whatever resources are needed for the operation. */
 	int		(*setup)(struct xfs_scrub *,
-				 struct xfs_inode *);
+				 struct xfs_iyesde *);
 
 	/* Examine metadata for errors. */
 	int		(*scrub)(struct xfs_scrub *);
@@ -36,7 +36,7 @@ struct xchk_meta_ops {
 
 /* Buffer pointers and btree cursors for an entire AG. */
 struct xchk_ag {
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agyes;
 	struct xfs_perag	*pag;
 
 	/* AG btree roots */
@@ -45,10 +45,10 @@ struct xchk_ag {
 	struct xfs_buf		*agi_bp;
 
 	/* AG btrees */
-	struct xfs_btree_cur	*bno_cur;
+	struct xfs_btree_cur	*byes_cur;
 	struct xfs_btree_cur	*cnt_cur;
-	struct xfs_btree_cur	*ino_cur;
-	struct xfs_btree_cur	*fino_cur;
+	struct xfs_btree_cur	*iyes_cur;
+	struct xfs_btree_cur	*fiyes_cur;
 	struct xfs_btree_cur	*rmap_cur;
 	struct xfs_btree_cur	*refc_cur;
 };
@@ -59,7 +59,7 @@ struct xfs_scrub {
 	struct xfs_scrub_metadata	*sm;
 	const struct xchk_meta_ops	*ops;
 	struct xfs_trans		*tp;
-	struct xfs_inode		*ip;
+	struct xfs_iyesde		*ip;
 	void				*buf;
 	uint				ilock_flags;
 
@@ -89,13 +89,13 @@ int xchk_superblock(struct xfs_scrub *sc);
 int xchk_agf(struct xfs_scrub *sc);
 int xchk_agfl(struct xfs_scrub *sc);
 int xchk_agi(struct xfs_scrub *sc);
-int xchk_bnobt(struct xfs_scrub *sc);
+int xchk_byesbt(struct xfs_scrub *sc);
 int xchk_cntbt(struct xfs_scrub *sc);
-int xchk_inobt(struct xfs_scrub *sc);
-int xchk_finobt(struct xfs_scrub *sc);
+int xchk_iyesbt(struct xfs_scrub *sc);
+int xchk_fiyesbt(struct xfs_scrub *sc);
 int xchk_rmapbt(struct xfs_scrub *sc);
 int xchk_refcountbt(struct xfs_scrub *sc);
-int xchk_inode(struct xfs_scrub *sc);
+int xchk_iyesde(struct xfs_scrub *sc);
 int xchk_bmap_data(struct xfs_scrub *sc);
 int xchk_bmap_attr(struct xfs_scrub *sc);
 int xchk_bmap_cow(struct xfs_scrub *sc);
@@ -130,27 +130,27 @@ xchk_quota(struct xfs_scrub *sc)
 int xchk_fscounters(struct xfs_scrub *sc);
 
 /* cross-referencing helpers */
-void xchk_xref_is_used_space(struct xfs_scrub *sc, xfs_agblock_t agbno,
+void xchk_xref_is_used_space(struct xfs_scrub *sc, xfs_agblock_t agbyes,
 		xfs_extlen_t len);
-void xchk_xref_is_not_inode_chunk(struct xfs_scrub *sc, xfs_agblock_t agbno,
+void xchk_xref_is_yest_iyesde_chunk(struct xfs_scrub *sc, xfs_agblock_t agbyes,
 		xfs_extlen_t len);
-void xchk_xref_is_inode_chunk(struct xfs_scrub *sc, xfs_agblock_t agbno,
+void xchk_xref_is_iyesde_chunk(struct xfs_scrub *sc, xfs_agblock_t agbyes,
 		xfs_extlen_t len);
-void xchk_xref_is_owned_by(struct xfs_scrub *sc, xfs_agblock_t agbno,
+void xchk_xref_is_owned_by(struct xfs_scrub *sc, xfs_agblock_t agbyes,
 		xfs_extlen_t len, const struct xfs_owner_info *oinfo);
-void xchk_xref_is_not_owned_by(struct xfs_scrub *sc, xfs_agblock_t agbno,
+void xchk_xref_is_yest_owned_by(struct xfs_scrub *sc, xfs_agblock_t agbyes,
 		xfs_extlen_t len, const struct xfs_owner_info *oinfo);
-void xchk_xref_has_no_owner(struct xfs_scrub *sc, xfs_agblock_t agbno,
+void xchk_xref_has_yes_owner(struct xfs_scrub *sc, xfs_agblock_t agbyes,
 		xfs_extlen_t len);
-void xchk_xref_is_cow_staging(struct xfs_scrub *sc, xfs_agblock_t bno,
+void xchk_xref_is_cow_staging(struct xfs_scrub *sc, xfs_agblock_t byes,
 		xfs_extlen_t len);
-void xchk_xref_is_not_shared(struct xfs_scrub *sc, xfs_agblock_t bno,
+void xchk_xref_is_yest_shared(struct xfs_scrub *sc, xfs_agblock_t byes,
 		xfs_extlen_t len);
 #ifdef CONFIG_XFS_RT
-void xchk_xref_is_used_rt_space(struct xfs_scrub *sc, xfs_rtblock_t rtbno,
+void xchk_xref_is_used_rt_space(struct xfs_scrub *sc, xfs_rtblock_t rtbyes,
 		xfs_extlen_t len);
 #else
-# define xchk_xref_is_used_rt_space(sc, rtbno, len) do { } while (0)
+# define xchk_xref_is_used_rt_space(sc, rtbyes, len) do { } while (0)
 #endif
 
 struct xchk_fscounters {

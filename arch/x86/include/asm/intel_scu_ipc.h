@@ -2,7 +2,7 @@
 #ifndef _ASM_X86_INTEL_SCU_IPC_H_
 #define  _ASM_X86_INTEL_SCU_IPC_H_
 
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #define IPCMSG_INDIRECT_READ	0x02
 #define IPCMSG_INDIRECT_WRITE	0x05
@@ -59,21 +59,21 @@ int intel_scu_ipc_i2c_cntrl(u32 addr, u32 *data);
 /* Update FW version */
 int intel_scu_ipc_fw_update(u8 *buffer, u32 length);
 
-extern struct blocking_notifier_head intel_scu_notifier;
+extern struct blocking_yestifier_head intel_scu_yestifier;
 
-static inline void intel_scu_notifier_add(struct notifier_block *nb)
+static inline void intel_scu_yestifier_add(struct yestifier_block *nb)
 {
-	blocking_notifier_chain_register(&intel_scu_notifier, nb);
+	blocking_yestifier_chain_register(&intel_scu_yestifier, nb);
 }
 
-static inline void intel_scu_notifier_remove(struct notifier_block *nb)
+static inline void intel_scu_yestifier_remove(struct yestifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&intel_scu_notifier, nb);
+	blocking_yestifier_chain_unregister(&intel_scu_yestifier, nb);
 }
 
-static inline int intel_scu_notifier_post(unsigned long v, void *p)
+static inline int intel_scu_yestifier_post(unsigned long v, void *p)
 {
-	return blocking_notifier_call_chain(&intel_scu_notifier, v, p);
+	return blocking_yestifier_call_chain(&intel_scu_yestifier, v, p);
 }
 
 #define		SCU_AVAILABLE		1

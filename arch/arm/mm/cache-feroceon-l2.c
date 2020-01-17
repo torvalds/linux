@@ -47,8 +47,8 @@ static inline unsigned long l2_get_va(unsigned long paddr)
 	/*
 	 * Because range ops can't be done on physical addresses,
 	 * we simply install a virtual mapping for it only for the
-	 * TLB lookup to occur, hence no need to flush the untouched
-	 * memory mapping afterwards (note: a cache flush may happen
+	 * TLB lookup to occur, hence yes need to flush the untouched
+	 * memory mapping afterwards (yeste: a cache flush may happen
 	 * in some circumstances depending on the path taken in kunmap_atomic).
 	 */
 	void *vaddr = kmap_atomic_pfn(paddr >> PAGE_SHIFT);
@@ -131,7 +131,7 @@ static inline void l2_inv_all(void)
  * Linux primitives.
  *
  * Note that the end addresses passed to Linux primitives are
- * noninclusive, while the hardware cache range operations use
+ * yesninclusive, while the hardware cache range operations use
  * inclusive start and end addresses.
  */
 #define CACHE_LINE_SIZE		32
@@ -365,7 +365,7 @@ static const struct of_device_id feroceon_ids[] __initconst = {
 
 int __init feroceon_of_init(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	void __iomem *base;
 	bool l2_wt_override = false;
 
@@ -373,9 +373,9 @@ int __init feroceon_of_init(void)
 	l2_wt_override = true;
 #endif
 
-	node = of_find_matching_node(NULL, feroceon_ids);
-	if (node && of_device_is_compatible(node, "marvell,kirkwood-cache")) {
-		base = of_iomap(node, 0);
+	yesde = of_find_matching_yesde(NULL, feroceon_ids);
+	if (yesde && of_device_is_compatible(yesde, "marvell,kirkwood-cache")) {
+		base = of_iomap(yesde, 0);
 		if (!base)
 			return -ENOMEM;
 

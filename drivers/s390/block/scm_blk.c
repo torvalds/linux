@@ -269,7 +269,7 @@ static void scm_request_start(struct scm_request *scmrq)
 
 	atomic_inc(&bdev->queued_reqs);
 	if (eadm_start_aob(scmrq->aob)) {
-		SCM_LOG(5, "no subchannel");
+		SCM_LOG(5, "yes subchannel");
 		scm_request_requeue(scmrq);
 	}
 }
@@ -298,7 +298,7 @@ static blk_status_t scm_blk_request(struct blk_mq_hw_ctx *hctx,
 	if (!scmrq) {
 		scmrq = scm_request_fetch();
 		if (!scmrq) {
-			SCM_LOG(5, "no request");
+			SCM_LOG(5, "yes request");
 			spin_unlock(&sq->lock);
 			return BLK_STS_RESOURCE;
 		}
@@ -455,7 +455,7 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 	bdev->tag_set.nr_hw_queues = nr_requests;
 	bdev->tag_set.queue_depth = nr_requests_per_io * nr_requests;
 	bdev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
-	bdev->tag_set.numa_node = NUMA_NO_NODE;
+	bdev->tag_set.numa_yesde = NUMA_NO_NODE;
 
 	ret = blk_mq_alloc_tag_set(&bdev->tag_set);
 	if (ret)
@@ -486,7 +486,7 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 	bdev->gendisk->fops = &scm_blk_devops;
 	bdev->gendisk->queue = rq;
 	bdev->gendisk->major = scm_major;
-	bdev->gendisk->first_minor = devindex * SCM_NR_PARTS;
+	bdev->gendisk->first_miyesr = devindex * SCM_NR_PARTS;
 
 	len = snprintf(bdev->gendisk->disk_name, DISK_NAME_LEN, "scm");
 	if (devindex > 25) {

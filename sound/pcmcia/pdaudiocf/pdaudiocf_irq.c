@@ -38,7 +38,7 @@ irqreturn_t pdacf_interrupt(int irq, void *dev)
 	return wake_thread ? IRQ_WAKE_THREAD : IRQ_HANDLED;
 }
 
-static inline void pdacf_transfer_mono16(u16 *dst, u16 xor, unsigned int size, unsigned long rdp_port)
+static inline void pdacf_transfer_moyes16(u16 *dst, u16 xor, unsigned int size, unsigned long rdp_port)
 {
 	while (size-- > 0) {
 		*dst++ = inw(rdp_port) ^ xor;
@@ -46,7 +46,7 @@ static inline void pdacf_transfer_mono16(u16 *dst, u16 xor, unsigned int size, u
 	}
 }
 
-static inline void pdacf_transfer_mono32(u32 *dst, u32 xor, unsigned int size, unsigned long rdp_port)
+static inline void pdacf_transfer_moyes32(u32 *dst, u32 xor, unsigned int size, unsigned long rdp_port)
 {
 	register u16 val1, val2;
 
@@ -79,7 +79,7 @@ static inline void pdacf_transfer_stereo32(u32 *dst, u32 xor, unsigned int size,
 	}
 }
 
-static inline void pdacf_transfer_mono16sw(u16 *dst, u16 xor, unsigned int size, unsigned long rdp_port)
+static inline void pdacf_transfer_moyes16sw(u16 *dst, u16 xor, unsigned int size, unsigned long rdp_port)
 {
 	while (size-- > 0) {
 		*dst++ = swab16(inw(rdp_port) ^ xor);
@@ -87,7 +87,7 @@ static inline void pdacf_transfer_mono16sw(u16 *dst, u16 xor, unsigned int size,
 	}
 }
 
-static inline void pdacf_transfer_mono32sw(u32 *dst, u32 xor, unsigned int size, unsigned long rdp_port)
+static inline void pdacf_transfer_moyes32sw(u32 *dst, u32 xor, unsigned int size, unsigned long rdp_port)
 {
 	register u16 val1, val2;
 
@@ -120,7 +120,7 @@ static inline void pdacf_transfer_stereo32sw(u32 *dst, u32 xor, unsigned int siz
 	}
 }
 
-static inline void pdacf_transfer_mono24le(u8 *dst, u16 xor, unsigned int size, unsigned long rdp_port)
+static inline void pdacf_transfer_moyes24le(u8 *dst, u16 xor, unsigned int size, unsigned long rdp_port)
 {
 	register u16 val1, val2;
 	register u32 xval1;
@@ -136,7 +136,7 @@ static inline void pdacf_transfer_mono24le(u8 *dst, u16 xor, unsigned int size, 
 	}
 }
 
-static inline void pdacf_transfer_mono24be(u8 *dst, u16 xor, unsigned int size, unsigned long rdp_port)
+static inline void pdacf_transfer_moyes24be(u8 *dst, u16 xor, unsigned int size, unsigned long rdp_port)
 {
 	register u16 val1, val2;
 	register u32 xval1;
@@ -200,13 +200,13 @@ static void pdacf_transfer(struct snd_pdacf *chip, unsigned int size, unsigned i
 	if (chip->pcm_sample == 3) {
 		if (chip->pcm_little) {
 			if (chip->pcm_channels == 1) {
-				pdacf_transfer_mono24le((char *)chip->pcm_area + (off * 3), xor, size, rdp_port);
+				pdacf_transfer_moyes24le((char *)chip->pcm_area + (off * 3), xor, size, rdp_port);
 			} else {
 				pdacf_transfer_stereo24le((char *)chip->pcm_area + (off * 6), xor, size, rdp_port);
 			}
 		} else {
 			if (chip->pcm_channels == 1) {
-				pdacf_transfer_mono24be((char *)chip->pcm_area + (off * 3), xor, size, rdp_port);
+				pdacf_transfer_moyes24be((char *)chip->pcm_area + (off * 3), xor, size, rdp_port);
 			} else {
 				pdacf_transfer_stereo24be((char *)chip->pcm_area + (off * 6), xor, size, rdp_port);
 			}			
@@ -216,9 +216,9 @@ static void pdacf_transfer(struct snd_pdacf *chip, unsigned int size, unsigned i
 	if (chip->pcm_swab == 0) {
 		if (chip->pcm_channels == 1) {
 			if (chip->pcm_frame == 2) {
-				pdacf_transfer_mono16((u16 *)chip->pcm_area + off, xor, size, rdp_port);
+				pdacf_transfer_moyes16((u16 *)chip->pcm_area + off, xor, size, rdp_port);
 			} else {
-				pdacf_transfer_mono32((u32 *)chip->pcm_area + off, xor, size, rdp_port);
+				pdacf_transfer_moyes32((u32 *)chip->pcm_area + off, xor, size, rdp_port);
 			}
 		} else {
 			if (chip->pcm_frame == 2) {
@@ -230,9 +230,9 @@ static void pdacf_transfer(struct snd_pdacf *chip, unsigned int size, unsigned i
 	} else {
 		if (chip->pcm_channels == 1) {
 			if (chip->pcm_frame == 2) {
-				pdacf_transfer_mono16sw((u16 *)chip->pcm_area + off, xor, size, rdp_port);
+				pdacf_transfer_moyes16sw((u16 *)chip->pcm_area + off, xor, size, rdp_port);
 			} else {
-				pdacf_transfer_mono32sw((u32 *)chip->pcm_area + off, xor, size, rdp_port);
+				pdacf_transfer_moyes32sw((u32 *)chip->pcm_area + off, xor, size, rdp_port);
 			}
 		} else {
 			if (chip->pcm_frame == 2) {

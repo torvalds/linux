@@ -162,8 +162,8 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 			return ret;
 	}
 
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Headphone");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Speaker");
+	snd_soc_dapm_igyesre_suspend(&card->dapm, "Headphone");
+	snd_soc_dapm_igyesre_suspend(&card->dapm, "Speaker");
 
 	return ret;
 }

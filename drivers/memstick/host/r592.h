@@ -115,14 +115,14 @@
 /* Bits 17..19 are just number */
 /* bit 16 is set, then bit 20 is waited */
 /* time to wait is about 50 spins * 2 ^ (bits 17..19) */
-/* seems to be possible just to ignore */
+/* seems to be possible just to igyesre */
 /* Probably debug register */
 #define R592_REG38			0x38
 #define R592_REG38_CHANGE		(1 << 16)	/* Start bit */
 #define R592_REG38_DONE			(1 << 20)	/* HW set this after the delay */
 #define R592_REG38_SHIFT		17
 
-/* Debug register, written (0xABCDEF00) when error happens - not used*/
+/* Debug register, written (0xABCDEF00) when error happens - yest used*/
 #define R592_REG_3C			0x3C
 
 struct r592_device {

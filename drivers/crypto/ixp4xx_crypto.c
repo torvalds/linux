@@ -2,7 +2,7 @@
 /*
  * Intel IXP4xx NPE-C crypto driver
  *
- * Copyright (C) 2008 Christian Hohnstaedt <chohnstaedt@innominate.com>
+ * Copyright (C) 2008 Christian Hohnstaedt <chohnstaedt@inyesminate.com>
  */
 
 #include <linux/platform_device.h>
@@ -155,7 +155,7 @@ struct aead_ctx {
 	struct buffer_desc *src;
 	struct buffer_desc *dst;
 	struct scatterlist ivlist;
-	/* used when the hmac is not on one sg entry */
+	/* used when the hmac is yest on one sg entry */
 	u8 *hmac_virt;
 	int encrypt;
 };
@@ -180,7 +180,7 @@ struct ixp_ctx {
 	int enckey_len;
 	u8 enckey[MAX_KEYLEN];
 	u8 salt[MAX_IVLEN];
-	u8 nonce[CTR_RFC3686_NONCE_SIZE];
+	u8 yesnce[CTR_RFC3686_NONCE_SIZE];
 	unsigned salted;
 	atomic_t configuring;
 	struct completion completion;
@@ -472,7 +472,7 @@ static int init_ixp_crypto(struct device *dev)
 		goto npe_release;
 	}
 	/* buffer_pool will also be used to sometimes store the hmac,
-	 * so assure it is large enough
+	 * so assure it is large eyesugh
 	 */
 	BUILD_BUG_ON(SHA1_DIGEST_SIZE > sizeof(struct buffer_desc));
 	buffer_pool = dma_pool_create("buffer", dev,
@@ -503,7 +503,7 @@ static int init_ixp_crypto(struct device *dev)
 	return 0;
 
 npe_error:
-	printk(KERN_ERR "%s not responding\n", npe_name(npe_c));
+	printk(KERN_ERR "%s yest responding\n", npe_name(npe_c));
 	ret = -EIO;
 err:
 	dma_pool_destroy(ctx_pool);
@@ -863,11 +863,11 @@ static int ablk_rfc3686_setkey(struct crypto_skcipher *tfm, const u8 *key,
 {
 	struct ixp_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	/* the nonce is stored in bytes at end of key */
+	/* the yesnce is stored in bytes at end of key */
 	if (key_len < CTR_RFC3686_NONCE_SIZE)
 		return -EINVAL;
 
-	memcpy(ctx->nonce, key + (key_len - CTR_RFC3686_NONCE_SIZE),
+	memcpy(ctx->yesnce, key + (key_len - CTR_RFC3686_NONCE_SIZE),
 			CTR_RFC3686_NONCE_SIZE);
 
 	key_len -= CTR_RFC3686_NONCE_SIZE;
@@ -966,7 +966,7 @@ static int ablk_rfc3686_crypt(struct skcipher_request *req)
 	int ret;
 
 	/* set up counter block */
-        memcpy(iv, ctx->nonce, CTR_RFC3686_NONCE_SIZE);
+        memcpy(iv, ctx->yesnce, CTR_RFC3686_NONCE_SIZE);
 	memcpy(iv + CTR_RFC3686_NONCE_SIZE, info, CTR_RFC3686_IV_SIZE);
 
 	/* initialize counter portion of counter block */
@@ -1502,6 +1502,6 @@ module_init(ixp_module_init);
 module_exit(ixp_module_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Christian Hohnstaedt <chohnstaedt@innominate.com>");
+MODULE_AUTHOR("Christian Hohnstaedt <chohnstaedt@inyesminate.com>");
 MODULE_DESCRIPTION("IXP4xx hardware crypto");
 

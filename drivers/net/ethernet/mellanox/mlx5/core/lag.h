@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #ifndef __MLX5_LAG_H__
 #define __MLX5_LAG_H__
@@ -43,7 +43,7 @@ struct mlx5_lag {
 	struct lag_tracker        tracker;
 	struct workqueue_struct   *wq;
 	struct delayed_work       bond_work;
-	struct notifier_block     nb;
+	struct yestifier_block     nb;
 	struct lag_mp             lag_mp;
 };
 

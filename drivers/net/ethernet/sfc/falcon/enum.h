@@ -9,7 +9,7 @@
 
 /**
  * enum ef4_loopback_mode - loopback modes
- * @LOOPBACK_NONE: no loopback
+ * @LOOPBACK_NONE: yes loopback
  * @LOOPBACK_DATA: data path loopback
  * @LOOPBACK_GMAC: loopback within GMAC
  * @LOOPBACK_XGMII: loopback after XMAC

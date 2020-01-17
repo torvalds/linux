@@ -6,7 +6,7 @@
  * This file is licensed under GPLv2.
  *
  * This file contains common code to support Message Signalled Interrupt for
- * PCI compatible and non PCI compatible devices.
+ * PCI compatible and yesn PCI compatible devices.
  */
 #include <linux/types.h>
 #include <linux/device.h>
@@ -23,7 +23,7 @@
  * @nvec:	The number of vectors used in this entry
  * @affinity:	Optional pointer to an affinity mask array size of @nvec
  *
- * If @affinity is not NULL then an affinity array[@nvec] is allocated
+ * If @affinity is yest NULL then an affinity array[@nvec] is allocated
  * and the affinity masks and flags from @affinity are copied.
  */
 struct msi_desc *alloc_msi_entry(struct device *dev, int nvec,
@@ -82,7 +82,7 @@ static void msi_check_level(struct irq_domain *domain, struct msi_msg *msg)
 
 	/*
 	 * If the MSI provider has messed with the second message and
-	 * not advertized that it is level-capable, signal the breakage.
+	 * yest advertized that it is level-capable, signal the breakage.
 	 */
 	WARN_ON(!((info->flags & MSI_FLAG_LEVEL_CAPABLE) &&
 		  (info->chip->flags & IRQCHIP_SUPPORTS_LEVEL_MSI)) &&
@@ -274,11 +274,11 @@ static void msi_domain_update_chip_ops(struct msi_domain_info *info)
 
 /**
  * msi_create_irq_domain - Create a MSI interrupt domain
- * @fwnode:	Optional fwnode of the interrupt controller
+ * @fwyesde:	Optional fwyesde of the interrupt controller
  * @info:	MSI domain info
  * @parent:	Parent irq domain
  */
-struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
+struct irq_domain *msi_create_irq_domain(struct fwyesde_handle *fwyesde,
 					 struct msi_domain_info *info,
 					 struct irq_domain *parent)
 {
@@ -290,7 +290,7 @@ struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
 		msi_domain_update_chip_ops(info);
 
 	domain = irq_domain_create_hierarchy(parent, IRQ_DOMAIN_FLAG_MSI, 0,
-					     fwnode, &msi_domain_ops, info);
+					     fwyesde, &msi_domain_ops, info);
 
 	if (domain && !domain->name && info->chip)
 		domain->name = info->chip->name;
@@ -356,13 +356,13 @@ int msi_domain_populate_irqs(struct irq_domain *domain, struct device *dev,
 /*
  * Carefully check whether the device can use reservation mode. If
  * reservation mode is enabled then the early activation will assign a
- * dummy vector to the device. If the PCI/MSI device does not support
+ * dummy vector to the device. If the PCI/MSI device does yest support
  * masking of the entry then this can result in spurious interrupts when
- * the device driver is not absolutely careful. But even then a malfunction
+ * the device driver is yest absolutely careful. But even then a malfunction
  * of the hardware could result in a spurious interrupt on the dummy vector
  * and render the device unusable. If the entry can be masked then the core
  * logic will prevent the spurious interrupt and reservation mode can be
- * used. For now reservation mode is restricted to PCI/MSI.
+ * used. For yesw reservation mode is restricted to PCI/MSI.
  */
 static bool msi_check_reservation_mode(struct irq_domain *domain,
 				       struct msi_domain_info *info,
@@ -376,7 +376,7 @@ static bool msi_check_reservation_mode(struct irq_domain *domain,
 	if (!(info->flags & MSI_FLAG_MUST_REACTIVATE))
 		return false;
 
-	if (IS_ENABLED(CONFIG_PCI_MSI) && pci_msi_ignore_mask)
+	if (IS_ENABLED(CONFIG_PCI_MSI) && pci_msi_igyesre_mask)
 		return false;
 
 	/*
@@ -415,7 +415,7 @@ int msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
 		ops->set_desc(&arg, desc);
 
 		virq = __irq_domain_alloc_irqs(domain, -1, desc->nvec_used,
-					       dev_to_node(dev), &arg, false,
+					       dev_to_yesde(dev), &arg, false,
 					       desc->affinity);
 		if (virq < 0) {
 			ret = -ENOSPC;
@@ -500,7 +500,7 @@ void msi_domain_free_irqs(struct irq_domain *domain, struct device *dev)
 	for_each_msi_entry(desc, dev) {
 		/*
 		 * We might have failed to allocate an MSI early
-		 * enough that there is no IRQ associated to this
+		 * eyesugh that there is yes IRQ associated to this
 		 * entry. If that's the case, don't do anything.
 		 */
 		if (desc->irq) {

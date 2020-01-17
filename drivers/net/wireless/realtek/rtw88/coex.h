@@ -172,38 +172,38 @@ enum coex_rssi_state {
 	COEX_RSSI_STATE_STAY_LOW,
 };
 
-enum coex_notify_type_ips {
+enum coex_yestify_type_ips {
 	COEX_IPS_LEAVE		= 0x0,
 	COEX_IPS_ENTER		= 0x1,
 };
 
-enum coex_notify_type_lps {
+enum coex_yestify_type_lps {
 	COEX_LPS_DISABLE	= 0x0,
 	COEX_LPS_ENABLE		= 0x1,
 };
 
-enum coex_notify_type_scan {
+enum coex_yestify_type_scan {
 	COEX_SCAN_FINISH,
 	COEX_SCAN_START,
 	COEX_SCAN_START_2G,
 	COEX_SCAN_START_5G,
 };
 
-enum coex_notify_type_switchband {
+enum coex_yestify_type_switchband {
 	COEX_NOT_SWITCH,
 	COEX_SWITCH_TO_24G,
 	COEX_SWITCH_TO_5G,
 	COEX_SWITCH_TO_24G_NOFORSCAN,
 };
 
-enum coex_notify_type_associate {
+enum coex_yestify_type_associate {
 	COEX_ASSOCIATE_FINISH,
 	COEX_ASSOCIATE_START,
 	COEX_ASSOCIATE_5G_FINISH,
 	COEX_ASSOCIATE_5G_START,
 };
 
-enum coex_notify_type_media_status {
+enum coex_yestify_type_media_status {
 	COEX_MEDIA_DISCONNECT,
 	COEX_MEDIA_CONNECT,
 	COEX_MEDIA_CONNECT_5G,
@@ -357,14 +357,14 @@ void rtw_coex_defreeze_work(struct work_struct *work);
 
 void rtw_coex_power_on_setting(struct rtw_dev *rtwdev);
 void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only);
-void rtw_coex_ips_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_lps_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_scan_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 action);
-void rtw_coex_media_status_notify(struct rtw_dev *rtwdev, u8 status);
-void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 len);
-void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
-void rtw_coex_switchband_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev);
+void rtw_coex_ips_yestify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_lps_yestify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_scan_yestify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_connect_yestify(struct rtw_dev *rtwdev, u8 action);
+void rtw_coex_media_status_yestify(struct rtw_dev *rtwdev, u8 status);
+void rtw_coex_bt_info_yestify(struct rtw_dev *rtwdev, u8 *buf, u8 len);
+void rtw_coex_wl_fwdbginfo_yestify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
+void rtw_coex_switchband_yestify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_wl_status_change_yestify(struct rtw_dev *rtwdev);
 
 #endif

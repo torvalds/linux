@@ -123,7 +123,7 @@ struct dpu_kms {
 	bool rpm_enabled;
 	struct dss_module_power mp;
 
-	/* reference count bandwidth requests, so we know when we can
+	/* reference count bandwidth requests, so we kyesw when we can
 	 * release bandwidth.  Each atomic update increments, and frame-
 	 * done event decrements.  Additionally, for video mode, the
 	 * reference is incremented when crtc is enabled, and decremented
@@ -148,11 +148,11 @@ struct vsync_info {
  *
  * @dpu_debugfs_setup_regset32: Initialize data for dpu_debugfs_create_regset32
  * @dpu_debugfs_create_regset32: Create 32-bit register dump file
- * @dpu_debugfs_get_root: Get root dentry for DPU_KMS's debugfs node
+ * @dpu_debugfs_get_root: Get root dentry for DPU_KMS's debugfs yesde
  */
 
 /**
- * Companion structure for dpu_debugfs_create_regset32. Do not initialize the
+ * Companion structure for dpu_debugfs_create_regset32. Do yest initialize the
  * members of this structure explicitly; use dpu_debugfs_setup_regset32 instead.
  */
 struct dpu_debugfs_regset32 {
@@ -178,7 +178,7 @@ void dpu_debugfs_setup_regset32(struct dpu_debugfs_regset32 *regset,
  *
  * This function is almost identical to the standard debugfs_create_regset32()
  * function, with the main difference being that a list of register
- * names/offsets do not need to be provided. The 'read' function simply outputs
+ * names/offsets do yest need to be provided. The 'read' function simply outputs
  * sequential register values over a specified range.
  *
  * Similar to the related debugfs_create_regset32 API, the structure pointed to

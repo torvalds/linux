@@ -85,7 +85,7 @@ int gb_hd_cport_allocate(struct gb_host_device *hd, int cport_id,
 		ida_start = cport_id;
 		ida_end = cport_id + 1;
 	} else {
-		dev_err(&hd->dev, "cport %d not available\n", cport_id);
+		dev_err(&hd->dev, "cport %d yest available\n", cport_id);
 		return -EINVAL;
 	}
 

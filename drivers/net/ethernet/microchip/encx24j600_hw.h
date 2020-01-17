@@ -374,7 +374,7 @@ void devm_regmap_init_encx24j600(struct device *dev,
 #define LED_B_SETTINGS 0x8
 
 /* maximum ethernet frame length
- * Currently not used as a limit anywhere
+ * Currently yest used as a limit anywhere
  * (we're using the "huge frame enable" feature of
  * enc424j600).
  */

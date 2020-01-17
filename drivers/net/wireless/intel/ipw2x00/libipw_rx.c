@@ -10,7 +10,7 @@
  */
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
 #include <linux/gfp.h>
@@ -95,7 +95,7 @@ static struct sk_buff *libipw_frag_cache_get(struct libipw_device *ieee,
 	seq = WLAN_GET_SEQ_SEQ(sc);
 
 	if (frag == 0) {
-		/* Reserve enough space to fit maximum frame length */
+		/* Reserve eyesugh space to fit maximum frame length */
 		skb = dev_alloc_skb(ieee->dev->mtu +
 				    sizeof(struct libipw_hdr_4addr) +
 				    8 /* LLC */  +
@@ -147,7 +147,7 @@ static int libipw_frag_cache_invalidate(struct libipw_device *ieee,
 					  hdr->addr1);
 
 	if (entry == NULL) {
-		LIBIPW_DEBUG_FRAG("could not invalidate fragment cache "
+		LIBIPW_DEBUG_FRAG("could yest invalidate fragment cache "
 				     "entry (seq=%u)\n", seq);
 		return -1;
 	}
@@ -168,7 +168,7 @@ libipw_rx_frame_mgmt(struct libipw_device *ieee, struct sk_buff *skb,
 			u16 stype)
 {
 	if (ieee->iw_mode == IW_MODE_MASTER) {
-		printk(KERN_DEBUG "%s: Master mode not yet supported.\n",
+		printk(KERN_DEBUG "%s: Master mode yest yet supported.\n",
 		       ieee->dev->name);
 		return 0;
 /*
@@ -197,7 +197,7 @@ libipw_rx_frame_mgmt(struct libipw_device *ieee, struct sk_buff *skb,
 
 	if (ieee->iw_mode == IW_MODE_MASTER) {
 		if (type != WLAN_FC_TYPE_MGMT && type != WLAN_FC_TYPE_CTRL) {
-			printk(KERN_DEBUG "%s: unknown management frame "
+			printk(KERN_DEBUG "%s: unkyeswn management frame "
 			       "(type=0x%02x, stype=0x%02x) dropped\n",
 			       skb->dev->name, type, stype);
 			return -1;
@@ -208,7 +208,7 @@ libipw_rx_frame_mgmt(struct libipw_device *ieee, struct sk_buff *skb,
 	}
 
 	printk(KERN_DEBUG "%s: hostap_rx_frame_mgmt: management frame "
-	       "received in non-Host AP mode\n", skb->dev->name);
+	       "received in yesn-Host AP mode\n", skb->dev->name);
 	return -1;
 }
 #endif
@@ -384,7 +384,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 			wstats.updated |= IW_QUAL_LEVEL_INVALID;
 
 		if (rx_stats->mask & LIBIPW_STATMASK_NOISE) {
-			wstats.noise = rx_stats->noise;
+			wstats.yesise = rx_stats->yesise;
 			wstats.updated |= IW_QUAL_NOISE_UPDATED;
 		} else
 			wstats.updated |= IW_QUAL_NOISE_INVALID;
@@ -423,7 +423,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 		}
 
 		/* ieee->crypt[] is WEP_KEY (4) in length.  Given that keyidx
-		 * is only allowed 2-bits of storage, no value of keyidx can
+		 * is only allowed 2-bits of storage, yes value of keyidx can
 		 * be provided via above code that would result in keyidx
 		 * being out of range */
 		crypt = ieee->crypt_info.crypt[keyidx];
@@ -436,7 +436,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 		 * bcrx_sta_key parameter is set, station specific key is used
 		 * even with broad/multicast targets (this is against IEEE
 		 * 802.11, but makes it easier to use different keys with
-		 * stations that do not support WEP key mapping). */
+		 * stations that do yest support WEP key mapping). */
 
 		if (is_unicast_ether_addr(hdr->addr1) || local->bcrx_sta_key)
 			(void)hostap_handle_sta_crypto(local, hdr, &crypt,
@@ -454,7 +454,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 			 * frames from other than current BSS, so just drop the
 			 * frames silently instead of filling system log with
 			 * these reports. */
-			LIBIPW_DEBUG_DROP("Decryption failed (not set)"
+			LIBIPW_DEBUG_DROP("Decryption failed (yest set)"
 					     " (SA=%pM)\n", hdr->addr2);
 			ieee->ieee_stats.rx_discards_undecryptable++;
 			goto rx_dropped;
@@ -558,7 +558,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 	    stype != IEEE80211_STYPE_DATA_CFACKPOLL) {
 		if (stype != IEEE80211_STYPE_NULLFUNC)
 			LIBIPW_DEBUG_DROP("RX: dropped data frame "
-					     "with no data (type=0x%02x, "
+					     "with yes data (type=0x%02x, "
 					     "subtype=0x%02x, len=%d)\n",
 					     type, stype, skb->len);
 		goto rx_dropped;
@@ -582,7 +582,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 
 		if (!frag_skb) {
 			LIBIPW_DEBUG(LIBIPW_DL_RX | LIBIPW_DL_FRAG,
-					"Rx cannot get skb from fragment "
+					"Rx canyest get skb from fragment "
 					"cache (morefrag=%d seq=%u frag=%u)\n",
 					(fc & IEEE80211_FCTL_MOREFRAGS) != 0,
 					WLAN_GET_SEQ_SEQ(sc), frag);
@@ -595,7 +595,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 
 		if (frag_skb->tail + flen > frag_skb->end) {
 			printk(KERN_WARNING "%s: host decrypted and "
-			       "reassembled frame did not fit skb\n",
+			       "reassembled frame did yest fit skb\n",
 			       dev->name);
 			libipw_frag_cache_invalidate(ieee, hdr);
 			goto rx_dropped;
@@ -616,7 +616,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 
 		if (fc & IEEE80211_FCTL_MOREFRAGS) {
 			/* more fragments expected - leave the skb in fragment
-			 * cache for now; it will be delivered to upper layers
+			 * cache for yesw; it will be delivered to upper layers
 			 * after all fragments have been received */
 			goto rx_exit;
 		}
@@ -642,7 +642,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 			 * configured */
 		} else {
 			LIBIPW_DEBUG_DROP("encryption configured, but RX "
-					     "frame not encrypted (SA=%pM)\n",
+					     "frame yest encrypted (SA=%pM)\n",
 					     hdr->addr2);
 			goto rx_dropped;
 		}
@@ -778,7 +778,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 				       "multicast frame\n", dev->name);
 		} else if (hostap_is_sta_assoc(ieee->ap, dst)) {
 			/* send frame directly to the associated STA using
-			 * wireless media and not passing to higher layers */
+			 * wireless media and yest passing to higher layers */
 			ieee->ap->bridged_unicast++;
 			skb2 = skb;
 			skb = NULL;
@@ -799,7 +799,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 	if (skb) {
 		skb->protocol = eth_type_trans(skb, dev);
 		memset(skb->cb, 0, sizeof(skb->cb));
-		skb->ip_summed = CHECKSUM_NONE;	/* 802.11 crc not sufficient */
+		skb->ip_summed = CHECKSUM_NONE;	/* 802.11 crc yest sufficient */
 		if (netif_rx(skb) == NET_RX_DROP) {
 			/* netif_rx always succeeds, but it might drop
 			 * the packet.  If it drops the packet, we log that
@@ -820,14 +820,14 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
       rx_dropped:
 	dev->stats.rx_dropped++;
 
-	/* Returning 0 indicates to caller that we have not handled the SKB--
+	/* Returning 0 indicates to caller that we have yest handled the SKB--
 	 * so it is still allocated and can be used again by underlying
 	 * hardware as a DMA target */
 	return 0;
 }
 
 /* Filter out unrelated packets, call libipw_rx[_mgt]
- * This function takes over the skb, it should not be used again after calling
+ * This function takes over the skb, it should yest be used again after calling
  * this function. */
 void libipw_rx_any(struct libipw_device *ieee,
 		     struct sk_buff *skb, struct libipw_rx_stats *stats)
@@ -869,7 +869,7 @@ void libipw_rx_any(struct libipw_device *ieee,
 	is_packet_for_us = 0;
 	switch (ieee->iw_mode) {
 	case IW_MODE_ADHOC:
-		/* our BSS and not from/to DS */
+		/* our BSS and yest from/to DS */
 		if (ether_addr_equal(hdr->addr3, ieee->bssid))
 		if ((fc & (IEEE80211_FCTL_TODS+IEEE80211_FCTL_FROMDS)) == 0) {
 			/* promisc: get all */
@@ -895,7 +895,7 @@ void libipw_rx_any(struct libipw_device *ieee,
 				is_packet_for_us = 1;
 			/* mcast */
 			else if (is_multicast_ether_addr(hdr->addr1)) {
-				/* not our own packet bcasted from AP */
+				/* yest our own packet bcasted from AP */
 				if (!ether_addr_equal(hdr->addr3, ieee->dev->dev_addr))
 					is_packet_for_us = 1;
 			}
@@ -1128,7 +1128,7 @@ static int libipw_parse_info_param(struct libipw_info_element
 					     length, info_element->id);
 			/* We stop processing but don't return an error here
 			 * because some misbehaviour APs break this rule. ie.
-			 * Orinoco AP1000. */
+			 * Oriyesco AP1000. */
 			break;
 		}
 
@@ -1208,17 +1208,17 @@ static int libipw_parse_info_param(struct libipw_info_element
 			break;
 
 		case WLAN_EID_FH_PARAMS:
-			LIBIPW_DEBUG_MGMT("WLAN_EID_FH_PARAMS: ignored\n");
+			LIBIPW_DEBUG_MGMT("WLAN_EID_FH_PARAMS: igyesred\n");
 			break;
 
 		case WLAN_EID_CF_PARAMS:
-			LIBIPW_DEBUG_MGMT("WLAN_EID_CF_PARAMS: ignored\n");
+			LIBIPW_DEBUG_MGMT("WLAN_EID_CF_PARAMS: igyesred\n");
 			break;
 
 		case WLAN_EID_TIM:
 			network->tim.tim_count = info_element->data[0];
 			network->tim.tim_period = info_element->data[1];
-			LIBIPW_DEBUG_MGMT("WLAN_EID_TIM: partially ignored\n");
+			LIBIPW_DEBUG_MGMT("WLAN_EID_TIM: partially igyesred\n");
 			break;
 
 		case WLAN_EID_ERP_INFO:
@@ -1235,7 +1235,7 @@ static int libipw_parse_info_param(struct libipw_info_element
 			break;
 
 		case WLAN_EID_CHALLENGE:
-			LIBIPW_DEBUG_MGMT("WLAN_EID_CHALLENGE: ignored\n");
+			LIBIPW_DEBUG_MGMT("WLAN_EID_CHALLENGE: igyesred\n");
 			break;
 
 		case WLAN_EID_VENDOR_SPECIFIC:
@@ -1513,7 +1513,7 @@ static void update_network(struct libipw_network *dst,
 	dst->qos_data.active = qos_active;
 	dst->qos_data.old_param_count = old_param;
 
-	/* dst->last_associate is not overwritten */
+	/* dst->last_associate is yest overwritten */
 }
 
 static inline int is_beacon(__le16 fc)
@@ -1565,10 +1565,10 @@ static void libipw_process_probe_response(struct libipw_device
 		return;
 	}
 
-	/* The network parsed correctly -- so now we scan our known networks
+	/* The network parsed correctly -- so yesw we scan our kyeswn networks
 	 * to see if we can find it in our list.
 	 *
-	 * NOTE:  This search is definitely not optimized.  Once its doing
+	 * NOTE:  This search is definitely yest optimized.  Once its doing
 	 *        the "right thing" we'll optimize it for efficiency if
 	 *        necessary */
 
@@ -1590,7 +1590,7 @@ static void libipw_process_probe_response(struct libipw_device
 	 * with this beacon's information */
 	if (&target->list == &ieee->network_list) {
 		if (list_empty(&ieee->network_free_list)) {
-			/* If there are no more slots, expire the oldest */
+			/* If there are yes more slots, expire the oldest */
 			list_del(&oldest->list);
 			target = oldest;
 			LIBIPW_DEBUG_SCAN("Expired '%*pE' (%pM) from network list.\n",
@@ -1746,7 +1746,7 @@ void libipw_rx_mgt(struct libipw_device *ieee,
 		LIBIPW_DEBUG_MGMT("received UNKNOWN (%d)\n",
 				     WLAN_FC_GET_STYPE(le16_to_cpu
 						       (header->frame_ctl)));
-		LIBIPW_DEBUG_MGMT("%s: Unknown management packet: %d\n",
+		LIBIPW_DEBUG_MGMT("%s: Unkyeswn management packet: %d\n",
 				     ieee->dev->name,
 				     WLAN_FC_GET_STYPE(le16_to_cpu
 						       (header->frame_ctl)));

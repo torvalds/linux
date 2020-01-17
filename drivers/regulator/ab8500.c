@@ -50,12 +50,12 @@ struct ab8500_shared_mode {
  * @update_mask: mask to enable/disable and set mode of regulator
  * @update_val: bits holding the regulator current mode
  * @update_val_idle: bits to enable the regulator in idle (low power) mode
- * @update_val_normal: bits to enable the regulator in normal (high power) mode
+ * @update_val_yesrmal: bits to enable the regulator in yesrmal (high power) mode
  * @mode_bank: bank with location of mode register
  * @mode_reg: mode register
  * @mode_mask: mask for setting mode
  * @mode_val_idle: mode setting for low power
- * @mode_val_normal: mode setting for normal power
+ * @mode_val_yesrmal: mode setting for yesrmal power
  * @voltage_bank: bank to control regulator voltage
  * @voltage_reg: register to control regulator voltage
  * @voltage_mask: mask to control regulator voltage
@@ -70,12 +70,12 @@ struct ab8500_regulator_info {
 	u8 update_mask;
 	u8 update_val;
 	u8 update_val_idle;
-	u8 update_val_normal;
+	u8 update_val_yesrmal;
 	u8 mode_bank;
 	u8 mode_reg;
 	u8 mode_mask;
 	u8 mode_val_idle;
-	u8 mode_val_normal;
+	u8 mode_val_yesrmal;
 	u8 voltage_bank;
 	u8 voltage_reg;
 	u8 voltage_mask;
@@ -341,9 +341,9 @@ static int ab8500_regulator_set_mode(struct regulator_dev *rdev,
 			lp_mode_req = false;
 
 		if (info->mode_mask)
-			val = info->mode_val_normal;
+			val = info->mode_val_yesrmal;
 		else
-			val = info->update_val_normal;
+			val = info->update_val_yesrmal;
 		break;
 	case REGULATOR_MODE_IDLE:
 		if (info->shared_mode) {
@@ -403,7 +403,7 @@ static unsigned int ab8500_regulator_get_mode(struct regulator_dev *rdev)
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
 	int ret;
 	u8 val;
-	u8 val_normal;
+	u8 val_yesrmal;
 	u8 val_idle;
 
 	if (info == NULL) {
@@ -425,16 +425,16 @@ static unsigned int ab8500_regulator_get_mode(struct regulator_dev *rdev)
 		info->mode_bank, info->mode_reg, &val);
 		val = val & info->mode_mask;
 
-		val_normal = info->mode_val_normal;
+		val_yesrmal = info->mode_val_yesrmal;
 		val_idle = info->mode_val_idle;
 	} else {
 		/* Mode register same as enable register */
 		val = info->update_val;
-		val_normal = info->update_val_normal;
+		val_yesrmal = info->update_val_yesrmal;
 		val_idle = info->update_val_idle;
 	}
 
-	if (val == val_normal)
+	if (val == val_yesrmal)
 		ret = REGULATOR_MODE_NORMAL;
 	else if (val == val_idle)
 		ret = REGULATOR_MODE_IDLE;
@@ -581,7 +581,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x03,
 		.update_val		= 0x01,
 		.update_val_idle	= 0x03,
-		.update_val_normal	= 0x01,
+		.update_val_yesrmal	= 0x01,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x1f,
 		.voltage_mask		= 0x0f,
@@ -604,7 +604,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x0c,
 		.update_val		= 0x04,
 		.update_val_idle	= 0x0c,
-		.update_val_normal	= 0x04,
+		.update_val_yesrmal	= 0x04,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x20,
 		.voltage_mask		= 0x0f,
@@ -627,7 +627,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x03,
 		.update_val		= 0x01,
 		.update_val_idle	= 0x03,
-		.update_val_normal	= 0x01,
+		.update_val_yesrmal	= 0x01,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x21,
 		.voltage_mask		= 0x07,
@@ -649,7 +649,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x44,
 		.update_val		= 0x44,
 		.update_val_idle	= 0x44,
-		.update_val_normal	= 0x04,
+		.update_val_yesrmal	= 0x04,
 		.voltage_bank		= 0x03,
 		.voltage_reg		= 0x80,
 		.voltage_mask		= 0x38,
@@ -677,7 +677,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x82,
 		.update_val		= 0x02,
 		.update_val_idle	= 0x82,
-		.update_val_normal	= 0x02,
+		.update_val_yesrmal	= 0x02,
 	},
 	[AB8500_LDO_AUDIO] = {
 		.desc = {
@@ -745,7 +745,7 @@ static struct ab8500_regulator_info
 	},
 
 	/*
-	 * Regulators with fixed voltage and normal/idle modes
+	 * Regulators with fixed voltage and yesrmal/idle modes
 	 */
 	[AB8500_LDO_ANA] = {
 		.desc = {
@@ -764,7 +764,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x0c,
 		.update_val		= 0x04,
 		.update_val_idle	= 0x0c,
-		.update_val_normal	= 0x04,
+		.update_val_yesrmal	= 0x04,
 	},
 };
 
@@ -793,7 +793,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x03,
 		.update_val		= 0x01,
 		.update_val_idle	= 0x03,
-		.update_val_normal	= 0x01,
+		.update_val_yesrmal	= 0x01,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x1f,
 		.voltage_mask		= 0x0f,
@@ -814,7 +814,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x0c,
 		.update_val		= 0x04,
 		.update_val_idle	= 0x0c,
-		.update_val_normal	= 0x04,
+		.update_val_yesrmal	= 0x04,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x20,
 		.voltage_mask		= 0x0f,
@@ -835,7 +835,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x03,
 		.update_val		= 0x01,
 		.update_val_idle	= 0x03,
-		.update_val_normal	= 0x01,
+		.update_val_yesrmal	= 0x01,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x21,
 		.voltage_mask		= 0x07,
@@ -857,7 +857,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x03,
 		.update_val		= 0x01,
 		.update_val_idle	= 0x03,
-		.update_val_normal	= 0x01,
+		.update_val_yesrmal	= 0x01,
 		/* values for Vaux4SEL register */
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x2f,
@@ -880,7 +880,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x18,
 		.update_val		= 0x10,
 		.update_val_idle	= 0x18,
-		.update_val_normal	= 0x10,
+		.update_val_yesrmal	= 0x10,
 		.voltage_bank		= 0x01,
 		.voltage_reg		= 0x55,
 		.voltage_mask		= 0x07,
@@ -902,7 +902,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x18,
 		.update_val		= 0x10,
 		.update_val_idle	= 0x18,
-		.update_val_normal	= 0x10,
+		.update_val_yesrmal	= 0x10,
 		.voltage_bank		= 0x01,
 		.voltage_reg		= 0x56,
 		.voltage_mask		= 0x07,
@@ -923,7 +923,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x44,
 		.update_val		= 0x04,
 		.update_val_idle	= 0x44,
-		.update_val_normal	= 0x04,
+		.update_val_yesrmal	= 0x04,
 		.voltage_bank		= 0x03,
 		.voltage_reg		= 0x80,
 		.voltage_mask		= 0x38,
@@ -951,7 +951,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x82,
 		.update_val		= 0x02,
 		.update_val_idle	= 0x82,
-		.update_val_normal	= 0x02,
+		.update_val_yesrmal	= 0x02,
 	},
 	[AB8505_LDO_AUDIO] = {
 		.desc = {
@@ -990,7 +990,7 @@ static struct ab8500_regulator_info
 		.mode_reg		= 0x54,
 		.mode_mask		= 0x04,
 		.mode_val_idle		= 0x04,
-		.mode_val_normal	= 0x00,
+		.mode_val_yesrmal	= 0x00,
 	},
 	[AB8505_LDO_ANAMIC2] = {
 		.desc = {
@@ -1011,7 +1011,7 @@ static struct ab8500_regulator_info
 		.mode_reg		= 0x54,
 		.mode_mask		= 0x04,
 		.mode_val_idle		= 0x04,
-		.mode_val_normal	= 0x00,
+		.mode_val_yesrmal	= 0x00,
 	},
 	[AB8505_LDO_AUX8] = {
 		.desc = {
@@ -1029,7 +1029,7 @@ static struct ab8500_regulator_info
 		.update_val		= 0x04,
 	},
 	/*
-	 * Regulators with fixed voltage and normal/idle modes
+	 * Regulators with fixed voltage and yesrmal/idle modes
 	 */
 	[AB8505_LDO_ANA] = {
 		.desc = {
@@ -1047,7 +1047,7 @@ static struct ab8500_regulator_info
 		.update_mask		= 0x0c,
 		.update_val		= 0x04,
 		.update_val_idle	= 0x0c,
-		.update_val_normal	= 0x04,
+		.update_val_yesrmal	= 0x04,
 		.voltage_bank		= 0x04,
 		.voltage_reg		= 0x29,
 		.voltage_mask		= 0x7,
@@ -1575,7 +1575,7 @@ static void abx500_get_regulator_info(struct ab8500 *ab8500)
 
 static int ab8500_regulator_register(struct platform_device *pdev,
 				     struct regulator_init_data *init_data,
-				     int id, struct device_node *np)
+				     int id, struct device_yesde *np)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_regulator_info *info = NULL;
@@ -1589,7 +1589,7 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 	config.dev = &pdev->dev;
 	config.init_data = init_data;
 	config.driver_data = info;
-	config.of_node = np;
+	config.of_yesde = np;
 
 	/* fix for hardware before ab8500v2.0 */
 	if (is_ab8500_1p1_or_earlier(ab8500)) {
@@ -1615,7 +1615,7 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 static int ab8500_regulator_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct of_regulator_match *match;
 	int err, i;
 
@@ -1638,7 +1638,7 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 	match = abx500_regulator.match;
 	for (i = 0; i < abx500_regulator.info_size; i++) {
 		err = ab8500_regulator_register(pdev, match[i].init_data, i,
-						match[i].of_node);
+						match[i].of_yesde);
 		if (err)
 			return err;
 	}

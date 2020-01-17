@@ -9,7 +9,7 @@
 #include <linux/kgdb.h>
 #include <linux/string.h>
 #include <linux/sched.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kdebug.h>
 #include <linux/uaccess.h>
 #include <asm/ptrace.h>
@@ -22,7 +22,7 @@ const struct kgdb_arch arch_kgdb_ops = {
 	.gdb_bpt_instr = { 0x03, 0xff, 0xa0, 0x1f }
 };
 
-static int __kgdb_notify(struct die_args *args, unsigned long cmd)
+static int __kgdb_yestify(struct die_args *args, unsigned long cmd)
 {
 	struct pt_regs *regs = args->regs;
 
@@ -31,32 +31,32 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 	return NOTIFY_STOP;
 }
 
-static int kgdb_notify(struct notifier_block *self,
+static int kgdb_yestify(struct yestifier_block *self,
 		       unsigned long cmd, void *ptr)
 {
 	unsigned long flags;
 	int ret;
 
 	local_irq_save(flags);
-	ret = __kgdb_notify(ptr, cmd);
+	ret = __kgdb_yestify(ptr, cmd);
 	local_irq_restore(flags);
 
 	return ret;
 }
 
-static struct notifier_block kgdb_notifier = {
-	.notifier_call	= kgdb_notify,
+static struct yestifier_block kgdb_yestifier = {
+	.yestifier_call	= kgdb_yestify,
 	.priority	= -INT_MAX,
 };
 
 int kgdb_arch_init(void)
 {
-	return register_die_notifier(&kgdb_notifier);
+	return register_die_yestifier(&kgdb_yestifier);
 }
 
 void kgdb_arch_exit(void)
 {
-	unregister_die_notifier(&kgdb_notifier);
+	unregister_die_yestifier(&kgdb_yestifier);
 }
 
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
@@ -170,7 +170,7 @@ int kgdb_arch_remove_breakpoint(struct kgdb_bkpt *bpt)
 	return 0;
 }
 
-int kgdb_arch_handle_exception(int trap, int signo,
+int kgdb_arch_handle_exception(int trap, int sigyes,
 		int err_code, char *inbuf, char *outbuf,
 		struct pt_regs *regs)
 {

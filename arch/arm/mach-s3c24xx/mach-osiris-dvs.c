@@ -47,7 +47,7 @@ static bool is_dvs(struct s3c_freq *f)
 /* keep track of current state */
 static bool cur_dvs = false;
 
-static int osiris_dvs_notify(struct notifier_block *nb,
+static int osiris_dvs_yestify(struct yestifier_block *nb,
 			      unsigned long val, void *data)
 {
 	struct cpufreq_freqs *cf = data;
@@ -85,8 +85,8 @@ static int osiris_dvs_notify(struct notifier_block *nb,
 	return ret;
 }
 
-static struct notifier_block osiris_dvs_nb = {
-	.notifier_call	= osiris_dvs_notify,
+static struct yestifier_block osiris_dvs_nb = {
+	.yestifier_call	= osiris_dvs_yestify,
 };
 
 static int osiris_dvs_probe(struct platform_device *pdev)
@@ -97,28 +97,28 @@ static int osiris_dvs_probe(struct platform_device *pdev)
 
 	ret = gpio_request(OSIRIS_GPIO_DVS, "osiris-dvs");
 	if (ret) {
-		dev_err(&pdev->dev, "cannot claim gpio\n");
-		goto err_nogpio;
+		dev_err(&pdev->dev, "canyest claim gpio\n");
+		goto err_yesgpio;
 	}
 
 	/* start with dvs disabled */
 	gpio_direction_output(OSIRIS_GPIO_DVS, 1);
 
-	ret = cpufreq_register_notifier(&osiris_dvs_nb,
+	ret = cpufreq_register_yestifier(&osiris_dvs_nb,
 					CPUFREQ_TRANSITION_NOTIFIER);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register with cpufreq\n");
-		goto err_nofreq;
+		goto err_yesfreq;
 	}
 
 	osiris_dvs_tps_setdvs(true);
 
 	return 0;
 
-err_nofreq:
+err_yesfreq:
 	gpio_free(OSIRIS_GPIO_DVS);
 
-err_nogpio:
+err_yesgpio:
 	return ret;
 }
 
@@ -130,7 +130,7 @@ static int osiris_dvs_remove(struct platform_device *pdev)
 	gpio_set_value(OSIRIS_GPIO_DVS, 1);
 	osiris_dvs_tps_setdvs(false);
 
-	cpufreq_unregister_notifier(&osiris_dvs_nb,
+	cpufreq_unregister_yestifier(&osiris_dvs_nb,
 				    CPUFREQ_TRANSITION_NOTIFIER);
 
 	gpio_free(OSIRIS_GPIO_DVS);

@@ -311,7 +311,7 @@ static ssize_t kovaplus_sysfs_set_actual_profile(struct device *dev,
 	roccat_report.button = 0;
 	roccat_report.data1 = profile + 1;
 	roccat_report.data2 = 0;
-	roccat_report_event(kovaplus->chrdev_minor,
+	roccat_report_event(kovaplus->chrdev_miyesr,
 			(uint8_t const *)&roccat_report);
 
 	mutex_unlock(&kovaplus->kovaplus_lock);
@@ -468,7 +468,7 @@ static int kovaplus_init_specials(struct hid_device *hdev)
 		if (retval < 0) {
 			hid_err(hdev, "couldn't init char dev\n");
 		} else {
-			kovaplus->chrdev_minor = retval;
+			kovaplus->chrdev_miyesr = retval;
 			kovaplus->roccat_claimed = 1;
 		}
 
@@ -491,7 +491,7 @@ static void kovaplus_remove_specials(struct hid_device *hdev)
 			== USB_INTERFACE_PROTOCOL_MOUSE) {
 		kovaplus = hid_get_drvdata(hdev);
 		if (kovaplus->roccat_claimed)
-			roccat_disconnect(kovaplus->chrdev_minor);
+			roccat_disconnect(kovaplus->chrdev_miyesr);
 		kfree(kovaplus);
 	}
 }
@@ -591,7 +591,7 @@ static void kovaplus_report_to_chrdev(struct kovaplus_device const *kovaplus,
 
 	roccat_report.data2 = button_report->data2;
 
-	roccat_report_event(kovaplus->chrdev_minor,
+	roccat_report_event(kovaplus->chrdev_miyesr,
 			(uint8_t const *)&roccat_report);
 }
 

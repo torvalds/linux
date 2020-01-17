@@ -89,7 +89,7 @@ int svc_set_client(struct svc_rqst *rqstp)
 }
 EXPORT_SYMBOL_GPL(svc_set_client);
 
-/* A request, which was authenticated, has now executed.
+/* A request, which was authenticated, has yesw executed.
  * Time to finalise the credentials and verifier
  * and release and resources
  */
@@ -135,7 +135,7 @@ EXPORT_SYMBOL_GPL(svc_auth_unregister);
  * When the last reference to an 'auth_domain' is dropped,
  * the object is unhashed and freed.
  * If auth_domain_lookup fails to find an entry, it will return
- * it's second argument 'new'.  If this is non-null, it will
+ * it's second argument 'new'.  If this is yesn-null, it will
  * have been atomically linked into the table.
  */
 

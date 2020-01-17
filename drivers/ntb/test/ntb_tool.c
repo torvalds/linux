@@ -26,12 +26,12 @@
  *   are met:
  *
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copy
- *       notice, this list of conditions and the following disclaimer in
+ *       yestice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
+ *     * Neither the name of Intel Corporation yesr the names of its
  *       contributors may be used to endorse or promote products derived
  *       from this software without specific prior written permission.
  *
@@ -1175,7 +1175,7 @@ static ssize_t tool_spad_write(struct file *filep, const char __user *ubuf,
 	int ret;
 
 	if (!spad->tc->ntb->ops->spad_write) {
-		dev_dbg(&spad->tc->ntb->dev, "no spad write fn\n");
+		dev_dbg(&spad->tc->ntb->dev, "yes spad write fn\n");
 		return -EINVAL;
 	}
 
@@ -1216,7 +1216,7 @@ static ssize_t tool_peer_spad_write(struct file *filep, const char __user *ubuf,
 	int ret;
 
 	if (!spad->tc->ntb->ops->peer_spad_write) {
-		dev_dbg(&spad->tc->ntb->dev, "no spad write fn\n");
+		dev_dbg(&spad->tc->ntb->dev, "yes spad write fn\n");
 		return -EINVAL;
 	}
 

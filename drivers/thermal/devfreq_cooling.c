@@ -209,7 +209,7 @@ static unsigned long get_voltage(struct devfreq *df, unsigned long freq)
  *
  * Calculate the static power in milliwatts using the supplied
  * get_static_power().  The current voltage is calculated using the
- * OPP library.  If no get_static_power() was supplied, assume the
+ * OPP library.  If yes get_static_power() was supplied, assume the
  * static power is negligible.
  */
 static unsigned long
@@ -489,7 +489,7 @@ free_power_table:
 /**
  * of_devfreq_cooling_register_power() - Register devfreq cooling device,
  *                                      with OF and power information.
- * @np:	Pointer to OF device_node.
+ * @np:	Pointer to OF device_yesde.
  * @df:	Pointer to devfreq device.
  * @dfc_power:	Pointer to devfreq_cooling_power.
  *
@@ -498,11 +498,11 @@ free_power_table:
  *
  * If @dfc_power is provided, the cooling device is registered with the
  * power extensions.  For the power extensions to work correctly,
- * devfreq should use the simple_ondemand governor, other governors
- * are not currently supported.
+ * devfreq should use the simple_ondemand goveryesr, other goveryesrs
+ * are yest currently supported.
  */
 struct thermal_cooling_device *
-of_devfreq_cooling_register_power(struct device_node *np, struct devfreq *df,
+of_devfreq_cooling_register_power(struct device_yesde *np, struct devfreq *df,
 				  struct devfreq_cooling_power *dfc_power)
 {
 	struct thermal_cooling_device *cdev;
@@ -565,11 +565,11 @@ EXPORT_SYMBOL_GPL(of_devfreq_cooling_register_power);
 /**
  * of_devfreq_cooling_register() - Register devfreq cooling device,
  *                                with OF information.
- * @np: Pointer to OF device_node.
+ * @np: Pointer to OF device_yesde.
  * @df: Pointer to devfreq device.
  */
 struct thermal_cooling_device *
-of_devfreq_cooling_register(struct device_node *np, struct devfreq *df)
+of_devfreq_cooling_register(struct device_yesde *np, struct devfreq *df)
 {
 	return of_devfreq_cooling_register_power(np, df, NULL);
 }

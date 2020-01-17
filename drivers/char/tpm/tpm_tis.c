@@ -34,7 +34,7 @@ struct tpm_info {
 	struct resource res;
 	/* irq > 0 means: use irq $irq;
 	 * irq = 0 means: autoprobe for an irq;
-	 * irq = -1 means: no irq support
+	 * irq = -1 means: yes irq support
 	 */
 	int irq;
 };
@@ -55,7 +55,7 @@ MODULE_PARM_DESC(interrupts, "Enable interrupts");
 
 static bool itpm;
 module_param(itpm, bool, 0444);
-MODULE_PARM_DESC(itpm, "Force iTPM workarounds (found on some Lenovo laptops)");
+MODULE_PARM_DESC(itpm, "Force iTPM workarounds (found on some Leyesvo laptops)");
 
 static bool force;
 #ifdef CONFIG_X86
@@ -281,7 +281,7 @@ static int tpm_tis_plat_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "no memory resource defined\n");
+		dev_err(&pdev->dev, "yes memory resource defined\n");
 		return -ENODEV;
 	}
 	tpm_info.res = *res;

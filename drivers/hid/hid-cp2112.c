@@ -13,7 +13,7 @@
  * Data Sheet:
  *   http://www.silabs.com/Support%20Documents/TechnicalDocs/CP2112.pdf
  * Programming Interface Specification:
- *   https://www.silabs.com/documents/public/application-notes/an495-cp2112-interface-specification.pdf
+ *   https://www.silabs.com/documents/public/application-yestes/an495-cp2112-interface-specification.pdf
  */
 
 #include <linux/gpio/consumer.h>
@@ -74,10 +74,10 @@ struct cp2112_smbus_config_report {
 	__be32 clock_speed;	/* Hz */
 	u8 device_address;	/* Stored in the upper 7 bits */
 	u8 auto_send_read;	/* 1 = enabled, 0 = disabled */
-	__be16 write_timeout;	/* ms, 0 = no timeout */
-	__be16 read_timeout;	/* ms, 0 = no timeout */
+	__be16 write_timeout;	/* ms, 0 = yes timeout */
+	__be16 read_timeout;	/* ms, 0 = yes timeout */
 	u8 scl_low_timeout;	/* 1 = enabled, 0 = disabled */
-	__be16 retry_time;	/* # of retries, 0 = no limit */
+	__be16 retry_time;	/* # of retries, 0 = yes limit */
 } __packed;
 
 struct cp2112_usb_config_report {
@@ -89,7 +89,7 @@ struct cp2112_usb_config_report {
 			   0x01 = self powered & regulator off
 			   0x02 = self powered & regulator on */
 	u8 release_major;
-	u8 release_minor;
+	u8 release_miyesr;
 	u8 mask;	/* What fields to program */
 } __packed;
 
@@ -363,7 +363,7 @@ static int cp2112_wait(struct cp2112_device *dev, atomic_t *avail)
 	 * come in cp2112_raw_event or timeout. There will only be one of these
 	 * in flight at any one time. The timeout is extremely large and is a
 	 * last resort if the CP2112 has died. If we do timeout we don't expect
-	 * to receive the response which would cause data races, it's not like
+	 * to receive the response which would cause data races, it's yest like
 	 * we can do anything about it anyway.
 	 */
 	ret = wait_event_interruptible_timeout(dev->wait,
@@ -543,7 +543,7 @@ static int cp2112_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		}
 		if (count < 0)
 			return count;
-	} else if (dev->hwversion > 1 &&  /* no repeated start in rev 1 */
+	} else if (dev->hwversion > 1 &&  /* yes repeated start in rev 1 */
 		   num == 2 &&
 		   msgs[0].addr == msgs[1].addr &&
 		   !(msgs[0].flags & I2C_M_RD) && (msgs[1].flags & I2C_M_RD)) {
@@ -557,7 +557,7 @@ static int cp2112_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			return count;
 	} else {
 		hid_err(hdev,
-			"Multi-message I2C transactions not supported\n");
+			"Multi-message I2C transactions yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -570,7 +570,7 @@ static int cp2112_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	ret = cp2112_hid_output(hdev, buf, count, HID_OUTPUT_REPORT);
 	if (ret < 0) {
 		hid_warn(hdev, "Error starting transaction: %d\n", ret);
-		goto power_normal;
+		goto power_yesrmal;
 	}
 
 	for (retries = 0; retries < XFER_STATUS_RETRIES; ++retries) {
@@ -578,7 +578,7 @@ static int cp2112_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		if (-EBUSY == ret)
 			continue;
 		if (ret < 0)
-			goto power_normal;
+			goto power_yesrmal;
 		break;
 	}
 
@@ -593,17 +593,17 @@ static int cp2112_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 				 ret);
 
 		ret = -ETIMEDOUT;
-		goto power_normal;
+		goto power_yesrmal;
 	}
 
 	for (count = 0; count < read_length;) {
 		ret = cp2112_read(dev, read_buf + count, read_length - count);
 		if (ret < 0)
-			goto power_normal;
+			goto power_yesrmal;
 		if (ret == 0) {
 			hid_err(hdev, "read returned 0\n");
 			ret = -EIO;
-			goto power_normal;
+			goto power_yesrmal;
 		}
 		count += ret;
 		if (count > read_length) {
@@ -613,19 +613,19 @@ static int cp2112_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			 * has a limit check so didn't overrun our
 			 * buffer.  Nevertheless, we return an error
 			 * because something is seriously wrong and
-			 * it shouldn't go unnoticed.
+			 * it shouldn't go unyesticed.
 			 */
 			hid_err(hdev, "long read: %d > %zd\n",
 				ret, read_length - count + ret);
 			ret = -EIO;
-			goto power_normal;
+			goto power_yesrmal;
 		}
 	}
 
 	/* return the number of transferred messages */
 	ret = num;
 
-power_normal:
+power_yesrmal:
 	hid_hw_power(hdev, PM_HINT_NORMAL);
 	hid_dbg(hdev, "I2C transfer finished: %d\n", ret);
 	return ret;
@@ -735,7 +735,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 	ret = cp2112_hid_output(hdev, buf, count, HID_OUTPUT_REPORT);
 	if (ret < 0) {
 		hid_warn(hdev, "Error starting transaction: %d\n", ret);
-		goto power_normal;
+		goto power_yesrmal;
 	}
 
 	for (retries = 0; retries < XFER_STATUS_RETRIES; ++retries) {
@@ -743,7 +743,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 		if (-EBUSY == ret)
 			continue;
 		if (ret < 0)
-			goto power_normal;
+			goto power_yesrmal;
 		break;
 	}
 
@@ -758,12 +758,12 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 				 ret);
 
 		ret = -ETIMEDOUT;
-		goto power_normal;
+		goto power_yesrmal;
 	}
 
 	if (I2C_SMBUS_WRITE == read_write) {
 		ret = 0;
-		goto power_normal;
+		goto power_yesrmal;
 	}
 
 	if (I2C_SMBUS_BLOCK_DATA == size)
@@ -771,11 +771,11 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 
 	ret = cp2112_read(dev, buf, read_length);
 	if (ret < 0)
-		goto power_normal;
+		goto power_yesrmal;
 	if (ret != read_length) {
 		hid_warn(hdev, "short read: %d < %zd\n", ret, read_length);
 		ret = -EIO;
-		goto power_normal;
+		goto power_yesrmal;
 	}
 
 	switch (size) {
@@ -792,7 +792,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 	case I2C_SMBUS_BLOCK_DATA:
 		if (read_length > I2C_SMBUS_BLOCK_MAX) {
 			ret = -EPROTO;
-			goto power_normal;
+			goto power_yesrmal;
 		}
 
 		memcpy(data->block, buf, read_length);
@@ -800,7 +800,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 	}
 
 	ret = 0;
-power_normal:
+power_yesrmal:
 	hid_hw_power(hdev, PM_HINT_NORMAL);
 	hid_dbg(hdev, "transfer finished: %d\n", ret);
 	return ret;
@@ -929,12 +929,12 @@ CP2112_CONFIG_ATTR(power_mode, ({
 }), "%u\n", cfg.power_mode);
 
 CP2112_CONFIG_ATTR(release_version, ({
-	if (sscanf(buf, "%hhi.%hhi", &cfg.release_major, &cfg.release_minor)
+	if (sscanf(buf, "%hhi.%hhi", &cfg.release_major, &cfg.release_miyesr)
 	    != 2)
 		return -EINVAL;
 
 	cfg.mask = 0x10;
-}), "%u.%u\n", cfg.release_major, cfg.release_minor);
+}), "%u.%u\n", cfg.release_major, cfg.release_miyesr);
 
 #undef CP2112_CONFIG_ATTR
 
@@ -1036,9 +1036,9 @@ static const struct attribute_group cp2112_attr_group = {
 };
 
 /* Chmoding our sysfs attributes is simply a way to expose which fields in the
- * PROM have already been programmed. We do not depend on this preventing
- * writing to these attributes since the CP2112 will simply ignore writes to
- * already-programmed fields. This is why there is no sense in fixing this
+ * PROM have already been programmed. We do yest depend on this preventing
+ * writing to these attributes since the CP2112 will simply igyesre writes to
+ * already-programmed fields. This is why there is yes sense in fixing this
  * racy behaviour.
  */
 static void chmod_sysfs_attrs(struct hid_device *hdev)
@@ -1278,7 +1278,7 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		hid_err(hdev, "error requesting version\n");
 		if (ret >= 0)
 			ret = -EIO;
-		goto err_power_normal;
+		goto err_power_yesrmal;
 	}
 
 	hid_info(hdev, "Part Number: 0x%02X Device Version: 0x%02X\n",
@@ -1290,7 +1290,7 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		hid_err(hdev, "error requesting SMBus config\n");
 		if (ret >= 0)
 			ret = -EIO;
-		goto err_power_normal;
+		goto err_power_yesrmal;
 	}
 
 	config.retry_time = cpu_to_be16(1);
@@ -1301,7 +1301,7 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		hid_err(hdev, "error setting SMBus config\n");
 		if (ret >= 0)
 			ret = -EIO;
-		goto err_power_normal;
+		goto err_power_yesrmal;
 	}
 
 	hid_set_drvdata(hdev, (void *)dev);
@@ -1313,7 +1313,7 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	dev->adap.dev.parent	= &hdev->dev;
 	snprintf(dev->adap.name, sizeof(dev->adap.name),
 		 "CP2112 SMBus Bridge on hidraw%d",
-		 ((struct hidraw *)hdev->hidraw)->minor);
+		 ((struct hidraw *)hdev->hidraw)->miyesr);
 	dev->hwversion = buf[2];
 	init_waitqueue_head(&dev->wait);
 
@@ -1323,7 +1323,7 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	if (ret) {
 		hid_err(hdev, "error registering i2c adapter\n");
-		goto err_power_normal;
+		goto err_power_yesrmal;
 	}
 
 	hid_dbg(hdev, "adapter registered\n");
@@ -1368,7 +1368,7 @@ err_gpiochip_remove:
 	gpiochip_remove(&dev->gc);
 err_free_i2c:
 	i2c_del_adapter(&dev->adap);
-err_power_normal:
+err_power_yesrmal:
 	hid_hw_power(hdev, PM_HINT_NORMAL);
 err_hid_close:
 	hid_hw_close(hdev);
@@ -1397,7 +1397,7 @@ static void cp2112_remove(struct hid_device *hdev)
 
 	gpiochip_remove(&dev->gc);
 	/* i2c_del_adapter has finished removing all i2c devices from our
-	 * adapter. Well behaved devices should no longer call our cp2112_xfer
+	 * adapter. Well behaved devices should yes longer call our cp2112_xfer
 	 * and should have waited for any pending calls to finish. It has also
 	 * waited for device_unregister(&adap->dev) to complete. Therefore we
 	 * can safely free our struct cp2112_device.
@@ -1457,7 +1457,7 @@ static int cp2112_raw_event(struct hid_device *hdev, struct hid_report *report,
 		atomic_set(&dev->read_avail, 1);
 		break;
 	default:
-		hid_err(hdev, "unknown report\n");
+		hid_err(hdev, "unkyeswn report\n");
 
 		return 0;
 	}

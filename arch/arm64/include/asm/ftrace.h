@@ -56,7 +56,7 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 {
 	/*
 	 * Adjust addr to point at the BL in the callsite.
-	 * See ftrace_init_nop() for the callsite sequence.
+	 * See ftrace_init_yesp() for the callsite sequence.
 	 */
 	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS))
 		return addr + AARCH64_INSN_SIZE;
@@ -69,16 +69,16 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 struct dyn_ftrace;
-int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec);
-#define ftrace_init_nop ftrace_init_nop
+int ftrace_init_yesp(struct module *mod, struct dyn_ftrace *rec);
+#define ftrace_init_yesp ftrace_init_yesp
 #endif
 
 #define ftrace_return_address(n) return_address(n)
 
 /*
- * Because AArch32 mode does not share the same syscall table with AArch64,
+ * Because AArch32 mode does yest share the same syscall table with AArch64,
  * tracing compat syscalls may result in reporting bogus syscalls or even
- * hang-up, so just do not trace them.
+ * hang-up, so just do yest trace them.
  * See kernel/trace/trace_syscalls.c
  *
  * x86 code says:
@@ -98,7 +98,7 @@ static inline bool arch_syscall_match_sym_name(const char *sym,
 {
 	/*
 	 * Since all syscall functions have __arm64_ prefix, we must skip it.
-	 * However, as we described above, we decided to ignore compat
+	 * However, as we described above, we decided to igyesre compat
 	 * syscalls, so we don't care about __arm64_compat_ prefix here.
 	 */
 	return !strcmp(sym + 8, name);

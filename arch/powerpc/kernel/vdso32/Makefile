@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 
-# List of files in the vdso, has to be asm only for now
+# List of files in the vdso, has to be asm only for yesw
 
 obj-vdso32-$(CONFIG_PPC64) = getcpu.o
-obj-vdso32 = sigtramp.o gettimeofday.o datapage.o cacheflush.o note.o \
+obj-vdso32 = sigtramp.o gettimeofday.o datapage.o cacheflush.o yeste.o \
 		$(obj-vdso32-y)
 
 # Build rules
@@ -26,7 +26,7 @@ GCOV_PROFILE := n
 KCOV_INSTRUMENT := n
 UBSAN_SANITIZE := n
 
-ccflags-y := -shared -fno-common -fno-builtin -nostdlib \
+ccflags-y := -shared -fyes-common -fyes-builtin -yesstdlib \
 	-Wl,-soname=linux-vdso32.so.1 -Wl,--hash-style=both
 asflags-y := -D__VDSO32__ -s
 

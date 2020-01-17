@@ -44,7 +44,7 @@ static bool check_damage_clip(struct drm_plane_state *state, struct drm_rect *r,
 			      int x1, int y1, int x2, int y2)
 {
 	/*
-	 * Round down x1/y1 and round up x2/y2. This is because damage is not in
+	 * Round down x1/y1 and round up x2/y2. This is because damage is yest in
 	 * 16.16 fixed point so to catch all pixels.
 	 */
 	int src_x1 = state->src.x1 >> 16;
@@ -53,12 +53,12 @@ static bool check_damage_clip(struct drm_plane_state *state, struct drm_rect *r,
 	int src_y2 = (state->src.y2 >> 16) + !!(state->src.y2 & 0xFFFF);
 
 	if (x1 >= x2 || y1 >= y2) {
-		pr_err("Cannot have damage clip with no dimension.\n");
+		pr_err("Canyest have damage clip with yes dimension.\n");
 		return false;
 	}
 
 	if (x1 < src_x1 || y1 < src_y1 || x2 > src_x2 || y2 > src_y2) {
-		pr_err("Damage cannot be outside rounded plane src.\n");
+		pr_err("Damage canyest be outside rounded plane src.\n");
 		return false;
 	}
 
@@ -70,7 +70,7 @@ static bool check_damage_clip(struct drm_plane_state *state, struct drm_rect *r,
 	return true;
 }
 
-int igt_damage_iter_no_damage(void *ignored)
+int igt_damage_iter_yes_damage(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -101,7 +101,7 @@ int igt_damage_iter_no_damage(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_no_damage_fractional_src(void *ignored)
+int igt_damage_iter_yes_damage_fractional_src(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -134,7 +134,7 @@ int igt_damage_iter_no_damage_fractional_src(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_no_damage_src_moved(void *ignored)
+int igt_damage_iter_yes_damage_src_moved(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -166,7 +166,7 @@ int igt_damage_iter_no_damage_src_moved(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_no_damage_fractional_src_moved(void *ignored)
+int igt_damage_iter_yes_damage_fractional_src_moved(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -199,7 +199,7 @@ int igt_damage_iter_no_damage_fractional_src_moved(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_no_damage_not_visible(void *ignored)
+int igt_damage_iter_yes_damage_yest_visible(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -223,12 +223,12 @@ int igt_damage_iter_no_damage_not_visible(void *ignored)
 	drm_atomic_for_each_plane_damage(&iter, &clip)
 		num_hits++;
 
-	FAIL(num_hits != 0, "Should have no damage.");
+	FAIL(num_hits != 0, "Should have yes damage.");
 
 	return 0;
 }
 
-int igt_damage_iter_no_damage_no_crtc(void *ignored)
+int igt_damage_iter_yes_damage_yes_crtc(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -251,12 +251,12 @@ int igt_damage_iter_no_damage_no_crtc(void *ignored)
 	drm_atomic_for_each_plane_damage(&iter, &clip)
 		num_hits++;
 
-	FAIL(num_hits != 0, "Should have no damage.");
+	FAIL(num_hits != 0, "Should have yes damage.");
 
 	return 0;
 }
 
-int igt_damage_iter_no_damage_no_fb(void *ignored)
+int igt_damage_iter_yes_damage_yes_fb(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -274,12 +274,12 @@ int igt_damage_iter_no_damage_no_fb(void *ignored)
 	drm_atomic_for_each_plane_damage(&iter, &clip)
 		num_hits++;
 
-	FAIL(num_hits != 0, "Should have no damage.");
+	FAIL(num_hits != 0, "Should have yes damage.");
 
 	return 0;
 }
 
-int igt_damage_iter_simple_damage(void *ignored)
+int igt_damage_iter_simple_damage(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -315,7 +315,7 @@ int igt_damage_iter_simple_damage(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_single_damage(void *ignored)
+int igt_damage_iter_single_damage(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -350,7 +350,7 @@ int igt_damage_iter_single_damage(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_single_damage_intersect_src(void *ignored)
+int igt_damage_iter_single_damage_intersect_src(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -386,7 +386,7 @@ int igt_damage_iter_single_damage_intersect_src(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_single_damage_outside_src(void *ignored)
+int igt_damage_iter_single_damage_outside_src(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -416,12 +416,12 @@ int igt_damage_iter_single_damage_outside_src(void *ignored)
 	drm_atomic_for_each_plane_damage(&iter, &clip)
 		num_hits++;
 
-	FAIL(num_hits != 0, "Should have no damage.");
+	FAIL(num_hits != 0, "Should have yes damage.");
 
 	return 0;
 }
 
-int igt_damage_iter_single_damage_fractional_src(void *ignored)
+int igt_damage_iter_single_damage_fractional_src(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -459,7 +459,7 @@ int igt_damage_iter_single_damage_fractional_src(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_single_damage_intersect_fractional_src(void *ignored)
+int igt_damage_iter_single_damage_intersect_fractional_src(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -498,7 +498,7 @@ int igt_damage_iter_single_damage_intersect_fractional_src(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_single_damage_outside_fractional_src(void *ignored)
+int igt_damage_iter_single_damage_outside_fractional_src(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -531,12 +531,12 @@ int igt_damage_iter_single_damage_outside_fractional_src(void *ignored)
 	drm_atomic_for_each_plane_damage(&iter, &clip)
 		num_hits++;
 
-	FAIL(num_hits != 0, "Should have no damage.");
+	FAIL(num_hits != 0, "Should have yes damage.");
 
 	return 0;
 }
 
-int igt_damage_iter_single_damage_src_moved(void *ignored)
+int igt_damage_iter_single_damage_src_moved(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -573,7 +573,7 @@ int igt_damage_iter_single_damage_src_moved(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_single_damage_fractional_src_moved(void *ignored)
+int igt_damage_iter_single_damage_fractional_src_moved(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -612,7 +612,7 @@ int igt_damage_iter_single_damage_fractional_src_moved(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_damage(void *ignored)
+int igt_damage_iter_damage(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -653,7 +653,7 @@ int igt_damage_iter_damage(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_damage_one_intersect(void *ignored)
+int igt_damage_iter_damage_one_intersect(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -696,7 +696,7 @@ int igt_damage_iter_damage_one_intersect(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_damage_one_outside(void *ignored)
+int igt_damage_iter_damage_one_outside(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -733,7 +733,7 @@ int igt_damage_iter_damage_one_outside(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_damage_src_moved(void *ignored)
+int igt_damage_iter_damage_src_moved(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -772,7 +772,7 @@ int igt_damage_iter_damage_src_moved(void *ignored)
 	return 0;
 }
 
-int igt_damage_iter_damage_not_visible(void *ignored)
+int igt_damage_iter_damage_yest_visible(void *igyesred)
 {
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_plane_state old_state;
@@ -805,7 +805,7 @@ int igt_damage_iter_damage_not_visible(void *ignored)
 	drm_atomic_for_each_plane_damage(&iter, &clip)
 		num_hits++;
 
-	FAIL(num_hits != 0, "Should not return any damage.");
+	FAIL(num_hits != 0, "Should yest return any damage.");
 
 	return 0;
 }

@@ -171,7 +171,7 @@ static int rx1950_hw_params(struct snd_pcm_substream *substream,
 		div = 1;
 		break;
 	default:
-		printk(KERN_ERR "%s: rate %d is not supported\n",
+		printk(KERN_ERR "%s: rate %d is yest supported\n",
 			__func__, rate);
 		return -EINVAL;
 	}

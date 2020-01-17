@@ -10,7 +10,7 @@ struct dev_archdata {
 
 #if defined(CONFIG_X86_DEV_DMA_OPS) && defined(CONFIG_PCI_DOMAINS)
 struct dma_domain {
-	struct list_head node;
+	struct list_head yesde;
 	const struct dma_map_ops *dma_ops;
 	int domain_nr;
 };

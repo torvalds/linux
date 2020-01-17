@@ -25,7 +25,7 @@ static void markeins_machine_restart(char *command)
 {
 	static void (*back_to_prom) (void) = (void (*)(void))0xbfc00000;
 
-	printk("cannot EMMA2RH Mark-eins restart.\n");
+	printk("canyest EMMA2RH Mark-eins restart.\n");
 	markeins_led("restart.");
 	back_to_prom();
 }

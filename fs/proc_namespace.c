@@ -15,7 +15,7 @@
 
 #include "proc/internal.h" /* only for get_proc_task() in ->open() */
 
-#include "pnode.h"
+#include "pyesde.h"
 #include "internal.h"
 
 static __poll_t mounts_poll(struct file *file, poll_table *wait)
@@ -64,11 +64,11 @@ static int show_sb_opts(struct seq_file *m, struct super_block *sb)
 static void show_mnt_opts(struct seq_file *m, struct vfsmount *mnt)
 {
 	static const struct proc_fs_info mnt_info[] = {
-		{ MNT_NOSUID, ",nosuid" },
-		{ MNT_NODEV, ",nodev" },
-		{ MNT_NOEXEC, ",noexec" },
-		{ MNT_NOATIME, ",noatime" },
-		{ MNT_NODIRATIME, ",nodiratime" },
+		{ MNT_NOSUID, ",yessuid" },
+		{ MNT_NODEV, ",yesdev" },
+		{ MNT_NOEXEC, ",yesexec" },
+		{ MNT_NOATIME, ",yesatime" },
+		{ MNT_NODIRATIME, ",yesdiratime" },
 		{ MNT_RELATIME, ",relatime" },
 		{ 0, NULL }
 	};
@@ -107,7 +107,7 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 		if (err)
 			goto out;
 	} else {
-		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
+		mangle(m, r->mnt_devname ? r->mnt_devname : "yesne");
 	}
 	seq_putc(m, ' ');
 	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
@@ -177,7 +177,7 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 		if (err)
 			goto out;
 	} else {
-		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
+		mangle(m, r->mnt_devname ? r->mnt_devname : "yesne");
 	}
 	seq_puts(m, sb_rdonly(sb) ? " ro" : " rw");
 	err = show_sb_opts(m, sb);
@@ -209,7 +209,7 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 			seq_puts(m, "device ");
 			mangle(m, r->mnt_devname);
 		} else
-			seq_puts(m, "no device");
+			seq_puts(m, "yes device");
 	}
 
 	/* mount point */
@@ -235,10 +235,10 @@ out:
 	return err;
 }
 
-static int mounts_open_common(struct inode *inode, struct file *file,
+static int mounts_open_common(struct iyesde *iyesde, struct file *file,
 			      int (*show)(struct seq_file *, struct vfsmount *))
 {
-	struct task_struct *task = get_proc_task(inode);
+	struct task_struct *task = get_proc_task(iyesde);
 	struct nsproxy *nsp;
 	struct mnt_namespace *ns = NULL;
 	struct path root;
@@ -291,28 +291,28 @@ static int mounts_open_common(struct inode *inode, struct file *file,
 	return ret;
 }
 
-static int mounts_release(struct inode *inode, struct file *file)
+static int mounts_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 	struct proc_mounts *p = m->private;
 	path_put(&p->root);
 	put_mnt_ns(p->ns);
-	return seq_release_private(inode, file);
+	return seq_release_private(iyesde, file);
 }
 
-static int mounts_open(struct inode *inode, struct file *file)
+static int mounts_open(struct iyesde *iyesde, struct file *file)
 {
-	return mounts_open_common(inode, file, show_vfsmnt);
+	return mounts_open_common(iyesde, file, show_vfsmnt);
 }
 
-static int mountinfo_open(struct inode *inode, struct file *file)
+static int mountinfo_open(struct iyesde *iyesde, struct file *file)
 {
-	return mounts_open_common(inode, file, show_mountinfo);
+	return mounts_open_common(iyesde, file, show_mountinfo);
 }
 
-static int mountstats_open(struct inode *inode, struct file *file)
+static int mountstats_open(struct iyesde *iyesde, struct file *file)
 {
-	return mounts_open_common(inode, file, show_vfsstat);
+	return mounts_open_common(iyesde, file, show_vfsstat);
 }
 
 const struct file_operations proc_mounts_operations = {

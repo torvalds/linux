@@ -29,7 +29,7 @@
 #define cpu_has_dsp		0
 #define cpu_has_dsp2		0
 #define cpu_has_mipsmt		0
-#define cpu_icache_snoops_remote_store	1
+#define cpu_icache_syesops_remote_store	1
 
 #define cpu_has_64bits		1
 
@@ -51,7 +51,7 @@
 #define cpu_has_mips32r2	1
 #define cpu_has_mips64r2	1
 #else
-#error "Unknown Netlogic CPU"
+#error "Unkyeswn Netlogic CPU"
 #endif
 
 #endif /* __ASM_MACH_NETLOGIC_CPU_FEATURE_OVERRIDES_H */

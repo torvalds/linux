@@ -149,15 +149,15 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 		addr = (msgs[i].addr << 1) & 0xff;
 		i2c_dprintk(2, "%s %s addr=0x%x len=%d:",
 			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
-			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
+			 i == num - 1 ? "stop" : "yesnstop", addr, msgs[i].len);
 		if (msgs[i].flags & I2C_M_RD) {
 			/* read request without preceding register selection */
 			/*
 			 * The TM6000 only supports a read transaction
 			 * immediately after a 1 or 2 byte write to select
-			 * a register.  We cannot fulfill this request.
+			 * a register.  We canyest fulfill this request.
 			 */
-			i2c_dprintk(2, " read without preceding write not supported");
+			i2c_dprintk(2, " read without preceding write yest supported");
 			rc = -EOPNOTSUPP;
 			goto err;
 		} else if (i + 1 < num && msgs[i].len <= 2 &&
@@ -168,7 +168,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(KERN_CONT " %02x", msgs[i].buf[byte]);
 			i2c_dprintk(2, "; joined to read %s len=%d:",
-				    i == num - 2 ? "stop" : "nonstop",
+				    i == num - 2 ? "stop" : "yesnstop",
 				    msgs[i + 1].len);
 
 			if (msgs[i].len == 2) {
@@ -224,7 +224,7 @@ static int tm6000_i2c_eeprom(struct tm6000_core *dev)
 		rc = tm6000_i2c_recv_regs(dev, 0xa0, i, p, 1);
 		if (rc < 1) {
 			if (p == dev->eedata)
-				goto noeeprom;
+				goto yeseeprom;
 			else {
 				printk(KERN_WARNING
 				"%s: i2c eeprom read error (err=%d)\n",
@@ -258,8 +258,8 @@ static int tm6000_i2c_eeprom(struct tm6000_core *dev)
 
 	return 0;
 
-noeeprom:
-	printk(KERN_INFO "%s: Huh, no eeprom present (err=%d)?\n",
+yeseeprom:
+	printk(KERN_INFO "%s: Huh, yes eeprom present (err=%d)?\n",
 	       dev->name, rc);
 	return -EINVAL;
 }

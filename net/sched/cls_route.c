@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <net/dst.h>
 #include <net/route.h>
@@ -19,9 +19,9 @@
 #include <net/pkt_cls.h>
 
 /*
- * 1. For now we assume that route tags < 256.
+ * 1. For yesw we assume that route tags < 256.
  *    It allows to use direct table lookups, instead of hash tables.
- * 2. For now we assume that "from TAG" and "fromdev DEV" statements
+ * 2. For yesw we assume that "from TAG" and "fromdev DEV" statements
  *    are mutually  exclusive.
  * 3. "to TAG from ANY" has higher priority, than "to ANY from XXX"
  */
@@ -333,7 +333,7 @@ static int route4_delete(struct tcf_proto *tp, void *arg, bool *last,
 			RCU_INIT_POINTER(*fp, rtnl_dereference(f->next));
 
 			/* Remove any fastmap lookups that might ref filter
-			 * notice we unlink'd the filter so we can't get it
+			 * yestice we unlink'd the filter so we can't get it
 			 * back in the fastmap.
 			 */
 			route4_reset_fastmap(head);
@@ -352,7 +352,7 @@ static int route4_delete(struct tcf_proto *tp, void *arg, bool *last,
 					goto out;
 			}
 
-			/* OK, session has no flows */
+			/* OK, session has yes flows */
 			RCU_INIT_POINTER(head->table[to_hash(h)], NULL);
 			kfree_rcu(b, rcu);
 			break;
@@ -604,7 +604,7 @@ static int route4_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = f->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

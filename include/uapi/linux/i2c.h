@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /* ------------------------------------------------------------------------- */
 /*									     */
 /* i2c.h - definitions for the i2c-bus interface			     */
@@ -17,7 +17,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if yest, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
     MA 02110-1301 USA.							     */
 /* ------------------------------------------------------------------------- */
@@ -62,8 +62,8 @@
  *
  * Alternatively, when the adapter supports I2C_FUNC_PROTOCOL_MANGLING then
  * passing certain @flags may have changed those standard protocol behaviors.
- * Those flags are only for use with broken/nonconforming slaves, and with
- * adapters which are known to support the specific mangling options they
+ * Those flags are only for use with broken/yesnconforming slaves, and with
+ * adapters which are kyeswn to support the specific mangling options they
  * need (one or more of IGNORE_NAK, NO_RD_ACK, NOSTART, and REV_DIR_ADDR).
  */
 struct i2c_msg {
@@ -144,7 +144,7 @@ union i2c_smbus_data {
 #define I2C_SMBUS_WRITE	0
 
 /* SMBus transaction types (size parameter in the above functions)
-   Note: these no longer correspond to the (arbitrary) PIIX4 internal codes! */
+   Note: these yes longer correspond to the (arbitrary) PIIX4 internal codes! */
 #define I2C_SMBUS_QUICK		    0
 #define I2C_SMBUS_BYTE		    1
 #define I2C_SMBUS_BYTE_DATA	    2

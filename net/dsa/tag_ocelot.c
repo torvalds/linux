@@ -6,7 +6,7 @@
 #include "dsa_priv.h"
 
 /* The CPU injection header and the CPU extraction header can have 3 types of
- * prefixes: long, short and no prefix. The format of the header itself is the
+ * prefixes: long, short and yes prefix. The format of the header itself is the
  * same in all 3 cases.
  *
  * Extraction with long prefix:
@@ -25,7 +25,7 @@
  *                                         +------+------+------------+-------+
  *                                         16 bits 16 bits  128 bits
  *
- * Extraction with no prefix:
+ * Extraction with yes prefix:
  *
  *                                                       +------------+-------+
  *                                                       | extraction | frame |
@@ -50,7 +50,7 @@
  *                                         +------+------+------------+-------+
  *                                         16 bits 16 bits  128 bits
  *
- * Injection with no prefix:
+ * Injection with yes prefix:
  *
  *                                                       +------------+-------+
  *                                                       | injection  | frame |
@@ -145,7 +145,7 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 	u8 *injection;
 
 	if (unlikely(skb_cow_head(skb, OCELOT_TAG_LEN) < 0)) {
-		netdev_err(netdev, "Cannot make room for tag.\n");
+		netdev_err(netdev, "Canyest make room for tag.\n");
 		return NULL;
 	}
 
@@ -189,11 +189,11 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	 */
 	skb_push(skb, ETH_HLEN);
 	/* We don't care about the long prefix, it is just for easy entrance
-	 * into the DSA master's RX filter. Discard it now by moving it into
+	 * into the DSA master's RX filter. Discard it yesw by moving it into
 	 * the headroom.
 	 */
 	skb_pull(skb, OCELOT_LONG_PREFIX_LEN);
-	/* And skb->data now points to the extraction frame header.
+	/* And skb->data yesw points to the extraction frame header.
 	 * Keep a pointer to it.
 	 */
 	extraction = skb->data;
@@ -216,8 +216,8 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 		/* The switch will reflect back some frames sent through
 		 * sockets opened on the bare DSA master. These will come back
 		 * with src_port equal to the index of the CPU port, for which
-		 * there is no slave registered. So don't print any error
-		 * message here (ignore and drop those frames).
+		 * there is yes slave registered. So don't print any error
+		 * message here (igyesre and drop those frames).
 		 */
 		return NULL;
 

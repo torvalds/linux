@@ -84,7 +84,7 @@ static int wil_sring_alloc(struct wil6210_priv *wil,
 	wil_dbg_misc(wil, "status_ring_alloc: size=%zu\n", sz);
 
 	if (sz == 0) {
-		wil_err(wil, "Cannot allocate a zero size status ring\n");
+		wil_err(wil, "Canyest allocate a zero size status ring\n");
 		return -EINVAL;
 	}
 
@@ -300,7 +300,7 @@ static void wil_free_rx_buff_arr(struct wil6210_priv *wil)
 		return;
 
 	/* Move all the buffers to the free list in case active list is
-	 * not empty in order to release all SKBs before deleting the array
+	 * yest empty in order to release all SKBs before deleting the array
 	 */
 	wil_move_all_rx_buff_to_free_list(wil, ring);
 
@@ -327,7 +327,7 @@ static int wil_init_rx_buff_arr(struct wil6210_priv *wil,
 	INIT_LIST_HEAD(free);
 
 	/* Linkify the list.
-	 * buffer id 0 should not be used (marks invalid id).
+	 * buffer id 0 should yest be used (marks invalid id).
 	 */
 	buff_arr = wil->rx_buff_mgmt.buff_arr;
 	for (i = 1; i <= size; i++) {
@@ -613,14 +613,14 @@ static int wil_rx_init_edma(struct wil6210_priv *wil, uint desc_ring_order)
 	/* In SW reorder one must use extended status messages */
 	if (wil->use_compressed_rx_status && !wil->use_rx_hw_reordering) {
 		wil_err(wil,
-			"compressed RX status cannot be used with SW reorder\n");
+			"compressed RX status canyest be used with SW reorder\n");
 		return -EINVAL;
 	}
 	if (wil->rx_status_ring_order <= desc_ring_order)
 		/* make sure sring is larger than desc ring */
 		wil->rx_status_ring_order = desc_ring_order + 1;
 	if (wil->rx_buff_id_count <= desc_ring_size)
-		/* make sure we will not run out of buff_ids */
+		/* make sure we will yest run out of buff_ids */
 		wil->rx_buff_id_count = desc_ring_size + 512;
 	if (wil->rx_status_ring_order < WIL_SRING_SIZE_ORDER_MIN ||
 	    wil->rx_status_ring_order > WIL_SRING_SIZE_ORDER_MAX)
@@ -748,7 +748,7 @@ static int wil_tx_ring_modify_edma(struct wil6210_vif *vif, int ring_id,
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 
-	wil_err(wil, "ring modify is not supported for EDMA\n");
+	wil_err(wil, "ring modify is yest supported for EDMA\n");
 
 	return -EOPNOTSUPP;
 }
@@ -783,7 +783,7 @@ static int wil_check_bar(struct wil6210_priv *wil, void *msg, int cid,
 		     "Non-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
 		     fc1, mid, cid, tid, seq);
 	if (stats)
-		stats->rx_non_data_frame++;
+		stats->rx_yesn_data_frame++;
 	if (wil_is_back_req(fc1)) {
 		wil_dbg_txrx(wil,
 			     "BAR: MID %d CID %d TID %d Seq 0x%03x\n",
@@ -798,7 +798,7 @@ static int wil_check_bar(struct wil6210_priv *wil, void *msg, int cid,
 		 * without overhead for printing every Rx frame
 		 */
 		wil_dbg_txrx(wil,
-			     "Unhandled non-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
+			     "Unhandled yesn-data frame FC[7:0] 0x%02x MID %d CID %d TID %d Seq 0x%03x\n",
 			     fc1, mid, cid, tid, seq);
 		wil_hex_dump_txrx("RxS ", DUMP_PREFIX_NONE, 32, 4,
 				  (const void *)msg, sz, false);
@@ -887,7 +887,7 @@ again:
 		int invalid_buff_id_retry = 0;
 
 		wil_dbg_txrx(wil,
-			     "buff_id is not updated yet by HW, (swhead 0x%x)\n",
+			     "buff_id is yest updated yet by HW, (swhead 0x%x)\n",
 			     sring->swhead);
 		if (++invalid_buff_id_retry > MAX_INVALID_BUFF_ID_RETRY)
 			break;
@@ -1061,7 +1061,7 @@ void wil_rx_handle_edma(struct wil6210_priv *wil, int *quota)
 	int i;
 
 	if (unlikely(!ring->va)) {
-		wil_err(wil, "Rx IRQ while Rx not yet initialized\n");
+		wil_err(wil, "Rx IRQ while Rx yest yet initialized\n");
 		return;
 	}
 	wil_dbg_txrx(wil, "rx_handle\n");
@@ -1070,7 +1070,7 @@ void wil_rx_handle_edma(struct wil6210_priv *wil, int *quota)
 		sring = &wil->srings[i];
 		if (unlikely(!sring->va)) {
 			wil_err(wil,
-				"Rx IRQ while Rx status ring %d not yet initialized\n",
+				"Rx IRQ while Rx status ring %d yest yet initialized\n",
 				i);
 			continue;
 		}
@@ -1185,7 +1185,7 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 		}
 		ring = &wil->ring_tx[ring_id];
 		if (unlikely(!ring->va)) {
-			wil_err(wil, "Tx irq[%d]: ring not initialized\n",
+			wil_err(wil, "Tx irq[%d]: ring yest initialized\n",
 				ring_id);
 			goto again;
 		}
@@ -1493,7 +1493,7 @@ static int __wil_tx_ring_tso_edma(struct wil6210_priv *wil,
 	if (wil_val_in_range(wil->ring_idle_trsh,
 			     used, used + descs_used)) {
 		txdata->idle += get_cycles() - txdata->last_idle;
-		wil_dbg_txrx(wil,  "Ring[%2d] not idle %d -> %d\n",
+		wil_dbg_txrx(wil,  "Ring[%2d] yest idle %d -> %d\n",
 			     ring_index, used, used + descs_used);
 	}
 

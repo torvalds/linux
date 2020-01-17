@@ -22,7 +22,7 @@ Description
 This driver register CPU digital temperature package level sensor as a thermal
 zone with maximum two user mode configurable trip points. Number of trip points
 depends on the capability of the package. Once the trip point is violated,
-user mode can receive notification via thermal notification mechanism and can
+user mode can receive yestification via thermal yestification mechanism and can
 take any action to control temperature.
 
 
@@ -43,11 +43,11 @@ User can set any temperature between 0 to TJ-Max temperature. Temperature units
 are in milli-degree Celsius. Refer to "Documentation/driver-api/thermal/sysfs-api.rst" for
 thermal sys-fs details.
 
-Any value other than 0 in these trip points, can trigger thermal notifications.
-Setting 0, stops sending thermal notifications.
+Any value other than 0 in these trip points, can trigger thermal yestifications.
+Setting 0, stops sending thermal yestifications.
 
-Thermal notifications:
-To get kobject-uevent notifications, set the thermal zone
+Thermal yestifications:
+To get kobject-uevent yestifications, set the thermal zone
 policy to "user_space".
 
 For example::

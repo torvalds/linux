@@ -70,8 +70,8 @@ config PARPORT_PC_FIFO
 	  printing. Say Y here if you want to take advantage of that.
 
 	  As well as actually having a FIFO, or DMA capability, the kernel
-	  will need to know which IRQ the parallel port has.  By default,
-	  parallel port interrupts will not be used, and so neither will the
+	  will need to kyesw which IRQ the parallel port has.  By default,
+	  parallel port interrupts will yest be used, and so neither will the
 	  FIFO.  See <file:Documentation/admin-guide/parport.rst> to find out how to
 	  specify which IRQ/DMA to use.
 
@@ -148,8 +148,8 @@ config PARPORT_AX88796
 	  the AX88796 network controller chip. This code is also available
 	  as a module (say M), called parport_ax88796.
 
-	  The driver is not dependent on the AX88796 network driver, and
-	  should not interfere with the networking functions of the chip.
+	  The driver is yest dependent on the AX88796 network driver, and
+	  should yest interfere with the networking functions of the chip.
 
 config PARPORT_1284
 	bool "IEEE 1284 transfer modes"

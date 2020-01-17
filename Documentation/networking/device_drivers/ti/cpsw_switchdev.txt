@@ -1,7 +1,7 @@
 * Texas Instruments CPSW switchdev based ethernet driver 2.0
 
 - Port renaming
-On older udev versions renaming of ethX to swXpY will not be automatically
+On older udev versions renaming of ethX to swXpY will yest be automatically
 supported
 In order to rename via udev:
 ip -d link show dev sw0p1 | grep switchid
@@ -21,8 +21,8 @@ addition to ALLMULTI (current port) instead of ALE_BYPASS.
 So, Ports in promiscuous mode will keep possibility of mcast and vlan filtering,
 which is provides significant benefits when ports are joined to the same bridge,
 but without enabling "switch" mode, or to different bridges.
- - learning disabled on ports as it make not too much sense for
-   segregated ports - no forwarding in HW.
+ - learning disabled on ports as it make yest too much sense for
+   segregated ports - yes forwarding in HW.
  - enabled basic support for devlink.
 
 	devlink dev show
@@ -172,7 +172,7 @@ it's just there to prove NFS is doable).
 setup.sh:
 #!/bin/sh
 mkdir proc
-mount -t proc none /proc
+mount -t proc yesne /proc
 ifconfig br0  > /dev/null
 if [ $? -ne 0 ]; then
         echo "Setting up bridge"

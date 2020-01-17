@@ -76,7 +76,7 @@ void v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev);
  *
  * @fh: pointer to &struct v4l2_fh
  *
- * .. note::
+ * .. yeste::
  *    The @fh file handle must be initialised first.
  */
 void v4l2_fh_add(struct v4l2_fh *fh);
@@ -100,7 +100,7 @@ int v4l2_fh_open(struct file *filp);
  * On error filp->private_data will be %NULL, otherwise it will point to
  * the &struct v4l2_fh.
  *
- * .. note::
+ * .. yeste::
  *    Must be called in v4l2_file_operations->release\(\) handler if the driver
  *    uses &struct v4l2_fh.
  */
@@ -114,7 +114,7 @@ void v4l2_fh_del(struct v4l2_fh *fh);
  * Parts of the V4L2 framework using the v4l2_fh must release their
  * resources here, too.
  *
- * .. note::
+ * .. yeste::
  *    Must be called in v4l2_file_operations->release\(\) handler if the
  *    driver uses &struct v4l2_fh.
  */
@@ -127,7 +127,7 @@ void v4l2_fh_exit(struct v4l2_fh *fh);
  * @filp: pointer to struct file
  *
  * It deletes and exits the v4l2_fh associated with the file pointer and
- * frees it. It will do nothing if filp->private_data (the pointer to the
+ * frees it. It will do yesthing if filp->private_data (the pointer to the
  * v4l2_fh struct) is %NULL.
  *
  * This function always returns 0.

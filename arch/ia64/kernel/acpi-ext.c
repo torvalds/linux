@@ -13,9 +13,9 @@
 #include <asm/acpi-ext.h>
 
 /*
- * Device CSRs that do not appear in PCI config space should be described
- * via ACPI.  This would normally be done with Address Space Descriptors
- * marked as "consumer-only," but old versions of Windows and Linux ignore
+ * Device CSRs that do yest appear in PCI config space should be described
+ * via ACPI.  This would yesrmally be done with Address Space Descriptors
+ * marked as "consumer-only," but old versions of Windows and Linux igyesre
  * the producer/consumer flag, so HP invented a vendor-defined resource to
  * describe the location and size of CSR space.
  */

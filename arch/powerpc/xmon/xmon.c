@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched/signal.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
@@ -60,7 +60,7 @@
 #include <asm/paca.h>
 #endif
 
-#include "nonstdio.h"
+#include "yesnstdio.h"
 #include "dis-asm.h"
 
 #ifdef CONFIG_SMP
@@ -135,7 +135,7 @@ static void dump_opal_msglog(void);
 #else
 static inline void dump_opal_msglog(void)
 {
-	printf("Machine is not running OPAL firmware.\n");
+	printf("Machine is yest running OPAL firmware.\n");
 }
 #endif
 
@@ -394,7 +394,7 @@ static inline void disable_surveillance(void)
 
 	/*
 	 * At this point we have got all the cpus we can into
-	 * xmon, so there is hopefully no other cpu calling RTAS
+	 * xmon, so there is hopefully yes other cpu calling RTAS
 	 * at the moment, even though we don't take rtas.lock.
 	 * If we did try to take rtas.lock there would be a
 	 * real possibility of deadlock.
@@ -477,7 +477,7 @@ static inline void release_output_lock(void) {}
 static inline int unrecoverable_excp(struct pt_regs *regs)
 {
 #if defined(CONFIG_4xx) || defined(CONFIG_PPC_BOOK3E)
-	/* We have no MSR_RI bit on 4xx or Book3e, so we simply return false */
+	/* We have yes MSR_RI bit on 4xx or Book3e, so we simply return false */
 	return 0;
 #else
 	return ((regs->msr & MSR_RI) == 0);
@@ -563,7 +563,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			xmon_print_symbol(regs->nip, " ", ")\n");
 		}
 		if (unrecoverable_excp(regs))
-			printf("WARNING: exception is not recoverable, "
+			printf("WARNING: exception is yest recoverable, "
 			       "can't continue\n");
 		release_output_lock();
 	}
@@ -674,7 +674,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			xmon_print_symbol(regs->nip, " ", ")\n");
 		}
 		if (unrecoverable_excp(regs))
-			printf("WARNING: exception is not recoverable, "
+			printf("WARNING: exception is yest recoverable, "
 			       "can't continue\n");
 		remove_bpts();
 		disable_surveillance();
@@ -832,7 +832,7 @@ static int xmon_fault_handler(struct pt_regs *regs)
 	return 0;
 }
 
-/* Force enable xmon if not already enabled */
+/* Force enable xmon if yest already enabled */
 static inline void force_enable_xmon(void)
 {
 	/* Enable xmon hooks if needed */
@@ -887,7 +887,7 @@ static struct bpt *new_breakpoint(unsigned long a)
 		}
 	}
 
-	printf("Sorry, no free breakpoints.  Please clear one first.\n");
+	printf("Sorry, yes free breakpoints.  Please clear one first.\n");
 	return NULL;
 }
 
@@ -1086,7 +1086,7 @@ cmds(struct pt_regs *excp)
 				tracing_on();
 			return cmd;
 		case EOF:
-			printf(" <no input ...>\n");
+			printf(" <yes input ...>\n");
 			mdelay(2000);
 			return cmd;
 		case '?':
@@ -1338,7 +1338,7 @@ static long check_bp_loc(unsigned long addr)
 		return 0;
 	}
 	if (IS_MTMSRD(instr) || IS_RFID(instr)) {
-		printf("Breakpoints may not be placed on mtmsrd or rfid "
+		printf("Breakpoints may yest be placed on mtmsrd or rfid "
 		       "instructions\n");
 		return 0;
 	}
@@ -1375,7 +1375,7 @@ bpt_cmds(void)
 			break;
 		}
 		if (!ppc_breakpoint_available()) {
-			printf("Hardware data breakpoint not supported on this cpu\n");
+			printf("Hardware data breakpoint yest supported on this cpu\n");
 			break;
 		}
 		mode = 7;
@@ -1407,7 +1407,7 @@ bpt_cmds(void)
 		}
 		if (!cpu_has_feature(CPU_FTR_ARCH_207S)) {
 			printf("Hardware instruction breakpoint "
-			       "not supported on this cpu\n");
+			       "yest supported on this cpu\n");
 			break;
 		}
 		if (iabr) {
@@ -1534,7 +1534,7 @@ const char *getvecname(unsigned long vec)
 	case 0xf00:	ret = "(Performance Monitor)"; break;
 	case 0xf20:	ret = "(Altivec Unavailable)"; break;
 	case 0x1300:	ret = "(Instruction Breakpoint)"; break;
-	case 0x1500:	ret = "(Denormalisation)"; break;
+	case 0x1500:	ret = "(Deyesrmalisation)"; break;
 	case 0x1700:	ret = "(Altivec Assist)"; break;
 	default: ret = "";
 	}
@@ -1667,7 +1667,7 @@ static void print_bug_trap(struct pt_regs *regs)
 	unsigned long addr;
 
 	if (regs->msr & MSR_PR)
-		return;		/* not in kernel */
+		return;		/* yest in kernel */
 	addr = regs->nip;	/* address of trap instruction */
 	if (!is_kernel_addr(addr))
 		return;
@@ -1972,7 +1972,7 @@ static void dump_one_spr(int spr, bool show_unimplemented)
 	}
 
 	if (val == 0xdeadbeef) {
-		/* Looks like read was a nop, confirm */
+		/* Looks like read was a yesp, confirm */
 		val = 0x0badcafe;
 		if (!read_spr(spr, &val)) {
 			printf("SPR 0x%03x (%4d) Faulted during read\n", spr, spr);
@@ -1991,7 +1991,7 @@ static void dump_one_spr(int spr, bool show_unimplemented)
 
 static void super_regs(void)
 {
-	static unsigned long regno;
+	static unsigned long regyes;
 	int cmd;
 	int spr;
 
@@ -2020,17 +2020,17 @@ static void super_regs(void)
 	}
 	case 'w': {
 		unsigned long val;
-		scanhex(&regno);
+		scanhex(&regyes);
 		val = 0;
-		read_spr(regno, &val);
+		read_spr(regyes, &val);
 		scanhex(&val);
-		write_spr(regno, val);
-		dump_one_spr(regno, true);
+		write_spr(regyes, val);
+		dump_one_spr(regyes, true);
 		break;
 	}
 	case 'r':
-		scanhex(&regno);
-		dump_one_spr(regno, true);
+		scanhex(&regyes);
+		dump_one_spr(regyes, true);
 		break;
 	case 'a':
 		/* dump ALL SPRs */
@@ -2176,7 +2176,7 @@ byterev(unsigned char *val, int size)
 }
 
 static int brev;
-static int mnoread;
+static int myesread;
 
 static char *memex_help_string =
     "Memory examine command usage:\n"
@@ -2188,7 +2188,7 @@ static char *memex_help_string =
     "    l   modify by longs (4 byte)\n"
     "    d   modify by doubleword (8 byte)\n"
     "    r   toggle reverse byte order mode\n"
-    "    n   do not read memory (for i/o spaces)\n"
+    "    n   do yest read memory (for i/o spaces)\n"
     "    .   ok to read (default)\n"
     "NOTE: flags are saved as defaults\n"
     "";
@@ -2201,14 +2201,14 @@ static char *memex_subcmd_help_string =
     "  ^        decrement address\n"
     "  /        increment addr by 0x10.  //=0x100, ///=0x1000, etc\n"
     "  \\        decrement addr by 0x10.  \\\\=0x100, \\\\\\=0x1000, etc\n"
-    "  `        clear no-read flag\n"
+    "  `        clear yes-read flag\n"
     "  ;        stay at this addr\n"
     "  v        change to byte mode\n"
     "  w        change to word (2 byte) mode\n"
     "  l        change to long (4 byte) mode\n"
     "  u        change to doubleword (8 byte) mode\n"
     "  m addr   change current addr\n"
-    "  n        toggle no-read flag\n"
+    "  n        toggle yes-read flag\n"
     "  r        toggle byte reverse flag\n"
     "  < count  back up count bytes\n"
     "  > count  skip forward count bytes\n"
@@ -2238,8 +2238,8 @@ memex(void)
 		case 'l':	size = 4;	break;
 		case 'd':	size = 8;	break;
 		case 'r': 	brev = !brev;	break;
-		case 'n':	mnoread = 1;	break;
-		case '.':	mnoread = 0;	break;
+		case 'n':	myesread = 1;	break;
+		case '.':	myesread = 0;	break;
 		}
 	}
 	if( size <= 0 )
@@ -2247,10 +2247,10 @@ memex(void)
 	else if( size > 8 )
 		size = 8;
 	for(;;){
-		if (!mnoread)
+		if (!myesread)
 			n = mread(adrs, val, size);
 		printf(REG"%c", adrs, brev? 'r': ' ');
-		if (!mnoread) {
+		if (!myesread) {
 			if (brev)
 				byterev(val, size);
 			putchar(' ');
@@ -2297,7 +2297,7 @@ memex(void)
 				adrs += size;
 				break;
 			case '.':
-				mnoread = 0;
+				myesread = 0;
 				break;
 			case ';':
 				break;
@@ -2341,7 +2341,7 @@ memex(void)
 				scanhex((void *)&adrs);
 				break;
 			case 'n':
-				mnoread = 1;
+				myesread = 1;
 				break;
 			case 'r':
 				brev = !brev;
@@ -2433,9 +2433,9 @@ static void dump_one_paca(int cpu)
 
 	printf("paca for cpu 0x%x @ %px:\n", cpu, p);
 
-	printf(" %-*s = %s\n", 25, "possible", cpu_possible(cpu) ? "yes" : "no");
-	printf(" %-*s = %s\n", 25, "present", cpu_present(cpu) ? "yes" : "no");
-	printf(" %-*s = %s\n", 25, "online", cpu_online(cpu) ? "yes" : "no");
+	printf(" %-*s = %s\n", 25, "possible", cpu_possible(cpu) ? "no" : "yes");
+	printf(" %-*s = %s\n", 25, "present", cpu_present(cpu) ? "no" : "yes");
+	printf(" %-*s = %s\n", 25, "online", cpu_online(cpu) ? "no" : "yes");
 
 #define DUMP(paca, name, format)				\
 	printf(" %-*s = "format"\t(0x%lx)\n", 25, #name, 18, paca->name, \
@@ -2907,9 +2907,9 @@ dump_log_buf(void)
 	catch_memory_errors = 1;
 	sync();
 
-	kmsg_dump_rewind_nolock(&dumper);
+	kmsg_dump_rewind_yeslock(&dumper);
 	xmon_start_pagination();
-	while (kmsg_dump_get_line_nolock(&dumper, false, buf, sizeof(buf), &len)) {
+	while (kmsg_dump_get_line_yeslock(&dumper, false, buf, sizeof(buf), &len)) {
 		buf[len] = '\0';
 		printf("%s", buf);
 	}
@@ -2929,7 +2929,7 @@ static void dump_opal_msglog(void)
 	loff_t pos = 0;
 
 	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
-		printf("Machine is not running OPAL firmware.\n");
+		printf("Machine is yest running OPAL firmware.\n");
 		return;
 	}
 
@@ -3086,7 +3086,7 @@ static void show_task(struct task_struct *tsk)
 	char state;
 
 	/*
-	 * Cloned from kdb_task_state_char(), which is not entirely
+	 * Cloned from kdb_task_state_char(), which is yest entirely
 	 * appropriate for calling from xmon. This could be moved
 	 * to a common, generic, routine used by both.
 	 */
@@ -3159,8 +3159,8 @@ static void show_pte(unsigned long addr)
 		pgdir = pgd_offset(mm, 0);
 	}
 
-	if (pgd_none(*pgdp)) {
-		printf("no linux page table for address\n");
+	if (pgd_yesne(*pgdp)) {
+		printf("yes linux page table for address\n");
 		return;
 	}
 
@@ -3174,7 +3174,7 @@ static void show_pte(unsigned long addr)
 
 	pudp = pud_offset(pgdp, addr);
 
-	if (pud_none(*pudp)) {
+	if (pud_yesne(*pudp)) {
 		printf("No valid PUD\n");
 		return;
 	}
@@ -3188,7 +3188,7 @@ static void show_pte(unsigned long addr)
 
 	pmdp = pmd_offset(pudp, addr);
 
-	if (pmd_none(*pmdp)) {
+	if (pmd_yesne(*pmdp)) {
 		printf("No valid PMD\n");
 		return;
 	}
@@ -3200,8 +3200,8 @@ static void show_pte(unsigned long addr)
 	printf("pmdp @ 0x%px = 0x%016lx\n", pmdp, pmd_val(*pmdp));
 
 	ptep = pte_offset_map(pmdp, addr);
-	if (pte_none(*ptep)) {
-		printf("no valid PTE\n");
+	if (pte_yesne(*ptep)) {
+		printf("yes valid PTE\n");
 		return;
 	}
 
@@ -3214,7 +3214,7 @@ static void show_pte(unsigned long addr)
 #else
 static void show_pte(unsigned long addr)
 {
-	printf("show_pte not yet implemented\n");
+	printf("show_pte yest yet implemented\n");
 }
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
@@ -3342,7 +3342,7 @@ scanhex(unsigned long *vp)
 			return 0;
 		}
 		if (xmon_regs == NULL) {
-			printf("regs not available\n");
+			printf("regs yest available\n");
 			return 0;
 		}
 		*vp = ((unsigned long *)xmon_regs)[i];
@@ -3383,7 +3383,7 @@ scanhex(unsigned long *vp)
 		}
 		catch_memory_errors = 0;
 		if (!(*vp)) {
-			printf("unknown symbol '%s'\n", tmpstr);
+			printf("unkyeswn symbol '%s'\n", tmpstr);
 			return 0;
 		}
 		return 1;
@@ -3496,7 +3496,7 @@ symbol_lookup(void)
 			if (addr)
 				printf("%s: %lx\n", tmp, addr);
 			else
-				printf("Symbol '%s' not found.\n", tmp);
+				printf("Symbol '%s' yest found.\n", tmp);
 			sync();
 		}
 		catch_memory_errors = 0;
@@ -3524,7 +3524,7 @@ symbol_lookup(void)
 
 			printf("%s for cpu 0x%lx: %lx\n", tmp, cpu, addr);
 		} else {
-			printf("Percpu symbol '%s' not found.\n", tmp);
+			printf("Percpu symbol '%s' yest found.\n", tmp);
 		}
 
 		catch_memory_errors = 0;
@@ -3948,7 +3948,7 @@ struct spu_info {
 	u8 stopped_ok;
 };
 
-#define XMON_NUM_SPUS	16	/* Enough for current hardware */
+#define XMON_NUM_SPUS	16	/* Eyesugh for current hardware */
 
 static struct spu_info spu_info[XMON_NUM_SPUS];
 
@@ -4020,8 +4020,8 @@ static void restart_spus(void)
 			continue;
 
 		if (!spu_info[i].stopped_ok) {
-			printf("*** Error, spu %d was not successfully stopped"
-					", not restarting\n", i);
+			printf("*** Error, spu %d was yest successfully stopped"
+					", yest restarting\n", i);
 			continue;
 		}
 
@@ -4076,7 +4076,7 @@ static void dump_spu_fields(struct spu *spu)
 	DUMP_FIELD(spu, "0x%lx", local_store_phys);
 	DUMP_FIELD(spu, "0x%p", local_store);
 	DUMP_FIELD(spu, "0x%lx", ls_size);
-	DUMP_FIELD(spu, "0x%x", node);
+	DUMP_FIELD(spu, "0x%x", yesde);
 	DUMP_FIELD(spu, "0x%lx", flags);
 	DUMP_FIELD(spu, "%llu", class_0_pending);
 	DUMP_FIELD(spu, "0x%llx", class_0_dar);

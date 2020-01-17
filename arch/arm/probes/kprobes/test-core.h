@@ -152,19 +152,19 @@ struct test_arg_end {
 	"0:						\n\t"
 
 #define TEST_INSTRUCTION(instruction)				\
-	"50:	nop					\n\t"	\
+	"50:	yesp					\n\t"	\
 	"1:	"instruction"				\n\t"	\
-	"	nop					\n\t"
+	"	yesp					\n\t"
 
 #define TEST_BRANCH_F(instruction)				\
 	TEST_INSTRUCTION(instruction)				\
 	"	b	99f				\n\t"	\
-	"2:	nop					\n\t"
+	"2:	yesp					\n\t"
 
 #define TEST_BRANCH_B(instruction)				\
 	"	b	50f				\n\t"	\
 	"	b	99f				\n\t"	\
-	"2:	nop					\n\t"	\
+	"2:	yesp					\n\t"	\
 	"	b	99f				\n\t"	\
 	TEST_INSTRUCTION(instruction)
 
@@ -173,12 +173,12 @@ struct test_arg_end {
 	"	b	99f				\n\t"	\
 	codex"						\n\t"	\
 	"	b	99f				\n\t"	\
-	"2:	nop					\n\t"
+	"2:	yesp					\n\t"
 
 #define TEST_BRANCH_BX(instruction, codex)			\
 	"	b	50f				\n\t"	\
 	"	b	99f				\n\t"	\
-	"2:	nop					\n\t"	\
+	"2:	yesp					\n\t"	\
 	"	b	99f				\n\t"	\
 	codex"						\n\t"	\
 	TEST_INSTRUCTION(instruction)
@@ -207,7 +207,7 @@ struct test_arg_end {
  * and TEST_BB_* for branching forwards and backwards.
  *
  * TEST_SUPPORTED and TEST_UNSUPPORTED don't cause the code to be executed,
- * the just verify that a kprobe is or is not allowed on the given instruction.
+ * the just verify that a kprobe is or is yest allowed on the given instruction.
  */
 
 #define TEST(code)				\
@@ -407,10 +407,10 @@ struct test_arg_end {
 	TESTCASE_END
 
 /*
- * We ignore the state of the imprecise abort disable flag (CPSR.A) because this
+ * We igyesre the state of the imprecise abort disable flag (CPSR.A) because this
  * can change randomly as the kernel doesn't take care to preserve or initialise
  * this across context switches. Also, with Security Extensions, the flag may
- * not be under control of the kernel; for this reason we ignore the state of
+ * yest be under control of the kernel; for this reason we igyesre the state of
  * the FIQ disable flag CPSR.F as well.
  */
 #define PSR_IGNORE_BITS (PSR_A_BIT | PSR_F_BIT)
@@ -419,7 +419,7 @@ struct test_arg_end {
 /*
  * Macros for defining space directives spread over multiple lines.
  * These are required so the compiler guesses better the length of inline asm
- * code and will spill the literal pool early enough to avoid generating PC
+ * code and will spill the literal pool early eyesugh to avoid generating PC
  * relative loads with out of range offsets.
  */
 #define TWICE(x)	x x

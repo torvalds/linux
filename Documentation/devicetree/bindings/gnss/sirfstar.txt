@@ -26,7 +26,7 @@ Required properties (SPI):
 
 Optional properties:
 
-- sirf,onoff-gpios	: GPIO used to power on and off device (pin name: ON_OFF)
+- sirf,oyesff-gpios	: GPIO used to power on and off device (pin name: ON_OFF)
 - sirf,wakeup-gpios	: GPIO used to determine device power state
 			  (pin name: RFPWRUP, WAKEUP)
 - timepulse-gpios	: Time pulse GPIO (pin name: 1PPS, TM)
@@ -40,7 +40,7 @@ serial@1234 {
 		compatible = "wi2wi,w2sg0084i";
 
 		vcc-supply = <&gnss_reg>;
-		sirf,onoff-gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+		sirf,oyesff-gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
 		sirf,wakeup-gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
 	};
 };

@@ -39,7 +39,7 @@ static struct fsl_usb2_dev_data dr_mode_data[] = {
 	},
 };
 
-static struct fsl_usb2_dev_data *get_dr_mode_data(struct device_node *np)
+static struct fsl_usb2_dev_data *get_dr_mode_data(struct device_yesde *np)
 {
 	const unsigned char *prop;
 	int i;
@@ -53,7 +53,7 @@ static struct fsl_usb2_dev_data *get_dr_mode_data(struct device_node *np)
 	}
 	pr_warn("%pOF: Invalid 'dr_mode' property, fallback to host mode\n",
 		np);
-	return &dr_mode_data[0]; /* mode not specified, use host */
+	return &dr_mode_data[0]; /* mode yest specified, use host */
 }
 
 static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
@@ -122,7 +122,7 @@ error:
 
 static const struct of_device_id fsl_usb2_mph_dr_of_match[];
 
-static enum fsl_usb2_controller_ver usb_get_ver_info(struct device_node *np)
+static enum fsl_usb2_controller_ver usb_get_ver_info(struct device_yesde *np)
 {
 	enum fsl_usb2_controller_ver ver = FSL_USB_VER_NONE;
 
@@ -170,7 +170,7 @@ static enum fsl_usb2_controller_ver usb_get_ver_info(struct device_node *np)
 
 static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct platform_device *usb_dev;
 	struct fsl_usb2_platform_data data, *pdata;
 	struct fsl_usb2_dev_data *dev_data;
@@ -238,7 +238,7 @@ static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 
 	if (pdata->have_sysif_regs) {
 		if (pdata->controller_ver == FSL_USB_VER_NONE) {
-			dev_warn(&ofdev->dev, "Could not get controller version\n");
+			dev_warn(&ofdev->dev, "Could yest get controller version\n");
 			return -ENODEV;
 		}
 	}

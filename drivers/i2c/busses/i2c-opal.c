@@ -200,10 +200,10 @@ static int i2c_opal_probe(struct platform_device *pdev)
 	u32			opal_id;
 	int			rc;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
-	rc = of_property_read_u32(pdev->dev.of_node, "ibm,opal-id", &opal_id);
+	rc = of_property_read_u32(pdev->dev.of_yesde, "ibm,opal-id", &opal_id);
 	if (rc) {
 		dev_err(&pdev->dev, "Missing ibm,opal-id property !\n");
 		return -EIO;
@@ -217,8 +217,8 @@ static int i2c_opal_probe(struct platform_device *pdev)
 	adapter->algo_data = (void *)(unsigned long)opal_id;
 	adapter->quirks = &i2c_opal_quirks;
 	adapter->dev.parent = &pdev->dev;
-	adapter->dev.of_node = of_node_get(pdev->dev.of_node);
-	pname = of_get_property(pdev->dev.of_node, "ibm,port-name", NULL);
+	adapter->dev.of_yesde = of_yesde_get(pdev->dev.of_yesde);
+	pname = of_get_property(pdev->dev.of_yesde, "ibm,port-name", NULL);
 	if (pname)
 		strlcpy(adapter->name, pname, sizeof(adapter->name));
 	else

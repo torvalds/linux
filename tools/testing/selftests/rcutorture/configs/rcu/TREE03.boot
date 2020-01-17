@@ -1,4 +1,4 @@
-rcutorture.onoff_interval=200 rcutorture.onoff_holdoff=30
+rcutorture.oyesff_interval=200 rcutorture.oyesff_holdoff=30
 rcutree.gp_preinit_delay=12
 rcutree.gp_init_delay=3
 rcutree.gp_cleanup_delay=3

@@ -141,7 +141,7 @@ static bool __init __check_eq_clump8(const char *srcfile, unsigned int line,
 
 	exp = clump_exp[offset / 8];
 	if (!exp) {
-		pr_warn("[%s:%u] bit offset for zero clump: expected nonzero clump, got bit offset %u with clump value 0",
+		pr_warn("[%s:%u] bit offset for zero clump: expected yesnzero clump, got bit offset %u with clump value 0",
 			srcfile, line, offset);
 		return false;
 	}
@@ -177,7 +177,7 @@ static void __init test_zero_clear(void)
 {
 	DECLARE_BITMAP(bmap, 1024);
 
-	/* Known way to set all bits */
+	/* Kyeswn way to set all bits */
 	memset(bmap, 0xff, 128);
 
 	expect_eq_pbl("0-22", bmap, 23);
@@ -206,7 +206,7 @@ static void __init test_fill_set(void)
 {
 	DECLARE_BITMAP(bmap, 1024);
 
-	/* Known way to clear all bits */
+	/* Kyeswn way to clear all bits */
 	memset(bmap, 0x00, 128);
 
 	expect_eq_pbl("", bmap, 23);
@@ -297,7 +297,7 @@ static void __init test_replace(void)
 #define PARSE_TIME 0x1
 
 struct test_bitmap_parselist{
-	const int errno;
+	const int erryes;
 	const char *in;
 	const unsigned long *expected;
 	const int nbits;
@@ -378,9 +378,9 @@ static void __init __test_bitmap_parselist(int is_user)
 			time = ktime_get() - time;
 		}
 
-		if (err != ptest.errno) {
-			pr_err("parselist%s: %d: input is %s, errno is %d, expected %d\n",
-					mode, i, ptest.in, err, ptest.errno);
+		if (err != ptest.erryes) {
+			pr_err("parselist%s: %d: input is %s, erryes is %d, expected %d\n",
+					mode, i, ptest.in, err, ptest.erryes);
 			continue;
 		}
 
@@ -429,7 +429,7 @@ static void __init test_bitmap_arr32(void)
 				round_up(nbits, BITS_PER_LONG), nbits);
 		if (next_bit < round_up(nbits, BITS_PER_LONG))
 			pr_err("bitmap_copy_arr32(nbits == %d:"
-				" tail is not safely cleared: %d\n",
+				" tail is yest safely cleared: %d\n",
 				nbits, next_bit);
 
 		if (nbits < EXP1_IN_BITS - 32)
@@ -438,7 +438,7 @@ static void __init test_bitmap_arr32(void)
 	}
 }
 
-static void noinline __init test_mem_optimisations(void)
+static void yesinline __init test_mem_optimisations(void)
 {
 	DECLARE_BITMAP(bmap1, 1024);
 	DECLARE_BITMAP(bmap2, 1024);
@@ -452,22 +452,22 @@ static void noinline __init test_mem_optimisations(void)
 			bitmap_set(bmap1, start, nbits);
 			__bitmap_set(bmap2, start, nbits);
 			if (!bitmap_equal(bmap1, bmap2, 1024)) {
-				printk("set not equal %d %d\n", start, nbits);
+				printk("set yest equal %d %d\n", start, nbits);
 				failed_tests++;
 			}
 			if (!__bitmap_equal(bmap1, bmap2, 1024)) {
-				printk("set not __equal %d %d\n", start, nbits);
+				printk("set yest __equal %d %d\n", start, nbits);
 				failed_tests++;
 			}
 
 			bitmap_clear(bmap1, start, nbits);
 			__bitmap_clear(bmap2, start, nbits);
 			if (!bitmap_equal(bmap1, bmap2, 1024)) {
-				printk("clear not equal %d %d\n", start, nbits);
+				printk("clear yest equal %d %d\n", start, nbits);
 				failed_tests++;
 			}
 			if (!__bitmap_equal(bmap1, bmap2, 1024)) {
-				printk("clear not __equal %d %d\n", start,
+				printk("clear yest __equal %d %d\n", start,
 									nbits);
 				failed_tests++;
 			}
@@ -477,13 +477,13 @@ static void noinline __init test_mem_optimisations(void)
 
 static const unsigned char clump_exp[] __initconst = {
 	0x01,	/* 1 bit set */
-	0x02,	/* non-edge 1 bit set */
+	0x02,	/* yesn-edge 1 bit set */
 	0x00,	/* zero bits set */
 	0x38,	/* 3 bits set across 4-bit boundary */
 	0x38,	/* Repeated clump */
 	0x0F,	/* 4 bits set */
 	0xFF,	/* all bits set */
-	0x05,	/* non-adjacent 2 bits set */
+	0x05,	/* yesn-adjacent 2 bits set */
 };
 
 static void __init test_for_each_set_clump8(void)

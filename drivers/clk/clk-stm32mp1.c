@@ -775,7 +775,7 @@ static int pll_enable(struct clk_hw *hw)
 	/* We can't use readl_poll_timeout() because we can be blocked if
 	 * someone enables this clock before clocksource changes.
 	 * Only jiffies counter is available. Jiffies are incremented by
-	 * interruptions and enable op does not allow to be interrupted.
+	 * interruptions and enable op does yest allow to be interrupted.
 	 */
 	do {
 		bit_status = !(readl_relaxed(clk_elem->reg) & PLL_RDY);
@@ -1951,7 +1951,7 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	KCLK(USBO_K, "usbo_k", usbo_src, 0, G_USBO, M_USBO),
 	KCLK(ETHCK_K, "ethck_k", eth_src, 0, G_ETHCK, M_ETHCK),
 
-	/* Particulary Kernel Clocks (no mux or no gate) */
+	/* Particulary Kernel Clocks (yes mux or yes gate) */
 	MGATE_MP1(DFSDM_K, "dfsdm_k", "ck_mcu", 0, G_DFSDM),
 	MGATE_MP1(DSI_PX, "dsi_px", "pll4_q", CLK_SET_RATE_PARENT, G_DSI),
 	MGATE_MP1(LTDC_PX, "ltdc_px", "pll4_q", CLK_SET_RATE_PARENT, G_LTDC),
@@ -2040,7 +2040,7 @@ static int stm32_register_hw_clk(struct device *dev,
 	return 0;
 }
 
-static int stm32_rcc_init(struct device_node *np,
+static int stm32_rcc_init(struct device_yesde *np,
 			  void __iomem *base,
 			  const struct of_device_id *match_data)
 {
@@ -2050,9 +2050,9 @@ static int stm32_rcc_init(struct device_node *np,
 	const struct stm32_clock_match_data *data;
 	int err, n, max_binding;
 
-	match = of_match_node(match_data, np);
+	match = of_match_yesde(match_data, np);
 	if (!match) {
-		pr_err("%s: match data not found\n", __func__);
+		pr_err("%s: match data yest found\n", __func__);
 		return -ENODEV;
 	}
 
@@ -2088,20 +2088,20 @@ static int stm32_rcc_init(struct device_node *np,
 	return of_clk_add_hw_provider(np, of_clk_hw_onecell_get, clk_data);
 }
 
-static void stm32mp1_rcc_init(struct device_node *np)
+static void stm32mp1_rcc_init(struct device_yesde *np)
 {
 	void __iomem *base;
 
 	base = of_iomap(np, 0);
 	if (!base) {
 		pr_err("%pOFn: unable to map resource", np);
-		of_node_put(np);
+		of_yesde_put(np);
 		return;
 	}
 
 	if (stm32_rcc_init(np, base, stm32mp1_match_data)) {
 		iounmap(base);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 }
 

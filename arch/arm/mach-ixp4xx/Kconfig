@@ -40,7 +40,7 @@ config MACH_LOFT
     depends on MACH_AVILA
     help
 	  Say 'Y' here if you want your kernel to support the Giant
-	  Shoulder Inc Loft board (a minor variation on the standard
+	  Shoulder Inc Loft board (a miyesr variation on the standard
 	  Gateworks Avila Network Platform).
 
 config ARCH_ADI_COYOTE
@@ -71,21 +71,21 @@ config ARCH_IXDP425
 	bool "IXDP425"
 	help
 	  Say 'Y' here if you want your kernel to support Intel's 
-	  IXDP425 Development Platform (Also known as Richfield).  
+	  IXDP425 Development Platform (Also kyeswn as Richfield).  
 	  For more information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
 
 config MACH_IXDPG425
 	bool "IXDPG425"
 	help
 	  Say 'Y' here if you want your kernel to support Intel's
-	  IXDPG425 Development Platform (Also known as Montajade).
+	  IXDPG425 Development Platform (Also kyeswn as Montajade).
 	  For more information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
 
 config MACH_IXDP465
 	bool "IXDP465"
 	help
 	  Say 'Y' here if you want your kernel to support Intel's
-	  IXDP465 Development Platform (Also known as BMP).
+	  IXDP465 Development Platform (Also kyeswn as BMP).
 	  For more information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
 
 config MACH_GORAMO_MLR
@@ -181,7 +181,7 @@ config MACH_GTWX5715
 		IXP425 - 266mhz
 		32mb SDRAM
 		8mb Flash
-		miniPCI slot 0 does not have a card connector soldered to the board
+		miniPCI slot 0 does yest have a card connector soldered to the board
 		miniPCI slot 1 has an ISL3880 802.11g card (Prism54)
 		npe0 is connected to a Kendin KS8995M Switch (4 ports)
 		npe1 is the "wan" port
@@ -229,11 +229,11 @@ config IXP4XX_INDIRECT_PCI
 	     to 0x4FFFFFFF) of memory on the bus. The disadvantage of this
 	     is that every PCI access requires three local register accesses
 	     plus a spinlock, but in some cases the performance hit is
-	     acceptable. In addition, you cannot mmap() PCI devices in this
+	     acceptable. In addition, you canyest mmap() PCI devices in this
 	     case due to the indirect nature of the PCI window.
 
 	  By default, the direct method is used. Choose this option if you
-	  need to use the indirect method instead. If you don't know
+	  need to use the indirect method instead. If you don't kyesw
 	  what you need, leave this option unselected.
 
 endmenu

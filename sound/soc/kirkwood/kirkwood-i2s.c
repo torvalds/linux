@@ -249,7 +249,7 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 		} while (timeout--);
 
 		if ((ctl | value) & KIRKWOOD_PLAYCTL_PLAY_BUSY)
-			dev_notice(dai->dev, "timed out waiting for busy to deassert: %08x\n",
+			dev_yestice(dai->dev, "timed out waiting for busy to deassert: %08x\n",
 				   ctl);
 	}
 
@@ -266,7 +266,7 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 		writel(value, priv->io + KIRKWOOD_PLAYCTL);
 
 		/* enable interrupts */
-		if (!runtime->no_period_wakeup) {
+		if (!runtime->yes_period_wakeup) {
 			value = readl(priv->io + KIRKWOOD_INT_MASK);
 			value |= KIRKWOOD_INT_CAUSE_PLAY_BYTES;
 			writel(value, priv->io + KIRKWOOD_INT_MASK);
@@ -523,7 +523,7 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 	struct kirkwood_asoc_platform_data *data = pdev->dev.platform_data;
 	struct snd_soc_dai_driver *soc_dai = kirkwood_i2s_dai;
 	struct kirkwood_dma_data *priv;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int err;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -545,13 +545,13 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 	} else if (data) {
 		priv->burst = data->burst;
 	} else {
-		dev_err(&pdev->dev, "no DT nor platform data ?!\n");
+		dev_err(&pdev->dev, "yes DT yesr platform data ?!\n");
 		return -EINVAL;
 	}
 
 	priv->clk = devm_clk_get(&pdev->dev, np ? "internal" : NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "no clock\n");
+		dev_err(&pdev->dev, "yes clock\n");
 		return PTR_ERR(priv->clk);
 	}
 

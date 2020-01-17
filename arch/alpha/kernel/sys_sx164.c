@@ -124,7 +124,7 @@ sx164_init_arch(void)
 	 * OSF palcode v1.23 forgets to enable PCA56 Motion Video
 	 * Instructions. Let's enable it.
 	 * We have to check palcode revision because CSERVE interface
-	 * is subject to change without notice. For example, it
+	 * is subject to change without yestice. For example, it
 	 * has been changed completely since v1.16 (found in MILO
 	 * distribution). -ink
 	 */

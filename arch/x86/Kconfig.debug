@@ -22,9 +22,9 @@ config EARLY_PRINTK
 	  port.
 
 	  This is useful for kernel debugging when your machine crashes very
-	  early before the console code is initialized. For normal operation
-	  it is not recommended because it looks ugly and doesn't cooperate
-	  with klogd/syslogd or the X server. You should normally say N here,
+	  early before the console code is initialized. For yesrmal operation
+	  it is yest recommended because it looks ugly and doesn't cooperate
+	  with klogd/syslogd or the X server. You should yesrmally say N here,
 	  unless you want to debug such a crash.
 
 config EARLY_PRINTK_DBGP
@@ -35,9 +35,9 @@ config EARLY_PRINTK_DBGP
 	  Write kernel log output directly into the EHCI debug port.
 
 	  This is useful for kernel debugging when your machine crashes very
-	  early before the console code is initialized. For normal operation
-	  it is not recommended because it looks ugly and doesn't cooperate
-	  with klogd/syslogd or the X server. You should normally say N here,
+	  early before the console code is initialized. For yesrmal operation
+	  it is yest recommended because it looks ugly and doesn't cooperate
+	  with klogd/syslogd or the X server. You should yesrmally say N here,
 	  unless you want to debug such a crash. You need usb debug device.
 
 config EARLY_PRINTK_USB_XDBC
@@ -52,11 +52,11 @@ config EARLY_PRINTK_USB_XDBC
 	  initialized. Other uses include simpler, lockless logging instead of
 	  a full-blown printk console driver + klogd.
 
-	  For normal production environments this is normally not recommended,
+	  For yesrmal production environments this is yesrmally yest recommended,
 	  because it doesn't feed events into klogd/syslogd and doesn't try to
 	  print anything on the screen.
 
-	  You should normally say N here, unless you want to debug early
+	  You should yesrmally say N here, unless you want to debug early
 	  crashes or need a very simple printk logging facility.
 
 config MCSAFE_TEST
@@ -74,7 +74,7 @@ config X86_PTDUMP
 	  Say Y here if you want to show the kernel pagetable layout in a
 	  debugfs file. This information is only useful for kernel developers
 	  who are working in architecture specific areas of the kernel.
-	  It is probably not a good idea to enable this feature in a production
+	  It is probably yest a good idea to enable this feature in a production
 	  kernel.
 	  If in doubt, say "N"
 
@@ -99,18 +99,18 @@ config DEBUG_WX
 
 	  Look for a message in dmesg output like this:
 
-	    x86/mm: Checked W+X mappings: passed, no W+X pages found.
+	    x86/mm: Checked W+X mappings: passed, yes W+X pages found.
 
 	  or like this, if the check failed:
 
 	    x86/mm: Checked W+X mappings: FAILED, <N> W+X pages found.
 
 	  Note that even if the check fails, your kernel is possibly
-	  still fine, as W+X mappings are not a security hole in
+	  still fine, as W+X mappings are yest a security hole in
 	  themselves, what they do is that they make the exploitation
 	  of other unfixed kernel bugs easier.
 
-	  There is no runtime or memory usage effect of this option
+	  There is yes runtime or memory usage effect of this option
 	  once the kernel has booted up - it's a one time check.
 
 	  If in doubt, say "Y".
@@ -129,12 +129,12 @@ config DEBUG_TLBFLUSH
 	depends on DEBUG_KERNEL
 	---help---
 
-	X86-only for now.
+	X86-only for yesw.
 
 	This option allows the user to tune the amount of TLB entries the
 	kernel flushes one-by-one instead of doing a full TLB flush. In
 	certain situations, the former is cheaper. This is controlled by the
-	tlb_flushall_shift knob under /sys/kernel/debug/x86. If you set it
+	tlb_flushall_shift kyesb under /sys/kernel/debug/x86. If you set it
 	to -1, the code flushes the whole TLB unconditionally. Otherwise,
 	for positive values of it, the kernel will use single TLB entry
 	invalidating instructions according to the following formula:
@@ -151,9 +151,9 @@ config IOMMU_DEBUG
 	  Force the IOMMU to on even when you have less than 4GB of
 	  memory and add debugging code. On overflow always panic. And
 	  allow to enable IOMMU leak tracing. Can be disabled at boot
-	  time with iommu=noforce. This will also enable scatter gather
-	  list merging.  Currently not recommended for production
-	  code. When you use it make sure you have a big enough
+	  time with iommu=yesforce. This will also enable scatter gather
+	  list merging.  Currently yest recommended for production
+	  code. When you use it make sure you have a big eyesugh
 	  IOMMU/AGP aperture.  Most of the options enabled by this can
 	  be set more finegrained using the iommu= command line
 	  options. See Documentation/x86/x86_64/boot-options.rst for more
@@ -199,10 +199,10 @@ config IO_DELAY_UDELAY
 	bool "udelay based port-IO delay"
 	---help---
 	  Use udelay(2) as the IO delay method. This provides the delay
-	  while not having any side-effect on the IO port space.
+	  while yest having any side-effect on the IO port space.
 
 config IO_DELAY_NONE
-	bool "no port-IO delay"
+	bool "yes port-IO delay"
 	---help---
 	  No port-IO delay. Will break on old boxes that require port-IO
 	  delay for certain operations. Should work on most new machines.
@@ -239,7 +239,7 @@ config DEBUG_NMI_SELFTEST
 	  Enabling this option turns on a quick NMI selftest to verify
 	  that the NMI behaves correctly.
 
-	  This might help diagnose strange hangs that rely on NMI to
+	  This might help diagyesse strange hangs that rely on NMI to
 	  function properly.
 
 	  If unsure, say N.
@@ -326,7 +326,7 @@ config UNWINDER_GUESS
 	  finds.  Some of the addresses it reports may be incorrect.
 
 	  While this option often produces false positives, it can still be
-	  useful in many cases.  Unlike the other unwinders, it has no runtime
+	  useful in many cases.  Unlike the other unwinders, it has yes runtime
 	  overhead.
 
 endchoice

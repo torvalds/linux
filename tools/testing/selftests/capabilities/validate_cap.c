@@ -49,7 +49,7 @@ int main(int argc, char **argv)
 	if (getauxval(AT_SECURE))
 		atsec = " (AT_SECURE is set)";
 	else
-		atsec = " (AT_SECURE is not set)";
+		atsec = " (AT_SECURE is yest set)";
 #endif
 
 	capng_get_caps_process();

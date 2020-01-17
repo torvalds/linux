@@ -10,7 +10,7 @@
 	},
 	.fixup_map_sockmap = { 3 },
 	.result = REJECT,
-	.errstr = "cannot pass map_type 15 into func bpf_map_lookup_elem",
+	.errstr = "canyest pass map_type 15 into func bpf_map_lookup_elem",
 	.prog_type = BPF_PROG_TYPE_SOCK_OPS,
 },
 {
@@ -25,7 +25,7 @@
 	},
 	.fixup_map_sockhash = { 3 },
 	.result = REJECT,
-	.errstr = "cannot pass map_type 18 into func bpf_map_lookup_elem",
+	.errstr = "canyest pass map_type 18 into func bpf_map_lookup_elem",
 	.prog_type = BPF_PROG_TYPE_SOCK_OPS,
 },
 {
@@ -40,7 +40,7 @@
 	},
 	.fixup_map_stacktrace = { 3 },
 	.result = REJECT,
-	.errstr = "cannot pass map_type 7 into func bpf_map_lookup_elem",
+	.errstr = "canyest pass map_type 7 into func bpf_map_lookup_elem",
 	.prog_type = BPF_PROG_TYPE_PERF_EVENT,
 },
 {
@@ -55,5 +55,5 @@
 	},
 	.fixup_prog2 = { 3 },
 	.result = REJECT,
-	.errstr = "cannot pass map_type 3 into func bpf_map_lookup_elem",
+	.errstr = "canyest pass map_type 3 into func bpf_map_lookup_elem",
 },

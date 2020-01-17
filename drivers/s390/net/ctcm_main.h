@@ -68,8 +68,8 @@
  * Enum for classifying detected devices
  */
 enum ctcm_channel_types {
-	/* Device is not a channel  */
-	ctcm_channel_type_none,
+	/* Device is yest a channel  */
+	ctcm_channel_type_yesne,
 
 	/* Device is a CTC/A */
 	ctcm_channel_type_parallel,
@@ -291,7 +291,7 @@ static inline int ctcm_checkalloc_buffer(struct channel *ch)
 struct mpc_group *ctcmpc_init_mpc_group(struct ctcm_priv *priv);
 
 /* test if protocol attribute (of struct ctcm_priv or struct channel)
- * has MPC protocol setting. Type is not checked
+ * has MPC protocol setting. Type is yest checked
  */
 #define IS_MPC(p) ((p)->protocol == CTCM_PROTO_MPC)
 

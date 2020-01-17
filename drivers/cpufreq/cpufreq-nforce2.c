@@ -56,7 +56,7 @@ module_param(min_fsb, int, 0444);
 
 MODULE_PARM_DESC(fid, "CPU multiplier to use (11.5 = 115)");
 MODULE_PARM_DESC(min_fsb,
-		"Minimum FSB to use, if not defined: current FSB - 50");
+		"Minimum FSB to use, if yest defined: current FSB - 50");
 
 /**
  * nforce2_calc_fsb - calculate FSB
@@ -322,7 +322,7 @@ static int nforce2_cpu_init(struct cpufreq_policy *policy)
 	/* FIX: Get FID from CPU */
 	if (!fid) {
 		if (!cpu_khz) {
-			pr_warn("cpu_khz not set, can't calculate multiplier!\n");
+			pr_warn("cpu_khz yest set, can't calculate multiplier!\n");
 			return -ENODEV;
 		}
 

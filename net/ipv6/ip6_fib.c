@@ -7,7 +7,7 @@
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	Changes:
- *	Yuji SEKIYA @USAGI:	Support default route on router node;
+ *	Yuji SEKIYA @USAGI:	Support default route on router yesde;
  *				remove ip6_null_entry from the top of
  *				routing table.
  *	Ville Nuorvala:		Fixed routing subtrees.
@@ -15,7 +15,7 @@
 
 #define pr_fmt(fmt) "IPv6: " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/net.h>
 #include <linux/route.h>
@@ -30,12 +30,12 @@
 #include <net/ndisc.h>
 #include <net/addrconf.h>
 #include <net/lwtunnel.h>
-#include <net/fib_notifier.h>
+#include <net/fib_yestifier.h>
 
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
 
-static struct kmem_cache *fib6_node_kmem __read_mostly;
+static struct kmem_cache *fib6_yesde_kmem __read_mostly;
 
 struct fib6_cleaner {
 	struct fib6_walker w;
@@ -43,7 +43,7 @@ struct fib6_cleaner {
 	int (*func)(struct fib6_info *, void *arg);
 	int sernum;
 	void *arg;
-	bool skip_notify;
+	bool skip_yestify;
 };
 
 #ifdef CONFIG_IPV6_SUBTREES
@@ -54,16 +54,16 @@ struct fib6_cleaner {
 
 static struct fib6_info *fib6_find_prefix(struct net *net,
 					 struct fib6_table *table,
-					 struct fib6_node *fn);
-static struct fib6_node *fib6_repair_tree(struct net *net,
+					 struct fib6_yesde *fn);
+static struct fib6_yesde *fib6_repair_tree(struct net *net,
 					  struct fib6_table *table,
-					  struct fib6_node *fn);
+					  struct fib6_yesde *fn);
 static int fib6_walk(struct net *net, struct fib6_walker *w);
 static int fib6_walk_continue(struct fib6_walker *w);
 
 /*
  *	A routing update causes an increase of the serial number on the
- *	affected subtree. This allows for cached routes to be asynchronously
+ *	affected subtree. This allows for cached routes to be asynchroyesusly
  *	tested when modifications are made to the destination cache as a
  *	result of redirects, path MTU changes, etc.
  */
@@ -105,9 +105,9 @@ enum {
 
 void fib6_update_sernum(struct net *net, struct fib6_info *f6i)
 {
-	struct fib6_node *fn;
+	struct fib6_yesde *fn;
 
-	fn = rcu_dereference_protected(f6i->fib6_node,
+	fn = rcu_dereference_protected(f6i->fib6_yesde,
 			lockdep_is_held(&f6i->fib6_table->tb6_lock));
 	if (fn)
 		fn->fn_sernum = fib6_new_sernum(net);
@@ -166,7 +166,7 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 {
 	struct fib6_info *f6i = container_of(head, struct fib6_info, rcu);
 
-	WARN_ON(f6i->fib6_node);
+	WARN_ON(f6i->fib6_yesde);
 
 	if (f6i->nh)
 		nexthop_put(f6i->nh);
@@ -178,34 +178,34 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 }
 EXPORT_SYMBOL_GPL(fib6_info_destroy_rcu);
 
-static struct fib6_node *node_alloc(struct net *net)
+static struct fib6_yesde *yesde_alloc(struct net *net)
 {
-	struct fib6_node *fn;
+	struct fib6_yesde *fn;
 
-	fn = kmem_cache_zalloc(fib6_node_kmem, GFP_ATOMIC);
+	fn = kmem_cache_zalloc(fib6_yesde_kmem, GFP_ATOMIC);
 	if (fn)
-		net->ipv6.rt6_stats->fib_nodes++;
+		net->ipv6.rt6_stats->fib_yesdes++;
 
 	return fn;
 }
 
-static void node_free_immediate(struct net *net, struct fib6_node *fn)
+static void yesde_free_immediate(struct net *net, struct fib6_yesde *fn)
 {
-	kmem_cache_free(fib6_node_kmem, fn);
-	net->ipv6.rt6_stats->fib_nodes--;
+	kmem_cache_free(fib6_yesde_kmem, fn);
+	net->ipv6.rt6_stats->fib_yesdes--;
 }
 
-static void node_free_rcu(struct rcu_head *head)
+static void yesde_free_rcu(struct rcu_head *head)
 {
-	struct fib6_node *fn = container_of(head, struct fib6_node, rcu);
+	struct fib6_yesde *fn = container_of(head, struct fib6_yesde, rcu);
 
-	kmem_cache_free(fib6_node_kmem, fn);
+	kmem_cache_free(fib6_yesde_kmem, fn);
 }
 
-static void node_free(struct net *net, struct fib6_node *fn)
+static void yesde_free(struct net *net, struct fib6_yesde *fn)
 {
-	call_rcu(&fn->rcu, node_free_rcu);
-	net->ipv6.rt6_stats->fib_nodes--;
+	call_rcu(&fn->rcu, yesde_free_rcu);
+	net->ipv6.rt6_stats->fib_yesdes--;
 }
 
 static void fib6_free_table(struct fib6_table *table)
@@ -325,7 +325,7 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 	return &rt->dst;
 }
 
-/* called with rcu lock held; no reference taken on fib6_info */
+/* called with rcu lock held; yes reference taken on fib6_info */
 int fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
 		struct fib6_result *res, int flags)
 {
@@ -357,52 +357,52 @@ unsigned int fib6_tables_seq_read(struct net *net)
 	return fib_seq;
 }
 
-static int call_fib6_entry_notifier(struct notifier_block *nb,
+static int call_fib6_entry_yestifier(struct yestifier_block *nb,
 				    enum fib_event_type event_type,
 				    struct fib6_info *rt,
 				    struct netlink_ext_ack *extack)
 {
-	struct fib6_entry_notifier_info info = {
+	struct fib6_entry_yestifier_info info = {
 		.info.extack = extack,
 		.rt = rt,
 	};
 
-	return call_fib6_notifier(nb, event_type, &info.info);
+	return call_fib6_yestifier(nb, event_type, &info.info);
 }
 
-int call_fib6_entry_notifiers(struct net *net,
+int call_fib6_entry_yestifiers(struct net *net,
 			      enum fib_event_type event_type,
 			      struct fib6_info *rt,
 			      struct netlink_ext_ack *extack)
 {
-	struct fib6_entry_notifier_info info = {
+	struct fib6_entry_yestifier_info info = {
 		.info.extack = extack,
 		.rt = rt,
 	};
 
 	rt->fib6_table->fib_seq++;
-	return call_fib6_notifiers(net, event_type, &info.info);
+	return call_fib6_yestifiers(net, event_type, &info.info);
 }
 
-int call_fib6_multipath_entry_notifiers(struct net *net,
+int call_fib6_multipath_entry_yestifiers(struct net *net,
 					enum fib_event_type event_type,
 					struct fib6_info *rt,
 					unsigned int nsiblings,
 					struct netlink_ext_ack *extack)
 {
-	struct fib6_entry_notifier_info info = {
+	struct fib6_entry_yestifier_info info = {
 		.info.extack = extack,
 		.rt = rt,
 		.nsiblings = nsiblings,
 	};
 
 	rt->fib6_table->fib_seq++;
-	return call_fib6_notifiers(net, event_type, &info.info);
+	return call_fib6_yestifiers(net, event_type, &info.info);
 }
 
 struct fib6_dump_arg {
 	struct net *net;
-	struct notifier_block *nb;
+	struct yestifier_block *nb;
 	struct netlink_ext_ack *extack;
 };
 
@@ -410,11 +410,11 @@ static int fib6_rt_dump(struct fib6_info *rt, struct fib6_dump_arg *arg)
 {
 	if (rt == arg->net->ipv6.fib6_null_entry)
 		return 0;
-	return call_fib6_entry_notifier(arg->nb, FIB_EVENT_ENTRY_ADD,
+	return call_fib6_entry_yestifier(arg->nb, FIB_EVENT_ENTRY_ADD,
 					rt, arg->extack);
 }
 
-static int fib6_node_dump(struct fib6_walker *w)
+static int fib6_yesde_dump(struct fib6_walker *w)
 {
 	struct fib6_info *rt;
 	int err = 0;
@@ -441,7 +441,7 @@ static int fib6_table_dump(struct net *net, struct fib6_table *tb,
 }
 
 /* Called with rcu_read_lock() */
-int fib6_tables_dump(struct net *net, struct notifier_block *nb,
+int fib6_tables_dump(struct net *net, struct yestifier_block *nb,
 		     struct netlink_ext_ack *extack)
 {
 	struct fib6_dump_arg arg;
@@ -453,7 +453,7 @@ int fib6_tables_dump(struct net *net, struct notifier_block *nb,
 	if (!w)
 		return -ENOMEM;
 
-	w->func = fib6_node_dump;
+	w->func = fib6_yesde_dump;
 	arg.net = net;
 	arg.nb = nb;
 	arg.extack = extack;
@@ -476,29 +476,29 @@ out:
 	return err;
 }
 
-static int fib6_dump_node(struct fib6_walker *w)
+static int fib6_dump_yesde(struct fib6_walker *w)
 {
 	int res;
 	struct fib6_info *rt;
 
 	for_each_fib6_walker_rt(w) {
-		res = rt6_dump_route(rt, w->args, w->skip_in_node);
+		res = rt6_dump_route(rt, w->args, w->skip_in_yesde);
 		if (res >= 0) {
 			/* Frame is full, suspend walking */
 			w->leaf = rt;
 
-			/* We'll restart from this node, so if some routes were
+			/* We'll restart from this yesde, so if some routes were
 			 * already dumped, skip them next time.
 			 */
-			w->skip_in_node += res;
+			w->skip_in_yesde += res;
 
 			return 1;
 		}
-		w->skip_in_node = 0;
+		w->skip_in_yesde = 0;
 
 		/* Multipath routes are dumped in one route with the
 		 * RTA_MULTIPATH attribute. Jump 'rt' to point to the
-		 * last sibling of this route (no need to dump the
+		 * last sibling of this route (yes need to dump the
 		 * sibling routes again)
 		 */
 		if (rt->fib6_nsiblings)
@@ -546,7 +546,7 @@ static int fib6_dump_table(struct fib6_table *table, struct sk_buff *skb,
 	if (cb->args[4] == 0) {
 		w->count = 0;
 		w->skip = 0;
-		w->skip_in_node = 0;
+		w->skip_in_yesde = 0;
 
 		spin_lock_bh(&table->tb6_lock);
 		res = fib6_walk(net, w);
@@ -560,9 +560,9 @@ static int fib6_dump_table(struct fib6_table *table, struct sk_buff *skb,
 			/* Begin at the root if the tree changed */
 			cb->args[5] = w->root->fn_sernum;
 			w->state = FWS_INIT;
-			w->node = w->root;
+			w->yesde = w->root;
 			w->skip = w->count;
-			w->skip_in_node = 0;
+			w->skip_in_yesde = 0;
 		} else
 			w->skip = 0;
 
@@ -619,7 +619,7 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 		w = kzalloc(sizeof(*w), GFP_ATOMIC);
 		if (!w)
 			return -ENOMEM;
-		w->func = fib6_dump_node;
+		w->func = fib6_dump_yesde;
 		cb->args[2] = (long)w;
 	}
 
@@ -634,7 +634,7 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 			if (arg.filter.dump_all_families)
 				goto out;
 
-			NL_SET_ERR_MSG_MOD(cb->extack, "FIB table does not exist");
+			NL_SET_ERR_MSG_MOD(cb->extack, "FIB table does yest exist");
 			return -ENOENT;
 		}
 
@@ -695,28 +695,28 @@ void fib6_metric_set(struct fib6_info *f6i, int metric, u32 val)
 /*
  *	Routing Table
  *
- *	return the appropriate node for a routing tree "add" operation
+ *	return the appropriate yesde for a routing tree "add" operation
  *	by either creating and inserting or by returning an existing
- *	node.
+ *	yesde.
  */
 
-static struct fib6_node *fib6_add_1(struct net *net,
+static struct fib6_yesde *fib6_add_1(struct net *net,
 				    struct fib6_table *table,
-				    struct fib6_node *root,
+				    struct fib6_yesde *root,
 				    struct in6_addr *addr, int plen,
 				    int offset, int allow_create,
 				    int replace_required,
 				    struct netlink_ext_ack *extack)
 {
-	struct fib6_node *fn, *in, *ln;
-	struct fib6_node *pn = NULL;
+	struct fib6_yesde *fn, *in, *ln;
+	struct fib6_yesde *pn = NULL;
 	struct rt6key *key;
 	int	bit;
 	__be32	dir = 0;
 
 	RT6_TRACE("fib6_add_1\n");
 
-	/* insert node in tree */
+	/* insert yesde in tree */
 
 	fn = root;
 
@@ -733,8 +733,8 @@ static struct fib6_node *fib6_add_1(struct net *net,
 			if (!allow_create) {
 				if (replace_required) {
 					NL_SET_ERR_MSG(extack,
-						       "Can not replace route - no match found");
-					pr_warn("Can't replace route, no match found\n");
+						       "Can yest replace route - yes match found");
+					pr_warn("Can't replace route, yes match found\n");
 					return ERR_PTR(-ENOENT);
 				}
 				pr_warn("NLM_F_CREATE should be set when creating new route\n");
@@ -747,11 +747,11 @@ static struct fib6_node *fib6_add_1(struct net *net,
 		 */
 
 		if (plen == fn->fn_bit) {
-			/* clean up an intermediate node */
+			/* clean up an intermediate yesde */
 			if (!(fn->fn_flags & RTN_RTINFO)) {
 				RCU_INIT_POINTER(fn->leaf, NULL);
 				fib6_info_release(leaf);
-			/* remove null_entry in the root node */
+			/* remove null_entry in the root yesde */
 			} else if (fn->fn_flags & RTN_TL_ROOT &&
 				   rcu_access_pointer(fn->leaf) ==
 				   net->ipv6.fib6_null_entry) {
@@ -776,7 +776,7 @@ static struct fib6_node *fib6_add_1(struct net *net,
 	} while (fn);
 
 	if (!allow_create) {
-		/* We should not create new node because
+		/* We should yest create new yesde because
 		 * NLM_F_REPLACE was specified without NLM_F_CREATE
 		 * I assume it is safe to require NLM_F_CREATE when
 		 * REPLACE flag is used! Later we may want to remove the
@@ -787,18 +787,18 @@ static struct fib6_node *fib6_add_1(struct net *net,
 		 */
 		if (replace_required) {
 			NL_SET_ERR_MSG(extack,
-				       "Can not replace route - no match found");
-			pr_warn("Can't replace route, no match found\n");
+				       "Can yest replace route - yes match found");
+			pr_warn("Can't replace route, yes match found\n");
 			return ERR_PTR(-ENOENT);
 		}
 		pr_warn("NLM_F_CREATE should be set when creating new route\n");
 	}
 	/*
 	 *	We walked to the bottom of tree.
-	 *	Create new leaf node without children.
+	 *	Create new leaf yesde without children.
 	 */
 
-	ln = node_alloc(net);
+	ln = yesde_alloc(net);
 
 	if (!ln)
 		return ERR_PTR(-ENOMEM);
@@ -817,8 +817,8 @@ insert_above:
 	/*
 	 * split since we don't have a common prefix anymore or
 	 * we have a less significant route.
-	 * we've to insert an intermediate node on the list
-	 * this new node will point to the one we need to create
+	 * we've to insert an intermediate yesde on the list
+	 * this new yesde will point to the one we need to create
 	 * and the current
 	 */
 
@@ -828,7 +828,7 @@ insert_above:
 	/* find 1st bit in difference between the 2 addrs.
 
 	   See comment in __ipv6_addr_diff: bit may be an invalid value,
-	   but if it is >= plen, the value is ignored in any case.
+	   but if it is >= plen, the value is igyesred in any case.
 	 */
 
 	bit = __ipv6_addr_diff(addr, &key->addr, sizeof(*addr));
@@ -836,25 +836,25 @@ insert_above:
 	/*
 	 *		(intermediate)[in]
 	 *	          /	   \
-	 *	(new leaf node)[ln] (old node)[fn]
+	 *	(new leaf yesde)[ln] (old yesde)[fn]
 	 */
 	if (plen > bit) {
-		in = node_alloc(net);
-		ln = node_alloc(net);
+		in = yesde_alloc(net);
+		ln = yesde_alloc(net);
 
 		if (!in || !ln) {
 			if (in)
-				node_free_immediate(net, in);
+				yesde_free_immediate(net, in);
 			if (ln)
-				node_free_immediate(net, ln);
+				yesde_free_immediate(net, ln);
 			return ERR_PTR(-ENOMEM);
 		}
 
 		/*
-		 * new intermediate node.
+		 * new intermediate yesde.
 		 * RTN_RTINFO will
 		 * be off since that an address that chooses one of
-		 * the branches would not match less specific routes
+		 * the branches would yest match less specific routes
 		 * in the other branch
 		 */
 
@@ -886,12 +886,12 @@ insert_above:
 	} else { /* plen <= bit */
 
 		/*
-		 *		(new leaf node)[ln]
+		 *		(new leaf yesde)[ln]
 		 *	          /	   \
-		 *	     (old node)[fn] NULL
+		 *	     (old yesde)[fn] NULL
 		 */
 
-		ln = node_alloc(net);
+		ln = yesde_alloc(net);
 
 		if (!ln)
 			return ERR_PTR(-ENOMEM);
@@ -937,7 +937,7 @@ static void __fib6_drop_pcpu_from(struct fib6_nh *fib6_nh,
 		/* only dropping the 'from' reference if the cached route
 		 * is using 'match'. The cached pcpu_rt->from only changes
 		 * from a fib6_info to NULL (ip6_dst_destroy); it can never
-		 * change from one fib6_info reference to another
+		 * change from one fib6_info reference to ayesther
 		 */
 		if (pcpu_rt && rcu_access_pointer(pcpu_rt->from) == match) {
 			struct fib6_info *from;
@@ -986,7 +986,7 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 	}
 }
 
-static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
+static void fib6_purge_rt(struct fib6_info *rt, struct fib6_yesde *fn,
 			  struct net *net)
 {
 	struct fib6_table *table = rt->fib6_table;
@@ -998,8 +998,8 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 
 	if (refcount_read(&rt->fib6_ref) != 1) {
 		/* This route is used as dummy address holder in some split
-		 * nodes. It is not leaked, but it still holds other resources,
-		 * which must be released in time. So, scan ascendant nodes
+		 * yesdes. It is yest leaked, but it still holds other resources,
+		 * which must be released in time. So, scan ascendant yesdes
 		 * and replace dummy references to this route with references
 		 * to still alive ones.
 		 */
@@ -1021,10 +1021,10 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 }
 
 /*
- *	Insert routing information in a node.
+ *	Insert routing information in a yesde.
  */
 
-static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
+static int fib6_add_rt2yesde(struct fib6_yesde *fn, struct fib6_info *rt,
 			    struct nl_info *info,
 			    struct netlink_ext_ack *extack)
 {
@@ -1089,7 +1089,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct fib6_info *rt,
 				return -EEXIST;
 			}
 			/* If we have the same destination and the same metric,
-			 * but not the same gateway, then the route we try to
+			 * but yest the same gateway, then the route we try to
 			 * add is sibling to this route, increment our counter
 			 * of siblings, and later we will add our route to the
 			 * list.
@@ -1112,7 +1112,7 @@ next_iter:
 	}
 
 	if (fallback_ins && !found) {
-		/* No ECMP-able route found, replace first non-ECMP one */
+		/* No ECMP-able route found, replace first yesn-ECMP one */
 		ins = fallback_ins;
 		iter = rcu_dereference_protected(*ins,
 				    lockdep_is_held(&rt->fib6_table->tb6_lock));
@@ -1141,7 +1141,7 @@ next_iter:
 				    lockdep_is_held(&rt->fib6_table->tb6_lock));
 		}
 		/* For each sibling in the list, increment the counter of
-		 * siblings. BUG() if counters does not match, list of siblings
+		 * siblings. BUG() if counters does yest match, list of siblings
 		 * is broken!
 		 */
 		fib6_nsiblings = 0;
@@ -1156,7 +1156,7 @@ next_iter:
 	}
 
 	/*
-	 *	insert node
+	 *	insert yesde
 	 */
 	if (!replace) {
 		if (!add)
@@ -1165,8 +1165,8 @@ next_iter:
 add:
 		nlflags |= NLM_F_CREATE;
 
-		if (!info->skip_notify_kernel) {
-			err = call_fib6_entry_notifiers(info->nl_net,
+		if (!info->skip_yestify_kernel) {
+			err = call_fib6_entry_yestifiers(info->nl_net,
 							FIB_EVENT_ENTRY_ADD,
 							rt, extack);
 			if (err) {
@@ -1191,14 +1191,14 @@ add:
 
 		rcu_assign_pointer(rt->fib6_next, iter);
 		fib6_info_hold(rt);
-		rcu_assign_pointer(rt->fib6_node, fn);
+		rcu_assign_pointer(rt->fib6_yesde, fn);
 		rcu_assign_pointer(*ins, rt);
-		if (!info->skip_notify)
-			inet6_rt_notify(RTM_NEWROUTE, rt, info, nlflags);
+		if (!info->skip_yestify)
+			inet6_rt_yestify(RTM_NEWROUTE, rt, info, nlflags);
 		info->nl_net->ipv6.rt6_stats->fib_rt_entries++;
 
 		if (!(fn->fn_flags & RTN_RTINFO)) {
-			info->nl_net->ipv6.rt6_stats->fib_route_nodes++;
+			info->nl_net->ipv6.rt6_stats->fib_route_yesdes++;
 			fn->fn_flags |= RTN_RTINFO;
 		}
 
@@ -1208,12 +1208,12 @@ add:
 		if (!found) {
 			if (add)
 				goto add;
-			pr_warn("NLM_F_REPLACE set, but no existing node found!\n");
+			pr_warn("NLM_F_REPLACE set, but yes existing yesde found!\n");
 			return -ENOENT;
 		}
 
-		if (!info->skip_notify_kernel) {
-			err = call_fib6_entry_notifiers(info->nl_net,
+		if (!info->skip_yestify_kernel) {
+			err = call_fib6_entry_yestifiers(info->nl_net,
 							FIB_EVENT_ENTRY_REPLACE,
 							rt, extack);
 			if (err)
@@ -1221,17 +1221,17 @@ add:
 		}
 
 		fib6_info_hold(rt);
-		rcu_assign_pointer(rt->fib6_node, fn);
+		rcu_assign_pointer(rt->fib6_yesde, fn);
 		rt->fib6_next = iter->fib6_next;
 		rcu_assign_pointer(*ins, rt);
-		if (!info->skip_notify)
-			inet6_rt_notify(RTM_NEWROUTE, rt, info, NLM_F_REPLACE);
+		if (!info->skip_yestify)
+			inet6_rt_yestify(RTM_NEWROUTE, rt, info, NLM_F_REPLACE);
 		if (!(fn->fn_flags & RTN_RTINFO)) {
-			info->nl_net->ipv6.rt6_stats->fib_route_nodes++;
+			info->nl_net->ipv6.rt6_stats->fib_route_yesdes++;
 			fn->fn_flags |= RTN_RTINFO;
 		}
 		nsiblings = iter->fib6_nsiblings;
-		iter->fib6_node = NULL;
+		iter->fib6_yesde = NULL;
 		fib6_purge_rt(iter, fn, info->nl_net);
 		if (rcu_access_pointer(fn->rr_ptr) == iter)
 			fn->rr_ptr = NULL;
@@ -1247,7 +1247,7 @@ add:
 					break;
 				if (rt6_qualify_for_ecmp(iter)) {
 					*ins = iter->fib6_next;
-					iter->fib6_node = NULL;
+					iter->fib6_yesde = NULL;
 					fib6_purge_rt(iter, fn, info->nl_net);
 					if (rcu_access_pointer(fn->rr_ptr) == iter)
 						fn->rr_ptr = NULL;
@@ -1285,7 +1285,7 @@ void fib6_force_start_gc(struct net *net)
 static void __fib6_update_sernum_upto_root(struct fib6_info *rt,
 					   int sernum)
 {
-	struct fib6_node *fn = rcu_dereference_protected(rt->fib6_node,
+	struct fib6_yesde *fn = rcu_dereference_protected(rt->fib6_yesde,
 				lockdep_is_held(&rt->fib6_table->tb6_lock));
 
 	/* paired with smp_rmb() in rt6_get_cookie_safe() */
@@ -1317,11 +1317,11 @@ void fib6_update_sernum_stub(struct net *net, struct fib6_info *f6i)
  *	Need to own table->tb6_lock
  */
 
-int fib6_add(struct fib6_node *root, struct fib6_info *rt,
+int fib6_add(struct fib6_yesde *root, struct fib6_info *rt,
 	     struct nl_info *info, struct netlink_ext_ack *extack)
 {
 	struct fib6_table *table = rt->fib6_table;
-	struct fib6_node *fn, *pn = NULL;
+	struct fib6_yesde *fn, *pn = NULL;
 	int err = -ENOMEM;
 	int allow_create = 1;
 	int replace_required = 0;
@@ -1334,7 +1334,7 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 			replace_required = 1;
 	}
 	if (!allow_create && !replace_required)
-		pr_warn("RTM_NEWROUTE with no NLM_F_CREATE or NLM_F_REPLACE\n");
+		pr_warn("RTM_NEWROUTE with yes NLM_F_CREATE or NLM_F_REPLACE\n");
 
 	fn = fib6_add_1(info->nl_net, table, root,
 			&rt->fib6_dst.addr, rt->fib6_dst.plen,
@@ -1350,10 +1350,10 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 
 #ifdef CONFIG_IPV6_SUBTREES
 	if (rt->fib6_src.plen) {
-		struct fib6_node *sn;
+		struct fib6_yesde *sn;
 
 		if (!rcu_access_pointer(fn->subtree)) {
-			struct fib6_node *sfn;
+			struct fib6_yesde *sfn;
 
 			/*
 			 * Create subtree.
@@ -1362,11 +1362,11 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 			 *		|
 			 *		sfn[subtree root]
 			 *		   \
-			 *		    sn[new leaf node]
+			 *		    sn[new leaf yesde]
 			 */
 
-			/* Create subtree root node */
-			sfn = node_alloc(info->nl_net);
+			/* Create subtree root yesde */
+			sfn = yesde_alloc(info->nl_net);
 			if (!sfn)
 				goto failure;
 
@@ -1375,7 +1375,7 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 					   info->nl_net->ipv6.fib6_null_entry);
 			sfn->fn_flags = RTN_ROOT;
 
-			/* Now add the first leaf node to new subtree */
+			/* Now add the first leaf yesde to new subtree */
 
 			sn = fib6_add_1(info->nl_net, table, sfn,
 					&rt->fib6_src.addr, rt->fib6_src.plen,
@@ -1384,10 +1384,10 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 
 			if (IS_ERR(sn)) {
 				/* If it is failed, discard just allocated
-				   root, and then (in failure) stale node
+				   root, and then (in failure) stale yesde
 				   in main tree.
 				 */
-				node_free_immediate(info->nl_net, sfn);
+				yesde_free_immediate(info->nl_net, sfn);
 				err = PTR_ERR(sn);
 				goto failure;
 			}
@@ -1409,7 +1409,7 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 
 		if (!rcu_access_pointer(fn->leaf)) {
 			if (fn->fn_flags & RTN_TL_ROOT) {
-				/* put back null_entry for root node */
+				/* put back null_entry for root yesde */
 				rcu_assign_pointer(fn->leaf,
 					    info->nl_net->ipv6.fib6_null_entry);
 			} else {
@@ -1421,7 +1421,7 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 	}
 #endif
 
-	err = fib6_add_rt2node(fn, rt, info, extack);
+	err = fib6_add_rt2yesde(fn, rt, info, extack);
 	if (!err) {
 		if (rt->nh)
 			list_add(&rt->nh_list, &rt->nh->f6i_list);
@@ -1434,7 +1434,7 @@ out:
 #ifdef CONFIG_IPV6_SUBTREES
 		/*
 		 * If fib6_add_1 has cleared the old leaf pointer in the
-		 * super-tree leaf node we have to find a new one for it.
+		 * super-tree leaf yesde we have to find a new one for it.
 		 */
 		if (pn != fn) {
 			struct fib6_info *pn_leaf =
@@ -1468,10 +1468,10 @@ out:
 
 failure:
 	/* fn->leaf could be NULL and fib6_repair_tree() needs to be called if:
-	 * 1. fn is an intermediate node and we failed to add the new
-	 * route to it in both subtree creation failure and fib6_add_rt2node()
+	 * 1. fn is an intermediate yesde and we failed to add the new
+	 * route to it in both subtree creation failure and fib6_add_rt2yesde()
 	 * failure case.
-	 * 2. fn is the root node in the table and we fail to add the first
+	 * 2. fn is the root yesde in the table and we fail to add the first
 	 * default route to it.
 	 */
 	if (fn &&
@@ -1492,10 +1492,10 @@ struct lookup_args {
 	const struct in6_addr	*addr;		/* search key			*/
 };
 
-static struct fib6_node *fib6_node_lookup_1(struct fib6_node *root,
+static struct fib6_yesde *fib6_yesde_lookup_1(struct fib6_yesde *root,
 					    struct lookup_args *args)
 {
-	struct fib6_node *fn;
+	struct fib6_yesde *fn;
 	__be32 dir;
 
 	if (unlikely(args->offset == 0))
@@ -1508,7 +1508,7 @@ static struct fib6_node *fib6_node_lookup_1(struct fib6_node *root,
 	fn = root;
 
 	for (;;) {
-		struct fib6_node *next;
+		struct fib6_yesde *next;
 
 		dir = addr_bit_set(args->addr, fn->fn_bit);
 
@@ -1523,7 +1523,7 @@ static struct fib6_node *fib6_node_lookup_1(struct fib6_node *root,
 	}
 
 	while (fn) {
-		struct fib6_node *subtree = FIB6_SUBTREE(fn);
+		struct fib6_yesde *subtree = FIB6_SUBTREE(fn);
 
 		if (subtree || fn->fn_flags & RTN_RTINFO) {
 			struct fib6_info *leaf = rcu_dereference(fn->leaf);
@@ -1537,8 +1537,8 @@ static struct fib6_node *fib6_node_lookup_1(struct fib6_node *root,
 			if (ipv6_prefix_equal(&key->addr, args->addr, key->plen)) {
 #ifdef CONFIG_IPV6_SUBTREES
 				if (subtree) {
-					struct fib6_node *sfn;
-					sfn = fib6_node_lookup_1(subtree,
+					struct fib6_yesde *sfn;
+					sfn = fib6_yesde_lookup_1(subtree,
 								 args + 1);
 					if (!sfn)
 						goto backtrack;
@@ -1561,11 +1561,11 @@ backtrack:
 
 /* called with rcu_read_lock() held
  */
-struct fib6_node *fib6_node_lookup(struct fib6_node *root,
+struct fib6_yesde *fib6_yesde_lookup(struct fib6_yesde *root,
 				   const struct in6_addr *daddr,
 				   const struct in6_addr *saddr)
 {
-	struct fib6_node *fn;
+	struct fib6_yesde *fn;
 	struct lookup_args args[] = {
 		{
 			.offset = offsetof(struct fib6_info, fib6_dst),
@@ -1582,7 +1582,7 @@ struct fib6_node *fib6_node_lookup(struct fib6_node *root,
 		}
 	};
 
-	fn = fib6_node_lookup_1(root, daddr ? args : args + 1);
+	fn = fib6_yesde_lookup_1(root, daddr ? args : args + 1);
 	if (!fn || fn->fn_flags & RTN_TL_ROOT)
 		fn = root;
 
@@ -1590,29 +1590,29 @@ struct fib6_node *fib6_node_lookup(struct fib6_node *root,
 }
 
 /*
- *	Get node with specified destination prefix (and source prefix,
+ *	Get yesde with specified destination prefix (and source prefix,
  *	if subtrees are used)
  *	exact_match == true means we try to find fn with exact match of
  *	the passed in prefix addr
  *	exact_match == false means we try to find fn with longest prefix
  *	match of the passed in prefix addr. This is useful for finding fn
  *	for cached route as it will be stored in the exception table under
- *	the node with longest prefix length.
+ *	the yesde with longest prefix length.
  */
 
 
-static struct fib6_node *fib6_locate_1(struct fib6_node *root,
+static struct fib6_yesde *fib6_locate_1(struct fib6_yesde *root,
 				       const struct in6_addr *addr,
 				       int plen, int offset,
 				       bool exact_match)
 {
-	struct fib6_node *fn, *prev = NULL;
+	struct fib6_yesde *fn, *prev = NULL;
 
 	for (fn = root; fn ; ) {
 		struct fib6_info *leaf = rcu_dereference(fn->leaf);
 		struct rt6key *key;
 
-		/* This node is being deleted */
+		/* This yesde is being deleted */
 		if (!leaf) {
 			if (plen <= fn->fn_bit)
 				goto out;
@@ -1651,12 +1651,12 @@ out:
 		return prev;
 }
 
-struct fib6_node *fib6_locate(struct fib6_node *root,
+struct fib6_yesde *fib6_locate(struct fib6_yesde *root,
 			      const struct in6_addr *daddr, int dst_len,
 			      const struct in6_addr *saddr, int src_len,
 			      bool exact_match)
 {
-	struct fib6_node *fn;
+	struct fib6_yesde *fn;
 
 	fn = fib6_locate_1(root, daddr, dst_len,
 			   offsetof(struct fib6_info, fib6_dst),
@@ -1666,7 +1666,7 @@ struct fib6_node *fib6_locate(struct fib6_node *root,
 	if (src_len) {
 		WARN_ON(saddr == NULL);
 		if (fn) {
-			struct fib6_node *subtree = FIB6_SUBTREE(fn);
+			struct fib6_yesde *subtree = FIB6_SUBTREE(fn);
 
 			if (subtree) {
 				fn = fib6_locate_1(subtree, saddr, src_len,
@@ -1691,9 +1691,9 @@ struct fib6_node *fib6_locate(struct fib6_node *root,
 
 static struct fib6_info *fib6_find_prefix(struct net *net,
 					 struct fib6_table *table,
-					 struct fib6_node *fn)
+					 struct fib6_yesde *fn)
 {
-	struct fib6_node *child_left, *child_right;
+	struct fib6_yesde *child_left, *child_right;
 
 	if (fn->fn_flags & RTN_ROOT)
 		return net->ipv6.fib6_null_entry;
@@ -1716,37 +1716,37 @@ static struct fib6_info *fib6_find_prefix(struct net *net,
 }
 
 /*
- *	Called to trim the tree of intermediate nodes when possible. "fn"
- *	is the node we want to try and remove.
+ *	Called to trim the tree of intermediate yesdes when possible. "fn"
+ *	is the yesde we want to try and remove.
  *	Need to own table->tb6_lock
  */
 
-static struct fib6_node *fib6_repair_tree(struct net *net,
+static struct fib6_yesde *fib6_repair_tree(struct net *net,
 					  struct fib6_table *table,
-					  struct fib6_node *fn)
+					  struct fib6_yesde *fn)
 {
 	int children;
 	int nstate;
-	struct fib6_node *child;
+	struct fib6_yesde *child;
 	struct fib6_walker *w;
 	int iter = 0;
 
-	/* Set fn->leaf to null_entry for root node. */
+	/* Set fn->leaf to null_entry for root yesde. */
 	if (fn->fn_flags & RTN_TL_ROOT) {
 		rcu_assign_pointer(fn->leaf, net->ipv6.fib6_null_entry);
 		return fn;
 	}
 
 	for (;;) {
-		struct fib6_node *fn_r = rcu_dereference_protected(fn->right,
+		struct fib6_yesde *fn_r = rcu_dereference_protected(fn->right,
 					    lockdep_is_held(&table->tb6_lock));
-		struct fib6_node *fn_l = rcu_dereference_protected(fn->left,
+		struct fib6_yesde *fn_l = rcu_dereference_protected(fn->left,
 					    lockdep_is_held(&table->tb6_lock));
-		struct fib6_node *pn = rcu_dereference_protected(fn->parent,
+		struct fib6_yesde *pn = rcu_dereference_protected(fn->parent,
 					    lockdep_is_held(&table->tb6_lock));
-		struct fib6_node *pn_r = rcu_dereference_protected(pn->right,
+		struct fib6_yesde *pn_r = rcu_dereference_protected(pn->right,
 					    lockdep_is_held(&table->tb6_lock));
-		struct fib6_node *pn_l = rcu_dereference_protected(pn->left,
+		struct fib6_yesde *pn_l = rcu_dereference_protected(pn->left,
 					    lockdep_is_held(&table->tb6_lock));
 		struct fib6_info *fn_leaf = rcu_dereference_protected(fn->leaf,
 					    lockdep_is_held(&table->tb6_lock));
@@ -1812,19 +1812,19 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 		read_lock(&net->ipv6.fib6_walker_lock);
 		FOR_WALKERS(net, w) {
 			if (!child) {
-				if (w->node == fn) {
-					RT6_TRACE("W %p adjusted by delnode 1, s=%d/%d\n", w, w->state, nstate);
-					w->node = pn;
+				if (w->yesde == fn) {
+					RT6_TRACE("W %p adjusted by delyesde 1, s=%d/%d\n", w, w->state, nstate);
+					w->yesde = pn;
 					w->state = nstate;
 				}
 			} else {
-				if (w->node == fn) {
-					w->node = child;
+				if (w->yesde == fn) {
+					w->yesde = child;
 					if (children&2) {
-						RT6_TRACE("W %p adjusted by delnode 2, s=%d\n", w, w->state);
+						RT6_TRACE("W %p adjusted by delyesde 2, s=%d\n", w, w->state);
 						w->state = w->state >= FWS_R ? FWS_U : FWS_INIT;
 					} else {
-						RT6_TRACE("W %p adjusted by delnode 2, s=%d\n", w, w->state);
+						RT6_TRACE("W %p adjusted by delyesde 2, s=%d\n", w, w->state);
 						w->state = w->state >= FWS_C ? FWS_U : FWS_INIT;
 					}
 				}
@@ -1832,7 +1832,7 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 		}
 		read_unlock(&net->ipv6.fib6_walker_lock);
 
-		node_free(net, fn);
+		yesde_free(net, fn);
 		if (pn->fn_flags & RTN_RTINFO || FIB6_SUBTREE(pn))
 			return pn;
 
@@ -1842,7 +1842,7 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 	}
 }
 
-static void fib6_del_route(struct fib6_table *table, struct fib6_node *fn,
+static void fib6_del_route(struct fib6_table *table, struct fib6_yesde *fn,
 			   struct fib6_info __rcu **rtp, struct nl_info *info)
 {
 	struct fib6_walker *w;
@@ -1854,7 +1854,7 @@ static void fib6_del_route(struct fib6_table *table, struct fib6_node *fn,
 
 	/* Unlink it */
 	*rtp = rt->fib6_next;
-	rt->fib6_node = NULL;
+	rt->fib6_yesde = NULL;
 	net->ipv6.rt6_stats->fib_rt_entries--;
 	net->ipv6.rt6_stats->fib_discarded_routes++;
 
@@ -1891,23 +1891,23 @@ static void fib6_del_route(struct fib6_table *table, struct fib6_node *fn,
 	read_unlock(&net->ipv6.fib6_walker_lock);
 
 	/* If it was last route, call fib6_repair_tree() to:
-	 * 1. For root node, put back null_entry as how the table was created.
-	 * 2. For other nodes, expunge its radix tree node.
+	 * 1. For root yesde, put back null_entry as how the table was created.
+	 * 2. For other yesdes, expunge its radix tree yesde.
 	 */
 	if (!rcu_access_pointer(fn->leaf)) {
 		if (!(fn->fn_flags & RTN_TL_ROOT)) {
 			fn->fn_flags &= ~RTN_RTINFO;
-			net->ipv6.rt6_stats->fib_route_nodes--;
+			net->ipv6.rt6_stats->fib_route_yesdes--;
 		}
 		fn = fib6_repair_tree(net, table, fn);
 	}
 
 	fib6_purge_rt(rt, fn, net);
 
-	if (!info->skip_notify_kernel)
-		call_fib6_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, rt, NULL);
-	if (!info->skip_notify)
-		inet6_rt_notify(RTM_DELROUTE, rt, info, 0);
+	if (!info->skip_yestify_kernel)
+		call_fib6_entry_yestifiers(net, FIB_EVENT_ENTRY_DEL, rt, NULL);
+	if (!info->skip_yestify)
+		inet6_rt_yestify(RTM_DELROUTE, rt, info, 0);
 
 	fib6_info_release(rt);
 }
@@ -1915,7 +1915,7 @@ static void fib6_del_route(struct fib6_table *table, struct fib6_node *fn,
 /* Need to own table->tb6_lock */
 int fib6_del(struct fib6_info *rt, struct nl_info *info)
 {
-	struct fib6_node *fn = rcu_dereference_protected(rt->fib6_node,
+	struct fib6_yesde *fn = rcu_dereference_protected(rt->fib6_yesde,
 				    lockdep_is_held(&rt->fib6_table->tb6_lock));
 	struct fib6_table *table = rt->fib6_table;
 	struct net *net = info->nl_net;
@@ -1948,13 +1948,13 @@ int fib6_del(struct fib6_info *rt, struct nl_info *info)
 /*
  *	Tree traversal function.
  *
- *	Certainly, it is not interrupt safe.
+ *	Certainly, it is yest interrupt safe.
  *	However, it is internally reenterable wrt itself and fib6_add/fib6_del.
  *	It means, that we can modify tree during walking
  *	and use this function for garbage collection, clone pruning,
  *	cleaning tree when a device goes down etc. etc.
  *
- *	It guarantees that every node will be traversed,
+ *	It guarantees that every yesde will be traversed,
  *	and that it will be traversed only once.
  *
  *	Callback function w->func may return:
@@ -1973,13 +1973,13 @@ int fib6_del(struct fib6_info *rt, struct nl_info *info)
 
 static int fib6_walk_continue(struct fib6_walker *w)
 {
-	struct fib6_node *fn, *pn, *left, *right;
+	struct fib6_yesde *fn, *pn, *left, *right;
 
 	/* w->root should always be table->tb6_root */
 	WARN_ON_ONCE(!(w->root->fn_flags & RTN_TL_ROOT));
 
 	for (;;) {
-		fn = w->node;
+		fn = w->yesde;
 		if (!fn)
 			return 0;
 
@@ -1987,7 +1987,7 @@ static int fib6_walk_continue(struct fib6_walker *w)
 #ifdef CONFIG_IPV6_SUBTREES
 		case FWS_S:
 			if (FIB6_SUBTREE(fn)) {
-				w->node = FIB6_SUBTREE(fn);
+				w->yesde = FIB6_SUBTREE(fn);
 				continue;
 			}
 			w->state = FWS_L;
@@ -1996,7 +1996,7 @@ static int fib6_walk_continue(struct fib6_walker *w)
 		case FWS_L:
 			left = rcu_dereference_protected(fn->left, 1);
 			if (left) {
-				w->node = left;
+				w->yesde = left;
 				w->state = FWS_INIT;
 				continue;
 			}
@@ -2005,7 +2005,7 @@ static int fib6_walk_continue(struct fib6_walker *w)
 		case FWS_R:
 			right = rcu_dereference_protected(fn->right, 1);
 			if (right) {
-				w->node = right;
+				w->yesde = right;
 				w->state = FWS_INIT;
 				continue;
 			}
@@ -2037,7 +2037,7 @@ skip:
 			pn = rcu_dereference_protected(fn->parent, 1);
 			left = rcu_dereference_protected(pn->left, 1);
 			right = rcu_dereference_protected(pn->right, 1);
-			w->node = pn;
+			w->yesde = pn;
 #ifdef CONFIG_IPV6_SUBTREES
 			if (FIB6_SUBTREE(pn) == fn) {
 				WARN_ON(!(fn->fn_flags & RTN_ROOT));
@@ -2051,7 +2051,7 @@ skip:
 			}
 			if (right == fn) {
 				w->state = FWS_C;
-				w->leaf = rcu_dereference_protected(w->node->leaf, 1);
+				w->leaf = rcu_dereference_protected(w->yesde->leaf, 1);
 				continue;
 			}
 #if RT6_DEBUG >= 2
@@ -2066,7 +2066,7 @@ static int fib6_walk(struct net *net, struct fib6_walker *w)
 	int res;
 
 	w->state = FWS_INIT;
-	w->node = w->root;
+	w->yesde = w->root;
 
 	fib6_walker_link(net, w);
 	res = fib6_walk_continue(w);
@@ -2075,19 +2075,19 @@ static int fib6_walk(struct net *net, struct fib6_walker *w)
 	return res;
 }
 
-static int fib6_clean_node(struct fib6_walker *w)
+static int fib6_clean_yesde(struct fib6_walker *w)
 {
 	int res;
 	struct fib6_info *rt;
 	struct fib6_cleaner *c = container_of(w, struct fib6_cleaner, w);
 	struct nl_info info = {
 		.nl_net = c->net,
-		.skip_notify = c->skip_notify,
+		.skip_yestify = c->skip_yestify,
 	};
 
 	if (c->sernum != FIB6_NO_SERNUM_CHANGE &&
-	    w->node->fn_sernum != c->sernum)
-		w->node->fn_sernum = c->sernum;
+	    w->yesde->fn_sernum != c->sernum)
+		w->yesde->fn_sernum = c->sernum;
 
 	if (!c->func) {
 		WARN_ON_ONCE(c->sernum == FIB6_NO_SERNUM_CHANGE);
@@ -2104,7 +2104,7 @@ static int fib6_clean_node(struct fib6_walker *w)
 #if RT6_DEBUG >= 2
 				pr_debug("%s: del failed: rt=%p@%p err=%d\n",
 					 __func__, rt,
-					 rcu_access_pointer(rt->fib6_node),
+					 rcu_access_pointer(rt->fib6_yesde),
 					 res);
 #endif
 				continue;
@@ -2132,29 +2132,29 @@ static int fib6_clean_node(struct fib6_walker *w)
  *		              0  -> continue walking
  */
 
-static void fib6_clean_tree(struct net *net, struct fib6_node *root,
+static void fib6_clean_tree(struct net *net, struct fib6_yesde *root,
 			    int (*func)(struct fib6_info *, void *arg),
-			    int sernum, void *arg, bool skip_notify)
+			    int sernum, void *arg, bool skip_yestify)
 {
 	struct fib6_cleaner c;
 
 	c.w.root = root;
-	c.w.func = fib6_clean_node;
+	c.w.func = fib6_clean_yesde;
 	c.w.count = 0;
 	c.w.skip = 0;
-	c.w.skip_in_node = 0;
+	c.w.skip_in_yesde = 0;
 	c.func = func;
 	c.sernum = sernum;
 	c.arg = arg;
 	c.net = net;
-	c.skip_notify = skip_notify;
+	c.skip_yestify = skip_yestify;
 
 	fib6_walk(net, &c.w);
 }
 
 static void __fib6_clean_all(struct net *net,
 			     int (*func)(struct fib6_info *, void *),
-			     int sernum, void *arg, bool skip_notify)
+			     int sernum, void *arg, bool skip_yestify)
 {
 	struct fib6_table *table;
 	struct hlist_head *head;
@@ -2166,7 +2166,7 @@ static void __fib6_clean_all(struct net *net,
 		hlist_for_each_entry_rcu(table, head, tb6_hlist) {
 			spin_lock_bh(&table->tb6_lock);
 			fib6_clean_tree(net, &table->tb6_root,
-					func, sernum, arg, skip_notify);
+					func, sernum, arg, skip_yestify);
 			spin_unlock_bh(&table->tb6_lock);
 		}
 	}
@@ -2179,7 +2179,7 @@ void fib6_clean_all(struct net *net, int (*func)(struct fib6_info *, void *),
 	__fib6_clean_all(net, func, FIB6_NO_SERNUM_CHANGE, arg, false);
 }
 
-void fib6_clean_all_skip_notify(struct net *net,
+void fib6_clean_all_skip_yestify(struct net *net,
 				int (*func)(struct fib6_info *, void *),
 				void *arg)
 {
@@ -2200,7 +2200,7 @@ static void fib6_flush_trees(struct net *net)
 static int fib6_age(struct fib6_info *rt, void *arg)
 {
 	struct fib6_gc_args *gc_args = arg;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 
 	/*
 	 *	check addrconf expiration here.
@@ -2208,7 +2208,7 @@ static int fib6_age(struct fib6_info *rt, void *arg)
 	 */
 
 	if (rt->fib6_flags & RTF_EXPIRES && rt->expires) {
-		if (time_after(now, rt->expires)) {
+		if (time_after(yesw, rt->expires)) {
 			RT6_TRACE("expiring %p\n", rt);
 			return -1;
 		}
@@ -2217,9 +2217,9 @@ static int fib6_age(struct fib6_info *rt, void *arg)
 
 	/*	Also age clones in the exception table.
 	 *	Note, that clones are aged out
-	 *	only if they are not in use now.
+	 *	only if they are yest in use yesw.
 	 */
-	rt6_age_exceptions(rt, gc_args, now);
+	rt6_age_exceptions(rt, gc_args, yesw);
 
 	return 0;
 }
@@ -2227,7 +2227,7 @@ static int fib6_age(struct fib6_info *rt, void *arg)
 void fib6_run_gc(unsigned long expires, struct net *net, bool force)
 {
 	struct fib6_gc_args gc_args;
-	unsigned long now;
+	unsigned long yesw;
 
 	if (force) {
 		spin_lock_bh(&net->ipv6.fib6_gc_lock);
@@ -2240,12 +2240,12 @@ void fib6_run_gc(unsigned long expires, struct net *net, bool force)
 	gc_args.more = 0;
 
 	fib6_clean_all(net, fib6_age, &gc_args);
-	now = jiffies;
-	net->ipv6.ip6_rt_last_gc = now;
+	yesw = jiffies;
+	net->ipv6.ip6_rt_last_gc = yesw;
 
 	if (gc_args.more)
 		mod_timer(&net->ipv6.ip6_fib_timer,
-			  round_jiffies(now
+			  round_jiffies(yesw
 					+ net->ipv6.sysctl.ip6_rt_gc_interval));
 	else
 		del_timer(&net->ipv6.ip6_fib_timer);
@@ -2264,7 +2264,7 @@ static int __net_init fib6_net_init(struct net *net)
 	size_t size = sizeof(struct hlist_head) * FIB6_TABLE_HASHSZ;
 	int err;
 
-	err = fib6_notifier_init(net);
+	err = fib6_yestifier_init(net);
 	if (err)
 		return err;
 
@@ -2321,7 +2321,7 @@ out_fib_table_hash:
 out_rt6_stats:
 	kfree(net->ipv6.rt6_stats);
 out_timer:
-	fib6_notifier_exit(net);
+	fib6_yestifier_exit(net);
 	return -ENOMEM;
 }
 
@@ -2333,7 +2333,7 @@ static void fib6_net_exit(struct net *net)
 
 	for (i = 0; i < FIB6_TABLE_HASHSZ; i++) {
 		struct hlist_head *head = &net->ipv6.fib_table_hash[i];
-		struct hlist_node *tmp;
+		struct hlist_yesde *tmp;
 		struct fib6_table *tb;
 
 		hlist_for_each_entry_safe(tb, tmp, head, tb6_hlist) {
@@ -2344,7 +2344,7 @@ static void fib6_net_exit(struct net *net)
 
 	kfree(net->ipv6.fib_table_hash);
 	kfree(net->ipv6.rt6_stats);
-	fib6_notifier_exit(net);
+	fib6_yestifier_exit(net);
 }
 
 static struct pernet_operations fib6_net_ops = {
@@ -2356,11 +2356,11 @@ int __init fib6_init(void)
 {
 	int ret = -ENOMEM;
 
-	fib6_node_kmem = kmem_cache_create("fib6_nodes",
-					   sizeof(struct fib6_node),
+	fib6_yesde_kmem = kmem_cache_create("fib6_yesdes",
+					   sizeof(struct fib6_yesde),
 					   0, SLAB_HWCACHE_ALIGN,
 					   NULL);
-	if (!fib6_node_kmem)
+	if (!fib6_yesde_kmem)
 		goto out;
 
 	ret = register_pernet_subsys(&fib6_net_ops);
@@ -2379,14 +2379,14 @@ out:
 out_unregister_subsys:
 	unregister_pernet_subsys(&fib6_net_ops);
 out_kmem_cache_create:
-	kmem_cache_destroy(fib6_node_kmem);
+	kmem_cache_destroy(fib6_yesde_kmem);
 	goto out;
 }
 
 void fib6_gc_cleanup(void)
 {
 	unregister_pernet_subsys(&fib6_net_ops);
-	kmem_cache_destroy(fib6_node_kmem);
+	kmem_cache_destroy(fib6_yesde_kmem);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -2449,7 +2449,7 @@ static void ipv6_route_seq_setup_walk(struct ipv6_route_iter *iter,
 	iter->w.func = ipv6_route_yield;
 	iter->w.root = &iter->tbl->tb6_root;
 	iter->w.state = FWS_INIT;
-	iter->w.node = iter->w.root;
+	iter->w.yesde = iter->w.root;
 	iter->w.args = iter;
 	iter->sernum = iter->w.root->fn_sernum;
 	INIT_LIST_HEAD(&iter->w.lh);
@@ -2460,21 +2460,21 @@ static struct fib6_table *ipv6_route_seq_next_table(struct fib6_table *tbl,
 						    struct net *net)
 {
 	unsigned int h;
-	struct hlist_node *node;
+	struct hlist_yesde *yesde;
 
 	if (tbl) {
 		h = (tbl->tb6_id & (FIB6_TABLE_HASHSZ - 1)) + 1;
-		node = rcu_dereference_bh(hlist_next_rcu(&tbl->tb6_hlist));
+		yesde = rcu_dereference_bh(hlist_next_rcu(&tbl->tb6_hlist));
 	} else {
 		h = 0;
-		node = NULL;
+		yesde = NULL;
 	}
 
-	while (!node && h < FIB6_TABLE_HASHSZ) {
-		node = rcu_dereference_bh(
+	while (!yesde && h < FIB6_TABLE_HASHSZ) {
+		yesde = rcu_dereference_bh(
 			hlist_first_rcu(&net->ipv6.fib_table_hash[h++]));
 	}
-	return hlist_entry_safe(node, struct fib6_table, tb6_hlist);
+	return hlist_entry_safe(yesde, struct fib6_table, tb6_hlist);
 }
 
 static void ipv6_route_check_sernum(struct ipv6_route_iter *iter)
@@ -2482,7 +2482,7 @@ static void ipv6_route_check_sernum(struct ipv6_route_iter *iter)
 	if (iter->sernum != iter->w.root->fn_sernum) {
 		iter->sernum = iter->w.root->fn_sernum;
 		iter->w.state = FWS_INIT;
-		iter->w.node = iter->w.root;
+		iter->w.yesde = iter->w.root;
 		WARN_ON(iter->w.skip);
 		iter->w.skip = iter->w.count;
 	}
@@ -2548,7 +2548,7 @@ static void *ipv6_route_seq_start(struct seq_file *seq, loff_t *pos)
 static bool ipv6_route_iter_active(struct ipv6_route_iter *iter)
 {
 	struct fib6_walker *w = &iter->w;
-	return w->node && !(w->state == FWS_U && w->node == w->root);
+	return w->yesde && !(w->state == FWS_U && w->yesde == w->root);
 }
 
 static void ipv6_route_seq_stop(struct seq_file *seq, void *v)

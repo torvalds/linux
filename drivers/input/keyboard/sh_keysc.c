@@ -168,7 +168,7 @@ static int sh_keysc_probe(struct platform_device *pdev)
 	int irq, error;
 
 	if (!dev_get_platdata(&pdev->dev)) {
-		dev_err(&pdev->dev, "no platform data defined\n");
+		dev_err(&pdev->dev, "yes platform data defined\n");
 		error = -EINVAL;
 		goto err0;
 	}
@@ -195,7 +195,7 @@ static int sh_keysc_probe(struct platform_device *pdev)
 	memcpy(&priv->pdata, dev_get_platdata(&pdev->dev), sizeof(priv->pdata));
 	pdata = &priv->pdata;
 
-	priv->iomem_base = ioremap_nocache(res->start, resource_size(res));
+	priv->iomem_base = ioremap_yescache(res->start, resource_size(res));
 	if (priv->iomem_base == NULL) {
 		dev_err(&pdev->dev, "failed to remap I/O memory\n");
 		error = -ENXIO;

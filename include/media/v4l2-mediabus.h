@@ -55,7 +55,7 @@
 #define V4L2_MBUS_CSI2_CHANNEL_1		BIT(5)
 #define V4L2_MBUS_CSI2_CHANNEL_2		BIT(6)
 #define V4L2_MBUS_CSI2_CHANNEL_3		BIT(7)
-/* Does it support only continuous or also non-continuous clock mode */
+/* Does it support only continuous or also yesn-continuous clock mode */
 #define V4L2_MBUS_CSI2_CONTINUOUS_CLOCK		BIT(8)
 #define V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK	BIT(9)
 
@@ -70,7 +70,7 @@
 
 /**
  * enum v4l2_mbus_type - media bus type
- * @V4L2_MBUS_UNKNOWN:	unknown bus type, no V4L2 mediabus configuration
+ * @V4L2_MBUS_UNKNOWN:	unkyeswn bus type, yes V4L2 mediabus configuration
  * @V4L2_MBUS_PARALLEL:	parallel interface with hsync and vsync
  * @V4L2_MBUS_BT656:	parallel interface with embedded synchronisation, can
  *			also be used for BT.1120

@@ -12,7 +12,7 @@ The pathname is a null terminated string, limited to 255 characters.
 To overcome these limitations and to add additional file metadata, it is
 necessary to extend the current version of IMA by defining additional
 templates. For example, information that could be possibly reported are
-the inode UID/GID or the LSM labels either of the inode and of the process
+the iyesde UID/GID or the LSM labels either of the iyesde and of the process
 that is accessing it.
 
 However, the main problem to introduce this feature is that, each time
@@ -42,7 +42,7 @@ mechanism) to generate a new measurement entry by using the template
 descriptor chosen through the kernel configuration or through the newly
 introduced ``ima_template`` and ``ima_template_fmt`` kernel command line parameters.
 It is during this phase that the advantages of the new architecture are
-clearly shown: the latter function will not contain specific code to handle
+clearly shown: the latter function will yest contain specific code to handle
 a given template but, instead, it simply calls the ``init()`` method of the template
 fields associated to the chosen template descriptor and store the result
 (pointer to allocated data and data length) in the measurement entry structure.
@@ -67,7 +67,7 @@ descriptors by adding their identifier to the format string
  - 'n': the name of the event (i.e. the file name), with size up to 255 bytes;
  - 'd-ng': the digest of the event, calculated with an arbitrary hash
    algorithm (field format: [<hash algo>:]digest, where the digest
-   prefix is shown only if the hash algorithm is not SHA1 or MD5);
+   prefix is shown only if the hash algorithm is yest SHA1 or MD5);
  - 'd-modsig': the digest of the event without the appended modsig;
  - 'n-ng': the name of the event, without size limitations;
  - 'sig': the file signature;

@@ -25,7 +25,7 @@ int dib0700_get_version(struct dvb_usb_device *d, u32 *hwversion,
 	int ret;
 
 	if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-		err("could not acquire lock");
+		err("could yest acquire lock");
 		return -EINTR;
 	}
 
@@ -74,7 +74,7 @@ int dib0700_ctrl_rd(struct dvb_usb_device *d, u8 *tx, u8 txlen, u8 *rx, u8 rxlen
 	int status;
 
 	if (txlen < 2) {
-		err("tx buffer length is smaller than 2. Makes no sense.");
+		err("tx buffer length is smaller than 2. Makes yes sense.");
 		return -EINVAL;
 	}
 	if (txlen > 4) {
@@ -111,7 +111,7 @@ int dib0700_set_gpio(struct dvb_usb_device *d, enum dib07x0_gpios gpio, u8 gpio_
 	int ret;
 
 	if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-		err("could not acquire lock");
+		err("could yest acquire lock");
 		return -EINTR;
 	}
 
@@ -132,7 +132,7 @@ static int dib0700_set_usb_xfer_len(struct dvb_usb_device *d, u16 nb_ts_packets)
 
 	if (st->fw_version >= 0x10201) {
 		if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-			err("could not acquire lock");
+			err("could yest acquire lock");
 			return -EINTR;
 		}
 
@@ -145,7 +145,7 @@ static int dib0700_set_usb_xfer_len(struct dvb_usb_device *d, u16 nb_ts_packets)
 		ret = dib0700_ctrl_wr(d, st->buf, 3);
 		mutex_unlock(&d->usb_mutex);
 	} else {
-		deb_info("this firmware does not allow to change the USB xfer len\n");
+		deb_info("this firmware does yest allow to change the USB xfer len\n");
 		ret = -EIO;
 	}
 
@@ -159,7 +159,7 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 				int num)
 {
 	/* The new i2c firmware messages are more reliable and in particular
-	   properly support i2c read calls not preceded by a write */
+	   properly support i2c read calls yest preceded by a write */
 
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	struct dib0700_state *st = d->priv;
@@ -169,7 +169,7 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 	uint8_t en_stop = 0;
 	int result, i;
 
-	/* Ensure nobody else hits the i2c bus while we're sending our
+	/* Ensure yesbody else hits the i2c bus while we're sending our
 	   sequence of messages, (such as the remote control thread) */
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EINTR;
@@ -230,7 +230,7 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 		} else {
 			/* Write request */
 			if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-				err("could not acquire lock");
+				err("could yest acquire lock");
 				result = -EINTR;
 				goto unlock;
 			}
@@ -289,7 +289,7 @@ static int dib0700_i2c_xfer_legacy(struct i2c_adapter *adap,
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EINTR;
 	if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-		err("could not acquire lock");
+		err("could yest acquire lock");
 		mutex_unlock(&d->i2c_mutex);
 		return -EINTR;
 	}
@@ -403,7 +403,7 @@ static int dib0700_set_clock(struct dvb_usb_device *d, u8 en_pll,
 	int ret;
 
 	if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-		err("could not acquire lock");
+		err("could yest acquire lock");
 		return -EINTR;
 	}
 
@@ -435,7 +435,7 @@ int dib0700_set_i2c_speed(struct dvb_usb_device *d, u16 scl_kHz)
 		return -EINVAL;
 
 	if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-		err("could not acquire lock");
+		err("could yest acquire lock");
 		return -EINTR;
 	}
 
@@ -578,18 +578,18 @@ out:
 	return ret;
 }
 
-int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int oyesff)
 {
 	struct dib0700_state *st = adap->dev->priv;
 	int ret;
 
-	if ((onoff != 0) && (st->fw_version >= 0x10201)) {
+	if ((oyesff != 0) && (st->fw_version >= 0x10201)) {
 		/* for firmware later than 1.20.1,
 		 * the USB xfer length can be set  */
 		ret = dib0700_set_usb_xfer_len(adap->dev,
 			st->nb_packet_buffer_size);
 		if (ret < 0) {
-			deb_info("can not set the USB xfer len\n");
+			deb_info("can yest set the USB xfer len\n");
 			return ret;
 		}
 	}
@@ -598,8 +598,8 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	st->buf[0] = REQUEST_ENABLE_VIDEO;
 	/* this bit gives a kind of command,
-	 * rather than enabling something or not */
-	st->buf[1] = (onoff << 4) | 0x00;
+	 * rather than enabling something or yest */
+	st->buf[1] = (oyesff << 4) | 0x00;
 
 	if (st->disable_streaming_master_mode == 1)
 		st->buf[2] = 0x00;
@@ -608,18 +608,18 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	st->buf[3] = 0x00;
 
-	deb_info("modifying (%d) streaming state for %d\n", onoff, adap->id);
+	deb_info("modifying (%d) streaming state for %d\n", oyesff, adap->id);
 
 	st->channel_state &= ~0x3;
 	if ((adap->fe_adap[0].stream.props.endpoint != 2)
 			&& (adap->fe_adap[0].stream.props.endpoint != 3)) {
-		deb_info("the endpoint number (%i) is not correct, use the adapter id instead", adap->fe_adap[0].stream.props.endpoint);
-		if (onoff)
+		deb_info("the endpoint number (%i) is yest correct, use the adapter id instead", adap->fe_adap[0].stream.props.endpoint);
+		if (oyesff)
 			st->channel_state |=	1 << (adap->id);
 		else
 			st->channel_state |=	1 << ~(adap->id);
 	} else {
-		if (onoff)
+		if (oyesff)
 			st->channel_state |=	1 << (adap->fe_adap[0].stream.props.endpoint-2);
 		else
 			st->channel_state |=	1 << (3-adap->fe_adap[0].stream.props.endpoint);
@@ -642,7 +642,7 @@ int dib0700_change_protocol(struct rc_dev *rc, u64 *rc_proto)
 	int new_proto, ret;
 
 	if (mutex_lock_interruptible(&d->usb_mutex) < 0) {
-		err("could not acquire lock");
+		err("could yest acquire lock");
 		return -EINTR;
 	}
 
@@ -691,15 +691,15 @@ struct dib0700_rc_response {
 	union {
 		struct {
 			u8 system;
-			u8 not_system;
+			u8 yest_system;
 			u8 data;
-			u8 not_data;
+			u8 yest_data;
 		} nec;
 		struct {
-			u8 not_used;
+			u8 yest_used;
 			u8 system;
 			u8 data;
-			u8 not_data;
+			u8 yest_data;
 		} rc5;
 	};
 };
@@ -737,8 +737,8 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 
 	deb_data("IR ID = %02X state = %02X System = %02X %02X Cmd = %02X %02X (len %d)\n",
 		 poll_reply->report_id, poll_reply->data_state,
-		 poll_reply->nec.system, poll_reply->nec.not_system,
-		 poll_reply->nec.data, poll_reply->nec.not_data,
+		 poll_reply->nec.system, poll_reply->nec.yest_system,
+		 poll_reply->nec.data, poll_reply->nec.yest_data,
 		 purb->actual_length);
 
 	switch (d->props.rc.core.protocol) {
@@ -747,30 +747,30 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 
 		/* NEC protocol sends repeat code as 0 0 0 FF */
 		if (poll_reply->nec.system     == 0x00 &&
-		    poll_reply->nec.not_system == 0x00 &&
+		    poll_reply->nec.yest_system == 0x00 &&
 		    poll_reply->nec.data       == 0x00 &&
-		    poll_reply->nec.not_data   == 0xff) {
+		    poll_reply->nec.yest_data   == 0xff) {
 			poll_reply->data_state = 2;
 			rc_repeat(d->rc_dev);
 			goto resubmit;
 		}
 
-		if ((poll_reply->nec.data ^ poll_reply->nec.not_data) != 0xff) {
+		if ((poll_reply->nec.data ^ poll_reply->nec.yest_data) != 0xff) {
 			deb_data("NEC32 protocol\n");
 			keycode = RC_SCANCODE_NEC32(poll_reply->nec.system     << 24 |
-						     poll_reply->nec.not_system << 16 |
+						     poll_reply->nec.yest_system << 16 |
 						     poll_reply->nec.data       << 8  |
-						     poll_reply->nec.not_data);
+						     poll_reply->nec.yest_data);
 			protocol = RC_PROTO_NEC32;
-		} else if ((poll_reply->nec.system ^ poll_reply->nec.not_system) != 0xff) {
+		} else if ((poll_reply->nec.system ^ poll_reply->nec.yest_system) != 0xff) {
 			deb_data("NEC extended protocol\n");
 			keycode = RC_SCANCODE_NECX(poll_reply->nec.system << 8 |
-						    poll_reply->nec.not_system,
+						    poll_reply->nec.yest_system,
 						    poll_reply->nec.data);
 
 			protocol = RC_PROTO_NECX;
 		} else {
-			deb_data("NEC normal protocol\n");
+			deb_data("NEC yesrmal protocol\n");
 			keycode = RC_SCANCODE_NEC(poll_reply->nec.system,
 						   poll_reply->nec.data);
 			protocol = RC_PROTO_NEC;
@@ -783,11 +783,11 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 		toggle = poll_reply->report_id;
 		keycode = RC_SCANCODE_RC5(poll_reply->rc5.system, poll_reply->rc5.data);
 
-		if ((poll_reply->rc5.data ^ poll_reply->rc5.not_data) != 0xff) {
+		if ((poll_reply->rc5.data ^ poll_reply->rc5.yest_data) != 0xff) {
 			/* Key failed integrity check */
 			err("key failed integrity check: %02x %02x %02x %02x",
-			    poll_reply->rc5.not_used, poll_reply->rc5.system,
-			    poll_reply->rc5.data, poll_reply->rc5.not_data);
+			    poll_reply->rc5.yest_used, poll_reply->rc5.system,
+			    poll_reply->rc5.data, poll_reply->rc5.yest_data);
 			goto resubmit;
 		}
 
@@ -857,7 +857,7 @@ int dib0700_rc_setup(struct dvb_usb_device *d, struct usb_interface *intf)
 	}
 
 	if (!pipe) {
-		err("There's no endpoint for remote controller");
+		err("There's yes endpoint for remote controller");
 		kfree(purb->transfer_buffer);
 		usb_free_urb(purb);
 		return 0;

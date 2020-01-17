@@ -95,7 +95,7 @@ Satellite TV reception is::
 		.set_voltage = bar_set_voltage,
 	};
 
-.. note::
+.. yeste::
 
    #) For satellite digital TV standards (DVB-S, DVB-S2, ISDB-S), the
       frequencies are specified in kHz, while, for terrestrial and cable
@@ -134,12 +134,12 @@ then, it will do ``f`` + |delta|, ``f`` - |delta|, ``f`` + 2 x |delta|,
 If the hardware has internally a some sort of zigzag algorithm, you should
 define a ``.get_frontend_algo`` function that would return ``DVBFE_ALGO_HW``.
 
-.. note::
+.. yeste::
 
    The core frontend support also supports
    a third type (``DVBFE_ALGO_CUSTOM``), in order to allow the driver to
    define its own hardware-assisted algorithm. Very few hardware need to
-   use it nowadays. Using ``DVBFE_ALGO_CUSTOM`` require to provide other
+   use it yeswadays. Using ``DVBFE_ALGO_CUSTOM`` require to provide other
    function callbacks at struct :c:type:`dvb_frontend_ops`.
 
 Attaching frontend driver to the bridge driver
@@ -174,7 +174,7 @@ Digital TV frontends provide a range of
 and measuring the quality of service.
 
 For each statistics measurement, the driver should set the type of scale used,
-or ``FE_SCALE_NOT_AVAILABLE`` if the statistics is not available on a given
+or ``FE_SCALE_NOT_AVAILABLE`` if the statistics is yest available on a given
 time. Drivers should also provide the number of statistics for each type.
 that's usually 1 for most video standards [#f2]_.
 
@@ -201,7 +201,7 @@ And, when the statistics got updated, set the scale::
    - c->cnr.stat[2] for layer B S/N carrier ratio,
    - c->cnr.stat[3] for layer C S/N carrier ratio.
 
-.. note:: Please prefer to use ``FE_SCALE_DECIBEL`` instead of
+.. yeste:: Please prefer to use ``FE_SCALE_DECIBEL`` instead of
    ``FE_SCALE_RELATIVE`` for signal strength and CNR measurements.
 
 Groups of statistics
@@ -214,7 +214,7 @@ Signal strength (:ref:`DTV-STAT-SIGNAL-STRENGTH`)
     demod.
 
   - Typically obtained from the gain applied to the tuner and/or frontend
-    in order to detect the carrier. When no carrier is detected, the gain is
+    in order to detect the carrier. When yes carrier is detected, the gain is
     at the maximum value (so, strength is on its minimal).
 
   - As the gain is visible through the set of registers that adjust the gain,
@@ -224,7 +224,7 @@ Signal strength (:ref:`DTV-STAT-SIGNAL-STRENGTH`)
     can be used when adjusting an antenna position and to check for troubles
     at the cabling.
 
-  .. [#f3] On a few devices, the gain keeps floating if no carrier.
+  .. [#f3] On a few devices, the gain keeps floating if yes carrier.
      On such devices, strength report should check first if carrier is
      detected at the tuner (``FE_HAS_CARRIER``, see :c:type:`fe_status`),
      and otherwise return the lowest possible value.
@@ -271,7 +271,7 @@ Block counts (:ref:`DTV-STAT-ERROR-BLOCK-COUNT` and :ref:`DTV-STAT-TOTAL-BLOCK-C
     (e. g. after ``FE_HAS_SYNC`` or after
     ``FE_HAS_LOCK``, see :c:type:`fe_status`).
 
-.. note:: All counters should be monotonically increased as they're
+.. yeste:: All counters should be moyestonically increased as they're
    collected from the hardware.
 
 A typical example of the logic that handle status and statistics is::
@@ -332,7 +332,7 @@ counter reaches a certain value (usually programmable), for example, on
 every 1000 ms or after receiving 1,000,000 bits.
 
 So, if you read the registers too soon, you'll end by reading the same
-value as in the previous reading, causing the monotonic value to be
+value as in the previous reading, causing the moyestonic value to be
 incremented too often.
 
 Drivers should take the responsibility to avoid too often reads. That
@@ -381,8 +381,8 @@ from mb86a20s driver's logic)::
 If the driver doesn't provide a statistics available check bit
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-A few devices, however, may not provide a way to check if the stats are
-available (or the way to check it is unknown). They may not even provide
+A few devices, however, may yest provide a way to check if the stats are
+available (or the way to check it is unkyeswn). They may yest even provide
 a way to directly read the total number of bits or blocks.
 
 On those devices, the driver need to ensure that it won't be reading from
@@ -417,7 +417,7 @@ On such drivers, a typical routine to get statistics would be like
 			return bit_error;
 
 		/*
-		 * On this particular frontend, there's no register that
+		 * On this particular frontend, there's yes register that
 		 * would provide the number of bits per 1000ms sample. So,
 		 * some function would calculate it based on DTV properties
 		 */
@@ -431,13 +431,13 @@ On such drivers, a typical routine to get statistics would be like
 		return 0;
 	}
 
-Please notice that, on both cases, we're getting the statistics using the
+Please yestice that, on both cases, we're getting the statistics using the
 :c:type:`dvb_frontend_ops` ``.read_status`` callback. The rationale is that
 the frontend core will automatically call this function periodically
 (usually, 3 times per second, when the frontend is locked).
 
 That warrants that we won't miss to collect a counter and increment the
-monotonic stats at the right time.
+moyestonic stats at the right time.
 
 Digital TV Frontend functions and types
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -8,7 +8,7 @@
  * Copyright (C) 1994, 95, 96, 97, 98, 2000 Ralf Baechle
  * Copyright (C) 1996 David S. Miller
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999 MIPS Technologies, Inc.
+ * Copyright (C) 1999 MIPS Techyeslogies, Inc.
  * Copyright (C) 2000 Ulf Carlsson
  *
  * At this time Linux/MIPS64 only supports syscall tracing, even for 32-bit
@@ -21,7 +21,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/regset.h>
 #include <linux/smp.h>
@@ -53,7 +53,7 @@
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure single step bits etc are not set.
+ * Make sure single step bits etc are yest set.
  */
 void ptrace_disable(struct task_struct *child)
 {
@@ -109,7 +109,7 @@ int ptrace_setregs(struct task_struct *child, struct user_pt_regs __user *data)
 	__get_user(regs->hi, (__s64 __user *)&data->hi);
 	__get_user(regs->cp0_epc, (__s64 __user *)&data->cp0_epc);
 
-	/* badvaddr, status, and cause may not be written.  */
+	/* badvaddr, status, and cause may yest be written.  */
 
 	/* System call number may have been changed */
 	mips_syscall_update_nr(child, regs);
@@ -250,7 +250,7 @@ static int gpr32_set(struct task_struct *target,
 		 */
 		switch (i) {
 		case MIPS32_EF_R1 ... MIPS32_EF_R25:
-			/* k0/k1 are ignored. */
+			/* k0/k1 are igyesred. */
 		case MIPS32_EF_R28 ... MIPS32_EF_R31:
 			regs->regs[i - MIPS32_EF_R0] = (s32)uregs[i];
 			break;
@@ -313,7 +313,7 @@ static int gpr64_set(struct task_struct *target,
 	for (i = start; i < num_regs; i++) {
 		switch (i) {
 		case MIPS64_EF_R1 ... MIPS64_EF_R25:
-			/* k0/k1 are ignored. */
+			/* k0/k1 are igyesred. */
 		case MIPS64_EF_R28 ... MIPS64_EF_R31:
 			regs->regs[i - MIPS64_EF_R0] = uregs[i];
 			break;
@@ -342,7 +342,7 @@ static int gpr64_set(struct task_struct *target,
 
 /*
  * Poke at FCSR according to its mask.  Set the Cause bits even
- * if a corresponding Enable bit is set.  This will be noticed at
+ * if a corresponding Enable bit is set.  This will be yesticed at
  * the time the thread is switched to and SIGFPE thrown accordingly.
  */
 static void ptrace_setfcr31(struct task_struct *child, u32 value)
@@ -399,7 +399,7 @@ int ptrace_setfpregs(struct task_struct *child, __u32 __user *data)
 	__get_user(value, data + 64);
 	ptrace_setfcr31(child, value);
 
-	/* FIR may not be written.  */
+	/* FIR may yest be written.  */
 
 	return 0;
 }
@@ -523,7 +523,7 @@ static int fpr_set_msa(struct task_struct *target,
 /*
  * Copy the supplied NT_PRFPREG buffer to the floating-point context.
  * Choose the appropriate helper for general registers, and then copy
- * the FCSR register separately.  Ignore the incoming FIR register
+ * the FCSR register separately.  Igyesre the incoming FIR register
  * contents though, as the register is read-only.
  *
  * We optimize for the case where `count % sizeof(elf_fpreg_t) == 0',
@@ -567,7 +567,7 @@ static int fpr_set(struct task_struct *target,
 	}
 
 	if (count > 0)
-		err = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		err = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 						fir_pos,
 						fir_pos + sizeof(u32));
 
@@ -1015,7 +1015,7 @@ int regs_query_register_offset(const char *name)
 
 static const struct user_regset mips_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type	= NT_PRSTATUS,
+		.core_yeste_type	= NT_PRSTATUS,
 		.n		= ELF_NGREG,
 		.size		= sizeof(unsigned int),
 		.align		= sizeof(unsigned int),
@@ -1023,7 +1023,7 @@ static const struct user_regset mips_regsets[] = {
 		.set		= gpr32_set,
 	},
 	[REGSET_DSP] = {
-		.core_note_type	= NT_MIPS_DSP,
+		.core_yeste_type	= NT_MIPS_DSP,
 		.n		= NUM_DSP_REGS + 1,
 		.size		= sizeof(u32),
 		.align		= sizeof(u32),
@@ -1033,7 +1033,7 @@ static const struct user_regset mips_regsets[] = {
 	},
 #ifdef CONFIG_MIPS_FP_SUPPORT
 	[REGSET_FPR] = {
-		.core_note_type	= NT_PRFPREG,
+		.core_yeste_type	= NT_PRFPREG,
 		.n		= ELF_NFPREG,
 		.size		= sizeof(elf_fpreg_t),
 		.align		= sizeof(elf_fpreg_t),
@@ -1041,7 +1041,7 @@ static const struct user_regset mips_regsets[] = {
 		.set		= fpr_set,
 	},
 	[REGSET_FP_MODE] = {
-		.core_note_type	= NT_MIPS_FP_MODE,
+		.core_yeste_type	= NT_MIPS_FP_MODE,
 		.n		= 1,
 		.size		= sizeof(int),
 		.align		= sizeof(int),
@@ -1051,7 +1051,7 @@ static const struct user_regset mips_regsets[] = {
 #endif
 #ifdef CONFIG_CPU_HAS_MSA
 	[REGSET_MSA] = {
-		.core_note_type	= NT_MIPS_MSA,
+		.core_yeste_type	= NT_MIPS_MSA,
 		.n		= NUM_FPU_REGS + 1,
 		.size		= 16,
 		.align		= 16,
@@ -1075,7 +1075,7 @@ static const struct user_regset_view user_mips_view = {
 
 static const struct user_regset mips64_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type	= NT_PRSTATUS,
+		.core_yeste_type	= NT_PRSTATUS,
 		.n		= ELF_NGREG,
 		.size		= sizeof(unsigned long),
 		.align		= sizeof(unsigned long),
@@ -1083,7 +1083,7 @@ static const struct user_regset mips64_regsets[] = {
 		.set		= gpr64_set,
 	},
 	[REGSET_DSP] = {
-		.core_note_type	= NT_MIPS_DSP,
+		.core_yeste_type	= NT_MIPS_DSP,
 		.n		= NUM_DSP_REGS + 1,
 		.size		= sizeof(u64),
 		.align		= sizeof(u64),
@@ -1093,7 +1093,7 @@ static const struct user_regset mips64_regsets[] = {
 	},
 #ifdef CONFIG_MIPS_FP_SUPPORT
 	[REGSET_FP_MODE] = {
-		.core_note_type	= NT_MIPS_FP_MODE,
+		.core_yeste_type	= NT_MIPS_FP_MODE,
 		.n		= 1,
 		.size		= sizeof(int),
 		.align		= sizeof(int),
@@ -1101,7 +1101,7 @@ static const struct user_regset mips64_regsets[] = {
 		.set		= fp_mode_set,
 	},
 	[REGSET_FPR] = {
-		.core_note_type	= NT_PRFPREG,
+		.core_yeste_type	= NT_PRFPREG,
 		.n		= ELF_NFPREG,
 		.size		= sizeof(elf_fpreg_t),
 		.align		= sizeof(elf_fpreg_t),
@@ -1111,7 +1111,7 @@ static const struct user_regset mips64_regsets[] = {
 #endif
 #ifdef CONFIG_CPU_HAS_MSA
 	[REGSET_MSA] = {
-		.core_note_type	= NT_MIPS_MSA,
+		.core_yeste_type	= NT_MIPS_MSA,
 		.n		= NUM_FPU_REGS + 1,
 		.size		= 16,
 		.align		= 16,
@@ -1193,7 +1193,7 @@ long arch_ptrace(struct task_struct *child, long request,
 			union fpureg *fregs;
 
 			if (!tsk_used_math(child)) {
-				/* FP not yet used */
+				/* FP yest yet used */
 				tmp = -1;
 				break;
 			}
@@ -1351,7 +1351,7 @@ long arch_ptrace(struct task_struct *child, long request,
 			child->thread.dsp.dspcontrol = data;
 			break;
 		default:
-			/* The rest are not allowed. */
+			/* The rest are yest allowed. */
 			ret = -EIO;
 			break;
 		}
@@ -1439,7 +1439,7 @@ asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall)
 
 	/*
 	 * Negative syscall numbers are mistaken for rejected syscalls, but
-	 * won't have had the return value set appropriately, so we do so now.
+	 * won't have had the return value set appropriately, so we do so yesw.
 	 */
 	if (syscall < 0)
 		syscall_set_return_value(current, regs, -ENOSYS, 0);
@@ -1454,7 +1454,7 @@ asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 {
         /*
 	 * We may come here right after calling schedule_user()
-	 * or do_notify_resume(), in which case we can be in RCU
+	 * or do_yestify_resume(), in which case we can be in RCU
 	 * user mode.
 	 */
 	user_exit();

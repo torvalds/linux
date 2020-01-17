@@ -111,7 +111,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 	/* Check for null Op, can happen if AML code is corrupt */
 
 	if (!op) {
-		return_ACPI_STATUS(AE_OK);	/* OK for now */
+		return_ACPI_STATUS(AE_OK);	/* OK for yesw */
 	}
 
 	acpi_ex_stop_trace_opcode(op, walk_state);
@@ -229,7 +229,7 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 				replacement_op->common.parent =
 				    op->common.parent;
 				replacement_op->common.value.arg = NULL;
-				replacement_op->common.node = op->common.node;
+				replacement_op->common.yesde = op->common.yesde;
 				op->common.parent->common.value.arg =
 				    replacement_op;
 				replacement_op->common.next = op->common.next;
@@ -253,8 +253,8 @@ acpi_ps_complete_this_op(struct acpi_walk_state *walk_state,
 						    op->common.parent;
 						replacement_op->common.value.
 						    arg = NULL;
-						replacement_op->common.node =
-						    op->common.node;
+						replacement_op->common.yesde =
+						    op->common.yesde;
 						prev->common.next =
 						    replacement_op;
 						replacement_op->common.next =
@@ -351,7 +351,7 @@ acpi_ps_next_parse_state(struct acpi_walk_state *walk_state,
 	case AE_CTRL_FALSE:
 		/*
 		 * Either an IF/WHILE Predicate was false or we encountered a BREAK
-		 * opcode. In both cases, we do not execute the rest of the
+		 * opcode. In both cases, we do yest execute the rest of the
 		 * package;  We simply close out the parent (finishing the walk of
 		 * this branch of the tree) and continue execution at the parent
 		 * level.
@@ -371,8 +371,8 @@ acpi_ps_next_parse_state(struct acpi_walk_state *walk_state,
 		status = AE_CTRL_TRANSFER;
 		walk_state->prev_op = op;
 		walk_state->method_call_op = op;
-		walk_state->method_call_node =
-		    (op->common.value.arg)->common.node;
+		walk_state->method_call_yesde =
+		    (op->common.value.arg)->common.yesde;
 
 		/* Will return value (if any) be used by the caller? */
 
@@ -470,7 +470,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		if (ACPI_SUCCESS(status)) {
 			/*
 			 * The parse_loop executes AML until the method terminates
-			 * or calls another method.
+			 * or calls ayesther method.
 			 */
 			status = acpi_ps_parse_loop(walk_state);
 		}
@@ -521,13 +521,13 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 
 			acpi_ex_exit_interpreter();
 			if (status == AE_ABORT_METHOD) {
-				acpi_ns_print_node_pathname(walk_state->
-							    method_node,
+				acpi_ns_print_yesde_pathname(walk_state->
+							    method_yesde,
 							    "Aborting method");
 				acpi_os_printf("\n");
 			} else {
 				ACPI_ERROR_METHOD("Aborting method",
-						  walk_state->method_node, NULL,
+						  walk_state->method_yesde, NULL,
 						  status);
 			}
 			acpi_ex_enter_interpreter();
@@ -538,9 +538,9 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 			    (!(walk_state->method_desc->method.info_flags &
 			       ACPI_METHOD_SERIALIZED))) {
 				/*
-				 * Method is not serialized and tried to create an object
-				 * twice. The probable cause is that the method cannot
-				 * handle reentrancy. Mark as "pending serialized" now, and
+				 * Method is yest serialized and tried to create an object
+				 * twice. The probable cause is that the method canyest
+				 * handle reentrancy. Mark as "pending serialized" yesw, and
 				 * then mark "serialized" when the last thread exits.
 				 */
 				walk_state->method_desc->method.info_flags |=
@@ -586,13 +586,13 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		if (walk_state) {
 			if (ACPI_SUCCESS(status)) {
 				/*
-				 * There is another walk state, restart it.
-				 * If the method return value is not used by the parent,
+				 * There is ayesther walk state, restart it.
+				 * If the method return value is yest used by the parent,
 				 * The object is deleted
 				 */
 				if (!previous_walk_state->return_desc) {
 					/*
-					 * In slack mode execution, if there is no return value
+					 * In slack mode execution, if there is yes return value
 					 * we should implicitly return zero (0) as a default value.
 					 */
 					if (acpi_gbl_enable_interpreter_slack &&
@@ -652,7 +652,7 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 				*(previous_walk_state->caller_return_desc) =
 				    previous_walk_state->implicit_return_obj;
 			} else {
-				/* NULL if no return value */
+				/* NULL if yes return value */
 
 				*(previous_walk_state->caller_return_desc) =
 				    previous_walk_state->return_desc;

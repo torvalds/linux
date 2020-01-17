@@ -50,7 +50,7 @@ match_dst_mac_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did yest match on correct filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
@@ -76,7 +76,7 @@ match_src_mac_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did yest match on correct filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
@@ -102,7 +102,7 @@ match_dst_ip_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did yest match on correct filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 
@@ -110,7 +110,7 @@ match_dst_ip_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Did not match on correct filter with mask"
+	check_err $? "Did yest match on correct filter with mask"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
@@ -136,7 +136,7 @@ match_src_ip_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did yest match on correct filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 
@@ -144,7 +144,7 @@ match_src_ip_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Did not match on correct filter with mask"
+	check_err $? "Did yest match on correct filter with mask"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
@@ -161,39 +161,39 @@ match_ip_flags_test()
 	tc filter add dev $h2 ingress protocol ip pref 2 handle 102 flower \
 		$tcflags ip_flags firstfrag action continue
 	tc filter add dev $h2 ingress protocol ip pref 3 handle 103 flower \
-		$tcflags ip_flags nofirstfrag action continue
+		$tcflags ip_flags yesfirstfrag action continue
 	tc filter add dev $h2 ingress protocol ip pref 4 handle 104 flower \
-		$tcflags ip_flags nofrag action drop
+		$tcflags ip_flags yesfrag action drop
 
 	$MZ $h1 -c 1 -p 1000 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip "frag=0" -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_fail $? "Matched on wrong frag filter (nofrag)"
+	check_fail $? "Matched on wrong frag filter (yesfrag)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_fail $? "Matched on wrong firstfrag filter (nofrag)"
+	check_fail $? "Matched on wrong firstfrag filter (yesfrag)"
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Did not match on nofirstfrag filter (nofrag) "
+	check_err $? "Did yest match on yesfirstfrag filter (yesfrag) "
 
 	tc_check_packets "dev $h2 ingress" 104 1
-	check_err $? "Did not match on nofrag filter (nofrag)"
+	check_err $? "Did yest match on yesfrag filter (yesfrag)"
 
 	$MZ $h1 -c 1 -p 1000 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip "frag=0,mf" -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on frag filter (1stfrag)"
+	check_err $? "Did yest match on frag filter (1stfrag)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match fistfrag filter (1stfrag)"
+	check_err $? "Did yest match fistfrag filter (1stfrag)"
 
 	tc_check_packets "dev $h2 ingress" 103 1
-	check_err $? "Matched on wrong nofirstfrag filter (1stfrag)"
+	check_err $? "Matched on wrong yesfirstfrag filter (1stfrag)"
 
 	tc_check_packets "dev $h2 ingress" 104 1
-	check_err $? "Match on wrong nofrag filter (1stfrag)"
+	check_err $? "Match on wrong yesfrag filter (1stfrag)"
 
 	$MZ $h1 -c 1 -p 1000 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip "frag=256,mf" -q
@@ -201,16 +201,16 @@ match_ip_flags_test()
 		-t ip "frag=256" -q
 
 	tc_check_packets "dev $h2 ingress" 101 3
-	check_err $? "Did not match on frag filter (no1stfrag)"
+	check_err $? "Did yest match on frag filter (yes1stfrag)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Matched on wrong firstfrag filter (no1stfrag)"
+	check_err $? "Matched on wrong firstfrag filter (yes1stfrag)"
 
 	tc_check_packets "dev $h2 ingress" 103 3
-	check_err $? "Did not match on nofirstfrag filter (no1stfrag)"
+	check_err $? "Did yest match on yesfirstfrag filter (yes1stfrag)"
 
 	tc_check_packets "dev $h2 ingress" 104 1
-	check_err $? "Matched on nofrag filter (no1stfrag)"
+	check_err $? "Matched on yesfrag filter (yes1stfrag)"
 
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
@@ -235,10 +235,10 @@ match_pcp_test()
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -B 192.0.2.11 -Q 0:85 -t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 0
-	check_err $? "Matched on specified PCP when should not"
+	check_err $? "Matched on specified PCP when should yest"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on specified PCP"
+	check_err $? "Did yest match on specified PCP"
 
 	tc filter del dev $h2 ingress protocol 802.1q pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol 802.1q pref 1 handle 101 flower
@@ -263,10 +263,10 @@ match_vlan_test()
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -B 192.0.2.11 -Q 0:85 -t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 0
-	check_err $? "Matched on specified VLAN when should not"
+	check_err $? "Matched on specified VLAN when should yest"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on specified VLAN"
+	check_err $? "Did yest match on specified VLAN"
 
 	tc filter del dev $h2 ingress protocol 802.1q pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol 802.1q pref 1 handle 101 flower
@@ -293,7 +293,7 @@ match_ip_tos_test()
 	check_fail $? "Matched on a wrong filter (0x18)"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter (0x18)"
+	check_err $? "Did yest match on correct filter (0x18)"
 
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip tos=20 -q
@@ -302,7 +302,7 @@ match_ip_tos_test()
 	check_fail $? "Matched on a wrong filter (0x20)"
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match on correct filter (0x20)"
+	check_err $? "Did yest match on correct filter (0x20)"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
@@ -326,7 +326,7 @@ match_indev_test()
 	check_fail $? "Matched on a wrong filter"
 
 	tc_check_packets "dev $h2 ingress" 102 1
-	check_err $? "Did not match on correct filter"
+	check_err $? "Did yest match on correct filter"
 
 	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
@@ -366,7 +366,7 @@ tests_run
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
-	log_info "Could not test offloaded functionality"
+	log_info "Could yest test offloaded functionality"
 else
 	tcflags="skip_sw"
 	tests_run

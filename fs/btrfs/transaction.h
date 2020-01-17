@@ -7,7 +7,7 @@
 #define BTRFS_TRANSACTION_H
 
 #include <linux/refcount.h>
-#include "btrfs_inode.h"
+#include "btrfs_iyesde.h"
 #include "delayed-ref.h"
 #include "ctree.h"
 
@@ -55,7 +55,7 @@ struct btrfs_transaction {
 	struct list_head dirty_bgs;
 
 	/*
-	 * There is no explicit lock which protects io_bgs, rather its
+	 * There is yes explicit lock which protects io_bgs, rather its
 	 * consistency is implied by the fact that all the sites which modify
 	 * it do so under some form of transaction critical section, namely:
 	 *
@@ -128,7 +128,7 @@ struct btrfs_trans_handle {
 
 struct btrfs_pending_snapshot {
 	struct dentry *dentry;
-	struct inode *dir;
+	struct iyesde *dir;
 	struct btrfs_root *root;
 	struct btrfs_root_item *root_item;
 	struct btrfs_root *snap;
@@ -142,14 +142,14 @@ struct btrfs_pending_snapshot {
 	struct list_head list;
 };
 
-static inline void btrfs_set_inode_last_trans(struct btrfs_trans_handle *trans,
-					      struct inode *inode)
+static inline void btrfs_set_iyesde_last_trans(struct btrfs_trans_handle *trans,
+					      struct iyesde *iyesde)
 {
-	spin_lock(&BTRFS_I(inode)->lock);
-	BTRFS_I(inode)->last_trans = trans->transaction->transid;
-	BTRFS_I(inode)->last_sub_trans = BTRFS_I(inode)->root->log_transid;
-	BTRFS_I(inode)->last_log_commit = BTRFS_I(inode)->root->last_log_commit;
-	spin_unlock(&BTRFS_I(inode)->lock);
+	spin_lock(&BTRFS_I(iyesde)->lock);
+	BTRFS_I(iyesde)->last_trans = trans->transaction->transid;
+	BTRFS_I(iyesde)->last_sub_trans = BTRFS_I(iyesde)->root->log_transid;
+	BTRFS_I(iyesde)->last_log_commit = BTRFS_I(iyesde)->root->last_log_commit;
+	spin_unlock(&BTRFS_I(iyesde)->lock);
 }
 
 /*
@@ -184,7 +184,7 @@ struct btrfs_trans_handle *btrfs_start_transaction_fallback_global_rsv(
 					int min_factor);
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_join_transaction_spacecache(struct btrfs_root *root);
-struct btrfs_trans_handle *btrfs_join_transaction_nostart(struct btrfs_root *root);
+struct btrfs_trans_handle *btrfs_join_transaction_yesstart(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_attach_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_attach_transaction_barrier(
 					struct btrfs_root *root);
@@ -198,7 +198,7 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 				   int wait_for_unblock);
 
 /*
- * Try to commit transaction asynchronously, so this is safe to call
+ * Try to commit transaction asynchroyesusly, so this is safe to call
  * even holding a spinlock.
  *
  * It's done by informing transaction_kthread to commit transaction without

@@ -12,7 +12,7 @@
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -138,16 +138,16 @@ int main(void)
 	if (sched_setaffinity(0, sizeof(cpuset), &cpuset) != 0)
 		err(1, "sched_setaffinity to CPU 0");
 
-	/* Probe for iopl support.  Note that iopl(0) works even as nonroot. */
+	/* Probe for iopl support.  Note that iopl(0) works even as yesnroot. */
 	switch(iopl(3)) {
 	case 0:
 		break;
 	case -ENOSYS:
-		printf("[OK]\tiopl() nor supported\n");
+		printf("[OK]\tiopl() yesr supported\n");
 		return 0;
 	default:
 		printf("[OK]\tiopl(3) failed (%d) -- try running as root\n",
-		       errno);
+		       erryes);
 		return 0;
 	}
 

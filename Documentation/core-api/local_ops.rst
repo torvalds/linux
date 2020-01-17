@@ -5,7 +5,7 @@
 Semantics and Behavior of Local Atomic Operations
 =================================================
 
-:Author: Mathieu Desnoyers
+:Author: Mathieu Desyesyers
 
 
 This document explains the purpose of the local atomic operations, how
@@ -13,9 +13,9 @@ to implement them for any given architecture and shows how they can be used
 properly. It also stresses on the precautions that must be taken when reading
 those local variables across CPUs when the order of memory writes matters.
 
-.. note::
+.. yeste::
 
-    Note that ``local_t`` based operations are not recommended for general
+    Note that ``local_t`` based operations are yest recommended for general
     kernel use. Please use the ``this_cpu`` operations instead unless there is
     really a special purpose. Most uses of ``local_t`` in the kernel have been
     replaced by ``this_cpu`` operations. ``this_cpu`` operations combine the
@@ -28,10 +28,10 @@ Purpose of local atomic operations
 
 Local atomic operations are meant to provide fast and highly reentrant per CPU
 counters. They minimize the performance cost of standard atomic operations by
-removing the LOCK prefix and memory barriers normally required to synchronize
+removing the LOCK prefix and memory barriers yesrmally required to synchronize
 across CPUs.
 
-Having fast per CPU atomic counters is interesting in many cases: it does not
+Having fast per CPU atomic counters is interesting in many cases: it does yest
 require disabling interrupts to protect from interrupt handlers and it permits
 coherent counters in NMI handlers. It is especially useful for tracing purposes
 and for various performance monitoring counters.
@@ -50,7 +50,7 @@ Implementation for a given architecture
 It can be done by slightly modifying the standard atomic operations: only
 their UP variant must be kept. It typically means removing LOCK prefix (on
 i386 and x86_64) and any SMP synchronization barrier. If the architecture does
-not have a different behavior between SMP and UP, including
+yest have a different behavior between SMP and UP, including
 ``asm-generic/local.h`` in your architecture's ``local.h`` is sufficient.
 
 The ``local_t`` type is defined as an opaque ``signed long`` by embedding an
@@ -71,7 +71,7 @@ Rules to follow when using local atomic operations
   process context to make sure the process won't be migrated to a
   different CPU between getting the per-cpu variable and doing the
   actual local op.
-* When using local ops in interrupt context, no special care must be
+* When using local ops in interrupt context, yes special care must be
   taken on a mainline kernel, since they will run on the local CPU with
   preemption already disabled. I suggest, however, to explicitly
   disable preemption anyway to make sure it will still work correctly on
@@ -79,7 +79,7 @@ Rules to follow when using local atomic operations
 * Reading the local cpu variable will provide the current copy of the
   variable.
 * Reads of these variables can be done from any CPU, because updates to
-  "``long``", aligned, variables are always atomic. Since no memory
+  "``long``", aligned, variables are always atomic. Since yes memory
   synchronization is done by the writer CPU, an outdated copy of the
   variable can be read when reading some *other* cpu's variables.
 
@@ -153,7 +153,7 @@ Here is a sample module which implements a basic per cpu counter using
     /* IPI called on each CPU. */
     static void test_each(void *info)
     {
-            /* Increment the counter from a non preemptible context */
+            /* Increment the counter from a yesn preemptible context */
             printk("Increment on cpu %d\n", smp_processor_id());
             local_inc(this_cpu_ptr(&counters));
 
@@ -198,5 +198,5 @@ Here is a sample module which implements a basic per cpu counter using
     module_exit(test_exit);
 
     MODULE_LICENSE("GPL");
-    MODULE_AUTHOR("Mathieu Desnoyers");
+    MODULE_AUTHOR("Mathieu Desyesyers");
     MODULE_DESCRIPTION("Local Atomic Ops");

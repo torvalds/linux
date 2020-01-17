@@ -42,7 +42,7 @@
 		   "%s: " fmt "\n", __func__, ##args)
 #else
 #define SMSC_WARN(pdata, nlevel, fmt, args...)			\
-	no_printk(fmt "\n", ##args)
+	yes_printk(fmt "\n", ##args)
 #endif
 
 #if USE_DEBUG >= 2
@@ -50,7 +50,7 @@
 	netif_info(pdata, nlevel, pdata->dev, fmt "\n", ##args)
 #else
 #define SMSC_TRACE(pdata, nlevel, fmt, args...)			\
-	no_printk(fmt "\n", ##args)
+	yes_printk(fmt "\n", ##args)
 #endif
 
 #ifdef CONFIG_DEBUG_SPINLOCK

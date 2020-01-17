@@ -60,7 +60,7 @@ static int reg_offset_pm[] = {
 	offsetof(struct pt_regs, ds),
 	offsetof(struct pt_regs, es),
 	offsetof(struct pt_regs, fs),
-	offsetof(struct pt_regs, ds),	/* dummy, not saved on stack */
+	offsetof(struct pt_regs, ds),	/* dummy, yest saved on stack */
 	offsetof(struct pt_regs, ss),
 	offsetof(struct pt_regs, ds)
 };
@@ -90,7 +90,7 @@ static int sib(int mod, unsigned long *fpu_eip)
 
 	if (index == 4) {
 		/* No index register */
-		/* A non-zero ss is illegal */
+		/* A yesn-zero ss is illegal */
 		if (ss)
 			EXCEPTION(EX_Invalid);
 	} else {
@@ -216,13 +216,13 @@ void __user *FPU_get_address(u_char FPU_modrm, unsigned long *fpu_eip,
 	int address = 0;	/* Initialized just to stop compiler warnings. */
 
 	/* Memory accessed via the cs selector is write protected
-	   in `non-segmented' 32 bit protected mode. */
+	   in `yesn-segmented' 32 bit protected mode. */
 	if (!addr_modes.default_mode && (FPU_modrm & FPU_WRITE_BIT)
 	    && (addr_modes.override.segment == PREFIX_CS_)) {
 		math_abort(FPU_info, SIGSEGV);
 	}
 
-	addr->selector = FPU_DS;	/* Default, for 32 bit non-segmented mode. */
+	addr->selector = FPU_DS;	/* Default, for 32 bit yesn-segmented mode. */
 
 	mod = (FPU_modrm >> 6) & 3;
 
@@ -300,13 +300,13 @@ void __user *FPU_get_address_16(u_char FPU_modrm, unsigned long *fpu_eip,
 	int address = 0;	/* Default used for mod == 0 */
 
 	/* Memory accessed via the cs selector is write protected
-	   in `non-segmented' 32 bit protected mode. */
+	   in `yesn-segmented' 32 bit protected mode. */
 	if (!addr_modes.default_mode && (FPU_modrm & FPU_WRITE_BIT)
 	    && (addr_modes.override.segment == PREFIX_CS_)) {
 		math_abort(FPU_info, SIGSEGV);
 	}
 
-	addr->selector = FPU_DS;	/* Default, for 32 bit non-segmented mode. */
+	addr->selector = FPU_DS;	/* Default, for 32 bit yesn-segmented mode. */
 
 	mod = (FPU_modrm >> 6) & 3;
 

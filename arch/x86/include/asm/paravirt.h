@@ -7,7 +7,7 @@
 #ifdef CONFIG_PARAVIRT
 #include <asm/pgtable_types.h>
 #include <asm/asm.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 #include <asm/paravirt_types.h>
 
@@ -707,13 +707,13 @@ bool __raw_callee_save___native_vcpu_is_preempted(long cpu);
 /*
  * Generate a thunk around a function which saves all caller-save
  * registers except for the return value.  This allows C functions to
- * be called from assembler code where fewer than normal registers are
+ * be called from assembler code where fewer than yesrmal registers are
  * available.  It may also help code generation around calls from C
  * code if the common case doesn't use many registers.
  *
  * When a callee is wrapped in a thunk, the caller can assume that all
  * arg regs and all scratch registers are preserved across the
- * call. The return value in rax/eax will not be saved, even for void
+ * call. The return value in rax/eax will yest be saved, even for void
  * functions.
  */
 #define PV_THUNK_NAME(func) "__raw_callee_save_" #func
@@ -742,27 +742,27 @@ bool __raw_callee_save___native_vcpu_is_preempted(long cpu);
 	((struct paravirt_callee_save) { func })
 
 #ifdef CONFIG_PARAVIRT_XXL
-static inline notrace unsigned long arch_local_save_flags(void)
+static inline yestrace unsigned long arch_local_save_flags(void)
 {
 	return PVOP_CALLEE0(unsigned long, irq.save_fl);
 }
 
-static inline notrace void arch_local_irq_restore(unsigned long f)
+static inline yestrace void arch_local_irq_restore(unsigned long f)
 {
 	PVOP_VCALLEE1(irq.restore_fl, f);
 }
 
-static inline notrace void arch_local_irq_disable(void)
+static inline yestrace void arch_local_irq_disable(void)
 {
 	PVOP_VCALLEE0(irq.irq_disable);
 }
 
-static inline notrace void arch_local_irq_enable(void)
+static inline yestrace void arch_local_irq_enable(void)
 {
 	PVOP_VCALLEE0(irq.irq_enable);
 }
 
-static inline notrace unsigned long arch_local_irq_save(void)
+static inline yestrace unsigned long arch_local_irq_save(void)
 {
 	unsigned long f;
 
@@ -877,7 +877,7 @@ extern void default_banner(void);
 #ifdef CONFIG_PARAVIRT_XXL
 /*
  * If swapgs is used while the userspace stack is still current,
- * there's no way to call a pvop.  The PV replacement *must* be
+ * there's yes way to call a pvop.  The PV replacement *must* be
  * inlined, or the swapgs instruction must be trapped and emulated.
  */
 #define SWAPGS_UNSAFE_STACK						\
@@ -924,7 +924,7 @@ extern void default_banner(void);
 
 #endif /* __ASSEMBLY__ */
 #else  /* CONFIG_PARAVIRT */
-# define default_banner x86_init_noop
+# define default_banner x86_init_yesop
 #endif /* !CONFIG_PARAVIRT */
 
 #ifndef __ASSEMBLY__

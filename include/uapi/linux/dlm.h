@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /******************************************************************************
 *******************************************************************************
 **
@@ -34,7 +34,7 @@ typedef void dlm_lockspace_t;
  * lock.  DLM writes the status of the lock request and the lock ID assigned
  * to the request in the lock status block.
  *
- * sb_lkid: the returned lock ID.  It is set on new (non-conversion) requests.
+ * sb_lkid: the returned lock ID.  It is set on new (yesn-conversion) requests.
  * It is available when dlm_lock returns.
  *
  * sb_lvbptr: saves or returns the contents of the lock's LVB according to rules

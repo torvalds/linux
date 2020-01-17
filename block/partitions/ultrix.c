@@ -16,10 +16,10 @@ int ultrix_partition(struct parsed_partitions *state)
 	Sector sect;
 	unsigned char *data;
 	struct ultrix_disklabel {
-		s32	pt_magic;	/* magic no. indicating part. info exits */
+		s32	pt_magic;	/* magic yes. indicating part. info exits */
 		s32	pt_valid;	/* set by driver if pt is current */
 		struct  pt_info {
-			s32		pi_nblocks; /* no. of sectors */
+			s32		pi_nblocks; /* yes. of sectors */
 			u32		pi_blkoff;  /* block offset for start */
 		} pt_part[8];
 	} *label;

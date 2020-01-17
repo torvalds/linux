@@ -6,7 +6,7 @@
  * Copyright (C) 1999 - 2006 Krzysztof Halasa <khc@pm.waw.pl>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
@@ -79,7 +79,7 @@ static int x25_data_indication(struct net_device *dev, struct sk_buff *skb)
 static void x25_data_transmit(struct net_device *dev, struct sk_buff *skb)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
-	hdlc->xmit(skb, dev); /* Ignore return value :-( */
+	hdlc->xmit(skb, dev); /* Igyesre return value :-( */
 }
 
 
@@ -194,7 +194,7 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if (dev_to_hdlc(dev)->proto != &proto)
 			return -EINVAL;
 		ifr->ifr_settings.type = IF_PROTO_X25;
-		return 0; /* return protocol only, no settable parameters */
+		return 0; /* return protocol only, yes settable parameters */
 
 	case IF_PROTO_X25:
 		if (!capable(CAP_NET_ADMIN))
@@ -210,7 +210,7 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 		if ((result = attach_hdlc_protocol(dev, &proto, 0)))
 			return result;
 		dev->type = ARPHRD_X25;
-		call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
+		call_netdevice_yestifiers(NETDEV_POST_TYPE_CHANGE, dev);
 		netif_dormant_off(dev);
 		return 0;
 	}

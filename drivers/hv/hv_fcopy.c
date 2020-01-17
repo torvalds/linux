@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2014, Microsoft, Inc.
  *
- * Author : K. Y. Srinivasan <ksrinivasan@novell.com>
+ * Author : K. Y. Srinivasan <ksrinivasan@yesvell.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -41,7 +41,7 @@ static const int fw_versions[] = {
  * driver - we cache and process only one message at a time.
  *
  * While the request/response protocol is guaranteed by the host, we further
- * ensure this by serializing packet processing in this driver - we do not
+ * ensure this by serializing packet processing in this driver - we do yest
  * read additional packets from the VMBUs until the current packet is fully
  * handled.
  */
@@ -77,7 +77,7 @@ static void fcopy_poll_wrapper(void *channel)
 static void fcopy_timeout_func(struct work_struct *dummy)
 {
 	/*
-	 * If the timer fires, the user-mode component has not responded;
+	 * If the timer fires, the user-mode component has yest responded;
 	 * process the pending transaction.
 	 */
 	fcopy_respond_to_host(HV_E_FAIL);
@@ -108,7 +108,7 @@ static int fcopy_handle_handshake(u32 version)
 		break;
 	default:
 		/*
-		 * For now we will fail the registration.
+		 * For yesw we will fail the registration.
 		 * If and when we have multiple versions to
 		 * deal with, we will be backward compatible.
 		 * We will add this code when needed.
@@ -130,7 +130,7 @@ static void fcopy_send_data(struct work_struct *dummy)
 	/*
 	 * The  strings sent from the host are encoded in
 	 * in utf16; convert it to utf8 strings.
-	 * The host assures us that the utf16 strings will not exceed
+	 * The host assures us that the utf16 strings will yest exceed
 	 * the max lengths specified. We will however, reserve room
 	 * for the string terminating character - in the utf16s_utf8s()
 	 * function we limit the size of the buffer where the converted
@@ -259,7 +259,7 @@ void hv_fcopy_onchannelcallback(void *context)
 
 		/*
 		 * Stash away this global state for completing the
-		 * transaction; note transactions are serialized.
+		 * transaction; yeste transactions are serialized.
 		 */
 
 		fcopy_transaction.recv_len = recvlen;
@@ -267,7 +267,7 @@ void hv_fcopy_onchannelcallback(void *context)
 		fcopy_transaction.fcopy_msg = fcopy_msg;
 
 		if (fcopy_transaction.state < HVUTIL_READY) {
-			/* Userspace is not registered yet */
+			/* Userspace is yest registered yet */
 			fcopy_respond_to_host(HV_E_FAIL);
 			return;
 		}
@@ -332,7 +332,7 @@ int hv_fcopy_init(struct hv_util_service *srv)
 
 	/*
 	 * When this driver loads, the user level daemon that
-	 * processes the host requests may not yet be running.
+	 * processes the host requests may yest yet be running.
 	 * Defer processing channel callbacks until the daemon
 	 * has registered.
 	 */

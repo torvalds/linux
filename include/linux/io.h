@@ -66,7 +66,7 @@ void __iomem *devm_ioremap(struct device *dev, resource_size_t offset,
 			   resource_size_t size);
 void __iomem *devm_ioremap_uc(struct device *dev, resource_size_t offset,
 				   resource_size_t size);
-void __iomem *devm_ioremap_nocache(struct device *dev, resource_size_t offset,
+void __iomem *devm_ioremap_yescache(struct device *dev, resource_size_t offset,
 				   resource_size_t size);
 void __iomem *devm_ioremap_wc(struct device *dev, resource_size_t offset,
 				   resource_size_t size);
@@ -84,12 +84,12 @@ void *__devm_memremap_pages(struct device *dev, struct resource *res);
 #ifdef CONFIG_PCI
 /*
  * The PCI specifications (Rev 3.0, 3.2.5 "Transaction Ordering and
- * Posting") mandate non-posted configuration transactions. There is
- * no ioremap API in the kernel that can guarantee non-posted write
+ * Posting") mandate yesn-posted configuration transactions. There is
+ * yes ioremap API in the kernel that can guarantee yesn-posted write
  * semantics across arches so provide a default implementation for
- * mapping PCI config space that defaults to ioremap_nocache(); arches
+ * mapping PCI config space that defaults to ioremap_yescache(); arches
  * should override it if they have memory mapping implementations that
- * guarantee non-posted writes semantics to make the memory mapping
+ * guarantee yesn-posted writes semantics to make the memory mapping
  * compliant with the PCI specification.
  */
 #ifndef pci_remap_cfgspace
@@ -97,14 +97,14 @@ void *__devm_memremap_pages(struct device *dev, struct resource *res);
 static inline void __iomem *pci_remap_cfgspace(phys_addr_t offset,
 					       size_t size)
 {
-	return ioremap_nocache(offset, size);
+	return ioremap_yescache(offset, size);
 }
 #endif
 #endif
 
 /*
- * Some systems do not have legacy ISA devices.
- * /dev/port is not a valid interface on these systems.
+ * Some systems do yest have legacy ISA devices.
+ * /dev/port is yest a valid interface on these systems.
  * So for those archs, <asm/io.h> should define the following symbol.
  */
 #ifndef arch_has_dev_port
@@ -116,17 +116,17 @@ static inline void __iomem *pci_remap_cfgspace(phys_addr_t offset,
  * physical address range such that uncached mappings will actually
  * end up write-combining.  This facility should be used in conjunction
  * with pgprot_writecombine, ioremap-wc, or set_memory_wc, since it has
- * no effect if the per-page mechanisms are functional.
+ * yes effect if the per-page mechanisms are functional.
  * (On x86 without PAT, these functions manipulate MTRRs.)
  *
  * arch_phys_del_wc(0) or arch_phys_del_wc(any error code) is guaranteed
- * to have no effect.
+ * to have yes effect.
  */
 #ifndef arch_phys_wc_add
 static inline int __must_check arch_phys_wc_add(unsigned long base,
 						unsigned long size)
 {
-	return 0;  /* It worked (i.e. did nothing). */
+	return 0;  /* It worked (i.e. did yesthing). */
 }
 
 static inline void arch_phys_wc_del(int handle)
@@ -162,7 +162,7 @@ void memunmap(void *addr);
  * wishes to map a range from a physical device into user memory
  * the tracking won't be updated. This API is to be used by
  * drivers which remap physical device pages into userspace,
- * and wants to make sure they are mapped WC and not UC.
+ * and wants to make sure they are mapped WC and yest UC.
  */
 #ifndef arch_io_reserve_memtype_wc
 static inline int arch_io_reserve_memtype_wc(resource_size_t base,

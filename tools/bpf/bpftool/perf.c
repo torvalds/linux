@@ -4,7 +4,7 @@
 
 #define _GNU_SOURCE
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,7 +17,7 @@
 
 #include "main.h"
 
-/* 0: undecided, 1: supported, 2: not supported */
+/* 0: undecided, 1: supported, 2: yest supported */
 static int perf_query_supported;
 static bool has_perf_query_support(void)
 {
@@ -31,28 +31,28 @@ static bool has_perf_query_support(void)
 
 	fd = open("/", O_RDONLY);
 	if (fd < 0) {
-		p_err("perf_query_support: cannot open directory \"/\" (%s)",
-		      strerror(errno));
+		p_err("perf_query_support: canyest open directory \"/\" (%s)",
+		      strerror(erryes));
 		goto out;
 	}
 
-	/* the following query will fail as no bpf attachment,
-	 * the expected errno is ENOTSUPP
+	/* the following query will fail as yes bpf attachment,
+	 * the expected erryes is ENOTSUPP
 	 */
-	errno = 0;
+	erryes = 0;
 	len = sizeof(buf);
 	bpf_task_fd_query(getpid(), fd, 0, buf, &len, &prog_id,
 			  &fd_type, &probe_offset, &probe_addr);
 
-	if (errno == 524 /* ENOTSUPP */) {
+	if (erryes == 524 /* ENOTSUPP */) {
 		perf_query_supported = 1;
 		goto close_fd;
 	}
 
 	perf_query_supported = 2;
-	p_err("perf_query_support: %s", strerror(errno));
+	p_err("perf_query_support: %s", strerror(erryes));
 	fprintf(stderr,
-		"HINT: non root or kernel doesn't support TASK_FD_QUERY\n");
+		"HINT: yesn root or kernel doesn't support TASK_FD_QUERY\n");
 
 close_fd:
 	close(fd);
@@ -211,15 +211,15 @@ static int show_proc(const char *fpath, const struct stat *sb,
 static int do_show(int argc, char **argv)
 {
 	int flags = FTW_ACTIONRETVAL | FTW_PHYS;
-	int err = 0, nopenfd = 16;
+	int err = 0, yespenfd = 16;
 
 	if (!has_perf_query_support())
 		return -1;
 
 	if (json_output)
 		jsonw_start_array(json_wtr);
-	if (nftw("/proc", show_proc, nopenfd, flags) == -1) {
-		p_err("%s", strerror(errno));
+	if (nftw("/proc", show_proc, yespenfd, flags) == -1) {
+		p_err("%s", strerror(erryes));
 		err = -1;
 	}
 	if (json_output)

@@ -22,14 +22,14 @@
  * __ffs - find first bit in word.
  * @word: The word to search
  *
- * Undefined if no bit exists, so code should check against 0 first.
+ * Undefined if yes bit exists, so code should check against 0 first.
  * Note __ffs(0) = undef, __ffs(1) = 0, __ffs(0x80000000) = 31.
  *
  */
 static inline unsigned long __ffs(unsigned long x)
 {
 	asm (" bitr  .M1  %0,%0\n"
-	     " nop\n"
+	     " yesp\n"
 	     " lmbd  .L1  1,%0,%0\n"
 	     : "+a"(x));
 
@@ -40,7 +40,7 @@ static inline unsigned long __ffs(unsigned long x)
  * ffz - find first zero in word.
  * @word: The word to search
  *
- * Undefined if no zero exists, so code should check against ~0UL first.
+ * Undefined if yes zero exists, so code should check against ~0UL first.
  */
 #define ffz(x) __ffs(~(x))
 
@@ -87,7 +87,7 @@ static inline int ffs(int x)
 #include <asm-generic/bitops/lock.h>
 
 #include <asm-generic/bitops/atomic.h>
-#include <asm-generic/bitops/non-atomic.h>
+#include <asm-generic/bitops/yesn-atomic.h>
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic.h>
 

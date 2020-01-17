@@ -1,6 +1,6 @@
 * Maxim Linear-Taper Digital Potentiometer MAX5481-MAX5484
 
-The node for this driver must be a child node of a SPI controller, hence
+The yesde for this driver must be a child yesde of a SPI controller, hence
 all mandatory properties described in
 
         Documentation/devicetree/bindings/spi/spi-bus.txt

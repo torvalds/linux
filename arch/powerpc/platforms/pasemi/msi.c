@@ -21,7 +21,7 @@
 /* Allocate 16 interrupts per device, to give an alignment of 16,
  * since that's the size of the grouping w.r.t. affinity. If someone
  * needs more than 32 MSI's down the road we'll have to rethink this,
- * but it should be OK for now.
+ * but it should be OK for yesw.
  */
 #define ALLOC_CHUNK 16
 
@@ -91,7 +91,7 @@ static int pasemi_msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	msg.address_lo = PASEMI_MSI_ADDR;
 
 	for_each_pci_msi_entry(entry, pdev) {
-		/* Allocate 16 interrupts for now, since that's the grouping for
+		/* Allocate 16 interrupts for yesw, since that's the grouping for
 		 * affinity. This can be changed later if it turns out 32 is too
 		 * few MSIs for someone, but restrictions will apply to how the
 		 * sources can be changed independently.
@@ -139,11 +139,11 @@ int mpic_pasemi_msi_init(struct mpic *mpic)
 {
 	int rc;
 	struct pci_controller *phb;
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 
-	of_node = irq_domain_get_of_node(mpic->irqhost);
-	if (!of_node ||
-	    !of_device_is_compatible(of_node,
+	of_yesde = irq_domain_get_of_yesde(mpic->irqhost);
+	if (!of_yesde ||
+	    !of_device_is_compatible(of_yesde,
 				     "pasemi,pwrficient-openpic"))
 		return -ENODEV;
 
@@ -156,7 +156,7 @@ int mpic_pasemi_msi_init(struct mpic *mpic)
 	pr_debug("pasemi_msi: Registering PA Semi MPIC MSI callbacks\n");
 
 	msi_mpic = mpic;
-	list_for_each_entry(phb, &hose_list, list_node) {
+	list_for_each_entry(phb, &hose_list, list_yesde) {
 		WARN_ON(phb->controller_ops.setup_msi_irqs);
 		phb->controller_ops.setup_msi_irqs = pasemi_msi_setup_msi_irqs;
 		phb->controller_ops.teardown_msi_irqs = pasemi_msi_teardown_msi_irqs;

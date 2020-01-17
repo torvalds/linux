@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -251,7 +251,7 @@ static int write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len,
 
 	ret = _c4iw_write_mem_dma(rdev, addr, len, data, skb, wr_waitp);
 	if (ret) {
-		pr_warn_ratelimited("%s: dma map failure (non fatal)\n",
+		pr_warn_ratelimited("%s: dma map failure (yesn fatal)\n",
 				    pci_name(rdev->lldi.pdev));
 		ret = _c4iw_write_mem_inline(rdev, addr, len, data, skb,
 					      wr_waitp);
@@ -321,7 +321,7 @@ static int write_tpt_entry(struct c4iw_rdev *rdev, u32 reset_tpt_entry,
 			FW_RI_TPTE_ADDRTYPE_V((zbva ? FW_RI_ZERO_BASED_TO :
 						      FW_RI_VA_BASED_TO))|
 			FW_RI_TPTE_PS_V(page_size));
-		tpt->nosnoop_pbladdr = !pbl_size ? 0 : cpu_to_be32(
+		tpt->yessyesop_pbladdr = !pbl_size ? 0 : cpu_to_be32(
 			FW_RI_TPTE_PBLADDR_V(PBL_OFF(rdev, pbl_addr)>>3));
 		tpt->len_lo = cpu_to_be32((u32)(len & 0xffffffffUL));
 		tpt->va_hi = cpu_to_be32((u32)(to >> 32));

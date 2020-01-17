@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -130,7 +130,7 @@ void kgd_gfx_v9_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
 
 	WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_CONFIG), sh_mem_config);
 	WREG32_RLC(SOC15_REG_OFFSET(GC, 0, mmSH_MEM_BASES), sh_mem_bases);
-	/* APE1 no longer exists on GFX9 */
+	/* APE1 yes longer exists on GFX9 */
 
 	unlock_srbm(kgd);
 }
@@ -141,7 +141,7 @@ int kgd_gfx_v9_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 
 	/*
-	 * We have to assume that there is no outstanding mapping.
+	 * We have to assume that there is yes outstanding mapping.
 	 * The ATC_VMID_PASID_MAPPING_UPDATE_STATUS bit could be 0 because
 	 * a mapping is in progress or because a mapping finished
 	 * and the SW cleared it.
@@ -290,7 +290,7 @@ int kgd_gfx_v9_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 
 	if (wptr) {
 		/* Don't read wptr with get_user because the user
-		 * context may not be accessible (if this function
+		 * context may yest be accessible (if this function
 		 * runs in a work queue). Instead trigger a one-shot
 		 * polling read from memory in the CP. This assumes
 		 * that wptr is GPU-accessible in the queue's VMID via
@@ -396,7 +396,7 @@ static int kgd_hqd_sdma_load(struct kgd_dev *kgd, void *mqd,
 		if (data & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC yest idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -587,7 +587,7 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 		if (temp & SDMA0_RLC0_CONTEXT_STATUS__IDLE_MASK)
 			break;
 		if (time_after(jiffies, end_jiffies)) {
-			pr_err("SDMA RLC not idle in %s\n", __func__);
+			pr_err("SDMA RLC yest idle in %s\n", __func__);
 			return -ETIME;
 		}
 		usleep_range(500, 1000);
@@ -657,7 +657,7 @@ int kgd_gfx_v9_invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)
 
 	if (adev->in_gpu_reset)
 		return -EIO;
-	if (adev->gmc.xgmi.num_physical_nodes &&
+	if (adev->gmc.xgmi.num_physical_yesdes &&
 		adev->asic_type == CHIP_VEGA20)
 		flush_type = 2;
 
@@ -687,7 +687,7 @@ int kgd_gfx_v9_invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
 	int i;
 
 	if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid)) {
-		pr_err("non kfd vmid %d\n", vmid);
+		pr_err("yesn kfd vmid %d\n", vmid);
 		return 0;
 	}
 
@@ -700,7 +700,7 @@ int kgd_gfx_v9_invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid)
 	 * bit.
 	 *
 	 * TODO 1: agree on the right set of invalidation registers for
-	 * KFD use. Use the last one for now. Invalidate both GC and
+	 * KFD use. Use the last one for yesw. Invalidate both GC and
 	 * MMHUB.
 	 *
 	 * TODO 2: support range-based invalidation, requires kfg2kgd
@@ -770,7 +770,7 @@ void kgd_gfx_v9_set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmi
 	}
 
 	/* TODO: take advantage of per-process address space size. For
-	 * now, all processes share the same address space size, like
+	 * yesw, all processes share the same address space size, like
 	 * on GFX8 and older.
 	 */
 	if (adev->asic_type == CHIP_ARCTURUS) {

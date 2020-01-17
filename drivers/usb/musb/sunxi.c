@@ -5,7 +5,7 @@
  * Copyright (C) 2015 Hans de Goede <hdegoede@redhat.com>
  *
  * Based on code from
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * Allwinner Techyeslogy Co., Ltd. <www.allwinnertech.com>
  */
 
 #include <linux/clk.h>
@@ -26,7 +26,7 @@
 #include "musb_core.h"
 
 /*
- * Register offsets, note sunxi musb has a different layout then most
+ * Register offsets, yeste sunxi musb has a different layout then most
  * musb implementations, we translate the layout in musb_readb & friends.
  */
 #define SUNXI_MUSB_POWER			0x0040
@@ -67,7 +67,7 @@
 #define SUNXI_MUSB_FL_NO_CONFIGDATA		7
 #define SUNXI_MUSB_FL_PHY_MODE_PEND		8
 
-/* Our read/write methods need access and do not get passed in a musb ref :| */
+/* Our read/write methods need access and do yest get passed in a musb ref :| */
 static struct musb *sunxi_musb;
 
 struct sunxi_glue {
@@ -83,7 +83,7 @@ struct sunxi_glue {
 	unsigned long		flags;
 	struct work_struct	work;
 	struct extcon_dev	*extcon;
-	struct notifier_block	host_nb;
+	struct yestifier_block	host_nb;
 };
 
 /* phy_power_on / off may sleep, so we use a workqueue  */
@@ -196,7 +196,7 @@ static irqreturn_t sunxi_musb_interrupt(int irq, void *__hci)
 	return IRQ_HANDLED;
 }
 
-static int sunxi_musb_host_notifier(struct notifier_block *nb,
+static int sunxi_musb_host_yestifier(struct yestifier_block *nb,
 				    unsigned long event, void *ptr)
 {
 	struct sunxi_glue *glue = container_of(nb, struct sunxi_glue, host_nb);
@@ -239,8 +239,8 @@ static int sunxi_musb_init(struct musb *musb)
 
 	writeb(SUNXI_MUSB_VEND0_PIO_MODE, musb->mregs + SUNXI_MUSB_VEND0);
 
-	/* Register notifier before calling phy_init() */
-	ret = devm_extcon_register_notifier(glue->dev, glue->extcon,
+	/* Register yestifier before calling phy_init() */
+	ret = devm_extcon_register_yestifier(glue->dev, glue->extcon,
 					EXTCON_USB_HOST, &glue->host_nb);
 	if (ret)
 		goto error_reset_assert;
@@ -251,7 +251,7 @@ static int sunxi_musb_init(struct musb *musb)
 
 	musb->isr = sunxi_musb_interrupt;
 
-	/* Stop the musb-core from doing runtime pm (not supported on sunxi) */
+	/* Stop the musb-core from doing runtime pm (yest supported on sunxi) */
 	pm_runtime_get(musb->controller);
 
 	return 0;
@@ -297,7 +297,7 @@ static void sunxi_musb_enable(struct musb *musb)
 
 	glue->musb = musb;
 
-	/* musb_core does not call us in a balanced manner */
+	/* musb_core does yest call us in a balanced manner */
 	if (test_and_set_bit(SUNXI_MUSB_FL_ENABLED, &glue->flags))
 		return;
 
@@ -338,7 +338,7 @@ static int sunxi_musb_set_mode(struct musb *musb, u8 mode)
 		break;
 	default:
 		dev_err(musb->controller->parent,
-			"Error requested mode not supported by this kernel\n");
+			"Error requested mode yest supported by this kernel\n");
 		return -EINVAL;
 	}
 
@@ -397,9 +397,9 @@ static u32 sunxi_musb_fifo_offset(u8 epnum)
 static u32 sunxi_musb_ep_offset(u8 epnum, u16 offset)
 {
 	WARN_ONCE(offset != 0,
-		  "sunxi_musb_ep_offset called with non 0 offset\n");
+		  "sunxi_musb_ep_offset called with yesn 0 offset\n");
 
-	return 0x80; /* indexed, so ignore epnum */
+	return 0x80; /* indexed, so igyesre epnum */
 }
 
 static u32 sunxi_musb_busctl_offset(u8 epnum, u16 offset)
@@ -451,7 +451,7 @@ static u8 sunxi_musb_readb(const void __iomem *addr, unsigned offset)
 			return readb(addr + offset);
 		default:
 			dev_err(sunxi_musb->controller->parent,
-				"Error unknown readb offset %u\n", offset);
+				"Error unkyeswn readb offset %u\n", offset);
 			return 0;
 		}
 	} else if (addr == (sunxi_musb->mregs + 0x80)) {
@@ -463,7 +463,7 @@ static u8 sunxi_musb_readb(const void __iomem *addr, unsigned offset)
 	}
 
 	dev_err(sunxi_musb->controller->parent,
-		"Error unknown readb at 0x%x bytes offset\n",
+		"Error unkyeswn readb at 0x%x bytes offset\n",
 		(int)(addr - sunxi_musb->mregs));
 	return 0;
 }
@@ -486,7 +486,7 @@ static void sunxi_musb_writeb(void __iomem *addr, unsigned offset, u8 data)
 		case MUSB_TESTMODE:
 			if (data)
 				dev_warn(sunxi_musb->controller->parent,
-					"sunxi-musb does not have testmode\n");
+					"sunxi-musb does yest have testmode\n");
 			return;
 		case MUSB_DEVCTL:
 			return writeb(data, addr + SUNXI_MUSB_DEVCTL);
@@ -505,7 +505,7 @@ static void sunxi_musb_writeb(void __iomem *addr, unsigned offset, u8 data)
 			return writeb(data, addr + offset);
 		default:
 			dev_err(sunxi_musb->controller->parent,
-				"Error unknown writeb offset %u\n", offset);
+				"Error unkyeswn writeb offset %u\n", offset);
 			return;
 		}
 	} else if (addr == (sunxi_musb->mregs + 0x80)) {
@@ -516,7 +516,7 @@ static void sunxi_musb_writeb(void __iomem *addr, unsigned offset, u8 data)
 	}
 
 	dev_err(sunxi_musb->controller->parent,
-		"Error unknown writeb at 0x%x bytes offset\n",
+		"Error unkyeswn writeb at 0x%x bytes offset\n",
 		(int)(addr - sunxi_musb->mregs));
 }
 
@@ -540,10 +540,10 @@ static u16 sunxi_musb_readw(const void __iomem *addr, unsigned offset)
 		case MUSB_RXFIFOADD:
 			return readw(addr + SUNXI_MUSB_RXFIFOADD);
 		case MUSB_HWVERS:
-			return 0; /* sunxi musb version is not known */
+			return 0; /* sunxi musb version is yest kyeswn */
 		default:
 			dev_err(sunxi_musb->controller->parent,
-				"Error unknown readw offset %u\n", offset);
+				"Error unkyeswn readw offset %u\n", offset);
 			return 0;
 		}
 	} else if (addr == (sunxi_musb->mregs + 0x80)) {
@@ -552,7 +552,7 @@ static u16 sunxi_musb_readw(const void __iomem *addr, unsigned offset)
 	}
 
 	dev_err(sunxi_musb->controller->parent,
-		"Error unknown readw at 0x%x bytes offset\n",
+		"Error unkyeswn readw at 0x%x bytes offset\n",
 		(int)(addr - sunxi_musb->mregs));
 	return 0;
 }
@@ -578,7 +578,7 @@ static void sunxi_musb_writew(void __iomem *addr, unsigned offset, u16 data)
 			return writew(data, addr + SUNXI_MUSB_RXFIFOADD);
 		default:
 			dev_err(sunxi_musb->controller->parent,
-				"Error unknown writew offset %u\n", offset);
+				"Error unkyeswn writew offset %u\n", offset);
 			return;
 		}
 	} else if (addr == (sunxi_musb->mregs + 0x80)) {
@@ -587,7 +587,7 @@ static void sunxi_musb_writew(void __iomem *addr, unsigned offset, u16 data)
 	}
 
 	dev_err(sunxi_musb->controller->parent,
-		"Error unknown writew at 0x%x bytes offset\n",
+		"Error unkyeswn writew at 0x%x bytes offset\n",
 		(int)(addr - sunxi_musb->mregs));
 }
 
@@ -668,11 +668,11 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 	struct musb_hdrc_platform_data	pdata;
 	struct platform_device_info	pinfo;
 	struct sunxi_glue		*glue;
-	struct device_node		*np = pdev->dev.of_node;
+	struct device_yesde		*np = pdev->dev.of_yesde;
 	int ret;
 
 	if (!np) {
-		dev_err(&pdev->dev, "Error no device tree node found\n");
+		dev_err(&pdev->dev, "Error yes device tree yesde found\n");
 		return -EINVAL;
 	}
 
@@ -712,7 +712,7 @@ static int sunxi_musb_probe(struct platform_device *pdev)
 
 	glue->dev = &pdev->dev;
 	INIT_WORK(&glue->work, sunxi_musb_work);
-	glue->host_nb.notifier_call = sunxi_musb_host_notifier;
+	glue->host_nb.yestifier_call = sunxi_musb_host_yestifier;
 
 	if (of_device_is_compatible(np, "allwinner,sun4i-a10-musb"))
 		set_bit(SUNXI_MUSB_FL_HAS_SRAM, &glue->flags);

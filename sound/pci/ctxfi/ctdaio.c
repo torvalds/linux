@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /**
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techyeslogy Ltd. All Rights Reserved.
  *
  * @File	ctdaio.c
  *
@@ -53,7 +53,7 @@ static struct daio_rsc_idx idx_20k2[NUM_DAIOTYP] = {
 
 static int daio_master(struct rsc *rsc)
 {
-	/* Actually, this is not the resource index of DAIO.
+	/* Actually, this is yest the resource index of DAIO.
 	 * For DAO, it is the input mapper index. And, for DAI,
 	 * it is the output time-slot index. */
 	return rsc->conj = rsc->idx;

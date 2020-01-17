@@ -46,7 +46,7 @@ int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 			  char *label, int maxlen, int *indexp);
 
 enum {
-	INPUT_PIN_ATTR_UNUSED,	/* pin not connected */
+	INPUT_PIN_ATTR_UNUSED,	/* pin yest connected */
 	INPUT_PIN_ATTR_INT,	/* internal mic/line-in */
 	INPUT_PIN_ATTR_DOCK,	/* docking mic/line-in */
 	INPUT_PIN_ATTR_NORMAL,	/* mic/line-in jack */
@@ -71,25 +71,25 @@ struct auto_pin_cfg {
 	int dig_outs;
 	hda_nid_t dig_out_pins[2];
 	hda_nid_t dig_in_pin;
-	hda_nid_t mono_out_pin;
+	hda_nid_t moyes_out_pin;
 	int dig_out_type[2]; /* HDA_PCM_TYPE_XXX */
 	int dig_in_type; /* HDA_PCM_TYPE_XXX */
 };
 
 /* bit-flags for snd_hda_parse_pin_def_config() behavior */
-#define HDA_PINCFG_NO_HP_FIXUP   (1 << 0) /* no HP-split */
+#define HDA_PINCFG_NO_HP_FIXUP   (1 << 0) /* yes HP-split */
 #define HDA_PINCFG_NO_LO_FIXUP   (1 << 1) /* don't take other outs as LO */
 #define HDA_PINCFG_HEADSET_MIC   (1 << 2) /* Try to find headset mic; mark seq number as 0xc to trigger */
 #define HDA_PINCFG_HEADPHONE_MIC (1 << 3) /* Try to find headphone mic; mark seq number as 0xd to trigger */
 
 int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			     struct auto_pin_cfg *cfg,
-			     const hda_nid_t *ignore_nids,
+			     const hda_nid_t *igyesre_nids,
 			     unsigned int cond_flags);
 
 /* older function */
-#define snd_hda_parse_pin_def_config(codec, cfg, ignore) \
-	snd_hda_parse_pin_defcfg(codec, cfg, ignore, 0)
+#define snd_hda_parse_pin_def_config(codec, cfg, igyesre) \
+	snd_hda_parse_pin_defcfg(codec, cfg, igyesre, 0)
 
 static inline int auto_cfg_hp_outs(const struct auto_pin_cfg *cfg)
 {

@@ -108,7 +108,7 @@ static int skl_send_clk_dma_control(struct skl_dev *skl,
 				bool enable)
 {
 	struct nhlt_specific_cfg *sp_cfg;
-	u32 i2s_config_size, node_id = 0;
+	u32 i2s_config_size, yesde_id = 0;
 	struct nhlt_fmt_cfg *fmt_cfg;
 	union skl_clk_ctrl_ipc *ipc;
 	void *i2s_config = NULL;
@@ -152,9 +152,9 @@ static int skl_send_clk_dma_control(struct skl_dev *skl,
 	/* copy additional dma controls information */
 	memcpy(i2s_config + sp_cfg->size, data, size);
 
-	node_id = ((SKL_DMA_I2S_LINK_INPUT_CLASS << 8) | (vbus_id << 4));
+	yesde_id = ((SKL_DMA_I2S_LINK_INPUT_CLASS << 8) | (vbus_id << 4));
 	ret = skl_dsp_set_dma_control(skl, (u32 *)i2s_config,
-					i2s_config_size, node_id);
+					i2s_config_size, yesde_id);
 	kfree(i2s_config);
 
 	return ret;
@@ -256,7 +256,7 @@ static long skl_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 
 /*
  * prepare/unprepare are used instead of enable/disable as IPC will be sent
- * in non-atomic context.
+ * in yesn-atomic context.
  */
 static const struct clk_ops skl_clk_ops = {
 	.prepare = skl_clk_prepare,

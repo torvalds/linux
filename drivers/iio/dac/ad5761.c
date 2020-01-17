@@ -2,7 +2,7 @@
 /*
  * AD5721, AD5721R, AD5761, AD5761R, Voltage Output Digital to Analog Converter
  *
- * Copyright 2016 Qtechnology A/S
+ * Copyright 2016 Qtechyeslogy A/S
  * 2016 Ricardo Ribalda <ricardo.ribalda@gmail.com>
  */
 #include <linux/kernel.h>
@@ -295,7 +295,7 @@ static int ad5761_get_vref(struct ad5761_state *st,
 		/* Use Internal regulator */
 		if (!chip_info->int_vref) {
 			dev_err(&st->spi->dev,
-				"Voltage reference not found\n");
+				"Voltage reference yest found\n");
 			return -EIO;
 		}
 

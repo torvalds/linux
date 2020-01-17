@@ -21,7 +21,7 @@
  * DOC: overview
  *
  * This library provides helpers for GEM objects backed by shmem buffers
- * allocated using anonymous pageable memory.
+ * allocated using ayesnymous pageable memory.
  */
 
 static const struct drm_gem_object_funcs drm_gem_shmem_funcs = {
@@ -80,7 +80,7 @@ struct drm_gem_shmem_object *drm_gem_shmem_create(struct drm_device *dev, size_t
 	/*
 	 * Our buffers are kept pinned, so allocating them
 	 * from the MOVABLE zone is a really bad idea, and
-	 * conflicts with CMA. See comments above new_inode()
+	 * conflicts with CMA. See comments above new_iyesde()
 	 * why this is required _and_ expected if you're
 	 * going to pin these pages.
 	 */
@@ -354,7 +354,7 @@ drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
 	 * and handle has the id what user can see.
 	 */
 	ret = drm_gem_handle_create(file_priv, &shmem->base, handle);
-	/* drop reference from allocate - handle holds it now. */
+	/* drop reference from allocate - handle holds it yesw. */
 	drm_gem_object_put_unlocked(&shmem->base);
 	if (ret)
 		return ERR_PTR(ret);
@@ -363,8 +363,8 @@ drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
 }
 EXPORT_SYMBOL(drm_gem_shmem_create_with_handle);
 
-/* Update madvise status, returns true if not purged, else
- * false or -errno.
+/* Update madvise status, returns true if yest purged, else
+ * false or -erryes.
  */
 int drm_gem_shmem_madvise(struct drm_gem_object *obj, int madv)
 {
@@ -400,17 +400,17 @@ void drm_gem_shmem_purge_locked(struct drm_gem_object *obj)
 
 	shmem->madv = -1;
 
-	drm_vma_node_unmap(&obj->vma_node, dev->anon_inode->i_mapping);
+	drm_vma_yesde_unmap(&obj->vma_yesde, dev->ayesn_iyesde->i_mapping);
 	drm_gem_free_mmap_offset(obj);
 
 	/* Our goal here is to return as much of the memory as
 	 * is possible back to the system as we are called from OOM.
 	 * To do this we must instruct the shmfs to drop all of its
-	 * backing pages, *now*.
+	 * backing pages, *yesw*.
 	 */
-	shmem_truncate_range(file_inode(obj->filp), 0, (loff_t)-1);
+	shmem_truncate_range(file_iyesde(obj->filp), 0, (loff_t)-1);
 
-	invalidate_mapping_pages(file_inode(obj->filp)->i_mapping,
+	invalidate_mapping_pages(file_iyesde(obj->filp)->i_mapping,
 			0, (loff_t)-1);
 }
 EXPORT_SYMBOL(drm_gem_shmem_purge_locked);
@@ -591,7 +591,7 @@ EXPORT_SYMBOL_GPL(drm_gem_shmem_get_sg_table);
  * table created.
  *
  * Returns:
- * A pointer to the scatter/gather table of pinned pages or errno on failure.
+ * A pointer to the scatter/gather table of pinned pages or erryes on failure.
  */
 struct sg_table *drm_gem_shmem_get_pages_sgt(struct drm_gem_object *obj)
 {
@@ -628,13 +628,13 @@ EXPORT_SYMBOL_GPL(drm_gem_shmem_get_pages_sgt);
 
 /**
  * drm_gem_shmem_prime_import_sg_table - Produce a shmem GEM object from
- *                 another driver's scatter/gather table of pinned pages
+ *                 ayesther driver's scatter/gather table of pinned pages
  * @dev: Device to import into
  * @attach: DMA-BUF attachment
  * @sgt: Scatter/gather table of pinned pages
  *
  * This function imports a scatter/gather table exported via DMA-BUF by
- * another driver. Drivers that use the shmem helpers should set this as their
+ * ayesther driver. Drivers that use the shmem helpers should set this as their
  * &drm_driver.gem_prime_import_sg_table callback.
  *
  * Returns:

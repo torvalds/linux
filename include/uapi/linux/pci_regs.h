@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *	PCI standard defines
  *	Copyright 1994, Drew Eckhardt
@@ -43,7 +43,7 @@
 #define  PCI_COMMAND_MASTER	0x4	/* Enable bus mastering */
 #define  PCI_COMMAND_SPECIAL	0x8	/* Enable response to special cycles */
 #define  PCI_COMMAND_INVALIDATE	0x10	/* Use memory write and invalidate */
-#define  PCI_COMMAND_VGA_PALETTE 0x20	/* Enable palette snooping */
+#define  PCI_COMMAND_VGA_PALETTE 0x20	/* Enable palette syesoping */
 #define  PCI_COMMAND_PARITY	0x40	/* Enable parity checking */
 #define  PCI_COMMAND_WAIT	0x80	/* Enable address/data stepping */
 #define  PCI_COMMAND_SERR	0x100	/* Enable SERR */
@@ -109,7 +109,7 @@
 #define  PCI_BASE_ADDRESS_IO_MASK	(~0x03UL)
 /* bit 1 is reserved if address_space = 1 */
 
-/* Header type 0 (normal devices) */
+/* Header type 0 (yesrmal devices) */
 #define PCI_CARDBUS_CIS		0x28
 #define PCI_SUBSYSTEM_VENDOR_ID	0x2c
 #define PCI_SUBSYSTEM_ID	0x2e
@@ -409,7 +409,7 @@
 #define  PCI_EA_IS_64		0x00000002	/* 64-bit field flag */
 #define  PCI_EA_FIELD_MASK	0xfffffffc	/* For Base & Max Offset */
 
-/* PCI-X registers (Type 0 (non-bridge) devices) */
+/* PCI-X registers (Type 0 (yesn-bridge) devices) */
 
 #define PCI_X_CMD		2	/* Modes & Features */
 #define  PCI_X_CMD_DPERR_E	0x0001	/* Data Parity Error Recovery Enable */
@@ -456,7 +456,7 @@
 #define  PCI_X_SSTATUS_133MHZ	0x0002	/* 133 MHz capable */
 #define  PCI_X_SSTATUS_FREQ	0x03c0	/* Secondary Bus Mode and Frequency */
 #define  PCI_X_SSTATUS_VERS	0x3000	/* PCI-X Capability Version */
-#define  PCI_X_SSTATUS_V1	0x1000	/* Mode 2, not Mode 1 */
+#define  PCI_X_SSTATUS_V1	0x1000	/* Mode 2, yest Mode 1 */
 #define  PCI_X_SSTATUS_V2	0x2000	/* Mode 1 or Modes 1 and 2 */
 #define  PCI_X_SSTATUS_266MHZ	0x4000	/* 266 MHz capable */
 #define  PCI_X_SSTATUS_533MHZ	0x8000	/* 533 MHz capable */
@@ -506,7 +506,7 @@
 #define  PCI_EXP_DEVCTL_EXT_TAG	0x0100	/* Extended Tag Field Enable */
 #define  PCI_EXP_DEVCTL_PHANTOM	0x0200	/* Phantom Functions Enable */
 #define  PCI_EXP_DEVCTL_AUX_PME	0x0400	/* Auxiliary Power PM Enable */
-#define  PCI_EXP_DEVCTL_NOSNOOP_EN 0x0800  /* Enable No Snoop */
+#define  PCI_EXP_DEVCTL_NOSNOOP_EN 0x0800  /* Enable No Syesop */
 #define  PCI_EXP_DEVCTL_READRQ	0x7000	/* Max_Read_Request_Size */
 #define  PCI_EXP_DEVCTL_READRQ_128B  0x0000 /* 128 Bytes */
 #define  PCI_EXP_DEVCTL_READRQ_256B  0x1000 /* 256 Bytes */
@@ -549,9 +549,9 @@
 #define  PCI_EXP_LNKCTL_CCC	0x0040	/* Common Clock Configuration */
 #define  PCI_EXP_LNKCTL_ES	0x0080	/* Extended Synch */
 #define  PCI_EXP_LNKCTL_CLKREQ_EN 0x0100 /* Enable clkreq */
-#define  PCI_EXP_LNKCTL_HAWD	0x0200	/* Hardware Autonomous Width Disable */
+#define  PCI_EXP_LNKCTL_HAWD	0x0200	/* Hardware Autoyesmous Width Disable */
 #define  PCI_EXP_LNKCTL_LBMIE	0x0400	/* Link Bandwidth Management Interrupt Enable */
-#define  PCI_EXP_LNKCTL_LABIE	0x0800	/* Link Autonomous Bandwidth Interrupt Enable */
+#define  PCI_EXP_LNKCTL_LABIE	0x0800	/* Link Autoyesmous Bandwidth Interrupt Enable */
 #define PCI_EXP_LNKSTA		18	/* Link Status */
 #define  PCI_EXP_LNKSTA_CLS	0x000f	/* Current Link Speed */
 #define  PCI_EXP_LNKSTA_CLS_2_5GB 0x0001 /* Current Link Speed 2.5GT/s */
@@ -569,7 +569,7 @@
 #define  PCI_EXP_LNKSTA_SLC	0x1000	/* Slot Clock Configuration */
 #define  PCI_EXP_LNKSTA_DLLLA	0x2000	/* Data Link Layer Link Active */
 #define  PCI_EXP_LNKSTA_LBMS	0x4000	/* Link Bandwidth Management Status */
-#define  PCI_EXP_LNKSTA_LABS	0x8000	/* Link Autonomous Bandwidth Status */
+#define  PCI_EXP_LNKSTA_LABS	0x8000	/* Link Autoyesmous Bandwidth Status */
 #define PCI_CAP_EXP_ENDPOINT_SIZEOF_V1	20	/* v1 endpoints with link end here */
 #define PCI_EXP_SLTCAP		20	/* Slot Capabilities */
 #define  PCI_EXP_SLTCAP_ABP	0x00000001 /* Attention Button Present */
@@ -990,12 +990,12 @@
 /* TPH Requester */
 #define PCI_TPH_CAP		4	/* capability register */
 #define  PCI_TPH_CAP_LOC_MASK	0x600	/* location mask */
-#define   PCI_TPH_LOC_NONE	0x000	/* no location */
+#define   PCI_TPH_LOC_NONE	0x000	/* yes location */
 #define   PCI_TPH_LOC_CAP	0x200	/* in capability */
 #define   PCI_TPH_LOC_MSIX	0x400	/* in MSI-X */
 #define PCI_TPH_CAP_ST_MASK	0x07FF0000	/* st table mask */
 #define PCI_TPH_CAP_ST_SHIFT	16	/* st table shift */
-#define PCI_TPH_BASE_SIZEOF	12	/* size with no st table */
+#define PCI_TPH_BASE_SIZEOF	12	/* size with yes st table */
 
 /* Downstream Port Containment */
 #define PCI_EXP_DPC_CAP			4	/* DPC Capability */

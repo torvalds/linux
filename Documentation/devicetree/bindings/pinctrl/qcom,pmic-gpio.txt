@@ -44,25 +44,25 @@ PMIC's from Qualcomm.
 
 - gpio-controller:
 	Usage: required
-	Value type: <none>
-	Definition: Mark the device node as a GPIO controller
+	Value type: <yesne>
+	Definition: Mark the device yesde as a GPIO controller
 
 - #gpio-cells:
 	Usage: required
 	Value type: <u32>
 	Definition: Must be 2;
 		    the first cell will be used to define gpio number and the
-		    second denotes the flags for this gpio
+		    second deyestes the flags for this gpio
 
 Please refer to ../gpio/gpio.txt and ../interrupt-controller/interrupts.txt for
 a general description of GPIO and interrupt bindings.
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration yesde".
 
-The pin configuration nodes act as a container for an arbitrary number of
-subnodes. Each of these subnodes represents some desired configuration for a
+The pin configuration yesdes act as a container for an arbitrary number of
+subyesdes. Each of these subyesdes represents some desired configuration for a
 pin or a list of pins. This configuration can include the
 mux function to select on those pin(s), and various pin configuration
 parameters, as listed below.
@@ -70,23 +70,23 @@ parameters, as listed below.
 
 SUBNODES:
 
-The name of each subnode is not important; all subnodes should be enumerated
+The name of each subyesde is yest important; all subyesdes should be enumerated
 and processed purely based on their content.
 
-Each subnode only affects those parameters that are explicitly listed. In
-other words, a subnode that lists a mux function but no pin configuration
-parameters implies no information about any pin configuration parameters.
-Similarly, a pin subnode that describes a pullup parameter implies no
+Each subyesde only affects those parameters that are explicitly listed. In
+other words, a subyesde that lists a mux function but yes pin configuration
+parameters implies yes information about any pin configuration parameters.
+Similarly, a pin subyesde that describes a pullup parameter implies yes
 information about e.g. the mux function.
 
 The following generic properties as defined in pinctrl-bindings.txt are valid
-to specify in a pin configuration subnode:
+to specify in a pin configuration subyesde:
 
 - pins:
 	Usage: required
 	Value type: <string-array>
 	Definition: List of gpio pins affected by the properties specified in
-		    this subnode.  Valid pins are:
+		    this subyesde.  Valid pins are:
 		    gpio1-gpio4 for pm8005
 		    gpio1-gpio6 for pm8018
 		    gpio1-gpio12 for pm8038
@@ -114,7 +114,7 @@ to specify in a pin configuration subnode:
 	Value type: <string>
 	Definition: Specify the alternative function to be configured for the
 		    specified pins.  Valid values are:
-		    "normal",
+		    "yesrmal",
 		    "paired",
 		    "func1",
 		    "func2",
@@ -128,12 +128,12 @@ to specify in a pin configuration subnode:
 
 - bias-disable:
 	Usage: optional
-	Value type: <none>
-	Definition: The specified pins should be configured as no pull.
+	Value type: <yesne>
+	Definition: The specified pins should be configured as yes pull.
 
 - bias-pull-down:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins should be configured as pull down.
 
 - bias-pull-up:
@@ -156,23 +156,23 @@ to specify in a pin configuration subnode:
 
 - bias-high-impedance:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins will put in high-Z mode and disabled.
 
 - input-enable:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins are put in input mode.
 
 - output-high:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins are configured in output mode, driven
 		    high.
 
 - output-low:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins are configured in output mode, driven
 		    low.
 
@@ -188,7 +188,7 @@ to specify in a pin configuration subnode:
 	Value type: <u32>
 	Definition: Selects the drive strength for the specified pins. Value
 		    drive strengths are:
-		    0: no (PMIC_GPIO_STRENGTH_NO)
+		    0: yes (PMIC_GPIO_STRENGTH_NO)
 		    1: high (PMIC_GPIO_STRENGTH_HIGH) 0.9mA @ 1.8V - 1.9mA @ 2.6V
 		    2: medium (PMIC_GPIO_STRENGTH_MED) 0.6mA @ 1.8V - 1.25mA @ 2.6V
 		    3: low (PMIC_GPIO_STRENGTH_LOW) 0.15mA @ 1.8V - 0.3mA @ 2.6V
@@ -196,22 +196,22 @@ to specify in a pin configuration subnode:
 
 - drive-push-pull:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins are configured in push-pull mode.
 
 - drive-open-drain:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins are configured in open-drain mode.
 
 - drive-open-source:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins are configured in open-source mode.
 
 - qcom,analog-pass:
 	Usage: optional
-	Value type: <none>
+	Value type: <yesne>
 	Definition: The specified pins are configured in analog-pass-through mode.
 
 - qcom,atest:
@@ -255,7 +255,7 @@ Example:
 		pm8921_gpio_keys: gpio-keys {
 			volume-keys {
 				pins = "gpio20", "gpio21";
-				function = "normal";
+				function = "yesrmal";
 
 				input-enable;
 				bias-pull-up;

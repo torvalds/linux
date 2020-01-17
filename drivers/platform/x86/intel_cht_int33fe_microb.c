@@ -6,7 +6,7 @@
  * Copyright (C) 2019 Yauhen Kharuzhy <jekhor@gmail.com>
  *
  * At least one Intel Cherry Trail based device which ship with Windows 10
- * (Lenovo YogaBook YB1-X91L/F tablet), have this weird INT33FE ACPI device
+ * (Leyesvo YogaBook YB1-X91L/F tablet), have this weird INT33FE ACPI device
  * with a CRS table with 2 I2cSerialBusV2 resources, for 2 different chips
  * attached to various i2c busses:
  * 1. The Whiskey Cove PMIC, which is also described by the INT34D3 ACPI device

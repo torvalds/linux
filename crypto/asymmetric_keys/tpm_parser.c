@@ -18,7 +18,7 @@ struct tpm_parse_context {
 /*
  * Note the key data of the ASN.1 blob.
  */
-int tpm_note_key(void *context, size_t hdrlen,
+int tpm_yeste_key(void *context, size_t hdrlen,
 		   unsigned char tag,
 		   const void *value, size_t vlen)
 {
@@ -58,7 +58,7 @@ static int tpm_key_preparse(struct key_preparsed_payload *prep)
 	struct tpm_key *tk;
 
 	/*
-	 * TPM 1.2 keys are max 2048 bits long, so assume the blob is no
+	 * TPM 1.2 keys are max 2048 bits long, so assume the blob is yes
 	 * more than 4x that
 	 */
 	if (prep->datalen > 256 * 4)

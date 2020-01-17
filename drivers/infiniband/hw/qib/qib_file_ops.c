@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -54,8 +54,8 @@
 #undef pr_fmt
 #define pr_fmt(fmt) QIB_DRV_NAME ": " fmt
 
-static int qib_open(struct inode *, struct file *);
-static int qib_close(struct inode *, struct file *);
+static int qib_open(struct iyesde *, struct file *);
+static int qib_close(struct iyesde *, struct file *);
 static ssize_t qib_write(struct file *, const char __user *, size_t, loff_t *);
 static ssize_t qib_write_iter(struct kiocb *, struct iov_iter *);
 static __poll_t qib_poll(struct file *, struct poll_table_struct *);
@@ -74,7 +74,7 @@ static const struct file_operations qib_file_ops = {
 	.release = qib_close,
 	.poll = qib_poll,
 	.mmap = qib_mmapf,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 /*
@@ -118,7 +118,7 @@ static int qib_get_base_info(struct file *fp, void __user *ubase,
 	}
 
 	sz = sizeof(*kinfo);
-	/* If context sharing is not requested, allow the old size structure */
+	/* If context sharing is yest requested, allow the old size structure */
 	if (!shared)
 		sz -= 7 * sizeof(u64);
 	if (ubase_size < sz) {
@@ -159,7 +159,7 @@ static int qib_get_base_info(struct file *fp, void __user *ubase,
 	/* unit (chip/board) our context is on */
 	kinfo->spi_unit = dd->unit;
 	kinfo->spi_port = ppd->port;
-	/* for now, only a single page */
+	/* for yesw, only a single page */
 	kinfo->spi_tid_maxsize = PAGE_SIZE;
 
 	/*
@@ -170,14 +170,14 @@ static int qib_get_base_info(struct file *fp, void __user *ubase,
 	 * These have to be set to user addresses in the user code via mmap.
 	 * These values are used on return to user code for the mmap target
 	 * addresses only.  For 32 bit, same 44 bit address problem, so use
-	 * the physical address, not virtual.  Before 2.6.11, using the
+	 * the physical address, yest virtual.  Before 2.6.11, using the
 	 * page_address() macro worked, but in 2.6.11, even that returns the
 	 * full 64 bit address (upper bits all 1's).  So far, using the
 	 * physical addresses (or chip offsets, for chip mapping) works, but
-	 * no doubt some future kernel release will change that, and we'll be
-	 * on to yet another method of dealing with this.
+	 * yes doubt some future kernel release will change that, and we'll be
+	 * on to yet ayesther method of dealing with this.
 	 * Normally only one of rcvhdr_tailaddr or rhf_offset is useful
-	 * since the chips with non-zero rhf_offset don't normally
+	 * since the chips with yesn-zero rhf_offset don't yesrmally
 	 * enable tail register updates to host memory, but for testing,
 	 * both can be enabled and used.
 	 */
@@ -186,7 +186,7 @@ static int qib_get_base_info(struct file *fp, void __user *ubase,
 	kinfo->spi_rhf_offset = dd->rhf_offset;
 	kinfo->spi_rcv_egrbufs = (u64) rcd->rcvegr_phys;
 	kinfo->spi_pioavailaddr = (u64) dd->pioavailregs_phys;
-	/* setup per-unit (not port) status area for user programs */
+	/* setup per-unit (yest port) status area for user programs */
 	kinfo->spi_status = (u64) kinfo->spi_pioavailaddr +
 		(char *) ppd->statusp -
 		(char *) dd->pioavailregs_dma;
@@ -238,11 +238,11 @@ static int qib_get_base_info(struct file *fp, void __user *ubase,
 	 * for 2K MTU.
 	 */
 	kinfo->spi_piosize = dd->piosize2k - 2 * sizeof(u32);
-	kinfo->spi_mtu = ppd->ibmaxlen; /* maxlen, not ibmtu */
+	kinfo->spi_mtu = ppd->ibmaxlen; /* maxlen, yest ibmtu */
 	kinfo->spi_ctxt = rcd->ctxt;
 	kinfo->spi_subctxt = subctxt_fp(fp);
 	kinfo->spi_sw_version = QIB_KERN_SWVERSION;
-	kinfo->spi_sw_version |= 1U << 31; /* QLogic-built, not kernel.org */
+	kinfo->spi_sw_version |= 1U << 31; /* QLogic-built, yest kernel.org */
 	kinfo->spi_hw_version = dd->revision;
 
 	if (master)
@@ -265,18 +265,18 @@ bail:
  * The new implementation as of Oct 2004 is that the driver assigns
  * the tid and returns it to the caller.   To reduce search time, we
  * keep a cursor for each context, walking the shadow tid array to find
- * one that's not in use.
+ * one that's yest in use.
  *
- * For now, if we can't allocate the full list, we fail, although
+ * For yesw, if we can't allocate the full list, we fail, although
  * in the long run, we'll allocate as many as we can, and the
  * caller will deal with that by trying the remaining pages later.
- * That means that when we fail, we have to mark the tids as not in
+ * That means that when we fail, we have to mark the tids as yest in
  * use again, in our shadow copy.
  *
  * It's up to the caller to free the tids when they are done.
  * We'll unlock the pages as they free them.
  *
- * Also, right now we are locking one page at a time, but since
+ * Also, right yesw we are locking one page at a time, but since
  * the intended use of this routine is for a single group of
  * virtually contiguous pages, that should change to improve
  * performance.
@@ -359,7 +359,7 @@ static int qib_tid_update(struct qib_ctxtdata *rcd, struct file *fp,
 		 */
 		qib_devinfo(
 			dd->pcidev,
-			"Failed to lock addr %p, %u pages: errno %d\n",
+			"Failed to lock addr %p, %u pages: erryes %d\n",
 			(void *) vaddr, cnt, -ret);
 		goto done;
 	}
@@ -375,10 +375,10 @@ static int qib_tid_update(struct qib_ctxtdata *rcd, struct file *fp,
 		if (ntids < 0) {
 			/*
 			 * Oops, wrapped all the way through their TIDs,
-			 * and didn't have enough free; see comments at
+			 * and didn't have eyesugh free; see comments at
 			 * start of routine
 			 */
-			i--;    /* last tidlist[i] not filled in */
+			i--;    /* last tidlist[i] yest filled in */
 			ret = -ENOMEM;
 			break;
 		}
@@ -387,7 +387,7 @@ static int qib_tid_update(struct qib_ctxtdata *rcd, struct file *fp,
 			break;
 
 		tidlist[i] = tid + tidoff;
-		/* we "know" system pages and TID pages are same size */
+		/* we "kyesw" system pages and TID pages are same size */
 		dd->pageshadow[ctxttid + tid] = pagep[i];
 		dd->physshadow[ctxttid + tid] = daddr;
 		/*
@@ -470,14 +470,14 @@ done:
  * @subctxt: the subcontext
  * @ti: the TID info
  *
- * right now we are unlocking one page at a time, but since
+ * right yesw we are unlocking one page at a time, but since
  * the intended use of this routine is for a single group of
  * virtually contiguous pages, that should change to improve
  * performance.  We check that the TID is in range for this context
  * but otherwise don't check validity; if user has an error and
  * frees the wrong tid, it's only their own data that can thereby
  * be corrupted.  We do check that the TID was in use, for sanity
- * We always use our idea of the saved address, not the address that
+ * We always use our idea of the saved address, yest the address that
  * they pass in to us.
  */
 static int qib_tid_free(struct qib_ctxtdata *rcd, unsigned subctxt,
@@ -562,9 +562,9 @@ done:
  * always allowed).  This is somewhat tricky, since multiple contexts may set
  * the same key, so we reference count them, and clean up at exit.  All 4
  * partition keys are packed into a single qlogic_ib register.  It's an
- * error for a process to set the same pkey multiple times.  We provide no
+ * error for a process to set the same pkey multiple times.  We provide yes
  * mechanism to de-allocate a pkey at this time, we may eventually need to
- * do that.  I've used the atomic operations, and no locking, and only make
+ * do that.  I've used the atomic operations, and yes locking, and only make
  * a single pass through what's available.  This should be more than
  * adequate for some time. I'll think about spinlocks or the like if and as
  * it's necessary.
@@ -577,7 +577,7 @@ static int qib_set_part_key(struct qib_ctxtdata *rcd, u16 key)
 	u16 lkey = key & 0x7FFF;
 
 	if (lkey == (QIB_DEFAULT_P_KEY & 0x7FFF))
-		/* nothing to do; this key always valid */
+		/* yesthing to do; this key always valid */
 		return 0;
 
 	if (!lkey)
@@ -619,7 +619,7 @@ static int qib_set_part_key(struct qib_ctxtdata *rcd, u16 key)
 		}
 		if ((ppd->pkeys[i] & 0x7FFF) == lkey)
 			/*
-			 * It makes no sense to have both the limited and
+			 * It makes yes sense to have both the limited and
 			 * full membership PKEY set at the same time since
 			 * the unlimited one will disable the limited one.
 			 */
@@ -662,8 +662,8 @@ static int qib_manage_rcvq(struct qib_ctxtdata *rcd, unsigned subctxt,
 		/*
 		 * On enable, force in-memory copy of the tail register to
 		 * 0, so that protocol code doesn't have to worry about
-		 * whether or not the chip has yet updated the in-memory
-		 * copy or not on return from the system call. The chip
+		 * whether or yest the chip has yet updated the in-memory
+		 * copy or yest on return from the system call. The chip
 		 * always resets it's tail register back to 0 on a
 		 * transition from disabled to enabled.
 		 */
@@ -767,7 +767,7 @@ static int mmap_ureg(struct vm_area_struct *vma, struct qib_devdata *dd,
 		ret = -EFAULT;
 	} else {
 		phys = dd->physaddr + ureg;
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 		vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
 		ret = io_remap_pfn_range(vma, vma->vm_start,
@@ -788,7 +788,7 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 
 	/*
 	 * When we map the PIO buffers in the chip, we want to map them as
-	 * writeonly, no read possible; unfortunately, x86 doesn't allow
+	 * writeonly, yes read possible; unfortunately, x86 doesn't allow
 	 * for this in hardware, but we still prevent users from asking
 	 * for it.
 	 */
@@ -803,12 +803,12 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 	phys = dd->physaddr + piobufs;
 
 #if defined(__powerpc__)
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 #endif
 
 	/*
 	 * don't allow them to later change to readable with mprotect (for when
-	 * not initially mapped readable, as is normally the case)
+	 * yest initially mapped readable, as is yesrmally the case)
 	 */
 	vma->vm_flags &= ~VM_MAYREAD;
 	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
@@ -993,7 +993,7 @@ static int qib_mmapf(struct file *fp, struct vm_area_struct *vma)
 	 * referred to by vm_pgoff is the file offset passed via mmap().
 	 * For shared contexts, this is the kernel vmalloc() address of the
 	 * pages to share with the master.
-	 * For non-shared or master ctxts, this is a physical address.
+	 * For yesn-shared or master ctxts, this is a physical address.
 	 * We only do one mmap for each space mapped.
 	 */
 	pgaddr = vma->vm_pgoff << PAGE_SHIFT;
@@ -1021,7 +1021,7 @@ static int qib_mmapf(struct file *fp, struct vm_area_struct *vma)
 
 	ureg = dd->uregbase + dd->ureg_align * rcd->ctxt;
 	if (!rcd->subctxt_cnt) {
-		/* ctxt is not shared */
+		/* ctxt is yest shared */
 		piocnt = rcd->piocnt;
 		piobufs = rcd->piobufs;
 	} else if (!subctxt_fp(fp)) {
@@ -1148,7 +1148,7 @@ static void assign_ctxt_affinity(struct file *fp, struct qib_devdata *dd)
 
 	/*
 	 * If process has NOT already set it's affinity, select and
-	 * reserve a processor for it on the local NUMA node.
+	 * reserve a processor for it on the local NUMA yesde.
 	 */
 	if ((weight >= qib_cpulist_count) &&
 		(cpumask_weight(local_mask) <= qib_cpulist_count)) {
@@ -1174,7 +1174,7 @@ static void assign_ctxt_affinity(struct file *fp, struct qib_devdata *dd)
 					  qib_cpulist_count);
 		if (cpu == qib_cpulist_count)
 			qib_dev_err(dd,
-			"no cpus avail for affinity PID %u\n",
+			"yes cpus avail for affinity PID %u\n",
 			current->pid);
 		else {
 			__set_bit(cpu, qib_cpulist);
@@ -1186,11 +1186,11 @@ static void assign_ctxt_affinity(struct file *fp, struct qib_devdata *dd)
 /*
  * Check that userland and driver are compatible for subcontexts.
  */
-static int qib_compatible_subctxts(int user_swmajor, int user_swminor)
+static int qib_compatible_subctxts(int user_swmajor, int user_swmiyesr)
 {
 	/* this code is written long-hand for clarity */
 	if (QIB_USER_SWMAJOR != user_swmajor) {
-		/* no promise of compatibility if major mismatch */
+		/* yes promise of compatibility if major mismatch */
 		return 0;
 	}
 	if (QIB_USER_SWMAJOR == 1) {
@@ -1198,17 +1198,17 @@ static int qib_compatible_subctxts(int user_swmajor, int user_swminor)
 		case 0:
 		case 1:
 		case 2:
-			/* no subctxt implementation so cannot be compatible */
+			/* yes subctxt implementation so canyest be compatible */
 			return 0;
 		case 3:
 			/* 3 is only compatible with itself */
-			return user_swminor == 3;
+			return user_swmiyesr == 3;
 		default:
 			/* >= 4 are compatible (or are expected to be) */
-			return user_swminor <= QIB_USER_SWMINOR;
+			return user_swmiyesr <= QIB_USER_SWMINOR;
 		}
 	}
-	/* make no promises yet for future major versions */
+	/* make yes promises yet for future major versions */
 	return 0;
 }
 
@@ -1294,8 +1294,8 @@ static int setup_ctxt(struct qib_pportdata *ppd, int ctxt,
 	assign_ctxt_affinity(fp, dd);
 
 	numa_id = qib_numa_aware ? ((fd->rec_cpu_num != -1) ?
-		cpu_to_node(fd->rec_cpu_num) :
-		numa_node_id()) : dd->assigned_node_id;
+		cpu_to_yesde(fd->rec_cpu_num) :
+		numa_yesde_id()) : dd->assigned_yesde_id;
 
 	rcd = qib_create_ctxtdata(ppd, ctxt, numa_id);
 
@@ -1489,7 +1489,7 @@ static int find_shared_ctxt(struct file *fp,
 		for (i = dd->first_user_ctxt; i < dd->cfgctxts; i++) {
 			struct qib_ctxtdata *rcd = dd->rcd[i];
 
-			/* Skip ctxts which are not yet open */
+			/* Skip ctxts which are yest yet open */
 			if (!rcd || !rcd->cnt)
 				continue;
 			/* Skip ctxt if it doesn't match the requested one */
@@ -1516,11 +1516,11 @@ done:
 	return ret;
 }
 
-static int qib_open(struct inode *in, struct file *fp)
+static int qib_open(struct iyesde *in, struct file *fp)
 {
 	/* The real work is performed later in qib_assign_ctxt() */
 	fp->private_data = kzalloc(sizeof(struct qib_filedata), GFP_KERNEL);
-	if (fp->private_data) /* no cpu affinity by default */
+	if (fp->private_data) /* yes cpu affinity by default */
 		((struct qib_filedata *)fp->private_data)->rec_cpu_num = -1;
 	return fp->private_data ? 0 : -ENOMEM;
 }
@@ -1544,12 +1544,12 @@ static int find_hca(unsigned int cpu, int *unit)
 		struct qib_devdata *dd = qib_lookup(ndev);
 
 		if (dd) {
-			if (pcibus_to_node(dd->pcidev->bus) < 0) {
+			if (pcibus_to_yesde(dd->pcidev->bus) < 0) {
 				ret = -EINVAL;
 				goto done;
 			}
-			if (cpu_to_node(cpu) ==
-				pcibus_to_node(dd->pcidev->bus)) {
+			if (cpu_to_yesde(cpu) ==
+				pcibus_to_yesde(dd->pcidev->bus)) {
 				*unit = ndev;
 				goto done;
 			}
@@ -1584,8 +1584,8 @@ static int do_qib_user_sdma_queue_create(struct file *fp)
 static int qib_assign_ctxt(struct file *fp, const struct qib_user_info *uinfo)
 {
 	int ret;
-	int i_minor;
-	unsigned swmajor, swminor, alg = QIB_PORT_ALG_ACROSS;
+	int i_miyesr;
+	unsigned swmajor, swmiyesr, alg = QIB_PORT_ALG_ACROSS;
 
 	/* Check to be sure we haven't already initialized this file */
 	if (ctxt_fp(fp)) {
@@ -1593,21 +1593,21 @@ static int qib_assign_ctxt(struct file *fp, const struct qib_user_info *uinfo)
 		goto done;
 	}
 
-	/* for now, if major version is different, bail */
+	/* for yesw, if major version is different, bail */
 	swmajor = uinfo->spu_userversion >> 16;
 	if (swmajor != QIB_USER_SWMAJOR) {
 		ret = -ENODEV;
 		goto done;
 	}
 
-	swminor = uinfo->spu_userversion & 0xffff;
+	swmiyesr = uinfo->spu_userversion & 0xffff;
 
-	if (swminor >= 11 && uinfo->spu_port_alg < QIB_PORT_ALG_COUNT)
+	if (swmiyesr >= 11 && uinfo->spu_port_alg < QIB_PORT_ALG_COUNT)
 		alg = uinfo->spu_port_alg;
 
 	mutex_lock(&qib_mutex);
 
-	if (qib_compatible_subctxts(swmajor, swminor) &&
+	if (qib_compatible_subctxts(swmajor, swmiyesr) &&
 	    uinfo->spu_subctxt_cnt) {
 		ret = find_shared_ctxt(fp, uinfo);
 		if (ret > 0) {
@@ -1618,9 +1618,9 @@ static int qib_assign_ctxt(struct file *fp, const struct qib_user_info *uinfo)
 		}
 	}
 
-	i_minor = iminor(file_inode(fp)) - QIB_USER_MINOR_BASE;
-	if (i_minor)
-		ret = find_free_ctxt(i_minor - 1, fp, uinfo);
+	i_miyesr = imiyesr(file_iyesde(fp)) - QIB_USER_MINOR_BASE;
+	if (i_miyesr)
+		ret = find_free_ctxt(i_miyesr - 1, fp, uinfo);
 	else {
 		int unit;
 		const unsigned int cpu = cpumask_first(current->cpus_ptr);
@@ -1683,7 +1683,7 @@ static int qib_do_user_init(struct file *fp,
 	if ((rcd->pio_base + rcd->piocnt) > dd->piobcnt2k) {
 		if (rcd->pio_base >= dd->piobcnt2k) {
 			qib_dev_err(dd,
-				    "%u:ctxt%u: no 2KB buffers available\n",
+				    "%u:ctxt%u: yes 2KB buffers available\n",
 				    dd->unit, rcd->ctxt);
 			ret = -ENOBUFS;
 			goto bail;
@@ -1787,7 +1787,7 @@ static void unlock_expected_tids(struct qib_ctxtdata *rcd)
 	}
 }
 
-static int qib_close(struct inode *in, struct file *fp)
+static int qib_close(struct iyesde *in, struct file *fp)
 {
 	struct qib_filedata *fd;
 	struct qib_ctxtdata *rcd;
@@ -1831,7 +1831,7 @@ static int qib_close(struct inode *in, struct file *fp)
 		goto bail;
 	}
 
-	/* early; no interrupt users after this */
+	/* early; yes interrupt users after this */
 	spin_lock_irqsave(&dd->uctxt_lock, flags);
 	ctxt = rcd->ctxt;
 	dd->rcd[ctxt] = NULL;
@@ -1839,11 +1839,11 @@ static int qib_close(struct inode *in, struct file *fp)
 	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 
 	if (rcd->rcvwait_to || rcd->piowait_to ||
-	    rcd->rcvnowait || rcd->pionowait) {
+	    rcd->rcvyeswait || rcd->pioyeswait) {
 		rcd->rcvwait_to = 0;
 		rcd->piowait_to = 0;
-		rcd->rcvnowait = 0;
-		rcd->pionowait = 0;
+		rcd->rcvyeswait = 0;
+		rcd->pioyeswait = 0;
 	}
 	if (rcd->flag)
 		rcd->flag = 0;
@@ -1945,14 +1945,14 @@ static int disarm_req_delay(struct qib_ctxtdata *rcd)
 	if (!usable(rcd->ppd)) {
 		int i;
 		/*
-		 * if link is down, or otherwise not usable, delay
+		 * if link is down, or otherwise yest usable, delay
 		 * the caller up to 30 seconds, so we don't thrash
 		 * in trying to get the chip back to ACTIVE, and
 		 * set flag so they make the call again.
 		 */
 		if (rcd->user_event_mask) {
 			/*
-			 * subctxt_cnt is 0 if not shared, so do base
+			 * subctxt_cnt is 0 if yest shared, so do base
 			 * separately, first, then remaining subctxt, if any
 			 */
 			set_bit(_QIB_EVENT_DISARM_BUFS_BIT,
@@ -1989,7 +1989,7 @@ int qib_set_uevent_bits(struct qib_pportdata *ppd, const int evtbit)
 		if (rcd->user_event_mask) {
 			int i;
 			/*
-			 * subctxt_cnt is 0 if not shared, so do base
+			 * subctxt_cnt is 0 if yest shared, so do base
 			 * separately, first, then remaining subctxt, if any
 			 */
 			set_bit(evtbit, &rcd->user_event_mask[0]);
@@ -2005,7 +2005,7 @@ int qib_set_uevent_bits(struct qib_pportdata *ppd, const int evtbit)
 }
 
 /*
- * clear the event notifier events for this context.
+ * clear the event yestifier events for this context.
  * For the DISARM_BUFS case, we also take action (this obsoletes
  * the older QIB_CMD_DISARM_BUFS, but we keep it for backwards
  * compatibility.
@@ -2042,7 +2042,7 @@ static ssize_t qib_write(struct file *fp, const char __user *data,
 	void *dest;
 
 	if (!ib_safe_file_access(fp)) {
-		pr_err_once("qib_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+		pr_err_once("qib_write: process %d (%s) changed security contexts after opening file descriptor, this is yest allowed.\n",
 			    task_tgid_vnr(current), current->comm);
 		return -EACCES;
 	}
@@ -2254,19 +2254,19 @@ static ssize_t qib_write_iter(struct kiocb *iocb, struct iov_iter *from)
 static struct class *qib_class;
 static dev_t qib_dev;
 
-int qib_cdev_init(int minor, const char *name,
+int qib_cdev_init(int miyesr, const char *name,
 		  const struct file_operations *fops,
 		  struct cdev **cdevp, struct device **devp)
 {
-	const dev_t dev = MKDEV(MAJOR(qib_dev), minor);
+	const dev_t dev = MKDEV(MAJOR(qib_dev), miyesr);
 	struct cdev *cdev;
 	struct device *device = NULL;
 	int ret;
 
 	cdev = cdev_alloc();
 	if (!cdev) {
-		pr_err("Could not allocate cdev for minor %d, %s\n",
-		       minor, name);
+		pr_err("Could yest allocate cdev for miyesr %d, %s\n",
+		       miyesr, name);
 		ret = -ENOMEM;
 		goto done;
 	}
@@ -2277,8 +2277,8 @@ int qib_cdev_init(int minor, const char *name,
 
 	ret = cdev_add(cdev, dev, 1);
 	if (ret < 0) {
-		pr_err("Could not add cdev for minor %d, %s (err %d)\n",
-		       minor, name, -ret);
+		pr_err("Could yest add cdev for miyesr %d, %s (err %d)\n",
+		       miyesr, name, -ret);
 		goto err_cdev;
 	}
 
@@ -2287,8 +2287,8 @@ int qib_cdev_init(int minor, const char *name,
 		goto done;
 	ret = PTR_ERR(device);
 	device = NULL;
-	pr_err("Could not create device for minor %d, %s (err %d)\n",
-	       minor, name, -ret);
+	pr_err("Could yest create device for miyesr %d, %s (err %d)\n",
+	       miyesr, name, -ret);
 err_cdev:
 	cdev_del(cdev);
 	cdev = NULL;
@@ -2322,14 +2322,14 @@ int __init qib_dev_init(void)
 
 	ret = alloc_chrdev_region(&qib_dev, 0, QIB_NMINORS, QIB_DRV_NAME);
 	if (ret < 0) {
-		pr_err("Could not allocate chrdev region (err %d)\n", -ret);
+		pr_err("Could yest allocate chrdev region (err %d)\n", -ret);
 		goto done;
 	}
 
 	qib_class = class_create(THIS_MODULE, "ipath");
 	if (IS_ERR(qib_class)) {
 		ret = PTR_ERR(qib_class);
-		pr_err("Could not create device class (err %d)\n", -ret);
+		pr_err("Could yest create device class (err %d)\n", -ret);
 		unregister_chrdev_region(qib_dev, QIB_NMINORS);
 	}
 
@@ -2394,7 +2394,7 @@ int qib_device_create(struct qib_devdata *dd)
 
 /*
  * Remove per-unit files in /dev
- * void, core kernel returns no errors for this stuff
+ * void, core kernel returns yes errors for this stuff
  */
 void qib_device_remove(struct qib_devdata *dd)
 {

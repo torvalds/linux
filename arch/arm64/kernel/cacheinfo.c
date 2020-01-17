@@ -65,7 +65,7 @@ static int __init_cache_level(unsigned int cpu)
 
 	if (level < fw_level) {
 		/*
-		 * some external caches not specified in CLIDR_EL1
+		 * some external caches yest specified in CLIDR_EL1
 		 * the information may be available in the device tree
 		 * only unified external caches are considered here
 		 */

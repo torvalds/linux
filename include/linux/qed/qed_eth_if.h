@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -110,7 +110,7 @@ struct qed_dev_eth_info {
 	u16	num_vlan_filters;
 	u16	num_mac_filters;
 
-	/* Legacy VF - this affects the datapath, so qede has to know */
+	/* Legacy VF - this affects the datapath, so qede has to kyesw */
 	bool is_legacy;
 
 	/* Might depend on available resources [in case of VF] */

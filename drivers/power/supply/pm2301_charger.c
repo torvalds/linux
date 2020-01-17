@@ -259,7 +259,7 @@ static int pm2xxx_charger_vbat_lsig_mngt(struct pm2xxx_charger *pm2, int val)
 		break;
 
 	default:
-		dev_err(pm2->dev, "Unknown VBAT level\n");
+		dev_err(pm2->dev, "Unkyeswn VBAT level\n");
 	}
 
 	return 0;
@@ -297,7 +297,7 @@ static int pm2xxx_charger_itv_pwr_plug_mngt(struct pm2xxx_charger *pm2, int val)
 
 	/*
 	 * Since we can't be sure that the events are received
-	 * synchronously, we have the check if the main charger is
+	 * synchroyesusly, we have the check if the main charger is
 	 * connected by reading the interrupt source register.
 	 */
 	ret = pm2xxx_charger_detection(pm2, &read_val);
@@ -578,7 +578,7 @@ static int pm2xxx_charger_update_charger_current(struct ux500_charger *charger,
 	curr_index = pm2xxx_current_to_regval(ich_out);
 	if (curr_index < 0) {
 		dev_err(pm2->dev,
-			"Charger current too high, charging not started\n");
+			"Charger current too high, charging yest started\n");
 		return -ENXIO;
 	}
 
@@ -608,7 +608,7 @@ static int pm2xxx_charger_ac_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_HEALTH:
-		if (pm2->flags.mainextchnotok)
+		if (pm2->flags.mainextchyestok)
 			val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
 		else if (pm2->ac.wd_expired)
 			val->intval = POWER_SUPPLY_HEALTH_DEAD;
@@ -713,7 +713,7 @@ static int pm2xxx_charger_ac_en(struct ux500_charger *charger,
 
 	if (enable) {
 		if (!pm2->ac.charger_connected) {
-			dev_dbg(pm2->dev, "AC charger not connected\n");
+			dev_dbg(pm2->dev, "AC charger yest connected\n");
 			return -ENXIO;
 		}
 
@@ -740,7 +740,7 @@ static int pm2xxx_charger_ac_en(struct ux500_charger *charger,
 		if (volt_index < 0 || curr_index < 0) {
 			dev_err(pm2->dev,
 				"Charger voltage or current too high, "
-				"charging not started\n");
+				"charging yest started\n");
 			return -ENXIO;
 		}
 
@@ -843,7 +843,7 @@ static void pm2xxx_charger_ac_work(struct work_struct *work)
 
 
 	power_supply_changed(pm2->ac_chg.psy);
-	sysfs_notify(&pm2->ac_chg.psy->dev.kobj, NULL, "present");
+	sysfs_yestify(&pm2->ac_chg.psy->dev.kobj, NULL, "present");
 };
 
 static void pm2xxx_charger_check_hw_failure_work(struct work_struct *work)
@@ -1000,7 +1000,7 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 
 	/* get charger spcific platform data */
 	if (!pl_data->wall_charger) {
-		dev_err(pm2->dev, "no charger platform data supplied\n");
+		dev_err(pm2->dev, "yes charger platform data supplied\n");
 		ret = -EINVAL;
 		goto free_device_info;
 	}
@@ -1009,7 +1009,7 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 
 	/* get battery specific platform data */
 	if (!pl_data->battery) {
-		dev_err(pm2->dev, "no battery platform data supplied\n");
+		dev_err(pm2->dev, "yes battery platform data supplied\n");
 		ret = -EINVAL;
 		goto free_device_info;
 	}
@@ -1129,7 +1129,7 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 
 		/*
 		 * Charger detection mechanism requires pulling up the LPN pin
-		 * while i2c communication if Charger is not connected
+		 * while i2c communication if Charger is yest connected
 		 * LPN pin of PM2301 is GPIO60 of AB9540
 		 */
 		ret = gpio_request(pm2->lpn_pin, "pm2301_lpm_gpio");
@@ -1160,7 +1160,7 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 					     AB8500_MAIN_CH_DET);
 		pm2->ac_conn = true;
 		power_supply_changed(pm2->ac_chg.psy);
-		sysfs_notify(&pm2->ac_chg.psy->dev.kobj, NULL, "present");
+		sysfs_yestify(&pm2->ac_chg.psy->dev.kobj, NULL, "present");
 	}
 
 	return 0;

@@ -36,11 +36,11 @@ Optional properties:
 
 Deprecated properties:
 - dlg,ldo-lvl : Required internal LDO voltage (mV) level for digital engine
-  (LDO unavailable in production HW so property no longer required).
+  (LDO unavailable in production HW so property yes longer required).
 
 ======
 
-Child node - 'da7219_aad':
+Child yesde - 'da7219_aad':
 
 Optional properties:
 - dlg,micbias-pulse-lvl : Mic bias higher voltage pulse level (mV).

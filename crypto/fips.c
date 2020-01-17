@@ -11,13 +11,13 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sysctl.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 int fips_enabled;
 EXPORT_SYMBOL_GPL(fips_enabled);
 
-ATOMIC_NOTIFIER_HEAD(fips_fail_notif_chain);
-EXPORT_SYMBOL_GPL(fips_fail_notif_chain);
+ATOMIC_NOTIFIER_HEAD(fips_fail_yestif_chain);
+EXPORT_SYMBOL_GPL(fips_fail_yestif_chain);
 
 /* Process kernel command-line parameter at boot time. fips=0 or fips=1 */
 static int fips_enable(char *str)
@@ -62,12 +62,12 @@ static void crypto_proc_fips_exit(void)
 	unregister_sysctl_table(crypto_sysctls);
 }
 
-void fips_fail_notify(void)
+void fips_fail_yestify(void)
 {
 	if (fips_enabled)
-		atomic_notifier_call_chain(&fips_fail_notif_chain, 0, NULL);
+		atomic_yestifier_call_chain(&fips_fail_yestif_chain, 0, NULL);
 }
-EXPORT_SYMBOL_GPL(fips_fail_notify);
+EXPORT_SYMBOL_GPL(fips_fail_yestify);
 
 static int __init fips_init(void)
 {

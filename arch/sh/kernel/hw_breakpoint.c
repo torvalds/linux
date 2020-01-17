@@ -12,7 +12,7 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/percpu.h>
 #include <linux/kallsyms.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/io.h>
@@ -277,7 +277,7 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 	unsigned int cmf, resume_mask;
 
 	/*
-	 * Do an early return if none of the channels triggered.
+	 * Do an early return if yesne of the channels triggered.
 	 */
 	cmf = sh_ubc->triggered_mask();
 	if (unlikely(!cmf))
@@ -313,7 +313,7 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 			rc = NOTIFY_DONE;
 
 		/*
-		 * Reset the condition match flag to denote completion of
+		 * Reset the condition match flag to deyeste completion of
 		 * exception handling.
 		 */
 		sh_ubc->clear_triggered_mask(event_mask);
@@ -360,13 +360,13 @@ BUILD_TRAP_HANDLER(breakpoint)
 	unsigned long ex = lookup_exception_vector();
 	TRAP_HANDLER_DECL;
 
-	notify_die(DIE_BREAKPOINT, "breakpoint", regs, 0, ex, SIGTRAP);
+	yestify_die(DIE_BREAKPOINT, "breakpoint", regs, 0, ex, SIGTRAP);
 }
 
 /*
- * Handle debug exception notifications.
+ * Handle debug exception yestifications.
  */
-int __kprobes hw_breakpoint_exceptions_notify(struct notifier_block *unused,
+int __kprobes hw_breakpoint_exceptions_yestify(struct yestifier_block *unused,
 				    unsigned long val, void *data)
 {
 	struct die_args *args = data;
@@ -379,7 +379,7 @@ int __kprobes hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 	 * probably from a debugger, so don't do anything more here.
 	 *
 	 * This also permits the UBC interface clock to remain off for
-	 * non-UBC breakpoints, as we don't need to check the triggered
+	 * yesn-UBC breakpoints, as we don't need to check the triggered
 	 * or active channel masks.
 	 */
 	if (args->trapnr != sh_ubc->trap_nr)

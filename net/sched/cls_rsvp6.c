@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ipv6.h>
 #include <linux/skbuff.h>
 #include <net/act_api.h>

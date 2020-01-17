@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Core driver for the Synopsys DesignWare DMA Controller
+ * Core driver for the Syyespsys DesignWare DMA Controller
  *
  * Copyright (C) 2007-2008 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics
@@ -25,12 +25,12 @@
 #include "internal.h"
 
 /*
- * This supports the Synopsys "DesignWare AHB Central DMA Controller",
- * (DW_ahb_dmac) which is used with various AMBA 2.0 systems (not all
- * of which use ARM any more).  See the "Databook" from Synopsys for
+ * This supports the Syyespsys "DesignWare AHB Central DMA Controller",
+ * (DW_ahb_dmac) which is used with various AMBA 2.0 systems (yest all
+ * of which use ARM any more).  See the "Databook" from Syyespsys for
  * information beyond what licensees probably provide.
  *
- * The driver has been tested with the Atmel AT32AP7000, which does not
+ * The driver has been tested with the Atmel AT32AP7000, which does yest
  * support descriptor writeback.
  */
 
@@ -69,7 +69,7 @@ static dma_cookie_t dwc_tx_submit(struct dma_async_tx_descriptor *tx)
 	 * for DMA. But this is hard to do in a race-free manner.
 	 */
 
-	list_add_tail(&desc->desc_node, &dwc->queue);
+	list_add_tail(&desc->desc_yesde, &dwc->queue);
 	spin_unlock_irqrestore(&dwc->lock, flags);
 	dev_vdbg(chan2dev(tx->chan), "%s: queued %u\n",
 		 __func__, desc->txd.cookie);
@@ -104,8 +104,8 @@ static void dwc_desc_put(struct dw_dma_chan *dwc, struct dw_desc *desc)
 	if (unlikely(!desc))
 		return;
 
-	list_for_each_entry_safe(child, _next, &desc->tx_list, desc_node) {
-		list_del(&child->desc_node);
+	list_for_each_entry_safe(child, _next, &desc->tx_list, desc_yesde) {
+		list_del(&child->desc_yesde);
 		dma_pool_free(dw->desc_pool, child, child->txd.phys);
 		dwc->descs_allocated--;
 	}
@@ -172,7 +172,7 @@ static inline void dwc_do_single_block(struct dw_dma_chan *dwc,
 	channel_set_bit(dw, CH_EN, dwc->mask);
 
 	/* Move pointer to next descriptor */
-	dwc->tx_node_active = dwc->tx_node_active->next;
+	dwc->tx_yesde_active = dwc->tx_yesde_active->next;
 }
 
 /* Called with dwc->lock held and bh disabled */
@@ -185,7 +185,7 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
-			"%s: BUG: Attempted to start non-idle channel\n",
+			"%s: BUG: Attempted to start yesn-idle channel\n",
 			__func__);
 		dwc_dump_chan_regs(dwc);
 
@@ -193,7 +193,7 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 		return;
 	}
 
-	if (dwc->nollp) {
+	if (dwc->yesllp) {
 		was_soft_llp = test_and_set_bit(DW_DMA_IS_SOFT_LLP,
 						&dwc->flags);
 		if (was_soft_llp) {
@@ -205,7 +205,7 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 		dwc_initialize(dwc);
 
 		first->residue = first->total_len;
-		dwc->tx_node_active = &first->tx_list;
+		dwc->tx_yesde_active = &first->tx_list;
 
 		/* Submit first block */
 		dwc_do_single_block(dwc, first);
@@ -255,7 +255,7 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc,
 		memset(&cb, 0, sizeof(cb));
 
 	/* async_tx_ack */
-	list_for_each_entry(child, &desc->tx_list, desc_node)
+	list_for_each_entry(child, &desc->tx_list, desc_yesde)
 		async_tx_ack(&child->txd);
 	async_tx_ack(&desc->txd);
 	dwc_desc_put(dwc, desc);
@@ -273,7 +273,7 @@ static void dwc_complete_all(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	spin_lock_irqsave(&dwc->lock, flags);
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
 		dev_err(chan2dev(&dwc->chan),
-			"BUG: XFER bit set, but channel not idle!\n");
+			"BUG: XFER bit set, but channel yest idle!\n");
 
 		/* Try to continue after resetting the channel... */
 		dwc_chan_disable(dw, dwc);
@@ -288,7 +288,7 @@ static void dwc_complete_all(struct dw_dma *dw, struct dw_dma_chan *dwc)
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
-	list_for_each_entry_safe(desc, _desc, &list, desc_node)
+	list_for_each_entry_safe(desc, _desc, &list, desc_yesde)
 		dwc_descriptor_complete(dwc, desc, true);
 }
 
@@ -319,7 +319,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		dma_writel(dw, CLEAR.XFER, dwc->mask);
 
 		if (test_bit(DW_DMA_IS_SOFT_LLP, &dwc->flags)) {
-			struct list_head *head, *active = dwc->tx_node_active;
+			struct list_head *head, *active = dwc->tx_yesde_active;
 
 			/*
 			 * We are inside first active descriptor.
@@ -367,7 +367,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 
 	dev_vdbg(chan2dev(&dwc->chan), "%s: llp=%pad\n", __func__, &llp);
 
-	list_for_each_entry_safe(desc, _desc, &dwc->active_list, desc_node) {
+	list_for_each_entry_safe(desc, _desc, &dwc->active_list, desc_yesde) {
 		/* Initial residue value */
 		desc->residue = desc->total_len;
 
@@ -386,7 +386,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		}
 
 		desc->residue -= desc->len;
-		list_for_each_entry(child, &desc->tx_list, desc_node) {
+		list_for_each_entry(child, &desc->tx_list, desc_yesde) {
 			if (lli_read(child, llp) == llp) {
 				/* Currently in progress */
 				desc->residue -= dwc_get_sent(dwc);
@@ -406,7 +406,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	}
 
 	dev_err(chan2dev(&dwc->chan),
-		"BUG: All descriptors done, but channel not idle!\n");
+		"BUG: All descriptors done, but channel yest idle!\n");
 
 	/* Try to continue after resetting the channel... */
 	dwc_chan_disable(dw, dwc);
@@ -441,7 +441,7 @@ static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	 * just have to scream loudly and try to carry on.
 	 */
 	bad_desc = dwc_first_active(dwc);
-	list_del_init(&bad_desc->desc_node);
+	list_del_init(&bad_desc->desc_yesde);
 	list_move(dwc->queue.next, dwc->active_list.prev);
 
 	/* Clear the error flag and try to restart the controller */
@@ -459,7 +459,7 @@ static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	dev_WARN(chan2dev(&dwc->chan), "Bad descriptor submitted for DMA!\n"
 				       "  cookie: %d\n", bad_desc->txd.cookie);
 	dwc_dump_lli(dwc, bad_desc);
-	list_for_each_entry(child, &bad_desc->tx_list, desc_node)
+	list_for_each_entry(child, &bad_desc->tx_list, desc_yesde)
 		dwc_dump_lli(dwc, child);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
@@ -484,7 +484,7 @@ static void dw_dma_tasklet(unsigned long data)
 	for (i = 0; i < dw->dma.chancnt; i++) {
 		dwc = &dw->chan[i];
 		if (test_bit(DW_DMA_IS_CYCLIC, &dwc->flags))
-			dev_vdbg(dw->dma.dev, "Cyclic xfer is not implemented\n");
+			dev_vdbg(dw->dma.dev, "Cyclic xfer is yest implemented\n");
 		else if (status_err & (1 << i))
 			dwc_handle_error(dw, dwc);
 		else if (status_xfer & (1 << i))
@@ -501,7 +501,7 @@ static irqreturn_t dw_dma_interrupt(int irq, void *dev_id)
 	struct dw_dma *dw = dev_id;
 	u32 status;
 
-	/* Check if we have any interrupt from the DMAC which is not in use */
+	/* Check if we have any interrupt from the DMAC which is yest in use */
 	if (!dw->in_use)
 		return IRQ_NONE;
 
@@ -597,7 +597,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 			first = desc;
 		} else {
 			lli_write(prev, llp, desc->txd.phys | lms);
-			list_add_tail(&desc->desc_node, &first->tx_list);
+			list_add_tail(&desc->desc_yesde, &first->tx_list);
 		}
 		prev = desc;
 	}
@@ -687,7 +687,7 @@ slave_sg_todev_fill_desc:
 				first = desc;
 			} else {
 				lli_write(prev, llp, desc->txd.phys | lms);
-				list_add_tail(&desc->desc_node, &first->tx_list);
+				list_add_tail(&desc->desc_yesde, &first->tx_list);
 			}
 			prev = desc;
 
@@ -736,7 +736,7 @@ slave_sg_fromdev_fill_desc:
 				first = desc;
 			} else {
 				lli_write(prev, llp, desc->txd.phys | lms);
-				list_add_tail(&desc->desc_node, &first->tx_list);
+				list_add_tail(&desc->desc_yesde, &first->tx_list);
 			}
 			prev = desc;
 
@@ -764,7 +764,7 @@ slave_sg_fromdev_fill_desc:
 
 err_desc_get:
 	dev_err(chan2dev(chan),
-		"not enough descriptors available. Direction %d\n", direction);
+		"yest eyesugh descriptors available. Direction %d\n", direction);
 	dwc_desc_put(dwc, first);
 	return NULL;
 }
@@ -871,7 +871,7 @@ static int dwc_terminate_all(struct dma_chan *chan)
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	/* Flush all pending and queued descriptors */
-	list_for_each_entry_safe(desc, _desc, &list, desc_node)
+	list_for_each_entry_safe(desc, _desc, &list, desc_yesde)
 		dwc_descriptor_complete(dwc, desc, false);
 
 	return 0;
@@ -881,7 +881,7 @@ static struct dw_desc *dwc_find_desc(struct dw_dma_chan *dwc, dma_cookie_t c)
 {
 	struct dw_desc *desc;
 
-	list_for_each_entry(desc, &dwc->active_list, desc_node)
+	list_for_each_entry(desc, &dwc->active_list, desc_yesde)
 		if (desc->txd.cookie == c)
 			return desc;
 
@@ -985,7 +985,7 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
-		dev_dbg(chan2dev(chan), "DMA channel not idle?\n");
+		dev_dbg(chan2dev(chan), "DMA channel yest idle?\n");
 		return -EIO;
 	}
 
@@ -1140,10 +1140,10 @@ int do_dma_probe(struct dw_dma_chip *chip)
 		dwc->chan.device = &dw->dma;
 		dma_cookie_init(&dwc->chan);
 		if (pdata->chan_allocation_order == CHAN_ALLOCATION_ASCENDING)
-			list_add_tail(&dwc->chan.device_node,
+			list_add_tail(&dwc->chan.device_yesde,
 					&dw->dma.channels);
 		else
-			list_add(&dwc->chan.device_node, &dw->dma.channels);
+			list_add(&dwc->chan.device_yesde, &dw->dma.channels);
 
 		/* 7 is highest priority & 0 is lowest. */
 		if (pdata->chan_priority == CHAN_PRIORITY_ASCENDING)
@@ -1178,11 +1178,11 @@ int do_dma_probe(struct dw_dma_chip *chip)
 			 */
 			dwc->block_size =
 				(4 << ((pdata->block_size >> 4 * i) & 0xf)) - 1;
-			dwc->nollp =
+			dwc->yesllp =
 				(dwc_params >> DWC_PARAMS_MBLK_EN & 0x1) == 0;
 		} else {
 			dwc->block_size = pdata->block_size;
-			dwc->nollp = !pdata->multi_block[i];
+			dwc->yesllp = !pdata->multi_block[i];
 		}
 	}
 
@@ -1252,8 +1252,8 @@ int do_dma_remove(struct dw_dma_chip *chip)
 	tasklet_kill(&dw->tasklet);
 
 	list_for_each_entry_safe(dwc, _dwc, &dw->dma.channels,
-			chan.device_node) {
-		list_del(&dwc->chan.device_node);
+			chan.device_yesde) {
+		list_del(&dwc->chan.device_yesde);
 		channel_clear_bit(dw, CH_EN, dwc->mask);
 	}
 
@@ -1280,6 +1280,6 @@ int do_dw_dma_enable(struct dw_dma_chip *chip)
 EXPORT_SYMBOL_GPL(do_dw_dma_enable);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys DesignWare DMA Controller core driver");
+MODULE_DESCRIPTION("Syyespsys DesignWare DMA Controller core driver");
 MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");
 MODULE_AUTHOR("Viresh Kumar <vireshk@kernel.org>");

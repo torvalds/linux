@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2013 - 2014 Texas Instruments, Inc.
  *
- * Benoit Parrot <bparrot@ti.com>
+ * Beyesit Parrot <bparrot@ti.com>
  * Lad, Prabhakar <prabhakar.csengg@gmail.com>
  */
 
@@ -25,7 +25,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 
 #include "am437x-vpfe.h"
 
@@ -573,7 +573,7 @@ static void vpfe_ccdc_config_raw(struct vpfe_ccdc *ccdc)
 			vpfe_reg_write(ccdc, VPFE_INTERLACED_IMAGE_INVERT,
 				   VPFE_SDOFST);
 		} else {
-			/* For interlace non inverse mode */
+			/* For interlace yesn inverse mode */
 			vpfe_reg_write(ccdc, VPFE_INTERLACED_NO_IMAGE_INVERT,
 				   VPFE_SDOFST);
 		}
@@ -816,7 +816,7 @@ static void vpfe_clear_intr(struct vpfe_ccdc *ccdc, int vdint)
 
 	vpfe_int_status = vpfe_reg_read(ccdc, VPFE_IRQ_STS);
 
-	/* Acknowledge that we are done with all interrupts */
+	/* Ackyeswledge that we are done with all interrupts */
 	vpfe_reg_write(ccdc, 1, VPFE_IRQ_EOI);
 }
 
@@ -914,7 +914,7 @@ static int vpfe_config_ccdc_image_format(struct vpfe_device *vpfe)
 
 	switch (vpfe->fmt.fmt.pix.field) {
 	case V4L2_FIELD_INTERLACED:
-		/* do nothing, since it is default */
+		/* do yesthing, since it is default */
 		ret = vpfe_ccdc_set_buftype(
 				&vpfe->ccdc,
 				CCDC_BUFTYPE_FLD_INTERLEAVED);
@@ -973,7 +973,7 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe,
 	}
 
 	if (i ==  ARRAY_SIZE(vpfe_standards)) {
-		vpfe_err(vpfe, "standard not supported\n");
+		vpfe_err(vpfe, "standard yest supported\n");
 		return -EINVAL;
 	}
 
@@ -983,7 +983,7 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe,
 
 	fmt = find_format_by_code(vpfe, mbus_fmt.code);
 	if (!fmt) {
-		vpfe_dbg(3, vpfe, "mbus code format (0x%08x) not found.\n",
+		vpfe_dbg(3, vpfe, "mbus code format (0x%08x) yest found.\n",
 			 mbus_fmt.code);
 		return -EINVAL;
 	}
@@ -1185,7 +1185,7 @@ static void vpfe_handle_interlaced_irq(struct vpfe_device *vpfe,
 			/*
 			 * if one field is just being captured configure
 			 * the next frame get the next frame from the empty
-			 * queue if no frame is available hold on to the
+			 * queue if yes frame is available hold on to the
 			 * current buffer
 			 */
 			if (vpfe->cur_frm == vpfe->next_frm)
@@ -1435,7 +1435,7 @@ static int vpfe_try_fmt(struct file *file, void *priv,
 	}
 
 	/*
-	 * Use current colorspace for now, it will get
+	 * Use current colorspace for yesw, it will get
 	 * updated properly during s_fmt
 	 */
 	f->fmt.pix.colorspace = vpfe->fmt.fmt.pix.colorspace;
@@ -1468,10 +1468,10 @@ static int vpfe_s_fmt(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	/* Just double check nothing has gone wrong */
+	/* Just double check yesthing has gone wrong */
 	if (mbus_fmt.code != f->code) {
 		vpfe_dbg(3, vpfe,
-			 "%s subdev changed format on us, this should not happen\n",
+			 "%s subdev changed format on us, this should yest happen\n",
 			 __func__);
 		return -EINVAL;
 	}
@@ -1597,7 +1597,7 @@ static int vpfe_enum_input(struct file *file, void *priv,
 	if (vpfe_get_subdev_input_index(vpfe, &subdev, &index,
 					inp->index) < 0) {
 		vpfe_dbg(1, vpfe,
-			"input information not found for the subdev\n");
+			"input information yest found for the subdev\n");
 		return -EINVAL;
 	}
 	sdinfo = &vpfe->cfg->sub_devs[subdev];
@@ -1704,7 +1704,7 @@ static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 	if (!(sdinfo->inputs[0].capabilities & V4L2_IN_CAP_STD))
 		return -ENODATA;
 
-	/* if trying to set the same std then nothing to do */
+	/* if trying to set the same std then yesthing to do */
 	if (vpfe_standards[vpfe->std_index].std_id == std_id)
 		return 0;
 
@@ -1834,11 +1834,11 @@ static void vpfe_buffer_queue(struct vb2_buffer *vb)
 static void vpfe_return_all_buffers(struct vpfe_device *vpfe,
 				    enum vb2_buffer_state state)
 {
-	struct vpfe_cap_buffer *buf, *node;
+	struct vpfe_cap_buffer *buf, *yesde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vpfe->dma_queue_lock, flags);
-	list_for_each_entry_safe(buf, node, &vpfe->dma_queue, list) {
+	list_for_each_entry_safe(buf, yesde, &vpfe->dma_queue, list) {
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -2150,11 +2150,11 @@ static const struct v4l2_ioctl_ops vpfe_ioctl_ops = {
 };
 
 static int
-vpfe_async_bound(struct v4l2_async_notifier *notifier,
+vpfe_async_bound(struct v4l2_async_yestifier *yestifier,
 		 struct v4l2_subdev *subdev,
 		 struct v4l2_async_subdev *asd)
 {
-	struct vpfe_device *vpfe = container_of(notifier->v4l2_dev,
+	struct vpfe_device *vpfe = container_of(yestifier->v4l2_dev,
 					       struct vpfe_device, v4l2_dev);
 	struct v4l2_subdev_mbus_code_enum mbus_code;
 	struct vpfe_subdev_info *sdinfo;
@@ -2164,8 +2164,8 @@ vpfe_async_bound(struct v4l2_async_notifier *notifier,
 	int i, j, k;
 
 	for (i = 0; i < ARRAY_SIZE(vpfe->cfg->asd); i++) {
-		if (vpfe->cfg->asd[i]->match.fwnode ==
-		    asd[i].match.fwnode) {
+		if (vpfe->cfg->asd[i]->match.fwyesde ==
+		    asd[i].match.fwyesde) {
 			sdinfo = &vpfe->cfg->sub_devs[i];
 			vpfe->sd[i] = subdev;
 			vpfe->sd[i]->grp_id = sdinfo->grp_id;
@@ -2175,11 +2175,11 @@ vpfe_async_bound(struct v4l2_async_notifier *notifier,
 	}
 
 	if (!found) {
-		vpfe_info(vpfe, "sub device (%s) not matched\n", subdev->name);
+		vpfe_info(vpfe, "sub device (%s) yest matched\n", subdev->name);
 		return -EINVAL;
 	}
 
-	vpfe->video_dev.tvnorms |= sdinfo->inputs[0].std;
+	vpfe->video_dev.tvyesrms |= sdinfo->inputs[0].std;
 
 	vpfe->num_active_fmt = 0;
 	for (j = 0, i = 0; (ret != -EINVAL); ++j) {
@@ -2281,15 +2281,15 @@ probe_out:
 	return err;
 }
 
-static int vpfe_async_complete(struct v4l2_async_notifier *notifier)
+static int vpfe_async_complete(struct v4l2_async_yestifier *yestifier)
 {
-	struct vpfe_device *vpfe = container_of(notifier->v4l2_dev,
+	struct vpfe_device *vpfe = container_of(yestifier->v4l2_dev,
 					struct vpfe_device, v4l2_dev);
 
 	return vpfe_probe_complete(vpfe);
 }
 
-static const struct v4l2_async_notifier_operations vpfe_async_ops = {
+static const struct v4l2_async_yestifier_operations vpfe_async_ops = {
 	.bound = vpfe_async_bound,
 	.complete = vpfe_async_complete,
 };
@@ -2297,7 +2297,7 @@ static const struct v4l2_async_notifier_operations vpfe_async_ops = {
 static struct vpfe_config *
 vpfe_get_pdata(struct vpfe_device *vpfe)
 {
-	struct device_node *endpoint = NULL;
+	struct device_yesde *endpoint = NULL;
 	struct device *dev = vpfe->pdev;
 	struct vpfe_subdev_info *sdinfo;
 	struct vpfe_config *pdata;
@@ -2307,9 +2307,9 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 
 	dev_dbg(dev, "vpfe_get_pdata\n");
 
-	v4l2_async_notifier_init(&vpfe->notifier);
+	v4l2_async_yestifier_init(&vpfe->yestifier);
 
-	if (!IS_ENABLED(CONFIG_OF) || !dev->of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !dev->of_yesde)
 		return dev->platform_data;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -2317,10 +2317,10 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 		return NULL;
 
 	for (i = 0; ; i++) {
-		struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
-		struct device_node *rem;
+		struct v4l2_fwyesde_endpoint bus_cfg = { .bus_type = 0 };
+		struct device_yesde *rem;
 
-		endpoint = of_graph_get_next_endpoint(dev->of_node, endpoint);
+		endpoint = of_graph_get_next_endpoint(dev->of_yesde, endpoint);
 		if (!endpoint)
 			break;
 
@@ -2345,10 +2345,10 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 			sdinfo->vpfe_param.if_type = VPFE_RAW_BAYER;
 		}
 
-		err = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
+		err = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(endpoint),
 						 &bus_cfg);
 		if (err) {
-			dev_err(dev, "Could not parse the endpoint\n");
+			dev_err(dev, "Could yest parse the endpoint\n");
 			goto cleanup;
 		}
 
@@ -2370,25 +2370,25 @@ vpfe_get_pdata(struct vpfe_device *vpfe)
 
 		rem = of_graph_get_remote_port_parent(endpoint);
 		if (!rem) {
-			dev_err(dev, "Remote device at %pOF not found\n",
+			dev_err(dev, "Remote device at %pOF yest found\n",
 				endpoint);
 			goto cleanup;
 		}
 
-		pdata->asd[i] = v4l2_async_notifier_add_fwnode_subdev(
-			&vpfe->notifier, of_fwnode_handle(rem),
+		pdata->asd[i] = v4l2_async_yestifier_add_fwyesde_subdev(
+			&vpfe->yestifier, of_fwyesde_handle(rem),
 			sizeof(struct v4l2_async_subdev));
-		of_node_put(rem);
+		of_yesde_put(rem);
 		if (IS_ERR(pdata->asd[i]))
 			goto cleanup;
 	}
 
-	of_node_put(endpoint);
+	of_yesde_put(endpoint);
 	return pdata;
 
 cleanup:
-	v4l2_async_notifier_cleanup(&vpfe->notifier);
-	of_node_put(endpoint);
+	v4l2_async_yestifier_cleanup(&vpfe->yestifier);
+	of_yesde_put(endpoint);
 	return NULL;
 }
 
@@ -2454,7 +2454,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	/* Enabling module functional clock */
 	pm_runtime_enable(&pdev->dev);
 
-	/* for now just enable it here instead of waiting for the open */
+	/* for yesw just enable it here instead of waiting for the open */
 	pm_runtime_get_sync(&pdev->dev);
 
 	vpfe_ccdc_config_defaults(ccdc);
@@ -2470,10 +2470,10 @@ static int vpfe_probe(struct platform_device *pdev)
 		goto probe_out_v4l2_unregister;
 	}
 
-	vpfe->notifier.ops = &vpfe_async_ops;
-	ret = v4l2_async_notifier_register(&vpfe->v4l2_dev, &vpfe->notifier);
+	vpfe->yestifier.ops = &vpfe_async_ops;
+	ret = v4l2_async_yestifier_register(&vpfe->v4l2_dev, &vpfe->yestifier);
 	if (ret) {
-		vpfe_err(vpfe, "Error registering async notifier\n");
+		vpfe_err(vpfe, "Error registering async yestifier\n");
 		ret = -EINVAL;
 		goto probe_out_v4l2_unregister;
 	}
@@ -2483,7 +2483,7 @@ static int vpfe_probe(struct platform_device *pdev)
 probe_out_v4l2_unregister:
 	v4l2_device_unregister(&vpfe->v4l2_dev);
 probe_out_cleanup:
-	v4l2_async_notifier_cleanup(&vpfe->notifier);
+	v4l2_async_yestifier_cleanup(&vpfe->yestifier);
 	return ret;
 }
 
@@ -2496,8 +2496,8 @@ static int vpfe_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	v4l2_async_notifier_unregister(&vpfe->notifier);
-	v4l2_async_notifier_cleanup(&vpfe->notifier);
+	v4l2_async_yestifier_unregister(&vpfe->yestifier);
+	v4l2_async_yestifier_cleanup(&vpfe->yestifier);
 	v4l2_device_unregister(&vpfe->v4l2_dev);
 	video_unregister_device(&vpfe->video_dev);
 

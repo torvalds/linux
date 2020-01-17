@@ -31,7 +31,7 @@
  *		contents of structs audit_entry, audit_watch and opaque
  *		LSM rules during filtering.  If modified, these structures
  *		must be copied and replace their counterparts in the filterlist.
- *		An audit_parent struct is not accessed during filtering, so may
+ *		An audit_parent struct is yest accessed during filtering, so may
  *		be written directly provided audit_filter_mutex is held.
  */
 
@@ -147,16 +147,16 @@ char *audit_unpack_string(void **bufp, size_t *remain, size_t len)
 	return str;
 }
 
-/* Translate an inode field to kernel representation. */
-static inline int audit_to_inode(struct audit_krule *krule,
+/* Translate an iyesde field to kernel representation. */
+static inline int audit_to_iyesde(struct audit_krule *krule,
 				 struct audit_field *f)
 {
 	if (krule->listnr != AUDIT_FILTER_EXIT ||
-	    krule->inode_f || krule->watch || krule->tree ||
-	    (f->op != Audit_equal && f->op != Audit_not_equal))
+	    krule->iyesde_f || krule->watch || krule->tree ||
+	    (f->op != Audit_equal && f->op != Audit_yest_equal))
 		return -EINVAL;
 
-	krule->inode_f = f;
+	krule->iyesde_f = f;
 	return 0;
 }
 
@@ -302,7 +302,7 @@ exit_err:
 static u32 audit_ops[] =
 {
 	[Audit_equal] = AUDIT_EQUAL,
-	[Audit_not_equal] = AUDIT_NOT_EQUAL,
+	[Audit_yest_equal] = AUDIT_NOT_EQUAL,
 	[Audit_bitmask] = AUDIT_BIT_MASK,
 	[Audit_bittest] = AUDIT_BIT_TEST,
 	[Audit_lt] = AUDIT_LESS_THAN,
@@ -399,12 +399,12 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	case AUDIT_FILETYPE:
 	case AUDIT_FIELD_COMPARE:
 	case AUDIT_EXE:
-		/* only equal and not equal valid ops */
-		if (f->op != Audit_not_equal && f->op != Audit_equal)
+		/* only equal and yest equal valid ops */
+		if (f->op != Audit_yest_equal && f->op != Audit_equal)
 			return -EINVAL;
 		break;
 	default:
-		/* field not recognized */
+		/* field yest recognized */
 		return -EINVAL;
 	}
 
@@ -447,11 +447,11 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 	size_t remain = datasz - sizeof(struct audit_rule_data);
 	int i;
 	char *str;
-	struct audit_fsnotify_mark *audit_mark;
+	struct audit_fsyestify_mark *audit_mark;
 
 	entry = audit_to_entry_common(data);
 	if (IS_ERR(entry))
-		goto exit_nofree;
+		goto exit_yesfree;
 
 	bufp = data->buf;
 	for (i = 0; i < data->field_count; i++) {
@@ -555,7 +555,7 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 				goto exit_free;
 			break;
 		case AUDIT_INODE:
-			err = audit_to_inode(&entry->rule, f);
+			err = audit_to_iyesde(&entry->rule, f);
 			if (err)
 				goto exit_free;
 			break;
@@ -589,10 +589,10 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		}
 	}
 
-	if (entry->rule.inode_f && entry->rule.inode_f->op == Audit_not_equal)
-		entry->rule.inode_f = NULL;
+	if (entry->rule.iyesde_f && entry->rule.iyesde_f->op == Audit_yest_equal)
+		entry->rule.iyesde_f = NULL;
 
-exit_nofree:
+exit_yesfree:
 	return entry;
 
 exit_free:
@@ -822,11 +822,11 @@ struct audit_entry *audit_dupe_rule(struct audit_krule *old)
 		new->mask[i] = old->mask[i];
 	new->prio = old->prio;
 	new->buflen = old->buflen;
-	new->inode_f = old->inode_f;
+	new->iyesde_f = old->iyesde_f;
 	new->field_count = old->field_count;
 
 	/*
-	 * note that we are OK with not refcounting here; audit_match_tree()
+	 * yeste that we are OK with yest refcounting here; audit_match_tree()
 	 * never dereferences tree and we can't get false positives there
 	 * since we'd have to have rule gone from the list *and* removed
 	 * before the chunks found by lookup had been allocated, i.e. before
@@ -888,13 +888,13 @@ static struct audit_entry *audit_find_rule(struct audit_entry *entry,
 	struct list_head *list;
 	int h;
 
-	if (entry->rule.inode_f) {
-		h = audit_hash_ino(entry->rule.inode_f->val);
-		*p = list = &audit_inode_hash[h];
+	if (entry->rule.iyesde_f) {
+		h = audit_hash_iyes(entry->rule.iyesde_f->val);
+		*p = list = &audit_iyesde_hash[h];
 	} else if (entry->rule.watch) {
-		/* we don't know the inode number, so must walk entire hash */
+		/* we don't kyesw the iyesde number, so must walk entire hash */
 		for (h = 0; h < AUDIT_INODE_BUCKETS; h++) {
-			list = &audit_inode_hash[h];
+			list = &audit_iyesde_hash[h];
 			list_for_each_entry(e, list, list)
 				if (!audit_compare_rule(&entry->rule, &e->rule)) {
 					found = e;
@@ -919,7 +919,7 @@ out:
 static u64 prio_low = ~0ULL/2;
 static u64 prio_high = ~0ULL/2 - 1;
 
-/* Add rule to given filterlist if not a duplicate. */
+/* Add rule to given filterlist if yest a duplicate. */
 static inline int audit_add_rule(struct audit_entry *entry)
 {
 	struct audit_entry *e;
@@ -944,7 +944,7 @@ static inline int audit_add_rule(struct audit_entry *entry)
 	if (e) {
 		mutex_unlock(&audit_filter_mutex);
 		err = -EEXIST;
-		/* normally audit_add_tree_rule() will free it on failure */
+		/* yesrmally audit_add_tree_rule() will free it on failure */
 		if (tree)
 			audit_put_tree(tree);
 		return err;
@@ -956,7 +956,7 @@ static inline int audit_add_rule(struct audit_entry *entry)
 		if (err) {
 			mutex_unlock(&audit_filter_mutex);
 			/*
-			 * normally audit_add_tree_rule() will free it
+			 * yesrmally audit_add_tree_rule() will free it
 			 * on failure
 			 */
 			if (tree)
@@ -1192,7 +1192,7 @@ int audit_comparator(u32 left, u32 op, u32 right)
 	switch (op) {
 	case Audit_equal:
 		return (left == right);
-	case Audit_not_equal:
+	case Audit_yest_equal:
 		return (left != right);
 	case Audit_lt:
 		return (left < right);
@@ -1216,7 +1216,7 @@ int audit_uid_comparator(kuid_t left, u32 op, kuid_t right)
 	switch (op) {
 	case Audit_equal:
 		return uid_eq(left, right);
-	case Audit_not_equal:
+	case Audit_yest_equal:
 		return !uid_eq(left, right);
 	case Audit_lt:
 		return uid_lt(left, right);
@@ -1238,7 +1238,7 @@ int audit_gid_comparator(kgid_t left, u32 op, kgid_t right)
 	switch (op) {
 	case Audit_equal:
 		return gid_eq(left, right);
-	case Audit_not_equal:
+	case Audit_yest_equal:
 		return !gid_eq(left, right);
 	case Audit_lt:
 		return gid_lt(left, right);
@@ -1290,7 +1290,7 @@ int parent_len(const char *path)
  * 			      given path. Return of 0 indicates a match.
  * @dname:	dentry name that we're comparing
  * @path:	full pathname that we're comparing
- * @parentlen:	length of the parent if known. Passing in AUDIT_NAME_FULL
+ * @parentlen:	length of the parent if kyeswn. Passing in AUDIT_NAME_FULL
  * 		here indicates that we must compute this value.
  */
 int audit_compare_dname_path(const struct qstr *dname, const char *path, int parentlen)
@@ -1361,7 +1361,7 @@ int audit_filter(int msgtype, unsigned int listtype)
 				break;
 			case AUDIT_EXE:
 				result = audit_exe_compare(current, e->rule.exe);
-				if (f->op == Audit_not_equal)
+				if (f->op == Audit_yest_equal)
 					result = !result;
 				break;
 			default:
@@ -1389,7 +1389,7 @@ static int update_lsm_rule(struct audit_krule *r)
 	struct audit_entry *nentry;
 	int err = 0;
 
-	if (!security_audit_rule_known(r))
+	if (!security_audit_rule_kyeswn(r))
 		return 0;
 
 	nentry = audit_dupe_rule(r);

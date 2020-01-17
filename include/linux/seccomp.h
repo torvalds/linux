@@ -24,7 +24,7 @@ struct seccomp_filter;
  *          accessed without locking during system call entry.
  *
  *          @filter must only be accessed from the context of current as there
- *          is no read locking.
+ *          is yes read locking.
  */
 struct seccomp {
 	int mode;
@@ -53,7 +53,7 @@ static inline int seccomp_mode(struct seccomp *s)
 
 #else /* CONFIG_SECCOMP */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 struct seccomp { };
 struct seccomp_filter { };

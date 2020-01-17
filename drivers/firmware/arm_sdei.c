@@ -12,14 +12,14 @@
 #include <linux/cpuhotplug.h>
 #include <linux/cpu.h>
 #include <linux/cpu_pm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/hardirq.h>
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/kvm_host.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/percpu.h>
@@ -99,7 +99,7 @@ sdei_cross_call_return(struct sdei_crosscall_args *arg, int err)
 		arg->first_error = err;
 }
 
-static int sdei_to_linux_errno(unsigned long sdei_err)
+static int sdei_to_linux_erryes(unsigned long sdei_err)
 {
 	switch (sdei_err) {
 	case SDEI_NOT_SUPPORTED:
@@ -119,7 +119,7 @@ static int sdei_to_linux_errno(unsigned long sdei_err)
 }
 
 /*
- * If x0 is any of these values, then the call failed, use sdei_to_linux_errno()
+ * If x0 is any of these values, then the call failed, use sdei_to_linux_erryes()
  * to translate.
  */
 static int sdei_is_err(struct arm_smccc_res *res)
@@ -148,12 +148,12 @@ static int invoke_sdei_fn(unsigned long function_id, unsigned long arg0,
 		sdei_firmware_call(function_id, arg0, arg1, arg2, arg3, arg4,
 				   &res);
 		if (sdei_is_err(&res))
-			err = sdei_to_linux_errno(res.a0);
+			err = sdei_to_linux_erryes(res.a0);
 	} else {
 		/*
 		 * !sdei_firmware_call means we failed to probe or called
-		 * sdei_mark_interface_broken(). -EIO is not an error returned
-		 * by sdei_to_linux_errno() and is used to suppress messages
+		 * sdei_mark_interface_broken(). -EIO is yest an error returned
+		 * by sdei_to_linux_erryes() and is used to suppress messages
 		 * from this driver.
 		 */
 		err = -EIO;
@@ -317,7 +317,7 @@ int sdei_mask_local_cpu(void)
 	return 0;
 }
 
-static void _ipi_mask_cpu(void *ignored)
+static void _ipi_mask_cpu(void *igyesred)
 {
 	sdei_mask_local_cpu();
 }
@@ -338,12 +338,12 @@ int sdei_unmask_local_cpu(void)
 	return 0;
 }
 
-static void _ipi_unmask_cpu(void *ignored)
+static void _ipi_unmask_cpu(void *igyesred)
 {
 	sdei_unmask_local_cpu();
 }
 
-static void _ipi_private_reset(void *ignored)
+static void _ipi_private_reset(void *igyesred)
 {
 	int err;
 
@@ -513,7 +513,7 @@ int sdei_event_unregister(u32 event_num)
 	event = sdei_event_find(event_num);
 	do {
 		if (!event) {
-			pr_warn("Event %u not registered\n", event_num);
+			pr_warn("Event %u yest registered\n", event_num);
 			err = -ENOENT;
 			break;
 		}
@@ -751,7 +751,7 @@ static int sdei_cpuhp_up(unsigned int cpu)
 }
 
 /* When entering idle, mask/unmask events for this cpu */
-static int sdei_pm_notifier(struct notifier_block *nb, unsigned long action,
+static int sdei_pm_yestifier(struct yestifier_block *nb, unsigned long action,
 			    void *data)
 {
 	int rv;
@@ -769,13 +769,13 @@ static int sdei_pm_notifier(struct notifier_block *nb, unsigned long action,
 	}
 
 	if (rv)
-		return notifier_from_errno(rv);
+		return yestifier_from_erryes(rv);
 
 	return NOTIFY_OK;
 }
 
-static struct notifier_block sdei_pm_nb = {
-	.notifier_call = sdei_pm_notifier,
+static struct yestifier_block sdei_pm_nb = {
+	.yestifier_call = sdei_pm_yestifier,
 };
 
 static int sdei_device_suspend(struct device *dev)
@@ -828,7 +828,7 @@ static int sdei_device_thaw(struct device *dev)
 	err = cpuhp_setup_state(CPUHP_AP_ARM_SDEI_STARTING, "SDEI",
 				&sdei_cpuhp_up, &sdei_cpuhp_down);
 	if (err)
-		pr_warn("Failed to re-register CPU hotplug notifier...\n");
+		pr_warn("Failed to re-register CPU hotplug yestifier...\n");
 
 	return err;
 }
@@ -855,11 +855,11 @@ static const struct dev_pm_ops sdei_pm_ops = {
 /*
  * Mask all CPUs and unregister all events on panic, reboot or kexec.
  */
-static int sdei_reboot_notifier(struct notifier_block *nb, unsigned long action,
+static int sdei_reboot_yestifier(struct yestifier_block *nb, unsigned long action,
 				void *data)
 {
 	/*
-	 * We are going to reset the interface, after this there is no point
+	 * We are going to reset the interface, after this there is yes point
 	 * doing work when we take CPUs offline.
 	 */
 	cpuhp_remove_state(CPUHP_AP_ARM_SDEI_STARTING);
@@ -869,8 +869,8 @@ static int sdei_reboot_notifier(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block sdei_reboot_nb = {
-	.notifier_call = sdei_reboot_notifier,
+static struct yestifier_block sdei_reboot_nb = {
+	.yestifier_call = sdei_reboot_yestifier,
 };
 
 static void sdei_smccc_smc(unsigned long function_id,
@@ -891,7 +891,7 @@ static void sdei_smccc_hvc(unsigned long function_id,
 }
 NOKPROBE_SYMBOL(sdei_smccc_hvc);
 
-int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
+int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *yesrmal_cb,
 		       sdei_event_callback *critical_cb)
 {
 	int err;
@@ -902,7 +902,7 @@ int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
 	if (!IS_ENABLED(CONFIG_ACPI_APEI_GHES))
 		return -EOPNOTSUPP;
 
-	event_num = ghes->generic->notify.vector;
+	event_num = ghes->generic->yestify.vector;
 	if (event_num == 0) {
 		/*
 		 * Event 0 is reserved by the specification for
@@ -919,7 +919,7 @@ int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
 	if (result == SDEI_EVENT_PRIORITY_CRITICAL)
 		cb = critical_cb;
 	else
-		cb = normal_cb;
+		cb = yesrmal_cb;
 
 	err = sdei_event_register(event_num, cb, ghes);
 	if (!err)
@@ -932,7 +932,7 @@ int sdei_unregister_ghes(struct ghes *ghes)
 {
 	int i;
 	int err;
-	u32 event_num = ghes->generic->notify.vector;
+	u32 event_num = ghes->generic->yestify.vector;
 
 	might_sleep();
 
@@ -940,7 +940,7 @@ int sdei_unregister_ghes(struct ghes *ghes)
 		return -EOPNOTSUPP;
 
 	/*
-	 * The event may be running on another CPU. Disable it
+	 * The event may be running on ayesther CPU. Disable it
 	 * to stop new events, then try to unregister a few times.
 	 */
 	err = sdei_event_disable(event_num);
@@ -961,7 +961,7 @@ int sdei_unregister_ghes(struct ghes *ghes)
 static int sdei_get_conduit(struct platform_device *pdev)
 {
 	const char *method;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	sdei_firmware_call = NULL;
 	if (np) {
@@ -1004,7 +1004,7 @@ static int sdei_probe(struct platform_device *pdev)
 
 	err = sdei_api_get_version(&ver);
 	if (err == -EOPNOTSUPP)
-		pr_err("advertised but not implemented in platform firmware\n");
+		pr_err("advertised but yest implemented in platform firmware\n");
 	if (err) {
 		pr_err("Failed to get SDEI version: %d\n", err);
 		sdei_mark_interface_broken();
@@ -1032,32 +1032,32 @@ static int sdei_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-	err = cpu_pm_register_notifier(&sdei_pm_nb);
+	err = cpu_pm_register_yestifier(&sdei_pm_nb);
 	if (err) {
-		pr_warn("Failed to register CPU PM notifier...\n");
+		pr_warn("Failed to register CPU PM yestifier...\n");
 		goto error;
 	}
 
-	err = register_reboot_notifier(&sdei_reboot_nb);
+	err = register_reboot_yestifier(&sdei_reboot_nb);
 	if (err) {
-		pr_warn("Failed to register reboot notifier...\n");
+		pr_warn("Failed to register reboot yestifier...\n");
 		goto remove_cpupm;
 	}
 
 	err = cpuhp_setup_state(CPUHP_AP_ARM_SDEI_STARTING, "SDEI",
 				&sdei_cpuhp_up, &sdei_cpuhp_down);
 	if (err) {
-		pr_warn("Failed to register CPU hotplug notifier...\n");
+		pr_warn("Failed to register CPU hotplug yestifier...\n");
 		goto remove_reboot;
 	}
 
 	return 0;
 
 remove_reboot:
-	unregister_reboot_notifier(&sdei_reboot_nb);
+	unregister_reboot_yestifier(&sdei_reboot_nb);
 
 remove_cpupm:
-	cpu_pm_unregister_notifier(&sdei_pm_nb);
+	cpu_pm_unregister_yestifier(&sdei_pm_nb);
 
 error:
 	sdei_mark_interface_broken();
@@ -1080,16 +1080,16 @@ static struct platform_driver sdei_driver = {
 
 static bool __init sdei_present_dt(void)
 {
-	struct device_node *np, *fw_np;
+	struct device_yesde *np, *fw_np;
 
-	fw_np = of_find_node_by_name(NULL, "firmware");
+	fw_np = of_find_yesde_by_name(NULL, "firmware");
 	if (!fw_np)
 		return false;
 
-	np = of_find_matching_node(fw_np, sdei_of_match);
+	np = of_find_matching_yesde(fw_np, sdei_of_match);
 	if (!np)
 		return false;
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return true;
 }

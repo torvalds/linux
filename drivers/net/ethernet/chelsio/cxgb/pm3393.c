@@ -12,7 +12,7 @@
  * published by the Free Software Foundation.                                *
  *                                                                           *
  * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, see <http://www.gnu.org/licenses/>.            *
+ * with this program; if yest, see <http://www.gnu.org/licenses/>.            *
  *                                                                           *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
@@ -146,7 +146,7 @@ static int pm3393_interrupt_enable(struct cmac *cmac)
 
 	/* PM3393 - Global interrupt enable
 	 */
-	/* TBD XXX Disable for now until we figure out why error interrupts keep asserting. */
+	/* TBD XXX Disable for yesw until we figure out why error interrupts keep asserting. */
 	pmwrite(cmac, SUNI1x10GEXP_REG_GLOBAL_INTERRUPT_ENABLE,
 		0 /*SUNI1x10GEXP_BITMSK_TOP_INTE */ );
 
@@ -252,7 +252,7 @@ static int pm3393_interrupt_handler(struct cmac *cmac)
 		dev_dbg(&cmac->adapter->pdev->dev, "PM3393 intr cause 0x%x\n",
 			master_intr_status);
 
-	/* TBD XXX Lets just clear everything for now */
+	/* TBD XXX Lets just clear everything for yesw */
 	pm3393_interrupt_clear(cmac);
 
 	return 0;
@@ -289,7 +289,7 @@ static int pm3393_enable_port(struct cmac *cmac, int which)
 	pm3393_enable(cmac, which);
 
 	/*
-	 * XXX This should be done by the PHY and preferably not at all.
+	 * XXX This should be done by the PHY and preferably yest at all.
 	 * The PHY doesn't give us link status indication on its own so have
 	 * the link management code query it instead.
 	 */
@@ -764,7 +764,7 @@ static int pm3393_mac_reset(adapter_t * adapter)
 		is_pl4_outof_lock = (val & x);
 
 		/* ??? If this fails, might be able to software reset the XAUI part
-		 *     and try to recover... thus saving us from doing another HW reset */
+		 *     and try to recover... thus saving us from doing ayesther HW reset */
 		/* Has the XAUI MABC PLL circuitry stablized? */
 		is_xaui_mabc_pll_locked =
 		    (val & SUNI1x10GEXP_BITMSK_TOP_SXRA_EXPIRED);

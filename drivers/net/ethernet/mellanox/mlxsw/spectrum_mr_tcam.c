@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -83,7 +83,7 @@ mlxsw_sp_mr_erif_list_add(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_mr_erif_sublist *sublist;
 
-	/* If either there is no erif_entry or the last one is full, allocate a
+	/* If either there is yes erif_entry or the last one is full, allocate a
 	 * new one.
 	 */
 	if (list_empty(&erif_list->erif_sublists)) {
@@ -133,7 +133,7 @@ mlxsw_sp_mr_erif_list_commit(struct mlxsw_sp *mlxsw_sp,
 		if (curr_sublist->synced)
 			continue;
 
-		/* If the sublist is not the last one, pack the next index */
+		/* If the sublist is yest the last one, pack the next index */
 		if (list_is_last(&curr_sublist->list,
 				 &erif_list->erif_sublists)) {
 			mlxsw_reg_rigr2_pack(rigr2_pl,
@@ -162,7 +162,7 @@ mlxsw_sp_mr_erif_list_commit(struct mlxsw_sp *mlxsw_sp,
 				      rigr2_pl);
 		if (err)
 			/* No need of a rollback here because this
-			 * hardware entry should not be pointed yet.
+			 * hardware entry should yest be pointed yet.
 			 */
 			return err;
 		curr_sublist->synced = true;
@@ -453,7 +453,7 @@ static int mlxsw_sp_mr_tcam_route_erif_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	/* Commit the action only if the route action is not TRAP */
+	/* Commit the action only if the route action is yest TRAP */
 	if (route->action != MLXSW_SP_MR_ROUTE_ACTION_TRAP)
 		return mlxsw_sp_mr_erif_list_commit(mlxsw_sp,
 						    &route->erif_list);

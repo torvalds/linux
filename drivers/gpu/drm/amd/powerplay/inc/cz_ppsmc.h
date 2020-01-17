@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -44,14 +44,14 @@ enum DPM_ARRAY {
 
 /*
  * Return codes for driver to SMC communication.
- * Leave these #define-s, enums might not be exactly 8-bits on the microcontroller.
+ * Leave these #define-s, enums might yest be exactly 8-bits on the microcontroller.
  */
 #define PPSMC_Result_OK             ((uint16_t)0x01)
 #define PPSMC_Result_NoMore         ((uint16_t)0x02)
 #define PPSMC_Result_NotNow         ((uint16_t)0x03)
 #define PPSMC_Result_Failed         ((uint16_t)0xFF)
-#define PPSMC_Result_UnknownCmd     ((uint16_t)0xFE)
-#define PPSMC_Result_UnknownVT      ((uint16_t)0xFD)
+#define PPSMC_Result_UnkyeswnCmd     ((uint16_t)0xFE)
+#define PPSMC_Result_UnkyeswnVT      ((uint16_t)0xFD)
 
 #define PPSMC_isERROR(x)            ((uint16_t)0x80 & (x))
 

@@ -15,10 +15,10 @@
  *      Modified by Eric Youngdale eric@andante.org to support loadable
  *      low-level scsi drivers.
  *
- *      Modified by Thomas Quinot thomas@melchior.cuivre.fdn.fr to
+ *      Modified by Thomas Quiyest thomas@melchior.cuivre.fdn.fr to
  *      provide auto-eject.
  *
- *      Modified by Gerd Knorr <kraxel@cs.tu-berlin.de> to support the
+ *      Modified by Gerd Kyesrr <kraxel@cs.tu-berlin.de> to support the
  *      generic cdrom interface
  *
  *      Modified by Jens Axboe <axboe@suse.de> - Uniform sr_packet()
@@ -39,7 +39,7 @@
 #include <linux/mm.h>
 #include <linux/bio.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/cdrom.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -193,7 +193,7 @@ static unsigned int sr_get_events(struct scsi_device *sdev)
 	u8 cmd[] = { GET_EVENT_STATUS_NOTIFICATION,
 		     1,			/* polled */
 		     0, 0,		/* reserved */
-		     1 << 4,		/* notification class: media */
+		     1 << 4,		/* yestification class: media */
 		     0, 0,		/* reserved */
 		     0, sizeof(buf),	/* allocation length */
 		     0,			/* control */
@@ -211,7 +211,7 @@ static unsigned int sr_get_events(struct scsi_device *sdev)
 	if (result || be16_to_cpu(eh->data_len) < sizeof(*med))
 		return 0;
 
-	if (eh->nea || eh->notification_class != 0x4)
+	if (eh->nea || eh->yestification_class != 0x4)
 		return 0;
 
 	if (med->media_event_code == 1)
@@ -224,7 +224,7 @@ static unsigned int sr_get_events(struct scsi_device *sdev)
 /*
  * This function checks to see if the media has been changed or eject
  * button has been pressed.  It is possible that we have already
- * sensed a change, or the drive may have sensed one and not yet
+ * sensed a change, or the drive may have sensed one and yest yet
  * reported it.  The past events are accumulated in sdev->changed and
  * returned together with the current state.
  */
@@ -237,7 +237,7 @@ static unsigned int sr_check_events(struct cdrom_device_info *cdi,
 	unsigned int events;
 	int ret;
 
-	/* no changer support */
+	/* yes changer support */
 	if (CDSL_CURRENT != slot)
 		return 0;
 
@@ -245,18 +245,18 @@ static unsigned int sr_check_events(struct cdrom_device_info *cdi,
 	cd->get_event_changed |= events & DISK_EVENT_MEDIA_CHANGE;
 
 	/*
-	 * If earlier GET_EVENT_STATUS_NOTIFICATION and TUR did not agree
+	 * If earlier GET_EVENT_STATUS_NOTIFICATION and TUR did yest agree
 	 * for several times in a row.  We rely on TUR only for this likely
 	 * broken device, to prevent generating incorrect media changed
 	 * events for every open().
 	 */
-	if (cd->ignore_get_event) {
+	if (cd->igyesre_get_event) {
 		events &= ~DISK_EVENT_MEDIA_CHANGE;
 		goto do_tur;
 	}
 
 	/*
-	 * GET_EVENT_STATUS_NOTIFICATION is enough unless MEDIA_CHANGE
+	 * GET_EVENT_STATUS_NOTIFICATION is eyesugh unless MEDIA_CHANGE
 	 * is being cleared.  Note that there are devices which hang
 	 * if asked to execute TUR repeatedly.
 	 */
@@ -275,7 +275,7 @@ do_tur:
 
 	/*
 	 * Media is considered to be present if TUR succeeds or fails with
-	 * sense data indicating something other than media-not-present
+	 * sense data indicating something other than media-yest-present
 	 * (ASC 0x3a).
 	 */
 	cd->media_present = scsi_status_is_good(ret) ||
@@ -290,7 +290,7 @@ do_tur:
 		cd->tur_changed = true;
 	}
 
-	if (cd->ignore_get_event)
+	if (cd->igyesre_get_event)
 		return events;
 
 	/* check whether GET_EVENT is reporting spurious MEDIA_CHANGE */
@@ -299,7 +299,7 @@ do_tur:
 			if (cd->tur_mismatch++ > 8) {
 				sr_printk(KERN_WARNING, cd,
 					  "GET_EVENT and TUR disagree continuously, suppress GET_EVENT events\n");
-				cd->ignore_get_event = true;
+				cd->igyesre_get_event = true;
 			}
 		} else {
 			cd->tur_mismatch = 0;
@@ -314,7 +314,7 @@ do_tur:
 /*
  * sr_done is the interrupt routine for the device driver.
  *
- * It will be notified on the end of a SCSI read / write, and will take one
+ * It will be yestified on the end of a SCSI read / write, and will take one
  * of several actions based on success or failure.
  */
 static int sr_done(struct scsi_cmnd *SCpnt)
@@ -332,7 +332,7 @@ static int sr_done(struct scsi_cmnd *SCpnt)
 
 	/*
 	 * Handle MEDIUM ERRORs or VOLUME OVERFLOWs that indicate partial
-	 * success.  Since this is a relatively rare error condition, no
+	 * success.  Since this is a relatively rare error condition, yes
 	 * care is taken to avoid unnecessary additional work such as
 	 * memcpy's that could be avoided.
 	 */
@@ -449,7 +449,7 @@ static blk_status_t sr_init_command(struct scsi_cmnd *SCpnt)
 		SCpnt->cmnd[0] = READ_10;
 		break;
 	default:
-		blk_dump_rq_flags(rq, "Unknown sr command");
+		blk_dump_rq_flags(rq, "Unkyeswn sr command");
 		goto out;
 	}
 
@@ -624,7 +624,7 @@ static int sr_block_revalidate_disk(struct gendisk *disk)
 	if (!cd)
 		return -ENXIO;
 
-	/* if the unit is not ready, nothing more to do */
+	/* if the unit is yest ready, yesthing more to do */
 	if (scsi_test_unit_ready(cd->device, SR_TIMEOUT, MAX_RETRIES, &sshdr))
 		goto out;
 
@@ -644,7 +644,7 @@ static const struct block_device_operations sr_bdops =
 	.check_events	= sr_block_check_events,
 	.revalidate_disk = sr_block_revalidate_disk,
 	/* 
-	 * No compat_ioctl for now because sr_block_ioctl never
+	 * No compat_ioctl for yesw because sr_block_ioctl never
 	 * seems to pass arbitrary ioctls down to host drivers.
 	 */
 };
@@ -683,7 +683,7 @@ static int sr_probe(struct device *dev)
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct gendisk *disk;
 	struct scsi_cd *cd;
-	int minor, error;
+	int miyesr, error;
 
 	scsi_autopm_get_device(sdev);
 	error = -ENODEV;
@@ -702,18 +702,18 @@ static int sr_probe(struct device *dev)
 		goto fail_free;
 
 	spin_lock(&sr_index_lock);
-	minor = find_first_zero_bit(sr_index_bits, SR_DISKS);
-	if (minor == SR_DISKS) {
+	miyesr = find_first_zero_bit(sr_index_bits, SR_DISKS);
+	if (miyesr == SR_DISKS) {
 		spin_unlock(&sr_index_lock);
 		error = -EBUSY;
 		goto fail_put;
 	}
-	__set_bit(minor, sr_index_bits);
+	__set_bit(miyesr, sr_index_bits);
 	spin_unlock(&sr_index_lock);
 
 	disk->major = SCSI_CDROM_MAJOR;
-	disk->first_minor = minor;
-	sprintf(disk->disk_name, "sr%d", minor);
+	disk->first_miyesr = miyesr;
+	sprintf(disk->disk_name, "sr%d", miyesr);
 	disk->fops = &sr_bdops;
 	disk->flags = GENHD_FL_CD | GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE;
 	disk->events = DISK_EVENT_MEDIA_CHANGE | DISK_EVENT_EJECT_REQUEST;
@@ -729,14 +729,14 @@ static int sr_probe(struct device *dev)
 	cd->device->changed = 1;	/* force recheck CD type */
 	cd->media_present = 1;
 	cd->use = 1;
-	cd->readcd_known = 0;
+	cd->readcd_kyeswn = 0;
 	cd->readcd_cdda = 0;
 
 	cd->cdi.ops = &sr_dops;
 	cd->cdi.handle = cd;
 	cd->cdi.mask = 0;
 	cd->cdi.capacity = 1;
-	sprintf(cd->cdi.name, "sr%d", minor);
+	sprintf(cd->cdi.name, "sr%d", miyesr);
 
 	sdev->sector_size = 2048;	/* A guess, just in case */
 
@@ -909,7 +909,7 @@ static void get_capabilities(struct scsi_cd *cd)
 
 	n = data.header_length + data.block_descriptor_length;
 	cd->cdi.speed = ((buffer[n + 8] << 8) + buffer[n + 9]) / 176;
-	cd->readcd_known = 1;
+	cd->readcd_kyeswn = 1;
 	cd->readcd_cdda = buffer[n + 5] & 0x01;
 	/* print some capability bits */
 	sr_printk(KERN_INFO, cd,
@@ -926,7 +926,7 @@ static void get_capabilities(struct scsi_cd *cd)
 		/* caddy drives can't close tray... */
 		cd->cdi.mask |= CDC_CLOSE_TRAY;
 	if ((buffer[n + 2] & 0x8) == 0)
-		/* not a DVD drive */
+		/* yest a DVD drive */
 		cd->cdi.mask |= CDC_DVD;
 	if ((buffer[n + 3] & 0x20) == 0)
 		/* can't write DVD-RAM media */
@@ -949,7 +949,7 @@ static void get_capabilities(struct scsi_cd *cd)
 		cd->cdi.capacity =
 		    cdrom_number_of_slots(&cd->cdi);
 	if (cd->cdi.capacity <= 1)
-		/* not a changer */
+		/* yest a changer */
 		cd->cdi.mask |= CDC_SELECT_DISC;
 	/*else    I don't think it can close its tray
 		cd->cdi.mask |= CDC_CLOSE_TRAY; */
@@ -975,7 +975,7 @@ static int sr_packet(struct cdrom_device_info *cdi,
 	struct scsi_cd *cd = cdi->handle;
 	struct scsi_device *sdev = cd->device;
 
-	if (cgc->cmd[0] == GPCMD_READ_DISC_INFO && sdev->no_read_disc_info)
+	if (cgc->cmd[0] == GPCMD_READ_DISC_INFO && sdev->yes_read_disc_info)
 		return -EDRIVE_CANT_DO_THIS;
 
 	if (cgc->timeout <= 0)

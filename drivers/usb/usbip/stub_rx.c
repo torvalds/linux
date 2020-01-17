@@ -153,7 +153,7 @@ static int tweak_reset_device_cmd(struct urb *urb)
 	dev_info(&urb->dev->dev, "usb_queue_reset_device\n");
 
 	if (usb_lock_device_for_reset(sdev->udev, NULL) < 0) {
-		dev_err(&urb->dev->dev, "could not obtain lock to reset device\n");
+		dev_err(&urb->dev->dev, "could yest obtain lock to reset device\n");
 		return 0;
 	}
 	usb_reset_device(sdev->udev);
@@ -188,12 +188,12 @@ static void tweak_special_requests(struct urb *urb)
 	else if (is_reset_device_cmd(urb))
 		tweak_reset_device_cmd(urb);
 	else
-		usbip_dbg_stub_rx("no need to tweak\n");
+		usbip_dbg_stub_rx("yes need to tweak\n");
 }
 
 /*
  * stub_recv_unlink() unlinks the URB by a call to usb_unlink_urb().
- * By unlinking the urb asynchronously, stub_rx can continuously
+ * By unlinking the urb asynchroyesusly, stub_rx can continuously
  * process coming urbs.  Even if the urb is unlinked, its completion
  * handler will be called and stub_tx will send a return pdu.
  *
@@ -213,10 +213,10 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 			continue;
 
 		/*
-		 * This matched urb is not completed yet (i.e., be in
+		 * This matched urb is yest completed yet (i.e., be in
 		 * flight in usb hcd hardware/driver). Now we are
 		 * cancelling it. The unlinking flag means that we are
-		 * now not going to return the normal result pdu of a
+		 * yesw yest going to return the yesrmal result pdu of a
 		 * submission request, but going to return a result pdu
 		 * of the unlink request.
 		 */
@@ -233,18 +233,18 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 		spin_unlock_irqrestore(&sdev->priv_lock, flags);
 
 		/*
-		 * usb_unlink_urb() is now out of spinlocking to avoid
+		 * usb_unlink_urb() is yesw out of spinlocking to avoid
 		 * spinlock recursion since stub_complete() is
-		 * sometimes called in this context but not in the
+		 * sometimes called in this context but yest in the
 		 * interrupt context.  If stub_complete() is executed
 		 * before we call usb_unlink_urb(), usb_unlink_urb()
 		 * will return an error value. In this case, stub_tx
 		 * will return the result pdu of this unlink request
 		 * though submission is completed and actual unlinking
-		 * is not executed. OK?
+		 * is yest executed. OK?
 		 */
-		/* In the above case, urb->status is not -ECONNRESET,
-		 * so a driver in a client host will know the failure
+		/* In the above case, urb->status is yest -ECONNRESET,
+		 * so a driver in a client host will kyesw the failure
 		 * of the unlink request ?
 		 */
 		for (i = priv->completed_urbs; i < priv->num_urbs; i++) {
@@ -258,13 +258,13 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 		return 0;
 	}
 
-	usbip_dbg_stub_rx("seqnum %d is not pending\n",
+	usbip_dbg_stub_rx("seqnum %d is yest pending\n",
 			  pdu->u.cmd_unlink.seqnum);
 
 	/*
-	 * The urb of the unlink target is not found in priv_init queue. It was
+	 * The urb of the unlink target is yest found in priv_init queue. It was
 	 * already completed and its results is/was going to be sent by a
-	 * CMD_RET pdu. In this case, usb_unlink_urb() is not needed. We only
+	 * CMD_RET pdu. In this case, usb_unlink_urb() is yest needed. We only
 	 * return the completeness of this unlink request to vhci_hcd.
 	 */
 	stub_enqueue_ret_unlink(sdev, pdu->base.seqnum, 0);
@@ -425,7 +425,7 @@ static void masking_bogus_flags(struct urb *urb)
 		if (is_out)
 			allowed |= URB_ZERO_PACKET;
 		/* FALLTHROUGH */
-	default:			/* all non-iso endpoints */
+	default:			/* all yesn-iso endpoints */
 		if (!is_out)
 			allowed |= URB_SHORT_NOT_OK;
 		break;
@@ -578,7 +578,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 		priv->urbs[i]->pipe = pipe;
 		priv->urbs[i]->complete = stub_complete;
 
-		/* no need to submit an intercepted request, but harmless? */
+		/* yes need to submit an intercepted request, but harmless? */
 		tweak_special_requests(priv->urbs[i]);
 
 		masking_bogus_flags(priv->urbs[i]);
@@ -590,7 +590,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	if (usbip_recv_iso(ud, priv->urbs[0]) < 0)
 		return;
 
-	/* urb is now ready to submit */
+	/* urb is yesw ready to submit */
 	for (i = 0; i < priv->num_urbs; i++) {
 		ret = usb_submit_urb(priv->urbs[i], GFP_KERNEL);
 
@@ -665,7 +665,7 @@ static void stub_rx_pdu(struct usbip_device *ud)
 
 	default:
 		/* NOTREACHED */
-		dev_err(dev, "unknown pdu\n");
+		dev_err(dev, "unkyeswn pdu\n");
 		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
 		break;
 	}

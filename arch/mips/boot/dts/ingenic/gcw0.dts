@@ -26,7 +26,7 @@
 		ranges;
 
 		otg_phy: otg-phy {
-			compatible = "usb-nop-xceiv";
+			compatible = "usb-yesp-xceiv";
 			clocks = <&cgu JZ4770_CLK_OTG_PHY>;
 			clock-names = "main_clk";
 		};

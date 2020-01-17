@@ -141,12 +141,12 @@ static void reuseport_free_rcu(struct rcu_head *head)
 }
 
 /**
- *  reuseport_add_sock - Add a socket to the reuseport group of another.
+ *  reuseport_add_sock - Add a socket to the reuseport group of ayesther.
  *  @sk:  New socket to add to the group.
  *  @sk2: Socket belonging to the existing reuseport group.
- *  @bind_inany: Whether or not the group is bound to a local INANY address.
+ *  @bind_inany: Whether or yest the group is bound to a local INANY address.
  *
- *  May return ENOMEM and not add socket to group under memory pressure.
+ *  May return ENOMEM and yest add socket to group under memory pressure.
  */
 int reuseport_add_sock(struct sock *sk, struct sock *sk2, bool bind_inany)
 {
@@ -255,10 +255,10 @@ static struct sock *run_bpf_filter(struct sock_reuseport *reuse, u16 socks,
 /**
  *  reuseport_select_sock - Select a socket from an SO_REUSEPORT group.
  *  @sk: First socket in the group.
- *  @hash: When no BPF filter is available, use this hash to select.
+ *  @hash: When yes BPF filter is available, use this hash to select.
  *  @skb: skb to run through BPF filter.
  *  @hdr_len: BPF filter expects skb data pointer at payload data.  If
- *    the skb does not yet point at the payload, this parameter represents
+ *    the skb does yest yet point at the payload, this parameter represents
  *    how far the pointer needs to advance to reach the payload.
  *  Returns a socket that should receive the packet (or NULL on error).
  */
@@ -275,7 +275,7 @@ struct sock *reuseport_select_sock(struct sock *sk,
 	rcu_read_lock();
 	reuse = rcu_dereference(sk->sk_reuseport_cb);
 
-	/* if memory allocation failed or add call is not yet complete */
+	/* if memory allocation failed or add call is yest yet complete */
 	if (!reuse)
 		goto out;
 
@@ -294,7 +294,7 @@ struct sock *reuseport_select_sock(struct sock *sk,
 			sk2 = run_bpf_filter(reuse, socks, prog, skb, hdr_len);
 
 select_by_hash:
-		/* no bpf or invalid bpf result: fall back to hash usage */
+		/* yes bpf or invalid bpf result: fall back to hash usage */
 		if (!sk2) {
 			int i, j;
 

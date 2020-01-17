@@ -22,14 +22,14 @@
 /* 
 
 NOTE: the current implementation of the port structure as a linked list is
-not optimal for clients that have many ports. For sending messages to all
+yest optimal for clients that have many ports. For sending messages to all
 subscribers of a port we first need to find the address of the port
 structure, which means we have to traverse the list. A direct access table
 (array) would be better, but big preallocated arrays waste memory.
 
 Possible actions:
 
-1) leave it this way, a client does normaly does not have more than a few
+1) leave it this way, a client does yesrmaly does yest have more than a few
 ports
 
 2) replace the linked list of ports by a array of pointers which is
@@ -52,14 +52,14 @@ struct snd_seq_client_port *snd_seq_port_use_ptr(struct snd_seq_client *client,
 	list_for_each_entry(port, &client->ports_list_head, list) {
 		if (port->addr.port == num) {
 			if (port->closing)
-				break; /* deleting now */
+				break; /* deleting yesw */
 			snd_use_lock_use(&port->use_lock);
 			read_unlock(&client->ports_lock);
 			return port;
 		}
 	}
 	read_unlock(&client->ports_lock);
-	return NULL;		/* not found */
+	return NULL;		/* yest found */
 }
 
 
@@ -391,7 +391,7 @@ int snd_seq_get_port_info(struct snd_seq_client_port * port,
  * call callback functions (if any):
  * the callbacks are invoked only when the first (for connection) or
  * the last subscription (for disconnection) is done.  Second or later
- * subscription results in increment of counter, but no callback is
+ * subscription results in increment of counter, but yes callback is
  * invoked.
  * This feature is useful if these callbacks are associated with
  * initialization or termination of devices (see seq_midi.c).
@@ -416,7 +416,7 @@ static int subscribe_port(struct snd_seq_client *client,
 		}
 	}
 	if (err >= 0 && send_ack && client->type == USER_CLIENT)
-		snd_seq_client_notify_subscription(port->addr.client, port->addr.port,
+		snd_seq_client_yestify_subscription(port->addr.client, port->addr.port,
 						   info, SNDRV_SEQ_EVENT_PORT_SUBSCRIBED);
 
 	return err;
@@ -436,7 +436,7 @@ static int unsubscribe_port(struct snd_seq_client *client,
 	if (grp->close && grp->count == 0)
 		err = grp->close(port->private_data, info);
 	if (send_ack && client->type == USER_CLIENT)
-		snd_seq_client_notify_subscription(port->addr.client, port->addr.port,
+		snd_seq_client_yestify_subscription(port->addr.client, port->addr.port,
 						   info, SNDRV_SEQ_EVENT_PORT_UNSUBSCRIBED);
 	module_put(port->owner);
 	return err;
@@ -598,7 +598,7 @@ int snd_seq_port_disconnect(struct snd_seq_client *connector,
 	/* look for the connection */
 	list_for_each_entry(subs, &src->list_head, src_list) {
 		if (match_subs_info(info, &subs->info)) {
-			atomic_dec(&subs->ref_count); /* mark as not ready */
+			atomic_dec(&subs->ref_count); /* mark as yest ready */
 			err = 0;
 			break;
 		}

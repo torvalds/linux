@@ -223,7 +223,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * the end of a <68 byte packet. As a workaround for this, we
 	 * pad packets to be 68 bytes whenever we are in half duplex
 	 * mode. We don't handle the case of having a small packet but
-	 * no room to add the padding.  The kernel should always give
+	 * yes room to add the padding.  The kernel should always give
 	 * us at least a cache line
 	 */
 	if ((skb->len < 64) && OCTEON_IS_MODEL(OCTEON_CN3XXX)) {
@@ -303,7 +303,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	if (unlikely
 	    ((skb_end_pointer(skb) - fpa_head) < CVMX_FPA_PACKET_POOL_SIZE)) {
-		/* TX buffer isn't large enough for the FPA */
+		/* TX buffer isn't large eyesugh for the FPA */
 		goto dont_put_skbuff_in_hw;
 	}
 	if (unlikely(skb_shared(skb))) {
@@ -412,14 +412,14 @@ dont_put_skbuff_in_hw:
 	if (unlikely(skb_queue_len(&priv->tx_free_list[qos]) >=
 		     MAX_OUT_QUEUE_DEPTH)) {
 		if (dev->tx_queue_len != 0) {
-			/* Drop the lock when notifying the core.  */
+			/* Drop the lock when yestifying the core.  */
 			spin_unlock_irqrestore(&priv->tx_free_list[qos].lock,
 					       flags);
 			netif_stop_queue(dev);
 			spin_lock_irqsave(&priv->tx_free_list[qos].lock,
 					  flags);
 		} else {
-			/* If not using normal queueing.  */
+			/* If yest using yesrmal queueing.  */
 			queue_type = QUEUE_DROP;
 			goto skip_xmit;
 		}
@@ -589,7 +589,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 #if 0
 		/* FIXME */
 		work->word2.s.dec_ipsec = 0;
-		/* We only support IPv4 right now */
+		/* We only support IPv4 right yesw */
 		work->word2.s.is_v6 = 0;
 		/* Hardware would set to zero */
 		work->word2.s.software = 0;
@@ -607,7 +607,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		work->word2.s.is_mcast = (skb->pkt_type == PACKET_MULTICAST);
 #if 0
 		/* This is an IP packet */
-		work->word2.s.not_IP = 0;
+		work->word2.s.yest_IP = 0;
 		/* No error, packet is internal */
 		work->word2.s.rcv_error = 0;
 		/* No error, packet is internal */
@@ -623,23 +623,23 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		       sizeof(work->packet_data));
 	} else {
 #if 0
-		work->word2.snoip.vlan_valid = 0;	/* FIXME */
-		work->word2.snoip.vlan_cfi = 0;	/* FIXME */
-		work->word2.snoip.vlan_id = 0;	/* FIXME */
-		work->word2.snoip.software = 0;	/* Hardware would set to zero */
+		work->word2.syesip.vlan_valid = 0;	/* FIXME */
+		work->word2.syesip.vlan_cfi = 0;	/* FIXME */
+		work->word2.syesip.vlan_id = 0;	/* FIXME */
+		work->word2.syesip.software = 0;	/* Hardware would set to zero */
 #endif
-		work->word2.snoip.is_rarp = skb->protocol == htons(ETH_P_RARP);
-		work->word2.snoip.is_arp = skb->protocol == htons(ETH_P_ARP);
-		work->word2.snoip.is_bcast =
+		work->word2.syesip.is_rarp = skb->protocol == htons(ETH_P_RARP);
+		work->word2.syesip.is_arp = skb->protocol == htons(ETH_P_ARP);
+		work->word2.syesip.is_bcast =
 		    (skb->pkt_type == PACKET_BROADCAST);
-		work->word2.snoip.is_mcast =
+		work->word2.syesip.is_mcast =
 		    (skb->pkt_type == PACKET_MULTICAST);
-		work->word2.snoip.not_IP = 1;	/* IP was done up above */
+		work->word2.syesip.yest_IP = 1;	/* IP was done up above */
 #if 0
 		/* No error, packet is internal */
-		work->word2.snoip.rcv_error = 0;
+		work->word2.syesip.rcv_error = 0;
 		/* No error, packet is internal */
-		work->word2.snoip.err_code = 0;
+		work->word2.syesip.err_code = 0;
 #endif
 		memcpy(work->packet_data, skb->data, sizeof(work->packet_data));
 	}
@@ -707,7 +707,7 @@ void cvm_oct_tx_initialize(void)
 			"Ethernet", cvm_oct_device);
 
 	if (i)
-		panic("Could not acquire Ethernet IRQ %d\n", OCTEON_IRQ_TIMER1);
+		panic("Could yest acquire Ethernet IRQ %d\n", OCTEON_IRQ_TIMER1);
 }
 
 void cvm_oct_tx_shutdown(void)

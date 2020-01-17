@@ -115,7 +115,7 @@ static int pata_falcon_set_mode(struct ata_link *link,
 static struct ata_port_operations pata_falcon_ops = {
 	.inherits	= &ata_sff_port_ops,
 	.sff_data_xfer	= pata_falcon_data_xfer,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkyeswn,
 	.set_mode	= pata_falcon_set_mode,
 };
 

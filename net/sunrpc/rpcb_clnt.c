@@ -21,7 +21,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <net/ipv6.h>
@@ -71,7 +71,7 @@ enum {
  *
  * For AF_LOCAL SET/UNSET requests, rpcbind treats this string as a
  * UID which it maps to a local user name via a password lookup.
- * In all other cases it is ignored.
+ * In all other cases it is igyesred.
  *
  * For SET/UNSET requests, user space provides a value, even for
  * network requests, and GETADDR uses an empty string.  We follow
@@ -106,7 +106,7 @@ enum {
 #define RPCB_setres_sz		RPCB_boolean_sz
 
 /*
- * Note that RFC 1833 does not put any size restrictions on the
+ * Note that RFC 1833 does yest put any size restrictions on the
  * address string returned by the remote rpcbind database.
  */
 #define RPCB_getaddrres_sz	RPCB_addr_sz
@@ -223,7 +223,7 @@ static void rpcb_set_local(struct net *net, struct rpc_clnt *clnt,
 }
 
 /*
- * Returns zero on success, otherwise a negative errno value
+ * Returns zero on success, otherwise a negative erryes value
  * is returned.
  */
 static int rpcb_create_local_unix(struct net *net)
@@ -262,7 +262,7 @@ static int rpcb_create_local_unix(struct net *net)
 	clnt = rpc_create(&args);
 	if (IS_ERR(clnt)) {
 		dprintk("RPC:       failed to create AF_LOCAL rpcbind "
-				"client (errno %ld).\n", PTR_ERR(clnt));
+				"client (erryes %ld).\n", PTR_ERR(clnt));
 		result = PTR_ERR(clnt);
 		goto out;
 	}
@@ -270,7 +270,7 @@ static int rpcb_create_local_unix(struct net *net)
 	clnt4 = rpc_bind_new_program(clnt, &rpcb_program, RPCBVERS_4);
 	if (IS_ERR(clnt4)) {
 		dprintk("RPC:       failed to bind second program to "
-				"rpcbind v4 client (errno %ld).\n",
+				"rpcbind v4 client (erryes %ld).\n",
 				PTR_ERR(clnt4));
 		clnt4 = NULL;
 	}
@@ -282,7 +282,7 @@ out:
 }
 
 /*
- * Returns zero on success, otherwise a negative errno value
+ * Returns zero on success, otherwise a negative erryes value
  * is returned.
  */
 static int rpcb_create_local_net(struct net *net)
@@ -310,7 +310,7 @@ static int rpcb_create_local_net(struct net *net)
 	clnt = rpc_create(&args);
 	if (IS_ERR(clnt)) {
 		dprintk("RPC:       failed to create local rpcbind "
-				"client (errno %ld).\n", PTR_ERR(clnt));
+				"client (erryes %ld).\n", PTR_ERR(clnt));
 		result = PTR_ERR(clnt);
 		goto out;
 	}
@@ -323,7 +323,7 @@ static int rpcb_create_local_net(struct net *net)
 	clnt4 = rpc_bind_new_program(clnt, &rpcb_program, RPCBVERS_4);
 	if (IS_ERR(clnt4)) {
 		dprintk("RPC:       failed to bind second program to "
-				"rpcbind v4 client (errno %ld).\n",
+				"rpcbind v4 client (erryes %ld).\n",
 				PTR_ERR(clnt4));
 		clnt4 = NULL;
 	}
@@ -335,7 +335,7 @@ out:
 }
 
 /*
- * Returns zero on success, otherwise a negative errno value
+ * Returns zero on success, otherwise a negative erryes value
  * is returned.
  */
 int rpcb_create_local(struct net *net)
@@ -358,7 +358,7 @@ out:
 	return result;
 }
 
-static struct rpc_clnt *rpcb_create(struct net *net, const char *nodename,
+static struct rpc_clnt *rpcb_create(struct net *net, const char *yesdename,
 				    const char *hostname,
 				    struct sockaddr *srvaddr, size_t salen,
 				    int proto, u32 version,
@@ -370,7 +370,7 @@ static struct rpc_clnt *rpcb_create(struct net *net, const char *nodename,
 		.address	= srvaddr,
 		.addrsize	= salen,
 		.servername	= hostname,
-		.nodename	= nodename,
+		.yesdename	= yesdename,
 		.program	= &rpcb_program,
 		.version	= version,
 		.authflavor	= RPC_AUTH_UNIX,
@@ -405,7 +405,7 @@ static int rpcb_register_call(struct sunrpc_net *sn, struct rpc_clnt *clnt, stru
 	error = rpc_call_sync(clnt, msg, flags);
 	if (error < 0) {
 		dprintk("RPC:       failed to contact local rpcbind "
-				"server (errno %d).\n", -error);
+				"server (erryes %d).\n", -error);
 		return error;
 	}
 
@@ -423,8 +423,8 @@ static int rpcb_register_call(struct sunrpc_net *sn, struct rpc_clnt *clnt, stru
  * @port: port value to register
  *
  * Returns zero if the registration request was dispatched successfully
- * and the rpcbind daemon returned success.  Otherwise, returns an errno
- * value that reflects the nature of the error (request could not be
+ * and the rpcbind daemon returned success.  Otherwise, returns an erryes
+ * value that reflects the nature of the error (request could yest be
  * dispatched, timed out, or rpcbind returned an error).
  *
  * RPC services invoke this function to advertise their contact
@@ -432,7 +432,7 @@ static int rpcb_register_call(struct sunrpc_net *sn, struct rpc_clnt *clnt, stru
  * invoke this function once for each [program, version, transport]
  * tuple they wish to advertise.
  *
- * Callers may also unregister RPC services that are no longer
+ * Callers may also unregister RPC services that are yes longer
  * available by setting the passed-in port to zero.  This removes
  * all registered transports for [program, version] from the local
  * rpcbind database.
@@ -560,8 +560,8 @@ static int rpcb_unregister_all_protofamilies(struct sunrpc_net *sn,
  * @netid: netid of transport protocol to (un)register
  *
  * Returns zero if the registration request was dispatched successfully
- * and the rpcbind daemon returned success.  Otherwise, returns an errno
- * value that reflects the nature of the error (request could not be
+ * and the rpcbind daemon returned success.  Otherwise, returns an erryes
+ * value that reflects the nature of the error (request could yest be
  * dispatched, timed out, or rpcbind returned an error).
  *
  * RPC services invoke this function to advertise their contact
@@ -586,13 +586,13 @@ static int rpcb_unregister_all_protofamilies(struct sunrpc_net *sn,
  *
  * The contents of @address determine the address family and the
  * port to be registered.  The usual practice is to pass INADDR_ANY
- * as the raw address, but specifying a non-zero address is also
+ * as the raw address, but specifying a yesn-zero address is also
  * supported by this API if the caller wishes to advertise an RPC
  * service on a specific network interface.
  *
- * Note that passing in INADDR_ANY does not create the same service
+ * Note that passing in INADDR_ANY does yest create the same service
  * registration as IN6ADDR_ANY.  The former advertises an RPC
- * service on any IPv4 address, but not on IPv6.  The latter
+ * service on any IPv4 address, but yest on IPv6.  The latter
  * advertises the service on all IPv4 and IPv6 addresses.
  */
 int rpcb_v4_register(struct net *net, const u32 program, const u32 version,
@@ -697,13 +697,13 @@ void rpcb_getport_async(struct rpc_task *task)
 		task->tk_pid, __func__,
 		xprt->servername, clnt->cl_prog, clnt->cl_vers, xprt->prot);
 
-	/* Put self on the wait queue to ensure we get notified if
+	/* Put self on the wait queue to ensure we get yestified if
 	 * some other task is already attempting to bind the port */
 	rpc_sleep_on_timeout(&xprt->binding, task,
 			NULL, jiffies + xprt->bind_timeout);
 
 	if (xprt_test_and_set_binding(xprt)) {
-		dprintk("RPC: %5u %s: waiting for another binder\n",
+		dprintk("RPC: %5u %s: waiting for ayesther binder\n",
 			task->tk_pid, __func__);
 		xprt_put(xprt);
 		return;
@@ -714,7 +714,7 @@ void rpcb_getport_async(struct rpc_task *task)
 		status = 0;
 		dprintk("RPC: %5u %s: already bound\n",
 			task->tk_pid, __func__);
-		goto bailout_nofree;
+		goto bailout_yesfree;
 	}
 
 	/* Parent transport's destination address */
@@ -734,21 +734,21 @@ void rpcb_getport_async(struct rpc_task *task)
 		status = -EAFNOSUPPORT;
 		dprintk("RPC: %5u %s: bad address family\n",
 				task->tk_pid, __func__);
-		goto bailout_nofree;
+		goto bailout_yesfree;
 	}
 	if (proc == NULL) {
 		xprt->bind_index = 0;
 		status = -EPFNOSUPPORT;
-		dprintk("RPC: %5u %s: no more getport versions available\n",
+		dprintk("RPC: %5u %s: yes more getport versions available\n",
 			task->tk_pid, __func__);
-		goto bailout_nofree;
+		goto bailout_yesfree;
 	}
 
 	dprintk("RPC: %5u %s: trying rpcbind version %u\n",
 		task->tk_pid, __func__, bind_version);
 
 	rpcb_clnt = rpcb_create(xprt->xprt_net,
-				clnt->cl_nodename,
+				clnt->cl_yesdename,
 				xprt->servername, sap, salen,
 				xprt->prot, bind_version,
 				clnt->cl_cred);
@@ -756,13 +756,13 @@ void rpcb_getport_async(struct rpc_task *task)
 		status = PTR_ERR(rpcb_clnt);
 		dprintk("RPC: %5u %s: rpcb_create failed, error %ld\n",
 			task->tk_pid, __func__, PTR_ERR(rpcb_clnt));
-		goto bailout_nofree;
+		goto bailout_yesfree;
 	}
 
 	map = kzalloc(sizeof(struct rpcbind_args), GFP_NOFS);
 	if (!map) {
 		status = -ENOMEM;
-		dprintk("RPC: %5u %s: no memory available\n",
+		dprintk("RPC: %5u %s: yes memory available\n",
 			task->tk_pid, __func__);
 		goto bailout_release_client;
 	}
@@ -780,7 +780,7 @@ void rpcb_getport_async(struct rpc_task *task)
 		map->r_addr = rpc_sockaddr2uaddr(sap, GFP_NOFS);
 		if (!map->r_addr) {
 			status = -ENOMEM;
-			dprintk("RPC: %5u %s: no memory available\n",
+			dprintk("RPC: %5u %s: yes memory available\n",
 				task->tk_pid, __func__);
 			goto bailout_free_args;
 		}
@@ -810,7 +810,7 @@ bailout_free_args:
 	kfree(map);
 bailout_release_client:
 	rpc_release_client(rpcb_clnt);
-bailout_nofree:
+bailout_yesfree:
 	rpcb_wake_rpcbind_waiters(xprt, status);
 	task->tk_status = status;
 	xprt_put(xprt);
@@ -835,7 +835,7 @@ static void rpcb_getport_done(struct rpc_task *child, void *data)
 		xprt->bind_index++;
 
 	if (status < 0) {
-		/* rpcbind server not available on remote host? */
+		/* rpcbind server yest available on remote host? */
 		xprt->ops->set_port(xprt, 0);
 	} else if (map->r_port == 0) {
 		/* Requested RPC service wasn't registered on remote host */
@@ -974,10 +974,10 @@ static int rpcb_dec_getaddr(struct rpc_rqst *req, struct xdr_stream *xdr,
 
 	/*
 	 * If the returned universal address is a null string,
-	 * the requested RPC service was not registered.
+	 * the requested RPC service was yest registered.
 	 */
 	if (len == 0) {
-		dprintk("RPC: %5u RPCB reply: program not registered\n",
+		dprintk("RPC: %5u RPCB reply: program yest registered\n",
 				req->rq_task->tk_pid);
 		return 0;
 	}

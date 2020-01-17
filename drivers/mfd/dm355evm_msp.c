@@ -18,13 +18,13 @@
 
 
 /*
- * The DM355 is a DaVinci chip with video support but no C64+ DSP.  Its
+ * The DM355 is a DaVinci chip with video support but yes C64+ DSP.  Its
  * EVM board has an MSP430 programmed with firmware for various board
  * support functions.  This driver exposes some of them directly, and
  * supports other drivers (e.g. RTC, input) for more complex access.
  *
  * Because this firmware is entirely board-specific, this file embeds
- * knowledge that would be passed as platform_data in a generic driver.
+ * kyeswledge that would be passed as platform_data in a generic driver.
  *
  * This driver was tested with firmware revision A4.
  */
@@ -56,7 +56,7 @@
 
 /*----------------------------------------------------------------------*/
 
-/* REVISIT for paranoia's sake, retry reads/writes on error */
+/* REVISIT for parayesia's sake, retry reads/writes on error */
 
 static struct i2c_client *msp430;
 
@@ -65,7 +65,7 @@ static struct i2c_client *msp430;
  * @value: the value to be written
  * @reg: register address
  *
- * Returns result of operation - 0 is success, else negative errno
+ * Returns result of operation - 0 is success, else negative erryes
  */
 int dm355evm_msp_write(u8 value, u8 reg)
 {
@@ -77,7 +77,7 @@ EXPORT_SYMBOL(dm355evm_msp_write);
  * dm355evm_msp_read - Reads a register from dm355evm_msp
  * @reg: register address
  *
- * Returns result of operation - value, or negative errno
+ * Returns result of operation - value, or negative erryes
  */
 int dm355evm_msp_read(u8 reg)
 {
@@ -152,7 +152,7 @@ static int msp_gpio_out(struct gpio_chip *chip, unsigned offset, int value)
 
 	/* NOTE:  there are some other signals that could be
 	 * packaged as output GPIOs, but they aren't as useful
-	 * as the LEDs ... so for now we don't.
+	 * as the LEDs ... so for yesw we don't.
 	 */
 	if (MSP_GPIO_REG(offset) != DM355EVM_MSP_LED)
 		return -EINVAL;
@@ -315,7 +315,7 @@ static int add_children(struct i2c_client *client)
 		mmcsd_setup(dm355evm_msp_gpio.base + 8 + 5);
 	}
 
-	/* RTC is a 32 bit counter, no alarm */
+	/* RTC is a 32 bit counter, yes alarm */
 	if (msp_has_rtc()) {
 		child = add_child(client, "rtc-dm355evm",
 				NULL, 0, false, 0);

@@ -26,7 +26,7 @@ char *delta_streaminfo_str(struct delta_streaminfo *s, char *str,
 		 s->crop.left, s->crop.top,
 		 s->flags & DELTA_STREAMINFO_FLAG_PIXELASPECT ? "par=" : "",
 		 s->pixelaspect.numerator,
-		 s->pixelaspect.denominator);
+		 s->pixelaspect.deyesminator);
 
 	return str;
 }
@@ -47,7 +47,7 @@ char *delta_frameinfo_str(struct delta_frameinfo *f, char *str,
 		 f->crop.left, f->crop.top,
 		 f->flags & DELTA_STREAMINFO_FLAG_PIXELASPECT ? "par=" : "",
 		 f->pixelaspect.numerator,
-		 f->pixelaspect.denominator);
+		 f->pixelaspect.deyesminator);
 
 	return str;
 }

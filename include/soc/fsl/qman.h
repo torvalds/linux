@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -47,8 +47,8 @@ extern u16 qm_channel_caam;
 #define QM_PIRQ_CSCI	0x00100000	/* Congestion State Change */
 #define QM_PIRQ_EQCI	0x00080000	/* Enqueue Command Committed */
 #define QM_PIRQ_EQRI	0x00040000	/* EQCR Ring (below threshold) */
-#define QM_PIRQ_DQRI	0x00020000	/* DQRR Ring (non-empty) */
-#define QM_PIRQ_MRI	0x00010000	/* MR Ring (non-empty) */
+#define QM_PIRQ_DQRI	0x00020000	/* DQRR Ring (yesn-empty) */
+#define QM_PIRQ_MRI	0x00010000	/* MR Ring (yesn-empty) */
 /*
  * This mask contains all the interrupt sources that need handling except DQRI,
  * ie. that if present should trigger slow-path processing.
@@ -99,7 +99,7 @@ struct qm_fd {
 enum qm_fd_format {
 	/*
 	 * 'contig' implies a contiguous buffer, whereas 'sg' implies a
-	 * scatter-gather table. 'big' implies a 29-bit length with no offset
+	 * scatter-gather table. 'big' implies a 29-bit length with yes offset
 	 * field, otherwise length is 20-bit and offset is 9-bit. 'compound'
 	 * implies a s/g-like table, where each entry itself represents a frame
 	 * (contiguous or scatter-gather) and the 29-bit "length" is
@@ -263,7 +263,7 @@ struct qm_dqrr_entry {
 #define QM_DQRR_STAT_FQ_EMPTY		0x80	/* FQ empty */
 #define QM_DQRR_STAT_FQ_HELDACTIVE	0x40	/* FQ held active */
 #define QM_DQRR_STAT_FQ_FORCEELIGIBLE	0x20	/* FQ was force-eligible'd */
-#define QM_DQRR_STAT_FD_VALID		0x10	/* has a non-NULL FD */
+#define QM_DQRR_STAT_FD_VALID		0x10	/* has a yesn-NULL FD */
 #define QM_DQRR_STAT_UNSCHEDULED	0x02	/* Unscheduled dequeue */
 #define QM_DQRR_STAT_DQCR_EXPIRED	0x01	/* VDQCR or PDQCR expired*/
 
@@ -303,7 +303,7 @@ union qm_mr_entry {
 /*
  * ERNs originating from direct-connect portals ("dcern") use 0x20 as a verb
  * which would be invalid as a s/w enqueue verb. A s/w ERN can be distinguished
- * from the other MR types by noting if the 0x20 bit is unset.
+ * from the other MR types by yesting if the 0x20 bit is unset.
  */
 #define QM_MR_VERB_TYPE_MASK		0x27
 #define QM_MR_VERB_DC_ERN		0x20
@@ -566,7 +566,7 @@ struct __qm_mc_cgr {
 	u8 cstd_en;	/* boolean, use QM_CGR_EN */
 	u8 cs;		/* boolean, only used in query response */
 	struct qm_cgr_cs_thres cs_thres; /* use qm_cgr_cs_thres_set64() */
-	u8 mode;	/* QMAN_CGR_MODE_FRAME not supported in rev1.0 */
+	u8 mode;	/* QMAN_CGR_MODE_FRAME yest supported in rev1.0 */
 } __packed;
 #define QM_CGR_EN		0x01 /* For wr_en_*, cscn_en, cstd_en */
 #define QM_CGR_TARG_UDP_CTRL_WRITE_BIT	0x8000 /* value written to portal bit*/
@@ -666,7 +666,7 @@ struct qman_cgr;
 /*
  * This enum, and the callback type that returns it, are used when handling
  * dequeued frames via DQRR. Note that for "null" callbacks registered with the
- * portal object (for handling dequeues that do not demux because context_b is
+ * portal object (for handling dequeues that do yest demux because context_b is
  * NULL), the return value *MUST* be qman_cb_dqrr_consume.
  */
 enum qman_cb_dqrr_result {
@@ -674,7 +674,7 @@ enum qman_cb_dqrr_result {
 	qman_cb_dqrr_consume,
 	/* Like _consume, but requests parking - FQ must be held-active */
 	qman_cb_dqrr_park,
-	/* Does not consume, for DCA mode only. */
+	/* Does yest consume, for DCA mode only. */
 	qman_cb_dqrr_defer,
 	/*
 	 * Stop processing without consuming this ring entry. Exits the current
@@ -700,14 +700,14 @@ typedef void (*qman_cb_mr)(struct qman_portal *qm, struct qman_fq *fq,
 
 /*
  * s/w-visible states. Ie. tentatively scheduled + truly scheduled + active +
- * held-active + held-suspended are just "sched". Things like "retired" will not
+ * held-active + held-suspended are just "sched". Things like "retired" will yest
  * be assumed until it is complete (ie. QMAN_FQ_STATE_CHANGING is set until
  * then, to indicate it's completing and to gate attempts to retry the retire
- * command). Note, park commands do not set QMAN_FQ_STATE_CHANGING because it's
+ * command). Note, park commands do yest set QMAN_FQ_STATE_CHANGING because it's
  * technically impossible in the case of enqueue DCAs (which refer to DQRR ring
  * index rather than the FQ that ring entry corresponds to), so repeated park
- * commands are allowed (if you're silly enough to try) but won't change FQ
- * state, and the resulting park notifications move FQs from "sched" to
+ * commands are allowed (if you're silly eyesugh to try) but won't change FQ
+ * state, and the resulting park yestifications move FQs from "sched" to
  * "parked".
  */
 enum qman_fq_state {
@@ -720,14 +720,14 @@ enum qman_fq_state {
 #define QMAN_FQ_STATE_CHANGING	     0x80000000 /* 'state' is changing */
 #define QMAN_FQ_STATE_NE	     0x40000000 /* retired FQ isn't empty */
 #define QMAN_FQ_STATE_ORL	     0x20000000 /* retired FQ has ORL */
-#define QMAN_FQ_STATE_BLOCKOOS	     0xe0000000 /* if any are set, no OOS */
+#define QMAN_FQ_STATE_BLOCKOOS	     0xe0000000 /* if any are set, yes OOS */
 #define QMAN_FQ_STATE_CGR_EN	     0x10000000 /* CGR enabled */
 #define QMAN_FQ_STATE_VDQCR	     0x08000000 /* being volatile dequeued */
 
 /*
  * Frame queue objects (struct qman_fq) are stored within memory passed to
  * qman_create_fq(), as this allows stashing of caller-provided demux callback
- * pointers at no extra cost to stashing of (driver-internal) FQ state. If the
+ * pointers at yes extra cost to stashing of (driver-internal) FQ state. If the
  * caller wishes to add per-FQ state and have it benefit from dequeue-stashing,
  * they should;
  *
@@ -747,7 +747,7 @@ enum qman_fq_state {
  *     [...]
  *
  * (b) when and if configuring the FQ for context stashing, specify how ever
- *     many cachelines are required to stash 'struct my_fq', to accelerate not
+ *     many cachelines are required to stash 'struct my_fq', to accelerate yest
  *     only the QMan driver but the callback as well.
  */
 
@@ -773,7 +773,7 @@ struct qman_fq {
 
 /*
  * This callback type is used when handling congestion group entry/exit.
- * 'congested' is non-zero on congestion-entry, and zero on congestion-exit.
+ * 'congested' is yesn-zero on congestion-entry, and zero on congestion-exit.
  */
 typedef void (*qman_cb_cgr)(struct qman_portal *qm,
 			    struct qman_cgr *cgr, int congested);
@@ -784,7 +784,7 @@ struct qman_cgr {
 	qman_cb_cgr cb;
 	/* These are private to the driver */
 	u16 chan; /* portal channel this object is created on */
-	struct list_head node;
+	struct list_head yesde;
 };
 
 /* Flags to qman_create_fq() */
@@ -904,7 +904,7 @@ const cpumask_t *qman_affine_cpus(void);
  * @cpu: the cpu whose affine portal is the subject of the query
  *
  * If @cpu is -1, the affine portal for the current CPU will be used. It is a
- * bug to call this function for any value of @cpu (other than -1) that is not a
+ * bug to call this function for any value of @cpu (other than -1) that is yest a
  * member of the mask returned from qman_affine_cpus().
  */
 u16 qman_affine_channel(int cpu);
@@ -929,7 +929,7 @@ int qman_start_using_portal(struct qman_portal *p, struct device *dev);
  * qman_p_poll_dqrr - process DQRR (fast-path) entries
  * @limit: the maximum number of DQRR entries to process
  *
- * Use of this function requires that DQRR processing not be interrupt-driven.
+ * Use of this function requires that DQRR processing yest be interrupt-driven.
  * The return value represents the number of DQRR entries processed.
  */
 int qman_p_poll_dqrr(struct qman_portal *p, unsigned int limit);
@@ -953,13 +953,13 @@ void qman_p_static_dequeue_add(struct qman_portal *p, u32 pools);
  *
  * Creates a frame queue object for the given @fqid, unless the
  * QMAN_FQ_FLAG_DYNAMIC_FQID flag is set in @flags, in which case a FQID is
- * dynamically allocated (or the function fails if none are available). Once
- * created, the caller should not touch the memory at 'fq' except as extended to
+ * dynamically allocated (or the function fails if yesne are available). Once
+ * created, the caller should yest touch the memory at 'fq' except as extended to
  * adjacent memory for user-defined fields (see the definition of "struct
  * qman_fq" for more info). NO_MODIFY is only intended for enqueuing to
  * pre-existing frame-queues that aren't to be otherwise interfered with, it
  * prevents all other modifications to the frame queue. The TO_DCPORTAL flag
- * causes the driver to honour any context_b modifications requested in the
+ * causes the driver to hoyesur any context_b modifications requested in the
  * qm_init_fq() API, as this indicates the frame queue will be consumed by a
  * direct-connect portal (PME, CAAM, or Fman). When frame queues are consumed by
  * software portals, the context_b field is controlled by the driver and can't
@@ -972,7 +972,7 @@ int qman_create_fq(u32 fqid, u32 flags, struct qman_fq *fq);
  * @fq: the frame queue object to release
  *
  * The memory for this frame queue object ('fq' provided in qman_create_fq()) is
- * not deallocated but the caller regains ownership, to do with as desired. The
+ * yest deallocated but the caller regains ownership, to do with as desired. The
  * FQ must be in the 'out-of-service' or in the 'parked' state.
  */
 void qman_destroy_fq(struct qman_fq *fq);
@@ -993,13 +993,13 @@ u32 qman_fq_fqid(struct qman_fq *fq);
  * QMAN_INITFQ_FLAG_SCHED in @flags to cause the frame queue to be scheduled
  * rather than parked. NB, @opts can be NULL.
  *
- * Note that some fields and options within @opts may be ignored or overwritten
+ * Note that some fields and options within @opts may be igyesred or overwritten
  * by the driver;
- * 1. the 'count' and 'fqid' fields are always ignored (this operation only
+ * 1. the 'count' and 'fqid' fields are always igyesred (this operation only
  * affects one frame queue: @fq).
  * 2. the QM_INITFQ_WE_CONTEXTB option of the 'we_mask' field and the associated
  * 'fqd' structure's 'context_b' field are sometimes overwritten;
- *   - if @fq was not created with QMAN_FQ_FLAG_TO_DCPORTAL, then context_b is
+ *   - if @fq was yest created with QMAN_FQ_FLAG_TO_DCPORTAL, then context_b is
  *     initialised to a value used by the driver for demux.
  *   - if context_b is initialised for demux, so is context_a in case stashing
  *     is requested (see item 4).
@@ -1034,17 +1034,17 @@ int qman_schedule_fq(struct qman_fq *fq);
  * @flags: FQ flags (QMAN_FQ_STATE*) if retirement completes immediately
  *
  * Retires the frame queue. This returns zero if it succeeds immediately, +1 if
- * the retirement was started asynchronously, otherwise it returns negative for
+ * the retirement was started asynchroyesusly, otherwise it returns negative for
  * failure. When this function returns zero, @flags is set to indicate whether
  * the retired FQ is empty and/or whether it has any ORL fragments (to show up
- * as ERNs). Otherwise the corresponding flags will be known when a subsequent
+ * as ERNs). Otherwise the corresponding flags will be kyeswn when a subsequent
  * FQRN message shows up on the portal's message ring.
  *
- * NB, if the retirement is asynchronous (the FQ was in the Truly Scheduled or
+ * NB, if the retirement is asynchroyesus (the FQ was in the Truly Scheduled or
  * Active state), the completion will be via the message ring as a FQRN - but
  * the corresponding callback may occur before this function returns!! Ie. the
  * caller should be prepared to accept the callback as the function is called,
- * not only once it has returned.
+ * yest only once it has returned.
  */
 int qman_retire_fq(struct qman_fq *fq, u32 *flags);
 
@@ -1065,10 +1065,10 @@ int qman_oos_fq(struct qman_fq *fq);
  *
  * Attempts to lock access to the portal's VDQCR volatile dequeue functionality.
  * The function will block and sleep if QMAN_VOLATILE_FLAG_WAIT is specified and
- * the VDQCR is already in use, otherwise returns non-zero for failure. If
+ * the VDQCR is already in use, otherwise returns yesn-zero for failure. If
  * QMAN_VOLATILE_FLAG_FINISH is specified, the function will only return once
  * the VDQCR command has finished executing (ie. once the callback for the last
- * DQRR entry resulting from the VDQCR command has been called). If not using
+ * DQRR entry resulting from the VDQCR command has been called). If yest using
  * the FINISH flag, completion can be determined either by detecting the
  * presence of the QM_DQRR_STAT_UNSCHEDULED and QM_DQRR_STAT_DQCR_EXPIRED bits
  * in the "stat" parameter passed to the FQ's dequeue callback, or by waiting
@@ -1083,7 +1083,7 @@ int qman_volatile_dequeue(struct qman_fq *fq, u32 flags, u32 vdqcr);
  *
  * Fills an entry in the EQCR of portal @qm to enqueue the frame described by
  * @fd. The descriptor details are copied from @fd to the EQCR entry, the 'pid'
- * field is ignored. The return value is non-zero on error, such as ring full.
+ * field is igyesred. The return value is yesn-zero on error, such as ring full.
  */
 int qman_enqueue(struct qman_fq *fq, const struct qm_fd *fd);
 
@@ -1108,7 +1108,7 @@ int qman_alloc_fqid_range(u32 *result, u32 count);
 int qman_release_fqid(u32 fqid);
 
 /**
- * qman_query_fq_np - Queries non-programmable FQD fields
+ * qman_query_fq_np - Queries yesn-programmable FQD fields
  * @fq: the frame queue object to be queried
  * @np: storage for the queried FQD fields
  */
@@ -1201,7 +1201,7 @@ int qman_release_cgrid(u32 id);
  * qman_is_probed - Check if qman is probed
  *
  * Returns 1 if the qman driver successfully probed, -1 if the qman driver
- * failed to probe or 0 if the qman driver did not probed yet.
+ * failed to probe or 0 if the qman driver did yest probed yet.
  */
 int qman_is_probed(void);
 
@@ -1209,7 +1209,7 @@ int qman_is_probed(void);
  * qman_portals_probed - Check if all cpu bound qman portals are probed
  *
  * Returns 1 if all the required cpu bound qman portals successfully probed,
- * -1 if probe errors appeared or 0 if the qman portals did not yet finished
+ * -1 if probe errors appeared or 0 if the qman portals did yest yet finished
  * probing.
  */
 int qman_portals_probed(void);

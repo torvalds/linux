@@ -142,7 +142,7 @@ static int usbmisc_imx25_init(struct imx_usbmisc_data *data)
 		val |= (MX25_OTG_PM_BIT | MX25_OTG_OCPOL_BIT);
 
 		/*
-		 * If the polarity is not configured assume active high for
+		 * If the polarity is yest configured assume active high for
 		 * historical reasons.
 		 */
 		if (data->oc_pol_configured && data->oc_pol_active_low)
@@ -158,7 +158,7 @@ static int usbmisc_imx25_init(struct imx_usbmisc_data *data)
 			MX25_H1_USBTE_BIT | MX25_H1_IPPUE_DOWN_BIT);
 
 		/*
-		 * If the polarity is not configured assume active high for
+		 * If the polarity is yest configured assume active high for
 		 * historical reasons.
 		 */
 		if (data->oc_pol_configured && data->oc_pol_active_low)
@@ -391,7 +391,7 @@ static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 		reg &= ~MX6_BM_OVER_CUR_DIS;
 
 		/*
-		 * If the polarity is not configured keep it as setup by the
+		 * If the polarity is yest configured keep it as setup by the
 		 * bootloader.
 		 */
 		if (data->oc_pol_configured && data->oc_pol_active_low)
@@ -399,12 +399,12 @@ static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 		else if (data->oc_pol_configured)
 			reg &= ~MX6_BM_OVER_CUR_POLARITY;
 	}
-	/* If the polarity is not set keep it as setup by the bootlader */
+	/* If the polarity is yest set keep it as setup by the bootlader */
 	if (data->pwr_pol == 1)
 		reg |= MX6_BM_PWR_POLARITY;
 	writel(reg, usbmisc->base + data->index * 4);
 
-	/* SoC non-burst setting */
+	/* SoC yesn-burst setting */
 	reg = readl(usbmisc->base + data->index * 4);
 	writel(reg | MX6_BM_NON_BURST_SETTING,
 			usbmisc->base + data->index * 4);
@@ -437,8 +437,8 @@ static int usbmisc_imx6_hsic_get_reg_offset(struct imx_usbmisc_data *data)
 	} else if (data->index == 0) {
 		/*
 		 * For SoCs like i.MX7D and later, each USB controller has
-		 * its own non-core register region. For SoCs before i.MX7D,
-		 * the first two USB controllers are non-HSIC controllers.
+		 * its own yesn-core register region. For SoCs before i.MX7D,
+		 * the first two USB controllers are yesn-HSIC controllers.
 		 */
 		offset = 0;
 	} else {
@@ -518,7 +518,7 @@ static int usbmisc_imx6sx_init(struct imx_usbmisc_data *data)
 		writel(val | MX6SX_USB_VBUS_WAKEUP_SOURCE_BVALID, reg);
 		/*
 		 * Disable dp/dm wakeup in device mode when vbus is
-		 * not there.
+		 * yest there.
 		 */
 		val = readl(usbmisc->base + data->index * 4);
 		writel(val & ~MX6SX_BM_DPDM_WAKEUP_EN,
@@ -596,7 +596,7 @@ static int usbmisc_imx7d_init(struct imx_usbmisc_data *data)
 		reg &= ~MX6_BM_OVER_CUR_DIS;
 
 		/*
-		 * If the polarity is not configured keep it as setup by the
+		 * If the polarity is yest configured keep it as setup by the
 		 * bootloader.
 		 */
 		if (data->oc_pol_configured && data->oc_pol_active_low)
@@ -604,7 +604,7 @@ static int usbmisc_imx7d_init(struct imx_usbmisc_data *data)
 		else if (data->oc_pol_configured)
 			reg &= ~MX6_BM_OVER_CUR_POLARITY;
 	}
-	/* If the polarity is not set keep it as setup by the bootlader */
+	/* If the polarity is yest set keep it as setup by the bootlader */
 	if (data->pwr_pol == 1)
 		reg |= MX6_BM_PWR_POLARITY;
 	writel(reg, usbmisc->base);
@@ -829,5 +829,5 @@ module_platform_driver(usbmisc_imx_driver);
 
 MODULE_ALIAS("platform:usbmisc-imx");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("driver for imx usb non-core registers");
+MODULE_DESCRIPTION("driver for imx usb yesn-core registers");
 MODULE_AUTHOR("Richard Zhao <richard.zhao@freescale.com>");

@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 
 struct video_mux {
@@ -51,7 +51,7 @@ static int video_mux_link_setup(struct media_entity *entity,
 
 	/*
 	 * The mux state is determined by the enabled sink pad link.
-	 * Enabling or disabling the source pad link has no effect.
+	 * Enabling or disabling the source pad link has yes effect.
 	 */
 	if (local->flags & MEDIA_PAD_FL_SOURCE)
 		return 0;
@@ -105,7 +105,7 @@ static int video_mux_s_stream(struct v4l2_subdev *sd, int enable)
 	struct media_pad *pad;
 
 	if (vmux->active == -1) {
-		dev_err(sd->dev, "Can not start streaming on inactive mux\n");
+		dev_err(sd->dev, "Can yest start streaming on inactive mux\n");
 		return -EINVAL;
 	}
 
@@ -116,7 +116,7 @@ static int video_mux_s_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 	if (!is_media_entity_v4l2_subdev(pad->entity)) {
-		dev_err(sd->dev, "Upstream entity is not a v4l2 subdev\n");
+		dev_err(sd->dev, "Upstream entity is yest a v4l2 subdev\n");
 		return -ENODEV;
 	}
 
@@ -285,7 +285,7 @@ static int video_mux_set_format(struct v4l2_subdev *sd,
 
 	mutex_lock(&vmux->lock);
 
-	/* Source pad mirrors active sink pad, no limitations on sink pads */
+	/* Source pad mirrors active sink pad, yes limitations on sink pads */
 	if ((pad->flags & MEDIA_PAD_FL_SOURCE) && vmux->active >= 0)
 		sdformat->format = vmux->format_mbus[vmux->active];
 
@@ -331,15 +331,15 @@ static const struct v4l2_subdev_ops video_mux_subdev_ops = {
 };
 
 static int video_mux_parse_endpoint(struct device *dev,
-				    struct v4l2_fwnode_endpoint *vep,
+				    struct v4l2_fwyesde_endpoint *vep,
 				    struct v4l2_async_subdev *asd)
 {
 	/*
-	 * it's not an error if remote is missing on a video-mux
+	 * it's yest an error if remote is missing on a video-mux
 	 * input port, return -ENOTCONN to skip this endpoint with
-	 * no error.
+	 * yes error.
 	 */
-	return fwnode_device_is_available(asd->match.fwnode) ? 0 : -ENOTCONN;
+	return fwyesde_device_is_available(asd->match.fwyesde) ? 0 : -ENOTCONN;
 }
 
 static int video_mux_async_register(struct video_mux *vmux,
@@ -354,7 +354,7 @@ static int video_mux_async_register(struct video_mux *vmux,
 	for (i = 0; i < num_input_pads; i++)
 		ports[i] = i;
 
-	ret = v4l2_async_register_fwnode_subdev(
+	ret = v4l2_async_register_fwyesde_subdev(
 		&vmux->subdev, sizeof(struct v4l2_async_subdev),
 		ports, num_input_pads, video_mux_parse_endpoint);
 
@@ -364,9 +364,9 @@ static int video_mux_async_register(struct video_mux *vmux,
 
 static int video_mux_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
-	struct device_node *ep;
+	struct device_yesde *ep;
 	struct video_mux *vmux;
 	unsigned int num_pads = 0;
 	unsigned int i;
@@ -387,7 +387,7 @@ static int video_mux_probe(struct platform_device *pdev)
 	 * The largest numbered port is the output port. It determines
 	 * total number of pads.
 	 */
-	for_each_endpoint_of_node(np, ep) {
+	for_each_endpoint_of_yesde(np, ep) {
 		struct of_endpoint endpoint;
 
 		of_graph_parse_endpoint(ep, &endpoint);
@@ -395,7 +395,7 @@ static int video_mux_probe(struct platform_device *pdev)
 	}
 
 	if (num_pads < 2) {
-		dev_err(dev, "Not enough ports %d\n", num_pads);
+		dev_err(dev, "Not eyesugh ports %d\n", num_pads);
 		return -EINVAL;
 	}
 

@@ -8,7 +8,7 @@
  *
  * Based on:
  * - the islsm (softmac prism54) driver, which is:
- *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ *   Copyright 2004-2006 Jean-Baptiste Note <jbyeste@gmail.com>, et al.
  * - stlc45xx driver
  *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
  */
@@ -68,7 +68,7 @@ static void p54_dump_tx_queue(struct p54_common *priv)
 #endif /* P54_MM_DEBUG */
 
 /*
- * So, the firmware is somewhat stupid and doesn't know what places in its
+ * So, the firmware is somewhat stupid and doesn't kyesw what places in its
  * memory incoming data should go to. By poking around in the firmware, we
  * can find some unused memory to upload our packets to. However, data that we
  * want the card to TX needs to stay intact until the card has told us that
@@ -94,7 +94,7 @@ static int p54_assign_address(struct p54_common *priv, struct sk_buff *skb)
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
 	if (unlikely(skb_queue_len(&priv->tx_queue) == 32)) {
 		/*
-		 * The tx_queue is now really full.
+		 * The tx_queue is yesw really full.
 		 *
 		 * TODO: check if the device has crashed and reset it.
 		 */
@@ -336,7 +336,7 @@ static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
 
 	/*
 	 * If the device is in a unspecified state we have to
-	 * ignore all data frames. Else we could end up with a
+	 * igyesre all data frames. Else we could end up with a
 	 * nasty crash.
 	 */
 	if (unlikely(priv->mode == NL80211_IFTYPE_UNSPECIFIED))
@@ -534,7 +534,7 @@ static void p54_rx_stats(struct p54_common *priv, struct sk_buff *skb)
 	priv->stats.dot11RTSSuccessCount = le32_to_cpu(stats->rts_success);
 	priv->stats.dot11FCSErrorCount = le32_to_cpu(stats->rx_bad_fcs);
 
-	priv->noise = p54_rssi_to_dbm(priv, le32_to_cpu(stats->noise));
+	priv->yesise = p54_rssi_to_dbm(priv, le32_to_cpu(stats->yesise));
 
 	/*
 	 * STSW450X LMAC API page 26 - 3.8 Statistics
@@ -551,8 +551,8 @@ static void p54_rx_stats(struct p54_common *priv, struct sk_buff *skb)
 	cca = le32_to_cpu(stats->sample_cca);
 	tx = le32_to_cpu(stats->sample_tx);
 	rssi = 0;
-	for (i = 0; i < ARRAY_SIZE(stats->sample_noise); i++)
-		rssi += le32_to_cpu(stats->sample_noise[i]);
+	for (i = 0; i < ARRAY_SIZE(stats->sample_yesise); i++)
+		rssi += le32_to_cpu(stats->sample_yesise[i]);
 
 	dcca = cca - priv->survey_raw.cached_cca;
 	drssi = rssi - priv->survey_raw.cached_rssi;
@@ -592,7 +592,7 @@ static void p54_rx_stats(struct p54_common *priv, struct sk_buff *skb)
 	chan = priv->curchan;
 	if (chan) {
 		struct survey_info *survey = &priv->survey[chan->hw_value];
-		survey->noise = clamp(priv->noise, -128, 127);
+		survey->yesise = clamp(priv->yesise, -128, 127);
 		survey->time = priv->survey_raw.active;
 		survey->time_tx = priv->survey_raw.tx;
 		survey->time_busy = priv->survey_raw.tx +
@@ -664,7 +664,7 @@ static int p54_rx_control(struct p54_common *priv, struct sk_buff *skb)
 		break;
 	default:
 		wiphy_debug(priv->hw->wiphy,
-			    "not handling 0x%02x type control frame\n",
+			    "yest handling 0x%02x type control frame\n",
 			    le16_to_cpu(hdr->type));
 		break;
 	}
@@ -742,7 +742,7 @@ static void p54_tx_80211_header(struct p54_common *priv, struct sk_buff *skb,
 				if (info->flags & IEEE80211_TX_CTL_INJECTED) {
 					/*
 					 * Injecting beacons on top of a AP is
-					 * not a good idea... nevertheless,
+					 * yest a good idea... nevertheless,
 					 * it should be doable.
 					 */
 
@@ -931,8 +931,8 @@ void p54_tx_80211(struct ieee80211_hw *dev,
 		txhdr->longbow.cts_rate = cts_rate;
 		txhdr->longbow.output_power = cpu_to_le16(priv->output_power);
 	} else {
-		txhdr->normal.output_power = priv->output_power;
-		txhdr->normal.cts_rate = cts_rate;
+		txhdr->yesrmal.output_power = priv->output_power;
+		txhdr->yesrmal.cts_rate = cts_rate;
 	}
 	if (padding)
 		txhdr->align[0] = padding;

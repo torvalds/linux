@@ -2,7 +2,7 @@ Marvell Armada 37xx Platforms Device Tree Bindings
 --------------------------------------------------
 
 Boards using a SoC of the Marvell Armada 37xx family must carry the
-following root node property:
+following root yesde property:
 
  - compatible: must contain "marvell,armada3710"
 
@@ -53,6 +53,6 @@ avs: avs@11500 {
 CZ.NIC's Turris Mox SOHO router Device Tree Bindings
 ----------------------------------------------------
 
-Required root node property:
+Required root yesde property:
 
  - compatible: must contain "cznic,turris-mox"

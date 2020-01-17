@@ -22,7 +22,7 @@ static int sof_restore_kcontrols(struct snd_sof_dev *sdev)
 		/* reset readback offset for scontrol after resuming */
 		scontrol->readback_offset = 0;
 
-		/* notify DSP of kcontrol values */
+		/* yestify DSP of kcontrol values */
 		switch (scontrol->cmd) {
 		case SOF_CTRL_CMD_VOLUME:
 		case SOF_CTRL_CMD_ENUM:
@@ -73,7 +73,7 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 	list_for_each_entry_reverse(swidget, &sdev->widget_list, list) {
 		struct sof_ipc_comp_reply r;
 
-		/* skip if there is no private data */
+		/* skip if there is yes private data */
 		if (!swidget->private)
 			continue;
 
@@ -119,7 +119,7 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 		struct sof_ipc_pipe_comp_connect *connect;
 		struct sof_ipc_reply reply;
 
-		/* skip if there's no private data */
+		/* skip if there's yes private data */
 		if (!sroute->private)
 			continue;
 
@@ -135,7 +135,7 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 				"error: failed to load route sink %s control %s source %s\n",
 				sroute->route->sink,
 				sroute->route->control ? sroute->route->control
-					: "none",
+					: "yesne",
 				sroute->route->source);
 
 			return ret;
@@ -148,14 +148,14 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 		struct sof_ipc_dai_config *config = dai->dai_config;
 
 		if (!config) {
-			dev_err(sdev->dev, "error: no config for DAI %s\n",
+			dev_err(sdev->dev, "error: yes config for DAI %s\n",
 				dai->name);
 			continue;
 		}
 
 		/*
 		 * The link DMA channel would be invalidated for running
-		 * streams but not for streams that were in the PAUSED
+		 * streams but yest for streams that were in the PAUSED
 		 * state during suspend. So invalidate it here before setting
 		 * the dai config in the DSP.
 		 */
@@ -248,7 +248,7 @@ static void sof_cache_debugfs(struct snd_sof_dev *sdev)
 
 	list_for_each_entry(dfse, &sdev->dfsentry_list, list) {
 
-		/* nothing to do if debugfs buffer is not IO mem */
+		/* yesthing to do if debugfs buffer is yest IO mem */
 		if (dfse->type == SOF_DFSENTRY_TYPE_BUF)
 			continue;
 
@@ -265,7 +265,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	int ret;
 
-	/* do nothing if dsp resume callbacks are not set */
+	/* do yesthing if dsp resume callbacks are yest set */
 	if (!sof_ops(sdev)->resume || !sof_ops(sdev)->runtime_resume)
 		return 0;
 
@@ -304,7 +304,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	/* resume DMA trace, only need send ipc */
 	ret = snd_sof_init_trace_ipc(sdev);
 	if (ret < 0) {
-		/* non fatal */
+		/* yesn fatal */
 		dev_warn(sdev->dev,
 			 "warning: failed to init trace after resume %d\n",
 			 ret);
@@ -319,7 +319,7 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		return ret;
 	}
 
-	/* notify DSP of system resume */
+	/* yestify DSP of system resume */
 	ret = sof_send_pm_ctx_ipc(sdev, SOF_IPC_PM_CTX_RESTORE);
 	if (ret < 0)
 		dev_err(sdev->dev,
@@ -337,7 +337,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	int ret;
 
-	/* do nothing if dsp suspend callback is not set */
+	/* do yesthing if dsp suspend callback is yest set */
 	if (!sof_ops(sdev)->suspend)
 		return 0;
 
@@ -360,7 +360,7 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	if (runtime_suspend)
 		sof_cache_debugfs(sdev);
 #endif
-	/* notify DSP of upcoming power down */
+	/* yestify DSP of upcoming power down */
 	ret = sof_send_pm_ctx_ipc(sdev, SOF_IPC_PM_CTX_SAVE);
 	if (ret == -EBUSY || ret == -EAGAIN) {
 		/*
@@ -474,7 +474,7 @@ int snd_sof_resume(struct device *dev)
 		ret = snd_sof_set_d0_substate(sdev, SOF_DSP_D0I0);
 		if (ret == -ENOTSUPP) {
 			/* fallback to resume from D3 */
-			dev_dbg(sdev->dev, "D0i3 not supported, fall back to resume from D3...\n");
+			dev_dbg(sdev->dev, "D0i3 yest supported, fall back to resume from D3...\n");
 			goto d3_resume;
 		} else if (ret < 0) {
 			dev_err(sdev->dev, "error: failed to exit from D0I3 %d\n",
@@ -503,7 +503,7 @@ int snd_sof_suspend(struct device *dev)
 		ret = snd_sof_set_d0_substate(sdev, SOF_DSP_D0I3);
 		if (ret == -ENOTSUPP) {
 			/* fallback to D3 suspend */
-			dev_dbg(sdev->dev, "D0i3 not supported, fall back to D3...\n");
+			dev_dbg(sdev->dev, "D0i3 yest supported, fall back to D3...\n");
 			goto d3_suspend;
 		} else if (ret < 0) {
 			dev_err(sdev->dev, "error: failed to enter D0I3, %d\n",

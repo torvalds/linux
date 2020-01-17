@@ -65,9 +65,9 @@ struct udf_meta_data {
 	 */
 	__u16   s_phys_partition_ref;
 	int	s_flags;
-	struct inode *s_metadata_fe;
-	struct inode *s_mirror_fe;
-	struct inode *s_bitmap_fe;
+	struct iyesde *s_metadata_fe;
+	struct iyesde *s_mirror_fe;
+	struct iyesde *s_bitmap_fe;
 };
 
 struct udf_sparing_data {
@@ -89,7 +89,7 @@ struct udf_bitmap {
 struct udf_part_map {
 	union {
 		struct udf_bitmap	*s_bitmap;
-		struct inode		*s_table;
+		struct iyesde		*s_table;
 	} s_uspace;
 	__u32	s_partition_root;
 	__u32	s_partition_len;
@@ -146,8 +146,8 @@ struct udf_sb_info {
 	/* Encoding info */
 	struct nls_table	*s_nls_map;
 
-	/* VAT inode */
-	struct inode		*s_vat_inode;
+	/* VAT iyesde */
+	struct iyesde		*s_vat_iyesde;
 
 	struct mutex		s_alloc_mutex;
 	/* Protected by s_alloc_mutex */

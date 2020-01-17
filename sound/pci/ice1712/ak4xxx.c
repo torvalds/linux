@@ -100,7 +100,7 @@ static void snd_ice1712_akm4xxx_write(struct snd_akm4xxx *ak, int chip,
 		tmp |= priv->cs_mask; /* chip select high to trigger */
 	} else {
 		tmp &= ~priv->cs_mask;
-		tmp |= priv->cs_none; /* deselect address */
+		tmp |= priv->cs_yesne; /* deselect address */
 	}
 	snd_ice1712_gpio_write(ice, tmp);
 	udelay(1);

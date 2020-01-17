@@ -249,10 +249,10 @@ static int it8152_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t s
 }
 
 /*
- * Setup DMA mask to 64MB on devices connected to ITE8152. Ignore all
+ * Setup DMA mask to 64MB on devices connected to ITE8152. Igyesre all
  * other devices.
  */
-static int it8152_pci_platform_notify(struct device *dev)
+static int it8152_pci_platform_yestify(struct device *dev)
 {
 	if (dev_is_pci(dev)) {
 		if (dev->dma_mask)
@@ -263,7 +263,7 @@ static int it8152_pci_platform_notify(struct device *dev)
 	return 0;
 }
 
-static int it8152_pci_platform_notify_remove(struct device *dev)
+static int it8152_pci_platform_yestify_remove(struct device *dev)
 {
 	if (dev_is_pci(dev))
 		dmabounce_unregister_dev(dev);
@@ -305,13 +305,13 @@ int __init it8152_pci_setup(int nr, struct pci_sys_data *sys)
 	pci_add_resource_offset(&sys->resources, &it8152_io, sys->io_offset);
 	pci_add_resource_offset(&sys->resources, &it8152_mem, sys->mem_offset);
 
-	if (platform_notify || platform_notify_remove) {
-		printk(KERN_ERR "PCI: Can't use platform_notify\n");
+	if (platform_yestify || platform_yestify_remove) {
+		printk(KERN_ERR "PCI: Can't use platform_yestify\n");
 		goto err2;
 	}
 
-	platform_notify = it8152_pci_platform_notify;
-	platform_notify_remove = it8152_pci_platform_notify_remove;
+	platform_yestify = it8152_pci_platform_yestify;
+	platform_yestify_remove = it8152_pci_platform_yestify_remove;
 
 	return 1;
 
@@ -330,7 +330,7 @@ void pcibios_set_master(struct pci_dev *dev)
 {
 	u8 lat;
 
-	/* no need to update on-chip OHCI controller */
+	/* yes need to update on-chip OHCI controller */
 	if ((dev->vendor == PCI_VENDOR_ID_ITE) &&
 	    (dev->device == PCI_DEVICE_ID_ITE_8152) &&
 	    ((dev->class >> 8) == PCI_CLASS_SERIAL_USB))

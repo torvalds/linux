@@ -45,7 +45,7 @@ static int __init pcm037_variant_setup(char *str)
 	if (!strcmp("eet", str))
 		pcm037_instance = PCM037_EET;
 	else if (strcmp("pcm970", str))
-		pr_warn("Unknown pcm037 baseboard variant %s\n", str);
+		pr_warn("Unkyeswn pcm037 baseboard variant %s\n", str);
 
 	return 1;
 }
@@ -453,7 +453,7 @@ static int __init pcm037_otg_mode(char *options)
 	else if (!strcmp(options, "device"))
 		otg_mode_host = false;
 	else
-		pr_info("otg_mode neither \"host\" nor \"device\". "
+		pr_info("otg_mode neither \"host\" yesr \"device\". "
 			"Defaulting to device\n");
 	return 1;
 }
@@ -506,7 +506,7 @@ static void __init pcm037_init(void)
 
 	imx31_add_imx2_wdt();
 	imx31_add_imx_uart0(&uart_pdata);
-	/* XXX: should't this have .flags = 0 (i.e. no RTSCTS) on PCM037_EET? */
+	/* XXX: should't this have .flags = 0 (i.e. yes RTSCTS) on PCM037_EET? */
 	imx31_add_imx_uart1(&uart_pdata);
 	imx31_add_imx_uart2(&uart_pdata);
 
@@ -558,7 +558,7 @@ static void __init pcm037_init_late(void)
 			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
 		platform_device_register(&pcm037_eth);
 	} else {
-		pr_warn("could not get LAN irq gpio\n");
+		pr_warn("could yest get LAN irq gpio\n");
 	}
 
 	imx31_add_mxc_mmc(0, &sdhc_pdata);

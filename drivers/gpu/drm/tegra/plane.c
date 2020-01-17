@@ -37,7 +37,7 @@ static void tegra_plane_reset(struct drm_plane *plane)
 		plane->state = &state->base;
 		plane->state->plane = plane;
 		plane->state->zpos = p->index;
-		plane->state->normalized_zpos = p->index;
+		plane->state->yesrmalized_zpos = p->index;
 
 		for (i = 0; i < 3; i++)
 			state->iova[i] = DMA_MAPPING_ERROR;
@@ -237,7 +237,7 @@ int tegra_plane_state_add(struct tegra_plane *plane,
 
 int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap)
 {
-	/* assume no swapping of fetched data */
+	/* assume yes swapping of fetched data */
 	if (swap)
 		*swap = BYTE_SWAP_NOSWAP;
 
@@ -457,7 +457,7 @@ static int tegra_plane_check_transparency(struct tegra_plane *tegra,
 	old = drm_atomic_get_old_plane_state(state->base.state, &tegra->base);
 
 	/* check if zpos / transparency changed */
-	if (old->normalized_zpos == state->base.normalized_zpos &&
+	if (old->yesrmalized_zpos == state->base.yesrmalized_zpos &&
 	    to_tegra_plane_state(old)->opaque == state->opaque)
 		return 0;
 
@@ -520,7 +520,7 @@ static void tegra_plane_update_transparency(struct tegra_plane *tegra,
 		else
 			state->blending[index].alpha = false;
 
-		if (new->normalized_zpos > state->base.normalized_zpos)
+		if (new->yesrmalized_zpos > state->base.yesrmalized_zpos)
 			state->blending[index].top = true;
 		else
 			state->blending[index].top = false;
@@ -554,7 +554,7 @@ static int tegra_plane_setup_transparency(struct tegra_plane *tegra,
 		return err;
 
 	/*
-	 * All planes are now in the atomic state, walk them up and update
+	 * All planes are yesw in the atomic state, walk them up and update
 	 * transparency state for each plane.
 	 */
 	drm_for_each_plane(plane, tegra->base.dev) {
@@ -568,7 +568,7 @@ static int tegra_plane_setup_transparency(struct tegra_plane *tegra,
 		tegra_state = to_tegra_plane_state(new);
 
 		/*
-		 * There is no need to update blending state for the disabled
+		 * There is yes need to update blending state for the disabled
 		 * plane.
 		 */
 		if (new->fb)

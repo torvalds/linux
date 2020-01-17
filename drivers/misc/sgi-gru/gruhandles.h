@@ -139,16 +139,16 @@ static inline unsigned long get_cb_number(void *cb)
 					GRU_HANDLE_STRIDE;
 }
 
-/* byte offset to a specific GRU chiplet. (p=pnode, c=chiplet (0 or 1)*/
-static inline unsigned long gru_chiplet_paddr(unsigned long paddr, int pnode,
+/* byte offset to a specific GRU chiplet. (p=pyesde, c=chiplet (0 or 1)*/
+static inline unsigned long gru_chiplet_paddr(unsigned long paddr, int pyesde,
 							int chiplet)
 {
-	return paddr + GRU_SIZE * (2 * pnode  + chiplet);
+	return paddr + GRU_SIZE * (2 * pyesde  + chiplet);
 }
 
-static inline void *gru_chiplet_vaddr(void *vaddr, int pnode, int chiplet)
+static inline void *gru_chiplet_vaddr(void *vaddr, int pyesde, int chiplet)
 {
-	return vaddr + GRU_SIZE * (2 * pnode  + chiplet);
+	return vaddr + GRU_SIZE * (2 * pyesde  + chiplet);
 }
 
 static inline struct gru_control_block_extended *gru_tfh_to_cbe(

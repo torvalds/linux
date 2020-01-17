@@ -133,13 +133,13 @@
 		/* 16 MiB reserved for Hardware ROM Firmware */
 		hwrom_reserved: hwrom@0 {
 			reg = <0x0 0x0 0x0 0x1000000>;
-			no-map;
+			yes-map;
 		};
 
 		/* Alternate 3 MiB reserved for ARM Trusted Firmware (BL31) */
 		secmon_reserved: secmon@5000000 {
 			reg = <0x0 0x05000000 0x0 0x300000>;
-			no-map;
+			yes-map;
 		};
 	};
 

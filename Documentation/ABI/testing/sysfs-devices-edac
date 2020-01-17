@@ -6,7 +6,7 @@ Description:	This write-only control file will zero all the statistical
 		Zeroing the counters will also reset the timer indicating how
 		long since the last counter were reset. This is useful for
 		computing errors/time.  Since the counters are always reset
-		at driver initialization time, no module/kernel parameter
+		at driver initialization time, yes module/kernel parameter
 		is available.
 
 What:		/sys/devices/system/edac/mc/mc*/seconds_since_reset
@@ -33,14 +33,14 @@ Date:		January 2006
 Contact:	linux-edac@vger.kernel.org
 Description:	This attribute file displays the total count of uncorrectable
 		errors that have occurred on this memory controller. If
-		panic_on_ue is set, this counter will not have a chance to
+		panic_on_ue is set, this counter will yest have a chance to
 		increment, since EDAC will panic the system
 
-What:		/sys/devices/system/edac/mc/mc*/ue_noinfo_count
+What:		/sys/devices/system/edac/mc/mc*/ue_yesinfo_count
 Date:		January 2006
 Contact:	linux-edac@vger.kernel.org
 Description:	This attribute file displays the number of UEs that have
-		occurred on this memory controller with no information as to
+		occurred on this memory controller with yes information as to
 		which DIMM slot is having errors.
 
 What:		/sys/devices/system/edac/mc/mc*/ce_count
@@ -50,18 +50,18 @@ Description:	This attribute file displays the total count of correctable
 		errors that have occurred on this memory controller. This
 		count is very important to examine. CEs provide early
 		indications that a DIMM is beginning to fail. This count
-		field should be monitored for non-zero values and report
+		field should be monitored for yesn-zero values and report
 		such information to the system administrator.
 
-What:		/sys/devices/system/edac/mc/mc*/ce_noinfo_count
+What:		/sys/devices/system/edac/mc/mc*/ce_yesinfo_count
 Date:		January 2006
 Contact:	linux-edac@vger.kernel.org
 Description:	This attribute file displays the number of CEs that
-		have occurred on this memory controller wherewith no
+		have occurred on this memory controller wherewith yes
 		information as to which DIMM slot is having errors. Memory is
-		handicapped, but operational, yet no information is available
+		handicapped, but operational, yet yes information is available
 		to indicate which slot the failing memory is in. This count
-		field should be also be monitored for non-zero values.
+		field should be also be monitored for yesn-zero values.
 
 What:		/sys/devices/system/edac/mc/mc*/sdram_scrub_rate
 Date:		February 2007
@@ -72,7 +72,7 @@ Description:	Read/Write attribute file that controls memory scrubbing.
 		The rate will be translated to an internal value that gives at
 		least the specified rate.
 		Reading the file will return the actual scrubbing rate employed.
-		If configuration fails or memory scrubbing is not implemented,
+		If configuration fails or memory scrubbing is yest implemented,
 		the value of the attribute file will be -1.
 
 What:		/sys/devices/system/edac/mc/mc*/max_location
@@ -145,7 +145,7 @@ Contact:	linux-edac@vger.kernel.org
 Description:	This attribute file displays the total count of correctable
 		errors that have occurred on this DIMM. This count is very important
 		to examine. CEs provide early indications that a DIMM is beginning
-		to fail. This count field should be monitored for non-zero values
+		to fail. This count field should be monitored for yesn-zero values
 		and report such information to the system administrator.
 
 What:		/sys/devices/system/edac/mc/mc*/(dimm|rank)*/dimm_ue_count
@@ -153,5 +153,5 @@ Date:		October 2016
 Contact:	linux-edac@vger.kernel.org
 Description:	This attribute file displays the total count of uncorrectable
 		errors that have occurred on this DIMM. If panic_on_ue is set, this
-		counter will not have a chance to increment, since EDAC will panic the
+		counter will yest have a chance to increment, since EDAC will panic the
 		system

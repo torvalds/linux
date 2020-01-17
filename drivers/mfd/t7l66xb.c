@@ -12,7 +12,7 @@
  * SD/MMC
  * SM/NAND flash controller
  *
- * As yet not supported
+ * As yet yest supported
  * GPIO interface (on NAND pins)
  * Serial interface
  * TFT 'interface converter'
@@ -329,7 +329,7 @@ static int t7l66xb_probe(struct platform_device *dev)
 	if (ret >= 0)
 		t7l66xb->irq = ret;
 	else
-		goto err_noirq;
+		goto err_yesirq;
 
 	t7l66xb->irq_base = pdata->irq_base;
 
@@ -398,7 +398,7 @@ err_request_scr:
 err_clk48m_get:
 	clk_put(t7l66xb->clk32k);
 err_clk32k_get:
-err_noirq:
+err_yesirq:
 	kfree(t7l66xb);
 	return ret;
 }

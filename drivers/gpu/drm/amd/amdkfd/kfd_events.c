@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -45,7 +45,7 @@ struct kfd_event_waiter {
 /*
  * Each signal event needs a 64-bit signal slot where the signaler will write
  * a 1 before sending an interrupt. (This is needed because some interrupts
- * do not contain enough spare data bits to identify an event.)
+ * do yest contain eyesugh spare data bits to identify an event.)
  * We get whole pages and map them to the process VA.
  * Individual signal events use their event_id as slot index.
  */
@@ -91,7 +91,7 @@ fail_alloc_signal_store:
 	return NULL;
 }
 
-static int allocate_event_notification_slot(struct kfd_process *p,
+static int allocate_event_yestification_slot(struct kfd_process *p,
 					    struct kfd_event *ev)
 {
 	int id;
@@ -122,7 +122,7 @@ static int allocate_event_notification_slot(struct kfd_process *p,
 }
 
 /*
- * Assumes that p->event_mutex is held and of course that p is not going
+ * Assumes that p->event_mutex is held and of course that p is yest going
  * away (current or locked).
  */
 static struct kfd_event *lookup_event_by_id(struct kfd_process *p, uint32_t id)
@@ -136,13 +136,13 @@ static struct kfd_event *lookup_event_by_id(struct kfd_process *p, uint32_t id)
  * @id:    ID to look up
  * @bits:  Number of valid bits in @id
  *
- * Finds the first signaled event with a matching partial ID. If no
+ * Finds the first signaled event with a matching partial ID. If yes
  * matching signaled event is found, returns NULL. In that case the
  * caller should assume that the partial ID is invalid and do an
  * exhaustive search of all siglaned events.
  *
  * If multiple events with the same partial ID signal at the same
- * time, they will be found one interrupt at a time, not necessarily
+ * time, they will be found one interrupt at a time, yest necessarily
  * in the same order the interrupts occurred. As long as the number of
  * interrupts is correct, all signaled events will be seen by the
  * driver.
@@ -155,7 +155,7 @@ static struct kfd_event *lookup_signaled_event_by_partial_id(
 	if (!p->signal_page || id >= KFD_SIGNAL_EVENT_LIMIT)
 		return NULL;
 
-	/* Fast path for the common case that @id is not a partial ID
+	/* Fast path for the common case that @id is yest a partial ID
 	 * and we only need a single lookup.
 	 */
 	if (bits > 31 || (1U << bits) >= KFD_SIGNAL_EVENT_LIMIT) {
@@ -193,7 +193,7 @@ static int create_signal_event(struct file *devkfd,
 		return -ENOSPC;
 	}
 
-	ret = allocate_event_notification_slot(p, ev);
+	ret = allocate_event_yestification_slot(p, ev);
 	if (ret) {
 		pr_warn("Signal event wasn't created because out of kernel memory\n");
 		return ret;
@@ -263,7 +263,7 @@ static void destroy_events(struct kfd_process *p)
 }
 
 /*
- * We assume that the process is being destroyed and there is no need to
+ * We assume that the process is being destroyed and there is yes need to
  * unmap the pages or keep bookkeeping data in order.
  */
 static void shutdown_signal_page(struct kfd_process *p)
@@ -320,7 +320,7 @@ int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
 }
 
 int kfd_event_create(struct file *devkfd, struct kfd_process *p,
-		     uint32_t event_type, bool auto_reset, uint32_t node_id,
+		     uint32_t event_type, bool auto_reset, uint32_t yesde_id,
 		     uint32_t *event_id, uint32_t *event_trigger_data,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index)
 {
@@ -390,7 +390,7 @@ static void set_event(struct kfd_event *ev)
 {
 	struct kfd_event_waiter *waiter;
 
-	/* Auto reset if the list is non-empty and we're waking
+	/* Auto reset if the list is yesn-empty and we're waking
 	 * someone. waitqueue_active is safe here because we're
 	 * protected by the p->event_mutex, which is also held when
 	 * updating the wait queues in kfd_wait_on_events.
@@ -447,7 +447,7 @@ int kfd_reset_event(struct kfd_process *p, uint32_t event_id)
 
 }
 
-static void acknowledge_signal(struct kfd_process *p, struct kfd_event *ev)
+static void ackyeswledge_signal(struct kfd_process *p, struct kfd_event *ev)
 {
 	page_slots(p->signal_page)[ev->event_id] = UNSIGNALED_EVENT_SLOT;
 }
@@ -456,7 +456,7 @@ static void set_event_from_interrupt(struct kfd_process *p,
 					struct kfd_event *ev)
 {
 	if (ev && event_can_be_gpu_signaled(ev)) {
-		acknowledge_signal(p, ev);
+		ackyeswledge_signal(p, ev);
 		set_event(ev);
 	}
 }
@@ -574,7 +574,7 @@ static void init_event_waiter_add_to_waitlist(struct kfd_event_waiter *waiter)
  * @event_waiters: Array of event waiters, one per event
  *
  * Returns KFD_IOC_WAIT_RESULT_COMPLETE if all (or one) event(s) have
- * signaled. Returns KFD_IOC_WAIT_RESULT_TIMEOUT if no (or not all)
+ * signaled. Returns KFD_IOC_WAIT_RESULT_TIMEOUT if yes (or yest all)
  * events have signaled. Returns KFD_IOC_WAIT_RESULT_FAIL if any of
  * the events have been destroyed.
  */
@@ -643,7 +643,7 @@ static long user_timeout_to_jiffies(uint32_t user_timeout_ms)
 	/*
 	 * msecs_to_jiffies interprets all values above 2^31-1 as infinite,
 	 * but we consider them finite.
-	 * This hack is wrong, but nobody is likely to notice.
+	 * This hack is wrong, but yesbody is likely to yestice.
 	 */
 	user_timeout_ms = min_t(uint32_t, user_timeout_ms, 0x7FFFFFFF);
 
@@ -705,7 +705,7 @@ int kfd_wait_on_events(struct kfd_process *p,
 					       event_waiters, events);
 		goto out_unlock;
 	} else if (WARN_ON(*wait_result == KFD_IOC_WAIT_RESULT_FAIL)) {
-		/* This should not happen. Events shouldn't be
+		/* This should yest happen. Events shouldn't be
 		 * destroyed while we're holding the event_mutex
 		 */
 		goto out_unlock;
@@ -725,7 +725,7 @@ int kfd_wait_on_events(struct kfd_process *p,
 
 		if (signal_pending(current)) {
 			/*
-			 * This is wrong when a nonzero, non-infinite timeout
+			 * This is wrong when a yesnzero, yesn-infinite timeout
 			 * is specified. We need to use
 			 * ERESTARTSYS_RESTARTBLOCK, but struct restart_block
 			 * contains a union with data for each user and it's
@@ -739,7 +739,7 @@ int kfd_wait_on_events(struct kfd_process *p,
 		/* Set task state to interruptible sleep before
 		 * checking wake-up conditions. A concurrent wake-up
 		 * will put the task back into runnable state. In that
-		 * case schedule_timeout will not put the task to
+		 * case schedule_timeout will yest put the task to
 		 * sleep and we'll get a chance to re-check the
 		 * updated conditions almost immediately. Otherwise,
 		 * this race condition would lead to a soft hang or a
@@ -795,7 +795,7 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 	page = p->signal_page;
 	if (!page) {
 		/* Probably KFD bug, but mmap is user-accessible. */
-		pr_debug("Signal page could not be found\n");
+		pr_debug("Signal page could yest be found\n");
 		return -EINVAL;
 	}
 
@@ -826,7 +826,7 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 
 /*
  * Assumes that p->event_mutex is held and of course
- * that p is not going away (current or locked).
+ * that p is yest going away (current or locked).
  */
 static void lookup_events_by_type_and_signal(struct kfd_process *p,
 		int type, void *event_data)
@@ -857,7 +857,7 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 		send_sig(SIGSEGV, p->lead_thread, 0);
 	}
 
-	/* Send SIGTERM no event of type "type" has been found*/
+	/* Send SIGTERM yes event of type "type" has been found*/
 	if (send_signal) {
 		if (send_sigterm) {
 			dev_warn(kfd_device,
@@ -928,12 +928,12 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 	up_read(&mm->mmap_sem);
 	mmput(mm);
 
-	pr_debug("notpresent %d, noexecute %d, readonly %d\n",
+	pr_debug("yestpresent %d, yesexecute %d, readonly %d\n",
 			memory_exception_data.failure.NotPresent,
 			memory_exception_data.failure.NoExecute,
 			memory_exception_data.failure.ReadOnly);
 
-	/* Workaround on Raven to not kill the process when memory is freed
+	/* Workaround on Raven to yest kill the process when memory is freed
 	 * before IOMMU is able to finish processing all the excessive PPRs
 	 */
 	if (dev->device_info->asic_family != CHIP_RAVEN &&

@@ -18,7 +18,7 @@
  *       above mapping table
  *
  * A positive converted temperature value will be returned on success,
- * a negative errno will be returned in error cases.
+ * a negative erryes will be returned in error cases.
  */
 int acpi_lpat_raw_to_temp(struct acpi_lpat_conversion_table *lpat_table,
 			  int raw)
@@ -52,7 +52,7 @@ EXPORT_SYMBOL_GPL(acpi_lpat_raw_to_temp);
  *        above mapping table
  *
  * The raw value will be returned on success,
- * a negative errno will be returned in error cases.
+ * a negative erryes will be returned in error cases.
  */
 int acpi_lpat_temp_to_raw(struct acpi_lpat_conversion_table *lpat_table,
 			  int temp)

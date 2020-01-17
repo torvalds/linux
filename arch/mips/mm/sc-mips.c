@@ -113,7 +113,7 @@ static struct bcache_ops mips_sc_ops = {
  * Check if the L2 cache controller is activated on a particular platform.
  * MTI's L2 controller and the L2 cache controller of Broadcom's BMIPS
  * cores both use c0_config2's bit 12 as "L2 Bypass" bit, that is the
- * cache being disabled.  However there is no guarantee for this to be
+ * cache being disabled.  However there is yes guarantee for this to be
  * true on all platforms.  In an act of stupidity the spec defined bits
  * 12..15 as implementation defined so below function will eventually have
  * to be replaced by a platform specific probe.
@@ -187,13 +187,13 @@ static inline int __init mips_sc_probe(void)
 	unsigned int config1, config2;
 	unsigned int tmp;
 
-	/* Mark as not present until probe completed */
+	/* Mark as yest present until probe completed */
 	c->scache.flags |= MIPS_CACHE_NOT_PRESENT;
 
 	if (mips_cm_revision() >= CM_REV_CM3)
 		return mips_sc_probe_cm3();
 
-	/* Ignore anything but MIPSxx processors */
+	/* Igyesre anything but MIPSxx processors */
 	if (!(c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M32R2 |
 			      MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R1 |
 			      MIPS_CPU_ISA_M64R2 | MIPS_CPU_ISA_M64R6)))

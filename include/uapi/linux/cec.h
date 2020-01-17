@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause) */
 /*
  * cec - HDMI Consumer Electronics Control public header
  *
@@ -15,9 +15,9 @@
 
 /**
  * struct cec_msg - CEC message structure.
- * @tx_ts:	Timestamp in nanoseconds using CLOCK_MONOTONIC. Set by the
+ * @tx_ts:	Timestamp in nayesseconds using CLOCK_MONOTONIC. Set by the
  *		driver when the message transmission has finished.
- * @rx_ts:	Timestamp in nanoseconds using CLOCK_MONOTONIC. Set by the
+ * @rx_ts:	Timestamp in nayesseconds using CLOCK_MONOTONIC. Set by the
  *		driver when the message was received.
  * @len:	Length in bytes of the message.
  * @timeout:	The timeout (in ms) that is used to timeout CEC_RECEIVE.
@@ -30,26 +30,26 @@
  *		messages.
  * @flags:	Set to 0.
  * @msg:	The message payload.
- * @reply:	This field is ignored with CEC_RECEIVE and is only used by
- *		CEC_TRANSMIT. If non-zero, then wait for a reply with this
+ * @reply:	This field is igyesred with CEC_RECEIVE and is only used by
+ *		CEC_TRANSMIT. If yesn-zero, then wait for a reply with this
  *		opcode. Set to CEC_MSG_FEATURE_ABORT if you want to wait for
  *		a possible ABORT reply. If there was an error when sending the
  *		msg or FeatureAbort was returned, then reply is set to 0.
- *		If reply is non-zero upon return, then len/msg are set to
+ *		If reply is yesn-zero upon return, then len/msg are set to
  *		the received message.
  *		If reply is zero upon return and status has the
  *		CEC_TX_STATUS_FEATURE_ABORT bit set, then len/msg are set to
  *		the received feature abort message.
  *		If reply is zero upon return and status has the
- *		CEC_TX_STATUS_MAX_RETRIES bit set, then no reply was seen at
- *		all. If reply is non-zero for CEC_TRANSMIT and the message is a
+ *		CEC_TX_STATUS_MAX_RETRIES bit set, then yes reply was seen at
+ *		all. If reply is yesn-zero for CEC_TRANSMIT and the message is a
  *		broadcast, then -EINVAL is returned.
- *		if reply is non-zero, then timeout is set to 1000 (the required
+ *		if reply is yesn-zero, then timeout is set to 1000 (the required
  *		maximum response time).
  * @rx_status:	The message receive status bits. Set by the driver.
  * @tx_status:	The message transmit status bits. Set by the driver.
  * @tx_arb_lost_cnt: The number of 'Arbitration Lost' events. Set by the driver.
- * @tx_nack_cnt: The number of 'Not Acknowledged' events. Set by the driver.
+ * @tx_nack_cnt: The number of 'Not Ackyeswledged' events. Set by the driver.
  * @tx_low_drive_cnt: The number of 'Low Drive Detected' events. Set by the
  *		driver.
  * @tx_error_cnt: The number of 'Error' events. Set by the driver.
@@ -277,7 +277,7 @@ static inline int cec_is_unconfigured(__u16 log_addr_mask)
 }
 
 /*
- * Use this if there is no vendor ID (CEC_G_VENDOR_ID) or if the vendor ID
+ * Use this if there is yes vendor ID (CEC_G_VENDOR_ID) or if the vendor ID
  * should be disabled (CEC_S_VENDOR_ID)
  */
 #define CEC_VENDOR_ID_NONE		0xffffffff
@@ -311,7 +311,7 @@ static inline int cec_is_unconfigured(__u16 log_addr_mask)
 #define CEC_CAP_PASSTHROUGH	(1 << 3)
 /* Supports remote control */
 #define CEC_CAP_RC		(1 << 4)
-/* Hardware can monitor all messages, not just directed and broadcast. */
+/* Hardware can monitor all messages, yest just directed and broadcast. */
 #define CEC_CAP_MONITOR_ALL	(1 << 5)
 /* Hardware can use CEC only if the HDMI HPD pin is high. */
 #define CEC_CAP_NEEDS_HPD	(1 << 6)
@@ -380,11 +380,11 @@ struct cec_log_addrs {
 /**
  * struct cec_drm_connector_info - tells which drm connector is
  * associated with the CEC adapter.
- * @card_no: drm card number
+ * @card_yes: drm card number
  * @connector_id: drm connector ID
  */
 struct cec_drm_connector_info {
-	__u32 card_no;
+	__u32 card_yes;
 	__u32 connector_id;
 };
 
@@ -428,10 +428,10 @@ struct cec_connector_info {
  * struct cec_event_state_change - used when the CEC adapter changes state.
  * @phys_addr: the current physical address
  * @log_addr_mask: the current logical address mask
- * @have_conn_info: if non-zero, then HDMI connector information is available.
+ * @have_conn_info: if yesn-zero, then HDMI connector information is available.
  *	This field is only valid if CEC_CAP_CONNECTOR_INFO is set. If that
  *	capability is set and @have_conn_info is zero, then that indicates
- *	that the HDMI connector device is not instantiated, either because
+ *	that the HDMI connector device is yest instantiated, either because
  *	the HDMI driver is still configuring the device or because the HDMI
  *	device was unbound.
  */
@@ -480,10 +480,10 @@ struct cec_event {
  * as read by this CEC device (if this is a source device)
  * or a physical address obtained and modified from a sink
  * EDID and used for a sink CEC device.
- * If nothing is connected, then phys_addr is 0xffff.
+ * If yesthing is connected, then phys_addr is 0xffff.
  * See HDMI 1.4b, section 8.7 (Physical Address).
  *
- * The CEC_ADAP_S_PHYS_ADDR ioctl may not be available if that is handled
+ * The CEC_ADAP_S_PHYS_ADDR ioctl may yest be available if that is handled
  * internally.
  */
 #define CEC_ADAP_G_PHYS_ADDR	_IOR('a',  1, __u16)
@@ -494,7 +494,7 @@ struct cec_event {
  * logical types it will try to claim. It will return which
  * logical addresses it could actually claim.
  * An error is returned if the adapter is disabled or if there
- * is no physical address assigned.
+ * is yes physical address assigned.
  */
 
 #define CEC_ADAP_G_LOG_ADDRS	_IOR('a',  3, struct cec_log_addrs)
@@ -1076,7 +1076,7 @@ struct cec_event {
 
 /* Capability Discovery and Control Feature */
 #define CEC_MSG_CDC_MESSAGE				0xf8
-/* Ethernet-over-HDMI: nobody ever does this... */
+/* Ethernet-over-HDMI: yesbody ever does this... */
 #define CEC_MSG_CDC_HEC_INQUIRE_STATE			0x00
 #define CEC_MSG_CDC_HEC_REPORT_STATE			0x01
 /* HEC Functionality State Operand (hec_func_state) */
@@ -1160,7 +1160,7 @@ static inline int cec_is_switch(const struct cec_log_addrs *las)
 {
 	/*
 	 * It is a switch if the logical address is 15 and the
-	 * primary device type is a Switch and the CDC-Only flag is not set.
+	 * primary device type is a Switch and the CDC-Only flag is yest set.
 	 */
 	return las->num_log_addrs == 1 &&
 	       las->log_addr[0] == CEC_LOG_ADDR_UNREGISTERED &&

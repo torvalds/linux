@@ -7,7 +7,7 @@
  * with a lot of changes to make this thing work for R3000s
  * Tx39XX R4k style caches added. HK
  * Copyright (C) 1998, 1999, 2000 Harald Koerfgen
- * Copyright (C) 1998 Gleb Raiko & Vladimir Roganov
+ * Copyright (C) 1998 Gleb Raiko & Vladimir Rogayesv
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -33,9 +33,9 @@ static unsigned long icache_size, dcache_size;		/* Size in bytes */
 #define TX39_STOP_STREAMING() \
 __asm__ __volatile__( \
 	".set	 push\n\t" \
-	".set	 noreorder\n\t" \
+	".set	 yesreorder\n\t" \
 	"b	 1f\n\t" \
-	"nop\n\t" \
+	"yesp\n\t" \
 	"1:\n\t" \
 	".set pop" \
 	)
@@ -176,7 +176,7 @@ static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page
 	pte_t *ptep;
 
 	/*
-	 * If ownes no valid ASID yet, cannot possibly have gotten
+	 * If ownes yes valid ASID yet, canyest possibly have gotten
 	 * this page into the cache.
 	 */
 	if (cpu_context(smp_processor_id(), mm) == 0)
@@ -190,14 +190,14 @@ static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page
 	ptep = pte_offset(pmdp, page);
 
 	/*
-	 * If the page isn't marked valid, the page cannot possibly be
+	 * If the page isn't marked valid, the page canyest possibly be
 	 * in the cache.
 	 */
 	if (!(pte_val(*ptep) & _PAGE_PRESENT))
 		return;
 
 	/*
-	 * Doing flushes for another ASID than the current one is
+	 * Doing flushes for ayesther ASID than the current one is
 	 * too difficult since stupid R4k caches do a TLB translation
 	 * for every cache flush operation.  So we do indexed flushes
 	 * in that case, which doesn't overly flush the cache too much.

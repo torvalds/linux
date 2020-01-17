@@ -98,8 +98,8 @@ static const struct debugfs_reg32 v3d_regs[] = {
 
 static int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int ret = vc4_v3d_pm_get(vc4);
 
@@ -171,7 +171,7 @@ int vc4_v3d_get_bin_slot(struct vc4_dev *vc4)
 	struct drm_device *dev = vc4->dev;
 	unsigned long irqflags;
 	int slot;
-	uint64_t seqno = 0;
+	uint64_t seqyes = 0;
 	struct vc4_exec_info *exec;
 
 try_again:
@@ -190,11 +190,11 @@ try_again:
 	 */
 	exec = vc4_last_render_job(vc4);
 	if (exec)
-		seqno = exec->seqno;
+		seqyes = exec->seqyes;
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 
-	if (seqno) {
-		int ret = vc4_wait_for_seqno(dev, seqno, ~0ull, true);
+	if (seqyes) {
+		int ret = vc4_wait_for_seqyes(dev, seqyes, ~0ull, true);
 
 		if (ret == 0)
 			goto try_again;
@@ -220,11 +220,11 @@ try_again:
  * entire extent, and then put the tile state, tile alloc, and binner
  * overflow memory inside that buffer.
  *
- * This creates a limitation where we may not be able to execute a job
+ * This creates a limitation where we may yest be able to execute a job
  * if it doesn't fit within the buffer that we allocated up front.
- * However, it turns out that 16MB is "enough for anybody", and
+ * However, it turns out that 16MB is "eyesugh for anybody", and
  * real-world applications run into allocation failures from the
- * overall CMA pool before they make scenes complicated enough to run
+ * overall CMA pool before they make scenes complicated eyesugh to run
  * out of bin space.
  */
 static int bin_bo_alloc(struct vc4_dev *vc4)

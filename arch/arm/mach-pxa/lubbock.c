@@ -129,7 +129,7 @@ static int lubbock_udc_is_connected(void)
 
 static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	.udc_is_connected	= lubbock_udc_is_connected,
-	// no D+ pullup; lubbock can't connect/disconnect in software
+	// yes D+ pullup; lubbock can't connect/disconnect in software
 };
 
 /* GPIOs for SA1111 PCMCIA */
@@ -205,7 +205,7 @@ static int lubbock_ads7846_pendown_state(void)
 
 static struct ads7846_platform_data ads_info = {
 	.model			= 7846,
-	.vref_delay_usecs	= 100,		/* internal, no cap */
+	.vref_delay_usecs	= 100,		/* internal, yes cap */
 	.get_pendown_state	= lubbock_ads7846_pendown_state,
 	// .x_plate_ohms		= 500,	/* GUESS! */
 	// .y_plate_ohms		= 500,	/* GUESS! */
@@ -536,7 +536,7 @@ static void __init lubbock_map_io(void)
 /*
  * Driver for the 8 discrete LEDs available for general use:
  * Note: bits [15-8] are used to enable/blank the 8 7 segment hex displays
- * so be sure to not monkey with them here.
+ * so be sure to yest monkey with them here.
  */
 
 #if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)

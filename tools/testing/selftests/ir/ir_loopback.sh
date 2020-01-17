@@ -10,7 +10,7 @@ if [ $UID != 0 ]; then
 fi
 
 if ! /sbin/modprobe -q -n rc-loopback; then
-        echo "ir_loopback: module rc-loopback is not found [SKIP]"
+        echo "ir_loopback: module rc-loopback is yest found [SKIP]"
         exit $ksft_skip
 fi
 

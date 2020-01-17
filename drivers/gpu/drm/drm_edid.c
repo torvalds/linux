@@ -15,7 +15,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -54,7 +54,7 @@
 
 /*
  * EDID blocks out in the wild have a variety of bugs, try to collect
- * them here (note that userspace may work around broken monitors first,
+ * them here (yeste that userspace may work around broken monitors first,
  * but fixes should make their way here so that the kernel "just works"
  * on as many displays as possible).
  */
@@ -65,7 +65,7 @@
 #define EDID_QUIRK_135_CLOCK_TOO_HIGH		(1 << 1)
 /* Prefer the largest mode at 75 Hz */
 #define EDID_QUIRK_PREFER_LARGE_75		(1 << 2)
-/* Detail timing is in cm not mm */
+/* Detail timing is in cm yest mm */
 #define EDID_QUIRK_DETAILED_IN_CM		(1 << 3)
 /* Detailed timing descriptors have bogus size values, so just take the
  * maximum size and use that.
@@ -118,7 +118,7 @@ static const struct edid_quirk {
 	/* CPT panel of Asus UX303LA reports 8 bpc, but is a 6 bpc panel */
 	{ "CPT", 0x17df, EDID_QUIRK_FORCE_6BPC },
 
-	/* SDC panel of Lenovo B50-80 reports 8 bpc, but is a 6 bpc panel */
+	/* SDC panel of Leyesvo B50-80 reports 8 bpc, but is a 6 bpc panel */
 	{ "SDC", 0x3652, EDID_QUIRK_FORCE_6BPC },
 
 	/* BOE model 0x0771 reports 8 bpc, but is a 6 bpc panel */
@@ -137,7 +137,7 @@ static const struct edid_quirk {
 	{ "FCM", 13600, EDID_QUIRK_PREFER_LARGE_75 |
 	  EDID_QUIRK_DETAILED_IN_CM },
 
-	/* LGD panel of HP zBook 17 G2, eDP 10 bpc, but reports unknown bpc */
+	/* LGD panel of HP zBook 17 G2, eDP 10 bpc, but reports unkyeswn bpc */
 	{ "LGD", 764, EDID_QUIRK_FORCE_10BPC },
 
 	/* LG Philips LCD LP154W01-A5 */
@@ -159,10 +159,10 @@ static const struct edid_quirk {
 	/* Medion MD 30217 PG */
 	{ "MED", 0x7b8, EDID_QUIRK_PREFER_LARGE_75 },
 
-	/* Lenovo G50 */
+	/* Leyesvo G50 */
 	{ "SDC", 18514, EDID_QUIRK_FORCE_6BPC },
 
-	/* Panel in Samsung NP700G7A-S01PL notebook reports 6bpc */
+	/* Panel in Samsung NP700G7A-S01PL yestebook reports 6bpc */
 	{ "SEC", 0xd033, EDID_QUIRK_FORCE_8BPC },
 
 	/* Rotel RSX-1058 forwards sink's EDID but only does HDMI 1.1*/
@@ -1537,7 +1537,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 		}
 
 		if (edid->revision > 4)
-			DRM_DEBUG("EDID minor > 4, assuming backward compatibility\n");
+			DRM_DEBUG("EDID miyesr > 4, assuming backward compatibility\n");
 		break;
 
 	default:
@@ -1549,9 +1549,9 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 bad:
 	if (print_bad_edid) {
 		if (drm_edid_is_zero(raw_edid, EDID_LENGTH)) {
-			pr_notice("EDID block is all zeroes\n");
+			pr_yestice("EDID block is all zeroes\n");
 		} else {
-			pr_notice("Raw EDID:\n");
+			pr_yestice("Raw EDID:\n");
 			print_hex_dump(KERN_NOTICE,
 				       " \t", DUMP_PREFIX_NONE, 16, 1,
 				       raw_edid, EDID_LENGTH, false);
@@ -1634,13 +1634,13 @@ drm_do_probe_ddc_edid(void *data, u8 *buf, unsigned int block, size_t len)
 		};
 
 		/*
-		 * Avoid sending the segment addr to not upset non-compliant
+		 * Avoid sending the segment addr to yest upset yesn-compliant
 		 * DDC monitors.
 		 */
 		ret = i2c_transfer(adapter, &msgs[3 - xfers], xfers);
 
 		if (ret == -ENXIO) {
-			DRM_DEBUG_KMS("drm: skipping non-existent adapter %s\n",
+			DRM_DEBUG_KMS("drm: skipping yesn-existent adapter %s\n",
 					adapter->name);
 			break;
 		}
@@ -1772,7 +1772,7 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	if (i == 4)
 		goto carp;
 
-	/* if there's no extensions, we're done */
+	/* if there's yes extensions, we're done */
 	valid_extensions = edid[0x7e];
 	if (valid_extensions == 0)
 		return (struct edid *)edid;
@@ -2030,7 +2030,7 @@ mode_is_rb(const struct drm_display_mode *mode)
  *
  * Walk the DMT mode list looking for a match for the given parameters.
  *
- * Return: A newly allocated copy of the mode, or NULL if not found.
+ * Return: A newly allocated copy of the mode, or NULL if yest found.
  */
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh,
@@ -2077,7 +2077,7 @@ vtb_for_each_detailed_block(u8 *ext, detailed_cb *cb, void *closure)
 	u8 *det_base = ext + 5;
 
 	if (ext[0x01] != 1)
-		return; /* unknown version */
+		return; /* unkyeswn version */
 
 	for (i = 0; i < n; i++)
 		cb((struct detailed_timing *)(det_base + 18 * i), closure);
@@ -2378,7 +2378,7 @@ drm_mode_do_interlace_quirk(struct drm_display_mode *mode,
  * @timing: EDID detailed timing info
  * @quirks: quirks to apply
  *
- * An EDID detailed timing block contains enough info for us to create and
+ * An EDID detailed timing block contains eyesugh info for us to create and
  * return a new struct drm_display_mode.
  */
 static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
@@ -2397,16 +2397,16 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 	unsigned vsync_offset = (pt->hsync_vsync_offset_pulse_width_hi & 0xc) << 2 | pt->vsync_offset_pulse_width_lo >> 4;
 	unsigned vsync_pulse_width = (pt->hsync_vsync_offset_pulse_width_hi & 0x3) << 4 | (pt->vsync_offset_pulse_width_lo & 0xf);
 
-	/* ignore tiny modes */
+	/* igyesre tiny modes */
 	if (hactive < 64 || vactive < 64)
 		return NULL;
 
 	if (pt->misc & DRM_EDID_PT_STEREO) {
-		DRM_DEBUG_KMS("stereo mode not supported\n");
+		DRM_DEBUG_KMS("stereo mode yest supported\n");
 		return NULL;
 	}
 	if (!(pt->misc & DRM_EDID_PT_SEPARATE_SYNC)) {
-		DRM_DEBUG_KMS("composite sync not supported\n");
+		DRM_DEBUG_KMS("composite sync yest supported\n");
 	}
 
 	/* it is incorrect if hsync/vsync width is zero */
@@ -2672,7 +2672,7 @@ static void
 do_inferred_modes(struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
-	struct detailed_non_pixel *data = &timing->data.other_data;
+	struct detailed_yesn_pixel *data = &timing->data.other_data;
 	struct detailed_data_monitor_range *range = &data->data.range;
 
 	if (data->type != EDID_DETAIL_MONITOR_RANGE)
@@ -2683,7 +2683,7 @@ do_inferred_modes(struct detailed_timing *timing, void *c)
 						  timing);
 	
 	if (!version_greater(closure->edid, 1, 1))
-		return; /* GTF not defined yet */
+		return; /* GTF yest defined yet */
 
 	switch (range->flags) {
 	case 0x02: /* secondary gtf, XXX could do more */
@@ -2700,7 +2700,7 @@ do_inferred_modes(struct detailed_timing *timing, void *c)
 							  closure->edid,
 							  timing);
 		break;
-	case 0x01: /* just the ranges, no formula */
+	case 0x01: /* just the ranges, yes formula */
 	default:
 		break;
 	}
@@ -2754,7 +2754,7 @@ static void
 do_established_modes(struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
-	struct detailed_non_pixel *data = &timing->data.other_data;
+	struct detailed_yesn_pixel *data = &timing->data.other_data;
 
 	if (data->type == EDID_DETAIL_EST_TIMINGS)
 		closure->modes += drm_est3_modes(closure->connector, timing);
@@ -2803,7 +2803,7 @@ static void
 do_standard_modes(struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
-	struct detailed_non_pixel *data = &timing->data.other_data;
+	struct detailed_yesn_pixel *data = &timing->data.other_data;
 	struct drm_connector *connector = closure->connector;
 	struct edid *edid = closure->edid;
 
@@ -2913,7 +2913,7 @@ static void
 do_cvt_mode(struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
-	struct detailed_non_pixel *data = &timing->data.other_data;
+	struct detailed_yesn_pixel *data = &timing->data.other_data;
 
 	if (data->type == EDID_DETAIL_CVT_3BYTE)
 		closure->modes += drm_cvt_modes(closure->connector, timing);
@@ -3219,7 +3219,7 @@ static enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code)
  * specific block).
  *
  * It's almost like cea_mode_alternate_clock(), we just need to add an
- * exception for the VIC 4 mode (4096x2160@24Hz): no alternate clock for this
+ * exception for the VIC 4 mode (4096x2160@24Hz): yes alternate clock for this
  * one.
  */
 static unsigned int
@@ -3560,7 +3560,7 @@ static int add_hdmi_mode(struct drm_connector *connector, u8 vic)
 	struct drm_display_mode *newmode;
 
 	if (!drm_valid_hdmi_vic(vic)) {
-		DRM_ERROR("Unknown HDMI VIC: %d\n", vic);
+		DRM_ERROR("Unkyeswn HDMI VIC: %d\n", vic);
 		return 0;
 	}
 
@@ -3635,7 +3635,7 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len,
 	if (len < 8)
 		goto out;
 
-	/* no HDMI_Video_Present */
+	/* yes HDMI_Video_Present */
 	if (!(db[8] & (1 << 5)))
 		goto out;
 
@@ -3647,7 +3647,7 @@ do_hdmi_vsdb_modes(struct drm_connector *connector, const u8 *db, u8 len,
 	if (db[8] & (1 << 6))
 		offset += 2;
 
-	/* the declared length is not long enough for the 2 first bytes
+	/* the declared length is yest long eyesugh for the 2 first bytes
 	 * of additional video format capabilities */
 	if (len < (8 + offset + 2))
 		goto out;
@@ -3798,10 +3798,10 @@ cea_db_offsets(const u8 *cea, int *start, int *end)
 	 *
 	 * CEA EDID block defines byte 2 as:
 	 *   Byte number (decimal) within this block where the 18-byte
-	 *   DTDs begin. If no non-DTD data is present in this extension
+	 *   DTDs begin. If yes yesn-DTD data is present in this extension
 	 *   block, the value should be set to 04h (the byte after next).
-	 *   If set to 00h, there are no DTDs present in this block and
-	 *   no non-DTD data.
+	 *   If set to 00h, there are yes DTDs present in this block and
+	 *   yes yesn-DTD data.
 	 */
 	if (cea[0] == DATA_BLOCK_CTA) {
 		*start = 3;
@@ -3919,7 +3919,7 @@ static void drm_parse_y420cmdb_bitmap(struct drm_connector *connector,
 	 * We will parse and keep this map, before parsing VDB itself
 	 * to avoid going through the same block again and again.
 	 *
-	 * Spec is not clear about max possible size of this block.
+	 * Spec is yest clear about max possible size of this block.
 	 * Clamping max bitmap block size at 8 bytes. Every byte can
 	 * address 8 CEA modes, in this way this map can address
 	 * 8*8 = first 64 SVDs.
@@ -4189,7 +4189,7 @@ static void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
-		DRM_DEBUG_KMS("ELD: no CEA Extension found\n");
+		DRM_DEBUG_KMS("ELD: yes CEA Extension found\n");
 		return;
 	}
 
@@ -4278,7 +4278,7 @@ int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads)
 
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
-		DRM_DEBUG_KMS("SAD: no CEA Extension found\n");
+		DRM_DEBUG_KMS("SAD: yes CEA Extension found\n");
 		return -ENOENT;
 	}
 
@@ -4339,7 +4339,7 @@ int drm_edid_to_speaker_allocation(struct edid *edid, u8 **sadb)
 
 	cea = drm_find_cea_extension(edid);
 	if (!cea) {
-		DRM_DEBUG_KMS("SAD: no CEA Extension found\n");
+		DRM_DEBUG_KMS("SAD: yes CEA Extension found\n");
 		return -ENOENT;
 	}
 
@@ -4404,7 +4404,7 @@ int drm_av_sync_delay(struct drm_connector *connector,
 
 	/*
 	 * Convert raw EDID values to millisecond.
-	 * Treat unknown latency as 0ms.
+	 * Treat unkyeswn latency as 0ms.
 	 */
 	if (a)
 		a = min(2 * (a - 1), 500);
@@ -4421,7 +4421,7 @@ EXPORT_SYMBOL(drm_av_sync_delay);
  *
  * Parse the CEA extension according to CEA-861-B.
  *
- * Return: True if the monitor is HDMI, false if not or unknown.
+ * Return: True if the monitor is HDMI, false if yest or unkyeswn.
  */
 bool drm_detect_hdmi_monitor(struct edid *edid)
 {
@@ -4454,10 +4454,10 @@ EXPORT_SYMBOL(drm_detect_hdmi_monitor);
  * @edid: EDID block to scan
  *
  * Monitor should have CEA extension block.
- * If monitor has 'basic audio', but no CEA audio blocks, it's 'basic
+ * If monitor has 'basic audio', but yes CEA audio blocks, it's 'basic
  * audio' only. If there is any audio extension block and supported
  * audio format, assume at least 'basic audio' support, even if 'basic
- * audio' is not defined in EDID.
+ * audio' is yest defined in EDID.
  *
  * Return: True if the monitor supports audio, false otherwise.
  */
@@ -4644,7 +4644,7 @@ static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
 	 * then deep color 36 bit must be supported.
 	 */
 	if (!(hdmi[6] & DRM_EDID_HDMI_DC_36)) {
-		DRM_DEBUG("%s: HDMI sink should do DC_36, but does not!\n",
+		DRM_DEBUG("%s: HDMI sink should do DC_36, but does yest!\n",
 			  connector->name);
 	}
 }
@@ -4707,7 +4707,7 @@ static void drm_parse_cea_ext(struct drm_connector *connector,
 	}
 }
 
-/* A connector has no EDID information, so we've got no EDID to compute quirks from. Reset
+/* A connector has yes EDID information, so we've got yes EDID to compute quirks from. Reset
  * all of the values which would have been set from EDID
  */
 void
@@ -4727,7 +4727,7 @@ drm_reset_display_info(struct drm_connector *connector)
 	info->rgb_quant_range_selectable = false;
 	memset(&info->hdmi, 0, sizeof(info->hdmi));
 
-	info->non_desktop = 0;
+	info->yesn_desktop = 0;
 }
 
 u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid)
@@ -4741,9 +4741,9 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 	info->width_mm = edid->width_cm * 10;
 	info->height_mm = edid->height_cm * 10;
 
-	info->non_desktop = !!(quirks & EDID_QUIRK_NON_DESKTOP);
+	info->yesn_desktop = !!(quirks & EDID_QUIRK_NON_DESKTOP);
 
-	DRM_DEBUG_KMS("non_desktop set to %d\n", info->non_desktop);
+	DRM_DEBUG_KMS("yesn_desktop set to %d\n", info->yesn_desktop);
 
 	if (edid->revision < 3)
 		return quirks;
@@ -5010,17 +5010,17 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 EXPORT_SYMBOL(drm_add_edid_modes);
 
 /**
- * drm_add_modes_noedid - add modes for the connectors without EDID
+ * drm_add_modes_yesedid - add modes for the connectors without EDID
  * @connector: connector we're probing
  * @hdisplay: the horizontal display limit
  * @vdisplay: the vertical display limit
  *
  * Add the specified modes to the connector's mode list. Only when the
- * hdisplay/vdisplay is not beyond the given limit, it will be added.
+ * hdisplay/vdisplay is yest beyond the given limit, it will be added.
  *
  * Return: The number of modes added or 0 if we couldn't find any.
  */
-int drm_add_modes_noedid(struct drm_connector *connector,
+int drm_add_modes_yesedid(struct drm_connector *connector,
 			int hdisplay, int vdisplay)
 {
 	int i, count, num_modes = 0;
@@ -5055,7 +5055,7 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 	}
 	return num_modes;
 }
-EXPORT_SYMBOL(drm_add_modes_noedid);
+EXPORT_SYMBOL(drm_add_modes_yesedid);
 
 /**
  * drm_set_preferred_mode - Sets the preferred mode of a connector
@@ -5255,7 +5255,7 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 		picture_aspect = drm_get_cea_aspect_ratio(frame->video_code);
 
 	/*
-	 * The infoframe can't convey anything but none, 4:3
+	 * The infoframe can't convey anything but yesne, 4:3
 	 * and 16:9, so if the user has asked for anything else
 	 * we can only satisfy it by specifying the right VIC.
 	 */
@@ -5362,12 +5362,12 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 
 	/*
 	 * CEA-861:
-	 * "A Source shall not send a non-zero Q value that does not correspond
+	 * "A Source shall yest send a yesn-zero Q value that does yest correspond
 	 *  to the default RGB Quantization Range for the transmitted Picture
 	 *  unless the Sink indicates support for the Q bit in a Video
 	 *  Capabilities Data Block."
 	 *
-	 * HDMI 2.0 recommends sending non-zero Q when it does match the
+	 * HDMI 2.0 recommends sending yesn-zero Q when it does match the
 	 * default RGB quantization range for the mode, even when QS=0.
 	 */
 	if (info->rgb_quant_range_selectable ||
@@ -5381,12 +5381,12 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 	 * "When transmitting any RGB colorimetry, the Source should set the
 	 *  YQ-field to match the RGB Quantization Range being transmitted
 	 *  (e.g., when Limited Range RGB, set YQ=0 or when Full Range RGB,
-	 *  set YQ=1) and the Sink shall ignore the YQ-field."
+	 *  set YQ=1) and the Sink shall igyesre the YQ-field."
 	 *
 	 * Unfortunate certain sinks (eg. VIZ Model 67/E261VA) get confused
-	 * by non-zero YQ when receiving RGB. There doesn't seem to be any
+	 * by yesn-zero YQ when receiving RGB. There doesn't seem to be any
 	 * good way to tell which version of CEA-861 the sink supports, so
-	 * we limit non-zero YQ to HDMI 2.0 sinks only as HDMI 2.0 is based
+	 * we limit yesn-zero YQ to HDMI 2.0 sinks only as HDMI 2.0 is based
 	 * on on CEA-861-F.
 	 */
 	if (!is_hdmi2_sink(connector) ||
@@ -5452,7 +5452,7 @@ s3d_structure_from_display_mode(const struct drm_display_mode *mode)
  *
  * Note that there's is a need to send HDMI vendor infoframes only when using a
  * 4k or stereoscopic 3D mode. So when giving any other mode as input this
- * function will return -EINVAL, error that can be safely ignored.
+ * function will return -EINVAL, error that can be safely igyesred.
  *
  * Return: 0 on success or a negative error code on failure.
  */
@@ -5480,9 +5480,9 @@ drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 		return err;
 
 	/*
-	 * Even if it's not absolutely necessary to send the infoframe
+	 * Even if it's yest absolutely necessary to send the infoframe
 	 * (ie.vic==0 and s3d_struct==0) we will still send it if we
-	 * know that the sink can handle it. This is based on a
+	 * kyesw that the sink can handle it. This is based on a
 	 * suggestion in HDMI 2.0 Appendix F. Apparently some sinks
 	 * have trouble realizing that they shuld switch from 3D to 2D
 	 * mode if the source simply stops sending the infoframe when

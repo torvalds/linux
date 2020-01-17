@@ -5,7 +5,7 @@
  * Copyright (C) 2010 Nokia Corporation
  * Copyright (C) 2012 Texas Instruments
  *
- * Contact: Samu Onkalo <samu.p.onkalo@nokia.com>
+ * Contact: Samu Onkalo <samu.p.onkalo@yeskia.com>
  *          Milo(Woogyom) Kim <milo.kim@ti.com>
  */
 
@@ -286,7 +286,7 @@ static int lp5521_post_init_device(struct lp55xx_chip *chip)
 	 * Make sure that the chip is reset by reading back the r channel
 	 * current reg. This is dummy read is required on some platforms -
 	 * otherwise further access to the R G B channels in the
-	 * LP5521_REG_ENABLE register will not have any effect - strange!
+	 * LP5521_REG_ENABLE register will yest have any effect - strange!
 	 */
 	ret = lp55xx_read(chip, LP5521_REG_R_CURRENT, &val);
 	if (ret) {
@@ -503,7 +503,7 @@ static int lp5521_probe(struct i2c_client *client,
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
 	struct lp55xx_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 
 	if (!pdata) {
 		if (np) {
@@ -511,7 +511,7 @@ static int lp5521_probe(struct i2c_client *client,
 			if (IS_ERR(pdata))
 				return PTR_ERR(pdata);
 		} else {
-			dev_err(&client->dev, "no platform data\n");
+			dev_err(&client->dev, "yes platform data\n");
 			return -EINVAL;
 		}
 	}

@@ -143,7 +143,7 @@ static int st_ohci_platform_probe(struct platform_device *dev)
 
 	res_mem = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
-		dev_err(&dev->dev, "no memory resource provided");
+		dev_err(&dev->dev, "yes memory resource provided");
 		return -ENXIO;
 	}
 
@@ -163,7 +163,7 @@ static int st_ohci_platform_probe(struct platform_device *dev)
 	}
 
 	for (clk = 0; clk < USB_MAX_CLKS; clk++) {
-		priv->clks[clk] = of_clk_get(dev->dev.of_node, clk);
+		priv->clks[clk] = of_clk_get(dev->dev.of_yesde, clk);
 		if (IS_ERR(priv->clks[clk])) {
 			err = PTR_ERR(priv->clks[clk]);
 			if (err == -EPROBE_DEFER)
@@ -177,7 +177,7 @@ static int st_ohci_platform_probe(struct platform_device *dev)
 	   do need the rate to be explicitly set */
 	priv->clk48 = devm_clk_get(&dev->dev, "clk48");
 	if (IS_ERR(priv->clk48)) {
-		dev_info(&dev->dev, "48MHz clk not found\n");
+		dev_info(&dev->dev, "48MHz clk yest found\n");
 		priv->clk48 = NULL;
 	}
 

@@ -34,7 +34,7 @@ void *module_alloc(unsigned long size)
 		/* don't exceed the static module region - see below */
 		module_alloc_end = MODULES_END;
 
-	p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
+	p = __vmalloc_yesde_range(size, MODULE_ALIGN, module_alloc_base,
 				module_alloc_end, gfp_mask, PAGE_KERNEL, 0,
 				NUMA_NO_NODE, __builtin_return_address(0));
 
@@ -44,12 +44,12 @@ void *module_alloc(unsigned long size)
 		 * KASAN can only deal with module allocations being served
 		 * from the reserved module region, since the remainder of
 		 * the vmalloc region is already backed by zero shadow pages,
-		 * and punching holes into it is non-trivial. Since the module
-		 * region is not randomized when KASAN is enabled, it is even
+		 * and punching holes into it is yesn-trivial. Since the module
+		 * region is yest randomized when KASAN is enabled, it is even
 		 * less likely that the module region gets exhausted, so we
 		 * can simply omit this fallback in that case.
 		 */
-		p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
+		p = __vmalloc_yesde_range(size, MODULE_ALIGN, module_alloc_base,
 				module_alloc_base + SZ_2G, GFP_KERNEL,
 				PAGE_KERNEL, 0, NUMA_NO_NODE,
 				__builtin_return_address(0));
@@ -82,7 +82,7 @@ static u64 do_reloc(enum aarch64_reloc_op reloc_op, __le32 *place, u64 val)
 		return 0;
 	}
 
-	pr_err("do_reloc: unknown relocation operation %d\n", reloc_op);
+	pr_err("do_reloc: unkyeswn relocation operation %d\n", reloc_op);
 	return 0;
 }
 
@@ -163,7 +163,7 @@ static int reloc_insn_movw(enum aarch64_reloc_op op, __le32 *place, u64 val,
 	if (imm_type == AARCH64_INSN_IMM_MOVNZ) {
 		/*
 		 * For signed MOVW relocations, we have to manipulate the
-		 * instruction encoding depending on whether or not the
+		 * instruction encoding depending on whether or yest the
 		 * immediate is less than zero.
 		 */
 		insn &= ~(3 << 29);
@@ -217,7 +217,7 @@ static int reloc_insn_imm(enum aarch64_reloc_op op, __le32 *place, u64 val,
 	sval = (s64)(sval & ~(imm_mask >> 1)) >> (len - 1);
 
 	/*
-	 * Overflow has occurred if the upper bits are not all equal to
+	 * Overflow has occurred if the upper bits are yest all equal to
 	 * the sign bit of the value.
 	 */
 	if ((u64)(sval + 1) >= 2)

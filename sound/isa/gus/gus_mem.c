@@ -316,7 +316,7 @@ static void snd_gf1_mem_info_read(struct snd_info_entry *entry,
 			snd_iprintf(buffer, "IWFFFF wave\n");
 			break;
 		default:
-			snd_iprintf(buffer, "unknown\n");
+			snd_iprintf(buffer, "unkyeswn\n");
 		}
 	}
 	snd_iprintf(buffer, "  Total: memory = %i, used = %i, free = %i\n",

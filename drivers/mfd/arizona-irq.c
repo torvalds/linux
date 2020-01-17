@@ -193,7 +193,7 @@ static int arizona_irq_map(struct irq_domain *h, unsigned int virq,
 		&arizona_irq_request_class);
 	irq_set_chip_and_handler(virq, &arizona_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_yesprobe(virq);
 
 	return 0;
 }
@@ -266,14 +266,14 @@ int arizona_irq_init(struct arizona *arizona)
 		break;
 #endif
 	default:
-		BUG_ON("Unknown Arizona class device" == NULL);
+		BUG_ON("Unkyeswn Arizona class device" == NULL);
 		return -EINVAL;
 	}
 
 	/* Disable all wake sources by default */
 	regmap_write(arizona->regmap, ARIZONA_WAKE_CONTROL, 0);
 
-	/* Read the flags from the interrupt controller if not specified */
+	/* Read the flags from the interrupt controller if yest specified */
 	if (!arizona->pdata.irq_flags) {
 		irq_data = irq_get_irq_data(arizona->irq);
 		if (!irq_data) {
@@ -354,7 +354,7 @@ int arizona_irq_init(struct arizona *arizona)
 	/* Used to emulate edge trigger and to work around broken pinmux */
 	if (arizona->pdata.irq_gpio) {
 		if (gpio_to_irq(arizona->pdata.irq_gpio) != arizona->irq) {
-			dev_warn(arizona->dev, "IRQ %d is not GPIO %d (%d)\n",
+			dev_warn(arizona->dev, "IRQ %d is yest GPIO %d (%d)\n",
 				 arizona->irq, arizona->pdata.irq_gpio,
 				 gpio_to_irq(arizona->pdata.irq_gpio));
 			arizona->irq = gpio_to_irq(arizona->pdata.irq_gpio);

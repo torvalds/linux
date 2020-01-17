@@ -227,7 +227,7 @@ static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb,
 	enetc_bdr_idx_inc(tx_ring, &i);
 	tx_ring->next_to_use = i;
 
-	/* let H/W know BD ring has been updated */
+	/* let H/W kyesw BD ring has been updated */
 	enetc_wr_reg(tx_ring->tpir, i); /* includes wmb() */
 
 	return count;
@@ -515,7 +515,7 @@ static void enetc_get_offloads(struct enetc_bdr *rx_ring,
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 
-	/* copy VLAN to skb, if one is extracted, for now we assume it's a
+	/* copy VLAN to skb, if one is extracted, for yesw we assume it's a
 	 * standard TPID, but HW also supports custom values
 	 */
 	if (le16_to_cpu(rxbd->r.flags) & ENETC_RXBD_FLAG_VLAN)
@@ -685,7 +685,7 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 			break;
 		}
 
-		/* not last BD in frame? */
+		/* yest last BD in frame? */
 		while (!(bd_status & ENETC_RXBD_LSTATUS_F)) {
 			bd_status = le32_to_cpu(rxbd->r.lstatus);
 			size = ENETC_RXB_DMA_SIZE;
@@ -1120,7 +1120,7 @@ static void enetc_setup_txbdr(struct enetc_hw *hw, struct enetc_bdr *tx_ring)
 	enetc_txbdr_wr(hw, idx, ENETC_TBLENR,
 		       ENETC_RTBLENR_LEN(tx_ring->bd_count));
 
-	/* clearing PI/CI registers for Tx not supported, adjust sw indexes */
+	/* clearing PI/CI registers for Tx yest supported, adjust sw indexes */
 	tx_ring->next_to_use = enetc_txbdr_rd(hw, idx, ENETC_TBPIR);
 	tx_ring->next_to_clean = enetc_txbdr_rd(hw, idx, ENETC_TBCIR);
 
@@ -1334,13 +1334,13 @@ static int enetc_phy_connect(struct net_device *ndev)
 	struct phy_device *phydev;
 	struct ethtool_eee edata;
 
-	if (!priv->phy_node)
+	if (!priv->phy_yesde)
 		return 0; /* phy-less mode */
 
-	phydev = of_phy_connect(ndev, priv->phy_node, &adjust_link,
+	phydev = of_phy_connect(ndev, priv->phy_yesde, &adjust_link,
 				0, priv->if_mode);
 	if (!phydev) {
-		dev_err(&ndev->dev, "could not attach to PHY\n");
+		dev_err(&ndev->dev, "could yest attach to PHY\n");
 		return -ENODEV;
 	}
 
@@ -1465,7 +1465,7 @@ static int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data)
 		return 0;
 	}
 
-	/* Check if we have enough BD rings available to accommodate all TCs */
+	/* Check if we have eyesugh BD rings available to accommodate all TCs */
 	if (num_tc > priv->num_tx_rings) {
 		netdev_err(ndev, "Max %d traffic classes supported\n",
 			   priv->num_tx_rings);

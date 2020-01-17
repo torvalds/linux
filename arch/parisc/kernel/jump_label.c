@@ -30,8 +30,8 @@ void arch_jump_label_transform(struct jump_entry *entry,
 		/*
 		 * Encode the PA1.1 "b,n" instruction with a 17-bit
 		 * displacement.  In case we hit the BUG(), we could use
-		 * another branch instruction with a 22-bit displacement on
-		 * 64-bit CPUs instead. But this seems sufficient for now.
+		 * ayesther branch instruction with a 22-bit displacement on
+		 * 64-bit CPUs instead. But this seems sufficient for yesw.
 		 */
 		distance -= 8;
 		BUG_ON(distance > 262143 || distance < -262144);
@@ -47,9 +47,9 @@ void arch_jump_label_transform_static(struct jump_entry *entry,
 				      enum jump_label_type type)
 {
 	/*
-	 * We use the architected NOP in arch_static_branch, so there's no
+	 * We use the architected NOP in arch_static_branch, so there's yes
 	 * need to patch an identical NOP over the top of it here. The core
-	 * will call arch_jump_label_transform from a module notifier if the
+	 * will call arch_jump_label_transform from a module yestifier if the
 	 * NOP needs to be replaced by a branch.
 	 */
 }

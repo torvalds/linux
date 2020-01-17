@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *  Copyright (c) 1999-2000 Vojtech Pavlik
  *
@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  * 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  * 
  * Should you need to contact me, the author, you can do so either by
@@ -71,7 +71,7 @@ struct hiddev_report_info {
 
 /* To do a GUSAGE/SUSAGE, fill in at least usage_code,  report_type and 
  * report_id.  Set report_id to REPORT_ID_UNKNOWN if the rest of the fields 
- * are unknown.  Otherwise use a usage_ref struct filled in from a previous 
+ * are unkyeswn.  Otherwise use a usage_ref struct filled in from a previous 
  * successful GUSAGE call to save time.  To actually send a value to the
  * device, perform a SUSAGE first, followed by a SREPORT.  An INITREPORT or a
  * GREPORT isn't necessary for a GUSAGE to return valid data.

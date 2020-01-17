@@ -19,7 +19,7 @@
 
 int tpm_read_log_of(struct tpm_chip *chip)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const u32 *sizep;
 	const u64 *basep;
 	struct tpm_bios_log *log;
@@ -27,8 +27,8 @@ int tpm_read_log_of(struct tpm_chip *chip)
 	u64 base;
 
 	log = &chip->log;
-	if (chip->dev.parent && chip->dev.parent->of_node)
-		np = chip->dev.parent->of_node;
+	if (chip->dev.parent && chip->dev.parent->of_yesde)
+		np = chip->dev.parent->of_yesde;
 	else
 		return -ENODEV;
 

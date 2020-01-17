@@ -10,14 +10,14 @@
  *  Update for Linux-2.6 and cache flush improvements
  *  Copyright (C) 2004 Nokia Corporation by Tony Lindgren <tony@atomide.com>
  *
- *  hacked for non-paged-MM by Hyok S. Choi, 2004.
+ *  hacked for yesn-paged-MM by Hyok S. Choi, 2004.
  *
  * These are the low level assembler for performing cache and TLB
  * functions on the arm925.
  *
- *  CONFIG_CPU_ARM925_CPU_IDLE -> nohlt
+ *  CONFIG_CPU_ARM925_CPU_IDLE -> yeshlt
  *
- * Some additional notes based on deciphering the TI TRM on OMAP-5910:
+ * Some additional yestes based on deciphering the TI TRM on OMAP-5910:
  *
  * NOTE1: The TI925T Configuration Register bit "D-cache clean and flush
  *	  entry mode" must be 0 to flush the entries in both segments
@@ -217,7 +217,7 @@ ENTRY(arm925_flush_user_cache_range)
  *	coherent_kern_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start, end.  If you have non-snooping
+ *	region described by start, end.  If you have yesn-syesoping
  *	Harvard caches, you need to implement this function.
  *
  *	- start	- virtual start address
@@ -230,7 +230,7 @@ ENTRY(arm925_coherent_kern_range)
  *	coherent_user_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start, end.  If you have non-snooping
+ *	region described by start, end.  If you have yesn-syesoping
  *	Harvard caches, you need to implement this function.
  *
  *	- start	- virtual start address
@@ -250,7 +250,7 @@ ENTRY(arm925_coherent_user_range)
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
  *
- *	Ensure no D cache aliasing occurs, either with itself or
+ *	Ensure yes D cache aliasing occurs, either with itself or
  *	the I cache
  *
  *	- addr	- kernel address
@@ -271,8 +271,8 @@ ENTRY(arm925_flush_kern_dcache_area)
  *	dma_inv_range(start, end)
  *
  *	Invalidate (discard) the specified virtual address range.
- *	May not write back any entries.  If 'start' or 'end'
- *	are not cache line aligned, those lines must be written
+ *	May yest write back any entries.  If 'start' or 'end'
+ *	are yest cache line aligned, those lines must be written
  *	back.
  *
  *	- start	- virtual start address

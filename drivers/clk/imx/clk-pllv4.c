@@ -28,7 +28,7 @@
 /* PLL Numerator Register (xPLLNUM) */
 #define PLL_NUM_OFFSET		0x10
 
-/* PLL Denominator Register (xPLLDENOM) */
+/* PLL Deyesminator Register (xPLLDENOM) */
 #define PLL_DENOM_OFFSET	0x14
 
 #define MAX_MFD			0x3fffffff
@@ -117,7 +117,7 @@ static long clk_pllv4_round_rate(struct clk_hw *hw, unsigned long rate,
 
 	/*
 	 * NOTE: The value of numerator must always be configured to be
-	 * less than the value of the denominator. If we can't get a proper
+	 * less than the value of the deyesminator. If we can't get a proper
 	 * pair of mfn/mfd, we simply return the round_rate without using
 	 * the frac part.
 	 */

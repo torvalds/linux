@@ -20,7 +20,7 @@ static int smart_enable(ide_drive_t *drive)
 	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
 	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
 
-	return ide_no_data_taskfile(drive, &cmd);
+	return ide_yes_data_taskfile(drive, &cmd);
 }
 
 static int get_smart_data(ide_drive_t *drive, u8 *buf, u8 sub_cmd)
@@ -48,7 +48,7 @@ static int idedisk_cache_proc_show(struct seq_file *m, void *v)
 	if (drive->dev_flags & IDE_DFLAG_ID_READ)
 		seq_printf(m, "%i\n", drive->id[ATA_ID_BUF_SIZE] / 2);
 	else
-		seq_printf(m, "(none)\n");
+		seq_printf(m, "(yesne)\n");
 	return 0;
 }
 
@@ -119,7 +119,7 @@ const struct ide_proc_devset ide_disk_settings[] = {
 	IDE_PROC_DEVSET(lun,		0,     7),
 	IDE_PROC_DEVSET(max_failures,	0, 65535),
 	IDE_PROC_DEVSET(multcount,	0,    16),
-	IDE_PROC_DEVSET(nowerr,		0,     1),
+	IDE_PROC_DEVSET(yeswerr,		0,     1),
 	IDE_PROC_DEVSET(wcache,		0,     1),
 	{ NULL },
 };

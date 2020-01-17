@@ -194,7 +194,7 @@ static void hgpk_reset_hack_state(struct psmouse *psmouse)
 }
 
 /*
- * We have no idea why this particular hardware bug occurs.  The touchpad
+ * We have yes idea why this particular hardware bug occurs.  The touchpad
  * will randomly start spewing packets without anything touching the
  * pad.  This wouldn't necessarily be bad, but it's indicative of a
  * severely miscalibrated pad; attempting to use the touchpad while it's
@@ -213,7 +213,7 @@ static void hgpk_spewing_hack(struct psmouse *psmouse,
 {
 	struct hgpk_data *priv = psmouse->private;
 
-	/* ignore button press packets; many in a row could trigger
+	/* igyesre button press packets; many in a row could trigger
 	 * a false-positive! */
 	if (l || r)
 		return;
@@ -223,7 +223,7 @@ static void hgpk_spewing_hack(struct psmouse *psmouse,
 		return;
 
 	if (abs(x) > 3 || abs(y) > 3) {
-		/* no spew, or spew ended */
+		/* yes spew, or spew ended */
 		hgpk_reset_spew_detection(priv);
 		return;
 	}
@@ -235,7 +235,7 @@ static void hgpk_spewing_hack(struct psmouse *psmouse,
 
 	switch (priv->spew_flag) {
 	case NO_SPEW:
-		/* we're not spewing, but this packet might be the start */
+		/* we're yest spewing, but this packet might be the start */
 		priv->spew_flag = MAYBE_SPEWING;
 
 		/* fall-through */
@@ -296,7 +296,7 @@ static void hgpk_spewing_hack(struct psmouse *psmouse,
  * byte 4:      0   y6   y5   y4   y3   y2    y1    y0
  * byte 5:      0   z6   z5   z4   z3   z2    z1    z0
  *
- * ?'s are not defined in the protocol spec, may vary between models.
+ * ?'s are yest defined in the protocol spec, may vary between models.
  *
  * swr/swl are the left/right buttons.
  *
@@ -359,7 +359,7 @@ static void hgpk_process_advanced_packet(struct psmouse *psmouse)
 				    pt_down, finger_down, z);
 	} else {
 		/*
-		 * PenTablet mode does not report pressure, so we don't
+		 * PenTablet mode does yest report pressure, so we don't
 		 * report it here
 		 */
 		if (tpdebug)
@@ -398,7 +398,7 @@ static void hgpk_process_advanced_packet(struct psmouse *psmouse)
 		goto done;
 	}
 
-	/* not a duplicate, continue with position reporting */
+	/* yest a duplicate, continue with position reporting */
 	priv->dupe_count = 0;
 
 	/* Don't apply hacks in PT mode, it seems reliable */
@@ -476,10 +476,10 @@ static psmouse_ret_t hgpk_process_byte(struct psmouse *psmouse)
 		if (time_before(jiffies, priv->recalib_window)) {
 			/*
 			 * ugh, got a packet inside our recalibration
-			 * window, schedule another recalibration.
+			 * window, schedule ayesther recalibration.
 			 */
 			psmouse_dbg(psmouse,
-				    "packet inside calibration window, queueing another recalibration\n");
+				    "packet inside calibration window, queueing ayesther recalibration\n");
 			psmouse_queue_work(psmouse, &priv->recalib_wq,
 					msecs_to_jiffies(post_interrupt_delay));
 		}
@@ -568,7 +568,7 @@ static void hgpk_setup_input_device(struct input_dev *input,
 
 		__set_bit(EV_ABS, input->evbit);
 
-		/* GlideSensor has pressure sensor, PenTablet does not */
+		/* GlideSensor has pressure sensor, PenTablet does yest */
 		input_set_abs_params(input, ABS_PRESSURE, 0, 15, 0, 0);
 
 		/* From device specs */
@@ -642,13 +642,13 @@ static int hgpk_force_recalibrate(struct psmouse *psmouse)
 		return 0;
 
 	if (!autorecal) {
-		psmouse_dbg(psmouse, "recalibration disabled, ignoring\n");
+		psmouse_dbg(psmouse, "recalibration disabled, igyesring\n");
 		return 0;
 	}
 
 	psmouse_dbg(psmouse, "recalibrating touchpad..\n");
 
-	/* we don't want to race with the irq handler, nor with resyncs */
+	/* we don't want to race with the irq handler, yesr with resyncs */
 	psmouse_set_state(psmouse, PSMOUSE_INITIALIZING);
 
 	/* start by resetting the device */
@@ -660,7 +660,7 @@ static int hgpk_force_recalibrate(struct psmouse *psmouse)
 	 * XXX: If a finger is down during this delay, recalibration will
 	 * detect capacitance incorrectly.  This is a hardware bug, and
 	 * we don't have a good way to deal with it.  The 2s window stuff
-	 * (below) is our best option for now.
+	 * (below) is our best option for yesw.
 	 */
 	if (psmouse_activate(psmouse))
 		return -1;
@@ -671,7 +671,7 @@ static int hgpk_force_recalibrate(struct psmouse *psmouse)
 	/*
 	 * If we get packets right away after recalibrating, it's likely
 	 * that a finger was on the touchpad.  If so, it's probably
-	 * miscalibrated, so we optionally schedule another.
+	 * miscalibrated, so we optionally schedule ayesther.
 	 */
 	if (recal_guard_time)
 		priv->recalib_window = jiffies +
@@ -686,7 +686,7 @@ static int hgpk_force_recalibrate(struct psmouse *psmouse)
  * we drive MS-DAT low.  Measuring with a 1mA resolution ammeter says that
  * the current on the SUS_3.3V rail drops from 3mA or 4mA to 0 when we do this.
  *
- * We have no formal spec that details this operation -- the low-power
+ * We have yes formal spec that details this operation -- the low-power
  * sequence came from a long-lost email trail.
  */
 static int hgpk_toggle_powersave(struct psmouse *psmouse, int enable)
@@ -706,7 +706,7 @@ static int hgpk_toggle_powersave(struct psmouse *psmouse, int enable)
 		 * Sending a byte will drive MS-DAT low; this will wake up
 		 * the controller.  Once we get an ACK back from it, it
 		 * means we can continue with the touchpad re-init.  ALPS
-		 * tells us that 1s should be long enough, so set that as
+		 * tells us that 1s should be long eyesugh, so set that as
 		 * the upper bound. (in practice, it takes about 3 loops.)
 		 */
 		for (timeo = 20; timeo > 0; timeo--) {
@@ -790,7 +790,7 @@ static ssize_t hgpk_set_powered(struct psmouse *psmouse, void *data,
 	if (value != priv->powered) {
 		/*
 		 * hgpk_toggle_power will deal w/ state so
-		 * we're not racing w/ irq
+		 * we're yest racing w/ irq
 		 */
 		err = hgpk_toggle_powersave(psmouse, value);
 		if (!err)
@@ -942,7 +942,7 @@ static int hgpk_register(struct psmouse *psmouse)
 	err = device_create_file(&psmouse->ps2dev.serio->dev,
 				 &psmouse_attr_powered.dattr);
 	if (err) {
-		psmouse_err(psmouse, "Failed creating 'powered' sysfs node\n");
+		psmouse_err(psmouse, "Failed creating 'powered' sysfs yesde\n");
 		return err;
 	}
 
@@ -950,7 +950,7 @@ static int hgpk_register(struct psmouse *psmouse)
 				 &psmouse_attr_hgpk_mode.dattr);
 	if (err) {
 		psmouse_err(psmouse,
-			    "Failed creating 'hgpk_mode' sysfs node\n");
+			    "Failed creating 'hgpk_mode' sysfs yesde\n");
 		goto err_remove_powered;
 	}
 
@@ -960,7 +960,7 @@ static int hgpk_register(struct psmouse *psmouse)
 					 &psmouse_attr_recalibrate.dattr);
 		if (err) {
 			psmouse_err(psmouse,
-				    "Failed creating 'recalibrate' sysfs node\n");
+				    "Failed creating 'recalibrate' sysfs yesde\n");
 			goto err_remove_mode;
 		}
 	}

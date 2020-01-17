@@ -27,7 +27,7 @@ void eip_poll(struct net_device *dev);
 #endif
 
 
-/* Without I/O delay - non ISA or later chips */
+/* Without I/O delay - yesn ISA or later chips */
 void NS8390_init(struct net_device *dev, int startp);
 int ei_open(struct net_device *dev);
 int ei_close(struct net_device *dev);
@@ -115,8 +115,8 @@ struct ei_device {
 #define E8390_RXCONFIG		(ei_status.rxcr_base | 0x04)
 #define E8390_RXOFF		(ei_status.rxcr_base | 0x20)
 #else
-#define E8390_RXCONFIG		0x4	/* EN0_RXCR: broadcasts, no multicast,errors */
-#define E8390_RXOFF		0x20	/* EN0_RXCR: Accept no packets */
+#define E8390_RXCONFIG		0x4	/* EN0_RXCR: broadcasts, yes multicast,errors */
+#define E8390_RXOFF		0x20	/* EN0_RXCR: Accept yes packets */
 #endif
 
 #define E8390_TXCONFIG		0x00	/* EN0_TXCR: Normal transmit mode */
@@ -136,8 +136,8 @@ struct ei_device {
 
 /*
  *	Only generate indirect loads given a machine that needs them.
- *      - removed AMIGA_PCMCIA from this list, handled as ISA io now
- *	- the _p for generates no delay by default 8390p.c overrides this.
+ *      - removed AMIGA_PCMCIA from this list, handled as ISA io yesw
+ *	- the _p for generates yes delay by default 8390p.c overrides this.
  */
 
 #ifndef ei_inb
@@ -181,8 +181,8 @@ struct ei_device {
 #define EN0_COUNTER2	EI_SHIFT(0x0f)	/* Rcv missed frame error counter RD */
 
 /* Bits in EN0_ISR - Interrupt status register */
-#define ENISR_RX	0x01	/* Receiver, no error */
-#define ENISR_TX	0x02	/* Transmitter, no error */
+#define ENISR_RX	0x01	/* Receiver, yes error */
+#define ENISR_TX	0x02	/* Transmitter, yes error */
 #define ENISR_RX_ERR	0x04	/* Receiver, with error */
 #define ENISR_TX_ERR	0x08	/* Transmitter, with error */
 #define ENISR_OVER	0x10	/* Receiver overwrote the ring */

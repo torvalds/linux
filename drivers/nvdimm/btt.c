@@ -121,7 +121,7 @@ static int btt_map_write(struct arena_info *arena, u32 lba, u32 mapping,
 		/*
 		 * We want to set neither of the Z or E flags, and
 		 * in the actual layout, this means setting the bit
-		 * positions of both to '1' to indicate a 'normal'
+		 * positions of both to '1' to indicate a 'yesrmal'
 		 * map entry
 		 */
 		mapping |= MAP_ENT_NORMAL;
@@ -135,7 +135,7 @@ static int btt_map_write(struct arena_info *arena, u32 lba, u32 mapping,
 	default:
 		/*
 		 * The case where Z and E are both sent in as '1' could be
-		 * construed as a valid 'normal' case, but we decide not to,
+		 * construed as a valid 'yesrmal' case, but we decide yest to,
 		 * to avoid confusion
 		 */
 		dev_err_ratelimited(to_dev(arena),
@@ -219,7 +219,7 @@ static void arena_debugfs_init(struct arena_info *a, struct dentry *parent,
 	char dirname[32];
 	struct dentry *d;
 
-	/* If for some reason, parent bttN was not created, exit */
+	/* If for some reason, parent bttN was yest created, exit */
 	if (!parent)
 		return;
 
@@ -240,7 +240,7 @@ static void arena_debugfs_init(struct arena_info *a, struct dentry *parent,
 				&a->external_lbasize);
 	debugfs_create_u32("nfree", S_IRUGO, d, &a->nfree);
 	debugfs_create_u16("version_major", S_IRUGO, d, &a->version_major);
-	debugfs_create_u16("version_minor", S_IRUGO, d, &a->version_minor);
+	debugfs_create_u16("version_miyesr", S_IRUGO, d, &a->version_miyesr);
 	debugfs_create_x64("nextoff", S_IRUGO, d, &a->nextoff);
 	debugfs_create_x64("infooff", S_IRUGO, d, &a->infooff);
 	debugfs_create_x64("dataoff", S_IRUGO, d, &a->dataoff);
@@ -320,7 +320,7 @@ static int btt_log_get_old(struct arena_info *a, struct log_group *log)
 
 /*
  * This function copies the desired (old/new) log entry into ent if
- * it is not NULL. It returns the sub-slot number (0 or 1)
+ * it is yest NULL. It returns the sub-slot number (0 or 1)
  * where the desired log entry was found. Negative return values
  * indicate errors.
  */
@@ -355,7 +355,7 @@ static int btt_log_read(struct arena_info *arena, u32 lane,
 
 /*
  * This function commits a log entry to media
- * It does _not_ prepare the freelist entry for the next write
+ * It does _yest_ prepare the freelist entry for the next write
  * btt_flog_write is the wrapper for updating the freelist elements
  */
 static int __btt_log_write(struct arena_info *arena, u32 lane,
@@ -561,12 +561,12 @@ static int btt_freelist_init(struct arena_info *arena)
 		 * the BTT read-only
 		 */
 		if (ent_e_flag(le32_to_cpu(log_new.old_map)) &&
-		    !ent_normal(le32_to_cpu(log_new.old_map))) {
+		    !ent_yesrmal(le32_to_cpu(log_new.old_map))) {
 			arena->freelist[i].has_err = 1;
 			ret = arena_clear_freelist_error(arena, i);
 			if (ret)
 				dev_err_ratelimited(to_dev(arena),
-					"Unable to clear known errors\n");
+					"Unable to clear kyeswn errors\n");
 		}
 
 		/* This implies a newly created or untouched flog entry */
@@ -682,7 +682,7 @@ static int log_set_indices(struct arena_info *arena)
 		}
 		/*
 		 * If any of the log_groups have more than one valid,
-		 * non-padding entry, then the we are no longer in the
+		 * yesn-padding entry, then the we are yes longer in the
 		 * initial_state
 		 */
 		if (pad_count < 3)
@@ -701,13 +701,13 @@ static int log_set_indices(struct arena_info *arena)
 		log_index[1] = 1;
 
 	/*
-	 * Only allow the known permutations of log/padding indices,
+	 * Only allow the kyeswn permutations of log/padding indices,
 	 * i.e. (0, 1), and (0, 2)
 	 */
 	if ((log_index[0] == 0) && ((log_index[1] == 1) || (log_index[1] == 2)))
-		; /* known index possibilities */
+		; /* kyeswn index possibilities */
 	else {
-		dev_err(to_dev(arena), "Found an unknown padding scheme\n");
+		dev_err(to_dev(arena), "Found an unkyeswn padding scheme\n");
 		return -ENXIO;
 	}
 
@@ -766,7 +766,7 @@ static struct arena_info *alloc_arena(struct btt *btt, size_t size,
 					INT_LBASIZE_ALIGNMENT);
 	arena->nfree = BTT_DEFAULT_NFREE;
 	arena->version_major = btt->nd_btt->version_major;
-	arena->version_minor = btt->nd_btt->version_minor;
+	arena->version_miyesr = btt->nd_btt->version_miyesr;
 
 	if (available % BTT_PG_SIZE)
 		available -= (available % BTT_PG_SIZE);
@@ -826,7 +826,7 @@ static void parse_arena_meta(struct arena_info *arena, struct btt_sb *super,
 	arena->external_lbasize = le32_to_cpu(super->external_lbasize);
 	arena->nfree = le32_to_cpu(super->nfree);
 	arena->version_major = le16_to_cpu(super->version_major);
-	arena->version_minor = le16_to_cpu(super->version_minor);
+	arena->version_miyesr = le16_to_cpu(super->version_miyesr);
 
 	arena->nextoff = (super->nextoff == 0) ? 0 : (arena_off +
 			le64_to_cpu(super->nextoff));
@@ -991,7 +991,7 @@ static int btt_arena_write_layout(struct arena_info *arena)
 	memcpy(super->parent_uuid, parent_uuid, 16);
 	super->flags = cpu_to_le32(arena->flags);
 	super->version_major = cpu_to_le16(arena->version_major);
-	super->version_minor = cpu_to_le16(arena->version_minor);
+	super->version_miyesr = cpu_to_le16(arena->version_miyesr);
 	super->external_lbasize = cpu_to_le32(arena->external_lbasize);
 	super->external_nlba = cpu_to_le32(arena->external_nlba);
 	super->internal_lbasize = cpu_to_le32(arena->internal_lbasize);
@@ -1240,7 +1240,7 @@ static int btt_read_pg(struct btt *btt, struct bio_integrity_payload *bip,
 
 			arena->rtt[lane] = RTT_VALID | postmap;
 			/*
-			 * Barrier to make sure this write is not reordered
+			 * Barrier to make sure this write is yest reordered
 			 * to do the verification map_read before the RTT store
 			 */
 			barrier();
@@ -1472,7 +1472,7 @@ static blk_qc_t btt_make_request(struct request_queue *q, struct bio *bio)
 					(op_is_write(bio_op(bio))) ? "WRITE" :
 					"READ",
 					(unsigned long long) iter.bi_sector, len);
-			bio->bi_status = errno_to_blk_status(err);
+			bio->bi_status = erryes_to_blk_status(err);
 			break;
 		}
 	}
@@ -1532,7 +1532,7 @@ static int btt_blk_init(struct btt *btt)
 	}
 
 	nvdimm_namespace_disk_name(ndns, btt->btt_disk->disk_name);
-	btt->btt_disk->first_minor = 0;
+	btt->btt_disk->first_miyesr = 0;
 	btt->btt_disk->fops = &btt_fops;
 	btt->btt_disk->private_data = btt;
 	btt->btt_disk->queue = btt->btt_queue;

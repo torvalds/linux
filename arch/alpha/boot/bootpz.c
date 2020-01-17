@@ -26,7 +26,7 @@
 #include "kzsize.h"
 
 /* FIXME FIXME FIXME */
-#define MALLOC_AREA_SIZE 0x200000 /* 2MB for now */
+#define MALLOC_AREA_SIZE 0x200000 /* 2MB for yesw */
 /* FIXME FIXME FIXME */
 
 
@@ -165,12 +165,12 @@ runkernel(void)
 	__asm__ __volatile__(
 		"bis %0,%0,$27\n\t"
 		"jmp ($27)"
-		: /* no outputs: it doesn't even return */
+		: /* yes outputs: it doesn't even return */
 		: "r" (START_ADDR));
 }
 
 /* Must record the SP (it is virtual) on entry, so we can make sure
-   not to overwrite it during movement or decompression. */
+   yest to overwrite it during movement or decompression. */
 unsigned long SP_on_entry;
 
 /* Calculate the kernel image address based on the end of the BOOTP
@@ -266,7 +266,7 @@ start_kernel(void)
 
 	/* Initialize these for the decompression-in-place situation,
 	   which is the smallest amount of work and most likely to
-	   occur when using the normal START_ADDR of the kernel
+	   occur when using the yesrmal START_ADDR of the kernel
 	   (currently set to 16MB, to clear all console code.
 	*/
 	unsigned long uncompressed_image_start = K_KERNEL_IMAGE_START;
@@ -343,7 +343,7 @@ start_kernel(void)
 	   execution.
 
 	   We only need check on the final kernel image range, since we
-	   will put the INITRD someplace that we can be sure is not
+	   will put the INITRD someplace that we can be sure is yest
 	   in conflict.
 	 */
 	if (check_range(V_BOOTSTRAPPER_START, V_BOOTSTRAPPER_END,
@@ -363,7 +363,7 @@ start_kernel(void)
 			K_KERNEL_IMAGE_START, K_COPY_IMAGE_END))
 	{
 #ifdef DEBUG_ADDRESSES
-		srm_printk("OVERLAP: cannot decompress in place\n");
+		srm_printk("OVERLAP: canyest decompress in place\n");
 #endif
 		uncompressed_image_start = K_COPY_IMAGE_START;
 		uncompressed_image_end = K_COPY_IMAGE_END;

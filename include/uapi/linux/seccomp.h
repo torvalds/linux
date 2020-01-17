@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_SECCOMP_H
 #define _UAPI_LINUX_SECCOMP_H
 
@@ -7,7 +7,7 @@
 
 
 /* Valid values for seccomp.mode and prctl(PR_SET_SECCOMP, <mode>) */
-#define SECCOMP_MODE_DISABLED	0 /* seccomp is not in use. */
+#define SECCOMP_MODE_DISABLED	0 /* seccomp is yest in use. */
 #define SECCOMP_MODE_STRICT	1 /* uses hard-coded filter. */
 #define SECCOMP_MODE_FILTER	2 /* uses user-supplied filter. */
 
@@ -36,8 +36,8 @@
 #define SECCOMP_RET_KILL_THREAD	 0x00000000U /* kill the thread */
 #define SECCOMP_RET_KILL	 SECCOMP_RET_KILL_THREAD
 #define SECCOMP_RET_TRAP	 0x00030000U /* disallow and force a SIGSYS */
-#define SECCOMP_RET_ERRNO	 0x00050000U /* returns an errno */
-#define SECCOMP_RET_USER_NOTIF	 0x7fc00000U /* notifies userspace */
+#define SECCOMP_RET_ERRNO	 0x00050000U /* returns an erryes */
+#define SECCOMP_RET_USER_NOTIF	 0x7fc00000U /* yestifies userspace */
 #define SECCOMP_RET_TRACE	 0x7ff00000U /* pass to a tracer or disallow */
 #define SECCOMP_RET_LOG		 0x7ffc0000U /* allow after logging */
 #define SECCOMP_RET_ALLOW	 0x7fff0000U /* allow */
@@ -63,13 +63,13 @@ struct seccomp_data {
 	__u64 args[6];
 };
 
-struct seccomp_notif_sizes {
-	__u16 seccomp_notif;
-	__u16 seccomp_notif_resp;
+struct seccomp_yestif_sizes {
+	__u16 seccomp_yestif;
+	__u16 seccomp_yestif_resp;
 	__u16 seccomp_data;
 };
 
-struct seccomp_notif {
+struct seccomp_yestif {
 	__u64 id;
 	__u32 pid;
 	__u32 flags;
@@ -77,21 +77,21 @@ struct seccomp_notif {
 };
 
 /*
- * Valid flags for struct seccomp_notif_resp
+ * Valid flags for struct seccomp_yestif_resp
  *
  * Note, the SECCOMP_USER_NOTIF_FLAG_CONTINUE flag must be used with caution!
- * If set by the process supervising the syscalls of another process the
+ * If set by the process supervising the syscalls of ayesther process the
  * syscall will continue. This is problematic because of an inherent TOCTOU.
  * An attacker can exploit the time while the supervised process is waiting on
  * a response from the supervising process to rewrite syscall arguments which
  * are passed as pointers of the intercepted syscall.
- * It should be absolutely clear that this means that the seccomp notifier
- * _cannot_ be used to implement a security policy! It should only ever be used
+ * It should be absolutely clear that this means that the seccomp yestifier
+ * _canyest_ be used to implement a security policy! It should only ever be used
  * in scenarios where a more privileged process supervises the syscalls of a
  * lesser privileged process to get around kernel-enforced security
  * restrictions when the privileged process deems this safe. In other words,
  * in order to continue a syscall the supervising process should be sure that
- * another security mechanism or the kernel itself will sufficiently block
+ * ayesther security mechanism or the kernel itself will sufficiently block
  * syscalls if arguments are rewritten to something unsafe.
  *
  * Similar precautions should be applied when stacking SECCOMP_RET_USER_NOTIF
@@ -105,7 +105,7 @@ struct seccomp_notif {
  */
 #define SECCOMP_USER_NOTIF_FLAG_CONTINUE (1UL << 0)
 
-struct seccomp_notif_resp {
+struct seccomp_yestif_resp {
 	__u64 id;
 	__s64 val;
 	__s32 error;
@@ -118,9 +118,9 @@ struct seccomp_notif_resp {
 #define SECCOMP_IOW(nr, type)		_IOW(SECCOMP_IOC_MAGIC, nr, type)
 #define SECCOMP_IOWR(nr, type)		_IOWR(SECCOMP_IOC_MAGIC, nr, type)
 
-/* Flags for seccomp notification fd ioctl. */
-#define SECCOMP_IOCTL_NOTIF_RECV	SECCOMP_IOWR(0, struct seccomp_notif)
+/* Flags for seccomp yestification fd ioctl. */
+#define SECCOMP_IOCTL_NOTIF_RECV	SECCOMP_IOWR(0, struct seccomp_yestif)
 #define SECCOMP_IOCTL_NOTIF_SEND	SECCOMP_IOWR(1,	\
-						struct seccomp_notif_resp)
+						struct seccomp_yestif_resp)
 #define SECCOMP_IOCTL_NOTIF_ID_VALID	SECCOMP_IOR(2, __u64)
 #endif /* _UAPI_LINUX_SECCOMP_H */

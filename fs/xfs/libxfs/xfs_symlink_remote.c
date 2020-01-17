@@ -11,7 +11,7 @@
 #include "xfs_shared.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
@@ -19,7 +19,7 @@
 
 
 /*
- * Each contiguous block has a header, so it is not just a simple pathlen
+ * Each contiguous block has a header, so it is yest just a simple pathlen
  * to FSB conversion.
  */
 int
@@ -35,7 +35,7 @@ xfs_symlink_blocks(
 int
 xfs_symlink_hdr_set(
 	struct xfs_mount	*mp,
-	xfs_ino_t		ino,
+	xfs_iyes_t		iyes,
 	uint32_t		offset,
 	uint32_t		size,
 	struct xfs_buf		*bp)
@@ -50,8 +50,8 @@ xfs_symlink_hdr_set(
 	dsl->sl_offset = cpu_to_be32(offset);
 	dsl->sl_bytes = cpu_to_be32(size);
 	uuid_copy(&dsl->sl_uuid, &mp->m_sb.sb_meta_uuid);
-	dsl->sl_owner = cpu_to_be64(ino);
-	dsl->sl_blkno = cpu_to_be64(bp->b_bn);
+	dsl->sl_owner = cpu_to_be64(iyes);
+	dsl->sl_blkyes = cpu_to_be64(bp->b_bn);
 	bp->b_ops = &xfs_symlink_buf_ops;
 
 	return sizeof(struct xfs_dsymlink_hdr);
@@ -64,7 +64,7 @@ xfs_symlink_hdr_set(
  */
 bool
 xfs_symlink_hdr_ok(
-	xfs_ino_t		ino,
+	xfs_iyes_t		iyes,
 	uint32_t		offset,
 	uint32_t		size,
 	struct xfs_buf		*bp)
@@ -75,7 +75,7 @@ xfs_symlink_hdr_ok(
 		return false;
 	if (size != be32_to_cpu(dsl->sl_bytes))
 		return false;
-	if (ino != be64_to_cpu(dsl->sl_owner))
+	if (iyes != be64_to_cpu(dsl->sl_owner))
 		return false;
 
 	/* ok */
@@ -95,7 +95,7 @@ xfs_symlink_verify(
 		return __this_address;
 	if (!uuid_equal(&dsl->sl_uuid, &mp->m_sb.sb_meta_uuid))
 		return __this_address;
-	if (bp->b_bn != be64_to_cpu(dsl->sl_blkno))
+	if (bp->b_bn != be64_to_cpu(dsl->sl_blkyes))
 		return __this_address;
 	if (be32_to_cpu(dsl->sl_offset) +
 				be32_to_cpu(dsl->sl_bytes) >= XFS_SYMLINK_MAXLEN)
@@ -115,7 +115,7 @@ xfs_symlink_read_verify(
 	struct xfs_mount *mp = bp->b_mount;
 	xfs_failaddr_t	fa;
 
-	/* no verification of non-crc buffers */
+	/* yes verification of yesn-crc buffers */
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return;
 
@@ -136,7 +136,7 @@ xfs_symlink_write_verify(
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	xfs_failaddr_t		fa;
 
-	/* no verification of non-crc buffers */
+	/* yes verification of yesn-crc buffers */
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return;
 
@@ -165,7 +165,7 @@ void
 xfs_symlink_local_to_remote(
 	struct xfs_trans	*tp,
 	struct xfs_buf		*bp,
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_ifork	*ifp)
 {
 	struct xfs_mount	*mp = ip->i_mount;
@@ -181,7 +181,7 @@ xfs_symlink_local_to_remote(
 	}
 
 	/*
-	 * As this symlink fits in an inode literal area, it must also fit in
+	 * As this symlink fits in an iyesde literal area, it must also fit in
 	 * the smallest buffer the filesystem supports.
 	 */
 	ASSERT(BBTOB(bp->b_length) >=
@@ -190,7 +190,7 @@ xfs_symlink_local_to_remote(
 	bp->b_ops = &xfs_symlink_buf_ops;
 
 	buf = bp->b_addr;
-	buf += xfs_symlink_hdr_set(mp, ip->i_ino, 0, ifp->if_bytes, bp);
+	buf += xfs_symlink_hdr_set(mp, ip->i_iyes, 0, ifp->if_bytes, bp);
 	memcpy(buf, ifp->if_u1.if_data, ifp->if_bytes);
 	xfs_trans_log_buf(tp, bp, 0, sizeof(struct xfs_dsymlink_hdr) +
 					ifp->if_bytes - 1);
@@ -198,11 +198,11 @@ xfs_symlink_local_to_remote(
 
 /*
  * Verify the in-memory consistency of an inline symlink data fork. This
- * does not do on-disk format checks.
+ * does yest do on-disk format checks.
  */
 xfs_failaddr_t
 xfs_symlink_shortform_verify(
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	char			*sfp;
 	char			*endp;

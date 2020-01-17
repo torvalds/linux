@@ -51,10 +51,10 @@ struct vmci_transport_waiting_info {
 	u64 offset;
 };
 
-/* Control packet type for STREAM sockets.  DGRAMs have no control packets nor
+/* Control packet type for STREAM sockets.  DGRAMs have yes control packets yesr
  * special packet header for data packets, they are just raw VMCI DGRAM
  * messages.  For STREAMs, control packets are sent over the control channel
- * while data is written and read directly from queue pairs with no packet
+ * while data is written and read directly from queue pairs with yes packet
  * format.
  */
 struct vmci_transport_packet {
@@ -73,9 +73,9 @@ struct vmci_transport_packet {
 	} u;
 };
 
-struct vmci_transport_notify_pkt {
-	u64 write_notify_window;
-	u64 write_notify_min_window;
+struct vmci_transport_yestify_pkt {
+	u64 write_yestify_window;
+	u64 write_yestify_min_window;
 	bool peer_waiting_read;
 	bool peer_waiting_write;
 	bool peer_waiting_write_detected;
@@ -87,16 +87,16 @@ struct vmci_transport_notify_pkt {
 	u64 consume_q_generation;
 };
 
-struct vmci_transport_notify_pkt_q_state {
-	u64 write_notify_window;
-	u64 write_notify_min_window;
+struct vmci_transport_yestify_pkt_q_state {
+	u64 write_yestify_window;
+	u64 write_yestify_min_window;
 	bool peer_waiting_write;
 	bool peer_waiting_write_detected;
 };
 
-union vmci_transport_notify {
-	struct vmci_transport_notify_pkt pkt;
-	struct vmci_transport_notify_pkt_q_state pkt_q_state;
+union vmci_transport_yestify {
+	struct vmci_transport_yestify_pkt pkt;
+	struct vmci_transport_yestify_pkt_q_state pkt_q_state;
 };
 
 /* Our transport-specific data. */
@@ -109,8 +109,8 @@ struct vmci_transport {
 	u64 produce_size;
 	u64 consume_size;
 	u32 detach_sub_id;
-	union vmci_transport_notify notify;
-	const struct vmci_transport_notify_ops *notify_ops;
+	union vmci_transport_yestify yestify;
+	const struct vmci_transport_yestify_ops *yestify_ops;
 	struct list_head elem;
 	struct sock *sk;
 	spinlock_t lock; /* protects sk. */

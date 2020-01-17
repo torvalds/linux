@@ -146,7 +146,7 @@ msi_irq_allocated:
 
 	switch (octeon_dma_bar_type) {
 	case OCTEON_DMA_BAR_TYPE_SMALL:
-		/* When not using big bar, Bar 0 is based at 128MB */
+		/* When yest using big bar, Bar 0 is based at 128MB */
 		msg.address_lo =
 			((128ul << 20) + CVMX_PCI_MSI_RCV) & 0xffffffff;
 		msg.address_hi = ((128ul << 20) + CVMX_PCI_MSI_RCV) >> 32;
@@ -188,7 +188,7 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	int ret;
 
 	/*
-	 * MSI-X is not supported.
+	 * MSI-X is yest supported.
 	 */
 	if (type == PCI_CAP_ID_MSIX)
 		return -EINVAL;
@@ -212,7 +212,7 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 }
 
 /**
- * Called when a device no longer needs its MSI interrupts. All
+ * Called when a device yes longer needs its MSI interrupts. All
  * MSI interrupts for the device are freed.
  *
  * @irq:    The devices first irq number. There may be multple in sequence.
@@ -250,7 +250,7 @@ void arch_teardown_msi_irq(unsigned int irq)
 	bitmask <<= irq0;
 	if ((msi_free_irq_bitmask[index] & bitmask) != bitmask)
 		panic("arch_teardown_msi_irq: Attempted to teardown MSI "
-		      "interrupt (%d) not in use", irq);
+		      "interrupt (%d) yest in use", irq);
 
 	/* Checks are done, update the in use bitmask */
 	spin_lock(&msi_free_irq_bitmask_lock);
@@ -309,7 +309,7 @@ static void octeon_irq_msi_enable_pci(struct irq_data *data)
 	 * interrupts individually. Instead of masking/unmasking them
 	 * in groups of 16, we simple assume MSI devices are well
 	 * behaved. MSI interrupts are always enable and the ACK is
-	 * assumed to be enough
+	 * assumed to be eyesugh
 	 */
 }
 
@@ -336,7 +336,7 @@ static irqreturn_t __octeon_msi_do_interrupt(int index, u64 msi_bits)
 	bit = fls64(msi_bits);
 	if (bit) {
 		bit--;
-		/* Acknowledge it first. */
+		/* Ackyeswledge it first. */
 		cvmx_write_csr(msi_rcv_reg[index], 1ull << bit);
 
 		irq = bit + OCTEON_IRQ_MSI_BIT0 + 64 * index;

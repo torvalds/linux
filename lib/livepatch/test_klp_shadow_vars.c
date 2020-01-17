@@ -10,10 +10,10 @@
 #include <linux/slab.h>
 
 /*
- * Keep a small list of pointers so that we can print address-agnostic
+ * Keep a small list of pointers so that we can print address-agyesstic
  * pointer values.  Use a rolling integer count to differentiate the values.
  * Ironically we could have used the shadow variable API to do this, but
- * let's not lean too heavily on the very code we're testing.
+ * let's yest lean too heavily on the very code we're testing.
  */
 static LIST_HEAD(ptr_list);
 struct shadow_ptr {
@@ -143,7 +143,7 @@ static int test_klp_shadow_vars_init(void)
 	ptr_id(&var4);
 
 	/*
-	 * With an empty shadow variable hash table, expect not to find
+	 * With an empty shadow variable hash table, expect yest to find
 	 * any matches.
 	 */
 	ret = shadow_get(obj, id);
@@ -205,7 +205,7 @@ static int test_klp_shadow_vars_init(void)
 			ptr_id(sv4), ptr_id(*sv4));
 
 	/*
-	 * Free the <obj=*, id> shadow variables and check that we can no
+	 * Free the <obj=*, id> shadow variables and check that we can yes
 	 * longer find them.
 	 */
 	shadow_free(obj, id, shadow_dtor);			/* sv1 */

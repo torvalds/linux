@@ -13,7 +13,7 @@
 #include <asm/kvm_mmu.h>
 
 /*
- * The LSB of the random hyp VA tag or 0 if no randomization is used.
+ * The LSB of the random hyp VA tag or 0 if yes randomization is used.
  */
 static u8 tag_lsb;
 /*
@@ -46,7 +46,7 @@ __init void kvm_compute_layout(void)
 	} else {
 		/*
 		 * We do have some free bits to insert a random tag.
-		 * Hyp VAs are now created from kernel linear map VAs
+		 * Hyp VAs are yesw created from kernel linear map VAs
 		 * using the following formula (with V == vabits_actual):
 		 *
 		 *  63 ... V |     V-1    | V-2 .. tag_lsb | tag_lsb - 1 .. 0
@@ -122,7 +122,7 @@ void __init kvm_update_va_mask(struct alt_instr *alt,
 		 * kernel VA.
 		 */
 		if (has_vhe() || (!tag_lsb && i > 0)) {
-			updptr[i] = cpu_to_le32(aarch64_insn_gen_nop());
+			updptr[i] = cpu_to_le32(aarch64_insn_gen_yesp());
 			continue;
 		}
 

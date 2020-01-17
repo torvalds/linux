@@ -31,7 +31,7 @@ static void blk_end_sync_rq(struct request *rq, blk_status_t error)
 }
 
 /**
- * blk_execute_rq_nowait - insert a request into queue for execution
+ * blk_execute_rq_yeswait - insert a request into queue for execution
  * @q:		queue to insert the request in
  * @bd_disk:	matching gendisk
  * @rq:		request to insert
@@ -45,7 +45,7 @@ static void blk_end_sync_rq(struct request *rq, blk_status_t error)
  * Note:
  *    This function will invoke @done directly if the queue is dead.
  */
-void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
+void blk_execute_rq_yeswait(struct request_queue *q, struct gendisk *bd_disk,
 			   struct request *rq, int at_head,
 			   rq_end_io_fn *done)
 {
@@ -63,7 +63,7 @@ void blk_execute_rq_nowait(struct request_queue *q, struct gendisk *bd_disk,
 	 */
 	blk_mq_sched_insert_request(rq, at_head, true, false);
 }
-EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
+EXPORT_SYMBOL_GPL(blk_execute_rq_yeswait);
 
 /**
  * blk_execute_rq - insert a request into queue for execution
@@ -83,7 +83,7 @@ void blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 	unsigned long hang_check;
 
 	rq->end_io_data = &wait;
-	blk_execute_rq_nowait(q, bd_disk, rq, at_head, blk_end_sync_rq);
+	blk_execute_rq_yeswait(q, bd_disk, rq, at_head, blk_end_sync_rq);
 
 	/* Prevent hang_check timer from firing at us during very long I/O */
 	hang_check = sysctl_hung_task_timeout_secs;

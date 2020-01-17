@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2001, 2003 Keith M Wesolowski
- * Copyright (C) 2005 Ilya A. Volynets <ilya@total-knowledge.com>
+ * Copyright (C) 2005 Ilya A. Volynets <ilya@total-kyeswledge.com>
  */
 #include <linux/types.h>
 #include <linux/init.h>

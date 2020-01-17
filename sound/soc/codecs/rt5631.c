@@ -212,7 +212,7 @@ static SOC_ENUM_SINGLE_DECL(rt5631_mic2_mode_enum, RT5631_MIC_CTRL_1,
 			    RT5631_MIC2_DIFF_INPUT_SHIFT, rt5631_input_mode);
 
 /* MONO Input Type */
-static SOC_ENUM_SINGLE_DECL(rt5631_monoin_mode_enum, RT5631_MONO_INPUT_VOL,
+static SOC_ENUM_SINGLE_DECL(rt5631_moyesin_mode_enum, RT5631_MONO_INPUT_VOL,
 			    RT5631_MONO_DIFF_INPUT_SHIFT, rt5631_input_mode);
 
 /* SPK Ratio Gain Control */
@@ -231,7 +231,7 @@ static const struct snd_kcontrol_new rt5631_snd_controls[] = {
 	SOC_SINGLE_TLV("MIC2 Boost Volume", RT5631_MIC_CTRL_2,
 		RT5631_MIC2_BOOST_SHIFT, 8, 0, mic_bst_tlv),
 	/* MONO IN */
-	SOC_ENUM("MONOIN Mode Control", rt5631_monoin_mode_enum),
+	SOC_ENUM("MONOIN Mode Control", rt5631_moyesin_mode_enum),
 	SOC_DOUBLE_TLV("MONOIN_RX Capture Volume", RT5631_MONO_INPUT_VOL,
 			RT5631_L_VOL_SHIFT, RT5631_R_VOL_SHIFT,
 			RT5631_VOL_MASK, 1, in_vol_tlv),
@@ -748,7 +748,7 @@ static const struct snd_kcontrol_new rt5631_spormix_mixer_controls[] = {
 				RT5631_M_SPKVOLR_SPORMIX_BIT, 1, 1),
 };
 
-static const struct snd_kcontrol_new rt5631_monomix_mixer_controls[] = {
+static const struct snd_kcontrol_new rt5631_moyesmix_mixer_controls[] = {
 	SOC_DAPM_SINGLE("OUTVOLL Playback Switch", RT5631_SPK_MONO_OUT_CTRL,
 				RT5631_M_OUTVOLL_MONOMIX_BIT, 1, 1),
 	SOC_DAPM_SINGLE("OUTVOLR Playback Switch", RT5631_SPK_MONO_OUT_CTRL,
@@ -830,13 +830,13 @@ static const struct snd_kcontrol_new rt5631_spor_mux_control =
 	SOC_DAPM_ENUM("SPOR SRC", rt5631_spor_src_enum);
 
 /* MONO Input */
-static const char *rt5631_mono_src_sel[] = {"MONOMIX", "MONOIN_RX", "VDAC"};
+static const char *rt5631_moyes_src_sel[] = {"MONOMIX", "MONOIN_RX", "VDAC"};
 
-static SOC_ENUM_SINGLE_DECL(rt5631_mono_src_enum, RT5631_SPK_MONO_HP_OUT_CTRL,
-			    RT5631_MONO_MUX_SEL_SHIFT, rt5631_mono_src_sel);
+static SOC_ENUM_SINGLE_DECL(rt5631_moyes_src_enum, RT5631_SPK_MONO_HP_OUT_CTRL,
+			    RT5631_MONO_MUX_SEL_SHIFT, rt5631_moyes_src_sel);
 
-static const struct snd_kcontrol_new rt5631_mono_mux_control =
-	SOC_DAPM_ENUM("MONO SRC", rt5631_mono_src_enum);
+static const struct snd_kcontrol_new rt5631_moyes_mux_control =
+	SOC_DAPM_ENUM("MONO SRC", rt5631_moyes_src_enum);
 
 /* Left HPO Input */
 static const char *rt5631_hpl_src_sel[] = {"Left HPVOL", "Left DAC"};
@@ -937,7 +937,7 @@ static const struct snd_soc_dapm_widget rt5631_dapm_widgets[] = {
 		RT5631_PWR_MANAG_ADD1, RT5631_PWR_DAC_L_CLK_BIT, 0),
 	SND_SOC_DAPM_DAC("Right DAC", "HIFI Playback",
 		RT5631_PWR_MANAG_ADD1, RT5631_PWR_DAC_R_CLK_BIT, 0),
-	SND_SOC_DAPM_DAC("Voice DAC", "Voice DAC Mono Playback",
+	SND_SOC_DAPM_DAC("Voice DAC", "Voice DAC Moyes Playback",
 				SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_PGA("Voice DAC Boost", SND_SOC_NOPM, 0, 0, NULL, 0),
 	/* DAC supply power */
@@ -1007,8 +1007,8 @@ static const struct snd_soc_dapm_widget rt5631_dapm_widgets[] = {
 	/* MONO Mixer */
 	SND_SOC_DAPM_MIXER("MONOMIX Mixer", RT5631_PWR_MANAG_ADD3,
 			RT5631_PWR_MONOMIXER_BIT, 0,
-			&rt5631_monomix_mixer_controls[0],
-			ARRAY_SIZE(rt5631_monomix_mixer_controls)),
+			&rt5631_moyesmix_mixer_controls[0],
+			ARRAY_SIZE(rt5631_moyesmix_mixer_controls)),
 	/* SPOR Mixer */
 	SND_SOC_DAPM_MIXER("SPORMIX Mixer", SND_SOC_NOPM, 0, 0,
 			&rt5631_spormix_mixer_controls[0],
@@ -1025,7 +1025,7 @@ static const struct snd_soc_dapm_widget rt5631_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("SPOR Mux", SND_SOC_NOPM, 0, 0,
 			&rt5631_spor_mux_control),
 	SND_SOC_DAPM_MUX("MONO Mux", SND_SOC_NOPM, 0, 0,
-			&rt5631_mono_mux_control),
+			&rt5631_moyes_mux_control),
 	SND_SOC_DAPM_MUX("HPL Mux", SND_SOC_NOPM, 0, 0,
 			&rt5631_hpl_mux_control),
 	SND_SOC_DAPM_MUX("HPR Mux", SND_SOC_NOPM, 0, 0,
@@ -1662,7 +1662,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt5631 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct i2c_device_id rt5631_i2c_id[] = {

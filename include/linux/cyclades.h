@@ -10,7 +10,7 @@
  *$Log: cyclades.h,v $
  *Revision 3.1  2002/01/29 11:36:16  henrique
  *added throttle field on struct cyclades_port to indicate whether the
- *port is throttled or not
+ *port is throttled or yest
  *
  *Revision 3.1  2000/04/19 18:52:52  ivan
  *converted address fields to unsigned long and added fields for physical
@@ -60,7 +60,7 @@
  *
  *Revision 1.5  1995/11/13 21:13:31  bentson
  *changes suggested by Michael Chastain <mec@duracef.shout.net>
- *to support use of this file in non-kernel applications
+ *to support use of this file in yesn-kernel applications
  *
  *
  */
@@ -80,7 +80,7 @@ struct cyclades_card {
 	struct BOARD_CTRL __iomem *board_ctrl;	/* cyz specific */
 	int irq;
 	unsigned int num_chips;	/* 0 if card absent, -1 if Z/PCI, else Y */
-	unsigned int first_line;	/* minor number of first channel on card */
+	unsigned int first_line;	/* miyesr number of first channel on card */
 	unsigned int nports;	/* Number of ports in the card */
 	int bus_index;		/* address shift - 0 for ISA, 1 for PCI */
 	int intr_enabled;		/* FW Interrupt flag - 0 disabled, 1 enabled */
@@ -133,7 +133,7 @@ struct cyclades_port {
 	int			flags; 		/* defined in tty.h */
 	int                     type;		/* UART type */
 	int			read_status_mask;
-	int			ignore_status_mask;
+	int			igyesre_status_mask;
 	int			timeout;
 	int			xmit_fifo_size;
 	int                     cor1,cor2,cor3,cor4,cor5;

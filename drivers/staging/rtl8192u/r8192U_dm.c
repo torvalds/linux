@@ -331,8 +331,8 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 				(pra->ping_rssi_ratr & (~BIT(31))) |
 				((bshort_gi_enabled) ? BIT(31) : 0);
 
-		/* 2007/10/08 MH We support RA smooth scheme now. When it is the first
-		 * time to link with AP. We will not change upper/lower threshold. If
+		/* 2007/10/08 MH We support RA smooth scheme yesw. When it is the first
+		 * time to link with AP. We will yest change upper/lower threshold. If
 		 * STA stay in high or low level, we must change two different threshold
 		 * to prevent jumping frequently.
 		 */
@@ -1408,7 +1408,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev, bool  bInCH
 		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][0] +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][1]<<8);
 		rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
-		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
+		RT_TRACE(COMP_POWER_TRACKING, "CCK yest chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter1, TempVal);
 		/* Write 0xa24 ~ 0xa27 */
 		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][2] +
@@ -1416,14 +1416,14 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev, bool  bInCH
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][4]<<16)+
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][5]<<24);
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
-		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
+		RT_TRACE(COMP_POWER_TRACKING, "CCK yest chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter2, TempVal);
 		/* Write 0xa28  0xa29 */
 		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][6] +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][7]<<8);
 
 		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
-		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
+		RT_TRACE(COMP_POWER_TRACKING, "CCK yest chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_DebugPort, TempVal);
 	} else {
 		/*priv->CCKTxPowerAdjustCntNotCh14++;	cosa add for debug.*/
@@ -1599,7 +1599,7 @@ static void dm_bb_initialgain_backup(struct net_device *dev)
 static void dm_dig_init(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	/* 2007/10/05 MH Disable DIG scheme now. Not tested. */
+	/* 2007/10/05 MH Disable DIG scheme yesw. Not tested. */
 	dm_digtable.dig_enable_flag	= true;
 	dm_digtable.dig_algorithm = DIG_ALGO_BY_RSSI;
 	dm_digtable.dig_algorithm_switch = 0;
@@ -1626,7 +1626,7 @@ static void dm_dig_init(struct net_device *dev)
 /*-----------------------------------------------------------------------------
  * Function:	dm_ctrl_initgain_byrssi()
  *
- * Overview:	Driver must monitor RSSI and notify firmware to change initial
+ * Overview:	Driver must monitor RSSI and yestify firmware to change initial
  *				gain according to different threshold. BB team provide the
  *				suggested solution.
  *
@@ -1716,7 +1716,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	if (priv->ieee80211->state != IEEE80211_LINKED)
 		return;
 
-	/* For smooth, we can not change DIG state. */
+	/* For smooth, we can yest change DIG state. */
 	if ((priv->undecorated_smoothed_pwdb > dm_digtable.rssi_low_thresh) &&
 	    (priv->undecorated_smoothed_pwdb < dm_digtable.rssi_high_thresh))
 		return;
@@ -1754,7 +1754,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 
 		/*  1.3 Lower PD_TH for OFDM. */
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
-			/* 2008/01/11 MH 40MHZ 90/92 register are not the same.
+			/* 2008/01/11 MH 40MHZ 90/92 register are yest the same.
 			 * 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
 			 */
 			write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
@@ -1812,7 +1812,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 
 		/* 2.2 Higher PD_TH for OFDM. */
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
-			/* 2008/01/11 MH 40MHZ 90/92 register are not the same.
+			/* 2008/01/11 MH 40MHZ 90/92 register are yest the same.
 			 * 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
 			 */
 			write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
@@ -1865,7 +1865,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	static u32 reset_cnt_highpwr;
 
-	/*  For smooth, we can not change high power DIG state in the range. */
+	/*  For smooth, we can yest change high power DIG state in the range. */
 	if ((priv->undecorated_smoothed_pwdb > dm_digtable.rssi_high_power_lowthresh) &&
 		(priv->undecorated_smoothed_pwdb < dm_digtable.rssi_high_power_highthresh))
 		return;
@@ -1899,7 +1899,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 
 		if (priv->undecorated_smoothed_pwdb < dm_digtable.rssi_high_power_lowthresh &&
 			 priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) {
-			/*  3.2 Recover PD_TH for OFDM for normal power region. */
+			/*  3.2 Recover PD_TH for OFDM for yesrmal power region. */
 			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
 				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
 				/*else if (priv->card_8192 == HARDWARE_TYPE_RTL8190P)
@@ -2019,7 +2019,7 @@ static void dm_pd_th(
 			if (dm_digtable.curpd_thstate == DIG_PD_AT_LOW_POWER) {
 				/*  Lower PD_TH for OFDM. */
 				if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
-					/* 2008/01/11 MH 40MHZ 90/92 register are not the same.
+					/* 2008/01/11 MH 40MHZ 90/92 register are yest the same.
 					 * 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
 					 */
 					write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
@@ -2031,7 +2031,7 @@ static void dm_pd_th(
 			} else if (dm_digtable.curpd_thstate == DIG_PD_AT_NORMAL_POWER) {
 				/* Higher PD_TH for OFDM. */
 				if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
-					/* 2008/01/11 MH 40MHZ 90/92 register are not the same.
+					/* 2008/01/11 MH 40MHZ 90/92 register are yest the same.
 					 * 2008/02/05 MH SD3-Jerry 92U/92E PD_TH are the same.
 					 */
 					write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
@@ -2113,7 +2113,7 @@ void dm_init_edca_turbo(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	priv->bcurrent_turbo_EDCA = false;
-	priv->ieee80211->bis_any_nonbepkts = false;
+	priv->ieee80211->bis_any_yesnbepkts = false;
 	priv->bis_cur_rdlstate = false;
 }	/* dm_init_edca_turbo */
 
@@ -2130,18 +2130,18 @@ static void dm_check_edca_turbo(
 	unsigned long				curTxOkCnt = 0;
 	unsigned long				curRxOkCnt = 0;
 
-	/* Do not be Turbo if it's under WiFi config and Qos Enabled, because the EDCA parameters
+	/* Do yest be Turbo if it's under WiFi config and Qos Enabled, because the EDCA parameters
 	 * should follow the settings from QAP. By Bruce, 2007-12-07.
 	 */
 	if (priv->ieee80211->state != IEEE80211_LINKED)
 		goto dm_CheckEdcaTurbo_EXIT;
-	/* We do not turn on EDCA turbo mode for some AP that has IOT issue */
+	/* We do yest turn on EDCA turbo mode for some AP that has IOT issue */
 	if (priv->ieee80211->pHTInfo->IOTAction & HT_IOT_ACT_DISABLE_EDCA_TURBO)
 		goto dm_CheckEdcaTurbo_EXIT;
 
-	/*printk("========>%s():bis_any_nonbepkts is %d\n", __func__, priv->bis_any_nonbepkts);*/
+	/*printk("========>%s():bis_any_yesnbepkts is %d\n", __func__, priv->bis_any_yesnbepkts);*/
 	/* Check the status for current condition. */
-	if (!priv->ieee80211->bis_any_nonbepkts) {
+	if (!priv->ieee80211->bis_any_yesnbepkts) {
 		curTxOkCnt = priv->stats.txbytesunicast - lastTxOkCnt;
 		curRxOkCnt = priv->stats.rxbytesunicast - lastRxOkCnt;
 		/* For RT-AP, we needs to turn it on when Rx>Tx */
@@ -2218,7 +2218,7 @@ static void dm_check_edca_turbo(
 
 dm_CheckEdcaTurbo_EXIT:
 	/* Set variables for next time. */
-	priv->ieee80211->bis_any_nonbepkts = false;
+	priv->ieee80211->bis_any_yesnbepkts = false;
 	lastTxOkCnt = priv->stats.txbytesunicast;
 	lastRxOkCnt = priv->stats.rxbytesunicast;
 }	/* dm_CheckEdcaTurbo */
@@ -2324,7 +2324,7 @@ void dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 	u8 rfpath = 0, i;
 
 	/* 2008/01/30 MH After discussing with SD3 Jerry, 0xc04/0xd04 register will
-	 * always be the same. We only read 0xc04 now.
+	 * always be the same. We only read 0xc04 yesw.
 	 */
 	read_nic_byte(dev, 0xc04, &rfpath);
 
@@ -2850,7 +2850,7 @@ void dm_check_fsync(struct net_device *dev)
 				if (reg_c38_State) {
 					write_nic_byte(dev, rOFDM0_RxDetector3, priv->framesync);
 					reg_c38_State = RegC38_Default;
-					/*DbgPrint("Fsync is idle, not connected, write 0xc38 = 0x%x\n", pHalData->framesync);*/
+					/*DbgPrint("Fsync is idle, yest connected, write 0xc38 = 0x%x\n", pHalData->framesync);*/
 				}
 			}
 		}
@@ -2866,7 +2866,7 @@ void dm_check_fsync(struct net_device *dev)
 		if (reg_c38_State) {
 			write_nic_byte(dev, rOFDM0_RxDetector3, priv->framesync);
 			reg_c38_State = RegC38_Default;
-			/*DbgPrint("framesync no monitor, write 0xc38 = 0x%x\n", pHalData->framesync);*/
+			/*DbgPrint("framesync yes monitor, write 0xc38 = 0x%x\n", pHalData->framesync);*/
 		}
 	}
 }
@@ -2949,7 +2949,7 @@ static void dm_dynamic_txpower(struct net_device *dev)
 		priv->bDynamicTxLowPower = false;
 		return;
 	}
-	/*printk("priv->ieee80211->current_network.unknown_cap_exist is %d , priv->ieee80211->current_network.broadcom_cap_exist is %d\n", priv->ieee80211->current_network.unknown_cap_exist, priv->ieee80211->current_network.broadcom_cap_exist);*/
+	/*printk("priv->ieee80211->current_network.unkyeswn_cap_exist is %d , priv->ieee80211->current_network.broadcom_cap_exist is %d\n", priv->ieee80211->current_network.unkyeswn_cap_exist, priv->ieee80211->current_network.broadcom_cap_exist);*/
 	if ((priv->ieee80211->current_network.atheros_cap_exist) && (priv->ieee80211->mode == IEEE_G)) {
 		txhipower_threshold = TX_POWER_ATHEROAP_THRESH_HIGH;
 		txlowpower_threshold = TX_POWER_ATHEROAP_THRESH_LOW;
@@ -3021,7 +3021,7 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 
 	/* If we test chariot, we should stop the TX command ?
 	 * Because 92E will always silent reset when we send tx command. We use register
-	 * 0x1e0(byte) to notify driver.
+	 * 0x1e0(byte) to yestify driver.
 	 */
 	write_nic_byte(dev, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
 }

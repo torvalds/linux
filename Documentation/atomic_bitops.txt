@@ -2,7 +2,7 @@
 Atomic bitops
 =============
 
-While our bitmap_{}() functions are non-atomic, we have a number of operations
+While our bitmap_{}() functions are yesn-atomic, we have a number of operations
 operating on single bits in a bitmap that are atomic.
 
 
@@ -30,7 +30,7 @@ Barriers:
   smp_mb__{before,after}_atomic()
 
 
-All RMW atomic operations have a '__' prefixed variant which is non-atomic.
+All RMW atomic operations have a '__' prefixed variant which is yesn-atomic.
 
 
 SEMANTICS
@@ -52,13 +52,13 @@ ORDERING
 
 Like with atomic_t, the rule of thumb is:
 
- - non-RMW operations are unordered;
+ - yesn-RMW operations are uyesrdered;
 
- - RMW operations that have no return value are unordered;
+ - RMW operations that have yes return value are uyesrdered;
 
  - RMW operations that have a return value are fully ordered.
 
- - RMW operations that are conditional are unordered on FAILURE,
+ - RMW operations that are conditional are uyesrdered on FAILURE,
    otherwise the above rules apply. In the case of test_and_{}_bit() operations,
    if the bit in memory is unchanged by the operation then it is deemed to have
    failed.

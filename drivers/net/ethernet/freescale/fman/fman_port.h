@@ -4,11 +4,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -56,11 +56,11 @@
 #define FM_PORT_FRM_ERR_LENGTH			FM_FD_ERR_LENGTH
 /* DMA Data error */
 #define FM_PORT_FRM_ERR_DMA			FM_FD_ERR_DMA
-/* non Frame-Manager error; probably come from SEC that was chained to FM */
+/* yesn Frame-Manager error; probably come from SEC that was chained to FM */
 #define FM_PORT_FRM_ERR_NON_FM			FM_FD_RX_STATUS_ERR_NON_FM
  /* IPR error */
 #define FM_PORT_FRM_ERR_IPRE			(FM_FD_ERR_IPR & ~FM_FD_IPR)
-/* IPR non-consistent-sp */
+/* IPR yesn-consistent-sp */
 #define FM_PORT_FRM_ERR_IPR_NCSP		(FM_FD_ERR_IPR_NCSP &	\
 						~FM_FD_IPR)
 
@@ -109,11 +109,11 @@ struct fman_port_rx_params {
 	struct fman_ext_pools ext_buf_pools;
 };
 
-/* A structure for additional non-Rx port parameters */
-struct fman_port_non_rx_params {
+/* A structure for additional yesn-Rx port parameters */
+struct fman_port_yesn_rx_params {
 	/* Error Queue Id. */
 	u32 err_fqid;
-	/* For Tx - Default Confirmation queue, 0 means no Tx confirmation
+	/* For Tx - Default Confirmation queue, 0 means yes Tx confirmation
 	 * for processed frames. For OP port - default Rx queue.
 	 */
 	u32 dflt_fqid;
@@ -124,7 +124,7 @@ union fman_port_specific_params {
 	/* Rx port parameters structure */
 	struct fman_port_rx_params rx_params;
 	/* Non-Rx port parameters structure */
-	struct fman_port_non_rx_params non_rx_params;
+	struct fman_port_yesn_rx_params yesn_rx_params;
 };
 
 /* A structure representing FM initialization parameters */

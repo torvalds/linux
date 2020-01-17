@@ -600,7 +600,7 @@ static struct wm831x_pdata crag_pmic_pdata = {
  * VDDARM is eventually ending up as a regulator hanging on the MFD cell device
  * "wm831x-buckv.1" spawn from drivers/mfd/wm831x-core.c.
  *
- * From the note on the platform data we can see that this is clearly DVS1
+ * From the yeste on the platform data we can see that this is clearly DVS1
  * and assigned as dcdc1 resource to the MFD core which sets .id of the cell
  * spawning the DVS1 platform device to 1, then the cell platform device
  * name is calculated from 10*instance + id resulting in the device name
@@ -765,7 +765,7 @@ static struct s3c_sdhci_platdata crag6410_hsmmc2_pdata = {
 static void crag6410_cfg_sdhci0(struct platform_device *dev, int width)
 {
 	/* Set all the necessary GPG pins to special-function 2 */
-	s3c_gpio_cfgrange_nopull(S3C64XX_GPG(0), 2 + width, S3C_GPIO_SFN(2));
+	s3c_gpio_cfgrange_yespull(S3C64XX_GPG(0), 2 + width, S3C_GPIO_SFN(2));
 
 	/* force card-detected for prototype 0 */
 	s3c_gpio_setpull(S3C64XX_GPG(6), S3C_GPIO_PULL_DOWN);

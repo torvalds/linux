@@ -355,7 +355,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 				rt5514_spi_burst_read(RT5514_PLL3_CALIB_CTRL6 |
 					RT5514_DSP_MAPPING, buf, sizeof(buf));
 #else
-				dev_err(component->dev, "There is no SPI driver for"
+				dev_err(component->dev, "There is yes SPI driver for"
 					" loading the firmware\n");
 				memset(buf, 0, sizeof(buf));
 #endif
@@ -374,7 +374,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 				rt5514_spi_burst_write(0x4ff60000, fw->data,
 					((fw->size/8)+1)*8);
 #else
-				dev_err(component->dev, "There is no SPI driver for"
+				dev_err(component->dev, "There is yes SPI driver for"
 					" loading the firmware\n");
 #endif
 				release_firmware(fw);
@@ -387,7 +387,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 				rt5514_spi_burst_write(0x4ffc0000, fw->data,
 					((fw->size/8)+1)*8);
 #else
-				dev_err(component->dev, "There is no SPI driver for"
+				dev_err(component->dev, "There is yes SPI driver for"
 					" loading the firmware\n");
 #endif
 				release_firmware(fw);
@@ -930,7 +930,7 @@ static int rt5514_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unkyeswn PLL source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -1071,7 +1071,7 @@ static int rt5514_set_bias_level(struct snd_soc_component *component,
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			/*
 			 * If the DSP is enabled in start of recording, the DSP
-			 * should be disabled, and sync back to normal recording
+			 * should be disabled, and sync back to yesrmal recording
 			 * settings to make sure recording properly.
 			 */
 			if (rt5514->dsp_enabled) {
@@ -1173,7 +1173,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt5514 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt5514_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5514_i2c_regmap = {
@@ -1299,7 +1299,7 @@ static int rt5514_i2c_probe(struct i2c_client *i2c,
 		ret = regmap_read(rt5514->regmap, RT5514_VENDOR_ID2, &val);
 	if (ret || val != RT5514_DEVICE_ID) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt5514\n", val);
+			"Device with ID register %x is yest rt5514\n", val);
 		return -ENODEV;
 	}
 

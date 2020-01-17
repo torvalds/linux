@@ -294,7 +294,7 @@ struct netsec_priv {
 	struct napi_struct napi;
 	phy_interface_t phy_interface;
 	struct net_device *ndev;
-	struct device_node *phy_np;
+	struct device_yesde *phy_np;
 	struct phy_device *phydev;
 	struct mii_bus *mii_bus;
 	void __iomem *ioaddr;
@@ -669,7 +669,7 @@ next:
 		 */
 		*desc = (struct netsec_desc){};
 
-		/* entry->attr is not going to be accessed by the NIC until
+		/* entry->attr is yest going to be accessed by the NIC until
 		 * netsec_set_tx_de() is called. No need for a dma_wmb() here
 		 */
 		entry->attr = 1U << NETSEC_TX_SHIFT_OWN_FIELD;
@@ -726,13 +726,13 @@ static void *netsec_alloc_rx_data(struct netsec_priv *priv,
 	if (!page)
 		return NULL;
 
-	/* We allocate the same buffer length for XDP and non-XDP cases.
+	/* We allocate the same buffer length for XDP and yesn-XDP cases.
 	 * page_pool API will map the whole page, skip what's needed for
 	 * network payloads and/or XDP
 	 */
 	*dma_handle = page_pool_get_dma_addr(page) + NETSEC_RXBUF_HEADROOM;
-	/* Make sure the incoming payload fits in the page for XDP and non-XDP
-	 * cases and reserve enough space for headroom + skb_shared_info
+	/* Make sure the incoming payload fits in the page for XDP and yesn-XDP
+	 * cases and reserve eyesugh space for headroom + skb_shared_info
 	 */
 	*desc_len = PAGE_SIZE - NETSEC_RX_BUF_NON_DATA;
 	dma_dir = page_pool_get_dma_dir(dring->page_pool);
@@ -1171,7 +1171,7 @@ static netdev_tx_t netsec_netdev_start_xmit(struct sk_buff *skb,
 
 	netsec_set_tx_de(priv, dring, &tx_ctrl, &tx_desc, skb);
 	spin_unlock_bh(&dring->lock);
-	netsec_write(priv, NETSEC_REG_NRM_TX_PKTCNT, 1); /* submit another tx */
+	netsec_write(priv, NETSEC_REG_NRM_TX_PKTCNT, 1); /* submit ayesther tx */
 
 	return NETDEV_TX_OK;
 }
@@ -1260,7 +1260,7 @@ static void netsec_setup_tx_dring(struct netsec_priv *priv)
 		struct netsec_de *de;
 
 		de = dring->vaddr + (DESC_SZ * i);
-		/* de->attr is not going to be accessed by the NIC
+		/* de->attr is yest going to be accessed by the NIC
 		 * until netsec_set_tx_de() is called.
 		 * No need for a dma_wmb() here
 		 */
@@ -1279,7 +1279,7 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 	/* internal DMA mapping in page_pool */
 	pp_params.flags = PP_FLAG_DMA_MAP;
 	pp_params.pool_size = DESC_NUM;
-	pp_params.nid = cpu_to_node(0);
+	pp_params.nid = cpu_to_yesde(0);
 	pp_params.dev = priv->dev;
 	pp_params.dma_dir = xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
 
@@ -1415,7 +1415,7 @@ static int netsec_reset_hardware(struct netsec_priv *priv,
 	netsec_write(priv, NETSEC_REG_NRM_TX_DESC_START_LW,
 		     lower_32_bits(priv->desc_ring[NETSEC_RING_TX].desc_dma));
 
-	/* set normal tx dring ring config */
+	/* set yesrmal tx dring ring config */
 	netsec_write(priv, NETSEC_REG_NRM_TX_CONFIG,
 		     1 << NETSEC_REG_DESC_ENDIAN);
 	netsec_write(priv, NETSEC_REG_NRM_RX_CONFIG,
@@ -1450,7 +1450,7 @@ static int netsec_reset_hardware(struct netsec_priv *priv,
 	if (priv->ndev->mtu > ETH_DATA_LEN)
 		value |= NETSEC_PKT_CTRL_REG_EN_JUMBO;
 
-	/* change to normal mode */
+	/* change to yesrmal mode */
 	netsec_write(priv, NETSEC_REG_DMA_MH_CTRL, MH_CTRL__MODE_TRANS);
 	netsec_write(priv, NETSEC_REG_PKT_CTRL, value);
 
@@ -1611,7 +1611,7 @@ static int netsec_netdev_open(struct net_device *ndev)
 		goto err2;
 	}
 
-	if (dev_of_node(priv->dev)) {
+	if (dev_of_yesde(priv->dev)) {
 		if (!of_phy_connect(priv->ndev, priv->phy_np,
 				    netsec_phy_adjust_link, 0,
 				    priv->phy_interface)) {
@@ -1777,9 +1777,9 @@ static int netsec_xdp_setup(struct netsec_priv *priv, struct bpf_prog *prog,
 	struct net_device *dev = priv->ndev;
 	struct bpf_prog *old_prog;
 
-	/* For now just support only the usual MTU sized frames */
+	/* For yesw just support only the usual MTU sized frames */
 	if (prog && dev->mtu > 1500) {
-		NL_SET_ERR_MSG_MOD(extack, "Jumbo frames not supported on XDP");
+		NL_SET_ERR_MSG_MOD(extack, "Jumbo frames yest supported on XDP");
 		return -EOPNOTSUPP;
 	}
 
@@ -1829,7 +1829,7 @@ static const struct net_device_ops netsec_netdev_ops = {
 static int netsec_of_probe(struct platform_device *pdev,
 			   struct netsec_priv *priv, u32 *phy_addr)
 {
-	priv->phy_np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
+	priv->phy_np = of_parse_phandle(pdev->dev.of_yesde, "phy-handle", 0);
 	if (!priv->phy_np) {
 		dev_err(&pdev->dev, "missing required property 'phy-handle'\n");
 		return -EINVAL;
@@ -1839,7 +1839,7 @@ static int netsec_of_probe(struct platform_device *pdev,
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL); /* get by 'phy_ref_clk' */
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "phy_ref_clk not found\n");
+		dev_err(&pdev->dev, "phy_ref_clk yest found\n");
 		return PTR_ERR(priv->clk);
 	}
 	priv->freq = clk_get_rate(priv->clk);
@@ -1875,7 +1875,7 @@ static void netsec_unregister_mdio(struct netsec_priv *priv)
 {
 	struct phy_device *phydev = priv->phydev;
 
-	if (!dev_of_node(priv->dev) && phydev) {
+	if (!dev_of_yesde(priv->dev) && phydev) {
 		phy_device_remove(phydev);
 		phy_device_free(phydev);
 	}
@@ -1900,21 +1900,21 @@ static int netsec_register_mdio(struct netsec_priv *priv, u32 phy_addr)
 	bus->parent = priv->dev;
 	priv->mii_bus = bus;
 
-	if (dev_of_node(priv->dev)) {
-		struct device_node *mdio_node, *parent = dev_of_node(priv->dev);
+	if (dev_of_yesde(priv->dev)) {
+		struct device_yesde *mdio_yesde, *parent = dev_of_yesde(priv->dev);
 
-		mdio_node = of_get_child_by_name(parent, "mdio");
-		if (mdio_node) {
-			parent = mdio_node;
+		mdio_yesde = of_get_child_by_name(parent, "mdio");
+		if (mdio_yesde) {
+			parent = mdio_yesde;
 		} else {
-			/* older f/w doesn't populate the mdio subnode,
+			/* older f/w doesn't populate the mdio subyesde,
 			 * allow relaxed upgrade of f/w in due time.
 			 */
-			dev_info(priv->dev, "Upgrade f/w for mdio subnode!\n");
+			dev_info(priv->dev, "Upgrade f/w for mdio subyesde!\n");
 		}
 
 		ret = of_mdiobus_register(bus, parent);
-		of_node_put(mdio_node);
+		of_yesde_put(mdio_yesde);
 
 		if (ret) {
 			dev_err(priv->dev, "mdiobus register err(%d)\n", ret);
@@ -2036,7 +2036,7 @@ static int netsec_probe(struct platform_device *pdev)
 		eth_hw_addr_random(ndev);
 	}
 
-	if (dev_of_node(&pdev->dev))
+	if (dev_of_yesde(&pdev->dev))
 		ret = netsec_of_probe(pdev, priv, &phy_addr);
 	else
 		ret = netsec_acpi_probe(pdev, priv, &phy_addr);

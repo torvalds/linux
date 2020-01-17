@@ -18,7 +18,7 @@
 
 /*
  *  The PDC console is a simple console, which can be used for debugging 
- *  boot related problems on HP PA-RISC machines. It is also useful when no
+ *  boot related problems on HP PA-RISC machines. It is also useful when yes
  *  other console works.
  *
  *  This code uses the ROM (=PDC) based functions to read and write characters
@@ -105,12 +105,12 @@ static int pdc_console_tty_write(struct tty_struct *tty, const unsigned char *bu
 
 static int pdc_console_tty_write_room(struct tty_struct *tty)
 {
-	return 32768; /* no limit, no buffer used */
+	return 32768; /* yes limit, yes buffer used */
 }
 
 static int pdc_console_tty_chars_in_buffer(struct tty_struct *tty)
 {
-	return 0; /* no buffer */
+	return 0; /* yes buffer */
 }
 
 static const struct tty_operations pdc_console_tty_ops = {
@@ -147,7 +147,7 @@ static int __init pdc_console_tty_driver_init(void)
 	int err;
 
 	/* Check if the console driver is still registered.
-	 * It is unregistered if the pdc console was not selected as the
+	 * It is unregistered if the pdc console was yest selected as the
 	 * primary console. */
 
 	struct console *tmp;
@@ -159,7 +159,7 @@ static int __init pdc_console_tty_driver_init(void)
 	console_unlock();
 
 	if (!tmp) {
-		printk(KERN_INFO "PDC console driver not registered anymore, not creating %s\n", pdc_cons.name);
+		printk(KERN_INFO "PDC console driver yest registered anymore, yest creating %s\n", pdc_cons.name);
 		return -ENODEV;
 	}
 
@@ -176,7 +176,7 @@ static int __init pdc_console_tty_driver_init(void)
 	pdc_console_tty_driver->driver_name = "pdc_cons";
 	pdc_console_tty_driver->name = "ttyB";
 	pdc_console_tty_driver->major = MUX_MAJOR;
-	pdc_console_tty_driver->minor_start = 0;
+	pdc_console_tty_driver->miyesr_start = 0;
 	pdc_console_tty_driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	pdc_console_tty_driver->init_termios = tty_std_termios;
 	pdc_console_tty_driver->flags = TTY_DRIVER_REAL_RAW |
@@ -242,7 +242,7 @@ void __init pdc_console_init(void)
 
 /*
  * Used for emergencies. Currently only used if an HPMC occurs. If an
- * HPMC occurs, it is possible that the current console may not be
+ * HPMC occurs, it is possible that the current console may yest be
  * properly initialised after the PDC IO reset. This routine unregisters
  * all of the current consoles, reinitializes the pdc console and
  * registers it.

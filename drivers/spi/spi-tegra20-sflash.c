@@ -322,7 +322,7 @@ static int tegra_sflash_transfer_one_message(struct spi_master *master,
 					is_first_msg, single_xfer);
 		if (ret < 0) {
 			dev_err(tsd->dev,
-				"spi can not start transfer, err %d\n", ret);
+				"spi can yest start transfer, err %d\n", ret);
 			goto exit;
 		}
 		is_first_msg = false;
@@ -447,7 +447,7 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 	tsd->dev = &pdev->dev;
 	spin_lock_init(&tsd->lock);
 
-	if (of_property_read_u32(tsd->dev->of_node, "spi-max-frequency",
+	if (of_property_read_u32(tsd->dev->of_yesde, "spi-max-frequency",
 				 &master->max_speed_hz))
 		master->max_speed_hz = 25000000; /* 25MHz */
 
@@ -468,14 +468,14 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 
 	tsd->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(tsd->clk)) {
-		dev_err(&pdev->dev, "can not get clock\n");
+		dev_err(&pdev->dev, "can yest get clock\n");
 		ret = PTR_ERR(tsd->clk);
 		goto exit_free_irq;
 	}
 
 	tsd->rst = devm_reset_control_get_exclusive(&pdev->dev, "spi");
 	if (IS_ERR(tsd->rst)) {
-		dev_err(&pdev->dev, "can not get reset\n");
+		dev_err(&pdev->dev, "can yest get reset\n");
 		ret = PTR_ERR(tsd->rst);
 		goto exit_free_irq;
 	}
@@ -503,10 +503,10 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 	tegra_sflash_writel(tsd, tsd->def_command_reg, SPI_COMMAND);
 	pm_runtime_put(&pdev->dev);
 
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "can not register to master err %d\n", ret);
+		dev_err(&pdev->dev, "can yest register to master err %d\n", ret);
 		goto exit_pm_disable;
 	}
 	return ret;

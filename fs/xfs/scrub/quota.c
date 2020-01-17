@@ -11,7 +11,7 @@
 #include "xfs_mount.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_quota.h"
 #include "xfs_qm.h"
 #include "scrub/scrub.h"
@@ -38,7 +38,7 @@ xchk_quota_to_dqtype(
 int
 xchk_setup_quota(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	uint			dqtype;
 	int			error;
@@ -56,7 +56,7 @@ xchk_setup_quota(
 	error = xchk_setup_fs(sc, ip);
 	if (error)
 		return error;
-	sc->ip = xfs_quota_inode(sc->mp, dqtype);
+	sc->ip = xfs_quota_iyesde(sc->mp, dqtype);
 	xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
 	sc->ilock_flags = XFS_ILOCK_EXCL;
 	return 0;
@@ -91,7 +91,7 @@ xchk_quota_item(
 	unsigned long long	bcount;
 	unsigned long long	icount;
 	unsigned long long	rcount;
-	xfs_ino_t		fs_icount;
+	xfs_iyes_t		fs_icount;
 	xfs_dqid_t		id = be32_to_cpu(d->d_id);
 	int			error = 0;
 
@@ -117,11 +117,11 @@ xchk_quota_item(
 
 	/* Check the limits. */
 	bhard = be64_to_cpu(d->d_blk_hardlimit);
-	ihard = be64_to_cpu(d->d_ino_hardlimit);
+	ihard = be64_to_cpu(d->d_iyes_hardlimit);
 	rhard = be64_to_cpu(d->d_rtb_hardlimit);
 
 	bsoft = be64_to_cpu(d->d_blk_softlimit);
-	isoft = be64_to_cpu(d->d_ino_softlimit);
+	isoft = be64_to_cpu(d->d_iyes_softlimit);
 	rsoft = be64_to_cpu(d->d_rtb_softlimit);
 
 	/*
@@ -156,7 +156,7 @@ xchk_quota_item(
 	/*
 	 * Check that usage doesn't exceed physical limits.  However, on
 	 * a reflink filesystem we're allowed to exceed physical space
-	 * if there are no quota limits.
+	 * if there are yes quota limits.
 	 */
 	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
 		if (mp->m_sb.sb_dblocks < bcount)
@@ -201,7 +201,7 @@ xchk_quota_data_fork(
 	int			error = 0;
 
 	/* Invoke the fork scrubber. */
-	error = xchk_metadata_inode_forks(sc);
+	error = xchk_metadata_iyesde_forks(sc);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
@@ -248,7 +248,7 @@ xchk_quota(
 		goto out;
 
 	/*
-	 * Check all the quota items.  Now that we've checked the quota inode
+	 * Check all the quota items.  Now that we've checked the quota iyesde
 	 * data fork we have to drop ILOCK_EXCL to use the regular dquot
 	 * functions.
 	 */

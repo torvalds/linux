@@ -66,7 +66,7 @@ config DVB_MXL5XX
 	  Say Y when you want to support these frontends.
 
 config DVB_M88DS3103
-	tristate "Montage Technology M88DS3103"
+	tristate "Montage Techyeslogy M88DS3103"
 	depends on DVB_CORE && I2C && I2C_MUX
 	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
@@ -286,7 +286,7 @@ config DVB_SI21XX
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_TS2020
-	tristate "Montage Tehnology TS2020 based tuners"
+	tristate "Montage Tehyeslogy TS2020 based tuners"
 	depends on DVB_CORE && I2C
 	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
@@ -294,7 +294,7 @@ config DVB_TS2020
 	  A DVB-S/S2 silicon tuner. Say Y when you want to support this tuner.
 
 config DVB_DS3000
-	tristate "Montage Tehnology DS3000 based"
+	tristate "Montage Tehyeslogy DS3000 based"
 	depends on DVB_CORE && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
@@ -770,7 +770,7 @@ config DVB_TUNER_DIB0070
 	help
 	  A driver for the silicon baseband tuner DiB0070 from DiBcom.
 	  This device is only used inside a SiP called together with a
-	  demodulator for now.
+	  demodulator for yesw.
 
 config DVB_TUNER_DIB0090
 	tristate "DiBcom DiB0090 silicon base-band tuner"
@@ -779,7 +779,7 @@ config DVB_TUNER_DIB0090
 	help
 	  A driver for the silicon baseband tuner DiB0090 from DiBcom.
 	  This device is only used inside a SiP called together with a
-	  demodulator for now.
+	  demodulator for yesw.
 
 comment "SEC control devices for DVB-S"
 	depends on DVB_CORE

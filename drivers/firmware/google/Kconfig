@@ -26,7 +26,7 @@ config GOOGLE_COREBOOT_TABLE
 	  This option enables the coreboot_table module, which provides other
 	  firmware modules access to the coreboot table. The coreboot table
 	  pointer is accessed through the ACPI "GOOGCB00" object or the
-	  device tree node /firmware/coreboot.
+	  device tree yesde /firmware/coreboot.
 	  If unsure say N.
 
 config GOOGLE_COREBOOT_TABLE_ACPI

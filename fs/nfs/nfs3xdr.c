@@ -10,7 +10,7 @@
 #include <linux/param.h>
 #include <linux/time.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/in.h>
 #include <linux/pagemap.h>
@@ -26,8 +26,8 @@
 
 #define NFSDBG_FACILITY		NFSDBG_XDR
 
-/* Mapping from NFS error code to "errno" error code. */
-#define errno_NFSERR_IO		EIO
+/* Mapping from NFS error code to "erryes" error code. */
+#define erryes_NFSERR_IO		EIO
 
 /*
  * Declare the space requirements for NFS arguments and replies as
@@ -56,7 +56,7 @@
 #define NFS3_createargs_sz	(NFS3_diropargs_sz+NFS3_sattr_sz)
 #define NFS3_mkdirargs_sz	(NFS3_diropargs_sz+NFS3_sattr_sz)
 #define NFS3_symlinkargs_sz	(NFS3_diropargs_sz+1+NFS3_sattr_sz)
-#define NFS3_mknodargs_sz	(NFS3_diropargs_sz+2+NFS3_sattr_sz)
+#define NFS3_mkyesdargs_sz	(NFS3_diropargs_sz+2+NFS3_sattr_sz)
 #define NFS3_removeargs_sz	(NFS3_fh_sz+NFS3_filename_sz)
 #define NFS3_renameargs_sz	(NFS3_diropargs_sz+NFS3_diropargs_sz)
 #define NFS3_linkargs_sz		(NFS3_fh_sz+NFS3_diropargs_sz)
@@ -88,7 +88,7 @@
 				XDR_QUADLEN(NFS_ACL_INLINE_BUFSIZE)+1)
 #define ACL3_setaclres_sz	(1+NFS3_post_op_attr_sz)
 
-static int nfs3_stat_to_errno(enum nfs_stat);
+static int nfs3_stat_to_erryes(enum nfs_stat);
 
 /*
  * Map file type to S_IFMT bits
@@ -395,12 +395,12 @@ static void encode_specdata3(struct xdr_stream *xdr, const dev_t rdev)
 
 static __be32 *xdr_decode_specdata3(__be32 *p, dev_t *rdev)
 {
-	unsigned int major, minor;
+	unsigned int major, miyesr;
 
 	major = be32_to_cpup(p++);
-	minor = be32_to_cpup(p++);
-	*rdev = MKDEV(major, minor);
-	if (MAJOR(*rdev) != major || MINOR(*rdev) != minor)
+	miyesr = be32_to_cpup(p++);
+	*rdev = MKDEV(major, miyesr);
+	if (MAJOR(*rdev) != major || MINOR(*rdev) != miyesr)
 		*rdev = 0;
 	return p;
 }
@@ -643,7 +643,7 @@ static int decode_fattr3(struct xdr_stream *xdr, struct nfs_fattr *fattr,
 	p = xdr_decode_specdata3(p, &fattr->rdev);
 
 	p = xdr_decode_hyper(p, &fattr->fsid.major);
-	fattr->fsid.minor = 0;
+	fattr->fsid.miyesr = 0;
 
 	p = xdr_decode_fileid3(p, &fattr->fileid);
 	p = xdr_decode_nfstime3(p, &fattr->atime);
@@ -1099,7 +1099,7 @@ static void nfs3_xdr_enc_symlink3args(struct rpc_rqst *req,
  *		specdata3	spec;
  *	};
  *
- *	union mknoddata3 switch (ftype3 type) {
+ *	union mkyesddata3 switch (ftype3 type) {
  *	case NF3CHR:
  *	case NF3BLK:
  *		devicedata3	device;
@@ -1112,19 +1112,19 @@ static void nfs3_xdr_enc_symlink3args(struct rpc_rqst *req,
  *
  *	struct MKNOD3args {
  *		diropargs3	where;
- *		mknoddata3	what;
+ *		mkyesddata3	what;
  *	};
  */
 static void encode_devicedata3(struct xdr_stream *xdr,
-			       const struct nfs3_mknodargs *args,
+			       const struct nfs3_mkyesdargs *args,
 			       struct user_namespace *userns)
 {
 	encode_sattr3(xdr, args->sattr, userns);
 	encode_specdata3(xdr, args->rdev);
 }
 
-static void encode_mknoddata3(struct xdr_stream *xdr,
-			      const struct nfs3_mknodargs *args,
+static void encode_mkyesddata3(struct xdr_stream *xdr,
+			      const struct nfs3_mkyesdargs *args,
 			      struct user_namespace *userns)
 {
 	encode_ftype3(xdr, args->type);
@@ -1145,14 +1145,14 @@ static void encode_mknoddata3(struct xdr_stream *xdr,
 	}
 }
 
-static void nfs3_xdr_enc_mknod3args(struct rpc_rqst *req,
+static void nfs3_xdr_enc_mkyesd3args(struct rpc_rqst *req,
 				    struct xdr_stream *xdr,
 				    const void *data)
 {
-	const struct nfs3_mknodargs *args = data;
+	const struct nfs3_mkyesdargs *args = data;
 
 	encode_diropargs3(xdr, args->fh, args->name, args->len);
-	encode_mknoddata3(xdr, args, rpc_rqst_userns(req));
+	encode_mkyesddata3(xdr, args, rpc_rqst_userns(req));
 }
 
 /*
@@ -1267,7 +1267,7 @@ static void encode_readdirplus3args(struct xdr_stream *xdr,
 
 	/*
 	 * readdirplus: need dircount + buffer size.
-	 * We just make sure we make dircount big enough
+	 * We just make sure we make dircount big eyesugh
 	 */
 	*p++ = cpu_to_be32(args->count >> 3);
 
@@ -1341,7 +1341,7 @@ static void nfs3_xdr_enc_setacl3args(struct rpc_rqst *req,
 	unsigned int base;
 	int error;
 
-	encode_nfs_fh3(xdr, NFS_FH(args->inode));
+	encode_nfs_fh3(xdr, NFS_FH(args->iyesde));
 	encode_uint32(xdr, args->mask);
 
 	base = req->rq_slen;
@@ -1350,12 +1350,12 @@ static void nfs3_xdr_enc_setacl3args(struct rpc_rqst *req,
 	else
 		xdr_reserve_space(xdr, args->len);
 
-	error = nfsacl_encode(xdr->buf, base, args->inode,
+	error = nfsacl_encode(xdr->buf, base, args->iyesde,
 			    (args->mask & NFS_ACL) ?
 			    args->acl_access : NULL, 1, 0);
 	/* FIXME: this is just broken */
 	BUG_ON(error < 0);
-	error = nfsacl_encode(xdr->buf, base + error, args->inode,
+	error = nfsacl_encode(xdr->buf, base + error, args->iyesde,
 			    (args->mask & NFS_DFACL) ?
 			    args->acl_default : NULL, 1,
 			    NFS_ACL_DEFAULT);
@@ -1401,7 +1401,7 @@ static int nfs3_xdr_dec_getattr3res(struct rpc_rqst *req,
 out:
 	return error;
 out_default:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -1440,7 +1440,7 @@ static int nfs3_xdr_dec_setattr3res(struct rpc_rqst *req,
 out:
 	return error;
 out_status:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -1490,7 +1490,7 @@ out_default:
 	error = decode_post_op_attr(xdr, result->dir_attr, userns);
 	if (unlikely(error))
 		goto out;
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -1532,7 +1532,7 @@ static int nfs3_xdr_dec_access3res(struct rpc_rqst *req,
 out:
 	return error;
 out_default:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -1573,7 +1573,7 @@ static int nfs3_xdr_dec_readlink3res(struct rpc_rqst *req,
 out:
 	return error;
 out_default:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -1653,7 +1653,7 @@ static int nfs3_xdr_dec_read3res(struct rpc_rqst *req, struct xdr_stream *xdr,
 out:
 	return error;
 out_status:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -1723,7 +1723,7 @@ static int nfs3_xdr_dec_write3res(struct rpc_rqst *req, struct xdr_stream *xdr,
 out:
 	return error;
 out_status:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -1790,7 +1790,7 @@ out_default:
 	error = decode_wcc_data(xdr, result->dir_attr, userns);
 	if (unlikely(error))
 		goto out;
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -1830,7 +1830,7 @@ static int nfs3_xdr_dec_remove3res(struct rpc_rqst *req,
 out:
 	return error;
 out_status:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -1876,7 +1876,7 @@ static int nfs3_xdr_dec_rename3res(struct rpc_rqst *req,
 out:
 	return error;
 out_status:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -1921,7 +1921,7 @@ static int nfs3_xdr_dec_link3res(struct rpc_rqst *req, struct xdr_stream *xdr,
 out:
 	return error;
 out_status:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /**
@@ -1931,10 +1931,10 @@ out_status:
  * @entry: buffer to fill in with entry data
  * @plus: boolean indicating whether this should be a readdirplus entry
  *
- * Returns zero if successful, otherwise a negative errno value is
+ * Returns zero if successful, otherwise a negative erryes value is
  * returned.
  *
- * This function is not invoked during READDIR reply decoding, but
+ * This function is yest invoked during READDIR reply decoding, but
  * rather whenever an application invokes the getdents(2) system call
  * on a directory already in our cache.
  *
@@ -1981,7 +1981,7 @@ int nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 		return -EBADCOOKIE;
 	}
 
-	error = decode_fileid3(xdr, &entry->ino);
+	error = decode_fileid3(xdr, &entry->iyes);
 	if (unlikely(error))
 		return error;
 
@@ -2003,8 +2003,8 @@ int nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 		if (entry->fattr->valid & NFS_ATTR_FATTR_V3)
 			entry->d_type = nfs_umode_to_dtype(entry->fattr->mode);
 
-		if (entry->fattr->fileid != entry->ino) {
-			entry->fattr->mounted_on_fileid = entry->ino;
+		if (entry->fattr->fileid != entry->iyes) {
+			entry->fattr->mounted_on_fileid = entry->iyes;
 			entry->fattr->valid |= NFS_ATTR_FATTR_MOUNTED_ON_FILEID;
 		}
 
@@ -2106,7 +2106,7 @@ out_default:
 	error = decode_post_op_attr(xdr, result->dir_attr, rpc_rqst_userns(req));
 	if (unlikely(error))
 		goto out;
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -2148,7 +2148,7 @@ static int decode_fsstat3resok(struct xdr_stream *xdr,
 	p = xdr_decode_size3(p, &result->tfiles);
 	p = xdr_decode_size3(p, &result->ffiles);
 	xdr_decode_size3(p, &result->afiles);
-	/* ignore invarsec */
+	/* igyesre invarsec */
 	return 0;
 }
 
@@ -2172,7 +2172,7 @@ static int nfs3_xdr_dec_fsstat3res(struct rpc_rqst *req,
 out:
 	return error;
 out_status:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -2221,7 +2221,7 @@ static int decode_fsinfo3resok(struct xdr_stream *xdr,
 	p = xdr_decode_size3(p, &result->maxfilesize);
 	xdr_decode_nfstime3(p, &result->time_delta);
 
-	/* ignore properties */
+	/* igyesre properties */
 	result->lease_time = 0;
 	return 0;
 }
@@ -2246,7 +2246,7 @@ static int nfs3_xdr_dec_fsinfo3res(struct rpc_rqst *req,
 out:
 	return error;
 out_status:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -2256,7 +2256,7 @@ out_status:
  *		post_op_attr	obj_attributes;
  *		uint32		linkmax;
  *		uint32		name_max;
- *		bool		no_trunc;
+ *		bool		yes_trunc;
  *		bool		chown_restricted;
  *		bool		case_insensitive;
  *		bool		case_preserving;
@@ -2283,7 +2283,7 @@ static int decode_pathconf3resok(struct xdr_stream *xdr,
 		return -EIO;
 	result->max_link = be32_to_cpup(p++);
 	result->max_namelen = be32_to_cpup(p);
-	/* ignore remaining fields */
+	/* igyesre remaining fields */
 	return 0;
 }
 
@@ -2307,7 +2307,7 @@ static int nfs3_xdr_dec_pathconf3res(struct rpc_rqst *req,
 out:
 	return error;
 out_status:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 /*
@@ -2350,7 +2350,7 @@ static int nfs3_xdr_dec_commit3res(struct rpc_rqst *req,
 out:
 	return error;
 out_status:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 #ifdef CONFIG_NFS_V3_ACL
@@ -2416,7 +2416,7 @@ static int nfs3_xdr_dec_getacl3res(struct rpc_rqst *req,
 out:
 	return error;
 out_default:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 static int nfs3_xdr_dec_setacl3res(struct rpc_rqst *req,
@@ -2435,7 +2435,7 @@ static int nfs3_xdr_dec_setacl3res(struct rpc_rqst *req,
 out:
 	return error;
 out_default:
-	return nfs3_stat_to_errno(status);
+	return nfs3_stat_to_erryes(status);
 }
 
 #endif  /* CONFIG_NFS_V3_ACL */
@@ -2443,16 +2443,16 @@ out_default:
 
 /*
  * We need to translate between nfs status return values and
- * the local errno values which may not be the same.
+ * the local erryes values which may yest be the same.
  */
 static const struct {
 	int stat;
-	int errno;
+	int erryes;
 } nfs_errtbl[] = {
 	{ NFS_OK,		0		},
 	{ NFSERR_PERM,		-EPERM		},
 	{ NFSERR_NOENT,		-ENOENT		},
-	{ NFSERR_IO,		-errno_NFSERR_IO},
+	{ NFSERR_IO,		-erryes_NFSERR_IO},
 	{ NFSERR_NXIO,		-ENXIO		},
 /*	{ NFSERR_EAGAIN,	-EAGAIN		}, */
 	{ NFSERR_ACCES,		-EACCES		},
@@ -2486,22 +2486,22 @@ static const struct {
 };
 
 /**
- * nfs3_stat_to_errno - convert an NFS status code to a local errno
+ * nfs3_stat_to_erryes - convert an NFS status code to a local erryes
  * @status: NFS status code to convert
  *
- * Returns a local errno value, or -EIO if the NFS status code is
- * not recognized.  This function is used jointly by NFSv2 and NFSv3.
+ * Returns a local erryes value, or -EIO if the NFS status code is
+ * yest recognized.  This function is used jointly by NFSv2 and NFSv3.
  */
-static int nfs3_stat_to_errno(enum nfs_stat status)
+static int nfs3_stat_to_erryes(enum nfs_stat status)
 {
 	int i;
 
 	for (i = 0; nfs_errtbl[i].stat != -1; i++) {
 		if (nfs_errtbl[i].stat == (int)status)
-			return nfs_errtbl[i].errno;
+			return nfs_errtbl[i].erryes;
 	}
 	dprintk("NFS: Unrecognized nfs status value: %u\n", status);
-	return nfs_errtbl[i].errno;
+	return nfs_errtbl[i].erryes;
 }
 
 
@@ -2528,7 +2528,7 @@ const struct rpc_procinfo nfs3_procedures[] = {
 	PROC(CREATE,		create,		create,		0),
 	PROC(MKDIR,		mkdir,		create,		0),
 	PROC(SYMLINK,		symlink,	create,		0),
-	PROC(MKNOD,		mknod,		create,		0),
+	PROC(MKNOD,		mkyesd,		create,		0),
 	PROC(REMOVE,		remove,		remove,		0),
 	PROC(RMDIR,		lookup,		setattr,	0),
 	PROC(RENAME,		rename,		rename,		0),

@@ -11,7 +11,7 @@ Required properties:
 
 Optional properties:
 
-- phys: list of phandles to PHY nodes.
+- phys: list of phandles to PHY yesdes.
   This property is required if at least one of the ports are in
   PHY mode i.e. OMAP_EHCI_PORT_MODE_PHY
 

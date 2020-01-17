@@ -63,10 +63,10 @@ struct type6_hdr {
  * It contains a message header followed by a CPRB.  The CPRB is
  * the same as the request CPRB, which is described above.
  *
- * If format is 1, an error condition exists and no data beyond
+ * If format is 1, an error condition exists and yes data beyond
  * the 8-byte message header is of interest.
  *
- * The non-error message is shown below.
+ * The yesn-error message is shown below.
  *
  * Note that all reserved fields must be zeroes.
  */

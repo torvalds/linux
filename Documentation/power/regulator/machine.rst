@@ -34,7 +34,7 @@ e.g. for the machine above::
 This maps Regulator-1 to the 'Vcc' supply for Consumer B and maps Regulator-2
 to the 'Vcc' supply for Consumer A.
 
-Constraints can now be registered by defining a struct regulator_init_data
+Constraints can yesw be registered by defining a struct regulator_init_data
 for each regulator power domain. This structure also maps the consumers
 to their supply regulators::
 
@@ -51,8 +51,8 @@ to their supply regulators::
 
 The name field should be set to something that is usefully descriptive
 for the board for configuration of supplies for other regulators and
-for use in logging and other diagnostic output.  Normally the name
-used for the supply rail in the schematic is a good choice.  If no
+for use in logging and other diagyesstic output.  Normally the name
+used for the supply rail in the schematic is a good choice.  If yes
 name is provided then the subsystem will choose one.
 
 Regulator-1 supplies power to Regulator-2. This relationship must be registered

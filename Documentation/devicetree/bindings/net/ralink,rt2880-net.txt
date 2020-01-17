@@ -7,7 +7,7 @@ Mediatek SoCs (RT288x, RT3x5x, RT366x, RT388x, rt5350, mt7620, mt7621, mt76x8).
 Depending on the SoC, there is a number of ports connected to the CPU port
 directly and/or via a (gigabit-)switch.
 
-* Ethernet controller node
+* Ethernet controller yesde
 
 Required properties:
 - compatible: Should be one of "ralink,rt2880-eth", "ralink,rt3050-eth",
@@ -20,12 +20,12 @@ Required properties:
   "esw" is also required.
 
 
-* Ethernet port node
+* Ethernet port yesde
 
 Required properties:
 - compatible: Should be "ralink,eth-port"
 - reg: The number of the physical port
-- phy-handle: reference to the node describing the phy
+- phy-handle: reference to the yesde describing the phy
 
 Example:
 

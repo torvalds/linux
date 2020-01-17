@@ -22,13 +22,13 @@ struct eptPageTableEntry {
 	uint64_t writable:1;
 	uint64_t executable:1;
 	uint64_t memory_type:3;
-	uint64_t ignore_pat:1;
+	uint64_t igyesre_pat:1;
 	uint64_t page_size:1;
 	uint64_t accessed:1;
 	uint64_t dirty:1;
-	uint64_t ignored_11_10:2;
+	uint64_t igyesred_11_10:2;
 	uint64_t address:40;
-	uint64_t ignored_62_52:11;
+	uint64_t igyesred_62_52:11;
 	uint64_t suppress_ve:1;
 };
 
@@ -182,7 +182,7 @@ bool load_vmcs(struct vmx_pages *vmx)
 		if (vmptrld(vmx->vmcs_gpa))
 			return false;
 
-		/* Setup shadow VMCS, do not load it yet. */
+		/* Setup shadow VMCS, do yest load it yet. */
 		*(uint32_t *)(vmx->shadow_vmcs) =
 			vmcs_revision() | 0x80000000ul;
 		if (vmclear(vmx->shadow_vmcs_gpa))
@@ -381,7 +381,7 @@ void nested_vmx_check_supported(void)
 	struct kvm_cpuid_entry2 *entry = kvm_get_supported_cpuid_entry(1);
 
 	if (!(entry->ecx & CPUID_VMX)) {
-		fprintf(stderr, "nested VMX not enabled, skipping test\n");
+		fprintf(stderr, "nested VMX yest enabled, skipping test\n");
 		exit(KSFT_SKIP);
 	}
 }
@@ -393,10 +393,10 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	struct eptPageTableEntry *pml4e;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
-		    "unknown or unsupported guest mode, mode: 0x%x", vm->mode);
+		    "unkyeswn or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	TEST_ASSERT((nested_paddr % vm->page_size) == 0,
-		    "Nested physical address not on page boundary,\n"
+		    "Nested physical address yest on page boundary,\n"
 		    "  nested_paddr: 0x%lx vm->page_size: 0x%x",
 		    nested_paddr, vm->page_size);
 	TEST_ASSERT((nested_paddr >> vm->page_shift) <= vm->max_gfn,
@@ -404,7 +404,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 		    "  nested_paddr: 0x%lx vm->max_gfn: 0x%lx vm->page_size: 0x%x",
 		    paddr, vm->max_gfn, vm->page_size);
 	TEST_ASSERT((paddr % vm->page_size) == 0,
-		    "Physical address not on page boundary,\n"
+		    "Physical address yest on page boundary,\n"
 		    "  paddr: 0x%lx vm->page_size: 0x%x",
 		    paddr, vm->page_size);
 	TEST_ASSERT((paddr >> vm->page_shift) <= vm->max_gfn,
@@ -417,7 +417,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	index[2] = (nested_paddr >> 30) & 0x1ffu;
 	index[3] = (nested_paddr >> 39) & 0x1ffu;
 
-	/* Allocate page directory pointer table if not present. */
+	/* Allocate page directory pointer table if yest present. */
 	pml4e = vmx->eptp_hva;
 	if (!pml4e[index[3]].readable) {
 		pml4e[index[3]].address = vm_phy_page_alloc(vm,
@@ -428,7 +428,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 		pml4e[index[3]].executable = true;
 	}
 
-	/* Allocate page directory table if not present. */
+	/* Allocate page directory table if yest present. */
 	struct eptPageTableEntry *pdpe;
 	pdpe = addr_gpa2hva(vm, pml4e[index[3]].address * vm->page_size);
 	if (!pdpe[index[2]].readable) {
@@ -440,7 +440,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 		pdpe[index[2]].executable = true;
 	}
 
-	/* Allocate page table if not present. */
+	/* Allocate page table if yest present. */
 	struct eptPageTableEntry *pde;
 	pde = addr_gpa2hva(vm, pdpe[index[2]].address * vm->page_size);
 	if (!pde[index[1]].readable) {
@@ -461,7 +461,7 @@ void nested_pg_map(struct vmx_pages *vmx, struct kvm_vm *vm,
 	pte[index[0]].executable = true;
 
 	/*
-	 * For now mark these as accessed and dirty because the only
+	 * For yesw mark these as accessed and dirty because the only
 	 * testcase we have needs that.  Can be reconsidered later.
 	 */
 	pte[index[0]].accessed = true;

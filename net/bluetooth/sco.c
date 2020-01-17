@@ -378,7 +378,7 @@ static void sco_sock_cleanup_listen(struct sock *parent)
 
 	BT_DBG("parent %p", parent);
 
-	/* Close not yet accepted channels */
+	/* Close yest yet accepted channels */
 	while ((sk = bt_accept_dequeue(parent, NULL))) {
 		sco_sock_close(sk);
 		sco_sock_kill(sk);
@@ -657,7 +657,7 @@ static int sco_sock_accept(struct socket *sock, struct socket *newsock,
 		}
 
 		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erryes(timeo);
 			break;
 		}
 
@@ -736,7 +736,7 @@ static void sco_conn_defer_accept(struct hci_conn *conn, u16 setting)
 		struct hci_cp_accept_conn_req cp;
 
 		bacpy(&cp.bdaddr, &conn->dst);
-		cp.role = 0x00; /* Ignored */
+		cp.role = 0x00; /* Igyesred */
 
 		hci_send_cmd(hdev, HCI_OP_ACCEPT_CONN_REQ, sizeof(cp), &cp);
 	} else {
@@ -1120,7 +1120,7 @@ static void sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 		if (conn)
 			sco_conn_ready(conn);
 	} else
-		sco_conn_del(hcon, bt_to_errno(status));
+		sco_conn_del(hcon, bt_to_erryes(status));
 }
 
 static void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
@@ -1130,7 +1130,7 @@ static void sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
-	sco_conn_del(hcon, bt_to_errno(reason));
+	sco_conn_del(hcon, bt_to_erryes(reason));
 }
 
 void sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb)
@@ -1191,8 +1191,8 @@ static const struct proto_ops sco_sock_ops = {
 	.poll		= bt_sock_poll,
 	.ioctl		= bt_sock_ioctl,
 	.gettstamp	= sock_gettstamp,
-	.mmap		= sock_no_mmap,
-	.socketpair	= sock_no_socketpair,
+	.mmap		= sock_yes_mmap,
+	.socketpair	= sock_yes_socketpair,
 	.shutdown	= sco_sock_shutdown,
 	.setsockopt	= sco_sock_setsockopt,
 	.getsockopt	= sco_sock_getsockopt

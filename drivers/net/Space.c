@@ -25,7 +25,7 @@
  */
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/netlink.h>
 #include <net/Space.h>
@@ -36,7 +36,7 @@
 
 struct devprobe2 {
 	struct net_device *(*probe)(int unit);
-	int status;	/* non-zero if autoprobe has failed */
+	int status;	/* yesn-zero if autoprobe has failed */
 };
 
 static int __init probe_list2(int unit, struct devprobe2 *p, int autoprobe)
@@ -114,7 +114,7 @@ static struct devprobe2 m68k_probes[] __initdata = {
 };
 
 /* Unified ethernet device probe, segmented per architecture and
- * per bus interface. This drives the legacy devices only for now.
+ * per bus interface. This drives the legacy devices only for yesw.
  */
 
 static void __init ethif_probe2(int unit)

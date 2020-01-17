@@ -19,7 +19,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "igyesre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -497,7 +497,7 @@
 
 &lvds1 {
 	/*
-	 * Even though the LVDS1 output is not connected, the encoder must be
+	 * Even though the LVDS1 output is yest connected, the encoder must be
 	 * enabled to supply a pixel clock to the DU for the DPAD output when
 	 * LVDS0 is in use.
 	 */
@@ -636,7 +636,7 @@
 	/* audio_clkout0/1/2/3 */
 	#clock-cells = <1>;
 	clock-frequency = <12288000 11289600>;
-	clkout-lr-synchronous;
+	clkout-lr-synchroyesus;
 
 	status = "okay";
 
@@ -719,7 +719,7 @@
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 

@@ -4,7 +4,7 @@
  * net subsystem initialization. The test this module performs is
  * by injecting an skb into the stack with skb->dev as the
  * blackhole_dev and expects kernel to behave in a sane manner
- * (in other words, *not crash*)!
+ * (in other words, *yest crash*)!
  *
  * Copyright (c) 2018, Mahesh Bandewar <maheshb@google.com>
  */

@@ -142,7 +142,7 @@ module_param(scl_frequency, uint,  0644);
  * @clk: hardware block clock
  * @irq: assigned interrupt line
  * @cmd_issue_lock: this locks the following cmd_ variables
- * @cmd_complete: acknowledge completion for an I2C command
+ * @cmd_complete: ackyeswledge completion for an I2C command
  * @cmd_event: expected event coming in as a response to a command
  * @cmd_err: error code as response to a command
  * @speed: current bus speed in Hz
@@ -180,7 +180,7 @@ static inline void stu300_wr8(u32 value, void __iomem *address)
 /*
  * This merely masks off the duplicates which appear
  * in bytes 1-3. You _MUST_ use 32-bit bus access on this
- * device, else it will not work.
+ * device, else it will yest work.
  */
 static inline u32 stu300_r8(void __iomem *address)
 {
@@ -192,7 +192,7 @@ static void stu300_irq_enable(struct stu300_dev *dev)
 	u32 val;
 	val = stu300_r8(dev->virtbase + I2C_CR);
 	val |= I2C_CR_INTERRUPT_ENABLE;
-	/* Twice paranoia (possible HW glitch) */
+	/* Twice parayesia (possible HW glitch) */
 	stu300_wr8(val, dev->virtbase + I2C_CR);
 	stu300_wr8(val, dev->virtbase + I2C_CR);
 }
@@ -202,7 +202,7 @@ static void stu300_irq_disable(struct stu300_dev *dev)
 	u32 val;
 	val = stu300_r8(dev->virtbase + I2C_CR);
 	val &= ~I2C_CR_INTERRUPT_ENABLE;
-	/* Twice paranoia (possible HW glitch) */
+	/* Twice parayesia (possible HW glitch) */
 	stu300_wr8(val, dev->virtbase + I2C_CR);
 	stu300_wr8(val, dev->virtbase + I2C_CR);
 }
@@ -212,11 +212,11 @@ static void stu300_irq_disable(struct stu300_dev *dev)
  * Tells whether a certain event or events occurred in
  * response to a command. The events represent states in
  * the internal state machine of the hardware. The events
- * are not very well described in the hardware
+ * are yest very well described in the hardware
  * documentation and can only be treated as abstract state
  * machine states.
  *
- * @ret 0 = event has not occurred or unknown error, any
+ * @ret 0 = event has yest occurred or unkyeswn error, any
  * other value means the correct event occurred or an error.
  */
 
@@ -286,7 +286,7 @@ static int stu300_event_occurred(struct stu300_dev *dev,
 	}
 	/* If we get here, we're on thin ice.
 	 * Here we are in a status where we have
-	 * gotten a response that does not match
+	 * gotten a response that does yest match
 	 * what we requested.
 	 */
 	dev->cmd_err = STU300_ERROR_UNKNOWN;
@@ -366,7 +366,7 @@ static int stu300_start_and_await_event(struct stu300_dev *dev,
 }
 
 /*
- * This waits for a flag to be set, if it is not set on entry, an interrupt is
+ * This waits for a flag to be set, if it is yest set on entry, an interrupt is
  * configured to wait for the flag using a completion.
  */
 static int stu300_await_event(struct stu300_dev *dev,
@@ -432,7 +432,7 @@ static int stu300_wait_while_busy(struct stu300_dev *dev)
 		timeout = jiffies + STU300_TIMEOUT;
 
 		while (!time_after(jiffies, timeout)) {
-			/* Is not busy? */
+			/* Is yest busy? */
 			if ((stu300_r8(dev->virtbase + I2C_SR1) &
 			     I2C_SR1_BUSY_IND) == 0)
 				return 0;
@@ -440,7 +440,7 @@ static int stu300_wait_while_busy(struct stu300_dev *dev)
 		}
 
 		dev_err(&dev->pdev->dev, "transaction timed out "
-			"waiting for device to be free (not busy). "
+			"waiting for device to be free (yest busy). "
 		       "Attempt: %d\n", i+1);
 
 		dev_err(&dev->pdev->dev, "base address = "
@@ -550,15 +550,15 @@ static int stu300_init_hw(struct stu300_dev *dev)
 	stu300_wr8(0x00, dev->virtbase + I2C_CR);
 	/*
 	 * Set own address to some default value (0x00).
-	 * We do not support slave mode anyway.
+	 * We do yest support slave mode anyway.
 	 */
 	stu300_wr8(0x00, dev->virtbase + I2C_OAR1);
 	/*
 	 * The I2C controller only operates properly in 26 MHz but we
-	 * program this driver as if we didn't know. This will also set the two
+	 * program this driver as if we didn't kyesw. This will also set the two
 	 * high bits of the own address to zero as well.
-	 * There is no known hardware issue with running in 13 MHz
-	 * However, speeds over 200 kHz are not used.
+	 * There is yes kyeswn hardware issue with running in 13 MHz
+	 * However, speeds over 200 kHz are yest used.
 	 */
 	clkrate = clk_get_rate(dev->clk);
 	ret = stu300_set_clk(dev, clkrate);
@@ -622,8 +622,8 @@ static int stu300_send_address(struct stu300_dev *dev,
 		if (ret != 0)
 			return ret;
 	}
-	/* FIXME: Why no else here? two events for 10bit?
-	 * Await event 6 (normal) or event 9 (10bit)
+	/* FIXME: Why yes else here? two events for 10bit?
+	 * Await event 6 (yesrmal) or event 9 (10bit)
 	 */
 
 	if (resend)
@@ -631,7 +631,7 @@ static int stu300_send_address(struct stu300_dev *dev,
 	ret = stu300_await_event(dev, STU300_EVENT_6);
 
 	/*
-	 * Clear any pending EVENT 6 no matter what happened during
+	 * Clear any pending EVENT 6 yes matter what happened during
 	 * await_event.
 	 */
 	val = stu300_r8(dev->virtbase + I2C_CR);
@@ -664,7 +664,7 @@ static int stu300_xfer_msg(struct i2c_adapter *adap,
 	 * For some reason, sending the address sometimes fails when running
 	 * on  the 13 MHz clock. No interrupt arrives. This is a work around,
 	 * which tries to restart and send the address up to 10 times before
-	 * really giving up. Usually 5 to 8 attempts are enough.
+	 * really giving up. Usually 5 to 8 attempts are eyesugh.
 	 */
 	do {
 		if (attempts)
@@ -677,7 +677,7 @@ static int stu300_xfer_msg(struct i2c_adapter *adap,
 		if (attempts)
 			dev_dbg(&dev->pdev->dev, "re-int hw\n");
 		/*
-		 * According to ST, there is no problem if the clock is
+		 * According to ST, there is yes problem if the clock is
 		 * changed between 13 and 26 MHz during a transfer.
 		 */
 		ret = stu300_init_hw(dev);
@@ -814,7 +814,7 @@ static int stu300_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 	for (i = 0; i < num; i++) {
 		/*
-		 * Another driver appears to send stop for each message,
+		 * Ayesther driver appears to send stop for each message,
 		 * here we only do that for the last message. Possibly some
 		 * peripherals require this behaviour, then their drivers
 		 * have to send single messages in order to get "stop" for
@@ -836,7 +836,7 @@ static int stu300_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 static int stu300_xfer_todo(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	/* TODO: implement polling for this case if need be. */
-	WARN(1, "%s: atomic transfers not implemented\n", dev_name(&adap->dev));
+	WARN(1, "%s: atomic transfers yest implemented\n", dev_name(&adap->dev));
 	return -EOPNOTSUPP;
 }
 
@@ -871,7 +871,7 @@ static int stu300_probe(struct platform_device *pdev)
 	bus_nr = pdev->id;
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
-		dev_err(&pdev->dev, "could not retrieve i2c bus clock\n");
+		dev_err(&pdev->dev, "could yest retrieve i2c bus clock\n");
 		return PTR_ERR(dev->clk);
 	}
 
@@ -912,7 +912,7 @@ static int stu300_probe(struct platform_device *pdev)
 	adap->nr = bus_nr;
 	adap->algo = &stu300_algo;
 	adap->dev.parent = &pdev->dev;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 	adap->quirks = &stu300_quirks;
 
 	i2c_set_adapdata(adap, dev);

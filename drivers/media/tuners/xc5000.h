@@ -39,7 +39,7 @@ struct xc5000_config {
  * it has to store a reference back to its _core equivalent structure,
  * so that it can service the hardware by steering gpio's etc.
  * Each bridge implementation is different so cast devptr accordingly.
- * The xc5000 driver cares not for this value, other than ensuring
+ * The xc5000 driver cares yest for this value, other than ensuring
  * it's passed back to a bridge during tuner_callback().
  */
 

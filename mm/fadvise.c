@@ -29,7 +29,7 @@
 
 int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct address_space *mapping;
 	struct backing_dev_info *bdi;
 	loff_t endbyte;			/* inclusive */
@@ -37,17 +37,17 @@ int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 	pgoff_t end_index;
 	unsigned long nrpages;
 
-	inode = file_inode(file);
-	if (S_ISFIFO(inode->i_mode))
+	iyesde = file_iyesde(file);
+	if (S_ISFIFO(iyesde->i_mode))
 		return -ESPIPE;
 
 	mapping = file->f_mapping;
 	if (!mapping || len < 0)
 		return -EINVAL;
 
-	bdi = inode_to_bdi(mapping->host);
+	bdi = iyesde_to_bdi(mapping->host);
 
-	if (IS_DAX(inode) || (bdi == &noop_backing_dev_info)) {
+	if (IS_DAX(iyesde) || (bdi == &yesop_backing_dev_info)) {
 		switch (advice) {
 		case POSIX_FADV_NORMAL:
 		case POSIX_FADV_RANDOM:
@@ -55,7 +55,7 @@ int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 		case POSIX_FADV_WILLNEED:
 		case POSIX_FADV_NOREUSE:
 		case POSIX_FADV_DONTNEED:
-			/* no bad return value, but ignore advice */
+			/* yes bad return value, but igyesre advice */
 			break;
 		default:
 			return -EINVAL;
@@ -103,7 +103,7 @@ int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 			nrpages = ~0UL;
 
 		/*
-		 * Ignore return value because fadvise() shall return
+		 * Igyesre return value because fadvise() shall return
 		 * success even if filesystem can't retrieve a hint,
 		 */
 		force_page_cache_readahead(mapping, file, start_index, nrpages);
@@ -111,7 +111,7 @@ int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 	case POSIX_FADV_NOREUSE:
 		break;
 	case POSIX_FADV_DONTNEED:
-		if (!inode_write_congested(mapping->host))
+		if (!iyesde_write_congested(mapping->host))
 			__filemap_fdatawrite_range(mapping, offset, endbyte,
 						   WB_SYNC_NONE);
 
@@ -126,15 +126,15 @@ int generic_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 		 * The page at end_index will be inclusively discarded according
 		 * by invalidate_mapping_pages(), so subtracting 1 from
 		 * end_index means we will skip the last page.  But if endbyte
-		 * is page aligned or is at the end of file, we should not skip
-		 * that page - discarding the last page is safe enough.
+		 * is page aligned or is at the end of file, we should yest skip
+		 * that page - discarding the last page is safe eyesugh.
 		 */
 		if ((endbyte & ~PAGE_MASK) != ~PAGE_MASK &&
-				endbyte != inode->i_size - 1) {
+				endbyte != iyesde->i_size - 1) {
 			/* First page is tricky as 0 - 1 = -1, but pgoff_t
 			 * is unsigned, so the end_index >= start_index
 			 * check below would be true and we'll discard the whole
-			 * file cache which is not what was asked.
+			 * file cache which is yest what was asked.
 			 */
 			if (end_index == 0)
 				break;

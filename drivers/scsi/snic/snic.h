@@ -195,7 +195,7 @@ do {						\
 #define SNIC_ASSERT_NOT_IMPL(EXPR) \
 	({ \
 		if (EXPR) {\
-			SNIC_INFO("Functionality not impl'ed at %s:%d\n", \
+			SNIC_INFO("Functionality yest impl'ed at %s:%d\n", \
 				  __func__, __LINE__); \
 			WARN_ON_ONCE(EXPR); \
 		} \
@@ -252,7 +252,7 @@ struct snic_fw_info {
 };
 
 /*
- * snic_work item : defined to process asynchronous events
+ * snic_work item : defined to process asynchroyesus events
  */
 struct snic_work {
 	struct work_struct work;
@@ -305,7 +305,7 @@ struct snic {
 	mempool_t *req_pool[SNIC_REQ_MAX_CACHES]; /* (??) */
 	____cacheline_aligned spinlock_t io_req_lock[SNIC_IO_LOCKS];
 
-	/* Maintain snic specific commands, cmds with no tag in spl_cmd_list */
+	/* Maintain snic specific commands, cmds with yes tag in spl_cmd_list */
 	____cacheline_aligned spinlock_t spl_cmd_lock;
 	struct list_head spl_cmd_list;
 

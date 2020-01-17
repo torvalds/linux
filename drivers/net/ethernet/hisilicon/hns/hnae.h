@@ -28,7 +28,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/phy.h>
 #include <linux/types.h>
 
@@ -65,8 +65,8 @@ do { \
 
 #define BD_SIZE_2048_MAX_MTU   6000
 
-/* some said the RX and TX RCB format should not be the same in the future. But
- * it is the same now...
+/* some said the RX and TX RCB format should yest be the same in the future. But
+ * it is the same yesw...
  */
 #define RCB_REG_BASEADDR_L         0x00 /* P660 support only 32bit accessing */
 #define RCB_REG_BASEADDR_H         0x04
@@ -253,7 +253,7 @@ struct ring_stats {
 			u64 rx_err_cnt;
 			u64 reuse_pg_cnt;
 			u64 err_pkt_len;
-			u64 non_vld_descs;
+			u64 yesn_vld_descs;
 			u64 err_bd_num;
 			u64 l2_err;
 			u64 l3l4_csum_err;
@@ -311,7 +311,7 @@ enum hns_desc_type {
 	assert((idx) >= 0 && (idx) < (ring)->desc_num)
 
 /* the distance between [begin, end) in a ring buffer
- * note: there is a unuse slot between the begin and the end
+ * yeste: there is a unuse slot between the begin and the end
  */
 static inline int ring_dist(struct hnae_ring *ring, int begin, int end)
 {
@@ -353,8 +353,8 @@ struct hnae_queue {
 	u8 __iomem *io_base;
 	phys_addr_t phy_base;
 	struct hnae_ae_dev *dev;	/* the device who use this queue */
-	struct hnae_ring rx_ring ____cacheline_internodealigned_in_smp;
-	struct hnae_ring tx_ring ____cacheline_internodealigned_in_smp;
+	struct hnae_ring rx_ring ____cacheline_interyesdealigned_in_smp;
+	struct hnae_ring tx_ring ____cacheline_interyesdealigned_in_smp;
 	struct hnae_handle *handle;
 };
 
@@ -400,11 +400,11 @@ enum hnae_media_type {
  *   Get options from the AE
  * get_status():
  *   Get the carrier state of the back channel of the handle, 1 for ok, 0 for
- *   non-ok
+ *   yesn-ok
  * toggle_ring_irq(): (mandatory)
  *   Set the ring irq to be enabled(0) or disable(1)
  * toggle_queue_status(): (mandatory)
- *   Set the queue to be enabled(1) or disable(0), this will not change the
+ *   Set the queue to be enabled(1) or disable(0), this will yest change the
  *   ring irq state
  * adjust_link()
  *   adjust link status
@@ -537,7 +537,7 @@ struct hnae_ae_dev {
 	struct device cls_dev; /* the class dev */
 	struct device *dev; /* the presented dev */
 	struct hnae_ae_ops *ops;
-	struct list_head node;
+	struct list_head yesde;
 	struct module *owner; /* the module who provides this dev */
 	int id;
 	char name[AE_NAME_SIZE];
@@ -562,7 +562,7 @@ struct hnae_handle {
 	bool coal_adapt_en;
 	enum hnae_port_type port_type;
 	enum hnae_media_type media_type;
-	struct list_head node;    /* list to hnae_ae_dev->handle_list */
+	struct list_head yesde;    /* list to hnae_ae_dev->handle_list */
 	struct hnae_buf_ops *bops; /* operation for the buffer */
 	struct hnae_queue **qs;  /* array base of all queues */
 };
@@ -570,7 +570,7 @@ struct hnae_handle {
 #define ring_to_dev(ring) ((ring)->q->dev->dev)
 
 struct hnae_handle *hnae_get_handle(struct device *owner_dev,
-				    const struct fwnode_handle	*fwnode,
+				    const struct fwyesde_handle	*fwyesde,
 				    u32 port_id,
 				    struct hnae_buf_ops *bops);
 
@@ -578,8 +578,8 @@ void hnae_put_handle(struct hnae_handle *handle);
 int hnae_ae_register(struct hnae_ae_dev *dev, struct module *owner);
 void hnae_ae_unregister(struct hnae_ae_dev *dev);
 
-int hnae_register_notifier(struct notifier_block *nb);
-void hnae_unregister_notifier(struct notifier_block *nb);
+int hnae_register_yestifier(struct yestifier_block *nb);
+void hnae_unregister_yestifier(struct yestifier_block *nb);
 int hnae_reinit_handle(struct hnae_handle *handle);
 
 #define hnae_queue_xmit(q, buf_num) writel_relaxed(buf_num, \

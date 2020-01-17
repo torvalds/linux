@@ -51,7 +51,7 @@ struct amd76xrom_map_info {
  *
  * This is intended to prevent flashing the bios, perhaps accidentally.
  *
- * This parameter allows the normal driver to over-ride the BIOS settings.
+ * This parameter allows the yesrmal driver to over-ride the BIOS settings.
  *
  * The bits are 6 and 7.  If both bits are set, it is a 5MiB window.
  * If only the 7 Bit is set, it is a 4MiB window.  Otherwise, a
@@ -60,7 +60,7 @@ struct amd76xrom_map_info {
  */
 static uint win_size_bits;
 module_param(win_size_bits, uint, 0);
-MODULE_PARM_DESC(win_size_bits, "ROM window size bits override for 0x43 byte, normally set by BIOS.");
+MODULE_PARM_DESC(win_size_bits, "ROM window size bits override for 0x43 byte, yesrmally set by BIOS.");
 
 static struct amd76xrom_window amd76xrom_window = {
 	.maps = LIST_HEAD_INIT(amd76xrom_window.maps),
@@ -163,7 +163,7 @@ static int amd76xrom_init_one(struct pci_dev *pdev,
 	/* FIXME handle registers 0x80 - 0x8C the bios region locks */
 
 	/* For write accesses caches are useless */
-	window->virt = ioremap_nocache(window->phys, window->size);
+	window->virt = ioremap_yescache(window->phys, window->size);
 	if (!window->virt) {
 		printk(KERN_ERR MOD_NAME ": ioremap(%08lx, %08lx) failed\n",
 			window->phys, window->size);
@@ -174,7 +174,7 @@ static int amd76xrom_init_one(struct pci_dev *pdev,
 	map_top = window->phys;
 #if 1
 	/* The probe sequence run over the firmware hub lock
-	 * registers sets them to 0x7 (no access).
+	 * registers sets them to 0x7 (yes access).
 	 * Probe at most the last 4M of the address space.
 	 */
 	if (map_top < 0xffc00000) {
@@ -206,12 +206,12 @@ static int amd76xrom_init_one(struct pci_dev *pdev,
 		sprintf(map->map_name, "%s @%08Lx",
 			MOD_NAME, (unsigned long long)map->map.phys);
 
-		/* There is no generic VPP support */
+		/* There is yes generic VPP support */
 		for(map->map.bankwidth = 32; map->map.bankwidth;
 			map->map.bankwidth >>= 1)
 		{
 			char **probe_type;
-			/* Skip bankwidths that are not supported */
+			/* Skip bankwidths that are yest supported */
 			if (!map_bankwidth_supported(map->map.bankwidth))
 				continue;
 
@@ -238,7 +238,7 @@ static int amd76xrom_init_one(struct pci_dev *pdev,
 		}
 		if (window->rsrc.parent) {
 			/*
-			 * Registering the MTD device in iomem may not be possible
+			 * Registering the MTD device in iomem may yest be possible
 			 * if there is a BIOS "reserved" and BUSY range.  If this
 			 * fails then continue anyway.
 			 */
@@ -248,7 +248,7 @@ static int amd76xrom_init_one(struct pci_dev *pdev,
 			map->rsrc.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 			if (request_resource(&window->rsrc, &map->rsrc)) {
 				printk(KERN_ERR MOD_NAME
-					": cannot reserve MTD resource\n");
+					": canyest reserve MTD resource\n");
 				map->rsrc.parent = NULL;
 			}
 		}

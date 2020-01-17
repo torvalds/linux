@@ -8,12 +8,12 @@ title: NAND Chip and NAND Controller Generic Binding
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
-  - Richard Weinberger <richard@nod.at>
+  - Richard Weinberger <richard@yesd.at>
 
 description: |
-  The NAND controller should be represented with its own DT node, and
+  The NAND controller should be represented with its own DT yesde, and
   all NAND chips attached to this controller should be defined as
-  children nodes of the NAND controller. This representation should be
+  children yesdes of the NAND controller. This representation should be
   enforced even for simple controllers supporting only one chip.
 
   The ECC strength and ECC step size properties define the user
@@ -22,12 +22,12 @@ description: |
   {size} bytes.
 
   The interpretation of these parameters is implementation-defined, so
-  not all implementations must support all possible
+  yest all implementations must support all possible
   combinations. However, implementations are encouraged to further
   specify the value(s) they support.
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^nand-controller(@.*)?"
 
   "#address-cells":
@@ -49,7 +49,7 @@ patternProperties:
       nand-ecc-mode:
         allOf:
           - $ref: /schemas/types.yaml#/definitions/string
-          - enum: [ none, soft, hw, hw_syndrome, hw_oob_first, on-die ]
+          - enum: [ yesne, soft, hw, hw_syndrome, hw_oob_first, on-die ]
         description:
           Desired ECC engine, either hardware (most of the time
           embedded in the NAND controller) or software correction
@@ -75,7 +75,7 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/flag
         description:
           With this property, the OS will search the device for a Bad
-          Block Table (BBT). If not found, it will create one, reserve
+          Block Table (BBT). If yest found, it will create one, reserve
           a few blocks at the end of the device to store it and update
           it as the device ages. Otherwise, the out-of-band area of a
           few pages of all the blocks will be scanned at boot time to
@@ -99,7 +99,7 @@ patternProperties:
       nand-ecc-maximize:
         $ref: /schemas/types.yaml#/definitions/flag
         description:
-          Whether or not the ECC strength should be maximized. The
+          Whether or yest the ECC strength should be maximized. The
           maximum ECC strength is both controller and chip
           dependent. The ECC engine has to select the ECC config
           providing the best strength and taking the OOB area size
@@ -110,7 +110,7 @@ patternProperties:
       nand-is-boot-medium:
         $ref: /schemas/types.yaml#/definitions/flag
         description:
-          Whether or not the NAND chip is a boot medium. Drivers might
+          Whether or yest the NAND chip is a boot medium. Drivers might
           use this information to select ECC algorithms supported by
           the boot ROM or similar restrictions.
 

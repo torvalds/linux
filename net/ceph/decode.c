@@ -21,7 +21,7 @@ ceph_decode_entity_addr_versioned(void **p, void *end,
 
 	ceph_decode_copy_safe(p, end, &addr->type, sizeof(addr->type), bad);
 
-	ceph_decode_copy_safe(p, end, &addr->nonce, sizeof(addr->nonce), bad);
+	ceph_decode_copy_safe(p, end, &addr->yesnce, sizeof(addr->yesnce), bad);
 
 	ceph_decode_32_safe(p, end, addr_len, bad);
 	if (addr_len > sizeof(addr->in_addr))
@@ -56,7 +56,7 @@ ceph_decode_entity_addr_legacy(void **p, void *end,
 	 * to TYPE_LEGACY for forward compatibility.
 	 */
 	addr->type = CEPH_ENTITY_ADDR_TYPE_LEGACY;
-	ceph_decode_copy_safe(p, end, &addr->nonce, sizeof(addr->nonce), bad);
+	ceph_decode_copy_safe(p, end, &addr->yesnce, sizeof(addr->yesnce), bad);
 	memset(&addr->in_addr, 0, sizeof(addr->in_addr));
 	ceph_decode_copy_safe(p, end, &addr->in_addr,
 			      sizeof(addr->in_addr), bad);

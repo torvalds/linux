@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2012 Sascha Hauer, Pengutronix
  *
- * Based on Samsung Exynos code
+ * Based on Samsung Exyyess code
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  */
@@ -155,7 +155,7 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
 	 * and handle has the id what user can see.
 	 */
 	ret = drm_gem_handle_create(file_priv, gem_obj, handle);
-	/* drop reference from allocate - handle holds it now. */
+	/* drop reference from allocate - handle holds it yesw. */
 	drm_gem_object_put_unlocked(gem_obj);
 	if (ret)
 		return ERR_PTR(ret);
@@ -202,7 +202,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_free_object);
  *
  * This aligns the pitch and size arguments to the minimum required. This is
  * an internal helper that can be wrapped by a driver to account for hardware
- * with more specific alignment requirements. It should not be used directly
+ * with more specific alignment requirements. It should yest be used directly
  * as their &drm_driver.dumb_create callback.
  *
  * Returns:
@@ -324,14 +324,14 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_mmap);
 
 #ifndef CONFIG_MMU
 /**
- * drm_gem_cma_get_unmapped_area - propose address for mapping in noMMU cases
+ * drm_gem_cma_get_unmapped_area - propose address for mapping in yesMMU cases
  * @filp: file object
  * @addr: memory address
  * @len: buffer size
  * @pgoff: page offset
  * @flags: memory flags
  *
- * This function is used in noMMU platforms to propose address mapping
+ * This function is used in yesMMU platforms to propose address mapping
  * for a given buffer.
  * It's intended to be used as a direct handler for the struct
  * &file_operations.get_unmapped_area operation.
@@ -348,24 +348,24 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 	struct drm_gem_cma_object *cma_obj;
 	struct drm_gem_object *obj = NULL;
 	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->minor->dev;
-	struct drm_vma_offset_node *node;
+	struct drm_device *dev = priv->miyesr->dev;
+	struct drm_vma_offset_yesde *yesde;
 
 	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
 
 	drm_vma_offset_lock_lookup(dev->vma_offset_manager);
-	node = drm_vma_offset_exact_lookup_locked(dev->vma_offset_manager,
+	yesde = drm_vma_offset_exact_lookup_locked(dev->vma_offset_manager,
 						  pgoff,
 						  len >> PAGE_SHIFT);
-	if (likely(node)) {
-		obj = container_of(node, struct drm_gem_object, vma_node);
+	if (likely(yesde)) {
+		obj = container_of(yesde, struct drm_gem_object, vma_yesde);
 		/*
 		 * When the object is being freed, after it hits 0-refcnt it
 		 * proceeds to tear down the object. In the process it will
 		 * attempt to remove the VMA offset and so acquire this
 		 * mgr->vm_lock.  Therefore if we find an object with a 0-refcnt
-		 * that matches our range, we know it is in the process of being
+		 * that matches our range, we kyesw it is in the process of being
 		 * destroyed and will be freed as soon as we release the lock -
 		 * so we have to check for the 0-refcnted object and treat it as
 		 * invalid.
@@ -379,7 +379,7 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 	if (!obj)
 		return -EINVAL;
 
-	if (!drm_vma_node_is_allowed(node, priv)) {
+	if (!drm_vma_yesde_is_allowed(yesde, priv)) {
 		drm_gem_object_put_unlocked(obj);
 		return -EACCES;
 	}
@@ -448,14 +448,14 @@ out:
 EXPORT_SYMBOL_GPL(drm_gem_cma_prime_get_sg_table);
 
 /**
- * drm_gem_cma_prime_import_sg_table - produce a CMA GEM object from another
+ * drm_gem_cma_prime_import_sg_table - produce a CMA GEM object from ayesther
  *     driver's scatter/gather table of pinned pages
  * @dev: device to import into
  * @attach: DMA-BUF attachment
  * @sgt: scatter/gather table of pinned pages
  *
  * This function imports a scatter/gather table exported via DMA-BUF by
- * another driver. Imported buffers must be physically contiguous in memory
+ * ayesther driver. Imported buffers must be physically contiguous in memory
  * (i.e. the scatter/gather table must contain a single entry). Drivers that
  * use the CMA helpers should set this as their
  * &drm_driver.gem_prime_import_sg_table callback.
@@ -562,7 +562,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_vmap);
  * @vaddr: kernel virtual address where the CMA GEM object was mapped
  *
  * This function removes a buffer exported via DRM PRIME from the kernel's
- * virtual address space. This is a no-op because CMA buffers cannot be
+ * virtual address space. This is a yes-op because CMA buffers canyest be
  * unmapped from kernel space. Drivers using the CMA helpers should set this
  * as their &drm_driver.gem_prime_vunmap callback.
  */
@@ -608,7 +608,7 @@ drm_cma_gem_create_object_default_funcs(struct drm_device *dev, size_t size)
 EXPORT_SYMBOL(drm_cma_gem_create_object_default_funcs);
 
 /**
- * drm_gem_cma_prime_import_sg_table_vmap - PRIME import another driver's
+ * drm_gem_cma_prime_import_sg_table_vmap - PRIME import ayesther driver's
  *	scatter/gather table and get the virtual address of the buffer
  * @dev: DRM device
  * @attach: DMA-BUF attachment

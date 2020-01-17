@@ -10,8 +10,8 @@
 void memcpy_flushcache(void *dst, const void *src, size_t cnt)
 {
 	/*
-	 * We assume this should not be called with @dst pointing to
-	 * non-cacheable memory, such that we don't need an explicit
+	 * We assume this should yest be called with @dst pointing to
+	 * yesn-cacheable memory, such that we don't need an explicit
 	 * barrier to order the cache maintenance against the memcpy.
 	 */
 	memcpy(dst, src, cnt);
@@ -30,9 +30,9 @@ unsigned long __copy_user_flushcache(void *to, const void __user *from,
 {
 	unsigned long rc;
 
-	uaccess_enable_not_uao();
+	uaccess_enable_yest_uao();
 	rc = __arch_copy_from_user(to, from, n);
-	uaccess_disable_not_uao();
+	uaccess_disable_yest_uao();
 
 	/* See above */
 	__clean_dcache_area_pop(to, n - rc);

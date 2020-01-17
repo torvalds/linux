@@ -29,7 +29,7 @@
 #include <linux/seq_file.h>
 #include <linux/acpi.h>
 #include <linux/efi.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/bitops.h>         /* hweight64() */
 #include <linux/crash_dump.h>
 #include <linux/iommu-helper.h>
@@ -54,11 +54,11 @@
 
 /*
 ** This option allows cards capable of 64bit DMA to bypass the IOMMU.  If
-** not defined, all DMA will be 32bit and go through the TLB.
+** yest defined, all DMA will be 32bit and go through the TLB.
 ** There's potentially a conflict in the bio merge code with us
 ** advertising an iommu, but then bypassing it.  Since I/O MMU bypassing
 ** appears to give more performance than bio-level virtual merging, we'll
-** do the former for now.  NOTE: BYPASS_SG also needs to be undef'd to
+** do the former for yesw.  NOTE: BYPASS_SG also needs to be undef'd to
 ** completely restrict DMA to the IOMMU.
 */
 #define ALLOW_IOV_BYPASS
@@ -87,7 +87,7 @@
 
 /*
 ** The number of debug flags is a clue - this code is fragile.  NOTE: since
-** tightening the use of res_lock the resource bitmap and actual pdir are no
+** tightening the use of res_lock the resource bitmap and actual pdir are yes
 ** longer guaranteed to stay in sync.  The sanity checking code isn't going to
 ** like that.
 */
@@ -209,7 +209,7 @@ struct ioc {
 	unsigned int	res_bitshift;	/* from the RIGHT! */
 	unsigned int	res_size;	/* size of resource map in bytes */
 #ifdef CONFIG_NUMA
-	unsigned int	node;		/* node where this IOC lives */
+	unsigned int	yesde;		/* yesde where this IOC lives */
 #endif
 #if DELAYED_RESOURCE_CNT > 0
 	spinlock_t	saved_lock;	/* may want to try to get this on a separate cacheline */
@@ -255,7 +255,7 @@ static u64 prefetch_spill_page;
 
 /*
 ** DMA_CHUNK_SIZE is used by the SCSI mid-layer to break up
-** (or rather not merge) DMAs into manageable chunks.
+** (or rather yest merge) DMAs into manageable chunks.
 ** On parisc, this is more of the software/tuning constraint
 ** rather than the HW. I/O MMU allocation algorithms can be
 ** faster with smaller sizes (to some degree).
@@ -436,7 +436,7 @@ sba_check_sg( struct ioc *ioc, struct scatterlist *startsg, int nents)
 
 
 /**
- * For most cases the normal get_order is sufficient, however it limits us
+ * For most cases the yesrmal get_order is sufficient, however it limits us
  * to PAGE_SIZE being the minimum mapping alignment and TC flush granularity.
  * It only incurs about 1 clock cycle to use this one with the static variable
  * and makes the code more intuitive.
@@ -520,7 +520,7 @@ sba_search_bitmap(struct ioc *ioc, struct device *dev,
 				goto found_it;
 			}
 		}
-		goto not_found;
+		goto yest_found;
 
 	}
 	
@@ -597,7 +597,7 @@ next_ptr:
 		}
 	}
 
-not_found:
+yest_found:
 	prefetch(ioc->res_map);
 	ioc->res_hint = (unsigned long *) ioc->res_map;
 	ioc->res_bitshift = 0;
@@ -724,31 +724,31 @@ sba_free_range(struct ioc *ioc, dma_addr_t iova, size_t size)
 	unsigned int pide = PDIR_INDEX(iovp);
 	unsigned int ridx = pide >> 3;	/* convert bit to byte address */
 	unsigned long *res_ptr = (unsigned long *) &((ioc)->res_map[ridx & ~RESMAP_IDX_MASK]);
-	int bits_not_wanted = size >> iovp_shift;
+	int bits_yest_wanted = size >> iovp_shift;
 	unsigned long m;
 
-	/* Round up to power-of-two size: see AR2305 note above */
-	bits_not_wanted = 1UL << get_iovp_order(bits_not_wanted << iovp_shift);
-	for (; bits_not_wanted > 0 ; res_ptr++) {
+	/* Round up to power-of-two size: see AR2305 yeste above */
+	bits_yest_wanted = 1UL << get_iovp_order(bits_yest_wanted << iovp_shift);
+	for (; bits_yest_wanted > 0 ; res_ptr++) {
 		
-		if (unlikely(bits_not_wanted > BITS_PER_LONG)) {
+		if (unlikely(bits_yest_wanted > BITS_PER_LONG)) {
 
 			/* these mappings start 64bit aligned */
 			*res_ptr = 0UL;
-			bits_not_wanted -= BITS_PER_LONG;
+			bits_yest_wanted -= BITS_PER_LONG;
 			pide += BITS_PER_LONG;
 
 		} else {
 
 			/* 3-bits "bit" address plus 2 (or 3) bits for "byte" == bit in word */
-			m = RESMAP_MASK(bits_not_wanted) << (pide & (BITS_PER_LONG - 1));
-			bits_not_wanted = 0;
+			m = RESMAP_MASK(bits_yest_wanted) << (pide & (BITS_PER_LONG - 1));
+			bits_yest_wanted = 0;
 
 			DBG_RES("%s( ,%x,%x) %x/%lx %x %p %lx\n", __func__, (uint) iova, size,
-			        bits_not_wanted, m, pide, res_ptr, *res_ptr);
+			        bits_yest_wanted, m, pide, res_ptr, *res_ptr);
 
 			ASSERT(m != 0);
-			ASSERT(bits_not_wanted);
+			ASSERT(bits_yest_wanted);
 			ASSERT((*res_ptr & m) == m); /* verify same bits are set */
 			*res_ptr &= ~m;
 		}
@@ -842,7 +842,7 @@ sba_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
 
 	int off = PDIR_INDEX(iovp);
 
-	/* Must be non-zero and rounded up */
+	/* Must be yesn-zero and rounded up */
 	ASSERT(byte_cnt > 0);
 	ASSERT(0 == (byte_cnt & ~iovp_mask));
 
@@ -1046,7 +1046,7 @@ static void sba_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
 #ifdef ALLOW_IOV_BYPASS
 	if (likely((iova & ioc->imask) != ioc->ibase)) {
 		/*
-		** Address does not fall w/in IOVA, must be bypassing
+		** Address does yest fall w/in IOVA, must be bypassing
 		*/
 		DBG_BYPASS("sba_unmap_page() bypass addr: 0x%lx\n",
 			   iova);
@@ -1113,16 +1113,16 @@ sba_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 {
 	struct page *page;
 	struct ioc *ioc;
-	int node = -1;
+	int yesde = -1;
 	void *addr;
 
 	ioc = GET_IOC(dev);
 	ASSERT(ioc);
 #ifdef CONFIG_NUMA
-	node = ioc->node;
+	yesde = ioc->yesde;
 #endif
 
-	page = alloc_pages_node(node, flags, get_order(size));
+	page = alloc_pages_yesde(yesde, flags, get_order(size));
 	if (unlikely(!page))
 		return NULL;
 
@@ -1174,7 +1174,7 @@ static void sba_free_coherent(struct device *dev, size_t size, void *vaddr,
 
 /*
 ** Since 0 is a valid pdir_base index value, can't use that
-** to determine if a value is valid or not. Use a flag to indicate
+** to determine if a value is valid or yest. Use a flag to indicate
 ** the SG list entry contains a valid pdir index.
 */
 #define PIDE_FLAG 0x1UL
@@ -1283,7 +1283,7 @@ sba_fill_pdir(
  * @nents: number of entries in startsg list
  *
  * First pass is to walk the SG list and determine where the breaks are
- * in the DMA stream. Allocates PDIR entries but does not fill them.
+ * in the DMA stream. Allocates PDIR entries but does yest fill them.
  * Returns the number of DMA chunks.
  *
  * Doing the fill separate from the coalescing/allocation keeps the
@@ -1370,7 +1370,7 @@ sba_coalesce_chunks(struct ioc *ioc, struct device *dev,
 			**
 			** Once we start a new VCONTIG chunk, dma_offset
 			** can't change. And we need the offset from the first
-			** chunk - not the last one. Ergo Successive chunks
+			** chunk - yest the last one. Ergo Successive chunks
 			** must start on page boundaries and dove tail
 			** with it's predecessor.
 			*/
@@ -1623,8 +1623,8 @@ ioc_iova_init(struct ioc *ioc)
 
 	/*
 	** If an AGP device is present, only use half of the IOV space
-	** for PCI DMA.  Unfortunately we can't know ahead of time
-	** whether GART support will actually be used, for now we
+	** for PCI DMA.  Unfortunately we can't kyesw ahead of time
+	** whether GART support will actually be used, for yesw we
 	** can just key on an AGP device found in the system.
 	** We program the next pdir index after we stop w/ a key for
 	** the GART code to handshake on.
@@ -1699,7 +1699,7 @@ ioc_resource_init(struct ioc *ioc)
 	ioc->res_hint = (unsigned long *) ioc->res_map;
 
 #ifdef ASSERT_PDIR_SANITY
-	/* Mark first bit busy - ie no IOVA 0 */
+	/* Mark first bit busy - ie yes IOVA 0 */
 	ioc->res_map[0] = 0x1;
 	ioc->pdir_base[0] = 0x8000000000000000ULL | ZX1_SBA_IOMMU_COOKIE;
 #endif
@@ -1810,10 +1810,10 @@ static void __init ioc_init(unsigned long hpa, struct ioc *ioc)
 	if (!ioc->name) {
 		ioc->name = kmalloc(24, GFP_KERNEL);
 		if (ioc->name)
-			sprintf((char *) ioc->name, "Unknown (%04x:%04x)",
+			sprintf((char *) ioc->name, "Unkyeswn (%04x:%04x)",
 				ioc->func_id & 0xFFFF, (ioc->func_id >> 16) & 0xFFFF);
 		else
-			ioc->name = "Unknown";
+			ioc->name = "Unkyeswn";
 	}
 
 	ioc_iova_init(ioc);
@@ -1875,8 +1875,8 @@ ioc_show(struct seq_file *s, void *v)
 	seq_printf(s, "Hewlett Packard %s IOC rev %d.%d\n",
 		ioc->name, ((ioc->rev >> 4) & 0xF), (ioc->rev & 0xF));
 #ifdef CONFIG_NUMA
-	if (ioc->node != NUMA_NO_NODE)
-		seq_printf(s, "NUMA node       : %d\n", ioc->node);
+	if (ioc->yesde != NUMA_NO_NODE)
+		seq_printf(s, "NUMA yesde       : %d\n", ioc->yesde);
 #endif
 	seq_printf(s, "IOVA size       : %ld MB\n", ((ioc->pdir_size >> 3) * iovp_size)/(1024*1024));
 	seq_printf(s, "IOVA page size  : %ld kb\n", iovp_size/1024);
@@ -1935,7 +1935,7 @@ sba_connect_bus(struct pci_bus *bus)
 	struct ioc *ioc;
 
 	if (!PCI_CONTROLLER(bus))
-		panic(PFX "no sysdata on bus %d!\n", bus->number);
+		panic(PFX "yes sysdata on bus %d!\n", bus->number);
 
 	if (PCI_CONTROLLER(bus)->iommu)
 		return;
@@ -1964,16 +1964,16 @@ sba_connect_bus(struct pci_bus *bus)
 }
 
 static void __init
-sba_map_ioc_to_node(struct ioc *ioc, acpi_handle handle)
+sba_map_ioc_to_yesde(struct ioc *ioc, acpi_handle handle)
 {
 #ifdef CONFIG_NUMA
-	unsigned int node;
+	unsigned int yesde;
 
-	node = acpi_get_node(handle);
-	if (node != NUMA_NO_NODE && !node_online(node))
-		node = NUMA_NO_NODE;
+	yesde = acpi_get_yesde(handle);
+	if (yesde != NUMA_NO_NODE && !yesde_online(yesde))
+		yesde = NUMA_NO_NODE;
 
-	ioc->node = node;
+	ioc->yesde = yesde;
 #endif
 }
 
@@ -2006,15 +2006,15 @@ static void __init acpi_sba_ioc_add(struct ioc *ioc)
 	kfree(adi);
 
 	/*
-	 * default anything not caught above or specified on cmdline to 4k
+	 * default anything yest caught above or specified on cmdline to 4k
 	 * iommu page size
 	 */
 	if (!iovp_shift)
 		iovp_shift = 12;
 
 	ioc_init(hpa, ioc);
-	/* setup NUMA node association */
-	sba_map_ioc_to_node(ioc, handle);
+	/* setup NUMA yesde association */
+	sba_map_ioc_to_yesde(ioc, handle);
 	return;
 
  err:
@@ -2028,7 +2028,7 @@ static const struct acpi_device_id hp_ioc_iommu_device_ids[] = {
 };
 
 static int acpi_sba_ioc_attach(struct acpi_device *device,
-			       const struct acpi_device_id *not_used)
+			       const struct acpi_device_id *yest_used)
 {
 	struct ioc *ioc;
 
@@ -2078,7 +2078,7 @@ sba_init(void)
 {
 	/*
 	 * If we are booting a kdump kernel, the sba_iommu will cause devices
-	 * that were not shutdown properly to MCA as soon as they are turned
+	 * that were yest shutdown properly to MCA as soon as they are turned
 	 * back on.  Our only option for a successful kdump kernel boot is to
 	 * use swiotlb.
 	 */
@@ -2101,7 +2101,7 @@ sba_init(void)
 			sba_connect_bus(b);
 	}
 
-	/* no need for swiotlb with the iommu */
+	/* yes need for swiotlb with the iommu */
 	swiotlb_exit();
 	dma_ops = &sba_dma_ops;
 
@@ -2114,13 +2114,13 @@ sba_init(void)
 subsys_initcall(sba_init); /* must be initialized after ACPI etc., but before any drivers... */
 
 static int __init
-nosbagart(char *str)
+yessbagart(char *str)
 {
 	reserve_sba_gart = 0;
 	return 1;
 }
 
-__setup("nosbagart", nosbagart);
+__setup("yessbagart", yessbagart);
 
 static int __init
 sba_page_override(char *str)
@@ -2136,7 +2136,7 @@ sba_page_override(char *str)
 			iovp_shift = ffs(page_size) - 1;
 			break;
 		default:
-			printk("%s: unknown/unsupported iommu page size %ld\n",
+			printk("%s: unkyeswn/unsupported iommu page size %ld\n",
 			       __func__, page_size);
 	}
 

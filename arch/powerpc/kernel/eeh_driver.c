@@ -40,7 +40,7 @@ static int eeh_result_priority(enum pci_ers_result result)
 	case PCI_ERS_RESULT_NEED_RESET:
 		return 6;
 	default:
-		WARN_ONCE(1, "Unknown pci_ers_result value: %d\n", (int)result);
+		WARN_ONCE(1, "Unkyeswn pci_ers_result value: %d\n", (int)result);
 		return 0;
 	}
 };
@@ -49,7 +49,7 @@ static const char *pci_ers_result_name(enum pci_ers_result result)
 {
 	switch (result) {
 	case PCI_ERS_RESULT_NONE:
-		return "none";
+		return "yesne";
 	case PCI_ERS_RESULT_CAN_RECOVER:
 		return "can recover";
 	case PCI_ERS_RESULT_NEED_RESET:
@@ -59,10 +59,10 @@ static const char *pci_ers_result_name(enum pci_ers_result result)
 	case PCI_ERS_RESULT_RECOVERED:
 		return "recovered";
 	case PCI_ERS_RESULT_NO_AER_DRIVER:
-		return "no AER driver";
+		return "yes AER driver";
 	default:
-		WARN_ONCE(1, "Unknown result type: %d\n", (int)result);
-		return "unknown";
+		WARN_ONCE(1, "Unkyeswn result type: %d\n", (int)result);
+		return "unkyeswn";
 	}
 };
 
@@ -151,7 +151,7 @@ static void eeh_disable_irq(struct eeh_dev *edev)
 		return;
 
 	edev->mode |= EEH_DEV_IRQ_DISABLED;
-	disable_irq_nosync(edev->pdev->irq);
+	disable_irq_yessync(edev->pdev->irq);
 }
 
 /**
@@ -176,7 +176,7 @@ static void eeh_enable_irq(struct eeh_dev *edev)
 		 *
 		 * That's just wrong.The warning in the core code is
 		 * there to tell people to fix their asymmetries in
-		 * their own code, not by abusing the core information
+		 * their own code, yest by abusing the core information
 		 * to avoid it.
 		 *
 		 * I so wish that the assymetry would be the other way
@@ -198,7 +198,7 @@ static void eeh_dev_save_state(struct eeh_dev *edev, void *userdata)
 		return;
 
 	/*
-	 * We cannot access the config space on some adapters.
+	 * We canyest access the config space on some adapters.
 	 * Otherwise, it will cause fenced PHB. We don't save
 	 * the content in their config space and will restore
 	 * from the initial config space saved when the EEH
@@ -264,7 +264,7 @@ static void eeh_pe_report_edev(struct eeh_dev *edev, eeh_report_fn fn,
 		get_device(&pdev->dev);
 	pci_unlock_rescan_remove();
 	if (!pdev) {
-		eeh_edev_info(edev, "no device");
+		eeh_edev_info(edev, "yes device");
 		return;
 	}
 	device_lock(&pdev->dev);
@@ -272,9 +272,9 @@ static void eeh_pe_report_edev(struct eeh_dev *edev, eeh_report_fn fn,
 		driver = eeh_pcid_get(pdev);
 
 		if (!driver)
-			eeh_edev_info(edev, "no driver");
+			eeh_edev_info(edev, "yes driver");
 		else if (!driver->err_handler)
-			eeh_edev_info(edev, "driver not EEH aware");
+			eeh_edev_info(edev, "driver yest EEH aware");
 		else if (edev->mode & EEH_DEV_NO_HANDLER)
 			eeh_edev_info(edev, "driver bound too late");
 		else {
@@ -289,7 +289,7 @@ static void eeh_pe_report_edev(struct eeh_dev *edev, eeh_report_fn fn,
 		if (driver)
 			eeh_pcid_put(pdev);
 	} else {
-		eeh_edev_info(edev, "not actionable (%d,%d,%d)", !!pdev,
+		eeh_edev_info(edev, "yest actionable (%d,%d,%d)", !!pdev,
 			      !eeh_dev_removed(edev), !eeh_pe_passed(edev->pe));
 	}
 	device_unlock(&pdev->dev);
@@ -345,7 +345,7 @@ static enum pci_ers_result eeh_report_error(struct eeh_dev *edev,
  * @driver: device's PCI driver
  *
  * Tells each device driver that IO ports, MMIO and config space I/O
- * are now enabled.
+ * are yesw enabled.
  */
 static enum pci_ers_result eeh_report_mmio_enabled(struct eeh_dev *edev,
 						   struct pci_dev *pdev,
@@ -405,11 +405,11 @@ static void eeh_dev_restore_state(struct eeh_dev *edev, void *userdata)
 }
 
 /**
- * eeh_report_resume - Tell device to resume normal operations
+ * eeh_report_resume - Tell device to resume yesrmal operations
  * @edev: eeh device
  * @driver: device's PCI driver
  *
- * This routine must be called to notify the device driver that it
+ * This routine must be called to yestify the device driver that it
  * could resume so that the device driver can do some initialization
  * to make the recovered device work again.
  */
@@ -425,8 +425,8 @@ static enum pci_ers_result eeh_report_resume(struct eeh_dev *edev,
 
 	pci_uevent_ers(edev->pdev, PCI_ERS_RESULT_RECOVERED);
 #ifdef CONFIG_PCI_IOV
-	if (eeh_ops->notify_resume && eeh_dev_to_pdn(edev))
-		eeh_ops->notify_resume(eeh_dev_to_pdn(edev));
+	if (eeh_ops->yestify_resume && eeh_dev_to_pdn(edev))
+		eeh_ops->yestify_resume(eeh_dev_to_pdn(edev));
 #endif
 	return PCI_ERS_RESULT_NONE;
 }
@@ -437,7 +437,7 @@ static enum pci_ers_result eeh_report_resume(struct eeh_dev *edev,
  * @driver: device's PCI driver
  *
  * This informs the device driver that the device is permanently
- * dead, and that no further recovery attempts will be made on it.
+ * dead, and that yes further recovery attempts will be made on it.
  */
 static enum pci_ers_result eeh_report_failure(struct eeh_dev *edev,
 					      struct pci_dev *pdev,
@@ -733,7 +733,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
  * NB: This needs to be recursive to ensure the leaf PEs get removed
  * before their parents do. Although this is possible to do recursively
  * we don't since this is easier to read and we need to garantee
- * the leaf nodes will be handled first.
+ * the leaf yesdes will be handled first.
  */
 static void eeh_pe_cleanup(struct eeh_pe *pe)
 {
@@ -821,8 +821,8 @@ static void eeh_clear_slot_attention(struct pci_dev *pdev)
 }
 
 /**
- * eeh_handle_normal_event - Handle EEH events on a specific PE
- * @pe: EEH PE - which should not be used after we return, as it may
+ * eeh_handle_yesrmal_event - Handle EEH events on a specific PE
+ * @pe: EEH PE - which should yest be used after we return, as it may
  * have been invalidated.
  *
  * Attempts to recover the given PE.  If recovery fails or the PE has failed
@@ -841,7 +841,7 @@ static void eeh_clear_slot_attention(struct pci_dev *pdev)
  * drivers (which cause a second set of hotplug events to go out to
  * userspace).
  */
-void eeh_handle_normal_event(struct eeh_pe *pe)
+void eeh_handle_yesrmal_event(struct eeh_pe *pe)
 {
 	struct pci_bus *bus;
 	struct eeh_dev *edev, *tmp;
@@ -854,7 +854,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 
 	bus = eeh_pe_bus_get(pe);
 	if (!bus) {
-		pr_err("%s: Cannot find PCI bus for PHB#%x-PE#%x\n",
+		pr_err("%s: Canyest find PCI bus for PHB#%x-PE#%x\n",
 			__func__, pe->phb->global_number, pe->addr);
 		return;
 	}
@@ -876,7 +876,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 	if (!devices) {
 		pr_debug("EEH: Frozen PHB#%x-PE#%x is empty!\n",
 			pe->phb->global_number, pe->addr);
-		goto out; /* nothing to recover */
+		goto out; /* yesthing to recover */
 	}
 
 	/* Log the event */
@@ -894,7 +894,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 
 #ifdef CONFIG_STACKTRACE
 	/*
-	 * Print the saved stack trace now that we've verified there's
+	 * Print the saved stack trace yesw that we've verified there's
 	 * something to recover.
 	 */
 	if (pe->trace_entries) {
@@ -1025,12 +1025,12 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 		pr_info("EEH: Reset without hotplug activity\n");
 		rc = eeh_reset_device(pe, bus, &rmv_data, true);
 		if (rc) {
-			pr_warn("%s: Cannot reset, err=%d\n",
+			pr_warn("%s: Canyest reset, err=%d\n",
 				__func__, rc);
 			result = PCI_ERS_RESULT_DISCONNECT;
 		} else {
 			result = PCI_ERS_RESULT_NONE;
-			eeh_set_channel_state(pe, pci_channel_io_normal);
+			eeh_set_channel_state(pe, pci_channel_io_yesrmal);
 			eeh_set_irq_state(pe, true);
 			eeh_pe_report("slot_reset", pe, eeh_report_reset,
 				      &result);
@@ -1051,7 +1051,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 
 		/* Tell all device drivers that they can resume operations */
 		pr_info("EEH: Notify device driver to resume\n");
-		eeh_set_channel_state(pe, pci_channel_io_normal);
+		eeh_set_channel_state(pe, pci_channel_io_yesrmal);
 		eeh_set_irq_state(pe, true);
 		eeh_pe_report("resume", pe, eeh_report_resume, NULL);
 		eeh_for_each_pe(pe, tmp_pe) {
@@ -1098,7 +1098,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 			pci_lock_rescan_remove();
 			pci_hp_remove_devices(bus);
 			pci_unlock_rescan_remove();
-			/* The passed PE should no longer be used */
+			/* The passed PE should yes longer be used */
 			return;
 		}
 	}
@@ -1146,7 +1146,7 @@ void eeh_handle_special_event(void)
 			/* Purge all events */
 			eeh_remove_event(NULL, true);
 
-			list_for_each_entry(hose, &hose_list, list_node) {
+			list_for_each_entry(hose, &hose_list, list_yesde) {
 				phb_pe = eeh_phb_pe_get(hose);
 				if (!phb_pe) continue;
 
@@ -1181,17 +1181,17 @@ void eeh_handle_special_event(void)
 		}
 
 		/*
-		 * For fenced PHB and frozen PE, it's handled as normal
+		 * For fenced PHB and frozen PE, it's handled as yesrmal
 		 * event. We have to remove the affected PHBs for dead
 		 * PHB and IOC
 		 */
 		if (rc == EEH_NEXT_ERR_FROZEN_PE ||
 		    rc == EEH_NEXT_ERR_FENCED_PHB) {
 			eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
-			eeh_handle_normal_event(pe);
+			eeh_handle_yesrmal_event(pe);
 		} else {
 			pci_lock_rescan_remove();
-			list_for_each_entry(hose, &hose_list, list_node) {
+			list_for_each_entry(hose, &hose_list, list_yesde) {
 				phb_pe = eeh_phb_pe_get(hose);
 				if (!phb_pe ||
 				    !(phb_pe->state & EEH_PE_ISOLATED) ||
@@ -1210,7 +1210,7 @@ void eeh_handle_special_event(void)
 					eeh_report_failure, NULL);
 				bus = eeh_pe_bus_get(phb_pe);
 				if (!bus) {
-					pr_err("%s: Cannot find PCI bus for "
+					pr_err("%s: Canyest find PCI bus for "
 					       "PHB#%x-PE#%x\n",
 					       __func__,
 					       pe->phb->global_number,

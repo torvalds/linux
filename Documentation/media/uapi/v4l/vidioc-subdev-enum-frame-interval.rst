@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL - Enumerate frame intervals
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL, struct v4l2_subdev_frame_interval_enum * argp )
@@ -65,7 +65,7 @@ information about the try formats.
 
 Sub-devices that support the frame interval enumeration ioctl should
 implemented it on a single pad only. Its behaviour when supported on
-multiple pads of the same sub-device is not defined.
+multiple pads of the same sub-device is yest defined.
 
 .. c:type:: v4l2_subdev_frame_interval_enum
 
@@ -108,13 +108,13 @@ multiple pads of the same sub-device is not defined.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The struct
     :c:type:`v4l2_subdev_frame_interval_enum`
-    ``pad`` references a non-existing pad, one of the ``code``,
+    ``pad`` references a yesn-existing pad, one of the ``code``,
     ``width`` or ``height`` fields are invalid for the given pad or the
     ``index`` field is out of bounds.

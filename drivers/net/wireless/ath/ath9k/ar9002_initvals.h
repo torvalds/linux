@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -1633,7 +1633,7 @@ static const u32 ar9285Modes_original_tx_gain_9285_1_2[][5] = {
 	{0x0000a3e0, 0x0000039c, 0x0000039c, 0x0000039c, 0x0000039c},
 };
 
-static const u32 ar9285Modes_XE2_0_normal_power[][5] = {
+static const u32 ar9285Modes_XE2_0_yesrmal_power[][5] = {
 	/* Addr      5G_HT20     5G_HT40     2G_HT40     2G_HT20   */
 	{0x0000a300, 0x00000000, 0x00000000, 0x00000000, 0x00000000},
 	{0x0000a304, 0x00000000, 0x00000000, 0x00009200, 0x00009200},
@@ -2131,7 +2131,7 @@ static const u32 ar9287Common_9287_1_1[][2] = {
 	{0x000078b8, 0x2a850160},
 };
 
-static const u32 ar9287Common_normal_cck_fir_coeff_9287_1_1[][2] = {
+static const u32 ar9287Common_yesrmal_cck_fir_coeff_9287_1_1[][2] = {
 	/* Addr      allmodes  */
 	{0x0000a1f4, 0x00fffeff},
 	{0x0000a1f8, 0x00f5f9ff},
@@ -3104,7 +3104,7 @@ static const u32 ar9271Modes_9271_ANI_reg[][5] = {
 	{0x000099c0, 0x05eea6d4, 0x05eea6d4, 0x05eea6d4, 0x05eea6d4},
 };
 
-static const u32 ar9271Modes_normal_power_tx_gain_9271[][5] = {
+static const u32 ar9271Modes_yesrmal_power_tx_gain_9271[][5] = {
 	/* Addr      5G_HT20     5G_HT40     2G_HT40     2G_HT20   */
 	{0x0000a300, 0x00000000, 0x00000000, 0x00000000, 0x00000000},
 	{0x0000a304, 0x00000000, 0x00000000, 0x00009200, 0x00009200},

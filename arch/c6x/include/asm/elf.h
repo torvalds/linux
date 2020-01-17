@@ -53,7 +53,7 @@ do {								\
 #define ELF_CLASS	ELFCLASS32
 #define ELF_ARCH	EM_TI_C6000
 
-/* Nothing for now. Need to setup DP... */
+/* Nothing for yesw. Need to setup DP... */
 #define ELF_PLAT_INIT(_r)
 
 #define USE_ELF_CORE_DUMP

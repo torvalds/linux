@@ -5,7 +5,7 @@
  *
  * The Weather Channel (TM) funded Tungsten Graphics to develop the
  * initial release of the Radeon 8500 driver under the XFree86 license.
- * This notice must be preserved.
+ * This yestice must be preserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -14,7 +14,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -91,7 +91,7 @@ int mga_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 
 	if (pipe != 0) {
-		DRM_ERROR("tried to enable vblank on non-existent crtc %u\n",
+		DRM_ERROR("tried to enable vblank on yesn-existent crtc %u\n",
 			  pipe);
 		return 0;
 	}
@@ -104,13 +104,13 @@ int mga_enable_vblank(struct drm_device *dev, unsigned int pipe)
 void mga_disable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	if (pipe != 0) {
-		DRM_ERROR("tried to disable vblank on non-existent crtc %u\n",
+		DRM_ERROR("tried to disable vblank on yesn-existent crtc %u\n",
 			  pipe);
 	}
 
 	/* Do *NOT* disable the vertical refresh interrupt.  MGA doesn't have
 	 * a nice hardware counter that tracks the number of refreshes when
-	 * the interrupt is disabled, and the kernel doesn't know the refresh
+	 * the interrupt is disabled, and the kernel doesn't kyesw the refresh
 	 * rate to calculate an estimate.
 	 */
 	/* MGA_WRITE(MGA_IEN, MGA_VLINEIEN | MGA_SOFTRAPEN); */

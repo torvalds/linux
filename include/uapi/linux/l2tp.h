@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * L2TP-over-IP socket for L2TPv3.
  *
@@ -91,13 +91,13 @@ enum {
  * ATTR types defined for L2TP
  */
 enum {
-	L2TP_ATTR_NONE,			/* no data */
+	L2TP_ATTR_NONE,			/* yes data */
 	L2TP_ATTR_PW_TYPE,		/* u16, enum l2tp_pwtype */
 	L2TP_ATTR_ENCAP_TYPE,		/* u16, enum l2tp_encap_type */
-	L2TP_ATTR_OFFSET,		/* u16 (not used) */
-	L2TP_ATTR_DATA_SEQ,		/* u16 (not used) */
+	L2TP_ATTR_OFFSET,		/* u16 (yest used) */
+	L2TP_ATTR_DATA_SEQ,		/* u16 (yest used) */
 	L2TP_ATTR_L2SPEC_TYPE,		/* u8, enum l2tp_l2spec_type */
-	L2TP_ATTR_L2SPEC_LEN,		/* u8 (not used) */
+	L2TP_ATTR_L2SPEC_LEN,		/* u8 (yest used) */
 	L2TP_ATTR_PROTO_VERSION,	/* u8 */
 	L2TP_ATTR_IFNAME,		/* string */
 	L2TP_ATTR_CONN_ID,		/* u32 */
@@ -105,7 +105,7 @@ enum {
 	L2TP_ATTR_SESSION_ID,		/* u32 */
 	L2TP_ATTR_PEER_SESSION_ID,	/* u32 */
 	L2TP_ATTR_UDP_CSUM,		/* u8 */
-	L2TP_ATTR_VLAN_ID,		/* u16 (not used) */
+	L2TP_ATTR_VLAN_ID,		/* u16 (yest used) */
 	L2TP_ATTR_COOKIE,		/* 0, 4 or 8 bytes */
 	L2TP_ATTR_PEER_COOKIE,		/* 0, 4 or 8 bytes */
 	L2TP_ATTR_DEBUG,		/* u32, enum l2tp_debug_flags */
@@ -119,8 +119,8 @@ enum {
 	L2TP_ATTR_IP_DADDR,		/* u32 */
 	L2TP_ATTR_UDP_SPORT,		/* u16 */
 	L2TP_ATTR_UDP_DPORT,		/* u16 */
-	L2TP_ATTR_MTU,			/* u16 (not used) */
-	L2TP_ATTR_MRU,			/* u16 (not used) */
+	L2TP_ATTR_MTU,			/* u16 (yest used) */
+	L2TP_ATTR_MRU,			/* u16 (yest used) */
 	L2TP_ATTR_STATS,		/* nested */
 	L2TP_ATTR_IP6_SADDR,		/* struct in6_addr */
 	L2TP_ATTR_IP6_DADDR,		/* struct in6_addr */
@@ -134,7 +134,7 @@ enum {
 
 /* Nested in L2TP_ATTR_STATS */
 enum {
-	L2TP_ATTR_STATS_NONE,		/* no data */
+	L2TP_ATTR_STATS_NONE,		/* yes data */
 	L2TP_ATTR_TX_PACKETS,		/* u64 */
 	L2TP_ATTR_TX_BYTES,		/* u64 */
 	L2TP_ATTR_TX_ERRORS,		/* u64 */

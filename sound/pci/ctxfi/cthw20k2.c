@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /**
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techyeslogy Ltd. All Rights Reserved.
  *
  * @File	cthw20k2.c
  *
@@ -1210,7 +1210,7 @@ static int hw_daio_init(struct hw *hw, const struct daio_conf *info)
 
 			hw_write_20kx(hw, AUDIO_IO_TX_CSTAT_H+(0x40*i), 0x0B);
 		} else {
-			/* Again, loop is over 4 channels not 5. */
+			/* Again, loop is over 4 channels yest 5. */
 			/* Next 5 channels are I2S (SB0960) */
 			data = 0x11;
 			hw_write_20kx(hw, AUDIO_IO_RX_CTL+(0x40*i), data);
@@ -1715,7 +1715,7 @@ static int hw_dac_init(struct hw *hw, const struct dac_conf *info)
 		goto End;
 
 	/* Note: Every I2C write must have some delay.
-	 * This is not a requirement but the delay works here... */
+	 * This is yest a requirement but the delay works here... */
 	hw20k2_i2c_write(hw, CS4382_MC1, 0x80);
 	hw20k2_i2c_write(hw, CS4382_MC2, 0x10);
 	if (1 == info->msr) {
@@ -1799,7 +1799,7 @@ static void hw_wm8775_input_select(struct hw *hw, u8 input, s8 gain_in_db)
 
 	hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_AADCL, gain),
 				MAKE_WM8775_DATA(gain));
-	/* ...so there should be no need for the following. */
+	/* ...so there should be yes need for the following. */
 	hw20k2_i2c_write(hw, MAKE_WM8775_ADDR(WM8775_AADCR, gain),
 				MAKE_WM8775_DATA(gain));
 }
@@ -1861,7 +1861,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 	}
 
 	usleep_range(10000, 11000);
-	/* Return the ADC to normal operation. */
+	/* Return the ADC to yesrmal operation. */
 	data |= (0x1 << 15);
 	hw_write_20kx(hw, GPIO_DATA, data);
 	msleep(50);
@@ -2057,7 +2057,7 @@ static int hw_card_start(struct hw *hw)
 				  KBUILD_MODNAME, hw);
 		if (err < 0) {
 			dev_err(hw->card->dev,
-				"XFi: Cannot get irq %d\n", pci->irq);
+				"XFi: Canyest get irq %d\n", pci->irq);
 			goto error2;
 		}
 		hw->irq = pci->irq;

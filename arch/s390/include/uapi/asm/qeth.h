@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * ioctl definitions for qeth driver
  *
@@ -87,7 +87,7 @@ struct qeth_arp_qi_entry5_short_ipv6 {
 	__u8 ipaddr[16];
 } __attribute__((packed));
 /*
- * can be set by user if no "media specific information" is wanted
+ * can be set by user if yes "media specific information" is wanted
  * -> saves a lot of space in user space buffer
  */
 #define QETH_QARP_STRIP_ENTRIES  0x8000
@@ -101,7 +101,7 @@ struct qeth_arp_qi_entry5_short_ipv6 {
 struct qeth_arp_query_user_data {
 	union {
 		__u32 data_len;		/* set by user space program */
-		__u32 no_entries;	/* set by kernel */
+		__u32 yes_entries;	/* set by kernel */
 	} u;
 	__u16 mask_bits;
 	char *entries;

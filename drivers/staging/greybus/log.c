@@ -23,7 +23,7 @@ static int gb_log_request_handler(struct gb_operation *op)
 	u16 len;
 
 	if (op->type != GB_LOG_TYPE_SEND_LOG) {
-		dev_err(dev, "unknown request type 0x%02x\n", op->type);
+		dev_err(dev, "unkyeswn request type 0x%02x\n", op->type);
 		return -EINVAL;
 	}
 

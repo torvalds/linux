@@ -151,7 +151,7 @@ struct sec_sqe {
 	__u8 sds_sa_type;
 
 	/*
-	 * src_addr_type: 0~1 bits, not used now,
+	 * src_addr_type: 0~1 bits, yest used yesw,
 	 * if support PRP, set this field, or set zero.
 	 * dst_addr_type: 2~4 bits
 	 * mac_addr_type: 5~7 bits
@@ -160,7 +160,7 @@ struct sec_sqe {
 	__u8 rsvd0;
 
 	/*
-	 * nonce_len(type2): 0~3 bits
+	 * yesnce_len(type2): 0~3 bits
 	 * huk(type2): 4 bit
 	 * key_s(type2): 5 bit
 	 * ci_gen: 6~7 bits
@@ -189,7 +189,7 @@ struct sec_sqe {
 	 */
 	__u8 iv_tls_ld;
 
-	/* Just using type2 BD now */
+	/* Just using type2 BD yesw */
 	struct sec_sqe_type2 type2;
 };
 

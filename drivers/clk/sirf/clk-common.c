@@ -163,7 +163,7 @@ static long cpu_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long *parent_rate)
 {
 	/*
-	 * SiRF SoC has not cpu clock control,
+	 * SiRF SoC has yest cpu clock control,
 	 * So bypass to it's parent pll.
 	 */
 	struct clk_hw *parent_clk = clk_hw_get_parent(hw);
@@ -176,7 +176,7 @@ static unsigned long cpu_clk_recalc_rate(struct clk_hw *hw,
 	unsigned long parent_rate)
 {
 	/*
-	 * SiRF SoC has not cpu clock control,
+	 * SiRF SoC has yest cpu clock control,
 	 * So return the parent pll rate.
 	 */
 	struct clk_hw *parent_clk = clk_hw_get_parent(hw);

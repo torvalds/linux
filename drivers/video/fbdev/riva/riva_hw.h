@@ -4,11 +4,11 @@
 |*                                                                           *|
 |*     NOTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
 |*     international laws.  Users and possessors of this source code are     *|
-|*     hereby granted a nonexclusive,  royalty-free copyright license to     *|
+|*     hereby granted a yesnexclusive,  royalty-free copyright license to     *|
 |*     use this code in individual and commercial software.                  *|
 |*                                                                           *|
 |*     Any use of this source code must include,  in the user documenta-     *|
-|*     tion and  internal comments to the code,  notices to the end user     *|
+|*     tion and  internal comments to the code,  yestices to the end user     *|
 |*     as follows:                                                           *|
 |*                                                                           *|
 |*       Copyright 1993-1999 NVIDIA, Corporation.  All rights reserved.      *|
@@ -38,7 +38,7 @@
 \***************************************************************************/
 
 /*
- * GPL licensing note -- nVidia is allowing a liberal interpretation of
+ * GPL licensing yeste -- nVidia is allowing a liberal interpretation of
  * the documentation restriction above, to merely say that this nVidia's
  * copyright and disclaimer should be included with all code derived
  * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99 
@@ -117,7 +117,7 @@ typedef volatile struct
     U032 Rop3;
 } RivaRop;
 /*
- * 8X8 Monochrome pattern.
+ * 8X8 Moyeschrome pattern.
  */
 typedef volatile struct
 {
@@ -133,7 +133,7 @@ typedef volatile struct
     U032 reserved03[0x001];
     U032 Color0;
     U032 Color1;
-    U032 Monochrome[2];
+    U032 Moyeschrome[2];
 } RivaPattern;
 /*
  * Scissor clip rectangle.
@@ -206,7 +206,7 @@ typedef volatile struct
     U032 Pixels;
 } RivaPixmap;
 /*
- * Filled rectangle combined with monochrome expand.  Useful for glyphs.
+ * Filled rectangle combined with moyeschrome expand.  Useful for glyphs.
  */
 typedef volatile struct
 {
@@ -246,7 +246,7 @@ typedef volatile struct
     U032 Color1C;
     U032 WidthHeightC;
     U032 PointC;
-    U032 MonochromeData1C;
+    U032 MoyeschromeData1C;
     U032 reserved06[(0x080)+121];
     struct
     {
@@ -257,7 +257,7 @@ typedef volatile struct
     U032 WidthHeightInD;
     U032 WidthHeightOutD;
     U032 PointD;
-    U032 MonochromeData1D;
+    U032 MoyeschromeData1D;
     U032 reserved07[(0x080)+120];
     struct
     {
@@ -269,7 +269,7 @@ typedef volatile struct
     U032 WidthHeightInE;
     U032 WidthHeightOutE;
     U032 PointE;
-    U032 MonochromeData01E;
+    U032 MoyeschromeData01E;
 } RivaBitmap;
 /*
  * 3D textured, Z buffered triangle.

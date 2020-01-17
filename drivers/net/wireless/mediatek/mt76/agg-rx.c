@@ -74,7 +74,7 @@ mt76_rx_aggr_check_release(struct mt76_rx_tid *tid, struct sk_buff_head *frames)
 				status->reorder_time + REORDER_TIMEOUT))
 			continue;
 
-		mt76_rx_aggr_release_frames(tid, frames, status->seqno);
+		mt76_rx_aggr_release_frames(tid, frames, status->seqyes);
 	}
 
 	mt76_rx_aggr_release_head(tid, frames);
@@ -115,7 +115,7 @@ mt76_rx_aggr_check_ctl(struct sk_buff *skb, struct sk_buff_head *frames)
 	struct ieee80211_bar *bar = (struct ieee80211_bar *)skb->data;
 	struct mt76_wcid *wcid = status->wcid;
 	struct mt76_rx_tid *tid;
-	u16 seqno;
+	u16 seqyes;
 
 	if (!ieee80211_is_ctl(bar->frame_control))
 		return;
@@ -124,14 +124,14 @@ mt76_rx_aggr_check_ctl(struct sk_buff *skb, struct sk_buff_head *frames)
 		return;
 
 	status->tid = le16_to_cpu(bar->control) >> 12;
-	seqno = IEEE80211_SEQ_TO_SN(le16_to_cpu(bar->start_seq_num));
+	seqyes = IEEE80211_SEQ_TO_SN(le16_to_cpu(bar->start_seq_num));
 	tid = rcu_dereference(wcid->aggr[status->tid]);
 	if (!tid)
 		return;
 
 	spin_lock_bh(&tid->lock);
 	if (!tid->stopped) {
-		mt76_rx_aggr_release_frames(tid, frames, seqno);
+		mt76_rx_aggr_release_frames(tid, frames, seqyes);
 		mt76_rx_aggr_release_head(tid, frames);
 	}
 	spin_unlock_bh(&tid->lock);
@@ -145,7 +145,7 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 	struct ieee80211_sta *sta;
 	struct mt76_rx_tid *tid;
 	bool sn_less;
-	u16 seqno, head, size;
+	u16 seqyes, head, size;
 	u8 ackp, idx;
 
 	__skb_queue_tail(frames, skb);
@@ -159,7 +159,7 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 		return;
 	}
 
-	/* not part of a BA session */
+	/* yest part of a BA session */
 	ackp = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_ACK_POLICY_MASK;
 	if (ackp != IEEE80211_QOS_CTL_ACK_POLICY_BLOCKACK &&
 	    ackp != IEEE80211_QOS_CTL_ACK_POLICY_NORMAL)
@@ -176,9 +176,9 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 		goto out;
 
 	head = tid->head;
-	seqno = status->seqno;
+	seqyes = status->seqyes;
 	size = tid->size;
-	sn_less = ieee80211_sn_less(seqno, head);
+	sn_less = ieee80211_sn_less(seqyes, head);
 
 	if (!tid->started) {
 		if (sn_less)
@@ -193,7 +193,7 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 		goto out;
 	}
 
-	if (seqno == head) {
+	if (seqyes == head) {
 		tid->head = ieee80211_sn_inc(head);
 		if (tid->nframes)
 			mt76_rx_aggr_release_head(tid, frames);
@@ -206,12 +206,12 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 	 * Frame sequence number exceeds buffering window, free up some space
 	 * by releasing previous frames
 	 */
-	if (!ieee80211_sn_less(seqno, head + size)) {
-		head = ieee80211_sn_inc(ieee80211_sn_sub(seqno, size));
+	if (!ieee80211_sn_less(seqyes, head + size)) {
+		head = ieee80211_sn_inc(ieee80211_sn_sub(seqyes, size));
 		mt76_rx_aggr_release_frames(tid, frames, head);
 	}
 
-	idx = seqno % size;
+	idx = seqyes % size;
 
 	/* Discard if the current slot is already in use */
 	if (tid->reorder_buf[idx]) {
@@ -231,12 +231,12 @@ out:
 	spin_unlock_bh(&tid->lock);
 }
 
-int mt76_rx_aggr_start(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tidno,
+int mt76_rx_aggr_start(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tidyes,
 		       u16 ssn, u8 size)
 {
 	struct mt76_rx_tid *tid;
 
-	mt76_rx_aggr_stop(dev, wcid, tidno);
+	mt76_rx_aggr_stop(dev, wcid, tidyes);
 
 	tid = kzalloc(struct_size(tid, reorder_buf, size), GFP_KERNEL);
 	if (!tid)
@@ -248,7 +248,7 @@ int mt76_rx_aggr_start(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tidno,
 	INIT_DELAYED_WORK(&tid->reorder_work, mt76_rx_aggr_reorder_work);
 	spin_lock_init(&tid->lock);
 
-	rcu_assign_pointer(wcid->aggr[tidno], tid);
+	rcu_assign_pointer(wcid->aggr[tidyes], tid);
 
 	return 0;
 }
@@ -277,11 +277,11 @@ static void mt76_rx_aggr_shutdown(struct mt76_dev *dev, struct mt76_rx_tid *tid)
 	cancel_delayed_work_sync(&tid->reorder_work);
 }
 
-void mt76_rx_aggr_stop(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tidno)
+void mt76_rx_aggr_stop(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tidyes)
 {
 	struct mt76_rx_tid *tid = NULL;
 
-	rcu_swap_protected(wcid->aggr[tidno], tid,
+	rcu_swap_protected(wcid->aggr[tidyes], tid,
 			   lockdep_is_held(&dev->mutex));
 	if (tid) {
 		mt76_rx_aggr_shutdown(dev, tid);

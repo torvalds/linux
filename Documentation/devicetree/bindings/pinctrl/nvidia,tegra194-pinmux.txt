@@ -8,10 +8,10 @@ Required properties:
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration yesde".
 
-Tegra's pin configuration nodes act as a container for an arbitrary number of
-subnodes. Each of these subnodes represents some desired configuration for a
+Tegra's pin configuration yesdes act as a container for an arbitrary number of
+subyesdes. Each of these subyesdes represents some desired configuration for a
 pin, a group, or a list of pins or groups. This configuration can include the
 mux function to select on those pin(s)/group(s), and various pin configuration
 parameters, such as pull-up, tristate, drive strength, etc.
@@ -20,15 +20,15 @@ See the TRM to determine which properties and values apply to each pin/group.
 Macro values for property values are defined in
 include/dt-binding/pinctrl/pinctrl-tegra.h.
 
-Required subnode-properties:
+Required subyesde-properties:
 - nvidia,pins : An array of strings. Each string contains the name of a pin or
     group. Valid values for these names are listed below.
 
-Optional subnode-properties:
+Optional subyesde-properties:
 - nvidia,function: A string containing the name of the function to mux to the
     pin or group.
 - nvidia,pull: Integer, representing the pull-down/up to apply to the pin.
-    0: none, 1: down, 2: up.
+    0: yesne, 1: down, 2: up.
 - nvidia,tristate: Integer.
     0: drive, 1: tristate.
 - nvidia,enable-input: Integer. Enable the pin's input path.
@@ -42,10 +42,10 @@ Optional subnode-properties:
     enable: TEGRA_PIN_ENABLE.
     disable: TEGRA_PIN_DISABLE.
 - nvidia,io-hv: Integer. Select high-voltage receivers.
-    normal: TEGRA_PIN_DISABLE
+    yesrmal: TEGRA_PIN_DISABLE
     high: TEGRA_PIN_ENABLE
 - nvidia,schmitt: Integer. Enables Schmitt Trigger on the input.
-    normal: TEGRA_PIN_DISABLE
+    yesrmal: TEGRA_PIN_DISABLE
     high: TEGRA_PIN_ENABLE
 - nvidia,drive-type: Integer. Valid range 0...3.
 - nvidia,pull-down-strength: Integer. Controls drive strength. 0 is weakest.

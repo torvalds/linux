@@ -105,7 +105,7 @@ MODULE_DEVICE_TABLE(of, sirfsoc_pwrc_of_match);
 
 static int sirfsoc_pwrc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct sirfsoc_pwrc_drvdata *pwrcdrv;
 	int irq;
 	int error;
@@ -113,18 +113,18 @@ static int sirfsoc_pwrc_probe(struct platform_device *pdev)
 	pwrcdrv = devm_kzalloc(&pdev->dev, sizeof(struct sirfsoc_pwrc_drvdata),
 			       GFP_KERNEL);
 	if (!pwrcdrv) {
-		dev_info(&pdev->dev, "Not enough memory for the device data\n");
+		dev_info(&pdev->dev, "Not eyesugh memory for the device data\n");
 		return -ENOMEM;
 	}
 
 	/*
-	 * We can't use of_iomap because pwrc is not mapped in memory,
+	 * We can't use of_iomap because pwrc is yest mapped in memory,
 	 * the so-called base address is only offset in rtciobrg
 	 */
 	error = of_property_read_u32(np, "reg", &pwrcdrv->pwrc_base);
 	if (error) {
 		dev_err(&pdev->dev,
-			"unable to find base address of pwrc node in dtb\n");
+			"unable to find base address of pwrc yesde in dtb\n");
 		return error;
 	}
 
@@ -177,7 +177,7 @@ static int __maybe_unused sirfsoc_pwrc_resume(struct device *dev)
 	struct input_dev *input = pwrcdrv->input;
 
 	/*
-	 * Do not mask pwrc interrupt as we want pwrc work as a wakeup source
+	 * Do yest mask pwrc interrupt as we want pwrc work as a wakeup source
 	 * if users touch X_ONKEY_B, see arch/arm/mach-prima2/pm.c
 	 */
 	mutex_lock(&input->mutex);

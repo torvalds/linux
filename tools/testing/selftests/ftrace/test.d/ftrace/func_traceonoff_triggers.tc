@@ -12,7 +12,7 @@
 
 # The triggers are set within the set_ftrace_filter file
 if [ ! -f set_ftrace_filter ]; then
-    echo "set_ftrace_filter not found? Is dynamic ftrace not set?"
+    echo "set_ftrace_filter yest found? Is dynamic ftrace yest set?"
     exit_unsupported
 fi
 
@@ -77,7 +77,7 @@ fi
 
 cnt=`grep schedule set_ftrace_filter | wc -l`
 if [ $cnt -ne 1 ]; then
-   fail "Did not find traceoff trigger"
+   fail "Did yest find traceoff trigger"
 fi
 
 cnt=`cnt_trace`
@@ -85,12 +85,12 @@ sleep $SLEEP_TIME
 cnt2=`cnt_trace`
 
 if [ $cnt -ne $cnt2 ]; then
-   fail "Tracing is not stopped"
+   fail "Tracing is yest stopped"
 fi
 
 on=`cat tracing_on`
 if [ $on != "0" ]; then
-    fail "Tracing is not off"
+    fail "Tracing is yest off"
 fi
 
 csum1=`md5sum trace`
@@ -124,17 +124,17 @@ echo "$func:traceon" > set_ftrace_filter
 
 cnt=`grep schedule set_ftrace_filter | wc -l`
 if [ $cnt -ne 1 ]; then
-    fail "traceon trigger not found"
+    fail "traceon trigger yest found"
 fi
 
 cnt=`cnt_trace`
 if [ $cnt -eq 0 ]; then
-   fail "Tracing did not start"
+   fail "Tracing did yest start"
 fi
 
 on=`cat tracing_on`
 if [ $on != "1" ]; then
-    fail "Tracing was not enabled"
+    fail "Tracing was yest enabled"
 fi
 
 

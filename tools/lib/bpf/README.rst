@@ -25,7 +25,7 @@ command of sys_bpf, ``bpf_prog_attach`` wraps ``BPF_PROG_ATTACH``, etc.
 Objects
 -------
 
-Another class of types and functions provided by libbpf API is "objects"
+Ayesther class of types and functions provided by libbpf API is "objects"
 and functions to work with them. Objects are high-level abstractions
 such as BPF program or BPF map. They're represented by corresponding
 structures such as ``struct bpf_object``, ``struct bpf_program``,
@@ -49,7 +49,7 @@ object, ``bpf_object``, double underscore and ``open`` that defines the
 purpose of the function to open ELF file and create ``bpf_object`` from
 it.
 
-Another example: ``bpf_program__load`` is named for corresponding
+Ayesther example: ``bpf_program__load`` is named for corresponding
 object, ``bpf_program``, that is separated from other part of the name
 by double underscore.
 
@@ -70,18 +70,18 @@ AF_XDP functions should have an ``xsk_`` prefix, e.g.
 ``xsk_umem__get_data`` or ``xsk_umem__create``. The interface consists
 of both low-level ring access functions and high-level configuration
 functions. These can be mixed and matched. Note that these functions
-are not reentrant for performance reasons.
+are yest reentrant for performance reasons.
 
 Please take a look at Documentation/networking/af_xdp.rst in the Linux
 kernel source tree on how to use XDP sockets and for some common
-mistakes in case you do not get any traffic up to user space.
+mistakes in case you do yest get any traffic up to user space.
 
 libbpf ABI
 ==========
 
 libbpf can be both linked statically or used as DSO. To avoid possible
 conflicts with other libraries an application is linked with, all
-non-static libbpf symbols should have one of the prefixes mentioned in
+yesn-static libbpf symbols should have one of the prefixes mentioned in
 API documentation above. See API naming convention to choose the right
 name for a new symbol.
 
@@ -96,7 +96,7 @@ attributed with ``LIBBPF_API`` macro. For example:
 
         LIBBPF_API int bpf_prog_get_fd_by_id(__u32 id);
 
-This prevents from accidentally exporting a symbol, that is not supposed
+This prevents from accidentally exporting a symbol, that is yest supposed
 to be a part of ABI what, in turn, improves both libbpf developer- and
 user-experiences.
 

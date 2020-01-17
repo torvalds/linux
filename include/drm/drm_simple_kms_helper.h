@@ -24,11 +24,11 @@ struct drm_simple_display_pipe_funcs {
 	 * crtc used in this simple display pipe. This should be implemented
 	 * if the display pipe has some sort of restriction in the modes
 	 * it can display. For example, a given display pipe may be responsible
-	 * to set a clock value. If the clock can not produce all the values
+	 * to set a clock value. If the clock can yest produce all the values
 	 * for the available modes then this callback can be used to restrict
-	 * the number of modes to only the ones that can be displayed. Another
+	 * the number of modes to only the ones that can be displayed. Ayesther
 	 * reason can be bandwidth mitigation: the memory port on the display
-	 * controller can have bandwidth limitations not allowing pixel data
+	 * controller can have bandwidth limitations yest allowing pixel data
 	 * to be fetched at any rate.
 	 *
 	 * This hook is used by the probe helpers to filter the mode list in
@@ -41,7 +41,7 @@ struct drm_simple_display_pipe_funcs {
 	 * NOTE:
 	 *
 	 * Since this function is both called from the check phase of an atomic
-	 * commit, and the mode validation in the probe paths it is not allowed
+	 * commit, and the mode validation in the probe paths it is yest allowed
 	 * to look at anything else but the passed-in mode, and validate it
 	 * against configuration-invariant hardware constraints.
 	 *
@@ -77,7 +77,7 @@ struct drm_simple_display_pipe_funcs {
 	 * This function is called in the check phase of an atomic update,
 	 * specifically when the underlying plane is checked.
 	 * The simple display pipeline helpers already check that the plane is
-	 * not scaled, fills the entire visible area and is always enabled
+	 * yest scaled, fills the entire visible area and is always enabled
 	 * when the crtc is also enabled.
 	 * This hook is optional.
 	 *
@@ -85,7 +85,7 @@ struct drm_simple_display_pipe_funcs {
 	 *
 	 * 0 on success, -EINVAL if the state or the transition can't be
 	 * supported, -ENOMEM on memory allocation failure and -EDEADLK if an
-	 * attempt to obtain another state object ran into a &drm_modeset_lock
+	 * attempt to obtain ayesther state object ran into a &drm_modeset_lock
 	 * deadlock.
 	 */
 	int (*check)(struct drm_simple_display_pipe *pipe,

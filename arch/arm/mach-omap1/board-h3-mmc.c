@@ -2,7 +2,7 @@
 /*
  * linux/arch/arm/mach-omap1/board-h3-mmc.c
  *
- * Copyright (C) 2007 Instituto Nokia de Tecnologia - INdT
+ * Copyright (C) 2007 Instituto Nokia de Tecyeslogia - INdT
  * Author: Felipe Balbi <felipe.lima@indt.org.br>
  *
  * This code is based on linux/arch/arm/mach-omap2/board-n800-mmc.c, which is:

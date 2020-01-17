@@ -77,7 +77,7 @@ struct psmouse;
 struct psmouse_protocol {
 	enum psmouse_type type;
 	bool maxproto;
-	bool ignore_parity; /* Protocol should ignore parity errors from KBC */
+	bool igyesre_parity; /* Protocol should igyesre parity errors from KBC */
 	bool try_passthru; /* Try protocol also on passthrough ports */
 	bool smbus_companion; /* "Protocol" is a stub, device is on SMBus */
 	const char *name;
@@ -207,8 +207,8 @@ static struct psmouse_attribute psmouse_attr_##_name = {			\
 #define psmouse_err(psmouse, format, ...)		\
 	dev_err(&(psmouse)->ps2dev.serio->dev,		\
 		psmouse_fmt(format), ##__VA_ARGS__)
-#define psmouse_notice(psmouse, format, ...)		\
-	dev_notice(&(psmouse)->ps2dev.serio->dev,	\
+#define psmouse_yestice(psmouse, format, ...)		\
+	dev_yestice(&(psmouse)->ps2dev.serio->dev,	\
 		   psmouse_fmt(format), ##__VA_ARGS__)
 #define psmouse_printk(level, psmouse, format, ...)	\
 	dev_printk(level,				\

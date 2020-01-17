@@ -10,7 +10,7 @@
 /* int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz); */
 ENTRY(__vdso_gettimeofday)
 	.cfi_startproc
-	/* For now, just do the syscall. */
+	/* For yesw, just do the syscall. */
 	li a7, __NR_gettimeofday
 	ecall
 	ret

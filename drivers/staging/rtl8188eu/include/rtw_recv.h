@@ -70,7 +70,7 @@ struct phy_info {
 	u8	RxMIMOSignalQuality[MAX_PATH_NUM_92CS]; /* EVM */
 	u8	RxMIMOSignalStrength[MAX_PATH_NUM_92CS];/*  in 0~100 index */
 	s8	RxPower; /*  in dBm Translate from PWdB */
-/*  Real power in dBm for this packet, no beautification and aggregation.
+/*  Real power in dBm for this packet, yes beautification and aggregation.
  * Keep this raw info to be used for the other procedures.
  */
 	s8	recvpower;
@@ -98,7 +98,7 @@ struct rx_pkt_attrib {
 	u8	order;
 	u8	privacy; /* in frame_ctrl field */
 	u8	bdecrypted;
-	u8	encrypt; /* when 0 indicate no encrypt. when non-zero,
+	u8	encrypt; /* when 0 indicate yes encrypt. when yesn-zero,
 			  * indicate the encrypt algorithm
 			  */
 	u8	iv_len;
@@ -175,7 +175,7 @@ struct recv_priv {
 	s8 rxpwdb;
 	u8 signal_strength;
 	u8 signal_qual;
-	u8 noise;
+	u8 yesise;
 	s8 RxRssi[2];
 
 	struct timer_list signal_stat_timer;

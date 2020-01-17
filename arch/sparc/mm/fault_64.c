@@ -71,7 +71,7 @@ static void __kprobes bad_kernel_pc(struct pt_regs *regs, unsigned long vaddr)
 }
 
 /*
- * We now make sure that mmap_sem is held in all paths that call 
+ * We yesw make sure that mmap_sem is held in all paths that call 
  * this. Additionally, to prevent kswapd from ripping ptes from
  * under us, raise interrupts around the time that we look at the
  * pte, kswapd will have to wait to get his smp ipi response from
@@ -86,17 +86,17 @@ static unsigned int get_user_insn(unsigned long tpc)
 	unsigned long pa;
 	u32 insn = 0;
 
-	if (pgd_none(*pgdp) || unlikely(pgd_bad(*pgdp)))
+	if (pgd_yesne(*pgdp) || unlikely(pgd_bad(*pgdp)))
 		goto out;
 	pudp = pud_offset(pgdp, tpc);
-	if (pud_none(*pudp) || unlikely(pud_bad(*pudp)))
+	if (pud_yesne(*pudp) || unlikely(pud_bad(*pudp)))
 		goto out;
 
 	/* This disables preemption for us as well. */
 	local_irq_disable();
 
 	pmdp = pmd_offset(pudp, tpc);
-	if (pmd_none(*pmdp) || unlikely(pmd_bad(*pmdp)))
+	if (pmd_yesne(*pmdp) || unlikely(pmd_bad(*pmdp)))
 		goto out_irq_enable;
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
@@ -197,7 +197,7 @@ static void __kprobes do_kernel_fault(struct pt_regs *regs, int si_code,
 	unsigned char asi = ASI_P;
  
 	if ((!insn) && (regs->tstate & TSTATE_PRIV))
-		goto cannot_handle;
+		goto canyest_handle;
 
 	/* If user insn could be read (thus insn is zero), that
 	 * is fine.  We will just gun down the process with a signal
@@ -214,7 +214,7 @@ static void __kprobes do_kernel_fault(struct pt_regs *regs, int si_code,
 			if (insn & 0x1000000) {
 				handle_ldf_stq(insn, regs);
 			} else {
-				/* This was a non-faulting load. Just clear the
+				/* This was a yesn-faulting load. Just clear the
 				 * destination register(s) and continue with the next
 				 * instruction. -jj
 				 */
@@ -242,11 +242,11 @@ static void __kprobes do_kernel_fault(struct pt_regs *regs, int si_code,
 		return;
 	}
 
-cannot_handle:
+canyest_handle:
 	unhandled_fault (address, current, regs);
 }
 
-static void noinline __kprobes bogus_32bit_fault_tpc(struct pt_regs *regs)
+static void yesinline __kprobes bogus_32bit_fault_tpc(struct pt_regs *regs)
 {
 	static int times;
 
@@ -285,11 +285,11 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		if (!(regs->tstate & TSTATE_PRIV)) {
 			if (unlikely((regs->tpc >> 32) != 0)) {
 				bogus_32bit_fault_tpc(regs);
-				goto intr_or_no_mm;
+				goto intr_or_yes_mm;
 			}
 		}
 		if (unlikely((address >> 32) != 0))
-			goto intr_or_no_mm;
+			goto intr_or_yes_mm;
 	}
 
 	if (regs->tstate & TSTATE_PRIV) {
@@ -298,7 +298,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		/* Sanity check the PC. */
 		if ((tpc >= KERNBASE && tpc < (unsigned long) __init_end) ||
 		    (tpc >= MODULES_VADDR && tpc < MODULES_END)) {
-			/* Valid, no problems... */
+			/* Valid, yes problems... */
 		} else {
 			bad_kernel_pc(regs, address);
 			goto exit_exception;
@@ -307,11 +307,11 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		flags |= FAULT_FLAG_USER;
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have yes user
+	 * context, we must yest take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto intr_or_no_mm;
+		goto intr_or_yes_mm;
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
@@ -333,13 +333,13 @@ retry:
 	if (!vma)
 		goto bad_area;
 
-	/* Pure DTLB misses do not tell us whether the fault causing
-	 * load/store/atomic was a write or not, it only says that there
-	 * was no match.  So in such a case we (carefully) read the
+	/* Pure DTLB misses do yest tell us whether the fault causing
+	 * load/store/atomic was a write or yest, it only says that there
+	 * was yes match.  So in such a case we (carefully) read the
 	 * instruction to try and figure this out.  It's an optimization
 	 * so it's ok if we can't do this.
 	 *
-	 * Special hack, window spill/fill knows the exact fault type.
+	 * Special hack, window spill/fill kyesws the exact fault type.
 	 */
 	if (((fault_code &
 	      (FAULT_CODE_DTLB | FAULT_CODE_WRITE | FAULT_CODE_WINFIXUP)) == FAULT_CODE_DTLB) &&
@@ -389,7 +389,7 @@ continue_fault:
 good_area:
 	si_code = SEGV_ACCERR;
 
-	/* If we took a ITLB miss on a non-executable page, catch
+	/* If we took a ITLB miss on a yesn-executable page, catch
 	 * that here.
 	 */
 	if ((fault_code & FAULT_CODE_ITLB) && !(vma->vm_flags & VM_EXEC)) {
@@ -403,7 +403,7 @@ good_area:
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
 
-		/* Spitfire has an icache which does not snoop
+		/* Spitfire has an icache which does yest syesop
 		 * processor stores.  Later processors do...
 		 */
 		if (tlb_type == spitfire &&
@@ -506,7 +506,7 @@ out_of_memory:
 	}
 	goto handle_kernel_fault;
 
-intr_or_no_mm:
+intr_or_yes_mm:
 	insn = get_fault_insn(regs, 0);
 	goto handle_kernel_fault;
 

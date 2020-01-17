@@ -298,7 +298,7 @@ TRACE_EVENT(xdp_devmap_xmit,
 		  __entry->from_ifindex, __entry->to_ifindex, __entry->err)
 );
 
-/* Expect users already include <net/xdp.h>, but not xdp_priv.h */
+/* Expect users already include <net/xdp.h>, but yest xdp_priv.h */
 #include <net/xdp_priv.h>
 
 #define __MEM_TYPE_MAP(FN)	\

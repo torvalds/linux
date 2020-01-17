@@ -26,7 +26,7 @@ static void as3722_pm_power_off(void)
 	int ret;
 
 	if (!as3722_pm_poweroff) {
-		pr_err("AS3722 poweroff is not initialised\n");
+		pr_err("AS3722 poweroff is yest initialised\n");
 		return;
 	}
 
@@ -40,7 +40,7 @@ static void as3722_pm_power_off(void)
 static int as3722_poweroff_probe(struct platform_device *pdev)
 {
 	struct as3722_poweroff *as3722_poweroff;
-	struct device_node *np = pdev->dev.parent->of_node;
+	struct device_yesde *np = pdev->dev.parent->of_yesde;
 
 	if (!np)
 		return -EINVAL;

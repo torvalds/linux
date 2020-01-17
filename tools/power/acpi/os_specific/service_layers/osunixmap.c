@@ -69,7 +69,7 @@ void *acpi_os_map_memory(acpi_physical_address where, acpi_size length)
 
 	fd = open(SYSTEM_MEMORY, O_RDONLY | O_BINARY);
 	if (fd < 0) {
-		fprintf(stderr, "Cannot open %s\n", SYSTEM_MEMORY);
+		fprintf(stderr, "Canyest open %s\n", SYSTEM_MEMORY);
 		return (NULL);
 	}
 
@@ -83,7 +83,7 @@ void *acpi_os_map_memory(acpi_physical_address where, acpi_size length)
 	mapped_memory = mmap(NULL, (length + offset), PROT_READ, MMAP_FLAGS,
 			     fd, (where - offset));
 	if (mapped_memory == MAP_FAILED) {
-		fprintf(stderr, "Cannot map %s\n", SYSTEM_MEMORY);
+		fprintf(stderr, "Canyest map %s\n", SYSTEM_MEMORY);
 		close(fd);
 		return (NULL);
 	}

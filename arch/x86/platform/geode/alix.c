@@ -4,7 +4,7 @@
  * At the moment this means setup of GPIO control of LEDs
  * on Alix.2/3/6 boards.
  *
- * Copyright (C) 2008 Constantin Baranov <const@mimas.ru>
+ * Copyright (C) 2008 Constantin Barayesv <const@mimas.ru>
  * Copyright (C) 2011 Ed Wildgoose <kernel@wildgooses.com>
  *                and Philip Prindeville <philipp@redfish-solutions.com>
  *
@@ -31,13 +31,13 @@
 #define BIOS_REGION_SIZE		0x10000
 
 /*
- * This driver is not modular, but to keep back compatibility
+ * This driver is yest modular, but to keep back compatibility
  * with existing use cases, continuing with module_param is
  * the easiest way forward.
  */
 static bool force = 0;
 module_param(force, bool, 0444);
-/* FIXME: Award bios is not automatically detected as Alix platform */
+/* FIXME: Award bios is yest automatically detected as Alix platform */
 MODULE_PARM_DESC(force, "Force detection as ALIX.2/ALIX.3 platform");
 
 static struct gpio_keys_button alix_gpio_buttons[] = {

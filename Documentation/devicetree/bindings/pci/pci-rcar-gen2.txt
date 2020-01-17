@@ -17,7 +17,7 @@ Required properties:
 				      RZ/G1 compatible device.
 
 
-	      When compatible with the generic version, nodes must list the
+	      When compatible with the generic version, yesdes must list the
 	      SoC-specific version corresponding to the platform first
 	      followed by the generic version.
 
@@ -37,7 +37,7 @@ Required properties:
   mapping.
 
 Optional properties:
-- dma-ranges: a single range for the inbound memory region. If not supplied,
+- dma-ranges: a single range for the inbound memory region. If yest supplied,
   defaults to 1GiB at 0x40000000. Note there are hardware restrictions on the
   allowed combinations of address and size.
 

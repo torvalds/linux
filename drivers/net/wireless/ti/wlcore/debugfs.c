@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #include "debugfs.h"
@@ -54,7 +54,7 @@ void wl1271_debugfs_update_stats(struct wl1271 *wl)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -104,13 +104,13 @@ static void chip_op_handler(struct wl1271 *wl, unsigned long value,
 	int (*chip_op) (struct wl1271 *wl);
 
 	if (!arg) {
-		wl1271_warning("debugfs chip_op_handler with no callback");
+		wl1271_warning("debugfs chip_op_handler with yes callback");
 		return;
 	}
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 
 		return;
 	}
@@ -123,7 +123,7 @@ static void chip_op_handler(struct wl1271 *wl, unsigned long value,
 }
 
 
-static inline void no_write_handler(struct wl1271 *wl,
+static inline void yes_write_handler(struct wl1271 *wl,
 				    unsigned long value,
 				    unsigned long param)
 {
@@ -157,7 +157,7 @@ static inline void no_write_handler(struct wl1271 *wl,
 	}								\
 									\
 	if (value < min_val || value > max_val) {			\
-		wl1271_warning(#param " is not in valid range");	\
+		wl1271_warning(#param " is yest in valid range");	\
 		return -ERANGE;						\
 	}								\
 									\
@@ -275,7 +275,7 @@ static ssize_t dynamic_ps_timeout_write(struct file *file,
 	}
 
 	if (value < 1 || value > 65535) {
-		wl1271_warning("dynamic_ps_timeout is not in valid range");
+		wl1271_warning("dynamic_ps_timeout is yest in valid range");
 		return -ERANGE;
 	}
 
@@ -288,7 +288,7 @@ static ssize_t dynamic_ps_timeout_write(struct file *file,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -358,7 +358,7 @@ static ssize_t forced_ps_write(struct file *file,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -495,7 +495,7 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 	DRIVER_STATE_PRINT_INT(power_level);
 	DRIVER_STATE_PRINT_INT(sg_enabled);
 	DRIVER_STATE_PRINT_INT(enable_11a);
-	DRIVER_STATE_PRINT_INT(noise);
+	DRIVER_STATE_PRINT_INT(yesise);
 	DRIVER_STATE_PRINT_LHEX(ap_fw_ps_map);
 	DRIVER_STATE_PRINT_LHEX(ap_ps_map);
 	DRIVER_STATE_PRINT_HEX(quirks);
@@ -669,7 +669,7 @@ static ssize_t dtim_interval_write(struct file *file,
 	}
 
 	if (value < 1 || value > 10) {
-		wl1271_warning("dtim value is not in valid range");
+		wl1271_warning("dtim value is yest in valid range");
 		return -ERANGE;
 	}
 
@@ -683,7 +683,7 @@ static ssize_t dtim_interval_write(struct file *file,
 		wl->conf.conn.wake_up_event = CONF_WAKE_UP_EVENT_N_DTIM;
 
 	/*
-	 * we don't reconfigure ACX_WAKE_UP_CONDITIONS now, so it will only
+	 * we don't reconfigure ACX_WAKE_UP_CONDITIONS yesw, so it will only
 	 * take effect on the next time we enter psm.
 	 */
 	mutex_unlock(&wl->mutex);
@@ -730,7 +730,7 @@ static ssize_t suspend_dtim_interval_write(struct file *file,
 	}
 
 	if (value < 1 || value > 10) {
-		wl1271_warning("suspend_dtim value is not in valid range");
+		wl1271_warning("suspend_dtim value is yest in valid range");
 		return -ERANGE;
 	}
 
@@ -785,7 +785,7 @@ static ssize_t beacon_interval_write(struct file *file,
 	}
 
 	if (value < 1 || value > 255) {
-		wl1271_warning("beacon interval value is not in valid range");
+		wl1271_warning("beacon interval value is yest in valid range");
 		return -ERANGE;
 	}
 
@@ -799,7 +799,7 @@ static ssize_t beacon_interval_write(struct file *file,
 		wl->conf.conn.wake_up_event = CONF_WAKE_UP_EVENT_N_BEACONS;
 
 	/*
-	 * we don't reconfigure ACX_WAKE_UP_CONDITIONS now, so it will only
+	 * we don't reconfigure ACX_WAKE_UP_CONDITIONS yesw, so it will only
 	 * take effect on the next time we enter psm.
 	 */
 	mutex_unlock(&wl->mutex);
@@ -830,7 +830,7 @@ static ssize_t rx_streaming_interval_write(struct file *file,
 
 	/* valid values: 0, 10-100 */
 	if (value && (value < 10 || value > 100)) {
-		wl1271_warning("value is not in range!");
+		wl1271_warning("value is yest in range!");
 		return -ERANGE;
 	}
 
@@ -840,7 +840,7 @@ static ssize_t rx_streaming_interval_write(struct file *file,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -888,7 +888,7 @@ static ssize_t rx_streaming_always_write(struct file *file,
 
 	/* valid values: 0, 10-100 */
 	if (!(value == 0 || value == 1)) {
-		wl1271_warning("value is not in valid!");
+		wl1271_warning("value is yest in valid!");
 		return -EINVAL;
 	}
 
@@ -898,7 +898,7 @@ static ssize_t rx_streaming_always_write(struct file *file,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -948,7 +948,7 @@ static ssize_t beacon_filtering_write(struct file *file,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -1030,7 +1030,7 @@ static ssize_t sleep_auth_write(struct file *file,
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -1216,7 +1216,7 @@ static loff_t dev_mem_seek(struct file *file, loff_t offset, int orig)
 	if (offset % 4)
 		return -EINVAL;
 
-	return no_seek_end_llseek(file, offset, orig);
+	return yes_seek_end_llseek(file, offset, orig);
 }
 
 static const struct file_operations dev_mem_ops = {
@@ -1263,7 +1263,7 @@ static ssize_t fw_logger_write(struct file *file,
 	mutex_lock(&wl->mutex);
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		count = ret;
 		goto out;
 	}

@@ -40,7 +40,7 @@ Optional properties:
 - ahb-burst-config: it is vendor dependent, the required value should be
   aligned with AHBBRST at SBUSCFG, the range is from 0x0 to 0x7. This
   property is used to change AHB burst configuration, check the chipidea
-  spec for meaning of each value. If this property is not existed, it
+  spec for meaning of each value. If this property is yest existed, it
   will use the reset value.
 - tx-burst-size-dword: it is vendor dependent, the tx burst size in dword
   (4 bytes), This register represents the maximum length of a the burst
@@ -57,24 +57,24 @@ Optional properties:
 - extcon: phandles to external connector devices. First phandle should point to
   external connector, which provide "USB" cable events, the second should point
   to external connector device, which provide "USB-HOST" cable events. If one
-  of the external connector devices is not required, empty <0> phandle should
+  of the external connector devices is yest required, empty <0> phandle should
   be specified.
 - phy-clkgate-delay-us: the delay time (us) between putting the PHY into
   low power mode and gating the PHY clock.
-- non-zero-ttctrl-ttha: after setting this property, the value of register
-  ttctrl.ttha will be 0x7f; if not, the value will be 0x0, this is the default
+- yesn-zero-ttctrl-ttha: after setting this property, the value of register
+  ttctrl.ttha will be 0x7f; if yest, the value will be 0x0, this is the default
   value. It needs to be very carefully for setting this property, it is
   recommended that consult with your IC engineer before setting this value.
   On the most of chipidea platforms, the "usage_tt" flag at RTL is 0, so this
   property only affects siTD.
-  If this property is not set, the max packet size is 1023 bytes, and if
+  If this property is yest set, the max packet size is 1023 bytes, and if
   the total of packet size for pervious transactions are more than 256 bytes,
   it can't accept any transactions within this frame. The use case is single
   transaction, but higher frame rate.
   If this property is set, the max packet size is 188 bytes, it can handle
   more transactions than above case, it can accept transactions until it
   considers the left room size within frame is less than 188 bytes, software
-  needs to make sure it does not send more than 90%
+  needs to make sure it does yest send more than 90%
   maximum_periodic_data_per_frame. The use case is multiple transactions, but
   less frame rate.
 - mux-controls: The mux control for toggling host/device output of this
@@ -88,7 +88,7 @@ Optional properties:
 - pinctrl-n: alternate pin modes
 
 i.mx specific properties
-- fsl,usbmisc: phandler of non-core register device, with one
+- fsl,usbmisc: phandler of yesn-core register device, with one
   argument that indicate usb controller index
 - disable-over-current: disable over current detect
 - over-current-active-low: over current signal polarity is active low.
@@ -125,7 +125,7 @@ Example for HSIC:
 		reg = <0x02184400 0x200>;
 		interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clks IMX6QDL_CLK_USBOH3>;
-		fsl,usbphy = <&usbphynop1>;
+		fsl,usbphy = <&usbphyyesp1>;
 		fsl,usbmisc = <&usbmisc 2>;
 		phy_type = "hsic";
 		dr_mode = "host";

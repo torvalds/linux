@@ -53,7 +53,7 @@ DECLARE_BITMAP(boot_capabilities, ARM64_NPATCHABLE);
  * will be used to determine if a new booting CPU should
  * go through the verification process to make sure that it
  * supports the system capabilities, without using a hotplug
- * notifier.
+ * yestifier.
  */
 static bool sys_caps_initialised;
 
@@ -62,21 +62,21 @@ static inline void set_sys_caps_initialised(void)
 	sys_caps_initialised = true;
 }
 
-static int dump_cpu_hwcaps(struct notifier_block *self, unsigned long v, void *p)
+static int dump_cpu_hwcaps(struct yestifier_block *self, unsigned long v, void *p)
 {
 	/* file-wide pr_fmt adds "CPU features: " prefix */
 	pr_emerg("0x%*pb\n", ARM64_NCAPS, &cpu_hwcaps);
 	return 0;
 }
 
-static struct notifier_block cpu_hwcaps_notifier = {
-	.notifier_call = dump_cpu_hwcaps
+static struct yestifier_block cpu_hwcaps_yestifier = {
+	.yestifier_call = dump_cpu_hwcaps
 };
 
 static int __init register_cpu_hwcaps_dumper(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &cpu_hwcaps_notifier);
+	atomic_yestifier_chain_register(&panic_yestifier_list,
+				       &cpu_hwcaps_yestifier);
 	return 0;
 }
 __initcall(register_cpu_hwcaps_dumper);
@@ -110,7 +110,7 @@ EXPORT_SYMBOL(cpu_hwcap_keys);
 
 /* meta feature for alternatives */
 static bool __maybe_unused
-cpufeature_pan_not_uao(const struct arm64_cpu_capabilities *entry, int __unused);
+cpufeature_pan_yest_uao(const struct arm64_cpu_capabilities *entry, int __unused);
 
 static void cpu_enable_cnp(struct arm64_cpu_capabilities const *cap);
 
@@ -195,7 +195,7 @@ static const struct arm64_ftr_bits ftr_id_aa64mmfr0[] = {
 	 * page size, so we can only detect mismatches for a page size other
 	 * than the one we're currently using. Unfortunately, SoCs like this
 	 * exist in the wild so, even though we don't like it, we'll have to go
-	 * along with it and treat them as non-strict.
+	 * along with it and treat them as yesn-strict.
 	 */
 	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_TGRAN4_SHIFT, 4, ID_AA64MMFR0_TGRAN4_NI),
 	S_ARM64_FTR_BITS(FTR_HIDDEN, FTR_NONSTRICT, FTR_LOWER_SAFE, ID_AA64MMFR0_TGRAN64_SHIFT, 4, ID_AA64MMFR0_TGRAN64_NI),
@@ -508,7 +508,7 @@ static void __init sort_ftr_regs(void)
 /*
  * Initialise the CPU feature register from Boot CPU values.
  * Also initiliases the strict_mask for the register.
- * Any bits that are not covered by an arm64_ftr_bits entry are considered
+ * Any bits that are yest covered by an arm64_ftr_bits entry are considered
  * RES0 for the system-wide value, and must strictly match.
  */
 static void __init init_cpu_ftr_reg(u32 sys_reg, u64 new)
@@ -661,7 +661,7 @@ static int check_update_ftr_reg(u32 sys_id, int cpu, u64 val, u64 boot)
 
 /*
  * Update system wide CPU feature registers with the values from a
- * non-boot CPU. Also performs SANITY checks to make sure that there
+ * yesn-boot CPU. Also performs SANITY checks to make sure that there
  * aren't any insane variations from that of the boot CPU.
  */
 void update_cpu_features(int cpu,
@@ -712,7 +712,7 @@ void update_cpu_features(int cpu,
 	/*
 	 * Differing PARange support is fine as long as all peripherals and
 	 * memory are mapped within the minimum PARange of all CPUs.
-	 * Linux should not care about secure memory.
+	 * Linux should yest care about secure memory.
 	 */
 	taint |= check_update_ftr_reg(SYS_ID_AA64MMFR0_EL1, cpu,
 				      info->reg_id_aa64mmfr0, boot->reg_id_aa64mmfr0);
@@ -722,7 +722,7 @@ void update_cpu_features(int cpu,
 				      info->reg_id_aa64mmfr2, boot->reg_id_aa64mmfr2);
 
 	/*
-	 * EL3 is not our concern.
+	 * EL3 is yest our concern.
 	 */
 	taint |= check_update_ftr_reg(SYS_ID_AA64PFR0_EL1, cpu,
 				      info->reg_id_aa64pfr0, boot->reg_id_aa64pfr0);
@@ -895,7 +895,7 @@ static bool has_useable_gicv3_cpuif(const struct arm64_cpu_capabilities *entry, 
 	return has_sre;
 }
 
-static bool has_no_hw_prefetch(const struct arm64_cpu_capabilities *entry, int __unused)
+static bool has_yes_hw_prefetch(const struct arm64_cpu_capabilities *entry, int __unused)
 {
 	u32 midr = read_cpuid_id();
 
@@ -905,7 +905,7 @@ static bool has_no_hw_prefetch(const struct arm64_cpu_capabilities *entry, int _
 		MIDR_CPU_VAR_REV(1, MIDR_REVISION_MASK));
 }
 
-static bool has_no_fpsimd(const struct arm64_cpu_capabilities *entry, int __unused)
+static bool has_yes_fpsimd(const struct arm64_cpu_capabilities *entry, int __unused)
 {
 	u64 pfr0 = read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1);
 
@@ -966,12 +966,12 @@ has_useable_cnp(const struct arm64_cpu_capabilities *entry, int scope)
 }
 
 static bool __meltdown_safe = true;
-static int __kpti_forced; /* 0: not forced, >0: forced on, <0: forced off */
+static int __kpti_forced; /* 0: yest forced, >0: forced on, <0: forced off */
 
 static bool unmap_kernel_at_el0(const struct arm64_cpu_capabilities *entry,
 				int scope)
 {
-	/* List of CPUs that are not vulnerable and don't need KPTI */
+	/* List of CPUs that are yest vulnerable and don't need KPTI */
 	static const struct midr_range kpti_safe_list[] = {
 		MIDR_ALL_VERSIONS(MIDR_CAVIUM_THUNDERX2),
 		MIDR_ALL_VERSIONS(MIDR_BRCM_VULCAN),
@@ -1048,7 +1048,7 @@ kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
 
 	/*
 	 * We don't need to rewrite the page-tables if either we've done
-	 * it already or we have KASLR enabled and therefore have not
+	 * it already or we have KASLR enabled and therefore have yest
 	 * created any global mappings at all.
 	 */
 	if (kpti_applied || kaslr_offset() > 0)
@@ -1124,7 +1124,7 @@ static bool has_hw_dbm(const struct arm64_cpu_capabilities *cap,
 {
 	static bool detected = false;
 	/*
-	 * DBM is a non-conflicting feature. i.e, the kernel can safely
+	 * DBM is a yesn-conflicting feature. i.e, the kernel can safely
 	 * run a mix of CPUs with and without the feature. So, we
 	 * unconditionally enable the capability to allow any late CPU
 	 * to use the feature. We only enable the control bits on the
@@ -1307,7 +1307,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.desc = "Software prefetching using PRFM",
 		.capability = ARM64_HAS_NO_HW_PREFETCH,
 		.type = ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE,
-		.matches = has_no_hw_prefetch,
+		.matches = has_yes_hw_prefetch,
 	},
 #ifdef CONFIG_ARM64_UAO
 	{
@@ -1328,7 +1328,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 	{
 		.capability = ARM64_ALT_PAN_NOT_UAO,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
-		.matches = cpufeature_pan_not_uao,
+		.matches = cpufeature_pan_yest_uao,
 	},
 #endif /* CONFIG_ARM64_PAN */
 #ifdef CONFIG_ARM64_VHE
@@ -1366,11 +1366,11 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.cpu_enable = kpti_install_ng_mappings,
 	},
 	{
-		/* FP/SIMD is not implemented */
+		/* FP/SIMD is yest implemented */
 		.capability = ARM64_HAS_NO_FPSIMD,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.min_field_value = 0,
-		.matches = has_no_fpsimd,
+		.matches = has_yes_fpsimd,
 	},
 #ifdef CONFIG_ARM64_PMEM
 	{
@@ -1420,14 +1420,14 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 	},
 #endif /* CONFIG_ARM64_RAS_EXTN */
 	{
-		.desc = "Data cache clean to the PoU not required for I/D coherence",
+		.desc = "Data cache clean to the PoU yest required for I/D coherence",
 		.capability = ARM64_HAS_CACHE_IDC,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cache_idc,
 		.cpu_enable = cpu_emulate_effective_ctr,
 	},
 	{
-		.desc = "Instruction cache invalidation not required for I/D coherence",
+		.desc = "Instruction cache invalidation yest required for I/D coherence",
 		.capability = ARM64_HAS_CACHE_DIC,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_cache_dic,
@@ -1447,7 +1447,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 	{
 		/*
 		 * Since we turn this on always, we don't want the user to
-		 * think that the feature is available when it may not be.
+		 * think that the feature is available when it may yest be.
 		 * So hide the description.
 		 *
 		 * .desc = "Hardware pagetable Dirty Bit Management",
@@ -1487,7 +1487,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 #endif
 #ifdef CONFIG_ARM64_CNP
 	{
-		.desc = "Common not Private translations",
+		.desc = "Common yest Private translations",
 		.capability = ARM64_HAS_CNP,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_useable_cnp,
@@ -1760,10 +1760,10 @@ static void update_cpu_capabilities(u16 scope_mask)
  * Enable all the available capabilities on this CPU. The capabilities
  * with BOOT_CPU scope are handled separately and hence skipped here.
  */
-static int cpu_enable_non_boot_scope_capabilities(void *__unused)
+static int cpu_enable_yesn_boot_scope_capabilities(void *__unused)
 {
 	int i;
-	u16 non_boot_scope = SCOPE_ALL & ~SCOPE_BOOT_CPU;
+	u16 yesn_boot_scope = SCOPE_ALL & ~SCOPE_BOOT_CPU;
 
 	for_each_available_cap(i) {
 		const struct arm64_cpu_capabilities *cap = cpu_hwcaps_ptrs[i];
@@ -1771,7 +1771,7 @@ static int cpu_enable_non_boot_scope_capabilities(void *__unused)
 		if (WARN_ON(!cap))
 			continue;
 
-		if (!(cap->type & non_boot_scope))
+		if (!(cap->type & yesn_boot_scope))
 			continue;
 
 		if (cap->cpu_enable)
@@ -1820,13 +1820,13 @@ static void __init enable_cpu_capabilities(u16 scope_mask)
 	}
 
 	/*
-	 * For all non-boot scope capabilities, use stop_machine()
+	 * For all yesn-boot scope capabilities, use stop_machine()
 	 * as it schedules the work allowing us to modify PSTATE,
 	 * instead of on_each_cpu() which uses an IPI, giving us a
 	 * PSTATE that disappears when we return.
 	 */
 	if (!boot_scope)
-		stop_machine(cpu_enable_non_boot_scope_capabilities,
+		stop_machine(cpu_enable_yesn_boot_scope_capabilities,
 			     NULL, cpu_online_mask);
 }
 
@@ -1856,13 +1856,13 @@ static bool verify_local_cpu_caps(u16 scope_mask)
 		if (system_has_cap) {
 			/*
 			 * Check if the new CPU misses an advertised feature,
-			 * which is not safe to miss.
+			 * which is yest safe to miss.
 			 */
 			if (!cpu_has_cap && !cpucap_late_cpu_optional(caps))
 				break;
 			/*
 			 * We have to issue cpu_enable() irrespective of
-			 * whether the CPU has it or not, as it is enabeld
+			 * whether the CPU has it or yest, as it is enabeld
 			 * system wide. It is upto the call back to take
 			 * appropriate action on this CPU.
 			 */
@@ -1897,7 +1897,7 @@ static void check_early_cpu_features(void)
 	verify_cpu_asid_bits();
 	/*
 	 * Early features are used by the kernel already. If there
-	 * is a conflict, we cannot proceed further.
+	 * is a conflict, we canyest proceed further.
 	 */
 	if (!verify_local_cpu_caps(SCOPE_BOOT_CPU))
 		cpu_panic_kernel();
@@ -1937,8 +1937,8 @@ static void verify_sve_features(void)
  * Run through the enabled system capabilities and enable() it on this CPU.
  * The capabilities were decided based on the available CPUs at the boot time.
  * Any new CPU should match the system wide status of the capability. If the
- * new CPU doesn't have a capability which the system now has enabled, we
- * cannot do anything to fix it up and could cause unexpected failures. So
+ * new CPU doesn't have a capability which the system yesw has enabled, we
+ * canyest do anything to fix it up and could cause unexpected failures. So
  * we park the CPU.
  */
 static void verify_local_cpu_capabilities(void)
@@ -2026,7 +2026,7 @@ unsigned long cpu_get_elf_hwcap(void)
 {
 	/*
 	 * We currently only populate the first 32 bits of AT_HWCAP. Please
-	 * note that for userspace compatibility we guarantee that bits 62
+	 * yeste that for userspace compatibility we guarantee that bits 62
 	 * and 63 will always be returned as 0.
 	 */
 	return lower_32_bits(elf_hwcap);
@@ -2043,7 +2043,7 @@ static void __init setup_system_capabilities(void)
 	 * We have finalised the system-wide safe feature
 	 * registers, finalise the capabilities that depend
 	 * on it. Also enable all the available capabilities,
-	 * that are not enabled already.
+	 * that are yest enabled already.
 	 */
 	update_cpu_capabilities(SCOPE_SYSTEM);
 	enable_cpu_capabilities(SCOPE_ALL & ~SCOPE_BOOT_CPU);
@@ -2079,7 +2079,7 @@ void __init setup_cpu_features(void)
 }
 
 static bool __maybe_unused
-cpufeature_pan_not_uao(const struct arm64_cpu_capabilities *entry, int __unused)
+cpufeature_pan_yest_uao(const struct arm64_cpu_capabilities *entry, int __unused)
 {
 	return (cpus_have_const_cap(ARM64_HAS_PAN) && !cpus_have_const_cap(ARM64_HAS_UAO));
 }

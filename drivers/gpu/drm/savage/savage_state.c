@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -103,7 +103,7 @@ static int savage_verify_texaddr(drm_savage_private_t * dev_priv, int unit,
 		}
 	} else {		/* AGP */
 		if (!dev_priv->agp_textures) {
-			DRM_ERROR("bad texAddr%d %08x (AGP not available)\n",
+			DRM_ERROR("bad texAddr%d %08x (AGP yest available)\n",
 				  unit, addr);
 			return -EINVAL;
 		}
@@ -368,7 +368,7 @@ static int savage_dispatch_dma_prim(drm_savage_private_t * dev_priv,
 		/* Workaround for what looks like a hardware bug. If a
 		 * WAIT_3D_IDLE was emitted some time before the
 		 * indexed drawing command then the engine will lock
-		 * up. There are two known workarounds:
+		 * up. There are two kyeswn workarounds:
 		 * WAIT_IDLE_EMPTY or emit at least 63 NOPs. */
 		BEGIN_BCI(63);
 		for (i = 0; i < 63; ++i)
@@ -620,7 +620,7 @@ static int savage_dispatch_dma_idx(drm_savage_private_t * dev_priv,
 		/* Workaround for what looks like a hardware bug. If a
 		 * WAIT_3D_IDLE was emitted some time before the
 		 * indexed drawing command then the engine will lock
-		 * up. There are two known workarounds:
+		 * up. There are two kyeswn workarounds:
 		 * WAIT_IDLE_EMPTY or emit at least 63 NOPs. */
 		BEGIN_BCI(63);
 		for (i = 0; i < 63; ++i)
@@ -951,7 +951,7 @@ static int savage_dispatch_draw(drm_savage_private_t * dev_priv,
 			default:
 				/* What's the best return code? EFAULT? */
 				DRM_ERROR("IMPLEMENTATION ERROR: "
-					  "non-drawing-command %d\n",
+					  "yesn-drawing-command %d\n",
 					  cmd_header.cmd.cmd);
 				return -EINVAL;
 			}
@@ -1040,7 +1040,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 	 * DMA commands to the graphics hardware. */
 	mb();
 
-	/* Coming from user space. Don't know if the Xserver has
+	/* Coming from user space. Don't kyesw if the Xserver has
 	 * emitted wait commands. Assuming the worst. */
 	dev_priv->waiting = 1;
 

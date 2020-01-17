@@ -513,22 +513,22 @@ static struct mmc_host_ops meson_mx_mmc_ops = {
 
 static struct platform_device *meson_mx_mmc_slot_pdev(struct device *parent)
 {
-	struct device_node *slot_node;
+	struct device_yesde *slot_yesde;
 	struct platform_device *pdev;
 
 	/*
-	 * TODO: the MMC core framework currently does not support
+	 * TODO: the MMC core framework currently does yest support
 	 * controllers with multiple slots properly. So we only register
-	 * the first slot for now
+	 * the first slot for yesw
 	 */
-	slot_node = of_get_compatible_child(parent->of_node, "mmc-slot");
-	if (!slot_node) {
-		dev_warn(parent, "no 'mmc-slot' sub-node found\n");
+	slot_yesde = of_get_compatible_child(parent->of_yesde, "mmc-slot");
+	if (!slot_yesde) {
+		dev_warn(parent, "yes 'mmc-slot' sub-yesde found\n");
 		return ERR_PTR(-ENOENT);
 	}
 
-	pdev = of_platform_device_create(slot_node, NULL, parent);
-	of_node_put(slot_node);
+	pdev = of_platform_device_create(slot_yesde, NULL, parent);
+	of_yesde_put(slot_yesde);
 
 	return pdev;
 }
@@ -539,7 +539,7 @@ static int meson_mx_mmc_add_host(struct meson_mx_mmc_host *host)
 	struct device *slot_dev = mmc_dev(mmc);
 	int ret;
 
-	if (of_property_read_u32(slot_dev->of_node, "reg", &host->slot_id)) {
+	if (of_property_read_u32(slot_dev->of_yesde, "reg", &host->slot_id)) {
 		dev_err(slot_dev, "missing 'reg' property\n");
 		return -EINVAL;
 	}

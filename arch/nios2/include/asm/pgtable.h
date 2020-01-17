@@ -23,7 +23,7 @@
 
 #include <asm/pgtable-bits.h>
 #define __ARCH_USE_5LEVEL_HACK
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 
 #define FIRST_USER_ADDRESS	0UL
 
@@ -115,9 +115,9 @@ static inline int pte_young(pte_t pte)		\
 	{ return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_special(pte_t pte)	{ return 0; }
 
-#define pgprot_noncached pgprot_noncached
+#define pgprot_yesncached pgprot_yesncached
 
-static inline pgprot_t pgprot_noncached(pgprot_t _prot)
+static inline pgprot_t pgprot_yesncached(pgprot_t _prot)
 {
 	unsigned long prot = pgprot_val(_prot);
 
@@ -126,7 +126,7 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
 	return __pgprot(prot);
 }
 
-static inline int pte_none(pte_t pte)
+static inline int pte_yesne(pte_t pte)
 {
 	return !(pte_val(pte) & ~(_PAGE_GLOBAL|0xf));
 }
@@ -136,7 +136,7 @@ static inline int pte_present(pte_t pte)	\
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 static inline pte_t pte_wrprotect(pte_t pte)
 {
@@ -216,7 +216,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	set_pte(ptep, pteval);
 }
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_yesne(pmd_t pmd)
 {
 	return (pmd_val(pmd) ==
 		(unsigned long) invalid_pte_table) || (pmd_val(pmd) == 0UL);
@@ -270,14 +270,14 @@ static inline void pte_clear(struct mm_struct *mm,
 		__FILE__, __LINE__, pgd_val(e))
 
 /*
- * Encode and decode a swap entry (must be !pte_none(pte) && !pte_present(pte):
+ * Encode and decode a swap entry (must be !pte_yesne(pte) && !pte_present(pte):
  *
  * 31 30 29 28 27 26 25 24 23 22 21 20 19 18 ...  1  0
  *  0  0  0  0 type.  0  0  0  0  0  0 offset.........
  *
  * This gives us up to 2**2 = 4 swap files and 2**20 * 4K = 4G per swap file.
  *
- * Note that the offset field is always non-zero, thus !pte_none(pte) is always
+ * Note that the offset field is always yesn-zero, thus !pte_yesne(pte) is always
  * true.
  */
 #define __swp_type(swp)		(((swp).val >> 26) & 0x3)

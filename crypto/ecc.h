@@ -6,9 +6,9 @@
  * modification, are permitted provided that the following conditions are
  * met:
  *  * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *   yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -139,7 +139,7 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
  * Valdiate public key according to SP800-56A section 5.6.2.3.4 ECC Partial
  * Public-Key Validation Routine.
  *
- * Note: There is no check that the public key is in the correct elliptic curve
+ * Note: There is yes check that the public key is in the correct elliptic curve
  * subgroup.
  *
  * Return: 0 if validation is successful, -EINVAL if validation is failed.
@@ -220,7 +220,7 @@ void vli_mod_inv(u64 *result, const u64 *input, const u64 *mod,
  * @mod:		modulus
  * @ndigits:		length of all vlis
  *
- * Note: Assumes that mod is big enough curve order.
+ * Note: Assumes that mod is big eyesugh curve order.
  */
 void vli_mod_mult_slow(u64 *result, const u64 *left, const u64 *right,
 		       const u64 *mod, unsigned int ndigits);

@@ -23,8 +23,8 @@ ACPI_MODULE_NAME("uterror")
  *
  * PARAMETERS:  module_name     - Caller's module name (for error output)
  *              line_number     - Caller's line number (for error output)
- *              pathname        - Full pathname to the node
- *              node_flags      - From Namespace node for the method/object
+ *              pathname        - Full pathname to the yesde
+ *              yesde_flags      - From Namespace yesde for the method/object
  *              format          - Printf format string + additional args
  *
  * RETURN:      None
@@ -39,7 +39,7 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_warning(const char *module_name,
 			   u32 line_number,
 			   char *pathname,
-			   u16 node_flags, const char *format, ...)
+			   u16 yesde_flags, const char *format, ...)
 {
 	va_list arg_list;
 
@@ -47,7 +47,7 @@ acpi_ut_predefined_warning(const char *module_name,
 	 * Warning messages for this method/object will be disabled after the
 	 * first time a validation fails or an object is successfully repaired.
 	 */
-	if (node_flags & ANOBJ_EVALUATED) {
+	if (yesde_flags & ANOBJ_EVALUATED) {
 		return;
 	}
 
@@ -65,8 +65,8 @@ acpi_ut_predefined_warning(const char *module_name,
  *
  * PARAMETERS:  module_name     - Caller's module name (for error output)
  *              line_number     - Caller's line number (for error output)
- *              pathname        - Full pathname to the node
- *              node_flags      - From Namespace node for the method/object
+ *              pathname        - Full pathname to the yesde
+ *              yesde_flags      - From Namespace yesde for the method/object
  *              format          - Printf format string + additional args
  *
  * RETURN:      None
@@ -81,7 +81,7 @@ acpi_ut_predefined_warning(const char *module_name,
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_info(const char *module_name,
 			u32 line_number,
-			char *pathname, u16 node_flags, const char *format, ...)
+			char *pathname, u16 yesde_flags, const char *format, ...)
 {
 	va_list arg_list;
 
@@ -89,7 +89,7 @@ acpi_ut_predefined_info(const char *module_name,
 	 * Warning messages for this method/object will be disabled after the
 	 * first time a validation fails or an object is successfully repaired.
 	 */
-	if (node_flags & ANOBJ_EVALUATED) {
+	if (yesde_flags & ANOBJ_EVALUATED) {
 		return;
 	}
 
@@ -107,8 +107,8 @@ acpi_ut_predefined_info(const char *module_name,
  *
  * PARAMETERS:  module_name     - Caller's module name (for error output)
  *              line_number     - Caller's line number (for error output)
- *              pathname        - Full pathname to the node
- *              node_flags      - From Namespace node for the method/object
+ *              pathname        - Full pathname to the yesde
+ *              yesde_flags      - From Namespace yesde for the method/object
  *              format          - Printf format string + additional args
  *
  * RETURN:      None
@@ -124,7 +124,7 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_bios_error(const char *module_name,
 			      u32 line_number,
 			      char *pathname,
-			      u16 node_flags, const char *format, ...)
+			      u16 yesde_flags, const char *format, ...)
 {
 	va_list arg_list;
 
@@ -132,7 +132,7 @@ acpi_ut_predefined_bios_error(const char *module_name,
 	 * Warning messages for this method/object will be disabled after the
 	 * first time a validation fails or an object is successfully repaired.
 	 */
-	if (node_flags & ANOBJ_EVALUATED) {
+	if (yesde_flags & ANOBJ_EVALUATED) {
 		return;
 	}
 
@@ -151,14 +151,14 @@ acpi_ut_predefined_bios_error(const char *module_name,
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
  *              prefix_scope        - Scope/Path that prefixes the internal path
- *              internal_path       - Name or path of the namespace node
+ *              internal_path       - Name or path of the namespace yesde
  *              lookup_status       - Exception code from NS lookup
  *
  * RETURN:      None
  *
  * DESCRIPTION: Print error message with the full pathname constructed this way:
  *
- *                  prefix_scope_node_full_path.externalized_internal_path
+ *                  prefix_scope_yesde_full_path.externalized_internal_path
  *
  * NOTE:        10/2017: Treat the major ns_lookup errors as firmware errors
  *
@@ -176,7 +176,7 @@ acpi_ut_prefixed_namespace_error(const char *module_name,
 
 	/*
 	 * Main cases:
-	 * 1) Object creation, object must not already exist
+	 * 1) Object creation, object must yest already exist
 	 * 2) Object lookup, object must exist
 	 */
 	switch (lookup_status) {
@@ -189,7 +189,7 @@ acpi_ut_prefixed_namespace_error(const char *module_name,
 	case AE_NOT_FOUND:
 
 		acpi_os_printf(ACPI_MSG_BIOS_ERROR);
-		message = "Could not resolve symbol";
+		message = "Could yest resolve symbol";
 		break;
 
 	default:
@@ -205,7 +205,7 @@ acpi_ut_prefixed_namespace_error(const char *module_name,
 	    acpi_ns_build_prefixed_pathname(prefix_scope, internal_path);
 
 	acpi_os_printf("%s [%s], %s", message,
-		       full_path ? full_path : "Could not get pathname",
+		       full_path ? full_path : "Could yest get pathname",
 		       acpi_format_exception(lookup_status));
 
 	if (full_path) {
@@ -222,12 +222,12 @@ acpi_ut_prefixed_namespace_error(const char *module_name,
  *
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
- *              internal_name       - Name or path of the namespace node
+ *              internal_name       - Name or path of the namespace yesde
  *              lookup_status       - Exception code from NS lookup
  *
  * RETURN:      None
  *
- * DESCRIPTION: Print error message with the full pathname for the NS node.
+ * DESCRIPTION: Print error message with the full pathname for the NS yesde.
  *
  ******************************************************************************/
 
@@ -245,7 +245,7 @@ acpi_ut_namespace_error(const char *module_name,
 
 	if (lookup_status == AE_BAD_CHARACTER) {
 
-		/* There is a non-ascii character in the name */
+		/* There is a yesn-ascii character in the name */
 
 		ACPI_MOVE_32_TO_32(&bad_name,
 				   ACPI_CAST_PTR(u32, internal_name));
@@ -285,8 +285,8 @@ acpi_ut_namespace_error(const char *module_name,
  * PARAMETERS:  module_name         - Caller's module name (for error output)
  *              line_number         - Caller's line number (for error output)
  *              message             - Error message to use on failure
- *              prefix_node         - Prefix relative to the path
- *              path                - Path to the node (optional)
+ *              prefix_yesde         - Prefix relative to the path
+ *              path                - Path to the yesde (optional)
  *              method_status       - Execution status
  *
  * RETURN:      None
@@ -299,24 +299,24 @@ void
 acpi_ut_method_error(const char *module_name,
 		     u32 line_number,
 		     const char *message,
-		     struct acpi_namespace_node *prefix_node,
+		     struct acpi_namespace_yesde *prefix_yesde,
 		     const char *path, acpi_status method_status)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node = prefix_node;
+	struct acpi_namespace_yesde *yesde = prefix_yesde;
 
 	ACPI_MSG_REDIRECT_BEGIN;
 	acpi_os_printf(ACPI_MSG_ERROR);
 
 	if (path) {
-		status = acpi_ns_get_node(prefix_node, path,
-					  ACPI_NS_NO_UPSEARCH, &node);
+		status = acpi_ns_get_yesde(prefix_yesde, path,
+					  ACPI_NS_NO_UPSEARCH, &yesde);
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("[Could not get node by pathname]");
+			acpi_os_printf("[Could yest get yesde by pathname]");
 		}
 	}
 
-	acpi_ns_print_node_pathname(node, message);
+	acpi_ns_print_yesde_pathname(yesde, message);
 	acpi_os_printf(" due to previous error (%s)",
 		       acpi_format_exception(method_status));
 

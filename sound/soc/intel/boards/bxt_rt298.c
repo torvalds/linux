@@ -78,7 +78,7 @@ static const struct snd_soc_dapm_route broxton_rt298_map[] = {
 	{"Speaker", NULL, "SPOR"},
 	{"Speaker", NULL, "SPOL"},
 
-	/* HP jack connectors - unknown if we have jack detect */
+	/* HP jack connectors - unkyeswn if we have jack detect */
 	{"Headphone Jack", NULL, "HPO Pin"},
 
 	/* other jacks */
@@ -116,7 +116,7 @@ static const struct snd_soc_dapm_route geminilake_rt298_map[] = {
 	{"Speaker", NULL, "SPOR"},
 	{"Speaker", NULL, "SPOL"},
 
-	/* HP jack connectors - unknown if we have jack detect */
+	/* HP jack connectors - unkyeswn if we have jack detect */
 	{"Headphone Jack", NULL, "HPO Pin"},
 
 	/* other jacks */
@@ -158,7 +158,7 @@ static int broxton_rt298_fe_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_component *component = rtd->cpu_dai->component;
 
 	dapm = snd_soc_component_get_dapm(component);
-	snd_soc_dapm_ignore_suspend(dapm, "Reference Capture");
+	snd_soc_dapm_igyesre_suspend(dapm, "Reference Capture");
 
 	return 0;
 }
@@ -178,7 +178,7 @@ static int broxton_rt298_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 	rt298_mic_detect(component, &broxton_headset);
 
-	snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "SoC DMIC");
+	snd_soc_dapm_igyesre_suspend(&rtd->card->dapm, "SoC DMIC");
 
 	return 0;
 }
@@ -215,7 +215,7 @@ static int broxton_ssp5_fixup(struct snd_soc_pcm_runtime *rtd,
 	channels->min = channels->max = 2;
 
 	/* set SSP5 to 24 bit */
-	snd_mask_none(fmt);
+	snd_mask_yesne(fmt);
 	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
 
 	return 0;
@@ -390,7 +390,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 	{
 		.name = "Bxt Audio Port",
 		.stream_name = "Audio",
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		.init = broxton_rt298_fe_init,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
@@ -402,7 +402,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 	{
 		.name = "Bxt Audio Capture Port",
 		.stream_name = "Audio Record",
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_capture = 1,
@@ -415,7 +415,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.stream_name = "refcap",
 		.init = NULL,
 		.dpcm_capture = 1,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		SND_SOC_DAILINK_REG(reference, dummy, platform),
 	},
@@ -425,7 +425,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.stream_name = "dmiccap",
 		.init = NULL,
 		.dpcm_capture = 1,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		.ops = &broxton_dmic_ops,
 		SND_SOC_DAILINK_REG(dmic, dummy, platform),
@@ -436,7 +436,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.stream_name = "Hdmi1",
 		.dpcm_playback = 1,
 		.init = NULL,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		SND_SOC_DAILINK_REG(hdmi1, dummy, platform),
 	},
@@ -446,7 +446,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.stream_name = "Hdmi2",
 		.dpcm_playback = 1,
 		.init = NULL,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		SND_SOC_DAILINK_REG(hdmi2, dummy, platform),
 	},
@@ -456,7 +456,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.stream_name = "Hdmi3",
 		.dpcm_playback = 1,
 		.init = NULL,
-		.nonatomic = 1,
+		.yesnatomic = 1,
 		.dynamic = 1,
 		SND_SOC_DAILINK_REG(hdmi3, dummy, platform),
 	},
@@ -465,11 +465,11 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		/* SSP5 - Codec */
 		.name = "SSP5-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.init = broxton_rt298_codec_init,
 		.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_NB_NF |
 						SND_SOC_DAIFMT_CBS_CFS,
-		.ignore_pmdown_time = 1,
+		.igyesre_pmdown_time = 1,
 		.be_hw_params_fixup = broxton_ssp5_fixup,
 		.ops = &broxton_rt298_ops,
 		.dpcm_playback = 1,
@@ -480,18 +480,18 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.name = "dmic01",
 		.id = 1,
 		.be_hw_params_fixup = broxton_dmic_fixup,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic_pin, dmic_codec, platform),
 	},
 	{
 		.name = "dmic16k",
 		.id = 2,
 		.be_hw_params_fixup = broxton_dmic_fixup,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		.dpcm_capture = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		SND_SOC_DAILINK_REG(dmic16k, dmic_codec, platform),
 	},
 	{
@@ -499,7 +499,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.id = 3,
 		.init = broxton_hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp1_pin, idisp1_codec, platform),
 	},
 	{
@@ -507,7 +507,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.id = 4,
 		.init = broxton_hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp2_pin, idisp2_codec, platform),
 	},
 	{
@@ -515,7 +515,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.id = 5,
 		.init = broxton_hdmi_init,
 		.dpcm_playback = 1,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		SND_SOC_DAILINK_REG(idisp3_pin, idisp3_codec, platform),
 	},
 };

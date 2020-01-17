@@ -54,25 +54,25 @@ static int emsff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
+		hid_err(hid, "yes inputs found\n");
 		return -ENODEV;
 	}
 	hidinput = list_first_entry(&hid->inputs, struct hid_input, list);
 	dev = hidinput->input;
 
 	if (list_empty(report_list)) {
-		hid_err(hid, "no output reports found\n");
+		hid_err(hid, "yes output reports found\n");
 		return -ENODEV;
 	}
 
 	report = list_first_entry(report_list, struct hid_report, list);
 	if (report->maxfield < 1) {
-		hid_err(hid, "no fields in the report\n");
+		hid_err(hid, "yes fields in the report\n");
 		return -ENODEV;
 	}
 
 	if (report->field[0]->report_count < 7) {
-		hid_err(hid, "not enough values in the field\n");
+		hid_err(hid, "yest eyesugh values in the field\n");
 		return -ENODEV;
 	}
 

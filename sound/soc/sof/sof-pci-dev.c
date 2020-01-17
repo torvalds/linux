@@ -47,8 +47,8 @@ static const struct sof_dev_desc bxt_desc = {
 	.chip_info = &apl_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-apl.ri",
-	.nocodec_tplg_filename = "sof-apl-nocodec.tplg",
+	.yescodec_fw_filename = "sof-apl.ri",
+	.yescodec_tplg_filename = "sof-apl-yescodec.tplg",
 	.ops = &sof_apl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -65,8 +65,8 @@ static const struct sof_dev_desc glk_desc = {
 	.chip_info = &apl_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-glk.ri",
-	.nocodec_tplg_filename = "sof-glk-nocodec.tplg",
+	.yescodec_fw_filename = "sof-glk.ri",
+	.yescodec_tplg_filename = "sof-glk-yescodec.tplg",
 	.ops = &sof_apl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -93,8 +93,8 @@ static const struct sof_dev_desc tng_desc = {
 	.chip_info = &tng_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-byt.ri",
-	.nocodec_tplg_filename = "sof-byt.tplg",
+	.yescodec_fw_filename = "sof-byt.ri",
+	.yescodec_tplg_filename = "sof-byt.tplg",
 	.ops = &sof_tng_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -111,8 +111,8 @@ static const struct sof_dev_desc cnl_desc = {
 	.chip_info = &cnl_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-cnl.ri",
-	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
+	.yescodec_fw_filename = "sof-cnl.ri",
+	.yescodec_tplg_filename = "sof-cnl-yescodec.tplg",
 	.ops = &sof_cnl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -129,8 +129,8 @@ static const struct sof_dev_desc cfl_desc = {
 	.chip_info = &cnl_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-cfl.ri",
-	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
+	.yescodec_fw_filename = "sof-cfl.ri",
+	.yescodec_tplg_filename = "sof-cnl-yescodec.tplg",
 	.ops = &sof_cnl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -149,8 +149,8 @@ static const struct sof_dev_desc cml_desc = {
 	.chip_info = &cnl_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-cml.ri",
-	.nocodec_tplg_filename = "sof-cnl-nocodec.tplg",
+	.yescodec_fw_filename = "sof-cml.ri",
+	.yescodec_tplg_filename = "sof-cnl-yescodec.tplg",
 	.ops = &sof_cnl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -167,8 +167,8 @@ static const struct sof_dev_desc icl_desc = {
 	.chip_info = &icl_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-icl.ri",
-	.nocodec_tplg_filename = "sof-icl-nocodec.tplg",
+	.yescodec_fw_filename = "sof-icl.ri",
+	.yescodec_tplg_filename = "sof-icl-yescodec.tplg",
 	.ops = &sof_cnl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -185,8 +185,8 @@ static const struct sof_dev_desc tgl_desc = {
 	.chip_info = &tgl_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-tgl.ri",
-	.nocodec_tplg_filename = "sof-tgl-nocodec.tplg",
+	.yescodec_fw_filename = "sof-tgl.ri",
+	.yescodec_tplg_filename = "sof-tgl-yescodec.tplg",
 	.ops = &sof_cnl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -203,8 +203,8 @@ static const struct sof_dev_desc ehl_desc = {
 	.chip_info = &ehl_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-ehl.ri",
-	.nocodec_tplg_filename = "sof-ehl-nocodec.tplg",
+	.yescodec_fw_filename = "sof-ehl.ri",
+	.yescodec_tplg_filename = "sof-ehl-yescodec.tplg",
 	.ops = &sof_cnl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -221,8 +221,8 @@ static const struct sof_dev_desc jsl_desc = {
 	.chip_info = &jsl_chip_info,
 	.default_fw_path = "intel/sof",
 	.default_tplg_path = "intel/sof-tplg",
-	.nocodec_fw_filename = "sof-jsl.ri",
-	.nocodec_tplg_filename = "sof-jsl-nocodec.tplg",
+	.yescodec_fw_filename = "sof-jsl.ri",
+	.yescodec_tplg_filename = "sof-jsl-yescodec.tplg",
 	.ops = &sof_cnl_ops,
 	.arch_ops = &sof_xtensa_arch_ops
 };
@@ -253,11 +253,11 @@ static void sof_pci_probe_complete(struct device *dev)
 	 */
 	pm_runtime_allow(dev);
 
-	/* mark last_busy for pm_runtime to make sure not suspend immediately */
+	/* mark last_busy for pm_runtime to make sure yest suspend immediately */
 	pm_runtime_mark_last_busy(dev);
 
 	/* follow recommendation in pci-driver.c to decrement usage counter */
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 }
 
 static int sof_pci_probe(struct pci_dev *pci,
@@ -281,7 +281,7 @@ static int sof_pci_probe(struct pci_dev *pci,
 	/* get ops for platform */
 	ops = desc->ops;
 	if (!ops) {
-		dev_err(dev, "error: no matching PCI descriptor ops\n");
+		dev_err(dev, "error: yes matching PCI descriptor ops\n");
 		return -ENODEV;
 	}
 
@@ -298,14 +298,14 @@ static int sof_pci_probe(struct pci_dev *pci,
 		return ret;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)
-	/* force nocodec mode */
-	dev_warn(dev, "Force to use nocodec mode\n");
+	/* force yescodec mode */
+	dev_warn(dev, "Force to use yescodec mode\n");
 	mach = devm_kzalloc(dev, sizeof(*mach), GFP_KERNEL);
 	if (!mach) {
 		ret = -ENOMEM;
 		goto release_regions;
 	}
-	ret = sof_nocodec_setup(dev, sof_pdata, mach, desc, ops);
+	ret = sof_yescodec_setup(dev, sof_pdata, mach, desc, ops);
 	if (ret < 0)
 		goto release_regions;
 
@@ -370,7 +370,7 @@ static void sof_pci_remove(struct pci_dev *pci)
 
 	/* follow recommendation in pci-driver.c to increment usage counter */
 	if (!(sof_pci_debug & SOF_PCI_DISABLE_PM_RUNTIME))
-		pm_runtime_get_noresume(&pci->dev);
+		pm_runtime_get_yesresume(&pci->dev);
 
 	/* release pci regions and disable device */
 	pci_release_regions(pci);

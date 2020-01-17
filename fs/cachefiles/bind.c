@@ -121,9 +121,9 @@ static int cachefiles_daemon_add_cache(struct cachefiles_cache *cache)
 	/* check parameters */
 	ret = -EOPNOTSUPP;
 	if (d_is_negative(root) ||
-	    !d_backing_inode(root)->i_op->lookup ||
-	    !d_backing_inode(root)->i_op->mkdir ||
-	    !(d_backing_inode(root)->i_opflags & IOP_XATTR) ||
+	    !d_backing_iyesde(root)->i_op->lookup ||
+	    !d_backing_iyesde(root)->i_op->mkdir ||
+	    !(d_backing_iyesde(root)->i_opflags & IOP_XATTR) ||
 	    !root->d_sb->s_op->statfs ||
 	    !root->d_sb->s_op->sync_fs)
 		goto error_unsupported;

@@ -226,7 +226,7 @@ enum hclge_evt_cause {
 };
 
 enum HCLGE_MAC_SPEED {
-	HCLGE_MAC_SPEED_UNKNOWN = 0,		/* unknown */
+	HCLGE_MAC_SPEED_UNKNOWN = 0,		/* unkyeswn */
 	HCLGE_MAC_SPEED_10M	= 10,		/* 10 Mbps */
 	HCLGE_MAC_SPEED_100M	= 100,		/* 100 Mbps */
 	HCLGE_MAC_SPEED_1G	= 1000,		/* 1000 Mbps   = 1 Gbps */
@@ -340,7 +340,7 @@ struct hclge_cfg {
 	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
 	u8 default_speed;
-	u32 numa_node_map;
+	u32 numa_yesde_map;
 	u8 speed_ability;
 	u16 umv_space;
 };
@@ -353,8 +353,8 @@ struct hclge_tm_info {
 	struct hclge_pg_info pg_info[HCLGE_PG_NUM];
 	struct hclge_tc_info tc_info[HNAE3_MAX_TC];
 	enum hclge_fc_mode fc_mode;
-	u8 hw_pfc_map; /* Allow for packet drop or not on this TC */
-	u8 pfc_en;	/* PFC enabled or not for user priority */
+	u8 hw_pfc_map; /* Allow for packet drop or yest on this TC */
+	u8 pfc_en;	/* PFC enabled or yest for user priority */
 };
 
 struct hclge_comm_stats_str {
@@ -489,7 +489,7 @@ enum HCLGE_FD_STAGE {
 
 /* OUTER_XXX indicates tuples in tunnel header of tunnel packet
  * INNER_XXX indicate tuples in tunneled header of tunnel packet or
- *           tuples of non-tunnel packet
+ *           tuples of yesn-tunnel packet
  */
 enum HCLGE_FD_TUPLE {
 	OUTER_DST_MAC,
@@ -605,7 +605,7 @@ struct hclge_fd_rule_tuples {
 };
 
 struct hclge_fd_rule {
-	struct hlist_node rule_node;
+	struct hlist_yesde rule_yesde;
 	struct hclge_fd_rule_tuples tuples;
 	struct hclge_fd_rule_tuples tuples_mask;
 	u32 unused_tuple;
@@ -632,7 +632,7 @@ struct hclge_fd_ad_data {
 };
 
 struct hclge_vport_mac_addr_cfg {
-	struct list_head node;
+	struct list_head yesde;
 	int hd_tbl_status;
 	u8 mac_addr[ETH_ALEN];
 };
@@ -643,7 +643,7 @@ enum HCLGE_MAC_ADDR_TYPE {
 };
 
 struct hclge_vport_vlan_cfg {
-	struct list_head node;
+	struct list_head yesde;
 	int hd_tbl_status;
 	u16 vlan_id;
 };
@@ -734,7 +734,7 @@ struct hclge_dev {
 
 	u16 fdir_pf_filter_count; /* Num of guaranteed filters for this PF */
 	u16 num_alloc_vport;		/* Num vports this driver supports */
-	u32 numa_node_mask;
+	u32 numa_yesde_mask;
 	u16 rx_buf_len;
 	u16 num_tx_desc;		/* desc num of per tx queue */
 	u16 num_rx_desc;		/* desc num of per rx queue */
@@ -830,9 +830,9 @@ struct hclge_dev {
 	DECLARE_KFIFO(mac_tnl_log, struct hclge_mac_tnl_stats,
 		      HCLGE_MAC_TNL_LOG_SIZE);
 
-	/* affinity mask and notify for misc interrupt */
+	/* affinity mask and yestify for misc interrupt */
 	cpumask_t affinity_mask;
-	struct irq_affinity_notify affinity_notify;
+	struct irq_affinity_yestify affinity_yestify;
 };
 
 /* VPort level vlan tag configuration for TX direction */
@@ -944,7 +944,7 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 struct hclge_vport *hclge_get_vport(struct hnae3_handle *handle);
 int hclge_bind_ring_with_vector(struct hclge_vport *vport,
 				int vector_id, bool en,
-				struct hnae3_ring_chain_node *ring_chain);
+				struct hnae3_ring_chain_yesde *ring_chain);
 
 static inline int hclge_get_queue_id(struct hnae3_queue *queue)
 {
@@ -978,8 +978,8 @@ void hclge_vport_stop(struct hclge_vport *vport);
 int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu);
 int hclge_dbg_run_cmd(struct hnae3_handle *handle, const char *cmd_buf);
 u16 hclge_covert_handle_qid_global(struct hnae3_handle *handle, u16 queue_id);
-int hclge_notify_client(struct hclge_dev *hdev,
-			enum hnae3_reset_notify_type type);
+int hclge_yestify_client(struct hclge_dev *hdev,
+			enum hnae3_reset_yestify_type type);
 void hclge_add_vport_mac_table(struct hclge_vport *vport, const u8 *mac_addr,
 			       enum HCLGE_MAC_ADDR_TYPE mac_type);
 void hclge_rm_vport_mac_table(struct hclge_vport *vport, const u8 *mac_addr,

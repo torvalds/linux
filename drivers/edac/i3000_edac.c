@@ -1,6 +1,6 @@
 /*
  * Intel 3000/3010 Memory Controller kernel module
- * Copyright (C) 2007 Akamai Technologies, Inc.
+ * Copyright (C) 2007 Akamai Techyeslogies, Inc.
  * Shamelessly copied from:
  * 	Intel D82875P Memory Controller kernel module
  * 	(C) 2003 Linux Networx (http://lnxi.com)
@@ -76,7 +76,7 @@ static inline int deap_channel(u32 deap)
 				 * 11    MCH Thermal Sensor Event
 				 *         for SMI/SCI/SERR
 				 * 10    reserved
-				 *  9    LOCK to non-DRAM Memory Flag (LCKF)
+				 *  9    LOCK to yesn-DRAM Memory Flag (LCKF)
 				 *  8    Received Refresh Timeout Flag (RRTOF)
 				 *  7:2  reserved
 				 *  1    Multi-bit DRAM ECC Error Flag (DMERR)
@@ -92,7 +92,7 @@ static inline int deap_channel(u32 deap)
 				 * 11    SERR on MCH Thermal Sensor Event
 				 *         (TSESERR)
 				 * 10    reserved
-				 *  9    SERR on LOCK to non-DRAM Memory
+				 *  9    SERR on LOCK to yesn-DRAM Memory
 				 *         (LCKERR)
 				 *  8    SERR on DRAM Refresh Timeout
 				 *         (DRTOERR)
@@ -195,7 +195,7 @@ static void i3000_get_error_info(struct mem_ctl_info *mci,
 	pdev = to_pci_dev(mci->pdev);
 
 	/*
-	 * This is a mess because there is no atomic way to read all the
+	 * This is a mess because there is yes atomic way to read all the
 	 * registers at once and the registers can transition from CE being
 	 * overwritten by UE.
 	 */
@@ -210,7 +210,7 @@ static void i3000_get_error_info(struct mem_ctl_info *mci,
 	/*
 	 * If the error is the same for both reads then the first set
 	 * of reads is valid.  If there is a change then there is a CE
-	 * with no info and the second set of reads is valid and
+	 * with yes info and the second set of reads is valid and
 	 * should be UE info.
 	 */
 	if ((info->errsts ^ info->errsts2) & I3000_ERRSTS_BITS) {
@@ -287,7 +287,7 @@ static int i3000_is_interleaved(const unsigned char *c0dra,
 
 	/*
 	 * If the channels aren't populated identically then
-	 * we're not interleaved.
+	 * we're yest interleaved.
 	 */
 	for (i = 0; i < I3000_RANKS_PER_CHANNEL / 2; i++)
 		if (odd_rank_attrib(c0dra[i]) != odd_rank_attrib(c1dra[i]) ||
@@ -297,7 +297,7 @@ static int i3000_is_interleaved(const unsigned char *c0dra,
 
 	/*
 	 * If the rank boundaries for the two channels are different
-	 * then we're not interleaved.
+	 * then we're yest interleaved.
 	 */
 	for (i = 0; i < I3000_RANKS_PER_CHANNEL; i++)
 		if (c0drb[i] != c1drb[i])
@@ -324,9 +324,9 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 
 	pci_read_config_dword(pdev, I3000_MCHBAR, (u32 *) & mchbar);
 	mchbar &= I3000_MCHBAR_MASK;
-	window = ioremap_nocache(mchbar, I3000_MMR_WINDOW_SIZE);
+	window = ioremap_yescache(mchbar, I3000_MMR_WINDOW_SIZE);
 	if (!window) {
-		printk(KERN_ERR "i3000: cannot map mmio space at 0x%lx\n",
+		printk(KERN_ERR "i3000: canyest map mmio space at 0x%lx\n",
 			mchbar);
 		return -ENODEV;
 	}
@@ -436,7 +436,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC yest setup\n",
 			__func__);
 	}
 
@@ -559,7 +559,7 @@ module_init(i3000_init);
 module_exit(i3000_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Akamai Technologies Arthur Ulfeldt/Jason Uhlenkott");
+MODULE_AUTHOR("Akamai Techyeslogies Arthur Ulfeldt/Jason Uhlenkott");
 MODULE_DESCRIPTION("MC support for Intel 3000 memory hub controllers");
 
 module_param(edac_op_state, int, 0444);

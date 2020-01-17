@@ -41,12 +41,12 @@ void irq_pm_install_action(struct irq_desc *desc, struct irqaction *action)
 		     desc->force_resume_depth != desc->nr_actions);
 
 	if (action->flags & IRQF_NO_SUSPEND)
-		desc->no_suspend_depth++;
+		desc->yes_suspend_depth++;
 	else if (action->flags & IRQF_COND_SUSPEND)
 		desc->cond_suspend_depth++;
 
-	WARN_ON_ONCE(desc->no_suspend_depth &&
-		     (desc->no_suspend_depth +
+	WARN_ON_ONCE(desc->yes_suspend_depth &&
+		     (desc->yes_suspend_depth +
 			desc->cond_suspend_depth) != desc->nr_actions);
 }
 
@@ -62,7 +62,7 @@ void irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action)
 		desc->force_resume_depth--;
 
 	if (action->flags & IRQF_NO_SUSPEND)
-		desc->no_suspend_depth--;
+		desc->yes_suspend_depth--;
 	else if (action->flags & IRQF_COND_SUSPEND)
 		desc->cond_suspend_depth--;
 }
@@ -70,7 +70,7 @@ void irq_pm_remove_action(struct irq_desc *desc, struct irqaction *action)
 static bool suspend_device_irq(struct irq_desc *desc)
 {
 	if (!desc->action || irq_desc_is_chained(desc) ||
-	    desc->no_suspend_depth)
+	    desc->yes_suspend_depth)
 		return false;
 
 	if (irqd_is_wakeup_set(&desc->irq_data)) {
@@ -88,8 +88,8 @@ static bool suspend_device_irq(struct irq_desc *desc)
 	__disable_irq(desc);
 
 	/*
-	 * Hardware which has no wakeup source configuration facility
-	 * requires that the non wakeup interrupts are masked at the
+	 * Hardware which has yes wakeup source configuration facility
+	 * requires that the yesn wakeup interrupts are masked at the
 	 * chip level. The chip implementation indicates that with
 	 * IRQCHIP_MASK_ON_SUSPEND.
 	 */
@@ -106,13 +106,13 @@ static bool suspend_device_irq(struct irq_desc *desc)
  * for this purpose.
  *
  * So we disable all interrupts and mark them IRQS_SUSPENDED except
- * for those which are unused, those which are marked as not
+ * for those which are unused, those which are marked as yest
  * suspendable via an interrupt request with the flag IRQF_NO_SUSPEND
  * set and those which are marked as active wakeup sources.
  *
  * The active wakeup sources are handled by the flow handler entry
  * code which checks for the IRQD_WAKEUP_ARMED flag, suspends the
- * interrupt and notifies the pm core about the wakeup.
+ * interrupt and yestifies the pm core about the wakeup.
  */
 void suspend_device_irqs(void)
 {
@@ -221,7 +221,7 @@ device_initcall(irq_pm_init_ops);
 /**
  * resume_device_irqs - enable interrupt lines disabled by suspend_device_irqs()
  *
- * Enable all non-%IRQF_EARLY_RESUME interrupt lines previously
+ * Enable all yesn-%IRQF_EARLY_RESUME interrupt lines previously
  * disabled by suspend_device_irqs() that have the IRQS_SUSPENDED flag
  * set as well as those with %IRQF_FORCE_RESUME.
  */

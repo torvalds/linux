@@ -17,7 +17,7 @@
 
 /*
  * This flag is used to indicate that the page pointed to by a pte is clean
- * and does not require cleaning before returning it to the user.
+ * and does yest require cleaning before returning it to the user.
  */
 #define PG_dcache_clean PG_arch_1
 
@@ -31,7 +31,7 @@
  *	start addresses should be rounded down, end addresses up.
  *
  *	See Documentation/core-api/cachetlb.rst for more information.
- *	Please note that the implementation of these, and the required
+ *	Please yeste that the implementation of these, and the required
  *	effects are cache-type (VIVT/VIPT/PIPT) specific.
  *
  *	flush_icache_all()
@@ -60,7 +60,7 @@
  *	coherent_kern_range(start, end)
  *
  *		Ensure coherency between the Icache and the Dcache in the
- *		region described by start, end.  If you have non-snooping
+ *		region described by start, end.  If you have yesn-syesoping
  *		Harvard caches, you need to implement this function.
  *		- start  - virtual start address
  *		- end    - virtual end address
@@ -68,7 +68,7 @@
  *	coherent_user_range(start, end)
  *
  *		Ensure coherency between the Icache and the Dcache in the
- *		region described by start, end.  If you have non-snooping
+ *		region described by start, end.  If you have yesn-syesoping
  *		Harvard caches, you need to implement this function.
  *		- start  - virtual start address
  *		- end    - virtual end address
@@ -117,7 +117,7 @@ extern void copy_to_user_page(struct vm_area_struct *, struct page *,
 static inline void __flush_icache_all(void)
 {
 	asm("movc	p0.c5, %0, #20;\n"
-	    "nop; nop; nop; nop; nop; nop; nop; nop\n"
+	    "yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp\n"
 	    :
 	    : "r" (0));
 }
@@ -181,7 +181,7 @@ extern void flush_dcache_page(struct page *);
 
 /*
  * flush_cache_vmap() is used when creating mappings (eg, via vmap,
- * vmalloc, ioremap etc) in kernel space for pages.  On non-VIPT
+ * vmalloc, ioremap etc) in kernel space for pages.  On yesn-VIPT
  * caches, since the direct-mappings of these pages may contain cached
  * data, we need to do a full cache flush to ensure that writebacks
  * don't corrupt data placed into these pages via the new mappings.

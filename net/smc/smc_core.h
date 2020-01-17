@@ -110,8 +110,8 @@ struct smc_link {
 	u32			peer_qpn;	/* QP number of peer */
 	enum ib_mtu		path_mtu;	/* used mtu */
 	enum ib_mtu		peer_mtu;	/* mtu size of peer */
-	u32			psn_initial;	/* QP tx initial packet seqno */
-	u32			peer_psn;	/* QP rx initial packet seqno */
+	u32			psn_initial;	/* QP tx initial packet seqyes */
+	u32			peer_psn;	/* QP rx initial packet seqyes */
 	u8			peer_mac[ETH_ALEN];	/* = gid[8:10||13:15] */
 	u8			peer_gid[SMC_GID_SIZE];	/* gid of peer*/
 	u8			link_id;	/* unique # within link group */
@@ -134,7 +134,7 @@ struct smc_link {
 	struct mutex		llc_delete_rkey_mutex; /* serialize usage */
 };
 
-/* For now we just allow one parallel link per link group. The SMC protocol
+/* For yesw we just allow one parallel link per link group. The SMC protocol
  * allows more (up to 8).
  */
 #define SMC_LINKS_PER_LGR_MAX	1
@@ -202,8 +202,8 @@ struct smc_link_group {
 
 	u8			id[SMC_LGR_ID_SIZE];	/* unique lgr id */
 	struct delayed_work	free_work;	/* delayed freeing of an lgr */
-	struct work_struct	terminate_work;	/* abnormal lgr termination */
-	u8			sync_err : 1;	/* lgr no longer fits to peer */
+	struct work_struct	terminate_work;	/* abyesrmal lgr termination */
+	u8			sync_err : 1;	/* lgr yes longer fits to peer */
 	u8			terminating : 1;/* lgr is terminating */
 	u8			freefast : 1;	/* free worker scheduled fast */
 	u8			freeing : 1;	/* lgr is being freed */
@@ -263,18 +263,18 @@ static inline struct smc_connection *smc_lgr_find_conn(
 	u32 token, struct smc_link_group *lgr)
 {
 	struct smc_connection *res = NULL;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
-	node = lgr->conns_all.rb_node;
-	while (node) {
-		struct smc_connection *cur = rb_entry(node,
-					struct smc_connection, alert_node);
+	yesde = lgr->conns_all.rb_yesde;
+	while (yesde) {
+		struct smc_connection *cur = rb_entry(yesde,
+					struct smc_connection, alert_yesde);
 
 		if (cur->alert_token_local > token) {
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		} else {
 			if (cur->alert_token_local < token) {
-				node = node->rb_right;
+				yesde = yesde->rb_right;
 			} else {
 				res = cur;
 				break;

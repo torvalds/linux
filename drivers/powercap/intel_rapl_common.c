@@ -63,14 +63,14 @@
 #define PP_POLICY_MASK         0x1F
 
 /* Non HW constants */
-#define RAPL_PRIMITIVE_DERIVED       BIT(1)	/* not from raw data */
+#define RAPL_PRIMITIVE_DERIVED       BIT(1)	/* yest from raw data */
 #define RAPL_PRIMITIVE_DUMMY         BIT(2)
 
 #define TIME_WINDOW_MAX_MSEC 40000
 #define TIME_WINDOW_MIN_MSEC 250
 #define ENERGY_UNIT_SCALE    1000	/* scale from driver unit to powercap unit */
 enum unit_type {
-	ARBITRARY_UNIT,		/* no translation */
+	ARBITRARY_UNIT,		/* yes translation */
 	POWER_UNIT,
 	ENERGY_UNIT,
 	TIME_UNIT,
@@ -106,7 +106,7 @@ static struct rapl_defaults *rapl_defaults;
 #define PACKAGE_PLN_INT_SAVED   BIT(0)
 #define MAX_PRIM_NAME (32)
 
-/* per domain data. used to describe individual knobs such that access function
+/* per domain data. used to describe individual kyesbs such that access function
  * can be consolidated into one instead of many inline functions.
  */
 struct rapl_primitive_info {
@@ -152,16 +152,16 @@ static int get_energy_counter(struct powercap_zone *power_zone,
 			      u64 *energy_raw)
 {
 	struct rapl_domain *rd;
-	u64 energy_now;
+	u64 energy_yesw;
 
-	/* prevent CPU hotplug, make sure the RAPL domain does not go
+	/* prevent CPU hotplug, make sure the RAPL domain does yest go
 	 * away while reading the counter.
 	 */
 	get_online_cpus();
 	rd = power_zone_to_rapl_domain(power_zone);
 
-	if (!rapl_read_data_raw(rd, ENERGY_COUNTER, true, &energy_now)) {
-		*energy_raw = energy_now;
+	if (!rapl_read_data_raw(rd, ENERGY_COUNTER, true, &energy_yesw)) {
+		*energy_raw = energy_yesw;
 		put_online_cpus();
 
 		return 0;
@@ -290,7 +290,7 @@ static const struct powercap_zone_ops zone_ops[] = {
 
 /*
  * Constraint index used by powercap can be different than power limit (PL)
- * index in that some  PLs maybe missing due to non-existent MSRs. So we
+ * index in that some  PLs maybe missing due to yesn-existent MSRs. So we
  * need to convert here by finding the valid PLs only (name populated).
  */
 static int contraint_to_pl(struct rapl_domain *rd, int cid)
@@ -303,7 +303,7 @@ static int contraint_to_pl(struct rapl_domain *rd, int cid)
 			return i;
 		}
 	}
-	pr_err("Cannot find matching power limit for constraint %d\n", cid);
+	pr_err("Canyest find matching power limit for constraint %d\n", cid);
 
 	return -EINVAL;
 }
@@ -616,7 +616,7 @@ static struct rapl_primitive_info rpi[] = {
 			    RAPL_DOMAIN_REG_PERF, TIME_UNIT, 0),
 	PRIMITIVE_INFO_INIT(PRIORITY_LEVEL, PP_POLICY_MASK, 0,
 			    RAPL_DOMAIN_REG_POLICY, ARBITRARY_UNIT, 0),
-	/* non-hardware */
+	/* yesn-hardware */
 	PRIMITIVE_INFO_INIT(AVERAGE_POWER, 0, 0, 0, POWER_UNIT,
 			    RAPL_PRIMITIVE_DERIVED),
 	{NULL, 0, 0, 0},
@@ -625,7 +625,7 @@ static struct rapl_primitive_info rpi[] = {
 /* Read primitive data based on its related struct rapl_primitive_info.
  * if xlate flag is set, return translated data based on data units, i.e.
  * time, energy, and power.
- * RAPL MSRs are non-architectual and are laid out not consistently across
+ * RAPL MSRs are yesn-architectual and are laid out yest consistently across
  * domains. Here we use primitive info to allow writing consolidated access
  * functions.
  * For a given primitive, it is processed by MSR mask and shift. Unit conversion
@@ -657,7 +657,7 @@ static int rapl_read_data_raw(struct rapl_domain *rd,
 		rp->mask = POWER_HIGH_LOCK;
 		rp->shift = 63;
 	}
-	/* non-hardware data are collected by the polling thread */
+	/* yesn-hardware data are collected by the polling thread */
 	if (rp->flag & RAPL_PRIMITIVE_DERIVED) {
 		*data = rd->rdd.primitives[prim];
 		return 0;
@@ -791,12 +791,12 @@ static void power_limit_irq_save_cpu(void *info)
 
 /* REVISIT:
  * When package power limit is set artificially low by RAPL, LVT
- * thermal interrupt for package power limit should be ignored
- * since we are not really exceeding the real limit. The intention
+ * thermal interrupt for package power limit should be igyesred
+ * since we are yest really exceeding the real limit. The intention
  * is to avoid excessive interrupts while we are trying to save power.
  * A useful feature might be routing the package_power_limit interrupt
  * to userspace via eventfd. once we have a usecase, this is simple
- * to do by adding an atomic notifier.
+ * to do by adding an atomic yestifier.
  */
 
 static void package_power_limit_irq_save(struct rapl_package *rp)
@@ -818,7 +818,7 @@ static void package_power_limit_irq_restore(struct rapl_package *rp)
 	if (!boot_cpu_has(X86_FEATURE_PTS) || !boot_cpu_has(X86_FEATURE_PLN))
 		return;
 
-	/* irq enable state not saved, nothing to restore */
+	/* irq enable state yest saved, yesthing to restore */
 	if (!(rp->power_limit_irq & PACKAGE_PLN_INT_SAVED))
 		return;
 
@@ -1006,7 +1006,7 @@ static void rapl_update_domain_data(struct rapl_package *rp)
 	for (dmn = 0; dmn < rp->nr_domains; dmn++) {
 		pr_debug("update %s domain %s data\n", rp->name,
 			 rp->domains[dmn].name);
-		/* exclude non-raw primitives */
+		/* exclude yesn-raw primitives */
 		for (prim = 0; prim < NR_RAW_PRIMITIVES; prim++) {
 			if (!rapl_read_data_raw(&rp->domains[dmn], prim,
 						rpi[prim].unit, &val))
@@ -1046,10 +1046,10 @@ static int rapl_package_register_powercap(struct rapl_package *rp)
 		}
 	}
 	if (!power_zone) {
-		pr_err("no package domain found, unknown topology!\n");
+		pr_err("yes package domain found, unkyeswn topology!\n");
 		return -ENODEV;
 	}
-	/* now register domains as children of the socket/package */
+	/* yesw register domains as children of the socket/package */
 	for (rd = rp->domains; rd < rp->domains + rp->nr_domains; rd++) {
 		if (rd->id == RAPL_DOMAIN_PACKAGE)
 			continue;
@@ -1157,13 +1157,13 @@ static int rapl_check_domain(int cpu, int domain, struct rapl_package *rp)
 		ra.reg = rp->priv->regs[domain][RAPL_DOMAIN_REG_STATUS];
 		break;
 	case RAPL_DOMAIN_PLATFORM:
-		/* PSYS(PLATFORM) is not a CPU domain, so avoid printng error */
+		/* PSYS(PLATFORM) is yest a CPU domain, so avoid printng error */
 		return -EINVAL;
 	default:
 		pr_err("invalid domain id %d\n", domain);
 		return -EINVAL;
 	}
-	/* make sure domain counters are available and contains non-zero
+	/* make sure domain counters are available and contains yesn-zero
 	 * values, otherwise skip it.
 	 */
 
@@ -1175,11 +1175,11 @@ static int rapl_check_domain(int cpu, int domain, struct rapl_package *rp)
 }
 
 /*
- * Check if power limits are available. Two cases when they are not available:
+ * Check if power limits are available. Two cases when they are yest available:
  * 1. Locked by BIOS, in this case we still provide read-only access so that
  *    users can see what limit is set by the BIOS.
- * 2. Some CPUs make some domains monitoring only which means PLx MSRs may not
- *    exist at all. In this case, we do not show the constraints in powercap.
+ * 2. Some CPUs make some domains monitoring only which means PLx MSRs may yest
+ *    exist at all. In this case, we do yest show the constraints in powercap.
  *
  * Called after domains are detected and initialized.
  */
@@ -1188,7 +1188,7 @@ static void rapl_detect_powerlimit(struct rapl_domain *rd)
 	u64 val64;
 	int i;
 
-	/* check if the domain is locked by BIOS, ignore if MSR doesn't exist */
+	/* check if the domain is locked by BIOS, igyesre if MSR doesn't exist */
 	if (!rapl_read_data_raw(rd, FW_LOCK, false, &val64)) {
 		if (val64) {
 			pr_info("RAPL %s domain %s locked by BIOS\n",
@@ -1222,7 +1222,7 @@ static int rapl_detect_domains(struct rapl_package *rp, int cpu)
 	}
 	rp->nr_domains = bitmap_weight(&rp->domain_map, RAPL_DOMAIN_MAX);
 	if (!rp->nr_domains) {
-		pr_debug("no valid rapl domains found in %s\n", rp->name);
+		pr_debug("yes valid rapl domains found in %s\n", rp->name);
 		return -ENODEV;
 	}
 	pr_debug("found %d domains on %s\n", rp->nr_domains, rp->name);
@@ -1240,7 +1240,7 @@ static int rapl_detect_domains(struct rapl_package *rp, int cpu)
 	return 0;
 }
 
-/* called from CPU hotplug notifier, hotplug lock held */
+/* called from CPU hotplug yestifier, hotplug lock held */
 void rapl_remove_package(struct rapl_package *rp)
 {
 	struct rapl_domain *rd, *rd_package = NULL;
@@ -1287,7 +1287,7 @@ struct rapl_package *rapl_find_package_domain(int cpu, struct rapl_if_priv *priv
 }
 EXPORT_SYMBOL_GPL(rapl_find_package_domain);
 
-/* called from CPU hotplug notifier, hotplug lock held */
+/* called from CPU hotplug yestifier, hotplug lock held */
 struct rapl_package *rapl_add_package(int cpu, struct rapl_if_priv *priv)
 {
 	int id = topology_logical_die_id(cpu);
@@ -1397,7 +1397,7 @@ static void power_limit_state_restore(void)
 	put_online_cpus();
 }
 
-static int rapl_pm_callback(struct notifier_block *nb,
+static int rapl_pm_callback(struct yestifier_block *nb,
 			    unsigned long mode, void *_unused)
 {
 	switch (mode) {
@@ -1411,8 +1411,8 @@ static int rapl_pm_callback(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block rapl_pm_notifier = {
-	.notifier_call = rapl_pm_callback,
+static struct yestifier_block rapl_pm_yestifier = {
+	.yestifier_call = rapl_pm_callback,
 };
 
 static struct platform_device *rapl_msr_platdev;
@@ -1424,7 +1424,7 @@ static int __init rapl_init(void)
 
 	id = x86_match_cpu(rapl_ids);
 	if (!id) {
-		pr_err("driver does not support CPU family %d model %d\n",
+		pr_err("driver does yest support CPU family %d model %d\n",
 		       boot_cpu_data.x86, boot_cpu_data.x86_model);
 
 		return -ENODEV;
@@ -1432,7 +1432,7 @@ static int __init rapl_init(void)
 
 	rapl_defaults = (struct rapl_defaults *)id->driver_data;
 
-	ret = register_pm_notifier(&rapl_pm_notifier);
+	ret = register_pm_yestifier(&rapl_pm_yestifier);
 	if (ret)
 		return ret;
 
@@ -1448,7 +1448,7 @@ static int __init rapl_init(void)
 
 end:
 	if (ret)
-		unregister_pm_notifier(&rapl_pm_notifier);
+		unregister_pm_yestifier(&rapl_pm_yestifier);
 
 	return ret;
 }
@@ -1456,7 +1456,7 @@ end:
 static void __exit rapl_exit(void)
 {
 	platform_device_unregister(rapl_msr_platdev);
-	unregister_pm_notifier(&rapl_pm_notifier);
+	unregister_pm_yestifier(&rapl_pm_yestifier);
 }
 
 fs_initcall(rapl_init);

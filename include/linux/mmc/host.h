@@ -83,10 +83,10 @@ struct mmc_host_ops {
 	/*
 	 * It is optional for the host to implement pre_req and post_req in
 	 * order to support double buffering of requests (prepare one
-	 * request while another request is active).
+	 * request while ayesther request is active).
 	 * pre_req() must always be followed by a post_req().
 	 * To undo a call made to pre_req(), call post_req() with
-	 * a nonzero err condition.
+	 * a yesnzero err condition.
 	 */
 	void	(*post_req)(struct mmc_host *host, struct mmc_request *req,
 			    int err);
@@ -96,7 +96,7 @@ struct mmc_host_ops {
 	/*
 	 * Avoid calling the next three functions too often or in a "fast
 	 * path", since underlaying controller might implement them in an
-	 * expensive and/or slow way. Also note that these functions might
+	 * expensive and/or slow way. Also yeste that these functions might
 	 * sleep, so don't call them in the atomic contexts!
 	 */
 
@@ -105,7 +105,7 @@ struct mmc_host_ops {
 	 * ios->clock might be 0. For some controllers, setting 0Hz
 	 * as any other frequency works. However, some controllers
 	 * explicitly need to disable the clock. Otherwise e.g. voltage
-	 * switching might fail because the SDCLK is not really quiet.
+	 * switching might fail because the SDCLK is yest really quiet.
 	 */
 	void	(*set_ios)(struct mmc_host *host, struct mmc_ios *ios);
 
@@ -113,8 +113,8 @@ struct mmc_host_ops {
 	 * Return values for the get_ro callback should be:
 	 *   0 for a read/write card
 	 *   1 for a read-only card
-	 *   -ENOSYS when not supported (equal to NULL callback)
-	 *   or a negative errno value when something bad happened
+	 *   -ENOSYS when yest supported (equal to NULL callback)
+	 *   or a negative erryes value when something bad happened
 	 */
 	int	(*get_ro)(struct mmc_host *host);
 
@@ -122,8 +122,8 @@ struct mmc_host_ops {
 	 * Return values for the get_cd callback should be:
 	 *   0 for a absent card
 	 *   1 for a present card
-	 *   -ENOSYS when not supported (equal to NULL callback)
-	 *   or a negative errno value when something bad happened
+	 *   -ENOSYS when yest supported (equal to NULL callback)
+	 *   or a negative erryes value when something bad happened
 	 */
 	int	(*get_cd)(struct mmc_host *host);
 
@@ -174,7 +174,7 @@ struct mmc_host_ops {
 struct mmc_cqe_ops {
 	/* Allocate resources, and make the CQE operational */
 	int	(*cqe_enable)(struct mmc_host *host, struct mmc_card *card);
-	/* Free resources, and make the CQE non-operational */
+	/* Free resources, and make the CQE yesn-operational */
 	void	(*cqe_disable)(struct mmc_host *host);
 	/*
 	 * Issue a read, write or DCMD request to the CQE. Also deal with the
@@ -184,8 +184,8 @@ struct mmc_cqe_ops {
 	/* Free resources (e.g. DMA mapping) associated with the request */
 	void	(*cqe_post_req)(struct mmc_host *host, struct mmc_request *mrq);
 	/*
-	 * Prepare the CQE and host controller to accept non-CQ commands. There
-	 * is no corresponding ->cqe_on(), instead ->cqe_request() is required
+	 * Prepare the CQE and host controller to accept yesn-CQ commands. There
+	 * is yes corresponding ->cqe_on(), instead ->cqe_request() is required
 	 * to deal with that.
 	 */
 	void	(*cqe_off)(struct mmc_host *host);
@@ -209,7 +209,7 @@ struct mmc_cqe_ops {
 	/*
 	 * Clear the queue and call mmc_cqe_request_done() on all requests.
 	 * Requests that errored will have the error set on the mmc_request
-	 * (data->error or cmd->error for DCMD).  Requests that did not error
+	 * (data->error or cmd->error for DCMD).  Requests that did yest error
 	 * will have zero data bytes transferred.
 	 */
 	void	(*cqe_recovery_finish)(struct mmc_host *host);
@@ -220,7 +220,7 @@ struct mmc_async_req {
 	struct mmc_request	*mrq;
 	/*
 	 * Check error status of completed mmc request.
-	 * Returns 0 if success otherwise non zero.
+	 * Returns 0 if success otherwise yesn zero.
 	 */
 	enum mmc_blk_status (*err_check)(struct mmc_card *, struct mmc_async_req *);
 };
@@ -282,7 +282,7 @@ struct mmc_host {
 	u32			ocr_avail_sd;	/* SD-specific OCR */
 	u32			ocr_avail_mmc;	/* MMC-specific OCR */
 #ifdef CONFIG_PM_SLEEP
-	struct notifier_block	pm_notify;
+	struct yestifier_block	pm_yestify;
 #endif
 	u32			max_current_330;
 	u32			max_current_300;
@@ -344,7 +344,7 @@ struct mmc_host {
 
 	u32			caps2;		/* More host capabilities */
 
-#define MMC_CAP2_BOOTPART_NOACC	(1 << 0)	/* Boot partition no access */
+#define MMC_CAP2_BOOTPART_NOACC	(1 << 0)	/* Boot partition yes access */
 #define MMC_CAP2_FULL_PWR_CYCLE	(1 << 2)	/* Can do full power cycle */
 #define MMC_CAP2_HS200_1_8V_SDR	(1 << 5)        /* can support */
 #define MMC_CAP2_HS200_1_2V_SDR	(1 << 6)        /* can support */
@@ -361,16 +361,16 @@ struct mmc_host {
 #define MMC_CAP2_HSX00_1_2V	(MMC_CAP2_HS200_1_2V_SDR | MMC_CAP2_HS400_1_2V)
 #define MMC_CAP2_SDIO_IRQ_NOTHREAD (1 << 17)
 #define MMC_CAP2_NO_WRITE_PROTECT (1 << 18)	/* No physical write protect pin, assume that card is always read-write */
-#define MMC_CAP2_NO_SDIO	(1 << 19)	/* Do not send SDIO commands during initialization */
+#define MMC_CAP2_NO_SDIO	(1 << 19)	/* Do yest send SDIO commands during initialization */
 #define MMC_CAP2_HS400_ES	(1 << 20)	/* Host supports enhanced strobe */
-#define MMC_CAP2_NO_SD		(1 << 21)	/* Do not send SD commands during initialization */
-#define MMC_CAP2_NO_MMC		(1 << 22)	/* Do not send (e)MMC commands during initialization */
+#define MMC_CAP2_NO_SD		(1 << 21)	/* Do yest send SD commands during initialization */
+#define MMC_CAP2_NO_MMC		(1 << 22)	/* Do yest send (e)MMC commands during initialization */
 #define MMC_CAP2_CQE		(1 << 23)	/* Has eMMC command queue engine */
 #define MMC_CAP2_CQE_DCMD	(1 << 24)	/* CQE can issue a direct command */
 #define MMC_CAP2_AVOID_3_3V	(1 << 25)	/* Host must negotiate down from 3.3V */
 #define MMC_CAP2_MERGE_CAPABLE	(1 << 26)	/* Host can merge a segment over the segment size */
 
-	int			fixed_drv_type;	/* fixed driver type for non-removable media */
+	int			fixed_drv_type;	/* fixed driver type for yesn-removable media */
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
@@ -394,14 +394,14 @@ struct mmc_host {
 	unsigned int		bus_dead:1;	/* bus has been released */
 	unsigned int		can_retune:1;	/* re-tuning can be used */
 	unsigned int		doing_retune:1;	/* re-tuning in progress */
-	unsigned int		retune_now:1;	/* do re-tuning at next req */
+	unsigned int		retune_yesw:1;	/* do re-tuning at next req */
 	unsigned int		retune_paused:1; /* re-tuning is temporarily disabled */
 	unsigned int		use_blk_mq:1;	/* use blk-mq */
 	unsigned int		retune_crc_disable:1; /* don't trigger retune upon crc */
 	unsigned int		can_dma_map_merge:1; /* merging can be used */
 
 	int			rescan_disable;	/* disable card detection */
-	int			rescan_entered;	/* used with nonremovable devices */
+	int			rescan_entered;	/* used with yesnremovable devices */
 
 	int			need_retune;	/* re-tuning is needed */
 	int			hold_retune;	/* hold off re-tuning */
@@ -450,7 +450,7 @@ struct mmc_host {
 
 	unsigned int		actual_clock;	/* Actual HC clock rate */
 
-	unsigned int		slotno;	/* used for sdio acpi binding */
+	unsigned int		slotyes;	/* used for sdio acpi binding */
 
 	int			dsr_req;	/* DSR value is valid */
 	u32			dsr;	/* optional driver stage (DSR) value */
@@ -465,14 +465,14 @@ struct mmc_host {
 	unsigned long		private[0] ____cacheline_aligned;
 };
 
-struct device_node;
+struct device_yesde;
 
 struct mmc_host *mmc_alloc_host(int extra, struct device *);
 int mmc_add_host(struct mmc_host *);
 void mmc_remove_host(struct mmc_host *);
 void mmc_free_host(struct mmc_host *);
 int mmc_of_parse(struct mmc_host *host);
-int mmc_of_parse_voltage(struct device_node *np, u32 *mask);
+int mmc_of_parse_voltage(struct device_yesde *np, u32 *mask);
 
 static inline void *mmc_priv(struct mmc_host *host)
 {
@@ -498,7 +498,7 @@ void mmc_cqe_request_done(struct mmc_host *host, struct mmc_request *mrq);
 
 /*
  * May be called from host driver's system/runtime suspend/resume callbacks,
- * to know if SDIO IRQs has been claimed.
+ * to kyesw if SDIO IRQs has been claimed.
  */
 static inline bool sdio_irq_claimed(struct mmc_host *host)
 {

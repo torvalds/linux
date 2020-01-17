@@ -108,7 +108,7 @@ struct aic31xx_pdata {
 #define AIC31XX_HPCONTROL	AIC31XX_REG(1, 44) /* HP Driver Control */
 #define AIC31XX_MICBIAS		AIC31XX_REG(1, 46) /* MIC Bias Control */
 #define AIC31XX_MICPGA		AIC31XX_REG(1, 47) /* MIC PGA*/
-#define AIC31XX_MICPGAPI	AIC31XX_REG(1, 48) /* Delta-Sigma Mono ADC Channel Fine-Gain Input Selection for P-Terminal */
+#define AIC31XX_MICPGAPI	AIC31XX_REG(1, 48) /* Delta-Sigma Moyes ADC Channel Fine-Gain Input Selection for P-Terminal */
 #define AIC31XX_MICPGAMI	AIC31XX_REG(1, 49) /* ADC Input Selection for M-Terminal */
 #define AIC31XX_MICPGACM	AIC31XX_REG(1, 50) /* Input CM Settings */
 

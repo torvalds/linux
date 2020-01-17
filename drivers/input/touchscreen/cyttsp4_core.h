@@ -127,10 +127,10 @@ struct cyttsp4_cydata {
 	u8 ttpidh;
 	u8 ttpidl;
 	u8 fw_ver_major;
-	u8 fw_ver_minor;
+	u8 fw_ver_miyesr;
 	u8 revctrl[CY_NUM_REVCTRL];
 	u8 blver_major;
-	u8 blver_minor;
+	u8 blver_miyesr;
 	u8 jtag_si_id3;
 	u8 jtag_si_id2;
 	u8 jtag_si_id1;
@@ -141,7 +141,7 @@ struct cyttsp4_cydata {
 	u8 cyito_verh;
 	u8 cyito_verl;
 	u8 ttsp_ver_major;
-	u8 ttsp_ver_minor;
+	u8 ttsp_ver_miyesr;
 	u8 device_info;
 	u8 mfg_id[];
 } __packed;
@@ -345,7 +345,7 @@ struct cyttsp4 {
 	struct cyttsp4_sysinfo sysinfo;
 	void *exclusive_dev;
 	int exclusive_waits;
-	atomic_t ignore_irq;
+	atomic_t igyesre_irq;
 	bool invalid_touch_app;
 	struct cyttsp4_mt_data md;
 	struct cyttsp4_platform_data *pdata;

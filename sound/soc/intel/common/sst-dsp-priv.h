@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Intel Smart Sound Technology
+ * Intel Smart Sound Techyeslogy
  *
  * Copyright (C) 2013, Intel Corporation. All rights reserved.
  */
@@ -242,7 +242,7 @@ struct sst_mem_block {
 
 	/* block status */
 	u32 bytes_used;			/* bytes in use by modules */
-	void *private;			/* generic core does not touch this */
+	void *private;			/* generic core does yest touch this */
 	int users;			/* number of modules using this block */
 
 	/* block lists */

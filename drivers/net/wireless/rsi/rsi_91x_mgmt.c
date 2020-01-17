@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -268,7 +268,7 @@ static u16 mcs[] = {13, 26, 39, 52, 78, 104, 117, 130};
  * rsi_set_default_parameters() - This function sets default parameters.
  * @common: Pointer to the driver private structure.
  *
- * Return: none
+ * Return: yesne
  */
 static void rsi_set_default_parameters(struct rsi_common *common)
 {
@@ -281,7 +281,7 @@ static void rsi_set_default_parameters(struct rsi_common *common)
 	common->iface_down = true;
 	common->endpoint = EP_2GHZ_20MHZ;
 	common->driver_mode = 1; /* End to end mode */
-	common->lp_ps_handshake_mode = 0; /* Default no handShake mode*/
+	common->lp_ps_handshake_mode = 0; /* Default yes handShake mode*/
 	common->ulp_ps_handshake_mode = 2; /* Default PKT handShake mode*/
 	common->rf_power_val = 0; /* Default 1.9V */
 	common->wlan_rf_power_mode = 0;
@@ -351,7 +351,7 @@ static int rsi_send_internal_mgmt_frame(struct rsi_common *common,
 		return -ENOMEM;
 	}
 	desc = (struct rsi_cmd_desc *)skb->data;
-	desc->desc_dword0.len_qno |= cpu_to_le16(DESC_IMMEDIATE_WAKEUP);
+	desc->desc_dword0.len_qyes |= cpu_to_le16(DESC_IMMEDIATE_WAKEUP);
 	skb->priority = MGMT_SOFT_Q;
 	tx_params = (struct skb_info *)&IEEE80211_SKB_CB(skb)->driver_data;
 	tx_params->flags |= INTERNAL_MGMT_PKT;
@@ -464,7 +464,7 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 		radio_caps->gcpd_per_rate[inx++] =
 			cpu_to_le16(common->rate_pwr[ii]  & 0x00FF);
 
-	rsi_set_len_qno(&radio_caps->desc_dword0.len_qno,
+	rsi_set_len_qyes(&radio_caps->desc_dword0.len_qyes,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 
 	skb_put(skb, frame_len);
@@ -520,29 +520,29 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
 }
 
 /**
- * rsi_hal_send_sta_notify_frame() - This function sends the station notify
+ * rsi_hal_send_sta_yestify_frame() - This function sends the station yestify
  *				     frame to firmware.
  * @common: Pointer to the driver private structure.
  * @opmode: Operating mode of device.
- * @notify_event: Notification about station connection.
+ * @yestify_event: Notification about station connection.
  * @bssid: bssid.
  * @qos_enable: Qos is enabled.
  * @aid: Aid (unique for all STA).
  *
  * Return: status: 0 on success, corresponding negative error code on failure.
  */
-int rsi_hal_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
-				  u8 notify_event, const unsigned char *bssid,
+int rsi_hal_send_sta_yestify_frame(struct rsi_common *common, enum opmode opmode,
+				  u8 yestify_event, const unsigned char *bssid,
 				  u8 qos_enable, u16 aid, u16 sta_id,
 				  struct ieee80211_vif *vif)
 {
 	struct sk_buff *skb = NULL;
-	struct rsi_peer_notify *peer_notify;
+	struct rsi_peer_yestify *peer_yestify;
 	u16 vap_id = ((struct vif_priv *)vif->drv_priv)->vap_id;
 	int status;
-	u16 frame_len = sizeof(struct rsi_peer_notify);
+	u16 frame_len = sizeof(struct rsi_peer_yestify);
 
-	rsi_dbg(MGMT_TX_ZONE, "%s: Sending sta notify frame\n", __func__);
+	rsi_dbg(MGMT_TX_ZONE, "%s: Sending sta yestify frame\n", __func__);
 
 	skb = dev_alloc_skb(frame_len);
 
@@ -553,35 +553,35 @@ int rsi_hal_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
 	}
 
 	memset(skb->data, 0, frame_len);
-	peer_notify = (struct rsi_peer_notify *)skb->data;
+	peer_yestify = (struct rsi_peer_yestify *)skb->data;
 
 	if (opmode == RSI_OPMODE_STA)
-		peer_notify->command = cpu_to_le16(PEER_TYPE_AP << 1);
+		peer_yestify->command = cpu_to_le16(PEER_TYPE_AP << 1);
 	else if (opmode == RSI_OPMODE_AP)
-		peer_notify->command = cpu_to_le16(PEER_TYPE_STA << 1);
+		peer_yestify->command = cpu_to_le16(PEER_TYPE_STA << 1);
 
-	switch (notify_event) {
+	switch (yestify_event) {
 	case STA_CONNECTED:
-		peer_notify->command |= cpu_to_le16(RSI_ADD_PEER);
+		peer_yestify->command |= cpu_to_le16(RSI_ADD_PEER);
 		break;
 	case STA_DISCONNECTED:
-		peer_notify->command |= cpu_to_le16(RSI_DELETE_PEER);
+		peer_yestify->command |= cpu_to_le16(RSI_DELETE_PEER);
 		break;
 	default:
 		break;
 	}
 
-	peer_notify->command |= cpu_to_le16((aid & 0xfff) << 4);
-	ether_addr_copy(peer_notify->mac_addr, bssid);
-	peer_notify->mpdu_density = cpu_to_le16(RSI_MPDU_DENSITY);
-	peer_notify->sta_flags = cpu_to_le32((qos_enable) ? 1 : 0);
+	peer_yestify->command |= cpu_to_le16((aid & 0xfff) << 4);
+	ether_addr_copy(peer_yestify->mac_addr, bssid);
+	peer_yestify->mpdu_density = cpu_to_le16(RSI_MPDU_DENSITY);
+	peer_yestify->sta_flags = cpu_to_le32((qos_enable) ? 1 : 0);
 
-	rsi_set_len_qno(&peer_notify->desc.desc_dword0.len_qno,
+	rsi_set_len_qyes(&peer_yestify->desc.desc_dword0.len_qyes,
 			(frame_len - FRAME_DESC_SZ),
 			RSI_WIFI_MGMT_Q);
-	peer_notify->desc.desc_dword0.frame_type = PEER_NOTIFY;
-	peer_notify->desc.desc_dword3.qid_tid = sta_id;
-	peer_notify->desc.desc_dword3.sta_id = vap_id;
+	peer_yestify->desc.desc_dword0.frame_type = PEER_NOTIFY;
+	peer_yestify->desc.desc_dword3.qid_tid = sta_id;
+	peer_yestify->desc.desc_dword3.sta_id = vap_id;
 
 	skb_put(skb, frame_len);
 
@@ -602,7 +602,7 @@ int rsi_hal_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
  * @tid: traffic identifier.
  * @ssn: ssn.
  * @buf_size: buffer size.
- * @event: notification about station connection.
+ * @event: yestification about station connection.
  *
  * Return: 0 on success, corresponding negative error code on failure.
  */
@@ -630,7 +630,7 @@ int rsi_send_aggregation_params_frame(struct rsi_common *common,
 
 	rsi_dbg(MGMT_TX_ZONE, "%s: Sending AMPDU indication frame\n", __func__);
 
-	rsi_set_len_qno(&aggr_params->desc_dword0.len_qno, 0, RSI_WIFI_MGMT_Q);
+	rsi_set_len_qyes(&aggr_params->desc_dword0.len_qyes, 0, RSI_WIFI_MGMT_Q);
 	aggr_params->desc_dword0.frame_type = AMPDU_IND;
 
 	aggr_params->aggr_params = tid & RSI_AGGR_PARAMS_TID_MASK;
@@ -677,7 +677,7 @@ static int rsi_program_bb_rf(struct rsi_common *common)
 	memset(skb->data, 0, frame_len);
 	bb_rf_prog = (struct rsi_bb_rf_prog *)skb->data;
 
-	rsi_set_len_qno(&bb_rf_prog->desc_dword0.len_qno, 0, RSI_WIFI_MGMT_Q);
+	rsi_set_len_qyes(&bb_rf_prog->desc_dword0.len_qyes, 0, RSI_WIFI_MGMT_Q);
 	bb_rf_prog->desc_dword0.frame_type = BBP_PROG_IN_TA;
 	bb_rf_prog->endpoint = common->endpoint;
 	bb_rf_prog->rf_power_mode = common->wlan_rf_power_mode;
@@ -728,7 +728,7 @@ int rsi_set_vap_capabilities(struct rsi_common *common,
 	memset(skb->data, 0, frame_len);
 	vap_caps = (struct rsi_vap_caps *)skb->data;
 
-	rsi_set_len_qno(&vap_caps->desc_dword0.len_qno,
+	rsi_set_len_qyes(&vap_caps->desc_dword0.len_qyes,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 	vap_caps->desc_dword0.frame_type = VAP_CAPABILITIES;
 	vap_caps->status = vap_status;
@@ -828,7 +828,7 @@ int rsi_hal_load_key(struct rsi_common *common,
 	key_descriptor |= RSI_PROTECT_DATA_FRAMES;
 	key_descriptor |= (key_id << RSI_KEY_ID_OFFSET);
 
-	rsi_set_len_qno(&set_key->desc_dword0.len_qno,
+	rsi_set_len_qyes(&set_key->desc_dword0.len_qyes,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 	set_key->desc_dword0.frame_type = SET_KEY_REQ;
 	set_key->key_desc = cpu_to_le16(key_descriptor);
@@ -877,7 +877,7 @@ static int rsi_send_common_dev_params(struct rsi_common *common)
 	dev_cfgs = (struct rsi_config_vals *)skb->data;
 	memset(dev_cfgs, 0, (sizeof(struct rsi_config_vals)));
 
-	rsi_set_len_qno(&dev_cfgs->len_qno, (frame_len - FRAME_DESC_SZ),
+	rsi_set_len_qyes(&dev_cfgs->len_qyes, (frame_len - FRAME_DESC_SZ),
 			RSI_COEX_Q);
 	dev_cfgs->pkt_type = COMMON_DEV_CONFIG;
 
@@ -996,7 +996,7 @@ static int rsi_load_9116_bootup_params(struct rsi_common *common)
 				UMAC_CLK_40MHZ);
 		}
 	}
-	rsi_set_len_qno(&boot_params->desc_dword0.len_qno,
+	rsi_set_len_qyes(&boot_params->desc_dword0.len_qyes,
 			sizeof(struct bootup_params_9116), RSI_WIFI_MGMT_Q);
 	boot_params->desc_dword0.frame_type = BOOTUP_PARAMS_REQUEST;
 	skb_put(skb, sizeof(struct rsi_boot_params_9116));
@@ -1133,7 +1133,7 @@ int rsi_set_channel(struct rsi_common *common,
 	memset(skb->data, 0, frame_len);
 	chan_cfg = (struct rsi_chan_config *)skb->data;
 
-	rsi_set_len_qno(&chan_cfg->desc_dword0.len_qno, 0, RSI_WIFI_MGMT_Q);
+	rsi_set_len_qyes(&chan_cfg->desc_dword0.len_qyes, 0, RSI_WIFI_MGMT_Q);
 	chan_cfg->desc_dword0.frame_type = SCAN_REQUEST;
 	chan_cfg->channel_number = channel->hw_value;
 	chan_cfg->antenna_gain_offset_2g = channel->max_antenna_gain;
@@ -1213,7 +1213,7 @@ int rsi_send_vap_dynamic_update(struct rsi_common *common)
 
 	memset(skb->data, 0, sizeof(struct rsi_dynamic_s));
 	dynamic_frame = (struct rsi_dynamic_s *)skb->data;
-	rsi_set_len_qno(&dynamic_frame->desc_dword0.len_qno,
+	rsi_set_len_qyes(&dynamic_frame->desc_dword0.len_qyes,
 			sizeof(dynamic_frame->frame_body), RSI_WIFI_MGMT_Q);
 
 	dynamic_frame->desc_dword0.frame_type = VAP_DYNAMIC_UPDATE;
@@ -1425,7 +1425,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 	auto_rate->moderate_rate_inx = cpu_to_le16(num_supported_rates / 2);
 	num_supported_rates *= 2;
 
-	rsi_set_len_qno(&auto_rate->desc.desc_dword0.len_qno,
+	rsi_set_len_qyes(&auto_rate->desc.desc_dword0.len_qyes,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 
 	skb_put(skb, frame_len);
@@ -1436,7 +1436,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 
 /**
  * rsi_inform_bss_status() - This function informs about bss status with the
- *			     help of sta notify params by sending an internal
+ *			     help of sta yestify params by sending an internal
  *			     management frame to firmware.
  * @common: Pointer to the driver private structure.
  * @status: Bss status type.
@@ -1460,7 +1460,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 	if (status) {
 		if (opmode == RSI_OPMODE_STA)
 			common->hw_data_qs_blocked = true;
-		rsi_hal_send_sta_notify_frame(common,
+		rsi_hal_send_sta_yestify_frame(common,
 					      opmode,
 					      STA_CONNECTED,
 					      addr,
@@ -1478,7 +1478,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 			common->hw_data_qs_blocked = true;
 
 		if (!(common->wow_flags & RSI_WOW_ENABLED))
-			rsi_hal_send_sta_notify_frame(common, opmode,
+			rsi_hal_send_sta_yestify_frame(common, opmode,
 						      STA_DISCONNECTED, addr,
 						      qos_enable, aid, sta_id,
 						      vif);
@@ -1513,7 +1513,7 @@ static int rsi_eeprom_read(struct rsi_common *common)
 	mgmt_frame = (struct rsi_eeprom_read_frame *)skb->data;
 
 	/* FrameType */
-	rsi_set_len_qno(&mgmt_frame->len_qno, 0, RSI_WIFI_MGMT_Q);
+	rsi_set_len_qyes(&mgmt_frame->len_qyes, 0, RSI_WIFI_MGMT_Q);
 	mgmt_frame->pkt_type = EEPROM_READ;
 
 	/* Number of bytes to read */
@@ -1556,7 +1556,7 @@ int rsi_send_block_unblock_frame(struct rsi_common *common, bool block_event)
 	memset(skb->data, 0, FRAME_DESC_SZ);
 	mgmt_frame = (struct rsi_block_unblock_data *)skb->data;
 
-	rsi_set_len_qno(&mgmt_frame->desc_dword0.len_qno, 0, RSI_WIFI_MGMT_Q);
+	rsi_set_len_qyes(&mgmt_frame->desc_dword0.len_qyes, 0, RSI_WIFI_MGMT_Q);
 	mgmt_frame->desc_dword0.frame_type = BLOCK_HW_QUEUE;
 	mgmt_frame->host_quiet_info = QUIET_INFO_VALID;
 
@@ -1627,7 +1627,7 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 	ps = (struct rsi_request_ps *)skb->data;
 	ps_info = &adapter->ps_info;
 
-	rsi_set_len_qno(&ps->desc.desc_dword0.len_qno,
+	rsi_set_len_qyes(&ps->desc.desc_dword0.len_qyes,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 	ps->desc.desc_dword0.frame_type = WAKEUP_SLEEP_REQUEST;
 	if (enable) {
@@ -1635,7 +1635,7 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 		ps->desc.desc_dword3.token = cpu_to_le16(RSI_SLEEP_REQUEST);
 	} else {
 		ps->ps_sleep.enable = RSI_PS_DISABLE;
-		ps->desc.desc_dword0.len_qno |= cpu_to_le16(RSI_PS_DISABLE_IND);
+		ps->desc.desc_dword0.len_qyes |= cpu_to_le16(RSI_PS_DISABLE_IND);
 		ps->desc.desc_dword3.token = cpu_to_le16(RSI_WAKEUP_REQUEST);
 	}
 
@@ -1698,7 +1698,7 @@ static int rsi_send_w9116_features(struct rsi_common *common)
 	w9116_features->feature_enable |=
 		cpu_to_le32((common->w9116_features.ps_options & ~0x3) << 2);
 
-	rsi_set_len_qno(&w9116_features->desc.desc_dword0.len_qno,
+	rsi_set_len_qyes(&w9116_features->desc.desc_dword0.len_qyes,
 			frame_len - FRAME_DESC_SZ, RSI_WIFI_MGMT_Q);
 	w9116_features->desc.desc_dword0.frame_type = FEATURES_ENABLE;
 	skb_put(skb, frame_len);
@@ -1733,7 +1733,7 @@ int rsi_set_antenna(struct rsi_common *common, u8 antenna)
 	ant_sel_frame->desc_dword0.frame_type = ANT_SEL_FRAME;
 	ant_sel_frame->sub_frame_type = ANTENNA_SEL_TYPE;
 	ant_sel_frame->ant_value = cpu_to_le16(antenna & ANTENNA_MASK_VALUE);
-	rsi_set_len_qno(&ant_sel_frame->desc_dword0.len_qno,
+	rsi_set_len_qyes(&ant_sel_frame->desc_dword0.len_qyes,
 			0, RSI_WIFI_MGMT_Q);
 	skb_put(skb, FRAME_DESC_SZ);
 
@@ -1783,7 +1783,7 @@ int rsi_send_wowlan_request(struct rsi_common *common, u16 flags,
 	memset(skb->data, 0, length);
 	cmd_frame = (struct rsi_wowlan_req *)skb->data;
 
-	rsi_set_len_qno(&cmd_frame->desc.desc_dword0.len_qno,
+	rsi_set_len_qyes(&cmd_frame->desc.desc_dword0.len_qyes,
 			(length - FRAME_DESC_SZ),
 			RSI_WIFI_MGMT_Q);
 	cmd_frame->desc.desc_dword0.frame_type = WOWLAN_CONFIG_PARAMS;
@@ -1819,7 +1819,7 @@ int rsi_send_bgscan_params(struct rsi_common *common, int enable)
 	memset(skb->data, 0, frame_len);
 
 	bgscan = (struct rsi_bgscan_config *)skb->data;
-	rsi_set_len_qno(&bgscan->desc_dword0.len_qno,
+	rsi_set_len_qyes(&bgscan->desc_dword0.len_qyes,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
 	bgscan->desc_dword0.frame_type = BG_SCAN_PARAMS;
 	bgscan->bgscan_threshold = cpu_to_le16(params->bgscan_threshold);
@@ -1896,7 +1896,7 @@ int rsi_send_bgscan_probe_req(struct rsi_common *common,
 
 	bgscan->probe_req_length = cpu_to_le16(probereq_skb->len);
 
-	rsi_set_len_qno(&bgscan->desc_dword0.len_qno,
+	rsi_set_len_qyes(&bgscan->desc_dword0.len_qyes,
 			(frame_len - FRAME_DESC_SZ + probereq_skb->len),
 			RSI_WIFI_MGMT_Q);
 

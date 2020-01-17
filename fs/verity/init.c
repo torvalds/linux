@@ -9,7 +9,7 @@
 
 #include <linux/ratelimit.h>
 
-void fsverity_msg(const struct inode *inode, const char *level,
+void fsverity_msg(const struct iyesde *iyesde, const char *level,
 		  const char *fmt, ...)
 {
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
@@ -23,9 +23,9 @@ void fsverity_msg(const struct inode *inode, const char *level,
 	va_start(args, fmt);
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	if (inode)
-		printk("%sfs-verity (%s, inode %lu): %pV\n",
-		       level, inode->i_sb->s_id, inode->i_ino, &vaf);
+	if (iyesde)
+		printk("%sfs-verity (%s, iyesde %lu): %pV\n",
+		       level, iyesde->i_sb->s_id, iyesde->i_iyes, &vaf);
 	else
 		printk("%sfs-verity: %pV\n", level, &vaf);
 	va_end(args);

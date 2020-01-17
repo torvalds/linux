@@ -109,7 +109,7 @@ static int send_cb(struct cardstate *cs)
 
 	cb = cs->cmdbuf;
 	if (!cb)
-		return 0;	/* nothing to do */
+		return 0;	/* yesthing to do */
 
 	if (cb->len) {
 		set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
@@ -161,26 +161,26 @@ static void gigaset_modem_fill(unsigned long data)
 	int sent = 0;
 
 	if (!cs) {
-		gig_dbg(DEBUG_OUTPUT, "%s: no cardstate", __func__);
+		gig_dbg(DEBUG_OUTPUT, "%s: yes cardstate", __func__);
 		return;
 	}
 	bcs = cs->bcs;
 	if (!bcs) {
-		gig_dbg(DEBUG_OUTPUT, "%s: no cardstate", __func__);
+		gig_dbg(DEBUG_OUTPUT, "%s: yes cardstate", __func__);
 		return;
 	}
 	if (!bcs->tx_skb) {
-		/* no skb is being sent; send command if any */
+		/* yes skb is being sent; send command if any */
 		sent = send_cb(cs);
 		gig_dbg(DEBUG_OUTPUT, "%s: send_cb -> %d", __func__, sent);
 		if (sent)
 			/* something sent or error */
 			return;
 
-		/* no command to send; get skb */
+		/* yes command to send; get skb */
 		nextskb = skb_dequeue(&bcs->squeue);
 		if (!nextskb)
-			/* no skb either, nothing to do */
+			/* yes skb either, yesthing to do */
 			return;
 		bcs->tx_skb = nextskb;
 
@@ -301,7 +301,7 @@ static int gigaset_chars_in_buffer(struct cardstate *cs)
  */
 static int gigaset_brkchars(struct cardstate *cs, const unsigned char buf[6])
 {
-	/* not implemented */
+	/* yest implemented */
 	return -EINVAL;
 }
 
@@ -311,7 +311,7 @@ static int gigaset_brkchars(struct cardstate *cs, const unsigned char buf[6])
  */
 static int gigaset_init_bchannel(struct bc_state *bcs)
 {
-	/* nothing to do for M10x */
+	/* yesthing to do for M10x */
 	gigaset_bchannel_up(bcs);
 	return 0;
 }
@@ -322,7 +322,7 @@ static int gigaset_init_bchannel(struct bc_state *bcs)
  */
 static int gigaset_close_bchannel(struct bc_state *bcs)
 {
-	/* nothing to do for M10x */
+	/* yesthing to do for M10x */
 	gigaset_bchannel_down(bcs);
 	return 0;
 }
@@ -353,7 +353,7 @@ static void gigaset_freebcshw(struct bc_state *bcs)
  */
 static void gigaset_reinitbcshw(struct bc_state *bcs)
 {
-	/* nothing to do for M10x */
+	/* yesthing to do for M10x */
 }
 
 /*
@@ -390,7 +390,7 @@ static int gigaset_initcshw(struct cardstate *cs)
 	cs->hw.ser = scs;
 
 	cs->hw.ser->dev.name = GIGASET_MODULENAME;
-	cs->hw.ser->dev.id = cs->minor_index;
+	cs->hw.ser->dev.id = cs->miyesr_index;
 	cs->hw.ser->dev.dev.release = gigaset_device_release;
 	rc = platform_device_register(&cs->hw.ser->dev);
 	if (rc != 0) {
@@ -470,7 +470,7 @@ static struct cardstate *cs_get(struct tty_struct *tty)
 	struct cardstate *cs = tty->disc_data;
 
 	if (!cs || !cs->hw.ser) {
-		gig_dbg(DEBUG_ANY, "%s: no cardstate", __func__);
+		gig_dbg(DEBUG_ANY, "%s: yes cardstate", __func__);
 		return NULL;
 	}
 	atomic_inc(&cs->hw.ser->refcnt);
@@ -498,7 +498,7 @@ gigaset_tty_open(struct tty_struct *tty)
 	pr_info(DRIVER_DESC "\n");
 
 	if (!driver) {
-		pr_err("%s: no driver structure\n", __func__);
+		pr_err("%s: yes driver structure\n", __func__);
 		return -ENODEV;
 	}
 
@@ -526,7 +526,7 @@ gigaset_tty_open(struct tty_struct *tty)
 	tty->receive_room = RBUFSIZE/2;
 
 	/* OK.. Initialization of the datastructures and the HW is done.. Now
-	 * startup system and notify the LL that we are ready to run
+	 * startup system and yestify the LL that we are ready to run
 	 */
 	if (startmode == SM_LOCKED)
 		cs->mstate = MS_LOCKED;
@@ -558,7 +558,7 @@ gigaset_tty_close(struct tty_struct *tty)
 	gig_dbg(DEBUG_INIT, "Stopping HLL for Gigaset M101");
 
 	if (!cs) {
-		gig_dbg(DEBUG_INIT, "%s: no cardstate", __func__);
+		gig_dbg(DEBUG_INIT, "%s: yes cardstate", __func__);
 		return;
 	}
 
@@ -566,7 +566,7 @@ gigaset_tty_close(struct tty_struct *tty)
 	tty->disc_data = NULL;
 
 	if (!cs->hw.ser)
-		pr_err("%s: no hw cardstate\n", __func__);
+		pr_err("%s: yes hw cardstate\n", __func__);
 	else {
 		/* wait for running methods to finish */
 		if (!atomic_dec_and_test(&cs->hw.ser->refcnt))
@@ -623,7 +623,7 @@ gigaset_tty_ioctl(struct tty_struct *tty, struct file *file,
 		/* flush our buffers and the serial port's buffer */
 		switch (arg) {
 		case TCIFLUSH:
-			/* no own input buffer to flush */
+			/* yes own input buffer to flush */
 			break;
 		case TCIOFLUSH:
 		case TCOFLUSH:
@@ -643,14 +643,14 @@ gigaset_tty_ioctl(struct tty_struct *tty, struct file *file,
 
 /*
  * Called by the tty driver when a block of data has been received.
- * Will not be re-entered while running but other ldisc functions
+ * Will yest be re-entered while running but other ldisc functions
  * may be called in parallel.
  * Can be called from hard interrupt level as well as soft interrupt
  * level or mainline.
  * Parameters:
  *	tty	tty structure
  *	buf	buffer containing received characters
- *	cflags	buffer containing error flags for received characters (ignored)
+ *	cflags	buffer containing error flags for received characters (igyesred)
  *	count	number of received characters
  */
 static void
@@ -665,7 +665,7 @@ gigaset_tty_receive(struct tty_struct *tty, const unsigned char *buf,
 		return;
 	inbuf = cs->inbuf;
 	if (!inbuf) {
-		dev_err(cs->dev, "%s: no inbuf\n", __func__);
+		dev_err(cs->dev, "%s: yes inbuf\n", __func__);
 		cs_put(cs);
 		return;
 	}

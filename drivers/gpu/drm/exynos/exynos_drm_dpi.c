@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Exynos DRM Parallel output support.
+ * Exyyess DRM Parallel output support.
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd
  *
@@ -18,12 +18,12 @@
 #include <video/of_videomode.h>
 #include <video/videomode.h>
 
-#include "exynos_drm_crtc.h"
+#include "exyyess_drm_crtc.h"
 
-struct exynos_dpi {
+struct exyyess_dpi {
 	struct drm_encoder encoder;
 	struct device *dev;
-	struct device_node *panel_node;
+	struct device_yesde *panel_yesde;
 
 	struct drm_panel *panel;
 	struct drm_connector connector;
@@ -31,17 +31,17 @@ struct exynos_dpi {
 	struct videomode *vm;
 };
 
-#define connector_to_dpi(c) container_of(c, struct exynos_dpi, connector)
+#define connector_to_dpi(c) container_of(c, struct exyyess_dpi, connector)
 
-static inline struct exynos_dpi *encoder_to_dpi(struct drm_encoder *e)
+static inline struct exyyess_dpi *encoder_to_dpi(struct drm_encoder *e)
 {
-	return container_of(e, struct exynos_dpi, encoder);
+	return container_of(e, struct exyyess_dpi, encoder);
 }
 
 static enum drm_connector_status
-exynos_dpi_detect(struct drm_connector *connector, bool force)
+exyyess_dpi_detect(struct drm_connector *connector, bool force)
 {
-	struct exynos_dpi *ctx = connector_to_dpi(connector);
+	struct exyyess_dpi *ctx = connector_to_dpi(connector);
 
 	if (ctx->panel && !ctx->panel->connector)
 		drm_panel_attach(ctx->panel, &ctx->connector);
@@ -49,24 +49,24 @@ exynos_dpi_detect(struct drm_connector *connector, bool force)
 	return connector_status_connected;
 }
 
-static void exynos_dpi_connector_destroy(struct drm_connector *connector)
+static void exyyess_dpi_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 
-static const struct drm_connector_funcs exynos_dpi_connector_funcs = {
-	.detect = exynos_dpi_detect,
+static const struct drm_connector_funcs exyyess_dpi_connector_funcs = {
+	.detect = exyyess_dpi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = exynos_dpi_connector_destroy,
+	.destroy = exyyess_dpi_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int exynos_dpi_get_modes(struct drm_connector *connector)
+static int exyyess_dpi_get_modes(struct drm_connector *connector)
 {
-	struct exynos_dpi *ctx = connector_to_dpi(connector);
+	struct exyyess_dpi *ctx = connector_to_dpi(connector);
 
 	/* fimd timings gets precedence over panel modes */
 	if (ctx->vm) {
@@ -90,20 +90,20 @@ static int exynos_dpi_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static const struct drm_connector_helper_funcs exynos_dpi_connector_helper_funcs = {
-	.get_modes = exynos_dpi_get_modes,
+static const struct drm_connector_helper_funcs exyyess_dpi_connector_helper_funcs = {
+	.get_modes = exyyess_dpi_get_modes,
 };
 
-static int exynos_dpi_create_connector(struct drm_encoder *encoder)
+static int exyyess_dpi_create_connector(struct drm_encoder *encoder)
 {
-	struct exynos_dpi *ctx = encoder_to_dpi(encoder);
+	struct exyyess_dpi *ctx = encoder_to_dpi(encoder);
 	struct drm_connector *connector = &ctx->connector;
 	int ret;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
 	ret = drm_connector_init(encoder->dev, connector,
-				 &exynos_dpi_connector_funcs,
+				 &exyyess_dpi_connector_funcs,
 				 DRM_MODE_CONNECTOR_VGA);
 	if (ret) {
 		DRM_DEV_ERROR(ctx->dev,
@@ -111,21 +111,21 @@ static int exynos_dpi_create_connector(struct drm_encoder *encoder)
 		return ret;
 	}
 
-	drm_connector_helper_add(connector, &exynos_dpi_connector_helper_funcs);
+	drm_connector_helper_add(connector, &exyyess_dpi_connector_helper_funcs);
 	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }
 
-static void exynos_dpi_mode_set(struct drm_encoder *encoder,
+static void exyyess_dpi_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
 }
 
-static void exynos_dpi_enable(struct drm_encoder *encoder)
+static void exyyess_dpi_enable(struct drm_encoder *encoder)
 {
-	struct exynos_dpi *ctx = encoder_to_dpi(encoder);
+	struct exyyess_dpi *ctx = encoder_to_dpi(encoder);
 
 	if (ctx->panel) {
 		drm_panel_prepare(ctx->panel);
@@ -133,9 +133,9 @@ static void exynos_dpi_enable(struct drm_encoder *encoder)
 	}
 }
 
-static void exynos_dpi_disable(struct drm_encoder *encoder)
+static void exyyess_dpi_disable(struct drm_encoder *encoder)
 {
-	struct exynos_dpi *ctx = encoder_to_dpi(encoder);
+	struct exyyess_dpi *ctx = encoder_to_dpi(encoder);
 
 	if (ctx->panel) {
 		drm_panel_disable(ctx->panel);
@@ -143,13 +143,13 @@ static void exynos_dpi_disable(struct drm_encoder *encoder)
 	}
 }
 
-static const struct drm_encoder_helper_funcs exynos_dpi_encoder_helper_funcs = {
-	.mode_set = exynos_dpi_mode_set,
-	.enable = exynos_dpi_enable,
-	.disable = exynos_dpi_disable,
+static const struct drm_encoder_helper_funcs exyyess_dpi_encoder_helper_funcs = {
+	.mode_set = exyyess_dpi_mode_set,
+	.enable = exyyess_dpi_enable,
+	.disable = exyyess_dpi_disable,
 };
 
-static const struct drm_encoder_funcs exynos_dpi_encoder_funcs = {
+static const struct drm_encoder_funcs exyyess_dpi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
@@ -161,20 +161,20 @@ enum {
 	FIMD_PORT_WRB,
 };
 
-static int exynos_dpi_parse_dt(struct exynos_dpi *ctx)
+static int exyyess_dpi_parse_dt(struct exyyess_dpi *ctx)
 {
 	struct device *dev = ctx->dev;
-	struct device_node *dn = dev->of_node;
-	struct device_node *np;
+	struct device_yesde *dn = dev->of_yesde;
+	struct device_yesde *np;
 
-	ctx->panel_node = of_graph_get_remote_node(dn, FIMD_PORT_RGB, 0);
+	ctx->panel_yesde = of_graph_get_remote_yesde(dn, FIMD_PORT_RGB, 0);
 
 	np = of_get_child_by_name(dn, "display-timings");
 	if (np) {
 		struct videomode *vm;
 		int ret;
 
-		of_node_put(np);
+		of_yesde_put(np);
 
 		vm = devm_kzalloc(dev, sizeof(*ctx->vm), GFP_KERNEL);
 		if (!vm)
@@ -191,26 +191,26 @@ static int exynos_dpi_parse_dt(struct exynos_dpi *ctx)
 		return 0;
 	}
 
-	if (!ctx->panel_node)
+	if (!ctx->panel_yesde)
 		return -EINVAL;
 
 	return 0;
 }
 
-int exynos_dpi_bind(struct drm_device *dev, struct drm_encoder *encoder)
+int exyyess_dpi_bind(struct drm_device *dev, struct drm_encoder *encoder)
 {
 	int ret;
 
-	drm_encoder_init(dev, encoder, &exynos_dpi_encoder_funcs,
+	drm_encoder_init(dev, encoder, &exyyess_dpi_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS, NULL);
 
-	drm_encoder_helper_add(encoder, &exynos_dpi_encoder_helper_funcs);
+	drm_encoder_helper_add(encoder, &exyyess_dpi_encoder_helper_funcs);
 
-	ret = exynos_drm_set_possible_crtcs(encoder, EXYNOS_DISPLAY_TYPE_LCD);
+	ret = exyyess_drm_set_possible_crtcs(encoder, EXYNOS_DISPLAY_TYPE_LCD);
 	if (ret < 0)
 		return ret;
 
-	ret = exynos_dpi_create_connector(encoder);
+	ret = exyyess_dpi_create_connector(encoder);
 	if (ret) {
 		DRM_DEV_ERROR(encoder_to_dpi(encoder)->dev,
 			      "failed to create connector ret = %d\n", ret);
@@ -221,9 +221,9 @@ int exynos_dpi_bind(struct drm_device *dev, struct drm_encoder *encoder)
 	return 0;
 }
 
-struct drm_encoder *exynos_dpi_probe(struct device *dev)
+struct drm_encoder *exyyess_dpi_probe(struct device *dev)
 {
-	struct exynos_dpi *ctx;
+	struct exyyess_dpi *ctx;
 	int ret;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
@@ -232,14 +232,14 @@ struct drm_encoder *exynos_dpi_probe(struct device *dev)
 
 	ctx->dev = dev;
 
-	ret = exynos_dpi_parse_dt(ctx);
+	ret = exyyess_dpi_parse_dt(ctx);
 	if (ret < 0) {
 		devm_kfree(dev, ctx);
 		return NULL;
 	}
 
-	if (ctx->panel_node) {
-		ctx->panel = of_drm_find_panel(ctx->panel_node);
+	if (ctx->panel_yesde) {
+		ctx->panel = of_drm_find_panel(ctx->panel_yesde);
 		if (IS_ERR(ctx->panel))
 			return ERR_CAST(ctx->panel);
 	}
@@ -247,11 +247,11 @@ struct drm_encoder *exynos_dpi_probe(struct device *dev)
 	return &ctx->encoder;
 }
 
-int exynos_dpi_remove(struct drm_encoder *encoder)
+int exyyess_dpi_remove(struct drm_encoder *encoder)
 {
-	struct exynos_dpi *ctx = encoder_to_dpi(encoder);
+	struct exyyess_dpi *ctx = encoder_to_dpi(encoder);
 
-	exynos_dpi_disable(&ctx->encoder);
+	exyyess_dpi_disable(&ctx->encoder);
 
 	if (ctx->panel)
 		drm_panel_detach(ctx->panel);

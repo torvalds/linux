@@ -2,7 +2,7 @@
 /*
  * Driver for UCS1002 Programmable USB Port Power Controller
  *
- * Copyright (C) 2019 Zodiac Inflight Innovations
+ * Copyright (C) 2019 Zodiac Inflight Inyesvations
  */
 #include <linux/bits.h>
 #include <linux/freezer.h>
@@ -454,7 +454,7 @@ static irqreturn_t ucs1002_charger_irq(int irq, void *data)
 	/* update attached status */
 	info->present = regval & F_ADET_PIN;
 
-	/* notify the change */
+	/* yestify the change */
 	if (present != info->present)
 		power_supply_changed(info->charger);
 
@@ -516,10 +516,10 @@ static int ucs1002_probe(struct i2c_client *client,
 
 	info->client = client;
 
-	irq_a_det = of_irq_get_byname(dev->of_node, "a_det");
-	irq_alert = of_irq_get_byname(dev->of_node, "alert");
+	irq_a_det = of_irq_get_byname(dev->of_yesde, "a_det");
+	irq_alert = of_irq_get_byname(dev->of_yesde, "alert");
 
-	charger_config.of_node = dev->of_node;
+	charger_config.of_yesde = dev->of_yesde;
 	charger_config.drv_data = info;
 
 	ret = regmap_read(info->regmap, UCS1002_REG_PRODUCT_ID, &regval);
@@ -530,7 +530,7 @@ static int ucs1002_probe(struct i2c_client *client,
 
 	if (regval != UCS1002_PRODUCT_ID) {
 		dev_err(dev,
-			"Product ID does not match (0x%02x != 0x%02x)\n",
+			"Product ID does yest match (0x%02x != 0x%02x)\n",
 			regval, UCS1002_PRODUCT_ID);
 		return -ENODEV;
 	}
@@ -544,7 +544,7 @@ static int ucs1002_probe(struct i2c_client *client,
 	}
 
 	/*
-	 * Ignore the M1, M2, PWR_EN, and EM_EN pin states. Set active
+	 * Igyesre the M1, M2, PWR_EN, and EM_EN pin states. Set active
 	 * mode selection to BC1.2 CDP.
 	 */
 	ret = regmap_update_bits(info->regmap, UCS1002_REG_SWITCH_CFG,
@@ -587,7 +587,7 @@ static int ucs1002_probe(struct i2c_client *client,
 	info->regulator_descriptor->enable_is_inverted = !(regval & F_SEL_PIN);
 
 	regulator_config.dev = dev;
-	regulator_config.of_node = dev->of_node;
+	regulator_config.of_yesde = dev->of_yesde;
 	regulator_config.regmap = info->regmap;
 
 	rdev = devm_regulator_register(dev, info->regulator_descriptor,
@@ -642,5 +642,5 @@ module_i2c_driver(ucs1002_driver);
 
 MODULE_DESCRIPTION("Microchip UCS1002 Programmable USB Port Power Controller");
 MODULE_AUTHOR("Enric Balletbo Serra <enric.balletbo@collabora.com>");
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiryesv <andrew.smiryesv@gmail.com>");
 MODULE_LICENSE("GPL");

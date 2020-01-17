@@ -16,7 +16,7 @@ static int __init tango_cpufreq_init(void)
 	struct clk *cpu_clk;
 	void *res;
 
-	if (!of_match_node(machines, of_root))
+	if (!of_match_yesde(machines, of_root))
 		return -ENODEV;
 
 	cpu_clk = clk_get(cpu_dev, NULL);

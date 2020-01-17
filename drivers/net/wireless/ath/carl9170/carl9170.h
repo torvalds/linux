@@ -17,16 +17,16 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If yest, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright yestice and this permission yestice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -94,8 +94,8 @@ enum carl9170_device_state {
 	(((_seq) - 1) & 0x0fff)
 #define SEQ_NEXT(_seq) \
 	(((_seq) + 1) & 0x0fff)
-#define BAW_WITHIN(_start, _bawsz, _seqno) \
-	((((_seqno) - (_start)) & 0xfff) < (_bawsz))
+#define BAW_WITHIN(_start, _bawsz, _seqyes) \
+	((((_seqyes) - (_start)) & 0xfff) < (_bawsz))
 
 enum carl9170_tid_state {
 	CARL9170_TID_STATE_INVALID,
@@ -156,7 +156,7 @@ struct carl9170_sta_tid {
  * Naturally: The higher the limit, the faster the device CAN send.
  * However, even a slight over-commitment at the wrong time and the
  * hardware is doomed to send all already-queued frames at suboptimal
- * rates. This in turn leads to an enormous amount of unsuccessful
+ * rates. This in turn leads to an eyesrmous amount of unsuccessful
  * retries => Latency goes up, whereas the throughput goes down. CRASH!
  */
 #define CARL9170_NUM_TX_LIMIT_HARD	((AR9170_TXQ_DEPTH * 3) / 2)
@@ -330,7 +330,7 @@ struct ar9170 {
 	/* PHY */
 	struct ieee80211_channel *channel;
 	unsigned int num_channels;
-	int noise[4];
+	int yesise[4];
 	unsigned int chan_fail;
 	unsigned int total_chan_fail;
 	u8 heavy_clip;
@@ -598,13 +598,13 @@ int carl9170_led_set_state(struct ar9170 *ar, const u32 led_state);
 /* PHY / RF */
 int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 			 enum nl80211_channel_type bw);
-int carl9170_get_noisefloor(struct ar9170 *ar);
+int carl9170_get_yesisefloor(struct ar9170 *ar);
 
 /* FW */
 int carl9170_parse_firmware(struct ar9170 *ar);
 
 extern struct ieee80211_rate __carl9170_ratetable[];
-extern int modparam_noht;
+extern int modparam_yesht;
 
 static inline struct ar9170 *carl9170_get_priv(struct carl9170_vif *carl_vif)
 {

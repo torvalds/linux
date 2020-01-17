@@ -16,7 +16,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/debugfs.h>
 
 #include "snic.h"
@@ -26,7 +26,7 @@
  *
  * Description:
  * When Debugfs is configured this routine sets up fnic debugfs
- * filesystem. If not already created. this routine will crate the
+ * filesystem. If yest already created. this routine will crate the
  * fnic directory and statistics directory for trace buffer and
  * stats logging
  */
@@ -59,10 +59,10 @@ snic_debugfs_term(void)
  * snic_reset_stats_open - Open the reset_stats file
  */
 static int
-snic_reset_stats_open(struct inode *inode, struct file *filp)
+snic_reset_stats_open(struct iyesde *iyesde, struct file *filp)
 {
-	SNIC_BUG_ON(!inode->i_private);
-	filp->private_data = inode->i_private;
+	SNIC_BUG_ON(!iyesde->i_private);
+	filp->private_data = iyesde->i_private;
 
 	return 0;
 }
@@ -165,7 +165,7 @@ snic_reset_stats_write(struct file *filp,
 }
 
 static int
-snic_reset_stats_release(struct inode *inode, struct file *filp)
+snic_reset_stats_release(struct iyesde *iyesde, struct file *filp)
 {
 	filp->private_data = NULL;
 
@@ -211,7 +211,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   (u64) atomic64_read(&stats->io.num_ios),
 		   (u64) atomic64_read(&stats->io.compl),
 		   (u64) atomic64_read(&stats->io.fail),
-		   (u64) atomic64_read(&stats->io.io_not_found),
+		   (u64) atomic64_read(&stats->io.io_yest_found),
 		   (u64) atomic64_read(&stats->io.alloc_fail),
 		   (u64) atomic64_read(&stats->io.req_null),
 		   (u64) atomic64_read(&stats->io.sc_null),
@@ -250,7 +250,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   (u64) atomic64_read(&stats->abts.fail),
 		   (u64) atomic64_read(&stats->abts.drv_tmo),
 		   (u64) atomic64_read(&stats->abts.fw_tmo),
-		   (u64) atomic64_read(&stats->abts.io_not_found),
+		   (u64) atomic64_read(&stats->abts.io_yest_found),
 		   (u64) atomic64_read(&stats->abts.q_fail));
 
 	/* Dump Reset Stats */
@@ -286,7 +286,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		(u64) atomic64_read(&stats->fw.scsi_errs));
 
 
-	/* Dump Miscellenous Stats */
+	/* Dump Miscelleyesus Stats */
 	seq_printf(sfp,
 		   "\n---------------------------------------------\n"
 		   "\t\t Other Statistics\n"
@@ -318,7 +318,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   last_ack_tms.tv_sec, last_ack_tms.tv_nsec,
 		   (u64) atomic64_read(&stats->misc.ack_isr_cnt),
 		   (u64) atomic64_read(&stats->misc.cmpl_isr_cnt),
-		   (u64) atomic64_read(&stats->misc.errnotify_isr_cnt),
+		   (u64) atomic64_read(&stats->misc.erryestify_isr_cnt),
 		   (u64) atomic64_read(&stats->misc.max_cq_ents),
 		   (u64) atomic64_read(&stats->misc.data_cnt_mismat),
 		   (u64) atomic64_read(&stats->misc.io_tmo),
@@ -329,7 +329,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   (u64) atomic64_read(&stats->misc.qsz_rampup),
 		   (u64) atomic64_read(&stats->misc.qsz_rampdown),
 		   (u64) atomic64_read(&stats->misc.last_qsz),
-		   (u64) atomic64_read(&stats->misc.tgt_not_rdy));
+		   (u64) atomic64_read(&stats->misc.tgt_yest_rdy));
 
 	return 0;
 }
@@ -341,9 +341,9 @@ snic_stats_show(struct seq_file *sfp, void *data)
  * This routine opens a debugfs file stats of specific host
  */
 static int
-snic_stats_open(struct inode *inode, struct file *filp)
+snic_stats_open(struct iyesde *iyesde, struct file *filp)
 {
-	return single_open(filp, snic_stats_show, inode->i_private);
+	return single_open(filp, snic_stats_show, iyesde->i_private);
 }
 
 static const struct file_operations snic_stats_fops = {
@@ -375,7 +375,7 @@ void snic_stats_debugfs_init(struct snic *snic)
 {
 	char name[16];
 
-	snprintf(name, sizeof(name), "host%d", snic->shost->host_no);
+	snprintf(name, sizeof(name), "host%d", snic->shost->host_yes);
 
 	snic->stats_host = debugfs_create_dir(name, snic_glob->stats_root);
 
@@ -447,7 +447,7 @@ static const struct seq_operations snic_trc_seq_ops = {
 };
 
 static int
-snic_trc_open(struct inode *inode, struct file *filp)
+snic_trc_open(struct iyesde *iyesde, struct file *filp)
 {
 	return seq_open(filp, &snic_trc_seq_ops);
 }

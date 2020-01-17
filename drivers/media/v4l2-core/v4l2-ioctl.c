@@ -30,7 +30,7 @@
 #include <trace/events/v4l2.h>
 
 /* Zero out the end of the struct pointed to by p.  Everything after, but
- * not including, the specified field is cleared. */
+ * yest including, the specified field is cleared. */
 #define CLEAR_AFTER_FIELD(p, field) \
 	memset((u8 *)(p) + offsetof(typeof(*(p)), field) + sizeof((p)->field), \
 	0, sizeof(*(p)) - offsetof(typeof(*(p)), field) - sizeof((p)->field))
@@ -73,12 +73,12 @@ static const struct std_descr standards[] = {
 	{ V4L2_STD_SECAM_K1,	"SECAM-K1"  },
 	{ V4L2_STD_SECAM_L,	"SECAM-L"   },
 	{ V4L2_STD_SECAM_LC,	"SECAM-Lc"  },
-	{ 0,			"Unknown"   }
+	{ 0,			"Unkyeswn"   }
 };
 
 /* video4linux standard ID conversion to standard name
  */
-const char *v4l2_norm_to_name(v4l2_std_id id)
+const char *v4l2_yesrm_to_name(v4l2_std_id id)
 {
 	u32 myid = id;
 	int i;
@@ -94,17 +94,17 @@ const char *v4l2_norm_to_name(v4l2_std_id id)
 			break;
 	return standards[i].descr;
 }
-EXPORT_SYMBOL(v4l2_norm_to_name);
+EXPORT_SYMBOL(v4l2_yesrm_to_name);
 
 /* Returns frame period for the given standard */
 void v4l2_video_std_frame_period(int id, struct v4l2_fract *frameperiod)
 {
 	if (id & V4L2_STD_525_60) {
 		frameperiod->numerator = 1001;
-		frameperiod->denominator = 30000;
+		frameperiod->deyesminator = 30000;
 	} else {
 		frameperiod->numerator = 1;
-		frameperiod->denominator = 25;
+		frameperiod->deyesminator = 25;
 	}
 }
 EXPORT_SYMBOL(v4l2_video_std_frame_period);
@@ -135,7 +135,7 @@ int v4l_video_std_enumstd(struct v4l2_standard *vs, v4l2_std_id id)
 	if (id == 0)
 		return -ENODATA;
 
-	/* Return norm array in a canonical way */
+	/* Return yesrm array in a cayesnical way */
 	for (i = 0; i <= index && id; i++) {
 		/* last std value in the standards array is 0, so this
 		   while always ends there since (id & 0) == 0. */
@@ -163,7 +163,7 @@ int v4l_video_std_enumstd(struct v4l2_standard *vs, v4l2_std_id id)
 
 const char *v4l2_field_names[] = {
 	[V4L2_FIELD_ANY]        = "any",
-	[V4L2_FIELD_NONE]       = "none",
+	[V4L2_FIELD_NONE]       = "yesne",
 	[V4L2_FIELD_TOP]        = "top",
 	[V4L2_FIELD_BOTTOM]     = "bottom",
 	[V4L2_FIELD_INTERLACED] = "interlaced",
@@ -201,7 +201,7 @@ static const char *v4l2_memory_names[] = {
 	[V4L2_MEMORY_DMABUF] = "dmabuf",
 };
 
-#define prt_names(a, arr) (((unsigned)(a)) < ARRAY_SIZE(arr) ? arr[a] : "unknown")
+#define prt_names(a, arr) (((unsigned)(a)) < ARRAY_SIZE(arr) ? arr[a] : "unkyeswn")
 
 /* ------------------------------------------------------------------ */
 /* debug help functions                                               */
@@ -324,7 +324,7 @@ static void v4l_print_format(const void *arg, bool write_only)
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
 		win = &p->fmt.win;
 		/* Note: we can't print the clip list here since the clips
-		 * pointer is a userspace pointer, not a kernelspace
+		 * pointer is a userspace pointer, yest a kernelspace
 		 * pointer. */
 		pr_cont(", wxh=%dx%d, x,y=%d,%d, field=%s, chromakey=0x%08x, clipcount=%u, clips=%p, bitmap=%p, global_alpha=0x%02x\n",
 			win->w.width, win->w.height, win->w.left, win->w.top,
@@ -439,7 +439,7 @@ static void v4l_print_standard(const void *arg, bool write_only)
 		p->index,
 		(unsigned long long)p->id, (int)sizeof(p->name), p->name,
 		p->frameperiod.numerator,
-		p->frameperiod.denominator,
+		p->frameperiod.deyesminator,
 		p->framelines);
 }
 
@@ -534,7 +534,7 @@ static void v4l_print_streamparm(const void *arg, bool write_only)
 
 		pr_cont(", capability=0x%x, capturemode=0x%x, timeperframe=%d/%d, extendedmode=%d, readbuffers=%d\n",
 			c->capability, c->capturemode,
-			c->timeperframe.numerator, c->timeperframe.denominator,
+			c->timeperframe.numerator, c->timeperframe.deyesminator,
 			c->extendedmode, c->readbuffers);
 	} else if (p->type == V4L2_BUF_TYPE_VIDEO_OUTPUT ||
 		   p->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
@@ -542,7 +542,7 @@ static void v4l_print_streamparm(const void *arg, bool write_only)
 
 		pr_cont(", capability=0x%x, outputmode=0x%x, timeperframe=%d/%d, extendedmode=%d, writebuffers=%d\n",
 			c->capability, c->outputmode,
-			c->timeperframe.numerator, c->timeperframe.denominator,
+			c->timeperframe.numerator, c->timeperframe.deyesminator,
 			c->extendedmode, c->writebuffers);
 	} else {
 		pr_cont("\n");
@@ -613,7 +613,7 @@ static void v4l_print_cropcap(const void *arg, bool write_only)
 		p->bounds.left, p->bounds.top,
 		p->defrect.width, p->defrect.height,
 		p->defrect.left, p->defrect.top,
-		p->pixelaspect.numerator, p->pixelaspect.denominator);
+		p->pixelaspect.numerator, p->pixelaspect.deyesminator);
 }
 
 static void v4l_print_crop(const void *arg, bool write_only)
@@ -797,16 +797,16 @@ static void v4l_print_frmivalenum(const void *arg, bool write_only)
 	case V4L2_FRMIVAL_TYPE_DISCRETE:
 		pr_cont(", fps=%d/%d\n",
 				p->discrete.numerator,
-				p->discrete.denominator);
+				p->discrete.deyesminator);
 		break;
 	case V4L2_FRMIVAL_TYPE_STEPWISE:
 		pr_cont(", min=%d/%d, max=%d/%d, step=%d/%d\n",
 				p->stepwise.min.numerator,
-				p->stepwise.min.denominator,
+				p->stepwise.min.deyesminator,
 				p->stepwise.max.numerator,
-				p->stepwise.max.denominator,
+				p->stepwise.max.deyesminator,
 				p->stepwise.step.numerator,
-				p->stepwise.step.denominator);
+				p->stepwise.step.deyesminator);
 		break;
 	case V4L2_FRMIVAL_TYPE_CONTINUOUS:
 		/* fall through */
@@ -911,7 +911,7 @@ static int check_ext_ctrls(struct v4l2_ext_controls *c, int allow_priv)
 	for (i = 0; i < c->count; i++)
 		c->controls[i].reserved2[0] = 0;
 
-	/* V4L2_CID_PRIVATE_BASE cannot be used as control class
+	/* V4L2_CID_PRIVATE_BASE canyest be used as control class
 	   when using extended controls.
 	   Only when passed in through VIDIOC_G_CTRL and VIDIOC_S_CTRL
 	   is it allowed for backwards compatibility.
@@ -1023,7 +1023,7 @@ static void v4l_sanitize_format(struct v4l2_format *fmt)
 {
 	unsigned int offset;
 
-	/* Make sure num_planes is not bogus */
+	/* Make sure num_planes is yest bogus */
 	if (fmt->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE ||
 	    fmt->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		fmt->fmt.pix_mp.num_planes = min_t(u32, fmt->fmt.pix_mp.num_planes,
@@ -1031,7 +1031,7 @@ static void v4l_sanitize_format(struct v4l2_format *fmt)
 
 	/*
 	 * The v4l2_pix_format structure has been extended with fields that were
-	 * not previously required to be set to zero by applications. The priv
+	 * yest previously required to be set to zero by applications. The priv
 	 * field, when set to a magic value, indicates the the extended fields
 	 * are valid. Otherwise they will contain undefined values. To simplify
 	 * the API towards drivers zero the extended fields and set the priv
@@ -1068,7 +1068,7 @@ static int v4l_querycap(const struct v4l2_ioctl_ops *ops,
 	ret = ops->vidioc_querycap(file, fh, cap);
 
 	/*
-	 * Drivers must not change device_caps, so check for this and
+	 * Drivers must yest change device_caps, so check for this and
 	 * warn if this happened.
 	 */
 	WARN_ON(cap->device_caps != vfd->device_caps);
@@ -1171,7 +1171,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	u32 flags = 0;
 
 	/*
-	 * We depart from the normal coding style here since the descriptions
+	 * We depart from the yesrmal coding style here since the descriptions
 	 * should be aligned so it is easy to see which descriptions will be
 	 * longer than 31 characters (the max length for a description).
 	 * And frankly, this is easier to read anyway.
@@ -1393,7 +1393,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 		default:
 			if (fmt->description[0])
 				return;
-			WARN(1, "Unknown pixelformat 0x%08x\n", fmt->pixelformat);
+			WARN(1, "Unkyeswn pixelformat 0x%08x\n", fmt->pixelformat);
 			flags = 0;
 			snprintf(fmt->description, sz, "%c%c%c%c%s",
 					(char)(fmt->pixelformat & 0x7f),
@@ -1481,7 +1481,7 @@ static int v4l_enum_fmt(const struct v4l2_ioctl_ops *ops,
 static void v4l_pix_format_touch(struct v4l2_pix_format *p)
 {
 	/*
-	 * The v4l2_pix_format structure contains fields that make no sense for
+	 * The v4l2_pix_format structure contains fields that make yes sense for
 	 * touch. Set them to default values in this case.
 	 */
 
@@ -1894,25 +1894,25 @@ static int v4l_enumstd(const struct v4l2_ioctl_ops *ops,
 	struct video_device *vfd = video_devdata(file);
 	struct v4l2_standard *p = arg;
 
-	return v4l_video_std_enumstd(p, vfd->tvnorms);
+	return v4l_video_std_enumstd(p, vfd->tvyesrms);
 }
 
 static int v4l_s_std(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
 	struct video_device *vfd = video_devdata(file);
-	v4l2_std_id id = *(v4l2_std_id *)arg, norm;
+	v4l2_std_id id = *(v4l2_std_id *)arg, yesrm;
 	int ret;
 
 	ret = v4l_enable_media_source(vfd);
 	if (ret)
 		return ret;
-	norm = id & vfd->tvnorms;
-	if (vfd->tvnorms && !norm)	/* Check if std is supported */
+	yesrm = id & vfd->tvyesrms;
+	if (vfd->tvyesrms && !yesrm)	/* Check if std is supported */
 		return -EINVAL;
 
 	/* Calls the specific handler */
-	return ops->vidioc_s_std(file, fh, norm);
+	return ops->vidioc_s_std(file, fh, yesrm);
 }
 
 static int v4l_querystd(const struct v4l2_ioctl_ops *ops,
@@ -1926,14 +1926,14 @@ static int v4l_querystd(const struct v4l2_ioctl_ops *ops,
 	if (ret)
 		return ret;
 	/*
-	 * If no signal is detected, then the driver should return
-	 * V4L2_STD_UNKNOWN. Otherwise it should return tvnorms with
-	 * any standards that do not apply removed.
+	 * If yes signal is detected, then the driver should return
+	 * V4L2_STD_UNKNOWN. Otherwise it should return tvyesrms with
+	 * any standards that do yest apply removed.
 	 *
 	 * This means that tuners, audio and video decoders can join
 	 * their efforts to improve the standards detection.
 	 */
-	*p = vfd->tvnorms;
+	*p = vfd->tvyesrms;
 	return ops->vidioc_querystd(file, fh, arg);
 }
 
@@ -1948,7 +1948,7 @@ static int v4l_s_hw_freq_seek(const struct v4l2_ioctl_ops *ops,
 	ret = v4l_enable_media_source(vfd);
 	if (ret)
 		return ret;
-	/* s_hw_freq_seek is not supported for SDR for now */
+	/* s_hw_freq_seek is yest supported for SDR for yesw */
 	if (vfd->vfl_type == VFL_TYPE_SDR)
 		return -EINVAL;
 
@@ -2262,7 +2262,7 @@ static int v4l_try_ext_ctrls(const struct v4l2_ioctl_ops *ops,
 /*
  * The selection API specified originally that the _MPLANE buffer types
  * shouldn't be used. The reasons for this are lost in the mists of time
- * (or just really crappy memories). Regardless, this is really annoying
+ * (or just really crappy memories). Regardless, this is really anyesying
  * for userspace. So to keep things simple we map _MPLANE buffer types
  * to their 'regular' counterparts before calling the driver. And we
  * restore it afterwards. This way applications can use either buffer
@@ -2365,7 +2365,7 @@ static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 
 	/* setting trivial pixelaspect */
 	p->pixelaspect.numerator = 1;
-	p->pixelaspect.denominator = 1;
+	p->pixelaspect.deyesminator = 1;
 
 	if (s.type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		s.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -2384,7 +2384,7 @@ static int v4l_cropcap(const struct v4l2_ioctl_ops *ops,
 						&p->pixelaspect);
 
 	/*
-	 * Ignore ENOTTY or ENOIOCTLCMD error returns, just use the
+	 * Igyesre ENOTTY or ENOIOCTLCMD error returns, just use the
 	 * square pixel aspect ratio in that case.
 	 */
 	if (ret && ret != -ENOTTY && ret != -ENOIOCTLCMD)
@@ -2787,7 +2787,7 @@ static const struct v4l2_ioctl_info v4l2_ioctls[] = {
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
-static bool v4l2_is_known_ioctl(unsigned int cmd)
+static bool v4l2_is_kyeswn_ioctl(unsigned int cmd)
 {
 	if (_IOC_NR(cmd) >= V4L2_IOCTLS)
 		return false;
@@ -2834,7 +2834,7 @@ void v4l_printk_ioctl(const char *prefix, unsigned int cmd)
 		pr_cont("%s", v4l2_ioctls[_IOC_NR(cmd)].name);
 		return;
 	default:
-		type = "unknown";
+		type = "unkyeswn";
 		break;
 	}
 
@@ -2866,8 +2866,8 @@ static long __video_do_ioctl(struct file *file,
 	long ret = -ENOTTY;
 
 	if (ops == NULL) {
-		pr_warn("%s: has no ioctl_ops.\n",
-				video_device_node_name(vfd));
+		pr_warn("%s: has yes ioctl_ops.\n",
+				video_device_yesde_name(vfd));
 		return ret;
 	}
 
@@ -2877,7 +2877,7 @@ static long __video_do_ioctl(struct file *file,
 	/*
 	 * We need to serialize streamon/off with queueing new requests.
 	 * These ioctls may trigger the cancellation of a streaming
-	 * operation, and that should not be mixed with queueing a new
+	 * operation, and that should yest be mixed with queueing a new
 	 * request at the same time.
 	 */
 	if (v4l2_device_supports_requests(vfd->v4l2_dev) &&
@@ -2901,7 +2901,7 @@ static long __video_do_ioctl(struct file *file,
 		goto unlock;
 	}
 
-	if (v4l2_is_known_ioctl(cmd)) {
+	if (v4l2_is_kyeswn_ioctl(cmd)) {
 		info = &v4l2_ioctls[_IOC_NR(cmd)];
 
 		if (!test_bit(_IOC_NR(cmd), vfd->valid_ioctls) &&
@@ -2937,7 +2937,7 @@ done:
 		    (cmd == VIDIOC_QBUF || cmd == VIDIOC_DQBUF))
 			goto unlock;
 
-		v4l_printk_ioctl(video_device_node_name(vfd), cmd);
+		v4l_printk_ioctl(video_device_yesde_name(vfd), cmd);
 		if (ret < 0)
 			pr_cont(": error %ld", ret);
 		if (!(dev_debug & V4L2_DEV_DEBUG_IOCTL_ARG))
@@ -3059,9 +3059,9 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 			 * i.e. when the app sets "index" and then the driver
 			 * fills in the rest of the structure for the thing
 			 * with that index.  We only need to copy up the first
-			 * non-input field.
+			 * yesn-input field.
 			 */
-			if (v4l2_is_known_ioctl(cmd)) {
+			if (v4l2_is_kyeswn_ioctl(cmd)) {
 				u32 flags = v4l2_ioctls[_IOC_NR(cmd)].flags;
 
 				if (flags & INFO_FL_CLEAR_MASK)
@@ -3112,9 +3112,9 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 
 	if (err == 0) {
 		if (cmd == VIDIOC_DQBUF)
-			trace_v4l2_dqbuf(video_devdata(file)->minor, parg);
+			trace_v4l2_dqbuf(video_devdata(file)->miyesr, parg);
 		else if (cmd == VIDIOC_QBUF)
-			trace_v4l2_qbuf(video_devdata(file)->minor, parg);
+			trace_v4l2_qbuf(video_devdata(file)->miyesr, parg);
 	}
 
 	if (has_array_args) {

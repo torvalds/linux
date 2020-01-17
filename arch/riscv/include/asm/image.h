@@ -13,7 +13,7 @@
 #define RISCV_IMAGE_FLAG_BE		1
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
-#error conversion of header fields to LE not yet implemented
+#error conversion of header fields to LE yest yet implemented
 #else
 #define __HEAD_FLAG_BE		RISCV_IMAGE_FLAG_LE
 #endif

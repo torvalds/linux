@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -63,14 +63,14 @@
 
 /* For counting bound interfaces */
 struct iwl_mvm_active_iface_iterator_data {
-	struct ieee80211_vif *ignore_vif;
+	struct ieee80211_vif *igyesre_vif;
 	u8 sta_vif_ap_sta_id;
 	enum iwl_sf_state sta_vif_state;
 	u32 num_active_macs;
 };
 
 /*
- * Count bound interfaces which are not p2p, besides data->ignore_vif.
+ * Count bound interfaces which are yest p2p, besides data->igyesre_vif.
  * data->station_vif will point to one bound vif of type station, if exists.
  */
 static void iwl_mvm_bound_iface_iterator(void *_data, u8 *mac,
@@ -79,7 +79,7 @@ static void iwl_mvm_bound_iface_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_active_iface_iterator_data *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (vif == data->ignore_vif || !mvmvif->phy_ctxt ||
+	if (vif == data->igyesre_vif || !mvmvif->phy_ctxt ||
 	    vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		return;
 
@@ -217,7 +217,7 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
 	struct ieee80211_sta *sta;
 	int ret = 0;
 
-	if (mvm->cfg->disable_dummy_notification)
+	if (mvm->cfg->disable_dummy_yestification)
 		sf_cmd.state |= cpu_to_le32(SF_CFG_DUMMY_NOTIF_OFF);
 
 	/*
@@ -234,7 +234,7 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
 	case SF_FULL_ON:
 		if (sta_id == IWL_MVM_INVALID_STA) {
 			IWL_ERR(mvm,
-				"No station: Cannot switch SF to FULL_ON\n");
+				"No station: Canyest switch SF to FULL_ON\n");
 			return -EINVAL;
 		}
 		rcu_read_lock();
@@ -251,7 +251,7 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
 		iwl_mvm_fill_sf_command(mvm, &sf_cmd, NULL);
 		break;
 	default:
-		WARN_ONCE(1, "Invalid state: %d. not sending Smart Fifo cmd\n",
+		WARN_ONCE(1, "Invalid state: %d. yest sending Smart Fifo cmd\n",
 			  new_state);
 		return -EINVAL;
 	}
@@ -266,7 +266,7 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, u8 sta_id,
 
 /*
  * Update Smart fifo:
- * Count bound interfaces that are not to be removed, ignoring p2p devices,
+ * Count bound interfaces that are yest to be removed, igyesring p2p devices,
  * and set new state accordingly.
  */
 int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
@@ -276,13 +276,13 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 	u8 sta_id = IWL_MVM_INVALID_STA;
 	struct iwl_mvm_vif *mvmvif = NULL;
 	struct iwl_mvm_active_iface_iterator_data data = {
-		.ignore_vif = changed_vif,
+		.igyesre_vif = changed_vif,
 		.sta_vif_state = SF_UNINIT,
 		.sta_vif_ap_sta_id = IWL_MVM_INVALID_STA,
 	};
 
 	/*
-	 * Ignore the call if we are in HW Restart flow, or if the handled
+	 * Igyesre the call if we are in HW Restart flow, or if the handled
 	 * vif is a p2p device.
 	 */
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) ||
@@ -294,13 +294,13 @@ int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *changed_vif,
 						   iwl_mvm_bound_iface_iterator,
 						   &data);
 
-	/* If changed_vif exists and is not to be removed, add to the count */
+	/* If changed_vif exists and is yest to be removed, add to the count */
 	if (changed_vif && !remove_vif)
 		data.num_active_macs++;
 
 	switch (data.num_active_macs) {
 	case 0:
-		/* If there are no active macs - change state to SF_INIT_OFF */
+		/* If there are yes active macs - change state to SF_INIT_OFF */
 		new_state = SF_INIT_OFF;
 		break;
 	case 1:

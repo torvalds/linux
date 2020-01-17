@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -159,8 +159,8 @@ typedef struct {
 
   /* ULV Settings */
   uint8_t  UlvOffsetVid;     /* SVI2 VID */
-  uint8_t  UlvSmnclkDid;     /* DID for ULV mode. 0 means CLK will not be modified in ULV. */
-  uint8_t  UlvMp1clkDid;     /* DID for ULV mode. 0 means CLK will not be modified in ULV. */
+  uint8_t  UlvSmnclkDid;     /* DID for ULV mode. 0 means CLK will yest be modified in ULV. */
+  uint8_t  UlvMp1clkDid;     /* DID for ULV mode. 0 means CLK will yest be modified in ULV. */
   uint8_t  UlvGfxclkBypass;  /* 1 to turn off/bypass Gfxclk during ULV, 0 to leave Gfxclk on during ULV */
 
   /* VDDCR_SOC Voltages */
@@ -319,7 +319,7 @@ typedef struct {
   /* ACG Frequency Table, in Mhz */
   uint32_t     AcgFreqTable[NUM_GFXCLK_DPM_LEVELS];
 
-  /* Padding - ignore */
+  /* Padding - igyesre */
   uint32_t     MmHubPadding[3]; /* SMU internal use */
 
 } PPTable_t;

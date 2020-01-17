@@ -13,7 +13,7 @@ static inline void dctcp_ece_ack_cwr(struct sock *sk, u32 ce_state)
 
 /* Minimal DCTP CE state machine:
  *
- * S:	0 <- last pkt was non-CE
+ * S:	0 <- last pkt was yesn-CE
  *	1 <- last pkt was CE
  */
 static inline void dctcp_ece_ack_update(struct sock *sk, enum tcp_ca_event evt,

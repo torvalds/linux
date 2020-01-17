@@ -333,7 +333,7 @@ static const char *nvdimm_bus_provider(struct nvdimm_bus *nvdimm_bus)
 	else if (parent)
 		return dev_name(parent);
 	else
-		return "unknown";
+		return "unkyeswn";
 }
 
 static ssize_t provider_show(struct device *dev,

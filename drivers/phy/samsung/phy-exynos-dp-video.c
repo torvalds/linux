@@ -17,64 +17,64 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <linux/soc/samsung/exynos-regs-pmu.h>
+#include <linux/soc/samsung/exyyess-regs-pmu.h>
 
-struct exynos_dp_video_phy_drvdata {
+struct exyyess_dp_video_phy_drvdata {
 	u32 phy_ctrl_offset;
 };
 
-struct exynos_dp_video_phy {
+struct exyyess_dp_video_phy {
 	struct regmap *regs;
-	const struct exynos_dp_video_phy_drvdata *drvdata;
+	const struct exyyess_dp_video_phy_drvdata *drvdata;
 };
 
-static int exynos_dp_video_phy_power_on(struct phy *phy)
+static int exyyess_dp_video_phy_power_on(struct phy *phy)
 {
-	struct exynos_dp_video_phy *state = phy_get_drvdata(phy);
+	struct exyyess_dp_video_phy *state = phy_get_drvdata(phy);
 
 	/* Disable power isolation on DP-PHY */
 	return regmap_update_bits(state->regs, state->drvdata->phy_ctrl_offset,
 				  EXYNOS4_PHY_ENABLE, EXYNOS4_PHY_ENABLE);
 }
 
-static int exynos_dp_video_phy_power_off(struct phy *phy)
+static int exyyess_dp_video_phy_power_off(struct phy *phy)
 {
-	struct exynos_dp_video_phy *state = phy_get_drvdata(phy);
+	struct exyyess_dp_video_phy *state = phy_get_drvdata(phy);
 
 	/* Enable power isolation on DP-PHY */
 	return regmap_update_bits(state->regs, state->drvdata->phy_ctrl_offset,
 				  EXYNOS4_PHY_ENABLE, 0);
 }
 
-static const struct phy_ops exynos_dp_video_phy_ops = {
-	.power_on	= exynos_dp_video_phy_power_on,
-	.power_off	= exynos_dp_video_phy_power_off,
+static const struct phy_ops exyyess_dp_video_phy_ops = {
+	.power_on	= exyyess_dp_video_phy_power_on,
+	.power_off	= exyyess_dp_video_phy_power_off,
 	.owner		= THIS_MODULE,
 };
 
-static const struct exynos_dp_video_phy_drvdata exynos5250_dp_video_phy = {
+static const struct exyyess_dp_video_phy_drvdata exyyess5250_dp_video_phy = {
 	.phy_ctrl_offset	= EXYNOS5_DPTX_PHY_CONTROL,
 };
 
-static const struct exynos_dp_video_phy_drvdata exynos5420_dp_video_phy = {
+static const struct exyyess_dp_video_phy_drvdata exyyess5420_dp_video_phy = {
 	.phy_ctrl_offset	= EXYNOS5420_DPTX_PHY_CONTROL,
 };
 
-static const struct of_device_id exynos_dp_video_phy_of_match[] = {
+static const struct of_device_id exyyess_dp_video_phy_of_match[] = {
 	{
-		.compatible = "samsung,exynos5250-dp-video-phy",
-		.data = &exynos5250_dp_video_phy,
+		.compatible = "samsung,exyyess5250-dp-video-phy",
+		.data = &exyyess5250_dp_video_phy,
 	}, {
-		.compatible = "samsung,exynos5420-dp-video-phy",
-		.data = &exynos5420_dp_video_phy,
+		.compatible = "samsung,exyyess5420-dp-video-phy",
+		.data = &exyyess5420_dp_video_phy,
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, exynos_dp_video_phy_of_match);
+MODULE_DEVICE_TABLE(of, exyyess_dp_video_phy_of_match);
 
-static int exynos_dp_video_phy_probe(struct platform_device *pdev)
+static int exyyess_dp_video_phy_probe(struct platform_device *pdev)
 {
-	struct exynos_dp_video_phy *state;
+	struct exyyess_dp_video_phy *state;
 	struct device *dev = &pdev->dev;
 	struct phy_provider *phy_provider;
 	struct phy *phy;
@@ -83,7 +83,7 @@ static int exynos_dp_video_phy_probe(struct platform_device *pdev)
 	if (!state)
 		return -ENOMEM;
 
-	state->regs = syscon_regmap_lookup_by_phandle(dev->of_node,
+	state->regs = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 						      "samsung,pmu-syscon");
 	if (IS_ERR(state->regs)) {
 		dev_err(dev, "Failed to lookup PMU regmap\n");
@@ -92,7 +92,7 @@ static int exynos_dp_video_phy_probe(struct platform_device *pdev)
 
 	state->drvdata = of_device_get_match_data(dev);
 
-	phy = devm_phy_create(dev, NULL, &exynos_dp_video_phy_ops);
+	phy = devm_phy_create(dev, NULL, &exyyess_dp_video_phy_ops);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create Display Port PHY\n");
 		return PTR_ERR(phy);
@@ -104,15 +104,15 @@ static int exynos_dp_video_phy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
-static struct platform_driver exynos_dp_video_phy_driver = {
-	.probe	= exynos_dp_video_phy_probe,
+static struct platform_driver exyyess_dp_video_phy_driver = {
+	.probe	= exyyess_dp_video_phy_probe,
 	.driver = {
-		.name	= "exynos-dp-video-phy",
-		.of_match_table	= exynos_dp_video_phy_of_match,
+		.name	= "exyyess-dp-video-phy",
+		.of_match_table	= exyyess_dp_video_phy_of_match,
 		.suppress_bind_attrs = true,
 	}
 };
-module_platform_driver(exynos_dp_video_phy_driver);
+module_platform_driver(exyyess_dp_video_phy_driver);
 
 MODULE_AUTHOR("Jingoo Han <jg1.han@samsung.com>");
 MODULE_DESCRIPTION("Samsung EXYNOS SoC DP PHY driver");

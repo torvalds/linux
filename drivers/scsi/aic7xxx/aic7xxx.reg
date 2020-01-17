@@ -9,14 +9,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -51,13 +51,13 @@ VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.reg#40 $"
  */
 
 /*
- * Registers marked "dont_generate_debug_code" are not (yet) referenced
+ * Registers marked "dont_generate_debug_code" are yest (yet) referenced
  * from the driver code, and this keyword inhibit generation
  * of debug code for them.
  *
  * REG_PRETTY_PRINT config will complain if dont_generate_debug_code
  * is added to the register which is referenced in the driver.
- * Unreferenced register with no dont_generate_debug_code will result
+ * Unreferenced register with yes dont_generate_debug_code will result
  * in dead code. No warning is issued.
  */
 
@@ -172,10 +172,10 @@ register SCSISIGO {
 
 /* 
  * SCSI Rate Control (p. 3-17).
- * Contents of this register determine the Synchronous SCSI data transfer
- * rate and the maximum synchronous Req/Ack offset.  An offset of 0 in the
- * SOFS (3:0) bits disables synchronous data transfers.  Any offset value
- * greater than 0 enables synchronous transfers.
+ * Contents of this register determine the Synchroyesus SCSI data transfer
+ * rate and the maximum synchroyesus Req/Ack offset.  An offset of 0 in the
+ * SOFS (3:0) bits disables synchroyesus data transfers.  Any offset value
+ * greater than 0 enables synchroyesus transfers.
  */
 register SCSIRATE {
 	address			0x004
@@ -214,7 +214,7 @@ register SCSIID	{
  * SCSI Latched Data (p. 3-19).
  * Read/Write latches used to transfer data on the SCSI bus during
  * Automatic or Manual PIO mode.  SCSIDATH can be used for the
- * upper byte of a 16bit wide asynchronouse data phase transfer.
+ * upper byte of a 16bit wide asynchroyesuse data phase transfer.
  */
 register SCSIDATL {
 	address			0x006
@@ -351,7 +351,7 @@ register SSTAT2 {
 	address			0x00d
 	access_mode RO
 	field	OVERRUN		0x80
-	field	SHVALID		0x40	/* Shadow Layer non-zero */
+	field	SHVALID		0x40	/* Shadow Layer yesn-zero */
 	field	EXP_ACTIVE	0x10	/* SCSI Expander Active */
 	field	CRCVALERR	0x08	/* CRC doesn't match (U3 only) */
 	field	CRCENDERR	0x04	/* No terminal CRC packet (U3 only) */
@@ -469,7 +469,7 @@ register SELTIMER {
 /*
  * Selection/Reselection ID (p. 3-31)
  * Upper four bits are the device id.  The ONEBIT is set when the re/selecting
- * device did not set its own ID.
+ * device did yest set its own ID.
  */
 register SELID {
 	address			0x019
@@ -549,7 +549,7 @@ register BRDCTL	{
  * EEPROM Device.  In order to access the serial EEPROM, you must
  * first set the SEEMS bit that generates a request to the memory
  * port for access to the serial EEPROM device.  When the memory
- * port is not busy servicing another request, it reconfigures
+ * port is yest busy servicing ayesther request, it reconfigures
  * to allow access to the serial EEPROM.  When this happens, SEERDY
  * gets set high to verify that the memory port access has been
  * granted.  
@@ -562,7 +562,7 @@ register BRDCTL	{
  * the SEERDY goes high 800 nsec later.  The one exception to this is 
  * when we first request access to the memory port.  The SEERDY goes 
  * high to signify that access has been granted and, for this case, has 
- * no implied timing.
+ * yes implied timing.
  *
  * See 93cx6.c for detailed information on the protocol necessary to 
  * read the serial EEPROM.
@@ -691,7 +691,7 @@ register ALLZEROS {
 register NONE {
 	address			0x06a
 	access_mode WO
-	none
+	yesne
 	dont_generate_debug_code
 }
 
@@ -763,7 +763,7 @@ register DSCOMMAND0 {
 register DSCOMMAND1 {
 	address			0x085
 	access_mode RW
-	mask	DSLATT		0xfc	/* PCI latency timer (non-ultra2) */
+	mask	DSLATT		0xfc	/* PCI latency timer (yesn-ultra2) */
 	field	HADDLDSEL1	0x02	/* Host Address Load Select Bits */
 	field	HADDLDSEL0	0x01
 	dont_generate_debug_code
@@ -874,10 +874,10 @@ register INTSTAT {
 	field	SCSIINT	  0x04
 	field	CMDCMPLT  0x02
 	field	SEQINT    0x01
-	mask	BAD_PHASE	SEQINT		/* unknown scsi bus phase */
+	mask	BAD_PHASE	SEQINT		/* unkyeswn scsi bus phase */
 	mask	SEND_REJECT	0x10|SEQINT	/* sending a message reject */
 	mask	PROTO_VIOLATION	0x20|SEQINT	/* SCSI protocol violation */ 
-	mask	NO_MATCH	0x30|SEQINT	/* no cmd match for reconnect */
+	mask	NO_MATCH	0x30|SEQINT	/* yes cmd match for reconnect */
 	mask	IGN_WIDE_RES	0x40|SEQINT	/* Complex IGN Wide Res Msg */
 	mask	PDATA_REINIT	0x50|SEQINT	/*
 						 * Returned to data phase
@@ -888,7 +888,7 @@ register INTSTAT {
 						 */
 	mask	HOST_MSG_LOOP	0x60|SEQINT	/*
 						 * The bus is ready for the
-						 * host to perform another
+						 * host to perform ayesther
 						 * message transaction.  This
 						 * mechanism is used for things
 						 * like sync/wide negotiation
@@ -899,7 +899,7 @@ register INTSTAT {
 	mask	PERR_DETECTED	0x80|SEQINT	/*
 						 * Either the phase_lock
 						 * or inb_next routine has
-						 * noticed a parity error.
+						 * yesticed a parity error.
 						 */
 	mask	DATA_OVERRUN	0x90|SEQINT	/*
 						 * Target attempted to write
@@ -908,7 +908,7 @@ register INTSTAT {
 						 */
 	mask	MKMSG_FAILED	0xa0|SEQINT	/*
 						 * Target completed command
-						 * without honoring our ATN
+						 * without hoyesring our ATN
 						 * request to issue a message. 
 						 */
 	mask	MISSED_BUSFREE	0xb0|SEQINT	/*
@@ -919,7 +919,7 @@ register INTSTAT {
 						 */
 	mask	SCB_MISMATCH	0xc0|SEQINT	/*
 						 * Downloaded SCB's tag does
-						 * not match the entry we
+						 * yest match the entry we
 						 * intended to download.
 						 */
 	mask	NO_FREE_SCB	0xd0|SEQINT	/*
@@ -934,7 +934,7 @@ register INTSTAT {
 
 /*
  * Hard Error (p. 3-53)
- * Reporting of catastrophic errors.  You usually cannot recover from
+ * Reporting of catastrophic errors.  You usually canyest recover from
  * these without a full board reset.
  */
 register ERROR {
@@ -1384,10 +1384,10 @@ register SG_CACHE_SHADOW {
  *
  * The host adapter card (at least the BIOS) uses 20-2f for SCSI
  * device information, 32-33 and 5a-5f as well. As it turns out, the
- * BIOS trashes 20-2f, writing the synchronous negotiation results
+ * BIOS trashes 20-2f, writing the synchroyesus negotiation results
  * on top of the BIOS values, so we re-use those for our per-target
  * scratchspace (actually a value that can be copied directly into
- * SCSIRATE).  The kernel driver will enable synchronous negotiation
+ * SCSIRATE).  The kernel driver will enable synchroyesus negotiation
  * for all targets that have a value other than 0 in the lower four
  * bits of the target scratch space.  This should work regardless of
  * whether the bios has been installed.
@@ -1408,7 +1408,7 @@ scratch_ram {
 	/*
 	 * Bit vector of targets that have ULTRA enabled as set by
 	 * the BIOS.  The Sequencer relies on a per-SCB field to
-	 * control whether to enable Ultra transfers or not.  During
+	 * control whether to enable Ultra transfers or yest.  During
 	 * initialization, we read this field and reuse it for 2
 	 * entries in the busy target table.
 	 */
@@ -1533,7 +1533,7 @@ scratch_ram {
 	}
 	/*
 	 * head of list of SCBs that are
-	 * not in use.  Used for SCB paging.
+	 * yest in use.  Used for SCB paging.
 	 */
 	FREE_SCBH {
 		size		1
@@ -1541,7 +1541,7 @@ scratch_ram {
 	}
 	/*
 	 * head of list of SCBs that have
-	 * completed but have not been
+	 * completed but have yest been
 	 * put into the qoutfifo.
 	 */
 	COMPLETE_SCBH {
@@ -1668,7 +1668,7 @@ scratch_ram {
 	 * These are reserved registers in the card's scratch ram on the 2742.
 	 * The EISA configuration chip is mapped here.  On Rev E. of the
 	 * aic7770, the sequencer can use this area for scratch, but the
-	 * host cannot directly access these registers.  On later chips, this
+	 * host canyest directly access these registers.  On later chips, this
 	 * area can be read and written by both the host and the sequencer.
 	 * Even on later chips, many of these locations are initialized by
 	 * the BIOS.

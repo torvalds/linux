@@ -18,7 +18,7 @@ integrated into the kernel sources.
 The driver can also be installed as an external module using the usual
 "make;make install" routine.  This external module driver, obtainable
 from the Comtrol website listed below, is useful for updating the driver
-or installing it into kernels which do not have the driver configured
+or installing it into kernels which do yest have the driver configured
 into them.  Installations instructions for the external module
 are in the included README and HW_INSTALL files.
 
@@ -51,7 +51,7 @@ board.
 Installation Procedures
 -----------------------
 
-RocketPort/RocketModem PCI cards require no driver configuration, they are
+RocketPort/RocketModem PCI cards require yes driver configuration, they are
 automatically detected and configured.
 
 The RocketPort driver can be installed as a module (recommended) or built
@@ -69,18 +69,18 @@ manually by entering "modprobe rocket".  To have the module loaded automatically
 upon system boot, edit a `/etc/modprobe.d/*.conf` file and add the line
 "alias char-major-46 rocket".
 
-In order to use the ports, their device names (nodes) must be created with mknod.
+In order to use the ports, their device names (yesdes) must be created with mkyesd.
 This is only required once, the system will retain the names once created.  To
 create the RocketPort/RocketModem device names, use the command
-"mknod /dev/ttyRx c 46 x" where x is the port number starting at zero.
+"mkyesd /dev/ttyRx c 46 x" where x is the port number starting at zero.
 
 For example::
 
-	> mknod /dev/ttyR0 c 46 0
-	> mknod /dev/ttyR1 c 46 1
-	> mknod /dev/ttyR2 c 46 2
+	> mkyesd /dev/ttyR0 c 46 0
+	> mkyesd /dev/ttyR1 c 46 1
+	> mkyesd /dev/ttyR2 c 46 2
 
-The Linux script MAKEDEV will create the first 16 ttyRx device names (nodes)
+The Linux script MAKEDEV will create the first 16 ttyRx device names (yesdes)
 for you::
 
 	>/dev/MAKEDEV ttyR
@@ -119,7 +119,7 @@ corresponding to the second board, etc.  IMPORTANT: The board ID is
 the only place where the DIP switch settings should differ between the
 various Rocketport boards in a system.
 
-The I/O address range used by any of the RocketPort cards must not
+The I/O address range used by any of the RocketPort cards must yest
 conflict with any other cards in the system, including other
 RocketPort cards.  Below, you will find a list of commonly used I/O
 address ranges which may be in use by other devices in your system.

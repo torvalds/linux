@@ -5,7 +5,7 @@
 # License.  See the file "COPYING" in the main directory of this archive
 # for more details.
 #
-# (C) Copyright 2002-2015 Yoshinori Sato <ysato@users.sourceforge.jp>
+# (C) Copyright 2002-2015 Yoshiyesri Sato <ysato@users.sourceforge.jp>
 #
 
 KBUILD_DEFCONFIG := edosk2674_defconfig
@@ -18,7 +18,7 @@ aflags-$(CONFIG_CPU_H8S)	:= -ms -Wa,--mach=h8300s
 ldflags-$(CONFIG_CPU_H8S)	:= -mh8300self_linux
 
 KBUILD_CFLAGS += $(cflags-y)
-KBUILD_CFLAGS += -mint32 -fno-builtin
+KBUILD_CFLAGS += -mint32 -fyes-builtin
 KBUILD_CFLAGS += -D__linux__
 KBUILD_CFLAGS += -DUTS_SYSNAME=\"uClinux\"
 KBUILD_AFLAGS += $(aflags-y)
@@ -27,7 +27,7 @@ KBUILD_LDFLAGS += $(ldflags-y)
 CHECKFLAGS += -msize-long
 
 ifeq ($(CROSS_COMPILE),)
-CROSS_COMPILE := $(call cc-cross-prefix, h8300-unknown-linux- h8300-linux-)
+CROSS_COMPILE := $(call cc-cross-prefix, h8300-unkyeswn-linux- h8300-linux-)
 endif
 
 core-y	+= arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/

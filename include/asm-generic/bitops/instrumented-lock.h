@@ -31,8 +31,8 @@ static inline void clear_bit_unlock(long nr, volatile unsigned long *addr)
  * @nr: Bit to clear
  * @addr: Address to start counting from
  *
- * This is a non-atomic operation but implies a release barrier before the
- * memory operation. It can be used for an unlock if no other CPUs can
+ * This is a yesn-atomic operation but implies a release barrier before the
+ * memory operation. It can be used for an unlock if yes other CPUs can
  * concurrently modify other bits in the word.
  */
 static inline void __clear_bit_unlock(long nr, volatile unsigned long *addr)
@@ -74,7 +74,7 @@ clear_bit_unlock_is_negative_byte(long nr, volatile unsigned long *addr)
 	kasan_check_write(addr + BIT_WORD(nr), sizeof(long));
 	return arch_clear_bit_unlock_is_negative_byte(nr, addr);
 }
-/* Let everybody know we have it. */
+/* Let everybody kyesw we have it. */
 #define clear_bit_unlock_is_negative_byte clear_bit_unlock_is_negative_byte
 #endif
 

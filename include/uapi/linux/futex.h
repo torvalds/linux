@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_FUTEX_H
 #define _UAPI_LINUX_FUTEX_H
 
@@ -49,10 +49,10 @@
 /*
  * Per-lock list entry - embedded in user-space locks, somewhere close
  * to the futex field. (Note: user-space uses a double-linked list to
- * achieve O(1) list add and remove, but the kernel only needs to know
+ * achieve O(1) list add and remove, but the kernel only needs to kyesw
  * about the forward link)
  *
- * NOTE: this structure is part of the syscall ABI, and must not be
+ * NOTE: this structure is part of the syscall ABI, and must yest be
  * changed.
  */
 struct robust_list {
@@ -87,7 +87,7 @@ struct robust_list_head {
 	 * sets this field to the address of the to-be-taken lock,
 	 * then does the lock acquire, and then adds itself to the
 	 * list, and then clears this field. Hence the kernel will
-	 * always have full knowledge of all locks that the thread
+	 * always have full kyeswledge of all locks that the thread
 	 * _might_ have taken. We check the owner TID in any case,
 	 * so only truly owned locks will be handled.
 	 */

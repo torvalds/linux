@@ -26,7 +26,7 @@ config SMC9194
 	---help---
 	  This is support for the SMC9xxx based Ethernet cards. Choose this
 	  option if you have a DELL laptop with the docking station, or
-	  another SMC9192/9194 based chipset.  Say Y if you want it compiled
+	  ayesther SMC9192/9194 based chipset.  Say Y if you want it compiled
 	  into the kernel, and read the file
 	  <file:Documentation/networking/device_drivers/smsc/smc9.txt>.
 

@@ -36,17 +36,17 @@
 
 #include "internal.h"
 
-static bool notests;
-module_param(notests, bool, 0644);
-MODULE_PARM_DESC(notests, "disable crypto self-tests");
+static bool yestests;
+module_param(yestests, bool, 0644);
+MODULE_PARM_DESC(yestests, "disable crypto self-tests");
 
 static bool panic_on_fail;
 module_param(panic_on_fail, bool, 0444);
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
-static bool noextratests;
-module_param(noextratests, bool, 0644);
-MODULE_PARM_DESC(noextratests, "disable expensive crypto self-tests");
+static bool yesextratests;
+module_param(yesextratests, bool, 0644);
+MODULE_PARM_DESC(yesextratests, "disable expensive crypto self-tests");
 
 static unsigned int fuzz_iterations = 100;
 module_param(fuzz_iterations, uint, 0644);
@@ -58,7 +58,7 @@ EXPORT_PER_CPU_SYMBOL_GPL(crypto_simd_disabled_for_test);
 
 #ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
 
-/* a perfect nop */
+/* a perfect yesp */
 int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 {
 	return 0;
@@ -231,16 +231,16 @@ enum finalization_type {
  * @offset: byte offset into a 2-page buffer at which this chunk will start
  * @offset_relative_to_alignmask: if true, add the algorithm's alignmask to the
  *				  @offset
- * @flush_type: for hashes, whether an update() should be done now vs.
+ * @flush_type: for hashes, whether an update() should be done yesw vs.
  *		continuing to accumulate data
- * @nosimd: if doing the pending update(), do it with SIMD disabled?
+ * @yessimd: if doing the pending update(), do it with SIMD disabled?
  */
 struct test_sg_division {
 	unsigned int proportion_of_total;
 	unsigned int offset;
 	bool offset_relative_to_alignmask;
 	enum flush_type flush_type;
-	bool nosimd;
+	bool yessimd;
 };
 
 /**
@@ -260,7 +260,7 @@ struct test_sg_division {
  * @iv_offset_relative_to_alignmask: if true, add the algorithm's alignmask to
  *				     the @iv_offset
  * @finalization_type: what finalization function to use for hashes
- * @nosimd: execute with SIMD disabled?  Requires !CRYPTO_TFM_REQ_MAY_SLEEP.
+ * @yessimd: execute with SIMD disabled?  Requires !CRYPTO_TFM_REQ_MAY_SLEEP.
  */
 struct testvec_config {
 	const char *name;
@@ -271,7 +271,7 @@ struct testvec_config {
 	unsigned int iv_offset;
 	bool iv_offset_relative_to_alignmask;
 	enum finalization_type finalization_type;
-	bool nosimd;
+	bool yessimd;
 };
 
 #define TESTVEC_CONFIG_NAMELEN	192
@@ -439,7 +439,7 @@ static bool valid_sg_divisions(const struct test_sg_division *divs,
 		total += divs[i].proportion_of_total;
 		if (divs[i].flush_type != FLUSH_TYPE_NONE)
 			*flags_ret |= SGDIVS_HAVE_FLUSHES;
-		if (divs[i].nosimd)
+		if (divs[i].yessimd)
 			*flags_ret |= SGDIVS_HAVE_NOSIMD;
 	}
 	return total == TEST_SG_TOTAL &&
@@ -449,7 +449,7 @@ static bool valid_sg_divisions(const struct test_sg_division *divs,
 /*
  * Check whether the given testvec_config is valid.  This isn't strictly needed
  * since every testvec_config should be valid, but check anyway so that people
- * don't unknowingly add broken configs that don't do what they wanted.
+ * don't unkyeswingly add broken configs that don't do what they wanted.
  */
 static bool valid_testvec_config(const struct testvec_config *cfg)
 {
@@ -481,7 +481,7 @@ static bool valid_testvec_config(const struct testvec_config *cfg)
 	    cfg->finalization_type == FINALIZATION_TYPE_DIGEST)
 		return false;
 
-	if ((cfg->nosimd || (flags & SGDIVS_HAVE_NOSIMD)) &&
+	if ((cfg->yessimd || (flags & SGDIVS_HAVE_NOSIMD)) &&
 	    (cfg->req_flags & CRYPTO_TFM_REQ_MAY_SLEEP))
 		return false;
 
@@ -514,15 +514,15 @@ static void destroy_test_sglist(struct test_sglist *tsgl)
  * @divs: the layout specification on which the scatterlist will be based
  * @alignmask: the algorithm's alignmask
  * @total_len: the total length of the scatterlist to build in bytes
- * @data: if non-NULL, the buffers will be filled with this data until it ends.
+ * @data: if yesn-NULL, the buffers will be filled with this data until it ends.
  *	  Otherwise the buffers will be poisoned.  In both cases, some bytes
  *	  past the end of each buffer will be poisoned to help detect overruns.
- * @out_divs: if non-NULL, the test_sg_division to which each scatterlist entry
+ * @out_divs: if yesn-NULL, the test_sg_division to which each scatterlist entry
  *	      corresponds will be returned here.  This will match @divs except
  *	      that divisions resolving to a length of 0 are omitted as they are
- *	      not included in the scatterlist.
+ *	      yest included in the scatterlist.
  *
- * Return: 0 or a -errno value
+ * Return: 0 or a -erryes value
  */
 static int build_test_sglist(struct test_sglist *tsgl,
 			     const struct test_sg_division *divs,
@@ -614,7 +614,7 @@ static int build_test_sglist(struct test_sglist *tsgl,
  * @tsgl: scatterlist containing the actual output
  * @expected_output: buffer containing the expected output
  * @len_to_check: length of @expected_output in bytes
- * @unchecked_prefix_len: number of ignored bytes in @tsgl prior to real result
+ * @unchecked_prefix_len: number of igyesred bytes in @tsgl prior to real result
  * @check_poison: verify that the poison bytes after each chunk are intact?
  *
  * Return: 0 if correct, -EINVAL if incorrect, -EOVERFLOW if buffer overrun.
@@ -867,18 +867,18 @@ static char *generate_random_sgl_divisions(struct test_sg_division *divs,
 		if (div->flush_type != FLUSH_TYPE_NONE &&
 		    !(req_flags & CRYPTO_TFM_REQ_MAY_SLEEP) &&
 		    prandom_u32() % 2 == 0)
-			div->nosimd = true;
+			div->yessimd = true;
 
 		switch (div->flush_type) {
 		case FLUSH_TYPE_FLUSH:
-			if (div->nosimd)
-				flushtype_str = "<flush,nosimd>";
+			if (div->yessimd)
+				flushtype_str = "<flush,yessimd>";
 			else
 				flushtype_str = "<flush>";
 			break;
 		case FLUSH_TYPE_REIMPORT:
-			if (div->nosimd)
-				flushtype_str = "<reimport,nosimd>";
+			if (div->yessimd)
+				flushtype_str = "<reimport,yessimd>";
 			else
 				flushtype_str = "<reimport>";
 			break;
@@ -940,8 +940,8 @@ static void generate_random_testvec_config(struct testvec_config *cfg,
 
 	if (!(cfg->req_flags & CRYPTO_TFM_REQ_MAY_SLEEP) &&
 	    prandom_u32() % 2 == 0) {
-		cfg->nosimd = true;
-		p += scnprintf(p, end - p, " nosimd");
+		cfg->yessimd = true;
+		p += scnprintf(p, end - p, " yessimd");
 	}
 
 	p += scnprintf(p, end - p, " src_divs=[");
@@ -984,7 +984,7 @@ static void crypto_reenable_simd_for_test(void)
 /*
  * Given an algorithm name, build the name of the generic implementation of that
  * algorithm, assuming the usual naming convention.  Specifically, this appends
- * "-generic" to every part of the name that is not a template name.  Examples:
+ * "-generic" to every part of the name that is yest a template name.  Examples:
  *
  *	aes => aes-generic
  *	cbc(aes) => cbc(aes-generic)
@@ -1137,11 +1137,11 @@ static int test_shash_vec_cfg(const char *driver,
 		/* Just using digest() */
 		if (tsgl->nents != 1)
 			return 0;
-		if (cfg->nosimd)
+		if (cfg->yessimd)
 			crypto_disable_simd_for_test();
 		err = crypto_shash_digest(desc, sg_data(&tsgl->sgl[0]),
 					  tsgl->sgl[0].length, result);
-		if (cfg->nosimd)
+		if (cfg->yessimd)
 			crypto_reenable_simd_for_test();
 		if (err) {
 			if (err == vec->digest_error)
@@ -1161,10 +1161,10 @@ static int test_shash_vec_cfg(const char *driver,
 
 	/* Using init(), zero or more update(), then final() or finup() */
 
-	if (cfg->nosimd)
+	if (cfg->yessimd)
 		crypto_disable_simd_for_test();
 	err = crypto_shash_init(desc);
-	if (cfg->nosimd)
+	if (cfg->yessimd)
 		crypto_reenable_simd_for_test();
 	err = check_shash_op("init", err, driver, vec_name, cfg);
 	if (err)
@@ -1173,11 +1173,11 @@ static int test_shash_vec_cfg(const char *driver,
 	for (i = 0; i < tsgl->nents; i++) {
 		if (i + 1 == tsgl->nents &&
 		    cfg->finalization_type == FINALIZATION_TYPE_FINUP) {
-			if (divs[i]->nosimd)
+			if (divs[i]->yessimd)
 				crypto_disable_simd_for_test();
 			err = crypto_shash_finup(desc, sg_data(&tsgl->sgl[i]),
 						 tsgl->sgl[i].length, result);
-			if (divs[i]->nosimd)
+			if (divs[i]->yessimd)
 				crypto_reenable_simd_for_test();
 			err = check_shash_op("finup", err, driver, vec_name,
 					     cfg);
@@ -1185,11 +1185,11 @@ static int test_shash_vec_cfg(const char *driver,
 				return err;
 			goto result_ready;
 		}
-		if (divs[i]->nosimd)
+		if (divs[i]->yessimd)
 			crypto_disable_simd_for_test();
 		err = crypto_shash_update(desc, sg_data(&tsgl->sgl[i]),
 					  tsgl->sgl[i].length);
-		if (divs[i]->nosimd)
+		if (divs[i]->yessimd)
 			crypto_reenable_simd_for_test();
 		err = check_shash_op("update", err, driver, vec_name, cfg);
 		if (err)
@@ -1218,10 +1218,10 @@ static int test_shash_vec_cfg(const char *driver,
 		}
 	}
 
-	if (cfg->nosimd)
+	if (cfg->yessimd)
 		crypto_disable_simd_for_test();
 	err = crypto_shash_final(desc, result);
-	if (cfg->nosimd)
+	if (cfg->yessimd)
 		crypto_reenable_simd_for_test();
 	err = check_shash_op("final", err, driver, vec_name, cfg);
 	if (err)
@@ -1233,22 +1233,22 @@ result_ready:
 
 static int do_ahash_op(int (*op)(struct ahash_request *req),
 		       struct ahash_request *req,
-		       struct crypto_wait *wait, bool nosimd)
+		       struct crypto_wait *wait, bool yessimd)
 {
 	int err;
 
-	if (nosimd)
+	if (yessimd)
 		crypto_disable_simd_for_test();
 
 	err = op(req);
 
-	if (nosimd)
+	if (yessimd)
 		crypto_reenable_simd_for_test();
 
 	return crypto_wait_req(err, wait);
 }
 
-static int check_nonfinal_ahash_op(const char *op, int err,
+static int check_yesnfinal_ahash_op(const char *op, int err,
 				   u8 *result, unsigned int digestsize,
 				   const char *driver, const char *vec_name,
 				   const struct testvec_config *cfg)
@@ -1325,7 +1325,7 @@ static int test_ahash_vec_cfg(const char *driver,
 		ahash_request_set_callback(req, req_flags, crypto_req_done,
 					   &wait);
 		ahash_request_set_crypt(req, tsgl->sgl, result, vec->psize);
-		err = do_ahash_op(crypto_ahash_digest, req, &wait, cfg->nosimd);
+		err = do_ahash_op(crypto_ahash_digest, req, &wait, cfg->yessimd);
 		if (err) {
 			if (err == vec->digest_error)
 				return 0;
@@ -1346,8 +1346,8 @@ static int test_ahash_vec_cfg(const char *driver,
 
 	ahash_request_set_callback(req, req_flags, crypto_req_done, &wait);
 	ahash_request_set_crypt(req, NULL, result, 0);
-	err = do_ahash_op(crypto_ahash_init, req, &wait, cfg->nosimd);
-	err = check_nonfinal_ahash_op("init", err, result, digestsize,
+	err = do_ahash_op(crypto_ahash_init, req, &wait, cfg->yessimd);
+	err = check_yesnfinal_ahash_op("init", err, result, digestsize,
 				      driver, vec_name, cfg);
 	if (err)
 		return err;
@@ -1363,8 +1363,8 @@ static int test_ahash_vec_cfg(const char *driver,
 			ahash_request_set_crypt(req, pending_sgl, result,
 						pending_len);
 			err = do_ahash_op(crypto_ahash_update, req, &wait,
-					  divs[i]->nosimd);
-			err = check_nonfinal_ahash_op("update", err,
+					  divs[i]->yessimd);
+			err = check_yesnfinal_ahash_op("update", err,
 						      result, digestsize,
 						      driver, vec_name, cfg);
 			if (err)
@@ -1377,7 +1377,7 @@ static int test_ahash_vec_cfg(const char *driver,
 			testmgr_poison(hashstate + statesize,
 				       TESTMGR_POISON_LEN);
 			err = crypto_ahash_export(req, hashstate);
-			err = check_nonfinal_ahash_op("export", err,
+			err = check_yesnfinal_ahash_op("export", err,
 						      result, digestsize,
 						      driver, vec_name, cfg);
 			if (err)
@@ -1391,7 +1391,7 @@ static int test_ahash_vec_cfg(const char *driver,
 
 			testmgr_poison(req->__ctx, crypto_ahash_reqsize(tfm));
 			err = crypto_ahash_import(req, hashstate);
-			err = check_nonfinal_ahash_op("import", err,
+			err = check_yesnfinal_ahash_op("import", err,
 						      result, digestsize,
 						      driver, vec_name, cfg);
 			if (err)
@@ -1406,12 +1406,12 @@ static int test_ahash_vec_cfg(const char *driver,
 	ahash_request_set_crypt(req, pending_sgl, result, pending_len);
 	if (cfg->finalization_type == FINALIZATION_TYPE_FINAL) {
 		/* finish with update() and final() */
-		err = do_ahash_op(crypto_ahash_update, req, &wait, cfg->nosimd);
-		err = check_nonfinal_ahash_op("update", err, result, digestsize,
+		err = do_ahash_op(crypto_ahash_update, req, &wait, cfg->yessimd);
+		err = check_yesnfinal_ahash_op("update", err, result, digestsize,
 					      driver, vec_name, cfg);
 		if (err)
 			return err;
-		err = do_ahash_op(crypto_ahash_final, req, &wait, cfg->nosimd);
+		err = do_ahash_op(crypto_ahash_final, req, &wait, cfg->yessimd);
 		if (err) {
 			pr_err("alg: ahash: %s final() failed with err %d on test vector %s, cfg=\"%s\"\n",
 			       driver, err, vec_name, cfg->name);
@@ -1419,7 +1419,7 @@ static int test_ahash_vec_cfg(const char *driver,
 		}
 	} else {
 		/* finish with finup() */
-		err = do_ahash_op(crypto_ahash_finup, req, &wait, cfg->nosimd);
+		err = do_ahash_op(crypto_ahash_finup, req, &wait, cfg->yessimd);
 		if (err) {
 			pr_err("alg: ahash: %s finup() failed with err %d on test vector %s, cfg=\"%s\"\n",
 			       driver, err, vec_name, cfg->name);
@@ -1480,7 +1480,7 @@ static int test_hash_vec(const char *driver, const struct hash_testvec *vec,
 	}
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
-	if (!noextratests) {
+	if (!yesextratests) {
 		struct testvec_config cfg;
 		char cfgname[TESTVEC_CONFIG_NAMELEN];
 
@@ -1527,7 +1527,7 @@ static void generate_random_hash_testvec(struct shash_desc *desc,
 
 		vec->setkey_error = crypto_shash_setkey(desc->tfm, vec->key,
 							vec->ksize);
-		/* If the key couldn't be set, no need to continue to digest. */
+		/* If the key couldn't be set, yes need to continue to digest. */
 		if (vec->setkey_error)
 			goto done;
 	}
@@ -1567,7 +1567,7 @@ static int test_hash_vs_generic_impl(const char *driver,
 	char cfgname[TESTVEC_CONFIG_NAMELEN];
 	int err;
 
-	if (noextratests)
+	if (yesextratests)
 		return 0;
 
 	if (!generic_driver) { /* Use default naming convention? */
@@ -1684,7 +1684,7 @@ static int alloc_shash(const char *driver, u32 type, u32 mask,
 		if (PTR_ERR(tfm) == -ENOENT) {
 			/*
 			 * This algorithm is only available through the ahash
-			 * API, not the shash API, so skip the shash tests.
+			 * API, yest the shash API, so skip the shash tests.
 			 */
 			return 0;
 		}
@@ -1921,10 +1921,10 @@ static int test_aead_vec_cfg(const char *driver, int enc,
 	aead_request_set_crypt(req, tsgls->src.sgl_ptr, tsgls->dst.sgl_ptr,
 			       enc ? vec->plen : vec->clen, iv);
 	aead_request_set_ad(req, vec->alen);
-	if (cfg->nosimd)
+	if (cfg->yessimd)
 		crypto_disable_simd_for_test();
 	err = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
-	if (cfg->nosimd)
+	if (cfg->yessimd)
 		crypto_reenable_simd_for_test();
 	err = crypto_wait_req(err, &wait);
 
@@ -1973,7 +1973,7 @@ static int test_aead_vec_cfg(const char *driver, int enc,
 	}
 
 	/* Check for success or failure */
-	expected_error = vec->novrfy ? -EBADMSG : vec->crypt_error;
+	expected_error = vec->yesvrfy ? -EBADMSG : vec->crypt_error;
 	if (err) {
 		if (err == expected_error)
 			return 0;
@@ -2014,7 +2014,7 @@ static int test_aead_vec(const char *driver, int enc,
 	unsigned int i;
 	int err;
 
-	if (enc && vec->novrfy)
+	if (enc && vec->yesvrfy)
 		return 0;
 
 	sprintf(vec_name, "%u", vec_num);
@@ -2028,7 +2028,7 @@ static int test_aead_vec(const char *driver, int enc,
 	}
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
-	if (!noextratests) {
+	if (!yesextratests) {
 		struct testvec_config cfg;
 		char cfgname[TESTVEC_CONFIG_NAMELEN];
 
@@ -2099,7 +2099,7 @@ static void generate_random_aead_testvec(struct aead_request *req,
 	vec->clen = vec->plen + authsize;
 
 	/*
-	 * If the key or authentication tag size couldn't be set, no need to
+	 * If the key or authentication tag size couldn't be set, yes need to
 	 * continue to encrypt.
 	 */
 	if (vec->setkey_error || vec->setauthsize_error)
@@ -2153,7 +2153,7 @@ static int test_aead_vs_generic_impl(const char *driver,
 	char cfgname[TESTVEC_CONFIG_NAMELEN];
 	int err;
 
-	if (noextratests)
+	if (yesextratests)
 		return 0;
 
 	if (!generic_driver) { /* Use default naming convention? */
@@ -2358,7 +2358,7 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 	int ret = -ENOMEM;
 
 	if (testmgr_alloc_buf(xbuf))
-		goto out_nobuf;
+		goto out_yesbuf;
 
 	if (enc == ENCRYPT)
 	        e = "encryption";
@@ -2427,7 +2427,7 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 
 out:
 	testmgr_free_buf(xbuf);
-out_nobuf:
+out_yesbuf:
 	return ret;
 }
 
@@ -2507,10 +2507,10 @@ static int test_skcipher_vec_cfg(const char *driver, int enc,
 	skcipher_request_set_callback(req, req_flags, crypto_req_done, &wait);
 	skcipher_request_set_crypt(req, tsgls->src.sgl_ptr, tsgls->dst.sgl_ptr,
 				   vec->len, iv);
-	if (cfg->nosimd)
+	if (cfg->yessimd)
 		crypto_disable_simd_for_test();
 	err = enc ? crypto_skcipher_encrypt(req) : crypto_skcipher_decrypt(req);
-	if (cfg->nosimd)
+	if (cfg->yessimd)
 		crypto_reenable_simd_for_test();
 	err = crypto_wait_req(err, &wait);
 
@@ -2618,7 +2618,7 @@ static int test_skcipher_vec(const char *driver, int enc,
 	}
 
 #ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
-	if (!noextratests) {
+	if (!yesextratests) {
 		struct testvec_config cfg;
 		char cfgname[TESTVEC_CONFIG_NAMELEN];
 
@@ -2667,7 +2667,7 @@ static void generate_random_cipher_testvec(struct skcipher_request *req,
 	vec->len = generate_random_length(maxdatasize);
 	generate_random_bytes((u8 *)vec->ptext, vec->len);
 
-	/* If the key couldn't be set, no need to continue to encrypt. */
+	/* If the key couldn't be set, yes need to continue to encrypt. */
 	if (vec->setkey_error)
 		goto done;
 
@@ -2707,7 +2707,7 @@ static int test_skcipher_vs_generic_impl(const char *driver,
 	char cfgname[TESTVEC_CONFIG_NAMELEN];
 	int err;
 
-	if (noextratests)
+	if (yesextratests)
 		return 0;
 
 	/* Keywrap isn't supported here yet as it handles its IV differently. */
@@ -3308,8 +3308,8 @@ static int alg_test_crc32c(const struct alg_test_desc *desc,
 		if (PTR_ERR(tfm) == -ENOENT) {
 			/*
 			 * This crc32c implementation is only available through
-			 * ahash API, not the shash API, so the remaining part
-			 * of the test is not applicable to it.
+			 * ahash API, yest the shash API, so the remaining part
+			 * of the test is yest applicable to it.
 			 */
 			return 0;
 		}
@@ -3379,7 +3379,7 @@ static int drbg_cavs_test(const struct drbg_testvec *test, int pr,
 
 	drng = crypto_alloc_rng(driver, type, mask);
 	if (IS_ERR(drng)) {
-		printk(KERN_ERR "alg: drbg: could not allocate DRNG handle for "
+		printk(KERN_ERR "alg: drbg: could yest allocate DRNG handle for "
 		       "%s\n", driver);
 		kzfree(buf);
 		return -ENOMEM;
@@ -3404,7 +3404,7 @@ static int drbg_cavs_test(const struct drbg_testvec *test, int pr,
 			buf, test->expectedlen, &addtl);
 	}
 	if (ret < 0) {
-		printk(KERN_ERR "alg: drbg: could not obtain random data for "
+		printk(KERN_ERR "alg: drbg: could yest obtain random data for "
 		       "driver %s\n", driver);
 		goto outbuf;
 	}
@@ -3419,7 +3419,7 @@ static int drbg_cavs_test(const struct drbg_testvec *test, int pr,
 			buf, test->expectedlen, &addtl);
 	}
 	if (ret < 0) {
-		printk(KERN_ERR "alg: drbg: could not obtain random data for "
+		printk(KERN_ERR "alg: drbg: could yest obtain random data for "
 		       "driver %s\n", driver);
 		goto outbuf;
 	}
@@ -3685,7 +3685,7 @@ static int test_akcipher_one(struct crypto_akcipher *tfm,
 		goto free_req;
 
 	/*
-	 * First run test which do not require a private key, such as
+	 * First run test which do yest require a private key, such as
 	 * encrypt or verify.
 	 */
 	err = -ENOMEM;
@@ -4344,68 +4344,68 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "digest_null",
 		.test = alg_test_null,
 	}, {
-		.alg = "drbg_nopr_ctr_aes128",
+		.alg = "drbg_yespr_ctr_aes128",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
 		.suite = {
-			.drbg = __VECS(drbg_nopr_ctr_aes128_tv_template)
+			.drbg = __VECS(drbg_yespr_ctr_aes128_tv_template)
 		}
 	}, {
-		.alg = "drbg_nopr_ctr_aes192",
+		.alg = "drbg_yespr_ctr_aes192",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
 		.suite = {
-			.drbg = __VECS(drbg_nopr_ctr_aes192_tv_template)
+			.drbg = __VECS(drbg_yespr_ctr_aes192_tv_template)
 		}
 	}, {
-		.alg = "drbg_nopr_ctr_aes256",
+		.alg = "drbg_yespr_ctr_aes256",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
 		.suite = {
-			.drbg = __VECS(drbg_nopr_ctr_aes256_tv_template)
+			.drbg = __VECS(drbg_yespr_ctr_aes256_tv_template)
 		}
 	}, {
 		/*
-		 * There is no need to specifically test the DRBG with every
-		 * backend cipher -- covered by drbg_nopr_hmac_sha256 test
+		 * There is yes need to specifically test the DRBG with every
+		 * backend cipher -- covered by drbg_yespr_hmac_sha256 test
 		 */
-		.alg = "drbg_nopr_hmac_sha1",
+		.alg = "drbg_yespr_hmac_sha1",
 		.fips_allowed = 1,
 		.test = alg_test_null,
 	}, {
-		.alg = "drbg_nopr_hmac_sha256",
+		.alg = "drbg_yespr_hmac_sha256",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
 		.suite = {
-			.drbg = __VECS(drbg_nopr_hmac_sha256_tv_template)
+			.drbg = __VECS(drbg_yespr_hmac_sha256_tv_template)
 		}
 	}, {
-		/* covered by drbg_nopr_hmac_sha256 test */
-		.alg = "drbg_nopr_hmac_sha384",
+		/* covered by drbg_yespr_hmac_sha256 test */
+		.alg = "drbg_yespr_hmac_sha384",
 		.fips_allowed = 1,
 		.test = alg_test_null,
 	}, {
-		.alg = "drbg_nopr_hmac_sha512",
+		.alg = "drbg_yespr_hmac_sha512",
 		.test = alg_test_null,
 		.fips_allowed = 1,
 	}, {
-		.alg = "drbg_nopr_sha1",
+		.alg = "drbg_yespr_sha1",
 		.fips_allowed = 1,
 		.test = alg_test_null,
 	}, {
-		.alg = "drbg_nopr_sha256",
+		.alg = "drbg_yespr_sha256",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
 		.suite = {
-			.drbg = __VECS(drbg_nopr_sha256_tv_template)
+			.drbg = __VECS(drbg_yespr_sha256_tv_template)
 		}
 	}, {
-		/* covered by drbg_nopr_sha256 test */
-		.alg = "drbg_nopr_sha384",
+		/* covered by drbg_yespr_sha256 test */
+		.alg = "drbg_yespr_sha384",
 		.fips_allowed = 1,
 		.test = alg_test_null,
 	}, {
-		.alg = "drbg_nopr_sha512",
+		.alg = "drbg_yespr_sha512",
 		.fips_allowed = 1,
 		.test = alg_test_null,
 	}, {
@@ -5279,7 +5279,7 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	int j;
 	int rc;
 
-	if (!fips_enabled && notests) {
+	if (!fips_enabled && yestests) {
 		printk_once(KERN_INFO "alg: self-tests disabled\n");
 		return 0;
 	}
@@ -5295,10 +5295,10 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 
 		i = alg_find_test(nalg);
 		if (i < 0)
-			goto notest;
+			goto yestest;
 
 		if (fips_enabled && !alg_test_descs[i].fips_allowed)
-			goto non_fips_alg;
+			goto yesn_fips_alg;
 
 		rc = alg_test_cipher(alg_test_descs + i, driver, type, mask);
 		goto test_done;
@@ -5307,11 +5307,11 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	i = alg_find_test(alg);
 	j = alg_find_test(driver);
 	if (i < 0 && j < 0)
-		goto notest;
+		goto yestest;
 
 	if (fips_enabled && ((i >= 0 && !alg_test_descs[i].fips_allowed) ||
 			     (j >= 0 && !alg_test_descs[j].fips_allowed)))
-		goto non_fips_alg;
+		goto yesn_fips_alg;
 
 	rc = 0;
 	if (i >= 0)
@@ -5323,7 +5323,7 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 
 test_done:
 	if (rc && (fips_enabled || panic_on_fail)) {
-		fips_fail_notify();
+		fips_fail_yestify();
 		panic("alg: self-tests for %s (%s) failed in %s mode!\n",
 		      driver, alg, fips_enabled ? "fips" : "panic_on_fail");
 	}
@@ -5333,10 +5333,10 @@ test_done:
 
 	return rc;
 
-notest:
+yestest:
 	printk(KERN_INFO "alg: No test for %s (%s)\n", alg, driver);
 	return 0;
-non_fips_alg:
+yesn_fips_alg:
 	return -EINVAL;
 }
 

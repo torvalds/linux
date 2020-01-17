@@ -51,7 +51,7 @@ struct brcmf_bus_dcmd {
  * @stop: clear pending frames, disable data flow.
  * @txdata: send a data frame to the dongle. When the data
  *	has been transferred, the common driver must be
- *	notified using brcmf_txcomplete(). The common
+ *	yestified using brcmf_txcomplete(). The common
  *	driver calls this function with interrupts
  *	disabled.
  * @txctl: transmit a control request message to dongle.
@@ -109,7 +109,7 @@ struct brcmf_bus_msgbuf {
 /**
  * struct brcmf_bus_stats - bus statistic counters.
  *
- * @pktcowed: packets cowed for extra headroom/unorphan.
+ * @pktcowed: packets cowed for extra headroom/uyesrphan.
  * @pktcow_failed: packets dropped due to failed cow-ing.
  */
 struct brcmf_bus_stats {

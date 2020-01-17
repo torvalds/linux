@@ -327,7 +327,7 @@ static int audio_ssp_init_portregs(struct cygnus_aio_port *aio)
 		writel(value, aio->cygaud->audio + AUD_MISC_SEROUT_OE_REG_BASE);
 		break;
 	default:
-		dev_err(aio->cygaud->dev, "Port not supported\n");
+		dev_err(aio->cygaud->dev, "Port yest supported\n");
 		status = -EINVAL;
 	}
 
@@ -418,7 +418,7 @@ static int audio_ssp_out_enable(struct cygnus_aio_port *aio)
 		break;
 	default:
 		dev_err(aio->cygaud->dev,
-			"Port not supported %d\n", aio->portnum);
+			"Port yest supported %d\n", aio->portnum);
 		status = -EINVAL;
 	}
 
@@ -481,7 +481,7 @@ static int audio_ssp_out_disable(struct cygnus_aio_port *aio)
 		break;
 	default:
 		dev_err(aio->cygaud->dev,
-			"Port not supported %d\n", aio->portnum);
+			"Port yest supported %d\n", aio->portnum);
 		status = -EINVAL;
 	}
 
@@ -601,7 +601,7 @@ static int cygnus_ssp_set_clocks(struct cygnus_aio_port *aio)
 	case PORT_SPDIF:
 		break;
 	default:
-		dev_err(aio->cygaud->dev, "Unknown port type\n");
+		dev_err(aio->cygaud->dev, "Unkyeswn port type\n");
 		return -EINVAL;
 	}
 
@@ -638,7 +638,7 @@ static int cygnus_ssp_hw_params(struct snd_pcm_substream *substream,
 	switch (aio->mode) {
 	case CYGNUS_SSPMODE_TDM:
 		if ((rate == 192000) && (params_channels(params) > 4)) {
-			dev_err(aio->cygaud->dev, "Cannot run %d channels at %dHz\n",
+			dev_err(aio->cygaud->dev, "Canyest run %d channels at %dHz\n",
 				params_channels(params), rate);
 			return -EINVAL;
 		}
@@ -648,7 +648,7 @@ static int cygnus_ssp_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		dev_err(aio->cygaud->dev,
-			"%s port running in unknown mode\n", __func__);
+			"%s port running in unkyeswn mode\n", __func__);
 		return -EINVAL;
 	}
 
@@ -806,7 +806,7 @@ static void cygnus_ssp_shutdown(struct snd_pcm_substream *substream,
  * 13     No      Bits		  (1 = 16 bits, 0 = 32 bits)
  * 12:08  No     Bits per samp
  * 07     Yes     Justifcation    (1 = LSB, 0 = MSB)
- * 06     Yes     Alignment       (1 = Delay 1 clk, 0 = no delay
+ * 06     Yes     Alignment       (1 = Delay 1 clk, 0 = yes delay
  * 05     Yes     SCLK polarity   (1 = Rising, 0 = Falling)
  * 04     Yes     LRCLK Polarity  (1 = High for left, 0 = Low for left)
  * 03:02  Yes     Reserved - write as zero
@@ -815,7 +815,7 @@ static void cygnus_ssp_shutdown(struct snd_pcm_substream *substream,
  */
 #define I2S_OUT_CFG_REG_UPDATE_MASK   0x3C03FF03
 
-/* Input cfg is same as output, but the FS width is not a valid field */
+/* Input cfg is same as output, but the FS width is yest a valid field */
 #define I2S_IN_CFG_REG_UPDATE_MASK  (I2S_OUT_CFG_REG_UPDATE_MASK | 0x03FC0000)
 
 int cygnus_ssp_set_custom_fsync_width(struct snd_soc_dai *cpu_dai, int len)
@@ -891,7 +891,7 @@ static int cygnus_ssp_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	/*
 	 * SSP out cfg.
-	 * Retain bits we do not want to update, then OR in new bits
+	 * Retain bits we do yest want to update, then OR in new bits
 	 */
 	ssp_curcfg = readl(aio->cygaud->audio + aio->regs.i2s_cfg);
 	ssp_outcfg = (ssp_curcfg & I2S_OUT_CFG_REG_UPDATE_MASK) | ssp_newcfg;
@@ -899,7 +899,7 @@ static int cygnus_ssp_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	/*
 	 * SSP in cfg.
-	 * Retain bits we do not want to update, then OR in new bits
+	 * Retain bits we do yest want to update, then OR in new bits
 	 */
 	ssp_curcfg = readl(aio->cygaud->i2s_in + aio->regs.i2s_cap_cfg);
 	ssp_incfg = (ssp_curcfg & I2S_IN_CFG_REG_UPDATE_MASK) | ssp_newcfg;
@@ -1182,10 +1182,10 @@ static const struct snd_soc_component_driver cygnus_ssp_component = {
 /*
  * Return < 0 if error
  * Return 0 if disabled
- * Return 1 if enabled and node is parsed successfully
+ * Return 1 if enabled and yesde is parsed successfully
  */
-static int parse_ssp_child_node(struct platform_device *pdev,
-				struct device_node *dn,
+static int parse_ssp_child_yesde(struct platform_device *pdev,
+				struct device_yesde *dn,
 				struct cygnus_audio *cygaud,
 				struct snd_soc_dai_driver *p_dai)
 {
@@ -1280,11 +1280,11 @@ static int audio_clk_init(struct platform_device *pdev,
 static int cygnus_ssp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *child_node;
+	struct device_yesde *child_yesde;
 	struct resource *res;
 	struct cygnus_audio *cygaud;
 	int err = -EINVAL;
-	int node_count;
+	int yesde_count;
 	int active_port_count;
 
 	cygaud = devm_kzalloc(dev, sizeof(struct cygnus_audio), GFP_KERNEL);
@@ -1303,21 +1303,21 @@ static int cygnus_ssp_probe(struct platform_device *pdev)
 	if (IS_ERR(cygaud->i2s_in))
 		return PTR_ERR(cygaud->i2s_in);
 
-	/* Tri-state all controlable pins until we know that we need them */
+	/* Tri-state all controlable pins until we kyesw that we need them */
 	writel(CYGNUS_SSP_TRISTATE_MASK,
 			cygaud->audio + AUD_MISC_SEROUT_OE_REG_BASE);
 
-	node_count = of_get_child_count(pdev->dev.of_node);
-	if ((node_count < 1) || (node_count > CYGNUS_MAX_PORTS)) {
-		dev_err(dev, "child nodes is %d.  Must be between 1 and %d\n",
-			node_count, CYGNUS_MAX_PORTS);
+	yesde_count = of_get_child_count(pdev->dev.of_yesde);
+	if ((yesde_count < 1) || (yesde_count > CYGNUS_MAX_PORTS)) {
+		dev_err(dev, "child yesdes is %d.  Must be between 1 and %d\n",
+			yesde_count, CYGNUS_MAX_PORTS);
 		return -EINVAL;
 	}
 
 	active_port_count = 0;
 
-	for_each_available_child_of_node(pdev->dev.of_node, child_node) {
-		err = parse_ssp_child_node(pdev, child_node, cygaud,
+	for_each_available_child_of_yesde(pdev->dev.of_yesde, child_yesde) {
+		err = parse_ssp_child_yesde(pdev, child_yesde, cygaud,
 					&cygnus_ssp_dai[active_port_count]);
 
 		/* negative is err, 0 is active and good, 1 is disabled */

@@ -2,29 +2,29 @@
 Numa policy hit/miss statistics
 ===============================
 
-/sys/devices/system/node/node*/numastat
+/sys/devices/system/yesde/yesde*/numastat
 
 All units are pages. Hugepages have separate counters.
 
 =============== ============================================================
-numa_hit	A process wanted to allocate memory from this node,
+numa_hit	A process wanted to allocate memory from this yesde,
 		and succeeded.
 
-numa_miss	A process wanted to allocate memory from another node,
-		but ended up with memory from this node.
+numa_miss	A process wanted to allocate memory from ayesther yesde,
+		but ended up with memory from this yesde.
 
-numa_foreign	A process wanted to allocate on this node,
-		but ended up with memory from another one.
+numa_foreign	A process wanted to allocate on this yesde,
+		but ended up with memory from ayesther one.
 
-local_node	A process ran on this node and got memory from it.
+local_yesde	A process ran on this yesde and got memory from it.
 
-other_node	A process ran on this node and got memory from another node.
+other_yesde	A process ran on this yesde and got memory from ayesther yesde.
 
-interleave_hit 	Interleaving wanted to allocate from this node
+interleave_hit 	Interleaving wanted to allocate from this yesde
 		and succeeded.
 =============== ============================================================
 
 For easier reading you can use the numastat utility from the numactl package
 (http://oss.sgi.com/projects/libnuma/). Note that it only works
-well right now on machines with a small number of CPUs.
+well right yesw on machines with a small number of CPUs.
 

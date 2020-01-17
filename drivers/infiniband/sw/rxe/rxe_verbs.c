@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -114,8 +114,8 @@ static int rxe_modify_device(struct ib_device *dev,
 		rxe->attr.sys_image_guid = cpu_to_be64(attr->sys_image_guid);
 
 	if (mask & IB_DEVICE_MODIFY_NODE_DESC) {
-		memcpy(rxe->ib_dev.node_desc,
-		       attr->node_desc, sizeof(rxe->ib_dev.node_desc));
+		memcpy(rxe->ib_dev.yesde_desc,
+		       attr->yesde_desc, sizeof(rxe->ib_dev.yesde_desc));
 	}
 
 	return 0;
@@ -877,15 +877,15 @@ static int rxe_peek_cq(struct ib_cq *ibcq, int wc_cnt)
 	return (count > wc_cnt) ? wc_cnt : count;
 }
 
-static int rxe_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
+static int rxe_req_yestify_cq(struct ib_cq *ibcq, enum ib_cq_yestify_flags flags)
 {
 	struct rxe_cq *cq = to_rcq(ibcq);
 	unsigned long irq_flags;
 	int ret = 0;
 
 	spin_lock_irqsave(&cq->cq_lock, irq_flags);
-	if (cq->notify != IB_CQ_NEXT_COMP)
-		cq->notify = flags & IB_CQ_SOLICITED_MASK;
+	if (cq->yestify != IB_CQ_NEXT_COMP)
+		cq->yestify = flags & IB_CQ_SOLICITED_MASK;
 
 	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !queue_empty(cq->queue))
 		ret = 1;
@@ -1149,7 +1149,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.query_qp = rxe_query_qp,
 	.query_srq = rxe_query_srq,
 	.reg_user_mr = rxe_reg_user_mr,
-	.req_notify_cq = rxe_req_notify_cq,
+	.req_yestify_cq = rxe_req_yestify_cq,
 	.resize_cq = rxe_resize_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, rxe_ah, ibah),
@@ -1165,14 +1165,14 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	struct ib_device *dev = &rxe->ib_dev;
 	struct crypto_shash *tfm;
 
-	strlcpy(dev->node_desc, "rxe", sizeof(dev->node_desc));
+	strlcpy(dev->yesde_desc, "rxe", sizeof(dev->yesde_desc));
 
-	dev->node_type = RDMA_NODE_IB_CA;
+	dev->yesde_type = RDMA_NODE_IB_CA;
 	dev->phys_port_cnt = 1;
 	dev->num_comp_vectors = num_possible_cpus();
 	dev->dev.parent = rxe_dma_device(rxe);
 	dev->local_dma_lkey = 0;
-	addrconf_addr_eui48((unsigned char *)&dev->node_guid,
+	addrconf_addr_eui48((unsigned char *)&dev->yesde_guid,
 			    rxe->ndev->dev_addr);
 	dev->dev.dma_ops = &dma_virt_ops;
 	dev->dev.dma_parms = &rxe->dma_parms;
@@ -1233,7 +1233,7 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 		pr_warn("%s failed with error %d\n", __func__, err);
 
 	/*
-	 * Note that rxe may be invalid at this point if another thread
+	 * Note that rxe may be invalid at this point if ayesther thread
 	 * unregistered it.
 	 */
 	return err;

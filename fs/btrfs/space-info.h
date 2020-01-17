@@ -22,7 +22,7 @@ struct btrfs_space_info {
 				   the space info if we had an ENOSPC in the
 				   allocator. */
 
-	unsigned int full:1;	/* indicates that we cannot allocate any more
+	unsigned int full:1;	/* indicates that we canyest allocate any more
 				   chunks for this space */
 	unsigned int chunk_alloc:1;	/* set if we are allocating a chunk */
 
@@ -41,7 +41,7 @@ struct btrfs_space_info {
 	 * bytes_pinned is kept in line with what is actually pinned, as in
 	 * we've called update_block_group and dropped the bytes_used counter
 	 * and increased the bytes_pinned counter.  However this means that
-	 * bytes_pinned does not reflect the bytes that will be pinned once the
+	 * bytes_pinned does yest reflect the bytes that will be pinned once the
 	 * delayed refs are flushed, so this counter is inc'ed every time we
 	 * call btrfs_free_extent so it is a realtime count of what will be
 	 * freed once the transaction is committed.  It will be zeroed every
@@ -55,8 +55,8 @@ struct btrfs_space_info {
 	struct list_head priority_tickets;
 	struct list_head tickets;
 	/*
-	 * tickets_id just indicates the next ticket will be handled, so note
-	 * it's not stored per ticket.
+	 * tickets_id just indicates the next ticket will be handled, so yeste
+	 * it's yest stored per ticket.
 	 */
 	u64 tickets_id;
 

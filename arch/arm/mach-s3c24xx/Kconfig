@@ -118,7 +118,7 @@ config S3C24XX_PLL
 	help
 	  Compile in support for changing the PLL frequency from the
 	  S3C24XX series CPUfreq driver. The PLL takes time to settle
-	  after a frequency change, so by default it is not enabled.
+	  after a frequency change, so by default it is yest enabled.
 
 	  This also means that the PLL tables for the selected CPU(s) will
 	  be built which may increase the size of the kernel image.
@@ -134,14 +134,14 @@ config S3C2410_IOTIMING
 	bool
 	depends on ARM_S3C24XX_CPUFREQ
 	help
-	  Internal node to select io timing code that is common to the s3c2410
+	  Internal yesde to select io timing code that is common to the s3c2410
 	  and s3c2440/s3c2442 cpu frequency support.
 
 config S3C2410_CPUFREQ_UTILS
        bool
        depends on ARM_S3C24XX_CPUFREQ
        help
-         Internal node to select timing code that is common to the s3c2410
+         Internal yesde to select timing code that is common to the s3c2410
          and s3c2440/s3c244 cpu frequency support.
 
 # cpu frequency support common to s3c2412, s3c2413 and s3c2442
@@ -150,7 +150,7 @@ config S3C2412_IOTIMING
 	bool
 	depends on ARM_S3C24XX_CPUFREQ && (CPU_S3C2412 || CPU_S3C2443)
 	help
-	  Intel node to select io timing code that is common to the s3c2412
+	  Intel yesde to select io timing code that is common to the s3c2412
 	  and the s3c2443.
 
 # cpu-specific sections
@@ -167,13 +167,13 @@ config S3C2410_PLL
 config S3C24XX_SIMTEC_NOR
 	bool
 	help
-	  Internal node to specify machine has simtec NOR mapping
+	  Internal yesde to specify machine has simtec NOR mapping
 
 config MACH_BAST_IDE
 	bool
 	select HAVE_PATA_PLATFORM
 	help
-	  Internal node for machines with an BAST style IDE
+	  Internal yesde for machines with an BAST style IDE
 	  interface
 
 comment "S3C2410 Boards"
@@ -205,7 +205,7 @@ config ARCH_BAST
 	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Simtec Electronics EB2410ITX
-	  development board (also known as BAST)
+	  development board (also kyeswn as BAST)
 
 config BAST_PC104_IRQ
 	bool "BAST PC104 IRQ support"
@@ -285,8 +285,8 @@ endif	# CPU_S3C2410
 config S3C2412_PM_SLEEP
 	bool
 	help
-	  Internal config node to apply sleep for S3C2412 power management.
-	  Can be selected by another SoCs such as S3C2416 with similar
+	  Internal config yesde to apply sleep for S3C2412 power management.
+	  Can be selected by ayesther SoCs such as S3C2416 with similar
 	  sleep procedure.
 
 if CPU_S3C2412
@@ -302,7 +302,7 @@ config S3C2412_PM
 	select S3C2412_PM_SLEEP
 	select SAMSUNG_WAKEMASK
 	help
-	  Internal config node to apply S3C2412 power management
+	  Internal config yesde to apply S3C2412 power management
 
 comment "S3C2412 Boards"
 
@@ -325,7 +325,7 @@ config MACH_JIVE_SHOW_BOOTLOADER
 config MACH_S3C2413
 	bool
 	help
-	  Internal node for S3C2413 version of SMDK2413, so that
+	  Internal yesde for S3C2413 version of SMDK2413, so that
 	  machine_is_s3c2413() will work when MACH_SMDK2413 is
 	  selected
 
@@ -363,7 +363,7 @@ config S3C2416_PM
 	select S3C2412_PM_SLEEP
 	select SAMSUNG_WAKEMASK
 	help
-	  Internal config node to apply S3C2416 power management
+	  Internal config yesde to apply S3C2416 power management
 
 config S3C2416_SETUP_SDHCI
 	bool
@@ -399,7 +399,7 @@ config MACH_S3C2416_DT
 	help
 	  Machine support for Samsung S3C2416 machines with device tree enabled.
 	  Select this if a fdt blob is available for the S3C2416 SoC based board.
-	  Note: This is under development and not all peripherals can be supported
+	  Note: This is under development and yest all peripherals can be supported
 	  with this machine file.
 
 endif	# CPU_S3C2416
@@ -491,7 +491,7 @@ config MACH_OSIRIS
 	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the Simtec IM2440D20 module, also
-	  known as the Osiris.
+	  kyeswn as the Osiris.
 
 config MACH_OSIRIS_DVS
 	tristate "Simtec IM2440D20 (OSIRIS) Dynamic Voltage Scaling driver"
@@ -503,7 +503,7 @@ config MACH_OSIRIS_DVS
 
 	  The DVS driver alters the voltage supplied to the ARM core
 	  depending on the frequency it is running at. The driver itself
-	  does not do any of the frequency alteration, which is left up
+	  does yest do any of the frequency alteration, which is left up
 	  to the cpufreq driver.
 
 config MACH_RX3715
@@ -589,7 +589,7 @@ endif	# CPU_S3C2443
 config PM_H1940
 	bool
 	help
-	  Internal node for H1940 and related PM
+	  Internal yesde for H1940 and related PM
 
 endmenu	# SAMSUNG S3C24XX SoCs Support
 

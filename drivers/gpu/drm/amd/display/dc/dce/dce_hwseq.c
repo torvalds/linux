@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -135,7 +135,7 @@ static void dce_disable_sram_shut_down(struct dce_hwseq *hws)
 
 static void dce_underlay_clock_enable(struct dce_hwseq *hws)
 {
-	/* todo: why do we need this at boot? is dce_enable_fe_clock enough? */
+	/* todo: why do we need this at boot? is dce_enable_fe_clock eyesugh? */
 	if (REG(DCFEV_CLOCK_CONTROL))
 		REG_UPDATE(DCFEV_CLOCK_CONTROL,
 				DCFEV_CLOCK_ENABLE, 1);
@@ -192,7 +192,7 @@ void dce_crtc_switch_to_clk_src(struct dce_hwseq *hws,
 			REG_UPDATE(PHYPLL_PIXEL_RATE_CNTL[tg_inst],
 					PIXEL_RATE_PLL_SOURCE, 1);
 	} else {
-		DC_ERR("Unknown clock source. clk_src id: %d, TG_inst: %d",
+		DC_ERR("Unkyeswn clock source. clk_src id: %d, TG_inst: %d",
 		       clk_src->id, tg_inst);
 	}
 }

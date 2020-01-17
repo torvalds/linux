@@ -103,7 +103,7 @@ void tape_std_read_backward(struct tape_device *device,
 struct tape_request *tape_std_write_block(struct tape_device *, size_t);
 void tape_std_check_locate(struct tape_device *, struct tape_request *);
 
-/* Some non-mtop commands. */
+/* Some yesn-mtop commands. */
 int tape_std_assign(struct tape_device *);
 int tape_std_unassign(struct tape_device *);
 int tape_std_read_block_id(struct tape_device *device, __u64 *id);
@@ -121,7 +121,7 @@ int tape_std_mtfsf(struct tape_device *, int);
 int tape_std_mtfsfm(struct tape_device *, int);
 int tape_std_mtfsr(struct tape_device *, int);
 int tape_std_mtload(struct tape_device *, int);
-int tape_std_mtnop(struct tape_device *, int);
+int tape_std_mtyesp(struct tape_device *, int);
 int tape_std_mtoffl(struct tape_device *, int);
 int tape_std_mtreset(struct tape_device *, int);
 int tape_std_mtreten(struct tape_device *, int);
@@ -142,7 +142,7 @@ void tape_std_error_recovery_has_failed(struct tape_device *,int error_id);
 void tape_std_error_recovery_succeded(struct tape_device *);
 void tape_std_error_recovery_do_retry(struct tape_device *);
 void tape_std_error_recovery_read_opposite(struct tape_device *);
-void tape_std_error_recovery_HWBUG(struct tape_device *, int condno);
+void tape_std_error_recovery_HWBUG(struct tape_device *, int condyes);
 
 /* S390 tape types */
 enum s390_tape_type {

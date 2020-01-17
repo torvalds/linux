@@ -27,7 +27,7 @@ static DEFINE_RAW_SPINLOCK(v6_lock);
  * Copy the user page.  No aliasing to deal with so we can just
  * attack the kernel's existing mapping of these pages.
  */
-static void v6_copy_user_highpage_nonaliasing(struct page *to,
+static void v6_copy_user_highpage_yesnaliasing(struct page *to,
 	struct page *from, unsigned long vaddr, struct vm_area_struct *vma)
 {
 	void *kto, *kfrom;
@@ -43,7 +43,7 @@ static void v6_copy_user_highpage_nonaliasing(struct page *to,
  * Clear the user page.  No aliasing to deal with so we can just
  * attack the kernel's existing mapping of this page.
  */
-static void v6_clear_user_highpage_nonaliasing(struct page *page, unsigned long vaddr)
+static void v6_clear_user_highpage_yesnaliasing(struct page *page, unsigned long vaddr)
 {
 	void *kaddr = kmap_atomic(page);
 	clear_page(kaddr);
@@ -75,7 +75,7 @@ static void v6_copy_user_highpage_aliasing(struct page *to,
 	if (!test_and_set_bit(PG_dcache_clean, &from->flags))
 		__flush_dcache_page(page_mapping_file(from), from);
 
-	/* FIXME: not highmem safe */
+	/* FIXME: yest highmem safe */
 	discard_old_kernel_data(page_address(to));
 
 	/*
@@ -104,7 +104,7 @@ static void v6_clear_user_highpage_aliasing(struct page *page, unsigned long vad
 {
 	unsigned long to = COPYPAGE_V6_TO + (CACHE_COLOUR(vaddr) << PAGE_SHIFT);
 
-	/* FIXME: not highmem safe */
+	/* FIXME: yest highmem safe */
 	discard_old_kernel_data(page_address(page));
 
 	/*
@@ -120,8 +120,8 @@ static void v6_clear_user_highpage_aliasing(struct page *page, unsigned long vad
 }
 
 struct cpu_user_fns v6_user_fns __initdata = {
-	.cpu_clear_user_highpage = v6_clear_user_highpage_nonaliasing,
-	.cpu_copy_user_highpage	= v6_copy_user_highpage_nonaliasing,
+	.cpu_clear_user_highpage = v6_clear_user_highpage_yesnaliasing,
+	.cpu_copy_user_highpage	= v6_copy_user_highpage_yesnaliasing,
 };
 
 static int __init v6_userpage_init(void)

@@ -20,10 +20,10 @@
 
 /*
  * Cr50 timing constants:
- * - can go to sleep not earlier than after CR50_SLEEP_DELAY_MSEC.
+ * - can go to sleep yest earlier than after CR50_SLEEP_DELAY_MSEC.
  * - needs up to CR50_WAKE_START_DELAY_USEC to wake after sleep.
  * - requires waiting for "ready" IRQ, if supported; or waiting for at least
- *   CR50_NOIRQ_ACCESS_DELAY_MSEC between transactions, if IRQ is not supported.
+ *   CR50_NOIRQ_ACCESS_DELAY_MSEC between transactions, if IRQ is yest supported.
  * - waits for up to CR50_FLOW_CONTROL for flow control 'ready' indication.
  */
 #define CR50_SLEEP_DELAY_MSEC			1000
@@ -56,7 +56,7 @@ static inline struct cr50_spi_phy *to_cr50_spi_phy(struct tpm_tis_spi_phy *phy)
 
 /*
  * The cr50 interrupt handler just signals waiting threads that the
- * interrupt was asserted.  It does not do any processing triggered
+ * interrupt was asserted.  It does yest do any processing triggered
  * by interrupts but is instead used to avoid fixed delays.
  */
 static irqreturn_t cr50_spi_irq_handler(int dummy, void *dev_id)
@@ -76,17 +76,17 @@ static irqreturn_t cr50_spi_irq_handler(int dummy, void *dev_id)
 static void cr50_ensure_access_delay(struct cr50_spi_phy *phy)
 {
 	unsigned long allowed_access = phy->last_access + phy->access_delay;
-	unsigned long time_now = jiffies;
+	unsigned long time_yesw = jiffies;
 	struct device *dev = &phy->spi_phy.spi_device->dev;
 
 	/*
-	 * Note: There is a small chance, if Cr50 is not accessed in a few days,
-	 * that time_in_range will not provide the correct result after the wrap
+	 * Note: There is a small chance, if Cr50 is yest accessed in a few days,
+	 * that time_in_range will yest provide the correct result after the wrap
 	 * around for jiffies. In this case, we'll have an unneeded short delay,
 	 * which is fine.
 	 */
-	if (time_in_range_open(time_now, phy->last_access, allowed_access)) {
-		unsigned long remaining, timeout = allowed_access - time_now;
+	if (time_in_range_open(time_yesw, phy->last_access, allowed_access)) {
+		unsigned long remaining, timeout = allowed_access - time_yesw;
 
 		remaining = wait_for_completion_timeout(&phy->spi_phy.ready,
 							timeout);
@@ -104,21 +104,21 @@ static void cr50_ensure_access_delay(struct cr50_spi_phy *phy)
 				 attempt);
 		} else if (attempt > MAX_IRQ_CONFIRMATION_ATTEMPTS) {
 			phy->irq_needs_confirmation = false;
-			dev_warn(dev, "IRQ not confirmed - will use delays\n");
+			dev_warn(dev, "IRQ yest confirmed - will use delays\n");
 		}
 	}
 }
 
 /*
- * Cr50 might go to sleep if there is no SPI activity for some time and
+ * Cr50 might go to sleep if there is yes SPI activity for some time and
  * miss the first few bits/bytes on the bus. In such case, wake it up
  * by asserting CS and give it time to start up.
  */
 static bool cr50_needs_waking(struct cr50_spi_phy *phy)
 {
 	/*
-	 * Note: There is a small chance, if Cr50 is not accessed in a few days,
-	 * that time_in_range will not provide the correct result after the wrap
+	 * Note: There is a small chance, if Cr50 is yest accessed in a few days,
+	 * that time_in_range will yest provide the correct result after the wrap
 	 * around for jiffies. In this case, we'll probably timeout or read
 	 * incorrect value from TPM_STS and just retry the operation.
 	 */
@@ -186,7 +186,7 @@ static int tpm_tis_spi_cr50_transfer(struct tpm_tis_data *data, u32 addr, u16 le
 
 	mutex_lock(&cr50_phy->time_track_mutex);
 	/*
-	 * Do this outside of spi_bus_lock in case cr50 is not the
+	 * Do this outside of spi_bus_lock in case cr50 is yest the
 	 * only device on that spi bus.
 	 */
 	cr50_ensure_access_delay(cr50_phy);
@@ -276,7 +276,7 @@ int cr50_spi_probe(struct spi_device *spi)
 			dev_warn(&spi->dev, "Requesting IRQ %d failed: %d\n",
 				 spi->irq, ret);
 			/*
-			 * This is not fatal, the driver will fall back to
+			 * This is yest fatal, the driver will fall back to
 			 * delays automatically, since ready will never
 			 * be completed without a registered irq handler.
 			 * So, just fall through.
@@ -312,7 +312,7 @@ int tpm_tis_spi_resume(struct device *dev)
 	struct tpm_tis_data *data = dev_get_drvdata(&chip->dev);
 	struct tpm_tis_spi_phy *phy = to_tpm_tis_spi_phy(data);
 	/*
-	 * Jiffies not increased during suspend, so we need to reset
+	 * Jiffies yest increased during suspend, so we need to reset
 	 * the time to wake Cr50 after resume.
 	 */
 	phy->wake_after = jiffies;

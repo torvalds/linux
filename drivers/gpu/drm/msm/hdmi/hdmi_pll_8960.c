@@ -314,7 +314,7 @@ static int hdmi_pll_enable(struct clk_hw *hw)
 			continue;
 
 		/*
-		 * PLL has still not locked.
+		 * PLL has still yest locked.
 		 * Do a software reset and try again
 		 * Assert PLL S/W reset first
 		 */

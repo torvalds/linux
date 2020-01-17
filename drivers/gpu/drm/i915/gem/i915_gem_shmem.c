@@ -40,11 +40,11 @@ static int shmem_get_pages(struct drm_i915_gem_object *obj)
 	unsigned int max_segment = i915_sg_segment_size();
 	unsigned int sg_page_sizes;
 	struct pagevec pvec;
-	gfp_t noreclaim;
+	gfp_t yesreclaim;
 	int ret;
 
 	/*
-	 * Assert that the object is not currently in any GPU domain. As it
+	 * Assert that the object is yest currently in any GPU domain. As it
 	 * wasn't in the GTT, there shouldn't be any way it could have been in
 	 * a GPU cache
 	 */
@@ -52,7 +52,7 @@ static int shmem_get_pages(struct drm_i915_gem_object *obj)
 	GEM_BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
 
 	/*
-	 * If there's no chance of allocating enough pages for the whole
+	 * If there's yes chance of allocating eyesugh pages for the whole
 	 * object, bail early.
 	 */
 	if (obj->base.size > resource_size(&mem->region))
@@ -76,8 +76,8 @@ rebuild_st:
 	 */
 	mapping = obj->base.filp->f_mapping;
 	mapping_set_unevictable(mapping);
-	noreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
-	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
+	yesreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
+	yesreclaim |= __GFP_NORETRY | __GFP_NOWARN;
 
 	sg = st->sgl;
 	st->nents = 0;
@@ -87,7 +87,7 @@ rebuild_st:
 			I915_SHRINK_BOUND | I915_SHRINK_UNBOUND,
 			0,
 		}, *s = shrink;
-		gfp_t gfp = noreclaim;
+		gfp_t gfp = yesreclaim;
 
 		do {
 			cond_resched();
@@ -104,7 +104,7 @@ rebuild_st:
 
 			/*
 			 * We've tried hard to allocate the memory by reaping
-			 * our own buffer, now let the real VM do its job and
+			 * our own buffer, yesw let the real VM do its job and
 			 * go down in flames if truly OOM.
 			 *
 			 * However, since graphics tend to be disposable,
@@ -112,13 +112,13 @@ rebuild_st:
 			 * to userspace.
 			 */
 			if (!*s) {
-				/* reclaim and warn, but no oom */
+				/* reclaim and warn, but yes oom */
 				gfp = mapping_gfp_mask(mapping);
 
 				/*
 				 * Our bo are always dirty and so we require
 				 * kswapd to reclaim our pages (direct reclaim
-				 * does not effectively begin pageout of our
+				 * does yest effectively begin pageout of our
 				 * buffers on its own). However, direct reclaim
 				 * only waits for kswapd when under allocation
 				 * congestion. So as a result __GFP_RECLAIM is
@@ -162,7 +162,7 @@ rebuild_st:
 	if (ret) {
 		/*
 		 * DMA remapping failed? One possible cause is that
-		 * it could not reserve enough large entries, asking
+		 * it could yest reserve eyesugh large entries, asking
 		 * for PAGE_SIZE chunks instead may be helpful.
 		 */
 		if (max_segment > PAGE_SIZE) {
@@ -202,7 +202,7 @@ err_pages:
 	kfree(st);
 
 	/*
-	 * shmemfs first checks if there is enough memory to allocate the page
+	 * shmemfs first checks if there is eyesugh memory to allocate the page
 	 * and reports ENOSPC should there be insufficient, along with the usual
 	 * ENOMEM for a genuine allocation failure.
 	 *
@@ -223,9 +223,9 @@ shmem_truncate(struct drm_i915_gem_object *obj)
 	 * Our goal here is to return as much of the memory as
 	 * is possible back to the system as we are called from OOM.
 	 * To do this we must instruct the shmfs to drop all of its
-	 * backing pages, *now*.
+	 * backing pages, *yesw*.
 	 */
-	shmem_truncate_range(file_inode(obj->base.filp), 0, (loff_t)-1);
+	shmem_truncate_range(file_iyesde(obj->base.filp), 0, (loff_t)-1);
 	obj->mm.madv = __I915_MADV_PURGED;
 	obj->mm.pages = ERR_PTR(-EFAULT);
 }
@@ -247,7 +247,7 @@ shmem_writeback(struct drm_i915_gem_object *obj)
 	 * Leave mmapings intact (GTT will have been revoked on unbinding,
 	 * leaving only CPU mmapings around) and add those pages to the LRU
 	 * instead of invoking writeback so they are aged and paged out
-	 * as normal.
+	 * as yesrmal.
 	 */
 	mapping = obj->base.filp->f_mapping;
 
@@ -307,7 +307,7 @@ shmem_put_pages(struct drm_i915_gem_object *obj, struct sg_table *pages)
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_save_bit_17_swizzle(obj, pages);
 
-	mapping_clear_unevictable(file_inode(obj->base.filp)->i_mapping);
+	mapping_clear_unevictable(file_iyesde(obj->base.filp)->i_mapping);
 
 	pagevec_init(&pvec);
 	for_each_sgt_page(page, sgt_iter, pages) {
@@ -483,7 +483,7 @@ create_shmem(struct intel_memory_region *mem,
 
 	mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
 	if (IS_I965GM(i915) || IS_I965G(i915)) {
-		/* 965gm cannot relocate objects above 4GiB. */
+		/* 965gm canyest relocate objects above 4GiB. */
 		mask &= ~__GFP_HIGHMEM;
 		mask |= __GFP_DMA32;
 	}
@@ -501,7 +501,7 @@ create_shmem(struct intel_memory_region *mem,
 		/* On some devices, we can have the GPU use the LLC (the CPU
 		 * cache) for about a 10% performance improvement
 		 * compared to uncached.  Graphics requests other than
-		 * display scanout are coherent with the CPU in
+		 * display scayesut are coherent with the CPU in
 		 * accessing this cache.  This means in this mode we
 		 * don't need to clflush on the CPU side, and on the
 		 * GPU side we only need to flush internal caches to

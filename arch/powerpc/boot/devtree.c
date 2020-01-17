@@ -41,7 +41,7 @@ void dt_fixup_memory(u64 start, u64 size)
 
 	memory = finddevice("/memory");
 	if (! memory) {
-		memory = create_node(NULL, "memory");
+		memory = create_yesde(NULL, "memory");
 		setprop_str(memory, "device_type", "memory");
 	}
 
@@ -64,7 +64,7 @@ void dt_fixup_cpu_clocks(u32 cpu, u32 tb, u32 bus)
 	if (bus > 0)
 		printf("CPU bus-frequency <- 0x%x (%dMHz)\n\r", bus, MHZ(bus));
 
-	while ((devp = find_node_by_devtype(devp, "cpu"))) {
+	while ((devp = find_yesde_by_devtype(devp, "cpu"))) {
 		setprop_val(devp, "clock-frequency", cpu);
 		setprop_val(devp, "timebase-frequency", tb);
 		if (bus > 0)
@@ -86,7 +86,7 @@ void dt_fixup_clock(const char *path, u32 freq)
 
 void dt_fixup_mac_address_by_alias(const char *alias, const u8 *addr)
 {
-	void *devp = find_node_by_alias(alias);
+	void *devp = find_yesde_by_alias(alias);
 
 	if (devp) {
 		printf("%s: local-mac-address <-"
@@ -100,7 +100,7 @@ void dt_fixup_mac_address_by_alias(const char *alias, const u8 *addr)
 
 void dt_fixup_mac_address(u32 index, const u8 *addr)
 {
-	void *devp = find_node_by_prop_value(NULL, "linux,network-index",
+	void *devp = find_yesde_by_prop_value(NULL, "linux,network-index",
 	                                     (void*)&index, sizeof(index));
 
 	if (devp) {
@@ -129,11 +129,11 @@ void __dt_fixup_mac_addresses(u32 startindex, ...)
 
 #define MAX_ADDR_CELLS 4
 
-void dt_get_reg_format(void *node, u32 *naddr, u32 *nsize)
+void dt_get_reg_format(void *yesde, u32 *naddr, u32 *nsize)
 {
-	if (getprop(node, "#address-cells", naddr, 4) != 4)
+	if (getprop(yesde, "#address-cells", naddr, 4) != 4)
 		*naddr = 2;
-	if (getprop(node, "#size-cells", nsize, 4) != 4)
+	if (getprop(yesde, "#size-cells", nsize, 4) != 4)
 		*nsize = 1;
 }
 
@@ -220,12 +220,12 @@ static int find_range(u32 *reg, u32 *ranges, int nregaddr,
 }
 
 /* Currently only generic buses without special encodings are supported.
- * In particular, PCI is not supported.  Also, only the beginning of the
- * reg block is tracked; size is ignored except in ranges.
+ * In particular, PCI is yest supported.  Also, only the beginning of the
+ * reg block is tracked; size is igyesred except in ranges.
  */
 static u32 prop_buf[MAX_PROP_LEN / 4];
 
-static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
+static int dt_xlate(void *yesde, int res, int reglen, unsigned long *addr,
 		unsigned long *size)
 {
 	u32 last_addr[MAX_ADDR_CELLS];
@@ -235,7 +235,7 @@ static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
 	u32 naddr, nsize, prev_naddr, prev_nsize;
 	int buflen, offset;
 
-	parent = get_parent(node);
+	parent = get_parent(yesde);
 	if (!parent)
 		return 0;
 
@@ -261,15 +261,15 @@ static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
 	for (;;) {
 		prev_naddr = naddr;
 		prev_nsize = nsize;
-		node = parent;
+		yesde = parent;
 
-		parent = get_parent(node);
+		parent = get_parent(yesde);
 		if (!parent)
 			break;
 
 		dt_get_reg_format(parent, &naddr, &nsize);
 
-		buflen = getprop(node, "ranges", prop_buf,
+		buflen = getprop(yesde, "ranges", prop_buf,
 				sizeof(prop_buf));
 		if (buflen == 0)
 			continue;
@@ -310,30 +310,30 @@ static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
 	return 1;
 }
 
-int dt_xlate_reg(void *node, int res, unsigned long *addr, unsigned long *size)
+int dt_xlate_reg(void *yesde, int res, unsigned long *addr, unsigned long *size)
 {
 	int reglen;
 
-	reglen = getprop(node, "reg", prop_buf, sizeof(prop_buf)) / 4;
-	return dt_xlate(node, res, reglen, addr, size);
+	reglen = getprop(yesde, "reg", prop_buf, sizeof(prop_buf)) / 4;
+	return dt_xlate(yesde, res, reglen, addr, size);
 }
 
-int dt_xlate_addr(void *node, u32 *buf, int buflen, unsigned long *xlated_addr)
+int dt_xlate_addr(void *yesde, u32 *buf, int buflen, unsigned long *xlated_addr)
 {
 
 	if (buflen > sizeof(prop_buf))
 		return 0;
 
 	memcpy(prop_buf, buf, buflen);
-	return dt_xlate(node, 0, buflen / 4, xlated_addr, NULL);
+	return dt_xlate(yesde, 0, buflen / 4, xlated_addr, NULL);
 }
 
-int dt_is_compatible(void *node, const char *compat)
+int dt_is_compatible(void *yesde, const char *compat)
 {
 	char *buf = (char *)prop_buf;
 	int len, pos;
 
-	len = getprop(node, "compatible", buf, MAX_PROP_LEN);
+	len = getprop(yesde, "compatible", buf, MAX_PROP_LEN);
 	if (len < 0)
 		return 0;
 
@@ -347,17 +347,17 @@ int dt_is_compatible(void *node, const char *compat)
 	return 0;
 }
 
-int dt_get_virtual_reg(void *node, void **addr, int nres)
+int dt_get_virtual_reg(void *yesde, void **addr, int nres)
 {
 	unsigned long xaddr;
 	int n;
 
-	n = getprop(node, "virtual-reg", addr, nres * 4);
+	n = getprop(yesde, "virtual-reg", addr, nres * 4);
 	if (n > 0)
 		return n / 4;
 
 	for (n = 0; n < nres; n++) {
-		if (!dt_xlate_reg(node, n, &xaddr, NULL))
+		if (!dt_xlate_reg(yesde, n, &xaddr, NULL))
 			break;
 
 		addr[n] = (void *)xaddr;

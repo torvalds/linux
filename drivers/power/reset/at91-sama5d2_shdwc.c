@@ -83,7 +83,7 @@ struct shdwc {
 };
 
 /*
- * Hold configuration here, cannot be more than one instance of the driver
+ * Hold configuration here, canyest be more than one instance of the driver
  * since pm_power_off itself is global.
  */
 static struct shdwc *at91_shdwc;
@@ -96,7 +96,7 @@ static void __init at91_wakeup_status(struct platform_device *pdev)
 {
 	struct shdwc *shdw = platform_get_drvdata(pdev);
 	u32 reg;
-	char *reason = "unknown";
+	char *reason = "unkyeswn";
 
 	reg = readl(shdw->shdwc_base + AT91_SHDW_SR);
 
@@ -179,14 +179,14 @@ static u32 at91_shdwc_debouncer_value(struct platform_device *pdev,
 }
 
 static u32 at91_shdwc_get_wakeup_input(struct platform_device *pdev,
-				       struct device_node *np)
+				       struct device_yesde *np)
 {
-	struct device_node *cnp;
+	struct device_yesde *cnp;
 	u32 wk_input_mask;
 	u32 wuir = 0;
 	u32 wk_input;
 
-	for_each_child_of_node(np, cnp) {
+	for_each_child_of_yesde(np, cnp) {
 		if (of_property_read_u32(cnp, "reg", &wk_input)) {
 			dev_warn(&pdev->dev, "reg property is missing for %pOF\n",
 				 cnp);
@@ -196,7 +196,7 @@ static u32 at91_shdwc_get_wakeup_input(struct platform_device *pdev,
 		wk_input_mask = 1 << wk_input;
 		if (!(wk_input_mask & AT91_SHDW_WKUPEN_MASK)) {
 			dev_warn(&pdev->dev,
-				 "wake-up input %d out of bounds ignore\n",
+				 "wake-up input %d out of bounds igyesre\n",
 				 wk_input);
 			continue;
 		}
@@ -215,11 +215,11 @@ static u32 at91_shdwc_get_wakeup_input(struct platform_device *pdev,
 static void at91_shdwc_dt_configure(struct platform_device *pdev)
 {
 	struct shdwc *shdw = platform_get_drvdata(pdev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	u32 mode = 0, tmp, input;
 
 	if (!np) {
-		dev_err(&pdev->dev, "device node not found\n");
+		dev_err(&pdev->dev, "device yesde yest found\n");
 		return;
 	}
 
@@ -279,11 +279,11 @@ static int __init at91_shdwc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 ddr_type;
 	int ret;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	if (at91_shdwc)
@@ -298,11 +298,11 @@ static int __init at91_shdwc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	at91_shdwc->shdwc_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(at91_shdwc->shdwc_base)) {
-		dev_err(&pdev->dev, "Could not map reset controller address\n");
+		dev_err(&pdev->dev, "Could yest map reset controller address\n");
 		return PTR_ERR(at91_shdwc->shdwc_base);
 	}
 
-	match = of_match_node(at91_shdwc_of_match, pdev->dev.of_node);
+	match = of_match_yesde(at91_shdwc_of_match, pdev->dev.of_yesde);
 	at91_shdwc->cfg = match->data;
 
 	at91_shdwc->sclk = devm_clk_get(&pdev->dev, NULL);
@@ -311,7 +311,7 @@ static int __init at91_shdwc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(at91_shdwc->sclk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		dev_err(&pdev->dev, "Could yest enable slow clock\n");
 		return ret;
 	}
 
@@ -319,28 +319,28 @@ static int __init at91_shdwc_probe(struct platform_device *pdev)
 
 	at91_shdwc_dt_configure(pdev);
 
-	np = of_find_matching_node(NULL, at91_pmc_ids);
+	np = of_find_matching_yesde(NULL, at91_pmc_ids);
 	if (!np) {
 		ret = -ENODEV;
 		goto clk_disable;
 	}
 
 	at91_shdwc->pmc_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (!at91_shdwc->pmc_base) {
 		ret = -ENOMEM;
 		goto clk_disable;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d3-ddramc");
+	np = of_find_compatible_yesde(NULL, NULL, "atmel,sama5d3-ddramc");
 	if (!np) {
 		ret = -ENODEV;
 		goto unmap;
 	}
 
 	at91_shdwc->mpddrc_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (!at91_shdwc->mpddrc_base) {
 		ret = -ENOMEM;

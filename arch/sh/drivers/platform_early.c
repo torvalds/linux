@@ -149,7 +149,7 @@ void __init sh_early_platform_add_devices(struct platform_device **devs, int num
  */
 void __init sh_early_platform_driver_register_all(char *class_str)
 {
-	/* The "class_str" parameter may or may not be present on the kernel
+	/* The "class_str" parameter may or may yest be present on the kernel
 	 * command line. If it is present then there may be more than one
 	 * matching parameter.
 	 *

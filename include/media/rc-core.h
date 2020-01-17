@@ -42,7 +42,7 @@ struct rc_scancode_filter {
 
 /**
  * enum rc_filter_type - Filter type constants.
- * @RC_FILTER_NORMAL:	Filter for normal operation.
+ * @RC_FILTER_NORMAL:	Filter for yesrmal operation.
  * @RC_FILTER_WAKEUP:	Filter for waking from suspend.
  * @RC_FILTER_MAX:	Number of filter types.
  */
@@ -58,7 +58,7 @@ enum rc_filter_type {
  * @list: list of open file handles
  * @rc: rcdev for this lirc chardev
  * @carrier_low: when setting the carrier range, first the low end must be
- *	set with an ioctl and then the high end with another ioctl
+ *	set with an ioctl and then the high end with ayesther ioctl
  * @send_timeout_reports: report timeouts in lirc raw IR.
  * @rawir: queue for incoming raw IR
  * @scancodes: queue for incoming decoded scancodes
@@ -93,7 +93,7 @@ struct lirc_fh {
  * @rc_map: current scan/key table
  * @lock: used to ensure we've filled in all protocol details before
  *	anyone can call show_protocols or store_protocols
- * @minor: unique minor remote control device number
+ * @miyesr: unique miyesr remote control device number
  * @raw: additional data for raw pulse/space devices
  * @input_dev: the input child device used to communicate events to userspace
  * @driver_type: specifies if protocol decoding is done in hardware or software
@@ -108,7 +108,7 @@ struct lirc_fh {
  *	RC_PROTO_UNKNOWN if disabled.
  * @scancode_filter: scancode filter
  * @scancode_wakeup_filter: scancode wakeup filters
- * @scancode_mask: some hardware decoders are not capable of providing the full
+ * @scancode_mask: some hardware decoders are yest capable of providing the full
  *	scancode to the application. As this is a hardware limit, we can't do
  *	anything with it. Yet, as the same keycode table can be used with other
  *	devices, a mask is provided to allow its usage. Drivers should generally
@@ -120,7 +120,7 @@ struct lirc_fh {
  * @keyup_jiffies: time (in jiffies) when the current keypress should be released
  * @timer_keyup: timer for releasing a keypress
  * @timer_repeat: timer for autorepeat events. This is needed for CEC, which
- *	has non-standard repeats.
+ *	has yesn-standard repeats.
  * @last_keycode: keycode of last keypress
  * @last_protocol: protocol of last keypress
  * @last_scancode: scancode of last keypress
@@ -156,7 +156,7 @@ struct lirc_fh {
  * @s_filter: set the scancode filter
  * @s_wakeup_filter: set the wakeup scancode filter. If the mask is zero
  *	then wakeup should be disabled. wakeup_protocol will be set to
- *	a valid protocol if mask is nonzero.
+ *	a valid protocol if mask is yesnzero.
  * @s_timeout: set hardware timeout in ns
  */
 struct rc_dev {
@@ -170,7 +170,7 @@ struct rc_dev {
 	const char			*map_name;
 	struct rc_map			rc_map;
 	struct mutex			lock;
-	unsigned int			minor;
+	unsigned int			miyesr;
 	struct ir_raw_event_ctrl	*raw;
 	struct input_dev		*input_dev;
 	enum rc_driver_type		driver_type;
@@ -286,7 +286,7 @@ void rc_unregister_device(struct rc_dev *dev);
 void rc_repeat(struct rc_dev *dev);
 void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u32 scancode,
 		u8 toggle);
-void rc_keydown_notimeout(struct rc_dev *dev, enum rc_proto protocol,
+void rc_keydown_yestimeout(struct rc_dev *dev, enum rc_proto protocol,
 			  u32 scancode, u8 toggle);
 void rc_keyup(struct rc_dev *dev);
 u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode);
@@ -352,25 +352,25 @@ static inline u32 ir_extract_bits(u32 data, u32 mask)
 }
 
 /* Get NEC scancode and protocol type from address and command bytes */
-static inline u32 ir_nec_bytes_to_scancode(u8 address, u8 not_address,
-					   u8 command, u8 not_command,
+static inline u32 ir_nec_bytes_to_scancode(u8 address, u8 yest_address,
+					   u8 command, u8 yest_command,
 					   enum rc_proto *protocol)
 {
 	u32 scancode;
 
-	if ((command ^ not_command) != 0xff) {
+	if ((command ^ yest_command) != 0xff) {
 		/* NEC transport, but modified protocol, used by at
 		 * least Apple and TiVo remotes
 		 */
-		scancode = not_address << 24 |
+		scancode = yest_address << 24 |
 			address     << 16 |
-			not_command <<  8 |
+			yest_command <<  8 |
 			command;
 		*protocol = RC_PROTO_NEC32;
-	} else if ((address ^ not_address) != 0xff) {
+	} else if ((address ^ yest_address) != 0xff) {
 		/* Extended NEC */
 		scancode = address     << 16 |
-			   not_address <<  8 |
+			   yest_address <<  8 |
 			   command;
 		*protocol = RC_PROTO_NECX;
 	} else {

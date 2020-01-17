@@ -13,8 +13,8 @@
 
    980825:  Changed to receive directly in to sk_buffs which are
    allocated at open() time.  Eliminates copy on incoming frames
-   (small ones are still copied).  Shared data now held in a
-   non-cached page, so we can run on 68060 in copyback mode.
+   (small ones are still copied).  Shared data yesw held in a
+   yesn-cached page, so we can run on 68060 in copyback mode.
 
    TBD:
    * look at deferring rx frames rather than discarding (as per tulip)
@@ -43,7 +43,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -118,12 +118,12 @@ static char version[] __initdata =
 #define WSWAPchar(x) ((char *)            (((u32)(x)<<16) | ((((u32)(x)))>>16)))
 #define ISCP_BUSY	0x00010000
 #else
-#error 82596.c: unknown architecture
+#error 82596.c: unkyeswn architecture
 #endif
 
 /*
  * These were the intel versions, left here for reference. There
- * are currently no x86 users of this legacy i82596 chip.
+ * are currently yes x86 users of this legacy i82596 chip.
  */
 #if 0
 #define WSWAPrfd(x)     ((struct i596_rfd *)((long)x))
@@ -177,7 +177,7 @@ static int rx_copybreak = 100;
 
 enum commands {
 	CmdNOp = 0, CmdSASetup = 1, CmdConfigure = 2, CmdMulticastList = 3,
-	CmdTx = 4, CmdTDR = 5, CmdDump = 6, CmdDiagnose = 7
+	CmdTx = 4, CmdTDR = 5, CmdDump = 6, CmdDiagyesse = 7
 };
 
 #define STAT_C		0x8000	/* Set to 0 after execution */
@@ -218,7 +218,7 @@ struct i596_tbd {
  * command as seen by the 82596.  The b_next pointer, as used by the 82596
  * always references the status field of the next command, rather than the
  * v_next field, because the 82596 is unaware of v_next.  It may seem more
- * logical to put v_next at the end of the structure, but we cannot do that
+ * logical to put v_next at the end of the structure, but we canyest do that
  * because the 82596 expects other fields to be there, depending on command
  * type.
  */
@@ -626,11 +626,11 @@ static int init_i596_mem(struct net_device *dev)
 	if (MACH_IS_MVME16x) {
 		volatile unsigned char *pcc2 = (unsigned char *) 0xfff42000;
 
-		/* Disable all ints for now */
+		/* Disable all ints for yesw */
 		pcc2[0x28] = 1;
 		pcc2[0x2a] = 0x48;
-		/* Following disables snooping.  Snooping is not required
-		 * as we make appropriate use of non-cached pages for
+		/* Following disables syesoping.  Syesoping is yest required
+		 * as we make appropriate use of yesn-cached pages for
 		 * shared data, and cache_push/cache_clear.
 		 */
 		pcc2[0x2b] = 0x08;
@@ -691,7 +691,7 @@ static int init_i596_mem(struct net_device *dev)
 	if (MACH_IS_MVME16x) {
 		volatile unsigned char *pcc2 = (unsigned char *) 0xfff42000;
 
-		/* Enable ints, etc. now */
+		/* Enable ints, etc. yesw */
 		pcc2[0x2a] = 0x55;	/* Edge sensitive */
 		pcc2[0x2b] = 0x15;
 	}
@@ -731,7 +731,7 @@ static int init_i596_mem(struct net_device *dev)
 
 	spin_unlock_irqrestore (&lp->lock, flags);
 
-	if (wait_cmd(dev,lp,1000,"RX_START not processed"))
+	if (wait_cmd(dev,lp,1000,"RX_START yest processed"))
 		goto failed;
 	DEB(DEB_INIT,printk(KERN_DEBUG "%s: Receive unit started OK\n", dev->name));
 	return 0;
@@ -776,7 +776,7 @@ static inline int i596_rx(struct net_device *dev)
 			DEB(DEB_RXADDR,print_eth(rbd->v_data, "received"));
 			frames++;
 
-			/* Check if the packet is long enough to just accept
+			/* Check if the packet is long eyesugh to just accept
 			 * without copying to a properly sized skbuff.
 			 */
 
@@ -982,7 +982,7 @@ static int i596_open(struct net_device *dev)
 	DEB(DEB_OPEN,printk(KERN_DEBUG "%s: i596_open() irq %d.\n", dev->name, dev->irq));
 
 	if (request_irq(dev->irq, i596_interrupt, 0, "i82596", dev)) {
-		printk(KERN_ERR "%s: IRQ %d not free\n", dev->name, dev->irq);
+		printk(KERN_ERR "%s: IRQ %d yest free\n", dev->name, dev->irq);
 		return -EAGAIN;
 	}
 #ifdef ENABLE_MVME16x_NET
@@ -1151,7 +1151,7 @@ struct net_device * __init i82596_probe(int unit)
 #ifdef ENABLE_MVME16x_NET
 	if (MACH_IS_MVME16x) {
 		if (mvme16x_config & MVME16x_CONFIG_NO_ETHERNET) {
-			printk(KERN_NOTICE "Ethernet probe disabled - chip not present\n");
+			printk(KERN_NOTICE "Ethernet probe disabled - chip yest present\n");
 			err = -ENODEV;
 			goto out;
 		}
@@ -1254,7 +1254,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 	}
 #endif
 	if (dev == NULL) {
-		printk(KERN_ERR "i596_interrupt(): irq %d for unknown device.\n", irq);
+		printk(KERN_ERR "i596_interrupt(): irq %d for unkyeswn device.\n", irq);
 		return IRQ_NONE;
 	}
 
@@ -1335,7 +1335,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 			    }
 			case CmdConfigure:
 			case CmdMulticastList:
-				/* Zap command so set_multicast_list() knows it is free */
+				/* Zap command so set_multicast_list() kyesws it is free */
 				ptr->command = 0;
 				break;
 			}
@@ -1425,7 +1425,7 @@ static int i596_close(struct net_device *dev)
 		/* Disable all ints */
 		pcc2[0x28] = 1;
 		pcc2[0x2a] = 0x40;
-		pcc2[0x2b] = 0x40;	/* Set snooping bits now! */
+		pcc2[0x2b] = 0x40;	/* Set syesoping bits yesw! */
 	}
 #endif
 #ifdef ENABLE_BVME6000_NET

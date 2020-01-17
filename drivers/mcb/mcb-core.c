@@ -120,14 +120,14 @@ static ssize_t model_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(model);
 
-static ssize_t minor_show(struct device *dev, struct device_attribute *attr,
+static ssize_t miyesr_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct mcb_bus *bus = to_mcb_bus(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", bus->minor);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", bus->miyesr);
 }
-static DEVICE_ATTR_RO(minor);
+static DEVICE_ATTR_RO(miyesr);
 
 static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
@@ -141,7 +141,7 @@ static DEVICE_ATTR_RO(name);
 static struct attribute *mcb_bus_attrs[] = {
 	&dev_attr_revision.attr,
 	&dev_attr_model.attr,
-	&dev_attr_minor.attr,
+	&dev_attr_miyesr.attr,
 	&dev_attr_name.attr,
 	NULL,
 };

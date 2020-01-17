@@ -22,7 +22,7 @@
  * PBMs of a controller, or per-PBM), and if a streaming buffer
  * is present, each PCI bus module has it's own. (ie. the IOMMU
  * might be shared between PBMs, the STC is never shared)
- * Furthermore, each PCI bus module controls it's own autonomous
+ * Furthermore, each PCI bus module controls it's own autoyesmous
  * PCI bus.
  */
 
@@ -46,7 +46,7 @@ struct sparc64_msiq_ops {
 	int (*msiq_alloc)(struct pci_pbm_info *pbm);
 	void (*msiq_free)(struct pci_pbm_info *pbm);
 	int (*msiq_build_irq)(struct pci_pbm_info *pbm, unsigned long msiqid,
-			      unsigned long devino);
+			      unsigned long deviyes);
 };
 
 void sparc64_pbm_msi_init(struct pci_pbm_info *pbm,
@@ -93,7 +93,7 @@ struct pci_pbm_info {
 
 	/* OBP specific information. */
 	struct platform_device		*op;
-	u64				ino_bitmap;
+	u64				iyes_bitmap;
 
 	/* PBM I/O and Memory space resources. */
 	struct resource			io_space;
@@ -124,7 +124,7 @@ struct pci_pbm_info {
 	u32				msiq_num;
 	u32				msiq_ent_count;
 	u32				msiq_first;
-	u32				msiq_first_devino;
+	u32				msiq_first_deviyes;
 	u32				msiq_rotor;
 	struct sparc64_msiq_cookie	*msiq_irq_cookies;
 	u32				msi_num;
@@ -151,12 +151,12 @@ struct pci_pbm_info {
 	struct iommu			*iommu;
 
 	/* Now things for the actual PCI bus probes. */
-	unsigned int			pci_first_busno;
-	unsigned int			pci_last_busno;
+	unsigned int			pci_first_busyes;
+	unsigned int			pci_last_busyes;
 	struct pci_bus			*pci_bus;
 	struct pci_ops			*pci_ops;
 
-	int				numa_node;
+	int				numa_yesde;
 };
 
 extern struct pci_pbm_info *pci_pbm_root;

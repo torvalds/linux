@@ -192,8 +192,8 @@ static int icn8505_write_prog_reg(struct icn8505_data *icn8505, int reg, u8 val)
 
 /*
  * Note this function uses a number of magic register addresses and values,
- * there are deliberately no defines for these because the algorithm is taken
- * from the icn85xx Android driver and I do not want to make up possibly wrong
+ * there are deliberately yes defines for these because the algorithm is taken
+ * from the icn85xx Android driver and I do yest want to make up possibly wrong
  * names for the addresses and/or values.
  */
 static int icn8505_try_fw_upload(struct icn8505_data *icn8505,
@@ -294,7 +294,7 @@ static int icn8505_upload_fw(struct icn8505_data *icn8505)
 		return error;
 	}
 
-	/* Check if the controller is not already up and running */
+	/* Check if the controller is yest already up and running */
 	if (icn8505_read_reg_silent(icn8505, 0x000a) == 0x85)
 		goto success;
 
@@ -365,7 +365,7 @@ static irqreturn_t icn8505_irq(int irq, void *dev_id)
 static int icn8505_probe_acpi(struct icn8505_data *icn8505, struct device *dev)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	const char *subsys = "unknown";
+	const char *subsys = "unkyeswn";
 	struct acpi_device *adev;
 	union acpi_object *obj;
 	acpi_status status;
@@ -380,7 +380,7 @@ static int icn8505_probe_acpi(struct icn8505_data *icn8505, struct device *dev)
 		if (obj->type == ACPI_TYPE_STRING)
 			subsys = obj->string.pointer;
 		else
-			dev_warn(dev, "Warning ACPI _SUB did not return a string\n");
+			dev_warn(dev, "Warning ACPI _SUB did yest return a string\n");
 	} else {
 		dev_warn(dev, "Warning ACPI _SUB failed: %#x\n", status);
 		buffer.pointer = NULL;

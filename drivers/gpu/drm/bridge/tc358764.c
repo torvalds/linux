@@ -403,14 +403,14 @@ static int tc358764_parse_dt(struct tc358764 *ctx)
 
 	ctx->gpio_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->gpio_reset)) {
-		dev_err(dev, "no reset GPIO pin provided\n");
+		dev_err(dev, "yes reset GPIO pin provided\n");
 		return PTR_ERR(ctx->gpio_reset);
 	}
 
-	ret = drm_of_find_panel_or_bridge(ctx->dev->of_node, 1, 0, &ctx->panel,
+	ret = drm_of_find_panel_or_bridge(ctx->dev->of_yesde, 1, 0, &ctx->panel,
 					  NULL);
 	if (ret && ret != -EPROBE_DEFER)
-		dev_err(dev, "cannot find panel (%d)\n", ret);
+		dev_err(dev, "canyest find panel (%d)\n", ret);
 
 	return ret;
 }
@@ -458,7 +458,7 @@ static int tc358764_probe(struct mipi_dsi_device *dsi)
 		return ret;
 
 	ctx->bridge.funcs = &tc358764_bridge_funcs;
-	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.of_yesde = dev->of_yesde;
 
 	drm_bridge_add(&ctx->bridge);
 

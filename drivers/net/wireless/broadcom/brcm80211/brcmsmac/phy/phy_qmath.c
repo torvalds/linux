@@ -151,9 +151,9 @@ s16 qm_shr16(s16 op, int shift)
 
 /*
  * Description: This function return the number of redundant sign bits in a
- * 32 bit number. Example: qm_norm32(0x00000080) = 23
+ * 32 bit number. Example: qm_yesrm32(0x00000080) = 23
  */
-s16 qm_norm32(s32 op)
+s16 qm_yesrm32(s32 op)
 {
 	u16 u16extraSignBits;
 	if (op == 0) {
@@ -213,7 +213,7 @@ static const s16 log_table[] = {
 /*
  * Description:
  * This routine takes the input number N and its q format qN and compute
- * the log10(N). This routine first normalizes the input no N.	Then N is in
+ * the log10(N). This routine first yesrmalizes the input yes N.	Then N is in
  * mag*(2^x) format. mag is any number in the range 2^30-(2^31 - 1).
  * Then log2(mag * 2^x) = log2(mag) + x is computed. From that
  * log10(mag * 2^x) = log2(mag * 2^x) * log10(2) is computed.
@@ -227,31 +227,31 @@ static const s16 log_table[] = {
  * log10N - address where log10(N) will be written.
  * qLog10N - address where log10N qformat will be written.
  * Note/Problem:
- * For accurate results input should be in normalized or near normalized form.
+ * For accurate results input should be in yesrmalized or near yesrmalized form.
  */
 void qm_log10(s32 N, s16 qN, s16 *log10N, s16 *qLog10N)
 {
-	s16 s16norm, s16tableIndex, s16errorApproximation;
+	s16 s16yesrm, s16tableIndex, s16errorApproximation;
 	u16 u16offset;
 	s32 s32log;
 
-	/* normalize the N. */
-	s16norm = qm_norm32(N);
-	N = N << s16norm;
+	/* yesrmalize the N. */
+	s16yesrm = qm_yesrm32(N);
+	N = N << s16yesrm;
 
-	/* The qformat of N after normalization.
-	 * -30 is added to treat the no as between 1.0 to 2.0
+	/* The qformat of N after yesrmalization.
+	 * -30 is added to treat the yes as between 1.0 to 2.0
 	 * i.e. after adding the -30 to the qformat the decimal point will be
 	 * just rigtht of the MSB. (i.e. after sign bit and 1st MSB). i.e.
 	 * at the right side of 30th bit.
 	 */
-	qN = qN + s16norm - 30;
+	qN = qN + s16yesrm - 30;
 
 	/* take the table index as the LOG2_OF_LOG_TABLE_SIZE bits right of the
 	 * MSB */
 	s16tableIndex = (s16) (N >> (32 - (2 + LOG2_LOG_TABLE_SIZE)));
 
-	/* remove the MSB. the MSB is always 1 after normalization. */
+	/* remove the MSB. the MSB is always 1 after yesrmalization. */
 	s16tableIndex =
 		s16tableIndex & (s16) ((1 << LOG2_LOG_TABLE_SIZE) - 1);
 
@@ -278,21 +278,21 @@ void qm_log10(s32 N, s16 qN, s16 *log10N, s16 *qLog10N)
 	 */
 	s32log = qm_add32(s32log, ((s32) -qN) << 15);   /* q.15 format */
 
-	/* normalize the result. */
-	s16norm = qm_norm32(s32log);
+	/* yesrmalize the result. */
+	s16yesrm = qm_yesrm32(s32log);
 
 	/* bring all the important bits into lower 16 bits */
-	/* q.15+s16norm-16 format */
-	s32log = qm_shl32(s32log, s16norm - 16);
+	/* q.15+s16yesrm-16 format */
+	s32log = qm_shl32(s32log, s16yesrm - 16);
 
 	/* compute the log10(N) by multiplying log2(N) with log10(2).
 	 * as log10(mag * 2^x) = log2(mag * 2^x) * log10(2)
-	 * log10N in q.15+s16norm-16+1 (LOG10_2 is in q.16)
+	 * log10N in q.15+s16yesrm-16+1 (LOG10_2 is in q.16)
 	 */
 	*log10N = qm_muls16((s16) s32log, (s16) LOG10_2);
 
 	/* write the q format of the result. */
-	*qLog10N = 15 + s16norm - 16 + 1;
+	*qLog10N = 15 + s16yesrm - 16 + 1;
 
 	return;
 }

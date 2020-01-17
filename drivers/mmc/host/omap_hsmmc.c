@@ -147,7 +147,7 @@
 
 /*
  * One controller can have multiple slots, like on some omap boards using
- * omap.c controller driver. Luckily this is not currently done on any known
+ * omap.c controller driver. Luckily this is yest currently done on any kyeswn
  * omap_hsmmc.c device.
  */
 #define mmc_pdata(host)		host->pdata
@@ -326,7 +326,7 @@ static int omap_hsmmc_set_power(struct omap_hsmmc_host *host, int power_on)
 	/*
 	 * Assume Vcc regulator is used only to power the card ... OMAP
 	 * VDDS is used to power the pins, optionally with a transceiver to
-	 * support cards using voltages other than VDDS (1.8V nominal).  When a
+	 * support cards using voltages other than VDDS (1.8V yesminal).  When a
 	 * transceiver is used, DAT3..7 are muxed as transceiver control pins.
 	 *
 	 * In some cases this regulator won't support enable/disable;
@@ -427,7 +427,7 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 								"vmmc_aux");
 		if (IS_ERR(mmc->supply.vqmmc)) {
 			ret = PTR_ERR(mmc->supply.vqmmc);
-			if ((ret != -ENODEV) && host->dev->of_node)
+			if ((ret != -ENODEV) && host->dev->of_yesde)
 				return ret;
 			dev_dbg(host->dev, "unable to get vmmc_aux regulator %ld\n",
 				PTR_ERR(mmc->supply.vqmmc));
@@ -437,7 +437,7 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 	host->pbias = devm_regulator_get_optional(host->dev, "pbias");
 	if (IS_ERR(host->pbias)) {
 		ret = PTR_ERR(host->pbias);
-		if ((ret != -ENODEV) && host->dev->of_node) {
+		if ((ret != -ENODEV) && host->dev->of_yesde) {
 			dev_err(host->dev,
 			"SD card detect fail? enable CONFIG_REGULATOR_PBIAS\n");
 			return ret;
@@ -446,8 +446,8 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 			PTR_ERR(host->pbias));
 	}
 
-	/* For eMMC do not power off when not in sleep state */
-	if (mmc_pdata(host)->no_regulator_off_init)
+	/* For eMMC do yest power off when yest in sleep state */
+	if (mmc_pdata(host)->yes_regulator_off_init)
 		return 0;
 
 	ret = omap_hsmmc_disable_boot_regulators(host);
@@ -474,7 +474,7 @@ static void omap_hsmmc_stop_clock(struct omap_hsmmc_host *host)
 	OMAP_HSMMC_WRITE(host->base, SYSCTL,
 		OMAP_HSMMC_READ(host->base, SYSCTL) & ~CEN);
 	if ((OMAP_HSMMC_READ(host->base, SYSCTL) & CEN) != 0x0)
-		dev_dbg(mmc_dev(host->mmc), "MMC Clock is not stopped\n");
+		dev_dbg(mmc_dev(host->mmc), "MMC Clock is yest stopped\n");
 }
 
 static void omap_hsmmc_enable_irq(struct omap_hsmmc_host *host,
@@ -507,7 +507,7 @@ static void omap_hsmmc_disable_irq(struct omap_hsmmc_host *host)
 	unsigned long flags;
 
 	spin_lock_irqsave(&host->irq_lock, flags);
-	/* no transfer running but need to keep cirq if enabled */
+	/* yes transfer running but need to keep cirq if enabled */
 	if (host->flags & HSMMC_SDIO_IRQ_ENABLED)
 		irq_mask |= CIRQ_EN;
 	OMAP_HSMMC_WRITE(host->base, ISE, irq_mask);
@@ -559,7 +559,7 @@ static void omap_hsmmc_set_clock(struct omap_hsmmc_host *host)
 	 * Enable High-Speed Support
 	 * Pre-Requisites
 	 *	- Controller should support High-Speed-Enable Bit
-	 *	- Controller should not be using DDR Mode
+	 *	- Controller should yest be using DDR Mode
 	 *	- Controller should advertise that it supports High Speed
 	 *	  in capabilities register
 	 *	- MMC/SD clock coming out of controller > 25MHz
@@ -673,7 +673,7 @@ static int omap_hsmmc_context_restore(struct omap_hsmmc_host *host)
 	OMAP_HSMMC_WRITE(host->base, IE, 0);
 	OMAP_HSMMC_WRITE(host->base, STAT, STAT_CLEAR);
 
-	/* Do not initialize card-specific things if the power is off */
+	/* Do yest initialize card-specific things if the power is off */
 	if (host->power_mode == MMC_POWER_OFF)
 		goto out;
 
@@ -781,7 +781,7 @@ omap_hsmmc_start_command(struct omap_hsmmc_host *host, struct mmc_command *cmd,
 	}
 
 	/*
-	 * Unlike OMAP1 controller, the cmdtype does not seem to be based on
+	 * Unlike OMAP1 controller, the cmdtype does yest seem to be based on
 	 * ac, bc, adtc, bcr. Only commands ending an open ended transfer need
 	 * a val of 0x3, rest 0x0.
 	 */
@@ -829,7 +829,7 @@ static void omap_hsmmc_request_done(struct omap_hsmmc_host *host, struct mmc_req
 	spin_unlock_irqrestore(&host->irq_lock, flags);
 
 	omap_hsmmc_disable_irq(host);
-	/* Do not complete the request if DMA is still in progress */
+	/* Do yest complete the request if DMA is still in progress */
 	if (mrq->data && host->use_dma && dma_ch != -1)
 		return;
 	host->mrq = NULL;
@@ -845,7 +845,7 @@ omap_hsmmc_xfer_done(struct omap_hsmmc_host *host, struct mmc_data *data)
 	if (!data) {
 		struct mmc_request *mrq = host->mrq;
 
-		/* TC before CC from CMD6 - don't know why, but it happens */
+		/* TC before CC from CMD6 - don't kyesw why, but it happens */
 		if (host->cmd && host->cmd->opcode == 6 &&
 		    host->response_busy) {
 			host->response_busy = 0;
@@ -905,12 +905,12 @@ omap_hsmmc_cmd_done(struct omap_hsmmc_host *host, struct mmc_command *cmd)
 /*
  * DMA clean up for command errors
  */
-static void omap_hsmmc_dma_cleanup(struct omap_hsmmc_host *host, int errno)
+static void omap_hsmmc_dma_cleanup(struct omap_hsmmc_host *host, int erryes)
 {
 	int dma_ch;
 	unsigned long flags;
 
-	host->data->error = errno;
+	host->data->error = erryes;
 
 	spin_lock_irqsave(&host->irq_lock, flags);
 	dma_ch = host->dma_ch;
@@ -1262,7 +1262,7 @@ static int omap_hsmmc_setup_dma_transfer(struct omap_hsmmc_host *host,
 	}
 	if ((data->blksz % 4) != 0)
 		/* REVISIT: The MMC buffer increments only when MSB is written.
-		 * Return error for blksz which is non multiple of four.
+		 * Return error for blksz which is yesn multiple of four.
 		 */
 		return -EINVAL;
 
@@ -1290,7 +1290,7 @@ static int omap_hsmmc_setup_dma_transfer(struct omap_hsmmc_host *host,
 	tx->callback = omap_hsmmc_dma_callback;
 	tx->callback_param = host;
 
-	/* Does not fail */
+	/* Does yest fail */
 	dmaengine_submit(tx);
 
 	host->dma_ch = 1;
@@ -1369,7 +1369,7 @@ omap_hsmmc_prepare_data(struct omap_hsmmc_host *host, struct mmc_request *req)
 
 			/*
 			 * Set an arbitrary 100ms data timeout for commands with
-			 * busy signal and no indication of busy_timeout.
+			 * busy signal and yes indication of busy_timeout.
 			 */
 			if (!timeout)
 				timeout = 100000000U;
@@ -1488,7 +1488,7 @@ static void omap_hsmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			(ios->vdd == DUAL_VOLT_OCR_BIT)) {
 				/*
 				 * The mmc_select_voltage fn of the core does
-				 * not seem to set the power_mode to
+				 * yest seem to set the power_mode to
 				 * MMC_POWER_UP upon recalculating the voltage.
 				 * vdd 1.8v.
 				 */
@@ -1511,11 +1511,11 @@ static void omap_hsmmc_init_card(struct mmc_host *mmc, struct mmc_card *card)
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
 
 	if (card->type == MMC_TYPE_SDIO || card->type == MMC_TYPE_SD_COMBO) {
-		struct device_node *np = mmc_dev(mmc)->of_node;
+		struct device_yesde *np = mmc_dev(mmc)->of_yesde;
 
 		/*
 		 * REVISIT: should be moved to sdio core and made more
-		 * general e.g. by expanding the DT bindings of child nodes
+		 * general e.g. by expanding the DT bindings of child yesdes
 		 * to provide a mechanism to provide this information:
 		 * Documentation/devicetree/bindings/mmc/mmc-card.txt
 		 */
@@ -1525,7 +1525,7 @@ static void omap_hsmmc_init_card(struct mmc_host *mmc, struct mmc_card *card)
 			/*
 			 * We have TI wl1251 attached to MMC3. Pass this
 			 * information to the SDIO core because it can't be
-			 * probed by normal methods.
+			 * probed by yesrmal methods.
 			 */
 
 			dev_info(host->dev, "found wl1251\n");
@@ -1536,7 +1536,7 @@ static void omap_hsmmc_init_card(struct mmc_host *mmc, struct mmc_card *card)
 			card->cis.blksize = 512;
 			card->cis.max_dtr = 24000000;
 			card->ocr = 0x80;
-			of_node_put(np);
+			of_yesde_put(np);
 		}
 	}
 }
@@ -1586,7 +1586,7 @@ static int omap_hsmmc_configure_wake_irq(struct omap_hsmmc_host *host)
 	 * gpio). wakeirq is needed to detect sdio irq in runtime suspend state
 	 * with functional clock disabled.
 	 */
-	if (!host->dev->of_node || !host->wake_irq)
+	if (!host->dev->of_yesde || !host->wake_irq)
 		return -ENODEV;
 
 	ret = dev_pm_set_dedicated_wake_irq(host->dev, host->wake_irq);
@@ -1628,7 +1628,7 @@ static int omap_hsmmc_configure_wake_irq(struct omap_hsmmc_host *host)
 err_free_irq:
 	dev_pm_clear_wake_irq(host->dev);
 err:
-	dev_warn(host->dev, "no SDIO IRQ support, falling back to polling\n");
+	dev_warn(host->dev, "yes SDIO IRQ support, falling back to polling\n");
 	host->wake_irq = 0;
 	return ret;
 }
@@ -1775,7 +1775,7 @@ MODULE_DEVICE_TABLE(of, omap_mmc_of_match);
 static struct omap_hsmmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 {
 	struct omap_hsmmc_platform_data *pdata, *legacy;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -1788,9 +1788,9 @@ static struct omap_hsmmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 	if (of_find_property(np, "ti,dual-volt", NULL))
 		pdata->controller_flags |= OMAP_HSMMC_SUPPORTS_DUAL_VOLT;
 
-	if (of_find_property(np, "ti,non-removable", NULL)) {
-		pdata->nonremovable = true;
-		pdata->no_regulator_off_init = true;
+	if (of_find_property(np, "ti,yesn-removable", NULL)) {
+		pdata->yesnremovable = true;
+		pdata->yes_regulator_off_init = true;
 	}
 
 	if (of_find_property(np, "ti,needs-special-reset", NULL))
@@ -1874,8 +1874,8 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
-	if (pdev->dev.of_node)
-		host->wake_irq = irq_of_parse_and_map(pdev->dev.of_node, 1);
+	if (pdev->dev.of_yesde)
+		host->wake_irq = irq_of_parse_and_map(pdev->dev.of_yesde, 1);
 
 	mmc->ops	= &omap_hsmmc_ops;
 
@@ -1934,7 +1934,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	if (mmc->caps & MMC_CAP_8_BIT_DATA)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
-	if (mmc_pdata(host)->nonremovable)
+	if (mmc_pdata(host)->yesnremovable)
 		mmc->caps |= MMC_CAP_NONREMOVABLE;
 
 	mmc->pm_caps |= mmc_pdata(host)->pm_caps;
@@ -1959,7 +1959,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	 * Limit the maximum segment size to the lower of the request size
 	 * and the DMA engine device segment size limits.  In reality, with
 	 * 32-bit transfers, the DMA engine can do longer segments than this
-	 * but there is no way to represent that in the DMA model - if we
+	 * but there is yes way to represent that in the DMA model - if we
 	 * increase this figure here, we get warnings from the DMA API debug.
 	 */
 	mmc->max_seg_size = min3(mmc->max_req_size,
@@ -1984,7 +1984,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 	omap_hsmmc_disable_irq(host);
 
 	/*
-	 * For now, only support SDIO interrupt if we have a separate
+	 * For yesw, only support SDIO interrupt if we have a separate
 	 * wake-up interrupt configured from device tree. This is because
 	 * the wake-up interrupt is needed for idle state and some
 	 * platforms need special quirks. And we don't want to add new

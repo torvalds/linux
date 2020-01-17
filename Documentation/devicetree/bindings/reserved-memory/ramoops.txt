@@ -2,7 +2,7 @@ Ramoops oops/panic logger
 =========================
 
 ramoops provides persistent RAM storage for oops and panics, so they can be
-recovered after a reboot. This is a child-node of "/reserved-memory", and
+recovered after a reboot. This is a child-yesde of "/reserved-memory", and
 is named "ramoops" after the backend, rather than "pstore" which is the
 subsystem.
 
@@ -15,7 +15,7 @@ records.  These records have a configurable size, with a size of 0 indicating
 that they should be disabled.
 
 At least one of "record-size", "console-size", "ftrace-size", or "pmsg-size"
-must be set non-zero, but are otherwise optional as listed below.
+must be set yesn-zero, but are otherwise optional as listed below.
 
 
 Required properties:
@@ -28,7 +28,7 @@ Required properties:
 Optional properties:
 
 - ecc-size: enables ECC support and specifies ECC buffer size in bytes
-  (defaults to 0: no ECC)
+  (defaults to 0: yes ECC)
 
 - record-size: maximum size in bytes of each dump done on oops/panic
   (defaults to 0: disabled)
@@ -45,7 +45,7 @@ Optional properties:
 - unbuffered: if present, use unbuffered mappings to map the reserved region
   (defaults to buffered mappings)
 
-- no-dump-oops: if present, only dump panics (defaults to panics and oops)
+- yes-dump-oops: if present, only dump panics (defaults to panics and oops)
 
 - flags: if present, pass ramoops behavioral flags (defaults to 0,
   see include/linux/pstore_ram.h RAMOOPS_FLAG_* for flag values).

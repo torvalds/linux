@@ -28,7 +28,7 @@
  *	Masters have extra responsibilities, like managing the VBLANK IRQ.
  * @ENC_ROLE_SOLO:	This is the one and only panel. This encoder is master.
  * @ENC_ROLE_MASTER:	This encoder is the master of a split panel config.
- * @ENC_ROLE_SLAVE:	This encoder is not the master of a split panel config.
+ * @ENC_ROLE_SLAVE:	This encoder is yest the master of a split panel config.
  */
 enum dpu_enc_split_role {
 	ENC_ROLE_SOLO,
@@ -93,7 +93,7 @@ struct dpu_encoder_virt_ops {
  * @destroy:			DRM Call. Destroy and release resources.
  * @get_hw_resources:		Populate the structure with the hardware
  *				resources that this phys_enc is using.
- *				Expect no overlap between phys_encs.
+ *				Expect yes overlap between phys_encs.
  * @control_vblank_irq		Register/Deregister for VBLANK IRQ
  * @wait_for_commit_done:	Wait for hardware to have flushed the
  *				current pending frames to hardware
@@ -168,7 +168,7 @@ enum dpu_intr_idx {
  * @intr_idx:		Encoder interrupt enumeration
  * @hw_idx:		HW Block ID
  * @irq_idx:		IRQ interface lookup index from DPU IRQ framework
- *			will be -EINVAL if IRQ is not registered
+ *			will be -EINVAL if IRQ is yest registered
  * @irq_cb:		interrupt callback
  */
 struct dpu_encoder_irq {
@@ -357,7 +357,7 @@ void dpu_encoder_helper_report_irq_timeout(struct dpu_encoder_phys *phys_enc,
 
 /**
  * dpu_encoder_helper_wait_for_irq - utility to wait on an irq.
- *	note: will call dpu_encoder_helper_wait_for_irq on timeout
+ *	yeste: will call dpu_encoder_helper_wait_for_irq on timeout
  * @phys_enc: Pointer to physical encoder structure
  * @intr_idx: encoder interrupt index
  * @wait_info: wait info struct

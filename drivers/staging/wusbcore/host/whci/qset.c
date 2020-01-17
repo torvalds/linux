@@ -26,7 +26,7 @@ struct whc_qset *qset_alloc(struct whc *whc, gfp_t mem_flags)
 	qset->qset_dma = dma;
 	qset->whc = whc;
 
-	INIT_LIST_HEAD(&qset->list_node);
+	INIT_LIST_HEAD(&qset->list_yesde);
 	INIT_LIST_HEAD(&qset->stds);
 
 	return qset;
@@ -79,7 +79,7 @@ static void qset_fill_qh(struct whc *whc, struct whc_qset *qset, struct urb *urb
 		QH_INFO1_EP(usb_pipeendpoint(urb->pipe))
 		| (is_out ? QH_INFO1_DIR_OUT : QH_INFO1_DIR_IN)
 		| usb_pipe_to_qh_type(urb->pipe)
-		| QH_INFO1_DEV_INFO_IDX(wusb_port_no_to_idx(usb_dev->portnum))
+		| QH_INFO1_DEV_INFO_IDX(wusb_port_yes_to_idx(usb_dev->portnum))
 		| QH_INFO1_MAX_PKT_LEN(qset->max_packet)
 		);
 	qset->qh.info2 = cpu_to_le32(
@@ -90,7 +90,7 @@ static void qset_fill_qh(struct whc *whc, struct whc_qset *qset, struct urb *urb
 		| QH_INFO2_MAX_SEQ(qset->max_seq - 1)
 		);
 	/* FIXME: where can we obtain these Tx parameters from?  Why
-	 * doesn't the chip know what Tx power to use? It knows the Rx
+	 * doesn't the chip kyesw what Tx power to use? It kyesws the Rx
 	 * strength and can presumably guess the Tx power required
 	 * from that? */
 	qset->qh.info3 = cpu_to_le32(
@@ -105,7 +105,7 @@ static void qset_fill_qh(struct whc *whc, struct whc_qset *qset, struct urb *urb
  * qset_clear - clear fields in a qset so it may be reinserted into a
  * schedule.
  *
- * The sequence number and current window are not cleared (see
+ * The sequence number and current window are yest cleared (see
  * qset_reset()).
  */
 void qset_clear(struct whc *whc, struct whc_qset *qset)
@@ -127,7 +127,7 @@ void qset_clear(struct whc *whc, struct whc_qset *qset)
 /**
  * qset_reset - reset endpoint state in a qset.
  *
- * Clears the sequence number and current window.  This qset must not
+ * Clears the sequence number and current window.  This qset must yest
  * be in the ASL or PZL.
  */
 void qset_reset(struct whc *whc, struct whc_qset *qset)
@@ -141,7 +141,7 @@ void qset_reset(struct whc *whc, struct whc_qset *qset)
 /**
  * get_qset - get the qset for an async endpoint
  *
- * A new qset is created if one does not already exist.
+ * A new qset is created if one does yest already exist.
  */
 struct whc_qset *get_qset(struct whc *whc, struct urb *urb,
 				 gfp_t mem_flags)
@@ -164,7 +164,7 @@ struct whc_qset *get_qset(struct whc *whc, struct urb *urb,
 void qset_remove_complete(struct whc *whc, struct whc_qset *qset)
 {
 	qset->remove = 0;
-	list_del_init(&qset->list_node);
+	list_del_init(&qset->list_yesde);
 	complete(&qset->remove_complete);
 }
 
@@ -179,7 +179,7 @@ enum whc_update qset_add_qtds(struct whc *whc, struct whc_qset *qset)
 	struct whc_std *std;
 	enum whc_update update = 0;
 
-	list_for_each_entry(std, &qset->stds, list_node) {
+	list_for_each_entry(std, &qset->stds, list_yesde) {
 		struct whc_qtd *qtd;
 		uint32_t status;
 
@@ -205,7 +205,7 @@ enum whc_update qset_add_qtds(struct whc *whc, struct whc_qset *qset)
 		 * For an IN transfer the iAlt field should be set so
 		 * the h/w will automatically advance to the next
 		 * transfer. However, if there are 8 or more TDs
-		 * remaining in this transfer then iAlt cannot be set
+		 * remaining in this transfer then iAlt canyest be set
 		 * as it could point to somewhere in this transfer.
 		 */
 		if (std->ntds_remaining < WHCI_QSET_TD_MAX) {
@@ -286,7 +286,7 @@ static void qset_copy_bounce_to_sg(struct whc *whc, struct whc_std *std)
  */
 void qset_free_std(struct whc *whc, struct whc_std *std)
 {
-	list_del(&std->list_node);
+	list_del(&std->list_yesde);
 	if (std->bounce_buf) {
 		bool is_out = usb_pipeout(std->urb->pipe);
 		dma_addr_t dma_addr;
@@ -321,7 +321,7 @@ static void qset_remove_qtds(struct whc *whc, struct whc_qset *qset,
 {
 	struct whc_std *std, *t;
 
-	list_for_each_entry_safe(std, t, &qset->stds, list_node) {
+	list_for_each_entry_safe(std, t, &qset->stds, list_yesde) {
 		if (std->urb != urb)
 			break;
 		if (std->qtd != NULL)
@@ -337,7 +337,7 @@ static void qset_free_stds(struct whc_qset *qset, struct urb *urb)
 {
 	struct whc_std *std, *t;
 
-	list_for_each_entry_safe(std, t, &qset->stds, list_node) {
+	list_for_each_entry_safe(std, t, &qset->stds, list_yesde) {
 		if (std->urb == urb)
 			qset_free_std(qset->whc, std);
 	}
@@ -414,8 +414,8 @@ static struct whc_std *qset_new_std(struct whc *whc, struct whc_qset *qset,
 	std->urb = urb;
 	std->qtd = NULL;
 
-	INIT_LIST_HEAD(&std->list_node);
-	list_add_tail(&std->list_node, &qset->stds);
+	INIT_LIST_HEAD(&std->list_yesde);
+	list_add_tail(&std->list_yesde, &qset->stds);
 
 	return std;
 }
@@ -458,8 +458,8 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 			 * - the previous one isn't full.
 			 *
 			 * If a new std is needed but the previous one
-			 * was not a whole number of packets then this
-			 * sg list cannot be mapped onto multiple
+			 * was yest a whole number of packets then this
+			 * sg list canyest be mapped onto multiple
 			 * qTDs.  Return an error and let the caller
 			 * sort it out.
 			 */
@@ -519,9 +519,9 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 		}
 	}
 
-	/* Now the number of stds is know, go back and fill in
+	/* Now the number of stds is kyesw, go back and fill in
 	   std->ntds_remaining. */
-	list_for_each_entry(std, &qset->stds, list_node) {
+	list_for_each_entry(std, &qset->stds, list_yesde) {
 		if (std->ntds_remaining == -1) {
 			pl_len = std->num_pointers * sizeof(struct whc_page_list_entry);
 			std->dma_addr = dma_map_single(whc->wusbhc.dev, std->pl_virt,
@@ -537,7 +537,7 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 /**
  * qset_add_urb_sg_linearize - add an urb with sg list, copying the data
  *
- * If the URB contains an sg list whose elements cannot be directly
+ * If the URB contains an sg list whose elements canyest be directly
  * mapped to qTDs then the data must be transferred via bounce
  * buffers.
  */
@@ -603,7 +603,7 @@ static int qset_add_urb_sg_linearize(struct whc *whc, struct whc_qset *qset,
 	 * For each of the new sTDs, map the bounce buffers, create
 	 * page lists (if necessary), and fill in std->ntds_remaining.
 	 */
-	list_for_each_entry(std, &qset->stds, list_node) {
+	list_for_each_entry(std, &qset->stds, list_yesde) {
 		if (std->ntds_remaining != -1)
 			continue;
 
@@ -625,7 +625,7 @@ static int qset_add_urb_sg_linearize(struct whc *whc, struct whc_qset *qset,
  * qset_add_urb - add an urb to the qset's queue.
  *
  * The URB is chopped into sTDs, one for each qTD that will required.
- * At least one qTD (and sTD) is required even if the transfer has no
+ * At least one qTD (and sTD) is required even if the transfer has yes
  * data (e.g., for some control transfers).
  */
 int qset_add_urb(struct whc *whc, struct whc_qset *qset, struct urb *urb,
@@ -639,7 +639,7 @@ int qset_add_urb(struct whc *whc, struct whc_qset *qset, struct urb *urb,
 
 	wurb = kzalloc(sizeof(struct whc_urb), mem_flags);
 	if (wurb == NULL)
-		goto err_no_mem;
+		goto err_yes_mem;
 	urb->hcpriv = wurb;
 	wurb->qset = qset;
 	wurb->urb = urb;
@@ -652,7 +652,7 @@ int qset_add_urb(struct whc *whc, struct whc_qset *qset, struct urb *urb,
 			ret = qset_add_urb_sg_linearize(whc, qset, urb, mem_flags);
 		}
 		if (ret < 0)
-			goto err_no_mem;
+			goto err_yes_mem;
 		return 0;
 	}
 
@@ -670,14 +670,14 @@ int qset_add_urb(struct whc *whc, struct whc_qset *qset, struct urb *urb,
 
 		std = qset_new_std(whc, qset, urb, mem_flags);
 		if (std == NULL)
-			goto err_no_mem;
+			goto err_yes_mem;
 
 		std->dma_addr = transfer_dma;
 		std->len = std_len;
 		std->ntds_remaining = ntds_remaining;
 
 		if (qset_fill_page_list(whc, std, mem_flags) < 0)
-			goto err_no_mem;
+			goto err_yes_mem;
 
 		ntds_remaining--;
 		remaining -= std_len;
@@ -686,7 +686,7 @@ int qset_add_urb(struct whc *whc, struct whc_qset *qset, struct urb *urb,
 
 	return 0;
 
-err_no_mem:
+err_yes_mem:
 	qset_free_stds(qset, urb);
 	return -ENOMEM;
 }
@@ -703,7 +703,7 @@ void qset_remove_urb(struct whc *whc, struct whc_qset *qset,
 	struct whc_urb *wurb = urb->hcpriv;
 
 	usb_hcd_unlink_urb_from_ep(&wusbhc->usb_hcd, urb);
-	/* Drop the lock as urb->complete() may enqueue another urb. */
+	/* Drop the lock as urb->complete() may enqueue ayesther urb. */
 	spin_unlock(&whc->lock);
 	wusbhc_giveback_urb(wusbhc, urb, status);
 	spin_lock(&whc->lock);
@@ -735,7 +735,7 @@ static int get_urb_status_from_qtd(struct urb *urb, u32 status)
 }
 
 /**
- * process_inactive_qtd - process an inactive (but not halted) qTD.
+ * process_inactive_qtd - process an inactive (but yest halted) qTD.
  *
  * Update the urb with the transfer bytes from the qTD, if the urb is
  * completely transferred or (in the case of an IN only) the LPF is
@@ -745,7 +745,7 @@ static int get_urb_status_from_qtd(struct urb *urb, u32 status)
 void process_inactive_qtd(struct whc *whc, struct whc_qset *qset,
 				 struct whc_qtd *qtd)
 {
-	struct whc_std *std = list_first_entry(&qset->stds, struct whc_std, list_node);
+	struct whc_std *std = list_first_entry(&qset->stds, struct whc_std, list_yesde);
 	struct urb *urb = std->urb;
 	uint32_t status;
 	bool complete;
@@ -797,7 +797,7 @@ void process_inactive_qtd(struct whc *whc, struct whc_qset *qset,
 void process_halted_qtd(struct whc *whc, struct whc_qset *qset,
 			       struct whc_qtd *qtd)
 {
-	struct whc_std *std = list_first_entry(&qset->stds, struct whc_std, list_node);
+	struct whc_std *std = list_first_entry(&qset->stds, struct whc_std, list_yesde);
 	struct urb *urb = std->urb;
 	int urb_status;
 
@@ -806,7 +806,7 @@ void process_halted_qtd(struct whc *whc, struct whc_qset *qset,
 	qset_remove_qtds(whc, qset, urb);
 	qset_remove_urb(whc, qset, urb, urb_status);
 
-	list_for_each_entry(std, &qset->stds, list_node) {
+	list_for_each_entry(std, &qset->stds, list_yesde) {
 		if (qset->ntds == 0)
 			break;
 		qset_remove_qtd(whc, qset);

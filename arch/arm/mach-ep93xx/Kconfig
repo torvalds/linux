@@ -138,10 +138,10 @@ config MACH_SNAPPER_CL15
 	  Systems Snapper CL15 Module.
 
 config MACH_TS72XX
-	bool "Support Technologic Systems TS-72xx SBC"
+	bool "Support Techyeslogic Systems TS-72xx SBC"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Technologic Systems TS-72xx board.
+	  Techyeslogic Systems TS-72xx board.
 
 config MACH_VISION_EP9307
 	bool "Support Vision Engraving Systems EP9307 SoM"

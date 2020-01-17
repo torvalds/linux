@@ -121,7 +121,7 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 			queue_work(hdev->cq_wq, &job->finish_work);
 		}
 
-		/* Update ci of the context's queue. There is no
+		/* Update ci of the context's queue. There is yes
 		 * need to protect it with spinlock because this update is
 		 * done only inside IRQ and there is a different IRQ per
 		 * queue
@@ -259,7 +259,7 @@ void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
 	atomic_set(&q->free_slots_cnt, HL_CQ_LENGTH);
 
 	/*
-	 * It's not enough to just reset the PI/CI because the H/W may have
+	 * It's yest eyesugh to just reset the PI/CI because the H/W may have
 	 * written valid completion entries before it was halted and therefore
 	 * we need to clean the actual queues so we won't process old entries
 	 * when the device is operational again
@@ -318,7 +318,7 @@ void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)
 	q->ci = 0;
 
 	/*
-	 * It's not enough to just reset the PI/CI because the H/W may have
+	 * It's yest eyesugh to just reset the PI/CI because the H/W may have
 	 * written valid completion entries before it was halted and therefore
 	 * we need to clean the actual queues so we won't process old entries
 	 * when the device is operational again

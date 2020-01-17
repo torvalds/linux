@@ -120,7 +120,7 @@ static int pci_p2pdma_setup(struct pci_dev *pdev)
 
 	xa_init(&p2p->map_types);
 
-	p2p->pool = gen_pool_create(PAGE_SHIFT, dev_to_node(&pdev->dev));
+	p2p->pool = gen_pool_create(PAGE_SHIFT, dev_to_yesde(&pdev->dev));
 	if (!p2p->pool)
 		goto out;
 
@@ -202,7 +202,7 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 
 	error = gen_pool_add_owner(pdev->p2pdma->pool, (unsigned long)addr,
 			pci_bus_address(pdev, bar) + offset,
-			resource_size(&pgmap->res), dev_to_node(&pdev->dev),
+			resource_size(&pgmap->res), dev_to_yesde(&pdev->dev),
 			pgmap->ref);
 	if (error)
 		goto pages_free;
@@ -320,7 +320,7 @@ static bool __host_bridge_whitelist(struct pci_host_bridge *host,
 
 /*
  * If we can't find a common upstream bridge take a look at the root
- * complex and compare it to a whitelist of known good hardware.
+ * complex and compare it to a whitelist of kyeswn good hardware.
  */
 static bool host_bridge_whitelist(struct pci_dev *a, struct pci_dev *b)
 {
@@ -440,19 +440,19 @@ static unsigned long map_types_idx(struct pci_dev *client)
  * port of the switch, to the common upstream port, back up to the second
  * downstream port and then to Device B.
  *
- * Any two devices that cannot communicate using p2pdma will return
+ * Any two devices that canyest communicate using p2pdma will return
  * PCI_P2PDMA_MAP_NOT_SUPPORTED.
  *
  * Any two devices that have a data path that goes through the host bridge
  * will consult a whitelist. If the host bridges are on the whitelist,
  * this function will return PCI_P2PDMA_MAP_THRU_HOST_BRIDGE.
  *
- * If either bridge is not on the whitelist this function returns
+ * If either bridge is yest on the whitelist this function returns
  * PCI_P2PDMA_MAP_NOT_SUPPORTED.
  *
  * If a bridge which has any ACS redirection bits set is in the path,
  * acs_redirects will be set to true. In this case, a list of all infringing
- * bridge addresses will be populated in acs_list (assuming it's non-null)
+ * bridge addresses will be populated in acs_list (assuming it's yesn-null)
  * for printk purposes.
  */
 static enum pci_p2pdma_map_type
@@ -500,7 +500,7 @@ upstream_bridge_distance_warn(struct pci_dev *provider, struct pci_dev *client,
 	}
 
 	if (ret == PCI_P2PDMA_MAP_NOT_SUPPORTED) {
-		pci_warn(client, "cannot be used for peer-to-peer DMA as the client and provider (%s) do not share an upstream bridge or whitelisted host bridge\n",
+		pci_warn(client, "canyest be used for peer-to-peer DMA as the client and provider (%s) do yest share an upstream bridge or whitelisted host bridge\n",
 			 pci_name(provider));
 	}
 
@@ -517,7 +517,7 @@ upstream_bridge_distance_warn(struct pci_dev *provider, struct pci_dev *client,
  * @num_clients: number of clients in the array
  * @verbose: if true, print warnings for devices when we return -1
  *
- * Returns -1 if any of the clients are not compatible, otherwise returns a
+ * Returns -1 if any of the clients are yest compatible, otherwise returns a
  * positive number where a lower number is the preferable choice. (If there's
  * one client that's the same as the provider it will return 0, which is best
  * choice).
@@ -529,7 +529,7 @@ upstream_bridge_distance_warn(struct pci_dev *provider, struct pci_dev *client,
 int pci_p2pdma_distance_many(struct pci_dev *provider, struct device **clients,
 			     int num_clients, bool verbose)
 {
-	bool not_supported = false;
+	bool yest_supported = false;
 	struct pci_dev *pci_client;
 	int total_dist = 0;
 	int distance;
@@ -543,7 +543,7 @@ int pci_p2pdma_distance_many(struct pci_dev *provider, struct device **clients,
 		    clients[i]->dma_ops == &dma_virt_ops) {
 			if (verbose)
 				dev_warn(clients[i],
-					 "cannot be used for peer-to-peer DMA because the driver makes use of dma_virt_ops\n");
+					 "canyest be used for peer-to-peer DMA because the driver makes use of dma_virt_ops\n");
 			return -1;
 		}
 
@@ -551,7 +551,7 @@ int pci_p2pdma_distance_many(struct pci_dev *provider, struct device **clients,
 		if (!pci_client) {
 			if (verbose)
 				dev_warn(clients[i],
-					 "cannot be used for peer-to-peer DMA as it is not a PCI device\n");
+					 "canyest be used for peer-to-peer DMA as it is yest a PCI device\n");
 			return -1;
 		}
 
@@ -565,15 +565,15 @@ int pci_p2pdma_distance_many(struct pci_dev *provider, struct device **clients,
 		pci_dev_put(pci_client);
 
 		if (ret == PCI_P2PDMA_MAP_NOT_SUPPORTED)
-			not_supported = true;
+			yest_supported = true;
 
-		if (not_supported && !verbose)
+		if (yest_supported && !verbose)
 			break;
 
 		total_dist += distance;
 	}
 
-	if (not_supported)
+	if (yest_supported)
 		return -1;
 
 	return total_dist;
@@ -604,7 +604,7 @@ EXPORT_SYMBOL_GPL(pci_has_p2pmem);
  * distance away, one will be chosen at random.
  *
  * Returns a pointer to the PCI device with a reference taken (use pci_dev_put
- * to return the reference) or NULL if no compatible device is found. The
+ * to return the reference) or NULL if yes compatible device is found. The
  * found provider will also be assigned to the client list.
  */
 struct pci_dev *pci_p2pmem_find_many(struct device **clients, int num_clients)
@@ -669,7 +669,7 @@ void *pci_alloc_p2pmem(struct pci_dev *pdev, size_t size)
 
 	/*
 	 * Pairs with synchronize_rcu() in pci_p2pdma_release() to
-	 * ensure pdev->p2pdma is non-NULL for the duration of the
+	 * ensure pdev->p2pdma is yesn-NULL for the duration of the
 	 * read-lock.
 	 */
 	rcu_read_lock();
@@ -820,7 +820,7 @@ static int __pci_p2pdma_map_sg(struct pci_p2pdma_pagemap *p2p_pgmap,
 	int i;
 
 	/*
-	 * p2pdma mappings are not compatible with devices that use
+	 * p2pdma mappings are yest compatible with devices that use
 	 * dma_virt_ops. If the upper layers do the right thing
 	 * this should never happen because it will be prevented
 	 * by the check in pci_p2pdma_distance_many()
@@ -911,7 +911,7 @@ EXPORT_SYMBOL_GPL(pci_p2pdma_unmap_sg_attrs);
  * @page: contents of the value to be stored
  * @p2p_dev: returns the PCI device that was selected to be used
  *		(if one was specified in the stored value)
- * @use_p2pdma: returns whether to enable p2pdma or not
+ * @use_p2pdma: returns whether to enable p2pdma or yest
  *
  * Parses an attribute value to decide whether to enable p2pdma.
  * The value can select a PCI device (using its full BDF device
@@ -937,7 +937,7 @@ int pci_p2pdma_enable_store(const char *page, struct pci_dev **p2p_dev,
 
 		if (!pci_has_p2pmem(*p2p_dev)) {
 			pci_err(*p2p_dev,
-				"PCI device has no peer-to-peer memory: %s\n",
+				"PCI device has yes peer-to-peer memory: %s\n",
 				page);
 			pci_dev_put(*p2p_dev);
 			return -ENODEV;
@@ -948,7 +948,7 @@ int pci_p2pdma_enable_store(const char *page, struct pci_dev **p2p_dev,
 		/*
 		 * If the user enters a PCI device that  doesn't exist
 		 * like "0000:01:00.1", we don't want strtobool to think
-		 * it's a '0' when it's clearly not what the user wanted.
+		 * it's a '0' when it's clearly yest what the user wanted.
 		 * So we require 0's and 1's to be exactly one character.
 		 */
 	} else if (!strtobool(page, use_p2pdma)) {
@@ -964,7 +964,7 @@ EXPORT_SYMBOL_GPL(pci_p2pdma_enable_store);
  * pci_p2pdma_enable_show - show a configfs/sysfs attribute indicating
  *		whether p2pdma is enabled
  * @page: contents of the stored value
- * @p2p_dev: the selected p2p device (NULL if no device is selected)
+ * @p2p_dev: the selected p2p device (NULL if yes device is selected)
  * @use_p2pdma: whether p2pdma has been enabled
  *
  * Attributes that use pci_p2pdma_enable_store() should use this function

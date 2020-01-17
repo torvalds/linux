@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Renesas Technology Sales RTS7751R2D Support.
+ * Renesas Techyeslogy Sales RTS7751R2D Support.
  *
  * Copyright (C) 2002 - 2006 Atom Create Engineering Co., Ltd.
  * Copyright (C) 2004 - 2007 Paul Mundt
@@ -270,7 +270,7 @@ static void __init rts7751r2d_setup(char **cmdline_p)
 	void __iomem *sm501_reg;
 	u16 ver = __raw_readw(PA_VERREG);
 
-	printk(KERN_INFO "Renesas Technology Sales RTS7751R2D support.\n");
+	printk(KERN_INFO "Renesas Techyeslogy Sales RTS7751R2D support.\n");
 
 	printk(KERN_INFO "FPGA version:%d (revision:%d)\n",
 					(ver >> 4) & 0xf, ver & 0xf);
@@ -287,7 +287,7 @@ static void __init rts7751r2d_setup(char **cmdline_p)
 	 * BwP =  1 - Local Memory Block Write to Pre-Charge Delay: 1 clock.
 	 * AP = 1 - Internal Memory Active to Pre-Charge Delay: 7 clocks.
 	 * Rst = 1 - Internal Memory Reset: Normal.
-	 * RA = 1 - Internal Memory Remain in Active State: Do not remain.
+	 * RA = 1 - Internal Memory Remain in Active State: Do yest remain.
 	 */
 
 	sm501_reg = (void __iomem *)0xb3e00000 + SM501_DRAM_CONTROL;

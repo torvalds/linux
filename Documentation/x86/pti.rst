@@ -7,7 +7,7 @@ Page Table Isolation (PTI)
 Overview
 ========
 
-Page Table Isolation (pti, previously known as KAISER [1]_) is a
+Page Table Isolation (pti, previously kyeswn as KAISER [1]_) is a
 countermeasure against attacks on the shared user/kernel address
 space such as the "Meltdown" approach [2]_.
 
@@ -25,10 +25,10 @@ such as the first C function when entering an interrupt (see
 comments in pti.c).
 
 This approach helps to ensure that side-channel attacks leveraging
-the paging structures do not function when PTI is enabled.  It can be
+the paging structures do yest function when PTI is enabled.  It can be
 enabled by setting CONFIG_PAGE_TABLE_ISOLATION=y at compile time.
 Once enabled at compile-time, it can be disabled at boot with the
-'nopti' or 'pti=' kernel parameters (see kernel-parameters.txt).
+'yespti' or 'pti=' kernel parameters (see kernel-parameters.txt).
 
 Page Table Management
 =====================
@@ -49,7 +49,7 @@ cpu_entry_area' structure which is placed in the fixmap which gives
 each CPU's copy of the area a compile-time-fixed virtual address.
 
 For new userspace mappings, the kernel makes the entries in its
-page tables like normal.  The only difference is when the kernel
+page tables like yesrmal.  The only difference is when the kernel
 makes entries in the top (PGD) level.  In addition to setting the
 entry in the main kernel PGD, a copy of the entry is made in the
 userspace page tables' PGD.
@@ -67,12 +67,12 @@ this protection comes at a cost:
 
 1. Increased Memory Use
 
-  a. Each process now needs an order-1 PGD instead of order-0.
+  a. Each process yesw needs an order-1 PGD instead of order-0.
      (Consumes an additional 4k per process).
   b. The 'cpu_entry_area' structure must be 2MB in size and 2MB
      aligned so that it can be mapped by setting a single PMD
      entry.  This consumes nearly 2MB of RAM once the kernel
-     is decompressed, but no space in the kernel image itself.
+     is decompressed, but yes space in the kernel image itself.
 
 2. Runtime Cost
 
@@ -83,10 +83,10 @@ this protection comes at a cost:
      cycles, and are required at every entry and exit.
   b. A "trampoline" must be used for SYSCALL entry.  This
      trampoline depends on a smaller set of resources than the
-     non-PTI SYSCALL entry code, so requires mapping fewer
+     yesn-PTI SYSCALL entry code, so requires mapping fewer
      things into the userspace page tables.  The downside is
      that stacks must be switched at entry time.
-  c. Global pages are disabled for all kernel structures not
+  c. Global pages are disabled for all kernel structures yest
      mapped into both kernel and userspace page tables.  This
      feature of the MMU allows different processes to share TLB
      entries mapping the kernel.  Losing the feature means more
@@ -104,7 +104,7 @@ this protection comes at a cost:
   e. The userspace page tables must be populated for each new
      process.  Even without PTI, the shared kernel mappings
      are created by copying top-level (PGD) entries into each
-     new process.  But, with PTI, there are now *two* kernel
+     new process.  But, with PTI, there are yesw *two* kernel
      mappings: one in the kernel page tables that maps everything
      and one for the entry/exit structures.  At fork(), we need to
      copy both.
@@ -117,8 +117,8 @@ this protection comes at a cost:
      the entire TLB.  That means that each syscall, interrupt
      or exception flushes the TLB.
   h. INVPCID is a TLB-flushing instruction which allows flushing
-     of TLB entries for non-current PCIDs.  Some systems support
-     PCIDs, but do not support INVPCID.  On these systems, addresses
+     of TLB entries for yesn-current PCIDs.  Some systems support
+     PCIDs, but do yest support INVPCID.  On these systems, addresses
      can only be flushed from the TLB for the current PCID.  When
      flushing a kernel address, we need to flush all PCIDs, so a
      single kernel address flush will require a TLB-flushing CR3
@@ -126,7 +126,7 @@ this protection comes at a cost:
 
 Possible Future Work
 ====================
-1. We can be more careful about not actually writing to CR3
+1. We can be more careful about yest actually writing to CR3
    unless its value is actually changed.
 2. Allow PTI to be enabled/disabled at runtime in addition to the
    boot-time switching.
@@ -144,9 +144,9 @@ ideally doing all of these in parallel:
    kernel entry code.  In general, old kernels might cause these tests
    themselves to crash, but they should never crash the kernel.
 3. Run the 'perf' tool in a mode (top or record) that generates many
-   frequent performance monitoring non-maskable interrupts (see "NMI"
+   frequent performance monitoring yesn-maskable interrupts (see "NMI"
    in /proc/interrupts).  This exercises the NMI entry/exit code which
-   is known to trigger bugs in code paths that did not expect to be
+   is kyeswn to trigger bugs in code paths that did yest expect to be
    interrupted, including nested NMIs.  Using "-c" boosts the rate of
    NMIs, and using two -c with separate counters encourages nested NMIs
    and less deterministic behavior.
@@ -162,7 +162,7 @@ Debugging
 =========
 
 Bugs in PTI cause a few different signatures of crashes
-that are worth noting here.
+that are worth yesting here.
 
  * Failures of the selftests/x86 code.  Usually a bug in one of the
    more obscure corners of entry_64.S
@@ -172,8 +172,8 @@ that are worth noting here.
    like screwing up a page table switch.  Also caused by
    incorrectly mapping the IRQ handler entry code.
  * Crashes at the first NMI.  The NMI code is separate from main
-   interrupt handlers and can have bugs that do not affect
-   normal interrupts.  Also caused by incorrectly mapping NMI
+   interrupt handlers and can have bugs that do yest affect
+   yesrmal interrupts.  Also caused by incorrectly mapping NMI
    code.  NMIs that interrupt the entry code must be very
    careful and can be the cause of crashes that show up when
    running perf.
@@ -183,9 +183,9 @@ that are worth noting here.
    in entry_64.S that return to userspace are sometimes separate
    from the ones that return to the kernel.
  * Double faults: overflowing the kernel stack because of page
-   faults upon page faults.  Caused by touching non-pti-mapped
+   faults upon page faults.  Caused by touching yesn-pti-mapped
    data in the entry code, or forgetting to switch to kernel
-   CR3 before calling into C functions which are not pti-mapped.
+   CR3 before calling into C functions which are yest pti-mapped.
  * Userspace segfaults early in boot, sometimes manifesting
    as mount(8) failing to mount the rootfs.  These have
    tended to be TLB invalidation issues.  Usually invalidating

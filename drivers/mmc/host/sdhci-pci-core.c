@@ -563,7 +563,7 @@ static void intel_dsm_init(struct intel_host *intel_host, struct device *dev,
 
 	err = __intel_dsm(intel_host, dev, INTEL_DSM_FNS, &intel_host->dsm_fns);
 	if (err) {
-		pr_debug("%s: DSM not supported, error %d\n",
+		pr_debug("%s: DSM yest supported, error %d\n",
 			 mmc_hostname(mmc), err);
 		return;
 	}
@@ -641,8 +641,8 @@ static void sdhci_intel_set_power(struct sdhci_host *host, unsigned char mode,
 		return;
 
 	/*
-	 * Bus power might not enable after D3 -> D0 transition due to the
-	 * present state not yet having propagated. Retry for up to 2ms.
+	 * Bus power might yest enable after D3 -> D0 transition due to the
+	 * present state yest yet having propagated. Retry for up to 2ms.
 	 */
 	for (cntr = 0; cntr < SDHCI_INTEL_PWR_TIMEOUT_CNT; cntr++) {
 		reg = sdhci_readb(host, SDHCI_POWER_CONTROL);
@@ -935,7 +935,7 @@ static int ni_set_max_freq(struct sdhci_pci_slot *slot)
 				       "MXFQ", NULL, &max_freq);
 	if (ACPI_FAILURE(status)) {
 		dev_err(&slot->chip->pdev->dev,
-			"MXFQ not found in acpi table\n");
+			"MXFQ yest found in acpi table\n");
 		return -EINVAL;
 	}
 
@@ -1123,7 +1123,7 @@ static void intel_mrfld_mmc_fix_up_power_slot(struct sdhci_pci_slot *slot)
 		return;
 
 	acpi_device_fix_up_power(device);
-	list_for_each_entry(child, &device->children, node)
+	list_for_each_entry(child, &device->children, yesde)
 		if (child->status.present && child->status.enabled)
 			acpi_device_fix_up_power(child);
 }
@@ -1294,7 +1294,7 @@ static int jmicron_probe_slot(struct sdhci_pci_slot *slot)
 			MMC_VDD_29_30 | MMC_VDD_30_31 |
 			MMC_VDD_165_195; /* allow 1.8V */
 		slot->host->ocr_avail_mmc = MMC_VDD_32_33 | MMC_VDD_33_34 |
-			MMC_VDD_29_30 | MMC_VDD_30_31; /* no 1.8V for MMC */
+			MMC_VDD_29_30 | MMC_VDD_30_31; /* yes 1.8V for MMC */
 	}
 
 	/*
@@ -1537,7 +1537,7 @@ static int amd_execute_tuning_hs200(struct sdhci_host *host, u32 opcode)
 	}
 
 	if (!valid_win_max) {
-		dev_err(&pdev->dev, "no tuning point found\n");
+		dev_err(&pdev->dev, "yes tuning point found\n");
 		return -EIO;
 	}
 
@@ -1628,11 +1628,11 @@ static void amd_sdhci_reset(struct sdhci_host *host, u8 mask)
 		pci_restore_state(pdev);
 
 		/*
-		 * SDHCI_RESET_ALL says the card detect logic should not be
+		 * SDHCI_RESET_ALL says the card detect logic should yest be
 		 * reset, but since we need to reset the entire controller
 		 * we should wait until the card detect logic has stabilized.
 		 *
-		 * This normally takes about 40ms.
+		 * This yesrmally takes about 40ms.
 		 */
 		readx_poll_timeout(
 			sdhci_read_present_state,
@@ -1888,15 +1888,15 @@ static const struct dev_pm_ops sdhci_pci_pm_ops = {
 
 static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	struct pci_dev *pdev, struct sdhci_pci_chip *chip, int first_bar,
-	int slotno)
+	int slotyes)
 {
 	struct sdhci_pci_slot *slot;
 	struct sdhci_host *host;
-	int ret, bar = first_bar + slotno;
+	int ret, bar = first_bar + slotyes;
 	size_t priv_size = chip->fixes ? chip->fixes->priv_size : 0;
 
 	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM)) {
-		dev_err(&pdev->dev, "BAR %d is not iomem. Aborting.\n", bar);
+		dev_err(&pdev->dev, "BAR %d is yest iomem. Aborting.\n", bar);
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -1911,13 +1911,13 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	}
 
 	if ((pdev->class & 0x0000FF) > PCI_SDHCI_IFVENDOR) {
-		dev_err(&pdev->dev, "Unknown interface. Aborting.\n");
+		dev_err(&pdev->dev, "Unkyeswn interface. Aborting.\n");
 		return ERR_PTR(-ENODEV);
 	}
 
 	host = sdhci_alloc_host(&pdev->dev, sizeof(*slot) + priv_size);
 	if (IS_ERR(host)) {
-		dev_err(&pdev->dev, "cannot allocate host\n");
+		dev_err(&pdev->dev, "canyest allocate host\n");
 		return ERR_CAST(host);
 	}
 
@@ -1931,7 +1931,7 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 
 	/* Retrieve platform data if there is any */
 	if (*sdhci_pci_get_data)
-		slot->data = sdhci_pci_get_data(pdev, slotno);
+		slot->data = sdhci_pci_get_data(pdev, slotyes);
 
 	if (slot->data) {
 		if (slot->data->setup) {
@@ -1956,7 +1956,7 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 
 	ret = pcim_iomap_regions(pdev, BIT(bar), mmc_hostname(host->mmc));
 	if (ret) {
-		dev_err(&pdev->dev, "cannot request region\n");
+		dev_err(&pdev->dev, "canyest request region\n");
 		goto cleanup;
 	}
 
@@ -1980,7 +1980,7 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	}
 
 	host->mmc->pm_caps = MMC_PM_KEEP_POWER;
-	host->mmc->slotno = slotno;
+	host->mmc->slotyes = slotyes;
 	host->mmc->caps2 |= MMC_CAP2_NO_PRESCAN_POWERUP;
 
 	if (device_can_wakeup(&pdev->dev))
@@ -2017,7 +2017,7 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 
 	/*
 	 * Check if the chip needs a separate GPIO for card detect to wake up
-	 * from runtime suspend.  If it is not there, don't allow runtime PM.
+	 * from runtime suspend.  If it is yest there, don't allow runtime PM.
 	 * Note sdhci_pci_add_own_cd() sets slot->cd_gpio to -EINVAL on failure.
 	 */
 	if (chip->fixes && chip->fixes->own_cd_for_runtime_pm &&
@@ -2065,18 +2065,18 @@ static void sdhci_pci_remove_slot(struct sdhci_pci_slot *slot)
 
 static void sdhci_pci_runtime_pm_allow(struct device *dev)
 {
-	pm_suspend_ignore_children(dev, 1);
+	pm_suspend_igyesre_children(dev, 1);
 	pm_runtime_set_autosuspend_delay(dev, 50);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_allow(dev);
 	/* Stay active until mmc core scans for a card */
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 }
 
 static void sdhci_pci_runtime_pm_forbid(struct device *dev)
 {
 	pm_runtime_forbid(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 }
 
 static int sdhci_pci_probe(struct pci_dev *pdev,

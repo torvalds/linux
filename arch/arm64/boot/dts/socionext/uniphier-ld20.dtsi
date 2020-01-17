@@ -220,7 +220,7 @@
 
 		secure-memory@81000000 {
 			reg = <0x0 0x81000000 0x0 0x01000000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -895,7 +895,7 @@
 			ranges =
 			/* downstream I/O */
 				<0x81000000 0 0x00000000 0x2ffe0000 0 0x00010000>,
-			/* non-prefetchable memory */
+			/* yesn-prefetchable memory */
 				<0x82000000 0 0x20000000 0x20000000 0 0x0ffe0000>;
 			#interrupt-cells = <1>;
 			interrupt-names = "dma", "msi";

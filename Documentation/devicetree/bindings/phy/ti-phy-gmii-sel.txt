@@ -32,7 +32,7 @@ CPSW Port's Interface Mode Selection PHY describes MII interface mode between
 CPSW Port and Ethernet PHY which depends on Eth PHY and board configuration.
 
 CPSW Port's Interface Mode Selection PHY device should defined as child device
-of SCM node (scm_conf) and can be attached to each CPSW port node using standard
+of SCM yesde (scm_conf) and can be attached to each CPSW port yesde using standard
 PHY bindings (See phy/phy-bindings.txt).
 
 Required properties:

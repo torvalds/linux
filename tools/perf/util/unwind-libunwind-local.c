@@ -17,7 +17,7 @@
  */
 
 #include <elf.h>
-#include <errno.h>
+#include <erryes.h>
 #include <gelf.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -75,14 +75,14 @@ UNW_OBJ(dwarf_find_debug_frame) (int found, unw_dyn_info_t *di_debug,
 #define DW_EH_PE_pcrel		0x10	/* rel. to addr. of encoded value */
 
 /*
- * The following are not documented by LSB v1.3, yet they are used by
+ * The following are yest documented by LSB v1.3, yet they are used by
  * GCC, presumably they aren't documented by LSB since they aren't
  * used on Linux:
  */
 #define DW_EH_PE_funcrel	0x40	/* start-of-procedure-relative */
 #define DW_EH_PE_aligned	0x50	/* aligned pointer */
 
-/* Flags intentionaly not handled, since they're not needed:
+/* Flags intentionaly yest handled, since they're yest needed:
  * #define DW_EH_PE_indirect      0x80
  * #define DW_EH_PE_uleb128       0x01
  * #define DW_EH_PE_udata2        0x02
@@ -234,7 +234,7 @@ struct eh_frame_hdr {
 	 *	encoded_t fde_count;
 	 */
 
-	/* A single encoded pointer should not be more than 8 bytes. */
+	/* A single encoded pointer should yest be more than 8 bytes. */
 	u64 enc[2];
 
 	/*
@@ -469,7 +469,7 @@ static int access_dso_mem(struct unwind_info *ui, unw_word_t addr,
 
 	map = find_map(addr, ui);
 	if (!map) {
-		pr_debug("unwind: no map for %lx\n", (unsigned long)addr);
+		pr_debug("unwind: yes map for %lx\n", (unsigned long)addr);
 		return -1;
 	}
 
@@ -492,7 +492,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 	int offset;
 	int ret;
 
-	/* Don't support write, probably not needed. */
+	/* Don't support write, probably yest needed. */
 	if (__write || !stack || !ui->sample->user_regs.regs) {
 		*valp = 0;
 		return 0;
@@ -512,7 +512,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 	if (addr < start || addr + sizeof(unw_word_t) >= end) {
 		ret = access_dso_mem(ui, addr, valp);
 		if (ret) {
-			pr_debug("unwind: access_mem %p not inside range"
+			pr_debug("unwind: access_mem %p yest inside range"
 				 " 0x%" PRIx64 "-0x%" PRIx64 "\n",
 				 (void *) (uintptr_t) addr, start, end);
 			*valp = 0;
@@ -673,7 +673,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 			unw_get_reg(&c, UNW_REG_IP, &ips[i]);
 
 			/*
-			 * Decrement the IP for any non-activation frames.
+			 * Decrement the IP for any yesn-activation frames.
 			 * this is required to properly find the srcline
 			 * for caller frames.
 			 * See also the documentation for dwfl_frame_pc(),

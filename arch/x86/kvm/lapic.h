@@ -104,7 +104,7 @@ int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu);
 u64 kvm_get_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu);
 void kvm_set_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu, u64 data);
 
-void kvm_apic_write_nodecode(struct kvm_vcpu *vcpu, u32 offset);
+void kvm_apic_write_yesdecode(struct kvm_vcpu *vcpu, u32 offset);
 void kvm_apic_set_eoi_accelerated(struct kvm_vcpu *vcpu, int vector);
 
 int kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr);
@@ -159,11 +159,11 @@ static inline void kvm_lapic_set_reg(struct kvm_lapic *apic, int reg_off, u32 va
 	*((u32 *) (apic->regs + reg_off)) = val;
 }
 
-extern struct static_key kvm_no_apic_vcpu;
+extern struct static_key kvm_yes_apic_vcpu;
 
 static inline bool lapic_in_kernel(struct kvm_vcpu *vcpu)
 {
-	if (static_key_false(&kvm_no_apic_vcpu))
+	if (static_key_false(&kvm_yes_apic_vcpu))
 		return vcpu->arch.apic;
 	return true;
 }

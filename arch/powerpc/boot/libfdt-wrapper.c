@@ -91,9 +91,9 @@ static int fdt_wrapper_setprop(const void *devp, const char *name,
 	return check_err(rc);
 }
 
-static int fdt_wrapper_del_node(const void *devp)
+static int fdt_wrapper_del_yesde(const void *devp)
 {
-	return fdt_del_node(fdt, devp_offset(devp));
+	return fdt_del_yesde(fdt, devp_offset(devp));
 }
 
 static void *fdt_wrapper_get_parent(const void *devp)
@@ -101,33 +101,33 @@ static void *fdt_wrapper_get_parent(const void *devp)
 	return offset_devp(fdt_parent_offset(fdt, devp_offset(devp)));
 }
 
-static void *fdt_wrapper_create_node(const void *devp, const char *name)
+static void *fdt_wrapper_create_yesde(const void *devp, const char *name)
 {
 	int offset;
 
-	offset = fdt_add_subnode(fdt, devp_offset(devp), name);
+	offset = fdt_add_subyesde(fdt, devp_offset(devp), name);
 	if (offset == -FDT_ERR_NOSPACE) {
 		expand_buf(strlen(name) + 16);
-		offset = fdt_add_subnode(fdt, devp_offset(devp), name);
+		offset = fdt_add_subyesde(fdt, devp_offset(devp), name);
 	}
 
 	return offset_devp(offset);
 }
 
-static void *fdt_wrapper_find_node_by_prop_value(const void *prev,
+static void *fdt_wrapper_find_yesde_by_prop_value(const void *prev,
 						 const char *name,
 						 const char *val,
 						 int len)
 {
-	int offset = fdt_node_offset_by_prop_value(fdt, devp_offset_find(prev),
+	int offset = fdt_yesde_offset_by_prop_value(fdt, devp_offset_find(prev),
 	                                           name, val, len);
 	return offset_devp(offset);
 }
 
-static void *fdt_wrapper_find_node_by_compatible(const void *prev,
+static void *fdt_wrapper_find_yesde_by_compatible(const void *prev,
 						 const char *val)
 {
-	int offset = fdt_node_offset_by_compatible(fdt, devp_offset_find(prev),
+	int offset = fdt_yesde_offset_by_compatible(fdt, devp_offset_find(prev),
 	                                           val);
 	return offset_devp(offset);
 }
@@ -162,10 +162,10 @@ void fdt_init(void *blob)
 	dt_ops.getprop = fdt_wrapper_getprop;
 	dt_ops.setprop = fdt_wrapper_setprop;
 	dt_ops.get_parent = fdt_wrapper_get_parent;
-	dt_ops.create_node = fdt_wrapper_create_node;
-	dt_ops.find_node_by_prop_value = fdt_wrapper_find_node_by_prop_value;
-	dt_ops.find_node_by_compatible = fdt_wrapper_find_node_by_compatible;
-	dt_ops.del_node = fdt_wrapper_del_node;
+	dt_ops.create_yesde = fdt_wrapper_create_yesde;
+	dt_ops.find_yesde_by_prop_value = fdt_wrapper_find_yesde_by_prop_value;
+	dt_ops.find_yesde_by_compatible = fdt_wrapper_find_yesde_by_compatible;
+	dt_ops.del_yesde = fdt_wrapper_del_yesde;
 	dt_ops.get_path = fdt_wrapper_get_path;
 	dt_ops.finalize = fdt_wrapper_finalize;
 

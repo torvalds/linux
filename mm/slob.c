@@ -29,7 +29,7 @@
  * from kmalloc are prepended with a 4-byte header with the kmalloc size.
  * If kmalloc is asked for objects of PAGE_SIZE or larger, it calls
  * alloc_pages() directly, allocating compound pages so the page order
- * does not have to be separately tracked.
+ * does yest have to be separately tracked.
  * These objects are detected in kfree() because PageSlab()
  * is false for them.
  *
@@ -38,23 +38,23 @@
  * 4-byte alignment unless the SLAB_HWCACHE_ALIGN flag is set, in which
  * case the low-level allocator will fragment blocks to create the proper
  * alignment. Again, objects of page-size or greater are allocated by
- * calling alloc_pages(). As SLAB objects know their size, no separate
- * size bookkeeping is necessary and there is essentially no allocation
+ * calling alloc_pages(). As SLAB objects kyesw their size, yes separate
+ * size bookkeeping is necessary and there is essentially yes allocation
  * space overhead, and compound pages aren't needed for multi-page
  * allocations.
  *
  * NUMA support in SLOB is fairly simplistic, pushing most of the real
- * logic down to the page allocator, and simply doing the node accounting
- * on the upper levels. In the event that a node id is explicitly
- * provided, __alloc_pages_node() with the specified node id is used
- * instead. The common case (or when the node id isn't explicitly provided)
- * will default to the current node, as per numa_node_id().
+ * logic down to the page allocator, and simply doing the yesde accounting
+ * on the upper levels. In the event that a yesde id is explicitly
+ * provided, __alloc_pages_yesde() with the specified yesde id is used
+ * instead. The common case (or when the yesde id isn't explicitly provided)
+ * will default to the current yesde, as per numa_yesde_id().
  *
  * Node aware pages are still inserted in to the global freelist, and
- * these are scanned for by matching against the node id encoded in the
+ * these are scanned for by matching against the yesde id encoded in the
  * page flags. As a result, block allocations that can be satisfied from
- * the freelist will only be done so on pages residing on the same node,
- * in order to prevent random node placement.
+ * the freelist will only be done so on pages residing on the same yesde,
+ * in order to prevent random yesde placement.
  */
 
 #include <linux/kernel.h>
@@ -188,13 +188,13 @@ static int slob_last(slob_t *s)
 	return !((unsigned long)slob_next(s) & ~PAGE_MASK);
 }
 
-static void *slob_new_pages(gfp_t gfp, int order, int node)
+static void *slob_new_pages(gfp_t gfp, int order, int yesde)
 {
 	struct page *page;
 
 #ifdef CONFIG_NUMA
-	if (node != NUMA_NO_NODE)
-		page = __alloc_pages_node(node, gfp, order);
+	if (yesde != NUMA_NO_NODE)
+		page = __alloc_pages_yesde(yesde, gfp, order);
 	else
 #endif
 		page = alloc_pages(gfp, order);
@@ -202,7 +202,7 @@ static void *slob_new_pages(gfp_t gfp, int order, int node)
 	if (!page)
 		return NULL;
 
-	mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
+	mod_yesde_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
 			    1 << order);
 	return page_address(page);
 }
@@ -214,7 +214,7 @@ static void slob_free_pages(void *b, int order)
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += 1 << order;
 
-	mod_node_page_state(page_pgdat(sp), NR_SLAB_UNRECLAIMABLE,
+	mod_yesde_page_state(page_pgdat(sp), NR_SLAB_UNRECLAIMABLE,
 			    -(1 << order));
 	__free_pages(sp, order);
 }
@@ -257,7 +257,7 @@ static void *slob_page_alloc(struct page *sp, size_t size, int align,
 				 - align_offset);
 			delta = aligned - cur;
 		}
-		if (avail >= units + delta) { /* room enough? */
+		if (avail >= units + delta) { /* room eyesugh? */
 			slob_t *next;
 
 			if (delta) { /* need to fragment head to align? */
@@ -298,7 +298,7 @@ static void *slob_page_alloc(struct page *sp, size_t size, int align,
 /*
  * slob_alloc: entry point into the slob allocator.
  */
-static void *slob_alloc(size_t size, gfp_t gfp, int align, int node,
+static void *slob_alloc(size_t size, gfp_t gfp, int align, int yesde,
 							int align_offset)
 {
 	struct page *sp;
@@ -320,13 +320,13 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node,
 		bool page_removed_from_list = false;
 #ifdef CONFIG_NUMA
 		/*
-		 * If there's a node specification, search for a partial
-		 * page with a matching node id in the freelist.
+		 * If there's a yesde specification, search for a partial
+		 * page with a matching yesde id in the freelist.
 		 */
-		if (node != NUMA_NO_NODE && page_to_nid(sp) != node)
+		if (yesde != NUMA_NO_NODE && page_to_nid(sp) != yesde)
 			continue;
 #endif
-		/* Enough room on this page? */
+		/* Eyesugh room on this page? */
 		if (sp->units < SLOB_UNITS(size))
 			continue;
 
@@ -336,8 +336,8 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node,
 
 		/*
 		 * If slob_page_alloc() removed sp from the list then we
-		 * cannot call list functions on sp.  If so allocation
-		 * did not fragment the page anyway so optimisation is
+		 * canyest call list functions on sp.  If so allocation
+		 * did yest fragment the page anyway so optimisation is
 		 * unnecessary.
 		 */
 		if (!page_removed_from_list) {
@@ -353,9 +353,9 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node,
 	}
 	spin_unlock_irqrestore(&slob_lock, flags);
 
-	/* Not enough space: must allocate a new page */
+	/* Not eyesugh space: must allocate a new page */
 	if (!b) {
-		b = slob_new_pages(gfp & ~__GFP_ZERO, 0, node);
+		b = slob_new_pages(gfp & ~__GFP_ZERO, 0, yesde);
 		if (!b)
 			return NULL;
 		sp = virt_to_page(b);
@@ -397,7 +397,7 @@ static void slob_free(void *block, int size)
 	spin_lock_irqsave(&slob_lock, flags);
 
 	if (sp->units + units == SLOB_UNITS(PAGE_SIZE)) {
-		/* Go directly to page allocator. Do not pass slob allocator */
+		/* Go directly to page allocator. Do yest pass slob allocator */
 		if (slob_page_free(sp))
 			clear_slob_page_free(sp);
 		spin_unlock_irqrestore(&slob_lock, flags);
@@ -466,7 +466,7 @@ out:
  */
 
 static __always_inline void *
-__do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
+__do_kmalloc_yesde(size_t size, gfp_t gfp, int yesde, unsigned long caller)
 {
 	unsigned int *m;
 	int minalign = max_t(size_t, ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
@@ -490,24 +490,24 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
 		if (!size)
 			return ZERO_SIZE_PTR;
 
-		m = slob_alloc(size + minalign, gfp, align, node, minalign);
+		m = slob_alloc(size + minalign, gfp, align, yesde, minalign);
 
 		if (!m)
 			return NULL;
 		*m = size;
 		ret = (void *)m + minalign;
 
-		trace_kmalloc_node(caller, ret,
-				   size, size + minalign, gfp, node);
+		trace_kmalloc_yesde(caller, ret,
+				   size, size + minalign, gfp, yesde);
 	} else {
 		unsigned int order = get_order(size);
 
 		if (likely(order))
 			gfp |= __GFP_COMP;
-		ret = slob_new_pages(gfp, order, node);
+		ret = slob_new_pages(gfp, order, yesde);
 
-		trace_kmalloc_node(caller, ret,
-				   size, PAGE_SIZE << order, gfp, node);
+		trace_kmalloc_yesde(caller, ret,
+				   size, PAGE_SIZE << order, gfp, yesde);
 	}
 
 	kmemleak_alloc(ret, size, 1, gfp);
@@ -516,20 +516,20 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
 
 void *__kmalloc(size_t size, gfp_t gfp)
 {
-	return __do_kmalloc_node(size, gfp, NUMA_NO_NODE, _RET_IP_);
+	return __do_kmalloc_yesde(size, gfp, NUMA_NO_NODE, _RET_IP_);
 }
 EXPORT_SYMBOL(__kmalloc);
 
 void *__kmalloc_track_caller(size_t size, gfp_t gfp, unsigned long caller)
 {
-	return __do_kmalloc_node(size, gfp, NUMA_NO_NODE, caller);
+	return __do_kmalloc_yesde(size, gfp, NUMA_NO_NODE, caller);
 }
 
 #ifdef CONFIG_NUMA
-void *__kmalloc_node_track_caller(size_t size, gfp_t gfp,
-					int node, unsigned long caller)
+void *__kmalloc_yesde_track_caller(size_t size, gfp_t gfp,
+					int yesde, unsigned long caller)
 {
-	return __do_kmalloc_node(size, gfp, node, caller);
+	return __do_kmalloc_yesde(size, gfp, yesde, caller);
 }
 #endif
 
@@ -550,7 +550,7 @@ void kfree(const void *block)
 		slob_free(m, *m + align);
 	} else {
 		unsigned int order = compound_order(sp);
-		mod_node_page_state(page_pgdat(sp), NR_SLAB_UNRECLAIMABLE,
+		mod_yesde_page_state(page_pgdat(sp), NR_SLAB_UNRECLAIMABLE,
 				    -(1 << order));
 		__free_pages(sp, order);
 
@@ -589,7 +589,7 @@ int __kmem_cache_create(struct kmem_cache *c, slab_flags_t flags)
 	return 0;
 }
 
-static void *slob_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+static void *slob_alloc_yesde(struct kmem_cache *c, gfp_t flags, int yesde)
 {
 	void *b;
 
@@ -599,15 +599,15 @@ static void *slob_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
 	fs_reclaim_release(flags);
 
 	if (c->size < PAGE_SIZE) {
-		b = slob_alloc(c->size, flags, c->align, node, 0);
-		trace_kmem_cache_alloc_node(_RET_IP_, b, c->object_size,
+		b = slob_alloc(c->size, flags, c->align, yesde, 0);
+		trace_kmem_cache_alloc_yesde(_RET_IP_, b, c->object_size,
 					    SLOB_UNITS(c->size) * SLOB_UNIT,
-					    flags, node);
+					    flags, yesde);
 	} else {
-		b = slob_new_pages(flags, get_order(c->size), node);
-		trace_kmem_cache_alloc_node(_RET_IP_, b, c->object_size,
+		b = slob_new_pages(flags, get_order(c->size), yesde);
+		trace_kmem_cache_alloc_yesde(_RET_IP_, b, c->object_size,
 					    PAGE_SIZE << get_order(c->size),
-					    flags, node);
+					    flags, yesde);
 	}
 
 	if (b && c->ctor) {
@@ -621,22 +621,22 @@ static void *slob_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
 
 void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 {
-	return slob_alloc_node(cachep, flags, NUMA_NO_NODE);
+	return slob_alloc_yesde(cachep, flags, NUMA_NO_NODE);
 }
 EXPORT_SYMBOL(kmem_cache_alloc);
 
 #ifdef CONFIG_NUMA
-void *__kmalloc_node(size_t size, gfp_t gfp, int node)
+void *__kmalloc_yesde(size_t size, gfp_t gfp, int yesde)
 {
-	return __do_kmalloc_node(size, gfp, node, _RET_IP_);
+	return __do_kmalloc_yesde(size, gfp, yesde, _RET_IP_);
 }
-EXPORT_SYMBOL(__kmalloc_node);
+EXPORT_SYMBOL(__kmalloc_yesde);
 
-void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t gfp, int node)
+void *kmem_cache_alloc_yesde(struct kmem_cache *cachep, gfp_t gfp, int yesde)
 {
-	return slob_alloc_node(cachep, gfp, node);
+	return slob_alloc_yesde(cachep, gfp, yesde);
 }
-EXPORT_SYMBOL(kmem_cache_alloc_node);
+EXPORT_SYMBOL(kmem_cache_alloc_yesde);
 #endif
 
 static void __kmem_cache_free(void *b, int size)

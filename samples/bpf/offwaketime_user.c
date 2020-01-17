@@ -8,7 +8,7 @@
 #include <linux/bpf.h>
 #include <string.h>
 #include <linux/perf_event.h>
-#include <errno.h>
+#include <erryes.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <sys/resource.h>
@@ -26,7 +26,7 @@ static void print_ksym(__u64 addr)
 		return;
 	sym = ksym_search(addr);
 	if (!sym) {
-		printf("ksym not found. Is kallsyms loaded?\n");
+		printf("ksym yest found. Is kallsyms loaded?\n");
 		return;
 	}
 

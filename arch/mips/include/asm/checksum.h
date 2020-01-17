@@ -7,7 +7,7 @@
  * Copyright (C) 1999 Silicon Graphics, Inc.
  * Copyright (C) 2001 Thiemo Seufer.
  * Copyright (C) 2002 Maciej W. Rozycki
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techyeslogies Ltd.
  */
 #ifndef _ASM_CHECKSUM_H
 #define _ASM_CHECKSUM_H
@@ -101,9 +101,9 @@ __wsum csum_and_copy_to_user(const void *src, void __user *dst, int len,
  * the same as csum_partial, but copies from user space (but on MIPS
  * we have just one address space, so this is identical to the above)
  */
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
+__wsum csum_partial_copy_yescheck(const void *src, void *dst,
 				       int len, __wsum sum);
-#define csum_partial_copy_nocheck csum_partial_copy_nocheck
+#define csum_partial_copy_yescheck csum_partial_copy_yescheck
 
 /*
  *	Fold a partial checksum without adding pseudo headers
@@ -160,13 +160,13 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 }
 #define ip_fast_csum ip_fast_csum
 
-static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+static inline __wsum csum_tcpudp_yesfold(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
 	__asm__(
-	"	.set	push		# csum_tcpudp_nofold\n"
-	"	.set	noat		\n"
+	"	.set	push		# csum_tcpudp_yesfold\n"
+	"	.set	yesat		\n"
 #ifdef CONFIG_32BIT
 	"	addu	%0, %2		\n"
 	"	sltu	$1, %0, %2	\n"
@@ -203,7 +203,7 @@ static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 
 	return sum;
 }
-#define csum_tcpudp_nofold csum_tcpudp_nofold
+#define csum_tcpudp_yesfold csum_tcpudp_yesfold
 
 /*
  * this routine is used for miscellaneous IP-like checksums, mainly
@@ -224,8 +224,8 @@ static __inline__ __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 
 	__asm__(
 	"	.set	push		# csum_ipv6_magic\n"
-	"	.set	noreorder	\n"
-	"	.set	noat		\n"
+	"	.set	yesreorder	\n"
+	"	.set	yesat		\n"
 	"	addu	%0, %5		# proto (long in network byte order)\n"
 	"	sltu	$1, %0, %5	\n"
 	"	addu	%0, $1		\n"

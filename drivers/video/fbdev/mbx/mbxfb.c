@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/video/mbx/mbxfb.c
  *
- *  Copyright (C) 2006-2007 8D Technologies inc
+ *  Copyright (C) 2006-2007 8D Techyeslogies inc
  *  Raphael Assenat <raph@8d.com>
  *  	- Added video overlay support
  *  	- Various improvements
@@ -40,7 +40,7 @@ static void __iomem *virt_base_2700;
 /* Without this delay, the graphics appears somehow scaled and
  * there is a lot of jitter in scanlines. This delay is probably
  * needed only after setting some specific register(s) somewhere,
- * not all over the place... */
+ * yest all over the place... */
 #define write_reg_dly(val, reg) do { writel((val), reg); udelay(1000); } while(0)
 
 #define MIN_XRES	16
@@ -162,17 +162,17 @@ static unsigned int mbxfb_get_pixclock(unsigned int pixclock_ps,
 	return KHZ2PICOS(best_clk);
 }
 
-static int mbxfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int mbxfb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			   u_int trans, struct fb_info *info)
 {
 	u32 val, ret = 1;
 
-	if (regno < MAX_PALETTES) {
+	if (regyes < MAX_PALETTES) {
 		u32 *pal = info->pseudo_palette;
 
 		val = (red & 0xf800) | ((green & 0xfc00) >> 5) |
 			((blue & 0xf800) >> 11);
-		pal[regno] = val;
+		pal[regyes] = val;
 		ret = 0;
 	}
 
@@ -197,7 +197,7 @@ static int mbxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->yres_virtual = max(var->yres_virtual, var->yres);
 
 	switch (var->bits_per_pixel) {
-		/* 8 bits-per-pixel is not supported yet */
+		/* 8 bits-per-pixel is yest supported yet */
 	case 8:
 		return -EINVAL;
 	case 16:
@@ -401,10 +401,10 @@ static int mbxfb_setupOverlay(struct mbxfb_overlaySetup *set)
 	/* VSCTRL has the bits which sets the Video Pixel Format.
 	 * When passing from a packed to planar format,
 	 * if we write VSCTRL first, VVBASE and VUBASE would
-	 * be zero if we would not set them here. (And then,
+	 * be zero if we would yest set them here. (And then,
 	 * the chips hangs and only a reset seems to fix it).
 	 *
-	 * If course, the values calculated here have no meaning
+	 * If course, the values calculated here have yes meaning
 	 * for packed formats.
 	 */
 	set->UV_stride = ((set->width/2) + 0x7 ) & ~0x7;
@@ -685,7 +685,7 @@ static struct fb_ops mbxfb_ops = {
 
 /*
   Enable external SDRAM controller. Assume that all clocks are active
-  by now.
+  by yesw.
 */
 static void setup_memc(struct fb_info *fbi)
 {
@@ -915,7 +915,7 @@ static int mbxfb_probe(struct platform_device *dev)
 	mfbi->reg_res = platform_get_resource(dev, IORESOURCE_MEM, 1);
 
 	if (!mfbi->fb_res || !mfbi->reg_res) {
-		dev_err(&dev->dev, "no resources found\n");
+		dev_err(&dev->dev, "yes resources found\n");
 		ret = -ENODEV;
 		goto err1;
 	}
@@ -938,7 +938,7 @@ static int mbxfb_probe(struct platform_device *dev)
 	}
 	mfbi->reg_phys_addr = mfbi->reg_res->start;
 
-	mfbi->reg_virt_addr = devm_ioremap_nocache(&dev->dev,
+	mfbi->reg_virt_addr = devm_ioremap_yescache(&dev->dev,
 						   mfbi->reg_phys_addr,
 						   res_size(mfbi->reg_req));
 	if (!mfbi->reg_virt_addr) {
@@ -948,7 +948,7 @@ static int mbxfb_probe(struct platform_device *dev)
 	}
 	virt_base_2700 = mfbi->reg_virt_addr;
 
-	mfbi->fb_virt_addr = devm_ioremap_nocache(&dev->dev, mfbi->fb_phys_addr,
+	mfbi->fb_virt_addr = devm_ioremap_yescache(&dev->dev, mfbi->fb_phys_addr,
 						  res_size(mfbi->fb_req));
 	if (!mfbi->fb_virt_addr) {
 		dev_err(&dev->dev, "failed to ioremap frame buffer\n");

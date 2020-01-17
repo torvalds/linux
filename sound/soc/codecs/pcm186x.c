@@ -155,7 +155,7 @@ static const struct snd_soc_dapm_widget pcm1863_dapm_widgets[] = {
 			 &pcm186x_adc_mux_controls[1]),
 
 	/*
-	 * Put the codec into SLEEP mode when not in use, allowing the
+	 * Put the codec into SLEEP mode when yest in use, allowing the
 	 * Energysense mechanism to operate.
 	 */
 	SND_SOC_DAPM_ADC("ADC", "HiFi Capture", PCM186X_POWER_CTRL, 1,  1),
@@ -181,7 +181,7 @@ static const struct snd_soc_dapm_widget pcm1865_dapm_widgets[] = {
 			 &pcm186x_adc_mux_controls[3]),
 
 	/*
-	 * Put the codec into SLEEP mode when not in use, allowing the
+	 * Put the codec into SLEEP mode when yest in use, allowing the
 	 * Energysense mechanism to operate.
 	 */
 	SND_SOC_DAPM_ADC("ADC1", "HiFi Capture 1", PCM186X_POWER_CTRL, 1,  1),
@@ -387,7 +387,7 @@ static int pcm186x_set_fmt(struct snd_soc_dai *dai, unsigned int format)
 	case SND_SOC_DAIFMT_NB_NF:
 		break;
 	default:
-		dev_err(component->dev, "Inverted DAI clocks not supported\n");
+		dev_err(component->dev, "Inverted DAI clocks yest supported\n");
 		return -EINVAL;
 	}
 
@@ -437,7 +437,7 @@ static int pcm186x_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		__func__, tx_mask, rx_mask, slots, slot_width);
 
 	if (!tx_mask) {
-		dev_err(component->dev, "tdm tx mask must not be 0\n");
+		dev_err(component->dev, "tdm tx mask must yest be 0\n");
 		return -EINVAL;
 	}
 
@@ -584,7 +584,7 @@ static struct snd_soc_component_driver soc_codec_dev_pcm1863 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static struct snd_soc_component_driver soc_codec_dev_pcm1865 = {
@@ -599,7 +599,7 @@ static struct snd_soc_component_driver soc_codec_dev_pcm1865 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static bool pcm186x_volatile(struct device *dev, unsigned int reg)

@@ -13,7 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/madera/pdata.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
@@ -147,7 +147,7 @@ struct snd_soc_dapm_context;
 /*
  * struct madera - internal data shared by the set of Madera drivers
  *
- * This should not be used by anything except child drivers of the Madera MFD
+ * This should yest be used by anything except child drivers of the Madera MFD
  *
  * @regmap:		pointer to the regmap instance for 16-bit registers
  * @regmap_32bit:	pointer to the regmap instance for 32-bit registers
@@ -170,7 +170,7 @@ struct snd_soc_dapm_context;
  * @num_micbias:	number of MICBIAS outputs
  * @num_childbias:	number of child biases for each MICBIAS
  * @dapm:		pointer to codec driver DAPM context
- * @notifier:		notifier for signalling events to ASoC machine driver
+ * @yestifier:		yestifier for signalling events to ASoC machine driver
  */
 struct madera {
 	struct regmap *regmap;
@@ -204,6 +204,6 @@ struct madera {
 	bool out_clamp[MADERA_MAX_HP_OUTPUT];
 	bool out_shorted[MADERA_MAX_HP_OUTPUT];
 
-	struct blocking_notifier_head notifier;
+	struct blocking_yestifier_head yestifier;
 };
 #endif

@@ -10,12 +10,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -71,7 +71,7 @@
  *
  * DATA PACKETS
  *
- * In firmwares <= v1.3, data packets have no header for RX, but they
+ * In firmwares <= v1.3, data packets have yes header for RX, but they
  * do for TX (currently unused).
  *
  * In firmware >= 1.4, RX packets have an extended header (16
@@ -90,7 +90,7 @@
  * the radio traffic.
  *
  * Thus, for RX packets that come out of order, the device gives the
- * driver enough information to queue them properly and then at some
+ * driver eyesugh information to queue them properly and then at some
  * point, the signal to deliver the whole (or part) of the queued
  * packets to the networking stack. There are 16 such queues.
  *
@@ -108,8 +108,8 @@
  *  - queue & update ws: queue a packet, update the window start and
  *    deliver queued packets that meet the criteria
  *
- * (delivery criteria: the packet's [normalized] sequence number is
- * lower than the new [normalized] window start).
+ * (delivery criteria: the packet's [yesrmalized] sequence number is
+ * lower than the new [yesrmalized] window start).
  *
  * See the i2400m_roq_*() functions for details.
  *
@@ -166,7 +166,7 @@ struct i2400m_report_hook_args {
 	struct sk_buff *skb_rx;
 	const struct i2400m_l3l4_hdr *l3l4_hdr;
 	size_t size;
-	struct list_head list_node;
+	struct list_head list_yesde;
 };
 
 
@@ -176,7 +176,7 @@ struct i2400m_report_hook_args {
  * Goes over the list of queued reports in i2400m->rx_reports and
  * processes them.
  *
- * NOTE: refcounts on i2400m are not needed because we flush the
+ * NOTE: refcounts on i2400m are yest needed because we flush the
  *     workqueue this runs on (i2400m->work_queue) before destroying
  *     i2400m.
  */
@@ -196,11 +196,11 @@ void i2400m_report_hook_work(struct work_struct *ws)
 			break;
 		else
 			d_printf(1, dev, "processing queued reports\n");
-		list_for_each_entry_safe(args, args_next, &list, list_node) {
+		list_for_each_entry_safe(args, args_next, &list, list_yesde) {
 			d_printf(2, dev, "processing queued report %p\n", args);
 			i2400m_report_hook(i2400m, args->l3l4_hdr, args->size);
 			kfree_skb(args->skb_rx);
-			list_del(&args->list_node);
+			list_del(&args->list_yesde);
 			kfree(args);
 		}
 	}
@@ -222,10 +222,10 @@ void i2400m_report_hook_flush(struct i2400m *i2400m)
 	spin_lock_irqsave(&i2400m->rx_lock, flags);
 	list_splice_init(&i2400m->rx_reports, &list);
 	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
-	list_for_each_entry_safe(args, args_next, &list, list_node) {
+	list_for_each_entry_safe(args, args_next, &list, list_yesde) {
 		d_printf(2, dev, "flushing queued report %p\n", args);
 		kfree_skb(args->skb_rx);
-		list_del(&args->list_node);
+		list_del(&args->list_yesde);
 		kfree(args);
 	}
 }
@@ -253,7 +253,7 @@ void i2400m_report_hook_queue(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		args->l3l4_hdr = l3l4_hdr;
 		args->size = size;
 		spin_lock_irqsave(&i2400m->rx_lock, flags);
-		list_add_tail(&args->list_node, &i2400m->rx_reports);
+		list_add_tail(&args->list_yesde, &i2400m->rx_reports);
 		spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 		d_printf(2, dev, "queued report %p\n", args);
 		rmb();		/* see i2400m->ready's documentation  */
@@ -274,13 +274,13 @@ void i2400m_report_hook_queue(struct i2400m *i2400m, struct sk_buff *skb_rx,
  * @payload: pointer to message
  * @size: size of the message
  *
- * Pass the acknodledgment (in an skb) to the thread that is waiting
+ * Pass the ackyesdledgment (in an skb) to the thread that is waiting
  * for it in i2400m->msg_completion.
  *
  * We need to coordinate properly with the thread waiting for the
  * ack. Check if it is waiting or if it is gone. We loose the spinlock
  * to avoid allocating on atomic contexts (yeah, could use GFP_ATOMIC,
- * but this is not so speed critical).
+ * but this is yest so speed critical).
  */
 static
 void i2400m_rx_ctl_ack(struct i2400m *i2400m,
@@ -294,8 +294,8 @@ void i2400m_rx_ctl_ack(struct i2400m *i2400m,
 	/* Anyone waiting for an answer? */
 	spin_lock_irqsave(&i2400m->rx_lock, flags);
 	if (i2400m->ack_skb != ERR_PTR(-EINPROGRESS)) {
-		dev_err(dev, "Huh? reply to command with no waiters\n");
-		goto error_no_waiter;
+		dev_err(dev, "Huh? reply to command with yes waiters\n");
+		goto error_yes_waiter;
 	}
 	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 
@@ -308,7 +308,7 @@ void i2400m_rx_ctl_ack(struct i2400m *i2400m,
 		goto error_waiter_cancelled;
 	}
 	if (IS_ERR(ack_skb))
-		dev_err(dev, "CMD/GET/SET ack: cannot allocate SKB\n");
+		dev_err(dev, "CMD/GET/SET ack: canyest allocate SKB\n");
 	i2400m->ack_skb = ack_skb;
 	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 	complete(&i2400m->msg_completion);
@@ -317,7 +317,7 @@ void i2400m_rx_ctl_ack(struct i2400m *i2400m,
 error_waiter_cancelled:
 	if (!IS_ERR(ack_skb))
 		kfree_skb(ack_skb);
-error_no_waiter:
+error_yes_waiter:
 	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 }
 
@@ -330,7 +330,7 @@ error_no_waiter:
  * @payload: pointer to message
  * @size: size of the message
  *
- * There are two types of control RX messages: reports (asynchronous,
+ * There are two types of control RX messages: reports (asynchroyesus,
  * like your every day interrupts) and 'acks' (reponses to a command,
  * get or set request).
  *
@@ -341,18 +341,18 @@ error_no_waiter:
  * NOTE: report processing is done in a workqueue specific to the
  *     generic driver, to avoid deadlocks in the system.
  *
- * If it is not a report, it is an ack to a previously executed
+ * If it is yest a report, it is an ack to a previously executed
  * command, set or get, so wake up whoever is waiting for it from
  * i2400m_msg_to_dev(). i2400m_rx_ctl_ack() takes care of that.
  *
  * Note that the sizes we pass to other functions from here are the
- * sizes of the _l3l4_hdr + payload, not full buffer sizes, as we have
+ * sizes of the _l3l4_hdr + payload, yest full buffer sizes, as we have
  * verified in _msg_size_check() that they are congruent.
  *
  * For reports: We can't clone the original skb where the data is
  * because we need to send this up via netlink; netlink has to add
  * headers and we can't overwrite what's preceding the payload...as
- * it is another message. So we just dup them.
+ * it is ayesther message. So we just dup them.
  */
 static
 void i2400m_rx_ctl(struct i2400m *i2400m, struct sk_buff *skb_rx,
@@ -385,17 +385,17 @@ void i2400m_rx_ctl(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		 *   bus-specific subdrivers and workqueues, so the we
 		 *   run it in a separate workqueue.
 		 *
-		 * - when the driver is not yet ready to handle them,
+		 * - when the driver is yest yet ready to handle them,
 		 *   they are queued and at some point the queue is
 		 *   restarted [NOTE: we can't queue SKBs directly, as
-		 *   this might be a piece of a SKB, not the whole
+		 *   this might be a piece of a SKB, yest the whole
 		 *   thing, and this is cheaper than cloning the
 		 *   SKB].
 		 *
 		 * Note we don't do refcounting for the device
 		 * structure; this is because before destroying
 		 * 'i2400m', we make sure to flush the
-		 * i2400m->work_queue, so there are no issues.
+		 * i2400m->work_queue, so there are yes issues.
 		 */
 		i2400m_report_hook_queue(i2400m, skb_rx, l3l4_hdr, size);
 		if (unlikely(i2400m->trace_msg_from_user))
@@ -421,14 +421,14 @@ error_check:
  * @payload: pointer to trace message inside the skb
  * @size: size of the message
  *
- * THe i2400m might produce trace information (diagnostics) and we
+ * THe i2400m might produce trace information (diagyesstics) and we
  * send them through a different kernel-to-user pipe (to avoid
  * clogging it).
  *
  * As in i2400m_rx_ctl(), we can't clone the original skb where the
  * data is because we need to send this up via netlink; netlink has to
  * add headers and we can't overwrite what's preceding the
- * payload...as it is another message. So we just dup them.
+ * payload...as it is ayesther message. So we just dup them.
  */
 static
 void i2400m_rx_trace(struct i2400m *i2400m,
@@ -478,7 +478,7 @@ struct i2400m_roq_data {
  * @queue: the skb queue itself
  * @log: circular ring buffer used to log information about the
  *     reorder process in this queue that can be displayed in case of
- *     error to help diagnose it.
+ *     error to help diagyesse it.
  *
  * This is the head for a list of skbs. In the skb->cb member of the
  * skb when queued here contains a 'struct i2400m_roq_data' were we
@@ -515,7 +515,7 @@ unsigned __i2400m_roq_index(struct i2400m *i2400m, struct i2400m_roq *roq)
  * nsn = (sn - ws) % 2048
  *
  * Note that if @sn < @roq->ws, we still need a positive number; %'s
- * sign is implementation specific, so we normalize it by adding 2048
+ * sign is implementation specific, so we yesrmalize it by adding 2048
  * to bring it to be positive.
  */
 static
@@ -577,7 +577,7 @@ void i2400m_roq_log_entry_print(struct i2400m *i2400m, unsigned index,
 			index, e->ws, e->count, e->sn, e->nsn, e->new_ws);
 		break;
 	default:
-		dev_err(dev, "q#%d BUG? entry %u - unknown type %u\n",
+		dev_err(dev, "q#%d BUG? entry %u - unkyeswn type %u\n",
 			index, e_index, e->type);
 		break;
 	}
@@ -632,13 +632,13 @@ void i2400m_roq_log_dump(struct i2400m *i2400m, struct i2400m_roq *roq)
 
 
 /*
- * Backbone for the queuing of an skb (by normalized sequence number)
+ * Backbone for the queuing of an skb (by yesrmalized sequence number)
  *
  * @i2400m: device descriptor
  * @roq: reorder queue where to add
  * @skb: the skb to add
  * @sn: the sequence number of the skb
- * @nsn: the normalized sequence number of the skb (pre-computed by the
+ * @nsn: the yesrmalized sequence number of the skb (pre-computed by the
  *     caller from the @sn and @roq->ws).
  *
  * We try first a couple of quick cases:
@@ -671,7 +671,7 @@ void __i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 	d_printf(3, dev, "ERX: roq %p [ws %u] nsn %d sn %u\n",
 		 roq, roq->ws, nsn, roq_data->sn);
 
-	/* Queues will be empty on not-so-bad environments, so try
+	/* Queues will be empty on yest-so-bad environments, so try
 	 * that first */
 	if (skb_queue_empty(&roq->queue)) {
 		d_printf(2, dev, "ERX: roq %p - first one\n", roq);
@@ -690,9 +690,9 @@ void __i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 		goto out;
 	}
 	/* None of the fast paths option worked. Iterate to find the
-	 * right spot where to insert the packet; we know the queue is
-	 * not empty, so we are not the first ones; we also know we
-	 * are not going to be the last ones. The list is sorted, so
+	 * right spot where to insert the packet; we kyesw the queue is
+	 * yest empty, so we are yest the first ones; we also kyesw we
+	 * are yest going to be the last ones. The list is sorted, so
 	 * we have to insert before the the first guy with an nsn_itr
 	 * greater that our nsn. */
 	skb_queue_walk(&roq->queue, skb_itr) {
@@ -708,7 +708,7 @@ void __i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 		}
 	}
 	/* If we get here, that is VERY bad -- print info to help
-	 * diagnose and crash it */
+	 * diagyesse and crash it */
 	dev_err(dev, "SW BUG? failed to insert packet\n");
 	dev_err(dev, "ERX: roq %p [ws %u] skb %p nsn %d sn %u\n",
 		roq, roq->ws, skb, nsn, roq_data->sn);
@@ -734,8 +734,8 @@ out:
  * @sn: New sequence number
  *
  * Updates the window start of a queue; when doing so, it must deliver
- * to the networking stack all the queued skb's whose normalized
- * sequence number is lower than the new normalized window start.
+ * to the networking stack all the queued skb's whose yesrmalized
+ * sequence number is lower than the new yesrmalized window start.
  */
 static
 unsigned __i2400m_roq_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
@@ -748,8 +748,8 @@ unsigned __i2400m_roq_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 
 	new_nws = __i2400m_roq_nsn(roq, sn);
 	/*
-	 * For type 2(update_window_start) rx messages, there is no
-	 * need to check if the normalized sequence number is greater 1023.
+	 * For type 2(update_window_start) rx messages, there is yes
+	 * need to check if the yesrmalized sequence number is greater 1023.
 	 * Simply insert and deliver all packets to the host up to the
 	 * window start.
 	 */
@@ -892,8 +892,8 @@ void i2400m_roq_queue_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 	len = skb_queue_len(&roq->queue);
 	nsn = __i2400m_roq_nsn(roq, sn);
 	/*
-	 * For type 3(queue_update_window_start) rx messages, there is no
-	 * need to check if the normalized sequence number is greater 1023.
+	 * For type 3(queue_update_window_start) rx messages, there is yes
+	 * need to check if the yesrmalized sequence number is greater 1023.
 	 * Simply insert and deliver all packets to the host up to the
 	 * window start.
 	 */
@@ -918,7 +918,7 @@ void i2400m_roq_queue_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 
 
 /*
- * This routine destroys the memory allocated for rx_roq, when no
+ * This routine destroys the memory allocated for rx_roq, when yes
  * other thread is accessing it. Access to rx_roq is refcounted by
  * rx_roq_refcount, hence memory allocated must be destroyed when
  * rx_roq_refcount becomes zero. This routine gets executed when
@@ -955,7 +955,7 @@ static void i2400m_rx_roq_destroy(struct kref *ref)
  * This function handles said path.
  *
  *
- * Receive and send up an extended data packet that requires no reordering
+ * Receive and send up an extended data packet that requires yes reordering
  *
  * @i2400m: device descriptor
  * @skb_rx: skb that contains the extended data packet
@@ -1007,15 +1007,15 @@ void i2400m_rx_edata(struct i2400m *i2400m, struct sk_buff *skb_rx,
 	} else {
 		skb = skb_clone(skb_rx, GFP_KERNEL);
 		if (skb == NULL) {
-			dev_err(dev, "ERX: no memory to clone skb\n");
+			dev_err(dev, "ERX: yes memory to clone skb\n");
 			net_dev->stats.rx_dropped++;
 			goto error_skb_clone;
 		}
 		d_printf(3, dev, "ERX: skb %p cloned from %p\n", skb, skb_rx);
 	}
-	/* now we have to pull and trim so that the skb points to the
+	/* yesw we have to pull and trim so that the skb points to the
 	 * beginning of the IP packet; the netdev part will add the
-	 * ethernet header as needed - we know there is enough space
+	 * ethernet header as needed - we kyesw there is eyesugh space
 	 * because we checked in i2400m_rx_edata(). */
 	skb_pull(skb, payload + sizeof(*hdr) - (void *) skb->data);
 	skb_trim(skb, (void *) skb_end_pointer(skb) - payload - sizeof(*hdr));
@@ -1049,20 +1049,20 @@ void i2400m_rx_edata(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		switch(ro_type) {
 		case I2400M_RO_TYPE_RESET:
 			i2400m_roq_reset(i2400m, roq);
-			kfree_skb(skb);	/* no data here */
+			kfree_skb(skb);	/* yes data here */
 			break;
 		case I2400M_RO_TYPE_PACKET:
 			i2400m_roq_queue(i2400m, roq, skb, ro_sn);
 			break;
 		case I2400M_RO_TYPE_WS:
 			i2400m_roq_update_ws(i2400m, roq, ro_sn);
-			kfree_skb(skb);	/* no data here */
+			kfree_skb(skb);	/* yes data here */
 			break;
 		case I2400M_RO_TYPE_PACKET_WS:
 			i2400m_roq_queue_update_ws(i2400m, roq, skb, ro_sn);
 			break;
 		default:
-			dev_err(dev, "HW BUG? unknown reorder type %u\n", ro_type);
+			dev_err(dev, "HW BUG? unkyeswn reorder type %u\n", ro_type);
 		}
 
 		spin_lock_irqsave(&i2400m->rx_lock, flags);
@@ -1152,7 +1152,7 @@ int i2400m_rx_msg_hdr_check(struct i2400m *i2400m,
 		goto error;
 	}
 	if (msg_hdr->barker != cpu_to_le32(I2400M_D2H_MSG_BARKER)) {
-		dev_err(dev, "RX: HW BUG? message received with unknown "
+		dev_err(dev, "RX: HW BUG? message received with unkyeswn "
 			"barker 0x%08x (buf_size %zu bytes)\n",
 			le32_to_cpu(msg_hdr->barker), buf_size);
 		goto error;
@@ -1163,7 +1163,7 @@ int i2400m_rx_msg_hdr_check(struct i2400m *i2400m,
 	}
 	if (le16_to_cpu(msg_hdr->num_pls) > I2400M_MAX_PLS_IN_MSG) {
 		dev_err(dev, "RX: HW BUG? message contains more payload "
-			"than maximum; ignoring.\n");
+			"than maximum; igyesring.\n");
 		goto error;
 	}
 	result = 0;
@@ -1196,20 +1196,20 @@ int i2400m_rx_pl_descr_check(struct i2400m *i2400m,
 
 	if (pl_size > i2400m->bus_pl_size_max) {
 		dev_err(dev, "RX: HW BUG? payload @%zu: size %zu is "
-			"bigger than maximum %zu; ignoring message\n",
+			"bigger than maximum %zu; igyesring message\n",
 			pl_itr, pl_size, i2400m->bus_pl_size_max);
 		goto error;
 	}
-	if (pl_itr + pl_size > buf_size) {	/* enough? */
+	if (pl_itr + pl_size > buf_size) {	/* eyesugh? */
 		dev_err(dev, "RX: HW BUG? payload @%zu: size %zu "
 			"goes beyond the received buffer "
-			"size (%zu bytes); ignoring message\n",
+			"size (%zu bytes); igyesring message\n",
 			pl_itr, pl_size, buf_size);
 		goto error;
 	}
 	if (pl_type >= I2400M_PT_ILLEGAL) {
 		dev_err(dev, "RX: HW BUG? illegal payload type %u; "
-			"ignoring message\n", pl_type);
+			"igyesring message\n", pl_type);
 		goto error;
 	}
 	result = 0;
@@ -1235,9 +1235,9 @@ error:
  *
  * Returns:
  *
- * 0 if ok, < 0 errno on error
+ * 0 if ok, < 0 erryes on error
  *
- * If ok, this function owns now the skb and the caller DOESN'T have
+ * If ok, this function owns yesw the skb and the caller DOESN'T have
  * to run kfree_skb() on it. However, on error, the caller still owns
  * the skb and it is responsible for releasing it.
  */
@@ -1280,7 +1280,7 @@ int i2400m_rx(struct i2400m *i2400m, struct sk_buff *skb)
 		i2400m_rx_payload(i2400m, skb, single_last, &msg_hdr->pld[i],
 				  skb->data + pl_itr);
 		pl_itr += ALIGN(pl_size, I2400M_PL_ALIGN);
-		cond_resched();		/* Don't monopolize */
+		cond_resched();		/* Don't moyespolize */
 	}
 	kfree_skb(skb);
 	/* Update device statistics */
@@ -1307,13 +1307,13 @@ error_msg_hdr_check:
 EXPORT_SYMBOL_GPL(i2400m_rx);
 
 
-void i2400m_unknown_barker(struct i2400m *i2400m,
+void i2400m_unkyeswn_barker(struct i2400m *i2400m,
 			   const void *buf, size_t size)
 {
 	struct device *dev = i2400m_dev(i2400m);
 	char prefix[64];
 	const __le32 *barker = buf;
-	dev_err(dev, "RX: HW BUG? unknown barker %08x, "
+	dev_err(dev, "RX: HW BUG? unkyeswn barker %08x, "
 		"dropping %zu bytes\n", le32_to_cpu(*barker), size);
 	snprintf(prefix, sizeof(prefix), "%s %s: ",
 		 dev_driver_string(dev), dev_name(dev));
@@ -1326,20 +1326,20 @@ void i2400m_unknown_barker(struct i2400m *i2400m,
 		print_hex_dump(KERN_ERR, prefix, DUMP_PREFIX_OFFSET,
 			       8, 4, buf, size, 0);
 }
-EXPORT_SYMBOL(i2400m_unknown_barker);
+EXPORT_SYMBOL(i2400m_unkyeswn_barker);
 
 
 /*
  * Initialize the RX queue and infrastructure
  *
- * This sets up all the RX reordering infrastructures, which will not
- * be used if reordering is not enabled or if the firmware does not
+ * This sets up all the RX reordering infrastructures, which will yest
+ * be used if reordering is yest enabled or if the firmware does yest
  * support it. The device is told to do reordering in
  * i2400m_dev_initialize(), where it also looks at the value of the
  * i2400m->rx_reorder switch before taking a decission.
  *
  * Note we allocate the roq queues in one chunk and the actual logging
- * support for it (logging) in another one and then we setup the
+ * support for it (logging) in ayesther one and then we setup the
  * pointers from the first to the last.
  */
 int i2400m_rx_setup(struct i2400m *i2400m)
@@ -1390,6 +1390,6 @@ void i2400m_rx_release(struct i2400m *i2400m)
 		kref_put(&i2400m->rx_roq_refcount, i2400m_rx_roq_destroy);
 		spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 	}
-	/* at this point, nothing can be received... */
+	/* at this point, yesthing can be received... */
 	i2400m_report_hook_flush(i2400m);
 }

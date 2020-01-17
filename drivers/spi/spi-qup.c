@@ -302,7 +302,7 @@ static void spi_qup_read(struct spi_qup *controller, u32 *opflags)
 	/*
 	 * Due to extra stickiness of the QUP_OP_IN_SERVICE_FLAG during block
 	 * reads, it has to be cleared again at the very end.  However, be sure
-	 * to refresh opflags value because MAX_INPUT_DONE_FLAG may now be
+	 * to refresh opflags value because MAX_INPUT_DONE_FLAG may yesw be
 	 * present and this is used to determine if transaction is complete
 	 */
 exit:
@@ -478,7 +478,7 @@ static int spi_qup_do_dma(struct spi_device *spi, struct spi_transfer *xfer,
 		/* before issuing the descriptors, set the QUP to run */
 		ret = spi_qup_set_state(qup, QUP_STATE_RUN);
 		if (ret) {
-			dev_warn(qup->dev, "cannot set RUN state\n");
+			dev_warn(qup->dev, "canyest set RUN state\n");
 			return ret;
 		}
 		if (rx_sgl) {
@@ -536,7 +536,7 @@ static int spi_qup_do_pio(struct spi_device *spi, struct spi_transfer *xfer,
 			qup->rx_buf = xfer->rx_buf + offset * SPI_MAX_XFER;
 
 		/*
-		 * if the transaction is small enough, we need
+		 * if the transaction is small eyesugh, we need
 		 * to fallback to FIFO mode
 		 */
 		if (qup->n_words <= (qup->in_fifo_sz / sizeof(u32)))
@@ -548,13 +548,13 @@ static int spi_qup_do_pio(struct spi_device *spi, struct spi_transfer *xfer,
 
 		ret = spi_qup_set_state(qup, QUP_STATE_RUN);
 		if (ret) {
-			dev_warn(qup->dev, "cannot set RUN state\n");
+			dev_warn(qup->dev, "canyest set RUN state\n");
 			return ret;
 		}
 
 		ret = spi_qup_set_state(qup, QUP_STATE_PAUSE);
 		if (ret) {
-			dev_warn(qup->dev, "cannot set PAUSE state\n");
+			dev_warn(qup->dev, "canyest set PAUSE state\n");
 			return ret;
 		}
 
@@ -563,7 +563,7 @@ static int spi_qup_do_pio(struct spi_device *spi, struct spi_transfer *xfer,
 
 		ret = spi_qup_set_state(qup, QUP_STATE_RUN);
 		if (ret) {
-			dev_warn(qup->dev, "cannot set RUN state\n");
+			dev_warn(qup->dev, "canyest set RUN state\n");
 			return ret;
 		}
 
@@ -691,7 +691,7 @@ static int spi_qup_io_prep(struct spi_device *spi, struct spi_transfer *xfer)
 	return 0;
 }
 
-/* prep qup for another spi transaction of specific type */
+/* prep qup for ayesther spi transaction of specific type */
 static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 {
 	struct spi_qup *controller = spi_master_get_devdata(spi->master);
@@ -707,7 +707,7 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 
 
 	if (spi_qup_set_state(controller, QUP_STATE_RESET)) {
-		dev_err(controller->dev, "cannot set RESET state\n");
+		dev_err(controller->dev, "canyest set RESET state\n");
 		return -EIO;
 	}
 
@@ -737,7 +737,7 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 			/*
 			 * for DMA transfers, both QUP_MX_INPUT_CNT and
 			 * QUP_MX_OUTPUT_CNT must be zero to all cases but one.
-			 * That case is a non-balanced transfer when there is
+			 * That case is a yesn-balanced transfer when there is
 			 * only a rx_buf.
 			 */
 			if (xfer->tx_buf)
@@ -759,7 +759,7 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 		writel_relaxed(0, controller->base + QUP_MX_WRITE_CNT);
 		break;
 	default:
-		dev_err(controller->dev, "unknown mode = %d\n",
+		dev_err(controller->dev, "unkyeswn mode = %d\n",
 				controller->mode);
 		return -EIO;
 	}
@@ -1022,7 +1022,7 @@ static int spi_qup_probe(struct platform_device *pdev)
 		return PTR_ERR(iclk);
 
 	/* This is optional parameter */
-	if (of_property_read_u32(dev->of_node, "spi-max-frequency", &max_freq))
+	if (of_property_read_u32(dev->of_yesde, "spi-max-frequency", &max_freq))
 		max_freq = SPI_MAX_RATE;
 
 	if (!max_freq || max_freq > SPI_MAX_RATE) {
@@ -1032,14 +1032,14 @@ static int spi_qup_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(cclk);
 	if (ret) {
-		dev_err(dev, "cannot enable core clock\n");
+		dev_err(dev, "canyest enable core clock\n");
 		return ret;
 	}
 
 	ret = clk_prepare_enable(iclk);
 	if (ret) {
 		clk_disable_unprepare(cclk);
-		dev_err(dev, "cannot enable iface clock\n");
+		dev_err(dev, "canyest enable iface clock\n");
 		return ret;
 	}
 
@@ -1047,12 +1047,12 @@ static int spi_qup_probe(struct platform_device *pdev)
 	if (!master) {
 		clk_disable_unprepare(cclk);
 		clk_disable_unprepare(iclk);
-		dev_err(dev, "cannot allocate master\n");
+		dev_err(dev, "canyest allocate master\n");
 		return -ENOMEM;
 	}
 
-	/* use num-cs unless not present or out of range */
-	if (of_property_read_u32(dev->of_node, "num-cs", &num_cs) ||
+	/* use num-cs unless yest present or out of range */
+	if (of_property_read_u32(dev->of_yesde, "num-cs", &num_cs) ||
 	    num_cs > SPI_NUM_CHIPSELECTS)
 		master->num_chipselect = SPI_NUM_CHIPSELECTS;
 	else
@@ -1063,7 +1063,7 @@ static int spi_qup_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	master->max_speed_hz = max_freq;
 	master->transfer_one = spi_qup_transfer_one;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->auto_runtime_pm = true;
 	master->dma_alignment = dma_get_cache_alignment();
 	master->max_dma_len = SPI_MAX_XFER;
@@ -1120,7 +1120,7 @@ static int spi_qup_probe(struct platform_device *pdev)
 
 	ret = spi_qup_set_state(controller, QUP_STATE_RESET);
 	if (ret) {
-		dev_err(dev, "cannot set RESET state\n");
+		dev_err(dev, "canyest set RESET state\n");
 		goto error_dma;
 	}
 
@@ -1273,7 +1273,7 @@ static int spi_qup_remove(struct platform_device *pdev)
 	clk_disable_unprepare(controller->cclk);
 	clk_disable_unprepare(controller->iclk);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;

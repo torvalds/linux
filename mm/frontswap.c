@@ -36,8 +36,8 @@ static struct frontswap_ops *frontswap_ops __read_mostly;
  * If enabled, frontswap_store will return failure even on success.  As
  * a result, the swap subsystem will always write the page to swap, in
  * effect converting frontswap into a writethrough cache.  In this mode,
- * there is no direct reduction in swap writes, but a frontswap backend
- * can unilaterally "reclaim" any pages in use with no data loss, thus
+ * there is yes direct reduction in swap writes, but a frontswap backend
+ * can unilaterally "reclaim" any pages in use with yes data loss, thus
  * providing increases control over maximum memory usage due to frontswap.
  */
 static bool frontswap_writethrough_enabled __read_mostly;
@@ -45,14 +45,14 @@ static bool frontswap_writethrough_enabled __read_mostly;
 /*
  * If enabled, the underlying tmem implementation is capable of doing
  * exclusive gets, so frontswap_load, on a successful tmem_get must
- * mark the page as no longer in frontswap AND mark it dirty.
+ * mark the page as yes longer in frontswap AND mark it dirty.
  */
 static bool frontswap_tmem_exclusive_gets_enabled __read_mostly;
 
 #ifdef CONFIG_DEBUG_FS
 /*
  * Counters available via /sys/kernel/debug/frontswap (if debugfs is
- * properly configured).  These are for information only so are not protected
+ * properly configured).  These are for information only so are yest protected
  * against increment races.
  */
 static u64 frontswap_loads;
@@ -80,30 +80,30 @@ static inline void inc_frontswap_invalidates(void) { }
 #endif
 
 /*
- * Due to the asynchronous nature of the backends loading potentially
+ * Due to the asynchroyesus nature of the backends loading potentially
  * _after_ the swap system has been activated, we have chokepoints
- * on all frontswap functions to not call the backend until the backend
+ * on all frontswap functions to yest call the backend until the backend
  * has registered.
  *
- * This would not guards us against the user deciding to call swapoff right as
+ * This would yest guards us against the user deciding to call swapoff right as
  * we are calling the backend to initialize (so swapon is in action).
  * Fortunatly for us, the swapon_mutex has been taked by the callee so we are
  * OK. The other scenario where calls to frontswap_store (called via
  * swap_writepage) is racing with frontswap_invalidate_area (called via
  * swapoff) is again guarded by the swap subsystem.
  *
- * While no backend is registered all calls to frontswap_[store|load|
- * invalidate_area|invalidate_page] are ignored or fail.
+ * While yes backend is registered all calls to frontswap_[store|load|
+ * invalidate_area|invalidate_page] are igyesred or fail.
  *
  * The time between the backend being registered and the swap file system
  * calling the backend (via the frontswap_* functions) is indeterminate as
- * frontswap_ops is not atomic_t (or a value guarded by a spinlock).
+ * frontswap_ops is yest atomic_t (or a value guarded by a spinlock).
  * That is OK as we are comfortable missing some of these calls to the newly
  * registered backend.
  *
  * Obviously the opposite (unloading the backend) must be done after all
  * the frontswap_[store|load|invalidate_area|invalidate_page] start
- * ignoring or failing the requests.  However, there is currently no way
+ * igyesring or failing the requests.  However, there is currently yes way
  * to unload a backend once it is registered.
  */
 
@@ -127,7 +127,7 @@ void frontswap_register_ops(struct frontswap_ops *ops)
 	}
 	spin_unlock(&swap_lock);
 
-	/* the new ops needs to know the currently active swap devices */
+	/* the new ops needs to kyesw the currently active swap devices */
 	for_each_set_bit(i, a, MAX_SWAPFILES)
 		ops->init(i);
 
@@ -196,7 +196,7 @@ void __frontswap_init(unsigned type, unsigned long *map)
 
 	/*
 	 * p->frontswap is a bitmap that we MUST have to figure out which page
-	 * has gone in frontswap. Without it there is no point of continuing.
+	 * has gone in frontswap. Without it there is yes point of continuing.
 	 */
 	if (WARN_ON(!map))
 		return;
@@ -257,9 +257,9 @@ int __frontswap_store(struct page *page)
 
 	/*
 	 * If a dup, we must remove the old page first; we can't leave the
-	 * old page no matter if the store of the new page succeeds or fails,
+	 * old page yes matter if the store of the new page succeeds or fails,
 	 * and we can't rely on the new page replacing the old page as we may
-	 * not store to the same implementation that contains the old page.
+	 * yest store to the same implementation that contains the old page.
 	 */
 	if (__frontswap_test(sis, offset)) {
 		__frontswap_clear(sis, offset);
@@ -397,8 +397,8 @@ static int __frontswap_unuse_pages(unsigned long total, unsigned long *unused,
 			pages = si_frontswap_pages;
 			pages_to_unuse = 0; /* unuse all */
 		}
-		/* ensure there is enough RAM to fetch pages from frontswap */
-		if (security_vm_enough_memory_mm(current->mm, pages)) {
+		/* ensure there is eyesugh RAM to fetch pages from frontswap */
+		if (security_vm_eyesugh_memory_mm(current->mm, pages)) {
 			ret = -ENOMEM;
 			continue;
 		}
@@ -414,7 +414,7 @@ static int __frontswap_unuse_pages(unsigned long total, unsigned long *unused,
 
 /*
  * Used to check if it's necessory and feasible to unuse pages.
- * Return 1 when nothing to do, 0 when need to shink pages,
+ * Return 1 when yesthing to do, 0 when need to shink pages,
  * error code when there is an error.
  */
 static int __frontswap_shrink(unsigned long target_pages,
@@ -439,7 +439,7 @@ static int __frontswap_shrink(unsigned long target_pages,
  * Frontswap, like a true swap device, may unnecessarily retain pages
  * under certain circumstances; "shrink" frontswap is essentially a
  * "partial swapoff" and works by calling try_to_unuse to attempt to
- * unuse enough frontswap pages to attempt to -- subject to memory
+ * unuse eyesugh frontswap pages to attempt to -- subject to memory
  * constraints -- reduce the number of pages in frontswap to the
  * number given in the parameter target_pages.
  */

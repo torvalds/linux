@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * vineetg: May 2011
  *  -Folded PAGE_PRESENT (used by VM) and PAGE_VALID (used by MMU) into 1.
@@ -11,29 +11,29 @@
  *
  * vineetg: Mar 2011 - changes to accommodate MMU TLB Page Descriptor mods
  *  -TLB Locking never really existed, except for initial specs
- *  -SILENT_xxx not needed for our port
+ *  -SILENT_xxx yest needed for our port
  *  -Per my request, MMU V3 changes the layout of some of the bits
  *     to avoid a few shifts in TLB Miss handlers.
  *
  * vineetg: April 2010
- *  -PGD entry no longer contains any flags. If empty it is 0, otherwise has
+ *  -PGD entry yes longer contains any flags. If empty it is 0, otherwise has
  *   Pg-Tbl ptr. Thus pmd_present(), pmd_valid(), pmd_set( ) become simpler
  *
  * vineetg: April 2010
  *  -Switched form 8:11:13 split for page table lookup to 11:8:13
- *  -this speeds up page table allocation itself as we now have to memset 1K
+ *  -this speeds up page table allocation itself as we yesw have to memset 1K
  *    instead of 8k per page table.
- * -TODO: Right now page table alloc is 8K and rest 7K is unused
+ * -TODO: Right yesw page table alloc is 8K and rest 7K is unused
  *    need to optimise it
  *
- * Amit Bhor, Sameer Dhavale: Codito Technologies 2004
+ * Amit Bhor, Sameer Dhavale: Codito Techyeslogies 2004
  */
 
 #ifndef _ASM_ARC_PGTABLE_H
 #define _ASM_ARC_PGTABLE_H
 
 #include <linux/bits.h>
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 #include <asm/page.h>
 #include <asm/mmu.h>	/* to propagate CONFIG_ARC_MMU_VER <n> */
 
@@ -42,7 +42,7 @@
  *
  * ARC700 MMU only deals with softare managed TLB entries.
  * Page Tables are purely for Linux VM's consumption and the bits below are
- * suited to that (uniqueness). Hence some are not implemented in the TLB and
+ * suited to that (uniqueness). Hence some are yest implemented in the TLB and
  * some have different value in TLB.
  * e.g. MMU v2: K_READ bit is 8 and so is GLOBAL (possible because they live in
  *      seperate PD0 and PD1, which combined forms a translation entry)
@@ -81,7 +81,7 @@
 #define _PAGE_PRESENT       (1<<9)	/* TLB entry is valid (H) */
 
 #if (CONFIG_ARC_MMU_VER >= 4)
-#define _PAGE_HW_SZ         (1<<10)	/* Page Size indicator (H): 0 normal, 1 super */
+#define _PAGE_HW_SZ         (1<<10)	/* Page Size indicator (H): 0 yesrmal, 1 super */
 #endif
 
 #define _PAGE_SHARED_CODE   (1<<11)	/* Shared Code page with cmn vaddr
@@ -106,7 +106,7 @@
 /* Defaults for every user page */
 #define ___DEF (_PAGE_PRESENT | _PAGE_CACHEABLE)
 
-/* Set of bits not changed in pte_modify */
+/* Set of bits yest changed in pte_modify */
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_SPECIAL)
 
 /* More Abbrevaited helpers */
@@ -121,7 +121,7 @@
 
 /* While kernel runs out of unstranslated space, vmalloc/modules use a chunk of
  * user vaddr space - visible in all addr spaces, but kernel mode only
- * Thus Global, all-kernel-access, no-user-access, cached
+ * Thus Global, all-kernel-access, yes-user-access, cached
  */
 #define PAGE_KERNEL          __pgprot(_K_PAGE_PERMS | _PAGE_CACHEABLE)
 
@@ -214,7 +214,7 @@
 #define BITS_FOR_PTE	(PGDIR_SHIFT - PAGE_SHIFT)
 #define BITS_FOR_PGD	(32 - PGDIR_SHIFT)
 
-#define PGDIR_SIZE	BIT(PGDIR_SHIFT)	/* vaddr span, not PDG sz */
+#define PGDIR_SIZE	BIT(PGDIR_SHIFT)	/* vaddr span, yest PDG sz */
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 #define	PTRS_PER_PTE	BIT(BITS_FOR_PTE)
@@ -244,7 +244,7 @@
 #define pgd_ERROR(e) \
 	pr_crit("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
-/* the zero page used for uninitialized and anonymous pages */
+/* the zero page used for uninitialized and ayesnymous pages */
 extern char empty_zero_page[PAGE_SIZE];
 #define ZERO_PAGE(vaddr)	(virt_to_page(empty_zero_page))
 
@@ -266,11 +266,11 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 	pmd_val(*pmdp) = (unsigned long)ptep;
 }
 
-#define pte_none(x)			(!pte_val(x))
+#define pte_yesne(x)			(!pte_val(x))
 #define pte_present(x)			(pte_val(x) & _PAGE_PRESENT)
 #define pte_clear(mm, addr, ptep)	set_pte_at(mm, addr, ptep, __pte(0))
 
-#define pmd_none(x)			(!pmd_val(x))
+#define pmd_yesne(x)			(!pmd_val(x))
 #define	pmd_bad(x)			((pmd_val(x) & ~PAGE_MASK))
 #define pmd_present(x)			(pmd_val(x))
 #define pmd_clear(xp)			do { pmd_val(*(xp)) = 0; } while (0)
@@ -304,7 +304,7 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 #define PTE_BIT_FUNC(fn, op) \
 	static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
 
-PTE_BIT_FUNC(mknotpresent,	&= ~(_PAGE_PRESENT));
+PTE_BIT_FUNC(mkyestpresent,	&= ~(_PAGE_PRESENT));
 PTE_BIT_FUNC(wrprotect,	&= ~(_PAGE_WRITE));
 PTE_BIT_FUNC(mkwrite,	|= (_PAGE_WRITE));
 PTE_BIT_FUNC(mkclean,	&= ~(_PAGE_DIRTY));
@@ -322,7 +322,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 }
 
 /* Macro to mark a page protection as uncacheable */
-#define pgprot_noncached(prot)	(__pgprot(pgprot_val(prot) & ~_PAGE_CACHEABLE))
+#define pgprot_yesncached(prot)	(__pgprot(pgprot_val(prot) & ~_PAGE_CACHEABLE))
 
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pteval)

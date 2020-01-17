@@ -13,7 +13,7 @@
 #include <linux/types.h>
 #include <linux/videodev2.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
@@ -106,7 +106,7 @@ static inline struct saa6588 *to_saa6588(struct v4l2_subdev *sd)
 
 /* bit 7 (SQCM) */
 #define cSigQualityTriggered    0x00
-#define cSigQualityContinous    0x80
+#define cSigQualityContiyesus    0x80
 
 /* Pause level and flywheel control byte (1w) */
 
@@ -179,7 +179,7 @@ static void read_from_buf(struct saa6588 *s, struct saa6588_command *a)
 	if (!a->buffer)
 		return;
 
-	while (!a->nonblocking && !s->data_available_for_read) {
+	while (!a->yesnblocking && !s->data_available_for_read) {
 		int ret = wait_event_interruptible(s->read_queue,
 					     s->data_available_for_read);
 		if (ret == -ERESTARTSYS) {
@@ -294,7 +294,7 @@ static void saa6588_i2c_poll(struct saa6588 *s)
 	/* Map 'Invalid block E' to 'Invalid Block' */
 	if (blocknum == 6)
 		blocknum = V4L2_RDS_BLOCK_INVALID;
-	/* And if are not in mmbs mode, then 'Block E' is also mapped
+	/* And if are yest in mmbs mode, then 'Block E' is also mapped
 	   to 'Invalid Block'. As far as I can tell MMBS is discontinued,
 	   and if there is ever a need to support E blocks, then please
 	   contact the linux-media mailinglist. */
@@ -306,7 +306,7 @@ static void saa6588_i2c_poll(struct saa6588 *s)
 		tmp |= V4L2_RDS_BLOCK_ERROR;	 /* uncorrectable error */
 	else if ((tmpbuf[2] & 0x03) != 0x00)
 		tmp |= V4L2_RDS_BLOCK_CORRECTED; /* corrected error */
-	tmpbuf[2] = tmp;	/* Is this enough ? Should we also check other bits ? */
+	tmpbuf[2] = tmp;	/* Is this eyesugh ? Should we also check other bits ? */
 
 	spin_lock_irqsave(&s->lock, flags);
 	block_to_buf(s, tmpbuf);
@@ -347,7 +347,7 @@ static void saa6588_configure(struct saa6588 *s)
 	case 3:
 		buf[1] |= cPauseLevel_43mV;
 		break;
-	default:		/* nothing */
+	default:		/* yesthing */
 		break;
 	}
 
@@ -366,7 +366,7 @@ static void saa6588_configure(struct saa6588 *s)
 	case 3:
 		buf[2] |= cOscFreq_17328kHz;
 		break;
-	default:		/* nothing */
+	default:		/* yesthing */
 		break;
 	}
 
@@ -406,7 +406,7 @@ static long saa6588_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 
 	default:
-		/* nothing */
+		/* yesthing */
 		return -ENOIOCTLCMD;
 	}
 	return 0;

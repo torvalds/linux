@@ -26,7 +26,7 @@
 /*
  * Note sizeof(xen_ulong_t) can be more than sizeof(unsigned long). Be
  * careful to only use bitops which allow for this (e.g
- * test_bit/find_first_bit and friends but not __ffs) and to pass
+ * test_bit/find_first_bit and friends but yest __ffs) and to pass
  * BITS_PER_EVTCHN_WORD as the bitmask length.
  */
 #define BITS_PER_EVTCHN_WORD (sizeof(xen_ulong_t)*8)
@@ -111,7 +111,7 @@ static void evtchn_2l_unmask(unsigned port)
 		}
 	}
 
-	/* Slow path (hypercall) if this is a non-local port or if this is
+	/* Slow path (hypercall) if this is a yesn-local port or if this is
 	 * an hvm domain and an event is pending (hvm domains don't have
 	 * their own implementation of irq_enable). */
 	if (do_hypercall) {
@@ -215,7 +215,7 @@ static void evtchn_2l_handle_events(unsigned cpu)
 		 * 1st time: start in the middle, scanning the
 		 * upper bits.
 		 *
-		 * 2nd time: scan the whole word (not just the
+		 * 2nd time: scan the whole word (yest just the
 		 * parts skipped in the first pass) -- if an
 		 * event in the previously scanned bits is
 		 * pending again it would just be scanned on

@@ -50,7 +50,7 @@ static int timeriomem_rng_read(struct hwrng *hwrng, void *data,
 	int period_us = ktime_to_us(priv->period);
 
 	/*
-	 * There may not have been enough time for new data to be generated
+	 * There may yest have been eyesugh time for new data to be generated
 	 * since the last request.  If the caller doesn't want to wait, let them
 	 * bail out.  Otherwise, wait for the completion.  If the new data has
 	 * already been generated, the completion should already be available.
@@ -83,7 +83,7 @@ static int timeriomem_rng_read(struct hwrng *hwrng, void *data,
 	 */
 	priv->present = 0;
 	reinit_completion(&priv->completion);
-	hrtimer_forward_now(&priv->timer, priv->period);
+	hrtimer_forward_yesw(&priv->timer, priv->period);
 	hrtimer_restart(&priv->timer);
 
 	return retval;
@@ -108,7 +108,7 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	int err = 0;
 	int period;
 
-	if (!pdev->dev.of_node && !pdata) {
+	if (!pdev->dev.of_yesde && !pdata) {
 		dev_err(&pdev->dev, "timeriomem_rng_data is missing\n");
 		return -EINVAL;
 	}
@@ -131,10 +131,10 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		int i;
 
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_yesde,
 						"period", &i))
 			period = i;
 		else {
@@ -142,7 +142,7 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_yesde,
 						"quality", &i))
 			priv->rng_ops.quality = i;
 		else

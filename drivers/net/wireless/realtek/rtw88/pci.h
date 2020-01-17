@@ -51,7 +51,7 @@
 #define RTK_PCI_TXBD_DESA_HI0Q	0x340
 #define RTK_PCI_RXBD_DESA_MPDUQ	0x338
 
-/* BCNQ is specialized for rsvd page, does not need to specify a number */
+/* BCNQ is specialized for rsvd page, does yest need to specify a number */
 #define RTK_PCI_TXBD_NUM_H2CQ	0x1328
 #define RTK_PCI_TXBD_NUM_MGMTQ	0x380
 #define RTK_PCI_TXBD_NUM_BKQ	0x38A
@@ -141,7 +141,7 @@
 /* IMR 3 */
 #define IMR_H2CDOK		BIT(16)
 
-/* one element is reserved to know if the ring is closed */
+/* one element is reserved to kyesw if the ring is closed */
 static inline int avail_desc(u32 wp, u32 rp, u32 len)
 {
 	if (rp > wp)

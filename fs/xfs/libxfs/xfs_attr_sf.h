@@ -7,10 +7,10 @@
 #define	__XFS_ATTR_SF_H__
 
 /*
- * Attribute storage when stored inside the inode.
+ * Attribute storage when stored inside the iyesde.
  *
  * Small attribute lists are packed as tightly as possible so as
- * to fit into the literal area of the inode.
+ * to fit into the literal area of the iyesde.
  */
 typedef struct xfs_attr_sf_hdr xfs_attr_sf_hdr_t;
 typedef struct xfs_attr_sf_entry xfs_attr_sf_entry_t;
@@ -19,8 +19,8 @@ typedef struct xfs_attr_sf_entry xfs_attr_sf_entry_t;
  * We generate this then sort it, attr_list() must return things in hash-order.
  */
 typedef struct xfs_attr_sf_sort {
-	uint8_t		entno;		/* entry number in original list */
-	uint8_t		namelen;	/* length of name value (no null) */
+	uint8_t		entyes;		/* entry number in original list */
+	uint8_t		namelen;	/* length of name value (yes null) */
 	uint8_t		valuelen;	/* length of value */
 	uint8_t		flags;		/* flags bits (see xfs_attr_leaf.h) */
 	xfs_dahash_t	hash;		/* this entry's hash value */

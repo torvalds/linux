@@ -80,7 +80,7 @@ char *tomoyo_encode(const char *str)
 }
 
 /**
- * tomoyo_get_absolute_path - Get the path of a dentry but ignores chroot'ed root.
+ * tomoyo_get_absolute_path - Get the path of a dentry but igyesres chroot'ed root.
  *
  * @path:   Pointer to "struct path".
  * @buffer: Pointer to buffer to return value in.
@@ -99,9 +99,9 @@ static char *tomoyo_get_absolute_path(const struct path *path, char * const buff
 		/* go to whatever namespace root we are under */
 		pos = d_absolute_path(path, buffer, buflen - 1);
 		if (!IS_ERR(pos) && *pos == '/' && pos[1]) {
-			struct inode *inode = d_backing_inode(path->dentry);
+			struct iyesde *iyesde = d_backing_iyesde(path->dentry);
 
-			if (inode && S_ISDIR(inode->i_mode)) {
+			if (iyesde && S_ISDIR(iyesde->i_mode)) {
 				buffer[buflen - 2] = '/';
 				buffer[buflen - 1] = '\0';
 			}
@@ -129,9 +129,9 @@ static char *tomoyo_get_dentry_path(struct dentry *dentry, char * const buffer,
 	if (buflen >= 256) {
 		pos = dentry_path_raw(dentry, buffer, buflen - 1);
 		if (!IS_ERR(pos) && *pos == '/' && pos[1]) {
-			struct inode *inode = d_backing_inode(dentry);
+			struct iyesde *iyesde = d_backing_iyesde(dentry);
 
-			if (inode && S_ISDIR(inode->i_mode)) {
+			if (iyesde && S_ISDIR(iyesde->i_mode)) {
 				buffer[buflen - 2] = '/';
 				buffer[buflen - 1] = '\0';
 			}
@@ -175,13 +175,13 @@ static char *tomoyo_get_local_path(struct dentry *dentry, char * const buffer,
 	if (!MAJOR(sb->s_dev))
 		goto prepend_filesystem_name;
 	{
-		struct inode *inode = d_backing_inode(sb->s_root);
+		struct iyesde *iyesde = d_backing_iyesde(sb->s_root);
 
 		/*
-		 * Use filesystem name if filesystem does not support rename()
+		 * Use filesystem name if filesystem does yest support rename()
 		 * operation.
 		 */
-		if (!inode->i_op->rename)
+		if (!iyesde->i_op->rename)
 			goto prepend_filesystem_name;
 	}
 	/* Prepend device name. */
@@ -218,7 +218,7 @@ out:
 }
 
 /**
- * tomoyo_realpath_from_path - Returns realpath(3) of the given pathname but ignores chroot'ed root.
+ * tomoyo_realpath_from_path - Returns realpath(3) of the given pathname but igyesres chroot'ed root.
  *
  * @path: Pointer to "struct path".
  *
@@ -245,7 +245,7 @@ char *tomoyo_realpath_from_path(const struct path *path)
 	sb = dentry->d_sb;
 	while (1) {
 		char *pos;
-		struct inode *inode;
+		struct iyesde *iyesde;
 
 		buf_len <<= 1;
 		kfree(buf);
@@ -259,13 +259,13 @@ char *tomoyo_realpath_from_path(const struct path *path)
 			pos = dentry->d_op->d_dname(dentry, buf, buf_len - 1);
 			goto encode;
 		}
-		inode = d_backing_inode(sb->s_root);
+		iyesde = d_backing_iyesde(sb->s_root);
 		/*
 		 * Get local name for filesystems without rename() operation
 		 * or dentry without vfsmount.
 		 */
 		if (!path->mnt ||
-		    (!inode->i_op->rename &&
+		    (!iyesde->i_op->rename &&
 		     !(sb->s_type->fs_flags & FS_REQUIRES_DEV)))
 			pos = tomoyo_get_local_path(path->dentry, buf,
 						    buf_len - 1);
@@ -273,7 +273,7 @@ char *tomoyo_realpath_from_path(const struct path *path)
 		else {
 			pos = tomoyo_get_absolute_path(path, buf, buf_len - 1);
 			/*
-			 * Fall back to local name if absolute name is not
+			 * Fall back to local name if absolute name is yest
 			 * available.
 			 */
 			if (pos == ERR_PTR(-EINVAL))
@@ -293,13 +293,13 @@ encode:
 }
 
 /**
- * tomoyo_realpath_nofollow - Get realpath of a pathname.
+ * tomoyo_realpath_yesfollow - Get realpath of a pathname.
  *
  * @pathname: The pathname to solve.
  *
  * Returns the realpath of @pathname on success, NULL otherwise.
  */
-char *tomoyo_realpath_nofollow(const char *pathname)
+char *tomoyo_realpath_yesfollow(const char *pathname)
 {
 	struct path path;
 

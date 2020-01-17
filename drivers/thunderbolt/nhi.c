@@ -5,13 +5,13 @@
  * The NHI (native host interface) is the pci device that allows us to send and
  * receive frames from the thunderbolt bus.
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -25,7 +25,7 @@
 #define RING_TYPE(ring) ((ring)->is_tx ? "TX ring" : "RX ring")
 
 /*
- * Used to enable end-to-end workaround for missing RX packets. Do not
+ * Used to enable end-to-end workaround for missing RX packets. Do yest
  * use this ring for anything else.
  */
 #define RING_E2E_UNUSED_HOPID	2
@@ -73,7 +73,7 @@ static void ring_interrupt_active(struct tb_ring *ring, bool active)
 
 		/*
 		 * Ask the hardware to clear interrupt status bits automatically
-		 * since we already know which interrupt was triggered.
+		 * since we already kyesw which interrupt was triggered.
 		 */
 		misc = ioread32(ring->nhi->iobase + REG_DMA_MISC);
 		if (!(misc & REG_DMA_MISC_INT_AUTO_CLEAR)) {
@@ -148,7 +148,7 @@ static void ring_iowrite_cons(struct tb_ring *ring, u16 cons)
 {
 	/*
 	 * The other 16-bits in the register is read-only and writes to it
-	 * are ignored by the hardware so we can save one ioread32() by
+	 * are igyesred by the hardware so we can save one ioread32() by
 	 * filling the read-only bits with zeroes.
 	 */
 	iowrite32(cons, ring_desc_base(ring) + 8);
@@ -267,7 +267,7 @@ invoke_callback:
 		frame = list_first_entry(&done, typeof(*frame), list);
 		/*
 		 * The callback may reenqueue or delete frame.
-		 * Do not hold on to it.
+		 * Do yest hold on to it.
 		 */
 		list_del_init(&frame->list);
 		if (frame->callback)
@@ -298,7 +298,7 @@ EXPORT_SYMBOL_GPL(__tb_ring_enqueue);
  *
  * This function can be called when @start_poll callback of the @ring
  * has been called. It will read one completed frame from the ring and
- * return it to the caller. Returns %NULL if there is no more completed
+ * return it to the caller. Returns %NULL if there is yes more completed
  * frames.
  */
 struct ring_frame *tb_ring_poll(struct tb_ring *ring)
@@ -395,7 +395,7 @@ static irqreturn_t ring_msix(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int ring_request_msix(struct tb_ring *ring, bool no_suspend)
+static int ring_request_msix(struct tb_ring *ring, bool yes_suspend)
 {
 	struct tb_nhi *nhi = ring->nhi;
 	unsigned long irqflags;
@@ -414,7 +414,7 @@ static int ring_request_msix(struct tb_ring *ring, bool no_suspend)
 	if (ring->irq < 0)
 		return ring->irq;
 
-	irqflags = no_suspend ? IRQF_NO_SUSPEND : 0;
+	irqflags = yes_suspend ? IRQF_NO_SUSPEND : 0;
 	return request_irq(ring->irq, ring_msix, irqflags, "thunderbolt", ring);
 }
 
@@ -439,7 +439,7 @@ static int nhi_alloc_hop(struct tb_nhi *nhi, struct tb_ring *ring)
 		unsigned int i;
 
 		/*
-		 * Automatically allocate HopID from the non-reserved
+		 * Automatically allocate HopID from the yesn-reserved
 		 * range 8 .. hop_count - 1.
 		 */
 		for (i = RING_FIRST_USABLE_HOPID; i < nhi->hop_count; i++) {
@@ -570,7 +570,7 @@ EXPORT_SYMBOL_GPL(tb_ring_alloc_tx);
  * @flags: Flags for the ring
  * @sof_mask: Mask of PDF values that start a frame
  * @eof_mask: Mask of PDF values that end a frame
- * @start_poll: If not %NULL the ring will call this function when an
+ * @start_poll: If yest %NULL the ring will call this function when an
  *		interrupt is triggered and masked, instead of callback
  *		in each Rx frame.
  * @poll_data: Optional data passed to @start_poll
@@ -587,7 +587,7 @@ EXPORT_SYMBOL_GPL(tb_ring_alloc_rx);
 /**
  * tb_ring_start() - enable a ring
  *
- * Must not be invoked in parallel with tb_ring_stop().
+ * Must yest be invoked in parallel with tb_ring_stop().
  */
 void tb_ring_start(struct tb_ring *ring)
 {
@@ -618,7 +618,7 @@ void tb_ring_start(struct tb_ring *ring)
 		u32 hop;
 
 		/*
-		 * In order not to lose Rx packets we enable end-to-end
+		 * In order yest to lose Rx packets we enable end-to-end
 		 * workaround which transfers Rx credits to an unused Tx
 		 * HopID.
 		 */
@@ -650,7 +650,7 @@ EXPORT_SYMBOL_GPL(tb_ring_start);
 /**
  * tb_ring_stop() - shutdown a ring
  *
- * Must not be invoked from a callback.
+ * Must yest be invoked from a callback.
  *
  * This method will disable the ring. Further calls to
  * tb_ring_tx/tb_ring_rx will return -ESHUTDOWN until ring_stop has been
@@ -710,7 +710,7 @@ void tb_ring_free(struct tb_ring *ring)
 	spin_lock_irq(&ring->nhi->lock);
 	/*
 	 * Dissociate the ring from the NHI. This also ensures that
-	 * nhi_interrupt_work cannot reschedule ring->work.
+	 * nhi_interrupt_work canyest reschedule ring->work.
 	 */
 	if (ring->is_tx)
 		ring->nhi->tx_rings[ring->hop] = NULL;
@@ -737,7 +737,7 @@ void tb_ring_free(struct tb_ring *ring)
 		ring->hop);
 
 	/**
-	 * ring->work can no longer be scheduled (it is scheduled only
+	 * ring->work can yes longer be scheduled (it is scheduled only
 	 * by nhi_interrupt_work, ring_stop and ring_msix). Wait for it
 	 * to finish before freeing the ring.
 	 */
@@ -753,7 +753,7 @@ EXPORT_SYMBOL_GPL(tb_ring_free);
  * @data: Data to be send with the command
  *
  * Sends mailbox command to the firmware running on NHI. Returns %0 in
- * case of success and negative errno in case of failure.
+ * case of success and negative erryes in case of failure.
  */
 int nhi_mailbox_cmd(struct tb_nhi *nhi, enum nhi_mailbox_cmd cmd, u32 data)
 {
@@ -860,19 +860,19 @@ static irqreturn_t nhi_msi(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __nhi_suspend_noirq(struct device *dev, bool wakeup)
+static int __nhi_suspend_yesirq(struct device *dev, bool wakeup)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
 	struct tb_nhi *nhi = tb->nhi;
 	int ret;
 
-	ret = tb_domain_suspend_noirq(tb);
+	ret = tb_domain_suspend_yesirq(tb);
 	if (ret)
 		return ret;
 
-	if (nhi->ops && nhi->ops->suspend_noirq) {
-		ret = nhi->ops->suspend_noirq(tb->nhi, wakeup);
+	if (nhi->ops && nhi->ops->suspend_yesirq) {
+		ret = nhi->ops->suspend_yesirq(tb->nhi, wakeup);
 		if (ret)
 			return ret;
 	}
@@ -880,9 +880,9 @@ static int __nhi_suspend_noirq(struct device *dev, bool wakeup)
 	return 0;
 }
 
-static int nhi_suspend_noirq(struct device *dev)
+static int nhi_suspend_yesirq(struct device *dev)
 {
-	return __nhi_suspend_noirq(dev, device_may_wakeup(dev));
+	return __nhi_suspend_yesirq(dev, device_may_wakeup(dev));
 }
 
 static bool nhi_wake_supported(struct pci_dev *pdev)
@@ -899,13 +899,13 @@ static bool nhi_wake_supported(struct pci_dev *pdev)
 	return true;
 }
 
-static int nhi_poweroff_noirq(struct device *dev)
+static int nhi_poweroff_yesirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	bool wakeup;
 
 	wakeup = device_may_wakeup(dev) && nhi_wake_supported(pdev);
-	return __nhi_suspend_noirq(dev, wakeup);
+	return __nhi_suspend_yesirq(dev, wakeup);
 }
 
 static void nhi_enable_int_throttling(struct tb_nhi *nhi)
@@ -924,7 +924,7 @@ static void nhi_enable_int_throttling(struct tb_nhi *nhi)
 	}
 }
 
-static int nhi_resume_noirq(struct device *dev)
+static int nhi_resume_yesirq(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct tb *tb = pci_get_drvdata(pdev);
@@ -939,15 +939,15 @@ static int nhi_resume_noirq(struct device *dev)
 	if (!pci_device_is_present(pdev)) {
 		nhi->going_away = true;
 	} else {
-		if (nhi->ops && nhi->ops->resume_noirq) {
-			ret = nhi->ops->resume_noirq(nhi);
+		if (nhi->ops && nhi->ops->resume_yesirq) {
+			ret = nhi->ops->resume_yesirq(nhi);
 			if (ret)
 				return ret;
 		}
 		nhi_enable_int_throttling(tb->nhi);
 	}
 
-	return tb_domain_resume_noirq(tb);
+	return tb_domain_resume_yesirq(tb);
 }
 
 static int nhi_suspend(struct device *dev)
@@ -965,7 +965,7 @@ static void nhi_complete(struct device *dev)
 
 	/*
 	 * If we were runtime suspended when system suspend started,
-	 * schedule runtime resume now. It should bring the domain back
+	 * schedule runtime resume yesw. It should bring the domain back
 	 * to functional state.
 	 */
 	if (pm_runtime_suspended(&pdev->dev))
@@ -1054,7 +1054,7 @@ static int nhi_init_msi(struct tb_nhi *nhi)
 	/*
 	 * The NHI has 16 MSI-X vectors or a single MSI. We first try to
 	 * get all MSI-X vectors and if we succeed, each ring will have
-	 * one MSI-X. If for some reason that does not work out, we
+	 * one MSI-X. If for some reason that does yest work out, we
 	 * fallback to a single MSI.
 	 */
 	nvec = pci_alloc_irq_vectors(pdev, MSIX_MIN_VECS, MSIX_MAX_VECS,
@@ -1098,19 +1098,19 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int res;
 
 	if (!nhi_imr_valid(pdev)) {
-		dev_warn(&pdev->dev, "firmware image not valid, aborting\n");
+		dev_warn(&pdev->dev, "firmware image yest valid, aborting\n");
 		return -ENODEV;
 	}
 
 	res = pcim_enable_device(pdev);
 	if (res) {
-		dev_err(&pdev->dev, "cannot enable PCI device, aborting\n");
+		dev_err(&pdev->dev, "canyest enable PCI device, aborting\n");
 		return res;
 	}
 
 	res = pcim_iomap_regions(pdev, 1 << 0, "thunderbolt");
 	if (res) {
-		dev_err(&pdev->dev, "cannot obtain PCI resources, aborting\n");
+		dev_err(&pdev->dev, "canyest obtain PCI resources, aborting\n");
 		return res;
 	}
 
@@ -1120,7 +1120,7 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	nhi->pdev = pdev;
 	nhi->ops = (const struct tb_nhi_ops *)id->driver_data;
-	/* cannot fail - table is allocated bin pcim_iomap_regions */
+	/* canyest fail - table is allocated bin pcim_iomap_regions */
 	nhi->iobase = pcim_iomap_table(pdev)[0];
 	nhi->hop_count = ioread32(nhi->iobase + REG_HOP_COUNT) & 0x3ff;
 	if (nhi->hop_count != 12 && nhi->hop_count != 32)
@@ -1136,7 +1136,7 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	res = nhi_init_msi(nhi);
 	if (res) {
-		dev_err(&pdev->dev, "cannot enable MSI, aborting\n");
+		dev_err(&pdev->dev, "canyest enable MSI, aborting\n");
 		return res;
 	}
 
@@ -1203,22 +1203,22 @@ static void nhi_remove(struct pci_dev *pdev)
 }
 
 /*
- * The tunneled pci bridges are siblings of us. Use resume_noirq to reenable
+ * The tunneled pci bridges are siblings of us. Use resume_yesirq to reenable
  * the tunnels asap. A corresponding pci quirk blocks the downstream bridges
- * resume_noirq until we are done.
+ * resume_yesirq until we are done.
  */
 static const struct dev_pm_ops nhi_pm_ops = {
-	.suspend_noirq = nhi_suspend_noirq,
-	.resume_noirq = nhi_resume_noirq,
-	.freeze_noirq = nhi_suspend_noirq, /*
+	.suspend_yesirq = nhi_suspend_yesirq,
+	.resume_yesirq = nhi_resume_yesirq,
+	.freeze_yesirq = nhi_suspend_yesirq, /*
 					    * we just disable hotplug, the
 					    * pci-tunnels stay alive.
 					    */
-	.thaw_noirq = nhi_resume_noirq,
-	.restore_noirq = nhi_resume_noirq,
+	.thaw_yesirq = nhi_resume_yesirq,
+	.restore_yesirq = nhi_resume_yesirq,
 	.suspend = nhi_suspend,
 	.freeze = nhi_suspend,
-	.poweroff_noirq = nhi_poweroff_noirq,
+	.poweroff_yesirq = nhi_poweroff_yesirq,
 	.poweroff = nhi_suspend,
 	.complete = nhi_complete,
 	.runtime_suspend = nhi_runtime_suspend,

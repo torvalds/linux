@@ -9,10 +9,10 @@
 Indice di documenti per le persone interessate a capire e/o scrivere per il kernel Linux
 ========================================================================================
 
-.. note::
-   Questo documento contiene riferimenti a documenti in lingua inglese; inoltre
+.. yeste::
+   Questo documento contiene riferimenti a documenti in lingua inglese; iyesltre
    utilizza dai campi *ReStructuredText* di supporto alla ricerca e che per
-   questo motivo è meglio non tradurre al fine di garantirne un corretto
+   questo motivo è meglio yesn tradurre al fine di garantirne un corretto
    utilizzo.
-   Per questi motivi il documento non verrà tradotto. Per favore fate
+   Per questi motivi il documento yesn verrà tradotto. Per favore fate
    riferimento al documento originale in lingua inglese.

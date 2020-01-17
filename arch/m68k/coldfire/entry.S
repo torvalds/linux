@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 1999-2007, Greg Ungerer (gerg@snapgear.com)
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
- *                      Kenneth Albanowski <kjahds@kjahds.com>,
+ *                      Kenneth Albayeswski <kjahds@kjahds.com>,
  *  Copyright (C) 2000  Lineo Inc. (www.lineo.com)
  *  Copyright (C) 2004-2006  Macq Electronique SA. (www.macqel.com)
  *
@@ -29,7 +29,7 @@
 #include <linux/linkage.h>
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/setup.h>
 #include <asm/segment.h>
 #include <asm/asm-offsets.h>
@@ -55,7 +55,7 @@ sw_usp:
 .globl sys_call_table
 .globl inthandler
 
-enosys:
+eyessys:
 	mov.l	#sys_ni_syscall,%d3
 	bra	1f
 
@@ -65,11 +65,11 @@ ENTRY(system_call)
 	GET_CURRENT(%d2)
 
 	cmpl	#NR_syscalls,%d0
-	jcc	enosys
+	jcc	eyessys
 	lea	sys_call_table,%a0
 	lsll	#2,%d0			/* movel %a0@(%d0:l:4),%d3 */
 	movel	%a0@(%d0),%d3
-	jeq	enosys
+	jeq	eyessys
 
 1:
 	movel	%sp,%d2			/* get thread_info pointer */
@@ -152,7 +152,7 @@ Lsignal_return:
 	subql	#4,%sp			/* dummy return address */
 	SAVE_SWITCH_STACK
 	pea	%sp@(SWITCH_STACK_SIZE)
-	jsr	do_notify_resume
+	jsr	do_yestify_resume
 	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
@@ -180,7 +180,7 @@ ENTRY(inthandler)
 /*
  * Beware - when entering resume, prev (the current task) is
  * in a0, next (the new task) is in a1, so don't change these
- * registers until their contents are no longer needed.
+ * registers until their contents are yes longer needed.
  */
 ENTRY(resume)
 	movew	%sr,%d1				 /* save current status */

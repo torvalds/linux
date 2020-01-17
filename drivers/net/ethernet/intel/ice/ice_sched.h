@@ -36,7 +36,7 @@ struct ice_aqc_rl_profile_info {
 	struct ice_aqc_rl_profile_elem profile;
 	struct list_head list_entry;
 	u32 bw;			/* requested */
-	u16 prof_id_ref;	/* profile ID to node association ref count */
+	u16 prof_id_ref;	/* profile ID to yesde association ref count */
 };
 
 struct ice_sched_agg_vsi_info {
@@ -64,14 +64,14 @@ void ice_sched_clear_port(struct ice_port_info *pi);
 void ice_sched_cleanup_all(struct ice_hw *hw);
 void ice_sched_clear_agg(struct ice_hw *hw);
 
-struct ice_sched_node *
-ice_sched_find_node_by_teid(struct ice_sched_node *start_node, u32 teid);
+struct ice_sched_yesde *
+ice_sched_find_yesde_by_teid(struct ice_sched_yesde *start_yesde, u32 teid);
 enum ice_status
-ice_sched_add_node(struct ice_port_info *pi, u8 layer,
+ice_sched_add_yesde(struct ice_port_info *pi, u8 layer,
 		   struct ice_aqc_txsched_elem_data *info);
-void ice_free_sched_node(struct ice_port_info *pi, struct ice_sched_node *node);
-struct ice_sched_node *ice_sched_get_tc_node(struct ice_port_info *pi, u8 tc);
-struct ice_sched_node *
+void ice_free_sched_yesde(struct ice_port_info *pi, struct ice_sched_yesde *yesde);
+struct ice_sched_yesde *ice_sched_get_tc_yesde(struct ice_port_info *pi, u8 tc);
+struct ice_sched_yesde *
 ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_handle, u8 tc,
 			   u8 owner);
 enum ice_status

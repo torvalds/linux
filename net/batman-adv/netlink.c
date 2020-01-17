@@ -13,7 +13,7 @@
 #include <linux/byteorder/generic.h>
 #include <linux/cache.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/genetlink.h>
 #include <linux/gfp.h>
@@ -318,10 +318,10 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 		       atomic_read(&bat_priv->gw.mode)))
 		goto nla_put_failure;
 
-	if (bat_priv->algo_ops->gw.get_best_gw_node &&
+	if (bat_priv->algo_ops->gw.get_best_gw_yesde &&
 	    bat_priv->algo_ops->gw.is_eligible) {
-		/* GW selection class is not available if the routing algorithm
-		 * in use does not implement the GW API
+		/* GW selection class is yest available if the routing algorithm
+		 * in use does yest implement the GW API
 		 */
 		if (nla_put_u32(msg, BATADV_ATTR_GW_SEL_CLASS,
 				atomic_read(&bat_priv->gw.sel_class)))
@@ -344,7 +344,7 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 		goto nla_put_failure;
 
 	if (nla_put_u32(msg, BATADV_ATTR_MULTICAST_FANOUT,
-			atomic_read(&bat_priv->multicast_fanout)))
+			atomic_read(&bat_priv->multicast_fayesut)))
 		goto nla_put_failure;
 #endif /* CONFIG_BATMAN_ADV_MCAST */
 
@@ -373,12 +373,12 @@ nla_put_failure:
 }
 
 /**
- * batadv_netlink_notify_mesh() - send softif attributes to listener
+ * batadv_netlink_yestify_mesh() - send softif attributes to listener
  * @bat_priv: the bat priv with all the soft interface information
  *
  * Return: 0 on success, < 0 on error
  */
-int batadv_netlink_notify_mesh(struct batadv_priv *bat_priv)
+int batadv_netlink_yestify_mesh(struct batadv_priv *bat_priv)
 {
 	struct sk_buff *msg;
 	int ret;
@@ -520,13 +520,13 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		gw_mode = nla_get_u8(attr);
 
 		if (gw_mode <= BATADV_GW_MODE_SERVER) {
-			/* Invoking batadv_gw_reselect() is not enough to really
+			/* Invoking batadv_gw_reselect() is yest eyesugh to really
 			 * de-select the current GW. It will only instruct the
 			 * gateway client code to perform a re-election the next
 			 * time that this is needed.
 			 *
 			 * When gw client mode is being switched off the current
-			 * GW must be de-selected explicitly otherwise no GW_ADD
+			 * GW must be de-selected explicitly otherwise yes GW_ADD
 			 * uevent is thrown on client mode re-activation. This
 			 * is operation is performed in
 			 * batadv_gw_check_client_stop().
@@ -543,7 +543,7 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[BATADV_ATTR_GW_SEL_CLASS] &&
-	    bat_priv->algo_ops->gw.get_best_gw_node &&
+	    bat_priv->algo_ops->gw.get_best_gw_yesde &&
 	    bat_priv->algo_ops->gw.is_eligible) {
 		/* setting the GW selection class is allowed only if the routing
 		 * algorithm in use implements the GW API
@@ -589,7 +589,7 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[BATADV_ATTR_MULTICAST_FANOUT]) {
 		attr = info->attrs[BATADV_ATTR_MULTICAST_FANOUT];
 
-		atomic_set(&bat_priv->multicast_fanout, nla_get_u32(attr));
+		atomic_set(&bat_priv->multicast_fayesut, nla_get_u32(attr));
 	}
 #endif /* CONFIG_BATMAN_ADV_MCAST */
 
@@ -614,7 +614,7 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		atomic_set(&bat_priv->orig_interval, orig_interval);
 	}
 
-	batadv_netlink_notify_mesh(bat_priv);
+	batadv_netlink_yestify_mesh(bat_priv);
 
 	return 0;
 }
@@ -636,7 +636,7 @@ batadv_netlink_tp_meter_put(struct sk_buff *msg, u32 cookie)
 }
 
 /**
- * batadv_netlink_tpmeter_notify() - send tp_meter result via netlink to client
+ * batadv_netlink_tpmeter_yestify() - send tp_meter result via netlink to client
  * @bat_priv: the bat priv with all the soft interface information
  * @dst: destination of tp_meter session
  * @result: reason for tp meter session stop
@@ -646,7 +646,7 @@ batadv_netlink_tp_meter_put(struct sk_buff *msg, u32 cookie)
  *
  * Return: 0 on success, < 0 on error
  */
-int batadv_netlink_tpmeter_notify(struct batadv_priv *bat_priv, const u8 *dst,
+int batadv_netlink_tpmeter_yestify(struct batadv_priv *bat_priv, const u8 *dst,
 				  u8 result, u32 test_time, u64 total_bytes,
 				  u32 cookie)
 {
@@ -845,13 +845,13 @@ nla_put_failure:
 }
 
 /**
- * batadv_netlink_notify_hardif() - send hardif attributes to listener
+ * batadv_netlink_yestify_hardif() - send hardif attributes to listener
  * @bat_priv: the bat priv with all the soft interface information
  * @hard_iface: hard interface which was modified
  *
  * Return: 0 on success, < 0 on error
  */
-int batadv_netlink_notify_hardif(struct batadv_priv *bat_priv,
+int batadv_netlink_yestify_hardif(struct batadv_priv *bat_priv,
 				 struct batadv_hard_iface *hard_iface)
 {
 	struct sk_buff *msg;
@@ -938,7 +938,7 @@ static int batadv_netlink_set_hardif(struct sk_buff *skb,
 	}
 #endif /* CONFIG_BATMAN_ADV_BATMAN_V */
 
-	batadv_netlink_notify_hardif(bat_priv, hard_iface);
+	batadv_netlink_yestify_hardif(bat_priv, hard_iface);
 
 	return 0;
 }
@@ -1050,13 +1050,13 @@ nla_put_failure:
 }
 
 /**
- * batadv_netlink_notify_vlan() - send vlan attributes to listener
+ * batadv_netlink_yestify_vlan() - send vlan attributes to listener
  * @bat_priv: the bat priv with all the soft interface information
  * @vlan: vlan which was modified
  *
  * Return: 0 on success, < 0 on error
  */
-int batadv_netlink_notify_vlan(struct batadv_priv *bat_priv,
+int batadv_netlink_yestify_vlan(struct batadv_priv *bat_priv,
 			       struct batadv_softif_vlan *vlan)
 {
 	struct sk_buff *msg;
@@ -1129,7 +1129,7 @@ static int batadv_netlink_set_vlan(struct sk_buff *skb, struct genl_info *info)
 		atomic_set(&vlan->ap_isolation, !!nla_get_u8(attr));
 	}
 
-	batadv_netlink_notify_vlan(bat_priv, vlan);
+	batadv_netlink_yestify_vlan(bat_priv, vlan);
 
 	return 0;
 }
@@ -1201,7 +1201,7 @@ batadv_get_hardif_from_info(struct batadv_priv *bat_priv, struct net *net,
 	if (hard_iface->soft_iface != bat_priv->soft_iface)
 		goto err_put_hardif;
 
-	/* hard_dev is referenced by hard_iface and not needed here */
+	/* hard_dev is referenced by hard_iface and yest needed here */
 	dev_put(hard_dev);
 
 	return hard_iface;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __GENWQE_CARD_H__
 #define __GENWQE_CARD_H__
 
@@ -253,7 +253,7 @@ struct genwqe_reg_io {
 };
 
 /*
- * All registers of our card will return values not equal this values.
+ * All registers of our card will return values yest equal this values.
  * If we see IO_ILLEGAL_VALUE on any of our MMIO register reads, the
  * card can be considered as unusable. It will need recovery.
  */
@@ -269,16 +269,16 @@ struct genwqe_reg_io {
  *
  * Some DDCBs require DMA addresses to be specified in the ASIV
  * block. The interface provies the capability to let the kernel
- * driver know where those addresses are by specifying the ATS field,
+ * driver kyesw where those addresses are by specifying the ATS field,
  * such that it can replace the user-space addresses with appropriate
  * DMA addresses or DMA addresses of a scatter gather list which is
  * dynamically created.
  *
- * Our hardware will refuse DDCB execution if the ATS field is not as
- * expected. That means the DDCB execution engine in the chip knows
+ * Our hardware will refuse DDCB execution if the ATS field is yest as
+ * expected. That means the DDCB execution engine in the chip kyesws
  * where it expects DMA addresses within the ASIV part of the DDCB and
  * will check that against the ATS field definition. Any invalid or
- * unknown ATS content will lead to DDCB refusal.
+ * unkyeswn ATS content will lead to DDCB refusal.
  */
 
 /* Genwqe chip Units */
@@ -290,7 +290,7 @@ struct genwqe_reg_io {
 #define DDCB_RETC_PENDING		0x0101 /* Pending Execution */
 #define DDCB_RETC_COMPLETE		0x0102 /* Cmd complete. No error */
 #define DDCB_RETC_FAULT			0x0104 /* App Err, recoverable */
-#define DDCB_RETC_ERROR			0x0108 /* App Err, non-recoverable */
+#define DDCB_RETC_ERROR			0x0108 /* App Err, yesn-recoverable */
 #define DDCB_RETC_FORCED_ERROR		0x01ff /* overwritten by driver  */
 
 #define DDCB_RETC_UNEXEC		0x0110 /* Unexe/Removed from queue */
@@ -398,7 +398,7 @@ struct genwqe_debug_data {
  * struct genwqe_ddcb_cmd - User parameter for generic DDCB commands
  *
  * On the way into the kernel the driver will read the whole data
- * structure. On the way out the driver will not copy the ASIV data
+ * structure. On the way out the driver will yest copy the ASIV data
  * back to user-space.
  */
 struct genwqe_ddcb_cmd {
@@ -464,7 +464,7 @@ struct genwqe_ddcb_cmd {
  * requests without the need to allocate and free memory or map and
  * unmap to get the DMA addresses.
  *
- * The inverse operation needs to be called after the pinning is not
+ * The inverse operation needs to be called after the pinning is yest
  * needed anymore. The pinnings else the pinnings will get removed
  * after the device is closed. Note that pinnings will required
  * memory.
@@ -480,12 +480,12 @@ struct genwqe_mem {
 #define GENWQE_UNPIN_MEM      _IOWR(GENWQE_IOC_CODE, 41, struct genwqe_mem)
 
 /*
- * Generic synchronous DDCB execution interface.
- * Synchronously execute a DDCB.
+ * Generic synchroyesus DDCB execution interface.
+ * Synchroyesusly execute a DDCB.
  *
  * Return: 0 on success or negative error code.
  *         -EINVAL: Invalid parameters (ASIV_LEN, ASV_LEN, illegal fixups
- *                  no mappings found/could not create mappings
+ *                  yes mappings found/could yest create mappings
  *         -EFAULT: illegal addresses in fixups, purging failed
  *         -EBADMSG: enqueing failed, retc != DDCB_RETC_COMPLETE
  */

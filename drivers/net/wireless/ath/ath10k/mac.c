@@ -266,7 +266,7 @@ static int ath10k_send_key(struct ath10k_vif *arvif,
 		WARN_ON(1);
 		return -EINVAL;
 	default:
-		ath10k_warn(ar, "cipher %d is not supported\n", key->cipher);
+		ath10k_warn(ar, "cipher %d is yest supported\n", key->cipher);
 		return -EOPNOTSUPP;
 	}
 
@@ -294,7 +294,7 @@ static int ath10k_install_key(struct ath10k_vif *arvif,
 
 	reinit_completion(&ar->install_key_done);
 
-	if (arvif->nohwcrypt)
+	if (arvif->yeshwcrypt)
 		return 1;
 
 	ret = ath10k_send_key(arvif, key, cmd, macaddr, flags);
@@ -369,7 +369,7 @@ static int ath10k_install_peer_wep_keys(struct ath10k_vif *arvif,
 		spin_unlock_bh(&ar->data_lock);
 	}
 
-	/* In some cases (notably with static WEP IBSS with multiple keys)
+	/* In some cases (yestably with static WEP IBSS with multiple keys)
 	 * multicast Tx becomes broken. Both pairwise and groupwise keys are
 	 * installed already. Using WMI_KEY_TX_USAGE in different combinations
 	 * didn't seem help. Using def_keyid vdev parameter seems to be
@@ -401,7 +401,7 @@ static int ath10k_clear_peer_keys(struct ath10k_vif *arvif,
 {
 	struct ath10k *ar = arvif->ar;
 	struct ath10k_peer *peer;
-	int first_errno = 0;
+	int first_erryes = 0;
 	int ret;
 	int i;
 	u32 flags = 0;
@@ -419,11 +419,11 @@ static int ath10k_clear_peer_keys(struct ath10k_vif *arvif,
 		if (peer->keys[i] == NULL)
 			continue;
 
-		/* key flags are not required to delete the key */
+		/* key flags are yest required to delete the key */
 		ret = ath10k_install_key(arvif, peer->keys[i],
 					 DISABLE_KEY, addr, flags);
-		if (ret < 0 && first_errno == 0)
-			first_errno = ret;
+		if (ret < 0 && first_erryes == 0)
+			first_erryes = ret;
 
 		if (ret < 0)
 			ath10k_warn(ar, "failed to remove peer wep key %d: %d\n",
@@ -434,7 +434,7 @@ static int ath10k_clear_peer_keys(struct ath10k_vif *arvif,
 		spin_unlock_bh(&ar->data_lock);
 	}
 
-	return first_errno;
+	return first_erryes;
 }
 
 bool ath10k_mac_is_peer_wep_key_set(struct ath10k *ar, const u8 *addr,
@@ -445,7 +445,7 @@ bool ath10k_mac_is_peer_wep_key_set(struct ath10k *ar, const u8 *addr,
 
 	lockdep_assert_held(&ar->data_lock);
 
-	/* We don't know which vdev this peer belongs to,
+	/* We don't kyesw which vdev this peer belongs to,
 	 * since WMI doesn't give us that information.
 	 *
 	 * FIXME: multi-bss needs to be handled.
@@ -468,7 +468,7 @@ static int ath10k_clear_vdev_key(struct ath10k_vif *arvif,
 	struct ath10k *ar = arvif->ar;
 	struct ath10k_peer *peer;
 	u8 addr[ETH_ALEN];
-	int first_errno = 0;
+	int first_erryes = 0;
 	int ret;
 	int i;
 	u32 flags = 0;
@@ -497,17 +497,17 @@ static int ath10k_clear_vdev_key(struct ath10k_vif *arvif,
 
 		if (i == ARRAY_SIZE(peer->keys))
 			break;
-		/* key flags are not required to delete the key */
+		/* key flags are yest required to delete the key */
 		ret = ath10k_install_key(arvif, key, DISABLE_KEY, addr, flags);
-		if (ret < 0 && first_errno == 0)
-			first_errno = ret;
+		if (ret < 0 && first_erryes == 0)
+			first_erryes = ret;
 
 		if (ret)
 			ath10k_warn(ar, "failed to remove key for %pM: %d\n",
 				    addr, ret);
 	}
 
-	return first_errno;
+	return first_erryes;
 }
 
 static int ath10k_mac_vif_update_wep_key(struct ath10k_vif *arvif,
@@ -614,7 +614,7 @@ static u8 ath10k_parse_mpdudensity(u8 mpdudensity)
 {
 /*
  * 802.11n D2.0 defined values for "Minimum MPDU Start Spacing":
- *   0 for no restriction
+ *   0 for yes restriction
  *   1 for 1/4 us
  *   2 for 1/2 us
  *   3 for 1 us
@@ -1223,7 +1223,7 @@ static bool ath10k_mac_monitor_vdev_is_needed(struct ath10k *ar)
 		return false;
 
 	/* If there's already an existing special monitor interface then don't
-	 * bother creating another monitor vdev.
+	 * bother creating ayesther monitor vdev.
 	 */
 	if (ar->monitor_arvif)
 		return false;
@@ -1274,7 +1274,7 @@ static int ath10k_monitor_recalc(struct ath10k *ar)
 			if (ret)
 				ath10k_warn(ar, "failed to stop disallowed monitor: %d\n",
 					    ret);
-				/* not serious */
+				/* yest serious */
 		}
 
 		return -EPERM;
@@ -1296,7 +1296,7 @@ static bool ath10k_mac_can_set_cts_prot(struct ath10k_vif *arvif)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	if (!arvif->is_started) {
-		ath10k_dbg(ar, ATH10K_DBG_MAC, "defer cts setup, vdev is not ready yet\n");
+		ath10k_dbg(ar, ATH10K_DBG_MAC, "defer cts setup, vdev is yest ready yet\n");
 		return false;
 	}
 
@@ -1369,7 +1369,7 @@ static int ath10k_stop_cac(struct ath10k *ar)
 {
 	lockdep_assert_held(&ar->conf_mutex);
 
-	/* CAC is not running - do nothing */
+	/* CAC is yest running - do yesthing */
 	if (!test_bit(ATH10K_CAC_RUNNING, &ar->dev_flags))
 		return 0;
 
@@ -1420,7 +1420,7 @@ static void ath10k_recalc_radar_detection(struct ath10k *ar)
 	if (ret) {
 		/*
 		 * Not possible to start CAC on current channel so starting
-		 * radiation is not allowed, make this channel DFS_UNAVAILABLE
+		 * radiation is yest allowed, make this channel DFS_UNAVAILABLE
 		 * by indicating that radar was detected.
 		 */
 		ath10k_warn(ar, "failed to start CAC: %d\n", ret);
@@ -1494,7 +1494,7 @@ static int ath10k_vdev_start_restart(struct ath10k_vif *arvif,
 		arg.ssid_len = arvif->u.ap.ssid_len;
 		arg.hidden_ssid = arvif->u.ap.hidden_ssid;
 
-		/* For now allow DFS for AP mode */
+		/* For yesw allow DFS for AP mode */
 		arg.channel.chan_radar =
 			!!(chandef->chan->flags & IEEE80211_CHAN_RADAR);
 	} else if (arvif->vdev_type == WMI_VDEV_TYPE_IBSS) {
@@ -1696,7 +1696,7 @@ static int ath10k_mac_vif_fix_hidden_ssid(struct ath10k_vif *arvif)
 	int ret;
 
 	/* When originally vdev is started during assign_vif_chanctx() some
-	 * information is missing, notably SSID. Firmware revisions with beacon
+	 * information is missing, yestably SSID. Firmware revisions with beacon
 	 * offloading require the SSID to be provided during vdev (re)start to
 	 * handle hidden SSID properly.
 	 *
@@ -1706,7 +1706,7 @@ static int ath10k_mac_vif_fix_hidden_ssid(struct ath10k_vif *arvif)
 	 * syncing in ath10k.
 	 *
 	 * Note: The vdev down/up and template reinstallation could be skipped
-	 * since only wmi-tlv firmware are known to have beacon offload and
+	 * since only wmi-tlv firmware are kyeswn to have beacon offload and
 	 * wmi-tlv doesn't seem to misbehave like 10.2 wrt vdev restart
 	 * response delivery. It's probably more robust to keep it as is.
 	 */
@@ -1786,7 +1786,7 @@ static void ath10k_control_beaconing(struct ath10k_vif *arvif,
 		return;
 	}
 
-	arvif->tx_seq_no = 0x1000;
+	arvif->tx_seq_yes = 0x1000;
 
 	arvif->aid = 0;
 	ether_addr_copy(arvif->bssid, info->bssid);
@@ -1924,7 +1924,7 @@ static int ath10k_mac_vif_setup_ps(struct ath10k_vif *arvif)
 	if (enable_ps && ath10k_mac_num_vifs_started(ar) > 1 &&
 	    !test_bit(ATH10K_FW_FEATURE_MULTI_VIF_PS_SUPPORT,
 		      ar->running_fw->fw_file.fw_features)) {
-		ath10k_warn(ar, "refusing to enable ps on vdev %i: not supported by fw\n",
+		ath10k_warn(ar, "refusing to enable ps on vdev %i: yest supported by fw\n",
 			    arvif->vdev_id);
 		enable_ps = false;
 	}
@@ -1932,8 +1932,8 @@ static int ath10k_mac_vif_setup_ps(struct ath10k_vif *arvif)
 	if (!arvif->is_started) {
 		/* mac80211 can update vif powersave state while disconnected.
 		 * Firmware doesn't behave nicely and consumes more power than
-		 * necessary if PS is disabled on a non-started vdev. Hence
-		 * force-enable PS for non-running vdevs.
+		 * necessary if PS is disabled on a yesn-started vdev. Hence
+		 * force-enable PS for yesn-running vdevs.
 		 */
 		psmode = WMI_STA_PS_MODE_ENABLED;
 	} else if (enable_ps) {
@@ -1985,7 +1985,7 @@ static int ath10k_mac_vif_disable_keepalive(struct ath10k_vif *arvif)
 	if (!test_bit(WMI_SERVICE_STA_KEEP_ALIVE, ar->wmi.svc_map))
 		return 0;
 
-	/* Some firmware revisions have a bug and ignore the `enabled` field.
+	/* Some firmware revisions have a bug and igyesre the `enabled` field.
 	 * Instead use the interval to disable the keepalive.
 	 */
 	arg.vdev_id = arvif->vdev_id;
@@ -2092,7 +2092,7 @@ static void ath10k_mac_handle_beacon_miss_iter(void *data, u8 *mac,
 	ieee80211_beacon_loss(vif);
 
 	/* Firmware doesn't report beacon loss events repeatedly. If AP probe
-	 * (done by mac80211) succeeds but beacons do not resume then it
+	 * (done by mac80211) succeeds but beacons do yest resume then it
 	 * doesn't make sense to continue operation. Queue connection loss work
 	 * which can be cancelled when beacon is received.
 	 */
@@ -2363,7 +2363,7 @@ static void ath10k_peer_assoc_h_ht(struct ath10k *ar,
 
 	/*
 	 * This is a workaround for HT-enabled STAs which break the spec
-	 * and have no HT capabilities RX mask (no HT RX MCS map).
+	 * and have yes HT capabilities RX mask (yes HT RX MCS map).
 	 *
 	 * As per spec, in section 20.3.5 Modulation and coding scheme (MCS),
 	 * MCS 0 through 7 are mandatory in 20MHz with 800 ns GI at all STAs.
@@ -2436,7 +2436,7 @@ static int ath10k_peer_assoc_qos_ap(struct ath10k *ar,
 		}
 
 		/* TODO setup this based on STA listen interval and
-		 * beacon interval. Currently we don't know
+		 * beacon interval. Currently we don't kyesw
 		 * sta->listen_interval - mac80211 patch required.
 		 * Currently use 10 seconds
 		 */
@@ -2645,7 +2645,7 @@ static enum wmi_phy_mode ath10k_mac_get_phymode_vht(struct ath10k *ar,
 		case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ:
 			return MODE_11AC_VHT80_80;
 		default:
-			/* not sure if this is a valid case? */
+			/* yest sure if this is a valid case? */
 			return MODE_11AC_VHT160;
 		}
 	}
@@ -3134,9 +3134,9 @@ static int ath10k_update_channel_list(struct ath10k *ar)
 			passive = channel->flags & IEEE80211_CHAN_NO_IR;
 			ch->passive = passive;
 
-			/* the firmware is ignoring the "radar" flag of the
+			/* the firmware is igyesring the "radar" flag of the
 			 * channel and is scanning actively using Probe Requests
-			 * on "Radar detection"/DFS channels which are not
+			 * on "Radar detection"/DFS channels which are yest
 			 * marked as "available"
 			 */
 			ch->passive |= ch->chan_radar;
@@ -3149,7 +3149,7 @@ static int ath10k_update_channel_list(struct ath10k *ar)
 			ch->max_antenna_gain = channel->max_antenna_gain * 2;
 			ch->reg_class_id = 0; /* FIXME */
 
-			/* FIXME: why use only legacy modes, why not any
+			/* FIXME: why use only legacy modes, why yest any
 			 * HT/VHT modes? Would that even make any
 			 * difference?
 			 */
@@ -3244,14 +3244,14 @@ static void ath10k_mac_update_channel_list(struct ath10k *ar,
 	}
 }
 
-static void ath10k_reg_notifier(struct wiphy *wiphy,
+static void ath10k_reg_yestifier(struct wiphy *wiphy,
 				struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath10k *ar = hw->priv;
 	bool result;
 
-	ath_reg_notifier_apply(wiphy, request, &ar->ath_common.regulatory);
+	ath_reg_yestifier_apply(wiphy, request, &ar->ath_common.regulatory);
 
 	if (IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED) && ar->dfs_detector) {
 		ath10k_dbg(ar, ATH10K_DBG_REGULATORY, "dfs region 0x%x\n",
@@ -3259,7 +3259,7 @@ static void ath10k_reg_notifier(struct wiphy *wiphy,
 		result = ar->dfs_detector->set_dfs_domain(ar->dfs_detector,
 							  request->dfs_region);
 		if (!result)
-			ath10k_warn(ar, "DFS region 0x%X not supported, will trigger radar for every pulse\n",
+			ath10k_warn(ar, "DFS region 0x%X yest supported, will trigger radar for every pulse\n",
 				    request->dfs_region);
 	}
 
@@ -3378,7 +3378,7 @@ static void ath10k_mac_vif_handle_tx_pause(struct ath10k_vif *arvif,
 		break;
 	default:
 		ath10k_dbg(ar, ATH10K_DBG_BOOT,
-			   "received unknown tx pause action %d on vdev %i, ignoring\n",
+			   "received unkyeswn tx pause action %d on vdev %i, igyesring\n",
 			    action, arvif->vdev_id);
 		break;
 	}
@@ -3448,7 +3448,7 @@ ath10k_mac_tx_h_get_txmode(struct ath10k *ar,
 	 * Firmware with HTT older than 3.0 delivers incorrect tx status for
 	 * NullFunc frames to driver. However there's a HTT Mgmt Tx command
 	 * which seems to deliver correct tx reports for NullFunc frames. The
-	 * downside of using it is it ignores client powersave state so it can
+	 * downside of using it is it igyesres client powersave state so it can
 	 * end up disconnecting sleeping clients in AP mode. It should fix STA
 	 * mode though because AP don't sleep.
 	 */
@@ -3491,7 +3491,7 @@ static bool ath10k_tx_h_use_hwcrypto(struct ieee80211_vif *vif,
 		return false;
 
 	if (vif)
-		return !((struct ath10k_vif *)vif->drv_priv)->nohwcrypt;
+		return !((struct ath10k_vif *)vif->drv_priv)->yeshwcrypt;
 
 	return true;
 }
@@ -3551,7 +3551,7 @@ static void ath10k_tx_h_8023(struct sk_buff *skb)
 	eth->h_proto = type;
 }
 
-static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar,
+static void ath10k_tx_h_add_p2p_yesa_ie(struct ath10k *ar,
 				       struct ieee80211_vif *vif,
 				       struct sk_buff *skb)
 {
@@ -3564,11 +3564,11 @@ static void ath10k_tx_h_add_p2p_noa_ie(struct ath10k *ar,
 
 	if (unlikely(ieee80211_is_probe_resp(hdr->frame_control))) {
 		spin_lock_bh(&ar->data_lock);
-		if (arvif->u.ap.noa_data)
-			if (!pskb_expand_head(skb, 0, arvif->u.ap.noa_len,
+		if (arvif->u.ap.yesa_data)
+			if (!pskb_expand_head(skb, 0, arvif->u.ap.yesa_len,
 					      GFP_ATOMIC))
-				skb_put_data(skb, arvif->u.ap.noa_data,
-					     arvif->u.ap.noa_len);
+				skb_put_data(skb, arvif->u.ap.yesa_data,
+					     arvif->u.ap.yesa_len);
 		spin_unlock_bh(&ar->data_lock);
 	}
 }
@@ -3618,7 +3618,7 @@ bool ath10k_mac_tx_frm_has_freq(struct ath10k *ar)
 	 * because that's when the `freq` was introduced to TX_FRM HTT command.
 	 */
 	return (ar->htt.target_version_major >= 3 &&
-		ar->htt.target_version_minor >= 4 &&
+		ar->htt.target_version_miyesr >= 4 &&
 		ar->running_fw->fw_file.htt_op_version == ATH10K_FW_HTT_OP_VERSION_TLV);
 }
 
@@ -3703,13 +3703,13 @@ static int ath10k_mac_tx_submit(struct ath10k *ar,
 }
 
 /* This function consumes the sk_buff regardless of return value as far as
- * caller is concerned so no freeing is necessary afterwards.
+ * caller is concerned so yes freeing is necessary afterwards.
  */
 static int ath10k_mac_tx(struct ath10k *ar,
 			 struct ieee80211_vif *vif,
 			 enum ath10k_hw_txrx_mode txmode,
 			 enum ath10k_mac_tx_path txpath,
-			 struct sk_buff *skb, bool noque_offchan)
+			 struct sk_buff *skb, bool yesque_offchan)
 {
 	struct ieee80211_hw *hw = ar->hw;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -3724,8 +3724,8 @@ static int ath10k_mac_tx(struct ath10k *ar,
 	case ATH10K_HW_TXRX_MGMT:
 	case ATH10K_HW_TXRX_NATIVE_WIFI:
 		ath10k_tx_h_nwifi(hw, skb);
-		ath10k_tx_h_add_p2p_noa_ie(ar, vif, skb);
-		ath10k_tx_h_seq_no(vif, skb);
+		ath10k_tx_h_add_p2p_yesa_ie(ar, vif, skb);
+		ath10k_tx_h_seq_yes(vif, skb);
 		break;
 	case ATH10K_HW_TXRX_ETHERNET:
 		ath10k_tx_h_8023(skb);
@@ -3739,7 +3739,7 @@ static int ath10k_mac_tx(struct ath10k *ar,
 		}
 	}
 
-	if (!noque_offchan && info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) {
+	if (!yesque_offchan && info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) {
 		if (!ath10k_mac_tx_frm_has_freq(ar)) {
 			ath10k_dbg(ar, ATH10K_DBG_MAC, "mac queued offchannel skb %pK len %d\n",
 				   skb, skb->len);
@@ -3855,7 +3855,7 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 		if (ret) {
 			ath10k_warn(ar, "failed to transmit offchannel frame: %d\n",
 				    ret);
-			/* not serious */
+			/* yest serious */
 		}
 
 		time_left =
@@ -3999,8 +3999,8 @@ static bool ath10k_mac_tx_can_push(struct ieee80211_hw *hw,
 }
 
 /* Return estimated airtime in microsecond, which is calculated using last
- * reported TX rate. This is just a rough estimation because host driver has no
- * knowledge of the actual transmit rate, retries or aggregation. If actual
+ * reported TX rate. This is just a rough estimation because host driver has yes
+ * kyeswledge of the actual transmit rate, retries or aggregation. If actual
  * airtime can be reported by firmware, then delta between estimated and actual
  * airtime can be adjusted from deficit.
  */
@@ -4182,7 +4182,7 @@ void __ath10k_scan_finish(struct ath10k *ar)
 			};
 
 			ieee80211_scan_completed(ar->hw, &info);
-		} else if (ar->scan.roc_notify) {
+		} else if (ar->scan.roc_yestify) {
 			ieee80211_remain_on_channel_expired(ar->hw);
 		}
 		/* fall through */
@@ -4312,7 +4312,7 @@ static int ath10k_start_scan(struct ath10k *ar,
 
 	/* If we failed to start the scan, return error code at
 	 * this point.  This is probably due to some issue in the
-	 * firmware, but no need to wedge the driver due to that...
+	 * firmware, but yes need to wedge the driver due to that...
 	 */
 	spin_lock_bh(&ar->data_lock);
 	if (ar->scan.state == ATH10K_SCAN_IDLE) {
@@ -4423,7 +4423,7 @@ out:
 	ieee80211_txq_schedule_end(hw, ac);
 }
 
-/* Must not be called with conf_mutex held as workers can use that also. */
+/* Must yest be called with conf_mutex held as workers can use that also. */
 void ath10k_drain_tx(struct ath10k *ar)
 {
 	/* make sure rcu-protected mac80211 tx path itself is drained */
@@ -4481,8 +4481,8 @@ static int ath10k_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
 
 static void ath10k_check_chain_mask(struct ath10k *ar, u32 cm, const char *dbg)
 {
-	/* It is not clear that allowing gaps in chainmask
-	 * is helpful.  Probably it will not do what user
+	/* It is yest clear that allowing gaps in chainmask
+	 * is helpful.  Probably it will yest do what user
 	 * is hoping for, so warn in that case.
 	 */
 	if (cm == 15 || cm == 7 || cm == 3 || cm == 1 || cm == 0)
@@ -4499,7 +4499,7 @@ static int ath10k_mac_get_vht_cap_bf_sts(struct ath10k *ar)
 	nsts &= IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
 	nsts >>= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
 
-	/* If firmware does not deliver to host number of space-time
+	/* If firmware does yest deliver to host number of space-time
 	 * streams supported, assume it support up to 4 BF STS and return
 	 * the value for VHT CAP: nsts-1)
 	 */
@@ -4516,7 +4516,7 @@ static int ath10k_mac_get_vht_cap_bf_sound_dim(struct ath10k *ar)
 	sound_dim &= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK;
 	sound_dim >>= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT;
 
-	/* If the sounding dimension is not advertised by the firmware,
+	/* If the sounding dimension is yest advertised by the firmware,
 	 * let's use a default value of 1
 	 */
 	if (sound_dim == 0)
@@ -4728,21 +4728,21 @@ static int ath10k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 static int __ath10k_fetch_bb_timing_dt(struct ath10k *ar,
 				       struct wmi_bb_timing_cfg_arg *bb_timing)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	const char *fem_name;
 	int ret;
 
-	node = ar->dev->of_node;
-	if (!node)
+	yesde = ar->dev->of_yesde;
+	if (!yesde)
 		return -ENOENT;
 
-	ret = of_property_read_string_index(node, "ext-fem-name", 0, &fem_name);
+	ret = of_property_read_string_index(yesde, "ext-fem-name", 0, &fem_name);
 	if (ret)
 		return -ENOENT;
 
 	/*
 	 * If external Front End module used in hardware, then default base band timing
-	 * parameter cannot be used since they were fine tuned for reference hardware,
+	 * parameter canyest be used since they were fine tuned for reference hardware,
 	 * so choosing different value suitable for that external FEM.
 	 */
 	if (!strcmp("microsemi-lx5586", fem_name)) {
@@ -4763,7 +4763,7 @@ static int ath10k_mac_rfkill_config(struct ath10k *ar)
 	int ret;
 
 	if (ar->hw_values->rfkill_pin == 0) {
-		ath10k_warn(ar, "ath10k does not support hardware rfkill with this device\n");
+		ath10k_warn(ar, "ath10k does yest support hardware rfkill with this device\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -4823,7 +4823,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 
 	/*
 	 * This makes sense only when restarting hw. It is harmless to call
-	 * unconditionally. This is necessary to make sure no HTT/WMI tx
+	 * unconditionally. This is necessary to make sure yes HTT/WMI tx
 	 * commands will be submitted while restarting.
 	 */
 	ath10k_drain_tx(ar);
@@ -4860,14 +4860,14 @@ static int ath10k_start(struct ieee80211_hw *hw)
 
 	ret = ath10k_hif_power_up(ar, ATH10K_FIRMWARE_MODE_NORMAL);
 	if (ret) {
-		ath10k_err(ar, "Could not init hif: %d\n", ret);
+		ath10k_err(ar, "Could yest init hif: %d\n", ret);
 		goto err_off;
 	}
 
 	ret = ath10k_core_start(ar, ATH10K_FIRMWARE_MODE_NORMAL,
-				&ar->normal_mode_fw);
+				&ar->yesrmal_mode_fw);
 	if (ret) {
-		ath10k_err(ar, "Could not init core: %d\n", ret);
+		ath10k_err(ar, "Could yest init core: %d\n", ret);
 		goto err_power_down;
 	}
 
@@ -4930,7 +4930,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 
 	/*
 	 * By default FW set ARP frames ac to voice (6). In that case ARP
-	 * exchange is not working properly for UAPSD enabled AP. ARP requests
+	 * exchange is yest working properly for UAPSD enabled AP. ARP requests
 	 * which arrives with access category 0 are processed by network stack
 	 * and send back with access category 0, but FW changes access category
 	 * to 6. Set ARP frames access category to best effort (0) solves
@@ -5249,7 +5249,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	}
 
 	if (ar->free_vdev_map == 0) {
-		ath10k_warn(ar, "Free vdev map is empty, no more interfaces allowed.\n");
+		ath10k_warn(ar, "Free vdev map is empty, yes more interfaces allowed.\n");
 		ret = -EBUSY;
 		goto err;
 	}
@@ -5314,16 +5314,16 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		vif->hw_queue[i] = arvif->vdev_id % (IEEE80211_MAX_QUEUES - 1);
 
 	/* Some firmware revisions don't wait for beacon tx completion before
-	 * sending another SWBA event. This could lead to hardware using old
+	 * sending ayesther SWBA event. This could lead to hardware using old
 	 * (freed) beacon data in some cases, e.g. tx credit starvation
 	 * combined with missed TBTT. This is very very rare.
 	 *
-	 * On non-IOMMU-enabled hosts this could be a possible security issue
+	 * On yesn-IOMMU-enabled hosts this could be a possible security issue
 	 * because hw could beacon some random data on the air.  On
 	 * IOMMU-enabled hosts DMAR faults would occur in most cases and target
 	 * device would crash.
 	 *
-	 * Since there are no beacon tx completions (implicit nor explicit)
+	 * Since there are yes beacon tx completions (implicit yesr explicit)
 	 * propagated to host the only workaround for this is to allocate a
 	 * DMA-coherent buffer for a lifetime of a vif and use it for all
 	 * beacon tx commands. Worst case for this approach is some beacons may
@@ -5344,9 +5344,9 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		}
 	}
 	if (test_bit(ATH10K_FLAG_HW_CRYPTO_DISABLED, &ar->dev_flags))
-		arvif->nohwcrypt = true;
+		arvif->yeshwcrypt = true;
 
-	if (arvif->nohwcrypt &&
+	if (arvif->yeshwcrypt &&
 	    !test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags)) {
 		ath10k_warn(ar, "cryptmode module param needed for sw crypto\n");
 		goto err;
@@ -5380,7 +5380,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	list_add(&arvif->list, &ar->arvifs);
 	spin_unlock_bh(&ar->data_lock);
 
-	/* It makes no sense to have firmware do keepalives. mac80211 already
+	/* It makes yes sense to have firmware do keepalives. mac80211 already
 	 * takes care of this with idle connection polling.
 	 */
 	ret = ath10k_mac_vif_disable_keepalive(arvif);
@@ -5395,7 +5395,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 	vdev_param = ar->wmi.vdev_param->tx_encap_type;
 	ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
 					ATH10K_HW_TXRX_NATIVE_WIFI);
-	/* 10.X firmware does not support this VDEV parameter. Do not warn */
+	/* 10.X firmware does yest support this VDEV parameter. Do yest warn */
 	if (ret && ret != -EOPNOTSUPP) {
 		ath10k_warn(ar, "failed to set vdev %i TX encapsulation: %d\n",
 			    arvif->vdev_id, ret);
@@ -5509,7 +5509,7 @@ static int ath10k_add_interface(struct ieee80211_hw *hw,
 		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
 						arvif->ftm_responder);
 
-		/* It is harmless to not set FTM role. Do not warn */
+		/* It is harmless to yest set FTM role. Do yest warn */
 		if (ret && ret != -EOPNOTSUPP)
 			ath10k_warn(ar, "failed to set vdev %i FTM Responder: %d\n",
 				    arvif->vdev_id, ret);
@@ -5602,7 +5602,7 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 
 		ath10k_wait_for_peer_delete_done(ar, arvif->vdev_id,
 						 vif->addr);
-		kfree(arvif->u.ap.noa_data);
+		kfree(arvif->u.ap.yesa_data);
 	}
 
 	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac vdev %i delete (remove interface)\n",
@@ -5622,7 +5622,7 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 		}
 	}
 
-	/* Some firmware revisions don't notify host about self-peer removal
+	/* Some firmware revisions don't yestify host about self-peer removal
 	 * until after associated vdev is deleted.
 	 */
 	if (arvif->vdev_type == WMI_VDEV_TYPE_AP ||
@@ -5734,7 +5734,7 @@ static void ath10k_recalculate_mgmt_rate(struct ath10k *ar,
 
 	hw_rate_code = ath10k_mac_get_rate_hw_value(bitrate);
 	if (hw_rate_code < 0) {
-		ath10k_warn(ar, "bitrate not supported %d\n", bitrate);
+		ath10k_warn(ar, "bitrate yest supported %d\n", bitrate);
 		return;
 	}
 
@@ -5907,7 +5907,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (info->assoc) {
-			/* Workaround: Make sure monitor vdev is not running
+			/* Workaround: Make sure monitor vdev is yest running
 			 * when associating to prevent some firmware revisions
 			 * (e.g. 10.1 and 10.2) from crashing.
 			 */
@@ -5993,7 +5993,7 @@ static void ath10k_mac_op_set_coverage_class(struct ieee80211_hw *hw, s16 value)
 	struct ath10k *ar = hw->priv;
 
 	/* This function should never be called if setting the coverage class
-	 * is not supported on this hardware.
+	 * is yest supported on this hardware.
 	 */
 	if (!ar->hw_params.hw_ops->set_coverage_class) {
 		WARN_ON_ONCE(1);
@@ -6157,12 +6157,12 @@ static void ath10k_set_key_h_def_keyidx(struct ath10k *ar,
 
 	/* 10.1 firmware branch requires default key index to be set to group
 	 * key index after installing it. Otherwise FW/HW Txes corrupted
-	 * frames with multi-vif APs. This is not required for main firmware
+	 * frames with multi-vif APs. This is yest required for main firmware
 	 * branch (e.g. 636).
 	 *
 	 * This is also needed for 636 fw for IBSS-RSN to work more reliably.
 	 *
-	 * FIXME: It remains unknown if this is required for multi-vif STA
+	 * FIXME: It remains unkyeswn if this is required for multi-vif STA
 	 * interfaces on 10.1.
 	 */
 
@@ -6211,7 +6211,7 @@ static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	    key->cipher == WLAN_CIPHER_SUITE_BIP_CMAC_256)
 		return 1;
 
-	if (arvif->nohwcrypt)
+	if (arvif->yeshwcrypt)
 		return 1;
 
 	if (key->keyidx > WMI_MAX_KEY_INDEX)
@@ -6235,8 +6235,8 @@ static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			arvif->wep_keys[key->keyidx] = NULL;
 	}
 
-	/* the peer should not disappear in mid-way (unless FW goes awry) since
-	 * we already hold conf_mutex. we just make sure its there now.
+	/* the peer should yest disappear in mid-way (unless FW goes awry) since
+	 * we already hold conf_mutex. we just make sure its there yesw.
 	 */
 	spin_lock_bh(&ar->data_lock);
 	peer = ath10k_peer_find(ar, arvif->vdev_id, peer_addr);
@@ -6244,12 +6244,12 @@ static int ath10k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (!peer) {
 		if (cmd == SET_KEY) {
-			ath10k_warn(ar, "failed to install key for non-existent peer %pM\n",
+			ath10k_warn(ar, "failed to install key for yesn-existent peer %pM\n",
 				    peer_addr);
 			ret = -EOPNOTSUPP;
 			goto exit;
 		} else {
-			/* if the peer doesn't exist there is no key to disable anymore */
+			/* if the peer doesn't exist there is yes key to disable anymore */
 			goto exit;
 		}
 	}
@@ -6953,7 +6953,7 @@ static int ath10k_conf_tx(struct ieee80211_hw *hw,
 		}
 	} else {
 		/* This won't work well with multi-interface cases but it's
-		 * better than nothing.
+		 * better than yesthing.
 		 */
 		ret = ath10k_wmi_pdev_set_wmm_params(ar, &arvif->wmm_params);
 		if (ret) {
@@ -7002,7 +7002,7 @@ static int ath10k_remain_on_channel(struct ieee80211_hw *hw,
 		ar->scan.is_roc = true;
 		ar->scan.vdev_id = arvif->vdev_id;
 		ar->scan.roc_freq = chan->center_freq;
-		ar->scan.roc_notify = true;
+		ar->scan.roc_yestify = true;
 		ret = 0;
 		break;
 	case ATH10K_SCAN_STARTING:
@@ -7069,7 +7069,7 @@ static int ath10k_cancel_remain_on_channel(struct ieee80211_hw *hw,
 	mutex_lock(&ar->conf_mutex);
 
 	spin_lock_bh(&ar->data_lock);
-	ar->scan.roc_notify = false;
+	ar->scan.roc_yestify = false;
 	spin_unlock_bh(&ar->data_lock);
 
 	ath10k_scan_abort(ar);
@@ -7111,8 +7111,8 @@ static int ath10k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 static int ath10k_mac_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 {
-	/* Even though there's a WMI enum for fragmentation threshold no known
-	 * firmware actually implements it. Moreover it is not possible to rely
+	/* Even though there's a WMI enum for fragmentation threshold yes kyeswn
+	 * firmware actually implements it. Moreover it is yest possible to rely
 	 * frame fragmentation to mac80211 because firmware clears the "more
 	 * fragments" bit in frame control making it impossible for remote
 	 * devices to reassemble frames.
@@ -7129,7 +7129,7 @@ void ath10k_mac_wait_tx_complete(struct ath10k *ar)
 	bool skip;
 	long time_left;
 
-	/* mac80211 doesn't care if we really xmit queued frames or not
+	/* mac80211 doesn't care if we really xmit queued frames or yest
 	 * we'll collect those frames either way if we stop/delete vdevs
 	 */
 
@@ -7180,7 +7180,7 @@ static void ath10k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 /* TODO: Implement this function properly
- * For now it is needed to reply to Probe Requests in IBSS mode.
+ * For yesw it is needed to reply to Probe Requests in IBSS mode.
  * Propably we need this information from FW.
  */
 static int ath10k_tx_last_beacon(struct ieee80211_hw *hw)
@@ -7224,7 +7224,7 @@ ath10k_mac_update_bss_chan_survey(struct ath10k *ar,
 		return;
 
 	if (ar->scan.state != ATH10K_SCAN_IDLE) {
-		ath10k_dbg(ar, ATH10K_DBG_MAC, "ignoring bss chan info request while scanning..\n");
+		ath10k_dbg(ar, ATH10K_DBG_MAC, "igyesring bss chan info request while scanning..\n");
 		return;
 	}
 
@@ -7474,7 +7474,7 @@ ath10k_mac_can_set_bitrate_mask(struct ath10k *ar,
 
 	/* Due to firmware limitation in WMI_PEER_ASSOC_CMDID it is impossible
 	 * to express all VHT MCS rate masks. Effectively only the following
-	 * ranges can be used: none, 0-7, 0-8 and 0-9.
+	 * ranges can be used: yesne, 0-7, 0-8 and 0-9.
 	 */
 	for (i = 0; i < NL80211_VHT_NSS_MAX; i++) {
 		vht_mcs = mask->control[band].vht_mcs[i];
@@ -7502,7 +7502,7 @@ static bool ath10k_mac_set_vht_bitrate_mask_fixup(struct ath10k *ar,
 	int err;
 	u8 rate = arvif->vht_pfr;
 
-	/* skip non vht and multiple rate peers */
+	/* skip yesn vht and multiple rate peers */
 	if (!sta->vht_cap.vht_supported || arvif->vht_num_rates != 1)
 		return false;
 
@@ -7588,7 +7588,7 @@ static int ath10k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 		return -EINVAL;
 
 	allow_pfr = test_bit(ATH10K_FW_FEATURE_PEER_FIXED_RATE,
-			     ar->normal_mode_fw.fw_file.fw_features);
+			     ar->yesrmal_mode_fw.fw_file.fw_features);
 	if (allow_pfr) {
 		mutex_lock(&ar->conf_mutex);
 		ieee80211_iterate_stations_atomic(ar->hw,
@@ -7827,13 +7827,13 @@ ath10k_mac_update_rx_channel(struct ath10k *ar,
 	WARN_ON(vifs && !n_vifs);
 
 	/* FIXME: Sort of an optimization and a workaround. Peers and vifs are
-	 * on a linked list now. Doing a lookup peer -> vif -> chanctx for each
+	 * on a linked list yesw. Doing a lookup peer -> vif -> chanctx for each
 	 * ppdu on Rx may reduce performance on low-end systems. It should be
 	 * possible to make tables/hashmaps to speed the lookup up (be vary of
 	 * cpu data cache lines though regarding sizes) but to keep the initial
 	 * implementation simple and less intrusive fallback to the slow lookup
 	 * only for multi-channel cases. Single-channel cases will remain to
-	 * use the old channel derival and thus performance should not be
+	 * use the old channel derival and thus performance should yest be
 	 * affected much.
 	 */
 	rcu_read_lock();
@@ -7903,7 +7903,7 @@ ath10k_mac_update_vif_chan(struct ath10k *ar,
 	}
 
 	/* All relevant vdevs are downed and associated channel resources
-	 * should be available for the channel switch now.
+	 * should be available for the channel switch yesw.
 	 */
 
 	spin_lock_bh(&ar->data_lock);
@@ -8082,7 +8082,7 @@ radar:
 	/* FIXME: How to configure Rx chains properly? */
 
 	/* No other actions are actually necessary. Firmware maintains channel
-	 * definitions per vdev internally and there's no host-side channel
+	 * definitions per vdev internally and there's yes host-side channel
 	 * context abstraction to configure, e.g. channel width.
 	 */
 
@@ -8540,7 +8540,7 @@ static const struct ieee80211_iface_limit ath10k_tlv_if_limit_ibss[] = {
 	},
 };
 
-/* FIXME: This is not thouroughly tested. These combinations may over- or
+/* FIXME: This is yest thouroughly tested. These combinations may over- or
  * underestimate hw/fw capabilities.
  */
 static struct ieee80211_iface_combination ath10k_tlv_if_comb[] = {
@@ -8673,7 +8673,7 @@ static u32 ath10k_mac_wrdd_get_mcc(struct ath10k *ar, union acpi_object *wrdd)
 	    wrdd->package.count < 2 ||
 	    wrdd->package.elements[0].type != ACPI_TYPE_INTEGER ||
 	    wrdd->package.elements[0].integer.value != 0) {
-		ath10k_warn(ar, "ignoring malformed/unsupported wrdd structure\n");
+		ath10k_warn(ar, "igyesring malformed/unsupported wrdd structure\n");
 		return 0;
 	}
 
@@ -8769,7 +8769,7 @@ int ath10k_mac_register(struct ath10k *ar)
 		WLAN_CIPHER_SUITE_TKIP,
 		WLAN_CIPHER_SUITE_CCMP,
 
-		/* Do not add hardware supported ciphers before this line.
+		/* Do yest add hardware supported ciphers before this line.
 		 * Allow software encryption for all chips. Don't forget to
 		 * update n_cipher_suites below.
 		 */
@@ -8853,7 +8853,7 @@ int ath10k_mac_register(struct ath10k *ar)
 	ar->hw->wiphy->available_antennas_rx = ar->cfg_rx_chainmask;
 	ar->hw->wiphy->available_antennas_tx = ar->cfg_tx_chainmask;
 
-	if (!test_bit(ATH10K_FW_FEATURE_NO_P2P, ar->normal_mode_fw.fw_file.fw_features))
+	if (!test_bit(ATH10K_FW_FEATURE_NO_P2P, ar->yesrmal_mode_fw.fw_file.fw_features))
 		ar->hw->wiphy->interface_modes |=
 			BIT(NL80211_IFTYPE_P2P_DEVICE) |
 			BIT(NL80211_IFTYPE_P2P_CLIENT) |
@@ -9054,12 +9054,12 @@ int ath10k_mac_register(struct ath10k *ar)
 		goto err_dfs_detector_exit;
 	}
 
-	/* Disable set_coverage_class for chipsets that do not support it. */
+	/* Disable set_coverage_class for chipsets that do yest support it. */
 	if (!ar->hw_params.hw_ops->set_coverage_class)
 		ar->ops->set_coverage_class = NULL;
 
 	ret = ath_regd_init(&ar->ath_common.regulatory, ar->hw->wiphy,
-			    ath10k_reg_notifier);
+			    ath10k_reg_yestifier);
 	if (ret) {
 		ath10k_err(ar, "failed to initialise regulatory: %i\n", ret);
 		goto err_dfs_detector_exit;
@@ -9072,7 +9072,7 @@ int ath10k_mac_register(struct ath10k *ar)
 
 	ar->hw->wiphy->cipher_suites = cipher_suites;
 
-	/* QCA988x and QCA6174 family chips do not support CCMP-256, GCMP-128
+	/* QCA988x and QCA6174 family chips do yest support CCMP-256, GCMP-128
 	 * and GCMP-256 ciphers in hardware. Fetch number of ciphers supported
 	 * from chip specific hw_param table.
 	 */

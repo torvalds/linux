@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
@@ -30,7 +30,7 @@
  * @iov: An array of IOVEC structures containing user space buffers.
  * @iovcnt: Number of IOVEC structures in iov.
  * @vr_idx: The vring index.
- * @update_used: A non zero value results in used index being updated.
+ * @update_used: A yesn zero value results in used index being updated.
  * @out_len: The aggregate of the total length written to or read from
  *	the virtio device.
  */

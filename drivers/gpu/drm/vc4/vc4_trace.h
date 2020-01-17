@@ -14,42 +14,42 @@
 #define TRACE_SYSTEM vc4
 #define TRACE_INCLUDE_FILE vc4_trace
 
-TRACE_EVENT(vc4_wait_for_seqno_begin,
-	    TP_PROTO(struct drm_device *dev, uint64_t seqno, uint64_t timeout),
-	    TP_ARGS(dev, seqno, timeout),
+TRACE_EVENT(vc4_wait_for_seqyes_begin,
+	    TP_PROTO(struct drm_device *dev, uint64_t seqyes, uint64_t timeout),
+	    TP_ARGS(dev, seqyes, timeout),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
-			     __field(u64, seqno)
+			     __field(u64, seqyes)
 			     __field(u64, timeout)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->dev = dev->primary->index;
-			   __entry->seqno = seqno;
+			   __entry->seqyes = seqyes;
 			   __entry->timeout = timeout;
 			   ),
 
-	    TP_printk("dev=%u, seqno=%llu, timeout=%llu",
-		      __entry->dev, __entry->seqno, __entry->timeout)
+	    TP_printk("dev=%u, seqyes=%llu, timeout=%llu",
+		      __entry->dev, __entry->seqyes, __entry->timeout)
 );
 
-TRACE_EVENT(vc4_wait_for_seqno_end,
-	    TP_PROTO(struct drm_device *dev, uint64_t seqno),
-	    TP_ARGS(dev, seqno),
+TRACE_EVENT(vc4_wait_for_seqyes_end,
+	    TP_PROTO(struct drm_device *dev, uint64_t seqyes),
+	    TP_ARGS(dev, seqyes),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
-			     __field(u64, seqno)
+			     __field(u64, seqyes)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->dev = dev->primary->index;
-			   __entry->seqno = seqno;
+			   __entry->seqyes = seqyes;
 			   ),
 
-	    TP_printk("dev=%u, seqno=%llu",
-		      __entry->dev, __entry->seqno)
+	    TP_printk("dev=%u, seqyes=%llu",
+		      __entry->dev, __entry->seqyes)
 );
 
 #endif /* _VC4_TRACE_H_ */

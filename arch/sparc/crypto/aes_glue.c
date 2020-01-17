@@ -446,7 +446,7 @@ static int __init aes_sparc64_mod_init(void)
 	int err;
 
 	if (!sparc64_has_aes_opcode()) {
-		pr_info("sparc64 aes opcodes not available.\n");
+		pr_info("sparc64 aes opcodes yest available.\n");
 		return -ENODEV;
 	}
 	pr_info("Using sparc64 aes opcodes optimized AES implementation\n");

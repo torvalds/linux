@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -30,7 +30,7 @@
  * SOFTWARE.
  *
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
@@ -75,7 +75,7 @@ const char *usnic_vnic_res_type_to_str(enum usnic_vnic_res_type res_type)
 #undef DEFINE_USNIC_VNIC_RES_AT
 
 	if (res_type >= USNIC_VNIC_RES_TYPE_MAX)
-		return "unknown";
+		return "unkyeswn";
 
 	return usnic_vnic_res_type_desc[res_type];
 
@@ -360,7 +360,7 @@ static int usnic_vnic_discover_resources(struct pci_dev *pdev,
 		vnic->bar[i].len = pci_resource_len(pdev, i);
 		vnic->bar[i].vaddr = pci_iomap(pdev, i, vnic->bar[i].len);
 		if (!vnic->bar[i].vaddr) {
-			usnic_err("Cannot memory-map BAR %d, aborting\n",
+			usnic_err("Canyest memory-map BAR %d, aborting\n",
 					i);
 			err = -ENODEV;
 			goto out_clean_bar;

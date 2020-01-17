@@ -3,7 +3,7 @@
 #define _ASM_SH_SUSPEND_H
 
 #ifndef __ASSEMBLY__
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include <asm/ptrace.h>
 
@@ -20,11 +20,11 @@ int sh_mobile_setup_cpuidle(void);
 static inline int sh_mobile_setup_cpuidle(void) { return 0; }
 #endif
 
-/* notifier chains for pre/post sleep hooks */
-extern struct atomic_notifier_head sh_mobile_pre_sleep_notifier_list;
-extern struct atomic_notifier_head sh_mobile_post_sleep_notifier_list;
+/* yestifier chains for pre/post sleep hooks */
+extern struct atomic_yestifier_head sh_mobile_pre_sleep_yestifier_list;
+extern struct atomic_yestifier_head sh_mobile_post_sleep_yestifier_list;
 
-/* priority levels for notifiers */
+/* priority levels for yestifiers */
 #define SH_MOBILE_SLEEP_BOARD	0
 #define SH_MOBILE_SLEEP_CPU	1
 #define SH_MOBILE_PRE(x)	(x)

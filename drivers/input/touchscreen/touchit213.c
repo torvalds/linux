@@ -11,7 +11,7 @@
  */
 
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -29,7 +29,7 @@ MODULE_LICENSE("GPL");
  */
 
 /*
- * Data is received through COM1 at 9600bit/s,8bit,no parity in packets
+ * Data is received through COM1 at 9600bit/s,8bit,yes parity in packets
  * of 5 byte each.
  *
  *   +--------+   +--------+   +--------+   +--------+   +--------+

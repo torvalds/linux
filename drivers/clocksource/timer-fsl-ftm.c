@@ -66,7 +66,7 @@ static inline void ftm_counter_disable(void __iomem *base)
 	ftm_writel(val, base + FTM_SC);
 }
 
-static inline void ftm_irq_acknowledge(void __iomem *base)
+static inline void ftm_irq_ackyeswledge(void __iomem *base)
 {
 	u32 val;
 
@@ -103,7 +103,7 @@ static inline void ftm_reset_counter(void __iomem *base)
 	ftm_writel(0x00, base + FTM_CNT);
 }
 
-static u64 notrace ftm_read_sched_clock(void)
+static u64 yestrace ftm_read_sched_clock(void)
 {
 	return ftm_readl(priv->clksrc_base + FTM_CNT);
 }
@@ -154,7 +154,7 @@ static irqreturn_t ftm_evt_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
 
-	ftm_irq_acknowledge(priv->clkevt_base);
+	ftm_irq_ackyeswledge(priv->clkevt_base);
 
 	if (likely(clockevent_state_oneshot(evt))) {
 		ftm_irq_disable(priv->clkevt_base);
@@ -233,7 +233,7 @@ static int __init ftm_clocksource_init(unsigned long freq)
 	return 0;
 }
 
-static int __init __ftm_clk_init(struct device_node *np, char *cnt_name,
+static int __init __ftm_clk_init(struct device_yesde *np, char *cnt_name,
 				 char *ftm_name)
 {
 	struct clk *clk;
@@ -241,7 +241,7 @@ static int __init __ftm_clk_init(struct device_node *np, char *cnt_name,
 
 	clk = of_clk_get_by_name(np, cnt_name);
 	if (IS_ERR(clk)) {
-		pr_err("ftm: Cannot get \"%s\": %ld\n", cnt_name, PTR_ERR(clk));
+		pr_err("ftm: Canyest get \"%s\": %ld\n", cnt_name, PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
 	err = clk_prepare_enable(clk);
@@ -253,7 +253,7 @@ static int __init __ftm_clk_init(struct device_node *np, char *cnt_name,
 
 	clk = of_clk_get_by_name(np, ftm_name);
 	if (IS_ERR(clk)) {
-		pr_err("ftm: Cannot get \"%s\": %ld\n", ftm_name, PTR_ERR(clk));
+		pr_err("ftm: Canyest get \"%s\": %ld\n", ftm_name, PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
 	err = clk_prepare_enable(clk);
@@ -264,7 +264,7 @@ static int __init __ftm_clk_init(struct device_node *np, char *cnt_name,
 	return clk_get_rate(clk);
 }
 
-static unsigned long __init ftm_clk_init(struct device_node *np)
+static unsigned long __init ftm_clk_init(struct device_yesde *np)
 {
 	long freq;
 
@@ -301,7 +301,7 @@ static int __init ftm_calc_closest_round_cyc(unsigned long freq)
 	return 0;
 }
 
-static int __init ftm_timer_init(struct device_node *np)
+static int __init ftm_timer_init(struct device_yesde *np)
 {
 	unsigned long freq;
 	int ret, irq;

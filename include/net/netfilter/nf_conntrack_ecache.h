@@ -14,7 +14,7 @@
 #include <net/netfilter/nf_conntrack_extend.h>
 
 enum nf_ct_ecache_state {
-	NFCT_ECACHE_UNKNOWN,		/* destroy event not sent */
+	NFCT_ECACHE_UNKNOWN,		/* destroy event yest sent */
 	NFCT_ECACHE_DESTROY_FAIL,	/* tried but failed to send destroy event */
 	NFCT_ECACHE_DESTROY_SENT,	/* sent destroy event after failure */
 };
@@ -72,14 +72,14 @@ struct nf_ct_event {
 	int report;
 };
 
-struct nf_ct_event_notifier {
+struct nf_ct_event_yestifier {
 	int (*fcn)(unsigned int events, struct nf_ct_event *item);
 };
 
-int nf_conntrack_register_notifier(struct net *net,
-				   struct nf_ct_event_notifier *nb);
-void nf_conntrack_unregister_notifier(struct net *net,
-				      struct nf_ct_event_notifier *nb);
+int nf_conntrack_register_yestifier(struct net *net,
+				   struct nf_ct_event_yestifier *nb);
+void nf_conntrack_unregister_yestifier(struct net *net,
+				      struct nf_ct_event_yestifier *nb);
 
 void nf_ct_deliver_cached_events(struct nf_conn *ct);
 int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
@@ -158,14 +158,14 @@ struct nf_exp_event {
 	int report;
 };
 
-struct nf_exp_event_notifier {
+struct nf_exp_event_yestifier {
 	int (*fcn)(unsigned int events, struct nf_exp_event *item);
 };
 
-int nf_ct_expect_register_notifier(struct net *net,
-				   struct nf_exp_event_notifier *nb);
-void nf_ct_expect_unregister_notifier(struct net *net,
-				      struct nf_exp_event_notifier *nb);
+int nf_ct_expect_register_yestifier(struct net *net,
+				   struct nf_exp_event_yestifier *nb);
+void nf_ct_expect_unregister_yestifier(struct net *net,
+				      struct nf_exp_event_yestifier *nb);
 
 void nf_ct_expect_event_report(enum ip_conntrack_expect_events event,
 			       struct nf_conntrack_expect *exp,

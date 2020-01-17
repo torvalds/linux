@@ -11,7 +11,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
@@ -242,8 +242,8 @@ static const struct regmap_range max2175_regmap_volatile_range[] = {
 };
 
 static const struct regmap_access_table max2175_volatile_regs = {
-	.yes_ranges = max2175_regmap_volatile_range,
-	.n_yes_ranges = ARRAY_SIZE(max2175_regmap_volatile_range),
+	.no_ranges = max2175_regmap_volatile_range,
+	.n_no_ranges = ARRAY_SIZE(max2175_regmap_volatile_range),
 };
 
 static const struct reg_default max2175_reg_defaults[] = {
@@ -383,7 +383,7 @@ static int max2175_poll_csm_ready(struct max2175 *ctx)
 
 	ret = max2175_poll_timeout(ctx, 69, 1, 1, 0, 50000);
 	if (ret)
-		mxm_err(ctx, "csm not ready\n");
+		mxm_err(ctx, "csm yest ready\n");
 
 	return ret;
 }
@@ -594,7 +594,7 @@ static int max2175_set_lo_freq(struct max2175 *ctx, u32 lo_freq)
 	frac_desired = div64_ul((u64)(lo_freq % ctx->xtal_freq) << 20,
 				ctx->xtal_freq);
 
-	/* Check CSM is not busy */
+	/* Check CSM is yest busy */
 	ret = max2175_poll_csm_ready(ctx);
 	if (ret)
 		return ret;
@@ -645,7 +645,7 @@ static int max2175_set_nco_freq(struct max2175 *ctx, s32 nco_freq)
 	if (nco_freq < 0)
 		nco_reg += 0x200000;
 
-	/* Check CSM is not busy */
+	/* Check CSM is yest busy */
 	ret = max2175_poll_csm_ready(ctx);
 	if (ret)
 		return ret;
@@ -661,13 +661,13 @@ static int max2175_set_nco_freq(struct max2175 *ctx, s32 nco_freq)
 	return ret;
 }
 
-static int max2175_set_rf_freq_non_am_bands(struct max2175 *ctx, u64 freq,
+static int max2175_set_rf_freq_yesn_am_bands(struct max2175 *ctx, u64 freq,
 					    u32 lo_pos)
 {
 	s64 adj_freq, low_if_freq;
 	int ret;
 
-	mxm_dbg(ctx, "rf_freq: non AM bands\n");
+	mxm_dbg(ctx, "rf_freq: yesn AM bands\n");
 
 	if (MAX2175_IS_FM_MODE(ctx))
 		low_if_freq = 128000;
@@ -695,7 +695,7 @@ static int max2175_set_rf_freq(struct max2175 *ctx, u64 freq, u32 lo_pos)
 	if (MAX2175_IS_BAND_AM(ctx))
 		ret = max2175_set_nco_freq(ctx, freq);
 	else
-		ret = max2175_set_rf_freq_non_am_bands(ctx, freq, lo_pos);
+		ret = max2175_set_rf_freq_yesn_am_bands(ctx, freq, lo_pos);
 
 	mxm_dbg(ctx, "set_rf_freq: ret %d freq %llu\n", ret, freq);
 
@@ -1011,7 +1011,7 @@ static void max2175_s_ctrl_rx_mode(struct max2175 *ctx, u32 rx_mode)
 	if (max2175_freq_rx_mode_valid(ctx, rx_mode, ctx->freq))
 		max2175_tune_rf_freq(ctx, ctx->freq, ctx->hsls->cur.val);
 	else
-		/* Use default freq of mode if current freq is not valid */
+		/* Use default freq of mode if current freq is yest valid */
 		max2175_tune_rf_freq(ctx, ctx->rx_modes[rx_mode].freq,
 				     ctx->hsls->cur.val);
 }
@@ -1276,8 +1276,8 @@ static int max2175_probe(struct i2c_client *client)
 	bool master = true, am_hiz = false;
 	u32 refout_load, refout_bits = 0;	/* REFOUT disabled */
 	struct v4l2_ctrl_handler *hdl;
-	struct fwnode_handle *fwnode;
-	struct device_node *np;
+	struct fwyesde_handle *fwyesde;
+	struct device_yesde *np;
 	struct v4l2_subdev *sd;
 	struct regmap *regmap;
 	struct max2175 *ctx;
@@ -1285,17 +1285,17 @@ static int max2175_probe(struct i2c_client *client)
 	int ret;
 
 	/* Parse DT properties */
-	np = of_parse_phandle(client->dev.of_node, "maxim,master", 0);
+	np = of_parse_phandle(client->dev.of_yesde, "maxim,master", 0);
 	if (np) {
 		master = false;			/* Slave tuner */
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 
-	fwnode = of_fwnode_handle(client->dev.of_node);
-	if (fwnode_property_present(fwnode, "maxim,am-hiz-filter"))
+	fwyesde = of_fwyesde_handle(client->dev.of_yesde);
+	if (fwyesde_property_present(fwyesde, "maxim,am-hiz-filter"))
 		am_hiz = true;
 
-	if (!fwnode_property_read_u32(fwnode, "maxim,refout-load",
+	if (!fwyesde_property_read_u32(fwyesde, "maxim,refout-load",
 				      &refout_load)) {
 		ret = max2175_refout_load_to_bits(client, refout_load,
 						  &refout_bits);
@@ -1309,7 +1309,7 @@ static int max2175_probe(struct i2c_client *client)
 	clk = devm_clk_get(&client->dev, NULL);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		dev_err(&client->dev, "cannot get clock %d\n", ret);
+		dev_err(&client->dev, "canyest get clock %d\n", ret);
 		return ret;
 	}
 

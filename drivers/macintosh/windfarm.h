@@ -12,7 +12,7 @@
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/device.h>
 
 /* Display a 16.16 fixed point value */
@@ -123,19 +123,19 @@ static inline int wf_sensor_get(struct wf_sensor *sr, s32 *val)
 }
 
 /* For use by clients. Note that we are a bit racy here since
- * notifier_block doesn't have a module owner field. I may fix
+ * yestifier_block doesn't have a module owner field. I may fix
  * it one day ...
  *
  * LOCKING NOTE !
  *
  * All "events" except WF_EVENT_TICK are called with an internal mutex
  * held which will deadlock if you call basically any core routine.
- * So don't ! Just take note of the event and do your actual operations
+ * So don't ! Just take yeste of the event and do your actual operations
  * from the ticker.
  *
  */
-extern int wf_register_client(struct notifier_block *nb);
-extern int wf_unregister_client(struct notifier_block *nb);
+extern int wf_register_client(struct yestifier_block *nb);
+extern int wf_unregister_client(struct yestifier_block *nb);
 
 /* Overtemp conditions. Those are refcounted */
 extern void wf_set_overtemp(void);
@@ -143,13 +143,13 @@ extern void wf_clear_overtemp(void);
 
 #define WF_EVENT_NEW_CONTROL	0 /* param is wf_control * */
 #define WF_EVENT_NEW_SENSOR	1 /* param is wf_sensor * */
-#define WF_EVENT_OVERTEMP	2 /* no param */
+#define WF_EVENT_OVERTEMP	2 /* yes param */
 #define WF_EVENT_NORMALTEMP	3 /* overtemp condition cleared */
 #define WF_EVENT_TICK		4 /* 1 second tick */
 
 /* Note: If that driver gets more broad use, we could replace the
  * simplistic overtemp bits with "environmental conditions". That
- * could then be used to also notify of things like fan failure,
+ * could then be used to also yestify of things like fan failure,
  * case open, battery conditions, ...
  */
 

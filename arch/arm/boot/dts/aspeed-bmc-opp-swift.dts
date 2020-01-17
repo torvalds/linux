@@ -23,7 +23,7 @@
 		ranges;
 
 		flash_memory: region@98000000 {
-			no-map;
+			yes-map;
 			reg = <0x98000000 0x04000000>; /* 64M */
 		};
 
@@ -205,7 +205,7 @@
 		compatible = "fsi-master-gpio", "fsi-master";
 		#address-cells = <2>;
 		#size-cells = <0>;
-		no-gpio-delays;
+		yes-gpio-delays;
 
 		clock-gpios = <&gpio ASPEED_GPIO(P, 1) GPIO_ACTIVE_HIGH>;
 		data-gpios = <&gpio ASPEED_GPIO(P, 2) GPIO_ACTIVE_HIGH>;
@@ -280,7 +280,7 @@
 
 	flash@0 {
 		status = "okay";
-		label = "pnor";
+		label = "pyesr";
 		m25p,fast-read;
 		spi-max-frequency = <100000000>;
 	};
@@ -351,8 +351,8 @@
 			tach-pulses = <2>;
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -363,8 +363,8 @@
 			tach-pulses = <2>;
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -375,8 +375,8 @@
 			tach-pulses = <2>;
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -387,8 +387,8 @@
 			tach-pulses = <2>;
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -399,8 +399,8 @@
 			tach-pulses = <2>;
 			maxim,fan-rotor-input = "tach";
 			maxim,fan-pwm-freq = <25000>;
-			maxim,fan-no-watchdog;
-			maxim,fan-no-fault-ramp;
+			maxim,fan-yes-watchdog;
+			maxim,fan-yes-fault-ramp;
 			maxim,fan-ramp = <2>;
 			maxim,fan-fault-pin-mon;
 		};
@@ -941,11 +941,11 @@
 };
 
 &pinctrl {
-	aspeed,external-nodes = <&gfx &lhc>;
+	aspeed,external-yesdes = <&gfx &lhc>;
 };
 
 &wdt1 {
-	aspeed,reset-type = "none";
+	aspeed,reset-type = "yesne";
 	aspeed,external-signal;
 	aspeed,ext-push-pull;
 	aspeed,ext-active-high;

@@ -12,7 +12,7 @@
  * Copyright (C) 2015  Renesas Electronics Corporation
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 
 #include "core.h"
@@ -585,7 +585,7 @@ MOD_SEL0_4_3		MOD_SEL1_4 \
 			MOD_SEL1_0		MOD_SEL2_0
 
 /*
- * These pins are not able to be muxed but have other properties
+ * These pins are yest able to be muxed but have other properties
  * that can be set, such as drive-strength or pull-up/pull-down enable.
  */
 #define PINMUX_STATIC \
@@ -1548,7 +1548,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MSEL(IP18_7_4,	FMIN_D,			SEL_FM_3),
 
 /*
- * Static pins can not be muxed between different functions but
+ * Static pins can yest be muxed between different functions but
  * still need mark entries in the pinmux list. Add each static
  * pin to the list without an associated function. The sh-pfc
  * core will do the right thing and skip trying to mux the pin
@@ -1560,7 +1560,7 @@ static const u16 pinmux_data[] = {
 };
 
 /*
- * Pins not associated with a GPIO port.
+ * Pins yest associated with a GPIO port.
  */
 enum {
 	GP_ASSIGN_LAST(),

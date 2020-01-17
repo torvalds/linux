@@ -344,8 +344,8 @@ static void hda_dbg_video_dacs_ctrl(struct seq_file *s, void __iomem *reg)
 
 static int hda_dbg_show(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct sti_hda *hda = (struct sti_hda *)node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct sti_hda *hda = (struct sti_hda *)yesde->info_ent->data;
 
 	seq_printf(s, "HD Analog: (vaddr = 0x%p)", hda->regs);
 	DBGFS_DUMP(HDA_ANA_CFG);
@@ -367,7 +367,7 @@ static struct drm_info_list hda_debugfs_files[] = {
 	{ "hda", hda_dbg_show, 0, NULL },
 };
 
-static int hda_debugfs_init(struct sti_hda *hda, struct drm_minor *minor)
+static int hda_debugfs_init(struct sti_hda *hda, struct drm_miyesr *miyesr)
 {
 	unsigned int i;
 
@@ -376,7 +376,7 @@ static int hda_debugfs_init(struct sti_hda *hda, struct drm_minor *minor)
 
 	return drm_debugfs_create_files(hda_debugfs_files,
 					ARRAY_SIZE(hda_debugfs_files),
-					minor->debugfs_root, minor);
+					miyesr->debugfs_root, miyesr);
 }
 
 /**
@@ -547,26 +547,26 @@ static void sti_hda_set_mode(struct drm_bridge *bridge,
 	/* HD DAC = 148.5Mhz or 108 Mhz */
 	ret = clk_set_rate(hda->clk_hddac, hddac_rate);
 	if (ret < 0)
-		DRM_ERROR("Cannot set rate (%dHz) for hda_hddac clk\n",
+		DRM_ERROR("Canyest set rate (%dHz) for hda_hddac clk\n",
 			  hddac_rate);
 
 	/* HDformatter clock = compositor clock */
 	ret = clk_set_rate(hda->clk_pix, mode->clock * 1000);
 	if (ret < 0)
-		DRM_ERROR("Cannot set rate (%dHz) for hda_pix clk\n",
+		DRM_ERROR("Canyest set rate (%dHz) for hda_pix clk\n",
 			  mode->clock * 1000);
 }
 
-static void sti_hda_bridge_nope(struct drm_bridge *bridge)
+static void sti_hda_bridge_yespe(struct drm_bridge *bridge)
 {
-	/* do nothing */
+	/* do yesthing */
 }
 
 static const struct drm_bridge_funcs sti_hda_bridge_funcs = {
 	.pre_enable = sti_hda_pre_enable,
-	.enable = sti_hda_bridge_nope,
+	.enable = sti_hda_bridge_yespe,
 	.disable = sti_hda_disable,
-	.post_disable = sti_hda_bridge_nope,
+	.post_disable = sti_hda_bridge_yespe,
 	.mode_set = sti_hda_set_mode,
 };
 
@@ -622,7 +622,7 @@ static int sti_hda_connector_mode_valid(struct drm_connector *connector,
 				 target, result);
 
 		if ((result < target_min) || (result > target_max)) {
-			DRM_DEBUG_DRIVER("hda pixclk=%d not supported\n",
+			DRM_DEBUG_DRIVER("hda pixclk=%d yest supported\n",
 					 target);
 			return MODE_BAD;
 		}
@@ -759,19 +759,19 @@ static int sti_hda_probe(struct platform_device *pdev)
 		DRM_ERROR("Invalid hda resource\n");
 		return -ENOMEM;
 	}
-	hda->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	hda->regs = devm_ioremap_yescache(dev, res->start, resource_size(res));
 	if (!hda->regs)
 		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 			"video-dacs-ctrl");
 	if (res) {
-		hda->video_dacs_ctrl = devm_ioremap_nocache(dev, res->start,
+		hda->video_dacs_ctrl = devm_ioremap_yescache(dev, res->start,
 				resource_size(res));
 		if (!hda->video_dacs_ctrl)
 			return -ENOMEM;
 	} else {
-		/* If no existing video-dacs-ctrl resource continue the probe */
+		/* If yes existing video-dacs-ctrl resource continue the probe */
 		DRM_DEBUG_DRIVER("No video-dacs-ctrl resource\n");
 		hda->video_dacs_ctrl = NULL;
 	}
@@ -779,13 +779,13 @@ static int sti_hda_probe(struct platform_device *pdev)
 	/* Get clock resources */
 	hda->clk_pix = devm_clk_get(dev, "pix");
 	if (IS_ERR(hda->clk_pix)) {
-		DRM_ERROR("Cannot get hda_pix clock\n");
+		DRM_ERROR("Canyest get hda_pix clock\n");
 		return PTR_ERR(hda->clk_pix);
 	}
 
 	hda->clk_hddac = devm_clk_get(dev, "hddac");
 	if (IS_ERR(hda->clk_hddac)) {
-		DRM_ERROR("Cannot get hda_hddac clock\n");
+		DRM_ERROR("Canyest get hda_hddac clock\n");
 		return PTR_ERR(hda->clk_hddac);
 	}
 
@@ -803,7 +803,7 @@ static int sti_hda_remove(struct platform_device *pdev)
 static const struct of_device_id hda_of_match[] = {
 	{ .compatible = "st,stih416-hda", },
 	{ .compatible = "st,stih407-hda", },
-	{ /* end node */ }
+	{ /* end yesde */ }
 };
 MODULE_DEVICE_TABLE(of, hda_of_match);
 

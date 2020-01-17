@@ -31,7 +31,7 @@
  * Work around 2:
  * Controller for OUT endpoints has shared on-chip buffers for all incoming
  * packets, including ep0out. It's FIFO buffer, so packets must be handle by DMA
- * in correct order. If the first packet in the buffer will not be handled,
+ * in correct order. If the first packet in the buffer will yest be handled,
  * then the following packets directed for other endpoints and  functions
  * will be blocked.
  * Additionally the packets directed to one endpoint can block entire on-chip
@@ -41,14 +41,14 @@
  * driver prepares internal usb_request object and use it to arm DMA transfer.
  *
  * The problematic situation was observed in case when endpoint has been enabled
- * but no usb_request were queued. Driver try detects such endpoints and will
+ * but yes usb_request were queued. Driver try detects such endpoints and will
  * use this workaround only for these endpoint.
  *
  * Driver use limited number of buffer. This number can be set by macro
  * CDNS3_WA2_NUM_BUFFERS.
  *
  * Such blocking situation was observed on ACM gadget. For this function
- * host send OUT data packet but ACM function is not prepared for this packet.
+ * host send OUT data packet but ACM function is yest prepared for this packet.
  * It's cause that buffer placed in on chip memory block transfer to other
  * endpoints.
  *
@@ -107,7 +107,7 @@ static int cdns3_get_dma_pos(struct cdns3_device *priv_dev,
  * cdns3_next_request - returns next request from list
  * @list: list containing requests
  *
- * Returns request or NULL if no requests in list
+ * Returns request or NULL if yes requests in list
  */
 struct usb_request *cdns3_next_request(struct list_head *list)
 {
@@ -118,7 +118,7 @@ struct usb_request *cdns3_next_request(struct list_head *list)
  * cdns3_next_align_buf - returns next buffer from list
  * @list: list containing buffers
  *
- * Returns buffer or NULL if no buffers in list
+ * Returns buffer or NULL if yes buffers in list
  */
 struct cdns3_aligned_buf *cdns3_next_align_buf(struct list_head *list)
 {
@@ -129,7 +129,7 @@ struct cdns3_aligned_buf *cdns3_next_align_buf(struct list_head *list)
  * cdns3_next_priv_request - returns next request from list
  * @list: list containing requests
  *
- * Returns request or NULL if no requests in list
+ * Returns request or NULL if yes requests in list
  */
 struct cdns3_request *cdns3_next_priv_request(struct list_head *list)
 {
@@ -344,11 +344,11 @@ enum usb_device_speed cdns3_get_speed(struct cdns3_device *priv_dev)
 }
 
 /**
- * cdns3_start_all_request - add to ring all request not started
+ * cdns3_start_all_request - add to ring all request yest started
  * @priv_dev: Extended gadget object
  * @priv_ep: The endpoint for whom request will be started.
  *
- * Returns return ENOMEM if transfer ring i not enough TRBs to start
+ * Returns return ENOMEM if transfer ring i yest eyesugh TRBs to start
  *         all requests.
  */
 static int cdns3_start_all_request(struct cdns3_device *priv_dev,
@@ -374,7 +374,7 @@ static int cdns3_start_all_request(struct cdns3_device *priv_dev,
 }
 
 /*
- * WA2: Set flag for all not ISOC OUT endpoints. If this flag is set
+ * WA2: Set flag for all yest ISOC OUT endpoints. If this flag is set
  * driver try to detect whether endpoint need additional internal
  * buffer for unblocking on-chip FIFO buffer. This flag will be cleared
  * if before first DESCMISS interrupt the DMA will be armed.
@@ -521,7 +521,7 @@ int cdns3_wa2_gadget_ep_queue(struct cdns3_device *priv_dev,
 
 		/*
 		 * Driver will wait for completion DESCMISS transfer,
-		 * before starts new, not DESCMISS transfer.
+		 * before starts new, yest DESCMISS transfer.
 		 */
 		if (!pending_empty && !descmiss_empty) {
 			trace_cdns3_wa2(priv_ep, "wait for pending transfer\n");
@@ -590,7 +590,7 @@ static void cdns3_wa2_descmissing_packet(struct cdns3_endpoint *priv_ep)
 	priv_req->flags |= REQUEST_INTERNAL;
 
 	/* if this field is still assigned it indicate that transfer related
-	 * with this request has not been finished yet. Driver in this
+	 * with this request has yest been finished yet. Driver in this
 	 * case simply allocate next request and assign flag REQUEST_INTERNAL_CH
 	 * flag to previous one. It will indicate that current request is
 	 * part of the previous one.
@@ -628,7 +628,7 @@ err:
  * @status: completion code for the request
  *
  * Must be called with controller's lock held and interrupts disabled. This
- * function will unmap @req and call its ->complete() callback to notify upper
+ * function will unmap @req and call its ->complete() callback to yestify upper
  * layers that it has completed.
  */
 void cdns3_gadget_giveback(struct cdns3_endpoint *priv_ep,
@@ -808,7 +808,7 @@ static void cdns3_wa1_tray_restore_cycle_bit(struct cdns3_device *priv_dev,
 }
 
 /**
- * cdns3_ep_run_transfer - start transfer on no-default endpoint hardware
+ * cdns3_ep_run_transfer - start transfer on yes-default endpoint hardware
  * @priv_ep: endpoint object
  *
  * Returns zero on success or negative value on failure
@@ -980,7 +980,7 @@ int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 	 */
 	if (priv_ep->flags & EP_UPDATE_EP_TRBADDR) {
 		/*
-		 * Until SW is not ready to handle the OUT transfer the ISO OUT
+		 * Until SW is yest ready to handle the OUT transfer the ISO OUT
 		 * Endpoint should be disabled (EP_CFG.ENABLE = 0).
 		 * EP_CFG_ENABLE must be set before updating ep_traddr.
 		 */
@@ -1050,7 +1050,7 @@ void cdns3_set_hw_configuration(struct cdns3_device *priv_dev)
  *
  * Endpoint must be selected before invoking this function.
  *
- * Returns false if request has not been handled by DMA, else returns true.
+ * Returns false if request has yest been handled by DMA, else returns true.
  *
  * SR - start ring
  * ER -  end ring
@@ -1231,7 +1231,7 @@ static int cdns3_check_ep_interrupt_proceed(struct cdns3_endpoint *priv_ep)
 		}
 
 		/*
-		 * For isochronous transfer driver completes request on
+		 * For isochroyesus transfer driver completes request on
 		 * IOC or on TRBERR. IOC appears only when device receive
 		 * OUT data packet. If host disable stream or lost some packet
 		 * then the only way to finish all queued transfer is to do it
@@ -1383,7 +1383,7 @@ static irqreturn_t cdns3_device_irq_handler(int irq, void *data)
 	reg = readl(&priv_dev->regs->usb_ists);
 	if (reg) {
 		/* After masking interrupts the new interrupts won't be
-		 * reported in usb_ists/ep_ists. In order to not lose some
+		 * reported in usb_ists/ep_ists. In order to yest lose some
 		 * of them driver disables only detected interrupts.
 		 * They will be enabled ASAP after clearing source of
 		 * interrupt. This an unusual behavior only applies to
@@ -1446,7 +1446,7 @@ static irqreturn_t cdns3_device_thread_irq_handler(int irq, void *data)
 		ret = IRQ_HANDLED;
 	}
 
-	/* check if interrupt from non default endpoint, if no exit */
+	/* check if interrupt from yesn default endpoint, if yes exit */
 	reg &= ~(EP_ISTS_EP_OUT0 | EP_ISTS_EP_IN0);
 	if (!reg)
 		goto irqend;
@@ -1494,7 +1494,7 @@ static int cdns3_ep_onchip_buffer_reserve(struct cdns3_device *priv_dev,
 
 		/**
 		 *  ALL OUT EPs are shared the same chunk onchip memory, so
-		 * driver checks if it already has assigned enough buffers
+		 * driver checks if it already has assigned eyesugh buffers
 		 */
 		if (priv_dev->out_mem_is_allocated >= size)
 			return 0;
@@ -1609,7 +1609,7 @@ void cdns3_ep_config(struct cdns3_endpoint *priv_ep)
 		}
 		break;
 	default:
-		/* all other speed are not supported */
+		/* all other speed are yest supported */
 		return;
 	}
 
@@ -1703,7 +1703,7 @@ usb_ep *cdns3_gadget_match_ep(struct usb_gadget *gadget,
 
 	priv_ep = cdns3_find_available_ep(priv_dev, desc);
 	if (IS_ERR(priv_ep)) {
-		dev_err(priv_dev->dev, "no available ep\n");
+		dev_err(priv_dev->dev, "yes available ep\n");
 		return NULL;
 	}
 
@@ -1916,7 +1916,7 @@ static int cdns3_gadget_ep_disable(struct usb_ep *ep)
 	/**
 	 * Driver needs some time before resetting endpoint.
 	 * It need waits for clearing DBUSY bit or for timeout expired.
-	 * 10us is enough time for controller to stop transfer.
+	 * 10us is eyesugh time for controller to stop transfer.
 	 */
 	readl_poll_timeout_atomic(&priv_dev->regs->ep_sts, val,
 				  !(val & EP_STS_DBUSY), 1, 10);
@@ -2005,7 +2005,7 @@ static int __cdns3_gadget_ep_queue(struct usb_ep *ep,
 	list_add_tail(&request->list, &priv_ep->deferred_req_list);
 
 	/*
-	 * If hardware endpoint configuration has not been set yet then
+	 * If hardware endpoint configuration has yest been set yet then
 	 * just queue request in deferred list. Transfer will be started in
 	 * cdns3_set_hw_configuration.
 	 */
@@ -2099,7 +2099,7 @@ int cdns3_gadget_ep_dequeue(struct usb_ep *ep,
 			goto found;
 	}
 
-	goto not_found;
+	goto yest_found;
 
 found:
 	link_trb = priv_req->trb;
@@ -2117,7 +2117,7 @@ found:
 
 	cdns3_gadget_giveback(priv_ep, priv_req, -ECONNRESET);
 
-not_found:
+yest_found:
 	spin_unlock_irqrestore(&priv_dev->lock, flags);
 	return ret;
 }
@@ -2311,7 +2311,7 @@ static void cdns3_gadget_config(struct cdns3_device *priv_dev)
 
 	/*
 	 * By default some platforms has set protected access to memory.
-	 * This cause problem with cache, so driver restore non-secure
+	 * This cause problem with cache, so driver restore yesn-secure
 	 * access to memory.
 	 */
 	reg = readl(&regs->dma_axi_ctrl);
@@ -2454,7 +2454,7 @@ static int cdns3_init_eps(struct cdns3_device *priv_dev)
 	ep_enabled_reg = readl(&priv_dev->regs->usb_cap3);
 	iso_ep_reg = readl(&priv_dev->regs->usb_cap4);
 
-	dev_dbg(priv_dev->dev, "Initializing non-zero endpoints\n");
+	dev_dbg(priv_dev->dev, "Initializing yesn-zero endpoints\n");
 
 	for (i = 0; i < CDNS3_ENDPOINTS_MAX_COUNT; i++) {
 		ep_dir = i >> 4;	/* i div 16 */

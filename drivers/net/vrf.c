@@ -103,7 +103,7 @@ static void vrf_get_stats64(struct net_device *dev,
 	}
 }
 
-/* by default VRF devices do not have a qdisc and are expected
+/* by default VRF devices do yest have a qdisc and are expected
  * to be created with only a single queue.
  */
 static bool qdisc_tx_is_default(const struct net_device *dev)
@@ -373,7 +373,7 @@ static int vrf_finish_output6(struct net *net, struct sock *sk,
 
 	rcu_read_lock_bh();
 	nexthop = rt6_nexthop((struct rt6_info *)dst, &ipv6_hdr(skb)->daddr);
-	neigh = __ipv6_neigh_lookup_noref(dst->dev, nexthop);
+	neigh = __ipv6_neigh_lookup_yesref(dst->dev, nexthop);
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&nd_tbl, nexthop, dst->dev, false);
 	if (!IS_ERR(neigh)) {
@@ -562,7 +562,7 @@ static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 
 	nf_reset_ct(skb);
 
-	/* Be paranoid, rather than too clever. */
+	/* Be parayesid, rather than too clever. */
 	if (unlikely(skb_headroom(skb) < hh_len && dev->header_ops)) {
 		struct sk_buff *skb2;
 
@@ -583,7 +583,7 @@ static int vrf_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 	neigh = ip_neigh_for_gw(rt, skb, &is_v6gw);
 	if (!IS_ERR(neigh)) {
 		sock_confirm_neigh(skb, neigh);
-		/* if crossing protocols, can not use the cached header */
+		/* if crossing protocols, can yest use the cached header */
 		ret = neigh_output(neigh, skb, is_v6gw);
 		rcu_read_unlock_bh();
 		return ret;
@@ -778,12 +778,12 @@ static int do_vrf_add_slave(struct net_device *dev, struct net_device *port_dev,
 {
 	int ret;
 
-	/* do not allow loopback device to be enslaved to a VRF.
+	/* do yest allow loopback device to be enslaved to a VRF.
 	 * The vrf device acts as the loopback for the vrf.
 	 */
 	if (port_dev == dev_net(dev)->loopback_dev) {
 		NL_SET_ERR_MSG(extack,
-			       "Can not enslave loopback device to a VRF");
+			       "Can yest enslave loopback device to a VRF");
 		return -EOPNOTSUPP;
 	}
 
@@ -806,7 +806,7 @@ static int vrf_add_slave(struct net_device *dev, struct net_device *port_dev,
 {
 	if (netif_is_l3_master(port_dev)) {
 		NL_SET_ERR_MSG(extack,
-			       "Can not enslave an L3 master device to a VRF");
+			       "Can yest enslave an L3 master device to a VRF");
 		return -EINVAL;
 	}
 
@@ -849,7 +849,7 @@ static int vrf_dev_init(struct net_device *dev)
 
 	dev->dstats = netdev_alloc_pcpu_stats(struct pcpu_dstats);
 	if (!dev->dstats)
-		goto out_nomem;
+		goto out_yesmem;
 
 	/* create the default dst which points back to us */
 	if (vrf_rtable_create(dev) != 0)
@@ -872,7 +872,7 @@ out_rth:
 out_stats:
 	free_percpu(dev->dstats);
 	dev->dstats = NULL;
-out_nomem:
+out_yesmem:
 	return -ENOMEM;
 }
 
@@ -912,7 +912,7 @@ static struct sk_buff *vrf_rcv_nfhook(u8 pf, unsigned int hook,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-/* neighbor handling is done with actual device; do not want
+/* neighbor handling is done with actual device; do yest want
  * to flip skb->dev for those ndisc packets. This really fails
  * for multiple next protocols (e.g., NEXTHDR_HOP). But it is
  * a start.
@@ -991,7 +991,7 @@ static struct sk_buff *vrf_ip6_rcv(struct net_device *vrf_dev,
 	bool need_strict = rt6_need_strict(&ipv6_hdr(skb)->daddr);
 	bool is_ndisc = ipv6_ndisc_frame(skb);
 
-	/* loopback, multicast & non-ND link-local traffic; do not push through
+	/* loopback, multicast & yesn-ND link-local traffic; do yest push through
 	 * packet taps again. Reset pkt_type for upper layers to process skb
 	 */
 	if (skb->pkt_type == PACKET_LOOPBACK || (need_strict && !is_ndisc)) {
@@ -1044,7 +1044,7 @@ static struct sk_buff *vrf_ip_rcv(struct net_device *vrf_dev,
 	if (ipv4_is_multicast(ip_hdr(skb)->daddr))
 		goto out;
 
-	/* loopback traffic; do not push through packet taps again.
+	/* loopback traffic; do yest push through packet taps again.
 	 * Reset pkt_type for upper layers to process skb
 	 */
 	if (skb->pkt_type == PACKET_LOOPBACK) {
@@ -1083,7 +1083,7 @@ static struct sk_buff *vrf_l3_rcv(struct net_device *vrf_dev,
 #if IS_ENABLED(CONFIG_IPV6)
 /* send to link-local or multicast address via interface enslaved to
  * VRF device. Force lookup to VRF table without changing flow struct
- * Note: Caller to this function must hold rcu_read_lock() and no refcnt
+ * Note: Caller to this function must hold rcu_read_lock() and yes refcnt
  * is taken on the dst by this function.
  */
 static struct dst_entry *vrf_link_scope_lookup(const struct net_device *dev,
@@ -1094,9 +1094,9 @@ static struct dst_entry *vrf_link_scope_lookup(const struct net_device *dev,
 	struct dst_entry *dst = NULL;
 	struct rt6_info *rt;
 
-	/* VRF device does not have a link-local address and
+	/* VRF device does yest have a link-local address and
 	 * sending packets to link-local or mcast addresses over
-	 * a VRF device does not make sense
+	 * a VRF device does yest make sense
 	 */
 	if (fl6->flowi6_oif == dev->ifindex) {
 		dst = &net->ipv6.ip6_null_entry->dst;
@@ -1268,7 +1268,7 @@ static void vrf_setup(struct net_device *dev)
 	/* don't allow vrf devices to change network namespaces. */
 	dev->features |= NETIF_F_NETNS_LOCAL;
 
-	/* does not make sense for a VLAN to be added to a vrf device */
+	/* does yest make sense for a VLAN to be added to a vrf device */
 	dev->features   |= NETIF_F_VLAN_CHALLENGED;
 
 	/* enable offload features */
@@ -1279,12 +1279,12 @@ static void vrf_setup(struct net_device *dev)
 	dev->hw_features = dev->features;
 	dev->hw_enc_features = dev->features;
 
-	/* default to no qdisc; user can add if desired */
+	/* default to yes qdisc; user can add if desired */
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->priv_flags |= IFF_NO_RX_HANDLER;
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
-	/* VRF devices do not care about MTU, but if the MTU is set
+	/* VRF devices do yest care about MTU, but if the MTU is set
 	 * too low then the ipv4 and ipv6 protocols are disabled
 	 * which breaks networking.
 	 */
@@ -1414,10 +1414,10 @@ static struct rtnl_link_ops vrf_link_ops __read_mostly = {
 	.maxtype	= IFLA_VRF_MAX,
 };
 
-static int vrf_device_event(struct notifier_block *unused,
+static int vrf_device_event(struct yestifier_block *unused,
 			    unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	/* only care about unregister events to drop slave references */
 	if (event == NETDEV_UNREGISTER) {
@@ -1433,8 +1433,8 @@ out:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block vrf_notifier_block __read_mostly = {
-	.notifier_call = vrf_device_event,
+static struct yestifier_block vrf_yestifier_block __read_mostly = {
+	.yestifier_call = vrf_device_event,
 };
 
 /* Initialize per network namespace state */
@@ -1457,7 +1457,7 @@ static int __init vrf_init_module(void)
 {
 	int rc;
 
-	register_netdevice_notifier(&vrf_notifier_block);
+	register_netdevice_yestifier(&vrf_yestifier_block);
 
 	rc = register_pernet_subsys(&vrf_net_ops);
 	if (rc < 0)
@@ -1472,7 +1472,7 @@ static int __init vrf_init_module(void)
 	return 0;
 
 error:
-	unregister_netdevice_notifier(&vrf_notifier_block);
+	unregister_netdevice_yestifier(&vrf_yestifier_block);
 	return rc;
 }
 

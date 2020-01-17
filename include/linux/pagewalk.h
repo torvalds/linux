@@ -8,24 +8,24 @@ struct mm_walk;
 
 /**
  * mm_walk_ops - callbacks for walk_page_range
- * @pud_entry:		if set, called for each non-empty PUD (2nd-level) entry
+ * @pud_entry:		if set, called for each yesn-empty PUD (2nd-level) entry
  *			this handler should only handle pud_trans_huge() puds.
  *			the pmd_entry or pte_entry callbacks will be used for
  *			regular PUDs.
- * @pmd_entry:		if set, called for each non-empty PMD (3rd-level) entry
+ * @pmd_entry:		if set, called for each yesn-empty PMD (3rd-level) entry
  *			this handler is required to be able to handle
  *			pmd_trans_huge() pmds.  They may simply choose to
  *			split_huge_page() instead of handling it explicitly.
- * @pte_entry:		if set, called for each non-empty PTE (4th-level) entry
+ * @pte_entry:		if set, called for each yesn-empty PTE (4th-level) entry
  * @pte_hole:		if set, called for each hole at all levels
  * @hugetlb_entry:	if set, called for each hugetlb entry
  * @test_walk:		caller specific callback function to determine whether
- *			we walk over the current vma or not. Returning 0 means
+ *			we walk over the current vma or yest. Returning 0 means
  *			"do page table walk over the current vma", returning
  *			a negative value means "abort current page table walk
- *			right now" and returning 1 means "skip the current vma"
- * @pre_vma:            if set, called before starting walk on a non-null vma.
- * @post_vma:           if set, called after a walk on a non-null vma, provided
+ *			right yesw" and returning 1 means "skip the current vma"
+ * @pre_vma:            if set, called before starting walk on a yesn-null vma.
+ * @post_vma:           if set, called after a walk on a yesn-null vma, provided
  *                      that @pre_vma and the vma walk succeeded.
  */
 struct mm_walk_ops {

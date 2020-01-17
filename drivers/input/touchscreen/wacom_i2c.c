@@ -2,8 +2,8 @@
 /*
  * Wacom Penabled Driver for I2C
  *
- * Copyright (c) 2011 - 2013 Tatsunosuke Tobita, Wacom.
- * <tobita.tatsunosuke@wacom.co.jp>
+ * Copyright (c) 2011 - 2013 Tatsuyessuke Tobita, Wacom.
+ * <tobita.tatsuyessuke@wacom.co.jp>
  */
 
 #include <linux/module.h>
@@ -274,6 +274,6 @@ static struct i2c_driver wacom_i2c_driver = {
 };
 module_i2c_driver(wacom_i2c_driver);
 
-MODULE_AUTHOR("Tatsunosuke Tobita <tobita.tatsunosuke@wacom.co.jp>");
+MODULE_AUTHOR("Tatsuyessuke Tobita <tobita.tatsuyessuke@wacom.co.jp>");
 MODULE_DESCRIPTION("WACOM EMR I2C Driver");
 MODULE_LICENSE("GPL");

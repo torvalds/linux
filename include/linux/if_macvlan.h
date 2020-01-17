@@ -18,7 +18,7 @@ struct macvlan_port;
 struct macvlan_dev {
 	struct net_device	*dev;
 	struct list_head	list;
-	struct hlist_node	hlist;
+	struct hlist_yesde	hlist;
 	struct macvlan_port	*port;
 	struct net_device	*lowerdev;
 	void			*accel_priv;

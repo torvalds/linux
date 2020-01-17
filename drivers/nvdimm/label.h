@@ -41,7 +41,7 @@ enum {
  * @labeloff: offset of first label slot
  * @nslot: total number of label slots
  * @major: label area major version
- * @minor: label area minor version
+ * @miyesr: label area miyesr version
  * @checksum: fletcher64 of all fields
  * @free[0]: bitmap, nlabel bits
  *
@@ -60,7 +60,7 @@ struct nd_namespace_index {
 	__le64 labeloff;
 	__le32 nslot;
 	__le16 major;
-	__le16 minor;
+	__le16 miyesr;
 	__le64 checksum;
 	u8 free[0];
 };

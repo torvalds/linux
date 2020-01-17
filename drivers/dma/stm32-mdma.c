@@ -242,7 +242,7 @@ struct stm32_mdma_hwdesc {
 	u32 cmdr;
 } __aligned(64);
 
-struct stm32_mdma_desc_node {
+struct stm32_mdma_desc_yesde {
 	struct stm32_mdma_hwdesc *hwdesc;
 	dma_addr_t hwdesc_phys;
 };
@@ -252,7 +252,7 @@ struct stm32_mdma_desc {
 	u32 ccr;
 	bool cyclic;
 	u32 count;
-	struct stm32_mdma_desc_node node[];
+	struct stm32_mdma_desc_yesde yesde[];
 };
 
 struct stm32_mdma_chan {
@@ -340,15 +340,15 @@ static struct stm32_mdma_desc *stm32_mdma_alloc_desc(
 	struct stm32_mdma_desc *desc;
 	int i;
 
-	desc = kzalloc(offsetof(typeof(*desc), node[count]), GFP_NOWAIT);
+	desc = kzalloc(offsetof(typeof(*desc), yesde[count]), GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
 	for (i = 0; i < count; i++) {
-		desc->node[i].hwdesc =
+		desc->yesde[i].hwdesc =
 			dma_pool_alloc(chan->desc_pool, GFP_NOWAIT,
-				       &desc->node[i].hwdesc_phys);
-		if (!desc->node[i].hwdesc)
+				       &desc->yesde[i].hwdesc_phys);
+		if (!desc->yesde[i].hwdesc)
 			goto err;
 	}
 
@@ -359,8 +359,8 @@ static struct stm32_mdma_desc *stm32_mdma_alloc_desc(
 err:
 	dev_err(chan2dev(chan), "Failed to allocate descriptor\n");
 	while (--i >= 0)
-		dma_pool_free(chan->desc_pool, desc->node[i].hwdesc,
-			      desc->node[i].hwdesc_phys);
+		dma_pool_free(chan->desc_pool, desc->yesde[i].hwdesc,
+			      desc->yesde[i].hwdesc_phys);
 	kfree(desc);
 	return NULL;
 }
@@ -372,8 +372,8 @@ static void stm32_mdma_desc_free(struct virt_dma_desc *vdesc)
 	int i;
 
 	for (i = 0; i < desc->count; i++)
-		dma_pool_free(chan->desc_pool, desc->node[i].hwdesc,
-			      desc->node[i].hwdesc_phys);
+		dma_pool_free(chan->desc_pool, desc->yesde[i].hwdesc,
+			      desc->yesde[i].hwdesc_phys);
 	kfree(desc);
 }
 
@@ -387,7 +387,7 @@ static int stm32_mdma_get_width(struct stm32_mdma_chan *chan,
 	case DMA_SLAVE_BUSWIDTH_8_BYTES:
 		return ffs(width) - 1;
 	default:
-		dev_err(chan2dev(chan), "Dma bus width %i not supported\n",
+		dev_err(chan2dev(chan), "Dma bus width %i yest supported\n",
 			width);
 		return -EINVAL;
 	}
@@ -660,7 +660,7 @@ static int stm32_mdma_set_xfer_param(struct stm32_mdma_chan *chan,
 		break;
 
 	default:
-		dev_err(chan2dev(chan), "Dma direction is not supported\n");
+		dev_err(chan2dev(chan), "Dma direction is yest supported\n");
 		return -EINVAL;
 	}
 
@@ -672,18 +672,18 @@ static int stm32_mdma_set_xfer_param(struct stm32_mdma_chan *chan,
 }
 
 static void stm32_mdma_dump_hwdesc(struct stm32_mdma_chan *chan,
-				   struct stm32_mdma_desc_node *node)
+				   struct stm32_mdma_desc_yesde *yesde)
 {
-	dev_dbg(chan2dev(chan), "hwdesc:  %pad\n", &node->hwdesc_phys);
-	dev_dbg(chan2dev(chan), "CTCR:    0x%08x\n", node->hwdesc->ctcr);
-	dev_dbg(chan2dev(chan), "CBNDTR:  0x%08x\n", node->hwdesc->cbndtr);
-	dev_dbg(chan2dev(chan), "CSAR:    0x%08x\n", node->hwdesc->csar);
-	dev_dbg(chan2dev(chan), "CDAR:    0x%08x\n", node->hwdesc->cdar);
-	dev_dbg(chan2dev(chan), "CBRUR:   0x%08x\n", node->hwdesc->cbrur);
-	dev_dbg(chan2dev(chan), "CLAR:    0x%08x\n", node->hwdesc->clar);
-	dev_dbg(chan2dev(chan), "CTBR:    0x%08x\n", node->hwdesc->ctbr);
-	dev_dbg(chan2dev(chan), "CMAR:    0x%08x\n", node->hwdesc->cmar);
-	dev_dbg(chan2dev(chan), "CMDR:    0x%08x\n\n", node->hwdesc->cmdr);
+	dev_dbg(chan2dev(chan), "hwdesc:  %pad\n", &yesde->hwdesc_phys);
+	dev_dbg(chan2dev(chan), "CTCR:    0x%08x\n", yesde->hwdesc->ctcr);
+	dev_dbg(chan2dev(chan), "CBNDTR:  0x%08x\n", yesde->hwdesc->cbndtr);
+	dev_dbg(chan2dev(chan), "CSAR:    0x%08x\n", yesde->hwdesc->csar);
+	dev_dbg(chan2dev(chan), "CDAR:    0x%08x\n", yesde->hwdesc->cdar);
+	dev_dbg(chan2dev(chan), "CBRUR:   0x%08x\n", yesde->hwdesc->cbrur);
+	dev_dbg(chan2dev(chan), "CLAR:    0x%08x\n", yesde->hwdesc->clar);
+	dev_dbg(chan2dev(chan), "CTBR:    0x%08x\n", yesde->hwdesc->ctbr);
+	dev_dbg(chan2dev(chan), "CMAR:    0x%08x\n", yesde->hwdesc->cmar);
+	dev_dbg(chan2dev(chan), "CMDR:    0x%08x\n\n", yesde->hwdesc->cmdr);
 }
 
 static void stm32_mdma_setup_hwdesc(struct stm32_mdma_chan *chan,
@@ -697,7 +697,7 @@ static void stm32_mdma_setup_hwdesc(struct stm32_mdma_chan *chan,
 	struct stm32_mdma_hwdesc *hwdesc;
 	u32 next = count + 1;
 
-	hwdesc = desc->node[count].hwdesc;
+	hwdesc = desc->yesde[count].hwdesc;
 	hwdesc->ctcr = ctcr;
 	hwdesc->cbndtr &= ~(STM32_MDMA_CBNDTR_BRC_MK |
 			STM32_MDMA_CBNDTR_BRDUM |
@@ -713,14 +713,14 @@ static void stm32_mdma_setup_hwdesc(struct stm32_mdma_chan *chan,
 
 	if (is_last) {
 		if (is_cyclic)
-			hwdesc->clar = desc->node[0].hwdesc_phys;
+			hwdesc->clar = desc->yesde[0].hwdesc_phys;
 		else
 			hwdesc->clar = 0;
 	} else {
-		hwdesc->clar = desc->node[next].hwdesc_phys;
+		hwdesc->clar = desc->yesde[next].hwdesc_phys;
 	}
 
-	stm32_mdma_dump_hwdesc(chan, &desc->node[count]);
+	stm32_mdma_dump_hwdesc(chan, &desc->yesde[count]);
 }
 
 static int stm32_mdma_setup_xfer(struct stm32_mdma_chan *chan,
@@ -787,13 +787,13 @@ stm32_mdma_prep_slave_sg(struct dma_chan *c, struct scatterlist *sgl,
 	int i, ret;
 
 	/*
-	 * Once DMA is in setup cyclic mode the channel we cannot assign this
+	 * Once DMA is in setup cyclic mode the channel we canyest assign this
 	 * channel anymore. The DMA channel needs to be aborted or terminated
-	 * for allowing another request.
+	 * for allowing ayesther request.
 	 */
 	if (chan->desc && chan->desc->cyclic) {
 		dev_err(chan2dev(chan),
-			"Request not allowed when dma in cyclic mode\n");
+			"Request yest allowed when dma in cyclic mode\n");
 		return NULL;
 	}
 
@@ -811,8 +811,8 @@ stm32_mdma_prep_slave_sg(struct dma_chan *c, struct scatterlist *sgl,
 
 xfer_setup_err:
 	for (i = 0; i < desc->count; i++)
-		dma_pool_free(chan->desc_pool, desc->node[i].hwdesc,
-			      desc->node[i].hwdesc_phys);
+		dma_pool_free(chan->desc_pool, desc->yesde[i].hwdesc,
+			      desc->yesde[i].hwdesc_phys);
 	kfree(desc);
 	return NULL;
 }
@@ -832,13 +832,13 @@ stm32_mdma_prep_dma_cyclic(struct dma_chan *c, dma_addr_t buf_addr,
 	int i, ret;
 
 	/*
-	 * Once DMA is in setup cyclic mode the channel we cannot assign this
+	 * Once DMA is in setup cyclic mode the channel we canyest assign this
 	 * channel anymore. The DMA channel needs to be aborted or terminated
-	 * for allowing another request.
+	 * for allowing ayesther request.
 	 */
 	if (chan->desc && chan->desc->cyclic) {
 		dev_err(chan2dev(chan),
-			"Request not allowed when dma in cyclic mode\n");
+			"Request yest allowed when dma in cyclic mode\n");
 		return NULL;
 	}
 
@@ -848,7 +848,7 @@ stm32_mdma_prep_dma_cyclic(struct dma_chan *c, dma_addr_t buf_addr,
 	}
 
 	if (buf_len % period_len) {
-		dev_err(chan2dev(chan), "buf_len not multiple of period_len\n");
+		dev_err(chan2dev(chan), "buf_len yest multiple of period_len\n");
 		return NULL;
 	}
 
@@ -902,8 +902,8 @@ stm32_mdma_prep_dma_cyclic(struct dma_chan *c, dma_addr_t buf_addr,
 
 xfer_setup_err:
 	for (i = 0; i < desc->count; i++)
-		dma_pool_free(chan->desc_pool, desc->node[i].hwdesc,
-			      desc->node[i].hwdesc_phys);
+		dma_pool_free(chan->desc_pool, desc->yesde[i].hwdesc,
+			      desc->yesde[i].hwdesc_phys);
 	kfree(desc);
 	return NULL;
 }
@@ -924,13 +924,13 @@ stm32_mdma_prep_dma_memcpy(struct dma_chan *c, dma_addr_t dest, dma_addr_t src,
 	int i;
 
 	/*
-	 * Once DMA is in setup cyclic mode the channel we cannot assign this
+	 * Once DMA is in setup cyclic mode the channel we canyest assign this
 	 * channel anymore. The DMA channel needs to be aborted or terminated
-	 * to allow another request
+	 * to allow ayesther request
 	 */
 	if (chan->desc && chan->desc->cyclic) {
 		dev_err(chan2dev(chan),
-			"Request not allowed when dma in cyclic mode\n");
+			"Request yest allowed when dma in cyclic mode\n");
 		return NULL;
 	}
 
@@ -1017,7 +1017,7 @@ stm32_mdma_prep_dma_memcpy(struct dma_chan *c, dma_addr_t dest, dma_addr_t src,
 			ctcr |= STM32_MDMA_CTCR_PKE;
 
 		/* Prepare hardware descriptor */
-		hwdesc = desc->node[0].hwdesc;
+		hwdesc = desc->yesde[0].hwdesc;
 		hwdesc->ctcr = ctcr;
 		hwdesc->cbndtr = cbndtr;
 		hwdesc->csar = src;
@@ -1028,7 +1028,7 @@ stm32_mdma_prep_dma_memcpy(struct dma_chan *c, dma_addr_t dest, dma_addr_t src,
 		hwdesc->cmar = 0;
 		hwdesc->cmdr = 0;
 
-		stm32_mdma_dump_hwdesc(chan, &desc->node[0]);
+		stm32_mdma_dump_hwdesc(chan, &desc->yesde[0]);
 	} else {
 		/* Setup a LLI transfer */
 		ctcr |= STM32_MDMA_CTCR_TRGM(STM32_MDMA_LINKED_LIST) |
@@ -1128,7 +1128,7 @@ static void stm32_mdma_start_transfer(struct stm32_mdma_chan *chan)
 	}
 
 	chan->desc = to_stm32_mdma_desc(vdesc);
-	hwdesc = chan->desc->node[0].hwdesc;
+	hwdesc = chan->desc->yesde[0].hwdesc;
 	chan->curr_hwdesc = 0;
 
 	stm32_mdma_write(dmadev, STM32_MDMA_CCR(id), chan->desc->ccr);
@@ -1206,7 +1206,7 @@ static int stm32_mdma_resume(struct dma_chan *c)
 	unsigned long flags;
 	u32 status, reg;
 
-	hwdesc = chan->desc->node[chan->curr_hwdesc].hwdesc;
+	hwdesc = chan->desc->yesde[chan->curr_hwdesc].hwdesc;
 
 	spin_lock_irqsave(&chan->vchan.lock, flags);
 
@@ -1276,13 +1276,13 @@ static size_t stm32_mdma_desc_residue(struct stm32_mdma_chan *chan,
 				      u32 curr_hwdesc)
 {
 	struct stm32_mdma_device *dmadev = stm32_mdma_get_dev(chan);
-	struct stm32_mdma_hwdesc *hwdesc = desc->node[0].hwdesc;
+	struct stm32_mdma_hwdesc *hwdesc = desc->yesde[0].hwdesc;
 	u32 cbndtr, residue, modulo, burst_size;
 	int i;
 
 	residue = 0;
 	for (i = curr_hwdesc + 1; i < desc->count; i++) {
-		hwdesc = desc->node[i].hwdesc;
+		hwdesc = desc->yesde[i].hwdesc;
 		residue += STM32_MDMA_CBNDTR_BNDT(hwdesc->cbndtr);
 	}
 	cbndtr = stm32_mdma_read(dmadev, STM32_MDMA_CBNDTR(chan->id));
@@ -1331,7 +1331,7 @@ static enum dma_status stm32_mdma_tx_status(struct dma_chan *c,
 
 static void stm32_mdma_xfer_end(struct stm32_mdma_chan *chan)
 {
-	list_del(&chan->desc->vdesc.node);
+	list_del(&chan->desc->vdesc.yesde);
 	vchan_cookie_complete(&chan->desc->vdesc);
 	chan->desc = NULL;
 	chan->busy = false;
@@ -1366,7 +1366,7 @@ static irqreturn_t stm32_mdma_irq_handler(int irq, void *devid)
 
 	chan = &dmadev->chan[id];
 	if (!chan) {
-		dev_dbg(mdma2dev(dmadev), "MDMA channel not initialized\n");
+		dev_dbg(mdma2dev(dmadev), "MDMA channel yest initialized\n");
 		goto exit;
 	}
 
@@ -1439,7 +1439,7 @@ static int stm32_mdma_alloc_chan_resources(struct dma_chan *c)
 	chan->desc_pool = dmam_pool_create(dev_name(&c->dev->device),
 					   c->device->dev,
 					   sizeof(struct stm32_mdma_hwdesc),
-					  __alignof__(struct stm32_mdma_hwdesc),
+					  __aligyesf__(struct stm32_mdma_hwdesc),
 					   0);
 	if (!chan->desc_pool) {
 		dev_err(chan2dev(chan), "failed to allocate descriptor pool\n");
@@ -1503,7 +1503,7 @@ static struct dma_chan *stm32_mdma_of_xlate(struct of_phandle_args *dma_spec,
 	}
 
 	if (config.priority_level > STM32_MDMA_VERY_HIGH_PRIORITY) {
-		dev_err(mdma2dev(dmadev), "Priority level not supported\n");
+		dev_err(mdma2dev(dmadev), "Priority level yest supported\n");
 		return NULL;
 	}
 
@@ -1530,13 +1530,13 @@ static int stm32_mdma_probe(struct platform_device *pdev)
 	struct stm32_mdma_chan *chan;
 	struct stm32_mdma_device *dmadev;
 	struct dma_device *dd;
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 	struct resource *res;
 	u32 nr_channels, nr_requests;
 	int i, count, ret;
 
-	of_node = pdev->dev.of_node;
-	if (!of_node)
+	of_yesde = pdev->dev.of_yesde;
+	if (!of_yesde)
 		return -ENODEV;
 
 	ret = device_property_read_u32(&pdev->dev, "dma-channels",
@@ -1651,7 +1651,7 @@ static int stm32_mdma_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = of_dma_controller_register(of_node, stm32_mdma_of_xlate, dmadev);
+	ret = of_dma_controller_register(of_yesde, stm32_mdma_of_xlate, dmadev);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"STM32 MDMA DMA OF registration failed %d\n", ret);
@@ -1661,7 +1661,7 @@ static int stm32_mdma_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dmadev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_put(&pdev->dev);
 
 	dev_info(&pdev->dev, "STM32 MDMA driver registered\n");

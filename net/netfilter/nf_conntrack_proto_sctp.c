@@ -79,8 +79,8 @@ static const unsigned int sctp_timeouts[SCTP_CONNTRACK_MAX] = {
 
 NOTE: These state names are tantalizingly similar to the states of an
 SCTP endpoint. But the interpretation of the states is a little different,
-considering that these are the states of the connection and not of an end
-point. Please note the subtleties. -Kiran
+considering that these are the states of the connection and yest of an end
+point. Please yeste the subtleties. -Kiran
 
 NONE              - Nothing so far.
 COOKIE WAIT       - We have seen an INIT chunk in the original direction, or also
@@ -178,8 +178,8 @@ static int do_basic_checks(struct nf_conn *ct,
 			flag = 1;
 
 		/*
-		 * Cookie Ack/Echo chunks not the first OR
-		 * Init / Init Ack / Shutdown compl chunks not the only chunks
+		 * Cookie Ack/Echo chunks yest the first OR
+		 * Init / Init Ack / Shutdown compl chunks yest the only chunks
 		 * OR zero-length.
 		 */
 		if (((sch->type == SCTP_CID_COOKIE_ACK ||
@@ -252,8 +252,8 @@ static int sctp_new_state(enum ip_conntrack_dir dir,
 		i = 10;
 		break;
 	default:
-		/* Other chunks like DATA or SACK do not change the state */
-		pr_debug("Unknown chunk type, Will stay in %s\n",
+		/* Other chunks like DATA or SACK do yest change the state */
+		pr_debug("Unkyeswn chunk type, Will stay in %s\n",
 			 sctp_conntrack_names[cur_state]);
 		return cur_state;
 	}
@@ -265,8 +265,8 @@ static int sctp_new_state(enum ip_conntrack_dir dir,
 	return sctp_conntracks[dir][i][cur_state];
 }
 
-/* Don't need lock here: this conntrack not in circulation yet */
-static noinline bool
+/* Don't need lock here: this conntrack yest in circulation yet */
+static yesinline bool
 sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	 const struct sctphdr *sh, unsigned int dataoff)
 {
@@ -450,7 +450,7 @@ int nf_conntrack_sctp_packet(struct nf_conn *ct,
 			goto out_unlock;
 		}
 
-		/* If it is an INIT or an INIT ACK note down the vtag */
+		/* If it is an INIT or an INIT ACK yeste down the vtag */
 		if (sch->type == SCTP_CID_INIT ||
 		    sch->type == SCTP_CID_INIT_ACK) {
 			struct sctp_inithdr _inithdr, *ih;
@@ -556,7 +556,7 @@ static int nlattr_to_sctp(struct nlattr *cda[], struct nf_conn *ct)
 	struct nlattr *tb[CTA_PROTOINFO_SCTP_MAX+1];
 	int err;
 
-	/* updates may not contain the internal protocol info, skip parsing */
+	/* updates may yest contain the internal protocol info, skip parsing */
 	if (!attr)
 		return 0;
 

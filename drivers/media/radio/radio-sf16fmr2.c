@@ -2,8 +2,8 @@
 /* SF16-FMR2 and SF16-FMD2 radio driver for Linux
  * Copyright (c) 2011 Ondrej Zary
  *
- * Original driver was (c) 2000-2002 Ziglio Frediano, freddy77@angelfire.com
- * but almost nothing remained here after conversion to generic TEA575x
+ * Original driver was (c) 2000-2002 Ziglio Frediayes, freddy77@angelfire.com
+ * but almost yesthing remained here after conversion to generic TEA575x
  * implementation
  */
 
@@ -105,7 +105,7 @@ static const struct snd_tea575x_ops fmr2_tea_ops = {
 #define TC9154A_ATT_MIN_4DB	(1 << 9)
 #define TC9154A_ATT_MIN_6DB	(1 << 10)
 #define TC9154A_ATT_MIN_8DB	(1 << 11)
-/* bit 12 is ignored */
+/* bit 12 is igyesred */
 #define TC9154A_CHANNEL_LEFT	(1 << 13)
 #define TC9154A_CHANNEL_RIGHT	(1 << 14)
 /* bits 15, 16, 17 must be 0 */
@@ -226,7 +226,7 @@ static int fmr2_probe(struct fmr2 *fmr2, struct device *pdev, int io)
 	dev_set_drvdata(pdev, fmr2);
 	err = v4l2_device_register(pdev, &fmr2->v4l2_dev);
 	if (err < 0) {
-		v4l2_err(&fmr2->v4l2_dev, "Could not register v4l2_device\n");
+		v4l2_err(&fmr2->v4l2_dev, "Could yest register v4l2_device\n");
 		release_region(fmr2->io, 2);
 		return err;
 	}

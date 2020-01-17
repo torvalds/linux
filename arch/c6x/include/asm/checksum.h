@@ -7,7 +7,7 @@
 #define _ASM_C6X_CHECKSUM_H
 
 static inline __wsum
-csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
+csum_tcpudp_yesfold(__be32 saddr, __be32 daddr, __u32 len,
 		   __u8 proto, __wsum sum)
 {
 	unsigned long long tmp;
@@ -24,7 +24,7 @@ csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
 	     : "a" (saddr), "a" (daddr), "a" (proto));
 	return sum;
 }
-#define csum_tcpudp_nofold csum_tcpudp_nofold
+#define csum_tcpudp_yesfold csum_tcpudp_yesfold
 
 #include <asm-generic/checksum.h>
 

@@ -25,14 +25,14 @@
 #include <asm/iommu.h>
 #include <asm/mach_traps.h>
 
-void x86_init_noop(void) { }
-void __init x86_init_uint_noop(unsigned int unused) { }
-static int __init iommu_init_noop(void) { return 0; }
-static void iommu_shutdown_noop(void) { }
-bool __init bool_x86_init_noop(void) { return false; }
-void x86_op_int_noop(int cpu) { }
-static __init int set_rtc_noop(const struct timespec64 *now) { return -EINVAL; }
-static __init void get_rtc_noop(struct timespec64 *now) { }
+void x86_init_yesop(void) { }
+void __init x86_init_uint_yesop(unsigned int unused) { }
+static int __init iommu_init_yesop(void) { return 0; }
+static void iommu_shutdown_yesop(void) { }
+bool __init bool_x86_init_yesop(void) { return false; }
+void x86_op_int_yesop(int cpu) { }
+static __init int set_rtc_yesop(const struct timespec64 *yesw) { return -EINVAL; }
+static __init void get_rtc_yesop(struct timespec64 *yesw) { }
 
 static __initconst const struct of_device_id of_cmos_match[] = {
 	{ .compatible = "motorola,mc146818" },
@@ -41,16 +41,16 @@ static __initconst const struct of_device_id of_cmos_match[] = {
 
 /*
  * Allow devicetree configured systems to disable the RTC by setting the
- * corresponding DT node's status property to disabled. Code is optimized
+ * corresponding DT yesde's status property to disabled. Code is optimized
  * out for CONFIG_OF=n builds.
  */
 static __init void x86_wallclock_init(void)
 {
-	struct device_node *node = of_find_matching_node(NULL, of_cmos_match);
+	struct device_yesde *yesde = of_find_matching_yesde(NULL, of_cmos_match);
 
-	if (node && !of_device_is_available(node)) {
-		x86_platform.get_wallclock = get_rtc_noop;
-		x86_platform.set_wallclock = set_rtc_noop;
+	if (yesde && !of_device_is_available(yesde)) {
+		x86_platform.get_wallclock = get_rtc_yesop;
+		x86_platform.set_wallclock = set_rtc_yesop;
 	}
 }
 
@@ -67,8 +67,8 @@ struct x86_init_ops x86_init __initdata = {
 	},
 
 	.mpparse = {
-		.mpc_record		= x86_init_uint_noop,
-		.setup_ioapic_ids	= x86_init_noop,
+		.mpc_record		= x86_init_uint_yesop,
+		.setup_ioapic_ids	= x86_init_yesop,
 		.mpc_apic_id		= default_mpc_apic_id,
 		.smp_read_mpc_oem	= default_smp_read_mpc_oem,
 		.mpc_oem_bus_info	= default_mpc_oem_bus_info,
@@ -79,12 +79,12 @@ struct x86_init_ops x86_init __initdata = {
 	.irqs = {
 		.pre_vector_init	= init_ISA_irqs,
 		.intr_init		= native_init_IRQ,
-		.trap_init		= x86_init_noop,
+		.trap_init		= x86_init_yesop,
 		.intr_mode_init		= apic_intr_mode_init
 	},
 
 	.oem = {
-		.arch_setup		= x86_init_noop,
+		.arch_setup		= x86_init_yesop,
 		.banner			= default_banner,
 	},
 
@@ -99,7 +99,7 @@ struct x86_init_ops x86_init __initdata = {
 	},
 
 	.iommu = {
-		.iommu_init		= iommu_init_noop,
+		.iommu_init		= iommu_init_yesop,
 	},
 
 	.pci = {
@@ -109,11 +109,11 @@ struct x86_init_ops x86_init __initdata = {
 	},
 
 	.hyper = {
-		.init_platform		= x86_init_noop,
-		.guest_late_init	= x86_init_noop,
-		.x2apic_available	= bool_x86_init_noop,
-		.init_mem_mapping	= x86_init_noop,
-		.init_after_bootmem	= x86_init_noop,
+		.init_platform		= x86_init_yesop,
+		.guest_late_init	= x86_init_yesop,
+		.x2apic_available	= bool_x86_init_yesop,
+		.init_mem_mapping	= x86_init_yesop,
+		.init_after_bootmem	= x86_init_yesop,
 	},
 
 	.acpi = {
@@ -124,7 +124,7 @@ struct x86_init_ops x86_init __initdata = {
 };
 
 struct x86_cpuinit_ops x86_cpuinit = {
-	.early_percpu_clock_init	= x86_init_noop,
+	.early_percpu_clock_init	= x86_init_yesop,
 	.setup_percpu_clockev		= setup_secondary_APIC_clock,
 };
 
@@ -135,13 +135,13 @@ struct x86_platform_ops x86_platform __ro_after_init = {
 	.calibrate_tsc			= native_calibrate_tsc,
 	.get_wallclock			= mach_get_cmos_time,
 	.set_wallclock			= mach_set_rtc_mmss,
-	.iommu_shutdown			= iommu_shutdown_noop,
+	.iommu_shutdown			= iommu_shutdown_yesop,
 	.is_untracked_pat_range		= is_ISA_range,
 	.nmi_init			= default_nmi_init,
 	.get_nmi_reason			= default_get_nmi_reason,
 	.save_sched_clock_state 	= tsc_save_sched_clock_state,
 	.restore_sched_clock_state 	= tsc_restore_sched_clock_state,
-	.hyper.pin_vcpu			= x86_op_int_noop,
+	.hyper.pin_vcpu			= x86_op_int_yesop,
 };
 
 EXPORT_SYMBOL_GPL(x86_platform);

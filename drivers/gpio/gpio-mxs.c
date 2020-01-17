@@ -173,7 +173,7 @@ static void mxs_gpio_irq_handler(struct irq_desc *desc)
  * wake-up enabled. When system is suspended, only selected GPIO interrupts
  * need to have wake-up enabled.
  * @param  irq          interrupt source number
- * @param  enable       enable as wake-up if equal to non-zero
+ * @param  enable       enable as wake-up if equal to yesn-zero
  * @return       This function returns 0 on success.
  */
 static int mxs_gpio_set_wake_irq(struct irq_data *d, unsigned int enable)
@@ -276,8 +276,8 @@ MODULE_DEVICE_TABLE(of, mxs_gpio_dt_ids);
 
 static int mxs_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *parent;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *parent;
 	static void __iomem *base;
 	struct mxs_gpio_port *port;
 	int irq_base;
@@ -303,7 +303,7 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 	if (!base) {
 		parent = of_get_parent(np);
 		base = of_iomap(parent, 0);
-		of_node_put(parent);
+		of_yesde_put(parent);
 		if (!base)
 			return -EADDRNOTAVAIL;
 	}
@@ -316,7 +316,7 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 	/* clear address has to be used to clear IRQSTAT bits */
 	writel(~0U, port->base + PINCTRL_IRQSTAT(port) + MXS_CLR);
 
-	irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0, 32, numa_node_id());
+	irq_base = devm_irq_alloc_descs(&pdev->dev, -1, 0, 32, numa_yesde_id());
 	if (irq_base < 0) {
 		err = irq_base;
 		goto out_iounmap;

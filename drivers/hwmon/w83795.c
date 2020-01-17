@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *  w83795.c - Linux kernel driver for hardware monitoring
- *  Copyright (C) 2008 Nuvoton Technology Corp.
+ *  Copyright (C) 2008 Nuvoton Techyeslogy Corp.
  *                Wei Song
  *  Copyright (C) 2010 Jean Delvare <jdelvare@suse.de>
  *
  *  Supports following chips:
  *
  *  Chip       #vin   #fanin #pwm #temp #dts wchipid  vendid  i2c  ISA
- *  w83795g     21     14     8     6     8    0x79   0x5ca3  yes   no
- *  w83795adg   18     14     2     6     8    0x79   0x5ca3  yes   no
+ *  w83795g     21     14     8     6     8    0x79   0x5ca3  no   yes
+ *  w83795adg   18     14     2     6     8    0x79   0x5ca3  no   yes
  */
 
 #include <linux/kernel.h>
@@ -25,14 +25,14 @@
 #include <linux/util_macros.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x2c, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END
 };
 
 
 static bool reset;
 module_param(reset, bool, 0);
-MODULE_PARM_DESC(reset, "Set to 1 to reset chip, not recommended");
+MODULE_PARM_DESC(reset, "Set to 1 to reset chip, yest recommended");
 
 
 #define W83795_REG_BANKSEL		0x00
@@ -325,17 +325,17 @@ struct w83795_data {
 
 	u8 bank;
 
-	u32 has_in;		/* Enable monitor VIN or not */
+	u32 has_in;		/* Enable monitor VIN or yest */
 	u8 has_dyn_in;		/* Only in2-0 can have this */
 	u16 in[21][3];		/* Register value, read/high/low */
 	u8 in_lsb[10][3];	/* LSB Register value, high/low */
 	u8 has_gain;		/* has gain: in17-20 * 8 */
 
-	u16 has_fan;		/* Enable fan14-1 or not */
+	u16 has_fan;		/* Enable fan14-1 or yest */
 	u16 fan[14];		/* Register value combine */
 	u16 fan_min[14];	/* Register value combine */
 
-	u8 has_temp;		/* Enable monitor temp6-1 or not */
+	u8 has_temp;		/* Enable monitor temp6-1 or yest */
 	s8 temp[6][5];		/* current, crit, crit_hyst, warn, warn_hyst */
 	u8 temp_read_vrlsb[6];
 	u8 temp_mode;		/* Bit vector, 0 = TR, 1 = TD */
@@ -353,12 +353,12 @@ struct w83795_data {
 
 	u8 has_pwm;		/*
 				 * 795g supports 8 pwm, 795adg only supports 2,
-				 * no config register, only affected by chip
+				 * yes config register, only affected by chip
 				 * type
 				 */
 	u8 pwm[8][5];		/*
 				 * Register value, output, freq, start,
-				 *  non stop, stop time
+				 *  yesn stop, stop time
 				 */
 	u16 clkin;		/* CLKIN frequency in kHz */
 	u8 pwm_fcms[2];		/* Register value */
@@ -386,7 +386,7 @@ struct w83795_data {
 
 /*
  * Hardware access
- * We assume that nobdody can change the bank outside the driver.
+ * We assume that yesbdody can change the bank outside the driver.
  */
 
 /* Must be called with data->update_lock held, except during initialization */
@@ -395,7 +395,7 @@ static int w83795_set_bank(struct i2c_client *client, u8 bank)
 	struct w83795_data *data = i2c_get_clientdata(client);
 	int err;
 
-	/* If the same bank is already set, nothing to do */
+	/* If the same bank is already set, yesthing to do */
 	if ((data->bank & 0x07) == bank)
 		return 0;
 
@@ -1642,7 +1642,7 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 		show_pwm_mode, NULL, NOT_USED, index - 1),		\
 	SENSOR_ATTR_2(pwm##index##_freq, S_IWUSR | S_IRUGO,		\
 		show_pwm, store_pwm, PWM_FREQ, index - 1),		\
-	SENSOR_ATTR_2(pwm##index##_nonstop, S_IWUSR | S_IRUGO,		\
+	SENSOR_ATTR_2(pwm##index##_yesnstop, S_IWUSR | S_IRUGO,		\
 		show_pwm, store_pwm, PWM_NONSTOP, index - 1),		\
 	SENSOR_ATTR_2(pwm##index##_start, S_IWUSR | S_IRUGO,		\
 		show_pwm, store_pwm, PWM_START, index - 1),		\
@@ -2262,7 +2262,7 @@ static struct i2c_driver w83795_driver = {
 
 	.class		= I2C_CLASS_HWMON,
 	.detect		= w83795_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(w83795_driver);

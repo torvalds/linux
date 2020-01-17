@@ -511,7 +511,7 @@ union nps_pkt_slc_ctl {
  *   NPS_PKT_MBOX_PF_VF(i)_INT[INTR] is set. To clear the bit,
  *   write NPS_PKT_MBOX_PF_VF(i)_INT[INTR] with 1.
  * @timer: Timer, incremented every 2048 coprocessor clock cycles
- *   when [CNT] is not zero. The hardware clears both [TIMER] and
+ *   when [CNT] is yest zero. The hardware clears both [TIMER] and
  *   [INT] when [CNT] goes to 0.
  * @cnt: Packet counter. Hardware adds to [CNT] as it sends packets out.
  *   On a write to this CSR, hardware subtracts the amount written to the
@@ -824,23 +824,23 @@ union nps_core_gbl_vfcfg {
  *    NPS_PKT_MBOX_INT_LO_ENA_W1C/HI_ENA_W1C bits are set
  * @emu: bit i is set in [EMU] when any EMU(i)_INT bit is set
  * @bmo: Set when any BMO_INT bit is set
- * @bmi: Set when any BMI_INT bit is set or when any non-RO
+ * @bmi: Set when any BMI_INT bit is set or when any yesn-RO
  *    BMI_INT and corresponding BMI_INT_ENA_W1C bits are both set
  * @aqm: Set when any AQM_INT bit is set
  * @zqm: Set when any ZQM_INT bit is set
- * @efl: Set when any EFL_INT RO bit is set or when any non-RO EFL_INT
+ * @efl: Set when any EFL_INT RO bit is set or when any yesn-RO EFL_INT
  *    and corresponding EFL_INT_ENA_W1C bits are both set
  * @ilk: Set when any ILK_INT bit is set
- * @lbc: Set when any LBC_INT RO bit is set or when any non-RO LBC_INT
+ * @lbc: Set when any LBC_INT RO bit is set or when any yesn-RO LBC_INT
  *    and corresponding LBC_INT_ENA_W1C bits are bot set
- * @pem: Set when any PEM(0)_INT RO bit is set or when any non-RO
+ * @pem: Set when any PEM(0)_INT RO bit is set or when any yesn-RO
  *    PEM(0)_INT and corresponding PEM(0)_INT_ENA_W1C bit are both set
  * @ucd: Set when any UCD_INT bit is set
- * @zctl: Set when any ZIP_INT RO bit is set or when any non-RO ZIP_INT
+ * @zctl: Set when any ZIP_INT RO bit is set or when any yesn-RO ZIP_INT
  *    and corresponding ZIP_INT_ENA_W1C bits are both set
  * @lbm: Set when any LBM_INT bit is set
  * @nps_pkt: Set when any NPS_PKT_INT bit is set
- * @nps_core: Set when any NPS_CORE_INT RO bit is set or when non-RO
+ * @nps_core: Set when any NPS_CORE_INT RO bit is set or when yesn-RO
  *    NPS_CORE_INT and corresponding NSP_CORE_INT_ENA_W1C bits are both set
  */
 union nps_core_int_active {
@@ -892,7 +892,7 @@ union nps_core_int_active {
 
 /**
  * struct efl_core_int - EFL Interrupt Registers
- * @epci_decode_err: EPCI decoded a transacation that was unknown
+ * @epci_decode_err: EPCI decoded a transacation that was unkyeswn
  *    This error should only occurred when there is a micrcode/SE error
  *    and should be considered fatal
  * @ae_err: An AE uncorrectable error occurred.
@@ -1244,8 +1244,8 @@ union lbc_int_ena_w1s {
  *   System reset is required
  * @cache_line_to_err: is a debug feature.
  *   This timeout interrupt bit tells the software that
- *   a cacheline in LBC has non-zero usage and the context
- *   has not been used for greater than the
+ *   a cacheline in LBC has yesn-zero usage and the context
+ *   has yest been used for greater than the
  *   LBC_TO_CNT[TO_CNT] time interval.
  * @sbe: Memory SBE error. This is recoverable via ECC.
  *   See LBC_ECC_INT for more details.
@@ -1392,10 +1392,10 @@ union rst_boot {
  * @zip_info: ZIP information
  * @bar2_sz_conf: when zero, BAR2 size conforms to
  *    PCIe specification
- * @efus_ign: efuse ignore
- * @nozip: ZIP disable
+ * @efus_ign: efuse igyesre
+ * @yeszip: ZIP disable
  * @pll_alt_matrix: select alternate PLL matrix
- * @pll_bwadj_denom: select CLKF denominator for
+ * @pll_bwadj_deyesm: select CLKF deyesminator for
  *    BWADJ value
  * @chip_id: chip ID
  */
@@ -1412,17 +1412,17 @@ union fus_dat1 {
 		u64 zip_info : 5;
 		u64 bar2_sz_conf : 1;
 		u64 efus_ign : 1;
-		u64 nozip : 1;
+		u64 yeszip : 1;
 		u64 raz_11_17 : 7;
 		u64 pll_alt_matrix : 1;
-		u64 pll_bwadj_denom : 2;
+		u64 pll_bwadj_deyesm : 2;
 		u64 chip_id : 8;
 #else
 		u64 chip_id : 8;
-		u64 pll_bwadj_denom : 2;
+		u64 pll_bwadj_deyesm : 2;
 		u64 pll_alt_matrix : 1;
 		u64 raz_11_17 : 7;
-		u64 nozip : 1;
+		u64 yeszip : 1;
 		u64 efus_ign : 1;
 		u64 bar2_sz_conf : 1;
 		u64 zip_info : 5;

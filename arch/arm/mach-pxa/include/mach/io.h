@@ -10,7 +10,7 @@
 #define IO_SPACE_LIMIT 0xffffffff
 
 /*
- * We don't actually have real ISA nor PCI buses, but there is so many
+ * We don't actually have real ISA yesr PCI buses, but there is so many
  * drivers out there that might just work if we fake them...
  */
 #define __io(a)		__typesafe_io(a)

@@ -26,7 +26,7 @@ struct pnfs_ff_netaddr {
 struct pnfs_ff_device_addr {
 	struct pnfs_ff_netaddr		netaddr;
 	u32				version;
-	u32				minor_version;
+	u32				miyesr_version;
 	u32				rsize;
 	u32				wsize;
 	bool				tightly_coupled;

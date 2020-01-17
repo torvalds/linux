@@ -13,7 +13,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/nospec-insn.h>
+#include <asm/yesspec-insn.h>
 #include <asm/vx-insn.h>
 
 /* Vector register range containing CRC-32 constants */
@@ -43,8 +43,8 @@
  *
  *	Barret reduction constant, u, is defined as floor(x**64 / P(x)).
  *
- *	where P(x) is the polynomial in the normal domain and the P'(x) is the
- *	polynomial in the reversed (bitreflected) domain.
+ *	where P(x) is the polyyesmial in the yesrmal domain and the P'(x) is the
+ *	polyyesmial in the reversed (bitreflected) domain.
  *
  * Note that the constant definitions below are extended in order to compute
  * intermediate results with a single VECTOR GALOIS FIELD MULTIPLY instruction.
@@ -52,7 +52,7 @@
  * can be multiplied by 1 to perform an XOR without the need for a separate
  * VECTOR EXCLUSIVE OR instruction.
  *
- * CRC-32 (IEEE 802.3 Ethernet, ...) polynomials:
+ * CRC-32 (IEEE 802.3 Ethernet, ...) polyyesmials:
  *
  *	P(x)  = 0x04C11DB7
  *	P'(x) = 0xEDB88320
@@ -175,8 +175,8 @@ ENTRY(crc32_be_vgfm_16)
 	VGFMG	%v1,CONST_R6,%v1
 
 	/*
-	 * The input values to the Barret reduction are the degree-63 polynomial
-	 * in V1 (R(x)), degree-32 generator polynomial, and the reduction
+	 * The input values to the Barret reduction are the degree-63 polyyesmial
+	 * in V1 (R(x)), degree-32 generator polyyesmial, and the reduction
 	 * constant u.	The Barret reduction result is the CRC value of R(x) mod
 	 * P(x).
 	 *
@@ -189,7 +189,7 @@ ENTRY(crc32_be_vgfm_16)
 	 * Note: To compensate the division by x^32, use the vector unpack
 	 * instruction to move the leftmost word into the leftmost doubleword
 	 * of the vector register.  The rightmost doubleword is multiplied
-	 * with zero to not contribute to the intermedate results.
+	 * with zero to yest contribute to the intermedate results.
 	 */
 
 	/* T1(x) = floor( R(x) / x^32 ) GF2MUL u */
@@ -197,7 +197,7 @@ ENTRY(crc32_be_vgfm_16)
 	VGFMG	%v2,CONST_RU_POLY,%v2
 
 	/*
-	 * Compute the GF(2) product of the CRC polynomial in VO with T1(x) in
+	 * Compute the GF(2) product of the CRC polyyesmial in VO with T1(x) in
 	 * V2 and XOR the intermediate result, T2(x),  with the value in V1.
 	 * The final result is in the rightmost word of V2.
 	 */

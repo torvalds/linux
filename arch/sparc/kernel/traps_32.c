@@ -47,7 +47,7 @@ static void instruction_dump(unsigned long *pc)
 #define __SAVE __asm__ __volatile__("save %sp, -0x40, %sp\n\t")
 #define __RESTORE __asm__ __volatile__("restore %g0, %g0, %g0\n\t")
 
-void __noreturn die_if_kernel(char *str, struct pt_regs *regs)
+void __yesreturn die_if_kernel(char *str, struct pt_regs *regs)
 {
 	static int die_counter;
 	int count = 0;
@@ -210,7 +210,7 @@ void do_fpe_trap(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 	struct task_struct *fpt = current;
 #endif
 	put_psr(get_psr() | PSR_EF);
-	/* If nobody owns the fpu right now, just clear the
+	/* If yesbody owns the fpu right yesw, just clear the
 	 * error into our fake static buffer and hope it don't
 	 * happen again.  Thank you crashme...
 	 */
@@ -257,14 +257,14 @@ void do_fpe_trap(struct pt_regs *regs, unsigned long pc, unsigned long npc,
 		fpload(&current->thread.float_regs[0], &current->thread.fsr);
 		return;
 	}
-	/* nope, better SIGFPE the offending process... */
+	/* yespe, better SIGFPE the offending process... */
 	       
 #ifdef CONFIG_SMP
 	clear_tsk_thread_flag(fpt, TIF_USEDFPU);
 #endif
 	if(psr & PSR_PS) {
 		/* The first fsr store/load we tried trapped,
-		 * the second one will not (we hope).
+		 * the second one will yest (we hope).
 		 */
 		printk("WARNING: FPU exception from kernel mode. at pc=%08lx\n",
 		       regs->pc);

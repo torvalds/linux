@@ -23,8 +23,8 @@ struct zpodd {
 	struct ata_device	*dev;
 
 	/* The following fields are synchronized by PM core. */
-	bool			from_notify; /* resumed as a result of
-					      * acpi wake notification */
+	bool			from_yestify; /* resumed as a result of
+					      * acpi wake yestification */
 	bool			zp_ready; /* ZP ready state */
 	unsigned long		last_ready; /* last ZP ready timestamp */
 	bool			zp_sampled; /* ZP ready state sampled */
@@ -130,10 +130,10 @@ static bool zpready(struct ata_device *dev)
 	ascq = sense_buf[13];
 
 	if (zpodd->mech_type == ODD_MECH_TYPE_SLOT)
-		/* no media inside */
+		/* yes media inside */
 		return asc == 0x3a;
 	else
-		/* no media inside and door closed */
+		/* yes media inside and door closed */
 		return asc == 0x3a && ascq == 0x01;
 }
 
@@ -211,7 +211,7 @@ void zpodd_disable_run_wake(struct ata_device *dev)
  * device is able to process NON_DATA PIO command, as eject needs to
  * send command for the ODD to process.
  *
- * The from_notify flag set in wake notification handler function
+ * The from_yestify flag set in wake yestification handler function
  * zpodd_wake_dev represents if power on is due to user's action.
  *
  * For both types of ODD, several fields need to be reset.
@@ -225,8 +225,8 @@ void zpodd_post_poweron(struct ata_device *dev)
 
 	zpodd->powered_off = false;
 
-	if (zpodd->from_notify) {
-		zpodd->from_notify = false;
+	if (zpodd->from_yestify) {
+		zpodd->from_yestify = false;
 		if (zpodd->mech_type == ODD_MECH_TYPE_DRAWER)
 			eject_tray(dev);
 	}
@@ -244,22 +244,22 @@ static void zpodd_wake_dev(acpi_handle handle, u32 event, void *context)
 	struct device *dev = &ata_dev->sdev->sdev_gendev;
 
 	if (event == ACPI_NOTIFY_DEVICE_WAKE && pm_runtime_suspended(dev)) {
-		zpodd->from_notify = true;
+		zpodd->from_yestify = true;
 		pm_runtime_resume(dev);
 	}
 }
 
-static void ata_acpi_add_pm_notifier(struct ata_device *dev)
+static void ata_acpi_add_pm_yestifier(struct ata_device *dev)
 {
 	acpi_handle handle = ata_dev_acpi_handle(dev);
-	acpi_install_notify_handler(handle, ACPI_SYSTEM_NOTIFY,
+	acpi_install_yestify_handler(handle, ACPI_SYSTEM_NOTIFY,
 				    zpodd_wake_dev, dev);
 }
 
-static void ata_acpi_remove_pm_notifier(struct ata_device *dev)
+static void ata_acpi_remove_pm_yestifier(struct ata_device *dev)
 {
 	acpi_handle handle = ata_dev_acpi_handle(dev);
-	acpi_remove_notify_handler(handle, ACPI_SYSTEM_NOTIFY, zpodd_wake_dev);
+	acpi_remove_yestify_handler(handle, ACPI_SYSTEM_NOTIFY, zpodd_wake_dev);
 }
 
 void zpodd_init(struct ata_device *dev)
@@ -281,7 +281,7 @@ void zpodd_init(struct ata_device *dev)
 
 	zpodd->mech_type = mech_type;
 
-	ata_acpi_add_pm_notifier(dev);
+	ata_acpi_add_pm_yestifier(dev);
 	zpodd->dev = dev;
 	dev->zpodd = zpodd;
 	dev_pm_qos_expose_flags(&dev->tdev, 0);
@@ -289,7 +289,7 @@ void zpodd_init(struct ata_device *dev)
 
 void zpodd_exit(struct ata_device *dev)
 {
-	ata_acpi_remove_pm_notifier(dev);
+	ata_acpi_remove_pm_yestifier(dev);
 	kfree(dev->zpodd);
 	dev->zpodd = NULL;
 }

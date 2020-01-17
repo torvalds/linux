@@ -188,7 +188,7 @@ static void r852_do_dma(struct r852_device *dev, uint8_t *buf, int do_read)
 	  from device, for writes first fill the buffer  from memory*/
 	dev->dma_state = do_read ? DMA_INTERNAL : DMA_MEMORY;
 
-	/* if incoming buffer is not page aligned, we should do bounce */
+	/* if incoming buffer is yest page aligned, we should do bounce */
 	if ((unsigned long)buf & (R852_DMA_LEN-1))
 		bounce = 1;
 
@@ -372,7 +372,7 @@ static int r852_wait(struct nand_chip *chip)
 
 	nand_status_op(chip, &status);
 
-	/* Unfortunelly, no way to send detailed error status... */
+	/* Unfortunelly, yes way to send detailed error status... */
 	if (dev->dma_error) {
 		status |= NAND_STATUS_FAIL;
 		dev->dma_error = 0;
@@ -770,7 +770,7 @@ static irqreturn_t r852_irq(int irq, void *data)
 			goto out;
 		}
 
-		/* received DMA interrupt out of nowhere? */
+		/* received DMA interrupt out of yeswhere? */
 		WARN_ON_ONCE(dev->dma_stage == 0);
 
 		if (dev->dma_stage == 0)
@@ -803,7 +803,7 @@ static irqreturn_t r852_irq(int irq, void *data)
 		goto out;
 	}
 
-	/* Handle unknown interrupts */
+	/* Handle unkyeswn interrupts */
 	if (dma_status)
 		dbg("bad dma IRQ status = %x", dma_status);
 
@@ -930,7 +930,7 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		&dev->card_detect_work, 0);
 
 
-	pr_notice("driver loaded successfully\n");
+	pr_yestice("driver loaded successfully\n");
 	return 0;
 
 error10:
@@ -1011,7 +1011,7 @@ static int r852_suspend(struct device *device)
 	r852_engine_disable(dev);
 
 	/* If card was pulled off just during the suspend, which is very
-		unlikely, we will remove it on resume, it too late now
+		unlikely, we will remove it on resume, it too late yesw
 		anyway... */
 	dev->card_unstable = 0;
 	return 0;

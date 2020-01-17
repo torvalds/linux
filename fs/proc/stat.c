@@ -214,7 +214,7 @@ static int show_stat(struct seq_file *p, void *v)
 	return 0;
 }
 
-static int stat_open(struct inode *inode, struct file *file)
+static int stat_open(struct iyesde *iyesde, struct file *file)
 {
 	unsigned int size = 1024 + 128 * num_online_cpus();
 

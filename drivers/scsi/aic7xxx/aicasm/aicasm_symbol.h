@@ -9,14 +9,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -67,7 +67,7 @@ typedef enum {
 	RW = 0x03
 }amode_t;
 
-typedef SLIST_HEAD(symlist, symbol_node) symlist_t;
+typedef SLIST_HEAD(symlist, symbol_yesde) symlist_t;
 
 struct reg_info {
 	u_int	  address;
@@ -142,10 +142,10 @@ typedef struct symbol_ref {
 	int	 offset;
 } symbol_ref_t;
 
-typedef struct symbol_node {
-	SLIST_ENTRY(symbol_node) links;
+typedef struct symbol_yesde {
+	SLIST_ENTRY(symbol_yesde) links;
 	symbol_t *symbol;
-} symbol_node_t;
+} symbol_yesde_t;
 
 typedef struct critical_section {
 	TAILQ_ENTRY(critical_section) links;
@@ -190,7 +190,7 @@ void	symtable_close(void);
 symbol_t *
 	symtable_get(char *name);
 
-symbol_node_t *
+symbol_yesde_t *
 	symlist_search(symlist_t *symlist, char *symname);
 
 void

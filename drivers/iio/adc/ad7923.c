@@ -28,13 +28,13 @@
 #define AD7923_CODING		BIT(0)		/* coding is straight binary */
 #define AD7923_PM_MODE_AS	(1)		/* auto shutdown */
 #define AD7923_PM_MODE_FS	(2)		/* full shutdown */
-#define AD7923_PM_MODE_OPS	(3)		/* normal operation */
+#define AD7923_PM_MODE_OPS	(3)		/* yesrmal operation */
 #define AD7923_CHANNEL_0	(0)		/* analog input 0 */
 #define AD7923_CHANNEL_1	(1)		/* analog input 1 */
 #define AD7923_CHANNEL_2	(2)		/* analog input 2 */
 #define AD7923_CHANNEL_3	(3)		/* analog input 3 */
-#define AD7923_SEQUENCE_OFF	(0)		/* no sequence fonction */
-#define AD7923_SEQUENCE_PROTECT	(2)		/* no interrupt write cycle */
+#define AD7923_SEQUENCE_OFF	(0)		/* yes sequence fonction */
+#define AD7923_SEQUENCE_PROTECT	(2)		/* yes interrupt write cycle */
 #define AD7923_SEQUENCE_ON	(3)		/* continuous sequence */
 
 #define AD7923_MAX_CHAN		4
@@ -156,7 +156,7 @@ static int ad7923_update_scan_mode(struct iio_dev *indio_dev,
 		st->ring_xfer[i + 1].cs_change = 1;
 		spi_message_add_tail(&st->ring_xfer[i + 1], &st->ring_msg);
 	}
-	/* make sure last transfer cs_change is not set */
+	/* make sure last transfer cs_change is yest set */
 	st->ring_xfer[i + 1].cs_change = 0;
 
 	return 0;
@@ -165,7 +165,7 @@ static int ad7923_update_scan_mode(struct iio_dev *indio_dev,
 /**
  * ad7923_trigger_handler() bh of trigger launched polling to ring buffer
  *
- * Currently there is no option in this driver to disable the saving of
+ * Currently there is yes option in this driver to disable the saving of
  * timestamps within the ring.
  **/
 static irqreturn_t ad7923_trigger_handler(int irq, void *p)
@@ -183,7 +183,7 @@ static irqreturn_t ad7923_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -286,7 +286,7 @@ static int ad7923_probe(struct spi_device *spi)
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = info->channels;
 	indio_dev->num_channels = info->num_channels;

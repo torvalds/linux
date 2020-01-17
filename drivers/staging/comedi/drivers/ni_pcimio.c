@@ -28,28 +28,28 @@
  * Updated: Mon, 16 Jan 2017 12:56:04 +0000
  *
  * These boards are almost identical to the AT-MIO E series, except that
- * they use the PCI bus instead of ISA (i.e., AT). See the notes for the
+ * they use the PCI bus instead of ISA (i.e., AT). See the yestes for the
  * ni_atmio.o driver for additional information about these boards.
  *
  * Autocalibration is supported on many of the devices, using the
  * comedi_calibrate (or comedi_soft_calibrate for m-series) utility.
  * M-Series boards do analog input and analog output calibration entirely
  * in software. The software calibration corrects the analog input for
- * offset, gain and nonlinearity. The analog outputs are corrected for
+ * offset, gain and yesnlinearity. The analog outputs are corrected for
  * offset and gain. See the comedilib documentation on
  * comedi_get_softcal_converter() for more information.
  *
  * By default, the driver uses DMA to transfer analog input data to
- * memory.  When DMA is enabled, not all triggering features are
+ * memory.  When DMA is enabled, yest all triggering features are
  * supported.
  *
- * Digital I/O may not work on 673x.
+ * Digital I/O may yest work on 673x.
  *
  * Note that the PCI-6143 is a simultaineous sampling device with 8
  * convertors. With this board all of the convertors perform one
  * simultaineous sample during a scan interval. The period for a scan
  * is used for the convert time in a Comedi cmd. The convert trigger
- * source is normally set to TRIG_NOW by default.
+ * source is yesrmally set to TRIG_NOW by default.
  *
  * The RTSI trigger bus is supported on these cards on subdevice 10.
  * See the comedilib documentation for details.
@@ -61,7 +61,7 @@
  * SCXI is probably broken for m-series boards.
  *
  * Bugs:
- * - When DMA is enabled, COMEDI_EV_CONVERT does not work correctly.
+ * - When DMA is enabled, COMEDI_EV_CONVERT does yest work correctly.
  */
 
 /*
@@ -83,7 +83,7 @@
  * - deal with at-mio-16de-10 revision D to N changes, etc.
  * - need to add other CALDAC type
  * - need to slow down DAC loading. I don't trust NI's claim that
- *   two writes to the PCI bus slows IO enough. I would prefer to
+ *   two writes to the PCI bus slows IO eyesugh. I would prefer to
  *   use udelay().
  *   Timing specs: (clock)
  *	AD8522		30ns
@@ -105,12 +105,12 @@
 #define PCIDMA
 
 /*
- * These are not all the possible ao ranges for 628x boards.
+ * These are yest all the possible ao ranges for 628x boards.
  * They can do OFFSET +- REFERENCE where OFFSET can be
  * 0V, 5V, APFI<0,1>, or AO<0...3> and RANGE can
  * be 10V, 5V, 2V, 1V, APFI<0,1>, AO<0...3>.  That's
  * 63 different possibilities.  An AO channel
- * can not act as it's own OFFSET or REFERENCE.
+ * can yest act as it's own OFFSET or REFERENCE.
  */
 static const struct comedi_lrange range_ni_M_628x_ao = {
 	8, {
@@ -682,7 +682,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.gainlkup	= ai_gain_622x,
 		.ai_speed	= 4000,
 		.reg_type	= ni_reg_622x,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 	},
 	[BOARD_PXI6220] = {
 		.name		= "pxi-6220",
@@ -692,7 +692,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.gainlkup	= ai_gain_622x,
 		.ai_speed	= 4000,
 		.reg_type	= ni_reg_622x,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 1000,
 	},
 	[BOARD_PCI6221] = {
@@ -708,7 +708,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_bipolar10,
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 1000,
 	},
 	[BOARD_PCI6221_37PIN] = {
@@ -724,7 +724,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_bipolar10,
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 	},
 	[BOARD_PXI6221] = {
 		.name		= "pxi-6221",
@@ -739,7 +739,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_bipolar10,
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 1000,
 	},
 	[BOARD_PCI6224] = {
@@ -751,7 +751,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ai_speed	= 4000,
 		.reg_type	= ni_reg_622x,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 1000,
 	},
 	[BOARD_PXI6224] = {
@@ -763,7 +763,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ai_speed	= 4000,
 		.reg_type	= ni_reg_622x,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 1000,
 	},
 	[BOARD_PCI6225] = {
@@ -780,7 +780,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 1000,
 	},
 	[BOARD_PXI6225] = {
@@ -797,7 +797,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 1000,
 	},
 	[BOARD_PCI6229] = {
@@ -814,7 +814,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 	},
 	[BOARD_PXI6229] = {
 		.name		= "pxi-6229",
@@ -830,7 +830,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 1000,
 	},
 	[BOARD_PCI6250] = {
@@ -841,7 +841,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.gainlkup	= ai_gain_628x,
 		.ai_speed	= 800,
 		.reg_type	= ni_reg_625x,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 	},
 	[BOARD_PXI6250] = {
 		.name		= "pxi-6250",
@@ -851,7 +851,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.gainlkup	= ai_gain_628x,
 		.ai_speed	= 800,
 		.reg_type	= ni_reg_625x,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PCI6251] = {
@@ -867,7 +867,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_ni_M_625x_ao,
 		.reg_type	= ni_reg_625x,
 		.ao_speed	= 350,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PXI6251] = {
@@ -883,7 +883,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_ni_M_625x_ao,
 		.reg_type	= ni_reg_625x,
 		.ao_speed	= 350,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PCIE6251] = {
@@ -899,7 +899,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_ni_M_625x_ao,
 		.reg_type	= ni_reg_625x,
 		.ao_speed	= 350,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PXIE6251] = {
@@ -915,7 +915,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_ni_M_625x_ao,
 		.reg_type	= ni_reg_625x,
 		.ao_speed	= 350,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PCI6254] = {
@@ -927,7 +927,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ai_speed	= 800,
 		.reg_type	= ni_reg_625x,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 	},
 	[BOARD_PXI6254] = {
 		.name		= "pxi-6254",
@@ -938,7 +938,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ai_speed	= 800,
 		.reg_type	= ni_reg_625x,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PCI6259] = {
@@ -955,7 +955,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_625x,
 		.ao_speed	= 350,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 	},
 	[BOARD_PXI6259] = {
 		.name		= "pxi-6259",
@@ -971,7 +971,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_625x,
 		.ao_speed	= 350,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PCIE6259] = {
@@ -988,7 +988,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_625x,
 		.ao_speed	= 350,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 	},
 	[BOARD_PXIE6259] = {
 		.name		= "pxie-6259",
@@ -1004,7 +1004,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_625x,
 		.ao_speed	= 350,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PCI6280] = {
@@ -1016,7 +1016,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ai_speed	= 1600,
 		.ao_fifo_depth	= 8191,
 		.reg_type	= ni_reg_628x,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 	},
 	[BOARD_PXI6280] = {
 		.name		= "pxi-6280",
@@ -1027,7 +1027,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ai_speed	= 1600,
 		.ao_fifo_depth	= 8191,
 		.reg_type	= ni_reg_628x,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PCI6281] = {
@@ -1043,7 +1043,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table = &range_ni_M_628x_ao,
 		.reg_type	= ni_reg_628x,
 		.ao_speed	= 350,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PXI6281] = {
@@ -1059,7 +1059,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_range_table	= &range_ni_M_628x_ao,
 		.reg_type	= ni_reg_628x,
 		.ao_speed	= 350,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PCI6284] = {
@@ -1071,7 +1071,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ai_speed	= 1600,
 		.reg_type	= ni_reg_628x,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 	},
 	[BOARD_PXI6284] = {
 		.name		= "pxi-6284",
@@ -1082,7 +1082,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ai_speed	= 1600,
 		.reg_type	= ni_reg_628x,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PCI6289] = {
@@ -1099,7 +1099,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_628x,
 		.ao_speed	= 350,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 	},
 	[BOARD_PXI6289] = {
 		.name		= "pxi-6289",
@@ -1115,7 +1115,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_628x,
 		.ao_speed	= 350,
 		.has_32dio_chan	= 1,
-		.caldac		= { caldac_none },
+		.caldac		= { caldac_yesne },
 		.dio_speed	= 100,
 	},
 	[BOARD_PCI6143] = {

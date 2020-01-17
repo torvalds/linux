@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) Iceyeswy Zheng <iceyeswy@aosc.io>
  *
  * Based on sun4i_layer.h, which is:
  *   Copyright (C) 2015 Free Electrons
@@ -152,7 +152,7 @@ static int sun8i_ui_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 				      dst_h, hscale, vscale, hphase, vphase);
 		sun8i_ui_scaler_enable(mixer, channel, true);
 	} else {
-		DRM_DEBUG_DRIVER("HW scaling is not needed\n");
+		DRM_DEBUG_DRIVER("HW scaling is yest needed\n");
 		sun8i_ui_scaler_enable(mixer, channel, false);
 	}
 
@@ -265,7 +265,7 @@ static void sun8i_ui_layer_atomic_disable(struct drm_plane *plane,
 					  struct drm_plane_state *old_state)
 {
 	struct sun8i_ui_layer *layer = plane_to_sun8i_ui_layer(plane);
-	unsigned int old_zpos = old_state->normalized_zpos;
+	unsigned int old_zpos = old_state->yesrmalized_zpos;
 	struct sun8i_mixer *mixer = layer->mixer;
 
 	sun8i_ui_layer_enable(mixer, layer->channel, layer->overlay, false, 0,
@@ -276,8 +276,8 @@ static void sun8i_ui_layer_atomic_update(struct drm_plane *plane,
 					 struct drm_plane_state *old_state)
 {
 	struct sun8i_ui_layer *layer = plane_to_sun8i_ui_layer(plane);
-	unsigned int zpos = plane->state->normalized_zpos;
-	unsigned int old_zpos = old_state->normalized_zpos;
+	unsigned int zpos = plane->state->yesrmalized_zpos;
+	unsigned int old_zpos = old_state->yesrmalized_zpos;
 	struct sun8i_mixer *mixer = layer->mixer;
 
 	if (!plane->state->visible) {

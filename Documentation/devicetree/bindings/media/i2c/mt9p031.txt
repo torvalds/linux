@@ -16,7 +16,7 @@ Required Properties:
 Optional Properties:
 - reset-gpios: Chip reset GPIO
 
-For further reading on port node refer to
+For further reading on port yesde refer to
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 
 Example:

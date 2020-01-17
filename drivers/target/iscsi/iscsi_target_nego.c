@@ -104,45 +104,45 @@ static u32 iscsi_handle_authentication(
 	unsigned char *authtype)
 {
 	struct iscsi_session *sess = conn->sess;
-	struct iscsi_node_auth *auth;
-	struct iscsi_node_acl *iscsi_nacl;
+	struct iscsi_yesde_auth *auth;
+	struct iscsi_yesde_acl *iscsi_nacl;
 	struct iscsi_portal_group *iscsi_tpg;
-	struct se_node_acl *se_nacl;
+	struct se_yesde_acl *se_nacl;
 
 	if (!sess->sess_ops->SessionType) {
 		/*
 		 * For SessionType=Normal
 		 */
-		se_nacl = conn->sess->se_sess->se_node_acl;
+		se_nacl = conn->sess->se_sess->se_yesde_acl;
 		if (!se_nacl) {
-			pr_err("Unable to locate struct se_node_acl for"
+			pr_err("Unable to locate struct se_yesde_acl for"
 					" CHAP auth\n");
 			return -1;
 		}
-		iscsi_nacl = container_of(se_nacl, struct iscsi_node_acl,
-				se_node_acl);
+		iscsi_nacl = container_of(se_nacl, struct iscsi_yesde_acl,
+				se_yesde_acl);
 		if (!iscsi_nacl) {
-			pr_err("Unable to locate struct iscsi_node_acl for"
+			pr_err("Unable to locate struct iscsi_yesde_acl for"
 					" CHAP auth\n");
 			return -1;
 		}
 
-		if (se_nacl->dynamic_node_acl) {
+		if (se_nacl->dynamic_yesde_acl) {
 			iscsi_tpg = container_of(se_nacl->se_tpg,
 					struct iscsi_portal_group, tpg_se_tpg);
 
 			auth = &iscsi_tpg->tpg_demo_auth;
 		} else {
-			iscsi_nacl = container_of(se_nacl, struct iscsi_node_acl,
-						  se_node_acl);
+			iscsi_nacl = container_of(se_nacl, struct iscsi_yesde_acl,
+						  se_yesde_acl);
 
-			auth = &iscsi_nacl->node_auth;
+			auth = &iscsi_nacl->yesde_auth;
 		}
 	} else {
 		/*
 		 * For SessionType=Discovery
 		 */
-		auth = &iscsit_global->discovery_acl.node_auth;
+		auth = &iscsit_global->discovery_acl.yesde_auth;
 	}
 
 	if (strstr("CHAP", authtype))
@@ -179,7 +179,7 @@ int iscsi_target_check_login_request(
 	case ISCSI_OP_LOGIN:
 		break;
 	default:
-		pr_err("Received unknown opcode 0x%02x.\n",
+		pr_err("Received unkyeswn opcode 0x%02x.\n",
 				login_req->opcode & ISCSI_OPCODE_MASK);
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
 				ISCSI_LOGIN_STATUS_INIT_ERR);
@@ -260,14 +260,14 @@ static int iscsi_target_check_first_request(
 	struct iscsi_login *login)
 {
 	struct iscsi_param *param = NULL;
-	struct se_node_acl *se_nacl;
+	struct se_yesde_acl *se_nacl;
 
 	login->first_request = 0;
 
 	list_for_each_entry(param, &conn->param_list->param_list, p_list) {
 		if (!strncmp(param->name, SESSIONTYPE, 11)) {
 			if (!IS_PSTATE_ACCEPTOR(param)) {
-				pr_err("SessionType key not received"
+				pr_err("SessionType key yest received"
 					" in first login request.\n");
 				iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
 					ISCSI_LOGIN_STATUS_MISSING_FIELDS);
@@ -282,7 +282,7 @@ static int iscsi_target_check_first_request(
 				if (!login->leading_connection)
 					continue;
 
-				pr_err("InitiatorName key not received"
+				pr_err("InitiatorName key yest received"
 					" in first login request.\n");
 				iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
 					ISCSI_LOGIN_STATUS_MISSING_FIELDS);
@@ -290,15 +290,15 @@ static int iscsi_target_check_first_request(
 			}
 
 			/*
-			 * For non-leading connections, double check that the
+			 * For yesn-leading connections, double check that the
 			 * received InitiatorName matches the existing session's
-			 * struct iscsi_node_acl.
+			 * struct iscsi_yesde_acl.
 			 */
 			if (!login->leading_connection) {
-				se_nacl = conn->sess->se_sess->se_node_acl;
+				se_nacl = conn->sess->se_sess->se_yesde_acl;
 				if (!se_nacl) {
 					pr_err("Unable to locate"
-						" struct se_node_acl\n");
+						" struct se_yesde_acl\n");
 					iscsit_tx_login_rsp(conn,
 							ISCSI_STATUS_CLS_INITIATOR_ERR,
 							ISCSI_LOGIN_STATUS_TGT_NOT_FOUND);
@@ -349,7 +349,7 @@ static int iscsi_target_do_tx_login_io(struct iscsi_conn *conn, struct iscsi_log
 	/*
 	 * Before sending the last login response containing the transition
 	 * bit for full-feature-phase, go ahead and start up TX/RX threads
-	 * now to avoid potential resource allocation failures after the
+	 * yesw to avoid potential resource allocation failures after the
 	 * final login response has been sent.
 	 */
 	if (login->login_complete) {
@@ -735,7 +735,7 @@ static int iscsi_target_check_for_existing_instances(
 	if (!login->tsih)
 		return iscsi_check_for_session_reinstatement(conn);
 	else
-		return iscsi_login_post_auth_non_zero_tsih(conn, login->cid,
+		return iscsi_login_post_auth_yesn_zero_tsih(conn, login->cid,
 				login->initial_exp_statsn);
 }
 
@@ -788,7 +788,7 @@ static int iscsi_target_do_authentication(
 				ISCSI_LOGIN_STATUS_AUTH_FAILED);
 		return -1;
 	default:
-		pr_err("Received unknown error %d from LIO"
+		pr_err("Received unkyeswn error %d from LIO"
 				" Authentication\n", authret);
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_TARGET_ERROR);
@@ -934,7 +934,7 @@ static int iscsi_target_handle_csg_one(struct iscsi_conn *conn, struct iscsi_log
 
 	if (!login->auth_complete &&
 	     conn->tpg->tpg_attrib.authentication) {
-		pr_err("Initiator is requesting CSG: 1, has not been"
+		pr_err("Initiator is requesting CSG: 1, has yest been"
 			 " successfully authenticated, and the Target is"
 			" enforcing iSCSI Authentication, login failed.\n");
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
@@ -980,8 +980,8 @@ static int iscsi_target_do_login(struct iscsi_conn *conn, struct iscsi_login *lo
 				return -1;
 			if (login_rsp->flags & ISCSI_FLAG_LOGIN_TRANSIT) {
 				/*
-				 * Check to make sure the TCP connection has not
-				 * dropped asynchronously while session reinstatement
+				 * Check to make sure the TCP connection has yest
+				 * dropped asynchroyesusly while session reinstatement
 				 * was occuring in this kthread context, before
 				 * transitioning to full feature phase operation.
 				 */
@@ -1046,7 +1046,7 @@ int iscsi_target_locate_portal(
 	struct iscsi_tiqn *tiqn;
 	struct iscsi_tpg_np *tpg_np = NULL;
 	struct iscsi_login_req *login_req;
-	struct se_node_acl *se_nacl;
+	struct se_yesde_acl *se_nacl;
 	u32 payload_length, queue_depth = 0;
 	int sessiontype = 0, ret = 0, tag_num, tag_size;
 
@@ -1070,7 +1070,7 @@ int iscsi_target_locate_portal(
 	end = (start + payload_length);
 
 	/*
-	 * Locate the initial keys expected from the Initiator node in
+	 * Locate the initial keys expected from the Initiator yesde in
 	 * the first login request in order to progress with the login phase.
 	 */
 	while (start < end) {
@@ -1092,7 +1092,7 @@ int iscsi_target_locate_portal(
 	 * See 5.3.  Login Phase.
 	 */
 	if (!i_buf) {
-		pr_err("InitiatorName key not received"
+		pr_err("InitiatorName key yest received"
 			" in first login request.\n");
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
 			ISCSI_LOGIN_STATUS_MISSING_FIELDS);
@@ -1110,7 +1110,7 @@ int iscsi_target_locate_portal(
 		if (!login->leading_connection)
 			goto get_target;
 
-		pr_err("SessionType key not received"
+		pr_err("SessionType key yest received"
 			" in first login request.\n");
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
 			ISCSI_LOGIN_STATUS_MISSING_FIELDS);
@@ -1152,7 +1152,7 @@ int iscsi_target_locate_portal(
 
 get_target:
 	if (!t_buf) {
-		pr_err("TargetName key not received"
+		pr_err("TargetName key yest received"
 			" in first login request while"
 			" SessionType=Normal.\n");
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
@@ -1216,9 +1216,9 @@ get_target:
 	}
 
 	/*
-	 * conn->sess->node_acl will be set when the referenced
+	 * conn->sess->yesde_acl will be set when the referenced
 	 * struct iscsi_session is located from received ISID+TSIH in
-	 * iscsi_login_non_zero_tsih_s2().
+	 * iscsi_login_yesn_zero_tsih_s2().
 	 */
 	if (!login->leading_connection) {
 		ret = 0;
@@ -1233,10 +1233,10 @@ get_target:
 	/*
 	 * Locate incoming Initiator IQN reference from Storage Node.
 	 */
-	sess->se_sess->se_node_acl = core_tpg_check_initiator_node_acl(
+	sess->se_sess->se_yesde_acl = core_tpg_check_initiator_yesde_acl(
 			&conn->tpg->tpg_se_tpg, i_buf);
-	if (!sess->se_sess->se_node_acl) {
-		pr_err("iSCSI Initiator Node: %s is not authorized to"
+	if (!sess->se_sess->se_yesde_acl) {
+		pr_err("iSCSI Initiator Node: %s is yest authorized to"
 			" access iSCSI target portal group: %hu.\n",
 				i_buf, conn->tpg->tpgt);
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
@@ -1244,11 +1244,11 @@ get_target:
 		ret = -1;
 		goto out;
 	}
-	se_nacl = sess->se_sess->se_node_acl;
+	se_nacl = sess->se_sess->se_yesde_acl;
 	queue_depth = se_nacl->queue_depth;
 	/*
 	 * Setup pre-allocated tags based upon allowed per NodeACL CmdSN
-	 * depth for non immediate commands, plus extra tags for immediate
+	 * depth for yesn immediate commands, plus extra tags for immediate
 	 * commands.
 	 *
 	 * Also enforce a ISCSIT_MIN_TAGS to prevent unnecessary contention
@@ -1290,8 +1290,8 @@ int iscsi_target_start_negotiation(
 	 * clear LOGIN_FLAGS_INITIAL_PDU but only if the TCP connection
 	 * is still active.
 	 *
-	 * Otherwise if TCP connection dropped asynchronously, go ahead
-	 * and perform connection cleanup now.
+	 * Otherwise if TCP connection dropped asynchroyesusly, go ahead
+	 * and perform connection cleanup yesw.
 	 */
 	ret = iscsi_target_do_login(conn, login);
 	if (!ret && iscsi_target_sk_check_and_clear(conn, LOGIN_FLAGS_INITIAL_PDU))

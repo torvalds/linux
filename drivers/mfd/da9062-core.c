@@ -312,7 +312,7 @@ static int da9062_get_device_type(struct da9062 *chip)
 
 	ret = regmap_read(chip->regmap, DA9062AA_DEVICE_ID, &device_id);
 	if (ret < 0) {
-		dev_err(chip->dev, "Cannot read chip ID.\n");
+		dev_err(chip->dev, "Canyest read chip ID.\n");
 		return -EIO;
 	}
 	if (device_id != DA9062_PMIC_DEVICE_ID) {
@@ -322,7 +322,7 @@ static int da9062_get_device_type(struct da9062 *chip)
 
 	ret = regmap_read(chip->regmap, DA9062AA_VARIANT_ID, &variant_id);
 	if (ret < 0) {
-		dev_err(chip->dev, "Cannot read chip variant id.\n");
+		dev_err(chip->dev, "Canyest read chip variant id.\n");
 		return -EIO;
 	}
 
@@ -336,7 +336,7 @@ static int da9062_get_device_type(struct da9062 *chip)
 		type = "DA9062";
 		break;
 	default:
-		type = "Unknown";
+		type = "Unkyeswn";
 		break;
 	}
 
@@ -348,7 +348,7 @@ static int da9062_get_device_type(struct da9062 *chip)
 
 	if (variant_mrc < DA9062_PMIC_VARIANT_MRC_AA) {
 		dev_err(chip->dev,
-			"Cannot support variant MRC: 0x%02X\n", variant_mrc);
+			"Canyest support variant MRC: 0x%02X\n", variant_mrc);
 		return -ENODEV;
 	}
 
@@ -422,18 +422,18 @@ static const struct regmap_range da9061_aa_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table da9061_aa_readable_table = {
-	.yes_ranges = da9061_aa_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9061_aa_readable_ranges),
+	.no_ranges = da9061_aa_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9061_aa_readable_ranges),
 };
 
 static const struct regmap_access_table da9061_aa_writeable_table = {
-	.yes_ranges = da9061_aa_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9061_aa_writeable_ranges),
+	.no_ranges = da9061_aa_writeable_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9061_aa_writeable_ranges),
 };
 
 static const struct regmap_access_table da9061_aa_volatile_table = {
-	.yes_ranges = da9061_aa_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9061_aa_volatile_ranges),
+	.no_ranges = da9061_aa_volatile_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9061_aa_volatile_ranges),
 };
 
 static const struct regmap_range_cfg da9061_range_cfg[] = {
@@ -527,18 +527,18 @@ static const struct regmap_range da9062_aa_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table da9062_aa_readable_table = {
-	.yes_ranges = da9062_aa_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9062_aa_readable_ranges),
+	.no_ranges = da9062_aa_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9062_aa_readable_ranges),
 };
 
 static const struct regmap_access_table da9062_aa_writeable_table = {
-	.yes_ranges = da9062_aa_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9062_aa_writeable_ranges),
+	.no_ranges = da9062_aa_writeable_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9062_aa_writeable_ranges),
 };
 
 static const struct regmap_access_table da9062_aa_volatile_table = {
-	.yes_ranges = da9062_aa_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(da9062_aa_volatile_ranges),
+	.no_ranges = da9062_aa_volatile_ranges,
+	.n_no_ranges = ARRAY_SIZE(da9062_aa_volatile_ranges),
 };
 
 static const struct regmap_range_cfg da9062_range_cfg[] = {
@@ -588,8 +588,8 @@ static int da9062_i2c_probe(struct i2c_client *i2c,
 	if (!chip)
 		return -ENOMEM;
 
-	if (i2c->dev.of_node) {
-		match = of_match_node(da9062_dt_ids, i2c->dev.of_node);
+	if (i2c->dev.of_yesde) {
+		match = of_match_yesde(da9062_dt_ids, i2c->dev.of_yesde);
 		if (!match)
 			return -EINVAL;
 
@@ -634,7 +634,7 @@ static int da9062_i2c_probe(struct i2c_client *i2c,
 
 	ret = da9062_clear_fault_log(chip);
 	if (ret < 0)
-		dev_warn(chip->dev, "Cannot clear fault log\n");
+		dev_warn(chip->dev, "Canyest clear fault log\n");
 
 	ret = da9062_get_device_type(chip);
 	if (ret)
@@ -656,7 +656,7 @@ static int da9062_i2c_probe(struct i2c_client *i2c,
 			      cell_num, NULL, irq_base,
 			      NULL);
 	if (ret) {
-		dev_err(chip->dev, "Cannot register child devices\n");
+		dev_err(chip->dev, "Canyest register child devices\n");
 		regmap_del_irq_chip(i2c->irq, chip->regmap_irq);
 		return ret;
 	}

@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 
 #include <linux/device.h>
@@ -265,7 +265,7 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 		}
 
 		if (len < 1) {
-			BT_ERR("%s no packet type found", data->hdev->name);
+			BT_ERR("%s yes packet type found", data->hdev->name);
 			return -EPROTO;
 		}
 
@@ -305,7 +305,7 @@ static inline int bfusb_recv_block(struct bfusb_data *data, int hdr, unsigned ch
 
 		skb = bt_skb_alloc(pkt_len, GFP_ATOMIC);
 		if (!skb) {
-			BT_ERR("%s no memory for the packet", data->hdev->name);
+			BT_ERR("%s yes memory for the packet", data->hdev->name);
 			return -ENOMEM;
 		}
 
@@ -615,7 +615,7 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	bulk_in_ep  = &intf->cur_altsetting->endpoint[1];
 
 	if (!bulk_out_ep || !bulk_in_ep) {
-		BT_ERR("Bulk endpoints not found");
+		BT_ERR("Bulk endpoints yest found");
 		goto done;
 	}
 

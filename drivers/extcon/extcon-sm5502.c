@@ -55,9 +55,9 @@ struct sm5502_muic_info {
 
 	/*
 	 * Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * yestify cable state to yestifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should yestify cable state to upper layer.
 	 */
 	struct delayed_work wq_detcable;
 };
@@ -241,12 +241,12 @@ static int sm5502_muic_set_path(struct sm5502_muic_info *info,
 					 con_sw);
 		if (ret < 0) {
 			dev_err(info->dev,
-				"cannot update DM_CON/DP_CON switch\n");
+				"canyest update DM_CON/DP_CON switch\n");
 			return ret;
 		}
 		break;
 	default:
-		dev_err(info->dev, "Unknown DM_CON/DP_CON switch type (%d)\n",
+		dev_err(info->dev, "Unkyeswn DM_CON/DP_CON switch type (%d)\n",
 				con_sw);
 		return -EINVAL;
 	};
@@ -261,12 +261,12 @@ static int sm5502_muic_set_path(struct sm5502_muic_info *info,
 					 vbus_sw);
 		if (ret < 0) {
 			dev_err(info->dev,
-				"cannot update VBUSIN switch\n");
+				"canyest update VBUSIN switch\n");
 			return ret;
 		}
 		break;
 	default:
-		dev_err(info->dev, "Unknown VBUS switch type (%d)\n", vbus_sw);
+		dev_err(info->dev, "Unkyeswn VBUS switch type (%d)\n", vbus_sw);
 		return -EINVAL;
 	};
 
@@ -354,7 +354,7 @@ static unsigned int sm5502_muic_get_cable_type(struct sm5502_muic_info *info)
 			break;
 		default:
 			dev_dbg(info->dev,
-				"cannot identify the cable type: adc(0x%x)\n",
+				"canyest identify the cable type: adc(0x%x)\n",
 				adc);
 			return -EINVAL;
 		};
@@ -403,7 +403,7 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 		break;
 	default:
 		dev_dbg(info->dev,
-			"cannot handle this cable_type (0x%x)\n", cable_type);
+			"canyest handle this cable_type (0x%x)\n", cable_type);
 		return 0;
 	};
 
@@ -450,7 +450,7 @@ static void sm5502_muic_irq_work(struct work_struct *work)
 
 /*
  * Sets irq_attach or irq_detach in sm5502_muic_info and returns 0.
- * Returns -ESRCH if irq_type does not match registered IRQ for this dev type.
+ * Returns -ESRCH if irq_type does yest match registered IRQ for this dev type.
  */
 static int sm5502_parse_irq(struct sm5502_muic_info *info, int irq_type)
 {
@@ -491,7 +491,7 @@ static irqreturn_t sm5502_muic_irq_handler(int irq, void *data)
 
 	ret = sm5502_parse_irq(info, irq_type);
 	if (ret < 0) {
-		dev_warn(info->dev, "cannot handle is interrupt:%d\n",
+		dev_warn(info->dev, "canyest handle is interrupt:%d\n",
 				    irq_type);
 		return IRQ_HANDLED;
 	}
@@ -506,7 +506,7 @@ static void sm5502_muic_detect_cable_wq(struct work_struct *work)
 				struct sm5502_muic_info, wq_detcable);
 	int ret;
 
-	/* Notify the state of connector cable or not  */
+	/* Notify the state of connector cable or yest  */
 	ret = sm5502_muic_cable_handler(info, true);
 	if (ret < 0)
 		dev_warn(info->dev, "failed to detect cable state\n");
@@ -548,7 +548,7 @@ static void sm5502_init_dev_type(struct sm5502_muic_info *info)
 static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 				 const struct i2c_device_id *id)
 {
-	struct device_node *np = i2c->dev.of_node;
+	struct device_yesde *np = i2c->dev.of_yesde;
 	struct sm5502_muic_info *info;
 	int i, ret, irq_flags;
 
@@ -629,9 +629,9 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 	 * Detect accessory after completing the initialization of platform
 	 *
 	 * - Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * yestify cable state to yestifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should yestify cable state to upper layer.
 	 */
 	INIT_DELAYED_WORK(&info->wq_detcable, sm5502_muic_detect_cable_wq);
 	queue_delayed_work(system_power_efficient_wq, &info->wq_detcable,

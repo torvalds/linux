@@ -13,7 +13,7 @@
 #ifdef CONFIG_KPROBES
 #include <linux/types.h>
 #include <linux/ptrace.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #define __ARCH_WANT_KPROBES_INSN_SLOT
 #define MAX_INSN_SIZE			2
@@ -40,7 +40,7 @@ struct kprobe_ctlblk {
 
 void arch_remove_kprobe(struct kprobe *);
 int kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr);
-int kprobe_exceptions_notify(struct notifier_block *self,
+int kprobe_exceptions_yestify(struct yestifier_block *self,
 			     unsigned long val, void *data);
 
 /* optinsn template addresses */
@@ -71,7 +71,7 @@ struct arch_optimized_insn {
 	kprobe_opcode_t *insn;
 	/*
 	 * We always copy one instruction on ARM,
-	 * so size will always be 4, and unlike x86, there is no
+	 * so size will always be 4, and unlike x86, there is yes
 	 * need for a size field.
 	 */
 };

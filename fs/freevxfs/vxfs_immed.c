@@ -6,9 +6,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -28,14 +28,14 @@
  */
 
 /*
- * Veritas filesystem driver - support for 'immed' inodes.
+ * Veritas filesystem driver - support for 'immed' iyesdes.
  */
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 
 #include "vxfs.h"
 #include "vxfs_extern.h"
-#include "vxfs_inode.h"
+#include "vxfs_iyesde.h"
 
 
 static int	vxfs_immed_readpage(struct file *, struct page *);
@@ -48,7 +48,7 @@ const struct address_space_operations vxfs_immed_aops = {
 };
 
 /**
- * vxfs_immed_readpage - read part of an immed inode into pagecache
+ * vxfs_immed_readpage - read part of an immed iyesde into pagecache
  * @file:	file context (unused)
  * @page:	page frame to fill in.
  *
@@ -65,7 +65,7 @@ const struct address_space_operations vxfs_immed_aops = {
 static int
 vxfs_immed_readpage(struct file *fp, struct page *pp)
 {
-	struct vxfs_inode_info	*vip = VXFS_INO(pp->mapping->host);
+	struct vxfs_iyesde_info	*vip = VXFS_INO(pp->mapping->host);
 	u_int64_t	offset = (u_int64_t)pp->index << PAGE_SHIFT;
 	caddr_t		kaddr;
 

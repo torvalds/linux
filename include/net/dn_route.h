@@ -21,7 +21,7 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev,
 #define DN_RT_F_VER 0x40 /* Version =0 discard packet if ==1          */
 #define DN_RT_F_IE  0x20 /* Intra Ethernet, Reserved in short pkt     */
 #define DN_RT_F_RTS 0x10 /* Packet is being returned to sender        */
-#define DN_RT_F_RQR 0x08 /* Return packet to sender upon non-delivery */
+#define DN_RT_F_RQR 0x08 /* Return packet to sender upon yesn-delivery */
 
 /* Mask for types of routing packets */
 #define DN_RT_PKT_MSK   0x06

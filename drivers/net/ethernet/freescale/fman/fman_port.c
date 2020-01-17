@@ -4,11 +4,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -347,7 +347,7 @@ enum fman_port_deq_prefetch {
 /* A structure for defining FM port resources */
 struct fman_port_rsrc {
 	u32 num; /* Committed required resource */
-	u32 extra; /* Extra (not committed) required resource */
+	u32 extra; /* Extra (yest committed) required resource */
 };
 
 enum fman_port_dma_swap {
@@ -363,7 +363,7 @@ enum fman_port_color {
 	FMAN_PORT_COLOR_GREEN,	/* Default port color is green */
 	FMAN_PORT_COLOR_YELLOW,	/* Default port color is yellow */
 	FMAN_PORT_COLOR_RED,		/* Default port color is red */
-	FMAN_PORT_COLOR_OVERRIDE	/* Ignore color */
+	FMAN_PORT_COLOR_OVERRIDE	/* Igyesre color */
 };
 
 /* QMI dequeue from the SP channel - types */
@@ -407,7 +407,7 @@ struct fman_port_cfg {
 	enum fman_port_deq_type deq_type;
 	enum fman_port_deq_prefetch deq_prefetch_option;
 	u16 deq_byte_cnt;
-	u8 cheksum_last_bytes_ignore;
+	u8 cheksum_last_bytes_igyesre;
 	u8 rx_cut_end_bytes;
 	struct fman_buf_pool_depletion buf_pool_depletion;
 	struct fman_ext_pools ext_buf_pools;
@@ -443,7 +443,7 @@ struct fman_port_dts_params {
 	enum fman_port_type type;	/* Port type */
 	u16 speed;			/* Port speed */
 	u8 id;				/* HW Port Id */
-	u32 qman_channel_id;		/* QMan channel id (non RX only) */
+	u32 qman_channel_id;		/* QMan channel id (yesn RX only) */
 	struct fman *fman;		/* FMan Handle */
 };
 
@@ -503,7 +503,7 @@ static int init_bmi_rx(struct fman_port *port)
 		iowrite32be(BMI_RX_FIFO_THRESHOLD_ETHE, &regs->fmbm_reth);
 
 	/* Frame end data */
-	tmp = (cfg->cheksum_last_bytes_ignore & BMI_FRAME_END_CS_IGNORE_MASK) <<
+	tmp = (cfg->cheksum_last_bytes_igyesre & BMI_FRAME_END_CS_IGNORE_MASK) <<
 		BMI_FRAME_END_CS_IGNORE_SHIFT;
 	tmp |= (cfg->rx_cut_end_bytes & BMI_RX_FRAME_END_CUT_MASK) <<
 		BMI_RX_FRAME_END_CUT_SHIFT;
@@ -586,7 +586,7 @@ static int init_bmi_tx(struct fman_port *port)
 	iowrite32be(tmp, &regs->fmbm_tfp);
 
 	/* Frame end data */
-	tmp = (cfg->cheksum_last_bytes_ignore & BMI_FRAME_END_CS_IGNORE_MASK) <<
+	tmp = (cfg->cheksum_last_bytes_igyesre & BMI_FRAME_END_CS_IGNORE_MASK) <<
 		BMI_FRAME_END_CS_IGNORE_SHIFT;
 	iowrite32be(tmp, &regs->fmbm_tfed);
 
@@ -865,7 +865,7 @@ static int verify_size_of_fifo(struct fman_port *port)
 
 		/* Add some margin for back-to-back capability to improve
 		 * performance, allows the hardware to pipeline new frame dma
-		 * while the previous frame not yet transmitted.
+		 * while the previous frame yest yet transmitted.
 		 */
 		if (port->port_speed == 10000)
 			opt_fifo_size_for_b2b += 3 * FMAN_BMI_FIFO_UNITS;
@@ -892,7 +892,7 @@ static int verify_size_of_fifo(struct fman_port *port)
 
 		/* Add some margin for back-to-back capability to improve
 		 * performance,allows the hardware to pipeline new frame dma
-		 * while the previous frame not yet transmitted.
+		 * while the previous frame yest yet transmitted.
 		 */
 		if (port->port_speed == 10000)
 			opt_fifo_size_for_b2b += 8 * FMAN_BMI_FIFO_UNITS;
@@ -1013,12 +1013,12 @@ static int init_low_level_driver(struct fman_port *port)
 		return -ENODEV;
 	}
 
-	/* The code bellow is a trick so the FM will not release the buffer
-	 * to BM nor will try to enqueue the frame to QM
+	/* The code bellow is a trick so the FM will yest release the buffer
+	 * to BM yesr will try to enqueue the frame to QM
 	 */
 	if (port->port_type == FMAN_PORT_TYPE_TX) {
 		if (!cfg->dflt_fqid && cfg->dont_release_buf) {
-			/* override fmbm_tcfqid 0 with a false non-0 value.
+			/* override fmbm_tcfqid 0 with a false yesn-0 value.
 			 * This will force FM to act according to tfene.
 			 * Otherwise, if fmbm_tcfqid is 0 the FM will release
 			 * buffers to BM regardless of fmbm_tfene
@@ -1255,7 +1255,7 @@ static void set_dflt_cfg(struct fman_port *port,
 					    port->max_port_fifo_size);
 
 	if ((port->rev_info.major == 6) &&
-	    ((port->rev_info.minor == 0) || (port->rev_info.minor == 3)))
+	    ((port->rev_info.miyesr == 0) || (port->rev_info.miyesr == 3)))
 		cfg->errata_A006320 = true;
 
 	/* Excessive Threshold register - exists for pre-FMv3 chips only */
@@ -1295,11 +1295,11 @@ static void set_tx_dflt_cfg(struct fman_port *port,
 						 port->port_type,
 						 port->port_speed);
 	port->cfg->err_fqid =
-		port_params->specific_params.non_rx_params.err_fqid;
+		port_params->specific_params.yesn_rx_params.err_fqid;
 	port->cfg->deq_sp =
 		(u8)(dts_params->qman_channel_id & QMI_DEQ_CFG_SUBPORTAL_MASK);
 	port->cfg->dflt_fqid =
-		port_params->specific_params.non_rx_params.dflt_fqid;
+		port_params->specific_params.yesn_rx_params.dflt_fqid;
 	port->cfg->deq_high_priority = true;
 }
 
@@ -1383,7 +1383,7 @@ int fman_port_config(struct fman_port *port, struct fman_port_params *params)
 	/* FM_HEAVY_TRAFFIC_SEQUENCER_HANG_ERRATA_FMAN_A006981 errata
 	 * workaround
 	 */
-	if ((port->rev_info.major == 6) && (port->rev_info.minor == 0) &&
+	if ((port->rev_info.major == 6) && (port->rev_info.miyesr == 0) &&
 	    (((port->port_type == FMAN_PORT_TYPE_TX) &&
 	    (port->port_speed == 1000)))) {
 		port->open_dmas.num = 16;
@@ -1464,7 +1464,7 @@ int fman_port_init(struct fman_port *port)
 		err = set_ext_buffer_pools(port);
 		if (err)
 			return err;
-		/* check if the largest external buffer pool is large enough */
+		/* check if the largest external buffer pool is large eyesugh */
 		if (cfg->buf_margins.start_margins + MIN_EXT_BUF_SIZE +
 		    cfg->buf_margins.end_margins >
 		    port->rx_pools_params.largest_buf_size) {
@@ -1557,7 +1557,7 @@ int fman_port_cfg_buf_prefix_content(struct fman_port *port,
 	memcpy(&port->cfg->buffer_prefix_content,
 	       buffer_prefix_content,
 	       sizeof(struct fman_buffer_prefix_content));
-	/* if data_align was not initialized by user,
+	/* if data_align was yest initialized by user,
 	 * we return to driver's default
 	 */
 	if (!port->cfg->buffer_prefix_content.data_align)
@@ -1572,11 +1572,11 @@ EXPORT_SYMBOL(fman_port_cfg_buf_prefix_content);
  * fman_port_disable
  * port:	A pointer to a FM Port module.
  *
- * Gracefully disable an FM port. The port will not start new	tasks after all
+ * Gracefully disable an FM port. The port will yest start new	tasks after all
  * tasks associated with the port are terminated.
  *
  * This is a blocking routine, it returns after port is gracefully stopped,
- * i.e. the port will not except new frames, but it will finish all frames
+ * i.e. the port will yest except new frames, but it will finish all frames
  * or tasks which were already began.
  * Allowed only following fman_port_init().
  *
@@ -1766,7 +1766,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 {
 	struct fman_port *port;
 	struct fman *fman;
-	struct device_node *fm_node, *port_node;
+	struct device_yesde *fm_yesde, *port_yesde;
 	struct resource res;
 	struct resource *dev_res;
 	u32 val;
@@ -1781,53 +1781,53 @@ static int fman_port_probe(struct platform_device *of_dev)
 
 	port->dev = &of_dev->dev;
 
-	port_node = of_node_get(of_dev->dev.of_node);
+	port_yesde = of_yesde_get(of_dev->dev.of_yesde);
 
-	/* Get the FM node */
-	fm_node = of_get_parent(port_node);
-	if (!fm_node) {
+	/* Get the FM yesde */
+	fm_yesde = of_get_parent(port_yesde);
+	if (!fm_yesde) {
 		dev_err(port->dev, "%s: of_get_parent() failed\n", __func__);
 		err = -ENODEV;
 		goto return_err;
 	}
 
-	fman = dev_get_drvdata(&of_find_device_by_node(fm_node)->dev);
-	of_node_put(fm_node);
+	fman = dev_get_drvdata(&of_find_device_by_yesde(fm_yesde)->dev);
+	of_yesde_put(fm_yesde);
 	if (!fman) {
 		err = -EINVAL;
 		goto return_err;
 	}
 
-	err = of_property_read_u32(port_node, "cell-index", &val);
+	err = of_property_read_u32(port_yesde, "cell-index", &val);
 	if (err) {
 		dev_err(port->dev, "%s: reading cell-index for %pOF failed\n",
-			__func__, port_node);
+			__func__, port_yesde);
 		err = -EINVAL;
 		goto return_err;
 	}
 	port_id = (u8)val;
 	port->dts_params.id = port_id;
 
-	if (of_device_is_compatible(port_node, "fsl,fman-v3-port-tx")) {
+	if (of_device_is_compatible(port_yesde, "fsl,fman-v3-port-tx")) {
 		port_type = FMAN_PORT_TYPE_TX;
 		port_speed = 1000;
-		if (of_find_property(port_node, "fsl,fman-10g-port", &lenp))
+		if (of_find_property(port_yesde, "fsl,fman-10g-port", &lenp))
 			port_speed = 10000;
 
-	} else if (of_device_is_compatible(port_node, "fsl,fman-v2-port-tx")) {
+	} else if (of_device_is_compatible(port_yesde, "fsl,fman-v2-port-tx")) {
 		if (port_id >= TX_10G_PORT_BASE)
 			port_speed = 10000;
 		else
 			port_speed = 1000;
 		port_type = FMAN_PORT_TYPE_TX;
 
-	} else if (of_device_is_compatible(port_node, "fsl,fman-v3-port-rx")) {
+	} else if (of_device_is_compatible(port_yesde, "fsl,fman-v3-port-rx")) {
 		port_type = FMAN_PORT_TYPE_RX;
 		port_speed = 1000;
-		if (of_find_property(port_node, "fsl,fman-10g-port", &lenp))
+		if (of_find_property(port_yesde, "fsl,fman-10g-port", &lenp))
 			port_speed = 10000;
 
-	} else if (of_device_is_compatible(port_node, "fsl,fman-v2-port-rx")) {
+	} else if (of_device_is_compatible(port_yesde, "fsl,fman-v2-port-rx")) {
 		if (port_id >= RX_10G_PORT_BASE)
 			port_speed = 10000;
 		else
@@ -1856,7 +1856,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 		port->dts_params.qman_channel_id = qman_channel_id;
 	}
 
-	err = of_address_to_resource(port_node, 0, &res);
+	err = of_address_to_resource(port_yesde, 0, &res);
 	if (err < 0) {
 		dev_err(port->dev, "%s: of_address_to_resource() failed\n",
 			__func__);
@@ -1866,7 +1866,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 
 	port->dts_params.fman = fman;
 
-	of_node_put(port_node);
+	of_yesde_put(port_yesde);
 
 	dev_res = __devm_request_region(port->dev, &res, res.start,
 					resource_size(&res), "fman-port");
@@ -1887,7 +1887,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 	return 0;
 
 return_err:
-	of_node_put(port_node);
+	of_yesde_put(port_yesde);
 free_port:
 	kfree(port);
 	return err;

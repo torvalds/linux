@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -31,7 +31,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>
 #include <linux/slab.h>
@@ -53,30 +53,30 @@ enum {
 };
 
 /*
- * If an FMR is not in use, then the list member will point to either
+ * If an FMR is yest in use, then the list member will point to either
  * its pool's free_list (if the FMR can be mapped again; that is,
  * remap_count < pool->max_remaps) or its pool's dirty_list (if the
  * FMR needs to be unmapped before being remapped).  In either of
- * these cases it is a bug if the ref_count is not 0.  In other words,
- * if ref_count is > 0, then the list member must not be linked into
+ * these cases it is a bug if the ref_count is yest 0.  In other words,
+ * if ref_count is > 0, then the list member must yest be linked into
  * either free_list or dirty_list.
  *
- * The cache_node member is used to link the FMR into a cache bucket
+ * The cache_yesde member is used to link the FMR into a cache bucket
  * (if caching is enabled).  This is independent of the reference
  * count of the FMR.  When a valid FMR is released, its ref_count is
  * decremented, and if ref_count reaches 0, the FMR is placed in
- * either free_list or dirty_list as appropriate.  However, it is not
+ * either free_list or dirty_list as appropriate.  However, it is yest
  * removed from the cache and may be "revived" if a call to
  * ib_fmr_register_physical() occurs before the FMR is remapped.  In
  * this case we just increment the ref_count and remove the FMR from
  * free_list/dirty_list.
  *
  * Before we remap an FMR from free_list, we remove it from the cache
- * (to prevent another user from obtaining a stale FMR).  When an FMR
+ * (to prevent ayesther user from obtaining a stale FMR).  When an FMR
  * is released, we add it to the tail of the free list, so that our
  * cache eviction policy is "least recently used."
  *
- * All manipulation of ref_count, list and cache_node is protected by
+ * All manipulation of ref_count, list and cache_yesde is protected by
  * pool_lock to maintain consistency.
  */
 
@@ -125,7 +125,7 @@ static inline struct ib_pool_fmr *ib_fmr_cache_lookup(struct ib_fmr_pool *pool,
 
 	bucket = pool->cache_bucket + ib_fmr_hash(*page_list);
 
-	hlist_for_each_entry(fmr, bucket, cache_node)
+	hlist_for_each_entry(fmr, bucket, cache_yesde)
 		if (io_virtual_address == fmr->io_virtual_address &&
 		    page_list_len      == fmr->page_list_len      &&
 		    !memcmp(page_list, fmr->page_list,
@@ -145,7 +145,7 @@ static void ib_fmr_batch_release(struct ib_fmr_pool *pool)
 	spin_lock_irq(&pool->pool_lock);
 
 	list_for_each_entry(fmr, &pool->dirty_list, list) {
-		hlist_del_init(&fmr->cache_node);
+		hlist_del_init(&fmr->cache_yesde);
 		fmr->remap_count = 0;
 		list_add_tail(&fmr->fmr->list, &fmr_list);
 	}
@@ -206,7 +206,7 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 	device = pd->device;
 	if (!device->ops.alloc_fmr    || !device->ops.dealloc_fmr  ||
 	    !device->ops.map_phys_fmr || !device->ops.unmap_fmr) {
-		dev_info(&device->dev, "Device does not support FMRs\n");
+		dev_info(&device->dev, "Device does yest support FMRs\n");
 		return ERR_PTR(-ENOSYS);
 	}
 
@@ -279,7 +279,7 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 			fmr->pool             = pool;
 			fmr->remap_count      = 0;
 			fmr->ref_count        = 0;
-			INIT_HLIST_NODE(&fmr->cache_node);
+			INIT_HLIST_NODE(&fmr->cache_yesde);
 
 			fmr->fmr = ib_alloc_fmr(pd, params->access, &fmr_attr);
 			if (IS_ERR(fmr->fmr)) {
@@ -360,8 +360,8 @@ int ib_flush_fmr_pool(struct ib_fmr_pool *pool)
 
 	/*
 	 * The free_list holds FMRs that may have been used
-	 * but have not been remapped enough times to be dirty.
-	 * Put them on the dirty list now so that the cleanup
+	 * but have yest been remapped eyesugh times to be dirty.
+	 * Put them on the dirty list yesw so that the cleanup
 	 * thread will reap them too.
 	 */
 	spin_lock_irq(&pool->pool_lock);
@@ -426,7 +426,7 @@ struct ib_pool_fmr *ib_fmr_pool_map_phys(struct ib_fmr_pool *pool_handle,
 
 	fmr = list_entry(pool->free_list.next, struct ib_pool_fmr, list);
 	list_del(&fmr->list);
-	hlist_del_init(&fmr->cache_node);
+	hlist_del_init(&fmr->cache_yesde);
 	spin_unlock_irqrestore(&pool->pool_lock, flags);
 
 	result = ib_map_phys_fmr(fmr->fmr, page_list, list_len,
@@ -451,7 +451,7 @@ struct ib_pool_fmr *ib_fmr_pool_map_phys(struct ib_fmr_pool *pool_handle,
 		memcpy(fmr->page_list, page_list, list_len * sizeof(*page_list));
 
 		spin_lock_irqsave(&pool->pool_lock, flags);
-		hlist_add_head(&fmr->cache_node,
+		hlist_add_head(&fmr->cache_yesde,
 			       pool->cache_bucket + ib_fmr_hash(fmr->page_list[0]));
 		spin_unlock_irqrestore(&pool->pool_lock, flags);
 	}

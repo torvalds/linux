@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2019 Facebook */
 
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <linux/err.h>
 #include <stdbool.h>
@@ -46,14 +46,14 @@ struct btf_attach_table {
 struct btf_attach_point {
 	__u32 obj_id;
 	__u32 btf_id;
-	struct hlist_node hash;
+	struct hlist_yesde hash;
 };
 
 static const char *btf_int_enc_str(__u8 encoding)
 {
 	switch (encoding) {
 	case 0:
-		return "(none)";
+		return "(yesne)";
 	case BTF_INT_SIGNED:
 		return "SIGNED";
 	case BTF_INT_CHAR:
@@ -73,14 +73,14 @@ static const char *btf_var_linkage_str(__u32 linkage)
 	case BTF_VAR_GLOBAL_ALLOCATED:
 		return "global-alloc";
 	default:
-		return "(unknown)";
+		return "(unkyeswn)";
 	}
 }
 
 static const char *btf_str(const struct btf *btf, __u32 off)
 {
 	if (!off)
-		return "(anon)";
+		return "(ayesn)";
 	return btf__name_by_offset(btf, off) ? : "(invalid)";
 }
 
@@ -501,7 +501,7 @@ static int do_dump(int argc, char **argv)
 
 		err = bpf_obj_get_info_by_fd(fd, &info, &len);
 		if (err) {
-			p_err("can't get prog info: %s", strerror(errno));
+			p_err("can't get prog info: %s", strerror(erryes));
 			goto done;
 		}
 
@@ -573,7 +573,7 @@ static int do_dump(int argc, char **argv)
 
 	if (dump_c) {
 		if (json_output) {
-			p_err("JSON output for C-syntax dump is not supported");
+			p_err("JSON output for C-syntax dump is yest supported");
 			err = -ENOTSUP;
 			goto done;
 		}
@@ -610,7 +610,7 @@ static int btf_parse_fd(int *argc, char ***argv)
 	fd = bpf_btf_get_fd_by_id(id);
 	if (fd < 0)
 		p_err("can't get BTF object by id (%u): %s",
-		      id, strerror(errno));
+		      id, strerror(erryes));
 
 	return fd;
 }
@@ -618,7 +618,7 @@ static int btf_parse_fd(int *argc, char ***argv)
 static void delete_btf_table(struct btf_attach_table *tab)
 {
 	struct btf_attach_point *obj;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 
 	unsigned int bkt;
 
@@ -633,11 +633,11 @@ build_btf_type_table(struct btf_attach_table *tab, enum bpf_obj_type type,
 		     void *info, __u32 *len)
 {
 	static const char * const names[] = {
-		[BPF_OBJ_UNKNOWN]	= "unknown",
+		[BPF_OBJ_UNKNOWN]	= "unkyeswn",
 		[BPF_OBJ_PROG]		= "prog",
 		[BPF_OBJ_MAP]		= "map",
 	};
-	struct btf_attach_point *obj_node;
+	struct btf_attach_point *obj_yesde;
 	__u32 btf_id, id = 0;
 	int err;
 	int fd;
@@ -656,13 +656,13 @@ build_btf_type_table(struct btf_attach_table *tab, enum bpf_obj_type type,
 			goto err_free;
 		}
 		if (err) {
-			if (errno == ENOENT) {
+			if (erryes == ENOENT) {
 				err = 0;
 				break;
 			}
 			p_err("can't get next %s: %s%s", names[type],
-			      strerror(errno),
-			      errno == EINVAL ? " -- kernel too old?" : "");
+			      strerror(erryes),
+			      erryes == EINVAL ? " -- kernel too old?" : "");
 			goto err_free;
 		}
 
@@ -679,10 +679,10 @@ build_btf_type_table(struct btf_attach_table *tab, enum bpf_obj_type type,
 			goto err_free;
 		}
 		if (fd < 0) {
-			if (errno == ENOENT)
+			if (erryes == ENOENT)
 				continue;
 			p_err("can't get %s by id (%u): %s", names[type], id,
-			      strerror(errno));
+			      strerror(erryes));
 			err = -1;
 			goto err_free;
 		}
@@ -692,7 +692,7 @@ build_btf_type_table(struct btf_attach_table *tab, enum bpf_obj_type type,
 		close(fd);
 		if (err) {
 			p_err("can't get %s info: %s", names[type],
-			      strerror(errno));
+			      strerror(erryes));
 			goto err_free;
 		}
 
@@ -711,15 +711,15 @@ build_btf_type_table(struct btf_attach_table *tab, enum bpf_obj_type type,
 		if (!btf_id)
 			continue;
 
-		obj_node = calloc(1, sizeof(*obj_node));
-		if (!obj_node) {
-			p_err("failed to allocate memory: %s", strerror(errno));
+		obj_yesde = calloc(1, sizeof(*obj_yesde));
+		if (!obj_yesde) {
+			p_err("failed to allocate memory: %s", strerror(erryes));
 			goto err_free;
 		}
 
-		obj_node->obj_id = id;
-		obj_node->btf_id = btf_id;
-		hash_add(tab->table, &obj_node->hash, obj_node->btf_id);
+		obj_yesde->obj_id = id;
+		obj_yesde->btf_id = btf_id;
+		hash_add(tab->table, &obj_yesde->hash, obj_yesde->btf_id);
 	}
 
 	return 0;
@@ -823,7 +823,7 @@ show_btf(int fd, struct btf_attach_table *btf_prog_table,
 
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	if (err) {
-		p_err("can't get BTF object info: %s", strerror(errno));
+		p_err("can't get BTF object info: %s", strerror(erryes));
 		return -1;
 	}
 
@@ -875,23 +875,23 @@ static int do_show(int argc, char **argv)
 	while (true) {
 		err = bpf_btf_get_next_id(id, &id);
 		if (err) {
-			if (errno == ENOENT) {
+			if (erryes == ENOENT) {
 				err = 0;
 				break;
 			}
 			p_err("can't get next BTF object: %s%s",
-			      strerror(errno),
-			      errno == EINVAL ? " -- kernel too old?" : "");
+			      strerror(erryes),
+			      erryes == EINVAL ? " -- kernel too old?" : "");
 			err = -1;
 			break;
 		}
 
 		fd = bpf_btf_get_fd_by_id(id);
 		if (fd < 0) {
-			if (errno == ENOENT)
+			if (erryes == ENOENT)
 				continue;
 			p_err("can't get BTF object by id (%u): %s",
-			      id, strerror(errno));
+			      id, strerror(erryes));
 			err = -1;
 			break;
 		}

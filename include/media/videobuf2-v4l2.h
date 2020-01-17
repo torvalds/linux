@@ -36,7 +36,7 @@
  * @is_held:	if true, then this capture buffer was held
  * @planes:	plane information (userptr/fd, length, bytesused, data_offset).
  *
- * Should contain enough information to be able to cover all the fields
+ * Should contain eyesugh information to be able to cover all the fields
  * of &struct v4l2_buffer at ``videodev2.h``.
  */
 struct vb2_v4l2_buffer {
@@ -71,7 +71,7 @@ struct vb2_v4l2_buffer {
  *		by setting @start_idx to the previously found index + 1.
  *
  * Returns the buffer index of the buffer with the given @timestamp, or
- * -1 if no buffer with @timestamp was found.
+ * -1 if yes buffer with @timestamp was found.
  */
 int vb2_find_timestamp(const struct vb2_queue *q, u64 timestamp,
 		       unsigned int start_idx);
@@ -114,7 +114,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create);
  * #) verifies the passed buffer,
  * #) calls &vb2_ops->buf_prepare callback in the driver (if provided),
  *    in which driver-specific buffer initialization can be performed.
- * #) if @b->request_fd is non-zero and @mdev->ops->req_queue is set,
+ * #) if @b->request_fd is yesn-zero and @mdev->ops->req_queue is set,
  *    then bind the prepared buffer to the request.
  *
  * The return values from this function are intended to be directly returned
@@ -135,7 +135,7 @@ int vb2_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
  * This function:
  *
  * #) verifies the passed buffer;
- * #) if @b->request_fd is non-zero and @mdev->ops->req_queue is set,
+ * #) if @b->request_fd is yesn-zero and @mdev->ops->req_queue is set,
  *    then bind the buffer to the request.
  * #) if necessary, calls &vb2_ops->buf_prepare callback in the driver
  *    (if provided), in which driver-specific buffer initialization can
@@ -165,7 +165,7 @@ int vb2_expbuf(struct vb2_queue *q, struct v4l2_exportbuffer *eb);
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  * @b:		buffer structure passed from userspace to
  *		&v4l2_ioctl_ops->vidioc_dqbuf handler in driver
- * @nonblocking: if true, this call will not sleep waiting for a buffer if no
+ * @yesnblocking: if true, this call will yest sleep waiting for a buffer if yes
  *		 buffers ready for dequeuing are present. Normally the driver
  *		 would be passing (&file->f_flags & %O_NONBLOCK) here
  *
@@ -184,7 +184,7 @@ int vb2_expbuf(struct vb2_queue *q, struct v4l2_exportbuffer *eb);
  * The return values from this function are intended to be directly returned
  * from &v4l2_ioctl_ops->vidioc_dqbuf handler in driver.
  */
-int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking);
+int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool yesnblocking);
 
 /**
  * vb2_streamon - start streaming
@@ -268,7 +268,7 @@ void vb2_queue_release(struct vb2_queue *q);
 __poll_t vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait);
 
 /*
- * The following functions are not part of the vb2 core API, but are simple
+ * The following functions are yest part of the vb2 core API, but are simple
  * helper functions that you can use in your struct v4l2_file_operations,
  * struct v4l2_ioctl_ops and struct vb2_ops. They will serialize if vb2_queue->lock
  * or video_device->lock is set, and they will set and test vb2_queue->owner
@@ -311,7 +311,7 @@ unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
  *
  * @vq: pointer to &struct vb2_queue
  *
- * ..note:: only use if vq->lock is non-NULL.
+ * ..yeste:: only use if vq->lock is yesn-NULL.
  */
 void vb2_ops_wait_prepare(struct vb2_queue *vq);
 
@@ -320,7 +320,7 @@ void vb2_ops_wait_prepare(struct vb2_queue *vq);
  *
  * @vq: pointer to &struct vb2_queue
  *
- * ..note:: only use if vq->lock is non-NULL.
+ * ..yeste:: only use if vq->lock is yesn-NULL.
  */
 void vb2_ops_wait_finish(struct vb2_queue *vq);
 

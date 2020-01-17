@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2014 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -49,7 +49,7 @@
 #include "uverbs.h"
 
 static inline int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
-				   const struct mmu_interval_notifier_ops *ops)
+				   const struct mmu_interval_yestifier_ops *ops)
 {
 	int ret;
 
@@ -87,7 +87,7 @@ static inline int ib_init_umem_odp(struct ib_umem_odp *umem_odp,
 			goto out_page_list;
 		}
 
-		ret = mmu_interval_notifier_insert(&umem_odp->notifier,
+		ret = mmu_interval_yestifier_insert(&umem_odp->yestifier,
 						   umem_odp->umem.owning_mm,
 						   start, end - start, ops);
 		if (ret)
@@ -106,7 +106,7 @@ out_page_list:
 /**
  * ib_umem_odp_alloc_implicit - Allocate a parent implicit ODP umem
  *
- * Implicit ODP umems do not have a VA range and do not have any page lists.
+ * Implicit ODP umems do yest have a VA range and do yest have any page lists.
  * They exist only to hold the per_mm reference to help the driver create
  * children umems.
  *
@@ -162,10 +162,10 @@ EXPORT_SYMBOL(ib_umem_odp_alloc_implicit);
 struct ib_umem_odp *
 ib_umem_odp_alloc_child(struct ib_umem_odp *root, unsigned long addr,
 			size_t size,
-			const struct mmu_interval_notifier_ops *ops)
+			const struct mmu_interval_yestifier_ops *ops)
 {
 	/*
-	 * Caller must ensure that root cannot be freed during the call to
+	 * Caller must ensure that root canyest be freed during the call to
 	 * ib_alloc_odp_umem.
 	 */
 	struct ib_umem_odp *odp_data;
@@ -185,7 +185,7 @@ ib_umem_odp_alloc_child(struct ib_umem_odp *root, unsigned long addr,
 	umem->writable   = root->umem.writable;
 	umem->owning_mm  = root->umem.owning_mm;
 	odp_data->page_shift = PAGE_SHIFT;
-	odp_data->notifier.ops = ops;
+	odp_data->yestifier.ops = ops;
 
 	odp_data->tgid = get_pid(root->tgid);
 	ret = ib_init_umem_odp(odp_data, ops);
@@ -208,11 +208,11 @@ EXPORT_SYMBOL(ib_umem_odp_alloc_child);
  *
  * The driver should use when the access flags indicate ODP memory. It avoids
  * pinning, instead, stores the mm for future page fault handling in
- * conjunction with MMU notifiers.
+ * conjunction with MMU yestifiers.
  */
 struct ib_umem_odp *ib_umem_odp_get(struct ib_udata *udata, unsigned long addr,
 				    size_t size, int access,
-				    const struct mmu_interval_notifier_ops *ops)
+				    const struct mmu_interval_yestifier_ops *ops)
 {
 	struct ib_umem_odp *umem_odp;
 	struct ib_ucontext *context;
@@ -239,7 +239,7 @@ struct ib_umem_odp *ib_umem_odp_get(struct ib_udata *udata, unsigned long addr,
 	umem_odp->umem.address = addr;
 	umem_odp->umem.writable = ib_access_writable(access);
 	umem_odp->umem.owning_mm = mm = current->mm;
-	umem_odp->notifier.ops = ops;
+	umem_odp->yestifier.ops = ops;
 
 	umem_odp->page_shift = PAGE_SHIFT;
 	if (access & IB_ACCESS_HUGETLB) {
@@ -275,17 +275,17 @@ EXPORT_SYMBOL(ib_umem_odp_get);
 void ib_umem_odp_release(struct ib_umem_odp *umem_odp)
 {
 	/*
-	 * Ensure that no more pages are mapped in the umem.
+	 * Ensure that yes more pages are mapped in the umem.
 	 *
 	 * It is the driver's responsibility to ensure, before calling us,
-	 * that the hardware will not attempt to access the MR any more.
+	 * that the hardware will yest attempt to access the MR any more.
 	 */
 	if (!umem_odp->is_implicit_odp) {
 		mutex_lock(&umem_odp->umem_mutex);
 		ib_umem_odp_unmap_dma_pages(umem_odp, ib_umem_start(umem_odp),
 					    ib_umem_end(umem_odp));
 		mutex_unlock(&umem_odp->umem_mutex);
-		mmu_interval_notifier_remove(&umem_odp->notifier);
+		mmu_interval_yestifier_remove(&umem_odp->yestifier);
 		kvfree(umem_odp->dma_list);
 		kvfree(umem_odp->page_list);
 		put_pid(umem_odp->tgid);
@@ -303,7 +303,7 @@ EXPORT_SYMBOL(ib_umem_odp_release);
  * @access_mask: access permissions needed for this page.
  * @current_seq: sequence number for synchronization with invalidations.
  *               the sequence number is taken from
- *               umem_odp->notifiers_seq.
+ *               umem_odp->yestifiers_seq.
  *
  * The function returns -EFAULT if the DMA mapping operation fails. It returns
  * -EAGAIN if a concurrent invalidation prevents us from updating the page.
@@ -323,7 +323,7 @@ static int ib_umem_odp_map_dma_single_page(
 	dma_addr_t dma_addr;
 	int ret = 0;
 
-	if (mmu_interval_check_retry(&umem_odp->notifier, current_seq)) {
+	if (mmu_interval_check_retry(&umem_odp->yestifier, current_seq)) {
 		ret = -EAGAIN;
 		goto out;
 	}
@@ -353,7 +353,7 @@ static int ib_umem_odp_map_dma_single_page(
 		 *
 		 * It should be prevented by the retry test above as reading
 		 * the seq number should be reliable under the
-		 * umem_mutex. Thus something is really not working right if
+		 * umem_mutex. Thus something is really yest working right if
 		 * things get here.
 		 */
 		WARN(true,
@@ -376,7 +376,7 @@ out:
  *
  * Returns the number of pages mapped in success, negative error code
  * for failure.
- * An -EAGAIN error code is returned when a concurrent mmu notifier prevents
+ * An -EAGAIN error code is returned when a concurrent mmu yestifier prevents
  * the function from completing its task.
  * An -ENOENT error code indicates that userspace process is being terminated
  * and mm was already destroyed.
@@ -388,9 +388,9 @@ out:
  *        the return value.
  * @access_mask: bit mask of the requested access permissions for the given
  *               range.
- * @current_seq: the MMU notifiers sequance value for synchronization with
+ * @current_seq: the MMU yestifiers sequance value for synchronization with
  *               invalidations. the sequance number is read from
- *               umem_odp->notifiers_seq before calling this function
+ *               umem_odp->yestifiers_seq before calling this function
  */
 int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
 			      u64 bcnt, u64 access_mask,
@@ -424,10 +424,10 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
 	/*
 	 * owning_process is allowed to be NULL, this means somehow the mm is
 	 * existing beyond the lifetime of the originating process.. Presumably
-	 * mmget_not_zero will fail in this case.
+	 * mmget_yest_zero will fail in this case.
 	 */
 	owning_process = get_pid_task(umem_odp->tgid, PIDTYPE_PID);
-	if (!owning_process || !mmget_not_zero(owning_mm)) {
+	if (!owning_process || !mmget_yest_zero(owning_mm)) {
 		ret = -EINVAL;
 		goto out_put_task;
 	}
@@ -534,7 +534,7 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 virt,
 	virt = max_t(u64, virt, ib_umem_start(umem_odp));
 	bound = min_t(u64, bound, ib_umem_end(umem_odp));
 	/* Note that during the run of this function, the
-	 * notifiers_count of the MR is > 0, preventing any racing
+	 * yestifiers_count of the MR is > 0, preventing any racing
 	 * faults from completion. We might be racing with other
 	 * invalidations, so we must make sure we free each page only
 	 * once. */
@@ -554,10 +554,10 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 virt,
 				struct page *head_page = compound_head(page);
 				/*
 				 * set_page_dirty prefers being called with
-				 * the page lock. However, MMU notifiers are
+				 * the page lock. However, MMU yestifiers are
 				 * called sometimes with and sometimes without
 				 * the lock. We rely on the umem_mutex instead
-				 * to prevent other mmu notifiers from
+				 * to prevent other mmu yestifiers from
 				 * continuing and allowing the page mapping to
 				 * be removed.
 				 */

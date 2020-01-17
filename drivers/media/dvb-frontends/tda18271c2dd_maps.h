@@ -23,7 +23,7 @@ static struct SStandardParam m_StandardTable[] = {
 	{       0,        0, 0x00, 0x00 },    /* HF_DVBT (Unused) */
 	{ 5000000,  6000000, 0x1C, 0x37 },    /* HF_ATSC  (center = 3.25 MHz) */
 	{ 4000000,  6000000, 0x1D, 0x58 },    /* HF_DVBC_6MHZ (Chicago) */
-	{ 4500000,  7000000, 0x1E, 0x37 },    /* HF_DVBC_7MHZ (not documented by NXP) */
+	{ 4500000,  7000000, 0x1E, 0x37 },    /* HF_DVBC_7MHZ (yest documented by NXP) */
 	{ 5000000,  8000000, 0x1F, 0x37 },    /* HF_DVBC_8MHZ */
 	{       0,        0, 0x00, 0x00 },    /* HF_DVBC (Unused) */
 };

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  yesno.c -- implements the yes/no box
+ *  noyes.c -- implements the no/yes box
  *
  *  ORIGINAL AUTHOR: Savio Lam (lam836@cs.cuhk.hk)
  *  MODIFIED FOR LINUX KERNEL CONFIG BY: William Roadcap (roadcap@cfw.com)
@@ -26,7 +26,7 @@ static void print_buttons(WINDOW * dialog, int height, int width, int selected)
 /*
  * Display a dialog box with two buttons - Yes and No
  */
-int dialog_yesno(const char *title, const char *prompt, int height, int width)
+int dialog_noyes(const char *title, const char *prompt, int height, int width)
 {
 	int i, x, y, key = 0, button = 0;
 	WINDOW *dialog;

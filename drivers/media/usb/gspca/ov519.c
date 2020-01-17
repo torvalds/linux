@@ -31,7 +31,7 @@
 #include "gspca.h"
 
 /* The jpeg_hdr is used by w996Xcf only */
-/* The CONEX_CAM define for jpeg.h needs renaming, now its used here too */
+/* The CONEX_CAM define for jpeg.h needs renaming, yesw its used here too */
 #define CONEX_CAM
 #include "jpeg.h"
 
@@ -458,7 +458,7 @@ static const struct v4l2_pix_format ovfx2_ov9600_mode[] = {
 /*#define OV511_ENDPOINT_ADDRESS 1	 * Isoc endpoint number */
 
 /*
- * The FX2 chip does not give us a zero length read at end of frame.
+ * The FX2 chip does yest give us a zero length read at end of frame.
  * It does, however, give a short read at the end of a frame, if
  * necessary, rather than run two frames together.
  *
@@ -469,17 +469,17 @@ static const struct v4l2_pix_format ovfx2_ov9600_mode[] = {
  * frame will be short.
  *
  * But it isn't that easy: the 2.6 kernel requires a multiple of 4KB,
- * otherwise EOVERFLOW "babbling" errors occur.  I have not been able
+ * otherwise EOVERFLOW "babbling" errors occur.  I have yest been able
  * to figure out why.  [PMiller]
  *
- * The constant (13 * 4096) is the largest "prime enough" number less than 64KB.
+ * The constant (13 * 4096) is the largest "prime eyesugh" number less than 64KB.
  *
- * It isn't enough to know the number of bytes per frame, in case we
+ * It isn't eyesugh to kyesw the number of bytes per frame, in case we
  * have data dropouts or buffer overruns (even though the FX2 double
  * buffers, there are some pretty strict real time constraints for
- * isochronous transfer for larger frame sizes).
+ * isochroyesus transfer for larger frame sizes).
  */
-/*jfm: this value does not work for 800x600 - see isoc_init */
+/*jfm: this value does yest work for 800x600 - see isoc_init */
 #define OVFX2_BULK_SIZE (13 * 4096)
 
 /* I2C registers */
@@ -588,11 +588,11 @@ struct ov_i2c_regvals {
 };
 
 /* Settings for OV2610 camera chip */
-static const struct ov_i2c_regvals norm_2610[] = {
+static const struct ov_i2c_regvals yesrm_2610[] = {
 	{ 0x12, 0x80 },	/* reset */
 };
 
-static const struct ov_i2c_regvals norm_2610ae[] = {
+static const struct ov_i2c_regvals yesrm_2610ae[] = {
 	{0x12, 0x80},	/* reset */
 	{0x13, 0xcd},
 	{0x09, 0x01},
@@ -605,12 +605,12 @@ static const struct ov_i2c_regvals norm_2610ae[] = {
 /* ms-win traces */
 	{0x11, 0x83},	/* clock / 3 ? */
 	{0x2d, 0x00},	/* 60 Hz filter */
-	{0x24, 0xb0},	/* normal colors */
+	{0x24, 0xb0},	/* yesrmal colors */
 	{0x25, 0x90},
 	{0x10, 0x43},
 };
 
-static const struct ov_i2c_regvals norm_3620b[] = {
+static const struct ov_i2c_regvals yesrm_3620b[] = {
 	/*
 	 * From the datasheet: "Note that after writing to register COMH
 	 * (0x12) to change the sensor mode, registers related to the
@@ -764,9 +764,9 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *                                         data is dropped"
 	 *    COMJ[1] "Frame data drop"
 	 *                  =   1 (0x01) ......1. "Drop frame data if
-	 *                                         exposure is not within
+	 *                                         exposure is yest within
 	 *                                         tolerance.  In AEC mode,
-	 *                                         data is normally dropped
+	 *                                         data is yesrmally dropped
 	 *                                         when data is out of
 	 *                                         range."
 	 *    COMJ[0] "Reserved"
@@ -802,17 +802,17 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    CHLF[7:6] "Sensor current control"
 	 *                  =   0 (0x00) 00......
 	 *    CHLF[5] "Sensor current range control"
-	 *                  =   0 (0x00) ..0..... "normal range"
+	 *                  =   0 (0x00) ..0..... "yesrmal range"
 	 *    CHLF[4] "Sensor current"
-	 *                  =   0 (0x00) ...0.... "normal current"
+	 *                  =   0 (0x00) ...0.... "yesrmal current"
 	 *    CHLF[3] "Sensor buffer current control"
 	 *                  =   1 (0x01) ....1... "half current"
 	 *    CHLF[2] "Column buffer current control"
-	 *                  =   0 (0x00) .....0.. "normal current"
+	 *                  =   0 (0x00) .....0.. "yesrmal current"
 	 *    CHLF[1] "Analog DSP current control"
-	 *                  =   0 (0x00) ......0. "normal current"
+	 *                  =   0 (0x00) ......0. "yesrmal current"
 	 *    CHLF[1] "ADC current control"
-	 *                  =   0 (0x00) ......0. "normal current"
+	 *                  =   0 (0x00) ......0. "yesrmal current"
 	 */
 	{ 0x33, 0x09 },
 
@@ -990,17 +990,17 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    CHLF[7:6] "Sensor current control"
 	 *                  =   0 (0x00) 00......
 	 *    CHLF[5] "Sensor current range control"
-	 *                  =   0 (0x00) ..0..... "normal range"
+	 *                  =   0 (0x00) ..0..... "yesrmal range"
 	 *    CHLF[4] "Sensor current"
 	 *                  =   1 (0x01) ...1.... "double current"
 	 *    CHLF[3] "Sensor buffer current control"
 	 *                  =   1 (0x01) ....1... "half current"
 	 *    CHLF[2] "Column buffer current control"
-	 *                  =   0 (0x00) .....0.. "normal current"
+	 *                  =   0 (0x00) .....0.. "yesrmal current"
 	 *    CHLF[1] "Analog DSP current control"
-	 *                  =   0 (0x00) ......0. "normal current"
+	 *                  =   0 (0x00) ......0. "yesrmal current"
 	 *    CHLF[1] "ADC current control"
-	 *                  =   0 (0x00) ......0. "normal current"
+	 *                  =   0 (0x00) ......0. "yesrmal current"
 	 */
 	{ 0x33, 0x19 },
 
@@ -1030,17 +1030,17 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	 *    CHLF[7:6] "Sensor current control"
 	 *                  =   0 (0x00) 00......
 	 *    CHLF[5] "Sensor current range control"
-	 *                  =   0 (0x00) ..0..... "normal range"
+	 *                  =   0 (0x00) ..0..... "yesrmal range"
 	 *    CHLF[4] "Sensor current"
-	 *                  =   0 (0x00) ...0.... "normal current"
+	 *                  =   0 (0x00) ...0.... "yesrmal current"
 	 *    CHLF[3] "Sensor buffer current control"
 	 *                  =   1 (0x01) ....1... "half current"
 	 *    CHLF[2] "Column buffer current control"
-	 *                  =   0 (0x00) .....0.. "normal current"
+	 *                  =   0 (0x00) .....0.. "yesrmal current"
 	 *    CHLF[1] "Analog DSP current control"
-	 *                  =   0 (0x00) ......0. "normal current"
+	 *                  =   0 (0x00) ......0. "yesrmal current"
 	 *    CHLF[1] "ADC current control"
-	 *                  =   0 (0x00) ......0. "normal current"
+	 *                  =   0 (0x00) ......0. "yesrmal current"
 	 */
 	{ 0x33, 0x09 },
 
@@ -1292,7 +1292,7 @@ static const struct ov_i2c_regvals norm_3620b[] = {
 	{ 0xff, 0x01 },
 };
 
-static const struct ov_i2c_regvals norm_6x20[] = {
+static const struct ov_i2c_regvals yesrm_6x20[] = {
 	{ 0x12, 0x80 }, /* reset */
 	{ 0x11, 0x01 },
 	{ 0x03, 0x60 },
@@ -1328,14 +1328,14 @@ static const struct ov_i2c_regvals norm_6x20[] = {
 	 * They control the color balance */
 	{ 0x4a, 0x80 },
 	{ 0x4b, 0x80 },
-	{ 0x4d, 0xd2 }, /* This reduces noise a bit */
+	{ 0x4d, 0xd2 }, /* This reduces yesise a bit */
 	{ 0x4e, 0xc1 },
 	{ 0x4f, 0x04 },
 /* Do 50-53 have any effect? */
 /* Toggle 0x12[2] off and on here? */
 };
 
-static const struct ov_i2c_regvals norm_6x30[] = {
+static const struct ov_i2c_regvals yesrm_6x30[] = {
 	{ 0x12, 0x80 }, /* Reset */
 	{ 0x00, 0x1f }, /* Gain */
 	{ 0x01, 0x99 }, /* Blue gain */
@@ -1431,7 +1431,7 @@ static const struct ov_i2c_regvals norm_6x30[] = {
  * 0x05 (old driver setting): very overexposed, too much
  *	contrast
  */
-static const struct ov_i2c_regvals norm_7610[] = {
+static const struct ov_i2c_regvals yesrm_7610[] = {
 	{ 0x10, 0xff },
 	{ 0x16, 0x06 },
 	{ 0x28, 0x24 },
@@ -1461,7 +1461,7 @@ static const struct ov_i2c_regvals norm_7610[] = {
 	{ 0x0d, 0x24 },
 };
 
-static const struct ov_i2c_regvals norm_7620[] = {
+static const struct ov_i2c_regvals yesrm_7620[] = {
 	{ 0x12, 0x80 },		/* reset */
 	{ 0x00, 0x00 },		/* gain */
 	{ 0x01, 0x80 },		/* blue gain */
@@ -1529,7 +1529,7 @@ static const struct ov_i2c_regvals norm_7620[] = {
 };
 
 /* 7640 and 7648. The defaults should be OK for most registers. */
-static const struct ov_i2c_regvals norm_7640[] = {
+static const struct ov_i2c_regvals yesrm_7640[] = {
 	{ 0x12, 0x80 },
 	{ 0x12, 0x14 },
 };
@@ -1553,7 +1553,7 @@ static const struct ov_regvals init_519_ov7660[] = {
 	{ 0x40,	0xff }, /* I2C timeout counter */
 	{ 0x46,	0x00 }, /* I2C clock prescaler */
 };
-static const struct ov_i2c_regvals norm_7660[] = {
+static const struct ov_i2c_regvals yesrm_7660[] = {
 	{OV7670_R12_COM7, OV7670_COM7_RESET},
 	{OV7670_R11_CLKRC, 0x81},
 	{0x92, 0x00},			/* DM_LNL */
@@ -1677,7 +1677,7 @@ static const struct ov_i2c_regvals norm_7660[] = {
 			| OV7670_COM8_AEC},
 	{0xa1, 0xc8}
 };
-static const struct ov_i2c_regvals norm_9600[] = {
+static const struct ov_i2c_regvals yesrm_9600[] = {
 	{0x12, 0x80},
 	{0x0c, 0x28},
 	{0x11, 0x80},
@@ -1696,7 +1696,7 @@ static const struct ov_i2c_regvals norm_9600[] = {
 
 /* 7670. Defaults taken from OmniVision provided data,
 *  as provided by Jonathan Corbet of OLPC		*/
-static const struct ov_i2c_regvals norm_7670[] = {
+static const struct ov_i2c_regvals yesrm_7670[] = {
 	{ OV7670_R12_COM7, OV7670_COM7_RESET },
 	{ OV7670_R3A_TSLB, 0x04 },		/* OV */
 	{ OV7670_R12_COM7, OV7670_COM7_FMT_VGA }, /* VGA */
@@ -1890,7 +1890,7 @@ static const struct ov_i2c_regvals norm_7670[] = {
 	{ 0x79, 0x26 },
 };
 
-static const struct ov_i2c_regvals norm_8610[] = {
+static const struct ov_i2c_regvals yesrm_8610[] = {
 	{ 0x12, 0x80 },
 	{ 0x00, 0x00 },
 	{ 0x01, 0x80 },
@@ -2035,7 +2035,7 @@ leave:
 	}
 }
 
-/* Read from a OV519 register, note not valid for the w9968cf!! */
+/* Read from a OV519 register, yeste yest valid for the w9968cf!! */
 /* returns: negative is error, pos or zero is data */
 static int reg_r(struct sd *sd, u16 index)
 {
@@ -2272,7 +2272,7 @@ static int ov511_i2c_r(struct sd *sd, u8 reg)
 
 /*
  * The OV518 I2C I/O procedure is different, hence, this function.
- * This is normally only called from i2c_w(). Note that this function
+ * This is yesrmally only called from i2c_w(). Note that this function
  * always succeeds regardless of whether the sensor is present and working.
  */
 static void ov518_i2c_w(struct sd *sd,
@@ -2301,7 +2301,7 @@ static void ov518_i2c_w(struct sd *sd,
  * returns: negative is error, pos or zero is data
  *
  * The OV518 I2C I/O procedure is different, hence, this function.
- * This is normally only called from i2c_r(). Note that this function
+ * This is yesrmally only called from i2c_r(). Note that this function
  * always succeeds regardless of whether the sensor is present and working.
  */
 static int ov518_i2c_r(struct sd *sd, u8 reg)
@@ -2490,7 +2490,7 @@ static inline void ov51x_stop(struct sd *sd)
 	}
 }
 
-/* Restarts OV511 after ov511_stop() is called. Has no effect if it is not
+/* Restarts OV511 after ov511_stop() is called. Has yes effect if it is yest
  * actually stopped (for performance). */
 static inline void ov51x_restart(struct sd *sd)
 {
@@ -2567,7 +2567,7 @@ static int init_ov_sensor(struct sd *sd, u8 slave)
 
 /* Set the read and write slave IDs. The "slave" argument is the write slave,
  * and the read slave will be set to (slave + 1).
- * This should not be called from outside the i2c I/O functions.
+ * This should yest be called from outside the i2c I/O functions.
  * Sets I2C read and write slave IDs. Returns <0 for error
  */
 static void ov51x_set_slave_ids(struct sd *sd,
@@ -2654,7 +2654,7 @@ static void ov_hires_configure(struct sd *sd)
 		}
 		break;
 	}
-	gspca_err(gspca_dev, "Error unknown sensor type: %02x%02x\n",
+	gspca_err(gspca_dev, "Error unkyeswn sensor type: %02x%02x\n",
 		  high, low);
 }
 
@@ -2677,7 +2677,7 @@ static void ov8xx0_configure(struct sd *sd)
 	if ((rc & 3) == 1)
 		sd->sensor = SEN_OV8610;
 	else
-		gspca_err(gspca_dev, "Unknown image sensor version: %d\n",
+		gspca_err(gspca_dev, "Unkyeswn image sensor version: %d\n",
 			  rc & 3);
 }
 
@@ -2714,7 +2714,7 @@ static void ov7xx0_configure(struct sd *sd)
 			sd->sensor = SEN_OV7610;
 		}
 	} else if ((rc & 3) == 1) {
-		/* I don't know what's different about the 76BE yet. */
+		/* I don't kyesw what's different about the 76BE yet. */
 		if (i2c_r(sd, 0x15) & 1) {
 			gspca_dbg(gspca_dev, D_PROBE, "Sensor is an OV7620AE\n");
 			sd->sensor = SEN_OV7620AE;
@@ -2738,7 +2738,7 @@ static void ov7xx0_configure(struct sd *sd)
 			switch (low) {
 			case 0x30:
 				gspca_err(gspca_dev, "Sensor is an OV7630/OV7635\n");
-				gspca_err(gspca_dev, "7630 is not supported by this driver\n");
+				gspca_err(gspca_dev, "7630 is yest supported by this driver\n");
 				return;
 			case 0x40:
 				gspca_dbg(gspca_dev, D_PROBE, "Sensor is an OV7645\n");
@@ -2757,7 +2757,7 @@ static void ov7xx0_configure(struct sd *sd)
 				sd->sensor = SEN_OV7660;
 				break;
 			default:
-				gspca_err(gspca_dev, "Unknown sensor: 0x76%02x\n",
+				gspca_err(gspca_dev, "Unkyeswn sensor: 0x76%02x\n",
 					  low);
 				return;
 			}
@@ -2766,7 +2766,7 @@ static void ov7xx0_configure(struct sd *sd)
 			sd->sensor = SEN_OV7620;
 		}
 	} else {
-		gspca_err(gspca_dev, "Unknown image sensor version: %d\n",
+		gspca_err(gspca_dev, "Unkyeswn image sensor version: %d\n",
 			  rc & 3);
 	}
 }
@@ -2811,7 +2811,7 @@ static void ov6xx0_configure(struct sd *sd)
 		pr_warn("WARNING: Sensor is an OV66307. Your camera may have been misdetected in previous driver versions.\n");
 		break;
 	default:
-		gspca_err(gspca_dev, "FATAL: Unknown sensor version: 0x%02x\n",
+		gspca_err(gspca_dev, "FATAL: Unkyeswn sensor version: 0x%02x\n",
 			  rc);
 		return;
 	}
@@ -2827,7 +2827,7 @@ static void ov51x_led_control(struct sd *sd, int on)
 		on = !on;
 
 	switch (sd->bridge) {
-	/* OV511 has no LED control */
+	/* OV511 has yes LED control */
 	case BRIDGE_OV511PLUS:
 		reg_w(sd, R511_SYS_LED_CTL, on);
 		break;
@@ -2961,7 +2961,7 @@ static void ov511_configure(struct gspca_dev *gspca_dev)
 		{ R51x_SYS_RESET,	0x3d },
 	};
 
-	static const struct ov_regvals norm_511[] = {
+	static const struct ov_regvals yesrm_511[] = {
 		{ R511_DRAM_FLOW_CTL,	0x01 },
 		{ R51x_SYS_SNAP,	0x00 },
 		{ R51x_SYS_SNAP,	0x02 },
@@ -2971,7 +2971,7 @@ static void ov511_configure(struct gspca_dev *gspca_dev)
 		{ R511_COMP_LUT_EN,	0x03 },
 	};
 
-	static const struct ov_regvals norm_511_p[] = {
+	static const struct ov_regvals yesrm_511_p[] = {
 		{ R511_DRAM_FLOW_CTL,	0xff },
 		{ R51x_SYS_SNAP,	0x00 },
 		{ R51x_SYS_SNAP,	0x02 },
@@ -2999,10 +2999,10 @@ static void ov511_configure(struct gspca_dev *gspca_dev)
 
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
-		write_regvals(sd, norm_511, ARRAY_SIZE(norm_511));
+		write_regvals(sd, yesrm_511, ARRAY_SIZE(yesrm_511));
 		break;
 	case BRIDGE_OV511PLUS:
-		write_regvals(sd, norm_511_p, ARRAY_SIZE(norm_511_p));
+		write_regvals(sd, yesrm_511_p, ARRAY_SIZE(yesrm_511_p));
 		break;
 	}
 
@@ -3029,7 +3029,7 @@ static void ov518_configure(struct gspca_dev *gspca_dev)
 		{ 0x5d,			0x03 },
 	};
 
-	static const struct ov_regvals norm_518[] = {
+	static const struct ov_regvals yesrm_518[] = {
 		{ R51x_SYS_SNAP,	0x02 }, /* Reset */
 		{ R51x_SYS_SNAP,	0x01 }, /* Enable */
 		{ 0x31,			0x0f },
@@ -3042,7 +3042,7 @@ static void ov518_configure(struct gspca_dev *gspca_dev)
 		{ 0x2f,			0x80 },
 	};
 
-	static const struct ov_regvals norm_518_p[] = {
+	static const struct ov_regvals yesrm_518_p[] = {
 		{ R51x_SYS_SNAP,	0x02 }, /* Reset */
 		{ R51x_SYS_SNAP,	0x01 }, /* Enable */
 		{ 0x31,			0x0f },
@@ -3072,10 +3072,10 @@ static void ov518_configure(struct gspca_dev *gspca_dev)
 
 	switch (sd->bridge) {
 	case BRIDGE_OV518:
-		write_regvals(sd, norm_518, ARRAY_SIZE(norm_518));
+		write_regvals(sd, yesrm_518, ARRAY_SIZE(yesrm_518));
 		break;
 	case BRIDGE_OV518PLUS:
-		write_regvals(sd, norm_518_p, ARRAY_SIZE(norm_518_p));
+		write_regvals(sd, yesrm_518_p, ARRAY_SIZE(yesrm_518_p));
 		break;
 	}
 
@@ -3284,7 +3284,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	}
 
 	/* The OV519 must be more aggressive about sensor detection since
-	 * I2C write will never fail if the sensor is not present. We have
+	 * I2C write will never fail if the sensor is yest present. We have
 	 * to try to initialize the sensor to detect its presence */
 	sd->sensor = -1;
 
@@ -3361,7 +3361,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		if (sd->sif)
 			cam->nmodes = ARRAY_SIZE(w9968cf_vga_mode) - 1;
 
-		/* w9968cf needs initialisation once the sensor is known */
+		/* w9968cf needs initialisation once the sensor is kyeswn */
 		w9968cf_init(sd);
 		break;
 	}
@@ -3369,43 +3369,43 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	/* initialize the sensor */
 	switch (sd->sensor) {
 	case SEN_OV2610:
-		write_i2c_regvals(sd, norm_2610, ARRAY_SIZE(norm_2610));
+		write_i2c_regvals(sd, yesrm_2610, ARRAY_SIZE(yesrm_2610));
 
 		/* Enable autogain, autoexpo, awb, bandfilter */
 		i2c_w_mask(sd, 0x13, 0x27, 0x27);
 		break;
 	case SEN_OV2610AE:
-		write_i2c_regvals(sd, norm_2610ae, ARRAY_SIZE(norm_2610ae));
+		write_i2c_regvals(sd, yesrm_2610ae, ARRAY_SIZE(yesrm_2610ae));
 
 		/* enable autoexpo */
 		i2c_w_mask(sd, 0x13, 0x05, 0x05);
 		break;
 	case SEN_OV3610:
-		write_i2c_regvals(sd, norm_3620b, ARRAY_SIZE(norm_3620b));
+		write_i2c_regvals(sd, yesrm_3620b, ARRAY_SIZE(yesrm_3620b));
 
 		/* Enable autogain, autoexpo, awb, bandfilter */
 		i2c_w_mask(sd, 0x13, 0x27, 0x27);
 		break;
 	case SEN_OV6620:
-		write_i2c_regvals(sd, norm_6x20, ARRAY_SIZE(norm_6x20));
+		write_i2c_regvals(sd, yesrm_6x20, ARRAY_SIZE(yesrm_6x20));
 		break;
 	case SEN_OV6630:
 	case SEN_OV66308AF:
-		write_i2c_regvals(sd, norm_6x30, ARRAY_SIZE(norm_6x30));
+		write_i2c_regvals(sd, yesrm_6x30, ARRAY_SIZE(yesrm_6x30));
 		break;
 	default:
 /*	case SEN_OV7610: */
 /*	case SEN_OV76BE: */
-		write_i2c_regvals(sd, norm_7610, ARRAY_SIZE(norm_7610));
+		write_i2c_regvals(sd, yesrm_7610, ARRAY_SIZE(yesrm_7610));
 		i2c_w_mask(sd, 0x0e, 0x00, 0x40);
 		break;
 	case SEN_OV7620:
 	case SEN_OV7620AE:
-		write_i2c_regvals(sd, norm_7620, ARRAY_SIZE(norm_7620));
+		write_i2c_regvals(sd, yesrm_7620, ARRAY_SIZE(yesrm_7620));
 		break;
 	case SEN_OV7640:
 	case SEN_OV7648:
-		write_i2c_regvals(sd, norm_7640, ARRAY_SIZE(norm_7640));
+		write_i2c_regvals(sd, yesrm_7640, ARRAY_SIZE(yesrm_7640));
 		break;
 	case SEN_OV7660:
 		i2c_w(sd, OV7670_R12_COM7, OV7670_COM7_RESET);
@@ -3413,23 +3413,23 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		reg_w(sd, OV519_R57_SNAPSHOT, 0x23);
 		write_regvals(sd, init_519_ov7660,
 				ARRAY_SIZE(init_519_ov7660));
-		write_i2c_regvals(sd, norm_7660, ARRAY_SIZE(norm_7660));
+		write_i2c_regvals(sd, yesrm_7660, ARRAY_SIZE(yesrm_7660));
 		sd->gspca_dev.curr_mode = 1;	/* 640x480 */
 		ov519_set_mode(sd);
 		ov519_set_fr(sd);
 		sd_reset_snapshot(gspca_dev);
 		ov51x_restart(sd);
-		ov51x_stop(sd);			/* not in win traces */
+		ov51x_stop(sd);			/* yest in win traces */
 		ov51x_led_control(sd, 0);
 		break;
 	case SEN_OV7670:
-		write_i2c_regvals(sd, norm_7670, ARRAY_SIZE(norm_7670));
+		write_i2c_regvals(sd, yesrm_7670, ARRAY_SIZE(yesrm_7670));
 		break;
 	case SEN_OV8610:
-		write_i2c_regvals(sd, norm_8610, ARRAY_SIZE(norm_8610));
+		write_i2c_regvals(sd, yesrm_8610, ARRAY_SIZE(yesrm_8610));
 		break;
 	case SEN_OV9600:
-		write_i2c_regvals(sd, norm_9600, ARRAY_SIZE(norm_9600));
+		write_i2c_regvals(sd, yesrm_9600, ARRAY_SIZE(yesrm_9600));
 
 		/* enable autoexpo */
 /*		i2c_w_mask(sd, 0x13, 0x05, 0x05); */
@@ -3459,7 +3459,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 
 /* Set up the OV511/OV511+ with the given image parameters.
  *
- * Do not put any sensor-specific code in here (including I2C I/O functions)
+ * Do yest put any sensor-specific code in here (including I2C I/O functions)
  */
 static void ov511_mode_init_regs(struct sd *sd)
 {
@@ -3530,7 +3530,7 @@ static void ov511_mode_init_regs(struct sd *sd)
 		switch (sd->frame_rate) {
 		case 30:
 		case 25:
-			/* Not enough bandwidth to do 640x480 @ 30 fps */
+			/* Not eyesugh bandwidth to do 640x480 @ 30 fps */
 			if (sd->gspca_dev.pixfmt.width != 640) {
 				sd->clockdiv = 0;
 				break;
@@ -3551,7 +3551,7 @@ static void ov511_mode_init_regs(struct sd *sd)
 		}
 		if (interlaced) {
 			sd->clockdiv = (sd->clockdiv + 1) * 2 - 1;
-			/* Higher then 10 does not work */
+			/* Higher then 10 does yest work */
 			if (sd->clockdiv > 10)
 				sd->clockdiv = 10;
 		}
@@ -3563,7 +3563,7 @@ static void ov511_mode_init_regs(struct sd *sd)
 		break;
 	}
 
-	/* Check if we have enough bandwidth to disable compression */
+	/* Check if we have eyesugh bandwidth to disable compression */
 	fps = (interlaced ? 60 : 30) / (sd->clockdiv + 1) + 1;
 	needed = fps * sd->gspca_dev.pixfmt.width *
 			sd->gspca_dev.pixfmt.height * 3 / 2;
@@ -3584,9 +3584,9 @@ static void ov511_mode_init_regs(struct sd *sd)
 /* Sets up the OV518/OV518+ with the given image parameters
  *
  * OV518 needs a completely different approach, until we can figure out what
- * the individual registers do. Also, only 15 FPS is supported now.
+ * the individual registers do. Also, only 15 FPS is supported yesw.
  *
- * Do not put any sensor-specific code in here (including I2C I/O functions)
+ * Do yest put any sensor-specific code in here (including I2C I/O functions)
  */
 static void ov518_mode_init_regs(struct sd *sd)
 {
@@ -3637,7 +3637,7 @@ static void ov518_mode_init_regs(struct sd *sd)
 	reg_w(sd, 0x39, hsegs);
 	reg_w(sd, 0x3a, vsegs);
 
-	/* Windows driver does this here; who knows why */
+	/* Windows driver does this here; who kyesws why */
 	reg_w(sd, 0x2f, 0x80);
 
 	/******** Set the framerate ********/
@@ -3659,7 +3659,7 @@ static void ov518_mode_init_regs(struct sd *sd)
 			/*
 			 * HdG: 640x480 needs special handling on device
 			 * revision 2, we check for device revision > 0 to
-			 * avoid regressions, as we don't know the correct
+			 * avoid regressions, as we don't kyesw the correct
 			 * thing todo for revision 1.
 			 *
 			 * Also this likely means we don't need to
@@ -3727,7 +3727,7 @@ static void ov518_mode_init_regs(struct sd *sd)
  * OV519 needs a completely different approach, until we can figure out what
  * the individual registers do.
  *
- * Do not put any sensor-specific code in here (including I2C I/O functions)
+ * Do yest put any sensor-specific code in here (including I2C I/O functions)
  */
 static void ov519_mode_init_regs(struct sd *sd)
 {
@@ -3988,9 +3988,9 @@ static void mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
 		i2c_w_mask(sd, 0x28, qvga ? 0x00 : 0x20, 0x20);
 		/* Setting this undocumented bit in qvga mode removes a very
-		   annoying vertical shaking of the image */
+		   anyesying vertical shaking of the image */
 		i2c_w_mask(sd, 0x2d, qvga ? 0x40 : 0x00, 0x40);
-		/* Unknown */
+		/* Unkyeswn */
 		i2c_w_mask(sd, 0x67, qvga ? 0xf0 : 0x90, 0xf0);
 		/* Allow higher automatic gain (to allow higher framerates) */
 		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20);
@@ -4229,7 +4229,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case BRIDGE_OV519:
 		ov519_mode_init_regs(sd);
 		break;
-	/* case BRIDGE_OVFX2: nothing to do */
+	/* case BRIDGE_OVFX2: yesthing to do */
 	case BRIDGE_W9968CF:
 		w9968cf_mode_init_regs(sd);
 		break;
@@ -4267,7 +4267,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		w9968cf_stop0(sd);
 
 #if IS_ENABLED(CONFIG_INPUT)
-	/* If the last button state is pressed, release it now! */
+	/* If the last button state is pressed, release it yesw! */
 	if (sd->snapshot_pressed) {
 		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
 		input_sync(gspca_dev->input_dev);
@@ -4293,7 +4293,7 @@ static void ov51x_handle_button(struct gspca_dev *gspca_dev, u8 state)
 		sd->snapshot_pressed = state;
 	} else {
 		/* On the ov511 / ov519 we need to reset the button state
-		   multiple times, as resetting does not work as long as the
+		   multiple times, as resetting does yest work as long as the
 		   button stays pressed */
 		switch (sd->bridge) {
 		case BRIDGE_OV511:
@@ -4313,7 +4313,7 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	/* SOF/EOF packets have 1st to 8th bytes zeroed and the 9th
-	 * byte non-zero. The EOF packet has image width/height in the
+	 * byte yesn-zero. The EOF packet has image width/height in the
 	 * 10th and 11th bytes. The 9th byte is given as follows:
 	 *
 	 * bit 7: EOF
@@ -4349,7 +4349,7 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 		}
 	}
 
-	/* Ignore the packet number */
+	/* Igyesre the packet number */
 	len--;
 
 	/* intermediate packet */
@@ -4692,7 +4692,7 @@ static void setcolors(struct gspca_dev *gspca_dev, s32 val)
 		break;
 	case SEN_OV7670:
 		/* supported later once I work out how to do it
-		 * transparently fail now! */
+		 * transparently fail yesw! */
 		/* set REG_COM13 values for UV sat auto mode */
 		break;
 	}
@@ -4756,7 +4756,7 @@ static void setfreq_i(struct sd *sd, s32 val)
 				i2c_w_mask(sd, 0x2a, 0x80, 0x80);
 				i2c_w(sd, 0x2b, 0xa8);
 			} else {
-				/* no framerate adj. */
+				/* yes framerate adj. */
 				i2c_w_mask(sd, 0x2a, 0x00, 0x80);
 			}
 			break;
@@ -4927,7 +4927,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			QUALITY_MIN, QUALITY_MAX, 1, QUALITY_DEF);
 
 	if (hdl->error) {
-		gspca_err(gspca_dev, "Could not initialize controls\n");
+		gspca_err(gspca_dev, "Could yest initialize controls\n");
 		return hdl->error;
 	}
 	if (gspca_dev->autogain)

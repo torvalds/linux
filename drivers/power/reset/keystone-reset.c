@@ -9,7 +9,7 @@
 
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
@@ -49,7 +49,7 @@ static inline int rsctrl_enable_rspll_write(void)
 				  RSCTRL_KEY_MASK, RSCTRL_KEY);
 }
 
-static int rsctrl_restart_handler(struct notifier_block *this,
+static int rsctrl_restart_handler(struct yestifier_block *this,
 				  unsigned long mode, void *cmd)
 {
 	/* enable write access to RSTCTRL */
@@ -62,8 +62,8 @@ static int rsctrl_restart_handler(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block rsctrl_restart_nb = {
-	.notifier_call = rsctrl_restart_handler,
+static struct yestifier_block rsctrl_restart_nb = {
+	.yestifier_call = rsctrl_restart_handler,
 	.priority = 128,
 };
 
@@ -81,7 +81,7 @@ static int rsctrl_probe(struct platform_device *pdev)
 	u32 rsmux_offset;
 	struct regmap *devctrl_regs;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	if (!np)
 		return -ENODEV;
@@ -152,7 +152,7 @@ static int rsctrl_probe(struct platform_device *pdev)
 
 	ret = register_restart_handler(&rsctrl_restart_nb);
 	if (ret)
-		dev_err(dev, "cannot register restart handler (err=%d)\n", ret);
+		dev_err(dev, "canyest register restart handler (err=%d)\n", ret);
 
 	return ret;
 }

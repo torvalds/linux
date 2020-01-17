@@ -98,7 +98,7 @@ static int compat_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means yest supported, -1 means yesnsensical, other values
  * are event codes.
  */
 static int generic_compat_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {

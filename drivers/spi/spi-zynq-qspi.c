@@ -94,7 +94,7 @@
 /*
  * QSPI Linear Configuration Register
  *
- * It is named Linear Configuration but it controls other modes when not in
+ * It is named Linear Configuration but it controls other modes when yest in
  * linear mode also.
  */
 #define ZYNQ_QSPI_LCFG_TWO_MEM		BIT(30) /* LQSPI Two memories */
@@ -323,7 +323,7 @@ static void zynq_qspi_chipselect(struct spi_device *spi, bool assert)
  *
  * Return:	0 on success and -EINVAL on invalid input parameter
  *
- * Note: If the requested frequency is not an exact match with what can be
+ * Note: If the requested frequency is yest an exact match with what can be
  * obtained using the prescalar value, the driver sets the clock frequency which
  * is lower than the requested frequency (maximum lower) for the transfer. If
  * the requested frequency is higher or lower than that is supported by the QSPI
@@ -336,7 +336,7 @@ static int zynq_qspi_config_op(struct zynq_qspi *xqspi, struct spi_device *spi)
 
 	/*
 	 * Set the clock frequency
-	 * The baud rate divisor is not a direct mapping to the value written
+	 * The baud rate divisor is yest a direct mapping to the value written
 	 * into the configuration register (config_reg[5:3])
 	 * i.e. 000 - divide by 2
 	 *      001 - divide by 4
@@ -629,7 +629,7 @@ static int zynq_qspi_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct spi_controller *ctlr;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct zynq_qspi *xqspi;
 	u32 num_cs;
 
@@ -648,7 +648,7 @@ static int zynq_qspi_probe(struct platform_device *pdev)
 
 	xqspi->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(xqspi->pclk)) {
-		dev_err(&pdev->dev, "pclk clock not found.\n");
+		dev_err(&pdev->dev, "pclk clock yest found.\n");
 		ret = PTR_ERR(xqspi->pclk);
 		goto remove_master;
 	}
@@ -657,7 +657,7 @@ static int zynq_qspi_probe(struct platform_device *pdev)
 
 	xqspi->refclk = devm_clk_get(&pdev->dev, "ref_clk");
 	if (IS_ERR(xqspi->refclk)) {
-		dev_err(&pdev->dev, "ref_clk clock not found.\n");
+		dev_err(&pdev->dev, "ref_clk clock yest found.\n");
 		ret = PTR_ERR(xqspi->refclk);
 		goto remove_master;
 	}
@@ -703,7 +703,7 @@ static int zynq_qspi_probe(struct platform_device *pdev)
 	ctlr->mem_ops = &zynq_qspi_mem_ops;
 	ctlr->setup = zynq_qspi_setup_op;
 	ctlr->max_speed_hz = clk_get_rate(xqspi->refclk) / 2;
-	ctlr->dev.of_node = np;
+	ctlr->dev.of_yesde = np;
 
 	/* QSPI controller initializations */
 	zynq_qspi_init_hw(xqspi, ctlr->num_chipselect);

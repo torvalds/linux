@@ -66,7 +66,7 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offset)
 			ret = get_ext_windows(sdev, ext_hdr);
 			break;
 		default:
-			dev_warn(sdev->dev, "warning: unknown ext header type %d size 0x%x\n",
+			dev_warn(sdev->dev, "warning: unkyeswn ext header type %d size 0x%x\n",
 				 ext_hdr->type, ext_hdr->hdr.size);
 			ret = 0;
 			break;
@@ -107,13 +107,13 @@ static void sof_get_windows(struct snd_sof_dev *sdev)
 	int i;
 
 	if (!sdev->info_window) {
-		dev_err(sdev->dev, "error: have no window info\n");
+		dev_err(sdev->dev, "error: have yes window info\n");
 		return;
 	}
 
 	bar = snd_sof_dsp_get_bar_index(sdev, SOF_FW_BLK_TYPE_SRAM);
 	if (bar < 0) {
-		dev_err(sdev->dev, "error: have no bar mapping\n");
+		dev_err(sdev->dev, "error: have yes bar mapping\n");
 		return;
 	}
 
@@ -122,7 +122,7 @@ static void sof_get_windows(struct snd_sof_dev *sdev)
 
 		window_offset = snd_sof_dsp_get_window_offset(sdev, elem->id);
 		if (window_offset < 0) {
-			dev_warn(sdev->dev, "warn: no offset for window %d\n",
+			dev_warn(sdev->dev, "warn: yes offset for window %d\n",
 				 elem->id);
 			continue;
 		}
@@ -223,20 +223,20 @@ int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 	/* mailbox must be on 4k boundary */
 	offset = snd_sof_dsp_get_mailbox_offset(sdev);
 	if (offset < 0) {
-		dev_err(sdev->dev, "error: have no mailbox offset\n");
+		dev_err(sdev->dev, "error: have yes mailbox offset\n");
 		return offset;
 	}
 
 	bar = snd_sof_dsp_get_bar_index(sdev, SOF_FW_BLK_TYPE_SRAM);
 	if (bar < 0) {
-		dev_err(sdev->dev, "error: have no bar mapping\n");
+		dev_err(sdev->dev, "error: have yes bar mapping\n");
 		return -EINVAL;
 	}
 
 	dev_dbg(sdev->dev, "ipc: DSP is ready 0x%8.8x offset 0x%x\n",
 		msg_id, offset);
 
-	/* no need to re-check version/ABI for subsequent boots */
+	/* yes need to re-check version/ABI for subsequent boots */
 	if (!sdev->first_boot)
 		return 0;
 
@@ -248,7 +248,7 @@ int sof_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 	if (ret < 0)
 		return ret;
 
-	/* now check for extended data */
+	/* yesw check for extended data */
 	snd_sof_fw_parse_ext_data(sdev, bar, offset +
 				  sizeof(struct sof_ipc_fw_ready));
 
@@ -277,7 +277,7 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 	for (count = 0; count < module->num_blocks; count++) {
 		/* check for wrap */
 		if (remaining < sizeof(*block)) {
-			dev_err(sdev->dev, "error: not enough data remaining\n");
+			dev_err(sdev->dev, "error: yest eyesugh data remaining\n");
 			return -EINVAL;
 		}
 
@@ -295,7 +295,7 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 		switch (block->type) {
 		case SOF_FW_BLK_TYPE_RSRVD0:
 		case SOF_FW_BLK_TYPE_ROM...SOF_FW_BLK_TYPE_RSRVD14:
-			continue;	/* not handled atm */
+			continue;	/* yest handled atm */
 		case SOF_FW_BLK_TYPE_IRAM:
 		case SOF_FW_BLK_TYPE_DRAM:
 		case SOF_FW_BLK_TYPE_SRAM:
@@ -303,7 +303,7 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 			bar = snd_sof_dsp_get_bar_index(sdev, block->type);
 			if (bar < 0) {
 				dev_err(sdev->dev,
-					"error: no BAR mapping for block type 0x%x\n",
+					"error: yes BAR mapping for block type 0x%x\n",
 					block->type);
 				return bar;
 			}
@@ -328,7 +328,7 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 					block + 1, block->size);
 
 		if (remaining < block->size) {
-			dev_err(sdev->dev, "error: not enough data remaining\n");
+			dev_err(sdev->dev, "error: yest eyesugh data remaining\n");
 			return -EINVAL;
 		}
 
@@ -396,7 +396,7 @@ static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
 	for (count = 0; count < header->num_modules; count++) {
 		/* check for wrap */
 		if (remaining < sizeof(*module)) {
-			dev_err(sdev->dev, "error: not enough data remaining\n");
+			dev_err(sdev->dev, "error: yest eyesugh data remaining\n");
 			return -EINVAL;
 		}
 
@@ -411,7 +411,7 @@ static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
 		}
 
 		if (remaining < module->size) {
-			dev_err(sdev->dev, "error: not enough data remaining\n");
+			dev_err(sdev->dev, "error: yest eyesugh data remaining\n");
 			return -EINVAL;
 		}
 
@@ -519,7 +519,7 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		ret = snd_sof_debugfs_buf_item(sdev, &sdev->fw_version,
 					       sizeof(sdev->fw_version),
 					       "fw_version", 0444);
-		/* errors are only due to memory allocation, not debugfs */
+		/* errors are only due to memory allocation, yest debugfs */
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: snd_sof_debugfs_buf_item failed\n");
 			return ret;
@@ -544,14 +544,14 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 
 	init_core_mask = ret;
 
-	/* now wait for the DSP to boot */
+	/* yesw wait for the DSP to boot */
 	ret = wait_event_timeout(sdev->boot_wait, sdev->boot_complete,
 				 msecs_to_jiffies(sdev->boot_timeout));
 	if (ret == 0) {
 		dev_err(sdev->dev, "error: firmware boot failure\n");
 		snd_sof_dsp_dbg_dump(sdev, SOF_DBG_REGS | SOF_DBG_MBOX |
 			SOF_DBG_TEXT | SOF_DBG_PCI);
-		/* after this point FW_READY msg should be ignored */
+		/* after this point FW_READY msg should be igyesred */
 		sdev->boot_complete = true;
 		return -EIO;
 	}

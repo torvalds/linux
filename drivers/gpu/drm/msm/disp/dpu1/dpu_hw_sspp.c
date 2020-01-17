@@ -174,7 +174,7 @@ static void dpu_hw_sspp_setup_multirect(struct dpu_hw_pipe *ctx,
 
 	if (index == DPU_SSPP_RECT_SOLO) {
 		/**
-		 * if rect index is RECT_SOLO, we cannot expect a
+		 * if rect index is RECT_SOLO, we canyest expect a
 		 * virtual plane sharing the same SSPP id. So we go
 		 * and disable multirect
 		 */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_VHOST_TYPES_H
 #define _LINUX_VHOST_TYPES_H
 /* Userspace interface for in-kernel virtio accelerators. */
@@ -47,7 +47,7 @@ struct vhost_vring_addr {
 	__u64 log_guest_addr;
 };
 
-/* no alignment requirement */
+/* yes alignment requirement */
 struct vhost_iotlb_msg {
 	__u64 iova;
 	__u64 size;
@@ -106,7 +106,7 @@ struct vhost_memory {
  *
  * ABI Rev 0: July 2012 version starting point for v3.6-rc merge candidate +
  *            RFC-v2 vhost-scsi userspace.  Add GET_ABI_VERSION ioctl usage
- * ABI Rev 1: January 2013. Ignore vhost_tpgt field in struct vhost_scsi_target.
+ * ABI Rev 1: January 2013. Igyesre vhost_tpgt field in struct vhost_scsi_target.
  *            All the targets under vhost_wwpn can be seen and used by guset.
  */
 

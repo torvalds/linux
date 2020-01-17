@@ -8,8 +8,8 @@
 
 /*
  *	These allocations are managed by device@lanana.org. If you use an
- *	entry that is not in assigned your entry may well be moved and
- *	reassigned, or set dynamic if a fixed value is not justified.
+ *	entry that is yest in assigned your entry may well be moved and
+ *	reassigned, or set dynamic if a fixed value is yest justified.
  */
 
 #define PSMOUSE_MINOR		1
@@ -65,14 +65,14 @@ struct device;
 struct attribute_group;
 
 struct miscdevice  {
-	int minor;
+	int miyesr;
 	const char *name;
 	const struct file_operations *fops;
 	struct list_head list;
 	struct device *parent;
 	struct device *this_device;
 	const struct attribute_group **groups;
-	const char *nodename;
+	const char *yesdename;
 	umode_t mode;
 };
 
@@ -93,7 +93,7 @@ extern void misc_deregister(struct miscdevice *misc);
 #define module_misc_device(__misc_device) \
 	module_driver(__misc_device, misc_register, misc_deregister)
 
-#define MODULE_ALIAS_MISCDEV(minor)				\
+#define MODULE_ALIAS_MISCDEV(miyesr)				\
 	MODULE_ALIAS("char-major-" __stringify(MISC_MAJOR)	\
-	"-" __stringify(minor))
+	"-" __stringify(miyesr))
 #endif

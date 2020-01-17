@@ -32,7 +32,7 @@ struct alt_pr_priv {
 static enum fpga_mgr_states alt_pr_fpga_state(struct fpga_manager *mgr)
 {
 	struct alt_pr_priv *priv = mgr->priv;
-	const char *err = "unknown";
+	const char *err = "unkyeswn";
 	enum fpga_mgr_states ret = FPGA_MGR_STATE_UNKNOWN;
 	u32 val;
 
@@ -82,7 +82,7 @@ static int alt_pr_fpga_write_init(struct fpga_manager *mgr,
 	u32 val;
 
 	if (!(info->flags & FPGA_MGR_PARTIAL_RECONFIG)) {
-		dev_err(&mgr->dev, "%s Partial Reconfiguration flag not set\n",
+		dev_err(&mgr->dev, "%s Partial Reconfiguration flag yest set\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -117,7 +117,7 @@ static int alt_pr_fpga_write(struct fpga_manager *mgr, const char *buf,
 		count -= sizeof(u32);
 	}
 
-	/* Write out remaining non 32-bit chunks */
+	/* Write out remaining yesn 32-bit chunks */
 	switch (count) {
 	case 3:
 		writel(buffer_32[i++] & 0x00ffffff, priv->reg_base);

@@ -40,7 +40,7 @@ enum {
 
 /*
  * A descriptor used to describe and configure a test case.
- * Fields with a non-trivial meaning are described inline in the following.
+ * Fields with a yesn-trivial meaning are described inline in the following.
  */
 struct tdescr {
 	/* KEEP THIS FIELD FIRST for easier lookup from assembly */
@@ -55,11 +55,11 @@ struct tdescr {
 	unsigned long		feats_supported;
 	bool			initialized;
 	unsigned int		minsigstksz;
-	/* signum used as a test trigger. Zero if no trigger-signal is used */
+	/* signum used as a test trigger. Zero if yes trigger-signal is used */
 	int			sig_trig;
 	/*
 	 * signum considered as a successful test completion.
-	 * Zero when no signal is expected on success
+	 * Zero when yes signal is expected on success
 	 */
 	int			sig_ok;
 	/* signum expected on unsupported CPU features. */

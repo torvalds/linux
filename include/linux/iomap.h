@@ -12,7 +12,7 @@
 
 struct address_space;
 struct fiemap_extent_info;
-struct inode;
+struct iyesde;
 struct iomap_writepage_ctx;
 struct iov_iter;
 struct kiocb;
@@ -23,19 +23,19 @@ struct vm_fault;
 /*
  * Types of block ranges for iomap mappings:
  */
-#define IOMAP_HOLE	0	/* no blocks allocated, need allocation */
+#define IOMAP_HOLE	0	/* yes blocks allocated, need allocation */
 #define IOMAP_DELALLOC	1	/* delayed allocation blocks */
 #define IOMAP_MAPPED	2	/* blocks allocated at @addr */
 #define IOMAP_UNWRITTEN	3	/* blocks allocated at @addr in unwritten state */
-#define IOMAP_INLINE	4	/* data inline in the inode */
+#define IOMAP_INLINE	4	/* data inline in the iyesde */
 
 /*
  * Flags reported by the file system from iomap_begin:
  *
  * IOMAP_F_NEW indicates that the blocks have been newly allocated and need
- * zeroing for areas that no data is copied to.
+ * zeroing for areas that yes data is copied to.
  *
- * IOMAP_F_DIRTY indicates the inode has uncommitted metadata needed to access
+ * IOMAP_F_DIRTY indicates the iyesde has uncommitted metadata needed to access
  * written data and requires fdatasync to commit them to persistent storage.
  * This needs to take into account metadata changes that *may* be made at IO
  * completion, such as file size updates from direct IO.
@@ -72,7 +72,7 @@ struct vm_fault;
 /*
  * Magic value for addr:
  */
-#define IOMAP_NULL_ADDR -1ULL	/* addr is not valid */
+#define IOMAP_NULL_ADDR -1ULL	/* addr is yest valid */
 
 struct iomap_page_ops;
 
@@ -98,17 +98,17 @@ iomap_sector(struct iomap *iomap, loff_t pos)
 /*
  * When a filesystem sets page_ops in an iomap mapping it returns, page_prepare
  * and page_done will be called for each page written to.  This only applies to
- * buffered writes as unbuffered writes will not typically have pages
+ * buffered writes as unbuffered writes will yest typically have pages
  * associated with them.
  *
  * When page_prepare succeeds, page_done will always be called to do any
  * cleanup work necessary.  In that page_done call, @page will be NULL if the
- * associated page could not be obtained.
+ * associated page could yest be obtained.
  */
 struct iomap_page_ops {
-	int (*page_prepare)(struct inode *inode, loff_t pos, unsigned len,
+	int (*page_prepare)(struct iyesde *iyesde, loff_t pos, unsigned len,
 			struct iomap *iomap);
-	void (*page_done)(struct inode *inode, loff_t pos, unsigned copied,
+	void (*page_done)(struct iyesde *iyesde, loff_t pos, unsigned copied,
 			struct page *page, struct iomap *iomap);
 };
 
@@ -120,7 +120,7 @@ struct iomap_page_ops {
 #define IOMAP_REPORT		(1 << 2) /* report extent status, e.g. FIEMAP */
 #define IOMAP_FAULT		(1 << 3) /* mapping for page fault */
 #define IOMAP_DIRECT		(1 << 4) /* direct I/O */
-#define IOMAP_NOWAIT		(1 << 5) /* do not block */
+#define IOMAP_NOWAIT		(1 << 5) /* do yest block */
 
 struct iomap_ops {
 	/*
@@ -128,7 +128,7 @@ struct iomap_ops {
 	 * pos for up to length, as long as we can do it as a single mapping.
 	 * The actual length is returned in iomap->length.
 	 */
-	int (*iomap_begin)(struct inode *inode, loff_t pos, loff_t length,
+	int (*iomap_begin)(struct iyesde *iyesde, loff_t pos, loff_t length,
 			unsigned flags, struct iomap *iomap,
 			struct iomap *srcmap);
 
@@ -136,19 +136,19 @@ struct iomap_ops {
 	 * Commit and/or unreserve space previous allocated using iomap_begin.
 	 * Written indicates the length of the successful write operation which
 	 * needs to be commited, while the rest needs to be unreserved.
-	 * Written might be zero if no data was written.
+	 * Written might be zero if yes data was written.
 	 */
-	int (*iomap_end)(struct inode *inode, loff_t pos, loff_t length,
+	int (*iomap_end)(struct iyesde *iyesde, loff_t pos, loff_t length,
 			ssize_t written, unsigned flags, struct iomap *iomap);
 };
 
 /*
  * Main iomap iterator function.
  */
-typedef loff_t (*iomap_actor_t)(struct inode *inode, loff_t pos, loff_t len,
+typedef loff_t (*iomap_actor_t)(struct iyesde *iyesde, loff_t pos, loff_t len,
 		void *data, struct iomap *iomap, struct iomap *srcmap);
 
-loff_t iomap_apply(struct inode *inode, loff_t pos, loff_t length,
+loff_t iomap_apply(struct iyesde *iyesde, loff_t pos, loff_t length,
 		unsigned flags, const struct iomap_ops *ops, void *data,
 		iomap_actor_t actor);
 
@@ -169,21 +169,21 @@ int iomap_migrate_page(struct address_space *mapping, struct page *newpage,
 #else
 #define iomap_migrate_page NULL
 #endif
-int iomap_file_unshare(struct inode *inode, loff_t pos, loff_t len,
+int iomap_file_unshare(struct iyesde *iyesde, loff_t pos, loff_t len,
 		const struct iomap_ops *ops);
-int iomap_zero_range(struct inode *inode, loff_t pos, loff_t len,
+int iomap_zero_range(struct iyesde *iyesde, loff_t pos, loff_t len,
 		bool *did_zero, const struct iomap_ops *ops);
-int iomap_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
+int iomap_truncate_page(struct iyesde *iyesde, loff_t pos, bool *did_zero,
 		const struct iomap_ops *ops);
 vm_fault_t iomap_page_mkwrite(struct vm_fault *vmf,
 			const struct iomap_ops *ops);
-int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+int iomap_fiemap(struct iyesde *iyesde, struct fiemap_extent_info *fieinfo,
 		loff_t start, loff_t len, const struct iomap_ops *ops);
-loff_t iomap_seek_hole(struct inode *inode, loff_t offset,
+loff_t iomap_seek_hole(struct iyesde *iyesde, loff_t offset,
 		const struct iomap_ops *ops);
-loff_t iomap_seek_data(struct inode *inode, loff_t offset,
+loff_t iomap_seek_data(struct iyesde *iyesde, loff_t offset,
 		const struct iomap_ops *ops);
-sector_t iomap_bmap(struct address_space *mapping, sector_t bno,
+sector_t iomap_bmap(struct address_space *mapping, sector_t byes,
 		const struct iomap_ops *ops);
 
 /*
@@ -193,7 +193,7 @@ struct iomap_ioend {
 	struct list_head	io_list;	/* next ioend in chain */
 	u16			io_type;
 	u16			io_flags;	/* IOMAP_F_* */
-	struct inode		*io_inode;	/* file being written to */
+	struct iyesde		*io_iyesde;	/* file being written to */
 	size_t			io_size;	/* size of the extent */
 	loff_t			io_offset;	/* offset in the file */
 	void			*io_private;	/* file system private data */
@@ -206,7 +206,7 @@ struct iomap_writeback_ops {
 	 * Required, maps the blocks so that writeback can be performed on
 	 * the range starting at offset.
 	 */
-	int (*map_blocks)(struct iomap_writepage_ctx *wpc, struct inode *inode,
+	int (*map_blocks)(struct iomap_writepage_ctx *wpc, struct iyesde *iyesde,
 				loff_t offset);
 
 	/*

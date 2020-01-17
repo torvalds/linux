@@ -19,24 +19,24 @@ static struct vfsmount *nsfs_mnt;
 static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg);
 static const struct file_operations ns_file_operations = {
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.unlocked_ioctl = ns_ioctl,
 };
 
 static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 {
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 	const struct proc_ns_operations *ns_ops = dentry->d_fsdata;
 
 	return dynamic_dname(dentry, buffer, buflen, "%s:[%lu]",
-		ns_ops->name, inode->i_ino);
+		ns_ops->name, iyesde->i_iyes);
 }
 
 static void ns_prune_dentry(struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
-	if (inode) {
-		struct ns_common *ns = inode->i_private;
+	struct iyesde *iyesde = d_iyesde(dentry);
+	if (iyesde) {
+		struct ns_common *ns = iyesde->i_private;
 		atomic_long_set(&ns->stashed, 0);
 	}
 }
@@ -48,10 +48,10 @@ const struct dentry_operations ns_dentry_operations =
 	.d_dname	= ns_dname,
 };
 
-static void nsfs_evict(struct inode *inode)
+static void nsfs_evict(struct iyesde *iyesde)
 {
-	struct ns_common *ns = inode->i_private;
-	clear_inode(inode);
+	struct ns_common *ns = iyesde->i_private;
+	clear_iyesde(iyesde);
 	ns->ops->put(ns);
 }
 
@@ -59,7 +59,7 @@ static void *__ns_get_path(struct path *path, struct ns_common *ns)
 {
 	struct vfsmount *mnt = nsfs_mnt;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	unsigned long d;
 
 	rcu_read_lock();
@@ -67,7 +67,7 @@ static void *__ns_get_path(struct path *path, struct ns_common *ns)
 	if (!d)
 		goto slow;
 	dentry = (struct dentry *)d;
-	if (!lockref_get_not_dead(&dentry->d_lockref))
+	if (!lockref_get_yest_dead(&dentry->d_lockref))
 		goto slow;
 	rcu_read_unlock();
 	ns->ops->put(ns);
@@ -77,28 +77,28 @@ got_it:
 	return NULL;
 slow:
 	rcu_read_unlock();
-	inode = new_inode_pseudo(mnt->mnt_sb);
-	if (!inode) {
+	iyesde = new_iyesde_pseudo(mnt->mnt_sb);
+	if (!iyesde) {
 		ns->ops->put(ns);
 		return ERR_PTR(-ENOMEM);
 	}
-	inode->i_ino = ns->inum;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
-	inode->i_flags |= S_IMMUTABLE;
-	inode->i_mode = S_IFREG | S_IRUGO;
-	inode->i_fop = &ns_file_operations;
-	inode->i_private = ns;
+	iyesde->i_iyes = ns->inum;
+	iyesde->i_mtime = iyesde->i_atime = iyesde->i_ctime = current_time(iyesde);
+	iyesde->i_flags |= S_IMMUTABLE;
+	iyesde->i_mode = S_IFREG | S_IRUGO;
+	iyesde->i_fop = &ns_file_operations;
+	iyesde->i_private = ns;
 
-	dentry = d_alloc_anon(mnt->mnt_sb);
+	dentry = d_alloc_ayesn(mnt->mnt_sb);
 	if (!dentry) {
-		iput(inode);
+		iput(iyesde);
 		return ERR_PTR(-ENOMEM);
 	}
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 	dentry->d_fsdata = (void *)ns->ops;
 	d = atomic_long_cmpxchg(&ns->stashed, 0, (unsigned long)dentry);
 	if (d) {
-		d_delete(dentry);	/* make sure ->d_prune() does nothing */
+		d_delete(dentry);	/* make sure ->d_prune() does yesthing */
 		dput(dentry);
 		cpu_relax();
 		return ERR_PTR(-EAGAIN);
@@ -190,7 +190,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 			unsigned long arg)
 {
 	struct user_namespace *user_ns;
-	struct ns_common *ns = get_proc_ns(file_inode(filp));
+	struct ns_common *ns = get_proc_ns(file_iyesde(filp));
 	uid_t __user *argp;
 	uid_t uid;
 
@@ -250,16 +250,16 @@ out_invalid:
 
 static int nsfs_show_path(struct seq_file *seq, struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 	const struct proc_ns_operations *ns_ops = dentry->d_fsdata;
 
-	seq_printf(seq, "%s:[%lu]", ns_ops->name, inode->i_ino);
+	seq_printf(seq, "%s:[%lu]", ns_ops->name, iyesde->i_iyes);
 	return 0;
 }
 
 static const struct super_operations nsfs_ops = {
 	.statfs = simple_statfs,
-	.evict_inode = nsfs_evict,
+	.evict_iyesde = nsfs_evict,
 	.show_path = nsfs_show_path,
 };
 
@@ -276,7 +276,7 @@ static int nsfs_init_fs_context(struct fs_context *fc)
 static struct file_system_type nsfs = {
 	.name = "nsfs",
 	.init_fs_context = nsfs_init_fs_context,
-	.kill_sb = kill_anon_super,
+	.kill_sb = kill_ayesn_super,
 };
 
 void __init nsfs_init(void)

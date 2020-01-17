@@ -15,7 +15,7 @@
  * Changed name of dz_init to rs_init to be consistent with tc code
  * [13-NOV-98] triemer fixed code to receive characters
  *    after patches by harald to irq code.
- * [09-JAN-99] triemer minor fix for schedule - due to removal of timeout
+ * [09-JAN-99] triemer miyesr fix for schedule - due to removal of timeout
  *            field from "current" - somewhere between 2.1.121 and 2.1.131
  Qua Jun 27 15:02:26 BRT 2001
  * [27-JUN-2001] Arnaldo Carvalho de Melo <acme@conectiva.com.br> - cleanups
@@ -37,7 +37,7 @@
 #include <linux/compiler.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -162,7 +162,7 @@ static void dz_stop_rx(struct uart_port *uport)
  * Note: dz_interrupt() is a "fast" interrupt, which means that it
  * runs with interrupts turned off.  People who may want to modify
  * dz_interrupt() should try to keep the interrupt handler as fast as
- * possible.  After you are done making modifications, it is not a bad
+ * possible.  After you are done making modifications, it is yest a bad
  * idea to do:
  *
  *	make drivers/serial/dz.s
@@ -202,9 +202,9 @@ static inline void dz_receive_chars(struct dz_mux *mux)
 		if (unlikely(status & (DZ_OERR | DZ_FERR | DZ_PERR))) {
 
 			/*
-			 * There is no separate BREAK status bit, so treat
+			 * There is yes separate BREAK status bit, so treat
 			 * null characters with framing errors as BREAKs;
-			 * normally, otherwise.  For this move the Framing
+			 * yesrmally, otherwise.  For this move the Framing
 			 * Error bit to a simulated BREAK bit.
 			 */
 			if (!ch) {
@@ -270,7 +270,7 @@ static inline void dz_transmit_chars(struct dz_mux *mux)
 		dport->port.x_char = 0;
 		return;
 	}
-	/* If nothing to do or stopped or hardware stopped. */
+	/* If yesthing to do or stopped or hardware stopped. */
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&dport->port)) {
 		spin_lock(&dport->port.lock);
 		dz_stop_tx(&dport->port);
@@ -279,7 +279,7 @@ static inline void dz_transmit_chars(struct dz_mux *mux)
 	}
 
 	/*
-	 * If something to do... (remember the dz has no output fifo,
+	 * If something to do... (remember the dz has yes output fifo,
 	 * so we go one char at a time) :-<
 	 */
 	tmp = xmit->buf[xmit->tail];
@@ -315,7 +315,7 @@ static inline void check_modem_status(struct dz_port *dport)
 	 */
 	u16 status;
 
-	/* If not the modem line just return.  */
+	/* If yest the modem line just return.  */
 	if (dport->port.line != DZ_MODEM)
 		return;
 
@@ -416,7 +416,7 @@ static int dz_startup(struct uart_port *uport)
 			  IRQF_SHARED, "dz", mux);
 	if (ret) {
 		atomic_add(-1, &mux->irq_guard);
-		printk(KERN_ERR "dz: Cannot get IRQ %d!\n", dport->port.irq);
+		printk(KERN_ERR "dz: Canyest get IRQ %d!\n", dport->port.irq);
 		return ret;
 	}
 
@@ -470,7 +470,7 @@ static void dz_shutdown(struct uart_port *uport)
  * Purpose: Let user call ioctl() to get info when the UART physically
  *          is emptied.  On bus types like RS485, the transmitter must
  *          release the bus after transmitting. This must be done when
- *          the transmit shift register is empty, not be done when the
+ *          the transmit shift register is empty, yest be done when the
  *          transmit holding register is empty.  This functionality
  *          allows an RS485 driver to be written in user space.
  * -------------------------------------------------------------------
@@ -624,14 +624,14 @@ static void dz_set_termios(struct uart_port *uport, struct ktermios *termios,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		dport->port.read_status_mask |= DZ_BREAK;
 
-	/* characters to ignore */
-	uport->ignore_status_mask = 0;
+	/* characters to igyesre */
+	uport->igyesre_status_mask = 0;
 	if ((termios->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
-		dport->port.ignore_status_mask |= DZ_OERR;
+		dport->port.igyesre_status_mask |= DZ_OERR;
 	if (termios->c_iflag & IGNPAR)
-		dport->port.ignore_status_mask |= DZ_FERR | DZ_PERR;
+		dport->port.igyesre_status_mask |= DZ_FERR | DZ_PERR;
 	if (termios->c_iflag & IGNBRK)
-		dport->port.ignore_status_mask |= DZ_BREAK;
+		dport->port.igyesre_status_mask |= DZ_BREAK;
 
 	spin_unlock_irqrestore(&dport->port.lock, flags);
 }
@@ -677,10 +677,10 @@ static void dz_release_port(struct uart_port *uport)
 static int dz_map_port(struct uart_port *uport)
 {
 	if (!uport->membase)
-		uport->membase = ioremap_nocache(uport->mapbase,
+		uport->membase = ioremap_yescache(uport->mapbase,
 						 dec_kn_slot_size);
 	if (!uport->membase) {
-		printk(KERN_ERR "dz: Cannot map MMIO\n");
+		printk(KERN_ERR "dz: Canyest map MMIO\n");
 		return -ENOMEM;
 	}
 	return 0;
@@ -796,9 +796,9 @@ static void __init dz_init_ports(void)
  * dz_console_putchar() -- transmit a character
  *
  * Polled transmission.  This is tricky.  We need to mask transmit
- * interrupts so that they do not interfere, enable the transmitter
+ * interrupts so that they do yest interfere, enable the transmitter
  * for the line requested and then wait till the transmit scanner
- * requests data for this line.  But it may request data for another
+ * requests data for this line.  But it may request data for ayesther
  * line first, in which case we have to disable its transmitter and
  * repeat waiting till our line pops up.  Only then the character may
  * be transmitted.  Finally, the state of the transmitter mask is
@@ -835,7 +835,7 @@ static void dz_console_putchar(struct uart_port *uport, int ch)
 		udelay(2);
 	} while (--loops);
 
-	if (loops)				/* Cannot send otherwise. */
+	if (loops)				/* Canyest send otherwise. */
 		dz_out(dport, DZ_TDR, ch);
 
 	dz_out(dport, DZ_TCR, tcr);
@@ -919,7 +919,7 @@ static struct uart_driver dz_reg = {
 	.driver_name		= "serial",
 	.dev_name		= "ttyS",
 	.major			= TTY_MAJOR,
-	.minor			= 64,
+	.miyesr			= 64,
 	.nr			= DZ_NB_PORT,
 	.cons			= SERIAL_DZ_CONSOLE,
 };

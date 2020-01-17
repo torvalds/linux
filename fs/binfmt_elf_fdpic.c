@@ -16,7 +16,7 @@
 #include <linux/sched/cputime.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/binfmts.h>
 #include <linux/string.h>
@@ -205,16 +205,16 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 	exec_params.hdr = *(struct elfhdr *) bprm->buf;
 	exec_params.flags = ELF_FDPIC_FLAG_PRESENT | ELF_FDPIC_FLAG_EXECUTABLE;
 
-	/* check that this is a binary we know how to deal with */
+	/* check that this is a binary we kyesw how to deal with */
 	retval = -ENOEXEC;
 	if (!is_elf(&exec_params.hdr, bprm->file))
 		goto error;
 	if (!elf_check_fdpic(&exec_params.hdr)) {
 #ifdef CONFIG_MMU
-		/* binfmt_elf handles non-fdpic elf except on nommu */
+		/* binfmt_elf handles yesn-fdpic elf except on yesmmu */
 		goto error;
 #else
-		/* nommu can only load ET_DYN (PIE) ELF */
+		/* yesmmu can only load ET_DYN (PIE) ELF */
 		if (exec_params.hdr.e_type != ET_DYN)
 			goto error;
 #endif
@@ -267,7 +267,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 			}
 
 			/*
-			 * If the binary is not readable then enforce
+			 * If the binary is yest readable then enforce
 			 * mm->dumpable = 0 regardless of the interpreter's
 			 * permissions.
 			 */
@@ -342,7 +342,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 	if (retval)
 		goto error;
 
-	/* there's now no turning back... the old userspace image is dead,
+	/* there's yesw yes turning back... the old userspace image is dead,
 	 * defunct, deceased, etc.
 	 */
 	if (elf_check_fdpic(&exec_params.hdr))
@@ -460,7 +460,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 #endif
 
 	finalize_exec(bprm);
-	/* everything is now ready... get the userspace context ready to roll */
+	/* everything is yesw ready... get the userspace context ready to roll */
 	entryaddr = interp_params.entry_addr ?: exec_params.entry_addr;
 	start_thread(regs, entryaddr, current->mm->start_stack);
 
@@ -717,13 +717,13 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 /*****************************************************************************/
 /*
  * load the appropriate binary image (executable or interpreter) into memory
- * - we assume no MMU is available
- * - if no other PIC bits are set in params->hdr->e_flags
+ * - we assume yes MMU is available
+ * - if yes other PIC bits are set in params->hdr->e_flags
  *   - we assume that the LOADable segments in the binary are independently relocatable
  *   - we assume R/O executable segments are shareable
  * - else
  *   - we assume the loadable parts of the image to require fixed displacement
- *   - the image is not shareable
+ *   - the image is yest shareable
  */
 static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 			      struct file *file,
@@ -858,7 +858,7 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 		break;
 	}
 
-	/* now elide adjacent segments in the load map on MMU linux
+	/* yesw elide adjacent segments in the load map on MMU linux
 	 * - on uClinux the holes between may actually be filled with system
 	 *   stuff or stuff from other processes
 	 */
@@ -902,8 +902,8 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 	return 0;
 
 dynamic_error:
-	printk("ELF FDPIC %s with invalid DYNAMIC section (inode=%lu)\n",
-	       what, file_inode(file)->i_ino);
+	printk("ELF FDPIC %s with invalid DYNAMIC section (iyesde=%lu)\n",
+	       what, file_iyesde(file)->i_iyes);
 	return -ELIBBAD;
 }
 
@@ -938,7 +938,7 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(
 			top = phdr->p_vaddr + phdr->p_memsz;
 	}
 
-	/* allocate one big anon block for everything */
+	/* allocate one big ayesn block for everything */
 	mflags = MAP_PRIVATE;
 	if (params->flags & ELF_FDPIC_FLAG_EXECUTABLE)
 		mflags |= MAP_EXECUTABLE;
@@ -970,7 +970,7 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(
 		if (phdr->p_offset == 0)
 			params->elfhdr_addr = seg->addr;
 
-		/* clear any space allocated but not loaded */
+		/* clear any space allocated but yest loaded */
 		if (phdr->p_filesz < phdr->p_memsz) {
 			if (clear_user((void *) (seg->addr + phdr->p_filesz),
 				       phdr->p_memsz - phdr->p_filesz))
@@ -1048,7 +1048,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 			break;
 
 		case ELF_FDPIC_FLAG_HONOURVADDR:
-			/* the specified virtual address must be honoured */
+			/* the specified virtual address must be hoyesured */
 			maddr = phdr->p_vaddr;
 			flags |= MAP_FIXED;
 			break;
@@ -1111,7 +1111,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 			maddr += disp;
 		}
 
-		/* clear any space allocated but not loaded
+		/* clear any space allocated but yest loaded
 		 * - on uClinux we can just clear the lot
 		 * - on MMU linux we'll get a SIGBUS beyond the last page
 		 *   extant in the file
@@ -1128,7 +1128,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 			xmaddr = vm_mmap(NULL, xaddr, excess - excess1,
 					 prot, flags, 0);
 
-			kdebug("mmap[%d] <anon>"
+			kdebug("mmap[%d] <ayesn>"
 			       " ad=%lx sz=%lx pr=%x fl=%x of=0 --> %08lx",
 			       loop, xaddr, excess - excess1, prot, flags,
 			       xmaddr);
@@ -1184,27 +1184,27 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 #ifdef CONFIG_ELF_CORE
 
 /*
- * Decide whether a segment is worth dumping; default is yes to be
+ * Decide whether a segment is worth dumping; default is no to be
  * sure (missing info is worse than too much; etc).
  * Personally I'd include everything, and use the coredump limit...
  *
- * I think we should skip something. But I am not sure how. H.J.
+ * I think we should skip something. But I am yest sure how. H.J.
  */
 static int maydump(struct vm_area_struct *vma, unsigned long mm_flags)
 {
 	int dump_ok;
 
-	/* Do not dump I/O mapped devices or special mappings */
+	/* Do yest dump I/O mapped devices or special mappings */
 	if (vma->vm_flags & VM_IO) {
-		kdcore("%08lx: %08lx: no (IO)", vma->vm_start, vma->vm_flags);
+		kdcore("%08lx: %08lx: yes (IO)", vma->vm_start, vma->vm_flags);
 		return 0;
 	}
 
-	/* If we may not read the contents, don't allow us to dump
+	/* If we may yest read the contents, don't allow us to dump
 	 * them either. "dump_write()" can't handle it anyway.
 	 */
 	if (!(vma->vm_flags & VM_READ)) {
-		kdcore("%08lx: %08lx: no (!read)", vma->vm_start, vma->vm_flags);
+		kdcore("%08lx: %08lx: yes (!read)", vma->vm_start, vma->vm_flags);
 		return 0;
 	}
 
@@ -1213,48 +1213,48 @@ static int maydump(struct vm_area_struct *vma, unsigned long mm_flags)
 		if (vma->vm_flags & VM_SHARED) {
 			dump_ok = test_bit(MMF_DUMP_DAX_SHARED, &mm_flags);
 			kdcore("%08lx: %08lx: %s (DAX shared)", vma->vm_start,
-			       vma->vm_flags, dump_ok ? "yes" : "no");
+			       vma->vm_flags, dump_ok ? "no" : "yes");
 		} else {
 			dump_ok = test_bit(MMF_DUMP_DAX_PRIVATE, &mm_flags);
 			kdcore("%08lx: %08lx: %s (DAX private)", vma->vm_start,
-			       vma->vm_flags, dump_ok ? "yes" : "no");
+			       vma->vm_flags, dump_ok ? "no" : "yes");
 		}
 		return dump_ok;
 	}
 
-	/* By default, dump shared memory if mapped from an anonymous file. */
+	/* By default, dump shared memory if mapped from an ayesnymous file. */
 	if (vma->vm_flags & VM_SHARED) {
-		if (file_inode(vma->vm_file)->i_nlink == 0) {
+		if (file_iyesde(vma->vm_file)->i_nlink == 0) {
 			dump_ok = test_bit(MMF_DUMP_ANON_SHARED, &mm_flags);
 			kdcore("%08lx: %08lx: %s (share)", vma->vm_start,
-			       vma->vm_flags, dump_ok ? "yes" : "no");
+			       vma->vm_flags, dump_ok ? "no" : "yes");
 			return dump_ok;
 		}
 
 		dump_ok = test_bit(MMF_DUMP_MAPPED_SHARED, &mm_flags);
 		kdcore("%08lx: %08lx: %s (share)", vma->vm_start,
-		       vma->vm_flags, dump_ok ? "yes" : "no");
+		       vma->vm_flags, dump_ok ? "no" : "yes");
 		return dump_ok;
 	}
 
 #ifdef CONFIG_MMU
 	/* By default, if it hasn't been written to, don't write it out */
-	if (!vma->anon_vma) {
+	if (!vma->ayesn_vma) {
 		dump_ok = test_bit(MMF_DUMP_MAPPED_PRIVATE, &mm_flags);
-		kdcore("%08lx: %08lx: %s (!anon)", vma->vm_start,
-		       vma->vm_flags, dump_ok ? "yes" : "no");
+		kdcore("%08lx: %08lx: %s (!ayesn)", vma->vm_start,
+		       vma->vm_flags, dump_ok ? "no" : "yes");
 		return dump_ok;
 	}
 #endif
 
 	dump_ok = test_bit(MMF_DUMP_ANON_PRIVATE, &mm_flags);
 	kdcore("%08lx: %08lx: %s", vma->vm_start, vma->vm_flags,
-	       dump_ok ? "yes" : "no");
+	       dump_ok ? "no" : "yes");
 	return dump_ok;
 }
 
-/* An ELF note in memory */
-struct memelfnote
+/* An ELF yeste in memory */
+struct memelfyeste
 {
 	const char *name;
 	int type;
@@ -1262,11 +1262,11 @@ struct memelfnote
 	void *data;
 };
 
-static int notesize(struct memelfnote *en)
+static int yestesize(struct memelfyeste *en)
 {
 	int sz;
 
-	sz = sizeof(struct elf_note);
+	sz = sizeof(struct elf_yeste);
 	sz += roundup(strlen(en->name) + 1, 4);
 	sz += roundup(en->datasz, 4);
 
@@ -1275,9 +1275,9 @@ static int notesize(struct memelfnote *en)
 
 /* #define DEBUG */
 
-static int writenote(struct memelfnote *men, struct coredump_params *cprm)
+static int writeyeste(struct memelfyeste *men, struct coredump_params *cprm)
 {
-	struct elf_note en;
+	struct elf_yeste en;
 	en.n_namesz = strlen(men->name) + 1;
 	en.n_descsz = men->datasz;
 	en.n_type = men->type;
@@ -1312,7 +1312,7 @@ static inline void fill_elf_fdpic_header(struct elfhdr *elf, int segs)
 	return;
 }
 
-static inline void fill_elf_note_phdr(struct elf_phdr *phdr, int sz, loff_t offset)
+static inline void fill_elf_yeste_phdr(struct elf_phdr *phdr, int sz, loff_t offset)
 {
 	phdr->p_type = PT_NOTE;
 	phdr->p_offset = offset;
@@ -1325,13 +1325,13 @@ static inline void fill_elf_note_phdr(struct elf_phdr *phdr, int sz, loff_t offs
 	return;
 }
 
-static inline void fill_note(struct memelfnote *note, const char *name, int type,
+static inline void fill_yeste(struct memelfyeste *yeste, const char *name, int type,
 		unsigned int sz, void *data)
 {
-	note->name = name;
-	note->type = type;
-	note->datasz = sz;
-	note->data = data;
+	yeste->name = name;
+	yeste->type = type;
+	yeste->datasz = sz;
+	yeste->data = data;
 	return;
 }
 
@@ -1342,7 +1342,7 @@ static inline void fill_note(struct memelfnote *note, const char *name, int type
 static void fill_prstatus(struct elf_prstatus *prstatus,
 			  struct task_struct *p, long signr)
 {
-	prstatus->pr_info.si_signo = prstatus->pr_cursig = signr;
+	prstatus->pr_info.si_sigyes = prstatus->pr_cursig = signr;
 	prstatus->pr_sigpend = p->pending.signal.sig[0];
 	prstatus->pr_sighold = p->blocked.sig[0];
 	rcu_read_lock();
@@ -1356,7 +1356,7 @@ static void fill_prstatus(struct elf_prstatus *prstatus,
 
 		/*
 		 * This is the record for the group leader.  It shows the
-		 * group-wide total, not its individual thread total.
+		 * group-wide total, yest its individual thread total.
 		 */
 		thread_group_cputime(p, &cputime);
 		prstatus->pr_utime = ns_to_kernel_old_timeval(cputime.utime);
@@ -1428,8 +1428,8 @@ struct elf_thread_status
 #ifdef ELF_CORE_COPY_XFPREGS
 	elf_fpxregset_t xfpu;		/* ELF_CORE_XFPREG_TYPE */
 #endif
-	struct memelfnote notes[3];
-	int num_notes;
+	struct memelfyeste yestes[3];
+	int num_yestes;
 };
 
 /*
@@ -1442,30 +1442,30 @@ static int elf_dump_thread_status(long signr, struct elf_thread_status *t)
 	struct task_struct *p = t->thread;
 	int sz = 0;
 
-	t->num_notes = 0;
+	t->num_yestes = 0;
 
 	fill_prstatus(&t->prstatus, p, signr);
 	elf_core_copy_task_regs(p, &t->prstatus.pr_reg);
 
-	fill_note(&t->notes[0], "CORE", NT_PRSTATUS, sizeof(t->prstatus),
+	fill_yeste(&t->yestes[0], "CORE", NT_PRSTATUS, sizeof(t->prstatus),
 		  &t->prstatus);
-	t->num_notes++;
-	sz += notesize(&t->notes[0]);
+	t->num_yestes++;
+	sz += yestesize(&t->yestes[0]);
 
 	t->prstatus.pr_fpvalid = elf_core_copy_task_fpregs(p, NULL, &t->fpu);
 	if (t->prstatus.pr_fpvalid) {
-		fill_note(&t->notes[1], "CORE", NT_PRFPREG, sizeof(t->fpu),
+		fill_yeste(&t->yestes[1], "CORE", NT_PRFPREG, sizeof(t->fpu),
 			  &t->fpu);
-		t->num_notes++;
-		sz += notesize(&t->notes[1]);
+		t->num_yestes++;
+		sz += yestesize(&t->yestes[1]);
 	}
 
 #ifdef ELF_CORE_COPY_XFPREGS
 	if (elf_core_copy_task_xfpregs(p, &t->xfpu)) {
-		fill_note(&t->notes[2], "LINUX", ELF_CORE_XFPREG_TYPE,
+		fill_yeste(&t->yestes[2], "LINUX", ELF_CORE_XFPREG_TYPE,
 			  sizeof(t->xfpu), &t->xfpu);
-		t->num_notes++;
-		sz += notesize(&t->notes[2]);
+		t->num_yestes++;
+		sz += yestesize(&t->yestes[2]);
 	}
 #endif
 	return sz;
@@ -1555,8 +1555,8 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	struct vm_area_struct *vma;
 	struct elfhdr *elf = NULL;
 	loff_t offset = 0, dataoff;
-	int numnote;
-	struct memelfnote *notes = NULL;
+	int numyeste;
+	struct memelfyeste *yestes = NULL;
 	struct elf_prstatus *prstatus = NULL;	/* NT_PRSTATUS */
 	struct elf_prpsinfo *psinfo = NULL;	/* NT_PRPSINFO */
  	LIST_HEAD(thread_list);
@@ -1567,7 +1567,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 #endif
 	int thread_status_size = 0;
 	elf_addr_t *auxv;
-	struct elf_phdr *phdr4note = NULL;
+	struct elf_phdr *phdr4yeste = NULL;
 	struct elf_shdr *shdr4extnum = NULL;
 	Elf_Half e_phnum;
 	elf_addr_t e_shoff;
@@ -1575,14 +1575,14 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	struct elf_thread_status *tmp;
 
 	/*
-	 * We no longer stop all VM operations.
+	 * We yes longer stop all VM operations.
 	 *
 	 * This is because those proceses that could possibly change map_count
-	 * or the mmap / vma pages are now blocked in do_exit on current
+	 * or the mmap / vma pages are yesw blocked in do_exit on current
 	 * finishing this core dump.
 	 *
 	 * Only ptrace can touch these memory addresses, but it doesn't change
-	 * the map_count or the pages allocated. So no possibility of crashing
+	 * the map_count or the pages allocated. So yes possibility of crashing
 	 * exists while dumping the mm->vm_next areas to the core file.
 	 */
 
@@ -1596,9 +1596,9 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	psinfo = kmalloc(sizeof(*psinfo), GFP_KERNEL);
 	if (!psinfo)
 		goto cleanup;
-	notes = kmalloc_array(NUM_NOTES, sizeof(struct memelfnote),
+	yestes = kmalloc_array(NUM_NOTES, sizeof(struct memelfyeste),
 			      GFP_KERNEL);
-	if (!notes)
+	if (!yestes)
 		goto cleanup;
 	fpu = kmalloc(sizeof(*fpu), GFP_KERNEL);
 	if (!fpu)
@@ -1624,18 +1624,18 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 		int sz;
 
 		tmp = list_entry(t, struct elf_thread_status, list);
-		sz = elf_dump_thread_status(cprm->siginfo->si_signo, tmp);
+		sz = elf_dump_thread_status(cprm->siginfo->si_sigyes, tmp);
 		thread_status_size += sz;
 	}
 
-	/* now collect the dump for the current */
-	fill_prstatus(prstatus, current, cprm->siginfo->si_signo);
+	/* yesw collect the dump for the current */
+	fill_prstatus(prstatus, current, cprm->siginfo->si_sigyes);
 	elf_core_copy_regs(&prstatus->pr_reg, cprm->regs);
 
 	segs = current->mm->map_count;
 	segs += elf_core_extra_phdrs();
 
-	/* for notes section */
+	/* for yestes section */
 	segs++;
 
 	/* If segs > PN_XNUM(0xffff), then e_phnum overflows. To avoid
@@ -1648,15 +1648,15 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 
 	has_dumped = 1;
 	/*
-	 * Set up the notes in similar form to SVR4 core dumps made
+	 * Set up the yestes in similar form to SVR4 core dumps made
 	 * with info from their /proc.
 	 */
 
-	fill_note(notes + 0, "CORE", NT_PRSTATUS, sizeof(*prstatus), prstatus);
+	fill_yeste(yestes + 0, "CORE", NT_PRSTATUS, sizeof(*prstatus), prstatus);
 	fill_psinfo(psinfo, current->group_leader, current->mm);
-	fill_note(notes + 1, "CORE", NT_PRPSINFO, sizeof(*psinfo), psinfo);
+	fill_yeste(yestes + 1, "CORE", NT_PRPSINFO, sizeof(*psinfo), psinfo);
 
-	numnote = 2;
+	numyeste = 2;
 
 	auxv = (elf_addr_t *) current->mm->saved_auxv;
 
@@ -1664,17 +1664,17 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	do
 		i += 2;
 	while (auxv[i - 2] != AT_NULL);
-	fill_note(&notes[numnote++], "CORE", NT_AUXV,
+	fill_yeste(&yestes[numyeste++], "CORE", NT_AUXV,
 		  i * sizeof(elf_addr_t), auxv);
 
   	/* Try to dump the FPU. */
 	if ((prstatus->pr_fpvalid =
 	     elf_core_copy_task_fpregs(current, cprm->regs, fpu)))
-		fill_note(notes + numnote++,
+		fill_yeste(yestes + numyeste++,
 			  "CORE", NT_PRFPREG, sizeof(*fpu), fpu);
 #ifdef ELF_CORE_COPY_XFPREGS
 	if (elf_core_copy_task_xfpregs(current, xfpu))
-		fill_note(notes + numnote++,
+		fill_yeste(yestes + numyeste++,
 			  "LINUX", ELF_CORE_XFPREG_TYPE, sizeof(*xfpu), xfpu);
 #endif
 
@@ -1684,20 +1684,20 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	offset += sizeof(*elf);				/* Elf header */
 	offset += segs * sizeof(struct elf_phdr);	/* Program headers */
 
-	/* Write notes phdr entry */
+	/* Write yestes phdr entry */
 	{
 		int sz = 0;
 
-		for (i = 0; i < numnote; i++)
-			sz += notesize(notes + i);
+		for (i = 0; i < numyeste; i++)
+			sz += yestesize(yestes + i);
 
 		sz += thread_status_size;
 
-		phdr4note = kmalloc(sizeof(*phdr4note), GFP_KERNEL);
-		if (!phdr4note)
+		phdr4yeste = kmalloc(sizeof(*phdr4yeste), GFP_KERNEL);
+		if (!phdr4yeste)
 			goto end_coredump;
 
-		fill_elf_note_phdr(phdr4note, sz, offset);
+		fill_elf_yeste_phdr(phdr4yeste, sz, offset);
 		offset += sz;
 	}
 
@@ -1720,7 +1720,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	if (!dump_emit(cprm, elf, sizeof(*elf)))
 		goto end_coredump;
 
-	if (!dump_emit(cprm, phdr4note, sizeof(*phdr4note)))
+	if (!dump_emit(cprm, phdr4yeste, sizeof(*phdr4yeste)))
 		goto end_coredump;
 
 	/* write program headers for segments dump */
@@ -1751,18 +1751,18 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	if (!elf_core_write_extra_phdrs(cprm, offset))
 		goto end_coredump;
 
- 	/* write out the notes section */
-	for (i = 0; i < numnote; i++)
-		if (!writenote(notes + i, cprm))
+ 	/* write out the yestes section */
+	for (i = 0; i < numyeste; i++)
+		if (!writeyeste(yestes + i, cprm))
 			goto end_coredump;
 
-	/* write out the thread status notes section */
+	/* write out the thread status yestes section */
 	list_for_each(t, &thread_list) {
 		struct elf_thread_status *tmp =
 				list_entry(t, struct elf_thread_status, list);
 
-		for (i = 0; i < tmp->num_notes; i++)
-			if (!writenote(&tmp->notes[i], cprm))
+		for (i = 0; i < tmp->num_yestes; i++)
+			if (!writeyeste(&tmp->yestes[i], cprm))
 				goto end_coredump;
 	}
 
@@ -1796,11 +1796,11 @@ cleanup:
 		list_del(tmp);
 		kfree(list_entry(tmp, struct elf_thread_status, list));
 	}
-	kfree(phdr4note);
+	kfree(phdr4yeste);
 	kfree(elf);
 	kfree(prstatus);
 	kfree(psinfo);
-	kfree(notes);
+	kfree(yestes);
 	kfree(fpu);
 	kfree(shdr4extnum);
 #ifdef ELF_CORE_COPY_XFPREGS

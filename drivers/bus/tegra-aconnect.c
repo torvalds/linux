@@ -23,7 +23,7 @@ static int tegra_aconnect_probe(struct platform_device *pdev)
 {
 	struct tegra_aconnect *aconnect;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -EINVAL;
 
 	aconnect = devm_kzalloc(&pdev->dev, sizeof(struct tegra_aconnect),
@@ -46,7 +46,7 @@ static int tegra_aconnect_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, aconnect);
 	pm_runtime_enable(&pdev->dev);
 
-	of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	of_platform_populate(pdev->dev.of_yesde, NULL, NULL, &pdev->dev);
 
 	dev_info(&pdev->dev, "Tegra ACONNECT bus registered\n");
 

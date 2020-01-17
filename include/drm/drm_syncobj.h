@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -45,7 +45,7 @@ struct drm_syncobj {
 	 * @fence:
 	 * NULL or a pointer to the fence bound to this object.
 	 *
-	 * This field should not be used directly. Use drm_syncobj_fence_get()
+	 * This field should yest be used directly. Use drm_syncobj_fence_get()
 	 * and drm_syncobj_replace_fence() instead.
 	 */
 	struct dma_fence __rcu *fence;
@@ -93,11 +93,11 @@ drm_syncobj_put(struct drm_syncobj *obj)
  * @syncobj: sync object.
  *
  * This acquires additional reference to &drm_syncobj.fence contained in @obj,
- * if not NULL. It is illegal to call this without already holding a reference.
+ * if yest NULL. It is illegal to call this without already holding a reference.
  * No locks required.
  *
  * Returns:
- * Either the fence of @obj or NULL if there's none.
+ * Either the fence of @obj or NULL if there's yesne.
  */
 static inline struct dma_fence *
 drm_syncobj_fence_get(struct drm_syncobj *syncobj)

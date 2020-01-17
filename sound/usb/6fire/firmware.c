@@ -38,7 +38,7 @@ static const u8 ep_w_max_packet_size[] = {
 	0x94, 0x01, 0x5c, 0x02  /* alt 3: 404 EP2 and 604 EP6 (25 fpp) */
 };
 
-static const u8 known_fw_versions[][2] = {
+static const u8 kyeswn_fw_versions[][2] = {
 	{ 0x03, 0x01 }
 };
 
@@ -336,14 +336,14 @@ static int usb6fire_fw_fpga_upload(
 }
 
 /* check, if the firmware version the devices has currently loaded
- * is known by this driver. 'version' needs to have 4 bytes version
+ * is kyeswn by this driver. 'version' needs to have 4 bytes version
  * info data. */
 static int usb6fire_fw_check(struct usb_interface *intf, const u8 *version)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(known_fw_versions); i++)
-		if (!memcmp(version, known_fw_versions + i, 2))
+	for (i = 0; i < ARRAY_SIZE(kyeswn_fw_versions); i++)
+		if (!memcmp(version, kyeswn_fw_versions + i, 2))
 			return 0;
 
 	dev_err(&intf->dev, "invalid firmware version in device: %4ph. "
@@ -359,7 +359,7 @@ int usb6fire_fw_init(struct usb_interface *intf)
 	int ret;
 	struct usb_device *device = interface_to_usbdev(intf);
 	/* buffer: 8 receiving bytes from device and
-	 * sizeof(EP_W_MAX_PACKET_SIZE) bytes for non-const copy */
+	 * sizeof(EP_W_MAX_PACKET_SIZE) bytes for yesn-const copy */
 	u8 buffer[12];
 
 	ret = usb6fire_fw_ezusb_read(device, 1, 0, buffer, 8);
@@ -370,7 +370,7 @@ int usb6fire_fw_init(struct usb_interface *intf)
 	}
 	if (buffer[0] != 0xeb || buffer[1] != 0xaa || buffer[2] != 0x55) {
 		dev_err(&intf->dev,
-			"unknown device firmware state received from device:");
+			"unkyeswn device firmware state received from device:");
 		for (i = 0; i < 8; i++)
 			printk(KERN_CONT "%02x ", buffer[i]);
 		printk(KERN_CONT "\n");
@@ -403,10 +403,10 @@ int usb6fire_fw_init(struct usb_interface *intf)
 	/* all fw loaded? */
 	else if (buffer[3] == 0x03)
 		return usb6fire_fw_check(intf, buffer + 4);
-	/* unknown data? */
+	/* unkyeswn data? */
 	else {
 		dev_err(&intf->dev,
-			"unknown device firmware state received from device: ");
+			"unkyeswn device firmware state received from device: ");
 		for (i = 0; i < 8; i++)
 			printk(KERN_CONT "%02x ", buffer[i]);
 		printk(KERN_CONT "\n");

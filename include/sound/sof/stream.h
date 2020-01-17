@@ -33,9 +33,9 @@
 #define SOF_RATE_176400		(1 << 12) /**< 176400Hz */
 #define SOF_RATE_192000		(1 << 13) /**< 192000Hz */
 
-/* continuous and non-standard rates for flexibility */
+/* continuous and yesn-standard rates for flexibility */
 #define SOF_RATE_CONTINUOUS	(1 << 30)  /**< range */
-#define SOF_RATE_KNOT		(1 << 31)  /**< non-continuous */
+#define SOF_RATE_KNOT		(1 << 31)  /**< yesn-continuous */
 
 /* generic PCM flags for runtime settings */
 #define SOF_PCM_FLAG_XRUN_STOP	(1 << 0) /**< Stop on any XRUN */
@@ -84,7 +84,7 @@ struct sof_ipc_stream_params {
 	uint16_t sample_container_bytes;
 
 	uint32_t host_period_bytes;
-	uint16_t no_stream_position; /**< 1 means don't send stream position */
+	uint16_t yes_stream_position; /**< 1 means don't send stream position */
 
 	uint16_t reserved[3];
 	uint16_t chmap[SOF_IPC_MAX_CHANNELS];	/**< channel map - SOF_CHMAP_ */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * Copyright 1997 Transmeta Corporation - All Rights Reserved
  * Copyright 1999-2000 Jeremy Fitzhardinge <jeremy@goop.org>
@@ -30,7 +30,7 @@
  * back to the kernel via ioctl from userspace. On architectures where 32- and
  * 64-bit userspace binaries can be executed it's important that the size of
  * autofs_wqt_t stays constant between 32- and 64-bit Linux kernels so that we
- * do not break the binary ABI interface by changing the structure size.
+ * do yest break the binary ABI interface by changing the structure size.
  */
 #if defined(__ia64__) || defined(__alpha__) /* pure 64bit architectures */
 typedef unsigned long autofs_wqt_t;
@@ -136,7 +136,7 @@ static inline unsigned int autofs_type_trigger(unsigned int type)
 }
 
 /*
- * This isn't really a type as we use it to say "no type set" to
+ * This isn't really a type as we use it to say "yes type set" to
  * indicate we want to search for "any" mount in the
  * autofs_dev_ioctl_ismountpoint() device ioctl function.
  */
@@ -150,8 +150,8 @@ static inline unsigned int autofs_type_any(unsigned int type)
 	return (type == AUTOFS_TYPE_ANY);
 }
 
-/* Daemon notification packet types */
-enum autofs_notify {
+/* Daemon yestification packet types */
+enum autofs_yestify {
 	NFY_NONE,
 	NFY_MOUNT,
 	NFY_EXPIRE
@@ -192,7 +192,7 @@ struct autofs_v5_packet {
 	struct autofs_packet_hdr hdr;
 	autofs_wqt_t wait_queue_token;
 	__u32 dev;
-	__u64 ino;
+	__u64 iyes;
 	__u32 uid;
 	__u32 gid;
 	__u32 pid;

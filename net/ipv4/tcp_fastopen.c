@@ -191,8 +191,8 @@ void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb)
 	__skb_queue_tail(&sk->sk_receive_queue, skb);
 	tp->syn_data_acked = 1;
 
-	/* u64_stats_update_begin(&tp->syncp) not needed here,
-	 * as we certainly are not changing upper 32bit value (0)
+	/* u64_stats_update_begin(&tp->syncp) yest needed here,
+	 * as we certainly are yest changing upper 32bit value (0)
 	 */
 	tp->bytes_received = skb->len;
 
@@ -200,7 +200,7 @@ void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb)
 		tcp_fin(sk);
 }
 
-/* returns 0 - no key match, 1 for primary, 2 for backup */
+/* returns 0 - yes key match, 1 for primary, 2 for backup */
 static int tcp_fastopen_cookie_gen_check(struct sock *sk,
 					 struct request_sock *req,
 					 struct sk_buff *syn,
@@ -263,7 +263,7 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	tp->max_window = tp->snd_wnd;
 
 	/* Activate the retrans timer so that SYNACK can be retransmitted.
-	 * The request socket is not added to the ehash
+	 * The request socket is yest added to the ehash
 	 * because it's been added to the accept queue directly.
 	 */
 	inet_csk_reset_xmit_timer(child, ICSK_TIME_RETRANS,
@@ -298,7 +298,7 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 	 * XXX (TFO) - The implication of checking the max_qlen before
 	 * processing a cookie request is that clients can't differentiate
 	 * between qlen overflow causing Fast Open to be disabled
-	 * temporarily vs a server not supporting Fast Open at all.
+	 * temporarily vs a server yest supporting Fast Open at all.
 	 */
 	fastopenq = &inet_csk(sk)->icsk_accept_queue.fastopenq;
 	if (fastopenq->max_qlen == 0)
@@ -322,12 +322,12 @@ static bool tcp_fastopen_queue_check(struct sock *sk)
 	return true;
 }
 
-static bool tcp_fastopen_no_cookie(const struct sock *sk,
+static bool tcp_fastopen_yes_cookie(const struct sock *sk,
 				   const struct dst_entry *dst,
 				   int flag)
 {
 	return (sock_net(sk)->ipv4.sysctl_tcp_fastopen & flag) ||
-	       tcp_sk(sk)->fastopen_no_cookie ||
+	       tcp_sk(sk)->fastopen_yes_cookie ||
 	       (dst && dst_metric(dst, RTAX_FASTOPEN_NO_COOKIE));
 }
 
@@ -357,7 +357,7 @@ struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 	}
 
 	if (syn_data &&
-	    tcp_fastopen_no_cookie(sk, dst, TFO_SERVER_COOKIE_NOT_REQD))
+	    tcp_fastopen_yes_cookie(sk, dst, TFO_SERVER_COOKIE_NOT_REQD))
 		goto fastopen;
 
 	if (foc->len == 0) {
@@ -418,7 +418,7 @@ bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
 
 	dst = __sk_dst_get(sk);
 
-	if (tcp_fastopen_no_cookie(sk, dst, TFO_CLIENT_NO_COOKIE)) {
+	if (tcp_fastopen_yes_cookie(sk, dst, TFO_CLIENT_NO_COOKIE)) {
 		cookie->len = -1;
 		return true;
 	}
@@ -517,10 +517,10 @@ bool tcp_fastopen_active_should_disable(struct sock *sk)
 }
 
 /* Disable active TFO if FIN is the only packet in the ofo queue
- * and no data is received.
+ * and yes data is received.
  * Also check if we can reset tfo_active_disable_times if data is
  * received successfully on a marked active TFO sockets opened on
- * a non-loopback interface
+ * a yesn-loopback interface
  */
 void tcp_fastopen_active_disable_ofo_check(struct sock *sk)
 {

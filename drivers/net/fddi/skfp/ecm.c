@@ -52,7 +52,7 @@ static const char ID_sccs[] = "@(#)ecm.c	2.7 99/08/05 (C) SK " ;
 #define ACTIONS_DONE()	(smc->mib.fddiSMTECMState &= ~AFLAG)
 #define ACTIONS(x)	(x|AFLAG)
 
-#define EC0_OUT		0			/* not inserted */
+#define EC0_OUT		0			/* yest inserted */
 #define EC1_IN		1			/* inserted */
 #define EC2_TRACE	2			/* tracing */
 #define EC3_LEAVE	3			/* leaving the ring */
@@ -144,7 +144,7 @@ static void ecm_fsm(struct s_smc *smc, int cmd)
 	if (cmd == EC_CONNECT)
 		smc->mib.fddiSMTRemoteDisconnectFlag = FALSE ;
 
-	/* For AIX event notification: */
+	/* For AIX event yestification: */
 	/* Is a disconnect  command remotely issued ? */
 	if (cmd == EC_DISCONNECT &&
 		smc->mib.fddiSMTRemoteDisconnectFlag == TRUE)
@@ -163,7 +163,7 @@ static void ecm_fsm(struct s_smc *smc, int cmd)
 	switch(smc->mib.fddiSMTECMState) {
 	case ACTIONS(EC0_OUT) :
 		/*
-		 * We do not perform a path test
+		 * We do yest perform a path test
 		 */
 		smc->e.path_test = PT_PASSED ;
 		smc->e.ecm_line_state = FALSE ;
@@ -286,7 +286,7 @@ static void ecm_fsm(struct s_smc *smc, int cmd)
 		stop_ecm_timer(smc) ;
 		smc->e.path_test = PT_TESTING ;
 		start_ecm_timer(smc,smc->s.ecm_test_done,EC_TEST_DONE) ;
-		/* now perform path test ... just a simulation */
+		/* yesw perform path test ... just a simulation */
 		ACTIONS_DONE() ;
 		break ;
 	case EC4_PATH_TEST :

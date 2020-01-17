@@ -12,16 +12,16 @@
 #include <linux/acpi.h>
 
 #ifdef CONFIG_ACPI
-extern acpi_status pci_acpi_add_bus_pm_notifier(struct acpi_device *dev);
-static inline acpi_status pci_acpi_remove_bus_pm_notifier(struct acpi_device *dev)
+extern acpi_status pci_acpi_add_bus_pm_yestifier(struct acpi_device *dev);
+static inline acpi_status pci_acpi_remove_bus_pm_yestifier(struct acpi_device *dev)
 {
-	return acpi_remove_pm_notifier(dev);
+	return acpi_remove_pm_yestifier(dev);
 }
-extern acpi_status pci_acpi_add_pm_notifier(struct acpi_device *dev,
+extern acpi_status pci_acpi_add_pm_yestifier(struct acpi_device *dev,
 					     struct pci_dev *pci_dev);
-static inline acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev)
+static inline acpi_status pci_acpi_remove_pm_yestifier(struct acpi_device *dev)
 {
-	return acpi_remove_pm_notifier(dev);
+	return acpi_remove_pm_yestifier(dev);
 }
 extern phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle);
 
@@ -47,7 +47,7 @@ static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
 	if (pci_is_root_bus(pbus))
 		dev = pbus->bridge;
 	else {
-		/* If pbus is a virtual bus, there is no bridge to it */
+		/* If pbus is a virtual bus, there is yes bridge to it */
 		if (!pbus->self)
 			return NULL;
 

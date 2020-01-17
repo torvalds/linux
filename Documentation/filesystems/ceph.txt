@@ -7,11 +7,11 @@ performance, reliability, and scalability.
 Basic features include:
 
  * POSIX semantics
- * Seamless scaling from 1 to many thousands of nodes
+ * Seamless scaling from 1 to many thousands of yesdes
  * High availability and reliability.  No single point of failure.
- * N-way replication of data across storage nodes
- * Fast recovery from node failures
- * Automatic rebalancing of data on node addition/removal
+ * N-way replication of data across storage yesdes
+ * Fast recovery from yesde failures
+ * Automatic rebalancing of data on yesde addition/removal
  * Easy deployment: most FS components are userspace daemons
 
 Also,
@@ -22,30 +22,30 @@ In contrast to cluster filesystems like GFS, OCFS2, and GPFS that rely
 on symmetric access by all clients to shared block devices, Ceph
 separates data and metadata management into independent server
 clusters, similar to Lustre.  Unlike Lustre, however, metadata and
-storage nodes run entirely as user space daemons.  File data is striped
-across storage nodes in large chunks to distribute workload and
-facilitate high throughputs.  When storage nodes fail, data is
-re-replicated in a distributed fashion by the storage nodes themselves
+storage yesdes run entirely as user space daemons.  File data is striped
+across storage yesdes in large chunks to distribute workload and
+facilitate high throughputs.  When storage yesdes fail, data is
+re-replicated in a distributed fashion by the storage yesdes themselves
 (with some minimal coordination from a cluster monitor), making the
 system extremely efficient and scalable.
 
 Metadata servers effectively form a large, consistent, distributed
 in-memory cache above the file namespace that is extremely scalable,
 dynamically redistributes metadata in response to workload changes,
-and can tolerate arbitrary (well, non-Byzantine) node failures.  The
+and can tolerate arbitrary (well, yesn-Byzantine) yesde failures.  The
 metadata server takes a somewhat unconventional approach to metadata
 storage to significantly improve performance for common workloads.  In
-particular, inodes with only a single link are embedded in
-directories, allowing entire directories of dentries and inodes to be
+particular, iyesdes with only a single link are embedded in
+directories, allowing entire directories of dentries and iyesdes to be
 loaded into its cache with a single I/O operation.  The contents of
 extremely large directories can be fragmented and managed by
 independent metadata servers, allowing scalable concurrent access.
 
 The system offers automatic data rebalancing/migration when scaling
-from a small cluster of just a few nodes to many hundreds, without
+from a small cluster of just a few yesdes to many hundreds, without
 requiring an administrator carve the data set into static volumes or
 go through the tedious process of migrating data between servers.
-When the file system approaches full, new nodes can be easily added
+When the file system approaches full, new yesdes can be easily added
 and things will "just work."
 
 Ceph includes flexible snapshot mechanism that allows a user to create
@@ -58,7 +58,7 @@ files and bytes.  That is, a 'getfattr -d foo' on any directory in the
 system will reveal the total number of nested regular files and
 subdirectories, and a summation of all nested file sizes.  This makes
 the identification of large disk space consumers relatively quick, as
-no 'du' or similar recursive scan of the file system is required.
+yes 'du' or similar recursive scan of the file system is required.
 
 Finally, Ceph also allows quotas to be set on any directory in the system.
 The quota can restrict the number of bytes or the number of files stored
@@ -70,7 +70,7 @@ extended attributes 'ceph.quota.max_files' and 'ceph.quota.max_bytes', eg:
 
 A limitation of the current quotas implementation is that it relies on the
 cooperation of the client mounting the file system to stop writers when a
-limit is reached.  A modified or adversarial client cannot be prevented
+limit is reached.  A modified or adversarial client canyest be prevented
 from writing as much data as it needs.
 
 Mount Syntax
@@ -98,7 +98,7 @@ Mount Options
 
   ip=A.B.C.D[:N]
 	Specify the IP and/or port the client should bind to locally.
-	There is normally not much reason to do this.  If the IP is not
+	There is yesrmally yest much reason to do this.  If the IP is yest
 	specified, the client's IP address is determined by looking at the
 	address its connection to the monitor originates from.
 
@@ -113,64 +113,64 @@ Mount Options
 
   mount_timeout=X
 	Specify the timeout value for mount (in seconds), in the case
-	of a non-responsive Ceph file system.  The default is 30
+	of a yesn-responsive Ceph file system.  The default is 30
 	seconds.
 
   caps_max=X
 	Specify the maximum number of caps to hold. Unused caps are released
-	when number of caps exceeds the limit. The default is 0 (no limit)
+	when number of caps exceeds the limit. The default is 0 (yes limit)
 
   rbytes
 	When stat() is called on a directory, set st_size to 'rbytes',
 	the summation of file sizes over all files nested beneath that
 	directory.  This is the default.
 
-  norbytes
+  yesrbytes
 	When stat() is called on a directory, set st_size to the
 	number of entries in that directory.
 
-  nocrc
-	Disable CRC32C calculation for data writes.  If set, the storage node
+  yescrc
+	Disable CRC32C calculation for data writes.  If set, the storage yesde
 	must rely on TCP's error correction to detect data corruption
 	in the data payload.
 
   dcache
         Use the dcache contents to perform negative lookups and
         readdir when the client has the entire directory contents in
-        its cache.  (This does not change correctness; the client uses
+        its cache.  (This does yest change correctness; the client uses
         cached metadata only when a lease or capability ensures it is
         valid.)
 
-  nodcache
-        Do not use the dcache as above.  This avoids a significant amount of
+  yesdcache
+        Do yest use the dcache as above.  This avoids a significant amount of
         complex code, sacrificing performance without affecting correctness,
         and is useful for tracking down bugs.
 
-  noasyncreaddir
-	Do not use the dcache as above for readdir.
+  yesasyncreaddir
+	Do yest use the dcache as above for readdir.
 
-  noquotadf
+  yesquotadf
         Report overall filesystem usage in statfs instead of using the root
         directory quota.
 
-  nocopyfrom
+  yescopyfrom
         Don't use the RADOS 'copy-from' operation to perform remote object
         copies.  Currently, it's only used in copy_file_range, which will revert
         to the default VFS implementation if this option is used.
 
-  recover_session=<no|clean>
+  recover_session=<yes|clean>
 	Set auto reconnect mode in the case where the client is blacklisted. The
-	available modes are "no" and "clean". The default is "no".
+	available modes are "yes" and "clean". The default is "yes".
 
-	* no: never attempt to reconnect when client detects that it has been
+	* yes: never attempt to reconnect when client detects that it has been
 	blacklisted. Operations will generally fail after being blacklisted.
 
 	* clean: client reconnects to the ceph cluster automatically when it
 	detects that it has been blacklisted. During reconnect, client drops
 	dirty data/metadata, invalidates page caches and writable file handles.
 	After reconnect, file locks become stale because the MDS loses track
-	of them. If an inode contains any stale file locks, read/write on the
-	inode is not allowed until applications release all stale file locks.
+	of them. If an iyesde contains any stale file locks, read/write on the
+	iyesde is yest allowed until applications release all stale file locks.
 
 More Information
 ================

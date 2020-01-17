@@ -69,7 +69,7 @@ static int b1pci_probe(struct capicardparams *p, struct pci_dev *pdev)
 
 	card = b1_alloc_card(1);
 	if (!card) {
-		printk(KERN_WARNING "b1pci: no memory.\n");
+		printk(KERN_WARNING "b1pci: yes memory.\n");
 		retval = -ENOMEM;
 		goto err;
 	}
@@ -123,7 +123,7 @@ static int b1pci_probe(struct capicardparams *p, struct pci_dev *pdev)
 	}
 
 	if (card->revision >= 4) {
-		printk(KERN_INFO "b1pci: AVM B1 PCI V4 at i/o %#x, irq %d, revision %d (no dma)\n",
+		printk(KERN_INFO "b1pci: AVM B1 PCI V4 at i/o %#x, irq %d, revision %d (yes dma)\n",
 		       card->port, card->irq, card->revision);
 	} else {
 		printk(KERN_INFO "b1pci: AVM B1 PCI at i/o %#x, irq %d, revision %d\n",
@@ -188,7 +188,7 @@ static int b1pciv4_probe(struct capicardparams *p, struct pci_dev *pdev)
 
 	card = b1_alloc_card(1);
 	if (!card) {
-		printk(KERN_WARNING "b1pci: no memory.\n");
+		printk(KERN_WARNING "b1pci: yes memory.\n");
 		retval = -ENOMEM;
 		goto err;
 	}
@@ -326,7 +326,7 @@ static int b1pci_pci_probe(struct pci_dev *pdev,
 		retval = b1pci_probe(&param, pdev);
 #endif
 		if (retval != 0) {
-			printk(KERN_ERR "b1pci: no AVM-B1 V4 at i/o %#x, irq %d, mem %#x detected\n",
+			printk(KERN_ERR "b1pci: yes AVM-B1 V4 at i/o %#x, irq %d, mem %#x detected\n",
 			       param.port, param.irq, param.membase);
 		}
 	} else {
@@ -337,7 +337,7 @@ static int b1pci_pci_probe(struct pci_dev *pdev,
 		       param.port, param.irq);
 		retval = b1pci_probe(&param, pdev);
 		if (retval != 0) {
-			printk(KERN_ERR "b1pci: no AVM-B1 at i/o %#x, irq %d detected\n",
+			printk(KERN_ERR "b1pci: yes AVM-B1 at i/o %#x, irq %d detected\n",
 			       param.port, param.irq);
 		}
 	}

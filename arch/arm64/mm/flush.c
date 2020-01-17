@@ -80,7 +80,7 @@ EXPORT_SYMBOL(__flush_icache_range);
 #ifdef CONFIG_ARCH_HAS_PMEM_API
 void arch_wb_cache_pmem(void *addr, size_t size)
 {
-	/* Ensure order against any prior non-cacheable writes */
+	/* Ensure order against any prior yesn-cacheable writes */
 	dmb(osh);
 	__clean_dcache_area_pop(addr, size);
 }

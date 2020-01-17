@@ -12,7 +12,7 @@
  *  NOTES
  *  The BLOCK_COUNTER registers for the ALS300(+) return a figure related to
  *  the position in the current period, NOT the whole buffer. It is important
- *  to know which period we are in so we can calculate the correct pointer.
+ *  to kyesw which period we are in so we can calculate the correct pointer.
  *  This is why we always use 2 periods. We can then use a flip-flop variable
  *  to keep track of what period we are in.
  */
@@ -244,7 +244,7 @@ static irqreturn_t snd_als300plus_interrupt(int irq, void *dev_id)
 			snd_als300_dbgplay("IRQ_CAPTURE\n");
 		}
 	}
-	/* FIXME: Ack other interrupt types. Not important right now as
+	/* FIXME: Ack other interrupt types. Not important right yesw as
 	 * those other devices aren't enabled. */
 	return IRQ_HANDLED;
 }
@@ -311,7 +311,7 @@ static int snd_als300_ac97(struct snd_als300 *chip)
 /* hardware definition
  *
  * In AC97 mode, we always use 48k/16bit/stereo.
- * Any request to change data type is ignored by
+ * Any request to change data type is igyesred by
  * the card when it is running outside of legacy
  * mode.
  */
@@ -691,13 +691,13 @@ static int snd_als300_create(struct snd_card *card,
 
 	err = snd_als300_ac97(chip);
 	if (err < 0) {
-		dev_err(card->dev, "Could not create ac97\n");
+		dev_err(card->dev, "Could yest create ac97\n");
 		snd_als300_free(chip);
 		return err;
 	}
 
 	if ((err = snd_als300_new_pcm(chip)) < 0) {
-		dev_err(card->dev, "Could not create PCM\n");
+		dev_err(card->dev, "Could yest create PCM\n");
 		snd_als300_free(chip);
 		return err;
 	}
@@ -772,8 +772,8 @@ static int snd_als300_probe(struct pci_dev *pci,
 
 	strcpy(card->driver, "ALS300");
 	if (chip->chip_type == DEVICE_ALS300_PLUS)
-		/* don't know much about ALS300+ yet
-		 * print revision number for now */
+		/* don't kyesw much about ALS300+ yet
+		 * print revision number for yesw */
 		sprintf(card->shortname, "ALS300+ (Rev. %d)", chip->revision);
 	else
 		sprintf(card->shortname, "ALS300 (Rev. %c)", 'A' +

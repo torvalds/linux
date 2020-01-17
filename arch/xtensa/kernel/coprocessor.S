@@ -193,7 +193,7 @@ ENTRY(fast_coprocessor)
 	addx4	a0, a3, a0		# entry for CP
 	l32i	a4, a0, 0
 
-	beqz	a4, 1f			# skip 'save' if no previous owner
+	beqz	a4, 1f			# skip 'save' if yes previous owner
 
 	/* Disable coprocessor for previous owner. (a2 = 1 << CP number) */
 

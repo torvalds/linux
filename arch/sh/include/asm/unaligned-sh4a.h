@@ -5,12 +5,12 @@
 /*
  * SH-4A has support for unaligned 32-bit loads, and 32-bit loads only.
  * Support for 64-bit accesses are done through shifting and masking
- * relative to the endianness. Unaligned stores are not supported by the
+ * relative to the endianness. Unaligned stores are yest supported by the
  * instruction encoding, so these continue to use the packed
  * struct.
  *
- * The same note as with the movli.l/movco.l pair applies here, as long
- * as the load is guaranteed to be inlined, nothing else will hook in to
+ * The same yeste as with the movli.l/movco.l pair applies here, as long
+ * as the load is guaranteed to be inlined, yesthing else will hook in to
  * r0 and we get the return value for free.
  *
  * NOTE: Due to the fact we require r0 encoding, care should be taken to
@@ -91,40 +91,40 @@ static inline u64 get_unaligned_be64(const void *p)
 	return be64_to_cpu(sh4a_get_unaligned_cpu64(p));
 }
 
-static inline void nonnative_put_le16(u16 val, u8 *p)
+static inline void yesnnative_put_le16(u16 val, u8 *p)
 {
 	*p++ = val;
 	*p++ = val >> 8;
 }
 
-static inline void nonnative_put_le32(u32 val, u8 *p)
+static inline void yesnnative_put_le32(u32 val, u8 *p)
 {
-	nonnative_put_le16(val, p);
-	nonnative_put_le16(val >> 16, p + 2);
+	yesnnative_put_le16(val, p);
+	yesnnative_put_le16(val >> 16, p + 2);
 }
 
-static inline void nonnative_put_le64(u64 val, u8 *p)
+static inline void yesnnative_put_le64(u64 val, u8 *p)
 {
-	nonnative_put_le32(val, p);
-	nonnative_put_le32(val >> 32, p + 4);
+	yesnnative_put_le32(val, p);
+	yesnnative_put_le32(val >> 32, p + 4);
 }
 
-static inline void nonnative_put_be16(u16 val, u8 *p)
+static inline void yesnnative_put_be16(u16 val, u8 *p)
 {
 	*p++ = val >> 8;
 	*p++ = val;
 }
 
-static inline void nonnative_put_be32(u32 val, u8 *p)
+static inline void yesnnative_put_be32(u32 val, u8 *p)
 {
-	nonnative_put_be16(val >> 16, p);
-	nonnative_put_be16(val, p + 2);
+	yesnnative_put_be16(val >> 16, p);
+	yesnnative_put_be16(val, p + 2);
 }
 
-static inline void nonnative_put_be64(u64 val, u8 *p)
+static inline void yesnnative_put_be64(u64 val, u8 *p)
 {
-	nonnative_put_be32(val >> 32, p);
-	nonnative_put_be32(val, p + 4);
+	yesnnative_put_be32(val >> 32, p);
+	yesnnative_put_be32(val, p + 4);
 }
 
 static inline void put_unaligned_le16(u16 val, void *p)
@@ -132,7 +132,7 @@ static inline void put_unaligned_le16(u16 val, void *p)
 #ifdef __LITTLE_ENDIAN
 	__put_unaligned_cpu16(val, p);
 #else
-	nonnative_put_le16(val, p);
+	yesnnative_put_le16(val, p);
 #endif
 }
 
@@ -141,7 +141,7 @@ static inline void put_unaligned_le32(u32 val, void *p)
 #ifdef __LITTLE_ENDIAN
 	__put_unaligned_cpu32(val, p);
 #else
-	nonnative_put_le32(val, p);
+	yesnnative_put_le32(val, p);
 #endif
 }
 
@@ -150,7 +150,7 @@ static inline void put_unaligned_le64(u64 val, void *p)
 #ifdef __LITTLE_ENDIAN
 	__put_unaligned_cpu64(val, p);
 #else
-	nonnative_put_le64(val, p);
+	yesnnative_put_le64(val, p);
 #endif
 }
 
@@ -159,7 +159,7 @@ static inline void put_unaligned_be16(u16 val, void *p)
 #ifdef __BIG_ENDIAN
 	__put_unaligned_cpu16(val, p);
 #else
-	nonnative_put_be16(val, p);
+	yesnnative_put_be16(val, p);
 #endif
 }
 
@@ -168,7 +168,7 @@ static inline void put_unaligned_be32(u32 val, void *p)
 #ifdef __BIG_ENDIAN
 	__put_unaligned_cpu32(val, p);
 #else
-	nonnative_put_be32(val, p);
+	yesnnative_put_be32(val, p);
 #endif
 }
 
@@ -177,14 +177,14 @@ static inline void put_unaligned_be64(u64 val, void *p)
 #ifdef __BIG_ENDIAN
 	__put_unaligned_cpu64(val, p);
 #else
-	nonnative_put_be64(val, p);
+	yesnnative_put_be64(val, p);
 #endif
 }
 
 /*
- * While it's a bit non-obvious, even though the generic le/be wrappers
+ * While it's a bit yesn-obvious, even though the generic le/be wrappers
  * use the __get/put_xxx prefixing, they actually wrap in to the
- * non-prefixed get/put_xxx variants as provided above.
+ * yesn-prefixed get/put_xxx variants as provided above.
  */
 #include <linux/unaligned/generic.h>
 

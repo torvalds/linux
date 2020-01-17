@@ -358,7 +358,7 @@ static int msm_hdmi_hdcp_hw_ddc_clean(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 	int rc;
 	u32 hdcp_ddc_status, ddc_hw_status;
 	u32 xfer_done, xfer_req, hw_done;
-	bool hw_not_ready;
+	bool hw_yest_ready;
 	u32 timeout_count;
 	struct hdmi *hdmi = hdcp_ctrl->hdmi;
 
@@ -374,9 +374,9 @@ static int msm_hdmi_hdcp_hw_ddc_clean(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 		xfer_done = hdcp_ddc_status & HDMI_HDCP_DDC_STATUS_XFER_DONE;
 		xfer_req = hdcp_ddc_status & HDMI_HDCP_DDC_STATUS_XFER_REQ;
 		hw_done = ddc_hw_status & HDMI_DDC_HW_STATUS_DONE;
-		hw_not_ready = !xfer_done || xfer_req || !hw_done;
+		hw_yest_ready = !xfer_done || xfer_req || !hw_done;
 
-		if (hw_not_ready)
+		if (hw_yest_ready)
 			break;
 
 		timeout_count--;
@@ -519,14 +519,14 @@ static int msm_hdmi_hdcp_auth_prepare(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 
 	/*
 	 * If we had stale values for the An ready bit, it should most
-	 * likely be cleared now after enabling HDCP cipher
+	 * likely be cleared yesw after enabling HDCP cipher
 	 */
 	link0_status = hdmi_read(hdmi, REG_HDMI_HDCP_LINK0_STATUS);
 	DBG("After enabling HDCP Link0_Status=0x%08x", link0_status);
 	if (!(link0_status &
 		(HDMI_HDCP_LINK0_STATUS_AN_0_READY |
 		HDMI_HDCP_LINK0_STATUS_AN_1_READY)))
-		DBG("An not ready after enabling HDCP");
+		DBG("An yest ready after enabling HDCP");
 
 	/* Clear any DDC failures from previous tries before enable HDCP*/
 	rc = msm_reset_hdcp_ddc_failures(hdcp_ctrl);
@@ -560,7 +560,7 @@ static void msm_hdmi_hdcp_auth_done(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 
 	/*
 	 * Disable software DDC before going into part3 to make sure
-	 * there is no Arbitration between software and hardware for DDC
+	 * there is yes Arbitration between software and hardware for DDC
 	 */
 	spin_lock_irqsave(&hdmi->reg_lock, flags);
 	reg_val = hdmi_read(hdmi, REG_HDMI_DDC_ARBITRATION);
@@ -603,7 +603,7 @@ static int msm_hdmi_hdcp_wait_key_an_ready(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 		if (keys_state == HDCP_KEYS_STATE_VALID)
 			break;
 
-		DBG("Keys not ready(%d). s=%d, l0=%0x08x",
+		DBG("Keys yest ready(%d). s=%d, l0=%0x08x",
 			timeout_count, keys_state, link0_status);
 
 		timeout_count--;
@@ -625,7 +625,7 @@ static int msm_hdmi_hdcp_wait_key_an_ready(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 		if (an_ready)
 			break;
 
-		DBG("An not ready(%d). l0_status=0x%08x",
+		DBG("An yest ready(%d). l0_status=0x%08x",
 			timeout_count, link0_status);
 
 		timeout_count--;
@@ -832,14 +832,14 @@ static int msm_hdmi_hdcp_auth_part1_recv_r0(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 	return 0;
 }
 
-/* Wait for authenticating result: R0/R0' are matched or not */
+/* Wait for authenticating result: R0/R0' are matched or yest */
 static int msm_hdmi_hdcp_auth_part1_verify_r0(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 {
 	struct hdmi *hdmi = hdcp_ctrl->hdmi;
 	u32 link0_status;
 	int rc;
 
-	/* wait for hdcp irq, 10 sec should be long enough */
+	/* wait for hdcp irq, 10 sec should be long eyesugh */
 	rc = msm_hdmi_hdcp_msleep(hdcp_ctrl, 10000, AUTH_RESULT_RDY_EV);
 	if (!rc) {
 		pr_err("%s: Wait Auth IRQ timeout\n", __func__);
@@ -886,7 +886,7 @@ static int msm_hdmi_hdcp_recv_check_bstatus(struct hdmi_hdcp_ctrl *hdcp_ctrl,
 
 	if (down_stream_devices == 0) {
 		/*
-		 * If no downstream devices are attached to the repeater
+		 * If yes downstream devices are attached to the repeater
 		 * then part II fails.
 		 * todo: The other approach would be to continue PART II.
 		 */
@@ -897,11 +897,11 @@ static int msm_hdmi_hdcp_recv_check_bstatus(struct hdmi_hdcp_ctrl *hdcp_ctrl,
 
 	/*
 	 * HDCP Compliance 1B-05:
-	 * Check if no. of devices connected to repeater
+	 * Check if yes. of devices connected to repeater
 	 * exceed max_devices_connected from bit 7 of Bstatus.
 	 */
 	if (max_devs_exceeded) {
-		pr_err("%s: no. of devs connected exceeds max allowed",
+		pr_err("%s: yes. of devs connected exceeds max allowed",
 			__func__);
 		rc = -EINVAL;
 		goto error;
@@ -909,11 +909,11 @@ static int msm_hdmi_hdcp_recv_check_bstatus(struct hdmi_hdcp_ctrl *hdcp_ctrl,
 
 	/*
 	 * HDCP Compliance 1B-06:
-	 * Check if no. of cascade connected to repeater
+	 * Check if yes. of cascade connected to repeater
 	 * exceed max_cascade_connected from bit 11 of Bstatus.
 	 */
 	if (max_cascade_exceeded) {
-		pr_err("%s: no. of cascade conn exceeds max allowed",
+		pr_err("%s: yes. of cascade conn exceeds max allowed",
 			__func__);
 		rc = -EINVAL;
 		goto error;
@@ -1067,7 +1067,7 @@ static int msm_hdmi_hdcp_auth_part2_recv_ksv_fifo(
 	 * from HDCP Repeaters.
 	 * All bytes (DEVICE_COUNT * 5) must be read in a single,
 	 * auto incrementing access.
-	 * All bytes read as 0x00 for HDCP Receivers that are not
+	 * All bytes read as 0x00 for HDCP Receivers that are yest
 	 * HDCP Repeaters (REPEATER == 0).
 	 */
 	timeout_count = 100;
@@ -1135,7 +1135,7 @@ static int msm_hdmi_hdcp_write_ksv_fifo(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 				return -EAGAIN;
 			}
 		} else {
-			/* check BLOCK_DONE if not last write */
+			/* check BLOCK_DONE if yest last write */
 			if (!(reg_val & HDMI_HDCP_SHA_STATUS_BLOCK_DONE))
 				return -EAGAIN;
 
@@ -1169,7 +1169,7 @@ static int msm_hdmi_hdcp_write_ksv_fifo(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 	hdcp_ctrl->ksv_fifo_w_index += ksv_bytes;
 
 	/*
-	 *return -EAGAIN to notify caller to wait for COMP_DONE or BLOCK_DONE
+	 *return -EAGAIN to yestify caller to wait for COMP_DONE or BLOCK_DONE
 	 */
 	return -EAGAIN;
 }
@@ -1292,7 +1292,7 @@ end:
 	if (rc == -ECANCELED) {
 		pr_info("%s: hdcp authentication canceled\n", __func__);
 	} else if (rc == -ENOTSUPP) {
-		pr_info("%s: hdcp is not supported\n", __func__);
+		pr_info("%s: hdcp is yest supported\n", __func__);
 	} else if (rc) {
 		pr_err("%s: hdcp authentication failed\n", __func__);
 		msm_hdmi_hdcp_auth_fail(hdcp_ctrl);
@@ -1309,7 +1309,7 @@ void msm_hdmi_hdcp_on(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 
 	if ((HDCP_STATE_INACTIVE != hdcp_ctrl->hdcp_state) ||
 		(HDCP_STATE_NO_AKSV == hdcp_ctrl->hdcp_state)) {
-		DBG("still active or activating or no askv. returning");
+		DBG("still active or activating or yes askv. returning");
 		return;
 	}
 
@@ -1334,7 +1334,7 @@ void msm_hdmi_hdcp_off(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 
 	if ((HDCP_STATE_INACTIVE == hdcp_ctrl->hdcp_state) ||
 		(HDCP_STATE_NO_AKSV == hdcp_ctrl->hdcp_state)) {
-		DBG("hdcp inactive or no aksv. returning");
+		DBG("hdcp inactive or yes aksv. returning");
 		return;
 	}
 
@@ -1352,7 +1352,7 @@ void msm_hdmi_hdcp_off(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 	/*
 	 * Disable HDCP interrupts.
 	 * Also, need to set the state to inactive here so that any ongoing
-	 * reauth works will know that the HDCP session has been turned off.
+	 * reauth works will kyesw that the HDCP session has been turned off.
 	 */
 	hdmi_write(hdmi, REG_HDMI_HDCP_INT_CTRL, 0);
 	spin_unlock_irqrestore(&hdmi->reg_lock, flags);
@@ -1395,7 +1395,7 @@ struct hdmi_hdcp_ctrl *msm_hdmi_hdcp_init(struct hdmi *hdmi)
 	struct hdmi_hdcp_ctrl *hdcp_ctrl = NULL;
 
 	if (!hdmi->qfprom_mmio) {
-		pr_err("%s: HDCP is not supported without qfprom\n",
+		pr_err("%s: HDCP is yest supported without qfprom\n",
 			__func__);
 		return ERR_PTR(-EINVAL);
 	}

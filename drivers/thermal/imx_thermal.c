@@ -420,11 +420,11 @@ static int imx_set_trip_temp(struct thermal_zone_device *tz, int trip,
 {
 	struct imx_thermal_data *data = tz->devdata;
 
-	/* do not allow changing critical threshold */
+	/* do yest allow changing critical threshold */
 	if (trip == IMX_TRIP_CRITICAL)
 		return -EPERM;
 
-	/* do not allow passive to be set higher than critical */
+	/* do yest allow passive to be set higher than critical */
 	if (temp < 0 || temp > data->temp_critical)
 		return -EINVAL;
 
@@ -570,7 +570,7 @@ static int imx_init_from_tempmon_data(struct platform_device *pdev)
 	int ret;
 	u32 val;
 
-	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 					      "fsl,tempmon-data");
 	if (IS_ERR(map)) {
 		ret = PTR_ERR(map);
@@ -622,7 +622,7 @@ static irqreturn_t imx_thermal_alarm_irq(int irq, void *dev)
 {
 	struct imx_thermal_data *data = dev;
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	data->irq_enabled = false;
 
 	return IRQ_WAKE_THREAD;
@@ -650,21 +650,21 @@ MODULE_DEVICE_TABLE(of, of_imx_thermal_match);
 
 #ifdef CONFIG_CPU_FREQ
 /*
- * Create cooling device in case no #cooling-cells property is available in
- * CPU node
+ * Create cooling device in case yes #cooling-cells property is available in
+ * CPU yesde
  */
 static int imx_thermal_register_legacy_cooling(struct imx_thermal_data *data)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
 	data->policy = cpufreq_cpu_get(0);
 	if (!data->policy) {
-		pr_debug("%s: CPUFreq policy not found\n", __func__);
+		pr_debug("%s: CPUFreq policy yest found\n", __func__);
 		return -EPROBE_DEFER;
 	}
 
-	np = of_get_cpu_node(data->policy->cpu, NULL);
+	np = of_get_cpu_yesde(data->policy->cpu, NULL);
 
 	if (!np || !of_find_property(np, "#cooling-cells", NULL)) {
 		data->cdev = cpufreq_cooling_register(data->policy);
@@ -707,7 +707,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "fsl,tempmon");
+	map = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde, "fsl,tempmon");
 	if (IS_ERR(map)) {
 		ret = PTR_ERR(map);
 		dev_err(&pdev->dev, "failed to get tempmon regmap: %d\n", ret);
@@ -717,7 +717,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 
 	data->socdata = of_device_get_match_data(&pdev->dev);
 	if (!data->socdata) {
-		dev_err(&pdev->dev, "no device match found\n");
+		dev_err(&pdev->dev, "yes device match found\n");
 		return -ENODEV;
 	}
 
@@ -740,7 +740,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	if (of_find_property(pdev->dev.of_node, "nvmem-cells", NULL)) {
+	if (of_find_property(pdev->dev.of_yesde, "nvmem-cells", NULL)) {
 		ret = imx_init_from_nvmem_cells(pdev);
 		if (ret) {
 			if (ret == -EPROBE_DEFER)
@@ -758,7 +758,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Make sure sensor is in known good state for measurements */
+	/* Make sure sensor is in kyeswn good state for measurements */
 	regmap_write(map, data->socdata->sensor_ctrl + REG_CLR,
 		     data->socdata->power_down_mask);
 	regmap_write(map, data->socdata->sensor_ctrl + REG_CLR,
@@ -791,7 +791,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Thermal sensor needs clk on to get correct value, normally
+	 * Thermal sensor needs clk on to get correct value, yesrmally
 	 * we should enable its clk before taking measurement and disable
 	 * clk after measurement is done, but if alarm function is enabled,
 	 * hardware will auto measure the temperature periodically, so we

@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 #include <stdint.h>
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <bpf/bpf.h>
@@ -88,7 +88,7 @@ static void test_map_in_map(void)
 
 		in6.sin6_addr.s6_addr16[7] = i;
 		ret = connect(-1, (struct sockaddr *)&in6, sizeof(in6));
-		assert(ret == -1 && errno == EBADF);
+		assert(ret == -1 && erryes == EBADF);
 
 		ret = bpf_map_lookup_elem(REG_RESULT_H, &result_key, &result);
 		assert(!ret);

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -112,9 +112,9 @@ unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
 struct amdgpu_ring_funcs {
 	enum amdgpu_ring_type	type;
 	uint32_t		align_mask;
-	u32			nop;
+	u32			yesp;
 	bool			support_64bit_ptrs;
-	bool			no_user_fence;
+	bool			yes_user_fence;
 	unsigned		vmhub;
 	unsigned		extra_dw;
 
@@ -147,14 +147,14 @@ struct amdgpu_ring_funcs {
 	int (*test_ring)(struct amdgpu_ring *ring);
 	int (*test_ib)(struct amdgpu_ring *ring, long timeout);
 	/* insert NOP packets */
-	void (*insert_nop)(struct amdgpu_ring *ring, uint32_t count);
+	void (*insert_yesp)(struct amdgpu_ring *ring, uint32_t count);
 	void (*insert_start)(struct amdgpu_ring *ring);
 	void (*insert_end)(struct amdgpu_ring *ring);
 	/* pad the indirect buffer to the necessary number of dw */
 	void (*pad_ib)(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 	unsigned (*init_cond_exec)(struct amdgpu_ring *ring);
 	void (*patch_cond_exec)(struct amdgpu_ring *ring, unsigned offset);
-	/* note usage for clock and power gating */
+	/* yeste usage for clock and power gating */
 	void (*begin_use)(struct amdgpu_ring *ring);
 	void (*end_use)(struct amdgpu_ring *ring);
 	void (*emit_switch_buffer) (struct amdgpu_ring *ring);
@@ -254,7 +254,7 @@ struct amdgpu_ring {
 #define amdgpu_ring_preempt_ib(r) (r)->funcs->preempt_ib(r)
 
 int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned ndw);
-void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
+void amdgpu_ring_insert_yesp(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
 void amdgpu_ring_commit(struct amdgpu_ring *ring);
 void amdgpu_ring_undo(struct amdgpu_ring *ring);
@@ -282,7 +282,7 @@ static inline void amdgpu_ring_clear_ring(struct amdgpu_ring *ring)
 {
 	int i = 0;
 	while (i <= ring->buf_mask)
-		ring->ring[i++] = ring->funcs->nop;
+		ring->ring[i++] = ring->funcs->yesp;
 
 }
 

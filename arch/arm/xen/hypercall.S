@@ -3,7 +3,7 @@
  *
  * Xen hypercall wrappers
  *
- * Stefano Stabellini <stefano.stabellini@eu.citrix.com>, Citrix, 2012
+ * Stefayes Stabellini <stefayes.stabellini@eu.citrix.com>, Citrix, 2012
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
@@ -18,7 +18,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -107,13 +107,13 @@ ENTRY(privcmd_call)
 	 */
 	uaccess_enable r4
 
-	/* r4 is loaded now as we use it as scratch register before */
+	/* r4 is loaded yesw as we use it as scratch register before */
 	ldr r4, [sp, #4]
 	__HVC(XEN_IMM)
 
 	/*
 	 * Disable userspace access from kernel. This is fine to do it
-	 * unconditionally as no set_fs(KERNEL_DS) is called before.
+	 * unconditionally as yes set_fs(KERNEL_DS) is called before.
 	 */
 	uaccess_disable r4
 

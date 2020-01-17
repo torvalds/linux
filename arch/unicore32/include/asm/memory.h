@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2001-2010 GUAN Xue-tao
  *
- *  Note: this file should not be included by non-asm/.h files
+ *  Note: this file should yest be included by yesn-asm/.h files
  */
 #ifndef __UNICORE_MEMORY_H__
 #define __UNICORE_MEMORY_H__

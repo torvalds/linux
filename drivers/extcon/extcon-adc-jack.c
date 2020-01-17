@@ -30,7 +30,7 @@
  * @cable_names:	list of supported cables.
  * @adc_conditions:	list of adc value conditions.
  * @num_conditions:	size of adc_conditions.
- * @irq:		irq number of attach/detach event (0 if not exist).
+ * @irq:		irq number of attach/detach event (0 if yest exist).
  * @handling_delay:	interrupt handler will schedule extcon event
  *			handling at handling_delay jiffies.
  * @handler:		extcon event handler called by interrupt handler.
@@ -76,7 +76,7 @@ static void adc_jack_handler(struct work_struct *work)
 		}
 	}
 
-	/* Set the detached state if adc value is not included in the range */
+	/* Set the detached state if adc value is yest included in the range */
 	for (i = 0; i < data->num_conditions; i++) {
 		def = &data->adc_conditions[i];
 		extcon_set_state_sync(data->edev, def->id, false);
@@ -103,7 +103,7 @@ static int adc_jack_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (!pdata->cable_names) {
-		dev_err(&pdev->dev, "error: cable_names not defined.\n");
+		dev_err(&pdev->dev, "error: cable_names yest defined.\n");
 		return -EINVAL;
 	}
 
@@ -115,7 +115,7 @@ static int adc_jack_probe(struct platform_device *pdev)
 	}
 
 	if (!pdata->adc_conditions) {
-		dev_err(&pdev->dev, "error: adc_conditions not defined.\n");
+		dev_err(&pdev->dev, "error: adc_conditions yest defined.\n");
 		return -EINVAL;
 	}
 	data->adc_conditions = pdata->adc_conditions;

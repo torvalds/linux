@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/cpumask.h>
 
-#define QCOM_SCM_VERSION(major, minor)	(((major) << 16) | ((minor) & 0xFF))
+#define QCOM_SCM_VERSION(major, miyesr)	(((major) << 16) | ((miyesr) & 0xFF))
 #define QCOM_SCM_CPU_PWR_DOWN_L2_ON	0x0
 #define QCOM_SCM_CPU_PWR_DOWN_L2_OFF	0x1
 #define QCOM_SCM_HDCP_MAX_REQ_CNT	5
@@ -89,7 +89,7 @@ extern int qcom_scm_io_readl(phys_addr_t addr, unsigned int *val);
 extern int qcom_scm_io_writel(phys_addr_t addr, unsigned int val);
 #else
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 static inline
 int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus)

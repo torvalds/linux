@@ -210,7 +210,7 @@ static int dev_rot_parse_report(struct platform_device *pdev,
 				&st->quaternion,
 				&st->scale_pre_decml, &st->scale_post_decml);
 
-	/* Set Sensitivity field ids, when there is no individual modifier */
+	/* Set Sensitivity field ids, when there is yes individual modifier */
 	if (st->common_attributes.sensitivity.index < 0) {
 		sensor_hub_input_get_attribute_info(hsdev,
 			HID_FEATURE_REPORT, usage_id,

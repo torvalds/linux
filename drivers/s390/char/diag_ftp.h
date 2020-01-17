@@ -2,7 +2,7 @@
 /*
  *    DIAGNOSE X'2C4' instruction based SE/HMC FTP Services, useable on z/VM
  *
- *    Notice that all functions exported here are not reentrant.
+ *    Notice that all functions exported here are yest reentrant.
  *    So usage should be exclusive, ensured by the caller (e.g. using a
  *    mutex).
  *

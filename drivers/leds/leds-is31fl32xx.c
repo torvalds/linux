@@ -17,7 +17,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-/* Used to indicate a device has no such register */
+/* Used to indicate a device has yes such register */
 #define IS31FL32XX_REG_NONE 0xFF
 
 /* Software Shutdown bit in Shutdown Register */
@@ -61,11 +61,11 @@ struct is31fl32xx_priv {
  * @reset_func:         : pointer to reset function
  *
  * For all optional register addresses, the sentinel value %IS31FL32XX_REG_NONE
- * indicates that this chip has no such register.
+ * indicates that this chip has yes such register.
  *
- * If non-NULL, @reset_func will be called during probing to set all
- * necessary registers to a known initialization state. This is needed
- * for chips that do not have a @reset_reg.
+ * If yesn-NULL, @reset_func will be called during probing to set all
+ * necessary registers to a kyeswn initialization state. This is needed
+ * for chips that do yest have a @reset_reg.
  *
  * @enable_bits_per_led_control_register must be >=1 if
  * @led_control_register_base != %IS31FL32XX_REG_NONE.
@@ -150,10 +150,10 @@ static int is31fl32xx_write(struct is31fl32xx_priv *priv, u8 reg, u8 val)
 }
 
 /*
- * Custom reset function for IS31FL3216 because it does not have a RESET
+ * Custom reset function for IS31FL3216 because it does yest have a RESET
  * register the way that the other IS31FL32xx chips do. We don't bother
  * writing the GPIO and animation registers, because the registers we
- * do write ensure those will have no effect.
+ * do write ensure those will have yes effect.
  */
 static int is31fl3216_reset(struct is31fl32xx_priv *priv)
 {
@@ -184,7 +184,7 @@ static int is31fl3216_reset(struct is31fl32xx_priv *priv)
 }
 
 /*
- * Custom Software-Shutdown function for IS31FL3216 because it does not have
+ * Custom Software-Shutdown function for IS31FL3216 because it does yest have
  * a SHUTDOWN register the way that the other IS31FL32xx chips do.
  * We don't bother doing a read/modify/write on the CONFIG register because
  * we only ever use a value of '0' for the other fields in that register.
@@ -199,10 +199,10 @@ static int is31fl3216_software_shutdown(struct is31fl32xx_priv *priv,
 }
 
 /*
- * NOTE: A mutex is not needed in this function because:
+ * NOTE: A mutex is yest needed in this function because:
  * - All referenced data is read-only after probe()
  * - The I2C core has a mutex on to protect the bus
- * - There are no read/modify/write operations
+ * - There are yes read/modify/write operations
  * - Intervening operations between the write of the PWM register
  *   and the Update register are harmless.
  *
@@ -325,7 +325,7 @@ static int is31fl32xx_init_regs(struct is31fl32xx_priv *priv)
 }
 
 static int is31fl32xx_parse_child_dt(const struct device *dev,
-				     const struct device_node *child,
+				     const struct device_yesde *child,
 				     struct is31fl32xx_led_data *led_data)
 {
 	struct led_classdev *cdev = &led_data->cdev;
@@ -338,7 +338,7 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 	ret = of_property_read_u32(child, "reg", &reg);
 	if (ret || reg < 1 || reg > led_data->priv->cdef->channels) {
 		dev_err(dev,
-			"Child node %pOF does not have a valid reg property\n",
+			"Child yesde %pOF does yest have a valid reg property\n",
 			child);
 		return -EINVAL;
 	}
@@ -369,10 +369,10 @@ static struct is31fl32xx_led_data *is31fl32xx_find_led_data(
 static int is31fl32xx_parse_dt(struct device *dev,
 			       struct is31fl32xx_priv *priv)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	int ret = 0;
 
-	for_each_child_of_node(dev->of_node, child) {
+	for_each_child_of_yesde(dev->of_yesde, child) {
 		struct is31fl32xx_led_data *led_data =
 			&priv->leds[priv->num_leds];
 		const struct is31fl32xx_led_data *other_led_data;
@@ -383,7 +383,7 @@ static int is31fl32xx_parse_dt(struct device *dev,
 		if (ret)
 			goto err;
 
-		/* Detect if channel is already in use by another child */
+		/* Detect if channel is already in use by ayesther child */
 		other_led_data = is31fl32xx_find_led_data(priv,
 							  led_data->channel);
 		if (other_led_data) {
@@ -408,7 +408,7 @@ static int is31fl32xx_parse_dt(struct device *dev,
 	return 0;
 
 err:
-	of_node_put(child);
+	of_yesde_put(child);
 	return ret;
 }
 
@@ -440,7 +440,7 @@ static int is31fl32xx_probe(struct i2c_client *client,
 
 	cdef = of_dev_id->data;
 
-	count = of_get_child_count(dev->of_node);
+	count = of_get_child_count(dev->of_yesde);
 	if (!count)
 		return -EINVAL;
 
@@ -473,7 +473,7 @@ static int is31fl32xx_remove(struct i2c_client *client)
 
 /*
  * i2c-core (and modalias) requires that id_table be properly filled,
- * even though it is not used for DeviceTree based instantiation.
+ * even though it is yest used for DeviceTree based instantiation.
  */
 static const struct i2c_device_id is31fl32xx_id[] = {
 	{ "is31fl3236" },

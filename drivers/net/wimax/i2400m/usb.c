@@ -28,18 +28,18 @@
  *
  * i2400mu_suspend()
  *   i2400m_cmd_enter_powersave()
- *   i2400mu_notification_release()
+ *   i2400mu_yestification_release()
  *
  * i2400mu_resume()
- *   i2400mu_notification_setup()
+ *   i2400mu_yestification_setup()
  *
  * i2400mu_bus_dev_start()        Called by i2400m_dev_start() [who is
  *   i2400mu_tx_setup()           called by i2400m_setup()]
  *   i2400mu_rx_setup()
- *   i2400mu_notification_setup()
+ *   i2400mu_yestification_setup()
  *
  * i2400mu_bus_dev_stop()         Called by i2400m_dev_stop() [who is
- *   i2400mu_notification_release()  called by i2400m_release()]
+ *   i2400mu_yestification_release()  called by i2400m_release()]
  *   i2400mu_rx_release()
  *   i2400mu_tx_release()
  *
@@ -97,13 +97,13 @@ int i2400mu_bus_dev_start(struct i2400m *i2400m)
 	result = i2400mu_rx_setup(i2400mu);
 	if (result < 0)
 		goto error_usb_rx_setup;
-	result = i2400mu_notification_setup(i2400mu);
+	result = i2400mu_yestification_setup(i2400mu);
 	if (result < 0)
-		goto error_notif_setup;
+		goto error_yestif_setup;
 	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
 	return result;
 
-error_notif_setup:
+error_yestif_setup:
 	i2400mu_rx_release(i2400mu);
 error_usb_rx_setup:
 	i2400mu_tx_release(i2400mu);
@@ -120,7 +120,7 @@ void i2400mu_bus_dev_stop(struct i2400m *i2400m)
 	struct device *dev = &i2400mu->usb_iface->dev;
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
-	i2400mu_notification_release(i2400mu);
+	i2400mu_yestification_release(i2400mu);
 	i2400mu_rx_release(i2400mu);
 	i2400mu_tx_release(i2400mu);
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
@@ -131,7 +131,7 @@ void i2400mu_bus_dev_stop(struct i2400m *i2400m)
  * Sends a barker buffer to the device
  *
  * This helper will allocate a kmalloced buffer and use it to transmit
- * (then free it). Reason for this is that other arches cannot use
+ * (then free it). Reason for this is that other arches canyest use
  * stack/vmalloc/text areas for DMA transfers.
  *
  * Error recovery here is simpler: anything is considered a hard error
@@ -177,7 +177,7 @@ retry:
 		/*
 		 * Stall -- maybe the device is choking with our
 		 * requests. Clear it and give it some time. If they
-		 * happen to often, it might be another symptom, so we
+		 * happen to often, it might be ayesther symptom, so we
 		 * reset.
 		 *
 		 * No error handling for usb_clear_halt(0; if it
@@ -198,7 +198,7 @@ retry:
 		/* fall through */
 	case -EINVAL:			/* while removing driver */
 	case -ENODEV:			/* dev disconnect ... */
-	case -ENOENT:			/* just ignore it */
+	case -ENOENT:			/* just igyesre it */
 	case -ESHUTDOWN:		/* and exit */
 	case -ECONNRESET:
 		ret = -ESHUTDOWN;
@@ -211,7 +211,7 @@ retry:
 				__func__);
 			usb_queue_reset_device(i2400mu->usb_iface);
 		} else {
-			dev_warn(dev, "W: %s: cannot send URB: %d\n",
+			dev_warn(dev, "W: %s: canyest send URB: %d\n",
 				 __func__, ret);
 			goto retry;
 		}
@@ -235,12 +235,12 @@ error_kzalloc:
  * Warm reset:
  *
  * The device will be fully reset internally, but won't be
- * disconnected from the USB bus (so no reenumeration will
+ * disconnected from the USB bus (so yes reenumeration will
  * happen). Firmware upload will be necessary.
  *
- * The device will send a reboot barker in the notification endpoint
+ * The device will send a reboot barker in the yestification endpoint
  * that will trigger the driver to reinitialize the state
- * automatically from notif.c:i2400m_notification_grok() into
+ * automatically from yestif.c:i2400m_yestification_grok() into
  * i2400m_dev_bootstrap_delayed().
  *
  * Cold and bus (USB) reset:
@@ -255,7 +255,7 @@ error_kzalloc:
  * had to resort to a bus reset. See i2400m_op_reset(), wimax_reset()
  * and wimax_dev->op_reset.
  *
- * WARNING: no driver state saved/fixed
+ * WARNING: yes driver state saved/fixed
  */
 static
 int i2400mu_bus_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
@@ -311,7 +311,7 @@ int i2400mu_bus_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
 	    && rt != I2400M_RT_BUS) {
 		/*
 		 * Things failed -- resort to lower level reset, that
-		 * we queue in another context; the reason for this is
+		 * we queue in ayesther context; the reason for this is
 		 * that the pre and post reset functionality requires
 		 * the i2400m->init_mutex; RT_WARM and RT_COLD can
 		 * come from areas where i2400m->init_mutex is taken.
@@ -360,7 +360,7 @@ void i2400mu_netdev_setup(struct net_device *net_dev)
 struct d_level D_LEVEL[] = {
 	D_SUBMODULE_DEFINE(usb),
 	D_SUBMODULE_DEFINE(fw),
-	D_SUBMODULE_DEFINE(notif),
+	D_SUBMODULE_DEFINE(yestif),
 	D_SUBMODULE_DEFINE(rx),
 	D_SUBMODULE_DEFINE(tx),
 };
@@ -376,11 +376,11 @@ void i2400mu_debugfs_add(struct i2400mu *i2400mu)
 
 	d_level_register_debugfs("dl_", usb, dentry);
 	d_level_register_debugfs("dl_", fw, dentry);
-	d_level_register_debugfs("dl_", notif, dentry);
+	d_level_register_debugfs("dl_", yestif, dentry);
 	d_level_register_debugfs("dl_", rx, dentry);
 	d_level_register_debugfs("dl_", tx, dentry);
 
-	/* Don't touch these if you don't know what you are doing */
+	/* Don't touch these if you don't kyesw what you are doing */
 	debugfs_create_u8("rx_size_auto_shrink", 0600, dentry,
 			  &i2400mu->rx_size_auto_shrink);
 
@@ -397,7 +397,7 @@ static struct device_type i2400mu_type = {
  *
  * @iface:   USB interface to link to
  * @id:      USB class/subclass/protocol id
- * @returns: 0 if ok, < 0 errno code on error.
+ * @returns: 0 if ok, < 0 erryes code on error.
  *
  * Alloc a net device, initialize the bus-specific details and then
  * calls the bus-generic initialization routine. That will register
@@ -421,14 +421,14 @@ int i2400mu_probe(struct usb_interface *iface,
 		return -ENODEV;
 
 	if (usb_dev->speed != USB_SPEED_HIGH)
-		dev_err(dev, "device not connected as high speed\n");
+		dev_err(dev, "device yest connected as high speed\n");
 
 	/* Allocate instance [calls i2400m_netdev_setup() on it]. */
 	result = -ENOMEM;
 	net_dev = alloc_netdev(sizeof(*i2400mu), "wmx%d", NET_NAME_UNKNOWN,
 			       i2400mu_netdev_setup);
 	if (net_dev == NULL) {
-		dev_err(dev, "no memory for network device instance\n");
+		dev_err(dev, "yes memory for network device instance\n");
 		goto error_alloc_netdev;
 	}
 	SET_NETDEV_DEV(net_dev, dev);
@@ -476,13 +476,13 @@ int i2400mu_probe(struct usb_interface *iface,
 	if (i2400mu->i6050) {
 		i2400m->bus_fw_names = i2400mu_bus_fw_names_6050;
 		i2400mu->endpoint_cfg.bulk_out = 0;
-		i2400mu->endpoint_cfg.notification = 3;
+		i2400mu->endpoint_cfg.yestification = 3;
 		i2400mu->endpoint_cfg.reset_cold = 2;
 		i2400mu->endpoint_cfg.bulk_in = 1;
 	} else {
 		i2400m->bus_fw_names = i2400mu_bus_fw_names_5x50;
 		i2400mu->endpoint_cfg.bulk_out = 0;
-		i2400mu->endpoint_cfg.notification = 1;
+		i2400mu->endpoint_cfg.yestification = 1;
 		i2400mu->endpoint_cfg.reset_cold = 2;
 		i2400mu->endpoint_cfg.bulk_in = 3;
 	}
@@ -495,7 +495,7 @@ int i2400mu_probe(struct usb_interface *iface,
 
 	result = i2400m_setup(i2400m, I2400M_BRI_MAC_REINIT);
 	if (result < 0) {
-		dev_err(dev, "cannot setup device: %d\n", result);
+		dev_err(dev, "canyest setup device: %d\n", result);
 		goto error_setup;
 	}
 	i2400mu_debugfs_add(i2400mu);
@@ -544,13 +544,13 @@ void i2400mu_disconnect(struct usb_interface *iface)
  * When the system hibernates, the USB device is powered down and then
  * up, so we don't really have to do much here, as it will be seen as
  * a reconnect. Still for simplicity we consider this case the same as
- * suspend, so that the device has a chance to do notify the base
+ * suspend, so that the device has a chance to do yestify the base
  * station (if connected).
  *
  * So at the end, the three cases require common handling.
  *
- * If at the time of this call the device's firmware is not loaded,
- * nothing has to be done. Note we can be "loose" about not reading
+ * If at the time of this call the device's firmware is yest loaded,
+ * yesthing has to be done. Note we can be "loose" about yest reading
  * i2400m->updown under i2400m->init_mutex. If it happens to change
  * inmediately, other parts of the call flow will fail and effectively
  * catch it.
@@ -572,7 +572,7 @@ void i2400mu_disconnect(struct usb_interface *iface)
  *    suspend call comes from the USB stack or from the system and act
  *    in consequence.
  *
- *  - stop the notification endpoint polling
+ *  - stop the yestification endpoint polling
  */
 static
 int i2400mu_suspend(struct usb_interface *iface, pm_message_t pm_msg)
@@ -591,26 +591,26 @@ int i2400mu_suspend(struct usb_interface *iface, pm_message_t pm_msg)
 	d_fnstart(3, dev, "(iface %p pm_msg %u)\n", iface, pm_msg.event);
 	rmb();		/* see i2400m->updown's documentation  */
 	if (i2400m->updown == 0)
-		goto no_firmware;
+		goto yes_firmware;
 	if (i2400m->state == I2400M_SS_DATA_PATH_CONNECTED && is_autosuspend) {
 		/* ugh -- the device is connected and this suspend
-		 * request is an autosuspend one (not a system standby
+		 * request is an autosuspend one (yest a system standby
 		 * / hibernate).
 		 *
 		 * The only way the device can go to standby is if the
 		 * link with the base station is in IDLE mode; that
 		 * were the case, we'd be in status
-		 * I2400M_SS_CONNECTED_IDLE. But we are not.
+		 * I2400M_SS_CONNECTED_IDLE. But we are yest.
 		 *
-		 * If we *tell* him to go power save now, it'll reset
+		 * If we *tell* him to go power save yesw, it'll reset
 		 * as a precautionary measure, so if this is an
-		 * autosuspend thing, say no and it'll come back
+		 * autosuspend thing, say yes and it'll come back
 		 * later, when the link is IDLE
 		 */
 		result = -EBADF;
-		d_printf(1, dev, "fw up, link up, not-idle, autosuspend: "
-			 "not entering powersave\n");
-		goto error_not_now;
+		d_printf(1, dev, "fw up, link up, yest-idle, autosuspend: "
+			 "yest entering powersave\n");
+		goto error_yest_yesw;
 	}
 	d_printf(1, dev, "fw up: entering powersave\n");
 	atomic_dec(&i2400mu->do_autopm);
@@ -623,11 +623,11 @@ int i2400mu_suspend(struct usb_interface *iface, pm_message_t pm_msg)
 	}
 	if (result < 0)
 		goto error_enter_powersave;
-	i2400mu_notification_release(i2400mu);
+	i2400mu_yestification_release(i2400mu);
 	d_printf(1, dev, "powersave requested\n");
 error_enter_powersave:
-error_not_now:
-no_firmware:
+error_yest_yesw:
+yes_firmware:
 	d_fnend(3, dev, "(iface %p pm_msg %u) = %d\n",
 		iface, pm_msg.event, result);
 	return result;
@@ -645,11 +645,11 @@ int i2400mu_resume(struct usb_interface *iface)
 	d_fnstart(3, dev, "(iface %p)\n", iface);
 	rmb();		/* see i2400m->updown's documentation  */
 	if (i2400m->updown == 0) {
-		d_printf(1, dev, "fw was down, no resume needed\n");
+		d_printf(1, dev, "fw was down, yes resume needed\n");
 		goto out;
 	}
 	d_printf(1, dev, "fw was up, resuming\n");
-	i2400mu_notification_setup(i2400mu);
+	i2400mu_yestification_setup(i2400mu);
 	/* USB has flow control, so we don't need to give it time to
 	 * come back; otherwise, we'd use something like a get-state
 	 * command... */
@@ -675,7 +675,7 @@ int i2400mu_reset_resume(struct usb_interface *iface)
 
 
 /*
- * Another driver or user space is triggering a reset on the device
+ * Ayesther driver or user space is triggering a reset on the device
  * which contains the interface passed as an argument. Cease IO and
  * save any device state you need to restore.
  *

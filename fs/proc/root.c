@@ -9,7 +9,7 @@
 
 #include <linux/uaccess.h>
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
@@ -98,7 +98,7 @@ static void proc_apply_options(struct super_block *s,
 static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 {
 	struct pid_namespace *pid_ns = get_pid_ns(s->s_fs_info);
-	struct inode *root_inode;
+	struct iyesde *root_iyesde;
 	int ret;
 
 	proc_apply_options(s, fc, pid_ns, current_user_ns());
@@ -119,17 +119,17 @@ static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 	 */
 	s->s_stack_depth = FILESYSTEM_MAX_STACK_DEPTH;
 	
-	/* procfs dentries and inodes don't require IO to create */
+	/* procfs dentries and iyesdes don't require IO to create */
 	s->s_shrink.seeks = 0;
 
 	pde_get(&proc_root);
-	root_inode = proc_get_inode(s, &proc_root);
-	if (!root_inode) {
-		pr_err("proc_fill_super: get root inode failed\n");
+	root_iyesde = proc_get_iyesde(s, &proc_root);
+	if (!root_iyesde) {
+		pr_err("proc_fill_super: get root iyesde failed\n");
 		return -ENOMEM;
 	}
 
-	s->s_root = d_make_root(root_inode);
+	s->s_root = d_make_root(root_iyesde);
 	if (!s->s_root) {
 		pr_err("proc_fill_super: allocate dentry failed\n");
 		return -ENOMEM;
@@ -200,7 +200,7 @@ static void proc_kill_sb(struct super_block *sb)
 		dput(ns->proc_self);
 	if (ns->proc_thread_self)
 		dput(ns->proc_thread_self);
-	kill_anon_super(sb);
+	kill_ayesn_super(sb);
 	put_pid_ns(ns);
 }
 
@@ -238,12 +238,12 @@ void __init proc_root_init(void)
 static int proc_root_getattr(const struct path *path, struct kstat *stat,
 			     u32 request_mask, unsigned int query_flags)
 {
-	generic_fillattr(d_inode(path->dentry), stat);
+	generic_fillattr(d_iyesde(path->dentry), stat);
 	stat->nlink = proc_root.nlink + nr_processes();
 	return 0;
 }
 
-static struct dentry *proc_root_lookup(struct inode * dir, struct dentry * dentry, unsigned int flags)
+static struct dentry *proc_root_lookup(struct iyesde * dir, struct dentry * dentry, unsigned int flags)
 {
 	if (!proc_pid_lookup(dentry, flags))
 		return NULL;
@@ -275,23 +275,23 @@ static const struct file_operations proc_root_operations = {
 };
 
 /*
- * proc root can do almost nothing..
+ * proc root can do almost yesthing..
  */
-static const struct inode_operations proc_root_inode_operations = {
+static const struct iyesde_operations proc_root_iyesde_operations = {
 	.lookup		= proc_root_lookup,
 	.getattr	= proc_root_getattr,
 };
 
 /*
- * This is the root "inode" in the /proc tree..
+ * This is the root "iyesde" in the /proc tree..
  */
 struct proc_dir_entry proc_root = {
-	.low_ino	= PROC_ROOT_INO, 
+	.low_iyes	= PROC_ROOT_INO, 
 	.namelen	= 5, 
 	.mode		= S_IFDIR | S_IRUGO | S_IXUGO, 
 	.nlink		= 2, 
 	.refcnt		= REFCOUNT_INIT(1),
-	.proc_iops	= &proc_root_inode_operations, 
+	.proc_iops	= &proc_root_iyesde_operations, 
 	.proc_fops	= &proc_root_operations,
 	.parent		= &proc_root,
 	.subdir		= RB_ROOT,

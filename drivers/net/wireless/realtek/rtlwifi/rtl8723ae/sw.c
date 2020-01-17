@@ -154,7 +154,7 @@ int rtl8723e_init_sw_vars(struct ieee80211_hw *hw)
 
 	rtlpriv->max_fw_size = 0x6000;
 	pr_info("Using firmware %s\n", fw_name);
-	err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
+	err = request_firmware_yeswait(THIS_MODULE, 1, fw_name,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
@@ -211,7 +211,7 @@ static struct rtl_hal_ops rtl8723e_hal_ops = {
 	.fill_tx_cmddesc = rtl8723e_tx_fill_cmddesc,
 	.query_rx_desc = rtl8723e_rx_query_desc,
 	.set_channel_access = rtl8723e_update_channel_access_setting,
-	.radio_onoff_checking = rtl8723e_gpio_radio_on_off_checking,
+	.radio_oyesff_checking = rtl8723e_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl8723e_phy_set_bw_mode,
 	.switch_channel = rtl8723e_phy_sw_chnl,
 	.dm_watchdog = rtl8723e_dm_watchdog,
@@ -230,7 +230,7 @@ static struct rtl_hal_ops rtl8723e_hal_ops = {
 	.get_rfreg = rtl8723e_phy_query_rf_reg,
 	.set_rfreg = rtl8723e_phy_set_rf_reg,
 	.c2h_command_handle = rtl_8723e_c2h_command_handle,
-	.bt_wifi_media_status_notify = rtl_8723e_bt_wifi_media_status_notify,
+	.bt_wifi_media_status_yestify = rtl_8723e_bt_wifi_media_status_yestify,
 	.bt_coex_off_before_lps =
 		rtl8723e_dm_bt_turn_off_bt_coexist_before_enter_lps,
 	.get_btc_status = rtl8723e_get_btc_status,
@@ -368,7 +368,7 @@ module_param_named(aspm, rtl8723e_mod_params.aspm_support, int, 0444);
 module_param_named(disable_watchdog, rtl8723e_mod_params.disable_watchdog,
 		   bool, 0444);
 MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
-MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
+MODULE_PARM_DESC(ips, "Set to 0 to yest use link power save (default 1)\n");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 1)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 0)\n");
 MODULE_PARM_DESC(msi, "Set to 1 to use MSI interrupts mode (default 0)\n");

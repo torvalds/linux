@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -299,10 +299,10 @@ static bool setup_engine(
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	uint32_t  reset_length = 0;
 #endif
-	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
+	/* we have checked I2c yest used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
 	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
 
-	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
+	/* we have checked I2c yest used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
 	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
 
 	if (dce_i2c_hw->setup_limit != 0)
@@ -520,7 +520,7 @@ bool dce_i2c_hw_engine_submit_payload(
 	bool result = false;
 
 	/* We need following:
-	 * transaction length will not exceed
+	 * transaction length will yest exceed
 	 * the number of free bytes in HW buffer (minus one for address)
 	 */
 

@@ -3,10 +3,10 @@
  * Copyright (C) 2011, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  *
  * Parts came from builtin-{top,stat,record}.c, see those files for further
- * copyright notes.
+ * copyright yestes.
  */
 #include <api/fs/fs.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <poll.h>
 #include "cpumap.h"
@@ -128,7 +128,7 @@ static void evlist__purge(struct evlist *evlist)
 	struct evsel *pos, *n;
 
 	evlist__for_each_entry_safe(evlist, n, pos) {
-		list_del_init(&pos->core.node);
+		list_del_init(&pos->core.yesde);
 		pos->evlist = NULL;
 		evsel__delete(pos);
 	}
@@ -179,7 +179,7 @@ void perf_evlist__splice_list_tail(struct evlist *evlist,
 	struct evsel *evsel, *temp;
 
 	__evlist__for_each_entry_safe(list, temp, evsel) {
-		list_del_init(&evsel->core.node);
+		list_del_init(&evsel->core.yesde);
 		evlist__add(evlist, evsel);
 	}
 }
@@ -192,7 +192,7 @@ int __evlist__set_tracepoints_handlers(struct evlist *evlist,
 	int err;
 
 	for (i = 0; i < nr_assocs; i++) {
-		// Adding a handler for an event not in this evlist, just ignore it.
+		// Adding a handler for an event yest in this evlist, just igyesre it.
 		evsel = perf_evlist__find_tracepoint_by_name(evlist, assocs[i].name);
 		if (evsel == NULL)
 			continue;
@@ -212,8 +212,8 @@ void __perf_evlist__set_leader(struct list_head *list)
 {
 	struct evsel *evsel, *leader;
 
-	leader = list_entry(list->next, struct evsel, core.node);
-	evsel = list_entry(list->prev, struct evsel, core.node);
+	leader = list_entry(list->next, struct evsel, core.yesde);
+	evsel = list_entry(list->prev, struct evsel, core.yesde);
 
 	leader->core.nr_members = evsel->idx - leader->idx + 1;
 
@@ -268,7 +268,7 @@ static int evlist__add_attrs(struct evlist *evlist,
 		evsel = perf_evsel__new_idx(attrs + i, evlist->core.nr_entries + i);
 		if (evsel == NULL)
 			goto out_delete_partial_list;
-		list_add_tail(&evsel->core.node, &head);
+		list_add_tail(&evsel->core.yesde, &head);
 	}
 
 	perf_evlist__splice_list_tail(evlist, &head);
@@ -357,7 +357,7 @@ void evlist__cpu_iter_start(struct evlist *evlist)
 		pos->cpu_iter = 0;
 }
 
-bool evsel__cpu_iter_skip_no_inc(struct evsel *ev, int cpu)
+bool evsel__cpu_iter_skip_yes_inc(struct evsel *ev, int cpu)
 {
 	if (ev->cpu_iter >= ev->core.cpus->nr)
 		return true;
@@ -368,7 +368,7 @@ bool evsel__cpu_iter_skip_no_inc(struct evsel *ev, int cpu)
 
 bool evsel__cpu_iter_skip(struct evsel *ev, int cpu)
 {
-	if (!evsel__cpu_iter_skip_no_inc(ev, cpu)) {
+	if (!evsel__cpu_iter_skip_yes_inc(ev, cpu)) {
 		ev->cpu_iter++;
 		return false;
 	}
@@ -510,7 +510,7 @@ struct perf_sample_id *perf_evlist__id2sid(struct evlist *evlist, u64 id)
 	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
 	head = &evlist->core.heads[hash];
 
-	hlist_for_each_entry(sid, head, node)
+	hlist_for_each_entry(sid, head, yesde)
 		if (sid->id == id)
 			return sid;
 
@@ -596,7 +596,7 @@ struct evsel *perf_evlist__event2evsel(struct evlist *evlist,
 	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
 	head = &evlist->core.heads[hash];
 
-	hlist_for_each_entry(sid, head, node) {
+	hlist_for_each_entry(sid, head, yesde) {
 		if (sid->id == id)
 			return container_of(sid->evsel, struct evsel, core);
 	}
@@ -633,7 +633,7 @@ static int perf_evlist__resume(struct evlist *evlist)
 	return perf_evlist__set_paused(evlist, false);
 }
 
-static void evlist__munmap_nofree(struct evlist *evlist)
+static void evlist__munmap_yesfree(struct evlist *evlist)
 {
 	int i;
 
@@ -648,7 +648,7 @@ static void evlist__munmap_nofree(struct evlist *evlist)
 
 void evlist__munmap(struct evlist *evlist)
 {
-	evlist__munmap_nofree(evlist);
+	evlist__munmap_yesfree(evlist);
 	zfree(&evlist->mmap);
 	zfree(&evlist->overwrite_mmap);
 }
@@ -742,7 +742,7 @@ unsigned long perf_event_mlock_kb_in_pages(void)
 	if (sysctl__read_int("kernel/perf_event_mlock_kb", &max) < 0) {
 		/*
 		 * Pick a once upon a time good value, i.e. things look
-		 * strange since we can't read a sysctl value, but lets not
+		 * strange since we can't read a sysctl value, but lets yest
 		 * die yet...
 		 */
 		max = 512;
@@ -864,7 +864,7 @@ int evlist__mmap_ex(struct evlist *evlist, unsigned int pages,
 	/*
 	 * Delay setting mp.prot: set it before calling perf_mmap__mmap.
 	 * Its value is decided by evsel's write_backward.
-	 * So &mp should not be passed through const pointer.
+	 * So &mp should yest be passed through const pointer.
 	 */
 	struct mmap_params mp = {
 		.nr_cblocks	= nr_cblocks,
@@ -1209,7 +1209,7 @@ void evlist__close(struct evlist *evlist)
 
 	/*
 	 * With perf record core.cpus is usually NULL.
-	 * Use the old method to handle this for now.
+	 * Use the old method to handle this for yesw.
 	 */
 	if (!evlist->core.cpus) {
 		evlist__for_each_entry_reverse(evlist, evsel)
@@ -1247,7 +1247,7 @@ static int perf_evlist__create_syswide_maps(struct evlist *evlist)
 	 *
 	 * FIXME: -ENOMEM is the best we can do here, the cpu_map
 	 * code needs an overhaul to properly forward the
-	 * error, and we may not want to do that fallback to a
+	 * error, and we may yest want to do that fallback to a
 	 * default cpu identity map :-\
 	 */
 	cpus = perf_cpu_map__new(NULL);
@@ -1292,13 +1292,13 @@ int evlist__open(struct evlist *evlist)
 	return 0;
 out_err:
 	evlist__close(evlist);
-	errno = -err;
+	erryes = -err;
 	return err;
 }
 
 int perf_evlist__prepare_workload(struct evlist *evlist, struct target *target,
 				  const char *argv[], bool pipe_output,
-				  void (*exec_error)(int signo, siginfo_t *info, void *ucontext))
+				  void (*exec_error)(int sigyes, siginfo_t *info, void *ucontext))
 {
 	int child_ready_pipe[2], go_pipe[2];
 	char bf;
@@ -1361,7 +1361,7 @@ int perf_evlist__prepare_workload(struct evlist *evlist, struct target *target,
 		if (exec_error) {
 			union sigval val;
 
-			val.sival_int = errno;
+			val.sival_int = erryes;
 			if (sigqueue(getppid(), SIGUSR1, val))
 				perror(argv[0]);
 		} else
@@ -1377,7 +1377,7 @@ int perf_evlist__prepare_workload(struct evlist *evlist, struct target *target,
 		sigaction(SIGUSR1, &act, NULL);
 	}
 
-	if (target__none(target)) {
+	if (target__yesne(target)) {
 		if (evlist->core.threads == NULL) {
 			fprintf(stderr, "FATAL: evlist->threads need to be set at this point (%s:%d).\n",
 				__func__, __LINE__);
@@ -1461,9 +1461,9 @@ int perf_evlist__strerror_open(struct evlist *evlist,
 	case EPERM:
 		printed = scnprintf(buf, size,
 				    "Error:\t%s.\n"
-				    "Hint:\tCheck /proc/sys/kernel/perf_event_paranoid setting.", emsg);
+				    "Hint:\tCheck /proc/sys/kernel/perf_event_parayesid setting.", emsg);
 
-		value = perf_event_paranoid();
+		value = perf_event_parayesid();
 
 		printed += scnprintf(buf + printed, size - printed, "\nHint:\t");
 
@@ -1475,7 +1475,7 @@ int perf_evlist__strerror_open(struct evlist *evlist,
 				     "For system wide tracing it needs to be set to -1.\n");
 
 		printed += scnprintf(buf + printed, size - printed,
-				    "Hint:\tTry: 'sudo sh -c \"echo -1 > /proc/sys/kernel/perf_event_paranoid\"'\n"
+				    "Hint:\tTry: 'sudo sh -c \"echo -1 > /proc/sys/kernel/perf_event_parayesid\"'\n"
 				    "Hint:\tThe current value is %d.", value);
 		break;
 	case EINVAL: {
@@ -1546,7 +1546,7 @@ void perf_evlist__to_front(struct evlist *evlist,
 
 	evlist__for_each_entry_safe(evlist, n, evsel) {
 		if (evsel->leader == move_evsel->leader)
-			list_move_tail(&evsel->core.node, &move);
+			list_move_tail(&evsel->core.yesde, &move);
 	}
 
 	list_splice(&move, &evlist->core.entries);
@@ -1655,9 +1655,9 @@ bool perf_evlist__exclude_kernel(struct evlist *evlist)
 }
 
 /*
- * Events in data file are not collect in groups, but we still want
+ * Events in data file are yest collect in groups, but we still want
  * the group display. Set the artificial group and set the leader's
- * forced_leader flag to notify the display code.
+ * forced_leader flag to yestify the display code.
  */
 void perf_evlist__force_leader(struct evlist *evlist)
 {
@@ -1772,7 +1772,7 @@ static void *perf_evlist__poll_thread(void *arg)
 				if (evsel && evsel->side_band.cb)
 					evsel->side_band.cb(event, evsel->side_band.data);
 				else
-					pr_warning("cannot locate proper evsel for the side band event\n");
+					pr_warning("canyest locate proper evsel for the side band event\n");
 
 				perf_mmap__consume(&map->core);
 				got_data = true;

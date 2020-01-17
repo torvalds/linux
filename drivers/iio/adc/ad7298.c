@@ -138,7 +138,7 @@ static int ad7298_update_scan_mode(struct iio_dev *indio_dev,
 		st->ring_xfer[i + 2].cs_change = 1;
 		spi_message_add_tail(&st->ring_xfer[i + 2], &st->ring_msg);
 	}
-	/* make sure last transfer cs_change is not set */
+	/* make sure last transfer cs_change is yest set */
 	st->ring_xfer[i + 1].cs_change = 0;
 
 	return 0;
@@ -147,7 +147,7 @@ static int ad7298_update_scan_mode(struct iio_dev *indio_dev,
 /**
  * ad7298_trigger_handler() bh of trigger launched polling to ring buffer
  *
- * Currently there is no option in this driver to disable the saving of
+ * Currently there is yes option in this driver to disable the saving of
  * timestamps within the ring.
  **/
 static irqreturn_t ad7298_trigger_handler(int irq, void *p)
@@ -165,7 +165,7 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 		iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -313,7 +313,7 @@ static int ad7298_probe(struct spi_device *spi)
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ad7298_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad7298_channels);

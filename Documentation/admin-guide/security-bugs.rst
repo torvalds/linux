@@ -4,7 +4,7 @@ Security bugs
 =============
 
 Linux kernel developers take security very seriously.  As such, we'd
-like to know when a security bug is found so that it can be fixed and
+like to kyesw when a security bug is found so that it can be fixed and
 disclosed as quickly as possible.  Please report security bugs to the
 Linux kernel security team.
 
@@ -20,20 +20,20 @@ security team will bring in extra help from area maintainers to
 understand and fix the security vulnerability.
 
 As it is with any bug, the more information provided the easier it
-will be to diagnose and fix.  Please review the procedure outlined in
+will be to diagyesse and fix.  Please review the procedure outlined in
 admin-guide/reporting-bugs.rst if you are unclear about what
-information is helpful.  Any exploit code is very helpful and will not
+information is helpful.  Any exploit code is very helpful and will yest
 be released without consent from the reporter unless it has already been
 made public.
 
 Disclosure and embargoed information
 ------------------------------------
 
-The security list is not a disclosure channel.  For that, see Coordination
+The security list is yest a disclosure channel.  For that, see Coordination
 below.
 
 Once a robust fix has been developed, the release process starts.  Fixes
-for publicly known bugs are released immediately.
+for publicly kyeswn bugs are released immediately.
 
 Although our preference is to release fixes for publicly undisclosed bugs
 as soon as they become available, this may be postponed at the request of
@@ -45,9 +45,9 @@ the logistics of QA and large scale rollouts which require release
 coordination.
 
 While embargoed information may be shared with trusted individuals in
-order to develop a fix, such information will not be published alongside
+order to develop a fix, such information will yest be published alongside
 the fix or on any other disclosure channel without the permission of the
-reporter.  This includes but is not limited to the original bug report
+reporter.  This includes but is yest limited to the original bug report
 and followup discussions (if any), exploits, CVE information or the
 identity of the reporter.
 
@@ -74,16 +74,16 @@ the email Subject line with "[vs]" as described in the linux-distros wiki:
 CVE assignment
 --------------
 
-The security team does not normally assign CVEs, nor do we require them
+The security team does yest yesrmally assign CVEs, yesr do we require them
 for reports or fixes, as this can needlessly complicate the process and
 may delay the bug handling. If a reporter wishes to have a CVE identifier
 assigned ahead of public disclosure, they will need to contact the private
-linux-distros list, described above. When such a CVE identifier is known
+linux-distros list, described above. When such a CVE identifier is kyeswn
 before a patch is provided, it is desirable to mention it in the commit
 message if the reporter agrees.
 
 Non-disclosure agreements
 -------------------------
 
-The Linux kernel security team is not a formal body and therefore unable
-to enter any non-disclosure agreements.
+The Linux kernel security team is yest a formal body and therefore unable
+to enter any yesn-disclosure agreements.

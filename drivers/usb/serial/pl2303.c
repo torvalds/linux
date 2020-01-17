@@ -5,14 +5,14 @@
  * Copyright (C) 2001-2007 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2003 IBM Corp.
  *
- * Original driver for 2.2.x by anonymous
+ * Original driver for 2.2.x by ayesnymous
  *
  * See Documentation/usb/usb-serial.rst for more information on using this
  * driver
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -171,7 +171,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 static void pl2303_set_break(struct usb_serial_port *port, bool enable);
 
 enum pl2303_type {
-	TYPE_01,	/* Type 0 and 1 (difference unknown) */
+	TYPE_01,	/* Type 0 and 1 (difference unkyeswn) */
 	TYPE_HX,	/* HX version of the pl2303 chip */
 	TYPE_HXN,	/* HXN version of the pl2303 chip */
 	TYPE_COUNT
@@ -180,7 +180,7 @@ enum pl2303_type {
 struct pl2303_type_data {
 	speed_t max_baud_rate;
 	unsigned long quirks;
-	unsigned int no_autoxonxoff:1;
+	unsigned int yes_autoxonxoff:1;
 };
 
 struct pl2303_serial_private {
@@ -200,7 +200,7 @@ static const struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
 	[TYPE_01] = {
 		.max_baud_rate		= 1228800,
 		.quirks			= PL2303_QUIRK_LEGACY,
-		.no_autoxonxoff		= true,
+		.yes_autoxonxoff		= true,
 	},
 	[TYPE_HX] = {
 		.max_baud_rate		= 12000000,
@@ -643,7 +643,7 @@ static bool pl2303_enable_xonxoff(struct tty_struct *tty, const struct pl2303_ty
 	if (START_CHAR(tty) != 0x11 || STOP_CHAR(tty) != 0x13)
 		return false;
 
-	if (type->no_autoxonxoff)
+	if (type->yes_autoxonxoff)
 		return false;
 
 	return true;
@@ -665,7 +665,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 
 	buf = kzalloc(7, GFP_KERNEL);
 	if (!buf) {
-		/* Report back no change occurred */
+		/* Report back yes change occurred */
 		if (old_termios)
 			tty->termios = *old_termios;
 		return;
@@ -713,7 +713,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	}
 
 	if (C_PARENB(tty)) {
-		/* For reference buf[5]=0 is none parity */
+		/* For reference buf[5]=0 is yesne parity */
 		/* For reference buf[5]=1 is odd parity */
 		/* For reference buf[5]=2 is even parity */
 		/* For reference buf[5]=3 is mark parity */
@@ -737,15 +737,15 @@ static void pl2303_set_termios(struct tty_struct *tty,
 		}
 	} else {
 		buf[5] = 0;
-		dev_dbg(&port->dev, "parity = none\n");
+		dev_dbg(&port->dev, "parity = yesne\n");
 	}
 
 	/*
-	 * Some PL2303 are known to lose bytes if you change serial settings
+	 * Some PL2303 are kyeswn to lose bytes if you change serial settings
 	 * even to the same values as before. Thus we actually need to filter
 	 * in this specific case.
 	 *
-	 * Note that the tty_termios_hw_change check above is not sufficient
+	 * Note that the tty_termios_hw_change check above is yest sufficient
 	 * as a previously requested baud rate may differ from the one
 	 * actually used (and stored in old_termios).
 	 *
@@ -939,7 +939,7 @@ static int pl2303_get_serial(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 
 	ss->type = PORT_16654;
-	ss->line = port->minor;
+	ss->line = port->miyesr;
 	ss->port = port->port_number;
 	ss->baud_base = 460800;
 	return 0;
@@ -1044,7 +1044,7 @@ static void pl2303_read_int_callback(struct urb *urb)
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - yesnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -1096,7 +1096,7 @@ static void pl2303_process_read_urb(struct urb *urb)
 	if (tty_flag != TTY_NORMAL)
 		dev_dbg(&port->dev, "%s - tty_flag = %d\n", __func__,
 								tty_flag);
-	/* overrun is special, not associated with a char */
+	/* overrun is special, yest associated with a char */
 	if (line_status & UART_OVERRUN_ERROR)
 		tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 

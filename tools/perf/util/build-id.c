@@ -9,7 +9,7 @@
  */
 #include "util.h" // lsdir(), mkdir_p(), rm_rf()
 #include <dirent.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -34,7 +34,7 @@
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
 
-static bool no_buildid_cache;
+static bool yes_buildid_cache;
 
 int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 			   union perf_event *event,
@@ -108,16 +108,16 @@ int build_id__sprintf(const u8 *build_id, int len, char *bf)
 
 int sysfs__sprintf_build_id(const char *root_dir, char *sbuild_id)
 {
-	char notes[PATH_MAX];
+	char yestes[PATH_MAX];
 	u8 build_id[BUILD_ID_SIZE];
 	int ret;
 
 	if (!root_dir)
 		root_dir = "";
 
-	scnprintf(notes, sizeof(notes), "%s/sys/kernel/notes", root_dir);
+	scnprintf(yestes, sizeof(yestes), "%s/sys/kernel/yestes", root_dir);
 
-	ret = sysfs__read_build_id(notes, build_id, sizeof(build_id));
+	ret = sysfs__read_build_id(yestes, build_id, sizeof(build_id));
 	if (ret < 0)
 		return ret;
 
@@ -213,7 +213,7 @@ char *build_id_cache__origname(const char *sbuild_id)
 		if (buf[offs + 1] == '[')
 			offs++;	/*
 				 * This is a DSO name, like [kernel.kallsyms].
-				 * Skip the first '/', since this is not the
+				 * Skip the first '/', since this is yest the
 				 * cache of a regular file.
 				 */
 		ret = strdup(buf + offs);	/* Skip "../..[/]" */
@@ -288,7 +288,7 @@ char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
 }
 
 #define dsos__for_each_with_build_id(pos, head)	\
-	list_for_each_entry(pos, head, node)	\
+	list_for_each_entry(pos, head, yesde)	\
 		if (!pos->has_build_id)		\
 			continue;		\
 		else
@@ -363,7 +363,7 @@ static int machine__write_buildid_table(struct machine *machine,
 int perf_session__write_buildid_table(struct perf_session *session,
 				      struct feat_fd *fd)
 {
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	int err = machine__write_buildid_table(&session->machines.host, fd);
 
 	if (err)
@@ -371,7 +371,7 @@ int perf_session__write_buildid_table(struct perf_session *session,
 
 	for (nd = rb_first_cached(&session->machines.guests); nd;
 	     nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		struct machine *pos = rb_entry(nd, struct machine, rb_yesde);
 		err = machine__write_buildid_table(pos, fd);
 		if (err)
 			break;
@@ -383,7 +383,7 @@ static int __dsos__hit_all(struct list_head *head)
 {
 	struct dso *pos;
 
-	list_for_each_entry(pos, head, node)
+	list_for_each_entry(pos, head, yesde)
 		pos->hit = true;
 
 	return 0;
@@ -396,7 +396,7 @@ static int machine__hit_all_dsos(struct machine *machine)
 
 int dsos__hit_all(struct perf_session *session)
 {
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	int err;
 
 	err = machine__hit_all_dsos(&session->machines.host);
@@ -405,7 +405,7 @@ int dsos__hit_all(struct perf_session *session)
 
 	for (nd = rb_first_cached(&session->machines.guests); nd;
 	     nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		struct machine *pos = rb_entry(nd, struct machine, rb_yesde);
 
 		err = machine__hit_all_dsos(pos);
 		if (err)
@@ -417,7 +417,7 @@ int dsos__hit_all(struct perf_session *session)
 
 void disable_buildid_cache(void)
 {
-	no_buildid_cache = true;
+	yes_buildid_cache = true;
 }
 
 static bool lsdir_bid_head_filter(const char *name __maybe_unused,
@@ -439,7 +439,7 @@ static bool lsdir_bid_tail_filter(const char *name __maybe_unused,
 struct strlist *build_id_cache__list_all(bool validonly)
 {
 	struct strlist *toplist, *linklist = NULL, *bidlist;
-	struct str_node *nd, *nd2;
+	struct str_yesde *nd, *nd2;
 	char *topdir, *linkdir = NULL;
 	char sbuild_id[SBUILD_ID_SIZE];
 
@@ -457,9 +457,9 @@ struct strlist *build_id_cache__list_all(bool validonly)
 
 	toplist = lsdir(topdir, lsdir_bid_head_filter);
 	if (!toplist) {
-		pr_debug("Error in lsdir(%s): %d\n", topdir, errno);
-		/* If there is no buildid cache, return an empty list */
-		if (errno == ENOENT)
+		pr_debug("Error in lsdir(%s): %d\n", topdir, erryes);
+		/* If there is yes buildid cache, return an empty list */
+		if (erryes == ENOENT)
 			goto out;
 		goto err_out;
 	}
@@ -470,7 +470,7 @@ struct strlist *build_id_cache__list_all(bool validonly)
 		/* Open the lower-level directory */
 		linklist = lsdir(linkdir, lsdir_bid_tail_filter);
 		if (!linklist) {
-			pr_debug("Error in lsdir(%s): %d\n", linkdir, errno);
+			pr_debug("Error in lsdir(%s): %d\n", linkdir, erryes);
 			goto err_out;
 		}
 		strlist__for_each_entry(nd2, linklist) {
@@ -516,7 +516,7 @@ static bool str_is_build_id(const char *maybe_sbuild_id, size_t len)
 char *build_id_cache__complement(const char *incomplete_sbuild_id)
 {
 	struct strlist *bidlist;
-	struct str_node *nd, *cand = NULL;
+	struct str_yesde *nd, *cand = NULL;
 	char *sbuild_id = NULL;
 	size_t len = strlen(incomplete_sbuild_id);
 
@@ -578,9 +578,9 @@ int build_id_cache__list_build_ids(const char *pathname, struct nsinfo *nsi,
 	if (!dir_name)
 		return -ENOMEM;
 
-	*result = lsdir(dir_name, lsdir_no_dot_filter);
+	*result = lsdir(dir_name, lsdir_yes_dot_filter);
 	if (!*result)
-		ret = -errno;
+		ret = -erryes;
 	free(dir_name);
 
 	return ret;
@@ -687,14 +687,14 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 		} else if (nsi && nsi->need_setns) {
 			if (copyfile_ns(name, filename, nsi))
 				goto out_free;
-		} else if (link(realname, filename) && errno != EEXIST &&
+		} else if (link(realname, filename) && erryes != EEXIST &&
 				copyfile(name, filename))
 			goto out_free;
 	}
 
 	/* Some binaries are stripped, but have .debug files with their symbol
 	 * table.  Check to see if we can locate one of those, since the elf
-	 * file itself may not be very useful to users of our tools without a
+	 * file itself may yest be very useful to users of our tools without a
 	 * symtab.
 	 */
 	if (!is_kallsyms && !is_vdso &&
@@ -713,7 +713,7 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 							nsi))
 						goto out_free;
 				} else if (link(debugfile, filename) &&
-						errno != EEXIST &&
+						erryes != EEXIST &&
 						copyfile(debugfile, filename))
 					goto out_free;
 			}
@@ -846,20 +846,20 @@ static int machine__cache_build_ids(struct machine *machine)
 
 int perf_session__cache_build_ids(struct perf_session *session)
 {
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	int ret;
 
-	if (no_buildid_cache)
+	if (yes_buildid_cache)
 		return 0;
 
-	if (mkdir(buildid_dir, 0755) != 0 && errno != EEXIST)
+	if (mkdir(buildid_dir, 0755) != 0 && erryes != EEXIST)
 		return -1;
 
 	ret = machine__cache_build_ids(&session->machines.host);
 
 	for (nd = rb_first_cached(&session->machines.guests); nd;
 	     nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		struct machine *pos = rb_entry(nd, struct machine, rb_yesde);
 		ret |= machine__cache_build_ids(pos);
 	}
 	return ret ? -1 : 0;
@@ -872,12 +872,12 @@ static bool machine__read_build_ids(struct machine *machine, bool with_hits)
 
 bool perf_session__read_build_ids(struct perf_session *session, bool with_hits)
 {
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	bool ret = machine__read_build_ids(&session->machines.host, with_hits);
 
 	for (nd = rb_first_cached(&session->machines.guests); nd;
 	     nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		struct machine *pos = rb_entry(nd, struct machine, rb_yesde);
 		ret |= machine__read_build_ids(pos, with_hits);
 	}
 

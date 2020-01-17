@@ -20,7 +20,7 @@ config CRYPTO_LIB_BLAKE2S_GENERIC
 	help
 	  This symbol can be depended upon by arch implementations of the
 	  Blake2s library interface that require the generic code as a
-	  fallback, e.g., for SIMD implementations. If no arch specific
+	  fallback, e.g., for SIMD implementations. If yes arch specific
 	  implementation is enabled, this implementation serves the users
 	  of CRYPTO_LIB_BLAKE2S.
 
@@ -46,7 +46,7 @@ config CRYPTO_LIB_CHACHA_GENERIC
 	help
 	  This symbol can be depended upon by arch implementations of the
 	  ChaCha library interface that require the generic code as a
-	  fallback, e.g., for SIMD implementations. If no arch specific
+	  fallback, e.g., for SIMD implementations. If yes arch specific
 	  implementation is enabled, this implementation serves the users
 	  of CRYPTO_LIB_CHACHA.
 
@@ -71,7 +71,7 @@ config CRYPTO_LIB_CURVE25519_GENERIC
 	help
 	  This symbol can be depended upon by arch implementations of the
 	  Curve25519 library interface that require the generic code as a
-	  fallback, e.g., for SIMD implementations. If no arch specific
+	  fallback, e.g., for SIMD implementations. If yes arch specific
 	  implementation is enabled, this implementation serves the users
 	  of CRYPTO_LIB_CURVE25519.
 
@@ -106,7 +106,7 @@ config CRYPTO_LIB_POLY1305_GENERIC
 	help
 	  This symbol can be depended upon by arch implementations of the
 	  Poly1305 library interface that require the generic code as a
-	  fallback, e.g., for SIMD implementations. If no arch specific
+	  fallback, e.g., for SIMD implementations. If yes arch specific
 	  implementation is enabled, this implementation serves the users
 	  of CRYPTO_LIB_POLY1305.
 
@@ -120,7 +120,7 @@ config CRYPTO_LIB_POLY1305
 	  is available and enabled.
 
 config CRYPTO_LIB_CHACHA20POLY1305
-	tristate "ChaCha20-Poly1305 AEAD support (8-byte nonce library version)"
+	tristate "ChaCha20-Poly1305 AEAD support (8-byte yesnce library version)"
 	depends on CRYPTO_ARCH_HAVE_LIB_CHACHA || !CRYPTO_ARCH_HAVE_LIB_CHACHA
 	depends on CRYPTO_ARCH_HAVE_LIB_POLY1305 || !CRYPTO_ARCH_HAVE_LIB_POLY1305
 	select CRYPTO_LIB_CHACHA

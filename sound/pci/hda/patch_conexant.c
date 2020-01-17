@@ -76,7 +76,7 @@ static int cx_auto_parse_beep(struct hda_codec *codec)
 	struct conexant_spec *spec = codec->spec;
 	hda_nid_t nid;
 
-	for_each_hda_codec_node(nid, codec)
+	for_each_hda_codec_yesde(nid, codec)
 		if (get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_BEEP)
 			return set_beep_amp(spec, nid, 0, HDA_OUTPUT);
 	return 0;
@@ -95,7 +95,7 @@ static void cx_auto_parse_eapd(struct hda_codec *codec)
 	struct conexant_spec *spec = codec->spec;
 	hda_nid_t nid;
 
-	for_each_hda_codec_node(nid, codec) {
+	for_each_hda_codec_yesde(nid, codec) {
 		if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
 			continue;
 		if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_EAPD))
@@ -159,19 +159,19 @@ static int cx_auto_init(struct hda_codec *codec)
 	return 0;
 }
 
-static void cx_auto_reboot_notify(struct hda_codec *codec)
+static void cx_auto_reboot_yestify(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 
-	/* Turn the problematic codec into D3 to avoid spurious noises
+	/* Turn the problematic codec into D3 to avoid spurious yesises
 	   from the internal speaker during (and after) reboot */
 	cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, false);
-	snd_hda_gen_reboot_notify(codec);
+	snd_hda_gen_reboot_yestify(codec);
 }
 
 static void cx_auto_free(struct hda_codec *codec)
 {
-	cx_auto_reboot_notify(codec);
+	cx_auto_reboot_yestify(codec);
 	snd_hda_gen_free(codec);
 }
 
@@ -179,7 +179,7 @@ static const struct hda_codec_ops cx_auto_patch_ops = {
 	.build_controls = snd_hda_gen_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
 	.init = cx_auto_init,
-	.reboot_notify = cx_auto_reboot_notify,
+	.reboot_yestify = cx_auto_reboot_yestify,
 	.free = cx_auto_free,
 	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
@@ -365,18 +365,18 @@ static void olpc_xo_update_mic_pins(struct hda_codec *codec)
 		 * started because the microphone LED comes on as soon as
 		 * these settings are put in place. if we did this before
 		 * recording, it would give the false indication that
-		 * recording is happening when it is not.
+		 * recording is happening when it is yest.
 		 */
 		update_mic_pin(codec, 0x1a, spec->recording ?
 			       snd_hda_codec_get_pin_target(codec, 0x1a) : 0);
 		update_mic_pin(codec, 0x1b, spec->recording ?
 			       snd_hda_codec_get_pin_target(codec, 0x1b) : 0);
-		/* enable normal mic path */
+		/* enable yesrmal mic path */
 		path = snd_hda_get_path_from_idx(codec, cur_input);
 		if (path)
 			snd_hda_activate_path(codec, path, true, false);
 	} else {
-		/* disable normal mic path */
+		/* disable yesrmal mic path */
 		path = snd_hda_get_path_from_idx(codec, cur_input);
 		if (path)
 			snd_hda_activate_path(codec, path, false, false);
@@ -499,7 +499,7 @@ static const struct snd_kcontrol_new olpc_xo_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "DC Mode Enable Switch",
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moyes_info,
 		.get = olpc_xo_dc_mode_get,
 		.put = olpc_xo_dc_mode_put,
 	},
@@ -675,7 +675,7 @@ static void cxt_fixup_mute_led_gpio(struct hda_codec *codec,
 
 
 /* ThinkPad X200 & co with cxt5051 */
-static const struct hda_pintbl cxt_pincfg_lenovo_x200[] = {
+static const struct hda_pintbl cxt_pincfg_leyesvo_x200[] = {
 	{ 0x16, 0x042140ff }, /* HP (seq# overridden) */
 	{ 0x17, 0x21a11000 }, /* dock-mic */
 	{ 0x19, 0x2121103f }, /* dock-HP */
@@ -684,7 +684,7 @@ static const struct hda_pintbl cxt_pincfg_lenovo_x200[] = {
 };
 
 /* ThinkPad 410/420/510/520, X201 & co with cxt5066 */
-static const struct hda_pintbl cxt_pincfg_lenovo_tp410[] = {
+static const struct hda_pintbl cxt_pincfg_leyesvo_tp410[] = {
 	{ 0x19, 0x042110ff }, /* HP (seq# overridden) */
 	{ 0x1a, 0x21a190f0 }, /* dock-mic */
 	{ 0x1c, 0x212140ff }, /* dock-HP */
@@ -706,11 +706,11 @@ static const struct hda_pintbl cxt_pincfg_lemote[] = {
 static const struct hda_fixup cxt_fixups[] = {
 	[CXT_PINCFG_LENOVO_X200] = {
 		.type = HDA_FIXUP_PINS,
-		.v.pins = cxt_pincfg_lenovo_x200,
+		.v.pins = cxt_pincfg_leyesvo_x200,
 	},
 	[CXT_PINCFG_LENOVO_TP410] = {
 		.type = HDA_FIXUP_PINS,
-		.v.pins = cxt_pincfg_lenovo_tp410,
+		.v.pins = cxt_pincfg_leyesvo_tp410,
 		.chained = true,
 		.chain_id = CXT_FIXUP_THINKPAD_ACPI,
 	},
@@ -851,13 +851,13 @@ static const struct hda_fixup cxt_fixups[] = {
 static const struct snd_pci_quirk cxt5045_fixups[] = {
 	SND_PCI_QUIRK(0x103c, 0x30d5, "HP 530", CXT_FIXUP_HP_530),
 	SND_PCI_QUIRK(0x1179, 0xff31, "Toshiba P105", CXT_FIXUP_TOSHIBA_P105),
-	/* HP, Packard Bell, Fujitsu-Siemens & Lenovo laptops have
+	/* HP, Packard Bell, Fujitsu-Siemens & Leyesvo laptops have
 	 * really bad sound over 0dB on NID 0x17.
 	 */
 	SND_PCI_QUIRK_VENDOR(0x103c, "HP", CXT_FIXUP_CAP_MIX_AMP),
 	SND_PCI_QUIRK_VENDOR(0x1631, "Packard Bell", CXT_FIXUP_CAP_MIX_AMP),
 	SND_PCI_QUIRK_VENDOR(0x1734, "Fujitsu", CXT_FIXUP_CAP_MIX_AMP),
-	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo", CXT_FIXUP_CAP_MIX_AMP),
+	SND_PCI_QUIRK_VENDOR(0x17aa, "Leyesvo", CXT_FIXUP_CAP_MIX_AMP),
 	{}
 };
 
@@ -882,12 +882,12 @@ static const struct hda_model_fixup cxt5047_fixup_models[] = {
 
 static const struct snd_pci_quirk cxt5051_fixups[] = {
 	SND_PCI_QUIRK(0x103c, 0x360b, "Compaq CQ60", CXT_PINCFG_COMPAQ_CQ60),
-	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo X200", CXT_PINCFG_LENOVO_X200),
+	SND_PCI_QUIRK(0x17aa, 0x20f2, "Leyesvo X200", CXT_PINCFG_LENOVO_X200),
 	{}
 };
 
 static const struct hda_model_fixup cxt5051_fixup_models[] = {
-	{ .id = CXT_PINCFG_LENOVO_X200, .name = "lenovo-x200" },
+	{ .id = CXT_PINCFG_LENOVO_X200, .name = "leyesvo-x200" },
 	{}
 };
 
@@ -917,20 +917,20 @@ static const struct snd_pci_quirk cxt5066_fixups[] = {
 	SND_PCI_QUIRK(0x103c, 0x8458, "HP Z2 G4 mini premium", CXT_FIXUP_HP_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1043, 0x138d, "Asus", CXT_FIXUP_HEADPHONE_MIC_PIN),
 	SND_PCI_QUIRK(0x152d, 0x0833, "OLPC XO-1.5", CXT_FIXUP_OLPC_XO),
-	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo T400", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x215e, "Lenovo T410", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x215f, "Lenovo T510", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x21ce, "Lenovo T420", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x21cf, "Lenovo T520", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x21da, "Lenovo X220", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x21db, "Lenovo X220-tablet", CXT_PINCFG_LENOVO_TP410),
-	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo IdeaPad Z560", CXT_FIXUP_MUTE_LED_EAPD),
-	SND_PCI_QUIRK(0x17aa, 0x3905, "Lenovo G50-30", CXT_FIXUP_STEREO_DMIC),
-	SND_PCI_QUIRK(0x17aa, 0x390b, "Lenovo G50-80", CXT_FIXUP_STEREO_DMIC),
-	SND_PCI_QUIRK(0x17aa, 0x3975, "Lenovo U300s", CXT_FIXUP_STEREO_DMIC),
-	SND_PCI_QUIRK(0x17aa, 0x3977, "Lenovo IdeaPad U310", CXT_FIXUP_STEREO_DMIC),
-	SND_PCI_QUIRK(0x17aa, 0x3978, "Lenovo G50-70", CXT_FIXUP_STEREO_DMIC),
-	SND_PCI_QUIRK(0x17aa, 0x397b, "Lenovo S205", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x17aa, 0x20f2, "Leyesvo T400", CXT_PINCFG_LENOVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x215e, "Leyesvo T410", CXT_PINCFG_LENOVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x215f, "Leyesvo T510", CXT_PINCFG_LENOVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x21ce, "Leyesvo T420", CXT_PINCFG_LENOVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x21cf, "Leyesvo T520", CXT_PINCFG_LENOVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x21da, "Leyesvo X220", CXT_PINCFG_LENOVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x21db, "Leyesvo X220-tablet", CXT_PINCFG_LENOVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x38af, "Leyesvo IdeaPad Z560", CXT_FIXUP_MUTE_LED_EAPD),
+	SND_PCI_QUIRK(0x17aa, 0x3905, "Leyesvo G50-30", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x17aa, 0x390b, "Leyesvo G50-80", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x17aa, 0x3975, "Leyesvo U300s", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x17aa, 0x3977, "Leyesvo IdeaPad U310", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x17aa, 0x3978, "Leyesvo G50-70", CXT_FIXUP_STEREO_DMIC),
+	SND_PCI_QUIRK(0x17aa, 0x397b, "Leyesvo S205", CXT_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK_VENDOR(0x17aa, "Thinkpad", CXT_FIXUP_THINKPAD_ACPI),
 	SND_PCI_QUIRK(0x1c06, 0x2011, "Lemote A1004", CXT_PINCFG_LEMOTE_A1004),
 	SND_PCI_QUIRK(0x1c06, 0x2012, "Lemote A1205", CXT_PINCFG_LEMOTE_A1205),
@@ -1012,7 +1012,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 				   cxt5051_fixups, cxt_fixups);
 		break;
 	case 0x14f150f2:
-		codec->power_save_node = 1;
+		codec->power_save_yesde = 1;
 		/* Fall through */
 	default:
 		codec->pin_amp_workaround = 1;
@@ -1025,7 +1025,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	 * This is a sort of white-list: on HP laptops, EAPD corresponds
 	 * only to the mute-LED without actualy amp function.  Meanwhile,
 	 * others may use EAPD really as an amp switch, so it might be
-	 * not good to expose it blindly.
+	 * yest good to expose it blindly.
 	 */
 	switch (codec->core.subsystem_id >> 16) {
 	case 0x103c:

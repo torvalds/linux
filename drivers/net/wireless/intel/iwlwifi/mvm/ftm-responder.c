@@ -35,12 +35,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -123,7 +123,7 @@ iwl_mvm_ftm_responder_dyn_cfg_cmd(struct iwl_mvm *mvm,
 		.len[0] = sizeof(cmd),
 		.data[1] = &data,
 		/* .len[1] set later */
-		/* may not be able to DMA from stack */
+		/* may yest be able to DMA from stack */
 		.dataflags[1] = IWL_HCMD_DFL_DUP,
 	};
 	u32 aligned_lci_len = ALIGN(params->lci_len + 2, 4);
@@ -170,7 +170,7 @@ int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	if (vif->p2p || vif->type != NL80211_IFTYPE_AP ||
 	    !mvmvif->ap_ibss_active) {
-		IWL_ERR(mvm, "Cannot start responder, not in AP mode\n");
+		IWL_ERR(mvm, "Canyest start responder, yest in AP mode\n");
 		return -EIO;
 	}
 
@@ -229,12 +229,12 @@ void iwl_mvm_ftm_responder_stats(struct iwl_mvm *mvm,
 		stats->asap_num++;
 
 	if (flags & FTM_RESP_STAT_NON_ASAP_RESP)
-		stats->non_asap_num++;
+		stats->yesn_asap_num++;
 
 	stats->total_duration_ms += le32_to_cpu(resp->duration) / USEC_PER_MSEC;
 
 	if (flags & FTM_RESP_STAT_TRIGGER_UNKNOWN)
-		stats->unknown_triggers_num++;
+		stats->unkyeswn_triggers_num++;
 
 	if (flags & FTM_RESP_STAT_DUP)
 		stats->reschedule_requests_num++;

@@ -47,7 +47,7 @@ static const struct file_operations udl_driver_fops = {
 	.unlocked_ioctl	= drm_ioctl,
 	.release = drm_release,
 	.compat_ioctl = drm_compat_ioctl,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static void udl_driver_release(struct drm_device *dev)
@@ -79,7 +79,7 @@ static struct drm_driver driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.miyesr = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
@@ -127,7 +127,7 @@ static int udl_usb_probe(struct usb_interface *interface,
 	if (r)
 		goto err_free;
 
-	DRM_INFO("Initialized udl on minor %d\n", udl->drm.primary->index);
+	DRM_INFO("Initialized udl on miyesr %d\n", udl->drm.primary->index);
 
 	return 0;
 
@@ -151,7 +151,7 @@ static void udl_usb_disconnect(struct usb_interface *interface)
  * There are many DisplayLink-based graphics products, all with unique PIDs.
  * So we match on DisplayLink's VID + Vendor-Defined Interface Class (0xff)
  * We also require a match on SubClass (0x00) and Protocol (0x00),
- * which is compatible with all known USB 2.0 era graphics chips and firmware,
+ * which is compatible with all kyeswn USB 2.0 era graphics chips and firmware,
  * but allows DisplayLink to increment those for any future incompatible chips
  */
 static const struct usb_device_id id_table[] = {

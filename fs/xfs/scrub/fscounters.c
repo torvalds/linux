@@ -23,15 +23,15 @@
  *
  * The basics of filesystem summary counter checking are that we iterate the
  * AGs counting the number of free blocks, free space btree blocks, per-AG
- * reservations, inodes, delayed allocation reservations, and free inodes.
+ * reservations, iyesdes, delayed allocation reservations, and free iyesdes.
  * Then we compare what we computed against the in-core counters.
  *
  * However, the reality is that summary counters are a tricky beast to check.
  * While we /could/ freeze the filesystem and scramble around the AGs counting
- * the free blocks, in practice we prefer not do that for a scan because
+ * the free blocks, in practice we prefer yest do that for a scan because
  * freezing is costly.  To get around this, we added a per-cpu counter of the
  * delalloc reservations so that we can rotor around the AGs relatively
- * quickly, and we allow the counts to be slightly off because we're not taking
+ * quickly, and we allow the counts to be slightly off because we're yest taking
  * any locks while we do this.
  *
  * So the first thing we do is warm up the buffer cache in the setup routine by
@@ -52,7 +52,7 @@
 /*
  * Make sure the per-AG structure has been initialized from the on-disk header
  * contents and trust that the incore counters match the ondisk counters.  (The
- * AGF and AGI scrubbers check them, and a normal xfs_scrub run checks the
+ * AGF and AGI scrubbers check them, and a yesrmal xfs_scrub run checks the
  * summary counters after checking all AG headers).  Do this from the setup
  * function so that the inner AG aggregation loop runs as quickly as possible.
  *
@@ -67,20 +67,20 @@ xchk_fscount_warmup(
 	struct xfs_buf		*agi_bp = NULL;
 	struct xfs_buf		*agf_bp = NULL;
 	struct xfs_perag	*pag = NULL;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agyes;
 	int			error = 0;
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		pag = xfs_perag_get(mp, agno);
+	for (agyes = 0; agyes < mp->m_sb.sb_agcount; agyes++) {
+		pag = xfs_perag_get(mp, agyes);
 
 		if (pag->pagi_init && pag->pagf_init)
 			goto next_loop_perag;
 
 		/* Lock both AG headers. */
-		error = xfs_ialloc_read_agi(mp, sc->tp, agno, &agi_bp);
+		error = xfs_ialloc_read_agi(mp, sc->tp, agyes, &agi_bp);
 		if (error)
 			break;
-		error = xfs_alloc_read_agf(mp, sc->tp, agno, 0, &agf_bp);
+		error = xfs_alloc_read_agf(mp, sc->tp, agyes, 0, &agf_bp);
 		if (error)
 			break;
 		error = -ENOMEM;
@@ -120,7 +120,7 @@ next_loop_perag:
 int
 xchk_setup_fscounters(
 	struct xfs_scrub	*sc,
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	struct xchk_fscounters	*fsc;
 	int			error;
@@ -161,7 +161,7 @@ xchk_fscount_aggregate_agcounts(
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_perag	*pag;
 	uint64_t		delayed;
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agyes;
 	int			tries = 8;
 	int			error = 0;
 
@@ -170,8 +170,8 @@ retry:
 	fsc->ifree = 0;
 	fsc->fdblocks = 0;
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		pag = xfs_perag_get(mp, agno);
+	for (agyes = 0; agyes < mp->m_sb.sb_agcount; agyes++) {
+		pag = xfs_perag_get(mp, agyes);
 
 		/* This somehow got unset since the warmup? */
 		if (!pag->pagi_init || !pag->pagf_init) {
@@ -179,11 +179,11 @@ retry:
 			return -EFSCORRUPTED;
 		}
 
-		/* Count all the inodes */
+		/* Count all the iyesdes */
 		fsc->icount += pag->pagi_count;
 		fsc->ifree += pag->pagi_freecount;
 
-		/* Add up the free/freelist/bnobt/cntbt blocks */
+		/* Add up the free/freelist/byesbt/cntbt blocks */
 		fsc->fdblocks += pag->pagf_freeblks;
 		fsc->fdblocks += pag->pagf_flcount;
 		fsc->fdblocks += pag->pagf_btreeblks;
@@ -212,7 +212,7 @@ retry:
 
 	/*
 	 * Delayed allocation reservations are taken out of the incore counters
-	 * but not recorded on disk, so leave them and their indlen blocks out
+	 * but yest recorded on disk, so leave them and their indlen blocks out
 	 * of the computation.
 	 */
 	delayed = percpu_counter_sum(&mp->m_delalloc_blks);
@@ -222,7 +222,7 @@ retry:
 			delayed);
 
 
-	/* Bail out if the values we compute are totally nonsense. */
+	/* Bail out if the values we compute are totally yesnsense. */
 	if (fsc->icount < fsc->icount_min || fsc->icount > fsc->icount_max ||
 	    fsc->fdblocks > mp->m_sb.sb_dblocks ||
 	    fsc->ifree > fsc->icount_max)
@@ -246,10 +246,10 @@ retry:
 /*
  * Is the @counter reasonably close to the @expected value?
  *
- * We neither locked nor froze anything in the filesystem while aggregating the
+ * We neither locked yesr froze anything in the filesystem while aggregating the
  * per-AG data to compute the @expected value, which means that the counter
- * could have changed.  We know the @old_value of the summation of the counter
- * before the aggregation, and we re-sum the counter now.  If the expected
+ * could have changed.  We kyesw the @old_value of the summation of the counter
+ * before the aggregation, and we re-sum the counter yesw.  If the expected
  * value falls between the two summations, we're ok.
  *
  * Otherwise, we /might/ have a problem.  If the change in the summations is

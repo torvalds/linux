@@ -550,7 +550,7 @@ struct it87_data {
 	 * to track all values separately.
 	 * Starting with the IT8721F, the manual PWM duty cycles are stored
 	 * in separate registers (8-bit values), so the separate tracking
-	 * is no longer needed, but it is still done to keep the driver
+	 * is yes longer needed, but it is still done to keep the driver
 	 * simple.
 	 */
 	u8 has_pwm;		/* Bitfield, pwm control enabled */
@@ -648,8 +648,8 @@ static int DIV_TO_REG(int val)
  * Some of the chip datasheets suggest a base frequency of 51 kHz instead
  * of 750 kHz for the slowest base frequency, resulting in a PWM frequency
  * of 200 Hz. Sometimes both PWM frequency select registers are affected,
- * sometimes just one. It is unknown if this is a datasheet error or real,
- * so this is ignored for now.
+ * sometimes just one. It is unkyeswn if this is a datasheet error or real,
+ * so this is igyesred for yesw.
  */
 static const unsigned int pwm_freq[8] = {
 	48000000,
@@ -664,8 +664,8 @@ static const unsigned int pwm_freq[8] = {
 
 /*
  * Must be called with data->update_lock held, except during initialization.
- * We ignore the IT87 BUSY flag at this moment - it could lead to deadlocks,
- * would slow down the IT87 access and should not be necessary.
+ * We igyesre the IT87 BUSY flag at this moment - it could lead to deadlocks,
+ * would slow down the IT87 access and should yest be necessary.
  */
 static int it87_read_value(struct it87_data *data, u8 reg)
 {
@@ -675,8 +675,8 @@ static int it87_read_value(struct it87_data *data, u8 reg)
 
 /*
  * Must be called with data->update_lock held, except during initialization.
- * We ignore the IT87 BUSY flag at this moment - it could lead to deadlocks,
- * would slow down the IT87 access and should not be necessary.
+ * We igyesre the IT87 BUSY flag at this moment - it could lead to deadlocks,
+ * would slow down the IT87 access and should yest be necessary.
  */
 static void it87_write_value(struct it87_data *data, u8 reg, u8 value)
 {
@@ -831,7 +831,7 @@ static struct it87_data *it87_update_device(struct device *dev)
 		data->sensor = it87_read_value(data, IT87_REG_TEMP_ENABLE);
 		data->extra = it87_read_value(data, IT87_REG_TEMP_EXTRA);
 		/*
-		 * The IT8705F does not have VID capability.
+		 * The IT8705F does yest have VID capability.
 		 * The IT8718F and later don't use IT87_REG_VID for the
 		 * same purpose.
 		 */
@@ -1286,7 +1286,7 @@ static int check_trip_points(struct device *dev, int nr)
 
 	if (err) {
 		dev_err(dev,
-			"Inconsistent trip points, not switching to automatic mode\n");
+			"Inconsistent trip points, yest switching to automatic mode\n");
 		dev_err(dev, "Adjust the trip points and try again\n");
 	}
 	return err;
@@ -2304,13 +2304,13 @@ static umode_t it87_auto_pwm_is_visible(struct kobject *kobj,
 		return 0;
 
 	if (has_newer_autopwm(data)) {
-		if (a < 4)	/* no auto point pwm */
+		if (a < 4)	/* yes auto point pwm */
 			return 0;
-		if (a == 8)	/* no auto_point4 */
+		if (a == 8)	/* yes auto_point4 */
 			return 0;
 	}
 	if (has_old_autopwm(data)) {
-		if (a >= 9)	/* no pwm_auto_start, pwm_auto_slope */
+		if (a >= 9)	/* yes pwm_auto_start, pwm_auto_slope */
 			return 0;
 	}
 
@@ -2471,13 +2471,13 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 
 	superio_select(sioaddr, PME);
 	if (!(superio_inb(sioaddr, IT87_ACT_REG) & 0x01)) {
-		pr_info("Device not activated, skipping\n");
+		pr_info("Device yest activated, skipping\n");
 		goto exit;
 	}
 
 	*address = superio_inw(sioaddr, IT87_BASE_REG) & ~(IT87_EXTENT - 1);
 	if (*address == 0) {
-		pr_info("Base address not set, skipping\n");
+		pr_info("Base address yest set, skipping\n");
 		goto exit;
 	}
 
@@ -2528,14 +2528,14 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		reg2c = superio_inb(sioaddr, IT87_SIO_PINX2_REG);
 		regef = superio_inb(sioaddr, IT87_SIO_SPI_REG);
 
-		/* Check if fan3 is there or not */
+		/* Check if fan3 is there or yest */
 		if ((reg27 & BIT(0)) || !(reg2c & BIT(2)))
 			sio_data->skip_fan |= BIT(2);
 		if ((reg25 & BIT(4)) ||
 		    (!(reg2a & BIT(1)) && (regef & BIT(0))))
 			sio_data->skip_pwm |= BIT(2);
 
-		/* Check if fan2 is there or not */
+		/* Check if fan2 is there or yest */
 		if (reg27 & BIT(7))
 			sio_data->skip_fan |= BIT(1);
 		if (reg27 & BIT(3))
@@ -2551,7 +2551,7 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 
 		/*
 		 * VIN7
-		 * Does not depend on bit 2 of Reg2C, contrary to datasheet.
+		 * Does yest depend on bit 2 of Reg2C, contrary to datasheet.
 		 */
 		if (reg27 & BIT(2)) {
 			/*
@@ -2563,8 +2563,8 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 			 * voltage divider would connect VIN7 to an internal
 			 * voltage source. Maybe that is the case here as well.
 			 *
-			 * Since we don't know for sure, re-route it if that is
-			 * not the case, and ask the user to report if the
+			 * Since we don't kyesw for sure, re-route it if that is
+			 * yest the case, and ask the user to report if the
 			 * resulting voltage is sane.
 			 */
 			if (!(reg2c & BIT(1))) {
@@ -2572,10 +2572,10 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 				superio_outb(sioaddr, IT87_SIO_PINX2_REG,
 					     reg2c);
 				sio_data->need_in7_reroute = true;
-				pr_notice("Routing internal VCCH5V to in7.\n");
+				pr_yestice("Routing internal VCCH5V to in7.\n");
 			}
-			pr_notice("in7 routed to internal voltage divider, with external pin disabled.\n");
-			pr_notice("Please report if it displays a reasonable voltage.\n");
+			pr_yestice("in7 routed to internal voltage divider, with external pin disabled.\n");
+			pr_yestice("Please report if it displays a reasonable voltage.\n");
 		}
 
 		if (reg2c & BIT(0))
@@ -2592,13 +2592,13 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 
 		reg27 = superio_inb(sioaddr, IT87_SIO_GPIO3_REG);
 
-		/* Check if fan3 is there or not */
+		/* Check if fan3 is there or yest */
 		if (reg27 & BIT(6))
 			sio_data->skip_pwm |= BIT(2);
 		if (reg27 & BIT(7))
 			sio_data->skip_fan |= BIT(2);
 
-		/* Check if fan2 is there or not */
+		/* Check if fan2 is there or yest */
 		reg29 = superio_inb(sioaddr, IT87_SIO_GPIO5_REG);
 		if (reg29 & BIT(1))
 			sio_data->skip_pwm |= BIT(1);
@@ -2735,13 +2735,13 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 			}
 		}
 
-		/* Check if fan3 is there or not */
+		/* Check if fan3 is there or yest */
 		if (reg & BIT(6))
 			sio_data->skip_pwm |= BIT(2);
 		if (reg & BIT(7))
 			sio_data->skip_fan |= BIT(2);
 
-		/* Check if fan2 is there or not */
+		/* Check if fan2 is there or yest */
 		reg = superio_inb(sioaddr, IT87_SIO_GPIO5_REG);
 		if (reg & BIT(1))
 			sio_data->skip_pwm |= BIT(1);
@@ -2758,7 +2758,7 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		uart6 = sio_data->type == it8782 && (reg & BIT(2));
 
 		/*
-		 * The IT8720F has no VIN7 pin, so VCCH5V should always be
+		 * The IT8720F has yes VIN7 pin, so VCCH5V should always be
 		 * routed internally to VIN7 with an internal divider.
 		 * Curiously, there still is a configuration bit to control
 		 * this, which means it can be set incorrectly. And even
@@ -2769,13 +2769,13 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		 *
 		 * On IT8782F, VIN7 is multiplexed with one of the UART6 pins.
 		 * If UART6 is enabled, re-route VIN7 to the internal divider
-		 * if that is not already the case.
+		 * if that is yest already the case.
 		 */
 		if ((sio_data->type == it8720 || uart6) && !(reg & BIT(1))) {
 			reg |= BIT(1);
 			superio_outb(sioaddr, IT87_SIO_PINX2_REG, reg);
 			sio_data->need_in7_reroute = true;
-			pr_notice("Routing internal VCCH5V to in7\n");
+			pr_yestice("Routing internal VCCH5V to in7\n");
 		}
 		if (reg & BIT(0))
 			sio_data->internal |= BIT(0);
@@ -2785,10 +2785,10 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		/*
 		 * On IT8782F, UART6 pins overlap with VIN5, VIN6, and VIN7.
 		 * While VIN7 can be routed to the internal voltage divider,
-		 * VIN5 and VIN6 are not available if UART6 is enabled.
+		 * VIN5 and VIN6 are yest available if UART6 is enabled.
 		 *
-		 * Also, temp3 is not available if UART6 is enabled and TEMPIN3
-		 * is the temperature source. Since we can not read the
+		 * Also, temp3 is yest available if UART6 is enabled and TEMPIN3
+		 * is the temperature source. Since we can yest read the
 		 * temperature source here, skip_temp is preliminary.
 		 */
 		if (uart6) {
@@ -2809,7 +2809,7 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		if (strcmp(board_vendor, "nVIDIA") == 0 &&
 		    strcmp(board_name, "FN68PT") == 0) {
 			/*
-			 * On the Shuttle SN68PT, FAN_CTL2 is apparently not
+			 * On the Shuttle SN68PT, FAN_CTL2 is apparently yest
 			 * connected to a fan, but to something else. One user
 			 * has reported instant system power-off when changing
 			 * the PWM2 duty cycle, so we disable it.
@@ -2828,7 +2828,7 @@ exit:
 
 /*
  * Some chips seem to have default value 0xff for all limit
- * registers. For low voltage limits it makes no sense and triggers
+ * registers. For low voltage limits it makes yes sense and triggers
  * alarms, so change to 0 instead. For high temperature limits, it
  * means -1 degree C, which surprisingly doesn't trigger an alarm,
  * but is still confusing, so change to 127 degrees C.
@@ -2919,7 +2919,7 @@ static void it87_init_device(struct platform_device *pdev)
 	 *   Use a 1:1 mapping by default (we are clueless.)
 	 * In both cases, the value can (and should) be changed by the user
 	 * prior to switching to a different mode.
-	 * Note that this is no longer needed for the IT8721F and later, as
+	 * Note that this is yes longer needed for the IT8721F and later, as
 	 * these have separate registers for the temperature mapping and the
 	 * manual duty cycle.
 	 */
@@ -2932,7 +2932,7 @@ static void it87_init_device(struct platform_device *pdev)
 	it87_check_limit_regs(data);
 
 	/*
-	 * Temperature channels are not forcibly enabled, as they can be
+	 * Temperature channels are yest forcibly enabled, as they can be
 	 * set to two different sensor types and we can't guess which one
 	 * is correct for a given system. These channels can be enabled at
 	 * run-time through the temp{1-3}_type sysfs accessors if needed.

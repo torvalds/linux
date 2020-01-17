@@ -35,9 +35,9 @@ static int __check_hid_generic(struct device_driver *drv, void *data)
 }
 
 static bool hid_generic_match(struct hid_device *hdev,
-			      bool ignore_special_driver)
+			      bool igyesre_special_driver)
 {
-	if (ignore_special_driver)
+	if (igyesre_special_driver)
 		return true;
 
 	if (hdev->quirks & HID_QUIRK_HAVE_SPECIAL_DRIVER)

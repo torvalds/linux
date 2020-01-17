@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -72,7 +72,7 @@
  *
  * Time Events are a fw feature that allows the driver to control the presence
  * of the device on the channel. Since the fw supports multiple channels
- * concurrently, the fw may choose to jump to another channel at any time.
+ * concurrently, the fw may choose to jump to ayesther channel at any time.
  * In order to make sure that the fw is on a specific channel at a certain time
  * and for a certain duration, the driver needs to issue a time event.
  *
@@ -91,7 +91,7 @@
  *	1) Driver sends a TIME_EVENT_CMD to the fw
  *	2) Driver gets the response for that command. This response contains the
  *	   Unique ID (UID) of the event.
- *	3) The fw sends notification when the event starts.
+ *	3) The fw sends yestification when the event starts.
  *
  * Of course the API provides various options that allow to cover parameters
  * of the flow.
@@ -100,7 +100,7 @@
  *	Is there an end-time for the event?
  *	How much can the event be delayed?
  *	Can the event be split?
- *	If yes what is the maximal number of chunks?
+ *	If no what is the maximal number of chunks?
  *	etc...
  */
 
@@ -123,7 +123,7 @@
  * @min_duration: will start a new session if the current session will end
  *	in less than min_duration.
  * @max_delay: maximum delay before starting the time event (in TU)
- * @wait_for_notif: true if it is required that a time event notification be
+ * @wait_for_yestif: true if it is required that a time event yestification be
  *	waited for (that the time event has been scheduled before returning)
  *
  * This function can be used to start a session protection which means that the
@@ -136,7 +136,7 @@
 void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 			     struct ieee80211_vif *vif,
 			     u32 duration, u32 min_duration,
-			     u32 max_delay, bool wait_for_notif);
+			     u32 max_delay, bool wait_for_yestif);
 
 /**
  * iwl_mvm_stop_session_protection - cancel the session protection.
@@ -144,7 +144,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
  * @vif: the virtual interface for which the session is issued
  *
  * This functions cancels the session protection which is an act of good
- * citizenship. If it is not needed any more it should be canceled because
+ * citizenship. If it is yest needed any more it should be canceled because
  * the other bindings wait for the medium during that time.
  * This funtions doesn't sleep.
  */
@@ -152,9 +152,9 @@ void iwl_mvm_stop_session_protection(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif);
 
 /*
- * iwl_mvm_rx_time_event_notif - handles %TIME_EVENT_NOTIFICATION.
+ * iwl_mvm_rx_time_event_yestif - handles %TIME_EVENT_NOTIFICATION.
  */
-void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_time_event_yestif(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb);
 
 /**
@@ -169,10 +169,10 @@ void iwl_mvm_rx_time_event_notif(struct iwl_mvm *mvm,
  * This function can be used to issue a remain on channel session,
  * which means that the fw will stay in the channel for the request %duration
  * milliseconds. The function is async, meaning that it only issues the ROC
- * request but does not wait for it to start. Once the FW is ready to serve the
- * ROC request, it will issue a notification to the driver that it is on the
+ * request but does yest wait for it to start. Once the FW is ready to serve the
+ * ROC request, it will issue a yestification to the driver that it is on the
  * requested channel. Once the FW completes the ROC request it will issue
- * another notification to the driver.
+ * ayesther yestification to the driver.
  */
 int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			  int duration, enum ieee80211_roc_type type);
@@ -184,7 +184,7 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
  *
  * This function can be used to cancel an ongoing ROC session.
  * The function is async, it will instruct the FW to stop serving the ROC
- * session, but will not wait for the actual stopping of the session.
+ * session, but will yest wait for the actual stopping of the session.
  */
 void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 
@@ -256,9 +256,9 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 					 u32 duration, u32 min_duration);
 
 /**
- * iwl_mvm_rx_session_protect_notif - handles %SESSION_PROTECTION_NOTIF
+ * iwl_mvm_rx_session_protect_yestif - handles %SESSION_PROTECTION_NOTIF
  */
-void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_session_protect_yestif(struct iwl_mvm *mvm,
 				      struct iwl_rx_cmd_buffer *rxb);
 
 #endif /* __time_event_h__ */

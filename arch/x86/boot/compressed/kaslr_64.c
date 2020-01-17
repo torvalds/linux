@@ -73,7 +73,7 @@ phys_addr_t physical_mask = (1ULL << __PHYSICAL_MASK_SHIFT) - 1;
 
 /*
  * Mapping information structure passed to kernel_ident_mapping_init().
- * Due to relocation, pointers must be assigned at run time not build time.
+ * Due to relocation, pointers must be assigned at run time yest build time.
  */
 static struct x86_mapping_info mapping_info;
 
@@ -93,7 +93,7 @@ void initialize_identity_maps(void)
 	mapping_info.kernpg_flag = _KERNPG_TABLE;
 
 	/*
-	 * It should be impossible for this not to already be true,
+	 * It should be impossible for this yest to already be true,
 	 * but since calling this a second time would rewind the other
 	 * counters, let's just make sure this is reset too.
 	 */
@@ -148,7 +148,7 @@ void add_identity_map(unsigned long start, unsigned long size)
 /*
  * This switches the page tables to the new level4 that has been built
  * via calls to add_identity_map() above. If booted via startup_32(),
- * this is effectively a no-op.
+ * this is effectively a yes-op.
  */
 void finalize_identity_maps(void)
 {

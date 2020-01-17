@@ -3,7 +3,7 @@
 // Renesas R-Car
 //
 // Copyright (C) 2013 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
 
 #ifndef RSND_H
 #define RSND_H
@@ -260,7 +260,7 @@ u32 rsnd_get_busif_shift(struct rsnd_dai_stream *io, struct rsnd_mod *mod);
 int rsnd_dma_attach(struct rsnd_dai_stream *io,
 		    struct rsnd_mod *mod, struct rsnd_mod **dma_mod);
 int rsnd_dma_probe(struct rsnd_priv *priv);
-struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
+struct dma_chan *rsnd_dma_request_channel(struct device_yesde *of_yesde,
 					  struct rsnd_mod *mod, char *name);
 
 /*
@@ -448,11 +448,11 @@ struct rsnd_mod *rsnd_mod_next(int *iterator,
 
 void rsnd_parse_connect_common(struct rsnd_dai *rdai,
 		struct rsnd_mod* (*mod_get)(struct rsnd_priv *priv, int id),
-		struct device_node *node,
-		struct device_node *playback,
-		struct device_node *capture);
+		struct device_yesde *yesde,
+		struct device_yesde *playback,
+		struct device_yesde *capture);
 
-int rsnd_channel_normalization(int chan);
+int rsnd_channel_yesrmalization(int chan);
 #define rsnd_runtime_channel_original(io) \
 	rsnd_runtime_channel_original_with_params(io, NULL)
 int rsnd_runtime_channel_original_with_params(struct rsnd_dai_stream *io,
@@ -472,8 +472,8 @@ int rsnd_runtime_is_tdm_split(struct rsnd_dai_stream *io);
 /*
  * DT
  */
-#define rsnd_parse_of_node(priv, node)					\
-	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, node)
+#define rsnd_parse_of_yesde(priv, yesde)					\
+	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_yesde, yesde)
 #define RSND_NODE_DAI	"rcar_sound,dai"
 #define RSND_NODE_SSI	"rcar_sound,ssi"
 #define RSND_NODE_SSIU	"rcar_sound,ssiu"
@@ -772,10 +772,10 @@ u32 rsnd_ssi_multi_slaves_runtime(struct rsnd_dai_stream *io);
 	__rsnd_ssi_is_pin_sharing(rsnd_io_to_mod_ssi(io))
 int __rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 
-#define rsnd_ssi_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_SSI)
+#define rsnd_ssi_of_yesde(priv) rsnd_parse_of_yesde(priv, RSND_NODE_SSI)
 void rsnd_parse_connect_ssi(struct rsnd_dai *rdai,
-			    struct device_node *playback,
-			    struct device_node *capture);
+			    struct device_yesde *playback,
+			    struct device_yesde *capture);
 unsigned int rsnd_ssi_clk_query(struct rsnd_dai *rdai,
 		       int param1, int param2, int *idx);
 
@@ -787,9 +787,9 @@ int rsnd_ssiu_attach(struct rsnd_dai_stream *io,
 int rsnd_ssiu_probe(struct rsnd_priv *priv);
 void rsnd_ssiu_remove(struct rsnd_priv *priv);
 void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
-			     struct device_node *playback,
-			     struct device_node *capture);
-#define rsnd_ssiu_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_SSIU)
+			     struct device_yesde *playback,
+			     struct device_yesde *capture);
+#define rsnd_ssiu_of_yesde(priv) rsnd_parse_of_yesde(priv, RSND_NODE_SSIU)
 
 /*
  *	R-Car SRC
@@ -804,10 +804,10 @@ unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 			       struct rsnd_dai_stream *io,
 			       int is_in);
 
-#define rsnd_src_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_SRC)
+#define rsnd_src_of_yesde(priv) rsnd_parse_of_yesde(priv, RSND_NODE_SRC)
 #define rsnd_parse_connect_src(rdai, playback, capture)			\
 	rsnd_parse_connect_common(rdai, rsnd_src_mod_get,		\
-				  rsnd_src_of_node(rsnd_rdai_to_priv(rdai)), \
+				  rsnd_src_of_yesde(rsnd_rdai_to_priv(rdai)), \
 						   playback, capture)
 
 /*
@@ -816,10 +816,10 @@ unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 int rsnd_ctu_probe(struct rsnd_priv *priv);
 void rsnd_ctu_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
-#define rsnd_ctu_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_CTU)
+#define rsnd_ctu_of_yesde(priv) rsnd_parse_of_yesde(priv, RSND_NODE_CTU)
 #define rsnd_parse_connect_ctu(rdai, playback, capture)			\
 	rsnd_parse_connect_common(rdai, rsnd_ctu_mod_get,		\
-				  rsnd_ctu_of_node(rsnd_rdai_to_priv(rdai)), \
+				  rsnd_ctu_of_yesde(rsnd_rdai_to_priv(rdai)), \
 						   playback, capture)
 
 /*
@@ -828,10 +828,10 @@ struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_mix_probe(struct rsnd_priv *priv);
 void rsnd_mix_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id);
-#define rsnd_mix_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_MIX)
+#define rsnd_mix_of_yesde(priv) rsnd_parse_of_yesde(priv, RSND_NODE_MIX)
 #define rsnd_parse_connect_mix(rdai, playback, capture)			\
 	rsnd_parse_connect_common(rdai, rsnd_mix_mod_get,		\
-				  rsnd_mix_of_node(rsnd_rdai_to_priv(rdai)), \
+				  rsnd_mix_of_yesde(rsnd_rdai_to_priv(rdai)), \
 						   playback, capture)
 
 /*
@@ -840,10 +840,10 @@ struct rsnd_mod *rsnd_mix_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_dvc_probe(struct rsnd_priv *priv);
 void rsnd_dvc_remove(struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id);
-#define rsnd_dvc_of_node(priv) rsnd_parse_of_node(priv, RSND_NODE_DVC)
+#define rsnd_dvc_of_yesde(priv) rsnd_parse_of_yesde(priv, RSND_NODE_DVC)
 #define rsnd_parse_connect_dvc(rdai, playback, capture)			\
 	rsnd_parse_connect_common(rdai, rsnd_dvc_mod_get,		\
-				  rsnd_dvc_of_node(rsnd_rdai_to_priv(rdai)), \
+				  rsnd_dvc_of_yesde(rsnd_rdai_to_priv(rdai)), \
 						   playback, capture)
 
 /*

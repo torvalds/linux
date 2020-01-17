@@ -157,8 +157,8 @@ static int sun4i_pwm_calculate(struct sun4i_pwm_chip *sun4i_pwm,
 		/* First, test without any prescaler when available */
 		prescaler = PWM_PRESCAL_MASK;
 		/*
-		 * When not using any prescaler, the clock period in nanoseconds
-		 * is not an integer so round it half up instead of
+		 * When yest using any prescaler, the clock period in nayesseconds
+		 * is yest an integer so round it half up instead of
 		 * truncating to get less surprising values.
 		 */
 		div = clk_rate * state->period + NSEC_PER_SEC / 2;
@@ -202,7 +202,7 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	u32 ctrl;
 	int ret;
 	unsigned int delay_us;
-	unsigned long now;
+	unsigned long yesw;
 
 	pwm_get_state(pwm, &cstate);
 
@@ -274,11 +274,11 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/* We need a full period to elapse before disabling the channel. */
-	now = jiffies;
+	yesw = jiffies;
 	if (sun4i_pwm->needs_delay[pwm->hwpwm] &&
-	    time_before(now, sun4i_pwm->next_period[pwm->hwpwm])) {
+	    time_before(yesw, sun4i_pwm->next_period[pwm->hwpwm])) {
 		delay_us = jiffies_to_usecs(sun4i_pwm->next_period[pwm->hwpwm] -
-					   now);
+					   yesw);
 		if ((delay_us / 500) > MAX_UDELAY_MS)
 			msleep(delay_us / 1000 + 1);
 		else
@@ -304,7 +304,7 @@ static const struct pwm_ops sun4i_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
-static const struct sun4i_pwm_data sun4i_pwm_dual_nobypass = {
+static const struct sun4i_pwm_data sun4i_pwm_dual_yesbypass = {
 	.has_prescaler_bypass = false,
 	.npwm = 2,
 };
@@ -322,7 +322,7 @@ static const struct sun4i_pwm_data sun4i_pwm_single_bypass = {
 static const struct of_device_id sun4i_pwm_dt_ids[] = {
 	{
 		.compatible = "allwinner,sun4i-a10-pwm",
-		.data = &sun4i_pwm_dual_nobypass,
+		.data = &sun4i_pwm_dual_yesbypass,
 	}, {
 		.compatible = "allwinner,sun5i-a10s-pwm",
 		.data = &sun4i_pwm_dual_bypass,

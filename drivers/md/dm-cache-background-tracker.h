@@ -26,14 +26,14 @@ unsigned btracker_nr_demotions_queued(struct background_tracker *b);
 
 /*
  * returns -EINVAL iff the work is already queued.  -ENOMEM if the work
- * couldn't be queued for another reason.
+ * couldn't be queued for ayesther reason.
  */
 int btracker_queue(struct background_tracker *b,
 		   struct policy_work *work,
 		   struct policy_work **pwork);
 
 /*
- * Returns -ENODATA if there's no work.
+ * Returns -ENODATA if there's yes work.
  */
 int btracker_issue(struct background_tracker *b, struct policy_work **work);
 void btracker_complete(struct background_tracker *b,

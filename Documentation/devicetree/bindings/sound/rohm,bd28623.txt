@@ -1,6 +1,6 @@
 ROHM BD28623MUV Class D speaker amplifier for digital input
 
-This codec does not have any control buses such as I2C, it detect format and
+This codec does yest have any control buses such as I2C, it detect format and
 rate of I2S signal automatically. It has two signals that can be connected
 to GPIOs: reset and mute.
 

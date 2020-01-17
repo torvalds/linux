@@ -4,7 +4,7 @@
  *
  * Copyright © 2006-2007  Red Hat, Inc.
  * Copyright © 2006-2007  Advanced Micro Devices, Inc.
- * Copyright © 2009       VIA Technology, Inc.
+ * Copyright © 2009       VIA Techyeslogy, Inc.
  * Copyright (c) 2010-2011  Andres Salomon <dilinger@queued.net>
  */
 
@@ -41,7 +41,7 @@ static struct dcon_platform_data *pdata;
 /* Platform devices */
 static struct platform_device *dcon_device;
 
-static unsigned short normal_i2c[] = { 0x0d, I2C_CLIENT_END };
+static unsigned short yesrmal_i2c[] = { 0x0d, I2C_CLIENT_END };
 
 static s32 dcon_write(struct dcon_priv *dcon, u8 reg, u16 val)
 {
@@ -62,7 +62,7 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 
 	ver = dcon_read(dcon, DCON_REG_ID);
 	if ((ver >> 8) != 0xDC) {
-		pr_err("DCON ID not 0xDCxx: 0x%04x instead.\n", ver);
+		pr_err("DCON ID yest 0xDCxx: 0x%04x instead.\n", ver);
 		rc = -ENXIO;
 		goto err;
 	}
@@ -90,7 +90,7 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 		   MEM_DLL_CLOCK_DELAY | MEM_POWER_DOWN);
 	dcon_write(dcon, DCON_REG_MEM_OPT_B, MEM_SOFT_RESET);
 
-	/* Colour swizzle, AA, no passthrough, backlight */
+	/* Colour swizzle, AA, yes passthrough, backlight */
 	if (is_init) {
 		dcon->disp_mode = MODE_PASSTHRU | MODE_BL_ENABLE |
 				MODE_CSWIZZLE | MODE_COL_AA;
@@ -106,11 +106,11 @@ err:
 
 /*
  * The smbus doesn't always come back due to what is believed to be
- * hardware (power rail) bugs.  For older models where this is known to
+ * hardware (power rail) bugs.  For older models where this is kyeswn to
  * occur, our solution is to attempt to wait for the bus to stabilize;
  * if it doesn't happen, cut power to the dcon, repower it, and wait
  * for the bus to stabilize.  Rinse, repeat until we have a working
- * smbus.  For newer models, we simply BUG(); we want to know if this
+ * smbus.  For newer models, we simply BUG(); we want to kyesw if this
  * still happens despite the power fixes that have been made!
  */
 static int dcon_bus_stabilize(struct dcon_priv *dcon, int is_powered_down)
@@ -166,15 +166,15 @@ static void dcon_set_backlight(struct dcon_priv *dcon, u8 level)
 	}
 }
 
-/* Set the output type to either color or mono */
-static int dcon_set_mono_mode(struct dcon_priv *dcon, bool enable_mono)
+/* Set the output type to either color or moyes */
+static int dcon_set_moyes_mode(struct dcon_priv *dcon, bool enable_moyes)
 {
-	if (dcon->mono == enable_mono)
+	if (dcon->moyes == enable_moyes)
 		return 0;
 
-	dcon->mono = enable_mono;
+	dcon->moyes = enable_moyes;
 
-	if (enable_mono) {
+	if (enable_moyes) {
 		dcon->disp_mode &= ~(MODE_CSWIZZLE | MODE_COL_AA);
 		dcon->disp_mode |= MODE_MONO_LUMA;
 	} else {
@@ -186,7 +186,7 @@ static int dcon_set_mono_mode(struct dcon_priv *dcon, bool enable_mono)
 	return 0;
 }
 
-/* For now, this will be really stupid - we need to address how
+/* For yesw, this will be really stupid - we need to address how
  * DCONLOAD works in a sleep and account for it accordingly
  */
 
@@ -229,16 +229,16 @@ static void dcon_sleep(struct dcon_priv *dcon, bool sleep)
 
 /* the DCON seems to get confused if we change DCONLOAD too
  * frequently -- i.e., approximately faster than frame time.
- * normally we don't change it this fast, so in general we won't
+ * yesrmally we don't change it this fast, so in general we won't
  * delay here.
  */
 static void dcon_load_holdoff(struct dcon_priv *dcon)
 {
-	ktime_t delta_t, now;
+	ktime_t delta_t, yesw;
 
 	while (1) {
-		now = ktime_get();
-		delta_t = ktime_sub(now, dcon->load_time);
+		yesw = ktime_get();
+		delta_t = ktime_sub(yesw, dcon->load_time);
 		if (ktime_to_ns(delta_t) > NSEC_PER_MSEC * 20)
 			break;
 		mdelay(4);
@@ -252,10 +252,10 @@ static bool dcon_blank_fb(struct dcon_priv *dcon, bool blank)
 	console_lock();
 	lock_fb_info(dcon->fbinfo);
 
-	dcon->ignore_fb_events = true;
+	dcon->igyesre_fb_events = true;
 	err = fb_blank(dcon->fbinfo,
 		       blank ? FB_BLANK_POWERDOWN : FB_BLANK_UNBLANK);
-	dcon->ignore_fb_events = false;
+	dcon->igyesre_fb_events = false;
 	unlock_fb_info(dcon->fbinfo);
 	console_unlock();
 
@@ -301,11 +301,11 @@ static void dcon_source_switch(struct work_struct *work)
 
 		/*
 		 * Ideally we'd like to disable interrupts here so that the
-		 * fb unblanking and DCON turn on happen at a known time value;
-		 * however, we can't do that right now with fb_blank
+		 * fb unblanking and DCON turn on happen at a kyeswn time value;
+		 * however, we can't do that right yesw with fb_blank
 		 * messing with semaphores.
 		 *
-		 * For now, we just hope..
+		 * For yesw, we just hope..
 		 */
 		if (!dcon_blank_fb(dcon, false)) {
 			pr_err("Failed to enter CPU mode\n");
@@ -412,13 +412,13 @@ static ssize_t dcon_freeze_show(struct device *dev,
 	return sprintf(buf, "%d\n", dcon->curr_src == DCON_SOURCE_DCON ? 1 : 0);
 }
 
-static ssize_t dcon_mono_show(struct device *dev,
+static ssize_t dcon_moyes_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", dcon->mono);
+	return sprintf(buf, "%d\n", dcon->moyes);
 }
 
 static ssize_t dcon_resumeline_show(struct device *dev,
@@ -428,18 +428,18 @@ static ssize_t dcon_resumeline_show(struct device *dev,
 	return sprintf(buf, "%d\n", resumeline);
 }
 
-static ssize_t dcon_mono_store(struct device *dev,
+static ssize_t dcon_moyes_store(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	unsigned long enable_mono;
+	unsigned long enable_moyes;
 	int rc;
 
-	rc = kstrtoul(buf, 10, &enable_mono);
+	rc = kstrtoul(buf, 10, &enable_moyes);
 	if (rc)
 		return rc;
 
-	dcon_set_mono_mode(dev_get_drvdata(dev), enable_mono ? true : false);
+	dcon_set_moyes_mode(dev_get_drvdata(dev), enable_moyes ? true : false);
 
 	return count;
 }
@@ -463,7 +463,7 @@ static ssize_t dcon_freeze_store(struct device *dev,
 	case 1:
 		dcon_set_source_sync(dcon, DCON_SOURCE_DCON);
 		break;
-	case 2:  /* normally unused */
+	case 2:  /* yesrmally unused */
 		dcon_set_source(dcon, DCON_SOURCE_DCON);
 		break;
 	default:
@@ -509,7 +509,7 @@ static struct device_attribute dcon_device_files[] = {
 	__ATTR(mode, 0444, dcon_mode_show, NULL),
 	__ATTR(sleep, 0644, dcon_sleep_show, dcon_sleep_store),
 	__ATTR(freeze, 0644, dcon_freeze_show, dcon_freeze_store),
-	__ATTR(monochrome, 0644, dcon_mono_show, dcon_mono_store),
+	__ATTR(moyeschrome, 0644, dcon_moyes_show, dcon_moyes_store),
 	__ATTR(resumeline, 0644, dcon_resumeline_show, dcon_resumeline_store),
 };
 
@@ -525,7 +525,7 @@ static int dcon_bl_update(struct backlight_device *dev)
 		dcon_set_backlight(dcon, level);
 
 	/* power down the DCON when the screen is blanked */
-	if (!dcon->ignore_fb_events)
+	if (!dcon->igyesre_fb_events)
 		dcon_sleep(dcon, !!(dev->props.state & BL_CORE_FBBLANK));
 
 	return 0;
@@ -549,7 +549,7 @@ static struct backlight_properties dcon_bl_props = {
 	.power = FB_BLANK_UNBLANK,
 };
 
-static int dcon_reboot_notify(struct notifier_block *nb,
+static int dcon_reboot_yestify(struct yestifier_block *nb,
 			      unsigned long foo, void *bar)
 {
 	struct dcon_priv *dcon = container_of(nb, struct dcon_priv, reboot_nb);
@@ -563,15 +563,15 @@ static int dcon_reboot_notify(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static int unfreeze_on_panic(struct notifier_block *nb,
+static int unfreeze_on_panic(struct yestifier_block *nb,
 			     unsigned long e, void *p)
 {
 	pdata->set_dconload(1);
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block dcon_panic_nb = {
-	.notifier_call = unfreeze_on_panic,
+static struct yestifier_block dcon_panic_nb = {
+	.yestifier_call = unfreeze_on_panic,
 };
 
 static int dcon_detect(struct i2c_client *client, struct i2c_board_info *info)
@@ -596,7 +596,7 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	dcon->client = client;
 	init_waitqueue_head(&dcon->waitq);
 	INIT_WORK(&dcon->switch_source, dcon_source_switch);
-	dcon->reboot_nb.notifier_call = dcon_reboot_notify;
+	dcon->reboot_nb.yestifier_call = dcon_reboot_yestify;
 	dcon->reboot_nb.priority = -1;
 
 	i2c_set_clientdata(client, dcon);
@@ -633,7 +633,7 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		rc = device_create_file(&dcon_device->dev,
 					&dcon_device_files[i]);
 		if (rc) {
-			dev_err(&dcon_device->dev, "Cannot create sysfs file\n");
+			dev_err(&dcon_device->dev, "Canyest create sysfs file\n");
 			goto ecreate;
 		}
 	}
@@ -646,13 +646,13 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 						 dcon, &dcon_bl_ops,
 						 &dcon_bl_props);
 	if (IS_ERR(dcon->bl_dev)) {
-		dev_err(&client->dev, "cannot register backlight dev (%ld)\n",
+		dev_err(&client->dev, "canyest register backlight dev (%ld)\n",
 			PTR_ERR(dcon->bl_dev));
 		dcon->bl_dev = NULL;
 	}
 
-	register_reboot_notifier(&dcon->reboot_nb);
-	atomic_notifier_chain_register(&panic_notifier_list, &dcon_panic_nb);
+	register_reboot_yestifier(&dcon->reboot_nb);
+	atomic_yestifier_chain_register(&panic_yestifier_list, &dcon_panic_nb);
 
 	return 0;
 
@@ -673,8 +673,8 @@ static int dcon_remove(struct i2c_client *client)
 {
 	struct dcon_priv *dcon = i2c_get_clientdata(client);
 
-	unregister_reboot_notifier(&dcon->reboot_nb);
-	atomic_notifier_chain_unregister(&panic_notifier_list, &dcon_panic_nb);
+	unregister_reboot_yestifier(&dcon->reboot_nb);
+	atomic_yestifier_chain_unregister(&panic_yestifier_list, &dcon_panic_nb);
 
 	free_irq(DCON_IRQ, dcon);
 
@@ -785,7 +785,7 @@ static struct i2c_driver dcon_driver = {
 	.probe = dcon_probe,
 	.remove = dcon_remove,
 	.detect = dcon_detect,
-	.address_list = normal_i2c,
+	.address_list = yesrmal_i2c,
 };
 
 static int __init olpc_dcon_init(void)

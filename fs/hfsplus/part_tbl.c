@@ -6,10 +6,10 @@
  * the GNU General Public License.
  *
  * Original code to handle the new style Mac partition table based on
- * a patch contributed by Holger Schemel (aeglos@valinor.owl.de).
+ * a patch contributed by Holger Schemel (aeglos@valiyesr.owl.de).
  *
  * In function preconditions the term "valid" applied to a pointer to
- * a structure means that the pointer is non-NULL and the structure it
+ * a structure means that the pointer is yesn-NULL and the structure it
  * points to has all fields initialized to consistent values.
  *
  */

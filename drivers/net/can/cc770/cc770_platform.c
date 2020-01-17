@@ -19,7 +19,7 @@
  * Please see include/linux/can/platform/cc770.h for description of
  * above fields.
  *
- * If the device tree is used, you need a CAN node definition in your
+ * If the device tree is used, you need a CAN yesde definition in your
  * DTS file similar to:
  *
  *   can@3,100 {
@@ -67,10 +67,10 @@ static void cc770_platform_write_reg(const struct cc770_priv *priv, int reg,
 	iowrite8(val, priv->reg_base + reg);
 }
 
-static int cc770_get_of_node_data(struct platform_device *pdev,
+static int cc770_get_of_yesde_data(struct platform_device *pdev,
 				  struct cc770_priv *priv)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const u32 *prop;
 	int prop_size;
 	u32 clkext;
@@ -83,13 +83,13 @@ static int cc770_get_of_node_data(struct platform_device *pdev,
 		clkext = CC770_PLATFORM_CAN_CLOCK; /* default */
 	priv->can.clock.freq = clkext;
 
-	/* The system clock may not exceed 10 MHz */
+	/* The system clock may yest exceed 10 MHz */
 	if (priv->can.clock.freq > 10000000) {
 		priv->cpu_interface |= CPUIF_DSC;
 		priv->can.clock.freq /= 2;
 	}
 
-	/* The memory clock may not exceed 8 MHz */
+	/* The memory clock may yest exceed 8 MHz */
 	if (priv->can.clock.freq > 8000000)
 		priv->cpu_interface |= CPUIF_DMC;
 
@@ -98,7 +98,7 @@ static int cc770_get_of_node_data(struct platform_device *pdev,
 	if (of_get_property(np, "bosch,iso-low-speed-mux", NULL))
 		priv->cpu_interface |= CPUIF_MUX;
 
-	if (!of_get_property(np, "bosch,no-comperator-bypass", NULL))
+	if (!of_get_property(np, "bosch,yes-comperator-bypass", NULL))
 		priv->bus_config |= BUSCFG_CBY;
 	if (of_get_property(np, "bosch,disconnect-rx0-input", NULL))
 		priv->bus_config |= BUSCFG_DR0;
@@ -193,8 +193,8 @@ static int cc770_platform_probe(struct platform_device *pdev)
 	priv->irq_flags = IRQF_SHARED;
 	priv->reg_base = base;
 
-	if (pdev->dev.of_node)
-		err = cc770_get_of_node_data(pdev, priv);
+	if (pdev->dev.of_yesde)
+		err = cc770_get_of_yesde_data(pdev, priv);
 	else if (dev_get_platdata(&pdev->dev))
 		err = cc770_get_platform_data(pdev, priv);
 	else

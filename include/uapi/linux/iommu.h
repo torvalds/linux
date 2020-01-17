@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * IOMMU user API definitions
  */
@@ -22,7 +22,7 @@ enum iommu_fault_type {
 enum iommu_fault_reason {
 	IOMMU_FAULT_REASON_UNKNOWN = 0,
 
-	/* Could not access the PASID table (fetch caused external abort) */
+	/* Could yest access the PASID table (fetch caused external abort) */
 	IOMMU_FAULT_REASON_PASID_FETCH,
 
 	/* PASID entry is invalid or has configuration errors */
@@ -41,7 +41,7 @@ enum iommu_fault_reason {
 	IOMMU_FAULT_REASON_WALK_EABT,
 
 	/*
-	 * Could not access the page table entry (Bad address),
+	 * Could yest access the page table entry (Bad address),
 	 * actual translation fault
 	 */
 	IOMMU_FAULT_REASON_PTE_FETCH,
@@ -124,7 +124,7 @@ struct iommu_fault {
  *	populated, retry the access. This is "Success" in PCI PRI.
  * @IOMMU_PAGE_RESP_FAILURE: General error. Drop all subsequent faults from
  *	this device if possible. This is "Response Failure" in PCI PRI.
- * @IOMMU_PAGE_RESP_INVALID: Could not handle this fault, don't retry the
+ * @IOMMU_PAGE_RESP_INVALID: Could yest handle this fault, don't retry the
  *	access. This is "Invalid Request" in PCI PRI.
  */
 enum iommu_page_response_code {
@@ -297,8 +297,8 @@ struct iommu_gpasid_bind_data_vtd {
  * @padding:	Reserved for future use (should be zero)
  * @vtd:	Intel VT-d specific data
  *
- * Guest to host PASID mapping can be an identity or non-identity, where guest
- * has its own PASID space. For non-identify mapping, guest to host PASID lookup
+ * Guest to host PASID mapping can be an identity or yesn-identity, where guest
+ * has its own PASID space. For yesn-identify mapping, guest to host PASID lookup
  * is needed when VM programs guest PASID into an assigned device. VMM may
  * trap such PASID programming then request host IOMMU driver to convert guest
  * PASID to host PASID based on this bind data.

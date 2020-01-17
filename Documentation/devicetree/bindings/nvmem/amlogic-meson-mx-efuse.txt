@@ -9,7 +9,7 @@ Required Properties:
 - clocks: a reference to the efuse core gate clock
 - clock-names: must be "core"
 
-All properties and sub-nodes as well as the consumer bindings
+All properties and sub-yesdes as well as the consumer bindings
 defined in nvmem.txt in this directory are also supported.
 
 

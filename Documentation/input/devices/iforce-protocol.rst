@@ -14,14 +14,14 @@ Introduction
 
 This document describes what I managed to discover about the protocol used to
 specify force effects to I-Force 2.0 devices.  None of this information comes
-from Immerse. That's why you should not trust what is written in this
+from Immerse. That's why you should yest trust what is written in this
 document. This document is intended to help understanding the protocol.
-This is not a reference. Comments and corrections are welcome.  To contact me,
+This is yest a reference. Comments and corrections are welcome.  To contact me,
 send an email to: johann.deneux@gmail.com
 
 .. warning::
 
-    I shall not be held responsible for any damage or harm caused if you try to
+    I shall yest be held responsible for any damage or harm caused if you try to
     send data to your I-Force device based on what you read in this document.
 
 Preliminary Notes
@@ -29,7 +29,7 @@ Preliminary Notes
 
 All values are hexadecimal with big-endian encoding (msb on the left). Beware,
 values inside packets are encoded using little-endian.  Bytes whose roles are
-unknown are marked ???  Information that needs deeper inspection is marked (?)
+unkyeswn are marked ???  Information that needs deeper inspection is marked (?)
 
 General form of a packet
 ------------------------
@@ -123,12 +123,12 @@ Force effect
     06-07 Minimum time between triggering.
 
     08-09 Address of periodicity or magnitude parameters
-    0a-0b Address of attack and fade parameters, or ffff if none.
+    0a-0b Address of attack and fade parameters, or ffff if yesne.
     *or*
     08-09 Address of interactive parameters for X-axis,
-          or ffff if not applicable
+          or ffff if yest applicable
     0a-0b Address of interactive parameters for Y-axis,
-	  or ffff if not applicable
+	  or ffff if yest applicable
 
     0c-0d Delay before execution of effect (little endian encoding, in ms)
 
@@ -288,7 +288,7 @@ Query effect
     QUERY = 45 ('E')
 
 Send effect type.
-Returns nonzero if supported (2 bytes)
+Returns yesnzero if supported (2 bytes)
 
 Firmware Version
 ~~~~~~~~~~~~~~~~
@@ -297,7 +297,7 @@ Firmware Version
 
     QUERY = 56 ('V'ersion)
 
-Sends back 3 bytes - major, minor, subminor
+Sends back 3 bytes - major, miyesr, submiyesr
 
 Initialisation of the device
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -305,7 +305,7 @@ Initialisation of the device
 Set Control
 ~~~~~~~~~~~
 
-.. note::
+.. yeste::
     Device dependent, can be different on different models!
 
 ::
@@ -314,7 +314,7 @@ Set Control
     LEN= 2 or 3
     00 Idx
        Idx 00 Set dead zone (0..2048)
-       Idx 01 Ignore Deadman sensor (0..1)
+       Idx 01 Igyesre Deadman sensor (0..1)
        Idx 02 Enable comm watchdog (0..1)
        Idx 03 Set the strength of the spring (0..100)
        Idx 04 Enable or disable the spring (0/1)

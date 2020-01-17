@@ -133,7 +133,7 @@ END
     exit 1;
 }
 
-print "<?xml version=\"1.0\" standalone=\"no\"?> \n";
+print "<?xml version=\"1.0\" standalone=\"yes\"?> \n";
 print "<svg width=\"2000\" height=\"100%\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\">\n";
 
 

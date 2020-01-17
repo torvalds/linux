@@ -18,10 +18,10 @@
 
 static struct kobject *ultravisor_kobj;
 
-int __init early_init_dt_scan_ultravisor(unsigned long node, const char *uname,
+int __init early_init_dt_scan_ultravisor(unsigned long yesde, const char *uname,
 					 int depth, void *data)
 {
-	if (!of_flat_dt_is_compatible(node, "ibm,ultravisor"))
+	if (!of_flat_dt_is_compatible(yesde, "ibm,ultravisor"))
 		return 0;
 
 	powerpc_firmware_features |= FW_FEATURE_ULTRAVISOR;
@@ -45,16 +45,16 @@ static struct bin_attribute uv_msglog_attr = {
 
 static int __init uv_init(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	if (!firmware_has_feature(FW_FEATURE_ULTRAVISOR))
 		return 0;
 
-	node = of_find_compatible_node(NULL, NULL, "ibm,uv-firmware");
-	if (!node)
+	yesde = of_find_compatible_yesde(NULL, NULL, "ibm,uv-firmware");
+	if (!yesde)
 		return -ENODEV;
 
-	uv_memcons = memcons_init(node, "memcons");
+	uv_memcons = memcons_init(yesde, "memcons");
 	if (!uv_memcons)
 		return -ENOENT;
 

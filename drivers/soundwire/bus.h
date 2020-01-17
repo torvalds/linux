@@ -80,9 +80,9 @@ int sdw_find_col_index(int col);
  * @ch_mask: Channel mask
  * @transport_params: Transport parameters
  * @port_params: Port parameters
- * @port_node: List node for Master or Slave port_list
+ * @port_yesde: List yesde for Master or Slave port_list
  *
- * SoundWire spec has no mention of ports for Master interface but the
+ * SoundWire spec has yes mention of ports for Master interface but the
  * concept is logically extended.
  */
 struct sdw_port_runtime {
@@ -90,7 +90,7 @@ struct sdw_port_runtime {
 	int ch_mask;
 	struct sdw_transport_params transport_params;
 	struct sdw_port_params port_params;
-	struct list_head port_node;
+	struct list_head port_yesde;
 };
 
 /**
@@ -100,14 +100,14 @@ struct sdw_port_runtime {
  * @direction: Data direction for Slave
  * @ch_count: Number of channels handled by the Slave for
  * this stream
- * @m_rt_node: sdw_master_runtime list node
+ * @m_rt_yesde: sdw_master_runtime list yesde
  * @port_list: List of Slave Ports configured for this stream
  */
 struct sdw_slave_runtime {
 	struct sdw_slave *slave;
 	enum sdw_data_direction direction;
 	unsigned int ch_count;
-	struct list_head m_rt_node;
+	struct list_head m_rt_yesde;
 	struct list_head port_list;
 };
 
@@ -121,8 +121,8 @@ struct sdw_slave_runtime {
  * this stream, can be zero.
  * @slave_rt_list: Slave runtime list
  * @port_list: List of Master Ports configured for this stream, can be zero.
- * @stream_node: sdw_stream_runtime master_list node
- * @bus_node: sdw_bus m_rt_list node
+ * @stream_yesde: sdw_stream_runtime master_list yesde
+ * @bus_yesde: sdw_bus m_rt_list yesde
  */
 struct sdw_master_runtime {
 	struct sdw_bus *bus;
@@ -131,8 +131,8 @@ struct sdw_master_runtime {
 	unsigned int ch_count;
 	struct list_head slave_rt_list;
 	struct list_head port_list;
-	struct list_head stream_node;
-	struct list_head bus_node;
+	struct list_head stream_yesde;
+	struct list_head bus_yesde;
 };
 
 struct sdw_dpn_prop *sdw_get_slave_dpn_prop(struct sdw_slave *slave,

@@ -66,7 +66,7 @@ static struct ti_dt_clk dm816x_clks[] = {
 	DT_CLK(NULL, "timer_sys_ck", "sys_clkin_ck"),
 	DT_CLK(NULL, "timer_32k_ck", "sysclk18_ck"),
 	DT_CLK(NULL, "timer_ext_ck", "tclkin_ck"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 static const char *enable_init_clks[] = {

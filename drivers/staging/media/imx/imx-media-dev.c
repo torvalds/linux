@@ -12,17 +12,17 @@
 #include <media/imx.h>
 #include "imx-media.h"
 
-static inline struct imx_media_dev *notifier2dev(struct v4l2_async_notifier *n)
+static inline struct imx_media_dev *yestifier2dev(struct v4l2_async_yestifier *n)
 {
-	return container_of(n, struct imx_media_dev, notifier);
+	return container_of(n, struct imx_media_dev, yestifier);
 }
 
-/* async subdev bound notifier */
-static int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
+/* async subdev bound yestifier */
+static int imx_media_subdev_bound(struct v4l2_async_yestifier *yestifier,
 				  struct v4l2_subdev *sd,
 				  struct v4l2_async_subdev *asd)
 {
-	struct imx_media_dev *imxmd = notifier2dev(notifier);
+	struct imx_media_dev *imxmd = yestifier2dev(yestifier);
 	int ret;
 
 	if (sd->grp_id & IMX_MEDIA_GRP_ID_IPU_CSI) {
@@ -37,14 +37,14 @@ static int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-/* async subdev complete notifier */
-static int imx6_media_probe_complete(struct v4l2_async_notifier *notifier)
+/* async subdev complete yestifier */
+static int imx6_media_probe_complete(struct v4l2_async_yestifier *yestifier)
 {
-	struct imx_media_dev *imxmd = notifier2dev(notifier);
+	struct imx_media_dev *imxmd = yestifier2dev(yestifier);
 	int ret;
 
 	/* call the imx5/6/7 common probe completion handler */
-	ret = imx_media_probe_complete(notifier);
+	ret = imx_media_probe_complete(yestifier);
 	if (ret)
 		return ret;
 
@@ -62,8 +62,8 @@ unlock:
 	return ret;
 }
 
-/* async subdev complete notifier */
-static const struct v4l2_async_notifier_operations imx_media_notifier_ops = {
+/* async subdev complete yestifier */
+static const struct v4l2_async_yestifier_operations imx_media_yestifier_ops = {
 	.bound = imx_media_subdev_bound,
 	.complete = imx6_media_probe_complete,
 };
@@ -71,7 +71,7 @@ static const struct v4l2_async_notifier_operations imx_media_notifier_ops = {
 static int imx_media_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct imx_media_dev *imxmd;
 	int ret;
 
@@ -79,21 +79,21 @@ static int imx_media_probe(struct platform_device *pdev)
 	if (IS_ERR(imxmd))
 		return PTR_ERR(imxmd);
 
-	ret = imx_media_add_of_subdevs(imxmd, node);
+	ret = imx_media_add_of_subdevs(imxmd, yesde);
 	if (ret) {
 		v4l2_err(&imxmd->v4l2_dev,
 			 "add_of_subdevs failed with %d\n", ret);
 		goto cleanup;
 	}
 
-	ret = imx_media_dev_notifier_register(imxmd, &imx_media_notifier_ops);
+	ret = imx_media_dev_yestifier_register(imxmd, &imx_media_yestifier_ops);
 	if (ret)
 		goto cleanup;
 
 	return 0;
 
 cleanup:
-	v4l2_async_notifier_cleanup(&imxmd->notifier);
+	v4l2_async_yestifier_cleanup(&imxmd->yestifier);
 	v4l2_device_unregister(&imxmd->v4l2_dev);
 	media_device_cleanup(&imxmd->md);
 
@@ -107,9 +107,9 @@ static int imx_media_remove(struct platform_device *pdev)
 
 	v4l2_info(&imxmd->v4l2_dev, "Removing imx-media\n");
 
-	v4l2_async_notifier_unregister(&imxmd->notifier);
+	v4l2_async_yestifier_unregister(&imxmd->yestifier);
 	imx_media_unregister_ipu_internal_subdevs(imxmd);
-	v4l2_async_notifier_cleanup(&imxmd->notifier);
+	v4l2_async_yestifier_cleanup(&imxmd->yestifier);
 	imx_media_csc_scaler_device_unregister(imxmd->m2m_vdev);
 	media_device_unregister(&imxmd->md);
 	v4l2_device_unregister(&imxmd->v4l2_dev);

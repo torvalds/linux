@@ -124,7 +124,7 @@ static int rxrpc_preparse_xdr_rxkad(struct key_preparsed_payload *prep,
 	token->security_index	= RXRPC_SECURITY_RXKAD;
 	token->kad->ticket_len	= tktlen;
 	token->kad->vice_id	= ntohl(xdr[0]);
-	token->kad->kvno	= ntohl(xdr[1]);
+	token->kad->kvyes	= ntohl(xdr[1]);
 	token->kad->start	= ntohl(xdr[4]);
 	token->kad->expiry	= ntohl(xdr[5]);
 	token->kad->primary_flag = ntohl(xdr[6]);
@@ -134,7 +134,7 @@ static int rxrpc_preparse_xdr_rxkad(struct key_preparsed_payload *prep,
 	_debug("SCIX: %u", token->security_index);
 	_debug("TLEN: %u", token->kad->ticket_len);
 	_debug("EXPY: %x", token->kad->expiry);
-	_debug("KVNO: %u", token->kad->kvno);
+	_debug("KVNO: %u", token->kad->kvyes);
 	_debug("PRIM: %u", token->kad->primary_flag);
 	_debug("SKEY: %02x%02x%02x%02x%02x%02x%02x%02x",
 	       token->kad->session_key[0], token->kad->session_key[1],
@@ -567,34 +567,34 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 	       prep->datalen);
 
 	if (datalen > AFSTOKEN_LENGTH_MAX)
-		goto not_xdr;
+		goto yest_xdr;
 
 	/* XDR is an array of __be32's */
 	if (datalen & 3)
-		goto not_xdr;
+		goto yest_xdr;
 
 	/* the flags should be 0 (the setpag bit must be handled by
 	 * userspace) */
 	if (ntohl(*xdr++) != 0)
-		goto not_xdr;
+		goto yest_xdr;
 	datalen -= 4;
 
 	/* check the cell name */
 	len = ntohl(*xdr++);
 	if (len < 1 || len > AFSTOKEN_CELL_MAX)
-		goto not_xdr;
+		goto yest_xdr;
 	datalen -= 4;
 	paddedlen = (len + 3) & ~3;
 	if (paddedlen > datalen)
-		goto not_xdr;
+		goto yest_xdr;
 
 	cp = (const char *) xdr;
 	for (loop = 0; loop < len; loop++)
 		if (!isprint(cp[loop]))
-			goto not_xdr;
+			goto yest_xdr;
 	for (; loop < paddedlen; loop++)
 		if (cp[loop])
-			goto not_xdr;
+			goto yest_xdr;
 	_debug("cellname: [%u/%u] '%*.*s'",
 	       len, paddedlen, len, len, (const char *) xdr);
 	datalen -= paddedlen;
@@ -602,26 +602,26 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 
 	/* get the token count */
 	if (datalen < 12)
-		goto not_xdr;
+		goto yest_xdr;
 	ntoken = ntohl(*xdr++);
 	datalen -= 4;
 	_debug("ntoken: %x", ntoken);
 	if (ntoken < 1 || ntoken > AFSTOKEN_MAX)
-		goto not_xdr;
+		goto yest_xdr;
 
 	/* check each token wrapper */
 	token = xdr;
 	loop = ntoken;
 	do {
 		if (datalen < 8)
-			goto not_xdr;
+			goto yest_xdr;
 		toklen = ntohl(*xdr++);
 		sec_ix = ntohl(*xdr);
 		datalen -= 4;
 		_debug("token: [%x/%zx] %x", toklen, datalen, sec_ix);
 		paddedlen = (toklen + 3) & ~3;
 		if (toklen < 20 || toklen > datalen || paddedlen > datalen)
-			goto not_xdr;
+			goto yest_xdr;
 		datalen -= paddedlen;
 		xdr += paddedlen >> 2;
 
@@ -629,10 +629,10 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 
 	_debug("remainder: %zu", datalen);
 	if (datalen != 0)
-		goto not_xdr;
+		goto yest_xdr;
 
 	/* okay: we're going to assume it's valid XDR format
-	 * - we ignore the cellname, relying on the key to be correctly named
+	 * - we igyesre the cellname, relying on the key to be correctly named
 	 */
 	do {
 		xdr = token;
@@ -666,7 +666,7 @@ static int rxrpc_preparse_xdr(struct key_preparsed_payload *prep)
 	_leave(" = 0");
 	return 0;
 
-not_xdr:
+yest_xdr:
 	_leave(" = -EPROTO");
 	return -EPROTO;
 error:
@@ -683,11 +683,11 @@ error:
  *	4	2	security index (type)
  *	6	2	ticket length
  *	8	4	key expiry time (time_t)
- *	12	4	kvno
+ *	12	4	kvyes
  *	16	8	session key
  *	24	[len]	ticket
  *
- * if no data is provided, then a no-security key is made
+ * if yes data is provided, then a yes-security key is made
  */
 static int rxrpc_preparse(struct key_preparsed_payload *prep)
 {
@@ -700,7 +700,7 @@ static int rxrpc_preparse(struct key_preparsed_payload *prep)
 
 	_enter("%zu", prep->datalen);
 
-	/* handle a no-security key */
+	/* handle a yes-security key */
 	if (!prep->data && prep->datalen == 0)
 		return 0;
 
@@ -737,7 +737,7 @@ static int rxrpc_preparse(struct key_preparsed_payload *prep)
 	_debug("SCIX: %u", v1->security_index);
 	_debug("TLEN: %u", v1->ticket_length);
 	_debug("EXPY: %x", v1->expiry);
-	_debug("KVNO: %u", v1->kvno);
+	_debug("KVNO: %u", v1->kvyes);
 	_debug("SKEY: %02x%02x%02x%02x%02x%02x%02x%02x",
 	       v1->session_key[0], v1->session_key[1],
 	       v1->session_key[2], v1->session_key[3],
@@ -768,7 +768,7 @@ static int rxrpc_preparse(struct key_preparsed_payload *prep)
 	token->security_index		= RXRPC_SECURITY_RXKAD;
 	token->kad->ticket_len		= v1->ticket_length;
 	token->kad->expiry		= v1->expiry;
-	token->kad->kvno		= v1->kvno;
+	token->kad->kvyes		= v1->kvyes;
 	memcpy(&token->kad->session_key, &v1->session_key, 8);
 	memcpy(&token->kad->ticket, v1->ticket, v1->ticket_length);
 
@@ -810,7 +810,7 @@ static void rxrpc_free_token_list(struct rxrpc_key_token *token)
 				rxrpc_rxk5_free(token->k5);
 			break;
 		default:
-			pr_err("Unknown token type %x on rxrpc key\n",
+			pr_err("Unkyeswn token type %x on rxrpc key\n",
 			       token->security_index);
 			BUG();
 		}
@@ -960,7 +960,7 @@ int rxrpc_server_keyring(struct rxrpc_sock *rx, char __user *optval,
 int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 			      const void *session_key,
 			      time64_t expiry,
-			      u32 kvno)
+			      u32 kvyes)
 {
 	const struct cred *cred = current_cred();
 	struct key *key;
@@ -987,7 +987,7 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 	data.v1.security_index = RXRPC_SECURITY_RXKAD;
 	data.v1.ticket_length = 0;
 	data.v1.expiry = rxrpc_time64_to_u32(expiry);
-	data.v1.kvno = 0;
+	data.v1.kvyes = 0;
 
 	memcpy(&data.v1.session_key, session_key, sizeof(data.v1.session_key));
 
@@ -1011,7 +1011,7 @@ EXPORT_SYMBOL(rxrpc_get_server_data_key);
  * rxrpc_get_null_key - Generate a null RxRPC key
  * @keyname: The name to give the key.
  *
- * Generate a null RxRPC key that can be used to indicate anonymous security is
+ * Generate a null RxRPC key that can be used to indicate ayesnymous security is
  * required for a particular domain.
  */
 struct key *rxrpc_get_null_key(const char *keyname)
@@ -1054,7 +1054,7 @@ static long rxrpc_read(const struct key *key,
 
 	_enter("");
 
-	/* we don't know what form we should return non-AFS keys in */
+	/* we don't kyesw what form we should return yesn-AFS keys in */
 	if (memcmp(key->description, "afs@", 4) != 0)
 		return -EOPNOTSUPP;
 	cnlen = strlen(key->description + 4);
@@ -1073,7 +1073,7 @@ static long rxrpc_read(const struct key *key,
 
 		switch (token->security_index) {
 		case RXRPC_SECURITY_RXKAD:
-			toksize += 9 * 4;	/* viceid, kvno, key*2 + len, begin,
+			toksize += 9 * 4;	/* viceid, kvyes, key*2 + len, begin,
 						 * end, primary, tktlen */
 			toksize += RND(token->kad->ticket_len);
 			break;
@@ -1170,7 +1170,7 @@ static long rxrpc_read(const struct key *key,
 		switch (token->security_index) {
 		case RXRPC_SECURITY_RXKAD:
 			ENCODE(token->kad->vice_id);
-			ENCODE(token->kad->kvno);
+			ENCODE(token->kad->kvyes);
 			ENCODE_DATA(8, token->kad->session_key);
 			ENCODE(token->kad->start);
 			ENCODE(token->kad->expiry);

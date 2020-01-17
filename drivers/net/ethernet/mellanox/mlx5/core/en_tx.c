@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -160,7 +160,7 @@ mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb, struct 
 			sq->stats->csum_partial++;
 		}
 	} else
-		sq->stats->csum_none++;
+		sq->stats->csum_yesne++;
 }
 
 static inline u16
@@ -263,7 +263,7 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	send_doorbell = __netdev_tx_sent_queue(sq->txq, num_bytes,
 					       xmit_more);
 	if (send_doorbell)
-		mlx5e_notify_hw(wq, sq->pc, sq->uar_map, cseg);
+		mlx5e_yestify_hw(wq, sq->pc, sq->uar_map, cseg);
 }
 
 netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
@@ -283,7 +283,7 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	int num_dma;
 	__be16 mss;
 
-	/* Calc ihs and ds cnt, no writes to wqe yet */
+	/* Calc ihs and ds cnt, yes writes to wqe yet */
 	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
 	if (skb_is_gso(skb)) {
 		opcode    = MLX5_OPCODE_LSO;
@@ -609,7 +609,7 @@ netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	int num_dma;
 	__be16 mss;
 
-	/* Calc ihs and ds cnt, no writes to wqe yet */
+	/* Calc ihs and ds cnt, yes writes to wqe yet */
 	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
 	if (skb_is_gso(skb)) {
 		opcode    = MLX5_OPCODE_LSO;

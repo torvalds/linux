@@ -53,7 +53,7 @@
 #define	DB_PR(flag, fmt, ...)						\
 	do { if (flag) printf(fmt "\n", ##__VA_ARGS__); } while (0)
 #else
-#define	DB_PR(flag, fmt, ...)	no_printk(fmt "\n", ##__VA_ARGS__)
+#define	DB_PR(flag, fmt, ...)	yes_printk(fmt "\n", ##__VA_ARGS__)
 
 #endif
 
@@ -244,7 +244,7 @@
  * RMT events				  meaning		from
  */
 #define RM_RING_OP	1		/* ring operational	MAC	*/
-#define RM_RING_NON_OP	2		/* ring not operational	MAC	*/
+#define RM_RING_NON_OP	2		/* ring yest operational	MAC	*/
 #define RM_MY_BEACON	3		/* recvd my beacon	MAC	*/
 #define RM_OTHER_BEACON	4		/* recvd other beacon	MAC	*/
 #define RM_MY_CLAIM	5		/* recvd my claim	MAC	*/
@@ -257,7 +257,7 @@
 
 #define RM_TIMEOUT_NON_OP	12	/* timeout T_Non_OP	*/
 #define RM_TIMEOUT_T_STUCK	13	/* timeout T_Stuck	*/
-#define RM_TIMEOUT_ANNOUNCE	14	/* timeout T_Announce	*/
+#define RM_TIMEOUT_ANNOUNCE	14	/* timeout T_Anyesunce	*/
 #define RM_TIMEOUT_T_DIRECT	15	/* timeout T_Direct	*/
 #define RM_TIMEOUT_D_MAX	16	/* timeout D_Max	*/
 #define RM_TIMEOUT_POLL		17	/* claim/beacon poller	*/
@@ -281,7 +281,7 @@
 #define PC_WH_NONE	0		/* ok */
 #define PC_WH_M_M	1		/* M to M */
 #define PC_WH_OTHER	2		/* other incompatible phys */
-#define PC_WH_PATH	3		/* path not available */
+#define PC_WH_PATH	3		/* path yest available */
 /*
  * LCT duration
  */
@@ -323,7 +323,7 @@
 
 /*
  * parameter for config_mux
- * note : number is index in config_endec table !
+ * yeste : number is index in config_endec table !
  */
 #define MUX_THRUA	0		/* through A */
 #define MUX_THRUB	1		/* through B */
@@ -367,11 +367,11 @@
  * oops: MUST MATCH CF-StateType in SMT7.2 !
  */
 #define SC0_ISOLATED	0		/* isolated */
-#define SC1_WRAP_A	5		/* wrap A (not used) */
-#define SC2_WRAP_B	6		/* wrap B (not used) */
+#define SC1_WRAP_A	5		/* wrap A (yest used) */
+#define SC2_WRAP_B	6		/* wrap B (yest used) */
 #define SC4_THRU_A	12		/* through A */
 #define SC5_THRU_B	7		/* through B (used in SMT 6.2) */
-#define SC7_WRAP_S	8		/* SAS (not used) */
+#define SC7_WRAP_S	8		/* SAS (yest used) */
 #define SC9_C_WRAP_A	9		/* c wrap A */
 #define SC10_C_WRAP_B	10		/* c wrap B */
 #define SC11_C_WRAP_S	11		/* c wrap S */
@@ -405,7 +405,7 @@ struct mac_parameter {
  * MAC counters
  */
 struct mac_counter {
-	u_long	mac_nobuf_counter ;	/* MAC SW counter: no buffer */
+	u_long	mac_yesbuf_counter ;	/* MAC SW counter: yes buffer */
 	u_long	mac_r_restart_counter ;	/* MAC SW counter: rx restarted */
 } ;
 

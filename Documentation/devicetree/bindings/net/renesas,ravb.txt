@@ -1,6 +1,6 @@
 * Renesas Electronics Ethernet AVB
 
-This file provides information on what the device node for the Ethernet AVB
+This file provides information on what the device yesde for the Ethernet AVB
 interface contains.
 
 Required properties:
@@ -30,7 +30,7 @@ Required properties:
       - "renesas,etheravb-rcar-gen3" as a fallback for the above
 		R-Car Gen3 and RZ/G2 devices.
 
-	When compatible with the generic version, nodes must list the
+	When compatible with the generic version, yesdes must list the
 	SoC-specific version corresponding to the platform first followed by
 	the generic version.
 
@@ -41,14 +41,14 @@ Required properties:
        and M3-N (R8A77965).
 - interrupts: A list of interrupt-specifiers, one for each entry in
 	      interrupt-names.
-	      If interrupt-names is not present, an interrupt specifier
+	      If interrupt-names is yest present, an interrupt specifier
 	      for a single muxed interrupt.
 - phy-mode: see ethernet.txt file in the same directory.
 - phy-handle: see ethernet.txt file in the same directory.
 - #address-cells: number of address cells for the MDIO bus, must be equal to 1.
 - #size-cells: number of size cells on the MDIO bus, must be equal to 0.
 - clocks: clock phandle and specifier pair.
-- pinctrl-0: phandle, referring to a default pin configuration node.
+- pinctrl-0: phandle, referring to a default pin configuration yesde.
 
 Optional properties:
 - interrupt-names: A list of interrupt names.
@@ -58,10 +58,10 @@ Optional properties:
 		   For other SoCs this property is optional; if present
 		   it should contain "mux" for a single muxed interrupt.
 - pinctrl-names: pin configuration state name ("default").
-- renesas,no-ether-link: boolean, specify when a board does not provide a proper
+- renesas,yes-ether-link: boolean, specify when a board does yest provide a proper
 			 AVB_LINK signal.
 - renesas,ether-link-active-low: boolean, specify when the AVB_LINK signal is
-				 active-low instead of normal active-high.
+				 active-low instead of yesrmal active-high.
 
 Example:
 
@@ -108,7 +108,7 @@ Example:
 
 		pinctrl-0 = <&ether_pins>;
 		pinctrl-names = "default";
-		renesas,no-ether-link;
+		renesas,yes-ether-link;
 		#address-cells = <1>;
 		#size-cells = <0>;
 

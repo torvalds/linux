@@ -67,7 +67,7 @@
 	flash@0 {	/* S25FL116K */
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		spi-max-frequency = <50000000>;
 		reg = <0>;
 		m25p,fast-read;
@@ -467,9 +467,9 @@
 &usdhc4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;
-	non-removable;
+	yesn-removable;
 	bus-width = <8>;
-	no-1-8-v;
+	yes-1-8-v;
 	keep-power-in-suspend;
 	status = "okay";
 };

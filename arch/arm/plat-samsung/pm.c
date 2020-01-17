@@ -9,7 +9,7 @@
 
 #include <linux/init.h>
 #include <linux/suspend.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/serial_s3c.h>
@@ -76,12 +76,12 @@ static int s3c_pm_enter(suspend_state_t state)
 	S3C_PMDBG("%s(%d)\n", __func__, state);
 
 	if (pm_cpu_prep == NULL || pm_cpu_sleep == NULL) {
-		printk(KERN_ERR "%s: error: no cpu sleep function\n", __func__);
+		printk(KERN_ERR "%s: error: yes cpu sleep function\n", __func__);
 		return -EINVAL;
 	}
 
 	/* check if we have anything to wake-up with... bad things seem
-	 * to happen if you suspend with no wakeup (system will often
+	 * to happen if you suspend with yes wakeup (system will often
 	 * require a full power-cycle)
 	*/
 
@@ -93,7 +93,7 @@ static int s3c_pm_enter(suspend_state_t state)
 		return -EINVAL;
 	}
 
-	/* save all necessary core registers not covered by the drivers */
+	/* save all necessary core registers yest covered by the drivers */
 
 	if (!of_have_populated_dt()) {
 		samsung_pm_save_gpios();
@@ -152,7 +152,7 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	S3C_PMDBG("%s: post sleep, preparing to return\n", __func__);
 
-	/* LEDs should now be 1110 */
+	/* LEDs should yesw be 1110 */
 	s3c_pm_debug_smdkled(1 << 1, 0);
 
 	s3c_pm_check_restore();

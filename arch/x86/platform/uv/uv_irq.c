@@ -18,13 +18,13 @@
 #include <asm/uv/uv_irq.h>
 #include <asm/uv/uv_hub.h>
 
-/* MMR offset and pnode of hub sourcing interrupts for a given irq */
-struct uv_irq_2_mmr_pnode {
+/* MMR offset and pyesde of hub sourcing interrupts for a given irq */
+struct uv_irq_2_mmr_pyesde {
 	unsigned long		offset;
-	int			pnode;
+	int			pyesde;
 };
 
-static void uv_program_mmr(struct irq_cfg *cfg, struct uv_irq_2_mmr_pnode *info)
+static void uv_program_mmr(struct irq_cfg *cfg, struct uv_irq_2_mmr_pyesde *info)
 {
 	unsigned long mmr_value;
 	struct uv_IO_APIC_route_entry *entry;
@@ -42,10 +42,10 @@ static void uv_program_mmr(struct irq_cfg *cfg, struct uv_irq_2_mmr_pnode *info)
 	entry->mask		= 0;
 	entry->dest		= cfg->dest_apicid;
 
-	uv_write_global_mmr64(info->pnode, info->offset, mmr_value);
+	uv_write_global_mmr64(info->pyesde, info->offset, mmr_value);
 }
 
-static void uv_noop(struct irq_data *data) { }
+static void uv_yesop(struct irq_data *data) { }
 
 static int
 uv_set_irq_affinity(struct irq_data *data, const struct cpumask *mask,
@@ -66,8 +66,8 @@ uv_set_irq_affinity(struct irq_data *data, const struct cpumask *mask,
 
 static struct irq_chip uv_irq_chip = {
 	.name			= "UV-CORE",
-	.irq_mask		= uv_noop,
-	.irq_unmask		= uv_noop,
+	.irq_mask		= uv_yesop,
+	.irq_unmask		= uv_yesop,
 	.irq_eoi		= apic_ack_irq,
 	.irq_set_affinity	= uv_set_irq_affinity,
 };
@@ -75,7 +75,7 @@ static struct irq_chip uv_irq_chip = {
 static int uv_domain_alloc(struct irq_domain *domain, unsigned int virq,
 			   unsigned int nr_irqs, void *arg)
 {
-	struct uv_irq_2_mmr_pnode *chip_data;
+	struct uv_irq_2_mmr_pyesde *chip_data;
 	struct irq_alloc_info *info = arg;
 	struct irq_data *irq_data = irq_domain_get_irq_data(domain, virq);
 	int ret;
@@ -83,8 +83,8 @@ static int uv_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	if (nr_irqs > 1 || !info || info->type != X86_IRQ_ALLOC_TYPE_UV)
 		return -EINVAL;
 
-	chip_data = kmalloc_node(sizeof(*chip_data), GFP_KERNEL,
-				 irq_data_get_node(irq_data));
+	chip_data = kmalloc_yesde(sizeof(*chip_data), GFP_KERNEL,
+				 irq_data_get_yesde(irq_data));
 	if (!chip_data)
 		return -ENOMEM;
 
@@ -95,7 +95,7 @@ static int uv_domain_alloc(struct irq_domain *domain, unsigned int virq,
 		else
 			irq_set_status_flags(virq, IRQ_MOVE_PCNTXT);
 
-		chip_data->pnode = uv_blade_to_pnode(info->uv_blade);
+		chip_data->pyesde = uv_blade_to_pyesde(info->uv_blade);
 		chip_data->offset = info->uv_offset;
 		irq_domain_set_info(domain, virq, virq, &uv_irq_chip, chip_data,
 				    handle_percpu_irq, NULL, info->uv_name);
@@ -156,18 +156,18 @@ static struct irq_domain *uv_get_irq_domain(void)
 {
 	static struct irq_domain *uv_domain;
 	static DEFINE_MUTEX(uv_lock);
-	struct fwnode_handle *fn;
+	struct fwyesde_handle *fn;
 
 	mutex_lock(&uv_lock);
 	if (uv_domain)
 		goto out;
 
-	fn = irq_domain_alloc_named_fwnode("UV-CORE");
+	fn = irq_domain_alloc_named_fwyesde("UV-CORE");
 	if (!fn)
 		goto out;
 
 	uv_domain = irq_domain_create_tree(fn, &uv_domain_ops, NULL);
-	irq_domain_free_fwnode(fn);
+	irq_domain_free_fwyesde(fn);
 	if (uv_domain)
 		uv_domain->parent = x86_vector_domain;
 out:

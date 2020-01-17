@@ -315,7 +315,7 @@ int q6routing_stream_open(int fedai_id, int perf_mode,
 	struct session_data *session, *pdata;
 
 	if (!routing_data) {
-		pr_err("Routing driver not yet ready\n");
+		pr_err("Routing driver yest yet ready\n");
 		return -EINVAL;
 	}
 

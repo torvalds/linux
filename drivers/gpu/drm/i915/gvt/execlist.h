@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -125,7 +125,7 @@ struct execlist_mmio_pair {
 
 /* The first 52 dwords in register state context */
 struct execlist_ring_context {
-	u32 nop1;
+	u32 yesp1;
 	u32 lri_cmd_1;
 	struct execlist_mmio_pair ctx_ctrl;
 	struct execlist_mmio_pair ring_header;
@@ -141,9 +141,9 @@ struct execlist_ring_context {
 	struct execlist_mmio_pair bb_per_ctx_ptr;
 	struct execlist_mmio_pair rcs_indirect_ctx;
 	struct execlist_mmio_pair rcs_indirect_ctx_offset;
-	u32 nop2;
-	u32 nop3;
-	u32 nop4;
+	u32 yesp2;
+	u32 yesp3;
+	u32 yesp4;
 	u32 lri_cmd_2;
 	struct execlist_mmio_pair ctx_timestamp;
 	/*

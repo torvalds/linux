@@ -348,7 +348,7 @@ static int sun4i_spdif_hw_params(struct snd_pcm_substream *substream,
 
 	reg_val = 0;
 	reg_val |= SUN4I_SPDIF_TXCFG_ASS;
-	reg_val |= fmt; /* set non audio and bit depth */
+	reg_val |= fmt; /* set yesn audio and bit depth */
 	reg_val |= SUN4I_SPDIF_TXCFG_CHSTMODE;
 	reg_val |= SUN4I_SPDIF_TXCFG_TXRATIO(mclk_div - 1);
 	regmap_write(host->regmap, SUN4I_SPDIF_TXCFG, reg_val);

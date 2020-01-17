@@ -18,7 +18,7 @@
 
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_arp.h>
 #include <linux/in6.h>
 #include <linux/in.h>
@@ -117,7 +117,7 @@ ieee80211_frag_cache_get(struct ieee80211_device *ieee,
 	}
 
 	if (frag == 0) {
-		/* Reserve enough space to fit maximum frame length */
+		/* Reserve eyesugh space to fit maximum frame length */
 		skb = dev_alloc_skb(ieee->dev->mtu +
 				    sizeof(struct rtl_80211_hdr_4addr) +
 				    8 /* LLC */ +
@@ -188,7 +188,7 @@ static int ieee80211_frag_cache_invalidate(struct ieee80211_device *ieee,
 
 	if (!entry) {
 		IEEE80211_DEBUG_FRAG(
-			"could not invalidate fragment cache "
+			"could yest invalidate fragment cache "
 			"entry (seq=%u)\n", seq);
 		return -1;
 	}
@@ -210,7 +210,7 @@ ieee80211_rx_frame_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb,
 			u16 stype)
 {
 	/* On the struct stats definition there is written that
-	 * this is not mandatory.... but seems that the probe
+	 * this is yest mandatory.... but seems that the probe
 	 * response parser uses it
 	 */
 	struct rtl_80211_hdr_3addr *hdr = (struct rtl_80211_hdr_3addr *)skb->data;
@@ -232,7 +232,7 @@ ieee80211_rx_frame_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	#ifdef NOT_YET
 	if (ieee->iw_mode == IW_MODE_MASTER) {
-		printk(KERN_DEBUG "%s: Master mode not yet supported.\n",
+		printk(KERN_DEBUG "%s: Master mode yest yet supported.\n",
 		       ieee->dev->name);
 		return 0;
 /*
@@ -261,7 +261,7 @@ ieee80211_rx_frame_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 	    if (ieee->iw_mode == IW_MODE_MASTER) {
 		if (type != WLAN_FC_TYPE_MGMT && type != WLAN_FC_TYPE_CTRL) {
-			printk(KERN_DEBUG "%s: unknown management frame "
+			printk(KERN_DEBUG "%s: unkyeswn management frame "
 			       "(type=0x%02x, stype=0x%02x) dropped\n",
 			       skb->dev->name, type, stype);
 			return -1;
@@ -272,7 +272,7 @@ ieee80211_rx_frame_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 
 	printk(KERN_DEBUG "%s: hostap_rx_frame_mgmt: management frame "
-	       "received in non-Host AP mode\n", skb->dev->name);
+	       "received in yesn-Host AP mode\n", skb->dev->name);
 	return -1;
 	#endif
 }
@@ -434,7 +434,7 @@ static int is_duplicate_packet(struct ieee80211_device *ieee,
 		tid = le16_to_cpu(hdr_3addrqos->qos_ctl) & IEEE80211_QCTL_TID;
 		tid = UP2AC(tid);
 		tid++;
-	} else { // no QoS
+	} else { // yes QoS
 		tid = 0;
 	}
 
@@ -558,8 +558,8 @@ void ieee80211_indicate_packets(struct ieee80211_device *ieee, struct ieee80211_
 				sub_skb->protocol = eth_type_trans(sub_skb, ieee->dev);
 				memset(sub_skb->cb, 0, sizeof(sub_skb->cb));
 				sub_skb->dev = ieee->dev;
-				sub_skb->ip_summed = CHECKSUM_NONE; /* 802.11 crc not sufficient */
-				//skb->ip_summed = CHECKSUM_UNNECESSARY; /* 802.11 crc not sufficient */
+				sub_skb->ip_summed = CHECKSUM_NONE; /* 802.11 crc yest sufficient */
+				//skb->ip_summed = CHECKSUM_UNNECESSARY; /* 802.11 crc yest sufficient */
 				ieee->last_rx_ps_time = jiffies;
 				netif_rx(sub_skb);
 			}
@@ -630,7 +630,7 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 
 	/*
 	 * Indication process.
-	 * After Packet dropping and Sliding Window shifting as above, we can now just indicate the packets
+	 * After Packet dropping and Sliding Window shifting as above, we can yesw just indicate the packets
 	 * with the SeqNum smaller than latest WinStart and buffer other packets.
 	 */
 	/* For Rx Reorder condition:
@@ -646,7 +646,7 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 		index = 1;
 	} else {
 		/* Current packet is going to be inserted into pending list.*/
-		//IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): We RX no ordered packed, insert to ordered list\n",__func__);
+		//IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): We RX yes ordered packed, insert to ordered list\n",__func__);
 		if (!list_empty(&ieee->RxReorder_Unused_List)) {
 			pReorderEntry = list_entry(ieee->RxReorder_Unused_List.next, struct rx_reorder_entry, List);
 			list_del_init(&pReorderEntry->List);
@@ -674,11 +674,11 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 			}
 		} else {
 			/*
-			 * Packets are dropped if there is not enough reorder entries.
+			 * Packets are dropped if there is yest eyesugh reorder entries.
 			 * This part shall be modified!! We can just indicate all the
 			 * packets in buffer and get reorder entries.
 			 */
-			IEEE80211_DEBUG(IEEE80211_DL_ERR, "RxReorderIndicatePacket(): There is no reorder entry!! Packet is dropped!!\n");
+			IEEE80211_DEBUG(IEEE80211_DL_ERR, "RxReorderIndicatePacket(): There is yes reorder entry!! Packet is dropped!!\n");
 			{
 				int i;
 				for (i = 0; i < prxb->nr_subframes; i++) {
@@ -804,7 +804,7 @@ static u8 parse_subframe(struct sk_buff *skb,
 		memcpy(rxb->src, src, ETH_ALEN);
 		memcpy(rxb->dst, dst, ETH_ALEN);
 		while (skb->len > ETHERNET_HEADER_SIZE) {
-			/* Offset 12 denote 2 mac address */
+			/* Offset 12 deyeste 2 mac address */
 			nSubframe_Length = *((u16 *)(skb->data + 12));
 			//==m==>change the length order
 			nSubframe_Length = (nSubframe_Length >> 8) + (nSubframe_Length << 8);
@@ -933,7 +933,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	if (iface->spy_data.spy_number > 0) {
 		struct iw_quality wstats;
 		wstats.level = rx_stats->rssi;
-		wstats.noise = rx_stats->noise;
+		wstats.yesise = rx_stats->yesise;
 		wstats.updated = 6;	/* No qual value */
 		/* Update spy records */
 		wireless_spy_update(dev, hdr->addr2, &wstats);
@@ -962,7 +962,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		 * bcrx_sta_key parameter is set, station specific key is used
 		 * even with broad/multicast targets (this is against IEEE
 		 * 802.11, but makes it easier to use different keys with
-		 * stations that do not support WEP key mapping). */
+		 * stations that do yest support WEP key mapping). */
 
 		if (!(hdr->addr1[0] & 0x01) || local->bcrx_sta_key)
 			(void)hostap_handle_sta_crypto(local, hdr, &crypt,
@@ -979,7 +979,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			 * frames from other than current BSS, so just drop the
 			 * frames silently instead of filling system log with
 			 * these reports. */
-			IEEE80211_DEBUG_DROP("Decryption failed (not set)"
+			IEEE80211_DEBUG_DROP("Decryption failed (yest set)"
 					     " (SA=%pM)\n",
 					     hdr->addr2);
 			ieee->ieee_stats.rx_discards_undecryptable++;
@@ -1101,7 +1101,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		if (stype != IEEE80211_STYPE_NULLFUNC)
 			IEEE80211_DEBUG_DROP(
 				"RX: dropped data frame "
-				"with no data (type=0x%02x, "
+				"with yes data (type=0x%02x, "
 				"subtype=0x%02x, len=%d)\n",
 				type, stype, skb->len);
 		goto rx_dropped;
@@ -1130,7 +1130,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 		if (!frag_skb) {
 			IEEE80211_DEBUG(IEEE80211_DL_RX | IEEE80211_DL_FRAG,
-					"Rx cannot get skb from fragment "
+					"Rx canyest get skb from fragment "
 					"cache (morefrag=%d seq=%u frag=%u)\n",
 					(fc & IEEE80211_FCTL_MOREFRAGS) != 0,
 					WLAN_GET_SEQ_SEQ(sc), frag);
@@ -1142,7 +1142,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 		if (frag_skb->tail + flen > frag_skb->end) {
 			printk(KERN_WARNING "%s: host decrypted and "
-			       "reassembled frame did not fit skb\n",
+			       "reassembled frame did yest fit skb\n",
 			       dev->name);
 			ieee80211_frag_cache_invalidate(ieee, hdr);
 			goto rx_dropped;
@@ -1162,7 +1162,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 		if (fc & IEEE80211_FCTL_MOREFRAGS) {
 			/* more fragments expected - leave the skb in fragment
-			 * cache for now; it will be delivered to upper layers
+			 * cache for yesw; it will be delivered to upper layers
 			 * after all fragments have been received */
 			goto rx_exit;
 		}
@@ -1202,7 +1202,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		} else {
 			IEEE80211_DEBUG_DROP(
 				"encryption configured, but RX "
-				"frame not encrypted (SA=%pM)\n",
+				"frame yest encrypted (SA=%pM)\n",
 				hdr->addr2);
 			goto rx_dropped;
 		}
@@ -1239,7 +1239,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		SeqNum = WLAN_GET_SEQ_SEQ(sc);
 		GetTs(ieee, (struct ts_common_info **)&pTS, hdr->addr2, TID, RX_DIR, true);
 		if (TID != 0 && TID != 3) {
-			ieee->bis_any_nonbepkts = true;
+			ieee->bis_any_yesnbepkts = true;
 		}
 	}
 //added by amy for reorder
@@ -1251,7 +1251,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	/* to parse amsdu packets */
 	/* qos data packets & reserved bit is 1 */
 	if (parse_subframe(skb, rx_stats, rxb, src, dst) == 0) {
-		/* only to free rxb, and not submit the packets to upper layer */
+		/* only to free rxb, and yest submit the packets to upper layer */
 		for (i = 0; i < rxb->nr_subframes; i++) {
 			dev_kfree_skb(rxb->subframes[i]);
 		}
@@ -1297,8 +1297,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 				sub_skb->protocol = eth_type_trans(sub_skb, dev);
 				memset(sub_skb->cb, 0, sizeof(sub_skb->cb));
 				sub_skb->dev = dev;
-				sub_skb->ip_summed = CHECKSUM_NONE; /* 802.11 crc not sufficient */
-				//skb->ip_summed = CHECKSUM_UNNECESSARY; /* 802.11 crc not sufficient */
+				sub_skb->ip_summed = CHECKSUM_NONE; /* 802.11 crc yest sufficient */
+				//skb->ip_summed = CHECKSUM_UNNECESSARY; /* 802.11 crc yest sufficient */
 				ieee->last_rx_ps_time = jiffies;
 				netif_rx(sub_skb);
 			}
@@ -1307,7 +1307,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		rxb = NULL;
 
 	} else {
-		IEEE80211_DEBUG(IEEE80211_DL_REORDER, "%s(): REORDER ENABLE AND PTS not NULL, and we will enter RxReorderIndicatePacket()\n", __func__);
+		IEEE80211_DEBUG(IEEE80211_DL_REORDER, "%s(): REORDER ENABLE AND PTS yest NULL, and we will enter RxReorderIndicatePacket()\n", __func__);
 		RxReorderIndicatePacket(ieee, rxb, pTS, SeqNum);
 	}
 #ifndef JOHN_NOCPY
@@ -1326,7 +1326,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	rxb = NULL;
 	stats->rx_dropped++;
 
-	/* Returning 0 indicates to caller that we have not handled the SKB--
+	/* Returning 0 indicates to caller that we have yest handled the SKB--
 	 * so it is still allocated and can be used again by underlying
 	 * hardware as a DMA target */
 	return 0;
@@ -1588,7 +1588,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 					     length, info_element->id);
 			/* We stop processing but don't return an error here
 			 * because some misbehaviour APs break this rule. ie.
-			 * Orinoco AP1000. */
+			 * Oriyesco AP1000. */
 			break;
 		}
 
@@ -1672,11 +1672,11 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			break;
 
 		case MFIE_TYPE_FH_SET:
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_FH_SET: ignored\n");
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_FH_SET: igyesred\n");
 			break;
 
 		case MFIE_TYPE_CF_SET:
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_CF_SET: ignored\n");
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_CF_SET: igyesred\n");
 			break;
 
 		case MFIE_TYPE_TIM:
@@ -1713,7 +1713,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			if (info_element->data[3 + offset] & (1 << (ieee->assoc_id % 8)))
 				network->dtim_data |= IEEE80211_DTIM_UCAST;
 
-			//IEEE80211_DEBUG_MGMT("MFIE_TYPE_TIM: partially ignored\n");
+			//IEEE80211_DEBUG_MGMT("MFIE_TYPE_TIM: partially igyesred\n");
 			break;
 
 		case MFIE_TYPE_ERP:
@@ -1729,7 +1729,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			break;
 
 		case MFIE_TYPE_CHALLENGE:
-			IEEE80211_DEBUG_MGMT("MFIE_TYPE_CHALLENGE: ignored\n");
+			IEEE80211_DEBUG_MGMT("MFIE_TYPE_CHALLENGE: igyesred\n");
 			break;
 
 		case MFIE_TYPE_GENERIC:
@@ -1938,7 +1938,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 					sizeof(network->bssht.bdHTCapBuf) : tmp_htcap_len;
 				memcpy(network->bssht.bdHTCapBuf, info_element->data, network->bssht.bdHTCapLen);
 
-				//If peer is HT, but not WMM, call QosSetLegacyWMMParamWithHT()
+				//If peer is HT, but yest WMM, call QosSetLegacyWMMParamWithHT()
 				// windows driver will update WMM parameters each beacon received once connected
 				// Linux driver is a bit different.
 				network->bssht.bdSupportHT = true;
@@ -2006,9 +2006,9 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 
 	if (!network->atheros_cap_exist && !network->broadcom_cap_exist &&
 		!network->cisco_cap_exist && !network->ralink_cap_exist && !network->bssht.bdRT2RTAggregation) {
-		network->unknown_cap_exist = true;
+		network->unkyeswn_cap_exist = true;
 	} else {
-		network->unknown_cap_exist = false;
+		network->unkyeswn_cap_exist = false;
 	}
 	return 0;
 }
@@ -2099,7 +2099,7 @@ static inline int ieee80211_network_init(
 	network->ralink_cap_exist = false;
 	network->atheros_cap_exist = false;
 	network->cisco_cap_exist = false;
-	network->unknown_cap_exist = false;
+	network->unkyeswn_cap_exist = false;
 #ifdef THOMAS_TURBO
 	network->Turbo_Enable = 0;
 #endif
@@ -2151,7 +2151,7 @@ static inline int ieee80211_network_init(
 
 	stats->signal = 30 + (stats->SignalStrength * 70) / 100;
 	//stats->signal = ieee80211_SignalStrengthTranslate(stats->signal);
-	stats->noise = ieee80211_translate_todbm((u8)(100 - stats->signal)) - 25;
+	stats->yesise = ieee80211_translate_todbm((u8)(100 - stats->signal)) - 25;
 
 	memcpy(&network->stats, stats, sizeof(network->stats));
 
@@ -2223,7 +2223,7 @@ static inline void update_network(struct ieee80211_network *dst,
 	dst->ralink_cap_exist = src->ralink_cap_exist;
 	dst->atheros_cap_exist = src->atheros_cap_exist;
 	dst->cisco_cap_exist = src->cisco_cap_exist;
-	dst->unknown_cap_exist = src->unknown_cap_exist;
+	dst->unkyeswn_cap_exist = src->unkyeswn_cap_exist;
 	memcpy(dst->wpa_ie, src->wpa_ie, src->wpa_ie_len);
 	dst->wpa_ie_len = src->wpa_ie_len;
 	memcpy(dst->rsn_ie, src->rsn_ie, src->rsn_ie_len);
@@ -2256,7 +2256,7 @@ static inline void update_network(struct ieee80211_network *dst,
 	dst->qos_data.active = qos_active;
 	dst->qos_data.old_param_count = old_param;
 
-	/* dst->last_associate is not overwritten */
+	/* dst->last_associate is yest overwritten */
 	dst->wmm_info = src->wmm_info; //sure to exist in beacon or probe response frame.
 	if (src->wmm_param[0].aci_aifsn || \
 	   src->wmm_param[1].aci_aifsn || \
@@ -2346,7 +2346,7 @@ static inline void ieee80211_process_probe_response(
 	// For Asus EeePc request,
 	// (1) if wireless adapter receive get any 802.11d country code in AP beacon,
 	//	   wireless adapter should follow the country code.
-	// (2)  If there is no any country code in beacon,
+	// (2)  If there is yes any country code in beacon,
 	//       then wireless adapter should do active scan from ch1~11 and
 	//       passive scan from ch12~14
 
@@ -2386,10 +2386,10 @@ static inline void ieee80211_process_probe_response(
 		}
 	}
 
-	/* The network parsed correctly -- so now we scan our known networks
+	/* The network parsed correctly -- so yesw we scan our kyeswn networks
 	 * to see if we can find it in our list.
 	 *
-	 * NOTE:  This search is definitely not optimized.  Once its doing
+	 * NOTE:  This search is definitely yest optimized.  Once its doing
 	 *        the "right thing" we'll optimize it for efficiency if
 	 *        necessary */
 
@@ -2426,7 +2426,7 @@ static inline void ieee80211_process_probe_response(
 	 * with this beacon's information */
 	if (&target->list == &ieee->network_list) {
 		if (list_empty(&ieee->network_free_list)) {
-			/* If there are no more slots, expire the oldest */
+			/* If there are yes more slots, expire the oldest */
 			list_del(&oldest->list);
 			target = oldest;
 			IEEE80211_DEBUG_SCAN("Expired '%s' (%pM) from "

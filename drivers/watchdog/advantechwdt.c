@@ -10,14 +10,14 @@
  *	(c) Copyright 1996 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
  *
- *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
+ *	Neither Alan Cox yesr CymruNet Ltd. admit liability yesr provide
  *	warranty for any of this software. This material is provided
- *	"AS-IS" and at no charge.
+ *	"AS-IS" and at yes charge.
  *
  *	(c) Copyright 1995    Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	14-Dec-2001 Matt Domsch <Matt_Domsch@dell.com>
- *	    Added nowayout module option to override CONFIG_WATCHDOG_NOWAYOUT
+ *	    Added yeswayout module option to override CONFIG_WATCHDOG_NOWAYOUT
  *
  *	16-Oct-2002 Rob Radez <rob@osinvestor.com>
  *	    Clean up ioctls, clean up init + exit, add expect close support,
@@ -49,13 +49,13 @@ static unsigned long advwdt_is_open;
 static char adv_expect_close;
 
 /*
- *	You must set these - there is no sane way to probe for this board.
+ *	You must set these - there is yes sane way to probe for this board.
  *
  *	To enable or restart, write the timeout value in seconds (1 to 63)
  *	to I/O port wdt_start.  To disable, read I/O port wdt_stop.
  *	Both are 0x443 for most boards (tested on a PCA-6276VE-00B1), but
  *	check your manual (at least the PCA-6159 seems to be different -
- *	the manual says wdt_stop is 0x43, not 0x443).
+ *	the manual says wdt_stop is 0x43, yest 0x443).
  *	(0x43 is also a write-only control register for the 8254 timer!)
  */
 
@@ -73,10 +73,10 @@ MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. 1<= timeout <=63, default="
 		__MODULE_STRING(WATCHDOG_TIMEOUT) ".");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+	"Watchdog canyest be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
@@ -110,7 +110,7 @@ static ssize_t advwdt_write(struct file *file, const char __user *buf,
 						size_t count, loff_t *ppos)
 {
 	if (count) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			adv_expect_close = 0;
@@ -186,7 +186,7 @@ static long advwdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-static int advwdt_open(struct inode *inode, struct file *file)
+static int advwdt_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(0, &advwdt_is_open))
 		return -EBUSY;
@@ -195,15 +195,15 @@ static int advwdt_open(struct inode *inode, struct file *file)
 	 */
 
 	advwdt_ping();
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int advwdt_close(struct inode *inode, struct file *file)
+static int advwdt_close(struct iyesde *iyesde, struct file *file)
 {
 	if (adv_expect_close == 42) {
 		advwdt_disable();
 	} else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, yest stopping watchdog!\n");
 		advwdt_ping();
 	}
 	clear_bit(0, &advwdt_is_open);
@@ -217,7 +217,7 @@ static int advwdt_close(struct inode *inode, struct file *file)
 
 static const struct file_operations advwdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= advwdt_write,
 	.unlocked_ioctl	= advwdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -226,7 +226,7 @@ static const struct file_operations advwdt_fops = {
 };
 
 static struct miscdevice advwdt_miscdev = {
-	.minor	= WATCHDOG_MINOR,
+	.miyesr	= WATCHDOG_MINOR,
 	.name	= "watchdog",
 	.fops	= &advwdt_fops,
 };
@@ -255,7 +255,7 @@ static int __init advwdt_probe(struct platform_device *dev)
 	}
 
 	/* Check that the heartbeat value is within it's range ;
-	 * if not reset to the default */
+	 * if yest reset to the default */
 	if (advwdt_set_heartbeat(timeout)) {
 		advwdt_set_heartbeat(WATCHDOG_TIMEOUT);
 		pr_info("timeout value must be 1<=x<=63, using %d\n", timeout);
@@ -263,12 +263,12 @@ static int __init advwdt_probe(struct platform_device *dev)
 
 	ret = misc_register(&advwdt_miscdev);
 	if (ret != 0) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+		pr_err("canyest register miscdev on miyesr=%d (err=%d)\n",
 		       WATCHDOG_MINOR, ret);
 		goto unreg_regions;
 	}
-	pr_info("initialized. timeout=%d sec (nowayout=%d)\n",
-		timeout, nowayout);
+	pr_info("initialized. timeout=%d sec (yeswayout=%d)\n",
+		timeout, yeswayout);
 out:
 	return ret;
 unreg_regions:

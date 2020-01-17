@@ -350,9 +350,9 @@
 /** @brief output of gate CLK_ENB_FUSE */
 #define TEGRA186_CLK_FUSE 0
 /**
- * @brief It's not what you think
+ * @brief It's yest what you think
  * @details output of gate CLK_ENB_GPU. This output connects to the GPU
- * pwrclk. @warning: This is almost certainly not the clock you think
+ * pwrclk. @warning: This is almost certainly yest the clock you think
  * it is. If you're looking for the clock of the graphics engine, see
  * TEGRA186_GPCCLK
  */

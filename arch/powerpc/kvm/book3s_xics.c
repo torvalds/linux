@@ -8,7 +8,7 @@
 #include <linux/kvm_host.h>
 #include <linux/err.h>
 #include <linux/gfp.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/spinlock.h>
 
 #include <linux/uaccess.h>
@@ -62,7 +62,7 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 			    u32 new_irq, bool check_resend);
 
 /*
- * Return value ideally indicates how the interrupt was handled, but no
+ * Return value ideally indicates how the interrupt was handled, but yes
  * callers look at it (given that we don't implement KVM_IRQ_LINE_STATUS),
  * so just return 0.
  */
@@ -77,7 +77,7 @@ static int ics_deliver_irq(struct kvmppc_xics *xics, u32 irq, u32 level)
 
 	ics = kvmppc_xics_find_ics(xics, irq, &src);
 	if (!ics) {
-		XICS_DBG("ics_deliver_irq: IRQ 0x%06x not found !\n", irq);
+		XICS_DBG("ics_deliver_irq: IRQ 0x%06x yest found !\n", irq);
 		return -EINVAL;
 	}
 	state = &ics->irq_state[src];
@@ -93,7 +93,7 @@ static int ics_deliver_irq(struct kvmppc_xics *xics, u32 irq, u32 level)
 	 * maybe WARN here?
 	 */
 
-	if (!state->lsi && level == 0) /* noop for MSI */
+	if (!state->lsi && level == 0) /* yesop for MSI */
 		return 0;
 
 	do {
@@ -293,13 +293,13 @@ static inline bool icp_try_update(struct kvmppc_icp *icp,
 	/*
 	 * Check for output state update
 	 *
-	 * Note that this is racy since another processor could be updating
+	 * Note that this is racy since ayesther processor could be updating
 	 * the state already. This is why we never clear the interrupt output
 	 * here, we only ever set it. The clear only happens prior to doing
 	 * an update and only by the processor itself. Currently we do it
 	 * in Accept (H_XIRR) and Up_Cppr (H_XPPR).
 	 *
-	 * We also do not try to figure out whether the EE state has changed,
+	 * We also do yest try to figure out whether the EE state has changed,
 	 * we unconditionally set it if the new state calls for it. The reason
 	 * for that is that we opportunistically remove the pending interrupt
 	 * flag when raising CPPR, so we need to set it back here if an
@@ -388,7 +388,7 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 * for subsequent rejection.
 	 *
 	 * Rejection can be racy vs. resends. We have evaluated the
-	 * rejection in an atomic ICP transaction which is now complete,
+	 * rejection in an atomic ICP transaction which is yesw complete,
 	 * so potentially the ICP can already accept the interrupt again.
 	 *
 	 * So we need to retry the delivery. Essentially the reject path
@@ -402,7 +402,7 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	/* Get the ICS state and lock it */
 	ics = kvmppc_xics_find_ics(xics, new_irq, &src);
 	if (!ics) {
-		XICS_DBG("icp_deliver_irq: IRQ 0x%06x not found !\n", new_irq);
+		XICS_DBG("icp_deliver_irq: IRQ 0x%06x yest found !\n", new_irq);
 		return;
 	}
 	state = &ics->irq_state[src];
@@ -415,7 +415,7 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	if (!icp || state->server != icp->server_num) {
 		icp = kvmppc_xics_find_server(xics->kvm, state->server);
 		if (!icp) {
-			pr_warn("icp_deliver_irq: IRQ 0x%06x server 0x%x not found !\n",
+			pr_warn("icp_deliver_irq: IRQ 0x%06x server 0x%x yest found !\n",
 				new_irq, state->server);
 			goto out;
 		}
@@ -436,11 +436,11 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 *
 	 * However that would have the effect of losing a masked
 	 * interrupt that was rejected and isn't consistent with
-	 * the whole masked_pending business which is about not
+	 * the whole masked_pending business which is about yest
 	 * losing interrupts that occur while masked.
 	 *
-	 * I don't differentiate normal deliveries and resends, this
-	 * implementation will differ from PAPR and not lose such
+	 * I don't differentiate yesrmal deliveries and resends, this
+	 * implementation will differ from PAPR and yest lose such
 	 * interrupts.
 	 */
 	if (state->priority == MASKED) {
@@ -452,14 +452,14 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	/*
 	 * Try the delivery, this will set the need_resend flag
 	 * in the ICP as part of the atomic transaction if the
-	 * delivery is not possible.
+	 * delivery is yest possible.
 	 *
 	 * Note that if successful, the new delivery might have itself
 	 * rejected an interrupt that was "delivered" before we took the
 	 * ics spin lock.
 	 *
 	 * In this case we do the whole sequence all over again for the
-	 * new guy. We cannot assume that the rejected interrupt is less
+	 * new guy. We canyest assume that the rejected interrupt is less
 	 * favored than the new one, and thus doesn't need to be delivered,
 	 * because by the time we exit icp_try_to_deliver() the target
 	 * processor may well have alrady consumed & completed it, and thus
@@ -492,8 +492,8 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 
 		/*
 		 * If the need_resend flag got cleared in the ICP some time
-		 * between icp_try_to_deliver() atomic update and now, then
-		 * we know it might have missed the resend_map bit. So we
+		 * between icp_try_to_deliver() atomic update and yesw, then
+		 * we kyesw it might have missed the resend_map bit. So we
 		 * retry
 		 */
 		smp_mb();
@@ -527,13 +527,13 @@ static void icp_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 * ICP State: Resend
 	 *
 	 * If MFRR is more favored than CPPR, check for IPIs
-	 * and notify ICS of a potential resend. This is done
-	 * asynchronously (when used in real mode, we will have
+	 * and yestify ICS of a potential resend. This is done
+	 * asynchroyesusly (when used in real mode, we will have
 	 * to exit here).
 	 *
-	 * We do not handle the complete Check_IPI as documented
+	 * We do yest handle the complete Check_IPI as documented
 	 * here. In the PAPR, this state will be used for both
-	 * Set_MFRR and Down_CPPR. However, we know that we aren't
+	 * Set_MFRR and Down_CPPR. However, we kyesw that we aren't
 	 * changing the MFRR state here so we don't need to handle
 	 * the case of an MFRR causing a reject of a pending irq,
 	 * this will have been handled when the MFRR was set in the
@@ -554,11 +554,11 @@ static void icp_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		/*
 		 * Cut down Resend / Check_IPI / IPI
 		 *
-		 * The logic is that we cannot have a pending interrupt
+		 * The logic is that we canyest have a pending interrupt
 		 * trumped by an IPI at this point (see above), so we
-		 * know that either the pending interrupt is already an
+		 * kyesw that either the pending interrupt is already an
 		 * IPI (in which case we don't care to override it) or
-		 * it's either more favored than us or non existent
+		 * it's either more favored than us or yesn existent
 		 */
 		if (new_state.mfrr < new_cppr &&
 		    new_state.mfrr <= new_state.pending_pri) {
@@ -575,7 +575,7 @@ static void icp_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	} while (!icp_try_update(icp, old_state, new_state, true));
 
 	/*
-	 * Now handle resend checks. Those are asynchronous to the ICP
+	 * Now handle resend checks. Those are asynchroyesus to the ICP
 	 * state update in HW (ie bus transactions) so we can handle them
 	 * separately here too
 	 */
@@ -583,7 +583,7 @@ static void icp_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		icp_check_resend(xics, icp);
 }
 
-static noinline unsigned long kvmppc_h_xirr(struct kvm_vcpu *vcpu)
+static yesinline unsigned long kvmppc_h_xirr(struct kvm_vcpu *vcpu)
 {
 	union kvmppc_icp_state old_state, new_state;
 	struct kvmppc_icp *icp = vcpu->arch.icp;
@@ -616,7 +616,7 @@ static noinline unsigned long kvmppc_h_xirr(struct kvm_vcpu *vcpu)
 	return xirr;
 }
 
-static noinline int kvmppc_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
+static yesinline int kvmppc_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 				 unsigned long mfrr)
 {
 	union kvmppc_icp_state old_state, new_state;
@@ -641,7 +641,7 @@ static noinline int kvmppc_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	 * ICP state: Set_MFRR
 	 *
 	 * If the CPPR is more favored than the new MFRR, then
-	 * nothing needs to be rejected as there can be no XISR to
+	 * yesthing needs to be rejected as there can be yes XISR to
 	 * reject.  If the MFRR is being made less favored then
 	 * there might be a previously-rejected interrupt needing
 	 * to be resent.
@@ -656,7 +656,7 @@ static noinline int kvmppc_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	 * Besides rejecting any pending interrupts, we also
 	 * update XISR and pending_pri to mark IPI as pending.
 	 *
-	 * PAPR does not describe this state, but if the MFRR is being
+	 * PAPR does yest describe this state, but if the MFRR is being
 	 * made less favored than its earlier value, there might be
 	 * a previously-rejected interrupt needing to be resent.
 	 * Ideally, we would want to resend only if
@@ -676,7 +676,7 @@ static noinline int kvmppc_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 		reject = 0;
 		resend = false;
 		if (mfrr < new_state.cppr) {
-			/* Reject a pending interrupt if not an IPI */
+			/* Reject a pending interrupt if yest an IPI */
 			if (mfrr <= new_state.pending_pri) {
 				reject = new_state.xisr;
 				new_state.pending_pri = mfrr;
@@ -718,7 +718,7 @@ static int kvmppc_h_ipoll(struct kvm_vcpu *vcpu, unsigned long server)
 	return H_SUCCESS;
 }
 
-static noinline void kvmppc_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
+static yesinline void kvmppc_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 {
 	union kvmppc_icp_state old_state, new_state;
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
@@ -793,7 +793,7 @@ static int ics_eoi(struct kvm_vcpu *vcpu, u32 irq)
 
 	ics = kvmppc_xics_find_ics(xics, irq, &src);
 	if (!ics) {
-		XICS_DBG("ios_eoi: IRQ 0x%06x not found !\n", irq);
+		XICS_DBG("ios_eoi: IRQ 0x%06x yest found !\n", irq);
 		return H_PARAMETER;
 	}
 	state = &ics->irq_state[src];
@@ -809,12 +809,12 @@ static int ics_eoi(struct kvm_vcpu *vcpu, u32 irq)
 	if (pq_new & PQ_PRESENTED)
 		icp_deliver_irq(xics, icp, irq, false);
 
-	kvm_notify_acked_irq(vcpu->kvm, 0, irq);
+	kvm_yestify_acked_irq(vcpu->kvm, 0, irq);
 
 	return H_SUCCESS;
 }
 
-static noinline int kvmppc_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
+static yesinline int kvmppc_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 {
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
 	struct kvmppc_icp *icp = vcpu->arch.icp;
@@ -826,7 +826,7 @@ static noinline int kvmppc_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	 * ICP State: EOI
 	 *
 	 * Note: If EOI is incorrectly used by SW to lower the CPPR
-	 * value (ie more favored), we do not check for rejection of
+	 * value (ie more favored), we do yest check for rejection of
 	 * a pending interrupt, this is a SW error and PAPR specifies
 	 * that we don't have to deal with it.
 	 *
@@ -838,7 +838,7 @@ static noinline int kvmppc_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	 */
 	icp_down_cppr(xics, icp, xirr >> 24);
 
-	/* IPIs have no EOI */
+	/* IPIs have yes EOI */
 	if (irq == XICS_IPI)
 		return H_SUCCESS;
 
@@ -862,8 +862,8 @@ int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall)
 		icp_check_resend(xics, icp->rm_resend_icp);
 	}
 	if (icp->rm_action & XICS_RM_NOTIFY_EOI) {
-		icp->n_rm_notify_eoi++;
-		kvm_notify_acked_irq(vcpu->kvm, 0, icp->rm_eoied_irq);
+		icp->n_rm_yestify_eoi++;
+		kvm_yestify_acked_irq(vcpu->kvm, 0, icp->rm_eoied_irq);
 	}
 
 	icp->rm_action = 0;
@@ -945,14 +945,14 @@ static int xics_debug_show(struct seq_file *m, void *private)
 	int icsid, i;
 	unsigned long flags;
 	unsigned long t_rm_kick_vcpu, t_rm_check_resend;
-	unsigned long t_rm_notify_eoi;
+	unsigned long t_rm_yestify_eoi;
 	unsigned long t_reject, t_check_resend;
 
 	if (!kvm)
 		return 0;
 
 	t_rm_kick_vcpu = 0;
-	t_rm_notify_eoi = 0;
+	t_rm_yestify_eoi = 0;
 	t_rm_check_resend = 0;
 	t_check_resend = 0;
 	t_reject = 0;
@@ -974,15 +974,15 @@ static int xics_debug_show(struct seq_file *m, void *private)
 			   state.pending_pri, state.cppr, state.mfrr,
 			   state.out_ee, state.need_resend);
 		t_rm_kick_vcpu += icp->n_rm_kick_vcpu;
-		t_rm_notify_eoi += icp->n_rm_notify_eoi;
+		t_rm_yestify_eoi += icp->n_rm_yestify_eoi;
 		t_rm_check_resend += icp->n_rm_check_resend;
 		t_check_resend += icp->n_check_resend;
 		t_reject += icp->n_reject;
 	}
 
-	seq_printf(m, "ICP Guest->Host totals: kick_vcpu=%lu check_resend=%lu notify_eoi=%lu\n",
+	seq_printf(m, "ICP Guest->Host totals: kick_vcpu=%lu check_resend=%lu yestify_eoi=%lu\n",
 			t_rm_kick_vcpu, t_rm_check_resend,
-			t_rm_notify_eoi);
+			t_rm_yestify_eoi);
 	seq_printf(m, "ICP Real Mode totals: check_resend=%lu resend=%lu\n",
 			t_check_resend, t_reject);
 	for (icsid = 0; icsid <= KVMPPC_XICS_MAX_ICS_ID; icsid++) {
@@ -1020,7 +1020,7 @@ static void xics_debugfs_init(struct kvmppc_xics *xics)
 
 	name = kasprintf(GFP_KERNEL, "kvm-xics-%p", xics);
 	if (!name) {
-		pr_err("%s: no memory for name\n", __func__);
+		pr_err("%s: yes memory for name\n", __func__);
 		return;
 	}
 
@@ -1275,7 +1275,7 @@ static int xics_set_source(struct kvmppc_xics *xics, long irq, u64 addr)
 	irqp->pq_state = 0;
 	if (val & KVM_XICS_LEVEL_SENSITIVE)
 		irqp->lsi = 1;
-	/* If PENDING, set P in case P is not saved because of old code */
+	/* If PENDING, set P in case P is yest saved because of old code */
 	if (val & KVM_XICS_PRESENTED || val & KVM_XICS_PENDING)
 		irqp->pq_state |= PQ_PRESENTED;
 	if (val & KVM_XICS_QUEUED)

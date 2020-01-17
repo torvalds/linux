@@ -619,7 +619,7 @@ static void dbc_handle_xfer_event(struct xhci_hcd *xhci, union xhci_trb *event)
 		status = -comp_code;
 		break;
 	default:
-		xhci_err(xhci, "unknown tx error %d\n", comp_code);
+		xhci_err(xhci, "unkyeswn tx error %d\n", comp_code);
 		status = -comp_code;
 		break;
 	}
@@ -633,7 +633,7 @@ static void dbc_handle_xfer_event(struct xhci_hcd *xhci, union xhci_trb *event)
 	}
 
 	if (!req) {
-		xhci_warn(xhci, "no matched request\n");
+		xhci_warn(xhci, "yes matched request\n");
 		return;
 	}
 
@@ -738,7 +738,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 
 		return EVT_DONE;
 	default:
-		xhci_err(xhci, "Unknown DbC state %d\n", dbc->state);
+		xhci_err(xhci, "Unkyeswn DbC state %d\n", dbc->state);
 		break;
 	}
 
@@ -803,7 +803,7 @@ static void xhci_dbc_handle_events(struct work_struct *work)
 			break;
 		}
 
-		xhci_info(xhci, "DbC now attached to /dev/ttyDBC0\n");
+		xhci_info(xhci, "DbC yesw attached to /dev/ttyDBC0\n");
 		break;
 	case EVT_DISC:
 		xhci_dbc_tty_unregister_device(xhci);
@@ -901,7 +901,7 @@ static ssize_t dbc_show(struct device *dev,
 		p = "stalled";
 		break;
 	default:
-		p = "unknown";
+		p = "unkyeswn";
 	}
 
 	return sprintf(buf, "%s\n", p);

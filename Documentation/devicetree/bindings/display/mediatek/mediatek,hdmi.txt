@@ -11,18 +11,18 @@ Required properties:
 - clocks: device clocks
   See Documentation/devicetree/bindings/clock/clock-bindings.txt for details.
 - clock-names: must contain "pixel", "pll", "bclk", and "spdif".
-- phys: phandle link to the HDMI PHY node.
+- phys: phandle link to the HDMI PHY yesde.
   See Documentation/devicetree/bindings/phy/phy-bindings.txt for details.
 - phy-names: must contain "hdmi"
 - mediatek,syscon-hdmi: phandle link and register offset to the system
   configuration registers. For mt8173 this must be offset 0x900 into the
   MMSYS_CONFIG region: <&mmsys 0x900>.
-- ports: A node containing input and output port nodes with endpoint
+- ports: A yesde containing input and output port yesdes with endpoint
   definitions as documented in Documentation/devicetree/bindings/graph.txt.
-- port@0: The input port in the ports node should be connected to a DPI output
+- port@0: The input port in the ports yesde should be connected to a DPI output
   port.
-- port@1: The output port in the ports node should be connected to the input
-  port of a connector node that contains a ddc-i2c-bus property, or to the
+- port@1: The output port in the ports yesde should be connected to the input
+  port of a connector yesde that contains a ddc-i2c-bus property, or to the
   input port of an attached bridge chip, such as a SlimPort transmitter.
 
 HDMI CEC

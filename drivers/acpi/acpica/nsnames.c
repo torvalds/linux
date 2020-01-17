@@ -14,30 +14,30 @@
 ACPI_MODULE_NAME("nsnames")
 
 /* Local Prototypes */
-static void acpi_ns_normalize_pathname(char *original_path);
+static void acpi_ns_yesrmalize_pathname(char *original_path);
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_get_external_pathname
  *
- * PARAMETERS:  node            - Namespace node whose pathname is needed
+ * PARAMETERS:  yesde            - Namespace yesde whose pathname is needed
  *
  * RETURN:      Pointer to storage containing the fully qualified name of
- *              the node, In external format (name segments separated by path
+ *              the yesde, In external format (name segments separated by path
  *              separators.)
  *
- * DESCRIPTION: Used to obtain the full pathname to a namespace node, usually
+ * DESCRIPTION: Used to obtain the full pathname to a namespace yesde, usually
  *              for error and debug statements.
  *
  ******************************************************************************/
 
-char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
+char *acpi_ns_get_external_pathname(struct acpi_namespace_yesde *yesde)
 {
 	char *name_buffer;
 
-	ACPI_FUNCTION_TRACE_PTR(ns_get_external_pathname, node);
+	ACPI_FUNCTION_TRACE_PTR(ns_get_external_pathname, yesde);
 
-	name_buffer = acpi_ns_get_normalized_pathname(node, FALSE);
+	name_buffer = acpi_ns_get_yesrmalized_pathname(yesde, FALSE);
 	return_PTR(name_buffer);
 }
 
@@ -45,28 +45,28 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
  *
  * FUNCTION:    acpi_ns_get_pathname_length
  *
- * PARAMETERS:  node        - Namespace node
+ * PARAMETERS:  yesde        - Namespace yesde
  *
  * RETURN:      Length of path, including prefix
  *
- * DESCRIPTION: Get the length of the pathname string for this node
+ * DESCRIPTION: Get the length of the pathname string for this yesde
  *
  ******************************************************************************/
 
-acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node)
+acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_yesde *yesde)
 {
 	acpi_size size;
 
 	/* Validate the Node */
 
-	if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+	if (ACPI_GET_DESCRIPTOR_TYPE(yesde) != ACPI_DESC_TYPE_NAMED) {
 		ACPI_ERROR((AE_INFO,
-			    "Invalid/cached reference target node: %p, descriptor type %d",
-			    node, ACPI_GET_DESCRIPTOR_TYPE(node)));
+			    "Invalid/cached reference target yesde: %p, descriptor type %d",
+			    yesde, ACPI_GET_DESCRIPTOR_TYPE(yesde)));
 		return (0);
 	}
 
-	size = acpi_ns_build_normalized_path(node, NULL, 0, FALSE);
+	size = acpi_ns_build_yesrmalized_path(yesde, NULL, 0, FALSE);
 	return (size);
 }
 
@@ -88,13 +88,13 @@ acpi_status
 acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
-	const char *node_name;
+	struct acpi_namespace_yesde *yesde;
+	const char *yesde_name;
 
 	ACPI_FUNCTION_TRACE_PTR(ns_handle_to_name, target_handle);
 
-	node = acpi_ns_validate_handle(target_handle);
-	if (!node) {
+	yesde = acpi_ns_validate_handle(target_handle);
+	if (!yesde) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -107,8 +107,8 @@ acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer)
 
 	/* Just copy the ACPI name from the Node and zero terminate it */
 
-	node_name = acpi_ut_get_node_name(node);
-	ACPI_COPY_NAMESEG(buffer->pointer, node_name);
+	yesde_name = acpi_ut_get_yesde_name(yesde);
+	ACPI_COPY_NAMESEG(buffer->pointer, yesde_name);
 	((char *)buffer->pointer)[ACPI_NAMESEG_SIZE] = 0;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%4.4s\n", (char *)buffer->pointer));
@@ -122,7 +122,7 @@ acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer)
  * PARAMETERS:  target_handle           - Handle of named object whose name is
  *                                        to be found
  *              buffer                  - Where the pathname is returned
- *              no_trailing             - Remove trailing '_' for each name
+ *              yes_trailing             - Remove trailing '_' for each name
  *                                        segment
  *
  * RETURN:      Status, Buffer is filled with pathname if status is AE_OK
@@ -133,23 +133,23 @@ acpi_ns_handle_to_name(acpi_handle target_handle, struct acpi_buffer *buffer)
 
 acpi_status
 acpi_ns_handle_to_pathname(acpi_handle target_handle,
-			   struct acpi_buffer *buffer, u8 no_trailing)
+			   struct acpi_buffer *buffer, u8 yes_trailing)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	acpi_size required_size;
 
 	ACPI_FUNCTION_TRACE_PTR(ns_handle_to_pathname, target_handle);
 
-	node = acpi_ns_validate_handle(target_handle);
-	if (!node) {
+	yesde = acpi_ns_validate_handle(target_handle);
+	if (!yesde) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Determine size required for the caller buffer */
 
 	required_size =
-	    acpi_ns_build_normalized_path(node, NULL, 0, no_trailing);
+	    acpi_ns_build_yesrmalized_path(yesde, NULL, 0, yes_trailing);
 	if (!required_size) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
@@ -163,8 +163,8 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 
 	/* Build the path in the caller buffer */
 
-	(void)acpi_ns_build_normalized_path(node, buffer->pointer,
-					    required_size, no_trailing);
+	(void)acpi_ns_build_yesrmalized_path(yesde, buffer->pointer,
+					    required_size, yes_trailing);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s [%X]\n",
 			  (char *)buffer->pointer, (u32) required_size));
@@ -173,20 +173,20 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_build_normalized_path
+ * FUNCTION:    acpi_ns_build_yesrmalized_path
  *
- * PARAMETERS:  node        - Namespace node
+ * PARAMETERS:  yesde        - Namespace yesde
  *              full_path   - Where the path name is returned
  *              path_size   - Size of returned path name buffer
- *              no_trailing - Remove trailing '_' from each name segment
+ *              yes_trailing - Remove trailing '_' from each name segment
  *
  * RETURN:      Return 1 if the AML path is empty, otherwise returning (length
  *              of pathname + 1) which means the 'FullPath' contains a trailing
  *              null.
  *
  * DESCRIPTION: Build and return a full namespace pathname.
- *              Note that if the size of 'FullPath' isn't large enough to
- *              contain the namespace node's path name, the actual required
+ *              Note that if the size of 'FullPath' isn't large eyesugh to
+ *              contain the namespace yesde's path name, the actual required
  *              buffer length is returned, and it should be greater than
  *              'PathSize'. So callers are able to check the returning value
  *              to determine the buffer size of 'FullPath'.
@@ -194,16 +194,16 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
  ******************************************************************************/
 
 u32
-acpi_ns_build_normalized_path(struct acpi_namespace_node *node,
-			      char *full_path, u32 path_size, u8 no_trailing)
+acpi_ns_build_yesrmalized_path(struct acpi_namespace_yesde *yesde,
+			      char *full_path, u32 path_size, u8 yes_trailing)
 {
 	u32 length = 0, i;
 	char name[ACPI_NAMESEG_SIZE];
-	u8 do_no_trailing;
+	u8 do_yes_trailing;
 	char c, *left, *right;
-	struct acpi_namespace_node *next_node;
+	struct acpi_namespace_yesde *next_yesde;
 
-	ACPI_FUNCTION_TRACE_PTR(ns_build_normalized_path, node);
+	ACPI_FUNCTION_TRACE_PTR(ns_build_yesrmalized_path, yesde);
 
 #define ACPI_PATH_PUT8(path, size, byte, length)    \
 	do {                                            \
@@ -222,30 +222,30 @@ acpi_ns_build_normalized_path(struct acpi_namespace_node *node,
 		path_size = 0;
 	}
 
-	if (!node) {
+	if (!yesde) {
 		goto build_trailing_null;
 	}
 
-	next_node = node;
-	while (next_node && next_node != acpi_gbl_root_node) {
-		if (next_node != node) {
+	next_yesde = yesde;
+	while (next_yesde && next_yesde != acpi_gbl_root_yesde) {
+		if (next_yesde != yesde) {
 			ACPI_PATH_PUT8(full_path, path_size,
 				       AML_DUAL_NAME_PREFIX, length);
 		}
 
-		ACPI_MOVE_32_TO_32(name, &next_node->name);
-		do_no_trailing = no_trailing;
+		ACPI_MOVE_32_TO_32(name, &next_yesde->name);
+		do_yes_trailing = yes_trailing;
 		for (i = 0; i < 4; i++) {
 			c = name[4 - i - 1];
-			if (do_no_trailing && c != '_') {
-				do_no_trailing = FALSE;
+			if (do_yes_trailing && c != '_') {
+				do_yes_trailing = FALSE;
 			}
-			if (!do_no_trailing) {
+			if (!do_yes_trailing) {
 				ACPI_PATH_PUT8(full_path, path_size, c, length);
 			}
 		}
 
-		next_node = next_node->parent;
+		next_yesde = next_yesde->parent;
 	}
 
 	ACPI_PATH_PUT8(full_path, path_size, AML_ROOT_PREFIX, length);
@@ -275,32 +275,32 @@ build_trailing_null:
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_get_normalized_pathname
+ * FUNCTION:    acpi_ns_get_yesrmalized_pathname
  *
- * PARAMETERS:  node            - Namespace node whose pathname is needed
- *              no_trailing     - Remove trailing '_' from each name segment
+ * PARAMETERS:  yesde            - Namespace yesde whose pathname is needed
+ *              yes_trailing     - Remove trailing '_' from each name segment
  *
  * RETURN:      Pointer to storage containing the fully qualified name of
- *              the node, In external format (name segments separated by path
+ *              the yesde, In external format (name segments separated by path
  *              separators.)
  *
- * DESCRIPTION: Used to obtain the full pathname to a namespace node, usually
+ * DESCRIPTION: Used to obtain the full pathname to a namespace yesde, usually
  *              for error and debug statements. All trailing '_' will be
  *              removed from the full pathname if 'NoTrailing' is specified..
  *
  ******************************************************************************/
 
-char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
-				      u8 no_trailing)
+char *acpi_ns_get_yesrmalized_pathname(struct acpi_namespace_yesde *yesde,
+				      u8 yes_trailing)
 {
 	char *name_buffer;
 	acpi_size size;
 
-	ACPI_FUNCTION_TRACE_PTR(ns_get_normalized_pathname, node);
+	ACPI_FUNCTION_TRACE_PTR(ns_get_yesrmalized_pathname, yesde);
 
 	/* Calculate required buffer size based on depth below root */
 
-	size = acpi_ns_build_normalized_path(node, NULL, 0, no_trailing);
+	size = acpi_ns_build_yesrmalized_path(yesde, NULL, 0, yes_trailing);
 	if (!size) {
 		return_PTR(NULL);
 	}
@@ -309,14 +309,14 @@ char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
 
 	name_buffer = ACPI_ALLOCATE_ZEROED(size);
 	if (!name_buffer) {
-		ACPI_ERROR((AE_INFO, "Could not allocate %u bytes", (u32)size));
+		ACPI_ERROR((AE_INFO, "Could yest allocate %u bytes", (u32)size));
 		return_PTR(NULL);
 	}
 
 	/* Build the path in the allocated buffer */
 
-	(void)acpi_ns_build_normalized_path(node, name_buffer, size,
-					    no_trailing);
+	(void)acpi_ns_build_yesrmalized_path(yesde, name_buffer, size,
+					    yes_trailing);
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_NAMES, "%s: Path \"%s\"\n",
 			      ACPI_GET_FUNCTION_NAME, name_buffer));
@@ -329,12 +329,12 @@ char *acpi_ns_get_normalized_pathname(struct acpi_namespace_node *node,
  * FUNCTION:    acpi_ns_build_prefixed_pathname
  *
  * PARAMETERS:  prefix_scope        - Scope/Path that prefixes the internal path
- *              internal_path       - Name or path of the namespace node
+ *              internal_path       - Name or path of the namespace yesde
  *
  * RETURN:      None
  *
  * DESCRIPTION: Construct a fully qualified pathname from a concatenation of:
- *              1) Path associated with the prefix_scope namespace node
+ *              1) Path associated with the prefix_scope namespace yesde
  *              2) External path representation of the Internal path
  *
  ******************************************************************************/
@@ -350,9 +350,9 @@ char *acpi_ns_build_prefixed_pathname(union acpi_generic_state *prefix_scope,
 
 	/* If there is a prefix, get the pathname to it */
 
-	if (prefix_scope && prefix_scope->scope.node) {
+	if (prefix_scope && prefix_scope->scope.yesde) {
 		prefix_path =
-		    acpi_ns_get_normalized_pathname(prefix_scope->scope.node,
+		    acpi_ns_get_yesrmalized_pathname(prefix_scope->scope.yesde,
 						    TRUE);
 		if (prefix_path) {
 			prefix_path_length = strlen(prefix_path);
@@ -383,7 +383,7 @@ char *acpi_ns_build_prefixed_pathname(union acpi_generic_state *prefix_scope,
 		}
 	}
 
-	acpi_ns_normalize_pathname(external_path);
+	acpi_ns_yesrmalize_pathname(external_path);
 	strcat(full_path, external_path);
 
 cleanup:
@@ -399,9 +399,9 @@ cleanup:
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_normalize_pathname
+ * FUNCTION:    acpi_ns_yesrmalize_pathname
  *
- * PARAMETERS:  original_path       - Path to be normalized, in External format
+ * PARAMETERS:  original_path       - Path to be yesrmalized, in External format
  *
  * RETURN:      The original path is processed in-place
  *
@@ -411,7 +411,7 @@ cleanup:
  *
  ******************************************************************************/
 
-static void acpi_ns_normalize_pathname(char *original_path)
+static void acpi_ns_yesrmalize_pathname(char *original_path)
 {
 	char *input_path = original_path;
 	char *new_path_buffer;

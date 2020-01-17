@@ -13,7 +13,7 @@ Required properties:
 - io-channel-names: Should be "bat-temp" or "charge-vol".
 - nvmem-cells: A phandle to the calibration cells provided by eFuse device.
 - nvmem-cell-names: Should be "fgu_calib".
-- monitored-battery: Phandle of battery characteristics devicetree node.
+- monitored-battery: Phandle of battery characteristics devicetree yesde.
   See Documentation/devicetree/bindings/power/supply/battery.txt
 
 Example:

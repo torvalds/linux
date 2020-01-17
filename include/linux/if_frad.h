@@ -2,7 +2,7 @@
 /*
  * DLCI/FRAD	Definitions for Frame Relay Access Devices.  DLCI devices are
  *		created for each DLCI associated with a FRAD.  The FRAD driver
- *		is not truly a network device, but the lower level device
+ *		is yest truly a network device, but the lower level device
  *		handler.  This allows other FRAD manufacturers to use the DLCI
  *		code, including its RFC1490 encapsulation alongside the current
  *		implementation for the Sangoma cards.

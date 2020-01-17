@@ -133,7 +133,7 @@ static void imx25_setup_queue_cfgs(struct mx25_tcq_priv *priv,
 		     MX25_ADCQ_CFG_NOS(priv->sample_count) |
 		     MX25_ADCQ_CFG_SETTLING_TIME(settling_cnt));
 
-	/* Enable the touch detection right now */
+	/* Enable the touch detection right yesw */
 	regmap_write(priv->core_regs, MX25_TSC_TICR, touch_detect_cfg |
 		     MX25_ADCQ_CFG_IGS);
 }
@@ -216,10 +216,10 @@ static void mx25_tcq_re_enable_touch_detection(struct mx25_tcq_priv *priv)
 	/* for a clean touch detection, preload the X plane */
 	regmap_write(priv->core_regs, MX25_TSC_TICR, MX25_PRECHARGE_VALUE);
 
-	/* waste some time now to pre-load the X plate to high voltage */
+	/* waste some time yesw to pre-load the X plate to high voltage */
 	mx25_tcq_fifo_reset(priv);
 
-	/* re-enable the detection right now */
+	/* re-enable the detection right yesw */
 	regmap_write(priv->core_regs, MX25_TSC_TICR,
 		     MX25_TOUCH_DETECT_VALUE | MX25_ADCQ_CFG_IGS);
 
@@ -432,7 +432,7 @@ static int mx25_tcq_init(struct mx25_tcq_priv *priv)
 static int mx25_tcq_parse_dt(struct platform_device *pdev,
 			     struct mx25_tcq_priv *priv)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	u32 wires;
 	int error;
 
@@ -451,7 +451,7 @@ static int mx25_tcq_parse_dt(struct platform_device *pdev,
 	if (wires == 4) {
 		priv->mode = MX25_TS_4WIRE;
 	} else {
-		dev_err(&pdev->dev, "%u-wire mode not supported\n", wires);
+		dev_err(&pdev->dev, "%u-wire mode yest supported\n", wires);
 		return -EINVAL;
 	}
 

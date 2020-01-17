@@ -3,7 +3,7 @@
  * Scan implementation for ST-Ericsson CW1200 mac80211 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.yes>
  */
 
 #include <linux/sched.h>
@@ -141,7 +141,7 @@ void cw1200_scan_work(struct work_struct *work)
 
 	if (first_run) {
 		/* Firmware gets crazy if scan request is sent
-		 * when STA is joined but not yet associated.
+		 * when STA is joined but yest yet associated.
 		 * Force unjoin in this case.
 		 */
 		if (cancel_delayed_work_sync(&priv->join_timeout) > 0)
@@ -209,7 +209,7 @@ void cw1200_scan_work(struct work_struct *work)
 		}
 		scan.band = first->band;
 
-		if (priv->scan.req->no_cck)
+		if (priv->scan.req->yes_cck)
 			scan.max_tx_rate = WSM_TRANSMIT_RATE_6;
 		else
 			scan.max_tx_rate = WSM_TRANSMIT_RATE_1;
@@ -220,8 +220,8 @@ void cw1200_scan_work(struct work_struct *work)
 		scan.num_channels = it - priv->scan.curr;
 		/* TODO: Is it optimal? */
 		scan.probe_delay = 100;
-		/* It is not stated in WSM specification, however
-		 * FW team says that driver may not use FG scan
+		/* It is yest stated in WSM specification, however
+		 * FW team says that driver may yest use FG scan
 		 * when joined.
 		 */
 		if (priv->join_status == CW1200_JOIN_STATUS_STA) {
@@ -343,7 +343,7 @@ void cw1200_scan_timeout(struct work_struct *work)
 			priv->scan.status = 0;
 		} else if (!priv->scan.status) {
 			wiphy_warn(priv->hw->wiphy,
-				   "Timeout waiting for scan complete notification.\n");
+				   "Timeout waiting for scan complete yestification.\n");
 			priv->scan.status = -ETIMEDOUT;
 			priv->scan.curr = priv->scan.end;
 			wsm_stop_scan(priv);

@@ -9,7 +9,7 @@
  * Each bucket has associated an 8 bit gen; this gen corresponds to the gen in
  * btree pointers - they must match for the pointer to be considered valid.
  *
- * Thus (assuming a bucket has no dirty data or metadata in it) we can reuse a
+ * Thus (assuming a bucket has yes dirty data or metadata in it) we can reuse a
  * bucket simply by incrementing its gen.
  *
  * The gens (along with the priorities; it's really the gens are important but
@@ -33,10 +33,10 @@
  * If we've got discards enabled, that happens when a bucket moves from the
  * free_inc list to the free list.
  *
- * There is another freelist, because sometimes we have buckets that we know
- * have nothing pointing into them - these we can reuse without waiting for
- * priorities to be rewritten. These come from freed btree nodes and buckets
- * that garbage collection discovered no longer had valid keys pointing into
+ * There is ayesther freelist, because sometimes we have buckets that we kyesw
+ * have yesthing pointing into them - these we can reuse without waiting for
+ * priorities to be rewritten. These come from freed btree yesdes and buckets
+ * that garbage collection discovered yes longer had valid keys pointing into
  * them (because they were overwritten). That's the unused list - buckets on the
  * unused list move to the free list, optionally being discarded in the process.
  *
@@ -365,14 +365,14 @@ retry_invalidate:
 		if (CACHE_SYNC(&ca->set->sb)) {
 			/*
 			 * This could deadlock if an allocation with a btree
-			 * node locked ever blocked - having the btree node
+			 * yesde locked ever blocked - having the btree yesde
 			 * locked would block garbage collection, but here we're
 			 * waiting on garbage collection before we invalidate
 			 * and free anything.
 			 *
 			 * But this should be safe since the btree code always
-			 * uses btree_check_reserve() before allocating now, and
-			 * if it fails it blocks without btree nodes locked.
+			 * uses btree_check_reserve() before allocating yesw, and
+			 * if it fails it blocks without btree yesdes locked.
 			 */
 			if (!fifo_full(&ca->free_inc))
 				goto retry_invalidate;
@@ -555,14 +555,14 @@ struct open_bucket {
  * same time, you'll get better cache utilization if you try to segregate their
  * data and preserve locality.
  *
- * For example, dirty sectors of flash only volume is not reclaimable, if their
+ * For example, dirty sectors of flash only volume is yest reclaimable, if their
  * dirty sectors mixed with dirty sectors of cached device, such buckets will
  * be marked as dirty and won't be reclaimed, though the dirty data of cached
  * device have been written back to backend device.
  *
  * And say you've starting Firefox at the same time you're copying a
  * bunch of files. Firefox will likely end up being fairly hot and stay in the
- * cache awhile, but the data you copied might not be; if you wrote all that
+ * cache awhile, but the data you copied might yest be; if you wrote all that
  * data to the same buckets it'd get invalidated at the same time.
  *
  * Both of those tasks will be doing fairly random IO so we can't rely on
@@ -608,7 +608,7 @@ found:
  * May allocate fewer sectors than @sectors, KEY_SIZE(k) indicates how many
  * sectors were actually allocated.
  *
- * If s->writeback is true, will not fail.
+ * If s->writeback is true, will yest fail.
  */
 bool bch_alloc_sectors(struct cache_set *c,
 		       struct bkey *k,
@@ -645,7 +645,7 @@ bool bch_alloc_sectors(struct cache_set *c,
 	}
 
 	/*
-	 * If we had to allocate, we might race and not need to allocate the
+	 * If we had to allocate, we might race and yest need to allocate the
 	 * second time we call pick_data_bucket(). If we allocated a bucket but
 	 * didn't use it, drop the refcount bch_bucket_alloc_set() took:
 	 */

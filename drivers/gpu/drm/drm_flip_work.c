@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -60,7 +60,7 @@ void drm_flip_work_queue_task(struct drm_flip_work *work,
 	unsigned long flags;
 
 	spin_lock_irqsave(&work->lock, flags);
-	list_add_tail(&task->node, &work->queued);
+	list_add_tail(&task->yesde, &work->queued);
 	spin_unlock_irqrestore(&work->lock, flags);
 }
 EXPORT_SYMBOL(drm_flip_work_queue_task);
@@ -82,7 +82,7 @@ void drm_flip_work_queue(struct drm_flip_work *work, void *val)
 	if (task) {
 		drm_flip_work_queue_task(work, task);
 	} else {
-		DRM_ERROR("%s could not allocate task!\n", work->name);
+		DRM_ERROR("%s could yest allocate task!\n", work->name);
 		work->func(work, val);
 	}
 }
@@ -129,7 +129,7 @@ static void flip_worker(struct work_struct *w)
 		if (list_empty(&tasks))
 			break;
 
-		list_for_each_entry_safe(task, tmp, &tasks, node) {
+		list_for_each_entry_safe(task, tmp, &tasks, yesde) {
 			work->func(work, task->data);
 			kfree(task);
 		}

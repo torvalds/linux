@@ -67,8 +67,8 @@ static inline void pit_write(void __iomem *base, unsigned int reg_offset, unsign
 }
 
 /*
- * Clocksource:  just a monotonic counter of MCK/16 cycles.
- * We don't care whether or not PIT irqs are enabled.
+ * Clocksource:  just a moyestonic counter of MCK/16 cycles.
+ * We don't care whether or yest PIT irqs are enabled.
  */
 static u64 read_pit_clk(struct clocksource *cs)
 {
@@ -163,7 +163,7 @@ static irqreturn_t at91sam926x_pit_interrupt(int irq, void *dev_id)
 /*
  * Set up both clocksource and clockevent support.
  */
-static int __init at91sam926x_pit_dt_init(struct device_node *node)
+static int __init at91sam926x_pit_dt_init(struct device_yesde *yesde)
 {
 	unsigned long   pit_rate;
 	unsigned        bits;
@@ -174,14 +174,14 @@ static int __init at91sam926x_pit_dt_init(struct device_node *node)
 	if (!data)
 		return -ENOMEM;
 
-	data->base = of_iomap(node, 0);
+	data->base = of_iomap(yesde, 0);
 	if (!data->base) {
-		pr_err("Could not map PIT address\n");
+		pr_err("Could yest map PIT address\n");
 		ret = -ENXIO;
 		goto exit;
 	}
 
-	data->mck = of_clk_get(node, 0);
+	data->mck = of_clk_get(yesde, 0);
 	if (IS_ERR(data->mck)) {
 		pr_err("Unable to get mck clk\n");
 		ret = PTR_ERR(data->mck);
@@ -195,7 +195,7 @@ static int __init at91sam926x_pit_dt_init(struct device_node *node)
 	}
 
 	/* Get the interrupts property */
-	data->irq = irq_of_parse_and_map(node, 0);
+	data->irq = irq_of_parse_and_map(yesde, 0);
 	if (!data->irq) {
 		pr_err("Unable to get IRQ from DT\n");
 		ret = -EINVAL;

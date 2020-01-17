@@ -44,12 +44,12 @@
 #define RAW3215_NR_CCWS	    3
 #define RAW3215_TIMEOUT	    HZ/10     /* time for delayed output */
 
-#define RAW3215_FIXED	    1	      /* 3215 console device is not be freed */
+#define RAW3215_FIXED	    1	      /* 3215 console device is yest be freed */
 #define RAW3215_WORKING	    4	      /* set if a request is being worked on */
 #define RAW3215_THROTTLED   8	      /* set if reading is disabled */
 #define RAW3215_STOPPED	    16	      /* set if writing is disabled */
 #define RAW3215_TIMER_RUNS  64	      /* set if the output delay timer is on */
-#define RAW3215_FLUSHING    128	      /* set to flush buffer (no delay) */
+#define RAW3215_FLUSHING    128	      /* set to flush buffer (yes delay) */
 
 #define TAB_STOP_SIZE	    8	      /* tab stop size */
 
@@ -148,7 +148,7 @@ static void raw3215_mk_read_req(struct raw3215_info *raw)
 	/* there can only be ONE read request at a time */
 	req = raw->queued_read;
 	if (req == NULL) {
-		/* no queued read request, use new req structure */
+		/* yes queued read request, use new req structure */
 		req = raw3215_alloc_req();
 		req->type = RAW3215_READ;
 		req->info = raw;
@@ -157,7 +157,7 @@ static void raw3215_mk_read_req(struct raw3215_info *raw)
 
 	ccw = req->ccws;
 	ccw->cmd_code = 0x0A; /* read inquiry */
-	ccw->flags = 0x20;    /* ignore incorrect length */
+	ccw->flags = 0x20;    /* igyesre incorrect length */
 	ccw->count = 160;
 	ccw->cda = (__u32) __pa(raw->inbuf);
 }
@@ -179,7 +179,7 @@ static void raw3215_mk_write_req(struct raw3215_info *raw)
 	/* check if there is a queued write request */
 	req = raw->queued_write;
 	if (req == NULL) {
-		/* no queued write request, use new req structure */
+		/* yes queued write request, use new req structure */
 		req = raw3215_alloc_req();
 		req->type = RAW3215_WRITE;
 		req->info = raw;
@@ -192,7 +192,7 @@ static void raw3215_mk_write_req(struct raw3215_info *raw)
 	req->start = (raw->head - raw->count + raw->written) &
 		     (RAW3215_BUFFER_SIZE - 1);
 	/*
-	 * now we have to count newlines. We can at max accept
+	 * yesw we have to count newlines. We can at max accept
 	 * RAW3215_MAX_NEWLINE newlines in a single ssch due to
 	 * a restriction in VM
 	 */
@@ -217,7 +217,7 @@ static void raw3215_mk_write_req(struct raw3215_info *raw)
 		if (ccw > req->ccws)
 			ccw[-1].flags |= 0x40; /* use command chaining */
 		ccw->cmd_code = 0x01; /* write, auto carrier return */
-		ccw->flags = 0x20;    /* ignore incorrect length ind.  */
+		ccw->flags = 0x20;    /* igyesre incorrect length ind.  */
 		ccw->cda =
 			(__u32) __pa(raw->buffer + ix);
 		count = len;
@@ -306,7 +306,7 @@ static void raw3215_timeout(struct timer_list *t)
 /*
  * Function to conditionally start an IO. A read is started immediately,
  * a write is only started immediately if the flush flag is on or the
- * amount of data is bigger than RAW3215_MIN_WRITE. If a write is not
+ * amount of data is bigger than RAW3215_MIN_WRITE. If a write is yest
  * done immediately a timer is started with a delay of RAW3215_TIMEOUT.
  */
 static inline void raw3215_try_io(struct raw3215_info *raw)
@@ -377,7 +377,7 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 	if (cstat != 0)
 		raw3215_next_io(raw, tty);
 	if (dstat & 0x01) { /* we got a unit exception */
-		dstat &= ~0x01;	 /* we can ignore it */
+		dstat &= ~0x01;	 /* we can igyesre it */
 	}
 	switch (dstat) {
 	case 0x80:
@@ -491,7 +491,7 @@ static void raw3215_drop_line(struct raw3215_info *raw)
 static void raw3215_make_room(struct raw3215_info *raw, unsigned int length)
 {
 	while (RAW3215_BUFFER_SIZE - raw->count < length) {
-		/* While console is frozen for suspend we have no other
+		/* While console is frozen for suspend we have yes other
 		 * choice but to drop message from the buffer to make
 		 * room for even more messages. */
 		if (tty_port_suspended(&raw->port)) {
@@ -506,10 +506,10 @@ static void raw3215_make_room(struct raw3215_info *raw, unsigned int length)
 #ifdef CONFIG_TN3215_CONSOLE
 		ccw_device_wait_idle(raw->cdev);
 #endif
-		/* Enough room freed up ? */
+		/* Eyesugh room freed up ? */
 		if (RAW3215_BUFFER_SIZE - raw->count >= length)
 			break;
-		/* there might be another cpu waiting for the lock */
+		/* there might be ayesther cpu waiting for the lock */
 		spin_unlock(get_ccwdev_lock(raw->cdev));
 		udelay(100);
 		spin_lock(get_ccwdev_lock(raw->cdev));
@@ -849,7 +849,7 @@ static struct tty_driver *con3215_device(struct console *c, int *index)
 }
 
 /*
- * panic() calls con3215_flush through a panic_notifier
+ * panic() calls con3215_flush through a panic_yestifier
  * before the system enters a disabled, endless loop.
  */
 static void con3215_flush(void)
@@ -861,27 +861,27 @@ static void con3215_flush(void)
 	if (tty_port_suspended(&raw->port))
 		/* The console is still frozen for suspend. */
 		if (ccw_device_force_console(raw->cdev))
-			/* Forcing didn't work, no panic message .. */
+			/* Forcing didn't work, yes panic message .. */
 			return;
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw3215_make_room(raw, RAW3215_BUFFER_SIZE);
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
 }
 
-static int con3215_notify(struct notifier_block *self,
+static int con3215_yestify(struct yestifier_block *self,
 			  unsigned long event, void *data)
 {
 	con3215_flush();
 	return NOTIFY_OK;
 }
 
-static struct notifier_block on_panic_nb = {
-	.notifier_call = con3215_notify,
+static struct yestifier_block on_panic_nb = {
+	.yestifier_call = con3215_yestify,
 	.priority = 0,
 };
 
-static struct notifier_block on_reboot_nb = {
-	.notifier_call = con3215_notify,
+static struct yestifier_block on_reboot_nb = {
+	.yestifier_call = con3215_yestify,
 	.priority = 0,
 };
 
@@ -949,8 +949,8 @@ static int __init con3215_init(void)
 		raw3215[0] = NULL;
 		return -ENODEV;
 	}
-	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
-	register_reboot_notifier(&on_reboot_nb);
+	atomic_yestifier_chain_register(&panic_yestifier_list, &on_panic_nb);
+	register_reboot_yestifier(&on_reboot_nb);
 	register_console(&con3215);
 	return 0;
 }
@@ -1199,7 +1199,7 @@ static int __init tty3215_init(void)
 	driver->driver_name = "tty3215";
 	driver->name = "ttyS";
 	driver->major = TTY_MAJOR;
-	driver->minor_start = 64;
+	driver->miyesr_start = 64;
 	driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;

@@ -143,7 +143,7 @@
 
 /*
  * Use a suitable undefined instruction to use for ARM/Thumb2 faulting.
- * We need to be careful not to conflict with those used by other modules
+ * We need to be careful yest to conflict with those used by other modules
  * (BUG, kprobes, etc) and the register_undef_hook() system.
  *
  * The ARM architecture reference manual guarantees that the following

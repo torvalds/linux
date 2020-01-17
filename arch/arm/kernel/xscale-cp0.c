@@ -11,7 +11,7 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <asm/thread_notify.h>
+#include <asm/thread_yestify.h>
 #include <asm/cputype.h>
 
 asm("	.arch armv5te\n");
@@ -30,7 +30,7 @@ static inline void dsp_load_state(u32 *state)
 		: : "r" (state[0]), "r" (state[1]));
 }
 
-static int dsp_do(struct notifier_block *self, unsigned long cmd, void *t)
+static int dsp_do(struct yestifier_block *self, unsigned long cmd, void *t)
 {
 	struct thread_info *thread = t;
 
@@ -49,20 +49,20 @@ static int dsp_do(struct notifier_block *self, unsigned long cmd, void *t)
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block dsp_notifier_block = {
-	.notifier_call	= dsp_do,
+static struct yestifier_block dsp_yestifier_block = {
+	.yestifier_call	= dsp_do,
 };
 
 
 #ifdef CONFIG_IWMMXT
-static int iwmmxt_do(struct notifier_block *self, unsigned long cmd, void *t)
+static int iwmmxt_do(struct yestifier_block *self, unsigned long cmd, void *t)
 {
 	struct thread_info *thread = t;
 
 	switch (cmd) {
 	case THREAD_NOTIFY_FLUSH:
 		/*
-		 * flush_thread() zeroes thread->fpstate, so no need
+		 * flush_thread() zeroes thread->fpstate, so yes need
 		 * to do anything here.
 		 *
 		 * FALLTHROUGH: Ensure we don't try to overwrite our newly
@@ -81,8 +81,8 @@ static int iwmmxt_do(struct notifier_block *self, unsigned long cmd, void *t)
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block iwmmxt_notifier_block = {
-	.notifier_call	= iwmmxt_do,
+static struct yestifier_block iwmmxt_yestifier_block = {
+	.yestifier_call	= iwmmxt_do,
 };
 #endif
 
@@ -145,14 +145,14 @@ static int __init cpu_has_iwmmxt(void)
  * disable CP0/CP1 on boot, and let call_fpe() and the iWMMXt lazy
  * switch code handle iWMMXt context switching.  If on the other
  * hand the CPU has a DSP coprocessor, we keep access to CP0 enabled
- * all the time, and save/restore acc0 on context switch in non-lazy
+ * all the time, and save/restore acc0 on context switch in yesn-lazy
  * fashion.
  */
 static int __init xscale_cp0_init(void)
 {
 	u32 cp_access;
 
-	/* do not attempt to probe iwmmxt on non-xscale family CPUs */
+	/* do yest attempt to probe iwmmxt on yesn-xscale family CPUs */
 	if (!cpu_is_xscale_family())
 		return 0;
 
@@ -165,11 +165,11 @@ static int __init xscale_cp0_init(void)
 #else
 		pr_info("XScale iWMMXt coprocessor detected.\n");
 		elf_hwcap |= HWCAP_IWMMXT;
-		thread_register_notifier(&iwmmxt_notifier_block);
+		thread_register_yestifier(&iwmmxt_yestifier_block);
 #endif
 	} else {
 		pr_info("XScale DSP coprocessor detected.\n");
-		thread_register_notifier(&dsp_notifier_block);
+		thread_register_yestifier(&dsp_yestifier_block);
 		cp_access |= 1;
 	}
 

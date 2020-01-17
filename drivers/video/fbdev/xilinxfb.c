@@ -5,7 +5,7 @@
  *         source@mvista.com
  *
  * 2002-2007 (c) MontaVista Software, Inc.
- * 2007 (c) Secret Lab Technologies, Ltd.
+ * 2007 (c) Secret Lab Techyeslogies, Ltd.
  * 2009 (c) Xilinx Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
@@ -23,7 +23,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/fb.h>
@@ -67,11 +67,11 @@
 /*
  * The hardware only handles a single mode: 640x480 24 bit true
  * color. Each pixel gets a word (32 bits) of memory.  Within each word,
- * the 8 most significant bits are ignored, the next 8 bits are the red
+ * the 8 most significant bits are igyesred, the next 8 bits are the red
  * level, the next 8 bits are the green level and the 8 least
  * significant bits are the blue level.  Each row of the LCD uses 1024
  * words, but only the first 640 pixels are displayed with the other 384
- * words being ignored.  There are 480 rows.
+ * words being igyesred.  There are 480 rows.
  */
 #define BYTES_PER_PIXEL	4
 #define BITS_PER_PIXEL	(BYTES_PER_PIXEL * 8)
@@ -90,7 +90,7 @@ struct xilinxfb_platform_data {
 	u32 xres, yres;         /* resolution of screen in pixels */
 	u32 xvirt, yvirt;       /* resolution of memory buffer */
 
-	/* Physical address of framebuffer memory; If non-zero, driver
+	/* Physical address of framebuffer memory; If yesn-zero, driver
 	 * will use provided memory address instead of allocating one from
 	 * the consistent pool.
 	 */
@@ -195,12 +195,12 @@ static u32 xilinx_fb_in32(struct xilinxfb_drvdata *drvdata, u32 offset)
 }
 
 static int
-xilinx_fb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
+xilinx_fb_setcolreg(unsigned int regyes, unsigned int red, unsigned int green,
 		    unsigned int blue, unsigned int transp, struct fb_info *fbi)
 {
 	u32 *palette = fbi->pseudo_palette;
 
-	if (regno >= PALETTE_ENTRIES_NO)
+	if (regyes >= PALETTE_ENTRIES_NO)
 		return -EINVAL;
 
 	if (fbi->var.grayscale) {
@@ -218,7 +218,7 @@ xilinx_fb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
 	red >>= 8;
 	green >>= 8;
 	blue >>= 8;
-	palette[regno] = (red << RED_SHIFT) | (green << GREEN_SHIFT) |
+	palette[regyes] = (red << RED_SHIFT) | (green << GREEN_SHIFT) |
 			 (blue << BLUE_SHIFT);
 
 	return 0;
@@ -291,7 +291,7 @@ static int xilinxfb_assign(struct platform_device *pdev,
 	}
 
 	if (!drvdata->fb_virt) {
-		dev_err(dev, "Could not allocate frame buffer memory\n");
+		dev_err(dev, "Could yest allocate frame buffer memory\n");
 		return -ENOMEM;
 	}
 
@@ -343,7 +343,7 @@ static int xilinxfb_assign(struct platform_device *pdev,
 	/* Register new frame buffer */
 	rc = register_framebuffer(&drvdata->info);
 	if (rc) {
-		dev_err(dev, "Could not register frame buffer\n");
+		dev_err(dev, "Could yest register frame buffer\n");
 		goto err_regfb;
 	}
 
@@ -416,7 +416,7 @@ static int xilinxfb_of_probe(struct platform_device *pdev)
 	int size;
 	struct xilinxfb_drvdata *drvdata;
 
-	/* Copy with the default pdata (not a ptr reference!) */
+	/* Copy with the default pdata (yest a ptr reference!) */
 	pdata = xilinx_fb_default_pdata;
 
 	/* Allocate the driver data region */
@@ -428,7 +428,7 @@ static int xilinxfb_of_probe(struct platform_device *pdev)
 	 * To check whether the core is connected directly to DCR or BUS
 	 * interface and initialize the tft_access accordingly.
 	 */
-	of_property_read_u32(pdev->dev.of_node, "xlnx,dcr-splb-slave-if",
+	of_property_read_u32(pdev->dev.of_yesde, "xlnx,dcr-splb-slave-if",
 			     &tft_access);
 
 	/*
@@ -441,9 +441,9 @@ static int xilinxfb_of_probe(struct platform_device *pdev)
 	else {
 		int start;
 
-		start = dcr_resource_start(pdev->dev.of_node, 0);
-		drvdata->dcr_len = dcr_resource_len(pdev->dev.of_node, 0);
-		drvdata->dcr_host = dcr_map(pdev->dev.of_node, start, drvdata->dcr_len);
+		start = dcr_resource_start(pdev->dev.of_yesde, 0);
+		drvdata->dcr_len = dcr_resource_len(pdev->dev.of_yesde, 0);
+		drvdata->dcr_host = dcr_map(pdev->dev.of_yesde, start, drvdata->dcr_len);
 		if (!DCR_MAP_OK(drvdata->dcr_host)) {
 			dev_err(&pdev->dev, "invalid DCR address\n");
 			return -ENODEV;
@@ -451,25 +451,25 @@ static int xilinxfb_of_probe(struct platform_device *pdev)
 	}
 #endif
 
-	prop = of_get_property(pdev->dev.of_node, "phys-size", &size);
+	prop = of_get_property(pdev->dev.of_yesde, "phys-size", &size);
 	if ((prop) && (size >= sizeof(u32) * 2)) {
 		pdata.screen_width_mm = prop[0];
 		pdata.screen_height_mm = prop[1];
 	}
 
-	prop = of_get_property(pdev->dev.of_node, "resolution", &size);
+	prop = of_get_property(pdev->dev.of_yesde, "resolution", &size);
 	if ((prop) && (size >= sizeof(u32) * 2)) {
 		pdata.xres = prop[0];
 		pdata.yres = prop[1];
 	}
 
-	prop = of_get_property(pdev->dev.of_node, "virtual-resolution", &size);
+	prop = of_get_property(pdev->dev.of_yesde, "virtual-resolution", &size);
 	if ((prop) && (size >= sizeof(u32) * 2)) {
 		pdata.xvirt = prop[0];
 		pdata.yvirt = prop[1];
 	}
 
-	if (of_find_property(pdev->dev.of_node, "rotate-display", NULL))
+	if (of_find_property(pdev->dev.of_yesde, "rotate-display", NULL))
 		pdata.rotate_screen = 1;
 
 	dev_set_drvdata(&pdev->dev, drvdata);

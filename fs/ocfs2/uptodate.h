@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * uptodate.h
  *
@@ -19,7 +19,7 @@
 struct ocfs2_caching_operations {
 	/*
 	 * A u64 representing the owning structure.  Usually this
-	 * is the block number (i_blkno or whatnot).  This is used so
+	 * is the block number (i_blkyes or whatyest).  This is used so
 	 * that caching log messages can identify the owning structure.
 	 */
 	u64	(*co_owner)(struct ocfs2_caching_info *ci);
@@ -27,7 +27,7 @@ struct ocfs2_caching_operations {
 	/* The superblock is needed during I/O. */
 	struct super_block *(*co_get_super)(struct ocfs2_caching_info *ci);
 	/*
-	 * Lock and unlock the caching data.  These will not sleep, and
+	 * Lock and unlock the caching data.  These will yest sleep, and
 	 * should probably be spinlocks.
 	 */
 	void	(*co_cache_lock)(struct ocfs2_caching_info *ci);

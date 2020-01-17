@@ -146,7 +146,7 @@ static int do_patch_instruction(unsigned int *addr, unsigned int instr)
 
 	/*
 	 * During early early boot patch_instruction is called
-	 * when text_poke_area is not ready, but we still need
+	 * when text_poke_area is yest ready, but we still need
 	 * to allow patching. We just do the plain old patching
 	 */
 	if (!this_cpu_read(text_poke_area))
@@ -384,7 +384,7 @@ void __patch_exception(int exc, unsigned long addr)
 	/* Our exceptions vectors start with a NOP and -then- a branch
 	 * to deal with single stepping from userspace which stops on
 	 * the second instruction. Thus we need to patch the second
-	 * instruction of the exception, not the first one
+	 * instruction of the exception, yest the first one
 	 */
 
 	patch_branch(ibase + (exc / 4) + 1, addr, 0);
@@ -395,7 +395,7 @@ void __patch_exception(int exc, unsigned long addr)
 
 static void __init test_trampoline(void)
 {
-	asm ("nop;\n");
+	asm ("yesp;\n");
 }
 
 #define check(x)	\
@@ -408,7 +408,7 @@ static void __init test_branch_iform(void)
 
 	addr = (unsigned long)&instr;
 
-	/* The simplest case, branch to self, no flags */
+	/* The simplest case, branch to self, yes flags */
 	check(instr_is_branch_iform(0x48000000));
 	/* All bits of target set, and flags */
 	check(instr_is_branch_iform(0x4bffffff));
@@ -450,7 +450,7 @@ static void __init test_branch_iform(void)
 	instr = create_branch(&instr, addr - 0x100, BRANCH_SET_LINK);
 	check(instr_is_branch_to_addr(&instr, addr - 0x100));
 
-	/* Branch to self + 0x100, no link */
+	/* Branch to self + 0x100, yes link */
 	instr = create_branch(&instr, addr + 0x100, 0);
 	check(instr_is_branch_to_addr(&instr, addr + 0x100));
 
@@ -496,7 +496,7 @@ static void __init test_branch_bform(void)
 	iptr = &instr;
 	addr = (unsigned long)iptr;
 
-	/* The simplest case, branch to self, no flags */
+	/* The simplest case, branch to self, yes flags */
 	check(instr_is_branch_bform(0x40000000));
 	/* All bits of target set, and flags */
 	check(instr_is_branch_bform(0x43ffffff));

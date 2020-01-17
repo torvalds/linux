@@ -1,9 +1,9 @@
 AS3711 is an I2C PMIC from Austria MicroSystems with multiple DCDC and LDO power
 supplies, a battery charger and an RTC. So far only bindings for the two stepup
 DCDC converters are defined. Other DCDC and LDO supplies are configured, using
-standard regulator properties, they must belong to a sub-node, called
+standard regulator properties, they must belong to a sub-yesde, called
 "regulators" and be called "sd1" to "sd4" and "ldo1" to "ldo8." Stepup converter
-configuration should be placed in a subnode, called "backlight."
+configuration should be placed in a subyesde, called "backlight."
 
 Compulsory properties:
 - compatible		: must be "ams,as3711"

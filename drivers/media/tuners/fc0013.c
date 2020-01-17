@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2012 Hans-Frieder Vogt <hfvogt@gmx.net>
  * partially based on driver code from Fitipower
- * Copyright (C) 2010 Fitipower Integrated Technology Inc
+ * Copyright (C) 2010 Fitipower Integrated Techyeslogy Inc
  */
 
 #include "fc0013.h"
@@ -108,7 +108,7 @@ static int fc0013_init(struct dvb_frontend *fe)
 
 static int fc0013_sleep(struct dvb_frontend *fe)
 {
-	/* nothing to do here */
+	/* yesthing to do here */
 	return 0;
 }
 
@@ -399,7 +399,7 @@ static int fc0013_set_params(struct dvb_frontend *fe)
 			break;
 		}
 	} else {
-		err("%s: modulation type not supported!", __func__);
+		err("%s: modulation type yest supported!", __func__);
 		return -EINVAL;
 	}
 

@@ -58,10 +58,10 @@ static unsigned int bus_clk;
 static char expect_close;
 static DEFINE_SPINLOCK(mv64x60_wdt_spinlock);
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static int mv64x60_wdt_toggle_wdc(int enabled_predicate, int field_shift)
@@ -100,7 +100,7 @@ static void mv64x60_wdt_handler_enable(void)
 	if (mv64x60_wdt_toggle_wdc(MV64x60_WDC_ENABLED_FALSE,
 				   MV64x60_WDC_ENABLE_SHIFT)) {
 		mv64x60_wdt_service();
-		pr_notice("watchdog activated\n");
+		pr_yestice("watchdog activated\n");
 	}
 }
 
@@ -108,7 +108,7 @@ static void mv64x60_wdt_handler_disable(void)
 {
 	if (mv64x60_wdt_toggle_wdc(MV64x60_WDC_ENABLED_TRUE,
 				   MV64x60_WDC_ENABLE_SHIFT))
-		pr_notice("watchdog deactivated\n");
+		pr_yestice("watchdog deactivated\n");
 }
 
 static void mv64x60_wdt_set_timeout(unsigned int timeout)
@@ -121,25 +121,25 @@ static void mv64x60_wdt_set_timeout(unsigned int timeout)
 	mv64x60_wdt_timeout = timeout;
 }
 
-static int mv64x60_wdt_open(struct inode *inode, struct file *file)
+static int mv64x60_wdt_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(MV64x60_WDOG_FLAG_OPENED, &wdt_flags))
 		return -EBUSY;
 
-	if (nowayout)
+	if (yeswayout)
 		__module_get(THIS_MODULE);
 
 	mv64x60_wdt_handler_enable();
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int mv64x60_wdt_release(struct inode *inode, struct file *file)
+static int mv64x60_wdt_release(struct iyesde *iyesde, struct file *file)
 {
 	if (expect_close == 42)
 		mv64x60_wdt_handler_disable();
 	else {
-		pr_crit("unexpected close, not stopping timer!\n");
+		pr_crit("unexpected close, yest stopping timer!\n");
 		mv64x60_wdt_service();
 	}
 	expect_close = 0;
@@ -153,7 +153,7 @@ static ssize_t mv64x60_wdt_write(struct file *file, const char __user *data,
 				 size_t len, loff_t *ppos)
 {
 	if (len) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			expect_close = 0;
@@ -238,7 +238,7 @@ static long mv64x60_wdt_ioctl(struct file *file,
 
 static const struct file_operations mv64x60_wdt_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.write = mv64x60_wdt_write,
 	.unlocked_ioctl = mv64x60_wdt_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
@@ -247,7 +247,7 @@ static const struct file_operations mv64x60_wdt_fops = {
 };
 
 static struct miscdevice mv64x60_wdt_miscdev = {
-	.minor = WATCHDOG_MINOR,
+	.miyesr = WATCHDOG_MINOR,
 	.name = "watchdog",
 	.fops = &mv64x60_wdt_fops,
 };

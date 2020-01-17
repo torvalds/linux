@@ -361,7 +361,7 @@ static void hp_gain_ramp_set(struct snd_soc_component *cmpnt, int hp_gain_ctl)
 
 static void hp_zcd_enable(struct snd_soc_component *cmpnt)
 {
-	/* Enable ZCD, for minimize pop noise */
+	/* Enable ZCD, for minimize pop yesise */
 	/* when adjust gain during HP buffer on */
 	regmap_update_bits(cmpnt->regmap, MT6351_ZCD_CON0, 0x7 << 8, 0x1 << 8);
 	regmap_update_bits(cmpnt->regmap, MT6351_ZCD_CON0, 0x1 << 7, 0x0 << 7);
@@ -723,7 +723,7 @@ static int mt_hp_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		priv->hp_en_counter++;
 		if (priv->hp_en_counter > 1)
-			break;	/* already enabled, do nothing */
+			break;	/* already enabled, do yesthing */
 		else if (priv->hp_en_counter <= 0)
 			dev_err(priv->dev, "%s(), hp_en_counter %d <= 0\n",
 				__func__,
@@ -782,7 +782,7 @@ static int mt_hp_event(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(cmpnt->regmap, MT6351_AUDDEC_ANA_CON6,
 				   0x0700, 0x0300);
 
-		/* Enable ZCD, for minimize pop noise */
+		/* Enable ZCD, for minimize pop yesise */
 		/* when adjust gain during HP buffer on */
 		hp_zcd_enable(cmpnt);
 

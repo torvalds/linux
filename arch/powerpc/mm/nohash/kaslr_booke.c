@@ -3,7 +3,7 @@
 // Copyright (C) 2019 Jason Yan <yanaijie@huawei.com>
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -44,9 +44,9 @@ struct regions __initdata regions;
 
 static __init void kaslr_get_cmdline(void *fdt)
 {
-	int node = fdt_path_offset(fdt, "/chosen");
+	int yesde = fdt_path_offset(fdt, "/chosen");
 
-	early_init_dt_scan_chosen(node, "chosen", 1, boot_command_line);
+	early_init_dt_scan_chosen(yesde, "chosen", 1, boot_command_line);
 }
 
 static unsigned long __init rotate_xor(unsigned long hash, const void *area,
@@ -65,7 +65,7 @@ static unsigned long __init rotate_xor(unsigned long hash, const void *area,
 }
 
 /* Attempt to create a simple starting entropy. This can make it defferent for
- * every build but it is still not enough. Stronger entropy should
+ * every build but it is still yest eyesugh. Stronger entropy should
  * be added to make it change for every boot.
  */
 static unsigned long __init get_boot_seed(void *fdt)
@@ -80,15 +80,15 @@ static unsigned long __init get_boot_seed(void *fdt)
 
 static __init u64 get_kaslr_seed(void *fdt)
 {
-	int node, len;
+	int yesde, len;
 	fdt64_t *prop;
 	u64 ret;
 
-	node = fdt_path_offset(fdt, "/chosen");
-	if (node < 0)
+	yesde = fdt_path_offset(fdt, "/chosen");
+	if (yesde < 0)
 		return 0;
 
-	prop = fdt_getprop_w(fdt, node, "kaslr-seed", &len);
+	prop = fdt_getprop_w(fdt, yesde, "kaslr-seed", &len);
 	if (!prop || len != sizeof(u64))
 		return 0;
 
@@ -105,7 +105,7 @@ static __init bool regions_overlap(u32 s1, u32 e1, u32 s2, u32 e2)
 static __init bool overlaps_reserved_region(const void *fdt, u32 start,
 					    u32 end)
 {
-	int subnode, len, i;
+	int subyesde, len, i;
 	u64 base, size;
 
 	/* check for overlap with /memreserve/ entries */
@@ -120,14 +120,14 @@ static __init bool overlaps_reserved_region(const void *fdt, u32 start,
 		return false;
 
 	/* check for overlap with static reservations in /reserved-memory */
-	for (subnode = fdt_first_subnode(fdt, regions.reserved_mem);
-	     subnode >= 0;
-	     subnode = fdt_next_subnode(fdt, subnode)) {
+	for (subyesde = fdt_first_subyesde(fdt, regions.reserved_mem);
+	     subyesde >= 0;
+	     subyesde = fdt_next_subyesde(fdt, subyesde)) {
 		const fdt32_t *reg;
 		u64 rsv_end;
 
 		len = 0;
-		reg = fdt_getprop(fdt, subnode, "reg", &len);
+		reg = fdt_getprop(fdt, subyesde, "reg", &len);
 		while (len >= (regions.reserved_mem_addr_cells +
 			       regions.reserved_mem_size_cells)) {
 			base = fdt32_to_cpu(reg[0]);
@@ -200,19 +200,19 @@ static void __init get_crash_kernel(void *fdt, unsigned long size)
 static void __init get_initrd_range(void *fdt)
 {
 	u64 start, end;
-	int node, len;
+	int yesde, len;
 	const __be32 *prop;
 
-	node = fdt_path_offset(fdt, "/chosen");
-	if (node < 0)
+	yesde = fdt_path_offset(fdt, "/chosen");
+	if (yesde < 0)
 		return;
 
-	prop = fdt_getprop(fdt, node, "linux,initrd-start", &len);
+	prop = fdt_getprop(fdt, yesde, "linux,initrd-start", &len);
 	if (!prop)
 		return;
 	start = of_read_number(prop, len / 4);
 
-	prop = fdt_getprop(fdt, node, "linux,initrd-end", &len);
+	prop = fdt_getprop(fdt, yesde, "linux,initrd-end", &len);
 	if (!prop)
 		return;
 	end = of_read_number(prop, len / 4);
@@ -240,7 +240,7 @@ static __init unsigned long get_usable_address(const void *fdt,
 	return 0;
 }
 
-static __init void get_cell_sizes(const void *fdt, int node, int *addr_cells,
+static __init void get_cell_sizes(const void *fdt, int yesde, int *addr_cells,
 				  int *size_cells)
 {
 	const int *prop;
@@ -248,14 +248,14 @@ static __init void get_cell_sizes(const void *fdt, int node, int *addr_cells,
 
 	/*
 	 * Retrieve the #address-cells and #size-cells properties
-	 * from the 'node', or use the default if not provided.
+	 * from the 'yesde', or use the default if yest provided.
 	 */
 	*addr_cells = *size_cells = 1;
 
-	prop = fdt_getprop(fdt, node, "#address-cells", &len);
+	prop = fdt_getprop(fdt, yesde, "#address-cells", &len);
 	if (len == 4)
 		*addr_cells = fdt32_to_cpu(*prop);
-	prop = fdt_getprop(fdt, node, "#size-cells", &len);
+	prop = fdt_getprop(fdt, yesde, "#size-cells", &len);
 	if (len == 4)
 		*size_cells = fdt32_to_cpu(*prop);
 }
@@ -283,7 +283,7 @@ static unsigned long __init kaslr_legal_offset(void *dt_ptr, unsigned long index
 
 static inline __init bool kaslr_disabled(void)
 {
-	return strstr(boot_command_line, "nokaslr") != NULL;
+	return strstr(boot_command_line, "yeskaslr") != NULL;
 }
 
 static unsigned long __init kaslr_choose_location(void *dt_ptr, phys_addr_t size,
@@ -317,11 +317,11 @@ static unsigned long __init kaslr_choose_location(void *dt_ptr, phys_addr_t size
 	ram = map_mem_in_cams(ram, CONFIG_LOWMEM_CAM_NUM, true);
 	linear_sz = min_t(unsigned long, ram, SZ_512M);
 
-	/* If the linear size is smaller than 64M, do not randmize */
+	/* If the linear size is smaller than 64M, do yest randmize */
 	if (linear_sz < SZ_64M)
 		return 0;
 
-	/* check for a reserved-memory node and record its cell sizes */
+	/* check for a reserved-memory yesde and record its cell sizes */
 	regions.reserved_mem = fdt_path_offset(dt_ptr, "/reserved-memory");
 	if (regions.reserved_mem >= 0)
 		get_cell_sizes(dt_ptr, regions.reserved_mem,
@@ -356,7 +356,7 @@ static unsigned long __init kaslr_choose_location(void *dt_ptr, phys_addr_t size
  * void *dt_ptr - address of the device tree
  * phys_addr_t size - size of the first memory block
  */
-notrace void __init kaslr_early_init(void *dt_ptr, phys_addr_t size)
+yestrace void __init kaslr_early_init(void *dt_ptr, phys_addr_t size)
 {
 	unsigned long tlb_virt;
 	phys_addr_t tlb_phys;

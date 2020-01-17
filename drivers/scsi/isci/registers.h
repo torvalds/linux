@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,12 +31,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -996,9 +996,9 @@ struct smu_registers {
 /*
  * Accessable to FN#0 only
  * 0x0080 RNCLBAR */
-	u32 remote_node_context_lower;
+	u32 remote_yesde_context_lower;
 /* 0x0084 RNCUBAR */
-	u32 remote_node_context_upper;
+	u32 remote_yesde_context_upper;
 	u32 reserved_88;
 	u32 reserved_8C;
 /* 0x0090 DCC */
@@ -1030,7 +1030,7 @@ struct smu_registers {
  * Accessable to FN#0 only
  * 0x0400 TCA */
 	u32 task_context_assignment[256];
-/* MSI-X registers not included */
+/* MSI-X registers yest included */
 };
 
 /*
@@ -1301,7 +1301,7 @@ struct scu_link_layer_registers {
 /* 0x004C SAS_PTxC */
 	u32 transmit_primitive;
 /* 0x0050 SAS_RORES */
-	u32 error_counter_event_notification_control;
+	u32 error_counter_event_yestification_control;
 /* 0x0054 SAS_FRPLDFIL */
 	u32 frxq_payload_fill_threshold;
 /* 0x0058 SAS_LLHANG_TOT */
@@ -1358,7 +1358,7 @@ struct scu_link_layer_registers {
 /* 0x00C0 FTWMRK */
 	u32 ftx_watermark;
 /* 0x00C4 ENSPINUP */
-	u32 notify_enable_spinup_control;
+	u32 yestify_enable_spinup_control;
 /* 0x00C8 SAS_TRNTOV */
 	u32 sas_training_sequence_timer_values;
 /* 0x00CC SAS_PHYCAP */
@@ -1694,21 +1694,21 @@ struct scu_afe_registers {
 	u32 afe_dfx_rx_pmsn_control;
 	u32 reserved_0308;
 	/* 0x030c AFE_DFX_NOA_CTRL0 */
-	u32 afe_dfx_noa_control0;
+	u32 afe_dfx_yesa_control0;
 	/* 0x0310 AFE_DFX_NOA_CTRL1 */
-	u32 afe_dfx_noa_control1;
+	u32 afe_dfx_yesa_control1;
 	/* 0x0314 AFE_DFX_NOA_CTRL2 */
-	u32 afe_dfx_noa_control2;
+	u32 afe_dfx_yesa_control2;
 	/* 0x0318 AFE_DFX_NOA_CTRL3 */
-	u32 afe_dfx_noa_control3;
+	u32 afe_dfx_yesa_control3;
 	/* 0x031c AFE_DFX_NOA_CTRL4 */
-	u32 afe_dfx_noa_control4;
+	u32 afe_dfx_yesa_control4;
 	/* 0x0320 AFE_DFX_NOA_CTRL5 */
-	u32 afe_dfx_noa_control5;
+	u32 afe_dfx_yesa_control5;
 	/* 0x0324 AFE_DFX_NOA_CTRL6 */
-	u32 afe_dfx_noa_control6;
+	u32 afe_dfx_yesa_control6;
 	/* 0x0328 AFE_DFX_NOA_CTRL7 */
-	u32 afe_dfx_noa_control7;
+	u32 afe_dfx_yesa_control7;
 	/* 0x032c-0x07fc */
 	u32 reserved_032c_07fc[0x135];
 
@@ -1729,7 +1729,7 @@ struct scu_viit_iit {
 };
 
 /**
- * Placeholder for the ZONE Partition Table information ZONING will not be
+ * Placeholder for the ZONE Partition Table information ZONING will yest be
  *    included in the 1.1 release.
  *
  *
@@ -1739,7 +1739,7 @@ struct scu_zone_partition_table {
 };
 
 /**
- * Placeholder for the CRAM register since I am not sure if we need to
+ * Placeholder for the CRAM register since I am yest sure if we need to
  *    read/write to these registers as yet.
  *
  *
@@ -1749,7 +1749,7 @@ struct scu_completion_ram {
 };
 
 /**
- * Placeholder for the FBRAM registers since I am not sure if we need to
+ * Placeholder for the FBRAM registers since I am yest sure if we need to
  *    read/write to these registers as yet.
  *
  *
@@ -1770,29 +1770,29 @@ struct scu_scratch_ram {
 };
 
 /**
- * Placeholder since I am not yet sure what these registers are here for.
+ * Placeholder since I am yest yet sure what these registers are here for.
  *
  *
  */
-struct noa_protocol_engine_partition {
+struct yesa_protocol_engine_partition {
 	u32 reserved[64];
 };
 
 /**
- * Placeholder since I am not yet sure what these registers are here for.
+ * Placeholder since I am yest yet sure what these registers are here for.
  *
  *
  */
-struct noa_hub_partition {
+struct yesa_hub_partition {
 	u32 reserved[64];
 };
 
 /**
- * Placeholder since I am not yet sure what these registers are here for.
+ * Placeholder since I am yest yet sure what these registers are here for.
  *
  *
  */
-struct noa_host_interface_partition {
+struct yesa_host_interface_partition {
 	u32 reserved[64];
 };
 
@@ -1842,9 +1842,9 @@ struct scu_registers {
 	struct scu_completion_ram cram;
 	struct scu_frame_buffer_ram fbram;
 	u32 reserved_6800_69FF[0x80];
-	struct noa_protocol_engine_partition noa_pe;
-	struct noa_hub_partition noa_hub;
-	struct noa_host_interface_partition noa_if;
+	struct yesa_protocol_engine_partition yesa_pe;
+	struct yesa_hub_partition yesa_hub;
+	struct yesa_host_interface_partition yesa_if;
 	u32 reserved_6d00_7fff[0x4c0];
 
 	/* 0x8000 - PEG 1 */

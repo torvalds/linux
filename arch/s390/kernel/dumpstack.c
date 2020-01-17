@@ -31,11 +31,11 @@ const char *stack_type_name(enum stack_type type)
 	case STACK_TYPE_IRQ:
 		return "irq";
 	case STACK_TYPE_NODAT:
-		return "nodat";
+		return "yesdat";
 	case STACK_TYPE_RESTART:
 		return "restart";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 EXPORT_SYMBOL_GPL(stack_type_name);
@@ -70,12 +70,12 @@ static bool in_irq_stack(unsigned long sp, struct stack_info *info)
 	return in_stack(sp, info, STACK_TYPE_IRQ, top - THREAD_SIZE, top);
 }
 
-static bool in_nodat_stack(unsigned long sp, struct stack_info *info)
+static bool in_yesdat_stack(unsigned long sp, struct stack_info *info)
 {
 	unsigned long frame_size, top;
 
 	frame_size = STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
-	top = S390_lowcore.nodat_stack + frame_size;
+	top = S390_lowcore.yesdat_stack + frame_size;
 	return in_stack(sp, info, STACK_TYPE_NODAT, top - THREAD_SIZE, top);
 }
 
@@ -92,36 +92,36 @@ int get_stack_info(unsigned long sp, struct task_struct *task,
 		   struct stack_info *info, unsigned long *visit_mask)
 {
 	if (!sp)
-		goto unknown;
+		goto unkyeswn;
 
 	/* Sanity check: ABI requires SP to be aligned 8 bytes. */
 	if (sp & 0x7)
-		goto unknown;
+		goto unkyeswn;
 
 	/* Check per-task stack */
 	if (in_task_stack(sp, task, info))
 		goto recursion_check;
 
 	if (task != current)
-		goto unknown;
+		goto unkyeswn;
 
 	/* Check per-cpu stacks */
 	if (!in_irq_stack(sp, info) &&
-	    !in_nodat_stack(sp, info) &&
+	    !in_yesdat_stack(sp, info) &&
 	    !in_restart_stack(sp, info))
-		goto unknown;
+		goto unkyeswn;
 
 recursion_check:
 	/*
 	 * Make sure we don't iterate through any given stack more than once.
 	 * If it comes up a second time then there's something wrong going on:
-	 * just break out and report an unknown stack type.
+	 * just break out and report an unkyeswn stack type.
 	 */
 	if (*visit_mask & (1UL << info->type))
-		goto unknown;
+		goto unkyeswn;
 	*visit_mask |= 1UL << info->type;
 	return 0;
-unknown:
+unkyeswn:
 	info->type = STACK_TYPE_UNKNOWN;
 	return -EINVAL;
 }
@@ -200,7 +200,7 @@ void die(struct pt_regs *regs, const char *str)
 	if (debug_pagealloc_enabled())
 		pr_cont("DEBUG_PAGEALLOC");
 	pr_cont("\n");
-	notify_die(DIE_OOPS, str, regs, 0, regs->int_code & 0xffff, SIGSEGV);
+	yestify_die(DIE_OOPS, str, regs, 0, regs->int_code & 0xffff, SIGSEGV);
 	print_modules();
 	show_regs(regs);
 	bust_spinlocks(0);

@@ -1,17 +1,17 @@
-/* Synopsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
+/* Syyespsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
  *
- * Copyright (c) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (c) 2017 Syyespsys, Inc. (www.syyespsys.com)
  *
  * This program is dual-licensed; you may select either version 2 of
  * the GNU General Public License ("GPL") or BSD license ("BSD").
  *
- * This Synopsys DWC XLGMAC software driver and associated documentation
+ * This Syyespsys DWC XLGMAC software driver and associated documentation
  * (hereinafter the "Software") is an unsupported proprietary work of
- * Synopsys, Inc. unless otherwise expressly agreed to in writing between
- * Synopsys and you. The Software IS NOT an item of Licensed Software or a
+ * Syyespsys, Inc. unless otherwise expressly agreed to in writing between
+ * Syyespsys and you. The Software IS NOT an item of Licensed Software or a
  * Licensed Product under any End User Software License Agreement or
- * Agreement for Licensed Products with Synopsys or any supplement thereto.
- * Synopsys is a registered trademark of Synopsys, Inc. Other names included
+ * Agreement for Licensed Products with Syyespsys or any supplement thereto.
+ * Syyespsys is a registered trademark of Syyespsys, Inc. Other names included
  * in the SOFTWARE may be the trademarks of their respective owners.
  */
 
@@ -106,7 +106,7 @@ static void xlgmac_ethtool_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->version, pdata->drv_ver, sizeof(drvinfo->version));
 	strlcpy(drvinfo->bus_info, dev_name(pdata->dev),
 		sizeof(drvinfo->bus_info));
-	/* S|SNPSVER: Synopsys-defined Version
+	/* S|SNPSVER: Syyespsys-defined Version
 	 * D|DEVID: Indicates the Device family
 	 * U|USERVER: User-defined Version
 	 */
@@ -167,7 +167,7 @@ static int xlgmac_ethtool_set_coalesce(struct net_device *netdev,
 	unsigned int rx_frames, rx_riwt, rx_usecs;
 	unsigned int tx_frames;
 
-	/* Check for not supported parameters */
+	/* Check for yest supported parameters */
 	if ((ec->rx_coalesce_usecs_irq) || (ec->rx_max_coalesced_frames_irq) ||
 	    (ec->tx_coalesce_usecs) || (ec->tx_coalesce_usecs_high) ||
 	    (ec->tx_max_coalesced_frames_irq) || (ec->tx_coalesce_usecs_irq) ||

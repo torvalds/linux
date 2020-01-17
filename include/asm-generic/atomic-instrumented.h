@@ -460,54 +460,54 @@ atomic_fetch_and_relaxed(int i, atomic_t *v)
 #define atomic_fetch_and_relaxed atomic_fetch_and_relaxed
 #endif
 
-#if defined(arch_atomic_andnot)
+#if defined(arch_atomic_andyest)
 static inline void
-atomic_andnot(int i, atomic_t *v)
+atomic_andyest(int i, atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
-	arch_atomic_andnot(i, v);
+	arch_atomic_andyest(i, v);
 }
-#define atomic_andnot atomic_andnot
+#define atomic_andyest atomic_andyest
 #endif
 
-#if defined(arch_atomic_fetch_andnot)
+#if defined(arch_atomic_fetch_andyest)
 static inline int
-atomic_fetch_andnot(int i, atomic_t *v)
+atomic_fetch_andyest(int i, atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
-	return arch_atomic_fetch_andnot(i, v);
+	return arch_atomic_fetch_andyest(i, v);
 }
-#define atomic_fetch_andnot atomic_fetch_andnot
+#define atomic_fetch_andyest atomic_fetch_andyest
 #endif
 
-#if defined(arch_atomic_fetch_andnot_acquire)
+#if defined(arch_atomic_fetch_andyest_acquire)
 static inline int
-atomic_fetch_andnot_acquire(int i, atomic_t *v)
+atomic_fetch_andyest_acquire(int i, atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
-	return arch_atomic_fetch_andnot_acquire(i, v);
+	return arch_atomic_fetch_andyest_acquire(i, v);
 }
-#define atomic_fetch_andnot_acquire atomic_fetch_andnot_acquire
+#define atomic_fetch_andyest_acquire atomic_fetch_andyest_acquire
 #endif
 
-#if defined(arch_atomic_fetch_andnot_release)
+#if defined(arch_atomic_fetch_andyest_release)
 static inline int
-atomic_fetch_andnot_release(int i, atomic_t *v)
+atomic_fetch_andyest_release(int i, atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
-	return arch_atomic_fetch_andnot_release(i, v);
+	return arch_atomic_fetch_andyest_release(i, v);
 }
-#define atomic_fetch_andnot_release atomic_fetch_andnot_release
+#define atomic_fetch_andyest_release atomic_fetch_andyest_release
 #endif
 
-#if defined(arch_atomic_fetch_andnot_relaxed)
+#if defined(arch_atomic_fetch_andyest_relaxed)
 static inline int
-atomic_fetch_andnot_relaxed(int i, atomic_t *v)
+atomic_fetch_andyest_relaxed(int i, atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
-	return arch_atomic_fetch_andnot_relaxed(i, v);
+	return arch_atomic_fetch_andyest_relaxed(i, v);
 }
-#define atomic_fetch_andnot_relaxed atomic_fetch_andnot_relaxed
+#define atomic_fetch_andyest_relaxed atomic_fetch_andyest_relaxed
 #endif
 
 static inline void
@@ -790,14 +790,14 @@ atomic_add_unless(atomic_t *v, int a, int u)
 #define atomic_add_unless atomic_add_unless
 #endif
 
-#if defined(arch_atomic_inc_not_zero)
+#if defined(arch_atomic_inc_yest_zero)
 static inline bool
-atomic_inc_not_zero(atomic_t *v)
+atomic_inc_yest_zero(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
-	return arch_atomic_inc_not_zero(v);
+	return arch_atomic_inc_yest_zero(v);
 }
-#define atomic_inc_not_zero atomic_inc_not_zero
+#define atomic_inc_yest_zero atomic_inc_yest_zero
 #endif
 
 #if defined(arch_atomic_inc_unless_negative)
@@ -1270,54 +1270,54 @@ atomic64_fetch_and_relaxed(s64 i, atomic64_t *v)
 #define atomic64_fetch_and_relaxed atomic64_fetch_and_relaxed
 #endif
 
-#if defined(arch_atomic64_andnot)
+#if defined(arch_atomic64_andyest)
 static inline void
-atomic64_andnot(s64 i, atomic64_t *v)
+atomic64_andyest(s64 i, atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
-	arch_atomic64_andnot(i, v);
+	arch_atomic64_andyest(i, v);
 }
-#define atomic64_andnot atomic64_andnot
+#define atomic64_andyest atomic64_andyest
 #endif
 
-#if defined(arch_atomic64_fetch_andnot)
+#if defined(arch_atomic64_fetch_andyest)
 static inline s64
-atomic64_fetch_andnot(s64 i, atomic64_t *v)
+atomic64_fetch_andyest(s64 i, atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
-	return arch_atomic64_fetch_andnot(i, v);
+	return arch_atomic64_fetch_andyest(i, v);
 }
-#define atomic64_fetch_andnot atomic64_fetch_andnot
+#define atomic64_fetch_andyest atomic64_fetch_andyest
 #endif
 
-#if defined(arch_atomic64_fetch_andnot_acquire)
+#if defined(arch_atomic64_fetch_andyest_acquire)
 static inline s64
-atomic64_fetch_andnot_acquire(s64 i, atomic64_t *v)
+atomic64_fetch_andyest_acquire(s64 i, atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
-	return arch_atomic64_fetch_andnot_acquire(i, v);
+	return arch_atomic64_fetch_andyest_acquire(i, v);
 }
-#define atomic64_fetch_andnot_acquire atomic64_fetch_andnot_acquire
+#define atomic64_fetch_andyest_acquire atomic64_fetch_andyest_acquire
 #endif
 
-#if defined(arch_atomic64_fetch_andnot_release)
+#if defined(arch_atomic64_fetch_andyest_release)
 static inline s64
-atomic64_fetch_andnot_release(s64 i, atomic64_t *v)
+atomic64_fetch_andyest_release(s64 i, atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
-	return arch_atomic64_fetch_andnot_release(i, v);
+	return arch_atomic64_fetch_andyest_release(i, v);
 }
-#define atomic64_fetch_andnot_release atomic64_fetch_andnot_release
+#define atomic64_fetch_andyest_release atomic64_fetch_andyest_release
 #endif
 
-#if defined(arch_atomic64_fetch_andnot_relaxed)
+#if defined(arch_atomic64_fetch_andyest_relaxed)
 static inline s64
-atomic64_fetch_andnot_relaxed(s64 i, atomic64_t *v)
+atomic64_fetch_andyest_relaxed(s64 i, atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
-	return arch_atomic64_fetch_andnot_relaxed(i, v);
+	return arch_atomic64_fetch_andyest_relaxed(i, v);
 }
-#define atomic64_fetch_andnot_relaxed atomic64_fetch_andnot_relaxed
+#define atomic64_fetch_andyest_relaxed atomic64_fetch_andyest_relaxed
 #endif
 
 static inline void
@@ -1600,14 +1600,14 @@ atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
 #define atomic64_add_unless atomic64_add_unless
 #endif
 
-#if defined(arch_atomic64_inc_not_zero)
+#if defined(arch_atomic64_inc_yest_zero)
 static inline bool
-atomic64_inc_not_zero(atomic64_t *v)
+atomic64_inc_yest_zero(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
-	return arch_atomic64_inc_not_zero(v);
+	return arch_atomic64_inc_yest_zero(v);
 }
-#define atomic64_inc_not_zero atomic64_inc_not_zero
+#define atomic64_inc_yest_zero atomic64_inc_yest_zero
 #endif
 
 #if defined(arch_atomic64_inc_unless_negative)

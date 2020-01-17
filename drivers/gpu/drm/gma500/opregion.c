@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -55,7 +55,7 @@ struct opregion_header {
 /* OpRegion mailbox #1: public ACPI methods */
 struct opregion_acpi {
 	u32 drdy;	/* driver readiness */
-	u32 csts;	/* notification status */
+	u32 csts;	/* yestification status */
 	u32 cevt;	/* current event */
 	u8 rsvd1[20];
 	u32 didl[8];	/* supported display devices ID list */
@@ -69,7 +69,7 @@ struct opregion_acpi {
 	u32 cdck;	/* current docking state */
 	u32 sxsw;	/* Sx state resume */
 	u32 evts;	/* ASL supported events */
-	u32 cnot;	/* current OS notification */
+	u32 cyest;	/* current OS yestification */
 	u32 nrdy;	/* driver status */
 	u8 rsvd2[60];
 } __packed;
@@ -83,7 +83,7 @@ struct opregion_swsci {
 struct opregion_asle {
 	u32 ardy;	/* driver readiness */
 	u32 aslc;	/* ASLE interrupt command */
-	u32 tche;	/* technology enabled indicator */
+	u32 tche;	/* techyeslogy enabled indicator */
 	u32 alsi;	/* current ALS illuminance reading */
 	u32 bclp;	/* backlight brightness to set */
 	u32 pfit;	/* panel fitting state */
@@ -185,7 +185,7 @@ static void psb_intel_opregion_asle_work(struct work_struct *work)
 
 	asle_req = asle->aslc & ASLE_REQ_MSK;
 	if (!asle_req) {
-		DRM_DEBUG_DRIVER("non asle set request??\n");
+		DRM_DEBUG_DRIVER("yesn asle set request??\n");
 		return;
 	}
 
@@ -215,7 +215,7 @@ void psb_intel_opregion_enable_asle(struct drm_device *dev)
 	struct opregion_asle *asle = dev_priv->opregion.asle;
 
 	if (asle && system_opregion ) {
-		/* Don't do this on Medfield or other non PC like devices, they
+		/* Don't do this on Medfield or other yesn PC like devices, they
 		   use the bit for something different altogether */
 		psb_enable_pipestat(dev_priv, 0, PIPE_LEGACY_BLC_EVENT_ENABLE);
 		psb_enable_pipestat(dev_priv, 1, PIPE_LEGACY_BLC_EVENT_ENABLE);
@@ -231,14 +231,14 @@ void psb_intel_opregion_enable_asle(struct drm_device *dev)
 #define ACPI_EV_DOCK           (1<<2)
 
 
-static int psb_intel_opregion_video_event(struct notifier_block *nb,
+static int psb_intel_opregion_video_event(struct yestifier_block *nb,
 					  unsigned long val, void *data)
 {
 	/* The only video events relevant to opregion are 0x80. These indicate
 	   either a docking event, lid switch or display switch request. In
 	   Linux, these are handled by the dock, button and video drivers.
 	   We might want to fix the video driver to be opregion-aware in
-	   future, but right now we just indicate to the firmware that the
+	   future, but right yesw we just indicate to the firmware that the
 	   request has been handled */
 
 	struct opregion_acpi *acpi;
@@ -252,8 +252,8 @@ static int psb_intel_opregion_video_event(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block psb_intel_opregion_notifier = {
-	.notifier_call = psb_intel_opregion_video_event,
+static struct yestifier_block psb_intel_opregion_yestifier = {
+	.yestifier_call = psb_intel_opregion_video_event,
 };
 
 void psb_intel_opregion_init(struct drm_device *dev)
@@ -265,14 +265,14 @@ void psb_intel_opregion_init(struct drm_device *dev)
 		return;
 
 	if (opregion->acpi) {
-		/* Notify BIOS we are ready to handle ACPI video ext notifs.
-		 * Right now, all the events are handled by the ACPI video
+		/* Notify BIOS we are ready to handle ACPI video ext yestifs.
+		 * Right yesw, all the events are handled by the ACPI video
 		 * module. We don't actually need to do anything with them. */
 		opregion->acpi->csts = 0;
 		opregion->acpi->drdy = 1;
 
 		system_opregion = opregion;
-		register_acpi_notifier(&psb_intel_opregion_notifier);
+		register_acpi_yestifier(&psb_intel_opregion_yestifier);
 	}
 }
 
@@ -288,12 +288,12 @@ void psb_intel_opregion_fini(struct drm_device *dev)
 		opregion->acpi->drdy = 0;
 
 		system_opregion = NULL;
-		unregister_acpi_notifier(&psb_intel_opregion_notifier);
+		unregister_acpi_yestifier(&psb_intel_opregion_yestifier);
 	}
 
 	cancel_work_sync(&opregion->asle_work);
 
-	/* just clear all opregion memory pointers now */
+	/* just clear all opregion memory pointers yesw */
 	iounmap(opregion->header);
 	opregion->header = NULL;
 	opregion->acpi = NULL;
@@ -312,7 +312,7 @@ int psb_intel_opregion_setup(struct drm_device *dev)
 
 	pci_read_config_dword(dev->pdev, PCI_ASLS, &opregion_phy);
 	if (opregion_phy == 0) {
-		DRM_DEBUG_DRIVER("ACPI Opregion not supported\n");
+		DRM_DEBUG_DRIVER("ACPI Opregion yest supported\n");
 		return -ENOTSUPP;
 	}
 

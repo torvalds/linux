@@ -502,26 +502,26 @@
 
 	sdio {
 		bt_host_wake_l: bt-host-wake-l {
-			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		bt_reg_on_h: bt-reg-on-h {
 			/* external pullup to VCC1V8_PMUPLL */
-			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		bt_wake_l: bt-wake-l {
-			rockchip,pins = <2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		wifi_reg_on_h: wifi-reg_on-h {
-			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	wifi {
 		wifi_host_wake_l: wifi-host-wake-l {
-			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -534,7 +534,7 @@
 	usb2 {
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
-				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };
@@ -573,7 +573,7 @@
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
 	supports-emmc;
-	non-removable;
+	yesn-removable;
 	keep-power-in-suspend;
 	status = "okay";
 };
@@ -585,7 +585,7 @@
 	cap-sd-highspeed;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
+	yesn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
 	sd-uhs-sdr104;
@@ -615,7 +615,7 @@
 	max-freq = <10000000>;
 
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;

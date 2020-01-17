@@ -46,7 +46,7 @@ static const struct brcmstb_intc_init_params l2_edge_intc_init = {
 static const struct brcmstb_intc_init_params l2_lvl_intc_init = {
 	.handler		= handle_level_irq,
 	.cpu_status		= 0x00,
-	.cpu_clear		= -1, /* Register not present */
+	.cpu_clear		= -1, /* Register yest present */
 	.cpu_mask_status	= 0x04,
 	.cpu_mask_set		= 0x08,
 	.cpu_mask_clear		= 0x0C
@@ -67,7 +67,7 @@ struct brcmstb_l2_intc_data {
  * @d: irq_data
  *
  * Chip has separate enable/disable registers instead of a single mask
- * register and pending interrupt is acknowledged by setting a bit.
+ * register and pending interrupt is ackyeswledged by setting a bit.
  *
  * Note: This function is generic and could easily be added to the
  * generic irqchip implementation if there ever becomes a will to do so.
@@ -144,7 +144,7 @@ static void brcmstb_l2_intc_resume(struct irq_data *d)
 
 	irq_gc_lock_irqsave(gc, flags);
 	if (ct->chip.irq_ack) {
-		/* Clear unmasked non-wakeup interrupts */
+		/* Clear unmasked yesn-wakeup interrupts */
 		irq_reg_writel(gc, ~b->saved_mask & ~gc->wake_active,
 				ct->regs.ack);
 	}
@@ -155,8 +155,8 @@ static void brcmstb_l2_intc_resume(struct irq_data *d)
 	irq_gc_unlock_irqrestore(gc, flags);
 }
 
-static int __init brcmstb_l2_intc_of_init(struct device_node *np,
-					  struct device_node *parent,
+static int __init brcmstb_l2_intc_of_init(struct device_yesde *np,
+					  struct device_yesde *parent,
 					  const struct brcmstb_intc_init_params
 					  *init_params)
 {
@@ -208,7 +208,7 @@ static int __init brcmstb_l2_intc_of_init(struct device_node *np,
 	if (IS_ENABLED(CONFIG_MIPS) && IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
 		flags |= IRQ_GC_BE_IO;
 
-	/* Allocate a single Generic IRQ chip for this node */
+	/* Allocate a single Generic IRQ chip for this yesde */
 	ret = irq_alloc_domain_generic_chips(data->domain, 32, 1,
 			np->full_name, init_params->handler, clr, 0, flags);
 	if (ret) {
@@ -269,15 +269,15 @@ out_free:
 	return ret;
 }
 
-static int __init brcmstb_l2_edge_intc_of_init(struct device_node *np,
-	struct device_node *parent)
+static int __init brcmstb_l2_edge_intc_of_init(struct device_yesde *np,
+	struct device_yesde *parent)
 {
 	return brcmstb_l2_intc_of_init(np, parent, &l2_edge_intc_init);
 }
 IRQCHIP_DECLARE(brcmstb_l2_intc, "brcm,l2-intc", brcmstb_l2_edge_intc_of_init);
 
-static int __init brcmstb_l2_lvl_intc_of_init(struct device_node *np,
-	struct device_node *parent)
+static int __init brcmstb_l2_lvl_intc_of_init(struct device_yesde *np,
+	struct device_yesde *parent)
 {
 	return brcmstb_l2_intc_of_init(np, parent, &l2_lvl_intc_init);
 }

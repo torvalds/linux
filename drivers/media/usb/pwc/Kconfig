@@ -18,11 +18,11 @@ config USB_PWC
 	   * SOTEC Afina Eye
 	   * Visionite VCS-UC300, VCS-UM100
 
-	  The PCA635, PCVC665 and PCVC720/20 are not supported by this driver
+	  The PCA635, PCVC665 and PCVC720/20 are yest supported by this driver
 	  and never will be, but the 665 and 720/20 are supported by other
 	  drivers.
 
-	  Some newer logitech webcams are not handled by this driver but by the
+	  Some newer logitech webcams are yest handled by this driver but by the
 	  Usb Video Class driver (linux-uvc).
 
 	  The built-in microphone is enabled by selecting USB Audio support.

@@ -173,7 +173,7 @@ static struct iscsi_param *iscsi_set_default_param(struct iscsi_param_list *para
 		param->type = TYPE_STRING;
 		break;
 	default:
-		pr_err("Unknown type_range 0x%02x\n",
+		pr_err("Unkyeswn type_range 0x%02x\n",
 				param->type_range);
 		goto out;
 	}
@@ -679,7 +679,7 @@ int iscsi_extract_key_value(char *textbuf, char **key, char **value)
 	*value = strchr(textbuf, '=');
 	if (!*value) {
 		pr_err("Unable to locate \"=\" separator for key,"
-				" ignoring request.\n");
+				" igyesring request.\n");
 		return -1;
 	}
 
@@ -705,7 +705,7 @@ int iscsi_update_param_value(struct iscsi_param *param, char *value)
 	return 0;
 }
 
-static int iscsi_add_notunderstood_response(
+static int iscsi_add_yestunderstood_response(
 	char *key,
 	char *value,
 	struct iscsi_param_list *param_list)
@@ -713,7 +713,7 @@ static int iscsi_add_notunderstood_response(
 	struct iscsi_extra_response *extra_response;
 
 	if (strlen(value) > VALUE_MAXLEN) {
-		pr_err("Value for notunderstood key \"%s\" exceeds %d,"
+		pr_err("Value for yestunderstood key \"%s\" exceeds %d,"
 			" protocol error.\n", key, VALUE_MAXLEN);
 		return -1;
 	}
@@ -780,7 +780,7 @@ static void iscsi_check_proposer_for_optional_reply(struct iscsi_param *param,
 
 		if (keys_workaround) {
 			/*
-			 * Required for Mellanox Flexboot PXE boot ROM
+			 * Required for Mellayesx Flexboot PXE boot ROM
 			 */
 			if (!strcmp(param->name, FIRSTBURSTLENGTH))
 				SET_PSTATE_REPLY_OPTIONAL(param);
@@ -1063,7 +1063,7 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 					param, value);
 		if (!negotiated_value) {
 			pr_err("Proposer's value list \"%s\" contains"
-				" no valid values from Acceptor's value list"
+				" yes valid values from Acceptor's value list"
 				" \"%s\".\n", value, param->value);
 			return -1;
 		}
@@ -1115,7 +1115,7 @@ static int iscsi_check_value(struct iscsi_param *param, char *value)
 		if (!strcmp(param->name, IFMARKINT) ||
 		    !strcmp(param->name, OFMARKINT)) {
 			/*
-			 * Reject is not fatal for [I,O]FMarkInt,  and causes
+			 * Reject is yest fatal for [I,O]FMarkInt,  and causes
 			 * [I,O]FMarker to be reset to No. (See iSCSI v20 A.3.2)
 			 */
 			SET_PSTATE_REJECT(param);
@@ -1137,7 +1137,7 @@ static int iscsi_check_value(struct iscsi_param *param, char *value)
 		}
 
 /* #warning FIXME: Add check for X-ExtensionKey here */
-		pr_err("Standard iSCSI key \"%s\" cannot be answered"
+		pr_err("Standard iSCSI key \"%s\" canyest be answered"
 			" with \"%s\", protocol error.\n", param->name, value);
 		return -1;
 	}
@@ -1148,7 +1148,7 @@ static int iscsi_check_value(struct iscsi_param *param, char *value)
 
 		if (comma_ptr && !IS_TYPE_VALUE_LIST(param)) {
 			pr_err("Detected value separator \",\", but"
-				" key \"%s\" does not allow a value list,"
+				" key \"%s\" does yest allow a value list,"
 				" protocol error.\n", param->name);
 			return -1;
 		}
@@ -1203,14 +1203,14 @@ static struct iscsi_param *__iscsi_check_key(
 		return NULL;
 
 	if ((sender & SENDER_INITIATOR) && !IS_SENDER_INITIATOR(param)) {
-		pr_err("Key \"%s\" may not be sent to %s,"
+		pr_err("Key \"%s\" may yest be sent to %s,"
 			" protocol error.\n", param->name,
 			(sender & SENDER_RECEIVER) ? "target" : "initiator");
 		return NULL;
 	}
 
 	if ((sender & SENDER_TARGET) && !IS_SENDER_TARGET(param)) {
-		pr_err("Key \"%s\" may not be sent to %s,"
+		pr_err("Key \"%s\" may yest be sent to %s,"
 			" protocol error.\n", param->name,
 			(sender & SENDER_RECEIVER) ? "initiator" : "target");
 		return NULL;
@@ -1227,7 +1227,7 @@ static struct iscsi_param *iscsi_check_key(
 {
 	struct iscsi_param *param;
 	/*
-	 * Key name length must not exceed 63 bytes. (See iSCSI v20 5.1)
+	 * Key name length must yest exceed 63 bytes. (See iSCSI v20 5.1)
 	 */
 	if (strlen(key) > KEY_MAXLEN) {
 		pr_err("Length of key name \"%s\" exceeds %d.\n",
@@ -1240,13 +1240,13 @@ static struct iscsi_param *iscsi_check_key(
 		return NULL;
 
 	if ((sender & SENDER_INITIATOR) && !IS_SENDER_INITIATOR(param)) {
-		pr_err("Key \"%s\" may not be sent to %s,"
+		pr_err("Key \"%s\" may yest be sent to %s,"
 			" protocol error.\n", param->name,
 			(sender & SENDER_RECEIVER) ? "target" : "initiator");
 		return NULL;
 	}
 	if ((sender & SENDER_TARGET) && !IS_SENDER_TARGET(param)) {
-		pr_err("Key \"%s\" may not be sent to %s,"
+		pr_err("Key \"%s\" may yest be sent to %s,"
 				" protocol error.\n", param->name,
 			(sender & SENDER_RECEIVER) ? "initiator" : "target");
 		return NULL;
@@ -1262,7 +1262,7 @@ static struct iscsi_param *iscsi_check_key(
 		return param;
 
 	if (!(param->phase & phase)) {
-		pr_err("Key \"%s\" may not be negotiated during ",
+		pr_err("Key \"%s\" may yest be negotiated during ",
 				param->name);
 		switch (phase) {
 		case PHASE_SECURITY:
@@ -1272,7 +1272,7 @@ static struct iscsi_param *iscsi_check_key(
 			pr_debug("Operational phase.\n");
 			break;
 		default:
-			pr_debug("Unknown phase.\n");
+			pr_debug("Unkyeswn phase.\n");
 		}
 		return NULL;
 	}
@@ -1386,7 +1386,7 @@ int iscsi_decode_text_input(
 
 		param = iscsi_check_key(key, phase, sender, param_list);
 		if (!param) {
-			if (iscsi_add_notunderstood_response(key, value,
+			if (iscsi_add_yestunderstood_response(key, value,
 							     param_list) < 0)
 				goto free_buffer;
 
@@ -1547,7 +1547,7 @@ void iscsi_set_connection_parameters(
 		/*
 		 * Special case to set MAXXMITDATASEGMENTLENGTH from the
 		 * target requested MaxRecvDataSegmentLength, even though
-		 * this key is not sent over the wire.
+		 * this key is yest sent over the wire.
 		 */
 		if (!strcmp(param->name, MAXXMITDATASEGMENTLENGTH)) {
 			ops->MaxXmitDataSegmentLength =

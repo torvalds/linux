@@ -256,7 +256,7 @@ static int st21nfca_tm_send_psl_res(struct nfc_hci_dev *hdev,
 	/*
 	 * ST21NFCA only support P2P passive.
 	 * PSL_REQ BRS value != 0 has only a meaning to
-	 * change technology to type F.
+	 * change techyeslogy to type F.
 	 * We change to BITRATE 424Kbits.
 	 * In other case switch to BITRATE 106Kbits.
 	 */
@@ -399,7 +399,7 @@ static int st21nfca_tm_event_send_data(struct nfc_hci_dev *hdev,
 /*
  * Returns:
  * <= 0: driver handled the event, skb consumed
- *    1: driver does not handle the event, please do standard processing
+ *    1: driver does yest handle the event, please do standard processing
  */
 int st21nfca_dep_event_received(struct nfc_hci_dev *hdev,
 				u8 event, struct sk_buff *skb)

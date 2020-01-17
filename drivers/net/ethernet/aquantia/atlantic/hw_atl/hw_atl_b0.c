@@ -439,7 +439,7 @@ static int hw_atl_b0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 	aq_hw_write_reg(self, HW_ATL_PCI_REG_CONTROL6_ADR,
 			(val & ~0x707) | 0x404);
 
-	/* TX DMA total request limit. B0 hardware is not capable to
+	/* TX DMA total request limit. B0 hardware is yest capable to
 	 * handle more than (8K-MRRS) incoming DMA data.
 	 * Value 24 in 256byte units
 	 */
@@ -724,7 +724,7 @@ static int hw_atl_b0_hw_ring_hwts_rx_receive(struct aq_hw_s *self,
 			(struct hw_atl_rxd_hwts_wb_s *)
 			(ring->dx_ring + (ring->hw_head * HW_ATL_B0_RXD_SIZE));
 
-		/* RxD is not done */
+		/* RxD is yest done */
 		if (!(hwts_wb->sec_lw0 & 0x1U))
 			break;
 
@@ -766,7 +766,7 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 		unsigned int pkt_type = 0U;
 		u8 rx_stat = 0U;
 
-		if (!(rxd_wb->status & 0x1U)) { /* RxD is not done */
+		if (!(rxd_wb->status & 0x1U)) { /* RxD is yest done */
 			break;
 		}
 
@@ -1240,9 +1240,9 @@ static int hw_atl_b0_get_sync_ts(struct aq_hw_s *self, u64 *ts)
 	sec_l = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc914);
 	/* PTP external GPIO clock seconds count 31:16 */
 	sec_h = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc915);
-	/* PTP external GPIO clock nanoseconds count 15:0 */
+	/* PTP external GPIO clock nayesseconds count 15:0 */
 	nsec_l = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc916);
-	/* PTP external GPIO clock nanoseconds count 31:16 */
+	/* PTP external GPIO clock nayesseconds count 31:16 */
 	nsec_h = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc917);
 
 	*ts = (nsec_h << 16) + nsec_l + ((sec_h << 16) + sec_l) * NSEC_PER_SEC;
@@ -1406,7 +1406,7 @@ static int hw_atl_b0_hw_fl2_clear(struct aq_hw_s *self,
  * @brief Set VLAN filter table
  * @details Configure VLAN filter table to accept (and assign the queue) traffic
  *  for the particular vlan ids.
- * Note: use this function under vlan promisc mode not to lost the traffic
+ * Note: use this function under vlan promisc mode yest to lost the traffic
  *
  * @param aq_hw_s
  * @param aq_rx_filter_vlan VLAN filter configuration

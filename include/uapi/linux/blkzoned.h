@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Zoned block devices handling.
  *
- * Copyright (C) 2015 Seagate Technology PLC
+ * Copyright (C) 2015 Seagate Techyeslogy PLC
  *
  * Written by: Shaun Tancheff <shaun.tancheff@seagate.com>
  *
@@ -22,12 +22,12 @@
 /**
  * enum blk_zone_type - Types of zones allowed in a zoned device.
  *
- * @BLK_ZONE_TYPE_CONVENTIONAL: The zone has no write pointer and can be writen
- *                              randomly. Zone reset has no effect on the zone.
+ * @BLK_ZONE_TYPE_CONVENTIONAL: The zone has yes write pointer and can be writen
+ *                              randomly. Zone reset has yes effect on the zone.
  * @BLK_ZONE_TYPE_SEQWRITE_REQ: The zone must be written sequentially
- * @BLK_ZONE_TYPE_SEQWRITE_PREF: The zone can be written non-sequentially
+ * @BLK_ZONE_TYPE_SEQWRITE_PREF: The zone can be written yesn-sequentially
  *
- * Any other value not defined is reserved and must be considered as invalid.
+ * Any other value yest defined is reserved and must be considered as invalid.
  */
 enum blk_zone_type {
 	BLK_ZONE_TYPE_CONVENTIONAL	= 0x1,
@@ -38,16 +38,16 @@ enum blk_zone_type {
 /**
  * enum blk_zone_cond - Condition [state] of a zone in a zoned device.
  *
- * @BLK_ZONE_COND_NOT_WP: The zone has no write pointer, it is conventional.
+ * @BLK_ZONE_COND_NOT_WP: The zone has yes write pointer, it is conventional.
  * @BLK_ZONE_COND_EMPTY: The zone is empty.
- * @BLK_ZONE_COND_IMP_OPEN: The zone is open, but not explicitly opened.
+ * @BLK_ZONE_COND_IMP_OPEN: The zone is open, but yest explicitly opened.
  * @BLK_ZONE_COND_EXP_OPEN: The zones was explicitly opened by an
  *                          OPEN ZONE command.
  * @BLK_ZONE_COND_CLOSED: The zone was [explicitly] closed after writing.
  * @BLK_ZONE_COND_FULL: The zone is marked as full, possibly by a zone
  *                      FINISH ZONE command.
  * @BLK_ZONE_COND_READONLY: The zone is read-only.
- * @BLK_ZONE_COND_OFFLINE: The zone is offline (sectors cannot be read/written).
+ * @BLK_ZONE_COND_OFFLINE: The zone is offline (sectors canyest be read/written).
  *
  * The Zone Condition state machine in the ZBC/ZAC standards maps the above
  * deinitions as:
@@ -81,7 +81,7 @@ enum blk_zone_cond {
  * @wp: Zone write pointer location in 512 B sector units
  * @type: see enum blk_zone_type for possible values
  * @cond: see enum blk_zone_cond for possible values
- * @non_seq: Flag indicating that the zone is using non-sequential resources
+ * @yesn_seq: Flag indicating that the zone is using yesn-sequential resources
  *           (for host-aware zoned block devices only).
  * @reset: Flag indicating that a zone reset is recommended.
  * @reserved: Padding to 64 B to match the ZBC/ZAC defined zone descriptor size.
@@ -97,7 +97,7 @@ struct blk_zone {
 	__u64	wp;		/* Zone write pointer position */
 	__u8	type;		/* Zone type */
 	__u8	cond;		/* Zone condition */
-	__u8	non_seq;	/* Non-sequential write resources active */
+	__u8	yesn_seq;	/* Non-sequential write resources active */
 	__u8	reset;		/* Reset write pointer recommended */
 	__u8	reserved[36];
 };

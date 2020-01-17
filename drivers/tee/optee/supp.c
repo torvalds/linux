@@ -84,10 +84,10 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	u32 ret;
 
 	/*
-	 * Return in case there is no supplicant available and
-	 * non-blocking request.
+	 * Return in case there is yes supplicant available and
+	 * yesn-blocking request.
 	 */
-	if (!supp->ctx && ctx->supp_nowait)
+	if (!supp->ctx && ctx->supp_yeswait)
 		return TEEC_ERROR_COMMUNICATION;
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
@@ -118,15 +118,15 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 		interruptable = !supp->ctx;
 		if (interruptable) {
 			/*
-			 * There's no supplicant available and since the
-			 * supp->mutex currently is held none can
+			 * There's yes supplicant available and since the
+			 * supp->mutex currently is held yesne can
 			 * become available until the mutex released
 			 * again.
 			 *
 			 * Interrupting an RPC to supplicant is only
 			 * allowed as a way of slightly improving the user
 			 * experience in case the supplicant hasn't been
-			 * started yet. During normal operation the supplicant
+			 * started yet. During yesrmal operation the supplicant
 			 * will serve all requests in a timely manner and
 			 * interrupting then wouldn't make sense.
 			 */
@@ -156,7 +156,7 @@ static struct optee_supp_req  *supp_pop_entry(struct optee_supp *supp,
 
 	if (supp->req_id != -1) {
 		/*
-		 * Supplicant should not mix synchronous and asnynchronous
+		 * Supplicant should yest mix synchroyesus and asnynchroyesus
 		 * requests.
 		 */
 		return ERR_PTR(-EINVAL);
@@ -168,7 +168,7 @@ static struct optee_supp_req  *supp_pop_entry(struct optee_supp *supp,
 	req = list_first_entry(&supp->reqs, struct optee_supp_req, link);
 
 	if (num_params < req->num_params) {
-		/* Not enough room for parameters */
+		/* Not eyesugh room for parameters */
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -207,7 +207,7 @@ static int supp_check_recv_params(size_t num_params, struct tee_param *params,
 		    params[n].attr != TEE_IOCTL_PARAM_ATTR_META)
 			return -EINVAL;
 
-	/* At most we'll need one meta parameter so no need to check for more */
+	/* At most we'll need one meta parameter so yes need to check for more */
 	if (params->attr == TEE_IOCTL_PARAM_ATTR_META)
 		*num_meta = 1;
 	else
@@ -267,7 +267,7 @@ int optee_supp_recv(struct tee_context *ctx, u32 *func, u32 *num_params,
 	if (num_meta) {
 		/*
 		 * tee-supplicant support meta parameters -> requsts can be
-		 * processed asynchronously.
+		 * processed asynchroyesusly.
 		 */
 		param->attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT |
 			      TEE_IOCTL_PARAM_ATTR_META;

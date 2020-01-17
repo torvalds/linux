@@ -18,14 +18,14 @@ ACPI_MODULE_NAME("nsutils")
 
 /* Local prototypes */
 #ifdef ACPI_OBSOLETE_FUNCTIONS
-acpi_name acpi_ns_find_parent_name(struct acpi_namespace_node *node_to_search);
+acpi_name acpi_ns_find_parent_name(struct acpi_namespace_yesde *yesde_to_search);
 #endif
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_print_node_pathname
+ * FUNCTION:    acpi_ns_print_yesde_pathname
  *
- * PARAMETERS:  node            - Object
+ * PARAMETERS:  yesde            - Object
  *              message         - Prefix message
  *
  * DESCRIPTION: Print an object's full namespace pathname
@@ -34,13 +34,13 @@ acpi_name acpi_ns_find_parent_name(struct acpi_namespace_node *node_to_search);
  ******************************************************************************/
 
 void
-acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
+acpi_ns_print_yesde_pathname(struct acpi_namespace_yesde *yesde,
 			    const char *message)
 {
 	struct acpi_buffer buffer;
 	acpi_status status;
 
-	if (!node) {
+	if (!yesde) {
 		acpi_os_printf("[NULL NAME]");
 		return;
 	}
@@ -49,7 +49,7 @@ acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
-	status = acpi_ns_handle_to_pathname(node, &buffer, TRUE);
+	status = acpi_ns_handle_to_pathname(yesde, &buffer, TRUE);
 	if (ACPI_SUCCESS(status)) {
 		if (message) {
 			acpi_os_printf("%s ", message);
@@ -64,24 +64,24 @@ acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
  *
  * FUNCTION:    acpi_ns_get_type
  *
- * PARAMETERS:  node        - Parent Node to be examined
+ * PARAMETERS:  yesde        - Parent Node to be examined
  *
  * RETURN:      Type field from Node whose handle is passed
  *
- * DESCRIPTION: Return the type of a Namespace node
+ * DESCRIPTION: Return the type of a Namespace yesde
  *
  ******************************************************************************/
 
-acpi_object_type acpi_ns_get_type(struct acpi_namespace_node * node)
+acpi_object_type acpi_ns_get_type(struct acpi_namespace_yesde * yesde)
 {
 	ACPI_FUNCTION_TRACE(ns_get_type);
 
-	if (!node) {
+	if (!yesde) {
 		ACPI_WARNING((AE_INFO, "Null Node parameter"));
 		return_UINT8(ACPI_TYPE_ANY);
 	}
 
-	return_UINT8(node->type);
+	return_UINT8(yesde->type);
 }
 
 /*******************************************************************************
@@ -141,10 +141,10 @@ void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info)
 	/*
 	 * For the internal name, the required length is 4 bytes per segment,
 	 * plus 1 each for root_prefix, multi_name_prefix_op, segment count,
-	 * trailing null (which is not really needed, but no there's harm in
+	 * trailing null (which is yest really needed, but yes there's harm in
 	 * putting it there)
 	 *
-	 * strlen() + 1 covers the first name_seg, which has no path separator
+	 * strlen() + 1 covers the first name_seg, which has yes path separator
 	 */
 	if (ACPI_IS_ROOT_PREFIX(*next_external_char)) {
 		info->fully_qualified = TRUE;
@@ -460,7 +460,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 	    ((num_segments > 0) ? (num_segments - 1) : 0) + 1;
 
 	/*
-	 * Check to see if we're still in bounds. If not, there's a problem
+	 * Check to see if we're still in bounds. If yest, there's a problem
 	 * with internal_name (invalid format).
 	 */
 	if (required_length > internal_name_length) {
@@ -510,22 +510,22 @@ acpi_ns_externalize_name(u32 internal_name_length,
  * FUNCTION:    acpi_ns_validate_handle
  *
  * PARAMETERS:  handle          - Handle to be validated and typecast to a
- *                                namespace node.
+ *                                namespace yesde.
  *
- * RETURN:      A pointer to a namespace node
+ * RETURN:      A pointer to a namespace yesde
  *
- * DESCRIPTION: Convert a namespace handle to a namespace node. Handles special
- *              cases for the root node.
+ * DESCRIPTION: Convert a namespace handle to a namespace yesde. Handles special
+ *              cases for the root yesde.
  *
  * NOTE: Real integer handles would allow for more verification
  *       and keep all pointers within this subsystem - however this introduces
- *       more overhead and has not been necessary to this point. Drivers
- *       holding handles are typically notified before a node becomes invalid
+ *       more overhead and has yest been necessary to this point. Drivers
+ *       holding handles are typically yestified before a yesde becomes invalid
  *       due to a table unload.
  *
  ******************************************************************************/
 
-struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle)
+struct acpi_namespace_yesde *acpi_ns_validate_handle(acpi_handle handle)
 {
 
 	ACPI_FUNCTION_ENTRY();
@@ -533,7 +533,7 @@ struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle)
 	/* Parameter validation */
 
 	if ((!handle) || (handle == ACPI_ROOT_OBJECT)) {
-		return (acpi_gbl_root_node);
+		return (acpi_gbl_root_yesde);
 	}
 
 	/* We can at least attempt to verify the handle */
@@ -542,16 +542,16 @@ struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle)
 		return (NULL);
 	}
 
-	return (ACPI_CAST_PTR(struct acpi_namespace_node, handle));
+	return (ACPI_CAST_PTR(struct acpi_namespace_yesde, handle));
 }
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_terminate
  *
- * PARAMETERS:  none
+ * PARAMETERS:  yesne
  *
- * RETURN:      none
+ * RETURN:      yesne
  *
  * DESCRIPTION: free memory allocated for namespace and ACPI table storage.
  *
@@ -564,19 +564,19 @@ void acpi_ns_terminate(void)
 	ACPI_FUNCTION_TRACE(ns_terminate);
 
 	/*
-	 * Free the entire namespace -- all nodes and all objects
-	 * attached to the nodes
+	 * Free the entire namespace -- all yesdes and all objects
+	 * attached to the yesdes
 	 */
-	acpi_ns_delete_namespace_subtree(acpi_gbl_root_node);
+	acpi_ns_delete_namespace_subtree(acpi_gbl_root_yesde);
 
-	/* Delete any objects attached to the root node */
+	/* Delete any objects attached to the root yesde */
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		return_VOID;
 	}
 
-	acpi_ns_delete_node(acpi_gbl_root_node);
+	acpi_ns_delete_yesde(acpi_gbl_root_yesde);
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Namespace freed\n"));
@@ -611,18 +611,18 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_get_node_unlocked
+ * FUNCTION:    acpi_ns_get_yesde_unlocked
  *
  * PARAMETERS:  *pathname   - Name to be found, in external (ASL) format. The
  *                            \ (backslash) and ^ (carat) prefixes, and the
  *                            . (period) to separate segments are supported.
- *              prefix_node  - Root of subtree to be searched, or NS_ALL for the
+ *              prefix_yesde  - Root of subtree to be searched, or NS_ALL for the
  *                            root of the name space. If Name is fully
  *                            qualified (first s8 is '\'), the passed value
- *                            of Scope will not be accessed.
+ *                            of Scope will yest be accessed.
  *              flags       - Used to indicate whether to perform upsearch or
- *                            not.
- *              return_node - Where the Node is returned
+ *                            yest.
+ *              return_yesde - Where the Node is returned
  *
  * DESCRIPTION: Look up a name relative to a given scope and return the
  *              corresponding Node. NOTE: Scope can be null.
@@ -632,23 +632,23 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
  ******************************************************************************/
 
 acpi_status
-acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
+acpi_ns_get_yesde_unlocked(struct acpi_namespace_yesde *prefix_yesde,
 			  const char *pathname,
-			  u32 flags, struct acpi_namespace_node **return_node)
+			  u32 flags, struct acpi_namespace_yesde **return_yesde)
 {
 	union acpi_generic_state scope_info;
 	acpi_status status;
 	char *internal_path;
 
-	ACPI_FUNCTION_TRACE_PTR(ns_get_node_unlocked,
+	ACPI_FUNCTION_TRACE_PTR(ns_get_yesde_unlocked,
 				ACPI_CAST_PTR(char, pathname));
 
 	/* Simplest case is a null pathname */
 
 	if (!pathname) {
-		*return_node = prefix_node;
-		if (!prefix_node) {
-			*return_node = acpi_gbl_root_node;
+		*return_yesde = prefix_yesde;
+		if (!prefix_yesde) {
+			*return_yesde = acpi_gbl_root_yesde;
 		}
 
 		return_ACPI_STATUS(AE_OK);
@@ -657,7 +657,7 @@ acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
 	/* Quick check for a reference to the root */
 
 	if (ACPI_IS_ROOT_PREFIX(pathname[0]) && (!pathname[1])) {
-		*return_node = acpi_gbl_root_node;
+		*return_yesde = acpi_gbl_root_yesde;
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -670,14 +670,14 @@ acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
 
 	/* Setup lookup scope (search starting point) */
 
-	scope_info.scope.node = prefix_node;
+	scope_info.scope.yesde = prefix_yesde;
 
 	/* Lookup the name in the namespace */
 
 	status = acpi_ns_lookup(&scope_info, internal_path, ACPI_TYPE_ANY,
 				ACPI_IMODE_EXECUTE,
 				(flags | ACPI_NS_DONT_OPEN_SCOPE), NULL,
-				return_node);
+				return_yesde);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s, %s\n",
 				  pathname, acpi_format_exception(status)));
@@ -689,18 +689,18 @@ acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_get_node
+ * FUNCTION:    acpi_ns_get_yesde
  *
  * PARAMETERS:  *pathname   - Name to be found, in external (ASL) format. The
  *                            \ (backslash) and ^ (carat) prefixes, and the
  *                            . (period) to separate segments are supported.
- *              prefix_node  - Root of subtree to be searched, or NS_ALL for the
+ *              prefix_yesde  - Root of subtree to be searched, or NS_ALL for the
  *                            root of the name space. If Name is fully
  *                            qualified (first s8 is '\'), the passed value
- *                            of Scope will not be accessed.
+ *                            of Scope will yest be accessed.
  *              flags       - Used to indicate whether to perform upsearch or
- *                            not.
- *              return_node - Where the Node is returned
+ *                            yest.
+ *              return_yesde - Where the Node is returned
  *
  * DESCRIPTION: Look up a name relative to a given scope and return the
  *              corresponding Node. NOTE: Scope can be null.
@@ -710,21 +710,21 @@ acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
  ******************************************************************************/
 
 acpi_status
-acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
+acpi_ns_get_yesde(struct acpi_namespace_yesde *prefix_yesde,
 		 const char *pathname,
-		 u32 flags, struct acpi_namespace_node **return_node)
+		 u32 flags, struct acpi_namespace_yesde **return_yesde)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE_PTR(ns_get_node, ACPI_CAST_PTR(char, pathname));
+	ACPI_FUNCTION_TRACE_PTR(ns_get_yesde, ACPI_CAST_PTR(char, pathname));
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_ns_get_node_unlocked(prefix_node, pathname,
-					   flags, return_node);
+	status = acpi_ns_get_yesde_unlocked(prefix_yesde, pathname,
+					   flags, return_yesde);
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);

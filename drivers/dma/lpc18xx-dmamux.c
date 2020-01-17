@@ -51,7 +51,7 @@ static void lpc18xx_dmamux_free(struct device *dev, void *route_data)
 static void *lpc18xx_dmamux_reserve(struct of_phandle_args *dma_spec,
 				    struct of_dma *ofdma)
 {
-	struct platform_device *pdev = of_find_device_by_node(ofdma->of_node);
+	struct platform_device *pdev = of_find_device_by_yesde(ofdma->of_yesde);
 	struct lpc18xx_dmamux_data *dmamux = platform_get_drvdata(pdev);
 	unsigned long flags;
 	unsigned mux;
@@ -74,8 +74,8 @@ static void *lpc18xx_dmamux_reserve(struct of_phandle_args *dma_spec,
 		return ERR_PTR(-EINVAL);
 	}
 
-	/* The of_node_put() will be done in the core for the node */
-	dma_spec->np = of_parse_phandle(ofdma->of_node, "dma-masters", 0);
+	/* The of_yesde_put() will be done in the core for the yesde */
+	dma_spec->np = of_parse_phandle(ofdma->of_yesde, "dma-masters", 0);
 	if (!dma_spec->np) {
 		dev_err(&pdev->dev, "can't get dma master\n");
 		return ERR_PTR(-EINVAL);
@@ -86,7 +86,7 @@ static void *lpc18xx_dmamux_reserve(struct of_phandle_args *dma_spec,
 		spin_unlock_irqrestore(&dmamux->lock, flags);
 		dev_err(&pdev->dev, "dma request %u busy with %u.%u\n",
 			mux, mux, dmamux->muxes[mux].value);
-		of_node_put(dma_spec->np);
+		of_yesde_put(dma_spec->np);
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -109,7 +109,7 @@ static void *lpc18xx_dmamux_reserve(struct of_phandle_args *dma_spec,
 
 static int lpc18xx_dmamux_probe(struct platform_device *pdev)
 {
-	struct device_node *dma_np, *np = pdev->dev.of_node;
+	struct device_yesde *dma_np, *np = pdev->dev.of_yesde;
 	struct lpc18xx_dmamux_data *dmamux;
 	int ret;
 
@@ -138,7 +138,7 @@ static int lpc18xx_dmamux_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(dma_np, "dma-requests",
 				   &dmamux->dma_master_requests);
-	of_node_put(dma_np);
+	of_yesde_put(dma_np);
 	if (ret) {
 		dev_err(&pdev->dev, "missing master dma-requests property\n");
 		return ret;

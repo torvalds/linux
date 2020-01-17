@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <linux/skbuff.h>
 #include <net/devlink.h>
@@ -179,13 +179,13 @@ nfp_flower_calc_udp_tun_layer(struct flow_dissector_key_ports *enc_ports,
 		*key_size += sizeof(struct nfp_flower_ipv4_udp_tun);
 
 		if (enc_op) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: encap options not supported on vxlan tunnels");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: encap options yest supported on vxlan tunnels");
 			return -EOPNOTSUPP;
 		}
 		break;
 	case htons(GENEVE_UDP_PORT):
 		if (!(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support geneve offload");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does yest support geneve offload");
 			return -EOPNOTSUPP;
 		}
 		*tun_type = NFP_FL_TUNNEL_GENEVE;
@@ -197,7 +197,7 @@ nfp_flower_calc_udp_tun_layer(struct flow_dissector_key_ports *enc_ports,
 		if (!enc_op)
 			break;
 		if (!(priv->flower_ext_feats & NFP_FL_FEATS_GENEVE_OPT)) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support geneve option offload");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does yest support geneve option offload");
 			return -EOPNOTSUPP;
 		}
 		err = nfp_flower_calc_opt_layer(enc_op, key_layer_two,
@@ -206,7 +206,7 @@ nfp_flower_calc_udp_tun_layer(struct flow_dissector_key_ports *enc_ports,
 			return err;
 		break;
 	default:
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: tunnel type unknown");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: tunnel type unkyeswn");
 		return -EOPNOTSUPP;
 	}
 
@@ -231,7 +231,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 	int err;
 
 	if (dissector->used_keys & ~NFP_FLOWER_WHITELIST_DISSECTOR) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match not supported");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match yest supported");
 		return -EOPNOTSUPP;
 	}
 
@@ -239,7 +239,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 	if (dissector->used_keys & NFP_FLOWER_WHITELIST_TUN_DISSECTOR &&
 	    (dissector->used_keys & NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R)
 	    != NFP_FLOWER_WHITELIST_TUN_DISSECTOR_R) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: tunnel match not supported");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: tunnel match yest supported");
 		return -EOPNOTSUPP;
 	}
 
@@ -260,7 +260,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		flow_rule_match_vlan(rule, &vlan);
 		if (!(priv->flower_ext_feats & NFP_FL_FEATS_VLAN_PCP) &&
 		    vlan.key->vlan_priority) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support VLAN PCP offload");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does yest support VLAN PCP offload");
 			return -EOPNOTSUPP;
 		}
 	}
@@ -274,7 +274,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		flow_rule_match_enc_control(rule, &enc_ctl);
 
 		if (enc_ctl.mask->addr_type != 0xffff) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: wildcarded protocols on tunnels are not supported");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: wildcarded protocols on tunnels are yest supported");
 			return -EOPNOTSUPP;
 		}
 		if (enc_ctl.key->addr_type != FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
@@ -294,7 +294,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 
 
 		if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
-			/* check if GRE, which has no enc_ports */
+			/* check if GRE, which has yes enc_ports */
 			if (netif_is_gretap(netdev)) {
 				*tun_type = NFP_FL_TUNNEL_GRE;
 				key_layer |= NFP_FLOWER_LAYER_EXT_META;
@@ -304,11 +304,11 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 					sizeof(struct nfp_flower_ipv4_gre_tun);
 
 				if (enc_op.key) {
-					NL_SET_ERR_MSG_MOD(extack, "unsupported offload: encap options not supported on GRE tunnels");
+					NL_SET_ERR_MSG_MOD(extack, "unsupported offload: encap options yest supported on GRE tunnels");
 					return -EOPNOTSUPP;
 				}
 			} else {
-				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: an exact match on L4 destination port is required for non-GRE tunnels");
+				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: an exact match on L4 destination port is required for yesn-GRE tunnels");
 				return -EOPNOTSUPP;
 			}
 		} else {
@@ -331,7 +331,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			 * tun type.
 			 */
 			if (!nfp_fl_netdev_is_tunnel_type(netdev, *tun_type)) {
-				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ingress netdev does not match the expected tunnel type");
+				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ingress netdev does yest match the expected tunnel type");
 				return -EOPNOTSUPP;
 			}
 		}
@@ -353,11 +353,11 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			key_size += sizeof(struct nfp_flower_ipv6);
 			break;
 
-		/* Currently we do not offload ARP
+		/* Currently we do yest offload ARP
 		 * because we rely on it to get to the host.
 		 */
 		case cpu_to_be16(ETH_P_ARP):
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ARP not supported");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: ARP yest supported");
 			return -EOPNOTSUPP;
 
 		case cpu_to_be16(ETH_P_MPLS_UC):
@@ -373,11 +373,11 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			break;
 
 		default:
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on given EtherType is not supported");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on given EtherType is yest supported");
 			return -EOPNOTSUPP;
 		}
 	} else if (nfp_flower_check_higher_than_mac(flow)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot match above L2 without specified EtherType");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: canyest match above L2 without specified EtherType");
 		return -EOPNOTSUPP;
 	}
 
@@ -396,7 +396,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 
 	if (!(key_layer & NFP_FLOWER_LAYER_TP) &&
 	    nfp_flower_check_higher_than_l3(flow)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot match on L4 information without specified IP protocol type");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: canyest match on L4 information without specified IP protocol type");
 		return -EOPNOTSUPP;
 	}
 
@@ -408,7 +408,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 		tcp_flags = be16_to_cpu(tcp.key->flags);
 
 		if (tcp_flags & ~NFP_FLOWER_SUPPORTED_TCPFLAGS) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: no match support for selected TCP flags");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: yes match support for selected TCP flags");
 			return -EOPNOTSUPP;
 		}
 
@@ -423,7 +423,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 
 		/* We need to store TCP flags in the either the IPv4 or IPv6 key
 		 * space, thus we need to ensure we include a IPv4/IPv6 key
-		 * layer if we have not done so already.
+		 * layer if we have yest done so already.
 		 */
 		if (!basic.key) {
 			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on TCP flags requires a match on L3 protocol");
@@ -455,7 +455,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 
 		flow_rule_match_control(rule, &ctl);
 		if (ctl.key->flags & ~NFP_FLOWER_SUPPORTED_CTLFLAGS) {
-			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on unknown control flag");
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: match on unkyeswn control flag");
 			return -EOPNOTSUPP;
 		}
 	}
@@ -695,10 +695,10 @@ nfp_flower_can_merge(struct nfp_fl_payload *sub_flow1,
 	if (act_out != 1 || last_act_id != NFP_FL_ACTION_OPCODE_OUTPUT)
 		return -EOPNOTSUPP;
 
-	/* Reject merge if sub_flow2 matches on something that is not matched
+	/* Reject merge if sub_flow2 matches on something that is yest matched
 	 * on or set in an action by sub_flow1.
 	 */
-	err = bitmap_andnot(sub_flow2_merge.vals, sub_flow2_merge.vals,
+	err = bitmap_andyest(sub_flow2_merge.vals, sub_flow2_merge.vals,
 			    sub_flow1_merge.vals,
 			    sizeof(struct nfp_flower_merge_check) * 8);
 	if (err)
@@ -783,7 +783,7 @@ nfp_fl_push_vlan_after_tun(char *acts, int len, struct nfp_fl_push_vlan *vlan)
 		act_off += a->len_lw << NFP_FL_LW_SIZ;
 	}
 
-	/* Return error if no tunnel action is found. */
+	/* Return error if yes tunnel action is found. */
 	return -EOPNOTSUPP;
 }
 
@@ -798,7 +798,7 @@ nfp_flower_merge_action(struct nfp_fl_payload *sub_flow1,
 	char *merge_act;
 	int err;
 
-	/* The last action of sub_flow1 must be output - do not merge this. */
+	/* The last action of sub_flow1 must be output - do yest merge this. */
 	sub1_act_len = sub_flow1->meta.act_len - sizeof(struct nfp_fl_output);
 	sub2_act_len = sub_flow2->meta.act_len;
 
@@ -969,7 +969,7 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 	if (err)
 		goto err_unlink_sub_flow2;
 
-	err = rhashtable_insert_fast(&priv->flow_table, &merge_flow->fl_node,
+	err = rhashtable_insert_fast(&priv->flow_table, &merge_flow->fl_yesde,
 				     nfp_flower_table_params);
 	if (err)
 		goto err_release_metadata;
@@ -986,7 +986,7 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 
 err_remove_rhash:
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
-					    &merge_flow->fl_node,
+					    &merge_flow->fl_yesde,
 					    nfp_flower_table_params));
 err_release_metadata:
 	nfp_modify_flow_metadata(app, merge_flow);
@@ -1047,14 +1047,14 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 		return -EOPNOTSUPP;
 	}
 
-	/* Skip fields known to exist. */
+	/* Skip fields kyeswn to exist. */
 	mask += sizeof(struct nfp_flower_meta_tci);
 	mask += sizeof(struct nfp_flower_in_port);
 
 	/* Ensure destination MAC address is fully matched. */
 	mac = (struct nfp_flower_mac_mpls *)mask;
 	if (!is_broadcast_ether_addr(&mac->mac_dst[0])) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: dest MAC field must not be masked");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: dest MAC field must yest be masked");
 		return -EOPNOTSUPP;
 	}
 
@@ -1087,15 +1087,15 @@ nfp_flower_validate_pre_tun_rule(struct nfp_app *app,
 	}
 
 	if (act->jump_id != NFP_FL_ACTION_OPCODE_OUTPUT) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: non egress action detected where egress was expected");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: yesn egress action detected where egress was expected");
 		return -EOPNOTSUPP;
 	}
 
 	act_offset += act->len_lw << NFP_FL_LW_SIZ;
 
-	/* Ensure there are no more actions after egress. */
+	/* Ensure there are yes more actions after egress. */
 	if (act_offset != flow->meta.act_len) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: egress is not the last action");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported pre-tunnel rule: egress is yest the last action");
 		return -EOPNOTSUPP;
 	}
 
@@ -1163,10 +1163,10 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 		goto err_destroy_flow;
 
 	flow_pay->tc_flower_cookie = flow->cookie;
-	err = rhashtable_insert_fast(&priv->flow_table, &flow_pay->fl_node,
+	err = rhashtable_insert_fast(&priv->flow_table, &flow_pay->fl_yesde,
 				     nfp_flower_table_params);
 	if (err) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot insert flow into tables for offloads");
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: canyest insert flow into tables for offloads");
 		goto err_release_metadata;
 	}
 
@@ -1190,7 +1190,7 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 
 err_remove_rhash:
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
-					    &flow_pay->fl_node,
+					    &flow_pay->fl_yesde,
 					    nfp_flower_table_params));
 err_release_metadata:
 	nfp_modify_flow_metadata(app, flow_pay);
@@ -1219,7 +1219,7 @@ nfp_flower_remove_merge_flow(struct nfp_app *app,
 				struct nfp_fl_payload_link, merge_flow.list);
 	origin = link->sub_flow.flow;
 
-	/* Re-add rule the merge had overwritten if it has not been deleted. */
+	/* Re-add rule the merge had overwritten if it has yest been deleted. */
 	if (origin != del_sub_flow)
 		mod = true;
 
@@ -1255,7 +1255,7 @@ err_free_links:
 	kfree(merge_flow->mask_data);
 	kfree(merge_flow->unmasked_data);
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
-					    &merge_flow->fl_node,
+					    &merge_flow->fl_yesde,
 					    nfp_flower_table_params));
 	kfree_rcu(merge_flow, rcu);
 }
@@ -1300,7 +1300,7 @@ nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
 
 	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, netdev);
 	if (!nfp_flow) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot remove flow that does not exist");
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: canyest remove flow that does yest exist");
 		return -ENOENT;
 	}
 
@@ -1331,7 +1331,7 @@ err_free_merge_flow:
 	kfree(nfp_flow->mask_data);
 	kfree(nfp_flow->unmasked_data);
 	WARN_ON_ONCE(rhashtable_remove_fast(&priv->flow_table,
-					    &nfp_flow->fl_node,
+					    &nfp_flow->fl_yesde,
 					    nfp_flower_table_params));
 	kfree_rcu(nfp_flow, rcu);
 	return err;
@@ -1349,7 +1349,7 @@ __nfp_flower_update_merge_stats(struct nfp_app *app,
 
 	ctx_id = be32_to_cpu(merge_flow->meta.host_ctx_id);
 	pkts = priv->stats[ctx_id].pkts;
-	/* Do not cycle subflows if no stats to distribute. */
+	/* Do yest cycle subflows if yes stats to distribute. */
 	if (!pkts)
 		return;
 	bytes = priv->stats[ctx_id].bytes;
@@ -1406,7 +1406,7 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 	extack = flow->common.extack;
 	nfp_flow = nfp_flower_search_fl_table(app, flow->cookie, netdev);
 	if (!nfp_flow) {
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: cannot dump stats for flow that does not exist");
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: canyest dump stats for flow that does yest exist");
 		return -EINVAL;
 	}
 

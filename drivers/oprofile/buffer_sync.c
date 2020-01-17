@@ -24,7 +24,7 @@
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/workqueue.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/dcookies.h>
 #include <linux/profile.h>
 #include <linux/module.h>
@@ -49,12 +49,12 @@ static void process_task_mortuary(void);
 /* Take ownership of the task struct and place it on the
  * list for processing. Only after two full buffer syncs
  * does the task eventually get freed, because by then
- * we are sure we will not reference it again.
+ * we are sure we will yest reference it again.
  * Can be invoked from softirq via RCU callback due to
  * call_rcu() of the task struct, hence the _irqsave.
  */
 static int
-task_free_notify(struct notifier_block *self, unsigned long val, void *data)
+task_free_yestify(struct yestifier_block *self, unsigned long val, void *data)
 {
 	unsigned long flags;
 	struct task_struct *task = data;
@@ -69,7 +69,7 @@ task_free_notify(struct notifier_block *self, unsigned long val, void *data)
  * any remaining samples for this task.
  */
 static int
-task_exit_notify(struct notifier_block *self, unsigned long val, void *data)
+task_exit_yestify(struct yestifier_block *self, unsigned long val, void *data)
 {
 	/* To avoid latency problems, we only process the current CPU,
 	 * hoping that most samples for the task are on this CPU
@@ -81,11 +81,11 @@ task_exit_notify(struct notifier_block *self, unsigned long val, void *data)
 
 /* The task is about to try a do_munmap(). We peek at what it's going to
  * do, and if it's an executable region, process the samples first, so
- * we don't lose any. This does not have to be exact, it's a QoI issue
+ * we don't lose any. This does yest have to be exact, it's a QoI issue
  * only.
  */
 static int
-munmap_notify(struct notifier_block *self, unsigned long val, void *data)
+munmap_yestify(struct yestifier_block *self, unsigned long val, void *data)
 {
 	unsigned long addr = (unsigned long)data;
 	struct mm_struct *mm = current->mm;
@@ -112,7 +112,7 @@ munmap_notify(struct notifier_block *self, unsigned long val, void *data)
  * loaded module, or drop the samples on the floor.
  */
 static int
-module_load_notify(struct notifier_block *self, unsigned long val, void *data)
+module_load_yestify(struct yestifier_block *self, unsigned long val, void *data)
 {
 #ifdef CONFIG_MODULES
 	if (val != MODULE_STATE_COMING)
@@ -128,20 +128,20 @@ module_load_notify(struct notifier_block *self, unsigned long val, void *data)
 }
 
 
-static struct notifier_block task_free_nb = {
-	.notifier_call	= task_free_notify,
+static struct yestifier_block task_free_nb = {
+	.yestifier_call	= task_free_yestify,
 };
 
-static struct notifier_block task_exit_nb = {
-	.notifier_call	= task_exit_notify,
+static struct yestifier_block task_exit_nb = {
+	.yestifier_call	= task_exit_yestify,
 };
 
-static struct notifier_block munmap_nb = {
-	.notifier_call	= munmap_notify,
+static struct yestifier_block munmap_nb = {
+	.yestifier_call	= munmap_yestify,
 };
 
-static struct notifier_block module_load_nb = {
-	.notifier_call = module_load_notify,
+static struct yestifier_block module_load_nb = {
+	.yestifier_call = module_load_yestify,
 };
 
 static void free_all_tasks(void)
@@ -167,7 +167,7 @@ int sync_start(void)
 	err = profile_event_register(PROFILE_MUNMAP, &munmap_nb);
 	if (err)
 		goto out3;
-	err = register_module_notifier(&module_load_nb);
+	err = register_module_yestifier(&module_load_nb);
 	if (err)
 		goto out4;
 
@@ -191,7 +191,7 @@ out1:
 void sync_stop(void)
 {
 	end_cpu_work();
-	unregister_module_notifier(&module_load_nb);
+	unregister_module_yestifier(&module_load_nb);
 	profile_event_unregister(PROFILE_MUNMAP, &munmap_nb);
 	profile_event_unregister(PROFILE_TASK_EXIT, &task_exit_nb);
 	task_handoff_unregister(&task_free_nb);
@@ -205,7 +205,7 @@ void sync_stop(void)
 
 
 /* Optimisation. We can manage without taking the dcookie sem
- * because we cannot reach this code without at least one
+ * because we canyest reach this code without at least one
  * dcookie user still being registered (namely, the reader
  * of the event buffer). */
 static inline unsigned long fast_get_dcookie(const struct path *path)
@@ -221,7 +221,7 @@ static inline unsigned long fast_get_dcookie(const struct path *path)
 
 /* Look up the dcookie for the task's mm->exe_file,
  * which corresponds loosely to "application name". This is
- * not strictly necessary but allows oprofile to associate
+ * yest strictly necessary but allows oprofile to associate
  * shared-library samples with particular applications
  */
 static unsigned long get_exec_dcookie(struct mm_struct *mm)
@@ -248,7 +248,7 @@ done:
  * sure to do this lookup before a mm->mmap modification happens so
  * we don't lose track.
  *
- * The caller must ensure the mm is not nil (ie: not a kernel thread).
+ * The caller must ensure the mm is yest nil (ie: yest a kernel thread).
  */
 static unsigned long
 lookup_dcookie(struct mm_struct *mm, unsigned long addr, off_t *offset)
@@ -267,7 +267,7 @@ lookup_dcookie(struct mm_struct *mm, unsigned long addr, off_t *offset)
 			*offset = (vma->vm_pgoff << PAGE_SHIFT) + addr -
 				vma->vm_start;
 		} else {
-			/* must be an anonymous map */
+			/* must be an ayesnymous map */
 			*offset = addr;
 		}
 
@@ -307,7 +307,7 @@ add_user_ctx_switch(struct task_struct const *task, unsigned long cookie)
 	add_event_entry(CTX_SWITCH_CODE);
 	add_event_entry(task->pid);
 	add_event_entry(cookie);
-	/* Another code for daemon back-compat */
+	/* Ayesther code for daemon back-compat */
 	add_event_entry(ESCAPE_CODE);
 	add_event_entry(CTX_TGID_CODE);
 	add_event_entry(task->tgid);
@@ -347,7 +347,7 @@ static void add_data(struct op_entry *entry, struct mm_struct *mm)
 		if (cookie == NO_COOKIE)
 			offset = pc;
 		if (cookie == INVALID_COOKIE) {
-			atomic_inc(&oprofile_stats.sample_lost_no_mapping);
+			atomic_inc(&oprofile_stats.sample_lost_yes_mapping);
 			offset = pc;
 		}
 		if (cookie != last_cookie) {
@@ -391,14 +391,14 @@ add_sample(struct mm_struct *mm, struct op_sample *s, int in_kernel)
 	/* add userspace sample */
 
 	if (!mm) {
-		atomic_inc(&oprofile_stats.sample_lost_no_mm);
+		atomic_inc(&oprofile_stats.sample_lost_yes_mm);
 		return 0;
 	}
 
 	cookie = lookup_dcookie(mm, s->eip, &offset);
 
 	if (cookie == INVALID_COOKIE) {
-		atomic_inc(&oprofile_stats.sample_lost_no_mapping);
+		atomic_inc(&oprofile_stats.sample_lost_yes_mapping);
 		return 0;
 	}
 
@@ -427,7 +427,7 @@ static inline int is_code(unsigned long val)
 
 
 /* Move tasks along towards death. Any tasks on dead_tasks
- * will definitely have no remaining references in any
+ * will definitely have yes remaining references in any
  * CPU buffers at this point, because we use two lists,
  * and to have reached the list, it must have gone through
  * one full sync already.
@@ -473,12 +473,12 @@ static void mark_done(int cpu)
 }
 
 
-/* FIXME: this is not sufficient if we implement syscall barrier backtrace
+/* FIXME: this is yest sufficient if we implement syscall barrier backtrace
  * traversal, the code switch to sb_sample_start at first kernel enter/exit
  * switch so we need a fifth state and some special handling in sync_buffer()
  */
 typedef enum {
-	sb_bt_ignore = -2,
+	sb_bt_igyesre = -2,
 	sb_buffer_start,
 	sb_bt_start,
 	sb_sample_start,
@@ -486,7 +486,7 @@ typedef enum {
 
 /* Sync one of the CPU's buffers into the global event buffer.
  * Here we need to go through each batch of samples punctuated
- * by context switch notes, taking the task's mmap_sem and doing
+ * by context switch yestes, taking the task's mmap_sem and doing
  * lookup in task->mm->mmap to convert EIP into dcookie/offset
  * value.
  */
@@ -547,16 +547,16 @@ void sync_buffer(int cpu)
 		}
 
 		if (state < sb_bt_start)
-			/* ignore sample */
+			/* igyesre sample */
 			continue;
 
 		if (add_sample(mm, sample, in_kernel))
 			continue;
 
-		/* ignore backtraces if failed to add a sample */
+		/* igyesre backtraces if failed to add a sample */
 		if (state == sb_bt_start) {
-			state = sb_bt_ignore;
-			atomic_inc(&oprofile_stats.bt_lost_no_mapping);
+			state = sb_bt_igyesre;
+			atomic_inc(&oprofile_stats.bt_lost_yes_mapping);
 		}
 	}
 	release_mm(mm);

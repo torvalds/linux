@@ -52,7 +52,7 @@ static void tx4938_machine_restart(char *command)
 		 "external" : "internal");
 	/* clear watchdog status */
 	tx4938_ccfg_set(TX4938_CCFG_WDRST);	/* W1C */
-	txx9_wdt_now(TX4938_TMR_REG(2) & 0xfffffffffULL);
+	txx9_wdt_yesw(TX4938_TMR_REG(2) & 0xfffffffffULL);
 	while (!(____raw_readq(&tx4938_ccfgptr->ccfg) & TX4938_CCFG_WDRST))
 		;
 	mdelay(10);
@@ -345,7 +345,7 @@ void __init tx4938_ata_init(unsigned int irq, unsigned int shift, int tune)
 	struct tx4938ide_platform_info pdata = {
 		.ioport_shift = shift,
 		/*
-		 * The IDE driver should not change bus timings if other ISA
+		 * The IDE driver should yest change bus timings if other ISA
 		 * devices existed.
 		 */
 		.gbus_clock = tune ? txx9_gbus_clock : 0,

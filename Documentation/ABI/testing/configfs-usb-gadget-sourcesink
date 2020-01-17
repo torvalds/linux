@@ -4,7 +4,7 @@ KernelVersion:	3.13
 Description:
 		The attributes:
 
-		pattern		- 0 (all zeros), 1 (mod63), 2 (none)
+		pattern		- 0 (all zeros), 1 (mod63), 2 (yesne)
 		isoc_interval	- 1..16
 		isoc_maxpacket	- 0 - 1023 (fs), 0 - 1024 (hs/ss)
 		isoc_mult	- 0..2 (hs/ss only)

@@ -67,7 +67,7 @@ static void s3c24xx_snd_txctrl(int on)
 		writel(iisfcon, s3c24xx_i2s.regs + S3C2410_IISFCON);
 		writel(iiscon,  s3c24xx_i2s.regs + S3C2410_IISCON);
 	} else {
-		/* note, we have to disable the FIFOs otherwise bad things
+		/* yeste, we have to disable the FIFOs otherwise bad things
 		 * seem to happen when the DMA stops. According to the
 		 * Samsung supplied kernel, this should allow the DMA
 		 * engine and FIFOs to reset. If this isn't allowed, the
@@ -110,7 +110,7 @@ static void s3c24xx_snd_rxctrl(int on)
 		writel(iisfcon, s3c24xx_i2s.regs + S3C2410_IISFCON);
 		writel(iiscon,  s3c24xx_i2s.regs + S3C2410_IISCON);
 	} else {
-		/* note, we have to disable the FIFOs otherwise bad things
+		/* yeste, we have to disable the FIFOs otherwise bad things
 		 * seem to happen when the DMA stops. According to the
 		 * Samsung supplied kernel, this should allow the DMA
 		 * engine and FIFOs to reset. If this isn't allowed, the

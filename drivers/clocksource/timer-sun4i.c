@@ -6,7 +6,7 @@
  * Maxime Ripard <maxime.ripard@free-electrons.com>
  *
  * Based on code from
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * Allwinner Techyeslogy Co., Ltd. <www.allwinnertech.com>
  * Benn Huang <benn@allwinnertech.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -161,17 +161,17 @@ static struct timer_of to = {
 	},
 };
 
-static u64 notrace sun4i_timer_sched_read(void)
+static u64 yestrace sun4i_timer_sched_read(void)
 {
 	return ~readl(timer_of_base(&to) + TIMER_CNTVAL_REG(1));
 }
 
-static int __init sun4i_timer_init(struct device_node *node)
+static int __init sun4i_timer_init(struct device_yesde *yesde)
 {
 	int ret;
 	u32 val;
 
-	ret = timer_of_init(node, &to);
+	ret = timer_of_init(yesde, &to);
 	if (ret)
 		return ret;
 
@@ -181,7 +181,7 @@ static int __init sun4i_timer_init(struct device_node *node)
 	       timer_of_base(&to) + TIMER_CTL_REG(1));
 
 	/*
-	 * sched_clock_register does not have priorities, and on sun6i and
+	 * sched_clock_register does yest have priorities, and on sun6i and
 	 * later there is a better sched_clock registered by arm_arch_timer.c
 	 */
 	if (of_machine_is_compatible("allwinner,sun4i-a10") ||
@@ -192,7 +192,7 @@ static int __init sun4i_timer_init(struct device_node *node)
 				     timer_of_rate(&to));
 
 	ret = clocksource_mmio_init(timer_of_base(&to) + TIMER_CNTVAL_REG(1),
-				    node->name, timer_of_rate(&to), 350, 32,
+				    yesde->name, timer_of_rate(&to), 350, 32,
 				    clocksource_mmio_readl_down);
 	if (ret) {
 		pr_err("Failed to register clocksource\n");

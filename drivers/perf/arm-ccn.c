@@ -161,7 +161,7 @@ struct arm_ccn_dt {
 	struct hrtimer hrtimer;
 
 	unsigned int cpu;
-	struct hlist_node node;
+	struct hlist_yesde yesde;
 
 	struct pmu pmu;
 };
@@ -174,8 +174,8 @@ struct arm_ccn {
 	unsigned sbas_present:1;
 	unsigned sbsx_present:1;
 
-	int num_nodes;
-	struct arm_ccn_component *node;
+	int num_yesdes;
+	struct arm_ccn_component *yesde;
 
 	int num_xps;
 	struct arm_ccn_component *xp;
@@ -184,14 +184,14 @@ struct arm_ccn {
 	int mn_id;
 };
 
-static int arm_ccn_node_to_xp(int node)
+static int arm_ccn_yesde_to_xp(int yesde)
 {
-	return node / CCN_NUM_XP_PORTS;
+	return yesde / CCN_NUM_XP_PORTS;
 }
 
-static int arm_ccn_node_to_xp_port(int node)
+static int arm_ccn_yesde_to_xp_port(int yesde)
 {
-	return node % CCN_NUM_XP_PORTS;
+	return yesde % CCN_NUM_XP_PORTS;
 }
 
 
@@ -209,10 +209,10 @@ static int arm_ccn_node_to_xp_port(int node)
 #define CCN_CONFIG_DIR(_config)		(((_config) >> 29) & 0x1)
 #define CCN_CONFIG_MASK(_config)	(((_config) >> 30) & 0xf)
 
-static void arm_ccn_pmu_config_set(u64 *config, u32 node_xp, u32 type, u32 port)
+static void arm_ccn_pmu_config_set(u64 *config, u32 yesde_xp, u32 type, u32 port)
 {
 	*config &= ~((0xff << 0) | (0xff << 8) | (0x3 << 24));
-	*config |= (node_xp << 0) | (type << 8) | (port << 24);
+	*config |= (yesde_xp << 0) | (type << 8) | (port << 24);
 }
 
 static ssize_t arm_ccn_pmu_format_show(struct device *dev,
@@ -229,7 +229,7 @@ static ssize_t arm_ccn_pmu_format_show(struct device *dev,
 			{ __ATTR(_name, S_IRUGO, arm_ccn_pmu_format_show, \
 			NULL), _config }
 
-static CCN_FORMAT_ATTR(node, "config:0-7");
+static CCN_FORMAT_ATTR(yesde, "config:0-7");
 static CCN_FORMAT_ATTR(xp, "config:0-7");
 static CCN_FORMAT_ATTR(type, "config:8-15");
 static CCN_FORMAT_ATTR(event, "config:16-23");
@@ -242,7 +242,7 @@ static CCN_FORMAT_ATTR(cmp_l, "config1:0-62");
 static CCN_FORMAT_ATTR(cmp_h, "config2:0-59");
 
 static struct attribute *arm_ccn_pmu_format_attrs[] = {
-	&arm_ccn_pmu_format_attr_node.attr.attr,
+	&arm_ccn_pmu_format_attr_yesde.attr.attr,
 	&arm_ccn_pmu_format_attr_xp.attr.attr,
 	&arm_ccn_pmu_format_attr_type.attr.attr,
 	&arm_ccn_pmu_format_attr_event.attr.attr,
@@ -280,7 +280,7 @@ struct arm_ccn_pmu_event {
  * their ports in XP they are connected to. For the sake of usability they are
  * explicitly defined here (and translated into a relevant watchpoint in
  * arm_ccn_pmu_event_init()) so the user can easily request them without deep
- * knowledge of the flit format.
+ * kyeswledge of the flit format.
  */
 
 #define CCN_EVENT_MN(_name, _def, _mask) { .attr = CCN_EVENT_ATTR(mn_##_name), \
@@ -306,7 +306,7 @@ struct arm_ccn_pmu_event {
 		.num_ports = CCN_NUM_XP_PORTS, .num_vcs = CCN_NUM_VCS, }
 
 /*
- * RN-I & RN-D (RN-D = RN-I + DVM) nodes have different type ID depending
+ * RN-I & RN-D (RN-D = RN-I + DVM) yesdes have different type ID depending
  * on configuration. One of them is picked to represent the whole group,
  * as they all share the same event types.
  */
@@ -355,10 +355,10 @@ static ssize_t arm_ccn_pmu_event_show(struct device *dev,
 
 		break;
 	case CCN_TYPE_MN:
-		res += snprintf(buf + res, PAGE_SIZE - res, ",node=%d", ccn->mn_id);
+		res += snprintf(buf + res, PAGE_SIZE - res, ",yesde=%d", ccn->mn_id);
 		break;
 	default:
-		res += snprintf(buf + res, PAGE_SIZE - res, ",node=?");
+		res += snprintf(buf + res, PAGE_SIZE - res, ",yesde=?");
 		break;
 	}
 
@@ -408,8 +408,8 @@ static struct arm_ccn_pmu_event arm_ccn_pmu_events[] = {
 	CCN_EVENT_HNF(pocq_reqs_recvd, 0x5),
 	CCN_EVENT_HNF(sf_hit, 0x6),
 	CCN_EVENT_HNF(sf_evictions, 0x7),
-	CCN_EVENT_HNF(snoops_sent, 0x8),
-	CCN_EVENT_HNF(snoops_broadcast, 0x9),
+	CCN_EVENT_HNF(syesops_sent, 0x8),
+	CCN_EVENT_HNF(syesops_broadcast, 0x9),
 	CCN_EVENT_HNF(l3_eviction, 0xa),
 	CCN_EVENT_HNF(l3_fill_invalid_way, 0xb),
 	CCN_EVENT_HNF(mc_retries, 0xc),
@@ -605,7 +605,7 @@ static int arm_ccn_pmu_alloc_bit(unsigned long *bitmap, unsigned long size)
 	return bit;
 }
 
-/* All RN-I and RN-D nodes have identical PMUs */
+/* All RN-I and RN-D yesdes have identical PMUs */
 static int arm_ccn_pmu_type_eq(u32 a, u32 b)
 {
 	if (a == b)
@@ -637,11 +637,11 @@ static int arm_ccn_pmu_event_alloc(struct perf_event *event)
 {
 	struct arm_ccn *ccn = pmu_to_arm_ccn(event->pmu);
 	struct hw_perf_event *hw = &event->hw;
-	u32 node_xp, type, event_id;
+	u32 yesde_xp, type, event_id;
 	struct arm_ccn_component *source;
 	int bit;
 
-	node_xp = CCN_CONFIG_NODE(event->attr.config);
+	yesde_xp = CCN_CONFIG_NODE(event->attr.config);
 	type = CCN_CONFIG_TYPE(event->attr.config);
 	event_id = CCN_CONFIG_EVENT(event->attr.config);
 
@@ -666,9 +666,9 @@ static int arm_ccn_pmu_event_alloc(struct perf_event *event)
 	}
 
 	if (type == CCN_TYPE_XP)
-		source = &ccn->xp[node_xp];
+		source = &ccn->xp[yesde_xp];
 	else
-		source = &ccn->node[node_xp];
+		source = &ccn->yesde[yesde_xp];
 	ccn->dt.pmu_counters[hw->idx].source = source;
 
 	/* Allocate an event source or a watchpoint */
@@ -679,8 +679,8 @@ static int arm_ccn_pmu_event_alloc(struct perf_event *event)
 		bit = arm_ccn_pmu_alloc_bit(source->pmu_events_mask,
 				CCN_NUM_PMU_EVENTS);
 	if (bit < 0) {
-		dev_dbg(ccn->dev, "No more event sources/watchpoints on node/XP %d!\n",
-				node_xp);
+		dev_dbg(ccn->dev, "No more event sources/watchpoints on yesde/XP %d!\n",
+				yesde_xp);
 		clear_bit(hw->idx, ccn->dt.pmu_counters_mask);
 		return -EAGAIN;
 	}
@@ -719,7 +719,7 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 {
 	struct arm_ccn *ccn;
 	struct hw_perf_event *hw = &event->hw;
-	u32 node_xp, type, event_id;
+	u32 yesde_xp, type, event_id;
 	int valid;
 	int i;
 	struct perf_event *sibling;
@@ -730,7 +730,7 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 	ccn = pmu_to_arm_ccn(event->pmu);
 
 	if (hw->sample_period) {
-		dev_dbg(ccn->dev, "Sampling not supported!\n");
+		dev_dbg(ccn->dev, "Sampling yest supported!\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -754,34 +754,34 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 	 */
 	event->cpu = ccn->dt.cpu;
 
-	node_xp = CCN_CONFIG_NODE(event->attr.config);
+	yesde_xp = CCN_CONFIG_NODE(event->attr.config);
 	type = CCN_CONFIG_TYPE(event->attr.config);
 	event_id = CCN_CONFIG_EVENT(event->attr.config);
 
-	/* Validate node/xp vs topology */
+	/* Validate yesde/xp vs topology */
 	switch (type) {
 	case CCN_TYPE_MN:
-		if (node_xp != ccn->mn_id) {
-			dev_dbg(ccn->dev, "Invalid MN ID %d!\n", node_xp);
+		if (yesde_xp != ccn->mn_id) {
+			dev_dbg(ccn->dev, "Invalid MN ID %d!\n", yesde_xp);
 			return -EINVAL;
 		}
 		break;
 	case CCN_TYPE_XP:
-		if (node_xp >= ccn->num_xps) {
-			dev_dbg(ccn->dev, "Invalid XP ID %d!\n", node_xp);
+		if (yesde_xp >= ccn->num_xps) {
+			dev_dbg(ccn->dev, "Invalid XP ID %d!\n", yesde_xp);
 			return -EINVAL;
 		}
 		break;
 	case CCN_TYPE_CYCLES:
 		break;
 	default:
-		if (node_xp >= ccn->num_nodes) {
-			dev_dbg(ccn->dev, "Invalid node ID %d!\n", node_xp);
+		if (yesde_xp >= ccn->num_yesdes) {
+			dev_dbg(ccn->dev, "Invalid yesde ID %d!\n", yesde_xp);
 			return -EINVAL;
 		}
-		if (!arm_ccn_pmu_type_eq(type, ccn->node[node_xp].type)) {
-			dev_dbg(ccn->dev, "Invalid type 0x%x for node %d!\n",
-					type, node_xp);
+		if (!arm_ccn_pmu_type_eq(type, ccn->yesde[yesde_xp].type)) {
+			dev_dbg(ccn->dev, "Invalid type 0x%x for yesde %d!\n",
+					type, yesde_xp);
 			return -EINVAL;
 		}
 		break;
@@ -799,33 +799,33 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 		if (event_id != e->event)
 			continue;
 		if (e->num_ports && port >= e->num_ports) {
-			dev_dbg(ccn->dev, "Invalid port %d for node/XP %d!\n",
-					port, node_xp);
+			dev_dbg(ccn->dev, "Invalid port %d for yesde/XP %d!\n",
+					port, yesde_xp);
 			return -EINVAL;
 		}
 		if (e->num_vcs && vc >= e->num_vcs) {
-			dev_dbg(ccn->dev, "Invalid vc %d for node/XP %d!\n",
-					vc, node_xp);
+			dev_dbg(ccn->dev, "Invalid vc %d for yesde/XP %d!\n",
+					vc, yesde_xp);
 			return -EINVAL;
 		}
 		valid = 1;
 	}
 	if (!valid) {
-		dev_dbg(ccn->dev, "Invalid event 0x%x for node/XP %d!\n",
-				event_id, node_xp);
+		dev_dbg(ccn->dev, "Invalid event 0x%x for yesde/XP %d!\n",
+				event_id, yesde_xp);
 		return -EINVAL;
 	}
 
-	/* Watchpoint-based event for a node is actually set on XP */
+	/* Watchpoint-based event for a yesde is actually set on XP */
 	if (event_id == CCN_EVENT_WATCHPOINT && type != CCN_TYPE_XP) {
 		u32 port;
 
 		type = CCN_TYPE_XP;
-		port = arm_ccn_node_to_xp_port(node_xp);
-		node_xp = arm_ccn_node_to_xp(node_xp);
+		port = arm_ccn_yesde_to_xp_port(yesde_xp);
+		yesde_xp = arm_ccn_yesde_to_xp(yesde_xp);
 
 		arm_ccn_pmu_config_set(&event->attr.config,
-				node_xp, type, port);
+				yesde_xp, type, port);
 	}
 
 	/*
@@ -900,7 +900,7 @@ static void arm_ccn_pmu_xp_dt_config(struct perf_event *event, int enable)
 	if (CCN_CONFIG_TYPE(event->attr.config) == CCN_TYPE_XP)
 		xp = &ccn->xp[CCN_CONFIG_XP(event->attr.config)];
 	else
-		xp = &ccn->xp[arm_ccn_node_to_xp(
+		xp = &ccn->xp[arm_ccn_yesde_to_xp(
 				CCN_CONFIG_NODE(event->attr.config))];
 
 	if (enable)
@@ -1014,7 +1014,7 @@ static void arm_ccn_pmu_xp_event_config(struct perf_event *event)
 	writel(val, source->base + CCN_XP_PMU_EVENT_SEL);
 }
 
-static void arm_ccn_pmu_node_event_config(struct perf_event *event)
+static void arm_ccn_pmu_yesde_event_config(struct perf_event *event)
 {
 	struct arm_ccn *ccn = pmu_to_arm_ccn(event->pmu);
 	struct hw_perf_event *hw = &event->hw;
@@ -1023,7 +1023,7 @@ static void arm_ccn_pmu_node_event_config(struct perf_event *event)
 	u32 type = CCN_CONFIG_TYPE(event->attr.config);
 	u32 val, port;
 
-	port = arm_ccn_node_to_xp_port(CCN_CONFIG_NODE(event->attr.config));
+	port = arm_ccn_yesde_to_xp_port(CCN_CONFIG_NODE(event->attr.config));
 	hw->event_base = CCN_XP_DT_CONFIG__DT_CFG__DEVICE_PMU_EVENT(port,
 			hw->config_base);
 
@@ -1057,14 +1057,14 @@ static void arm_ccn_pmu_event_config(struct perf_event *event)
 	struct hw_perf_event *hw = &event->hw;
 	u32 xp, offset, val;
 
-	/* Cycle counter requires no setup */
+	/* Cycle counter requires yes setup */
 	if (hw->idx == CCN_IDX_PMU_CYCLE_COUNTER)
 		return;
 
 	if (CCN_CONFIG_TYPE(event->attr.config) == CCN_TYPE_XP)
 		xp = CCN_CONFIG_XP(event->attr.config);
 	else
-		xp = arm_ccn_node_to_xp(CCN_CONFIG_NODE(event->attr.config));
+		xp = arm_ccn_yesde_to_xp(CCN_CONFIG_NODE(event->attr.config));
 
 	spin_lock(&ccn->dt.config_lock);
 
@@ -1083,7 +1083,7 @@ static void arm_ccn_pmu_event_config(struct perf_event *event)
 		else
 			arm_ccn_pmu_xp_event_config(event);
 	} else {
-		arm_ccn_pmu_node_event_config(event);
+		arm_ccn_pmu_yesde_event_config(event);
 	}
 
 	spin_unlock(&ccn->dt.config_lock);
@@ -1197,14 +1197,14 @@ static enum hrtimer_restart arm_ccn_pmu_timer_handler(struct hrtimer *hrtimer)
 	arm_ccn_pmu_overflow_handler(dt);
 	local_irq_restore(flags);
 
-	hrtimer_forward_now(hrtimer, arm_ccn_pmu_timer_period());
+	hrtimer_forward_yesw(hrtimer, arm_ccn_pmu_timer_period());
 	return HRTIMER_RESTART;
 }
 
 
-static int arm_ccn_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int arm_ccn_pmu_offline_cpu(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct arm_ccn_dt *dt = hlist_entry_safe(node, struct arm_ccn_dt, node);
+	struct arm_ccn_dt *dt = hlist_entry_safe(yesde, struct arm_ccn_dt, yesde);
 	struct arm_ccn *ccn = container_of(dt, struct arm_ccn, dt);
 	unsigned int target;
 
@@ -1303,8 +1303,8 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 		}
 	}
 
-	cpuhp_state_add_instance_nocalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
-					 &ccn->dt.node);
+	cpuhp_state_add_instance_yescalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
+					 &ccn->dt.yesde);
 
 	err = perf_pmu_register(&ccn->dt.pmu, name, -1);
 	if (err)
@@ -1313,8 +1313,8 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 	return 0;
 
 error_pmu_register:
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
-					    &ccn->dt.node);
+	cpuhp_state_remove_instance_yescalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
+					    &ccn->dt.yesde);
 error_set_affinity:
 error_choose_name:
 	ida_simple_remove(&arm_ccn_pmu_ida, ccn->dt.id);
@@ -1328,8 +1328,8 @@ static void arm_ccn_pmu_cleanup(struct arm_ccn *ccn)
 {
 	int i;
 
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
-					    &ccn->dt.node);
+	cpuhp_state_remove_instance_yescalls(CPUHP_AP_PERF_ARM_CCN_ONLINE,
+					    &ccn->dt.yesde);
 	if (ccn->irq)
 		irq_set_affinity_hint(ccn->irq, NULL);
 	for (i = 0; i < ccn->num_xps; i++)
@@ -1370,19 +1370,19 @@ static int arm_ccn_for_each_valid_region(struct arm_ccn *ccn,
 	return 0;
 }
 
-static int arm_ccn_get_nodes_num(struct arm_ccn *ccn, int region,
+static int arm_ccn_get_yesdes_num(struct arm_ccn *ccn, int region,
 		void __iomem *base, u32 type, u32 id)
 {
 
 	if (type == CCN_TYPE_XP && id >= ccn->num_xps)
 		ccn->num_xps = id + 1;
-	else if (id >= ccn->num_nodes)
-		ccn->num_nodes = id + 1;
+	else if (id >= ccn->num_yesdes)
+		ccn->num_yesdes = id + 1;
 
 	return 0;
 }
 
-static int arm_ccn_init_nodes(struct arm_ccn *ccn, int region,
+static int arm_ccn_init_yesdes(struct arm_ccn *ccn, int region,
 		void __iomem *base, u32 type, u32 id)
 {
 	struct arm_ccn_component *component;
@@ -1400,13 +1400,13 @@ static int arm_ccn_init_nodes(struct arm_ccn *ccn, int region,
 		break;
 	case CCN_TYPE_SBSX:
 		ccn->sbsx_present = 1;
-		component = &ccn->node[id];
+		component = &ccn->yesde[id];
 		break;
 	case CCN_TYPE_SBAS:
 		ccn->sbas_present = 1;
 		/* Fall-through */
 	default:
-		component = &ccn->node[id];
+		component = &ccn->yesde[id];
 		break;
 	}
 
@@ -1491,7 +1491,7 @@ static int arm_ccn_probe(struct platform_device *pdev)
 			ccn->base + CCN_MN_ERRINT_STATUS);
 	if (readl(ccn->base + CCN_MN_ERRINT_STATUS) &
 			CCN_MN_ERRINT_STATUS__PMU_EVENTS__DISABLED) {
-		/* Can set 'disable' bits, so can acknowledge interrupts */
+		/* Can set 'disable' bits, so can ackyeswledge interrupts */
 		writel(CCN_MN_ERRINT_STATUS__PMU_EVENTS__ENABLE,
 				ccn->base + CCN_MN_ERRINT_STATUS);
 		err = devm_request_irq(ccn->dev, irq, arm_ccn_irq_handler,
@@ -1506,18 +1506,18 @@ static int arm_ccn_probe(struct platform_device *pdev)
 
 	/* Build topology */
 
-	err = arm_ccn_for_each_valid_region(ccn, arm_ccn_get_nodes_num);
+	err = arm_ccn_for_each_valid_region(ccn, arm_ccn_get_yesdes_num);
 	if (err)
 		return err;
 
-	ccn->node = devm_kcalloc(ccn->dev, ccn->num_nodes, sizeof(*ccn->node),
+	ccn->yesde = devm_kcalloc(ccn->dev, ccn->num_yesdes, sizeof(*ccn->yesde),
 				 GFP_KERNEL);
-	ccn->xp = devm_kcalloc(ccn->dev, ccn->num_xps, sizeof(*ccn->node),
+	ccn->xp = devm_kcalloc(ccn->dev, ccn->num_xps, sizeof(*ccn->yesde),
 			       GFP_KERNEL);
-	if (!ccn->node || !ccn->xp)
+	if (!ccn->yesde || !ccn->xp)
 		return -ENOMEM;
 
-	err = arm_ccn_for_each_valid_region(ccn, arm_ccn_init_nodes);
+	err = arm_ccn_for_each_valid_region(ccn, arm_ccn_init_yesdes);
 	if (err)
 		return err;
 

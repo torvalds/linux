@@ -12,7 +12,7 @@
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/i2c.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/property.h>
 #include <linux/string.h>
 
@@ -185,20 +185,20 @@ static const struct ts_dmi_data cube_iwork8_air_data = {
 	.properties	= cube_iwork8_air_props,
 };
 
-static const struct property_entry cube_knote_i1101_props[] = {
+static const struct property_entry cube_kyeste_i1101_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-min-x", 20),
 	PROPERTY_ENTRY_U32("touchscreen-min-y",  22),
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1961),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1513),
-	PROPERTY_ENTRY_STRING("firmware-name", "gsl3692-cube-knote-i1101.fw"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3692-cube-kyeste-i1101.fw"),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
 	PROPERTY_ENTRY_BOOL("silead,home-button"),
 	{ }
 };
 
-static const struct ts_dmi_data cube_knote_i1101_data = {
+static const struct ts_dmi_data cube_kyeste_i1101_data = {
 	.acpi_name	= "MSSL1680:00",
-	.properties	= cube_knote_i1101_props,
+	.properties	= cube_kyeste_i1101_props,
 };
 
 static const struct property_entry dexp_ursus_7w_props[] = {
@@ -741,7 +741,7 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 	},
 	{
 		/* Cube KNote i1101 */
-		.driver_data = (void *)&cube_knote_i1101_data,
+		.driver_data = (void *)&cube_kyeste_i1101_data,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Hampoo"),
 			DMI_MATCH(DMI_BOARD_NAME, "L1W6_I1101"),
@@ -1064,7 +1064,7 @@ static void ts_dmi_add_props(struct i2c_client *client)
 	}
 }
 
-static int ts_dmi_notifier_call(struct notifier_block *nb,
+static int ts_dmi_yestifier_call(struct yestifier_block *nb,
 				       unsigned long action, void *data)
 {
 	struct device *dev = data;
@@ -1084,8 +1084,8 @@ static int ts_dmi_notifier_call(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block ts_dmi_notifier = {
-	.notifier_call = ts_dmi_notifier_call,
+static struct yestifier_block ts_dmi_yestifier = {
+	.yestifier_call = ts_dmi_yestifier_call,
 };
 
 static int __init ts_dmi_init(void)
@@ -1099,16 +1099,16 @@ static int __init ts_dmi_init(void)
 
 	ts_data = dmi_id->driver_data;
 
-	error = bus_register_notifier(&i2c_bus_type, &ts_dmi_notifier);
+	error = bus_register_yestifier(&i2c_bus_type, &ts_dmi_yestifier);
 	if (error)
-		pr_err("%s: failed to register i2c bus notifier: %d\n",
+		pr_err("%s: failed to register i2c bus yestifier: %d\n",
 			__func__, error);
 
 	return error;
 }
 
 /*
- * We are registering out notifier after i2c core is initialized and i2c bus
+ * We are registering out yestifier after i2c core is initialized and i2c bus
  * itself is ready (which happens at postcore initcall level), but before
  * ACPI starts enumerating devices (at subsys initcall level).
  */

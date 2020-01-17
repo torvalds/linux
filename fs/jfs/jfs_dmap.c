@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Copyright (C) International Business Machines Corp., 2000-2004
- *   Portions Copyright (C) Tino Reichardt, 2012
+ *   Portions Copyright (C) Tiyes Reichardt, 2012
  */
 
 #include <linux/fs.h>
@@ -36,7 +36,7 @@
  *	of dmap control page.
  *	requests that start at the top are serialized against each other
  *	and request that start from the bottom by the multiple read/single
- *	write inode lock of the bmap inode. requests starting at the top
+ *	write iyesde lock of the bmap iyesde. requests starting at the top
  *	take this lock in write mode while request starting at the bottom
  *	take the lock in read mode.  a single top-down request may proceed
  *	exclusively while multiple bottoms-up requests may proceed
@@ -61,36 +61,36 @@
 /*
  * forward references
  */
-static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 			int nblocks);
-static void dbSplit(dmtree_t * tp, int leafno, int splitsz, int newval);
-static int dbBackSplit(dmtree_t * tp, int leafno);
-static int dbJoin(dmtree_t * tp, int leafno, int newval);
-static void dbAdjTree(dmtree_t * tp, int leafno, int newval);
-static int dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc,
+static void dbSplit(dmtree_t * tp, int leafyes, int splitsz, int newval);
+static int dbBackSplit(dmtree_t * tp, int leafyes);
+static int dbJoin(dmtree_t * tp, int leafyes, int newval);
+static void dbAdjTree(dmtree_t * tp, int leafyes, int newval);
+static int dbAdjCtl(struct bmap * bmp, s64 blkyes, int newval, int alloc,
 		    int level);
 static int dbAllocAny(struct bmap * bmp, s64 nblocks, int l2nb, s64 * results);
-static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 		       int nblocks);
-static int dbAllocNear(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static int dbAllocNear(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 		       int nblocks,
 		       int l2nb, s64 * results);
-static int dbAllocDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static int dbAllocDmap(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 		       int nblocks);
 static int dbAllocDmapLev(struct bmap * bmp, struct dmap * dp, int nblocks,
 			  int l2nb,
 			  s64 * results);
-static int dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb,
+static int dbAllocAG(struct bmap * bmp, int agyes, s64 nblocks, int l2nb,
 		     s64 * results);
-static int dbAllocCtl(struct bmap * bmp, s64 nblocks, int l2nb, s64 blkno,
+static int dbAllocCtl(struct bmap * bmp, s64 nblocks, int l2nb, s64 blkyes,
 		      s64 * results);
-static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks);
+static int dbExtend(struct iyesde *ip, s64 blkyes, s64 nblocks, s64 addnblocks);
 static int dbFindBits(u32 word, int l2nb);
-static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkno);
+static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkyes);
 static int dbFindLeaf(dmtree_t * tp, int l2nb, int *leafidx);
-static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 		      int nblocks);
-static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 		      int nblocks);
 static int dbMaxBud(u8 * cp);
 static int blkstol2(s64 nb);
@@ -98,9 +98,9 @@ static int blkstol2(s64 nb);
 static int cntlz(u32 value);
 static int cnttz(u32 word);
 
-static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 			 int nblocks);
-static int dbInitDmap(struct dmap * dp, s64 blkno, int nblocks);
+static int dbInitDmap(struct dmap * dp, s64 blkyes, int nblocks);
 static int dbInitDmapTree(struct dmap * dp);
 static int dbInitTree(struct dmaptree * dtp);
 static int dbInitDmapCtl(struct dmapctl * dcp, int level, int i);
@@ -142,14 +142,14 @@ static const s8 budtab[256] = {
  *		the in-core descriptor is initialized from disk.
  *
  * PARAMETERS:
- *	ipbmap	- pointer to in-core inode for the block map.
+ *	ipbmap	- pointer to in-core iyesde for the block map.
  *
  * RETURN VALUES:
  *	0	- success
  *	-ENOMEM	- insufficient memory
  *	-EIO	- i/o error
  */
-int dbMount(struct inode *ipbmap)
+int dbMount(struct iyesde *ipbmap)
 {
 	struct bmap *bmp;
 	struct dbmap_disk *dbmp_le;
@@ -195,7 +195,7 @@ int dbMount(struct inode *ipbmap)
 	/* release the buffer. */
 	release_metapage(mp);
 
-	/* bind the bmap inode and the bmap descriptor to each other. */
+	/* bind the bmap iyesde and the bmap descriptor to each other. */
 	bmp->db_ipbmap = ipbmap;
 	JFS_SBI(ipbmap->i_sb)->bmap = bmp;
 
@@ -220,13 +220,13 @@ int dbMount(struct inode *ipbmap)
  *		the memory for this descriptor is freed.
  *
  * PARAMETERS:
- *	ipbmap	- pointer to in-core inode for the block map.
+ *	ipbmap	- pointer to in-core iyesde for the block map.
  *
  * RETURN VALUES:
  *	0	- success
  *	-EIO	- i/o error
  */
-int dbUnmount(struct inode *ipbmap, int mounterror)
+int dbUnmount(struct iyesde *ipbmap, int mounterror)
 {
 	struct bmap *bmp = JFS_SBI(ipbmap->i_sb)->bmap;
 
@@ -236,7 +236,7 @@ int dbUnmount(struct inode *ipbmap, int mounterror)
 	/*
 	 * Invalidate the page cache buffers
 	 */
-	truncate_inode_pages(ipbmap->i_mapping, 0);
+	truncate_iyesde_pages(ipbmap->i_mapping, 0);
 
 	/* free the memory for the in-memory bmap. */
 	kfree(bmp);
@@ -247,7 +247,7 @@ int dbUnmount(struct inode *ipbmap, int mounterror)
 /*
  *	dbSync()
  */
-int dbSync(struct inode *ipbmap)
+int dbSync(struct iyesde *ipbmap)
 {
 	struct dbmap_disk *dbmp_le;
 	struct bmap *bmp = JFS_SBI(ipbmap->i_sb)->bmap;
@@ -307,31 +307,31 @@ int dbSync(struct inode *ipbmap)
  *		at a time.
  *
  * PARAMETERS:
- *	ip	- pointer to in-core inode;
- *	blkno	- starting block number to be freed.
+ *	ip	- pointer to in-core iyesde;
+ *	blkyes	- starting block number to be freed.
  *	nblocks	- number of blocks to be freed.
  *
  * RETURN VALUES:
  *	0	- success
  *	-EIO	- i/o error
  */
-int dbFree(struct inode *ip, s64 blkno, s64 nblocks)
+int dbFree(struct iyesde *ip, s64 blkyes, s64 nblocks)
 {
 	struct metapage *mp;
 	struct dmap *dp;
 	int nb, rc;
-	s64 lblkno, rem;
-	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
+	s64 lblkyes, rem;
+	struct iyesde *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
 	struct bmap *bmp = JFS_SBI(ip->i_sb)->bmap;
 	struct super_block *sb = ipbmap->i_sb;
 
 	IREAD_LOCK(ipbmap, RDWRLOCK_DMAP);
 
 	/* block to be freed better be within the mapsize. */
-	if (unlikely((blkno == 0) || (blkno + nblocks > bmp->db_mapsize))) {
+	if (unlikely((blkyes == 0) || (blkyes + nblocks > bmp->db_mapsize))) {
 		IREAD_UNLOCK(ipbmap);
-		printk(KERN_ERR "blkno = %Lx, nblocks = %Lx\n",
-		       (unsigned long long) blkno,
+		printk(KERN_ERR "blkyes = %Lx, nblocks = %Lx\n",
+		       (unsigned long long) blkyes,
 		       (unsigned long long) nblocks);
 		jfs_error(ip->i_sb, "block to be freed is outside the map\n");
 		return -EIO;
@@ -342,21 +342,21 @@ int dbFree(struct inode *ip, s64 blkno, s64 nblocks)
 	 */
 	if (JFS_SBI(sb)->flag & JFS_DISCARD)
 		if (JFS_SBI(sb)->minblks_trim <= nblocks)
-			jfs_issue_discard(ipbmap, blkno, nblocks);
+			jfs_issue_discard(ipbmap, blkyes, nblocks);
 
 	/*
 	 * free the blocks a dmap at a time.
 	 */
 	mp = NULL;
-	for (rem = nblocks; rem > 0; rem -= nb, blkno += nb) {
+	for (rem = nblocks; rem > 0; rem -= nb, blkyes += nb) {
 		/* release previous dmap if any */
 		if (mp) {
 			write_metapage(mp);
 		}
 
 		/* get the buffer for the current dmap. */
-		lblkno = BLKTODMAP(blkno, bmp->db_l2nbperpage);
-		mp = read_metapage(ipbmap, lblkno, PSIZE, 0);
+		lblkyes = BLKTODMAP(blkyes, bmp->db_l2nbperpage);
+		mp = read_metapage(ipbmap, lblkyes, PSIZE, 0);
 		if (mp == NULL) {
 			IREAD_UNLOCK(ipbmap);
 			return -EIO;
@@ -366,10 +366,10 @@ int dbFree(struct inode *ip, s64 blkno, s64 nblocks)
 		/* determine the number of blocks to be freed from
 		 * this dmap.
 		 */
-		nb = min(rem, BPERDMAP - (blkno & (BPERDMAP - 1)));
+		nb = min(rem, BPERDMAP - (blkyes & (BPERDMAP - 1)));
 
 		/* free the blocks. */
-		if ((rc = dbFreeDmap(bmp, dp, blkno, nb))) {
+		if ((rc = dbFreeDmap(bmp, dp, blkyes, nb))) {
 			jfs_error(ip->i_sb, "error in block map\n");
 			release_metapage(mp);
 			IREAD_UNLOCK(ipbmap);
@@ -396,10 +396,10 @@ int dbFree(struct inode *ip, s64 blkno, s64 nblocks)
  *		dmap at a time.
  *
  * PARAMETERS:
- *	ipbmap	- pointer to in-core inode for the block map.
+ *	ipbmap	- pointer to in-core iyesde for the block map.
  *	free	- 'true' if block range is to be freed from the persistent
  *		  map; 'false' if it is to be allocated.
- *	blkno	- starting block number of the range.
+ *	blkyes	- starting block number of the range.
  *	nblocks	- number of contiguous blocks in the range.
  *	tblk	- transaction block;
  *
@@ -408,13 +408,13 @@ int dbFree(struct inode *ip, s64 blkno, s64 nblocks)
  *	-EIO	- i/o error
  */
 int
-dbUpdatePMap(struct inode *ipbmap,
-	     int free, s64 blkno, s64 nblocks, struct tblock * tblk)
+dbUpdatePMap(struct iyesde *ipbmap,
+	     int free, s64 blkyes, s64 nblocks, struct tblock * tblk)
 {
-	int nblks, dbitno, wbitno, rbits;
+	int nblks, dbityes, wbityes, rbits;
 	int word, nbits, nwords;
 	struct bmap *bmp = JFS_SBI(ipbmap->i_sb)->bmap;
-	s64 lblkno, rem, lastlblkno;
+	s64 lblkyes, rem, lastlblkyes;
 	u32 mask;
 	struct dmap *dp;
 	struct metapage *mp;
@@ -423,9 +423,9 @@ dbUpdatePMap(struct inode *ipbmap,
 	unsigned long flags;
 
 	/* the blocks better be within the mapsize. */
-	if (blkno + nblocks > bmp->db_mapsize) {
-		printk(KERN_ERR "blkno = %Lx, nblocks = %Lx\n",
-		       (unsigned long long) blkno,
+	if (blkyes + nblocks > bmp->db_mapsize) {
+		printk(KERN_ERR "blkyes = %Lx, nblocks = %Lx\n",
+		       (unsigned long long) blkyes,
 		       (unsigned long long) nblocks);
 		jfs_error(ipbmap->i_sb, "blocks are outside the map\n");
 		return -EIO;
@@ -440,16 +440,16 @@ dbUpdatePMap(struct inode *ipbmap,
 	 * update the block state a dmap at a time.
 	 */
 	mp = NULL;
-	lastlblkno = 0;
-	for (rem = nblocks; rem > 0; rem -= nblks, blkno += nblks) {
+	lastlblkyes = 0;
+	for (rem = nblocks; rem > 0; rem -= nblks, blkyes += nblks) {
 		/* get the buffer for the current dmap. */
-		lblkno = BLKTODMAP(blkno, bmp->db_l2nbperpage);
-		if (lblkno != lastlblkno) {
+		lblkyes = BLKTODMAP(blkyes, bmp->db_l2nbperpage);
+		if (lblkyes != lastlblkyes) {
 			if (mp) {
 				write_metapage(mp);
 			}
 
-			mp = read_metapage(bmp->db_ipbmap, lblkno, PSIZE,
+			mp = read_metapage(bmp->db_ipbmap, lblkyes, PSIZE,
 					   0);
 			if (mp == NULL)
 				return -EIO;
@@ -461,9 +461,9 @@ dbUpdatePMap(struct inode *ipbmap,
 		 * the starting block.  also determine how many blocks
 		 * are to be updated within this dmap.
 		 */
-		dbitno = blkno & (BPERDMAP - 1);
-		word = dbitno >> L2DBWORD;
-		nblks = min(rem, (s64)BPERDMAP - dbitno);
+		dbityes = blkyes & (BPERDMAP - 1);
+		word = dbityes >> L2DBWORD;
+		nblks = min(rem, (s64)BPERDMAP - dbityes);
 
 		/* update the bits of the dmap words. the first and last
 		 * words may only have a subset of their bits updated. if
@@ -473,12 +473,12 @@ dbUpdatePMap(struct inode *ipbmap,
 		 * are to have all their bits updated.
 		 */
 		for (rbits = nblks; rbits > 0;
-		     rbits -= nbits, dbitno += nbits) {
+		     rbits -= nbits, dbityes += nbits) {
 			/* determine the bit number within the word and
 			 * the number of bits within the word.
 			 */
-			wbitno = dbitno & (DBWORD - 1);
-			nbits = min(rbits, DBWORD - wbitno);
+			wbityes = dbityes & (DBWORD - 1);
+			nbits = min(rbits, DBWORD - wbityes);
 
 			/* check if only part of the word is to be updated. */
 			if (nbits < DBWORD) {
@@ -486,7 +486,7 @@ dbUpdatePMap(struct inode *ipbmap,
 				 * in this word.
 				 */
 				mask =
-				    (ONES << (DBWORD - nbits) >> wbitno);
+				    (ONES << (DBWORD - nbits) >> wbityes);
 				if (free)
 					dp->pmap[word] &=
 					    cpu_to_le32(~mask);
@@ -520,10 +520,10 @@ dbUpdatePMap(struct inode *ipbmap,
 		/*
 		 * update dmap lsn
 		 */
-		if (lblkno == lastlblkno)
+		if (lblkyes == lastlblkyes)
 			continue;
 
-		lastlblkno = lblkno;
+		lastlblkyes = lblkyes;
 
 		LOGSYNC_LOCK(log, flags);
 		if (mp->lsn != 0) {
@@ -571,9 +571,9 @@ dbUpdatePMap(struct inode *ipbmap,
  *		Within the allocation groups, we maintain a preferred
  *		allocation group which consists of a group with at least
  *		average free space.  It is the preferred group that we target
- *		new inode allocation towards.  The tie-in between inode
+ *		new iyesde allocation towards.  The tie-in between iyesde
  *		allocation and block allocation occurs as we allocate the
- *		first (data) block of an inode and specify the inode (block)
+ *		first (data) block of an iyesde and specify the iyesde (block)
  *		as the allocation hint for this block.
  *
  *		We try to avoid having more than one open file growing in
@@ -582,12 +582,12 @@ dbUpdatePMap(struct inode *ipbmap,
  *		empty ags around for large allocations.
  *
  * PARAMETERS:
- *	ipbmap	- pointer to in-core inode for the block map.
+ *	ipbmap	- pointer to in-core iyesde for the block map.
  *
  * RETURN VALUES:
  *	the preferred allocation group number.
  */
-int dbNextAG(struct inode *ipbmap)
+int dbNextAG(struct iyesde *ipbmap)
 {
 	s64 avgfree;
 	int agpref;
@@ -602,7 +602,7 @@ int dbNextAG(struct inode *ipbmap)
 	avgfree = (u32)bmp->db_nfree / bmp->db_numag;
 
 	/*
-	 * if the current preferred ag does not have an active allocator
+	 * if the current preferred ag does yest have an active allocator
 	 * and has at least average freespace, return it
 	 */
 	agpref = bmp->db_agpref;
@@ -632,7 +632,7 @@ int dbNextAG(struct inode *ipbmap)
 	}
 
 	/*
-	 * If no inactive ag was found with average freespace, use the
+	 * If yes inactive ag was found with average freespace, use the
 	 * next best
 	 */
 	if (next_best != -1)
@@ -657,23 +657,23 @@ unlock:
  *
  *		for allocation requests smaller than the number of blocks
  *		per dmap, we first try to allocate the new blocks
- *		immediately following the hint.  if these blocks are not
+ *		immediately following the hint.  if these blocks are yest
  *		available, we try to allocate blocks near the hint.  if
- *		no blocks near the hint are available, we next try to
+ *		yes blocks near the hint are available, we next try to
  *		allocate within the same dmap as contains the hint.
  *
- *		if no blocks are available in the dmap or the allocation
+ *		if yes blocks are available in the dmap or the allocation
  *		request is larger than the dmap size, we try to allocate
  *		within the same allocation group as contains the hint. if
- *		this does not succeed, we finally try to allocate anywhere
+ *		this does yest succeed, we finally try to allocate anywhere
  *		within the aggregate.
  *
  *		we also try to allocate anywhere within the aggregate for
  *		for allocation requests larger than the allocation group
- *		size or requests that specify no hint value.
+ *		size or requests that specify yes hint value.
  *
  * PARAMETERS:
- *	ip	- pointer to in-core inode;
+ *	ip	- pointer to in-core iyesde;
  *	hint	- allocation hint.
  *	nblocks	- number of contiguous blocks in the range.
  *	results	- on successful return, set to the starting block number
@@ -684,13 +684,13 @@ unlock:
  *	-ENOSPC	- insufficient disk resources
  *	-EIO	- i/o error
  */
-int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
+int dbAlloc(struct iyesde *ip, s64 hint, s64 nblocks, s64 * results)
 {
-	int rc, agno;
-	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
+	int rc, agyes;
+	struct iyesde *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
 	struct bmap *bmp;
 	struct metapage *mp;
-	s64 lblkno, blkno;
+	s64 lblkyes, blkyes;
 	struct dmap *dp;
 	int l2nb;
 	s64 mapSize;
@@ -700,7 +700,7 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	assert(nblocks > 0);
 
 	/* get the log2 number of blocks to be allocated.
-	 * if the number of blocks is not a log2 multiple,
+	 * if the number of blocks is yest a log2 multiple,
 	 * it will be rounded up to the next log2 multiple.
 	 */
 	l2nb = BLKSTOL2(nblocks);
@@ -727,7 +727,7 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	}
 
 	/*
-	 * If no hint, let dbNextAG recommend an allocation group
+	 * If yes hint, let dbNextAG recommend an allocation group
 	 */
 	if (hint == 0)
 		goto pref_ag;
@@ -736,23 +736,23 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	 * hint to the block following the hint since the allocators
 	 * will start looking for free space starting at this point.
 	 */
-	blkno = hint + 1;
+	blkyes = hint + 1;
 
-	if (blkno >= bmp->db_mapsize)
+	if (blkyes >= bmp->db_mapsize)
 		goto pref_ag;
 
-	agno = blkno >> bmp->db_agl2size;
+	agyes = blkyes >> bmp->db_agl2size;
 
-	/* check if blkno crosses over into a new allocation group.
+	/* check if blkyes crosses over into a new allocation group.
 	 * if so, check if we should allow allocations within this
 	 * allocation group.
 	 */
-	if ((blkno & (bmp->db_agsize - 1)) == 0)
+	if ((blkyes & (bmp->db_agsize - 1)) == 0)
 		/* check if the AG is currently being written to.
-		 * if so, call dbNextAG() to find a non-busy
+		 * if so, call dbNextAG() to find a yesn-busy
 		 * AG with sufficient free space.
 		 */
-		if (atomic_read(&bmp->db_active[agno]))
+		if (atomic_read(&bmp->db_active[agyes]))
 			goto pref_ag;
 
 	/* check if the allocation request size can be satisfied from a
@@ -765,8 +765,8 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 		/* get the buffer for the dmap containing the hint.
 		 */
 		rc = -EIO;
-		lblkno = BLKTODMAP(blkno, bmp->db_l2nbperpage);
-		mp = read_metapage(ipbmap, lblkno, PSIZE, 0);
+		lblkyes = BLKTODMAP(blkyes, bmp->db_l2nbperpage);
+		mp = read_metapage(ipbmap, lblkyes, PSIZE, 0);
 		if (mp == NULL)
 			goto read_unlock;
 
@@ -775,10 +775,10 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 		/* first, try to satisfy the allocation request with the
 		 * blocks beginning at the hint.
 		 */
-		if ((rc = dbAllocNext(bmp, dp, blkno, (int) nblocks))
+		if ((rc = dbAllocNext(bmp, dp, blkyes, (int) nblocks))
 		    != -ENOSPC) {
 			if (rc == 0) {
-				*results = blkno;
+				*results = blkyes;
 				mark_metapage_dirty(mp);
 			}
 
@@ -786,12 +786,12 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 			goto read_unlock;
 		}
 
-		writers = atomic_read(&bmp->db_active[agno]);
+		writers = atomic_read(&bmp->db_active[agyes]);
 		if ((writers > 1) ||
-		    ((writers == 1) && (JFS_IP(ip)->active_ag != agno))) {
+		    ((writers == 1) && (JFS_IP(ip)->active_ag != agyes))) {
 			/*
 			 * Someone else is writing in this allocation
-			 * group.  To avoid fragmenting, try another ag
+			 * group.  To avoid fragmenting, try ayesther ag
 			 */
 			release_metapage(mp);
 			IREAD_UNLOCK(ipbmap);
@@ -802,7 +802,7 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 		 * near the hint.
 		 */
 		if ((rc =
-		     dbAllocNear(bmp, dp, blkno, (int) nblocks, l2nb, results))
+		     dbAllocNear(bmp, dp, blkyes, (int) nblocks, l2nb, results))
 		    != -ENOSPC) {
 			if (rc == 0)
 				mark_metapage_dirty(mp);
@@ -831,7 +831,7 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	 * the same allocation group as the hint.
 	 */
 	IWRITE_LOCK(ipbmap, RDWRLOCK_DMAP);
-	if ((rc = dbAllocAG(bmp, agno, nblocks, l2nb, results)) != -ENOSPC)
+	if ((rc = dbAllocAG(bmp, agyes, nblocks, l2nb, results)) != -ENOSPC)
 		goto write_unlock;
 
 	IWRITE_UNLOCK(ipbmap);
@@ -841,13 +841,13 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	/*
 	 * Let dbNextAG recommend a preferred allocation group
 	 */
-	agno = dbNextAG(ipbmap);
+	agyes = dbNextAG(ipbmap);
 	IWRITE_LOCK(ipbmap, RDWRLOCK_DMAP);
 
 	/* Try to allocate within this allocation group.  if that fails, try to
 	 * allocate anywhere in the map.
 	 */
-	if ((rc = dbAllocAG(bmp, agno, nblocks, l2nb, results)) == -ENOSPC)
+	if ((rc = dbAllocAG(bmp, agyes, nblocks, l2nb, results)) == -ENOSPC)
 		rc = dbAllocAny(bmp, nblocks, l2nb, results);
 
       write_unlock:
@@ -868,8 +868,8 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
  * FUNCTION:	try to allocate the requested extent;
  *
  * PARAMETERS:
- *	ip	- pointer to in-core inode;
- *	blkno	- extent address;
+ *	ip	- pointer to in-core iyesde;
+ *	blkyes	- extent address;
  *	nblocks	- extent length;
  *
  * RETURN VALUES:
@@ -877,13 +877,13 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
  *	-ENOSPC	- insufficient disk resources
  *	-EIO	- i/o error
  */
-int dbAllocExact(struct inode *ip, s64 blkno, int nblocks)
+int dbAllocExact(struct iyesde *ip, s64 blkyes, int nblocks)
 {
 	int rc;
-	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
+	struct iyesde *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
 	struct bmap *bmp = JFS_SBI(ip->i_sb)->bmap;
 	struct dmap *dp;
-	s64 lblkno;
+	s64 lblkyes;
 	struct metapage *mp;
 
 	IREAD_LOCK(ipbmap, RDWRLOCK_DMAP);
@@ -891,24 +891,24 @@ int dbAllocExact(struct inode *ip, s64 blkno, int nblocks)
 	/*
 	 * validate extent request:
 	 *
-	 * note: defragfs policy:
+	 * yeste: defragfs policy:
 	 *  max 64 blocks will be moved.
 	 *  allocation request size must be satisfied from a single dmap.
 	 */
-	if (nblocks <= 0 || nblocks > BPERDMAP || blkno >= bmp->db_mapsize) {
+	if (nblocks <= 0 || nblocks > BPERDMAP || blkyes >= bmp->db_mapsize) {
 		IREAD_UNLOCK(ipbmap);
 		return -EINVAL;
 	}
 
 	if (nblocks > ((s64) 1 << bmp->db_maxfreebud)) {
-		/* the free space is no longer available */
+		/* the free space is yes longer available */
 		IREAD_UNLOCK(ipbmap);
 		return -ENOSPC;
 	}
 
 	/* read in the dmap covering the extent */
-	lblkno = BLKTODMAP(blkno, bmp->db_l2nbperpage);
-	mp = read_metapage(ipbmap, lblkno, PSIZE, 0);
+	lblkyes = BLKTODMAP(blkyes, bmp->db_l2nbperpage);
+	mp = read_metapage(ipbmap, lblkyes, PSIZE, 0);
 	if (mp == NULL) {
 		IREAD_UNLOCK(ipbmap);
 		return -EIO;
@@ -916,7 +916,7 @@ int dbAllocExact(struct inode *ip, s64 blkno, int nblocks)
 	dp = (struct dmap *) mp->data;
 
 	/* try to allocate the requested extent */
-	rc = dbAllocNext(bmp, dp, blkno, nblocks);
+	rc = dbAllocNext(bmp, dp, blkyes, nblocks);
 
 	IREAD_UNLOCK(ipbmap);
 
@@ -939,21 +939,21 @@ int dbAllocExact(struct inode *ip, s64 blkno, int nblocks)
  *		by first trying to extend the existing allocation in
  *		place by allocating the additional blocks as the blocks
  *		immediately following the current allocation.  if these
- *		blocks are not available, this routine will attempt to
- *		allocate a new set of contiguous blocks large enough
+ *		blocks are yest available, this routine will attempt to
+ *		allocate a new set of contiguous blocks large eyesugh
  *		to cover the existing allocation plus the additional
  *		number of blocks required.
  *
  * PARAMETERS:
- *	ip	    -  pointer to in-core inode requiring allocation.
- *	blkno	    -  starting block of the current allocation.
+ *	ip	    -  pointer to in-core iyesde requiring allocation.
+ *	blkyes	    -  starting block of the current allocation.
  *	nblocks	    -  number of contiguous blocks within the current
  *		       allocation.
  *	addnblocks  -  number of blocks to add to the allocation.
  *	results	-      on successful return, set to the starting block number
  *		       of the existing allocation if the existing allocation
  *		       was extended in place or to a newly allocated contiguous
- *		       range if the existing allocation could not be extended
+ *		       range if the existing allocation could yest be extended
  *		       in place.
  *
  * RETURN VALUES:
@@ -962,28 +962,28 @@ int dbAllocExact(struct inode *ip, s64 blkno, int nblocks)
  *	-EIO	- i/o error
  */
 int
-dbReAlloc(struct inode *ip,
-	  s64 blkno, s64 nblocks, s64 addnblocks, s64 * results)
+dbReAlloc(struct iyesde *ip,
+	  s64 blkyes, s64 nblocks, s64 addnblocks, s64 * results)
 {
 	int rc;
 
 	/* try to extend the allocation in place.
 	 */
-	if ((rc = dbExtend(ip, blkno, nblocks, addnblocks)) == 0) {
-		*results = blkno;
+	if ((rc = dbExtend(ip, blkyes, nblocks, addnblocks)) == 0) {
+		*results = blkyes;
 		return (0);
 	} else {
 		if (rc != -ENOSPC)
 			return (rc);
 	}
 
-	/* could not extend the allocation in place, so allocate a
+	/* could yest extend the allocation in place, so allocate a
 	 * new set of blocks for the entire request (i.e. try to get
-	 * a range of contiguous blocks large enough to cover the
+	 * a range of contiguous blocks large eyesugh to cover the
 	 * existing allocation plus the additional blocks.)
 	 */
 	return (dbAlloc
-		(ip, blkno + nblocks - 1, addnblocks + nblocks, results));
+		(ip, blkyes + nblocks - 1, addnblocks + nblocks, results));
 }
 
 
@@ -999,8 +999,8 @@ dbReAlloc(struct inode *ip,
  *		immediately following the current allocation.
  *
  * PARAMETERS:
- *	ip	    -  pointer to in-core inode requiring allocation.
- *	blkno	    -  starting block of the current allocation.
+ *	ip	    -  pointer to in-core iyesde requiring allocation.
+ *	blkyes	    -  starting block of the current allocation.
  *	nblocks	    -  number of contiguous blocks within the current
  *		       allocation.
  *	addnblocks  -  number of blocks to add to the allocation.
@@ -1010,37 +1010,37 @@ dbReAlloc(struct inode *ip,
  *	-ENOSPC	- insufficient disk resources
  *	-EIO	- i/o error
  */
-static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
+static int dbExtend(struct iyesde *ip, s64 blkyes, s64 nblocks, s64 addnblocks)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(ip->i_sb);
-	s64 lblkno, lastblkno, extblkno;
+	s64 lblkyes, lastblkyes, extblkyes;
 	uint rel_block;
 	struct metapage *mp;
 	struct dmap *dp;
 	int rc;
-	struct inode *ipbmap = sbi->ipbmap;
+	struct iyesde *ipbmap = sbi->ipbmap;
 	struct bmap *bmp;
 
 	/*
-	 * We don't want a non-aligned extent to cross a page boundary
+	 * We don't want a yesn-aligned extent to cross a page boundary
 	 */
-	if (((rel_block = blkno & (sbi->nbperpage - 1))) &&
+	if (((rel_block = blkyes & (sbi->nbperpage - 1))) &&
 	    (rel_block + nblocks + addnblocks > sbi->nbperpage))
 		return -ENOSPC;
 
 	/* get the last block of the current allocation */
-	lastblkno = blkno + nblocks - 1;
+	lastblkyes = blkyes + nblocks - 1;
 
 	/* determine the block number of the block following
 	 * the existing allocation.
 	 */
-	extblkno = lastblkno + 1;
+	extblkyes = lastblkyes + 1;
 
 	IREAD_LOCK(ipbmap, RDWRLOCK_DMAP);
 
 	/* better be within the file system */
 	bmp = sbi->bmap;
-	if (lastblkno < 0 || lastblkno >= bmp->db_mapsize) {
+	if (lastblkyes < 0 || lastblkyes >= bmp->db_mapsize) {
 		IREAD_UNLOCK(ipbmap);
 		jfs_error(ip->i_sb, "the block is outside the filesystem\n");
 		return -EIO;
@@ -1051,11 +1051,11 @@ static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
 	 * following the current allocation.  we only try to extend the
 	 * current allocation in place if the number of additional blocks
 	 * can fit into a dmap, the last block of the current allocation
-	 * is not the last block of the file system, and the start of the
-	 * inplace extension is not on an allocation group boundary.
+	 * is yest the last block of the file system, and the start of the
+	 * inplace extension is yest on an allocation group boundary.
 	 */
-	if (addnblocks > BPERDMAP || extblkno >= bmp->db_mapsize ||
-	    (extblkno & (bmp->db_agsize - 1)) == 0) {
+	if (addnblocks > BPERDMAP || extblkyes >= bmp->db_mapsize ||
+	    (extblkyes & (bmp->db_agsize - 1)) == 0) {
 		IREAD_UNLOCK(ipbmap);
 		return -ENOSPC;
 	}
@@ -1063,8 +1063,8 @@ static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
 	/* get the buffer for the dmap containing the first block
 	 * of the extension.
 	 */
-	lblkno = BLKTODMAP(extblkno, bmp->db_l2nbperpage);
-	mp = read_metapage(ipbmap, lblkno, PSIZE, 0);
+	lblkyes = BLKTODMAP(extblkyes, bmp->db_l2nbperpage);
+	mp = read_metapage(ipbmap, lblkyes, PSIZE, 0);
 	if (mp == NULL) {
 		IREAD_UNLOCK(ipbmap);
 		return -EIO;
@@ -1075,7 +1075,7 @@ static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
 	/* try to allocate the blocks immediately following the
 	 * current allocation.
 	 */
-	rc = dbAllocNext(bmp, dp, extblkno, (int) addnblocks);
+	rc = dbAllocNext(bmp, dp, extblkyes, (int) addnblocks);
 
 	IREAD_UNLOCK(ipbmap);
 
@@ -1083,7 +1083,7 @@ static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
 	if (rc == 0)
 		write_metapage(mp);
 	else
-		/* we were not successful */
+		/* we were yest successful */
 		release_metapage(mp);
 
 	return (rc);
@@ -1099,7 +1099,7 @@ static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
  * PARAMETERS:
  *	bmp	-  pointer to bmap descriptor
  *	dp	-  pointer to dmap.
- *	blkno	-  starting block number of the range.
+ *	blkyes	-  starting block number of the range.
  *	nblocks	-  number of contiguous free blocks of the range.
  *
  * RETURN VALUES:
@@ -1109,10 +1109,10 @@ static int dbExtend(struct inode *ip, s64 blkno, s64 nblocks, s64 addnblocks)
  *
  * serialization: IREAD_LOCK(ipbmap) held on entry/exit;
  */
-static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 		       int nblocks)
 {
-	int dbitno, word, rembits, nb, nwords, wbitno, nw;
+	int dbityes, word, rembits, nb, nwords, wbityes, nw;
 	int l2size;
 	s8 *leaf;
 	u32 mask;
@@ -1129,13 +1129,13 @@ static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	/* determine the bit number and word within the dmap of the
 	 * starting block.
 	 */
-	dbitno = blkno & (BPERDMAP - 1);
-	word = dbitno >> L2DBWORD;
+	dbityes = blkyes & (BPERDMAP - 1);
+	word = dbityes >> L2DBWORD;
 
 	/* check if the specified block range is contained within
 	 * this dmap.
 	 */
-	if (dbitno + nblocks > BPERDMAP)
+	if (dbityes + nblocks > BPERDMAP)
 		return -ENOSPC;
 
 	/* check if the starting leaf indicates that anything
@@ -1145,7 +1145,7 @@ static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkno,
 		return -ENOSPC;
 
 	/* check the dmaps words corresponding to block range to see
-	 * if the block range is free.  not all bits of the first and
+	 * if the block range is free.  yest all bits of the first and
 	 * last words may be contained within the block range.  if this
 	 * is the case, we'll work against those words (i.e. partial first
 	 * and/or last) on an individual basis (a single pass) and examine
@@ -1157,19 +1157,19 @@ static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	 * words, so we may visit only a subset of the actual leaves
 	 * corresponding to the dmap words of the block range.
 	 */
-	for (rembits = nblocks; rembits > 0; rembits -= nb, dbitno += nb) {
+	for (rembits = nblocks; rembits > 0; rembits -= nb, dbityes += nb) {
 		/* determine the bit number within the word and
 		 * the number of bits within the word.
 		 */
-		wbitno = dbitno & (DBWORD - 1);
-		nb = min(rembits, DBWORD - wbitno);
+		wbityes = dbityes & (DBWORD - 1);
+		nb = min(rembits, DBWORD - wbityes);
 
 		/* check if only part of the word is to be examined.
 		 */
 		if (nb < DBWORD) {
 			/* check if the bits are free.
 			 */
-			mask = (ONES << (DBWORD - nb) >> wbitno);
+			mask = (ONES << (DBWORD - nb) >> wbityes);
 			if ((mask & ~le32_to_cpu(dp->wmap[word])) != mask)
 				return -ENOSPC;
 
@@ -1182,7 +1182,7 @@ static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkno,
 			nwords = rembits >> L2DBWORD;
 			nb = nwords << L2DBWORD;
 
-			/* now examine the appropriate leaves to determine
+			/* yesw examine the appropriate leaves to determine
 			 * if the blocks are free.
 			 */
 			while (nwords > 0) {
@@ -1209,7 +1209,7 @@ static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkno,
 
 	/* allocate the blocks.
 	 */
-	return (dbAllocDmap(bmp, dp, blkno, nblocks));
+	return (dbAllocDmap(bmp, dp, blkyes, nblocks));
 }
 
 
@@ -1227,7 +1227,7 @@ static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkno,
  * PARAMETERS:
  *	bmp	-  pointer to bmap descriptor
  *	dp	-  pointer to dmap.
- *	blkno	-  block number to allocate near.
+ *	blkyes	-  block number to allocate near.
  *	nblocks	-  actual number of contiguous free blocks desired.
  *	l2nb	-  log2 number of contiguous free blocks desired.
  *	results	-  on successful return, set to the starting block number
@@ -1242,7 +1242,7 @@ static int dbAllocNext(struct bmap * bmp, struct dmap * dp, s64 blkno,
  */
 static int
 dbAllocNear(struct bmap * bmp,
-	    struct dmap * dp, s64 blkno, int nblocks, int l2nb, s64 * results)
+	    struct dmap * dp, s64 blkyes, int nblocks, int l2nb, s64 * results)
 {
 	int word, lword, rc;
 	s8 *leaf;
@@ -1255,10 +1255,10 @@ dbAllocNear(struct bmap * bmp,
 	leaf = dp->tree.stree + le32_to_cpu(dp->tree.leafidx);
 
 	/* determine the word within the dmap that holds the hint
-	 * (i.e. blkno).  also, determine the last word in the dmap
+	 * (i.e. blkyes).  also, determine the last word in the dmap
 	 * that we'll include in our examination.
 	 */
-	word = (blkno & (BPERDMAP - 1)) >> L2DBWORD;
+	word = (blkyes & (BPERDMAP - 1)) >> L2DBWORD;
 	lword = min(word + 4, LPERDMAP);
 
 	/* examine the leaves for sufficient free space.
@@ -1272,21 +1272,21 @@ dbAllocNear(struct bmap * bmp,
 		/* determine the block number within the file system
 		 * of the first block described by this dmap word.
 		 */
-		blkno = le64_to_cpu(dp->start) + (word << L2DBWORD);
+		blkyes = le64_to_cpu(dp->start) + (word << L2DBWORD);
 
-		/* if not all bits of the dmap word are free, get the
+		/* if yest all bits of the dmap word are free, get the
 		 * starting bit number within the dmap word of the required
 		 * string of free bits and adjust the block number with the
 		 * value.
 		 */
 		if (leaf[word] < BUDMIN)
-			blkno +=
+			blkyes +=
 			    dbFindBits(le32_to_cpu(dp->wmap[word]), l2nb);
 
 		/* allocate the blocks.
 		 */
-		if ((rc = dbAllocDmap(bmp, dp, blkno, nblocks)) == 0)
-			*results = blkno;
+		if ((rc = dbAllocDmap(bmp, dp, blkyes, nblocks)) == 0)
+			*results = blkyes;
 
 		return (rc);
 	}
@@ -1307,13 +1307,13 @@ dbAllocNear(struct bmap * bmp,
  *		search at the highest dmap control page level which
  *		distinctly describes the allocation group's free space
  *		(i.e. the highest level at which the allocation group's
- *		free space is not mixed in with that of any other group).
+ *		free space is yest mixed in with that of any other group).
  *		in addition, we start the search within this level at a
- *		height of the dmapctl dmtree at which the nodes distinctly
+ *		height of the dmapctl dmtree at which the yesdes distinctly
  *		describe the allocation group's free space.  at this height,
  *		the allocation group's free space may be represented by 1
  *		or two sub-trees, depending on the allocation group size.
- *		we search the top nodes of these subtrees left to right for
+ *		we search the top yesdes of these subtrees left to right for
  *		sufficient free space.  if sufficient free space is found,
  *		the subtree is searched to find the leftmost leaf that
  *		has free space.  once we have made it to the leaf, we
@@ -1326,17 +1326,17 @@ dbAllocNear(struct bmap * bmp,
  *		we'll start at the dmap corresponding to the allocation
  *		group and attempt the allocation at this level.
  *
- *		the dmap control page search is also not performed if the
+ *		the dmap control page search is also yest performed if the
  *		allocation group is completely free and we go to the first
  *		dmap of the allocation group to do the allocation.  this is
- *		done because the allocation group may be part (not the first
+ *		done because the allocation group may be part (yest the first
  *		part) of a larger binary buddy system, causing the dmap
- *		control pages to indicate no free space (NOFREE) within
+ *		control pages to indicate yes free space (NOFREE) within
  *		the allocation group.
  *
  * PARAMETERS:
  *	bmp	-  pointer to bmap descriptor
- *	agno	- allocation group number.
+ *	agyes	- allocation group number.
  *	nblocks	-  actual number of contiguous free blocks desired.
  *	l2nb	-  log2 number of contiguous free blocks desired.
  *	results	-  on successful return, set to the starting block number
@@ -1347,18 +1347,18 @@ dbAllocNear(struct bmap * bmp,
  *	-ENOSPC	- insufficient disk resources
  *	-EIO	- i/o error
  *
- * note: IWRITE_LOCK(ipmap) held on entry/exit;
+ * yeste: IWRITE_LOCK(ipmap) held on entry/exit;
  */
 static int
-dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
+dbAllocAG(struct bmap * bmp, int agyes, s64 nblocks, int l2nb, s64 * results)
 {
 	struct metapage *mp;
 	struct dmapctl *dcp;
 	int rc, ti, i, k, m, n, agperlev;
-	s64 blkno, lblkno;
+	s64 blkyes, lblkyes;
 	int budmin;
 
-	/* allocation request should not be for more than the
+	/* allocation request should yest be for more than the
 	 * allocation group size.
 	 */
 	if (l2nb > bmp->db_agl2size) {
@@ -1370,12 +1370,12 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 	/* determine the starting block number of the allocation
 	 * group.
 	 */
-	blkno = (s64) agno << bmp->db_agl2size;
+	blkyes = (s64) agyes << bmp->db_agl2size;
 
 	/* check if the allocation group size is the minimum allocation
 	 * group size or if the allocation group is completely free. if
 	 * the allocation group size is the minimum size of BPERDMAP (i.e.
-	 * 1 dmap), there is no need to search the dmap control page (below)
+	 * 1 dmap), there is yes need to search the dmap control page (below)
 	 * that fully describes the allocation group since the allocation
 	 * group is already fully described by a dmap.  in this case, we
 	 * just call dbAllocCtl() to search the dmap tree and allocate the
@@ -1383,19 +1383,19 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 	 *
 	 * if the allocation group is completely free, dbAllocCtl() is
 	 * also called to allocate the required space.  this is done for
-	 * two reasons.  first, it makes no sense searching the dmap control
-	 * pages for free space when we know that free space exists.  second,
+	 * two reasons.  first, it makes yes sense searching the dmap control
+	 * pages for free space when we kyesw that free space exists.  second,
 	 * the dmap control pages may indicate that the allocation group
-	 * has no free space if the allocation group is part (not the first
+	 * has yes free space if the allocation group is part (yest the first
 	 * part) of a larger binary buddy system.
 	 */
 	if (bmp->db_agsize == BPERDMAP
-	    || bmp->db_agfree[agno] == bmp->db_agsize) {
-		rc = dbAllocCtl(bmp, nblocks, l2nb, blkno, results);
+	    || bmp->db_agfree[agyes] == bmp->db_agsize) {
+		rc = dbAllocCtl(bmp, nblocks, l2nb, blkyes, results);
 		if ((rc == -ENOSPC) &&
-		    (bmp->db_agfree[agno] == bmp->db_agsize)) {
-			printk(KERN_ERR "blkno = %Lx, blocks = %Lx\n",
-			       (unsigned long long) blkno,
+		    (bmp->db_agfree[agyes] == bmp->db_agsize)) {
+			printk(KERN_ERR "blkyes = %Lx, blocks = %Lx\n",
+			       (unsigned long long) blkyes,
 			       (unsigned long long) nblocks);
 			jfs_error(bmp->db_ipbmap->i_sb,
 				  "dbAllocCtl failed in free AG\n");
@@ -1406,8 +1406,8 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 	/* the buffer for the dmap control page that fully describes the
 	 * allocation group.
 	 */
-	lblkno = BLKTOCTL(blkno, bmp->db_l2nbperpage, bmp->db_aglevel);
-	mp = read_metapage(bmp->db_ipbmap, lblkno, PSIZE, 0);
+	lblkyes = BLKTOCTL(blkyes, bmp->db_l2nbperpage, bmp->db_aglevel);
+	mp = read_metapage(bmp->db_ipbmap, lblkyes, PSIZE, 0);
 	if (mp == NULL)
 		return -EIO;
 	dcp = (struct dmapctl *) mp->data;
@@ -1428,7 +1428,7 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 	 */
 	agperlev =
 	    (1 << (L2LPERCTL - (bmp->db_agheight << 1))) / bmp->db_agwidth;
-	ti = bmp->db_agstart + bmp->db_agwidth * (agno & (agperlev - 1));
+	ti = bmp->db_agstart + bmp->db_agwidth * (agyes & (agperlev - 1));
 
 	/* dmap control page trees fan-out by 4 and a single allocation
 	 * group may be described by 1 or 2 subtrees within the ag level
@@ -1442,7 +1442,7 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 		if (l2nb > dcp->stree[ti])
 			continue;
 
-		/* sufficient free space found in a subtree. now search down
+		/* sufficient free space found in a subtree. yesw search down
 		 * the subtree to find the leftmost leaf that describes this
 		 * free space.
 		 */
@@ -1465,13 +1465,13 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 		 * that corresponds to this leaf.
 		 */
 		if (bmp->db_aglevel == 2)
-			blkno = 0;
+			blkyes = 0;
 		else if (bmp->db_aglevel == 1)
-			blkno &= ~(MAXL1SIZE - 1);
+			blkyes &= ~(MAXL1SIZE - 1);
 		else		/* bmp->db_aglevel == 0 */
-			blkno &= ~(MAXL0SIZE - 1);
+			blkyes &= ~(MAXL0SIZE - 1);
 
-		blkno +=
+		blkyes +=
 		    ((s64) (ti - le32_to_cpu(dcp->leafidx))) << budmin;
 
 		/* release the buffer in preparation for going down
@@ -1492,7 +1492,7 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 			 */
 			if ((rc =
 			     dbFindCtl(bmp, l2nb, bmp->db_aglevel - 1,
-				       &blkno))) {
+				       &blkyes))) {
 				if (rc == -ENOSPC) {
 					jfs_error(bmp->db_ipbmap->i_sb,
 						  "control page inconsistent\n");
@@ -1504,7 +1504,7 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 
 		/* allocate the blocks.
 		 */
-		rc = dbAllocCtl(bmp, nblocks, l2nb, blkno, results);
+		rc = dbAllocCtl(bmp, nblocks, l2nb, blkyes, results);
 		if (rc == -ENOSPC) {
 			jfs_error(bmp->db_ipbmap->i_sb,
 				  "unable to allocate blocks\n");
@@ -1513,7 +1513,7 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 		return (rc);
 	}
 
-	/* no space in the allocation group.  release the buffer and
+	/* yes space in the allocation group.  release the buffer and
 	 * return -ENOSPC.
 	 */
 	release_metapage(mp);
@@ -1531,7 +1531,7 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
  *		dbAllocAny() attempts to find the sufficient free space by
  *		searching down the dmap control pages, starting with the
  *		highest level (i.e. L0, L1, L2) control page.  if free space
- *		large enough to satisfy the desired free space is found, the
+ *		large eyesugh to satisfy the desired free space is found, the
  *		desired free space is allocated.
  *
  * PARAMETERS:
@@ -1551,7 +1551,7 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 static int dbAllocAny(struct bmap * bmp, s64 nblocks, int l2nb, s64 * results)
 {
 	int rc;
-	s64 blkno = 0;
+	s64 blkyes = 0;
 
 	/* starting with the top level dmap control page, search
 	 * down the dmap control levels for sufficient free space.
@@ -1559,12 +1559,12 @@ static int dbAllocAny(struct bmap * bmp, s64 nblocks, int l2nb, s64 * results)
 	 * block number of the dmap that contains or starts off the
 	 * range of free space.
 	 */
-	if ((rc = dbFindCtl(bmp, l2nb, bmp->db_maxlevel, &blkno)))
+	if ((rc = dbFindCtl(bmp, l2nb, bmp->db_maxlevel, &blkyes)))
 		return (rc);
 
 	/* allocate the blocks.
 	 */
-	rc = dbAllocCtl(bmp, nblocks, l2nb, blkno, results);
+	rc = dbAllocCtl(bmp, nblocks, l2nb, blkyes, results);
 	if (rc == -ENOSPC) {
 		jfs_error(bmp->db_ipbmap->i_sb, "unable to allocate blocks\n");
 		return -EIO;
@@ -1596,41 +1596,41 @@ static int dbAllocAny(struct bmap * bmp, s64 nblocks, int l2nb, s64 * results)
  *		/TR 2012
  *
  * PARAMETERS:
- *	ip	- pointer to in-core inode
- *	agno	- ag to trim
+ *	ip	- pointer to in-core iyesde
+ *	agyes	- ag to trim
  *	minlen	- minimum value of contiguous blocks
  *
  * RETURN VALUES:
  *	s64	- actual number of blocks trimmed
  */
-s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen)
+s64 dbDiscardAG(struct iyesde *ip, int agyes, s64 minlen)
 {
-	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
+	struct iyesde *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
 	struct bmap *bmp = JFS_SBI(ip->i_sb)->bmap;
-	s64 nblocks, blkno;
+	s64 nblocks, blkyes;
 	u64 trimmed = 0;
 	int rc, l2nb;
 	struct super_block *sb = ipbmap->i_sb;
 
 	struct range2trim {
-		u64 blkno;
+		u64 blkyes;
 		u64 nblocks;
 	} *totrim, *tt;
 
-	/* max blkno / nblocks pairs to trim */
+	/* max blkyes / nblocks pairs to trim */
 	int count = 0, range_cnt;
 	u64 max_ranges;
 
 	/* prevent others from writing new stuff here, while trimming */
 	IWRITE_LOCK(ipbmap, RDWRLOCK_DMAP);
 
-	nblocks = bmp->db_agfree[agno];
+	nblocks = bmp->db_agfree[agyes];
 	max_ranges = nblocks;
 	do_div(max_ranges, minlen);
 	range_cnt = min_t(u64, max_ranges + 1, 32 * 1024);
 	totrim = kmalloc_array(range_cnt, sizeof(struct range2trim), GFP_NOFS);
 	if (totrim == NULL) {
-		jfs_error(bmp->db_ipbmap->i_sb, "no memory for trim array\n");
+		jfs_error(bmp->db_ipbmap->i_sb, "yes memory for trim array\n");
 		IWRITE_UNLOCK(ipbmap);
 		return 0;
 	}
@@ -1640,18 +1640,18 @@ s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen)
 		l2nb = BLKSTOL2(nblocks);
 
 		/* 0 = okay, -EIO = fatal, -ENOSPC -> try smaller block */
-		rc = dbAllocAG(bmp, agno, nblocks, l2nb, &blkno);
+		rc = dbAllocAG(bmp, agyes, nblocks, l2nb, &blkyes);
 		if (rc == 0) {
-			tt->blkno = blkno;
+			tt->blkyes = blkyes;
 			tt->nblocks = nblocks;
 			tt++; count++;
 
-			/* the whole ag is free, trim now */
-			if (bmp->db_agfree[agno] == 0)
+			/* the whole ag is free, trim yesw */
+			if (bmp->db_agfree[agyes] == 0)
 				break;
 
 			/* give a hint for the next while */
-			nblocks = bmp->db_agfree[agno];
+			nblocks = bmp->db_agfree[agyes];
 			continue;
 		} else if (rc == -ENOSPC) {
 			/* search for next smaller log2 block */
@@ -1674,8 +1674,8 @@ s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen)
 		/* when mounted with online discard, dbFree() will
 		 * call jfs_issue_discard() itself */
 		if (!(JFS_SBI(sb)->flag & JFS_DISCARD))
-			jfs_issue_discard(ip, tt->blkno, tt->nblocks);
-		dbFree(ip, tt->blkno, tt->nblocks);
+			jfs_issue_discard(ip, tt->blkyes, tt->nblocks);
+		dbFree(ip, tt->blkyes, tt->nblocks);
 		trimmed += tt->nblocks;
 	}
 	kfree(totrim);
@@ -1688,7 +1688,7 @@ s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen)
  *
  * FUNCTION:	starting at a specified dmap control page level and block
  *		number, search down the dmap control levels for a range of
- *		contiguous free blocks large enough to satisfy an allocation
+ *		contiguous free blocks large eyesugh to satisfy an allocation
  *		request for the specified number of free blocks.
  *
  *		if sufficient contiguous free blocks are found, this routine
@@ -1700,7 +1700,7 @@ s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen)
  *	bmp	-  pointer to bmap descriptor
  *	level	-  starting dmap control page level.
  *	l2nb	-  log2 number of contiguous free blocks desired.
- *	*blkno	-  on entry, starting block number for conducting the search.
+ *	*blkyes	-  on entry, starting block number for conducting the search.
  *		   on successful return, the first block within a dmap page
  *		   that contains or starts a range of contiguous free blocks.
  *
@@ -1711,10 +1711,10 @@ s64 dbDiscardAG(struct inode *ip, int agno, s64 minlen)
  *
  * serialization: IWRITE_LOCK(ipbmap) held on entry/exit;
  */
-static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkno)
+static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkyes)
 {
 	int rc, leafidx, lev;
-	s64 b, lblkno;
+	s64 b, lblkyes;
 	struct dmapctl *dcp;
 	int budmin;
 	struct metapage *mp;
@@ -1724,12 +1724,12 @@ static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkno)
 	 * block number of a dmap page that contains or starts off
 	 * sufficient free blocks.
 	 */
-	for (lev = level, b = *blkno; lev >= 0; lev--) {
+	for (lev = level, b = *blkyes; lev >= 0; lev--) {
 		/* get the buffer of the dmap control page for the block
 		 * number and level (i.e. L0, L1, L2).
 		 */
-		lblkno = BLKTOCTL(b, bmp->db_l2nbperpage, lev);
-		mp = read_metapage(bmp->db_ipbmap, lblkno, PSIZE, 0);
+		lblkyes = BLKTOCTL(b, bmp->db_l2nbperpage, lev);
+		mp = read_metapage(bmp->db_ipbmap, lblkyes, PSIZE, 0);
 		if (mp == NULL)
 			return -EIO;
 		dcp = (struct dmapctl *) mp->data;
@@ -1779,7 +1779,7 @@ static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkno)
 			break;
 	}
 
-	*blkno = b;
+	*blkyes = b;
 	return (0);
 }
 
@@ -1797,13 +1797,13 @@ static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkno)
  *		the dmaps themselves containing the desired contiguous free
  *		space or starting a contiguous free space of desired size
  *		that is made up of the blocks of one or more dmaps. these
- *		calls should not fail due to insufficent resources.
+ *		calls should yest fail due to insufficent resources.
  *
- *		this routine is called in some cases where it is not known
+ *		this routine is called in some cases where it is yest kyeswn
  *		whether it will fail due to insufficient resources.  more
  *		specifically, this occurs when allocating from an allocation
  *		group whose size is equal to the number of blocks per dmap.
- *		in this case, the dmap control pages are not examined prior
+ *		in this case, the dmap control pages are yest examined prior
  *		to calling this routine (to save pathlength) and the call
  *		might fail.
  *
@@ -1811,13 +1811,13 @@ static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkno)
  *		upon the dmap's dmtree to find the requested contiguous free
  *		space.  for request sizes that are larger than a dmap, the
  *		requested free space will start at the first block of the
- *		first dmap (i.e. blkno).
+ *		first dmap (i.e. blkyes).
  *
  * PARAMETERS:
  *	bmp	-  pointer to bmap descriptor
  *	nblocks	 -  actual number of contiguous free blocks to allocate.
  *	l2nb	 -  log2 number of contiguous free blocks to allocate.
- *	blkno	 -  starting block number of the dmap to start the allocation
+ *	blkyes	 -  starting block number of the dmap to start the allocation
  *		    from.
  *	results	-  on successful return, set to the starting block number
  *		   of the newly allocated range.
@@ -1830,10 +1830,10 @@ static int dbFindCtl(struct bmap * bmp, int l2nb, int level, s64 * blkno)
  * serialization: IWRITE_LOCK(ipbmap) held on entry/exit;
  */
 static int
-dbAllocCtl(struct bmap * bmp, s64 nblocks, int l2nb, s64 blkno, s64 * results)
+dbAllocCtl(struct bmap * bmp, s64 nblocks, int l2nb, s64 blkyes, s64 * results)
 {
 	int rc, nb;
-	s64 b, lblkno, n;
+	s64 b, lblkyes, n;
 	struct metapage *mp;
 	struct dmap *dp;
 
@@ -1842,8 +1842,8 @@ dbAllocCtl(struct bmap * bmp, s64 nblocks, int l2nb, s64 blkno, s64 * results)
 	if (l2nb <= L2BPERDMAP) {
 		/* get the buffer for the dmap.
 		 */
-		lblkno = BLKTODMAP(blkno, bmp->db_l2nbperpage);
-		mp = read_metapage(bmp->db_ipbmap, lblkno, PSIZE, 0);
+		lblkyes = BLKTODMAP(blkyes, bmp->db_l2nbperpage);
+		mp = read_metapage(bmp->db_ipbmap, lblkyes, PSIZE, 0);
 		if (mp == NULL)
 			return -EIO;
 		dp = (struct dmap *) mp->data;
@@ -1862,15 +1862,15 @@ dbAllocCtl(struct bmap * bmp, s64 nblocks, int l2nb, s64 blkno, s64 * results)
 	/* allocation request involving multiple dmaps. it must start on
 	 * a dmap boundary.
 	 */
-	assert((blkno & (BPERDMAP - 1)) == 0);
+	assert((blkyes & (BPERDMAP - 1)) == 0);
 
 	/* allocate the blocks dmap by dmap.
 	 */
-	for (n = nblocks, b = blkno; n > 0; n -= nb, b += nb) {
+	for (n = nblocks, b = blkyes; n > 0; n -= nb, b += nb) {
 		/* get the buffer for the dmap.
 		 */
-		lblkno = BLKTODMAP(b, bmp->db_l2nbperpage);
-		mp = read_metapage(bmp->db_ipbmap, lblkno, PSIZE, 0);
+		lblkyes = BLKTODMAP(b, bmp->db_l2nbperpage);
+		mp = read_metapage(bmp->db_ipbmap, lblkyes, PSIZE, 0);
 		if (mp == NULL) {
 			rc = -EIO;
 			goto backout;
@@ -1882,7 +1882,7 @@ dbAllocCtl(struct bmap * bmp, s64 nblocks, int l2nb, s64 blkno, s64 * results)
 		if (dp->tree.stree[ROOT] != L2BPERDMAP) {
 			release_metapage(mp);
 			jfs_error(bmp->db_ipbmap->i_sb,
-				  "the dmap is not all free\n");
+				  "the dmap is yest all free\n");
 			rc = -EIO;
 			goto backout;
 		}
@@ -1905,7 +1905,7 @@ dbAllocCtl(struct bmap * bmp, s64 nblocks, int l2nb, s64 blkno, s64 * results)
 
 	/* set the results (starting block number) and return.
 	 */
-	*results = blkno;
+	*results = blkyes;
 	return (0);
 
 	/* something failed in handling an allocation request involving
@@ -1918,14 +1918,14 @@ dbAllocCtl(struct bmap * bmp, s64 nblocks, int l2nb, s64 blkno, s64 * results)
 
 	/* try to backout the allocations dmap by dmap.
 	 */
-	for (n = nblocks - n, b = blkno; n > 0;
+	for (n = nblocks - n, b = blkyes; n > 0;
 	     n -= BPERDMAP, b += BPERDMAP) {
 		/* get the buffer for this dmap.
 		 */
-		lblkno = BLKTODMAP(b, bmp->db_l2nbperpage);
-		mp = read_metapage(bmp->db_ipbmap, lblkno, PSIZE, 0);
+		lblkyes = BLKTODMAP(b, bmp->db_l2nbperpage);
+		mp = read_metapage(bmp->db_ipbmap, lblkyes, PSIZE, 0);
 		if (mp == NULL) {
-			/* could not back out.  mark the file system
+			/* could yest back out.  mark the file system
 			 * to indicate that we have leaked blocks.
 			 */
 			jfs_error(bmp->db_ipbmap->i_sb,
@@ -1937,7 +1937,7 @@ dbAllocCtl(struct bmap * bmp, s64 nblocks, int l2nb, s64 blkno, s64 * results)
 		/* free the blocks is this dmap.
 		 */
 		if (dbFreeDmap(bmp, dp, b, BPERDMAP)) {
-			/* could not back out.  mark the file system
+			/* could yest back out.  mark the file system
 			 * to indicate that we have leaked blocks.
 			 */
 			release_metapage(mp);
@@ -1984,7 +1984,7 @@ static int
 dbAllocDmapLev(struct bmap * bmp,
 	       struct dmap * dp, int nblocks, int l2nb, s64 * results)
 {
-	s64 blkno;
+	s64 blkyes;
 	int leafidx, rc;
 
 	/* can't be more than a dmaps worth of blocks */
@@ -2000,18 +2000,18 @@ dbAllocDmapLev(struct bmap * bmp,
 	/* determine the block number within the file system corresponding
 	 * to the leaf at which free space was found.
 	 */
-	blkno = le64_to_cpu(dp->start) + (leafidx << L2DBWORD);
+	blkyes = le64_to_cpu(dp->start) + (leafidx << L2DBWORD);
 
-	/* if not all bits of the dmap word are free, get the starting
+	/* if yest all bits of the dmap word are free, get the starting
 	 * bit number within the dmap word of the required string of free
 	 * bits and adjust the block number with this value.
 	 */
 	if (dp->tree.stree[leafidx + LEAFIND] < BUDMIN)
-		blkno += dbFindBits(le32_to_cpu(dp->wmap[leafidx]), l2nb);
+		blkyes += dbFindBits(le32_to_cpu(dp->wmap[leafidx]), l2nb);
 
 	/* allocate the blocks */
-	if ((rc = dbAllocDmap(bmp, dp, blkno, nblocks)) == 0)
-		*results = blkno;
+	if ((rc = dbAllocDmap(bmp, dp, blkyes, nblocks)) == 0)
+		*results = blkyes;
 
 	return (rc);
 }
@@ -2035,7 +2035,7 @@ dbAllocDmapLev(struct bmap * bmp,
  * PARAMETERS:
  *	bmp	-  pointer to bmap descriptor
  *	dp	-  pointer to dmap to allocate the block range from.
- *	blkno	-  starting block number of the block to be allocated.
+ *	blkyes	-  starting block number of the block to be allocated.
  *	nblocks	-  number of blocks to be allocated.
  *
  * RETURN VALUES:
@@ -2044,7 +2044,7 @@ dbAllocDmapLev(struct bmap * bmp,
  *
  * serialization: IREAD_LOCK(ipbmap) or IWRITE_LOCK(ipbmap) held on entry/exit;
  */
-static int dbAllocDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static int dbAllocDmap(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 		       int nblocks)
 {
 	s8 oldroot;
@@ -2056,9 +2056,9 @@ static int dbAllocDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	oldroot = dp->tree.stree[ROOT];
 
 	/* allocate the specified (blocks) bits */
-	dbAllocBits(bmp, dp, blkno, nblocks);
+	dbAllocBits(bmp, dp, blkyes, nblocks);
 
-	/* if the root has not changed, done. */
+	/* if the root has yest changed, done. */
 	if (dp->tree.stree[ROOT] == oldroot)
 		return (0);
 
@@ -2066,8 +2066,8 @@ static int dbAllocDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	 * if the adjustment of the upper level control pages fails,
 	 * backout the bit allocation (thus making everything consistent).
 	 */
-	if ((rc = dbAdjCtl(bmp, blkno, dp->tree.stree[ROOT], 1, 0)))
-		dbFreeBits(bmp, dp, blkno, nblocks);
+	if ((rc = dbAdjCtl(bmp, blkyes, dp->tree.stree[ROOT], 1, 0)))
+		dbFreeBits(bmp, dp, blkyes, nblocks);
 
 	return (rc);
 }
@@ -2090,7 +2090,7 @@ static int dbAllocDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
  * PARAMETERS:
  *	bmp	-  pointer to bmap descriptor
  *	dp	-  pointer to dmap to free the block range from.
- *	blkno	-  starting block number of the block to be freed.
+ *	blkyes	-  starting block number of the block to be freed.
  *	nblocks	-  number of blocks to be freed.
  *
  * RETURN VALUES:
@@ -2099,7 +2099,7 @@ static int dbAllocDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
  *
  * serialization: IREAD_LOCK(ipbmap) or IWRITE_LOCK(ipbmap) held on entry/exit;
  */
-static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 		      int nblocks)
 {
 	s8 oldroot;
@@ -2111,9 +2111,9 @@ static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	oldroot = dp->tree.stree[ROOT];
 
 	/* free the specified (blocks) bits */
-	rc = dbFreeBits(bmp, dp, blkno, nblocks);
+	rc = dbFreeBits(bmp, dp, blkyes, nblocks);
 
-	/* if error or the root has not changed, done. */
+	/* if error or the root has yest changed, done. */
 	if (rc || (dp->tree.stree[ROOT] == oldroot))
 		return (rc);
 
@@ -2121,8 +2121,8 @@ static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	 * if the adjustment of the upper level control pages fails,
 	 * backout the deallocation.
 	 */
-	if ((rc = dbAdjCtl(bmp, blkno, dp->tree.stree[ROOT], 0, 0))) {
-		word = (blkno & (BPERDMAP - 1)) >> L2DBWORD;
+	if ((rc = dbAdjCtl(bmp, blkyes, dp->tree.stree[ROOT], 0, 0))) {
+		word = (blkyes & (BPERDMAP - 1)) >> L2DBWORD;
 
 		/* as part of backing out the deallocation, we will have
 		 * to back split the dmap tree if the deallocation caused
@@ -2132,7 +2132,7 @@ static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
 		if (dp->tree.stree[word] == NOFREE)
 			dbBackSplit((dmtree_t *) & dp->tree, word);
 
-		dbAllocBits(bmp, dp, blkno, nblocks);
+		dbAllocBits(bmp, dp, blkyes, nblocks);
 	}
 
 	return (rc);
@@ -2154,17 +2154,17 @@ static int dbFreeDmap(struct bmap * bmp, struct dmap * dp, s64 blkno,
  * PARAMETERS:
  *	bmp	-  pointer to bmap descriptor
  *	dp	-  pointer to dmap to allocate bits from.
- *	blkno	-  starting block number of the bits to be allocated.
+ *	blkyes	-  starting block number of the bits to be allocated.
  *	nblocks	-  number of bits to be allocated.
  *
- * RETURN VALUES: none
+ * RETURN VALUES: yesne
  *
  * serialization: IREAD_LOCK(ipbmap) or IWRITE_LOCK(ipbmap) held on entry/exit;
  */
-static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 			int nblocks)
 {
-	int dbitno, word, rembits, nb, nwords, wbitno, nw, agno;
+	int dbityes, word, rembits, nb, nwords, wbityes, nw, agyes;
 	dmtree_t *tp = (dmtree_t *) & dp->tree;
 	int size;
 	s8 *leaf;
@@ -2175,14 +2175,14 @@ static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	/* determine the bit number and word within the dmap of the
 	 * starting block.
 	 */
-	dbitno = blkno & (BPERDMAP - 1);
-	word = dbitno >> L2DBWORD;
+	dbityes = blkyes & (BPERDMAP - 1);
+	word = dbityes >> L2DBWORD;
 
 	/* block range better be within the dmap */
-	assert(dbitno + nblocks <= BPERDMAP);
+	assert(dbityes + nblocks <= BPERDMAP);
 
 	/* allocate the bits of the dmap's words corresponding to the block
-	 * range. not all bits of the first and last words may be contained
+	 * range. yest all bits of the first and last words may be contained
 	 * within the block range.  if this is the case, we'll work against
 	 * those words (i.e. partial first and/or last) on an individual basis
 	 * (a single pass), allocating the bits of interest by hand and
@@ -2194,12 +2194,12 @@ static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	 * multiple dmap words, so we may update only a subset of the actual
 	 * leaves corresponding to the dmap words of the block range.
 	 */
-	for (rembits = nblocks; rembits > 0; rembits -= nb, dbitno += nb) {
+	for (rembits = nblocks; rembits > 0; rembits -= nb, dbityes += nb) {
 		/* determine the bit number within the word and
 		 * the number of bits within the word.
 		 */
-		wbitno = dbitno & (DBWORD - 1);
-		nb = min(rembits, DBWORD - wbitno);
+		wbityes = dbityes & (DBWORD - 1);
+		nb = min(rembits, DBWORD - wbityes);
 
 		/* check if only part of a word is to be allocated.
 		 */
@@ -2208,7 +2208,7 @@ static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 			 * this dmap word.
 			 */
 			dp->wmap[word] |= cpu_to_le32(ONES << (DBWORD - nb)
-						      >> wbitno);
+						      >> wbityes);
 
 			/* update the leaf for this dmap word. in addition
 			 * to setting the leaf value to the binary buddy max
@@ -2232,7 +2232,7 @@ static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 			 */
 			nb = nwords << L2DBWORD;
 
-			/* now update the appropriate leaves to reflect
+			/* yesw update the appropriate leaves to reflect
 			 * the allocated words.
 			 */
 			for (; nwords > 0; nwords -= nw) {
@@ -2274,12 +2274,12 @@ static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	 * update the maximum allocation group number if this allocation
 	 * group is the new max.
 	 */
-	agno = blkno >> bmp->db_agl2size;
-	if (agno > bmp->db_maxag)
-		bmp->db_maxag = agno;
+	agyes = blkyes >> bmp->db_agl2size;
+	if (agyes > bmp->db_maxag)
+		bmp->db_maxag = agyes;
 
 	/* update the free count for the allocation group and map */
-	bmp->db_agfree[agno] -= nblocks;
+	bmp->db_agfree[agyes] -= nblocks;
 	bmp->db_nfree -= nblocks;
 
 	BMAP_UNLOCK(bmp);
@@ -2301,17 +2301,17 @@ static void dbAllocBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
  * PARAMETERS:
  *	bmp	-  pointer to bmap descriptor
  *	dp	-  pointer to dmap to free bits from.
- *	blkno	-  starting block number of the bits to be freed.
+ *	blkyes	-  starting block number of the bits to be freed.
  *	nblocks	-  number of bits to be freed.
  *
  * RETURN VALUES: 0 for success
  *
  * serialization: IREAD_LOCK(ipbmap) or IWRITE_LOCK(ipbmap) held on entry/exit;
  */
-static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 		       int nblocks)
 {
-	int dbitno, word, rembits, nb, nwords, wbitno, nw, agno;
+	int dbityes, word, rembits, nb, nwords, wbityes, nw, agyes;
 	dmtree_t *tp = (dmtree_t *) & dp->tree;
 	int rc = 0;
 	int size;
@@ -2319,15 +2319,15 @@ static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	/* determine the bit number and word within the dmap of the
 	 * starting block.
 	 */
-	dbitno = blkno & (BPERDMAP - 1);
-	word = dbitno >> L2DBWORD;
+	dbityes = blkyes & (BPERDMAP - 1);
+	word = dbityes >> L2DBWORD;
 
 	/* block range better be within the dmap.
 	 */
-	assert(dbitno + nblocks <= BPERDMAP);
+	assert(dbityes + nblocks <= BPERDMAP);
 
 	/* free the bits of the dmaps words corresponding to the block range.
-	 * not all bits of the first and last words may be contained within
+	 * yest all bits of the first and last words may be contained within
 	 * the block range.  if this is the case, we'll work against those
 	 * words (i.e. partial first and/or last) on an individual basis
 	 * (a single pass), freeing the bits of interest by hand and updating
@@ -2343,12 +2343,12 @@ static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	 * buddy system of the leaves if the new leaf values indicate this
 	 * should be done.
 	 */
-	for (rembits = nblocks; rembits > 0; rembits -= nb, dbitno += nb) {
+	for (rembits = nblocks; rembits > 0; rembits -= nb, dbityes += nb) {
 		/* determine the bit number within the word and
 		 * the number of bits within the word.
 		 */
-		wbitno = dbitno & (DBWORD - 1);
-		nb = min(rembits, DBWORD - wbitno);
+		wbityes = dbityes & (DBWORD - 1);
+		nb = min(rembits, DBWORD - wbityes);
 
 		/* check if only part of a word is to be freed.
 		 */
@@ -2358,7 +2358,7 @@ static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 			 */
 			dp->wmap[word] &=
 			    cpu_to_le32(~(ONES << (DBWORD - nb)
-					  >> wbitno));
+					  >> wbityes));
 
 			/* update the leaf for this dmap word.
 			 */
@@ -2380,7 +2380,7 @@ static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 			 */
 			nb = nwords << L2DBWORD;
 
-			/* now update the appropriate leaves to reflect
+			/* yesw update the appropriate leaves to reflect
 			 * the freed words.
 			 */
 			for (; nwords > 0; nwords -= nw) {
@@ -2417,18 +2417,18 @@ static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	/* update the free count for the allocation group and
 	 * map.
 	 */
-	agno = blkno >> bmp->db_agl2size;
+	agyes = blkyes >> bmp->db_agl2size;
 	bmp->db_nfree += nblocks;
-	bmp->db_agfree[agno] += nblocks;
+	bmp->db_agfree[agyes] += nblocks;
 
-	/* check if this allocation group is not completely free and
+	/* check if this allocation group is yest completely free and
 	 * if it is currently the maximum (rightmost) allocation group.
 	 * if so, establish the new maximum allocation group number by
 	 * searching left for the first allocation group with allocation.
 	 */
-	if ((bmp->db_agfree[agno] == bmp->db_agsize && agno == bmp->db_maxag) ||
-	    (agno == bmp->db_numag - 1 &&
-	     bmp->db_agfree[agno] == (bmp-> db_mapsize & (BPERDMAP - 1)))) {
+	if ((bmp->db_agfree[agyes] == bmp->db_agsize && agyes == bmp->db_maxag) ||
+	    (agyes == bmp->db_numag - 1 &&
+	     bmp->db_agfree[agyes] == (bmp-> db_mapsize & (BPERDMAP - 1)))) {
 		while (bmp->db_maxag > 0) {
 			bmp->db_maxag -= 1;
 			if (bmp->db_agfree[bmp->db_maxag] !=
@@ -2476,7 +2476,7 @@ static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
  *		be adjusted.
  * PARAMETERS:
  *	bmp	-  pointer to bmap descriptor
- *	blkno	-  the first block of a block range within a dmap.  it is
+ *	blkyes	-  the first block of a block range within a dmap.  it is
  *		   the allocation or deallocation of this block range that
  *		   requires the dmap control page to be adjusted.
  *	newval	-  the new value of the lower level dmap or dmap control
@@ -2492,20 +2492,20 @@ static int dbFreeBits(struct bmap * bmp, struct dmap * dp, s64 blkno,
  * serialization: IREAD_LOCK(ipbmap) or IWRITE_LOCK(ipbmap) held on entry/exit;
  */
 static int
-dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc, int level)
+dbAdjCtl(struct bmap * bmp, s64 blkyes, int newval, int alloc, int level)
 {
 	struct metapage *mp;
 	s8 oldroot;
 	int oldval;
-	s64 lblkno;
+	s64 lblkyes;
 	struct dmapctl *dcp;
-	int rc, leafno, ti;
+	int rc, leafyes, ti;
 
 	/* get the buffer for the dmap control page for the specified
 	 * block number and control page level.
 	 */
-	lblkno = BLKTOCTL(blkno, bmp->db_l2nbperpage, level);
-	mp = read_metapage(bmp->db_ipbmap, lblkno, PSIZE, 0);
+	lblkyes = BLKTOCTL(blkyes, bmp->db_l2nbperpage, level);
+	mp = read_metapage(bmp->db_ipbmap, lblkyes, PSIZE, 0);
 	if (mp == NULL)
 		return -EIO;
 	dcp = (struct dmapctl *) mp->data;
@@ -2519,8 +2519,8 @@ dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc, int level)
 	/* determine the leaf number corresponding to the block and
 	 * the index within the dmap control tree.
 	 */
-	leafno = BLKTOCTLLEAF(blkno, dcp->budmin);
-	ti = leafno + le32_to_cpu(dcp->leafidx);
+	leafyes = BLKTOCTLLEAF(blkyes, dcp->budmin);
+	ti = leafyes + le32_to_cpu(dcp->leafidx);
 
 	/* save the current leaf value and the current root level (i.e.
 	 * maximum l2 free string described by this dmapctl).
@@ -2542,28 +2542,28 @@ dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc, int level)
 		/* check if we are in the middle of a binary buddy
 		 * system.  this happens when we are performing the
 		 * first allocation out of an allocation group that
-		 * is part (not the first part) of a larger binary
+		 * is part (yest the first part) of a larger binary
 		 * buddy system.  if we are in the middle, back split
 		 * the system prior to calling dbSplit() which assumes
 		 * that it is at the front of a binary buddy system.
 		 */
 		if (oldval == NOFREE) {
-			rc = dbBackSplit((dmtree_t *) dcp, leafno);
+			rc = dbBackSplit((dmtree_t *) dcp, leafyes);
 			if (rc)
 				return rc;
 			oldval = dcp->stree[ti];
 		}
-		dbSplit((dmtree_t *) dcp, leafno, dcp->budmin, newval);
+		dbSplit((dmtree_t *) dcp, leafyes, dcp->budmin, newval);
 	} else {
-		rc = dbJoin((dmtree_t *) dcp, leafno, newval);
+		rc = dbJoin((dmtree_t *) dcp, leafyes, newval);
 		if (rc)
 			return rc;
 	}
 
 	/* check if the root of the current dmap control page changed due
-	 * to the update and if the current dmap control page is not at
+	 * to the update and if the current dmap control page is yest at
 	 * the current top level (i.e. L0, L1, L2) of the map.  if so (i.e.
-	 * root changed and this is not the top level), call this routine
+	 * root changed and this is yest the top level), call this routine
 	 * again (recursion) for the next higher level of the mapping to
 	 * reflect the change in root for the current dmap control page.
 	 */
@@ -2576,26 +2576,26 @@ dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc, int level)
 			 * the next level.
 			 */
 			if ((rc =
-			     dbAdjCtl(bmp, blkno, dcp->stree[ROOT], alloc,
+			     dbAdjCtl(bmp, blkyes, dcp->stree[ROOT], alloc,
 				      level + 1))) {
 				/* something went wrong in bubbling up the new
 				 * root value, so backout the changes to the
 				 * current dmap control page.
 				 */
 				if (alloc) {
-					dbJoin((dmtree_t *) dcp, leafno,
+					dbJoin((dmtree_t *) dcp, leafyes,
 					       oldval);
 				} else {
 					/* the dbJoin() above might have
 					 * caused a larger binary buddy system
-					 * to form and we may now be in the
+					 * to form and we may yesw be in the
 					 * middle of it.  if this is the case,
 					 * back split the buddies.
 					 */
 					if (dcp->stree[ti] == NOFREE)
 						dbBackSplit((dmtree_t *)
-							    dcp, leafno);
-					dbSplit((dmtree_t *) dcp, leafno,
+							    dcp, leafyes);
+					dbSplit((dmtree_t *) dcp, leafyes,
 						dcp->budmin, oldval);
 				}
 
@@ -2612,7 +2612,7 @@ dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc, int level)
 			assert(level == bmp->db_maxlevel);
 			if (bmp->db_maxfreebud != oldroot) {
 				jfs_error(bmp->db_ipbmap->i_sb,
-					  "the maximum free buddy is not the old root\n");
+					  "the maximum free buddy is yest the old root\n");
 			}
 			bmp->db_maxfreebud = dcp->stree[ROOT];
 		}
@@ -2635,16 +2635,16 @@ dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc, int level)
  *
  * PARAMETERS:
  *	tp	- pointer to the tree containing the leaf.
- *	leafno	- the number of the leaf to be updated.
+ *	leafyes	- the number of the leaf to be updated.
  *	splitsz	- the size the binary buddy system starting at the leaf
  *		  must be split to, specified as the log2 number of blocks.
  *	newval	- the new value for the leaf.
  *
- * RETURN VALUES: none
+ * RETURN VALUES: yesne
  *
  * serialization: IREAD_LOCK(ipbmap) or IWRITE_LOCK(ipbmap) held on entry/exit;
  */
-static void dbSplit(dmtree_t * tp, int leafno, int splitsz, int newval)
+static void dbSplit(dmtree_t * tp, int leafyes, int splitsz, int newval)
 {
 	int budsz;
 	int cursz;
@@ -2652,13 +2652,13 @@ static void dbSplit(dmtree_t * tp, int leafno, int splitsz, int newval)
 
 	/* check if the leaf needs to be split.
 	 */
-	if (leaf[leafno] > tp->dmt_budmin) {
+	if (leaf[leafyes] > tp->dmt_budmin) {
 		/* the split occurs by cutting the buddy system in half
 		 * at the specified leaf until we reach the specified
 		 * size.  pick up the starting split size (current size
 		 * - 1 in l2) and the corresponding buddy size.
 		 */
-		cursz = leaf[leafno] - 1;
+		cursz = leaf[leafyes] - 1;
 		budsz = BUDSIZE(cursz, tp->dmt_budmin);
 
 		/* split until we reach the specified size.
@@ -2666,7 +2666,7 @@ static void dbSplit(dmtree_t * tp, int leafno, int splitsz, int newval)
 		while (cursz >= splitsz) {
 			/* update the buddy's leaf with its new value.
 			 */
-			dbAdjTree(tp, leafno ^ budsz, cursz);
+			dbAdjTree(tp, leafyes ^ budsz, cursz);
 
 			/* on to the next size and buddy.
 			 */
@@ -2678,7 +2678,7 @@ static void dbSplit(dmtree_t * tp, int leafno, int splitsz, int newval)
 	/* adjust the dmap tree to reflect the specified leaf's new
 	 * value.
 	 */
-	dbAdjTree(tp, leafno, newval);
+	dbAdjTree(tp, leafyes, newval);
 }
 
 
@@ -2697,28 +2697,28 @@ static void dbSplit(dmtree_t * tp, int leafno, int splitsz, int newval)
  *		the system (less efficient) rather than the start of the
  *		system (more efficient).  the cases in which a back split
  *		is required are rare and are limited to the first allocation
- *		within an allocation group which is a part (not first part)
+ *		within an allocation group which is a part (yest first part)
  *		of a larger binary buddy system and a few exception cases
  *		in which a previous join operation must be backed out.
  *
  * PARAMETERS:
  *	tp	- pointer to the tree containing the leaf.
- *	leafno	- the number of the leaf to be updated.
+ *	leafyes	- the number of the leaf to be updated.
  *
- * RETURN VALUES: none
+ * RETURN VALUES: yesne
  *
  * serialization: IREAD_LOCK(ipbmap) or IWRITE_LOCK(ipbmap) held on entry/exit;
  */
-static int dbBackSplit(dmtree_t * tp, int leafno)
+static int dbBackSplit(dmtree_t * tp, int leafyes)
 {
 	int budsz, bud, w, bsz, size;
 	int cursz;
 	s8 *leaf = tp->dmt_stree + le32_to_cpu(tp->dmt_leafidx);
 
-	/* leaf should be part (not first part) of a binary
+	/* leaf should be part (yest first part) of a binary
 	 * buddy system.
 	 */
-	assert(leaf[leafno] == NOFREE);
+	assert(leaf[leafyes] == NOFREE);
 
 	/* the back split is accomplished by iteratively finding the leaf
 	 * that starts the buddy system that contains the specified leaf and
@@ -2728,7 +2728,7 @@ static int dbBackSplit(dmtree_t * tp, int leafno)
 	 * determine maximum possible l2 size for the specified leaf.
 	 */
 	size =
-	    LITOL2BSZ(leafno, le32_to_cpu(tp->dmt_l2nleafs),
+	    LITOL2BSZ(leafyes, le32_to_cpu(tp->dmt_l2nleafs),
 		      tp->dmt_budmin);
 
 	/* determine the number of leaves covered by this size.  this
@@ -2739,10 +2739,10 @@ static int dbBackSplit(dmtree_t * tp, int leafno)
 
 	/* back split.
 	 */
-	while (leaf[leafno] == NOFREE) {
+	while (leaf[leafyes] == NOFREE) {
 		/* find the leftmost buddy leaf.
 		 */
-		for (w = leafno, bsz = budsz;; bsz <<= 1,
+		for (w = leafyes, bsz = budsz;; bsz <<= 1,
 		     w = (w < bud) ? w : bud) {
 			if (bsz >= le32_to_cpu(tp->dmt_nleafs)) {
 				jfs_err("JFS: block map error in dbBackSplit");
@@ -2766,7 +2766,7 @@ static int dbBackSplit(dmtree_t * tp, int leafno)
 		}
 	}
 
-	if (leaf[leafno] != size) {
+	if (leaf[leafyes] != size) {
 		jfs_err("JFS: wrong leaf value in dbBackSplit");
 		return -EIO;
 	}
@@ -2783,12 +2783,12 @@ static int dbBackSplit(dmtree_t * tp, int leafno)
  *
  * PARAMETERS:
  *	tp	- pointer to the tree containing the leaf.
- *	leafno	- the number of the leaf to be updated.
+ *	leafyes	- the number of the leaf to be updated.
  *	newval	- the new value for the leaf.
  *
- * RETURN VALUES: none
+ * RETURN VALUES: yesne
  */
-static int dbJoin(dmtree_t * tp, int leafno, int newval)
+static int dbJoin(dmtree_t * tp, int leafyes, int newval)
 {
 	int budsz, buddy;
 	s8 *leaf;
@@ -2802,11 +2802,11 @@ static int dbJoin(dmtree_t * tp, int leafno, int newval)
 
 		/* try to join the specified leaf into a large binary
 		 * buddy system.  the join proceeds by attempting to join
-		 * the specified leafno with its buddy (leaf) at new value.
+		 * the specified leafyes with its buddy (leaf) at new value.
 		 * if the join occurs, we attempt to join the left leaf
 		 * of the joined buddies with its buddy at new value + 1.
-		 * we continue to join until we find a buddy that cannot be
-		 * joined (does not have a value equal to the size of the
+		 * we continue to join until we find a buddy that canyest be
+		 * joined (does yest have a value equal to the size of the
 		 * last join) or until all leaves have been joined into a
 		 * single system.
 		 *
@@ -2820,10 +2820,10 @@ static int dbJoin(dmtree_t * tp, int leafno, int newval)
 		while (budsz < le32_to_cpu(tp->dmt_nleafs)) {
 			/* get the buddy leaf.
 			 */
-			buddy = leafno ^ budsz;
+			buddy = leafyes ^ budsz;
 
 			/* if the leaf's new value is greater than its
-			 * buddy's value, we join no more.
+			 * buddy's value, we join yes more.
 			 */
 			if (newval > leaf[buddy])
 				break;
@@ -2832,24 +2832,24 @@ static int dbJoin(dmtree_t * tp, int leafno, int newval)
 			if (newval < leaf[buddy])
 				return -EIO;
 
-			/* check which (leafno or buddy) is the left buddy.
+			/* check which (leafyes or buddy) is the left buddy.
 			 * the left buddy gets to claim the blocks resulting
-			 * from the join while the right gets to claim none.
+			 * from the join while the right gets to claim yesne.
 			 * the left buddy is also eligible to participate in
 			 * a join at the next higher level while the right
-			 * is not.
+			 * is yest.
 			 *
 			 */
-			if (leafno < buddy) {
-				/* leafno is the left buddy.
+			if (leafyes < buddy) {
+				/* leafyes is the left buddy.
 				 */
 				dbAdjTree(tp, buddy, NOFREE);
 			} else {
 				/* buddy is the left buddy and becomes
-				 * leafno.
+				 * leafyes.
 				 */
-				dbAdjTree(tp, leafno, NOFREE);
-				leafno = buddy;
+				dbAdjTree(tp, leafyes, NOFREE);
+				leafyes = buddy;
 			}
 
 			/* on to try the next join.
@@ -2861,7 +2861,7 @@ static int dbJoin(dmtree_t * tp, int leafno, int newval)
 
 	/* update the leaf value.
 	 */
-	dbAdjTree(tp, leafno, newval);
+	dbAdjTree(tp, leafyes, newval);
 
 	return 0;
 }
@@ -2877,22 +2877,22 @@ static int dbJoin(dmtree_t * tp, int leafno, int newval)
  *
  * PARAMETERS:
  *	tp	- pointer to the tree to be adjusted.
- *	leafno	- the number of the leaf to be updated.
+ *	leafyes	- the number of the leaf to be updated.
  *	newval	- the new value for the leaf.
  *
- * RETURN VALUES: none
+ * RETURN VALUES: yesne
  */
-static void dbAdjTree(dmtree_t * tp, int leafno, int newval)
+static void dbAdjTree(dmtree_t * tp, int leafyes, int newval)
 {
 	int lp, pp, k;
 	int max;
 
-	/* pick up the index of the leaf for this leafno.
+	/* pick up the index of the leaf for this leafyes.
 	 */
-	lp = leafno + le32_to_cpu(tp->dmt_leafidx);
+	lp = leafyes + le32_to_cpu(tp->dmt_leafidx);
 
 	/* is the current value the same as the old value ?  if so,
-	 * there is nothing to do.
+	 * there is yesthing to do.
 	 */
 	if (tp->dmt_stree[lp] == newval)
 		return;
@@ -2905,7 +2905,7 @@ static void dbAdjTree(dmtree_t * tp, int leafno, int newval)
 	 */
 	for (k = 0; k < le32_to_cpu(tp->dmt_height); k++) {
 		/* get the index of the first leaf of the 4 leaf
-		 * group containing the specified leaf (leafno).
+		 * group containing the specified leaf (leafyes).
 		 */
 		lp = ((lp - 1) & ~0x03) + 1;
 
@@ -2966,13 +2966,13 @@ static int dbFindLeaf(dmtree_t * tp, int l2nb, int *leafidx)
 	if (l2nb > tp->dmt_stree[ROOT])
 		return -ENOSPC;
 
-	/* sufficient free space available. now search down the tree
+	/* sufficient free space available. yesw search down the tree
 	 * starting at the next level for the leftmost leaf that
 	 * describes sufficient free space.
 	 */
 	for (k = le32_to_cpu(tp->dmt_height), ti = 1;
 	     k > 0; k--, ti = ((ti + n) << 2) + 1) {
-		/* search the four nodes at this level, starting from
+		/* search the four yesdes at this level, starting from
 		 * the left.
 		 */
 		for (x = ti, n = 0; n < 4; n++) {
@@ -3016,7 +3016,7 @@ static int dbFindLeaf(dmtree_t * tp, int l2nb, int *leafidx)
  */
 static int dbFindBits(u32 word, int l2nb)
 {
-	int bitno, nb;
+	int bityes, nb;
 	u32 mask;
 
 	/* get the number of bits.
@@ -3032,16 +3032,16 @@ static int dbFindBits(u32 word, int l2nb)
 
 	/* scan the word for nb free bits at nb alignments.
 	 */
-	for (bitno = 0; mask != 0; bitno += nb, mask >>= nb) {
+	for (bityes = 0; mask != 0; bityes += nb, mask >>= nb) {
 		if ((mask & word) == mask)
 			break;
 	}
 
-	ASSERT(bitno < 32);
+	ASSERT(bityes < 32);
 
 	/* return the bit number.
 	 */
-	return (bitno);
+	return (bityes);
 }
 
 
@@ -3073,7 +3073,7 @@ static int dbMaxBud(u8 * cp)
 	if (*((u16 *) cp) == 0 || *((u16 *) cp + 1) == 0)
 		return (BUDMIN - 1);
 
-	/* not all free or half free. determine the free buddy
+	/* yest all free or half free. determine the free buddy
 	 * size thru table lookup using quarters of the wmap word.
 	 */
 	tmp1 = max(budtab[cp[2]], budtab[cp[3]]);
@@ -3135,7 +3135,7 @@ static int cntlz(u32 value)
  * NAME:	blkstol2(s64 nb)
  *
  * FUNCTION:	convert a block count to its log2 value. if the block
- *		count is not a l2 multiple, it is rounded up to the next
+ *		count is yest a l2 multiple, it is rounded up to the next
  *		larger l2 multiple.
  *
  * PARAMETERS:
@@ -3184,41 +3184,41 @@ static int blkstol2(s64 nb)
  *		at a time.
  *
  * PARAMETERS:
- *	ip	-  pointer to in-core inode;
- *	blkno	-  starting block number to be freed.
+ *	ip	-  pointer to in-core iyesde;
+ *	blkyes	-  starting block number to be freed.
  *	nblocks	-  number of blocks to be freed.
  *
  * RETURN VALUES:
  *	0	- success
  *	-EIO	- i/o error
  */
-int dbAllocBottomUp(struct inode *ip, s64 blkno, s64 nblocks)
+int dbAllocBottomUp(struct iyesde *ip, s64 blkyes, s64 nblocks)
 {
 	struct metapage *mp;
 	struct dmap *dp;
 	int nb, rc;
-	s64 lblkno, rem;
-	struct inode *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
+	s64 lblkyes, rem;
+	struct iyesde *ipbmap = JFS_SBI(ip->i_sb)->ipbmap;
 	struct bmap *bmp = JFS_SBI(ip->i_sb)->bmap;
 
 	IREAD_LOCK(ipbmap, RDWRLOCK_DMAP);
 
 	/* block to be allocated better be within the mapsize. */
-	ASSERT(nblocks <= bmp->db_mapsize - blkno);
+	ASSERT(nblocks <= bmp->db_mapsize - blkyes);
 
 	/*
 	 * allocate the blocks a dmap at a time.
 	 */
 	mp = NULL;
-	for (rem = nblocks; rem > 0; rem -= nb, blkno += nb) {
+	for (rem = nblocks; rem > 0; rem -= nb, blkyes += nb) {
 		/* release previous dmap if any */
 		if (mp) {
 			write_metapage(mp);
 		}
 
 		/* get the buffer for the current dmap. */
-		lblkno = BLKTODMAP(blkno, bmp->db_l2nbperpage);
-		mp = read_metapage(ipbmap, lblkno, PSIZE, 0);
+		lblkyes = BLKTODMAP(blkyes, bmp->db_l2nbperpage);
+		mp = read_metapage(ipbmap, lblkyes, PSIZE, 0);
 		if (mp == NULL) {
 			IREAD_UNLOCK(ipbmap);
 			return -EIO;
@@ -3228,10 +3228,10 @@ int dbAllocBottomUp(struct inode *ip, s64 blkno, s64 nblocks)
 		/* determine the number of blocks to be allocated from
 		 * this dmap.
 		 */
-		nb = min(rem, BPERDMAP - (blkno & (BPERDMAP - 1)));
+		nb = min(rem, BPERDMAP - (blkyes & (BPERDMAP - 1)));
 
 		/* allocate the blocks. */
-		if ((rc = dbAllocDmapBU(bmp, dp, blkno, nb))) {
+		if ((rc = dbAllocDmapBU(bmp, dp, blkyes, nb))) {
 			release_metapage(mp);
 			IREAD_UNLOCK(ipbmap);
 			return (rc);
@@ -3247,11 +3247,11 @@ int dbAllocBottomUp(struct inode *ip, s64 blkno, s64 nblocks)
 }
 
 
-static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkno,
+static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkyes,
 			 int nblocks)
 {
 	int rc;
-	int dbitno, word, rembits, nb, nwords, wbitno, agno;
+	int dbityes, word, rembits, nb, nwords, wbityes, agyes;
 	s8 oldroot;
 	struct dmaptree *tp = (struct dmaptree *) & dp->tree;
 
@@ -3263,14 +3263,14 @@ static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	/* determine the bit number and word within the dmap of the
 	 * starting block.
 	 */
-	dbitno = blkno & (BPERDMAP - 1);
-	word = dbitno >> L2DBWORD;
+	dbityes = blkyes & (BPERDMAP - 1);
+	word = dbityes >> L2DBWORD;
 
 	/* block range better be within the dmap */
-	assert(dbitno + nblocks <= BPERDMAP);
+	assert(dbityes + nblocks <= BPERDMAP);
 
 	/* allocate the bits of the dmap's words corresponding to the block
-	 * range. not all bits of the first and last words may be contained
+	 * range. yest all bits of the first and last words may be contained
 	 * within the block range.  if this is the case, we'll work against
 	 * those words (i.e. partial first and/or last) on an individual basis
 	 * (a single pass), allocating the bits of interest by hand and
@@ -3282,12 +3282,12 @@ static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	 * multiple dmap words, so we may update only a subset of the actual
 	 * leaves corresponding to the dmap words of the block range.
 	 */
-	for (rembits = nblocks; rembits > 0; rembits -= nb, dbitno += nb) {
+	for (rembits = nblocks; rembits > 0; rembits -= nb, dbityes += nb) {
 		/* determine the bit number within the word and
 		 * the number of bits within the word.
 		 */
-		wbitno = dbitno & (DBWORD - 1);
-		nb = min(rembits, DBWORD - wbitno);
+		wbityes = dbityes & (DBWORD - 1);
+		nb = min(rembits, DBWORD - wbityes);
 
 		/* check if only part of a word is to be allocated.
 		 */
@@ -3296,7 +3296,7 @@ static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkno,
 			 * this dmap word.
 			 */
 			dp->wmap[word] |= cpu_to_le32(ONES << (DBWORD - nb)
-						      >> wbitno);
+						      >> wbityes);
 
 			word++;
 		} else {
@@ -3326,17 +3326,17 @@ static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	 * update the highest active allocation group number
 	 * if this allocation group is the new max.
 	 */
-	agno = blkno >> bmp->db_agl2size;
-	if (agno > bmp->db_maxag)
-		bmp->db_maxag = agno;
+	agyes = blkyes >> bmp->db_agl2size;
+	if (agyes > bmp->db_maxag)
+		bmp->db_maxag = agyes;
 
 	/* update the free count for the allocation group and map */
-	bmp->db_agfree[agno] -= nblocks;
+	bmp->db_agfree[agyes] -= nblocks;
 	bmp->db_nfree -= nblocks;
 
 	BMAP_UNLOCK(bmp);
 
-	/* if the root has not changed, done. */
+	/* if the root has yest changed, done. */
 	if (tp->stree[ROOT] == oldroot)
 		return (0);
 
@@ -3344,8 +3344,8 @@ static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkno,
 	 * if the adjustment of the upper level control pages fails,
 	 * backout the bit allocation (thus making everything consistent).
 	 */
-	if ((rc = dbAdjCtl(bmp, blkno, tp->stree[ROOT], 1, 0)))
-		dbFreeBits(bmp, dp, blkno, nblocks);
+	if ((rc = dbAdjCtl(bmp, blkyes, tp->stree[ROOT], 1, 0)))
+		dbFreeBits(bmp, dp, blkyes, nblocks);
 
 	return (rc);
 }
@@ -3354,7 +3354,7 @@ static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkno,
 /*
  * NAME:	dbExtendFS()
  *
- * FUNCTION:	extend bmap from blkno for nblocks;
+ * FUNCTION:	extend bmap from blkyes for nblocks;
  *		dbExtendFS() updates bmap ready for dbAllocBottomUp();
  *
  * L2
@@ -3368,7 +3368,7 @@ static int dbAllocDmapBU(struct bmap * bmp, struct dmap * dp, s64 blkno,
  *
  * <---old---><----------------------------extend----------------------->
  */
-int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
+int dbExtendFS(struct iyesde *ipbmap, s64 blkyes,	s64 nblocks)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(ipbmap->i_sb);
 	int nbperpage = sbi->nbperpage;
@@ -3380,13 +3380,13 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 	struct dmap *dp;
 	s8 *l0leaf, *l1leaf, *l2leaf;
 	struct bmap *bmp = sbi->bmap;
-	int agno, l2agsize, oldl2agsize;
+	int agyes, l2agsize, oldl2agsize;
 	s64 ag_rem;
 
-	newsize = blkno + nblocks;
+	newsize = blkyes + nblocks;
 
-	jfs_info("dbExtendFS: blkno:%Ld nblocks:%Ld newsize:%Ld",
-		 (long long) blkno, (long long) nblocks, (long long) newsize);
+	jfs_info("dbExtendFS: blkyes:%Ld nblocks:%Ld newsize:%Ld",
+		 (long long) blkyes, (long long) nblocks, (long long) newsize);
 
 	/*
 	 *	initialize bmap control page.
@@ -3407,7 +3407,7 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 	bmp->db_agsize = 1 << l2agsize;
 
 	/* compute new number of AG */
-	agno = bmp->db_numag;
+	agyes = bmp->db_numag;
 	bmp->db_numag = newsize >> l2agsize;
 	bmp->db_numag += ((u32) newsize % (u32) bmp->db_agsize) ? 1 : 0;
 
@@ -3417,17 +3417,17 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 	 *
 	 * coalesce contiguous k (newAGSize/oldAGSize) AGs;
 	 * i.e., (AGi, ..., AGj) where i = k*n and j = k*(n+1) - 1 to AGn;
-	 * note: new AG size = old AG size * (2**x).
+	 * yeste: new AG size = old AG size * (2**x).
 	 */
 	if (l2agsize == oldl2agsize)
 		goto extend;
 	k = 1 << (l2agsize - oldl2agsize);
 	ag_rem = bmp->db_agfree[0];	/* save agfree[0] */
-	for (i = 0, n = 0; i < agno; n++) {
+	for (i = 0, n = 0; i < agyes; n++) {
 		bmp->db_agfree[n] = 0;	/* init collection point */
 
 		/* coalesce contiguous k AGs; */
-		for (j = 0; j < k && i < agno; j++, i++) {
+		for (j = 0; j < k && i < agyes; j++, i++) {
 			/* merge AGi to AGn */
 			bmp->db_agfree[n] += bmp->db_agfree[i];
 		}
@@ -3447,22 +3447,22 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 	 *	extend bmap
 	 *
 	 * update bit maps and corresponding level control pages;
-	 * global control page db_nfree, db_agfree[agno], db_maxfreebud;
+	 * global control page db_nfree, db_agfree[agyes], db_maxfreebud;
 	 */
       extend:
 	/* get L2 page */
 	p = BMAPBLKNO + nbperpage;	/* L2 page */
 	l2mp = read_metapage(ipbmap, p, PSIZE, 0);
 	if (!l2mp) {
-		jfs_error(ipbmap->i_sb, "L2 page could not be read\n");
+		jfs_error(ipbmap->i_sb, "L2 page could yest be read\n");
 		return -EIO;
 	}
 	l2dcp = (struct dmapctl *) l2mp->data;
 
 	/* compute start L1 */
-	k = blkno >> L2MAXL1SIZE;
+	k = blkyes >> L2MAXL1SIZE;
 	l2leaf = l2dcp->stree + CTLLEAFIND + k;
-	p = BLKTOL1(blkno, sbi->l2nbperpage);	/* L1 page */
+	p = BLKTOL1(blkyes, sbi->l2nbperpage);	/* L1 page */
 
 	/*
 	 * extend each L1 in L2
@@ -3470,16 +3470,16 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 	for (; k < LPERCTL; k++, p += nbperpage) {
 		/* get L1 page */
 		if (j0) {
-			/* read in L1 page: (blkno & (MAXL1SIZE - 1)) */
+			/* read in L1 page: (blkyes & (MAXL1SIZE - 1)) */
 			l1mp = read_metapage(ipbmap, p, PSIZE, 0);
 			if (l1mp == NULL)
 				goto errout;
 			l1dcp = (struct dmapctl *) l1mp->data;
 
 			/* compute start L0 */
-			j = (blkno & (MAXL1SIZE - 1)) >> L2MAXL0SIZE;
+			j = (blkyes & (MAXL1SIZE - 1)) >> L2MAXL0SIZE;
 			l1leaf = l1dcp->stree + CTLLEAFIND + j;
-			p = BLKTOL0(blkno, sbi->l2nbperpage);
+			p = BLKTOL0(blkyes, sbi->l2nbperpage);
 			j0 = false;
 		} else {
 			/* assign/init L1 page */
@@ -3501,7 +3501,7 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 		for (; j < LPERCTL; j++) {
 			/* get L0 page */
 			if (i0) {
-				/* read in L0 page: (blkno & (MAXL0SIZE - 1)) */
+				/* read in L0 page: (blkyes & (MAXL0SIZE - 1)) */
 
 				l0mp = read_metapage(ipbmap, p, PSIZE, 0);
 				if (l0mp == NULL)
@@ -3509,10 +3509,10 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 				l0dcp = (struct dmapctl *) l0mp->data;
 
 				/* compute start dmap */
-				i = (blkno & (MAXL0SIZE - 1)) >>
+				i = (blkyes & (MAXL0SIZE - 1)) >>
 				    L2BPERDMAP;
 				l0leaf = l0dcp->stree + CTLLEAFIND + i;
-				p = BLKTODMAP(blkno,
+				p = BLKTODMAP(blkyes,
 					      sbi->l2nbperpage);
 				i0 = false;
 			} else {
@@ -3537,7 +3537,7 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 				 * reconstruct the dmap page, and
 				 * initialize corresponding parent L0 leaf
 				 */
-				if ((n = blkno & (BPERDMAP - 1))) {
+				if ((n = blkyes & (BPERDMAP - 1))) {
 					/* read in dmap page: */
 					mp = read_metapage(ipbmap, p,
 							   PSIZE, 0);
@@ -3555,18 +3555,18 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 				}
 
 				dp = (struct dmap *) mp->data;
-				*l0leaf = dbInitDmap(dp, blkno, n);
+				*l0leaf = dbInitDmap(dp, blkyes, n);
 
 				bmp->db_nfree += n;
-				agno = le64_to_cpu(dp->start) >> l2agsize;
-				bmp->db_agfree[agno] += n;
+				agyes = le64_to_cpu(dp->start) >> l2agsize;
+				bmp->db_agfree[agyes] += n;
 
 				write_metapage(mp);
 
 				l0leaf++;
 				p += nbperpage;
 
-				blkno += n;
+				blkyes += n;
 				nblocks -= n;
 				if (nblocks == 0)
 					break;
@@ -3619,7 +3619,7 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 		}
 	}			/* for each L1 in a L2 */
 
-	jfs_error(ipbmap->i_sb, "function has not returned as expected\n");
+	jfs_error(ipbmap->i_sb, "function has yest returned as expected\n");
 errout:
 	if (l0mp)
 		release_metapage(l0mp);
@@ -3640,7 +3640,7 @@ finalize:
 /*
  *	dbFinalizeBmap()
  */
-void dbFinalizeBmap(struct inode *ipbmap)
+void dbFinalizeBmap(struct iyesde *ipbmap)
 {
 	struct bmap *bmp = JFS_SBI(ipbmap->i_sb)->bmap;
 	int actags, inactags, l2nl;
@@ -3664,7 +3664,7 @@ void dbFinalizeBmap(struct inode *ipbmap)
 	/* determine how many blocks are in the inactive allocation
 	 * groups. in doing this, we must account for the fact that
 	 * the rightmost group might be a partial group (i.e. file
-	 * system size is not a multiple of the group size).
+	 * system size is yest a multiple of the group size).
 	 */
 	inactfree = (inactags && ag_rem) ?
 	    ((inactags - 1) << bmp->db_agl2size) + ag_rem
@@ -3677,7 +3677,7 @@ void dbFinalizeBmap(struct inode *ipbmap)
 	actfree = bmp->db_nfree - inactfree;
 	avgfree = (u32) actfree / (u32) actags;
 
-	/* if the preferred allocation group has not average free space.
+	/* if the preferred allocation group has yest average free space.
 	 * re-establish the preferred group as the leftmost
 	 * group with average free space.
 	 */
@@ -3689,15 +3689,15 @@ void dbFinalizeBmap(struct inode *ipbmap)
 		}
 		if (bmp->db_agpref >= bmp->db_numag) {
 			jfs_error(ipbmap->i_sb,
-				  "cannot find ag with average freespace\n");
+				  "canyest find ag with average freespace\n");
 		}
 	}
 
 	/*
 	 * compute db_aglevel, db_agheight, db_width, db_agstart:
 	 * an ag is covered in aglevel dmapctl summary tree,
-	 * at agheight level height (from leaf) with agwidth number of nodes
-	 * each, which starts at agstart index node of the smmary tree node
+	 * at agheight level height (from leaf) with agwidth number of yesdes
+	 * each, which starts at agstart index yesde of the smmary tree yesde
 	 * array;
 	 */
 	bmp->db_aglevel = BMAPSZTOLEV(bmp->db_agsize);
@@ -3731,16 +3731,16 @@ void dbFinalizeBmap(struct inode *ipbmap)
  *
  * RETURNS: NONE
  */
-static int dbInitDmap(struct dmap * dp, s64 Blkno, int nblocks)
+static int dbInitDmap(struct dmap * dp, s64 Blkyes, int nblocks)
 {
-	int blkno, w, b, r, nw, nb, i;
+	int blkyes, w, b, r, nw, nb, i;
 
 	/* starting block number within the dmap */
-	blkno = Blkno & (BPERDMAP - 1);
+	blkyes = Blkyes & (BPERDMAP - 1);
 
-	if (blkno == 0) {
+	if (blkyes == 0) {
 		dp->nblocks = dp->nfree = cpu_to_le32(nblocks);
-		dp->start = cpu_to_le64(Blkno);
+		dp->start = cpu_to_le64(Blkyes);
 
 		if (nblocks == BPERDMAP) {
 			memset(&dp->wmap[0], 0, LPERDMAP * 4);
@@ -3753,16 +3753,16 @@ static int dbInitDmap(struct dmap * dp, s64 Blkno, int nblocks)
 	}
 
 	/* word number containing start block number */
-	w = blkno >> L2DBWORD;
+	w = blkyes >> L2DBWORD;
 
 	/*
 	 * free the bits corresponding to the block range (ZEROS):
-	 * note: not all bits of the first and last words may be contained
+	 * yeste: yest all bits of the first and last words may be contained
 	 * within the block range.
 	 */
-	for (r = nblocks; r > 0; r -= nb, blkno += nb) {
+	for (r = nblocks; r > 0; r -= nb, blkyes += nb) {
 		/* number of bits preceding range to be freed in the word */
-		b = blkno & (DBWORD - 1);
+		b = blkyes & (DBWORD - 1);
 		/* number of bits to free in the word */
 		nb = min(r, DBWORD - b);
 
@@ -3789,18 +3789,18 @@ static int dbInitDmap(struct dmap * dp, s64 Blkno, int nblocks)
 	}
 
 	/*
-	 * mark bits following the range to be freed (non-existing
+	 * mark bits following the range to be freed (yesn-existing
 	 * blocks) as allocated (ONES)
 	 */
 
-	if (blkno == BPERDMAP)
+	if (blkyes == BPERDMAP)
 		goto initTree;
 
 	/* the first word beyond the end of existing blocks */
-	w = blkno >> L2DBWORD;
+	w = blkyes >> L2DBWORD;
 
 	/* does nblocks fall on a 32-bit boundary ? */
-	b = blkno & (DBWORD - 1);
+	b = blkyes & (DBWORD - 1);
 	if (b) {
 		/* mark a partial word allocated */
 		dp->wmap[w] = dp->pmap[w] = cpu_to_le32(ONES >> b);
@@ -3828,7 +3828,7 @@ static int dbInitDmap(struct dmap * dp, s64 Blkno, int nblocks)
  *
  * PARAMETERS:
  *	dp	- dmap to complete
- *	blkno	- starting block number for this dmap
+ *	blkyes	- starting block number for this dmap
  *	treemax	- will be filled in with max free for this dmap
  *
  * RETURNS:	max free string at the root of the tree
@@ -3848,7 +3848,7 @@ static int dbInitDmapTree(struct dmap * dp)
 	tp->budmin = BUDMIN;
 
 	/* init each leaf from corresponding wmap word:
-	 * note: leaf is set to NOFREE(-1) if all blocks of corresponding
+	 * yeste: leaf is set to NOFREE(-1) if all blocks of corresponding
 	 * bitmap word are allocated.
 	 */
 	cp = tp->stree + le32_to_cpu(tp->leafidx);
@@ -3869,11 +3869,11 @@ static int dbInitDmapTree(struct dmap * dp)
  *		from corresponding bitmap word or root of summary tree
  *		of the child control page;
  *		configure binary buddy system at the leaf level, then
- *		bubble up the values of the leaf nodes up the tree.
+ *		bubble up the values of the leaf yesdes up the tree.
  *
  * PARAMETERS:
  *	cp	- Pointer to the root of the tree
- *	l2leaves- Number of leaf nodes as a power of 2
+ *	l2leaves- Number of leaf yesdes as a power of 2
  *	l2min	- Number of blocks that can be covered by a leaf
  *		  as a power of 2
  *
@@ -3924,21 +3924,21 @@ static int dbInitTree(struct dmaptree * dtp)
 	/*
 	 * bubble summary information of leaves up the tree.
 	 *
-	 * Starting at the leaf node level, the four nodes described by
-	 * the higher level parent node are compared for a maximum free and
-	 * this maximum becomes the value of the parent node.
-	 * when all lower level nodes are processed in this fashion then
-	 * move up to the next level (parent becomes a lower level node) and
+	 * Starting at the leaf yesde level, the four yesdes described by
+	 * the higher level parent yesde are compared for a maximum free and
+	 * this maximum becomes the value of the parent yesde.
+	 * when all lower level yesdes are processed in this fashion then
+	 * move up to the next level (parent becomes a lower level yesde) and
 	 * continue the process for that level.
 	 */
 	for (child = le32_to_cpu(dtp->leafidx),
 	     nparent = le32_to_cpu(dtp->nleafs) >> 2;
 	     nparent > 0; nparent >>= 2, child = parent) {
-		/* get index of 1st node of parent level */
+		/* get index of 1st yesde of parent level */
 		parent = (child - 1) >> 2;
 
-		/* set the value of the parent node as the maximum
-		 * of the four nodes of the current level.
+		/* set the value of the parent yesde as the maximum
+		 * of the four yesdes of the current level.
 		 */
 		for (i = 0, cp = tp + child, cp1 = tp + parent;
 		     i < nparent; i++, cp += 4, cp1++)
@@ -3955,7 +3955,7 @@ static int dbInitTree(struct dmaptree * dtp)
  * function: initialize dmapctl page
  */
 static int dbInitDmapCtl(struct dmapctl * dcp, int level, int i)
-{				/* start leaf index not covered by range */
+{				/* start leaf index yest covered by range */
 	s8 *cp;
 
 	dcp->nleafs = cpu_to_le32(LPERCTL);
@@ -3965,8 +3965,8 @@ static int dbInitDmapCtl(struct dmapctl * dcp, int level, int i)
 	dcp->budmin = L2BPERDMAP + L2LPERCTL * level;
 
 	/*
-	 * initialize the leaves of current level that were not covered
-	 * by the specified input block range (i.e. the leaves have no
+	 * initialize the leaves of current level that were yest covered
+	 * by the specified input block range (i.e. the leaves have yes
 	 * low level dmapctl or dmap).
 	 */
 	cp = &dcp->stree[CTLLEAFIND + i];
@@ -4036,7 +4036,7 @@ static int dbGetL2AGSize(s64 nblocks)
 	(((npages) <= 3 + MAXL0PAGES) ? 0 : \
 	 ((npages) <= 2 + MAXL1PAGES) ? 1 : 2)
 
-s64 dbMapFileSizeToMapSize(struct inode * ipbmap)
+s64 dbMapFileSizeToMapSize(struct iyesde * ipbmap)
 {
 	struct super_block *sb = ipbmap->i_sb;
 	s64 nblocks;

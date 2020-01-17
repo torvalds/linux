@@ -22,10 +22,10 @@ separately allocated data is attached to the network device
 
 MTU
 ===
-Each network device has a Maximum Transfer Unit. The MTU does not
+Each network device has a Maximum Transfer Unit. The MTU does yest
 include any link layer protocol overhead. Upper layer protocols must
-not pass a socket buffer (skb) to a device to transmit with more data
-than the mtu. The MTU does not include link layer header overhead, so
+yest pass a socket buffer (skb) to a device to transmit with more data
+than the mtu. The MTU does yest include link layer header overhead, so
 for example on Ethernet if the standard MTU is 1500 bytes used, the
 actual skb will contain up to 1514 bytes because of the Ethernet
 header. Devices should allow for the 4 byte VLAN header as well.
@@ -62,7 +62,7 @@ ndo_do_ioctl:
 
 ndo_get_stats:
 	Synchronization: dev_base_lock rwlock.
-	Context: nominally process, but don't sleep inside an rwlock
+	Context: yesminally process, but don't sleep inside an rwlock
 
 ndo_start_xmit:
 	Synchronization: __netif_tx_lock spinlock.
@@ -79,7 +79,7 @@ ndo_start_xmit:
 
 	Return codes: 
 	o NETDEV_TX_OK everything ok. 
-	o NETDEV_TX_BUSY Cannot transmit packet, try later 
+	o NETDEV_TX_BUSY Canyest transmit packet, try later 
 	  Usually a bug, means queue start/stop flow control is broken in
 	  the driver. Note: the driver must NOT put the skb in its DMA ring.
 

@@ -157,8 +157,8 @@ edd_show_host_bus(struct edd_device *edev, char *buf)
 			     info->params.interface_path.ibnd.reserved);
 
 	} else {
-		p += scnprintf(p, left, "\tunknown: %llx\n",
-			     info->params.interface_path.unknown.reserved);
+		p += scnprintf(p, left, "\tunkyeswn: %llx\n",
+			     info->params.interface_path.unkyeswn.reserved);
 	}
 	return (p - buf);
 }
@@ -214,9 +214,9 @@ edd_show_interface(struct edd_device *edev, char *buf)
 		p += scnprintf(p, left, "\tdevice: %u\n",
 			     info->params.device_path.sata.device);
 	} else {
-		p += scnprintf(p, left, "\tunknown: %llx %llx\n",
-			     info->params.device_path.unknown.reserved1,
-			     info->params.device_path.unknown.reserved2);
+		p += scnprintf(p, left, "\tunkyeswn: %llx %llx\n",
+			     info->params.device_path.unkyeswn.reserved1,
+			     info->params.device_path.unkyeswn.reserved2);
 	}
 
 	return (p - buf);
@@ -320,11 +320,11 @@ edd_show_info_flags(struct edd_device *edev, char *buf)
 	if (info->params.info_flags & EDD_INFO_WRITE_VERIFY)
 		p += scnprintf(p, left, "write verify\n");
 	if (info->params.info_flags & EDD_INFO_MEDIA_CHANGE_NOTIFICATION)
-		p += scnprintf(p, left, "media change notification\n");
+		p += scnprintf(p, left, "media change yestification\n");
 	if (info->params.info_flags & EDD_INFO_LOCKABLE)
 		p += scnprintf(p, left, "lockable\n");
 	if (info->params.info_flags & EDD_INFO_NO_MEDIA_PRESENT)
-		p += scnprintf(p, left, "no media present\n");
+		p += scnprintf(p, left, "yes media present\n");
 	if (info->params.info_flags & EDD_INFO_USE_INT13_FN50)
 		p += scnprintf(p, left, "use int13 fn50\n");
 	return (p - buf);
@@ -437,7 +437,7 @@ edd_show_sectors(struct edd_device *edev, char *buf)
 
 
 /*
- * Some device instances may not have all the above attributes,
+ * Some device instances may yest have all the above attributes,
  * or the attribute values may be meaningless (i.e. if
  * the device is < EDD 3.0, it won't have host_bus and interface
  * information), so don't bother making files for them.  Likewise
@@ -576,7 +576,7 @@ static EDD_DEVICE_ATTR(mbr_signature, 0444, edd_show_mbr_signature, edd_has_mbr_
 
 
 /* These are default attributes that are added for every edd
- * device discovered.  There are none.
+ * device discovered.  There are yesne.
  */
 static struct attribute * def_attrs[] = {
 	NULL,

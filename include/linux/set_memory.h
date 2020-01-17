@@ -15,25 +15,25 @@ static inline int set_memory_nx(unsigned long addr, int numpages) { return 0; }
 #endif
 
 #ifndef CONFIG_ARCH_HAS_SET_DIRECT_MAP
-static inline int set_direct_map_invalid_noflush(struct page *page)
+static inline int set_direct_map_invalid_yesflush(struct page *page)
 {
 	return 0;
 }
-static inline int set_direct_map_default_noflush(struct page *page)
-{
-	return 0;
-}
-#endif
-
-#ifndef set_mce_nospec
-static inline int set_mce_nospec(unsigned long pfn)
+static inline int set_direct_map_default_yesflush(struct page *page)
 {
 	return 0;
 }
 #endif
 
-#ifndef clear_mce_nospec
-static inline int clear_mce_nospec(unsigned long pfn)
+#ifndef set_mce_yesspec
+static inline int set_mce_yesspec(unsigned long pfn)
+{
+	return 0;
+}
+#endif
+
+#ifndef clear_mce_yesspec
+static inline int clear_mce_yesspec(unsigned long pfn)
 {
 	return 0;
 }

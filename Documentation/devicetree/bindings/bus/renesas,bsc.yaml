@@ -33,7 +33,7 @@ properties:
           - renesas,bsc-r8a73a4  # R-Mobile APE6 (r8a73a4)
           - renesas,bsc-sh73a0   # SH-Mobile AG5 (sh73a0)
       - const: renesas,bsc
-      - {} # simple-pm-bus, but not listed here to avoid false select
+      - {} # simple-pm-bus, but yest listed here to avoid false select
 
   reg:
     maxItems: 1

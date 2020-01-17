@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
- *  (c) Copyright 2008, RealTEK Technologies Inc. All Rights Reserved.
+ *  (c) Copyright 2008, RealTEK Techyeslogies Inc. All Rights Reserved.
  *
  *  Module:	r819xusb_cmdpkt.c
  *		(RTL8190 TX/RX command packet handler Source C File)
@@ -48,7 +48,7 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	skb_put_data(skb, pData, DataLen);
 	tcb_desc->txbuf_size = (u16)DataLen;
 
-	if (!priv->ieee80211->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
+	if (!priv->ieee80211->check_nic_eyesugh_desc(dev, tcb_desc->queue_index) ||
 	    (!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index])) ||
 	    (priv->ieee80211->queue_stop)) {
 		RT_TRACE(COMP_FIRMWARE, "=== NULL packet ======> tx full!\n");
@@ -69,7 +69,7 @@ static void cmpk_count_txstatistic(struct net_device *dev, struct cmd_pkt_tx_fee
 	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE,
 					  (pu1Byte)(&rtState));
 
-	/* When RF is off, we should not count the packet for hw/sw synchronize
+	/* When RF is off, we should yest count the packet for hw/sw synchronize
 	 * reason, ie. there may be a duration while sw switch is changed and
 	 * hw switch is being changed.
 	 */
@@ -81,7 +81,7 @@ static void cmpk_count_txstatistic(struct net_device *dev, struct cmd_pkt_tx_fee
 	if (pAdapter->bInHctTest)
 		return;
 #endif
-	/* We can not know the packet length and transmit type:
+	/* We can yest kyesw the packet length and transmit type:
 	 * broadcast or uni or multicast. So the relative statistics
 	 * must be collected in tx feedback info.
 	 */
@@ -91,7 +91,7 @@ static void cmpk_count_txstatistic(struct net_device *dev, struct cmd_pkt_tx_fee
 		priv->stats.txokbytestotal += pstx_fb->pkt_length;
 		priv->stats.txokinperiod++;
 
-		/* We can not make sure broadcast/multicast or unicast mode. */
+		/* We can yest make sure broadcast/multicast or unicast mode. */
 		if (pstx_fb->pkt_type == PACKET_MULTICAST) {
 			priv->stats.txmulticast++;
 			priv->stats.txbytesmulticast += pstx_fb->pkt_length;
@@ -107,7 +107,7 @@ static void cmpk_count_txstatistic(struct net_device *dev, struct cmd_pkt_tx_fee
 		priv->stats.txerrtotal++;
 		priv->stats.txerrbytestotal += pstx_fb->pkt_length;
 
-		/* We can not make sure broadcast/multicast or unicast mode. */
+		/* We can yest make sure broadcast/multicast or unicast mode. */
 		if (pstx_fb->pkt_type == PACKET_MULTICAST)
 			priv->stats.txerrmulticast++;
 		else if (pstx_fb->pkt_type == PACKET_BROADCAST)
@@ -160,7 +160,7 @@ static void cmpk_handle_tx_feedback(struct net_device *dev, u8 *pmsg)
 	cmpk_count_txstatistic(dev, &rx_tx_fb);
 	/* Comment previous method for TX statistic function. */
 	/* Collect info TX feedback packet to fill TCB. */
-	/* We can not know the packet length and transmit type: broadcast or uni
+	/* We can yest kyesw the packet length and transmit type: broadcast or uni
 	 * or multicast.
 	 */
 }
@@ -234,7 +234,7 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 
 		if (rx_intr_status.interrupt_status & ISR_TX_BCN_OK) {
 			priv->ieee80211->bibsscoordinator = true;
-			priv->stats.txbeaconokint++;
+			priv->stats.txbeacoyeskint++;
 		} else if (rx_intr_status.interrupt_status & ISR_TX_BCN_ERR) {
 			priv->ieee80211->bibsscoordinator = false;
 			priv->stats.txbeaconerr++;
@@ -319,7 +319,7 @@ static void cmpk_count_tx_status(struct net_device *dev,
 	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE,
 					  (pu1Byte)(&rtState));
 
-	/* When RF is off, we should not count the packet for hw/sw synchronize
+	/* When RF is off, we should yest count the packet for hw/sw synchronize
 	 * reason, ie. there may be a duration while sw switch is changed and
 	 * hw switch is being changed.
 	 */
@@ -408,7 +408,7 @@ static void cmpk_handle_tx_rate_history(struct net_device *dev, u8 *pmsg)
 	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE,
 					  (pu1Byte)(&rtState));
 
-	/* When RF is off, we should not count the packet for hw/sw synchronize
+	/* When RF is off, we should yest count the packet for hw/sw synchronize
 	 * reason, ie. there may be a duration while sw switch is changed and
 	 * hw switch is being changed.
 	 */
@@ -454,7 +454,7 @@ static void cmpk_handle_tx_rate_history(struct net_device *dev, u8 *pmsg)
  * Overview:    In the function, we will capture different RX command packet
  *		info. Every RX command packet element has different message
  *		length and meaning in content. We only support three type of RX
- *		command packet now. Please refer to document
+ *		command packet yesw. Please refer to document
  *		ws-06-0063-rtl8190-command-packet-specification.
  *
  * Input:       NONE
@@ -481,7 +481,7 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 	 * pointer is null.
 	 */
 	if (pstats == NULL)
-		return 0;	/* This is not a command packet. */
+		return 0;	/* This is yest a command packet. */
 
 	/* 1. Read received command packet message length from RFD. */
 	total_length = pstats->Length;
@@ -538,7 +538,7 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 
 		default:
 
-			RT_TRACE(COMP_ERR, "---->%s():unknown CMD Element\n",
+			RT_TRACE(COMP_ERR, "---->%s():unkyeswn CMD Element\n",
 				 __func__);
 			return 1;	/* This is a command packet. */
 		}

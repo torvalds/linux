@@ -202,7 +202,7 @@ config MEDIA_SUBDRV_AUTOSELECT
 
 	  Use this option with care, as deselecting ancillary drivers which
 	  are, in fact, necessary will result in the lack of the needed
-	  functionality for your device (it may not tune or may not have
+	  functionality for your device (it may yest tune or may yest have
 	  the needed demodulators).
 
 	  If unsure say Y.

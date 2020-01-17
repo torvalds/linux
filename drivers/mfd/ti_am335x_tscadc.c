@@ -124,7 +124,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	struct ti_tscadc_dev	*tscadc;
 	struct resource		*res;
 	struct clk		*clk;
-	struct device_node	*node;
+	struct device_yesde	*yesde;
 	struct mfd_cell		*cell;
 	struct property         *prop;
 	const __be32            *cur;
@@ -134,20 +134,20 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	int			tsc_wires = 0, adc_channels = 0, total_channels;
 	int			readouts = 0;
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "Could not find valid DT data.\n");
+	if (!pdev->dev.of_yesde) {
+		dev_err(&pdev->dev, "Could yest find valid DT data.\n");
 		return -EINVAL;
 	}
 
-	node = of_get_child_by_name(pdev->dev.of_node, "tsc");
-	of_property_read_u32(node, "ti,wires", &tsc_wires);
-	of_property_read_u32(node, "ti,coordiante-readouts", &readouts);
+	yesde = of_get_child_by_name(pdev->dev.of_yesde, "tsc");
+	of_property_read_u32(yesde, "ti,wires", &tsc_wires);
+	of_property_read_u32(yesde, "ti,coordiante-readouts", &readouts);
 
-	node = of_get_child_by_name(pdev->dev.of_node, "adc");
-	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
+	yesde = of_get_child_by_name(pdev->dev.of_yesde, "adc");
+	of_property_for_each_u32(yesde, "ti,adc-channels", prop, cur, val) {
 		adc_channels++;
 		if (val > 7) {
-			dev_err(&pdev->dev, " PIN numbers are 0..7 (not %d)\n",
+			dev_err(&pdev->dev, " PIN numbers are 0..7 (yest %d)\n",
 					val);
 			return -EINVAL;
 		}
@@ -176,7 +176,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 
 	err = platform_get_irq(pdev, 0);
 	if (err < 0) {
-		dev_err(&pdev->dev, "no irq ID is specified.\n");
+		dev_err(&pdev->dev, "yes irq ID is specified.\n");
 		goto ret;
 	} else
 		tscadc->irq = err;

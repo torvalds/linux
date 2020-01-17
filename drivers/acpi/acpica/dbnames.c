@@ -101,7 +101,7 @@ static struct acpi_db_argument_info acpi_db_object_types[] = {
 void acpi_db_set_scope(char *name)
 {
 	acpi_status status;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 
 	if (!name || name[0] == 0) {
 		acpi_os_printf("Current scope: %s\n", acpi_gbl_db_scope_buf);
@@ -114,8 +114,8 @@ void acpi_db_set_scope(char *name)
 
 		/* Validate new scope from the root */
 
-		status = acpi_ns_get_node(acpi_gbl_root_node, name,
-					  ACPI_NS_NO_UPSEARCH, &node);
+		status = acpi_ns_get_yesde(acpi_gbl_root_yesde, name,
+					  ACPI_NS_NO_UPSEARCH, &yesde);
 		if (ACPI_FAILURE(status)) {
 			goto error_exit;
 		}
@@ -124,8 +124,8 @@ void acpi_db_set_scope(char *name)
 	} else {
 		/* Validate new scope relative to old scope */
 
-		status = acpi_ns_get_node(acpi_gbl_db_scope_node, name,
-					  ACPI_NS_NO_UPSEARCH, &node);
+		status = acpi_ns_get_yesde(acpi_gbl_db_scope_yesde, name,
+					  ACPI_NS_NO_UPSEARCH, &yesde);
 		if (ACPI_FAILURE(status)) {
 			goto error_exit;
 		}
@@ -145,13 +145,13 @@ void acpi_db_set_scope(char *name)
 		goto error_exit;
 	}
 
-	acpi_gbl_db_scope_node = node;
+	acpi_gbl_db_scope_yesde = yesde;
 	acpi_os_printf("New scope: %s\n", acpi_gbl_db_scope_buf);
 	return;
 
 error_exit:
 
-	acpi_os_printf("Could not attach scope: %s, %s\n",
+	acpi_os_printf("Could yest attach scope: %s, %s\n",
 		       name, acpi_format_exception(status));
 }
 
@@ -164,20 +164,20 @@ error_exit:
  *
  * RETURN:      None
  *
- * DESCRIPTION: Dump entire namespace or a subtree. Each node is displayed
+ * DESCRIPTION: Dump entire namespace or a subtree. Each yesde is displayed
  *              with type and other information.
  *
  ******************************************************************************/
 
 void acpi_db_dump_namespace(char *start_arg, char *depth_arg)
 {
-	acpi_handle subtree_entry = acpi_gbl_root_node;
+	acpi_handle subtree_entry = acpi_gbl_root_yesde;
 	u32 max_depth = ACPI_UINT32_MAX;
 
 	/* No argument given, just start at the root and dump entire namespace */
 
 	if (start_arg) {
-		subtree_entry = acpi_db_convert_to_node(start_arg);
+		subtree_entry = acpi_db_convert_to_yesde(start_arg);
 		if (!subtree_entry) {
 			return;
 		}
@@ -191,9 +191,9 @@ void acpi_db_dump_namespace(char *start_arg, char *depth_arg)
 
 	acpi_db_set_output_destination(ACPI_DB_DUPLICATE_OUTPUT);
 
-	if (((struct acpi_namespace_node *)subtree_entry)->parent) {
+	if (((struct acpi_namespace_yesde *)subtree_entry)->parent) {
 		acpi_os_printf("ACPI Namespace (from %4.4s (%p) subtree):\n",
-			       ((struct acpi_namespace_node *)subtree_entry)->
+			       ((struct acpi_namespace_yesde *)subtree_entry)->
 			       name.ascii, subtree_entry);
 	} else {
 		acpi_os_printf("ACPI Namespace (from %s):\n",
@@ -232,7 +232,7 @@ void acpi_db_dump_namespace_paths(void)
 	acpi_db_set_output_destination(ACPI_DB_REDIRECTABLE_OUTPUT);
 	acpi_ns_dump_object_paths(ACPI_TYPE_ANY, ACPI_DISPLAY_SUMMARY,
 				  ACPI_UINT32_MAX, ACPI_OWNER_ID_MAX,
-				  acpi_gbl_root_node);
+				  acpi_gbl_root_yesde);
 
 	acpi_db_set_output_destination(ACPI_DB_CONSOLE_OUTPUT);
 }
@@ -241,7 +241,7 @@ void acpi_db_dump_namespace_paths(void)
  *
  * FUNCTION:    acpi_db_dump_namespace_by_owner
  *
- * PARAMETERS:  owner_arg       - Owner ID whose nodes will be displayed
+ * PARAMETERS:  owner_arg       - Owner ID whose yesdes will be displayed
  *              depth_arg       - Maximum tree depth to be dumped
  *
  * RETURN:      None
@@ -252,7 +252,7 @@ void acpi_db_dump_namespace_paths(void)
 
 void acpi_db_dump_namespace_by_owner(char *owner_arg, char *depth_arg)
 {
-	acpi_handle subtree_entry = acpi_gbl_root_node;
+	acpi_handle subtree_entry = acpi_gbl_root_yesde;
 	u32 max_depth = ACPI_UINT32_MAX;
 	acpi_owner_id owner_id;
 
@@ -306,7 +306,7 @@ acpi_db_walk_and_match_name(acpi_handle obj_handle,
 		/* Wildcard support */
 
 		if ((requested_name[i] != '?') &&
-		    (requested_name[i] != ((struct acpi_namespace_node *)
+		    (requested_name[i] != ((struct acpi_namespace_yesde *)
 					   obj_handle)->name.ascii[i])) {
 
 			/* No match, just exit */
@@ -356,7 +356,7 @@ acpi_status acpi_db_find_name_in_namespace(char *name_arg)
 	char *acpi_name_ptr = acpi_name;
 
 	if (strlen(name_arg) > ACPI_NAMESEG_SIZE) {
-		acpi_os_printf("Name must be no longer than 4 characters\n");
+		acpi_os_printf("Name must be yes longer than 4 characters\n");
 		return (AE_OK);
 	}
 
@@ -397,20 +397,20 @@ acpi_db_walk_for_predefined_names(acpi_handle obj_handle,
 				  u32 nesting_level,
 				  void *context, void **return_value)
 {
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_yesde *yesde =
+	    (struct acpi_namespace_yesde *)obj_handle;
 	u32 *count = (u32 *)context;
 	const union acpi_predefined_info *predefined;
 	const union acpi_predefined_info *package = NULL;
 	char *pathname;
 	char string_buffer[48];
 
-	predefined = acpi_ut_match_predefined_method(node->name.ascii);
+	predefined = acpi_ut_match_predefined_method(yesde->name.ascii);
 	if (!predefined) {
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
+	pathname = acpi_ns_get_yesrmalized_pathname(yesde, TRUE);
 	if (!pathname) {
 		return (AE_OK);
 	}
@@ -439,7 +439,7 @@ acpi_db_walk_for_predefined_names(acpi_handle obj_handle,
 
 	/* Check that the declared argument count matches the ACPI spec */
 
-	acpi_ns_check_acpi_compliance(pathname, node, predefined);
+	acpi_ns_check_acpi_compliance(pathname, yesde, predefined);
 
 	ACPI_FREE(pathname);
 	(*count)++;
@@ -462,7 +462,7 @@ void acpi_db_check_predefined_names(void)
 {
 	u32 count = 0;
 
-	/* Search all nodes in namespace */
+	/* Search all yesdes in namespace */
 
 	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX,
@@ -490,14 +490,14 @@ acpi_db_walk_for_object_counts(acpi_handle obj_handle,
 			       void *context, void **return_value)
 {
 	struct acpi_object_info *info = (struct acpi_object_info *)context;
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_yesde *yesde =
+	    (struct acpi_namespace_yesde *)obj_handle;
 
-	if (node->type > ACPI_TYPE_NS_NODE_MAX) {
-		acpi_os_printf("[%4.4s]: Unknown object type %X\n",
-			       node->name.ascii, node->type);
+	if (yesde->type > ACPI_TYPE_NS_NODE_MAX) {
+		acpi_os_printf("[%4.4s]: Unkyeswn object type %X\n",
+			       yesde->name.ascii, yesde->type);
 	} else {
-		info->types[node->type]++;
+		info->types[yesde->type]++;
 	}
 
 	return (AE_OK);
@@ -524,12 +524,12 @@ acpi_db_walk_for_fields(acpi_handle obj_handle,
 	    (struct acpi_region_walk_info *)context;
 	struct acpi_buffer buffer;
 	acpi_status status;
-	struct acpi_namespace_node *node = acpi_ns_validate_handle(obj_handle);
+	struct acpi_namespace_yesde *yesde = acpi_ns_validate_handle(obj_handle);
 
-	if (!node) {
+	if (!yesde) {
 		return (AE_OK);
 	}
-	if (node->object->field.region_obj->region.space_id !=
+	if (yesde->object->field.region_obj->region.space_id !=
 	    info->address_space_id) {
 		return (AE_OK);
 	}
@@ -750,7 +750,7 @@ acpi_status acpi_db_display_fields(u32 address_space_id)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Examine one NS node for valid values.
+ * DESCRIPTION: Examine one NS yesde for valid values.
  *
  ******************************************************************************/
 
@@ -760,46 +760,46 @@ acpi_db_integrity_walk(acpi_handle obj_handle,
 {
 	struct acpi_integrity_info *info =
 	    (struct acpi_integrity_info *)context;
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_yesde *yesde =
+	    (struct acpi_namespace_yesde *)obj_handle;
 	union acpi_operand_object *object;
 	u8 alias = TRUE;
 
-	info->nodes++;
+	info->yesdes++;
 
-	/* Verify the NS node, and dereference aliases */
+	/* Verify the NS yesde, and dereference aliases */
 
 	while (alias) {
-		if (ACPI_GET_DESCRIPTOR_TYPE(node) != ACPI_DESC_TYPE_NAMED) {
+		if (ACPI_GET_DESCRIPTOR_TYPE(yesde) != ACPI_DESC_TYPE_NAMED) {
 			acpi_os_printf
 			    ("Invalid Descriptor Type for Node %p [%s] - "
-			     "is %2.2X should be %2.2X\n", node,
-			     acpi_ut_get_descriptor_name(node),
-			     ACPI_GET_DESCRIPTOR_TYPE(node),
+			     "is %2.2X should be %2.2X\n", yesde,
+			     acpi_ut_get_descriptor_name(yesde),
+			     ACPI_GET_DESCRIPTOR_TYPE(yesde),
 			     ACPI_DESC_TYPE_NAMED);
 			return (AE_OK);
 		}
 
-		if ((node->type == ACPI_TYPE_LOCAL_ALIAS) ||
-		    (node->type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
-			node = (struct acpi_namespace_node *)node->object;
+		if ((yesde->type == ACPI_TYPE_LOCAL_ALIAS) ||
+		    (yesde->type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
+			yesde = (struct acpi_namespace_yesde *)yesde->object;
 		} else {
 			alias = FALSE;
 		}
 	}
 
-	if (node->type > ACPI_TYPE_LOCAL_MAX) {
+	if (yesde->type > ACPI_TYPE_LOCAL_MAX) {
 		acpi_os_printf("Invalid Object Type for Node %p, Type = %X\n",
-			       node, node->type);
+			       yesde, yesde->type);
 		return (AE_OK);
 	}
 
-	if (!acpi_ut_valid_nameseg(node->name.ascii)) {
-		acpi_os_printf("Invalid AcpiName for Node %p\n", node);
+	if (!acpi_ut_valid_nameseg(yesde->name.ascii)) {
+		acpi_os_printf("Invalid AcpiName for Node %p\n", yesde);
 		return (AE_OK);
 	}
 
-	object = acpi_ns_get_attached_object(node);
+	object = acpi_ns_get_attached_object(yesde);
 	if (object) {
 		info->objects++;
 		if (ACPI_GET_DESCRIPTOR_TYPE(object) != ACPI_DESC_TYPE_OPERAND) {
@@ -828,14 +828,14 @@ void acpi_db_check_integrity(void)
 {
 	struct acpi_integrity_info info = { 0, 0 };
 
-	/* Search all nodes in namespace */
+	/* Search all yesdes in namespace */
 
 	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX, acpi_db_integrity_walk, NULL,
 				  (void *)&info, NULL);
 
-	acpi_os_printf("Verified %u namespace nodes with %u Objects\n",
-		       info.nodes, info.objects);
+	acpi_os_printf("Verified %u namespace yesdes with %u Objects\n",
+		       info.yesdes, info.objects);
 }
 
 /*******************************************************************************
@@ -860,21 +860,21 @@ acpi_db_walk_for_references(acpi_handle obj_handle,
 {
 	union acpi_operand_object *obj_desc =
 	    (union acpi_operand_object *)context;
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_yesde *yesde =
+	    (struct acpi_namespace_yesde *)obj_handle;
 
-	/* Check for match against the namespace node itself */
+	/* Check for match against the namespace yesde itself */
 
-	if (node == (void *)obj_desc) {
+	if (yesde == (void *)obj_desc) {
 		acpi_os_printf("Object is a Node [%4.4s]\n",
-			       acpi_ut_get_node_name(node));
+			       acpi_ut_get_yesde_name(yesde));
 	}
 
-	/* Check for match against the object attached to the node */
+	/* Check for match against the object attached to the yesde */
 
-	if (acpi_ns_get_attached_object(node) == obj_desc) {
+	if (acpi_ns_get_attached_object(yesde) == obj_desc) {
 		acpi_os_printf("Reference at Node->Object %p [%4.4s]\n",
-			       node, acpi_ut_get_node_name(node));
+			       yesde, acpi_ut_get_yesde_name(yesde));
 	}
 
 	return (AE_OK);
@@ -902,7 +902,7 @@ void acpi_db_find_references(char *object_arg)
 	address = strtoul(object_arg, NULL, 16);
 	obj_desc = ACPI_TO_POINTER(address);
 
-	/* Search all nodes in namespace */
+	/* Search all yesdes in namespace */
 
 	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX, acpi_db_walk_for_references,
@@ -926,23 +926,23 @@ static acpi_status
 acpi_db_bus_walk(acpi_handle obj_handle,
 		 u32 nesting_level, void *context, void **return_value)
 {
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_yesde *yesde =
+	    (struct acpi_namespace_yesde *)obj_handle;
 	acpi_status status;
 	struct acpi_buffer buffer;
-	struct acpi_namespace_node *temp_node;
+	struct acpi_namespace_yesde *temp_yesde;
 	struct acpi_device_info *info;
 	u32 i;
 
-	if ((node->type != ACPI_TYPE_DEVICE) &&
-	    (node->type != ACPI_TYPE_PROCESSOR)) {
+	if ((yesde->type != ACPI_TYPE_DEVICE) &&
+	    (yesde->type != ACPI_TYPE_PROCESSOR)) {
 		return (AE_OK);
 	}
 
-	/* Exit if there is no _PRT under this device */
+	/* Exit if there is yes _PRT under this device */
 
-	status = acpi_get_handle(node, METHOD_NAME__PRT,
-				 ACPI_CAST_PTR(acpi_handle, &temp_node));
+	status = acpi_get_handle(yesde, METHOD_NAME__PRT,
+				 ACPI_CAST_PTR(acpi_handle, &temp_yesde));
 	if (ACPI_FAILURE(status)) {
 		return (AE_OK);
 	}
@@ -964,7 +964,7 @@ acpi_db_bus_walk(acpi_handle obj_handle,
 
 	/* Display the full path */
 
-	acpi_os_printf("%-32s Type %X", (char *)buffer.pointer, node->type);
+	acpi_os_printf("%-32s Type %X", (char *)buffer.pointer, yesde->type);
 	ACPI_FREE(buffer.pointer);
 
 	if (info->flags & ACPI_PCI_ROOT_BRIDGE) {
@@ -974,7 +974,7 @@ acpi_db_bus_walk(acpi_handle obj_handle,
 
 	/* _PRT info */
 
-	acpi_os_printf("_PRT: %p\n", temp_node);
+	acpi_os_printf("_PRT: %p\n", temp_yesde);
 
 	/* Dump _ADR, _HID, _UID, _CID */
 
@@ -1024,7 +1024,7 @@ acpi_db_bus_walk(acpi_handle obj_handle,
 
 void acpi_db_get_bus_info(void)
 {
-	/* Search all nodes in namespace */
+	/* Search all yesdes in namespace */
 
 	(void)acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				  ACPI_UINT32_MAX, acpi_db_bus_walk, NULL, NULL,

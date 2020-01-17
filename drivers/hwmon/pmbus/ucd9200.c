@@ -103,13 +103,13 @@ static int ucd9200_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		chip = (enum chips)of_device_get_match_data(&client->dev);
 	else
 		chip = id->driver_data;
 
 	if (chip != ucd9200 && chip != mid->driver_data)
-		dev_notice(&client->dev,
+		dev_yestice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   id->name, mid->name);
 
@@ -153,7 +153,7 @@ static int ucd9200_probe(struct i2c_client *client,
 	 */
 	for (i = 0; i < info->pages; i++) {
 		/*
-		 * Setting PAGE & PHASE fails once in a while for no obvious
+		 * Setting PAGE & PHASE fails once in a while for yes obvious
 		 * reason, so we need to retry a couple of times.
 		 */
 		for (j = 0; j < 3; j++) {

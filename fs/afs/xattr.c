@@ -39,12 +39,12 @@ ssize_t afs_listxattr(struct dentry *dentry, char *buffer, size_t size)
  */
 static int afs_xattr_get_acl(const struct xattr_handler *handler,
 			     struct dentry *dentry,
-			     struct inode *inode, const char *name,
+			     struct iyesde *iyesde, const char *name,
 			     void *buffer, size_t size)
 {
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vyesde *vyesde = AFS_FS_I(iyesde);
 	struct afs_acl *acl = NULL;
 	struct key *key;
 	int ret = -ENOMEM;
@@ -53,25 +53,25 @@ static int afs_xattr_get_acl(const struct xattr_handler *handler,
 	if (!scb)
 		goto error;
 
-	key = afs_request_key(vnode->volume->cell);
+	key = afs_request_key(vyesde->volume->cell);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error_scb;
 	}
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
-		afs_dataversion_t data_version = vnode->status.data_version;
+	if (afs_begin_vyesde_operation(&fc, vyesde, key, true)) {
+		afs_dataversion_t data_version = vyesde->status.data_version;
 
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(vnode);
+			fc.cb_break = afs_calc_vyesde_cb_break(vyesde);
 			acl = afs_fs_fetch_acl(&fc, scb);
 		}
 
-		afs_check_for_remote_deletion(&fc, fc.vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break,
+		afs_check_for_remote_deletion(&fc, fc.vyesde);
+		afs_vyesde_commit_status(&fc, vyesde, fc.cb_break,
 					&data_version, scb);
-		ret = afs_end_vnode_operation(&fc);
+		ret = afs_end_vyesde_operation(&fc);
 	}
 
 	if (ret == 0) {
@@ -97,12 +97,12 @@ error:
  */
 static int afs_xattr_set_acl(const struct xattr_handler *handler,
                              struct dentry *dentry,
-                             struct inode *inode, const char *name,
+                             struct iyesde *iyesde, const char *name,
                              const void *buffer, size_t size, int flags)
 {
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vyesde *vyesde = AFS_FS_I(iyesde);
 	struct afs_acl *acl = NULL;
 	struct key *key;
 	int ret = -ENOMEM;
@@ -118,7 +118,7 @@ static int afs_xattr_set_acl(const struct xattr_handler *handler,
 	if (!acl)
 		goto error_scb;
 
-	key = afs_request_key(vnode->volume->cell);
+	key = afs_request_key(vyesde->volume->cell);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error_acl;
@@ -128,18 +128,18 @@ static int afs_xattr_set_acl(const struct xattr_handler *handler,
 	memcpy(acl->data, buffer, size);
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
-		afs_dataversion_t data_version = vnode->status.data_version;
+	if (afs_begin_vyesde_operation(&fc, vyesde, key, true)) {
+		afs_dataversion_t data_version = vyesde->status.data_version;
 
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(vnode);
+			fc.cb_break = afs_calc_vyesde_cb_break(vyesde);
 			afs_fs_store_acl(&fc, acl, scb);
 		}
 
-		afs_check_for_remote_deletion(&fc, fc.vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break,
+		afs_check_for_remote_deletion(&fc, fc.vyesde);
+		afs_vyesde_commit_status(&fc, vyesde, fc.cb_break,
 					&data_version, scb);
-		ret = afs_end_vnode_operation(&fc);
+		ret = afs_end_vyesde_operation(&fc);
 	}
 
 	key_put(key);
@@ -162,12 +162,12 @@ static const struct xattr_handler afs_xattr_afs_acl_handler = {
  */
 static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 			     struct dentry *dentry,
-			     struct inode *inode, const char *name,
+			     struct iyesde *iyesde, const char *name,
 			     void *buffer, size_t size)
 {
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vyesde *vyesde = AFS_FS_I(iyesde);
 	struct yfs_acl *yacl = NULL;
 	struct key *key;
 	char buf[16], *data;
@@ -197,25 +197,25 @@ static int afs_xattr_get_yfs(const struct xattr_handler *handler,
 	if (!scb)
 		goto error_yacl;
 
-	key = afs_request_key(vnode->volume->cell);
+	key = afs_request_key(vyesde->volume->cell);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error_scb;
 	}
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
-		afs_dataversion_t data_version = vnode->status.data_version;
+	if (afs_begin_vyesde_operation(&fc, vyesde, key, true)) {
+		afs_dataversion_t data_version = vyesde->status.data_version;
 
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(vnode);
+			fc.cb_break = afs_calc_vyesde_cb_break(vyesde);
 			yfs_fs_fetch_opaque_acl(&fc, yacl, scb);
 		}
 
-		afs_check_for_remote_deletion(&fc, fc.vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break,
+		afs_check_for_remote_deletion(&fc, fc.vyesde);
+		afs_vyesde_commit_status(&fc, vyesde, fc.cb_break,
 					&data_version, scb);
-		ret = afs_end_vnode_operation(&fc);
+		ret = afs_end_vyesde_operation(&fc);
 	}
 
 	if (ret < 0)
@@ -267,12 +267,12 @@ error:
  */
 static int afs_xattr_set_yfs(const struct xattr_handler *handler,
                              struct dentry *dentry,
-                             struct inode *inode, const char *name,
+                             struct iyesde *iyesde, const char *name,
                              const void *buffer, size_t size, int flags)
 {
 	struct afs_fs_cursor fc;
 	struct afs_status_cb *scb;
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vyesde *vyesde = AFS_FS_I(iyesde);
 	struct afs_acl *acl = NULL;
 	struct key *key;
 	int ret = -ENOMEM;
@@ -292,25 +292,25 @@ static int afs_xattr_set_yfs(const struct xattr_handler *handler,
 	acl->size = size;
 	memcpy(acl->data, buffer, size);
 
-	key = afs_request_key(vnode->volume->cell);
+	key = afs_request_key(vyesde->volume->cell);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error_acl;
 	}
 
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
-		afs_dataversion_t data_version = vnode->status.data_version;
+	if (afs_begin_vyesde_operation(&fc, vyesde, key, true)) {
+		afs_dataversion_t data_version = vyesde->status.data_version;
 
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = afs_calc_vnode_cb_break(vnode);
+			fc.cb_break = afs_calc_vyesde_cb_break(vyesde);
 			yfs_fs_store_opaque_acl2(&fc, acl, scb);
 		}
 
-		afs_check_for_remote_deletion(&fc, fc.vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break,
+		afs_check_for_remote_deletion(&fc, fc.vyesde);
+		afs_vyesde_commit_status(&fc, vyesde, fc.cb_break,
 					&data_version, scb);
-		ret = afs_end_vnode_operation(&fc);
+		ret = afs_end_vyesde_operation(&fc);
 	}
 
 error_acl:
@@ -333,11 +333,11 @@ static const struct xattr_handler afs_xattr_yfs_handler = {
  */
 static int afs_xattr_get_cell(const struct xattr_handler *handler,
 			      struct dentry *dentry,
-			      struct inode *inode, const char *name,
+			      struct iyesde *iyesde, const char *name,
 			      void *buffer, size_t size)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
-	struct afs_cell *cell = vnode->volume->cell;
+	struct afs_vyesde *vyesde = AFS_FS_I(iyesde);
+	struct afs_cell *cell = vyesde->volume->cell;
 	size_t namelen;
 
 	namelen = cell->name_len;
@@ -355,30 +355,30 @@ static const struct xattr_handler afs_xattr_afs_cell_handler = {
 };
 
 /*
- * Get the volume ID, vnode ID and vnode uniquifier of a file as a sequence of
+ * Get the volume ID, vyesde ID and vyesde uniquifier of a file as a sequence of
  * hex numbers separated by colons.
  */
 static int afs_xattr_get_fid(const struct xattr_handler *handler,
 			     struct dentry *dentry,
-			     struct inode *inode, const char *name,
+			     struct iyesde *iyesde, const char *name,
 			     void *buffer, size_t size)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_vyesde *vyesde = AFS_FS_I(iyesde);
 	char text[16 + 1 + 24 + 1 + 8 + 1];
 	size_t len;
 
-	/* The volume ID is 64-bit, the vnode ID is 96-bit and the
+	/* The volume ID is 64-bit, the vyesde ID is 96-bit and the
 	 * uniquifier is 32-bit.
 	 */
-	len = scnprintf(text, sizeof(text), "%llx:", vnode->fid.vid);
-	if (vnode->fid.vnode_hi)
+	len = scnprintf(text, sizeof(text), "%llx:", vyesde->fid.vid);
+	if (vyesde->fid.vyesde_hi)
 		len += scnprintf(text + len, sizeof(text) - len, "%x%016llx",
-				vnode->fid.vnode_hi, vnode->fid.vnode);
+				vyesde->fid.vyesde_hi, vyesde->fid.vyesde);
 	else
 		len += scnprintf(text + len, sizeof(text) - len, "%llx",
-				 vnode->fid.vnode);
+				 vyesde->fid.vyesde);
 	len += scnprintf(text + len, sizeof(text) - len, ":%x",
-			 vnode->fid.unique);
+			 vyesde->fid.unique);
 
 	if (size == 0)
 		return len;
@@ -398,11 +398,11 @@ static const struct xattr_handler afs_xattr_afs_fid_handler = {
  */
 static int afs_xattr_get_volume(const struct xattr_handler *handler,
 			      struct dentry *dentry,
-			      struct inode *inode, const char *name,
+			      struct iyesde *iyesde, const char *name,
 			      void *buffer, size_t size)
 {
-	struct afs_vnode *vnode = AFS_FS_I(inode);
-	const char *volname = vnode->volume->name;
+	struct afs_vyesde *vyesde = AFS_FS_I(iyesde);
+	const char *volname = vyesde->volume->name;
 	size_t namelen;
 
 	namelen = strlen(volname);

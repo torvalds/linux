@@ -62,19 +62,19 @@ static const struct irq_domain_ops irq_ops = {
 void __init init_IRQ(void)
 {
 	struct irq_domain *domain;
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	node = of_find_compatible_node(NULL, NULL, "altr,nios2-1.0");
-	if (!node)
-		node = of_find_compatible_node(NULL, NULL, "altr,nios2-1.1");
+	yesde = of_find_compatible_yesde(NULL, NULL, "altr,nios2-1.0");
+	if (!yesde)
+		yesde = of_find_compatible_yesde(NULL, NULL, "altr,nios2-1.1");
 
-	BUG_ON(!node);
+	BUG_ON(!yesde);
 
-	domain = irq_domain_add_linear(node, NIOS2_CPU_NR_IRQS, &irq_ops, NULL);
+	domain = irq_domain_add_linear(yesde, NIOS2_CPU_NR_IRQS, &irq_ops, NULL);
 	BUG_ON(!domain);
 
 	irq_set_default_host(domain);
-	of_node_put(node);
+	of_yesde_put(yesde);
 	/* Load the initial ienable value */
 	ienable = RDCTL(CTL_IENABLE);
 }

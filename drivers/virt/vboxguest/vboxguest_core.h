@@ -171,7 +171,7 @@ irqreturn_t vbg_core_isr(int irq, void *dev_id);
 
 void vbg_linux_mouse_event(struct vbg_dev *gdev);
 
-/* Private (non exported) functions form vboxguest_utils.c */
+/* Private (yesn exported) functions form vboxguest_utils.c */
 void *vbg_req_alloc(size_t len, enum vmmdev_request_type req_type,
 		    u32 requestor);
 void vbg_req_free(void *req, size_t len);

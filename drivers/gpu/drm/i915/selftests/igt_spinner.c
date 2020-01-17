@@ -38,7 +38,7 @@ int igt_spinner_init(struct igt_spinner *spin, struct intel_gt *gt)
 		err = PTR_ERR(vaddr);
 		goto err_obj;
 	}
-	spin->seqno = memset(vaddr, 0xff, PAGE_SIZE);
+	spin->seqyes = memset(vaddr, 0xff, PAGE_SIZE);
 
 	mode = i915_coherent_map_type(gt->i915);
 	vaddr = i915_gem_object_pin_map(spin->obj, mode);
@@ -60,7 +60,7 @@ err:
 	return err;
 }
 
-static unsigned int seqno_offset(u64 fence)
+static unsigned int seqyes_offset(u64 fence)
 {
 	return offset_in_page(sizeof(u32) * fence);
 }
@@ -68,7 +68,7 @@ static unsigned int seqno_offset(u64 fence)
 static u64 hws_address(const struct i915_vma *hws,
 		       const struct i915_request *rq)
 {
-	return hws->node.start + seqno_offset(rq->fence.context);
+	return hws->yesde.start + seqyes_offset(rq->fence.context);
 }
 
 static int move_to_active(struct i915_vma *vma,
@@ -135,14 +135,14 @@ igt_spinner_create_request(struct igt_spinner *spin,
 	*batch++ = MI_STORE_DWORD_IMM_GEN4;
 	*batch++ = lower_32_bits(hws_address(hws, rq));
 	*batch++ = upper_32_bits(hws_address(hws, rq));
-	*batch++ = rq->fence.seqno;
+	*batch++ = rq->fence.seqyes;
 
 	*batch++ = arbitration_command;
 
 	*batch++ = MI_BATCH_BUFFER_START | 1 << 8 | 1;
-	*batch++ = lower_32_bits(vma->node.start);
-	*batch++ = upper_32_bits(vma->node.start);
-	*batch++ = MI_BATCH_BUFFER_END; /* not reached */
+	*batch++ = lower_32_bits(vma->yesde.start);
+	*batch++ = upper_32_bits(vma->yesde.start);
+	*batch++ = MI_BATCH_BUFFER_END; /* yest reached */
 
 	intel_gt_chipset_flush(engine->gt);
 
@@ -153,7 +153,7 @@ igt_spinner_create_request(struct igt_spinner *spin,
 			goto cancel_rq;
 	}
 
-	err = engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, 0);
+	err = engine->emit_bb_start(rq, vma->yesde.start, PAGE_SIZE, 0);
 
 cancel_rq:
 	if (err) {
@@ -168,11 +168,11 @@ unpin_vma:
 }
 
 static u32
-hws_seqno(const struct igt_spinner *spin, const struct i915_request *rq)
+hws_seqyes(const struct igt_spinner *spin, const struct i915_request *rq)
 {
-	u32 *seqno = spin->seqno + seqno_offset(rq->fence.context);
+	u32 *seqyes = spin->seqyes + seqyes_offset(rq->fence.context);
 
-	return READ_ONCE(*seqno);
+	return READ_ONCE(*seqyes);
 }
 
 void igt_spinner_end(struct igt_spinner *spin)
@@ -194,10 +194,10 @@ void igt_spinner_fini(struct igt_spinner *spin)
 
 bool igt_wait_for_spinner(struct igt_spinner *spin, struct i915_request *rq)
 {
-	return !(wait_for_us(i915_seqno_passed(hws_seqno(spin, rq),
-					       rq->fence.seqno),
+	return !(wait_for_us(i915_seqyes_passed(hws_seqyes(spin, rq),
+					       rq->fence.seqyes),
 			     10) &&
-		 wait_for(i915_seqno_passed(hws_seqno(spin, rq),
-					    rq->fence.seqno),
+		 wait_for(i915_seqyes_passed(hws_seqyes(spin, rq),
+					    rq->fence.seqyes),
 			  1000));
 }

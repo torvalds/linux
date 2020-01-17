@@ -33,7 +33,7 @@ struct pda_power_pdata {
 
 	unsigned long ac_max_uA; /* current to draw when on AC */
 
-	bool use_otg_notifier;
+	bool use_otg_yestifier;
 };
 
 #endif /* __PDA_POWER_H__ */

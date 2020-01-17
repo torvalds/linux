@@ -223,8 +223,8 @@ struct cnic_eth_dev {
 	u32		max_fcoe_exchanges;
 	u32		fcoe_wwn_port_name_hi;
 	u32		fcoe_wwn_port_name_lo;
-	u32		fcoe_wwn_node_name_hi;
-	u32		fcoe_wwn_node_name_lo;
+	u32		fcoe_wwn_yesde_name_hi;
+	u32		fcoe_wwn_yesde_name_lo;
 
 	u16		iscsi_l2_client_id;
 	u16		iscsi_l2_cid;

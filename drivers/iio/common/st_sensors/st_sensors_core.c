@@ -226,7 +226,7 @@ int st_sensors_power_enable(struct iio_dev *indio_dev)
 	struct st_sensor_data *pdata = iio_priv(indio_dev);
 	int err;
 
-	/* Regulators not mandatory, but if requested we should enable them. */
+	/* Regulators yest mandatory, but if requested we should enable them. */
 	pdata->vdd = devm_regulator_get(indio_dev->dev.parent, "vdd");
 	if (IS_ERR(pdata->vdd)) {
 		dev_err(&indio_dev->dev, "unable to get Vdd supply\n");
@@ -274,13 +274,13 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	/* Sensor does not support interrupts */
+	/* Sensor does yest support interrupts */
 	if (!sdata->sensor_settings->drdy_irq.int1.addr &&
 	    !sdata->sensor_settings->drdy_irq.int2.addr) {
 		if (pdata->drdy_int_pin)
 			dev_info(&indio_dev->dev,
 				 "DRDY on pin INT%d specified, but sensor "
-				 "does not support interrupts\n",
+				 "does yest support interrupts\n",
 				 pdata->drdy_int_pin);
 		return 0;
 	}
@@ -289,7 +289,7 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	case 1:
 		if (!sdata->sensor_settings->drdy_irq.int1.mask) {
 			dev_err(&indio_dev->dev,
-					"DRDY on INT1 not available.\n");
+					"DRDY on INT1 yest available.\n");
 			return -EINVAL;
 		}
 		sdata->drdy_int_pin = 1;
@@ -297,13 +297,13 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	case 2:
 		if (!sdata->sensor_settings->drdy_irq.int2.mask) {
 			dev_err(&indio_dev->dev,
-					"DRDY on INT2 not available.\n");
+					"DRDY on INT2 yest available.\n");
 			return -EINVAL;
 		}
 		sdata->drdy_int_pin = 2;
 		break;
 	default:
-		dev_err(&indio_dev->dev, "DRDY on pdata not valid.\n");
+		dev_err(&indio_dev->dev, "DRDY on pdata yest valid.\n");
 		return -EINVAL;
 	}
 
@@ -324,7 +324,7 @@ static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
 		struct st_sensors_platform_data *defdata)
 {
 	struct st_sensors_platform_data *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	u32 val;
 
 	if (!np)
@@ -410,7 +410,7 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 		if (err < 0)
 			return err;
 	} else
-		dev_info(&indio_dev->dev, "Full-scale not possible\n");
+		dev_info(&indio_dev->dev, "Full-scale yest possible\n");
 
 	err = st_sensors_set_odr(indio_dev, sdata->odr);
 	if (err < 0)
@@ -470,7 +470,7 @@ int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 	    !sdata->sensor_settings->drdy_irq.int2.addr) {
 		/*
 		 * there are some devices (e.g. LIS3MDL) where drdy line is
-		 * routed to a given pin and it is not possible to select a
+		 * routed to a given pin and it is yest possible to select a
 		 * different one. Take into account irq status register
 		 * to understand if irq trigger can be properly supported
 		 */
@@ -602,7 +602,7 @@ EXPORT_SYMBOL(st_sensors_read_info_raw);
  * @list: sensor settings list.
  * @list_length: length of sensor settings list.
  *
- * Return: non negative number on success (valid index),
+ * Return: yesn negative number on success (valid index),
  *	   negative error code otherwise.
  */
 int st_sensors_get_settings_index(const char *name,

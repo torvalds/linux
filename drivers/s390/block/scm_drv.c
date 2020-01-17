@@ -14,7 +14,7 @@
 #include <asm/eadm.h>
 #include "scm_blk.h"
 
-static void scm_notify(struct scm_device *scmdev, enum scm_event event)
+static void scm_yestify(struct scm_device *scmdev, enum scm_event event)
 {
 	struct scm_blk_dev *bdev = dev_get_drvdata(&scmdev->dev);
 
@@ -76,7 +76,7 @@ static struct scm_driver scm_drv = {
 		.name = "scm_block",
 		.owner = THIS_MODULE,
 	},
-	.notify = scm_notify,
+	.yestify = scm_yestify,
 	.probe = scm_probe,
 	.remove = scm_remove,
 	.handler = scm_blk_irq,

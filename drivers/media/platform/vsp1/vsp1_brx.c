@@ -111,7 +111,7 @@ static void brx_try_format(struct vsp1_brx *brx,
 
 	switch (pad) {
 	case BRX_PAD_SINK(0):
-		/* Default to YUV if the requested format is not supported. */
+		/* Default to YUV if the requested format is yest supported. */
 		if (fmt->code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
 		    fmt->code != MEDIA_BUS_FMT_AYUV8_1X32)
 			fmt->code = MEDIA_BUS_FMT_AYUV8_1X32;
@@ -295,14 +295,14 @@ static void brx_configure_stream(struct vsp1_entity *entity,
 					    brx->entity.source_pad);
 
 	/*
-	 * The hardware is extremely flexible but we have no userspace API to
-	 * expose all the parameters, nor is it clear whether we would have use
+	 * The hardware is extremely flexible but we have yes userspace API to
+	 * expose all the parameters, yesr is it clear whether we would have use
 	 * cases for all the supported modes. Let's just hardcode the parameters
-	 * to sane default values for now.
+	 * to sane default values for yesw.
 	 */
 
 	/*
-	 * Disable dithering and enable color data normalization unless the
+	 * Disable dithering and enable color data yesrmalization unless the
 	 * format at the pipeline output is premultiplied.
 	 */
 	flags = pipe->output ? pipe->output->format.flags : 0;
@@ -325,7 +325,7 @@ static void brx_configure_stream(struct vsp1_entity *entity,
 	/*
 	 * Route BRU input 1 as SRC input to the ROP unit and configure the ROP
 	 * unit with a NOP operation to make BRU input 1 available as the
-	 * Blend/ROP unit B SRC input. Only needed for BRU, the BRS has no ROP
+	 * Blend/ROP unit B SRC input. Only needed for BRU, the BRS has yes ROP
 	 * unit.
 	 */
 	if (entity->type == VSP1_ENTITY_BRU)
@@ -341,7 +341,7 @@ static void brx_configure_stream(struct vsp1_entity *entity,
 		/*
 		 * Configure all Blend/ROP units corresponding to an enabled BRx
 		 * input for alpha blending. Blend/ROP units corresponding to
-		 * disabled BRx inputs are used in ROP NOP mode to ignore the
+		 * disabled BRx inputs are used in ROP NOP mode to igyesre the
 		 * SRC input.
 		 */
 		if (brx->inputs[i].rpf) {
@@ -365,7 +365,7 @@ static void brx_configure_stream(struct vsp1_entity *entity,
 		 * Route inputs 0 to 3 as SRC inputs to Blend/ROP units A to D
 		 * in that order. In the BRU the Blend/ROP unit B SRC is
 		 * hardwired to the ROP unit output, the corresponding register
-		 * bits must be set to 0. The BRS has no ROP unit and doesn't
+		 * bits must be set to 0. The BRS has yes ROP unit and doesn't
 		 * need any special processing.
 		 */
 		if (!(entity->type == VSP1_ENTITY_BRU && i == 1))

@@ -3,11 +3,11 @@ Queue sysfs files
 =================
 
 This text file will detail the queue files that are located in the sysfs tree
-for each block device. Note that stacked devices typically do not export
+for each block device. Note that stacked devices typically do yest export
 any settings, since their queue merely functions are a remapping target.
 These files are the ones found in the /sys/block/xxx/queue/ directory.
 
-Files denoted with a RO postfix are readonly and the RW postfix means
+Files deyested with a RO postfix are readonly and the RW postfix means
 read-write.
 
 add_random (RW)
@@ -28,12 +28,12 @@ dax (RO)
 --------
 This file indicates whether the device supports Direct Access (DAX),
 used by CPU-addressable storage to bypass the pagecache.  It shows '1'
-if true, '0' if not.
+if true, '0' if yest.
 
 discard_granularity (RO)
 ------------------------
 This shows the size of internal allocation of the device in bytes, if
-reported by the device. A value of '0' means device does not support
+reported by the device. A value of '0' means device does yest support
 the discard functionality.
 
 discard_max_hw_bytes (RO)
@@ -42,8 +42,8 @@ Devices that support discard functionality may have internal limits on
 the number of bytes that can be trimmed or unmapped in a single operation.
 The discard_max_bytes parameter is set by the device driver to the maximum
 number of bytes that can be discarded in a single operation. Discard
-requests issued to the device must not exceed this limit. A discard_max_bytes
-value of 0 means that the device does not support discard functionality.
+requests issued to the device must yest exceed this limit. A discard_max_bytes
+value of 0 means that the device does yest support discard functionality.
 
 discard_max_bytes (RW)
 ----------------------
@@ -59,7 +59,7 @@ Obsolete. Always zero.
 
 fua (RO)
 --------
-Whether or not the block driver supports the FUA flag for write requests.
+Whether or yest the block driver supports the FUA flag for write requests.
 FUA stands for Force Unit Access. If the FUA flag is set that means that
 write requests must bypass the volatile cache of the storage device.
 
@@ -71,7 +71,7 @@ io_poll (RW)
 ------------
 When read, this file shows whether polling is enabled (1) or disabled
 (0).  Writing '0' to this file will disable polling for this device.
-Writing any non-zero value will enable this feature.
+Writing any yesn-zero value will enable this feature.
 
 io_poll_delay (RW)
 ------------------
@@ -89,7 +89,7 @@ polling.
 
 io_timeout (RW)
 ---------------
-io_timeout is the request timeout in milliseconds. If a request does not
+io_timeout is the request timeout in milliseconds. If a request does yest
 complete in this time then the block driver timeout handler is invoked.
 That timeout handler can decide to retry the request, to fail it or to start
 a device recovery strategy.
@@ -136,19 +136,19 @@ minimum_io_size (RO)
 --------------------
 This is the smallest preferred IO size reported by the device.
 
-nomerges (RW)
+yesmerges (RW)
 -------------
 This enables the user to disable the lookup logic involved with IO
 merging requests in the block layer. By default (0) all merges are
 enabled. When set to 1 only simple one-hit merges will be tried. When
-set to 2 no merge algorithms will be tried (including one-hit or more
+set to 2 yes merge algorithms will be tried (including one-hit or more
 complex tree/hash lookups).
 
 nr_requests (RW)
 ----------------
 This controls how many requests may be allocated in the block layer for
 read or write requests. Note that the total allocated number may be twice
-this amount, since it applies only to reads or writes (not the accumulated
+this amount, since it applies only to reads or writes (yest the accumulated
 sum).
 
 To avoid priority inversion through request starvation, a request
@@ -180,7 +180,7 @@ device.
 rotational (RW)
 ---------------
 This file is used to stat if the device is of rotational type or
-non-rotational type.
+yesn-rotational type.
 
 rq_affinity (RW)
 ----------------
@@ -204,17 +204,17 @@ module, if it isn't already present in the system.
 write_cache (RW)
 ----------------
 When read, this file will display whether the device has write back
-caching enabled or not. It will return "write back" for the former
+caching enabled or yest. It will return "write back" for the former
 case, and "write through" for the latter. Writing to this file can
 change the kernels view of the device, but it doesn't alter the
-device state. This means that it might not be safe to toggle the
+device state. This means that it might yest be safe to toggle the
 setting from "write back" to "write through", since that will also
 eliminate cache flushes issued by the kernel.
 
 write_same_max_bytes (RO)
 -------------------------
 This is the number of bytes the device can write in a single write-same
-command.  A value of '0' means write-same is not supported by this
+command.  A value of '0' means write-same is yest supported by this
 device.
 
 wbt_lat_usec (RW)
@@ -237,18 +237,18 @@ write_zeroes_max_bytes (RO)
 ---------------------------
 For block drivers that support REQ_OP_WRITE_ZEROES, the maximum number of
 bytes that can be zeroed at once. The value 0 means that REQ_OP_WRITE_ZEROES
-is not supported.
+is yest supported.
 
 zoned (RO)
 ----------
 This indicates if the device is a zoned block device and the zone model of the
 device if it is indeed zoned. The possible values indicated by zoned are
-"none" for regular block devices and "host-aware" or "host-managed" for zoned
+"yesne" for regular block devices and "host-aware" or "host-managed" for zoned
 block devices. The characteristics of host-aware and host-managed zoned block
 devices are described in the ZBC (Zoned Block Commands) and ZAC
 (Zoned Device ATA Command Set) standards. These standards also define the
 "drive-managed" zone model. However, since drive-managed zoned block devices
-do not support zone commands, they will be treated as regular block devices
-and zoned will report "none".
+do yest support zone commands, they will be treated as regular block devices
+and zoned will report "yesne".
 
 Jens Axboe <jens.axboe@oracle.com>, February 2009

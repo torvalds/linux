@@ -18,7 +18,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/i2c-smbus.h>
@@ -184,9 +184,9 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 
 	/*
 	 * If we can set SDA, we will always create a STOP to ensure additional
-	 * pulses will do no harm. This is achieved by letting SDA follow SCL
+	 * pulses will do yes harm. This is achieved by letting SDA follow SCL
 	 * half a cycle later. Check the 'incomplete_write_byte' fault injector
-	 * for details. Note that we must honour tsu:sto, 4us, but lets use 5us
+	 * for details. Note that we must hoyesur tsu:sto, 4us, but lets use 5us
 	 * here for simplicity.
 	 */
 	bri->set_scl(adap, scl);
@@ -213,10 +213,10 @@ int i2c_generic_scl_recovery(struct i2c_adapter *adap)
 		bri->set_scl(adap, scl);
 		/* Creating STOP again, see above */
 		if (scl)  {
-			/* Honour minimum tsu:sto */
+			/* Hoyesur minimum tsu:sto */
 			ndelay(RECOVERY_NDELAY);
 		} else {
-			/* Honour minimum tf and thd:dat */
+			/* Hoyesur minimum tf and thd:dat */
 			ndelay(RECOVERY_NDELAY / 2);
 		}
 		if (bri->set_sda)
@@ -260,7 +260,7 @@ static void i2c_init_recovery(struct i2c_adapter *adap)
 		return;
 
 	if (!bri->recover_bus) {
-		err_str = "no recover_bus() found";
+		err_str = "yes recover_bus() found";
 		goto err;
 	}
 
@@ -279,7 +279,7 @@ static void i2c_init_recovery(struct i2c_adapter *adap)
 	if (bri->recover_bus == i2c_generic_scl_recovery) {
 		/* Generic SCL recovery */
 		if (!bri->set_scl || !bri->get_scl) {
-			err_str = "no {get|set}_scl() found";
+			err_str = "yes {get|set}_scl() found";
 			goto err;
 		}
 		if (!bri->set_sda && !bri->get_sda) {
@@ -294,18 +294,18 @@ static void i2c_init_recovery(struct i2c_adapter *adap)
 	adap->bus_recovery_info = NULL;
 }
 
-static int i2c_smbus_host_notify_to_irq(const struct i2c_client *client)
+static int i2c_smbus_host_yestify_to_irq(const struct i2c_client *client)
 {
 	struct i2c_adapter *adap = client->adapter;
 	unsigned int irq;
 
-	if (!adap->host_notify_domain)
+	if (!adap->host_yestify_domain)
 		return -ENXIO;
 
 	if (client->flags & I2C_CLIENT_TEN)
 		return -EINVAL;
 
-	irq = irq_create_mapping(adap->host_notify_domain, client->addr);
+	irq = irq_create_mapping(adap->host_yestify_domain, client->addr);
 
 	return irq > 0 ? irq : -ENXIO;
 }
@@ -330,11 +330,11 @@ static int i2c_device_probe(struct device *dev)
 			dev_dbg(dev, "Using Host Notify IRQ\n");
 			/* Keep adapter active when Host Notify is required */
 			pm_runtime_get_sync(&client->adapter->dev);
-			irq = i2c_smbus_host_notify_to_irq(client);
-		} else if (dev->of_node) {
-			irq = of_irq_get_byname(dev->of_node, "irq");
+			irq = i2c_smbus_host_yestify_to_irq(client);
+		} else if (dev->of_yesde) {
+			irq = of_irq_get_byname(dev->of_yesde, "irq");
 			if (irq == -EINVAL || irq == -ENODATA)
-				irq = of_irq_get(dev->of_node, 0);
+				irq = of_irq_get(dev->of_yesde, 0);
 		} else if (ACPI_COMPANION(dev)) {
 			irq = i2c_acpi_get_irq(client);
 		}
@@ -348,7 +348,7 @@ static int i2c_device_probe(struct device *dev)
 	}
 
 	/*
-	 * An I2C ID table is not mandatory, if and only if, a suitable OF
+	 * An I2C ID table is yest mandatory, if and only if, a suitable OF
 	 * or ACPI ID table is supplied for the probing device.
 	 */
 	if (!driver->id_table &&
@@ -359,7 +359,7 @@ static int i2c_device_probe(struct device *dev)
 	if (client->flags & I2C_CLIENT_WAKE) {
 		int wakeirq;
 
-		wakeirq = of_irq_get_byname(dev->of_node, "wakeup");
+		wakeirq = of_irq_get_byname(dev->of_yesde, "wakeup");
 		if (wakeirq == -EPROBE_DEFER)
 			return wakeirq;
 
@@ -378,7 +378,7 @@ static int i2c_device_probe(struct device *dev)
 
 	dev_dbg(dev, "probe\n");
 
-	status = of_clk_set_defaults(dev->of_node, false);
+	status = of_clk_set_defaults(dev->of_yesde, false);
 	if (status < 0)
 		goto err_clear_wakeup_irq;
 
@@ -387,7 +387,7 @@ static int i2c_device_probe(struct device *dev)
 		goto err_clear_wakeup_irq;
 
 	/*
-	 * When there are no more users of probe(),
+	 * When there are yes more users of probe(),
 	 * rename probe_new to probe.
 	 */
 	if (driver->probe_new)
@@ -512,8 +512,8 @@ EXPORT_SYMBOL_GPL(i2c_client_type);
  *
  * When traversing the driver model tree, perhaps using driver model
  * iterators like @device_for_each_child(), you can't assume very much
- * about the nodes you find.  Use this function to avoid oopses caused
- * by wrongly treating some non-I2C device as an i2c_client.
+ * about the yesdes you find.  Use this function to avoid oopses caused
+ * by wrongly treating some yesn-I2C device as an i2c_client.
  */
 struct i2c_client *i2c_verify_client(struct device *dev)
 {
@@ -540,7 +540,7 @@ static unsigned short i2c_encode_flags_to_addr(struct i2c_client *client)
 }
 
 /* This is a permissive address validity check, I2C address map constraints
- * are purposely not enforced, except for the general call address. */
+ * are purposely yest enforced, except for the general call address. */
 static int i2c_check_addr_validity(unsigned int addr, unsigned short flags)
 {
 	if (flags & I2C_CLIENT_TEN) {
@@ -715,13 +715,13 @@ int i2c_dev_irq_from_resources(const struct resource *resources,
 /**
  * i2c_new_client_device - instantiate an i2c device
  * @adap: the adapter managing the device
- * @info: describes one I2C device; bus_num is ignored
+ * @info: describes one I2C device; bus_num is igyesred
  * Context: can sleep
  *
  * Create an i2c device. Binding is handled through driver model
  * probe()/remove() methods.  A driver may be bound to this device when we
  * return from this function, or any later moment (e.g. maybe hotplugging will
- * load the driver module).  This call is not appropriate for use by mainboard
+ * load the driver module).  This call is yest appropriate for use by mainboard
  * initialization logic, which usually runs during an arch_initcall() long
  * before any i2c_adapter could exist.
  *
@@ -766,8 +766,8 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
 	client->dev.type = &i2c_client_type;
-	client->dev.of_node = of_node_get(info->of_node);
-	client->dev.fwnode = info->fwnode;
+	client->dev.of_yesde = of_yesde_get(info->of_yesde);
+	client->dev.fwyesde = info->fwyesde;
 
 	i2c_dev_set_name(adap, client, info);
 
@@ -777,7 +777,7 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 			dev_err(&adap->dev,
 				"Failed to add properties to client %s: %d\n",
 				client->name, status);
-			goto out_err_put_of_node;
+			goto out_err_put_of_yesde;
 		}
 	}
 
@@ -793,8 +793,8 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 out_free_props:
 	if (info->properties)
 		device_remove_properties(&client->dev);
-out_err_put_of_node:
-	of_node_put(info->of_node);
+out_err_put_of_yesde:
+	of_yesde_put(info->of_yesde);
 out_err:
 	dev_err(&adap->dev,
 		"Failed to register i2c client %s at 0x%02x (%d)\n",
@@ -808,7 +808,7 @@ EXPORT_SYMBOL_GPL(i2c_new_client_device);
 /**
  * i2c_new_device - instantiate an i2c device
  * @adap: the adapter managing the device
- * @info: describes one I2C device; bus_num is ignored
+ * @info: describes one I2C device; bus_num is igyesred
  * Context: can sleep
  *
  * This deprecated function has the same functionality as
@@ -840,9 +840,9 @@ void i2c_unregister_device(struct i2c_client *client)
 	if (IS_ERR_OR_NULL(client))
 		return;
 
-	if (client->dev.of_node) {
-		of_node_clear_flag(client->dev.of_node, OF_POPULATED);
-		of_node_put(client->dev.of_node);
+	if (client->dev.of_yesde) {
+		of_yesde_clear_flag(client->dev.of_yesde, OF_POPULATED);
+		of_yesde_put(client->dev.of_yesde);
 	}
 
 	if (ACPI_COMPANION(&client->dev))
@@ -952,7 +952,7 @@ EXPORT_SYMBOL_GPL(devm_i2c_new_dummy_device);
  * and create the associated device
  * @client: Handle to the primary client
  * @name: Handle to specify which secondary address to get
- * @default_addr: Used as a fallback if no secondary address was specified
+ * @default_addr: Used as a fallback if yes secondary address was specified
  * Context: can sleep
  *
  * I2C clients can be composed of multiple I2C slaves bound together in a single
@@ -960,7 +960,7 @@ EXPORT_SYMBOL_GPL(devm_i2c_new_dummy_device);
  * to create I2C dummy clients to communicate with all the other slaves.
  *
  * This function creates and returns an I2C dummy client whose I2C address is
- * retrieved from the platform firmware based on the given slave name. If no
+ * retrieved from the platform firmware based on the given slave name. If yes
  * address is specified by the firmware default_addr is used.
  *
  * On DT-based platforms the address is retrieved from the "reg" property entry
@@ -973,7 +973,7 @@ struct i2c_client *i2c_new_ancillary_device(struct i2c_client *client,
 						const char *name,
 						u16 default_addr)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	u32 addr = default_addr;
 	int i;
 
@@ -1157,8 +1157,8 @@ EXPORT_SYMBOL_GPL(i2c_adapter_type);
  *
  * When traversing the driver model tree, perhaps using driver model
  * iterators like @device_for_each_child(), you can't assume very much
- * about the nodes you find.  Use this function to avoid oopses caused
- * by wrongly treating some non-I2C device as an i2c_adapter.
+ * about the yesdes you find.  Use this function to avoid oopses caused
+ * by wrongly treating some yesn-I2C device as an i2c_adapter.
  */
 struct i2c_adapter *i2c_verify_adapter(struct device *dev)
 {
@@ -1208,9 +1208,9 @@ static const struct i2c_lock_operations i2c_adapter_lock_ops = {
 	.unlock_bus =  i2c_adapter_unlock_bus,
 };
 
-static void i2c_host_notify_irq_teardown(struct i2c_adapter *adap)
+static void i2c_host_yestify_irq_teardown(struct i2c_adapter *adap)
 {
-	struct irq_domain *domain = adap->host_notify_domain;
+	struct irq_domain *domain = adap->host_yestify_domain;
 	irq_hw_number_t hwirq;
 
 	if (!domain)
@@ -1220,10 +1220,10 @@ static void i2c_host_notify_irq_teardown(struct i2c_adapter *adap)
 		irq_dispose_mapping(irq_find_mapping(domain, hwirq));
 
 	irq_domain_remove(domain);
-	adap->host_notify_domain = NULL;
+	adap->host_yestify_domain = NULL;
 }
 
-static int i2c_host_notify_irq_map(struct irq_domain *h,
+static int i2c_host_yestify_irq_map(struct irq_domain *h,
 					  unsigned int virq,
 					  irq_hw_number_t hw_irq_num)
 {
@@ -1232,46 +1232,46 @@ static int i2c_host_notify_irq_map(struct irq_domain *h,
 	return 0;
 }
 
-static const struct irq_domain_ops i2c_host_notify_irq_ops = {
-	.map = i2c_host_notify_irq_map,
+static const struct irq_domain_ops i2c_host_yestify_irq_ops = {
+	.map = i2c_host_yestify_irq_map,
 };
 
-static int i2c_setup_host_notify_irq_domain(struct i2c_adapter *adap)
+static int i2c_setup_host_yestify_irq_domain(struct i2c_adapter *adap)
 {
 	struct irq_domain *domain;
 
 	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_HOST_NOTIFY))
 		return 0;
 
-	domain = irq_domain_create_linear(adap->dev.fwnode,
+	domain = irq_domain_create_linear(adap->dev.fwyesde,
 					  I2C_ADDR_7BITS_COUNT,
-					  &i2c_host_notify_irq_ops, adap);
+					  &i2c_host_yestify_irq_ops, adap);
 	if (!domain)
 		return -ENOMEM;
 
-	adap->host_notify_domain = domain;
+	adap->host_yestify_domain = domain;
 
 	return 0;
 }
 
 /**
- * i2c_handle_smbus_host_notify - Forward a Host Notify event to the correct
+ * i2c_handle_smbus_host_yestify - Forward a Host Notify event to the correct
  * I2C client.
  * @adap: the adapter
- * @addr: the I2C address of the notifying device
+ * @addr: the I2C address of the yestifying device
  * Context: can't sleep
  *
  * Helper function to be called from an I2C bus driver's interrupt
  * handler. It will schedule the Host Notify IRQ.
  */
-int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr)
+int i2c_handle_smbus_host_yestify(struct i2c_adapter *adap, unsigned short addr)
 {
 	int irq;
 
 	if (!adap)
 		return -EINVAL;
 
-	irq = irq_find_mapping(adap->host_notify_domain, addr);
+	irq = irq_find_mapping(adap->host_yestify_domain, addr);
 	if (irq <= 0)
 		return -ENXIO;
 
@@ -1279,7 +1279,7 @@ int i2c_handle_smbus_host_notify(struct i2c_adapter *adap, unsigned short addr)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(i2c_handle_smbus_host_notify);
+EXPORT_SYMBOL_GPL(i2c_handle_smbus_host_yestify);
 
 static int i2c_register_adapter(struct i2c_adapter *adap)
 {
@@ -1292,11 +1292,11 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	}
 
 	/* Sanity checks */
-	if (WARN(!adap->name[0], "i2c adapter has no name"))
+	if (WARN(!adap->name[0], "i2c adapter has yes name"))
 		goto out_list;
 
 	if (!adap->algo) {
-		pr_err("adapter '%s': no algo supplied!\n", adap->name);
+		pr_err("adapter '%s': yes algo supplied!\n", adap->name);
 		goto out_list;
 	}
 
@@ -1309,12 +1309,12 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	mutex_init(&adap->userspace_clients_lock);
 	INIT_LIST_HEAD(&adap->userspace_clients);
 
-	/* Set default timeout to 1 second if not already set */
+	/* Set default timeout to 1 second if yest already set */
 	if (adap->timeout == 0)
 		adap->timeout = HZ;
 
 	/* register soft irqs for Host Notify */
-	res = i2c_setup_host_notify_irq_domain(adap);
+	res = i2c_setup_host_yestify_irq_domain(adap);
 	if (res) {
 		pr_err("adapter '%s': can't create Host Notify IRQs (%d)\n",
 		       adap->name, res);
@@ -1336,8 +1336,8 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 
 	dev_dbg(&adap->dev, "adapter [%s] registered\n", adap->name);
 
-	pm_runtime_no_callbacks(&adap->dev);
-	pm_suspend_ignore_children(&adap->dev, true);
+	pm_runtime_yes_callbacks(&adap->dev);
+	pm_suspend_igyesre_children(&adap->dev, true);
 	pm_runtime_enable(&adap->dev);
 
 #ifdef CONFIG_I2C_COMPAT
@@ -1350,7 +1350,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 
 	i2c_init_recovery(adap);
 
-	/* create pre-declared device nodes */
+	/* create pre-declared device yesdes */
 	of_i2c_register_devices(adap);
 	i2c_acpi_register_devices(adap);
 	i2c_acpi_install_space_handler(adap);
@@ -1408,15 +1408,15 @@ static int __i2c_add_numbered_adapter(struct i2c_adapter *adap)
  *
  * When this returns zero, a new bus number was allocated and stored
  * in adap->nr, and the specified adapter became available for clients.
- * Otherwise, a negative errno value is returned.
+ * Otherwise, a negative erryes value is returned.
  */
 int i2c_add_adapter(struct i2c_adapter *adapter)
 {
 	struct device *dev = &adapter->dev;
 	int id;
 
-	if (dev->of_node) {
-		id = of_alias_get_id(dev->of_node, "i2c");
+	if (dev->of_yesde) {
+		id = of_alias_get_id(dev->of_yesde, "i2c");
 		if (id >= 0) {
 			adapter->nr = id;
 			return __i2c_add_numbered_adapter(adapter);
@@ -1449,15 +1449,15 @@ EXPORT_SYMBOL(i2c_add_adapter);
  * If the requested bus number is set to -1, then this function will behave
  * identically to i2c_add_adapter, and will dynamically assign a bus number.
  *
- * If no devices have pre-been declared for this bus, then be sure to
+ * If yes devices have pre-been declared for this bus, then be sure to
  * register the adapter before any dynamically allocated ones.  Otherwise
- * the required bus ID may not be available.
+ * the required bus ID may yest be available.
  *
  * When this returns zero, the specified adapter became available for
  * clients using the bus number provided in adap->nr.  Also, the table
  * of I2C devices pre-declared using i2c_register_board_info() is scanned,
- * and the appropriate driver model device nodes are created.  Otherwise, a
- * negative errno value is returned.
+ * and the appropriate driver model device yesdes are created.  Otherwise, a
+ * negative erryes value is returned.
  */
 int i2c_add_numbered_adapter(struct i2c_adapter *adap)
 {
@@ -1547,7 +1547,7 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	}
 	mutex_unlock(&adap->userspace_clients_lock);
 
-	/* Detach any active clients. This can't fail, thus we do not
+	/* Detach any active clients. This can't fail, thus we do yest
 	 * check the returned value. This is a two-pass process, because
 	 * we can't remove the dummy devices during the first pass: they
 	 * could have been instantiated by real devices wishing to clean
@@ -1565,7 +1565,7 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 
 	pm_runtime_disable(&adap->dev);
 
-	i2c_host_notify_irq_teardown(adap);
+	i2c_host_yestify_irq_teardown(adap);
 
 	/* wait until all references to the device are gone
 	 *
@@ -1594,12 +1594,12 @@ EXPORT_SYMBOL(i2c_del_adapter);
  * @dev: The device to scan for I2C timing properties
  * @t: the i2c_timings struct to be filled with values
  * @use_defaults: bool to use sane defaults derived from the I2C specification
- *		  when properties are not found, otherwise use 0
+ *		  when properties are yest found, otherwise use 0
  *
  * Scan the device for the generic I2C properties describing timing parameters
  * for the signal and fill the given struct with the results. If a property was
- * not found and use_defaults was true, then maximum timings are assumed which
- * are derived from the I2C specification. If use_defaults is not used, the
+ * yest found and use_defaults was true, then maximum timings are assumed which
+ * are derived from the I2C specification. If use_defaults is yest used, the
  * results will be 0, so drivers can apply their own defaults later. The latter
  * is mainly intended for avoiding regressions of existing drivers which want
  * to switch to this function. New drivers almost always should use the defaults.
@@ -1671,7 +1671,7 @@ static int __process_new_driver(struct device *dev, void *data)
 }
 
 /*
- * An i2c_driver is used with one or more i2c_client (device) nodes to access
+ * An i2c_driver is used with one or more i2c_client (device) yesdes to access
  * i2c slave chips, on a bus instance associated with some i2c_adapter.
  */
 
@@ -1786,9 +1786,9 @@ static int __init i2c_init(void)
 		goto class_err;
 
 	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
-		WARN_ON(of_reconfig_notifier_register(&i2c_of_notifier));
+		WARN_ON(of_reconfig_yestifier_register(&i2c_of_yestifier));
 	if (IS_ENABLED(CONFIG_ACPI))
-		WARN_ON(acpi_reconfig_notifier_register(&i2c_acpi_notifier));
+		WARN_ON(acpi_reconfig_yestifier_register(&i2c_acpi_yestifier));
 
 	return 0;
 
@@ -1805,9 +1805,9 @@ bus_err:
 static void __exit i2c_exit(void)
 {
 	if (IS_ENABLED(CONFIG_ACPI))
-		WARN_ON(acpi_reconfig_notifier_unregister(&i2c_acpi_notifier));
+		WARN_ON(acpi_reconfig_yestifier_unregister(&i2c_acpi_yestifier));
 	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
-		WARN_ON(of_reconfig_notifier_unregister(&i2c_of_notifier));
+		WARN_ON(of_reconfig_yestifier_unregister(&i2c_of_yestifier));
 	i2c_del_driver(&dummy_driver);
 #ifdef CONFIG_I2C_COMPAT
 	class_compat_unregister(i2c_adapter_compat_class);
@@ -1827,7 +1827,7 @@ module_exit(i2c_exit);
  * ----------------------------------------------------
  */
 
-/* Check if val is exceeding the quirk IFF quirk is non 0 */
+/* Check if val is exceeding the quirk IFF quirk is yesn 0 */
 #define i2c_quirk_exceeded(val, quirk) ((quirk) && ((val) > (quirk)))
 
 static int i2c_quirk_error(struct i2c_adapter *adap, struct i2c_msg *msg, char *err_msg)
@@ -1879,13 +1879,13 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs, 
 				return i2c_quirk_error(adap, &msgs[i], "msg too long");
 
 			if (q->flags & I2C_AQ_NO_ZERO_LEN_READ && len == 0)
-				return i2c_quirk_error(adap, &msgs[i], "no zero length");
+				return i2c_quirk_error(adap, &msgs[i], "yes zero length");
 		} else {
 			if (do_len_check && i2c_quirk_exceeded(len, q->max_write_len))
 				return i2c_quirk_error(adap, &msgs[i], "msg too long");
 
 			if (q->flags & I2C_AQ_NO_ZERO_LEN_WRITE && len == 0)
-				return i2c_quirk_error(adap, &msgs[i], "no zero length");
+				return i2c_quirk_error(adap, &msgs[i], "yes zero length");
 		}
 	}
 
@@ -1899,7 +1899,7 @@ static int i2c_check_for_quirks(struct i2c_adapter *adap, struct i2c_msg *msgs, 
  *	terminate the operation; each message begins with a START.
  * @num: Number of messages to be executed.
  *
- * Returns negative errno, else the number of messages executed.
+ * Returns negative erryes, else the number of messages executed.
  *
  * Adapter lock must be held when calling this function. No debug logging
  * takes place. adap->algo->master_xfer existence isn't checked.
@@ -1922,7 +1922,7 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	/*
 	 * i2c_trace_msg_key gets enabled when tracepoint i2c_transfer gets
 	 * enabled.  This is an efficient way of keeping the for-loop from
-	 * being executed when not needed.
+	 * being executed when yest needed.
 	 */
 	if (static_branch_unlikely(&i2c_trace_msg_key)) {
 		int i;
@@ -1966,9 +1966,9 @@ EXPORT_SYMBOL(__i2c_transfer);
  *	terminate the operation; each message begins with a START.
  * @num: Number of messages to be executed.
  *
- * Returns negative errno, else the number of messages executed.
+ * Returns negative erryes, else the number of messages executed.
  *
- * Note that there is no requirement that each message be sent to
+ * Note that there is yes requirement that each message be sent to
  * the same slave address, although that is the most common model.
  */
 int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
@@ -1976,24 +1976,24 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	int ret;
 
 	if (!adap->algo->master_xfer) {
-		dev_dbg(&adap->dev, "I2C level transfers not supported\n");
+		dev_dbg(&adap->dev, "I2C level transfers yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
 	/* REVISIT the fault reporting model here is weak:
 	 *
 	 *  - When we get an error after receiving N bytes from a slave,
-	 *    there is no way to report "N".
+	 *    there is yes way to report "N".
 	 *
 	 *  - When we get a NAK after transmitting N bytes to a slave,
-	 *    there is no way to report "N" ... or to let the master
+	 *    there is yes way to report "N" ... or to let the master
 	 *    continue executing the rest of this combined message, if
 	 *    that's the appropriate response.
 	 *
 	 *  - When for example "num" is two and we successfully complete
 	 *    the first message but get an error part way through the
 	 *    second, it's unclear whether that should be reported as
-	 *    one (discarding status on the second message) or errno
+	 *    one (discarding status on the second message) or erryes
 	 *    (discarding status on the first one).
 	 */
 	ret = __i2c_lock_bus_helper(adap);
@@ -2015,7 +2015,7 @@ EXPORT_SYMBOL(i2c_transfer);
  * @count: How many bytes to transfer, must be less than 64k since msg.len is u16
  * @flags: The flags to be used for the message, e.g. I2C_M_RD for reads
  *
- * Returns negative errno, or else the number of bytes transferred.
+ * Returns negative erryes, or else the number of bytes transferred.
  */
 int i2c_transfer_buffer_flags(const struct i2c_client *client, char *buf,
 			      int count, u16 flags)
@@ -2043,7 +2043,7 @@ EXPORT_SYMBOL(i2c_transfer_buffer_flags);
  * @client: The device to query
  * @id: The queried information
  *
- * Returns negative errno on error, zero on success.
+ * Returns negative erryes on error, zero on success.
  */
 int i2c_get_device_id(const struct i2c_client *client,
 		      struct i2c_device_identity *id)
@@ -2071,21 +2071,21 @@ EXPORT_SYMBOL_GPL(i2c_get_device_id);
 
 /* ----------------------------------------------------
  * the i2c address scanning function
- * Will not work for 10-bit addresses!
+ * Will yest work for 10-bit addresses!
  * ----------------------------------------------------
  */
 
 /*
  * Legacy default probe function, mostly relevant for SMBus. The default
- * probe method is a quick write, but it is known to corrupt the 24RF08
+ * probe method is a quick write, but it is kyeswn to corrupt the 24RF08
  * EEPROMs due to a state machine bug, and could also irreversibly
  * write-protect some EEPROMs, so for address ranges 0x30-0x37 and 0x50-0x5f,
  * we use a short byte read instead. Also, some bus drivers don't implement
  * quick write, so we fallback to a byte read in that case too.
- * On x86, there is another special case for FSC hardware monitoring chips,
+ * On x86, there is ayesther special case for FSC hardware monitoring chips,
  * which want regular byte reads (address 0x73.) Fortunately, these are the
- * only known chips using this I2C address on PC hardware.
- * Returns 1 if probe succeeded, 0 if not.
+ * only kyeswn chips using this I2C address on PC hardware.
+ * Returns 1 if probe succeeded, 0 if yest.
  */
 static int i2c_default_probe(struct i2c_adapter *adap, unsigned short addr)
 {
@@ -2131,7 +2131,7 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 		return err;
 	}
 
-	/* Skip if already in use (7 bit, no need to encode flags) */
+	/* Skip if already in use (7 bit, yes need to encode flags) */
 	if (i2c_check_addr_busy(adapter, addr))
 		return 0;
 
@@ -2152,7 +2152,7 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 	/* Consistency check */
 	if (info.type[0] == '\0') {
 		dev_err(&adapter->dev,
-			"%s detection function provided no name for 0x%x\n",
+			"%s detection function provided yes name for 0x%x\n",
 			driver->driver.name, addr);
 	} else {
 		struct i2c_client *client;
@@ -2197,7 +2197,7 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 		return 0;
 	}
 
-	/* Stop here if the classes do not match */
+	/* Stop here if the classes do yest match */
 	if (!(adapter->class & driver->class))
 		return 0;
 
@@ -2209,7 +2209,7 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 
 	for (i = 0; address_list[i] != I2C_CLIENT_END; i += 1) {
 		dev_dbg(&adapter->dev,
-			"found normal entry for adapter %d, addr 0x%02x\n",
+			"found yesrmal entry for adapter %d, addr 0x%02x\n",
 			adap_id, address_list[i]);
 		temp_client->addr = address_list[i];
 		err = i2c_detect_address(temp_client, driver);
@@ -2247,10 +2247,10 @@ i2c_new_scanned_device(struct i2c_adapter *adap,
 			continue;
 		}
 
-		/* Check address availability (7 bit, no need to encode flags) */
+		/* Check address availability (7 bit, yes need to encode flags) */
 		if (i2c_check_addr_busy(adap, addr_list[i])) {
 			dev_dbg(&adap->dev,
-				"Address 0x%02x already in use, not probing\n",
+				"Address 0x%02x already in use, yest probing\n",
 				addr_list[i]);
 			continue;
 		}
@@ -2261,7 +2261,7 @@ i2c_new_scanned_device(struct i2c_adapter *adap,
 	}
 
 	if (addr_list[i] == I2C_CLIENT_END) {
-		dev_dbg(&adap->dev, "Probing failed, no device found\n");
+		dev_dbg(&adap->dev, "Probing failed, yes device found\n");
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -2319,7 +2319,7 @@ EXPORT_SYMBOL(i2c_put_adapter);
  * @threshold: the minimum number of bytes for which using DMA makes sense.
  *	       Should at least be 1.
  *
- * Return: NULL if a DMA safe buffer was not obtained. Use msg->buf with PIO.
+ * Return: NULL if a DMA safe buffer was yest obtained. Use msg->buf with PIO.
  *	   Or a valid pointer to be used with DMA. After use, release it by
  *	   calling i2c_put_dma_safe_msg_buf().
  *

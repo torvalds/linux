@@ -10,14 +10,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -58,7 +58,7 @@
 #include "aicasm_symbol.h"
 #include "aicasm_insformat.h"
 
-int yylineno;
+int yylineyes;
 char *yyfilename;
 char stock_prefix[] = "aic_";
 char *prefix = stock_prefix;
@@ -74,7 +74,7 @@ static symbol_ref_t accumulator;
 static symbol_ref_t mode_ptr;
 static symbol_ref_t allones;
 static symbol_ref_t allzeros;
-static symbol_ref_t none;
+static symbol_ref_t yesne;
 static symbol_ref_t sindex;
 static int instruction_ptr;
 static int num_srams;
@@ -193,7 +193,7 @@ void yyerror(const char *string);
 
 %token <value> T_OR
 
-/* 16 bit extensions, not implemented
+/* 16 bit extensions, yest implemented
  * %token <value> T_OR16 T_AND16 T_XOR16 T_ADD16
  * %token <value> T_ADC16 T_MVI16 T_TEST16 T_CMP16 T_CMPXCHG
  */
@@ -225,7 +225,7 @@ void yyerror(const char *string);
 %left '+' '-'
 %left '*' '/'
 %right '~'
-%nonassoc UMINUS
+%yesnassoc UMINUS
 %%
 
 program:
@@ -323,7 +323,7 @@ reg_definition:
 		{
 			/*
 			 * Default to allowing everything in for registers
-			 * with no bit or mask definitions.
+			 * with yes bit or mask definitions.
 			 */
 			if (cur_symbol->info.rinfo->valid_bitmask == 0)
 				cur_symbol->info.rinfo->valid_bitmask = 0xFF;
@@ -365,7 +365,7 @@ reg_attribute:
 |	mode_pointer
 |	allones
 |	allzeros
-|	none
+|	yesne
 |	sindex
 ;
 
@@ -591,15 +591,15 @@ allzeros:
 	}
 ;
 
-none:
+yesne:
 	T_NONE
 	{
-		if (none.symbol != NULL) {
-			stop("Only one definition of none allowed",
+		if (yesne.symbol != NULL) {
+			stop("Only one definition of yesne allowed",
 			     EX_DATAERR);
 			/* NOTREACHED */
 		}
-		none.symbol = cur_symbol;
+		yesne.symbol = cur_symbol;
 	}
 ;
 
@@ -788,7 +788,7 @@ macrodefn:
 
 macro_arglist:
 	{
-		/* Macros can take no arguments */
+		/* Macros can take yes arguments */
 		$$ = 0;
 	}
 |	T_ARG
@@ -1212,7 +1212,7 @@ code:
 		expression_t immed;
 
 		make_expression(&immed, -1);
-		format_1_instr(AIC_OP_ADD, &none, &immed, &allzeros, $2);
+		format_1_instr(AIC_OP_ADD, &yesne, &immed, &allzeros, $2);
 	}
 |	T_CLC T_MVI destination ',' immediate_or_a ret ';'
 	{
@@ -1226,7 +1226,7 @@ code:
 		expression_t immed;
 
 		make_expression(&immed, 1);
-		format_1_instr(AIC_OP_ADD, &none, &immed, &allones, $2);
+		format_1_instr(AIC_OP_ADD, &yesne, &immed, &allones, $2);
 	}
 |	T_STC destination ret ';'
 	{
@@ -1263,7 +1263,7 @@ code:
 
 			/*
 			 * Allow move immediates of 0 so that macros,
-			 * that can't know the immediate's value and
+			 * that can't kyesw the immediate's value and
 			 * otherwise compensate, still work.
 			 */
 			make_expression(&immed, 1);
@@ -1300,7 +1300,7 @@ code:
 		expression_t immed;
 
 		make_expression(&immed, 0xff);
-		format_1_instr(AIC_OP_AND, &none, &immed, &allzeros, $2);
+		format_1_instr(AIC_OP_AND, &yesne, &immed, &allzeros, $2);
 	}
 ;
 
@@ -1310,7 +1310,7 @@ code:
 		expression_t immed;
 
 		make_expression(&immed, 0xff);
-		format_1_instr(AIC_OP_AND, &none, &immed, &allzeros, TRUE);
+		format_1_instr(AIC_OP_AND, &yesne, &immed, &allzeros, TRUE);
 	}
 ;
 
@@ -1331,7 +1331,7 @@ f2_opcode:
 ;
 
 /*
- * 16bit opcodes, not used
+ * 16bit opcodes, yest used
  *
  *f4_opcode:
  *	T_OR16	{ $$ = AIC_OP_OR16; }
@@ -1636,7 +1636,7 @@ process_register(symbol_t **p_symbol)
 		&& (symbol->type != SCBLOC)
 		&& (symbol->type != SRAMLOC)) {
 		snprintf(errbuf, sizeof(errbuf),
-			 "Specified symbol %s is not a register",
+			 "Specified symbol %s is yest a register",
 			 symbol->name);
 		stop(errbuf, EX_DATAERR);
 	}
@@ -1854,7 +1854,7 @@ static void
 type_check(symbol_ref_t *sym, expression_t *expression, int opcode)
 {
 	symbol_t *symbol = sym->symbol;
-	symbol_node_t *node;
+	symbol_yesde_t *yesde;
 	int and_op;
 	int8_t value, mask;
 
@@ -1889,19 +1889,19 @@ type_check(symbol_ref_t *sym, expression_t *expression, int opcode)
 	 * expression are defined for this register.
 	 */
 	if (symbol->info.rinfo->typecheck_masks != FALSE) {
-		for(node = expression->referenced_syms.slh_first;
-		    node != NULL;
-		    node = node->links.sle_next) {
-			if ((node->symbol->type == MASK
-			  || node->symbol->type == FIELD
-			  || node->symbol->type == ENUM
-			  || node->symbol->type == ENUM_ENTRY)
-			 && symlist_search(&node->symbol->info.finfo->symrefs,
+		for(yesde = expression->referenced_syms.slh_first;
+		    yesde != NULL;
+		    yesde = yesde->links.sle_next) {
+			if ((yesde->symbol->type == MASK
+			  || yesde->symbol->type == FIELD
+			  || yesde->symbol->type == ENUM
+			  || yesde->symbol->type == ENUM_ENTRY)
+			 && symlist_search(&yesde->symbol->info.finfo->symrefs,
 					   symbol->name) == NULL) {
 				snprintf(errbuf, sizeof(errbuf),
 					 "Invalid field or mask %s "
 					 "for register %s",
-					 node->symbol->name, symbol->name);
+					 yesde->symbol->name, symbol->name);
 				stop(errbuf, EX_DATAERR);
 				/* NOTREACHED */
 			}

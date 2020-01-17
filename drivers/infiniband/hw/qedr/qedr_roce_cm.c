@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -106,7 +106,7 @@ static void qedr_ll2_complete_rx_packet(void *cxt,
 	qp->rqe_wr_id[qp->rq.gsi_cons].rc = data->u.data_length_error ?
 		-EINVAL : 0;
 	qp->rqe_wr_id[qp->rq.gsi_cons].vlan = data->vlan;
-	/* note: length stands for data length i.e. GRH is excluded */
+	/* yeste: length stands for data length i.e. GRH is excluded */
 	qp->rqe_wr_id[qp->rq.gsi_cons].sg_list[0].length =
 		data->length.data_length;
 	*((u32 *)&qp->rqe_wr_id[qp->rq.gsi_cons].smac[0]) =
@@ -126,7 +126,7 @@ static void qedr_ll2_release_rx_packet(void *cxt, u8 connection_handle,
 				       void *cookie, dma_addr_t rx_buf_addr,
 				       bool b_last_packet)
 {
-	/* Do nothing... */
+	/* Do yesthing... */
 }
 
 static void qedr_destroy_gsi_cq(struct qedr_dev *dev,
@@ -224,7 +224,7 @@ static int qedr_ll2_post_tx(struct qedr_dev *dev,
 			pkt->payload[i].len);
 
 		if (rc) {
-			/* if failed not much to do here, partial packet has
+			/* if failed yest much to do here, partial packet has
 			 * been posted we can't free memory, will need to wait
 			 * for completion
 			 */
@@ -283,7 +283,7 @@ static int qedr_ll2_start(struct qedr_dev *dev,
 	data.input.tx_tc = 0;
 	data.input.tx_dest = QED_LL2_TX_DEST_NW;
 	data.input.ai_err_packet_too_big = QED_LL2_DROP_PACKET;
-	data.input.ai_err_no_buf = QED_LL2_DROP_PACKET;
+	data.input.ai_err_yes_buf = QED_LL2_DROP_PACKET;
 	data.input.gsi_enable = 1;
 	data.p_connection_handle = &dev->gsi_ll2_handle;
 	data.cbs = &cbs;
@@ -476,7 +476,7 @@ static inline int qedr_gsi_build_header(struct qedr_dev *dev,
 		udh->ip4.saddr = ipv4_addr;
 		ipv4_addr = qedr_get_ipv4_from_gid(grh->dgid.raw);
 		udh->ip4.daddr = ipv4_addr;
-		/* note: checksum is calculated by the device */
+		/* yeste: checksum is calculated by the device */
 	}
 
 	/* UDP */
@@ -552,7 +552,7 @@ int qedr_gsi_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	if (qp->state != QED_ROCE_QP_STATE_RTS) {
 		*bad_wr = wr;
 		DP_ERR(dev,
-		       "gsi post recv: failed to post rx buffer. state is %d and not QED_ROCE_QP_STATE_RTS\n",
+		       "gsi post recv: failed to post rx buffer. state is %d and yest QED_ROCE_QP_STATE_RTS\n",
 		       qp->state);
 		return -EINVAL;
 	}
@@ -622,7 +622,7 @@ int qedr_gsi_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 	    (qp->state != QED_ROCE_QP_STATE_RTS)) {
 		*bad_wr = wr;
 		DP_ERR(dev,
-		       "gsi post recv: failed to post rx buffer. state is %d and not QED_ROCE_QP_STATE_RTR/S\n",
+		       "gsi post recv: failed to post rx buffer. state is %d and yest QED_ROCE_QP_STATE_RTR/S\n",
 		       qp->state);
 		return -EINVAL;
 	}
@@ -642,7 +642,7 @@ int qedr_gsi_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 						  wr->sg_list[0].addr,
 						  wr->sg_list[0].length,
 						  NULL /* cookie */,
-						  1 /* notify_fw */);
+						  1 /* yestify_fw */);
 		if (rc) {
 			DP_ERR(dev,
 			       "gsi post recv: failed to post rx buffer (rc=%d)\n",

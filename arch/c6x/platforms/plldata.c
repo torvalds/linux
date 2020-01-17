@@ -7,7 +7,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/ioport.h>
 #include <linux/clkdev.h>
@@ -26,9 +26,9 @@
 /* Default input for PLL1 */
 struct clk clkin1 = {
 	.name = "clkin1",
-	.node = LIST_HEAD_INIT(clkin1.node),
+	.yesde = LIST_HEAD_INIT(clkin1.yesde),
 	.children = LIST_HEAD_INIT(clkin1.children),
-	.childnode = LIST_HEAD_INIT(clkin1.childnode),
+	.childyesde = LIST_HEAD_INIT(clkin1.childyesde),
 };
 
 struct pll_data c6x_soc_pll1 = {
@@ -165,7 +165,7 @@ static struct clk_lookup c6455_clks[] = {
 };
 
 
-static void __init c6455_setup_clocks(struct device_node *node)
+static void __init c6455_setup_clocks(struct device_yesde *yesde)
 {
 	struct pll_data *pll = &c6x_soc_pll1;
 	struct clk *sysclks = pll->sysclks;
@@ -203,7 +203,7 @@ static struct clk_lookup c6457_clks[] = {
 	CLK("", NULL, NULL)
 };
 
-static void __init c6457_setup_clocks(struct device_node *node)
+static void __init c6457_setup_clocks(struct device_yesde *yesde)
 {
 	struct pll_data *pll = &c6x_soc_pll1;
 	struct clk *sysclks = pll->sysclks;
@@ -253,7 +253,7 @@ static struct clk_lookup c6472_clks[] = {
 #define MAX_CORE_KHz   700000
 #define MIN_PLLOUT_KHz MIN_CLKIN1_KHz
 
-static void __init c6472_setup_clocks(struct device_node *node)
+static void __init c6472_setup_clocks(struct device_yesde *yesde)
 {
 	struct pll_data *pll = &c6x_soc_pll1;
 	struct clk *sysclks = pll->sysclks;
@@ -302,7 +302,7 @@ static struct clk_lookup c6474_clks[] = {
 	CLK("", NULL, NULL)
 };
 
-static void __init c6474_setup_clocks(struct device_node *node)
+static void __init c6474_setup_clocks(struct device_yesde *yesde)
 {
 	struct pll_data *pll = &c6x_soc_pll1;
 	struct clk *sysclks = pll->sysclks;
@@ -351,7 +351,7 @@ static struct clk_lookup c6678_clks[] = {
 	CLK("", NULL, NULL)
 };
 
-static void __init c6678_setup_clocks(struct device_node *node)
+static void __init c6678_setup_clocks(struct device_yesde *yesde)
 {
 	struct pll_data *pll = &c6x_soc_pll1;
 	struct clk *sysclks = pll->sysclks;
@@ -417,51 +417,51 @@ static struct of_device_id c6x_clkc_match[] __initdata = {
 
 void __init c64x_setup_clocks(void)
 {
-	void (*__setup_clocks)(struct device_node *np);
+	void (*__setup_clocks)(struct device_yesde *np);
 	struct pll_data *pll = &c6x_soc_pll1;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	const struct of_device_id *id;
 	int err;
 	u32 val;
 
-	node = of_find_matching_node(NULL, c6x_clkc_match);
-	if (!node)
+	yesde = of_find_matching_yesde(NULL, c6x_clkc_match);
+	if (!yesde)
 		return;
 
-	pll->base = of_iomap(node, 0);
+	pll->base = of_iomap(yesde, 0);
 	if (!pll->base)
 		goto out;
 
-	err = of_property_read_u32(node, "clock-frequency", &val);
+	err = of_property_read_u32(yesde, "clock-frequency", &val);
 	if (err || val == 0) {
-		pr_err("%pOF: no clock-frequency found! Using %dMHz\n",
-		       node, (int)val / 1000000);
+		pr_err("%pOF: yes clock-frequency found! Using %dMHz\n",
+		       yesde, (int)val / 1000000);
 		val = 25000000;
 	}
 	clkin1.rate = val;
 
-	err = of_property_read_u32(node, "ti,c64x+pll-bypass-delay", &val);
+	err = of_property_read_u32(yesde, "ti,c64x+pll-bypass-delay", &val);
 	if (err)
 		val = 5000;
 	pll->bypass_delay = val;
 
-	err = of_property_read_u32(node, "ti,c64x+pll-reset-delay", &val);
+	err = of_property_read_u32(yesde, "ti,c64x+pll-reset-delay", &val);
 	if (err)
 		val = 30000;
 	pll->reset_delay = val;
 
-	err = of_property_read_u32(node, "ti,c64x+pll-lock-delay", &val);
+	err = of_property_read_u32(yesde, "ti,c64x+pll-lock-delay", &val);
 	if (err)
 		val = 30000;
 	pll->lock_delay = val;
 
 	/* id->data is a pointer to SoC-specific setup */
-	id = of_match_node(c6x_clkc_match, node);
+	id = of_match_yesde(c6x_clkc_match, yesde);
 	if (id && id->data) {
 		__setup_clocks = id->data;
-		__setup_clocks(node);
+		__setup_clocks(yesde);
 	}
 
 out:
-	of_node_put(node);
+	of_yesde_put(yesde);
 }

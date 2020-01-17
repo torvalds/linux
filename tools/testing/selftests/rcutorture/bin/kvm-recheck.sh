@@ -7,7 +7,7 @@
 #
 # Usage: kvm-recheck.sh resdir ...
 #
-# Returns status reflecting the success or not of the last run specified.
+# Returns status reflecting the success or yest of the last run specified.
 #
 # Copyright (C) IBM Corporation, 2011
 #
@@ -58,7 +58,7 @@ do
 				echo "   $i"
 			elif test -f "$i/buildonly"
 			then
-				echo Build-only run, no boot/test
+				echo Build-only run, yes boot/test
 				configcheck.sh $i/.config $i/ConfigFragment
 				parse-build.sh $i/Make.out $configfile
 			else

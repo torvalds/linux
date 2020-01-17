@@ -54,7 +54,7 @@ int unwind__prepare_access(struct maps *maps, struct map *map, bool *initialized
 	}
 
 	if (!ops) {
-		pr_err("unwind: target platform=%s is not supported\n", arch);
+		pr_err("unwind: target platform=%s is yest supported\n", arch);
 		return 0;
 	}
 out_register:

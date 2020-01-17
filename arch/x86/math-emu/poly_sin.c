@@ -3,7 +3,7 @@
  |  poly_sin.c                                                               |
  |                                                                           |
  |  Computation of an approximation of the sin function and the cosine       |
- |  function by a polynomial.                                                |
+ |  function by a polyyesmial.                                                |
  |                                                                           |
  | Copyright (C) 1992,1993,1994,1997,1999                                    |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
@@ -83,12 +83,12 @@ void poly_sine(FPU_REG *st0_ptr)
 		argTo4.lsw = argSqrd.lsw;
 		mul_Xsig_Xsig(&argTo4, &argTo4);
 
-		polynomial_Xsig(&accumulator, &XSIG_LL(argTo4), neg_terms_l,
+		polyyesmial_Xsig(&accumulator, &XSIG_LL(argTo4), neg_terms_l,
 				N_COEFF_N - 1);
 		mul_Xsig_Xsig(&accumulator, &argSqrd);
 		negate_Xsig(&accumulator);
 
-		polynomial_Xsig(&accumulator, &XSIG_LL(argTo4), pos_terms_l,
+		polyyesmial_Xsig(&accumulator, &XSIG_LL(argTo4), pos_terms_l,
 				N_COEFF_P - 1);
 
 		shr_Xsig(&accumulator, 2);	/* Divide by four */
@@ -136,12 +136,12 @@ void poly_sine(FPU_REG *st0_ptr)
 		argTo4.lsw = argSqrd.lsw;
 		mul_Xsig_Xsig(&argTo4, &argTo4);
 
-		polynomial_Xsig(&accumulator, &XSIG_LL(argTo4), neg_terms_h,
+		polyyesmial_Xsig(&accumulator, &XSIG_LL(argTo4), neg_terms_h,
 				N_COEFF_NH - 1);
 		mul_Xsig_Xsig(&accumulator, &argSqrd);
 		negate_Xsig(&accumulator);
 
-		polynomial_Xsig(&accumulator, &XSIG_LL(argTo4), pos_terms_h,
+		polyyesmial_Xsig(&accumulator, &XSIG_LL(argTo4), pos_terms_h,
 				N_COEFF_PH - 1);
 		negate_Xsig(&accumulator);
 
@@ -238,12 +238,12 @@ void poly_cos(FPU_REG *st0_ptr)
 		argTo4.lsw = argSqrd.lsw;
 		mul_Xsig_Xsig(&argTo4, &argTo4);
 
-		polynomial_Xsig(&accumulator, &XSIG_LL(argTo4), neg_terms_h,
+		polyyesmial_Xsig(&accumulator, &XSIG_LL(argTo4), neg_terms_h,
 				N_COEFF_NH - 1);
 		mul_Xsig_Xsig(&accumulator, &argSqrd);
 		negate_Xsig(&accumulator);
 
-		polynomial_Xsig(&accumulator, &XSIG_LL(argTo4), pos_terms_h,
+		polyyesmial_Xsig(&accumulator, &XSIG_LL(argTo4), pos_terms_h,
 				N_COEFF_PH - 1);
 		negate_Xsig(&accumulator);
 
@@ -314,12 +314,12 @@ void poly_cos(FPU_REG *st0_ptr)
 		argTo4.lsw = argSqrd.lsw;
 		mul_Xsig_Xsig(&argTo4, &argTo4);
 
-		polynomial_Xsig(&accumulator, &XSIG_LL(argTo4), neg_terms_l,
+		polyyesmial_Xsig(&accumulator, &XSIG_LL(argTo4), neg_terms_l,
 				N_COEFF_N - 1);
 		mul_Xsig_Xsig(&accumulator, &argSqrd);
 		negate_Xsig(&accumulator);
 
-		polynomial_Xsig(&accumulator, &XSIG_LL(argTo4), pos_terms_l,
+		polyyesmial_Xsig(&accumulator, &XSIG_LL(argTo4), pos_terms_l,
 				N_COEFF_P - 1);
 
 		shr_Xsig(&accumulator, 2);	/* Divide by four */
@@ -354,7 +354,7 @@ void poly_cos(FPU_REG *st0_ptr)
 			fix_up.msw += mul_32_32(0x898cc517, argTo4.msw) / 24;
 		}
 
-		exp2 += norm_Xsig(&accumulator);
+		exp2 += yesrm_Xsig(&accumulator);
 		shr_Xsig(&accumulator, 1);	/* Prevent overflow */
 		exp2++;
 		shr_Xsig(&fix_up, 65 + exp2);

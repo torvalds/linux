@@ -10,11 +10,11 @@
 
 /*
  * __hc32 and __hc16 are "Host Controller" types, they may be equivalent to
- * __leXX (normally) or __beXX (given EHCI_BIG_ENDIAN_DESC), depending on
+ * __leXX (yesrmally) or __beXX (given EHCI_BIG_ENDIAN_DESC), depending on
  * the host controller implementation.
  *
  * To facilitate the strongest possible byte-order checking from "sparse"
- * and so on, we use __leXX unless that's not practical.
+ * and so on, we use __leXX unless that's yest practical.
  */
 #ifdef CONFIG_USB_EHCI_BIG_ENDIAN_DESC
 typedef __u32 __bitwise __hc32;
@@ -31,7 +31,7 @@ typedef __u16 __bitwise __hc16;
 
 struct ehci_stats {
 	/* irq usage */
-	unsigned long		normal;
+	unsigned long		yesrmal;
 	unsigned long		error;
 	unsigned long		iaa;
 	unsigned long		lost_iaa;
@@ -48,7 +48,7 @@ struct ehci_stats {
 struct ehci_per_sched {
 	struct usb_device	*udev;		/* access to the TT */
 	struct usb_host_endpoint *ep;
-	struct list_head	ps_list;	/* node on ehci_tt's ps_list */
+	struct list_head	ps_list;	/* yesde on ehci_tt's ps_list */
 	u16			tt_usecs;	/* time on the FS/LS bus */
 	u16			cs_mask;	/* C-mask and S-mask bytes */
 	u16			period;		/* actual period in frames */
@@ -61,7 +61,7 @@ struct ehci_per_sched {
 						   bandwidth reservation */
 	u8			bw_period;	/* same, in frames */
 };
-#define NO_FRAME	29999			/* frame not assigned yet */
+#define NO_FRAME	29999			/* frame yest assigned yet */
 
 /* ehci_hcd->lock guards shared data against other CPUs:
  *   ehci_hcd:	async, unlink, periodic (and shadow), ...
@@ -77,7 +77,7 @@ struct ehci_per_sched {
 
 /*
  * ehci_rh_state values of EHCI_RH_RUNNING or above mean that the
- * controller may be doing DMA.  Lower values mean there's no DMA.
+ * controller may be doing DMA.  Lower values mean there's yes DMA.
  */
 enum ehci_rh_state {
 	EHCI_RH_HALTED,
@@ -160,7 +160,7 @@ struct ehci_hcd {			/* one per controller */
 	struct list_head	intr_unlink;
 	unsigned		intr_unlink_wait_cycle;
 	unsigned		intr_unlink_cycle;
-	unsigned		now_frame;	/* frame from HC hardware */
+	unsigned		yesw_frame;	/* frame from HC hardware */
 	unsigned		last_iso_frame;	/* last frame scanned for iso */
 	unsigned		intr_count;	/* intr activity count */
 	unsigned		isoc_count;	/* isoc activity count */
@@ -168,7 +168,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		uframe_periodic_max; /* max periodic time per uframe */
 
 
-	/* list of itds & sitds completed while now_frame was still active */
+	/* list of itds & sitds completed while yesw_frame was still active */
 	struct list_head	cached_itd_list;
 	struct ehci_itd		*last_itd_to_free;
 	struct list_head	cached_sitd_list;
@@ -203,7 +203,7 @@ struct ehci_hcd {			/* one per controller */
 	u32			command;
 
 	/* SILICON QUIRKS */
-	unsigned		no_selective_suspend:1;
+	unsigned		yes_selective_suspend:1;
 	unsigned		has_fsl_port_bug:1; /* FreeScale */
 	unsigned		has_fsl_hs_errata:1;	/* Freescale HS quirk */
 	unsigned		has_fsl_susp_errata:1;	/* NXP SUSP quirk */
@@ -214,7 +214,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		need_io_watchdog:1;
 	unsigned		amd_pll_fix:1;
 	unsigned		use_dummy_qh:1;	/* AMD Frame List table quirk*/
-	unsigned		has_synopsys_hc_bug:1; /* Synopsys HC */
+	unsigned		has_syyespsys_hc_bug:1; /* Syyespsys HC */
 	unsigned		frame_index_bug:1; /* MosChip (AKA NetMos) */
 	unsigned		need_oc_pp_cycle:1; /* MPC834X port power */
 	unsigned		imx28_write_fix:1; /* For Freescale i.MX28 */
@@ -328,11 +328,11 @@ struct ehci_qtd {
 #define Q_NEXT_TYPE(ehci, dma)	((dma) & cpu_to_hc32(ehci, 3 << 1))
 
 /*
- * Now the following defines are not converted using the
+ * Now the following defines are yest converted using the
  * cpu_to_le32() macro anymore, since we have to support
  * "dynamic" switching between be and le support, so that the driver
  * can be used on one system with SoC EHCI controller using big-endian
- * descriptors as well as a normal little-endian PCI EHCI controller.
+ * descriptors as well as a yesrmal little-endian PCI EHCI controller.
  */
 /* values for that type tag */
 #define Q_TYPE_ITD	(0 << 1)
@@ -407,9 +407,9 @@ struct ehci_qh {
 	dma_addr_t		qh_dma;		/* address of qh */
 	union ehci_shadow	qh_next;	/* ptr to qh; or periodic */
 	struct list_head	qtd_list;	/* sw qtd list */
-	struct list_head	intr_node;	/* list of intr QHs */
+	struct list_head	intr_yesde;	/* list of intr QHs */
 	struct ehci_qtd		*dummy;
-	struct list_head	unlink_node;
+	struct list_head	unlink_yesde;
 	struct ehci_per_sched	ps;		/* scheduling info */
 
 	unsigned		unlink_cycle;
@@ -453,7 +453,7 @@ struct ehci_iso_packet {
 };
 
 /* temporary schedule data for packets from iso urbs (both speeds)
- * each packet is one logical usb transaction to the device (not TT),
+ * each packet is one logical usb transaction to the device (yest TT),
  * beginning at stream->next_uframe
  */
 struct ehci_iso_sched {
@@ -501,7 +501,7 @@ struct ehci_iso_stream {
 
 /*
  * EHCI Specification 0.95 Section 3.3
- * Fig 3-4 "Isochronous Transaction Descriptor (iTD)"
+ * Fig 3-4 "Isochroyesus Transaction Descriptor (iTD)"
  *
  * Schedule records for high speed iso xfers
  */
@@ -539,9 +539,9 @@ struct ehci_itd {
 
 /*
  * EHCI Specification 0.95 Section 3.4
- * siTD, aka split-transaction isochronous Transfer Descriptor
+ * siTD, aka split-transaction isochroyesus Transfer Descriptor
  *       ... describe full speed iso xfers through TT in hubs
- * see Figure 3-5 "Split-transaction Isochronous Transaction Descriptor (siTD)
+ * see Figure 3-5 "Split-transaction Isochroyesus Transaction Descriptor (siTD)
  */
 struct ehci_sitd {
 	/* first part defined by EHCI spec */
@@ -610,7 +610,7 @@ struct ehci_fstn {
  * high-speed bus.
  *
  * "Bandwidth" refers to the number of microseconds on the FS/LS bus allocated
- * to an interrupt or isochronous endpoint for each frame.  "Budget" refers to
+ * to an interrupt or isochroyesus endpoint for each frame.  "Budget" refers to
  * the best-case estimate of the number of full-speed bytes allocated to an
  * endpoint for each microframe within an allocated frame.
  *
@@ -643,7 +643,7 @@ struct ehci_tt {
 
 /*
  * Some EHCI controllers have a Transaction Translator built into the
- * root hub. This is a non-standard feature.  Each controller will need
+ * root hub. This is a yesn-standard feature.  Each controller will need
  * to add code to the following inline functions, and call them as
  * needed (mostly in root hub code).
  */
@@ -681,9 +681,9 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 /* Some Freescale processors have an erratum in which the TT
  * port number in the queue head was 0..N-1 instead of 1..N.
  */
-#define	ehci_has_fsl_portno_bug(e)		((e)->has_fsl_port_bug)
+#define	ehci_has_fsl_portyes_bug(e)		((e)->has_fsl_port_bug)
 #else
-#define	ehci_has_fsl_portno_bug(e)		(0)
+#define	ehci_has_fsl_portyes_bug(e)		(0)
 #endif
 
 #define PORTSC_FSL_PFSC	24	/* Port Force Full-Speed Connect */
@@ -706,7 +706,7 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 
 /*
  * While most USB host controllers implement their registers in
- * little-endian format, a minority (celleb companion chip) implement
+ * little-endian format, a miyesrity (celleb companion chip) implement
  * them in big endian format.
  *
  * This attempts to support either format at compile time without a
@@ -714,7 +714,7 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
  * of checking a flag bit.
  *
  * ehci_big_endian_capbase is a special quirk for controllers that
- * implement the HC capability registers as separate registers and not
+ * implement the HC capability registers as separate registers and yest
  * as fields of a 32-bit register.
  */
 
@@ -801,11 +801,11 @@ static inline void set_ohci_hcfs(struct ehci_hcd *ehci, int operational)
 /*-------------------------------------------------------------------------*/
 
 /*
- * The AMCC 440EPx not only implements its EHCI registers in big-endian
+ * The AMCC 440EPx yest only implements its EHCI registers in big-endian
  * format, but also its DMA data structures (descriptors).
  *
- * EHCI controllers accessed through PCI work normally (little-endian
- * everywhere), so we won't bother supporting a BE-only mode for now.
+ * EHCI controllers accessed through PCI work yesrmally (little-endian
+ * everywhere), so we won't bother supporting a BE-only mode for yesw.
  */
 #ifdef CONFIG_USB_EHCI_BIG_ENDIAN_DESC
 #define ehci_big_endian_desc(e)		((e)->big_endian_desc)

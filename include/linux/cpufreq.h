@@ -12,7 +12,7 @@
 #include <linux/cpumask.h>
 #include <linux/completion.h>
 #include <linux/kobject.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/pm_qos.h>
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
@@ -23,7 +23,7 @@
 /*
  * Frequency values here are CPU kHz
  *
- * Maximum transition latency is in nanoseconds - if it's unknown,
+ * Maximum transition latency is in nayesseconds - if it's unkyeswn,
  * CPUFREQ_ETERNAL shall be used.
  */
 
@@ -32,7 +32,7 @@
 /* Print length for names. Extra 1 space for accommodating '\n' in prints */
 #define CPUFREQ_NAME_PLEN		(CPUFREQ_NAME_LEN + 1)
 
-struct cpufreq_governor;
+struct cpufreq_goveryesr;
 
 enum cpufreq_table_sorting {
 	CPUFREQ_TABLE_UNSORTED,
@@ -44,7 +44,7 @@ struct cpufreq_cpuinfo {
 	unsigned int		max_freq;
 	unsigned int		min_freq;
 
-	/* in 10^(-9) s = nanoseconds */
+	/* in 10^(-9) s = nayesseconds */
 	unsigned int		transition_latency;
 };
 
@@ -64,15 +64,15 @@ struct cpufreq_policy {
 	unsigned int		min;    /* in kHz */
 	unsigned int		max;    /* in kHz */
 	unsigned int		cur;    /* in kHz, only needed if cpufreq
-					 * governors are used */
+					 * goveryesrs are used */
 	unsigned int		restore_freq; /* = policy->cur before transition */
 	unsigned int		suspend_freq; /* freq to set during suspend */
 
 	unsigned int		policy; /* see above */
 	unsigned int		last_policy; /* policy before unplug */
-	struct cpufreq_governor	*governor; /* see below */
-	void			*governor_data;
-	char			last_governor[CPUFREQ_NAME_LEN]; /* last governor used */
+	struct cpufreq_goveryesr	*goveryesr; /* see below */
+	void			*goveryesr_data;
+	char			last_goveryesr[CPUFREQ_NAME_LEN]; /* last goveryesr used */
 
 	struct work_struct	update; /* if update_policy() needs to be
 					 * called, but you're in IRQ context */
@@ -103,7 +103,7 @@ struct cpufreq_policy {
 	 * - fast_switch_possible should be set by the driver if it can
 	 *   guarantee that frequency can be changed on any CPU sharing the
 	 *   policy and that the change will affect all of the policy CPUs then.
-	 * - fast_switch_enabled is to be set by governors that support fast
+	 * - fast_switch_enabled is to be set by goveryesrs that support fast
 	 *   frequency switching with the help of cpufreq_enable_fast_switch().
 	 */
 	bool			fast_switch_possible;
@@ -112,13 +112,13 @@ struct cpufreq_policy {
 	/*
 	 * Preferred average time interval between consecutive invocations of
 	 * the driver to set the frequency for this policy.  To be set by the
-	 * scaling driver (0, which is the default, means no preference).
+	 * scaling driver (0, which is the default, means yes preference).
 	 */
 	unsigned int		transition_delay_us;
 
 	/*
 	 * Remote DVFS flag (Not added to the driver structure as we don't want
-	 * to access another structure from scheduler hotpath).
+	 * to access ayesther structure from scheduler hotpath).
 	 *
 	 * Should be set if CPUs can do DVFS on behalf of other CPUs from
 	 * different cpufreq policies.
@@ -144,8 +144,8 @@ struct cpufreq_policy {
 	/* Pointer to the cooling device if used for thermal mitigation */
 	struct thermal_cooling_device *cdev;
 
-	struct notifier_block nb_min;
-	struct notifier_block nb_max;
+	struct yestifier_block nb_min;
+	struct yestifier_block nb_max;
 };
 
 struct cpufreq_freqs {
@@ -206,8 +206,8 @@ int cpufreq_set_policy(struct cpufreq_policy *policy,
 void refresh_frequency_limits(struct cpufreq_policy *policy);
 void cpufreq_update_policy(unsigned int cpu);
 void cpufreq_update_limits(unsigned int cpu);
-bool have_governor_per_policy(void);
-struct kobject *get_governor_parent_kobj(struct cpufreq_policy *policy);
+bool have_goveryesr_per_policy(void);
+struct kobject *get_goveryesr_parent_kobj(struct cpufreq_policy *policy);
 void cpufreq_enable_fast_switch(struct cpufreq_policy *policy);
 void cpufreq_disable_fast_switch(struct cpufreq_policy *policy);
 #else
@@ -304,7 +304,7 @@ struct cpufreq_driver {
 	/*
 	 * Caches and returns the lowest driver-supported frequency greater than
 	 * or equal to the target frequency, subject to any driver limitations.
-	 * Does not set the frequency. Only to be implemented for drivers with
+	 * Does yest set the frequency. Only to be implemented for drivers with
 	 * target().
 	 */
 	unsigned int	(*resolve_freq)(struct cpufreq_policy *policy,
@@ -317,7 +317,7 @@ struct cpufreq_driver {
 	 * get_intermediate should return a stable intermediate frequency
 	 * platform wants to switch to and target_intermediate() should set CPU
 	 * to to that frequency, before jumping to the frequency corresponding
-	 * to 'index'. Core will take care of sending notifications and driver
+	 * to 'index'. Core will take care of sending yestifications and driver
 	 * doesn't have to handle them in target_intermediate() or
 	 * target_index().
 	 *
@@ -333,7 +333,7 @@ struct cpufreq_driver {
 	/* should be defined, if possible */
 	unsigned int	(*get)(unsigned int cpu);
 
-	/* Called to update policy limits on firmware notifications. */
+	/* Called to update policy limits on firmware yestifications. */
 	void		(*update_limits)(unsigned int cpu);
 
 	/* optional */
@@ -369,14 +369,14 @@ struct cpufreq_driver {
 
 /*
  * This should be set by platforms having multiple clock-domains, i.e.
- * supporting multiple policies. With this sysfs directories of governor would
+ * supporting multiple policies. With this sysfs directories of goveryesr would
  * be created in cpu/cpu<num>/cpufreq/ directory and so they can use the same
- * governor with different tunables for different clusters.
+ * goveryesr with different tunables for different clusters.
  */
 #define CPUFREQ_HAVE_GOVERNOR_PER_POLICY	BIT(3)
 
 /*
- * Driver will do POSTCHANGE notifications from outside of their ->target()
+ * Driver will do POSTCHANGE yestifications from outside of their ->target()
  * routine and so must set cpufreq_driver->flags with this flag, so that core
  * can handle them specially.
  */
@@ -392,7 +392,7 @@ struct cpufreq_driver {
 #define CPUFREQ_NEED_INITIAL_FREQ_CHECK	BIT(5)
 
 /*
- * Set by drivers to disallow use of governors with "dynamic_switching" flag
+ * Set by drivers to disallow use of goveryesrs with "dynamic_switching" flag
  * set.
  */
 #define CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING	BIT(6)
@@ -454,7 +454,7 @@ static inline void cpufreq_resume(void) {}
 #define CPUFREQ_TRANSITION_NOTIFIER	(0)
 #define CPUFREQ_POLICY_NOTIFIER		(1)
 
-/* Transition notifiers */
+/* Transition yestifiers */
 #define CPUFREQ_PRECHANGE		(0)
 #define CPUFREQ_POSTCHANGE		(1)
 
@@ -463,8 +463,8 @@ static inline void cpufreq_resume(void) {}
 #define CPUFREQ_REMOVE_POLICY		(1)
 
 #ifdef CONFIG_CPU_FREQ
-int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list);
-int cpufreq_unregister_notifier(struct notifier_block *nb, unsigned int list);
+int cpufreq_register_yestifier(struct yestifier_block *nb, unsigned int list);
+int cpufreq_unregister_yestifier(struct yestifier_block *nb, unsigned int list);
 
 void cpufreq_freq_transition_begin(struct cpufreq_policy *policy,
 		struct cpufreq_freqs *freqs);
@@ -472,12 +472,12 @@ void cpufreq_freq_transition_end(struct cpufreq_policy *policy,
 		struct cpufreq_freqs *freqs, int transition_failed);
 
 #else /* CONFIG_CPU_FREQ */
-static inline int cpufreq_register_notifier(struct notifier_block *nb,
+static inline int cpufreq_register_yestifier(struct yestifier_block *nb,
 						unsigned int list)
 {
 	return 0;
 }
-static inline int cpufreq_unregister_notifier(struct notifier_block *nb,
+static inline int cpufreq_unregister_yestifier(struct yestifier_block *nb,
 						unsigned int list)
 {
 	return 0;
@@ -514,7 +514,7 @@ static inline unsigned long cpufreq_scale(unsigned long old, u_int div,
  *********************************************************************/
 
 /*
- * If (cpufreq_driver->target) exists, the ->governor decides what frequency
+ * If (cpufreq_driver->target) exists, the ->goveryesr decides what frequency
  * within the limits is used. If (cpufreq_driver->setpolicy> exists, these
  * two generic policies are available:
  */
@@ -524,12 +524,12 @@ static inline unsigned long cpufreq_scale(unsigned long old, u_int div,
 /*
  * The polling frequency depends on the capability of the processor. Default
  * polling frequency is 1000 times the transition latency of the processor. The
- * ondemand governor will work on any processor with transition latency <= 10ms,
+ * ondemand goveryesr will work on any processor with transition latency <= 10ms,
  * using appropriate sampling rate.
  */
 #define LATENCY_MULTIPLIER		(1000)
 
-struct cpufreq_governor {
+struct cpufreq_goveryesr {
 	char	name[CPUFREQ_NAME_LEN];
 	int	(*init)(struct cpufreq_policy *policy);
 	void	(*exit)(struct cpufreq_policy *policy);
@@ -540,9 +540,9 @@ struct cpufreq_governor {
 					 char *buf);
 	int	(*store_setspeed)	(struct cpufreq_policy *policy,
 					 unsigned int freq);
-	/* For governors which change frequency dynamically by themselves */
+	/* For goveryesrs which change frequency dynamically by themselves */
 	bool			dynamic_switching;
-	struct list_head	governor_list;
+	struct list_head	goveryesr_list;
 	struct module		*owner;
 };
 
@@ -558,11 +558,11 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 					 unsigned int target_freq);
 unsigned int cpufreq_policy_transition_delay_us(struct cpufreq_policy *policy);
-int cpufreq_register_governor(struct cpufreq_governor *governor);
-void cpufreq_unregister_governor(struct cpufreq_governor *governor);
+int cpufreq_register_goveryesr(struct cpufreq_goveryesr *goveryesr);
+void cpufreq_unregister_goveryesr(struct cpufreq_goveryesr *goveryesr);
 
-struct cpufreq_governor *cpufreq_default_governor(void);
-struct cpufreq_governor *cpufreq_fallback_governor(void);
+struct cpufreq_goveryesr *cpufreq_default_goveryesr(void);
+struct cpufreq_goveryesr *cpufreq_fallback_goveryesr(void);
 
 static inline void cpufreq_policy_apply_limits(struct cpufreq_policy *policy)
 {
@@ -572,7 +572,7 @@ static inline void cpufreq_policy_apply_limits(struct cpufreq_policy *policy)
 		__cpufreq_driver_target(policy, policy->min, CPUFREQ_RELATION_L);
 }
 
-/* Governor attribute set */
+/* Goveryesr attribute set */
 struct gov_attr_set {
 	struct kobject kobj;
 	struct list_head policy_list;
@@ -580,15 +580,15 @@ struct gov_attr_set {
 	int usage_count;
 };
 
-/* sysfs ops for cpufreq governors */
-extern const struct sysfs_ops governor_sysfs_ops;
+/* sysfs ops for cpufreq goveryesrs */
+extern const struct sysfs_ops goveryesr_sysfs_ops;
 
-void gov_attr_set_init(struct gov_attr_set *attr_set, struct list_head *list_node);
-void gov_attr_set_get(struct gov_attr_set *attr_set, struct list_head *list_node);
-unsigned int gov_attr_set_put(struct gov_attr_set *attr_set, struct list_head *list_node);
+void gov_attr_set_init(struct gov_attr_set *attr_set, struct list_head *list_yesde);
+void gov_attr_set_get(struct gov_attr_set *attr_set, struct list_head *list_yesde);
+unsigned int gov_attr_set_put(struct gov_attr_set *attr_set, struct list_head *list_yesde);
 
-/* Governor sysfs attribute */
-struct governor_attr {
+/* Goveryesr sysfs attribute */
+struct goveryesr_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct gov_attr_set *attr_set, char *buf);
 	ssize_t (*store)(struct gov_attr_set *attr_set, const char *buf,
@@ -607,7 +607,7 @@ struct governor_attr {
 
 struct cpufreq_frequency_table {
 	unsigned int	flags;
-	unsigned int	driver_data; /* driver specific data, not used by core */
+	unsigned int	driver_data; /* driver specific data, yest used by core */
 	unsigned int	frequency; /* kHz - doesn't need to be in ascending
 				    * order */
 };
@@ -964,11 +964,11 @@ static inline bool policy_has_boost_freq(struct cpufreq_policy *policy)
 #endif
 
 #if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
-void sched_cpufreq_governor_change(struct cpufreq_policy *policy,
-			struct cpufreq_governor *old_gov);
+void sched_cpufreq_goveryesr_change(struct cpufreq_policy *policy,
+			struct cpufreq_goveryesr *old_gov);
 #else
-static inline void sched_cpufreq_governor_change(struct cpufreq_policy *policy,
-			struct cpufreq_governor *old_gov) { }
+static inline void sched_cpufreq_goveryesr_change(struct cpufreq_policy *policy,
+			struct cpufreq_goveryesr *old_gov) { }
 #endif
 
 extern void arch_freq_prepare_all(void);

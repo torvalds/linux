@@ -15,7 +15,7 @@ Required properties on all platforms:
 		- "stmmaceth" for the host clock - see stmmac.txt
 		- "gmac" for the peripheral gate clock
 
-- oxsemi,sys-ctrl: a phandle to the system controller syscon node
+- oxsemi,sys-ctrl: a phandle to the system controller syscon yesde
 
 Example :
 

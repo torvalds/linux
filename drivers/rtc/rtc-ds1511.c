@@ -8,7 +8,7 @@
  * Real time clock driver for the Dallas 1511 chip, which also
  * contains a watchdog timer.  There is a tiny amount of code that
  * platform code could use to mess with the watchdog device a little
- * bit, but not a full watchdog driver.
+ * bit, but yest a full watchdog driver.
  */
 
 #include <linux/bcd.h>
@@ -98,7 +98,7 @@ static DEFINE_SPINLOCK(ds1511_lock);
 static __iomem char *ds1511_base;
 static u32 reg_spacing = 1;
 
-static noinline void
+static yesinline void
 rtc_write(uint8_t val, uint32_t reg)
 {
 	writeb(val, ds1511_base + (reg * reg_spacing));
@@ -110,7 +110,7 @@ rtc_write_alarm(uint8_t val, enum ds1511reg reg)
 	rtc_write((val | 0x80), reg);
 }
 
-static noinline uint8_t
+static yesinline uint8_t
 rtc_read(enum ds1511reg reg)
 {
 	return readb(ds1511_base + (reg * reg_spacing));
@@ -136,7 +136,7 @@ rtc_enable_update(void)
  */
 #ifdef DS1511_WDOG_RESET_SUPPORT
 /*
- * just enough code to set the watchdog timer so that it
+ * just eyesugh code to set the watchdog timer so that it
  * will reboot the system
  */
 void
@@ -281,7 +281,7 @@ static int ds1511_rtc_read_time(struct device *dev, struct rtc_time *rtc_tm)
  * write the alarm register settings
  *
  * we only have the use to interrupt every second, otherwise
- * known as the update interrupt, or the interrupt if the whole
+ * kyeswn as the update interrupt, or the interrupt if the whole
  * date/hours/mins/secs matches.  the ds1511 has many more
  * permutations, but the kernel doesn't.
  */
@@ -483,7 +483,7 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 		if (devm_request_irq(&pdev->dev, pdata->irq, ds1511_interrupt,
 			IRQF_SHARED, pdev->name, pdev) < 0) {
 
-			dev_warn(&pdev->dev, "interrupt not available.\n");
+			dev_warn(&pdev->dev, "interrupt yest available.\n");
 			pdata->irq = 0;
 		}
 	}

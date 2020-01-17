@@ -110,7 +110,7 @@
  *	 +----------------+		|
  *[22]   | retime-invclk  |		|
  *	 +----------------+		v
- *[21]   |retime-clknotdat|	[Retime-type	]
+ *[21]   |retime-clkyestdat|	[Retime-type	]
  *	 +----------------+		^
  *[20]   | retime-de      |		|
  *	 +----------------+-------------
@@ -205,7 +205,7 @@
 		container_of(pc, struct st_gpio_bank, pc)
 
 enum st_retime_style {
-	st_retime_style_none,
+	st_retime_style_yesne,
 	st_retime_style_packed,
 	st_retime_style_dedicated,
 };
@@ -215,12 +215,12 @@ struct st_retime_dedicated {
 };
 
 struct st_retime_packed {
-	struct regmap_field *clk1notclk0;
+	struct regmap_field *clk1yestclk0;
 	struct regmap_field *delay_0;
 	struct regmap_field *delay_1;
 	struct regmap_field *invertclk;
 	struct regmap_field *retime;
-	struct regmap_field *clknotdata;
+	struct regmap_field *clkyestdata;
 	struct regmap_field *double_edge;
 };
 
@@ -239,7 +239,7 @@ struct st_pctl_data {
 	const unsigned int		*input_delays;
 	const int			ninput_delays;
 	const unsigned int		*output_delays;
-	const int			noutput_delays;
+	const int			yesutput_delays;
 	/* register offset information */
 	const int alt, oe, pu, od, rt;
 };
@@ -265,7 +265,7 @@ struct st_pctl_group {
 };
 
 /*
- * Edge triggers are not supported at hardware level, it is supported by
+ * Edge triggers are yest supported at hardware level, it is supported by
  * software by exploiting the level trigger support in hardware.
  * Software uses a virtual register (EDGE_CONF) for edge trigger configuration
  * of each gpio pin in a GPIO bank.
@@ -342,16 +342,16 @@ static const struct st_pctl_data  stih407_data = {
 	.input_delays   = stih407_delays,
 	.ninput_delays  = ARRAY_SIZE(stih407_delays),
 	.output_delays  = stih407_delays,
-	.noutput_delays = ARRAY_SIZE(stih407_delays),
+	.yesutput_delays = ARRAY_SIZE(stih407_delays),
 	.alt = 0, .oe = 40, .pu = 50, .od = 60, .rt = 100,
 };
 
 static const struct st_pctl_data stih407_flashdata = {
-	.rt_style	= st_retime_style_none,
+	.rt_style	= st_retime_style_yesne,
 	.input_delays	= stih407_delays,
 	.ninput_delays	= ARRAY_SIZE(stih407_delays),
 	.output_delays	= stih407_delays,
-	.noutput_delays = ARRAY_SIZE(stih407_delays),
+	.yesutput_delays = ARRAY_SIZE(stih407_delays),
 	.alt = 0,
 	.oe = -1, /* Not Available */
 	.pu = -1, /* Not Available */
@@ -454,7 +454,7 @@ static unsigned long st_pinconf_delay_to_bit(unsigned int delay,
 
 	if (ST_PINCONF_UNPACK_OE(config)) {
 		delay_times = data->output_delays;
-		num_delay_times = data->noutput_delays;
+		num_delay_times = data->yesutput_delays;
 	} else {
 		delay_times = data->input_delays;
 		num_delay_times = data->ninput_delays;
@@ -486,7 +486,7 @@ static unsigned long st_pinconf_bit_to_delay(unsigned int index,
 
 	if (output) {
 		delay_times = data->output_delays;
-		num_delay_times = data->noutput_delays;
+		num_delay_times = data->yesutput_delays;
 	} else {
 		delay_times = data->input_delays;
 		num_delay_times = data->ninput_delays;
@@ -495,7 +495,7 @@ static unsigned long st_pinconf_bit_to_delay(unsigned int index,
 	if (index < num_delay_times) {
 		return delay_times[index];
 	} else {
-		pr_warn("Delay not found in/out delay list\n");
+		pr_warn("Delay yest found in/out delay list\n");
 		return 0;
 	}
 }
@@ -520,10 +520,10 @@ static void st_pinconf_set_retime_packed(struct st_pinctrl *info,
 	struct st_retime_packed *rt_p = &pc->rt.rt_p;
 	unsigned int delay;
 
-	st_regmap_field_bit_set_clear_pin(rt_p->clk1notclk0,
+	st_regmap_field_bit_set_clear_pin(rt_p->clk1yestclk0,
 				ST_PINCONF_UNPACK_RT_CLK(config), pin);
 
-	st_regmap_field_bit_set_clear_pin(rt_p->clknotdata,
+	st_regmap_field_bit_set_clear_pin(rt_p->clkyestdata,
 				ST_PINCONF_UNPACK_RT_CLKNOTDATA(config), pin);
 
 	st_regmap_field_bit_set_clear_pin(rt_p->double_edge,
@@ -549,7 +549,7 @@ static void st_pinconf_set_retime_dedicated(struct st_pinctrl *info,
 {
 	int input	= ST_PINCONF_UNPACK_OE(config) ? 0 : 1;
 	int clk		= ST_PINCONF_UNPACK_RT_CLK(config);
-	int clknotdata	= ST_PINCONF_UNPACK_RT_CLKNOTDATA(config);
+	int clkyestdata	= ST_PINCONF_UNPACK_RT_CLKNOTDATA(config);
 	int double_edge	= ST_PINCONF_UNPACK_RT_DOUBLE_EDGE(config);
 	int invertclk	= ST_PINCONF_UNPACK_RT_INVERTCLK(config);
 	int retime	= ST_PINCONF_UNPACK_RT(config);
@@ -564,7 +564,7 @@ static void st_pinconf_set_retime_dedicated(struct st_pinctrl *info,
 		((delay) << RT_D_CFG_DELAY_SHIFT) |
 		((input) << RT_D_CFG_DELAY_INNOTOUT_SHIFT) |
 		((retime) << RT_D_CFG_RETIME_SHIFT) |
-		((clknotdata) << RT_D_CFG_CLKNOTDATA_SHIFT) |
+		((clkyestdata) << RT_D_CFG_CLKNOTDATA_SHIFT) |
 		((invertclk) << RT_D_CFG_INVERTCLK_SHIFT) |
 		((double_edge) << RT_D_CFG_DOUBLE_EDGE_SHIFT);
 
@@ -606,10 +606,10 @@ static int st_pinconf_get_retime_packed(struct st_pinctrl *info,
 	if (!regmap_field_read(rt_p->retime, &val) && (val & BIT(pin)))
 		ST_PINCONF_PACK_RT(*config);
 
-	if (!regmap_field_read(rt_p->clk1notclk0, &val) && (val & BIT(pin)))
+	if (!regmap_field_read(rt_p->clk1yestclk0, &val) && (val & BIT(pin)))
 		ST_PINCONF_PACK_RT_CLK(*config, 1);
 
-	if (!regmap_field_read(rt_p->clknotdata, &val) && (val & BIT(pin)))
+	if (!regmap_field_read(rt_p->clkyestdata, &val) && (val & BIT(pin)))
 		ST_PINCONF_PACK_RT_CLKNOTDATA(*config);
 
 	if (!regmap_field_read(rt_p->double_edge, &val) && (val & BIT(pin)))
@@ -804,18 +804,18 @@ static inline const struct st_pctl_group *st_pctl_find_group_by_name(
 	return NULL;
 }
 
-static int st_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
-	struct device_node *np, struct pinctrl_map **map, unsigned *num_maps)
+static int st_pctl_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+	struct device_yesde *np, struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct st_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	const struct st_pctl_group *grp;
 	struct pinctrl_map *new_map;
-	struct device_node *parent;
+	struct device_yesde *parent;
 	int map_num, i;
 
 	grp = st_pctl_find_group_by_name(info, np->name);
 	if (!grp) {
-		dev_err(info->dev, "unable to find group for node %pOFn\n",
+		dev_err(info->dev, "unable to find group for yesde %pOFn\n",
 			np);
 		return -EINVAL;
 	}
@@ -837,7 +837,7 @@ static int st_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	new_map[0].type = PIN_MAP_TYPE_MUX_GROUP;
 	new_map[0].data.mux.function = parent->name;
 	new_map[0].data.mux.group = np->name;
-	of_node_put(parent);
+	of_yesde_put(parent);
 
 	/* create config map per pin */
 	new_map++;
@@ -863,7 +863,7 @@ static const struct pinctrl_ops st_pctlops = {
 	.get_groups_count	= st_pctl_get_groups_count,
 	.get_group_pins		= st_pctl_get_group_pins,
 	.get_group_name		= st_pctl_get_group_name,
-	.dt_node_to_map		= st_pctl_dt_node_to_map,
+	.dt_yesde_to_map		= st_pctl_dt_yesde_to_map,
 	.dt_free_map		= st_pctl_dt_free_map,
 };
 
@@ -1009,7 +1009,7 @@ static void st_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 		snprintf(f, 5, "GPIO");
 
 	seq_printf(s, "[OE:%d,PU:%ld,OD:%ld]\t%s\n"
-		"\t\t[retime:%ld,invclk:%ld,clknotdat:%ld,"
+		"\t\t[retime:%ld,invclk:%ld,clkyestdat:%ld,"
 		"de:%ld,rt-clk:%ld,rt-delay:%ld]",
 		!st_gpio_get_direction(&pc_to_bank(pc)->gpio_chip, offset),
 		ST_PINCONF_UNPACK_PU(config),
@@ -1030,10 +1030,10 @@ static const struct pinconf_ops st_confops = {
 };
 
 static void st_pctl_dt_child_count(struct st_pinctrl *info,
-				     struct device_node *np)
+				     struct device_yesde *np)
 {
-	struct device_node *child;
-	for_each_child_of_node(np, child) {
+	struct device_yesde *child;
+	for_each_child_of_yesde(np, child) {
 		if (of_property_read_bool(child, "gpio-controller")) {
 			info->nbanks++;
 		} else {
@@ -1053,26 +1053,26 @@ static int st_pctl_dt_setup_retime_packed(struct st_pinctrl *info,
 	int reg = (data->rt + bank * RT_P_CFGS_PER_BANK) * 4;
 	struct st_retime_packed *rt_p = &pc->rt.rt_p;
 	/* cfg0 */
-	struct reg_field clk1notclk0 = RT_P_CFG0_CLK1NOTCLK0_FIELD(reg);
+	struct reg_field clk1yestclk0 = RT_P_CFG0_CLK1NOTCLK0_FIELD(reg);
 	struct reg_field delay_0 = RT_P_CFG0_DELAY_0_FIELD(reg);
 	struct reg_field delay_1 = RT_P_CFG0_DELAY_1_FIELD(reg);
 	/* cfg1 */
 	struct reg_field invertclk = RT_P_CFG1_INVERTCLK_FIELD(reg + 4);
 	struct reg_field retime = RT_P_CFG1_RETIME_FIELD(reg + 4);
-	struct reg_field clknotdata = RT_P_CFG1_CLKNOTDATA_FIELD(reg + 4);
+	struct reg_field clkyestdata = RT_P_CFG1_CLKNOTDATA_FIELD(reg + 4);
 	struct reg_field double_edge = RT_P_CFG1_DOUBLE_EDGE_FIELD(reg + 4);
 
-	rt_p->clk1notclk0 = devm_regmap_field_alloc(dev, rm, clk1notclk0);
+	rt_p->clk1yestclk0 = devm_regmap_field_alloc(dev, rm, clk1yestclk0);
 	rt_p->delay_0	= devm_regmap_field_alloc(dev, rm, delay_0);
 	rt_p->delay_1 = devm_regmap_field_alloc(dev, rm, delay_1);
 	rt_p->invertclk = devm_regmap_field_alloc(dev, rm, invertclk);
 	rt_p->retime = devm_regmap_field_alloc(dev, rm, retime);
-	rt_p->clknotdata = devm_regmap_field_alloc(dev, rm, clknotdata);
+	rt_p->clkyestdata = devm_regmap_field_alloc(dev, rm, clkyestdata);
 	rt_p->double_edge = devm_regmap_field_alloc(dev, rm, double_edge);
 
-	if (IS_ERR(rt_p->clk1notclk0) || IS_ERR(rt_p->delay_0) ||
+	if (IS_ERR(rt_p->clk1yestclk0) || IS_ERR(rt_p->delay_0) ||
 		 IS_ERR(rt_p->delay_1) || IS_ERR(rt_p->invertclk) ||
-		 IS_ERR(rt_p->retime) || IS_ERR(rt_p->clknotdata) ||
+		 IS_ERR(rt_p->retime) || IS_ERR(rt_p->clkyestdata) ||
 		 IS_ERR(rt_p->double_edge))
 		return -EINVAL;
 
@@ -1129,7 +1129,7 @@ static struct regmap_field *st_pc_get_value(struct device *dev,
 }
 
 static void st_parse_syscfgs(struct st_pinctrl *info, int bank,
-			     struct device_node *np)
+			     struct device_yesde *np)
 {
 	const struct st_pctl_data *data = info->data;
 	/**
@@ -1160,31 +1160,31 @@ static void st_parse_syscfgs(struct st_pinctrl *info, int bank,
  * Each pin is represented in of the below forms.
  * <bank offset mux direction rt_type rt_delay rt_clk>
  */
-static int st_pctl_dt_parse_groups(struct device_node *np,
+static int st_pctl_dt_parse_groups(struct device_yesde *np,
 	struct st_pctl_group *grp, struct st_pinctrl *info, int idx)
 {
 	/* bank pad direction val altfunction */
 	const __be32 *list;
 	struct property *pp;
 	struct st_pinconf *conf;
-	struct device_node *pins;
+	struct device_yesde *pins;
 	int i = 0, npins = 0, nr_props, ret = 0;
 
 	pins = of_get_child_by_name(np, "st,pins");
 	if (!pins)
 		return -ENODATA;
 
-	for_each_property_of_node(pins, pp) {
-		/* Skip those we do not want to proceed */
+	for_each_property_of_yesde(pins, pp) {
+		/* Skip those we do yest want to proceed */
 		if (!strcmp(pp->name, "name"))
 			continue;
 
 		if (pp->length / sizeof(__be32) >= OF_GPIO_ARGS_MIN) {
 			npins++;
 		} else {
-			pr_warn("Invalid st,pins in %pOFn node\n", np);
+			pr_warn("Invalid st,pins in %pOFn yesde\n", np);
 			ret = -EINVAL;
-			goto out_put_node;
+			goto out_put_yesde;
 		}
 	}
 
@@ -1196,11 +1196,11 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 
 	if (!grp->pins || !grp->pin_conf) {
 		ret = -ENOMEM;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	/* <bank offset mux direction rt_type rt_delay rt_clk> */
-	for_each_property_of_node(pins, pp) {
+	for_each_property_of_yesde(pins, pp) {
 		if (!strcmp(pp->name, "name"))
 			continue;
 		nr_props = pp->length/sizeof(u32);
@@ -1231,16 +1231,16 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 		i++;
 	}
 
-out_put_node:
-	of_node_put(pins);
+out_put_yesde:
+	of_yesde_put(pins);
 
 	return ret;
 }
 
-static int st_pctl_parse_functions(struct device_node *np,
+static int st_pctl_parse_functions(struct device_yesde *np,
 			struct st_pinctrl *info, u32 index, int *grp_index)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	struct st_pmx_func *func;
 	struct st_pctl_group *grp;
 	int ret, i;
@@ -1258,13 +1258,13 @@ static int st_pctl_parse_functions(struct device_node *np,
 		return -ENOMEM;
 
 	i = 0;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		func->groups[i] = child->name;
 		grp = &info->groups[*grp_index];
 		*grp_index += 1;
 		ret = st_pctl_dt_parse_groups(child, grp, info, i++);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 	}
@@ -1353,7 +1353,7 @@ static int st_gpio_irq_set_type(struct irq_data *d, unsigned type)
 }
 
 /*
- * As edge triggers are not supported at hardware level, it is supported by
+ * As edge triggers are yest supported at hardware level, it is supported by
  * software by exploiting the level trigger support in hardware.
  *
  * Steps for detection raising edge interrupt in software.
@@ -1470,7 +1470,7 @@ static struct irq_chip st_gpio_irqchip = {
 };
 
 static int st_gpiolib_register_bank(struct st_pinctrl *info,
-	int bank_nr, struct device_node *np)
+	int bank_nr, struct device_yesde *np)
 {
 	struct st_gpio_bank *bank = &info->banks[bank_nr];
 	struct pinctrl_gpio_range *range = &bank->range;
@@ -1489,7 +1489,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	bank->gpio_chip = st_gpio_template;
 	bank->gpio_chip.base = bank_num * ST_GPIO_PINS_PER_BANK;
 	bank->gpio_chip.ngpio = ST_GPIO_PINS_PER_BANK;
-	bank->gpio_chip.of_node = np;
+	bank->gpio_chip.of_yesde = np;
 	bank->gpio_chip.parent = dev;
 	spin_lock_init(&bank->lock);
 
@@ -1524,14 +1524,14 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 		struct gpio_irq_chip *girq;
 		int gpio_irq = irq_res.start;
 
-		/* This is not a valid IRQ */
+		/* This is yest a valid IRQ */
 		if (gpio_irq <= 0) {
 			dev_err(dev, "invalid IRQ for %pOF bank\n", np);
 			goto skip_irq;
 		}
 		/* We need to have a mux as well */
 		if (!info->irqmux_base) {
-			dev_err(dev, "no irqmux for %pOF bank\n", np);
+			dev_err(dev, "yes irqmux for %pOF bank\n", np);
 			goto skip_irq;
 		}
 
@@ -1573,8 +1573,8 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 	int ret = 0;
 	int i = 0, j = 0, k = 0, bank;
 	struct pinctrl_pin_desc *pdesc;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *child;
 	int grp_index = 0;
 	int irq = 0;
 	struct resource *res;
@@ -1607,7 +1607,7 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 		dev_err(info->dev, "No syscfg phandle specified\n");
 		return PTR_ERR(info->regmap);
 	}
-	info->data = of_match_node(st_pctl_of_match, np)->data;
+	info->data = of_match_yesde(st_pctl_of_match, np)->data;
 
 	irq = platform_get_irq(pdev, 0);
 
@@ -1633,12 +1633,12 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 	pctl_desc->pins = pdesc;
 
 	bank = 0;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (of_property_read_bool(child, "gpio-controller")) {
 			const char *bank_name = NULL;
 			ret = st_gpiolib_register_bank(info, bank, child);
 			if (ret) {
-				of_node_put(child);
+				of_yesde_put(child);
 				return ret;
 			}
 
@@ -1657,7 +1657,7 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 							i++, &grp_index);
 			if (ret) {
 				dev_err(&pdev->dev, "No functions found.\n");
-				of_node_put(child);
+				of_yesde_put(child);
 				return ret;
 			}
 		}
@@ -1672,8 +1672,8 @@ static int st_pctl_probe(struct platform_device *pdev)
 	struct pinctrl_desc *pctl_desc;
 	int ret, i;
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "device node not found.\n");
+	if (!pdev->dev.of_yesde) {
+		dev_err(&pdev->dev, "device yesde yest found.\n");
 		return -EINVAL;
 	}
 

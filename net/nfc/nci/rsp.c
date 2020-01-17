@@ -7,7 +7,7 @@
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
- *  Acknowledgements:
+ *  Ackyeswledgements:
  *  This file is based on hci_event.c, which was written
  *  by Maxim Krasnyansky.
  */
@@ -354,7 +354,7 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		break;
 
 	default:
-		pr_err("unknown rsp opcode 0x%x\n", rsp_opcode);
+		pr_err("unkyeswn rsp opcode 0x%x\n", rsp_opcode);
 		break;
 	}
 

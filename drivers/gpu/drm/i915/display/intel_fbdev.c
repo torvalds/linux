@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -27,7 +27,7 @@
 #include <linux/async.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -138,7 +138,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 	size = PAGE_ALIGN(size);
 
-	/* If the FB is too big, just don't use it since fbdev is not very
+	/* If the FB is too big, just don't use it since fbdev is yest very
 	 * important and we should probably use that space with FBC or other
 	 * features. */
 	obj = ERR_PTR(-ENODEV);
@@ -192,7 +192,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		intel_fb = ifbdev->fb = NULL;
 	}
 	if (!intel_fb || WARN_ON(!intel_fb_obj(&intel_fb->base))) {
-		DRM_DEBUG_KMS("no BIOS fb, allocating a new one\n");
+		DRM_DEBUG_KMS("yes BIOS fb, allocating a new one\n");
 		ret = intelfb_alloc(helper, sizes);
 		if (ret)
 			return ret;
@@ -236,8 +236,8 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	/* Our framebuffer is the entirety of fbdev's system memory */
 	info->fix.smem_start =
-		(unsigned long)(ggtt->gmadr.start + vma->node.start);
-	info->fix.smem_len = vma->node.size;
+		(unsigned long)(ggtt->gmadr.start + vma->yesde.start);
+	info->fix.smem_len = vma->yesde.size;
 
 	vaddr = i915_vma_pin_iomap(vma);
 	if (IS_ERR(vaddr)) {
@@ -246,7 +246,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		goto out_unpin;
 	}
 	info->screen_base = vaddr;
-	info->screen_size = vma->node.size;
+	info->screen_size = vma->yesde.size;
 
 	drm_fb_helper_fill_info(info, &ifbdev->helper, sizes);
 
@@ -322,7 +322,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		intel_crtc = to_intel_crtc(crtc);
 
 		if (!crtc->state->active || !obj) {
-			DRM_DEBUG_KMS("pipe %c not active or no fb, skipping\n",
+			DRM_DEBUG_KMS("pipe %c yest active or yes fb, skipping\n",
 				      pipe_name(intel_crtc->pipe));
 			continue;
 		}
@@ -336,7 +336,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 	}
 
 	if (!fb) {
-		DRM_DEBUG_KMS("no active fbs found, not using BIOS config\n");
+		DRM_DEBUG_KMS("yes active fbs found, yest using BIOS config\n");
 		goto out;
 	}
 
@@ -347,7 +347,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		intel_crtc = to_intel_crtc(crtc);
 
 		if (!crtc->state->active) {
-			DRM_DEBUG_KMS("pipe %c not active, skipping\n",
+			DRM_DEBUG_KMS("pipe %c yest active, skipping\n",
 				      pipe_name(intel_crtc->pipe));
 			continue;
 		}
@@ -363,7 +363,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		cur_size = crtc->state->adjusted_mode.crtc_hdisplay;
 		cur_size = cur_size * fb->base.format->cpp[0];
 		if (fb->base.pitches[0] < cur_size) {
-			DRM_DEBUG_KMS("fb not wide enough for plane %c (%d vs %d)\n",
+			DRM_DEBUG_KMS("fb yest wide eyesugh for plane %c (%d vs %d)\n",
 				      pipe_name(intel_crtc->pipe),
 				      cur_size, fb->base.pitches[0]);
 			fb = NULL;
@@ -381,20 +381,20 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 			      cur_size);
 
 		if (cur_size > max_size) {
-			DRM_DEBUG_KMS("fb not big enough for plane %c (%d vs %d)\n",
+			DRM_DEBUG_KMS("fb yest big eyesugh for plane %c (%d vs %d)\n",
 				      pipe_name(intel_crtc->pipe),
 				      cur_size, max_size);
 			fb = NULL;
 			break;
 		}
 
-		DRM_DEBUG_KMS("fb big enough for plane %c (%d >= %d)\n",
+		DRM_DEBUG_KMS("fb big eyesugh for plane %c (%d >= %d)\n",
 			      pipe_name(intel_crtc->pipe),
 			      max_size, cur_size);
 	}
 
 	if (!fb) {
-		DRM_DEBUG_KMS("BIOS fb not suitable for all pipes, not using\n");
+		DRM_DEBUG_KMS("BIOS fb yest suitable for all pipes, yest using\n");
 		goto out;
 	}
 
@@ -540,7 +540,7 @@ static void intel_fbdev_hpd_set_suspend(struct intel_fbdev *ifbdev, int state)
 	}
 }
 
-void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous)
+void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchroyesus)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
@@ -551,12 +551,12 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 
 	info = ifbdev->helper.fbdev;
 
-	if (synchronous) {
+	if (synchroyesus) {
 		/* Flush any pending work to turn the console on, and then
-		 * wait to turn it off. It must be synchronous as we are
+		 * wait to turn it off. It must be synchroyesus as we are
 		 * about to suspend or unload the driver.
 		 *
-		 * Note that from within the work-handler, we cannot flush
+		 * Note that from within the work-handler, we canyest flush
 		 * ourselves, so only flush outstanding work upon suspend!
 		 */
 		if (state != FBINFO_STATE_RUNNING)

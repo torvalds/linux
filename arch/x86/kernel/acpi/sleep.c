@@ -49,7 +49,7 @@ int x86_acpi_suspend_lowlevel(void)
 		(struct wakeup_header *) __va(real_mode_header->wakeup_header);
 
 	if (header->signature != WAKEUP_HEADER_SIGNATURE) {
-		printk(KERN_ERR "wakeup header does not match\n");
+		printk(KERN_ERR "wakeup header does yest match\n");
 		return -EINVAL;
 	}
 
@@ -61,9 +61,9 @@ int x86_acpi_suspend_lowlevel(void)
 	native_store_gdt((struct desc_ptr *)&header->pmode_gdt);
 
 	/*
-	 * We have to check that we can write back the value, and not
+	 * We have to check that we can write back the value, and yest
 	 * just read it.  At least on 90 nm Pentium M (Family 6, Model
-	 * 13), reading an invalid MSR is not guaranteed to trap, see
+	 * 13), reading an invalid MSR is yest guaranteed to trap, see
 	 * Erratum X4 in "Intel Pentium M Processor on 90 nm Process
 	 * with 2-MB L2 Cache and Intel® Processor A100 and A110 on 90
 	 * nm process with 512-KB L2 Cache Specification Update".
@@ -128,17 +128,17 @@ static int __init acpi_sleep_setup(char *str)
 		if (strncmp(str, "s3_beep", 7) == 0)
 			acpi_realmode_flags |= 4;
 #ifdef CONFIG_HIBERNATION
-		if (strncmp(str, "s4_nohwsig", 10) == 0)
-			acpi_no_s4_hw_signature();
+		if (strncmp(str, "s4_yeshwsig", 10) == 0)
+			acpi_yes_s4_hw_signature();
 #endif
-		if (strncmp(str, "nonvs", 5) == 0)
-			acpi_nvs_nosave();
-		if (strncmp(str, "nonvs_s3", 8) == 0)
-			acpi_nvs_nosave_s3();
+		if (strncmp(str, "yesnvs", 5) == 0)
+			acpi_nvs_yessave();
+		if (strncmp(str, "yesnvs_s3", 8) == 0)
+			acpi_nvs_yessave_s3();
 		if (strncmp(str, "old_ordering", 12) == 0)
 			acpi_old_suspend_ordering();
-		if (strncmp(str, "nobl", 4) == 0)
-			acpi_sleep_no_blacklist();
+		if (strncmp(str, "yesbl", 4) == 0)
+			acpi_sleep_yes_blacklist();
 		str = strchr(str, ',');
 		if (str != NULL)
 			str += strspn(str, ", \t");

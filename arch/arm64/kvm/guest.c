@@ -9,9 +9,9 @@
  */
 
 #include <linux/bits.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <linux/kvm_host.h>
 #include <linux/module.h>
 #include <linux/stddef.h>
@@ -274,7 +274,7 @@ static int set_sve_vls(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 		if (vq_present(vqs, vq) != sve_vq_available(vq))
 			return -EINVAL;
 
-	/* Can't run with no vector lengths at all: */
+	/* Can't run with yes vector lengths at all: */
 	if (max_vq < SVE_VQ_MIN)
 		return -EINVAL;
 
@@ -302,7 +302,7 @@ static int set_sve_vls(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 
 /*
  * Number of register slices required to cover each whole SVE register.
- * NOTE: Only the first slice every exists, for now.
+ * NOTE: Only the first slice every exists, for yesw.
  * If you are tempted to modify this, you must also rework sve_reg_to_region()
  * to match:
  */
@@ -379,7 +379,7 @@ static int sve_reg_to_region(struct sve_state_reg_region *region,
 	if (WARN_ON(!sve_state_size))
 		return -EINVAL;
 
-	region->koffset = array_index_nospec(reqoffset, sve_state_size);
+	region->koffset = array_index_yesspec(reqoffset, sve_state_size);
 	region->klen = min(maxlen, reqlen);
 	region->upad = reqlen - region->klen;
 
@@ -661,7 +661,7 @@ int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 
 int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
-	/* We currently use nothing arch-specific in upper 32 bits */
+	/* We currently use yesthing arch-specific in upper 32 bits */
 	if ((reg->id & ~KVM_REG_SIZE_MASK) >> 32 != KVM_REG_ARM64 >> 32)
 		return -EINVAL;
 
@@ -679,7 +679,7 @@ int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 
 int kvm_arm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
-	/* We currently use nothing arch-specific in upper 32 bits */
+	/* We currently use yesthing arch-specific in upper 32 bits */
 	if ((reg->id & ~KVM_REG_SIZE_MASK) >> 32 != KVM_REG_ARM64 >> 32)
 		return -EINVAL;
 
@@ -718,7 +718,7 @@ int __kvm_arm_vcpu_get_events(struct kvm_vcpu *vcpu,
 
 	/*
 	 * We never return a pending ext_dabt here because we deliver it to
-	 * the virtual CPU directly when setting the event and it's no longer
+	 * the virtual CPU directly when setting the event and it's yes longer
 	 * 'pending' at this point.
 	 */
 
@@ -790,7 +790,7 @@ int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init)
 	memset(init, 0, sizeof(*init));
 
 	/*
-	 * For now, we don't return any features.
+	 * For yesw, we don't return any features.
 	 * In future, we might use features to return target
 	 * specific features available for the preferred
 	 * target type.
@@ -852,7 +852,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 		}
 
 	} else {
-		/* If not enabled clear all flags */
+		/* If yest enabled clear all flags */
 		vcpu->guest_debug = 0;
 	}
 

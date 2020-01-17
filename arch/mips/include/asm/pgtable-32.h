@@ -16,7 +16,7 @@
 #include <asm/cachectl.h>
 #include <asm/fixmap.h>
 
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 
 #ifdef CONFIG_HIGHMEM
 #include <asm/highmem.h>
@@ -26,11 +26,11 @@
  * Regarding 32-bit MIPS huge page support (and the tradeoff it entails):
  *
  *  We use the same huge page sizes as 64-bit MIPS. Assuming a 4KB page size,
- * our 2-level table layout would normally have a PGD entry cover a contiguous
+ * our 2-level table layout would yesrmally have a PGD entry cover a contiguous
  * 4MB virtual address region (pointing to a 4KB PTE page of 1,024 32-bit pte_t
  * pointers, each pointing to a 4KB physical page). The problem is that 4MB,
  * spanning both halves of a TLB EntryLo0,1 pair, requires 2MB hardware page
- * support, not one of the standard supported sizes (1MB,4MB,16MB,...).
+ * support, yest one of the standard supported sizes (1MB,4MB,16MB,...).
  *  To correct for this, when huge pages are enabled, we halve the number of
  * pointers a PTE page holds, making its last half go to waste. Correspondingly,
  * we double the number of PGD pages. Overall, page table memory overhead
@@ -56,7 +56,7 @@ extern int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
  * Basically we have the same two-level (which is the logical three level
  * Linux page table layout folded) page tables as the i386.  Some day
  * when we have proper page coloring support we can have a 1% quicker
- * tlb refill handling mechanism, but for now it is a bit slower but
+ * tlb refill handling mechanism, but for yesw it is a bit slower but
  * works even with the cache aliasing problem the R4k and above have.
  */
 
@@ -123,7 +123,7 @@ extern pte_t invalid_pte_table[PTRS_PER_PTE];
 /*
  * Empty pgd/pmd entries point to the invalid_pte_table.
  */
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_yesne(pmd_t pmd)
 {
 	return pmd_val(pmd) == (unsigned long) invalid_pte_table;
 }

@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -283,7 +283,7 @@ static enum i40iw_status_code i40iw_sc_parse_fpm_query_buf(
 }
 
 /**
- * i40iw_fill_qos_list - Change all unknown qs handles to available ones
+ * i40iw_fill_qos_list - Change all unkyeswn qs handles to available ones
  * @qs_list: list of qs_handles to be fixed with valid qs_handles
  */
 static void i40iw_fill_qos_list(u16 *qs_list)
@@ -412,7 +412,7 @@ void i40iw_qp_add_qos(struct i40iw_sc_qp *qp)
  * @dev: sc device struct
  * @pd: sc pd ptr
  * @pd_id: pd_id for allocated pd
- * @abi_ver: ABI version from user context, -1 if not valid
+ * @abi_ver: ABI version from user context, -1 if yest valid
  */
 static void i40iw_sc_pd_init(struct i40iw_sc_dev *dev,
 			     struct i40iw_sc_pd *pd,
@@ -498,7 +498,7 @@ static enum i40iw_status_code i40iw_sc_cqp_init(struct i40iw_sc_cqp *cqp,
  * i40iw_sc_cqp_create - create cqp during bringup
  * @cqp: struct for cqp hw
  * @maj_err: If error, major err number
- * @min_err: If error, minor err number
+ * @min_err: If error, miyesr err number
  */
 static enum i40iw_status_code i40iw_sc_cqp_create(struct i40iw_sc_cqp *cqp,
 						  u16 *maj_err,
@@ -551,7 +551,7 @@ static enum i40iw_status_code i40iw_sc_cqp_create(struct i40iw_sc_cqp *cqp,
 			i40iw_free_dma_mem(cqp->dev->hw, &cqp->sdbuf);
 			ret_code = I40IW_ERR_TIMEOUT;
 			/*
-			 * read PFPE_CQPERRORCODES register to get the minor
+			 * read PFPE_CQPERRORCODES register to get the miyesr
 			 * and major error code
 			 */
 			if (cqp->dev->is_pf)
@@ -571,7 +571,7 @@ static enum i40iw_status_code i40iw_sc_cqp_create(struct i40iw_sc_cqp *cqp,
 
 exit:
 	if (!ret_code)
-		cqp->process_cqp_sds = i40iw_update_sds_noccq;
+		cqp->process_cqp_sds = i40iw_update_sds_yesccq;
 	return ret_code;
 }
 
@@ -1248,7 +1248,7 @@ static enum i40iw_status_code i40iw_sc_manage_apbvt_entry(
  * I40IW_QHASH_TYPE_TCP_ESTABLISHED and quad is passed in info.
  *
  * When iwarp connection is done and its state moves to RTS, the quad hash entry in
- * the hardware will point to iwarp's qp number and requires no calls from the driver.
+ * the hardware will point to iwarp's qp number and requires yes calls from the driver.
  */
 static enum i40iw_status_code i40iw_sc_manage_qhash_table_entry(
 					struct i40iw_sc_cqp *cqp,
@@ -1407,14 +1407,14 @@ static enum i40iw_status_code i40iw_sc_add_local_mac_ipaddr_entry(
  * @cqp: struct for cqp hw
  * @scratch: u64 saved to be used during cqp completion
  * @entry_idx: index of mac entry
- * @ ignore_ref_count: to force mac adde delete
+ * @ igyesre_ref_count: to force mac adde delete
  * @post_sq: flag for cqp db to ring
  */
 static enum i40iw_status_code i40iw_sc_del_local_mac_ipaddr_entry(
 				struct i40iw_sc_cqp *cqp,
 				u64 scratch,
 				u8 entry_idx,
-				u8 ignore_ref_count,
+				u8 igyesre_ref_count,
 				bool post_sq)
 {
 	u64 *wqe;
@@ -1427,7 +1427,7 @@ static enum i40iw_status_code i40iw_sc_del_local_mac_ipaddr_entry(
 		 LS_64(I40IW_CQP_OP_MANAGE_LOC_MAC_IP_TABLE, I40IW_CQPSQ_OPCODE) |
 		 LS_64(1, I40IW_CQPSQ_MLIPA_FREEENTRY) |
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID) |
-		 LS_64(ignore_ref_count, I40IW_CQPSQ_MLIPA_IGNORE_REF_CNT);
+		 LS_64(igyesre_ref_count, I40IW_CQPSQ_MLIPA_IGNORE_REF_CNT);
 
 	i40iw_insert_wqe_hdr(wqe, header);
 
@@ -1440,12 +1440,12 @@ static enum i40iw_status_code i40iw_sc_del_local_mac_ipaddr_entry(
 }
 
 /**
- * i40iw_sc_cqp_nop - send a nop wqe
+ * i40iw_sc_cqp_yesp - send a yesp wqe
  * @cqp: struct for cqp hw
  * @scratch: u64 saved to be used during cqp completion
  * @post_sq: flag for cqp db to ring
  */
-static enum i40iw_status_code i40iw_sc_cqp_nop(struct i40iw_sc_cqp *cqp,
+static enum i40iw_status_code i40iw_sc_cqp_yesp(struct i40iw_sc_cqp *cqp,
 					       u64 scratch,
 					       bool post_sq)
 {
@@ -1570,7 +1570,7 @@ static enum i40iw_status_code i40iw_sc_cceq_destroy_done(struct i40iw_sc_ceq *ce
 	struct i40iw_sc_cqp *cqp;
 
 	cqp = ceq->dev->cqp;
-	cqp->process_cqp_sds = i40iw_update_sds_noccq;
+	cqp->process_cqp_sds = i40iw_update_sds_yesccq;
 	return i40iw_sc_poll_for_cqp_op_done(cqp, I40IW_CQP_OP_DESTROY_CEQ, NULL);
 }
 
@@ -2096,7 +2096,7 @@ static enum i40iw_status_code i40iw_sc_ccq_destroy(struct i40iw_sc_cq *ccq,
 		ret_code = i40iw_cqp_poll_registers(cqp, tail, 1000);
 	}
 
-	cqp->process_cqp_sds = i40iw_update_sds_noccq;
+	cqp->process_cqp_sds = i40iw_update_sds_yesccq;
 
 	return ret_code;
 }
@@ -2549,14 +2549,14 @@ static enum i40iw_status_code i40iw_sc_qp_modify(
  * @qp: sc qp
  * @scratch: u64 saved to be used during cqp completion
  * @remove_hash_idx: flag if to remove hash idx
- * @ignore_mw_bnd: memory window bind flag
+ * @igyesre_mw_bnd: memory window bind flag
  * @post_sq: flag for cqp db to ring
  */
 static enum i40iw_status_code i40iw_sc_qp_destroy(
 					struct i40iw_sc_qp *qp,
 					u64 scratch,
 					bool remove_hash_idx,
-					bool ignore_mw_bnd,
+					bool igyesre_mw_bnd,
 					bool post_sq)
 {
 	u64 *wqe;
@@ -2574,7 +2574,7 @@ static enum i40iw_status_code i40iw_sc_qp_destroy(
 	header = qp->qp_uk.qp_id |
 		 LS_64(I40IW_CQP_OP_DESTROY_QP, I40IW_CQPSQ_OPCODE) |
 		 LS_64(qp->qp_type, I40IW_CQPSQ_QP_QPTYPE) |
-		 LS_64(ignore_mw_bnd, I40IW_CQPSQ_QP_IGNOREMWBOUND) |
+		 LS_64(igyesre_mw_bnd, I40IW_CQPSQ_QP_IGNOREMWBOUND) |
 		 LS_64(remove_hash_idx, I40IW_CQPSQ_QP_REMOVEHASHENTRY) |
 		 LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
 
@@ -2623,11 +2623,11 @@ static enum i40iw_status_code i40iw_sc_qp_flush_wqes(
 		return I40IW_ERR_RING_FULL;
 	if (info->userflushcode) {
 		if (flush_rq) {
-			temp |= LS_64(info->rq_minor_code, I40IW_CQPSQ_FWQE_RQMNERR) |
+			temp |= LS_64(info->rq_miyesr_code, I40IW_CQPSQ_FWQE_RQMNERR) |
 				LS_64(info->rq_major_code, I40IW_CQPSQ_FWQE_RQMJERR);
 		}
 		if (flush_sq) {
-			temp |= LS_64(info->sq_minor_code, I40IW_CQPSQ_FWQE_SQMNERR) |
+			temp |= LS_64(info->sq_miyesr_code, I40IW_CQPSQ_FWQE_SQMNERR) |
 				LS_64(info->sq_major_code, I40IW_CQPSQ_FWQE_SQMJERR);
 		}
 	}
@@ -2830,13 +2830,13 @@ static enum i40iw_status_code i40iw_sc_qp_setctx(
 			      LS_64(1, I40IWQPC_IWARPMODE) |
 			      LS_64(iw->rcv_mark_en, I40IWQPC_RCVMARKERS) |
 			      LS_64(iw->align_hdrs, I40IWQPC_ALIGNHDRS) |
-			      LS_64(iw->rcv_no_mpa_crc, I40IWQPC_RCVNOMPACRC) |
+			      LS_64(iw->rcv_yes_mpa_crc, I40IWQPC_RCVNOMPACRC) |
 			      LS_64(iw->rcv_mark_offset, I40IWQPC_RCVMARKOFFSET) |
 			      LS_64(iw->snd_mark_offset, I40IWQPC_SNDMARKOFFSET));
 	}
 	if (info->tcp_info_valid) {
 		qw0 |= LS_64(tcp->ipv4, I40IWQPC_IPV4) |
-		       LS_64(tcp->no_nagle, I40IWQPC_NONAGLE) |
+		       LS_64(tcp->yes_nagle, I40IWQPC_NONAGLE) |
 		       LS_64(tcp->insert_vlan_tag, I40IWQPC_INSERTVLANTAG) |
 		       LS_64(tcp->time_stamp, I40IWQPC_TIMESTAMP) |
 		       LS_64(tcp->cwnd_inc_limit, I40IWQPC_LIMIT) |
@@ -2869,8 +2869,8 @@ static enum i40iw_status_code i40iw_sc_qp_setctx(
 
 		qw7 |= LS_64(tcp->flow_label, I40IWQPC_FLOWLABEL) |
 		       LS_64(tcp->wscale, I40IWQPC_WSCALE) |
-		       LS_64(tcp->ignore_tcp_opt, I40IWQPC_IGNORE_TCP_OPT) |
-		       LS_64(tcp->ignore_tcp_uns_opt, I40IWQPC_IGNORE_TCP_UNS_OPT) |
+		       LS_64(tcp->igyesre_tcp_opt, I40IWQPC_IGNORE_TCP_OPT) |
+		       LS_64(tcp->igyesre_tcp_uns_opt, I40IWQPC_IGNORE_TCP_UNS_OPT) |
 		       LS_64(tcp->tcp_state, I40IWQPC_TCPSTATE) |
 		       LS_64(tcp->rcv_wscale, I40IWQPC_RCVSCALE) |
 		       LS_64(tcp->snd_wscale, I40IWQPC_SNDSCALE);
@@ -2982,13 +2982,13 @@ static enum i40iw_status_code i40iw_sc_alloc_stag(
 }
 
 /**
- * i40iw_sc_mr_reg_non_shared - non-shared mr registration
+ * i40iw_sc_mr_reg_yesn_shared - yesn-shared mr registration
  * @dev: sc device struct
  * @info: mr info
  * @scratch: u64 saved to be used during cqp completion
  * @post_sq: flag for cqp db to ring
  */
-static enum i40iw_status_code i40iw_sc_mr_reg_non_shared(
+static enum i40iw_status_code i40iw_sc_mr_reg_yesn_shared(
 				struct i40iw_sc_dev *dev,
 				struct i40iw_reg_ns_stag_info *info,
 				u64 scratch,
@@ -3345,12 +3345,12 @@ static void i40iw_sc_send_lsmm(struct i40iw_sc_qp *qp,
 }
 
 /**
- * i40iw_sc_send_lsmm_nostag - for privilege qp
+ * i40iw_sc_send_lsmm_yesstag - for privilege qp
  * @qp: sc qp struct
  * @lsmm_buf: buffer with lsmm message
  * @size: size of lsmm buffer
  */
-static void i40iw_sc_send_lsmm_nostag(struct i40iw_sc_qp *qp,
+static void i40iw_sc_send_lsmm_yesstag(struct i40iw_sc_qp *qp,
 				      void *lsmm_buf,
 				      u32 size)
 {
@@ -3719,11 +3719,11 @@ static enum i40iw_status_code i40iw_update_pe_sds(struct i40iw_sc_dev *dev,
 }
 
 /**
- * i40iw_update_sds_noccq - update sd before ccq created
+ * i40iw_update_sds_yesccq - update sd before ccq created
  * @dev: sc device struct
  * @info: sd info for sd's
  */
-enum i40iw_status_code i40iw_update_sds_noccq(struct i40iw_sc_dev *dev,
+enum i40iw_status_code i40iw_update_sds_yesccq(struct i40iw_sc_dev *dev,
 					      struct i40iw_update_sds_info *info)
 {
 	u32 error, val, tail;
@@ -4044,7 +4044,7 @@ static enum i40iw_status_code i40iw_exec_cqp_cmd(struct i40iw_sc_dev *dev,
 				pcmdinfo->in.u.del_local_mac_ipaddr_entry.cqp,
 				pcmdinfo->in.u.del_local_mac_ipaddr_entry.scratch,
 				pcmdinfo->in.u.del_local_mac_ipaddr_entry.entry_idx,
-				pcmdinfo->in.u.del_local_mac_ipaddr_entry.ignore_ref_count,
+				pcmdinfo->in.u.del_local_mac_ipaddr_entry.igyesre_ref_count,
 				pcmdinfo->post_sq);
 		break;
 	case OP_CEQ_DESTROY:
@@ -4146,7 +4146,7 @@ static enum i40iw_status_code i40iw_exec_cqp_cmd(struct i40iw_sc_dev *dev,
 				pcmdinfo->in.u.qp_destroy.scratch,
 				pcmdinfo->in.u.qp_destroy.remove_hash_idx,
 				pcmdinfo->in.u.qp_destroy.
-				ignore_mw_bnd,
+				igyesre_mw_bnd,
 				pcmdinfo->post_sq);
 
 		break;
@@ -4158,10 +4158,10 @@ static enum i40iw_status_code i40iw_exec_cqp_cmd(struct i40iw_sc_dev *dev,
 				pcmdinfo->post_sq);
 		break;
 	case OP_MR_REG_NON_SHARED:
-		status = i40iw_sc_mr_reg_non_shared(
-				pcmdinfo->in.u.mr_reg_non_shared.dev,
-				&pcmdinfo->in.u.mr_reg_non_shared.info,
-				pcmdinfo->in.u.mr_reg_non_shared.scratch,
+		status = i40iw_sc_mr_reg_yesn_shared(
+				pcmdinfo->in.u.mr_reg_yesn_shared.dev,
+				&pcmdinfo->in.u.mr_reg_yesn_shared.info,
+				pcmdinfo->in.u.mr_reg_yesn_shared.scratch,
 				pcmdinfo->post_sq);
 
 		break;
@@ -4598,7 +4598,7 @@ void i40iw_terminate_received(struct i40iw_sc_qp *qp, struct i40iw_aeqe_info *in
 
 	mpa = (__be32 *)i40iw_locate_mpa(pkt);
 	if (info->q2_data_written) {
-		/* did not validate the frame - do it now */
+		/* did yest validate the frame - do it yesw */
 		ddp_ctl = (ntohl(mpa[0]) >> 8) & 0xff;
 		rdma_ctl = ntohl(mpa[0]) & 0xff;
 		if ((ddp_ctl & 0xc0) != 0x40)
@@ -5055,7 +5055,7 @@ static struct i40iw_priv_qp_ops iw_priv_qp_ops = {
 	.qp_upload_context = i40iw_sc_qp_upload_context,
 	.qp_setctx = i40iw_sc_qp_setctx,
 	.qp_send_lsmm = i40iw_sc_send_lsmm,
-	.qp_send_lsmm_nostag = i40iw_sc_send_lsmm_nostag,
+	.qp_send_lsmm_yesstag = i40iw_sc_send_lsmm_yesstag,
 	.qp_send_rtt = i40iw_sc_send_rtt,
 	.qp_post_wqe0 = i40iw_sc_post_wqe0,
 	.iw_mr_fast_register = i40iw_sc_mr_fast_register
@@ -5070,7 +5070,7 @@ static struct i40iw_priv_cq_ops iw_priv_cq_ops = {
 
 static struct i40iw_mr_ops iw_mr_ops = {
 	.alloc_stag = i40iw_sc_alloc_stag,
-	.mr_reg_non_shared = i40iw_sc_mr_reg_non_shared,
+	.mr_reg_yesn_shared = i40iw_sc_mr_reg_yesn_shared,
 	.mr_reg_shared = i40iw_sc_mr_reg_shared,
 	.dealloc_stag = i40iw_sc_dealloc_stag,
 	.query_stag = i40iw_sc_query_stag,
@@ -5092,7 +5092,7 @@ static struct i40iw_cqp_misc_ops iw_cqp_misc_ops = {
 	.alloc_local_mac_ipaddr_table_entry = i40iw_sc_alloc_local_mac_ipaddr_entry,
 	.add_local_mac_ipaddr_entry = i40iw_sc_add_local_mac_ipaddr_entry,
 	.del_local_mac_ipaddr_entry = i40iw_sc_del_local_mac_ipaddr_entry,
-	.cqp_nop = i40iw_sc_cqp_nop,
+	.cqp_yesp = i40iw_sc_cqp_yesp,
 	.commit_fpm_values_done = i40iw_sc_commit_fpm_values_done,
 	.query_fpm_values_done = i40iw_sc_query_fpm_values_done,
 	.manage_hmc_pm_func_table_done = i40iw_sc_manage_hmc_pm_func_table_done,
@@ -5150,7 +5150,7 @@ enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,
 		if ((db_size != I40IW_PE_DB_SIZE_4M) &&
 		    (db_size != I40IW_PE_DB_SIZE_8M)) {
 			i40iw_debug(dev, I40IW_DEBUG_DEV,
-				    "%s: PE doorbell is not enabled in CSR val 0x%x\n",
+				    "%s: PE doorbell is yest enabled in CSR val 0x%x\n",
 				    __func__, val);
 			ret_code = I40IW_ERR_PE_DOORBELL_NOT_ENABLED;
 			return ret_code;

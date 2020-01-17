@@ -131,8 +131,8 @@ struct qlcnic_sds_mbx {
  * phy_addr_reg_{low|high}: physical address of regular buffer
  * phy_addr_jmb_{low|high}: physical address of jumbo buffer
  * reg_ring_sz: size of regular buffer
- * reg_ring_len: no. of entries in regular buffer
- * jmb_ring_len: no. of entries in jumbo buffer
+ * reg_ring_len: yes. of entries in regular buffer
+ * jmb_ring_len: yes. of entries in jumbo buffer
  * jmb_ring_sz: size of jumbo buffer
  */
 struct qlcnic_rds_mbx {
@@ -537,7 +537,7 @@ enum qlc_83xx_ext_regs {
 int qlcnic_83xx_get_fw_version(struct qlcnic_adapter *);
 int qlcnic_83xx_issue_cmd(struct qlcnic_adapter *, struct qlcnic_cmd_args *);
 int qlcnic_83xx_setup_intr(struct qlcnic_adapter *);
-void qlcnic_83xx_get_func_no(struct qlcnic_adapter *);
+void qlcnic_83xx_get_func_yes(struct qlcnic_adapter *);
 int qlcnic_83xx_cam_lock(struct qlcnic_adapter *);
 void qlcnic_83xx_cam_unlock(struct qlcnic_adapter *);
 int qlcnic_send_ctrl_op(struct qlcnic_adapter *, struct qlcnic_cmd_args *, u32);

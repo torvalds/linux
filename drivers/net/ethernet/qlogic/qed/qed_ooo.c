@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -74,7 +74,7 @@ static struct qed_ooo_isle *qed_ooo_seek_isle(struct qed_hwfn *p_hwfn,
 	p_archipelago = qed_ooo_seek_archipelago(p_hwfn, p_ooo_info, cid);
 	if (!p_archipelago) {
 		DP_NOTICE(p_hwfn,
-			  "Connection %d is not found in OOO list\n", cid);
+			  "Connection %d is yest found in OOO list\n", cid);
 		return NULL;
 	}
 
@@ -117,7 +117,7 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 		break;
 	default:
 		DP_NOTICE(p_hwfn,
-			  "Failed to allocate qed_ooo_info: unknown personality\n");
+			  "Failed to allocate qed_ooo_info: unkyeswn personality\n");
 		return -EINVAL;
 	}
 
@@ -128,7 +128,7 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 
 	if (!max_num_archipelagos) {
 		DP_NOTICE(p_hwfn,
-			  "Failed to allocate qed_ooo_info: unknown amount of connections\n");
+			  "Failed to allocate qed_ooo_info: unkyeswn amount of connections\n");
 		return -EINVAL;
 	}
 
@@ -147,7 +147,7 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 					  sizeof(struct qed_ooo_isle),
 					  GFP_KERNEL);
 	if (!p_ooo_info->p_isles_mem)
-		goto no_isles_mem;
+		goto yes_isles_mem;
 
 	for (i = 0; i < max_num_isles; i++) {
 		INIT_LIST_HEAD(&p_ooo_info->p_isles_mem[i].buffers_list);
@@ -160,7 +160,7 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 					sizeof(struct qed_ooo_archipelago),
 					GFP_KERNEL);
 	if (!p_ooo_info->p_archipelagos_mem)
-		goto no_archipelagos_mem;
+		goto yes_archipelagos_mem;
 
 	for (i = 0; i < max_num_archipelagos; i++)
 		INIT_LIST_HEAD(&p_ooo_info->p_archipelagos_mem[i].isles_list);
@@ -170,18 +170,18 @@ int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 					sizeof(struct ooo_opaque),
 					GFP_KERNEL);
 	if (!p_ooo_info->ooo_history.p_cqes)
-		goto no_history_mem;
+		goto yes_history_mem;
 
 	p_ooo_info->ooo_history.num_of_cqes = QED_MAX_NUM_OOO_HISTORY_ENTRIES;
 
 	p_hwfn->p_ooo_info = p_ooo_info;
 	return 0;
 
-no_history_mem:
+yes_history_mem:
 	kfree(p_ooo_info->p_archipelagos_mem);
-no_archipelagos_mem:
+yes_archipelagos_mem:
 	kfree(p_ooo_info->p_isles_mem);
-no_isles_mem:
+yes_isles_mem:
 	kfree(p_ooo_info);
 	return -ENOMEM;
 }
@@ -358,7 +358,7 @@ void qed_ooo_delete_isles(struct qed_hwfn *p_hwfn,
 		p_isle = qed_ooo_seek_isle(p_hwfn, p_ooo_info, cid, drop_isle);
 		if (!p_isle) {
 			DP_NOTICE(p_hwfn,
-				  "Isle %d is not found(cid %d)\n",
+				  "Isle %d is yest found(cid %d)\n",
 				  drop_isle, cid);
 			return;
 		}
@@ -389,7 +389,7 @@ void qed_ooo_add_new_isle(struct qed_hwfn *p_hwfn,
 						p_ooo_info, cid, ooo_isle - 1);
 		if (!p_prev_isle) {
 			DP_NOTICE(p_hwfn,
-				  "Isle %d is not found(cid %d)\n",
+				  "Isle %d is yest found(cid %d)\n",
 				  ooo_isle - 1, cid);
 			return;
 		}
@@ -397,7 +397,7 @@ void qed_ooo_add_new_isle(struct qed_hwfn *p_hwfn,
 	p_archipelago = qed_ooo_seek_archipelago(p_hwfn, p_ooo_info, cid);
 	if (!p_archipelago && (ooo_isle != 1)) {
 		DP_NOTICE(p_hwfn,
-			  "Connection %d is not found in OOO list\n", cid);
+			  "Connection %d is yest found in OOO list\n", cid);
 		return;
 	}
 
@@ -407,7 +407,7 @@ void qed_ooo_add_new_isle(struct qed_hwfn *p_hwfn,
 
 		list_del(&p_isle->list_entry);
 		if (!list_empty(&p_isle->buffers_list)) {
-			DP_NOTICE(p_hwfn, "Free isle is not empty\n");
+			DP_NOTICE(p_hwfn, "Free isle is yest empty\n");
 			INIT_LIST_HEAD(&p_isle->buffers_list);
 		}
 	} else {
@@ -445,7 +445,7 @@ void qed_ooo_add_new_buffer(struct qed_hwfn *p_hwfn,
 	p_isle = qed_ooo_seek_isle(p_hwfn, p_ooo_info, cid, ooo_isle);
 	if (!p_isle) {
 		DP_NOTICE(p_hwfn,
-			  "Isle %d is not found(cid %d)\n", ooo_isle, cid);
+			  "Isle %d is yest found(cid %d)\n", ooo_isle, cid);
 		return;
 	}
 
@@ -465,7 +465,7 @@ void qed_ooo_join_isles(struct qed_hwfn *p_hwfn,
 					 left_isle + 1);
 	if (!p_right_isle) {
 		DP_NOTICE(p_hwfn,
-			  "Right isle %d is not found(cid %d)\n",
+			  "Right isle %d is yest found(cid %d)\n",
 			  left_isle + 1, cid);
 		return;
 	}
@@ -477,7 +477,7 @@ void qed_ooo_join_isles(struct qed_hwfn *p_hwfn,
 						left_isle);
 		if (!p_left_isle) {
 			DP_NOTICE(p_hwfn,
-				  "Left isle %d is not found(cid %d)\n",
+				  "Left isle %d is yest found(cid %d)\n",
 				  left_isle, cid);
 			return;
 		}

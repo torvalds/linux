@@ -19,64 +19,64 @@
 #include <linux/magic.h>
 #include "ecryptfs_kernel.h"
 
-struct kmem_cache *ecryptfs_inode_info_cache;
+struct kmem_cache *ecryptfs_iyesde_info_cache;
 
 /**
- * ecryptfs_alloc_inode - allocate an ecryptfs inode
+ * ecryptfs_alloc_iyesde - allocate an ecryptfs iyesde
  * @sb: Pointer to the ecryptfs super block
  *
- * Called to bring an inode into existence.
+ * Called to bring an iyesde into existence.
  *
  * Only handle allocation, setting up structures should be done in
- * ecryptfs_read_inode. This is because the kernel, between now and
+ * ecryptfs_read_iyesde. This is because the kernel, between yesw and
  * then, will 0 out the private data pointer.
  *
- * Returns a pointer to a newly allocated inode, NULL otherwise
+ * Returns a pointer to a newly allocated iyesde, NULL otherwise
  */
-static struct inode *ecryptfs_alloc_inode(struct super_block *sb)
+static struct iyesde *ecryptfs_alloc_iyesde(struct super_block *sb)
 {
-	struct ecryptfs_inode_info *inode_info;
-	struct inode *inode = NULL;
+	struct ecryptfs_iyesde_info *iyesde_info;
+	struct iyesde *iyesde = NULL;
 
-	inode_info = kmem_cache_alloc(ecryptfs_inode_info_cache, GFP_KERNEL);
-	if (unlikely(!inode_info))
+	iyesde_info = kmem_cache_alloc(ecryptfs_iyesde_info_cache, GFP_KERNEL);
+	if (unlikely(!iyesde_info))
 		goto out;
-	if (ecryptfs_init_crypt_stat(&inode_info->crypt_stat)) {
-		kmem_cache_free(ecryptfs_inode_info_cache, inode_info);
+	if (ecryptfs_init_crypt_stat(&iyesde_info->crypt_stat)) {
+		kmem_cache_free(ecryptfs_iyesde_info_cache, iyesde_info);
 		goto out;
 	}
-	mutex_init(&inode_info->lower_file_mutex);
-	atomic_set(&inode_info->lower_file_count, 0);
-	inode_info->lower_file = NULL;
-	inode = &inode_info->vfs_inode;
+	mutex_init(&iyesde_info->lower_file_mutex);
+	atomic_set(&iyesde_info->lower_file_count, 0);
+	iyesde_info->lower_file = NULL;
+	iyesde = &iyesde_info->vfs_iyesde;
 out:
-	return inode;
+	return iyesde;
 }
 
-static void ecryptfs_free_inode(struct inode *inode)
+static void ecryptfs_free_iyesde(struct iyesde *iyesde)
 {
-	struct ecryptfs_inode_info *inode_info;
-	inode_info = ecryptfs_inode_to_private(inode);
+	struct ecryptfs_iyesde_info *iyesde_info;
+	iyesde_info = ecryptfs_iyesde_to_private(iyesde);
 
-	kmem_cache_free(ecryptfs_inode_info_cache, inode_info);
+	kmem_cache_free(ecryptfs_iyesde_info_cache, iyesde_info);
 }
 
 /**
- * ecryptfs_destroy_inode
- * @inode: The ecryptfs inode
+ * ecryptfs_destroy_iyesde
+ * @iyesde: The ecryptfs iyesde
  *
- * This is used during the final destruction of the inode.  All
- * allocation of memory related to the inode, including allocated
+ * This is used during the final destruction of the iyesde.  All
+ * allocation of memory related to the iyesde, including allocated
  * memory in the crypt_stat struct, will be released here.
- * There should be no chance that this deallocation will be missed.
+ * There should be yes chance that this deallocation will be missed.
  */
-static void ecryptfs_destroy_inode(struct inode *inode)
+static void ecryptfs_destroy_iyesde(struct iyesde *iyesde)
 {
-	struct ecryptfs_inode_info *inode_info;
+	struct ecryptfs_iyesde_info *iyesde_info;
 
-	inode_info = ecryptfs_inode_to_private(inode);
-	BUG_ON(inode_info->lower_file);
-	ecryptfs_destroy_crypt_stat(&inode_info->crypt_stat);
+	iyesde_info = ecryptfs_iyesde_to_private(iyesde);
+	BUG_ON(iyesde_info->lower_file);
+	ecryptfs_destroy_crypt_stat(&iyesde_info->crypt_stat);
 }
 
 /**
@@ -85,7 +85,7 @@ static void ecryptfs_destroy_inode(struct inode *inode)
  * @buf: The struct kstatfs to fill in with stats
  *
  * Get the filesystem statistics. Currently, we let this pass right through
- * to the lower filesystem and take no action ourselves.
+ * to the lower filesystem and take yes action ourselves.
  */
 static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
@@ -107,27 +107,27 @@ static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 }
 
 /**
- * ecryptfs_evict_inode
- * @inode - The ecryptfs inode
+ * ecryptfs_evict_iyesde
+ * @iyesde - The ecryptfs iyesde
  *
- * Called by iput() when the inode reference count reached zero
- * and the inode is not hashed anywhere.  Used to clear anything
- * that needs to be, before the inode is completely destroyed and put
- * on the inode free list. We use this to drop out reference to the
- * lower inode.
+ * Called by iput() when the iyesde reference count reached zero
+ * and the iyesde is yest hashed anywhere.  Used to clear anything
+ * that needs to be, before the iyesde is completely destroyed and put
+ * on the iyesde free list. We use this to drop out reference to the
+ * lower iyesde.
  */
-static void ecryptfs_evict_inode(struct inode *inode)
+static void ecryptfs_evict_iyesde(struct iyesde *iyesde)
 {
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
-	iput(ecryptfs_inode_to_lower(inode));
+	truncate_iyesde_pages_final(&iyesde->i_data);
+	clear_iyesde(iyesde);
+	iput(ecryptfs_iyesde_to_lower(iyesde));
 }
 
 /**
  * ecryptfs_show_options
  *
  * Prints the mount options for a given superblock.
- * Returns zero; does not fail.
+ * Returns zero; does yest fail.
  */
 static int ecryptfs_show_options(struct seq_file *m, struct dentry *root)
 {
@@ -168,11 +168,11 @@ static int ecryptfs_show_options(struct seq_file *m, struct dentry *root)
 }
 
 const struct super_operations ecryptfs_sops = {
-	.alloc_inode = ecryptfs_alloc_inode,
-	.destroy_inode = ecryptfs_destroy_inode,
-	.free_inode = ecryptfs_free_inode,
+	.alloc_iyesde = ecryptfs_alloc_iyesde,
+	.destroy_iyesde = ecryptfs_destroy_iyesde,
+	.free_iyesde = ecryptfs_free_iyesde,
 	.statfs = ecryptfs_statfs,
 	.remount_fs = NULL,
-	.evict_inode = ecryptfs_evict_inode,
+	.evict_iyesde = ecryptfs_evict_iyesde,
 	.show_options = ecryptfs_show_options
 };

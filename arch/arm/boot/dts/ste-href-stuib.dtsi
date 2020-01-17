@@ -49,7 +49,7 @@
 
 					debounce-interval = <64>;
 					st,scan-count = <8>;
-					st,no-autorepeat;
+					st,yes-autorepeat;
 
 					linux,keymap = <0x205006b
 							0x4010074

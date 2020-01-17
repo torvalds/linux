@@ -99,7 +99,7 @@ SYSCALL_DEFINE3(spu_run,int, fd, __u32 __user *, unpc, __u32 __user *, ustatus)
 }
 
 #ifdef CONFIG_COREDUMP
-int elf_coredump_extra_notes_size(void)
+int elf_coredump_extra_yestes_size(void)
 {
 	struct spufs_calls *calls;
 	int ret;
@@ -108,14 +108,14 @@ int elf_coredump_extra_notes_size(void)
 	if (!calls)
 		return 0;
 
-	ret = calls->coredump_extra_notes_size();
+	ret = calls->coredump_extra_yestes_size();
 
 	spufs_calls_put(calls);
 
 	return ret;
 }
 
-int elf_coredump_extra_notes_write(struct coredump_params *cprm)
+int elf_coredump_extra_yestes_write(struct coredump_params *cprm)
 {
 	struct spufs_calls *calls;
 	int ret;
@@ -124,7 +124,7 @@ int elf_coredump_extra_notes_write(struct coredump_params *cprm)
 	if (!calls)
 		return 0;
 
-	ret = calls->coredump_extra_notes_write(cprm);
+	ret = calls->coredump_extra_yestes_write(cprm);
 
 	spufs_calls_put(calls);
 
@@ -132,7 +132,7 @@ int elf_coredump_extra_notes_write(struct coredump_params *cprm)
 }
 #endif
 
-void notify_spus_active(void)
+void yestify_spus_active(void)
 {
 	struct spufs_calls *calls;
 
@@ -140,7 +140,7 @@ void notify_spus_active(void)
 	if (!calls)
 		return;
 
-	calls->notify_spus_active();
+	calls->yestify_spus_active();
 	spufs_calls_put(calls);
 
 	return;

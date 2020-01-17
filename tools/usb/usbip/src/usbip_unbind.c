@@ -6,7 +6,7 @@
 
 #include <libudev.h>
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -47,14 +47,14 @@ static int unbind_device(char *busid)
 	/* Check whether the device with this bus ID exists. */
 	dev = udev_device_new_from_subsystem_sysname(udev, "usb", busid);
 	if (!dev) {
-		err("device with the specified bus ID does not exist");
+		err("device with the specified bus ID does yest exist");
 		goto err_close_udev;
 	}
 
 	/* Check whether the device is using usbip-host driver. */
 	driver = udev_device_get_driver(dev);
 	if (!driver || strcmp(driver, "usbip-host")) {
-		err("device is not bound to usbip-host driver");
+		err("device is yest bound to usbip-host driver");
 		goto err_close_udev;
 	}
 

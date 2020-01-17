@@ -58,7 +58,7 @@ reject_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 				 xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_ECHOREPLY:
-		/* Do nothing */
+		/* Do yesthing */
 		break;
 	case IP6T_TCP_RESET:
 		nf_send_reset6(net, skb, xt_hooknum(par));
@@ -81,14 +81,14 @@ static int reject_tg6_check(const struct xt_tgchk_param *par)
 	const struct ip6t_entry *e = par->entryinfo;
 
 	if (rejinfo->with == IP6T_ICMP6_ECHOREPLY) {
-		pr_info_ratelimited("ECHOREPLY is not supported\n");
+		pr_info_ratelimited("ECHOREPLY is yest supported\n");
 		return -EINVAL;
 	} else if (rejinfo->with == IP6T_TCP_RESET) {
 		/* Must specify that it's a TCP packet */
 		if (!(e->ipv6.flags & IP6T_F_PROTO) ||
 		    e->ipv6.proto != IPPROTO_TCP ||
 		    (e->ipv6.invflags & XT_INV_PROTO)) {
-			pr_info_ratelimited("TCP_RESET illegal for non-tcp\n");
+			pr_info_ratelimited("TCP_RESET illegal for yesn-tcp\n");
 			return -EINVAL;
 		}
 	}

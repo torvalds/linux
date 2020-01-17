@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014 Marvell Technology Group Ltd.
+ * Copyright (c) 2014 Marvell Techyeslogy Group Ltd.
  *
  * Alexandre Belloni <alexandre.belloni@free-electrons.com>
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
@@ -43,7 +43,7 @@
  * - shared register dividers with bits spread over multiple registers
  *   (including signals for the same cell spread over consecutive registers)
  *
- * Also, clock gate and pll mux is not available on every div cell, so
+ * Also, clock gate and pll mux is yest available on every div cell, so
  * we have to deal with those, too. We reuse common clock composite driver
  * for it.
  */

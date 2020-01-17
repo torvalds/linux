@@ -172,7 +172,7 @@ int sun6i_csi_set_power(struct sun6i_csi *csi, bool enable)
 		regmap_update_bits(regmap, CSI_EN_REG, CSI_EN_CSI_EN, 0);
 
 		clk_disable_unprepare(sdev->clk_ram);
-		if (of_device_is_compatible(dev->of_node,
+		if (of_device_is_compatible(dev->of_yesde,
 					    "allwinner,sun50i-a64-csi"))
 			clk_rate_exclusive_put(sdev->clk_mod);
 		clk_disable_unprepare(sdev->clk_mod);
@@ -186,7 +186,7 @@ int sun6i_csi_set_power(struct sun6i_csi *csi, bool enable)
 		return ret;
 	}
 
-	if (of_device_is_compatible(dev->of_node, "allwinner,sun50i-a64-csi"))
+	if (of_device_is_compatible(dev->of_yesde, "allwinner,sun50i-a64-csi"))
 		clk_set_rate_exclusive(sdev->clk_mod, 300000000);
 
 	ret = clk_prepare_enable(sdev->clk_ram);
@@ -208,7 +208,7 @@ int sun6i_csi_set_power(struct sun6i_csi *csi, bool enable)
 clk_ram_disable:
 	clk_disable_unprepare(sdev->clk_ram);
 clk_mod_disable:
-	if (of_device_is_compatible(dev->of_node, "allwinner,sun50i-a64-csi"))
+	if (of_device_is_compatible(dev->of_yesde, "allwinner,sun50i-a64-csi"))
 		clk_rate_exclusive_put(sdev->clk_mod);
 	clk_disable_unprepare(sdev->clk_mod);
 	return ret;
@@ -217,7 +217,7 @@ clk_mod_disable:
 static enum csi_input_fmt get_csi_input_format(struct sun6i_csi_dev *sdev,
 					       u32 mbus_code, u32 pixformat)
 {
-	/* non-YUV */
+	/* yesn-YUV */
 	if ((mbus_code & 0xF000) != 0x2000)
 		return CSI_INPUT_FORMAT_RAW;
 
@@ -231,7 +231,7 @@ static enum csi_input_fmt get_csi_input_format(struct sun6i_csi_dev *sdev,
 		break;
 	}
 
-	/* not support YUV420 input format yet */
+	/* yest support YUV420 input format yet */
 	dev_dbg(sdev->dev, "Select YUV422 as default input format of CSI.\n");
 	return CSI_INPUT_FORMAT_YUV422;
 }
@@ -306,7 +306,7 @@ static enum csi_output_fmt get_csi_output_format(struct sun6i_csi_dev *sdev,
 static enum csi_input_seq get_csi_input_seq(struct sun6i_csi_dev *sdev,
 					    u32 mbus_code, u32 pixformat)
 {
-	/* Input sequence does not apply to non-YUV formats */
+	/* Input sequence does yest apply to yesn-YUV formats */
 	if ((mbus_code & 0xF000) != 0x2000)
 		return 0;
 
@@ -372,7 +372,7 @@ static enum csi_input_seq get_csi_input_seq(struct sun6i_csi_dev *sdev,
 
 static void sun6i_csi_setup_bus(struct sun6i_csi_dev *sdev)
 {
-	struct v4l2_fwnode_endpoint *endpoint = &sdev->csi.v4l2_ep;
+	struct v4l2_fwyesde_endpoint *endpoint = &sdev->csi.v4l2_ep;
 	struct sun6i_csi *csi = &sdev->csi;
 	unsigned char bus_width;
 	u32 flags;
@@ -628,16 +628,16 @@ void sun6i_csi_set_stream(struct sun6i_csi *csi, bool enable)
  */
 static int sun6i_csi_link_entity(struct sun6i_csi *csi,
 				 struct media_entity *entity,
-				 struct fwnode_handle *fwnode)
+				 struct fwyesde_handle *fwyesde)
 {
 	struct media_entity *sink;
 	struct media_pad *sink_pad;
 	int src_pad_index;
 	int ret;
 
-	ret = media_entity_get_fwnode_pad(entity, fwnode, MEDIA_PAD_FL_SOURCE);
+	ret = media_entity_get_fwyesde_pad(entity, fwyesde, MEDIA_PAD_FL_SOURCE);
 	if (ret < 0) {
-		dev_err(csi->dev, "%s: no source pad in external entity %s\n",
+		dev_err(csi->dev, "%s: yes source pad in external entity %s\n",
 			__func__, entity->name);
 		return -EINVAL;
 	}
@@ -663,37 +663,37 @@ static int sun6i_csi_link_entity(struct sun6i_csi *csi,
 	return 0;
 }
 
-static int sun6i_subdev_notify_complete(struct v4l2_async_notifier *notifier)
+static int sun6i_subdev_yestify_complete(struct v4l2_async_yestifier *yestifier)
 {
-	struct sun6i_csi *csi = container_of(notifier, struct sun6i_csi,
-					     notifier);
+	struct sun6i_csi *csi = container_of(yestifier, struct sun6i_csi,
+					     yestifier);
 	struct v4l2_device *v4l2_dev = &csi->v4l2_dev;
 	struct v4l2_subdev *sd;
 	int ret;
 
-	dev_dbg(csi->dev, "notify complete, all subdevs registered\n");
+	dev_dbg(csi->dev, "yestify complete, all subdevs registered\n");
 
 	sd = list_first_entry(&v4l2_dev->subdevs, struct v4l2_subdev, list);
 	if (!sd)
 		return -EINVAL;
 
-	ret = sun6i_csi_link_entity(csi, &sd->entity, sd->fwnode);
+	ret = sun6i_csi_link_entity(csi, &sd->entity, sd->fwyesde);
 	if (ret < 0)
 		return ret;
 
-	ret = v4l2_device_register_subdev_nodes(&csi->v4l2_dev);
+	ret = v4l2_device_register_subdev_yesdes(&csi->v4l2_dev);
 	if (ret < 0)
 		return ret;
 
 	return media_device_register(&csi->media_dev);
 }
 
-static const struct v4l2_async_notifier_operations sun6i_csi_async_ops = {
-	.complete = sun6i_subdev_notify_complete,
+static const struct v4l2_async_yestifier_operations sun6i_csi_async_ops = {
+	.complete = sun6i_subdev_yestify_complete,
 };
 
-static int sun6i_csi_fwnode_parse(struct device *dev,
-				  struct v4l2_fwnode_endpoint *vep,
+static int sun6i_csi_fwyesde_parse(struct device *dev,
+				  struct v4l2_fwyesde_endpoint *vep,
 				  struct v4l2_async_subdev *asd)
 {
 	struct sun6i_csi *csi = dev_get_drvdata(dev);
@@ -717,8 +717,8 @@ static int sun6i_csi_fwnode_parse(struct device *dev,
 static void sun6i_csi_v4l2_cleanup(struct sun6i_csi *csi)
 {
 	media_device_unregister(&csi->media_dev);
-	v4l2_async_notifier_unregister(&csi->notifier);
-	v4l2_async_notifier_cleanup(&csi->notifier);
+	v4l2_async_yestifier_unregister(&csi->yestifier);
+	v4l2_async_yestifier_cleanup(&csi->yestifier);
 	sun6i_video_cleanup(&csi->video);
 	v4l2_device_unregister(&csi->v4l2_dev);
 	v4l2_ctrl_handler_free(&csi->ctrl_handler);
@@ -735,7 +735,7 @@ static int sun6i_csi_v4l2_init(struct sun6i_csi *csi)
 	csi->media_dev.hw_revision = 0;
 
 	media_device_init(&csi->media_dev);
-	v4l2_async_notifier_init(&csi->notifier);
+	v4l2_async_yestifier_init(&csi->yestifier);
 
 	ret = v4l2_ctrl_handler_init(&csi->ctrl_handler, 0);
 	if (ret) {
@@ -757,18 +757,18 @@ static int sun6i_csi_v4l2_init(struct sun6i_csi *csi)
 	if (ret)
 		goto unreg_v4l2;
 
-	ret = v4l2_async_notifier_parse_fwnode_endpoints(csi->dev,
-							 &csi->notifier,
+	ret = v4l2_async_yestifier_parse_fwyesde_endpoints(csi->dev,
+							 &csi->yestifier,
 							 sizeof(struct v4l2_async_subdev),
-							 sun6i_csi_fwnode_parse);
+							 sun6i_csi_fwyesde_parse);
 	if (ret)
 		goto clean_video;
 
-	csi->notifier.ops = &sun6i_csi_async_ops;
+	csi->yestifier.ops = &sun6i_csi_async_ops;
 
-	ret = v4l2_async_notifier_register(&csi->v4l2_dev, &csi->notifier);
+	ret = v4l2_async_yestifier_register(&csi->v4l2_dev, &csi->yestifier);
 	if (ret) {
-		dev_err(csi->dev, "notifier registration failed\n");
+		dev_err(csi->dev, "yestifier registration failed\n");
 		goto clean_video;
 	}
 
@@ -781,7 +781,7 @@ unreg_v4l2:
 free_ctrl:
 	v4l2_ctrl_handler_free(&csi->ctrl_handler);
 clean_media:
-	v4l2_async_notifier_cleanup(&csi->notifier);
+	v4l2_async_yestifier_cleanup(&csi->yestifier);
 	media_device_cleanup(&csi->media_dev);
 
 	return ret;
@@ -861,7 +861,7 @@ static int sun6i_csi_resource_request(struct sun6i_csi_dev *sdev,
 
 	sdev->rstc_bus = devm_reset_control_get_shared(&pdev->dev, NULL);
 	if (IS_ERR(sdev->rstc_bus)) {
-		dev_err(&pdev->dev, "Cannot get reset controller\n");
+		dev_err(&pdev->dev, "Canyest get reset controller\n");
 		return PTR_ERR(sdev->rstc_bus);
 	}
 
@@ -872,7 +872,7 @@ static int sun6i_csi_resource_request(struct sun6i_csi_dev *sdev,
 	ret = devm_request_irq(&pdev->dev, irq, sun6i_csi_isr, 0, MODULE_NAME,
 			       sdev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request csi IRQ\n");
+		dev_err(&pdev->dev, "Canyest request csi IRQ\n");
 		return ret;
 	}
 

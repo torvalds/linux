@@ -8,7 +8,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/export.h>
 
-_GLOBAL(ucall_norets)
-EXPORT_SYMBOL_GPL(ucall_norets)
+_GLOBAL(ucall_yesrets)
+EXPORT_SYMBOL_GPL(ucall_yesrets)
 	sc	2	/* Invoke the ultravisor */
 	blr		/* Return r3 = status */

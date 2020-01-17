@@ -105,7 +105,7 @@ struct __packed mcba_usb_msg_ka_usb {
 	u8 cmd_id;
 	u8 termination_state;
 	u8 soft_ver_major;
-	u8 soft_ver_minor;
+	u8 soft_ver_miyesr;
 	u8 unused[15];
 };
 
@@ -119,7 +119,7 @@ struct __packed mcba_usb_msg_ka_can {
 	__le16 rx_lost;
 	u8 can_stat;
 	u8 soft_ver_major;
-	u8 soft_ver_minor;
+	u8 soft_ver_miyesr;
 	u8 debug_mode;
 	u8 test_complete;
 	u8 test_result;
@@ -265,7 +265,7 @@ static netdev_tx_t mcba_usb_xmit(struct mcba_priv *priv,
 				 &urb->transfer_dma);
 	if (!buf) {
 		err = -ENOMEM;
-		goto nomembuf;
+		goto yesmembuf;
 	}
 
 	memcpy(buf, usb_msg, MCBA_USB_TX_BUFF_SIZE);
@@ -299,7 +299,7 @@ failed:
 	else
 		netdev_warn(priv->netdev, "failed tx_urb %d\n", err);
 
-nomembuf:
+yesmembuf:
 	usb_free_urb(urb);
 
 	return err;
@@ -467,7 +467,7 @@ static void mcba_usb_process_ka_usb(struct mcba_priv *priv,
 {
 	if (unlikely(priv->usb_ka_first_pass)) {
 		netdev_info(priv->netdev, "PIC USB version %hhu.%hhu\n",
-			    msg->soft_ver_major, msg->soft_ver_minor);
+			    msg->soft_ver_major, msg->soft_ver_miyesr);
 
 		priv->usb_ka_first_pass = false;
 	}
@@ -493,7 +493,7 @@ static void mcba_usb_process_ka_can(struct mcba_priv *priv,
 {
 	if (unlikely(priv->can_ka_first_pass)) {
 		netdev_info(priv->netdev, "PIC CAN version %hhu.%hhu\n",
-			    msg->soft_ver_major, msg->soft_ver_minor);
+			    msg->soft_ver_major, msg->soft_ver_miyesr);
 
 		priv->can_ka_first_pass = false;
 	}
@@ -545,7 +545,7 @@ static void mcba_usb_process_rx(struct mcba_priv *priv,
 
 	case MBCA_CMD_NOTHING_TO_SEND:
 		/* Side effect of communication between PIC_USB and PIC_CAN.
-		 * PIC_CAN is telling us that it has nothing to send
+		 * PIC_CAN is telling us that it has yesthing to send
 		 */
 		break;
 

@@ -19,7 +19,7 @@ static const struct mtk_gate_regs ipu_adl_cg_regs = {
 
 #define GATE_IPU_ADL_I(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &ipu_adl_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv)
+		&mtk_clk_gate_ops_yes_setclr_inv)
 
 static const struct mtk_gate ipu_adl_clks[] = {
 	GATE_IPU_ADL_I(CLK_IPU_ADL_CABGEN, "ipu_adl_cabgen", "dsp_sel", 24),
@@ -28,14 +28,14 @@ static const struct mtk_gate ipu_adl_clks[] = {
 static int clk_mt8183_ipu_adl_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_IPU_ADL_NR_CLK);
 
-	mtk_clk_register_gates(node, ipu_adl_clks, ARRAY_SIZE(ipu_adl_clks),
+	mtk_clk_register_gates(yesde, ipu_adl_clks, ARRAY_SIZE(ipu_adl_clks),
 			clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 }
 
 static const struct of_device_id of_match_clk_mt8183_ipu_adl[] = {

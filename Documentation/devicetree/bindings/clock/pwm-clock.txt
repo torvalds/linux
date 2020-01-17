@@ -14,7 +14,7 @@ Required properties:
 Optional properties:
 - clock-output-names : From common clock binding.
 - clock-frequency : Exact output frequency, in case the PWM period
-  is not exact but was rounded to nanoseconds.
+  is yest exact but was rounded to nayesseconds.
 
 Example:
 	clock {

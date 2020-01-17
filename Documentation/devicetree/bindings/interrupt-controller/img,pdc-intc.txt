@@ -13,7 +13,7 @@ Required properties:
     - reg: Specifies the base PDC physical address(s) and size(s) of the
       addressable register space. The type shall be <prop-encoded-array>.
 
-    - interrupt-controller: The presence of this property identifies the node
+    - interrupt-controller: The presence of this property identifies the yesde
       as an interrupt controller. No property value shall be defined.
 
     - #interrupt-cells: Specifies the number of cells needed to encode an
@@ -37,7 +37,7 @@ Required properties:
 
     - <2nd-cell>: The level-sense information, encoded using the Linux interrupt
                   flags as follows (only 4 valid for peripheral interrupts):
-                    0 = none (decided by software)
+                    0 = yesne (decided by software)
                     1 = low-to-high edge triggered
                     2 = high-to-low edge triggered
                     3 = both edge triggered
@@ -52,7 +52,7 @@ Example 1:
 	 * TZ1090 PDC block
 	 */
 	pdc: pdc@02006000 {
-		// This is an interrupt controller node.
+		// This is an interrupt controller yesde.
 		interrupt-controller;
 
 		// Three cells to encode interrupt sources.

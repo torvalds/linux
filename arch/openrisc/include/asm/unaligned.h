@@ -23,7 +23,7 @@
  *
  * It may be worth considering implementing the unaligned access
  * exception handler and allowing unaligned accesses (access_ok.h)...
- * not sure if it would be much of a performance win without further
+ * yest sure if it would be much of a performance win without further
  * investigation.
  */
 #include <asm/byteorder.h>

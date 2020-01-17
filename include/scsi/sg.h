@@ -47,15 +47,15 @@ typedef struct sg_io_hdr
     int dxfer_direction;        /* [i] data transfer direction  */
     unsigned char cmd_len;      /* [i] SCSI command length */
     unsigned char mx_sb_len;    /* [i] max length to write to sbp */
-    unsigned short iovec_count; /* [i] 0 implies no scatter gather */
+    unsigned short iovec_count; /* [i] 0 implies yes scatter gather */
     unsigned int dxfer_len;     /* [i] byte count of data transfer */
     void __user *dxferp;	/* [i], [*io] points to data transfer memory
 					      or scatter gather list */
     unsigned char __user *cmdp; /* [i], [*i] points to command to perform */
     void __user *sbp;		/* [i], [*o] points to sense_buffer memory */
-    unsigned int timeout;       /* [i] MAX_UINT->no timeout (unit: millisec) */
+    unsigned int timeout;       /* [i] MAX_UINT->yes timeout (unit: millisec) */
     unsigned int flags;         /* [i] 0 -> default, see SG_FLAG... */
-    int pack_id;                /* [i->o] unused internally (normally) */
+    int pack_id;                /* [i->o] unused internally (yesrmally) */
     void __user * usr_ptr;      /* [i->o] unused internally */
     unsigned char status;       /* [o] scsi status */
     unsigned char masked_status;/* [o] shifted, masked scsi status */
@@ -78,14 +78,14 @@ typedef struct sg_io_hdr
 				   additional property than during indirect
 				   IO the user buffer is copied into the
 				   kernel buffers before the transfer */
-#define SG_DXFER_UNKNOWN (-5)   /* Unknown data direction */
+#define SG_DXFER_UNKNOWN (-5)   /* Unkyeswn data direction */
 
 /* following flag values can be "or"-ed together */
 #define SG_FLAG_DIRECT_IO 1     /* default is indirect IO */
 #define SG_FLAG_UNUSED_LUN_INHIBIT 2   /* default is overwrite lun in SCSI */
 				/* command block (when <= SCSI_2) */
 #define SG_FLAG_MMAP_IO 4       /* request memory mapped IO */
-#define SG_FLAG_NO_DXFER 0x10000 /* no transfer of kernel buffers to/from */
+#define SG_FLAG_NO_DXFER 0x10000 /* yes transfer of kernel buffers to/from */
 				/* user space (debug indirect IO) */
 /* defaults:: for sg driver: Q_AT_HEAD; for block layer: Q_AT_TAIL */
 #define SG_FLAG_Q_AT_TAIL 0x10
@@ -93,31 +93,31 @@ typedef struct sg_io_hdr
 
 /* following 'info' values are "or"-ed together */
 #define SG_INFO_OK_MASK 0x1
-#define SG_INFO_OK 0x0          /* no sense, host nor driver "noise" */
-#define SG_INFO_CHECK 0x1       /* something abnormal happened */
+#define SG_INFO_OK 0x0          /* yes sense, host yesr driver "yesise" */
+#define SG_INFO_CHECK 0x1       /* something abyesrmal happened */
 
 #define SG_INFO_DIRECT_IO_MASK 0x6
-#define SG_INFO_INDIRECT_IO 0x0 /* data xfer via kernel buffers (or no xfer) */
+#define SG_INFO_INDIRECT_IO 0x0 /* data xfer via kernel buffers (or yes xfer) */
 #define SG_INFO_DIRECT_IO 0x2   /* direct IO requested and performed */
 #define SG_INFO_MIXED_IO 0x4    /* part direct, part indirect IO */
 
 
 typedef struct sg_scsi_id { /* used by SG_GET_SCSI_ID ioctl() */
-    int host_no;        /* as in "scsi<n>" where 'n' is one of 0, 1, 2 etc */
+    int host_yes;        /* as in "scsi<n>" where 'n' is one of 0, 1, 2 etc */
     int channel;
     int scsi_id;        /* scsi id of target device */
     int lun;
     int scsi_type;      /* TYPE_... defined in scsi/scsi.h */
     short h_cmd_per_lun;/* host (adapter) maximum commands per lun */
     short d_queue_depth;/* device (or adapter) maximum queue length */
-    int unused[2];      /* probably find a good use, set 0 for now */
+    int unused[2];      /* probably find a good use, set 0 for yesw */
 } sg_scsi_id_t; /* 32 bytes long on i386 */
 
 typedef struct sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
-    char req_state;     /* 0 -> not used, 1 -> written, 2 -> ready to read */
-    char orphan;        /* 0 -> normal request, 1 -> from interruped SG_IO */
+    char req_state;     /* 0 -> yest used, 1 -> written, 2 -> ready to read */
+    char orphan;        /* 0 -> yesrmal request, 1 -> from interruped SG_IO */
     char sg_io_owned;   /* 0 -> complete with read(), 1 -> owned by SG_IO */
-    char problem;       /* 0 -> no problem detected, 1 -> error to report */
+    char problem;       /* 0 -> yes problem detected, 1 -> error to report */
     int pack_id;        /* pack_id associated with request */
     void __user *usr_ptr;     /* user provided pointer (in new interface) */
     unsigned int duration; /* millisecs elapsed since written (req_state==1)
@@ -134,7 +134,7 @@ typedef struct sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
 
 /* Used to configure SCSI command transformation layer for ATAPI devices */
 /* Only supported by the ide-scsi driver */
-#define SG_SET_TRANSFORM 0x2204 /* N.B. 3rd arg is not pointer but value: */
+#define SG_SET_TRANSFORM 0x2204 /* N.B. 3rd arg is yest pointer but value: */
 		      /* 3rd arg = 0 to disable transform, 1 to enable it */
 #define SG_GET_TRANSFORM 0x2205
 
@@ -152,7 +152,7 @@ typedef struct sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
 /* When SG_SET_FORCE_PACK_ID set to 1, pack_id is input to read() which
    tries to fetch a packet with a matching pack_id, waits, or returns EAGAIN.
    If pack_id is -1 then read oldest waiting. When ...FORCE_PACK_ID set to 0
-   then pack_id ignored by read() and oldest readable fetched. */
+   then pack_id igyesred by read() and oldest readable fetched. */
 #define SG_SET_FORCE_PACK_ID 0x227b
 #define SG_GET_PACK_ID 0x227c /* Yields oldest readable pack_id (or -1) */
 
@@ -175,7 +175,7 @@ typedef struct sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
 #define		SG_SCSI_RESET_TARGET	4
 #define		SG_SCSI_RESET_NO_ESCALATE	0x100
 
-/* synchronous SCSI command ioctl, (only in version 3 interface) */
+/* synchroyesus SCSI command ioctl, (only in version 3 interface) */
 #define SG_IO 0x2285   /* similar effect as write() followed by read() */
 
 #define SG_GET_REQUEST_TABLE 0x2286   /* yields table of active requests */
@@ -192,7 +192,7 @@ typedef struct sg_req_info { /* used by SG_GET_REQUEST_TABLE ioctl() */
 /* Largest size (in bytes) a single scatter-gather list element can have.
    The value used by the driver is 'max(SG_SCATTER_SZ, PAGE_SIZE)'.
    This value should be a power of 2 (and may be rounded up internally).
-   If scatter-gather is not supported by adapter then this value is the
+   If scatter-gather is yest supported by adapter then this value is the
    largest data block that can be read/written by a single scsi command. */
 
 #define SG_DEFAULT_RETRIES 0
@@ -222,10 +222,10 @@ typedef struct sg_req_info Sg_req_info;
 
 struct sg_header
 {
-    int pack_len;    /* [o] reply_len (ie useless), ignored as input */
+    int pack_len;    /* [o] reply_len (ie useless), igyesred as input */
     int reply_len;   /* [i] max length of expected reply (inc. sg_header) */
     int pack_id;     /* [io] id number of packet (use ints >= 0) */
-    int result;      /* [o] 0==ok, else (+ve) Unix errno (best ignored) */
+    int result;      /* [o] 0==ok, else (+ve) Unix erryes (best igyesred) */
     unsigned int twelve_byte:1;
 	/* [i] Force 12 byte command length for group 6 & 7 commands  */
     unsigned int target_status:5;   /* [o] scsi status from target */
@@ -239,7 +239,7 @@ struct sg_header
 };      /* This structure is 36 bytes long on i386 */
 
 
-/* IOCTLs: The following are not required (or ignored) when the sg_io_hdr_t
+/* IOCTLs: The following are yest required (or igyesred) when the sg_io_hdr_t
 	   interface is used. They are kept for backward compatibility with
 	   the original and version 2 drivers. */
 

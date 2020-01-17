@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,12 +31,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -108,9 +108,9 @@ static s32 sci_sas_address_compare(
  *
  * This routine will find a matching port for the phy.  This means that the
  * port and phy both have the same broadcast sas address and same received sas
- * address. The port address or the NULL if there is no matching
+ * address. The port address or the NULL if there is yes matching
  * port. port address if the port can be found to match the phy.
- * NULL if there is no matching port for the phy.
+ * NULL if there is yes matching port for the phy.
  */
 static struct isci_port *sci_port_configuration_agent_find_port(
 	struct isci_host *ihost,
@@ -154,7 +154,7 @@ static struct isci_port *sci_port_configuration_agent_find_port(
  * -> (PE0), (PE0, PE1), (PE0, PE1, PE2, PE3) LP1 -> (PE1) LP2 -> (PE2), (PE2,
  * PE3) LP3 -> (PE3) enum sci_status SCI_SUCCESS the port configuration is valid for
  * this port configuration agent. SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION
- * the port configuration is not valid for this port configuration agent.
+ * the port configuration is yest valid for this port configuration agent.
  */
 static enum sci_status sci_port_configuration_agent_validate_ports(
 	struct isci_host *ihost,
@@ -203,7 +203,7 @@ static enum sci_status sci_port_configuration_agent_validate_ports(
 
 	/*
 	 * PE0 and PE1 are configured into a 2x1 ports make sure that the
-	 * SAS Address for PE0 and PE2 are different since they can not be
+	 * SAS Address for PE0 and PE2 are different since they can yest be
 	 * part of the same port. */
 	if (port_agent->phy_valid_port_range[0].min_index == 0 &&
 	    port_agent->phy_valid_port_range[1].min_index == 1) {
@@ -217,7 +217,7 @@ static enum sci_status sci_port_configuration_agent_validate_ports(
 
 	/*
 	 * PE2 and PE3 are configured into a 2x1 ports make sure that the
-	 * SAS Address for PE1 and PE3 are different since they can not be
+	 * SAS Address for PE1 and PE3 are different since they can yest be
 	 * part of the same port. */
 	if (port_agent->phy_valid_port_range[2].min_index == 2 &&
 	    port_agent->phy_valid_port_range[3].min_index == 3) {
@@ -259,7 +259,7 @@ sci_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 		if (!phy_mask)
 			continue;
 		/*
-		 * Make sure that one or more of the phys were not already assinged to
+		 * Make sure that one or more of the phys were yest already assinged to
 		 * a different port. */
 		if ((phy_mask & ~assigned_phy_mask) == 0) {
 			return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
@@ -288,7 +288,7 @@ sci_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 
 		/*
 		 * See how many additional phys are being added to this logical port.
-		 * Note: We have not moved the current phy_index so we will actually
+		 * Note: We have yest moved the current phy_index so we will actually
 		 *       compare the startting phy with itself.
 		 *       This is expected and required to add the phy to the port. */
 		for (; phy_index < SCI_MAX_PHYS; phy_index++) {
@@ -300,7 +300,7 @@ sci_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 			if (sci_sas_address_compare(sas_address, phy_assigned_address) != 0) {
 				/*
 				 * The phy mask specified that this phy is part of the same port
-				 * as the starting phy and it is not so fail this configuration */
+				 * as the starting phy and it is yest so fail this configuration */
 				return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
 			}
 
@@ -345,7 +345,7 @@ static void mpc_agent_timeout(struct timer_list *t)
 
 		if (configure_phy_mask & (1 << index)) {
 			port_agent->link_up_handler(ihost, port_agent,
-						    phy_get_non_dummy_port(iphy),
+						    phy_get_yesn_dummy_port(iphy),
 						    iphy);
 		}
 	}
@@ -359,8 +359,8 @@ static void sci_mpc_agent_link_up(struct isci_host *ihost,
 				       struct isci_port *iport,
 				       struct isci_phy *iphy)
 {
-	/* If the port is NULL then the phy was not assigned to a port.
-	 * This is because the phy was not given the same SAS Address as
+	/* If the port is NULL then the phy was yest assigned to a port.
+	 * This is because the phy was yest given the same SAS Address as
 	 * the other PHYs in the port.
 	 */
 	if (!iport)
@@ -375,19 +375,19 @@ static void sci_mpc_agent_link_up(struct isci_host *ihost,
 /**
  *
  * @controller: This is the controller object that receives the link down
- *    notification.
- * @port: This is the port object associated with the phy.  If the is no
+ *    yestification.
+ * @port: This is the port object associated with the phy.  If the is yes
  *    associated port this is an NULL.  The port is an invalid
  *    handle only if the phy was never port of this port.  This happens when
- *    the phy is not broadcasting the same SAS address as the other phys in the
+ *    the phy is yest broadcasting the same SAS address as the other phys in the
  *    assigned port.
  * @phy: This is the phy object which has gone link down.
  *
- * This function handles the manual port configuration link down notifications.
+ * This function handles the manual port configuration link down yestifications.
  * Since all ports and phys are associated at initialization time we just turn
- * around and notifiy the port object of the link down event.  If this PHY is
- * not associated with a port there is no action taken. Is it possible to get a
- * link down notification from a phy that has no assocoated port?
+ * around and yestifiy the port object of the link down event.  If this PHY is
+ * yest associated with a port there is yes action taken. Is it possible to get a
+ * link down yestification from a phy that has yes assocoated port?
  */
 static void sci_mpc_agent_link_down(
 	struct isci_host *ihost,
@@ -468,7 +468,7 @@ sci_apc_agent_validate_phy_configuration(struct isci_host *ihost,
 /*
  * This routine will restart the automatic port configuration timeout
  * timer for the next time period. This could be caused by either a link
- * down event or a link up event where we can not yet tell to which a phy
+ * down event or a link up event where we can yest yet tell to which a phy
  * belongs.
  */
 static void sci_apc_agent_start_timer(struct sci_port_configuration_agent *port_agent,
@@ -497,7 +497,7 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 			apc_activity = SCIC_SDS_APC_SKIP_PHY;
 	} else {
 		/*
-		 * There is no matching Port for this PHY so lets search through the
+		 * There is yes matching Port for this PHY so lets search through the
 		 * Ports and see if we can add the PHY to its own port or maybe start
 		 * the timer and wait to see if a wider port can be made.
 		 *
@@ -512,7 +512,7 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 			if (sci_port_is_valid_phy_assignment(iport, iphy->phy_index)) {
 				/*
 				 * Port contains a PHY with a greater PHY ID than the current
-				 * PHY that has gone link up.  This phy can not be part of any
+				 * PHY that has gone link up.  This phy can yest be part of any
 				 * port so skip it and move on. */
 				if (iport->active_phy_mask > (1 << iphy->phy_index)) {
 					apc_activity = SCIC_SDS_APC_SKIP_PHY;
@@ -520,12 +520,12 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 				}
 
 				/*
-				 * We have reached the end of our Port list and have not found
-				 * any reason why we should not either add the PHY to the port
+				 * We have reached the end of our Port list and have yest found
+				 * any reason why we should yest either add the PHY to the port
 				 * or wait for more phys to become active. */
 				if (iport->physical_port_index == iphy->phy_index) {
 					/*
-					 * The Port either has no active PHYs.
+					 * The Port either has yes active PHYs.
 					 * Consider that if the port had any active PHYs we would have
 					 * or active PHYs with
 					 * a lower PHY Id than this PHY. */
@@ -537,15 +537,15 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 				}
 
 				/*
-				 * The current Port has no active PHYs and this PHY could be part
-				 * of this Port.  Since we dont know as yet setup to start the
+				 * The current Port has yes active PHYs and this PHY could be part
+				 * of this Port.  Since we dont kyesw as yet setup to start the
 				 * timer and see if there is a better configuration. */
 				if (iport->active_phy_mask == 0) {
 					apc_activity = SCIC_SDS_APC_START_TIMER;
 				}
 			} else if (iport->active_phy_mask != 0) {
 				/*
-				 * The Port has an active phy and the current Phy can not
+				 * The Port has an active phy and the current Phy can yest
 				 * participate in this port so skip the PHY and see if
 				 * there is a better configuration. */
 				apc_activity = SCIC_SDS_APC_SKIP_PHY;
@@ -556,7 +556,7 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 	/*
 	 * Check to see if the start timer operations should instead map to an
 	 * add phy operation.  This is caused because we have been waiting to
-	 * add a phy to a port but could not becuase the automatic port
+	 * add a phy to a port but could yest becuase the automatic port
 	 * configuration engine had a choice of possible ports for the phy.
 	 * Since we have gone through a timeout we are going to restrict the
 	 * choice to the smallest possible port. */
@@ -583,7 +583,7 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 
 	case SCIC_SDS_APC_SKIP_PHY:
 	default:
-		/* do nothing the PHY can not be made part of a port at this time. */
+		/* do yesthing the PHY can yest be made part of a port at this time. */
 		break;
 	}
 }
@@ -591,14 +591,14 @@ static void sci_apc_agent_configure_ports(struct isci_host *ihost,
 /**
  * sci_apc_agent_link_up - handle apc link up events
  * @scic: This is the controller object that receives the link up
- *    notification.
- * @sci_port: This is the port object associated with the phy.  If the is no
+ *    yestification.
+ * @sci_port: This is the port object associated with the phy.  If the is yes
  *    associated port this is an NULL.
  * @sci_phy: This is the phy object which has gone link up.
  *
  * This method handles the automatic port configuration for link up
- * notifications. Is it possible to get a link down notification from a phy
- * that has no assocoated port?
+ * yestifications. Is it possible to get a link down yestification from a phy
+ * that has yes assocoated port?
  */
 static void sci_apc_agent_link_up(struct isci_host *ihost,
 				       struct sci_port_configuration_agent *port_agent,
@@ -608,7 +608,7 @@ static void sci_apc_agent_link_up(struct isci_host *ihost,
 	u8 phy_index  = iphy->phy_index;
 
 	if (!iport) {
-		/* the phy is not the part of this port */
+		/* the phy is yest the part of this port */
 		port_agent->phy_ready_mask |= 1 << phy_index;
 		sci_apc_agent_start_timer(port_agent,
 					  SCIC_SDS_APC_WAIT_LINK_UP_NOTIFICATION);
@@ -622,14 +622,14 @@ static void sci_apc_agent_link_up(struct isci_host *ihost,
 /**
  *
  * @controller: This is the controller object that receives the link down
- *    notification.
- * @iport: This is the port object associated with the phy.  If the is no
+ *    yestification.
+ * @iport: This is the port object associated with the phy.  If the is yes
  *    associated port this is an NULL.
  * @iphy: This is the phy object which has gone link down.
  *
  * This method handles the automatic port configuration link down
- * notifications. not associated with a port there is no action taken. Is it
- * possible to get a link down notification from a phy that has no assocoated
+ * yestifications. yest associated with a port there is yes action taken. Is it
+ * possible to get a link down yestification from a phy that has yes assocoated
  * port?
  */
 static void sci_apc_agent_link_down(

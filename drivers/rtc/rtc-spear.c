@@ -133,7 +133,7 @@ static inline int is_write_complete(struct spear_rtc_config *config)
 	return ret;
 }
 
-static void rtc_wait_not_busy(struct spear_rtc_config *config)
+static void rtc_wait_yest_busy(struct spear_rtc_config *config)
 {
 	int status, count = 0;
 	unsigned long flags;
@@ -205,7 +205,7 @@ static int spear_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	unsigned int time, date;
 
 	/* we don't report wday/yday/isdst ... */
-	rtc_wait_not_busy(config);
+	rtc_wait_yest_busy(config);
 
 	time = readl(config->ioaddr + TIME_REG);
 	date = readl(config->ioaddr + DATE_REG);
@@ -235,7 +235,7 @@ static int spear_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	tm2bcd(tm);
 
-	rtc_wait_not_busy(config);
+	rtc_wait_yest_busy(config);
 	time = (tm->tm_sec << SECOND_SHIFT) | (tm->tm_min << MINUTE_SHIFT) |
 		(tm->tm_hour << HOUR_SHIFT);
 	date = (tm->tm_mday << MDAY_SHIFT) | (tm->tm_mon << MONTH_SHIFT) |
@@ -259,7 +259,7 @@ static int spear_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	struct spear_rtc_config *config = dev_get_drvdata(dev);
 	unsigned int time, date;
 
-	rtc_wait_not_busy(config);
+	rtc_wait_yest_busy(config);
 
 	time = readl(config->ioaddr + ALARM_TIME_REG);
 	date = readl(config->ioaddr + ALARM_DATE_REG);
@@ -292,7 +292,7 @@ static int spear_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 	tm2bcd(&alm->time);
 
-	rtc_wait_not_busy(config);
+	rtc_wait_yest_busy(config);
 
 	time = (alm->time.tm_sec << SECOND_SHIFT) | (alm->time.tm_min <<
 			MINUTE_SHIFT) |	(alm->time.tm_hour << HOUR_SHIFT);

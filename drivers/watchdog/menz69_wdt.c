@@ -26,9 +26,9 @@ struct men_z069_drv {
 #define MEN_Z069_WDT_COUNTER_MAX	0x7fff
 #define MEN_Z069_DEFAULT_TIMEOUT	30
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 			    __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static int men_z069_wdt_start(struct watchdog_device *wdt)
@@ -128,7 +128,7 @@ static int men_z069_probe(struct mcb_device *dev,
 
 	drv->wdt = men_z069_wdt;
 	watchdog_init_timeout(&drv->wdt, 0, &dev->dev);
-	watchdog_set_nowayout(&drv->wdt, nowayout);
+	watchdog_set_yeswayout(&drv->wdt, yeswayout);
 	watchdog_set_drvdata(&drv->wdt, drv);
 	drv->wdt.parent = &dev->dev;
 	mcb_set_drvdata(dev, drv);

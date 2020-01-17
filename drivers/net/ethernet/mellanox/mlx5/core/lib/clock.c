@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -204,14 +204,14 @@ static int mlx5_ptp_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 		delta = -delta;
 	}
 
-	adj = clock->nominal_c_mult;
+	adj = clock->yesminal_c_mult;
 	adj *= delta;
 	diff = div_u64(adj, 1000000000ULL);
 
 	write_seqlock_irqsave(&clock->lock, flags);
 	timecounter_read(&clock->tc);
-	clock->cycles.mult = neg_adj ? clock->nominal_c_mult - diff :
-				       clock->nominal_c_mult + diff;
+	clock->cycles.mult = neg_adj ? clock->yesminal_c_mult - diff :
+				       clock->yesminal_c_mult + diff;
 	mlx5_update_clock_info_page(clock->mdev);
 	write_sequnlock_irqrestore(&clock->lock, flags);
 
@@ -289,8 +289,8 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 	struct mlx5_core_dev *mdev =
 			container_of(clock, struct mlx5_core_dev, clock);
 	u32 in[MLX5_ST_SZ_DW(mtpps_reg)] = {0};
-	u64 nsec_now, nsec_delta, time_stamp = 0;
-	u64 cycles_now, cycles_delta;
+	u64 nsec_yesw, nsec_delta, time_stamp = 0;
+	u64 cycles_yesw, cycles_delta;
 	struct timespec64 ts;
 	unsigned long flags;
 	u32 field_select = 0;
@@ -328,14 +328,14 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 		ts.tv_sec = rq->perout.start.sec;
 		ts.tv_nsec = rq->perout.start.nsec;
 		ns = timespec64_to_ns(&ts);
-		cycles_now = mlx5_read_internal_timer(mdev, NULL);
+		cycles_yesw = mlx5_read_internal_timer(mdev, NULL);
 		write_seqlock_irqsave(&clock->lock, flags);
-		nsec_now = timecounter_cyc2time(&clock->tc, cycles_now);
-		nsec_delta = ns - nsec_now;
+		nsec_yesw = timecounter_cyc2time(&clock->tc, cycles_yesw);
+		nsec_delta = ns - nsec_yesw;
 		cycles_delta = div64_u64(nsec_delta << clock->cycles.shift,
 					 clock->cycles.mult);
 		write_sequnlock_irqrestore(&clock->lock, flags);
-		time_stamp = cycles_now + cycles_delta;
+		time_stamp = cycles_yesw + cycles_delta;
 		field_select = MLX5_MTPPS_FS_PIN_MODE |
 			       MLX5_MTPPS_FS_PATTERN |
 			       MLX5_MTPPS_FS_ENABLE |
@@ -461,14 +461,14 @@ static void mlx5_get_pps_caps(struct mlx5_core_dev *mdev)
 	clock->pps_info.pin_caps[7] = MLX5_GET(mtpps_reg, out, cap_pin_7_mode);
 }
 
-static int mlx5_pps_event(struct notifier_block *nb,
+static int mlx5_pps_event(struct yestifier_block *nb,
 			  unsigned long type, void *data)
 {
 	struct mlx5_clock *clock = mlx5_nb_cof(nb, struct mlx5_clock, pps_nb);
 	struct mlx5_core_dev *mdev = clock->mdev;
 	struct ptp_clock_event ptp_event;
-	u64 cycles_now, cycles_delta;
-	u64 nsec_now, nsec_delta, ns;
+	u64 cycles_yesw, cycles_delta;
+	u64 nsec_yesw, nsec_delta, ns;
 	struct mlx5_eqe *eqe = data;
 	int pin = eqe->data.pps.pin;
 	struct timespec64 ts;
@@ -491,16 +491,16 @@ static int mlx5_pps_event(struct notifier_block *nb,
 		break;
 	case PTP_PF_PEROUT:
 		mlx5_ptp_gettimex(&clock->ptp_info, &ts, NULL);
-		cycles_now = mlx5_read_internal_timer(mdev, NULL);
+		cycles_yesw = mlx5_read_internal_timer(mdev, NULL);
 		ts.tv_sec += 1;
 		ts.tv_nsec = 0;
 		ns = timespec64_to_ns(&ts);
 		write_seqlock_irqsave(&clock->lock, flags);
-		nsec_now = timecounter_cyc2time(&clock->tc, cycles_now);
-		nsec_delta = ns - nsec_now;
+		nsec_yesw = timecounter_cyc2time(&clock->tc, cycles_yesw);
+		nsec_delta = ns - nsec_yesw;
 		cycles_delta = div64_u64(nsec_delta << clock->cycles.shift,
 					 clock->cycles.mult);
-		clock->pps_info.start[pin] = cycles_now + cycles_delta;
+		clock->pps_info.start[pin] = cycles_yesw + cycles_delta;
 		schedule_work(&clock->pps_info.out_work);
 		write_sequnlock_irqrestore(&clock->lock, flags);
 		break;
@@ -530,7 +530,7 @@ void mlx5_init_clock(struct mlx5_core_dev *mdev)
 	clock->cycles.shift = MLX5_CYCLES_SHIFT;
 	clock->cycles.mult = clocksource_khz2mult(dev_freq,
 						  clock->cycles.shift);
-	clock->nominal_c_mult = clock->cycles.mult;
+	clock->yesminal_c_mult = clock->cycles.mult;
 	clock->cycles.mask = CLOCKSOURCE_MASK(41);
 	clock->mdev = mdev;
 
@@ -558,7 +558,7 @@ void mlx5_init_clock(struct mlx5_core_dev *mdev)
 		mdev->clock_info->nsec = clock->tc.nsec;
 		mdev->clock_info->cycles = clock->tc.cycle_last;
 		mdev->clock_info->mask = clock->cycles.mask;
-		mdev->clock_info->mult = clock->nominal_c_mult;
+		mdev->clock_info->mult = clock->yesminal_c_mult;
 		mdev->clock_info->shift = clock->cycles.shift;
 		mdev->clock_info->frac = clock->tc.frac;
 		mdev->clock_info->overflow_period = clock->overflow_period;
@@ -569,7 +569,7 @@ void mlx5_init_clock(struct mlx5_core_dev *mdev)
 	if (clock->overflow_period)
 		schedule_delayed_work(&clock->overflow_work, 0);
 	else
-		mlx5_core_warn(mdev, "invalid overflow period, overflow_work is not scheduled\n");
+		mlx5_core_warn(mdev, "invalid overflow period, overflow_work is yest scheduled\n");
 
 	/* Configure the PHC */
 	clock->ptp_info = mlx5_ptp_clock_info;
@@ -589,7 +589,7 @@ void mlx5_init_clock(struct mlx5_core_dev *mdev)
 	}
 
 	MLX5_NB_INIT(&clock->pps_nb, mlx5_pps_event, PPS_EVENT);
-	mlx5_eq_notifier_register(mdev, &clock->pps_nb);
+	mlx5_eq_yestifier_register(mdev, &clock->pps_nb);
 }
 
 void mlx5_cleanup_clock(struct mlx5_core_dev *mdev)
@@ -599,7 +599,7 @@ void mlx5_cleanup_clock(struct mlx5_core_dev *mdev)
 	if (!MLX5_CAP_GEN(mdev, device_frequency_khz))
 		return;
 
-	mlx5_eq_notifier_unregister(mdev, &clock->pps_nb);
+	mlx5_eq_yestifier_unregister(mdev, &clock->pps_nb);
 	if (clock->ptp) {
 		ptp_clock_unregister(clock->ptp);
 		clock->ptp = NULL;

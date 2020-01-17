@@ -64,5 +64,5 @@ try_decompress '\211\114\132' xy    'lzop -d'
 try_decompress '\002\041\114\030' xyy 'lz4 -d -l'
 
 # Bail out:
-echo "$me: Cannot find kernel config." >&2
+echo "$me: Canyest find kernel config." >&2
 exit 1

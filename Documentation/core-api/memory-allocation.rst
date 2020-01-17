@@ -16,7 +16,7 @@ memory should be allocated. The GFP acronym stands for "get free
 pages", the underlying memory allocation function.
 
 Diversity of the allocation APIs combined with the numerous GFP flags
-makes the question "How should I allocate memory?" not that easy to
+makes the question "How should I allocate memory?" yest that easy to
 answer, although very likely you should use
 
 ::
@@ -37,7 +37,7 @@ reference documentation for the GFP flags and their combinations and
 here we briefly outline their recommended usage:
 
   * Most of the time ``GFP_KERNEL`` is what you need. Memory for the
-    kernel data structures, DMAable memory, inode cache, all these and
+    kernel data structures, DMAable memory, iyesde cache, all these and
     many other allocations types can use ``GFP_KERNEL``. Note, that
     using ``GFP_KERNEL`` implies ``GFP_RECLAIM``, which means that
     direct reclaim may be triggered under memory pressure; the calling
@@ -57,19 +57,19 @@ here we briefly outline their recommended usage:
     ``GFP_HIGHUSER`` or ``GFP_HIGHUSER_MOVABLE`` flags. The longer
     the flag name the less restrictive it is.
 
-    ``GFP_HIGHUSER_MOVABLE`` does not require that allocated memory
+    ``GFP_HIGHUSER_MOVABLE`` does yest require that allocated memory
     will be directly accessible by the kernel and implies that the
     data is movable.
 
-    ``GFP_HIGHUSER`` means that the allocated memory is not movable,
-    but it is not required to be directly accessible by the kernel. An
+    ``GFP_HIGHUSER`` means that the allocated memory is yest movable,
+    but it is yest required to be directly accessible by the kernel. An
     example may be a hardware allocation that maps data directly into
-    userspace but has no addressing limitations.
+    userspace but has yes addressing limitations.
 
-    ``GFP_USER`` means that the allocated memory is not movable and it
+    ``GFP_USER`` means that the allocated memory is yest movable and it
     must be directly accessible by the kernel.
 
-You may notice that quite a few allocations in the existing code
+You may yestice that quite a few allocations in the existing code
 specify ``GFP_NOIO`` or ``GFP_NOFS``. Historically, they were used to
 prevent recursion deadlocks caused by direct memory reclaim calling
 back into the FS or IO paths and blocking on already held
@@ -105,14 +105,14 @@ alignment is also guaranteed to be at least the respective size.
 
 For large allocations you can use vmalloc() and vzalloc(), or directly
 request pages from the page allocator. The memory allocated by `vmalloc`
-and related functions is not physically contiguous.
+and related functions is yest physically contiguous.
 
-If you are not sure whether the allocation size is too large for
+If you are yest sure whether the allocation size is too large for
 `kmalloc`, it is possible to use kvmalloc() and its derivatives. It will
 try to allocate memory with `kmalloc` and if the allocation fails it
 will be retried with `vmalloc`. There are restrictions on which GFP
-flags can be used with `kvmalloc`; please see kvmalloc_node() reference
-documentation. Note that `kvmalloc` may return memory that is not
+flags can be used with `kvmalloc`; please see kvmalloc_yesde() reference
+documentation. Note that `kvmalloc` may return memory that is yest
 physically contiguous.
 
 If you need to allocate many identical objects you can use the slab
@@ -122,7 +122,7 @@ should be used if a part of the cache might be copied to the userspace.
 After the cache is created kmem_cache_alloc() and its convenience
 wrappers can allocate memory from that cache.
 
-When the allocated memory is no longer needed it must be freed. You can
+When the allocated memory is yes longer needed it must be freed. You can
 use kvfree() for the memory allocated with `kmalloc`, `vmalloc` and
 `kvmalloc`. The slab caches should be freed with kmem_cache_free(). And
 don't forget to destroy the cache with kmem_cache_destroy().

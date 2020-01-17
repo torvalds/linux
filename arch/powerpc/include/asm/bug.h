@@ -61,7 +61,7 @@
 /*
  * BUG_ON() and WARN_ON() do their best to cooperate with compile-time
  * optimisations. However depending on the complexity of the condition
- * some compiler versions may not produce optimal results.
+ * some compiler versions may yest produce optimal results.
  */
 
 #define BUG() do {						\

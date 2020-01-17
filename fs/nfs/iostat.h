@@ -29,10 +29,10 @@ static inline void nfs_inc_server_stats(const struct nfs_server *server,
 	this_cpu_inc(server->io_stats->events[stat]);
 }
 
-static inline void nfs_inc_stats(const struct inode *inode,
+static inline void nfs_inc_stats(const struct iyesde *iyesde,
 				 enum nfs_stat_eventcounters stat)
 {
-	nfs_inc_server_stats(NFS_SERVER(inode), stat);
+	nfs_inc_server_stats(NFS_SERVER(iyesde), stat);
 }
 
 static inline void nfs_add_server_stats(const struct nfs_server *server,
@@ -42,24 +42,24 @@ static inline void nfs_add_server_stats(const struct nfs_server *server,
 	this_cpu_add(server->io_stats->bytes[stat], addend);
 }
 
-static inline void nfs_add_stats(const struct inode *inode,
+static inline void nfs_add_stats(const struct iyesde *iyesde,
 				 enum nfs_stat_bytecounters stat,
 				 long addend)
 {
-	nfs_add_server_stats(NFS_SERVER(inode), stat, addend);
+	nfs_add_server_stats(NFS_SERVER(iyesde), stat, addend);
 }
 
 #ifdef CONFIG_NFS_FSCACHE
-static inline void nfs_add_fscache_stats(struct inode *inode,
+static inline void nfs_add_fscache_stats(struct iyesde *iyesde,
 					 enum nfs_stat_fscachecounters stat,
 					 long addend)
 {
-	this_cpu_add(NFS_SERVER(inode)->io_stats->fscache[stat], addend);
+	this_cpu_add(NFS_SERVER(iyesde)->io_stats->fscache[stat], addend);
 }
-static inline void nfs_inc_fscache_stats(struct inode *inode,
+static inline void nfs_inc_fscache_stats(struct iyesde *iyesde,
 					 enum nfs_stat_fscachecounters stat)
 {
-	this_cpu_inc(NFS_SERVER(inode)->io_stats->fscache[stat]);
+	this_cpu_inc(NFS_SERVER(iyesde)->io_stats->fscache[stat]);
 }
 #endif
 

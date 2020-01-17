@@ -130,7 +130,7 @@ enum ice_status ice_init_def_sw_recp(struct ice_hw *hw)
  * NOTE: *req_desc is both an input/output parameter.
  * The caller of this function first calls this function with *request_desc set
  * to 0. If the response from f/w has *req_desc set to 0, all the switch
- * configuration information has been returned; if non-zero (meaning not all
+ * configuration information has been returned; if yesn-zero (meaning yest all
  * the information was returned), the caller should call this function again
  * with *req_desc set to the previous value returned by f/w to get the
  * next block of switch configuration information.
@@ -278,11 +278,11 @@ ice_aq_update_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
 }
 
 /**
- * ice_is_vsi_valid - check whether the VSI is valid or not
+ * ice_is_vsi_valid - check whether the VSI is valid or yest
  * @hw: pointer to the HW struct
  * @vsi_handle: VSI handle
  *
- * check whether the VSI is valid or not
+ * check whether the VSI is valid or yest
  */
 bool ice_is_vsi_valid(struct ice_hw *hw, u16 vsi_handle)
 {
@@ -601,7 +601,7 @@ enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw)
 	/* Multiple calls to ice_aq_get_sw_cfg may be required
 	 * to get all the switch configuration information. The need
 	 * for additional calls is indicated by ice_aq_get_sw_cfg
-	 * writing a non-zero value in req_desc
+	 * writing a yesn-zero value in req_desc
 	 */
 	do {
 		status = ice_aq_get_sw_cfg(hw, rbuf, ICE_SW_CFG_MAX_BUF_LEN,
@@ -633,7 +633,7 @@ enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw)
 				ICE_AQC_GET_SW_CONF_RESP_TYPE_S;
 
 			if (type == ICE_AQC_GET_SW_CONF_RESP_VSI) {
-				/* FW VSI is not needed. Just continue. */
+				/* FW VSI is yest needed. Just continue. */
 				continue;
 			}
 
@@ -1213,7 +1213,7 @@ enum ice_status ice_update_sw_rule_bridge_mode(struct ice_hw *hw)
  * Helper function to do book keeping associated with adding filter information
  * The algorithm to do the book keeping is described below :
  * When a VSI needs to subscribe to a given filter (MAC/VLAN/Ethtype etc.)
- *	if only one VSI has been added till now
+ *	if only one VSI has been added till yesw
  *		Allocate a new VSI list and add two VSIs
  *		to this list using switch rule command
  *		Update the previously created switch rule with the
@@ -1242,7 +1242,7 @@ ice_add_update_vsi_list(struct ice_hw *hw,
 		return ICE_ERR_NOT_IMPL;
 
 	if (m_entry->vsi_count < 2 && !m_entry->vsi_list_info) {
-		/* Only one entry existed in the mapping and it was not already
+		/* Only one entry existed in the mapping and it was yest already
 		 * a part of a VSI list. So, create a VSI list with the old and
 		 * new VSIs.
 		 */
@@ -1475,7 +1475,7 @@ ice_rem_update_vsi_list(struct ice_hw *hw, u16 vsi_handle,
 	    fm_list->vsi_count == 0)
 		return ICE_ERR_PARAM;
 
-	/* A rule with the VSI being removed does not exist */
+	/* A rule with the VSI being removed does yest exist */
 	if (!test_bit(vsi_handle, fm_list->vsi_list_info->vsi_map))
 		return ICE_ERR_DOES_NOT_EXIST;
 
@@ -1529,7 +1529,7 @@ ice_rem_update_vsi_list(struct ice_hw *hw, u16 vsi_handle,
 		struct ice_vsi_list_map_info *vsi_list_info =
 			fm_list->vsi_list_info;
 
-		/* Remove the VSI list since it is no longer used */
+		/* Remove the VSI list since it is yes longer used */
 		status = ice_remove_vsi_list_rule(hw, vsi_list_id, lkup_type);
 		if (status) {
 			ice_debug(hw, ICE_DBG_SW,
@@ -1584,7 +1584,7 @@ ice_remove_rule_internal(struct ice_hw *hw, u8 recp_id,
 	} else if (list_elem->vsi_list_info->ref_cnt > 1) {
 		/* a ref_cnt > 1 indicates that the vsi_list is being
 		 * shared by multiple rules. Decrement the ref_cnt and
-		 * remove this rule, but do not modify the list, as it
+		 * remove this rule, but do yest modify the list, as it
 		 * is in-use by other rules.
 		 */
 		list_elem->vsi_list_info->ref_cnt--;
@@ -1593,7 +1593,7 @@ ice_remove_rule_internal(struct ice_hw *hw, u8 recp_id,
 		/* a ref_cnt of 1 indicates the vsi_list is only used
 		 * by one rule. However, the original removal request is only
 		 * for a single VSI. Update the vsi_list first, and only
-		 * remove the rule if there are no further VSIs in this list.
+		 * remove the rule if there are yes further VSIs in this list.
 		 */
 		vsi_handle = f_entry->fltr_info.vsi_handle;
 		status = ice_rem_update_vsi_list(hw, vsi_handle, list_elem);
@@ -1706,7 +1706,7 @@ ice_add_mac(struct ice_hw *hw, struct list_head *m_list)
 	}
 
 	mutex_lock(rule_lock);
-	/* Exit if no suitable entries were found for adding bulk switch rule */
+	/* Exit if yes suitable entries were found for adding bulk switch rule */
 	if (!num_unicast) {
 		status = 0;
 		goto ice_add_mac_exit;
@@ -1894,7 +1894,7 @@ ice_add_vlan_internal(struct ice_hw *hw, struct ice_fltr_list_entry *f_entry)
 		if (v_list_itr->vsi_count > 1 &&
 		    v_list_itr->vsi_list_info->ref_cnt > 1) {
 			ice_debug(hw, ICE_DBG_SW,
-				  "Invalid configuration: Optimization to reuse VSI list with more than one VSI is not being done yet\n");
+				  "Invalid configuration: Optimization to reuse VSI list with more than one VSI is yest being done yet\n");
 			status = ICE_ERR_CFG;
 			goto exit;
 		}
@@ -1932,7 +1932,7 @@ ice_add_vlan_internal(struct ice_hw *hw, struct ice_fltr_list_entry *f_entry)
 		 */
 		v_list_itr->vsi_list_info->ref_cnt--;
 
-		/* now update to newly created list */
+		/* yesw update to newly created list */
 		v_list_itr->fltr_info.fwd_id.vsi_list_id = vsi_list_id;
 		v_list_itr->vsi_list_info =
 			ice_create_vsi_list_map(hw, &vsi_handle_arr[0], 2,
@@ -2143,7 +2143,7 @@ out:
  * @f_info: rule information
  *
  * Helper function to search for a unicast rule entry - this is to be used
- * to remove unicast MAC filter that is not shared with other VSIs on the
+ * to remove unicast MAC filter that is yest shared with other VSIs on the
  * PF switch.
  *
  * Returns pointer to entry storing the rule if found
@@ -2176,9 +2176,9 @@ ice_find_ucast_rule_entry(struct ice_hw *hw, u8 recp_id,
  * This function removes either a MAC filter rule or a specific VSI from a
  * VSI list for a multicast MAC address.
  *
- * Returns ICE_ERR_DOES_NOT_EXIST if a given entry was not added by
+ * Returns ICE_ERR_DOES_NOT_EXIST if a given entry was yest added by
  * ice_add_mac. Caller should be aware that this call will only work if all
- * the entries passed into m_list were added previously. It will not attempt to
+ * the entries passed into m_list were added previously. It will yest attempt to
  * do a partial remove of entries that were found.
  */
 enum ice_status
@@ -2207,7 +2207,7 @@ ice_remove_mac(struct ice_hw *hw, struct list_head *m_list)
 					ice_get_hw_vsi_num(hw, vsi_handle);
 		if (is_unicast_ether_addr(add) && !hw->ucast_shared) {
 			/* Don't remove the unicast address that belongs to
-			 * another VSI on the switch, since it is not being
+			 * ayesther VSI on the switch, since it is yest being
 			 * shared...
 			 */
 			mutex_lock(rule_lock);
@@ -2453,7 +2453,7 @@ ice_clear_vsi_promisc(struct ice_hw *hw, u16 vsi_handle, u8 promisc_mask,
 
 		fltr_promisc_mask |= ice_determine_promisc_mask(fltr_info);
 
-		/* Skip if filter is not completely specified by given mask */
+		/* Skip if filter is yest completely specified by given mask */
 		if (fltr_promisc_mask & ~promisc_mask)
 			continue;
 

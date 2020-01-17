@@ -20,21 +20,21 @@
  * This driver allows you to 'bond' (merge) multiple comedi subdevices
  * (coming from possibly difference boards and/or drivers) together.  For
  * example, if you had a board with 2 different DIO subdevices, and
- * another with 1 DIO subdevice, you could 'bond' them with this driver
+ * ayesther with 1 DIO subdevice, you could 'bond' them with this driver
  * so that they look like one big fat DIO subdevice.  This makes writing
  * applications slightly easier as you don't have to worry about managing
  * different subdevices in the application -- you just worry about
  * indexing one linear array of channel id's.
  *
- * Right now only DIO subdevices are supported as that's the personal itch
+ * Right yesw only DIO subdevices are supported as that's the personal itch
  * I am scratching with this driver.  If you want to add support for AI and AO
  * subdevs, go right on ahead and do so!
  *
  * Commands aren't supported -- although it would be cool if they were.
  *
  * Configuration Options:
- *   List of comedi-minors to bond.  All subdevices of the same type
- *   within each minor will be concatenated together in the order given here.
+ *   List of comedi-miyesrs to bond.  All subdevices of the same type
+ *   within each miyesr will be concatenated together in the order given here.
  */
 
 #include <linux/module.h>
@@ -46,7 +46,7 @@
 
 struct bonded_device {
 	struct comedi_device *dev;
-	unsigned int minor;
+	unsigned int miyesr;
 	unsigned int subdev;
 	unsigned int nchans;
 };
@@ -180,47 +180,47 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 	 */
 	for (i = 0; i < COMEDI_NDEVCONFOPTS && (!i || it->options[i]); ++i) {
 		char file[sizeof("/dev/comediXXXXXX")];
-		int minor = it->options[i];
+		int miyesr = it->options[i];
 		struct comedi_device *d;
 		int sdev = -1, nchans;
 		struct bonded_device *bdev;
 		struct bonded_device **devs;
 
-		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
+		if (miyesr < 0 || miyesr >= COMEDI_NUM_BOARD_MINORS) {
 			dev_err(dev->class_dev,
-				"Minor %d is invalid!\n", minor);
+				"Miyesr %d is invalid!\n", miyesr);
 			return -EINVAL;
 		}
-		if (minor == dev->minor) {
+		if (miyesr == dev->miyesr) {
 			dev_err(dev->class_dev,
-				"Cannot bond this driver to itself!\n");
+				"Canyest bond this driver to itself!\n");
 			return -EINVAL;
 		}
-		if (test_and_set_bit(minor, devs_opened)) {
+		if (test_and_set_bit(miyesr, devs_opened)) {
 			dev_err(dev->class_dev,
-				"Minor %d specified more than once!\n", minor);
+				"Miyesr %d specified more than once!\n", miyesr);
 			return -EINVAL;
 		}
 
-		snprintf(file, sizeof(file), "/dev/comedi%d", minor);
+		snprintf(file, sizeof(file), "/dev/comedi%d", miyesr);
 		file[sizeof(file) - 1] = 0;
 
 		d = comedi_open(file);
 
 		if (!d) {
 			dev_err(dev->class_dev,
-				"Minor %u could not be opened\n", minor);
+				"Miyesr %u could yest be opened\n", miyesr);
 			return -ENODEV;
 		}
 
-		/* Do DIO, as that's all we support now.. */
+		/* Do DIO, as that's all we support yesw.. */
 		while ((sdev = comedi_find_subdevice_by_type(d, COMEDI_SUBD_DIO,
 							     sdev + 1)) > -1) {
 			nchans = comedi_get_n_channels(d, sdev);
 			if (nchans <= 0) {
 				dev_err(dev->class_dev,
-					"comedi_get_n_channels() returned %d on minor %u subdev %d!\n",
-					nchans, minor, sdev);
+					"comedi_get_n_channels() returned %d on miyesr %u subdev %d!\n",
+					nchans, miyesr, sdev);
 				return -EINVAL;
 			}
 			bdev = kmalloc(sizeof(*bdev), GFP_KERNEL);
@@ -228,7 +228,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 				return -ENOMEM;
 
 			bdev->dev = d;
-			bdev->minor = minor;
+			bdev->miyesr = miyesr;
 			bdev->subdev = sdev;
 			bdev->nchans = nchans;
 			devpriv->nchans += nchans;
@@ -244,7 +244,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 					GFP_KERNEL);
 			if (!devs) {
 				dev_err(dev->class_dev,
-					"Could not allocate memory. Out of memory?\n");
+					"Could yest allocate memory. Out of memory?\n");
 				kfree(bdev);
 				return -ENOMEM;
 			}
@@ -255,7 +255,7 @@ static int do_dev_config(struct comedi_device *dev, struct comedi_devconfig *it)
 				char buf[20];
 
 				snprintf(buf, sizeof(buf), "%u:%u ",
-					 bdev->minor, bdev->subdev);
+					 bdev->miyesr, bdev->subdev);
 				strlcat(devpriv->name, buf,
 					sizeof(devpriv->name));
 			}
@@ -325,7 +325,7 @@ static void bonding_detach(struct comedi_device *dev)
 			bdev = devpriv->devs[devpriv->ndevs];
 			if (!bdev)
 				continue;
-			if (!test_and_set_bit(bdev->minor, devs_closed))
+			if (!test_and_set_bit(bdev->miyesr, devs_closed))
 				comedi_close(bdev->dev);
 			kfree(bdev);
 		}

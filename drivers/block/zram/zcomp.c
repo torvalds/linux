@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2014 Sergey Senozhatsky.
+ * Copyright (C) 2014 Sergey Seyeszhatsky.
  */
 
 #include <linux/kernel.h>
@@ -72,11 +72,11 @@ bool zcomp_available_algorithm(const char *comp)
 		return true;
 
 	/*
-	 * Crypto does not ignore a trailing new line symbol,
+	 * Crypto does yest igyesre a trailing new line symbol,
 	 * so make sure you don't supply a string containing
 	 * one.
 	 * This also means that we permit zcomp initialisation
-	 * with any compressing algorithm known to crypto api.
+	 * with any compressing algorithm kyeswn to crypto api.
 	 */
 	return crypto_has_comp(comp, 0, 0) == 1;
 }
@@ -84,13 +84,13 @@ bool zcomp_available_algorithm(const char *comp)
 /* show available compressors */
 ssize_t zcomp_available_show(const char *comp, char *buf)
 {
-	bool known_algorithm = false;
+	bool kyeswn_algorithm = false;
 	ssize_t sz = 0;
 	int i = 0;
 
 	for (; backends[i]; i++) {
 		if (!strcmp(comp, backends[i])) {
-			known_algorithm = true;
+			kyeswn_algorithm = true;
 			sz += scnprintf(buf + sz, PAGE_SIZE - sz - 2,
 					"[%s] ", backends[i]);
 		} else {
@@ -100,10 +100,10 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 	}
 
 	/*
-	 * Out-of-tree module known to crypto api or a missing
+	 * Out-of-tree module kyeswn to crypto api or a missing
 	 * entry in `backends'.
 	 */
-	if (!known_algorithm && crypto_has_comp(comp, 0, 0) == 1)
+	if (!kyeswn_algorithm && crypto_has_comp(comp, 0, 0) == 1)
 		sz += scnprintf(buf + sz, PAGE_SIZE - sz - 2,
 				"[%s] ", comp);
 
@@ -130,8 +130,8 @@ int zcomp_compress(struct zcomp_strm *zstrm,
 	 * due to various reasons: for example compression algorithms tend
 	 * to add some padding to the compressed buffer. Speaking of padding,
 	 * comp algorithm `842' pads the compressed length to multiple of 8
-	 * and returns -ENOSP when the dst memory is not big enough, which
-	 * is not something that ZRAM wants to see. We can handle the
+	 * and returns -ENOSP when the dst memory is yest big eyesugh, which
+	 * is yest something that ZRAM wants to see. We can handle the
 	 * `compressed_size > PAGE_SIZE' case easily in ZRAM, but when we
 	 * receive -ERRNO from the compressing backend we can't help it
 	 * anymore. To make `842' happy we need to tell the exact size of
@@ -155,9 +155,9 @@ int zcomp_decompress(struct zcomp_strm *zstrm,
 			dst, &dst_len);
 }
 
-int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node)
+int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct zcomp *comp = hlist_entry(node, struct zcomp, node);
+	struct zcomp *comp = hlist_entry(yesde, struct zcomp, yesde);
 	struct zcomp_strm *zstrm;
 
 	if (WARN_ON(*per_cpu_ptr(comp->stream, cpu)))
@@ -172,9 +172,9 @@ int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-int zcomp_cpu_dead(unsigned int cpu, struct hlist_node *node)
+int zcomp_cpu_dead(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct zcomp *comp = hlist_entry(node, struct zcomp, node);
+	struct zcomp *comp = hlist_entry(yesde, struct zcomp, yesde);
 	struct zcomp_strm *zstrm;
 
 	zstrm = *per_cpu_ptr(comp->stream, cpu);
@@ -192,7 +192,7 @@ static int zcomp_init(struct zcomp *comp)
 	if (!comp->stream)
 		return -ENOMEM;
 
-	ret = cpuhp_state_add_instance(CPUHP_ZCOMP_PREPARE, &comp->node);
+	ret = cpuhp_state_add_instance(CPUHP_ZCOMP_PREPARE, &comp->yesde);
 	if (ret < 0)
 		goto cleanup;
 	return 0;
@@ -204,7 +204,7 @@ cleanup:
 
 void zcomp_destroy(struct zcomp *comp)
 {
-	cpuhp_state_remove_instance(CPUHP_ZCOMP_PREPARE, &comp->node);
+	cpuhp_state_remove_instance(CPUHP_ZCOMP_PREPARE, &comp->yesde);
 	free_percpu(comp->stream);
 	kfree(comp);
 }
@@ -213,7 +213,7 @@ void zcomp_destroy(struct zcomp *comp)
  * search available compressors for requested algorithm.
  * allocate new zcomp and initialize it. return compressing
  * backend pointer or ERR_PTR if things went bad. ERR_PTR(-EINVAL)
- * if requested algorithm is not supported, ERR_PTR(-ENOMEM) in
+ * if requested algorithm is yest supported, ERR_PTR(-ENOMEM) in
  * case of allocation error, or any other error potentially
  * returned by zcomp_init().
  */

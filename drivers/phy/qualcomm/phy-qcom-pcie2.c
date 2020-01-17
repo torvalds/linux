@@ -54,7 +54,7 @@ static int qcom_pcie2_phy_init(struct phy *phy)
 
 	ret = reset_control_deassert(qphy->phy_reset);
 	if (ret) {
-		dev_err(qphy->dev, "cannot deassert pipe reset\n");
+		dev_err(qphy->dev, "canyest deassert pipe reset\n");
 		return ret;
 	}
 
@@ -148,7 +148,7 @@ static int qcom_pcie2_phy_power_on(struct phy *phy)
 
 	ret = reset_control_deassert(qphy->pipe_reset);
 	if (ret) {
-		dev_err(qphy->dev, "cannot deassert pipe reset\n");
+		dev_err(qphy->dev, "canyest deassert pipe reset\n");
 		goto out;
 	}
 
@@ -222,7 +222,7 @@ static const struct phy_ops qcom_pcie2_ops = {
  */
 static int phy_pipe_clksrc_register(struct qcom_phy *qphy)
 {
-	struct device_node *np = qphy->dev->of_node;
+	struct device_yesde *np = qphy->dev->of_yesde;
 	struct clk_fixed_rate *fixed;
 	struct clk_init_data init = { };
 	int ret;
@@ -296,7 +296,7 @@ static int qcom_pcie2_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(qphy->pipe_reset);
 	}
 
-	phy = devm_phy_create(dev, dev->of_node, &qcom_pcie2_ops);
+	phy = devm_phy_create(dev, dev->of_yesde, &qcom_pcie2_ops);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create phy\n");
 		return PTR_ERR(phy);

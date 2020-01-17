@@ -17,7 +17,7 @@
  * @rs: ratelimit_state data
  * @func: name of calling function
  *
- * This enforces a rate limit: not more than @rs->burst callbacks
+ * This enforces a rate limit: yest more than @rs->burst callbacks
  * in every @rs->interval
  *
  * RETURNS:

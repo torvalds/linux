@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/gpu/samsung-scaler.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos SoC Image Scaler
+title: Samsung Exyyess SoC Image Scaler
 
 maintainers:
   - Inki Dae <inki.dae@samsung.com>
@@ -12,8 +12,8 @@ maintainers:
 properties:
   compatible:
     enum:
-      - samsung,exynos5420-scaler
-      - samsung,exynos5433-scaler
+      - samsung,exyyess5420-scaler
+      - samsung,exyyess5433-scaler
 
   reg:
     maxItems: 1
@@ -30,7 +30,7 @@ if:
   properties:
     compatible:
       contains:
-        const: samsung,exynos5420-scaler
+        const: samsung,exyyess5420-scaler
 
 then:
   properties:
@@ -67,11 +67,11 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5420.h>
+    #include <dt-bindings/clock/exyyess5420.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     scaler@12800000 {
-        compatible = "samsung,exynos5420-scaler";
+        compatible = "samsung,exyyess5420-scaler";
         reg = <0x12800000 0x1294>;
         interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&clock CLK_MSCL0>;

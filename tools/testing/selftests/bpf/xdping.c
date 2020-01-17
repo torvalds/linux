@@ -5,7 +5,7 @@
 #include <linux/if_link.h>
 #include <arpa/inet.h>
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -119,7 +119,7 @@ int main(int argc, char **argv)
 			ifname = optarg;
 			ifindex = if_nametoindex(ifname);
 			if (!ifindex) {
-				fprintf(stderr, "Could not get interface %s\n",
+				fprintf(stderr, "Could yest get interface %s\n",
 					ifname);
 				return 1;
 			}
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 	}
 
 	if ((xdp_flags & mode_flags) == mode_flags) {
-		fprintf(stderr, "-N or -S can be specified, not both.\n");
+		fprintf(stderr, "-N or -S can be specified, yest both.\n");
 		show_usage(basename(argv[0]));
 		return 1;
 	}
@@ -158,7 +158,7 @@ int main(int argc, char **argv)
 	if (!server) {
 		/* Only supports IPv4; see hints initiailization above. */
 		if (getaddrinfo(argv[optind], NULL, &hints, &a) || !a) {
-			fprintf(stderr, "Could not resolve %s\n", argv[optind]);
+			fprintf(stderr, "Could yest resolve %s\n", argv[optind]);
 			return 1;
 		}
 		memcpy(&rin, a->ai_addr, sizeof(rin));
@@ -184,7 +184,7 @@ int main(int argc, char **argv)
 	if (main_prog)
 		prog_fd = bpf_program__fd(main_prog);
 	if (!main_prog || prog_fd < 0) {
-		fprintf(stderr, "could not find xdping program");
+		fprintf(stderr, "could yest find xdping program");
 		return 1;
 	}
 
@@ -192,7 +192,7 @@ int main(int argc, char **argv)
 	if (map)
 		map_fd = bpf_map__fd(map);
 	if (!map || map_fd < 0) {
-		fprintf(stderr, "Could not find ping map");
+		fprintf(stderr, "Could yest find ping map");
 		goto done;
 	}
 
@@ -226,8 +226,8 @@ int main(int argc, char **argv)
 	pinginfo.count = count;
 
 	if (bpf_map_update_elem(map_fd, &raddr, &pinginfo, BPF_ANY)) {
-		fprintf(stderr, "could not communicate with BPF map: %s\n",
-			strerror(errno));
+		fprintf(stderr, "could yest communicate with BPF map: %s\n",
+			strerror(erryes));
 		cleanup(0);
 		goto done;
 	}
@@ -239,7 +239,7 @@ int main(int argc, char **argv)
 		 count, ifname, argv[optind]);
 
 	printf("\nNormal ping RTT data\n");
-	printf("[Ignore final RTT; it is distorted by XDP using the reply]\n");
+	printf("[Igyesre final RTT; it is distorted by XDP using the reply]\n");
 
 	ret = system(cmd);
 

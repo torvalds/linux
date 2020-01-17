@@ -6,7 +6,7 @@
  * Thomas Moll <thomas.moll@sysgo.com>
  * - fixed maintenance access routines, check for aligned access
  *
- * Copyright 2009 Integrated Device Technology, Inc.
+ * Copyright 2009 Integrated Device Techyeslogy, Inc.
  * Alex Bounine <alexandre.bounine@idt.com>
  * - Added Port-Write message handling
  * - Added Machine Check exception handling
@@ -371,7 +371,7 @@ void fsl_unmap_inb_mem(struct rio_mport *mport, dma_addr_t lstart)
 
 void fsl_rio_port_error_handler(int offset)
 {
-	/*XXX: Error recovery is not implemented, we just clear errors */
+	/*XXX: Error recovery is yest implemented, we just clear errors */
 	out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR), 0);
 
 	if (offset == 0) {
@@ -397,7 +397,7 @@ static inline void fsl_rio_info(struct device *dev, u32 ccsr)
 			str = "4";
 			break;
 		default:
-			str = "Unknown";
+			str = "Unkyeswn";
 			break;
 		}
 		dev_info(dev, "Hardware port width: %s\n", str);
@@ -413,7 +413,7 @@ static inline void fsl_rio_info(struct device *dev, u32 ccsr)
 			str = "Four-lane";
 			break;
 		default:
-			str = "Unknown";
+			str = "Unkyeswn";
 			break;
 		}
 		dev_info(dev, "Training connection status: %s\n", str);
@@ -443,28 +443,28 @@ int fsl_rio_setup(struct platform_device *dev)
 	const u32 *dt_range, *cell, *port_index;
 	u32 active_ports = 0;
 	struct resource regs, rmu_regs;
-	struct device_node *np, *rmu_node;
+	struct device_yesde *np, *rmu_yesde;
 	int rlen;
 	u32 ccsr;
 	u64 range_start, range_size;
 	int paw, aw, sw;
 	u32 i;
 	static int tmp;
-	struct device_node *rmu_np[MAX_MSG_UNIT_NUM] = {NULL};
+	struct device_yesde *rmu_np[MAX_MSG_UNIT_NUM] = {NULL};
 
-	if (!dev->dev.of_node) {
+	if (!dev->dev.of_yesde) {
 		dev_err(&dev->dev, "Device OF-Node is NULL");
 		return -ENODEV;
 	}
 
-	rc = of_address_to_resource(dev->dev.of_node, 0, &regs);
+	rc = of_address_to_resource(dev->dev.of_yesde, 0, &regs);
 	if (rc) {
 		dev_err(&dev->dev, "Can't get %pOF property 'reg'\n",
-				dev->dev.of_node);
+				dev->dev.of_yesde);
 		return -EFAULT;
 	}
 	dev_info(&dev->dev, "Of-device full name %pOF\n",
-			dev->dev.of_node);
+			dev->dev.of_yesde);
 	dev_info(&dev->dev, "Regs: %pR\n", &regs);
 
 	rio_regs_win = ioremap(regs.start, resource_size(&regs));
@@ -495,16 +495,16 @@ int fsl_rio_setup(struct platform_device *dev)
 	ops->map_inb = fsl_map_inb_mem;
 	ops->unmap_inb = fsl_unmap_inb_mem;
 
-	rmu_node = of_parse_phandle(dev->dev.of_node, "fsl,srio-rmu-handle", 0);
-	if (!rmu_node) {
+	rmu_yesde = of_parse_phandle(dev->dev.of_yesde, "fsl,srio-rmu-handle", 0);
+	if (!rmu_yesde) {
 		dev_err(&dev->dev, "No valid fsl,srio-rmu-handle property\n");
 		rc = -ENOENT;
 		goto err_rmu;
 	}
-	rc = of_address_to_resource(rmu_node, 0, &rmu_regs);
+	rc = of_address_to_resource(rmu_yesde, 0, &rmu_regs);
 	if (rc) {
 		dev_err(&dev->dev, "Can't get %pOF property 'reg'\n",
-				rmu_node);
+				rmu_yesde);
 		goto err_rmu;
 	}
 	rmu_regs_win = ioremap(rmu_regs.start, resource_size(&rmu_regs));
@@ -513,15 +513,15 @@ int fsl_rio_setup(struct platform_device *dev)
 		rc = -ENOMEM;
 		goto err_rmu;
 	}
-	for_each_compatible_node(np, NULL, "fsl,srio-msg-unit") {
+	for_each_compatible_yesde(np, NULL, "fsl,srio-msg-unit") {
 		rmu_np[tmp] = np;
 		tmp++;
 	}
 
-	/*set up doobell node*/
-	np = of_find_compatible_node(NULL, NULL, "fsl,srio-dbell-unit");
+	/*set up doobell yesde*/
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,srio-dbell-unit");
 	if (!np) {
-		dev_err(&dev->dev, "No fsl,srio-dbell-unit node\n");
+		dev_err(&dev->dev, "No fsl,srio-dbell-unit yesde\n");
 		rc = -ENODEV;
 		goto err_dbell;
 	}
@@ -547,10 +547,10 @@ int fsl_rio_setup(struct platform_device *dev)
 	dbell->dbell_regs = (struct rio_dbell_regs *)(rmu_regs_win +
 				(u32)range_start);
 
-	/*set up port write node*/
-	np = of_find_compatible_node(NULL, NULL, "fsl,srio-port-write-unit");
+	/*set up port write yesde*/
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,srio-port-write-unit");
 	if (!np) {
-		dev_err(&dev->dev, "No fsl,srio-port-write-unit node\n");
+		dev_err(&dev->dev, "No fsl,srio-port-write-unit yesde\n");
 		rc = -ENODEV;
 		goto err_pw;
 	}
@@ -574,8 +574,8 @@ int fsl_rio_setup(struct platform_device *dev)
 	range_start = of_read_number(dt_range, aw);
 	pw->pw_regs = (struct rio_pw_regs *)(rmu_regs_win + (u32)range_start);
 
-	/*set up ports node*/
-	for_each_child_of_node(dev->dev.of_node, np) {
+	/*set up ports yesde*/
+	for_each_child_of_yesde(dev->dev.of_yesde, np) {
 		port_index = of_get_property(np, "cell-index", NULL);
 		if (!port_index) {
 			dev_err(&dev->dev, "Can't get %pOF property 'cell-index'\n",
@@ -590,13 +590,13 @@ int fsl_rio_setup(struct platform_device *dev)
 			continue;
 		}
 
-		/* Get node address wide */
+		/* Get yesde address wide */
 		cell = of_get_property(np, "#address-cells", NULL);
 		if (cell)
 			aw = *cell;
 		else
 			aw = of_n_addr_cells(np);
-		/* Get node size wide */
+		/* Get yesde size wide */
 		cell = of_get_property(np, "#size-cells", NULL);
 		if (cell)
 			sw = *cell;
@@ -658,7 +658,7 @@ int fsl_rio_setup(struct platform_device *dev)
 
 		/* Checking the port training status */
 		if (in_be32((priv->regs_win + RIO_ESCSR + i*0x20)) & 1) {
-			dev_err(&dev->dev, "Port %d is not ready. "
+			dev_err(&dev->dev, "Port %d is yest ready. "
 			"Try to restart connection...\n", i);
 			/* Disable ports */
 			out_be32(priv->regs_win
@@ -767,7 +767,7 @@ err_rio_regs:
 static int fsl_of_rio_rpn_probe(struct platform_device *dev)
 {
 	printk(KERN_INFO "Setting up RapidIO peer-to-peer network %pOF\n",
-			dev->dev.of_node);
+			dev->dev.of_yesde);
 
 	return fsl_rio_setup(dev);
 };

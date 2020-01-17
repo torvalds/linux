@@ -28,7 +28,7 @@ static int wait_ready(struct panfrost_device *pfdev, u32 as_nr)
 	int ret;
 	u32 val;
 
-	/* Wait for the MMU status to indicate there is no active command, in
+	/* Wait for the MMU status to indicate there is yes active command, in
 	 * case one is pending. */
 	ret = readl_relaxed_poll_timeout_atomic(pfdev->iomem + AS_STATUS(as_nr),
 		val, !(val & AS_STATUS_AS_ACTIVE), 10, 1000);
@@ -43,7 +43,7 @@ static int write_cmd(struct panfrost_device *pfdev, u32 as_nr, u32 cmd)
 {
 	int status;
 
-	/* write AS_COMMAND when MMU is ready to accept another command */
+	/* write AS_COMMAND when MMU is ready to accept ayesther command */
 	status = wait_ready(pfdev, as_nr);
 	if (!status)
 		mmu_write(pfdev, AS_COMMAND(as_nr), cmd);
@@ -68,7 +68,7 @@ static void lock_region(struct panfrost_device *pfdev, u32 as_nr,
 
 	region_width = 10 + fls(size >> PAGE_SHIFT);
 	if ((size >> PAGE_SHIFT) != (1ul << (region_width - 11))) {
-		/* not pow2, so must go up to the next pow2 */
+		/* yest pow2, so must go up to the next pow2 */
 		region_width += 1;
 	}
 	region |= region_width;
@@ -231,7 +231,7 @@ static void panfrost_mmu_flush_range(struct panfrost_device *pfdev,
 	if (mmu->as < 0)
 		return;
 
-	pm_runtime_get_noresume(pfdev->dev);
+	pm_runtime_get_yesresume(pfdev->dev);
 
 	/* Flush the PTs only if we're already awake */
 	if (pm_runtime_active(pfdev->dev))
@@ -279,14 +279,14 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 	if (WARN_ON(bo->is_mapped))
 		return 0;
 
-	if (bo->noexec)
+	if (bo->yesexec)
 		prot |= IOMMU_NOEXEC;
 
 	sgt = drm_gem_shmem_get_pages_sgt(obj);
 	if (WARN_ON(IS_ERR(sgt)))
 		return PTR_ERR(sgt);
 
-	mmu_map_sg(pfdev, bo->mmu, bo->node.start << PAGE_SHIFT, prot, sgt);
+	mmu_map_sg(pfdev, bo->mmu, bo->yesde.start << PAGE_SHIFT, prot, sgt);
 	bo->is_mapped = true;
 
 	return 0;
@@ -297,8 +297,8 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 	struct drm_gem_object *obj = &bo->base.base;
 	struct panfrost_device *pfdev = to_panfrost_device(obj->dev);
 	struct io_pgtable_ops *ops = bo->mmu->pgtbl_ops;
-	u64 iova = bo->node.start << PAGE_SHIFT;
-	size_t len = bo->node.size << PAGE_SHIFT;
+	u64 iova = bo->yesde.start << PAGE_SHIFT;
+	size_t len = bo->yesde.size << PAGE_SHIFT;
 	size_t unmapped_len = 0;
 
 	if (WARN_ON(!bo->is_mapped))
@@ -318,7 +318,7 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 		unmapped_len += pgsize;
 	}
 
-	panfrost_mmu_flush_range(pfdev, bo->mmu, bo->node.start << PAGE_SHIFT, len);
+	panfrost_mmu_flush_range(pfdev, bo->mmu, bo->yesde.start << PAGE_SHIFT, len);
 	bo->is_mapped = false;
 }
 
@@ -380,7 +380,7 @@ void panfrost_mmu_pgtable_free(struct panfrost_file_priv *priv)
 
 	spin_lock(&pfdev->as_lock);
 	if (mmu->as >= 0) {
-		pm_runtime_get_noresume(pfdev->dev);
+		pm_runtime_get_yesresume(pfdev->dev);
 		if (pm_runtime_active(pfdev->dev))
 			panfrost_mmu_disable(pfdev, mmu->as);
 		pm_runtime_put_autosuspend(pfdev->dev);
@@ -395,11 +395,11 @@ void panfrost_mmu_pgtable_free(struct panfrost_file_priv *priv)
 }
 
 static struct panfrost_gem_object *
-addr_to_drm_mm_node(struct panfrost_device *pfdev, int as, u64 addr)
+addr_to_drm_mm_yesde(struct panfrost_device *pfdev, int as, u64 addr)
 {
 	struct panfrost_gem_object *bo = NULL;
 	struct panfrost_file_priv *priv;
-	struct drm_mm_node *node;
+	struct drm_mm_yesde *yesde;
 	u64 offset = addr >> PAGE_SHIFT;
 	struct panfrost_mmu *mmu;
 
@@ -415,10 +415,10 @@ found_mmu:
 
 	spin_lock(&priv->mm_lock);
 
-	drm_mm_for_each_node(node, &priv->mm) {
-		if (offset >= node->start &&
-		    offset < (node->start + node->size)) {
-			bo = drm_mm_node_to_panfrost_bo(node);
+	drm_mm_for_each_yesde(yesde, &priv->mm) {
+		if (offset >= yesde->start &&
+		    offset < (yesde->start + yesde->size)) {
+			bo = drm_mm_yesde_to_panfrost_bo(yesde);
 			drm_gem_object_get(&bo->base.base);
 			break;
 		}
@@ -442,13 +442,13 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 	struct sg_table *sgt;
 	struct page **pages;
 
-	bo = addr_to_drm_mm_node(pfdev, as, addr);
+	bo = addr_to_drm_mm_yesde(pfdev, as, addr);
 	if (!bo)
 		return -ENOENT;
 
 	if (!bo->is_heap) {
-		dev_WARN(pfdev->dev, "matching BO is not heap type (GPU VA = %llx)",
-			 bo->node.start << PAGE_SHIFT);
+		dev_WARN(pfdev->dev, "matching BO is yest heap type (GPU VA = %llx)",
+			 bo->yesde.start << PAGE_SHIFT);
 		ret = -EINVAL;
 		goto err_bo;
 	}
@@ -457,7 +457,7 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 	/* Assume 2MB alignment and size multiple */
 	addr &= ~((u64)SZ_2M - 1);
 	page_offset = addr >> PAGE_SHIFT;
-	page_offset -= bo->node.start;
+	page_offset -= bo->yesde.start;
 
 	mutex_lock(&bo->base.pages_lock);
 

@@ -61,7 +61,7 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 		rcv_cb(dev, nlh->nlmsg_type, msg, mlen);
 		dev_put(dev);
 	} else {
-		pr_err("nl cb - dev (%d) not found\n", ifindex);
+		pr_err("nl cb - dev (%d) yest found\n", ifindex);
 	}
 }
 

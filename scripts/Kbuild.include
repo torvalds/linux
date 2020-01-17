@@ -13,16 +13,16 @@ pound := \#
 
 ###
 # Name of target with a '.' as filename prefix. foo/bar.o => foo/.bar.o
-dot-target = $(dir $@).$(notdir $@)
+dot-target = $(dir $@).$(yestdir $@)
 
 ###
-# The temporary file to save gcc -MD generated dependencies must not
+# The temporary file to save gcc -MD generated dependencies must yest
 # contain a comma
 depfile = $(subst $(comma),_,$(dot-target).d)
 
 ###
 # filename of target with directory and extension stripped
-basetarget = $(basename $(notdir $@))
+basetarget = $(basename $(yestdir $@))
 
 ###
 # real prerequisites without phony targets
@@ -49,9 +49,9 @@ kecho := $($(quiet)kecho)
 #
 # The rule defined shall write to stdout the content of the new file.
 # The existing file will be compared with the new one.
-# - If no file exist it is created
+# - If yes file exist it is created
 # - If the content differ the new file is used
-# - If they are equal no change, and no timestamp update
+# - If they are equal yes change, and yes timestamp update
 # - stdin is piped in from the first prerequisite ($<) so one has
 #   to specify a valid file as first prerequisite (often the kbuild file)
 define filechk
@@ -73,7 +73,7 @@ endef
 # cc-cross-prefix
 # Usage: CROSS_COMPILE := $(call cc-cross-prefix, m68k-linux-gnu- m68k-linux-)
 # Return first <prefix> where a <prefix>gcc is found in PATH.
-# If no gcc found in PATH with listed prefixes return nothing
+# If yes gcc found in PATH with listed prefixes return yesthing
 #
 # Note: '2>/dev/null' is here to force Make to invoke a shell. Otherwise, it
 # would try to directly execute the shell builtin 'command'. This workaround
@@ -115,7 +115,7 @@ as-instr = $(call try-run,\
 __cc-option = $(call try-run,\
 	$(1) -Werror $(2) $(3) -c -x c /dev/null -o "$$TMP",$(3),$(4))
 
-# Do not attempt to build with gcc plugins during cc-option tests.
+# Do yest attempt to build with gcc plugins during cc-option tests.
 # (And this uses delayed resolution so the flags will be up to date.)
 CC_OPTION_CFLAGS = $(filter-out $(GCC_PLUGINS_CFLAGS),$(KBUILD_CFLAGS))
 
@@ -133,7 +133,7 @@ cc-option-yn = $(call try-run,\
 # cc-disable-warning
 # Usage: cflags-y += $(call cc-disable-warning,unused-but-set-variable)
 cc-disable-warning = $(call try-run,\
-	$(CC) -Werror $(KBUILD_CPPFLAGS) $(CC_OPTION_CFLAGS) -W$(strip $(1)) -c -x c /dev/null -o "$$TMP",-Wno-$(strip $(1)))
+	$(CC) -Werror $(KBUILD_CPPFLAGS) $(CC_OPTION_CFLAGS) -W$(strip $(1)) -c -x c /dev/null -o "$$TMP",-Wyes-$(strip $(1)))
 
 # cc-ifversion
 # Usage:  EXTRA_CFLAGS += $(call cc-ifversion, -lt, 0402, -O1)
@@ -210,9 +210,9 @@ endif
 # (needed for the shell)
 make-cmd = $(call escsq,$(subst $(pound),$$(pound),$(subst $$,$$$$,$(cmd_$(1)))))
 
-# Find any prerequisites that are newer than target or that do not exist.
-# (This is not true for now; $? should contain any non-existent prerequisites,
-# but it does not work as expected when .SECONDARY is present. This seems a bug
+# Find any prerequisites that are newer than target or that do yest exist.
+# (This is yest true for yesw; $? should contain any yesn-existent prerequisites,
+# but it does yest work as expected when .SECONDARY is present. This seems a bug
 # of GNU Make.)
 # PHONY targets skipped in both cases.
 newer-prereqs = $(filter-out $(PHONY),$?)
@@ -244,7 +244,7 @@ if_changed_rule = $(if $(newer-prereqs)$(cmd-check),$(rule_$(1)),@:)
 #          (3) - due to: file1.h file2.h
 #          (4) - due to command line change
 #          (5) - due to missing .cmd file
-#          (6) - due to target not in $(targets)
+#          (6) - due to target yest in $(targets)
 # (1) PHONY targets are always build
 # (2) No target, so we better build it
 # (3) Prerequisite is newer than target
@@ -252,7 +252,7 @@ if_changed_rule = $(if $(newer-prereqs)$(cmd-check),$(rule_$(1)),@:)
 #     differed from actual command line. This happens when compiler
 #     options changes
 # (5) No dir/.target.cmd file (used to store command line)
-# (6) No dir/.target.cmd file and target not listed in $(targets)
+# (6) No dir/.target.cmd file and target yest listed in $(targets)
 #     This is a good hint that there is a bug in the kbuild file
 ifeq ($(KBUILD_VERBOSE),2)
 why =                                                                        \
@@ -263,7 +263,7 @@ why =                                                                        \
                     $(if $(cmd_$@),- due to command line change,             \
                         $(if $(filter $@, $(targets)),                       \
                             - due to missing .cmd file,                      \
-                            - due to $(notdir $@) not in $$(targets)         \
+                            - due to $(yestdir $@) yest in $$(targets)         \
                          )                                                   \
                      )                                                       \
                  )                                                           \
@@ -282,7 +282,7 @@ endif
 # any double-quotes or backslashes within it are escaped by
 # backslashes.
 #
-# This is no use for dependencies or $(wildcard). We need to strip the
+# This is yes use for dependencies or $(wildcard). We need to strip the
 # surrounding quotes and the escaping from quotes and backslashes, and
 # we *do* need to escape any spaces in the string. So, for example:
 #
@@ -293,13 +293,13 @@ endif
 # makefile.
 #
 # Also, if the filename is a relative filename and exists in the source
-# tree but not the build tree, define FOO_SRCPREFIX as $(srctree)/ to
+# tree but yest the build tree, define FOO_SRCPREFIX as $(srctree)/ to
 # be prefixed to *both* command invocation and dependencies.
 #
 # Note: We also print the filenames in the quiet_cmd_foo text, and
 # perhaps ought to have a version specially escaped for that purpose.
 # But it's only cosmetic, and $(patsubst "%",%,$(CONFIG_FOO)) is good
-# enough.  It'll strip the quotes in the common case where there's no
+# eyesugh.  It'll strip the quotes in the common case where there's yes
 # space and it's a simple filename, and it'll retain the quotes when
 # there's a space. There are some esoteric cases in which it'll print
 # the wrong thing, but we don't really care. The actual dependencies
@@ -327,5 +327,5 @@ endef
 # delete partially updated (i.e. corrupted) files on error
 .DELETE_ON_ERROR:
 
-# do not delete intermediate files automatically
+# do yest delete intermediate files automatically
 .SECONDARY:

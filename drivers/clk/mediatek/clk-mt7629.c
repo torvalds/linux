@@ -55,7 +55,7 @@
 		.parent_name = _parent,			\
 		.regs = &apmixed_cg_regs,		\
 		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
+		.ops = &mtk_clk_gate_ops_yes_setclr_inv,	\
 	}
 
 #define GATE_INFRA(_id, _name, _parent, _shift) {	\
@@ -573,7 +573,7 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
 	void __iomem *base;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -594,24 +594,24 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 	clk_prepare_enable(clk_data->clks[CLK_TOP_MEM_SEL]);
 	clk_prepare_enable(clk_data->clks[CLK_TOP_DDRPHYCFG_SEL]);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 }
 
 static int mtk_infrasys_init(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct clk_onecell_data *clk_data;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
 
-	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks),
+	mtk_clk_register_gates(yesde, infra_clks, ARRAY_SIZE(infra_clks),
 			       clk_data);
 
-	mtk_clk_register_cpumuxes(node, infra_muxes, ARRAY_SIZE(infra_muxes),
+	mtk_clk_register_cpumuxes(yesde, infra_muxes, ARRAY_SIZE(infra_muxes),
 				  clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get,
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get,
 				clk_data);
 	if (r)
 		return r;
@@ -624,7 +624,7 @@ static int mtk_pericfg_init(struct platform_device *pdev)
 	struct clk_onecell_data *clk_data;
 	void __iomem *base;
 	int r;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -632,13 +632,13 @@ static int mtk_pericfg_init(struct platform_device *pdev)
 
 	clk_data = mtk_alloc_clk_data(CLK_PERI_NR_CLK);
 
-	mtk_clk_register_gates(node, peri_clks, ARRAY_SIZE(peri_clks),
+	mtk_clk_register_gates(yesde, peri_clks, ARRAY_SIZE(peri_clks),
 			       clk_data);
 
 	mtk_clk_register_composites(peri_muxes, ARRAY_SIZE(peri_muxes), base,
 				    &mt7629_clk_lock, clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r)
 		return r;
 
@@ -650,22 +650,22 @@ static int mtk_pericfg_init(struct platform_device *pdev)
 static int mtk_apmixedsys_init(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 	if (!clk_data)
 		return -ENOMEM;
 
-	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls),
+	mtk_clk_register_plls(yesde, plls, ARRAY_SIZE(plls),
 			      clk_data);
 
-	mtk_clk_register_gates(node, apmixed_clks,
+	mtk_clk_register_gates(yesde, apmixed_clks,
 			       ARRAY_SIZE(apmixed_clks), clk_data);
 
 	clk_prepare_enable(clk_data->clks[CLK_APMIXED_ARMPLL]);
 	clk_prepare_enable(clk_data->clks[CLK_APMIXED_MAIN_CORE_EN]);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 }
 
 
@@ -699,7 +699,7 @@ static int clk_mt7629_probe(struct platform_device *pdev)
 	r = clk_init(pdev);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could yest register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	return r;

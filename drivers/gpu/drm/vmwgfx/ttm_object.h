@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -99,22 +99,22 @@ struct ttm_object_device;
  * @shareable: Other ttm_object_files can access this object.
  *
  * @tfile: Pointer to ttm_object_file of the creator.
- * NULL if the object was not created by a user request.
+ * NULL if the object was yest created by a user request.
  * (kernel object).
  *
- * @refcount: Number of references to this object, not
+ * @refcount: Number of references to this object, yest
  * including the hash entry. A reference to a base object can
  * only be held by a ref object.
  *
  * @refcount_release: A function to be called when there are
- * no more references to this object. This function should
+ * yes more references to this object. This function should
  * destroy the object (or make sure destruction eventually happens),
  * and when it is called, the object has
  * already been taken out of the per-device hash. The parameter
  * "base" should be set to NULL by the function.
  *
  * @ref_obj_release: A function to be called when a reference object
- * with another ttm_ref_type than TTM_REF_USAGE is deleted.
+ * with ayesther ttm_ref_type than TTM_REF_USAGE is deleted.
  * This function may, for example, release a lock held by a user-space
  * process.
  *
@@ -259,7 +259,7 @@ extern bool ttm_ref_object_exists(struct ttm_object_file *tfile,
  * @ref_type: Ref type of the ref object to be dereferenced.
  *
  * Unreference a ref object with type @ref_type
- * on the base object identified by @key. If there are no duplicate
+ * on the base object identified by @key. If there are yes duplicate
  * references, the ref object will be destroyed and the base object
  * will be unreferenced.
  */
@@ -288,7 +288,7 @@ extern struct ttm_object_file *ttm_object_file_init(struct ttm_object_device
  *
  * Releases all data associated by a ttm_object_file.
  * Typically called from file_ops::release. The caller must
- * ensure that there are no concurrent users of tfile.
+ * ensure that there are yes concurrent users of tfile.
  */
 
 extern void ttm_object_file_release(struct ttm_object_file **p_tfile);
@@ -360,15 +360,15 @@ extern int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 #define TTM_OBJ_EXTRA_SIZE 128
 
 struct ttm_base_object *
-ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint32_t key);
+ttm_base_object_yesref_lookup(struct ttm_object_file *tfile, uint32_t key);
 
 /**
- * ttm_base_object_noref_release - release a base object pointer looked up
+ * ttm_base_object_yesref_release - release a base object pointer looked up
  * without reference
  *
- * Releases a base object pointer looked up with ttm_base_object_noref_lookup().
+ * Releases a base object pointer looked up with ttm_base_object_yesref_lookup().
  */
-static inline void ttm_base_object_noref_release(void)
+static inline void ttm_base_object_yesref_release(void)
 {
 	__acquire(RCU);
 	rcu_read_unlock();

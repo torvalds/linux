@@ -10,8 +10,8 @@
  * <j@w1.fi>
  * Copyright (c) 2002-2003, Jouni Malinen <j@w1.fi>
  *
- * Adaption to a generic IEEE 802.11 stack by James Ketrenos
- * <jketreno@linux.intel.com>
+ * Adaption to a generic IEEE 802.11 stack by James Ketreyess
+ * <jketreyes@linux.intel.com>
  * Copyright (c) 2004-2005, Intel Corporation
  *
  * API Version History
@@ -87,7 +87,7 @@ do { if (libipw_debug_level & (level)) \
  *
  * you simply need to add your entry to the libipw_debug_level array.
  *
- * If you do not see debug_level in /proc/net/ieee80211 then you do not have
+ * If you do yest see debug_level in /proc/net/ieee80211 then you do yest have
  * CONFIG_LIBIPW_DEBUG defined in your kernel configuration
  *
  */
@@ -216,7 +216,7 @@ struct libipw_snap_hdr {
 #define LIBIPW_NUM_CCK_RATES	            4
 #define LIBIPW_OFDM_SHIFT_MASK_A         4
 
-/* NOTE: This data is for statistical purposes; not all hardware provides this
+/* NOTE: This data is for statistical purposes; yest all hardware provides this
  *       information for frames received.
  *       For libipw_rx_mgt, you need to set at least the 'len' parameter.
  */
@@ -224,7 +224,7 @@ struct libipw_rx_stats {
 	u32 mac_time;
 	s8 rssi;
 	u8 signal;
-	u8 noise;
+	u8 yesise;
 	u16 rate;		/* in 100 kbps */
 	u8 received_channel;
 	u8 control;
@@ -237,7 +237,7 @@ struct libipw_rx_stats {
 
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
- * concurrent frames, but it should be noted that each entry can consume about
+ * concurrent frames, but it should be yested that each entry can consume about
  * 2 kB of RAM and increasing cache size will slow down frame reassembly. */
 #define LIBIPW_FRAG_CACHE_LEN 4
 
@@ -267,7 +267,7 @@ struct libipw_stats {
 	unsigned int rx_unicast_octets;
 	unsigned int rx_multicast_octets;
 	unsigned int rx_fcs_errors;
-	unsigned int rx_discards_no_buffer;
+	unsigned int rx_discards_yes_buffer;
 	unsigned int tx_discards_wrong_sa;
 	unsigned int rx_discards_undecryptable;
 	unsigned int rx_message_in_msg_fragments;
@@ -650,7 +650,7 @@ struct libipw_network {
 	/* TPC Report - mandatory if spctrm mgmt required */
 	struct libipw_tpc_report tpc_report;
 
-	/* Channel Switch Announcement - optional if spctrm mgmt required */
+	/* Channel Switch Anyesuncement - optional if spctrm mgmt required */
 	struct libipw_csa csa;
 
 	/* Quiet - optional if spctrm mgmt required */

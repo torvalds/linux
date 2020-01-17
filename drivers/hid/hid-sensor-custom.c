@@ -164,7 +164,7 @@ static int set_power_report_state(struct hid_sensor_custom *sensor_inst,
 	int ret;
 
 	/*
-	 * It is possible that the power/report state ids are not present.
+	 * It is possible that the power/report state ids are yest present.
 	 * In this case this function will return success. But if the
 	 * ids are present, then it will return error if set fails.
 	 */
@@ -371,7 +371,7 @@ static ssize_t show_value(struct device *dev, struct device_attribute *attr,
 			return snprintf(buf, PAGE_SIZE, "%s\n",
 					usage_desc->desc);
 		else
-			return sprintf(buf, "not-specified\n");
+			return sprintf(buf, "yest-specified\n");
 	 } else
 		return -EINVAL;
 
@@ -416,7 +416,7 @@ static int hid_sensor_capture_sample(struct hid_sensor_hub_device *hsdev,
 	struct hid_sensor_custom *sensor_inst = platform_get_drvdata(priv);
 	struct hid_sensor_sample header;
 
-	/* If any error occurs in a sample, rest of the fields are ignored */
+	/* If any error occurs in a sample, rest of the fields are igyesred */
 	if (sensor_inst->input_skip_sample) {
 		hid_err(sensor_inst->hsdev->hdev, "Skipped remaining data\n");
 		return 0;
@@ -665,7 +665,7 @@ static ssize_t hid_sensor_custom_read(struct file *file, char __user *buf,
 	return copied;
 }
 
-static int hid_sensor_custom_release(struct inode *inode, struct file *file)
+static int hid_sensor_custom_release(struct iyesde *iyesde, struct file *file)
 {
 	struct hid_sensor_custom *sensor_inst;
 
@@ -677,7 +677,7 @@ static int hid_sensor_custom_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int hid_sensor_custom_open(struct inode *inode, struct file *file)
+static int hid_sensor_custom_open(struct iyesde *iyesde, struct file *file)
 {
 	struct hid_sensor_custom *sensor_inst;
 
@@ -687,7 +687,7 @@ static int hid_sensor_custom_open(struct inode *inode, struct file *file)
 	if (test_and_set_bit(0, &sensor_inst->misc_opened))
 		return -EBUSY;
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
 static __poll_t hid_sensor_custom_poll(struct file *file,
@@ -712,7 +712,7 @@ static const struct file_operations hid_sensor_custom_fops = {
 	.read =  hid_sensor_custom_read,
 	.release = hid_sensor_custom_release,
 	.poll = hid_sensor_custom_poll,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static int hid_sensor_custom_dev_if_add(struct hid_sensor_custom *sensor_inst)
@@ -726,7 +726,7 @@ static int hid_sensor_custom_dev_if_add(struct hid_sensor_custom *sensor_inst)
 
 	init_waitqueue_head(&sensor_inst->wait);
 
-	sensor_inst->custom_dev.minor = MISC_DYNAMIC_MINOR;
+	sensor_inst->custom_dev.miyesr = MISC_DYNAMIC_MINOR;
 	sensor_inst->custom_dev.name = dev_name(&sensor_inst->pdev->dev);
 	sensor_inst->custom_dev.fops = &hid_sensor_custom_fops,
 	ret = misc_register(&sensor_inst->custom_dev);

@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef __NDS32_FUTEX_H__
 #define __NDS32_FUTEX_H__
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 #define __futex_atomic_ex_table(err_reg)			\
 	"	.pushsection __ex_table,\"a\"\n"		\

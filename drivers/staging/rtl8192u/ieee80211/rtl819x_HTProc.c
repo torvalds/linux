@@ -52,9 +52,9 @@ static u8 CISCO_BROADCOM[3] = {0x00, 0x17, 0x94};
 /*
  *function:  This function update default settings in pHTInfo structure
  *   input:  PRT_HIGH_THROUGHPUT	pHTInfo
- *  output:  none
- *  return:  none
- *  notice:  These value need be modified if any changes.
+ *  output:  yesne
+ *  return:  yesne
+ *  yestice:  These value need be modified if any changes.
  */
 void HTUpdateDefaultSetting(struct ieee80211_device *ieee)
 {
@@ -120,9 +120,9 @@ void HTUpdateDefaultSetting(struct ieee80211_device *ieee)
  *           IE mainly from (Beacon/ProbeRsp/AssocReq)
  *   input:  u8*	CapIE       //Capability IE to be printed out
  *	     u8*	TitleString //mainly print out caller function
- *  output:  none
- *  return:  none
- *  notice:  Driver should not print out this message by default.
+ *  output:  yesne
+ *  return:  yesne
+ *  yestice:  Driver should yest print out this message by default.
  */
 void HTDebugHTCapability(u8 *CapIE, u8 *TitleString)
 {
@@ -155,9 +155,9 @@ void HTDebugHTCapability(u8 *CapIE, u8 *TitleString)
  *           IE mainly from (Beacon/ProbeRsp)
  *   input:  u8*	InfoIE       //Capability IE to be printed out
  *	     u8*	TitleString //mainly print out caller function
- *  output:  none
- *  return:  none
- *  notice:  Driver should not print out this message by default.
+ *  output:  yesne
+ *  return:  yesne
+ *  yestice:  Driver should yest print out this message by default.
  */
 void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 {
@@ -198,7 +198,7 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 		IEEE80211_DEBUG(IEEE80211_DL_HT, "No Protection\n");
 		break;
 	case 1:
-		IEEE80211_DEBUG(IEEE80211_DL_HT, "HT non-member protection mode\n");
+		IEEE80211_DEBUG(IEEE80211_DL_HT, "HT yesn-member protection mode\n");
 		break;
 	case 2:
 		IEEE80211_DEBUG(IEEE80211_DL_HT, "Suggest to open protection\n");
@@ -227,9 +227,9 @@ static u16 HTMcsToDataRate(struct ieee80211_device *ieee, u8 nMcsRate)
  *function:  This function returns current datarate.
  *   input:  struct ieee80211_device*	ieee
  *	     u8				nDataRate
- *  output:  none
+ *  output:  yesne
  *  return:  tx rate
- *  notice:  quite unsure about how to use this function //wb
+ *  yestice:  quite unsure about how to use this function //wb
  */
 u16  TxCountToDataRate(struct ieee80211_device *ieee, u8 nDataRate)
 {
@@ -295,9 +295,9 @@ bool IsHTHalfNmodeAPs(struct ieee80211_device *ieee)
 /*
  *function:  This function returns peer IOT.
  *   input:  struct ieee80211_device*	ieee
- *  output:  none
+ *  output:  yesne
  *  return:
- *  notice:
+ *  yestice:
  */
 static void HTIOTPeerDetermine(struct ieee80211_device *ieee)
 {
@@ -332,11 +332,11 @@ static void HTIOTPeerDetermine(struct ieee80211_device *ieee)
 
 /*
  *function:  Check whether driver should declare received rate up to MCS13
- *           only since some chipset is not good at receiving MCS14~15 frame
+ *           only since some chipset is yest good at receiving MCS14~15 frame
  *           from some AP.
  *   input:  struct ieee80211_device*	ieee
  *	     u8 *			PeerMacAddr
- *  output:  none
+ *  output:  yesne
  *  return:  return 1 if driver should declare MCS13 only(otherwise return 0)
  */
 static u8 HTIOTActIsDisableMCS14(struct ieee80211_device *ieee, u8 *PeerMacAddr)
@@ -377,7 +377,7 @@ static bool HTIOTActIsDisableMCS15(struct ieee80211_device *ieee)
 #endif
 #endif
 #endif
-	// Jerry Chang suggest that 8190 1x2 does not need to disable MCS15
+	// Jerry Chang suggest that 8190 1x2 does yest need to disable MCS15
 
 	return retValue;
 }
@@ -408,7 +408,7 @@ static bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device *ieee,
  *function:  Check whether driver should disable EDCA turbo mode
  *   input:  struct ieee80211_device*	ieee
  *	     u8*			PeerMacAddr
- *  output:  none
+ *  output:  yesne
  *  return:  return 1 if driver should disable EDCA turbo mode
  *           (otherwise return 0)
  */
@@ -422,7 +422,7 @@ static u8 HTIOTActIsDisableEDCATurbo(struct ieee80211_device *ieee,
  *function:  Check whether we need to use OFDM to sned MGNT frame for
  *           broadcom AP
  *   input:  struct ieee80211_network *network   //current network we live
- *  output:  none
+ *  output:  yesne
  *  return:  return 1 if true
  */
 static u8 HTIOTActIsMgntUseCCK6M(struct ieee80211_network *network)
@@ -462,9 +462,9 @@ void HTResetIOTSetting(PRT_HIGH_THROUGHPUT pHTInfo)
  *	     u8*		     posHTCap //pointer to store Capability Ele
  *	     u8*		     len //store length of CE
  *	     u8			     IsEncrypt //whether encrypt, needed further
- *  output:  none
- *  return:  none
- *  notice:  posHTCap can't be null and should be initialized before.
+ *  output:  yesne
+ *  return:  yesne
+ *  yestice:  posHTCap can't be null and should be initialized before.
  */
 void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u8 *len, u8 IsEncrypt)
 {
@@ -489,7 +489,7 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
 	}
 
 	//HT capability info
-	pCapELE->AdvCoding		= 0; // This feature is not supported now!!
+	pCapELE->AdvCoding		= 0; // This feature is yest supported yesw!!
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
 		pCapELE->ChlWidth = 0;
 	else
@@ -497,18 +497,18 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
 
 //	pCapELE->ChlWidth		= (pHT->bRegBW40MHz?1:0);
 	pCapELE->MimoPwrSave		= pHT->SelfMimoPs;
-	pCapELE->GreenField		= 0; // This feature is not supported now!!
+	pCapELE->GreenField		= 0; // This feature is yest supported yesw!!
 	pCapELE->ShortGI20Mhz		= 1; // We can receive Short GI!!
 	pCapELE->ShortGI40Mhz		= 1; // We can receive Short GI!!
 	//DbgPrint("TX HT cap/info ele BW=%d SG20=%d SG40=%d\n\r",
 	//pCapELE->ChlWidth, pCapELE->ShortGI20Mhz, pCapELE->ShortGI40Mhz);
 	pCapELE->TxSTBC			= 1;
 	pCapELE->RxSTBC			= 0;
-	pCapELE->DelayBA		= 0;	// Do not support now!!
+	pCapELE->DelayBA		= 0;	// Do yest support yesw!!
 	pCapELE->MaxAMSDUSize	        = (MAX_RECEIVE_BUFFER_SIZE >= 7935) ? 1 : 0;
 	pCapELE->DssCCk			= ((pHT->bRegBW40MHz) ? (pHT->bRegSuppCCK ? 1 : 0) : 0);
-	pCapELE->PSMP			= 0; // Do not support now!!
-	pCapELE->LSigTxopProtect	= 0; // Do not support now!!
+	pCapELE->PSMP			= 0; // Do yest support yesw!!
+	pCapELE->LSigTxopProtect	= 0; // Do yest support yesw!!
 
 	/*
 	 * MAC HT parameters info
@@ -521,7 +521,7 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
 		pCapELE->MaxRxAMPDUFactor = 2; // 2 is for 32 K and 3 is 64K
 	} else {
 		pCapELE->MaxRxAMPDUFactor = 3; // 2 is for 32 K and 3 is 64K
-		pCapELE->MPDUDensity	= 0; // no density
+		pCapELE->MPDUDensity	= 0; // yes density
 	}
 
 	//Supported MCS set
@@ -563,7 +563,7 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
 //	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_HT, posHTCap, *len -2);
 
 	/*
-	 * Print each field in detail. Driver should not print out this message
+	 * Print each field in detail. Driver should yest print out this message
 	 * by default
 	 */
 //	HTDebugHTCapability(posHTCap, (u8*)"HTConstructCapability()");
@@ -575,9 +575,9 @@ void HTConstructCapabilityElement(struct ieee80211_device *ieee, u8 *posHTCap, u
  *	     u8*		     posHTCap //pointer to store Information Ele
  *	     u8*		     len   //store len of
  *	     u8			     IsEncrypt //whether encrypt, needed further
- *  output:  none
- *  return:  none
- *  notice:  posHTCap can't be null and be initialized before.
+ *  output:  yesne
+ *  return:  yesne
+ *  yestice:  posHTCap can't be null and be initialized before.
  *           Only AP and IBSS sta should do this
  */
 void HTConstructInfoElement(struct ieee80211_device *ieee, u8 *posHTInfo, u8 *len, u8 IsEncrypt)
@@ -593,7 +593,7 @@ void HTConstructInfoElement(struct ieee80211_device *ieee, u8 *posHTInfo, u8 *le
 	}
 
 	memset(posHTInfo, 0, *len);
-	if ((ieee->iw_mode == IW_MODE_ADHOC) || (ieee->iw_mode == IW_MODE_MASTER)) { //ap mode is not currently supported
+	if ((ieee->iw_mode == IW_MODE_ADHOC) || (ieee->iw_mode == IW_MODE_MASTER)) { //ap mode is yest currently supported
 		pHTInfoEle->ControlChl			= ieee->current_network.channel;
 		pHTInfoEle->ExtChlOffset		= ((!pHT->bRegBW40MHz) ? HT_EXTCHNL_OFFSET_NO_EXT :
 											(ieee->current_network.channel <= 6) ?
@@ -614,7 +614,7 @@ void HTConstructInfoElement(struct ieee80211_device *ieee, u8 *posHTInfo, u8 *le
 
 		*len = 22 + 2; //same above
 	} else {
-		//STA should not generate High Throughput Information Element
+		//STA should yest generate High Throughput Information Element
 		*len = 0;
 	}
 	//IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA | IEEE80211_DL_HT, posHTInfo, *len - 2);
@@ -645,9 +645,9 @@ void HTConstructInfoElement(struct ieee80211_device *ieee, u8 *posHTInfo, u8 *le
  *   input:  struct ieee80211_device*	ieee
  *	     u8*		  posRT2RTAgg //pointer to store Information Ele
  *	     u8*		  len   //store len
- *  output:  none
- *  return:  none
- *  notice:
+ *  output:  yesne
+ *  return:  yesne
+ *  yestice:
  */
 void HTConstructRT2RTAggElement(struct ieee80211_device *ieee, u8 *posRT2RTAgg, u8 *len)
 {
@@ -696,7 +696,7 @@ void HTConstructRT2RTAggElement(struct ieee80211_device *ieee, u8 *posRT2RTAgg, 
  *   input:  struct ieee80211_device*	ieee
  *	     u8*		      pOperateMCS //A pointer to MCS rate bitmap
  *  return:  always we return true
- *  notice:
+ *  yestice:
  */
 static u8 HT_PickMCSRate(struct ieee80211_device *ieee, u8 *pOperateMCS)
 {
@@ -713,7 +713,7 @@ static u8 HT_PickMCSRate(struct ieee80211_device *ieee, u8 *pOperateMCS)
 	case IEEE_G:
 		//legacy rate routine handled at selectedrate
 
-		//no MCS rate
+		//yes MCS rate
 		memset(pOperateMCS, 0, 16);
 		break;
 
@@ -754,7 +754,7 @@ static u8 HT_PickMCSRate(struct ieee80211_device *ieee, u8 *pOperateMCS)
  *	     u8*			pMCSRateSet //Pointer to MCS rate bitmap
  *	     u8*			pMCSFilter //Pointer to MCS rate filter
  *  return:  Highest MCS rate included in pMCSRateSet and filtered by pMCSFilter
- *  notice:
+ *  yestice:
  */
 u8 HTGetHighestMCSRate(struct ieee80211_device *ieee, u8 *pMCSRateSet, u8 *pMCSFilter)
 {
@@ -807,7 +807,7 @@ static u8 HTFilterMCSRate(struct ieee80211_device *ieee, u8 *pSupportMCS,
 {
 	u8 i = 0;
 
-	// filter out operational rate set not supported by AP, the length of it is 16
+	// filter out operational rate set yest supported by AP, the length of it is 16
 	for (i = 0; i <= 15; i++)
 		pOperateMCS[i] = ieee->Regdot11HTOperationalRateSet[i] & pSupportMCS[i];
 
@@ -825,7 +825,7 @@ static u8 HTFilterMCSRate(struct ieee80211_device *ieee, u8 *pSupportMCS,
 
 	/*
 	 * For RTL819X, we support only MCS0~15.
-	 * And also, we do not know how to use MCS32 now.
+	 * And also, we do yest kyesw how to use MCS32 yesw.
 	 */
 	for (i = 2; i <= 15; i++)
 		pOperateMCS[i] = 0;
@@ -1010,9 +1010,9 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 /*
  *function:  initialize HT info(struct PRT_HIGH_THROUGHPUT)
  *   input:  struct ieee80211_device*	ieee
- *  output:  none
- *  return:  none
- *  notice: This function is called when
+ *  output:  yesne
+ *  return:  yesne
+ *  yestice: This function is called when
  *                                  *  (1) MPInitialization Phase
  *                                  *  (2) Receiving of Deauthentication from AP
  */
@@ -1082,9 +1082,9 @@ void HTInitializeHTInfo(struct ieee80211_device *ieee)
 /*
  *function:  initialize Bss HT structure(struct PBSS_HT)
  *   input:  PBSS_HT pBssHT //to be initialized
- *  output:  none
- *  return:  none
- *  notice: This function is called when initialize network structure
+ *  output:  yesne
+ *  return:  yesne
+ *  yestice: This function is called when initialize network structure
  */
 void HTInitializeBssDesc(PBSS_HT pBssHT)
 {
@@ -1105,9 +1105,9 @@ void HTInitializeBssDesc(PBSS_HT pBssHT)
  *   input:  struct ieee80211_device	*ieee
  *	     struct ieee80211_network	*pNetwork //usually current network
  *                                                  we are live in
- *  output:  none
- *  return:  none
- *  notice: This function should ONLY be called before association
+ *  output:  yesne
+ *  return:  yesne
+ *  yestice: This function should ONLY be called before association
  */
 void HTResetSelfAndSavePeerSetting(struct ieee80211_device *ieee,	struct ieee80211_network *pNetwork)
 {
@@ -1198,7 +1198,7 @@ void HTUpdateSelfAndPeerSetting(struct ieee80211_device *ieee,	struct ieee80211_
 			pHTInfo->CurrentOpMode = pPeerHTInfo->OptMode;
 
 		/*
-		 * <TODO: Config according to OBSS non-HT STA present!!>
+		 * <TODO: Config according to OBSS yesn-HT STA present!!>
 		 */
 	}
 }
@@ -1208,9 +1208,9 @@ EXPORT_SYMBOL(HTUpdateSelfAndPeerSetting);
  *function:  check whether HT control field exists
  *   input:  struct ieee80211_device	*ieee
  *	     u8*			pFrame //coming skb->data
- *  output:  none
+ *  output:  yesne
  *  return:  return true if HT control field exists(false otherwise)
- *  notice:
+ *  yestice:
  */
 u8 HTCCheck(struct ieee80211_device *ieee, u8 *pFrame)
 {

@@ -121,7 +121,7 @@ static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,
 }
 
 static const struct file_operations gup_benchmark_fops = {
-	.open = nonseekable_open,
+	.open = yesnseekable_open,
 	.unlocked_ioctl = gup_benchmark_ioctl,
 };
 

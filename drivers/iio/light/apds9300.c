@@ -333,7 +333,7 @@ static int apds9300_write_interrupt_config(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static const struct iio_info apds9300_info_no_irq = {
+static const struct iio_info apds9300_info_yes_irq = {
 	.read_raw	= apds9300_read_raw,
 };
 
@@ -428,7 +428,7 @@ static int apds9300_probe(struct i2c_client *client,
 	if (client->irq)
 		indio_dev->info = &apds9300_info;
 	else
-		indio_dev->info = &apds9300_info_no_irq;
+		indio_dev->info = &apds9300_info_yes_irq;
 
 	if (client->irq) {
 		ret = devm_request_threaded_irq(&client->dev, client->irq,

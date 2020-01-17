@@ -59,7 +59,7 @@ struct get_ec_info_req {
 
 struct get_ec_info_resp {
 	u8 reserved[2];
-	char value[9]; /* __nonstring: might not be null terminated */
+	char value[9]; /* __yesnstring: might yest be null terminated */
 } __packed;
 
 static ssize_t boot_on_ac_store(struct device *dev,

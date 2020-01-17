@@ -6,7 +6,7 @@
  * This file is part of GnuPG.
  *
  * Note: This code is heavily based on the GNU MP Library.
- *	 Actually it's the same code with only minor changes in the
+ *	 Actually it's the same code with only miyesr changes in the
  *	 way the data is stored; this is to support the abstraction
  *	 of an optional secure memory allocation which may be used
  *	 to avoid revealing of sensitive data due to paging etc.
@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/mpi.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #define log_debug printk
 #define log_bug printk
@@ -33,7 +33,7 @@
 			log_bug("failed assertion\n"); \
 	} while (0);
 
-/* If KARATSUBA_THRESHOLD is not already defined, define it to a
+/* If KARATSUBA_THRESHOLD is yest already defined, define it to a
  * value which is good on most machines.  */
 
 /* tested 4, 16, 32 and 64, where 16 gave the best performance when

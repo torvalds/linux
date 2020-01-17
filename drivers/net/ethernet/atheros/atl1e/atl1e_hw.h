@@ -203,14 +203,14 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 
 /* Block IDLE Status Register */
 #define REG_IDLE_STATUS  	0x1410
-#define     IDLE_STATUS_RXMAC       1    /* 1: RXMAC state machine is in non-IDLE state. 0: RXMAC is idling */
-#define     IDLE_STATUS_TXMAC       2    /* 1: TXMAC state machine is in non-IDLE state. 0: TXMAC is idling */
-#define     IDLE_STATUS_RXQ         4    /* 1: RXQ state machine is in non-IDLE state.   0: RXQ is idling   */
-#define     IDLE_STATUS_TXQ         8    /* 1: TXQ state machine is in non-IDLE state.   0: TXQ is idling   */
-#define     IDLE_STATUS_DMAR        0x10 /* 1: DMAR state machine is in non-IDLE state.  0: DMAR is idling  */
-#define     IDLE_STATUS_DMAW        0x20 /* 1: DMAW state machine is in non-IDLE state.  0: DMAW is idling  */
-#define     IDLE_STATUS_SMB         0x40 /* 1: SMB state machine is in non-IDLE state.   0: SMB is idling   */
-#define     IDLE_STATUS_CMB         0x80 /* 1: CMB state machine is in non-IDLE state.   0: CMB is idling   */
+#define     IDLE_STATUS_RXMAC       1    /* 1: RXMAC state machine is in yesn-IDLE state. 0: RXMAC is idling */
+#define     IDLE_STATUS_TXMAC       2    /* 1: TXMAC state machine is in yesn-IDLE state. 0: TXMAC is idling */
+#define     IDLE_STATUS_RXQ         4    /* 1: RXQ state machine is in yesn-IDLE state.   0: RXQ is idling   */
+#define     IDLE_STATUS_TXQ         8    /* 1: TXQ state machine is in yesn-IDLE state.   0: TXQ is idling   */
+#define     IDLE_STATUS_DMAR        0x10 /* 1: DMAR state machine is in yesn-IDLE state.  0: DMAR is idling  */
+#define     IDLE_STATUS_DMAW        0x20 /* 1: DMAW state machine is in yesn-IDLE state.  0: DMAW is idling  */
+#define     IDLE_STATUS_SMB         0x40 /* 1: SMB state machine is in yesn-IDLE state.   0: SMB is idling   */
+#define     IDLE_STATUS_CMB         0x80 /* 1: CMB state machine is in yesn-IDLE state.   0: CMB is idling   */
 
 /* MDIO Control Register */
 #define REG_MDIO_CTRL           0x1414
@@ -423,7 +423,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 
 /* Jumbo packet Threshold for task offload */
 #define REG_TX_EARLY_TH                     0x1584 /* Jumbo frame threshold in QWORD unit. Packet greater than */
-/* JUMBO_TASK_OFFLOAD_THRESHOLD will not be task offloaded. */
+/* JUMBO_TASK_OFFLOAD_THRESHOLD will yest be task offloaded. */
 #define     TX_TX_EARLY_TH_MASK             0x7ff
 #define     TX_TX_EARLY_TH_SHIFT            0
 
@@ -456,7 +456,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 /* Rx jumbo packet threshold and rrd  retirement timer  */
 #define REG_RXQ_JMBOSZ_RRDTIM       0x15A4
 /*
- * Jumbo packet threshold for non-VLAN packet, in QWORD (64-bit) unit.
+ * Jumbo packet threshold for yesn-VLAN packet, in QWORD (64-bit) unit.
  * When the packet length greater than or equal to this value, RXQ
  * shall start cut-through forwarding of the received packet.
  */

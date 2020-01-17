@@ -26,9 +26,9 @@ Optional properties:
 - regulator-over-current-protection:
     if set, all regulators are switched off in case of over-current detection
     on this regulator,
-    if not set, the driver only sends an over-current event.
+    if yest set, the driver only sends an over-current event.
 - interrupts: index of current limit detection interrupt
-- <regulator>-supply: phandle to the parent supply/regulator node
+- <regulator>-supply: phandle to the parent supply/regulator yesde
 	each regulator supply can be described except vref_ddr.
 - regulator-active-discharge: can be used on pwr_sw1 and pwr_sw2.
 

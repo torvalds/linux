@@ -221,7 +221,7 @@
 	cap-mmc-highspeed;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_1p8v>;
-	non-removable;
+	yesn-removable;
 };
 
 &mmc1 {

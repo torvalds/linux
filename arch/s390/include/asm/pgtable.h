@@ -61,7 +61,7 @@ extern unsigned long zero_page_mask;
 	 (((unsigned long)(vaddr)) &zero_page_mask))))
 #define __HAVE_COLOR_ZERO_PAGE
 
-/* TODO: s390 cannot support io_remap_pfn_range... */
+/* TODO: s390 canyest support io_remap_pfn_range... */
 
 #define FIRST_USER_ADDRESS  0UL
 
@@ -113,18 +113,18 @@ static inline int is_module_addr(void *addr)
  * 0000000000111111111122222222223333333333444444444455555555556666
  * 0123456789012345678901234567890123456789012345678901234567890123
  *
- * I Page-Invalid Bit:    Page is not available for address-translation
- * P Page-Protection Bit: Store access not possible for page
- * C Change-bit override: HW is not required to set change bit
+ * I Page-Invalid Bit:    Page is yest available for address-translation
+ * P Page-Protection Bit: Store access yest possible for page
+ * C Change-bit override: HW is yest required to set change bit
  *
  * A 64 bit segmenttable entry of S390 has following format:
  * |        P-table origin                              |      TT
  * 0000000000111111111122222222223333333333444444444455555555556666
  * 0123456789012345678901234567890123456789012345678901234567890123
  *
- * I Segment-Invalid Bit:    Segment is not available for address-translation
- * C Common-Segment Bit:     Segment is not private (PoP 3-30)
- * P Page-Protection Bit: Store access not possible for page
+ * I Segment-Invalid Bit:    Segment is yest available for address-translation
+ * C Common-Segment Bit:     Segment is yest private (PoP 3-30)
+ * P Page-Protection Bit: Store access yest possible for page
  * TT Type 00
  *
  * A 64 bit region table entry of S390 has following format:
@@ -132,7 +132,7 @@ static inline int is_module_addr(void *addr)
  * 0000000000111111111122222222223333333333444444444455555555556666
  * 0123456789012345678901234567890123456789012345678901234567890123
  *
- * I Segment-Invalid Bit:    Segment is not available for address-translation
+ * I Segment-Invalid Bit:    Segment is yest available for address-translation
  * TT Type 01
  * TF
  * TL Table length
@@ -159,7 +159,7 @@ static inline int is_module_addr(void *addr)
  */
 
 /* Hardware bits in the page table entry */
-#define _PAGE_NOEXEC	0x100		/* HW no-execute bit  */
+#define _PAGE_NOEXEC	0x100		/* HW yes-execute bit  */
 #define _PAGE_PROTECT	0x200		/* HW read-only bit  */
 #define _PAGE_INVALID	0x400		/* HW invalid bit    */
 #define _PAGE_LARGE	0x800		/* Bit to mark a large pte */
@@ -179,14 +179,14 @@ static inline int is_module_addr(void *addr)
 #define _PAGE_SOFT_DIRTY 0x000
 #endif
 
-/* Set of bits not changed in pte_modify */
+/* Set of bits yest changed in pte_modify */
 #define _PAGE_CHG_MASK		(PAGE_MASK | _PAGE_SPECIAL | _PAGE_DIRTY | \
 				 _PAGE_YOUNG | _PAGE_SOFT_DIRTY)
 
 /*
- * handle_pte_fault uses pte_present and pte_none to find out the pte type
+ * handle_pte_fault uses pte_present and pte_yesne to find out the pte type
  * WITHOUT holding the page table lock. The _PAGE_PRESENT bit is used to
- * distinguish present from not-present ptes. It is changed only with the page
+ * distinguish present from yest-present ptes. It is changed only with the page
  * table lock held.
  *
  * The following table gives the different possible bit combinations for
@@ -199,10 +199,10 @@ static inline int is_module_addr(void *addr)
  *				.IR.uswrdy.p
  * empty			.10.00000000
  * swap				.11..ttttt.0
- * prot-none, clean, old	.11.xx0000.1
- * prot-none, clean, young	.11.xx0001.1
- * prot-none, dirty, old	.11.xx0010.1
- * prot-none, dirty, young	.11.xx0011.1
+ * prot-yesne, clean, old	.11.xx0000.1
+ * prot-yesne, clean, young	.11.xx0001.1
+ * prot-yesne, dirty, old	.11.xx0010.1
+ * prot-yesne, dirty, young	.11.xx0011.1
  * read-only, clean, old	.11.xx0100.1
  * read-only, clean, young	.01.xx0101.1
  * read-only, dirty, old	.11.xx0110.1
@@ -215,7 +215,7 @@ static inline int is_module_addr(void *addr)
  * SW-bits: p present, y young, d dirty, r read, w write, s special,
  *	    u unused, l large
  *
- * pte_none    is true for the bit pattern .10.00000000, pte == 0x400
+ * pte_yesne    is true for the bit pattern .10.00000000, pte == 0x400
  * pte_swap    is true for the bit pattern .11..ooooo.0, (pte & 0x201) == 0x200
  * pte_present is true for the bit pattern .xx.xxxxxx.1, (pte & 0x001) == 0x001
  */
@@ -236,7 +236,7 @@ static inline int is_module_addr(void *addr)
 /* Bits in the region table entry */
 #define _REGION_ENTRY_ORIGIN	~0xfffUL/* region/segment table origin	    */
 #define _REGION_ENTRY_PROTECT	0x200	/* region protection bit	    */
-#define _REGION_ENTRY_NOEXEC	0x100	/* region no-execute bit	    */
+#define _REGION_ENTRY_NOEXEC	0x100	/* region yes-execute bit	    */
 #define _REGION_ENTRY_OFFSET	0xc0	/* region table offset		    */
 #define _REGION_ENTRY_INVALID	0x20	/* invalid region table entry	    */
 #define _REGION_ENTRY_TYPE_MASK	0x0c	/* region table type mask	    */
@@ -274,7 +274,7 @@ static inline int is_module_addr(void *addr)
 #define _SEGMENT_ENTRY_ORIGIN_LARGE ~0xfffffUL /* large page address	    */
 #define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* page table origin		    */
 #define _SEGMENT_ENTRY_PROTECT	0x200	/* segment protection bit	    */
-#define _SEGMENT_ENTRY_NOEXEC	0x100	/* segment no-execute bit	    */
+#define _SEGMENT_ENTRY_NOEXEC	0x100	/* segment yes-execute bit	    */
 #define _SEGMENT_ENTRY_INVALID	0x20	/* invalid segment table entry	    */
 #define _SEGMENT_ENTRY_TYPE_MASK 0x0c	/* segment table type mask	    */
 
@@ -347,10 +347,10 @@ static inline int is_module_addr(void *addr)
  * Segment table and region3 table entry encoding
  * (R = read-only, I = invalid, y = young bit):
  *				dy..R...I...wr
- * prot-none, clean, old	00..1...1...00
- * prot-none, clean, young	01..1...1...00
- * prot-none, dirty, old	10..1...1...00
- * prot-none, dirty, young	11..1...1...00
+ * prot-yesne, clean, old	00..1...1...00
+ * prot-yesne, clean, young	01..1...1...00
+ * prot-yesne, dirty, old	10..1...1...00
+ * prot-yesne, dirty, young	11..1...1...00
  * read-only, clean, old	00..1...1...01
  * read-only, clean, young	01..1...0...01
  * read-only, dirty, old	10..1...1...01
@@ -374,7 +374,7 @@ static inline int is_module_addr(void *addr)
 #define PGSTE_GR_BIT	0x0004000000000000UL
 #define PGSTE_GC_BIT	0x0002000000000000UL
 #define PGSTE_UC_BIT	0x0000800000000000UL	/* user dirty (migration) */
-#define PGSTE_IN_BIT	0x0000400000000000UL	/* IPTE notify bit */
+#define PGSTE_IN_BIT	0x0000400000000000UL	/* IPTE yestify bit */
 #define PGSTE_VSIE_BIT	0x0000200000000000UL	/* ref'd in a shadow table */
 
 /* Guest Page State used for virtualization */
@@ -531,7 +531,7 @@ static inline int mm_alloc_pgste(struct mm_struct *mm)
 
 /*
  * In the case that a guest uses storage keys
- * faults should no longer be backed by zero pages
+ * faults should yes longer be backed by zero pages
  */
 #define mm_forbids_zeropage mm_has_pgste
 static inline int mm_uses_skeys(struct mm_struct *mm)
@@ -605,7 +605,7 @@ static inline int pgd_present(pgd_t pgd)
 	return (pgd_val(pgd) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
-static inline int pgd_none(pgd_t pgd)
+static inline int pgd_yesne(pgd_t pgd)
 {
 	if (pgd_folded(pgd))
 		return 0;
@@ -639,7 +639,7 @@ static inline int p4d_present(p4d_t p4d)
 	return (p4d_val(p4d) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
-static inline int p4d_none(p4d_t p4d)
+static inline int p4d_yesne(p4d_t p4d)
 {
 	if (p4d_folded(p4d))
 		return 0;
@@ -666,7 +666,7 @@ static inline int pud_present(pud_t pud)
 	return (pud_val(pud) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
-static inline int pud_none(pud_t pud)
+static inline int pud_yesne(pud_t pud)
 {
 	if (pud_folded(pud))
 		return 0;
@@ -729,7 +729,7 @@ static inline int pmd_present(pmd_t pmd)
 	return pmd_val(pmd) != _SEGMENT_ENTRY_EMPTY;
 }
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_yesne(pmd_t pmd)
 {
 	return pmd_val(pmd) == _SEGMENT_ENTRY_EMPTY;
 }
@@ -766,7 +766,7 @@ static inline int pte_present(pte_t pte)
 	return (pte_val(pte) & _PAGE_PRESENT) != 0;
 }
 
-static inline int pte_none(pte_t pte)
+static inline int pte_yesne(pte_t pte)
 {
 	/* Bit pattern: pte == 0x400 */
 	return pte_val(pte) == _PAGE_INVALID;
@@ -791,12 +791,12 @@ static inline int pte_same(pte_t a, pte_t b)
 }
 
 #ifdef CONFIG_NUMA_BALANCING
-static inline int pte_protnone(pte_t pte)
+static inline int pte_protyesne(pte_t pte)
 {
 	return pte_present(pte) && !(pte_val(pte) & _PAGE_READ);
 }
 
-static inline int pmd_protnone(pmd_t pmd)
+static inline int pmd_protyesne(pmd_t pmd)
 {
 	/* pmd_large(pmd) implies pmd_present(pmd) */
 	return pmd_large(pmd) && !(pmd_val(pmd) & _SEGMENT_ENTRY_READ);
@@ -842,7 +842,7 @@ static inline pmd_t pmd_clear_soft_dirty(pmd_t pmd)
 
 /*
  * query functions pte_write/pte_dirty/pte_young only work if
- * pte_present() is true. Undefined behaviour if not..
+ * pte_present() is true. Undefined behaviour if yest..
  */
 static inline int pte_write(pte_t pte)
 {
@@ -899,7 +899,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 
 /*
  * The following pte modification functions only work if
- * pte_present() is true. Undefined behaviour if not..
+ * pte_present() is true. Undefined behaviour if yest..
  */
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
@@ -1033,7 +1033,7 @@ static __always_inline void __ptep_ipte_range(unsigned long address, int nr,
  * On s390 the tlb needs to get flushed with the modification of the pte
  * if the pte is active. The only way how this can be implemented is to
  * have ptep_get_and_clear do the tlb flush. In exchange flush_tlb_range
- * is a nop.
+ * is a yesp.
  */
 pte_t ptep_xchg_direct(struct mm_struct *, unsigned long, pte_t *, pte_t);
 pte_t ptep_xchg_lazy(struct mm_struct *, unsigned long, pte_t *, pte_t);
@@ -1078,8 +1078,8 @@ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
  * The batched pte unmap code uses ptep_get_and_clear_full to clear the
  * ptes. Here an optimization is possible. tlb_gather_mmu flushes all
  * tlbs of an mm if it can guarantee that the ptes of the mm_struct
- * cannot be accessed while the batched unmap is running. In this case
- * full==1 and a simple pte_clear is enough. See tlb.h.
+ * canyest be accessed while the batched unmap is running. In this case
+ * full==1 and a simple pte_clear is eyesugh. See tlb.h.
  */
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
@@ -1120,8 +1120,8 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
  */
 void ptep_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t entry);
-void ptep_set_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
-void ptep_notify(struct mm_struct *mm, unsigned long addr,
+void ptep_set_yestify(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+void ptep_yestify(struct mm_struct *mm, unsigned long addr,
 		 pte_t *ptep, unsigned long bits);
 int ptep_force_prot(struct mm_struct *mm, unsigned long gaddr,
 		    pte_t *ptep, int prot, unsigned long bit);
@@ -1593,7 +1593,7 @@ static inline int has_transparent_hugepage(void)
  * A page-table entry has some bits we have to treat in a special way.
  * Bits 52 and bit 55 have to be zero, otherwise a specification
  * exception will occur instead of a page translation exception. The
- * specification exception has the bad habit not to store necessary
+ * specification exception has the bad habit yest to store necessary
  * information in the lowcore.
  * Bits 54 and 63 are used to indicate the page type.
  * A swap pte is indicated by bit pattern (pte & 0x201) == 0x200
@@ -1646,7 +1646,7 @@ extern int s390_enable_sie(void);
 extern int s390_enable_skey(void);
 extern void s390_reset_cmma(struct mm_struct *mm);
 
-/* s390 has a private copy of get unmapped area to deal with cache synonyms */
+/* s390 has a private copy of get unmapped area to deal with cache syyesnyms */
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 

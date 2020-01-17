@@ -8,7 +8,7 @@
 #ifndef LINUX_PPS_KC_H
 #define LINUX_PPS_KC_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pps_kernel.h>
 
 #ifdef CONFIG_NTP_PPS

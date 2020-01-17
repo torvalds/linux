@@ -58,7 +58,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
-	gspca_dev->cam.no_urb_create = 1;
+	gspca_dev->cam.yes_urb_create = 1;
 	return 0;
 }
 
@@ -76,7 +76,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* create 4 URBs - 2 on endpoint 0x83 and 2 on 0x082 */
 #if MAX_NURBS < 4
-#error "Not enough URBs in the gspca table"
+#error "Not eyesugh URBs in the gspca table"
 #endif
 #define SD_PKT_SZ 64
 #define SD_NPKT 32
@@ -196,12 +196,12 @@ static void sd_isoc_irq(struct urb *urb)
 		 *	- 80 ba/bb 00 00 = start of image followed by 'ff d8'
 		 *	- 04 ba/bb oo oo = image piece
 		 *		where 'oo oo' is the image offset
-						(not checked)
+						(yest checked)
 		 *	- (other -> bad frame)
 		 * The images are JPEG encoded with full header and
-		 * normal ff escape.
+		 * yesrmal ff escape.
 		 * The end of image ('ff d9') may occur in any URB.
-		 * (not checked)
+		 * (yest checked)
 		 */
 		data = (u8 *) urb0->transfer_buffer
 					+ urb0->iso_frame_desc[i].offset;

@@ -85,7 +85,7 @@ struct ad7150_chip_info {
 };
 
 /*
- * sysfs nodes
+ * sysfs yesdes
  */
 
 static const u8 ad7150_addresses[][6] = {
@@ -535,7 +535,7 @@ static irqreturn_t ad7150_event_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
-/* Timeouts not currently handled by core */
+/* Timeouts yest currently handled by core */
 static struct attribute *ad7150_event_attributes[] = {
 	&iio_dev_attr_in_capacitance0_mag_adaptive_rising_timeout
 	.dev_attr.attr,

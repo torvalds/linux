@@ -76,7 +76,7 @@ static bool nf_osf_match_one(const struct sk_buff *skb,
 		return false;
 
 	/*
-	 * Should not happen if userspace parser was written correctly.
+	 * Should yest happen if userspace parser was written correctly.
 	 */
 	if (f->wss.wc >= OSF_WSS_MAX)
 		return false;
@@ -244,7 +244,7 @@ nf_osf_match(const struct sk_buff *skb, u_int8_t family,
 
 	if (!fcount && (info->flags & NF_OSF_LOG))
 		nf_log_packet(net, family, hooknum, skb, in, out, NULL,
-			      "Remote OS is not known: %pI4:%u -> %pI4:%u\n",
+			      "Remote OS is yest kyeswn: %pI4:%u -> %pI4:%u\n",
 			      &ip->saddr, ntohs(tcp->source),
 			      &ip->daddr, ntohs(tcp->dest));
 

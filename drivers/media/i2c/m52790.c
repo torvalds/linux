@@ -46,14 +46,14 @@ static int m52790_write(struct v4l2_subdev *sd)
 	return i2c_smbus_write_byte_data(client, sw1, sw2);
 }
 
-/* Note: audio and video are linked and cannot be switched separately.
+/* Note: audio and video are linked and canyest be switched separately.
    So audio and video routing commands are identical for this chip.
    In theory the video amplifier and audio modes could be handled
-   separately for the output, but that seems to be overkill right now.
-   The same holds for implementing an audio mute control, this is now
-   part of the audio output routing. The normal case is that another
+   separately for the output, but that seems to be overkill right yesw.
+   The same holds for implementing an audio mute control, this is yesw
+   part of the audio output routing. The yesrmal case is that ayesther
    chip takes care of the actual muting so making it part of the
-   output routing seems to be the right thing to do for now. */
+   output routing seems to be the right thing to do for yesw. */
 static int m52790_s_routing(struct v4l2_subdev *sd,
 			    u32 input, u32 output, u32 config)
 {

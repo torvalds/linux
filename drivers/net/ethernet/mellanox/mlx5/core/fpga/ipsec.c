@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -77,14 +77,14 @@ struct mlx5_fpga_esp_xfrm {
 };
 
 struct mlx5_fpga_ipsec_rule {
-	struct rb_node			node;
+	struct rb_yesde			yesde;
 	struct fs_fte			*fte;
 	struct mlx5_fpga_ipsec_sa_ctx	*ctx;
 };
 
 static const struct rhashtable_params rhash_sa = {
 	/* Keep out "cmd" field from the key as it's
-	 * value is not constant during the lifetime
+	 * value is yest constant during the lifetime
 	 * of the key object.
 	 */
 	.key_len = sizeof_field(struct mlx5_fpga_ipsec_sa_ctx, hw_sa) -
@@ -103,8 +103,8 @@ struct mlx5_fpga_ipsec {
 	u32 caps[MLX5_ST_SZ_DW(ipsec_extended_cap)];
 	struct mlx5_fpga_conn *conn;
 
-	struct notifier_block	fs_notifier_ingress_bypass;
-	struct notifier_block	fs_notifier_egress;
+	struct yestifier_block	fs_yestifier_ingress_bypass;
+	struct yestifier_block	fs_yestifier_egress;
 
 	/* Map hardware SA           -->  SA context
 	 *     (mlx5_fpga_ipsec_sa)       (mlx5_fpga_ipsec_sa_ctx)
@@ -155,7 +155,7 @@ static void mlx5_fpga_ipsec_send_complete(struct mlx5_fpga_conn *conn,
 }
 
 static inline
-int syndrome_to_errno(enum mlx5_ifc_fpga_ipsec_response_syndrome syndrome)
+int syndrome_to_erryes(enum mlx5_ifc_fpga_ipsec_response_syndrome syndrome)
 {
 	switch (syndrome) {
 	case MLX5_FPGA_IPSEC_RESPONSE_SUCCESS:
@@ -202,7 +202,7 @@ static void mlx5_fpga_ipsec_recv(void *cb_arg, struct mlx5_fpga_dma_buf *buf)
 	mlx5_fpga_dbg(fdev, "Handling response for %p\n", context);
 
 	syndrome = ntohl(resp->syndrome);
-	context->status_code = syndrome_to_errno(syndrome);
+	context->status_code = syndrome_to_erryes(syndrome);
 	context->status = MLX5_FPGA_IPSEC_CMD_COMPLETE;
 	memcpy(&context->resp, resp, sizeof(*resp));
 
@@ -345,7 +345,7 @@ u32 mlx5_fpga_ipsec_device_caps(struct mlx5_core_dev *mdev)
 	if (MLX5_GET(ipsec_extended_cap, fdev->ipsec->caps, lso))
 		ret |= MLX5_ACCEL_IPSEC_CAP_LSO;
 
-	if (MLX5_GET(ipsec_extended_cap, fdev->ipsec->caps, rx_no_trailer))
+	if (MLX5_GET(ipsec_extended_cap, fdev->ipsec->caps, rx_yes_trailer))
 		ret |= MLX5_ACCEL_IPSEC_CAP_RX_NO_TRAILER;
 
 	if (MLX5_GET(ipsec_extended_cap, fdev->ipsec->caps, esn)) {
@@ -761,7 +761,7 @@ mlx5_fpga_ipsec_fs_create_sa_ctx(struct mlx5_core_dev *mdev,
 	struct mlx5_flow_group *fg;
 	bool is_ipv6 = false;
 
-	fs_get_obj(fg, fte->node.parent);
+	fs_get_obj(fg, fte->yesde.parent);
 	/* validate */
 	if (is_egress &&
 	    !mlx5_is_fpga_egress_ipsec_rule(mdev,
@@ -858,17 +858,17 @@ void mlx5_fpga_ipsec_delete_sa_ctx(void *context)
 static inline struct mlx5_fpga_ipsec_rule *
 _rule_search(struct rb_root *root, struct fs_fte *fte)
 {
-	struct rb_node *node = root->rb_node;
+	struct rb_yesde *yesde = root->rb_yesde;
 
-	while (node) {
+	while (yesde) {
 		struct mlx5_fpga_ipsec_rule *rule =
-				container_of(node, struct mlx5_fpga_ipsec_rule,
-					     node);
+				container_of(yesde, struct mlx5_fpga_ipsec_rule,
+					     yesde);
 
 		if (rule->fte < fte)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (rule->fte > fte)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return rule;
 	}
@@ -890,13 +890,13 @@ rule_search(struct mlx5_fpga_ipsec *ipsec_dev, struct fs_fte *fte)
 static inline int _rule_insert(struct rb_root *root,
 			       struct mlx5_fpga_ipsec_rule *rule)
 {
-	struct rb_node **new = &root->rb_node, *parent = NULL;
+	struct rb_yesde **new = &root->rb_yesde, *parent = NULL;
 
-	/* Figure out where to put new node */
+	/* Figure out where to put new yesde */
 	while (*new) {
 		struct mlx5_fpga_ipsec_rule *this =
 				container_of(*new, struct mlx5_fpga_ipsec_rule,
-					     node);
+					     yesde);
 
 		parent = *new;
 		if (rule->fte < this->fte)
@@ -907,9 +907,9 @@ static inline int _rule_insert(struct rb_root *root,
 			return -EEXIST;
 	}
 
-	/* Add new node and rebalance tree. */
-	rb_link_node(&rule->node, parent, new);
-	rb_insert_color(&rule->node, root);
+	/* Add new yesde and rebalance tree. */
+	rb_link_yesde(&rule->yesde, parent, new);
+	rb_insert_color(&rule->yesde, root);
 
 	return 0;
 }
@@ -932,7 +932,7 @@ static inline void _rule_delete(struct mlx5_fpga_ipsec *ipsec_dev,
 	struct rb_root *root = &ipsec_dev->rules_rb;
 
 	mutex_lock(&ipsec_dev->rules_rb_lock);
-	rb_erase(&rule->node, root);
+	rb_erase(&rule->yesde, root);
 	mutex_unlock(&ipsec_dev->rules_rb_lock);
 }
 
@@ -1316,8 +1316,8 @@ static void destroy_rules_rb(struct rb_root *root)
 {
 	struct mlx5_fpga_ipsec_rule *r, *tmp;
 
-	rbtree_postorder_for_each_entry_safe(r, tmp, root, node) {
-		rb_erase(&r->node, root);
+	rbtree_postorder_for_each_entry_safe(r, tmp, root, yesde) {
+		rb_erase(&r->yesde, root);
 		mlx5_fpga_ipsec_delete_sa_ctx(r->ctx);
 		kfree(r);
 	}
@@ -1386,12 +1386,12 @@ mlx5_fpga_esp_validate_xfrm_attrs(struct mlx5_core_dev *mdev,
 				  const struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
 	if (attrs->tfc_pad) {
-		mlx5_core_err(mdev, "Cannot offload xfrm states with tfc padding\n");
+		mlx5_core_err(mdev, "Canyest offload xfrm states with tfc padding\n");
 		return -EOPNOTSUPP;
 	}
 
 	if (attrs->replay_type != MLX5_ACCEL_ESP_REPLAY_NONE) {
-		mlx5_core_err(mdev, "Cannot offload xfrm states with anti replay\n");
+		mlx5_core_err(mdev, "Canyest offload xfrm states with anti replay\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1407,20 +1407,20 @@ mlx5_fpga_esp_validate_xfrm_attrs(struct mlx5_core_dev *mdev,
 	}
 
 	if (attrs->keymat.aes_gcm.icv_len != 128) {
-		mlx5_core_err(mdev, "Cannot offload xfrm states with AEAD ICV length other than 128bit\n");
+		mlx5_core_err(mdev, "Canyest offload xfrm states with AEAD ICV length other than 128bit\n");
 		return -EOPNOTSUPP;
 	}
 
 	if (attrs->keymat.aes_gcm.key_len != 128 &&
 	    attrs->keymat.aes_gcm.key_len != 256) {
-		mlx5_core_err(mdev, "Cannot offload xfrm states with AEAD key length other than 128/256 bit\n");
+		mlx5_core_err(mdev, "Canyest offload xfrm states with AEAD key length other than 128/256 bit\n");
 		return -EOPNOTSUPP;
 	}
 
 	if ((attrs->flags & MLX5_ACCEL_ESP_FLAGS_ESN_TRIGGERED) &&
 	    (!MLX5_GET(ipsec_extended_cap, mdev->fpga->ipsec->caps,
 		       v2_command))) {
-		mlx5_core_err(mdev, "Cannot offload xfrm states with AEAD key length other than 128/256 bit\n");
+		mlx5_core_err(mdev, "Canyest offload xfrm states with AEAD key length other than 128/256 bit\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1460,7 +1460,7 @@ void mlx5_fpga_esp_destroy_xfrm(struct mlx5_accel_esp_xfrm *xfrm)
 	struct mlx5_fpga_esp_xfrm *fpga_xfrm =
 			container_of(xfrm, struct mlx5_fpga_esp_xfrm,
 				     accel_xfrm);
-	/* assuming no sa_ctx are connected to this xfrm_ctx */
+	/* assuming yes sa_ctx are connected to this xfrm_ctx */
 	kfree(fpga_xfrm);
 }
 
@@ -1484,7 +1484,7 @@ int mlx5_fpga_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
 	}
 
 	if (is_v2_sadb_supported(fipsec)) {
-		mlx5_core_warn(mdev, "Modify esp is not supported\n");
+		mlx5_core_warn(mdev, "Modify esp is yest supported\n");
 		return -EOPNOTSUPP;
 	}
 

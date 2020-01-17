@@ -2,7 +2,7 @@
 //
 // Driver for AT91 USART Controllers as SPI
 //
-// Copyright (C) 2018 Microchip Technology Inc.
+// Copyright (C) 2018 Microchip Techyeslogy Inc.
 //
 // Author: Radu Pirea <radu.pirea@microchip.com>
 
@@ -140,7 +140,7 @@ static int at91_usart_spi_configure_dma(struct spi_controller *ctlr,
 		}
 
 		dev_dbg(dev,
-			"DMA TX channel not available, SPI unable to use DMA\n");
+			"DMA TX channel yest available, SPI unable to use DMA\n");
 		err = -EBUSY;
 		goto at91_usart_spi_error_clear;
 	}
@@ -153,7 +153,7 @@ static int at91_usart_spi_configure_dma(struct spi_controller *ctlr,
 		}
 
 		dev_dbg(dev,
-			"DMA RX channel not available, SPI unable to use DMA\n");
+			"DMA RX channel yest available, SPI unable to use DMA\n");
 		err = -EBUSY;
 		goto at91_usart_spi_error;
 	}
@@ -482,7 +482,7 @@ static void at91_usart_spi_init(struct at91_usart_spi *aus)
 
 static int at91_usart_gpio_setup(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.parent->of_node;
+	struct device_yesde *np = pdev->dev.parent->of_yesde;
 	int i;
 	int ret;
 	int nb;
@@ -541,7 +541,7 @@ static int at91_usart_spi_probe(struct platform_device *pdev)
 		goto at91_usart_spi_probe_fail;
 
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP | SPI_CS_HIGH;
-	controller->dev.of_node = pdev->dev.parent->of_node;
+	controller->dev.of_yesde = pdev->dev.parent->of_yesde;
 	controller->bits_per_word_mask = SPI_BPW_MASK(8);
 	controller->setup = at91_usart_spi_setup;
 	controller->flags = SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX;

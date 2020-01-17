@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019, Mellanox Technologies */
+/* Copyright (c) 2019, Mellayesx Techyeslogies */
 
 #ifndef	_DR_TYPES_
 #define	_DR_TYPES_
@@ -126,7 +126,7 @@ struct mlx5dr_ste {
 	u32 refcount;
 
 	/* attached to the miss_list head at each htbl entry */
-	struct list_head miss_list_node;
+	struct list_head miss_list_yesde;
 
 	/* each rule member that uses this ste attached here */
 	struct list_head rule_list;
@@ -142,7 +142,7 @@ struct mlx5dr_ste {
 
 struct mlx5dr_ste_htbl_ctrl {
 	/* total number of valid entries belonging to this hash table. This
-	 * includes the non collision and collision entries
+	 * includes the yesn collision and collision entries
 	 */
 	unsigned int num_of_valid_entries;
 
@@ -227,7 +227,7 @@ void mlx5dr_ste_set_hit_gvmi(u8 *hw_ste_p, u16 gvmi);
 void mlx5dr_ste_set_hit_addr(u8 *hw_ste, u64 icm_addr, u32 ht_size);
 void mlx5dr_ste_always_miss_addr(struct mlx5dr_ste *ste, u64 miss_addr);
 void mlx5dr_ste_set_bit_mask(u8 *hw_ste_p, u8 *bit_mask);
-bool mlx5dr_ste_not_used_ste(struct mlx5dr_ste *ste);
+bool mlx5dr_ste_yest_used_ste(struct mlx5dr_ste *ste);
 bool mlx5dr_ste_is_last_in_rule(struct mlx5dr_matcher_rx_tx *nic_matcher,
 				u8 ste_location);
 void mlx5dr_ste_rx_set_flow_tag(u8 *hw_ste_p, u32 flow_tag);
@@ -384,11 +384,11 @@ struct mlx5dr_match_spec {
 	u32 ip_version:4;	/* IP version */
 	u32 frag:1;		/* Packet is an IP fragment */
 	/* The first vlan in the packet is s-vlan (0x8a88).
-	 * cvlan_tag and svlan_tag cannot be set together
+	 * cvlan_tag and svlan_tag canyest be set together
 	 */
 	u32 svlan_tag:1;
 	/* The first vlan in the packet is c-vlan (0x8100).
-	 * cvlan_tag and svlan_tag cannot be set together
+	 * cvlan_tag and svlan_tag canyest be set together
 	 */
 	u32 cvlan_tag:1;
 	/* Explicit Congestion Notification derived from
@@ -494,19 +494,19 @@ struct mlx5dr_match_misc {
 	u32 gre_protocol:16;		/* GRE Protocol (outer) */
 	u32 reserved_auto3:12;
 	/* The second vlan in the inner header of the packet is s-vlan (0x8a88).
-	 * inner_second_cvlan_tag and inner_second_svlan_tag cannot be set together
+	 * inner_second_cvlan_tag and inner_second_svlan_tag canyest be set together
 	 */
 	u32 inner_second_svlan_tag:1;
 	/* The second vlan in the outer header of the packet is s-vlan (0x8a88).
-	 * outer_second_cvlan_tag and outer_second_svlan_tag cannot be set together
+	 * outer_second_cvlan_tag and outer_second_svlan_tag canyest be set together
 	 */
 	u32 outer_second_svlan_tag:1;
 	/* The second vlan in the inner header of the packet is c-vlan (0x8100).
-	 * inner_second_cvlan_tag and inner_second_svlan_tag cannot be set together
+	 * inner_second_cvlan_tag and inner_second_svlan_tag canyest be set together
 	 */
 	u32 inner_second_cvlan_tag:1;
 	/* The second vlan in the outer header of the packet is c-vlan (0x8100).
-	 * outer_second_cvlan_tag and outer_second_svlan_tag cannot be set together
+	 * outer_second_cvlan_tag and outer_second_svlan_tag canyest be set together
 	 */
 	u32 outer_second_cvlan_tag:1;
 	u32 gre_key_l:8;		/* GRE Key [7:0] (outer) */
@@ -959,7 +959,7 @@ struct mlx5dr_icm_chunk *
 mlx5dr_icm_alloc_chunk(struct mlx5dr_icm_pool *pool,
 		       enum mlx5dr_icm_chunk_size chunk_size);
 void mlx5dr_icm_free_chunk(struct mlx5dr_icm_chunk *chunk);
-bool mlx5dr_ste_is_not_valid_entry(u8 *p_hw_ste);
+bool mlx5dr_ste_is_yest_valid_entry(u8 *p_hw_ste);
 int mlx5dr_ste_htbl_init_and_postsend(struct mlx5dr_domain *dmn,
 				      struct mlx5dr_domain_rx_tx *nic_dmn,
 				      struct mlx5dr_ste_htbl *htbl,

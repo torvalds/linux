@@ -6,7 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/miscdevice.h>
 #include <linux/fcntl.h>
 #include <linux/poll.h>
@@ -69,7 +69,7 @@ flash_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_end - (vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT)) > size)
 		size = vma->vm_end - (vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT));
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	if (io_remap_pfn_range(vma, vma->vm_start, addr, size, vma->vm_page_prot))
 		return -EAGAIN;
@@ -123,7 +123,7 @@ flash_read(struct file * file, char __user * buf,
 }
 
 static int
-flash_open(struct inode *inode, struct file *file)
+flash_open(struct iyesde *iyesde, struct file *file)
 {
 	mutex_lock(&flash_mutex);
 	if (test_and_set_bit(0, (void *)&flash.busy) != 0) {
@@ -136,7 +136,7 @@ flash_open(struct inode *inode, struct file *file)
 }
 
 static int
-flash_release(struct inode *inode, struct file *file)
+flash_release(struct iyesde *iyesde, struct file *file)
 {
 	spin_lock(&flash_lock);
 	flash.busy = 0;
@@ -146,7 +146,7 @@ flash_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations flash_fops = {
-	/* no write to the Flash, use mmap
+	/* yes write to the Flash, use mmap
 	 * and play flash dependent tricks.
 	 */
 	.owner =	THIS_MODULE,
@@ -161,14 +161,14 @@ static struct miscdevice flash_dev = { FLASH_MINOR, "flash", &flash_fops };
 
 static int flash_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
-	struct device_node *parent;
+	struct device_yesde *dp = op->dev.of_yesde;
+	struct device_yesde *parent;
 
 	parent = dp->parent;
 
-	if (!of_node_name_eq(parent, "sbus") &&
-	    !of_node_name_eq(parent, "sbi") &&
-	    !of_node_name_eq(parent, "ebus"))
+	if (!of_yesde_name_eq(parent, "sbus") &&
+	    !of_yesde_name_eq(parent, "sbi") &&
+	    !of_yesde_name_eq(parent, "ebus"))
 		return -ENODEV;
 
 	flash.read_base = op->resource[0].start;
@@ -183,7 +183,7 @@ static int flash_probe(struct platform_device *op)
 	flash.busy = 0;
 
 	printk(KERN_INFO "%pOF: OBP Flash, RD %lx[%lx] WR %lx[%lx]\n",
-	       op->dev.of_node,
+	       op->dev.of_yesde,
 	       flash.read_base, flash.read_size,
 	       flash.write_base, flash.write_size);
 

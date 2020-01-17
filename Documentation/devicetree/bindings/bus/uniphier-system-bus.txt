@@ -25,13 +25,13 @@ defined.  Some SoCs can use 0x00000000-0x0fffffff and 0x40000000-0x4fffffff,
 while other SoCs can only use 0x40000000-0x4fffffff.  There might be additional
 limitations depending on SoCs and the boot mode.  The address translation is
 arbitrary as long as the banks are assigned in the supported address space with
-the required alignment and they do not overlap one another.
+the required alignment and they do yest overlap one ayesther.
 For example, it is possible to map:
   bank 0 to 0x42000000-0x43ffffff, bank 5 to 0x46000000-0x46ffffff
 It is also possible to map:
   bank 0 to 0x48000000-0x49ffffff, bank 5 to 0x44000000-0x44ffffff
-There is no reason to stick to a particular translation mapping, but the
-"ranges" property should provide a "reasonable" default that is known to work.
+There is yes reason to stick to a particular translation mapping, but the
+"ranges" property should provide a "reasonable" default that is kyeswn to work.
 The software should initialize the bus controller according to it.
 
 Example:

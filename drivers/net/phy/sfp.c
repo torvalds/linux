@@ -82,7 +82,7 @@ static const char  * const mod_state_strings[] = {
 static const char *mod_state_to_str(unsigned short mod_state)
 {
 	if (mod_state >= ARRAY_SIZE(mod_state_strings))
-		return "Unknown module state";
+		return "Unkyeswn module state";
 	return mod_state_strings[mod_state];
 }
 
@@ -95,7 +95,7 @@ static const char * const dev_state_strings[] = {
 static const char *dev_state_to_str(unsigned short dev_state)
 {
 	if (dev_state >= ARRAY_SIZE(dev_state_strings))
-		return "Unknown device state";
+		return "Unkyeswn device state";
 	return dev_state_strings[dev_state];
 }
 
@@ -116,7 +116,7 @@ static const char * const event_strings[] = {
 static const char *event_to_str(unsigned short event)
 {
 	if (event >= ARRAY_SIZE(event_strings))
-		return "Unknown event";
+		return "Unkyeswn event";
 	return event_strings[event];
 }
 
@@ -135,7 +135,7 @@ static const char * const sm_state_strings[] = {
 static const char *sm_state_to_str(unsigned short sm_state)
 {
 	if (sm_state >= ARRAY_SIZE(sm_state_strings))
-		return "Unknown state";
+		return "Unkyeswn state";
 	return sm_state_strings[sm_state];
 }
 
@@ -563,9 +563,9 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 	case hwmon_power:
 		/* External calibration of receive power requires
 		 * floating point arithmetic. Doing that in the kernel
-		 * is not easy, so just skip it. If the module does
-		 * not require external calibration, we can however
-		 * show receiver power, since FP is then not needed.
+		 * is yest easy, so just skip it. If the module does
+		 * yest require external calibration, we can however
+		 * show receiver power, since FP is then yest needed.
 		 */
 		if (sfp->id.ext.diagmon & SFP_DIAGMON_EXT_CAL &&
 		    channel == 1)
@@ -1274,7 +1274,7 @@ static int sfp_hwmon_insert(struct sfp *sfp)
 		return 0;
 
 	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE)
-		/* This driver in general does not support address
+		/* This driver in general does yest support address
 		 * change.
 		 */
 		return 0;
@@ -1397,7 +1397,7 @@ static void sfp_sm_probe_phy(struct sfp *sfp)
 
 	phy = mdiobus_scan(sfp->i2c_mii, SFP_PHY_ADDR);
 	if (phy == ERR_PTR(-ENODEV)) {
-		dev_info(sfp->dev, "no PHY detected\n");
+		dev_info(sfp->dev, "yes PHY detected\n");
 		return;
 	}
 	if (IS_ERR(phy)) {
@@ -1432,8 +1432,8 @@ static void sfp_sm_link_check_los(struct sfp *sfp)
 {
 	unsigned int los = sfp->state & SFP_F_LOS;
 
-	/* If neither SFP_OPTIONS_LOS_INVERTED nor SFP_OPTIONS_LOS_NORMAL
-	 * are set, we assume that no LOS signal is available.
+	/* If neither SFP_OPTIONS_LOS_INVERTED yesr SFP_OPTIONS_LOS_NORMAL
+	 * are set, we assume that yes LOS signal is available.
 	 */
 	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED))
 		los ^= SFP_F_LOS;
@@ -1478,14 +1478,14 @@ static void sfp_sm_fault(struct sfp *sfp, unsigned int next_state, bool warn)
 
 static void sfp_sm_probe_for_phy(struct sfp *sfp)
 {
-	/* Setting the serdes link mode is guesswork: there's no
+	/* Setting the serdes link mode is guesswork: there's yes
 	 * field in the EEPROM which indicates what mode should
 	 * be used.
 	 *
 	 * If it's a gigabit-only fiber module, it probably does
-	 * not have a PHY, so switch to 802.3z negotiation mode.
+	 * yest have a PHY, so switch to 802.3z negotiation mode.
 	 * Otherwise, switch to SGMII mode (which is required to
-	 * support non-gigabit speeds) and probe for a PHY.
+	 * support yesn-gigabit speeds) and probe for a PHY.
 	 */
 	if (sfp->id.base.e1000_base_t ||
 	    sfp->id.base.e100_base_lx ||
@@ -1507,17 +1507,17 @@ static int sfp_module_parse_power(struct sfp *sfp)
 		if (sfp->id.ext.sff8472_compliance ==
 			SFP_SFF8472_COMPLIANCE_NONE &&
 		    !(sfp->id.ext.diagmon & SFP_DIAGMON_DDM)) {
-			/* The module appears not to implement bus address
+			/* The module appears yest to implement bus address
 			 * 0xa2, so assume that the module powers up in the
 			 * indicated mode.
 			 */
 			dev_err(sfp->dev,
-				"Host does not support %u.%uW modules\n",
+				"Host does yest support %u.%uW modules\n",
 				power_mW / 1000, (power_mW / 100) % 10);
 			return -EINVAL;
 		} else {
 			dev_warn(sfp->dev,
-				 "Host does not support %u.%uW modules, module left in power mode 1\n",
+				 "Host does yest support %u.%uW modules, module left in power mode 1\n",
 				 power_mW / 1000, (power_mW / 100) % 10);
 			return 0;
 		}
@@ -1525,11 +1525,11 @@ static int sfp_module_parse_power(struct sfp *sfp)
 
 	/* If the module requires a higher power mode, but also requires
 	 * an address change sequence, warn the user that the module may
-	 * not be functional.
+	 * yest be functional.
 	 */
 	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE && power_mW > 1000) {
 		dev_warn(sfp->dev,
-			 "Address Change Sequence not supported but module requires %u.%uW, module may not be functional\n",
+			 "Address Change Sequence yest supported but module requires %u.%uW, module may yest be functional\n",
 			 power_mW / 1000, (power_mW / 100) % 10);
 		return 0;
 	}
@@ -1589,7 +1589,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 		return -EAGAIN;
 	}
 
-	/* Cotsworks do not seem to update the checksums when they
+	/* Cotsworks do yest seem to update the checksums when they
 	 * do the final programming with the final module part number,
 	 * serial number and date code.
 	 */
@@ -1640,7 +1640,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	/* Check whether we support this module */
 	if (!sfp->type->module_supported(&id)) {
 		dev_err(sfp->dev,
-			"module is not supported - phys id 0x%02x 0x%02x\n",
+			"module is yest supported - phys id 0x%02x 0x%02x\n",
 			sfp->id.base.phys_id, sfp->id.base.phys_ext_id);
 		return -EINVAL;
 	}
@@ -1648,7 +1648,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	/* If the module requires address swap mode, warn about it */
 	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE)
 		dev_warn(sfp->dev,
-			 "module address swap to access page 0xA2 is not supported.\n");
+			 "module address swap to access page 0xA2 is yest supported.\n");
 
 	/* Parse the module power requirement */
 	ret = sfp_module_parse_power(sfp);
@@ -1843,7 +1843,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		/* Initialise the fault clearance retries */
 		sfp->sm_retries = 5;
 
-		/* We need to check the TX_FAULT state, which is not defined
+		/* We need to check the TX_FAULT state, which is yest defined
 		 * while TX_DISABLE is asserted. The earliest we want to do
 		 * anything (such as probe for a PHY) is 50ms.
 		 */
@@ -1856,7 +1856,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 
 		if (sfp->state & SFP_F_TX_FAULT) {
 			/* Wait t_init before indicating that the link is up,
-			 * provided the current state indicates no TX_FAULT. If
+			 * provided the current state indicates yes TX_FAULT. If
 			 * TX_FAULT clears before this time, that's fine too.
 			 */
 			timeout = T_INIT_JIFFIES;
@@ -1867,7 +1867,7 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 
 			sfp_sm_next(sfp, SFP_S_INIT, timeout);
 		} else {
-			/* TX_FAULT is not asserted, assume the module has
+			/* TX_FAULT is yest asserted, assume the module has
 			 * finished initialising.
 			 */
 			goto init_done;
@@ -2156,39 +2156,39 @@ static int sfp_probe(struct platform_device *pdev)
 
 	sff = sfp->type = &sfp_data;
 
-	if (pdev->dev.of_node) {
-		struct device_node *node = pdev->dev.of_node;
+	if (pdev->dev.of_yesde) {
+		struct device_yesde *yesde = pdev->dev.of_yesde;
 		const struct of_device_id *id;
-		struct device_node *np;
+		struct device_yesde *np;
 
-		id = of_match_node(sfp_of_match, node);
+		id = of_match_yesde(sfp_of_match, yesde);
 		if (WARN_ON(!id))
 			return -EINVAL;
 
 		sff = sfp->type = id->data;
 
-		np = of_parse_phandle(node, "i2c-bus", 0);
+		np = of_parse_phandle(yesde, "i2c-bus", 0);
 		if (!np) {
 			dev_err(sfp->dev, "missing 'i2c-bus' property\n");
 			return -ENODEV;
 		}
 
-		i2c = of_find_i2c_adapter_by_node(np);
-		of_node_put(np);
+		i2c = of_find_i2c_adapter_by_yesde(np);
+		of_yesde_put(np);
 	} else if (has_acpi_companion(&pdev->dev)) {
 		struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
-		struct fwnode_handle *fw = acpi_fwnode_handle(adev);
-		struct fwnode_reference_args args;
+		struct fwyesde_handle *fw = acpi_fwyesde_handle(adev);
+		struct fwyesde_reference_args args;
 		struct acpi_handle *acpi_handle;
 		int ret;
 
-		ret = acpi_node_get_property_reference(fw, "i2c-bus", 0, &args);
-		if (ret || !is_acpi_device_node(args.fwnode)) {
+		ret = acpi_yesde_get_property_reference(fw, "i2c-bus", 0, &args);
+		if (ret || !is_acpi_device_yesde(args.fwyesde)) {
 			dev_err(&pdev->dev, "missing 'i2c-bus' property\n");
 			return -ENODEV;
 		}
 
-		acpi_handle = ACPI_HANDLE_FWNODE(args.fwnode);
+		acpi_handle = ACPI_HANDLE_FWNODE(args.fwyesde);
 		i2c = i2c_acpi_find_adapter_by_handle(acpi_handle);
 	} else {
 		return -EINVAL;
@@ -2214,7 +2214,7 @@ static int sfp_probe(struct platform_device *pdev)
 	sfp->get_state = sfp_gpio_get_state;
 	sfp->set_state = sfp_gpio_set_state;
 
-	/* Modules that have no detect signal are always present */
+	/* Modules that have yes detect signal are always present */
 	if (!(sfp->gpio[GPIO_MODDEF0]))
 		sfp->get_state = sff_gpio_get_state;
 
@@ -2227,7 +2227,7 @@ static int sfp_probe(struct platform_device *pdev)
 		 sfp->max_power_mW / 1000, (sfp->max_power_mW / 100) % 10);
 
 	/* Get the initial state, and always signal TX disable,
-	 * since the network interface will not be up.
+	 * since the network interface will yest be up.
 	 */
 	sfp->state = sfp_get_state(sfp) | SFP_F_TX_DISABLE;
 
@@ -2267,7 +2267,7 @@ static int sfp_probe(struct platform_device *pdev)
 	if (sfp->need_poll)
 		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
 
-	/* We could have an issue in cases no Tx disable pin is available or
+	/* We could have an issue in cases yes Tx disable pin is available or
 	 * wired as modules using a laser as their light source will continue to
 	 * be active when the fiber is removed. This could be a safety issue and
 	 * we should at least warn the user about that.

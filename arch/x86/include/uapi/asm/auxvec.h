@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ASM_X86_AUXVEC_H
 #define _ASM_X86_AUXVEC_H
 /*
@@ -13,7 +13,7 @@
 /* entries in ARCH_DLINFO: */
 #if defined(CONFIG_IA32_EMULATION) || !defined(CONFIG_X86_64)
 # define AT_VECTOR_SIZE_ARCH 2
-#else /* else it's non-compat x86-64 */
+#else /* else it's yesn-compat x86-64 */
 # define AT_VECTOR_SIZE_ARCH 1
 #endif
 

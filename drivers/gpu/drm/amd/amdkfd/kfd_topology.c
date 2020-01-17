@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,7 +23,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/acpi.h>
 #include <linux/hash.h>
 #include <linux/cpufreq.h>
@@ -273,9 +273,9 @@ static ssize_t iolink_show(struct kobject *kobj, struct attribute *attr,
 		return -EPERM;
 	sysfs_show_32bit_prop(buffer, "type", iolink->iolink_type);
 	sysfs_show_32bit_prop(buffer, "version_major", iolink->ver_maj);
-	sysfs_show_32bit_prop(buffer, "version_minor", iolink->ver_min);
-	sysfs_show_32bit_prop(buffer, "node_from", iolink->node_from);
-	sysfs_show_32bit_prop(buffer, "node_to", iolink->node_to);
+	sysfs_show_32bit_prop(buffer, "version_miyesr", iolink->ver_min);
+	sysfs_show_32bit_prop(buffer, "yesde_from", iolink->yesde_from);
+	sysfs_show_32bit_prop(buffer, "yesde_to", iolink->yesde_to);
 	sysfs_show_32bit_prop(buffer, "weight", iolink->weight);
 	sysfs_show_32bit_prop(buffer, "min_latency", iolink->min_latency);
 	sysfs_show_32bit_prop(buffer, "max_latency", iolink->max_latency);
@@ -408,7 +408,7 @@ static struct kfd_perf_attr perf_attr_iommu[] = {
 };
 /****************************************/
 
-static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
+static ssize_t yesde_show(struct kobject *kobj, struct attribute *attr,
 		char *buffer)
 {
 	struct kfd_topology_device *dev;
@@ -431,7 +431,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 
 		if (dev->gpu && kfd_devcgroup_check_permission(dev->gpu))
 			return -EPERM;
-		return sysfs_show_str_val(buffer, dev->node_props.name);
+		return sysfs_show_str_val(buffer, dev->yesde_props.name);
 	}
 
 	dev = container_of(attr, struct kfd_topology_device,
@@ -439,74 +439,74 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 	if (dev->gpu && kfd_devcgroup_check_permission(dev->gpu))
 		return -EPERM;
 	sysfs_show_32bit_prop(buffer, "cpu_cores_count",
-			dev->node_props.cpu_cores_count);
+			dev->yesde_props.cpu_cores_count);
 	sysfs_show_32bit_prop(buffer, "simd_count",
-			dev->node_props.simd_count);
+			dev->yesde_props.simd_count);
 	sysfs_show_32bit_prop(buffer, "mem_banks_count",
-			dev->node_props.mem_banks_count);
+			dev->yesde_props.mem_banks_count);
 	sysfs_show_32bit_prop(buffer, "caches_count",
-			dev->node_props.caches_count);
+			dev->yesde_props.caches_count);
 	sysfs_show_32bit_prop(buffer, "io_links_count",
-			dev->node_props.io_links_count);
+			dev->yesde_props.io_links_count);
 	sysfs_show_32bit_prop(buffer, "cpu_core_id_base",
-			dev->node_props.cpu_core_id_base);
+			dev->yesde_props.cpu_core_id_base);
 	sysfs_show_32bit_prop(buffer, "simd_id_base",
-			dev->node_props.simd_id_base);
+			dev->yesde_props.simd_id_base);
 	sysfs_show_32bit_prop(buffer, "max_waves_per_simd",
-			dev->node_props.max_waves_per_simd);
+			dev->yesde_props.max_waves_per_simd);
 	sysfs_show_32bit_prop(buffer, "lds_size_in_kb",
-			dev->node_props.lds_size_in_kb);
+			dev->yesde_props.lds_size_in_kb);
 	sysfs_show_32bit_prop(buffer, "gds_size_in_kb",
-			dev->node_props.gds_size_in_kb);
+			dev->yesde_props.gds_size_in_kb);
 	sysfs_show_32bit_prop(buffer, "num_gws",
-			dev->node_props.num_gws);
+			dev->yesde_props.num_gws);
 	sysfs_show_32bit_prop(buffer, "wave_front_size",
-			dev->node_props.wave_front_size);
+			dev->yesde_props.wave_front_size);
 	sysfs_show_32bit_prop(buffer, "array_count",
-			dev->node_props.array_count);
+			dev->yesde_props.array_count);
 	sysfs_show_32bit_prop(buffer, "simd_arrays_per_engine",
-			dev->node_props.simd_arrays_per_engine);
+			dev->yesde_props.simd_arrays_per_engine);
 	sysfs_show_32bit_prop(buffer, "cu_per_simd_array",
-			dev->node_props.cu_per_simd_array);
+			dev->yesde_props.cu_per_simd_array);
 	sysfs_show_32bit_prop(buffer, "simd_per_cu",
-			dev->node_props.simd_per_cu);
+			dev->yesde_props.simd_per_cu);
 	sysfs_show_32bit_prop(buffer, "max_slots_scratch_cu",
-			dev->node_props.max_slots_scratch_cu);
+			dev->yesde_props.max_slots_scratch_cu);
 	sysfs_show_32bit_prop(buffer, "vendor_id",
-			dev->node_props.vendor_id);
+			dev->yesde_props.vendor_id);
 	sysfs_show_32bit_prop(buffer, "device_id",
-			dev->node_props.device_id);
+			dev->yesde_props.device_id);
 	sysfs_show_32bit_prop(buffer, "location_id",
-			dev->node_props.location_id);
-	sysfs_show_32bit_prop(buffer, "drm_render_minor",
-			dev->node_props.drm_render_minor);
+			dev->yesde_props.location_id);
+	sysfs_show_32bit_prop(buffer, "drm_render_miyesr",
+			dev->yesde_props.drm_render_miyesr);
 	sysfs_show_64bit_prop(buffer, "hive_id",
-			dev->node_props.hive_id);
+			dev->yesde_props.hive_id);
 	sysfs_show_32bit_prop(buffer, "num_sdma_engines",
-			dev->node_props.num_sdma_engines);
+			dev->yesde_props.num_sdma_engines);
 	sysfs_show_32bit_prop(buffer, "num_sdma_xgmi_engines",
-			dev->node_props.num_sdma_xgmi_engines);
+			dev->yesde_props.num_sdma_xgmi_engines);
 
 	if (dev->gpu) {
 		log_max_watch_addr =
 			__ilog2_u32(dev->gpu->device_info->num_of_watch_points);
 
 		if (log_max_watch_addr) {
-			dev->node_props.capability |=
+			dev->yesde_props.capability |=
 					HSA_CAP_WATCH_POINTS_SUPPORTED;
 
-			dev->node_props.capability |=
+			dev->yesde_props.capability |=
 				((log_max_watch_addr <<
 					HSA_CAP_WATCH_POINTS_TOTALBITS_SHIFT) &
 				HSA_CAP_WATCH_POINTS_TOTALBITS_MASK);
 		}
 
 		if (dev->gpu->device_info->asic_family == CHIP_TONGA)
-			dev->node_props.capability |=
+			dev->yesde_props.capability |=
 					HSA_CAP_AQL_QUEUE_DOUBLE_MAP;
 
 		sysfs_show_32bit_prop(buffer, "max_engine_clk_fcompute",
-			dev->node_props.max_engine_clk_fcompute);
+			dev->yesde_props.max_engine_clk_fcompute);
 
 		sysfs_show_64bit_prop(buffer, "local_mem_size",
 				(unsigned long long int) 0);
@@ -514,7 +514,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 		sysfs_show_32bit_prop(buffer, "fw_version",
 				dev->gpu->mec_fw_version);
 		sysfs_show_32bit_prop(buffer, "capability",
-				dev->node_props.capability);
+				dev->yesde_props.capability);
 		sysfs_show_32bit_prop(buffer, "sdma_fw_version",
 				dev->gpu->sdma_fw_version);
 	}
@@ -523,13 +523,13 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 					cpufreq_quick_get_max(0)/1000);
 }
 
-static const struct sysfs_ops node_ops = {
-	.show = node_show,
+static const struct sysfs_ops yesde_ops = {
+	.show = yesde_show,
 };
 
-static struct kobj_type node_type = {
+static struct kobj_type yesde_type = {
 	.release = kfd_topology_kobj_release,
-	.sysfs_ops = &node_ops,
+	.sysfs_ops = &yesde_ops,
 };
 
 static void kfd_remove_sysfs_file(struct kobject *kobj, struct attribute *attr)
@@ -539,7 +539,7 @@ static void kfd_remove_sysfs_file(struct kobject *kobj, struct attribute *attr)
 	kobject_put(kobj);
 }
 
-static void kfd_remove_sysfs_node_entry(struct kfd_topology_device *dev)
+static void kfd_remove_sysfs_yesde_entry(struct kfd_topology_device *dev)
 {
 	struct kfd_iolink_properties *iolink;
 	struct kfd_cache_properties *cache;
@@ -591,17 +591,17 @@ static void kfd_remove_sysfs_node_entry(struct kfd_topology_device *dev)
 		dev->kobj_perf = NULL;
 	}
 
-	if (dev->kobj_node) {
-		sysfs_remove_file(dev->kobj_node, &dev->attr_gpuid);
-		sysfs_remove_file(dev->kobj_node, &dev->attr_name);
-		sysfs_remove_file(dev->kobj_node, &dev->attr_props);
-		kobject_del(dev->kobj_node);
-		kobject_put(dev->kobj_node);
-		dev->kobj_node = NULL;
+	if (dev->kobj_yesde) {
+		sysfs_remove_file(dev->kobj_yesde, &dev->attr_gpuid);
+		sysfs_remove_file(dev->kobj_yesde, &dev->attr_name);
+		sysfs_remove_file(dev->kobj_yesde, &dev->attr_props);
+		kobject_del(dev->kobj_yesde);
+		kobject_put(dev->kobj_yesde);
+		dev->kobj_yesde = NULL;
 	}
 }
 
-static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
+static int kfd_build_sysfs_yesde_entry(struct kfd_topology_device *dev,
 		uint32_t id)
 {
 	struct kfd_iolink_properties *iolink;
@@ -612,39 +612,39 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	uint32_t i, num_attrs;
 	struct attribute **attrs;
 
-	if (WARN_ON(dev->kobj_node))
+	if (WARN_ON(dev->kobj_yesde))
 		return -EEXIST;
 
 	/*
 	 * Creating the sysfs folders
 	 */
-	dev->kobj_node = kfd_alloc_struct(dev->kobj_node);
-	if (!dev->kobj_node)
+	dev->kobj_yesde = kfd_alloc_struct(dev->kobj_yesde);
+	if (!dev->kobj_yesde)
 		return -ENOMEM;
 
-	ret = kobject_init_and_add(dev->kobj_node, &node_type,
-			sys_props.kobj_nodes, "%d", id);
+	ret = kobject_init_and_add(dev->kobj_yesde, &yesde_type,
+			sys_props.kobj_yesdes, "%d", id);
 	if (ret < 0)
 		return ret;
 
-	dev->kobj_mem = kobject_create_and_add("mem_banks", dev->kobj_node);
+	dev->kobj_mem = kobject_create_and_add("mem_banks", dev->kobj_yesde);
 	if (!dev->kobj_mem)
 		return -ENOMEM;
 
-	dev->kobj_cache = kobject_create_and_add("caches", dev->kobj_node);
+	dev->kobj_cache = kobject_create_and_add("caches", dev->kobj_yesde);
 	if (!dev->kobj_cache)
 		return -ENOMEM;
 
-	dev->kobj_iolink = kobject_create_and_add("io_links", dev->kobj_node);
+	dev->kobj_iolink = kobject_create_and_add("io_links", dev->kobj_yesde);
 	if (!dev->kobj_iolink)
 		return -ENOMEM;
 
-	dev->kobj_perf = kobject_create_and_add("perf", dev->kobj_node);
+	dev->kobj_perf = kobject_create_and_add("perf", dev->kobj_yesde);
 	if (!dev->kobj_perf)
 		return -ENOMEM;
 
 	/*
-	 * Creating sysfs files for node properties
+	 * Creating sysfs files for yesde properties
 	 */
 	dev->attr_gpuid.name = "gpu_id";
 	dev->attr_gpuid.mode = KFD_SYSFS_FILE_MODE;
@@ -655,13 +655,13 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	dev->attr_props.name = "properties";
 	dev->attr_props.mode = KFD_SYSFS_FILE_MODE;
 	sysfs_attr_init(&dev->attr_props);
-	ret = sysfs_create_file(dev->kobj_node, &dev->attr_gpuid);
+	ret = sysfs_create_file(dev->kobj_yesde, &dev->attr_gpuid);
 	if (ret < 0)
 		return ret;
-	ret = sysfs_create_file(dev->kobj_node, &dev->attr_name);
+	ret = sysfs_create_file(dev->kobj_yesde, &dev->attr_name);
 	if (ret < 0)
 		return ret;
-	ret = sysfs_create_file(dev->kobj_node, &dev->attr_props);
+	ret = sysfs_create_file(dev->kobj_yesde, &dev->attr_props);
 	if (ret < 0)
 		return ret;
 
@@ -752,14 +752,14 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 }
 
 /* Called with write topology lock acquired */
-static int kfd_build_sysfs_node_tree(void)
+static int kfd_build_sysfs_yesde_tree(void)
 {
 	struct kfd_topology_device *dev;
 	int ret;
 	uint32_t i = 0;
 
 	list_for_each_entry(dev, &topology_device_list, list) {
-		ret = kfd_build_sysfs_node_entry(dev, i);
+		ret = kfd_build_sysfs_yesde_entry(dev, i);
 		if (ret < 0)
 			return ret;
 		i++;
@@ -769,12 +769,12 @@ static int kfd_build_sysfs_node_tree(void)
 }
 
 /* Called with write topology lock acquired */
-static void kfd_remove_sysfs_node_tree(void)
+static void kfd_remove_sysfs_yesde_tree(void)
 {
 	struct kfd_topology_device *dev;
 
 	list_for_each_entry(dev, &topology_device_list, list)
-		kfd_remove_sysfs_node_entry(dev);
+		kfd_remove_sysfs_yesde_entry(dev);
 }
 
 static int kfd_topology_update_sysfs(void)
@@ -794,9 +794,9 @@ static int kfd_topology_update_sysfs(void)
 		if (ret < 0)
 			return ret;
 
-		sys_props.kobj_nodes = kobject_create_and_add("nodes",
+		sys_props.kobj_yesdes = kobject_create_and_add("yesdes",
 				sys_props.kobj_topology);
-		if (!sys_props.kobj_nodes)
+		if (!sys_props.kobj_yesdes)
 			return -ENOMEM;
 
 		sys_props.attr_genid.name = "generation_id";
@@ -816,23 +816,23 @@ static int kfd_topology_update_sysfs(void)
 			return ret;
 	}
 
-	kfd_remove_sysfs_node_tree();
+	kfd_remove_sysfs_yesde_tree();
 
-	return kfd_build_sysfs_node_tree();
+	return kfd_build_sysfs_yesde_tree();
 }
 
 static void kfd_topology_release_sysfs(void)
 {
-	kfd_remove_sysfs_node_tree();
+	kfd_remove_sysfs_yesde_tree();
 	if (sys_props.kobj_topology) {
 		sysfs_remove_file(sys_props.kobj_topology,
 				&sys_props.attr_genid);
 		sysfs_remove_file(sys_props.kobj_topology,
 				&sys_props.attr_props);
-		if (sys_props.kobj_nodes) {
-			kobject_del(sys_props.kobj_nodes);
-			kobject_put(sys_props.kobj_nodes);
-			sys_props.kobj_nodes = NULL;
+		if (sys_props.kobj_yesdes) {
+			kobject_del(sys_props.kobj_yesdes);
+			kobject_put(sys_props.kobj_yesdes);
+			sys_props.kobj_yesdes = NULL;
 		}
 		kobject_del(sys_props.kobj_topology);
 		kobject_put(sys_props.kobj_topology);
@@ -859,23 +859,23 @@ static void kfd_debug_print_topology(void)
 	dev = list_last_entry(&topology_device_list,
 			struct kfd_topology_device, list);
 	if (dev) {
-		if (dev->node_props.cpu_cores_count &&
-				dev->node_props.simd_count) {
-			pr_info("Topology: Add APU node [0x%0x:0x%0x]\n",
-				dev->node_props.device_id,
-				dev->node_props.vendor_id);
-		} else if (dev->node_props.cpu_cores_count)
-			pr_info("Topology: Add CPU node\n");
-		else if (dev->node_props.simd_count)
-			pr_info("Topology: Add dGPU node [0x%0x:0x%0x]\n",
-				dev->node_props.device_id,
-				dev->node_props.vendor_id);
+		if (dev->yesde_props.cpu_cores_count &&
+				dev->yesde_props.simd_count) {
+			pr_info("Topology: Add APU yesde [0x%0x:0x%0x]\n",
+				dev->yesde_props.device_id,
+				dev->yesde_props.vendor_id);
+		} else if (dev->yesde_props.cpu_cores_count)
+			pr_info("Topology: Add CPU yesde\n");
+		else if (dev->yesde_props.simd_count)
+			pr_info("Topology: Add dGPU yesde [0x%0x:0x%0x]\n",
+				dev->yesde_props.device_id,
+				dev->yesde_props.vendor_id);
 	}
 	up_read(&topology_lock);
 }
 
 /* Helper function for intializing platform_xx members of
- * kfd_system_properties. Uses OEM info from the last CPU/APU node.
+ * kfd_system_properties. Uses OEM info from the last CPU/APU yesde.
  */
 static void kfd_update_system_properties(void)
 {
@@ -915,7 +915,7 @@ static void find_system_memory(const struct dmi_header *dm,
 }
 
 /*
- * Performance counters information is not part of CRAT but we would like to
+ * Performance counters information is yest part of CRAT but we would like to
  * put them in the sysfs under topology directory for Thunk to get the data.
  * This function is called before updating the sysfs.
  */
@@ -925,22 +925,22 @@ static int kfd_add_perf_to_topology(struct kfd_topology_device *kdev)
 	return kfd_iommu_add_perf_counters(kdev);
 }
 
-/* kfd_add_non_crat_information - Add information that is not currently
+/* kfd_add_yesn_crat_information - Add information that is yest currently
  *	defined in CRAT but is necessary for KFD topology
  * @dev - topology device to which addition info is added
  */
-static void kfd_add_non_crat_information(struct kfd_topology_device *kdev)
+static void kfd_add_yesn_crat_information(struct kfd_topology_device *kdev)
 {
-	/* Check if CPU only node. */
+	/* Check if CPU only yesde. */
 	if (!kdev->gpu) {
 		/* Add system memory information */
 		dmi_walk(find_system_memory, kdev);
 	}
-	/* TODO: For GPU node, rearrange code from kfd_topology_add_device */
+	/* TODO: For GPU yesde, rearrange code from kfd_topology_add_device */
 }
 
 /* kfd_is_acpi_crat_invalid - CRAT from ACPI is valid only for AMD APU devices.
- *	Ignore CRAT for all other devices. AMD APU is identified if both CPU
+ *	Igyesre CRAT for all other devices. AMD APU is identified if both CPU
  *	and GPU cores are present.
  * @device_list - topology device list created by parsing ACPI CRAT table.
  * @return - TRUE if invalid, FALSE is valid.
@@ -950,11 +950,11 @@ static bool kfd_is_acpi_crat_invalid(struct list_head *device_list)
 	struct kfd_topology_device *dev;
 
 	list_for_each_entry(dev, device_list, list) {
-		if (dev->node_props.cpu_cores_count &&
-			dev->node_props.simd_count)
+		if (dev->yesde_props.cpu_cores_count &&
+			dev->yesde_props.simd_count)
 			return false;
 	}
-	pr_info("Ignoring ACPI CRAT on non-APU system\n");
+	pr_info("Igyesring ACPI CRAT on yesn-APU system\n");
 	return true;
 }
 
@@ -964,7 +964,7 @@ int kfd_topology_init(void)
 	size_t image_size = 0;
 	int ret;
 	struct list_head temp_topology_device_list;
-	int cpu_only_node = 0;
+	int cpu_only_yesde = 0;
 	struct kfd_topology_device *kdev;
 	int proximity_domain;
 
@@ -992,7 +992,7 @@ int kfd_topology_init(void)
 	 * Get the CRAT image from the ACPI. If ACPI doesn't have one
 	 * or if ACPI CRAT is invalid create a virtual CRAT.
 	 * NOTE: The current implementation expects all AMD APUs to have
-	 *	CRAT. If no CRAT is available, it is assumed to be a CPU
+	 *	CRAT. If yes CRAT is available, it is assumed to be a CPU
 	 */
 	ret = kfd_create_crat_image_acpi(&crat_image, &image_size);
 	if (!ret) {
@@ -1012,7 +1012,7 @@ int kfd_topology_init(void)
 		ret = kfd_create_crat_image_virtual(&crat_image, &image_size,
 						    COMPUTE_UNIT_CPU, NULL,
 						    proximity_domain);
-		cpu_only_node = 1;
+		cpu_only_yesde = 1;
 		if (ret) {
 			pr_err("Error creating VCRAT table for CPU\n");
 			return ret;
@@ -1046,16 +1046,16 @@ int kfd_topology_init(void)
 	} else
 		pr_err("Failed to update topology in sysfs ret=%d\n", ret);
 
-	/* For nodes with GPU, this information gets added
+	/* For yesdes with GPU, this information gets added
 	 * when GPU is detected (kfd_topology_add_device).
 	 */
-	if (cpu_only_node) {
-		/* Add additional information to CPU only node created above */
+	if (cpu_only_yesde) {
+		/* Add additional information to CPU only yesde created above */
 		down_write(&topology_lock);
 		kdev = list_first_entry(&topology_device_list,
 				struct kfd_topology_device, list);
 		up_write(&topology_lock);
-		kfd_add_non_crat_information(kdev);
+		kfd_add_yesn_crat_information(kdev);
 	}
 
 err:
@@ -1102,7 +1102,7 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 	return hashout;
 }
 /* kfd_assign_gpu - Attach @gpu to the correct kfd topology device. If
- *		the GPU device is not already present in the topology device
+ *		the GPU device is yest already present in the topology device
  *		list then return NULL. This means a new topology device has to
  *		be created for this GPU.
  */
@@ -1117,13 +1117,13 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 	down_write(&topology_lock);
 	list_for_each_entry(dev, &topology_device_list, list) {
 		/* Discrete GPUs need their own topology device list
-		 * entries. Don't assign them to CPU/APU nodes.
+		 * entries. Don't assign them to CPU/APU yesdes.
 		 */
 		if (!gpu->device_info->needs_iommu_device &&
-		    dev->node_props.cpu_cores_count)
+		    dev->yesde_props.cpu_cores_count)
 			continue;
 
-		if (!dev->gpu && (dev->node_props.simd_count > 0)) {
+		if (!dev->gpu && (dev->yesde_props.simd_count > 0)) {
 			dev->gpu = gpu;
 			out_dev = dev;
 
@@ -1140,7 +1140,7 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 	return out_dev;
 }
 
-static void kfd_notify_gpu_change(uint32_t gpu_id, int arrival)
+static void kfd_yestify_gpu_change(uint32_t gpu_id, int arrival)
 {
 	/*
 	 * TODO: Generate an event for thunk about the arrival/removal
@@ -1171,7 +1171,7 @@ static void kfd_fill_mem_clk_max_info(struct kfd_topology_device *dev)
 		mem->mem_clk_max = local_mem_info.mem_clk_max;
 }
 
-static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
+static void kfd_fill_iolink_yesn_crat_info(struct kfd_topology_device *dev)
 {
 	struct kfd_iolink_properties *link, *cpu_link;
 	struct kfd_topology_device *cpu_dev;
@@ -1199,11 +1199,11 @@ static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 	list_for_each_entry(link, &dev->io_link_props, list) {
 		link->flags = flag;
 		cpu_dev = kfd_topology_device_by_proximity_domain(
-				link->node_to);
+				link->yesde_to);
 		if (cpu_dev) {
 			list_for_each_entry(cpu_link,
 					    &cpu_dev->io_link_props, list)
-				if (cpu_link->node_to == link->node_from)
+				if (cpu_link->yesde_to == link->yesde_from)
 					cpu_link->flags = cpu_flag;
 		}
 	}
@@ -1258,7 +1258,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		kfd_topology_update_device_list(&temp_topology_device_list,
 			&topology_device_list);
 
-		/* Update the SYSFS tree, since we added another topology
+		/* Update the SYSFS tree, since we added ayesther topology
 		 * device
 		 */
 		res = kfd_topology_update_sysfs();
@@ -1280,47 +1280,47 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	gpu->id = gpu_id;
 
 	/* TODO: Move the following lines to function
-	 *	kfd_add_non_crat_information
+	 *	kfd_add_yesn_crat_information
 	 */
 
-	/* Fill-in additional information that is not available in CRAT but
+	/* Fill-in additional information that is yest available in CRAT but
 	 * needed for the topology
 	 */
 
 	amdgpu_amdkfd_get_cu_info(dev->gpu->kgd, &cu_info);
 
-	strncpy(dev->node_props.name, gpu->device_info->asic_name,
+	strncpy(dev->yesde_props.name, gpu->device_info->asic_name,
 			KFD_TOPOLOGY_PUBLIC_NAME_SIZE);
 
-	dev->node_props.simd_arrays_per_engine =
+	dev->yesde_props.simd_arrays_per_engine =
 		cu_info.num_shader_arrays_per_engine;
 
-	dev->node_props.vendor_id = gpu->pdev->vendor;
-	dev->node_props.device_id = gpu->pdev->device;
-	dev->node_props.location_id = pci_dev_id(gpu->pdev);
-	dev->node_props.max_engine_clk_fcompute =
+	dev->yesde_props.vendor_id = gpu->pdev->vendor;
+	dev->yesde_props.device_id = gpu->pdev->device;
+	dev->yesde_props.location_id = pci_dev_id(gpu->pdev);
+	dev->yesde_props.max_engine_clk_fcompute =
 		amdgpu_amdkfd_get_max_engine_clock_in_mhz(dev->gpu->kgd);
-	dev->node_props.max_engine_clk_ccompute =
+	dev->yesde_props.max_engine_clk_ccompute =
 		cpufreq_quick_get_max(0) / 1000;
-	dev->node_props.drm_render_minor =
-		gpu->shared_resources.drm_render_minor;
+	dev->yesde_props.drm_render_miyesr =
+		gpu->shared_resources.drm_render_miyesr;
 
-	dev->node_props.hive_id = gpu->hive_id;
-	dev->node_props.num_sdma_engines = gpu->device_info->num_sdma_engines;
-	dev->node_props.num_sdma_xgmi_engines =
+	dev->yesde_props.hive_id = gpu->hive_id;
+	dev->yesde_props.num_sdma_engines = gpu->device_info->num_sdma_engines;
+	dev->yesde_props.num_sdma_xgmi_engines =
 				gpu->device_info->num_xgmi_sdma_engines;
-	dev->node_props.num_gws = (hws_gws_support &&
+	dev->yesde_props.num_gws = (hws_gws_support &&
 		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
 		amdgpu_amdkfd_get_num_gws(dev->gpu->kgd) : 0;
 
 	kfd_fill_mem_clk_max_info(dev);
-	kfd_fill_iolink_non_crat_info(dev);
+	kfd_fill_iolink_yesn_crat_info(dev);
 
 	switch (dev->gpu->device_info->asic_family) {
 	case CHIP_KAVERI:
 	case CHIP_HAWAII:
 	case CHIP_TONGA:
-		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_PRE_1_0 <<
+		dev->yesde_props.capability |= ((HSA_CAP_DOORBELL_TYPE_PRE_1_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
 		break;
@@ -1331,7 +1331,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	case CHIP_POLARIS12:
 	case CHIP_VEGAM:
 		pr_debug("Adding doorbell packet type capability\n");
-		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_1_0 <<
+		dev->yesde_props.capability |= ((HSA_CAP_DOORBELL_TYPE_1_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
 		break;
@@ -1344,7 +1344,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	case CHIP_NAVI10:
 	case CHIP_NAVI12:
 	case CHIP_NAVI14:
-		dev->node_props.capability |= ((HSA_CAP_DOORBELL_TYPE_2_0 <<
+		dev->yesde_props.capability |= ((HSA_CAP_DOORBELL_TYPE_2_0 <<
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT) &
 			HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK);
 		break;
@@ -1358,9 +1358,9 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	* potential missing corresponding bit in CRAT of BIOS.
 	*/
 	if (dev->gpu->device_info->needs_iommu_device)
-		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
+		dev->yesde_props.capability |= HSA_CAP_ATS_PRESENT;
 	else
-		dev->node_props.capability &= ~HSA_CAP_ATS_PRESENT;
+		dev->yesde_props.capability &= ~HSA_CAP_ATS_PRESENT;
 
 	/* Fix errors in CZ CRAT.
 	 * simd_count: Carrizo CRAT reports wrong simd_count, probably
@@ -1368,29 +1368,29 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	 * max_waves_per_simd: Carrizo reports wrong max_waves_per_simd
 	 */
 	if (dev->gpu->device_info->asic_family == CHIP_CARRIZO) {
-		dev->node_props.simd_count =
+		dev->yesde_props.simd_count =
 			cu_info.simd_per_cu * cu_info.cu_active_number;
-		dev->node_props.max_waves_per_simd = 10;
+		dev->yesde_props.max_waves_per_simd = 10;
 	}
 
 	ctx = amdgpu_ras_get_context((struct amdgpu_device *)(dev->gpu->kgd));
 	if (ctx) {
 		/* kfd only concerns sram ecc on GFX/SDMA and HBM ecc on UMC */
-		dev->node_props.capability |=
+		dev->yesde_props.capability |=
 			(((ctx->features & BIT(AMDGPU_RAS_BLOCK__SDMA)) != 0) ||
 			 ((ctx->features & BIT(AMDGPU_RAS_BLOCK__GFX)) != 0)) ?
 			HSA_CAP_SRAM_EDCSUPPORTED : 0;
-		dev->node_props.capability |= ((ctx->features & BIT(AMDGPU_RAS_BLOCK__UMC)) != 0) ?
+		dev->yesde_props.capability |= ((ctx->features & BIT(AMDGPU_RAS_BLOCK__UMC)) != 0) ?
 			HSA_CAP_MEM_EDCSUPPORTED : 0;
 
-		dev->node_props.capability |= (ctx->features != 0) ?
+		dev->yesde_props.capability |= (ctx->features != 0) ?
 			HSA_CAP_RASEVENTNOTIFY : 0;
 	}
 
 	kfd_debug_print_topology();
 
 	if (!res)
-		kfd_notify_gpu_change(gpu_id, 1);
+		kfd_yestify_gpu_change(gpu_id, 1);
 err:
 	kfd_destroy_crat_image(crat_image);
 	return res;
@@ -1407,7 +1407,7 @@ int kfd_topology_remove_device(struct kfd_dev *gpu)
 	list_for_each_entry_safe(dev, tmp, &topology_device_list, list)
 		if (dev->gpu == gpu) {
 			gpu_id = dev->gpu_id;
-			kfd_remove_sysfs_node_entry(dev);
+			kfd_remove_sysfs_yesde_entry(dev);
 			kfd_release_topology_device(dev);
 			sys_props.num_devices--;
 			res = 0;
@@ -1419,7 +1419,7 @@ int kfd_topology_remove_device(struct kfd_dev *gpu)
 	up_write(&topology_lock);
 
 	if (!res)
-		kfd_notify_gpu_change(gpu_id, 0);
+		kfd_yestify_gpu_change(gpu_id, 0);
 
 	return res;
 }
@@ -1427,7 +1427,7 @@ int kfd_topology_remove_device(struct kfd_dev *gpu)
 /* kfd_topology_enum_kfd_devices - Enumerate through all devices in KFD
  *	topology. If GPU device is found @idx, then valid kfd_dev pointer is
  *	returned through @kdev
- * Return -	0: On success (@kdev will be NULL for non GPU nodes)
+ * Return -	0: On success (@kdev will be NULL for yesn GPU yesdes)
  *		-1: If end of list
  */
 int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_dev **kdev)
@@ -1457,31 +1457,31 @@ int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_dev **kdev)
 
 static int kfd_cpumask_to_apic_id(const struct cpumask *cpumask)
 {
-	int first_cpu_of_numa_node;
+	int first_cpu_of_numa_yesde;
 
-	if (!cpumask || cpumask == cpu_none_mask)
+	if (!cpumask || cpumask == cpu_yesne_mask)
 		return -1;
-	first_cpu_of_numa_node = cpumask_first(cpumask);
-	if (first_cpu_of_numa_node >= nr_cpu_ids)
+	first_cpu_of_numa_yesde = cpumask_first(cpumask);
+	if (first_cpu_of_numa_yesde >= nr_cpu_ids)
 		return -1;
 #ifdef CONFIG_X86_64
-	return cpu_data(first_cpu_of_numa_node).apicid;
+	return cpu_data(first_cpu_of_numa_yesde).apicid;
 #else
-	return first_cpu_of_numa_node;
+	return first_cpu_of_numa_yesde;
 #endif
 }
 
-/* kfd_numa_node_to_apic_id - Returns the APIC ID of the first logical processor
- *	of the given NUMA node (numa_node_id)
+/* kfd_numa_yesde_to_apic_id - Returns the APIC ID of the first logical processor
+ *	of the given NUMA yesde (numa_yesde_id)
  * Return -1 on failure
  */
-int kfd_numa_node_to_apic_id(int numa_node_id)
+int kfd_numa_yesde_to_apic_id(int numa_yesde_id)
 {
-	if (numa_node_id == -1) {
+	if (numa_yesde_id == -1) {
 		pr_warn("Invalid NUMA Node. Use online CPU mask\n");
 		return kfd_cpumask_to_apic_id(cpu_online_mask);
 	}
-	return kfd_cpumask_to_apic_id(cpumask_of_node(numa_node_id));
+	return kfd_cpumask_to_apic_id(cpumask_of_yesde(numa_yesde_id));
 }
 
 #if defined(CONFIG_DEBUG_FS)

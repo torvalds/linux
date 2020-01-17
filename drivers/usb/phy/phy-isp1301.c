@@ -144,20 +144,20 @@ module_i2c_driver(isp1301_driver);
 
 static int match(struct device *dev, const void *data)
 {
-	const struct device_node *node = (const struct device_node *)data;
-	return (dev->of_node == node) &&
+	const struct device_yesde *yesde = (const struct device_yesde *)data;
+	return (dev->of_yesde == yesde) &&
 		(dev->driver == &isp1301_driver.driver);
 }
 
-struct i2c_client *isp1301_get_client(struct device_node *node)
+struct i2c_client *isp1301_get_client(struct device_yesde *yesde)
 {
-	if (node) { /* reference of ISP1301 I2C node via DT */
+	if (yesde) { /* reference of ISP1301 I2C yesde via DT */
 		struct device *dev = bus_find_device(&i2c_bus_type, NULL,
-						     node, match);
+						     yesde, match);
 		if (!dev)
 			return NULL;
 		return to_i2c_client(dev);
-	} else { /* non-DT: only one ISP1301 chip supported */
+	} else { /* yesn-DT: only one ISP1301 chip supported */
 		return isp1301_i2c_client;
 	}
 }

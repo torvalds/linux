@@ -40,7 +40,7 @@ def read_spdxdata(repo):
 
     for d in license_dirs:
         for el in lictree[d].traverse():
-            if not os.path.isfile(el.path):
+            if yest os.path.isfile(el.path):
                 continue
 
             exception = None
@@ -58,13 +58,13 @@ def read_spdxdata(repo):
 
                 elif l.startswith('SPDX-Licenses:'):
                     for lic in l.split(':')[1].upper().strip().replace(' ', '').replace('\t', '').split(','):
-                        if not lic in spdx.licenses:
+                        if yest lic in spdx.licenses:
                             raise SPDXException(None, 'Exception %s missing license %s' %(exception, lic))
                         spdx.exceptions[exception].append(lic)
 
                 elif l.startswith("License-Text:"):
                     if exception:
-                        if not len(spdx.exceptions[exception]):
+                        if yest len(spdx.exceptions[exception]):
                             raise SPDXException(el, 'Exception %s is missing SPDX-Licenses' %exception)
                         spdx.exception_files += 1
                     else:
@@ -77,17 +77,17 @@ class id_parser(object):
     reserved = [ 'AND', 'OR', 'WITH' ]
     tokens = [ 'LPAR', 'RPAR', 'ID', 'EXC' ] + reserved
 
-    precedence = ( ('nonassoc', 'AND', 'OR'), )
+    precedence = ( ('yesnassoc', 'AND', 'OR'), )
 
-    t_ignore = ' \t'
+    t_igyesre = ' \t'
 
     def __init__(self, spdx):
         self.spdx = spdx
         self.lasttok = None
         self.lastid = None
         self.lexer = lex.lex(module = self, reflags = re.UNICODE)
-        # Initialize the parser. No debug file and no parser rules stored on disk
-        # The rules are small enough to be generated on the fly
+        # Initialize the parser. No debug file and yes parser rules stored on disk
+        # The rules are small eyesugh to be generated on the fly
         self.parser = yacc.yacc(module = self, write_tables = False, debug = False)
         self.lines_checked = 0
         self.checked = 0
@@ -100,14 +100,14 @@ class id_parser(object):
     def validate(self, tok):
         id = tok.value.upper()
         if tok.type == 'ID':
-            if not id in self.spdx.licenses:
+            if yest id in self.spdx.licenses:
                 raise ParserException(tok, 'Invalid License ID')
             self.lastid = id
         elif tok.type == 'EXC':
-            if id not in self.spdx.exceptions:
+            if id yest in self.spdx.exceptions:
                 raise ParserException(tok, 'Invalid Exception ID')
-            if self.lastid not in self.spdx.exceptions[id]:
-                raise ParserException(tok, 'Exception not valid for license %s' %self.lastid)
+            if self.lastid yest in self.spdx.exceptions[id]:
+                raise ParserException(tok, 'Exception yest valid for license %s' %self.lastid)
             self.lastid = None
         elif tok.type != 'WITH':
             self.lastid = None
@@ -154,7 +154,7 @@ class id_parser(object):
         pass
 
     def p_error(self, p):
-        if not p:
+        if yest p:
             raise ParserException(None, 'Unfinished license expression')
         else:
             raise ParserException(p, 'Syntax error')
@@ -169,7 +169,7 @@ class id_parser(object):
         self.curline = 0
         try:
             for line in fd:
-                line = line.decode(locale.getpreferredencoding(False), errors='ignore')
+                line = line.decode(locale.getpreferredencoding(False), errors='igyesre')
                 self.curline += 1
                 if self.curline > maxlines:
                     break
@@ -202,13 +202,13 @@ class id_parser(object):
 
 def scan_git_tree(tree):
     for el in tree.traverse():
-        # Exclude stuff which would make pointless noise
+        # Exclude stuff which would make pointless yesise
         # FIXME: Put this somewhere more sensible
         if el.path.startswith("LICENSES"):
             continue
         if el.path.find("license-rules.rst") >= 0:
             continue
-        if not os.path.isfile(el.path):
+        if yest os.path.isfile(el.path):
             continue
         with open(el.path, 'rb') as fd:
             parser.parse_lines(fd, args.maxlines, el.path)
@@ -221,7 +221,7 @@ def scan_git_subtree(tree, path):
 if __name__ == '__main__':
 
     ap = ArgumentParser(description='SPDX expression checker')
-    ap.add_argument('path', nargs='*', help='Check path or file. If not given full git tree scan. For stdin use "-"')
+    ap.add_argument('path', nargs='*', help='Check path or file. If yest given full git tree scan. For stdin use "-"')
     ap.add_argument('-m', '--maxlines', type=int, default=15,
                     help='Maximum number of lines to scan in a file. Default 15')
     ap.add_argument('-v', '--verbose', action='store_true', help='Verbose statistics output')
@@ -235,7 +235,7 @@ if __name__ == '__main__':
     try:
         # Use git to get the valid license expressions
         repo = git.Repo(os.getcwd())
-        assert not repo.bare
+        assert yest repo.bare
 
         # Initialize SPDX data
         spdx = read_spdxdata(repo)
@@ -257,7 +257,7 @@ if __name__ == '__main__':
 
     try:
         if len(args.path) and args.path[0] == '-':
-            stdin = os.fdopen(sys.stdin.fileno(), 'rb')
+            stdin = os.fdopen(sys.stdin.fileyes(), 'rb')
             parser.parse_lines(stdin, args.maxlines, '-')
         else:
             if args.path:
@@ -267,7 +267,7 @@ if __name__ == '__main__':
                     elif os.path.isdir(p):
                         scan_git_subtree(repo.head.reference.commit.tree, p)
                     else:
-                        sys.stderr.write('path %s does not exist\n' %p)
+                        sys.stderr.write('path %s does yest exist\n' %p)
                         sys.exit(1)
             else:
                 # Full git tree scan

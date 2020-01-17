@@ -11,7 +11,7 @@
 #include "vimc-common.h"
 
 /*
- * NOTE: non-bayer formats need to come first (necessary for enum_mbus_code
+ * NOTE: yesn-bayer formats need to come first (necessary for enum_mbus_code
  * in the scaler)
  */
 static const struct vimc_pix_map vimc_pix_map_list[] = {
@@ -297,7 +297,7 @@ int vimc_vdev_link_validate(struct media_link *link)
 	if (source_fmt.colorspace != sink_fmt.colorspace)
 		return -EPIPE;
 
-	/* Colorimetry must match if they are not set to DEFAULT */
+	/* Colorimetry must match if they are yest set to DEFAULT */
 	if (source_fmt.ycbcr_enc != V4L2_YCBCR_ENC_DEFAULT &&
 	    sink_fmt.ycbcr_enc != V4L2_YCBCR_ENC_DEFAULT &&
 	    source_fmt.ycbcr_enc != sink_fmt.ycbcr_enc)

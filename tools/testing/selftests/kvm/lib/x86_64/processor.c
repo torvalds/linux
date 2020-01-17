@@ -23,11 +23,11 @@ struct pageMapL4Entry {
 	uint64_t write_through:1;
 	uint64_t cache_disable:1;
 	uint64_t accessed:1;
-	uint64_t ignored_06:1;
+	uint64_t igyesred_06:1;
 	uint64_t page_size:1;
-	uint64_t ignored_11_08:4;
+	uint64_t igyesred_11_08:4;
 	uint64_t address:40;
-	uint64_t ignored_62_52:11;
+	uint64_t igyesred_62_52:11;
 	uint64_t execute_disable:1;
 };
 
@@ -38,11 +38,11 @@ struct pageDirectoryPointerEntry {
 	uint64_t write_through:1;
 	uint64_t cache_disable:1;
 	uint64_t accessed:1;
-	uint64_t ignored_06:1;
+	uint64_t igyesred_06:1;
 	uint64_t page_size:1;
-	uint64_t ignored_11_08:4;
+	uint64_t igyesred_11_08:4;
 	uint64_t address:40;
-	uint64_t ignored_62_52:11;
+	uint64_t igyesred_62_52:11;
 	uint64_t execute_disable:1;
 };
 
@@ -53,11 +53,11 @@ struct pageDirectoryEntry {
 	uint64_t write_through:1;
 	uint64_t cache_disable:1;
 	uint64_t accessed:1;
-	uint64_t ignored_06:1;
+	uint64_t igyesred_06:1;
 	uint64_t page_size:1;
-	uint64_t ignored_11_08:4;
+	uint64_t igyesred_11_08:4;
 	uint64_t address:40;
-	uint64_t ignored_62_52:11;
+	uint64_t igyesred_62_52:11;
 	uint64_t execute_disable:1;
 };
 
@@ -71,9 +71,9 @@ struct pageTableEntry {
 	uint64_t dirty:1;
 	uint64_t reserved_07:1;
 	uint64_t global:1;
-	uint64_t ignored_11_09:3;
+	uint64_t igyesred_11_09:3;
 	uint64_t address:40;
-	uint64_t ignored_62_52:11;
+	uint64_t igyesred_62_52:11;
 	uint64_t execute_disable:1;
 };
 
@@ -229,7 +229,7 @@ void sregs_dump(FILE *stream, struct kvm_sregs *sregs,
 void virt_pgd_alloc(struct kvm_vm *vm, uint32_t pgd_memslot)
 {
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
-		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
+		"unkyeswn or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	/* If needed, create page map l4 table. */
 	if (!vm->pgd_created) {
@@ -262,10 +262,10 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 	struct pageMapL4Entry *pml4e;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
-		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
+		"unkyeswn or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	TEST_ASSERT((vaddr % vm->page_size) == 0,
-		"Virtual address not on page boundary,\n"
+		"Virtual address yest on page boundary,\n"
 		"  vaddr: 0x%lx vm->page_size: 0x%x",
 		vaddr, vm->page_size);
 	TEST_ASSERT(sparsebit_is_set(vm->vpages_valid,
@@ -273,7 +273,7 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 		"Invalid virtual address, vaddr: 0x%lx",
 		vaddr);
 	TEST_ASSERT((paddr % vm->page_size) == 0,
-		"Physical address not on page boundary,\n"
+		"Physical address yest on page boundary,\n"
 		"  paddr: 0x%lx vm->page_size: 0x%x",
 		paddr, vm->page_size);
 	TEST_ASSERT((paddr >> vm->page_shift) <= vm->max_gfn,
@@ -286,7 +286,7 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 	index[2] = (vaddr >> 30) & 0x1ffu;
 	index[3] = (vaddr >> 39) & 0x1ffu;
 
-	/* Allocate page directory pointer table if not present. */
+	/* Allocate page directory pointer table if yest present. */
 	pml4e = addr_gpa2hva(vm, vm->pgd);
 	if (!pml4e[index[3]].present) {
 		pml4e[index[3]].address = vm_phy_page_alloc(vm,
@@ -296,7 +296,7 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 		pml4e[index[3]].present = true;
 	}
 
-	/* Allocate page directory table if not present. */
+	/* Allocate page directory table if yest present. */
 	struct pageDirectoryPointerEntry *pdpe;
 	pdpe = addr_gpa2hva(vm, pml4e[index[3]].address * vm->page_size);
 	if (!pdpe[index[2]].present) {
@@ -307,7 +307,7 @@ void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 		pdpe[index[2]].present = true;
 	}
 
-	/* Allocate page table if not present. */
+	/* Allocate page table if yest present. */
 	struct pageDirectoryEntry *pde;
 	pde = addr_gpa2hva(vm, pdpe[index[2]].address * vm->page_size);
 	if (!pde[index[1]].present) {
@@ -351,7 +351,7 @@ void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 		return;
 
 	fprintf(stream, "%*s                                          "
-		"                no\n", indent, "");
+		"                yes\n", indent, "");
 	fprintf(stream, "%*s      index hvaddr         gpaddr         "
 		"addr         w exec dirty\n",
 		indent, "");
@@ -536,7 +536,7 @@ static void kvm_seg_set_kernel_data_64bit(struct kvm_vm *vm, uint16_t selector,
  * address and then locates the memory region containing the VM
  * physical address, within the VM given by vm.  When found, the host
  * virtual address providing the memory to the vm physical address is returned.
- * A TEST_ASSERT failure occurs if no region containing translated
+ * A TEST_ASSERT failure occurs if yes region containing translated
  * VM virtual address exists.
  */
 vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
@@ -548,7 +548,7 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	struct pageTableEntry *pte;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
-		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
+		"unkyeswn or unsupported guest mode, mode: 0x%x", vm->mode);
 
 	index[0] = (gva >> 12) & 0x1ffu;
 	index[1] = (gva >> 21) & 0x1ffu;
@@ -634,7 +634,7 @@ static void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_m
 		break;
 
 	default:
-		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", vm->mode);
+		TEST_ASSERT(false, "Unkyeswn guest mode, mode: 0x%x", vm->mode);
 	}
 
 	sregs.cr3 = vm->pgd;
@@ -729,7 +729,7 @@ struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
 
 	ret = ioctl(kvm_fd, KVM_GET_SUPPORTED_CPUID, cpuid);
 	TEST_ASSERT(ret == 0, "KVM_GET_SUPPORTED_CPUID failed %d %d\n",
-		    ret, errno);
+		    ret, erryes);
 
 	close(kvm_fd);
 	return cpuid;
@@ -761,7 +761,7 @@ kvm_get_supported_cpuid_index(uint32_t function, uint32_t index)
 		}
 	}
 
-	TEST_ASSERT(entry, "Guest CPUID entry not found: (EAX=%x, ECX=%x).",
+	TEST_ASSERT(entry, "Guest CPUID entry yest found: (EAX=%x, ECX=%x).",
 		    function, index);
 	return entry;
 }
@@ -785,11 +785,11 @@ void vcpu_set_cpuid(struct kvm_vm *vm,
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int rc;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	rc = ioctl(vcpu->fd, KVM_SET_CPUID2, cpuid);
-	TEST_ASSERT(rc == 0, "KVM_SET_CPUID2 failed, rc: %i errno: %i",
-		    rc, errno);
+	TEST_ASSERT(rc == 0, "KVM_SET_CPUID2 failed, rc: %i erryes: %i",
+		    rc, erryes);
 
 }
 
@@ -859,12 +859,12 @@ uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index)
 	} buffer = {};
 	int r;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 	buffer.header.nmsrs = 1;
 	buffer.entry.index = msr_index;
 	r = ioctl(vcpu->fd, KVM_GET_MSRS, &buffer.header);
 	TEST_ASSERT(r == 1, "KVM_GET_MSRS IOCTL failed,\n"
-		"  rc: %i errno: %i", r, errno);
+		"  rc: %i erryes: %i", r, erryes);
 
 	return buffer.entry.data;
 }
@@ -893,7 +893,7 @@ int _vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
 	} buffer = {};
 	int r;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 	memset(&buffer, 0, sizeof(buffer));
 	buffer.header.nmsrs = 1;
 	buffer.entry.index = msr_index;
@@ -912,7 +912,7 @@ int _vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
  *
  * Output Args: None
  *
- * Return: On success, nothing. On failure a TEST_ASSERT is produced.
+ * Return: On success, yesthing. On failure a TEST_ASSERT is produced.
  *
  * Set value of MSR for VCPU.
  */
@@ -923,7 +923,7 @@ void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
 
 	r = _vcpu_set_msr(vm, vcpuid, msr_index, msr_value);
 	TEST_ASSERT(r == 1, "KVM_SET_MSRS IOCTL failed,\n"
-		"  rc: %i errno: %i", r, errno);
+		"  rc: %i erryes: %i", r, erryes);
 }
 
 /* VM VCPU Args Set
@@ -1030,7 +1030,7 @@ static int kvm_get_num_msrs_fd(int kvm_fd)
 
 	nmsrs.nmsrs = 0;
 	r = ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, &nmsrs);
-	TEST_ASSERT(r == -1 && errno == E2BIG, "Unexpected result from KVM_GET_MSR_INDEX_LIST probe, r: %i",
+	TEST_ASSERT(r == -1 && erryes == E2BIG, "Unexpected result from KVM_GET_MSR_INDEX_LIST probe, r: %i",
 		r);
 
 	return nmsrs.nmsrs;

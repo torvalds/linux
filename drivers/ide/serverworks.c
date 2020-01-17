@@ -16,7 +16,7 @@
  *         all revisions support UDMA mode 4 (66 MB/s)
  *         revision A2.0 and up support UDMA mode 5 (100 MB/s)
  *
- *         *** The CSB5 does not provide ANY register ***
+ *         *** The CSB5 does yest provide ANY register ***
  *         *** to detect 80-conductor cable presence. ***
  *
  *   CSB6: `Champion South Bridge' IDE Interface (optional: third channel)
@@ -176,7 +176,7 @@ static int init_chipset_svwks(struct pci_dev *dev)
 			pci_read_config_dword(isa_dev, 0x64, &reg);
 			reg &= ~0x00002000; /* disable 600ns interrupt mask */
 			if(!(reg & 0x00004000))
-				printk(KERN_DEBUG DRV_NAME " %s: UDMA not BIOS "
+				printk(KERN_DEBUG DRV_NAME " %s: UDMA yest BIOS "
 					"enabled.\n", pci_name(dev));
 			reg |=  0x00004000; /* enable UDMA/33 support */
 			pci_write_config_dword(isa_dev, 0x64, reg);
@@ -266,9 +266,9 @@ static u8 ata66_svwks_svwks(ide_hwif_t *hwif)
 
 /* On Dell PowerEdge servers with a CSB5/CSB6, the top two bits
  * of the subsystem device ID indicate presence of an 80-pin cable.
- * Bit 15 clear = secondary IDE channel does not have 80-pin cable.
+ * Bit 15 clear = secondary IDE channel does yest have 80-pin cable.
  * Bit 15 set   = secondary IDE channel has 80-pin cable.
- * Bit 14 clear = primary IDE channel does not have 80-pin cable.
+ * Bit 14 clear = primary IDE channel does yest have 80-pin cable.
  * Bit 14 set   = primary IDE channel has 80-pin cable.
  */
 static u8 ata66_svwks_dell(ide_hwif_t *hwif)

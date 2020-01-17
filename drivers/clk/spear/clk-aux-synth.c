@@ -85,7 +85,7 @@ static unsigned long clk_aux_recalc_rate(struct clk_hw *hw,
 	num = (val >> aux->masks->xscale_sel_shift) &
 		aux->masks->xscale_sel_mask;
 
-	/* calculate denominator */
+	/* calculate deyesminator */
 	den *= (val >> aux->masks->yscale_sel_shift) &
 		aux->masks->yscale_sel_mask;
 

@@ -4,7 +4,7 @@
 
 
 /* SiliconBackplane Address Map.
- * All regions may not exist on all chips.
+ * All regions may yest exist on all chips.
  */
 #define SSB_SDRAM_BASE		0x00000000U	/* Physical SDRAM */
 #define SSB_PCI_MEM		0x08000000U	/* Host Mode sb2pcitranslation0 (64 MB) */
@@ -159,11 +159,11 @@
 #define  SSB_IDHIGH_CC		0x00008FF0 /* Core Code */
 #define  SSB_IDHIGH_CC_SHIFT	4
 #define  SSB_IDHIGH_RCHI	0x00007000 /* Revision Code (high part) */
-#define  SSB_IDHIGH_RCHI_SHIFT	8	   /* yes, shift 8 is right */
+#define  SSB_IDHIGH_RCHI_SHIFT	8	   /* no, shift 8 is right */
 #define  SSB_IDHIGH_VC		0xFFFF0000 /* Vendor Code */
 #define  SSB_IDHIGH_VC_SHIFT	16
 
-/* SPROM shadow area. If not otherwise noted, fields are
+/* SPROM shadow area. If yest otherwise yested, fields are
  * two bytes wide. Note that the SPROM can _only_ be read
  * in two-byte quantities.
  */
@@ -612,7 +612,7 @@
 #define SSB_BFL_AIRLINEMODE		0x0004	/* implements GPIO 13 radio disable indication */
 #define SSB_BFL_RSSI			0x0008	/* software calculates nrssi slope. */
 #define SSB_BFL_ENETSPI			0x0010	/* has ephy roboswitch spi */
-#define SSB_BFL_XTAL_NOSLOW		0x0020	/* no slow clock available */
+#define SSB_BFL_XTAL_NOSLOW		0x0020	/* yes slow clock available */
 #define SSB_BFL_CCKHIPWR		0x0040	/* can do high power CCK transmission */
 #define SSB_BFL_ENETADM			0x0080	/* has ADMtek switch */
 #define SSB_BFL_ENETVLAN		0x0100	/* can do vlan */
@@ -625,8 +625,8 @@
 #define SSB_BFL_ALTIQ			0x8000	/* alternate I/Q settings */
 
 /* Values for boardflags_hi read from SPROM */
-#define SSB_BFH_NOPA			0x0001	/* has no PA */
-#define SSB_BFH_RSSIINV			0x0002	/* RSSI uses positive slope (not TSSI) */
+#define SSB_BFH_NOPA			0x0001	/* has yes PA */
+#define SSB_BFH_RSSIINV			0x0002	/* RSSI uses positive slope (yest TSSI) */
 #define SSB_BFH_PAREF			0x0004	/* uses the PARef LDO */
 #define SSB_BFH_3TSWITCH		0x0008	/* uses a triple throw switch shared with bluetooth */
 #define SSB_BFH_PHASESHIFT		0x0010	/* can support phase shifter */

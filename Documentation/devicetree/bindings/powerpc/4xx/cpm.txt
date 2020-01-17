@@ -1,4 +1,4 @@
-PPC4xx Clock Power Management (CPM) node
+PPC4xx Clock Power Management (CPM) yesde
 
 Required properties:
 	- compatible		: compatible list, currently only "ibm,cpm"
@@ -32,7 +32,7 @@ Optional properties:
 				  and suspend the corresponding bits can
 				  be different or the same. Usually for
 				  standby only class 2 and 3 units are set.
-				  However, the interface does not care.
+				  However, the interface does yest care.
 				  If they are the same, the additional
 				  power saving will be seeing if support
 				  is available to put the DDR in self

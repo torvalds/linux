@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -341,7 +341,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 					i40iw_cm_disconn(iwqp);
 				}
 				iwqp->cm_id->add_ref(iwqp->cm_id);
-				i40iw_schedule_cm_timer(iwqp->cm_node,
+				i40iw_schedule_cm_timer(iwqp->cm_yesde,
 							(struct i40iw_puda_buf *)iwqp,
 							I40IW_TIMER_TYPE_CLOSE, 1, 0);
 			}
@@ -487,7 +487,7 @@ enum i40iw_status_code i40iw_manage_apbvt(struct i40iw_device *iwdev,
 	unsigned long flags;
 	bool in_use;
 
-	/* apbvt_lock is held across CQP delete APBVT OP (non-waiting) to
+	/* apbvt_lock is held across CQP delete APBVT OP (yesn-waiting) to
 	 * protect against race where add APBVT CQP can race ahead of the delete
 	 * APBVT for same port.
 	 */
@@ -580,7 +580,7 @@ static void i40iw_send_syn_cqp_callback(struct i40iw_cqp_request *cqp_request, u
  * @cminfo: cm info for qhash
  * @etype: type (syn or quad)
  * @mtype: type of qhash
- * @cmnode: cmnode associated with connection
+ * @cmyesde: cmyesde associated with connection
  * @wait: wait for completion
  * @user_pri:user pri of the connection
  */
@@ -588,7 +588,7 @@ enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 					  struct i40iw_cm_info *cminfo,
 					  enum i40iw_quad_entry_type etype,
 					  enum i40iw_quad_hash_manage_type mtype,
-					  void *cmnode,
+					  void *cmyesde,
 					  bool wait)
 {
 	struct i40iw_qhash_table_info *info;
@@ -632,9 +632,9 @@ enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 		info->src_ip[2] = cpu_to_le32(cminfo->rem_addr[2]);
 		info->src_ip[3] = cpu_to_le32(cminfo->rem_addr[3]);
 	}
-	if (cmnode) {
+	if (cmyesde) {
 		cqp_request->callback_fcn = i40iw_send_syn_cqp_callback;
-		cqp_request->param = (void *)cmnode;
+		cqp_request->param = (void *)cmyesde;
 	}
 
 	if (info->ipv4_valid)
@@ -813,7 +813,7 @@ static enum ib_wc_status i40iw_get_ib_wc(enum i40iw_flush_opcode opcode)
 /**
  * i40iw_set_flush_info - set flush info
  * @pinfo: set flush info
- * @min: minor err
+ * @min: miyesr err
  * @maj: major err
  * @opcode: flush error code
  */
@@ -843,9 +843,9 @@ void i40iw_flush_wqes(struct i40iw_device *iwdev, struct i40iw_qp *iwqp)
 	info.sq = true;
 	info.rq = true;
 	if (qp->term_flags) {
-		i40iw_set_flush_info(pinfo, &pinfo->sq_minor_code,
+		i40iw_set_flush_info(pinfo, &pinfo->sq_miyesr_code,
 				     &pinfo->sq_major_code, qp->flush_code);
-		i40iw_set_flush_info(pinfo, &pinfo->rq_minor_code,
+		i40iw_set_flush_info(pinfo, &pinfo->rq_miyesr_code,
 				     &pinfo->rq_major_code, qp->flush_code);
 	}
 	(void)i40iw_hw_flush_wqes(iwdev, &iwqp->sc_qp, &info, true);

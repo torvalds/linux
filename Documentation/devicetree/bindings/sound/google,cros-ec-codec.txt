@@ -3,7 +3,7 @@ Audio codec controlled by ChromeOS EC
 Google's ChromeOS EC codec is a digital mic codec provided by the
 Embedded Controller (EC) and is controlled via a host-command interface.
 
-An EC codec node should only be found as a sub-node of the EC node (see
+An EC codec yesde should only be found as a sub-yesde of the EC yesde (see
 Documentation/devicetree/bindings/mfd/cros-ec.txt).
 
 Required properties:
@@ -26,7 +26,7 @@ Example:
 	reserved_mem: reserved_mem {
 		compatible = "shared-dma-pool";
 		reg = <0 0x52800000 0 0x100000>;
-		no-map;
+		yes-map;
 	};
 }
 

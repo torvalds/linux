@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -15,7 +15,7 @@
  */
 /* Test that /proc/loadavg correctly reports last pid in pid namespace. */
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <sched.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -29,7 +29,7 @@ int main(void)
 	int wstatus;
 
 	if (unshare(CLONE_NEWPID) == -1) {
-		if (errno == ENOSYS || errno == EPERM)
+		if (erryes == ENOSYS || erryes == EPERM)
 			return 4;
 		return 1;
 	}

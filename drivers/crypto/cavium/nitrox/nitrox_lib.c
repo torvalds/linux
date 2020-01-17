@@ -103,14 +103,14 @@ static int nitrox_alloc_aqm_queues(struct nitrox_device *ndev)
 		struct nitrox_cmdq *cmdq;
 		u64 offset;
 
-		cmdq = kzalloc_node(sizeof(*cmdq), GFP_KERNEL, ndev->node);
+		cmdq = kzalloc_yesde(sizeof(*cmdq), GFP_KERNEL, ndev->yesde);
 		if (!cmdq) {
 			err = -ENOMEM;
 			goto aqmq_fail;
 		}
 
 		cmdq->ndev = ndev;
-		cmdq->qno = i;
+		cmdq->qyes = i;
 		cmdq->instr_size = sizeof(struct aqmq_command_s);
 
 		/* AQM Queue Doorbell Counter Register Address */
@@ -152,9 +152,9 @@ static int nitrox_alloc_pktin_queues(struct nitrox_device *ndev)
 {
 	int i, err;
 
-	ndev->pkt_inq = kcalloc_node(ndev->nr_queues,
+	ndev->pkt_inq = kcalloc_yesde(ndev->nr_queues,
 				     sizeof(struct nitrox_cmdq),
-				     GFP_KERNEL, ndev->node);
+				     GFP_KERNEL, ndev->yesde);
 	if (!ndev->pkt_inq)
 		return -ENOMEM;
 
@@ -164,7 +164,7 @@ static int nitrox_alloc_pktin_queues(struct nitrox_device *ndev)
 
 		cmdq = &ndev->pkt_inq[i];
 		cmdq->ndev = ndev;
-		cmdq->qno = i;
+		cmdq->qyes = i;
 		cmdq->instr_size = sizeof(struct nps_pkt_instr);
 
 		/* packet input ring doorbell address */

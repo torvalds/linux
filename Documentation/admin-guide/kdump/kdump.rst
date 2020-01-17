@@ -22,7 +22,7 @@ s390x, arm and arm64 architectures.
 
 When the system kernel boots, it reserves a small section of memory for
 the dump-capture kernel. This ensures that ongoing Direct Memory Access
-(DMA) from the system kernel does not corrupt the dump-capture kernel.
+(DMA) from the system kernel does yest corrupt the dump-capture kernel.
 The kexec -p command loads the dump-capture kernel into this reserved
 memory.
 
@@ -36,7 +36,7 @@ size kexec backs up the first 64KB memory.
 
 For s390x, when kdump is triggered, the crashkernel region is exchanged
 with the region [0, crashkernel region size] and then the kdump kernel
-runs in [0, crashkernel region size]. Therefore no relocatable kernel is
+runs in [0, crashkernel region size]. Therefore yes relocatable kernel is
 needed for s390x.
 
 All of the necessary information about the system kernel's core image is
@@ -109,13 +109,13 @@ There are two possible methods of using Kdump.
    kernel core dump.
 
 2) Or use the system kernel binary itself as dump-capture kernel and there is
-   no need to build a separate dump-capture kernel. This is possible
+   yes need to build a separate dump-capture kernel. This is possible
    only with the architectures which support a relocatable kernel. As
    of today, i386, x86_64, ppc64, ia64, arm and arm64 architectures support
    relocatable kernel.
 
 Building a relocatable kernel is advantageous from the point of view that
-one does not have to build a second kernel for capturing the dump. But
+one does yest have to build a second kernel for capturing the dump. But
 at the same time one might want to build a custom dump capture kernel
 suitable to his needs.
 
@@ -134,9 +134,9 @@ System kernel config options
 
 	CONFIG_SYSFS=y
 
-   Note that "sysfs file system support" might not appear in the "Pseudo
+   Note that "sysfs file system support" might yest appear in the "Pseudo
    filesystems" menu if "Configure standard kernel features (for small
-   systems)" is not enabled in "General Setup." In this case, check the
+   systems)" is yest enabled in "General Setup." In this case, check the
    .config file itself to ensure that sysfs is turned on, as follows::
 
 	grep 'CONFIG_SYSFS' .config
@@ -193,7 +193,7 @@ Dump-capture kernel config options (Arch Dependent, i386 and x86_64)
 4) Use a suitable value for "Physical address where the kernel is
    loaded" (under "Processor type and features"). This only appears when
    "kernel crash dumps" is enabled. A suitable value depends upon
-   whether kernel is relocatable or not.
+   whether kernel is relocatable or yest.
 
    If you are using a relocatable kernel use CONFIG_PHYSICAL_START=0x100000
    This will compile the kernel for physical address 1MB, but given the fact
@@ -241,8 +241,8 @@ Dump-capture kernel config options (Arch Dependent, ia64)
 
 	crashkernel=256M
 
-  If the start address is specified, note that the start address of the
-  kernel will be aligned to 64Mb, so if the start address is not then
+  If the start address is specified, yeste that the start address of the
+  kernel will be aligned to 64Mb, so if the start address is yest then
   any space below the alignment point will be wasted.
 
 Dump-capture kernel config options (Arch Dependent, arm)
@@ -256,9 +256,9 @@ Dump-capture kernel config options (Arch Dependent, arm)
 Dump-capture kernel config options (Arch Dependent, arm64)
 ----------------------------------------------------------
 
-- Please note that kvm of the dump-capture kernel will not be enabled
-  on non-VHE systems even if it is configured. This is because the CPU
-  will not be reset to EL2 on panic.
+- Please yeste that kvm of the dump-capture kernel will yest be enabled
+  on yesn-VHE systems even if it is configured. This is because the CPU
+  will yest be reset to EL2 on panic.
 
 Extended crashkernel syntax
 ===========================
@@ -305,16 +305,16 @@ Boot into System Kernel
 
    On ia64, 256M@256M is a generous value that typically works.
    The region may be automatically placed on ia64, see the
-   dump-capture kernel config option notes above.
+   dump-capture kernel config option yestes above.
    If use sparse memory, the size should be rounded to GRANULE boundaries.
 
    On s390x, typically use "crashkernel=xxM". The value of xx is dependent
-   on the memory consumption of the kdump system. In general this is not
+   on the memory consumption of the kdump system. In general this is yest
    dependent on the memory size of the production system.
 
-   On arm, the use of "crashkernel=Y@X" is no longer necessary; the
+   On arm, the use of "crashkernel=Y@X" is yes longer necessary; the
    kernel will automatically locate the crash kernel image within the
-   first 512MB of RAM if X is not given.
+   first 512MB of RAM if X is yest given.
 
    On arm64, use "crashkernel=Y[@X]".  Note that the start address of
    the kernel, X if explicitly specified, must be aligned to 2MiB (0x200000).
@@ -325,13 +325,13 @@ Load the Dump-capture Kernel
 After booting to the system kernel, dump-capture kernel needs to be
 loaded.
 
-Based on the architecture and type of image (relocatable or not), one
+Based on the architecture and type of image (relocatable or yest), one
 can choose to load the uncompressed vmlinux or compressed bzImage/vmlinuz
 of dump-capture kernel. Following is the summary.
 
 For i386 and x86_64:
 
-	- Use vmlinux if kernel is not relocatable.
+	- Use vmlinux if kernel is yest relocatable.
 	- Use bzImage/vmlinuz if kernel is relocatable.
 
 For ppc64:
@@ -383,8 +383,8 @@ to load dump-capture kernel::
    --initrd=<initrd-for-dump-capture-kernel> \
    --append="root=<root-dev> <arch-specific-options>"
 
-Please note, that --args-linux does not need to be specified for ia64.
-It is planned to make this a no-op on that architecture, but for now
+Please yeste, that --args-linux does yest need to be specified for ia64.
+It is planned to make this a yes-op on that architecture, but for yesw
 it should be omitted
 
 Following are the arch specific command line options to be used while
@@ -396,7 +396,7 @@ For i386, x86_64 and ia64:
 
 For ppc64:
 
-	"1 maxcpus=1 noirqdistrib reset_devices"
+	"1 maxcpus=1 yesirqdistrib reset_devices"
 
 For s390x:
 
@@ -414,11 +414,11 @@ Notes on loading the dump-capture kernel:
 
 * By default, the ELF headers are stored in ELF64 format to support
   systems with more than 4GB memory. On i386, kexec automatically checks if
-  the physical RAM size exceeds the 4 GB limit and if not, uses ELF32.
-  So, on non-PAE systems, ELF32 is always used.
+  the physical RAM size exceeds the 4 GB limit and if yest, uses ELF32.
+  So, on yesn-PAE systems, ELF32 is always used.
 
   The --elf32-core-headers option can be used to force the generation of ELF32
-  headers. This is necessary because GDB currently cannot open vmcore files
+  headers. This is necessary because GDB currently canyest open vmcore files
   with ELF64 headers on 32-bit systems.
 
 * The "irqpoll" boot parameter reduces driver initialization failures
@@ -445,14 +445,14 @@ Notes on loading the dump-capture kernel:
 
 * For s390x there are two kdump modes: If a ELF header is specified with
   the elfcorehdr= kernel parameter, it is used by the kdump kernel as it
-  is done on all other architectures. If no elfcorehdr= kernel parameter is
+  is done on all other architectures. If yes elfcorehdr= kernel parameter is
   specified, the s390x kdump kernel dynamically creates the header. The
   second mode has the advantage that for CPU and memory hotplug, kdump has
-  not to be reloaded with kexec_load().
+  yest to be reloaded with kexec_load().
 
-* For s390x systems with many attached devices the "cio_ignore" kernel
+* For s390x systems with many attached devices the "cio_igyesre" kernel
   parameter should be used for the kdump kernel in order to prevent allocation
-  of kernel memory for devices that are not relevant for kdump. The same
+  of kernel memory for devices that are yest relevant for kdump. The same
   applies to systems that use SCSI/FCP devices. In that case the
   "allow_lun_scan" zfcp module parameter should be set to zero before
   setting FCP devices online.
@@ -503,7 +503,7 @@ command::
 Stack trace for the task on processor 0, register display, and memory
 display work fine.
 
-Note: GDB cannot analyze core files generated in ELF64 format for x86.
+Note: GDB canyest analyze core files generated in ELF64 format for x86.
 On systems with a maximum of 4GB of memory, you can generate
 ELF32-format headers using the --elf32-core-headers kernel option on the
 dump kernel.

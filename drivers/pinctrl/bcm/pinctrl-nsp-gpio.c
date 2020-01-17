@@ -157,7 +157,7 @@ static irqreturn_t nsp_gpio_irq_handler(int irq, void *data)
 		for_each_set_bit(bit, &int_bits, gc->ngpio) {
 			/*
 			 * Clear the interrupt before invoking the
-			 * handler, so we do not leave any window
+			 * handler, so we do yest leave any window
 			 */
 			writel(BIT(bit), chip->base + NSP_GPIO_EVENT);
 			generic_handle_irq(
@@ -347,7 +347,7 @@ static const char *nsp_get_group_name(struct pinctrl_dev *pctldev,
 static const struct pinctrl_ops nsp_pctrl_ops = {
 	.get_groups_count = nsp_get_groups_count,
 	.get_group_name = nsp_get_group_name,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -618,7 +618,7 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 	u32 val;
 	int irq, ret;
 
-	if (of_property_read_u32(pdev->dev.of_node, "ngpios", &val)) {
+	if (of_property_read_u32(pdev->dev.of_yesde, "ngpios", &val)) {
 		dev_err(&pdev->dev, "Missing ngpios OF property\n");
 		return -ENODEV;
 	}
@@ -649,7 +649,7 @@ static int nsp_gpio_probe(struct platform_device *pdev)
 	gc->ngpio = val;
 	gc->label = dev_name(dev);
 	gc->parent = dev;
-	gc->of_node = dev->of_node;
+	gc->of_yesde = dev->of_yesde;
 	gc->request = gpiochip_generic_request;
 	gc->free = gpiochip_generic_free;
 	gc->direction_input = nsp_gpio_direction_input;

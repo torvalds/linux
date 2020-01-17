@@ -787,7 +787,7 @@
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 
@@ -801,7 +801,7 @@
 	bus-width = <4>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
 	power-supply = <&wifi_pwr_en>;
-	non-removable;
+	yesn-removable;
 	disable-wp;
 	cap-sdio-irq;
 	keep-power-in-suspend;

@@ -26,12 +26,12 @@
 #ifndef __pure
 #define  __pure		__attribute__((pure))
 #endif
-#define  noinline	__attribute__((noinline))
+#define  yesinline	__attribute__((yesinline))
 #ifndef __packed
 #define __packed	__attribute__((packed))
 #endif
-#ifndef __noreturn
-#define __noreturn	__attribute__((noreturn))
+#ifndef __yesreturn
+#define __yesreturn	__attribute__((yesreturn))
 #endif
 #ifndef __aligned
 #define __aligned(x)	__attribute__((aligned(x)))

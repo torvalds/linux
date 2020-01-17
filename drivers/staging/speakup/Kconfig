@@ -17,7 +17,7 @@ config SPEAKUP
 		appollo II., Auddapter, Braille 'n Speak, Dectalk
 		external (old), Dectalk PC (full length isa board),
 		Dectalk express, Doubletalk, Doubletalk LT or
-		Litetalk, Keynote Gold internal PC, software
+		Litetalk, Keyyeste Gold internal PC, software
 		synthesizers, Speakout, transport, and a dummy module
 		that can be used with a plain text terminal.
 
@@ -28,7 +28,7 @@ config SPEAKUP
 		the synthesizer drivers below can only be built as
 		modules.
 
-		These drivers are not standalone drivers, but must be
+		These drivers are yest standalone drivers, but must be
 		used in conjunction with Speakup.  Think of them as
 		video cards for blind people.
 
@@ -38,7 +38,7 @@ config SPEAKUP
 		the module can be loaded.  See the decpc choice below
 		for more details.
 
-		If you are not a blind person, or don't have access to
+		If you are yest a blind person, or don't have access to
 		one of the listed synthesizers, you should say n.
 
 if SPEAKUP
@@ -118,7 +118,7 @@ config SPEAKUP_SYNTH_DECPC
 		the pub/linux/goodies directory.  The dec_pc.tgz file
 		contains the software which must be pre-loaded on to the
 		DecTalk PC board in order to use it with this driver.
-		This driver must be built as a module, and can not be
+		This driver must be built as a module, and can yest be
 		loaded until the file system is mounted and the DecTalk
 		PC software has been pre-loaded on to the board.
 
@@ -137,11 +137,11 @@ config SPEAKUP_SYNTH_DTLK
 		info.
 
 config SPEAKUP_SYNTH_KEYPC
-	tristate "Keynote Gold PC synthesizer support"
+	tristate "Keyyeste Gold PC synthesizer support"
 	depends on ISA || COMPILE_TEST
 	help
 
-		This is the Speakup driver for the Keynote Gold
+		This is the Speakup driver for the Keyyeste Gold
 		PC synthesizer.  You can say y to build it into the
 		kernel, or m to build it as a module.  See the
 		configuration help on the Speakup choice above for more
@@ -161,7 +161,7 @@ config SPEAKUP_SYNTH_SOFT
 	tristate "Userspace software synthesizer support"
 	help
 
-		This is the software synthesizer device node.  It will
+		This is the software synthesizer device yesde.  It will
 		register a device /dev/softsynth which midware programs
 		and speech daemons may open and read to provide kernel
 		output to software synths such as espeak, festival,

@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -84,7 +84,7 @@ enum iwl_mac_context_info {
 /**
  * struct iwl_rx_phy_info - phy info
  * (REPLY_RX_PHY_CMD = 0xc0)
- * @non_cfg_phy_cnt: non configurable DSP phy data byte count
+ * @yesn_cfg_phy_cnt: yesn configurable DSP phy data byte count
  * @cfg_phy_cnt: configurable DSP phy data byte count
  * @stat_id: configurable DSP phy data set ID
  * @reserved1: reserved
@@ -93,7 +93,7 @@ enum iwl_mac_context_info {
  * @beacon_time_stamp: beacon at on-air rise
  * @phy_flags: general phy flags: band, modulation, ...
  * @channel: channel number
- * @non_cfg_phy: for various implementations of non_cfg_phy
+ * @yesn_cfg_phy: for various implementations of yesn_cfg_phy
  * @rate_n_flags: RATE_MCS_*
  * @byte_count: frame's byte-count
  * @frame_time: frame's time on the air, based on byte count and frame rate
@@ -106,7 +106,7 @@ enum iwl_mac_context_info {
  * about the reception of the packet.
  */
 struct iwl_rx_phy_info {
-	u8 non_cfg_phy_cnt;
+	u8 yesn_cfg_phy_cnt;
 	u8 cfg_phy_cnt;
 	u8 stat_id;
 	u8 reserved1;
@@ -115,7 +115,7 @@ struct iwl_rx_phy_info {
 	__le32 beacon_time_stamp;
 	__le16 phy_flags;
 	__le16 channel;
-	__le32 non_cfg_phy[IWL_RX_INFO_PHY_CNT];
+	__le32 yesn_cfg_phy[IWL_RX_INFO_PHY_CNT];
 	__le32 rate_n_flags;
 	__le32 byte_count;
 	u8 mac_active_msk;
@@ -181,18 +181,18 @@ enum iwl_rx_phy_flags {
 /**
  * enum iwl_mvm_rx_status - written by fw for each Rx packet
  * @RX_MPDU_RES_STATUS_CRC_OK: CRC is fine
- * @RX_MPDU_RES_STATUS_OVERRUN_OK: there was no RXE overflow
+ * @RX_MPDU_RES_STATUS_OVERRUN_OK: there was yes RXE overflow
  * @RX_MPDU_RES_STATUS_SRC_STA_FOUND: station was found
  * @RX_MPDU_RES_STATUS_KEY_VALID: key was valid
  * @RX_MPDU_RES_STATUS_KEY_PARAM_OK: key parameters were usable
- * @RX_MPDU_RES_STATUS_ICV_OK: ICV is fine, if not, the packet is destroyed
+ * @RX_MPDU_RES_STATUS_ICV_OK: ICV is fine, if yest, the packet is destroyed
  * @RX_MPDU_RES_STATUS_MIC_OK: used for CCM alg only. TKIP MIC is checked
  *	in the driver.
  * @RX_MPDU_RES_STATUS_TTAK_OK: TTAK is fine
  * @RX_MPDU_RES_STATUS_MNG_FRAME_REPLAY_ERR:  valid for alg = CCM_CMAC or
  *	alg = CCM only. Checks replay attack for 11w frames. Relevant only if
  *	%RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME is set.
- * @RX_MPDU_RES_STATUS_SEC_NO_ENC: this frame is not encrypted
+ * @RX_MPDU_RES_STATUS_SEC_NO_ENC: this frame is yest encrypted
  * @RX_MPDU_RES_STATUS_SEC_WEP_ENC: this frame is encrypted using WEP
  * @RX_MPDU_RES_STATUS_SEC_CCM_ENC: this frame is encrypted using CCM
  * @RX_MPDU_RES_STATUS_SEC_TKIP_ENC: this frame is encrypted using TKIP
@@ -206,7 +206,7 @@ enum iwl_rx_phy_flags {
  * @RX_MPDU_RES_STATUS_KEY_ID_CMP_BIT: key ID comparison done
  * @RX_MPDU_RES_STATUS_ROBUST_MNG_FRAME: this frame is an 11w management frame
  * @RX_MPDU_RES_STATUS_CSUM_DONE: checksum was done by the hw
- * @RX_MPDU_RES_STATUS_CSUM_OK: checksum found no errors
+ * @RX_MPDU_RES_STATUS_CSUM_OK: checksum found yes errors
  * @RX_MPDU_RES_STATUS_STA_ID_MSK: station ID mask
  * @RX_MDPU_RES_STATUS_STA_ID_SHIFT: station ID bit shift
  */
@@ -338,7 +338,7 @@ enum iwl_rx_mpdu_phy_info {
 	IWL_RX_MPDU_PHY_AMPDU		= BIT(5),
 	IWL_RX_MPDU_PHY_AMPDU_TOGGLE	= BIT(6),
 	IWL_RX_MPDU_PHY_SHORT_PREAMBLE	= BIT(7),
-	/* short preamble is only for CCK, for non-CCK overridden by this */
+	/* short preamble is only for CCK, for yesn-CCK overridden by this */
 	IWL_RX_MPDU_PHY_NCCK_ADDTL_NTFY	= BIT(7),
 	IWL_RX_MPDU_PHY_TSF_OVERLOAD	= BIT(8),
 };
@@ -723,7 +723,7 @@ struct iwl_rx_mpdu_desc {
 #define RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK	0x38000000
 
 /**
- * struct iwl_rx_no_data - RX no data descriptor
+ * struct iwl_rx_yes_data - RX yes data descriptor
  * @info: 7:0 frame type, 15:8 RX error type
  * @rssi: 7:0 energy chain-A,
  *	15:8 chain-B, measured at FINA time (FINA_ENERGY), 16:23 channel
@@ -735,7 +735,7 @@ struct iwl_rx_mpdu_desc {
  *	for VHT: OFDM_RX_VECTOR_SIGA1_OUT, OFDM_RX_VECTOR_SIGA2_OUT
  *	for HE: OFDM_RX_VECTOR_HE_SIGA1_OUT, OFDM_RX_VECTOR_HE_SIGA2_OUT
  */
-struct iwl_rx_no_data {
+struct iwl_rx_yes_data {
 	__le32 info;
 	__le32 rssi;
 	__le32 on_air_rise_time;
@@ -764,7 +764,7 @@ enum iwl_bar_frame_release_sta_tid {
 /**
  * enum iwl_bar_frame_release_ba_info - BA information for BAR release
  * @IWL_BAR_FRAME_RELEASE_NSSN_MASK: NSSN mask
- * @IWL_BAR_FRAME_RELEASE_SN_MASK: SN mask (ignored by driver)
+ * @IWL_BAR_FRAME_RELEASE_SN_MASK: SN mask (igyesred by driver)
  * @IWL_BAR_FRAME_RELEASE_BAID_MASK: BAID mask
  */
 enum iwl_bar_frame_release_ba_info {
@@ -817,10 +817,10 @@ struct iwl_rss_config_cmd {
 #define IWL_MULTI_QUEUE_SYNC_SENDER_MSK 0xf
 
 /**
- * struct iwl_rxq_sync_cmd - RXQ notification trigger
+ * struct iwl_rxq_sync_cmd - RXQ yestification trigger
  *
- * @flags: flags of the notification. bit 0:3 are the sender queue
- * @rxq_mask: rx queues to send the notification on
+ * @flags: flags of the yestification. bit 0:3 are the sender queue
+ * @rxq_mask: rx queues to send the yestification on
  * @count: number of bytes in payload, should be DWORD aligned
  * @payload: data to send to rx queues
  */
@@ -832,41 +832,41 @@ struct iwl_rxq_sync_cmd {
 } __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_rxq_sync_notification - Notification triggered by RXQ
+ * struct iwl_rxq_sync_yestification - Notification triggered by RXQ
  * sync command
  *
  * @count: number of bytes in payload
  * @payload: data to send to rx queues
  */
-struct iwl_rxq_sync_notification {
+struct iwl_rxq_sync_yestification {
 	__le32 count;
 	u8 payload[];
 } __packed; /* MULTI_QUEUE_DRV_SYNC_HDR_CMD_API_S_VER_1 */
 
 /**
- * enum iwl_mvm_rxq_notif_type - Internal message identifier
+ * enum iwl_mvm_rxq_yestif_type - Internal message identifier
  *
- * @IWL_MVM_RXQ_EMPTY: empty sync notification
- * @IWL_MVM_RXQ_NOTIF_DEL_BA: notify RSS queues of delBA
- * @IWL_MVM_RXQ_NSSN_SYNC: notify all the RSS queues with the new NSSN
+ * @IWL_MVM_RXQ_EMPTY: empty sync yestification
+ * @IWL_MVM_RXQ_NOTIF_DEL_BA: yestify RSS queues of delBA
+ * @IWL_MVM_RXQ_NSSN_SYNC: yestify all the RSS queues with the new NSSN
  */
-enum iwl_mvm_rxq_notif_type {
+enum iwl_mvm_rxq_yestif_type {
 	IWL_MVM_RXQ_EMPTY,
 	IWL_MVM_RXQ_NOTIF_DEL_BA,
 	IWL_MVM_RXQ_NSSN_SYNC,
 };
 
 /**
- * struct iwl_mvm_internal_rxq_notif - Internal representation of the data sent
+ * struct iwl_mvm_internal_rxq_yestif - Internal representation of the data sent
  * in &iwl_rxq_sync_cmd. Should be DWORD aligned.
- * FW is agnostic to the payload, so there are no endianity requirements.
+ * FW is agyesstic to the payload, so there are yes endianity requirements.
  *
- * @type: value from &iwl_mvm_rxq_notif_type
- * @sync: ctrl path is waiting for all notifications to be received
- * @cookie: internal cookie to identify old notifications
+ * @type: value from &iwl_mvm_rxq_yestif_type
+ * @sync: ctrl path is waiting for all yestifications to be received
+ * @cookie: internal cookie to identify old yestifications
  * @data: payload
  */
-struct iwl_mvm_internal_rxq_notif {
+struct iwl_mvm_internal_rxq_yestif {
 	u16 type;
 	u16 sync;
 	u32 cookie;
@@ -888,11 +888,11 @@ enum iwl_mvm_pm_event {
 }; /* PEER_PM_NTFY_API_E_VER_1 */
 
 /**
- * struct iwl_mvm_pm_state_notification - station PM state notification
+ * struct iwl_mvm_pm_state_yestification - station PM state yestification
  * @sta_id: station ID of the station changing state
  * @type: the new powersave state, see &enum iwl_mvm_pm_event
  */
-struct iwl_mvm_pm_state_notification {
+struct iwl_mvm_pm_state_yestification {
 	u8 sta_id;
 	u8 type;
 	/* private: */
@@ -906,13 +906,13 @@ struct iwl_mvm_pm_state_notification {
 #define BA_WINDOW_STATUS_VALID_MSK	BIT(9)
 
 /**
- * struct iwl_ba_window_status_notif - reordering window's status notification
+ * struct iwl_ba_window_status_yestif - reordering window's status yestification
  * @bitmap: bitmap of received frames [start_seq_num + 0]..[start_seq_num + 63]
  * @ra_tid: bit 3:0 - TID, bit 8:4 - STA_ID, bit 9 - valid
  * @start_seq_num: the start sequence number of the bitmap
  * @mpdu_rx_count: the number of received MPDUs since entering D0i3
  */
-struct iwl_ba_window_status_notif {
+struct iwl_ba_window_status_yestif {
 	__le64 bitmap[BA_WINDOW_STREAMS_MAX];
 	__le16 ra_tid[BA_WINDOW_STREAMS_MAX];
 	__le32 start_seq_num[BA_WINDOW_STREAMS_MAX];

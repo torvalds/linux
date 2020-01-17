@@ -7,14 +7,14 @@
 /*
  * Description:
  *   Driver for the USB-P1K voip usb phone.
- *   This device is produced by Yealink Network Technology Co Ltd
+ *   This device is produced by Yealink Network Techyeslogy Co Ltd
  *   but may be branded under several names:
  *	- Yealink usb-p1k
  *	- Tiptel 115
  *	- ...
  *
  * This driver is based on:
- *   - the usbb2k-api	http://savannah.nongnu.org/projects/usbb2k-api/
+ *   - the usbb2k-api	http://savannah.yesngnu.org/projects/usbb2k-api/
  *   - information from	http://memeteau.free.fr/usbb2k
  *   - the xpad-driver	drivers/input/joystick/xpad.c
  *
@@ -123,7 +123,7 @@ struct yealink_dev {
 static SEG7_DEFAULT_MAP(map_seg7);
 
  /* Display a char,
-  * char '\9' and '\n' are placeholders and do not overwrite the original text.
+  * char '\9' and '\n' are placeholders and do yest overwrite the original text.
   * A space will always hide an icon.
   */
 static int setChar(struct yealink_dev *yld, int el, int chr)
@@ -336,7 +336,7 @@ static int yealink_do_idle_tasks(struct yealink_dev *yld)
 			goto send_update;
 	} while (++ix < sizeof(yld->master));
 
-	/* nothing todo, wait a bit and poll for a KEYPRESS */
+	/* yesthing todo, wait a bit and poll for a KEYPRESS */
 	yld->stat_ix = 0;
 	/* TODO how can we wait abit. ??
 	 * msleep_interruptible(1000 / YEALINK_POLLING_FREQUENCY);
@@ -508,7 +508,7 @@ static int input_open(struct input_dev *dev)
 	/* force updates to device */
 	for (i = 0; i<sizeof(yld->master); i++)
 		yld->copy.b[i] = ~yld->master.b[i];
-	yld->key_code = -1;	/* no keys pressed */
+	yld->key_code = -1;	/* yes keys pressed */
 
         yealink_set_ringtone(yld, default_ringtone, sizeof(default_ringtone));
 
@@ -621,10 +621,10 @@ static ssize_t show_line3(struct device *dev, struct device_attribute *attr,
 }
 
 /* Writing to /sys/../lineX will set the coresponding LCD line.
- * - Excess characters are ignored.
+ * - Excess characters are igyesred.
  * - If less characters are written than allowed, the remaining digits are
  *   unchanged.
- * - The '\n' or '\t' char is a placeholder, it does not overwrite the
+ * - The '\n' or '\t' char is a placeholder, it does yest overwrite the
  *   original content.
  */
 static ssize_t store_line(struct device *dev, const char *buf, size_t count,

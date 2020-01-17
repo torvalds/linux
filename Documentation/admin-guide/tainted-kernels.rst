@@ -3,17 +3,17 @@ Tainted kernels
 
 The kernel will mark itself as 'tainted' when something occurs that might be
 relevant later when investigating problems. Don't worry too much about this,
-most of the time it's not a problem to run a tainted kernel; the information is
+most of the time it's yest a problem to run a tainted kernel; the information is
 mainly of interest once someone wants to investigate some problem, as its real
 cause might be the event that got the kernel tainted. That's why bug reports
-from tainted kernels will often be ignored by developers, hence try to reproduce
+from tainted kernels will often be igyesred by developers, hence try to reproduce
 problems with an untainted kernel.
 
 Note the kernel will remain tainted even after you undo what caused the taint
-(i.e. unload a proprietary kernel module), to indicate the kernel remains not
+(i.e. unload a proprietary kernel module), to indicate the kernel remains yest
 trustworthy. That's also why the kernel will print the tainted state when it
-notices an internal problem (a 'kernel bug'), a recoverable error
-('kernel oops') or a non-recoverable error ('kernel panic') and writes debug
+yestices an internal problem (a 'kernel bug'), a recoverable error
+('kernel oops') or a yesn-recoverable error ('kernel panic') and writes debug
 information about this to the logs ``dmesg`` outputs. It's also possible to
 check the tainted state at runtime through a file in ``/proc/``.
 
@@ -32,7 +32,7 @@ name of the command ('Comm:') that triggered the event::
 	RIP: 0010:my_oops_init+0x13/0x1000 [kpanic]
 	[...]
 
-You'll find a 'Not tainted: ' there if the kernel was not tainted at the
+You'll find a 'Not tainted: ' there if the kernel was yest tainted at the
 time of the event; if it was, then it will print 'Tainted: ' and characters
 either letters or blanks. In above example it looks like this::
 
@@ -48,7 +48,7 @@ Decoding tainted state at runtime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 At runtime, you can query the tainted state by reading
-``cat /proc/sys/kernel/tainted``. If that returns ``0``, the kernel is not
+``cat /proc/sys/kernel/tainted``. If that returns ``0``, the kernel is yest
 tainted; any other number indicates the reasons why it is. The easiest way to
 decode that number is the script ``tools/debugging/kernel-chktaint``, which your
 distribution might ship as part of a package called ``linux-tools`` or
@@ -110,22 +110,22 @@ More detailed explanation for tainting
 
  0)  ``G`` if all modules loaded have a GPL or compatible license, ``P`` if
      any proprietary module has been loaded.  Modules without a
-     MODULE_LICENSE or with a MODULE_LICENSE that is not recognised by
+     MODULE_LICENSE or with a MODULE_LICENSE that is yest recognised by
      insmod as GPL compatible are assumed to be proprietary.
 
  1)  ``F`` if any module was force loaded by ``insmod -f``, ``' '`` if all
-     modules were loaded normally.
+     modules were loaded yesrmally.
 
  2)  ``S`` if the oops occurred on an SMP kernel running on hardware that
      hasn't been certified as safe to run multiprocessor.
-     Currently this occurs only on various Athlons that are not
+     Currently this occurs only on various Athlons that are yest
      SMP capable.
 
  3)  ``R`` if a module was force unloaded by ``rmmod -f``, ``' '`` if all
-     modules were unloaded normally.
+     modules were unloaded yesrmally.
 
  4)  ``M`` if any processor has reported a Machine Check Exception,
-     ``' '`` if no Machine Check Exceptions have occurred.
+     ``' '`` if yes Machine Check Exceptions have occurred.
 
  5)  ``B`` If a page-release function has found a bad page reference or some
      unexpected page flags. This indicates a hardware problem or a kernel bug;
@@ -160,5 +160,5 @@ More detailed explanation for tainting
 
  17) ``T`` Kernel was build with the randstruct plugin, which can intentionally
      produce extremely unusual kernel structure layouts (even performance
-     pathological ones), which is important to know when debugging. Set at
+     pathological ones), which is important to kyesw when debugging. Set at
      build time.

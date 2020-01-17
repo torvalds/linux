@@ -218,7 +218,7 @@ static irqreturn_t ad5421_fault_handler(int irq, void *data)
 
 
 	/* The fault pin stays high as long as a fault condition is present and
-	 * it is not possible to mask fault conditions. For certain fault
+	 * it is yest possible to mask fault conditions. For certain fault
 	 * conditions for example like over-temperature it takes some time
 	 * until the fault condition disappears. If we would exit the interrupt
 	 * handler immediately after handling the event it would be entered
@@ -279,7 +279,7 @@ static void ad5421_get_current_min_max(struct ad5421_state *st,
 	unsigned int *min, unsigned int *max)
 {
 	/* The current range is configured using external pins, which are
-	 * usually hard-wired and not run-time switchable. */
+	 * usually hard-wired and yest run-time switchable. */
 	switch (st->current_range) {
 	case AD5421_CURRENT_RANGE_4mA_20mA:
 		*min = 4000;

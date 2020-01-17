@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -148,7 +148,7 @@ void dce3_2_audio_set_dto(struct radeon_device *rdev,
 
 	/* Express [24MHz / target pixel clock] as an exact rational
 	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
-	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
+	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the deyesminator
 	 */
 	if (dig->dig_encoder == 0) {
 		dto_cntl = RREG32(DCCG_AUDIO_DTO0_CNTL) & ~DCCG_AUDIO_DTO_WALLCLOCK_RATIO_MASK;
@@ -206,7 +206,7 @@ void dce3_2_set_audio_packet(struct drm_encoder *encoder, u32 offset)
 
 	WREG32(HDMI0_AUDIO_PACKET_CONTROL + offset,
 		HDMI0_AUDIO_DELAY_EN(1) |			/* default audio delay */
-		HDMI0_AUDIO_PACKETS_PER_LINE(3));	/* should be suffient for all audio modes and small enough for all hblanks */
+		HDMI0_AUDIO_PACKETS_PER_LINE(3));	/* should be suffient for all audio modes and small eyesugh for all hblanks */
 
 	WREG32(AFMT_AUDIO_PACKET_CONTROL + offset,
 		AFMT_AUDIO_SAMPLE_SEND |			/* send audio packets */

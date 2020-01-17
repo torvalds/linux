@@ -56,10 +56,10 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 module_param(power_mode, bool, 0644);
-MODULE_PARM_DESC(power_mode, "Power mode enabled or not");
+MODULE_PARM_DESC(power_mode, "Power mode enabled or yest");
 
 module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
+MODULE_PARM_DESC(debug, "Debugging mode enabled or yest");
 
 #define CPQHPC_MODULE_MINOR 208
 
@@ -186,7 +186,7 @@ static void pci_print_IRQ_route(void)
  * otherwise, returns the next entry.
  * Uses global SMBIOS Table pointer.
  *
- * Returns a pointer to an SMBIOS structure or NULL if none found.
+ * Returns a pointer to an SMBIOS structure or NULL if yesne found.
  */
 static void __iomem *get_subsequent_smbios_entry(void __iomem *smbios_start,
 						void __iomem *smbios_table,
@@ -237,7 +237,7 @@ static void __iomem *get_subsequent_smbios_entry(void __iomem *smbios_start,
  * Uses global SMBIOS Table pointer.
  * Uses get_subsequent_smbios_entry.
  *
- * Returns a pointer to an SMBIOS structure or %NULL if none found.
+ * Returns a pointer to an SMBIOS structure or %NULL if yesne found.
  */
 static void __iomem *get_SMBIOS_entry(void __iomem *smbios_start,
 					void __iomem *smbios_table,
@@ -325,11 +325,11 @@ get_slot_mapping(struct pci_bus *bus, u8 bus_num, u8 dev_num, u8 *slot)
 			*slot = tslot;
 			return 0;
 		} else {
-			/* Did not get a match on the target PCI device. Check
+			/* Did yest get a match on the target PCI device. Check
 			 * if the current IRQ table entry is a PCI-to-PCI
 			 * bridge device.  If so, and it's secondary bus
 			 * matches the bus number for the target device, I need
-			 * to save the bridge's slot number.  If I can not find
+			 * to save the bridge's slot number.  If I can yest find
 			 * an entry for the target device, I will have to
 			 * assume it's on the other side of the bridge, and
 			 * assign it the bridge's slot.
@@ -694,7 +694,7 @@ static int one_time_init(void)
 	if (cpqhp_debug)
 		pci_print_IRQ_route();
 
-	dbg("Initialize + Start the notification mechanism\n");
+	dbg("Initialize + Start the yestification mechanism\n");
 
 	retval = cpqhp_event_start_thread();
 	if (retval)
@@ -711,7 +711,7 @@ static int one_time_init(void)
 	/* Map rom address */
 	cpqhp_rom_start = ioremap(ROM_PHY_ADDR, ROM_PHY_LEN);
 	if (!cpqhp_rom_start) {
-		err("Could not ioremap memory region for ROM\n");
+		err("Could yest ioremap memory region for ROM\n");
 		retval = -EIO;
 		goto error;
 	}
@@ -725,7 +725,7 @@ static int one_time_init(void)
 	smbios_table = detect_SMBIOS_pointer(cpqhp_rom_start,
 					cpqhp_rom_start + ROM_PHY_LEN);
 	if (!smbios_table) {
-		err("Could not find the SMBIOS pointer in memory\n");
+		err("Could yest find the SMBIOS pointer in memory\n");
 		retval = -EIO;
 		goto error_rom_start;
 	}
@@ -733,7 +733,7 @@ static int one_time_init(void)
 	smbios_start = ioremap(readl(smbios_table + ST_ADDRESS),
 					readw(smbios_table + ST_LENGTH));
 	if (!smbios_start) {
-		err("Could not ioremap memory region taken from SMBIOS values\n");
+		err("Could yest ioremap memory region taken from SMBIOS values\n");
 		retval = -EIO;
 		goto error_smbios_start;
 	}
@@ -768,14 +768,14 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR MY_NAME ": cannot enable PCI device %s (%d)\n",
+		printk(KERN_ERR MY_NAME ": canyest enable PCI device %s (%d)\n",
 			pci_name(pdev), err);
 		return err;
 	}
 
 	bus = pdev->subordinate;
 	if (!bus) {
-		pci_notice(pdev, "the device is not a bridge, skipping\n");
+		pci_yestice(pdev, "the device is yest a bridge, skipping\n");
 		rc = -ENODEV;
 		goto err_disable_device;
 	}
@@ -786,7 +786,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	vendor_id = pdev->vendor;
 	if ((vendor_id != PCI_VENDOR_ID_COMPAQ) &&
 	    (vendor_id != PCI_VENDOR_ID_INTEL)) {
-		err(msg_HPC_non_compaq_or_intel);
+		err(msg_HPC_yesn_compaq_or_intel);
 		rc = -ENODEV;
 		goto err_disable_device;
 	}
@@ -805,18 +805,18 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * Also Intel HPCs may have RID=0.
 	 */
 	if ((pdev->revision <= 2) && (vendor_id != PCI_VENDOR_ID_INTEL)) {
-		err(msg_HPC_not_supported);
+		err(msg_HPC_yest_supported);
 		rc = -ENODEV;
 		goto err_disable_device;
 	}
 
-	/* TODO: This code can be made to support non-Compaq or Intel
+	/* TODO: This code can be made to support yesn-Compaq or Intel
 	 * subsystem IDs
 	 */
 	subsystem_vid = pdev->subsystem_vendor;
 	dbg("Subsystem Vendor ID: %x\n", subsystem_vid);
 	if ((subsystem_vid != PCI_VENDOR_ID_COMPAQ) && (subsystem_vid != PCI_VENDOR_ID_INTEL)) {
-		err(msg_HPC_non_compaq_or_intel);
+		err(msg_HPC_yesn_compaq_or_intel);
 		rc = -ENODEV;
 		goto err_disable_device;
 	}
@@ -926,7 +926,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			ctrl->pcix_speed_capability = 0;
 			break;
 		default:
-			err(msg_HPC_not_supported);
+			err(msg_HPC_yest_supported);
 			rc = -ENODEV;
 			goto err_free_ctrl;
 		}
@@ -945,7 +945,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		else
 			ctrl->push_button = 1;
 
-		/* Check for slot switch type (0=mechanical, 1=not mechanical) */
+		/* Check for slot switch type (0=mechanical, 1=yest mechanical) */
 		if (subsystem_deviceid & 0x0004)
 			ctrl->slot_switch_type = 0;
 		else
@@ -955,17 +955,17 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (subsystem_deviceid & 0x0008)
 			ctrl->defeature_PHP = 1;	/* PHP supported */
 		else
-			ctrl->defeature_PHP = 0;	/* PHP not supported */
+			ctrl->defeature_PHP = 0;	/* PHP yest supported */
 
 		/* Alternate Base Address Register Interface
-		 * (0=not supported, 1=supported)
+		 * (0=yest supported, 1=supported)
 		 */
 		if (subsystem_deviceid & 0x0010)
 			ctrl->alternate_base_address = 1;
 		else
 			ctrl->alternate_base_address = 0;
 
-		/* PCI Config Space Index (0=not supported, 1=supported) */
+		/* PCI Config Space Index (0=yest supported, 1=supported) */
 		if (subsystem_deviceid & 0x0020)
 			ctrl->pci_config_space = 1;
 		else
@@ -989,7 +989,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 
 	default:
-		err(msg_HPC_not_supported);
+		err(msg_HPC_yest_supported);
 		rc = -ENODEV;
 		goto err_free_ctrl;
 	}
@@ -1001,17 +1001,17 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dbg("Hotplug controller capabilities:\n");
 	dbg("    speed_capability       %d\n", bus->max_bus_speed);
 	dbg("    slot_switch_type       %s\n", ctrl->slot_switch_type ?
-					"switch present" : "no switch");
+					"switch present" : "yes switch");
 	dbg("    defeature_PHP          %s\n", ctrl->defeature_PHP ?
-					"PHP supported" : "PHP not supported");
+					"PHP supported" : "PHP yest supported");
 	dbg("    alternate_base_address %s\n", ctrl->alternate_base_address ?
-					"supported" : "not supported");
+					"supported" : "yest supported");
 	dbg("    pci_config_space       %s\n", ctrl->pci_config_space ?
-					"supported" : "not supported");
+					"supported" : "yest supported");
 	dbg("    pcix_speed_capability  %s\n", ctrl->pcix_speed_capability ?
-					"supported" : "not supported");
+					"supported" : "yest supported");
 	dbg("    pcix_support           %s\n", ctrl->pcix_support ?
-					"supported" : "not supported");
+					"supported" : "yest supported");
 
 	ctrl->pci_dev = pdev;
 	pci_set_drvdata(pdev, ctrl);
@@ -1044,7 +1044,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (!request_mem_region(pci_resource_start(pdev, 0),
 				pci_resource_len(pdev, 0), MY_NAME)) {
-		err("cannot reserve MMIO region\n");
+		err("canyest reserve MMIO region\n");
 		rc = -ENOMEM;
 		goto err_free_bus;
 	}
@@ -1052,7 +1052,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ctrl->hpc_reg = ioremap(pci_resource_start(pdev, 0),
 					pci_resource_len(pdev, 0));
 	if (!ctrl->hpc_reg) {
-		err("cannot remap MMIO region %llx @ %llx\n",
+		err("canyest remap MMIO region %llx @ %llx\n",
 		    (unsigned long long)pci_resource_len(pdev, 0),
 		    (unsigned long long)pci_resource_start(pdev, 0));
 		rc = -ENODEV;
@@ -1344,7 +1344,7 @@ static void __exit unload_cpqphpd(void)
 		}
 	}
 
-	/* Stop the notification mechanism */
+	/* Stop the yestification mechanism */
 	if (initialized)
 		cpqhp_event_stop_thread();
 
@@ -1361,7 +1361,7 @@ static const struct pci_device_id hpcd_pci_tbl[] = {
 	.class =        ((PCI_CLASS_SYSTEM_PCI_HOTPLUG << 8) | 0x00),
 	.class_mask =   ~0,
 
-	/* no matter who makes it */
+	/* yes matter who makes it */
 	.vendor =       PCI_ANY_ID,
 	.device =       PCI_ANY_ID,
 	.subvendor =    PCI_ANY_ID,

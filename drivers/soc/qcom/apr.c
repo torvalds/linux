@@ -27,7 +27,7 @@ struct apr {
 };
 
 struct apr_rx_buf {
-	struct list_head node;
+	struct list_head yesde;
 	int len;
 	uint8_t buf[];
 };
@@ -90,7 +90,7 @@ static int apr_callback(struct rpmsg_device *rpdev, void *buf,
 	memcpy(abuf->buf, buf, len);
 
 	spin_lock_irqsave(&apr->rx_lock, flags);
-	list_add_tail(&abuf->node, &apr->rx_list);
+	list_add_tail(&abuf->yesde, &apr->rx_list);
 	spin_unlock_irqrestore(&apr->rx_lock, flags);
 
 	queue_work(apr->rxwq, &apr->rx_work);
@@ -148,7 +148,7 @@ static int apr_do_rx_callback(struct apr *apr, struct apr_rx_buf *abuf)
 	spin_unlock_irqrestore(&apr->svcs_lock, flags);
 
 	if (!adrv) {
-		dev_err(apr->dev, "APR: service is not registered\n");
+		dev_err(apr->dev, "APR: service is yest registered\n");
 		return -EINVAL;
 	}
 
@@ -156,8 +156,8 @@ static int apr_do_rx_callback(struct apr *apr, struct apr_rx_buf *abuf)
 	resp.payload_size = hdr->pkt_size - hdr_size;
 
 	/*
-	 * NOTE: hdr_size is not same as APR_HDR_SIZE as remote can include
-	 * optional headers in to apr_hdr which should be ignored
+	 * NOTE: hdr_size is yest same as APR_HDR_SIZE as remote can include
+	 * optional headers in to apr_hdr which should be igyesred
 	 */
 	if (resp.payload_size > 0)
 		resp.payload = buf + hdr_size;
@@ -174,10 +174,10 @@ static void apr_rxwq(struct work_struct *work)
 	unsigned long flags;
 
 	if (!list_empty(&apr->rx_list)) {
-		list_for_each_entry_safe(abuf, b, &apr->rx_list, node) {
+		list_for_each_entry_safe(abuf, b, &apr->rx_list, yesde) {
 			apr_do_rx_callback(apr, abuf);
 			spin_lock_irqsave(&apr->rx_lock, flags);
-			list_del(&abuf->node);
+			list_del(&abuf->yesde);
 			spin_unlock_irqrestore(&apr->rx_lock, flags);
 			kfree(abuf);
 		}
@@ -254,7 +254,7 @@ struct bus_type aprbus = {
 };
 EXPORT_SYMBOL_GPL(aprbus);
 
-static int apr_add_device(struct device *dev, struct device_node *np,
+static int apr_add_device(struct device *dev, struct device_yesde *np,
 			  const struct apr_device_id *id)
 {
 	struct apr *apr = dev_get_drvdata(dev);
@@ -280,7 +280,7 @@ static int apr_add_device(struct device *dev, struct device_node *np,
 
 	adev->dev.bus = &aprbus;
 	adev->dev.parent = dev;
-	adev->dev.of_node = np;
+	adev->dev.of_yesde = np;
 	adev->dev.release = apr_dev_release;
 	adev->dev.driver = NULL;
 
@@ -303,17 +303,17 @@ static int apr_add_device(struct device *dev, struct device_node *np,
 static void of_register_apr_devices(struct device *dev)
 {
 	struct apr *apr = dev_get_drvdata(dev);
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	for_each_child_of_node(dev->of_node, node) {
+	for_each_child_of_yesde(dev->of_yesde, yesde) {
 		struct apr_device_id id = { {0} };
 
-		if (of_property_read_u32(node, "reg", &id.svc_id))
+		if (of_property_read_u32(yesde, "reg", &id.svc_id))
 			continue;
 
 		id.domain_id = apr->dest_domain_id;
 
-		if (apr_add_device(dev, node, &id))
+		if (apr_add_device(dev, yesde, &id))
 			dev_err(dev, "Failed to add apr %d svc\n", id.svc_id);
 	}
 }
@@ -328,9 +328,9 @@ static int apr_probe(struct rpmsg_device *rpdev)
 	if (!apr)
 		return -ENOMEM;
 
-	ret = of_property_read_u32(dev->of_node, "qcom,apr-domain", &apr->dest_domain_id);
+	ret = of_property_read_u32(dev->of_yesde, "qcom,apr-domain", &apr->dest_domain_id);
 	if (ret) {
-		dev_err(dev, "APR Domain ID not specified in DT\n");
+		dev_err(dev, "APR Domain ID yest specified in DT\n");
 		return ret;
 	}
 

@@ -44,7 +44,7 @@ properties:
 
       - description:
           For implementations complying to PSCI 0.2.
-          Function IDs are not required and should be ignored by an OS with
+          Function IDs are yest required and should be igyesred by an OS with
           PSCI 0.2 support, but are permitted to be present for compatibility
           with existing software when "arm,psci" is later in the compatible
           list.
@@ -58,7 +58,7 @@ properties:
 
       - description:
           For implementations complying to PSCI 1.0.
-          PSCI 1.0 is backward compatible with PSCI 0.2 with minor
+          PSCI 1.0 is backward compatible with PSCI 0.2 with miyesr
           specification updates, as defined in the PSCI specification[2].
         items:
           - const: arm,psci-1.0
@@ -95,8 +95,8 @@ properties:
     description: |
       power_state parameter to pass to the PSCI suspend call.
 
-      Device tree nodes that require usage of PSCI CPU_SUSPEND function (ie
-      idle state nodes with entry-method property is set to "psci", as per
+      Device tree yesdes that require usage of PSCI CPU_SUSPEND function (ie
+      idle state yesdes with entry-method property is set to "psci", as per
       bindings in [1]) must specify this property.
 
       [1] Kernel documentation - ARM idle states bindings
@@ -149,7 +149,7 @@ examples:
     /*
      * A DTB may provide IDs for use by kernels without PSCI 0.2 support,
      * enabling firmware and hypervisors to support existing and new kernels.
-     * These IDs will be ignored by kernels with PSCI 0.2 support, which will
+     * These IDs will be igyesred by kernels with PSCI 0.2 support, which will
      * use the standard PSCI 0.2 IDs exclusively.
      */
 

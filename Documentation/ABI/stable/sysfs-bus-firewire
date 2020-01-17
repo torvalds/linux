@@ -3,8 +3,8 @@ Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	linux1394-devel@lists.sourceforge.net
 Description:
-		IEEE 1394 node device attributes.
-		Read-only.  Mutable during the node device's lifetime.
+		IEEE 1394 yesde device attributes.
+		Read-only.  Mutable during the yesde device's lifetime.
 		See IEEE 1212 for semantic definitions.
 
 		config_rom
@@ -12,7 +12,7 @@ Description:
 			Binary attribute; an array of host-endian u32.
 
 		guid
-			The node's EUI-64 in the bus information block of
+			The yesde's EUI-64 in the bus information block of
 			Configuration ROM.
 			Hexadecimal string representation of an u64.
 
@@ -22,14 +22,14 @@ Date:		June 2009
 KernelVersion:	2.6.31
 Contact:	linux1394-devel@lists.sourceforge.net
 Description:
-		IEEE 1394 node device attribute.
-		Read-only.  Mutable during the node device's lifetime.
+		IEEE 1394 yesde device attribute.
+		Read-only.  Mutable during the yesde device's lifetime.
 		See IEEE 1212 for semantic definitions.
 
 		units
-			Summary of all units present in an IEEE 1394 node.
+			Summary of all units present in an IEEE 1394 yesde.
 			Contains space-separated tuples of specifier_id and
-			version of each unit present in the node.  Specifier_id
+			version of each unit present in the yesde.  Specifier_id
 			and version are hexadecimal string representations of
 			u24 of the respective unit directory entries.
 			Specifier_id and version within each tuple are separated
@@ -44,10 +44,10 @@ Date:		July 2012
 KernelVersion:	3.6
 Contact:	linux1394-devel@lists.sourceforge.net
 Description:
-		IEEE 1394 node device attribute.
+		IEEE 1394 yesde device attribute.
 		Read-only and immutable.
-Values:		1: The sysfs entry represents a local node (a controller card).
-		0: The sysfs entry represents a remote node.
+Values:		1: The sysfs entry represents a local yesde (a controller card).
+		0: The sysfs entry represents a remote yesde.
 
 
 What:		/sys/bus/firewire/devices/fw[0-9]+[.][0-9]+/
@@ -64,7 +64,7 @@ Description:
 
 		rom_index
 			Offset of the unit directory within the parent device's
-			(node device's) Configuration ROM, in quadlets.
+			(yesde device's) Configuration ROM, in quadlets.
 			Decimal string representation.
 
 
@@ -73,13 +73,13 @@ Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	linux1394-devel@lists.sourceforge.net
 Description:
-		Attributes common to IEEE 1394 node devices and unit devices.
-		Read-only.  Mutable during the node device's lifetime.
+		Attributes common to IEEE 1394 yesde devices and unit devices.
+		Read-only.  Mutable during the yesde device's lifetime.
 		Immutable during the unit device's lifetime.
 		See IEEE 1212 for semantic definitions.
 
 		These attributes are only created if the root directory of an
-		IEEE 1394 node or the unit directory of an IEEE 1394 unit
+		IEEE 1394 yesde or the unit directory of an IEEE 1394 unit
 		actually contains according entries.
 
 		hardware_version
@@ -128,6 +128,6 @@ Description:
 			u64 EUI-64 : u24 directory_ID : u16 LUN
 		without 0x prefixes, without whitespace.  The former sbp2 driver
 		(removed in 2.6.37 after being superseded by firewire-sbp2) used
-		a somewhat shorter format which was not as close to SAM.
+		a somewhat shorter format which was yest as close to SAM.
 
 Users:		udev rules to create /dev/disk/by-id/ symlinks

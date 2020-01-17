@@ -3,7 +3,7 @@
  * linux/drivers/video/mmp/common.c
  * This driver is a common framework for Marvell Display Controller
  *
- * Copyright (C) 2012 Marvell Technology Group Ltd.
+ * Copyright (C) 2012 Marvell Techyeslogy Group Ltd.
  * Authors: Zhou Zhu <zzhu3@marvell.com>
  */
 
@@ -66,7 +66,7 @@ static DEFINE_MUTEX(disp_lock);
  *
  * this function provides interface for panel drivers to register panel
  * to panel_list and connect to path which matchs panel->plat_path_name.
- * no error returns when no matching path is found as path register after
+ * yes error returns when yes matching path is found as path register after
  * panel register is permitted.
  */
 void mmp_register_panel(struct mmp_panel *panel)
@@ -76,10 +76,10 @@ void mmp_register_panel(struct mmp_panel *panel)
 	mutex_lock(&disp_lock);
 
 	/* add */
-	list_add_tail(&panel->node, &panel_list);
+	list_add_tail(&panel->yesde, &panel_list);
 
 	/* try to register to path */
-	list_for_each_entry(path, &path_list, node) {
+	list_for_each_entry(path, &path_list, yesde) {
 		if (!strcmp(panel->plat_path_name, path->name)) {
 			dev_info(panel->dev, "connect to path %s\n",
 				path->name);
@@ -104,9 +104,9 @@ void mmp_unregister_panel(struct mmp_panel *panel)
 	struct mmp_path *path;
 
 	mutex_lock(&disp_lock);
-	list_del(&panel->node);
+	list_del(&panel->yesde);
 
-	list_for_each_entry(path, &path_list, node) {
+	list_for_each_entry(path, &path_list, yesde) {
 		if (path->panel && path->panel == panel) {
 			dev_info(panel->dev, "disconnect from path %s\n",
 				path->name);
@@ -123,7 +123,7 @@ EXPORT_SYMBOL_GPL(mmp_unregister_panel);
  * @p: path name
  *
  * this function checks path name in path_list and return matching path
- * return NULL if no matching path
+ * return NULL if yes matching path
  */
 struct mmp_path *mmp_get_path(const char *name)
 {
@@ -131,7 +131,7 @@ struct mmp_path *mmp_get_path(const char *name)
 	int found = 0;
 
 	mutex_lock(&disp_lock);
-	list_for_each_entry(path, &path_list, node) {
+	list_for_each_entry(path, &path_list, yesde) {
 		if (!strcmp(name, path->name)) {
 			found = 1;
 			break;
@@ -173,7 +173,7 @@ struct mmp_path *mmp_register_path(struct mmp_path_info *info)
 
 	mutex_lock(&disp_lock);
 	/* get panel */
-	list_for_each_entry(panel, &panel_list, node) {
+	list_for_each_entry(panel, &panel_list, yesde) {
 		if (!strcmp(info->name, panel->plat_path_name)) {
 			dev_info(path->dev, "get panel %s\n", panel->name);
 			path->panel = panel;
@@ -201,7 +201,7 @@ struct mmp_path *mmp_register_path(struct mmp_path_info *info)
 	}
 
 	/* add to pathlist */
-	list_add_tail(&path->node, &path_list);
+	list_add_tail(&path->yesde, &path_list);
 
 	mutex_unlock(&disp_lock);
 	return path;
@@ -223,7 +223,7 @@ void mmp_unregister_path(struct mmp_path *path)
 
 	mutex_lock(&disp_lock);
 	/* del from pathlist */
-	list_del(&path->node);
+	list_del(&path->yesde);
 
 	/* deinit overlays */
 	for (i = 0; i < path->overlay_num; i++)

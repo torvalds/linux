@@ -102,7 +102,7 @@
 #define  AFE_XTAL_BT_GATE		BIT(20)
 
 /*
- * 0x0028 is also known as REG_AFE_CTRL2 on 8723bu/8192eu
+ * 0x0028 is also kyeswn as REG_AFE_CTRL2 on 8723bu/8192eu
  */
 #define REG_AFE_PLL_CTRL		0x0028
 #define  AFE_PLL_ENABLE			BIT(0)
@@ -223,7 +223,7 @@
 						   HSISR is true) */
 #define	 IMR0_BCNDMAINT_E		BIT(14)	/* Beacon DMA Interrupt
 						   Extension for Win7 */
-#define	 IMR0_ATIMEND			BIT(12)	/* CTWidnow End or
+#define	 IMR0_ATIMEND			BIT(12)	/* CTWidyesw End or
 						   ATIM Window End */
 #define	 IMR0_HISR1_IND_INT		BIT(11)	/* HISR1 Indicator
 						   (HISR1 & HIMR1 is true) */
@@ -892,7 +892,7 @@
 #define  FPGA0_RF_3WIRE_RW		BIT(3)
 #define  FPGA0_RF_3WIRE_MASK		0xf
 #define  FPGA0_RF_RFENV			BIT(4)
-#define  FPGA0_RF_TRSW			BIT(5)	/* Useless now */
+#define  FPGA0_RF_TRSW			BIT(5)	/* Useless yesw */
 #define  FPGA0_RF_TRSWB			BIT(6)
 #define  FPGA0_RF_ANTSW			BIT(8)
 #define  FPGA0_RF_ANTSWB		BIT(9)

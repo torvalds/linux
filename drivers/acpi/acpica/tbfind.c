@@ -76,7 +76,7 @@ acpi_tb_find_table(char *signature,
 
 		if (!acpi_gbl_root_table_list.tables[i].pointer) {
 
-			/* Table is not currently mapped, map it */
+			/* Table is yest currently mapped, map it */
 
 			status =
 			    acpi_tb_validate_table(&acpi_gbl_root_table_list.

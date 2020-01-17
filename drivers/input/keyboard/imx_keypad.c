@@ -51,7 +51,7 @@ struct imx_keypad {
 	struct timer_list	check_matrix_timer;
 
 	/*
-	 * The matrix is stable only if no changes are detected after
+	 * The matrix is stable only if yes changes are detected after
 	 * IMX_KEYPAD_SCANS_FOR_STABILITY scans
 	 */
 #define IMX_KEYPAD_SCANS_FOR_STABILITY 3
@@ -121,7 +121,7 @@ static void imx_keypad_scan_matrix(struct imx_keypad *keypad,
 
 		/*
 		 * 1s in matrix_volatile_state[col] means key pressures
-		 * throw data from non enabled rows.
+		 * throw data from yesn enabled rows.
 		 */
 		reg_val = readw(keypad->mmio_base + KPDR);
 		matrix_volatile_state[col] = (~reg_val) & keypad->rows_en_mask;
@@ -151,19 +151,19 @@ static void imx_keypad_fire_events(struct imx_keypad *keypad,
 		int code;
 
 		if ((keypad->cols_en_mask & (1 << col)) == 0)
-			continue; /* Column is not enabled */
+			continue; /* Column is yest enabled */
 
 		bits_changed = keypad->matrix_stable_state[col] ^
 						matrix_volatile_state[col];
 
 		if (bits_changed == 0)
-			continue; /* Column does not contain changes */
+			continue; /* Column does yest contain changes */
 
 		for (row = 0; row < MAX_MATRIX_KEY_ROWS; row++) {
 			if ((keypad->rows_en_mask & (1 << row)) == 0)
-				continue; /* Row is not enabled */
+				continue; /* Row is yest enabled */
 			if ((bits_changed & (1 << row)) == 0)
-				continue; /* Row does not contain changes */
+				continue; /* Row does yest contain changes */
 
 			code = MATRIX_SCAN_CODE(row, col, MATRIX_ROW_SHIFT);
 			input_event(input_dev, EV_MSC, MSC_SCAN, code);
@@ -218,7 +218,7 @@ static void imx_keypad_check_for_events(struct timer_list *t)
 		keypad->stable_count++;
 
 	/*
-	 * If the matrix is not as stable as we want reschedule scan
+	 * If the matrix is yest as stable as we want reschedule scan
 	 * in the near future.
 	 */
 	if (keypad->stable_count < IMX_KEYPAD_SCANS_FOR_STABILITY) {
@@ -389,12 +389,12 @@ static int imx_keypad_open(struct input_dev *dev)
 	if (error)
 		return error;
 
-	/* We became active from now */
+	/* We became active from yesw */
 	keypad->enabled = true;
 
 	imx_keypad_config(keypad);
 
-	/* Sanity control, not all the rows must be actived now. */
+	/* Sanity control, yest all the rows must be actived yesw. */
 	if ((readw(keypad->mmio_base + KPDR) & keypad->rows_en_mask) == 0) {
 		dev_err(&dev->dev,
 			"too many keys pressed, control pins initialisation\n");
@@ -424,8 +424,8 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	struct input_dev *input_dev;
 	int irq, error, i, row, col;
 
-	if (!keymap_data && !pdev->dev.of_node) {
-		dev_err(&pdev->dev, "no keymap defined\n");
+	if (!keymap_data && !pdev->dev.of_yesde) {
+		dev_err(&pdev->dev, "yes keymap defined\n");
 		return -EINVAL;
 	}
 
@@ -441,7 +441,7 @@ static int imx_keypad_probe(struct platform_device *pdev)
 
 	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad), GFP_KERNEL);
 	if (!keypad) {
-		dev_err(&pdev->dev, "not enough memory for driver data\n");
+		dev_err(&pdev->dev, "yest eyesugh memory for driver data\n");
 		return -ENOMEM;
 	}
 
@@ -522,7 +522,7 @@ static int imx_keypad_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused imx_kbd_noirq_suspend(struct device *dev)
+static int __maybe_unused imx_kbd_yesirq_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct imx_keypad *kbd = platform_get_drvdata(pdev);
@@ -550,7 +550,7 @@ static int __maybe_unused imx_kbd_noirq_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused imx_kbd_noirq_resume(struct device *dev)
+static int __maybe_unused imx_kbd_yesirq_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct imx_keypad *kbd = platform_get_drvdata(pdev);
@@ -575,7 +575,7 @@ err_clk:
 }
 
 static const struct dev_pm_ops imx_kbd_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(imx_kbd_noirq_suspend, imx_kbd_noirq_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(imx_kbd_yesirq_suspend, imx_kbd_yesirq_resume)
 };
 
 static struct platform_driver imx_keypad_driver = {

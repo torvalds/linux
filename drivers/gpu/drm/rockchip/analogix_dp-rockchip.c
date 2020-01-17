@@ -133,7 +133,7 @@ rockchip_dp_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 				   const struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
-	/* do nothing */
+	/* do yesthing */
 	return true;
 }
 
@@ -141,7 +141,7 @@ static void rockchip_dp_drm_encoder_mode_set(struct drm_encoder *encoder,
 					     struct drm_display_mode *mode,
 					     struct drm_display_mode *adjusted)
 {
-	/* do nothing */
+	/* do yesthing */
 }
 
 static
@@ -176,11 +176,11 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
 		return;
 
 	old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
-	/* Coming back from self refresh, nothing to do */
+	/* Coming back from self refresh, yesthing to do */
 	if (old_crtc_state && old_crtc_state->self_refresh_active)
 		return;
 
-	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_node, encoder);
+	ret = drm_of_encoder_active_endpoint_id(dp->dev->of_yesde, encoder);
 	if (ret < 0)
 		return;
 
@@ -199,7 +199,7 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder,
 
 	ret = regmap_write(dp->grf, dp->data->lcdsel_grf_reg, val);
 	if (ret != 0)
-		DRM_DEV_ERROR(dp->dev, "Could not write to GRF: %d\n", ret);
+		DRM_DEV_ERROR(dp->dev, "Could yest write to GRF: %d\n", ret);
 
 	clk_disable_unprepare(dp->grfclk);
 }
@@ -218,7 +218,7 @@ static void rockchip_dp_drm_encoder_disable(struct drm_encoder *encoder,
 		return;
 
 	new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
-	/* If we're not entering self-refresh, no need to wait for vact */
+	/* If we're yest entering self-refresh, yes need to wait for vact */
 	if (!new_crtc_state || !new_crtc_state->self_refresh_active)
 		return;
 
@@ -238,7 +238,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	/*
 	 * The hardware IC designed that VOP must output the RGB10 video
 	 * format to eDP controller, and if eDP panel only support RGB8,
-	 * then eDP controller should cut down the video data, not via VOP
+	 * then eDP controller should cut down the video data, yest via VOP
 	 * controller, that's why we need to hardcode the VOP output mode
 	 * to RGA10 here.
 	 */
@@ -265,7 +265,7 @@ static struct drm_encoder_funcs rockchip_dp_encoder_funcs = {
 static int rockchip_dp_of_probe(struct rockchip_dp_device *dp)
 {
 	struct device *dev = dp->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	dp->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(dp->grf)) {
@@ -306,7 +306,7 @@ static int rockchip_dp_drm_create_encoder(struct rockchip_dp_device *dp)
 	int ret;
 
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
-							     dev->of_node);
+							     dev->of_yesde);
 	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
 
 	ret = drm_encoder_init(drm_dev, encoder, &rockchip_dp_encoder_funcs,
@@ -384,7 +384,7 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	struct rockchip_dp_device *dp;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, NULL);
+	ret = drm_of_find_panel_or_bridge(dev->of_yesde, 1, 0, &panel, NULL);
 	if (ret < 0)
 		return ret;
 

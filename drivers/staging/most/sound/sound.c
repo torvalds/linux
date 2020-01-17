@@ -2,7 +2,7 @@
 /*
  * sound.c - Sound component for Mostcore
  *
- * Copyright (C) 2015 Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015 Microchip Techyeslogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -34,7 +34,7 @@ static struct core_component comp;
  * @id: channel index
  * @period_pos: current period position (ring buffer)
  * @buffer_pos: current buffer position (ring buffer)
- * @is_stream_running: identifies whether a stream is running or not
+ * @is_stream_running: identifies whether a stream is running or yest
  * @opened: set when the stream is opened
  * @playback_task: playback thread
  * @playback_waitq: waitq used by playback thread
@@ -341,7 +341,7 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 
 	if ((params_channels(hw_params) > channel->pcm_hardware.channels_max) ||
 	    (params_channels(hw_params) < channel->pcm_hardware.channels_min)) {
-		pr_err("Requested number of channels not supported.\n");
+		pr_err("Requested number of channels yest supported.\n");
 		return -EINVAL;
 	}
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));

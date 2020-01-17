@@ -2,7 +2,7 @@ What:		/sys/class/ocxl/<afu name>/afu_version
 Date:		January 2018
 Contact:	linuxppc-dev@lists.ozlabs.org
 Description:	read only
-		Version of the AFU, in the format <major>:<minor>
+		Version of the AFU, in the format <major>:<miyesr>
 		Reflects what is read in the configuration space of the AFU
 
 What:		/sys/class/ocxl/<afu name>/contexts

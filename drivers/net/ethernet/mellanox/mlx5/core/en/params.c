@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #include "en/params.h"
 
@@ -48,14 +48,14 @@ u32 mlx5e_rx_get_linear_frag_sz(struct mlx5e_params *params,
 	 * doesn't allocate pages dynamically. However, here we pretend that
 	 * fragments are page-sized: it allows to treat XSK frames like pages
 	 * by redirecting alloc and free operations to XSK rings and by using
-	 * the fact there are no multiple packets per "page" (which is a frame).
+	 * the fact there are yes multiple packets per "page" (which is a frame).
 	 * The latter is important, because frames may come in a random order,
 	 * and we will have trouble assemblying a real page of multiple frames.
 	 */
 	if (mlx5e_rx_is_xdp(params, xsk))
 		frag_sz = max_t(u32, frag_sz, PAGE_SIZE);
 
-	/* Even if we can go with a smaller fragment size, we must not put
+	/* Even if we can go with a smaller fragment size, we must yest put
 	 * multiple packets into a single frame.
 	 */
 	if (xsk)

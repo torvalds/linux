@@ -42,7 +42,7 @@ MODULE_PARM_DESC(debug,
 		DVB_USB_DEBUG_STATUS);
 
 /* disables all LED control command and
- * also does not start the signal polling thread */
+ * also does yest start the signal polling thread */
 static int disable_led_control;
 module_param(disable_led_control, int, 0444);
 MODULE_PARM_DESC(disable_led_control,
@@ -164,7 +164,7 @@ static int technisat_usb2_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msg
 	int ret = 0, i;
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 
-	/* Ensure nobody else hits the i2c bus while we're sending our
+	/* Ensure yesbody else hits the i2c bus while we're sending our
 	   sequence of messages, (such as the remote control thread) */
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
@@ -328,7 +328,7 @@ schedule:
 			msecs_to_jiffies(500));
 }
 
-/* method to find out whether the firmware has to be downloaded or not */
+/* method to find out whether the firmware has to be downloaded or yest */
 static int technisat_usb2_identify_state(struct usb_device *udev,
 		struct dvb_usb_device_properties *props,
 		struct dvb_usb_device_description **desc, int *cold)
@@ -342,11 +342,11 @@ static int technisat_usb2_identify_state(struct usb_device *udev,
 
 	/* first select the interface */
 	if (usb_set_interface(udev, 0, 1) != 0)
-		err("could not set alternate setting to 0");
+		err("could yest set alternate setting to 0");
 	else
 		info("set alternate setting");
 
-	*cold = 0; /* by default do not download a firmware - just in case something is wrong */
+	*cold = 0; /* by default do yest download a firmware - just in case something is wrong */
 
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 		GET_VERSION_INFO_VENDOR_REQUEST,
@@ -561,7 +561,7 @@ static int technisat_usb2_frontend_attach(struct dvb_usb_adapter *a)
 			mutex_unlock(&a->dev->i2c_mutex);
 
 			if (ret != 0)
-				err("could not set IF_CLK to external");
+				err("could yest set IF_CLK to external");
 
 			a->fe_adap[0].fe->ops.set_voltage = technisat_usb2_set_voltage;
 
@@ -643,7 +643,7 @@ unlock:
 		return ret;
 
 	if (ret == 1)
-		return 0; /* no key pressed */
+		return 0; /* yes key pressed */
 
 	/* decoding */
 

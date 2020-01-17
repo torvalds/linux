@@ -3,7 +3,7 @@
 #define _GNU_SOURCE
 
 #include <arpa/inet.h>
-#include <errno.h>
+#include <erryes.h>
 #include <error.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -28,7 +28,7 @@
 FIXTURE(tls_basic)
 {
 	int fd, cfd;
-	bool notls;
+	bool yestls;
 };
 
 FIXTURE_SETUP(tls_basic)
@@ -37,7 +37,7 @@ FIXTURE_SETUP(tls_basic)
 	socklen_t len;
 	int sfd, ret;
 
-	self->notls = false;
+	self->yestls = false;
 	len = sizeof(addr);
 
 	addr.sin_family = AF_INET;
@@ -65,8 +65,8 @@ FIXTURE_SETUP(tls_basic)
 
 	ret = setsockopt(self->fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
 	if (ret != 0) {
-		ASSERT_EQ(errno, ENOENT);
-		self->notls = true;
+		ASSERT_EQ(erryes, ENOENT);
+		self->yestls = true;
 		printf("Failure setting TCP_ULP, testing without tls\n");
 		return;
 	}
@@ -81,7 +81,7 @@ FIXTURE_TEARDOWN(tls_basic)
 	close(self->cfd);
 }
 
-/* Send some data through with ULP but no keys */
+/* Send some data through with ULP but yes keys */
 TEST_F(tls_basic, base_base)
 {
 	char const *test_str = "test_read";
@@ -98,7 +98,7 @@ TEST_F(tls_basic, base_base)
 FIXTURE(tls)
 {
 	int fd, cfd;
-	bool notls;
+	bool yestls;
 };
 
 FIXTURE_SETUP(tls)
@@ -108,7 +108,7 @@ FIXTURE_SETUP(tls)
 	socklen_t len;
 	int sfd, ret;
 
-	self->notls = false;
+	self->yestls = false;
 	len = sizeof(addr);
 
 	memset(&tls12, 0, sizeof(tls12));
@@ -135,11 +135,11 @@ FIXTURE_SETUP(tls)
 
 	ret = setsockopt(self->fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
 	if (ret != 0) {
-		self->notls = true;
+		self->yestls = true;
 		printf("Failure setting TCP_ULP, testing without tls\n");
 	}
 
-	if (!self->notls) {
+	if (!self->yestls) {
 		ret = setsockopt(self->fd, SOL_TLS, TLS_TX, &tls12,
 				 sizeof(tls12));
 		ASSERT_EQ(ret, 0);
@@ -148,7 +148,7 @@ FIXTURE_SETUP(tls)
 	self->cfd = accept(sfd, &addr, &len);
 	ASSERT_GE(self->cfd, 0);
 
-	if (!self->notls) {
+	if (!self->yestls) {
 		ret = setsockopt(self->cfd, IPPROTO_TCP, TCP_ULP, "tls",
 				 sizeof("tls"));
 		ASSERT_EQ(ret, 0);
@@ -359,7 +359,7 @@ TEST_F(tls, sendmsg_multiple)
 
 TEST_F(tls, sendmsg_multiple_stress)
 {
-	char const *test_str = "abcdefghijklmno";
+	char const *test_str = "abcdefghijklmyes";
 	struct iovec vec[1024];
 	char *test_strs[1024];
 	int iov_len = 1024;
@@ -554,7 +554,7 @@ TEST_F(tls, multiple_send_single_recv)
 	EXPECT_EQ(memcmp(send_mem, recv_mem + send_len, send_len), 0);
 }
 
-TEST_F(tls, single_send_multiple_recv_non_align)
+TEST_F(tls, single_send_multiple_recv_yesn_align)
 {
 	const unsigned int total_len = 15;
 	const unsigned int recv_len = 10;
@@ -589,13 +589,13 @@ TEST_F(tls, recv_partial)
 		  0);
 }
 
-TEST_F(tls, recv_nonblock)
+TEST_F(tls, recv_yesnblock)
 {
 	char buf[4096];
 	bool err;
 
 	EXPECT_EQ(recv(self->cfd, buf, sizeof(buf), MSG_DONTWAIT), -1);
-	err = (errno == EAGAIN || errno == EWOULDBLOCK);
+	err = (erryes == EAGAIN || erryes == EWOULDBLOCK);
 	EXPECT_EQ(err, true);
 }
 
@@ -729,7 +729,7 @@ TEST_F(tls, bidir)
 	char buf[10];
 	int ret;
 
-	if (!self->notls) {
+	if (!self->yestls) {
 		struct tls12_crypto_info_aes_gcm_128 tls12;
 
 		memset(&tls12, 0, sizeof(tls12));
@@ -858,7 +858,7 @@ TEST_F(tls, blocking)
 	}
 }
 
-TEST_F(tls, nonblocking)
+TEST_F(tls, yesnblocking)
 {
 	size_t data = 100000;
 	int sendbuf = 100;
@@ -869,7 +869,7 @@ TEST_F(tls, nonblocking)
 	fcntl(self->fd, F_SETFL, flags | O_NONBLOCK);
 	fcntl(self->cfd, F_SETFL, flags | O_NONBLOCK);
 
-	/* Ensure nonblocking behavior by imposing a small send
+	/* Ensure yesnblocking behavior by imposing a small send
 	 * buffer.
 	 */
 	EXPECT_EQ(setsockopt(self->fd, SOL_SOCKET, SO_SNDBUF,
@@ -890,7 +890,7 @@ TEST_F(tls, nonblocking)
 			int res = send(self->fd, buf,
 				       left > 16384 ? 16384 : left, 0);
 
-			if (res == -1 && errno == EAGAIN) {
+			if (res == -1 && erryes == EAGAIN) {
 				eagain = true;
 				usleep(10000);
 				continue;
@@ -914,7 +914,7 @@ TEST_F(tls, nonblocking)
 			int res = recv(self->cfd, buf,
 				       left > 16384 ? 16384 : left, 0);
 
-			if (res == -1 && errno == EAGAIN) {
+			if (res == -1 && erryes == EAGAIN) {
 				eagain = true;
 				usleep(10000);
 				continue;
@@ -1036,7 +1036,7 @@ TEST_F(tls, mutliproc_sendpage_writers)
 
 TEST_F(tls, control_msg)
 {
-	if (self->notls)
+	if (self->yestls)
 		return;
 
 	char cbuf[CMSG_SPACE(sizeof(char))];
@@ -1058,7 +1058,7 @@ TEST_F(tls, control_msg)
 	msg.msg_controllen = sizeof(cbuf);
 	cmsg = CMSG_FIRSTHDR(&msg);
 	cmsg->cmsg_level = SOL_TLS;
-	/* test sending non-record types. */
+	/* test sending yesn-record types. */
 	cmsg->cmsg_type = TLS_SET_RECORD_TYPE;
 	cmsg->cmsg_len = CMSG_LEN(cmsg_len);
 	*CMSG_DATA(cmsg) = record_type;
@@ -1137,14 +1137,14 @@ TEST_F(tls, shutdown_reuse)
 	EXPECT_EQ(ret, 0);
 	ret = listen(self->fd, 10);
 	EXPECT_EQ(ret, -1);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erryes, EINVAL);
 
 	ret = connect(self->fd, &addr, sizeof(addr));
 	EXPECT_EQ(ret, -1);
-	EXPECT_EQ(errno, EISCONN);
+	EXPECT_EQ(erryes, EISCONN);
 }
 
-TEST(non_established) {
+TEST(yesn_established) {
 	struct tls12_crypto_info_aes_gcm_256 tls12;
 	struct sockaddr_in addr;
 	int sfd, ret, fd;
@@ -1170,14 +1170,14 @@ TEST(non_established) {
 
 	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
 	EXPECT_EQ(ret, -1);
-	/* TLS ULP not supported */
-	if (errno == ENOENT)
+	/* TLS ULP yest supported */
+	if (erryes == ENOENT)
 		return;
-	EXPECT_EQ(errno, ENOTCONN);
+	EXPECT_EQ(erryes, ENOTCONN);
 
 	ret = setsockopt(sfd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
 	EXPECT_EQ(ret, -1);
-	EXPECT_EQ(errno, ENOTCONN);
+	EXPECT_EQ(erryes, ENOTCONN);
 
 	ret = getsockname(sfd, &addr, &len);
 	ASSERT_EQ(ret, 0);
@@ -1190,7 +1190,7 @@ TEST(non_established) {
 
 	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
 	EXPECT_EQ(ret, -1);
-	EXPECT_EQ(errno, EEXIST);
+	EXPECT_EQ(erryes, EEXIST);
 
 	close(fd);
 	close(sfd);
@@ -1201,9 +1201,9 @@ TEST(keysizes) {
 	struct sockaddr_in addr;
 	int sfd, ret, fd, cfd;
 	socklen_t len;
-	bool notls;
+	bool yestls;
 
-	notls = false;
+	yestls = false;
 	len = sizeof(addr);
 
 	memset(&tls12, 0, sizeof(tls12));
@@ -1230,11 +1230,11 @@ TEST(keysizes) {
 
 	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
 	if (ret != 0) {
-		notls = true;
+		yestls = true;
 		printf("Failure setting TCP_ULP, testing without tls\n");
 	}
 
-	if (!notls) {
+	if (!yestls) {
 		ret = setsockopt(fd, SOL_TLS, TLS_TX, &tls12,
 				 sizeof(tls12));
 		EXPECT_EQ(ret, 0);
@@ -1243,7 +1243,7 @@ TEST(keysizes) {
 	cfd = accept(sfd, &addr, &len);
 	ASSERT_GE(cfd, 0);
 
-	if (!notls) {
+	if (!yestls) {
 		ret = setsockopt(cfd, IPPROTO_TCP, TCP_ULP, "tls",
 				 sizeof("tls"));
 		EXPECT_EQ(ret, 0);
@@ -1260,14 +1260,14 @@ TEST(keysizes) {
 
 TEST(tls12) {
 	int fd, cfd;
-	bool notls;
+	bool yestls;
 
 	struct tls12_crypto_info_aes_gcm_128 tls12;
 	struct sockaddr_in addr;
 	socklen_t len;
 	int sfd, ret;
 
-	notls = false;
+	yestls = false;
 	len = sizeof(addr);
 
 	memset(&tls12, 0, sizeof(tls12));
@@ -1294,11 +1294,11 @@ TEST(tls12) {
 
 	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
 	if (ret != 0) {
-		notls = true;
+		yestls = true;
 		printf("Failure setting TCP_ULP, testing without tls\n");
 	}
 
-	if (!notls) {
+	if (!yestls) {
 		ret = setsockopt(fd, SOL_TLS, TLS_TX, &tls12,
 				 sizeof(tls12));
 		ASSERT_EQ(ret, 0);
@@ -1307,7 +1307,7 @@ TEST(tls12) {
 	cfd = accept(sfd, &addr, &len);
 	ASSERT_GE(cfd, 0);
 
-	if (!notls) {
+	if (!yestls) {
 		ret = setsockopt(cfd, IPPROTO_TCP, TCP_ULP, "tls",
 				 sizeof("tls"));
 		ASSERT_EQ(ret, 0);

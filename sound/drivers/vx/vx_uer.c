@@ -86,7 +86,7 @@ static void vx_write_one_cbit(struct vx_core *chip, int index, int val)
  * vx_read_uer_status - read the current UER status
  * @mode: pointer to store the UER mode, VX_UER_MODE_XXX
  *
- * returns the frequency of UER, or 0 if not sync,
+ * returns the frequency of UER, or 0 if yest sync,
  * or a negative error code.
  */
 static int vx_read_uer_status(struct vx_core *chip, unsigned int *mode)

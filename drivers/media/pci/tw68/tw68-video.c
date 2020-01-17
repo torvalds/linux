@@ -4,9 +4,9 @@
  *
  *  Much of this code is derived from the cx88 and sa7134 drivers, which
  *  were in turn derived from the bt87x driver.  The original work was by
- *  Gerd Knorr; more recently the code was enhanced by Mauro Carvalho Chehab,
+ *  Gerd Kyesrr; more recently the code was enhanced by Mauro Carvalho Chehab,
  *  Hans Verkuil, Andy Walls and many others.  Their work is gratefully
- *  acknowledged.  Full credit goes to them - any problems within this code
+ *  ackyeswledged.  Full credit goes to them - any problems within this code
  *  are mine.
  *
  *  Copyright (C) 2009  William M. Brack
@@ -107,7 +107,7 @@ static const struct tw68_format formats[] = {
  * match, then for an entry which contains the desired id.  The table
  * entries should therefore be ordered in ascending order of specificity.
  */
-static const struct tw68_tvnorm tvnorms[] = {
+static const struct tw68_tvyesrm tvyesrms[] = {
 	{
 		.name		= "PAL", /* autodetect */
 		.id		= V4L2_STD_PAL,
@@ -190,7 +190,7 @@ static const struct tw68_tvnorm tvnorms[] = {
 		.format		= VideoFormatPAL60,
 	}
 };
-#define TVNORMS ARRAY_SIZE(tvnorms)
+#define TVNORMS ARRAY_SIZE(tvyesrms)
 
 static const struct tw68_format *format_by_fourcc(unsigned int fourcc)
 {
@@ -208,13 +208,13 @@ static const struct tw68_format *format_by_fourcc(unsigned int fourcc)
  * Note that the cropping rectangles are described in terms of a single
  * frame, i.e. line positions are only 1/2 the interlaced equivalent
  */
-static void set_tvnorm(struct tw68_dev *dev, const struct tw68_tvnorm *norm)
+static void set_tvyesrm(struct tw68_dev *dev, const struct tw68_tvyesrm *yesrm)
 {
-	if (norm != dev->tvnorm) {
+	if (yesrm != dev->tvyesrm) {
 		dev->width = 720;
-		dev->height = (norm->id & V4L2_STD_525_60) ? 480 : 576;
-		dev->tvnorm = norm;
-		tw68_set_tvnorm_hw(dev);
+		dev->height = (yesrm->id & V4L2_STD_525_60) ? 480 : 576;
+		dev->tvyesrm = yesrm;
+		tw68_set_tvyesrm_hw(dev);
 	}
 }
 
@@ -233,7 +233,7 @@ static void set_tvnorm(struct tw68_dev *dev, const struct tw68_tvnorm *norm)
  *	HSCALE = (HACTIVE / (#pixels desired)) * 256
  *
  * The vertical registers are similar, except based upon the total number
- * of lines in the image, and the first line of the image (i.e. ignoring
+ * of lines in the image, and the first line of the image (i.e. igyesring
  * vertical sync and VBI).
  *
  * Note that the number of bytes reaching the FIFO (and hence needing
@@ -242,7 +242,7 @@ static void set_tvnorm(struct tw68_dev *dev, const struct tw68_tvnorm *norm)
  *
  * Parameters:
  *	@dev		pointer to the device structure, needed for
- *			getting current norm (as well as debug print)
+ *			getting current yesrm (as well as debug print)
  *	@width		actual image width (from user buffer)
  *	@height		actual image height
  *	@field		indicates Top, Bottom or Interlaced
@@ -250,7 +250,7 @@ static void set_tvnorm(struct tw68_dev *dev, const struct tw68_tvnorm *norm)
 static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 			  unsigned int height, enum v4l2_field field)
 {
-	const struct tw68_tvnorm *norm = dev->tvnorm;
+	const struct tw68_tvyesrm *yesrm = dev->tvyesrm;
 	/* set individually for debugging clarity */
 	int hactive, hdelay, hscale;
 	int vactive, vdelay, vscale;
@@ -260,35 +260,35 @@ static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 		height /= 2;		/* we must set for 1-frame */
 
 	pr_debug("%s: width=%d, height=%d, both=%d\n"
-		 "  tvnorm h_delay=%d, h_start=%d, h_stop=%d, v_delay=%d, v_start=%d, v_stop=%d\n",
+		 "  tvyesrm h_delay=%d, h_start=%d, h_stop=%d, v_delay=%d, v_start=%d, v_stop=%d\n",
 		__func__, width, height, V4L2_FIELD_HAS_BOTH(field),
-		norm->h_delay, norm->h_start, norm->h_stop,
-		norm->v_delay, norm->video_v_start,
-		norm->video_v_stop);
+		yesrm->h_delay, yesrm->h_start, yesrm->h_stop,
+		yesrm->v_delay, yesrm->video_v_start,
+		yesrm->video_v_stop);
 
 	switch (dev->vdecoder) {
 	case TW6800:
-		hdelay = norm->h_delay0;
+		hdelay = yesrm->h_delay0;
 		break;
 	default:
-		hdelay = norm->h_delay;
+		hdelay = yesrm->h_delay;
 		break;
 	}
 
-	hdelay += norm->h_start;
-	hactive = norm->h_stop - norm->h_start + 1;
+	hdelay += yesrm->h_start;
+	hactive = yesrm->h_stop - yesrm->h_start + 1;
 
 	hscale = (hactive * 256) / (width);
 
-	vdelay = norm->v_delay;
-	vactive = ((norm->id & V4L2_STD_525_60) ? 524 : 624) / 2 - norm->video_v_start;
+	vdelay = yesrm->v_delay;
+	vactive = ((yesrm->id & V4L2_STD_525_60) ? 524 : 624) / 2 - yesrm->video_v_start;
 	vscale = (vactive * 256) / height;
 
 	pr_debug("%s: %dx%d [%s%s,%s]\n", __func__,
 		width, height,
 		V4L2_FIELD_HAS_TOP(field)    ? "T" : "",
 		V4L2_FIELD_HAS_BOTTOM(field) ? "B" : "",
-		v4l2_norm_to_name(dev->tvnorm->id));
+		v4l2_yesrm_to_name(dev->tvyesrm->id));
 	pr_debug("%s: hactive=%d, hdelay=%d, hscale=%d; vactive=%d, vdelay=%d, vscale=%d\n",
 		 __func__,
 		hactive, hdelay, hscale, vactive, vdelay, vscale);
@@ -340,7 +340,7 @@ int tw68_video_start_dma(struct tw68_dev *dev, struct tw68_buf *buf)
 
 /* ------------------------------------------------------------------ */
 
-/* calc max # of buffers from size (must not exceed the 4MB virtual
+/* calc max # of buffers from size (must yest exceed the 4MB virtual
  * address space per DMA channel) */
 static int tw68_buffer_count(unsigned int size, unsigned int count)
 {
@@ -395,7 +395,7 @@ static int tw68_queue_setup(struct vb2_queue *q,
  *
  * It also sets the final jump of the previous buffer to the start of the new
  * buffer, thus chaining the new buffer into the DMA chain. This is a single
- * atomic u32 write, so there is no race condition.
+ * atomic u32 write, so there is yes race condition.
  *
  * The end-result of all this that you only get an interrupt when a buffer
  * is ready, so the control flow is very easy.
@@ -566,7 +566,7 @@ static int tw68_s_ctrl(struct v4l2_ctrl *ctrl)
 
 /*
  * Note that this routine returns what is stored in the fh structure, and
- * does not interrogate any of the device registers.
+ * does yest interrogate any of the device registers.
  */
 static int tw68_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
@@ -598,7 +598,7 @@ static int tw68_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 
 	field = f->fmt.pix.field;
-	maxh  = (dev->tvnorm->id & V4L2_STD_525_60) ? 480 : 576;
+	maxh  = (dev->tvyesrm->id & V4L2_STD_525_60) ? 480 : 576;
 
 	switch (field) {
 	case V4L2_FIELD_TOP:
@@ -686,7 +686,7 @@ static int tw68_enum_input(struct file *file, void *priv,
 		if (0 != (v2 & (1 << 2)))
 			i->status |= V4L2_IN_ST_MACROVISION;
 	}
-	i->std = video_devdata(file)->tvnorms;
+	i->std = video_devdata(file)->tvyesrms;
 	return 0;
 }
 
@@ -729,23 +729,23 @@ static int tw68_s_std(struct file *file, void *priv, v4l2_std_id id)
 	if (vb2_is_busy(&dev->vidq))
 		return -EBUSY;
 
-	/* Look for match on complete norm id (may have mult bits) */
+	/* Look for match on complete yesrm id (may have mult bits) */
 	for (i = 0; i < TVNORMS; i++) {
-		if (id == tvnorms[i].id)
+		if (id == tvyesrms[i].id)
 			break;
 	}
 
-	/* If no exact match, look for norm which contains this one */
+	/* If yes exact match, look for yesrm which contains this one */
 	if (i == TVNORMS) {
 		for (i = 0; i < TVNORMS; i++)
-			if (id & tvnorms[i].id)
+			if (id & tvyesrms[i].id)
 				break;
 	}
-	/* If still not matched, give up */
+	/* If still yest matched, give up */
 	if (i == TVNORMS)
 		return -EINVAL;
 
-	set_tvnorm(dev, &tvnorms[i]);	/* do the actual setting */
+	set_tvyesrm(dev, &tvyesrms[i]);	/* do the actual setting */
 	return 0;
 }
 
@@ -753,7 +753,7 @@ static int tw68_g_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct tw68_dev *dev = video_drvdata(file);
 
-	*id = dev->tvnorm->id;
+	*id = dev->tvyesrm->id;
 	return 0;
 }
 
@@ -892,16 +892,16 @@ static const struct video_device tw68_video_template = {
 	.fops			= &video_fops,
 	.ioctl_ops		= &video_ioctl_ops,
 	.release		= video_device_release_empty,
-	.tvnorms		= TW68_NORMS,
+	.tvyesrms		= TW68_NORMS,
 	.device_caps		= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 				  V4L2_CAP_STREAMING,
 };
 
 /* ------------------------------------------------------------------ */
 /* exported stuff                                                     */
-void tw68_set_tvnorm_hw(struct tw68_dev *dev)
+void tw68_set_tvyesrm_hw(struct tw68_dev *dev)
 {
-	tw_andorb(TW68_SDT, 0x07, dev->tvnorm->format);
+	tw_andorb(TW68_SDT, 0x07, dev->tvyesrm->format);
 }
 
 int tw68_video_init1(struct tw68_dev *dev)
@@ -935,7 +935,7 @@ int tw68_video_init2(struct tw68_dev *dev, int video_nr)
 {
 	int ret;
 
-	set_tvnorm(dev, &tvnorms[0]);
+	set_tvyesrm(dev, &tvyesrms[0]);
 
 	dev->fmt      = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 	dev->width    = 720;
@@ -1003,7 +1003,7 @@ void tw68_irq_video_done(struct tw68_dev *dev, unsigned long status)
 		dev_err(&dev->pci->dev, "DMAPERR interrupt\n");
 	/*
 	 * On TW6800, FDMIS is apparently generated if video input is switched
-	 * during operation.  Therefore, it is not enabled for that chip.
+	 * during operation.  Therefore, it is yest enabled for that chip.
 	 */
 	if (status & TW68_FDMIS)
 		dev_dbg(&dev->pci->dev, "FDMIS interrupt\n");

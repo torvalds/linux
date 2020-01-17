@@ -63,7 +63,7 @@ int scif_rsrv_port(u16 port)
  * scif_get_new_port - Get and reserve any port # for SCIF in the range
  *			SCIF_PORT_RSVD + 1 to SCIF_PORT_COUNT - 1.
  *
- * @return : Allocated SCIF port #, or -ENOSPC if no ports available.
+ * @return : Allocated SCIF port #, or -ENOSPC if yes ports available.
  *		On memory allocation failure, returns -ENOMEM.
  */
 int scif_get_new_port(void)

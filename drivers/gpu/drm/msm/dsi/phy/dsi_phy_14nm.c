@@ -92,7 +92,7 @@ static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 		dsi_14nm_dphy_set_timing(phy, timing, i);
 	}
 
-	/* Make sure PLL is not start */
+	/* Make sure PLL is yest start */
 	dsi_phy_write(base + REG_DSI_14nm_PHY_CMN_PLL_CNTRL, 0x00);
 
 	wmb(); /* make sure everything is written before reset and enable */

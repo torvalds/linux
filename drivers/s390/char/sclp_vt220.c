@@ -17,7 +17,7 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/major.h>
 #include <linux/console.h>
@@ -79,7 +79,7 @@ static int sclp_vt220_queue_running;
  * a single buffer */
 static struct timer_list sclp_vt220_timer;
 
-/* Pointer to current request buffer which has been partially filled but not
+/* Pointer to current request buffer which has been partially filled but yest
  * yet sent */
 static struct sclp_vt220_request *sclp_vt220_current_request;
 
@@ -91,7 +91,7 @@ static int __initdata sclp_vt220_init_count;
 
 /* Flag indicating that sclp_vt220_current_request should really
  * have been already queued but wasn't because the SCLP was processing
- * another buffer */
+ * ayesther buffer */
 static int sclp_vt220_flush_later;
 
 static void sclp_vt220_receiver_fn(struct evbuf_header *evbuf);
@@ -203,7 +203,7 @@ sclp_vt220_callback(struct sclp_req *request, void *data)
 }
 
 /*
- * Emit vt220 request buffer to SCLP. Return zero on success, non-zero
+ * Emit vt220 request buffer to SCLP. Return zero on success, yesn-zero
  * otherwise.
  */
 static int
@@ -354,7 +354,7 @@ sclp_vt220_add_msg(struct sclp_vt220_request *request,
 }
 
 /*
- * Emit buffer after having waited long enough for more data to arrive.
+ * Emit buffer after having waited long eyesugh for more data to arrive.
  */
 static void
 sclp_vt220_timeout(struct timer_list *unused)
@@ -392,12 +392,12 @@ sclp_vt220_drop_buffer(void)
 /* 
  * Internal implementation of the write function. Write COUNT bytes of data
  * from memory at BUF
- * to the SCLP interface. In case that the data does not fit into the current
- * write buffer, emit the current one and allocate a new one. If there are no
+ * to the SCLP interface. In case that the data does yest fit into the current
+ * write buffer, emit the current one and allocate a new one. If there are yes
  * more empty buffers available, wait until one gets emptied. If DO_SCHEDULE
- * is non-zero, the buffer will be scheduled for emitting after a timeout -
+ * is yesn-zero, the buffer will be scheduled for emitting after a timeout -
  * otherwise the user has to explicitly call the flush function.
- * A non-zero CONVERTLF parameter indicates that 0x0a characters in the message
+ * A yesn-zero CONVERTLF parameter indicates that 0x0a characters in the message
  * buffer should be converted to 0x0a 0x0d. After completion, return the number
  * of bytes written.
  */
@@ -415,7 +415,7 @@ __sclp_vt220_write(const unsigned char *buf, int count, int do_schedule,
 	overall_written = 0;
 	spin_lock_irqsave(&sclp_vt220_lock, flags);
 	do {
-		/* Create an sclp output buffer if none exists yet */
+		/* Create an sclp output buffer if yesne exists yet */
 		if (sclp_vt220_current_request == NULL) {
 			if (list_empty(&sclp_vt220_empty))
 				sclp_console_full++;
@@ -651,7 +651,7 @@ sclp_vt220_chars_in_buffer(struct tty_struct *tty)
 }
 
 /*
- * Pass on all buffers to the hardware. Return only when there are no more
+ * Pass on all buffers to the hardware. Return only when there are yes more
  * buffers pending.
  */
 static void
@@ -740,7 +740,7 @@ static int __init sclp_vt220_tty_init(void)
 	struct tty_driver *driver;
 	int rc;
 
-	/* Note: we're not testing for CONSOLE_IS_SCLP here to preserve
+	/* Note: we're yest testing for CONSOLE_IS_SCLP here to preserve
 	 * symmetry between VM and LPAR systems regarding ttyS1. */
 	driver = alloc_tty_driver(1);
 	if (!driver)
@@ -752,7 +752,7 @@ static int __init sclp_vt220_tty_init(void)
 	driver->driver_name = SCLP_VT220_DRIVER_NAME;
 	driver->name = SCLP_VT220_DEVICE_NAME;
 	driver->major = SCLP_VT220_MAJOR;
-	driver->minor_start = SCLP_VT220_MINOR;
+	driver->miyesr_start = SCLP_VT220_MINOR;
 	driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;
@@ -851,20 +851,20 @@ sclp_vt220_con_device(struct console *c, int *index)
 }
 
 static int
-sclp_vt220_notify(struct notifier_block *self,
+sclp_vt220_yestify(struct yestifier_block *self,
 			  unsigned long event, void *data)
 {
 	__sclp_vt220_flush_buffer();
 	return NOTIFY_OK;
 }
 
-static struct notifier_block on_panic_nb = {
-	.notifier_call = sclp_vt220_notify,
+static struct yestifier_block on_panic_nb = {
+	.yestifier_call = sclp_vt220_yestify,
 	.priority = 1,
 };
 
-static struct notifier_block on_reboot_nb = {
-	.notifier_call = sclp_vt220_notify,
+static struct yestifier_block on_reboot_nb = {
+	.yestifier_call = sclp_vt220_yestify,
 	.priority = 1,
 };
 
@@ -887,8 +887,8 @@ sclp_vt220_con_init(void)
 	if (rc)
 		return rc;
 	/* Attach linux console */
-	atomic_notifier_chain_register(&panic_notifier_list, &on_panic_nb);
-	register_reboot_notifier(&on_reboot_nb);
+	atomic_yestifier_chain_register(&panic_yestifier_list, &on_panic_nb);
+	register_reboot_yestifier(&on_reboot_nb);
 	register_console(&sclp_vt220_console);
 	return 0;
 }

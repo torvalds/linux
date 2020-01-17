@@ -1192,7 +1192,7 @@ static const unsigned xrx300_exin_pin_map[] = {GPIO0, GPIO1, GPIO16, GPIO10, GPI
 static const unsigned xrx300_pins_exin0[] = {GPIO0};
 static const unsigned xrx300_pins_exin1[] = {GPIO1};
 static const unsigned xrx300_pins_exin2[] = {GPIO16};
-/* EXIN3 is not available on xrX300 */
+/* EXIN3 is yest available on xrX300 */
 static const unsigned xrx300_pins_exin4[] = {GPIO10};
 static const unsigned xrx300_pins_exin5[] = {GPIO9};
 
@@ -1237,14 +1237,14 @@ static const unsigned xrx300_pins_spi_di[] = {GPIO16};
 static const unsigned xrx300_pins_spi_do[] = {GPIO17};
 static const unsigned xrx300_pins_spi_clk[] = {GPIO18};
 static const unsigned xrx300_pins_spi_cs1[] = {GPIO15};
-/* SPI_CS2 is not available on xrX300 */
-/* SPI_CS3 is not available on xrX300 */
+/* SPI_CS2 is yest available on xrX300 */
+/* SPI_CS3 is yest available on xrX300 */
 static const unsigned xrx300_pins_spi_cs4[] = {GPIO10};
-/* SPI_CS5 is not available on xrX300 */
+/* SPI_CS5 is yest available on xrX300 */
 static const unsigned xrx300_pins_spi_cs6[] = {GPIO11};
 
-/* CLKOUT0 is not available on xrX300 */
-/* CLKOUT1 is not available on xrX300 */
+/* CLKOUT0 is yest available on xrX300 */
+/* CLKOUT1 is yest available on xrX300 */
 static const unsigned xrx300_pins_clkout2[] = {GPIO3};
 
 static const struct ltq_pin_group xrx300_grps[] = {
@@ -1763,7 +1763,7 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 	/* register the gpio chip */
 	xway_chip.parent = &pdev->dev;
 	xway_chip.owner = THIS_MODULE;
-	xway_chip.of_node = pdev->dev.of_node;
+	xway_chip.of_yesde = pdev->dev.of_yesde;
 	ret = devm_gpiochip_add_data(&pdev->dev, &xway_chip, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register gpio chip\n");
@@ -1772,7 +1772,7 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 
 	/*
 	 * For DeviceTree-supported systems, the gpio core checks the
-	 * pinctrl's device node for the "gpio-ranges" property.
+	 * pinctrl's device yesde for the "gpio-ranges" property.
 	 * If it is present, it takes care of adding the pin ranges
 	 * for the driver. In this case the driver can skip ahead.
 	 *
@@ -1780,7 +1780,7 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 	 * files which don't set the "gpio-ranges" property or systems that
 	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
 	 */
-	if (!of_property_read_bool(pdev->dev.of_node, "gpio-ranges")) {
+	if (!of_property_read_bool(pdev->dev.of_yesde, "gpio-ranges")) {
 		/* finish with registering the gpio range in pinctrl */
 		xway_gpio_range.npins = xway_chip.ngpio;
 		xway_gpio_range.base = xway_chip.base;

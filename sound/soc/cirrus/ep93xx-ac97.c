@@ -309,7 +309,7 @@ static int ep93xx_ac97_trigger(struct snd_pcm_substream *substream,
 		break;
 
 	default:
-		dev_warn(info->dev, "unknown command %d\n", cmd);
+		dev_warn(info->dev, "unkyeswn command %d\n", cmd);
 		return -EINVAL;
 	}
 

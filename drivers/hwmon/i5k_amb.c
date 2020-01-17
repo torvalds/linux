@@ -73,7 +73,7 @@ static unsigned long amb_reg_temp(unsigned int amb)
  * Ugly hack: For some reason the highest bit is set if there
  * are _any_ DIMMs in the channel.  Attempting to read from
  * this "high-order" AMB results in a memory bus error, so
- * for now we'll just ignore that top bit, even though that
+ * for yesw we'll just igyesre that top bit, even though that
  * might prevent us from seeing the 16th DIMM in the channel.
  */
 #define REAL_MAX_AMBS_PER_CHANNEL	15
@@ -256,7 +256,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 	struct i5k_amb_data *data = platform_get_drvdata(pdev);
 
 	/* Count the number of AMBs found */
-	/* ignore the high-order bit, see "Ugly hack" comment above */
+	/* igyesre the high-order bit, see "Ugly hack" comment above */
 	for (i = 0; i < MAX_MEM_CHANNELS; i++)
 		num_ambs += hweight16(data->amb_present[i] & 0x7fff);
 
@@ -293,7 +293,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 				goto exit_remove;
 			data->num_attrs++;
 
-			/* Temperature sysfs knob */
+			/* Temperature sysfs kyesb */
 			iattr = data->attrs + data->num_attrs;
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_input", d);
@@ -308,7 +308,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 				goto exit_remove;
 			data->num_attrs++;
 
-			/* Temperature min sysfs knob */
+			/* Temperature min sysfs kyesb */
 			iattr = data->attrs + data->num_attrs;
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_min", d);
@@ -324,7 +324,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 				goto exit_remove;
 			data->num_attrs++;
 
-			/* Temperature mid sysfs knob */
+			/* Temperature mid sysfs kyesb */
 			iattr = data->attrs + data->num_attrs;
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_mid", d);
@@ -340,7 +340,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 				goto exit_remove;
 			data->num_attrs++;
 
-			/* Temperature max sysfs knob */
+			/* Temperature max sysfs kyesb */
 			iattr = data->attrs + data->num_attrs;
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_max", d);
@@ -356,7 +356,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 				goto exit_remove;
 			data->num_attrs++;
 
-			/* Temperature alarm sysfs knob */
+			/* Temperature alarm sysfs kyesb */
 			iattr = data->attrs + data->num_attrs;
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_alarm", d);
@@ -435,7 +435,7 @@ static int i5k_find_amb_registers(struct i5k_amb_data *data,
 		goto out;
 	data->amb_len = val32;
 
-	/* Is it big enough? */
+	/* Is it big eyesugh? */
 	if (data->amb_len < AMB_CONFIG_SIZE * MAX_AMBS) {
 		dev_err(&pcidev->dev, "AMB region too small!\n");
 		goto out;
@@ -528,7 +528,7 @@ static int i5k_amb_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	data->amb_mmio = ioremap_nocache(data->amb_base, data->amb_len);
+	data->amb_mmio = ioremap_yescache(data->amb_base, data->amb_len);
 	if (!data->amb_mmio) {
 		res = -EBUSY;
 		goto err_map_failed;

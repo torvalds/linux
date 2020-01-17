@@ -111,7 +111,7 @@ struct security_priv {
 	s32	sw_encrypt;	/* from registry_priv */
 	s32	sw_decrypt;	/* from registry_priv */
 	s32	hw_decrypted;	/* if the rx packets is hw_decrypted==false,
-				 * it means the hw has not been ready.
+				 * it means the hw has yest been ready.
 				 */
 	u32 ndisauthtype;	/* keeps the auth_type & enc_status from upper
 				 * layer ioctl(wpa_supplicant or wzc)

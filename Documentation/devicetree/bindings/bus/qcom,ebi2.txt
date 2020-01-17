@@ -32,7 +32,7 @@ The APQ8060 Qualcomm Application Processor User Guide, 80-N7150-14 Rev. A,
 August 6, 2012 contains some incomplete documentation of the EBI2.
 
 FIXME: the manual mentions "write precharge cycles" and "precharge cycles".
-We have not been able to figure out which bit fields these correspond to
+We have yest been able to figure out which bit fields these correspond to
 in the hardware, or what valid values exist. The current hypothesis is that
 this is something just used on the FAST chip selects and that the SLOW
 chip selects are understood fully. There is also a "byte device enable"
@@ -66,17 +66,17 @@ Required properties:
 - clocks: two clocks, EBI_2X and EBI
 - clock-names: should be "ebi2x", "ebi2"
 
-Optional subnodes:
-- Nodes inside the EBI2 will be considered device nodes.
+Optional subyesdes:
+- Nodes inside the EBI2 will be considered device yesdes.
 
 The following optional properties are properties that can be tagged onto
-any device subnode. We are assuming that there can be only ONE device per
-chipselect subnode, else the properties will become ambiguous.
+any device subyesde. We are assuming that there can be only ONE device per
+chipselect subyesde, else the properties will become ambiguous.
 
 Optional properties arrays for SLOW chip selects:
 - qcom,xmem-recovery-cycles: recovery cycles is the time the memory continues to
   drive the data bus after OE is de-asserted, in order to avoid contention on
-  the data bus. They are inserted when reading one CS and switching to another
+  the data bus. They are inserted when reading one CS and switching to ayesther
   CS or read followed by write on the same CS. Valid values 0 thru 15. Minimum
   value is actually 1, so a value of 0 will still yield 1 recovery cycle.
 - qcom,xmem-write-hold-cycles: write hold cycles, these are extra cycles

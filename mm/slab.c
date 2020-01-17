@@ -21,7 +21,7 @@
  *	Presented at: USENIX Summer 1994 Technical Conference
  *
  * The memory is organized in caches, one cache for each object type.
- * (e.g. inode_cache, dentry_cache, buffer_head, vm_area_struct)
+ * (e.g. iyesde_cache, dentry_cache, buffer_head, vm_area_struct)
  * Each cache consists out of many slabs (they are small (usually one
  * page long) and always contiguous), and each slab contains multiple
  * initialized objects.
@@ -31,13 +31,13 @@
  * kmem_cache_free.
  *
  * Each cache can only support one memory type (GFP_DMA, GFP_HIGHMEM,
- * normal). If you need a special memory type, then must create a new
+ * yesrmal). If you need a special memory type, then must create a new
  * cache for that memory type.
  *
  * In order to reduce fragmentation, the slabs are sorted in 3 groups:
  *   full slabs with 0 free objects
  *   partial slabs
- *   empty slabs with no allocated objects
+ *   empty slabs with yes allocated objects
  *
  * If partial slabs exist, then new allocations come from these slabs,
  * otherwise from empty slabs or new slabs are allocated.
@@ -51,22 +51,22 @@
  * The head array is strictly LIFO and should improve the cache hit rates.
  * On SMP, it additionally reduces the spinlock operations.
  *
- * The c_cpuarray may not be read with enabled local interrupts -
+ * The c_cpuarray may yest be read with enabled local interrupts -
  * it's changed with a smp_call_function().
  *
  * SMP synchronization:
  *  constructors and destructors are called without any locking.
  *  Several members in struct kmem_cache and struct slab never change, they
  *	are accessed without any locking.
- *  The per-cpu arrays are never accessed from the wrong cpu, no locking,
+ *  The per-cpu arrays are never accessed from the wrong cpu, yes locking,
  *  	and local interrupts are disabled so slab code is preempt-safe.
- *  The non-constant members are protected with a per-cache irq spinlock.
+ *  The yesn-constant members are protected with a per-cache irq spinlock.
  *
- * Many thanks to Mark Hemment, who wrote another per-cpu slab patch
+ * Many thanks to Mark Hemment, who wrote ayesther per-cpu slab patch
  * in 2000 - many ideas in the current implementation are derived from
  * his patch.
  *
- * Further notes from the original documentation:
+ * Further yestes from the original documentation:
  *
  * 11 April '97.  Started multi-threading - markhe
  *	The global cache-chain is protected by the mutex 'slab_mutex'.
@@ -82,9 +82,9 @@
  *	Alok N Kataria <alokk@calsoftinc.com>
  *	Christoph Lameter <christoph@lameter.com>
  *
- *	Modified the slab allocator to be node aware on NUMA systems.
- *	Each node has its own list of partial, free and full slabs.
- *	All object allocations for a node occur from node specific slab lists.
+ *	Modified the slab allocator to be yesde aware on NUMA systems.
+ *	Each yesde has its own list of partial, free and full slabs.
+ *	All object allocations for a yesde occur from yesde specific slab lists.
  */
 
 #include	<linux/slab.h>
@@ -98,7 +98,7 @@
 #include	<linux/cpuset.h>
 #include	<linux/proc_fs.h>
 #include	<linux/seq_file.h>
-#include	<linux/notifier.h>
+#include	<linux/yestifier.h>
 #include	<linux/kallsyms.h>
 #include	<linux/cpu.h>
 #include	<linux/sysctl.h>
@@ -106,7 +106,7 @@
 #include	<linux/rcupdate.h>
 #include	<linux/string.h>
 #include	<linux/uaccess.h>
-#include	<linux/nodemask.h>
+#include	<linux/yesdemask.h>
 #include	<linux/kmemleak.h>
 #include	<linux/mempolicy.h>
 #include	<linux/mutex.h>
@@ -131,7 +131,7 @@
 #include	"slab.h"
 
 /*
- * DEBUG	- 1 for kmem_cache_create() to honour; SLAB_RED_ZONE & SLAB_POISON.
+ * DEBUG	- 1 for kmem_cache_create() to hoyesur; SLAB_RED_ZONE & SLAB_POISON.
  *		  0 for faster, smaller code (especially in the critical paths).
  *
  * STATS	- 1 to collect stats for /proc/slabinfo.
@@ -152,7 +152,7 @@
 
 /* Shouldn't this be in a header file somewhere? */
 #define	BYTES_PER_WORD		sizeof(void *)
-#define	REDZONE_ALIGN		max(BYTES_PER_WORD, __alignof__(unsigned long long))
+#define	REDZONE_ALIGN		max(BYTES_PER_WORD, __aligyesf__(unsigned long long))
 
 #ifndef ARCH_KMALLOC_FLAGS
 #define ARCH_KMALLOC_FLAGS SLAB_HWCACHE_ALIGN
@@ -199,17 +199,17 @@ struct alien_cache {
 };
 
 /*
- * Need this for bootstrapping a per node allocator.
+ * Need this for bootstrapping a per yesde allocator.
  */
 #define NUM_INIT_LISTS (2 * MAX_NUMNODES)
-static struct kmem_cache_node __initdata init_kmem_cache_node[NUM_INIT_LISTS];
+static struct kmem_cache_yesde __initdata init_kmem_cache_yesde[NUM_INIT_LISTS];
 #define	CACHE_CACHE 0
 #define	SIZE_NODE (MAX_NUMNODES)
 
 static int drain_freelist(struct kmem_cache *cache,
-			struct kmem_cache_node *n, int tofree);
+			struct kmem_cache_yesde *n, int tofree);
 static void free_block(struct kmem_cache *cachep, void **objpp, int len,
-			int node, struct list_head *list);
+			int yesde, struct list_head *list);
 static void slabs_destroy(struct kmem_cache *cachep, struct list_head *list);
 static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp);
 static void cache_reap(struct work_struct *unused);
@@ -217,13 +217,13 @@ static void cache_reap(struct work_struct *unused);
 static inline void fixup_objfreelist_debug(struct kmem_cache *cachep,
 						void **list);
 static inline void fixup_slab_list(struct kmem_cache *cachep,
-				struct kmem_cache_node *n, struct page *page,
+				struct kmem_cache_yesde *n, struct page *page,
 				void **list);
 static int slab_early_init = 1;
 
-#define INDEX_NODE kmalloc_index(sizeof(struct kmem_cache_node))
+#define INDEX_NODE kmalloc_index(sizeof(struct kmem_cache_yesde))
 
-static void kmem_cache_node_init(struct kmem_cache_node *parent)
+static void kmem_cache_yesde_init(struct kmem_cache_yesde *parent)
 {
 	INIT_LIST_HEAD(&parent->slabs_full);
 	INIT_LIST_HEAD(&parent->slabs_partial);
@@ -238,17 +238,17 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
 	parent->free_touched = 0;
 }
 
-#define MAKE_LIST(cachep, listp, slab, nodeid)				\
+#define MAKE_LIST(cachep, listp, slab, yesdeid)				\
 	do {								\
 		INIT_LIST_HEAD(listp);					\
-		list_splice(&get_node(cachep, nodeid)->slab, listp);	\
+		list_splice(&get_yesde(cachep, yesdeid)->slab, listp);	\
 	} while (0)
 
-#define	MAKE_ALL_LISTS(cachep, ptr, nodeid)				\
+#define	MAKE_ALL_LISTS(cachep, ptr, yesdeid)				\
 	do {								\
-	MAKE_LIST((cachep), (&(ptr)->slabs_full), slabs_full, nodeid);	\
-	MAKE_LIST((cachep), (&(ptr)->slabs_partial), slabs_partial, nodeid); \
-	MAKE_LIST((cachep), (&(ptr)->slabs_free), slabs_free, nodeid);	\
+	MAKE_LIST((cachep), (&(ptr)->slabs_full), slabs_full, yesdeid);	\
+	MAKE_LIST((cachep), (&(ptr)->slabs_partial), slabs_partial, yesdeid); \
+	MAKE_LIST((cachep), (&(ptr)->slabs_free), slabs_free, yesdeid);	\
 	} while (0)
 
 #define CFLGS_OBJFREELIST_SLAB	((slab_flags_t __force)0x40000000U)
@@ -279,9 +279,9 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
 			(x)->high_mark = (x)->num_active;		\
 	} while (0)
 #define	STATS_INC_ERR(x)	((x)->errors++)
-#define	STATS_INC_NODEALLOCS(x)	((x)->node_allocs++)
-#define	STATS_INC_NODEFREES(x)	((x)->node_frees++)
-#define STATS_INC_ACOVERFLOW(x)   ((x)->node_overflow++)
+#define	STATS_INC_NODEALLOCS(x)	((x)->yesde_allocs++)
+#define	STATS_INC_NODEFREES(x)	((x)->yesde_frees++)
+#define STATS_INC_ACOVERFLOW(x)   ((x)->yesde_overflow++)
 #define	STATS_SET_FREEABLE(x, i)					\
 	do {								\
 		if ((x)->max_freeable < i)				\
@@ -363,7 +363,7 @@ static void **dbg_userword(struct kmem_cache *cachep, void *objp)
 #endif
 
 /*
- * Do not go above this order unless 0 objects fit into the slab or
+ * Do yest go above this order unless 0 objects fit into the slab or
  * overridden on the command line.
  */
 #define	SLAB_MAX_ORDER_HI	1
@@ -447,19 +447,19 @@ static void __slab_error(const char *function, struct kmem_cache *cachep,
 
 /*
  * By default on NUMA we use alien caches to stage the freeing of
- * objects allocated from other nodes. This causes massive memory
+ * objects allocated from other yesdes. This causes massive memory
  * inefficiencies when using fake NUMA setup to split memory into a
- * large number of small nodes, so it can be disabled on the command
+ * large number of small yesdes, so it can be disabled on the command
  * line
   */
 
 static int use_alien_caches __read_mostly = 1;
-static int __init noaliencache_setup(char *s)
+static int __init yesaliencache_setup(char *s)
 {
 	use_alien_caches = 0;
 	return 1;
 }
-__setup("noaliencache", noaliencache_setup);
+__setup("yesaliencache", yesaliencache_setup);
 
 static int __init slab_max_order_setup(char *str)
 {
@@ -476,28 +476,28 @@ __setup("slab_max_order=", slab_max_order_setup);
 /*
  * Special reaping functions for NUMA systems called from cache_reap().
  * These take care of doing round robin flushing of alien caches (containing
- * objects freed on different nodes from which they were allocated) and the
- * flushing of remote pcps by calling drain_node_pages.
+ * objects freed on different yesdes from which they were allocated) and the
+ * flushing of remote pcps by calling drain_yesde_pages.
  */
-static DEFINE_PER_CPU(unsigned long, slab_reap_node);
+static DEFINE_PER_CPU(unsigned long, slab_reap_yesde);
 
-static void init_reap_node(int cpu)
+static void init_reap_yesde(int cpu)
 {
-	per_cpu(slab_reap_node, cpu) = next_node_in(cpu_to_mem(cpu),
-						    node_online_map);
+	per_cpu(slab_reap_yesde, cpu) = next_yesde_in(cpu_to_mem(cpu),
+						    yesde_online_map);
 }
 
-static void next_reap_node(void)
+static void next_reap_yesde(void)
 {
-	int node = __this_cpu_read(slab_reap_node);
+	int yesde = __this_cpu_read(slab_reap_yesde);
 
-	node = next_node_in(node, node_online_map);
-	__this_cpu_write(slab_reap_node, node);
+	yesde = next_yesde_in(yesde, yesde_online_map);
+	__this_cpu_write(slab_reap_yesde, yesde);
 }
 
 #else
-#define init_reap_node(cpu) do { } while (0)
-#define next_reap_node(void) do { } while (0)
+#define init_reap_yesde(cpu) do { } while (0)
+#define next_reap_yesde(void) do { } while (0)
 #endif
 
 /*
@@ -512,7 +512,7 @@ static void start_cpu_timer(int cpu)
 	struct delayed_work *reap_work = &per_cpu(slab_reap_work, cpu);
 
 	if (reap_work->work.func == NULL) {
-		init_reap_node(cpu);
+		init_reap_yesde(cpu);
 		INIT_DEFERRABLE_WORK(reap_work, cache_reap);
 		schedule_delayed_work_on(cpu, reap_work,
 					__round_jiffies_relative(HZ, cpu));
@@ -529,44 +529,44 @@ static void init_arraycache(struct array_cache *ac, int limit, int batch)
 	}
 }
 
-static struct array_cache *alloc_arraycache(int node, int entries,
+static struct array_cache *alloc_arraycache(int yesde, int entries,
 					    int batchcount, gfp_t gfp)
 {
 	size_t memsize = sizeof(void *) * entries + sizeof(struct array_cache);
 	struct array_cache *ac = NULL;
 
-	ac = kmalloc_node(memsize, gfp, node);
+	ac = kmalloc_yesde(memsize, gfp, yesde);
 	/*
 	 * The array_cache structures contain pointers to free object.
-	 * However, when such objects are allocated or transferred to another
-	 * cache the pointers are not cleared and they could be counted as
+	 * However, when such objects are allocated or transferred to ayesther
+	 * cache the pointers are yest cleared and they could be counted as
 	 * valid references during a kmemleak scan. Therefore, kmemleak must
-	 * not scan such objects.
+	 * yest scan such objects.
 	 */
-	kmemleak_no_scan(ac);
+	kmemleak_yes_scan(ac);
 	init_arraycache(ac, entries, batchcount);
 	return ac;
 }
 
-static noinline void cache_free_pfmemalloc(struct kmem_cache *cachep,
+static yesinline void cache_free_pfmemalloc(struct kmem_cache *cachep,
 					struct page *page, void *objp)
 {
-	struct kmem_cache_node *n;
-	int page_node;
+	struct kmem_cache_yesde *n;
+	int page_yesde;
 	LIST_HEAD(list);
 
-	page_node = page_to_nid(page);
-	n = get_node(cachep, page_node);
+	page_yesde = page_to_nid(page);
+	n = get_yesde(cachep, page_yesde);
 
 	spin_lock(&n->list_lock);
-	free_block(cachep, &objp, 1, page_node, &list);
+	free_block(cachep, &objp, 1, page_yesde, &list);
 	spin_unlock(&n->list_lock);
 
 	slabs_destroy(cachep, &list);
 }
 
 /*
- * Transfer objects in one arraycache to another.
+ * Transfer objects in one arraycache to ayesther.
  * Locking must be handled by the caller.
  *
  * Return the number of entries transferred.
@@ -593,7 +593,7 @@ static int transfer_objects(struct array_cache *to,
 #define drain_alien_cache(cachep, alien) do { } while (0)
 #define reap_alien(cachep, n) do { } while (0)
 
-static inline struct alien_cache **alloc_alien_cache(int node,
+static inline struct alien_cache **alloc_alien_cache(int yesde,
 						int limit, gfp_t gfp)
 {
 	return NULL;
@@ -608,58 +608,58 @@ static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 	return 0;
 }
 
-static inline void *alternate_node_alloc(struct kmem_cache *cachep,
+static inline void *alternate_yesde_alloc(struct kmem_cache *cachep,
 		gfp_t flags)
 {
 	return NULL;
 }
 
-static inline void *____cache_alloc_node(struct kmem_cache *cachep,
-		 gfp_t flags, int nodeid)
+static inline void *____cache_alloc_yesde(struct kmem_cache *cachep,
+		 gfp_t flags, int yesdeid)
 {
 	return NULL;
 }
 
-static inline gfp_t gfp_exact_node(gfp_t flags)
+static inline gfp_t gfp_exact_yesde(gfp_t flags)
 {
 	return flags & ~__GFP_NOFAIL;
 }
 
 #else	/* CONFIG_NUMA */
 
-static void *____cache_alloc_node(struct kmem_cache *, gfp_t, int);
-static void *alternate_node_alloc(struct kmem_cache *, gfp_t);
+static void *____cache_alloc_yesde(struct kmem_cache *, gfp_t, int);
+static void *alternate_yesde_alloc(struct kmem_cache *, gfp_t);
 
-static struct alien_cache *__alloc_alien_cache(int node, int entries,
+static struct alien_cache *__alloc_alien_cache(int yesde, int entries,
 						int batch, gfp_t gfp)
 {
 	size_t memsize = sizeof(void *) * entries + sizeof(struct alien_cache);
 	struct alien_cache *alc = NULL;
 
-	alc = kmalloc_node(memsize, gfp, node);
+	alc = kmalloc_yesde(memsize, gfp, yesde);
 	if (alc) {
-		kmemleak_no_scan(alc);
+		kmemleak_yes_scan(alc);
 		init_arraycache(&alc->ac, entries, batch);
 		spin_lock_init(&alc->lock);
 	}
 	return alc;
 }
 
-static struct alien_cache **alloc_alien_cache(int node, int limit, gfp_t gfp)
+static struct alien_cache **alloc_alien_cache(int yesde, int limit, gfp_t gfp)
 {
 	struct alien_cache **alc_ptr;
 	int i;
 
 	if (limit > 1)
 		limit = 12;
-	alc_ptr = kcalloc_node(nr_node_ids, sizeof(void *), gfp, node);
+	alc_ptr = kcalloc_yesde(nr_yesde_ids, sizeof(void *), gfp, yesde);
 	if (!alc_ptr)
 		return NULL;
 
-	for_each_node(i) {
-		if (i == node || !node_online(i))
+	for_each_yesde(i) {
+		if (i == yesde || !yesde_online(i))
 			continue;
-		alc_ptr[i] = __alloc_alien_cache(node, limit, 0xbaadf00d, gfp);
+		alc_ptr[i] = __alloc_alien_cache(yesde, limit, 0xbaadf00d, gfp);
 		if (!alc_ptr[i]) {
 			for (i--; i >= 0; i--)
 				kfree(alc_ptr[i]);
@@ -676,28 +676,28 @@ static void free_alien_cache(struct alien_cache **alc_ptr)
 
 	if (!alc_ptr)
 		return;
-	for_each_node(i)
+	for_each_yesde(i)
 	    kfree(alc_ptr[i]);
 	kfree(alc_ptr);
 }
 
 static void __drain_alien_cache(struct kmem_cache *cachep,
-				struct array_cache *ac, int node,
+				struct array_cache *ac, int yesde,
 				struct list_head *list)
 {
-	struct kmem_cache_node *n = get_node(cachep, node);
+	struct kmem_cache_yesde *n = get_yesde(cachep, yesde);
 
 	if (ac->avail) {
 		spin_lock(&n->list_lock);
 		/*
-		 * Stuff objects into the remote nodes shared array first.
+		 * Stuff objects into the remote yesdes shared array first.
 		 * That way we could avoid the overhead of putting the objects
 		 * into the free lists and getting them back later.
 		 */
 		if (n->shared)
 			transfer_objects(n->shared, ac, ac->limit);
 
-		free_block(cachep, ac->entry, ac->avail, node, list);
+		free_block(cachep, ac->entry, ac->avail, yesde, list);
 		ac->avail = 0;
 		spin_unlock(&n->list_lock);
 	}
@@ -706,12 +706,12 @@ static void __drain_alien_cache(struct kmem_cache *cachep,
 /*
  * Called from cache_reap() to regularly drain alien caches round robin.
  */
-static void reap_alien(struct kmem_cache *cachep, struct kmem_cache_node *n)
+static void reap_alien(struct kmem_cache *cachep, struct kmem_cache_yesde *n)
 {
-	int node = __this_cpu_read(slab_reap_node);
+	int yesde = __this_cpu_read(slab_reap_yesde);
 
 	if (n->alien) {
-		struct alien_cache *alc = n->alien[node];
+		struct alien_cache *alc = n->alien[yesde];
 		struct array_cache *ac;
 
 		if (alc) {
@@ -719,7 +719,7 @@ static void reap_alien(struct kmem_cache *cachep, struct kmem_cache_node *n)
 			if (ac->avail && spin_trylock_irq(&alc->lock)) {
 				LIST_HEAD(list);
 
-				__drain_alien_cache(cachep, ac, node, &list);
+				__drain_alien_cache(cachep, ac, yesde, &list);
 				spin_unlock_irq(&alc->lock);
 				slabs_destroy(cachep, &list);
 			}
@@ -735,7 +735,7 @@ static void drain_alien_cache(struct kmem_cache *cachep,
 	struct array_cache *ac;
 	unsigned long flags;
 
-	for_each_online_node(i) {
+	for_each_online_yesde(i) {
 		alc = alien[i];
 		if (alc) {
 			LIST_HEAD(list);
@@ -750,30 +750,30 @@ static void drain_alien_cache(struct kmem_cache *cachep,
 }
 
 static int __cache_free_alien(struct kmem_cache *cachep, void *objp,
-				int node, int page_node)
+				int yesde, int page_yesde)
 {
-	struct kmem_cache_node *n;
+	struct kmem_cache_yesde *n;
 	struct alien_cache *alien = NULL;
 	struct array_cache *ac;
 	LIST_HEAD(list);
 
-	n = get_node(cachep, node);
+	n = get_yesde(cachep, yesde);
 	STATS_INC_NODEFREES(cachep);
-	if (n->alien && n->alien[page_node]) {
-		alien = n->alien[page_node];
+	if (n->alien && n->alien[page_yesde]) {
+		alien = n->alien[page_yesde];
 		ac = &alien->ac;
 		spin_lock(&alien->lock);
 		if (unlikely(ac->avail == ac->limit)) {
 			STATS_INC_ACOVERFLOW(cachep);
-			__drain_alien_cache(cachep, ac, page_node, &list);
+			__drain_alien_cache(cachep, ac, page_yesde, &list);
 		}
 		ac->entry[ac->avail++] = objp;
 		spin_unlock(&alien->lock);
 		slabs_destroy(cachep, &list);
 	} else {
-		n = get_node(cachep, page_node);
+		n = get_yesde(cachep, page_yesde);
 		spin_lock(&n->list_lock);
-		free_block(cachep, &objp, 1, page_node, &list);
+		free_block(cachep, &objp, 1, page_yesde, &list);
 		spin_unlock(&n->list_lock);
 		slabs_destroy(cachep, &list);
 	}
@@ -782,85 +782,85 @@ static int __cache_free_alien(struct kmem_cache *cachep, void *objp,
 
 static inline int cache_free_alien(struct kmem_cache *cachep, void *objp)
 {
-	int page_node = page_to_nid(virt_to_page(objp));
-	int node = numa_mem_id();
+	int page_yesde = page_to_nid(virt_to_page(objp));
+	int yesde = numa_mem_id();
 	/*
-	 * Make sure we are not freeing a object from another node to the array
+	 * Make sure we are yest freeing a object from ayesther yesde to the array
 	 * cache on this cpu.
 	 */
-	if (likely(node == page_node))
+	if (likely(yesde == page_yesde))
 		return 0;
 
-	return __cache_free_alien(cachep, objp, node, page_node);
+	return __cache_free_alien(cachep, objp, yesde, page_yesde);
 }
 
 /*
- * Construct gfp mask to allocate from a specific node but do not reclaim or
+ * Construct gfp mask to allocate from a specific yesde but do yest reclaim or
  * warn about failures.
  */
-static inline gfp_t gfp_exact_node(gfp_t flags)
+static inline gfp_t gfp_exact_yesde(gfp_t flags)
 {
 	return (flags | __GFP_THISNODE | __GFP_NOWARN) & ~(__GFP_RECLAIM|__GFP_NOFAIL);
 }
 #endif
 
-static int init_cache_node(struct kmem_cache *cachep, int node, gfp_t gfp)
+static int init_cache_yesde(struct kmem_cache *cachep, int yesde, gfp_t gfp)
 {
-	struct kmem_cache_node *n;
+	struct kmem_cache_yesde *n;
 
 	/*
-	 * Set up the kmem_cache_node for cpu before we can
+	 * Set up the kmem_cache_yesde for cpu before we can
 	 * begin anything. Make sure some other cpu on this
-	 * node has not already allocated this
+	 * yesde has yest already allocated this
 	 */
-	n = get_node(cachep, node);
+	n = get_yesde(cachep, yesde);
 	if (n) {
 		spin_lock_irq(&n->list_lock);
-		n->free_limit = (1 + nr_cpus_node(node)) * cachep->batchcount +
+		n->free_limit = (1 + nr_cpus_yesde(yesde)) * cachep->batchcount +
 				cachep->num;
 		spin_unlock_irq(&n->list_lock);
 
 		return 0;
 	}
 
-	n = kmalloc_node(sizeof(struct kmem_cache_node), gfp, node);
+	n = kmalloc_yesde(sizeof(struct kmem_cache_yesde), gfp, yesde);
 	if (!n)
 		return -ENOMEM;
 
-	kmem_cache_node_init(n);
+	kmem_cache_yesde_init(n);
 	n->next_reap = jiffies + REAPTIMEOUT_NODE +
 		    ((unsigned long)cachep) % REAPTIMEOUT_NODE;
 
 	n->free_limit =
-		(1 + nr_cpus_node(node)) * cachep->batchcount + cachep->num;
+		(1 + nr_cpus_yesde(yesde)) * cachep->batchcount + cachep->num;
 
 	/*
-	 * The kmem_cache_nodes don't come and go as CPUs
+	 * The kmem_cache_yesdes don't come and go as CPUs
 	 * come and go.  slab_mutex is sufficient
 	 * protection here.
 	 */
-	cachep->node[node] = n;
+	cachep->yesde[yesde] = n;
 
 	return 0;
 }
 
 #if (defined(CONFIG_NUMA) && defined(CONFIG_MEMORY_HOTPLUG)) || defined(CONFIG_SMP)
 /*
- * Allocates and initializes node for a node on each slab cache, used for
- * either memory or cpu hotplug.  If memory is being hot-added, the kmem_cache_node
- * will be allocated off-node since memory is not yet online for the new node.
- * When hotplugging memory or a cpu, existing node are not replaced if
+ * Allocates and initializes yesde for a yesde on each slab cache, used for
+ * either memory or cpu hotplug.  If memory is being hot-added, the kmem_cache_yesde
+ * will be allocated off-yesde since memory is yest yet online for the new yesde.
+ * When hotplugging memory or a cpu, existing yesde are yest replaced if
  * already in use.
  *
  * Must hold slab_mutex.
  */
-static int init_cache_node_node(int node)
+static int init_cache_yesde_yesde(int yesde)
 {
 	int ret;
 	struct kmem_cache *cachep;
 
 	list_for_each_entry(cachep, &slab_caches, list) {
-		ret = init_cache_node(cachep, node, GFP_KERNEL);
+		ret = init_cache_yesde(cachep, yesde, GFP_KERNEL);
 		if (ret)
 			return ret;
 	}
@@ -869,38 +869,38 @@ static int init_cache_node_node(int node)
 }
 #endif
 
-static int setup_kmem_cache_node(struct kmem_cache *cachep,
-				int node, gfp_t gfp, bool force_change)
+static int setup_kmem_cache_yesde(struct kmem_cache *cachep,
+				int yesde, gfp_t gfp, bool force_change)
 {
 	int ret = -ENOMEM;
-	struct kmem_cache_node *n;
+	struct kmem_cache_yesde *n;
 	struct array_cache *old_shared = NULL;
 	struct array_cache *new_shared = NULL;
 	struct alien_cache **new_alien = NULL;
 	LIST_HEAD(list);
 
 	if (use_alien_caches) {
-		new_alien = alloc_alien_cache(node, cachep->limit, gfp);
+		new_alien = alloc_alien_cache(yesde, cachep->limit, gfp);
 		if (!new_alien)
 			goto fail;
 	}
 
 	if (cachep->shared) {
-		new_shared = alloc_arraycache(node,
+		new_shared = alloc_arraycache(yesde,
 			cachep->shared * cachep->batchcount, 0xbaadf00d, gfp);
 		if (!new_shared)
 			goto fail;
 	}
 
-	ret = init_cache_node(cachep, node, gfp);
+	ret = init_cache_yesde(cachep, yesde, gfp);
 	if (ret)
 		goto fail;
 
-	n = get_node(cachep, node);
+	n = get_yesde(cachep, yesde);
 	spin_lock_irq(&n->list_lock);
 	if (n->shared && force_change) {
 		free_block(cachep, n->shared->entry,
-				n->shared->avail, node, &list);
+				n->shared->avail, yesde, &list);
 		n->shared->avail = 0;
 	}
 
@@ -940,9 +940,9 @@ fail:
 static void cpuup_canceled(long cpu)
 {
 	struct kmem_cache *cachep;
-	struct kmem_cache_node *n = NULL;
-	int node = cpu_to_mem(cpu);
-	const struct cpumask *mask = cpumask_of_node(node);
+	struct kmem_cache_yesde *n = NULL;
+	int yesde = cpu_to_mem(cpu);
+	const struct cpumask *mask = cpumask_of_yesde(yesde);
 
 	list_for_each_entry(cachep, &slab_caches, list) {
 		struct array_cache *nc;
@@ -950,18 +950,18 @@ static void cpuup_canceled(long cpu)
 		struct alien_cache **alien;
 		LIST_HEAD(list);
 
-		n = get_node(cachep, node);
+		n = get_yesde(cachep, yesde);
 		if (!n)
 			continue;
 
 		spin_lock_irq(&n->list_lock);
 
-		/* Free limit for this kmem_cache_node */
+		/* Free limit for this kmem_cache_yesde */
 		n->free_limit -= cachep->batchcount;
 
-		/* cpu is dead; no one can alloc from it. */
+		/* cpu is dead; yes one can alloc from it. */
 		nc = per_cpu_ptr(cachep->cpu_cache, cpu);
-		free_block(cachep, nc->entry, nc->avail, node, &list);
+		free_block(cachep, nc->entry, nc->avail, yesde, &list);
 		nc->avail = 0;
 
 		if (!cpumask_empty(mask)) {
@@ -972,7 +972,7 @@ static void cpuup_canceled(long cpu)
 		shared = n->shared;
 		if (shared) {
 			free_block(cachep, shared->entry,
-				   shared->avail, node, &list);
+				   shared->avail, yesde, &list);
 			n->shared = NULL;
 		}
 
@@ -992,11 +992,11 @@ free_slab:
 	}
 	/*
 	 * In the previous loop, all the objects were freed to
-	 * the respective cache's slabs,  now we can go ahead and
-	 * shrink each nodelist to its limit.
+	 * the respective cache's slabs,  yesw we can go ahead and
+	 * shrink each yesdelist to its limit.
 	 */
 	list_for_each_entry(cachep, &slab_caches, list) {
-		n = get_node(cachep, node);
+		n = get_yesde(cachep, yesde);
 		if (!n)
 			continue;
 		drain_freelist(cachep, n, INT_MAX);
@@ -1006,16 +1006,16 @@ free_slab:
 static int cpuup_prepare(long cpu)
 {
 	struct kmem_cache *cachep;
-	int node = cpu_to_mem(cpu);
+	int yesde = cpu_to_mem(cpu);
 	int err;
 
 	/*
 	 * We need to do this right in the beginning since
 	 * alloc_arraycache's are going to use this list.
-	 * kmalloc_node allows us to add the slab to the right
-	 * kmem_cache_node and not this cpu's kmem_cache_node
+	 * kmalloc_yesde allows us to add the slab to the right
+	 * kmem_cache_yesde and yest this cpu's kmem_cache_yesde
 	 */
-	err = init_cache_node_node(node);
+	err = init_cache_yesde_yesde(yesde);
 	if (err < 0)
 		goto bad;
 
@@ -1024,7 +1024,7 @@ static int cpuup_prepare(long cpu)
 	 * array caches
 	 */
 	list_for_each_entry(cachep, &slab_caches, list) {
-		err = setup_kmem_cache_node(cachep, node, GFP_KERNEL, false);
+		err = setup_kmem_cache_yesde(cachep, yesde, GFP_KERNEL, false);
 		if (err)
 			goto bad;
 	}
@@ -1049,9 +1049,9 @@ int slab_prepare_cpu(unsigned int cpu)
  * This is called for a failed online attempt and for a successful
  * offline.
  *
- * Even if all the cpus of a node are down, we don't free the
+ * Even if all the cpus of a yesde are down, we don't free the
  * kmem_list3 of any cache. This to avoid a race between cpu_down, and
- * a kmalloc allocation from another cpu for memory from the node of
+ * a kmalloc allocation from ayesther cpu for memory from the yesde of
  * the cpu going down.  The list3 structure is usually allocated from
  * kmem_cache_create() and gets destroyed at kmem_cache_destroy().
  */
@@ -1074,33 +1074,33 @@ static int slab_offline_cpu(unsigned int cpu)
 {
 	/*
 	 * Shutdown cache reaper. Note that the slab_mutex is held so
-	 * that if cache_reap() is invoked it cannot do anything
+	 * that if cache_reap() is invoked it canyest do anything
 	 * expensive but will only modify reap_work and reschedule the
 	 * timer.
 	 */
 	cancel_delayed_work_sync(&per_cpu(slab_reap_work, cpu));
-	/* Now the cache_reaper is guaranteed to be not running. */
+	/* Now the cache_reaper is guaranteed to be yest running. */
 	per_cpu(slab_reap_work, cpu).work.func = NULL;
 	return 0;
 }
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_MEMORY_HOTPLUG)
 /*
- * Drains freelist for a node on each slab cache, used for memory hot-remove.
- * Returns -EBUSY if all objects cannot be drained so that the node is not
+ * Drains freelist for a yesde on each slab cache, used for memory hot-remove.
+ * Returns -EBUSY if all objects canyest be drained so that the yesde is yest
  * removed.
  *
  * Must hold slab_mutex.
  */
-static int __meminit drain_cache_node_node(int node)
+static int __meminit drain_cache_yesde_yesde(int yesde)
 {
 	struct kmem_cache *cachep;
 	int ret = 0;
 
 	list_for_each_entry(cachep, &slab_caches, list) {
-		struct kmem_cache_node *n;
+		struct kmem_cache_yesde *n;
 
-		n = get_node(cachep, node);
+		n = get_yesde(cachep, yesde);
 		if (!n)
 			continue;
 
@@ -1115,10 +1115,10 @@ static int __meminit drain_cache_node_node(int node)
 	return ret;
 }
 
-static int __meminit slab_memory_callback(struct notifier_block *self,
+static int __meminit slab_memory_callback(struct yestifier_block *self,
 					unsigned long action, void *arg)
 {
-	struct memory_notify *mnb = arg;
+	struct memory_yestify *mnb = arg;
 	int ret = 0;
 	int nid;
 
@@ -1129,12 +1129,12 @@ static int __meminit slab_memory_callback(struct notifier_block *self,
 	switch (action) {
 	case MEM_GOING_ONLINE:
 		mutex_lock(&slab_mutex);
-		ret = init_cache_node_node(nid);
+		ret = init_cache_yesde_yesde(nid);
 		mutex_unlock(&slab_mutex);
 		break;
 	case MEM_GOING_OFFLINE:
 		mutex_lock(&slab_mutex);
-		ret = drain_cache_node_node(nid);
+		ret = drain_cache_yesde_yesde(nid);
 		mutex_unlock(&slab_mutex);
 		break;
 	case MEM_ONLINE:
@@ -1144,42 +1144,42 @@ static int __meminit slab_memory_callback(struct notifier_block *self,
 		break;
 	}
 out:
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 #endif /* CONFIG_NUMA && CONFIG_MEMORY_HOTPLUG */
 
 /*
- * swap the static kmem_cache_node with kmalloced memory
+ * swap the static kmem_cache_yesde with kmalloced memory
  */
-static void __init init_list(struct kmem_cache *cachep, struct kmem_cache_node *list,
-				int nodeid)
+static void __init init_list(struct kmem_cache *cachep, struct kmem_cache_yesde *list,
+				int yesdeid)
 {
-	struct kmem_cache_node *ptr;
+	struct kmem_cache_yesde *ptr;
 
-	ptr = kmalloc_node(sizeof(struct kmem_cache_node), GFP_NOWAIT, nodeid);
+	ptr = kmalloc_yesde(sizeof(struct kmem_cache_yesde), GFP_NOWAIT, yesdeid);
 	BUG_ON(!ptr);
 
-	memcpy(ptr, list, sizeof(struct kmem_cache_node));
+	memcpy(ptr, list, sizeof(struct kmem_cache_yesde));
 	/*
-	 * Do not assume that spinlocks can be initialized via memcpy:
+	 * Do yest assume that spinlocks can be initialized via memcpy:
 	 */
 	spin_lock_init(&ptr->list_lock);
 
-	MAKE_ALL_LISTS(cachep, ptr, nodeid);
-	cachep->node[nodeid] = ptr;
+	MAKE_ALL_LISTS(cachep, ptr, yesdeid);
+	cachep->yesde[yesdeid] = ptr;
 }
 
 /*
- * For setting up all the kmem_cache_node for cache whose buffer_size is same as
- * size of kmem_cache_node.
+ * For setting up all the kmem_cache_yesde for cache whose buffer_size is same as
+ * size of kmem_cache_yesde.
  */
-static void __init set_up_node(struct kmem_cache *cachep, int index)
+static void __init set_up_yesde(struct kmem_cache *cachep, int index)
 {
-	int node;
+	int yesde;
 
-	for_each_online_node(node) {
-		cachep->node[node] = &init_kmem_cache_node[index + node];
-		cachep->node[node]->next_reap = jiffies +
+	for_each_online_yesde(yesde) {
+		cachep->yesde[yesde] = &init_kmem_cache_yesde[index + yesde];
+		cachep->yesde[yesde]->next_reap = jiffies +
 		    REAPTIMEOUT_NODE +
 		    ((unsigned long)cachep) % REAPTIMEOUT_NODE;
 	}
@@ -1195,36 +1195,36 @@ void __init kmem_cache_init(void)
 
 	kmem_cache = &kmem_cache_boot;
 
-	if (!IS_ENABLED(CONFIG_NUMA) || num_possible_nodes() == 1)
+	if (!IS_ENABLED(CONFIG_NUMA) || num_possible_yesdes() == 1)
 		use_alien_caches = 0;
 
 	for (i = 0; i < NUM_INIT_LISTS; i++)
-		kmem_cache_node_init(&init_kmem_cache_node[i]);
+		kmem_cache_yesde_init(&init_kmem_cache_yesde[i]);
 
 	/*
 	 * Fragmentation resistance on low memory - only use bigger
 	 * page orders on machines with more than 32MB of memory if
-	 * not overridden on the command line.
+	 * yest overridden on the command line.
 	 */
 	if (!slab_max_order_set && totalram_pages() > (32 << 20) >> PAGE_SHIFT)
 		slab_max_order = SLAB_MAX_ORDER_HI;
 
 	/* Bootstrap is tricky, because several objects are allocated
-	 * from caches that do not exist yet:
+	 * from caches that do yest exist yet:
 	 * 1) initialize the kmem_cache cache: it contains the struct
 	 *    kmem_cache structures of all caches, except kmem_cache itself:
 	 *    kmem_cache is statically allocated.
 	 *    Initially an __init data area is used for the head array and the
-	 *    kmem_cache_node structures, it's replaced with a kmalloc allocated
+	 *    kmem_cache_yesde structures, it's replaced with a kmalloc allocated
 	 *    array at the end of the bootstrap.
 	 * 2) Create the first kmalloc cache.
-	 *    The struct kmem_cache for the new cache is allocated normally.
+	 *    The struct kmem_cache for the new cache is allocated yesrmally.
 	 *    An __init data area is used for the head array.
 	 * 3) Create the remaining kmalloc caches, with minimally sized
 	 *    head arrays.
 	 * 4) Replace the __init data head arrays for kmem_cache and the first
 	 *    kmalloc cache with kmalloc allocated arrays.
-	 * 5) Replace the __init data for kmem_cache_node for kmem_cache and
+	 * 5) Replace the __init data for kmem_cache_yesde for kmem_cache and
 	 *    the other cache's with kmalloc allocated memory.
 	 * 6) Resize the head arrays of the kmalloc caches to their final sizes.
 	 */
@@ -1232,18 +1232,18 @@ void __init kmem_cache_init(void)
 	/* 1) create the kmem_cache */
 
 	/*
-	 * struct kmem_cache size depends on nr_node_ids & nr_cpu_ids
+	 * struct kmem_cache size depends on nr_yesde_ids & nr_cpu_ids
 	 */
 	create_boot_cache(kmem_cache, "kmem_cache",
-		offsetof(struct kmem_cache, node) +
-				  nr_node_ids * sizeof(struct kmem_cache_node *),
+		offsetof(struct kmem_cache, yesde) +
+				  nr_yesde_ids * sizeof(struct kmem_cache_yesde *),
 				  SLAB_HWCACHE_ALIGN, 0, 0);
 	list_add(&kmem_cache->list, &slab_caches);
 	memcg_link_cache(kmem_cache, NULL);
 	slab_state = PARTIAL;
 
 	/*
-	 * Initialize the caches that provide memory for the  kmem_cache_node
+	 * Initialize the caches that provide memory for the  kmem_cache_yesde
 	 * structures first.  Without this, further allocations will bug.
 	 */
 	kmalloc_caches[KMALLOC_NORMAL][INDEX_NODE] = create_kmalloc_cache(
@@ -1256,15 +1256,15 @@ void __init kmem_cache_init(void)
 
 	slab_early_init = 0;
 
-	/* 5) Replace the bootstrap kmem_cache_node */
+	/* 5) Replace the bootstrap kmem_cache_yesde */
 	{
 		int nid;
 
-		for_each_online_node(nid) {
-			init_list(kmem_cache, &init_kmem_cache_node[CACHE_CACHE + nid], nid);
+		for_each_online_yesde(nid) {
+			init_list(kmem_cache, &init_kmem_cache_yesde[CACHE_CACHE + nid], nid);
 
 			init_list(kmalloc_caches[KMALLOC_NORMAL][INDEX_NODE],
-					  &init_kmem_cache_node[SIZE_NODE + nid], nid);
+					  &init_kmem_cache_yesde[SIZE_NODE + nid], nid);
 		}
 	}
 
@@ -1288,14 +1288,14 @@ void __init kmem_cache_init_late(void)
 #ifdef CONFIG_NUMA
 	/*
 	 * Register a memory hotplug callback that initializes and frees
-	 * node.
+	 * yesde.
 	 */
-	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
+	hotplug_memory_yestifier(slab_memory_callback, SLAB_CALLBACK_PRI);
 #endif
 
 	/*
 	 * The reap timers are started later, with a module init call: That part
-	 * of the kernel is not yet operational.
+	 * of the kernel is yest yet operational.
 	 */
 }
 
@@ -1314,25 +1314,25 @@ static int __init cpucache_init(void)
 }
 __initcall(cpucache_init);
 
-static noinline void
-slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
+static yesinline void
+slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int yesdeid)
 {
 #if DEBUG
-	struct kmem_cache_node *n;
+	struct kmem_cache_yesde *n;
 	unsigned long flags;
-	int node;
+	int yesde;
 	static DEFINE_RATELIMIT_STATE(slab_oom_rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
 
 	if ((gfpflags & __GFP_NOWARN) || !__ratelimit(&slab_oom_rs))
 		return;
 
-	pr_warn("SLAB: Unable to allocate memory on node %d, gfp=%#x(%pGg)\n",
-		nodeid, gfpflags, &gfpflags);
+	pr_warn("SLAB: Unable to allocate memory on yesde %d, gfp=%#x(%pGg)\n",
+		yesdeid, gfpflags, &gfpflags);
 	pr_warn("  cache: %s, object size: %d, order: %d\n",
 		cachep->name, cachep->size, cachep->gfporder);
 
-	for_each_kmem_cache_node(cachep, node, n) {
+	for_each_kmem_cache_yesde(cachep, yesde, n) {
 		unsigned long total_slabs, free_slabs, free_objs;
 
 		spin_lock_irqsave(&n->list_lock, flags);
@@ -1341,8 +1341,8 @@ slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
 		free_objs = n->free_objects;
 		spin_unlock_irqrestore(&n->list_lock, flags);
 
-		pr_warn("  node %d: slabs: %ld/%ld, objs: %ld/%ld\n",
-			node, total_slabs - free_slabs, total_slabs,
+		pr_warn("  yesde %d: slabs: %ld/%ld, objs: %ld/%ld\n",
+			yesde, total_slabs - free_slabs, total_slabs,
 			(total_slabs * cachep->num) - free_objs,
 			total_slabs * cachep->num);
 	}
@@ -1351,22 +1351,22 @@ slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
 
 /*
  * Interface to system's page allocator. No need to hold the
- * kmem_cache_node ->list_lock.
+ * kmem_cache_yesde ->list_lock.
  *
  * If we requested dmaable memory, we will get it. Even if we
- * did not request dmaable memory, we might get it, but that
- * would be relatively rare and ignorable.
+ * did yest request dmaable memory, we might get it, but that
+ * would be relatively rare and igyesrable.
  */
 static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
-								int nodeid)
+								int yesdeid)
 {
 	struct page *page;
 
 	flags |= cachep->allocflags;
 
-	page = __alloc_pages_node(nodeid, flags, cachep->gfporder);
+	page = __alloc_pages_yesde(yesdeid, flags, cachep->gfporder);
 	if (!page) {
-		slab_out_of_memory(cachep, flags, nodeid);
+		slab_out_of_memory(cachep, flags, yesdeid);
 		return NULL;
 	}
 
@@ -1606,7 +1606,7 @@ static void slab_destroy_debugcheck(struct kmem_cache *cachep,
  *
  * Destroy all the objs in a slab page, and release the mem back to the system.
  * Before calling the slab page must have been unlinked from the cache. The
- * kmem_cache_node ->list_lock is not held/needed.
+ * kmem_cache_yesde ->list_lock is yest held/needed.
  */
 static void slab_destroy(struct kmem_cache *cachep, struct page *page)
 {
@@ -1620,7 +1620,7 @@ static void slab_destroy(struct kmem_cache *cachep, struct page *page)
 		kmem_freepages(cachep, page);
 
 	/*
-	 * From now on, we don't use freelist
+	 * From yesw on, we don't use freelist
 	 * although actual page can be freed in rcu context
 	 */
 	if (OFF_SLAB(cachep))
@@ -1645,7 +1645,7 @@ static void slabs_destroy(struct kmem_cache *cachep, struct list_head *list)
  *
  * Also calculates the number of objects per slab.
  *
- * This could be made much more intelligent.  For now, try to avoid using
+ * This could be made much more intelligent.  For yesw, try to avoid using
  * high order pages for slabs.  When the gfp() functions are more friendly
  * towards high-order requests, this should be changed.
  *
@@ -1685,7 +1685,7 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
 			if (OFF_SLAB(freelist_cache))
 				continue;
 
-			/* check if off slab has enough benefit */
+			/* check if off slab has eyesugh benefit */
 			if (freelist_cache->size > cachep->size / 2)
 				continue;
 		}
@@ -1751,22 +1751,22 @@ static int __ref setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
 
 	if (slab_state == DOWN) {
 		/* Creation of first cache (kmem_cache). */
-		set_up_node(kmem_cache, CACHE_CACHE);
+		set_up_yesde(kmem_cache, CACHE_CACHE);
 	} else if (slab_state == PARTIAL) {
-		/* For kmem_cache_node */
-		set_up_node(cachep, SIZE_NODE);
+		/* For kmem_cache_yesde */
+		set_up_yesde(cachep, SIZE_NODE);
 	} else {
-		int node;
+		int yesde;
 
-		for_each_online_node(node) {
-			cachep->node[node] = kmalloc_node(
-				sizeof(struct kmem_cache_node), gfp, node);
-			BUG_ON(!cachep->node[node]);
-			kmem_cache_node_init(cachep->node[node]);
+		for_each_online_yesde(yesde) {
+			cachep->yesde[yesde] = kmalloc_yesde(
+				sizeof(struct kmem_cache_yesde), gfp, yesde);
+			BUG_ON(!cachep->yesde[yesde]);
+			kmem_cache_yesde_init(cachep->yesde[yesde]);
 		}
 	}
 
-	cachep->node[numa_mem_id()]->next_reap =
+	cachep->yesde[numa_mem_id()]->next_reap =
 			jiffies + REAPTIMEOUT_NODE +
 			((unsigned long)cachep) % REAPTIMEOUT_NODE;
 
@@ -1859,7 +1859,7 @@ static bool set_off_slab_cache(struct kmem_cache *cachep,
 		return false;
 
 	/*
-	 * If the slab has been placed off-slab, and we have enough space then
+	 * If the slab has been placed off-slab, and we have eyesugh space then
 	 * move it on-slab. This is at the expense of any extra colouring.
 	 */
 	if (left >= cachep->num * sizeof(freelist_idx_t))
@@ -1892,12 +1892,12 @@ static bool set_on_slab_cache(struct kmem_cache *cachep,
  * @flags: SLAB flags
  *
  * Returns a ptr to the cache on success, NULL on failure.
- * Cannot be called within a int, but can be interrupted.
+ * Canyest be called within a int, but can be interrupted.
  * The @ctor is run when new pages are allocated by the cache.
  *
  * The flags are
  *
- * %SLAB_POISON - Poison the slab with a known test pattern (a5a5a5a5)
+ * %SLAB_POISON - Poison the slab with a kyeswn test pattern (a5a5a5a5)
  * to catch references to uninitialised memory.
  *
  * %SLAB_RED_ZONE - Insert `Red' zones around the allocated memory to check
@@ -1951,7 +1951,7 @@ int __kmem_cache_create(struct kmem_cache *cachep, slab_flags_t flags)
 		ralign = cachep->align;
 	}
 	/* disable debug if necessary */
-	if (ralign > __alignof__(unsigned long long))
+	if (ralign > __aligyesf__(unsigned long long))
 		flags &= ~(SLAB_RED_ZONE | SLAB_STORE_USER);
 	/*
 	 * 4) Store it.
@@ -2004,7 +2004,7 @@ int __kmem_cache_create(struct kmem_cache *cachep, slab_flags_t flags)
 	/*
 	 * To activate debug pagealloc, off-slab management is necessary
 	 * requirement. In early phase of initialization, small sized slab
-	 * doesn't get initialized so it would not be possible. So, we need
+	 * doesn't get initialized so it would yest be possible. So, we need
 	 * to check size >= 256. It guarantees that all necessary small
 	 * sized slab is initialized in current slab initialization sequence.
 	 */
@@ -2097,15 +2097,15 @@ static void check_spinlock_acquired(struct kmem_cache *cachep)
 {
 #ifdef CONFIG_SMP
 	check_irq_off();
-	assert_spin_locked(&get_node(cachep, numa_mem_id())->list_lock);
+	assert_spin_locked(&get_yesde(cachep, numa_mem_id())->list_lock);
 #endif
 }
 
-static void check_spinlock_acquired_node(struct kmem_cache *cachep, int node)
+static void check_spinlock_acquired_yesde(struct kmem_cache *cachep, int yesde)
 {
 #ifdef CONFIG_SMP
 	check_irq_off();
-	assert_spin_locked(&get_node(cachep, node)->list_lock);
+	assert_spin_locked(&get_yesde(cachep, yesde)->list_lock);
 #endif
 }
 
@@ -2114,11 +2114,11 @@ static void check_spinlock_acquired_node(struct kmem_cache *cachep, int node)
 #define check_irq_on()	do { } while(0)
 #define check_mutex_acquired()	do { } while(0)
 #define check_spinlock_acquired(x) do { } while(0)
-#define check_spinlock_acquired_node(x, y) do { } while(0)
+#define check_spinlock_acquired_yesde(x, y) do { } while(0)
 #endif
 
 static void drain_array_locked(struct kmem_cache *cachep, struct array_cache *ac,
-				int node, bool free_all, struct list_head *list)
+				int yesde, bool free_all, struct list_head *list)
 {
 	int tofree;
 
@@ -2129,7 +2129,7 @@ static void drain_array_locked(struct kmem_cache *cachep, struct array_cache *ac
 	if (tofree > ac->avail)
 		tofree = (ac->avail + 1) / 2;
 
-	free_block(cachep, ac->entry, tofree, node, list);
+	free_block(cachep, ac->entry, tofree, yesde, list);
 	ac->avail -= tofree;
 	memmove(ac->entry, &(ac->entry[tofree]), sizeof(void *) * ac->avail);
 }
@@ -2138,15 +2138,15 @@ static void do_drain(void *arg)
 {
 	struct kmem_cache *cachep = arg;
 	struct array_cache *ac;
-	int node = numa_mem_id();
-	struct kmem_cache_node *n;
+	int yesde = numa_mem_id();
+	struct kmem_cache_yesde *n;
 	LIST_HEAD(list);
 
 	check_irq_off();
 	ac = cpu_cache_get(cachep);
-	n = get_node(cachep, node);
+	n = get_yesde(cachep, yesde);
 	spin_lock(&n->list_lock);
-	free_block(cachep, ac->entry, ac->avail, node, &list);
+	free_block(cachep, ac->entry, ac->avail, yesde, &list);
 	spin_unlock(&n->list_lock);
 	slabs_destroy(cachep, &list);
 	ac->avail = 0;
@@ -2154,19 +2154,19 @@ static void do_drain(void *arg)
 
 static void drain_cpu_caches(struct kmem_cache *cachep)
 {
-	struct kmem_cache_node *n;
-	int node;
+	struct kmem_cache_yesde *n;
+	int yesde;
 	LIST_HEAD(list);
 
 	on_each_cpu(do_drain, cachep, 1);
 	check_irq_on();
-	for_each_kmem_cache_node(cachep, node, n)
+	for_each_kmem_cache_yesde(cachep, yesde, n)
 		if (n->alien)
 			drain_alien_cache(cachep, n->alien);
 
-	for_each_kmem_cache_node(cachep, node, n) {
+	for_each_kmem_cache_yesde(cachep, yesde, n) {
 		spin_lock_irq(&n->list_lock);
-		drain_array_locked(cachep, n->shared, node, true, &list);
+		drain_array_locked(cachep, n->shared, yesde, true, &list);
 		spin_unlock_irq(&n->list_lock);
 
 		slabs_destroy(cachep, &list);
@@ -2180,7 +2180,7 @@ static void drain_cpu_caches(struct kmem_cache *cachep)
  * Returns the actual number of slabs released.
  */
 static int drain_freelist(struct kmem_cache *cache,
-			struct kmem_cache_node *n, int tofree)
+			struct kmem_cache_yesde *n, int tofree)
 {
 	struct list_head *p;
 	int nr_freed;
@@ -2201,7 +2201,7 @@ static int drain_freelist(struct kmem_cache *cache,
 		n->free_slabs--;
 		n->total_slabs--;
 		/*
-		 * Safe to drop the lock. The slab is no longer linked
+		 * Safe to drop the lock. The slab is yes longer linked
 		 * to the cache.
 		 */
 		n->free_objects -= cache->num;
@@ -2215,10 +2215,10 @@ out:
 
 bool __kmem_cache_empty(struct kmem_cache *s)
 {
-	int node;
-	struct kmem_cache_node *n;
+	int yesde;
+	struct kmem_cache_yesde *n;
 
-	for_each_kmem_cache_node(s, node, n)
+	for_each_kmem_cache_yesde(s, yesde, n)
 		if (!list_empty(&n->slabs_full) ||
 		    !list_empty(&n->slabs_partial))
 			return false;
@@ -2228,13 +2228,13 @@ bool __kmem_cache_empty(struct kmem_cache *s)
 int __kmem_cache_shrink(struct kmem_cache *cachep)
 {
 	int ret = 0;
-	int node;
-	struct kmem_cache_node *n;
+	int yesde;
+	struct kmem_cache_yesde *n;
 
 	drain_cpu_caches(cachep);
 
 	check_irq_on();
-	for_each_kmem_cache_node(cachep, node, n) {
+	for_each_kmem_cache_yesde(cachep, yesde, n) {
 		drain_freelist(cachep, n, INT_MAX);
 
 		ret += !list_empty(&n->slabs_full) ||
@@ -2262,18 +2262,18 @@ int __kmem_cache_shutdown(struct kmem_cache *cachep)
 void __kmem_cache_release(struct kmem_cache *cachep)
 {
 	int i;
-	struct kmem_cache_node *n;
+	struct kmem_cache_yesde *n;
 
 	cache_random_seq_destroy(cachep);
 
 	free_percpu(cachep->cpu_cache);
 
-	/* NUMA: free the node structures */
-	for_each_kmem_cache_node(cachep, i, n) {
+	/* NUMA: free the yesde structures */
+	for_each_kmem_cache_yesde(cachep, i, n) {
 		kfree(n->shared);
 		free_alien_cache(n->alien);
 		kfree(n);
-		cachep->node[i] = NULL;
+		cachep->yesde[i] = NULL;
 	}
 }
 
@@ -2293,7 +2293,7 @@ void __kmem_cache_release(struct kmem_cache *cachep)
  */
 static void *alloc_slabmgmt(struct kmem_cache *cachep,
 				   struct page *page, int colour_off,
-				   gfp_t local_flags, int nodeid)
+				   gfp_t local_flags, int yesdeid)
 {
 	void *freelist;
 	void *addr = page_address(page);
@@ -2305,8 +2305,8 @@ static void *alloc_slabmgmt(struct kmem_cache *cachep,
 		freelist = NULL;
 	else if (OFF_SLAB(cachep)) {
 		/* Slab management obj is off-slab. */
-		freelist = kmem_cache_alloc_node(cachep->freelist_cache,
-					      local_flags, nodeid);
+		freelist = kmem_cache_alloc_yesde(cachep->freelist_cache,
+					      local_flags, yesdeid);
 		if (!freelist)
 			return NULL;
 	} else {
@@ -2345,7 +2345,7 @@ static void cache_init_objs_debug(struct kmem_cache *cachep, struct page *page)
 			*dbg_redzone2(cachep, objp) = RED_INACTIVE;
 		}
 		/*
-		 * Constructors are not allowed to allocate memory from the same
+		 * Constructors are yest allowed to allocate memory from the same
 		 * cache which they are a constructor for.  Otherwise, deadlock.
 		 * They must also be threaded.
 		 */
@@ -2397,7 +2397,7 @@ static bool freelist_state_initialize(union freelist_init_state *state,
 	/* Use best entropy available to define a random shift */
 	rand = get_random_int();
 
-	/* Use a random state if the pre-computed list is not available */
+	/* Use a random state if the pre-computed list is yest available */
 	if (!cachep->random_seq) {
 		prandom_seed_state(&state->rnd_state, rand);
 		ret = false;
@@ -2563,16 +2563,16 @@ static void slab_map_pages(struct kmem_cache *cache, struct page *page,
 
 /*
  * Grow (by 1) the number of slabs within a cache.  This is called by
- * kmem_cache_alloc() when there are no active objs left in a cache.
+ * kmem_cache_alloc() when there are yes active objs left in a cache.
  */
 static struct page *cache_grow_begin(struct kmem_cache *cachep,
-				gfp_t flags, int nodeid)
+				gfp_t flags, int yesdeid)
 {
 	void *freelist;
 	size_t offset;
 	gfp_t local_flags;
-	int page_node;
-	struct kmem_cache_node *n;
+	int page_yesde;
+	struct kmem_cache_yesde *n;
 	struct page *page;
 
 	/*
@@ -2595,14 +2595,14 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
 
 	/*
 	 * Get mem for the objs.  Attempt to allocate a physical page from
-	 * 'nodeid'.
+	 * 'yesdeid'.
 	 */
-	page = kmem_getpages(cachep, local_flags, nodeid);
+	page = kmem_getpages(cachep, local_flags, yesdeid);
 	if (!page)
 		goto failed;
 
-	page_node = page_to_nid(page);
-	n = get_node(cachep, page_node);
+	page_yesde = page_to_nid(page);
+	n = get_yesde(cachep, page_yesde);
 
 	/* Get colour for the slab, and cal the next value. */
 	n->colour_next++;
@@ -2617,14 +2617,14 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
 
 	/*
 	 * Call kasan_poison_slab() before calling alloc_slabmgmt(), so
-	 * page_address() in the latter returns a non-tagged pointer,
+	 * page_address() in the latter returns a yesn-tagged pointer,
 	 * as it should be for slab pages.
 	 */
 	kasan_poison_slab(page);
 
 	/* Get slab management. */
 	freelist = alloc_slabmgmt(cachep, page, offset,
-			local_flags & ~GFP_CONSTRAINT_MASK, page_node);
+			local_flags & ~GFP_CONSTRAINT_MASK, page_yesde);
 	if (OFF_SLAB(cachep) && !freelist)
 		goto opps1;
 
@@ -2647,7 +2647,7 @@ failed:
 
 static void cache_grow_end(struct kmem_cache *cachep, struct page *page)
 {
-	struct kmem_cache_node *n;
+	struct kmem_cache_yesde *n;
 	void *list = NULL;
 
 	check_irq_off();
@@ -2656,7 +2656,7 @@ static void cache_grow_end(struct kmem_cache *cachep, struct page *page)
 		return;
 
 	INIT_LIST_HEAD(&page->slab_list);
-	n = get_node(cachep, page_to_nid(page));
+	n = get_yesde(cachep, page_to_nid(page));
 
 	spin_lock(&n->list_lock);
 	n->total_slabs++;
@@ -2764,7 +2764,7 @@ static inline void fixup_objfreelist_debug(struct kmem_cache *cachep,
 }
 
 static inline void fixup_slab_list(struct kmem_cache *cachep,
-				struct kmem_cache_node *n, struct page *page,
+				struct kmem_cache_yesde *n, struct page *page,
 				void **list)
 {
 	/* move slabp to correct slabp list: */
@@ -2787,8 +2787,8 @@ static inline void fixup_slab_list(struct kmem_cache *cachep,
 		list_add(&page->slab_list, &n->slabs_partial);
 }
 
-/* Try to find non-pfmemalloc slab if needed */
-static noinline struct page *get_valid_first_slab(struct kmem_cache_node *n,
+/* Try to find yesn-pfmemalloc slab if needed */
+static yesinline struct page *get_valid_first_slab(struct kmem_cache_yesde *n,
 					struct page *page, bool pfmemalloc)
 {
 	if (!page)
@@ -2800,7 +2800,7 @@ static noinline struct page *get_valid_first_slab(struct kmem_cache_node *n,
 	if (!PageSlabPfmemalloc(page))
 		return page;
 
-	/* No need to keep pfmemalloc slab if we have enough free objects */
+	/* No need to keep pfmemalloc slab if we have eyesugh free objects */
 	if (n->free_objects > n->free_limit) {
 		ClearPageSlabPfmemalloc(page);
 		return page;
@@ -2830,7 +2830,7 @@ static noinline struct page *get_valid_first_slab(struct kmem_cache_node *n,
 	return NULL;
 }
 
-static struct page *get_first_slab(struct kmem_cache_node *n, bool pfmemalloc)
+static struct page *get_first_slab(struct kmem_cache_yesde *n, bool pfmemalloc)
 {
 	struct page *page;
 
@@ -2851,8 +2851,8 @@ static struct page *get_first_slab(struct kmem_cache_node *n, bool pfmemalloc)
 	return page;
 }
 
-static noinline void *cache_alloc_pfmemalloc(struct kmem_cache *cachep,
-				struct kmem_cache_node *n, gfp_t flags)
+static yesinline void *cache_alloc_pfmemalloc(struct kmem_cache *cachep,
+				struct kmem_cache_yesde *n, gfp_t flags)
 {
 	struct page *page;
 	void *obj;
@@ -2906,14 +2906,14 @@ static __always_inline int alloc_block(struct kmem_cache *cachep,
 static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
 {
 	int batchcount;
-	struct kmem_cache_node *n;
+	struct kmem_cache_yesde *n;
 	struct array_cache *ac, *shared;
-	int node;
+	int yesde;
 	void *list = NULL;
 	struct page *page;
 
 	check_irq_off();
-	node = numa_mem_id();
+	yesde = numa_mem_id();
 
 	ac = cpu_cache_get(cachep);
 	batchcount = ac->batchcount;
@@ -2925,7 +2925,7 @@ static void *cache_alloc_refill(struct kmem_cache *cachep, gfp_t flags)
 		 */
 		batchcount = BATCHREFILL_LIMIT;
 	}
-	n = get_node(cachep, node);
+	n = get_yesde(cachep, yesde);
 
 	BUG_ON(ac->avail > 0 || !n);
 	shared = READ_ONCE(n->shared);
@@ -2969,7 +2969,7 @@ direct_grow:
 				return obj;
 		}
 
-		page = cache_grow_begin(cachep, gfp_exact_node(flags), node);
+		page = cache_grow_begin(cachep, gfp_exact_yesde(flags), yesde);
 
 		/*
 		 * cache_grow_begin() can reenable interrupts,
@@ -3026,7 +3026,7 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
 		cachep->ctor(objp);
 	if (ARCH_SLAB_MINALIGN &&
 	    ((unsigned long)objp & (ARCH_SLAB_MINALIGN-1))) {
-		pr_err("0x%px: not aligned to ARCH_SLAB_MINALIGN=%d\n",
+		pr_err("0x%px: yest aligned to ARCH_SLAB_MINALIGN=%d\n",
 		       objp, (int)ARCH_SLAB_MINALIGN);
 	}
 	return objp;
@@ -3072,12 +3072,12 @@ out:
 
 #ifdef CONFIG_NUMA
 /*
- * Try allocating on another node if PFA_SPREAD_SLAB is a mempolicy is set.
+ * Try allocating on ayesther yesde if PFA_SPREAD_SLAB is a mempolicy is set.
  *
  * If we are in_interrupt, then process context, including cpusets and
- * mempolicy, may not apply and should not be used for allocation policy.
+ * mempolicy, may yest apply and should yest be used for allocation policy.
  */
-static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
+static void *alternate_yesde_alloc(struct kmem_cache *cachep, gfp_t flags)
 {
 	int nid_alloc, nid_here;
 
@@ -3085,21 +3085,21 @@ static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
 		return NULL;
 	nid_alloc = nid_here = numa_mem_id();
 	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
-		nid_alloc = cpuset_slab_spread_node();
+		nid_alloc = cpuset_slab_spread_yesde();
 	else if (current->mempolicy)
-		nid_alloc = mempolicy_slab_node();
+		nid_alloc = mempolicy_slab_yesde();
 	if (nid_alloc != nid_here)
-		return ____cache_alloc_node(cachep, flags, nid_alloc);
+		return ____cache_alloc_yesde(cachep, flags, nid_alloc);
 	return NULL;
 }
 
 /*
- * Fallback function if there was no memory available and no objects on a
- * certain node and fall back is permitted. First we scan all the
- * available node for available objects. If that fails then we
- * perform an allocation without specifying a node. This allows the page
+ * Fallback function if there was yes memory available and yes objects on a
+ * certain yesde and fall back is permitted. First we scan all the
+ * available yesde for available objects. If that fails then we
+ * perform an allocation without specifying a yesde. This allows the page
  * allocator to do its reclaim / fallback magic. We then insert the
- * slab into the proper nodelist and then allocate from it.
+ * slab into the proper yesdelist and then allocate from it.
  */
 static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 {
@@ -3117,21 +3117,21 @@ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 
 retry_cpuset:
 	cpuset_mems_cookie = read_mems_allowed_begin();
-	zonelist = node_zonelist(mempolicy_slab_node(), flags);
+	zonelist = yesde_zonelist(mempolicy_slab_yesde(), flags);
 
 retry:
 	/*
-	 * Look through allowed nodes for objects available
-	 * from existing per node queues.
+	 * Look through allowed yesdes for objects available
+	 * from existing per yesde queues.
 	 */
 	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
 		nid = zone_to_nid(zone);
 
 		if (cpuset_zone_allowed(zone, flags) &&
-			get_node(cache, nid) &&
-			get_node(cache, nid)->free_objects) {
-				obj = ____cache_alloc_node(cache,
-					gfp_exact_node(flags), nid);
+			get_yesde(cache, nid) &&
+			get_yesde(cache, nid)->free_objects) {
+				obj = ____cache_alloc_yesde(cache,
+					gfp_exact_yesde(flags), nid);
 				if (obj)
 					break;
 		}
@@ -3148,12 +3148,12 @@ retry:
 		cache_grow_end(cache, page);
 		if (page) {
 			nid = page_to_nid(page);
-			obj = ____cache_alloc_node(cache,
-				gfp_exact_node(flags), nid);
+			obj = ____cache_alloc_yesde(cache,
+				gfp_exact_yesde(flags), nid);
 
 			/*
-			 * Another processor may allocate the objects in
-			 * the slab since we are not holding any locks.
+			 * Ayesther processor may allocate the objects in
+			 * the slab since we are yest holding any locks.
 			 */
 			if (!obj)
 				goto retry;
@@ -3166,18 +3166,18 @@ retry:
 }
 
 /*
- * A interface to enable slab creation on nodeid
+ * A interface to enable slab creation on yesdeid
  */
-static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
-				int nodeid)
+static void *____cache_alloc_yesde(struct kmem_cache *cachep, gfp_t flags,
+				int yesdeid)
 {
 	struct page *page;
-	struct kmem_cache_node *n;
+	struct kmem_cache_yesde *n;
 	void *obj = NULL;
 	void *list = NULL;
 
-	VM_BUG_ON(nodeid < 0 || nodeid >= MAX_NUMNODES);
-	n = get_node(cachep, nodeid);
+	VM_BUG_ON(yesdeid < 0 || yesdeid >= MAX_NUMNODES);
+	n = get_yesde(cachep, yesdeid);
 	BUG_ON(!n);
 
 	check_irq_off();
@@ -3186,7 +3186,7 @@ static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
 	if (!page)
 		goto must_grow;
 
-	check_spinlock_acquired_node(cachep, nodeid);
+	check_spinlock_acquired_yesde(cachep, yesdeid);
 
 	STATS_INC_NODEALLOCS(cachep);
 	STATS_INC_ACTIVE(cachep);
@@ -3205,7 +3205,7 @@ static void *____cache_alloc_node(struct kmem_cache *cachep, gfp_t flags,
 
 must_grow:
 	spin_unlock(&n->list_lock);
-	page = cache_grow_begin(cachep, gfp_exact_node(flags), nodeid);
+	page = cache_grow_begin(cachep, gfp_exact_yesde(flags), yesdeid);
 	if (page) {
 		/* This slab isn't counted yet so don't update free_objects */
 		obj = slab_get_obj(cachep, page);
@@ -3216,12 +3216,12 @@ must_grow:
 }
 
 static __always_inline void *
-slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+slab_alloc_yesde(struct kmem_cache *cachep, gfp_t flags, int yesdeid,
 		   unsigned long caller)
 {
 	unsigned long save_flags;
 	void *ptr;
-	int slab_node = numa_mem_id();
+	int slab_yesde = numa_mem_id();
 
 	flags &= gfp_allowed_mask;
 	cachep = slab_pre_alloc_hook(cachep, flags);
@@ -3231,28 +3231,28 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
 	cache_alloc_debugcheck_before(cachep, flags);
 	local_irq_save(save_flags);
 
-	if (nodeid == NUMA_NO_NODE)
-		nodeid = slab_node;
+	if (yesdeid == NUMA_NO_NODE)
+		yesdeid = slab_yesde;
 
-	if (unlikely(!get_node(cachep, nodeid))) {
-		/* Node not bootstrapped yet */
+	if (unlikely(!get_yesde(cachep, yesdeid))) {
+		/* Node yest bootstrapped yet */
 		ptr = fallback_alloc(cachep, flags);
 		goto out;
 	}
 
-	if (nodeid == slab_node) {
+	if (yesdeid == slab_yesde) {
 		/*
 		 * Use the locally cached objects if possible.
-		 * However ____cache_alloc does not allow fallback
-		 * to other nodes. It may fail while we still have
-		 * objects on other nodes available.
+		 * However ____cache_alloc does yest allow fallback
+		 * to other yesdes. It may fail while we still have
+		 * objects on other yesdes available.
 		 */
 		ptr = ____cache_alloc(cachep, flags);
 		if (ptr)
 			goto out;
 	}
-	/* ___cache_alloc_node can fall back to other nodes */
-	ptr = ____cache_alloc_node(cachep, flags, nodeid);
+	/* ___cache_alloc_yesde can fall back to other yesdes */
+	ptr = ____cache_alloc_yesde(cachep, flags, yesdeid);
   out:
 	local_irq_restore(save_flags);
 	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, caller);
@@ -3270,18 +3270,18 @@ __do_cache_alloc(struct kmem_cache *cache, gfp_t flags)
 	void *objp;
 
 	if (current->mempolicy || cpuset_do_slab_mem_spread()) {
-		objp = alternate_node_alloc(cache, flags);
+		objp = alternate_yesde_alloc(cache, flags);
 		if (objp)
 			goto out;
 	}
 	objp = ____cache_alloc(cache, flags);
 
 	/*
-	 * We may just have run out of memory on the local node.
-	 * ____cache_alloc_node() knows how to locate memory on other nodes
+	 * We may just have run out of memory on the local yesde.
+	 * ____cache_alloc_yesde() kyesws how to locate memory on other yesdes
 	 */
 	if (!objp)
-		objp = ____cache_alloc_node(cache, flags, numa_mem_id());
+		objp = ____cache_alloc_yesde(cache, flags, numa_mem_id());
 
   out:
 	return objp;
@@ -3322,14 +3322,14 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
 }
 
 /*
- * Caller needs to acquire correct kmem_cache_node's list_lock
+ * Caller needs to acquire correct kmem_cache_yesde's list_lock
  * @list: List of detached free slabs should be freed by caller
  */
 static void free_block(struct kmem_cache *cachep, void **objpp,
-			int nr_objects, int node, struct list_head *list)
+			int nr_objects, int yesde, struct list_head *list)
 {
 	int i;
-	struct kmem_cache_node *n = get_node(cachep, node);
+	struct kmem_cache_yesde *n = get_yesde(cachep, yesde);
 	struct page *page;
 
 	n->free_objects += nr_objects;
@@ -3342,7 +3342,7 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
 
 		page = virt_to_head_page(objp);
 		list_del(&page->slab_list);
-		check_spinlock_acquired_node(cachep, node);
+		check_spinlock_acquired_yesde(cachep, yesde);
 		slab_put_obj(cachep, page, objp);
 		STATS_DEC_ACTIVE(cachep);
 
@@ -3372,14 +3372,14 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
 static void cache_flusharray(struct kmem_cache *cachep, struct array_cache *ac)
 {
 	int batchcount;
-	struct kmem_cache_node *n;
-	int node = numa_mem_id();
+	struct kmem_cache_yesde *n;
+	int yesde = numa_mem_id();
 	LIST_HEAD(list);
 
 	batchcount = ac->batchcount;
 
 	check_irq_off();
-	n = get_node(cachep, node);
+	n = get_yesde(cachep, yesde);
 	spin_lock(&n->list_lock);
 	if (n->shared) {
 		struct array_cache *shared_array = n->shared;
@@ -3394,7 +3394,7 @@ static void cache_flusharray(struct kmem_cache *cachep, struct array_cache *ac)
 		}
 	}
 
-	free_block(cachep, ac->entry, batchcount, node, &list);
+	free_block(cachep, ac->entry, batchcount, yesde, &list);
 free_done:
 #if STATS
 	{
@@ -3422,7 +3422,7 @@ free_done:
 static __always_inline void __cache_free(struct kmem_cache *cachep, void *objp,
 					 unsigned long caller)
 {
-	/* Put the object into the quarantine, don't touch it for now. */
+	/* Put the object into the quarantine, don't touch it for yesw. */
 	if (kasan_slab_free(cachep, objp, _RET_IP_))
 		return;
 
@@ -3441,13 +3441,13 @@ void ___cache_free(struct kmem_cache *cachep, void *objp,
 	objp = cache_free_debugcheck(cachep, objp, caller);
 
 	/*
-	 * Skip calling cache_free_alien() when the platform is not numa.
+	 * Skip calling cache_free_alien() when the platform is yest numa.
 	 * This will avoid cache misses that happen while accessing slabp (which
-	 * is per page memory  reference) to get nodeid. Instead use a global
+	 * is per page memory  reference) to get yesdeid. Instead use a global
 	 * variable to skip the call, which is mostly likely to be present in
 	 * the cache.
 	 */
-	if (nr_online_nodes > 1 && cache_free_alien(cachep, objp))
+	if (nr_online_yesdes > 1 && cache_free_alien(cachep, objp))
 		return;
 
 	if (ac->avail < ac->limit) {
@@ -3475,7 +3475,7 @@ void ___cache_free(struct kmem_cache *cachep, void *objp,
  * @flags: See kmalloc().
  *
  * Allocate an object from this cache.  The flags are only relevant
- * if the cache has no available objects.
+ * if the cache has yes available objects.
  *
  * Return: pointer to the new object or %NULL in case of error
  */
@@ -3558,51 +3558,51 @@ EXPORT_SYMBOL(kmem_cache_alloc_trace);
 
 #ifdef CONFIG_NUMA
 /**
- * kmem_cache_alloc_node - Allocate an object on the specified node
+ * kmem_cache_alloc_yesde - Allocate an object on the specified yesde
  * @cachep: The cache to allocate from.
  * @flags: See kmalloc().
- * @nodeid: node number of the target node.
+ * @yesdeid: yesde number of the target yesde.
  *
  * Identical to kmem_cache_alloc but it will allocate memory on the given
- * node, which can improve the performance for cpu bound structures.
+ * yesde, which can improve the performance for cpu bound structures.
  *
- * Fallback to other node is possible if __GFP_THISNODE is not set.
+ * Fallback to other yesde is possible if __GFP_THISNODE is yest set.
  *
  * Return: pointer to the new object or %NULL in case of error
  */
-void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+void *kmem_cache_alloc_yesde(struct kmem_cache *cachep, gfp_t flags, int yesdeid)
 {
-	void *ret = slab_alloc_node(cachep, flags, nodeid, _RET_IP_);
+	void *ret = slab_alloc_yesde(cachep, flags, yesdeid, _RET_IP_);
 
-	trace_kmem_cache_alloc_node(_RET_IP_, ret,
+	trace_kmem_cache_alloc_yesde(_RET_IP_, ret,
 				    cachep->object_size, cachep->size,
-				    flags, nodeid);
+				    flags, yesdeid);
 
 	return ret;
 }
-EXPORT_SYMBOL(kmem_cache_alloc_node);
+EXPORT_SYMBOL(kmem_cache_alloc_yesde);
 
 #ifdef CONFIG_TRACING
-void *kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
+void *kmem_cache_alloc_yesde_trace(struct kmem_cache *cachep,
 				  gfp_t flags,
-				  int nodeid,
+				  int yesdeid,
 				  size_t size)
 {
 	void *ret;
 
-	ret = slab_alloc_node(cachep, flags, nodeid, _RET_IP_);
+	ret = slab_alloc_yesde(cachep, flags, yesdeid, _RET_IP_);
 
 	ret = kasan_kmalloc(cachep, ret, size, flags);
-	trace_kmalloc_node(_RET_IP_, ret,
+	trace_kmalloc_yesde(_RET_IP_, ret,
 			   size, cachep->size,
-			   flags, nodeid);
+			   flags, yesdeid);
 	return ret;
 }
-EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
+EXPORT_SYMBOL(kmem_cache_alloc_yesde_trace);
 #endif
 
 static __always_inline void *
-__do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
+__do_kmalloc_yesde(size_t size, gfp_t flags, int yesde, unsigned long caller)
 {
 	struct kmem_cache *cachep;
 	void *ret;
@@ -3612,24 +3612,24 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
 	cachep = kmalloc_slab(size, flags);
 	if (unlikely(ZERO_OR_NULL_PTR(cachep)))
 		return cachep;
-	ret = kmem_cache_alloc_node_trace(cachep, flags, node, size);
+	ret = kmem_cache_alloc_yesde_trace(cachep, flags, yesde, size);
 	ret = kasan_kmalloc(cachep, ret, size, flags);
 
 	return ret;
 }
 
-void *__kmalloc_node(size_t size, gfp_t flags, int node)
+void *__kmalloc_yesde(size_t size, gfp_t flags, int yesde)
 {
-	return __do_kmalloc_node(size, flags, node, _RET_IP_);
+	return __do_kmalloc_yesde(size, flags, yesde, _RET_IP_);
 }
-EXPORT_SYMBOL(__kmalloc_node);
+EXPORT_SYMBOL(__kmalloc_yesde);
 
-void *__kmalloc_node_track_caller(size_t size, gfp_t flags,
-		int node, unsigned long caller)
+void *__kmalloc_yesde_track_caller(size_t size, gfp_t flags,
+		int yesde, unsigned long caller)
 {
-	return __do_kmalloc_node(size, flags, node, caller);
+	return __do_kmalloc_yesde(size, flags, yesde, caller);
 }
-EXPORT_SYMBOL(__kmalloc_node_track_caller);
+EXPORT_SYMBOL(__kmalloc_yesde_track_caller);
 #endif /* CONFIG_NUMA */
 
 /**
@@ -3688,9 +3688,9 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 		return;
 
 	local_irq_save(flags);
-	debug_check_no_locks_freed(objp, cachep->object_size);
+	debug_check_yes_locks_freed(objp, cachep->object_size);
 	if (!(cachep->flags & SLAB_DEBUG_OBJECTS))
-		debug_check_no_obj_freed(objp, cachep->object_size);
+		debug_check_yes_obj_freed(objp, cachep->object_size);
 	__cache_free(cachep, objp, _RET_IP_);
 	local_irq_restore(flags);
 
@@ -3714,9 +3714,9 @@ void kmem_cache_free_bulk(struct kmem_cache *orig_s, size_t size, void **p)
 		if (!s)
 			continue;
 
-		debug_check_no_locks_freed(objp, s->object_size);
+		debug_check_yes_locks_freed(objp, s->object_size);
 		if (!(s->flags & SLAB_DEBUG_OBJECTS))
-			debug_check_no_obj_freed(objp, s->object_size);
+			debug_check_yes_obj_freed(objp, s->object_size);
 
 		__cache_free(s, objp, _RET_IP_);
 	}
@@ -3730,9 +3730,9 @@ EXPORT_SYMBOL(kmem_cache_free_bulk);
  * kfree - free previously allocated memory
  * @objp: pointer returned by kmalloc.
  *
- * If @objp is NULL, no operation is performed.
+ * If @objp is NULL, yes operation is performed.
  *
- * Don't free memory not originally allocated by kmalloc()
+ * Don't free memory yest originally allocated by kmalloc()
  * or you will run into trouble.
  */
 void kfree(const void *objp)
@@ -3751,25 +3751,25 @@ void kfree(const void *objp)
 		local_irq_restore(flags);
 		return;
 	}
-	debug_check_no_locks_freed(objp, c->object_size);
+	debug_check_yes_locks_freed(objp, c->object_size);
 
-	debug_check_no_obj_freed(objp, c->object_size);
+	debug_check_yes_obj_freed(objp, c->object_size);
 	__cache_free(c, (void *)objp, _RET_IP_);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(kfree);
 
 /*
- * This initializes kmem_cache_node or resizes various caches for all nodes.
+ * This initializes kmem_cache_yesde or resizes various caches for all yesdes.
  */
-static int setup_kmem_cache_nodes(struct kmem_cache *cachep, gfp_t gfp)
+static int setup_kmem_cache_yesdes(struct kmem_cache *cachep, gfp_t gfp)
 {
 	int ret;
-	int node;
-	struct kmem_cache_node *n;
+	int yesde;
+	struct kmem_cache_yesde *n;
 
-	for_each_online_node(node) {
-		ret = setup_kmem_cache_node(cachep, node, gfp, true);
+	for_each_online_yesde(yesde) {
+		ret = setup_kmem_cache_yesde(cachep, yesde, gfp, true);
 		if (ret)
 			goto fail;
 
@@ -3779,17 +3779,17 @@ static int setup_kmem_cache_nodes(struct kmem_cache *cachep, gfp_t gfp)
 
 fail:
 	if (!cachep->list.next) {
-		/* Cache is not active yet. Roll back what we did */
-		node--;
-		while (node >= 0) {
-			n = get_node(cachep, node);
+		/* Cache is yest active yet. Roll back what we did */
+		yesde--;
+		while (yesde >= 0) {
+			n = get_yesde(cachep, yesde);
 			if (n) {
 				kfree(n->shared);
 				free_alien_cache(n->alien);
 				kfree(n);
-				cachep->node[node] = NULL;
+				cachep->yesde[yesde] = NULL;
 			}
-			node--;
+			yesde--;
 		}
 	}
 	return -ENOMEM;
@@ -3809,7 +3809,7 @@ static int __do_tune_cpucache(struct kmem_cache *cachep, int limit,
 	prev = cachep->cpu_cache;
 	cachep->cpu_cache = cpu_cache;
 	/*
-	 * Without a previous cpu_cache there's no need to synchronize remote
+	 * Without a previous cpu_cache there's yes need to synchronize remote
 	 * cpus, so skip the IPIs.
 	 */
 	if (prev)
@@ -3821,25 +3821,25 @@ static int __do_tune_cpucache(struct kmem_cache *cachep, int limit,
 	cachep->shared = shared;
 
 	if (!prev)
-		goto setup_node;
+		goto setup_yesde;
 
 	for_each_online_cpu(cpu) {
 		LIST_HEAD(list);
-		int node;
-		struct kmem_cache_node *n;
+		int yesde;
+		struct kmem_cache_yesde *n;
 		struct array_cache *ac = per_cpu_ptr(prev, cpu);
 
-		node = cpu_to_mem(cpu);
-		n = get_node(cachep, node);
+		yesde = cpu_to_mem(cpu);
+		n = get_yesde(cachep, yesde);
 		spin_lock_irq(&n->list_lock);
-		free_block(cachep, ac->entry, ac->avail, node, &list);
+		free_block(cachep, ac->entry, ac->avail, yesde, &list);
 		spin_unlock_irq(&n->list_lock);
 		slabs_destroy(cachep, &list);
 	}
 	free_percpu(prev);
 
-setup_node:
-	return setup_kmem_cache_nodes(cachep, gfp);
+setup_yesde:
+	return setup_kmem_cache_yesdes(cachep, gfp);
 }
 
 static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
@@ -3909,7 +3909,7 @@ static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
 	/*
 	 * CPU bound tasks (e.g. network routing) can exhibit cpu bound
 	 * allocation behaviour: Most allocs on one cpu, most free operations
-	 * on another cpu. For these cases, an efficient object passing between
+	 * on ayesther cpu. For these cases, an efficient object passing between
 	 * cpus is necessary. This is provided by a shared array. The array
 	 * replaces Bonwick's magazine layer.
 	 * On uniprocessor, it's functionally equivalent (but less efficient)
@@ -3938,12 +3938,12 @@ end:
 }
 
 /*
- * Drain an array if it contains any elements taking the node lock only if
- * necessary. Note that the node listlock also protects the array_cache
+ * Drain an array if it contains any elements taking the yesde lock only if
+ * necessary. Note that the yesde listlock also protects the array_cache
  * if drain_array() is used on the shared array.
  */
-static void drain_array(struct kmem_cache *cachep, struct kmem_cache_node *n,
-			 struct array_cache *ac, int node)
+static void drain_array(struct kmem_cache *cachep, struct kmem_cache_yesde *n,
+			 struct array_cache *ac, int yesde)
 {
 	LIST_HEAD(list);
 
@@ -3959,7 +3959,7 @@ static void drain_array(struct kmem_cache *cachep, struct kmem_cache_node *n,
 	}
 
 	spin_lock_irq(&n->list_lock);
-	drain_array_locked(cachep, ac, node, false, &list);
+	drain_array_locked(cachep, ac, yesde, false, &list);
 	spin_unlock_irq(&n->list_lock);
 
 	slabs_destroy(cachep, &list);
@@ -3974,14 +3974,14 @@ static void drain_array(struct kmem_cache *cachep, struct kmem_cache_node *n,
  * - clear the per-cpu caches for this CPU.
  * - return freeable pages to the main free memory pool.
  *
- * If we cannot acquire the cache chain mutex then just give up - we'll try
+ * If we canyest acquire the cache chain mutex then just give up - we'll try
  * again on the next iteration.
  */
 static void cache_reap(struct work_struct *w)
 {
 	struct kmem_cache *searchp;
-	struct kmem_cache_node *n;
-	int node = numa_mem_id();
+	struct kmem_cache_yesde *n;
+	int yesde = numa_mem_id();
 	struct delayed_work *work = to_delayed_work(w);
 
 	if (!mutex_trylock(&slab_mutex))
@@ -3992,18 +3992,18 @@ static void cache_reap(struct work_struct *w)
 		check_irq_on();
 
 		/*
-		 * We only take the node lock if absolutely necessary and we
+		 * We only take the yesde lock if absolutely necessary and we
 		 * have established with reasonable certainty that
 		 * we can do some work if the lock was obtained.
 		 */
-		n = get_node(searchp, node);
+		n = get_yesde(searchp, yesde);
 
 		reap_alien(searchp, n);
 
-		drain_array(searchp, n, cpu_cache_get(searchp), node);
+		drain_array(searchp, n, cpu_cache_get(searchp), yesde);
 
 		/*
-		 * These are racy checks but it does not matter
+		 * These are racy checks but it does yest matter
 		 * if we skip one check or scan twice.
 		 */
 		if (time_after(n->next_reap, jiffies))
@@ -4011,7 +4011,7 @@ static void cache_reap(struct work_struct *w)
 
 		n->next_reap = jiffies + REAPTIMEOUT_NODE;
 
-		drain_array(searchp, n, n->shared, node);
+		drain_array(searchp, n, n->shared, yesde);
 
 		if (n->free_touched)
 			n->free_touched = 0;
@@ -4027,7 +4027,7 @@ next:
 	}
 	check_irq_on();
 	mutex_unlock(&slab_mutex);
-	next_reap_node();
+	next_reap_yesde();
 out:
 	/* Set up the next iteration */
 	schedule_delayed_work_on(smp_processor_id(), work,
@@ -4039,10 +4039,10 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
 	unsigned long active_objs, num_objs, active_slabs;
 	unsigned long total_slabs = 0, free_objs = 0, shared_avail = 0;
 	unsigned long free_slabs = 0;
-	int node;
-	struct kmem_cache_node *n;
+	int yesde;
+	struct kmem_cache_yesde *n;
 
-	for_each_kmem_cache_node(cachep, node, n) {
+	for_each_kmem_cache_yesde(cachep, yesde, n) {
 		check_irq_on();
 		spin_lock_irq(&n->list_lock);
 
@@ -4074,21 +4074,21 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
 void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *cachep)
 {
 #if STATS
-	{			/* node stats */
+	{			/* yesde stats */
 		unsigned long high = cachep->high_mark;
 		unsigned long allocs = cachep->num_allocations;
 		unsigned long grown = cachep->grown;
 		unsigned long reaped = cachep->reaped;
 		unsigned long errors = cachep->errors;
 		unsigned long max_freeable = cachep->max_freeable;
-		unsigned long node_allocs = cachep->node_allocs;
-		unsigned long node_frees = cachep->node_frees;
-		unsigned long overflows = cachep->node_overflow;
+		unsigned long yesde_allocs = cachep->yesde_allocs;
+		unsigned long yesde_frees = cachep->yesde_frees;
+		unsigned long overflows = cachep->yesde_overflow;
 
 		seq_printf(m, " : globalstat %7lu %6lu %5lu %4lu %4lu %4lu %4lu %4lu %4lu",
 			   allocs, high, grown,
-			   reaped, errors, max_freeable, node_allocs,
-			   node_frees, overflows);
+			   reaped, errors, max_freeable, yesde_allocs,
+			   yesde_frees, overflows);
 	}
 	/* cpu stats */
 	{
@@ -4159,7 +4159,7 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 #ifdef CONFIG_HARDENED_USERCOPY
 /*
  * Rejects incorrectly sized objects and objects that are to be copied
- * to/from userspace but do not fall entirely within the containing slab
+ * to/from userspace but do yest fall entirely within the containing slab
  * cache's usercopy region.
  *
  * Returns NULL if check passes, otherwise const char * to name of cache
@@ -4209,7 +4209,7 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
  * __ksize -- Uninstrumented ksize.
  * @objp: pointer to the object
  *
- * Unlike ksize(), __ksize() is uninstrumented, and does not provide the same
+ * Unlike ksize(), __ksize() is uninstrumented, and does yest provide the same
  * safety checks as ksize() with KASAN instrumentation enabled.
  *
  * Return: size of the actual memory used by @objp in bytes

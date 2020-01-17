@@ -79,7 +79,7 @@ static const struct mt9m001_datafmt mt9m001_colour_fmts[] = {
 	{MEDIA_BUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
 };
 
-static const struct mt9m001_datafmt mt9m001_monochrome_fmts[] = {
+static const struct mt9m001_datafmt mt9m001_moyeschrome_fmts[] = {
 	/* Order important - see above */
 	{MEDIA_BUS_FMT_Y10_1X10, V4L2_COLORSPACE_JPEG},
 	{MEDIA_BUS_FMT_Y8_1X8, V4L2_COLORSPACE_JPEG},
@@ -174,7 +174,7 @@ static int mt9m001_init(struct i2c_client *client)
 		 */
 		{ MT9M001_RESET, 1 },
 		{ MT9M001_RESET, 0 },
-		/* Disable chip, synchronous option update */
+		/* Disable chip, synchroyesus option update */
 		{ MT9M001_OUTPUT_CONTROL, 0 }
 	};
 
@@ -229,7 +229,7 @@ static int mt9m001_s_stream(struct v4l2_subdev *sd, int enable)
 		if (ret)
 			goto put_unlock;
 
-		/* Switch to master "normal" mode */
+		/* Switch to master "yesrmal" mode */
 		ret = reg_write(client, MT9M001_OUTPUT_CONTROL, 2);
 		if (ret < 0)
 			goto put_unlock;
@@ -602,8 +602,8 @@ static int mt9m001_video_probe(struct i2c_client *client)
 		mt9m001->num_fmts = ARRAY_SIZE(mt9m001_colour_fmts);
 		break;
 	case 0x8431:
-		mt9m001->fmts = mt9m001_monochrome_fmts;
-		mt9m001->num_fmts = ARRAY_SIZE(mt9m001_monochrome_fmts);
+		mt9m001->fmts = mt9m001_moyeschrome_fmts;
+		mt9m001->num_fmts = ARRAY_SIZE(mt9m001_moyeschrome_fmts);
 		break;
 	default:
 		dev_err(&client->dev,
@@ -840,7 +840,7 @@ static int mt9m001_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 	mt9m001_power_off(&client->dev);
 
 	v4l2_ctrl_handler_free(&mt9m001->hdl);

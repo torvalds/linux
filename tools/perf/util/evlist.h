@@ -31,7 +31,7 @@ struct record_opts;
  *                     |                                     |
  *                      \_________________(3)_______________/
  *
- * NOTREADY     : Backward ring buffers are not ready
+ * NOTREADY     : Backward ring buffers are yest ready
  * RUNNING      : Backward ring buffers are recording
  * DATA_PENDING : We are required to collect data from backward ring buffers
  * EMPTY        : We have collected data from backward ring buffers.
@@ -184,7 +184,7 @@ int record_opts__config(struct record_opts *opts);
 int perf_evlist__prepare_workload(struct evlist *evlist,
 				  struct target *target,
 				  const char *argv[], bool pipe_output,
-				  void (*exec_error)(int signo, siginfo_t *info,
+				  void (*exec_error)(int sigyes, siginfo_t *info,
 						     void *ucontext));
 int perf_evlist__start_workload(struct evlist *evlist);
 
@@ -274,7 +274,7 @@ void perf_evlist__to_front(struct evlist *evlist,
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry(list, evsel) \
-        list_for_each_entry(evsel, list, core.node)
+        list_for_each_entry(evsel, list, core.yesde)
 
 /**
  * evlist__for_each_entry - iterate thru all the evsels
@@ -290,7 +290,7 @@ void perf_evlist__to_front(struct evlist *evlist,
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry_continue(list, evsel) \
-        list_for_each_entry_continue(evsel, list, core.node)
+        list_for_each_entry_continue(evsel, list, core.yesde)
 
 /**
  * evlist__for_each_entry_continue - continue iteration thru all the evsels
@@ -306,7 +306,7 @@ void perf_evlist__to_front(struct evlist *evlist,
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry_reverse(list, evsel) \
-        list_for_each_entry_reverse(evsel, list, core.node)
+        list_for_each_entry_reverse(evsel, list, core.yesde)
 
 /**
  * evlist__for_each_entry_reverse - iterate thru all the evsels in reverse order
@@ -323,7 +323,7 @@ void perf_evlist__to_front(struct evlist *evlist,
  * @evsel: struct evsel iterator
  */
 #define __evlist__for_each_entry_safe(list, tmp, evsel) \
-        list_for_each_entry_safe(evsel, tmp, list, core.node)
+        list_for_each_entry_safe(evsel, tmp, list, core.yesde)
 
 /**
  * evlist__for_each_entry_safe - safely iterate thru all the evsels
@@ -343,7 +343,7 @@ void perf_evlist__set_tracking_event(struct evlist *evlist,
 
 void evlist__cpu_iter_start(struct evlist *evlist);
 bool evsel__cpu_iter_skip(struct evsel *ev, int cpu);
-bool evsel__cpu_iter_skip_no_inc(struct evsel *ev, int cpu);
+bool evsel__cpu_iter_skip_yes_inc(struct evsel *ev, int cpu);
 
 struct evsel *
 perf_evlist__find_evsel_by_str(struct evlist *evlist, const char *str);

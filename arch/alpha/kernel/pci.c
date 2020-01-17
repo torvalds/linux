@@ -73,7 +73,7 @@ static void quirk_cypress(struct pci_dev *dev)
 
 	/* The generic legacy mode IDE fixup in drivers/pci/probe.c
 	   doesn't work correctly with the Cypress IDE controller as
-	   it has non-standard register layout.  Fix that.  */
+	   it has yesn-standard register layout.  Fix that.  */
 	if (dev->class >> 8 == PCI_CLASS_STORAGE_IDE) {
 		dev->resource[2].start = dev->resource[3].start = 0;
 		dev->resource[2].end = dev->resource[3].end = 0;
@@ -87,7 +87,7 @@ static void quirk_cypress(struct pci_dev *dev)
 	}
 
 	/* The Cypress bridge responds on the PCI bus in the address range
-	   0xffff0000-0xffffffff (conventional x86 BIOS ROM).  There is no
+	   0xffff0000-0xffffffff (conventional x86 BIOS ROM).  There is yes
 	   way to turn this off.  The bridge also supports several extended
 	   BIOS ranges (disabled after power-up), and some consoles do turn
 	   them on.  So if we use a large direct-map window, or a large SG
@@ -305,7 +305,7 @@ pcibios_claim_one_bus(struct pci_bus *b)
 		}
 	}
 
-	list_for_each_entry(child_bus, &b->children, node)
+	list_for_each_entry(child_bus, &b->children, yesde)
 		pcibios_claim_one_bus(child_bus);
 }
 
@@ -314,7 +314,7 @@ pcibios_claim_console_setup(void)
 {
 	struct pci_bus *b;
 
-	list_for_each_entry(b, &pci_root_buses, node)
+	list_for_each_entry(b, &pci_root_buses, yesde)
 		pcibios_claim_one_bus(b);
 }
 
@@ -325,14 +325,14 @@ common_init_pci(void)
 	struct list_head resources;
 	struct pci_host_bridge *bridge;
 	struct pci_bus *bus;
-	int ret, next_busno;
+	int ret, next_busyes;
 	int need_domain_info = 0;
 	u32 pci_mem_end;
 	u32 sg_base;
 	unsigned long end;
 
 	/* Scan all of the recorded PCI controllers.  */
-	for (next_busno = 0, hose = hose_head; hose; hose = hose->next) {
+	for (next_busyes = 0, hose = hose_head; hose; hose = hose->next) {
 		sg_base = hose->sg_pci ? hose->sg_pci->dma_base : ~0;
 
 		/* Adjust hose mem_space limit to prevent PCI allocations
@@ -355,7 +355,7 @@ common_init_pci(void)
 		list_splice_init(&resources, &bridge->windows);
 		bridge->dev.parent = NULL;
 		bridge->sysdata = hose;
-		bridge->busnr = next_busno;
+		bridge->busnr = next_busyes;
 		bridge->ops = alpha_mv.pci_ops;
 		bridge->swizzle_irq = alpha_mv.pci_swizzle;
 		bridge->map_irq = alpha_mv.pci_map_irq;
@@ -368,11 +368,11 @@ common_init_pci(void)
 
 		bus = hose->bus = bridge->bus;
 		hose->need_domain_info = need_domain_info;
-		next_busno = bus->busn_res.end + 1;
+		next_busyes = bus->busn_res.end + 1;
 		/* Don't allow 8-bit bus number overflow inside the hose -
 		   reserve some space for bridges. */ 
-		if (next_busno > 224) {
-			next_busno = 0;
+		if (next_busyes > 224) {
+			next_busyes = 0;
 			need_domain_info = 1;
 		}
 	}

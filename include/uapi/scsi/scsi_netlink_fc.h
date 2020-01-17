@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *  FC Transport Netlink Interface
  *
@@ -20,7 +20,7 @@
 	/* kernel -> user */
 #define FC_NL_ASYNC_EVENT			0x0100
 	/* user -> kernel */
-/* none */
+/* yesne */
 
 
 /*
@@ -46,7 +46,7 @@ struct fc_nl_event {
 	struct scsi_nl_hdr snlh;		/* must be 1st element ! */
 	__u64 seconds;
 	__u64 vendor_id;
-	__u16 host_no;
+	__u16 host_yes;
 	__u16 event_datalen;
 	__u32 event_num;
 	__u32 event_code;

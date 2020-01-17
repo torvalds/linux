@@ -21,6 +21,6 @@ EXPORT_SYMBOL(ioport_unmap);
 
 void pci_iounmap(struct pci_dev *dev, void __iomem * addr)
 {
-	/* nothing to do */
+	/* yesthing to do */
 }
 EXPORT_SYMBOL(pci_iounmap);

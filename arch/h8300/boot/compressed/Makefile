@@ -11,7 +11,7 @@ OBJECTS = $(obj)/head.o $(obj)/misc.o
 
 #
 # IMAGE_OFFSET is the load offset of the compression loader
-# Assign dummy values if these 2 variables are not defined,
+# Assign dummy values if these 2 variables are yest defined,
 # in order to suppress error message.
 #
 CONFIG_MEMORY_START     ?= 0x00400000

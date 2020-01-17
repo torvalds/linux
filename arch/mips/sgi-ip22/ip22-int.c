@@ -20,7 +20,7 @@
 #include <asm/sgi/hpc3.h>
 #include <asm/sgi/ip22.h>
 
-/* So far nothing hangs here */
+/* So far yesthing hangs here */
 #undef USE_LIO3_IRQ
 
 struct sgint_regs *sgint;
@@ -160,32 +160,32 @@ static void __irq_entry indy_buserror_irq(void)
 }
 
 static struct irqaction local0_cascade = {
-	.handler	= no_action,
+	.handler	= yes_action,
 	.flags		= IRQF_NO_THREAD,
 	.name		= "local0 cascade",
 };
 
 static struct irqaction local1_cascade = {
-	.handler	= no_action,
+	.handler	= yes_action,
 	.flags		= IRQF_NO_THREAD,
 	.name		= "local1 cascade",
 };
 
 static struct irqaction buserr = {
-	.handler	= no_action,
+	.handler	= yes_action,
 	.flags		= IRQF_NO_THREAD,
 	.name		= "Bus Error",
 };
 
 static struct irqaction map0_cascade = {
-	.handler	= no_action,
+	.handler	= yes_action,
 	.flags		= IRQF_NO_THREAD,
 	.name		= "mapable0 cascade",
 };
 
 #ifdef USE_LIO3_IRQ
 static struct irqaction map1_cascade = {
-	.handler	= no_action,
+	.handler	= yes_action,
 	.flags		= IRQF_NO_THREAD,
 	.name		= "mapable1 cascade",
 };
@@ -202,8 +202,8 @@ extern void indy_8254timer_irq(void);
  *
  *	MIPS IRQ	Source
  *	--------	------
- *	       0	Software (ignored)
- *	       1	Software (ignored)
+ *	       0	Software (igyesred)
+ *	       1	Software (igyesred)
  *	       2	Local IRQ level zero
  *	       3	Local IRQ level one
  *	       4	8254 Timer zero
@@ -221,7 +221,7 @@ extern void indy_8254timer_irq(void);
  * Lowest  ----	    8254 Timer one
  *
  * then we just return, if multiple IRQs are pending then we will just take
- * another exception, big deal.
+ * ayesther exception, big deal.
  */
 
 asmlinkage void plat_irq_dispatch(void)
@@ -321,7 +321,7 @@ void __init arch_init_irq(void)
 		irq_set_chip_and_handler(i, handler, handle_level_irq);
 	}
 
-	/* vector handler. this register the IRQ as non-sharable */
+	/* vector handler. this register the IRQ as yesn-sharable */
 	setup_irq(SGI_LOCAL_0_IRQ, &local0_cascade);
 	setup_irq(SGI_LOCAL_1_IRQ, &local1_cascade);
 	setup_irq(SGI_BUSERR_IRQ, &buserr);

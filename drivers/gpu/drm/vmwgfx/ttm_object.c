@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -28,7 +28,7 @@
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  *
- * While no substantial code is shared, the prime code is inspired by
+ * While yes substantial code is shared, the prime code is inspired by
  * drm_prime.c, with
  * Authors:
  *      Dave Airlie <airlied@redhat.com>
@@ -226,23 +226,23 @@ void ttm_base_object_unref(struct ttm_base_object **p_base)
 }
 
 /**
- * ttm_base_object_noref_lookup - look up a base object without reference
+ * ttm_base_object_yesref_lookup - look up a base object without reference
  * @tfile: The struct ttm_object_file the object is registered with.
  * @key: The object handle.
  *
  * This function looks up a ttm base object and returns a pointer to it
  * without refcounting the pointer. The returned pointer is only valid
- * until ttm_base_object_noref_release() is called, and the object
+ * until ttm_base_object_yesref_release() is called, and the object
  * pointed to by the returned pointer may be doomed. Any persistent usage
  * of the object requires a refcount to be taken using kref_get_unless_zero().
  * Iff this function returns successfully it needs to be paired with
- * ttm_base_object_noref_release() and no sleeping- or scheduling functions
+ * ttm_base_object_yesref_release() and yes sleeping- or scheduling functions
  * may be called inbetween these function callse.
  *
  * Return: A pointer to the object if successful or NULL otherwise.
  */
 struct ttm_base_object *
-ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint32_t key)
+ttm_base_object_yesref_lookup(struct ttm_object_file *tfile, uint32_t key)
 {
 	struct drm_hash_item *hash;
 	struct drm_open_hash *ht = &tfile->ref_hash[TTM_REF_USAGE];
@@ -258,7 +258,7 @@ ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint32_t key)
 	__release(RCU);
 	return drm_hash_entry(hash, struct ttm_ref_object, hash)->obj;
 }
-EXPORT_SYMBOL(ttm_base_object_noref_lookup);
+EXPORT_SYMBOL(ttm_base_object_yesref_lookup);
 
 struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 					       uint32_t key)
@@ -320,7 +320,7 @@ bool ttm_ref_object_exists(struct ttm_object_file *tfile,
 	/*
 	 * Verify that the ref object is really pointing to our base object.
 	 * Our base object could actually be dead, and the ref object pointing
-	 * to another base object with the same handle.
+	 * to ayesther base object with the same handle.
 	 */
 	ref = drm_hash_entry(hash, struct ttm_ref_object, hash);
 	if (unlikely(base != ref->obj))
@@ -352,7 +352,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 	struct ttm_mem_global *mem_glob = tfile->tdev->mem_glob;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	int ret = -EINVAL;
 
@@ -538,7 +538,7 @@ ttm_object_device_init(struct ttm_mem_global *mem_glob,
 	atomic_set(&tdev->object_count, 0);
 	ret = drm_ht_create(&tdev->object_hash, hash_order);
 	if (ret != 0)
-		goto out_no_object_hash;
+		goto out_yes_object_hash;
 
 	idr_init(&tdev->idr);
 	tdev->ops = *ops;
@@ -548,7 +548,7 @@ ttm_object_device_init(struct ttm_mem_global *mem_glob,
 		ttm_round_pot(sizeof(struct file));
 	return tdev;
 
-out_no_object_hash:
+out_yes_object_hash:
 	kfree(tdev);
 	return NULL;
 }
@@ -573,7 +573,7 @@ void ttm_object_device_release(struct ttm_object_device **p_tdev)
  *
  * Obtain a file reference from a lookup structure that doesn't refcount
  * the file, but synchronizes with its release method to make sure it has
- * not been freed yet. See for example kref_get_unless_zero documentation.
+ * yest been freed yet. See for example kref_get_unless_zero documentation.
  * Returns true if refcounting succeeds, false otherwise.
  *
  * Nobody really wants this as a public API yet, so let it mature here
@@ -581,7 +581,7 @@ void ttm_object_device_release(struct ttm_object_device **p_tdev)
  */
 static bool __must_check get_dma_buf_unless_doomed(struct dma_buf *dmabuf)
 {
-	return atomic_long_inc_not_zero(&dmabuf->file->f_count) != 0L;
+	return atomic_long_inc_yest_zero(&dmabuf->file->f_count) != 0L;
 }
 
 /**
@@ -643,7 +643,7 @@ static void ttm_prime_dmabuf_release(struct dma_buf *dma_buf)
  *
  * This function returns a handle to an object that previously exported
  * a dma-buf. Note that we don't handle imports yet, because we simply
- * have no consumers of that implementation.
+ * have yes consumers of that implementation.
  */
 int ttm_prime_fd_to_handle(struct ttm_object_file *tfile,
 			   int fd, u32 *handle)
@@ -714,7 +714,7 @@ int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 		DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 		struct ttm_operation_ctx ctx = {
 			.interruptible = true,
-			.no_wait_gpu = false
+			.yes_wait_gpu = false
 		};
 		exp_info.ops = &tdev->ops;
 		exp_info.size = prime->size;

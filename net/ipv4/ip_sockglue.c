@@ -399,7 +399,7 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 		return;
 
 	serr = SKB_EXT_ERR(skb);
-	serr->ee.ee_errno = err;
+	serr->ee.ee_erryes = err;
 	serr->ee.ee_origin = SO_EE_ORIGIN_ICMP;
 	serr->ee.ee_type = icmp_hdr(skb)->type;
 	serr->ee.ee_code = icmp_hdr(skb)->code;
@@ -438,7 +438,7 @@ void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 inf
 	iph->daddr = daddr;
 
 	serr = SKB_EXT_ERR(skb);
-	serr->ee.ee_errno = err;
+	serr->ee.ee_erryes = err;
 	serr->ee.ee_origin = SO_EE_ORIGIN_LOCAL;
 	serr->ee.ee_type = 0;
 	serr->ee.ee_code = 0;
@@ -466,7 +466,7 @@ static inline bool ipv4_datagram_support_addr(struct sock_exterr_skb *serr)
 
 /* IPv4 supports cmsg on all imcp errors and some timestamps
  *
- * Timestamp code paths do not initialize the fields expected by cmsg:
+ * Timestamp code paths do yest initialize the fields expected by cmsg:
  * the PKTINFO fields in skb->cb[]. Fill those in here.
  */
 static bool ipv4_datagram_support_cmsg(const struct sock *sk,
@@ -772,10 +772,10 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			err = -ENOPROTOOPT;
 			break;
 		}
-		inet->nodefrag = val ? 1 : 0;
+		inet->yesdefrag = val ? 1 : 0;
 		break;
 	case IP_BIND_ADDRESS_NO_PORT:
-		inet->bind_address_no_port = val ? 1 : 0;
+		inet->bind_address_yes_port = val ? 1 : 0;
 		break;
 	case IP_MTU_DISCOVER:
 		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_OMIT)
@@ -1399,10 +1399,10 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		val = inet->hdrincl;
 		break;
 	case IP_NODEFRAG:
-		val = inet->nodefrag;
+		val = inet->yesdefrag;
 		break;
 	case IP_BIND_ADDRESS_NO_PORT:
-		val = inet->bind_address_no_port;
+		val = inet->bind_address_yes_port;
 		break;
 	case IP_MTU_DISCOVER:
 		val = inet->pmtudisc;

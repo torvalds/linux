@@ -13,7 +13,7 @@
 
 static struct rc_map_table encore_enltv[] = {
 
-	/* Power button does nothing, neither in Windows app,
+	/* Power button does yesthing, neither in Windows app,
 	 although it sends data (used for BIOS wakeup?) */
 	{ 0x0d, KEY_MUTE },
 

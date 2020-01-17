@@ -10,15 +10,15 @@
 #include <linux/stddef.h>
 #include <net/sock.h>
 
-#include "vmci_transport_notify.h"
+#include "vmci_transport_yestify.h"
 
-#define PKT_FIELD(vsk, field_name) (vmci_trans(vsk)->notify.pkt.field_name)
+#define PKT_FIELD(vsk, field_name) (vmci_trans(vsk)->yestify.pkt.field_name)
 
-static bool vmci_transport_notify_waiting_write(struct vsock_sock *vsk)
+static bool vmci_transport_yestify_waiting_write(struct vsock_sock *vsk)
 {
 #if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
 	bool retval;
-	u64 notify_limit;
+	u64 yestify_limit;
 
 	if (!PKT_FIELD(vsk, peer_waiting_write))
 		return false;
@@ -26,51 +26,51 @@ static bool vmci_transport_notify_waiting_write(struct vsock_sock *vsk)
 #ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
 	/* When the sender blocks, we take that as a sign that the sender is
 	 * faster than the receiver. To reduce the transmit rate of the sender,
-	 * we delay the sending of the read notification by decreasing the
-	 * write_notify_window. The notification is delayed until the number of
-	 * bytes used in the queue drops below the write_notify_window.
+	 * we delay the sending of the read yestification by decreasing the
+	 * write_yestify_window. The yestification is delayed until the number of
+	 * bytes used in the queue drops below the write_yestify_window.
 	 */
 
 	if (!PKT_FIELD(vsk, peer_waiting_write_detected)) {
 		PKT_FIELD(vsk, peer_waiting_write_detected) = true;
-		if (PKT_FIELD(vsk, write_notify_window) < PAGE_SIZE) {
-			PKT_FIELD(vsk, write_notify_window) =
-			    PKT_FIELD(vsk, write_notify_min_window);
+		if (PKT_FIELD(vsk, write_yestify_window) < PAGE_SIZE) {
+			PKT_FIELD(vsk, write_yestify_window) =
+			    PKT_FIELD(vsk, write_yestify_min_window);
 		} else {
-			PKT_FIELD(vsk, write_notify_window) -= PAGE_SIZE;
-			if (PKT_FIELD(vsk, write_notify_window) <
-			    PKT_FIELD(vsk, write_notify_min_window))
-				PKT_FIELD(vsk, write_notify_window) =
-				    PKT_FIELD(vsk, write_notify_min_window);
+			PKT_FIELD(vsk, write_yestify_window) -= PAGE_SIZE;
+			if (PKT_FIELD(vsk, write_yestify_window) <
+			    PKT_FIELD(vsk, write_yestify_min_window))
+				PKT_FIELD(vsk, write_yestify_window) =
+				    PKT_FIELD(vsk, write_yestify_min_window);
 
 		}
 	}
-	notify_limit = vmci_trans(vsk)->consume_size -
-		PKT_FIELD(vsk, write_notify_window);
+	yestify_limit = vmci_trans(vsk)->consume_size -
+		PKT_FIELD(vsk, write_yestify_window);
 #else
-	notify_limit = 0;
+	yestify_limit = 0;
 #endif
 
-	/* For now we ignore the wait information and just see if the free
-	 * space exceeds the notify limit.  Note that improving this function
-	 * to be more intelligent will not require a protocol change and will
+	/* For yesw we igyesre the wait information and just see if the free
+	 * space exceeds the yestify limit.  Note that improving this function
+	 * to be more intelligent will yest require a protocol change and will
 	 * retain compatibility between endpoints with mixed versions of this
 	 * function.
 	 *
-	 * The notify_limit is used to delay notifications in the case where
+	 * The yestify_limit is used to delay yestifications in the case where
 	 * flow control is enabled. Below the test is expressed in terms of
 	 * free space in the queue: if free_space > ConsumeSize -
-	 * write_notify_window then notify An alternate way of expressing this
+	 * write_yestify_window then yestify An alternate way of expressing this
 	 * is to rewrite the expression to use the data ready in the receive
-	 * queue: if write_notify_window > bufferReady then notify as
+	 * queue: if write_yestify_window > bufferReady then yestify as
 	 * free_space == ConsumeSize - bufferReady.
 	 */
 	retval = vmci_qpair_consume_free_space(vmci_trans(vsk)->qpair) >
-		notify_limit;
+		yestify_limit;
 #ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
 	if (retval) {
 		/*
-		 * Once we notify the peer, we reset the detected flag so the
+		 * Once we yestify the peer, we reset the detected flag so the
 		 * next wait will again cause a decrease in the window size.
 		 */
 
@@ -83,15 +83,15 @@ static bool vmci_transport_notify_waiting_write(struct vsock_sock *vsk)
 #endif
 }
 
-static bool vmci_transport_notify_waiting_read(struct vsock_sock *vsk)
+static bool vmci_transport_yestify_waiting_read(struct vsock_sock *vsk)
 {
 #if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
 	if (!PKT_FIELD(vsk, peer_waiting_read))
 		return false;
 
-	/* For now we ignore the wait information and just see if there is any
+	/* For yesw we igyesre the wait information and just see if there is any
 	 * data for our peer to read.  Note that improving this function to be
-	 * more intelligent will not require a protocol change and will retain
+	 * more intelligent will yest require a protocol change and will retain
 	 * compatibility between endpoints with mixed versions of this
 	 * function.
 	 */
@@ -117,7 +117,7 @@ vmci_transport_handle_waiting_read(struct sock *sk,
 	memcpy(&PKT_FIELD(vsk, peer_waiting_read_info), &pkt->u.wait,
 	       sizeof(PKT_FIELD(vsk, peer_waiting_read_info)));
 
-	if (vmci_transport_notify_waiting_read(vsk)) {
+	if (vmci_transport_yestify_waiting_read(vsk)) {
 		bool sent;
 
 		if (bottom_half)
@@ -147,7 +147,7 @@ vmci_transport_handle_waiting_write(struct sock *sk,
 	memcpy(&PKT_FIELD(vsk, peer_waiting_write_info), &pkt->u.wait,
 	       sizeof(PKT_FIELD(vsk, peer_waiting_write_info)));
 
-	if (vmci_transport_notify_waiting_write(vsk)) {
+	if (vmci_transport_yestify_waiting_write(vsk)) {
 		bool sent;
 
 		if (bottom_half)
@@ -192,10 +192,10 @@ static bool send_waiting_read(struct sock *sk, u64 room_needed)
 	if (PKT_FIELD(vsk, sent_waiting_read))
 		return true;
 
-	if (PKT_FIELD(vsk, write_notify_window) <
+	if (PKT_FIELD(vsk, write_yestify_window) <
 			vmci_trans(vsk)->consume_size)
-		PKT_FIELD(vsk, write_notify_window) =
-		    min(PKT_FIELD(vsk, write_notify_window) + PAGE_SIZE,
+		PKT_FIELD(vsk, write_yestify_window) =
+		    min(PKT_FIELD(vsk, write_yestify_window) + PAGE_SIZE,
 			vmci_trans(vsk)->consume_size);
 
 	vmci_qpair_get_consume_indexes(vmci_trans(vsk)->qpair, &tail, &head);
@@ -256,7 +256,7 @@ static bool send_waiting_write(struct sock *sk, u64 room_needed)
 #endif
 }
 
-static int vmci_transport_send_read_notification(struct sock *sk)
+static int vmci_transport_send_read_yestification(struct sock *sk)
 {
 	struct vsock_sock *vsk;
 	bool sent_read;
@@ -268,9 +268,9 @@ static int vmci_transport_send_read_notification(struct sock *sk)
 	retries = 0;
 	err = 0;
 
-	if (vmci_transport_notify_waiting_write(vsk)) {
+	if (vmci_transport_yestify_waiting_write(vsk)) {
 		/* Notify the peer that we have read, retrying the send on
-		 * failure up to our maximum value.  XXX For now we just log
+		 * failure up to our maximum value.  XXX For yesw we just log
 		 * the failure, but later we should schedule a work item to
 		 * handle the resend until it succeeds.  That would require
 		 * keeping track of work items in the vsk and cleaning them up
@@ -287,7 +287,7 @@ static int vmci_transport_send_read_notification(struct sock *sk)
 		}
 
 		if (retries >= VMCI_TRANSPORT_MAX_DGRAM_RESENDS)
-			pr_err("%p unable to send read notify to peer\n", sk);
+			pr_err("%p unable to send read yestify to peer\n", sk);
 		else
 #if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
 			PKT_FIELD(vsk, peer_waiting_write) = false;
@@ -310,12 +310,12 @@ vmci_transport_handle_wrote(struct sock *sk,
 	sk->sk_data_ready(sk);
 }
 
-static void vmci_transport_notify_pkt_socket_init(struct sock *sk)
+static void vmci_transport_yestify_pkt_socket_init(struct sock *sk)
 {
 	struct vsock_sock *vsk = vsock_sk(sk);
 
-	PKT_FIELD(vsk, write_notify_window) = PAGE_SIZE;
-	PKT_FIELD(vsk, write_notify_min_window) = PAGE_SIZE;
+	PKT_FIELD(vsk, write_yestify_window) = PAGE_SIZE;
+	PKT_FIELD(vsk, write_yestify_min_window) = PAGE_SIZE;
 	PKT_FIELD(vsk, peer_waiting_read) = false;
 	PKT_FIELD(vsk, peer_waiting_write) = false;
 	PKT_FIELD(vsk, peer_waiting_write_detected) = false;
@@ -330,21 +330,21 @@ static void vmci_transport_notify_pkt_socket_init(struct sock *sk)
 	       sizeof(PKT_FIELD(vsk, peer_waiting_write_info)));
 }
 
-static void vmci_transport_notify_pkt_socket_destruct(struct vsock_sock *vsk)
+static void vmci_transport_yestify_pkt_socket_destruct(struct vsock_sock *vsk)
 {
 }
 
 static int
-vmci_transport_notify_pkt_poll_in(struct sock *sk,
-				  size_t target, bool *data_ready_now)
+vmci_transport_yestify_pkt_poll_in(struct sock *sk,
+				  size_t target, bool *data_ready_yesw)
 {
 	struct vsock_sock *vsk = vsock_sk(sk);
 
 	if (vsock_stream_has_data(vsk)) {
-		*data_ready_now = true;
+		*data_ready_yesw = true;
 	} else {
-		/* We can't read right now because there is nothing in the
-		 * queue. Ask for notifications when there is something to
+		/* We can't read right yesw because there is yesthing in the
+		 * queue. Ask for yestifications when there is something to
 		 * read.
 		 */
 		if (sk->sk_state == TCP_ESTABLISHED) {
@@ -352,22 +352,22 @@ vmci_transport_notify_pkt_poll_in(struct sock *sk,
 				return -1;
 
 		}
-		*data_ready_now = false;
+		*data_ready_yesw = false;
 	}
 
 	return 0;
 }
 
 static int
-vmci_transport_notify_pkt_poll_out(struct sock *sk,
-				   size_t target, bool *space_avail_now)
+vmci_transport_yestify_pkt_poll_out(struct sock *sk,
+				   size_t target, bool *space_avail_yesw)
 {
 	s64 produce_q_free_space;
 	struct vsock_sock *vsk = vsock_sk(sk);
 
 	produce_q_free_space = vsock_stream_has_space(vsk);
 	if (produce_q_free_space > 0) {
-		*space_avail_now = true;
+		*space_avail_yesw = true;
 		return 0;
 	} else if (produce_q_free_space == 0) {
 		/* This is a connected socket but we can't currently send data.
@@ -375,23 +375,23 @@ vmci_transport_notify_pkt_poll_out(struct sock *sk,
 		 * only send a waiting write if the queue is full because
 		 * otherwise we end up in an infinite WAITING_WRITE, READ,
 		 * WAITING_WRITE, READ, etc. loop. Treat failing to send the
-		 * notification as a socket error, passing that back through
+		 * yestification as a socket error, passing that back through
 		 * the mask.
 		 */
 		if (!send_waiting_write(sk, 1))
 			return -1;
 
-		*space_avail_now = false;
+		*space_avail_yesw = false;
 	}
 
 	return 0;
 }
 
 static int
-vmci_transport_notify_pkt_recv_init(
+vmci_transport_yestify_pkt_recv_init(
 			struct sock *sk,
 			size_t target,
-			struct vmci_transport_recv_notify_data *data)
+			struct vmci_transport_recv_yestify_data *data)
 {
 	struct vsock_sock *vsk = vsock_sk(sk);
 
@@ -399,22 +399,22 @@ vmci_transport_notify_pkt_recv_init(
 	data->consume_head = 0;
 	data->produce_tail = 0;
 #ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
-	data->notify_on_block = false;
+	data->yestify_on_block = false;
 
-	if (PKT_FIELD(vsk, write_notify_min_window) < target + 1) {
-		PKT_FIELD(vsk, write_notify_min_window) = target + 1;
-		if (PKT_FIELD(vsk, write_notify_window) <
-		    PKT_FIELD(vsk, write_notify_min_window)) {
+	if (PKT_FIELD(vsk, write_yestify_min_window) < target + 1) {
+		PKT_FIELD(vsk, write_yestify_min_window) = target + 1;
+		if (PKT_FIELD(vsk, write_yestify_window) <
+		    PKT_FIELD(vsk, write_yestify_min_window)) {
 			/* If the current window is smaller than the new
 			 * minimal window size, we need to reevaluate whether
-			 * we need to notify the sender. If the number of ready
+			 * we need to yestify the sender. If the number of ready
 			 * bytes are smaller than the new window, we need to
-			 * send a notification to the sender before we block.
+			 * send a yestification to the sender before we block.
 			 */
 
-			PKT_FIELD(vsk, write_notify_window) =
-			    PKT_FIELD(vsk, write_notify_min_window);
-			data->notify_on_block = true;
+			PKT_FIELD(vsk, write_yestify_window) =
+			    PKT_FIELD(vsk, write_yestify_min_window);
+			data->yestify_on_block = true;
 		}
 	}
 #endif
@@ -424,10 +424,10 @@ vmci_transport_notify_pkt_recv_init(
 }
 
 static int
-vmci_transport_notify_pkt_recv_pre_block(
+vmci_transport_yestify_pkt_recv_pre_block(
 				struct sock *sk,
 				size_t target,
-				struct vmci_transport_recv_notify_data *data)
+				struct vmci_transport_recv_yestify_data *data)
 {
 	int err = 0;
 
@@ -437,12 +437,12 @@ vmci_transport_notify_pkt_recv_pre_block(
 		return err;
 	}
 #ifdef VSOCK_OPTIMIZATION_FLOW_CONTROL
-	if (data->notify_on_block) {
-		err = vmci_transport_send_read_notification(sk);
+	if (data->yestify_on_block) {
+		err = vmci_transport_send_read_yestification(sk);
 		if (err < 0)
 			return err;
 
-		data->notify_on_block = false;
+		data->yestify_on_block = false;
 	}
 #endif
 
@@ -450,10 +450,10 @@ vmci_transport_notify_pkt_recv_pre_block(
 }
 
 static int
-vmci_transport_notify_pkt_recv_pre_dequeue(
+vmci_transport_yestify_pkt_recv_pre_dequeue(
 				struct sock *sk,
 				size_t target,
-				struct vmci_transport_recv_notify_data *data)
+				struct vmci_transport_recv_yestify_data *data)
 {
 	struct vsock_sock *vsk = vsock_sk(sk);
 
@@ -470,12 +470,12 @@ vmci_transport_notify_pkt_recv_pre_dequeue(
 }
 
 static int
-vmci_transport_notify_pkt_recv_post_dequeue(
+vmci_transport_yestify_pkt_recv_post_dequeue(
 				struct sock *sk,
 				size_t target,
 				ssize_t copied,
 				bool data_read,
-				struct vmci_transport_recv_notify_data *data)
+				struct vmci_transport_recv_yestify_data *data)
 {
 	struct vsock_sock *vsk;
 	int err;
@@ -494,7 +494,7 @@ vmci_transport_notify_pkt_recv_post_dequeue(
 			PKT_FIELD(vsk, consume_q_generation)++;
 #endif
 
-		err = vmci_transport_send_read_notification(sk);
+		err = vmci_transport_send_read_yestification(sk);
 		if (err < 0)
 			return err;
 
@@ -503,9 +503,9 @@ vmci_transport_notify_pkt_recv_post_dequeue(
 }
 
 static int
-vmci_transport_notify_pkt_send_init(
+vmci_transport_yestify_pkt_send_init(
 			struct sock *sk,
-			struct vmci_transport_send_notify_data *data)
+			struct vmci_transport_send_yestify_data *data)
 {
 #ifdef VSOCK_OPTIMIZATION_WAITING_NOTIFY
 	data->consume_head = 0;
@@ -516,9 +516,9 @@ vmci_transport_notify_pkt_send_init(
 }
 
 static int
-vmci_transport_notify_pkt_send_pre_block(
+vmci_transport_yestify_pkt_send_pre_block(
 				struct sock *sk,
-				struct vmci_transport_send_notify_data *data)
+				struct vmci_transport_send_yestify_data *data)
 {
 	/* Notify our peer that we are waiting for room to write. */
 	if (!send_waiting_write(sk, 1))
@@ -528,9 +528,9 @@ vmci_transport_notify_pkt_send_pre_block(
 }
 
 static int
-vmci_transport_notify_pkt_send_pre_enqueue(
+vmci_transport_yestify_pkt_send_pre_enqueue(
 				struct sock *sk,
-				struct vmci_transport_send_notify_data *data)
+				struct vmci_transport_send_yestify_data *data)
 {
 	struct vsock_sock *vsk = vsock_sk(sk);
 
@@ -544,10 +544,10 @@ vmci_transport_notify_pkt_send_pre_enqueue(
 }
 
 static int
-vmci_transport_notify_pkt_send_post_enqueue(
+vmci_transport_yestify_pkt_send_post_enqueue(
 				struct sock *sk,
 				ssize_t written,
-				struct vmci_transport_send_notify_data *data)
+				struct vmci_transport_send_yestify_data *data)
 {
 	int err = 0;
 	struct vsock_sock *vsk;
@@ -566,7 +566,7 @@ vmci_transport_notify_pkt_send_post_enqueue(
 
 #endif
 
-	if (vmci_transport_notify_waiting_read(vsk)) {
+	if (vmci_transport_yestify_waiting_read(vsk)) {
 		/* Notify the peer that we have written, retrying the send on
 		 * failure up to our maximum value. See the XXX comment for the
 		 * corresponding piece of code in StreamRecvmsg() for potential
@@ -583,7 +583,7 @@ vmci_transport_notify_pkt_send_post_enqueue(
 		}
 
 		if (retries >= VMCI_TRANSPORT_MAX_DGRAM_RESENDS) {
-			pr_err("%p unable to send wrote notify to peer\n", sk);
+			pr_err("%p unable to send wrote yestify to peer\n", sk);
 			return err;
 		} else {
 #if defined(VSOCK_OPTIMIZATION_WAITING_NOTIFY)
@@ -595,7 +595,7 @@ vmci_transport_notify_pkt_send_post_enqueue(
 }
 
 static void
-vmci_transport_notify_pkt_handle_pkt(
+vmci_transport_yestify_pkt_handle_pkt(
 			struct sock *sk,
 			struct vmci_transport_packet *pkt,
 			bool bottom_half,
@@ -630,43 +630,43 @@ vmci_transport_notify_pkt_handle_pkt(
 		*pkt_processed = processed;
 }
 
-static void vmci_transport_notify_pkt_process_request(struct sock *sk)
+static void vmci_transport_yestify_pkt_process_request(struct sock *sk)
 {
 	struct vsock_sock *vsk = vsock_sk(sk);
 
-	PKT_FIELD(vsk, write_notify_window) = vmci_trans(vsk)->consume_size;
+	PKT_FIELD(vsk, write_yestify_window) = vmci_trans(vsk)->consume_size;
 	if (vmci_trans(vsk)->consume_size <
-		PKT_FIELD(vsk, write_notify_min_window))
-		PKT_FIELD(vsk, write_notify_min_window) =
+		PKT_FIELD(vsk, write_yestify_min_window))
+		PKT_FIELD(vsk, write_yestify_min_window) =
 			vmci_trans(vsk)->consume_size;
 }
 
-static void vmci_transport_notify_pkt_process_negotiate(struct sock *sk)
+static void vmci_transport_yestify_pkt_process_negotiate(struct sock *sk)
 {
 	struct vsock_sock *vsk = vsock_sk(sk);
 
-	PKT_FIELD(vsk, write_notify_window) = vmci_trans(vsk)->consume_size;
+	PKT_FIELD(vsk, write_yestify_window) = vmci_trans(vsk)->consume_size;
 	if (vmci_trans(vsk)->consume_size <
-		PKT_FIELD(vsk, write_notify_min_window))
-		PKT_FIELD(vsk, write_notify_min_window) =
+		PKT_FIELD(vsk, write_yestify_min_window))
+		PKT_FIELD(vsk, write_yestify_min_window) =
 			vmci_trans(vsk)->consume_size;
 }
 
 /* Socket control packet based operations. */
-const struct vmci_transport_notify_ops vmci_transport_notify_pkt_ops = {
-	.socket_init = vmci_transport_notify_pkt_socket_init,
-	.socket_destruct = vmci_transport_notify_pkt_socket_destruct,
-	.poll_in = vmci_transport_notify_pkt_poll_in,
-	.poll_out = vmci_transport_notify_pkt_poll_out,
-	.handle_notify_pkt = vmci_transport_notify_pkt_handle_pkt,
-	.recv_init = vmci_transport_notify_pkt_recv_init,
-	.recv_pre_block = vmci_transport_notify_pkt_recv_pre_block,
-	.recv_pre_dequeue = vmci_transport_notify_pkt_recv_pre_dequeue,
-	.recv_post_dequeue = vmci_transport_notify_pkt_recv_post_dequeue,
-	.send_init = vmci_transport_notify_pkt_send_init,
-	.send_pre_block = vmci_transport_notify_pkt_send_pre_block,
-	.send_pre_enqueue = vmci_transport_notify_pkt_send_pre_enqueue,
-	.send_post_enqueue = vmci_transport_notify_pkt_send_post_enqueue,
-	.process_request = vmci_transport_notify_pkt_process_request,
-	.process_negotiate = vmci_transport_notify_pkt_process_negotiate,
+const struct vmci_transport_yestify_ops vmci_transport_yestify_pkt_ops = {
+	.socket_init = vmci_transport_yestify_pkt_socket_init,
+	.socket_destruct = vmci_transport_yestify_pkt_socket_destruct,
+	.poll_in = vmci_transport_yestify_pkt_poll_in,
+	.poll_out = vmci_transport_yestify_pkt_poll_out,
+	.handle_yestify_pkt = vmci_transport_yestify_pkt_handle_pkt,
+	.recv_init = vmci_transport_yestify_pkt_recv_init,
+	.recv_pre_block = vmci_transport_yestify_pkt_recv_pre_block,
+	.recv_pre_dequeue = vmci_transport_yestify_pkt_recv_pre_dequeue,
+	.recv_post_dequeue = vmci_transport_yestify_pkt_recv_post_dequeue,
+	.send_init = vmci_transport_yestify_pkt_send_init,
+	.send_pre_block = vmci_transport_yestify_pkt_send_pre_block,
+	.send_pre_enqueue = vmci_transport_yestify_pkt_send_pre_enqueue,
+	.send_post_enqueue = vmci_transport_yestify_pkt_send_post_enqueue,
+	.process_request = vmci_transport_yestify_pkt_process_request,
+	.process_negotiate = vmci_transport_yestify_pkt_process_negotiate,
 };

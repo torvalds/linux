@@ -107,7 +107,7 @@ static int rockchip_rk3328_efuse_read(void *context, unsigned int offset,
 		return ret;
 	}
 
-	/* 128 Byte efuse, 96 Byte for secure, 32 Byte for non-secure */
+	/* 128 Byte efuse, 96 Byte for secure, 32 Byte for yesn-secure */
 	offset += RK3328_SECURE_SIZES;
 	addr_start = rounddown(offset, RK3399_NBYTES) / RK3399_NBYTES;
 	addr_end = roundup(offset + bytes, RK3399_NBYTES) / RK3399_NBYTES;
@@ -118,7 +118,7 @@ static int rockchip_rk3328_efuse_read(void *context, unsigned int offset,
 		      GFP_KERNEL);
 	if (!buf) {
 		ret = -ENOMEM;
-		goto nomem;
+		goto yesmem;
 	}
 
 	while (addr_len--) {
@@ -141,7 +141,7 @@ static int rockchip_rk3328_efuse_read(void *context, unsigned int offset,
 	memcpy(val, buf + addr_offset, bytes);
 err:
 	kfree(buf);
-nomem:
+yesmem:
 	clk_disable_unprepare(efuse->clk);
 
 	return ret;
@@ -277,7 +277,7 @@ static int rockchip_efuse_probe(struct platform_device *pdev)
 		return PTR_ERR(efuse->clk);
 
 	efuse->dev = dev;
-	if (of_property_read_u32(dev->of_node, "rockchip,efuse-size",
+	if (of_property_read_u32(dev->of_yesde, "rockchip,efuse-size",
 				 &econfig.size))
 		econfig.size = resource_size(res);
 	econfig.reg_read = data;

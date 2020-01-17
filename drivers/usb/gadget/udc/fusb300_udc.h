@@ -2,7 +2,7 @@
 /*
  * Fusb300 UDC (USB gadget)
  *
- * Copyright (C) 2010 Faraday Technology Corp.
+ * Copyright (C) 2010 Faraday Techyeslogy Corp.
  *
  * Author : Yuan-hsin Chen <yhchen@faraday-tech.com>
  */

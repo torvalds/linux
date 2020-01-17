@@ -37,8 +37,8 @@ MODULE_LICENSE("GPL");
 module_param(shpchp_debug, bool, 0644);
 module_param(shpchp_poll_mode, bool, 0644);
 module_param(shpchp_poll_time, int, 0644);
-MODULE_PARM_DESC(shpchp_debug, "Debugging mode enabled or not");
-MODULE_PARM_DESC(shpchp_poll_mode, "Using polling mechanism for hot-plug events or not");
+MODULE_PARM_DESC(shpchp_debug, "Debugging mode enabled or yest");
+MODULE_PARM_DESC(shpchp_poll_mode, "Using polling mechanism for hot-plug events or yest");
 MODULE_PARM_DESC(shpchp_poll_time, "Polling mechanism frequency, in seconds");
 
 #define SHPC_MODULE_NAME "shpchp"
@@ -239,7 +239,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 static bool shpc_capable(struct pci_dev *bridge)
 {
 	/*
-	 * It is assumed that AMD GOLAM chips support SHPC but they do not
+	 * It is assumed that AMD GOLAM chips support SHPC but they do yest
 	 * have SHPC capability.
 	 */
 	if (bridge->vendor == PCI_VENDOR_ID_AMD &&
@@ -265,7 +265,7 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
-		goto err_out_none;
+		goto err_out_yesne;
 
 	INIT_LIST_HEAD(&ctrl->slot_list);
 
@@ -297,7 +297,7 @@ err_out_release_ctlr:
 	ctrl->hpc_ops->release_ctlr(ctrl);
 err_out_free_ctrl:
 	kfree(ctrl);
-err_out_none:
+err_out_yesne:
 	return -ENODEV;
 }
 

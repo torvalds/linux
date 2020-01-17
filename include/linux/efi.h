@@ -51,17 +51,17 @@ typedef void *efi_handle_t;
 /*
  * The UEFI spec and EDK2 reference implementation both define EFI_GUID as
  * struct { u32 a; u16; b; u16 c; u8 d[8]; }; and so the implied alignment
- * is 32 bits not 8 bits like our guid_t. In some cases (i.e., on 32-bit ARM),
+ * is 32 bits yest 8 bits like our guid_t. In some cases (i.e., on 32-bit ARM),
  * this means that firmware services invoked by the kernel may assume that
  * efi_guid_t* arguments are 32-bit aligned, and use memory accessors that
- * do not tolerate misalignment. So let's set the minimum alignment to 32 bits.
+ * do yest tolerate misalignment. So let's set the minimum alignment to 32 bits.
  *
  * Note that the UEFI spec as well as some comments in the EDK2 code base
  * suggest that EFI_GUID should be 64-bit aligned, but this appears to be
- * a mistake, given that no code seems to exist that actually enforces that
+ * a mistake, given that yes code seems to exist that actually enforces that
  * or relies on it.
  */
-typedef guid_t efi_guid_t __aligned(__alignof__(u32));
+typedef guid_t efi_guid_t __aligned(__aligyesf__(u32));
 
 #define EFI_GUID(a,b,c,d0,d1,d2,d3,d4,d5,d6,d7) \
 	GUID_INIT(a, b, c, d0, d1, d2, d3, d4, d5, d6, d7)
@@ -108,7 +108,7 @@ typedef	struct {
 #define EFI_MEMORY_WP		((u64)0x0000000000001000ULL)	/* write-protect */
 #define EFI_MEMORY_RP		((u64)0x0000000000002000ULL)	/* read-protect */
 #define EFI_MEMORY_XP		((u64)0x0000000000004000ULL)	/* execute-protect */
-#define EFI_MEMORY_NV		((u64)0x0000000000008000ULL)	/* non-volatile */
+#define EFI_MEMORY_NV		((u64)0x0000000000008000ULL)	/* yesn-volatile */
 #define EFI_MEMORY_MORE_RELIABLE \
 				((u64)0x0000000000010000ULL)	/* higher reliability */
 #define EFI_MEMORY_RO		((u64)0x0000000000020000ULL)	/* read-only */
@@ -191,7 +191,7 @@ typedef struct {
 	u8 minute;
 	u8 second;
 	u8 pad1;
-	u32 nanosecond;
+	u32 nayessecond;
 	s16 timezone;
 	u8 daylight;
 	u8 pad2;
@@ -223,7 +223,7 @@ typedef struct {
 	u32 uninstall_protocol_interface;
 	u32 handle_protocol;
 	u32 __reserved;
-	u32 register_protocol_notify;
+	u32 register_protocol_yestify;
 	u32 locate_handle;
 	u32 locate_device_path;
 	u32 install_configuration_table;
@@ -232,7 +232,7 @@ typedef struct {
 	u32 exit;
 	u32 unload_image;
 	u32 exit_boot_services;
-	u32 get_next_monotonic_count;
+	u32 get_next_moyestonic_count;
 	u32 stall;
 	u32 set_watchdog_timer;
 	u32 connect_controller;
@@ -271,7 +271,7 @@ typedef struct {
 	u64 uninstall_protocol_interface;
 	u64 handle_protocol;
 	u64 __reserved;
-	u64 register_protocol_notify;
+	u64 register_protocol_yestify;
 	u64 locate_handle;
 	u64 locate_device_path;
 	u64 install_configuration_table;
@@ -280,7 +280,7 @@ typedef struct {
 	u64 exit;
 	u64 unload_image;
 	u64 exit_boot_services;
-	u64 get_next_monotonic_count;
+	u64 get_next_moyestonic_count;
 	u64 stall;
 	u64 set_watchdog_timer;
 	u64 connect_controller;
@@ -324,7 +324,7 @@ typedef struct {
 	void *uninstall_protocol_interface;
 	efi_status_t (*handle_protocol)(efi_handle_t, efi_guid_t *, void **);
 	void *__reserved;
-	void *register_protocol_notify;
+	void *register_protocol_yestify;
 	efi_status_t (*locate_handle)(int, efi_guid_t *, void *,
 				      unsigned long *, efi_handle_t *);
 	void *locate_device_path;
@@ -334,7 +334,7 @@ typedef struct {
 	void *exit;
 	void *unload_image;
 	efi_status_t (*exit_boot_services)(efi_handle_t, unsigned long);
-	void *get_next_monotonic_count;
+	void *get_next_moyestonic_count;
 	void *stall;
 	void *set_watchdog_timer;
 	void *connect_controller;
@@ -546,7 +546,7 @@ typedef struct {
 	u32 get_variable;
 	u32 get_next_variable;
 	u32 set_variable;
-	u32 get_next_high_mono_count;
+	u32 get_next_high_moyes_count;
 	u32 reset_system;
 	u32 update_capsule;
 	u32 query_capsule_caps;
@@ -564,7 +564,7 @@ typedef struct {
 	u64 get_variable;
 	u64 get_next_variable;
 	u64 set_variable;
-	u64 get_next_high_mono_count;
+	u64 get_next_high_moyes_count;
 	u64 reset_system;
 	u64 update_capsule;
 	u64 query_capsule_caps;
@@ -583,7 +583,7 @@ typedef efi_status_t efi_get_next_variable_t (unsigned long *name_size, efi_char
 typedef efi_status_t efi_set_variable_t (efi_char16_t *name, efi_guid_t *vendor, 
 					 u32 attr, unsigned long data_size,
 					 void *data);
-typedef efi_status_t efi_get_next_high_mono_count_t (u32 *count);
+typedef efi_status_t efi_get_next_high_moyes_count_t (u32 *count);
 typedef void efi_reset_system_t (int reset_type, efi_status_t status,
 				 unsigned long data_size, efi_char16_t *data);
 typedef efi_status_t efi_set_virtual_address_map_t (unsigned long memory_map_size,
@@ -603,7 +603,7 @@ typedef efi_status_t efi_query_capsule_caps_t(efi_capsule_header_t **capsules,
 					      int *reset_type);
 typedef efi_status_t efi_query_variable_store_t(u32 attributes,
 						unsigned long size,
-						bool nonblocking);
+						bool yesnblocking);
 
 typedef struct {
 	efi_table_hdr_t			hdr;
@@ -616,7 +616,7 @@ typedef struct {
 	efi_get_variable_t		*get_variable;
 	efi_get_next_variable_t		*get_next_variable;
 	efi_set_variable_t		*set_variable;
-	efi_get_next_high_mono_count_t	*get_next_high_mono_count;
+	efi_get_next_high_moyes_count_t	*get_next_high_moyes_count;
 	efi_reset_system_t		*reset_system;
 	efi_update_capsule_t		*update_capsule;
 	efi_query_capsule_caps_t	*query_capsule_caps;
@@ -1008,12 +1008,12 @@ extern struct efi {
 	efi_get_variable_t *get_variable;
 	efi_get_next_variable_t *get_next_variable;
 	efi_set_variable_t *set_variable;
-	efi_set_variable_t *set_variable_nonblocking;
+	efi_set_variable_t *set_variable_yesnblocking;
 	efi_query_variable_info_t *query_variable_info;
-	efi_query_variable_info_t *query_variable_info_nonblocking;
+	efi_query_variable_info_t *query_variable_info_yesnblocking;
 	efi_update_capsule_t *update_capsule;
 	efi_query_capsule_caps_t *query_capsule_caps;
-	efi_get_next_high_mono_count_t *get_next_high_mono_count;
+	efi_get_next_high_moyes_count_t *get_next_high_moyes_count;
 	efi_reset_system_t *reset_system;
 	efi_set_virtual_address_map_t *set_virtual_address_map;
 	struct efi_memory_map memmap;
@@ -1044,12 +1044,12 @@ extern void efi_enter_virtual_mode (void);	/* switch EFI to virtual mode, if pos
 #ifdef CONFIG_X86
 extern efi_status_t efi_query_variable_store(u32 attributes,
 					     unsigned long size,
-					     bool nonblocking);
+					     bool yesnblocking);
 #else
 
 static inline efi_status_t efi_query_variable_store(u32 attributes,
 						    unsigned long size,
-						    bool nonblocking)
+						    bool yesnblocking)
 {
 	return EFI_SUCCESS;
 }
@@ -1122,7 +1122,7 @@ extern int efi_memattr_apply_permissions(struct mm_struct *mm,
  * map, and the size of each descriptor, etc.
  *
  * Note that per section 6.2 of UEFI Spec 2.6 Errata A, the returned size of
- * each descriptor might not be equal to sizeof(efi_memory_memdesc_t),
+ * each descriptor might yest be equal to sizeof(efi_memory_memdesc_t),
  * since efi_memory_memdesc_t may be extended in the future. Thus the OS
  * MUST use the returned size of the descriptor to find the start of each
  * efi_memory_memdesc_t in the memory map array. This should only be used
@@ -1142,7 +1142,7 @@ extern int efi_memattr_apply_permissions(struct mm_struct *mm,
  * for_each_efi_memory_desc - iterate over descriptors in efi.memmap
  * @md: the efi_memory_desc_t * iterator
  *
- * Once the loop finishes @md must not be accessed.
+ * Once the loop finishes @md must yest be accessed.
  */
 #define for_each_efi_memory_desc(md) \
 	for_each_efi_memory_desc_in_map(&efi.memmap, md)
@@ -1200,9 +1200,9 @@ extern int __init efi_setup_pcdp_console(char *);
 #define EFI_PARAVIRT		6	/* Access is via a paravirt interface */
 #define EFI_ARCH_1		7	/* First arch-specific bit */
 #define EFI_DBG			8	/* Print additional debug info at runtime */
-#define EFI_NX_PE_DATA		9	/* Can runtime data regions be mapped non-executable? */
+#define EFI_NX_PE_DATA		9	/* Can runtime data regions be mapped yesn-executable? */
 #define EFI_MEM_ATTR		10	/* Did firmware publish an EFI_MEMORY_ATTRIBUTES table? */
-#define EFI_MEM_NO_SOFT_RESERVE	11	/* Is the kernel configured to ignore soft reservations? */
+#define EFI_MEM_NO_SOFT_RESERVE	11	/* Is the kernel configured to igyesre soft reservations? */
 
 #ifdef CONFIG_EFI
 /*
@@ -1263,7 +1263,7 @@ extern int efi_status_to_err(efi_status_t status);
 				EFI_VARIABLE_APPEND_WRITE)
 /*
  * Length of a GUID string (strlen("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
- * not including trailing NUL
+ * yest including trailing NUL
  */
 #define EFI_VARIABLE_GUID_LEN	UUID_STRING_LEN
 
@@ -1335,7 +1335,7 @@ struct efi_dev_path {
 } __attribute ((packed));
 
 #if IS_ENABLED(CONFIG_EFI_DEV_PATH_PARSER)
-struct device *efi_get_device_by_path(struct efi_dev_path **node, size_t *len);
+struct device *efi_get_device_by_path(struct efi_dev_path **yesde, size_t *len);
 #endif
 
 static inline void memrange_efi_to_native(u64 *addr, u64 *npages)
@@ -1355,7 +1355,7 @@ struct efivar_operations {
 	efi_get_variable_t *get_variable;
 	efi_get_next_variable_t *get_next_variable;
 	efi_set_variable_t *set_variable;
-	efi_set_variable_t *set_variable_nonblocking;
+	efi_set_variable_t *set_variable_yesnblocking;
 	efi_query_variable_store_t *query_variable_store;
 };
 
@@ -1646,7 +1646,7 @@ extern unsigned long efi_call_virt_save_flags(void);
 
 enum efi_secureboot_mode {
 	efi_secureboot_mode_unset,
-	efi_secureboot_mode_unknown,
+	efi_secureboot_mode_unkyeswn,
 	efi_secureboot_mode_disabled,
 	efi_secureboot_mode_enabled,
 };
@@ -1665,7 +1665,7 @@ void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table);
 
 /*
  * Arch code can implement the following three template macros, avoiding
- * reptition for the void/non-void return cases of {__,}efi_call_virt():
+ * reptition for the void/yesn-void return cases of {__,}efi_call_virt():
  *
  *  * arch_efi_call_virt_setup()
  *
@@ -1675,7 +1675,7 @@ void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table);
  *  * arch_efi_call_virt()
  *
  *    Performs the call. The last expression in the macro must be the call
- *    itself, allowing the logic to be shared by the void and non-void
+ *    itself, allowing the logic to be shared by the void and yesn-void
  *    cases.
  *
  *  * arch_efi_call_virt_teardown()

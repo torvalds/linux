@@ -495,7 +495,7 @@ static void gb_hid_disconnect(struct gb_bundle *bundle)
 	struct gb_hid *ghid = greybus_get_drvdata(bundle);
 
 	if (gb_pm_runtime_get_sync(bundle))
-		gb_pm_runtime_get_noresume(bundle);
+		gb_pm_runtime_get_yesresume(bundle);
 
 	hid_destroy_device(ghid->hid);
 	gb_connection_disable(ghid->connection);

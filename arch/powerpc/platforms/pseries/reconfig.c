@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -20,9 +20,9 @@
 
 #include "of_helpers.h"
 
-static int pSeries_reconfig_add_node(const char *path, struct property *proplist)
+static int pSeries_reconfig_add_yesde(const char *path, struct property *proplist)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int err = -ENOMEM;
 
 	np = kzalloc(sizeof(*np), GFP_KERNEL);
@@ -34,8 +34,8 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 		goto out_err;
 
 	np->properties = proplist;
-	of_node_set_flag(np, OF_DYNAMIC);
-	of_node_init(np);
+	of_yesde_set_flag(np, OF_DYNAMIC);
+	of_yesde_init(np);
 
 	np->parent = pseries_of_derive_parent(path);
 	if (IS_ERR(np->parent)) {
@@ -43,47 +43,47 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 		goto out_err;
 	}
 
-	err = of_attach_node(np);
+	err = of_attach_yesde(np);
 	if (err) {
-		printk(KERN_ERR "Failed to add device node %s\n", path);
+		printk(KERN_ERR "Failed to add device yesde %s\n", path);
 		goto out_err;
 	}
 
-	of_node_put(np->parent);
+	of_yesde_put(np->parent);
 
 	return 0;
 
 out_err:
 	if (np) {
-		of_node_put(np->parent);
+		of_yesde_put(np->parent);
 		kfree(np->full_name);
 		kfree(np);
 	}
 	return err;
 }
 
-static int pSeries_reconfig_remove_node(struct device_node *np)
+static int pSeries_reconfig_remove_yesde(struct device_yesde *np)
 {
-	struct device_node *parent, *child;
+	struct device_yesde *parent, *child;
 
 	parent = of_get_parent(np);
 	if (!parent)
 		return -EINVAL;
 
 	if ((child = of_get_next_child(np, NULL))) {
-		of_node_put(child);
-		of_node_put(parent);
+		of_yesde_put(child);
+		of_yesde_put(parent);
 		return -EBUSY;
 	}
 
-	of_detach_node(np);
-	of_node_put(parent);
+	of_detach_yesde(np);
+	of_yesde_put(parent);
 	return 0;
 }
 
 /*
  * /proc/powerpc/ofdt - yucky binary interface for adding and removing
- * OF device nodes.  Should be deprecated as soon as we get an
+ * OF device yesdes.  Should be deprecated as soon as we get an
  * in-kernel wrapper for the RTAS ibm,configure-connector call.
  */
 
@@ -108,7 +108,7 @@ static void release_prop_list(const struct property *prop)
  * @value: return value; set to the property value in buf
  *
  * Note that the caller must make copies of the name and value returned,
- * this function does no allocation or copying of the data.  Return value
+ * this function does yes allocation or copying of the data.  Return value
  * is set to the next name in buf, or NULL on error.
  */
 static char * parse_next_property(char *buf, char *end, char **name, int *length,
@@ -132,7 +132,7 @@ static char * parse_next_property(char *buf, char *end, char **name, int *length
 		return NULL;
 	}
 
-	/* now we're on the length */
+	/* yesw we're on the length */
 	*length = -1;
 	*length = simple_strtoul(tmp, &tmp, 10);
 	if (*length == -1) {
@@ -146,7 +146,7 @@ static char * parse_next_property(char *buf, char *end, char **name, int *length
 		return NULL;
 	}
 
-	/* now we're on the value */
+	/* yesw we're on the value */
 	*value = tmp;
 	tmp += *length;
 	if (tmp > end) {
@@ -161,7 +161,7 @@ static char * parse_next_property(char *buf, char *end, char **name, int *length
 	}
 	tmp++;
 
-	/* and now we should be on the next name, or the end */
+	/* and yesw we should be on the next name, or the end */
 	return tmp;
 }
 
@@ -191,10 +191,10 @@ cleanup:
 	return NULL;
 }
 
-static int do_add_node(char *buf, size_t bufsize)
+static int do_add_yesde(char *buf, size_t bufsize)
 {
 	char *path, *end, *name;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct property *prop = NULL;
 	unsigned char* value;
 	int length, rv = 0;
@@ -207,8 +207,8 @@ static int do_add_node(char *buf, size_t bufsize)
 	*buf = '\0';
 	buf++;
 
-	if ((np = of_find_node_by_path(path))) {
-		of_node_put(np);
+	if ((np = of_find_yesde_by_path(path))) {
+		of_yesde_put(np);
 		return -EINVAL;
 	}
 
@@ -229,7 +229,7 @@ static int do_add_node(char *buf, size_t bufsize)
 		goto out;
 	}
 
-	rv = pSeries_reconfig_add_node(path, prop);
+	rv = pSeries_reconfig_add_yesde(path, prop);
 
 out:
 	if (rv)
@@ -237,19 +237,19 @@ out:
 	return rv;
 }
 
-static int do_remove_node(char *buf)
+static int do_remove_yesde(char *buf)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int rv = -ENODEV;
 
-	if ((node = of_find_node_by_path(buf)))
-		rv = pSeries_reconfig_remove_node(node);
+	if ((yesde = of_find_yesde_by_path(buf)))
+		rv = pSeries_reconfig_remove_yesde(yesde);
 
-	of_node_put(node);
+	of_yesde_put(yesde);
 	return rv;
 }
 
-static char *parse_node(char *buf, size_t bufsize, struct device_node **npp)
+static char *parse_yesde(char *buf, size_t bufsize, struct device_yesde **npp)
 {
 	char *handle_str;
 	phandle handle;
@@ -265,19 +265,19 @@ static char *parse_node(char *buf, size_t bufsize, struct device_node **npp)
 
 	handle = simple_strtoul(handle_str, NULL, 0);
 
-	*npp = of_find_node_by_phandle(handle);
+	*npp = of_find_yesde_by_phandle(handle);
 	return buf;
 }
 
 static int do_add_property(char *buf, size_t bufsize)
 {
 	struct property *prop = NULL;
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned char *value;
 	char *name, *end;
 	int length;
 	end = buf + bufsize;
-	buf = parse_node(buf, bufsize, &np);
+	buf = parse_yesde(buf, bufsize, &np);
 
 	if (!np)
 		return -ENODEV;
@@ -296,9 +296,9 @@ static int do_add_property(char *buf, size_t bufsize)
 
 static int do_remove_property(char *buf, size_t bufsize)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	char *tmp;
-	buf = parse_node(buf, bufsize, &np);
+	buf = parse_yesde(buf, bufsize, &np);
 
 	if (!np)
 		return -ENODEV;
@@ -315,12 +315,12 @@ static int do_remove_property(char *buf, size_t bufsize)
 
 static int do_update_property(char *buf, size_t bufsize)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned char *value;
 	char *name, *end, *next_prop;
 	int length;
 	struct property *newprop;
-	buf = parse_node(buf, bufsize, &np);
+	buf = parse_yesde(buf, bufsize, &np);
 	end = buf + bufsize;
 
 	if (!np)
@@ -346,14 +346,14 @@ static int do_update_property(char *buf, size_t bufsize)
 /**
  * ofdt_write - perform operations on the Open Firmware device tree
  *
- * @file: not used
+ * @file: yest used
  * @buf: command and arguments
  * @count: size of the command buffer
- * @off: not used
+ * @off: yest used
  *
  * Operations supported at this time are addition and removal of
- * whole nodes along with their properties.  Operations on individual
- * properties are not implemented (yet).
+ * whole yesdes along with their properties.  Operations on individual
+ * properties are yest implemented (yet).
  */
 static ssize_t ofdt_write(struct file *file, const char __user *buf, size_t count,
 			  loff_t *off)
@@ -374,10 +374,10 @@ static ssize_t ofdt_write(struct file *file, const char __user *buf, size_t coun
 	*tmp = '\0';
 	tmp++;
 
-	if (!strcmp(kbuf, "add_node"))
-		rv = do_add_node(tmp, count - (tmp - kbuf));
-	else if (!strcmp(kbuf, "remove_node"))
-		rv = do_remove_node(tmp);
+	if (!strcmp(kbuf, "add_yesde"))
+		rv = do_add_yesde(tmp, count - (tmp - kbuf));
+	else if (!strcmp(kbuf, "remove_yesde"))
+		rv = do_remove_yesde(tmp);
 	else if (!strcmp(kbuf, "add_property"))
 		rv = do_add_property(tmp, count - (tmp - kbuf));
 	else if (!strcmp(kbuf, "remove_property"))
@@ -393,7 +393,7 @@ out:
 
 static const struct file_operations ofdt_fops = {
 	.write = ofdt_write,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 /* create /proc/powerpc/ofdt write-only by root */

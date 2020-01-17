@@ -10,11 +10,11 @@
 static void free_extent_map_tree(struct extent_map_tree *em_tree)
 {
 	struct extent_map *em;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	while (!RB_EMPTY_ROOT(&em_tree->map.rb_root)) {
-		node = rb_first_cached(&em_tree->map);
-		em = rb_entry(node, struct extent_map, rb_node);
+		yesde = rb_first_cached(&em_tree->map);
+		em = rb_entry(yesde, struct extent_map, rb_yesde);
 		remove_extent_mapping(em_tree, em);
 
 #ifdef CONFIG_BTRFS_DEBUG
@@ -34,8 +34,8 @@ static void free_extent_map_tree(struct extent_map_tree *em_tree)
 /*
  * Test scenario:
  *
- * Suppose that no extent map has been loaded into memory yet, there is a file
- * extent [0, 16K), followed by another file extent [16K, 20K), two dio reads
+ * Suppose that yes extent map has been loaded into memory yet, there is a file
+ * extent [0, 16K), followed by ayesther file extent [16K, 20K), two dio reads
  * are entering btrfs_get_extent() concurrently, t1 is reading [8K, 16K), t2 is
  * reading [0, 8K)
  *
@@ -70,7 +70,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	ret = add_extent_mapping(em_tree, em, 0);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [0, 16K)");
+		test_err("canyest add extent range [0, 16K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -91,7 +91,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 	ret = add_extent_mapping(em_tree, em, 0);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [16K, 20K)");
+		test_err("canyest add extent range [16K, 20K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -158,7 +158,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	ret = add_extent_mapping(em_tree, em, 0);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [0, 1K)");
+		test_err("canyest add extent range [0, 1K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -179,7 +179,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 	ret = add_extent_mapping(em_tree, em, 0);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [4K, 8K)");
+		test_err("canyest add extent range [4K, 8K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -241,7 +241,7 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	ret = add_extent_mapping(em_tree, em, 0);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [4K, 8K)");
+		test_err("canyest add extent range [4K, 8K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -289,7 +289,7 @@ out:
 /*
  * Test scenario:
  *
- * Suppose that no extent map has been loaded into memory yet.
+ * Suppose that yes extent map has been loaded into memory yet.
  * There is a file extent [0, 16K), two jobs are running concurrently
  * against it, t1 is buffered writing to [4K, 8K) and t2 is doing dio
  * read from [0, 4K) or [8K, 12K) or [12K, 16K).
@@ -340,7 +340,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	ret = add_extent_mapping(em_tree, em, 0);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [0, 8K)");
+		test_err("canyest add extent range [0, 8K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -361,7 +361,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	ret = add_extent_mapping(em_tree, em, 0);
 	write_unlock(&em_tree->lock);
 	if (ret < 0) {
-		test_err("cannot add extent range [8K, 32K)");
+		test_err("canyest add extent range [8K, 32K)");
 		goto out;
 	}
 	free_extent_map(em);
@@ -402,7 +402,7 @@ out:
 /*
  * Test scenario:
  *
- * Suppose that no extent map has been loaded into memory yet.
+ * Suppose that yes extent map has been loaded into memory yet.
  * There is a file extent [0, 32K), two jobs are running concurrently
  * against it, t1 is doing dio write to [8K, 32K) and t2 is doing dio
  * read from [0, 4K) or [4K, 8K).
@@ -446,7 +446,7 @@ int btrfs_test_extent_map(void)
 	test_msg("running extent_map tests");
 
 	/*
-	 * Note: the fs_info is not set up completely, we only need
+	 * Note: the fs_info is yest set up completely, we only need
 	 * fs_info::fsid for the tracepoint.
 	 */
 	fs_info = btrfs_alloc_dummy_fs_info(PAGE_SIZE, PAGE_SIZE);

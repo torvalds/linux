@@ -10,7 +10,7 @@
 #include <linux/scatterlist.h>
 #include <linux/device.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/ioasid.h>
@@ -33,7 +33,7 @@
 #define IOMMU_PRIV	(1 << 5)
 /*
  * Non-coherent masters can use this page protection flag to set cacheable
- * memory attributes for only a transparent outer level of cache, also known as
+ * memory attributes for only a transparent outer level of cache, also kyeswn as
  * the last-level or system cache.
  */
 #define IOMMU_SYS_CACHE_ONLY	(1 << 6)
@@ -43,7 +43,7 @@ struct iommu_group;
 struct bus_type;
 struct device;
 struct iommu_domain;
-struct notifier_block;
+struct yestifier_block;
 struct iommu_sva;
 struct iommu_fault_event;
 
@@ -175,7 +175,7 @@ enum iommu_dev_features {
  * struct iommu_sva_ops - device driver callbacks for an SVA context
  *
  * @mm_exit: called when the mm is about to be torn down by exit_mmap. After
- *           @mm_exit returns, the device must not issue any more transaction
+ *           @mm_exit returns, the device must yest issue any more transaction
  *           with the PASID given as argument.
  *
  *           The @mm_exit handler is allowed to sleep. Be careful about the
@@ -218,7 +218,7 @@ struct iommu_iotlb_gather {
  * @detach_dev: detach device from an iommu domain
  * @map: map a physically contiguous memory region to an iommu domain
  * @unmap: unmap a physically contiguous memory region from an iommu domain
- * @flush_iotlb_all: Synchronously flush all hardware TLBs for this domain
+ * @flush_iotlb_all: Synchroyesusly flush all hardware TLBs for this domain
  * @iotlb_sync_map: Sync mappings created recently using @map to the hardware
  * @iotlb_sync: Flush all queued ranges from the hardware TLBs and empty flush
  *            queue
@@ -235,7 +235,7 @@ struct iommu_iotlb_gather {
  * @domain_window_disable: Disable a particular window for a domain
  * @of_xlate: add OF master IDs to iommu grouping
  * @is_attach_deferred: Check if domain attach should be deferred from iommu
- *                      driver init to device driver init (default no)
+ *                      driver init to device driver init (default yes)
  * @dev_has/enable/disable_feat: per device entries to check/enable/disable
  *                               iommu specific features.
  * @dev_feat_enabled: check enabled feature
@@ -330,7 +330,7 @@ struct iommu_ops {
 struct iommu_device {
 	struct list_head list;
 	const struct iommu_ops *ops;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	struct device *dev;
 };
 
@@ -392,10 +392,10 @@ static inline void iommu_device_set_ops(struct iommu_device *iommu,
 	iommu->ops = ops;
 }
 
-static inline void iommu_device_set_fwnode(struct iommu_device *iommu,
-					   struct fwnode_handle *fwnode)
+static inline void iommu_device_set_fwyesde(struct iommu_device *iommu,
+					   struct fwyesde_handle *fwyesde)
 {
-	iommu->fwnode = fwnode;
+	iommu->fwyesde = fwyesde;
 }
 
 static inline struct iommu_device *dev_to_iommu_device(struct device *dev)
@@ -485,10 +485,10 @@ extern int iommu_group_for_each_dev(struct iommu_group *group, void *data,
 extern struct iommu_group *iommu_group_get(struct device *dev);
 extern struct iommu_group *iommu_group_ref_get(struct iommu_group *group);
 extern void iommu_group_put(struct iommu_group *group);
-extern int iommu_group_register_notifier(struct iommu_group *group,
-					 struct notifier_block *nb);
-extern int iommu_group_unregister_notifier(struct iommu_group *group,
-					   struct notifier_block *nb);
+extern int iommu_group_register_yestifier(struct iommu_group *group,
+					 struct yestifier_block *nb);
+extern int iommu_group_unregister_yestifier(struct iommu_group *group,
+					   struct yestifier_block *nb);
 extern int iommu_register_device_fault_handler(struct device *dev,
 					iommu_dev_fault_handler_t handler,
 					void *data);
@@ -568,14 +568,14 @@ struct iommu_group *fsl_mc_device_group(struct device *dev);
 /**
  * struct iommu_fwspec - per-device IOMMU instance data
  * @ops: ops for this device's IOMMU
- * @iommu_fwnode: firmware handle for this device's IOMMU
+ * @iommu_fwyesde: firmware handle for this device's IOMMU
  * @iommu_priv: IOMMU driver private data for this device
  * @num_ids: number of associated device IDs
  * @ids: IDs which this device may present to the IOMMU
  */
 struct iommu_fwspec {
 	const struct iommu_ops	*ops;
-	struct fwnode_handle	*iommu_fwnode;
+	struct fwyesde_handle	*iommu_fwyesde;
 	void			*iommu_priv;
 	u32			flags;
 	unsigned int		num_ids;
@@ -593,11 +593,11 @@ struct iommu_sva {
 	const struct iommu_sva_ops	*ops;
 };
 
-int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
+int iommu_fwspec_init(struct device *dev, struct fwyesde_handle *iommu_fwyesde,
 		      const struct iommu_ops *ops);
 void iommu_fwspec_free(struct device *dev);
 int iommu_fwspec_add_ids(struct device *dev, u32 *ids, int num_ids);
-const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode);
+const struct iommu_ops *iommu_ops_from_fwyesde(struct fwyesde_handle *fwyesde);
 
 static inline struct iommu_fwspec *dev_iommu_fwspec_get(struct device *dev)
 {
@@ -847,14 +847,14 @@ static inline void iommu_group_put(struct iommu_group *group)
 {
 }
 
-static inline int iommu_group_register_notifier(struct iommu_group *group,
-						struct notifier_block *nb)
+static inline int iommu_group_register_yestifier(struct iommu_group *group,
+						struct yestifier_block *nb)
 {
 	return -ENODEV;
 }
 
-static inline int iommu_group_unregister_notifier(struct iommu_group *group,
-						  struct notifier_block *nb)
+static inline int iommu_group_unregister_yestifier(struct iommu_group *group,
+						  struct yestifier_block *nb)
 {
 	return 0;
 }
@@ -911,8 +911,8 @@ static inline void iommu_device_set_ops(struct iommu_device *iommu,
 {
 }
 
-static inline void iommu_device_set_fwnode(struct iommu_device *iommu,
-					   struct fwnode_handle *fwnode)
+static inline void iommu_device_set_fwyesde(struct iommu_device *iommu,
+					   struct fwyesde_handle *fwyesde)
 {
 }
 
@@ -957,7 +957,7 @@ static inline void iommu_device_unlink(struct device *dev, struct device *link)
 }
 
 static inline int iommu_fwspec_init(struct device *dev,
-				    struct fwnode_handle *iommu_fwnode,
+				    struct fwyesde_handle *iommu_fwyesde,
 				    const struct iommu_ops *ops)
 {
 	return -ENODEV;
@@ -974,7 +974,7 @@ static inline int iommu_fwspec_add_ids(struct device *dev, u32 *ids,
 }
 
 static inline
-const struct iommu_ops *iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
+const struct iommu_ops *iommu_ops_from_fwyesde(struct fwyesde_handle *fwyesde)
 {
 	return NULL;
 }

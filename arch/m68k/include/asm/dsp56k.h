@@ -18,7 +18,7 @@ struct dsp56k_upload {
 
 /* For the DSP host flags */
 struct dsp56k_host_flags {
-	int dir;     /* Bit field. 1 = write output bit, 0 = do nothing.
+	int dir;     /* Bit field. 1 = write output bit, 0 = do yesthing.
 		      * 0x0000 means reading only, 0x0011 means
 		      * writing the bits stored in `out' on HF0 and HF1.
 		      * Note that HF2 and HF3 can only be read.

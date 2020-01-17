@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
 #include <sys/uio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <sys/socket.h>
 #include <fcntl.h>

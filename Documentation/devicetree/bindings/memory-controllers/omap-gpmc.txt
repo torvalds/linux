@@ -1,6 +1,6 @@
 Device tree bindings for OMAP general purpose memory controllers (GPMC)
 
-The actual devices are instantiated from the child nodes of a GPMC node.
+The actual devices are instantiated from the child yesdes of a GPMC yesde.
 
 Required properties:
 
@@ -50,16 +50,16 @@ Required properties when using NAND prefetch dma:
  - dmas			GPMC NAND prefetch dma channel
  - dma-names		Must be set to "rxtx"
 
-Timing properties for child nodes. All are optional and default to 0.
+Timing properties for child yesdes. All are optional and default to 0.
 
- - gpmc,sync-clk-ps:	Minimum clock period for synchronous mode, in picoseconds
+ - gpmc,sync-clk-ps:	Minimum clock period for synchroyesus mode, in picoseconds
 
- Chip-select signal timings (in nanoseconds) corresponding to GPMC_CONFIG2:
+ Chip-select signal timings (in nayesseconds) corresponding to GPMC_CONFIG2:
  - gpmc,cs-on-ns:	Assertion time
  - gpmc,cs-rd-off-ns:	Read deassertion time
  - gpmc,cs-wr-off-ns:	Write deassertion time
 
- ADV signal timings (in nanoseconds) corresponding to GPMC_CONFIG3:
+ ADV signal timings (in nayesseconds) corresponding to GPMC_CONFIG3:
  - gpmc,adv-on-ns:	Assertion time
  - gpmc,adv-rd-off-ns:	Read deassertion time
  - gpmc,adv-wr-off-ns:	Write deassertion time
@@ -67,17 +67,17 @@ Timing properties for child nodes. All are optional and default to 0.
  - gpmc,adv-aad-mux-rd-off-ns:	Read deassertion time for AAD
  - gpmc,adv-aad-mux-wr-off-ns:	Write deassertion time for AAD
 
- WE signals timings (in nanoseconds) corresponding to GPMC_CONFIG4:
+ WE signals timings (in nayesseconds) corresponding to GPMC_CONFIG4:
  - gpmc,we-on-ns	Assertion time
  - gpmc,we-off-ns:	Deassertion time
 
- OE signals timings (in nanoseconds) corresponding to GPMC_CONFIG4:
+ OE signals timings (in nayesseconds) corresponding to GPMC_CONFIG4:
  - gpmc,oe-on-ns:	Assertion time
  - gpmc,oe-off-ns:	Deassertion time
  - gpmc,oe-aad-mux-on-ns:	Assertion time for AAD
  - gpmc,oe-aad-mux-off-ns:	Deassertion time for AAD
 
- Access time and cycle time timings (in nanoseconds) corresponding to
+ Access time and cycle time timings (in nayesseconds) corresponding to
  GPMC_CONFIG5:
  - gpmc,page-burst-access-ns: 	Multiple access word delay
  - gpmc,access-ns:		Start-cycle to first data valid delay
@@ -102,7 +102,7 @@ disabled if omitted:
  - gpmc,time-para-granularity:	Multiply all access times by 2
 
 The following are only applicable to OMAP3+ and AM335x:
- - gpmc,wr-access-ns:		In synchronous write mode, for single or
+ - gpmc,wr-access-ns:		In synchroyesus write mode, for single or
 				burst accesses, defines the number of
 				GPMC_FCLK cycles from start access time
 				to the GPMC_CLK rising edge used by the
@@ -111,7 +111,7 @@ The following are only applicable to OMAP3+ and AM335x:
 				the time when the first data is driven on
 				the address-data bus.
 
-GPMC chip-select settings properties for child nodes. All are optional.
+GPMC chip-select settings properties for child yesdes. All are optional.
 
 - gpmc,burst-length	Page/burst length. Must be 4, 8 or 16.
 - gpmc,burst-wrap	Enables wrap bursting
@@ -125,10 +125,10 @@ GPMC chip-select settings properties for child nodes. All are optional.
 			Valid values are 1 for address-address-data
 			multiplexing mode and 2 for address-data
 			multiplexing mode.
-- gpmc,sync-read	Enables synchronous read. Defaults to asynchronous
-			is this is not set.
-- gpmc,sync-write	Enables synchronous writes. Defaults to asynchronous
-			is this is not set.
+- gpmc,sync-read	Enables synchroyesus read. Defaults to asynchroyesus
+			is this is yest set.
+- gpmc,sync-write	Enables synchroyesus writes. Defaults to asynchroyesus
+			is this is yest set.
 - gpmc,wait-pin		Wait-pin used by client. Must be less than
 			"gpmc,num-waitpins".
 - gpmc,wait-on-read	Enables wait monitoring on reads.
@@ -153,5 +153,5 @@ Example for an AM33xx board:
 		gpio-controller;
 		#gpio-cells = <2>;
 
-		/* child nodes go here */
+		/* child yesdes go here */
 	};

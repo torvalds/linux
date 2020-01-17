@@ -39,7 +39,7 @@ ENTRY(brcmstb_pm_do_s2)
 
 	/* Wait for interrupt */
 	wfi
-	nop
+	yesp
 
 	/* Bring MEMC back up */
 1:	ldr	r0, [DDR_PHY_STATUS_REG]

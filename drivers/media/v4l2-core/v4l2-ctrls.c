@@ -21,7 +21,7 @@
 #define dprintk(vdev, fmt, arg...) do {					\
 	if (!WARN_ON(!(vdev)) && ((vdev)->dev_debug & V4L2_DEV_DEBUG_CTRL)) \
 		printk(KERN_DEBUG pr_fmt("%s: %s: " fmt),		\
-		       __func__, video_device_node_name(vdev), ##arg);	\
+		       __func__, video_device_yesde_name(vdev), ##arg);	\
 } while (0)
 
 #define has_op(master, op) \
@@ -59,7 +59,7 @@ static bool is_new_manual(const struct v4l2_ctrl *master)
 /* Returns NULL or a character pointer array containing the menu for
    the given control ID. The pointer array ends with a NULL pointer.
    An empty string signifies a menu entry that is invalid. This allows
-   drivers to disable certain options if it is not supported. */
+   drivers to disable certain options if it is yest supported. */
 const char * const *v4l2_ctrl_get_menu(u32 id)
 {
 	static const char * const mpeg_audio_sampling_freq[] = {
@@ -153,7 +153,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Stereo",
 		"Joint Stereo",
 		"Dual",
-		"Mono",
+		"Moyes",
 		NULL
 	};
 	static const char * const mpeg_audio_mode_extension[] = {
@@ -179,7 +179,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Stereo",
 		"Left",
 		"Right",
-		"Mono",
+		"Moyes",
 		"Swapped Stereo",
 		NULL
 	};
@@ -283,7 +283,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 	static const char * const scene_mode[] = {
 		"None",
 		"Backlight",
-		"Beach/Snow",
+		"Beach/Syesw",
 		"Candle Light",
 		"Dusk/Dawn",
 		"Fall Colors",
@@ -1028,7 +1028,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_RDS_TX_ARTIFICIAL_HEAD:	return "RDS Artificial Head";
 	case V4L2_CID_RDS_TX_COMPRESSED:	return "RDS Compressed";
 	case V4L2_CID_RDS_TX_DYNAMIC_PTY:	return "RDS Dynamic PTY";
-	case V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT: return "RDS Traffic Announcement";
+	case V4L2_CID_RDS_TX_TRAFFIC_ANNOUNCEMENT: return "RDS Traffic Anyesuncement";
 	case V4L2_CID_RDS_TX_TRAFFIC_PROGRAM:	return "RDS Traffic Program";
 	case V4L2_CID_RDS_TX_MUSIC_SPEECH:	return "RDS Music";
 	case V4L2_CID_RDS_TX_ALT_FREQS_ENABLE:	return "RDS Enable Alt Frequencies";
@@ -1122,7 +1122,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_RDS_RX_PTY:		return "RDS Program Type";
 	case V4L2_CID_RDS_RX_PS_NAME:		return "RDS PS Name";
 	case V4L2_CID_RDS_RX_RADIO_TEXT:	return "RDS Radio Text";
-	case V4L2_CID_RDS_RX_TRAFFIC_ANNOUNCEMENT: return "RDS Traffic Announcement";
+	case V4L2_CID_RDS_RX_TRAFFIC_ANNOUNCEMENT: return "RDS Traffic Anyesuncement";
 	case V4L2_CID_RDS_RX_TRAFFIC_PROGRAM:	return "RDS Traffic Program";
 	case V4L2_CID_RDS_RX_MUSIC_SPEECH:	return "RDS Music";
 
@@ -1318,7 +1318,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_RF_TUNER_CLASS:
 	case V4L2_CID_DETECT_CLASS:
 		*type = V4L2_CTRL_TYPE_CTRL_CLASS;
-		/* You can neither read not write these */
+		/* You can neither read yest write these */
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY;
 		*min = *max = *step = *def = 0;
 		break;
@@ -1527,7 +1527,7 @@ static void send_event(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 changes)
 		return;
 	fill_event(&ev, ctrl, changes);
 
-	list_for_each_entry(sev, &ctrl->ev_subs, node)
+	list_for_each_entry(sev, &ctrl->ev_subs, yesde)
 		if (sev->fh != fh ||
 		    (sev->flags & V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK))
 			v4l2_event_queue_fh(sev->fh, &ev);
@@ -1574,7 +1574,7 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 
 	/*
 	 * The cast is needed to get rid of a gcc warning complaining that
-	 * V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS is not part of the
+	 * V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS is yest part of the
 	 * v4l2_ctrl_type enum.
 	 */
 	switch ((u32)ctrl->type) {
@@ -1672,7 +1672,7 @@ static void std_log(const struct v4l2_ctrl *ctrl)
 		pr_cont("%u", (unsigned)*ptr.p_u32);
 		break;
 	default:
-		pr_cont("unknown type %d", ctrl->type);
+		pr_cont("unkyeswn type %d", ctrl->type);
 		break;
 	}
 }
@@ -2064,7 +2064,7 @@ static int user_to_new(struct v4l2_ext_control *c,
 	return user_to_ptr(c, ctrl, ctrl->p_new);
 }
 
-/* Copy the one value to another. */
+/* Copy the one value to ayesther. */
 static void ptr_to_ptr(struct v4l2_ctrl *ctrl,
 		       union v4l2_ctrl_ptr from, union v4l2_ctrl_ptr to)
 {
@@ -2098,14 +2098,14 @@ static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 ch_flags)
 		fh = NULL;
 	}
 	if (changed || ch_flags) {
-		/* If a control was changed that was not one of the controls
+		/* If a control was changed that was yest one of the controls
 		   modified by the application, then send the event to all. */
 		if (!ctrl->is_new)
 			fh = NULL;
 		send_event(fh, ctrl,
 			(changed ? V4L2_EVENT_CTRL_CH_VALUE : 0) | ch_flags);
-		if (ctrl->call_notify && changed && ctrl->handler->notify)
-			ctrl->handler->notify(ctrl, ctrl->handler->notify_priv);
+		if (ctrl->call_yestify && changed && ctrl->handler->yestify)
+			ctrl->handler->yestify(ctrl, ctrl->handler->yestify_priv);
 	}
 }
 
@@ -2137,7 +2137,7 @@ static void req_to_new(struct v4l2_ctrl_ref *ref)
 		ptr_to_ptr(ref->ctrl, ref->ctrl->p_cur, ref->ctrl->p_new);
 }
 
-/* Return non-zero if one or more of the controls in the cluster has a new
+/* Return yesn-zero if one or more of the controls in the cluster has a new
    value that differs from the current value. */
 static int cluster_changed(struct v4l2_ctrl *master)
 {
@@ -2223,9 +2223,9 @@ static int validate_new(const struct v4l2_ctrl *ctrl, union v4l2_ctrl_ptr p_new)
 	return err;
 }
 
-static inline u32 node2id(struct list_head *node)
+static inline u32 yesde2id(struct list_head *yesde)
 {
-	return list_entry(node, struct v4l2_ctrl_ref, node)->ctrl->id;
+	return list_entry(yesde, struct v4l2_ctrl_ref, yesde)->ctrl->id;
 }
 
 /* Set the handler's error code if it wasn't set earlier already */
@@ -2278,16 +2278,16 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 		}
 	}
 	mutex_lock(hdl->lock);
-	/* Free all nodes */
-	list_for_each_entry_safe(ref, next_ref, &hdl->ctrl_refs, node) {
-		list_del(&ref->node);
+	/* Free all yesdes */
+	list_for_each_entry_safe(ref, next_ref, &hdl->ctrl_refs, yesde) {
+		list_del(&ref->yesde);
 		kfree(ref);
 	}
 	/* Free all controls owned by the handler */
-	list_for_each_entry_safe(ctrl, next_ctrl, &hdl->ctrls, node) {
-		list_del(&ctrl->node);
-		list_for_each_entry_safe(sev, next_sev, &ctrl->ev_subs, node)
-			list_del(&sev->node);
+	list_for_each_entry_safe(ctrl, next_ctrl, &hdl->ctrls, yesde) {
+		list_del(&ctrl->yesde);
+		list_for_each_entry_safe(sev, next_sev, &ctrl->ev_subs, yesde)
+			list_del(&sev->yesde);
 		kvfree(ctrl);
 	}
 	kvfree(hdl->buckets);
@@ -2299,11 +2299,11 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 }
 EXPORT_SYMBOL(v4l2_ctrl_handler_free);
 
-/* For backwards compatibility: V4L2_CID_PRIVATE_BASE should no longer
+/* For backwards compatibility: V4L2_CID_PRIVATE_BASE should yes longer
    be used except in G_CTRL, S_CTRL, QUERYCTRL and QUERYMENU when dealing
-   with applications that do not use the NEXT_CTRL flag.
+   with applications that do yest use the NEXT_CTRL flag.
 
-   We just find the n-th private user control. It's O(N), but that should not
+   We just find the n-th private user control. It's O(N), but that should yest
    be an issue in this particular case. */
 static struct v4l2_ctrl_ref *find_private_ref(
 		struct v4l2_ctrl_handler *hdl, u32 id)
@@ -2311,7 +2311,7 @@ static struct v4l2_ctrl_ref *find_private_ref(
 	struct v4l2_ctrl_ref *ref;
 
 	id -= V4L2_CID_PRIVATE_BASE;
-	list_for_each_entry(ref, &hdl->ctrl_refs, node) {
+	list_for_each_entry(ref, &hdl->ctrl_refs, yesde) {
 		/* Search for private user controls that are compatible with
 		   VIDIOC_G/S_CTRL. */
 		if (V4L2_CTRL_ID2WHICH(ref->ctrl->id) == V4L2_CTRL_CLASS_USER &&
@@ -2393,8 +2393,8 @@ static int handler_new_ref(struct v4l2_ctrl_handler *hdl,
 		*ctrl_ref = NULL;
 
 	/*
-	 * Automatically add the control class if it is not yet present and
-	 * the new control is not a compound control.
+	 * Automatically add the control class if it is yest yet present and
+	 * the new control is yest a compound control.
 	 */
 	if (ctrl->type < V4L2_CTRL_COMPOUND_TYPES &&
 	    id != class_ctrl && find_ref_lock(hdl, class_ctrl) == NULL)
@@ -2414,7 +2414,7 @@ static int handler_new_ref(struct v4l2_ctrl_handler *hdl,
 	if (size_extra_req)
 		new_ref->p_req.p = &new_ref[1];
 
-	INIT_LIST_HEAD(&new_ref->node);
+	INIT_LIST_HEAD(&new_ref->yesde);
 
 	mutex_lock(hdl->lock);
 
@@ -2422,13 +2422,13 @@ static int handler_new_ref(struct v4l2_ctrl_handler *hdl,
 	   the last element in the list has a lower ID.
 	   This ensures that when elements are added in ascending order the
 	   insertion is an O(1) operation. */
-	if (list_empty(&hdl->ctrl_refs) || id > node2id(hdl->ctrl_refs.prev)) {
-		list_add_tail(&new_ref->node, &hdl->ctrl_refs);
+	if (list_empty(&hdl->ctrl_refs) || id > yesde2id(hdl->ctrl_refs.prev)) {
+		list_add_tail(&new_ref->yesde, &hdl->ctrl_refs);
 		goto insert_in_hash;
 	}
 
 	/* Find insert position in sorted list */
-	list_for_each_entry(ref, &hdl->ctrl_refs, node) {
+	list_for_each_entry(ref, &hdl->ctrl_refs, yesde) {
 		if (ref->ctrl->id < id)
 			continue;
 		/* Don't add duplicates */
@@ -2436,12 +2436,12 @@ static int handler_new_ref(struct v4l2_ctrl_handler *hdl,
 			kfree(new_ref);
 			goto unlock;
 		}
-		list_add(&new_ref->node, ref->node.prev);
+		list_add(&new_ref->yesde, ref->yesde.prev);
 		break;
 	}
 
 insert_in_hash:
-	/* Insert the control node in the hash */
+	/* Insert the control yesde in the hash */
 	new_ref->next = hdl->buckets[bucket];
 	hdl->buckets[bucket] = new_ref;
 	if (ctrl_ref)
@@ -2597,7 +2597,7 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		return NULL;
 	}
 
-	INIT_LIST_HEAD(&ctrl->node);
+	INIT_LIST_HEAD(&ctrl->yesde);
 	INIT_LIST_HEAD(&ctrl->ev_subs);
 	ctrl->handler = hdl;
 	ctrl->ops = ops;
@@ -2650,7 +2650,7 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		return NULL;
 	}
 	mutex_lock(hdl->lock);
-	list_add_tail(&ctrl->node, &hdl->ctrls);
+	list_add_tail(&ctrl->yesde, &hdl->ctrls);
 	mutex_unlock(hdl->lock);
 	return ctrl;
 }
@@ -2698,7 +2698,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_custom(struct v4l2_ctrl_handler *hdl,
 }
 EXPORT_SYMBOL(v4l2_ctrl_new_custom);
 
-/* Helper function for standard non-menu controls */
+/* Helper function for standard yesn-menu controls */
 struct v4l2_ctrl *v4l2_ctrl_new_std(struct v4l2_ctrl_handler *hdl,
 			const struct v4l2_ctrl_ops *ops,
 			u32 id, s64 min, s64 max, u64 step, s64 def)
@@ -2831,7 +2831,7 @@ struct v4l2_ctrl *v4l2_ctrl_new_int_menu(struct v4l2_ctrl_handler *hdl,
 }
 EXPORT_SYMBOL(v4l2_ctrl_new_int_menu);
 
-/* Add the controls from another handler to our own. */
+/* Add the controls from ayesther handler to our own. */
 int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 			  struct v4l2_ctrl_handler *add,
 			  bool (*filter)(const struct v4l2_ctrl *ctrl),
@@ -2840,13 +2840,13 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 	struct v4l2_ctrl_ref *ref;
 	int ret = 0;
 
-	/* Do nothing if either handler is NULL or if they are the same */
+	/* Do yesthing if either handler is NULL or if they are the same */
 	if (!hdl || !add || hdl == add)
 		return 0;
 	if (hdl->error)
 		return hdl->error;
 	mutex_lock(add->lock);
-	list_for_each_entry(ref, &add->ctrl_refs, node) {
+	list_for_each_entry(ref, &add->ctrl_refs, yesde) {
 		struct v4l2_ctrl *ctrl = ref->ctrl;
 
 		/* Skip handler-private controls. */
@@ -2894,7 +2894,7 @@ void v4l2_ctrl_cluster(unsigned ncontrols, struct v4l2_ctrl **controls)
 	bool has_volatiles = false;
 	int i;
 
-	/* The first control is the master control and it must not be NULL */
+	/* The first control is the master control and it must yest be NULL */
 	if (WARN_ON(ncontrols == 0 || controls[0] == NULL))
 		return;
 
@@ -3019,7 +3019,7 @@ void v4l2_ctrl_handler_log_status(struct v4l2_ctrl_handler *hdl,
 	if (len && prefix[len - 1] != ' ')
 		colon = ": ";
 	mutex_lock(hdl->lock);
-	list_for_each_entry(ctrl, &hdl->ctrls, node)
+	list_for_each_entry(ctrl, &hdl->ctrls, yesde)
 		if (!(ctrl->flags & V4L2_CTRL_FLAG_DISABLED))
 			log_ctrl(ctrl, prefix, colon);
 	mutex_unlock(hdl->lock);
@@ -3044,10 +3044,10 @@ int __v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl)
 
 	lockdep_assert_held(hdl->lock);
 
-	list_for_each_entry(ctrl, &hdl->ctrls, node)
+	list_for_each_entry(ctrl, &hdl->ctrls, yesde)
 		ctrl->done = false;
 
-	list_for_each_entry(ctrl, &hdl->ctrls, node) {
+	list_for_each_entry(ctrl, &hdl->ctrls, yesde) {
 		struct v4l2_ctrl *master = ctrl->cluster[0];
 		int i;
 
@@ -3106,7 +3106,7 @@ int v4l2_query_ext_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_query_ext_ctr
 
 	if ((qc->id & next_flags) && !list_empty(&hdl->ctrl_refs)) {
 		bool is_compound;
-		/* Match any control that is not hidden */
+		/* Match any control that is yest hidden */
 		unsigned mask = 1;
 		bool match = false;
 
@@ -3114,40 +3114,40 @@ int v4l2_query_ext_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_query_ext_ctr
 			/* Match any hidden control */
 			match = true;
 		} else if ((qc->id & next_flags) == next_flags) {
-			/* Match any control, compound or not */
+			/* Match any control, compound or yest */
 			mask = 0;
 		}
 
 		/* Find the next control with ID > qc->id */
 
 		/* Did we reach the end of the control list? */
-		if (id >= node2id(hdl->ctrl_refs.prev)) {
-			ref = NULL; /* Yes, so there is no next control */
+		if (id >= yesde2id(hdl->ctrl_refs.prev)) {
+			ref = NULL; /* Yes, so there is yes next control */
 		} else if (ref) {
 			/* We found a control with the given ID, so just get
 			   the next valid one in the list. */
-			list_for_each_entry_continue(ref, &hdl->ctrl_refs, node) {
+			list_for_each_entry_continue(ref, &hdl->ctrl_refs, yesde) {
 				is_compound = ref->ctrl->is_array ||
 					ref->ctrl->type >= V4L2_CTRL_COMPOUND_TYPES;
 				if (id < ref->ctrl->id &&
 				    (is_compound & mask) == match)
 					break;
 			}
-			if (&ref->node == &hdl->ctrl_refs)
+			if (&ref->yesde == &hdl->ctrl_refs)
 				ref = NULL;
 		} else {
 			/* No control with the given ID exists, so start
-			   searching for the next largest ID. We know there
+			   searching for the next largest ID. We kyesw there
 			   is one, otherwise the first 'if' above would have
 			   been true. */
-			list_for_each_entry(ref, &hdl->ctrl_refs, node) {
+			list_for_each_entry(ref, &hdl->ctrl_refs, yesde) {
 				is_compound = ref->ctrl->is_array ||
 					ref->ctrl->type >= V4L2_CTRL_COMPOUND_TYPES;
 				if (id < ref->ctrl->id &&
 				    (is_compound & mask) == match)
 					break;
 			}
-			if (&ref->node == &hdl->ctrl_refs)
+			if (&ref->yesde == &hdl->ctrl_refs)
 				ref = NULL;
 		}
 	}
@@ -3276,7 +3276,7 @@ static int v4l2_ctrl_request_clone(struct v4l2_ctrl_handler *hdl,
 	WARN_ON(hdl->lock != &hdl->_lock);
 
 	mutex_lock(from->lock);
-	list_for_each_entry(ref, &from->ctrl_refs, node) {
+	list_for_each_entry(ref, &from->ctrl_refs, yesde) {
 		struct v4l2_ctrl *ctrl = ref->ctrl;
 		struct v4l2_ctrl_ref *new_ref;
 
@@ -3315,16 +3315,16 @@ static void v4l2_ctrl_request_queue(struct media_request_object *obj)
 	 */
 	mutex_lock(prev_hdl->lock);
 	ref_ctrl_prev = list_first_entry(&prev_hdl->ctrl_refs,
-					 struct v4l2_ctrl_ref, node);
-	list_for_each_entry(ref_ctrl, &hdl->ctrl_refs, node) {
+					 struct v4l2_ctrl_ref, yesde);
+	list_for_each_entry(ref_ctrl, &hdl->ctrl_refs, yesde) {
 		if (ref_ctrl->req)
 			continue;
 		while (ref_ctrl_prev->ctrl->id < ref_ctrl->ctrl->id) {
 			/* Should never happen, but just in case... */
-			if (list_is_last(&ref_ctrl_prev->node,
+			if (list_is_last(&ref_ctrl_prev->yesde,
 					 &prev_hdl->ctrl_refs))
 				break;
-			ref_ctrl_prev = list_next_entry(ref_ctrl_prev, node);
+			ref_ctrl_prev = list_next_entry(ref_ctrl_prev, yesde);
 		}
 		if (WARN_ON(ref_ctrl_prev->ctrl->id != ref_ctrl->ctrl->id))
 			break;
@@ -3409,9 +3409,9 @@ static int v4l2_ctrl_request_bind(struct media_request *req,
 	return ret;
 }
 
-/* Some general notes on the atomic requirements of VIDIOC_G/TRY/S_EXT_CTRLS:
+/* Some general yestes on the atomic requirements of VIDIOC_G/TRY/S_EXT_CTRLS:
 
-   It is not a fully atomic operation, just best-effort only. After all, if
+   It is yest a fully atomic operation, just best-effort only. After all, if
    multiple controls have to be set through multiple i2c writes (for example)
    then some initial writes may succeed while others fail. Thus leaving the
    system in an inconsistent state. The question is how much effort you are
@@ -3426,14 +3426,14 @@ static int v4l2_ctrl_request_bind(struct media_request *req,
 
    It is important though that the application can tell when only a partial
    configuration was done. The way we do that is through the error_idx field
-   of struct v4l2_ext_controls: if that is equal to the count field then no
+   of struct v4l2_ext_controls: if that is equal to the count field then yes
    controls were affected. Otherwise all controls before that index were
    successful in performing their 'get' or 'set' operation, the control at
-   the given index failed, and you don't know what happened with the controls
+   the given index failed, and you don't kyesw what happened with the controls
    after the failed one. Since if they were part of a control cluster they
    could have been successfully processed (if a cluster member was encountered
    at index < error_idx), they could have failed (if a cluster member was at
-   error_idx), or they may not have been processed yet (if the first cluster
+   error_idx), or they may yest have been processed yet (if the first cluster
    member appeared after error_idx).
 
    It is all fairly theoretical, though. In practice all you can do is to
@@ -3443,7 +3443,7 @@ static int v4l2_ctrl_request_bind(struct media_request *req,
    tried to set the controls. In all other cases it is a driver/hardware
    problem and all you can do is to retry or bail out.
 
-   Note that these rules do not apply to VIDIOC_TRY_EXT_CTRLS: since that
+   Note that these rules do yest apply to VIDIOC_TRY_EXT_CTRLS: since that
    never modifies controls the error_idx is just set to whatever control
    has an invalid value.
  */
@@ -3478,16 +3478,16 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 			return -EINVAL;
 		}
 
-		/* Old-style private controls are not allowed for
+		/* Old-style private controls are yest allowed for
 		   extended controls */
 		if (id >= V4L2_CID_PRIVATE_BASE) {
 			dprintk(vdev,
-				"old-style private controls not allowed\n");
+				"old-style private controls yest allowed\n");
 			return -EINVAL;
 		}
 		ref = find_ref_lock(hdl, id);
 		if (ref == NULL) {
-			dprintk(vdev, "cannot find control id 0x%x\n", id);
+			dprintk(vdev, "canyest find control id 0x%x\n", id);
 			return -EINVAL;
 		}
 		h->ref = ref;
@@ -3522,13 +3522,13 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 		}
 		/* Store the ref to the master control of the cluster */
 		h->mref = ref;
-		/* Initially set next to 0, meaning that there is no other
+		/* Initially set next to 0, meaning that there is yes other
 		   control in this helper array belonging to the same
 		   cluster */
 		h->next = 0;
 	}
 
-	/* We are done if there were no controls that belong to a multi-
+	/* We are done if there were yes controls that belong to a multi-
 	   control cluster. */
 	if (!have_clusters)
 		return 0;
@@ -3549,7 +3549,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 		   helper that belongs to the same cluster. */
 		if (mref->helper) {
 			/* Set the next field of mref->helper to the current
-			   index: this means that that earlier helper now
+			   index: this means that that earlier helper yesw
 			   points to the next helper in the same cluster. */
 			mref->helper->next = i;
 			/* mref should be set only for the first helper in the
@@ -3634,7 +3634,7 @@ static int v4l2_g_ext_ctrls_common(struct v4l2_ctrl_handler *hdl,
 			ret = call_op(master, g_volatile_ctrl);
 			ctrl_to_user = new_to_user;
 		}
-		/* If OK, then copy the current (for non-volatile controls)
+		/* If OK, then copy the current (for yesn-volatile controls)
 		   or the new (for volatile controls) control values to the
 		   caller */
 		if (!ret) {
@@ -3751,8 +3751,8 @@ static int get_ctrl(struct v4l2_ctrl *ctrl, struct v4l2_ext_control *c)
 	int ret = 0;
 	int i;
 
-	/* Compound controls are not supported. The new_to_user() and
-	 * cur_to_user() calls below would need to be modified not to access
+	/* Compound controls are yest supported. The new_to_user() and
+	 * cur_to_user() calls below would need to be modified yest to access
 	 * userspace memory when called from get_ctrl().
 	 */
 	if (!ctrl->is_int && ctrl->type != V4L2_CTRL_TYPE_INTEGER64)
@@ -3825,7 +3825,7 @@ static int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
 	int i;
 
 	/* Go through the cluster and either validate the new value or
-	   (if no new value was set), copy the current value to the new
+	   (if yes new value was set), copy the current value to the new
 	   value, ensuring a consistent view for the control ops when
 	   called. */
 	for (i = 0; i < master->ncontrols; i++) {
@@ -3846,7 +3846,7 @@ static int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
 
 	ret = call_op(master, try_ctrl);
 
-	/* Don't set if there is no change */
+	/* Don't set if there is yes change */
 	if (ret || !set || !cluster_changed(master))
 		return ret;
 	ret = call_op(master, s_ctrl);
@@ -3859,10 +3859,10 @@ static int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
 	for (i = 0; i < master->ncontrols; i++) {
 		/*
 		 * If we switch from auto to manual mode, and this cluster
-		 * contains volatile controls, then all non-master controls
+		 * contains volatile controls, then all yesn-master controls
 		 * have to be marked as changed. The 'new' value contains
 		 * the volatile value (obtained by update_from_auto_cluster),
-		 * which now has to become the current value.
+		 * which yesw has to become the current value.
 		 */
 		if (i && update_flag && is_new_manual(master) &&
 		    master->has_volatiles && master->cluster[i])
@@ -3904,12 +3904,12 @@ static int validate_ctrls(struct v4l2_ext_controls *cs,
 		   best-effort to avoid that. */
 		if (set && (ctrl->flags & V4L2_CTRL_FLAG_GRABBED)) {
 			dprintk(vdev,
-				"control id 0x%x is grabbed, cannot set\n",
+				"control id 0x%x is grabbed, canyest set\n",
 				ctrl->id);
 			return -EBUSY;
 		}
 		/*
-		 * Skip validation for now if the payload needs to be copied
+		 * Skip validation for yesw if the payload needs to be copied
 		 * from userspace into kernelspace. We'll validate those later.
 		 */
 		if (ctrl->is_ptr)
@@ -3952,10 +3952,10 @@ static int try_set_ext_ctrls_common(struct v4l2_fh *fh,
 
 	cs->error_idx = cs->count;
 
-	/* Default value cannot be changed */
+	/* Default value canyest be changed */
 	if (cs->which == V4L2_CTRL_WHICH_DEF_VAL) {
-		dprintk(vdev, "%s: cannot change default value\n",
-			video_device_node_name(vdev));
+		dprintk(vdev, "%s: canyest change default value\n",
+			video_device_yesde_name(vdev));
 		return -EINVAL;
 	}
 
@@ -3963,7 +3963,7 @@ static int try_set_ext_ctrls_common(struct v4l2_fh *fh,
 
 	if (hdl == NULL) {
 		dprintk(vdev, "%s: invalid null control handler\n",
-			video_device_node_name(vdev));
+			video_device_yesde_name(vdev));
 		return -EINVAL;
 	}
 
@@ -4005,7 +4005,7 @@ static int try_set_ext_ctrls_common(struct v4l2_fh *fh,
 		   of controls). */
 		if (master->is_auto && master->has_volatiles &&
 						!is_cur_manual(master)) {
-			/* Pick an initial non-manual value */
+			/* Pick an initial yesn-manual value */
 			s32 new_auto_val = master->manual_mode_value + 1;
 			u32 tmp_idx = idx;
 
@@ -4075,27 +4075,27 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh,
 	if (cs->which == V4L2_CTRL_WHICH_REQUEST_VAL) {
 		if (!mdev) {
 			dprintk(vdev, "%s: missing media device\n",
-				video_device_node_name(vdev));
+				video_device_yesde_name(vdev));
 			return -EINVAL;
 		}
 
 		if (cs->request_fd < 0) {
 			dprintk(vdev, "%s: invalid request fd %d\n",
-				video_device_node_name(vdev), cs->request_fd);
+				video_device_yesde_name(vdev), cs->request_fd);
 			return -EINVAL;
 		}
 
 		req = media_request_get_by_fd(mdev, cs->request_fd);
 		if (IS_ERR(req)) {
-			dprintk(vdev, "%s: cannot find request fd %d\n",
-				video_device_node_name(vdev), cs->request_fd);
+			dprintk(vdev, "%s: canyest find request fd %d\n",
+				video_device_yesde_name(vdev), cs->request_fd);
 			return PTR_ERR(req);
 		}
 
 		ret = media_request_lock_for_update(req);
 		if (ret) {
-			dprintk(vdev, "%s: cannot lock request fd %d\n",
-				video_device_node_name(vdev), cs->request_fd);
+			dprintk(vdev, "%s: canyest lock request fd %d\n",
+				video_device_yesde_name(vdev), cs->request_fd);
 			media_request_put(req);
 			return ret;
 		}
@@ -4103,8 +4103,8 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh,
 		obj = v4l2_ctrls_find_req_obj(hdl, req, set);
 		if (IS_ERR(obj)) {
 			dprintk(vdev,
-				"%s: cannot find request object for request fd %d\n",
-				video_device_node_name(vdev),
+				"%s: canyest find request object for request fd %d\n",
+				video_device_yesde_name(vdev),
 				cs->request_fd);
 			media_request_unlock_for_update(req);
 			media_request_put(req);
@@ -4118,7 +4118,7 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh,
 	if (ret)
 		dprintk(vdev,
 			"%s: try_set_ext_ctrls_common failed (%d)\n",
-			video_device_node_name(vdev), ret);
+			video_device_yesde_name(vdev), ret);
 
 	if (obj) {
 		media_request_unlock_for_update(req);
@@ -4266,7 +4266,7 @@ void v4l2_ctrl_request_complete(struct media_request *req,
 		return;
 
 	/*
-	 * Note that it is valid if nothing was found. It means
+	 * Note that it is valid if yesthing was found. It means
 	 * that this request doesn't have any controls and so just
 	 * wants to leave the controls unchanged.
 	 */
@@ -4275,7 +4275,7 @@ void v4l2_ctrl_request_complete(struct media_request *req,
 		return;
 	hdl = container_of(obj, struct v4l2_ctrl_handler, req_obj);
 
-	list_for_each_entry(ref, &hdl->ctrl_refs, node) {
+	list_for_each_entry(ref, &hdl->ctrl_refs, yesde) {
 		struct v4l2_ctrl *ctrl = ref->ctrl;
 		struct v4l2_ctrl *master = ctrl->cluster[0];
 		unsigned int i;
@@ -4328,7 +4328,7 @@ int v4l2_ctrl_request_setup(struct media_request *req,
 		return -EBUSY;
 
 	/*
-	 * Note that it is valid if nothing was found. It means
+	 * Note that it is valid if yesthing was found. It means
 	 * that this request doesn't have any controls and so just
 	 * wants to leave the controls unchanged.
 	 */
@@ -4341,10 +4341,10 @@ int v4l2_ctrl_request_setup(struct media_request *req,
 	}
 	hdl = container_of(obj, struct v4l2_ctrl_handler, req_obj);
 
-	list_for_each_entry(ref, &hdl->ctrl_refs, node)
+	list_for_each_entry(ref, &hdl->ctrl_refs, yesde)
 		ref->req_done = false;
 
-	list_for_each_entry(ref, &hdl->ctrl_refs, node) {
+	list_for_each_entry(ref, &hdl->ctrl_refs, yesde) {
 		struct v4l2_ctrl *ctrl = ref->ctrl;
 		struct v4l2_ctrl *master = ctrl->cluster[0];
 		bool have_new_data = false;
@@ -4417,21 +4417,21 @@ int v4l2_ctrl_request_setup(struct media_request *req,
 }
 EXPORT_SYMBOL(v4l2_ctrl_request_setup);
 
-void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify, void *priv)
+void v4l2_ctrl_yestify(struct v4l2_ctrl *ctrl, v4l2_ctrl_yestify_fnc yestify, void *priv)
 {
 	if (ctrl == NULL)
 		return;
-	if (notify == NULL) {
-		ctrl->call_notify = 0;
+	if (yestify == NULL) {
+		ctrl->call_yestify = 0;
 		return;
 	}
-	if (WARN_ON(ctrl->handler->notify && ctrl->handler->notify != notify))
+	if (WARN_ON(ctrl->handler->yestify && ctrl->handler->yestify != yestify))
 		return;
-	ctrl->handler->notify = notify;
-	ctrl->handler->notify_priv = priv;
-	ctrl->call_notify = 1;
+	ctrl->handler->yestify = yestify;
+	ctrl->handler->yestify_priv = priv;
+	ctrl->call_yestify = 1;
 }
-EXPORT_SYMBOL(v4l2_ctrl_notify);
+EXPORT_SYMBOL(v4l2_ctrl_yestify);
 
 int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 			s64 min, s64 max, u64 step, s64 def)
@@ -4497,7 +4497,7 @@ static int v4l2_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems
 		return -EINVAL;
 
 	v4l2_ctrl_lock(ctrl);
-	list_add_tail(&sev->node, &ctrl->ev_subs);
+	list_add_tail(&sev->yesde, &ctrl->ev_subs);
 	if (ctrl->type != V4L2_CTRL_TYPE_CTRL_CLASS &&
 	    (sev->flags & V4L2_EVENT_SUB_FL_SEND_INITIAL)) {
 		struct v4l2_event ev;
@@ -4523,7 +4523,7 @@ static void v4l2_ctrl_del_event(struct v4l2_subscribed_event *sev)
 		return;
 
 	v4l2_ctrl_lock(ctrl);
-	list_del(&sev->node);
+	list_del(&sev->yesde);
 	v4l2_ctrl_unlock(ctrl);
 }
 

@@ -100,7 +100,7 @@ static int elan_smbus_sleep_control(struct i2c_client *client, bool sleep)
 
 static int elan_smbus_power_control(struct i2c_client *client, bool enable)
 {
-	return 0; /* A no-op */
+	return 0; /* A yes-op */
 }
 
 static int elan_smbus_calibrate(struct i2c_client *client)
@@ -318,7 +318,7 @@ static int elan_smbus_iap_reset(struct i2c_client *client)
 
 	error = i2c_smbus_write_byte(client, ETP_SMBUS_IAP_RESET_CMD);
 	if (error) {
-		dev_err(&client->dev, "cannot reset IC: %d\n", error);
+		dev_err(&client->dev, "canyest reset IC: %d\n", error);
 		return error;
 	}
 
@@ -333,7 +333,7 @@ static int elan_smbus_set_flash_key(struct i2c_client *client)
 	error = i2c_smbus_write_block_data(client, ETP_SMBUS_IAP_CMD,
 					   sizeof(cmd), cmd);
 	if (error) {
-		dev_err(&client->dev, "cannot set flash key: %d\n", error);
+		dev_err(&client->dev, "canyest set flash key: %d\n", error);
 		return error;
 	}
 
@@ -365,7 +365,7 @@ static int elan_smbus_prepare_fw_update(struct i2c_client *client)
 		/* write iap password */
 		if (i2c_smbus_write_byte(client,
 					 ETP_SMBUS_IAP_PASSWORD_WRITE) < 0) {
-			dev_err(dev, "cannot write iap password\n");
+			dev_err(dev, "canyest write iap password\n");
 			return -EIO;
 		}
 

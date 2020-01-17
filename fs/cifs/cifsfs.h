@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -27,17 +27,17 @@
 #define ROOT_I 2
 
 /*
- * ino_t is 32-bits on 32-bit arch. We have to squash the 64-bit value down
+ * iyes_t is 32-bits on 32-bit arch. We have to squash the 64-bit value down
  * so that it will fit. We use hash_64 to convert the value to 31 bits, and
  * then add 1, to ensure that we don't end up with a 0 as the value.
  */
-static inline ino_t
-cifs_uniqueid_to_ino_t(u64 fileid)
+static inline iyes_t
+cifs_uniqueid_to_iyes_t(u64 fileid)
 {
-	if ((sizeof(ino_t)) < (sizeof(u64)))
-		return (ino_t)hash_64(fileid, (sizeof(ino_t) * 8) - 1) + 1;
+	if ((sizeof(iyes_t)) < (sizeof(u64)))
+		return (iyes_t)hash_64(fileid, (sizeof(iyes_t) * 8) - 1) + 1;
 
-	return (ino_t)fileid;
+	return (iyes_t)fileid;
 
 }
 
@@ -59,49 +59,49 @@ extern const struct address_space_operations cifs_addr_ops_smallbuf;
 extern void cifs_sb_active(struct super_block *sb);
 extern void cifs_sb_deactive(struct super_block *sb);
 
-/* Functions related to inodes */
-extern const struct inode_operations cifs_dir_inode_ops;
-extern struct inode *cifs_root_iget(struct super_block *);
-extern int cifs_create(struct inode *, struct dentry *, umode_t,
+/* Functions related to iyesdes */
+extern const struct iyesde_operations cifs_dir_iyesde_ops;
+extern struct iyesde *cifs_root_iget(struct super_block *);
+extern int cifs_create(struct iyesde *, struct dentry *, umode_t,
 		       bool excl);
-extern int cifs_atomic_open(struct inode *, struct dentry *,
+extern int cifs_atomic_open(struct iyesde *, struct dentry *,
 			    struct file *, unsigned, umode_t);
-extern struct dentry *cifs_lookup(struct inode *, struct dentry *,
+extern struct dentry *cifs_lookup(struct iyesde *, struct dentry *,
 				  unsigned int);
-extern int cifs_unlink(struct inode *dir, struct dentry *dentry);
-extern int cifs_hardlink(struct dentry *, struct inode *, struct dentry *);
-extern int cifs_mknod(struct inode *, struct dentry *, umode_t, dev_t);
-extern int cifs_mkdir(struct inode *, struct dentry *, umode_t);
-extern int cifs_rmdir(struct inode *, struct dentry *);
-extern int cifs_rename2(struct inode *, struct dentry *, struct inode *,
+extern int cifs_unlink(struct iyesde *dir, struct dentry *dentry);
+extern int cifs_hardlink(struct dentry *, struct iyesde *, struct dentry *);
+extern int cifs_mkyesd(struct iyesde *, struct dentry *, umode_t, dev_t);
+extern int cifs_mkdir(struct iyesde *, struct dentry *, umode_t);
+extern int cifs_rmdir(struct iyesde *, struct dentry *);
+extern int cifs_rename2(struct iyesde *, struct dentry *, struct iyesde *,
 			struct dentry *, unsigned int);
 extern int cifs_revalidate_file_attr(struct file *filp);
 extern int cifs_revalidate_dentry_attr(struct dentry *);
 extern int cifs_revalidate_file(struct file *filp);
 extern int cifs_revalidate_dentry(struct dentry *);
-extern int cifs_invalidate_mapping(struct inode *inode);
-extern int cifs_revalidate_mapping(struct inode *inode);
-extern int cifs_zap_mapping(struct inode *inode);
+extern int cifs_invalidate_mapping(struct iyesde *iyesde);
+extern int cifs_revalidate_mapping(struct iyesde *iyesde);
+extern int cifs_zap_mapping(struct iyesde *iyesde);
 extern int cifs_getattr(const struct path *, struct kstat *, u32, unsigned int);
 extern int cifs_setattr(struct dentry *, struct iattr *);
-extern int cifs_fiemap(struct inode *, struct fiemap_extent_info *, u64 start,
+extern int cifs_fiemap(struct iyesde *, struct fiemap_extent_info *, u64 start,
 		       u64 len);
 
-extern const struct inode_operations cifs_file_inode_ops;
-extern const struct inode_operations cifs_symlink_inode_ops;
-extern const struct inode_operations cifs_dfs_referral_inode_operations;
+extern const struct iyesde_operations cifs_file_iyesde_ops;
+extern const struct iyesde_operations cifs_symlink_iyesde_ops;
+extern const struct iyesde_operations cifs_dfs_referral_iyesde_operations;
 
 
 /* Functions related to files and directories */
 extern const struct file_operations cifs_file_ops;
 extern const struct file_operations cifs_file_direct_ops; /* if directio mnt */
 extern const struct file_operations cifs_file_strict_ops; /* if strictio mnt */
-extern const struct file_operations cifs_file_nobrl_ops; /* no brlocks */
-extern const struct file_operations cifs_file_direct_nobrl_ops;
-extern const struct file_operations cifs_file_strict_nobrl_ops;
-extern int cifs_open(struct inode *inode, struct file *file);
-extern int cifs_close(struct inode *inode, struct file *file);
-extern int cifs_closedir(struct inode *inode, struct file *file);
+extern const struct file_operations cifs_file_yesbrl_ops; /* yes brlocks */
+extern const struct file_operations cifs_file_direct_yesbrl_ops;
+extern const struct file_operations cifs_file_strict_yesbrl_ops;
+extern int cifs_open(struct iyesde *iyesde, struct file *file);
+extern int cifs_close(struct iyesde *iyesde, struct file *file);
+extern int cifs_closedir(struct iyesde *iyesde, struct file *file);
 extern ssize_t cifs_user_readv(struct kiocb *iocb, struct iov_iter *to);
 extern ssize_t cifs_direct_readv(struct kiocb *iocb, struct iov_iter *to);
 extern ssize_t cifs_strict_readv(struct kiocb *iocb, struct iov_iter *to);
@@ -116,7 +116,7 @@ extern int cifs_flush(struct file *, fl_owner_t id);
 extern int cifs_file_mmap(struct file * , struct vm_area_struct *);
 extern int cifs_file_strict_mmap(struct file * , struct vm_area_struct *);
 extern const struct file_operations cifs_dir_ops;
-extern int cifs_dir_open(struct inode *inode, struct file *file);
+extern int cifs_dir_open(struct iyesde *iyesde, struct file *file);
 extern int cifs_readdir(struct file *file, struct dir_context *ctx);
 
 /* Functions related to dir entries */
@@ -130,9 +130,9 @@ extern struct vfsmount *cifs_dfs_d_automount(struct path *path);
 #endif
 
 /* Functions related to symlinks */
-extern const char *cifs_get_link(struct dentry *, struct inode *,
+extern const char *cifs_get_link(struct dentry *, struct iyesde *,
 			struct delayed_call *);
-extern int cifs_symlink(struct inode *inode, struct dentry *direntry,
+extern int cifs_symlink(struct iyesde *iyesde, struct dentry *direntry,
 			const char *symname);
 
 #ifdef CONFIG_CIFS_XATTR

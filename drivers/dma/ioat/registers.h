@@ -248,11 +248,11 @@
 #define IOAT_CHAN_LTR_ACTIVE_OFFSET		0xC0
 #define IOAT_CHAN_LTR_ACTIVE_SNVAL		0x0000	/* 0 us */
 #define IOAT_CHAN_LTR_ACTIVE_SNLATSCALE		0x0800	/* 1us scale */
-#define IOAT_CHAN_LTR_ACTIVE_SNREQMNT		0x8000	/* snoop req enable */
+#define IOAT_CHAN_LTR_ACTIVE_SNREQMNT		0x8000	/* syesop req enable */
 
 #define IOAT_CHAN_LTR_IDLE_OFFSET		0xC4
 #define IOAT_CHAN_LTR_IDLE_SNVAL		0x0258	/* 600 us */
 #define IOAT_CHAN_LTR_IDLE_SNLATSCALE		0x0800	/* 1us scale */
-#define IOAT_CHAN_LTR_IDLE_SNREQMNT		0x8000	/* snoop req enable */
+#define IOAT_CHAN_LTR_IDLE_SNREQMNT		0x8000	/* syesop req enable */
 
 #endif /* _IOAT_REGISTERS_H_ */

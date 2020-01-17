@@ -65,8 +65,8 @@ typedef enum _BT_8723B_1ANT_COEX_ALGO {
 
 typedef struct _COEX_DM_8723B_1ANT {
 	/*  fw mechanism */
-	bool bCurIgnoreWlanAct;
-	bool bPreIgnoreWlanAct;
+	bool bCurIgyesreWlanAct;
+	bool bPreIgyesreWlanAct;
 	u8 prePsTdma;
 	u8 curPsTdma;
 	u8 psTdmaPara[5];
@@ -165,7 +165,7 @@ typedef struct _COEX_STA_8723B_1ANT {
 } COEX_STA_8723B_1ANT, *PCOEX_STA_8723B_1ANT;
 
 /*  */
-/*  The following is interface which will notify coex module. */
+/*  The following is interface which will yestify coex module. */
 /*  */
 void EXhalbtc8723b1ant_PowerOnSetting(PBTC_COEXIST pBtCoexist);
 void EXhalbtc8723b1ant_InitHwConfig(PBTC_COEXIST pBtCoexist, bool bWifiOnly);

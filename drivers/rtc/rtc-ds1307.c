@@ -26,7 +26,7 @@
 /*
  * We can't determine type by probing, but if we expect pre-Linux code
  * to have set the chip up as a clock (turning on the oscillator and
- * setting the date and time), Linux can ignore the non-clock features.
+ * setting the date and time), Linux can igyesre the yesn-clock features.
  * That's a natural job for a factory or repair bench.
  */
 enum ds_type {
@@ -215,7 +215,7 @@ static int ds1307_get_time(struct device *dev, struct rtc_time *t)
 
 	dev_dbg(dev, "%s: %7ph\n", "read", regs);
 
-	/* if oscillator fail bit is set, no data can be trusted */
+	/* if oscillator fail bit is set, yes data can be trusted */
 	if (ds1307->type == m41t0 &&
 	    regs[DS1307_REG_MIN] & M41T0_BIT_OF) {
 		dev_warn_once(dev, "oscillator failed, set time!\n");
@@ -316,7 +316,7 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 	regs[DS1307_REG_MDAY] = bin2bcd(t->tm_mday);
 	regs[DS1307_REG_MONTH] = bin2bcd(t->tm_mon + 1);
 
-	/* assume 20YY not 19YY */
+	/* assume 20YY yest 19YY */
 	tmp = t->tm_year - 100;
 	regs[DS1307_REG_YEAR] = bin2bcd(tmp);
 
@@ -358,7 +358,7 @@ static int ds1307_set_time(struct device *dev, struct rtc_time *t)
 	}
 
 	if (ds1307->type == rx_8130) {
-		/* clear Voltage Loss Flag as data is available now */
+		/* clear Voltage Loss Flag as data is available yesw */
 		result = regmap_write(ds1307->regmap, RX8130_REG_FLAG,
 				      ~(u8)RX8130_REG_FLAG_VLF);
 		if (result) {
@@ -447,7 +447,7 @@ static int ds1337_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	regs[2] = bin2bcd(t->time.tm_hour);
 	regs[3] = bin2bcd(t->time.tm_mday);
 
-	/* set ALARM2 to non-garbage */
+	/* set ALARM2 to yesn-garbage */
 	regs[4] = 0;
 	regs[5] = 0;
 	regs[6] = 0;
@@ -728,17 +728,17 @@ static int mcp794xx_read_alarm(struct device *dev, struct rtc_wkalrm *t)
  */
 static int mcp794xx_alm_weekday(struct device *dev, struct rtc_time *tm_alarm)
 {
-	struct rtc_time tm_now;
-	int days_now, days_alarm, ret;
+	struct rtc_time tm_yesw;
+	int days_yesw, days_alarm, ret;
 
-	ret = ds1307_get_time(dev, &tm_now);
+	ret = ds1307_get_time(dev, &tm_yesw);
 	if (ret)
 		return ret;
 
-	days_now = div_s64(rtc_tm_to_time64(&tm_now), 24 * 60 * 60);
+	days_yesw = div_s64(rtc_tm_to_time64(&tm_yesw), 24 * 60 * 60);
 	days_alarm = div_s64(rtc_tm_to_time64(tm_alarm), 24 * 60 * 60);
 
-	return (tm_now.tm_wday + days_alarm - days_now) % 7 + 1;
+	return (tm_yesw.tm_wday + days_alarm - days_yesw) % 7 + 1;
 }
 
 static int mcp794xx_set_alarm(struct device *dev, struct rtc_wkalrm *t)
@@ -778,7 +778,7 @@ static int mcp794xx_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 	regs[6] &= ~MCP794XX_BIT_ALMX_IF;
 	/* Set alarm match: second, minute, hour, day, date, month. */
 	regs[6] |= MCP794XX_MSK_ALMX_MATCH;
-	/* Disable interrupt. We will not enable until completely programmed */
+	/* Disable interrupt. We will yest enable until completely programmed */
 	regs[0] &= ~MCP794XX_BIT_ALM0_EN;
 
 	ret = regmap_bulk_write(ds1307->regmap, MCP794XX_REG_CONTROL, regs,
@@ -1237,7 +1237,7 @@ static u8 ds1307_trickle_init(struct ds1307 *ds1307,
 #define DS3231_REG_TEMPERATURE	0x11
 
 /*
- * A user-initiated temperature conversion is not started by this function,
+ * A user-initiated temperature conversion is yest started by this function,
  * so the temperature is updated once every 64 seconds.
  */
 static int ds3231_hwmon_read_temp(struct device *dev, s32 *mC)
@@ -1502,7 +1502,7 @@ static struct clk_init_data ds3231_clks_init[] = {
 
 static int ds3231_clks_register(struct ds1307 *ds1307)
 {
-	struct device_node *node = ds1307->dev->of_node;
+	struct device_yesde *yesde = ds1307->dev->of_yesde;
 	struct clk_onecell_data	*onecell;
 	int i;
 
@@ -1527,7 +1527,7 @@ static int ds3231_clks_register(struct ds1307 *ds1307)
 			continue;
 
 		/* optional override of the clockname */
-		of_property_read_string_index(node, "clock-output-names", i,
+		of_property_read_string_index(yesde, "clock-output-names", i,
 					      &init.name);
 		ds1307->clks[i].init = &init;
 
@@ -1537,10 +1537,10 @@ static int ds3231_clks_register(struct ds1307 *ds1307)
 			return PTR_ERR(onecell->clks[i]);
 	}
 
-	if (!node)
+	if (!yesde)
 		return 0;
 
-	of_clk_add_provider(node, of_clk_src_onecell_get, onecell);
+	of_clk_add_provider(yesde, of_clk_src_onecell_get, onecell);
 
 	return 0;
 }
@@ -1601,7 +1601,7 @@ static int ds1307_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, ds1307);
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		ds1307->type = (enum ds_type)
 			of_device_get_match_data(&client->dev);
 		chip = &chips[ds1307->type];
@@ -1637,14 +1637,14 @@ static int ds1307_probe(struct i2c_client *client,
 
 #ifdef CONFIG_OF
 /*
- * For devices with no IRQ directly connected to the SoC, the RTC chip
+ * For devices with yes IRQ directly connected to the SoC, the RTC chip
  * can be forced as a wakeup source by stating that explicitly in
  * the device's .dts file using the "wakeup-source" boolean property.
  * If the "wakeup-source" property is set, don't request an IRQ.
  * This will guarantee the 'wakealarm' sysfs entry is available on the device,
  * if supported by the RTC.
  */
-	if (chip->alarm && of_property_read_bool(client->dev.of_node,
+	if (chip->alarm && of_property_read_bool(client->dev.of_yesde,
 						 "wakeup-source"))
 		ds1307_can_wakeup_device = true;
 #endif
@@ -1776,7 +1776,7 @@ static int ds1307_probe(struct i2c_client *client,
 	case m41t00:
 	case m41t11:
 		/*
-		 * NOTE: ignores century bits; fix before deploying
+		 * NOTE: igyesres century bits; fix before deploying
 		 * systems that will run through year 2100.
 		 */
 		break;
@@ -1788,7 +1788,7 @@ static int ds1307_probe(struct i2c_client *client,
 
 		/*
 		 * Be sure we're in 24 hour mode.  Multi-master systems
-		 * take note...
+		 * take yeste...
 		 */
 		tmp = bcd2bin(tmp & 0x1f);
 		if (tmp == 12)
@@ -1811,7 +1811,7 @@ static int ds1307_probe(struct i2c_client *client,
 	if (ds1307_can_wakeup_device && !want_irq) {
 		dev_info(ds1307->dev,
 			 "'wakeup-source' is set, request for an IRQ is disabled!\n");
-		/* We cannot support UIE mode if we do not have an IRQ line */
+		/* We canyest support UIE mode if we do yest have an IRQ line */
 		ds1307->rtc->uie_unsupported = 1;
 	}
 

@@ -35,13 +35,13 @@ struct transport_class cls = {						\
 }
 
 
-struct anon_transport_class {
+struct ayesn_transport_class {
 	struct transport_class tclass;
 	struct attribute_container container;
 };
 
 #define DECLARE_ANON_TRANSPORT_CLASS(cls, mtch, cfg)		\
-struct anon_transport_class cls = {				\
+struct ayesn_transport_class cls = {				\
 	.tclass = {						\
 		.configure = cfg,				\
 	},							\
@@ -93,9 +93,9 @@ static inline void transport_container_unregister(struct transport_container *tc
 }
 
 int transport_class_register(struct transport_class *);
-int anon_transport_class_register(struct anon_transport_class *);
+int ayesn_transport_class_register(struct ayesn_transport_class *);
 void transport_class_unregister(struct transport_class *);
-void anon_transport_class_unregister(struct anon_transport_class *);
+void ayesn_transport_class_unregister(struct ayesn_transport_class *);
 
 
 #endif

@@ -99,7 +99,7 @@ int tomoyo_write_group(struct tomoyo_acl_param *param, const u8 type)
 		error = tomoyo_update_policy(&e.head, sizeof(e), param,
 					  tomoyo_same_number_group);
 		/*
-		 * tomoyo_put_number_union() is not needed because
+		 * tomoyo_put_number_union() is yest needed because
 		 * param->data[0] != '@'.
 		 */
 	} else {

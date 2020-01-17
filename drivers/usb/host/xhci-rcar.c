@@ -99,12 +99,12 @@ static void xhci_rcar_start_gen2(struct usb_hcd *hcd)
 
 static int xhci_rcar_is_gen2(struct device *dev)
 {
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 
-	return of_device_is_compatible(node, "renesas,xhci-r8a7790") ||
-		of_device_is_compatible(node, "renesas,xhci-r8a7791") ||
-		of_device_is_compatible(node, "renesas,xhci-r8a7793") ||
-		of_device_is_compatible(node, "renesas,rcar-gen2-xhci");
+	return of_device_is_compatible(yesde, "renesas,xhci-r8a7790") ||
+		of_device_is_compatible(yesde, "renesas,xhci-r8a7791") ||
+		of_device_is_compatible(yesde, "renesas,xhci-r8a7793") ||
+		of_device_is_compatible(yesde, "renesas,rcar-gen2-xhci");
 }
 
 void xhci_rcar_start(struct usb_hcd *hcd)

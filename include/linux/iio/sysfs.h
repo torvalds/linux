@@ -46,7 +46,7 @@ struct iio_const_attr {
 #define to_iio_const_attr(_dev_attr) \
 	container_of(_dev_attr, struct iio_const_attr, dev_attr)
 
-/* Some attributes will be hard coded (device dependent) and not require an
+/* Some attributes will be hard coded (device dependent) and yest require an
    address, in these cases pass a negative */
 #define IIO_ATTR(_name, _mode, _show, _store, _addr)		\
 	{ .dev_attr = __ATTR(_name, _mode, _show, _store),	\
@@ -94,7 +94,7 @@ struct iio_const_attr {
 	= { .string = _string,						\
 	    .dev_attr = __ATTR(_name, S_IRUGO, iio_read_const_attr, NULL)}
 
-/* Generic attributes of onetype or another */
+/* Generic attributes of onetype or ayesther */
 
 /**
  * IIO_DEV_ATTR_SAMP_FREQ - sets any internal clock frequency

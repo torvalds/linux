@@ -8,12 +8,12 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
-#include <media/cec-notifier.h>
+#include <media/cec-yestifier.h>
 #include <media/cec-pin.h>
 
 struct cec_gpio {
 	struct cec_adapter	*adap;
-	struct cec_notifier	*notifier;
+	struct cec_yestifier	*yestifier;
 	struct device		*dev;
 
 	struct gpio_desc	*cec_gpio;
@@ -180,7 +180,7 @@ static int cec_gpio_probe(struct platform_device *pdev)
 	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_MONITOR_ALL | CEC_CAP_MONITOR_PIN;
 	int ret;
 
-	hdmi_dev = cec_notifier_parse_hdmi_phandle(dev);
+	hdmi_dev = cec_yestifier_parse_hdmi_phandle(dev);
 	if (PTR_ERR(hdmi_dev) == -EPROBE_DEFER)
 		return PTR_ERR(hdmi_dev);
 	if (IS_ERR(hdmi_dev))
@@ -243,9 +243,9 @@ static int cec_gpio_probe(struct platform_device *pdev)
 	}
 
 	if (!IS_ERR(hdmi_dev)) {
-		cec->notifier = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+		cec->yestifier = cec_yestifier_cec_adap_register(hdmi_dev, NULL,
 							       cec->adap);
-		if (!cec->notifier) {
+		if (!cec->yestifier) {
 			ret = -ENOMEM;
 			goto del_adap;
 		}
@@ -253,13 +253,13 @@ static int cec_gpio_probe(struct platform_device *pdev)
 
 	ret = cec_register_adapter(cec->adap, &pdev->dev);
 	if (ret)
-		goto unreg_notifier;
+		goto unreg_yestifier;
 
 	platform_set_drvdata(pdev, cec);
 	return 0;
 
-unreg_notifier:
-	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+unreg_yestifier:
+	cec_yestifier_cec_adap_unregister(cec->yestifier, cec->adap);
 del_adap:
 	cec_delete_adapter(cec->adap);
 	return ret;
@@ -269,7 +269,7 @@ static int cec_gpio_remove(struct platform_device *pdev)
 {
 	struct cec_gpio *cec = platform_get_drvdata(pdev);
 
-	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+	cec_yestifier_cec_adap_unregister(cec->yestifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
 	return 0;
 }

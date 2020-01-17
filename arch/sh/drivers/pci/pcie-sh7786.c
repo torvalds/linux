@@ -214,7 +214,7 @@ static int __init pcie_clk_init(struct sh7786_pcie_port *port)
 
 	/*
 	 * Grab the port's function clock, which the PHY clock depends
-	 * on. clock lookups don't help us much at this point, since no
+	 * on. clock lookups don't help us much at this point, since yes
 	 * dev_id is available this early. Lame.
 	 */
 	snprintf(fclk_name, sizeof(fclk_name), "pcie%d_fck", port->index);
@@ -228,7 +228,7 @@ static int __init pcie_clk_init(struct sh7786_pcie_port *port)
 	clk_enable(port->fclk);
 
 	/*
-	 * And now, set up the PHY clock
+	 * And yesw, set up the PHY clock
 	 */
 	clk = &port->phy_clk;
 
@@ -310,7 +310,7 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	/*
 	 * Initial header for port config space is type 1, set the device
 	 * class to match. Hardware takes care of propagating the IDSETR
-	 * settings, so there is no need to bother with a quirk.
+	 * settings, so there is yes need to bother with a quirk.
 	 */
 	pci_write_reg(chan, PCI_CLASS_BRIDGE_PCI << 16, SH4A_PCIEIDSETR1);
 
@@ -388,7 +388,7 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	}
 
 	/*
-	 * LAR0/LAMR0 covers up to the first 512MB, which is enough to
+	 * LAR0/LAMR0 covers up to the first 512MB, which is eyesugh to
 	 * cover all of lowmem on most platforms.
 	 */
 	pci_write_reg(chan, memstart, SH4A_PCIELAR0);
@@ -583,7 +583,7 @@ static int __init sh7786_pcie_init(void)
 
 	/*
 	 * Depending on the MMSELR register value, the PCIe0 MEM 1
-	 * area may not be available. See Table 13.11 of the SH7786
+	 * area may yest be available. See Table 13.11 of the SH7786
 	 * datasheet.
 	 */
 	if (mm_sel != 1 && mm_sel != 2 && mm_sel != 5 && mm_sel != 6)

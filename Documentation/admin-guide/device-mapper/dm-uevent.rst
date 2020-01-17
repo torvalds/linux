@@ -47,9 +47,9 @@ Variable Name: DM_PATH
 ----------------------
 :Uevent Action(s): KOBJ_CHANGE
 :Type: string
-:Description: Major and minor number of the path device pertaining to this
+:Description: Major and miyesr number of the path device pertaining to this
 	      event.
-:Value: Path name in the form of "Major:Minor"
+:Value: Path name in the form of "Major:Miyesr"
 
 Variable Name: DM_NR_VALID_PATHS
 --------------------------------

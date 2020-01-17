@@ -16,7 +16,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -263,7 +263,7 @@ static int rpi_touchscreen_disable(struct drm_panel *panel)
 	return 0;
 }
 
-static int rpi_touchscreen_noop(struct drm_panel *panel)
+static int rpi_touchscreen_yesop(struct drm_panel *panel)
 {
 	return 0;
 }
@@ -351,8 +351,8 @@ static int rpi_touchscreen_get_modes(struct drm_panel *panel)
 
 static const struct drm_panel_funcs rpi_touchscreen_funcs = {
 	.disable = rpi_touchscreen_disable,
-	.unprepare = rpi_touchscreen_noop,
-	.prepare = rpi_touchscreen_noop,
+	.unprepare = rpi_touchscreen_yesop,
+	.prepare = rpi_touchscreen_yesop,
 	.enable = rpi_touchscreen_enable,
 	.get_modes = rpi_touchscreen_get_modes,
 };
@@ -362,13 +362,13 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 {
 	struct device *dev = &i2c->dev;
 	struct rpi_touchscreen *ts;
-	struct device_node *endpoint, *dsi_host_node;
+	struct device_yesde *endpoint, *dsi_host_yesde;
 	struct mipi_dsi_host *host;
 	int ret, ver;
 	struct mipi_dsi_device_info info = {
 		.type = RPI_DSI_DRIVER_NAME,
 		.channel = 0,
-		.node = NULL,
+		.yesde = NULL,
 	};
 
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
@@ -390,7 +390,7 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 	case 0xc3: /* ver 2 */
 		break;
 	default:
-		dev_err(dev, "Unknown Atmel firmware revision: 0x%02x\n", ver);
+		dev_err(dev, "Unkyeswn Atmel firmware revision: 0x%02x\n", ver);
 		return -ENODEV;
 	}
 
@@ -398,26 +398,26 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 	rpi_touchscreen_i2c_write(ts, REG_POWERON, 0);
 
 	/* Look up the DSI host.  It needs to probe before we do. */
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(dev->of_yesde, NULL);
 	if (!endpoint)
 		return -ENODEV;
 
-	dsi_host_node = of_graph_get_remote_port_parent(endpoint);
-	if (!dsi_host_node)
+	dsi_host_yesde = of_graph_get_remote_port_parent(endpoint);
+	if (!dsi_host_yesde)
 		goto error;
 
-	host = of_find_mipi_dsi_host_by_node(dsi_host_node);
-	of_node_put(dsi_host_node);
+	host = of_find_mipi_dsi_host_by_yesde(dsi_host_yesde);
+	of_yesde_put(dsi_host_yesde);
 	if (!host) {
-		of_node_put(endpoint);
+		of_yesde_put(endpoint);
 		return -EPROBE_DEFER;
 	}
 
-	info.node = of_graph_get_remote_port(endpoint);
-	if (!info.node)
+	info.yesde = of_graph_get_remote_port(endpoint);
+	if (!info.yesde)
 		goto error;
 
-	of_node_put(endpoint);
+	of_yesde_put(endpoint);
 
 	ts->dsi = mipi_dsi_device_register_full(host, &info);
 	if (IS_ERR(ts->dsi)) {
@@ -439,7 +439,7 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 	return 0;
 
 error:
-	of_node_put(endpoint);
+	of_yesde_put(endpoint);
 	return -ENODEV;
 }
 

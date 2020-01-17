@@ -66,7 +66,7 @@ int __init ima_init_crypto(void)
 	ima_shash_tfm = crypto_alloc_shash(hash_algo_name[ima_hash_algo], 0, 0);
 	if (IS_ERR(ima_shash_tfm)) {
 		rc = PTR_ERR(ima_shash_tfm);
-		pr_err("Can not allocate %s (reason: %ld)\n",
+		pr_err("Can yest allocate %s (reason: %ld)\n",
 		       hash_algo_name[ima_hash_algo], rc);
 		return rc;
 	}
@@ -87,7 +87,7 @@ static struct crypto_shash *ima_alloc_tfm(enum hash_algo algo)
 		tfm = crypto_alloc_shash(hash_algo_name[algo], 0, 0);
 		if (IS_ERR(tfm)) {
 			rc = PTR_ERR(tfm);
-			pr_err("Can not allocate %s (reason: %d)\n",
+			pr_err("Can yest allocate %s (reason: %d)\n",
 			       hash_algo_name[algo], rc);
 		}
 	}
@@ -104,7 +104,7 @@ static void ima_free_tfm(struct crypto_shash *tfm)
  * ima_alloc_pages() - Allocate contiguous pages.
  * @max_size:       Maximum amount of memory to allocate.
  * @allocated_size: Returned size of actual allocation.
- * @last_warn:      Should the min_size allocation warn or not.
+ * @last_warn:      Should the min_size allocation warn or yest.
  *
  * Tries to do opportunistic allocation for memory first trying to allocate
  * max_size amount of memory and then splitting that until zero order is
@@ -177,7 +177,7 @@ static struct crypto_ahash *ima_alloc_atfm(enum hash_algo algo)
 				ima_ahash_tfm = tfm;
 		} else {
 			rc = PTR_ERR(tfm);
-			pr_err("Can not allocate %s (reason: %d)\n",
+			pr_err("Can yest allocate %s (reason: %d)\n",
 			       hash_algo_name[algo], rc);
 		}
 	}
@@ -228,14 +228,14 @@ static int ima_calc_file_hash_atfm(struct file *file,
 	if (rc)
 		goto out1;
 
-	i_size = i_size_read(file_inode(file));
+	i_size = i_size_read(file_iyesde(file));
 
 	if (i_size == 0)
 		goto out2;
 
 	/*
 	 * Try to allocate maximum size of memory.
-	 * Fail if even a single page cannot be allocated.
+	 * Fail if even a single page canyest be allocated.
 	 */
 	rbuf[0] = ima_alloc_pages(i_size, &rbuf_size[0], 1);
 	if (!rbuf[0]) {
@@ -243,7 +243,7 @@ static int ima_calc_file_hash_atfm(struct file *file,
 		goto out1;
 	}
 
-	/* Only allocate one buffer if that is enough. */
+	/* Only allocate one buffer if that is eyesugh. */
 	if (i_size > rbuf_size[0]) {
 		/*
 		 * Try to allocate secondary buffer. If that fails fallback to
@@ -256,7 +256,7 @@ static int ima_calc_file_hash_atfm(struct file *file,
 
 	for (offset = 0; offset < i_size; offset += rbuf_len) {
 		if (!rbuf[1] && offset) {
-			/* Not using two buffers, and it is not the first
+			/* Not using two buffers, and it is yest the first
 			 * read/request, wait for the completion of the
 			 * previous ahash_update() request.
 			 */
@@ -272,7 +272,7 @@ static int ima_calc_file_hash_atfm(struct file *file,
 			if (rc >= 0)
 				rc = -EINVAL;
 			/*
-			 * Forward current rc, do not overwrite with return value
+			 * Forward current rc, do yest overwrite with return value
 			 * from ahash_wait()
 			 */
 			ahash_wait(ahash_rc, &wait);
@@ -280,7 +280,7 @@ static int ima_calc_file_hash_atfm(struct file *file,
 		}
 
 		if (rbuf[1] && offset) {
-			/* Using two buffers, and it is not the first
+			/* Using two buffers, and it is yest the first
 			 * read/request, wait for the completion of the
 			 * previous ahash_update() request.
 			 */
@@ -345,7 +345,7 @@ static int ima_calc_file_hash_tfm(struct file *file,
 	if (rc != 0)
 		return rc;
 
-	i_size = i_size_read(file_inode(file));
+	i_size = i_size_read(file_iyesde(file));
 
 	if (i_size == 0)
 		goto out;
@@ -396,13 +396,13 @@ static int ima_calc_file_shash(struct file *file, struct ima_digest_data *hash)
 /*
  * ima_calc_file_hash - calculate file hash
  *
- * Asynchronous hash (ahash) allows using HW acceleration for calculating
+ * Asynchroyesus hash (ahash) allows using HW acceleration for calculating
  * a hash. ahash performance varies for different data sizes on different
  * crypto accelerators. shash performance might be better for smaller files.
  * The 'ima.ahash_minsize' module parameter allows specifying the best
  * minimum file size for using ahash on the system.
  *
- * If the ima.ahash_minsize parameter is not specified, this function uses
+ * If the ima.ahash_minsize parameter is yest specified, this function uses
  * shash for the hash calculation.  If ahash fails, it falls back to using
  * shash.
  */
@@ -423,7 +423,7 @@ int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash)
 		return -EINVAL;
 	}
 
-	/* Open a new file instance in O_RDONLY if we cannot read */
+	/* Open a new file instance in O_RDONLY if we canyest read */
 	if (!(file->f_mode & FMODE_READ)) {
 		int flags = file->f_flags & ~(O_WRONLY | O_APPEND |
 				O_TRUNC | O_CREAT | O_NOCTTY | O_EXCL);
@@ -431,7 +431,7 @@ int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash)
 		f = dentry_open(&file->f_path, flags, file->f_cred);
 		if (IS_ERR(f)) {
 			/*
-			 * Cannot open the file again, lets modify f_flags
+			 * Canyest open the file again, lets modify f_flags
 			 * of original and continue
 			 */
 			pr_info_ratelimited("Unable to reopen file for reading.\n");
@@ -443,7 +443,7 @@ int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash)
 		}
 	}
 
-	i_size = i_size_read(file_inode(f));
+	i_size = i_size_read(file_iyesde(f));
 
 	if (ima_ahash_minsize && i_size >= ima_ahash_minsize) {
 		rc = ima_calc_file_ahash(f, hash);
@@ -485,7 +485,7 @@ static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
 		u8 *data_to_hash = field_data[i].data;
 		u32 datalen = field_data[i].len;
 		u32 datalen_to_hash =
-		    !ima_canonical_fmt ? datalen : cpu_to_le32(datalen);
+		    !ima_cayesnical_fmt ? datalen : cpu_to_le32(datalen);
 
 		if (strcmp(td->name, IMA_TEMPLATE_IMA_NAME) != 0) {
 			rc = crypto_shash_update(shash,
@@ -674,7 +674,7 @@ static int __init ima_calc_boot_aggregate_tfm(char *digest,
 	/* cumulative sha1 over tpm registers 0-7 */
 	for (i = TPM_PCR0; i < TPM_PCR8; i++) {
 		ima_pcrread(i, &d);
-		/* now accumulate with current aggregate */
+		/* yesw accumulate with current aggregate */
 		rc = crypto_shash_update(shash, d.digest, TPM_DIGEST_SIZE);
 	}
 	if (!rc)

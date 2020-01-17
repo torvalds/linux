@@ -48,7 +48,7 @@ struct nfsd_net {
 	struct dentry *nfsd_client_dir;
 
 	/*
-	 * reclaim_str_hashtbl[] holds known client info from previous reset/reboot
+	 * reclaim_str_hashtbl[] holds kyeswn client info from previous reset/reboot
 	 * used in reboot/reset lease grace period processing
 	 *
 	 * conf_id_hashtbl[], and conf_name_tree hold confirmed
@@ -133,7 +133,7 @@ struct nfsd_net {
 	 * Version information
 	 */
 	bool *nfsd_versions;
-	bool *nfsd4_minorversions;
+	bool *nfsd4_miyesrversions;
 
 	/*
 	 * Duplicate reply cache

@@ -66,7 +66,7 @@ static int led_pwm_set(struct led_classdev *led_cdev,
 }
 
 static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
-		       struct led_pwm *led, struct fwnode_handle *fwnode)
+		       struct led_pwm *led, struct fwyesde_handle *fwyesde)
 {
 	struct led_pwm_data *led_data = &priv->leds[priv->num_leds];
 	struct pwm_args pargs;
@@ -79,8 +79,8 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 	led_data->cdev.max_brightness = led->max_brightness;
 	led_data->cdev.flags = LED_CORE_SUSPENDRESUME;
 
-	if (fwnode)
-		led_data->pwm = devm_fwnode_pwm_get(dev, fwnode, NULL);
+	if (fwyesde)
+		led_data->pwm = devm_fwyesde_pwm_get(dev, fwyesde, NULL);
 	else
 		led_data->pwm = devm_pwm_get(dev, led->name);
 	if (IS_ERR(led_data->pwm)) {
@@ -117,35 +117,35 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 	return ret;
 }
 
-static int led_pwm_create_fwnode(struct device *dev, struct led_pwm_priv *priv)
+static int led_pwm_create_fwyesde(struct device *dev, struct led_pwm_priv *priv)
 {
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	struct led_pwm led;
 	int ret = 0;
 
 	memset(&led, 0, sizeof(led));
 
-	device_for_each_child_node(dev, fwnode) {
-		ret = fwnode_property_read_string(fwnode, "label", &led.name);
-		if (ret && is_of_node(fwnode))
-			led.name = to_of_node(fwnode)->name;
+	device_for_each_child_yesde(dev, fwyesde) {
+		ret = fwyesde_property_read_string(fwyesde, "label", &led.name);
+		if (ret && is_of_yesde(fwyesde))
+			led.name = to_of_yesde(fwyesde)->name;
 
 		if (!led.name) {
-			fwnode_handle_put(fwnode);
+			fwyesde_handle_put(fwyesde);
 			return -EINVAL;
 		}
 
-		fwnode_property_read_string(fwnode, "linux,default-trigger",
+		fwyesde_property_read_string(fwyesde, "linux,default-trigger",
 					    &led.default_trigger);
 
-		led.active_low = fwnode_property_read_bool(fwnode,
+		led.active_low = fwyesde_property_read_bool(fwyesde,
 							   "active-low");
-		fwnode_property_read_u32(fwnode, "max-brightness",
+		fwyesde_property_read_u32(fwyesde, "max-brightness",
 					 &led.max_brightness);
 
-		ret = led_pwm_add(dev, priv, &led, fwnode);
+		ret = led_pwm_add(dev, priv, &led, fwyesde);
 		if (ret) {
-			fwnode_handle_put(fwnode);
+			fwyesde_handle_put(fwyesde);
 			break;
 		}
 	}
@@ -163,7 +163,7 @@ static int led_pwm_probe(struct platform_device *pdev)
 	if (pdata)
 		count = pdata->num_leds;
 	else
-		count = device_get_child_node_count(&pdev->dev);
+		count = device_get_child_yesde_count(&pdev->dev);
 
 	if (!count)
 		return -EINVAL;
@@ -181,7 +181,7 @@ static int led_pwm_probe(struct platform_device *pdev)
 				break;
 		}
 	} else {
-		ret = led_pwm_create_fwnode(&pdev->dev, priv);
+		ret = led_pwm_create_fwyesde(&pdev->dev, priv);
 	}
 
 	if (ret)

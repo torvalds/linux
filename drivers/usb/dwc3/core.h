@@ -666,7 +666,7 @@ struct dwc3_event_buffer {
  * @direction: true for TX, false for RX
  * @stream_capable: true when streams are enabled
  * @combo_num: the test combination BIT[15:14] of the frame number to test
- *		isochronous START TRANSFER command failure workaround
+ *		isochroyesus START TRANSFER command failure workaround
  * @start_cmd_status: the status of testing START TRANSFER command with
  *		combo_num = 'b00
  */
@@ -694,7 +694,7 @@ struct dwc3_ep {
 #define DWC3_EP0_DIR_IN		BIT(31)
 
 	/*
-	 * IMPORTANT: we *know* we have 256 TRBs in our @trb_pool, so we will
+	 * IMPORTANT: we *kyesw* we have 256 TRBs in our @trb_pool, so we will
 	 * use a u8 type here. If anybody decides to increase number of TRBs to
 	 * anything larger than 256 - I can't see why people would want to do
 	 * this though - then this type needs to be changed.
@@ -716,7 +716,7 @@ struct dwc3_ep {
 	unsigned		direction:1;
 	unsigned		stream_capable:1;
 
-	/* For isochronous START TRANSFER workaround only */
+	/* For isochroyesus START TRANSFER workaround only */
 	u8			combo_num;
 	int			start_cmd_status;
 };
@@ -947,7 +947,7 @@ struct dwc3_scratchpad_array {
  * @current_dr_role: current role of operation when in dual-role mode
  * @desired_dr_role: desired role of operation when in dual-role mode
  * @edev: extcon handle
- * @edev_nb: extcon notifier
+ * @edev_nb: extcon yestifier
  * @hsphy_mode: UTMI phy mode, one of following:
  *		- USBPHY_INTERFACE_MODE_UTMI
  *		- USBPHY_INTERFACE_MODE_UTMIW
@@ -987,7 +987,7 @@ struct dwc3_scratchpad_array {
  * @has_hibernation: true when dwc3 was configured with Hibernation
  * @sysdev_is_parent: true when dwc3 device has a parent driver
  * @has_lpm_erratum: true when core was configured with LPM Erratum. Note that
- *			there's now way for software to detect this in runtime.
+ *			there's yesw way for software to detect this in runtime.
  * @is_utmi_l1_suspend: the core asserts output signal
  * 	0	- utmi_sleep_n
  * 	1	- utmi_l1_suspend_n
@@ -997,7 +997,7 @@ struct dwc3_scratchpad_array {
  * @setup_packet_pending: true when there's a Setup Packet in FIFO. Workaround
  * @three_stage_setup: set if we perform a three phase setup
  * @dis_start_transfer_quirk: set if start_transfer failure SW workaround is
- *			not needed for DWC_usb31 version 1.70a-ea06 and below
+ *			yest needed for DWC_usb31 version 1.70a-ea06 and below
  * @usb3_lpm_capable: set if hadrware supports Link Power Management
  * @usb2_lpm_disable: set to disable usb2 lpm
  * @disable_scramble_quirk: set if we enable the disable scramble quirk
@@ -1082,7 +1082,7 @@ struct dwc3 {
 	u32			current_dr_role;
 	u32			desired_dr_role;
 	struct extcon_dev	*edev;
-	struct notifier_block	edev_nb;
+	struct yestifier_block	edev_nb;
 	enum usb_phy_interface	hsphy_mode;
 
 	u32			fladj;
@@ -1098,9 +1098,9 @@ struct dwc3 {
 	/*
 	 * All 3.1 IP version constants are greater than the 3.0 IP
 	 * version constants. This works for most version checks in
-	 * dwc3. However, in the future, this may not apply as
+	 * dwc3. However, in the future, this may yest apply as
 	 * features may be developed on newer versions of the 3.0 IP
-	 * that are not in the 3.1 IP.
+	 * that are yest in the 3.1 IP.
 	 */
 	u32			revision;
 
@@ -1244,7 +1244,7 @@ struct dwc3_event_type {
 
 /**
  * struct dwc3_event_depvt - Device Endpoint Events
- * @one_bit: indicates this is an endpoint event (not used)
+ * @one_bit: indicates this is an endpoint event (yest used)
  * @endpoint_number: number of the endpoint
  * @endpoint_event: The event we have:
  *	0x00	- Reserved
@@ -1299,7 +1299,7 @@ struct dwc3_event_depevt {
 
 /**
  * struct dwc3_event_devt - Device Events
- * @one_bit: indicates this is a non-endpoint event (not used)
+ * @one_bit: indicates this is a yesn-endpoint event (yest used)
  * @device_event: indicates it's a device event. Should read as 0x00
  * @type: indicates the type of device event.
  *	0	- DisconnEvt
@@ -1315,9 +1315,9 @@ struct dwc3_event_depevt {
  *	10	- CmdCmplt
  *	11	- EvntOverflow
  *	12	- VndrDevTstRcved
- * @reserved15_12: Reserved, not used
+ * @reserved15_12: Reserved, yest used
  * @event_info: Information about this event
- * @reserved31_25: Reserved, not used
+ * @reserved31_25: Reserved, yest used
  */
 struct dwc3_event_devt {
 	u32	one_bit:1;
@@ -1330,10 +1330,10 @@ struct dwc3_event_devt {
 
 /**
  * struct dwc3_event_gevt - Other Core Events
- * @one_bit: indicates this is a non-endpoint event (not used)
+ * @one_bit: indicates this is a yesn-endpoint event (yest used)
  * @device_event: indicates it's (0x03) Carkit or (0x04) I2C event.
  * @phy_port_number: self-explanatory
- * @reserved31_12: Reserved, not used.
+ * @reserved31_12: Reserved, yest used.
  */
 struct dwc3_event_gevt {
 	u32	one_bit:1;
@@ -1446,7 +1446,7 @@ int dwc3_drd_init(struct dwc3 *dwc);
 void dwc3_drd_exit(struct dwc3 *dwc);
 void dwc3_otg_init(struct dwc3 *dwc);
 void dwc3_otg_exit(struct dwc3 *dwc);
-void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus);
+void dwc3_otg_update(struct dwc3 *dwc, bool igyesre_idstatus);
 void dwc3_otg_host_init(struct dwc3 *dwc);
 #else
 static inline int dwc3_drd_init(struct dwc3 *dwc)
@@ -1457,7 +1457,7 @@ static inline void dwc3_otg_init(struct dwc3 *dwc)
 { }
 static inline void dwc3_otg_exit(struct dwc3 *dwc)
 { }
-static inline void dwc3_otg_update(struct dwc3 *dwc, bool ignore_idstatus)
+static inline void dwc3_otg_update(struct dwc3 *dwc, bool igyesre_idstatus)
 { }
 static inline void dwc3_otg_host_init(struct dwc3 *dwc)
 { }

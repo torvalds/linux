@@ -80,7 +80,7 @@
 #define   TM_QW3W2_T		PPC_BIT32(31)
 
 /*
- * In addition to normal loads to "peek" and writes (only when invalid)
+ * In addition to yesrmal loads to "peek" and writes (only when invalid)
  * using 4 and 8 bytes accesses, the above registers support these
  * "special" byte operations:
  *

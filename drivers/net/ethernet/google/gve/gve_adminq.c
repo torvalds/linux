@@ -91,7 +91,7 @@ static int gve_adminq_parse_err(struct device *dev, u32 status)
 	case GVE_ADMINQ_COMMAND_PASSED:
 		return 0;
 	case GVE_ADMINQ_COMMAND_UNSET:
-		dev_err(dev, "parse_aq_err: err and status both unset, this should not be possible.\n");
+		dev_err(dev, "parse_aq_err: err and status both unset, this should yest be possible.\n");
 		return -EINVAL;
 	case GVE_ADMINQ_COMMAND_ERROR_ABORTED:
 	case GVE_ADMINQ_COMMAND_ERROR_CANCELLED:
@@ -116,12 +116,12 @@ static int gve_adminq_parse_err(struct device *dev, u32 status)
 	case GVE_ADMINQ_COMMAND_ERROR_UNIMPLEMENTED:
 		return -ENOTSUPP;
 	default:
-		dev_err(dev, "parse_aq_err: unknown status code %d\n", status);
+		dev_err(dev, "parse_aq_err: unkyeswn status code %d\n", status);
 		return -EINVAL;
 	}
 }
 
-/* This function is not threadsafe - the caller is responsible for any
+/* This function is yest threadsafe - the caller is responsible for any
  * necessary locks.
  */
 int gve_adminq_execute_cmd(struct gve_priv *priv,
@@ -315,7 +315,7 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	priv->tx_pages_per_qpl = be16_to_cpu(descriptor->tx_pages_per_qpl);
 	priv->rx_pages_per_qpl = be16_to_cpu(descriptor->rx_pages_per_qpl);
 	if (priv->rx_pages_per_qpl < priv->rx_desc_cnt) {
-		netif_err(priv, drv, priv->dev, "rx_pages_per_qpl cannot be smaller than rx_desc_cnt, setting rx_desc_cnt down to %d.\n",
+		netif_err(priv, drv, priv->dev, "rx_pages_per_qpl canyest be smaller than rx_desc_cnt, setting rx_desc_cnt down to %d.\n",
 			  priv->rx_pages_per_qpl);
 		priv->rx_desc_cnt = priv->rx_pages_per_qpl;
 	}

@@ -29,7 +29,7 @@ static bool pci_dw_valid_device(struct pci_bus *bus, unsigned int devfn)
 	struct pci_config_window *cfg = bus->sysdata;
 
 	/*
-	 * The Synopsys DesignWare PCIe controller in ECAM mode will not filter
+	 * The Syyespsys DesignWare PCIe controller in ECAM mode will yest filter
 	 * type 0 config TLPs sent to devices 1 and up on its downstream port,
 	 * resulting in devices appearing multiple times on bus 0 unless we
 	 * filter out those accesses here.
@@ -82,7 +82,7 @@ static int gen_pci_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	struct pci_ecam_ops *ops;
 
-	of_id = of_match_node(gen_pci_of_match, pdev->dev.of_node);
+	of_id = of_match_yesde(gen_pci_of_match, pdev->dev.of_yesde);
 	ops = (struct pci_ecam_ops *)of_id->data;
 
 	return pci_host_common_probe(pdev, ops);

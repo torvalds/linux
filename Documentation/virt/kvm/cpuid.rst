@@ -7,7 +7,7 @@ KVM CPUID bits
 :Author: Glauber Costa <glommer@gmail.com>
 
 A guest running on a kvm host, can check some of its features using
-cpuid. This is not always guaranteed to work, since userspace can
+cpuid. This is yest always guaranteed to work, since userspace can
 mask-out some, or even all KVM-related cpuid features before launching
 a guest.
 
@@ -44,7 +44,7 @@ flag                              value       meaning
 KVM_FEATURE_CLOCKSOURCE           0           kvmclock available at msrs
                                               0x11 and 0x12
 
-KVM_FEATURE_NOP_IO_DELAY          1           not necessary to perform delays
+KVM_FEATURE_NOP_IO_DELAY          1           yest necessary to perform delays
                                               on PIO operations
 
 KVM_FEATURE_MMU_OP                2           deprecated
@@ -86,7 +86,7 @@ KVM_FEATURE_PV_SCHED_YIELD        13          guest checks this feature bit
                                               before using paravirtualized
                                               sched yield.
 
-KVM_FEATURE_CLOCSOURCE_STABLE_BIT 24          host will warn if no guest-side
+KVM_FEATURE_CLOCSOURCE_STABLE_BIT 24          host will warn if yes guest-side
                                               per-cpu warps are expeced in
                                               kvmclock
 ================================= =========== ================================

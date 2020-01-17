@@ -1,4 +1,4 @@
-EEPROMs (SPI) compatible with Microchip Technology 93xx46 family.
+EEPROMs (SPI) compatible with Microchip Techyeslogy 93xx46 family.
 
 Required properties:
 - compatible : shall be one of:

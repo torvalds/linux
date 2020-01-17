@@ -79,7 +79,7 @@ static void hpet_restart_counter(void)
 
 static void hpet_enable_legacy_int(void)
 {
-	/* Do nothing on Loongson-3 */
+	/* Do yesthing on Loongson-3 */
 }
 
 static int hpet_set_state_periodic(struct clock_event_device *evt)
@@ -136,7 +136,7 @@ static int hpet_set_state_oneshot(struct clock_event_device *evt)
 	/*
 	 * set timer0 type
 	 * 1 : periodic interrupt
-	 * 0 : non-periodic(oneshot) interrupt
+	 * 0 : yesn-periodic(oneshot) interrupt
 	 */
 	cfg &= ~HPET_TN_PERIODIC;
 	cfg |= HPET_TN_ENABLE | HPET_TN_32BIT;
@@ -196,7 +196,7 @@ static struct irqaction hpet_irq = {
 /*
  * hpet address assignation and irq setting should be done in bios.
  * but pmon don't do this, we just setup here directly.
- * The operation under is normal. unfortunately, hpet_setup process
+ * The operation under is yesrmal. unfortunately, hpet_setup process
  * is before pci initialize.
  *
  * {
@@ -272,7 +272,7 @@ static struct clocksource csrc_hpet = {
 	.rating = 300,
 	.read = hpet_read_counter,
 	.mask = CLOCKSOURCE_MASK(32),
-	/* oneshot mode work normal with this flag */
+	/* oneshot mode work yesrmal with this flag */
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 	.suspend = hpet_suspend,
 	.resume = hpet_resume,

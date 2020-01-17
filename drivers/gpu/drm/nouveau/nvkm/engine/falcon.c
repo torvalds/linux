@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -186,11 +186,11 @@ nvkm_falcon_init(struct nvkm_engine *engine)
 	/* disable all interrupts */
 	nvkm_wr32(device, base + 0x014, 0xffffffff);
 
-	/* no default ucode provided by the engine implementation, try and
+	/* yes default ucode provided by the engine implementation, try and
 	 * locate a "self-bootstrapping" firmware image for the engine
 	 */
 	if (!falcon->code.data) {
-		snprintf(name, sizeof(name), "nouveau/nv%02x_fuc%03x",
+		snprintf(name, sizeof(name), "yesuveau/nv%02x_fuc%03x",
 			 device->chipset, falcon->addr >> 12);
 
 		ret = request_firmware(&fw, name, device->dev);
@@ -209,7 +209,7 @@ nvkm_falcon_init(struct nvkm_engine *engine)
 	 * images for the engine
 	 */
 	if (!falcon->code.data) {
-		snprintf(name, sizeof(name), "nouveau/nv%02x_fuc%03xd",
+		snprintf(name, sizeof(name), "yesuveau/nv%02x_fuc%03xd",
 			 device->chipset, falcon->addr >> 12);
 
 		ret = request_firmware(&fw, name, device->dev);
@@ -224,7 +224,7 @@ nvkm_falcon_init(struct nvkm_engine *engine)
 		if (!falcon->data.data)
 			return -ENOMEM;
 
-		snprintf(name, sizeof(name), "nouveau/nv%02x_fuc%03xc",
+		snprintf(name, sizeof(name), "yesuveau/nv%02x_fuc%03xc",
 			 device->chipset, falcon->addr >> 12);
 
 		ret = request_firmware(&fw, name, device->dev);

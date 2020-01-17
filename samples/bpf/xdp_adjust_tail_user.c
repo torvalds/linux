@@ -8,7 +8,7 @@
 #include <linux/bpf.h>
 #include <linux/if_link.h>
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,7 +43,7 @@ static void int_exit(int sig)
 		else if (!curr_prog_id)
 			printf("couldn't find a prog id on a given iface\n");
 		else
-			printf("program on interface changed, not removing\n");
+			printf("program on interface changed, yest removing\n");
 	}
 	exit(0);
 }
@@ -183,7 +183,7 @@ int main(int argc, char **argv)
 
 	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err) {
-		printf("can't get prog info - %s\n", strerror(errno));
+		printf("can't get prog info - %s\n", strerror(erryes));
 		return 1;
 	}
 	prog_id = info.id;

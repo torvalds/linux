@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,7 +24,7 @@
 #include <nvif/cl507b.h>
 
 static int
-oimm507b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
+oimm507b_init_(const struct nv50_wimm_func *func, struct yesuveau_drm *drm,
 	       s32 oclass, struct nv50_wndw *wndw)
 {
 	struct nv50_disp_overlay_v0 args = {
@@ -46,7 +46,7 @@ oimm507b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 }
 
 int
-oimm507b_init(struct nouveau_drm *drm, s32 oclass, struct nv50_wndw *wndw)
+oimm507b_init(struct yesuveau_drm *drm, s32 oclass, struct nv50_wndw *wndw)
 {
 	return oimm507b_init_(&curs507a, drm, oclass, wndw);
 }

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <string.h>
 #include <sched.h>

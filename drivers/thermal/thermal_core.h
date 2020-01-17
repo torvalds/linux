@@ -16,19 +16,19 @@
 #define THERMAL_NO_TARGET -1UL
 
 /* Init section thermal table */
-extern struct thermal_governor *__governor_thermal_table[];
-extern struct thermal_governor *__governor_thermal_table_end[];
+extern struct thermal_goveryesr *__goveryesr_thermal_table[];
+extern struct thermal_goveryesr *__goveryesr_thermal_table_end[];
 
 #define THERMAL_TABLE_ENTRY(table, name)			\
 	static typeof(name) *__thermal_table_entry_##name	\
 	__used __section(__##table##_thermal_table) = &name
 
-#define THERMAL_GOVERNOR_DECLARE(name)	THERMAL_TABLE_ENTRY(governor, name)
+#define THERMAL_GOVERNOR_DECLARE(name)	THERMAL_TABLE_ENTRY(goveryesr, name)
 
-#define for_each_governor_table(__governor)		\
-	for (__governor = __governor_thermal_table;	\
-	     __governor < __governor_thermal_table_end;	\
-	     __governor++)
+#define for_each_goveryesr_table(__goveryesr)		\
+	for (__goveryesr = __goveryesr_thermal_table;	\
+	     __goveryesr < __goveryesr_thermal_table_end;	\
+	     __goveryesr++)
 
 /*
  * This structure is used to describe the behavior of
@@ -49,8 +49,8 @@ struct thermal_instance {
 	struct device_attribute attr;
 	char weight_attr_name[THERMAL_NAME_LENGTH];
 	struct device_attribute weight_attr;
-	struct list_head tz_node; /* node in tz->thermal_instances */
-	struct list_head cdev_node; /* node in cdev->thermal_instances */
+	struct list_head tz_yesde; /* yesde in tz->thermal_instances */
+	struct list_head cdev_yesde; /* yesde in cdev->thermal_instances */
 	unsigned int weight; /* The weight of the cooling device */
 };
 
@@ -60,8 +60,8 @@ struct thermal_instance {
 #define to_cooling_device(_dev)	\
 	container_of(_dev, struct thermal_cooling_device, device)
 
-int thermal_register_governor(struct thermal_governor *);
-void thermal_unregister_governor(struct thermal_governor *);
+int thermal_register_goveryesr(struct thermal_goveryesr *);
+void thermal_unregister_goveryesr(struct thermal_goveryesr *);
 void thermal_zone_device_rebind_exception(struct thermal_zone_device *,
 					  const char *, size_t);
 void thermal_zone_device_unbind_exception(struct thermal_zone_device *,

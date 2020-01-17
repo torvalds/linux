@@ -23,7 +23,7 @@ int perf_event__synthesize_extra_kmaps(struct perf_tool *tool,
 					 machine->id_hdr_size);
 
 	if (!event) {
-		pr_debug("Not enough memory synthesizing mmap event "
+		pr_debug("Not eyesugh memory synthesizing mmap event "
 			 "for extra kernel maps\n");
 		return -1;
 	}

@@ -120,20 +120,20 @@ static int _qcom_cc_register_board_clk(struct device *dev, const char *path,
 				       const char *name, unsigned long rate,
 				       bool add_factor)
 {
-	struct device_node *node = NULL;
-	struct device_node *clocks_node;
+	struct device_yesde *yesde = NULL;
+	struct device_yesde *clocks_yesde;
 	struct clk_fixed_factor *factor;
 	struct clk_fixed_rate *fixed;
 	struct clk_init_data init_data = { };
 	int ret;
 
-	clocks_node = of_find_node_by_path("/clocks");
-	if (clocks_node) {
-		node = of_get_child_by_name(clocks_node, path);
-		of_node_put(clocks_node);
+	clocks_yesde = of_find_yesde_by_path("/clocks");
+	if (clocks_yesde) {
+		yesde = of_get_child_by_name(clocks_yesde, path);
+		of_yesde_put(clocks_yesde);
 	}
 
-	if (!node) {
+	if (!yesde) {
 		fixed = devm_kzalloc(dev, sizeof(*fixed), GFP_KERNEL);
 		if (!fixed)
 			return -EINVAL;
@@ -148,7 +148,7 @@ static int _qcom_cc_register_board_clk(struct device *dev, const char *path,
 		if (ret)
 			return ret;
 	}
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	if (add_factor) {
 		factor = devm_kzalloc(dev, sizeof(*factor), GFP_KERNEL);
@@ -178,7 +178,7 @@ int qcom_cc_register_board_clk(struct device *dev, const char *path,
 	bool add_factor = true;
 
 	/*
-	 * TODO: The RPM clock driver currently does not support the xo clock.
+	 * TODO: The RPM clock driver currently does yest support the xo clock.
 	 * When xo is added to the RPM clock driver, we should change this
 	 * function to skip registration of xo factor clocks.
 	 */
@@ -197,7 +197,7 @@ EXPORT_SYMBOL_GPL(qcom_cc_register_sleep_clk);
 /* Drop 'protected-clocks' from the list of clocks to register */
 static void qcom_cc_drop_protected(struct device *dev, struct qcom_cc *cc)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct property *prop;
 	const __be32 *p;
 	u32 i;
@@ -242,7 +242,7 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 		return -ENOMEM;
 
 	reset = &cc->reset;
-	reset->rcdev.of_node = dev->of_node;
+	reset->rcdev.of_yesde = dev->of_yesde;
 	reset->rcdev.ops = &qcom_reset_ops;
 	reset->rcdev.owner = dev->driver->owner;
 	reset->rcdev.nr_resets = desc->num_resets;

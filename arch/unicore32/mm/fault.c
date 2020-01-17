@@ -50,7 +50,7 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 		pmd_t *pmd;
 		pte_t *pte;
 
-		if (pgd_none(*pgd))
+		if (pgd_yesne(*pgd))
 			break;
 
 		if (pgd_bad(*pgd)) {
@@ -62,7 +62,7 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 		if (PTRS_PER_PMD != 1)
 			printk(", *pmd=%08lx", pmd_val(*pmd));
 
-		if (pmd_none(*pmd))
+		if (pmd_yesne(*pmd))
 			break;
 
 		if (pmd_bad(*pmd)) {
@@ -70,7 +70,7 @@ void show_pte(struct mm_struct *mm, unsigned long addr)
 			break;
 		}
 
-		/* We must not map this if we have highmem enabled */
+		/* We must yest map this if we have highmem enabled */
 		if (PageHighMem(pfn_to_page(pmd_val(*pmd) >> PAGE_SHIFT)))
 			break;
 
@@ -120,7 +120,7 @@ static void __do_user_fault(unsigned long addr, unsigned int fsr,
 
 	tsk->thread.address = addr;
 	tsk->thread.error_code = fsr;
-	tsk->thread.trap_no = 14;
+	tsk->thread.trap_yes = 14;
 	force_sig_fault(sig, code, (void __user *)addr);
 }
 
@@ -131,7 +131,7 @@ void do_bad_area(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 	/*
 	 * If we are in kernel mode at this point, we
-	 * have no context to handle this fault with.
+	 * have yes context to handle this fault with.
 	 */
 	if (user_mode(regs))
 		__do_user_fault(addr, fsr, SIGSEGV, SEGV_MAPERR, regs);
@@ -208,11 +208,11 @@ static int do_pf(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	mm = tsk->mm;
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have yes user
+	 * context, we must yest take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto no_context;
+		goto yes_context;
 
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
@@ -227,7 +227,7 @@ static int do_pf(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if (!user_mode(regs)
 		    && !search_exception_tables(regs->UCreg_pc))
-			goto no_context;
+			goto yes_context;
 retry:
 		down_read(&mm->mmap_sem);
 	} else {
@@ -240,14 +240,14 @@ retry:
 #ifdef CONFIG_DEBUG_VM
 		if (!user_mode(regs) &&
 		    !search_exception_tables(regs->UCreg_pc))
-			goto no_context;
+			goto yes_context;
 #endif
 	}
 
 	fault = __do_pf(mm, addr, fsr, flags, tsk);
 
 	/* If we need to retry but a fatal signal is pending, handle the
-	 * signal first. We do not need to release the mmap_sem because
+	 * signal first. We do yest need to release the mmap_sem because
 	 * it would already be released in __lock_page_or_retry in
 	 * mm/filemap.c. */
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
@@ -269,7 +269,7 @@ retry:
 	up_read(&mm->mmap_sem);
 
 	/*
-	 * Handle the "normal" case first - VM_FAULT_MAJOR
+	 * Handle the "yesrmal" case first - VM_FAULT_MAJOR
 	 */
 	if (likely(!(fault &
 	       (VM_FAULT_ERROR | VM_FAULT_BADMAP | VM_FAULT_BADACCESS))))
@@ -277,10 +277,10 @@ retry:
 
 	/*
 	 * If we are in kernel mode at this point, we
-	 * have no context to handle this fault with.
+	 * have yes context to handle this fault with.
 	 */
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 
 	if (fault & VM_FAULT_OOM) {
 		/*
@@ -311,7 +311,7 @@ retry:
 	__do_user_fault(addr, fsr, sig, code, regs);
 	return 0;
 
-no_context:
+yes_context:
 	__do_kernel_fault(mm, addr, fsr, regs);
 	return 0;
 }
@@ -326,12 +326,12 @@ no_context:
  * probably faulting in the vmalloc() area.
  *
  * If the init_task's first level page tables contains the relevant
- * entry, we copy the it to this task.  If not, we send the process
+ * entry, we copy the it to this task.  If yest, we send the process
  * a signal, fixup the exception, or oops the kernel.
  *
  * NOTE! We MUST NOT take any locks for this case. We may be in an
  * interrupt or a critical region, and should only copy the information
- * from the master page table, nothing more.
+ * from the master page table, yesthing more.
  */
 static int do_ifault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
@@ -350,13 +350,13 @@ static int do_ifault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	pgd = cpu_get_pgd() + index;
 	pgd_k = init_mm.pgd + index;
 
-	if (pgd_none(*pgd_k))
+	if (pgd_yesne(*pgd_k))
 		goto bad_area;
 
 	pmd_k = pmd_offset((pud_t *) pgd_k, addr);
 	pmd = pmd_offset((pud_t *) pgd, addr);
 
-	if (pmd_none(*pmd_k))
+	if (pmd_yesne(*pmd_k))
 		goto bad_area;
 
 	set_pmd(pmd, *pmd_k);
@@ -380,7 +380,7 @@ static int do_good(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
 	unsigned int res1, res2;
 
-	printk("dabt exception but no error!\n");
+	printk("dabt exception but yes error!\n");
 
 	__asm__ __volatile__(
 			"mff %0,f0\n"
@@ -403,38 +403,38 @@ static struct fsr_info {
 	/*
 	 * The following are the standard Unicore-I and UniCore-II aborts.
 	 */
-	{ do_good,	SIGBUS,  0,		"no error"		},
+	{ do_good,	SIGBUS,  0,		"yes error"		},
 	{ do_bad,	SIGBUS,  BUS_ADRALN,	"alignment exception"	},
 	{ do_bad,	SIGBUS,  BUS_OBJERR,	"external exception"	},
 	{ do_bad,	SIGBUS,  0,		"burst operation"	},
-	{ do_bad,	SIGBUS,  0,		"unknown 00100"		},
-	{ do_ifault,	SIGSEGV, SEGV_MAPERR,	"2nd level pt non-exist"},
-	{ do_bad,	SIGBUS,  0,		"2nd lvl large pt non-exist" },
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 00100"		},
+	{ do_ifault,	SIGSEGV, SEGV_MAPERR,	"2nd level pt yesn-exist"},
+	{ do_bad,	SIGBUS,  0,		"2nd lvl large pt yesn-exist" },
 	{ do_bad,	SIGBUS,  0,		"invalid pte"		},
 	{ do_pf,	SIGSEGV, SEGV_MAPERR,	"page miss"		},
 	{ do_bad,	SIGBUS,  0,		"middle page miss"	},
 	{ do_bad,	SIGBUS,	 0,		"large page miss"	},
 	{ do_pf,	SIGSEGV, SEGV_MAPERR,	"super page (section) miss" },
-	{ do_bad,	SIGBUS,  0,		"unknown 01100"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 01101"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 01110"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 01111"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 01100"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 01101"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 01110"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 01111"		},
 	{ do_bad,	SIGBUS,  0,		"addr: up 3G or IO"	},
 	{ do_pf,	SIGSEGV, SEGV_ACCERR,	"read unreadable addr"	},
 	{ do_pf,	SIGSEGV, SEGV_ACCERR,	"write unwriteable addr"},
 	{ do_pf,	SIGSEGV, SEGV_ACCERR,	"exec unexecutable addr"},
-	{ do_bad,	SIGBUS,  0,		"unknown 10100"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 10101"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 10110"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 10111"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 11000"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 11001"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 11010"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 11011"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 11100"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 11101"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 11110"		},
-	{ do_bad,	SIGBUS,  0,		"unknown 11111"		}
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 10100"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 10101"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 10110"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 10111"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 11000"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 11001"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 11010"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 11011"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 11100"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 11101"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 11110"		},
+	{ do_bad,	SIGBUS,  0,		"unkyeswn 11111"		}
 };
 
 void __init hook_fault_code(int nr,
@@ -464,7 +464,7 @@ asmlinkage void do_DataAbort(unsigned long addr, unsigned int fsr,
 	printk(KERN_ALERT "Unhandled fault: %s (0x%03x) at 0x%08lx\n",
 	       inf->name, fsr, addr);
 
-	uc32_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+	uc32_yestify_die("", regs, inf->sig, inf->code, (void __user *)addr,
 			fsr, 0);
 }
 
@@ -479,6 +479,6 @@ asmlinkage void do_PrefetchAbort(unsigned long addr,
 	printk(KERN_ALERT "Unhandled prefetch abort: %s (0x%03x) at 0x%08lx\n",
 	       inf->name, ifsr, addr);
 
-	uc32_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+	uc32_yestify_die("", regs, inf->sig, inf->code, (void __user *)addr,
 			ifsr, 0);
 }

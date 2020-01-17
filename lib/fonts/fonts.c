@@ -72,7 +72,7 @@ static const struct font_desc *fonts[] = {
  *
  *	Find a specified font with string name @name.
  *
- *	Returns %NULL if no font found, or a pointer to the
+ *	Returns %NULL if yes font found, or a pointer to the
  *	specified font.
  *
  */
@@ -99,7 +99,7 @@ EXPORT_SYMBOL(find_font);
  *	Get the default font for a specified screen size.
  *	Dimensions are in pixels.
  *
- *	Returns %NULL if no font is found, or a pointer to the
+ *	Returns %NULL if yes font is found, or a pointer to the
  *	chosen font.
  *
  */

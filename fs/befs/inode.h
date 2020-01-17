@@ -1,7 +1,7 @@
 /*
- * inode.h
+ * iyesde.h
  *
  */
 
-int befs_check_inode(struct super_block *sb, befs_inode *raw_inode,
-		     befs_blocknr_t inode);
+int befs_check_iyesde(struct super_block *sb, befs_iyesde *raw_iyesde,
+		     befs_blocknr_t iyesde);

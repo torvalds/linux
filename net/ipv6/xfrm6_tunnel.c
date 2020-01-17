@@ -42,8 +42,8 @@ static inline struct xfrm6_tunnel_net *xfrm6_tunnel_pernet(struct net *net)
  * per xfrm_address_t.
  */
 struct xfrm6_tunnel_spi {
-	struct hlist_node	list_byaddr;
-	struct hlist_node	list_byspi;
+	struct hlist_yesde	list_byaddr;
+	struct hlist_yesde	list_byspi;
 	xfrm_address_t		addr;
 	u32			spi;
 	refcount_t		refcnt;
@@ -188,7 +188,7 @@ static void xfrm6_tunnel_free_spi(struct net *net, xfrm_address_t *saddr)
 {
 	struct xfrm6_tunnel_net *xfrm6_tn = xfrm6_tunnel_pernet(net);
 	struct xfrm6_tunnel_spi *x6spi;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 
 	spin_lock_bh(&xfrm6_tunnel_spi_lock);
 

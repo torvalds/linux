@@ -115,7 +115,7 @@
 struct kmx61_data {
 	struct i2c_client *client;
 
-	/* serialize access to non-atomic ops, e.g set_mode */
+	/* serialize access to yesn-atomic ops, e.g set_mode */
 	struct mutex lock;
 
 	/* standby state */
@@ -318,7 +318,7 @@ static int kmx61_convert_wake_up_odr_to_bit(int val, int val2)
  * @update - update stby bits stored in device's private  @data
  *
  * For each sensor (accelerometer/magnetometer) there are two operating modes
- * STANDBY and OPERATION. Neither accel nor magn can be disabled independently
+ * STANDBY and OPERATION. Neither accel yesr magn can be disabled independently
  * if they are both enabled. Internal sensors state is saved in acc_stby and
  * mag_stby members of driver's private @data.
  */
@@ -723,7 +723,7 @@ static int kmx61_setup_any_motion_interrupt(struct kmx61_data *data,
  * @device - bitmask indicating device for which @on state needs to be set
  *
  * Notice that when ACC power state needs to be set to ON and MAG is in
- * OPERATION then we know that kmx61_runtime_resume was already called
+ * OPERATION then we kyesw that kmx61_runtime_resume was already called
  * so we must set ACC OPERATION mode here. The same happens when MAG power
  * state needs to be set to ON and ACC is in OPERATION.
  */
@@ -760,7 +760,7 @@ static int kmx61_set_power_state(struct kmx61_data *data, bool on, u8 device)
 			"Failed: kmx61_set_power_state for %d, ret %d\n",
 			on, ret);
 		if (on)
-			pm_runtime_put_noidle(&data->client->dev);
+			pm_runtime_put_yesidle(&data->client->dev);
 
 		return ret;
 	}
@@ -1219,7 +1219,7 @@ static irqreturn_t kmx61_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers(indio_dev, buffer);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1432,7 +1432,7 @@ static int kmx61_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	if (client->irq > 0) {
 		iio_triggered_buffer_cleanup(data->acc_indio_dev);

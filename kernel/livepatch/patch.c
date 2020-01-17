@@ -27,9 +27,9 @@ struct klp_ops *klp_find_ops(void *old_func)
 	struct klp_ops *ops;
 	struct klp_func *func;
 
-	list_for_each_entry(ops, &klp_ops, node) {
+	list_for_each_entry(ops, &klp_ops, yesde) {
 		func = list_first_entry(&ops->func_stack, struct klp_func,
-					stack_node);
+					stack_yesde);
 		if (func->old_func == old_func)
 			return ops;
 	}
@@ -37,7 +37,7 @@ struct klp_ops *klp_find_ops(void *old_func)
 	return NULL;
 }
 
-static void notrace klp_ftrace_handler(unsigned long ip,
+static void yestrace klp_ftrace_handler(unsigned long ip,
 				       unsigned long parent_ip,
 				       struct ftrace_ops *fops,
 				       struct pt_regs *regs)
@@ -50,12 +50,12 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 
 	/*
 	 * A variant of synchronize_rcu() is used to allow patching functions
-	 * where RCU is not watching, see klp_synchronize_transition().
+	 * where RCU is yest watching, see klp_synchronize_transition().
 	 */
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 
 	func = list_first_or_null_rcu(&ops->func_stack, struct klp_func,
-				      stack_node);
+				      stack_yesde);
 
 	/*
 	 * func should never be NULL because preemption should be disabled here
@@ -95,28 +95,28 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 		if (patch_state == KLP_UNPATCHED) {
 			/*
 			 * Use the previously patched version of the function.
-			 * If no previous patches exist, continue with the
+			 * If yes previous patches exist, continue with the
 			 * original function.
 			 */
-			func = list_entry_rcu(func->stack_node.next,
-					      struct klp_func, stack_node);
+			func = list_entry_rcu(func->stack_yesde.next,
+					      struct klp_func, stack_yesde);
 
-			if (&func->stack_node == &ops->func_stack)
+			if (&func->stack_yesde == &ops->func_stack)
 				goto unlock;
 		}
 	}
 
 	/*
 	 * NOPs are used to replace existing patches with original code.
-	 * Do nothing! Setting pc would cause an infinite loop.
+	 * Do yesthing! Setting pc would cause an infinite loop.
 	 */
-	if (func->nop)
+	if (func->yesp)
 		goto unlock;
 
 	klp_arch_set_pc(regs, (unsigned long)func->new_func);
 
 unlock:
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 }
 
 /*
@@ -156,11 +156,11 @@ static void klp_unpatch_func(struct klp_func *func)
 		WARN_ON(unregister_ftrace_function(&ops->fops));
 		WARN_ON(ftrace_set_filter_ip(&ops->fops, ftrace_loc, 1, 0));
 
-		list_del_rcu(&func->stack_node);
-		list_del(&ops->node);
+		list_del_rcu(&func->stack_yesde);
+		list_del(&ops->yesde);
 		kfree(ops);
 	} else {
-		list_del_rcu(&func->stack_node);
+		list_del_rcu(&func->stack_yesde);
 	}
 
 	func->patched = false;
@@ -199,10 +199,10 @@ static int klp_patch_func(struct klp_func *func)
 				  FTRACE_OPS_FL_IPMODIFY |
 				  FTRACE_OPS_FL_PERMANENT;
 
-		list_add(&ops->node, &klp_ops);
+		list_add(&ops->yesde, &klp_ops);
 
 		INIT_LIST_HEAD(&ops->func_stack);
-		list_add_rcu(&func->stack_node, &ops->func_stack);
+		list_add_rcu(&func->stack_yesde, &ops->func_stack);
 
 		ret = ftrace_set_filter_ip(&ops->fops, ftrace_loc, 0, 0);
 		if (ret) {
@@ -221,7 +221,7 @@ static int klp_patch_func(struct klp_func *func)
 
 
 	} else {
-		list_add_rcu(&func->stack_node, &ops->func_stack);
+		list_add_rcu(&func->stack_yesde, &ops->func_stack);
 	}
 
 	func->patched = true;
@@ -229,25 +229,25 @@ static int klp_patch_func(struct klp_func *func)
 	return 0;
 
 err:
-	list_del_rcu(&func->stack_node);
-	list_del(&ops->node);
+	list_del_rcu(&func->stack_yesde);
+	list_del(&ops->yesde);
 	kfree(ops);
 	return ret;
 }
 
-static void __klp_unpatch_object(struct klp_object *obj, bool nops_only)
+static void __klp_unpatch_object(struct klp_object *obj, bool yesps_only)
 {
 	struct klp_func *func;
 
 	klp_for_each_func(obj, func) {
-		if (nops_only && !func->nop)
+		if (yesps_only && !func->yesp)
 			continue;
 
 		if (func->patched)
 			klp_unpatch_func(func);
 	}
 
-	if (obj->dynamic || !nops_only)
+	if (obj->dynamic || !yesps_only)
 		obj->patched = false;
 }
 
@@ -277,13 +277,13 @@ int klp_patch_object(struct klp_object *obj)
 	return 0;
 }
 
-static void __klp_unpatch_objects(struct klp_patch *patch, bool nops_only)
+static void __klp_unpatch_objects(struct klp_patch *patch, bool yesps_only)
 {
 	struct klp_object *obj;
 
 	klp_for_each_object(patch, obj)
 		if (obj->patched)
-			__klp_unpatch_object(obj, nops_only);
+			__klp_unpatch_object(obj, yesps_only);
 }
 
 void klp_unpatch_objects(struct klp_patch *patch)

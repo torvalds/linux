@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/bitops.h>
@@ -74,7 +74,7 @@ static int dsmark_graft(struct Qdisc *sch, unsigned long arg,
 		new = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops,
 					sch->handle, NULL);
 		if (new == NULL)
-			new = &noop_qdisc;
+			new = &yesop_qdisc;
 	}
 
 	*old = qdisc_replace(sch, new, &p->q);
@@ -176,14 +176,14 @@ static void dsmark_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 
 	for (i = 0; i < p->indices; i++) {
 		if (p->mv[i].mask == 0xff && !p->mv[i].value)
-			goto ignore;
+			goto igyesre;
 		if (walker->count >= walker->skip) {
 			if (walker->fn(sch, i + 1, walker) < 0) {
 				walker->stop = 1;
 				break;
 			}
 		}
-ignore:
+igyesre:
 		walker->count++;
 	}
 }
@@ -315,8 +315,8 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 	default:
 		/*
 		 * Only complain if a change was actually attempted.
-		 * This way, we can send non-IP traffic through dsmark
-		 * and don't need yet another qdisc as a bypass.
+		 * This way, we can send yesn-IP traffic through dsmark
+		 * and don't need yet ayesther qdisc as a bypass.
 		 */
 		if (p->mv[index].mask != 0xff || p->mv[index].value)
 			pr_warn("%s: unsupported protocol %d\n",
@@ -390,7 +390,7 @@ static int dsmark_init(struct Qdisc *sch, struct nlattr *opt,
 	p->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, sch->handle,
 				 NULL);
 	if (p->q == NULL)
-		p->q = &noop_qdisc;
+		p->q = &yesop_qdisc;
 	else
 		qdisc_hash_add(p->q, true);
 
@@ -437,7 +437,7 @@ static int dsmark_dump_class(struct Qdisc *sch, unsigned long cl,
 	tcm->tcm_handle = TC_H_MAKE(TC_H_MAJ(sch->handle), cl - 1);
 	tcm->tcm_info = p->q->handle;
 
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put_u8(skb, TCA_DSMARK_MASK, p->mv[cl - 1].mask) ||
@@ -456,7 +456,7 @@ static int dsmark_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 	struct nlattr *opts = NULL;
 
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put_u16(skb, TCA_DSMARK_INDICES, p->indices))

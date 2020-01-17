@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -72,7 +72,7 @@ struct qed_rdma_device {
 	u32 hw_ver;
 	u64 fw_ver;
 
-	u64 node_guid;
+	u64 yesde_guid;
 	u64 sys_image_guid;
 
 	u8 max_cnq;
@@ -196,10 +196,10 @@ enum qed_rdma_cq_mode {
 };
 
 struct qed_roce_dcqcn_params {
-	u8 notification_point;
+	u8 yestification_point;
 	u8 reaction_point;
 
-	/* fields for notification point */
+	/* fields for yestification point */
 	u32 cnp_send_timeout;
 
 	/* fields for reaction point */
@@ -298,7 +298,7 @@ struct qed_rdma_destroy_cq_in_params {
 };
 
 struct qed_rdma_destroy_cq_out_params {
-	u16 num_cq_notif;
+	u16 num_cq_yestif;
 };
 
 struct qed_rdma_create_qp_in_params {
@@ -655,7 +655,7 @@ struct qed_rdma_ops {
 	int (*ll2_prepare_tx_packet)(void *rdma_cxt,
 				     u8 connection_handle,
 				     struct qed_ll2_tx_pkt_info *pkt,
-				     bool notify_fw);
+				     bool yestify_fw);
 
 	int (*ll2_set_fragment_of_tx_packet)(void *rdma_cxt,
 					     u8 connection_handle,
@@ -663,7 +663,7 @@ struct qed_rdma_ops {
 					     u16 nbytes);
 	int (*ll2_post_rx_buffer)(void *rdma_cxt, u8 connection_handle,
 				  dma_addr_t addr, u16 buf_len, void *cookie,
-				  u8 notify_fw);
+				  u8 yestify_fw);
 	int (*ll2_get_stats)(void *rdma_cxt,
 			     u8 connection_handle,
 			     struct qed_ll2_stats *p_stats);

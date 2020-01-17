@@ -45,7 +45,7 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	/* HDRC controls CPEN, but beware current surges during device
 	 * connect.  They can trigger transient overcurrent conditions
-	 * that must be ignored.
+	 * that must be igyesred.
 	 */
 
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
@@ -125,13 +125,13 @@ static int omap2430_musb_mailbox(enum musb_vbus_id_status status)
 	struct omap2430_glue	*glue = _glue;
 
 	if (!glue) {
-		pr_err("%s: musb core is not yet initialized\n", __func__);
+		pr_err("%s: musb core is yest yet initialized\n", __func__);
 		return -EPROBE_DEFER;
 	}
 	glue->status = status;
 
 	if (!glue_to_musb(glue)) {
-		pr_err("%s: musb core is not yet ready\n", __func__);
+		pr_err("%s: musb core is yest yet ready\n", __func__);
 		return -EPROBE_DEFER;
 	}
 
@@ -188,7 +188,7 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 	}
 	pm_runtime_mark_last_busy(musb->controller);
 	pm_runtime_put_autosuspend(musb->controller);
-	atomic_notifier_call_chain(&musb->xceiv->notifier,
+	atomic_yestifier_call_chain(&musb->xceiv->yestifier,
 			musb->xceiv->last_event, NULL);
 }
 
@@ -236,7 +236,7 @@ static int omap2430_musb_init(struct musb *musb)
 	 */
 	musb->phy = devm_phy_get(dev->parent, "usb2-phy");
 
-	/* We can't totally remove musb->xceiv as of now because
+	/* We can't totally remove musb->xceiv as of yesw because
 	 * musb core uses xceiv.state and xceiv.otg. Once we have
 	 * a separate state machine to handle otg, these can be moved
 	 * out of xceiv and then we can start using the generic PHY
@@ -250,12 +250,12 @@ static int omap2430_musb_init(struct musb *musb)
 		if (status == -ENXIO)
 			return status;
 
-		dev_dbg(dev, "HS USB OTG: no transceiver configured\n");
+		dev_dbg(dev, "HS USB OTG: yes transceiver configured\n");
 		return -EPROBE_DEFER;
 	}
 
 	if (IS_ERR(musb->phy)) {
-		dev_err(dev, "HS USB OTG: no PHY configured\n");
+		dev_err(dev, "HS USB OTG: yes PHY configured\n");
 		return PTR_ERR(musb->phy);
 	}
 	musb->isr = omap2430_musb_interrupt;
@@ -378,9 +378,9 @@ static int omap2430_probe(struct platform_device *pdev)
 	struct omap_musb_board_data	*data;
 	struct platform_device		*musb;
 	struct omap2430_glue		*glue;
-	struct device_node		*np = pdev->dev.of_node;
+	struct device_yesde		*np = pdev->dev.of_yesde;
 	struct musb_hdrc_config		*config;
-	struct device_node		*control_node;
+	struct device_yesde		*control_yesde;
 	struct platform_device		*control_pdev;
 	int				ret = -ENOMEM, val;
 
@@ -432,9 +432,9 @@ static int omap2430_probe(struct platform_device *pdev)
 	pdata->board_data	= data;
 	pdata->config		= config;
 
-	control_node = of_parse_phandle(np, "ctrl-module", 0);
-	if (control_node) {
-		control_pdev = of_find_device_by_node(control_node);
+	control_yesde = of_parse_phandle(np, "ctrl-module", 0);
+	if (control_yesde) {
+		control_pdev = of_find_device_by_yesde(control_yesde);
 		if (!control_pdev) {
 			dev_err(&pdev->dev, "Failed to get control device\n");
 			ret = -EINVAL;

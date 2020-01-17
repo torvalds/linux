@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <asm/ctl_reg.h>
@@ -48,7 +48,7 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 	cpuhw = this_cpu_ptr(&cpu_cf_events);
 
 	/* Measurement alerts are shared and might happen when the PMU
-	 * is not reserved.  Ignore these alerts in this case. */
+	 * is yest reserved.  Igyesre these alerts in this case. */
 	if (!(cpuhw->flags & PMU_F_RESERVED))
 		return;
 

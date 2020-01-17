@@ -20,4 +20,4 @@ and +- 2 degrees centigrade accuracy.
 Notes
 -----
 
-Currently entering low power standby mode is not supported.
+Currently entering low power standby mode is yest supported.

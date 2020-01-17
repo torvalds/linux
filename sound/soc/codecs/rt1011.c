@@ -1007,7 +1007,7 @@ static SOC_ENUM_SINGLE_DECL(rt1011_tdm1_adc1_loc_enum, RT1011_TDM1_SET_2, 0,
 	rt1011_tdm_l_ch_data_select);
 
 static const char * const rt1011_adc_data_mode_select[] = {
-	"Stereo", "Mono"
+	"Stereo", "Moyes"
 };
 static SOC_ENUM_SINGLE_DECL(rt1011_adc_dout_mode_enum, RT1011_TDM1_SET_1, 12,
 	rt1011_adc_data_mode_select);
@@ -1767,7 +1767,7 @@ static int rt1011_set_component_pll(struct snd_soc_component *component,
 			RT1011_PLL1_SRC_MASK, RT1011_PLL1_SRC_PLL2);
 		break;
 	default:
-		dev_err(component->dev, "Unknown PLL Source %d\n", source);
+		dev_err(component->dev, "Unkyeswn PLL Source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -2121,7 +2121,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt1011 = {
 	.set_pll = rt1011_set_component_pll,
 	.use_pmdown_time = 1,
 	.endianness = 1,
-	.non_legacy_dai_naming = 1,
+	.yesn_legacy_dai_naming = 1,
 };
 
 static const struct regmap_config rt1011_regmap = {
@@ -2403,7 +2403,7 @@ static int rt1011_i2c_probe(struct i2c_client *i2c,
 	regmap_read(rt1011->regmap, RT1011_DEVICE_ID, &val);
 	if (val != RT1011_DEVICE_ID_NUM) {
 		dev_err(&i2c->dev,
-			"Device with ID register %x is not rt1011\n", val);
+			"Device with ID register %x is yest rt1011\n", val);
 		return -ENODEV;
 	}
 

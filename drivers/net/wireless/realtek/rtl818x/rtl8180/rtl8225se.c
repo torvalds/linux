@@ -269,7 +269,7 @@ void rtl8225se_rf_init(struct ieee80211_hw *dev)
 		d_cut = 1;
 
 	wiphy_info(dev->wiphy, "RTL8225-SE version %s\n",
-		d_cut ? "D" : "not-D");
+		d_cut ? "D" : "yest-D");
 
 	/* Page 0: reg 0 - 15 */
 	rtl8187se_rf_writereg(dev, 0x00, 0x009F); mdelay(1);

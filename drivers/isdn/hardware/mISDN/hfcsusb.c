@@ -400,7 +400,7 @@ hfc_l1callback(struct dchannel *dch, u_int cmd)
 		break;
 	default:
 		if (dch->debug & DEBUG_HW)
-			printk(KERN_DEBUG "%s: %s: unknown cmd %x\n",
+			printk(KERN_DEBUG "%s: %s: unkyeswn cmd %x\n",
 			       hw->name, __func__, cmd);
 		return -1;
 	}
@@ -457,7 +457,7 @@ open_dchannel(struct hfcsusb *hw, struct mISDNchannel *ch,
 			    0, NULL, GFP_KERNEL);
 	rq->ch = ch;
 	if (!try_module_get(THIS_MODULE))
-		printk(KERN_WARNING "%s: %s: cannot get module\n",
+		printk(KERN_WARNING "%s: %s: canyest get module\n",
 		       hw->name, __func__);
 	return 0;
 }
@@ -483,7 +483,7 @@ open_bchannel(struct hfcsusb *hw, struct channel_req *rq)
 	rq->ch = &bch->ch;
 
 	if (!try_module_get(THIS_MODULE))
-		printk(KERN_WARNING "%s: %s:cannot get module\n",
+		printk(KERN_WARNING "%s: %s:canyest get module\n",
 		       hw->name, __func__);
 	return 0;
 }
@@ -503,7 +503,7 @@ channel_ctrl(struct hfcsusb *hw, struct mISDN_ctrl_req *cq)
 			MISDN_CTRL_DISCONNECT;
 		break;
 	default:
-		printk(KERN_WARNING "%s: %s: unknown Op %x\n",
+		printk(KERN_WARNING "%s: %s: unkyeswn Op %x\n",
 		       hw->name, __func__, cq->op);
 		ret = -EINVAL;
 		break;
@@ -557,7 +557,7 @@ hfc_dctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		break;
 	default:
 		if (dch->debug & DEBUG_HW)
-			printk(KERN_DEBUG "%s: %s: unknown command %x\n",
+			printk(KERN_DEBUG "%s: %s: unkyeswn command %x\n",
 			       hw->name, __func__, cmd);
 		return -EINVAL;
 	}
@@ -715,7 +715,7 @@ hfcsusb_setup_bch(struct bchannel *bch, int protocol)
 		break;
 	default:
 		if (debug & DEBUG_HW)
-			printk(KERN_DEBUG "%s: %s: prot not known %x\n",
+			printk(KERN_DEBUG "%s: %s: prot yest kyeswn %x\n",
 			       hw->name, __func__, protocol);
 		return -ENOPROTOOPT;
 	}
@@ -1185,7 +1185,7 @@ tx_iso_complete(struct urb *urb)
 		    test_bit(FLG_FILLEMPTY, &fifo->bch->Flags))
 			fillempty = 1;
 	} else {
-		printk(KERN_DEBUG "%s: %s: neither BCH nor DCH\n",
+		printk(KERN_DEBUG "%s: %s: neither BCH yesr DCH\n",
 		       hw->name, __func__);
 		spin_unlock_irqrestore(&hw->lock, flags);
 		return;
@@ -1243,7 +1243,7 @@ tx_iso_complete(struct urb *urb)
 			if (tx_skb)
 				remain = tx_skb->len - *tx_idx;
 			else if (fillempty)
-				remain = 15; /* > not complete */
+				remain = 15; /* > yest complete */
 			else
 				remain = 0;
 
@@ -1710,7 +1710,7 @@ setup_hfcsusb(struct hfcsusb *hw)
 
 	/* check the chip id */
 	if (ret != 1) {
-		printk(KERN_DEBUG "%s: %s: cannot read chip id\n",
+		printk(KERN_DEBUG "%s: %s: canyest read chip id\n",
 		       hw->name, __func__);
 		return 1;
 	}
@@ -1825,7 +1825,7 @@ hfc_bctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 		ret = channel_bctrl(bch, arg);
 		break;
 	default:
-		printk(KERN_WARNING "%s: unknown prim(%x)\n",
+		printk(KERN_WARNING "%s: unkyeswn prim(%x)\n",
 		       __func__, cmd);
 	}
 	return ret;
@@ -1931,13 +1931,13 @@ hfcsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	}
 
 	printk(KERN_DEBUG
-	       "%s: interface(%d) actalt(%d) minor(%d) vend_idx(%d)\n",
+	       "%s: interface(%d) actalt(%d) miyesr(%d) vend_idx(%d)\n",
 	       __func__, ifnum, iface->desc.bAlternateSetting,
-	       intf->minor, vend_idx);
+	       intf->miyesr, vend_idx);
 
 	if (vend_idx == 0xffff) {
 		printk(KERN_WARNING
-		       "%s: no valid vendor found in USB descriptor\n",
+		       "%s: yes valid vendor found in USB descriptor\n",
 		       __func__);
 		return -EIO;
 	}
@@ -2010,14 +2010,14 @@ hfcsusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		alt_idx++;
 	}	/* (alt_idx < intf->num_altsetting) */
 
-	/* not found a valid USB Ta Endpoint config */
+	/* yest found a valid USB Ta Endpoint config */
 	if (small_match == -1)
 		return -EIO;
 
 	iface = iface_used;
 	hw = kzalloc(sizeof(struct hfcsusb), GFP_KERNEL);
 	if (!hw)
-		return -ENOMEM;	/* got no mem */
+		return -ENOMEM;	/* got yes mem */
 	snprintf(hw->name, MISDN_MAX_IDLEN - 1, "%s", DRIVER_NAME);
 
 	ep = iface->endpoint;

@@ -24,7 +24,7 @@
  * Location of bootsector on partition:
  *	The standard NTFS_BOOT_SECTOR is on sector 0 of the partition.
  *	On NT4 and above there is one backup copy of the boot sector to
- *	be found on the last sector of the partition (not normally accessible
+ *	be found on the last sector of the partition (yest yesrmally accessible
  *	from within Windows as the bootsector contained number of sectors
  *	value is one less than the actual value!).
  *	On versions of NT 3.51 and earlier, the backup copy was located at
@@ -105,7 +105,7 @@ enum {
 						       transfer was detected. */
 	/*
 	 * Found in $LogFile/$DATA when a page is full of 0xff bytes and is
-	 * thus not initialized.  Page must be initialized before using it.
+	 * thus yest initialized.  Page must be initialized before using it.
 	 */
 	magic_empty = cpu_to_le32(0xffffffff) /* Record is empty. */
 };
@@ -160,9 +160,9 @@ static inline bool __ntfs_is_magicp(le32 *p, NTFS_RECORD_TYPE r)
  * to the end of each sector protected by the update sequence record in which
  * this array is contained. Note that the first entry is the Update Sequence
  * Number (usn), a cyclic counter of how many times the protected record has
- * been written to disk. The values 0 and -1 (ie. 0xffff) are not used. All
+ * been written to disk. The values 0 and -1 (ie. 0xffff) are yest used. All
  * last le16's of each sector have to be equal to the usn (during reading) or
- * are set to it (during writing). If they are not, an incomplete multi sector
+ * are set to it (during writing). If they are yest, an incomplete multi sector
  * transfer has occurred when the data was written.
  * The maximum size for the update sequence array is fixed to:
  *	maximum size = usa_ofs + (usa_count * 2) = 510 bytes
@@ -209,7 +209,7 @@ typedef enum {
 				   data attribute. */
 	FILE_Boot      = 7,	/* Boot sector (always at cluster 0) in data
 				   attribute. */
-	FILE_BadClus   = 8,	/* Contains all bad clusters in the non-resident
+	FILE_BadClus   = 8,	/* Contains all bad clusters in the yesn-resident
 				   data attribute. */
 	FILE_Secure    = 9,	/* Shared security descriptors in data attribute
 				   and two indexes into the descriptors.
@@ -225,11 +225,11 @@ typedef enum {
 	FILE_reserved14 = 14,
 	FILE_reserved15 = 15,
 	FILE_first_user = 16,	/* First user file, used as test limit for
-				   whether to allow opening a file or not. */
+				   whether to allow opening a file or yest. */
 } NTFS_SYSTEM_FILES;
 
 /*
- * These are the so far known MFT_RECORD_* flags (16-bit) which contain
+ * These are the so far kyeswn MFT_RECORD_* flags (16-bit) which contain
  * information about the mft record in which they are present.
  */
 enum {
@@ -253,27 +253,27 @@ typedef le16 MFT_RECORD_FLAGS;
  * sequence number of the mft record being referenced, otherwise the reference
  * is considered stale and removed (FIXME: only ntfsck or the driver itself?).
  *
- * If the sequence number is zero it is assumed that no sequence number
+ * If the sequence number is zero it is assumed that yes sequence number
  * consistency checking should be performed.
  *
- * FIXME: Since inodes are 32-bit as of now, the driver needs to always check
- * for high_part being 0 and if not either BUG(), cause a panic() or handle
+ * FIXME: Since iyesdes are 32-bit as of yesw, the driver needs to always check
+ * for high_part being 0 and if yest either BUG(), cause a panic() or handle
  * the situation in some other way. This shouldn't be a problem as a volume has
  * to become HUGE in order to need more than 32-bits worth of mft records.
  * Assuming the standard mft record size of 1kb only the records (never mind
- * the non-resident attributes, etc.) would require 4Tb of space on their own
+ * the yesn-resident attributes, etc.) would require 4Tb of space on their own
  * for the first 32 bits worth of records. This is only if some strange person
  * doesn't decide to foul play and make the mft sparse which would be a really
  * horrible thing to do as it would trash our current driver implementation. )-:
- * Do I hear screams "we want 64-bit inodes!" ?!? (-;
+ * Do I hear screams "we want 64-bit iyesdes!" ?!? (-;
  *
  * FIXME: The mft zone is defined as the first 12% of the volume. This space is
  * reserved so that the mft can grow contiguously and hence doesn't become
  * fragmented. Volume free space includes the empty part of the mft zone and
  * when the volume's free 88% are used up, the mft zone is shrunk by a factor
  * of 2, thus making more space available for more files/data. This process is
- * repeated every time there is no more free space except for the mft zone until
- * there really is no more free space.
+ * repeated every time there is yes more free space except for the mft zone until
+ * there really is yes more free space.
  */
 
 /*
@@ -306,7 +306,7 @@ typedef le64 leMFT_REF;
  * The mft record header present at the beginning of every record in the mft.
  * This is followed by a sequence of variable length attribute records which
  * is terminated by an attribute of type AT_END which is a truncated attribute
- * in that it only consists of the attribute type code AT_END and none of the
+ * in that it only consists of the attribute type code AT_END and yesne of the
  * other members of the attribute structure are present.
  */
 typedef struct {
@@ -345,7 +345,7 @@ typedef struct {
 				   record. This should be equal to the mft
 				   record size. */
 /* 32*/	leMFT_REF base_mft_record;/* This is zero for base mft records.
-				   When it is not zero it is a mft reference
+				   When it is yest zero it is a mft reference
 				   pointing to the base mft record to which
 				   this record belongs (this is then used to
 				   locate the attribute list attribute present
@@ -354,7 +354,7 @@ typedef struct {
 				   modification when the extension record
 				   itself is modified, also locating the
 				   attribute list also means finding the other
-				   potential extents, belonging to the non-base
+				   potential extents, belonging to the yesn-base
 				   mft record). */
 /* 40*/	le16 next_attr_instance;/* The instance number that will be assigned to
 				   the next attribute added to this mft record.
@@ -414,7 +414,7 @@ typedef struct {
 				   record. This should be equal to the mft
 				   record size. */
 /* 32*/	leMFT_REF base_mft_record;/* This is zero for base mft records.
-				   When it is not zero it is a mft reference
+				   When it is yest zero it is a mft reference
 				   pointing to the base mft record to which
 				   this record belongs (this is then used to
 				   locate the attribute list attribute present
@@ -423,7 +423,7 @@ typedef struct {
 				   modification when the extension record
 				   itself is modified, also locating the
 				   attribute list also means finding the other
-				   potential extents, belonging to the non-base
+				   potential extents, belonging to the yesn-base
 				   mft record). */
 /* 40*/	le16 next_attr_instance;/* The instance number that will be assigned to
 				   the next attribute added to this mft record.
@@ -448,8 +448,8 @@ typedef struct {
  * attribute name (Unicode string of maximum 64 character length) as described
  * by the attribute definitions present in the data attribute of the $AttrDef
  * system file.  On NTFS 3.0 volumes the names are just as the types are named
- * in the below defines exchanging AT_ for the dollar sign ($).  If that is not
- * a revealing choice of symbol I do not know what is... (-;
+ * in the below defines exchanging AT_ for the dollar sign ($).  If that is yest
+ * a revealing choice of symbol I do yest kyesw what is... (-;
  */
 enum {
 	AT_UNUSED			= cpu_to_le32(         0),
@@ -484,11 +484,11 @@ typedef le32 ATTR_TYPE;
  *	Unicode values, except that when a character can be uppercased, the
  *	upper case value collates before the lower case one.
  * COLLATION_FILE_NAME - Collate file names as Unicode strings. The collation
- *	is done very much like COLLATION_UNICODE_STRING. In fact I have no idea
+ *	is done very much like COLLATION_UNICODE_STRING. In fact I have yes idea
  *	what the difference is. Perhaps the difference is that file names
  *	would treat some special characters in an odd way (see
  *	unistr.c::ntfs_collate_names() and unistr.c::legal_ansi_char_array[]
- *	for what I mean but COLLATION_UNICODE_STRING would not give any special
+ *	for what I mean but COLLATION_UNICODE_STRING would yest give any special
  *	treatment to any characters at all, but this is speculation.
  * COLLATION_NTOFS_ULONG - Sorting is done according to ascending le32 key
  *	values. E.g. used for $SII index in FILE_Secure, which sorts by
@@ -528,7 +528,7 @@ typedef le32 COLLATION_RULE;
 /*
  * The flags (32-bit) describing attribute properties in the attribute
  * definition structure.  FIXME: This information is based on Regis's
- * information and, according to him, it is not certain and probably
+ * information and, according to him, it is yest certain and probably
  * incomplete.  The INDEXABLE flag is fairly certainly correct as only the file
  * name attribute has this flag set and this is the only attribute indexed in
  * NT4.
@@ -538,24 +538,24 @@ enum {
 					indexed. */
 	ATTR_DEF_MULTIPLE	= cpu_to_le32(0x04), /* Attribute type
 					can be present multiple times in the
-					mft records of an inode. */
+					mft records of an iyesde. */
 	ATTR_DEF_NOT_ZERO	= cpu_to_le32(0x08), /* Attribute value
-					must contain at least one non-zero
+					must contain at least one yesn-zero
 					byte. */
 	ATTR_DEF_INDEXED_UNIQUE	= cpu_to_le32(0x10), /* Attribute must be
 					indexed and the attribute value must be
 					unique for the attribute type in all of
-					the mft records of an inode. */
+					the mft records of an iyesde. */
 	ATTR_DEF_NAMED_UNIQUE	= cpu_to_le32(0x20), /* Attribute must be
 					named and the name must be unique for
 					the attribute type in all of the mft
-					records of an inode. */
+					records of an iyesde. */
 	ATTR_DEF_RESIDENT	= cpu_to_le32(0x40), /* Attribute must be
 					resident. */
 	ATTR_DEF_ALWAYS_LOG	= cpu_to_le32(0x80), /* Always log
 					modifications to this attribute,
 					regardless of whether it is resident or
-					non-resident.  Without this, only log
+					yesn-resident.  Without this, only log
 					modifications if the attribute is
 					resident. */
 };
@@ -566,10 +566,10 @@ typedef le32 ATTR_DEF_FLAGS;
  * The data attribute of FILE_AttrDef contains a sequence of attribute
  * definitions for the NTFS volume. With this, it is supposed to be safe for an
  * older NTFS driver to mount a volume containing a newer NTFS version without
- * damaging it (that's the theory. In practice it's: not damaging it too much).
+ * damaging it (that's the theory. In practice it's: yest damaging it too much).
  * Entries are sorted by attribute type. The flags describe whether the
- * attribute can be resident/non-resident and possibly other things, but the
- * actual bits are unknown.
+ * attribute can be resident/yesn-resident and possibly other things, but the
+ * actual bits are unkyeswn.
  */
 typedef struct {
 /*hex ofs*/
@@ -604,12 +604,12 @@ typedef le16 ATTR_FLAGS;
  *
  * Only the data attribute is ever compressed in the current ntfs driver in
  * Windows. Further, compression is only applied when the data attribute is
- * non-resident. Finally, to use compression, the maximum allowed cluster size
+ * yesn-resident. Finally, to use compression, the maximum allowed cluster size
  * on a volume is 4kib.
  *
  * The compression method is based on independently compressing blocks of X
  * clusters, where X is determined from the compression_unit value found in the
- * non-resident attribute record header (more precisely: X = 2^compression_unit
+ * yesn-resident attribute record header (more precisely: X = 2^compression_unit
  * clusters). On Windows NT/2k, X always is 16 clusters (compression_unit = 4).
  *
  * There are three different cases of how a compression block of X clusters
@@ -618,26 +618,26 @@ typedef le16 ATTR_FLAGS;
  *   1) The data in the block is all zero (a sparse block):
  *	  This is stored as a sparse block in the runlist, i.e. the runlist
  *	  entry has length = X and lcn = -1. The mapping pairs array actually
- *	  uses a delta_lcn value length of 0, i.e. delta_lcn is not present at
+ *	  uses a delta_lcn value length of 0, i.e. delta_lcn is yest present at
  *	  all, which is then interpreted by the driver as lcn = -1.
  *	  NOTE: Even uncompressed files can be sparse on NTFS 3.0 volumes, then
- *	  the same principles apply as above, except that the length is not
+ *	  the same principles apply as above, except that the length is yest
  *	  restricted to being any particular value.
  *
- *   2) The data in the block is not compressed:
+ *   2) The data in the block is yest compressed:
  *	  This happens when compression doesn't reduce the size of the block
  *	  in clusters. I.e. if compression has a small effect so that the
  *	  compressed data still occupies X clusters, then the uncompressed data
  *	  is stored in the block.
  *	  This case is recognised by the fact that the runlist entry has
  *	  length = X and lcn >= 0. The mapping pairs array stores this as
- *	  normal with a run length of X and some specific delta_lcn, i.e.
+ *	  yesrmal with a run length of X and some specific delta_lcn, i.e.
  *	  delta_lcn has to be present.
  *
  *   3) The data in the block is compressed:
  *	  The common case. This case is recognised by the fact that the run
  *	  list entry has length L < X and lcn >= 0. The mapping pairs array
- *	  stores this as normal with a run length of X and some specific
+ *	  stores this as yesrmal with a run length of X and some specific
  *	  delta_lcn, i.e. delta_lcn has to be present. This runlist entry is
  *	  immediately followed by a sparse entry with length = X - L and
  *	  lcn = -1. The latter entry is to make up the vcn counting to the
@@ -648,19 +648,19 @@ typedef le16 ATTR_FLAGS;
  * clusters handled and work on a basis of X clusters at a time being one
  * block. An example: if length L > X this means that this particular runlist
  * entry contains a block of length X and part of one or more blocks of length
- * L - X. Another example: if length L < X, this does not necessarily mean that
+ * L - X. Ayesther example: if length L < X, this does yest necessarily mean that
  * the block is compressed as it might be that the lcn changes inside the block
  * and hence the following runlist entry describes the continuation of the
  * potentially compressed block. The block would be compressed if the
  * following runlist entry describes at least X - L sparse clusters, thus
  * making up the compression block length as described in point 3 above. (Of
  * course, there can be several runlist entries with small lengths so that the
- * sparse entry does not follow the first data containing entry with
+ * sparse entry does yest follow the first data containing entry with
  * length < X.)
  *
- * NOTE: At the end of the compressed attribute value, there most likely is not
+ * NOTE: At the end of the compressed attribute value, there most likely is yest
  * just the right amount of data to make up a compression block, thus this data
- * is not even attempted to be compressed. It is just stored as is, unless
+ * is yest even attempted to be compressed. It is just stored as is, unless
  * the number of clusters it occupies is reduced when compressed in which case
  * it is stored as a compressed compression block, complete with sparse
  * clusters at the end.
@@ -686,8 +686,8 @@ typedef struct {
 /*  4*/	le32 length;		/* Byte size of the resident part of the
 				   attribute (aligned to 8-byte boundary).
 				   Used to get to the next attribute. */
-/*  8*/	u8 non_resident;	/* If 0, attribute is resident.
-				   If 1, attribute is non-resident. */
+/*  8*/	u8 yesn_resident;	/* If 0, attribute is resident.
+				   If 1, attribute is yesn-resident. */
 /*  9*/	u8 name_length;		/* Unicode character size of name of attribute.
 				   0 if unnamed. */
 /* 10*/	le16 name_offset;	/* If name_length != 0, the byte offset to the
@@ -696,13 +696,13 @@ typedef struct {
 				   Unicode string. When creating, place offset
 				   just at the end of the record header. Then,
 				   follow with attribute value or mapping pairs
-				   array, resident and non-resident attributes
+				   array, resident and yesn-resident attributes
 				   respectively, aligning to an 8-byte
 				   boundary. */
 /* 12*/	ATTR_FLAGS flags;	/* Flags describing the attribute. */
 /* 14*/	le16 instance;		/* The instance of this attribute record. This
 				   number is unique within this mft record (see
-				   MFT_RECORD/next_attribute_instance notes in
+				   MFT_RECORD/next_attribute_instance yestes in
 				   in mft.h for more details). */
 /* 16*/	union {
 		/* Resident attributes. */
@@ -713,7 +713,7 @@ typedef struct {
 					     attribute record. When creating,
 					     align to 8-byte boundary if we
 					     have a name present as this might
-					     not have a length of a multiple
+					     yest have a length of a multiple
 					     of 8-bytes. */
 /* 22 */		RESIDENT_ATTR_FLAGS flags; /* See above. */
 /* 23 */		s8 reserved;	  /* Reserved/alignment to 8-byte
@@ -740,7 +740,7 @@ typedef struct {
 				record header aligned to 8-byte boundary. */
 /* 34*/			u8 compression_unit; /* The compression unit expressed
 				as the log to the base 2 of the number of
-				clusters in a compression unit.  0 means not
+				clusters in a compression unit.  0 means yest
 				compressed.  (This effectively limits the
 				compression unit size to be a power of two
 				clusters.)  WinNT4 only uses a value of 4.
@@ -769,7 +769,7 @@ typedef struct {
 				the cluster size.  Represents the actual amount
 				of disk space being used on the disk. */
 /* sizeof(compressed attr) = 72*/
-		} __attribute__ ((__packed__)) non_resident;
+		} __attribute__ ((__packed__)) yesn_resident;
 	} __attribute__ ((__packed__)) data;
 } __attribute__ ((__packed__)) ATTR_RECORD;
 
@@ -792,7 +792,7 @@ enum {
 	/* Old DOS volid. Unused in NT.	= cpu_to_le32(0x00000008), */
 
 	FILE_ATTR_DIRECTORY		= cpu_to_le32(0x00000010),
-	/* Note, FILE_ATTR_DIRECTORY is not considered valid in NT.  It is
+	/* Note, FILE_ATTR_DIRECTORY is yest considered valid in NT.  It is
 	   reserved for the DOS SUBDIRECTORY flag. */
 	FILE_ATTR_ARCHIVE		= cpu_to_le32(0x00000020),
 	FILE_ATTR_DEVICE		= cpu_to_le32(0x00000040),
@@ -818,13 +818,13 @@ enum {
 	   is used to obtain all flags that are valid for setting. */
 	/*
 	 * The flag FILE_ATTR_DUP_FILENAME_INDEX_PRESENT is present in all
-	 * FILENAME_ATTR attributes but not in the STANDARD_INFORMATION
+	 * FILENAME_ATTR attributes but yest in the STANDARD_INFORMATION
 	 * attribute of an mft record.
 	 */
 	FILE_ATTR_DUP_FILE_NAME_INDEX_PRESENT	= cpu_to_le32(0x10000000),
 	/* Note, this is a copy of the corresponding bit from the mft record,
-	   telling us whether this is a directory or not, i.e. whether it has
-	   an index root attribute or not. */
+	   telling us whether this is a directory or yest, i.e. whether it has
+	   an index root attribute or yest. */
 	FILE_ATTR_DUP_VIEW_INDEX_PRESENT	= cpu_to_le32(0x20000000),
 	/* Note, this is a copy of the corresponding bit from the mft record,
 	   telling us whether this file has a view index present (eg. object id
@@ -836,7 +836,7 @@ typedef le32 FILE_ATTR_FLAGS;
 
 /*
  * NOTE on times in NTFS: All times are in MS standard time format, i.e. they
- * are the number of 100-nanosecond intervals since 1st January 1601, 00:00:00
+ * are the number of 100-nayessecond intervals since 1st January 1601, 00:00:00
  * universal coordinated time (UTC). (In Linux time starts 1st January 1970,
  * 00:00:00 UTC and is stored as the number of 1-second intervals since then.)
  */
@@ -860,7 +860,7 @@ typedef struct {
 /* 16*/	sle64 last_mft_change_time;	/* Time this mft record was last
 					   modified. */
 /* 24*/	sle64 last_access_time;		/* Approximate time when the file was
-					   last accessed (obviously this is not
+					   last accessed (obviously this is yest
 					   updated on read-only volumes). In
 					   Windows this is only updated when
 					   accessed if some time delta has
@@ -916,7 +916,7 @@ typedef struct {
 				of the file.  This is a direct index into the
 				transaction log file ($UsnJrnl).  It is zero if
 				the usn journal is disabled or this file has
-				not been subject to logging yet.  See usnjrnl.h
+				yest been subject to logging yet.  See usnjrnl.h
 				for details. */
 		} __attribute__ ((__packed__)) v3;
 	/* sizeof() = 72 bytes (NTFS 3.x) */
@@ -926,32 +926,32 @@ typedef struct {
 /*
  * Attribute: Attribute list (0x20).
  *
- * - Can be either resident or non-resident.
+ * - Can be either resident or yesn-resident.
  * - Value consists of a sequence of variable length, 8-byte aligned,
  * ATTR_LIST_ENTRY records.
- * - The list is not terminated by anything at all! The only way to know when
+ * - The list is yest terminated by anything at all! The only way to kyesw when
  * the end is reached is to keep track of the current offset and compare it to
  * the attribute value size.
  * - The attribute list attribute contains one entry for each attribute of
  * the file in which the list is located, except for the list attribute
  * itself. The list is sorted: first by attribute type, second by attribute
  * name (if present), third by instance number. The extents of one
- * non-resident attribute (if present) immediately follow after the initial
+ * yesn-resident attribute (if present) immediately follow after the initial
  * extent. They are ordered by lowest_vcn and have their instace set to zero.
- * It is not allowed to have two attributes with all sorting keys equal.
+ * It is yest allowed to have two attributes with all sorting keys equal.
  * - Further restrictions:
- *	- If not resident, the vcn to lcn mapping array has to fit inside the
+ *	- If yest resident, the vcn to lcn mapping array has to fit inside the
  *	  base mft record.
  *	- The attribute list attribute value has a maximum size of 256kb. This
  *	  is imposed by the Windows cache manager.
- * - Attribute lists are only used when the attributes of mft record do not
+ * - Attribute lists are only used when the attributes of mft record do yest
  * fit inside the mft record despite all attributes (that can be made
- * non-resident) having been made non-resident. This can happen e.g. when:
+ * yesn-resident) having been made yesn-resident. This can happen e.g. when:
  *	- File has a large number of hard links (lots of file name
  *	  attributes present).
- *	- The mapping pairs array of some non-resident attribute becomes so
+ *	- The mapping pairs array of some yesn-resident attribute becomes so
  *	  large due to fragmentation that it overflows the mft record.
- *	- The security descriptor is very complex (not applicable to
+ *	- The security descriptor is very complex (yest applicable to
  *	  NTFS 3.0 volumes).
  *	- There are many named streams.
  */
@@ -966,8 +966,8 @@ typedef struct {
 				   start even if unnamed). */
 /*  8*/	leVCN lowest_vcn;	/* Lowest virtual cluster number of this portion
 				   of the attribute value. This is usually 0. It
-				   is non-zero for the case where one attribute
-				   does not fit into one mft record and thus
+				   is yesn-zero for the case where one attribute
+				   does yest fit into one mft record and thus
 				   several mft records are allocated to hold
 				   this attribute. In the latter case, each mft
 				   record holds one extent of the attribute and
@@ -1000,20 +1000,20 @@ enum {
 	/* This is the largest namespace. It is case sensitive and allows all
 	   Unicode characters except for: '\0' and '/'.  Beware that in
 	   WinNT/2k/2003 by default files which eg have the same name except
-	   for their case will not be distinguished by the standard utilities
+	   for their case will yest be distinguished by the standard utilities
 	   and thus a "del filename" will delete both "filename" and "fileName"
 	   without warning.  However if for example Services For Unix (SFU) are
 	   installed and the case sensitive option was enabled at installation
 	   time, then you can create/access/delete such files.
 	   Note that even SFU places restrictions on the filenames beyond the
 	   '\0' and '/' and in particular the following set of characters is
-	   not allowed: '"', '/', '<', '>', '\'.  All other characters,
-	   including the ones no allowed in WIN32 namespace are allowed.
-	   Tested with SFU 3.5 (this is now free) running on Windows XP. */
+	   yest allowed: '"', '/', '<', '>', '\'.  All other characters,
+	   including the ones yes allowed in WIN32 namespace are allowed.
+	   Tested with SFU 3.5 (this is yesw free) running on Windows XP. */
 	FILE_NAME_WIN32		= 0x01,
 	/* The standard WinNT/2k NTFS long filenames. Case insensitive.  All
 	   Unicode chars except: '\0', '"', '*', '/', ':', '<', '>', '?', '\',
-	   and '|'.  Further, names cannot end with a '.' or a space. */
+	   and '|'.  Further, names canyest end with a '.' or a space. */
 	FILE_NAME_DOS		= 0x02,
 	/* The standard DOS filenames (8.3 format). Uppercase only.  All 8-bit
 	   characters greater space, except: '"', '*', '+', ',', '/', ':', ';',
@@ -1051,19 +1051,19 @@ typedef struct {
 					   accessed. */
 /* 28*/	sle64 allocated_size;		/* Byte size of on-disk allocated space
 					   for the unnamed data attribute.  So
-					   for normal $DATA, this is the
+					   for yesrmal $DATA, this is the
 					   allocated_size from the unnamed
 					   $DATA attribute and for compressed
 					   and/or sparse $DATA, this is the
 					   compressed_size from the unnamed
 					   $DATA attribute.  For a directory or
-					   other inode without an unnamed $DATA
+					   other iyesde without an unnamed $DATA
 					   attribute, this is always 0.  NOTE:
 					   This is a multiple of the cluster
 					   size. */
 /* 30*/	sle64 data_size;		/* Byte size of actual data in unnamed
 					   data attribute.  For a directory or
-					   other inode without an unnamed $DATA
+					   other iyesde without an unnamed $DATA
 					   attribute, this is always 0. */
 /* 38*/	FILE_ATTR_FLAGS file_attributes;	/* Flags describing the file. */
 /* 3c*/	union {
@@ -1077,7 +1077,7 @@ typedef struct {
 		/* 3c*/	le32 reparse_point_tag;	/* Type of reparse point,
 						   present only in reparse
 						   points and only if there are
-						   no EAs. */
+						   yes EAs. */
 		} __attribute__ ((__packed__)) rp;
 	} __attribute__ ((__packed__)) type;
 /* 40*/	u8 file_name_length;			/* Length of file name in
@@ -1137,9 +1137,9 @@ typedef struct {
 	GUID object_id;				/* Unique id assigned to the
 						   file.*/
 	/* The following fields are optional. The attribute value size is 16
-	   bytes, i.e. sizeof(GUID), if these are not present at all. Note,
+	   bytes, i.e. sizeof(GUID), if these are yest present at all. Note,
 	   the entries can be present but one or more (or all) can be zero
-	   meaning that that particular value(s) is(are) not defined. */
+	   meaning that that particular value(s) is(are) yest defined. */
 	union {
 		struct {
 			GUID birth_volume_id;	/* Unique id of volume on which
@@ -1167,11 +1167,11 @@ typedef struct {
 
 /*
  * These relative identifiers (RIDs) are used with the above identifier
- * authorities to make up universal well-known SIDs.
+ * authorities to make up universal well-kyeswn SIDs.
  *
  * Note: The relative identifier (RID) refers to the portion of a SID, which
  * identifies a user or group in relation to the authority that issued the SID.
- * For example, the universal well-known SID Creator Owner ID (S-1-3-0) is
+ * For example, the universal well-kyeswn SID Creator Owner ID (S-1-3-0) is
  * made up of the identifier authority SECURITY_CREATOR_SID_AUTHORITY (3) and
  * the relative identifier SECURITY_CREATOR_OWNER_RID (0).
  */
@@ -1210,7 +1210,7 @@ typedef enum {					/* Identifier authority. */
 	SECURITY_BUILTIN_DOMAIN_RID	  = 0x20,
 
 	/*
-	 * Well-known domain relative sub-authority values (RIDs).
+	 * Well-kyeswn domain relative sub-authority values (RIDs).
 	 */
 
 	/* Users. */
@@ -1246,7 +1246,7 @@ typedef enum {					/* Identifier authority. */
 } RELATIVE_IDENTIFIERS;
 
 /*
- * The universal well-known SIDs:
+ * The universal well-kyeswn SIDs:
  *
  *	NULL_SID			S-1-0-0
  *	WORLD_SID			S-1-1-0
@@ -1258,7 +1258,7 @@ typedef enum {					/* Identifier authority. */
  *
  *	(Non-unique IDs)		S-1-4
  *
- * NT well-known SIDs:
+ * NT well-kyeswn SIDs:
  *
  *	NT_AUTHORITY_SID	S-1-5
  *	DIALUP_SID		S-1-5-1
@@ -1277,7 +1277,7 @@ typedef enum {					/* Identifier authority. */
  *
  *	(Logon IDs)		S-1-5-5-X-Y
  *
- *	(NT non-unique IDs)	S-1-5-0x15-...
+ *	(NT yesn-unique IDs)	S-1-5-0x15-...
  *
  *	(Built-in domain)	S-1-5-0x20
  */
@@ -1468,7 +1468,7 @@ enum {
 
 	/*
 	 * Right to read the information in the object's security descriptor,
-	 * not including the information in the SACL, i.e. right to read the
+	 * yest including the information in the SACL, i.e. right to read the
 	 * security descriptor and owner.
 	 */
 	READ_CONTROL			= cpu_to_le32(0x00020000),
@@ -1482,7 +1482,7 @@ enum {
 	/*
 	 * Right to use the object for synchronization.  Enables a process to
 	 * wait until the object is in the signalled state.  Some object types
-	 * do not support this access right.
+	 * do yest support this access right.
 	 */
 	SYNCHRONIZE			= cpu_to_le32(0x00100000),
 
@@ -1545,7 +1545,7 @@ enum {
 typedef le32 ACCESS_MASK;
 
 /*
- * The generic mapping array. Used to denote the mapping of each generic
+ * The generic mapping array. Used to deyeste the mapping of each generic
  * access right to a specific access mask.
  *
  * FIXME: What exactly is this and what is it for? (AIA)
@@ -1660,8 +1660,8 @@ typedef enum {
  *	pointed to by the Dacl field was provided by a defaulting mechanism
  *	rather than explicitly provided by the original provider of the
  *	security descriptor.  This may affect the treatment of the ACL with
- *	respect to inheritance of an ACL.  This flag is ignored if the
- *	DaclPresent flag is not set.
+ *	respect to inheritance of an ACL.  This flag is igyesred if the
+ *	DaclPresent flag is yest set.
  *
  * SE_SACL_PRESENT - This boolean flag, when set,  indicates that the security
  *	descriptor contains a system ACL pointed to by the Sacl field.  If this
@@ -1672,8 +1672,8 @@ typedef enum {
  *	pointed to by the Sacl field was provided by a defaulting mechanism
  *	rather than explicitly provided by the original provider of the
  *	security descriptor.  This may affect the treatment of the ACL with
- *	respect to inheritance of an ACL.  This flag is ignored if the
- *	SaclPresent flag is not set.
+ *	respect to inheritance of an ACL.  This flag is igyesred if the
+ *	SaclPresent flag is yest set.
  *
  * SE_SELF_RELATIVE - This boolean flag, when set, indicates that the security
  *	descriptor is in self-relative form.  In this form, all fields of the
@@ -1712,10 +1712,10 @@ typedef struct {
 	SECURITY_DESCRIPTOR_CONTROL control; /* Flags qualifying the type of
 			   the descriptor as well as the following fields. */
 	le32 owner;	/* Byte offset to a SID representing an object's
-			   owner. If this is NULL, no owner SID is present in
+			   owner. If this is NULL, yes owner SID is present in
 			   the descriptor. */
 	le32 group;	/* Byte offset to a SID representing an object's
-			   primary group. If this is NULL, no primary group
+			   primary group. If this is NULL, yes primary group
 			   SID is present in the descriptor. */
 	le32 sacl;	/* Byte offset to a system ACL. Only valid, if
 			   SE_SACL_PRESENT is set in the control field. If
@@ -1729,7 +1729,7 @@ typedef struct {
 } __attribute__ ((__packed__)) SECURITY_DESCRIPTOR_RELATIVE;
 
 /*
- * Absolute security descriptor. Does not contain the owner and group SIDs, nor
+ * Absolute security descriptor. Does yest contain the owner and group SIDs, yesr
  * the sacl and dacl ACLs inside the security descriptor. Instead, it contains
  * pointers to these structures in memory. Obviously, absolute security
  * descriptors are only useful for in memory representations of security
@@ -1741,10 +1741,10 @@ typedef struct {
 	SECURITY_DESCRIPTOR_CONTROL control;	/* Flags qualifying the type of
 			   the descriptor as well as the following fields. */
 	SID *owner;	/* Points to a SID representing an object's owner. If
-			   this is NULL, no owner SID is present in the
+			   this is NULL, yes owner SID is present in the
 			   descriptor. */
 	SID *group;	/* Points to a SID representing an object's primary
-			   group. If this is NULL, no primary group SID is
+			   group. If this is NULL, yes primary group SID is
 			   present in the descriptor. */
 	ACL *sacl;	/* Points to a system ACL. Only valid, if
 			   SE_SACL_PRESENT is set in the control field. If
@@ -1773,7 +1773,7 @@ typedef enum {
  * Attribute: Security descriptor (0x50). A standard self-relative security
  * descriptor.
  *
- * NOTE: Can be resident or non-resident.
+ * NOTE: Can be resident or yesn-resident.
  * NOTE: Not used in NTFS 3.0+, as security descriptors are stored centrally
  * in FILE_Secure and the correct descriptor is found using the security_id
  * from the standard information attribute.
@@ -1784,12 +1784,12 @@ typedef SECURITY_DESCRIPTOR_RELATIVE SECURITY_DESCRIPTOR_ATTR;
  * On NTFS 3.0+, all security descriptors are stored in FILE_Secure. Only one
  * referenced instance of each unique security descriptor is stored.
  *
- * FILE_Secure contains no unnamed data attribute, i.e. it has zero length. It
+ * FILE_Secure contains yes unnamed data attribute, i.e. it has zero length. It
  * does, however, contain two indexes ($SDH and $SII) as well as a named data
  * stream ($SDS).
  *
  * Every unique security descriptor is assigned a unique security identifier
- * (security_id, not to be confused with a SID). The security_id is unique for
+ * (security_id, yest to be confused with a SID). The security_id is unique for
  * the NTFS volume and is used as an index into the $SII index, which maps
  * security_ids to the security descriptor's storage location within the $SDS
  * data attribute. The $SII index is sorted by ascending security_id.
@@ -1798,9 +1798,9 @@ typedef SECURITY_DESCRIPTOR_RELATIVE SECURITY_DESCRIPTOR_ATTR;
  * as an index into the $SDH index, which maps security descriptor hashes to
  * the security descriptor's storage location within the $SDS data attribute.
  * The $SDH index is sorted by security descriptor hash and is stored in a B+
- * tree. When searching $SDH (with the intent of determining whether or not a
+ * tree. When searching $SDH (with the intent of determining whether or yest a
  * new security descriptor is already present in the $SDS data stream), if a
- * matching hash is found, but the security descriptors do not match, the
+ * matching hash is found, but the security descriptors do yest match, the
  * search in the $SDH index is continued, searching for a next matching hash.
  *
  * When a precise match is found, the security_id coresponding to the security
@@ -1810,12 +1810,12 @@ typedef SECURITY_DESCRIPTOR_RELATIVE SECURITY_DESCRIPTOR_ATTR;
  * attribute is present in all base mft records (i.e. in all files and
  * directories).
  *
- * If a match is not found, the security descriptor is assigned a new unique
+ * If a match is yest found, the security descriptor is assigned a new unique
  * security_id and is added to the $SDS data attribute. Then, entries
  * referencing the this security descriptor in the $SDS data attribute are
  * added to the $SDH and $SII indexes.
  *
- * Note: Entries are never deleted from FILE_Secure, even if nothing
+ * Note: Entries are never deleted from FILE_Secure, even if yesthing
  * references an entry any more.
  */
 
@@ -1832,7 +1832,7 @@ typedef struct {
 
 /*
  * The $SDS data stream contains the security descriptors, aligned on 16-byte
- * boundaries, sorted by security_id in a B+ tree. Security descriptors cannot
+ * boundaries, sorted by security_id in a B+ tree. Security descriptors canyest
  * cross 256kib boundaries (this restriction is imposed by the Windows cache
  * manager). Each security descriptor is contained in a SDS_ENTRY structure.
  * Also, each security descriptor is stored twice in the $SDS stream with a
@@ -1915,14 +1915,14 @@ typedef le16 VOLUME_FLAGS;
 typedef struct {
 	le64 reserved;		/* Not used (yet?). */
 	u8 major_ver;		/* Major version of the ntfs format. */
-	u8 minor_ver;		/* Minor version of the ntfs format. */
+	u8 miyesr_ver;		/* Miyesr version of the ntfs format. */
 	VOLUME_FLAGS flags;	/* Bit array of VOLUME_* flags. */
 } __attribute__ ((__packed__)) VOLUME_INFORMATION;
 
 /*
  * Attribute: Data attribute (0x80).
  *
- * NOTE: Can be resident or non-resident.
+ * NOTE: Can be resident or yesn-resident.
  *
  * Data contents of a file (i.e. the unnamed stream) or of a named stream.
  */
@@ -1937,8 +1937,8 @@ enum {
 	/*
 	 * When index header is in an index root attribute:
 	 */
-	SMALL_INDEX = 0, /* The index is small enough to fit inside the index
-			    root attribute and there is no index allocation
+	SMALL_INDEX = 0, /* The index is small eyesugh to fit inside the index
+			    root attribute and there is yes index allocation
 			    attribute present. */
 	LARGE_INDEX = 1, /* The index is too large to fit in the index root
 			    attribute and/or an index allocation attribute is
@@ -1947,10 +1947,10 @@ enum {
 	 * When index header is in an index block, i.e. is part of index
 	 * allocation attribute:
 	 */
-	LEAF_NODE  = 0, /* This is a leaf node, i.e. there are no more nodes
+	LEAF_NODE  = 0, /* This is a leaf yesde, i.e. there are yes more yesdes
 			   branching off it. */
-	INDEX_NODE = 1, /* This node indexes other nodes, i.e. it is not a leaf
-			   node. */
+	INDEX_NODE = 1, /* This yesde indexes other yesdes, i.e. it is yest a leaf
+			   yesde. */
 	NODE_MASK  = 1, /* Mask for accessing the *_NODE bits. */
 } __attribute__ ((__packed__));
 
@@ -1962,7 +1962,7 @@ typedef u8 INDEX_HEADER_FLAGS;
  * make up a complete index.
  *
  * IMPORTANT NOTE: The offset, length and size structure members are counted
- * relative to the start of the index header structure and not relative to the
+ * relative to the start of the index header structure and yest relative to the
  * start of the index root or index allocation structures themselves.
  */
 typedef struct {
@@ -1975,7 +1975,7 @@ typedef struct {
 					   multiple of 8 bytes. */
 	/* NOTE: For the index root attribute, the above two numbers are always
 	   equal, as the attribute is resident and it is resized as needed. In
-	   the case of the index allocation attribute the attribute is not
+	   the case of the index allocation attribute the attribute is yest
 	   resident and hence the allocated_size is a fixed value and must
 	   equal the index_block_size specified by the INDEX_ROOT attribute
 	   corresponding to the INDEX_ALLOCATION attribute this INDEX_BLOCK
@@ -1992,16 +1992,16 @@ typedef struct {
  * This is followed by a sequence of index entries (INDEX_ENTRY structures)
  * as described by the index header.
  *
- * When a directory is small enough to fit inside the index root then this
+ * When a directory is small eyesugh to fit inside the index root then this
  * is the only attribute describing the directory. When the directory is too
  * large to fit in the index root, on the other hand, two additional attributes
- * are present: an index allocation attribute, containing sub-nodes of the B+
+ * are present: an index allocation attribute, containing sub-yesdes of the B+
  * directory tree (see below), and a bitmap attribute, describing which virtual
  * cluster numbers (vcns) in the index allocation attribute are in use by an
  * index block.
  *
  * NOTE: The root directory (FILE_root) contains an entry for itself. Other
- * directories do not contain entries for themselves, though.
+ * directories do yest contain entries for themselves, though.
  */
 typedef struct {
 	ATTR_TYPE type;			/* Type of the indexed attribute. Is
@@ -2029,7 +2029,7 @@ typedef struct {
 /*
  * Attribute: Index allocation (0xa0).
  *
- * NOTE: Always non-resident (doesn't make sense to be resident anyway!).
+ * NOTE: Always yesn-resident (doesn't make sense to be resident anyway!).
  *
  * This is an array of index blocks. Each index block starts with an
  * INDEX_BLOCK structure containing an index header, followed by a sequence of
@@ -2066,11 +2066,11 @@ typedef INDEX_BLOCK INDEX_ALLOCATION;
 /*
  * The system file FILE_Extend/$Reparse contains an index named $R listing
  * all reparse points on the volume. The index entry keys are as defined
- * below. Note, that there is no index data associated with the index entries.
+ * below. Note, that there is yes index data associated with the index entries.
  *
  * The index entries are sorted by the index key file_id. The collation rule is
- * COLLATION_NTOFS_ULONGS. FIXME: Verify whether the reparse_tag is not the
- * primary key / is not a key at all. (AIA)
+ * COLLATION_NTOFS_ULONGS. FIXME: Verify whether the reparse_tag is yest the
+ * primary key / is yest a key at all. (AIA)
  */
 typedef struct {
 	le32 reparse_tag;	/* Reparse point type (inc. flags). */
@@ -2134,13 +2134,13 @@ typedef struct {
 	QUOTA_FLAGS flags;	/* Flags describing this quota entry. */
 	le64 bytes_used;	/* How many bytes of the quota are in use. */
 	sle64 change_time;	/* Last time this quota entry was changed. */
-	sle64 threshold;	/* Soft quota (-1 if not limited). */
-	sle64 limit;		/* Hard quota (-1 if not limited). */
+	sle64 threshold;	/* Soft quota (-1 if yest limited). */
+	sle64 limit;		/* Hard quota (-1 if yest limited). */
 	sle64 exceeded_time;	/* How long the soft quota has been exceeded. */
 	SID sid;		/* The SID of the user/object associated with
 				   this quota entry.  Equals zero for the quota
 				   defaults entry (and in fact on a WinXP
-				   volume, it is not present at all). */
+				   volume, it is yest present at all). */
 } __attribute__ ((__packed__)) QUOTA_CONTROL_ENTRY;
 
 /*
@@ -2165,11 +2165,11 @@ typedef enum {
  */
 enum {
 	INDEX_ENTRY_NODE = cpu_to_le16(1), /* This entry contains a
-			sub-node, i.e. a reference to an index block in form of
+			sub-yesde, i.e. a reference to an index block in form of
 			a virtual cluster number (see below). */
 	INDEX_ENTRY_END  = cpu_to_le16(2), /* This signifies the last
-			entry in an index block.  The index entry does not
-			represent a file but it can point to a sub-node. */
+			entry in an index block.  The index entry does yest
+			represent a file but it can point to a sub-yesde. */
 
 	INDEX_ENTRY_SPACE_FILLER = cpu_to_le16(0xffff), /* gcc: Force
 			enum bit width to 16-bit. */
@@ -2182,7 +2182,7 @@ typedef le16 INDEX_ENTRY_FLAGS;
  */
 typedef struct {
 /*  0*/	union {
-		struct { /* Only valid when INDEX_ENTRY_END is not set. */
+		struct { /* Only valid when INDEX_ENTRY_END is yest set. */
 			leMFT_REF indexed_file;	/* The mft reference of the file
 						   described by this index
 						   entry. Used for directory
@@ -2217,7 +2217,7 @@ typedef struct {
 /*Ofs*/
 /*  0	INDEX_ENTRY_HEADER; -- Unfolded here as gcc dislikes unnamed structs. */
 	union {
-		struct { /* Only valid when INDEX_ENTRY_END is not set. */
+		struct { /* Only valid when INDEX_ENTRY_END is yest set. */
 			leMFT_REF indexed_file;	/* The mft reference of the file
 						   described by this index
 						   entry. Used for directory
@@ -2240,7 +2240,7 @@ typedef struct {
 	le16 reserved;		 /* Reserved/align to 8-byte boundary. */
 
 /* 16*/	union {		/* The key of the indexed attribute. NOTE: Only present
-			   if INDEX_ENTRY_END bit in flags is not set. NOTE: On
+			   if INDEX_ENTRY_END bit in flags is yest set. NOTE: On
 			   NTFS versions before 3.0 the only valid key is the
 			   FILE_NAME_ATTR. On NTFS 3.0+ the following
 			   additional index keys are defined: */
@@ -2265,7 +2265,7 @@ typedef struct {
 	//		   cluster number of the index block that holds the
 	//		   entries immediately preceding the current entry (the
 	//		   vcn references the corresponding cluster in the data
-	//		   of the non-resident index allocation attribute). If
+	//		   of the yesn-resident index allocation attribute). If
 	//		   the key_length is zero, then the vcn immediately
 	//		   follows the INDEX_ENTRY_HEADER. Regardless of
 	//		   key_length, the address of the 8-byte boundary
@@ -2300,7 +2300,7 @@ typedef struct {
  * 3. The most significant three bits are flags describing the reparse point.
  *    They are defined as follows:
  *	bit 29: Name surrogate bit. If set, the filename is an alias for
- *		another object in the system.
+ *		ayesther object in the system.
  *	bit 30: High-latency bit. If set, accessing the first byte of data will
  *		be slow. (E.g. the data is stored on a tape drive.)
  *	bit 31: Microsoft bit. If set, the tag is owned by Microsoft. User
@@ -2334,7 +2334,7 @@ enum {
 /*
  * Attribute: Reparse point (0xc0).
  *
- * NOTE: Can be resident or non-resident.
+ * NOTE: Can be resident or yesn-resident.
  */
 typedef struct {
 	le32 reparse_tag;		/* Reparse point type (inc. flags). */
@@ -2365,7 +2365,7 @@ typedef struct {
  */
 enum {
 	NEED_EA	= 0x80		/* If set the file to which the EA belongs
-				   cannot be interpreted without understanding
+				   canyest be interpreted without understanding
 				   the associates extended attributes. */
 } __attribute__ ((__packed__));
 
@@ -2374,7 +2374,7 @@ typedef u8 EA_FLAGS;
 /*
  * Attribute: Extended attribute (EA) (0xe0).
  *
- * NOTE: Can be resident or non-resident.
+ * NOTE: Can be resident or yesn-resident.
  *
  * Like the attribute list and the index buffer list, the EA attribute value is
  * a sequence of EA_ATTR variable length records.
@@ -2385,7 +2385,7 @@ typedef struct {
 	u8 ea_name_length;	/* Length of the name of the EA in bytes
 				   excluding the '\0' byte terminator. */
 	le16 ea_value_length;	/* Byte size of the EA's value. */
-	u8 ea_name[0];		/* Name of the EA.  Note this is ASCII, not
+	u8 ea_name[0];		/* Name of the EA.  Note this is ASCII, yest
 				   Unicode and it is zero terminated. */
 	u8 ea_value[0];		/* The value of the EA.  Immediately follows
 				   the name. */
@@ -2404,10 +2404,10 @@ typedef struct {
 /*
  * Attribute: Logged utility stream (0x100).
  *
- * NOTE: Can be resident or non-resident.
+ * NOTE: Can be resident or yesn-resident.
  *
  * Operations on this attribute are logged to the journal ($LogFile) like
- * normal metadata changes.
+ * yesrmal metadata changes.
  *
  * Used by the Encrypting File System (EFS). All encrypted files have this
  * attribute with the name $EFS.

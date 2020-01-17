@@ -10,7 +10,7 @@ Required properties:
 - reg: Should contain registers location and length
 
 = Data cells =
-Are child nodes of MTK-EFUSE, bindings of which as described in
+Are child yesdes of MTK-EFUSE, bindings of which as described in
 bindings/nvmem/nvmem.txt
 
 Example:
@@ -28,7 +28,7 @@ Example:
 	};
 
 = Data consumers =
-Are device nodes which consume nvmem data cells.
+Are device yesdes which consume nvmem data cells.
 
 For example:
 

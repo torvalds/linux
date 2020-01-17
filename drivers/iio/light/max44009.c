@@ -2,7 +2,7 @@
 /*
  * max44009.c - Support for MAX44009 Ambient Light Sensor
  *
- * Copyright (c) 2019 Robert Eshleman <bobbyeshleman@gmail.com>
+ * Copyright (c) 2019 Robert Eshleman <bobbnohleman@gmail.com>
  *
  * Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX44009.pdf
  *
@@ -48,7 +48,7 @@
 
 #define MAX44009_UPPER_THR_MINIMUM 15
 
-/* The max44009 always scales raw readings by 0.045 and is non-configurable */
+/* The max44009 always scales raw readings by 0.045 and is yesn-configurable */
 #define MAX44009_SCALE_NUMERATOR 45
 #define MAX44009_SCALE_DENOMINATOR 1000
 
@@ -550,6 +550,6 @@ static const struct of_device_id max44009_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, max44009_of_match);
 
-MODULE_AUTHOR("Robert Eshleman <bobbyeshleman@gmail.com>");
+MODULE_AUTHOR("Robert Eshleman <bobbnohleman@gmail.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MAX44009 ambient light sensor driver");

@@ -45,7 +45,7 @@ void save_stack_trace(struct stack_trace *trace)
 EXPORT_SYMBOL_GPL(save_stack_trace);
 
 static void
-save_stack_address_nosched(void *data, unsigned long addr, int reliable)
+save_stack_address_yessched(void *data, unsigned long addr, int reliable)
 {
 	struct stack_trace *trace = (struct stack_trace *)data;
 
@@ -73,7 +73,7 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 	else
 		sp = (unsigned long *) KSTK_ESP(tsk);
 
-	unwind_stack(trace, sp, save_stack_address_nosched);
+	unwind_stack(trace, sp, save_stack_address_yessched);
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
 
@@ -81,6 +81,6 @@ void
 save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 {
 	unwind_stack(trace, (unsigned long *) regs->sp,
-		     save_stack_address_nosched);
+		     save_stack_address_yessched);
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_regs);

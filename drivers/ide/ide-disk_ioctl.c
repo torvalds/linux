@@ -10,7 +10,7 @@ static DEFINE_MUTEX(ide_disk_ioctl_mutex);
 static const struct ide_ioctl_devset ide_disk_ioctl_settings[] = {
 { HDIO_GET_ADDRESS,	HDIO_SET_ADDRESS,   &ide_devset_address   },
 { HDIO_GET_MULTCOUNT,	HDIO_SET_MULTCOUNT, &ide_devset_multcount },
-{ HDIO_GET_NOWERR,	HDIO_SET_NOWERR,    &ide_devset_nowerr	  },
+{ HDIO_GET_NOWERR,	HDIO_SET_NOWERR,    &ide_devset_yeswerr	  },
 { HDIO_GET_WCACHE,	HDIO_SET_WCACHE,    &ide_devset_wcache	  },
 { HDIO_GET_ACOUSTIC,	HDIO_SET_ACOUSTIC,  &ide_devset_acoustic  },
 { 0 }

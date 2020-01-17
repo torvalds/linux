@@ -107,7 +107,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 
 				MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
 
-				/* vfree is not atomic - can't be
+				/* vfree is yest atomic - can't be
 				   called with IRQ's disabled
 				 */
 				dev_dbg(q->dev, "buf[%d] freeing %p\n",
@@ -246,7 +246,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 
 		/* All handling should be done by __videobuf_mmap_mapper() */
 		if (!mem->vaddr) {
-			dev_err(q->dev, "memory is not allocated/mmapped.\n");
+			dev_err(q->dev, "memory is yest allocated/mmapped.\n");
 			return -EINVAL;
 		}
 		break;
@@ -264,7 +264,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 		break;
 	case V4L2_MEMORY_OVERLAY:
 	default:
-		dev_dbg(q->dev, "%s memory method OVERLAY/unknown\n", __func__);
+		dev_dbg(q->dev, "%s memory method OVERLAY/unkyeswn\n", __func__);
 		return -EINVAL;
 	}
 
@@ -300,11 +300,11 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 		goto error;
 
 	/* Try to remap memory */
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	/* the "vm_pgoff" is just used in v4l2 to find the
 	 * corresponding buffer data structure which is allocated
-	 * earlier and it does not mean the offset from the physical
+	 * earlier and it does yest mean the offset from the physical
 	 * buffer start address as usual. So set it to 0 to pass
 	 * the sanity check in vm_iomap_memory().
 	 */

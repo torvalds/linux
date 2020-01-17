@@ -8,7 +8,7 @@ resource (Co-processor) residing inside certain Intel chipsets. The Intel ME
 provides support for computer/IT management and security features.
 The actual feature set depends on the Intel chipset SKU.
 
-The Intel Management Engine Interface (Intel MEI, previously known as HECI)
+The Intel Management Engine Interface (Intel MEI, previously kyeswn as HECI)
 is the interface between the Host and Intel ME. This interface is exposed
 to the host as a PCI device, actually multiple PCI devices might be exposed.
 The Intel MEI Driver is in charge of the communication channel between
@@ -22,7 +22,7 @@ upon connection.
 Intel MEI Driver
 ================
 
-The driver exposes a character device with device nodes /dev/meiX.
+The driver exposes a character device with device yesdes /dev/meiX.
 
 An application maintains communication with an Intel ME feature while
 /dev/meiX is open. The binding to a specific feature is performed by calling
@@ -78,7 +78,7 @@ IOCTL_MEI_CONNECT_CLIENT
 -------------------------
 Connect to firmware Feature/Client.
 
-.. code-block:: none
+.. code-block:: yesne
 
 	Usage:
 
@@ -98,9 +98,9 @@ Connect to firmware Feature/Client.
 
          Error returns:
 
-                ENOTTY  No such client (i.e. wrong GUID) or connection is not allowed.
+                ENOTTY  No such client (i.e. wrong GUID) or connection is yest allowed.
 		EINVAL	Wrong IOCTL Number
-		ENODEV	Device or Connection is not initialized or ready.
+		ENODEV	Device or Connection is yest initialized or ready.
 		ENOMEM	Unable to allocate memory to client internal data.
 		EFAULT	Fatal Error (e.g. Unable to access user input data)
 		EBUSY	Connection Already Open
@@ -113,10 +113,10 @@ Connect to firmware Feature/Client.
 
 IOCTL_MEI_NOTIFY_SET
 ---------------------
-Enable or disable event notifications.
+Enable or disable event yestifications.
 
 
-.. code-block:: none
+.. code-block:: yesne
 
 	Usage:
 
@@ -133,20 +133,20 @@ Enable or disable event notifications.
 
 
 		EINVAL	Wrong IOCTL Number
-		ENODEV	Device  is not initialized or the client not connected
+		ENODEV	Device  is yest initialized or the client yest connected
 		ENOMEM	Unable to allocate memory to client internal data.
 		EFAULT	Fatal Error (e.g. Unable to access user input data)
 		EOPNOTSUPP if the device doesn't support the feature
 
 :Note:
-	The client must be connected in order to enable notification events
+	The client must be connected in order to enable yestification events
 
 
 IOCTL_MEI_NOTIFY_GET
 --------------------
 Retrieve event
 
-.. code-block:: none
+.. code-block:: yesne
 
 	Usage:
 		uint32_t event;
@@ -154,17 +154,17 @@ Retrieve event
 
 	Outputs:
 		1 - if an event is pending
-		0 - if there is no even pending
+		0 - if there is yes even pending
 
 	Error returns:
 		EINVAL	Wrong IOCTL Number
-		ENODEV	Device is not initialized or the client not connected
+		ENODEV	Device is yest initialized or the client yest connected
 		ENOMEM	Unable to allocate memory to client internal data.
 		EFAULT	Fatal Error (e.g. Unable to access user input data)
 		EOPNOTSUPP if the device doesn't support the feature
 
 :Note:
-	The client must be connected and event notification has to be enabled
+	The client must be connected and event yestification has to be enabled
 	in order to receive an event
 
 

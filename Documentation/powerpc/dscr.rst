@@ -28,13 +28,13 @@ user interface.
 
 	Scheduler will write the per-CPU DSCR default which is stored in the
 	CPU's PACA value into the register if the thread has dscr_inherit value
-	cleared which means that it has not changed the default DSCR till now.
+	cleared which means that it has yest changed the default DSCR till yesw.
 	If the dscr_inherit value is set which means that it has changed the
 	default DSCR value, scheduler will write the changed value which will
-	now be contained in thread struct's dscr into the register instead of
+	yesw be contained in thread struct's dscr into the register instead of
 	the per-CPU default PACA based DSCR value.
 
-	NOTE: Please note here that the system wide global DSCR value never
+	NOTE: Please yeste here that the system wide global DSCR value never
 	gets used directly in the scheduler process context switch at all.
 
 (C) SYSFS Interface:

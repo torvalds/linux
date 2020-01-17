@@ -103,7 +103,7 @@ struct ispccdc_lsc {
  * @crop: Active crop rectangle on the OF source pad
  * @input: Active input
  * @output: Active outputs
- * @video_out: Output video node
+ * @video_out: Output video yesde
  * @alaw: A-law compression enabled (1) or disabled (0)
  * @lpf: Low pass filter enabled (1) or disabled (0)
  * @obclamp: Optical-black clamp enabled (1) or disabled (0)

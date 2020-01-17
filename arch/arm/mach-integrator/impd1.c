@@ -13,7 +13,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
@@ -316,7 +316,7 @@ static struct impd1_device impd1_devs[] = {
 #define IMPD1_VALID_IRQS 0x00000bffU
 
 /*
- * As this module is bool, it is OK to have this as __ref() - no
+ * As this module is bool, it is OK to have this as __ref() - yes
  * probe calls will be done after the initial system bootup, as devices
  * are discovered as part of the machine startup.
  */

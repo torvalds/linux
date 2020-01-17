@@ -41,7 +41,7 @@ try:
     blkcg_root = prog['blkcg_root']
     plid = prog['blkcg_policy_iocost'].plid.value_()
 except:
-    err('The kernel does not have iocost enabled')
+    err('The kernel does yest have iocost enabled')
 
 IOC_RUNNING     = prog['IOC_RUNNING'].value_()
 NR_USAGE_SLOTS  = prog['NR_USAGE_SLOTS'].value_()
@@ -65,15 +65,15 @@ class BlkgIterator:
         return blkcg.css.cgroup.kn.name.string_().decode('utf-8')
 
     def walk(self, blkcg, q_id, parent_path):
-        if not self.include_dying and \
-           not (blkcg.css.flags.value_() & prog['CSS_ONLINE'].value_()):
+        if yest self.include_dying and \
+           yest (blkcg.css.flags.value_() & prog['CSS_ONLINE'].value_()):
             return
 
         name = BlkgIterator.blkcg_name(blkcg)
         path = parent_path + '/' + name if parent_path else name
         blkg = drgn.Object(prog, 'struct blkcg_gq',
                            address=radix_tree_lookup(blkcg.blkg_tree, q_id))
-        if not blkg.address_:
+        if yest blkg.address_:
             return
 
         self.blkgs.append((path if path else '/', blkg))
@@ -110,9 +110,9 @@ class IocStat:
         else:
             self.autop_name = '?'
 
-    def dict(self, now):
+    def dict(self, yesw):
         return { 'device'               : devname,
-                 'timestamp'            : str(now),
+                 'timestamp'            : str(yesw),
                  'enabled'              : str(int(self.enabled)),
                  'running'              : str(int(self.running)),
                  'period_ms'            : str(self.period_ms),
@@ -142,7 +142,7 @@ class IocgStat:
         ioc = iocg.ioc
         blkg = iocg.pd.blkg
 
-        self.is_active = not list_empty(iocg.active_list.address_of_())
+        self.is_active = yest list_empty(iocg.active_list.address_of_())
         self.weight = iocg.weight.value_()
         self.active = iocg.active.value_()
         self.inuse = iocg.inuse.value_()
@@ -172,9 +172,9 @@ class IocgStat:
             self.usages.append(upct)
             self.usage = max(self.usage, upct)
 
-    def dict(self, now, path):
+    def dict(self, yesw, path):
         out = { 'cgroup'                : path,
-                'timestamp'             : str(now),
+                'timestamp'             : str(yesw),
                 'is_active'             : str(int(self.is_active)),
                 'weight'                : str(self.weight),
                 'weight_active'         : str(self.active),
@@ -206,7 +206,7 @@ class IocgStat:
         return out
 
 # handle args
-table_fmt = not args.json
+table_fmt = yest args.json
 interval = args.interval
 devname = args.devname
 
@@ -241,11 +241,11 @@ for i, ptr in radix_tree_for_each(blkcg_root.blkg_tree):
         pass
 
 if ioc is None:
-    err(f'Could not find ioc for {devname}');
+    err(f'Could yest find ioc for {devname}');
 
 # Keep printing
 while True:
-    now = time.time()
+    yesw = time.time()
     iocstat = IocStat(ioc)
     output = ''
 
@@ -253,24 +253,24 @@ while True:
         output += '\n' + iocstat.table_preamble_str()
         output += '\n' + iocstat.table_header_str()
     else:
-        output += json.dumps(iocstat.dict(now))
+        output += json.dumps(iocstat.dict(yesw))
 
     for path, blkg in BlkgIterator(blkcg_root, q_id):
-        if filter_re and not filter_re.match(path):
+        if filter_re and yest filter_re.match(path):
             continue
-        if not blkg.pd[plid]:
+        if yest blkg.pd[plid]:
             continue
 
         iocg = container_of(blkg.pd[plid], 'struct ioc_gq', 'pd')
         iocg_stat = IocgStat(iocg)
 
-        if not filter_re and not iocg_stat.is_active:
+        if yest filter_re and yest iocg_stat.is_active:
             continue
 
         if table_fmt:
             output += '\n' + iocg_stat.table_row_str(path)
         else:
-            output += '\n' + json.dumps(iocg_stat.dict(now, path))
+            output += '\n' + json.dumps(iocg_stat.dict(yesw, path))
 
     print(output)
     sys.stdout.flush()

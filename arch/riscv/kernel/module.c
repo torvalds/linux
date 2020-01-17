@@ -6,7 +6,7 @@
 
 #include <linux/elf.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/moduleloader.h>
 
 static int apply_r_riscv_32_rela(struct module *me, u32 *location, Elf_Addr v)
@@ -93,7 +93,7 @@ static int apply_r_riscv_pcrel_hi20_rela(struct module *me, u32 *location,
 
 	if (offset != (s32)offset) {
 		pr_err(
-		  "%s: target %016llx can not be addressed by the 32-bit offset from PC = %p\n",
+		  "%s: target %016llx can yest be addressed by the 32-bit offset from PC = %p\n",
 		  me->name, (long long)v, location);
 		return -EINVAL;
 	}
@@ -135,7 +135,7 @@ static int apply_r_riscv_hi20_rela(struct module *me, u32 *location,
 
 	if (IS_ENABLED(CONFIG_CMODEL_MEDLOW)) {
 		pr_err(
-		  "%s: target %016llx can not be addressed by the 32-bit offset from PC = %p\n",
+		  "%s: target %016llx can yest be addressed by the 32-bit offset from PC = %p\n",
 		  me->name, (long long)v, location);
 		return -EINVAL;
 	}
@@ -179,7 +179,7 @@ static int apply_r_riscv_got_hi20_rela(struct module *me, u32 *location,
 		offset = (void *)offset - (void *)location;
 	} else {
 		pr_err(
-		  "%s: can not generate the GOT entry for symbol = %016llx from PC = %p\n",
+		  "%s: can yest generate the GOT entry for symbol = %016llx from PC = %p\n",
 		  me->name, (long long)v, location);
 		return -EINVAL;
 	}
@@ -203,7 +203,7 @@ static int apply_r_riscv_call_plt_rela(struct module *me, u32 *location,
 			offset = (void *)offset - (void *)location;
 		} else {
 			pr_err(
-			  "%s: target %016llx can not be addressed by the 32-bit offset from PC = %p\n",
+			  "%s: target %016llx can yest be addressed by the 32-bit offset from PC = %p\n",
 			  me->name, (long long)v, location);
 			return -EINVAL;
 		}
@@ -225,7 +225,7 @@ static int apply_r_riscv_call_rela(struct module *me, u32 *location,
 
 	if (offset != fill_v) {
 		pr_err(
-		  "%s: target %016llx can not be addressed by the 32-bit offset from PC = %p\n",
+		  "%s: target %016llx can yest be addressed by the 32-bit offset from PC = %p\n",
 		  me->name, (long long)v, location);
 		return -EINVAL;
 	}
@@ -312,10 +312,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		sym = (Elf_Sym *)sechdrs[symindex].sh_addr
 			+ ELF_RISCV_R_SYM(rel[i].r_info);
 		if (IS_ERR_VALUE(sym->st_value)) {
-			/* Ignore unresolved weak symbol */
+			/* Igyesre unresolved weak symbol */
 			if (ELF_ST_BIND(sym->st_info) == STB_WEAK)
 				continue;
-			pr_warn("%s: Unknown symbol %s\n",
+			pr_warn("%s: Unkyeswn symbol %s\n",
 				me->name, strtab + sym->st_name);
 			return -ENOENT;
 		}
@@ -328,7 +328,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 			handler = NULL;
 
 		if (!handler) {
-			pr_err("%s: Unknown relocation type %u\n",
+			pr_err("%s: Unkyeswn relocation type %u\n",
 			       me->name, type);
 			return -EINVAL;
 		}
@@ -373,7 +373,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 			}
 			if (j == sechdrs[relsec].sh_size / sizeof(*rel)) {
 				pr_err(
-				  "%s: Can not find HI20 relocation information\n",
+				  "%s: Can yest find HI20 relocation information\n",
 				  me->name);
 				return -EINVAL;
 			}

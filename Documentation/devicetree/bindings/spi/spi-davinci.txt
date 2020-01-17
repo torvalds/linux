@@ -31,7 +31,7 @@ SoC-specific Required Properties:
 
 The following are mandatory properties for Keystone 2 66AK2G SoCs only:
 
-- power-domains:	Should contain a phandle to a PM domain provider node
+- power-domains:	Should contain a phandle to a PM domain provider yesde
 			and an args specifier containing the SPI device id
 			value. This property is as per the binding,
 
@@ -42,7 +42,7 @@ Optional:
 	where first three are internal CS and last two are GPIO CS.
 
 Optional properties for slave devices:
-SPI slave nodes can contain the following properties.
+SPI slave yesdes can contain the following properties.
 Not all SPI Peripherals from Texas Instruments support this.
 Please check SPI peripheral documentation for a device before using these.
 

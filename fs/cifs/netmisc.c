@@ -34,11 +34,11 @@ static const struct smb_to_posix_error mapping_table_ERRDOS[] = {
 	{ERRbadfunc, -EINVAL},
 	{ERRbadfile, -ENOENT},
 	{ERRbadpath, -ENOTDIR},
-	{ERRnofids, -EMFILE},
-	{ERRnoaccess, -EACCES},
+	{ERRyesfids, -EMFILE},
+	{ERRyesaccess, -EACCES},
 	{ERRbadfid, -EBADF},
 	{ERRbadmcb, -EIO},
-	{ERRnomem, -EREMOTEIO},
+	{ERRyesmem, -EREMOTEIO},
 	{ERRbadmem, -EFAULT},
 	{ERRbadenv, -EFAULT},
 	{ERRbadformat, -EINVAL},
@@ -47,23 +47,23 @@ static const struct smb_to_posix_error mapping_table_ERRDOS[] = {
 	{ERRbaddrive, -ENXIO},
 	{ERRremcd, -EACCES},
 	{ERRdiffdevice, -EXDEV},
-	{ERRnofiles, -ENOENT},
+	{ERRyesfiles, -ENOENT},
 	{ERRwriteprot, -EROFS},
 	{ERRbadshare, -EBUSY},
 	{ERRlock, -EACCES},
 	{ERRunsup, -EINVAL},
-	{ERRnosuchshare, -ENXIO},
+	{ERRyessuchshare, -ENXIO},
 	{ERRfilexists, -EEXIST},
 	{ERRinvparm, -EINVAL},
 	{ERRdiskfull, -ENOSPC},
 	{ERRinvname, -ENOENT},
 	{ERRinvlevel, -EOPNOTSUPP},
-	{ERRdirnotempty, -ENOTEMPTY},
-	{ERRnotlocked, -ENOLCK},
+	{ERRdiryestempty, -ENOTEMPTY},
+	{ERRyestlocked, -ENOLCK},
 	{ERRcancelviolation, -ENOLCK},
 	{ERRalreadyexists, -EEXIST},
 	{ERRmoredata, -EOVERFLOW},
-	{ERReasnotsupported, -EOPNOTSUPP},
+	{ERReasyestsupported, -EOPNOTSUPP},
 	{ErrQuota, -EDQUOT},
 	{ErrNotALink, -ENOLINK},
 	{ERRnetlogonNotStarted, -ENOPROTOOPT},
@@ -94,16 +94,16 @@ static const struct smb_to_posix_error mapping_table_ERRSRV[] = {
 	{ERRsetattrmode, -EINVAL},
 	{ERRpaused, -EHOSTDOWN},
 	{ERRmsgoff, -EHOSTDOWN},
-	{ERRnoroom, -ENOSPC},
+	{ERRyesroom, -ENOSPC},
 	{ERRrmuns, -EUSERS},
 	{ERRtimeout, -ETIME},
-	{ERRnoresource, -EREMOTEIO},
+	{ERRyesresource, -EREMOTEIO},
 	{ERRtoomanyuids, -EUSERS},
 	{ERRbaduid, -EACCES},
 	{ERRusempx, -EIO},
 	{ERRusestd, -EIO},
 	{ERR_NOTIFY_ENUM_DIR, -ENOBUFS},
-	{ERRnoSuchUser, -EACCES},
+	{ERRyesSuchUser, -EACCES},
 /*	{ERRaccountexpired, -EACCES},
 	{ERRbadclient, -EACCES},
 	{ERRbadLogonTime, -EACCES},
@@ -113,7 +113,7 @@ static const struct smb_to_posix_error mapping_table_ERRSRV[] = {
 	{ERRbadLogonTime, -EACCES},
 	{ERRpasswordExpired, -EKEYEXPIRED},
 
-	{ERRnosupport, -EINVAL},
+	{ERRyessupport, -EINVAL},
 	{0, 0}
 };
 
@@ -235,22 +235,22 @@ static const struct {
 	 from NT_STATUS_MORE_PROCESSING_REQUIRED to NT_STATUS_OK
 	 during the session setup } */
 	{
-	ERRDOS, ERRnomem, NT_STATUS_NO_MEMORY}, {
+	ERRDOS, ERRyesmem, NT_STATUS_NO_MEMORY}, {
 	ERRDOS, 487, NT_STATUS_CONFLICTING_ADDRESSES}, {
 	ERRDOS, 487, NT_STATUS_NOT_MAPPED_VIEW}, {
 	ERRDOS, 87, NT_STATUS_UNABLE_TO_FREE_VM}, {
 	ERRDOS, 87, NT_STATUS_UNABLE_TO_DELETE_SECTION}, {
 	ERRDOS, 2142, NT_STATUS_INVALID_SYSTEM_SERVICE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_ILLEGAL_INSTRUCTION}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_INVALID_LOCK_SEQUENCE}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_INVALID_VIEW_SIZE}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_INVALID_LOCK_SEQUENCE}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_INVALID_VIEW_SIZE}, {
 	ERRDOS, 193, NT_STATUS_INVALID_FILE_FOR_SECTION}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_ALREADY_COMMITTED},
+	ERRDOS, ERRyesaccess, NT_STATUS_ALREADY_COMMITTED},
 /*	{ This NT error code was 'sqashed'
 	 from NT_STATUS_ACCESS_DENIED to NT_STATUS_TRUSTED_RELATIONSHIP_FAILURE
 	 during the session setup }   */
 	{
-	ERRDOS, ERRnoaccess, NT_STATUS_ACCESS_DENIED}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_ACCESS_DENIED}, {
 	ERRDOS, 111, NT_STATUS_BUFFER_TOO_SMALL}, {
 	ERRDOS, ERRbadfid, NT_STATUS_OBJECT_TYPE_MISMATCH}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NONCONTINUABLE_EXCEPTION}, {
@@ -281,8 +281,8 @@ static const struct {
 	ERRHRD, ERRgeneral, NT_STATUS_DATA_LATE_ERROR}, {
 	ERRDOS, 23, NT_STATUS_DATA_ERROR}, {
 	ERRDOS, 23, NT_STATUS_CRC_ERROR}, {
-	ERRDOS, ERRnomem, NT_STATUS_SECTION_TOO_BIG}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_PORT_CONNECTION_REFUSED}, {
+	ERRDOS, ERRyesmem, NT_STATUS_SECTION_TOO_BIG}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_PORT_CONNECTION_REFUSED}, {
 	ERRDOS, ERRbadfid, NT_STATUS_INVALID_PORT_HANDLE}, {
 	ERRDOS, ERRbadshare, NT_STATUS_SHARING_VIOLATION}, {
 	ERRHRD, ERRgeneral, NT_STATUS_QUOTA_EXCEEDED}, {
@@ -292,11 +292,11 @@ static const struct {
 	ERRDOS, 87, NT_STATUS_PORT_ALREADY_SET}, {
 	ERRDOS, 87, NT_STATUS_SECTION_NOT_IMAGE}, {
 	ERRDOS, 156, NT_STATUS_SUSPEND_COUNT_EXCEEDED}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_THREAD_IS_TERMINATING}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_THREAD_IS_TERMINATING}, {
 	ERRDOS, 87, NT_STATUS_BAD_WORKING_SET_LIMIT}, {
 	ERRDOS, 87, NT_STATUS_INCOMPATIBLE_FILE_MAP}, {
 	ERRDOS, 87, NT_STATUS_SECTION_PROTECTION}, {
-	ERRDOS, ERReasnotsupported, NT_STATUS_EAS_NOT_SUPPORTED}, {
+	ERRDOS, ERReasyestsupported, NT_STATUS_EAS_NOT_SUPPORTED}, {
 	ERRDOS, 255, NT_STATUS_EA_TOO_LARGE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NONEXISTENT_EA_ENTRY}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NO_EAS_ON_FILE}, {
@@ -314,14 +314,14 @@ static const struct {
 	ERRDOS, 2215, NT_STATUS_NO_LOGON_SERVERS}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NO_SUCH_LOGON_SESSION}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NO_SUCH_PRIVILEGE}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_PRIVILEGE_NOT_HELD}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_PRIVILEGE_NOT_HELD}, {
 	ERRHRD, ERRgeneral, NT_STATUS_INVALID_ACCOUNT_NAME}, {
 	ERRHRD, ERRgeneral, NT_STATUS_USER_EXISTS},
 /*	{ This NT error code was 'sqashed'
 	 from NT_STATUS_NO_SUCH_USER to NT_STATUS_LOGON_FAILURE
 	 during the session setup } */
 	{
-	ERRDOS, ERRnoaccess, NT_STATUS_NO_SUCH_USER}, { /* could map to 2238 */
+	ERRDOS, ERRyesaccess, NT_STATUS_NO_SUCH_USER}, { /* could map to 2238 */
 	ERRHRD, ERRgeneral, NT_STATUS_GROUP_EXISTS}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NO_SUCH_GROUP}, {
 	ERRHRD, ERRgeneral, NT_STATUS_MEMBER_IN_GROUP}, {
@@ -334,7 +334,7 @@ static const struct {
 	ERRSRV, ERRbadpw, NT_STATUS_WRONG_PASSWORD}, {
 	ERRHRD, ERRgeneral, NT_STATUS_ILL_FORMED_PASSWORD}, {
 	ERRHRD, ERRgeneral, NT_STATUS_PASSWORD_RESTRICTION}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_LOGON_FAILURE}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_LOGON_FAILURE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_ACCOUNT_RESTRICTION}, {
 	ERRSRV, ERRbadLogonTime, NT_STATUS_INVALID_LOGON_HOURS}, {
 	ERRSRV, ERRbadclient, NT_STATUS_INVALID_WORKSTATION}, {
@@ -376,14 +376,14 @@ static const struct {
 	ERRHRD, ERRgeneral, NT_STATUS_INTEGER_DIVIDE_BY_ZERO}, {
 	ERRDOS, 534, NT_STATUS_INTEGER_OVERFLOW}, {
 	ERRHRD, ERRgeneral, NT_STATUS_PRIVILEGED_INSTRUCTION}, {
-	ERRDOS, ERRnomem, NT_STATUS_TOO_MANY_PAGING_FILES}, {
+	ERRDOS, ERRyesmem, NT_STATUS_TOO_MANY_PAGING_FILES}, {
 	ERRHRD, ERRgeneral, NT_STATUS_FILE_INVALID}, {
 	ERRHRD, ERRgeneral, NT_STATUS_ALLOTTED_SPACE_EXCEEDED},
 /*	{ This NT error code was 'sqashed'
 	 from NT_STATUS_INSUFFICIENT_RESOURCES to
 	 NT_STATUS_INSUFF_SERVER_RESOURCES during the session setup } */
 	{
-	ERRDOS, ERRnoresource, NT_STATUS_INSUFFICIENT_RESOURCES}, {
+	ERRDOS, ERRyesresource, NT_STATUS_INSUFFICIENT_RESOURCES}, {
 	ERRDOS, ERRbadpath, NT_STATUS_DFS_EXIT_PATH_FOUND}, {
 	ERRDOS, 23, NT_STATUS_DEVICE_DATA_ERROR}, {
 	ERRHRD, ERRgeneral, NT_STATUS_DEVICE_NOT_CONNECTED}, {
@@ -405,7 +405,7 @@ static const struct {
 	ERRDOS, ERRbadpipe, NT_STATUS_INVALID_PIPE_STATE}, {
 	ERRDOS, ERRpipebusy, NT_STATUS_PIPE_BUSY}, {
 	ERRDOS, ERRbadfunc, NT_STATUS_ILLEGAL_FUNCTION}, {
-	ERRDOS, ERRnotconnected, NT_STATUS_PIPE_DISCONNECTED}, {
+	ERRDOS, ERRyestconnected, NT_STATUS_PIPE_DISCONNECTED}, {
 	ERRDOS, ERRpipeclosing, NT_STATUS_PIPE_CLOSING}, {
 	ERRHRD, ERRgeneral, NT_STATUS_PIPE_CONNECTED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_PIPE_LISTENING}, {
@@ -415,7 +415,7 @@ static const struct {
 	ERRHRD, ERRgeneral, NT_STATUS_PROFILING_NOT_STARTED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_PROFILING_NOT_STOPPED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_COULD_NOT_INTERPRET}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_FILE_IS_A_DIRECTORY}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_FILE_IS_A_DIRECTORY}, {
 	ERRDOS, ERRunsup, NT_STATUS_NOT_SUPPORTED}, {
 	ERRDOS, 51, NT_STATUS_REMOTE_NOT_LISTENING}, {
 	ERRDOS, 52, NT_STATUS_DUPLICATE_NAME}, {
@@ -433,7 +433,7 @@ static const struct {
 	ERRDOS, 64, NT_STATUS_NETWORK_NAME_DELETED}, {
 	ERRDOS, 65, NT_STATUS_NETWORK_ACCESS_DENIED}, {
 	ERRDOS, 66, NT_STATUS_BAD_DEVICE_TYPE}, {
-	ERRDOS, ERRnosuchshare, NT_STATUS_BAD_NETWORK_NAME}, {
+	ERRDOS, ERRyessuchshare, NT_STATUS_BAD_NETWORK_NAME}, {
 	ERRDOS, 68, NT_STATUS_TOO_MANY_NAMES}, {
 	ERRDOS, 69, NT_STATUS_TOO_MANY_SESSIONS}, {
 	ERRDOS, 70, NT_STATUS_SHARING_PAUSED}, {
@@ -442,7 +442,7 @@ static const struct {
 	ERRDOS, 88, NT_STATUS_NET_WRITE_FAULT}, {
 	ERRHRD, ERRgeneral, NT_STATUS_PROFILING_AT_LIMIT}, {
 	ERRDOS, ERRdiffdevice, NT_STATUS_NOT_SAME_DEVICE}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_FILE_RENAMED}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_FILE_RENAMED}, {
 	ERRDOS, 240, NT_STATUS_VIRTUAL_CIRCUIT_CLOSED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NO_SECURITY_ON_OBJECT}, {
 	ERRHRD, ERRgeneral, NT_STATUS_CANT_WAIT}, {
@@ -495,7 +495,7 @@ static const struct {
 	ERRDOS, 2401, NT_STATUS_FILES_OPEN}, {
 	ERRDOS, 2404, NT_STATUS_CONNECTION_IN_USE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_MESSAGE_NOT_FOUND}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_PROCESS_IS_TERMINATING}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_PROCESS_IS_TERMINATING}, {
 	ERRHRD, ERRgeneral, NT_STATUS_INVALID_LOGON_TYPE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NO_GUID_TRANSLATION}, {
 	ERRHRD, ERRgeneral, NT_STATUS_CANNOT_IMPERSONATE}, {
@@ -516,11 +516,11 @@ static const struct {
 	ERRHRD, ERRgeneral, NT_STATUS_RXACT_INVALID_STATE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_RXACT_COMMIT_FAILURE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_MAPPED_FILE_SIZE_ZERO}, {
-	ERRDOS, ERRnofids, NT_STATUS_TOO_MANY_OPENED_FILES}, {
+	ERRDOS, ERRyesfids, NT_STATUS_TOO_MANY_OPENED_FILES}, {
 	ERRHRD, ERRgeneral, NT_STATUS_CANCELLED}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_CANNOT_DELETE}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_CANNOT_DELETE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_INVALID_COMPUTER_NAME}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_FILE_DELETED}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_FILE_DELETED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_SPECIAL_ACCOUNT}, {
 	ERRHRD, ERRgeneral, NT_STATUS_SPECIAL_GROUP}, {
 	ERRHRD, ERRgeneral, NT_STATUS_SPECIAL_USER}, {
@@ -576,7 +576,7 @@ static const struct {
 	ERRHRD, ERRgeneral, NT_STATUS_INTERNAL_DB_ERROR}, {
 	ERRHRD, ERRgeneral, NT_STATUS_FULLSCREEN_MODE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_TOO_MANY_CONTEXT_IDS}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_LOGON_TYPE_NOT_GRANTED}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_LOGON_TYPE_NOT_GRANTED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NOT_REGISTRY_FILE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NT_CROSS_ENCRYPTION_REQUIRED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_DOMAIN_CTRLR_CONFIG_ERROR}, {
@@ -623,17 +623,17 @@ static const struct {
 	ERRHRD, ERRgeneral, NT_STATUS_BACKUP_CONTROLLER}, {
 	ERRHRD, ERRgeneral, NT_STATUS_LOG_FILE_FULL}, {
 	ERRDOS, 19, NT_STATUS_TOO_LATE}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_NO_TRUST_LSA_SECRET},
+	ERRDOS, ERRyesaccess, NT_STATUS_NO_TRUST_LSA_SECRET},
 /*	{ This NT error code was 'sqashed'
 	 from NT_STATUS_NO_TRUST_SAM_ACCOUNT to
 	 NT_STATUS_TRUSTED_RELATIONSHIP_FAILURE during the session setup } */
 	{
-	ERRDOS, ERRnoaccess, NT_STATUS_NO_TRUST_SAM_ACCOUNT}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_TRUSTED_DOMAIN_FAILURE}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_TRUSTED_RELATIONSHIP_FAILURE}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_NO_TRUST_SAM_ACCOUNT}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_TRUSTED_DOMAIN_FAILURE}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_TRUSTED_RELATIONSHIP_FAILURE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_EVENTLOG_FILE_CORRUPT}, {
 	ERRHRD, ERRgeneral, NT_STATUS_EVENTLOG_CANT_START}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_TRUST_FAILURE}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_TRUST_FAILURE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_MUTANT_LIMIT_EXCEEDED}, {
 	ERRDOS, ERRnetlogonNotStarted, NT_STATUS_NETLOGON_NOT_STARTED}, {
 	ERRSRV, ERRaccountexpired, NT_STATUS_ACCOUNT_EXPIRED}, {
@@ -641,19 +641,19 @@ static const struct {
 	ERRHRD, ERRgeneral, NT_STATUS_NETWORK_CREDENTIAL_CONFLICT}, {
 	ERRHRD, ERRgeneral, NT_STATUS_REMOTE_SESSION_LIMIT}, {
 	ERRHRD, ERRgeneral, NT_STATUS_EVENTLOG_FILE_CHANGED}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_NOLOGON_INTERDOMAIN_TRUST_ACCOUNT}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_NOLOGON_WORKSTATION_TRUST_ACCOUNT}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_NOLOGON_SERVER_TRUST_ACCOUNT},
+	ERRDOS, ERRyesaccess, NT_STATUS_NOLOGON_INTERDOMAIN_TRUST_ACCOUNT}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_NOLOGON_WORKSTATION_TRUST_ACCOUNT}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_NOLOGON_SERVER_TRUST_ACCOUNT},
 /*	{ This NT error code was 'sqashed'
 	 from NT_STATUS_DOMAIN_TRUST_INCONSISTENT to NT_STATUS_LOGON_FAILURE
 	 during the session setup }  */
 	{
-	ERRDOS, ERRnoaccess, NT_STATUS_DOMAIN_TRUST_INCONSISTENT}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_DOMAIN_TRUST_INCONSISTENT}, {
 	ERRHRD, ERRgeneral, NT_STATUS_FS_DRIVER_REQUIRED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NO_USER_SESSION_KEY}, {
 	ERRDOS, 59, NT_STATUS_USER_SESSION_DELETED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_RESOURCE_LANG_NOT_FOUND}, {
-	ERRDOS, ERRnoresource, NT_STATUS_INSUFF_SERVER_RESOURCES}, {
+	ERRDOS, ERRyesresource, NT_STATUS_INSUFF_SERVER_RESOURCES}, {
 	ERRHRD, ERRgeneral, NT_STATUS_INVALID_BUFFER_SIZE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_INVALID_ADDRESS_COMPONENT}, {
 	ERRHRD, ERRgeneral, NT_STATUS_INVALID_ADDRESS_WILDCARD}, {
@@ -700,7 +700,7 @@ static const struct {
 	ERRHRD, ERRgeneral, NT_STATUS_MARSHALL_OVERFLOW}, {
 	ERRHRD, ERRgeneral, NT_STATUS_INVALID_VARIANT}, {
 	ERRHRD, ERRgeneral, NT_STATUS_DOMAIN_CONTROLLER_NOT_FOUND}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_ACCOUNT_LOCKED_OUT}, {
+	ERRDOS, ERRyesaccess, NT_STATUS_ACCOUNT_LOCKED_OUT}, {
 	ERRDOS, ERRbadfid, NT_STATUS_HANDLE_NOT_CLOSABLE}, {
 	ERRHRD, ERRgeneral, NT_STATUS_CONNECTION_REFUSED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_GRACEFUL_DISCONNECT}, {
@@ -754,13 +754,13 @@ static const struct {
 	ERRHRD, ERRgeneral, NT_STATUS_FILE_IS_OFFLINE}, {
 	ERRDOS, 21, 0xc000026e}, {
 	ERRDOS, 161, 0xc0000281}, {
-	ERRDOS, ERRnoaccess, 0xc000028a}, {
-	ERRDOS, ERRnoaccess, 0xc000028b}, {
+	ERRDOS, ERRyesaccess, 0xc000028a}, {
+	ERRDOS, ERRyesaccess, 0xc000028b}, {
 	ERRHRD, ERRgeneral, 0xc000028c}, {
-	ERRDOS, ERRnoaccess, 0xc000028d}, {
-	ERRDOS, ERRnoaccess, 0xc000028e}, {
-	ERRDOS, ERRnoaccess, 0xc000028f}, {
-	ERRDOS, ERRnoaccess, 0xc0000290}, {
+	ERRDOS, ERRyesaccess, 0xc000028d}, {
+	ERRDOS, ERRyesaccess, 0xc000028e}, {
+	ERRDOS, ERRyesaccess, 0xc000028f}, {
+	ERRDOS, ERRyesaccess, 0xc0000290}, {
 	ERRDOS, ERRbadfunc, 0xc000029c}, {
 	ERRDOS, ERRsymlink, NT_STATUS_STOPPED_ON_SYMLINK}, {
 	ERRDOS, ERRinvlevel, 0x007c0001}, {
@@ -778,7 +778,7 @@ cifs_print_status(__u32 status_code)
 	while (nt_errs[idx].nt_errstr != NULL) {
 		if (((nt_errs[idx].nt_errcode) & 0xFFFFFF) ==
 		    (status_code & 0xFFFFFF)) {
-			pr_notice("Status code returned 0x%08x %s\n",
+			pr_yestice("Status code returned 0x%08x %s\n",
 				  status_code, nt_errs[idx].nt_errstr);
 		}
 		idx++;
@@ -812,7 +812,7 @@ map_smb_to_linux_error(char *buf, bool logErr)
 {
 	struct smb_hdr *smb = (struct smb_hdr *)buf;
 	unsigned int i;
-	int rc = -EIO;	/* if transport error smb error may not be set */
+	int rc = -EIO;	/* if transport error smb error may yest be set */
 	__u8 smberrclass;
 	__u16 smberrcode;
 
@@ -840,7 +840,7 @@ map_smb_to_linux_error(char *buf, bool logErr)
 
 	/* DOS class smb error codes - map DOS */
 	if (smberrclass == ERRDOS) {
-		/* 1 byte field no need to byte reverse */
+		/* 1 byte field yes need to byte reverse */
 		for (i = 0;
 		     i <
 		     sizeof(mapping_table_ERRDOS) /
@@ -898,7 +898,7 @@ smbCalcSize(void *buf, struct TCP_Server_Info *server)
 #define NTFS_TIME_OFFSET ((u64)(369*365 + 89) * 24 * 3600 * 10000000)
 
 /*
- * Convert the NT UTC (based 1601-01-01, in hundred nanosecond units)
+ * Convert the NT UTC (based 1601-01-01, in hundred nayessecond units)
  * into Unix UTC (based 1970-01-01, in seconds).
  */
 struct timespec64
@@ -912,8 +912,8 @@ cifs_NTtimeToUnix(__le64 ntutc)
 	u64 abs_t;
 
 	/*
-	 * Unfortunately can not use normal 64 bit division on 32 bit arch, but
-	 * the alternative, do_div, does not work with negative numbers so have
+	 * Unfortunately can yest use yesrmal 64 bit division on 32 bit arch, but
+	 * the alternative, do_div, does yest work with negative numbers so have
 	 * to special case them
 	 */
 	if (t < 0) {
@@ -975,14 +975,14 @@ struct timespec64 cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 	year = sd->Year;
 	days += year * 365;
 	days += (year/4); /* leap year */
-	/* generalized leap year calculation is more complex, ie no leap year
+	/* generalized leap year calculation is more complex, ie yes leap year
 	for years/100 except for years/400, but since the maximum number for DOS
 	 year is 2**7, the last year is 1980+127, which means we need only
 	 consider 2 special case years, ie the years 2000 and 2100, and only
 	 adjust for the lack of leap year for the year 2100, as 2000 was a
 	 leap year (divisable by 400) */
 	if (year >= 120)  /* the year 2100 */
-		days = days - 1;  /* do not count leap year for the year 2100 */
+		days = days - 1;  /* do yest count leap year for the year 2100 */
 
 	/* adjust for leap year where we are still before leap day */
 	if (year != 120)

@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,12 +31,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -106,12 +106,12 @@ struct scu_unsolicited_frame_header {
  * enum unsolicited_frame_state -
  *
  * This enumeration represents the current unsolicited frame state.  The
- * controller object can not updtate the hardware unsolicited frame put pointer
+ * controller object can yest updtate the hardware unsolicited frame put pointer
  * unless it has already processed the priror unsolicited frames.
  */
 enum unsolicited_frame_state {
 	/**
-	 * This state is when the frame is empty and not in use.  It is
+	 * This state is when the frame is empty and yest in use.  It is
 	 * different from the released state in that the hardware could DMA
 	 * data to this frame buffer.
 	 */

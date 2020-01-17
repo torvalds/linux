@@ -12,16 +12,16 @@
  *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *
  * Copyright (c) 2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -87,7 +87,7 @@
 #define ALX_PMCTRL_LCKDET_TIMER_MASK			0xF
 #define ALX_PMCTRL_LCKDET_TIMER_SHIFT			24
 #define ALX_PMCTRL_LCKDET_TIMER_DEF			0xC
-/* bit[23:20] if pm_request_l1 time > @, then enter L0s not L1 */
+/* bit[23:20] if pm_request_l1 time > @, then enter L0s yest L1 */
 #define ALX_PMCTRL_L1REQ_TO_MASK			0xF
 #define ALX_PMCTRL_L1REQ_TO_SHIFT			20
 #define ALX_PMCTRL_L1REG_TO_DEF				0xF
@@ -112,7 +112,7 @@
 /*******************************************************/
 
 #define ALX_MASTER					0x1400
-/* bit12: 1:alwys select pclk from serdes, not sw to 25M */
+/* bit12: 1:alwys select pclk from serdes, yest sw to 25M */
 #define ALX_MASTER_PCLKSEL_SRDS				BIT(12)
 /* bit11: irq moduration for rx */
 #define ALX_MASTER_IRQMOD2_EN				BIT(11)
@@ -487,7 +487,7 @@
 
 #define ALX_IMR						0x1604
 
-/* re-send assert msg if SW no response */
+/* re-send assert msg if SW yes response */
 #define ALX_INT_RETRIG					0x1608
 /* 40ms */
 #define ALX_INT_RETRIG_TO				20000

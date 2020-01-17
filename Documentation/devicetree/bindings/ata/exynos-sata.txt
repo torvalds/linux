@@ -1,10 +1,10 @@
 * Samsung AHCI SATA Controller
 
-SATA nodes are defined to describe on-chip Serial ATA controllers.
-Each SATA controller should have its own node.
+SATA yesdes are defined to describe on-chip Serial ATA controllers.
+Each SATA controller should have its own yesde.
 
 Required properties:
-- compatible		: compatible list, contains "samsung,exynos5-sata"
+- compatible		: compatible list, contains "samsung,exyyess5-sata"
 - interrupts		: <interrupt mapping for SATA IRQ>
 - reg			: <registers mapping>
 - samsung,sata-freq	: <frequency in MHz>

@@ -10,7 +10,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -53,7 +53,7 @@
  *  o better configuration options including multiple display support
  *
  * Note: existing fbif can be used together with displif running at the
- * same time, e.g. on Linux one provides framebuffer and another DRM/KMS
+ * same time, e.g. on Linux one provides framebuffer and ayesther DRM/KMS
  *
  * Note: display resolution (XenStore's "resolution" property) defines
  * visible area of the virtual display. At the same time resolution of
@@ -76,25 +76,25 @@
  *                  Feature and Parameter Negotiation
  ******************************************************************************
  *
- * Front->back notifications: when enqueuing a new request, sending a
- * notification can be made conditional on xendispl_req (i.e., the generic
+ * Front->back yestifications: when enqueuing a new request, sending a
+ * yestification can be made conditional on xendispl_req (i.e., the generic
  * hold-off mechanism provided by the ring macros). Backends must set
  * xendispl_req appropriately (e.g., using RING_FINAL_CHECK_FOR_REQUESTS()).
  *
- * Back->front notifications: when enqueuing a new response, sending a
- * notification can be made conditional on xendispl_resp (i.e., the generic
+ * Back->front yestifications: when enqueuing a new response, sending a
+ * yestification can be made conditional on xendispl_resp (i.e., the generic
  * hold-off mechanism provided by the ring macros). Frontends must set
  * xendispl_resp appropriately (e.g., using RING_FINAL_CHECK_FOR_RESPONSES()).
  *
- * The two halves of a para-virtual display driver utilize nodes within
+ * The two halves of a para-virtual display driver utilize yesdes within
  * XenStore to communicate capabilities and to negotiate operating parameters.
- * This section enumerates these nodes which reside in the respective front and
+ * This section enumerates these yesdes which reside in the respective front and
  * backend portions of XenStore, following the XenBus convention.
  *
  * All data in XenStore is stored as strings. Nodes specifying numeric
  * values are encoded in decimal. Integer value ranges listed below are
  * expressed as fixed sized integer types capable of storing the conversion
- * of a properly formated node string, without loss of information.
+ * of a properly formated yesde string, without loss of information.
  *
  ******************************************************************************
  *                        Example configuration
@@ -185,7 +185,7 @@
  *      If value is set to "1", then backend can be a buffer provider/allocator
  *      for this domain during XENDISPL_OP_DBUF_CREATE operation (see below
  *      for negotiation).
- *      If value is not "1" or omitted frontend must allocate buffers itself.
+ *      If value is yest "1" or omitted frontend must allocate buffers itself.
  *
  *----------------------------- Connector settings ----------------------------
  *
@@ -223,7 +223,7 @@
  *
  *------------------- Connector Event Transport Parameters --------------------
  *
- * This communication path is used to deliver asynchronous events from backend
+ * This communication path is used to deliver asynchroyesus events from backend
  * to frontend, set up per connector.
  *
  * evt-event-channel
@@ -244,10 +244,10 @@
  *                               STATE DIAGRAMS
  ******************************************************************************
  *
- * Tool stack creates front and back state nodes with initial state
+ * Tool stack creates front and back state yesdes with initial state
  * XenbusStateInitialising.
  * Tool stack creates and sets up frontend display configuration
- * nodes per domain.
+ * yesdes per domain.
  *
  *-------------------------------- Normal flow --------------------------------
  *
@@ -289,7 +289,7 @@
  *              V
  * XenbusStateConnected
  *
- *                                      XenbusStateUnknown
+ *                                      XenbusStateUnkyeswn
  *                                      XenbusStateClosed
  *                                      XenbusStateClosing
  * o Remove virtual display device
@@ -308,19 +308,19 @@
  * the virtualized device. If this is possible at the moment of error,
  * then frontend goes into the XenbusStateInitialising state and is ready for
  * new connection with backend. If the virtualized device is still in use and
- * cannot be removed, then frontend goes into the XenbusStateReconfiguring state
+ * canyest be removed, then frontend goes into the XenbusStateReconfiguring state
  * until either the virtualized device is removed or backend initiates a new
  * connection. On the virtualized device removal frontend goes into the
  * XenbusStateInitialising state.
  *
  * Note on XenbusStateReconfiguring state of the frontend: if backend has
- * unrecoverable errors then frontend cannot send requests to the backend
- * and thus cannot provide functionality of the virtualized device anymore.
- * After backend is back to normal the virtualized device may still hold some
+ * unrecoverable errors then frontend canyest send requests to the backend
+ * and thus canyest provide functionality of the virtualized device anymore.
+ * After backend is back to yesrmal the virtualized device may still hold some
  * state: configuration in use, allocated buffers, client application state etc.
  * In most cases, this will require frontend to implement complex recovery
  * reconnect logic. Instead, by going into XenbusStateReconfiguring state,
- * frontend will make sure no new clients of the virtualized device are
+ * frontend will make sure yes new clients of the virtualized device are
  * accepted, allow existing client(s) to exit gracefully by signaling error
  * state etc.
  * Once all the clients are gone frontend can reinitialize the virtualized
@@ -340,7 +340,7 @@
  ******************************************************************************
  *                             REQUEST CODES
  ******************************************************************************
- * Request codes [0; 15] are reserved and must not be used
+ * Request codes [0; 15] are reserved and must yest be used
  */
 
 #define XENDISPL_OP_DBUF_CREATE		0x10
@@ -391,7 +391,7 @@
  *   grant reference 0 is valid, but never exposed to a PV driver,
  *   because of the fact it is already in use/reserved by the PV console.
  * o all references in this document to page sizes must be treated
- *   as pages of size XEN_PAGE_SIZE unless otherwise noted.
+ *   as pages of size XEN_PAGE_SIZE unless otherwise yested.
  *
  ******************************************************************************
  *       Description of the protocol between frontend and backend driver
@@ -413,7 +413,7 @@
  *
  *---------------------------------- Requests ---------------------------------
  *
- * All requests/responses, which are not connector specific, must be sent over
+ * All requests/responses, which are yest connector specific, must be sent over
  * control ring of the connector which has the index value of 0:
  *   /local/domain/<dom-id>/device/vdispl/<dev-id>/0/req-ring-ref
  *
@@ -528,11 +528,11 @@ struct xendispl_dbuf_create_req {
  * +----------------+----------------+----------------+----------------+
  *
  * gref_dir_next_page - grant_ref_t, reference to the next page describing
- *   page directory. Must be 0 if there are no more pages in the list.
+ *   page directory. Must be 0 if there are yes more pages in the list.
  * gref[i] - grant_ref_t, reference to a shared page of the buffer
  *   allocated at XENDISPL_OP_DBUF_CREATE
  *
- * Number of grant_ref_t entries in the whole page directory is not
+ * Number of grant_ref_t entries in the whole page directory is yest
  * passed, but instead can be calculated as:
  *   num_grefs_total = (XENDISPL_OP_DBUF_CREATE.buffer_sz + XEN_PAGE_SIZE - 1) /
  *       XEN_PAGE_SIZE
@@ -687,7 +687,7 @@ struct xendispl_fb_detach_req {
  * configuration set.
  * Framebuffer's cookie defines which framebuffer/dbuf must be
  * displayed while enabling display (applying configuration).
- * x, y, width and height are bound by the connector's resolution and must not
+ * x, y, width and height are bound by the connector's resolution and must yest
  * exceed it.
  *
  * x - uint32_t, starting position in pixels by X axis
@@ -832,7 +832,7 @@ DEFINE_RING_TYPES(xen_displif, struct xendispl_req, struct xendispl_resp);
  ******************************************************************************
  *                        Back to front events delivery
  ******************************************************************************
- * In order to deliver asynchronous events from back to front a shared page is
+ * In order to deliver asynchroyesus events from back to front a shared page is
  * allocated by front and its granted reference propagated to back via
  * XenStore entries (evt-ring-ref/evt-event-channel).
  * This page has a common header used by both front and back to synchronize
@@ -841,7 +841,7 @@ DEFINE_RING_TYPES(xen_displif, struct xendispl_req, struct xendispl_resp);
  * is used for event packets.
  *
  * Upon reception of an event(s) front may confirm its reception
- * for either each event, group of events or none.
+ * for either each event, group of events or yesne.
  */
 
 struct xendispl_event_page {

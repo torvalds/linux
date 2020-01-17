@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_DV_TIMINGS:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_DV_TIMINGS - VIDIOC_S_DV_TIMINGS - VIDIOC_SUBDEV_G_DV_TIMINGS - VIDIOC_SUBDEV_S_DV_TIMINGS - Get or set DV timings for input or output
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_DV_TIMINGS, struct v4l2_dv_timings *argp )
@@ -54,32 +54,32 @@ applications use the :ref:`VIDIOC_G_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>` ioctl. The
 information is filled in using the structure struct
 :c:type:`v4l2_dv_timings`. These ioctls take a
 pointer to the struct :c:type:`v4l2_dv_timings`
-structure as argument. If the ioctl is not supported or the timing
-values are not correct, the driver returns ``EINVAL`` error code.
+structure as argument. If the ioctl is yest supported or the timing
+values are yest correct, the driver returns ``EINVAL`` error code.
 
 The ``linux/v4l2-dv-timings.h`` header can be used to get the timings of
 the formats in the :ref:`cea861` and :ref:`vesadmt` standards. If
-the current input or output does not support DV timings (e.g. if
-:ref:`VIDIOC_ENUMINPUT` does not set the
+the current input or output does yest support DV timings (e.g. if
+:ref:`VIDIOC_ENUMINPUT` does yest set the
 ``V4L2_IN_CAP_DV_TIMINGS`` flag), then ``ENODATA`` error code is returned.
 
 
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    This ioctl is not supported, or the :ref:`VIDIOC_S_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>`
+    This ioctl is yest supported, or the :ref:`VIDIOC_S_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>`
     parameter was unsuitable.
 
 ENODATA
-    Digital video timings are not supported for this input or output.
+    Digital video timings are yest supported for this input or output.
 
 EBUSY
-    The device is busy and therefore can not change the timings.
+    The device is busy and therefore can yest change the timings.
 
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -156,7 +156,7 @@ EBUSY
 	:ref:`dv-bt-flags` for a description of the flags.
     * - struct :c:type:`v4l2_fract`
       - ``picture_aspect``
-      - The picture aspect if the pixels are not square. Only valid if the
+      - The picture aspect if the pixels are yest square. Only valid if the
         ``V4L2_DV_FL_HAS_PICTURE_ASPECT`` flag is set.
     * - __u8
       - ``cea861_vic``
@@ -236,7 +236,7 @@ EBUSY
       - The timings follow the VESA Generalized Timings Formula standard
     * - ``V4L2_DV_BT_STD_SDI``
       - The timings follow the SDI Timings standard.
-	There are no horizontal syncs/porches at all in this format.
+	There are yes horizontal syncs/porches at all in this format.
 	Total blanking timings must be set in hsync or vsync fields only.
 
 .. tabularcolumns:: |p{7.0cm}|p{10.5cm}|
@@ -254,7 +254,7 @@ EBUSY
 	'Secondary GTF' curve (GTF). In both cases the horizontal and/or
 	vertical blanking intervals are reduced, allowing a higher
 	resolution over the same bandwidth. This is a read-only flag,
-	applications must not set this.
+	applications must yest set this.
     * - ``V4L2_DV_FL_CAN_REDUCE_FPS``
       - CEA-861 specific: set for CEA-861 formats with a framerate that is
 	a multiple of six. These formats can be optionally played at 1 /
@@ -262,7 +262,7 @@ EBUSY
 	NTSC and PAL-M that use a framerate of 29.97 frames per second. If
 	the transmitter can't generate such frequencies, then the flag
 	will also be cleared. This is a read-only flag, applications must
-	not set this.
+	yest set this.
     * - ``V4L2_DV_FL_REDUCED_FPS``
       - CEA-861 specific: only valid for video transmitters or video
         receivers that have the ``V4L2_DV_FL_CAN_DETECT_REDUCED_FPS``

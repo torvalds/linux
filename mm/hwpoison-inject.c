@@ -37,7 +37,7 @@ static int hwpoison_inject(void *data, u64 val)
 
 	shake_page(hpage, 0);
 	/*
-	 * This implies unable to support non-LRU pages.
+	 * This implies unable to support yesn-LRU pages.
 	 */
 	if (!PageLRU(hpage) && !PageHuge(p))
 		goto put_out;
@@ -80,8 +80,8 @@ static int pfn_inject_init(void)
 	hwpoison_dir = debugfs_create_dir("hwpoison", NULL);
 
 	/*
-	 * Note that the below poison/unpoison interfaces do not involve
-	 * hardware status change, hence do not require hardware support.
+	 * Note that the below poison/unpoison interfaces do yest involve
+	 * hardware status change, hence do yest require hardware support.
 	 * They are mainly for testing hwpoison in software level.
 	 */
 	debugfs_create_file("corrupt-pfn", 0200, hwpoison_dir, NULL,
@@ -96,8 +96,8 @@ static int pfn_inject_init(void)
 	debugfs_create_u32("corrupt-filter-dev-major", 0600, hwpoison_dir,
 			   &hwpoison_filter_dev_major);
 
-	debugfs_create_u32("corrupt-filter-dev-minor", 0600, hwpoison_dir,
-			   &hwpoison_filter_dev_minor);
+	debugfs_create_u32("corrupt-filter-dev-miyesr", 0600, hwpoison_dir,
+			   &hwpoison_filter_dev_miyesr);
 
 	debugfs_create_u64("corrupt-filter-flags-mask", 0600, hwpoison_dir,
 			   &hwpoison_filter_flags_mask);

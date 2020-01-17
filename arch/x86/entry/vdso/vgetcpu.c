@@ -10,13 +10,13 @@
 #include <linux/time.h>
 #include <asm/vgtod.h>
 
-notrace long
-__vdso_getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *unused)
+yestrace long
+__vdso_getcpu(unsigned *cpu, unsigned *yesde, struct getcpu_cache *unused)
 {
-	vdso_read_cpunode(cpu, node);
+	vdso_read_cpuyesde(cpu, yesde);
 
 	return 0;
 }
 
-long getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *tcache)
+long getcpu(unsigned *cpu, unsigned *yesde, struct getcpu_cache *tcache)
 	__attribute__((weak, alias("__vdso_getcpu")));

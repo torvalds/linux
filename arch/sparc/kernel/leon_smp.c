@@ -91,7 +91,7 @@ void leon_cpu_pre_online(void *arg)
 
 	/* Fix idle thread fields. */
 	__asm__ __volatile__("ld [%0], %%g6\n\t" : : "r"(&current_set[cpuid])
-			     : "memory" /* paranoid */);
+			     : "memory" /* parayesid */);
 
 	/* Attach to the address space of init_task. */
 	mmgrab(&init_mm);
@@ -113,15 +113,15 @@ void leon_configure_cache_smp(void)
 	int me = smp_processor_id();
 
 	if (ASI_LEON3_SYSCTRL_CFG_SSIZE(cfg) > 4) {
-		printk(KERN_INFO "Note: SMP with snooping only works on 4k cache, found %dk(0x%x) on cpu %d, disabling caches\n",
+		printk(KERN_INFO "Note: SMP with syesoping only works on 4k cache, found %dk(0x%x) on cpu %d, disabling caches\n",
 		     (unsigned int)ASI_LEON3_SYSCTRL_CFG_SSIZE(cfg),
 		     (unsigned int)cfg, (unsigned int)me);
 		sparc_leon3_disable_cache();
 	} else {
 		if (cfg & ASI_LEON3_SYSCTRL_CFG_SNOOPING) {
-			sparc_leon3_enable_snooping();
+			sparc_leon3_enable_syesoping();
 		} else {
-			printk(KERN_INFO "Note: You have to enable snooping in the vhdl model cpu %d, disabling caches\n",
+			printk(KERN_INFO "Note: You have to enable syesoping in the vhdl model cpu %d, disabling caches\n",
 			     me);
 			sparc_leon3_disable_cache();
 		}
@@ -276,12 +276,12 @@ static void __init leon_ipi_init(void)
 	int cpu, len;
 	struct leon_ipi_work *work;
 	struct property *pp;
-	struct device_node *rootnp;
+	struct device_yesde *rootnp;
 	struct tt_entry *trap_table;
 	unsigned long flags;
 
 	/* Find IPI IRQ or stick with default value */
-	rootnp = of_find_node_by_path("/ambapp0");
+	rootnp = of_find_yesde_by_path("/ambapp0");
 	if (rootnp) {
 		pp = of_find_property(rootnp, "ipi_num", &len);
 		if (pp && (*(int *)pp->value))

@@ -20,8 +20,8 @@ obj-$(CONFIG_DRM_RCAR_DW_HDMI)		+= rcar_dw_hdmi.o
 obj-$(CONFIG_DRM_RCAR_LVDS)		+= rcar_lvds.o
 
 # 'remote-endpoint' is fixed up at run-time
-DTC_FLAGS_rcar_du_of_lvds_r8a7790 += -Wno-graph_endpoint
-DTC_FLAGS_rcar_du_of_lvds_r8a7791 += -Wno-graph_endpoint
-DTC_FLAGS_rcar_du_of_lvds_r8a7793 += -Wno-graph_endpoint
-DTC_FLAGS_rcar_du_of_lvds_r8a7795 += -Wno-graph_endpoint
-DTC_FLAGS_rcar_du_of_lvds_r8a7796 += -Wno-graph_endpoint
+DTC_FLAGS_rcar_du_of_lvds_r8a7790 += -Wyes-graph_endpoint
+DTC_FLAGS_rcar_du_of_lvds_r8a7791 += -Wyes-graph_endpoint
+DTC_FLAGS_rcar_du_of_lvds_r8a7793 += -Wyes-graph_endpoint
+DTC_FLAGS_rcar_du_of_lvds_r8a7795 += -Wyes-graph_endpoint
+DTC_FLAGS_rcar_du_of_lvds_r8a7796 += -Wyes-graph_endpoint

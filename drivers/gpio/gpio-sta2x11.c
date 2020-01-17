@@ -154,7 +154,7 @@ static void gsta_set_config(struct gsta_gpio *chip, int nr, unsigned cfg)
 	if (cfg == PINMUX_TYPE_NONE)
 		return;
 
-	/* Alternate function or not? */
+	/* Alternate function or yest? */
 	spin_lock_irqsave(&chip->lock, flags);
 	val = readl(&regs->afsela);
 	if (cfg == PINMUX_TYPE_FUNCTION)
@@ -167,7 +167,7 @@ static void gsta_set_config(struct gsta_gpio *chip, int nr, unsigned cfg)
 		return;
 	}
 
-	/* not alternate function: set details */
+	/* yest alternate function: set details */
 	switch (cfg) {
 	case PINMUX_TYPE_OUTPUT_LOW:
 		writel(bit, &regs->dirs);
@@ -317,7 +317,7 @@ static int gsta_alloc_irq_chip(struct gsta_gpio *chip)
 	ct->chip.irq_disable = gsta_irq_disable;
 	ct->chip.irq_enable = gsta_irq_enable;
 
-	/* FIXME: this makes at most 32 interrupts. Request 0 by now */
+	/* FIXME: this makes at most 32 interrupts. Request 0 by yesw */
 	rv = devm_irq_setup_generic_chip(chip->dev, gc,
 					 0 /* IRQ_MSK(GSTA_GPIO_PER_BLOCK) */,
 					 0, IRQ_NOREQUEST | IRQ_NOPROBE, 0);
@@ -352,7 +352,7 @@ static int gsta_probe(struct platform_device *dev)
 	gpio_pdata = dev_get_platdata(&pdev->dev);
 
 	if (gpio_pdata == NULL)
-		dev_err(&dev->dev, "no gpio config\n");
+		dev_err(&dev->dev, "yes gpio config\n");
 	pr_debug("gpio config: %p\n", gpio_pdata);
 
 	chip = devm_kzalloc(&dev->dev, sizeof(*chip), GFP_KERNEL);

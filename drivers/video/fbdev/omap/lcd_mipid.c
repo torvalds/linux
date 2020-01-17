@@ -3,7 +3,7 @@
  * LCD driver for MIPI DBI-C / DCS compatible LCDs
  *
  * Copyright (C) 2006 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  */
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -323,7 +323,7 @@ static void ls041y3_esd_check_mode1(struct mipid_device *md)
 	mipid_read(md, MIPID_CMD_RDDSDR, &state2, 1);
 	dev_dbg(&md->spi->dev, "ESD mode 1 state1 %02x state2 %02x\n",
 		state1, state2);
-	/* Each sleep out command will trigger a self diagnostic and flip
+	/* Each sleep out command will trigger a self diagyesstic and flip
 	* Bit6 if the test passes.
 	*/
 	if (!((state1 ^ state2) & (1 << 6)))
@@ -452,7 +452,7 @@ static int panel_enabled(struct mipid_device *md)
 	enabled = (disp_status & (1 << 17)) && (disp_status & (1 << 10));
 	dev_dbg(&md->spi->dev,
 		"LCD panel %senabled by bootloader (status 0x%04x)\n",
-		enabled ? "" : "not ", disp_status);
+		enabled ? "" : "yest ", disp_status);
 	return enabled;
 }
 
@@ -532,7 +532,7 @@ static int mipid_detect(struct mipid_device *md)
 		md->esd_check = ls041y3_esd_check;
 		break;
 	default:
-		md->panel.name = "unknown";
+		md->panel.name = "unkyeswn";
 		dev_err(&md->spi->dev, "invalid display ID\n");
 		return -ENODEV;
 	}

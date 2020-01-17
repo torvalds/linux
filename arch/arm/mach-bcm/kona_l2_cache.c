@@ -26,7 +26,7 @@ void __init kona_l2_cache_init(void)
 
 	ret = bcm_kona_smc_init();
 	if (ret) {
-		pr_info("Secure API not available (%d). Skipping L2 init.\n",
+		pr_info("Secure API yest available (%d). Skipping L2 init.\n",
 			ret);
 		return;
 	}
@@ -39,7 +39,7 @@ void __init kona_l2_cache_init(void)
 	}
 
 	/*
-	 * The aux_val and aux_mask have no effect since L2 cache is already
+	 * The aux_val and aux_mask have yes effect since L2 cache is already
 	 * enabled.  Pass 0s for aux_val and 1s for aux_mask for default value.
 	 */
 	ret = l2x0_of_init(0, ~0);

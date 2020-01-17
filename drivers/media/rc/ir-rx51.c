@@ -55,7 +55,7 @@ static int init_timing_params(struct ir_rx51 *ir_rx51)
 static enum hrtimer_restart ir_rx51_timer_cb(struct hrtimer *timer)
 {
 	struct ir_rx51 *ir_rx51 = container_of(timer, struct ir_rx51, timer);
-	ktime_t now;
+	ktime_t yesw;
 
 	if (ir_rx51->wbuf_index < 0) {
 		dev_err_ratelimited(ir_rx51->dev,
@@ -86,9 +86,9 @@ static enum hrtimer_restart ir_rx51_timer_cb(struct hrtimer *timer)
 
 		ir_rx51->wbuf_index++;
 
-		now = timer->base->get_time();
+		yesw = timer->base->get_time();
 
-	} while (hrtimer_get_expires_tv64(timer) < now);
+	} while (hrtimer_get_expires_tv64(timer) < yesw);
 
 	return HRTIMER_RESTART;
 end:
@@ -199,8 +199,8 @@ static int ir_rx51_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 static int ir_rx51_suspend(struct platform_device *dev, pm_message_t state)
 {
 	/*
-	 * In case the device is still open, do not suspend. Normally
-	 * this should not be a problem as lircd only keeps the device
+	 * In case the device is still open, do yest suspend. Normally
+	 * this should yest be a problem as lircd only keeps the device
 	 * open only for short periods of time. We also don't want to
 	 * get involved with race conditions that might happen if we
 	 * were in a middle of a transmit. Thus, we defer any suspend
@@ -240,7 +240,7 @@ static int ir_rx51_probe(struct platform_device *dev)
 		return err;
 	}
 
-	/* Use default, in case userspace does not set the carrier */
+	/* Use default, in case userspace does yest set the carrier */
 	ir_rx51.freq = DIV_ROUND_CLOSEST(pwm_get_period(pwm), NSEC_PER_SEC);
 	pwm_put(pwm);
 
@@ -273,7 +273,7 @@ static int ir_rx51_remove(struct platform_device *dev)
 
 static const struct of_device_id ir_rx51_match[] = {
 	{
-		.compatible = "nokia,n900-ir",
+		.compatible = "yeskia,n900-ir",
 	},
 	{},
 };

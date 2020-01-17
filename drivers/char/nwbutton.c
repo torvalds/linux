@@ -14,7 +14,7 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 
 #include <linux/uaccess.h>
@@ -72,12 +72,12 @@ int button_add_callback (void (*callback) (void), int count)
 
 /*
  * This function is called by other drivers to deregister a callback function.
- * If you attempt to unregister a callback which does not exist, it will fail
+ * If you attempt to unregister a callback which does yest exist, it will fail
  * with -EINVAL. If there is more than one entry with the same address,
  * because it searches the list from end to beginning, it will unregister the
  * last one to be registered first (FILO- First In Last Out).
- * Note that this is not necessarily true if the entries are not submitted
- * at the same time, because another driver could have unregistered a callback
+ * Note that this is yest necessarily true if the entries are yest submitted
+ * at the same time, because ayesther driver could have unregistered a callback
  * between the submissions creating a gap earlier in the list, which would
  * be filled first at submission time.
  */
@@ -185,11 +185,11 @@ static int button_read (struct file *filp, char __user *buffer,
 static const struct file_operations button_fops = {
 	.owner		= THIS_MODULE,
 	.read		= button_read,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 /* 
- * This structure is the misc device structure, which specifies the minor
+ * This structure is the misc device structure, which specifies the miyesr
  * device number (158 in this case), the name of the device (for /proc/misc),
  * and the address of the above file operations structure.
  */
@@ -203,7 +203,7 @@ static struct miscdevice button_misc_device = {
 /*
  * This function is called to initialise the driver, either from misc.c at
  * bootup if the driver is compiled into the kernel, or from init_module
- * below at module insert time. It attempts to register the device node
+ * below at module insert time. It attempts to register the device yesde
  * and the IRQ and fails with a warning message if either fails, though
  * neither ever should because the device number and IRQ are unique to
  * this driver.
@@ -225,7 +225,7 @@ static int __init nwbutton_init(void)
 
 	if (request_irq (IRQ_NETWINDER_BUTTON, button_handler, 0,
 			"nwbutton", NULL)) {
-		printk (KERN_WARNING "nwbutton: IRQ %d is not free.\n",
+		printk (KERN_WARNING "nwbutton: IRQ %d is yest free.\n",
 				IRQ_NETWINDER_BUTTON);
 		misc_deregister (&button_misc_device);
 		return -EIO;

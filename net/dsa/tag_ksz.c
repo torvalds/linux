@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * net/dsa/tag_ksz.c - Microchip KSZ Switch tag format handling
- * Copyright (c) 2017 Microchip Technology
+ * Copyright (c) 2017 Microchip Techyeslogy
  */
 
 #include <linux/etherdevice.h>
@@ -133,7 +133,7 @@ MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ8795);
  * ---------------------------------------------------------------------------
  * DA(6bytes)|SA(6bytes)|....|Data(nbytes)|tag0(1byte)|tag1(1byte)|FCS(4bytes)
  * ---------------------------------------------------------------------------
- * tag0 : Prioritization (not used now)
+ * tag0 : Prioritization (yest used yesw)
  * tag1 : each bit represents port (eg, 0x01=port1, 0x02=port2, 0x10=port5)
  *
  * For Egress (KSZ9477 -> Host), 1 byte is added before FCS.

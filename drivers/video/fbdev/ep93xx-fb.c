@@ -346,7 +346,7 @@ static inline int ep93xxfb_convert_color(int val, int width)
 	return ((val << width) + 0x7fff - val) >> 16;
 }
 
-static int ep93xxfb_setcolreg(unsigned int regno, unsigned int red,
+static int ep93xxfb_setcolreg(unsigned int regyes, unsigned int red,
 			      unsigned int green, unsigned int blue,
 			      unsigned int transp, struct fb_info *info)
 {
@@ -356,13 +356,13 @@ static int ep93xxfb_setcolreg(unsigned int regno, unsigned int red,
 
 	switch (info->fix.visual) {
 	case FB_VISUAL_PSEUDOCOLOR:
-		if (regno > 255)
+		if (regyes > 255)
 			return 1;
 		rgb = ((red & 0xff00) << 8) | (green & 0xff00) |
 			((blue & 0xff00) >> 8);
 
-		pal[regno] = rgb;
-		ep93xxfb_writel(fbi, rgb, (EP93XXFB_COLOR_LUT + (regno << 2)));
+		pal[regyes] = rgb;
+		ep93xxfb_writel(fbi, rgb, (EP93XXFB_COLOR_LUT + (regyes << 2)));
 		ctrl = ep93xxfb_readl(fbi, EP93XXFB_LUT_SW_CONTROL);
 		lut_stat = !!(ctrl & EP93XXFB_LUT_SW_CONTROL_SSTAT);
 		lut_current = !!(ctrl & EP93XXFB_LUT_SW_CONTROL_SWTCH);
@@ -380,7 +380,7 @@ static int ep93xxfb_setcolreg(unsigned int regno, unsigned int red,
 		break;
 
 	case FB_VISUAL_TRUECOLOR:
-		if (regno > 16)
+		if (regyes > 16)
 			return 1;
 
 		red = ep93xxfb_convert_color(red, info->var.red.length);
@@ -389,7 +389,7 @@ static int ep93xxfb_setcolreg(unsigned int regno, unsigned int red,
 		transp = ep93xxfb_convert_color(transp,
 						info->var.transp.length);
 
-		pal[regno] = (red << info->var.red.offset) |
+		pal[regyes] = (red << info->var.red.offset) |
 			(green << info->var.green.offset) |
 			(blue << info->var.blue.offset) |
 			(transp << info->var.transp.offset);
@@ -431,13 +431,13 @@ static int ep93xxfb_alloc_videomem(struct fb_info *info)
 	 * There is a bug in the ep93xx framebuffer which causes problems
 	 * if bit 27 of the physical address is set.
 	 * See: http://marc.info/?l=linux-arm-kernel&m=110061245502000&w=2
-	 * There does not seem to be any official errata for this, but I
+	 * There does yest seem to be any official errata for this, but I
 	 * have confirmed the problem exists on my hardware (ep9315) at
 	 * least.
 	 */
 	if (check_screenpage_bug && phys_addr & (1 << 27)) {
 		dev_err(info->dev, "ep93xx framebuffer bug. phys addr (0x%x) "
-			"has bit 27 set: cannot init framebuffer\n",
+			"has bit 27 set: canyest init framebuffer\n",
 			phys_addr);
 
 		dma_free_coherent(info->dev, fb_size, virt_addr, phys_addr);
@@ -499,7 +499,7 @@ static int ep93xxfb_probe(struct platform_device *pdev)
 	 * drivers/video/backlight/ep93xx_bl.c) and doing so will cause
 	 * the second loaded driver to return -EBUSY.
 	 *
-	 * NOTE: No locking is required; the backlight does not touch
+	 * NOTE: No locking is required; the backlight does yest touch
 	 * any of the framebuffer registers.
 	 */
 	fbi->res = res;
@@ -517,7 +517,7 @@ static int ep93xxfb_probe(struct platform_device *pdev)
 	info->var.activate	= FB_ACTIVATE_NOW;
 	info->var.vmode		= FB_VMODE_NONINTERLACED;
 	info->flags		= FBINFO_DEFAULT;
-	info->node		= -1;
+	info->yesde		= -1;
 	info->state		= FBINFO_STATE_RUNNING;
 	info->pseudo_palette	= &fbi->pseudo_palette;
 

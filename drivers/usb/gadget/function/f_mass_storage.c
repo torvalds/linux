@@ -11,12 +11,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
+ * 3. The names of the above-listed copyright holders may yest be used
  *    to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -62,7 +62,7 @@
  *				LUNs).  Each element of the array has
  *				the following fields:
  *	->filename	The path to the backing file for the LUN.
- *				Required if LUN is not marked as
+ *				Required if LUN is yest marked as
  *				removable.
  *	->ro		Flag specifying access to the LUN shall be
  *				read-only.  This is implied if CD-ROM
@@ -73,8 +73,8 @@
  *				being removable.
  *	->cdrom		Flag specifying that LUN shall be reported as
  *				being a CD-ROM.
- *	->nofua		Flag specifying that FUA flag in SCSI WRITE(10,12)
- *				commands for this LUN shall be ignored.
+ *	->yesfua		Flag specifying that FUA flag in SCSI WRITE(10,12)
+ *				commands for this LUN shall be igyesred.
  *
  *	vendor_name
  *	product_name
@@ -85,21 +85,21 @@
  *				characters or less.
  *
  *	can_stall	Set to permit function to halt bulk endpoints.
- *				Disabled on some USB devices known not
+ *				Disabled on some USB devices kyeswn yest
  *				to work correctly.  You should set it
  *				to true.
  *
- * If "removable" is not set for a LUN then a backing file must be
+ * If "removable" is yest set for a LUN then a backing file must be
  * specified.  If it is set, then NULL filename means the LUN's medium
- * is not loaded (an empty string as "filename" in the fsg_config
+ * is yest loaded (an empty string as "filename" in the fsg_config
  * structure causes error).  The CD-ROM emulation includes a single
- * data track and no audio tracks; hence there need be only one
+ * data track and yes audio tracks; hence there need be only one
  * backing file per LUN.
  *
  * This function is heavily based on "File-backed Storage Gadget" by
  * Alan Stern which in turn is heavily based on "Gadget Zero" by David
  * Brownell.  The driver's SCSI command interface was based on the
- * "Information technology - Small Computer System Interface - 2"
+ * "Information techyeslogy - Small Computer System Interface - 2"
  * document from X3T9.2 Project 375D, Revision 10L, 7-SEP-93,
  * available at <http://www.t10.org/ftp/t10/drafts/s2/s2-r10l.pdf>.
  * The single exception is opcode 0x23 (READ FORMAT CAPACITIES), which
@@ -115,7 +115,7 @@
  * The MSF is fairly straightforward.  There is a main kernel
  * thread that handles most of the work.  Interrupt routines field
  * callbacks from the controller driver: bulk- and interrupt-request
- * completion notifications, endpoint-0 events, and disconnect events.
+ * completion yestifications, endpoint-0 events, and disconnect events.
  * Completion events are passed to the main thread by wakeup calls.  Many
  * ep0 requests are handled at interrupt time, but SetInterface,
  * SetConfiguration, and device reset requests are forwarded to the
@@ -125,7 +125,7 @@
  * The thread's main routine implements the standard command/data/status
  * parts of a SCSI interaction.  It and its subroutines are full of tests
  * for pending signals/exceptions -- all this polling is necessary since
- * the kernel has no setjmp/longjmp equivalents.  (Maybe this is an
+ * the kernel has yes setjmp/longjmp equivalents.  (Maybe this is an
  * indication that the driver really wants to be running in userspace.)
  * An important point is that so long as the thread is alive it keeps an
  * open reference to the backing file.  This will prevent unmounting
@@ -134,11 +134,11 @@
  * thread catches INT, TERM, and KILL signals and converts them into
  * an EXIT exception.
  *
- * In normal operation the main thread is started during the gadget's
+ * In yesrmal operation the main thread is started during the gadget's
  * fsg_bind() callback and stopped during fsg_unbind().  But it can
- * also exit when it receives a signal, and there's no point leaving
+ * also exit when it receives a signal, and there's yes point leaving
  * the gadget running when the thread is dead.  As of this moment, MSF
- * provides no way to deregister the gadget when thread dies -- maybe
+ * provides yes way to deregister the gadget when thread dies -- maybe
  * a callback functions is needed.
  *
  * To provide maximum throughput, the driver uses a circular pipeline of
@@ -164,7 +164,7 @@
  *
  * A module parameter tells the driver to avoid stalling the bulk
  * endpoints wherever the transport specification allows.  This is
- * necessary for some UDCs like the SuperH, which cannot reliably clear a
+ * necessary for some UDCs like the SuperH, which canyest reliably clear a
  * halt on a bulk endpoint.  However, under certain circumstances the
  * Bulk-only specification requires a stall.  In such cases the driver
  * will halt the endpoint and set a flag indicating that it should clear
@@ -172,15 +172,15 @@
  * will permit everything to work correctly.  Furthermore, although the
  * specification allows the bulk-out endpoint to halt when the host sends
  * too much data, implementing this would cause an unavoidable race.
- * The driver will always use the "no-stall" approach for OUT transfers.
+ * The driver will always use the "yes-stall" approach for OUT transfers.
  *
  * One subtle point concerns sending status-stage responses for ep0
  * requests.  Some of these requests, such as device reset, can involve
  * interrupting an ongoing file I/O operation, which might take an
  * arbitrarily long time.  During that delay the host might give up on
  * the original ep0 request and issue a new one.  When that happens the
- * driver should not notify the host about completion of the original
- * request, as the host will no longer be waiting for it.  So the driver
+ * driver should yest yestify the host about completion of the original
+ * request, as the host will yes longer be waiting for it.  So the driver
  * assigns to each ep0 request a unique tag, and it keeps track of the
  * tag value of the request associated with a long-running exception
  * (device-reset, interface-change, or configuration-change).  When the
@@ -221,7 +221,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/composite.h>
 
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "configfs.h"
 
@@ -307,7 +307,7 @@ struct fsg_common {
 	unsigned int		running:1;
 	unsigned int		sysfs:1;
 
-	struct completion	thread_notifier;
+	struct completion	thread_yestifier;
 	struct task_struct	*thread_task;
 
 	/* Gadget's private data. */
@@ -398,9 +398,9 @@ static void __raise_exception(struct fsg_common *common, enum fsg_state new_stat
 	unsigned long		flags;
 
 	/*
-	 * Do nothing if a higher-priority exception is already in progress.
+	 * Do yesthing if a higher-priority exception is already in progress.
 	 * If a lower-or-equal priority exception is in progress, preempt it
-	 * and notify the main thread by sending it a signal.
+	 * and yestify the main thread by sending it a signal.
 	 */
 	spin_lock_irqsave(&common->lock, flags);
 	if (common->state <= new_state) {
@@ -534,7 +534,7 @@ static int fsg_setup(struct usb_function *f,
 	}
 
 	VDBG(fsg,
-	     "unknown class-specific control req %02x.%02x v%04x i%04x l%u\n",
+	     "unkyeswn class-specific control req %02x.%02x v%04x i%04x l%u\n",
 	     ctrl->bRequestType, ctrl->bRequest,
 	     le16_to_cpu(ctrl->wValue), w_index, w_length);
 	return -EOPNOTSUPP;
@@ -545,7 +545,7 @@ static int fsg_setup(struct usb_function *f,
 
 /* All the following routines run in process context */
 
-/* Use this for bulk or interrupt transfers, not ep0 */
+/* Use this for bulk or interrupt transfers, yest ep0 */
 static int start_transfer(struct fsg_dev *fsg, struct usb_ep *ep,
 			   struct usb_request *req)
 {
@@ -597,7 +597,7 @@ static int sleep_thread(struct fsg_common *common, bool can_freeze,
 {
 	int	rc;
 
-	/* Wait until a signal arrives or bh is no longer busy */
+	/* Wait until a signal arrives or bh is yes longer busy */
 	if (can_freeze)
 		/*
 		 * synchronize with the smp_store_release(&bh->state) in
@@ -629,7 +629,7 @@ static int do_read(struct fsg_common *common)
 
 	/*
 	 * Get the starting Logical Block Address and check that it's
-	 * not too big.
+	 * yest too big.
 	 */
 	if (common->cmnd[0] == READ_6)
 		lba = get_unaligned_be24(&common->cmnd[1]);
@@ -733,7 +733,7 @@ static int do_read(struct fsg_common *common)
 		/* Send this buffer and go read some more */
 		bh->inreq->zero = 0;
 		if (!start_in_transfer(common, bh))
-			/* Don't know what to do if common->fsg is NULL */
+			/* Don't kyesw what to do if common->fsg is NULL */
 			return -EIO;
 		common->next_buffhd_to_fill = bh->next;
 	}
@@ -761,12 +761,12 @@ static int do_write(struct fsg_common *common)
 		return -EINVAL;
 	}
 	spin_lock(&curlun->filp->f_lock);
-	curlun->filp->f_flags &= ~O_SYNC;	/* Default is not to wait */
+	curlun->filp->f_flags &= ~O_SYNC;	/* Default is yest to wait */
 	spin_unlock(&curlun->filp->f_lock);
 
 	/*
 	 * Get the starting Logical Block Address and check that it's
-	 * not too big
+	 * yest too big
 	 */
 	if (common->cmnd[0] == WRITE_6)
 		lba = get_unaligned_be24(&common->cmnd[1]);
@@ -777,13 +777,13 @@ static int do_write(struct fsg_common *common)
 		 * We allow DPO (Disable Page Out = don't save data in the
 		 * cache) and FUA (Force Unit Access = write directly to the
 		 * medium).  We don't implement DPO; we implement FUA by
-		 * performing synchronous output.
+		 * performing synchroyesus output.
 		 */
 		if (common->cmnd[1] & ~0x18) {
 			curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 			return -EINVAL;
 		}
-		if (!curlun->nofua && (common->cmnd[1] & 0x08)) { /* FUA */
+		if (!curlun->yesfua && (common->cmnd[1] & 0x08)) { /* FUA */
 			spin_lock(&curlun->filp->f_lock);
 			curlun->filp->f_flags |= O_SYNC;
 			spin_unlock(&curlun->filp->f_lock);
@@ -809,7 +809,7 @@ static int do_write(struct fsg_common *common)
 			/*
 			 * Figure out how much we want to get:
 			 * Try to get the remaining amount,
-			 * but not more than the buffer size.
+			 * but yest more than the buffer size.
 			 */
 			amount = min(amount_left_to_req, FSG_BUFLEN);
 
@@ -838,7 +838,7 @@ static int do_write(struct fsg_common *common)
 			 */
 			set_bulk_out_req_length(common, bh, amount);
 			if (!start_out_transfer(common, bh))
-				/* Dunno what to do if common->fsg is NULL */
+				/* Dunyes what to do if common->fsg is NULL */
 				return -EIO;
 			common->next_buffhd_to_fill = bh->next;
 			continue;
@@ -876,7 +876,7 @@ static int do_write(struct fsg_common *common)
 
 		/*
 		 * Don't accept excess data.  The spec doesn't say
-		 * what to do in this case.  We'll ignore the error.
+		 * what to do in this case.  We'll igyesre the error.
 		 */
 		amount = min(amount, bh->bulk_out_intended_length);
 
@@ -935,7 +935,7 @@ static int do_synchronize_cache(struct fsg_common *common)
 	struct fsg_lun	*curlun = common->curlun;
 	int		rc;
 
-	/* We ignore the requested LBA and write out all file's
+	/* We igyesre the requested LBA and write out all file's
 	 * dirty data buffers. */
 	rc = fsg_lun_fsync_sub(curlun);
 	if (rc)
@@ -949,10 +949,10 @@ static int do_synchronize_cache(struct fsg_common *common)
 static void invalidate_sub(struct fsg_lun *curlun)
 {
 	struct file	*filp = curlun->filp;
-	struct inode	*inode = file_inode(filp);
+	struct iyesde	*iyesde = file_iyesde(filp);
 	unsigned long	rc;
 
-	rc = invalidate_mapping_pages(inode->i_mapping, 0, -1);
+	rc = invalidate_mapping_pages(iyesde->i_mapping, 0, -1);
 	VLDBG(curlun, "invalidate_mapping_pages -> %ld\n", rc);
 }
 
@@ -969,7 +969,7 @@ static int do_verify(struct fsg_common *common)
 
 	/*
 	 * Get the starting Logical Block Address and check that it's
-	 * not too big.
+	 * yest too big.
 	 */
 	lba = get_unaligned_be32(&common->cmnd[2]);
 	if (lba >= curlun->num_sectors) {
@@ -1007,7 +1007,7 @@ static int do_verify(struct fsg_common *common)
 	while (amount_left > 0) {
 		/*
 		 * Figure out how much we need to read:
-		 * Try to read the remaining amount, but not more than
+		 * Try to read the remaining amount, but yest more than
 		 * the buffer size.
 		 * And don't try to read past the end of the file.
 		 */
@@ -1065,7 +1065,7 @@ static int do_inquiry(struct fsg_common *common, struct fsg_buffhd *bh)
 	if (!curlun) {		/* Unsupported LUNs are okay */
 		common->bad_lun_okay = 1;
 		memset(buf, 0, 36);
-		buf[0] = TYPE_NO_LUN;	/* Unsupported, no device-type */
+		buf[0] = TYPE_NO_LUN;	/* Unsupported, yes device-type */
 		buf[4] = 31;		/* Additional length */
 		return 36;
 	}
@@ -1107,7 +1107,7 @@ static int do_request_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 	 *	pending sense data, and clear the unit attention
 	 *	condition on the logical unit for that initiator.
 	 *
-	 * FSG normally uses option a); enable this code to use option b).
+	 * FSG yesrmally uses option a); enable this code to use option b).
 	 */
 #if 0
 	if (curlun && curlun->unit_attention_data != SS_NO_SENSE) {
@@ -1234,7 +1234,7 @@ static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 
 	/*
 	 * Write the mode parameter header.  Fixed values are: default
-	 * medium type, no cache control (DPOFUA), and no block descriptors.
+	 * medium type, yes cache control (DPOFUA), and yes block descriptors.
 	 * The only variable value is the WriteProtect bit.  We will fill in
 	 * the mode data length later.
 	 */
@@ -1263,7 +1263,7 @@ static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 
 		if (!changeable_values) {
 			buf[2] = 0x04;	/* Write cache enable, */
-					/* Read cache not disabled */
+					/* Read cache yest disabled */
 					/* No cache retention priorities */
 			put_unaligned_be16(0xffff, &buf[4]);
 					/* Don't disable prefetch */
@@ -1453,7 +1453,7 @@ static int throw_away_data(struct fsg_common *common)
 	     bh->state != BUF_STATE_EMPTY || common->usb_amount_left > 0;
 	     bh = common->next_buffhd_to_drain) {
 
-		/* Try to submit another request if we need one */
+		/* Try to submit ayesther request if we need one */
 		bh2 = common->next_buffhd_to_fill;
 		if (bh2->state == BUF_STATE_EMPTY &&
 				common->usb_amount_left > 0) {
@@ -1466,7 +1466,7 @@ static int throw_away_data(struct fsg_common *common)
 			 */
 			set_bulk_out_req_length(common, bh2, amount);
 			if (!start_out_transfer(common, bh2))
-				/* Dunno what to do if common->fsg is NULL */
+				/* Dunyes what to do if common->fsg is NULL */
 				return -EIO;
 			common->next_buffhd_to_fill = bh2->next;
 			common->usb_amount_left -= amount;
@@ -1502,8 +1502,8 @@ static int finish_reply(struct fsg_common *common)
 		break;			/* Nothing to send */
 
 	/*
-	 * If we don't know whether the host wants to read or write,
-	 * this must be CB or CBI with an unknown command.  We mustn't
+	 * If we don't kyesw whether the host wants to read or write,
+	 * this must be CB or CBI with an unkyeswn command.  We mustn't
 	 * try to send or receive any data.  So stall both bulk pipes
 	 * if we can and wait for a reset.
 	 */
@@ -1514,7 +1514,7 @@ static int finish_reply(struct fsg_common *common)
 			fsg_set_halt(common->fsg, common->fsg->bulk_out);
 			rc = halt_bulk_in_endpoint(common->fsg);
 		} else {
-			/* Don't know what to do if common->fsg is NULL */
+			/* Don't kyesw what to do if common->fsg is NULL */
 			rc = -EIO;
 		}
 		break;
@@ -1524,11 +1524,11 @@ static int finish_reply(struct fsg_common *common)
 		if (common->data_size == 0) {
 			/* Nothing to send */
 
-		/* Don't know what to do if common->fsg is NULL */
+		/* Don't kyesw what to do if common->fsg is NULL */
 		} else if (!fsg_is_set(common)) {
 			rc = -EIO;
 
-		/* If there's no residue, simply send the last buffer */
+		/* If there's yes residue, simply send the last buffer */
 		} else if (common->residue == 0) {
 			bh->inreq->zero = 0;
 			if (!start_in_transfer(common, bh))
@@ -1540,7 +1540,7 @@ static int finish_reply(struct fsg_common *common)
 		 * packet.  If we are allowed to stall, halt the bulk-in
 		 * endpoint.  (Note: This violates the Bulk-Only Transport
 		 * specification, which requires us to pad the data if we
-		 * don't halt the endpoint.  Presumably nobody will mind.)
+		 * don't halt the endpoint.  Presumably yesbody will mind.)
 		 */
 		} else {
 			bh->inreq->zero = 1;
@@ -1640,7 +1640,7 @@ static void send_status(struct fsg_common *common)
 	bh->inreq->length = US_BULK_CS_WRAP_LEN;
 	bh->inreq->zero = 0;
 	if (!start_in_transfer(common, bh))
-		/* Don't know what to do if common->fsg is NULL */
+		/* Don't kyesw what to do if common->fsg is NULL */
 		return;
 
 	common->next_buffhd_to_fill = bh->next;
@@ -1673,7 +1673,7 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 	     common->data_size_from_cmnd, common->cmnd_size, hdlen);
 
 	/*
-	 * We can't reply at all until we know the correct data direction
+	 * We can't reply at all until we kyesw the correct data direction
 	 * and size.
 	 */
 	if (common->data_size_from_cmnd == 0)
@@ -1725,7 +1725,7 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 
 	/* Check that the LUN values are consistent */
 	if (common->lun != lun)
-		DBG(common, "using LUN %u from CBW, not LUN %u from CDB\n",
+		DBG(common, "using LUN %u from CBW, yest LUN %u from CDB\n",
 		    common->lun, lun);
 
 	/* Check the LUN */
@@ -1741,7 +1741,7 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 
 		/*
 		 * INQUIRY and REQUEST SENSE commands are explicitly allowed
-		 * to use unsupported LUNs; all others may not.
+		 * to use unsupported LUNs; all others may yest.
 		 */
 		if (common->cmnd[0] != INQUIRY &&
 		    common->cmnd[0] != REQUEST_SENSE) {
@@ -1762,7 +1762,7 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 		return -EINVAL;
 	}
 
-	/* Check that only command bytes listed in the mask are non-zero */
+	/* Check that only command bytes listed in the mask are yesn-zero */
 	common->cmnd[1] &= 0x1f;			/* Mask away the LUN */
 	for (i = 1; i < cmnd_size; ++i) {
 		if (common->cmnd[i] && !(mask & (1 << i))) {
@@ -1799,7 +1799,7 @@ static int do_scsi_command(struct fsg_common *common)
 	int			rc;
 	int			reply = -EINVAL;
 	int			i;
-	static char		unknown[16];
+	static char		unkyeswn[16];
 
 	dump_cdb(common);
 
@@ -1916,7 +1916,7 @@ static int do_scsi_command(struct fsg_common *common)
 
 	case READ_HEADER:
 		if (!common->curlun || !common->curlun->cdrom)
-			goto unknown_cmnd;
+			goto unkyeswn_cmnd;
 		common->data_size_from_cmnd =
 			get_unaligned_be16(&common->cmnd[7]);
 		reply = check_command(common, 10, DATA_DIR_TO_HOST,
@@ -1928,7 +1928,7 @@ static int do_scsi_command(struct fsg_common *common)
 
 	case READ_TOC:
 		if (!common->curlun || !common->curlun->cdrom)
-			goto unknown_cmnd;
+			goto unkyeswn_cmnd;
 		common->data_size_from_cmnd =
 			get_unaligned_be16(&common->cmnd[7]);
 		reply = check_command(common, 10, DATA_DIR_TO_HOST,
@@ -2041,11 +2041,11 @@ static int do_scsi_command(struct fsg_common *common)
 		/* Fall through */
 
 	default:
-unknown_cmnd:
+unkyeswn_cmnd:
 		common->data_size_from_cmnd = 0;
-		sprintf(unknown, "Unknown x%02x", common->cmnd[0]);
+		sprintf(unkyeswn, "Unkyeswn x%02x", common->cmnd[0]);
 		reply = check_command(common, common->cmnd_size,
-				      DATA_DIR_UNKNOWN, ~0, 0, unknown);
+				      DATA_DIR_UNKNOWN, ~0, 0, unkyeswn);
 		if (reply == 0) {
 			common->curlun->sense_data = SS_INVALID_COMMAND;
 			reply = -EINVAL;
@@ -2079,7 +2079,7 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	struct bulk_cb_wrap	*cbw = req->buf;
 	struct fsg_common	*common = fsg->common;
 
-	/* Was this a real packet?  Should it be ignored? */
+	/* Was this a real packet?  Should it be igyesred? */
 	if (req->status || test_bit(IGNORE_BULK_OUT, &fsg->atomic_bitflags))
 		return -EINVAL;
 
@@ -2095,7 +2095,7 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 		 * The Bulk-only spec says we MUST stall the IN endpoint
 		 * (6.6.1), so it's unavoidable.  It also says we must
 		 * retain this state until the next reset, but there's
-		 * no way to tell the controller driver it should ignore
+		 * yes way to tell the controller driver it should igyesre
 		 * Clear-Feature(HALT) requests.
 		 *
 		 * We aren't required to halt the OUT endpoint; instead
@@ -2111,7 +2111,7 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	if (cbw->Lun >= ARRAY_SIZE(common->luns) ||
 	    cbw->Flags & ~US_BULK_FLAG_IN || cbw->Length <= 0 ||
 	    cbw->Length > MAX_COMMAND_SIZE) {
-		DBG(fsg, "non-meaningful CBW: lun = %u, flags = 0x%x, "
+		DBG(fsg, "yesn-meaningful CBW: lun = %u, flags = 0x%x, "
 				"cmdlen %u\n",
 				cbw->Lun, cbw->Flags, cbw->Length);
 
@@ -2159,7 +2159,7 @@ static int get_next_command(struct fsg_common *common)
 	/* Queue a request to read a Bulk-only CBW */
 	set_bulk_out_req_length(common, bh, US_BULK_CB_WRAP_LEN);
 	if (!start_out_transfer(common, bh))
-		/* Don't know what to do if common->fsg is NULL */
+		/* Don't kyesw what to do if common->fsg is NULL */
 		return -EIO;
 
 	/*
@@ -2398,7 +2398,7 @@ static void handle_exception(struct fsg_common *common)
 	case FSG_STATE_PROTOCOL_RESET:
 		/*
 		 * In case we were forced against our will to halt a
-		 * bulk endpoint, clear the halt now.  (The SuperH UDC
+		 * bulk endpoint, clear the halt yesw.  (The SuperH UDC
 		 * requires this.)
 		 */
 		if (!fsg_is_set(common))
@@ -2495,8 +2495,8 @@ static int fsg_main_thread(void *common_)
 	}
 	up_write(&common->filesem);
 
-	/* Let fsg_unbind() know the thread has exited */
-	complete_and_exit(&common->thread_notifier, 0);
+	/* Let fsg_unbind() kyesw the thread has exited */
+	complete_and_exit(&common->thread_yestifier, 0);
 }
 
 
@@ -2509,12 +2509,12 @@ static ssize_t ro_show(struct device *dev, struct device_attribute *attr, char *
 	return fsg_show_ro(curlun, buf);
 }
 
-static ssize_t nofua_show(struct device *dev, struct device_attribute *attr,
+static ssize_t yesfua_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	struct fsg_lun		*curlun = fsg_lun_from_dev(dev);
 
-	return fsg_show_nofua(curlun, buf);
+	return fsg_show_yesfua(curlun, buf);
 }
 
 static ssize_t file_show(struct device *dev, struct device_attribute *attr,
@@ -2535,12 +2535,12 @@ static ssize_t ro_store(struct device *dev, struct device_attribute *attr,
 	return fsg_store_ro(curlun, filesem, buf, count);
 }
 
-static ssize_t nofua_store(struct device *dev, struct device_attribute *attr,
+static ssize_t yesfua_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 	struct fsg_lun		*curlun = fsg_lun_from_dev(dev);
 
-	return fsg_store_nofua(curlun, buf, count);
+	return fsg_store_yesfua(curlun, buf, count);
 }
 
 static ssize_t file_store(struct device *dev, struct device_attribute *attr,
@@ -2552,7 +2552,7 @@ static ssize_t file_store(struct device *dev, struct device_attribute *attr,
 	return fsg_store_file(curlun, filesem, buf, count);
 }
 
-static DEVICE_ATTR_RW(nofua);
+static DEVICE_ATTR_RW(yesfua);
 /* mode wil be set in fsg_lun_attr_is_visible() */
 static DEVICE_ATTR(ro, 0, ro_show, ro_store);
 static DEVICE_ATTR(file, 0, file_show, file_store);
@@ -2576,7 +2576,7 @@ static struct fsg_common *fsg_common_setup(struct fsg_common *common)
 	}
 	init_rwsem(&common->filesem);
 	spin_lock_init(&common->lock);
-	init_completion(&common->thread_notifier);
+	init_completion(&common->thread_yestifier);
 	init_waitqueue_head(&common->io_wait);
 	init_waitqueue_head(&common->fsg_wait);
 	common->state = FSG_STATE_TERMINATED;
@@ -2694,7 +2694,7 @@ int fsg_common_set_cdev(struct fsg_common *common,
 	fsg_intf_desc.iInterface = us[FSG_STRING_INTERFACE].id;
 
 	/*
-	 * Some peripheral controllers are known not to be able to
+	 * Some peripheral controllers are kyeswn yest to be able to
 	 * halt bulk endpoints correctly.  If one of them is present,
 	 * disable stalls.
 	 */
@@ -2708,7 +2708,7 @@ EXPORT_SYMBOL_GPL(fsg_common_set_cdev);
 static struct attribute *fsg_lun_dev_attrs[] = {
 	&dev_attr_ro.attr,
 	&dev_attr_file.attr,
-	&dev_attr_nofua.attr,
+	&dev_attr_yesfua.attr,
 	NULL
 };
 
@@ -2750,7 +2750,7 @@ int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
 		return -EBUSY;
 
 	if (!cfg->filename && !cfg->removable) {
-		pr_err("no file given for LUN%d\n", id);
+		pr_err("yes file given for LUN%d\n", id);
 		return -EINVAL;
 	}
 
@@ -2793,7 +2793,7 @@ int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
 	}
 
 	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
-	p = "(no medium)";
+	p = "(yes medium)";
 	if (fsg_lun_is_open(lun)) {
 		p = "(error)";
 		if (pathbuf) {
@@ -2824,7 +2824,7 @@ EXPORT_SYMBOL_GPL(fsg_common_create_lun);
 
 int fsg_common_create_luns(struct fsg_common *common, struct fsg_config *cfg)
 {
-	char buf[8]; /* enough for 100000000 different numbers, decimal */
+	char buf[8]; /* eyesugh for 100000000 different numbers, decimal */
 	int i, rc;
 
 	fsg_common_remove_luns(common);
@@ -2867,10 +2867,10 @@ static void fsg_common_release(struct fsg_common *common)
 {
 	int i;
 
-	/* If the thread isn't already dead, tell it to exit now */
+	/* If the thread isn't already dead, tell it to exit yesw */
 	if (common->state != FSG_STATE_TERMINATED) {
 		raise_exception(common, FSG_STATE_EXIT);
-		wait_for_completion(&common->thread_notifier);
+		wait_for_completion(&common->thread_yestifier);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(common->luns); ++i) {
@@ -2910,7 +2910,7 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	}
 
 	opts = fsg_opts_from_func_inst(f->fi);
-	if (!opts->no_configfs) {
+	if (!opts->yes_configfs) {
 		ret = fsg_common_set_cdev(fsg->common, c->cdev,
 					  fsg->common->can_stall);
 		if (ret)
@@ -2959,7 +2959,7 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 	fsg_hs_bulk_out_desc.bEndpointAddress =
 		fsg_fs_bulk_out_desc.bEndpointAddress;
 
-	/* Calculate bMaxBurst, we know packet size is 1024 */
+	/* Calculate bMaxBurst, we kyesw packet size is 1024 */
 	max_burst = min_t(unsigned, FSG_BUFLEN / 1024, 15);
 
 	fsg_ss_bulk_in_desc.bEndpointAddress =
@@ -2984,7 +2984,7 @@ fail:
 	/* terminate the thread */
 	if (fsg->common->state != FSG_STATE_TERMINATED) {
 		raise_exception(fsg->common, FSG_STATE_EXIT);
-		wait_for_completion(&fsg->common->thread_notifier);
+		wait_for_completion(&fsg->common->thread_yestifier);
 	}
 	return i;
 }
@@ -3095,18 +3095,18 @@ static ssize_t fsg_lun_opts_cdrom_store(struct config_item *item,
 
 CONFIGFS_ATTR(fsg_lun_opts_, cdrom);
 
-static ssize_t fsg_lun_opts_nofua_show(struct config_item *item, char *page)
+static ssize_t fsg_lun_opts_yesfua_show(struct config_item *item, char *page)
 {
-	return fsg_show_nofua(to_fsg_lun_opts(item)->lun, page);
+	return fsg_show_yesfua(to_fsg_lun_opts(item)->lun, page);
 }
 
-static ssize_t fsg_lun_opts_nofua_store(struct config_item *item,
+static ssize_t fsg_lun_opts_yesfua_store(struct config_item *item,
 				       const char *page, size_t len)
 {
-	return fsg_store_nofua(to_fsg_lun_opts(item)->lun, page, len);
+	return fsg_store_yesfua(to_fsg_lun_opts(item)->lun, page, len);
 }
 
-CONFIGFS_ATTR(fsg_lun_opts_, nofua);
+CONFIGFS_ATTR(fsg_lun_opts_, yesfua);
 
 static ssize_t fsg_lun_opts_inquiry_string_show(struct config_item *item,
 						char *page)
@@ -3127,7 +3127,7 @@ static struct configfs_attribute *fsg_lun_attrs[] = {
 	&fsg_lun_opts_attr_ro,
 	&fsg_lun_opts_attr_removable,
 	&fsg_lun_opts_attr_cdrom,
-	&fsg_lun_opts_attr_nofua,
+	&fsg_lun_opts_attr_yesfua,
 	&fsg_lun_opts_attr_inquiry_string,
 	NULL,
 };
@@ -3162,7 +3162,7 @@ static struct config_group *fsg_lun_make(struct config_group *group,
 	fsg_opts = to_fsg_opts(&group->cg_item);
 	if (num >= FSG_MAX_LUNS)
 		return ERR_PTR(-ERANGE);
-	num = array_index_nospec(num, FSG_MAX_LUNS);
+	num = array_index_yesspec(num, FSG_MAX_LUNS);
 
 	mutex_lock(&fsg_opts->lock);
 	if (fsg_opts->refcnt || fsg_opts->common->luns[num]) {

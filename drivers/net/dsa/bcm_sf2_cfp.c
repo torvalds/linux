@@ -238,7 +238,7 @@ static int bcm_sf2_cfp_act_pol_set(struct bcm_sf2_priv *priv,
 
 	core_writel(priv, 0, CORE_ACT_POL_DATA2);
 
-	/* Configure policer RAM now */
+	/* Configure policer RAM yesw */
 	ret = bcm_sf2_cfp_op(priv, OP_SEL_WRITE | ACT_POL_RAM);
 	if (ret) {
 		pr_err("Policer entry at %d failed\n", rule_index);
@@ -380,7 +380,7 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 	flow_rule_match_ip(flow->rule, &ip);
 
 	layout = &udf_tcpip4_layout;
-	/* We only use one UDF slice for now */
+	/* We only use one UDF slice for yesw */
 	slice_num = bcm_sf2_get_slice_number(layout, 0);
 	if (slice_num == UDF_NUM_SLICES) {
 		ret = -EINVAL;
@@ -434,7 +434,7 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 	bcm_sf2_cfp_slice_ipv4(priv, ipv4.key, ports.key, slice_num, false);
 	bcm_sf2_cfp_slice_ipv4(priv, ipv4.mask, ports.mask, SLICE_NUM_MASK, true);
 
-	/* Insert into TCAM now */
+	/* Insert into TCAM yesw */
 	bcm_sf2_cfp_rule_addr_set(priv, rule_index);
 
 	ret = bcm_sf2_cfp_op(priv, OP_SEL_WRITE | TCAM_SEL);
@@ -443,13 +443,13 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 		goto out_err_flow_rule;
 	}
 
-	/* Insert into Action and policer RAMs now */
+	/* Insert into Action and policer RAMs yesw */
 	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index, port, port_num,
 				      queue_num, true);
 	if (ret)
 		goto out_err_flow_rule;
 
-	/* Turn on CFP for this rule now */
+	/* Turn on CFP for this rule yesw */
 	reg = core_readl(priv, CORE_CFP_CTL_REG);
 	reg |= BIT(port);
 	core_writel(priv, reg, CORE_CFP_CTL_REG);
@@ -632,7 +632,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 
 	/* Negotiate two indexes, one for the second half which we are chained
 	 * from, which is what we will return to user-space, and a second one
-	 * which is used to store its first half. That first half does not
+	 * which is used to store its first half. That first half does yest
 	 * allow any choice of placement, so it just needs to find the next
 	 * available bit. We return the second half as fs->location because
 	 * that helps with the rule lookup later on since the second half is
@@ -719,7 +719,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	bcm_sf2_cfp_slice_ipv6(priv, ipv6.mask->src.in6_u.u6_addr32,
 			       ports.mask->src, SLICE_NUM_MASK, true);
 
-	/* Insert into TCAM now because we need to insert a second rule */
+	/* Insert into TCAM yesw because we need to insert a second rule */
 	bcm_sf2_cfp_rule_addr_set(priv, rule_index[0]);
 
 	ret = bcm_sf2_cfp_op(priv, OP_SEL_WRITE | TCAM_SEL);
@@ -728,7 +728,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 		goto out_err_flow_rule;
 	}
 
-	/* Insert into Action and policer RAMs now */
+	/* Insert into Action and policer RAMs yesw */
 	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[0], port, port_num,
 				      queue_num, false);
 	if (ret)
@@ -779,7 +779,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	bcm_sf2_cfp_slice_ipv6(priv, ipv6.mask->dst.in6_u.u6_addr32,
 			       ports.key->dst, SLICE_NUM_MASK, true);
 
-	/* Insert into TCAM now */
+	/* Insert into TCAM yesw */
 	bcm_sf2_cfp_rule_addr_set(priv, rule_index[1]);
 
 	ret = bcm_sf2_cfp_op(priv, OP_SEL_WRITE | TCAM_SEL);
@@ -788,7 +788,7 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 		goto out_err_flow_rule;
 	}
 
-	/* Insert into Action and policer RAMs now, set chain ID to
+	/* Insert into Action and policer RAMs yesw, set chain ID to
 	 * the one we are chained to
 	 */
 	ret = bcm_sf2_cfp_act_pol_set(priv, rule_index[1], port, port_num,
@@ -796,12 +796,12 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	if (ret)
 		goto out_err_flow_rule;
 
-	/* Turn on CFP for this rule now */
+	/* Turn on CFP for this rule yesw */
 	reg = core_readl(priv, CORE_CFP_CTL_REG);
 	reg |= BIT(port);
 	core_writel(priv, reg, CORE_CFP_CTL_REG);
 
-	/* Flag the second half rule as being used now, return it as the
+	/* Flag the second half rule as being used yesw, return it as the
 	 * location, and flag it as unique while dumping rules
 	 */
 	set_bit(rule_index[0], priv->cfp.used);
@@ -832,7 +832,7 @@ static int bcm_sf2_cfp_rule_insert(struct dsa_switch *ds, int port,
 	if (ring_cookie == RX_CLS_FLOW_WAKE)
 		ring_cookie = cpu_port * SF2_NUM_EGRESS_QUEUES;
 
-	/* We do not support discarding packets, check that the
+	/* We do yest support discarding packets, check that the
 	 * destination port is enabled and that we are within the
 	 * number of ports supported by the switch
 	 */
@@ -844,7 +844,7 @@ static int bcm_sf2_cfp_rule_insert(struct dsa_switch *ds, int port,
 	    port_num >= priv->hw_params.num_ports)
 		return -EINVAL;
 	/*
-	 * We have a small oddity where Port 6 just does not have a
+	 * We have a small oddity where Port 6 just does yest have a
 	 * valid bit here (so we substract by one).
 	 */
 	queue_num = ring_cookie % SF2_NUM_EGRESS_QUEUES;
@@ -940,7 +940,7 @@ static int bcm_sf2_cfp_rule_del_one(struct bcm_sf2_priv *priv, int port,
 	reg &= ~SLICE_VALID;
 	core_writel(priv, reg, CORE_CFP_DATA_PORT(0));
 
-	/* Write back this entry into the TCAM now */
+	/* Write back this entry into the TCAM yesw */
 	ret = bcm_sf2_cfp_op(priv, OP_SEL_WRITE | TCAM_SEL);
 	if (ret)
 		return ret;
@@ -976,7 +976,7 @@ static int bcm_sf2_cfp_rule_del(struct bcm_sf2_priv *priv, int port, u32 loc)
 	if (loc >= CFP_NUM_RULES)
 		return -EINVAL;
 
-	/* Refuse deleting unused rules, and those that are not unique since
+	/* Refuse deleting unused rules, and those that are yest unique since
 	 * that could leave IPv6 rules with one of the chained rule in the
 	 * table.
 	 */

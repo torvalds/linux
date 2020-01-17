@@ -7,7 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/time.h>
@@ -131,9 +131,9 @@ static ssize_t pstore_file_read(struct file *file, char __user *userbuf,
 				       ps->record->buf, ps->total_size);
 }
 
-static int pstore_file_open(struct inode *inode, struct file *file)
+static int pstore_file_open(struct iyesde *iyesde, struct file *file)
 {
-	struct pstore_private *ps = inode->i_private;
+	struct pstore_private *ps = iyesde->i_private;
 	struct seq_file *sf;
 	int err;
 	const struct seq_operations *sops = NULL;
@@ -171,9 +171,9 @@ static const struct file_operations pstore_file_operations = {
  * When a file is unlinked from our file system we call the
  * platform driver to erase the record from persistent store.
  */
-static int pstore_unlink(struct inode *dir, struct dentry *dentry)
+static int pstore_unlink(struct iyesde *dir, struct dentry *dentry)
 {
-	struct pstore_private *p = d_inode(dentry)->i_private;
+	struct pstore_private *p = d_iyesde(dentry)->i_private;
 	struct pstore_record *record = p->record;
 
 	if (!record->psi->erase)
@@ -186,12 +186,12 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 	return simple_unlink(dir, dentry);
 }
 
-static void pstore_evict_inode(struct inode *inode)
+static void pstore_evict_iyesde(struct iyesde *iyesde)
 {
-	struct pstore_private	*p = inode->i_private;
+	struct pstore_private	*p = iyesde->i_private;
 	unsigned long		flags;
 
-	clear_inode(inode);
+	clear_iyesde(iyesde);
 	if (p) {
 		spin_lock_irqsave(&allpstore_lock, flags);
 		list_del(&p->list);
@@ -200,19 +200,19 @@ static void pstore_evict_inode(struct inode *inode)
 	}
 }
 
-static const struct inode_operations pstore_dir_inode_operations = {
+static const struct iyesde_operations pstore_dir_iyesde_operations = {
 	.lookup		= simple_lookup,
 	.unlink		= pstore_unlink,
 };
 
-static struct inode *pstore_get_inode(struct super_block *sb)
+static struct iyesde *pstore_get_iyesde(struct super_block *sb)
 {
-	struct inode *inode = new_inode(sb);
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	struct iyesde *iyesde = new_iyesde(sb);
+	if (iyesde) {
+		iyesde->i_iyes = get_next_iyes();
+		iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
 	}
-	return inode;
+	return iyesde;
 }
 
 enum {
@@ -269,8 +269,8 @@ static int pstore_remount(struct super_block *sb, int *flags, char *data)
 
 static const struct super_operations pstore_ops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
-	.evict_inode	= pstore_evict_inode,
+	.drop_iyesde	= generic_delete_iyesde,
+	.evict_iyesde	= pstore_evict_iyesde,
 	.remount_fs	= pstore_remount,
 	.show_options	= pstore_show_options,
 };
@@ -290,14 +290,14 @@ bool pstore_is_mounted(void)
 int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 {
 	struct dentry		*dentry;
-	struct inode		*inode;
+	struct iyesde		*iyesde;
 	int			rc = 0;
 	char			name[PSTORE_NAMELEN];
 	struct pstore_private	*private, *pos;
 	unsigned long		flags;
-	size_t			size = record->size + record->ecc_notice_size;
+	size_t			size = record->size + record->ecc_yestice_size;
 
-	WARN_ON(!inode_is_locked(d_inode(root)));
+	WARN_ON(!iyesde_is_locked(d_iyesde(root)));
 
 	spin_lock_irqsave(&allpstore_lock, flags);
 	list_for_each_entry(pos, &allpstore, list) {
@@ -313,11 +313,11 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 		return rc;
 
 	rc = -ENOMEM;
-	inode = pstore_get_inode(root->d_sb);
-	if (!inode)
+	iyesde = pstore_get_iyesde(root->d_sb);
+	if (!iyesde)
 		goto fail;
-	inode->i_mode = S_IFREG | 0444;
-	inode->i_fop = &pstore_file_operations;
+	iyesde->i_mode = S_IFREG | 0444;
+	iyesde->i_fop = &pstore_file_operations;
 	scnprintf(name, sizeof(name), "%s-%s-%llu%s",
 			pstore_type_to_name(record->type),
 			record->psi->name, record->id,
@@ -325,20 +325,20 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 
 	private = kzalloc(sizeof(*private), GFP_KERNEL);
 	if (!private)
-		goto fail_inode;
+		goto fail_iyesde;
 
 	dentry = d_alloc_name(root, name);
 	if (!dentry)
 		goto fail_private;
 
 	private->record = record;
-	inode->i_size = private->total_size = size;
-	inode->i_private = private;
+	iyesde->i_size = private->total_size = size;
+	iyesde->i_private = private;
 
 	if (record->time.tv_sec)
-		inode->i_mtime = inode->i_ctime = record->time;
+		iyesde->i_mtime = iyesde->i_ctime = record->time;
 
-	d_add(dentry, inode);
+	d_add(dentry, iyesde);
 
 	spin_lock_irqsave(&allpstore_lock, flags);
 	list_add(&private->list, &allpstore);
@@ -348,8 +348,8 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 
 fail_private:
 	free_pstore_private(private);
-fail_inode:
-	iput(inode);
+fail_iyesde:
+	iput(iyesde);
 
 fail:
 	return rc;
@@ -371,14 +371,14 @@ void pstore_get_records(int quiet)
 
 	root = pstore_sb->s_root;
 
-	inode_lock(d_inode(root));
+	iyesde_lock(d_iyesde(root));
 	pstore_get_backend_records(psi, root, quiet);
-	inode_unlock(d_inode(root));
+	iyesde_unlock(d_iyesde(root));
 }
 
 static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	pstore_sb = sb;
 
@@ -391,14 +391,14 @@ static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 
 	parse_options(data);
 
-	inode = pstore_get_inode(sb);
-	if (inode) {
-		inode->i_mode = S_IFDIR | 0750;
-		inode->i_op = &pstore_dir_inode_operations;
-		inode->i_fop = &simple_dir_operations;
-		inc_nlink(inode);
+	iyesde = pstore_get_iyesde(sb);
+	if (iyesde) {
+		iyesde->i_mode = S_IFDIR | 0750;
+		iyesde->i_op = &pstore_dir_iyesde_operations;
+		iyesde->i_fop = &simple_dir_operations;
+		inc_nlink(iyesde);
 	}
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(iyesde);
 	if (!sb->s_root)
 		return -ENOMEM;
 

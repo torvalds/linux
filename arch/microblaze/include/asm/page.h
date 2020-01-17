@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  * Changes for MMU support:
  *    Copyright (C) 2007 Xilinx, Inc.  All rights reserved.
  *
@@ -49,7 +49,7 @@
 
 #ifndef CONFIG_MMU
 /*
- * PAGE_OFFSET -- the first address of the first page of memory. When not
+ * PAGE_OFFSET -- the first address of the first page of memory. When yest
  * using MMU this corresponds to the first free page in physical memory (aligned
  * on a page boundary).
  */

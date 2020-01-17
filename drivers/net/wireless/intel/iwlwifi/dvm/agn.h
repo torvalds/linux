@@ -33,12 +33,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -122,7 +122,7 @@ void iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 
 bool iwl_check_for_ct_kill(struct iwl_priv *priv);
 
-void iwlagn_lift_passive_no_rx(struct iwl_priv *priv);
+void iwlagn_lift_passive_yes_rx(struct iwl_priv *priv);
 
 /* MAC80211 */
 struct ieee80211_hw *iwl_alloc_all(void);
@@ -258,8 +258,8 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 /* For faster active scanning, scan will move to the next channel if fewer than
  * PLCP_QUIET_THRESH packets are heard on this channel within
  * ACTIVE_QUIET_TIME after sending probe request.  This shortens the dwell
- * time if it's a quiet channel (nothing responded to our probe, and there's
- * no other traffic).
+ * time if it's a quiet channel (yesthing responded to our probe, and there's
+ * yes other traffic).
  * Disable "quiet" feature by setting PLCP_QUIET_THRESH to 0. */
 #define IWL_ACTIVE_QUIET_TIME       cpu_to_le16(10)  /* msec */
 #define IWL_PLCP_QUIET_THRESH       cpu_to_le16(1)  /* packets */
@@ -297,7 +297,7 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 #define IWL_STA_UCODE_ACTIVE  BIT(1) /* ucode entry is active */
 #define IWL_STA_UCODE_INPROGRESS  BIT(2) /* ucode entry is in process of
 					    being activated */
-#define IWL_STA_LOCAL BIT(3) /* station state not directed by mac80211;
+#define IWL_STA_LOCAL BIT(3) /* station state yest directed by mac80211;
 				(this is for the IBSS BSSID stations) */
 #define IWL_STA_BCAST BIT(4) /* this station is the special bcast station */
 
@@ -401,7 +401,7 @@ static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 
 static inline int iwl_is_ready(struct iwl_priv *priv)
 {
-	/* The adapter is 'ready' if READY EXIT_PENDING is not set */
+	/* The adapter is 'ready' if READY EXIT_PENDING is yest set */
 	return test_bit(STATUS_READY, &priv->status) &&
 	       !test_bit(STATUS_EXIT_PENDING, &priv->status);
 }

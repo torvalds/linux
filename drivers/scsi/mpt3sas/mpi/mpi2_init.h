@@ -10,8 +10,8 @@
  * mpi2_init.h Version:  02.00.21
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
- *       prefix are for use only on MPI v2.5 products, and must not be used
- *       with MPI v2.0 products. Unless otherwise noted, names beginning with
+ *       prefix are for use only on MPI v2.5 products, and must yest be used
+ *       with MPI v2.0 products. Unless otherwise yested, names beginning with
  *       MPI2 or Mpi2 are for use with both MPI v2.0 and MPI v2.5 products.
  *
  * Version History
@@ -30,7 +30,7 @@
  *                     Moved LUN field defines to mpi2.h becasue they are
  *                     common to many structures.
  * 05-06-09  02.00.07  Changed task management type of Query Unit Attention to
- *                     Query Asynchronous Event.
+ *                     Query Asynchroyesus Event.
  *                     Defined two new bits in the SlotStatus field of the SCSI
  *                     Enclosure Processor Request and Reply.
  * 10-28-09  02.00.08  Added defines for decoding the ResponseInfo bytes for

@@ -253,7 +253,7 @@ static void cyrix_set_all(void)
 
 	prepare_set();
 
-	/* the CCRs are not contiguous */
+	/* the CCRs are yest contiguous */
 	for (i = 0; i < 4; i++)
 		setCx86(CX86_CCR0 + i, ccr_state[i]);
 	for (; i < 7; i++)

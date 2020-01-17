@@ -64,7 +64,7 @@ static int uniphier_system_bus_add_bank(struct uniphier_system_bus_priv *priv,
 
 	if (addr > paddr) {
 		dev_err(priv->dev,
-			"base %08x cannot be mapped to %08llx of parent\n",
+			"base %08x canyest be mapped to %08llx of parent\n",
 			addr, paddr);
 		return -EINVAL;
 	}
@@ -146,8 +146,8 @@ static void uniphier_system_bus_set_reg(
 			 * If SBC_BASE0 or SBC_BASE1 is set to zero, the access
 			 * to anywhere in the system bus space is routed to
 			 * bank 0 (if boot swap if off) or bank 1 (if boot swap
-			 * if on).  It means that CPUs cannot get access to
-			 * bank 2 or later.  In other words, bank 0/1 cannot
+			 * if on).  It means that CPUs canyest get access to
+			 * bank 2 or later.  In other words, bank 0/1 canyest
 			 * be disabled even if its bank_enable bits is cleared.
 			 * This seems odd, but it is how this hardware goes.
 			 * As a workaround, dummy data (0xffffffff) should be
@@ -191,9 +191,9 @@ static int uniphier_system_bus_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 
-	pna = of_n_addr_cells(dev->of_node);
+	pna = of_n_addr_cells(dev->of_yesde);
 
-	ret = of_property_read_u32(dev->of_node, "#address-cells", &cells);
+	ret = of_property_read_u32(dev->of_yesde, "#address-cells", &cells);
 	if (ret) {
 		dev_err(dev, "failed to get #address-cells\n");
 		return ret;
@@ -203,7 +203,7 @@ static int uniphier_system_bus_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "#size-cells", &cells);
+	ret = of_property_read_u32(dev->of_yesde, "#size-cells", &cells);
 	if (ret) {
 		dev_err(dev, "failed to get #size-cells\n");
 		return ret;
@@ -213,7 +213,7 @@ static int uniphier_system_bus_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ranges = of_get_property(dev->of_node, "ranges", &rlen);
+	ranges = of_get_property(dev->of_yesde, "ranges", &rlen);
 	if (!ranges) {
 		dev_err(dev, "failed to get ranges property\n");
 		return -ENOENT;
@@ -225,7 +225,7 @@ static int uniphier_system_bus_probe(struct platform_device *pdev)
 	for (; rlen >= rone; rlen -= rone) {
 		bank = be32_to_cpup(ranges++);
 		addr = be32_to_cpup(ranges++);
-		paddr = of_translate_address(dev->of_node, ranges);
+		paddr = of_translate_address(dev->of_yesde, ranges);
 		if (paddr == OF_BAD_ADDR)
 			return -EINVAL;
 		ranges += pna;
@@ -248,7 +248,7 @@ static int uniphier_system_bus_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 
 	/* Now, the bus is configured.  Populate platform_devices below it */
-	return of_platform_default_populate(dev->of_node, NULL, dev);
+	return of_platform_default_populate(dev->of_yesde, NULL, dev);
 }
 
 static int __maybe_unused uniphier_system_bus_resume(struct device *dev)

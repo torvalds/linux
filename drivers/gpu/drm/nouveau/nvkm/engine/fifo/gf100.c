@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -300,7 +300,7 @@ gf100_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 		   info->engine, eu ? eu->name : "",
 		   info->client, gpcid, ec ? ec->name : "",
 		   info->reason, er ? er->name : "", chan ? chan->chid : -1,
-		   info->inst, chan ? chan->object.client->name : "unknown");
+		   info->inst, chan ? chan->object.client->name : "unkyeswn");
 
 	if (engine && chan)
 		gf100_fifo_recover(fifo, engine, (void *)chan);
@@ -430,7 +430,7 @@ gf100_fifo_intr_pbdma(struct gf100_fifo *fifo, int unit)
 		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010llx %s] "
 				   "subc %d mthd %04x data %08x\n",
 			   unit, show, msg, chid, chan ? chan->inst->addr : 0,
-			   chan ? chan->object.client->name : "unknown",
+			   chan ? chan->object.client->name : "unkyeswn",
 			   subc, mthd, data);
 		nvkm_fifo_chan_put(&fifo->base, flags, &chan);
 	}

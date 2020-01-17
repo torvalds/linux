@@ -78,7 +78,7 @@ typedef enum {
 
 /*
  * The name CVMX_FAU_REG_AVAIL_BASE is provided to indicate the first
- * available FAU address that is not allocated in cvmx-config.h. This
+ * available FAU address that is yest allocated in cvmx-config.h. This
  * is 64 bit aligned.
  */
 #define CVMX_FAU_REG_AVAIL_BASE ((CVMX_FAU_REG_8_END + 0x7) & (~0x7ULL))
@@ -113,7 +113,7 @@ typedef enum {
 /*
  * CVMX_HELPER_ENABLE_BACK_PRESSURE controls whether back pressure is
  * enabled for all input ports. This controls if IPD sends
- * backpressure to all ports if Octeon's FPA pools don't have enough
+ * backpressure to all ports if Octeon's FPA pools don't have eyesugh
  * packet or work queue entries. Even when this is off, it is still
  * possible to get backpressure from individual hardware ports. When
  * configuring backpressure, also check

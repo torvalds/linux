@@ -113,19 +113,19 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 
 	error = sas_register_phys(sas_ha);
 	if (error) {
-		pr_notice("couldn't register sas phys:%d\n", error);
+		pr_yestice("couldn't register sas phys:%d\n", error);
 		return error;
 	}
 
 	error = sas_register_ports(sas_ha);
 	if (error) {
-		pr_notice("couldn't register sas ports:%d\n", error);
+		pr_yestice("couldn't register sas ports:%d\n", error);
 		goto Undo_phys;
 	}
 
 	error = sas_init_events(sas_ha);
 	if (error) {
-		pr_notice("couldn't start event thread:%d\n", error);
+		pr_yestice("couldn't start event thread:%d\n", error);
 		goto Undo_ports;
 	}
 
@@ -222,7 +222,7 @@ int sas_try_ata_reset(struct asd_sas_phy *asd_phy)
 /*
  * transport_sas_phy_reset - reset a phy and permit libata to manage the link
  *
- * phy reset request via sysfs in host workqueue context so we know we
+ * phy reset request via sysfs in host workqueue context so we kyesw we
  * can block on eh and safely traverse the domain_device topology
  */
 static int transport_sas_phy_reset(struct sas_phy *phy, int hard_reset)
@@ -394,7 +394,7 @@ void sas_resume_ha(struct sas_ha_struct *ha)
 	const unsigned long tmo = msecs_to_jiffies(25000);
 	int i;
 
-	/* deform ports on phys that did not resume
+	/* deform ports on phys that did yest resume
 	 * at this point we may be racing the phy coming back (as posted
 	 * by the lldd).  So we post the event and once we are in the
 	 * libsas context check that the phy remains suspended before
@@ -410,12 +410,12 @@ void sas_resume_ha(struct sas_ha_struct *ha)
 
 		if (phy->suspended) {
 			dev_warn(&phy->phy->dev, "resume timeout\n");
-			sas_notify_phy_event(phy, PHYE_RESUME_TIMEOUT);
+			sas_yestify_phy_event(phy, PHYE_RESUME_TIMEOUT);
 		}
 	}
 
 	/* all phys are back up or timed out, turn on i/o so we can
-	 * flush out disks that did not return
+	 * flush out disks that did yest return
 	 */
 	scsi_unblock_requests(ha->core.shost);
 	sas_drain_work(ha);
@@ -559,7 +559,7 @@ static inline ssize_t phy_event_threshold_store(struct device *dev,
 
 	sha->event_thres = simple_strtol(buf, NULL, 10);
 
-	/* threshold cannot be set too small */
+	/* threshold canyest be set too small */
 	if (sha->event_thres < 32)
 		sha->event_thres = 32;
 
@@ -608,13 +608,13 @@ struct asd_sas_event *sas_alloc_event(struct asd_sas_phy *phy)
 	if (atomic_read(&phy->event_nr) > phy->ha->event_thres) {
 		if (i->dft->lldd_control_phy) {
 			if (cmpxchg(&phy->in_shutdown, 0, 1) == 0) {
-				pr_notice("The phy%d bursting events, shut it down.\n",
+				pr_yestice("The phy%d bursting events, shut it down.\n",
 					  phy->id);
-				sas_notify_phy_event(phy, PHYE_SHUTDOWN);
+				sas_yestify_phy_event(phy, PHYE_SHUTDOWN);
 			}
 		} else {
-			/* Do not support PHY control, stop allocating events */
-			WARN_ONCE(1, "PHY control not supported.\n");
+			/* Do yest support PHY control, stop allocating events */
+			WARN_ONCE(1, "PHY control yest supported.\n");
 			kmem_cache_free(sas_event_cache, event);
 			atomic_dec(&phy->event_nr);
 			event = NULL;

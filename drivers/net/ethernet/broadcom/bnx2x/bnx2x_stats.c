@@ -57,10 +57,10 @@ static inline u16 bnx2x_get_port_stats_dma_len(struct bnx2x *bp)
 	}
 
 	/* Older convention - all BCs support the port stats' fields up until
-	 * the 'not_used' field
+	 * the 'yest_used' field
 	 */
 	if (!res) {
-		res = offsetof(struct host_port_stats, not_used) + 4;
+		res = offsetof(struct host_port_stats, yest_used) + 4;
 
 		/* if PFC stats are supported by the MFW, DMA them as well */
 		if (bp->flags & BC_SUPPORTS_PFC_STATS) {
@@ -536,7 +536,7 @@ static void bnx2x_stats_pmf_start(struct bnx2x *bp)
 
 static void bnx2x_stats_restart(struct bnx2x *bp)
 {
-	/* vfs travel through here as part of the statistics FSM, but no action
+	/* vfs travel through here as part of the statistics FSM, but yes action
 	 * is required
 	 */
 	if (IS_VF(bp))
@@ -826,11 +826,11 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 
 	case MAC_TYPE_NONE: /* unreached */
 		DP(BNX2X_MSG_STATS,
-		   "stats updated by DMAE but no MAC active\n");
+		   "stats updated by DMAE but yes MAC active\n");
 		return -1;
 
 	default: /* unreached */
-		BNX2X_ERR("Unknown MAC type\n");
+		BNX2X_ERR("Unkyeswn MAC type\n");
 	}
 
 	ADD_EXTEND_64(pstats->brb_drop_hi, pstats->brb_drop_lo,
@@ -885,28 +885,28 @@ static int bnx2x_storm_stats_validate_counters(struct bnx2x *bp)
 	/* are storm stats valid? */
 	if (le16_to_cpu(counters->xstats_counter) != cur_stats_counter) {
 		DP(BNX2X_MSG_STATS,
-		   "stats not updated by xstorm  xstorm counter (0x%x) != stats_counter (0x%x)\n",
+		   "stats yest updated by xstorm  xstorm counter (0x%x) != stats_counter (0x%x)\n",
 		   le16_to_cpu(counters->xstats_counter), bp->stats_counter);
 		return -EAGAIN;
 	}
 
 	if (le16_to_cpu(counters->ustats_counter) != cur_stats_counter) {
 		DP(BNX2X_MSG_STATS,
-		   "stats not updated by ustorm  ustorm counter (0x%x) != stats_counter (0x%x)\n",
+		   "stats yest updated by ustorm  ustorm counter (0x%x) != stats_counter (0x%x)\n",
 		   le16_to_cpu(counters->ustats_counter), bp->stats_counter);
 		return -EAGAIN;
 	}
 
 	if (le16_to_cpu(counters->cstats_counter) != cur_stats_counter) {
 		DP(BNX2X_MSG_STATS,
-		   "stats not updated by cstorm  cstorm counter (0x%x) != stats_counter (0x%x)\n",
+		   "stats yest updated by cstorm  cstorm counter (0x%x) != stats_counter (0x%x)\n",
 		   le16_to_cpu(counters->cstats_counter), bp->stats_counter);
 		return -EAGAIN;
 	}
 
 	if (le16_to_cpu(counters->tstats_counter) != cur_stats_counter) {
 		DP(BNX2X_MSG_STATS,
-		   "stats not updated by tstorm  tstorm counter (0x%x) != stats_counter (0x%x)\n",
+		   "stats yest updated by tstorm  tstorm counter (0x%x) != stats_counter (0x%x)\n",
 		   le16_to_cpu(counters->tstats_counter), bp->stats_counter);
 		return -EAGAIN;
 	}
@@ -1000,17 +1000,17 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 					total_broadcast_packets_received);
 		UPDATE_EXTEND_E_TSTAT(pkts_too_big_discard,
 				      etherstatsoverrsizepkts, 32);
-		UPDATE_EXTEND_E_TSTAT(no_buff_discard, no_buff_discard, 16);
+		UPDATE_EXTEND_E_TSTAT(yes_buff_discard, yes_buff_discard, 16);
 
-		SUB_EXTEND_USTAT(ucast_no_buff_pkts,
+		SUB_EXTEND_USTAT(ucast_yes_buff_pkts,
 					total_unicast_packets_received);
-		SUB_EXTEND_USTAT(mcast_no_buff_pkts,
+		SUB_EXTEND_USTAT(mcast_yes_buff_pkts,
 					total_multicast_packets_received);
-		SUB_EXTEND_USTAT(bcast_no_buff_pkts,
+		SUB_EXTEND_USTAT(bcast_yes_buff_pkts,
 					total_broadcast_packets_received);
-		UPDATE_EXTEND_E_USTAT(ucast_no_buff_pkts, no_buff_discard);
-		UPDATE_EXTEND_E_USTAT(mcast_no_buff_pkts, no_buff_discard);
-		UPDATE_EXTEND_E_USTAT(bcast_no_buff_pkts, no_buff_discard);
+		UPDATE_EXTEND_E_USTAT(ucast_yes_buff_pkts, yes_buff_discard);
+		UPDATE_EXTEND_E_USTAT(mcast_yes_buff_pkts, yes_buff_discard);
+		UPDATE_EXTEND_E_USTAT(bcast_yes_buff_pkts, yes_buff_discard);
 
 		UPDATE_QSTAT(xclient->bcast_bytes_sent,
 			     total_broadcast_bytes_transmitted);
@@ -1157,7 +1157,7 @@ static void bnx2x_net_stats_update(struct bnx2x *bp)
 		bnx2x_hilo(&estats->rx_stat_dot3statsfcserrors_hi);
 	nstats->rx_frame_errors =
 		bnx2x_hilo(&estats->rx_stat_dot3statsalignmenterrors_hi);
-	nstats->rx_fifo_errors = bnx2x_hilo(&estats->no_buff_discard_hi);
+	nstats->rx_fifo_errors = bnx2x_hilo(&estats->yes_buff_discard_hi);
 	nstats->rx_missed_errors = 0;
 
 	nstats->rx_errors = nstats->rx_length_errors +
@@ -1229,7 +1229,7 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 
 		if (bnx2x_storm_stats_update(bp)) {
 			if (bp->stats_pending++ == 3) {
-				BNX2X_ERR("storm stats were not updated for 3 times\n");
+				BNX2X_ERR("storm stats were yest updated for 3 times\n");
 				bnx2x_panic();
 			}
 			return;
@@ -1340,7 +1340,7 @@ static void bnx2x_stats_stop(struct bnx2x *bp)
 	}
 }
 
-static void bnx2x_stats_do_nothing(struct bnx2x *bp)
+static void bnx2x_stats_do_yesthing(struct bnx2x *bp)
 {
 }
 
@@ -1352,8 +1352,8 @@ static const struct {
 {
 /* DISABLED	PMF	*/ {bnx2x_stats_pmf_update, STATS_STATE_DISABLED},
 /*		LINK_UP	*/ {bnx2x_stats_start,      STATS_STATE_ENABLED},
-/*		UPDATE	*/ {bnx2x_stats_do_nothing, STATS_STATE_DISABLED},
-/*		STOP	*/ {bnx2x_stats_do_nothing, STATS_STATE_DISABLED}
+/*		UPDATE	*/ {bnx2x_stats_do_yesthing, STATS_STATE_DISABLED},
+/*		STOP	*/ {bnx2x_stats_do_yesthing, STATS_STATE_DISABLED}
 },
 {
 /* ENABLED	PMF	*/ {bnx2x_stats_pmf_start,  STATS_STATE_ENABLED},
@@ -1619,7 +1619,7 @@ void bnx2x_stats_init(struct bnx2x *bp)
 	DP(BNX2X_MSG_STATS, "port_stx 0x%x  func_stx 0x%x\n",
 	   bp->port.port_stx, bp->func_stx);
 
-	/* pmf should retrieve port statistics from SP on a non-init*/
+	/* pmf should retrieve port statistics from SP on a yesn-init*/
 	if (!bp->stats_init && bp->port.pmf && bp->port.port_stx)
 		bnx2x_stats_handle(bp, STATS_EVENT_PMF);
 
@@ -1772,9 +1772,9 @@ void bnx2x_afex_collect_stats(struct bnx2x *bp, void *void_afex_stats,
 		       qstats->etherstatsoverrsizepkts_lo);
 
 		ADD_64(afex_stats->rx_frames_dropped_hi,
-		       qstats->no_buff_discard_hi,
+		       qstats->yes_buff_discard_hi,
 		       afex_stats->rx_frames_dropped_lo,
-		       qstats->no_buff_discard_lo);
+		       qstats->yes_buff_discard_lo);
 
 		ADD_64(afex_stats->tx_unicast_bytes_hi,
 		       qstats->total_unicast_bytes_transmitted_hi,
@@ -1812,8 +1812,8 @@ void bnx2x_afex_collect_stats(struct bnx2x *bp, void *void_afex_stats,
 		       qstats->total_transmitted_dropped_packets_error_lo);
 	}
 
-	/* now add FCoE statistics which are collected separately
-	 * (both offloaded and non offloaded)
+	/* yesw add FCoE statistics which are collected separately
+	 * (both offloaded and yesn offloaded)
 	 */
 	if (!NO_FCOE(bp)) {
 		ADD_64_LE(afex_stats->rx_unicast_bytes_hi,
@@ -1874,22 +1874,22 @@ void bnx2x_afex_collect_stats(struct bnx2x *bp, void *void_afex_stats,
 		ADD_64_LE16(afex_stats->rx_frames_dropped_hi,
 			    LE16_0,
 			    afex_stats->rx_frames_dropped_lo,
-			    fcoe_q_tstorm_stats->no_buff_discard);
+			    fcoe_q_tstorm_stats->yes_buff_discard);
 
 		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
 			  LE32_0,
 			  afex_stats->rx_frames_dropped_lo,
-			  fcoe_q_ustorm_stats->ucast_no_buff_pkts);
+			  fcoe_q_ustorm_stats->ucast_yes_buff_pkts);
 
 		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
 			  LE32_0,
 			  afex_stats->rx_frames_dropped_lo,
-			  fcoe_q_ustorm_stats->mcast_no_buff_pkts);
+			  fcoe_q_ustorm_stats->mcast_yes_buff_pkts);
 
 		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
 			  LE32_0,
 			  afex_stats->rx_frames_dropped_lo,
-			  fcoe_q_ustorm_stats->bcast_no_buff_pkts);
+			  fcoe_q_ustorm_stats->bcast_yes_buff_pkts);
 
 		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
 			  LE32_0,
@@ -1979,7 +1979,7 @@ int bnx2x_stats_safe_exec(struct bnx2x *bp,
 	rc = down_timeout(&bp->stats_lock, HZ / 10);
 	if (unlikely(rc)) {
 		BNX2X_ERR("Failed to take statistics lock for safe execution\n");
-		goto out_no_lock;
+		goto out_yes_lock;
 	}
 
 	bnx2x_stats_comp(bp);
@@ -1999,6 +1999,6 @@ out:
 	 * will restart the statistics.
 	 */
 	up(&bp->stats_lock);
-out_no_lock:
+out_yes_lock:
 	return rc;
 }

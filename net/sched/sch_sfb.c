@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/random.h>
 #include <linux/siphash.h>
@@ -83,7 +83,7 @@ struct sfb_sched_data {
 /*
  * Each queued skb might be hashed on one or two bins
  * We store in skb_cb the two hash values.
- * (A zero value means double buffering was not used)
+ * (A zero value means double buffering was yest used)
  */
 struct sfb_skb_cb {
 	u32 hashes[2];
@@ -515,7 +515,7 @@ static int sfb_change(struct Qdisc *sch, struct nlattr *opt,
 	if (IS_ERR(child))
 		return PTR_ERR(child);
 
-	if (child != &noop_qdisc)
+	if (child != &yesop_qdisc)
 		qdisc_hash_add(child, true);
 	sch_tree_lock(sch);
 
@@ -558,7 +558,7 @@ static int sfb_init(struct Qdisc *sch, struct nlattr *opt,
 	if (err)
 		return err;
 
-	q->qdisc = &noop_qdisc;
+	q->qdisc = &yesop_qdisc;
 	return sfb_change(sch, opt, extack);
 }
 
@@ -579,7 +579,7 @@ static int sfb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	};
 
 	sch->qstats.backlog = q->qdisc->qstats.backlog;
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_SFB_PARMS, sizeof(opt), &opt))
@@ -620,7 +620,7 @@ static int sfb_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	struct sfb_sched_data *q = qdisc_priv(sch);
 
 	if (new == NULL)
-		new = &noop_qdisc;
+		new = &yesop_qdisc;
 
 	*old = qdisc_replace(sch, new, &q->qdisc);
 	return 0;

@@ -103,7 +103,7 @@ static const struct snd_soc_dapm_route byt_cht_es8316_audio_map[] = {
 	{"Headphone", NULL, "HPOR"},
 
 	/*
-	 * There is no separate speaker output instead the speakers are muxed to
+	 * There is yes separate speaker output instead the speakers are muxed to
 	 * the HP outputs. The mux is controlled by the "Speaker Power" supply.
 	 */
 	{"Speaker", NULL, "HPOL"},
@@ -194,10 +194,10 @@ static int byt_cht_es8316_init(struct snd_soc_pcm_runtime *runtime)
 
 	/*
 	 * The firmware might enable the clock at boot (this information
-	 * may or may not be reflected in the enable clock register).
+	 * may or may yest be reflected in the enable clock register).
 	 * To change the rate we must disable the clock first to cover these
-	 * cases. Due to common clock framework restrictions that do not allow
-	 * to disable a clock that has not been enabled, we need to enable
+	 * cases. Due to common clock framework restrictions that do yest allow
+	 * to disable a clock that has yest been enabled, we need to enable
 	 * the clock first.
 	 */
 	ret = clk_prepare_enable(priv->mclk);
@@ -268,7 +268,7 @@ static int byt_cht_es8316_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	/*
 	 * Default mode for SSP configuration is TDM 4 slot, override config
 	 * with explicit setting to I2S 2ch 24-bit. The word length is set with
-	 * dai_set_tdm_slot() since there is no other API exposed
+	 * dai_set_tdm_slot() since there is yes other API exposed
 	 */
 	ret = snd_soc_dai_set_fmt(rtd->cpu_dai,
 				SND_SOC_DAIFMT_I2S     |
@@ -320,7 +320,7 @@ static struct snd_soc_dai_link byt_cht_es8316_dais[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Audio Port",
 		.stream_name = "Audio",
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -331,7 +331,7 @@ static struct snd_soc_dai_link byt_cht_es8316_dais[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &byt_cht_es8316_aif1_ops,
@@ -341,15 +341,15 @@ static struct snd_soc_dai_link byt_cht_es8316_dais[] = {
 		/* back ends */
 	{
 		/* Only SSP2 has been tested here, so BYT-CR platforms that
-		 * require SSP0 will not work.
+		 * require SSP0 will yest work.
 		 */
 		.name = "SSP2-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 						| SND_SOC_DAIFMT_CBS_CFS,
 		.be_hw_params_fixup = byt_cht_es8316_codec_fixup,
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.init = byt_cht_es8316_init,
@@ -394,10 +394,10 @@ static int byt_cht_es8316_resume(struct snd_soc_card *card)
 	 * Some Cherry Trail boards with an ES8316 codec have a bug in their
 	 * ACPI tables where the MSSL1680 touchscreen's _PS0 and _PS3 methods
 	 * wrongly also set the speaker-enable GPIO to 1/0. Testing has shown
-	 * that this really is a bug and the GPIO has no influence on the
+	 * that this really is a bug and the GPIO has yes influence on the
 	 * touchscreen at all.
 	 *
-	 * The silead.c touchscreen driver does not support runtime suspend, so
+	 * The silead.c touchscreen driver does yest support runtime suspend, so
 	 * the GPIO can only be changed underneath us during a system suspend.
 	 * This resume() function runs from a pm complete() callback, and thus
 	 * is guaranteed to run after the touchscreen driver/ACPI-subsys has
@@ -510,11 +510,11 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 		quirk = (unsigned long)dmi_id->driver_data;
 	} else if (soc_intel_is_byt() &&
 		   mach->mach_params.acpi_ipc_irq_index == 0) {
-		/* On BYTCR default to SSP0, internal-mic-in2-map, mono-spk */
+		/* On BYTCR default to SSP0, internal-mic-in2-map, moyes-spk */
 		quirk = BYT_CHT_ES8316_SSP0 | BYT_CHT_ES8316_INTMIC_IN2_MAP |
 			BYT_CHT_ES8316_MONO_SPEAKER;
 	} else {
-		/* Others default to internal-mic-in1-map, mono-speaker */
+		/* Others default to internal-mic-in1-map, moyes-speaker */
 		quirk = BYT_CHT_ES8316_INTMIC_IN1_MAP |
 			BYT_CHT_ES8316_MONO_SPEAKER;
 	}
@@ -574,7 +574,7 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 
 	/* register the soc card */
 	snprintf(long_name, sizeof(long_name), "bytcht-es8316-%s-spk-%s-mic",
-		 (quirk & BYT_CHT_ES8316_MONO_SPEAKER) ? "mono" : "stereo",
+		 (quirk & BYT_CHT_ES8316_MONO_SPEAKER) ? "moyes" : "stereo",
 		 mic_name[BYT_CHT_ES8316_MAP(quirk)]);
 	byt_cht_es8316_card.long_name = long_name;
 	snd_soc_card_set_drvdata(&byt_cht_es8316_card, priv);

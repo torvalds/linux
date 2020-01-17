@@ -11,12 +11,12 @@ fi
 NP=`nproc`
 
 if [ $NP -eq 1 ] ;then
-  echo "We can not test cpumask on UP environment"
+  echo "We can yest test cpumask on UP environment"
   exit_unresolved
 fi
 
 if ! grep -q "function" available_tracers ; then
-  echo "Function trace is not enabled"
+  echo "Function trace is yest enabled"
   exit_unsupported
 fi
 

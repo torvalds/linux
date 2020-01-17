@@ -13,7 +13,7 @@
 /*           pour liberer le bus                                             */
 /* J.PAGET 19/11/95 version V2.6.1 Nombre, addresse,irq n'est plus configure */
 /* et passe en argument a acinit, mais est scrute sur le bus pour s'adapter  */
-/* au nombre de cartes presentes sur le bus. IOCL code 6 affichait V2.4.3    */
+/* au yesmbre de cartes presentes sur le bus. IOCL code 6 affichait V2.4.3    */
 /* F.LAFORSE 28/11/95 creation de fichiers acXX.o avec les differentes       */
 /* addresses de base des cartes, IOCTL 6 plus complet                         */
 /* J.PAGET le 19/08/96 copie de la version V2.6 en V2.8.0 sans modification  */
@@ -26,14 +26,14 @@
 #include <linux/interrupt.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mutex.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
 #include <linux/wait.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <asm/io.h>
 #include <linux/uaccess.h>
@@ -115,7 +115,7 @@ static irqreturn_t ac_interrupt(int, void *);
 
 static const struct file_operations ac_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.read = ac_read,
 	.write = ac_write,
 	.unlocked_ioctl = ac_ioctl,
@@ -130,7 +130,7 @@ static struct miscdevice ac_miscdev = {
 static int dummy;	/* dev_id for request_irq() */
 
 static int ac_register_board(unsigned long physloc, void __iomem *loc, 
-		      unsigned char boardno)
+		      unsigned char boardyes)
 {
 	volatile unsigned char byte_reset_it;
 
@@ -140,31 +140,31 @@ static int ac_register_board(unsigned long physloc, void __iomem *loc,
 	   (readb(loc + CONF_END_TEST + 3) != 0xFF))
 		return 0;
 
-	if (!boardno)
-		boardno = readb(loc + NUMCARD_OWNER_TO_PC);
+	if (!boardyes)
+		boardyes = readb(loc + NUMCARD_OWNER_TO_PC);
 
-	if (!boardno || boardno > MAX_BOARD) {
+	if (!boardyes || boardyes > MAX_BOARD) {
 		printk(KERN_WARNING "Board #%d (at 0x%lx) is out of range (1 <= x <= %d).\n",
-		       boardno, physloc, MAX_BOARD);
+		       boardyes, physloc, MAX_BOARD);
 		return 0;
 	}
 
-	if (apbs[boardno - 1].RamIO) {
+	if (apbs[boardyes - 1].RamIO) {
 		printk(KERN_WARNING "Board #%d (at 0x%lx) conflicts with previous board #%d (at 0x%lx)\n", 
-		       boardno, physloc, boardno, apbs[boardno-1].PhysIO);
+		       boardyes, physloc, boardyes, apbs[boardyes-1].PhysIO);
 		return 0;
 	}
 
-	boardno--;
+	boardyes--;
 
-	apbs[boardno].PhysIO = physloc;
-	apbs[boardno].RamIO = loc;
-	init_waitqueue_head(&apbs[boardno].FlagSleepSend);
-	spin_lock_init(&apbs[boardno].mutex);
+	apbs[boardyes].PhysIO = physloc;
+	apbs[boardyes].RamIO = loc;
+	init_waitqueue_head(&apbs[boardyes].FlagSleepSend);
+	spin_lock_init(&apbs[boardyes].mutex);
 	byte_reset_it = readb(loc + RAM_IT_TO_PC);
 
 	numboards++;
-	return boardno + 1;
+	return boardyes + 1;
 }
 
 static void __exit applicom_exit(void)
@@ -190,7 +190,7 @@ static int __init applicom_init(void)
 	int i, numisa = 0;
 	struct pci_dev *dev = NULL;
 	void __iomem *RamIO;
-	int boardno, ret;
+	int boardyes, ret;
 
 	printk(KERN_INFO "Applicom driver: $Id: ac.c,v 1.30 2000/03/22 16:03:57 dwmw2 Exp $\n");
 
@@ -204,7 +204,7 @@ static int __init applicom_init(void)
 		if (pci_enable_device(dev))
 			return -EIO;
 
-		RamIO = ioremap_nocache(pci_resource_start(dev, 0), LEN_RAM_IO);
+		RamIO = ioremap_yescache(pci_resource_start(dev, 0), LEN_RAM_IO);
 
 		if (!RamIO) {
 			printk(KERN_INFO "ac.o: Failed to ioremap PCI memory "
@@ -219,9 +219,9 @@ static int __init applicom_init(void)
 			   (unsigned long long)pci_resource_start(dev, 0),
 		       dev->irq);
 
-		boardno = ac_register_board(pci_resource_start(dev, 0),
+		boardyes = ac_register_board(pci_resource_start(dev, 0),
 				RamIO, 0);
-		if (!boardno) {
+		if (!boardyes) {
 			printk(KERN_INFO "ac.o: PCI Applicom device doesn't have correct signature.\n");
 			iounmap(RamIO);
 			pci_disable_device(dev);
@@ -229,22 +229,22 @@ static int __init applicom_init(void)
 		}
 
 		if (request_irq(dev->irq, &ac_interrupt, IRQF_SHARED, "Applicom PCI", &dummy)) {
-			printk(KERN_INFO "Could not allocate IRQ %d for PCI Applicom device.\n", dev->irq);
+			printk(KERN_INFO "Could yest allocate IRQ %d for PCI Applicom device.\n", dev->irq);
 			iounmap(RamIO);
 			pci_disable_device(dev);
-			apbs[boardno - 1].RamIO = NULL;
+			apbs[boardyes - 1].RamIO = NULL;
 			continue;
 		}
 
 		/* Enable interrupts. */
 
-		writeb(0x40, apbs[boardno - 1].RamIO + RAM_IT_FROM_PC);
+		writeb(0x40, apbs[boardyes - 1].RamIO + RAM_IT_FROM_PC);
 
-		apbs[boardno - 1].irq = dev->irq;
+		apbs[boardyes - 1].irq = dev->irq;
 	}
 
-	/* Finished with PCI cards. If none registered, 
-	 * and there was no mem/irq specified, exit */
+	/* Finished with PCI cards. If yesne registered, 
+	 * and there was yes mem/irq specified, exit */
 
 	if (!mem || !irq) {
 		if (numboards)
@@ -259,14 +259,14 @@ static int __init applicom_init(void)
 	/* Now try the specified ISA cards */
 
 	for (i = 0; i < MAX_ISA_BOARD; i++) {
-		RamIO = ioremap_nocache(mem + (LEN_RAM_IO * i), LEN_RAM_IO);
+		RamIO = ioremap_yescache(mem + (LEN_RAM_IO * i), LEN_RAM_IO);
 
 		if (!RamIO) {
 			printk(KERN_INFO "ac.o: Failed to ioremap the ISA card's memory space (slot #%d)\n", i + 1);
 			continue;
 		}
 
-		if (!(boardno = ac_register_board((unsigned long)mem+ (LEN_RAM_IO*i),
+		if (!(boardyes = ac_register_board((unsigned long)mem+ (LEN_RAM_IO*i),
 						  RamIO,i+1))) {
 			iounmap(RamIO);
 			continue;
@@ -276,15 +276,15 @@ static int __init applicom_init(void)
 
 		if (!numisa) {
 			if (request_irq(irq, &ac_interrupt, IRQF_SHARED, "Applicom ISA", &dummy)) {
-				printk(KERN_WARNING "Could not allocate IRQ %d for ISA Applicom device.\n", irq);
+				printk(KERN_WARNING "Could yest allocate IRQ %d for ISA Applicom device.\n", irq);
 				iounmap(RamIO);
-				apbs[boardno - 1].RamIO = NULL;
+				apbs[boardyes - 1].RamIO = NULL;
 			}
 			else
-				apbs[boardno - 1].irq = irq;
+				apbs[boardyes - 1].irq = irq;
 		}
 		else
-			apbs[boardno - 1].irq = 0;
+			apbs[boardyes - 1].irq = 0;
 
 		numisa++;
 	}
@@ -390,7 +390,7 @@ static ssize_t ac_write(struct file *file, const char __user *buf, size_t count,
 
 	if (IndexCard >= MAX_BOARD)
 		return -EINVAL;
-	IndexCard = array_index_nospec(IndexCard, MAX_BOARD);
+	IndexCard = array_index_yesspec(IndexCard, MAX_BOARD);
 
 	if (!apbs[IndexCard].RamIO)
 		return -EINVAL;
@@ -453,14 +453,14 @@ static ssize_t ac_write(struct file *file, const char __user *buf, size_t count,
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
 
-	/* We may not have actually slept */
+	/* We may yest have actually slept */
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&apbs[IndexCard].FlagSleepSend, &wait);
 
 	writeb(1, apbs[IndexCard].RamIO + DATA_FROM_PC_READY);
 
 	/* Which is best - lock down the pages with rawio and then
-	   copy directly, or use bounce buffers? For now we do the latter 
+	   copy directly, or use bounce buffers? For yesw we do the latter 
 	   because it works with 2.2 still */
 	{
 		unsigned char *from = (unsigned char *) &tmpmailbox;
@@ -604,7 +604,7 @@ static ssize_t ac_read (struct file *filp, char __user *buf, size_t count, loff_
 			
 		} /* per board */
 
-		/* OK - No boards had data for us. Sleep now */
+		/* OK - No boards had data for us. Sleep yesw */
 
 		schedule();
 		remove_wait_queue(&FlagSleepRec, &wait);
@@ -679,7 +679,7 @@ static irqreturn_t ac_interrupt(int vec, void *dev_instance)
 			Dummy = readb(apbs[i].RamIO + VERS);
 
 			if(readb(apbs[i].RamIO + RAM_IT_TO_PC)) {
-				/* There's another int waiting on this card */
+				/* There's ayesther int waiting on this card */
 				spin_unlock(&apbs[i].mutex);
 				i--;
 			} else {
@@ -708,7 +708,7 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct st_ram_io *adgl;
 	void __user *argp = (void __user *)arg;
 
-	/* In general, the device is only openable by root anyway, so we're not
+	/* In general, the device is only openable by root anyway, so we're yest
 	   particularly concerned that bogus ioctls can flood the console. */
 
 	adgl = memdup_user(argp, sizeof(struct st_ram_io));
@@ -720,7 +720,7 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	 
 	if (cmd != 6 && IndexCard >= MAX_BOARD)
 		goto err;
-	IndexCard = array_index_nospec(IndexCard, MAX_BOARD);
+	IndexCard = array_index_yesspec(IndexCard, MAX_BOARD);
 
 	if (cmd != 6 && !apbs[IndexCard].RamIO)
 		goto err;

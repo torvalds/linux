@@ -5,7 +5,7 @@
  *
  * 32-bit integer division.
  *
- * This code is based on the application note entitled "Divide, Square Root
+ * This code is based on the application yeste entitled "Divide, Square Root
  * and Remainder Algorithms for the IA-64 Architecture".  This document
  * is available as Intel document number 248725-002 or via the web at
  * http://developer.intel.com/software/opensource/numerics/

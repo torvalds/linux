@@ -362,9 +362,9 @@ struct bdc_ep {
 	struct bd_list bd_list;
 	/*
 	 * HW generates extra event for multi bd tranfers, this flag helps in
-	 * ignoring the extra event
+	 * igyesring the extra event
 	 */
-	bool ignore_next_sr;
+	bool igyesre_next_sr;
 };
 
 /* bdc cmmand parameter structure */
@@ -448,10 +448,10 @@ struct bdc {
 	unsigned char		ep0_response_buff[EP0_RESPONSE_BUFF];
 	/*
 	 * Timer to check if host resumed transfer after bdc sent Func wake
-	 * notification  packet after a remote wakeup. if not, then resend the
+	 * yestification  packet after a remote wakeup. if yest, then resend the
 	 * Func Wake packet every 2.5 secs. Refer to USB3 spec section 8.5.6.4
 	 */
-	struct delayed_work	func_wake_notify;
+	struct delayed_work	func_wake_yestify;
 	struct clk		*clk;
 };
 
@@ -466,7 +466,7 @@ static inline void bdc_writel(void __iomem *base, u32 offset, u32 value)
 }
 
 /* Buffer descriptor list operations */
-void bdc_notify_xfr(struct bdc *, u32);
+void bdc_yestify_xfr(struct bdc *, u32);
 void bdc_softconn(struct bdc *);
 void bdc_softdisconn(struct bdc *);
 int bdc_run(struct bdc *);

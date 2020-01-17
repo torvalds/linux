@@ -42,13 +42,13 @@ static const struct reg_default ak5558_reg[] = {
 	{ 0x5, 0x00 }	/*	0x05	AK5558_05_DSD			*/
 };
 
-static const char * const mono_texts[] = {
+static const char * const moyes_texts[] = {
 	"8 Slot", "2 Slot", "4 Slot", "1 Slot",
 };
 
-static const struct soc_enum ak5558_mono_enum[] = {
+static const struct soc_enum ak5558_moyes_enum[] = {
 	SOC_ENUM_SINGLE(AK5558_01_POWER_MANAGEMENT2, 1,
-			ARRAY_SIZE(mono_texts), mono_texts),
+			ARRAY_SIZE(moyes_texts), moyes_texts),
 };
 
 static const char * const digfil_texts[] = {
@@ -62,7 +62,7 @@ static const struct soc_enum ak5558_adcset_enum[] = {
 };
 
 static const struct snd_kcontrol_new ak5558_snd_controls[] = {
-	SOC_ENUM("AK5558 Monaural Mode", ak5558_mono_enum[0]),
+	SOC_ENUM("AK5558 Monaural Mode", ak5558_moyes_enum[0]),
 	SOC_ENUM("AK5558 Digital Filter", ak5558_adcset_enum[0]),
 };
 
@@ -333,7 +333,7 @@ static const struct snd_soc_component_driver soc_codec_dev_ak5558 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak5558_regmap = {

@@ -4,7 +4,7 @@
  *
  * Driver for PowerPC 4xx on-chip ethernet controller, PHY support.
  * Borrowed from sungem_phy.c, though I only kept the generic MII
- * driver for now.
+ * driver for yesw.
  *
  * This file should be shared with other drivers or eventually
  * merged as the "low level" part of miilib

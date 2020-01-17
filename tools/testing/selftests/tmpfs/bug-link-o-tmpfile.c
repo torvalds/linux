@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 /* Test that open(O_TMPFILE), linkat() doesn't screw accounting. */
-#include <errno.h>
+#include <erryes.h>
 #include <sched.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -28,38 +28,38 @@ int main(void)
 	int fd;
 
 	if (unshare(CLONE_NEWNS) == -1) {
-		if (errno == ENOSYS || errno == EPERM) {
-			fprintf(stderr, "error: unshare, errno %d\n", errno);
+		if (erryes == ENOSYS || erryes == EPERM) {
+			fprintf(stderr, "error: unshare, erryes %d\n", erryes);
 			return 4;
 		}
-		fprintf(stderr, "error: unshare, errno %d\n", errno);
+		fprintf(stderr, "error: unshare, erryes %d\n", erryes);
 		return 1;
 	}
 	if (mount(NULL, "/", NULL, MS_PRIVATE|MS_REC, NULL) == -1) {
-		fprintf(stderr, "error: mount '/', errno %d\n", errno);
+		fprintf(stderr, "error: mount '/', erryes %d\n", erryes);
 		return 1;
 	}
 
-	/* Our heroes: 1 root inode, 1 O_TMPFILE inode, 1 permanent inode. */
-	if (mount(NULL, "/tmp", "tmpfs", 0, "nr_inodes=3") == -1) {
-		fprintf(stderr, "error: mount tmpfs, errno %d\n", errno);
+	/* Our heroes: 1 root iyesde, 1 O_TMPFILE iyesde, 1 permanent iyesde. */
+	if (mount(NULL, "/tmp", "tmpfs", 0, "nr_iyesdes=3") == -1) {
+		fprintf(stderr, "error: mount tmpfs, erryes %d\n", erryes);
 		return 1;
 	}
 
 	fd = openat(AT_FDCWD, "/tmp", O_WRONLY|O_TMPFILE, 0600);
 	if (fd == -1) {
-		fprintf(stderr, "error: open 1, errno %d\n", errno);
+		fprintf(stderr, "error: open 1, erryes %d\n", erryes);
 		return 1;
 	}
 	if (linkat(fd, "", AT_FDCWD, "/tmp/1", AT_EMPTY_PATH) == -1) {
-		fprintf(stderr, "error: linkat, errno %d\n", errno);
+		fprintf(stderr, "error: linkat, erryes %d\n", erryes);
 		return 1;
 	}
 	close(fd);
 
 	fd = openat(AT_FDCWD, "/tmp", O_WRONLY|O_TMPFILE, 0600);
 	if (fd == -1) {
-		fprintf(stderr, "error: open 2, errno %d\n", errno);
+		fprintf(stderr, "error: open 2, erryes %d\n", erryes);
 		return 1;
 	}
 

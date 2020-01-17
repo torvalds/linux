@@ -64,7 +64,7 @@ static const int b15_cpubiuctrl_regs[] = {
 };
 
 /* Odd cases, e.g: 7260 */
-static const int b53_cpubiuctrl_no_wb_regs[] = {
+static const int b53_cpubiuctrl_yes_wb_regs[] = {
 	[CPU_CREDIT_REG] = 0x0b0,
 	[CPU_MCP_FLOW_REG] = 0x0b4,
 	[CPU_WRITEBACK_CTRL_REG] = -1,
@@ -154,9 +154,9 @@ static void __init mcp_b53_set(void)
 	cbc_writel(reg, CPU_WRITEBACK_CTRL_REG);
 }
 
-static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
+static int __init setup_hifcpubiuctrl_regs(struct device_yesde *np)
 {
-	struct device_node *cpu_dn;
+	struct device_yesde *cpu_dn;
 	int ret = 0;
 
 	cpubiuctrl_base = of_iomap(np, 0);
@@ -168,9 +168,9 @@ static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
 
 	mcp_wr_pairing_en = of_property_read_bool(np, "brcm,write-pairing");
 
-	cpu_dn = of_get_cpu_node(0, NULL);
+	cpu_dn = of_get_cpu_yesde(0, NULL);
 	if (!cpu_dn) {
-		pr_err("failed to obtain CPU device node\n");
+		pr_err("failed to obtain CPU device yesde\n");
 		ret = -ENODEV;
 		goto out;
 	}
@@ -183,12 +183,12 @@ static int __init setup_hifcpubiuctrl_regs(struct device_node *np)
 		pr_err("unsupported CPU\n");
 		ret = -EINVAL;
 	}
-	of_node_put(cpu_dn);
+	of_yesde_put(cpu_dn);
 
 	if (BRCM_ID(brcmstb_get_family_id()) == 0x7260)
-		cpubiuctrl_regs = b53_cpubiuctrl_no_wb_regs;
+		cpubiuctrl_regs = b53_cpubiuctrl_yes_wb_regs;
 out:
-	of_node_put(np);
+	of_yesde_put(np);
 	return ret;
 }
 
@@ -228,13 +228,13 @@ static struct syscore_ops brcmstb_cpu_credit_syscore_ops = {
 
 static int __init brcmstb_biuctrl_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
 	/* We might be running on a multi-platform kernel, don't make this a
 	 * fatal error, just bail out early
 	 */
-	np = of_find_compatible_node(NULL, NULL, "brcm,brcmstb-cpu-biu-ctrl");
+	np = of_find_compatible_yesde(NULL, NULL, "brcm,brcmstb-cpu-biu-ctrl");
 	if (!np)
 		return 0;
 

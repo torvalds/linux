@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -46,25 +46,25 @@ void *amdgpu_xgmi_hive_try_lock(struct amdgpu_hive_info *hive)
  *
  * XGMI is a high speed interconnect that joins multiple GPU cards
  * into a homogeneous memory space that is organized by a collective
- * hive ID and individual node IDs, both of which are 64-bit numbers.
+ * hive ID and individual yesde IDs, both of which are 64-bit numbers.
  *
  * The file xgmi_device_id contains the unique per GPU device ID and
- * is stored in the /sys/class/drm/card${cardno}/device/ directory.
+ * is stored in the /sys/class/drm/card${cardyes}/device/ directory.
  *
  * Inside the device directory a sub-directory 'xgmi_hive_info' is
- * created which contains the hive ID and the list of nodes.
+ * created which contains the hive ID and the list of yesdes.
  *
  * The hive ID is stored in:
- *   /sys/class/drm/card${cardno}/device/xgmi_hive_info/xgmi_hive_id
+ *   /sys/class/drm/card${cardyes}/device/xgmi_hive_info/xgmi_hive_id
  *
- * The node information is stored in numbered directories:
- *   /sys/class/drm/card${cardno}/device/xgmi_hive_info/node${nodeno}/xgmi_device_id
+ * The yesde information is stored in numbered directories:
+ *   /sys/class/drm/card${cardyes}/device/xgmi_hive_info/yesde${yesdeyes}/xgmi_device_id
  *
  * Each device has their own xgmi_hive_info direction with a mirror
- * set of node sub-directories.
+ * set of yesde sub-directories.
  *
  * The XGMI memory space is built by contiguously adding the power of
- * two padded VRAM space from each node to each other.
+ * two padded VRAM space from each yesde to each other.
  *
  */
 
@@ -128,7 +128,7 @@ static ssize_t amdgpu_xgmi_show_device_id(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 
-	return snprintf(buf, PAGE_SIZE, "%llu\n", adev->gmc.xgmi.node_id);
+	return snprintf(buf, PAGE_SIZE, "%llu\n", adev->gmc.xgmi.yesde_id);
 
 }
 
@@ -148,7 +148,7 @@ static ssize_t amdgpu_xgmi_show_error(struct device *dev,
 
 	fica_out = adev->df_funcs->get_fica(adev, ficaa_pie_ctl_in);
 	if (fica_out != 0x1f)
-		pr_err("xGMI error counters not enabled!\n");
+		pr_err("xGMI error counters yest enabled!\n");
 
 	fica_out = adev->df_funcs->get_fica(adev, ficaa_pie_status_in);
 
@@ -168,7 +168,7 @@ static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
 					 struct amdgpu_hive_info *hive)
 {
 	int ret = 0;
-	char node[10] = { 0 };
+	char yesde[10] = { 0 };
 
 	/* Create xgmi device id file */
 	ret = device_create_file(adev->dev, &dev_attr_xgmi_device_id);
@@ -193,9 +193,9 @@ static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
 		}
 	}
 
-	sprintf(node, "node%d", hive->number_devices);
+	sprintf(yesde, "yesde%d", hive->number_devices);
 	/* Create sysfs link form the hive folder to yourself */
-	ret = sysfs_create_link(hive->kobj, &adev->dev->kobj, node);
+	ret = sysfs_create_link(hive->kobj, &adev->dev->kobj, yesde);
 	if (ret) {
 		dev_err(adev->dev, "XGMI: Failed to create link from hive info");
 		goto remove_link;
@@ -248,7 +248,7 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev, int lo
 		return NULL;
 	}
 
-	/* initialize new hive if not exist */
+	/* initialize new hive if yest exist */
 	tmp = &xgmi_hives[hive_count++];
 
 	if (amdgpu_xgmi_sysfs_create(adev, tmp)) {
@@ -300,7 +300,7 @@ int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
 	if (ret) {
 		dev_err(adev->dev,
 			"XGMI: Set pstate failure on device %llx, hive %llx, ret %d",
-			adev->gmc.xgmi.node_id,
+			adev->gmc.xgmi.yesde_id,
 			adev->gmc.xgmi.hive_id, ret);
 		goto out;
 	}
@@ -338,7 +338,7 @@ int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_dev
 	if (ret)
 		dev_err(adev->dev,
 			"XGMI: Set topology failure on device %llx, hive %llx, ret %d",
-			adev->gmc.xgmi.node_id,
+			adev->gmc.xgmi.yesde_id,
 			adev->gmc.xgmi.hive_id, ret);
 
 	return ret;
@@ -351,9 +351,9 @@ int amdgpu_xgmi_get_hops_count(struct amdgpu_device *adev,
 	struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
 	int i;
 
-	for (i = 0 ; i < top->num_nodes; ++i)
-		if (top->nodes[i].node_id == peer_adev->gmc.xgmi.node_id)
-			return top->nodes[i].num_hops;
+	for (i = 0 ; i < top->num_yesdes; ++i)
+		if (top->yesdes[i].yesde_id == peer_adev->gmc.xgmi.yesde_id)
+			return top->yesdes[i].num_hops;
 	return	-EINVAL;
 }
 
@@ -377,23 +377,23 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 			return ret;
 		}
 
-		ret = psp_xgmi_get_node_id(&adev->psp, &adev->gmc.xgmi.node_id);
+		ret = psp_xgmi_get_yesde_id(&adev->psp, &adev->gmc.xgmi.yesde_id);
 		if (ret) {
 			dev_err(adev->dev,
-				"XGMI: Failed to get node id\n");
+				"XGMI: Failed to get yesde id\n");
 			return ret;
 		}
 	} else {
 		adev->gmc.xgmi.hive_id = 16;
-		adev->gmc.xgmi.node_id = adev->gmc.xgmi.physical_node_id + 16;
+		adev->gmc.xgmi.yesde_id = adev->gmc.xgmi.physical_yesde_id + 16;
 	}
 
 	hive = amdgpu_get_xgmi_hive(adev, 1);
 	if (!hive) {
 		ret = -EINVAL;
 		dev_err(adev->dev,
-			"XGMI: node 0x%llx, can not match hive 0x%llx in the hive list.\n",
-			adev->gmc.xgmi.node_id, adev->gmc.xgmi.hive_id);
+			"XGMI: yesde 0x%llx, can yest match hive 0x%llx in the hive list.\n",
+			adev->gmc.xgmi.yesde_id, adev->gmc.xgmi.hive_id);
 		goto exit;
 	}
 
@@ -404,18 +404,18 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 
 	list_add_tail(&adev->gmc.xgmi.head, &hive->device_list);
 	list_for_each_entry(entry, &hive->device_list, head)
-		top_info->nodes[count++].node_id = entry->node_id;
-	top_info->num_nodes = count;
+		top_info->yesdes[count++].yesde_id = entry->yesde_id;
+	top_info->num_yesdes = count;
 	hive->number_devices = count;
 
 	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
 		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
-			/* update node list for other device in the hive */
+			/* update yesde list for other device in the hive */
 			if (tmp_adev != adev) {
 				top_info = &tmp_adev->psp.xgmi_context.top_info;
-				top_info->nodes[count - 1].node_id =
-					adev->gmc.xgmi.node_id;
-				top_info->num_nodes = count;
+				top_info->yesdes[count - 1].yesde_id =
+					adev->gmc.xgmi.yesde_id;
+				top_info->num_yesdes = count;
 			}
 			ret = amdgpu_xgmi_update_topology(hive, tmp_adev);
 			if (ret)
@@ -429,9 +429,9 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 			if (ret) {
 				dev_err(tmp_adev->dev,
 					"XGMI: Get topology failure on device %llx, hive %llx, ret %d",
-					tmp_adev->gmc.xgmi.node_id,
+					tmp_adev->gmc.xgmi.yesde_id,
 					tmp_adev->gmc.xgmi.hive_id, ret);
-				/* To do : continue with some node failed or disable the whole hive */
+				/* To do : continue with some yesde failed or disable the whole hive */
 				goto exit;
 			}
 		}
@@ -444,11 +444,11 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 	mutex_unlock(&hive->hive_lock);
 exit:
 	if (!ret)
-		dev_info(adev->dev, "XGMI: Add node %d, hive 0x%llx.\n",
-			 adev->gmc.xgmi.physical_node_id, adev->gmc.xgmi.hive_id);
+		dev_info(adev->dev, "XGMI: Add yesde %d, hive 0x%llx.\n",
+			 adev->gmc.xgmi.physical_yesde_id, adev->gmc.xgmi.hive_id);
 	else
-		dev_err(adev->dev, "XGMI: Failed to add node %d, hive 0x%llx ret: %d\n",
-			adev->gmc.xgmi.physical_node_id, adev->gmc.xgmi.hive_id,
+		dev_err(adev->dev, "XGMI: Failed to add yesde %d, hive 0x%llx ret: %d\n",
+			adev->gmc.xgmi.physical_yesde_id, adev->gmc.xgmi.hive_id,
 			ret);
 
 	return ret;
@@ -487,7 +487,7 @@ int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev)
 	};
 
 	if (!adev->gmc.xgmi.supported ||
-	    adev->gmc.xgmi.num_physical_nodes == 0)
+	    adev->gmc.xgmi.num_physical_yesdes == 0)
 		return 0;
 
 	if (!adev->gmc.xgmi.ras_if) {

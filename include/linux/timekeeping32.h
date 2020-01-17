@@ -27,7 +27,7 @@ static inline void ktime_get_ts(struct timespec *ts)
 	*ts = timespec64_to_timespec(ts64);
 }
 
-static inline void getrawmonotonic(struct timespec *ts)
+static inline void getrawmoyestonic(struct timespec *ts)
 {
 	struct timespec64 ts64;
 

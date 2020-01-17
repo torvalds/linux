@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 1999-2013 Petko Manolov (petkan@nucleusys.com)
+ * Copyright (c) 1999-2013 Petko Mayeslov (petkan@nucleusys.com)
  */
 
 

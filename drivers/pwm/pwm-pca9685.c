@@ -191,7 +191,7 @@ static int pca9685_pwm_gpio_direction_output(struct gpio_chip *gpio,
 
 /*
  * The PCA9685 has a bit for turning the PWM output full off or on. Some
- * boards like Intel Galileo actually uses these as normal GPIOs so we
+ * boards like Intel Galileo actually uses these as yesrmal GPIOs so we
  * expose a GPIO chip here which can exclusively take over the underlying
  * PWM channel.
  */
@@ -271,7 +271,7 @@ static int pca9685_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			pca->period_ns = period_ns;
 		} else {
 			dev_err(chip->dev,
-				"prescaler not set: period out of bounds!\n");
+				"prescaler yest set: period out of bounds!\n");
 			return -EINVAL;
 		}
 	}
@@ -333,7 +333,7 @@ static int pca9685_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	regmap_write(pca->regmap, reg, ((int)duty >> 8) & 0xf);
 
-	/* Clear the full ON bit, otherwise the set OFF time has no effect */
+	/* Clear the full ON bit, otherwise the set OFF time has yes effect */
 	if (pwm->hwpwm >= PCA9685_MAXCHAN)
 		reg = PCA9685_ALL_LED_ON_H;
 	else
@@ -350,7 +350,7 @@ static int pca9685_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	unsigned int reg;
 
 	/*
-	 * The PWM subsystem does not support a pre-delay.
+	 * The PWM subsystem does yest support a pre-delay.
 	 * So, set the ON-timeout to 0
 	 */
 	if (pwm->hwpwm >= PCA9685_MAXCHAN)

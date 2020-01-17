@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2018 Andes Technology Corporation
+// Copyright (C) 2005-2018 Andes Techyeslogy Corporation
 
 #include <linux/sched.h>
 #include <linux/signal.h>
@@ -42,7 +42,7 @@ void save_fpu(struct task_struct *tsk)
 			      "fsdi $fd18, [%0+0x90]\n\t"
 			      "fsdi $fd17, [%0+0x88]\n\t"
 			      "fsdi $fd16, [%0+0x80]\n\t"
-			      :	/* no output */
+			      :	/* yes output */
 			      : "r" (&tsk->thread.fpu)
 			      : "memory");
 		/* fall through */
@@ -55,7 +55,7 @@ void save_fpu(struct task_struct *tsk)
 			      "fsdi $fd10, [%0+0x50]\n\t"
 			      "fsdi $fd9,  [%0+0x48]\n\t"
 			      "fsdi $fd8,  [%0+0x40]\n\t"
-			      :	/* no output */
+			      :	/* yes output */
 			      : "r" (&tsk->thread.fpu)
 			      : "memory");
 		/* fall through */
@@ -64,7 +64,7 @@ void save_fpu(struct task_struct *tsk)
 			      "fsdi $fd6,  [%0+0x30]\n\t"
 			      "fsdi $fd5,  [%0+0x28]\n\t"
 			      "fsdi $fd4,  [%0+0x20]\n\t"
-			      :	/* no output */
+			      :	/* yes output */
 			      : "r" (&tsk->thread.fpu)
 			      : "memory");
 		/* fall through */
@@ -106,7 +106,7 @@ void load_fpu(const struct fpu_struct *fpregs)
 			      "fldi $fd18, [%0+0x90]\n\t"
 			      "fldi $fd17, [%0+0x88]\n\t"
 			      "fldi $fd16, [%0+0x80]\n\t"
-			      :	/* no output */
+			      :	/* yes output */
 			      : "r" (fpregs));
 		/* fall through */
 	case SP32_DP16_reg:
@@ -118,7 +118,7 @@ void load_fpu(const struct fpu_struct *fpregs)
 			      "fldi $fd10, [%0+0x50]\n\t"
 			      "fldi $fd9,  [%0+0x48]\n\t"
 			      "fldi $fd8,  [%0+0x40]\n\t"
-			      :	/* no output */
+			      :	/* yes output */
 			      : "r" (fpregs));
 		/* fall through */
 	case SP16_DP8_reg:
@@ -126,7 +126,7 @@ void load_fpu(const struct fpu_struct *fpregs)
 			      "fldi $fd6,  [%0+0x30]\n\t"
 			      "fldi $fd5,  [%0+0x28]\n\t"
 			      "fldi $fd4,  [%0+0x20]\n\t"
-			      :	/* no output */
+			      :	/* yes output */
 			      : "r" (fpregs));
 		/* fall through */
 	case SP8_DP4_reg:
@@ -185,26 +185,26 @@ inline void do_fpu_context_switch(struct pt_regs *regs)
 
 }
 
-inline void fill_sigfpe_signo(unsigned int fpcsr, int *signo)
+inline void fill_sigfpe_sigyes(unsigned int fpcsr, int *sigyes)
 {
 	if (fpcsr & FPCSR_mskOVFT)
-		*signo = FPE_FLTOVF;
+		*sigyes = FPE_FLTOVF;
 #ifndef CONFIG_SUPPORT_DENORMAL_ARITHMETIC
 	else if (fpcsr & FPCSR_mskUDFT)
-		*signo = FPE_FLTUND;
+		*sigyes = FPE_FLTUND;
 #endif
 	else if (fpcsr & FPCSR_mskIVOT)
-		*signo = FPE_FLTINV;
+		*sigyes = FPE_FLTINV;
 	else if (fpcsr & FPCSR_mskDBZT)
-		*signo = FPE_FLTDIV;
+		*sigyes = FPE_FLTDIV;
 	else if (fpcsr & FPCSR_mskIEXT)
-		*signo = FPE_FLTRES;
+		*sigyes = FPE_FLTRES;
 }
 
 inline void handle_fpu_exception(struct pt_regs *regs)
 {
 	unsigned int fpcsr;
-	int si_code = 0, si_signo = SIGFPE;
+	int si_code = 0, si_sigyes = SIGFPE;
 #if IS_ENABLED(CONFIG_SUPPORT_DENORMAL_ARITHMETIC)
 	unsigned long redo_except = FPCSR_mskDNIT|FPCSR_mskUDFT|FPCSR_mskIEXT;
 #else
@@ -215,21 +215,21 @@ inline void handle_fpu_exception(struct pt_regs *regs)
 	fpcsr = current->thread.fpu.fpcsr;
 
 	if (fpcsr & redo_except) {
-		si_signo = do_fpuemu(regs, &current->thread.fpu);
+		si_sigyes = do_fpuemu(regs, &current->thread.fpu);
 		fpcsr = current->thread.fpu.fpcsr;
-		if (!si_signo) {
+		if (!si_sigyes) {
 			current->thread.fpu.fpcsr &= ~(redo_except);
 			goto done;
 		}
 	} else if (fpcsr & FPCSR_mskRIT) {
 		if (!user_mode(regs))
 			do_exit(SIGILL);
-		si_signo = SIGILL;
+		si_sigyes = SIGILL;
 	}
 
-	switch (si_signo) {
+	switch (si_sigyes) {
 	case SIGFPE:
-		fill_sigfpe_signo(fpcsr, &si_code);
+		fill_sigfpe_sigyes(fpcsr, &si_code);
 		break;
 	case SIGILL:
 		show_regs(regs);
@@ -242,7 +242,7 @@ inline void handle_fpu_exception(struct pt_regs *regs)
 		break;
 	}
 
-	force_sig_fault(si_signo, si_code,
+	force_sig_fault(si_sigyes, si_code,
 			(void __user *)instruction_pointer(regs));
 done:
 	own_fpu();

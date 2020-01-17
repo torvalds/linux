@@ -30,7 +30,7 @@
 /**
  * struct ab3100_otp
  * @dev containing device
- * @locked whether the OTP is locked, after locking, no more bits
+ * @locked whether the OTP is locked, after locking, yes more bits
  *       can be changed but before locking it is still possible
  *       to change bits from 1->0.
  * @freq clocking frequency for the OTP, this frequency is either
@@ -110,9 +110,9 @@ static int ab3100_show_otp(struct seq_file *s, void *v)
 	return 0;
 }
 
-static int ab3100_otp_open(struct inode *inode, struct file *file)
+static int ab3100_otp_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, ab3100_show_otp, inode->i_private);
+	return single_open(file, ab3100_show_otp, iyesde->i_private);
 }
 
 static const struct file_operations ab3100_otp_operations = {
@@ -134,7 +134,7 @@ static void __exit ab3100_otp_exit_debugfs(struct ab3100_otp *otp)
 	debugfs_remove(otp->debugfs);
 }
 #else
-/* Compile this out if debugfs not selected */
+/* Compile this out if debugfs yest selected */
 static inline void __init ab3100_otp_init_debugfs(struct device *dev,
 						  struct ab3100_otp *otp)
 {

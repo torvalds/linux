@@ -65,7 +65,7 @@ void __init prom_setup_cmdline(void)
 
 	cp = cmd_line;
 		/* Note: it is common that parameters start
-		 * at argv[1] and not argv[0],
+		 * at argv[1] and yest argv[0],
 		 * however, our elf loader starts at [0] */
 	for (i = 0; i < prom_argc; i++) {
 		if (match_tag(prom_argv[i], FREQ_TAG)) {
@@ -110,7 +110,7 @@ void __init prom_init(void)
 	phys_addr_t memsize;
 	phys_addr_t ddrbase;
 
-	ddr = ioremap_nocache(ddr_reg[0].start,
+	ddr = ioremap_yescache(ddr_reg[0].start,
 			ddr_reg[0].end - ddr_reg[0].start);
 
 	if (!ddr) {

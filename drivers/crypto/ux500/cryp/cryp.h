@@ -228,11 +228,11 @@ struct cryp_dma {
  * @power_status: Current status of the power.
  * @ctx_lock: Lock for current_ctx.
  * @current_ctx: Pointer to the currently allocated context.
- * @list_node: For inclusion into a klist.
+ * @list_yesde: For inclusion into a klist.
  * @dma: The dma structure holding channel configuration.
  * @power_state: TRUE = power state on, FALSE = power state off.
  * @power_state_spinlock: Spinlock for power_state.
- * @restore_dev_ctx: TRUE = saved ctx, FALSE = no saved ctx.
+ * @restore_dev_ctx: TRUE = saved ctx, FALSE = yes saved ctx.
  */
 struct cryp_device_data {
 	struct cryp_register __iomem *base;
@@ -243,7 +243,7 @@ struct cryp_device_data {
 	int power_status;
 	spinlock_t ctx_lock;
 	struct cryp_ctx *current_ctx;
-	struct klist_node list_node;
+	struct klist_yesde list_yesde;
 	struct cryp_dma dma;
 	bool power_state;
 	spinlock_t power_state_spinlock;
@@ -259,7 +259,7 @@ int cryp_check(struct cryp_device_data *device_data);
 void cryp_activity(struct cryp_device_data *device_data,
 		   enum cryp_crypen cryp_crypen);
 
-void cryp_flush_inoutfifo(struct cryp_device_data *device_data);
+void cryp_flush_iyesutfifo(struct cryp_device_data *device_data);
 
 int cryp_set_configuration(struct cryp_device_data *device_data,
 			   struct cryp_config *cryp_config,

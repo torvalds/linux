@@ -19,7 +19,7 @@
 #include <stdarg.h>
 #include <getopt.h>
 #include <regex.h>
-#include <errno.h>
+#include <erryes.h>
 
 #define MAX_SLABS 500
 #define MAX_ALIASES 500
@@ -42,7 +42,7 @@ struct slabinfo {
 	unsigned long deactivate_to_head, deactivate_to_tail;
 	unsigned long deactivate_remote_frees, order_fallback;
 	unsigned long cmpxchg_double_cpu_fail, cmpxchg_double_fail;
-	unsigned long alloc_node_mismatch, deactivate_bypass;
+	unsigned long alloc_yesde_mismatch, deactivate_bypass;
 	unsigned long cpu_partial_alloc, cpu_partial_free;
 	int numa[MAX_NODES];
 	int numa_partial[MAX_NODES];
@@ -58,7 +58,7 @@ int slabs;
 int actual_slabs;
 int aliases;
 int alias_targets;
-int highest_node;
+int highest_yesde;
 
 char buffer[4096];
 
@@ -111,7 +111,7 @@ static void fatal(const char *x, ...)
 static void usage(void)
 {
 	printf("slabinfo 4/15/2011. (c) 2007 sgi/(c) 2011 Linux Foundation.\n\n"
-		"slabinfo [-aABDefhilLnoPrsStTUvXz1] [N=K] [-dafzput] [slab-regexp]\n"
+		"slabinfo [-aABDefhilLyesPrsStTUvXz1] [N=K] [-dafzput] [slab-regexp]\n"
 		"-a|--aliases           Show aliases\n"
 		"-A|--activity          Most active slabs first\n"
 		"-B|--Bytes             Show size in bytes\n"
@@ -208,7 +208,7 @@ static void set_obj(struct slabinfo *s, const char *name, int n)
 	snprintf(x, 100, "%s/%s", s->name, name);
 	f = fopen(x, "w");
 	if (!f)
-		fatal("Cannot write to %s\n", x);
+		fatal("Canyest write to %s\n", x);
 
 	fprintf(f, "%d\n", n);
 	fclose(f);
@@ -273,7 +273,7 @@ static int store_size(char *buffer, unsigned long value)
 
 static void decode_numa_list(int *numa, char *t)
 {
-	int node;
+	int yesde;
 	int nr;
 
 	memset(numa, 0, MAX_NODES * sizeof(int));
@@ -283,13 +283,13 @@ static void decode_numa_list(int *numa, char *t)
 
 	while (*t == 'N') {
 		t++;
-		node = strtoul(t, &t, 10);
+		yesde = strtoul(t, &t, 10);
 		if (*t == '=') {
 			t++;
 			nr = strtoul(t, &t, 10);
-			numa[node] = nr;
-			if (node > highest_node)
-				highest_node = node;
+			numa[yesde] = nr;
+			if (yesde > highest_yesde)
+				highest_yesde = yesde;
 		}
 		while (*t == ' ')
 			t++;
@@ -362,12 +362,12 @@ static unsigned long slab_waste(struct slabinfo *s)
 
 static void slab_numa(struct slabinfo *s, int mode)
 {
-	int node;
+	int yesde;
 
 	if (strcmp(s->name, "*") == 0)
 		return;
 
-	if (!highest_node) {
+	if (!highest_yesde) {
 		printf("\n%s: No NUMA information available.\n", s->name);
 		return;
 	}
@@ -376,28 +376,28 @@ static void slab_numa(struct slabinfo *s, int mode)
 		return;
 
 	if (!line) {
-		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
-		for(node = 0; node <= highest_node; node++)
-			printf(" %4d", node);
+		printf("\n%-21s:", mode ? "NUMA yesdes" : "Slab");
+		for(yesde = 0; yesde <= highest_yesde; yesde++)
+			printf(" %4d", yesde);
 		printf("\n----------------------");
-		for(node = 0; node <= highest_node; node++)
+		for(yesde = 0; yesde <= highest_yesde; yesde++)
 			printf("-----");
 		printf("\n");
 	}
 	printf("%-21s ", mode ? "All slabs" : s->name);
-	for(node = 0; node <= highest_node; node++) {
+	for(yesde = 0; yesde <= highest_yesde; yesde++) {
 		char b[20];
 
-		store_size(b, s->numa[node]);
+		store_size(b, s->numa[yesde]);
 		printf(" %4s", b);
 	}
 	printf("\n");
 	if (mode) {
 		printf("%-21s ", "Partial slabs");
-		for(node = 0; node <= highest_node; node++) {
+		for(yesde = 0; yesde <= highest_yesde; yesde++) {
 			char b[20];
 
-			store_size(b, s->numa_partial[node]);
+			store_size(b, s->numa_partial[yesde]);
 			printf(" %4s", b);
 		}
 		printf("\n");
@@ -433,10 +433,10 @@ static void ops(struct slabinfo *s)
 		printf("--------------------------------------------\n");
 		printf("%s", buffer);
 	} else
-		printf("\n%s has no kmem_cache operations\n", s->name);
+		printf("\n%s has yes kmem_cache operations\n", s->name);
 }
 
-static const char *onoff(int x)
+static const char *oyesff(int x)
 {
 	if (x)
 		return "On ";
@@ -517,7 +517,7 @@ static void slab_stats(struct slabinfo *s)
 		printf("Refilled from foreign frees   %7lu  %3lu%%\n",
 			s->alloc_refill, (s->alloc_refill * 100) / total);
 		printf("Node mismatch                 %7lu  %3lu%%\n",
-			s->alloc_node_mismatch, (s->alloc_node_mismatch * 100) / total);
+			s->alloc_yesde_mismatch, (s->alloc_yesde_mismatch * 100) / total);
 	}
 
 	if (s->cmpxchg_double_fail || s->cmpxchg_double_cpu_fail) {
@@ -546,19 +546,19 @@ static void report(struct slabinfo *s)
 	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
 	printf("------------------------------------------------------------------------\n");
 	printf("Object : %7d  Total  : %7ld   Sanity Checks : %s  Total: %7ld\n",
-			s->object_size, s->slabs, onoff(s->sanity_checks),
+			s->object_size, s->slabs, oyesff(s->sanity_checks),
 			s->slabs * (page_size << s->order));
 	printf("SlabObj: %7d  Full   : %7ld   Redzoning     : %s  Used : %7ld\n",
 			s->slab_size, s->slabs - s->partial - s->cpu_slabs,
-			onoff(s->red_zone), s->objects * s->object_size);
+			oyesff(s->red_zone), s->objects * s->object_size);
 	printf("SlabSiz: %7d  Partial: %7ld   Poisoning     : %s  Loss : %7ld\n",
-			page_size << s->order, s->partial, onoff(s->poison),
+			page_size << s->order, s->partial, oyesff(s->poison),
 			s->slabs * (page_size << s->order) - s->objects * s->object_size);
 	printf("Loss   : %7d  CpuSlab: %7d   Tracking      : %s  Lalig: %7ld\n",
-			s->slab_size - s->object_size, s->cpu_slabs, onoff(s->store_user),
+			s->slab_size - s->object_size, s->cpu_slabs, oyesff(s->store_user),
 			(s->slab_size - s->object_size) * s->objects);
 	printf("Align  : %7d  Objects: %7d   Tracing       : %s  Lpadd: %7ld\n",
-			s->align, s->objs_per_slab, onoff(s->trace),
+			s->align, s->objs_per_slab, oyesff(s->trace),
 			((page_size << s->order) - s->objs_per_slab * s->slab_size) *
 			s->slabs);
 
@@ -705,7 +705,7 @@ static int slab_empty(struct slabinfo *s)
 		return 0;
 
 	/*
-	 * We may still have slabs even if there are no objects. Shrinking will
+	 * We may still have slabs even if there are yes objects. Shrinking will
 	 * remove them.
 	 */
 	if (s->slabs != 0)
@@ -726,43 +726,43 @@ static void slab_debug(struct slabinfo *s)
 		if (slab_empty(s))
 			set_obj(s, "sanity", 0);
 		else
-			fprintf(stderr, "%s not empty cannot disable sanity checks\n", s->name);
+			fprintf(stderr, "%s yest empty canyest disable sanity checks\n", s->name);
 	}
 	if (redzone && !s->red_zone) {
 		if (slab_empty(s))
 			set_obj(s, "red_zone", 1);
 		else
-			fprintf(stderr, "%s not empty cannot enable redzoning\n", s->name);
+			fprintf(stderr, "%s yest empty canyest enable redzoning\n", s->name);
 	}
 	if (!redzone && s->red_zone) {
 		if (slab_empty(s))
 			set_obj(s, "red_zone", 0);
 		else
-			fprintf(stderr, "%s not empty cannot disable redzoning\n", s->name);
+			fprintf(stderr, "%s yest empty canyest disable redzoning\n", s->name);
 	}
 	if (poison && !s->poison) {
 		if (slab_empty(s))
 			set_obj(s, "poison", 1);
 		else
-			fprintf(stderr, "%s not empty cannot enable poisoning\n", s->name);
+			fprintf(stderr, "%s yest empty canyest enable poisoning\n", s->name);
 	}
 	if (!poison && s->poison) {
 		if (slab_empty(s))
 			set_obj(s, "poison", 0);
 		else
-			fprintf(stderr, "%s not empty cannot disable poisoning\n", s->name);
+			fprintf(stderr, "%s yest empty canyest disable poisoning\n", s->name);
 	}
 	if (tracking && !s->store_user) {
 		if (slab_empty(s))
 			set_obj(s, "store_user", 1);
 		else
-			fprintf(stderr, "%s not empty cannot enable tracking\n", s->name);
+			fprintf(stderr, "%s yest empty canyest enable tracking\n", s->name);
 	}
 	if (!tracking && s->store_user) {
 		if (slab_empty(s))
 			set_obj(s, "store_user", 0);
 		else
-			fprintf(stderr, "%s not empty cannot disable tracking\n", s->name);
+			fprintf(stderr, "%s yest empty canyest disable tracking\n", s->name);
 	}
 	if (tracing && !s->trace) {
 		if (slabs == 1)
@@ -1183,7 +1183,7 @@ static void read_slab_dir(void)
 	int count;
 
 	if (chdir("/sys/kernel/slab") && chdir("/sys/slab"))
-		fatal("SYSFS support for SLUB not active\n");
+		fatal("SYSFS support for SLUB yest active\n");
 
 	dir = opendir(".");
 	while ((de = readdir(dir))) {
@@ -1196,7 +1196,7 @@ static void read_slab_dir(void)
 			count = readlink(de->d_name, buffer, sizeof(buffer)-1);
 
 			if (count < 0)
-				fatal("Cannot read symlink %s\n", de->d_name);
+				fatal("Canyest read symlink %s\n", de->d_name);
 
 			buffer[count] = 0;
 			p = buffer + count;
@@ -1259,7 +1259,7 @@ static void read_slab_dir(void)
 			slab->cmpxchg_double_fail = get_obj("cmpxchg_double_fail");
 			slab->cpu_partial_alloc = get_obj("cpu_partial_alloc");
 			slab->cpu_partial_free = get_obj("cpu_partial_free");
-			slab->alloc_node_mismatch = get_obj("alloc_node_mismatch");
+			slab->alloc_yesde_mismatch = get_obj("alloc_yesde_mismatch");
 			slab->deactivate_bypass = get_obj("deactivate_bypass");
 			chdir("..");
 			if (slab->name[0] == ':')
@@ -1267,7 +1267,7 @@ static void read_slab_dir(void)
 			slab++;
 			break;
 		   default :
-			fatal("Unknown file type %lx\n", de->d_type);
+			fatal("Unkyeswn file type %lx\n", de->d_type);
 		}
 	}
 	closedir(dir);
@@ -1350,31 +1350,31 @@ static void xtotals(void)
 }
 
 struct option opts[] = {
-	{ "aliases", no_argument, NULL, 'a' },
-	{ "activity", no_argument, NULL, 'A' },
-	{ "Bytes", no_argument, NULL, 'B'},
+	{ "aliases", yes_argument, NULL, 'a' },
+	{ "activity", yes_argument, NULL, 'A' },
+	{ "Bytes", yes_argument, NULL, 'B'},
 	{ "debug", optional_argument, NULL, 'd' },
-	{ "display-activity", no_argument, NULL, 'D' },
-	{ "empty", no_argument, NULL, 'e' },
-	{ "first-alias", no_argument, NULL, 'f' },
-	{ "help", no_argument, NULL, 'h' },
-	{ "inverted", no_argument, NULL, 'i'},
-	{ "slabs", no_argument, NULL, 'l' },
-	{ "Loss", no_argument, NULL, 'L'},
-	{ "numa", no_argument, NULL, 'n' },
+	{ "display-activity", yes_argument, NULL, 'D' },
+	{ "empty", yes_argument, NULL, 'e' },
+	{ "first-alias", yes_argument, NULL, 'f' },
+	{ "help", yes_argument, NULL, 'h' },
+	{ "inverted", yes_argument, NULL, 'i'},
+	{ "slabs", yes_argument, NULL, 'l' },
+	{ "Loss", yes_argument, NULL, 'L'},
+	{ "numa", yes_argument, NULL, 'n' },
 	{ "lines", required_argument, NULL, 'N'},
-	{ "ops", no_argument, NULL, 'o' },
-	{ "partial", no_argument, NULL, 'p'},
-	{ "report", no_argument, NULL, 'r' },
-	{ "shrink", no_argument, NULL, 's' },
-	{ "Size", no_argument, NULL, 'S'},
-	{ "tracking", no_argument, NULL, 't'},
-	{ "Totals", no_argument, NULL, 'T'},
-	{ "Unreclaim", no_argument, NULL, 'U'},
-	{ "validate", no_argument, NULL, 'v' },
-	{ "Xtotals", no_argument, NULL, 'X'},
-	{ "zero", no_argument, NULL, 'z' },
-	{ "1ref", no_argument, NULL, '1'},
+	{ "ops", yes_argument, NULL, 'o' },
+	{ "partial", yes_argument, NULL, 'p'},
+	{ "report", yes_argument, NULL, 'r' },
+	{ "shrink", yes_argument, NULL, 's' },
+	{ "Size", yes_argument, NULL, 'S'},
+	{ "tracking", yes_argument, NULL, 't'},
+	{ "Totals", yes_argument, NULL, 'T'},
+	{ "Unreclaim", yes_argument, NULL, 'U'},
+	{ "validate", yes_argument, NULL, 'v' },
+	{ "Xtotals", yes_argument, NULL, 'X'},
+	{ "zero", yes_argument, NULL, 'z' },
+	{ "1ref", yes_argument, NULL, '1'},
 	{ NULL, 0, NULL, 0 }
 };
 

@@ -83,7 +83,7 @@ static int mlxbf_gpio_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, gs);
-	dev_info(&pdev->dev, "registered Mellanox BlueField GPIO");
+	dev_info(&pdev->dev, "registered Mellayesx BlueField GPIO");
 	return 0;
 }
 
@@ -147,6 +147,6 @@ static struct platform_driver mlxbf_gpio_driver = {
 
 module_platform_driver(mlxbf_gpio_driver);
 
-MODULE_DESCRIPTION("Mellanox BlueField GPIO Driver");
-MODULE_AUTHOR("Mellanox Technologies");
+MODULE_DESCRIPTION("Mellayesx BlueField GPIO Driver");
+MODULE_AUTHOR("Mellayesx Techyeslogies");
 MODULE_LICENSE("GPL");

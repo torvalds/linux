@@ -13,7 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/device.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
@@ -61,7 +61,7 @@ static void uwb_dbg_rsv_cb(struct uwb_rsv *rsv)
 
 	if (rsv->state == UWB_RSV_STATE_NONE) {
 		spin_lock(&dbg->list_lock);
-		list_del(&rsv->pal_node);
+		list_del(&rsv->pal_yesde);
 		spin_unlock(&dbg->list_lock);
 		uwb_rsv_destroy(rsv);
 	}
@@ -98,7 +98,7 @@ static int cmd_rsv_establish(struct uwb_rc *rc,
 		uwb_rsv_destroy(rsv);
 	else {
 		spin_lock(&(rc->dbg)->list_lock);
-		list_add_tail(&rsv->pal_node, &rc->dbg->rsvs);
+		list_add_tail(&rsv->pal_yesde, &rc->dbg->rsvs);
 		spin_unlock(&(rc->dbg)->list_lock);
 	}
 	return ret;
@@ -112,7 +112,7 @@ static int cmd_rsv_terminate(struct uwb_rc *rc,
 
 	spin_lock(&(rc->dbg)->list_lock);
 
-	list_for_each_entry(rsv, &rc->dbg->rsvs, pal_node) {
+	list_for_each_entry(rsv, &rc->dbg->rsvs, pal_yesde) {
 		if (i == cmd->index) {
 			found = rsv;
 			uwb_rsv_get(found);
@@ -187,7 +187,7 @@ static const struct file_operations command_fops = {
 	.open	= simple_open,
 	.write  = command_write,
 	.read   = NULL,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.owner  = THIS_MODULE,
 };
 
@@ -198,7 +198,7 @@ static int reservations_show(struct seq_file *s, void *p)
 
 	mutex_lock(&rc->rsvs_mutex);
 
-	list_for_each_entry(rsv, &rc->reservations, rc_node) {
+	list_for_each_entry(rsv, &rc->reservations, rc_yesde) {
 		struct uwb_dev_addr devaddr;
 		char owner[UWB_ADDR_STRSIZE], target[UWB_ADDR_STRSIZE];
 		bool is_owner;
@@ -255,7 +255,7 @@ static void uwb_dbg_new_rsv(struct uwb_pal *pal, struct uwb_rsv *rsv)
 
 	if (dbg->accept) {
 		spin_lock(&dbg->list_lock);
-		list_add_tail(&rsv->pal_node, &dbg->rsvs);
+		list_add_tail(&rsv->pal_yesde, &dbg->rsvs);
 		spin_unlock(&dbg->list_lock);
 		uwb_rsv_accept(rsv, uwb_dbg_rsv_cb, dbg);
 	}
@@ -309,7 +309,7 @@ void uwb_dbg_del_rc(struct uwb_rc *rc)
 	if (rc->dbg == NULL)
 		return;
 
-	list_for_each_entry_safe(rsv, t, &rc->dbg->rsvs, pal_node) {
+	list_for_each_entry_safe(rsv, t, &rc->dbg->rsvs, pal_yesde) {
 		uwb_rsv_terminate(rsv);
 	}
 

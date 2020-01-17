@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2009 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2009 VIA Techyeslogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -13,7 +13,7 @@
 #include <linux/via_i2c.h>
 
 /*
- * There can only be one set of these, so there's no point in having
+ * There can only be one set of these, so there's yes point in having
  * them be dynamically allocated...
  */
 #define VIAFB_NUM_I2C		5
@@ -236,7 +236,7 @@ static int viafb_i2c_probe(struct platform_device *platdev)
 				     &i2c_stuff->algo, adap_cfg,
 				NULL); /* FIXME: PCIDEV */
 		if (ret < 0) {
-			printk(KERN_ERR "viafb: cannot create i2c bus %u:%d\n",
+			printk(KERN_ERR "viafb: canyest create i2c bus %u:%d\n",
 				i, ret);
 			continue;  /* Still try to make the rest */
 		}

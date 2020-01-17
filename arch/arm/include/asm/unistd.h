@@ -5,7 +5,7 @@
  *  Copyright (C) 2001-2005 Russell King
  *
  * Please forward _all_ changes to this file to rmk@arm.linux.org.uk,
- * no matter what the change is.  Thanks!
+ * yes matter what the change is.  Thanks!
  */
 #ifndef __ASM_ARM_UNISTD_H
 #define __ASM_ARM_UNISTD_H
@@ -46,7 +46,7 @@
 
 #ifdef __ARM_EABI__
 /*
- * The following syscalls are obsolete and no longer available for EABI:
+ * The following syscalls are obsolete and yes longer available for EABI:
  *  __NR_time
  *  __NR_umount
  *  __NR_stime

@@ -50,7 +50,7 @@ static int clear_poll_bit(void __iomem *addr, u32 mask)
 
 	/* poll the bit becoming clear */
 	while ((readl(addr) & mask) && --timeout)
-		/* nothing */;
+		/* yesthing */;
 
 	return !timeout;
 }
@@ -67,7 +67,7 @@ static int clear_poll_bit(void __iomem *addr, u32 mask)
  * If you try to soft reset the BCH block, it becomes unusable until
  * the next hard reset. This case occurs in the NAND boot mode. When the board
  * boots by NAND, the ROM of the chip will initialize the BCH blocks itself.
- * So If the driver tries to reset the BCH again, the BCH will not work anymore.
+ * So If the driver tries to reset the BCH again, the BCH will yest work anymore.
  * You will see a DMA timeout in this case. The bug has been fixed
  * in the following chips, such as MX28.
  *
@@ -94,7 +94,7 @@ static int gpmi_reset_block(void __iomem *reset_addr, bool just_enable)
 
 		/* poll CLKGATE becoming set */
 		while ((!(readl(reset_addr) & MODULE_CLKGATE)) && --timeout)
-			/* nothing */;
+			/* yesthing */;
 		if (unlikely(!timeout))
 			goto error;
 	}
@@ -243,7 +243,7 @@ static inline bool gpmi_check_ecc(struct gpmi_nand_data *this)
 }
 
 /*
- * If we can get the ECC information from the nand chip, we do not
+ * If we can get the ECC information from the nand chip, we do yest
  * need to calculate them ourselves.
  *
  * We may have available oob space in this case.
@@ -386,7 +386,7 @@ static inline int get_ecc_strength(struct gpmi_nand_data *this)
 	ecc_strength = ((mtd->oobsize - geo->metadata_size) * 8)
 			/ (geo->gf_len * geo->ecc_chunk_count);
 
-	/* We need the minor even number. */
+	/* We need the miyesr even number. */
 	return round_down(ecc_strength, 2);
 }
 
@@ -400,8 +400,8 @@ static int legacy_set_geometry(struct gpmi_nand_data *this)
 
 	/*
 	 * The size of the metadata can be changed, though we set it to 10
-	 * bytes now. But it can't be too large, because we have to save
-	 * enough space for BCH.
+	 * bytes yesw. But it can't be too large, because we have to save
+	 * eyesugh space for BCH.
 	 */
 	geo->metadata_size = 10;
 
@@ -421,7 +421,7 @@ static int legacy_set_geometry(struct gpmi_nand_data *this)
 	geo->ecc_strength = get_ecc_strength(this);
 	if (!gpmi_check_ecc(this)) {
 		dev_err(this->dev,
-			"ecc strength: %d cannot be supported by the controller (%d)\n"
+			"ecc strength: %d canyest be supported by the controller (%d)\n"
 			"try to use minimum ecc strength that NAND chip required\n",
 			geo->ecc_strength,
 			this->devdata->bch_max_ecc_strength);
@@ -510,7 +510,7 @@ static int common_nfc_set_geometry(struct gpmi_nand_data *this)
 		return set_geometry_by_ecc_info(this, chip->ecc.strength,
 						chip->ecc.size);
 
-	if ((of_property_read_bool(this->dev->of_node, "fsl,use-minimum-ecc"))
+	if ((of_property_read_bool(this->dev->of_yesde, "fsl,use-minimum-ecc"))
 				|| legacy_set_geometry(this)) {
 		if (!(chip->base.eccreq.strength > 0 &&
 		      chip->base.eccreq.step_size > 0))
@@ -539,7 +539,7 @@ static int bch_set_geometry(struct gpmi_nand_data *this)
 		return ret;
 
 	/*
-	* Due to erratum #2847 of the MX23, the BCH cannot be soft reset on this
+	* Due to erratum #2847 of the MX23, the BCH canyest be soft reset on this
 	* chip, otherwise it will lock up. So we skip resetting BCH on the MX23.
 	* and MX28.
 	*/
@@ -559,12 +559,12 @@ err_out:
 }
 
 /*
- * <1> Firstly, we should know what's the GPMI-clock means.
+ * <1> Firstly, we should kyesw what's the GPMI-clock means.
  *     The GPMI-clock is the internal clock in the gpmi nand controller.
  *     If you set 100MHz to gpmi nand controller, the GPMI-clock's period
  *     is 10ns. Mark the GPMI-clock's period as GPMI-clock-period.
  *
- * <2> Secondly, we should know what's the frequency on the nand chip pins.
+ * <2> Secondly, we should kyesw what's the frequency on the nand chip pins.
  *     The frequency on the nand chip pins is derived from the GPMI-clock.
  *     We can get it from the following equation:
  *
@@ -646,7 +646,7 @@ static void gpmi_nfc_compute_timings(struct gpmi_nand_data *this,
 	u8 wrn_dly_sel;
 
 	if (sdr->tRC_min >= 30000) {
-		/* ONFI non-EDO modes [0-3] */
+		/* ONFI yesn-EDO modes [0-3] */
 		hw->clk_rate = 22000000;
 		wrn_dly_sel = BV_GPMI_CTRL1_WRN_DLY_SEL_4_TO_8NS;
 	} else if (sdr->tRC_min >= 25000) {
@@ -830,18 +830,18 @@ map_fail:
 }
 
 /**
- * gpmi_copy_bits - copy bits from one memory region to another
+ * gpmi_copy_bits - copy bits from one memory region to ayesther
  * @dst: destination buffer
  * @dst_bit_off: bit offset we're starting to write at
  * @src: source buffer
  * @src_bit_off: bit offset we're starting to read from
  * @nbits: number of bits to copy
  *
- * This functions copies bits from one memory region to another, and is used by
- * the GPMI driver to copy ECC sections which are not guaranteed to be byte
+ * This functions copies bits from one memory region to ayesther, and is used by
+ * the GPMI driver to copy ECC sections which are yest guaranteed to be byte
  * aligned.
  *
- * src and dst should not overlap.
+ * src and dst should yest overlap.
  *
  */
 static void gpmi_copy_bits(u8 *dst, size_t dst_bit_off, const u8 *src,
@@ -918,7 +918,7 @@ static void gpmi_copy_bits(u8 *dst, size_t dst_bit_off, const u8 *src,
 			memcpy(dst, src, nbytes);
 	} else {
 		/*
-		 * src buffer is not byte aligned, hence we have to copy each
+		 * src buffer is yest byte aligned, hence we have to copy each
 		 * src byte to the src_buffer variable before extracting a byte
 		 * to store in dst.
 		 */
@@ -933,13 +933,13 @@ static void gpmi_copy_bits(u8 *dst, size_t dst_bit_off, const u8 *src,
 	src += nbytes;
 
 	/*
-	 * nbits is the number of remaining bits. It should not exceed 8 as
+	 * nbits is the number of remaining bits. It should yest exceed 8 as
 	 * we've already copied as much bytes as possible.
 	 */
 	nbits %= 8;
 
 	/*
-	 * If there's no more bits to copy to the destination and src buffer
+	 * If there's yes more bits to copy to the destination and src buffer
 	 * was already byte aligned, then we're done.
 	 */
 	if (!nbits && !bits_in_src_buffer)
@@ -952,7 +952,7 @@ static void gpmi_copy_bits(u8 *dst, size_t dst_bit_off, const u8 *src,
 	bits_in_src_buffer += nbits;
 
 	/*
-	 * In case there were not enough bits to get a byte aligned dst buffer
+	 * In case there were yest eyesugh bits to get a byte aligned dst buffer
 	 * prepare the src_buffer variable to match the dst organization (shift
 	 * src_buffer by dst_bit_off and retrieve the least significant bits
 	 * from dst).
@@ -1104,7 +1104,7 @@ static int acquire_register_block(struct gpmi_nand_data *this,
 	else if (!strcmp(res_name, GPMI_NAND_BCH_REGS_ADDR_RES_NAME))
 		res->bch_regs = p;
 	else
-		dev_err(this->dev, "unknown resource name : %s\n", res_name);
+		dev_err(this->dev, "unkyeswn resource name : %s\n", res_name);
 
 	return 0;
 }
@@ -1180,7 +1180,7 @@ static int gpmi_get_clks(struct gpmi_nand_data *this)
 		 * Set the default value for the gpmi clock.
 		 *
 		 * If you want to use the ONFI nand which is in the
-		 * Synchronous Mode, you should change the clock as you need.
+		 * Synchroyesus Mode, you should change the clock as you need.
 		 */
 		clk_set_rate(r->clock[0], 22000000);
 
@@ -1363,10 +1363,10 @@ static int gpmi_count_bitflips(struct nand_chip *chip, void *buf, int first,
 						   eccbytes, false);
 
 			/*
-			 * ECC data are not byte aligned and we may have
+			 * ECC data are yest byte aligned and we may have
 			 * in-band data in the first and last byte of
-			 * eccbuf. Set non-eccbits to one so that
-			 * nand_check_erased_ecc_chunk() does not count them
+			 * eccbuf. Set yesn-eccbits to one so that
+			 * nand_check_erased_ecc_chunk() does yest count them
 			 * as bitflips.
 			 */
 			if (bitoffset)
@@ -1379,8 +1379,8 @@ static int gpmi_count_bitflips(struct nand_chip *chip, void *buf, int first,
 			/*
 			 * The ECC hardware has an uncorrectable ECC status
 			 * code in case we have bitflips in an erased page. As
-			 * nothing was written into this subpage the ECC is
-			 * obviously wrong and we can not trust it. We assume
+			 * yesthing was written into this subpage the ECC is
+			 * obviously wrong and we can yest trust it. We assume
 			 * at this point that we are reading an erased page and
 			 * try to correct the bitflips in buffer up to
 			 * ecc_strength bitflips. If this is a page with random
@@ -1604,7 +1604,7 @@ static int gpmi_ecc_write_page(struct nand_chip *chip, const uint8_t *buf,
  * 1) Nothing the caller does can be allowed to imperil the block mark.
  *
  * 2) In read operations, the first byte of the OOB we return must reflect the
- *    true state of the block mark, no matter where that block mark appears in
+ *    true state of the block mark, yes matter where that block mark appears in
  *    the physical page.
  *
  * 3) ECC-based read operations return an OOB full of set bits (since we never
@@ -1642,12 +1642,12 @@ static int gpmi_ecc_write_page(struct nand_chip *chip, const uint8_t *buf,
  *                    | the OOB.                |                         |
  *       -------------+-------------------------+-------------------------+
  *
- * Note that we break rule #4 in the Transcribing/Raw case because we're not
+ * Note that we break rule #4 in the Transcribing/Raw case because we're yest
  * giving an accurate view of the actual, physical bytes in the page (we're
  * overwriting the block mark). That's OK because it's more important to follow
  * rule #2.
  *
- * It turns out that knowing whether we want an "ECC-based" or "raw" read is not
+ * It turns out that kyeswing whether we want an "ECC-based" or "raw" read is yest
  * easy. When reading a page, for example, the NAND Flash MTD code calls our
  * ecc.read_page or ecc.read_page_raw function. Thus, the fact that MTD wants an
  * ECC-based or raw view of the page is implicit in which function it calls
@@ -1670,7 +1670,7 @@ static int gpmi_ecc_read_oob(struct nand_chip *chip, int page)
 
 	/*
 	 * Now, we want to make sure the block mark is correct. In the
-	 * non-transcribing case (!GPMI_IS_MX23()), we already have it.
+	 * yesn-transcribing case (!GPMI_IS_MX23()), we already have it.
 	 * Otherwise, we need to explicitly read it.
 	 */
 	if (GPMI_IS_MX23(this)) {
@@ -1701,10 +1701,10 @@ static int gpmi_ecc_write_oob(struct nand_chip *chip, int page)
 }
 
 /*
- * This function reads a NAND page without involving the ECC engine (no HW
+ * This function reads a NAND page without involving the ECC engine (yes HW
  * ECC correction).
  * The tricky part in the GPMI/BCH controller is that it stores ECC bits
- * inline (interleaved with payload DATA), and do not align data chunk on
+ * inline (interleaved with payload DATA), and do yest align data chunk on
  * byte boundaries.
  * We thus need to take care moving the payload data and ECC bits stored in the
  * page into the provided buffers, which is why we're using gpmi_copy_bits.
@@ -1788,10 +1788,10 @@ static int gpmi_ecc_read_page_raw(struct nand_chip *chip, uint8_t *buf,
 }
 
 /*
- * This function writes a NAND page without involving the ECC engine (no HW
+ * This function writes a NAND page without involving the ECC engine (yes HW
  * ECC generation).
  * The tricky part in the GPMI/BCH controller is that it stores ECC bits
- * inline (interleaved with payload DATA), and do not align data chunk on
+ * inline (interleaved with payload DATA), and do yest align data chunk on
  * byte boundaries.
  * We thus need to take care moving the OOB area at the right place in the
  * final page, which is why we're using gpmi_copy_bits.
@@ -2205,8 +2205,8 @@ static int gpmi_nand_attach_chip(struct nand_chip *chip)
 	if (chip->bbt_options & NAND_BBT_USE_FLASH) {
 		chip->bbt_options |= NAND_BBT_NO_OOB;
 
-		if (of_property_read_bool(this->dev->of_node,
-					  "fsl,no-blockmark-swap"))
+		if (of_property_read_bool(this->dev->of_yesde,
+					  "fsl,yes-blockmark-swap"))
 			this->swap_block_mark = false;
 	}
 	dev_dbg(this->dev, "Blockmark swapping %sabled\n",
@@ -2413,7 +2413,7 @@ static int gpmi_nfc_exec_op(struct nand_chip *chip,
 	/*
 	 * This driver currently supports only one NAND chip. Plus, dies share
 	 * the same configuration. So once timings have been applied on the
-	 * controller side, they will not change anymore. When the time will
+	 * controller side, they will yest change anymore. When the time will
 	 * come, the check on must_apply_timings will have to be dropped.
 	 */
 	if (this->hw.must_apply_timings) {
@@ -2479,7 +2479,7 @@ static int gpmi_nfc_exec_op(struct nand_chip *chip,
 	dev_dbg(this->dev, "%s setup done\n", __func__);
 
 	if (nbufs > 1) {
-		dev_err(this->dev, "Multiple data instructions not supported\n");
+		dev_err(this->dev, "Multiple data instructions yest supported\n");
 		ret = -EINVAL;
 		goto unmap;
 	}
@@ -2559,7 +2559,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 
 	/* init the nand_chip{}, we don't support a 16-bit NAND Flash bus. */
 	nand_set_controller_data(chip, this);
-	nand_set_flash_node(chip, this->pdev->dev.of_node);
+	nand_set_flash_yesde(chip, this->pdev->dev.of_yesde);
 	chip->legacy.block_markbad = gpmi_block_markbad;
 	chip->badblock_pattern	= &gpmi_bbt_descr;
 	chip->options		|= NAND_NO_SUBPAGE_WRITE;

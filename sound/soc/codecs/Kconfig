@@ -408,7 +408,7 @@ config SND_SOC_ADAU7118_HW
 	help
 	  Enable support for the Analog Devices ADAU7118 8 Channel PDM-to-I2S/TDM
 	  Converter. In this mode, the device works in standalone mode which
-	  means that there is no bus to comunicate with it. Stereo mode is not
+	  means that there is yes bus to comunicate with it. Stereo mode is yest
 	  supported in this mode.
 
 	  To compile this driver as a module, choose M here: the module
@@ -493,7 +493,7 @@ config SND_SOC_BD28623
 	tristate "ROHM BD28623 CODEC"
 	help
 	  Enable support for ROHM BD28623MUV Class D speaker amplifier.
-	  This codec does not have any control buses such as I2C, it
+	  This codec does yest have any control buses such as I2C, it
 	  detect format of I2S automatically.
 
 config SND_SOC_BT_SCO
@@ -512,7 +512,7 @@ config SND_SOC_CROS_EC_CODEC
 	select CRYPTO
 	select CRYPTO_SHA256
 	help
-	  If you say yes here you will get support for the
+	  If you say no here you will get support for the
 	  ChromeOS Embedded Controller's Audio Codec.
 
 config SND_SOC_CS35L32
@@ -570,9 +570,9 @@ config SND_SOC_CS4270
 	depends on I2C
 
 # Cirrus Logic CS4270 Codec VD = 3.3V Errata
-# Select if you are affected by the errata where the part will not function
+# Select if you are affected by the errata where the part will yest function
 # if MCLK divide-by-1.5 is selected and VD is set to 3.3V.  The driver will
-# not select any sample rates that require MCLK to be divided by 1.5.
+# yest select any sample rates that require MCLK to be divided by 1.5.
 config SND_SOC_CS4270_VD33_ERRATA
 	bool
 	depends on SND_SOC_CS4270
@@ -747,7 +747,7 @@ config SND_SOC_ICS43432
 	tristate
 
 config SND_SOC_INNO_RK3036
-	tristate "Inno codec driver for RK3036 SoC"
+	tristate "Inyes codec driver for RK3036 SoC"
 	select REGMAP_MMIO
 
 config SND_SOC_ISABELLE
@@ -819,7 +819,7 @@ config SND_SOC_MAX9850
 	tristate
 
 config SND_SOC_MAX9860
-	tristate "Maxim MAX9860 Mono Audio Voice Codec"
+	tristate "Maxim MAX9860 Moyes Audio Voice Codec"
 	depends on I2C
 	select REGMAP_I2C
 
@@ -1092,7 +1092,7 @@ config SND_SOC_SSM2305
 	tristate "Analog Devices SSM2305 Class-D Amplifier"
 	help
 	  Enable support for Analog Devices SSM2305 filterless
-	  high-efficiency mono Class-D audio power amplifiers.
+	  high-efficiency moyes Class-D audio power amplifiers.
 
 config SND_SOC_SSM2518
 	tristate
@@ -1135,11 +1135,11 @@ config SND_SOC_STI_SAS
 	tristate "codec Audio support for STI SAS codec"
 
 config SND_SOC_TAS2552
-	tristate "Texas Instruments TAS2552 Mono Audio amplifier"
+	tristate "Texas Instruments TAS2552 Moyes Audio amplifier"
 	depends on I2C
 
 config SND_SOC_TAS2562
-	tristate "Texas Instruments TAS2562 Mono Audio amplifier"
+	tristate "Texas Instruments TAS2562 Moyes Audio amplifier"
 	depends on I2C
 
 config SND_SOC_TAS2770
@@ -1158,10 +1158,10 @@ config SND_SOC_TAS571X
 	  TAS5719 and TAS5721 power amplifiers
 
 config SND_SOC_TAS5720
-	tristate "Texas Instruments TAS5720 Mono Audio amplifier"
+	tristate "Texas Instruments TAS5720 Moyes Audio amplifier"
 	depends on I2C
 	help
-	  Enable support for Texas Instruments TAS5720L/M high-efficiency mono
+	  Enable support for Texas Instruments TAS5720L/M high-efficiency moyes
 	  Class-D audio power amplifiers.
 
 config SND_SOC_TAS6424
@@ -1272,7 +1272,7 @@ config SND_SOC_WCD9335
 	select REGMAP_IRQ
 	help
 	  The WCD9335 is a standalone Hi-Fi audio CODEC IC, supports
-	  Qualcomm Technologies, Inc. (QTI) multimedia solutions,
+	  Qualcomm Techyeslogies, Inc. (QTI) multimedia solutions,
 	  including the MSM8996, MSM8976, and MSM8956 chipsets.
 
 config SND_SOC_WL1273
@@ -1508,19 +1508,19 @@ config SND_SOC_MT6358
 	  external codec device.
 
 config SND_SOC_NAU8540
-       tristate "Nuvoton Technology Corporation NAU85L40 CODEC"
+       tristate "Nuvoton Techyeslogy Corporation NAU85L40 CODEC"
        depends on I2C
 
 config SND_SOC_NAU8810
-	tristate "Nuvoton Technology Corporation NAU88C10 CODEC"
+	tristate "Nuvoton Techyeslogy Corporation NAU88C10 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8822
-	tristate "Nuvoton Technology Corporation NAU88C22 CODEC"
+	tristate "Nuvoton Techyeslogy Corporation NAU88C22 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8824
-	tristate "Nuvoton Technology Corporation NAU88L24 CODEC"
+	tristate "Nuvoton Techyeslogy Corporation NAU88L24 CODEC"
 	depends on I2C
 
 config SND_SOC_NAU8825

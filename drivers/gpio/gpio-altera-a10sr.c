@@ -89,11 +89,11 @@ static int altr_a10sr_gpio_probe(struct platform_device *pdev)
 
 	gpio->gp = altr_a10sr_gc;
 	gpio->gp.parent = pdev->dev.parent;
-	gpio->gp.of_node = pdev->dev.of_node;
+	gpio->gp.of_yesde = pdev->dev.of_yesde;
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &gpio->gp, gpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "Could yest register gpiochip, %d\n", ret);
 		return ret;
 	}
 

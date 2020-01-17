@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR MIT) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR MIT) */
 /******************************************************************************
  * gntdev.h
  * 
@@ -20,7 +20,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  * 
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -46,7 +46,7 @@ struct ioctl_gntdev_grant_ref {
 
 /*
  * Inserts the grant references into the mapping table of an instance
- * of gntdev. N.B. This does not perform the mapping, which is deferred
+ * of gntdev. N.B. This does yest perform the mapping, which is deferred
  * until mmap() is called with @index as the offset.
  */
 #define IOCTL_GNTDEV_MAP_GRANT_REF \
@@ -83,14 +83,14 @@ struct ioctl_gntdev_unmap_grant_ref {
 /*
  * Returns the offset in the driver's address space that corresponds
  * to @vaddr. This can be used to perform a munmap(), followed by an
- * UNMAP_GRANT_REF ioctl, where no state about the offset is retained by
+ * UNMAP_GRANT_REF ioctl, where yes state about the offset is retained by
  * the caller. The number of pages that were allocated at the same time as
  * @vaddr is returned in @count.
  *
  * N.B. Where more than one page has been mapped into a contiguous range, the
  *      supplied @vaddr must correspond to the start of the range; otherwise
  *      an error will result. It is only possible to munmap() the entire
- *      contiguously-allocated range at once, and not any subrange thereof.
+ *      contiguously-allocated range at once, and yest any subrange thereof.
  */
 #define IOCTL_GNTDEV_GET_OFFSET_FOR_VADDR \
 _IOC(_IOC_NONE, 'G', 2, sizeof(struct ioctl_gntdev_get_offset_for_vaddr))
@@ -121,28 +121,28 @@ struct ioctl_gntdev_set_max_grants {
 };
 
 /*
- * Sets up an unmap notification within the page, so that the other side can do
+ * Sets up an unmap yestification within the page, so that the other side can do
  * cleanup if this side crashes. Required to implement cross-domain robust
- * mutexes or close notification on communication channels.
+ * mutexes or close yestification on communication channels.
  *
- * Each mapped page only supports one notification; multiple calls referring to
- * the same page overwrite the previous notification. You must clear the
- * notification prior to the IOCTL_GNTALLOC_DEALLOC_GREF if you do not want it
+ * Each mapped page only supports one yestification; multiple calls referring to
+ * the same page overwrite the previous yestification. You must clear the
+ * yestification prior to the IOCTL_GNTALLOC_DEALLOC_GREF if you do yest want it
  * to occur.
  */
 #define IOCTL_GNTDEV_SET_UNMAP_NOTIFY \
-_IOC(_IOC_NONE, 'G', 7, sizeof(struct ioctl_gntdev_unmap_notify))
-struct ioctl_gntdev_unmap_notify {
+_IOC(_IOC_NONE, 'G', 7, sizeof(struct ioctl_gntdev_unmap_yestify))
+struct ioctl_gntdev_unmap_yestify {
 	/* IN parameters */
 	/* Offset in the file descriptor for a byte within the page (same as
 	 * used in mmap). If using UNMAP_NOTIFY_CLEAR_BYTE, this is the byte to
 	 * be cleared. Otherwise, it can be any byte in the page whose
-	 * notification we are adjusting.
+	 * yestification we are adjusting.
 	 */
 	__u64 index;
 	/* Action(s) to take on unmap */
 	__u32 action;
-	/* Event channel to notify */
+	/* Event channel to yestify */
 	__u32 event_channel_port;
 };
 
@@ -187,7 +187,7 @@ struct gntdev_grant_copy_segment {
  * EINVAL: A segment has local buffers for both source and
  *         destination.
  * EINVAL: A segment crosses the boundary of a foreign page.
- * EFAULT: A segment's local buffer is not accessible.
+ * EFAULT: A segment's local buffer is yest accessible.
  */
 #define IOCTL_GNTDEV_GRANT_COPY \
 	_IOC(_IOC_NONE, 'G', 8, sizeof(struct ioctl_gntdev_grant_copy))
@@ -255,11 +255,11 @@ struct ioctl_gntdev_dmabuf_exp_from_refs {
  * released. This is only valid for buffers created with
  * IOCTL_GNTDEV_DMABUF_EXP_FROM_REFS.
  *
- * If within @wait_to_ms milliseconds the buffer is not released
+ * If within @wait_to_ms milliseconds the buffer is yest released
  * then -ETIMEDOUT error is returned.
- * If the buffer with the file descriptor @fd does not exist or has already
+ * If the buffer with the file descriptor @fd does yest exist or has already
  * been released, then -ENOENT is returned. For valid file descriptors
- * this must not be treated as error.
+ * this must yest be treated as error.
  */
 #define IOCTL_GNTDEV_DMABUF_EXP_WAIT_RELEASED \
 	_IOC(_IOC_NONE, 'G', 10, \

@@ -20,7 +20,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/timer.h>
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 #include <linux/uio.h>
 #include <linux/delay.h>
 
@@ -83,9 +83,9 @@ void snd_pcm_group_init(struct snd_pcm_group *group)
 
 /* define group lock helpers */
 #define DEFINE_PCM_GROUP_LOCK(action, mutex_action) \
-static void snd_pcm_group_ ## action(struct snd_pcm_group *group, bool nonatomic) \
+static void snd_pcm_group_ ## action(struct snd_pcm_group *group, bool yesnatomic) \
 { \
-	if (nonatomic) \
+	if (yesnatomic) \
 		mutex_ ## mutex_action(&group->mutex); \
 	else \
 		spin_ ## action(&group->lock); \
@@ -100,13 +100,13 @@ DEFINE_PCM_GROUP_LOCK(unlock_irq, unlock);
  * snd_pcm_stream_lock - Lock the PCM stream
  * @substream: PCM substream
  *
- * This locks the PCM stream's spinlock or mutex depending on the nonatomic
+ * This locks the PCM stream's spinlock or mutex depending on the yesnatomic
  * flag of the given substream.  This also takes the global link rw lock
  * (or rw sem), too, for avoiding the race with linked streams.
  */
 void snd_pcm_stream_lock(struct snd_pcm_substream *substream)
 {
-	snd_pcm_group_lock(&substream->self_group, substream->pcm->nonatomic);
+	snd_pcm_group_lock(&substream->self_group, substream->pcm->yesnatomic);
 }
 EXPORT_SYMBOL_GPL(snd_pcm_stream_lock);
 
@@ -118,7 +118,7 @@ EXPORT_SYMBOL_GPL(snd_pcm_stream_lock);
  */
 void snd_pcm_stream_unlock(struct snd_pcm_substream *substream)
 {
-	snd_pcm_group_unlock(&substream->self_group, substream->pcm->nonatomic);
+	snd_pcm_group_unlock(&substream->self_group, substream->pcm->yesnatomic);
 }
 EXPORT_SYMBOL_GPL(snd_pcm_stream_unlock);
 
@@ -127,13 +127,13 @@ EXPORT_SYMBOL_GPL(snd_pcm_stream_unlock);
  * @substream: PCM substream
  *
  * This locks the PCM stream like snd_pcm_stream_lock() and disables the local
- * IRQ (only when nonatomic is false).  In nonatomic case, this is identical
+ * IRQ (only when yesnatomic is false).  In yesnatomic case, this is identical
  * as snd_pcm_stream_lock().
  */
 void snd_pcm_stream_lock_irq(struct snd_pcm_substream *substream)
 {
 	snd_pcm_group_lock_irq(&substream->self_group,
-			       substream->pcm->nonatomic);
+			       substream->pcm->yesnatomic);
 }
 EXPORT_SYMBOL_GPL(snd_pcm_stream_lock_irq);
 
@@ -146,14 +146,14 @@ EXPORT_SYMBOL_GPL(snd_pcm_stream_lock_irq);
 void snd_pcm_stream_unlock_irq(struct snd_pcm_substream *substream)
 {
 	snd_pcm_group_unlock_irq(&substream->self_group,
-				 substream->pcm->nonatomic);
+				 substream->pcm->yesnatomic);
 }
 EXPORT_SYMBOL_GPL(snd_pcm_stream_unlock_irq);
 
 unsigned long _snd_pcm_stream_lock_irqsave(struct snd_pcm_substream *substream)
 {
 	unsigned long flags = 0;
-	if (substream->pcm->nonatomic)
+	if (substream->pcm->yesnatomic)
 		mutex_lock(&substream->self_group.mutex);
 	else
 		spin_lock_irqsave(&substream->self_group.lock, flags);
@@ -171,7 +171,7 @@ EXPORT_SYMBOL_GPL(_snd_pcm_stream_lock_irqsave);
 void snd_pcm_stream_unlock_irqrestore(struct snd_pcm_substream *substream,
 				      unsigned long flags)
 {
-	if (substream->pcm->nonatomic)
+	if (substream->pcm->yesnatomic)
 		mutex_unlock(&substream->self_group.mutex);
 	else
 		spin_unlock_irqrestore(&substream->self_group.lock, flags);
@@ -255,7 +255,7 @@ static int constrain_mask_params(struct snd_pcm_substream *substream,
 		if (snd_mask_empty(m))
 			return -EINVAL;
 
-		/* This parameter is not requested to change by a caller. */
+		/* This parameter is yest requested to change by a caller. */
 		if (!(params->rmask & (1 << k)))
 			continue;
 
@@ -291,7 +291,7 @@ static int constrain_interval_params(struct snd_pcm_substream *substream,
 		if (snd_interval_empty(i))
 			return -EINVAL;
 
-		/* This parameter is not requested to change by a caller. */
+		/* This parameter is yest requested to change by a caller. */
 		if (!(params->rmask & (1 << k)))
 			continue;
 
@@ -400,7 +400,7 @@ retry:
 		}
 
 		/*
-		 * When the parameter is changed, notify it to the caller
+		 * When the parameter is changed, yestify it to the caller
 		 * by corresponding returned bit, then preparing for next
 		 * iteration.
 		 */
@@ -424,7 +424,7 @@ retry:
 		rstamps[k] = stamp++;
 	}
 
-	/* Iterate to evaluate all rules till no parameters are changed. */
+	/* Iterate to evaluate all rules till yes parameters are changed. */
 	if (again)
 		goto retry;
 
@@ -558,12 +558,12 @@ static void snd_pcm_set_state(struct snd_pcm_substream *substream, int state)
 	snd_pcm_stream_unlock_irq(substream);
 }
 
-static inline void snd_pcm_timer_notify(struct snd_pcm_substream *substream,
+static inline void snd_pcm_timer_yestify(struct snd_pcm_substream *substream,
 					int event)
 {
 #ifdef CONFIG_SND_PCM_TIMER
 	if (substream->timer)
-		snd_timer_notify(substream->timer, event,
+		snd_timer_yestify(substream->timer, event,
 					&substream->runtime->trigger_tstamp);
 #endif
 }
@@ -711,7 +711,7 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 	runtime->info = params->info;
 	runtime->rate_num = params->rate_num;
 	runtime->rate_den = params->rate_den;
-	runtime->no_period_wakeup =
+	runtime->yes_period_wakeup =
 			(params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
 			(params->flags & SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP);
 
@@ -931,7 +931,7 @@ int snd_pcm_status(struct snd_pcm_substream *substream,
 			status->audio_tstamp =
 				runtime->status->audio_tstamp;
 			if (runtime->audio_tstamp_report.valid == 1)
-				/* backwards compatibility, no report provided in COMPAT mode */
+				/* backwards compatibility, yes report provided in COMPAT mode */
 				snd_pcm_pack_audio_tstamp_report(&status->audio_tstamp_data,
 								&status->audio_tstamp_accuracy,
 								&runtime->audio_tstamp_report);
@@ -969,7 +969,7 @@ static int snd_pcm_status_user(struct snd_pcm_substream *substream,
 	/*
 	 * with extension, parameters are read/write,
 	 * get audio_tstamp_data from user,
-	 * ignore rest of status structure
+	 * igyesre rest of status structure
 	 */
 	if (ext && get_user(status.audio_tstamp_data,
 				(u32 __user *)(&_status->audio_tstamp_data)))
@@ -1056,7 +1056,7 @@ static int snd_pcm_action_group(const struct action_ops *ops,
 
 	snd_pcm_group_for_each_entry(s, substream) {
 		if (do_lock && s != substream) {
-			if (s->pcm->nonatomic)
+			if (s->pcm->yesnatomic)
 				mutex_lock_nested(&s->self_group.mutex, depth);
 			else
 				spin_lock_nested(&s->self_group.lock, depth);
@@ -1088,7 +1088,7 @@ static int snd_pcm_action_group(const struct action_ops *ops,
 		/* unlock streams */
 		snd_pcm_group_for_each_entry(s1, substream) {
 			if (s1 != substream) {
-				if (s1->pcm->nonatomic)
+				if (s1->pcm->yesnatomic)
 					mutex_unlock(&s1->self_group.mutex);
 				else
 					spin_unlock(&s1->self_group.lock);
@@ -1129,7 +1129,7 @@ static void snd_pcm_group_assign(struct snd_pcm_substream *substream,
 
 /*
  * Unref and unlock the group, but keep the stream lock;
- * when the group becomes empty and no longer referred, destroy itself
+ * when the group becomes empty and yes longer referred, destroy itself
  */
 static void snd_pcm_group_unref(struct snd_pcm_group *group,
 				struct snd_pcm_substream *substream)
@@ -1139,19 +1139,19 @@ static void snd_pcm_group_unref(struct snd_pcm_group *group,
 	if (!group)
 		return;
 	do_free = refcount_dec_and_test(&group->refs);
-	snd_pcm_group_unlock(group, substream->pcm->nonatomic);
+	snd_pcm_group_unlock(group, substream->pcm->yesnatomic);
 	if (do_free)
 		kfree(group);
 }
 
 /*
  * Lock the group inside a stream lock and reference it;
- * return the locked group object, or NULL if not linked
+ * return the locked group object, or NULL if yest linked
  */
 static struct snd_pcm_group *
 snd_pcm_stream_group_ref(struct snd_pcm_substream *substream)
 {
-	bool nonatomic = substream->pcm->nonatomic;
+	bool yesnatomic = substream->pcm->yesnatomic;
 	struct snd_pcm_group *group;
 	bool trylock;
 
@@ -1162,14 +1162,14 @@ snd_pcm_stream_group_ref(struct snd_pcm_substream *substream)
 		/* block freeing the group object */
 		refcount_inc(&group->refs);
 
-		trylock = nonatomic ? mutex_trylock(&group->mutex) :
+		trylock = yesnatomic ? mutex_trylock(&group->mutex) :
 			spin_trylock(&group->lock);
 		if (trylock)
 			break; /* OK */
 
 		/* re-lock for avoiding ABBA deadlock */
 		snd_pcm_stream_unlock(substream);
-		snd_pcm_group_lock(group, nonatomic);
+		snd_pcm_group_lock(group, yesnatomic);
 		snd_pcm_stream_lock(substream);
 
 		/* check the group again; the above opens a small race window */
@@ -1217,13 +1217,13 @@ static int snd_pcm_action_lock_irq(const struct action_ops *ops,
 
 /*
  */
-static int snd_pcm_action_nonatomic(const struct action_ops *ops,
+static int snd_pcm_action_yesnatomic(const struct action_ops *ops,
 				    struct snd_pcm_substream *substream,
 				    int state)
 {
 	int res;
 
-	/* Guarantee the group members won't change during non-atomic action */
+	/* Guarantee the group members won't change during yesn-atomic action */
 	down_read(&snd_pcm_link_rwsem);
 	if (snd_pcm_stream_linked(substream))
 		res = snd_pcm_action_group(ops, substream, state, 0);
@@ -1273,7 +1273,7 @@ static void snd_pcm_post_start(struct snd_pcm_substream *substream, int state)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    runtime->silence_size > 0)
 		snd_pcm_playback_silence(substream, ULONG_MAX);
-	snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MSTART);
+	snd_pcm_timer_yestify(substream, SNDRV_TIMER_EVENT_MSTART);
 }
 
 static const struct action_ops snd_pcm_action_start = {
@@ -1329,7 +1329,7 @@ static void snd_pcm_post_stop(struct snd_pcm_substream *substream, int state)
 	if (runtime->status->state != state) {
 		snd_pcm_trigger_tstamp(substream);
 		runtime->status->state = state;
-		snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MSTOP);
+		snd_pcm_timer_yestify(substream, SNDRV_TIMER_EVENT_MSTOP);
 	}
 	runtime->stop_operating = true;
 	wake_up(&runtime->sleep);
@@ -1415,11 +1415,11 @@ static int snd_pcm_do_pause(struct snd_pcm_substream *substream, int push)
 	if (substream->runtime->trigger_master != substream)
 		return 0;
 	/* some drivers might use hw_ptr to recover from the pause -
-	   update the hw_ptr now */
+	   update the hw_ptr yesw */
 	if (push)
 		snd_pcm_update_hw_ptr(substream);
 	/* The jiffies check in snd_pcm_update_hw_ptr*() is done by
-	 * a delta between the current jiffies, this gives a large enough
+	 * a delta between the current jiffies, this gives a large eyesugh
 	 * delta, effectively to skip the check once.
 	 */
 	substream->runtime->hw_ptr_jiffies = jiffies - HZ * 1000;
@@ -1442,12 +1442,12 @@ static void snd_pcm_post_pause(struct snd_pcm_substream *substream, int push)
 	snd_pcm_trigger_tstamp(substream);
 	if (push) {
 		runtime->status->state = SNDRV_PCM_STATE_PAUSED;
-		snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MPAUSE);
+		snd_pcm_timer_yestify(substream, SNDRV_TIMER_EVENT_MPAUSE);
 		wake_up(&runtime->sleep);
 		wake_up(&runtime->tsleep);
 	} else {
 		runtime->status->state = SNDRV_PCM_STATE_RUNNING;
-		snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MCONTINUE);
+		snd_pcm_timer_yestify(substream, SNDRV_TIMER_EVENT_MCONTINUE);
 	}
 }
 
@@ -1502,7 +1502,7 @@ static void snd_pcm_post_suspend(struct snd_pcm_substream *substream, int state)
 	snd_pcm_trigger_tstamp(substream);
 	runtime->status->suspended_state = runtime->status->state;
 	runtime->status->state = SNDRV_PCM_STATE_SUSPENDED;
-	snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MSUSPEND);
+	snd_pcm_timer_yestify(substream, SNDRV_TIMER_EVENT_MSUSPEND);
 	wake_up(&runtime->sleep);
 	wake_up(&runtime->tsleep);
 }
@@ -1557,7 +1557,7 @@ int snd_pcm_suspend_all(struct snd_pcm *pcm)
 
 			/*
 			 * Skip BE dai link PCM's that are internal and may
-			 * not have their substream ops set.
+			 * yest have their substream ops set.
 			 */
 			if (!substream->ops)
 				continue;
@@ -1587,7 +1587,7 @@ static int snd_pcm_do_resume(struct snd_pcm_substream *substream, int state)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	if (runtime->trigger_master != substream)
 		return 0;
-	/* DMA not running previously? */
+	/* DMA yest running previously? */
 	if (runtime->status->suspended_state != SNDRV_PCM_STATE_RUNNING &&
 	    (runtime->status->suspended_state != SNDRV_PCM_STATE_DRAINING ||
 	     substream->stream != SNDRV_PCM_STREAM_PLAYBACK))
@@ -1607,7 +1607,7 @@ static void snd_pcm_post_resume(struct snd_pcm_substream *substream, int state)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_trigger_tstamp(substream);
 	runtime->status->state = runtime->status->suspended_state;
-	snd_pcm_timer_notify(substream, SNDRV_TIMER_EVENT_MRESUME);
+	snd_pcm_timer_yestify(substream, SNDRV_TIMER_EVENT_MRESUME);
 	snd_pcm_sync_stop(substream);
 }
 
@@ -1706,7 +1706,7 @@ static const struct action_ops snd_pcm_action_reset = {
 
 static int snd_pcm_reset(struct snd_pcm_substream *substream)
 {
-	return snd_pcm_action_nonatomic(&snd_pcm_action_reset, substream, 0);
+	return snd_pcm_action_yesnatomic(&snd_pcm_action_reset, substream, 0);
 }
 
 /*
@@ -1777,7 +1777,7 @@ static int snd_pcm_prepare(struct snd_pcm_substream *substream,
 	}
 	snd_pcm_stream_unlock_irq(substream);
 
-	return snd_pcm_action_nonatomic(&snd_pcm_action_prepare,
+	return snd_pcm_action_yesnatomic(&snd_pcm_action_prepare,
 					substream, f_flags);
 }
 
@@ -1866,7 +1866,7 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 	struct snd_pcm_group *group;
 	wait_queue_entry_t wait;
 	int result = 0;
-	int nonblock = 0;
+	int yesnblock = 0;
 
 	card = substream->pcm->card;
 	runtime = substream->runtime;
@@ -1876,9 +1876,9 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 
 	if (file) {
 		if (file->f_flags & O_NONBLOCK)
-			nonblock = 1;
+			yesnblock = 1;
 	} else if (substream->f_flags & O_NONBLOCK)
-		nonblock = 1;
+		yesnblock = 1;
 
 	snd_pcm_stream_lock_irq(substream);
 	/* resume pause */
@@ -1889,8 +1889,8 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 	result = snd_pcm_action(&snd_pcm_action_drain_init, substream, 0);
 	if (result < 0)
 		goto unlock;
-	/* in non-blocking, we don't wait in ioctl but let caller poll */
-	if (nonblock) {
+	/* in yesn-blocking, we don't wait in ioctl but let caller poll */
+	if (yesnblock) {
 		result = -EAGAIN;
 		goto unlock;
 	}
@@ -1921,7 +1921,7 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 		set_current_state(TASK_INTERRUPTIBLE);
 		add_wait_queue(&to_check->sleep, &wait);
 		snd_pcm_stream_unlock_irq(substream);
-		if (runtime->no_period_wakeup)
+		if (runtime->yes_period_wakeup)
 			tout = MAX_SCHEDULE_TIMEOUT;
 		else {
 			tout = 10;
@@ -1999,16 +1999,16 @@ static int snd_pcm_drop(struct snd_pcm_substream *substream)
 
 static bool is_pcm_file(struct file *file)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct snd_pcm *pcm;
-	unsigned int minor;
+	unsigned int miyesr;
 
-	if (!S_ISCHR(inode->i_mode) || imajor(inode) != snd_major)
+	if (!S_ISCHR(iyesde->i_mode) || imajor(iyesde) != snd_major)
 		return false;
-	minor = iminor(inode);
-	pcm = snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_PLAYBACK);
+	miyesr = imiyesr(iyesde);
+	pcm = snd_lookup_miyesr_data(miyesr, SNDRV_DEVICE_TYPE_PCM_PLAYBACK);
 	if (!pcm)
-		pcm = snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_CAPTURE);
+		pcm = snd_lookup_miyesr_data(miyesr, SNDRV_DEVICE_TYPE_PCM_CAPTURE);
 	if (!pcm)
 		return false;
 	snd_card_unref(pcm->card);
@@ -2024,7 +2024,7 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	struct snd_pcm_file *pcm_file;
 	struct snd_pcm_substream *substream1;
 	struct snd_pcm_group *group, *target_group;
-	bool nonatomic = substream->pcm->nonatomic;
+	bool yesnatomic = substream->pcm->yesnatomic;
 	struct fd f = fdget(fd);
 
 	if (!f.file)
@@ -2038,14 +2038,14 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group) {
 		res = -ENOMEM;
-		goto _nolock;
+		goto _yeslock;
 	}
 	snd_pcm_group_init(group);
 
 	down_write(&snd_pcm_link_rwsem);
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN ||
 	    substream->runtime->status->state != substream1->runtime->status->state ||
-	    substream->pcm->nonatomic != substream1->pcm->nonatomic) {
+	    substream->pcm->yesnatomic != substream1->pcm->yesnatomic) {
 		res = -EBADFD;
 		goto _end;
 	}
@@ -2062,15 +2062,15 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	target_group = substream->group;
 	snd_pcm_stream_unlock_irq(substream);
 
-	snd_pcm_group_lock_irq(target_group, nonatomic);
+	snd_pcm_group_lock_irq(target_group, yesnatomic);
 	snd_pcm_stream_lock(substream1);
 	snd_pcm_group_assign(substream1, target_group);
 	refcount_inc(&target_group->refs);
 	snd_pcm_stream_unlock(substream1);
-	snd_pcm_group_unlock_irq(target_group, nonatomic);
+	snd_pcm_group_unlock_irq(target_group, yesnatomic);
  _end:
 	up_write(&snd_pcm_link_rwsem);
- _nolock:
+ _yeslock:
 	kfree(group);
  _badf:
 	fdput(f);
@@ -2087,7 +2087,7 @@ static void relink_to_local(struct snd_pcm_substream *substream)
 static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_group *group;
-	bool nonatomic = substream->pcm->nonatomic;
+	bool yesnatomic = substream->pcm->yesnatomic;
 	bool do_free = false;
 	int res = 0;
 
@@ -2099,7 +2099,7 @@ static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 	}
 
 	group = substream->group;
-	snd_pcm_group_lock_irq(group, nonatomic);
+	snd_pcm_group_lock_irq(group, yesnatomic);
 
 	relink_to_local(substream);
 	refcount_dec(&group->refs);
@@ -2112,7 +2112,7 @@ static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 		do_free = refcount_dec_and_test(&group->refs);
 	}
 
-	snd_pcm_group_unlock_irq(group, nonatomic);
+	snd_pcm_group_unlock_irq(group, yesnatomic);
 	if (do_free)
 		kfree(group);
 
@@ -2177,7 +2177,7 @@ static int snd_pcm_hw_rule_format(struct snd_pcm_hw_params *params,
 			continue;
 		bits = snd_pcm_format_physical_width(k);
 		if (bits <= 0)
-			continue; /* ignore invalid formats */
+			continue; /* igyesre invalid formats */
 		if ((unsigned)bits < i->min || (unsigned)bits > i->max)
 			snd_mask_reset(&m, k);
 	}
@@ -2199,7 +2199,7 @@ static int snd_pcm_hw_rule_sample_bits(struct snd_pcm_hw_params *params,
 			continue;
 		bits = snd_pcm_format_physical_width(k);
 		if (bits <= 0)
-			continue; /* ignore invalid formats */
+			continue; /* igyesre invalid formats */
 		if (t.min > (unsigned)bits)
 			t.min = bits;
 		if (t.max < (unsigned)bits)
@@ -2218,7 +2218,7 @@ static const unsigned int rates[] = {
 	48000, 64000, 88200, 96000, 176400, 192000, 352800, 384000
 };
 
-const struct snd_pcm_hw_constraint_list snd_pcm_known_rates = {
+const struct snd_pcm_hw_constraint_list snd_pcm_kyeswn_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list = rates,
 };
@@ -2228,8 +2228,8 @@ static int snd_pcm_hw_rule_rate(struct snd_pcm_hw_params *params,
 {
 	struct snd_pcm_hardware *hw = rule->private;
 	return snd_interval_list(hw_param_interval(params, rule->var),
-				 snd_pcm_known_rates.count,
-				 snd_pcm_known_rates.list, hw->rates);
+				 snd_pcm_kyeswn_rates.count,
+				 snd_pcm_kyeswn_rates.list, hw->rates);
 }		
 
 static int snd_pcm_hw_rule_buffer_bytes_max(struct snd_pcm_hw_params *params,
@@ -2548,13 +2548,13 @@ static int snd_pcm_open_file(struct file *file,
 	return 0;
 }
 
-static int snd_pcm_playback_open(struct inode *inode, struct file *file)
+static int snd_pcm_playback_open(struct iyesde *iyesde, struct file *file)
 {
 	struct snd_pcm *pcm;
-	int err = nonseekable_open(inode, file);
+	int err = yesnseekable_open(iyesde, file);
 	if (err < 0)
 		return err;
-	pcm = snd_lookup_minor_data(iminor(inode),
+	pcm = snd_lookup_miyesr_data(imiyesr(iyesde),
 				    SNDRV_DEVICE_TYPE_PCM_PLAYBACK);
 	err = snd_pcm_open(file, pcm, SNDRV_PCM_STREAM_PLAYBACK);
 	if (pcm)
@@ -2562,13 +2562,13 @@ static int snd_pcm_playback_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-static int snd_pcm_capture_open(struct inode *inode, struct file *file)
+static int snd_pcm_capture_open(struct iyesde *iyesde, struct file *file)
 {
 	struct snd_pcm *pcm;
-	int err = nonseekable_open(inode, file);
+	int err = yesnseekable_open(iyesde, file);
 	if (err < 0)
 		return err;
-	pcm = snd_lookup_minor_data(iminor(inode),
+	pcm = snd_lookup_miyesr_data(imiyesr(iyesde),
 				    SNDRV_DEVICE_TYPE_PCM_CAPTURE);
 	err = snd_pcm_open(file, pcm, SNDRV_PCM_STREAM_CAPTURE);
 	if (pcm)
@@ -2633,7 +2633,7 @@ static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream)
       	return err;
 }
 
-static int snd_pcm_release(struct inode *inode, struct file *file)
+static int snd_pcm_release(struct iyesde *iyesde, struct file *file)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_substream *substream;
@@ -2717,8 +2717,8 @@ static snd_pcm_sframes_t rewind_appl_ptr(struct snd_pcm_substream *substream,
 	ret = pcm_lib_apply_appl_ptr(substream, appl_ptr);
 	/* NOTE: we return zero for errors because PulseAudio gets depressed
 	 * upon receiving an error from rewind ioctl and stops processing
-	 * any longer.  Returning zero means that no rewind is done, so
-	 * it's not absolutely wrong to answer like that.
+	 * any longer.  Returning zero means that yes rewind is done, so
+	 * it's yest absolutely wrong to answer like that.
 	 */
 	return ret < 0 ? 0 : frames;
 }
@@ -3021,7 +3021,7 @@ static int snd_pcm_common_ioctl(struct file *file,
 	case SNDRV_PCM_IOCTL_FORWARD:
 		return snd_pcm_forward_ioctl(substream, arg);
 	}
-	pcm_dbg(substream->pcm, "unknown ioctl = 0x%x\n", cmd);
+	pcm_dbg(substream->pcm, "unkyeswn ioctl = 0x%x\n", cmd);
 	return -ENOTTY;
 }
 
@@ -3058,7 +3058,7 @@ int snd_pcm_kernel_ioctl(struct snd_pcm_substream *substream,
 	switch (cmd) {
 	case SNDRV_PCM_IOCTL_FORWARD:
 	{
-		/* provided only for OSS; capture-only and no value returned */
+		/* provided only for OSS; capture-only and yes value returned */
 		if (substream->stream != SNDRV_PCM_STREAM_CAPTURE)
 			return -EINVAL;
 		result = snd_pcm_forward(substream, *frames);
@@ -3332,7 +3332,7 @@ static int snd_pcm_mmap_control(struct snd_pcm_substream *substream, struct file
 
 static bool pcm_status_mmap_allowed(struct snd_pcm_file *pcm_file)
 {
-	if (pcm_file->no_compat_mmap)
+	if (pcm_file->yes_compat_mmap)
 		return false;
 	/* See pcm_control_mmap_allowed() below.
 	 * Since older alsa-lib requires both status and control mmaps to be
@@ -3346,7 +3346,7 @@ static bool pcm_status_mmap_allowed(struct snd_pcm_file *pcm_file)
 
 static bool pcm_control_mmap_allowed(struct snd_pcm_file *pcm_file)
 {
-	if (pcm_file->no_compat_mmap)
+	if (pcm_file->yes_compat_mmap)
 		return false;
 	/* Disallow the control mmap when SYNC_APPLPTR flag is set;
 	 * it enforces the user-space to fall back to snd_pcm_sync_ptr(),
@@ -3492,7 +3492,7 @@ int snd_pcm_lib_mmap_iomem(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	area->vm_page_prot = pgprot_noncached(area->vm_page_prot);
+	area->vm_page_prot = pgprot_yesncached(area->vm_page_prot);
 	return vm_iomap_memory(area, runtime->dma_addr, runtime->dma_bytes);
 }
 EXPORT_SYMBOL(snd_pcm_lib_mmap_iomem);
@@ -3745,7 +3745,7 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.write_iter =		snd_pcm_writev,
 		.open =			snd_pcm_playback_open,
 		.release =		snd_pcm_release,
-		.llseek =		no_llseek,
+		.llseek =		yes_llseek,
 		.poll =			snd_pcm_poll,
 		.unlocked_ioctl =	snd_pcm_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,
@@ -3759,7 +3759,7 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.read_iter =		snd_pcm_readv,
 		.open =			snd_pcm_capture_open,
 		.release =		snd_pcm_release,
-		.llseek =		no_llseek,
+		.llseek =		yes_llseek,
 		.poll =			snd_pcm_poll,
 		.unlocked_ioctl =	snd_pcm_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,

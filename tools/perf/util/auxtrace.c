@@ -10,7 +10,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <limits.h>
-#include <errno.h>
+#include <erryes.h>
 
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
@@ -78,7 +78,7 @@ static bool perf_evsel__is_aux_event(struct evsel *evsel)
 }
 
 /*
- * Make a group from 'leader' to 'last', requiring that the events were not
+ * Make a group from 'leader' to 'last', requiring that the events were yest
  * already grouped to a different leader.
  */
 static int perf_evlist__regroup(struct evlist *evlist,
@@ -152,7 +152,7 @@ int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
 	}
 
 #if BITS_PER_LONG != 64 && !defined(HAVE_SYNC_COMPARE_AND_SWAP_SUPPORT)
-	pr_err("Cannot use AUX area tracing mmaps\n");
+	pr_err("Canyest use AUX area tracing mmaps\n");
 	return -1;
 #endif
 
@@ -580,9 +580,9 @@ size_t auxtrace_record__info_priv_size(struct auxtrace_record *itr,
 	return 0;
 }
 
-static int auxtrace_not_supported(void)
+static int auxtrace_yest_supported(void)
 {
-	pr_err("AUX area tracing is not supported on this architecture\n");
+	pr_err("AUX area tracing is yest supported on this architecture\n");
 	return -EINVAL;
 }
 
@@ -593,7 +593,7 @@ int auxtrace_record__info_fill(struct auxtrace_record *itr,
 {
 	if (itr)
 		return itr->info_fill(itr, session, auxtrace_info, priv_size);
-	return auxtrace_not_supported();
+	return auxtrace_yest_supported();
 }
 
 void auxtrace_record__free(struct auxtrace_record *itr)
@@ -647,7 +647,7 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 	if (!str)
 		return 0;
 
-	/* PMU-agnostic options */
+	/* PMU-agyesstic options */
 	switch (*str) {
 	case 'e':
 		opts->auxtrace_snapshot_on_exit = true;
@@ -671,7 +671,7 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
  */
 #define MAX_AUX_SAMPLE_SIZE (60 * 1024)
 
-/* Arbitrary default size if no other default provided */
+/* Arbitrary default size if yes other default provided */
 #define DEFAULT_AUX_SAMPLE_SIZE (4 * 1024)
 
 static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
@@ -687,9 +687,9 @@ static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
 			has_aux_leader = perf_evsel__is_aux_event(evsel);
 			if (sz) {
 				if (has_aux_leader)
-					pr_err("Cannot add AUX area sampling to an AUX area event\n");
+					pr_err("Canyest add AUX area sampling to an AUX area event\n");
 				else
-					pr_err("Cannot add AUX area sampling to a group leader\n");
+					pr_err("Canyest add AUX area sampling to a group leader\n");
 				return -EINVAL;
 			}
 		}
@@ -700,7 +700,7 @@ static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
 		}
 		if (sz) {
 			if (!has_aux_leader) {
-				pr_err("Cannot add AUX area sampling because group leader is not an AUX area event\n");
+				pr_err("Canyest add AUX area sampling because group leader is yest an AUX area event\n");
 				return -EINVAL;
 			}
 			perf_evsel__set_sample_bit(evsel, AUX);
@@ -716,7 +716,7 @@ static int auxtrace_validate_aux_sample_size(struct evlist *evlist,
 	}
 
 	if (!perf_can_aux_sample()) {
-		pr_err("AUX area sampling is not supported by kernel\n");
+		pr_err("AUX area sampling is yest supported by kernel\n");
 		return -EINVAL;
 	}
 
@@ -736,7 +736,7 @@ int auxtrace_parse_sample_options(struct auxtrace_record *itr,
 	unsigned long sz;
 
 	if (!str)
-		goto no_opt;
+		goto yes_opt;
 
 	if (!itr) {
 		pr_err("No AUX area event to sample\n");
@@ -763,7 +763,7 @@ int auxtrace_parse_sample_options(struct auxtrace_record *itr,
 			evsel->core.attr.aux_sample_size = sz;
 		}
 	}
-no_opt:
+yes_opt:
 	aux_evsel = NULL;
 	/* Override with aux_sample_size from config term */
 	evlist__for_each_entry(evlist, evsel) {
@@ -875,7 +875,7 @@ static int auxtrace_index__do_write(int fd,
 		ent.file_offset = auxtrace_index->entries[i].file_offset;
 		ent.sz = auxtrace_index->entries[i].sz;
 		if (writen(fd, &ent, sizeof(ent)) != sizeof(ent))
-			return -errno;
+			return -erryes;
 	}
 	return 0;
 }
@@ -890,7 +890,7 @@ int auxtrace_index__write(int fd, struct list_head *head)
 		total += auxtrace_index->nr;
 
 	if (writen(fd, &total, sizeof(total)) != sizeof(total))
-		return -errno;
+		return -erryes;
 
 	list_for_each_entry(auxtrace_index, head, list) {
 		err = auxtrace_index__do_write(fd, auxtrace_index);
@@ -1271,7 +1271,7 @@ s64 perf_event__process_auxtrace(struct perf_session *session,
 #define PERF_ITRACE_MAX_LAST_BRANCH_SZ		1024
 
 void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
-				    bool no_sample)
+				    bool yes_sample)
 {
 	synth_opts->branches = true;
 	synth_opts->transactions = true;
@@ -1279,7 +1279,7 @@ void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
 	synth_opts->pwr_events = true;
 	synth_opts->other_events = true;
 	synth_opts->errors = true;
-	if (no_sample) {
+	if (yes_sample) {
 		synth_opts->period_type = PERF_ITRACE_PERIOD_INSTRUCTIONS;
 		synth_opts->period = 1;
 		synth_opts->calls = true;
@@ -1316,7 +1316,7 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 
 	if (!str) {
 		itrace_synth_opts__set_default(synth_opts,
-					       synth_opts->default_no_sample);
+					       synth_opts->default_yes_sample);
 		return 0;
 	}
 
@@ -1465,7 +1465,7 @@ static const char *auxtrace_error_name(int type)
 	if (type < PERF_AUXTRACE_ERROR_MAX)
 		error_type_name = auxtrace_error_type_name[type];
 	if (!error_type_name)
-		error_type_name = "unknown AUX";
+		error_type_name = "unkyeswn AUX";
 	return error_type_name;
 }
 
@@ -1577,7 +1577,7 @@ static int __auxtrace_mmap__read(struct mmap *map,
 		offset = head - size;
 	} else {
 		/*
-		 * When the buffer size is not a power of 2, 'head' wraps at the
+		 * When the buffer size is yest a power of 2, 'head' wraps at the
 		 * highest multiple of the buffer size, so we have to subtract
 		 * the remainder here.
 		 */
@@ -1708,7 +1708,7 @@ out_free:
 static void auxtrace_cache__drop(struct auxtrace_cache *c)
 {
 	struct auxtrace_cache_entry *entry;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	size_t i;
 
 	if (!c)
@@ -1762,7 +1762,7 @@ static struct auxtrace_cache_entry *auxtrace_cache__rm(struct auxtrace_cache *c,
 {
 	struct auxtrace_cache_entry *entry;
 	struct hlist_head *hlist;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 
 	if (!c)
 		return NULL;
@@ -1868,10 +1868,10 @@ static int parse_num_or_str(char **inp, u64 *num, const char **str,
 
 		if (!num)
 			return -EINVAL;
-		errno = 0;
+		erryes = 0;
 		*num = strtoull(*inp, &endptr, 0);
-		if (errno)
-			return -errno;
+		if (erryes)
+			return -erryes;
 		if (endptr == *inp)
 			return -EINVAL;
 		*inp = endptr;
@@ -1931,10 +1931,10 @@ static int parse_sym_idx(char **inp, int *idx)
 		unsigned long num;
 		char *endptr;
 
-		errno = 0;
+		erryes = 0;
 		num = strtoul(*inp, &endptr, 0);
-		if (errno)
-			return -errno;
+		if (erryes)
+			return -erryes;
 		if (endptr == *inp || num > INT_MAX)
 			return -EINVAL;
 		*inp = endptr;
@@ -2090,15 +2090,15 @@ static int print_kern_sym_cb(void *arg, const char *name, char type, u64 start)
 	return 0;
 }
 
-static int sym_not_found_error(const char *sym_name, int idx)
+static int sym_yest_found_error(const char *sym_name, int idx)
 {
 	if (idx > 0) {
-		pr_err("N'th occurrence (N=%d) of symbol '%s' not found.\n",
+		pr_err("N'th occurrence (N=%d) of symbol '%s' yest found.\n",
 		       idx, sym_name);
 	} else if (!idx) {
-		pr_err("Global symbol '%s' not found.\n", sym_name);
+		pr_err("Global symbol '%s' yest found.\n", sym_name);
 	} else {
-		pr_err("Symbol '%s' not found.\n", sym_name);
+		pr_err("Symbol '%s' yest found.\n", sym_name);
 	}
 	pr_err("Note that symbols must be functions.\n");
 
@@ -2136,7 +2136,7 @@ static int find_kern_sym(const char *sym_name, u64 *start, u64 *size, int idx)
 
 	if (!args.started) {
 		pr_err("Kernel symbol lookup: ");
-		return sym_not_found_error(sym_name, idx);
+		return sym_yest_found_error(sym_name, idx);
 	}
 
 	*start = args.start;
@@ -2157,7 +2157,7 @@ static int find_entire_kern_cb(void *arg, const char *name __maybe_unused,
 		args->started = true;
 		args->start = start;
 	}
-	/* Don't know exactly where the kernel ends, so we add a page */
+	/* Don't kyesw exactly where the kernel ends, so we add a page */
 	args->size = round_up(start, page_size) + page_size - args->start;
 
 	return 0;
@@ -2198,7 +2198,7 @@ static int check_end_after_start(struct addr_filter *filt, u64 start, u64 size)
 
 static int addr_filter__resolve_kernel_syms(struct addr_filter *filt)
 {
-	bool no_size = false;
+	bool yes_size = false;
 	u64 start, size;
 	int err;
 
@@ -2218,7 +2218,7 @@ static int addr_filter__resolve_kernel_syms(struct addr_filter *filt)
 		filt->addr = start;
 		if (filt->range && !filt->size && !filt->sym_to) {
 			filt->size = size;
-			no_size = !size;
+			yes_size = !size;
 		}
 	}
 
@@ -2232,12 +2232,12 @@ static int addr_filter__resolve_kernel_syms(struct addr_filter *filt)
 		if (err)
 			return err;
 		filt->size = start + size - filt->addr;
-		no_size = !size;
+		yes_size = !size;
 	}
 
-	/* The very last symbol in kallsyms does not imply a particular size */
-	if (no_size) {
-		pr_err("Cannot determine size of symbol '%s'\n",
+	/* The very last symbol in kallsyms does yest imply a particular size */
+	if (yes_size) {
+		pr_err("Canyest determine size of symbol '%s'\n",
 		       filt->sym_to ? filt->sym_to : filt->sym_from);
 		return -EINVAL;
 	}
@@ -2255,7 +2255,7 @@ static struct dso *load_dso(const char *name)
 		return NULL;
 
 	if (map__load(map) < 0)
-		pr_err("File '%s' not found or has no symbols.\n", name);
+		pr_err("File '%s' yest found or has yes symbols.\n", name);
 
 	dso = dso__get(map->dso);
 
@@ -2332,7 +2332,7 @@ static int find_dso_sym(struct dso *dso, const char *sym_name, u64 *start,
 	}
 
 	if (!*start)
-		return sym_not_found_error(sym_name, idx);
+		return sym_yest_found_error(sym_name, idx);
 
 	return 0;
 }
@@ -2340,7 +2340,7 @@ static int find_dso_sym(struct dso *dso, const char *sym_name, u64 *start,
 static int addr_filter__entire_dso(struct addr_filter *filt, struct dso *dso)
 {
 	if (dso__data_file_size(dso, NULL)) {
-		pr_err("Failed to determine filter for %s\nCannot determine file size.\n",
+		pr_err("Failed to determine filter for %s\nCanyest determine file size.\n",
 		       filt->filename);
 		return -EINVAL;
 	}

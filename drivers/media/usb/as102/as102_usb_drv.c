@@ -5,7 +5,7 @@
  * Copyright (C) 2010 Devin Heitmueller <dheitmueller@kernellabs.com>
  */
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/usb.h>
@@ -21,8 +21,8 @@ static int as102_usb_probe(struct usb_interface *interface,
 static int as102_usb_start_stream(struct as102_dev_t *dev);
 static void as102_usb_stop_stream(struct as102_dev_t *dev);
 
-static int as102_open(struct inode *inode, struct file *file);
-static int as102_release(struct inode *inode, struct file *file);
+static int as102_open(struct iyesde *iyesde, struct file *file);
+static int as102_release(struct iyesde *iyesde, struct file *file);
 
 static const struct usb_device_id as102_usb_id_table[] = {
 	{ USB_DEVICE(AS102_USB_DEVICE_VENDOR_ID, AS102_USB_DEVICE_PID_0001) },
@@ -71,7 +71,7 @@ static const struct file_operations as102_dev_fops = {
 static struct usb_class_driver as102_usb_class_driver = {
 	.name		= "aton2-%d",
 	.fops		= &as102_dev_fops,
-	.minor_base	= AS102_DEVICE_MAJOR,
+	.miyesr_base	= AS102_DEVICE_MAJOR,
 };
 
 static int as102_usb_xfer_cmd(struct as10x_bus_adapter_t *bus_adap,
@@ -221,7 +221,7 @@ void as102_urb_stream_irq(struct urb *urb)
 			memset(urb->transfer_buffer, 0, AS102_USB_BUF_SIZE);
 	}
 
-	/* is not stopped, re-submit urb */
+	/* is yest stopped, re-submit urb */
 	if (as102_dev->streaming)
 		as102_submit_urb_stream(as102_dev, urb);
 }
@@ -360,7 +360,7 @@ static int as102_usb_probe(struct usb_interface *intf,
 	}
 
 	if (as102_dev->name == NULL)
-		as102_dev->name = "Unknown AS102 device";
+		as102_dev->name = "Unkyeswn AS102 device";
 
 	/* set private callback functions */
 	as102_dev->bus_adap.ops = &as102_priv_ops;
@@ -378,12 +378,12 @@ static int as102_usb_probe(struct usb_interface *intf,
 	/* store in as102 device the usb_device pointer */
 	as102_dev->bus_adap.usb_dev = usb_get_dev(interface_to_usbdev(intf));
 
-	/* we can register the device now, as it is ready */
+	/* we can register the device yesw, as it is ready */
 	ret = usb_register_dev(intf, &as102_usb_class_driver);
 	if (ret < 0) {
 		/* something prevented us from registering this driver */
 		dev_err(&intf->dev,
-			"%s: usb_register_dev() failed (errno = %d)\n",
+			"%s: usb_register_dev() failed (erryes = %d)\n",
 			__func__, ret);
 		goto failed;
 	}
@@ -413,20 +413,20 @@ failed:
 	return ret;
 }
 
-static int as102_open(struct inode *inode, struct file *file)
+static int as102_open(struct iyesde *iyesde, struct file *file)
 {
-	int ret = 0, minor = 0;
+	int ret = 0, miyesr = 0;
 	struct usb_interface *intf = NULL;
 	struct as102_dev_t *dev = NULL;
 
-	/* read minor from inode */
-	minor = iminor(inode);
+	/* read miyesr from iyesde */
+	miyesr = imiyesr(iyesde);
 
 	/* fetch device from usb interface */
-	intf = usb_find_interface(&as102_usb_driver, minor);
+	intf = usb_find_interface(&as102_usb_driver, miyesr);
 	if (intf == NULL) {
-		pr_err("%s: can't find device for minor %d\n",
-		       __func__, minor);
+		pr_err("%s: can't find device for miyesr %d\n",
+		       __func__, miyesr);
 		ret = -ENODEV;
 		goto exit;
 	}
@@ -448,7 +448,7 @@ exit:
 	return ret;
 }
 
-static int as102_release(struct inode *inode, struct file *file)
+static int as102_release(struct iyesde *iyesde, struct file *file)
 {
 	struct as102_dev_t *dev = NULL;
 

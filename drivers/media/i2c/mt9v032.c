@@ -26,7 +26,7 @@
 #include <media/i2c/mt9v032.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 
 /* The first four rows are black rows. The active area spans 753x481 pixels. */
@@ -282,7 +282,7 @@ static int mt9v032_power_on(struct mt9v032 *mt9v032)
 
 		/* After releasing reset we need to wait 10 clock cycles
 		 * before accessing the sensor over I2C. As the minimum SYSCLK
-		 * frequency is 13MHz, waiting 1µs will be enough in the worst
+		 * frequency is 13MHz, waiting 1µs will be eyesugh in the worst
 		 * case.
 		 */
 		udelay(1);
@@ -336,7 +336,7 @@ static int __mt9v032_set_power(struct mt9v032 *mt9v032, bool on)
 			return ret;
 	}
 
-	/* Disable the noise correction algorithm and restore the controls. */
+	/* Disable the yesise correction algorithm and restore the controls. */
 	ret = regmap_write(map, MT9V032_ROW_NOISE_CORR_CONTROL, 0);
 	if (ret < 0)
 		return ret;
@@ -420,7 +420,7 @@ static int mt9v032_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (ret < 0)
 		return ret;
 
-	/* Switch to master "normal" mode */
+	/* Switch to master "yesrmal" mode */
 	return regmap_update_bits(map, MT9V032_CHIP_CONTROL, mode, mode);
 }
 
@@ -554,7 +554,7 @@ static int mt9v032_set_selection(struct v4l2_subdev *subdev,
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	/* Clamp the crop rectangle boundaries and align them to a non multiple
+	/* Clamp the crop rectangle boundaries and align them to a yesn multiple
 	 * of 2 pixels to ensure a GRBG Bayer pattern.
 	 */
 	rect.left = clamp(ALIGN(sel->r.left + 1, 2) - 1,
@@ -612,7 +612,7 @@ static int mt9v032_set_selection(struct v4l2_subdev *subdev,
 /*
  * LPF is the low pass filter capability of the chip. Both AEC and AGC have
  * this setting. This limits the speed in which AGC/AEC adjust their settings.
- * Possible values are 0-2. 0 means no LPF. For 1 and 2 this equation is used:
+ * Possible values are 0-2. 0 means yes LPF. For 1 and 2 this equation is used:
  *
  * if |(calculated new exp - current exp)| > (current exp / 4)
  *	next exp = calculated new exp
@@ -986,18 +986,18 @@ static struct mt9v032_platform_data *
 mt9v032_get_pdata(struct i2c_client *client)
 {
 	struct mt9v032_platform_data *pdata = NULL;
-	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
-	struct device_node *np;
+	struct v4l2_fwyesde_endpoint endpoint = { .bus_type = 0 };
+	struct device_yesde *np;
 	struct property *prop;
 
-	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_yesde)
 		return client->dev.platform_data;
 
-	np = of_graph_get_next_endpoint(client->dev.of_node, NULL);
+	np = of_graph_get_next_endpoint(client->dev.of_yesde, NULL);
 	if (!np)
 		return NULL;
 
-	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &endpoint) < 0)
+	if (v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(np), &endpoint) < 0)
 		goto done;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
@@ -1026,7 +1026,7 @@ mt9v032_get_pdata(struct i2c_client *client)
 			    V4L2_MBUS_PCLK_SAMPLE_RISING);
 
 done:
-	of_node_put(np);
+	of_yesde_put(np);
 	return pdata;
 }
 

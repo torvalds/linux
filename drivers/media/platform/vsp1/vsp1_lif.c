@@ -130,8 +130,8 @@ static void lif_configure_stream(struct vsp1_entity *entity,
 
 	/*
 	 * On R-Car V3M the LIF0 buffer attribute register has to be set to a
-	 * non-default value to guarantee proper operation (otherwise artifacts
-	 * may appear on the output). The value required by the manual is not
+	 * yesn-default value to guarantee proper operation (otherwise artifacts
+	 * may appear on the output). The value required by the manual is yest
 	 * explained but is likely a buffer size or threshold.
 	 */
 	if ((entity->vsp1->version & VI6_IP_VERSION_MASK) ==

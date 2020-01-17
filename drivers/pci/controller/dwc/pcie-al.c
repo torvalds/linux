@@ -135,7 +135,7 @@ struct al_pcie_target_bus_cfg {
 
 struct al_pcie {
 	struct dw_pcie *pci;
-	void __iomem *controller_base; /* base of PCIe unit (not DW core) */
+	void __iomem *controller_base; /* base of PCIe unit (yest DW core) */
 	struct device *dev;
 	resource_size_t ecam_size;
 	unsigned int controller_rev_id;

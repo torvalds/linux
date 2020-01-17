@@ -67,7 +67,7 @@ static int clock_board_probe(struct platform_device *op)
 	int err = -ENOMEM;
 
 	if (!p) {
-		printk(KERN_ERR "clock_board: Cannot allocate struct clock_board\n");
+		printk(KERN_ERR "clock_board: Canyest allocate struct clock_board\n");
 		goto out;
 	}
 
@@ -75,7 +75,7 @@ static int clock_board_probe(struct platform_device *op)
 					resource_size(&op->resource[0]),
 					"clock_board_freq");
 	if (!p->clock_freq_regs) {
-		printk(KERN_ERR "clock_board: Cannot map clock_freq_regs\n");
+		printk(KERN_ERR "clock_board: Canyest map clock_freq_regs\n");
 		goto out_free;
 	}
 
@@ -83,7 +83,7 @@ static int clock_board_probe(struct platform_device *op)
 				   resource_size(&op->resource[1]),
 				   "clock_board_regs");
 	if (!p->clock_regs) {
-		printk(KERN_ERR "clock_board: Cannot map clock_regs\n");
+		printk(KERN_ERR "clock_board: Canyest map clock_regs\n");
 		goto out_unmap_clock_freq_regs;
 	}
 
@@ -92,7 +92,7 @@ static int clock_board_probe(struct platform_device *op)
 					      resource_size(&op->resource[2]),
 					      "clock_ver_reg");
 		if (!p->clock_ver_reg) {
-			printk(KERN_ERR "clock_board: Cannot map clock_ver_reg\n");
+			printk(KERN_ERR "clock_board: Canyest map clock_ver_reg\n");
 			goto out_unmap_clock_regs;
 		}
 	}
@@ -112,7 +112,7 @@ static int clock_board_probe(struct platform_device *op)
 
 	err = platform_device_register(&p->leds_pdev);
 	if (err) {
-		printk(KERN_ERR "clock_board: Could not register LEDS "
+		printk(KERN_ERR "clock_board: Could yest register LEDS "
 		       "platform device\n");
 		goto out_unmap_clock_ver_reg;
 	}
@@ -164,18 +164,18 @@ static int fhc_probe(struct platform_device *op)
 	u32 reg;
 
 	if (!p) {
-		printk(KERN_ERR "fhc: Cannot allocate struct fhc\n");
+		printk(KERN_ERR "fhc: Canyest allocate struct fhc\n");
 		goto out;
 	}
 
-	if (of_node_name_eq(op->dev.of_node->parent, "central"))
+	if (of_yesde_name_eq(op->dev.of_yesde->parent, "central"))
 		p->central = true;
 
 	p->pregs = of_ioremap(&op->resource[0], 0,
 			      resource_size(&op->resource[0]),
 			      "fhc_pregs");
 	if (!p->pregs) {
-		printk(KERN_ERR "fhc: Cannot map pregs\n");
+		printk(KERN_ERR "fhc: Canyest map pregs\n");
 		goto out_free;
 	}
 
@@ -183,7 +183,7 @@ static int fhc_probe(struct platform_device *op)
 		reg = upa_readl(p->pregs + FHC_PREGS_BSR);
 		p->board_num = ((reg >> 16) & 1) | ((reg >> 12) & 0x0e);
 	} else {
-		p->board_num = of_getintprop_default(op->dev.of_node, "board#", -1);
+		p->board_num = of_getintprop_default(op->dev.of_yesde, "board#", -1);
 		if (p->board_num == -1) {
 			printk(KERN_ERR "fhc: No board# property\n");
 			goto out_unmap_pregs;
@@ -206,7 +206,7 @@ static int fhc_probe(struct platform_device *op)
 
 		err = platform_device_register(&p->leds_pdev);
 		if (err) {
-			printk(KERN_ERR "fhc: Could not register LEDS "
+			printk(KERN_ERR "fhc: Could yest register LEDS "
 			       "platform device\n");
 			goto out_unmap_pregs;
 		}

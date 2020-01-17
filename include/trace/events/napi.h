@@ -9,7 +9,7 @@
 #include <linux/tracepoint.h>
 #include <linux/ftrace.h>
 
-#define NO_DEV "(no_device)"
+#define NO_DEV "(yes_device)"
 
 TRACE_EVENT(napi_poll,
 

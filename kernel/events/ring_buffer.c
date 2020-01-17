@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/circ_buf.h>
 #include <linux/poll.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "internal.h"
 
@@ -28,7 +28,7 @@ static void perf_output_wakeup(struct perf_output_handle *handle)
 /*
  * We need to ensure a later event_id doesn't publish a head when a former
  * event isn't done writing. However since we need to deal with NMIs we
- * cannot fully serialize things.
+ * canyest fully serialize things.
  *
  * We only publish the head (and generate a wakeup) when the outer-most
  * event completes.
@@ -96,7 +96,7 @@ again:
 	 *
 	 * In our case (A) is a control dependency that separates the load of
 	 * the ->data_tail and the stores of $data. In case ->data_tail
-	 * indicates there is no room in the buffer to store $data we do not.
+	 * indicates there is yes room in the buffer to store $data we do yest.
 	 *
 	 * D needs to be a full barrier since it separates the data READ
 	 * from the tail WRITE.
@@ -119,7 +119,7 @@ again:
 
 	/*
 	 * Ensure we decrement @rb->nest before we validate the @rb->head.
-	 * Otherwise we cannot be sure we caught the 'last' nested update.
+	 * Otherwise we canyest be sure we caught the 'last' nested update.
 	 */
 	barrier();
 	if (unlikely(head != local_read(&rb->head))) {
@@ -223,7 +223,7 @@ __perf_output_begin(struct perf_output_handle *handle,
 
 	/*
 	 * We rely on the implied barrier() by local_cmpxchg() to ensure
-	 * none of the data stores below can be lifted up by the compiler.
+	 * yesne of the data stores below can be lifted up by the compiler.
 	 */
 
 	if (unlikely(head - local_read(&rb->wakeup) > rb->watermark))
@@ -323,7 +323,7 @@ ring_buffer_init(struct ring_buffer *rb, long watermark, int flags)
 
 	/*
 	 * perf_output_begin() only checks rb->paused, therefore
-	 * rb->paused must be true if we have no pages for output.
+	 * rb->paused must be true if we have yes pages for output.
 	 */
 	if (!rb->nr_pages)
 		rb->paused = 1;
@@ -390,12 +390,12 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	if (!atomic_read(&rb->aux_mmap_count))
 		goto err;
 
-	if (!refcount_inc_not_zero(&rb->aux_refcount))
+	if (!refcount_inc_yest_zero(&rb->aux_refcount))
 		goto err;
 
 	nest = READ_ONCE(rb->aux_nest);
 	/*
-	 * Nesting is not supported for AUX area, make sure nested
+	 * Nesting is yest supported for AUX area, make sure nested
 	 * writers are caught early
 	 */
 	if (WARN_ON_ONCE(nest))
@@ -412,8 +412,8 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	handle->aux_flags = 0;
 
 	/*
-	 * In overwrite mode, AUX data stores do not depend on aux_tail,
-	 * therefore (A) control dependency barrier does not exist. The
+	 * In overwrite mode, AUX data stores do yest depend on aux_tail,
+	 * therefore (A) control dependency barrier does yest exist. The
 	 * (B) <-> (C) ordering is still observed by the pmu driver.
 	 */
 	if (!rb->aux_overwrite) {
@@ -494,13 +494,13 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size)
 	/*
 	 * Only send RECORD_AUX if we have something useful to communicate
 	 *
-	 * Note: the OVERWRITE records by themselves are not considered
+	 * Note: the OVERWRITE records by themselves are yest considered
 	 * useful, as they don't communicate any *new* information,
 	 * aside from the short-lived offset, that becomes history at
 	 * the next event sched-in and therefore isn't useful.
 	 * The userspace that needs to copy out AUX data in overwrite
-	 * mode should know to use user_page::aux_head for the actual
-	 * offset. So, from now on we don't output AUX records that
+	 * mode should kyesw to use user_page::aux_head for the actual
+	 * offset. So, from yesw on we don't output AUX records that
 	 * have *only* OVERWRITE flag set.
 	 */
 	if (size || (handle->aux_flags & ~(u64)PERF_AUX_FLAG_OVERWRITE))
@@ -600,7 +600,7 @@ long perf_output_copy_aux(struct perf_output_handle *aux_handle,
 
 #define PERF_AUX_GFP	(GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN | __GFP_NORETRY)
 
-static struct page *rb_alloc_aux_page(int node, int order)
+static struct page *rb_alloc_aux_page(int yesde, int order)
 {
 	struct page *page;
 
@@ -608,7 +608,7 @@ static struct page *rb_alloc_aux_page(int node, int order)
 		order = MAX_ORDER;
 
 	do {
-		page = alloc_pages_node(node, PERF_AUX_GFP, order);
+		page = alloc_pages_yesde(yesde, PERF_AUX_GFP, order);
 	} while (!page && order--);
 
 	if (page && order) {
@@ -616,7 +616,7 @@ static struct page *rb_alloc_aux_page(int node, int order)
 		 * Communicate the allocation size to the driver:
 		 * if we managed to secure a high-order allocation,
 		 * set its first page's private to this order;
-		 * !PagePrivate(page) means it's just a normal page.
+		 * !PagePrivate(page) means it's just a yesrmal page.
 		 */
 		split_page(page, order);
 		SetPagePrivate(page);
@@ -666,7 +666,7 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 		 pgoff_t pgoff, int nr_pages, long watermark, int flags)
 {
 	bool overwrite = !(flags & RING_BUFFER_WRITABLE);
-	int node = (event->cpu == -1) ? -1 : cpu_to_node(event->cpu);
+	int yesde = (event->cpu == -1) ? -1 : cpu_to_yesde(event->cpu);
 	int ret = -ENOMEM, max_order;
 
 	if (!has_aux(event))
@@ -674,7 +674,7 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 
 	/*
 	 * We need to start with the max_order that fits in nr_pages,
-	 * not the other way around, hence ilog2() and not get_order.
+	 * yest the other way around, hence ilog2() and yest get_order.
 	 */
 	max_order = ilog2(nr_pages);
 
@@ -689,8 +689,8 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 		max_order--;
 	}
 
-	rb->aux_pages = kcalloc_node(nr_pages, sizeof(void *), GFP_KERNEL,
-				     node);
+	rb->aux_pages = kcalloc_yesde(nr_pages, sizeof(void *), GFP_KERNEL,
+				     yesde);
 	if (!rb->aux_pages)
 		return -ENOMEM;
 
@@ -700,7 +700,7 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 		int last, order;
 
 		order = min(max_order, ilog2(nr_pages - rb->aux_nr_pages));
-		page = rb_alloc_aux_page(node, order);
+		page = rb_alloc_aux_page(yesde, order);
 		if (!page)
 			goto out;
 
@@ -710,7 +710,7 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 	}
 
 	/*
-	 * In overwrite mode, PMUs that don't support SG may not handle more
+	 * In overwrite mode, PMUs that don't support SG may yest handle more
 	 * than one contiguous allocation, since they rely on PMI to do double
 	 * buffering. In this case, the entire buffer has to be one contiguous
 	 * chunk.
@@ -780,10 +780,10 @@ __perf_mmap_to_page(struct ring_buffer *rb, unsigned long pgoff)
 static void *perf_mmap_alloc_page(int cpu)
 {
 	struct page *page;
-	int node;
+	int yesde;
 
-	node = (cpu == -1) ? cpu : cpu_to_node(cpu);
-	page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
+	yesde = (cpu == -1) ? cpu : cpu_to_yesde(cpu);
+	page = alloc_pages_yesde(yesde, GFP_KERNEL | __GFP_ZERO, 0);
 	if (!page)
 		return NULL;
 
@@ -948,7 +948,7 @@ perf_mmap_to_page(struct ring_buffer *rb, unsigned long pgoff)
 
 		/* AUX space */
 		if (pgoff >= rb->aux_pgoff) {
-			int aux_pgoff = array_index_nospec(pgoff - rb->aux_pgoff, rb->aux_nr_pages);
+			int aux_pgoff = array_index_yesspec(pgoff - rb->aux_pgoff, rb->aux_nr_pages);
 			return virt_to_page(rb->aux_pages[aux_pgoff]);
 		}
 	}

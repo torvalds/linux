@@ -5,7 +5,7 @@ The sram of pmu is used to store the function of resume from maskrom(the 1st
 level loader). This is a common use of the "pmu-sram" because it keeps power
 even in low power states in the system.
 
-Required node properties:
+Required yesde properties:
 - compatible : should be "rockchip,rk3288-pmu-sram"
 - reg : physical base address and the size of the registers window
 

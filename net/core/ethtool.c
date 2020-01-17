@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
@@ -99,7 +99,7 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_NTUPLE_BIT] =           "rx-ntuple-filter",
 	[NETIF_F_RXHASH_BIT] =           "rx-hashing",
 	[NETIF_F_RXCSUM_BIT] =           "rx-checksum",
-	[NETIF_F_NOCACHE_COPY_BIT] =     "tx-nocache-copy",
+	[NETIF_F_NOCACHE_COPY_BIT] =     "tx-yescache-copy",
 	[NETIF_F_LOOPBACK_BIT] =         "loopback",
 	[NETIF_F_RXFCS_BIT] =            "rx-fcs",
 	[NETIF_F_RXALL_BIT] =            "rx-all",
@@ -432,7 +432,7 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 }
 EXPORT_SYMBOL(ethtool_convert_link_mode_to_legacy_u32);
 
-/* return false if legacy contained non-0 deprecated fields
+/* return false if legacy contained yesn-0 deprecated fields
  * maxtxpkt/maxrxpkt. rest of ksettings always updated
  */
 static bool
@@ -445,7 +445,7 @@ convert_legacy_settings_to_link_ksettings(
 	memset(link_ksettings, 0, sizeof(*link_ksettings));
 
 	/* This is used to tell users that driver is still using these
-	 * deprecated legacy fields, and they should not use
+	 * deprecated legacy fields, and they should yest use
 	 * %ETHTOOL_GLINKSETTINGS/%ETHTOOL_SLINKSETTINGS
 	 */
 	if (legacy_settings->maxtxpkt ||
@@ -555,7 +555,7 @@ int __ethtool_get_link_ksettings(struct net_device *dev,
 EXPORT_SYMBOL(__ethtool_get_link_ksettings);
 
 /* convert ethtool_link_usettings in user space to a kernel internal
- * ethtool_link_ksettings. return 0 on success, errno on error.
+ * ethtool_link_ksettings. return 0 on success, erryes on error.
  */
 static int load_link_ksettings_from_user(struct ethtool_link_ksettings *to,
 					 const void __user *from)
@@ -580,7 +580,7 @@ static int load_link_ksettings_from_user(struct ethtool_link_ksettings *to,
 }
 
 /* convert a kernel internal ethtool_link_ksettings to
- * ethtool_link_usettings in user space. return 0 on success, errno on
+ * ethtool_link_usettings in user space. return 0 on success, erryes on
  * error.
  */
 static int
@@ -633,7 +633,7 @@ static int ethtool_get_link_ksettings(struct net_device *dev,
 		link_ksettings.base.link_mode_masks_nwords
 			= -((s8)__ETHTOOL_LINK_MODE_MASK_NU32);
 
-		/* copy the base fields back to user, not the link
+		/* copy the base fields back to user, yest the link
 		 * mode bitmaps
 		 */
 		if (copy_to_user(useraddr, &link_ksettings.base,
@@ -681,7 +681,7 @@ static int ethtool_set_link_ksettings(struct net_device *dev,
 	    != link_ksettings.base.link_mode_masks_nwords)
 		return -EINVAL;
 
-	/* copy the whole structure, now that we know it has expected
+	/* copy the whole structure, yesw that we kyesw it has expected
 	 * format
 	 */
 	err = load_link_ksettings_from_user(&link_ksettings, useraddr);
@@ -698,8 +698,8 @@ static int ethtool_set_link_ksettings(struct net_device *dev,
 
 /* Query device for its ethtool_cmd settings.
  *
- * Backward compatibility note: for compatibility with legacy ethtool, this is
- * now implemented via get_link_ksettings. When driver reports higher link mode
+ * Backward compatibility yeste: for compatibility with legacy ethtool, this is
+ * yesw implemented via get_link_ksettings. When driver reports higher link mode
  * bits, a kernel warning is logged once (with name of 1st driver/device) to
  * recommend user to upgrade ethtool, but the command is successful (only the
  * lower link mode bits reported back to user). Deprecated fields from
@@ -732,8 +732,8 @@ static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
 
 /* Update device link settings with given ethtool_cmd.
  *
- * Backward compatibility note: for compatibility with legacy ethtool, this is
- * now always implemented via set_link_settings. When user's request updates
+ * Backward compatibility yeste: for compatibility with legacy ethtool, this is
+ * yesw always implemented via set_link_settings. When user's request updates
  * deprecated ethtool_cmd fields (transceiver/maxrxpkt/maxtxpkt), a kernel
  * warning is logged once (with name of 1st driver/device) to recommend user to
  * upgrade ethtool, and the request is rejected.
@@ -757,7 +757,7 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 	return dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
 }
 
-static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev,
+static yesinline_for_stack int ethtool_get_drvinfo(struct net_device *dev,
 						  void __user *useraddr)
 {
 	struct ethtool_drvinfo info;
@@ -812,7 +812,7 @@ static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev,
 	return 0;
 }
 
-static noinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
+static yesinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
 						    void __user *useraddr)
 {
 	struct ethtool_sset_info info;
@@ -868,7 +868,7 @@ out:
 	return ret;
 }
 
-static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
+static yesinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 						u32 cmd, void __user *useraddr)
 {
 	struct ethtool_rxnfc info;
@@ -900,7 +900,7 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 	return 0;
 }
 
-static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
+static yesinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
 						u32 cmd, void __user *useraddr)
 {
 	struct ethtool_rxnfc info;
@@ -1030,7 +1030,7 @@ out:
 	return ret;
 }
 
-static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
+static yesinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {
 	u32 user_size, dev_size;
@@ -1078,7 +1078,7 @@ out:
 	return ret;
 }
 
-static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
+static yesinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {
 	struct ethtool_rxnfc rx_rings;
@@ -1140,7 +1140,7 @@ out:
 	return ret;
 }
 
-static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
+static yesinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 					       void __user *useraddr)
 {
 	int ret;
@@ -1168,7 +1168,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	user_indir_size = rxfh.indir_size;
 	user_key_size = rxfh.key_size;
 
-	/* Check that reserved fields are 0 for now */
+	/* Check that reserved fields are 0 for yesw */
 	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd8[2] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
@@ -1219,7 +1219,7 @@ out:
 	return ret;
 }
 
-static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
+static yesinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 					       void __user *useraddr)
 {
 	int ret;
@@ -1244,7 +1244,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	if (copy_from_user(&rxfh, useraddr, sizeof(rxfh)))
 		return -EFAULT;
 
-	/* Check that reserved fields are 0 for now */
+	/* Check that reserved fields are 0 for yesw */
 	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd8[2] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
@@ -1597,7 +1597,7 @@ static int ethtool_set_eeprom(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
-static noinline_for_stack int ethtool_get_coalesce(struct net_device *dev,
+static yesinline_for_stack int ethtool_get_coalesce(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct ethtool_coalesce coalesce = { .cmd = ETHTOOL_GCOALESCE };
@@ -1612,7 +1612,7 @@ static noinline_for_stack int ethtool_get_coalesce(struct net_device *dev,
 	return 0;
 }
 
-static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
+static yesinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct ethtool_coalesce coalesce;
@@ -1662,7 +1662,7 @@ static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 	return dev->ethtool_ops->set_ringparam(dev, &ringparam);
 }
 
-static noinline_for_stack int ethtool_get_channels(struct net_device *dev,
+static yesinline_for_stack int ethtool_get_channels(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct ethtool_channels channels = { .cmd = ETHTOOL_GCHANNELS };
@@ -1677,7 +1677,7 @@ static noinline_for_stack int ethtool_get_channels(struct net_device *dev,
 	return 0;
 }
 
-static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
+static yesinline_for_stack int ethtool_set_channels(struct net_device *dev,
 						   void __user *useraddr)
 {
 	struct ethtool_channels channels, curr = { .cmd = ETHTOOL_GCHANNELS };
@@ -2046,7 +2046,7 @@ static int ethtool_set_value(struct net_device *dev, char __user *useraddr,
 	return actor(dev, edata.data);
 }
 
-static noinline_for_stack int ethtool_flash_device(struct net_device *dev,
+static yesinline_for_stack int ethtool_flash_device(struct net_device *dev,
 						   char __user *useraddr)
 {
 	struct ethtool_flash efl;
@@ -2127,8 +2127,8 @@ static int ethtool_get_dump_data(struct net_device *dev,
 	 */
 	dump.len = len;
 
-	/* Always allocate enough space to hold the whole thing so that the
-	 * driver does not need to check the length and bother with partial
+	/* Always allocate eyesugh space to hold the whole thing so that the
+	 * driver does yest need to check the length and bother with partial
 	 * dumping.
 	 */
 	data = vzalloc(tmp.len);
@@ -2139,7 +2139,7 @@ static int ethtool_get_dump_data(struct net_device *dev,
 		goto out;
 
 	/* There are two sane possibilities:
-	 * 1. The driver's .get_dump_data() does not touch dump.len.
+	 * 1. The driver's .get_dump_data() does yest touch dump.len.
 	 * 2. Or it may set dump.len to how much it really writes, which
 	 *    should be tmp.len (or len if it can do a partial dump).
 	 * In any case respond to userspace with the actual length of data
@@ -2336,7 +2336,7 @@ static int ethtool_set_tunable(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
-static noinline_for_stack int
+static yesinline_for_stack int
 ethtool_get_per_queue_coalesce(struct net_device *dev,
 			       void __user *useraddr,
 			       struct ethtool_per_queue_op *per_queue_opt)
@@ -2367,7 +2367,7 @@ ethtool_get_per_queue_coalesce(struct net_device *dev,
 	return 0;
 }
 
-static noinline_for_stack int
+static yesinline_for_stack int
 ethtool_set_per_queue_coalesce(struct net_device *dev,
 			       void __user *useraddr,
 			       struct ethtool_per_queue_op *per_queue_opt)
@@ -2424,7 +2424,7 @@ roll_back:
 	return ret;
 }
 
-static int noinline_for_stack ethtool_set_per_queue(struct net_device *dev,
+static int yesinline_for_stack ethtool_set_per_queue(struct net_device *dev,
 				 void __user *useraddr, u32 sub_cmd)
 {
 	struct ethtool_per_queue_op per_queue_opt;

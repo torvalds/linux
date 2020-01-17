@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -129,7 +129,7 @@ struct rds_transport *rds_trans_get(int t_type)
 
 /*
  * This returns the number of stats entries in the snapshot and only
- * copies them using the iter if there is enough space for them.  The
+ * copies them using the iter if there is eyesugh space for them.  The
  * caller passes in the global stats so that we can size and copy while
  * holding the lock.
  */

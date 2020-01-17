@@ -225,7 +225,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 	au0828_write(dev, AU0828_I2C_MULTIBYTE_MODE_2FF, 0x01);
 
 	/*
-	 * Due to xc5000c clock stretch, we cannot use full speed at
+	 * Due to xc5000c clock stretch, we canyest use full speed at
 	 * readings from xc5000, as otherwise they'll fail.
 	 */
 	if (((dev->board.tuner_type == TUNER_XC5000) ||

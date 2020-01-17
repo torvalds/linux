@@ -30,9 +30,9 @@
 #endif
 
 /*
- * If the arch's mcount caller does not support all of ftrace's
+ * If the arch's mcount caller does yest support all of ftrace's
  * features, then it must call an indirect function that
- * does. Or at least does enough to prevent any unwelcomed side effects.
+ * does. Or at least does eyesugh to prevent any unwelcomed side effects.
  */
 #if !ARCH_SUPPORTS_FTRACE_OPS
 # define FTRACE_FORCE_LIST_FUNC 1
@@ -93,60 +93,60 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
 ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops);
 
 /*
- * FTRACE_OPS_FL_* bits denote the state of ftrace_ops struct and are
+ * FTRACE_OPS_FL_* bits deyeste the state of ftrace_ops struct and are
  * set in the flags member.
  * CONTROL, SAVE_REGS, SAVE_REGS_IF_SUPPORTED, RECURSION_SAFE, STUB and
  * IPMODIFY are a kind of attribute flags which can be set only before
- * registering the ftrace_ops, and can not be modified while registered.
+ * registering the ftrace_ops, and can yest be modified while registered.
  * Changing those attribute flags after registering ftrace_ops will
  * cause unexpected results.
  *
  * ENABLED - set/unset when ftrace_ops is registered/unregistered
- * DYNAMIC - set when ftrace_ops is registered to denote dynamically
+ * DYNAMIC - set when ftrace_ops is registered to deyeste dynamically
  *           allocated ftrace_ops which need special care
  * SAVE_REGS - The ftrace_ops wants regs saved at each function called
  *            and passed to the callback. If this flag is set, but the
- *            architecture does not support passing regs
- *            (CONFIG_DYNAMIC_FTRACE_WITH_REGS is not defined), then the
+ *            architecture does yest support passing regs
+ *            (CONFIG_DYNAMIC_FTRACE_WITH_REGS is yest defined), then the
  *            ftrace_ops will fail to register, unless the next flag
  *            is set.
  * SAVE_REGS_IF_SUPPORTED - This is the same as SAVE_REGS, but if the
- *            handler can handle an arch that does not save regs
+ *            handler can handle an arch that does yest save regs
  *            (the handler tests if regs == NULL), then it can set
- *            this flag instead. It will not fail registering the ftrace_ops
- *            but, the regs field will be NULL if the arch does not support
+ *            this flag instead. It will yest fail registering the ftrace_ops
+ *            but, the regs field will be NULL if the arch does yest support
  *            passing regs to the handler.
  *            Note, if this flag is set, the SAVE_REGS flag will automatically
  *            get set upon registering the ftrace_ops, if the arch supports it.
  * RECURSION_SAFE - The ftrace_ops can set this to tell the ftrace infrastructure
  *            that the call back has its own recursion protection. If it does
- *            not set this, then the ftrace infrastructure will add recursion
+ *            yest set this, then the ftrace infrastructure will add recursion
  *            protection for the caller.
  * STUB   - The ftrace_ops is just a place holder.
  * INITIALIZED - The ftrace_ops has already been initialized (first use time
  *            register_ftrace_function() is called, it will initialized the ops)
- * DELETED - The ops are being deleted, do not let them be registered again.
+ * DELETED - The ops are being deleted, do yest let them be registered again.
  * ADDING  - The ops is in the process of being added.
  * REMOVING - The ops is in the process of being removed.
  * MODIFYING - The ops is in the process of changing its filter functions.
  * ALLOC_TRAMP - A dynamic trampoline was allocated by the core code.
  *            The arch specific code sets this flag when it allocated a
- *            trampoline. This lets the arch know that it can update the
+ *            trampoline. This lets the arch kyesw that it can update the
  *            trampoline in case the callback function changes.
  *            The ftrace_ops trampoline can be set by the ftrace users, and
- *            in such cases the arch must not modify it. Only the arch ftrace
+ *            in such cases the arch must yest modify it. Only the arch ftrace
  *            core code should set this flag.
  * IPMODIFY - The ops can modify the IP register. This can only be set with
- *            SAVE_REGS. If another ops with this flag set is already registered
+ *            SAVE_REGS. If ayesther ops with this flag set is already registered
  *            for any of the functions that this ops will be registered for, then
  *            this ops will fail to register or set_filter_ip.
  * PID     - Is affected by set_ftrace_pid (allows filtering on those pids)
  * RCU     - Set when the ops can only be called when RCU is watching.
  * TRACE_ARRAY - The ops->private points to a trace_array descriptor.
- * PERMANENT - Set when the ops is permanent and should not be affected by
+ * PERMANENT - Set when the ops is permanent and should yest be affected by
  *             ftrace_enabled.
  * DIRECT - Used by the direct ftrace_ops helper for direct functions
- *            (internal ftrace only, should not be used by others)
+ *            (internal ftrace only, should yest be used by others)
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= BIT(0),
@@ -170,9 +170,9 @@ enum {
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-/* The hash used to know what functions callbacks trace */
+/* The hash used to kyesw what functions callbacks trace */
 struct ftrace_ops_hash {
-	struct ftrace_hash __rcu	*notrace_hash;
+	struct ftrace_hash __rcu	*yestrace_hash;
 	struct ftrace_hash __rcu	*filter_hash;
 	struct mutex			regex_lock;
 };
@@ -186,12 +186,12 @@ static inline void ftrace_free_mem(struct module *mod, void *start, void *end) {
 
 /*
  * Note, ftrace_ops can be referenced outside of RCU protection, unless
- * the RCU flag is set. If ftrace_ops is allocated and not part of kernel
+ * the RCU flag is set. If ftrace_ops is allocated and yest part of kernel
  * core data, the unregistering of it will perform a scheduling on all CPUs
- * to make sure that there are no more users. Depending on the load of the
+ * to make sure that there are yes more users. Depending on the load of the
  * system that may take a bit of time.
  *
- * Any private data added must also take care not to be freed and if private
+ * Any private data added must also take care yest to be freed and if private
  * data is added to a ftrace_ops that is in core code, the user of the
  * ftrace_ops must perform a schedule_on_each_cpu() before freeing it.
  */
@@ -237,7 +237,7 @@ extern void ftrace_stub(unsigned long a0, unsigned long a1,
 #else /* !CONFIG_FUNCTION_TRACER */
 /*
  * (un)register_ftrace_function must be a macro since the ops parameter
- * must not be evaluated.
+ * must yest be evaluated.
  */
 #define register_ftrace_function(ops) ({ 0; })
 #define unregister_ftrace_function(ops) ({ 0; })
@@ -247,7 +247,7 @@ static inline void ftrace_free_mem(struct module *mod, void *start, void *end) {
 #endif /* CONFIG_FUNCTION_TRACER */
 
 struct ftrace_func_entry {
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	unsigned long ip;
 	unsigned long direct; /* for direct lookup only */
 };
@@ -330,7 +330,7 @@ DECLARE_PER_CPU(int, disable_stack_tracer);
  * stack_tracer_disable - temporarily disable the stack tracer
  *
  * There's a few locations (namely in RCU) where stack tracing
- * cannot be executed. This function is used to disable stack
+ * canyest be executed. This function is used to disable stack
  * tracing during those critical sections.
  *
  * This function must be called with preemption or interrupts
@@ -403,7 +403,7 @@ bool is_ftrace_trampoline(unsigned long addr);
  *  REGS    - the record wants the function to save regs
  *  REGS_EN - the function is set up to save regs.
  *  IPMODIFY - the record allows for the IP address to be changed.
- *  DISABLED - the record is not ready to be touched yet
+ *  DISABLED - the record is yest ready to be touched yet
  *  DIRECT   - there is a direct function to call
  *
  * When a new ftrace_ops is registered and wants a function to save
@@ -443,10 +443,10 @@ int ftrace_set_filter_ip(struct ftrace_ops *ops, unsigned long ip,
 			 int remove, int reset);
 int ftrace_set_filter(struct ftrace_ops *ops, unsigned char *buf,
 		       int len, int reset);
-int ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
+int ftrace_set_yestrace(struct ftrace_ops *ops, unsigned char *buf,
 			int len, int reset);
 void ftrace_set_global_filter(unsigned char *buf, int len, int reset);
-void ftrace_set_global_notrace(unsigned char *buf, int len, int reset);
+void ftrace_set_global_yestrace(unsigned char *buf, int len, int reset);
 void ftrace_free_filter(struct ftrace_ops *ops);
 void ftrace_ops_set_global_filter(struct ftrace_ops *ops);
 
@@ -515,12 +515,12 @@ unsigned long ftrace_get_addr_curr(struct dyn_ftrace *rec);
 extern ftrace_func_t ftrace_trace_function;
 
 int ftrace_regex_open(struct ftrace_ops *ops, int flag,
-		  struct inode *inode, struct file *file);
+		  struct iyesde *iyesde, struct file *file);
 ssize_t ftrace_filter_write(struct file *file, const char __user *ubuf,
 			    size_t cnt, loff_t *ppos);
-ssize_t ftrace_notrace_write(struct file *file, const char __user *ubuf,
+ssize_t ftrace_yestrace_write(struct file *file, const char __user *ubuf,
 			     size_t cnt, loff_t *ppos);
-int ftrace_regex_release(struct inode *inode, struct file *file);
+int ftrace_regex_release(struct iyesde *iyesde, struct file *file);
 
 void __init
 ftrace_set_early_filter(struct ftrace_ops *ops, char *buf, int enable);
@@ -574,7 +574,7 @@ static inline int ftrace_disable_ftrace_graph_caller(void) { return 0; }
 #endif
 
 /**
- * ftrace_make_nop - convert code into nop
+ * ftrace_make_yesp - convert code into yesp
  * @mod: module structure if called by module load initialization
  * @rec: the call site record (e.g. mcount/fentry)
  * @addr: the address that the call site should be calling
@@ -594,12 +594,12 @@ static inline int ftrace_disable_ftrace_graph_caller(void) { return 0; }
  *  -EPERM  on error writing to the location
  * Any other value will be considered a failure.
  */
-extern int ftrace_make_nop(struct module *mod,
+extern int ftrace_make_yesp(struct module *mod,
 			   struct dyn_ftrace *rec, unsigned long addr);
 
 
 /**
- * ftrace_init_nop - initialize a nop call site
+ * ftrace_init_yesp - initialize a yesp call site
  * @mod: module structure if called by module load initialization
  * @rec: the call site record (e.g. mcount/fentry)
  *
@@ -619,15 +619,15 @@ extern int ftrace_make_nop(struct module *mod,
  *  -EPERM  on error writing to the location
  * Any other value will be considered a failure.
  */
-#ifndef ftrace_init_nop
-static inline int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
+#ifndef ftrace_init_yesp
+static inline int ftrace_init_yesp(struct module *mod, struct dyn_ftrace *rec)
 {
-	return ftrace_make_nop(mod, rec, MCOUNT_ADDR);
+	return ftrace_make_yesp(mod, rec, MCOUNT_ADDR);
 }
 #endif
 
 /**
- * ftrace_make_call - convert a nop call site into a call to addr
+ * ftrace_make_call - convert a yesp call site into a call to addr
  * @rec: the call site record (e.g. mcount/fentry)
  * @addr: the address that the call site should call
  *
@@ -637,7 +637,7 @@ static inline int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
  * what we expect it to be, and then on success of the compare,
  * it should write to the location.
  *
- * The code segment at @rec->ip should be a nop
+ * The code segment at @rec->ip should be a yesp
  *
  * Return must be:
  *  0 on success
@@ -650,7 +650,7 @@ extern int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr);
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 /**
- * ftrace_modify_call - convert from one addr to another (no nop)
+ * ftrace_modify_call - convert from one addr to ayesther (yes yesp)
  * @rec: the call site record (e.g. mcount/fentry)
  * @old_addr: the address expected to be currently called to
  * @addr: the address to change to
@@ -709,24 +709,24 @@ static inline unsigned long ftrace_location(unsigned long ip)
 }
 
 /*
- * Again users of functions that have ftrace_ops may not
- * have them defined when ftrace is not enabled, but these
+ * Again users of functions that have ftrace_ops may yest
+ * have them defined when ftrace is yest enabled, but these
  * functions may still be called. Use a macro instead of inline.
  */
-#define ftrace_regex_open(ops, flag, inod, file) ({ -ENODEV; })
+#define ftrace_regex_open(ops, flag, iyesd, file) ({ -ENODEV; })
 #define ftrace_set_early_filter(ops, buf, enable) do { } while (0)
 #define ftrace_set_filter_ip(ops, ip, remove, reset) ({ -ENODEV; })
 #define ftrace_set_filter(ops, buf, len, reset) ({ -ENODEV; })
-#define ftrace_set_notrace(ops, buf, len, reset) ({ -ENODEV; })
+#define ftrace_set_yestrace(ops, buf, len, reset) ({ -ENODEV; })
 #define ftrace_free_filter(ops) do { } while (0)
 #define ftrace_ops_set_global_filter(ops) do { } while (0)
 
 static inline ssize_t ftrace_filter_write(struct file *file, const char __user *ubuf,
 			    size_t cnt, loff_t *ppos) { return -ENODEV; }
-static inline ssize_t ftrace_notrace_write(struct file *file, const char __user *ubuf,
+static inline ssize_t ftrace_yestrace_write(struct file *file, const char __user *ubuf,
 			     size_t cnt, loff_t *ppos) { return -ENODEV; }
 static inline int
-ftrace_regex_release(struct inode *inode, struct file *file) { return -ENODEV; }
+ftrace_regex_release(struct iyesde *iyesde, struct file *file) { return -ENODEV; }
 
 static inline bool is_ftrace_trampoline(unsigned long addr)
 {
@@ -734,7 +734,7 @@ static inline bool is_ftrace_trampoline(unsigned long addr)
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
-/* totally disable ftrace - can not re-enable after this */
+/* totally disable ftrace - can yest re-enable after this */
 void ftrace_kill(void);
 
 static inline void tracer_disable(void)
@@ -807,7 +807,7 @@ static inline unsigned long get_lock_parent_ip(void)
 #else
 /*
  * Use defines instead of static inlines because some arches will make code out
- * of the CALLER_ADDR, when we really want these to be a real nop.
+ * of the CALLER_ADDR, when we really want these to be a real yesp.
  */
 # define trace_preempt_on(a0, a1) do { } while (0)
 # define trace_preempt_off(a0, a1) do { } while (0)
@@ -901,9 +901,9 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 /*
  * Sometimes we don't want to trace a function with the function
  * graph tracer but we want them to keep traced by the usual function
- * tracer if the function graph tracer is not configured.
+ * tracer if the function graph tracer is yest configured.
  */
-#define __notrace_funcgraph		notrace
+#define __yestrace_funcgraph		yestrace
 
 #define FTRACE_RETFUNC_DEPTH 50
 #define FTRACE_RETSTACK_ALLOC_SIZE 32
@@ -933,13 +933,13 @@ static inline void unpause_graph_tracing(void)
 }
 #else /* !CONFIG_FUNCTION_GRAPH_TRACER */
 
-#define __notrace_funcgraph
+#define __yestrace_funcgraph
 
 static inline void ftrace_graph_init_task(struct task_struct *t) { }
 static inline void ftrace_graph_exit_task(struct task_struct *t) { }
 static inline void ftrace_graph_init_idle_task(struct task_struct *t, int cpu) { }
 
-/* Define as macros as fgraph_ops may not be defined */
+/* Define as macros as fgraph_ops may yest be defined */
 #define register_ftrace_graph(ops) ({ -1; })
 #define unregister_ftrace_graph(ops) do { } while (0)
 

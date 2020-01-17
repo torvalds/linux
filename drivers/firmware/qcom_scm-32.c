@@ -7,7 +7,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/qcom_scm.h>
 #include <linux/dma-mapping.h>
@@ -152,7 +152,7 @@ static u32 smc(u32 cmd_addr)
  *
  * Sends a command to the SCM and waits for the command to finish processing.
  *
- * A note on cache maintenance:
+ * A yeste on cache maintenance:
  * Note that any buffers that are expected to be accessed by the secure world
  * must be flushed before invoking qcom_scm_call and invalidated in the cache
  * immediately after qcom_scm_call returns. Cache maintenance on the command

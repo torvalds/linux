@@ -14,7 +14,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
@@ -42,9 +42,9 @@
 #define IBM_454B_PRODUCT_ID		0x454b
 #define IBM_454C_PRODUCT_ID		0x454c
 #define TI_3410_EZ430_ID		0xF430  /* TI ez430 development tool */
-#define TI_5052_BOOT_PRODUCT_ID		0x5052	/* no EEPROM, no firmware */
-#define TI_5152_BOOT_PRODUCT_ID		0x5152	/* no EEPROM, no firmware */
-#define TI_5052_EEPROM_PRODUCT_ID	0x505A	/* EEPROM, no firmware */
+#define TI_5052_BOOT_PRODUCT_ID		0x5052	/* yes EEPROM, yes firmware */
+#define TI_5152_BOOT_PRODUCT_ID		0x5152	/* yes EEPROM, yes firmware */
+#define TI_5052_EEPROM_PRODUCT_ID	0x505A	/* EEPROM, yes firmware */
 #define TI_5052_FIRMWARE_PRODUCT_ID	0x505F	/* firmware is running */
 #define FRI2_PRODUCT_ID			0x5053  /* Fish River Island II */
 
@@ -670,7 +670,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_dbg(&port->dev, "%s - start interrupt in urb\n", __func__);
 		urb = tdev->td_serial->port[0]->interrupt_in_urb;
 		if (!urb) {
-			dev_err(&port->dev, "%s - no interrupt urb\n", __func__);
+			dev_err(&port->dev, "%s - yes interrupt urb\n", __func__);
 			status = -EINVAL;
 			goto release_lock;
 		}
@@ -688,7 +688,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	status = ti_command_out_sync(tdev, TI_OPEN_PORT,
 		(__u8)(TI_UART1_PORT + port_number), open_settings, NULL, 0);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot send open command, %d\n",
+		dev_err(&port->dev, "%s - canyest send open command, %d\n",
 			__func__, status);
 		goto unlink_int_urb;
 	}
@@ -696,7 +696,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	status = ti_command_out_sync(tdev, TI_START_PORT,
 		(__u8)(TI_UART1_PORT + port_number), 0, NULL, 0);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot send start command, %d\n",
+		dev_err(&port->dev, "%s - canyest send start command, %d\n",
 							__func__, status);
 		goto unlink_int_urb;
 	}
@@ -704,14 +704,14 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	status = ti_command_out_sync(tdev, TI_PURGE_PORT,
 		(__u8)(TI_UART1_PORT + port_number), TI_PURGE_INPUT, NULL, 0);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot clear input buffers, %d\n",
+		dev_err(&port->dev, "%s - canyest clear input buffers, %d\n",
 							__func__, status);
 		goto unlink_int_urb;
 	}
 	status = ti_command_out_sync(tdev, TI_PURGE_PORT,
 		(__u8)(TI_UART1_PORT + port_number), TI_PURGE_OUTPUT, NULL, 0);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot clear output buffers, %d\n",
+		dev_err(&port->dev, "%s - canyest clear output buffers, %d\n",
 							__func__, status);
 		goto unlink_int_urb;
 	}
@@ -727,7 +727,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	status = ti_command_out_sync(tdev, TI_OPEN_PORT,
 		(__u8)(TI_UART1_PORT + port_number), open_settings, NULL, 0);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot send open command (2), %d\n",
+		dev_err(&port->dev, "%s - canyest send open command (2), %d\n",
 							__func__, status);
 		goto unlink_int_urb;
 	}
@@ -735,7 +735,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	status = ti_command_out_sync(tdev, TI_START_PORT,
 		(__u8)(TI_UART1_PORT + port_number), 0, NULL, 0);
 	if (status) {
-		dev_err(&port->dev, "%s - cannot send start command (2), %d\n",
+		dev_err(&port->dev, "%s - canyest send start command (2), %d\n",
 							__func__, status);
 		goto unlink_int_urb;
 	}
@@ -743,7 +743,7 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* start read urb */
 	urb = port->read_urb;
 	if (!urb) {
-		dev_err(&port->dev, "%s - no read urb\n", __func__);
+		dev_err(&port->dev, "%s - yes read urb\n", __func__);
 		status = -EINVAL;
 		goto unlink_int_urb;
 	}
@@ -796,7 +796,7 @@ static void ti_close(struct usb_serial_port *port)
 		     (__u8)(TI_UART1_PORT + port_number), 0, NULL, 0);
 	if (status)
 		dev_err(&port->dev,
-			"%s - cannot send close port command, %d\n"
+			"%s - canyest send close port command, %d\n"
 							, __func__, status);
 
 	mutex_lock(&tdev->td_open_close_lock);
@@ -893,7 +893,7 @@ static void ti_unthrottle(struct tty_struct *tty)
 	if (I_IXOFF(tty) || C_CRTSCTS(tty)) {
 		status = ti_restart_read(tport, tty);
 		if (status)
-			dev_err(&port->dev, "%s - cannot restart read, %d\n",
+			dev_err(&port->dev, "%s - canyest restart read, %d\n",
 							__func__, status);
 	}
 }
@@ -1003,7 +1003,7 @@ static void ti_set_termios(struct tty_struct *tty,
 		(__u8)(TI_UART1_PORT + port_number), 0, (__u8 *)config,
 		sizeof(*config));
 	if (status)
-		dev_err(&port->dev, "%s - cannot set config on port %d, %d\n",
+		dev_err(&port->dev, "%s - canyest set config on port %d, %d\n",
 					__func__, port_number, status);
 
 	/* SET_CONFIG asserts RTS and DTR, reset them correctly */
@@ -1014,7 +1014,7 @@ static void ti_set_termios(struct tty_struct *tty,
 	status = ti_set_mcr(tport, mcr);
 	if (status)
 		dev_err(&port->dev,
-			"%s - cannot set modem control on port %d, %d\n",
+			"%s - canyest set modem control on port %d, %d\n",
 						__func__, port_number, status);
 
 	kfree(config);
@@ -1129,7 +1129,7 @@ static void ti_interrupt_callback(struct urb *urb)
 		dev_dbg(dev, "%s - urb shutting down, %d\n", __func__, status);
 		return;
 	default:
-		dev_err(dev, "%s - nonzero urb status, %d\n", __func__, status);
+		dev_err(dev, "%s - yesnzero urb status, %d\n", __func__, status);
 		goto exit;
 	}
 
@@ -1174,7 +1174,7 @@ static void ti_interrupt_callback(struct urb *urb)
 		break;
 
 	default:
-		dev_err(dev, "%s - unknown interrupt code, 0x%02X\n",
+		dev_err(dev, "%s - unkyeswn interrupt code, 0x%02X\n",
 							__func__, data[1]);
 		break;
 	}
@@ -1205,7 +1205,7 @@ static void ti_bulk_in_callback(struct urb *urb)
 		dev_dbg(dev, "%s - urb shutting down, %d\n", __func__, status);
 		return;
 	default:
-		dev_err(dev, "%s - nonzero urb status, %d\n",
+		dev_err(dev, "%s - yesnzero urb status, %d\n",
 			__func__, status);
 	}
 
@@ -1263,7 +1263,7 @@ static void ti_bulk_out_callback(struct urb *urb)
 		dev_dbg(&port->dev, "%s - urb shutting down, %d\n", __func__, status);
 		return;
 	default:
-		dev_err_console(port, "%s - nonzero urb status, %d\n",
+		dev_err_console(port, "%s - yesnzero urb status, %d\n",
 			__func__, status);
 	}
 
@@ -1407,7 +1407,7 @@ static int ti_get_serial_info(struct tty_struct *tty,
 		cwait = jiffies_to_msecs(cwait) / 10;
 
 	ss->type = PORT_16550A;
-	ss->line = port->minor;
+	ss->line = port->miyesr;
 	ss->port = port->port_number;
 	ss->xmit_fifo_size = kfifo_size(&port->write_fifo);
 	ss->baud_base = tport->tp_tdev->td_is_3410 ? 921600 : 460800;
@@ -1664,7 +1664,7 @@ static int ti_download_firmware(struct ti_device *tdev)
 
 check_firmware:
 	if (status) {
-		dev_err(&dev->dev, "%s - firmware not found\n", __func__);
+		dev_err(&dev->dev, "%s - firmware yest found\n", __func__);
 		return -ENOENT;
 	}
 	if (fw_p->size > TI_FIRMWARE_BUF_SIZE) {

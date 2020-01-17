@@ -42,7 +42,7 @@ static phys_addr_t efi_to_phys(unsigned long addr)
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
 		if (md->virt_addr == 0)
-			/* no virtual mapping has been installed by the stub */
+			/* yes virtual mapping has been installed by the stub */
 			break;
 		if (md->virt_addr <= addr &&
 		    (addr - md->virt_addr) < (md->num_pages << EFI_PAGE_SHIFT))
@@ -65,20 +65,20 @@ static void __init init_screen_info(void)
 	if (screen_info_table != EFI_INVALID_TABLE_ADDR) {
 		si = early_memremap_ro(screen_info_table, sizeof(*si));
 		if (!si) {
-			pr_err("Could not map screen_info config table\n");
+			pr_err("Could yest map screen_info config table\n");
 			return;
 		}
 		screen_info = *si;
 		early_memunmap(si, sizeof(*si));
 
-		/* dummycon on ARM needs non-zero values for columns/lines */
+		/* dummycon on ARM needs yesn-zero values for columns/lines */
 		screen_info.orig_video_cols = 80;
 		screen_info.orig_video_lines = 25;
 	}
 
 	if (screen_info.orig_video_isVGA == VIDEO_TYPE_EFI &&
 	    memblock_is_map_memory(screen_info.lfb_base))
-		memblock_mark_nomap(screen_info.lfb_base, screen_info.lfb_size);
+		memblock_mark_yesmap(screen_info.lfb_base, screen_info.lfb_size);
 }
 
 static int __init uefi_init(void)
@@ -86,7 +86,7 @@ static int __init uefi_init(void)
 	efi_char16_t *c16;
 	void *config_tables;
 	size_t table_size;
-	char vendor[100] = "unknown";
+	char vendor[100] = "unkyeswn";
 	int i, retval;
 
 	efi.systab = early_memremap_ro(efi_system_table,
@@ -115,7 +115,7 @@ static int __init uefi_init(void)
 
 	efi.runtime_version = efi.systab->hdr.revision;
 
-	/* Show what we know for posterity */
+	/* Show what we kyesw for posterity */
 	c16 = early_memremap_ro(efi_to_phys(efi.systab->fw_vendor),
 				sizeof(vendor) * sizeof(efi_char16_t));
 	if (c16) {
@@ -173,7 +173,7 @@ static __init int is_usable_memory(efi_memory_desc_t *md)
 			return false;
 
 		/*
-		 * According to the spec, these regions are no longer reserved
+		 * According to the spec, these regions are yes longer reserved
 		 * after calling ExitBootServices(). However, we can only use
 		 * them as System RAM if they can be mapped writeback cacheable.
 		 */
@@ -194,7 +194,7 @@ static __init void reserve_regions(void)
 
 	/*
 	 * Discard memblocks discovered so far: if there are any at this
-	 * point, they originate from memory nodes in the DT, and UEFI
+	 * point, they originate from memory yesdes in the DT, and UEFI
 	 * uses its own memory map instead.
 	 */
 	memblock_dump_all();
@@ -219,7 +219,7 @@ static __init void reserve_regions(void)
 			early_init_dt_add_memory_arch(paddr, size);
 
 			if (!is_usable_memory(md))
-				memblock_mark_nomap(paddr, size);
+				memblock_mark_yesmap(paddr, size);
 
 			/* keep ACPI reclaim memory intact for kexec etc. */
 			if (md->type == EFI_ACPI_RECLAIM_MEMORY)
@@ -248,7 +248,7 @@ void __init efi_init(void)
 		/*
 		* If we are booting via UEFI, the UEFI memory map is the only
 		* description of memory we have, so there is little point in
-		* proceeding if we cannot access it.
+		* proceeding if we canyest access it.
 		*/
 		panic("Unable to map EFI memory map.\n");
 	}
@@ -271,7 +271,7 @@ void __init efi_init(void)
 
 	init_screen_info();
 
-	/* ARM does not permit early mappings to persist across paging_init() */
+	/* ARM does yest permit early mappings to persist across paging_init() */
 	if (IS_ENABLED(CONFIG_ARM))
 		efi_memmap_unmap();
 }

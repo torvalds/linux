@@ -3,7 +3,7 @@
 // sy8106a-regulator.c - Regulator device driver for SY8106A
 //
 // Copyright (C) 2016 Ondřej Jirman <megous@megous.com>
-// Copyright (c) 2017-2018 Icenowy Zheng <icenowy@aosc.io>
+// Copyright (c) 2017-2018 Iceyeswy Zheng <iceyeswy@aosc.io>
 
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -32,7 +32,7 @@ static const struct regulator_ops sy8106a_ops = {
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_linear,
-	/* Enabling/disabling the regulator is not yet implemented */
+	/* Enabling/disabling the regulator is yest yet implemented */
 };
 
 /* Default limits measured in millivolts */
@@ -72,7 +72,7 @@ static int sy8106a_i2c_probe(struct i2c_client *i2c,
 	u32 fixed_voltage;
 	int error;
 
-	error = of_property_read_u32(dev->of_node, "silergy,fixed-microvolt",
+	error = of_property_read_u32(dev->of_yesde, "silergy,fixed-microvolt",
 				     &fixed_voltage);
 	if (error)
 		return error;
@@ -91,8 +91,8 @@ static int sy8106a_i2c_probe(struct i2c_client *i2c,
 	config.dev = &i2c->dev;
 	config.regmap = regmap;
 
-	config.of_node = dev->of_node;
-	config.init_data = of_get_regulator_init_data(dev, dev->of_node,
+	config.of_yesde = dev->of_yesde;
+	config.init_data = of_get_regulator_init_data(dev, dev->of_yesde,
 						      &sy8106a_reg);
 
 	if (!config.init_data)
@@ -148,6 +148,6 @@ static struct i2c_driver sy8106a_regulator_driver = {
 module_i2c_driver(sy8106a_regulator_driver);
 
 MODULE_AUTHOR("Ondřej Jirman <megous@megous.com>");
-MODULE_AUTHOR("Icenowy Zheng <icenowy@aosc.io>");
+MODULE_AUTHOR("Iceyeswy Zheng <iceyeswy@aosc.io>");
 MODULE_DESCRIPTION("Regulator device driver for Silergy SY8106A");
 MODULE_LICENSE("GPL");

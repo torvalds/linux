@@ -41,7 +41,7 @@ properties:
       ltdc has one video port with up to 2 endpoints:
       - for external dpi rgb panel or bridge, using gpios.
       - for internal dpi input of the MIPI DSI host controller.
-      Note: These 2 endpoints cannot be activated simultaneously.
+      Note: These 2 endpoints canyest be activated simultaneously.
       Please refer to the bindings defined in
       Documentation/devicetree/bindings/media/video-interfaces.txt."
 

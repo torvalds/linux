@@ -10,9 +10,9 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
+#include "xfs_iyesde_item.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
 #include "xfs_dir2.h"
@@ -34,7 +34,7 @@ static const struct vm_operations_struct xfs_file_vm_ops;
 
 int
 xfs_update_prealloc_flags(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	enum xfs_prealloc_flags	flags)
 {
 	struct xfs_trans	*tp;
@@ -60,7 +60,7 @@ xfs_update_prealloc_flags(
 	if (flags & XFS_PREALLOC_CLEAR)
 		ip->i_d.di_flags &= ~XFS_DIFLAG_PREALLOC;
 
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_iyesde(tp, ip, XFS_ILOG_CORE);
 	if (flags & XFS_PREALLOC_SYNC)
 		xfs_trans_set_sync(tp);
 	return xfs_trans_commit(tp);
@@ -68,8 +68,8 @@ xfs_update_prealloc_flags(
 
 /*
  * Fsync operations on directories are much simpler than on regular files,
- * as there is no file data to flush, and thus also no need for explicit
- * cache flush operations, and there are no non-transaction metadata updates
+ * as there is yes file data to flush, and thus also yes need for explicit
+ * cache flush operations, and there are yes yesn-transaction metadata updates
  * on directories either.
  */
 STATIC int
@@ -79,7 +79,7 @@ xfs_dir_fsync(
 	loff_t			end,
 	int			datasync)
 {
-	struct xfs_inode	*ip = XFS_I(file->f_mapping->host);
+	struct xfs_iyesde	*ip = XFS_I(file->f_mapping->host);
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_lsn_t		lsn = 0;
 
@@ -102,8 +102,8 @@ xfs_file_fsync(
 	loff_t			end,
 	int			datasync)
 {
-	struct inode		*inode = file->f_mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct iyesde		*iyesde = file->f_mapping->host;
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	struct xfs_mount	*mp = ip->i_mount;
 	int			error = 0;
 	int			log_flushed = 0;
@@ -124,7 +124,7 @@ xfs_file_fsync(
 	 * If we have an RT and/or log subvolume we need to make sure to flush
 	 * the write cache the device used for file data first.  This is to
 	 * ensure newly written file data make it to disk before logging the new
-	 * inode size in case of an extending write.
+	 * iyesde size in case of an extending write.
 	 */
 	if (XFS_IS_REALTIME_INODE(ip))
 		xfs_blkdev_issue_flush(mp->m_rtdev_targp);
@@ -133,13 +133,13 @@ xfs_file_fsync(
 
 	/*
 	 * All metadata updates are logged, which means that we just have to
-	 * flush the log up to the latest LSN that touched the inode. If we have
+	 * flush the log up to the latest LSN that touched the iyesde. If we have
 	 * concurrent fsync/fdatasync() calls, we need them to all block on the
 	 * log force before we clear the ili_fsync_fields field. This ensures
-	 * that we don't get a racing sync operation that does not wait for the
+	 * that we don't get a racing sync operation that does yest wait for the
 	 * metadata to hit the journal before returning. If we race with
 	 * clearing the ili_fsync_fields, then all that will happen is the log
-	 * force will do nothing as the lsn will already be on disk. We can't
+	 * force will do yesthing as the lsn will already be on disk. We can't
 	 * race with setting ili_fsync_fields because that is done under
 	 * XFS_ILOCK_EXCL, and that can't happen because we hold the lock shared
 	 * until after the ili_fsync_fields is cleared.
@@ -159,9 +159,9 @@ xfs_file_fsync(
 
 	/*
 	 * If we only have a single device, and the log force about was
-	 * a no-op we might have to flush the data device cache here.
+	 * a yes-op we might have to flush the data device cache here.
 	 * This can only happen for fdatasync/O_DSYNC if we were overwriting
-	 * an already allocated file and thus do not have any metadata to
+	 * an already allocated file and thus do yest have any metadata to
 	 * commit.
 	 */
 	if (!log_flushed && !XFS_IS_REALTIME_INODE(ip) &&
@@ -176,7 +176,7 @@ xfs_file_dio_aio_read(
 	struct kiocb		*iocb,
 	struct iov_iter		*to)
 {
-	struct xfs_inode	*ip = XFS_I(file_inode(iocb->ki_filp));
+	struct xfs_iyesde	*ip = XFS_I(file_iyesde(iocb->ki_filp));
 	size_t			count = iov_iter_count(to);
 	ssize_t			ret;
 
@@ -195,12 +195,12 @@ xfs_file_dio_aio_read(
 	return ret;
 }
 
-static noinline ssize_t
+static yesinline ssize_t
 xfs_file_dax_read(
 	struct kiocb		*iocb,
 	struct iov_iter		*to)
 {
-	struct xfs_inode	*ip = XFS_I(iocb->ki_filp->f_mapping->host);
+	struct xfs_iyesde	*ip = XFS_I(iocb->ki_filp->f_mapping->host);
 	size_t			count = iov_iter_count(to);
 	ssize_t			ret = 0;
 
@@ -210,7 +210,7 @@ xfs_file_dax_read(
 		return 0; /* skip atime */
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED))
+		if (!xfs_ilock_yeswait(ip, XFS_IOLOCK_SHARED))
 			return -EAGAIN;
 	} else {
 		xfs_ilock(ip, XFS_IOLOCK_SHARED);
@@ -228,13 +228,13 @@ xfs_file_buffered_aio_read(
 	struct kiocb		*iocb,
 	struct iov_iter		*to)
 {
-	struct xfs_inode	*ip = XFS_I(file_inode(iocb->ki_filp));
+	struct xfs_iyesde	*ip = XFS_I(file_iyesde(iocb->ki_filp));
 	ssize_t			ret;
 
 	trace_xfs_file_buffered_read(ip, iov_iter_count(to), iocb->ki_pos);
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!xfs_ilock_nowait(ip, XFS_IOLOCK_SHARED))
+		if (!xfs_ilock_yeswait(ip, XFS_IOLOCK_SHARED))
 			return -EAGAIN;
 	} else {
 		xfs_ilock(ip, XFS_IOLOCK_SHARED);
@@ -250,8 +250,8 @@ xfs_file_read_iter(
 	struct kiocb		*iocb,
 	struct iov_iter		*to)
 {
-	struct inode		*inode = file_inode(iocb->ki_filp);
-	struct xfs_mount	*mp = XFS_I(inode)->i_mount;
+	struct iyesde		*iyesde = file_iyesde(iocb->ki_filp);
+	struct xfs_mount	*mp = XFS_I(iyesde)->i_mount;
 	ssize_t			ret = 0;
 
 	XFS_STATS_INC(mp, xs_read_calls);
@@ -259,7 +259,7 @@ xfs_file_read_iter(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	if (IS_DAX(inode))
+	if (IS_DAX(iyesde))
 		ret = xfs_file_dax_read(iocb, to);
 	else if (iocb->ki_flags & IOCB_DIRECT)
 		ret = xfs_file_dio_aio_read(iocb, to);
@@ -285,8 +285,8 @@ xfs_file_aio_write_checks(
 	int			*iolock)
 {
 	struct file		*file = iocb->ki_filp;
-	struct inode		*inode = file->f_mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct iyesde		*iyesde = file->f_mapping->host;
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	ssize_t			error = 0;
 	size_t			count = iov_iter_count(from);
 	bool			drained_dio = false;
@@ -297,7 +297,7 @@ restart:
 	if (error <= 0)
 		return error;
 
-	error = xfs_break_layouts(inode, iolock, BREAK_WRITE);
+	error = xfs_break_layouts(iyesde, iolock, BREAK_WRITE);
 	if (error)
 		return error;
 
@@ -305,7 +305,7 @@ restart:
 	 * For changing security info in file_remove_privs() we need i_rwsem
 	 * exclusively.
 	 */
-	if (*iolock == XFS_IOLOCK_SHARED && !IS_NOSEC(inode)) {
+	if (*iolock == XFS_IOLOCK_SHARED && !IS_NOSEC(iyesde)) {
 		xfs_iunlock(ip, *iolock);
 		*iolock = XFS_IOLOCK_EXCL;
 		xfs_ilock(ip, *iolock);
@@ -319,7 +319,7 @@ restart:
 	 * having to redo all checks before.
 	 *
 	 * We need to serialise against EOF updates that occur in IO
-	 * completions here. We want to make sure that nobody is changing the
+	 * completions here. We want to make sure that yesbody is changing the
 	 * size while we do this check until we have placed an IO barrier (i.e.
 	 * hold the XFS_IOLOCK_EXCL) that prevents new IO from being dispatched.
 	 * The spinlock effectively forms a memory barrier once we have the
@@ -327,7 +327,7 @@ restart:
 	 * and hence be able to correctly determine if we need to run zeroing.
 	 */
 	spin_lock(&ip->i_flags_lock);
-	isize = i_size_read(inode);
+	isize = i_size_read(iyesde);
 	if (iocb->ki_pos > isize) {
 		spin_unlock(&ip->i_flags_lock);
 		if (!drained_dio) {
@@ -338,20 +338,20 @@ restart:
 				iov_iter_reexpand(from, count);
 			}
 			/*
-			 * We now have an IO submission barrier in place, but
+			 * We yesw have an IO submission barrier in place, but
 			 * AIO can do EOF updates during IO completion and hence
-			 * we now need to wait for all of them to drain. Non-AIO
+			 * we yesw need to wait for all of them to drain. Non-AIO
 			 * DIO will have drained before we are given the
 			 * XFS_IOLOCK_EXCL, and so for most cases this wait is a
-			 * no-op.
+			 * yes-op.
 			 */
-			inode_dio_wait(inode);
+			iyesde_dio_wait(iyesde);
 			drained_dio = true;
 			goto restart;
 		}
 	
 		trace_xfs_zero_eof(ip, isize, iocb->ki_pos - isize);
-		error = iomap_zero_range(inode, isize, iocb->ki_pos - isize,
+		error = iomap_zero_range(iyesde, isize, iocb->ki_pos - isize,
 				NULL, &xfs_buffered_write_iomap_ops);
 		if (error)
 			return error;
@@ -360,7 +360,7 @@ restart:
 
 	/*
 	 * Updating the timestamps will grab the ilock again from
-	 * xfs_fs_dirty_inode, so we have to call it after dropping the
+	 * xfs_fs_dirty_iyesde, so we have to call it after dropping the
 	 * lock above.  Eventually we should look into a way to avoid
 	 * the pointless lock roundtrip.
 	 */
@@ -374,10 +374,10 @@ xfs_dio_write_end_io(
 	int			error,
 	unsigned		flags)
 {
-	struct inode		*inode = file_inode(iocb->ki_filp);
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct iyesde		*iyesde = file_iyesde(iocb->ki_filp);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	loff_t			offset = iocb->ki_pos;
-	unsigned int		nofs_flag;
+	unsigned int		yesfs_flag;
 
 	trace_xfs_end_io_direct_write(ip, offset, size);
 
@@ -398,9 +398,9 @@ xfs_dio_write_end_io(
 	/*
 	 * We can allocate memory here while doing writeback on behalf of
 	 * memory reclaim.  To avoid memory allocation deadlocks set the
-	 * task-wide nofs context for the following operations.
+	 * task-wide yesfs context for the following operations.
 	 */
-	nofs_flag = memalloc_nofs_save();
+	yesfs_flag = memalloc_yesfs_save();
 
 	if (flags & IOMAP_DIO_COW) {
 		error = xfs_reflink_end_cow(ip, offset, size);
@@ -420,9 +420,9 @@ xfs_dio_write_end_io(
 	}
 
 	/*
-	 * We need to update the in-core inode size here so that we don't end up
-	 * with the on-disk inode size being outside the in-core inode size. We
-	 * have no other method of updating EOF for AIO, so always do it here
+	 * We need to update the in-core iyesde size here so that we don't end up
+	 * with the on-disk iyesde size being outside the in-core iyesde size. We
+	 * have yes other method of updating EOF for AIO, so always do it here
 	 * if necessary.
 	 *
 	 * We need to lock the test/set EOF update as we can be racing with
@@ -431,8 +431,8 @@ xfs_dio_write_end_io(
 	 * that occurs.
 	 */
 	spin_lock(&ip->i_flags_lock);
-	if (offset + size > i_size_read(inode)) {
-		i_size_write(inode, offset + size);
+	if (offset + size > i_size_read(iyesde)) {
+		i_size_write(iyesde, offset + size);
 		spin_unlock(&ip->i_flags_lock);
 		error = xfs_setfilesize(ip, offset, size);
 	} else {
@@ -440,7 +440,7 @@ xfs_dio_write_end_io(
 	}
 
 out:
-	memalloc_nofs_restore(nofs_flag);
+	memalloc_yesfs_restore(yesfs_flag);
 	return error;
 }
 
@@ -451,7 +451,7 @@ static const struct iomap_dio_ops xfs_dio_write_ops = {
 /*
  * xfs_file_dio_aio_write - handle direct IO writes
  *
- * Lock the inode appropriately to prepare for and issue a direct IO write.
+ * Lock the iyesde appropriately to prepare for and issue a direct IO write.
  * By separating it from the buffered write path we remove all the tricky to
  * follow locking changes and looping.
  *
@@ -461,14 +461,14 @@ static const struct iomap_dio_ops xfs_dio_write_ops = {
  *
  * In most cases the direct IO writes will be done holding IOLOCK_SHARED
  * allowing them to be done in parallel with reads and other direct IO writes.
- * However, if the IO is not aligned to filesystem blocks, the direct IO layer
+ * However, if the IO is yest aligned to filesystem blocks, the direct IO layer
  * needs to do sub-block zeroing and that requires serialisation against other
  * direct IOs to the same block. In this case we need to serialise the
  * submission of the unaligned IOs so that we don't get racing block zeroing in
  * the dio layer.  To avoid the problem with aio, we also need to wait for
  * outstanding IOs to complete so that unwritten extent conversion is completed
  * before we try to map the overlapping block. This is currently implemented by
- * hitting it with a big hammer (i.e. inode_dio_wait()).
+ * hitting it with a big hammer (i.e. iyesde_dio_wait()).
  *
  * Returns with locks held indicated by @iolock and errors indicated by
  * negative return values.
@@ -480,14 +480,14 @@ xfs_file_dio_aio_write(
 {
 	struct file		*file = iocb->ki_filp;
 	struct address_space	*mapping = file->f_mapping;
-	struct inode		*inode = mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct iyesde		*iyesde = mapping->host;
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	struct xfs_mount	*mp = ip->i_mount;
 	ssize_t			ret = 0;
 	int			unaligned_io = 0;
 	int			iolock;
 	size_t			count = iov_iter_count(from);
-	struct xfs_buftarg      *target = xfs_inode_buftarg(ip);
+	struct xfs_buftarg      *target = xfs_iyesde_buftarg(ip);
 
 	/* DIO must be aligned to device logical sector size */
 	if ((iocb->ki_pos | count) & target->bt_logical_sectormask)
@@ -497,8 +497,8 @@ xfs_file_dio_aio_write(
 	 * Don't take the exclusive iolock here unless the I/O is unaligned to
 	 * the file system block size.  We don't need to consider the EOF
 	 * extension case here because xfs_file_aio_write_checks() will relock
-	 * the inode as necessary for EOF zeroing cases and fill out the new
-	 * inode size as appropriate.
+	 * the iyesde as necessary for EOF zeroing cases and fill out the new
+	 * iyesde size as appropriate.
 	 */
 	if ((iocb->ki_pos & mp->m_blockmask) ||
 	    ((iocb->ki_pos + count) & mp->m_blockmask)) {
@@ -508,7 +508,7 @@ xfs_file_dio_aio_write(
 		 * We can't properly handle unaligned direct I/O to reflink
 		 * files yet, as we can't unshare a partial block.
 		 */
-		if (xfs_is_cow_inode(ip)) {
+		if (xfs_is_cow_iyesde(ip)) {
 			trace_xfs_reflink_bounce_dio_write(ip, iocb->ki_pos, count);
 			return -EREMCHG;
 		}
@@ -521,7 +521,7 @@ xfs_file_dio_aio_write(
 		/* unaligned dio always waits, bail */
 		if (unaligned_io)
 			return -EAGAIN;
-		if (!xfs_ilock_nowait(ip, iolock))
+		if (!xfs_ilock_yeswait(ip, iolock))
 			return -EAGAIN;
 	} else {
 		xfs_ilock(ip, iolock);
@@ -540,7 +540,7 @@ xfs_file_dio_aio_write(
 	 * xfs_file_aio_write_checks() for other reasons.
 	 */
 	if (unaligned_io) {
-		inode_dio_wait(inode);
+		iyesde_dio_wait(iyesde);
 	} else if (iolock == XFS_IOLOCK_EXCL) {
 		xfs_ilock_demote(ip, XFS_IOLOCK_EXCL);
 		iolock = XFS_IOLOCK_SHARED;
@@ -565,20 +565,20 @@ out:
 	return ret;
 }
 
-static noinline ssize_t
+static yesinline ssize_t
 xfs_file_dax_write(
 	struct kiocb		*iocb,
 	struct iov_iter		*from)
 {
-	struct inode		*inode = iocb->ki_filp->f_mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct iyesde		*iyesde = iocb->ki_filp->f_mapping->host;
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	int			iolock = XFS_IOLOCK_EXCL;
 	ssize_t			ret, error = 0;
 	size_t			count;
 	loff_t			pos;
 
 	if (iocb->ki_flags & IOCB_NOWAIT) {
-		if (!xfs_ilock_nowait(ip, iolock))
+		if (!xfs_ilock_yeswait(ip, iolock))
 			return -EAGAIN;
 	} else {
 		xfs_ilock(ip, iolock);
@@ -593,8 +593,8 @@ xfs_file_dax_write(
 
 	trace_xfs_file_dax_write(ip, count, pos);
 	ret = dax_iomap_rw(iocb, from, &xfs_direct_write_iomap_ops);
-	if (ret > 0 && iocb->ki_pos > i_size_read(inode)) {
-		i_size_write(inode, iocb->ki_pos);
+	if (ret > 0 && iocb->ki_pos > i_size_read(iyesde)) {
+		i_size_write(iyesde, iocb->ki_pos);
 		error = xfs_setfilesize(ip, pos, ret);
 	}
 out:
@@ -618,10 +618,10 @@ xfs_file_buffered_aio_write(
 {
 	struct file		*file = iocb->ki_filp;
 	struct address_space	*mapping = file->f_mapping;
-	struct inode		*inode = mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct iyesde		*iyesde = mapping->host;
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	ssize_t			ret;
-	int			enospc = 0;
+	int			eyesspc = 0;
 	int			iolock;
 
 	if (iocb->ki_flags & IOCB_NOWAIT)
@@ -636,7 +636,7 @@ write_retry:
 		goto out;
 
 	/* We can write back this queue in page reclaim */
-	current->backing_dev_info = inode_to_bdi(inode);
+	current->backing_dev_info = iyesde_to_bdi(iyesde);
 
 	trace_xfs_file_buffered_write(ip, iov_iter_count(from), iocb->ki_pos);
 	ret = iomap_file_buffered_write(iocb, from,
@@ -647,26 +647,26 @@ write_retry:
 	/*
 	 * If we hit a space limit, try to free up some lingering preallocated
 	 * space before returning an error. In the case of ENOSPC, first try to
-	 * write back all dirty inodes to free up some of the excess reserved
+	 * write back all dirty iyesdes to free up some of the excess reserved
 	 * metadata space. This reduces the chances that the eofblocks scan
-	 * waits on dirty mappings. Since xfs_flush_inodes() is serialized, this
+	 * waits on dirty mappings. Since xfs_flush_iyesdes() is serialized, this
 	 * also behaves as a filter to prevent too many eofblocks scans from
 	 * running at the same time.
 	 */
-	if (ret == -EDQUOT && !enospc) {
+	if (ret == -EDQUOT && !eyesspc) {
 		xfs_iunlock(ip, iolock);
-		enospc = xfs_inode_free_quota_eofblocks(ip);
-		if (enospc)
+		eyesspc = xfs_iyesde_free_quota_eofblocks(ip);
+		if (eyesspc)
 			goto write_retry;
-		enospc = xfs_inode_free_quota_cowblocks(ip);
-		if (enospc)
+		eyesspc = xfs_iyesde_free_quota_cowblocks(ip);
+		if (eyesspc)
 			goto write_retry;
 		iolock = 0;
-	} else if (ret == -ENOSPC && !enospc) {
+	} else if (ret == -ENOSPC && !eyesspc) {
 		struct xfs_eofblocks eofb = {0};
 
-		enospc = 1;
-		xfs_flush_inodes(ip->i_mount);
+		eyesspc = 1;
+		xfs_flush_iyesdes(ip->i_mount);
 
 		xfs_iunlock(ip, iolock);
 		eofb.eof_flags = XFS_EOF_FLAGS_SYNC;
@@ -695,8 +695,8 @@ xfs_file_write_iter(
 {
 	struct file		*file = iocb->ki_filp;
 	struct address_space	*mapping = file->f_mapping;
-	struct inode		*inode = mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct iyesde		*iyesde = mapping->host;
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	ssize_t			ret;
 	size_t			ocount = iov_iter_count(from);
 
@@ -708,14 +708,14 @@ xfs_file_write_iter(
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return -EIO;
 
-	if (IS_DAX(inode))
+	if (IS_DAX(iyesde))
 		return xfs_file_dax_write(iocb, from);
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		/*
 		 * Allow a directio write to fall back to a buffered
 		 * write *only* in the case that we're doing a reflink
-		 * CoW.  In all other directio scenarios we do not
+		 * CoW.  In all other directio scenarios we do yest
 		 * allow an operation to fall back to buffered mode.
 		 */
 		ret = xfs_file_dio_aio_write(iocb, from);
@@ -728,9 +728,9 @@ xfs_file_write_iter(
 
 static void
 xfs_wait_dax_page(
-	struct inode		*inode)
+	struct iyesde		*iyesde)
 {
-	struct xfs_inode        *ip = XFS_I(inode);
+	struct xfs_iyesde        *ip = XFS_I(iyesde);
 
 	xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	schedule();
@@ -739,44 +739,44 @@ xfs_wait_dax_page(
 
 static int
 xfs_break_dax_layouts(
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	bool			*retry)
 {
 	struct page		*page;
 
-	ASSERT(xfs_isilocked(XFS_I(inode), XFS_MMAPLOCK_EXCL));
+	ASSERT(xfs_isilocked(XFS_I(iyesde), XFS_MMAPLOCK_EXCL));
 
-	page = dax_layout_busy_page(inode->i_mapping);
+	page = dax_layout_busy_page(iyesde->i_mapping);
 	if (!page)
 		return 0;
 
 	*retry = true;
 	return ___wait_var_event(&page->_refcount,
 			atomic_read(&page->_refcount) == 1, TASK_INTERRUPTIBLE,
-			0, 0, xfs_wait_dax_page(inode));
+			0, 0, xfs_wait_dax_page(iyesde));
 }
 
 int
 xfs_break_layouts(
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	uint			*iolock,
 	enum layout_break_reason reason)
 {
 	bool			retry;
 	int			error;
 
-	ASSERT(xfs_isilocked(XFS_I(inode), XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL));
+	ASSERT(xfs_isilocked(XFS_I(iyesde), XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL));
 
 	do {
 		retry = false;
 		switch (reason) {
 		case BREAK_UNMAP:
-			error = xfs_break_dax_layouts(inode, &retry);
+			error = xfs_break_dax_layouts(iyesde, &retry);
 			if (error || retry)
 				break;
 			/* fall through */
 		case BREAK_WRITE:
-			error = xfs_break_leased_layouts(inode, iolock, &retry);
+			error = xfs_break_leased_layouts(iyesde, iolock, &retry);
 			break;
 		default:
 			WARN_ON_ONCE(1);
@@ -799,21 +799,21 @@ xfs_file_fallocate(
 	loff_t			offset,
 	loff_t			len)
 {
-	struct inode		*inode = file_inode(file);
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct iyesde		*iyesde = file_iyesde(file);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	long			error;
 	enum xfs_prealloc_flags	flags = 0;
 	uint			iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
 	loff_t			new_size = 0;
 	bool			do_file_insert = false;
 
-	if (!S_ISREG(inode->i_mode))
+	if (!S_ISREG(iyesde->i_mode))
 		return -EINVAL;
 	if (mode & ~XFS_FALLOC_FL_SUPPORTED)
 		return -EOPNOTSUPP;
 
 	xfs_ilock(ip, iolock);
-	error = xfs_break_layouts(inode, &iolock, BREAK_UNMAP);
+	error = xfs_break_layouts(iyesde, &iolock, BREAK_UNMAP);
 	if (error)
 		goto out_unlock;
 
@@ -821,10 +821,10 @@ xfs_file_fallocate(
 	 * Must wait for all AIO to complete before we continue as AIO can
 	 * change the file size on completion without holding any locks we
 	 * currently hold. We must do this first because AIO can update both
-	 * the on disk and in memory inode sizes, and the operations that follow
+	 * the on disk and in memory iyesde sizes, and the operations that follow
 	 * require the in-memory size to be fully up-to-date.
 	 */
-	inode_dio_wait(inode);
+	iyesde_dio_wait(iyesde);
 
 	/*
 	 * Now AIO and DIO has drained we flush and (if necessary) invalidate
@@ -852,7 +852,7 @@ xfs_file_fallocate(
 		if (error)
 			goto out_unlock;
 	} else if (mode & FALLOC_FL_COLLAPSE_RANGE) {
-		unsigned int blksize_mask = i_blocksize(inode) - 1;
+		unsigned int blksize_mask = i_blocksize(iyesde) - 1;
 
 		if (offset & blksize_mask || len & blksize_mask) {
 			error = -EINVAL;
@@ -860,22 +860,22 @@ xfs_file_fallocate(
 		}
 
 		/*
-		 * There is no need to overlap collapse range with EOF,
+		 * There is yes need to overlap collapse range with EOF,
 		 * in which case it is effectively a truncate operation
 		 */
-		if (offset + len >= i_size_read(inode)) {
+		if (offset + len >= i_size_read(iyesde)) {
 			error = -EINVAL;
 			goto out_unlock;
 		}
 
-		new_size = i_size_read(inode) - len;
+		new_size = i_size_read(iyesde) - len;
 
 		error = xfs_collapse_file_space(ip, offset, len);
 		if (error)
 			goto out_unlock;
 	} else if (mode & FALLOC_FL_INSERT_RANGE) {
-		unsigned int	blksize_mask = i_blocksize(inode) - 1;
-		loff_t		isize = i_size_read(inode);
+		unsigned int	blksize_mask = i_blocksize(iyesde) - 1;
+		loff_t		isize = i_size_read(iyesde);
 
 		if (offset & blksize_mask || len & blksize_mask) {
 			error = -EINVAL;
@@ -883,10 +883,10 @@ xfs_file_fallocate(
 		}
 
 		/*
-		 * New inode size must not exceed ->s_maxbytes, accounting for
+		 * New iyesde size must yest exceed ->s_maxbytes, accounting for
 		 * possible signed overflow.
 		 */
-		if (inode->i_sb->s_maxbytes - isize < len) {
+		if (iyesde->i_sb->s_maxbytes - isize < len) {
 			error = -EFBIG;
 			goto out_unlock;
 		}
@@ -902,9 +902,9 @@ xfs_file_fallocate(
 		flags |= XFS_PREALLOC_SET;
 
 		if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-		    offset + len > i_size_read(inode)) {
+		    offset + len > i_size_read(iyesde)) {
 			new_size = offset + len;
-			error = inode_newsize_ok(inode, new_size);
+			error = iyesde_newsize_ok(iyesde, new_size);
 			if (error)
 				goto out_unlock;
 		}
@@ -919,7 +919,7 @@ xfs_file_fallocate(
 			 *   2.) If prealloc returns ENOSPC, the file range is
 			 *       still zero-valued by virtue of the hole punch.
 			 */
-			unsigned int blksize = i_blocksize(inode);
+			unsigned int blksize = i_blocksize(iyesde);
 
 			trace_xfs_zero_file_space(ip);
 
@@ -937,15 +937,15 @@ xfs_file_fallocate(
 		} else {
 			/*
 			 * If always_cow mode we can't use preallocations and
-			 * thus should not create them.
+			 * thus should yest create them.
 			 */
-			if (xfs_is_always_cow_inode(ip)) {
+			if (xfs_is_always_cow_iyesde(ip)) {
 				error = -EOPNOTSUPP;
 				goto out_unlock;
 			}
 		}
 
-		if (!xfs_is_always_cow_inode(ip)) {
+		if (!xfs_is_always_cow_iyesde(ip)) {
 			error = xfs_alloc_file_space(ip, offset, len,
 						     XFS_BMAPI_PREALLOC);
 			if (error)
@@ -972,7 +972,7 @@ xfs_file_fallocate(
 	}
 
 	/*
-	 * Perform hole insertion now that the file size has been
+	 * Perform hole insertion yesw that the file size has been
 	 * updated so that if we crash during the operation we don't
 	 * leave shifted extents past EOF and hence losing access to
 	 * the data that is contained within them.
@@ -992,7 +992,7 @@ xfs_file_fadvise(
 	loff_t		end,
 	int		advice)
 {
-	struct xfs_inode *ip = XFS_I(file_inode(file));
+	struct xfs_iyesde *ip = XFS_I(file_iyesde(file));
 	int ret;
 	int lockflags = 0;
 
@@ -1019,10 +1019,10 @@ xfs_file_remap_range(
 	loff_t			len,
 	unsigned int		remap_flags)
 {
-	struct inode		*inode_in = file_inode(file_in);
-	struct xfs_inode	*src = XFS_I(inode_in);
-	struct inode		*inode_out = file_inode(file_out);
-	struct xfs_inode	*dest = XFS_I(inode_out);
+	struct iyesde		*iyesde_in = file_iyesde(file_in);
+	struct xfs_iyesde	*src = XFS_I(iyesde_in);
+	struct iyesde		*iyesde_out = file_iyesde(file_out);
+	struct xfs_iyesde	*dest = XFS_I(iyesde_out);
 	struct xfs_mount	*mp = src->i_mount;
 	loff_t			remapped = 0;
 	xfs_extlen_t		cowextsize;
@@ -1053,12 +1053,12 @@ xfs_file_remap_range(
 	/*
 	 * Carry the cowextsize hint from src to dest if we're sharing the
 	 * entire source file to the entire destination file, the source file
-	 * has a cowextsize hint, and the destination file does not.
+	 * has a cowextsize hint, and the destination file does yest.
 	 */
 	cowextsize = 0;
-	if (pos_in == 0 && len == i_size_read(inode_in) &&
+	if (pos_in == 0 && len == i_size_read(iyesde_in) &&
 	    (src->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE) &&
-	    pos_out == 0 && len >= i_size_read(inode_out) &&
+	    pos_out == 0 && len >= i_size_read(iyesde_out) &&
 	    !(dest->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE))
 		cowextsize = src->i_d.di_cowextsize;
 
@@ -1074,12 +1074,12 @@ out_unlock:
 
 STATIC int
 xfs_file_open(
-	struct inode	*inode,
+	struct iyesde	*iyesde,
 	struct file	*file)
 {
-	if (!(file->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
+	if (!(file->f_flags & O_LARGEFILE) && i_size_read(iyesde) > MAX_NON_LFS)
 		return -EFBIG;
-	if (XFS_FORCED_SHUTDOWN(XFS_M(inode->i_sb)))
+	if (XFS_FORCED_SHUTDOWN(XFS_M(iyesde->i_sb)))
 		return -EIO;
 	file->f_mode |= FMODE_NOWAIT;
 	return 0;
@@ -1087,14 +1087,14 @@ xfs_file_open(
 
 STATIC int
 xfs_dir_open(
-	struct inode	*inode,
+	struct iyesde	*iyesde,
 	struct file	*file)
 {
-	struct xfs_inode *ip = XFS_I(inode);
+	struct xfs_iyesde *ip = XFS_I(iyesde);
 	int		mode;
 	int		error;
 
-	error = xfs_file_open(inode, file);
+	error = xfs_file_open(iyesde, file);
 	if (error)
 		return error;
 
@@ -1111,10 +1111,10 @@ xfs_dir_open(
 
 STATIC int
 xfs_file_release(
-	struct inode	*inode,
+	struct iyesde	*iyesde,
 	struct file	*filp)
 {
-	return xfs_release(XFS_I(inode));
+	return xfs_release(XFS_I(iyesde));
 }
 
 STATIC int
@@ -1122,21 +1122,21 @@ xfs_file_readdir(
 	struct file	*file,
 	struct dir_context *ctx)
 {
-	struct inode	*inode = file_inode(file);
-	xfs_inode_t	*ip = XFS_I(inode);
+	struct iyesde	*iyesde = file_iyesde(file);
+	xfs_iyesde_t	*ip = XFS_I(iyesde);
 	size_t		bufsize;
 
 	/*
 	 * The Linux API doesn't pass down the total size of the buffer
 	 * we read into down to the filesystem.  With the filldir concept
-	 * it's not needed for correct information, but the XFS dir2 leaf
+	 * it's yest needed for correct information, but the XFS dir2 leaf
 	 * code wants an estimate of the buffer size to calculate it's
 	 * readahead window and size the buffers used for mapping to
 	 * physical blocks.
 	 *
-	 * Try to give it an estimate that's good enough, maybe at some
+	 * Try to give it an estimate that's good eyesugh, maybe at some
 	 * point we can change the ->readdir prototype to include the
-	 * buffer size.  For now we use the current glibc buffer size.
+	 * buffer size.  For yesw we use the current glibc buffer size.
 	 */
 	bufsize = (size_t)min_t(loff_t, XFS_READDIR_BUFSIZE, ip->i_d.di_size);
 
@@ -1149,25 +1149,25 @@ xfs_file_llseek(
 	loff_t		offset,
 	int		whence)
 {
-	struct inode		*inode = file->f_mapping->host;
+	struct iyesde		*iyesde = file->f_mapping->host;
 
-	if (XFS_FORCED_SHUTDOWN(XFS_I(inode)->i_mount))
+	if (XFS_FORCED_SHUTDOWN(XFS_I(iyesde)->i_mount))
 		return -EIO;
 
 	switch (whence) {
 	default:
 		return generic_file_llseek(file, offset, whence);
 	case SEEK_HOLE:
-		offset = iomap_seek_hole(inode, offset, &xfs_seek_iomap_ops);
+		offset = iomap_seek_hole(iyesde, offset, &xfs_seek_iomap_ops);
 		break;
 	case SEEK_DATA:
-		offset = iomap_seek_data(inode, offset, &xfs_seek_iomap_ops);
+		offset = iomap_seek_data(iyesde, offset, &xfs_seek_iomap_ops);
 		break;
 	}
 
 	if (offset < 0)
 		return offset;
-	return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
+	return vfs_setpos(file, offset, iyesde->i_sb->s_maxbytes);
 }
 
 /*
@@ -1186,19 +1186,19 @@ __xfs_filemap_fault(
 	enum page_entry_size	pe_size,
 	bool			write_fault)
 {
-	struct inode		*inode = file_inode(vmf->vma->vm_file);
-	struct xfs_inode	*ip = XFS_I(inode);
+	struct iyesde		*iyesde = file_iyesde(vmf->vma->vm_file);
+	struct xfs_iyesde	*ip = XFS_I(iyesde);
 	vm_fault_t		ret;
 
 	trace_xfs_filemap_fault(ip, pe_size, write_fault);
 
 	if (write_fault) {
-		sb_start_pagefault(inode->i_sb);
+		sb_start_pagefault(iyesde->i_sb);
 		file_update_time(vmf->vma->vm_file);
 	}
 
-	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-	if (IS_DAX(inode)) {
+	xfs_ilock(XFS_I(iyesde), XFS_MMAPLOCK_SHARED);
+	if (IS_DAX(iyesde)) {
 		pfn_t pfn;
 
 		ret = dax_iomap_fault(vmf, pe_size, &pfn, NULL,
@@ -1214,10 +1214,10 @@ __xfs_filemap_fault(
 		else
 			ret = filemap_fault(vmf);
 	}
-	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
+	xfs_iunlock(XFS_I(iyesde), XFS_MMAPLOCK_SHARED);
 
 	if (write_fault)
-		sb_end_pagefault(inode->i_sb);
+		sb_end_pagefault(iyesde->i_sb);
 	return ret;
 }
 
@@ -1225,9 +1225,9 @@ static vm_fault_t
 xfs_filemap_fault(
 	struct vm_fault		*vmf)
 {
-	/* DAX can shortcut the normal fault path on write faults! */
+	/* DAX can shortcut the yesrmal fault path on write faults! */
 	return __xfs_filemap_fault(vmf, PE_SIZE_PTE,
-			IS_DAX(file_inode(vmf->vma->vm_file)) &&
+			IS_DAX(file_iyesde(vmf->vma->vm_file)) &&
 			(vmf->flags & FAULT_FLAG_WRITE));
 }
 
@@ -1236,10 +1236,10 @@ xfs_filemap_huge_fault(
 	struct vm_fault		*vmf,
 	enum page_entry_size	pe_size)
 {
-	if (!IS_DAX(file_inode(vmf->vma->vm_file)))
+	if (!IS_DAX(file_iyesde(vmf->vma->vm_file)))
 		return VM_FAULT_FALLBACK;
 
-	/* DAX can shortcut the normal fault path on write faults! */
+	/* DAX can shortcut the yesrmal fault path on write faults! */
 	return __xfs_filemap_fault(vmf, pe_size,
 			(vmf->flags & FAULT_FLAG_WRITE));
 }
@@ -1277,19 +1277,19 @@ xfs_file_mmap(
 	struct file		*file,
 	struct vm_area_struct	*vma)
 {
-	struct inode		*inode = file_inode(file);
-	struct xfs_buftarg	*target = xfs_inode_buftarg(XFS_I(inode));
+	struct iyesde		*iyesde = file_iyesde(file);
+	struct xfs_buftarg	*target = xfs_iyesde_buftarg(XFS_I(iyesde));
 
 	/*
-	 * We don't support synchronous mappings for non-DAX files and
-	 * for DAX files if underneath dax_device is not synchronous.
+	 * We don't support synchroyesus mappings for yesn-DAX files and
+	 * for DAX files if underneath dax_device is yest synchroyesus.
 	 */
 	if (!daxdev_mapping_supported(vma, target->bt_daxdev))
 		return -EOPNOTSUPP;
 
 	file_accessed(file);
 	vma->vm_ops = &xfs_file_vm_ops;
-	if (IS_DAX(inode))
+	if (IS_DAX(iyesde))
 		vma->vm_flags |= VM_HUGEPAGE;
 	return 0;
 }

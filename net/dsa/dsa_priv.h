@@ -25,20 +25,20 @@ enum {
 };
 
 /* DSA_NOTIFIER_AGEING_TIME */
-struct dsa_notifier_ageing_time_info {
+struct dsa_yestifier_ageing_time_info {
 	struct switchdev_trans *trans;
 	unsigned int ageing_time;
 };
 
 /* DSA_NOTIFIER_BRIDGE_* */
-struct dsa_notifier_bridge_info {
+struct dsa_yestifier_bridge_info {
 	struct net_device *br;
 	int sw_index;
 	int port;
 };
 
 /* DSA_NOTIFIER_FDB_* */
-struct dsa_notifier_fdb_info {
+struct dsa_yestifier_fdb_info {
 	int sw_index;
 	int port;
 	const unsigned char *addr;
@@ -46,7 +46,7 @@ struct dsa_notifier_fdb_info {
 };
 
 /* DSA_NOTIFIER_MDB_* */
-struct dsa_notifier_mdb_info {
+struct dsa_yestifier_mdb_info {
 	const struct switchdev_obj_port_mdb *mdb;
 	struct switchdev_trans *trans;
 	int sw_index;
@@ -54,7 +54,7 @@ struct dsa_notifier_mdb_info {
 };
 
 /* DSA_NOTIFIER_VLAN_* */
-struct dsa_notifier_vlan_info {
+struct dsa_yestifier_vlan_info {
 	const struct switchdev_obj_port_vlan *vlan;
 	struct switchdev_trans *trans;
 	int sw_index;
@@ -169,14 +169,14 @@ void dsa_port_phylink_mac_link_up(struct phylink_config *config,
 extern const struct phylink_mac_ops dsa_port_phylink_mac_ops;
 
 /* slave.c */
-extern const struct dsa_device_ops notag_netdev_ops;
+extern const struct dsa_device_ops yestag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
 int dsa_slave_create(struct dsa_port *dp);
 void dsa_slave_destroy(struct net_device *slave_dev);
 int dsa_slave_suspend(struct net_device *slave_dev);
 int dsa_slave_resume(struct net_device *slave_dev);
-int dsa_slave_register_notifier(void);
-void dsa_slave_unregister_notifier(void);
+int dsa_slave_register_yestifier(void);
+void dsa_slave_unregister_yestifier(void);
 
 void *dsa_defer_xmit(struct sk_buff *skb, struct net_device *dev);
 
@@ -196,6 +196,6 @@ dsa_slave_to_master(const struct net_device *dev)
 }
 
 /* switch.c */
-int dsa_switch_register_notifier(struct dsa_switch *ds);
-void dsa_switch_unregister_notifier(struct dsa_switch *ds);
+int dsa_switch_register_yestifier(struct dsa_switch *ds);
+void dsa_switch_unregister_yestifier(struct dsa_switch *ds);
 #endif

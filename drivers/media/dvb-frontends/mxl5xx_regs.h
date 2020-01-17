@@ -54,7 +54,7 @@
 
 #define FW_DL_SIGN_ADDR                     0x3FFFEAE0
 
-/* Register to check if FW is running or not */
+/* Register to check if FW is running or yest */
 #define HYDRA_HEAR_BEAT                     0x3FFFEDDC
 
 /* Firmware version */

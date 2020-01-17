@@ -21,11 +21,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -60,7 +60,7 @@
  * @props: the device properties
  * @uhw: user data
  *
- * @return: 0 on success, otherwise negative errno
+ * @return: 0 on success, otherwise negative erryes
  */
 int pvrdma_query_device(struct ib_device *ibdev,
 			struct ib_device_attr *props,
@@ -123,7 +123,7 @@ int pvrdma_query_device(struct ib_device *ibdev,
  * @port: the port number
  * @props: the device properties
  *
- * @return: 0 on success, otherwise negative errno
+ * @return: 0 on success, otherwise negative erryes
  */
 int pvrdma_query_port(struct ib_device *ibdev, u8 port,
 		      struct ib_port_attr *props)
@@ -142,7 +142,7 @@ int pvrdma_query_port(struct ib_device *ibdev, u8 port,
 	err = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_QUERY_PORT_RESP);
 	if (err < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not query port, error: %d\n", err);
+			 "could yest query port, error: %d\n", err);
 		return err;
 	}
 
@@ -181,7 +181,7 @@ int pvrdma_query_port(struct ib_device *ibdev, u8 port,
  * @index: the index
  * @gid: the device gid value
  *
- * @return: 0 on success, otherwise negative errno
+ * @return: 0 on success, otherwise negative erryes
  */
 int pvrdma_query_gid(struct ib_device *ibdev, u8 port, int index,
 		     union ib_gid *gid)
@@ -203,7 +203,7 @@ int pvrdma_query_gid(struct ib_device *ibdev, u8 port, int index,
  * @index: the index
  * @pkey: the device P_Key value
  *
- * @return: 0 on success, otherwise negative errno
+ * @return: 0 on success, otherwise negative erryes
  */
 int pvrdma_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 		      u16 *pkey)
@@ -222,7 +222,7 @@ int pvrdma_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 			      PVRDMA_CMD_QUERY_PKEY_RESP);
 	if (err < 0) {
 		dev_warn(&to_vdev(ibdev)->pdev->dev,
-			 "could not query pkey, error: %d\n", err);
+			 "could yest query pkey, error: %d\n", err);
 		return err;
 	}
 
@@ -251,7 +251,7 @@ int pvrdma_modify_device(struct ib_device *ibdev, int mask,
 
 	if (mask & IB_DEVICE_MODIFY_NODE_DESC) {
 		spin_lock_irqsave(&to_vdev(ibdev)->desc_lock, flags);
-		memcpy(ibdev->node_desc, props->node_desc, 64);
+		memcpy(ibdev->yesde_desc, props->yesde_desc, 64);
 		spin_unlock_irqrestore(&to_vdev(ibdev)->desc_lock, flags);
 	}
 
@@ -272,7 +272,7 @@ int pvrdma_modify_device(struct ib_device *ibdev, int mask,
  * @mask: attributes to modify
  * @props: the device properties
  *
- * @return: 0 on success, otherwise negative errno
+ * @return: 0 on success, otherwise negative erryes
  */
 int pvrdma_modify_port(struct ib_device *ibdev, u8 port, int mask,
 		       struct ib_port_modify *props)
@@ -308,7 +308,7 @@ out:
  * @uctx: the uverbs countext
  * @udata: user data
  *
- * @return:  zero on success, otherwise errno.
+ * @return:  zero on success, otherwise erryes.
  */
 int pvrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 {
@@ -340,7 +340,7 @@ int pvrdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 	ret = pvrdma_cmd_post(vdev, &req, &rsp, PVRDMA_CMD_CREATE_UC_RESP);
 	if (ret < 0) {
 		dev_warn(&vdev->pdev->dev,
-			 "could not create ucontext, error: %d\n", ret);
+			 "could yest create ucontext, error: %d\n", ret);
 		goto err;
 	}
 
@@ -390,7 +390,7 @@ void pvrdma_dealloc_ucontext(struct ib_ucontext *ibcontext)
  * @ibcontext: the user context
  * @vma: the VMA
  *
- * @return: 0 on success, otherwise errno.
+ * @return: 0 on success, otherwise erryes.
  */
 int pvrdma_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
 {
@@ -409,7 +409,7 @@ int pvrdma_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
 
 	/* Map UAR to kernel space, VM_LOCKED? */
 	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	if (io_remap_pfn_range(vma, start, context->uar.pfn, size,
 			       vma->vm_page_prot))
 		return -EAGAIN;
@@ -422,7 +422,7 @@ int pvrdma_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
  * @ibpd: PD pointer
  * @udata: user data
  *
- * @return: the ib_pd protection domain pointer on success, otherwise errno.
+ * @return: the ib_pd protection domain pointer on success, otherwise erryes.
  */
 int pvrdma_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
@@ -479,7 +479,7 @@ err:
  * @pd: the protection domain to be released
  * @udata: user data or null for kernel object
  *
- * @return: 0 on success, otherwise errno.
+ * @return: 0 on success, otherwise erryes.
  */
 void pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
@@ -494,7 +494,7 @@ void pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 	ret = pvrdma_cmd_post(dev, &req, NULL, 0);
 	if (ret)
 		dev_warn(&dev->pdev->dev,
-			 "could not dealloc protection domain, error: %d\n",
+			 "could yest dealloc protection domain, error: %d\n",
 			 ret);
 
 	atomic_dec(&dev->num_pds);
@@ -507,7 +507,7 @@ void pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
  * @udata: user data blob
  * @flags: create address handle flags (see enum rdma_create_ah_flags)
  *
- * @return: 0 on success, otherwise errno.
+ * @return: 0 on success, otherwise erryes.
  */
 int pvrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
 		     u32 flags, struct ib_udata *udata)

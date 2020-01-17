@@ -27,7 +27,7 @@ typedef u64	compat_u64;
 
 struct compat_stat {
 	compat_dev_t		st_dev;	/* dev_t is 32 bits on parisc */
-	compat_ino_t		st_ino;	/* 32 bits */
+	compat_iyes_t		st_iyes;	/* 32 bits */
 	compat_mode_t		st_mode;	/* 16 bits */
 	compat_nlink_t  	st_nlink;	/* 16 bits */
 	u16			st_reserved1;	/* old st_uid */
@@ -44,8 +44,8 @@ struct compat_stat {
 	s32			st_blocks;
 	u32			__unused1;	/* ACL stuff */
 	compat_dev_t		__unused2;	/* network */
-	compat_ino_t		__unused3;	/* network */
-	u32			__unused4;	/* cnodes */
+	compat_iyes_t		__unused3;	/* network */
+	u32			__unused4;	/* cyesdes */
 	u16			__unused5;	/* netsite */
 	short			st_fstype;
 	compat_dev_t		st_realdev;
@@ -118,7 +118,7 @@ struct compat_ipc64_perm {
 	unsigned short int __pad2;
 	unsigned short int seq;
 	unsigned int __pad3;
-	unsigned long __unused1;	/* yes they really are 64bit pads */
+	unsigned long __unused1;	/* no they really are 64bit pads */
 	unsigned long __unused2;
 };
 
@@ -174,7 +174,7 @@ struct compat_shmid64_ds {
 typedef compat_ulong_t compat_elf_gregset_t[COMPAT_ELF_NGREG];
 
 /*
- * A pointer passed in from user mode. This should not
+ * A pointer passed in from user mode. This should yest
  * be used for syscall parameters, just declare them
  * as pointers because the syscall entry code will have
  * appropriately converted them already.

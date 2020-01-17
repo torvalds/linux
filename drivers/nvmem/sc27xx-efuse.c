@@ -149,7 +149,7 @@ static int sc27xx_efuse_read(void *context, u32 offset, void *val, size_t bytes)
 
 	/*
 	 * Polling the read done status to make sure the reading process
-	 * is completed, that means the data can be read out now.
+	 * is completed, that means the data can be read out yesw.
 	 */
 	ret = sc27xx_efuse_poll_status(efuse, SC27XX_EFUSE_RD_DONE);
 	if (ret)
@@ -183,7 +183,7 @@ unlock_efuse:
 
 static int sc27xx_efuse_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct nvmem_config econfig = { };
 	struct nvmem_device *nvmem;
 	struct sc27xx_efuse *efuse;

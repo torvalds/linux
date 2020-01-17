@@ -444,7 +444,7 @@ static int ak8975_who_i_am(struct i2c_client *client,
 			return 0;
 		break;
 	default:
-		dev_err(&client->dev, "Type %d unknown\n", type);
+		dev_err(&client->dev, "Type %d unkyeswn\n", type);
 	}
 	return -ENODEV;
 }
@@ -653,7 +653,7 @@ static int ak8975_start_read_axis(struct ak8975_data *data,
 	if (ret < 0)
 		return ret;
 
-	/* This will be executed only for non-interrupt based waiting case */
+	/* This will be executed only for yesn-interrupt based waiting case */
 	if (ret & data->def->ctrl_masks[ST1_DRDY]) {
 		ret = i2c_smbus_read_byte_data(client,
 					       data->def->ctrl_regs[ST2]);
@@ -847,7 +847,7 @@ static irqreturn_t ak8975_handle_trigger(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 
 	ak8975_fill_buffer(indio_dev);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -866,15 +866,15 @@ static int ak8975_probe(struct i2c_client *client,
 	/* Grab and set up the supplied GPIO. */
 	if (pdata)
 		eoc_gpio = pdata->eoc_gpio;
-	else if (client->dev.of_node)
-		eoc_gpio = of_get_gpio(client->dev.of_node, 0);
+	else if (client->dev.of_yesde)
+		eoc_gpio = of_get_gpio(client->dev.of_yesde, 0);
 	else
 		eoc_gpio = -1;
 
 	if (eoc_gpio == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
-	/* We may not have a GPIO based IRQ to scan, that is fine, we will
+	/* We may yest have a GPIO based IRQ to scan, that is fine, we will
 	   poll if so */
 	if (gpio_is_valid(eoc_gpio)) {
 		err = devm_gpio_request_one(&client->dev, eoc_gpio,
@@ -975,7 +975,7 @@ static int ak8975_probe(struct i2c_client *client,
 	}
 
 	/* Enable runtime PM */
-	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_get_yesresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	/*
@@ -1001,7 +1001,7 @@ static int ak8975_remove(struct i2c_client *client)
 	struct ak8975_data *data = iio_priv(indio_dev);
 
 	pm_runtime_get_sync(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);

@@ -10,7 +10,7 @@
 };
 
 /*
- * These modules are not present on AM5718
+ * These modules are yest present on AM5718
  *
  * ATL
  * VCP1, VCP2

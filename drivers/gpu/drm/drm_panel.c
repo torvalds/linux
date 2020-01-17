@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -103,7 +103,7 @@ EXPORT_SYMBOL(drm_panel_remove);
  * After obtaining a pointer to a DRM panel a display driver calls this
  * function to attach a panel to a connector.
  *
- * An error is returned if the panel is already attached to another connector.
+ * An error is returned if the panel is already attached to ayesther connector.
  *
  * When unloading, the driver should detach from the panel by calling
  * drm_panel_detach().
@@ -126,10 +126,10 @@ EXPORT_SYMBOL(drm_panel_attach);
  * drm_panel_detach - detach a panel from a connector
  * @panel: DRM panel
  *
- * Detaches a panel from the connector it is attached to. If a panel is not
- * attached to any connector this is effectively a no-op.
+ * Detaches a panel from the connector it is attached to. If a panel is yest
+ * attached to any connector this is effectively a yes-op.
  *
- * This function should not be called by the panel device itself. It
+ * This function should yest be called by the panel device itself. It
  * is only for the drm device that called drm_panel_attach().
  */
 void drm_panel_detach(struct drm_panel *panel)
@@ -164,7 +164,7 @@ EXPORT_SYMBOL(drm_panel_prepare);
  *
  * Calling this function will completely power off a panel (assert the panel's
  * reset, turn off power supplies, ...). After this function has completed, it
- * is usually no longer possible to communicate with the panel until another
+ * is usually yes longer possible to communicate with the panel until ayesther
  * call to drm_panel_prepare().
  *
  * Return: 0 on success or a negative error code on failure.
@@ -237,22 +237,22 @@ EXPORT_SYMBOL(drm_panel_get_modes);
 
 #ifdef CONFIG_OF
 /**
- * of_drm_find_panel - look up a panel using a device tree node
- * @np: device tree node of the panel
+ * of_drm_find_panel - look up a panel using a device tree yesde
+ * @np: device tree yesde of the panel
  *
  * Searches the set of registered panels for one that matches the given device
- * tree node. If a matching panel is found, return a pointer to it.
+ * tree yesde. If a matching panel is found, return a pointer to it.
  *
  * Return: A pointer to the panel registered for the specified device tree
- * node or an ERR_PTR() if no panel matching the device tree node can be found.
+ * yesde or an ERR_PTR() if yes panel matching the device tree yesde can be found.
  *
  * Possible error codes returned by this function:
  *
- * - EPROBE_DEFER: the panel device has not been probed yet, and the caller
+ * - EPROBE_DEFER: the panel device has yest been probed yet, and the caller
  *   should retry later
- * - ENODEV: the device is not available (status != "okay" or "ok")
+ * - ENODEV: the device is yest available (status != "okay" or "ok")
  */
-struct drm_panel *of_drm_find_panel(const struct device_node *np)
+struct drm_panel *of_drm_find_panel(const struct device_yesde *np)
 {
 	struct drm_panel *panel;
 
@@ -262,7 +262,7 @@ struct drm_panel *of_drm_find_panel(const struct device_node *np)
 	mutex_lock(&panel_lock);
 
 	list_for_each_entry(panel, &panel_list, list) {
-		if (panel->dev->of_node == np) {
+		if (panel->dev->of_yesde == np) {
 			mutex_unlock(&panel_lock);
 			return panel;
 		}

@@ -12,7 +12,7 @@
 #endif
 
 #include <linux/console.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -322,7 +322,7 @@ static inline void receive_chars(struct uart_port *port, uint8_t *status)
 				port->icount.brk++;
 
 				if (uart_handle_break(port))
-					goto ignore_char;
+					goto igyesre_char;
 			}
 
 			if (lsr & UART_LSR_FE)
@@ -342,11 +342,11 @@ static inline void receive_chars(struct uart_port *port, uint8_t *status)
 		}
 
 		if (uart_handle_sysrq_char(port, ch))
-			goto ignore_char;
+			goto igyesre_char;
 
 		uart_insert_char(port, lsr, UART_LSR_OE, ch, flag);
 
-	ignore_char:
+	igyesre_char:
 		lsr = siu_read(port, UART_LSR);
 	} while ((lsr & UART_LSR_DR) && (max_count-- > 0));
 
@@ -549,17 +549,17 @@ static void siu_set_termios(struct uart_port *port, struct ktermios *new,
 	if (c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= UART_LSR_BI;
 
-	port->ignore_status_mask = 0;
+	port->igyesre_status_mask = 0;
 	if (c_iflag & IGNPAR)
-		port->ignore_status_mask |= UART_LSR_FE | UART_LSR_PE;
+		port->igyesre_status_mask |= UART_LSR_FE | UART_LSR_PE;
 	if (c_iflag & IGNBRK) {
-		port->ignore_status_mask |= UART_LSR_BI;
+		port->igyesre_status_mask |= UART_LSR_BI;
 		if (c_iflag & IGNPAR)
-			port->ignore_status_mask |= UART_LSR_OE;
+			port->igyesre_status_mask |= UART_LSR_OE;
 	}
 
 	if ((c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= UART_LSR_DR;
+		port->igyesre_status_mask |= UART_LSR_DR;
 
 	ier = siu_read(port, UART_IER);
 	ier &= ~UART_IER_MSI;
@@ -847,7 +847,7 @@ static struct uart_driver siu_uart_driver = {
 	.driver_name	= "SIU",
 	.dev_name	= "ttyVR",
 	.major		= SIU_MAJOR,
-	.minor		= SIU_MINOR_BASE,
+	.miyesr		= SIU_MINOR_BASE,
 	.cons		= SERIAL_VR41XX_CONSOLE,
 };
 

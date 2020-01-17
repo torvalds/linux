@@ -81,7 +81,7 @@ __s32 fsid_of_op(struct orangefs_kernel_op_s *op)
 	return fsid;
 }
 
-static int orangefs_inode_flags(struct ORANGEFS_sys_attr_s *attrs)
+static int orangefs_iyesde_flags(struct ORANGEFS_sys_attr_s *attrs)
 {
 	int flags = 0;
 	if (attrs->flags & ORANGEFS_IMMUTABLE_FL)
@@ -99,7 +99,7 @@ static int orangefs_inode_flags(struct ORANGEFS_sys_attr_s *attrs)
 	return flags;
 }
 
-static int orangefs_inode_perms(struct ORANGEFS_sys_attr_s *attrs)
+static int orangefs_iyesde_perms(struct ORANGEFS_sys_attr_s *attrs)
 {
 	int perm_mode = 0;
 
@@ -136,52 +136,52 @@ static int orangefs_inode_perms(struct ORANGEFS_sys_attr_s *attrs)
  * NOTE: in kernel land, we never use the sys_attr->link_target for
  * anything, so don't bother copying it into the sys_attr object here.
  */
-static inline void copy_attributes_from_inode(struct inode *inode,
+static inline void copy_attributes_from_iyesde(struct iyesde *iyesde,
     struct ORANGEFS_sys_attr_s *attrs)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
 	attrs->mask = 0;
-	if (orangefs_inode->attr_valid & ATTR_UID) {
-		attrs->owner = from_kuid(&init_user_ns, inode->i_uid);
+	if (orangefs_iyesde->attr_valid & ATTR_UID) {
+		attrs->owner = from_kuid(&init_user_ns, iyesde->i_uid);
 		attrs->mask |= ORANGEFS_ATTR_SYS_UID;
 		gossip_debug(GOSSIP_UTILS_DEBUG, "(UID) %d\n", attrs->owner);
 	}
-	if (orangefs_inode->attr_valid & ATTR_GID) {
-		attrs->group = from_kgid(&init_user_ns, inode->i_gid);
+	if (orangefs_iyesde->attr_valid & ATTR_GID) {
+		attrs->group = from_kgid(&init_user_ns, iyesde->i_gid);
 		attrs->mask |= ORANGEFS_ATTR_SYS_GID;
 		gossip_debug(GOSSIP_UTILS_DEBUG, "(GID) %d\n", attrs->group);
 	}
 
-	if (orangefs_inode->attr_valid & ATTR_ATIME) {
+	if (orangefs_iyesde->attr_valid & ATTR_ATIME) {
 		attrs->mask |= ORANGEFS_ATTR_SYS_ATIME;
-		if (orangefs_inode->attr_valid & ATTR_ATIME_SET) {
-			attrs->atime = (time64_t)inode->i_atime.tv_sec;
+		if (orangefs_iyesde->attr_valid & ATTR_ATIME_SET) {
+			attrs->atime = (time64_t)iyesde->i_atime.tv_sec;
 			attrs->mask |= ORANGEFS_ATTR_SYS_ATIME_SET;
 		}
 	}
-	if (orangefs_inode->attr_valid & ATTR_MTIME) {
+	if (orangefs_iyesde->attr_valid & ATTR_MTIME) {
 		attrs->mask |= ORANGEFS_ATTR_SYS_MTIME;
-		if (orangefs_inode->attr_valid & ATTR_MTIME_SET) {
-			attrs->mtime = (time64_t)inode->i_mtime.tv_sec;
+		if (orangefs_iyesde->attr_valid & ATTR_MTIME_SET) {
+			attrs->mtime = (time64_t)iyesde->i_mtime.tv_sec;
 			attrs->mask |= ORANGEFS_ATTR_SYS_MTIME_SET;
 		}
 	}
-	if (orangefs_inode->attr_valid & ATTR_CTIME)
+	if (orangefs_iyesde->attr_valid & ATTR_CTIME)
 		attrs->mask |= ORANGEFS_ATTR_SYS_CTIME;
 
 	/*
-	 * ORANGEFS cannot set size with a setattr operation. Probably not
+	 * ORANGEFS canyest set size with a setattr operation. Probably yest
 	 * likely to be requested through the VFS, but just in case, don't
 	 * worry about ATTR_SIZE
 	 */
 
-	if (orangefs_inode->attr_valid & ATTR_MODE) {
-		attrs->perms = ORANGEFS_util_translate_mode(inode->i_mode);
+	if (orangefs_iyesde->attr_valid & ATTR_MODE) {
+		attrs->perms = ORANGEFS_util_translate_mode(iyesde->i_mode);
 		attrs->mask |= ORANGEFS_ATTR_SYS_PERM;
 	}
 }
 
-static int orangefs_inode_type(enum orangefs_ds_type objtype)
+static int orangefs_iyesde_type(enum orangefs_ds_type objtype)
 {
 	if (objtype == ORANGEFS_TYPE_METAFILE)
 		return S_IFREG;
@@ -193,75 +193,75 @@ static int orangefs_inode_type(enum orangefs_ds_type objtype)
 		return -1;
 }
 
-static void orangefs_make_bad_inode(struct inode *inode)
+static void orangefs_make_bad_iyesde(struct iyesde *iyesde)
 {
-	if (is_root_handle(inode)) {
+	if (is_root_handle(iyesde)) {
 		/*
 		 * if this occurs, the pvfs2-client-core was killed but we
-		 * can't afford to lose the inode operations and such
+		 * can't afford to lose the iyesde operations and such
 		 * associated with the root handle in any case.
 		 */
 		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "*** NOT making bad root inode %pU\n",
-			     get_khandle_from_ino(inode));
+			     "*** NOT making bad root iyesde %pU\n",
+			     get_khandle_from_iyes(iyesde));
 	} else {
 		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "*** making bad inode %pU\n",
-			     get_khandle_from_ino(inode));
-		make_bad_inode(inode);
+			     "*** making bad iyesde %pU\n",
+			     get_khandle_from_iyes(iyesde));
+		make_bad_iyesde(iyesde);
 	}
 }
 
-static int orangefs_inode_is_stale(struct inode *inode,
+static int orangefs_iyesde_is_stale(struct iyesde *iyesde,
     struct ORANGEFS_sys_attr_s *attrs, char *link_target)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	int type = orangefs_inode_type(attrs->objtype);
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
+	int type = orangefs_iyesde_type(attrs->objtype);
 	/*
-	 * If the inode type or symlink target have changed then this
-	 * inode is stale.
+	 * If the iyesde type or symlink target have changed then this
+	 * iyesde is stale.
 	 */
-	if (type == -1 || !(inode->i_mode & type)) {
-		orangefs_make_bad_inode(inode);
+	if (type == -1 || !(iyesde->i_mode & type)) {
+		orangefs_make_bad_iyesde(iyesde);
 		return 1;
 	}
-	if (type == S_IFLNK && strncmp(orangefs_inode->link_target,
+	if (type == S_IFLNK && strncmp(orangefs_iyesde->link_target,
 	    link_target, ORANGEFS_NAME_MAX)) {
-		orangefs_make_bad_inode(inode);
+		orangefs_make_bad_iyesde(iyesde);
 		return 1;
 	}
 	return 0;
 }
 
-int orangefs_inode_getattr(struct inode *inode, int flags)
+int orangefs_iyesde_getattr(struct iyesde *iyesde, int flags)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
 	struct orangefs_kernel_op_s *new_op;
-	loff_t inode_size;
+	loff_t iyesde_size;
 	int ret, type;
 
-	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %pU flags %d\n",
-	    __func__, get_khandle_from_ino(inode), flags);
+	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on iyesde %pU flags %d\n",
+	    __func__, get_khandle_from_iyes(iyesde), flags);
 
 again:
-	spin_lock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
 	/* Must have all the attributes in the mask and be within cache time. */
-	if ((!flags && time_before(jiffies, orangefs_inode->getattr_time)) ||
-	    orangefs_inode->attr_valid || inode->i_state & I_DIRTY_PAGES) {
-		if (orangefs_inode->attr_valid) {
-			spin_unlock(&inode->i_lock);
-			write_inode_now(inode, 1);
+	if ((!flags && time_before(jiffies, orangefs_iyesde->getattr_time)) ||
+	    orangefs_iyesde->attr_valid || iyesde->i_state & I_DIRTY_PAGES) {
+		if (orangefs_iyesde->attr_valid) {
+			spin_unlock(&iyesde->i_lock);
+			write_iyesde_yesw(iyesde, 1);
 			goto again;
 		}
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		return 0;
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_GETATTR);
 	if (!new_op)
 		return -ENOMEM;
-	new_op->upcall.req.getattr.refn = orangefs_inode->refn;
+	new_op->upcall.req.getattr.refn = orangefs_iyesde->refn;
 	/*
 	 * Size is the hardest attribute to get.  The incremental cost of any
 	 * other attribute is essentially zero.
@@ -273,21 +273,21 @@ again:
 		    ORANGEFS_ATTR_SYS_ALL_NOHINT & ~ORANGEFS_ATTR_SYS_SIZE;
 
 	ret = service_operation(new_op, __func__,
-	    get_interruptible_flag(inode));
+	    get_interruptible_flag(iyesde));
 	if (ret != 0)
 		goto out;
 
 again2:
-	spin_lock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
 	/* Must have all the attributes in the mask and be within cache time. */
-	if ((!flags && time_before(jiffies, orangefs_inode->getattr_time)) ||
-	    orangefs_inode->attr_valid || inode->i_state & I_DIRTY_PAGES) {
-		if (orangefs_inode->attr_valid) {
-			spin_unlock(&inode->i_lock);
-			write_inode_now(inode, 1);
+	if ((!flags && time_before(jiffies, orangefs_iyesde->getattr_time)) ||
+	    orangefs_iyesde->attr_valid || iyesde->i_state & I_DIRTY_PAGES) {
+		if (orangefs_iyesde->attr_valid) {
+			spin_unlock(&iyesde->i_lock);
+			write_iyesde_yesw(iyesde, 1);
 			goto again2;
 		}
-		if (inode->i_state & I_DIRTY_PAGES) {
+		if (iyesde->i_state & I_DIRTY_PAGES) {
 			ret = 0;
 			goto out_unlock;
 		}
@@ -298,7 +298,7 @@ again2:
 	}
 
 	if (!(flags & ORANGEFS_GETATTR_NEW)) {
-		ret = orangefs_inode_is_stale(inode,
+		ret = orangefs_iyesde_is_stale(iyesde,
 		    &new_op->downcall.resp.getattr.attributes,
 		    new_op->downcall.resp.getattr.link_target);
 		if (ret) {
@@ -307,102 +307,102 @@ again2:
 		}
 	}
 
-	type = orangefs_inode_type(new_op->
+	type = orangefs_iyesde_type(new_op->
 	    downcall.resp.getattr.attributes.objtype);
 	switch (type) {
 	case S_IFREG:
-		inode->i_flags = orangefs_inode_flags(&new_op->
+		iyesde->i_flags = orangefs_iyesde_flags(&new_op->
 		    downcall.resp.getattr.attributes);
 		if (flags) {
-			inode_size = (loff_t)new_op->
+			iyesde_size = (loff_t)new_op->
 			    downcall.resp.getattr.attributes.size;
-			inode->i_size = inode_size;
-			inode->i_blkbits = ffs(new_op->downcall.resp.getattr.
+			iyesde->i_size = iyesde_size;
+			iyesde->i_blkbits = ffs(new_op->downcall.resp.getattr.
 			    attributes.blksize);
-			inode->i_bytes = inode_size;
-			inode->i_blocks =
-			    (inode_size + 512 - inode_size % 512)/512;
+			iyesde->i_bytes = iyesde_size;
+			iyesde->i_blocks =
+			    (iyesde_size + 512 - iyesde_size % 512)/512;
 		}
 		break;
 	case S_IFDIR:
 		if (flags) {
-			inode->i_size = PAGE_SIZE;
-			inode_set_bytes(inode, inode->i_size);
+			iyesde->i_size = PAGE_SIZE;
+			iyesde_set_bytes(iyesde, iyesde->i_size);
 		}
-		set_nlink(inode, 1);
+		set_nlink(iyesde, 1);
 		break;
 	case S_IFLNK:
 		if (flags & ORANGEFS_GETATTR_NEW) {
-			inode->i_size = (loff_t)strlen(new_op->
+			iyesde->i_size = (loff_t)strlen(new_op->
 			    downcall.resp.getattr.link_target);
-			ret = strscpy(orangefs_inode->link_target,
+			ret = strscpy(orangefs_iyesde->link_target,
 			    new_op->downcall.resp.getattr.link_target,
 			    ORANGEFS_NAME_MAX);
 			if (ret == -E2BIG) {
 				ret = -EIO;
 				goto out_unlock;
 			}
-			inode->i_link = orangefs_inode->link_target;
+			iyesde->i_link = orangefs_iyesde->link_target;
 		}
 		break;
 	/* i.e. -1 */
 	default:
-		/* XXX: ESTALE?  This is what is done if it is not new. */
-		orangefs_make_bad_inode(inode);
+		/* XXX: ESTALE?  This is what is done if it is yest new. */
+		orangefs_make_bad_iyesde(iyesde);
 		ret = -ESTALE;
 		goto out_unlock;
 	}
 
-	inode->i_uid = make_kuid(&init_user_ns, new_op->
+	iyesde->i_uid = make_kuid(&init_user_ns, new_op->
 	    downcall.resp.getattr.attributes.owner);
-	inode->i_gid = make_kgid(&init_user_ns, new_op->
+	iyesde->i_gid = make_kgid(&init_user_ns, new_op->
 	    downcall.resp.getattr.attributes.group);
-	inode->i_atime.tv_sec = (time64_t)new_op->
+	iyesde->i_atime.tv_sec = (time64_t)new_op->
 	    downcall.resp.getattr.attributes.atime;
-	inode->i_mtime.tv_sec = (time64_t)new_op->
+	iyesde->i_mtime.tv_sec = (time64_t)new_op->
 	    downcall.resp.getattr.attributes.mtime;
-	inode->i_ctime.tv_sec = (time64_t)new_op->
+	iyesde->i_ctime.tv_sec = (time64_t)new_op->
 	    downcall.resp.getattr.attributes.ctime;
-	inode->i_atime.tv_nsec = 0;
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_ctime.tv_nsec = 0;
+	iyesde->i_atime.tv_nsec = 0;
+	iyesde->i_mtime.tv_nsec = 0;
+	iyesde->i_ctime.tv_nsec = 0;
 
-	/* special case: mark the root inode as sticky */
-	inode->i_mode = type | (is_root_handle(inode) ? S_ISVTX : 0) |
-	    orangefs_inode_perms(&new_op->downcall.resp.getattr.attributes);
+	/* special case: mark the root iyesde as sticky */
+	iyesde->i_mode = type | (is_root_handle(iyesde) ? S_ISVTX : 0) |
+	    orangefs_iyesde_perms(&new_op->downcall.resp.getattr.attributes);
 
-	orangefs_inode->getattr_time = jiffies +
+	orangefs_iyesde->getattr_time = jiffies +
 	    orangefs_getattr_timeout_msecs*HZ/1000;
 	ret = 0;
 out_unlock:
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 out:
 	op_release(new_op);
 	return ret;
 }
 
-int orangefs_inode_check_changed(struct inode *inode)
+int orangefs_iyesde_check_changed(struct iyesde *iyesde)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
 	struct orangefs_kernel_op_s *new_op;
 	int ret;
 
-	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on inode %pU\n", __func__,
-	    get_khandle_from_ino(inode));
+	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: called on iyesde %pU\n", __func__,
+	    get_khandle_from_iyes(iyesde));
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_GETATTR);
 	if (!new_op)
 		return -ENOMEM;
-	new_op->upcall.req.getattr.refn = orangefs_inode->refn;
+	new_op->upcall.req.getattr.refn = orangefs_iyesde->refn;
 	new_op->upcall.req.getattr.mask = ORANGEFS_ATTR_SYS_TYPE |
 	    ORANGEFS_ATTR_SYS_LNK_TARGET;
 
 	ret = service_operation(new_op, __func__,
-	    get_interruptible_flag(inode));
+	    get_interruptible_flag(iyesde));
 	if (ret != 0)
 		goto out;
 
-	ret = orangefs_inode_is_stale(inode,
+	ret = orangefs_iyesde_is_stale(iyesde,
 	    &new_op->downcall.resp.getattr.attributes,
 	    new_op->downcall.resp.getattr.link_target);
 out:
@@ -412,11 +412,11 @@ out:
 
 /*
  * issues a orangefs setattr request to make sure the new attribute values
- * take effect if successful.  returns 0 on success; -errno otherwise
+ * take effect if successful.  returns 0 on success; -erryes otherwise
  */
-int orangefs_inode_setattr(struct inode *inode)
+int orangefs_iyesde_setattr(struct iyesde *iyesde)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
 	struct orangefs_kernel_op_s *new_op;
 	int ret;
 
@@ -424,41 +424,41 @@ int orangefs_inode_setattr(struct inode *inode)
 	if (!new_op)
 		return -ENOMEM;
 
-	spin_lock(&inode->i_lock);
-	new_op->upcall.uid = from_kuid(&init_user_ns, orangefs_inode->attr_uid);
-	new_op->upcall.gid = from_kgid(&init_user_ns, orangefs_inode->attr_gid);
-	new_op->upcall.req.setattr.refn = orangefs_inode->refn;
-	copy_attributes_from_inode(inode,
+	spin_lock(&iyesde->i_lock);
+	new_op->upcall.uid = from_kuid(&init_user_ns, orangefs_iyesde->attr_uid);
+	new_op->upcall.gid = from_kgid(&init_user_ns, orangefs_iyesde->attr_gid);
+	new_op->upcall.req.setattr.refn = orangefs_iyesde->refn;
+	copy_attributes_from_iyesde(iyesde,
 	    &new_op->upcall.req.setattr.attributes);
-	orangefs_inode->attr_valid = 0;
+	orangefs_iyesde->attr_valid = 0;
 	if (!new_op->upcall.req.setattr.attributes.mask) {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		op_release(new_op);
 		return 0;
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 
 	ret = service_operation(new_op, __func__,
-	    get_interruptible_flag(inode) | ORANGEFS_OP_WRITEBACK);
+	    get_interruptible_flag(iyesde) | ORANGEFS_OP_WRITEBACK);
 	gossip_debug(GOSSIP_UTILS_DEBUG,
-	    "orangefs_inode_setattr: returning %d\n", ret);
+	    "orangefs_iyesde_setattr: returning %d\n", ret);
 	if (ret)
-		orangefs_make_bad_inode(inode);
+		orangefs_make_bad_iyesde(iyesde);
 
 	op_release(new_op);
 
 	if (ret == 0)
-		orangefs_inode->getattr_time = jiffies - 1;
+		orangefs_iyesde->getattr_time = jiffies - 1;
 	return ret;
 }
 
 /*
- * The following is a very dirty hack that is now a permanent part of the
+ * The following is a very dirty hack that is yesw a permanent part of the
  * ORANGEFS protocol. See protocol.h for more error definitions.
  */
 
 /* The order matches include/orangefs-types.h in the OrangeFS source. */
-static int PINT_errno_mapping[] = {
+static int PINT_erryes_mapping[] = {
 	0, EPERM, ENOENT, EINTR, EIO, ENXIO, EBADF, EAGAIN, ENOMEM,
 	EFAULT, EBUSY, EEXIST, ENODEV, ENOTDIR, EISDIR, EINVAL, EMFILE,
 	EFBIG, ENOSPC, EROFS, EMLINK, EPIPE, EDEADLK, ENAMETOOLONG,
@@ -471,7 +471,7 @@ static int PINT_errno_mapping[] = {
 	EACCES, ECONNRESET, ERANGE
 };
 
-int orangefs_normalize_to_errno(__s32 error_code)
+int orangefs_yesrmalize_to_erryes(__s32 error_code)
 {
 	__u32 i;
 
@@ -489,12 +489,12 @@ int orangefs_normalize_to_errno(__s32 error_code)
 	}
 
 	/*
-	 * XXX: This is very bad since error codes from ORANGEFS may not be
+	 * XXX: This is very bad since error codes from ORANGEFS may yest be
 	 * suitable for return into userspace.
 	 */
 
 	/*
-	 * Convert ORANGEFS error values into errno values suitable for return
+	 * Convert ORANGEFS error values into erryes values suitable for return
 	 * from the kernel.
 	 */
 	if ((-error_code) & ORANGEFS_NON_ERRNO_ERROR_BIT) {
@@ -514,11 +514,11 @@ int orangefs_normalize_to_errno(__s32 error_code)
 			error_code = -EINVAL;
 		}
 
-	/* Convert ORANGEFS encoded errno values into regular errno values. */
+	/* Convert ORANGEFS encoded erryes values into regular erryes values. */
 	} else if ((-error_code) & ORANGEFS_ERROR_BIT) {
 		i = (-error_code) & ~(ORANGEFS_ERROR_BIT|ORANGEFS_ERROR_CLASS_BITS);
-		if (i < ARRAY_SIZE(PINT_errno_mapping))
-			error_code = -PINT_errno_mapping[i];
+		if (i < ARRAY_SIZE(PINT_erryes_mapping))
+			error_code = -PINT_erryes_mapping[i];
 		else
 			error_code = -EINVAL;
 
@@ -527,7 +527,7 @@ int orangefs_normalize_to_errno(__s32 error_code)
 	 * there is a bug somewhere.
 	 */
 	} else {
-		gossip_err("%s: unknown error code.\n", __func__);
+		gossip_err("%s: unkyeswn error code.\n", __func__);
 		error_code = -EINVAL;
 	}
 	return error_code;

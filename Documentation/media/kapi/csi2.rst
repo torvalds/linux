@@ -20,7 +20,7 @@ interface elements must be present on the sub-device represents the
 CSI-2 transmitter.
 
 The V4L2_CID_LINK_FREQ control is used to tell the receiver driver the
-frequency (and not the symbol rate) of the link. The
+frequency (and yest the symbol rate) of the link. The
 V4L2_CID_PIXEL_RATE is may be used by the receiver to obtain the pixel
 rate the transmitter uses. The
 :c:type:`v4l2_subdev_video_ops`->s_stream() callback provides an
@@ -49,7 +49,7 @@ where
 
 The transmitter drivers must, if possible, configure the CSI-2
 transmitter to *LP-11 mode* whenever the transmitter is powered on but
-not active, and maintain *LP-11 mode* until stream on. Only at stream
+yest active, and maintain *LP-11 mode* until stream on. Only at stream
 on should the transmitter activate the clock on the clock lane and
 transition to *HS mode*.
 
@@ -64,7 +64,7 @@ A transmitter stops sending the stream of images as a result of
 calling the ``.s_stream()`` callback. Some transmitters may stop the
 stream at a frame boundary whereas others stop immediately,
 effectively leaving the current frame unfinished. The receiver driver
-should not make assumptions either way, but function properly in both
+should yest make assumptions either way, but function properly in both
 cases.
 
 Receiver drivers

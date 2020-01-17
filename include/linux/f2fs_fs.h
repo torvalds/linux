@@ -27,12 +27,12 @@
 #define F2FS_BYTES_TO_BLK(bytes)	((bytes) >> F2FS_BLKSIZE_BITS)
 #define F2FS_BLK_TO_BYTES(blk)		((blk) << F2FS_BLKSIZE_BITS)
 
-/* 0, 1(node nid), 2(meta nid) are reserved node id */
+/* 0, 1(yesde nid), 2(meta nid) are reserved yesde id */
 #define F2FS_RESERVED_NODE_NUM		3
 
-#define F2FS_ROOT_INO(sbi)	((sbi)->root_ino_num)
-#define F2FS_NODE_INO(sbi)	((sbi)->node_ino_num)
-#define F2FS_META_INO(sbi)	((sbi)->meta_ino_num)
+#define F2FS_ROOT_INO(sbi)	((sbi)->root_iyes_num)
+#define F2FS_NODE_INO(sbi)	((sbi)->yesde_iyes_num)
+#define F2FS_META_INO(sbi)	((sbi)->meta_iyes_num)
 
 #define F2FS_MAX_QUOTAS		3
 
@@ -48,14 +48,14 @@
 #define F2FS_IO_SIZE_MASK(sbi)	(F2FS_IO_SIZE(sbi) - 1)
 #define F2FS_IO_ALIGNED(sbi)	(F2FS_IO_SIZE(sbi) > 1)
 
-/* This flag is used by node and meta inodes, and by recovery */
+/* This flag is used by yesde and meta iyesdes, and by recovery */
 #define GFP_F2FS_ZERO		(GFP_NOFS | __GFP_ZERO)
 
 /*
  * For further optimization on multi-head logs, on-disk layout supports maximum
  * 16 logs by default. The number, 16, is expected to cover all the cases
- * enoughly. The implementaion currently uses no more than 6 logs.
- * Half the logs are used for nodes, and the other half are used for data.
+ * eyesughly. The implementaion currently uses yes more than 6 logs.
+ * Half the logs are used for yesdes, and the other half are used for data.
  */
 #define MAX_ACTIVE_LOGS	16
 #define MAX_ACTIVE_NODE_LOGS	8
@@ -77,7 +77,7 @@ struct f2fs_device {
 struct f2fs_super_block {
 	__le32 magic;			/* Magic Number */
 	__le16 major_ver;		/* Major Version */
-	__le16 minor_ver;		/* Minor Version */
+	__le16 miyesr_ver;		/* Miyesr Version */
 	__le32 log_sectorsize;		/* log2 sector size in bytes */
 	__le32 log_sectors_per_block;	/* log2 # of sectors per block */
 	__le32 log_blocksize;		/* log2 block size in bytes */
@@ -99,9 +99,9 @@ struct f2fs_super_block {
 	__le32 nat_blkaddr;		/* start block address of NAT */
 	__le32 ssa_blkaddr;		/* start block address of SSA */
 	__le32 main_blkaddr;		/* start block address of main area */
-	__le32 root_ino;		/* root inode number */
-	__le32 node_ino;		/* node inode number */
-	__le32 meta_ino;		/* meta inode number */
+	__le32 root_iyes;		/* root iyesde number */
+	__le32 yesde_iyes;		/* yesde iyesde number */
+	__le32 meta_iyes;		/* meta iyesde number */
 	__u8 uuid[16];			/* 128-bit uuid for volume */
 	__le16 volume_name[MAX_VOLUME_NAME];	/* volume name */
 	__le32 extension_count;		/* # of extensions below */
@@ -113,7 +113,7 @@ struct f2fs_super_block {
 	__u8 encryption_level;		/* versioning level for encryption */
 	__u8 encrypt_pw_salt[16];	/* Salt used for string2key algorithm */
 	struct f2fs_device devs[MAX_DEVICES];	/* device list */
-	__le32 qf_ino[F2FS_MAX_QUOTAS];	/* quota inode numbers */
+	__le32 qf_iyes[F2FS_MAX_QUOTAS];	/* quota iyesde numbers */
 	__u8 hot_ext_count;		/* # of hot file extension */
 	__le16  s_encoding;		/* Filename charset encoding */
 	__le16  s_encoding_flags;	/* Filename charset encoding flags */
@@ -149,18 +149,18 @@ struct f2fs_checkpoint {
 	__le32 overprov_segment_count;	/* # of overprovision segments */
 	__le32 free_segment_count;	/* # of free segments in main area */
 
-	/* information of current node segments */
-	__le32 cur_node_segno[MAX_ACTIVE_NODE_LOGS];
-	__le16 cur_node_blkoff[MAX_ACTIVE_NODE_LOGS];
+	/* information of current yesde segments */
+	__le32 cur_yesde_segyes[MAX_ACTIVE_NODE_LOGS];
+	__le16 cur_yesde_blkoff[MAX_ACTIVE_NODE_LOGS];
 	/* information of current data segments */
-	__le32 cur_data_segno[MAX_ACTIVE_DATA_LOGS];
+	__le32 cur_data_segyes[MAX_ACTIVE_DATA_LOGS];
 	__le16 cur_data_blkoff[MAX_ACTIVE_DATA_LOGS];
 	__le32 ckpt_flags;		/* Flags : umount and journal_present */
 	__le32 cp_pack_total_block_count;	/* total # of one cp pack */
 	__le32 cp_pack_start_sum;	/* start block number of data summary */
-	__le32 valid_node_count;	/* Total number of valid nodes */
-	__le32 valid_inode_count;	/* Total number of valid inodes */
-	__le32 next_free_nid;		/* Next free node number */
+	__le32 valid_yesde_count;	/* Total number of valid yesdes */
+	__le32 valid_iyesde_count;	/* Total number of valid iyesdes */
+	__le32 next_free_nid;		/* Next free yesde number */
 	__le32 sit_ver_bitmap_bytesize;	/* Default value 64 */
 	__le32 nat_ver_bitmap_bytesize; /* Default value 256 */
 	__le32 checksum_offset;		/* checksum offset inside cp block */
@@ -177,7 +177,7 @@ struct f2fs_checkpoint {
 	(offsetof(struct f2fs_checkpoint, sit_nat_version_bitmap))
 
 /*
- * For orphan inode management
+ * For orphan iyesde management
  */
 #define F2FS_ORPHANS_PER_BLOCK	1020
 
@@ -185,12 +185,12 @@ struct f2fs_checkpoint {
 					F2FS_ORPHANS_PER_BLOCK)
 
 struct f2fs_orphan_block {
-	__le32 ino[F2FS_ORPHANS_PER_BLOCK];	/* inode numbers */
+	__le32 iyes[F2FS_ORPHANS_PER_BLOCK];	/* iyesde numbers */
 	__le32 reserved;	/* reserved */
 	__le16 blk_addr;	/* block index in current CP */
-	__le16 blk_count;	/* Number of orphan inode blocks in CP */
-	__le32 entry_count;	/* Total number of orphan nodes in current CP */
-	__le32 check_sum;	/* CRC32 for orphan inode block */
+	__le16 blk_count;	/* Number of orphan iyesde blocks in CP */
+	__le32 entry_count;	/* Total number of orphan yesdes in current CP */
+	__le32 check_sum;	/* CRC32 for orphan iyesde block */
 } __packed;
 
 /*
@@ -205,17 +205,17 @@ struct f2fs_extent {
 #define F2FS_NAME_LEN		255
 /* 200 bytes for inline xattrs by default */
 #define DEFAULT_INLINE_XATTR_ADDRS	50
-#define DEF_ADDRS_PER_INODE	923	/* Address Pointers in an Inode */
-#define CUR_ADDRS_PER_INODE(inode)	(DEF_ADDRS_PER_INODE - \
-					get_extra_isize(inode))
-#define DEF_NIDS_PER_INODE	5	/* Node IDs in an Inode */
-#define ADDRS_PER_INODE(inode)	addrs_per_inode(inode)
+#define DEF_ADDRS_PER_INODE	923	/* Address Pointers in an Iyesde */
+#define CUR_ADDRS_PER_INODE(iyesde)	(DEF_ADDRS_PER_INODE - \
+					get_extra_isize(iyesde))
+#define DEF_NIDS_PER_INODE	5	/* Node IDs in an Iyesde */
+#define ADDRS_PER_INODE(iyesde)	addrs_per_iyesde(iyesde)
 #define DEF_ADDRS_PER_BLOCK	1018	/* Address Pointers in a Direct Block */
-#define ADDRS_PER_BLOCK(inode)	addrs_per_block(inode)
+#define ADDRS_PER_BLOCK(iyesde)	addrs_per_block(iyesde)
 #define NIDS_PER_BLOCK		1018	/* Node IDs in an Indirect Block */
 
-#define ADDRS_PER_PAGE(page, inode)	\
-	(IS_INODE(page) ? ADDRS_PER_INODE(inode) : ADDRS_PER_BLOCK(inode))
+#define ADDRS_PER_PAGE(page, iyesde)	\
+	(IS_INODE(page) ? ADDRS_PER_INODE(iyesde) : ADDRS_PER_BLOCK(iyesde))
 
 #define	NODE_DIR1_BLOCK		(DEF_ADDRS_PER_INODE + 1)
 #define	NODE_DIR2_BLOCK		(DEF_ADDRS_PER_INODE + 2)
@@ -229,9 +229,9 @@ struct f2fs_extent {
 #define F2FS_DATA_EXIST		0x08	/* file inline data exist flag */
 #define F2FS_INLINE_DOTS	0x10	/* file having implicit dot dentries */
 #define F2FS_EXTRA_ATTR		0x20	/* file having extra attribute */
-#define F2FS_PIN_FILE		0x40	/* file should not be gced */
+#define F2FS_PIN_FILE		0x40	/* file should yest be gced */
 
-struct f2fs_inode {
+struct f2fs_iyesde {
 	__le16 i_mode;			/* file mode */
 	__u8 i_advise;			/* file hints */
 	__u8 i_inline;			/* file inline flags */
@@ -243,9 +243,9 @@ struct f2fs_inode {
 	__le64 i_atime;			/* access time */
 	__le64 i_ctime;			/* change time */
 	__le64 i_mtime;			/* modification time */
-	__le32 i_atime_nsec;		/* access time in nano scale */
-	__le32 i_ctime_nsec;		/* change time in nano scale */
-	__le32 i_mtime_nsec;		/* modification time in nano scale */
+	__le32 i_atime_nsec;		/* access time in nayes scale */
+	__le32 i_ctime_nsec;		/* change time in nayes scale */
+	__le32 i_mtime_nsec;		/* modification time in nayes scale */
 	__le32 i_generation;		/* file version (for NFS) */
 	union {
 		__le32 i_current_depth;	/* only for directory depth */
@@ -256,7 +256,7 @@ struct f2fs_inode {
 	};
 	__le32 i_xattr_nid;		/* nid to save xattr */
 	__le32 i_flags;			/* file attributes */
-	__le32 i_pino;			/* parent inode number */
+	__le32 i_piyes;			/* parent iyesde number */
 	__le32 i_namelen;		/* file name length */
 	__u8 i_name[F2FS_NAME_LEN];	/* file name for SPOR */
 	__u8 i_dir_level;		/* dentry_level for large dir */
@@ -265,25 +265,25 @@ struct f2fs_inode {
 
 	union {
 		struct {
-			__le16 i_extra_isize;	/* extra inode attribute size */
+			__le16 i_extra_isize;	/* extra iyesde attribute size */
 			__le16 i_inline_xattr_size;	/* inline xattr size, unit: 4 bytes */
 			__le32 i_projid;	/* project id */
-			__le32 i_inode_checksum;/* inode meta checksum */
+			__le32 i_iyesde_checksum;/* iyesde meta checksum */
 			__le64 i_crtime;	/* creation time */
-			__le32 i_crtime_nsec;	/* creation time in nano scale */
+			__le32 i_crtime_nsec;	/* creation time in nayes scale */
 			__le32 i_extra_end[0];	/* for attribute size calculation */
 		} __packed;
 		__le32 i_addr[DEF_ADDRS_PER_INODE];	/* Pointers to data blocks */
 	};
 	__le32 i_nid[DEF_NIDS_PER_INODE];	/* direct(2), indirect(2),
-						double_indirect(1) node id */
+						double_indirect(1) yesde id */
 } __packed;
 
-struct direct_node {
+struct direct_yesde {
 	__le32 addr[DEF_ADDRS_PER_BLOCK];	/* array of data block address */
 } __packed;
 
-struct indirect_node {
+struct indirect_yesde {
 	__le32 nid[NIDS_PER_BLOCK];	/* array of data block address */
 } __packed;
 
@@ -296,22 +296,22 @@ enum {
 
 #define OFFSET_BIT_MASK		(0x07)	/* (0x01 << OFFSET_BIT_SHIFT) - 1 */
 
-struct node_footer {
-	__le32 nid;		/* node id */
-	__le32 ino;		/* inode number */
+struct yesde_footer {
+	__le32 nid;		/* yesde id */
+	__le32 iyes;		/* iyesde number */
 	__le32 flag;		/* include cold/fsync/dentry marks and offset */
 	__le64 cp_ver;		/* checkpoint version */
-	__le32 next_blkaddr;	/* next node page block address */
+	__le32 next_blkaddr;	/* next yesde page block address */
 } __packed;
 
-struct f2fs_node {
-	/* can be one of three types: inode, direct, and indirect types */
+struct f2fs_yesde {
+	/* can be one of three types: iyesde, direct, and indirect types */
 	union {
-		struct f2fs_inode i;
-		struct direct_node dn;
-		struct indirect_node in;
+		struct f2fs_iyesde i;
+		struct direct_yesde dn;
+		struct indirect_yesde in;
 	};
-	struct node_footer footer;
+	struct yesde_footer footer;
 } __packed;
 
 /*
@@ -321,7 +321,7 @@ struct f2fs_node {
 
 struct f2fs_nat_entry {
 	__u8 version;		/* latest version of cached nat entry */
-	__le32 ino;		/* inode number */
+	__le32 iyes;		/* iyesde number */
 	__le32 block_addr;	/* block address */
 } __packed;
 
@@ -376,12 +376,12 @@ struct f2fs_sit_block {
  *
  * NOTE: For initializing fields, you must use set_summary
  *
- * - If data page, nid represents dnode's nid
- * - If node page, nid represents the node page's nid.
+ * - If data page, nid represents dyesde's nid
+ * - If yesde page, nid represents the yesde page's nid.
  *
- * The ofs_in_node is used by only data page. It represents offset
- * from node's page's beginning to get a data block address.
- * ex) data_blkaddr = (block_t)(nodepage_start_address + ofs_in_node)
+ * The ofs_in_yesde is used by only data page. It represents offset
+ * from yesde's page's beginning to get a data block address.
+ * ex) data_blkaddr = (block_t)(yesdepage_start_address + ofs_in_yesde)
  */
 #define ENTRIES_IN_SUM		512
 #define	SUMMARY_SIZE		(7)	/* sizeof(struct summary) */
@@ -390,17 +390,17 @@ struct f2fs_sit_block {
 
 /* a summary entry for a 4KB-sized block in a segment */
 struct f2fs_summary {
-	__le32 nid;		/* parent node id */
+	__le32 nid;		/* parent yesde id */
 	union {
 		__u8 reserved[3];
 		struct {
-			__u8 version;		/* node version number */
-			__le16 ofs_in_node;	/* block index in parent node */
+			__u8 version;		/* yesde version number */
+			__le16 ofs_in_yesde;	/* block index in parent yesde */
 		} __packed;
 	};
 } __packed;
 
-/* summary block type, node or data, is stored to the summary_footer */
+/* summary block type, yesde or data, is stored to the summary_footer */
 #define SUM_TYPE_NODE		(1)
 #define SUM_TYPE_DATA		(0)
 
@@ -445,7 +445,7 @@ struct nat_journal {
 } __packed;
 
 struct sit_journal_entry {
-	__le32 segno;
+	__le32 segyes;
 	struct f2fs_sit_entry se;
 } __packed;
 
@@ -525,7 +525,7 @@ typedef __le32	f2fs_hash_t;
 /* One directory entry slot representing F2FS_SLOT_LEN-sized file name */
 struct f2fs_dir_entry {
 	__le32 hash_code;	/* hash code of file name */
-	__le32 ino;		/* inode number */
+	__le32 iyes;		/* iyesde number */
 	__le16 name_len;	/* length of file name */
 	__u8 file_type;		/* file type */
 } __packed;
@@ -539,7 +539,7 @@ struct f2fs_dentry_block {
 	__u8 filename[NR_DENTRY_IN_BLOCK][F2FS_SLOT_LEN];
 } __packed;
 
-/* file types used in inode_info->flags */
+/* file types used in iyesde_info->flags */
 enum {
 	F2FS_FT_UNKNOWN,
 	F2FS_FT_REG_FILE,

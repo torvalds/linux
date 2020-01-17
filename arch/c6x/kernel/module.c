@@ -109,7 +109,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 				return -ENOEXEC;
 			break;
 		default:
-			pr_err("module %s: Unknown RELA relocation: %u\n",
+			pr_err("module %s: Unkyeswn RELA relocation: %u\n",
 			       me->name, ELF32_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}

@@ -31,7 +31,7 @@ Each channel can be configured individually:
     5: 2400
     6: 3300
 
-1) The /ads1015 node
+1) The /ads1015 yesde
 
   Required properties:
 
@@ -40,9 +40,9 @@ Each channel can be configured individually:
    - #address-cells : must be <1>
    - #size-cells : must be <0>
 
-  The node contains child nodes for each channel that the platform uses.
+  The yesde contains child yesdes for each channel that the platform uses.
 
-  Example ADS1015 node:
+  Example ADS1015 yesde:
 
     ads1015@49 {
 	    compatible = "ti,ads1015";
@@ -50,10 +50,10 @@ Each channel can be configured individually:
 	    #address-cells = <1>;
 	    #size-cells = <0>;
 
-	    [ child node definitions... ]
+	    [ child yesde definitions... ]
     }
 
-2) channel nodes
+2) channel yesdes
 
   Required properties:
 
@@ -64,7 +64,7 @@ Each channel can be configured individually:
    - ti,gain : the programmable gain amplifier setting
    - ti,datarate : the converter data rate
 
-  Example ADS1015 channel node:
+  Example ADS1015 channel yesde:
 
     channel@4 {
 	    reg = <4>;

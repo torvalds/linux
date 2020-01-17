@@ -5,7 +5,7 @@
 #include <linux/usb/typec_altmode.h>
 
 #define USB_TYPEC_DP_SID	0xff01
-/* USB IF has not assigned a Standard ID (SID) for VirtualLink,
+/* USB IF has yest assigned a Standard ID (SID) for VirtualLink,
  * so the manufacturers of VirtualLink adapters use their Vendor
  * IDs as the SVID.
  */
@@ -17,8 +17,8 @@
  * Specification.
  *
  * These values are meant primarily to be used by the mux drivers, but they are
- * also used as the "value" part in the alternate mode notification chain, so
- * receivers of those notifications will always see them.
+ * also used as the "value" part in the alternate mode yestification chain, so
+ * receivers of those yestifications will always see them.
  *
  * Note. DisplayPort USB Type-C Alt Mode Specification version 1.0b deprecated
  * pin assignments A, B and F, but they are still defined here for legacy
@@ -38,7 +38,7 @@ enum {
  * @status: Status Update command VDO content
  * @conf: Configure command VDO content
  *
- * This structure is delivered as the data part with the notifications. It
+ * This structure is delivered as the data part with the yestifications. It
  * contains the VDOs from the two DisplayPort Type-C alternate mode specific
  * commands: Status Update and Configure.
  *

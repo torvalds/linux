@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -132,7 +132,7 @@ int __cvmx_helper_spi_enable(int interface)
 
 /**
  * Return the link state of an IPD/PKO port as returned by
- * auto negotiation. The result of this function may not match
+ * auto negotiation. The result of this function may yest match
  * Octeon's link config if auto negotiation has changed since
  * the last call to cvmx_helper_link_set().
  *
@@ -184,7 +184,7 @@ cvmx_helper_link_info_t __cvmx_helper_spi_link_get(int ipd_port)
 
 /**
  * Configure an IPD/PKO port for the specified link state. This
- * function does not influence auto negotiation at the PHY level.
+ * function does yest influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
  * by cvmx_helper_link_get().
  *
@@ -196,7 +196,7 @@ cvmx_helper_link_info_t __cvmx_helper_spi_link_get(int ipd_port)
 int __cvmx_helper_spi_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
 {
 	/* Nothing to do. If we have a SPI4000 then the setup was already performed
-	   by cvmx_spi4000_check_speed(). If not then there isn't any link
+	   by cvmx_spi4000_check_speed(). If yest then there isn't any link
 	   info */
 	return 0;
 }

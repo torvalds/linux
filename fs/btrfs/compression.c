@@ -22,7 +22,7 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
-#include "btrfs_inode.h"
+#include "btrfs_iyesde.h"
 #include "volumes.h"
 #include "ordered-data.h"
 #include "compression.h"
@@ -117,7 +117,7 @@ static int compression_compress_pages(int type, struct list_head *ws,
 		/*
 		 * This can't happen, the type is validated several times
 		 * before we get here. As a sane fallback, return what the
-		 * callers will understand as 'no compression happened'.
+		 * callers will understand as 'yes compression happened'.
 		 */
 		return -E2BIG;
 	}
@@ -172,11 +172,11 @@ static inline int compressed_bio_size(struct btrfs_fs_info *fs_info,
 		(DIV_ROUND_UP(disk_size, fs_info->sectorsize)) * csum_size;
 }
 
-static int check_compressed_csum(struct btrfs_inode *inode,
+static int check_compressed_csum(struct btrfs_iyesde *iyesde,
 				 struct compressed_bio *cb,
 				 u64 disk_start)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct btrfs_fs_info *fs_info = iyesde->root->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 	int ret;
@@ -186,7 +186,7 @@ static int check_compressed_csum(struct btrfs_inode *inode,
 	u8 csum[BTRFS_CSUM_SIZE];
 	u8 *cb_sum = cb->sums;
 
-	if (inode->flags & BTRFS_INODE_NODATASUM)
+	if (iyesde->flags & BTRFS_INODE_NODATASUM)
 		return 0;
 
 	shash->tfm = fs_info->csum_shash;
@@ -201,7 +201,7 @@ static int check_compressed_csum(struct btrfs_inode *inode,
 		crypto_shash_final(shash, (u8 *)&csum);
 
 		if (memcmp(&csum, cb_sum, csum_size)) {
-			btrfs_print_data_csum_error(inode, disk_start,
+			btrfs_print_data_csum_error(iyesde, disk_start,
 					csum, cb_sum, cb->mirror_num);
 			ret = -EIO;
 			goto fail;
@@ -216,10 +216,10 @@ fail:
 
 /* when we finish reading compressed pages from the disk, we
  * decompress them and then run the bio end_io routines on the
- * decompressed pages (in the inode address space).
+ * decompressed pages (in the iyesde address space).
  *
  * This allows the checksumming and other IO error handling routines
- * to work normally
+ * to work yesrmally
  *
  * The compressed pages are freed here, and it must be run
  * in process context
@@ -227,7 +227,7 @@ fail:
 static void end_compressed_bio_read(struct bio *bio)
 {
 	struct compressed_bio *cb = bio->bi_private;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct page *page;
 	unsigned long index;
 	unsigned int mirror = btrfs_io_bio(bio)->mirror_num;
@@ -252,13 +252,13 @@ static void end_compressed_bio_read(struct bio *bio)
 
 	/*
 	 * Some IO in this cb have failed, just skip checksum as there
-	 * is no way it could be correct.
+	 * is yes way it could be correct.
 	 */
 	if (cb->errors == 1)
 		goto csum_failed;
 
-	inode = cb->inode;
-	ret = check_compressed_csum(BTRFS_I(inode), cb,
+	iyesde = cb->iyesde;
+	ret = check_compressed_csum(BTRFS_I(iyesde), cb,
 				    (u64)bio->bi_iter.bi_sector << 9);
 	if (ret)
 		goto csum_failed;
@@ -289,7 +289,7 @@ csum_failed:
 
 		/*
 		 * we have verified the checksum already, set page
-		 * checked so the end_io handlers know about it
+		 * checked so the end_io handlers kyesw about it
 		 */
 		ASSERT(!bio_flagged(bio, BIO_CLONED));
 		bio_for_each_segment_all(bvec, cb->orig_bio, iter_all)
@@ -309,7 +309,7 @@ out:
  * Clear the writeback bits on all of the file
  * pages for a compressed write
  */
-static noinline void end_compressed_writeback(struct inode *inode,
+static yesinline void end_compressed_writeback(struct iyesde *iyesde,
 					      const struct compressed_bio *cb)
 {
 	unsigned long index = cb->start >> PAGE_SHIFT;
@@ -320,10 +320,10 @@ static noinline void end_compressed_writeback(struct inode *inode,
 	int ret;
 
 	if (cb->errors)
-		mapping_set_error(inode->i_mapping, -EIO);
+		mapping_set_error(iyesde->i_mapping, -EIO);
 
 	while (nr_pages > 0) {
-		ret = find_get_pages_contig(inode->i_mapping, index,
+		ret = find_get_pages_contig(iyesde->i_mapping, index,
 				     min_t(unsigned long,
 				     nr_pages, ARRAY_SIZE(pages)), pages);
 		if (ret == 0) {
@@ -340,7 +340,7 @@ static noinline void end_compressed_writeback(struct inode *inode,
 		nr_pages -= ret;
 		index += ret;
 	}
-	/* the inode may be gone now */
+	/* the iyesde may be gone yesw */
 }
 
 /*
@@ -354,7 +354,7 @@ static noinline void end_compressed_writeback(struct inode *inode,
 static void end_compressed_bio_write(struct bio *bio)
 {
 	struct compressed_bio *cb = bio->bi_private;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct page *page;
 	unsigned long index;
 
@@ -370,19 +370,19 @@ static void end_compressed_bio_write(struct bio *bio)
 	/* ok, we're the last bio for this extent, step one is to
 	 * call back into the FS and do all the end_io operations
 	 */
-	inode = cb->inode;
-	cb->compressed_pages[0]->mapping = cb->inode->i_mapping;
+	iyesde = cb->iyesde;
+	cb->compressed_pages[0]->mapping = cb->iyesde->i_mapping;
 	btrfs_writepage_endio_finish_ordered(cb->compressed_pages[0],
 			cb->start, cb->start + cb->len - 1,
 			bio->bi_status == BLK_STS_OK);
 	cb->compressed_pages[0]->mapping = NULL;
 
-	end_compressed_writeback(inode, cb);
-	/* note, our inode could be gone now */
+	end_compressed_writeback(iyesde, cb);
+	/* yeste, our iyesde could be gone yesw */
 
 	/*
 	 * release the compressed pages, these came from alloc_page and
-	 * are not attached to the inode at all
+	 * are yest attached to the iyesde at all
 	 */
 	index = 0;
 	for (index = 0; index < cb->nr_pages; index++) {
@@ -400,14 +400,14 @@ out:
 
 /*
  * worker function to build and submit bios for previously compressed pages.
- * The corresponding pages in the inode should be marked for writeback
+ * The corresponding pages in the iyesde should be marked for writeback
  * and the compressed pages should have a reference on them for dropping
  * when the IO is complete.
  *
  * This also checksums the file bytes and gets things ready for
  * the end io hooks.
  */
-blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
+blk_status_t btrfs_submit_compressed_write(struct iyesde *iyesde, u64 start,
 				 unsigned long len, u64 disk_start,
 				 unsigned long compressed_len,
 				 struct page **compressed_pages,
@@ -415,7 +415,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				 unsigned int write_flags,
 				 struct cgroup_subsys_state *blkcg_css)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(iyesde->i_sb);
 	struct bio *bio = NULL;
 	struct compressed_bio *cb;
 	unsigned long bytes_left;
@@ -423,7 +423,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	struct page *page;
 	u64 first_byte = disk_start;
 	blk_status_t ret;
-	int skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
+	int skip_sum = BTRFS_I(iyesde)->flags & BTRFS_INODE_NODATASUM;
 
 	WARN_ON(!PAGE_ALIGNED(start));
 	cb = kmalloc(compressed_bio_size(fs_info, compressed_len), GFP_NOFS);
@@ -431,7 +431,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		return BLK_STS_RESOURCE;
 	refcount_set(&cb->pending_bios, 0);
 	cb->errors = 0;
-	cb->inode = inode;
+	cb->iyesde = iyesde;
 	cb->start = start;
 	cb->len = len;
 	cb->mirror_num = 0;
@@ -457,7 +457,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		int submit = 0;
 
 		page = compressed_pages[pg_index];
-		page->mapping = inode->i_mapping;
+		page->mapping = iyesde->i_mapping;
 		if (bio->bi_iter.bi_size)
 			submit = btrfs_bio_fits_in_stripe(page, PAGE_SIZE, bio,
 							  0);
@@ -467,7 +467,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		    PAGE_SIZE) {
 			/*
 			 * inc the count before we submit the bio so
-			 * we know the end IO handler won't happen before
+			 * we kyesw the end IO handler won't happen before
 			 * we inc the count.  Otherwise, the cb might get
 			 * freed before we're done setting it up
 			 */
@@ -477,7 +477,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 			BUG_ON(ret); /* -ENOMEM */
 
 			if (!skip_sum) {
-				ret = btrfs_csum_one_bio(inode, bio, start, 1);
+				ret = btrfs_csum_one_bio(iyesde, bio, start, 1);
 				BUG_ON(ret); /* -ENOMEM */
 			}
 
@@ -509,7 +509,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	BUG_ON(ret); /* -ENOMEM */
 
 	if (!skip_sum) {
-		ret = btrfs_csum_one_bio(inode, bio, start, 1);
+		ret = btrfs_csum_one_bio(iyesde, bio, start, 1);
 		BUG_ON(ret); /* -ENOMEM */
 	}
 
@@ -532,32 +532,32 @@ static u64 bio_end_offset(struct bio *bio)
 	return page_offset(last->bv_page) + last->bv_len + last->bv_offset;
 }
 
-static noinline int add_ra_bio_pages(struct inode *inode,
+static yesinline int add_ra_bio_pages(struct iyesde *iyesde,
 				     u64 compressed_end,
 				     struct compressed_bio *cb)
 {
 	unsigned long end_index;
 	unsigned long pg_index;
 	u64 last_offset;
-	u64 isize = i_size_read(inode);
+	u64 isize = i_size_read(iyesde);
 	int ret;
 	struct page *page;
 	unsigned long nr_pages = 0;
 	struct extent_map *em;
-	struct address_space *mapping = inode->i_mapping;
+	struct address_space *mapping = iyesde->i_mapping;
 	struct extent_map_tree *em_tree;
 	struct extent_io_tree *tree;
 	u64 end;
 	int misses = 0;
 
 	last_offset = bio_end_offset(cb->orig_bio);
-	em_tree = &BTRFS_I(inode)->extent_tree;
-	tree = &BTRFS_I(inode)->io_tree;
+	em_tree = &BTRFS_I(iyesde)->extent_tree;
+	tree = &BTRFS_I(iyesde)->io_tree;
 
 	if (isize == 0)
 		return 0;
 
-	end_index = (i_size_read(inode) - 1) >> PAGE_SHIFT;
+	end_index = (i_size_read(iyesde) - 1) >> PAGE_SHIFT;
 
 	while (last_offset < compressed_end) {
 		pg_index = last_offset >> PAGE_SHIFT;
@@ -640,20 +640,20 @@ next:
 }
 
 /*
- * for a compressed read, the bio we get passed has all the inode pages
+ * for a compressed read, the bio we get passed has all the iyesde pages
  * in it.  We don't actually do IO on those pages but allocate new ones
  * to hold the compressed pages on disk.
  *
  * bio->bi_iter.bi_sector points to the compressed extent on disk
- * bio->bi_io_vec points to all of the inode pages
+ * bio->bi_io_vec points to all of the iyesde pages
  *
  * After the compressed pages are read, we copy the bytes into the
  * bio we were passed and then call the bio end_io calls
  */
-blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
+blk_status_t btrfs_submit_compressed_read(struct iyesde *iyesde, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(iyesde->i_sb);
 	struct extent_map_tree *em_tree;
 	struct compressed_bio *cb;
 	unsigned long compressed_len;
@@ -670,7 +670,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 	u8 *sums;
 
-	em_tree = &BTRFS_I(inode)->extent_tree;
+	em_tree = &BTRFS_I(iyesde)->extent_tree;
 
 	/* we need the actual starting offset of this extent in the file */
 	read_lock(&em_tree->lock);
@@ -688,7 +688,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 	refcount_set(&cb->pending_bios, 0);
 	cb->errors = 0;
-	cb->inode = inode;
+	cb->iyesde = iyesde;
 	cb->mirror_num = mirror_num;
 	sums = cb->sums;
 
@@ -722,7 +722,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	faili = nr_pages - 1;
 	cb->nr_pages = nr_pages;
 
-	add_ra_bio_pages(inode, em_start + em_len, cb);
+	add_ra_bio_pages(iyesde, em_start + em_len, cb);
 
 	/* include any pages we added in add_ra-bio_pages */
 	cb->len = bio->bi_iter.bi_size;
@@ -737,7 +737,7 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 		int submit = 0;
 
 		page = cb->compressed_pages[pg_index];
-		page->mapping = inode->i_mapping;
+		page->mapping = iyesde->i_mapping;
 		page->index = em_start >> PAGE_SHIFT;
 
 		if (comp_bio->bi_iter.bi_size)
@@ -755,14 +755,14 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 			/*
 			 * inc the count before we submit the bio so
-			 * we know the end IO handler won't happen before
+			 * we kyesw the end IO handler won't happen before
 			 * we inc the count.  Otherwise, the cb might get
 			 * freed before we're done setting it up
 			 */
 			refcount_inc(&cb->pending_bios);
 
-			if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
-				ret = btrfs_lookup_bio_sums(inode, comp_bio,
+			if (!(BTRFS_I(iyesde)->flags & BTRFS_INODE_NODATASUM)) {
+				ret = btrfs_lookup_bio_sums(iyesde, comp_bio,
 							    sums);
 				BUG_ON(ret); /* -ENOMEM */
 			}
@@ -790,8 +790,8 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	ret = btrfs_bio_wq_end_io(fs_info, comp_bio, BTRFS_WQ_ENDIO_DATA);
 	BUG_ON(ret); /* -ENOMEM */
 
-	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
-		ret = btrfs_lookup_bio_sums(inode, comp_bio, sums);
+	if (!(BTRFS_I(iyesde)->flags & BTRFS_INODE_NODATASUM)) {
+		ret = btrfs_lookup_bio_sums(iyesde, comp_bio, sums);
 		BUG_ON(ret); /* -ENOMEM */
 	}
 
@@ -967,7 +967,7 @@ static void btrfs_init_workspace_manager(int type)
 	workspace = alloc_workspace(type, 0);
 	if (IS_ERR(workspace)) {
 		pr_warn(
-	"BTRFS: cannot preallocate compression workspace, will try later\n");
+	"BTRFS: canyest preallocate compression workspace, will try later\n");
 	} else {
 		atomic_set(&wsm->total_ws, 1);
 		wsm->free_ws = 1;
@@ -991,8 +991,8 @@ static void btrfs_cleanup_workspace_manager(int type)
 
 /*
  * This finds an available workspace or allocates a new one.
- * If it's not possible to allocate a new one, waits until there's one.
- * Preallocation makes a forward progress guarantees and we do not return
+ * If it's yest possible to allocate a new one, waits until there's one.
+ * Preallocation makes a forward progress guarantees and we do yest return
  * errors.
  */
 struct list_head *btrfs_get_workspace(int type, unsigned int level)
@@ -1000,7 +1000,7 @@ struct list_head *btrfs_get_workspace(int type, unsigned int level)
 	struct workspace_manager *wsm;
 	struct list_head *workspace;
 	int cpus = num_online_cpus();
-	unsigned nofs_flag;
+	unsigned yesfs_flag;
 	struct list_head *idle_ws;
 	spinlock_t *ws_lock;
 	atomic_t *total_ws;
@@ -1042,16 +1042,16 @@ again:
 	 * to turn it off here because we might get called from the restricted
 	 * context of btrfs_compress_bio/btrfs_compress_pages
 	 */
-	nofs_flag = memalloc_nofs_save();
+	yesfs_flag = memalloc_yesfs_save();
 	workspace = alloc_workspace(type, level);
-	memalloc_nofs_restore(nofs_flag);
+	memalloc_yesfs_restore(yesfs_flag);
 
 	if (IS_ERR(workspace)) {
 		atomic_dec(total_ws);
 		wake_up(ws_wait);
 
 		/*
-		 * Do not return the error but go back to waiting. There's a
+		 * Do yest return the error but go back to waiting. There's a
 		 * workspace preallocated for each type and the compression
 		 * time is bounded so we get to a workspace eventually. This
 		 * makes our caller's life easier.
@@ -1063,10 +1063,10 @@ again:
 		if (atomic_read(total_ws) == 0) {
 			static DEFINE_RATELIMIT_STATE(_rs,
 					/* once per minute */ 60 * HZ,
-					/* no burst */ 1);
+					/* yes burst */ 1);
 
 			if (__ratelimit(&_rs)) {
-				pr_warn("BTRFS: no compression workspaces, low memory, retrying\n");
+				pr_warn("BTRFS: yes compression workspaces, low memory, retrying\n");
 			}
 		}
 		goto again;
@@ -1091,7 +1091,7 @@ static struct list_head *get_workspace(int type, int level)
 }
 
 /*
- * put a workspace struct back on the list or free it if we have enough
+ * put a workspace struct back on the list or free it if we have eyesugh
  * idle ones sitting around
  */
 void btrfs_put_workspace(int type, struct list_head *ws)
@@ -1193,7 +1193,7 @@ int btrfs_compress_pages(unsigned int type_level, struct address_space *mapping,
  * srclen is the number of bytes in pages_in
  *
  * The basic idea is that we have a bio that was created by readpages.
- * The pages in the bio are for the uncompressed data, and they may not
+ * The pages in the bio are for the uncompressed data, and they may yest
  * be contiguous.  They all correspond to the range of bytes covered by
  * the compressed extent.
  */
@@ -1302,7 +1302,7 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 		working_bytes -= bytes;
 		current_buf_start += bytes;
 
-		/* check if we need to pick another page */
+		/* check if we need to pick ayesther page */
 		bio_advance(bio, bytes);
 		if (!bio->bi_iter.bi_size)
 			return 0;
@@ -1325,7 +1325,7 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 				return 1;
 
 			/*
-			 * the next page in the biovec might not be adjacent
+			 * the next page in the biovec might yest be adjacent
 			 * to the last page, but it might still be found
 			 * inside this working buffer. bump our offset pointer
 			 */
@@ -1342,7 +1342,7 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 }
 
 /*
- * Shannon Entropy calculation
+ * Shanyesn Entropy calculation
  *
  * Pure byte distribution analysis fails to determine compressibility of data.
  * Try calculating entropy to estimate the average minimum number of bits
@@ -1354,7 +1354,7 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
  * @ENTROPY_LVL_ACEPTABLE - below that threshold, sample has low byte entropy
  *			    and can be compressible with high probability
  *
- * @ENTROPY_LVL_HIGH - data are not compressible with high probability
+ * @ENTROPY_LVL_HIGH - data are yest compressible with high probability
  *
  * Use of ilog2() decreases precision, we lower the LVL to 5 to compensate.
  */
@@ -1362,7 +1362,7 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 #define ENTROPY_LVL_HIGH		(80)
 
 /*
- * For increasead precision in shannon_entropy calculation,
+ * For increasead precision in shanyesn_entropy calculation,
  * let's do pow(n, M) to save more digits after comma:
  *
  * - maximum int bit length is 64
@@ -1376,7 +1376,7 @@ static inline u32 ilog2_w(u64 n)
 	return ilog2(n * n * n * n);
 }
 
-static u32 shannon_entropy(struct heuristic_ws *ws)
+static u32 shanyesn_entropy(struct heuristic_ws *ws)
 {
 	const u32 entropy_max = 8 * ilog2_w(2);
 	u32 entropy_sum = 0;
@@ -1467,7 +1467,7 @@ static void radix_sort(struct bucket_item *array, struct bucket_item *array_buf,
 		/*
 		 * Normal radix expects to move data from a temporary array, to
 		 * the main one.  But that requires some CPU time. Avoid that
-		 * by doing another sort iteration to original array instead of
+		 * by doing ayesther sort iteration to original array instead of
 		 * memcpy()
 		 */
 		memset(counters, 0, sizeof(counters));
@@ -1500,14 +1500,14 @@ static void radix_sort(struct bucket_item *array, struct bucket_item *array_buf,
  * values. The distribution can be uniform and counts in all buckets will be
  * nearly the same (eg. encrypted data). Unlikely to be compressible.
  *
- * Other possibility is normal (Gaussian) distribution, where the data could
+ * Other possibility is yesrmal (Gaussian) distribution, where the data could
  * be potentially compressible, but we have to take a few more steps to decide
  * how much.
  *
  * @BYTE_CORE_SET_LOW  - main part of byte values repeated frequently,
  *                       compression algo can easy fix that
  * @BYTE_CORE_SET_HIGH - data have uniform distribution and with high
- *                       probability is not compressible
+ *                       probability is yest compressible
  */
 #define BYTE_CORE_SET_LOW		(64)
 #define BYTE_CORE_SET_HIGH		(200)
@@ -1584,7 +1584,7 @@ static bool sample_repeated_patterns(struct heuristic_ws *ws)
 	return memcmp(&data[0], &data[half_of_sample], half_of_sample) == 0;
 }
 
-static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
+static void heuristic_collect_sample(struct iyesde *iyesde, u64 start, u64 end,
 				     struct heuristic_ws *ws)
 {
 	struct page *page;
@@ -1599,7 +1599,7 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
 	 * We do the same for the heuristic and loop over the whole range.
 	 *
 	 * MAX_SAMPLE_SIZE - calculated under assumption that heuristic will
-	 * process no more than BTRFS_MAX_UNCOMPRESSED at a time.
+	 * process yes more than BTRFS_MAX_UNCOMPRESSED at a time.
 	 */
 	if (end - start > BTRFS_MAX_UNCOMPRESSED)
 		end = start + BTRFS_MAX_UNCOMPRESSED;
@@ -1613,9 +1613,9 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
 
 	curr_sample_pos = 0;
 	while (index < index_end) {
-		page = find_get_page(inode->i_mapping, index);
+		page = find_get_page(iyesde->i_mapping, index);
 		in_data = kmap(page);
-		/* Handle case where the start is not aligned to PAGE_SIZE */
+		/* Handle case where the start is yest aligned to PAGE_SIZE */
 		i = start % PAGE_SIZE;
 		while (i < PAGE_SIZE - SAMPLING_READ_SIZE) {
 			/* Don't sample any garbage from the last page */
@@ -1639,7 +1639,7 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
 /*
  * Compression heuristic.
  *
- * For now is's a naive and optimistic 'return true', we'll extend the logic to
+ * For yesw is's a naive and optimistic 'return true', we'll extend the logic to
  * quickly (compared to direct compression) detect data characteristics
  * (compressible/uncompressible) to avoid wasting CPU time on uncompressible
  * data.
@@ -1649,9 +1649,9 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
  * - detect data with low "byte set" size (text, etc)
  * - detect data with low/high "core byte" set
  *
- * Return non-zero if the compression should be done, 0 otherwise.
+ * Return yesn-zero if the compression should be done, 0 otherwise.
  */
-int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
+int btrfs_compress_heuristic(struct iyesde *iyesde, u64 start, u64 end)
 {
 	struct list_head *ws_list = get_workspace(0, 0);
 	struct heuristic_ws *ws;
@@ -1661,7 +1661,7 @@ int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
 
 	ws = list_entry(ws_list, struct heuristic_ws, list);
 
-	heuristic_collect_sample(inode, start, end, ws);
+	heuristic_collect_sample(iyesde, start, end, ws);
 
 	if (sample_repeated_patterns(ws)) {
 		ret = 1;
@@ -1692,7 +1692,7 @@ int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
 		goto out;
 	}
 
-	i = shannon_entropy(ws);
+	i = shanyesn_entropy(ws);
 	if (i <= ENTROPY_LVL_ACEPTABLE) {
 		ret = 4;
 		goto out;
@@ -1702,7 +1702,7 @@ int btrfs_compress_heuristic(struct inode *inode, u64 start, u64 end)
 	 * For the levels below ENTROPY_LVL_HIGH, additional analysis would be
 	 * needed to give green light to compression.
 	 *
-	 * For now just assume that compression at that level is not worth the
+	 * For yesw just assume that compression at that level is yest worth the
 	 * resources because:
 	 *
 	 * 1. it is possible to defrag the data later

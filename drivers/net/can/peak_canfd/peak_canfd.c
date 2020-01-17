@@ -14,7 +14,7 @@
 #define PCANFD_ECHO_SKB_MAX		24
 
 /* bittiming ranges of the PEAK-System PC CAN-FD interfaces */
-static const struct can_bittiming_const peak_canfd_nominal_const = {
+static const struct can_bittiming_const peak_canfd_yesminal_const = {
 	.name = "peak_canfd",
 	.tseg1_min = 1,
 	.tseg1_max = (1 << PUCAN_TSLOW_TSGEG1_BITS),
@@ -89,7 +89,7 @@ static int pucan_set_reset_mode(struct peak_canfd_priv *priv)
 	return pucan_write_cmd(priv);
 }
 
-static int pucan_set_normal_mode(struct peak_canfd_priv *priv)
+static int pucan_set_yesrmal_mode(struct peak_canfd_priv *priv)
 {
 	int err;
 
@@ -130,7 +130,7 @@ static int pucan_set_timing_slow(struct peak_canfd_priv *priv,
 	cmd->ewl = 96;	/* default */
 
 	netdev_dbg(priv->ndev,
-		   "nominal: brp=%u tseg1=%u tseg2=%u sjw=%u\n",
+		   "yesminal: brp=%u tseg1=%u tseg2=%u sjw=%u\n",
 		   le16_to_cpu(cmd->brp), cmd->tseg1, cmd->tseg2, cmd->sjw_t);
 
 	return pucan_write_cmd(priv);
@@ -318,7 +318,7 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 	return 0;
 }
 
-/* handle rx/tx error counters notification */
+/* handle rx/tx error counters yestification */
 static int pucan_handle_error(struct peak_canfd_priv *priv,
 			      struct pucan_error_msg *msg)
 {
@@ -328,7 +328,7 @@ static int pucan_handle_error(struct peak_canfd_priv *priv,
 	return 0;
 }
 
-/* handle status notification */
+/* handle status yestification */
 static int pucan_handle_status(struct peak_canfd_priv *priv,
 			       struct pucan_status_msg *msg)
 {
@@ -411,7 +411,7 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 	return 0;
 }
 
-/* handle uCAN Rx overflow notification */
+/* handle uCAN Rx overflow yestification */
 static int pucan_handle_cache_critical(struct peak_canfd_priv *priv)
 {
 	struct net_device_stats *stats = &priv->ndev->stats;
@@ -516,7 +516,7 @@ static int peak_canfd_start(struct peak_canfd_priv *priv)
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
 		err = pucan_set_listen_only_mode(priv);
 	else
-		err = pucan_set_normal_mode(priv);
+		err = pucan_set_yesrmal_mode(priv);
 
 err_exit:
 	return err;
@@ -716,13 +716,13 @@ static netdev_tx_t peak_canfd_start_xmit(struct sk_buff *skb,
 	/* move echo index to the next slot */
 	priv->echo_idx = (priv->echo_idx + 1) % priv->can.echo_skb_max;
 
-	/* if next slot is not free, stop network queue (no slot free in echo
-	 * skb ring means that the controller did not write these frames on
-	 * the bus: no need to continue).
+	/* if next slot is yest free, stop network queue (yes slot free in echo
+	 * skb ring means that the controller did yest write these frames on
+	 * the bus: yes need to continue).
 	 */
 	should_stop_tx_queue = !!(priv->can.echo_skb[priv->echo_idx]);
 
-	/* stop network tx queue if not enough room to save one more msg too */
+	/* stop network tx queue if yest eyesugh room to save one more msg too */
 	if (priv->can.ctrlmode & CAN_CTRLMODE_FD)
 		should_stop_tx_queue |= (room_left <
 					(sizeof(*msg) + CANFD_MAX_DLEN));
@@ -765,9 +765,9 @@ struct net_device *alloc_peak_canfd_dev(int sizeof_priv, int index,
 
 	priv = netdev_priv(ndev);
 
-	/* complete now socket-can initialization side */
+	/* complete yesw socket-can initialization side */
 	priv->can.state = CAN_STATE_STOPPED;
-	priv->can.bittiming_const = &peak_canfd_nominal_const;
+	priv->can.bittiming_const = &peak_canfd_yesminal_const;
 	priv->can.data_bittiming_const = &peak_canfd_data_const;
 
 	priv->can.do_set_mode = peak_canfd_set_mode;

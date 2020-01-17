@@ -38,7 +38,7 @@ struct lima_sched_pipe {
 	struct drm_gpu_scheduler base;
 
 	u64 fence_context;
-	u32 fence_seqno;
+	u32 fence_seqyes;
 	spinlock_t fence_lock;
 
 	struct lima_sched_task *current_task;

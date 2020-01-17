@@ -35,13 +35,13 @@
 #define ACPI_RESTAG_GRANULARITY                 "_GRA"
 #define ACPI_RESTAG_INTERRUPT                   "_INT"
 #define ACPI_RESTAG_INTERRUPTLEVEL              "_LL_"	/* active_lo(1), active_hi(0) */
-#define ACPI_RESTAG_INTERRUPTSHARE              "_SHR"	/* Shareable(1), no_share(0) */
+#define ACPI_RESTAG_INTERRUPTSHARE              "_SHR"	/* Shareable(1), yes_share(0) */
 #define ACPI_RESTAG_INTERRUPTTYPE               "_HE_"	/* Edge(1), Level(0) */
 #define ACPI_RESTAG_IORESTRICTION               "_IOR"
 #define ACPI_RESTAG_LENGTH                      "_LEN"
 #define ACPI_RESTAG_LINE                        "_LIN"
 #define ACPI_RESTAG_MEMATTRIBUTES               "_MTP"	/* Memory(0), Reserved(1), ACPI(2), NVS(3) */
-#define ACPI_RESTAG_MEMTYPE                     "_MEM"	/* non_cache(0), Cacheable(1) Cache+combine(2), Cache+prefetch(3) */
+#define ACPI_RESTAG_MEMTYPE                     "_MEM"	/* yesn_cache(0), Cacheable(1) Cache+combine(2), Cache+prefetch(3) */
 #define ACPI_RESTAG_MAXADDR                     "_MAX"
 #define ACPI_RESTAG_MINADDR                     "_MIN"
 #define ACPI_RESTAG_MAXTYPE                     "_MAF"
@@ -80,14 +80,14 @@
 #define ASL_RDESC_FIXED_DMA_SIZE                0x05
 #define ASL_RDESC_END_TAG_SIZE                  0x01
 
-struct asl_resource_node {
+struct asl_resource_yesde {
 	u32 buffer_length;
 	void *buffer;
-	struct asl_resource_node *next;
+	struct asl_resource_yesde *next;
 };
 
 struct asl_resource_info {
-	union acpi_parse_object *descriptor_type_op;	/* Resource descriptor parse node */
+	union acpi_parse_object *descriptor_type_op;	/* Resource descriptor parse yesde */
 	union acpi_parse_object *mapping_op;	/* Used for mapfile support */
 	u32 current_byte_offset;	/* Offset in resource template */
 };
@@ -119,7 +119,7 @@ struct aml_resource_irq {
 	u8 flags;
 };
 
-struct aml_resource_irq_noflags {
+struct aml_resource_irq_yesflags {
 	AML_RESOURCE_SMALL_HEADER_COMMON u16 irq_mask;
 };
 
@@ -132,7 +132,7 @@ struct aml_resource_start_dependent {
 	AML_RESOURCE_SMALL_HEADER_COMMON u8 flags;
 };
 
-struct aml_resource_start_dependent_noprio {
+struct aml_resource_start_dependent_yesprio {
 AML_RESOURCE_SMALL_HEADER_COMMON};
 
 struct aml_resource_end_dependent {
@@ -536,21 +536,21 @@ void
 mp_save_serial_info(union acpi_parse_object *op,
 		    union aml_resource *resource, char *device_name);
 
-char *mp_get_hid_from_parse_tree(struct acpi_namespace_node *hid_node);
+char *mp_get_hid_from_parse_tree(struct acpi_namespace_yesde *hid_yesde);
 
 char *mp_get_hid_via_namestring(char *device_name);
 
 char *mp_get_connection_info(union acpi_parse_object *op,
 			     u32 pin_index,
-			     struct acpi_namespace_node **target_node,
+			     struct acpi_namespace_yesde **target_yesde,
 			     char **target_name);
 
 char *mp_get_parent_device_hid(union acpi_parse_object *op,
-			       struct acpi_namespace_node **target_node,
+			       struct acpi_namespace_yesde **target_yesde,
 			       char **parent_device_name);
 
 char *mp_get_ddn_value(char *device_name);
 
-char *mp_get_hid_value(struct acpi_namespace_node *device_node);
+char *mp_get_hid_value(struct acpi_namespace_yesde *device_yesde);
 
 #endif

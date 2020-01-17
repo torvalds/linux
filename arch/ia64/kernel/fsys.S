@@ -16,7 +16,7 @@
  */
 
 #include <asm/asmmacro.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/asm-offsets.h>
 #include <asm/percpu.h>
 #include <asm/thread_info.h>
@@ -34,7 +34,7 @@
  *   r10	= 0 (i.e., defaults to "successful syscall return")
  *   r11	= saved ar.pfs (a user-level value)
  *   r15	= system call number
- *   r16	= "current" task pointer (in normal kernel-mode, this is in r13)
+ *   r16	= "current" task pointer (in yesrmal kernel-mode, this is in r13)
  *   r32-r39	= system call arguments
  *   b6		= return address (a user-level value)
  *   ar.pfs	= previous frame-state (a user-level value)
@@ -122,8 +122,8 @@ ENTRY(fsys_set_tid_address)
 (p7)	st8 [r18]=r17
 (p8)	br.spnt.many fsys_fallback_syscall
 	;;
-	mov r17=0			// i must not leak kernel bits...
-	mov r18=0			// i must not leak kernel bits...
+	mov r17=0			// i must yest leak kernel bits...
+	mov r18=0			// i must yest leak kernel bits...
 	FSYS_RETURN
 END(fsys_set_tid_address)
 
@@ -152,7 +152,7 @@ ENTRY(fsys_gettimeofday)
 	// Incoming r31 = pointer to address where to place result
 	//          r30 = flags determining how time is processed
 	// r2,r3 = temp r4-r7 preserved
-	// r8 = result nanoseconds
+	// r8 = result nayesseconds
 	// r9 = result seconds
 	// r10 = temporary storage for clock difference
 	// r11 = preserved: saved ar.pfs
@@ -161,17 +161,17 @@ ENTRY(fsys_gettimeofday)
 	// r14 = address of mask / mask value
 	// r15 = preserved: system call number
 	// r16 = preserved: current task pointer
-	// r17 = (not used)
-	// r18 = (not used)
+	// r17 = (yest used)
+	// r18 = (yest used)
 	// r19 = address of itc_lastcycle
 	// r20 = struct fsyscall_gtod_data (= address of gtod_lock.sequence)
 	// r21 = address of mmio_ptr
-	// r22 = address of wall_time or monotonic_time
+	// r22 = address of wall_time or moyestonic_time
 	// r23 = address of shift / value
 	// r24 = address mult factor / cycle_last value
 	// r25 = itc_lastcycle value
 	// r26 = address clocksource cycle_last
-	// r27 = (not used)
+	// r27 = (yest used)
 	// r28 = sequence number at the beginning of critcal section
 	// r29 = address of itc_jitter
 	// r30 = time processing flags / memory address
@@ -180,12 +180,12 @@ ENTRY(fsys_gettimeofday)
 	// p6,p7 short term use
 	// p8 = timesource ar.itc
 	// p9 = timesource mmio64
-	// p10 = timesource mmio32 - not used
-	// p11 = timesource not to be handled by asm code
-	// p12 = memory time source ( = p9 | p10) - not used
+	// p10 = timesource mmio32 - yest used
+	// p11 = timesource yest to be handled by asm code
+	// p12 = memory time source ( = p9 | p10) - yest used
 	// p13 = do cmpxchg with itc_lastcycle
 	// p14 = Divide by 1000
-	// p15 = Add monotonic
+	// p15 = Add moyestonic
 	//
 	// Note that instructions are optimized for McKinley. McKinley can
 	// process two bundles simultaneously and therefore we continuously
@@ -204,7 +204,7 @@ ENTRY(fsys_gettimeofday)
 	;;
 	and r2 = TIF_ALLWORK_MASK,r2
 	add r19 = IA64_ITC_LASTCYCLE_OFFSET,r29
-(p15)	add r22 = IA64_GTOD_MONO_TIME_OFFSET,r20	// monotonic_time
+(p15)	add r22 = IA64_GTOD_MONO_TIME_OFFSET,r20	// moyestonic_time
 	;;
 	add r26 = IA64_CLKSRC_CYCLE_LAST_OFFSET,r20	// clksrc_cycle_last
 	cmp.ne p6, p0 = 0, r2	// Fallback if work is scheduled
@@ -224,7 +224,7 @@ ENTRY(fsys_gettimeofday)
 	;;
 	ld4 r3 = [r24]		// clocksource mult value
 	ld8 r14 = [r14]         // clocksource mask value
-	cmp.eq p8,p9 = 0,r30	// use cpu timer if no mmio_ptr
+	cmp.eq p8,p9 = 0,r30	// use cpu timer if yes mmio_ptr
 	;;
 	setf.sig f7 = r3	// Setup for mult scaling of counter
 (p8)	cmp.ne p13,p0 = r2,r0	// need itc_jitter compensation, set p13
@@ -249,14 +249,14 @@ ENTRY(fsys_gettimeofday)
 	;;
 (p7)	cmpxchg8.rel r3 = [r19],r2,ar.ccv
 	;;
-(p7)	cmp.ne p7,p0 = r25,r3	// if cmpxchg not successful
+(p7)	cmp.ne p7,p0 = r25,r3	// if cmpxchg yest successful
 	;;
 (p7)	sub r10 = r3,r24	// then use new last_cycle instead
 	;;
 	and r10 = r10,r14	// Apply mask
 	;;
 	setf.sig f8 = r10
-	nop.i 123
+	yesp.i 123
 	;;
 	// fault check takes 5 cycles and we have spare time
 EX(.fail_efault, probe.w.fault r31, 3)
@@ -278,16 +278,16 @@ EX(.fail_efault, probe.w.fault r31, 3)
 	add r23 = IA64_TIMESPEC_TV_NSEC_OFFSET, r31
 (p14)	movl r3 = 2361183241434822607	// Prep for / 1000 hack
 	;;
-.time_normalize:
+.time_yesrmalize:
 	mov r21 = r8
 	cmp.ge p6,p0 = r8,r2
 (p14)	shr.u r20 = r8, 3 // We can repeat this if necessary just wasting time
 	;;
 (p14)	setf.sig f8 = r20
 (p6)	sub r8 = r8,r2
-(p6)	add r9 = 1,r9		// two nops before the branch.
+(p6)	add r9 = 1,r9		// two yesps before the branch.
 (p14)	setf.sig f7 = r3	// Chances for repeats are 1 in 10000 for gettod
-(p6)	br.cond.dpnt.few .time_normalize
+(p6)	br.cond.dpnt.few .time_yesrmalize
 	;;
 	// Divided by 8 though shift. Now divide by 125
 	// The compiler was able to do that with a multiply
@@ -318,7 +318,7 @@ ENTRY(fsys_clock_gettime)
 	.altrp b6
 	.body
 	cmp4.ltu p6, p0 = CLOCK_MONOTONIC, r32
-	// Fallback if this is not CLOCK_REALTIME or CLOCK_MONOTONIC
+	// Fallback if this is yest CLOCK_REALTIME or CLOCK_MONOTONIC
 (p6)	br.spnt.few fsys_fallback_syscall
 	mov r31 = r33
 	shl r30 = r32,15
@@ -327,7 +327,7 @@ END(fsys_clock_gettime)
 
 /*
  * fsys_getcpu doesn't use the third parameter in this implementation. It reads
- * current_thread_info()->cpu and corresponding node in cpu_to_node_map.
+ * current_thread_info()->cpu and corresponding yesde in cpu_to_yesde_map.
  */
 ENTRY(fsys_getcpu)
 	.prologue
@@ -349,13 +349,13 @@ ENTRY(fsys_getcpu)
 	cmp.ne p7,p0=r33,r0
 	;;
 #ifdef CONFIG_NUMA
-	movl r17=cpu_to_node_map
+	movl r17=cpu_to_yesde_map
 	;;
 EX(.fail_efault, (p6) probe.w.fault r32, 3)		// M This takes 5 cycles
 EX(.fail_efault, (p7) probe.w.fault r33, 3)		// M This takes 5 cycles
 	shladd r18=r3,1,r17
 	;;
-	ld2 r20=[r18]				// r20 = cpu_to_node_map[cpu]
+	ld2 r20=[r18]				// r20 = cpu_to_yesde_map[cpu]
 	and r2 = TIF_ALLWORK_MASK,r2
 	;;
 	cmp.ne p8,p0=0,r2
@@ -388,7 +388,7 @@ ENTRY(fsys_fallback_syscall)
 	.body
 	/*
 	 * We only get here from light-weight syscall handlers.  Thus, we already
-	 * know that r15 contains a valid syscall number.  No need to re-check.
+	 * kyesw that r15 contains a valid syscall number.  No need to re-check.
 	 */
 	adds r17=-1024,r15
 	movl r14=sys_call_table
@@ -396,7 +396,7 @@ ENTRY(fsys_fallback_syscall)
 	RSM_PSR_I(p0, r26, r27)
 	shladd r18=r17,3,r14
 	;;
-	ld8 r18=[r18]				// load normal (heavy-weight) syscall entry-point
+	ld8 r18=[r18]				// load yesrmal (heavy-weight) syscall entry-point
 	MOV_FROM_PSR(p0, r29, r26)		// read psr (12 cyc load latency)
 	mov r27=ar.rsc
 	mov r21=ar.fpsr
@@ -415,7 +415,7 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	 * interruption had occurred.  To make syscall-restarts work,
 	 * we setup pt_regs such that cr_iip points to the second
 	 * instruction in syscall_via_break.  Decrementing the IP
-	 * hence will restart the syscall via break and not
+	 * hence will restart the syscall via break and yest
 	 * decrementing IP will return us to the caller, as usual.
 	 * Note that we preserve the value of psr.pp rather than
 	 * initializing it from dcr.pp.  This makes it possible to
@@ -423,7 +423,7 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	 * execution.
 	 *
 	 * On entry:
-	 *	- normal fsyscall handler register usage, except
+	 *	- yesrmal fsyscall handler register usage, except
 	 *	  that we also have:
 	 *	- r18: address of syscall entry point
 	 *	- r21: ar.fpsr
@@ -440,7 +440,7 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	 * However,
 	 *
 	 * PSR.BE : already is turned off in __kernel_syscall_via_epc()
-	 * PSR.AC : don't care (kernel normally turns PSR.AC on)
+	 * PSR.AC : don't care (kernel yesrmally turns PSR.AC on)
 	 * PSR.I  : already turned off by the time fsys_bubble_down gets
 	 *	    invoked
 	 * PSR.DFL: always 0 (kernel never turns it on)
@@ -466,7 +466,7 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	invala					// M0|1
 	movl r14=ia64_ret_from_syscall		// X
 
-	nop.m 0
+	yesp.m 0
 	movl r28=__kernel_syscall_via_break	// X	create cr.iip
 	;;
 
@@ -480,19 +480,19 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	;;
 	ld4 r3=[r3]				// M0|1 r3 = current_thread_info()->flags
 	lfetch.fault.excl.nt1 [r22]		// M0|1 prefetch register backing-store
-	nop.i 0
+	yesp.i 0
 	;;
 	mov ar.rsc=0				// M2   set enforced lazy mode, pl 0, LE, loadrs=0
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	MOV_FROM_ITC(p0, p6, r30, r23)		// M    get cycle for accounting
 #else
-	nop.m 0
+	yesp.m 0
 #endif
-	nop.i 0
+	yesp.i 0
 	;;
 	mov r23=ar.bspstore			// M2 (12 cyc) save ar.bspstore
 	mov.m r24=ar.rnat			// M2 (5 cyc) read ar.rnat (dual-issues!)
-	nop.i 0
+	yesp.i 0
 	;;
 	mov ar.bspstore=r22			// M2 (6 cyc) switch to kernel RBS
 	movl r8=PSR_ONE_BITS			// X
@@ -535,12 +535,12 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	mov rp=r14				// I0   set the real return addr
 	and r3=_TIF_SYSCALL_TRACEAUDIT,r3	// A
 	;;
-	SSM_PSR_I(p0, p6, r22)			// M2   we're on kernel stacks now, reenable irqs
+	SSM_PSR_I(p0, p6, r22)			// M2   we're on kernel stacks yesw, reenable irqs
 	cmp.eq p8,p0=r3,r0			// A
 (p10)	br.cond.spnt.many ia64_ret_from_syscall	// B    return if bad call-frame or r15 is a NaT
 
-	nop.m 0
-(p8)	br.call.sptk.many b6=b6			// B    (ignore return address)
+	yesp.m 0
+(p8)	br.call.sptk.many b6=b6			// B    (igyesre return address)
 	br.cond.spnt ia64_trace_syscall		// B
 END(fsys_bubble_down)
 
@@ -563,7 +563,7 @@ fsyscall_table:
 	data8 0				// chdir
 	data8 0				// fchdir		// 1035
 	data8 0				// utimes
-	data8 0				// mknod
+	data8 0				// mkyesd
 	data8 0				// chmod
 	data8 0				// chown
 	data8 0				// lseek		// 1040
@@ -694,7 +694,7 @@ fsyscall_table:
 	data8 0				// sched_get_priority_max	// 1165
 	data8 0				// sched_get_priority_min
 	data8 0				// sched_rr_get_interval
-	data8 0				// nanosleep
+	data8 0				// nayessleep
 	data8 0				// nfsservctl
 	data8 0				// prctl		// 1170
 	data8 0				// getpagesize
@@ -782,7 +782,7 @@ fsyscall_table:
 	data8 0				// clock_settime
 	data8 fsys_clock_gettime	// clock_gettime
 	data8 0				// clock_getres		// 1255
-	data8 0				// clock_nanosleep
+	data8 0				// clock_nayessleep
 	data8 0				// fstatfs64
 	data8 0				// statfs64
 	data8 0				// mbind
@@ -792,7 +792,7 @@ fsyscall_table:
 	data8 0				// mq_unlink
 	data8 0				// mq_timedsend
 	data8 0				// mq_timedreceive	// 1265
-	data8 0				// mq_notify
+	data8 0				// mq_yestify
 	data8 0				// mq_getsetattr
 	data8 0				// kexec_load
 	data8 0				// vserver
@@ -803,13 +803,13 @@ fsyscall_table:
 	data8 0				// ioprio_set
 	data8 0				// ioprio_get		// 1275
 	data8 0				// move_pages
-	data8 0				// inotify_init
-	data8 0				// inotify_add_watch
-	data8 0				// inotify_rm_watch
+	data8 0				// iyestify_init
+	data8 0				// iyestify_add_watch
+	data8 0				// iyestify_rm_watch
 	data8 0				// migrate_pages	// 1280
 	data8 0				// openat
 	data8 0				// mkdirat
-	data8 0				// mknodat
+	data8 0				// mkyesdat
 	data8 0				// fchownat
 	data8 0				// futimesat		// 1285
 	data8 0				// newfstatat

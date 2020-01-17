@@ -80,7 +80,7 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 
 		return 0;
 	} else if (ir_calc > ir) {
-		/* Increasing the denominator to select ir_s value */
+		/* Increasing the deyesminator to select ir_s value */
 		while (ir_calc >= ir && ir) {
 			ir_s_calc++;
 			ir_calc = DIVISOR_IR_B_126 / (tick * (1 << ir_s_calc));
@@ -101,8 +101,8 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 		if (ir_calc == ir) {
 			*ir_b = 126;
 		} else {
-			u32 denominator = DIVISOR_CLK * (1 << --ir_u_calc);
-			*ir_b = (ir * tick + (denominator >> 1)) / denominator;
+			u32 deyesminator = DIVISOR_CLK * (1 << --ir_u_calc);
+			*ir_b = (ir * tick + (deyesminator >> 1)) / deyesminator;
 		}
 	}
 
@@ -562,7 +562,7 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	u8 i;
 
 	/* TC configuration is shared by PF/VF in one port, only allow
-	 * one tc for VF for simplicity. VF's vport_id is non zero.
+	 * one tc for VF for simplicity. VF's vport_id is yesn zero.
 	 */
 	kinfo->num_tc = vport->vport_id ? 1 :
 			min_t(u16, vport->alloc_tqps, hdev->tm_info.num_tc);
@@ -572,7 +572,7 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	max_rss_size = min_t(u16, hdev->rss_size_max,
 			     vport->alloc_tqps / kinfo->num_tc);
 
-	/* Set to user value, no larger than max_rss_size. */
+	/* Set to user value, yes larger than max_rss_size. */
 	if (kinfo->req_rss_size != kinfo->rss_size && kinfo->req_rss_size &&
 	    kinfo->req_rss_size <= max_rss_size) {
 		dev_info(&hdev->pdev->dev, "rss changes from %u to %u\n",
@@ -580,7 +580,7 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 		kinfo->rss_size = kinfo->req_rss_size;
 	} else if (kinfo->rss_size > max_rss_size ||
 		   (!kinfo->req_rss_size && kinfo->rss_size < max_rss_size)) {
-		/* if user not set rss, the rss_size should compare with the
+		/* if user yest set rss, the rss_size should compare with the
 		 * valid msi numbers to ensure one to one map between tqp and
 		 * irq as default.
 		 */
@@ -646,7 +646,7 @@ static void hclge_tm_tc_info_init(struct hclge_dev *hdev)
 			(i >= hdev->tm_info.num_tc) ? 0 : i;
 
 	/* DCB is enabled if we have more than 1 TC or pfc_en is
-	 * non-zero.
+	 * yesn-zero.
 	 */
 	if (hdev->tm_info.num_tc > 1 || hdev->tm_info.pfc_en)
 		hdev->flag |= HCLGE_FLAG_DCB_ENABLE;
@@ -1383,13 +1383,13 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev, bool init)
 	if (!hnae3_dev_dcb_supported(hdev))
 		return 0;
 
-	/* GE MAC does not support PFC, when driver is initializing and MAC
-	 * is in GE Mode, ignore the error here, otherwise initialization
+	/* GE MAC does yest support PFC, when driver is initializing and MAC
+	 * is in GE Mode, igyesre the error here, otherwise initialization
 	 * will fail.
 	 */
 	ret = hclge_pfc_setup_hw(hdev);
 	if (init && ret == -EOPNOTSUPP)
-		dev_warn(&hdev->pdev->dev, "GE MAC does not support pfc\n");
+		dev_warn(&hdev->pdev->dev, "GE MAC does yest support pfc\n");
 	else if (ret) {
 		dev_err(&hdev->pdev->dev, "config pfc failed! ret = %d\n",
 			ret);
@@ -1438,7 +1438,7 @@ void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 void hclge_tm_pfc_info_update(struct hclge_dev *hdev)
 {
 	/* DCB is enabled if we have more than 1 TC or pfc_en is
-	 * non-zero.
+	 * yesn-zero.
 	 */
 	if (hdev->tm_info.num_tc > 1 || hdev->tm_info.pfc_en)
 		hdev->flag |= HCLGE_FLAG_DCB_ENABLE;

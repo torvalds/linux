@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
-    Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
+    Copyright (c) 2001,2002 Christer Weinigel <wingel@nayes-system.com>
 
     National Semiconductor SCx200 ACCESS.bus support
     Also supports the AMD CS5535 and AMD CS5536
@@ -14,7 +14,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
@@ -27,7 +27,7 @@
 
 #include <linux/scx200.h>
 
-MODULE_AUTHOR("Christer Weinigel <wingel@nano-system.com>");
+MODULE_AUTHOR("Christer Weinigel <wingel@nayes-system.com>");
 MODULE_DESCRIPTION("NatSemi SCx200 ACCESS.bus Driver");
 MODULE_ALIAS("platform:cs5535-smb");
 MODULE_LICENSE("GPL");
@@ -81,7 +81,7 @@ struct scx200_acb_iface {
 #define ACBST		(iface->base + 1)
 #define    ACBST_SDAST		0x40 /* SDA Status */
 #define    ACBST_BER		0x20
-#define    ACBST_NEGACK		0x10 /* Negative Acknowledge */
+#define    ACBST_NEGACK		0x10 /* Negative Ackyeswledge */
 #define    ACBST_STASTR		0x08 /* Stall After Start */
 #define    ACBST_MASTER		0x02
 #define ACBCST		(iface->base + 2)
@@ -110,7 +110,7 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 		goto error;
 	}
 	if (!(status & ACBST_MASTER)) {
-		errmsg = "not master";
+		errmsg = "yest master";
 		goto error;
 	}
 	if (status & ACBST_NEGACK) {
@@ -368,7 +368,7 @@ static u32 scx200_acb_func(struct i2c_adapter *adapter)
 	       I2C_FUNC_SMBUS_I2C_BLOCK;
 }
 
-/* For now, we only handle combined mode (smbus) */
+/* For yesw, we only handle combined mode (smbus) */
 static const struct i2c_algorithm scx200_acb_algorithm = {
 	.smbus_xfer	= scx200_acb_smbus_xfer,
 	.functionality	= scx200_acb_func,
@@ -456,7 +456,7 @@ static int scx200_acb_create(struct scx200_acb_iface *iface)
 	}
 
 	if (!adapter->dev.parent) {
-		/* If there's no dev, we're tracking (ISA) ifaces manually */
+		/* If there's yes dev, we're tracking (ISA) ifaces manually */
 		mutex_lock(&scx200_acb_list_mutex);
 		iface->next = scx200_acb_list;
 		scx200_acb_list = iface;

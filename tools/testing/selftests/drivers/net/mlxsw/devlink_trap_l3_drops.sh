@@ -40,7 +40,7 @@
 lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="
-	non_ip_test
+	yesn_ip_test
 	uc_dip_over_mc_dmac_test
 	dip_is_loopback_test
 	sip_is_mc_test
@@ -152,13 +152,13 @@ ping_check()
 
 	devlink_trap_action_set $trap_name "trap"
 	ping_do $h1 $h2_ipv4
-	check_err $? "Packets that should not be trapped were trapped"
+	check_err $? "Packets that should yest be trapped were trapped"
 	devlink_trap_action_set $trap_name "drop"
 }
 
-non_ip_test()
+yesn_ip_test()
 {
-	local trap_name="non_ip"
+	local trap_name="yesn_ip"
 	local group_name="l3_drops"
 	local mz_pid
 
@@ -169,7 +169,7 @@ non_ip_test()
 	tc filter add dev $rp2 egress protocol ip pref 1 handle 101 \
 		flower dst_ip $h2_ipv4 action drop
 
-	# Generate non-IP packets to the router
+	# Generate yesn-IP packets to the router
 	$MZ $h1 -c 0 -p 100 -d 1msec -B $h2_ipv4 -q "$rp1mac $h1mac \
 		00:00 de:ad:be:ef" &
 	mz_pid=$!

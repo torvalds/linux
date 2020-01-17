@@ -2,7 +2,7 @@
 /*
  * HD audio interface patch for Creative CA0132 chip
  *
- * Copyright (c) 2011, Creative Technology Ltd.
+ * Copyright (c) 2011, Creative Techyeslogy Ltd.
  *
  * Based on patch_ca0110.c
  * Copyright (c) 2008 Takashi Iwai <tiwai@suse.de>
@@ -172,7 +172,7 @@ struct ct_effect {
 	int mid; /*effect module ID*/
 	int reqs[EFFECT_VALS_MAX_COUNT]; /*effect module request*/
 	int direct; /* 0:output; 1:input*/
-	int params; /* number of default non-on/off params */
+	int params; /* number of default yesn-on/off params */
 	/*effect default values, 1st is on/off. */
 	unsigned int def_vals[EFFECT_VALS_MAX_COUNT];
 };
@@ -634,7 +634,7 @@ static const struct ca0132_alt_out_set alt_out_presets[] = {
 
 /*
  * DSP volume setting structs. Req 1 is left volume, req 2 is right volume,
- * and I don't know what the third req is, but it's always zero. I assume it's
+ * and I don't kyesw what the third req is, but it's always zero. I assume it's
  * some sort of update or set command to tell the DSP there's new volume info.
  */
 #define DSP_VOL_OUT 0
@@ -717,7 +717,7 @@ static const struct ae5_filter_set ae5_filter_presets[] = {
 };
 
 enum hda_cmd_vendor_io {
-	/* for DspIO node */
+	/* for DspIO yesde */
 	VENDOR_DSPIO_SCP_WRITE_DATA_LOW      = 0x000,
 	VENDOR_DSPIO_SCP_WRITE_DATA_HIGH     = 0x100,
 
@@ -728,7 +728,7 @@ enum hda_cmd_vendor_io {
 	VENDOR_DSPIO_SCP_POST_COUNT_QUERY    = 0x704,
 	VENDOR_DSPIO_SCP_READ_COUNT          = 0xF04,
 
-	/* for ChipIO node */
+	/* for ChipIO yesde */
 	VENDOR_CHIPIO_ADDRESS_LOW            = 0x000,
 	VENDOR_CHIPIO_ADDRESS_HIGH           = 0x100,
 	VENDOR_CHIPIO_STREAM_FORMAT          = 0x200,
@@ -831,7 +831,7 @@ enum control_flag_id {
 	CONTROL_FLAG_PORT_D_10KOHM_LOAD     = 21,
 	/* ASI rate is 48kHz/96kHz */
 	CONTROL_FLAG_ASI_96KHZ              = 22,
-	/* DAC power settings able to control attached ports no/yes */
+	/* DAC power settings able to control attached ports yes/no */
 	CONTROL_FLAG_DACS_CONTROL_PORTS     = 23,
 	/* Clock Stop OK reporting is disabled/enabled */
 	CONTROL_FLAG_CONTROL_STOP_OK_ENABLE = 24,
@@ -882,7 +882,7 @@ enum control_param_id {
 
 	/* Node Control */
 
-	/* Select HDA node with the given ID */
+	/* Select HDA yesde with the given ID */
 	CONTROL_PARAM_NODE_ID                  = 31
 };
 
@@ -999,10 +999,10 @@ struct ca0132_spec {
 	unsigned char dmic_ctl;
 	int cur_out_type;
 	int cur_mic_type;
-	long vnode_lvol[VNODES_COUNT];
-	long vnode_rvol[VNODES_COUNT];
-	long vnode_lswitch[VNODES_COUNT];
-	long vnode_rswitch[VNODES_COUNT];
+	long vyesde_lvol[VNODES_COUNT];
+	long vyesde_rvol[VNODES_COUNT];
+	long vyesde_lswitch[VNODES_COUNT];
+	long vyesde_rswitch[VNODES_COUNT];
 	long effects_switch[EFFECTS_COUNT];
 	long voicefx_val;
 	long cur_mic_boost;
@@ -1031,21 +1031,21 @@ struct ca0132_spec {
 #endif
 	/*
 	 * The Recon3D, Sound Blaster Z, Sound Blaster ZxR, and Sound Blaster
-	 * AE-5 all use PCI region 2 to toggle GPIO and other currently unknown
+	 * AE-5 all use PCI region 2 to toggle GPIO and other currently unkyeswn
 	 * things.
 	 */
 	bool use_pci_mmio;
 	void __iomem *mem_base;
 
 	/*
-	 * Whether or not to use the alt functions like alt_select_out,
-	 * alt_select_in, etc. Only used on desktop codecs for now, because of
+	 * Whether or yest to use the alt functions like alt_select_out,
+	 * alt_select_in, etc. Only used on desktop codecs for yesw, because of
 	 * surround sound support.
 	 */
 	bool use_alt_functions;
 
 	/*
-	 * Whether or not to use alt controls:	volume effect sliders, EQ
+	 * Whether or yest to use alt controls:	volume effect sliders, EQ
 	 * presets, smart volume presets, and new control names with FX prefix.
 	 * Renames PlayEnhancement and CrystalVoice too.
 	 */
@@ -1085,7 +1085,7 @@ static const struct hda_pintbl alienware_pincfgs[] = {
 	{ 0x0d, 0x411111f0 }, /* N/A */
 	{ 0x0e, 0x411111f0 }, /* N/A */
 	{ 0x0f, 0x0321101f }, /* HP */
-	{ 0x10, 0x411111f0 }, /* Headset?  disabled for now */
+	{ 0x10, 0x411111f0 }, /* Headset?  disabled for yesw */
 	{ 0x11, 0x03a11021 }, /* Mic */
 	{ 0x12, 0xd5a30140 }, /* Builtin Mic */
 	{ 0x13, 0x411111f0 }, /* N/A */
@@ -1280,7 +1280,7 @@ static int chipio_write_data(struct hda_codec *codec, unsigned int data)
 				  data >> 16);
 	}
 
-	/*If no error encountered, automatically increment the address
+	/*If yes error encountered, automatically increment the address
 	as per chip behaviour*/
 	spec->curr_chip_addx = (res != -EIO) ?
 					(spec->curr_chip_addx + 4) : ~0U;
@@ -1331,7 +1331,7 @@ static int chipio_read_data(struct hda_codec *codec, unsigned int *data)
 					   0);
 	}
 
-	/*If no error encountered, automatically increment the address
+	/*If yes error encountered, automatically increment the address
 	as per chip behaviour*/
 	spec->curr_chip_addx = (res != -EIO) ?
 					(spec->curr_chip_addx + 4) : ~0U;
@@ -1366,9 +1366,9 @@ exit:
 
 /*
  * Write given value to the given address through the chip I/O widget.
- * not protected by the Mutex
+ * yest protected by the Mutex
  */
-static int chipio_write_no_mutex(struct hda_codec *codec,
+static int chipio_write_yes_mutex(struct hda_codec *codec,
 		unsigned int chip_addx, const unsigned int data)
 {
 	int err;
@@ -1483,7 +1483,7 @@ static void chipio_set_control_param(struct hda_codec *codec,
 /*
  * Set chip parameters through the chip I/O widget. NO MUTEX.
  */
-static void chipio_set_control_param_no_mutex(struct hda_codec *codec,
+static void chipio_set_control_param_yes_mutex(struct hda_codec *codec,
 		enum control_param_id param_id, int param_val)
 {
 	int val;
@@ -1510,11 +1510,11 @@ static void chipio_set_control_param_no_mutex(struct hda_codec *codec,
 static void chipio_set_stream_source_dest(struct hda_codec *codec,
 				int streamid, int source_point, int dest_point)
 {
-	chipio_set_control_param_no_mutex(codec,
+	chipio_set_control_param_yes_mutex(codec,
 			CONTROL_PARAM_STREAM_ID, streamid);
-	chipio_set_control_param_no_mutex(codec,
+	chipio_set_control_param_yes_mutex(codec,
 			CONTROL_PARAM_STREAM_SOURCE_CONN_POINT, source_point);
-	chipio_set_control_param_no_mutex(codec,
+	chipio_set_control_param_yes_mutex(codec,
 			CONTROL_PARAM_STREAM_DEST_CONN_POINT, dest_point);
 }
 
@@ -1524,9 +1524,9 @@ static void chipio_set_stream_source_dest(struct hda_codec *codec,
 static void chipio_set_stream_channels(struct hda_codec *codec,
 				int streamid, unsigned int channels)
 {
-	chipio_set_control_param_no_mutex(codec,
+	chipio_set_control_param_yes_mutex(codec,
 			CONTROL_PARAM_STREAM_ID, streamid);
-	chipio_set_control_param_no_mutex(codec,
+	chipio_set_control_param_yes_mutex(codec,
 			CONTROL_PARAM_STREAMS_CHANNELS, channels);
 }
 
@@ -1536,9 +1536,9 @@ static void chipio_set_stream_channels(struct hda_codec *codec,
 static void chipio_set_stream_control(struct hda_codec *codec,
 				int streamid, int enable)
 {
-	chipio_set_control_param_no_mutex(codec,
+	chipio_set_control_param_yes_mutex(codec,
 			CONTROL_PARAM_STREAM_ID, streamid);
-	chipio_set_control_param_no_mutex(codec,
+	chipio_set_control_param_yes_mutex(codec,
 			CONTROL_PARAM_STREAM_CONTROL, enable);
 }
 
@@ -1546,12 +1546,12 @@ static void chipio_set_stream_control(struct hda_codec *codec,
 /*
  * Set sampling rate of the connection point. NO MUTEX.
  */
-static void chipio_set_conn_rate_no_mutex(struct hda_codec *codec,
+static void chipio_set_conn_rate_yes_mutex(struct hda_codec *codec,
 				int connid, enum ca0132_sample_rate rate)
 {
-	chipio_set_control_param_no_mutex(codec,
+	chipio_set_control_param_yes_mutex(codec,
 			CONTROL_PARAM_CONN_POINT_ID, connid);
-	chipio_set_control_param_no_mutex(codec,
+	chipio_set_control_param_yes_mutex(codec,
 			CONTROL_PARAM_CONN_POINT_SAMPLE_RATE, rate);
 }
 
@@ -1662,7 +1662,7 @@ static int dspio_write(struct hda_codec *codec, unsigned int scp_data)
 	if (status < 0)
 		goto error;
 
-	/* OK, now check if the write itself has executed*/
+	/* OK, yesw check if the write itself has executed*/
 	status = snd_hda_codec_read(codec, WIDGET_DSP_CTRL, 0,
 				    VENDOR_DSPIO_STATUS, 0);
 error:
@@ -1949,7 +1949,7 @@ static int dspio_scp(struct hda_codec *codec,
 		return -EINVAL;
 
 	if (dir == SCP_GET && reply == NULL) {
-		codec_dbg(codec, "dspio_scp get but has no buffer\n");
+		codec_dbg(codec, "dspio_scp get but has yes buffer\n");
 		return -EINVAL;
 	}
 
@@ -2028,7 +2028,7 @@ static int dspio_set_uint_param(struct hda_codec *codec, int mod_id,
 			sizeof(unsigned int));
 }
 
-static int dspio_set_uint_param_no_source(struct hda_codec *codec, int mod_id,
+static int dspio_set_uint_param_yes_source(struct hda_codec *codec, int mod_id,
 			int req, const unsigned int data)
 {
 	return dspio_set_param(codec, mod_id, 0x00, req, &data,
@@ -2054,7 +2054,7 @@ static int dspio_alloc_dma_chan(struct hda_codec *codec, unsigned int *dma_chan)
 	}
 
 	if ((*dma_chan + 1) == 0) {
-		codec_dbg(codec, "no free dma channels to allocate\n");
+		codec_dbg(codec, "yes free dma channels to allocate\n");
 		return -EBUSY;
 	}
 
@@ -2772,7 +2772,7 @@ static int dspxfr_hci_write(struct hda_codec *codec,
  * @codec: the HDA codec
  * @fls: pointer to a fast load image
  * @reloc: Relocation address for loading single-segment overlays, or 0 for
- *	   no relocation
+ *	   yes relocation
  * @dma_engine: pointer to DMA engine to be used for DSP download
  * @dma_chan: The number of DMA channels used for DSP download
  * @port_map_mask: port mapping
@@ -2911,7 +2911,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 		if (status < 0)
 			return status;
 		if (!dsp_is_dma_active(codec, dma_chan)) {
-			codec_dbg(codec, "dspxfr:DMA did not start\n");
+			codec_dbg(codec, "dspxfr:DMA did yest start\n");
 			return -EIO;
 		}
 		status = dma_set_state(dma_engine, DMA_STATE_RUN);
@@ -2969,7 +2969,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
  * @codec: the HDA codec
  * @fls_data: pointer to a fast load image
  * @reloc: Relocation address for loading single-segment overlays, or 0 for
- *	   no relocation
+ *	   yes relocation
  * @sample_rate: sampling rate of the stream used for DSP download
  * @channels: channels of the stream used for DSP download
  * @ovly: TRUE if overlay format is required
@@ -3118,13 +3118,13 @@ static void dspload_post_setup(struct hda_codec *codec)
  * @fls: pointer to a fast load image
  * @ovly: TRUE if overlay format is required
  * @reloc: Relocation address for loading single-segment overlays, or 0 for
- *	   no relocation
- * @autostart: TRUE if DSP starts after loading; ignored if ovly is TRUE
+ *	   yes relocation
+ * @autostart: TRUE if DSP starts after loading; igyesred if ovly is TRUE
  * @router_chans: number of audio router channels to be allocated (0 means use
  *		  internal defaults; max is 32)
  *
  * Download DSP from a DSP Image Fast Load structure. This structure is a
- * linear, non-constant sized element array of structures, each of which
+ * linear, yesn-constant sized element array of structures, each of which
  * contain the count of the data to be loaded, the data itself, and the
  * corresponding starting chip address of the starting data location.
  * Returns zero or a negative error code.
@@ -3226,7 +3226,7 @@ static bool dspload_wait_loaded(struct hda_codec *codec)
  * the mmio address 0x320 is used to set GPIO pins. The format for the data
  * The first eight bits are just the number of the pin. So far, I've only seen
  * this number go to 7.
- * AE-5 note: The AE-5 seems to use pins 2 and 3 to somehow set the color value
+ * AE-5 yeste: The AE-5 seems to use pins 2 and 3 to somehow set the color value
  * of the on-card LED. It seems to use pin 2 for data, then toggles 3 to on and
  * then off to send that bit.
  */
@@ -3327,7 +3327,7 @@ static void ca0113_mmio_command_set_type2(struct hda_codec *codec,
 
 /*
  * Sets up the GPIO pins so that they are discoverable. If this isn't done,
- * the card shows as having no GPIO pins.
+ * the card shows as having yes GPIO pins.
  */
 static void ca0132_gpio_init(struct hda_codec *codec)
 {
@@ -3389,12 +3389,12 @@ enum r3di_gpio_bit {
 	/* Bit 2 - Switch between headphone/line out. 0 = Headphone, 1 = Line */
 	R3DI_OUT_SELECT_BIT = 2,
 	/*
-	 * I dunno what this actually does, but it stays on until the dsp
+	 * I dunyes what this actually does, but it stays on until the dsp
 	 * is downloaded.
 	 */
 	R3DI_GPIO_DSP_DOWNLOADING = 3,
 	/*
-	 * Same as above, no clue what it does, but it comes on after the dsp
+	 * Same as above, yes clue what it does, but it comes on after the dsp
 	 * is downloaded.
 	 */
 	R3DI_GPIO_DSP_DOWNLOADED = 4
@@ -4062,13 +4062,13 @@ static int ca0132_select_out(struct hda_codec *codec)
 
 	snd_hda_power_up_pm(codec);
 
-	auto_jack = spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
+	auto_jack = spec->vyesde_lswitch[VNID_HP_ASEL - VNODE_START_NID];
 
 	if (auto_jack)
 		jack_present = snd_hda_jack_detect(codec, spec->unsol_tag_hp);
 	else
 		jack_present =
-			spec->vnode_lswitch[VNID_HP_SEL - VNODE_START_NID];
+			spec->vyesde_lswitch[VNID_HP_SEL - VNODE_START_NID];
 
 	if (jack_present)
 		spec->cur_out_type = HEADPHONE_OUT;
@@ -4098,12 +4098,12 @@ static int ca0132_select_out(struct hda_codec *codec)
 		snd_hda_codec_write(codec, spec->out_pins[0], 0,
 				    AC_VERB_SET_EAPD_BTLENABLE, 0x02);
 
-		/* disable headphone node */
+		/* disable headphone yesde */
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[1], 0,
 					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 		snd_hda_set_pin_ctl(codec, spec->out_pins[1],
 				    pin_ctl & ~PIN_HP);
-		/* enable speaker node */
+		/* enable speaker yesde */
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[0], 0,
 				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 		snd_hda_set_pin_ctl(codec, spec->out_pins[0],
@@ -4313,7 +4313,7 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 
 	snd_hda_power_up_pm(codec);
 
-	auto_jack = spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
+	auto_jack = spec->vyesde_lswitch[VNID_HP_ASEL - VNODE_START_NID];
 
 	/*
 	 * If headphone rear or front is plugged in, set to headphone.
@@ -4343,12 +4343,12 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 	case SPEAKER_OUT:
 		codec_dbg(codec, "%s speaker\n", __func__);
 
-		/* disable headphone node */
+		/* disable headphone yesde */
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[1], 0,
 					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 		snd_hda_set_pin_ctl(codec, spec->out_pins[1],
 				    pin_ctl & ~PIN_HP);
-		/* enable line-out node */
+		/* enable line-out yesde */
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[0], 0,
 				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 		snd_hda_set_pin_ctl(codec, spec->out_pins[0],
@@ -4395,7 +4395,7 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 	case SURROUND_OUT:
 		codec_dbg(codec, "%s surround\n", __func__);
 
-		/* enable line out node */
+		/* enable line out yesde */
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[0], 0,
 				AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 		snd_hda_set_pin_ctl(codec, spec->out_pins[0],
@@ -4408,12 +4408,12 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 		/* Enable EAPD on line out */
 		snd_hda_codec_write(codec, spec->out_pins[0], 0,
 			AC_VERB_SET_EAPD_BTLENABLE, 0x01);
-		/* enable center/lfe out node */
+		/* enable center/lfe out yesde */
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[2], 0,
 					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 		snd_hda_set_pin_ctl(codec, spec->out_pins[2],
 				    pin_ctl | PIN_OUT);
-		/* Now set rear surround node as out. */
+		/* Now set rear surround yesde as out. */
 		pin_ctl = snd_hda_codec_read(codec, spec->out_pins[3], 0,
 					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 		snd_hda_set_pin_ctl(codec, spec->out_pins[3],
@@ -4424,7 +4424,7 @@ static int ca0132_alt_select_out(struct hda_codec *codec)
 	}
 	/*
 	 * Surround always sets it's scp command to req 0x04 to FLOAT_EIGHT.
-	 * With this set though, X_BASS cannot be enabled. So, if we have OutFX
+	 * With this set though, X_BASS canyest be enabled. So, if we have OutFX
 	 * enabled, we need to make sure X_BASS is off, otherwise everything
 	 * sounds all muffled. Running ca0132_effects_set with X_BASS as the
 	 * effect should sort this out.
@@ -4597,13 +4597,13 @@ static int ca0132_select_mic(struct hda_codec *codec)
 
 	snd_hda_power_up_pm(codec);
 
-	auto_jack = spec->vnode_lswitch[VNID_AMIC1_ASEL - VNODE_START_NID];
+	auto_jack = spec->vyesde_lswitch[VNID_AMIC1_ASEL - VNODE_START_NID];
 
 	if (auto_jack)
 		jack_present = snd_hda_jack_detect(codec, spec->unsol_tag_amic1);
 	else
 		jack_present =
-			spec->vnode_lswitch[VNID_AMIC1_SEL - VNODE_START_NID];
+			spec->vyesde_lswitch[VNID_AMIC1_SEL - VNODE_START_NID];
 
 	if (jack_present)
 		spec->cur_mic_type = LINE_MIC_IN;
@@ -4636,7 +4636,7 @@ static int ca0132_select_mic(struct hda_codec *codec)
 /*
  * Select the active input.
  * Mic detection isn't used, because it's kind of pointless on the SBZ.
- * The front mic has no jack-detection, so the only way to switch to it
+ * The front mic has yes jack-detection, so the only way to switch to it
  * is to do it manually in alsamixer.
  */
 static int ca0132_alt_select_in(struct hda_codec *codec)
@@ -4796,7 +4796,7 @@ static int ca0132_alt_select_in(struct hda_codec *codec)
 /*
  * Check if VNODE settings take effect immediately.
  */
-static bool ca0132_is_vnode_effective(struct hda_codec *codec,
+static bool ca0132_is_vyesde_effective(struct hda_codec *codec,
 				     hda_nid_t vnid,
 				     hda_nid_t *shared_nid)
 {
@@ -4822,7 +4822,7 @@ static bool ca0132_is_vnode_effective(struct hda_codec *codec,
 
 /*
 * The following functions are control change helpers.
-* They return 0 if no changed.  Return 1 if changed.
+* They return 0 if yes changed.  Return 1 if changed.
 */
 static int ca0132_voicefx_set(struct hda_codec *codec, int enable)
 {
@@ -4855,7 +4855,7 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 	int idx = nid - EFFECT_START_NID;
 
 	if ((idx < 0) || (idx >= num_fx))
-		return 0; /* no changed */
+		return 0; /* yes changed */
 
 	/* for out effect, qualify with PE */
 	if ((nid >= OUT_EFFECT_START_NID) && (nid < OUT_EFFECT_END_NID)) {
@@ -4893,7 +4893,7 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 			}
 		}
 		/*
-		 * For SBZ noise reduction, there's an extra command
+		 * For SBZ yesise reduction, there's an extra command
 		 * to module ID 0x47. No clue why.
 		 */
 		if ((nid == NOISE_REDUCTION) && ca0132_use_pci_mmio(spec)
@@ -4925,7 +4925,7 @@ static int ca0132_effects_set(struct hda_codec *codec, hda_nid_t nid, long val)
 				   ca0132_effects[idx].reqs[0], on);
 
 	if (err < 0)
-		return 0; /* no changed */
+		return 0; /* yes changed */
 
 	return 1;
 }
@@ -5056,7 +5056,7 @@ static int zxr_headphone_gain_set(struct hda_codec *codec, long val)
 	return 0;
 }
 
-static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
+static int ca0132_vyesde_switch_set(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
@@ -5069,7 +5069,7 @@ static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 
 	if (nid == VNID_HP_SEL) {
 		auto_jack =
-			spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
+			spec->vyesde_lswitch[VNID_HP_ASEL - VNODE_START_NID];
 		if (!auto_jack) {
 			if (ca0132_use_alt_functions(spec))
 				ca0132_alt_select_out(codec);
@@ -5081,7 +5081,7 @@ static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 
 	if (nid == VNID_AMIC1_SEL) {
 		auto_jack =
-			spec->vnode_lswitch[VNID_AMIC1_ASEL - VNODE_START_NID];
+			spec->vyesde_lswitch[VNID_AMIC1_ASEL - VNODE_START_NID];
 		if (!auto_jack)
 			ca0132_select_mic(codec);
 		return 1;
@@ -5101,7 +5101,7 @@ static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 	}
 
 	/* if effective conditions, then update hw immediately. */
-	effective = ca0132_is_vnode_effective(codec, nid, &shared_nid);
+	effective = ca0132_is_vyesde_effective(codec, nid, &shared_nid);
 	if (effective) {
 		int dir = get_amp_direction(kcontrol);
 		int ch = get_amp_channels(kcontrol);
@@ -5429,7 +5429,7 @@ static int ae5_sound_filter_put(struct snd_kcontrol *kcontrol,
 
 /*
  * Input Select Control for alternative ca0132 codecs. This exists because
- * front microphone has no auto-detect, and we need a way to set the rear
+ * front microphone has yes auto-detect, and we need a way to set the rear
  * as line-in
  */
 static int ca0132_alt_input_source_info(struct snd_kcontrol *kcontrol,
@@ -5517,7 +5517,7 @@ static int ca0132_alt_output_select_put(struct snd_kcontrol *kcontrol,
 
 	spec->out_enum_val = sel;
 
-	auto_jack = spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
+	auto_jack = spec->vyesde_lswitch[VNID_HP_ASEL - VNODE_START_NID];
 
 	if (!auto_jack)
 		ca0132_alt_select_out(codec);
@@ -5721,14 +5721,14 @@ static int ca0132_switch_get(struct snd_kcontrol *kcontrol,
 	int ch = get_amp_channels(kcontrol);
 	long *valp = ucontrol->value.integer.value;
 
-	/* vnode */
+	/* vyesde */
 	if ((nid >= VNODE_START_NID) && (nid < VNODE_END_NID)) {
 		if (ch & 1) {
-			*valp = spec->vnode_lswitch[nid - VNODE_START_NID];
+			*valp = spec->vyesde_lswitch[nid - VNODE_START_NID];
 			valp++;
 		}
 		if (ch & 2) {
-			*valp = spec->vnode_rswitch[nid - VNODE_START_NID];
+			*valp = spec->vyesde_rswitch[nid - VNODE_START_NID];
 			valp++;
 		}
 		return 0;
@@ -5763,17 +5763,17 @@ static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
 		    nid, *valp);
 
 	snd_hda_power_up(codec);
-	/* vnode */
+	/* vyesde */
 	if ((nid >= VNODE_START_NID) && (nid < VNODE_END_NID)) {
 		if (ch & 1) {
-			spec->vnode_lswitch[nid - VNODE_START_NID] = *valp;
+			spec->vyesde_lswitch[nid - VNODE_START_NID] = *valp;
 			valp++;
 		}
 		if (ch & 2) {
-			spec->vnode_rswitch[nid - VNODE_START_NID] = *valp;
+			spec->vyesde_rswitch[nid - VNODE_START_NID] = *valp;
 			valp++;
 		}
-		changed = ca0132_vnode_switch_set(kcontrol, ucontrol);
+		changed = ca0132_vyesde_switch_set(kcontrol, ucontrol);
 		goto exit;
 	}
 
@@ -5806,7 +5806,7 @@ static int ca0132_switch_put(struct snd_kcontrol *kcontrol,
 			if (spec->in_enum_val != REAR_LINE_IN)
 				changed = ca0132_mic_boost_set(codec, *valp);
 		} else {
-			/* Mic boost does not apply to Digital Mic */
+			/* Mic boost does yest apply to Digital Mic */
 			if (spec->cur_mic_type != DIGITAL_MIC)
 				changed = ca0132_mic_boost_set(codec, *valp);
 		}
@@ -5848,14 +5848,14 @@ static void ca0132_alt_dsp_volume_put(struct hda_codec *codec, hda_nid_t nid)
 	else
 		dsp_dir = DSP_VOL_IN;
 
-	lookup_val = spec->vnode_lvol[nid - VNODE_START_NID];
+	lookup_val = spec->vyesde_lvol[nid - VNODE_START_NID];
 
 	dspio_set_uint_param(codec,
 		ca0132_alt_vol_ctls[dsp_dir].mid,
 		ca0132_alt_vol_ctls[dsp_dir].reqs[0],
 		float_vol_db_lookup[lookup_val]);
 
-	lookup_val = spec->vnode_rvol[nid - VNODE_START_NID];
+	lookup_val = spec->vyesde_rvol[nid - VNODE_START_NID];
 
 	dspio_set_uint_param(codec,
 		ca0132_alt_vol_ctls[dsp_dir].mid,
@@ -5916,11 +5916,11 @@ static int ca0132_volume_get(struct snd_kcontrol *kcontrol,
 
 	/* store the left and right volume */
 	if (ch & 1) {
-		*valp = spec->vnode_lvol[nid - VNODE_START_NID];
+		*valp = spec->vyesde_lvol[nid - VNODE_START_NID];
 		valp++;
 	}
 	if (ch & 2) {
-		*valp = spec->vnode_rvol[nid - VNODE_START_NID];
+		*valp = spec->vyesde_rvol[nid - VNODE_START_NID];
 		valp++;
 	}
 	return 0;
@@ -5940,16 +5940,16 @@ static int ca0132_volume_put(struct snd_kcontrol *kcontrol,
 
 	/* store the left and right volume */
 	if (ch & 1) {
-		spec->vnode_lvol[nid - VNODE_START_NID] = *valp;
+		spec->vyesde_lvol[nid - VNODE_START_NID] = *valp;
 		valp++;
 	}
 	if (ch & 2) {
-		spec->vnode_rvol[nid - VNODE_START_NID] = *valp;
+		spec->vyesde_rvol[nid - VNODE_START_NID] = *valp;
 		valp++;
 	}
 
 	/* if effective conditions, then update hw immediately. */
-	effective = ca0132_is_vnode_effective(codec, nid, &shared_nid);
+	effective = ca0132_is_vyesde_effective(codec, nid, &shared_nid);
 	if (effective) {
 		int dir = get_amp_direction(kcontrol);
 		unsigned long pval;
@@ -5995,11 +5995,11 @@ static int ca0132_alt_volume_put(struct snd_kcontrol *kcontrol,
 
 	/* store the left and right volume */
 	if (ch & 1) {
-		spec->vnode_lvol[vnid - VNODE_START_NID] = *valp;
+		spec->vyesde_lvol[vnid - VNODE_START_NID] = *valp;
 		valp++;
 	}
 	if (ch & 2) {
-		spec->vnode_rvol[vnid - VNODE_START_NID] = *valp;
+		spec->vyesde_rvol[vnid - VNODE_START_NID] = *valp;
 		valp++;
 	}
 
@@ -6133,7 +6133,7 @@ static int add_ca0132_alt_eq_presets(struct hda_codec *codec)
 /*
  * Add enumerated control for the three different settings of the smart volume
  * output effect. Normal just uses the slider value, and loud and night are
- * their own things that ignore that value.
+ * their own things that igyesre that value.
  */
 static int ca0132_alt_add_svm_enum(struct hda_codec *codec)
 {
@@ -6166,7 +6166,7 @@ static int ca0132_alt_add_output_enum(struct hda_codec *codec)
 
 /*
  * Create an Input Source enumerated control for the alternate ca0132 codecs
- * because the front microphone has no auto-detect, and Line-in has to be set
+ * because the front microphone has yes auto-detect, and Line-in has to be set
  * somehow.
  */
 static int ca0132_alt_add_input_enum(struct hda_codec *codec)
@@ -6200,7 +6200,7 @@ static int ca0132_alt_add_mic_boost_enum(struct hda_codec *codec)
 
 /*
  * Add headphone gain enumerated control for the AE-5. This switches between
- * three modes, low, medium, and high. When non-headphone outputs are selected,
+ * three modes, low, medium, and high. When yesn-headphone outputs are selected,
  * it is automatically set to high. This is the same behavior as Windows.
  */
 static int ae5_add_headphone_gain_enum(struct hda_codec *codec)
@@ -6474,7 +6474,7 @@ static int ca0132_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 		/*
-		 * ZxR only has microphone input, there is no front panel
+		 * ZxR only has microphone input, there is yes front panel
 		 * header on the card, and aux-in is handled by the DBPro board.
 		 */
 		if (ca0132_quirk(spec) != QUIRK_ZXR) {
@@ -6758,7 +6758,7 @@ static void ca0132_set_dmic(struct hda_codec *codec, int enable)
 		if (!(spec->dmic_ctl & 0x20))
 			chipio_set_control_flag(codec, CONTROL_FLAG_DMIC, 1);
 	} else {
-		/* set AMic input as mono */
+		/* set AMic input as moyes */
 		tmp = FLOAT_ONE;
 		dspio_set_uint_param(codec, 0x80, 0x00, tmp);
 
@@ -6796,7 +6796,7 @@ static void ca0132_init_dmic(struct hda_codec *codec)
 	snd_hda_codec_write(codec, spec->input_pins[0], 0,
 			    VENDOR_CHIPIO_DMIC_MCLK_SET, val);
 
-	/* Data1 uses MPIO3. Data2 not use
+	/* Data1 uses MPIO3. Data2 yest use
 	 * Bit 2-0: Data1 MPIO select
 	 * Bit   3: set disable Data1
 	 * Bit 6-4: Data2 MPIO select
@@ -6885,7 +6885,7 @@ static void ca0132_alt_create_dummy_stream(struct hda_codec *codec)
 }
 
 /*
- * Initialize mic for non-chromebook ca0132 implementations.
+ * Initialize mic for yesn-chromebook ca0132 implementations.
  */
 static void ca0132_alt_init_analog_mics(struct hda_codec *codec)
 {
@@ -6902,7 +6902,7 @@ static void ca0132_alt_init_analog_mics(struct hda_codec *codec)
 		tmp = FLOAT_THREE;
 	dspio_set_uint_param(codec, 0x80, 0x00, tmp);
 
-	/* Mic 2 setup (not present on desktop cards) */
+	/* Mic 2 setup (yest present on desktop cards) */
 	chipio_set_conn_rate(codec, MEM_CONNID_MICIN2, SR_96_000);
 	chipio_set_conn_rate(codec, MEM_CONNID_MICOUT2, SR_96_000);
 	if (ca0132_quirk(spec) == QUIRK_R3DI)
@@ -6914,7 +6914,7 @@ static void ca0132_alt_init_analog_mics(struct hda_codec *codec)
 /*
  * Sets the source of stream 0x14 to connpointID 0x48, and the destination
  * connpointID to 0x91. If this isn't done, the destination is 0x71, and
- * you get no sound. I'm guessing this has to do with the Sound Blaster Z
+ * you get yes sound. I'm guessing this has to do with the Sound Blaster Z
  * having an updated DAC, which changes the destination to that DAC.
  */
 static void sbz_connect_streams(struct hda_codec *codec)
@@ -6929,12 +6929,12 @@ static void sbz_connect_streams(struct hda_codec *codec)
 	chipio_set_stream_control(codec, 0x0C, 1);
 
 	/* This value is 0x43 for 96khz, and 0x83 for 192khz. */
-	chipio_write_no_mutex(codec, 0x18a020, 0x00000043);
+	chipio_write_yes_mutex(codec, 0x18a020, 0x00000043);
 
 	/* Setup stream 0x14 with it's source and destination points */
 	chipio_set_stream_source_dest(codec, 0x14, 0x48, 0x91);
-	chipio_set_conn_rate_no_mutex(codec, 0x48, SR_96_000);
-	chipio_set_conn_rate_no_mutex(codec, 0x91, SR_96_000);
+	chipio_set_conn_rate_yes_mutex(codec, 0x48, SR_96_000);
+	chipio_set_conn_rate_yes_mutex(codec, 0x91, SR_96_000);
 	chipio_set_stream_channels(codec, 0x14, 2);
 	chipio_set_stream_control(codec, 0x14, 1);
 
@@ -6947,7 +6947,7 @@ static void sbz_connect_streams(struct hda_codec *codec)
  * Write data through ChipIO to setup proper stream destinations.
  * Not sure how it exactly works, but it seems to direct data
  * to different destinations. Example is f8 to c0, e0 to c0.
- * All I know is, if you don't set these, you get no sound.
+ * All I kyesw is, if you don't set these, you get yes sound.
  */
 static void sbz_chipio_startup_data(struct hda_codec *codec)
 {
@@ -6957,40 +6957,40 @@ static void sbz_chipio_startup_data(struct hda_codec *codec)
 	codec_dbg(codec, "Startup Data entered, mutex locked and loaded.\n");
 
 	/* These control audio output */
-	chipio_write_no_mutex(codec, 0x190060, 0x0001f8c0);
-	chipio_write_no_mutex(codec, 0x190064, 0x0001f9c1);
-	chipio_write_no_mutex(codec, 0x190068, 0x0001fac6);
-	chipio_write_no_mutex(codec, 0x19006c, 0x0001fbc7);
+	chipio_write_yes_mutex(codec, 0x190060, 0x0001f8c0);
+	chipio_write_yes_mutex(codec, 0x190064, 0x0001f9c1);
+	chipio_write_yes_mutex(codec, 0x190068, 0x0001fac6);
+	chipio_write_yes_mutex(codec, 0x19006c, 0x0001fbc7);
 	/* Signal to update I think */
-	chipio_write_no_mutex(codec, 0x19042c, 0x00000001);
+	chipio_write_yes_mutex(codec, 0x19042c, 0x00000001);
 
 	chipio_set_stream_channels(codec, 0x0C, 6);
 	chipio_set_stream_control(codec, 0x0C, 1);
 	/* No clue what these control */
 	if (ca0132_quirk(spec) == QUIRK_SBZ) {
-		chipio_write_no_mutex(codec, 0x190030, 0x0001e0c0);
-		chipio_write_no_mutex(codec, 0x190034, 0x0001e1c1);
-		chipio_write_no_mutex(codec, 0x190038, 0x0001e4c2);
-		chipio_write_no_mutex(codec, 0x19003c, 0x0001e5c3);
-		chipio_write_no_mutex(codec, 0x190040, 0x0001e2c4);
-		chipio_write_no_mutex(codec, 0x190044, 0x0001e3c5);
-		chipio_write_no_mutex(codec, 0x190048, 0x0001e8c6);
-		chipio_write_no_mutex(codec, 0x19004c, 0x0001e9c7);
-		chipio_write_no_mutex(codec, 0x190050, 0x0001ecc8);
-		chipio_write_no_mutex(codec, 0x190054, 0x0001edc9);
-		chipio_write_no_mutex(codec, 0x190058, 0x0001eaca);
-		chipio_write_no_mutex(codec, 0x19005c, 0x0001ebcb);
+		chipio_write_yes_mutex(codec, 0x190030, 0x0001e0c0);
+		chipio_write_yes_mutex(codec, 0x190034, 0x0001e1c1);
+		chipio_write_yes_mutex(codec, 0x190038, 0x0001e4c2);
+		chipio_write_yes_mutex(codec, 0x19003c, 0x0001e5c3);
+		chipio_write_yes_mutex(codec, 0x190040, 0x0001e2c4);
+		chipio_write_yes_mutex(codec, 0x190044, 0x0001e3c5);
+		chipio_write_yes_mutex(codec, 0x190048, 0x0001e8c6);
+		chipio_write_yes_mutex(codec, 0x19004c, 0x0001e9c7);
+		chipio_write_yes_mutex(codec, 0x190050, 0x0001ecc8);
+		chipio_write_yes_mutex(codec, 0x190054, 0x0001edc9);
+		chipio_write_yes_mutex(codec, 0x190058, 0x0001eaca);
+		chipio_write_yes_mutex(codec, 0x19005c, 0x0001ebcb);
 	} else if (ca0132_quirk(spec) == QUIRK_ZXR) {
-		chipio_write_no_mutex(codec, 0x190038, 0x000140c2);
-		chipio_write_no_mutex(codec, 0x19003c, 0x000141c3);
-		chipio_write_no_mutex(codec, 0x190040, 0x000150c4);
-		chipio_write_no_mutex(codec, 0x190044, 0x000151c5);
-		chipio_write_no_mutex(codec, 0x190050, 0x000142c8);
-		chipio_write_no_mutex(codec, 0x190054, 0x000143c9);
-		chipio_write_no_mutex(codec, 0x190058, 0x000152ca);
-		chipio_write_no_mutex(codec, 0x19005c, 0x000153cb);
+		chipio_write_yes_mutex(codec, 0x190038, 0x000140c2);
+		chipio_write_yes_mutex(codec, 0x19003c, 0x000141c3);
+		chipio_write_yes_mutex(codec, 0x190040, 0x000150c4);
+		chipio_write_yes_mutex(codec, 0x190044, 0x000151c5);
+		chipio_write_yes_mutex(codec, 0x190050, 0x000142c8);
+		chipio_write_yes_mutex(codec, 0x190054, 0x000143c9);
+		chipio_write_yes_mutex(codec, 0x190058, 0x000152ca);
+		chipio_write_yes_mutex(codec, 0x19005c, 0x000153cb);
 	}
-	chipio_write_no_mutex(codec, 0x19042c, 0x00000001);
+	chipio_write_yes_mutex(codec, 0x19042c, 0x00000001);
 
 	codec_dbg(codec, "Startup Data exited, mutex released.\n");
 	mutex_unlock(&spec->chipio_mutex);
@@ -7014,30 +7014,30 @@ static void ca0132_alt_dsp_scp_startup(struct hda_codec *codec)
 		case QUIRK_SBZ:
 		case QUIRK_AE5:
 			tmp = 0x00000003;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			dspio_set_uint_param_yes_source(codec, 0x80, 0x0C, tmp);
 			tmp = 0x00000000;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0A, tmp);
+			dspio_set_uint_param_yes_source(codec, 0x80, 0x0A, tmp);
 			tmp = 0x00000001;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0B, tmp);
+			dspio_set_uint_param_yes_source(codec, 0x80, 0x0B, tmp);
 			tmp = 0x00000004;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			dspio_set_uint_param_yes_source(codec, 0x80, 0x0C, tmp);
 			tmp = 0x00000005;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			dspio_set_uint_param_yes_source(codec, 0x80, 0x0C, tmp);
 			tmp = 0x00000000;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			dspio_set_uint_param_yes_source(codec, 0x80, 0x0C, tmp);
 			break;
 		case QUIRK_R3D:
 		case QUIRK_R3DI:
 			tmp = 0x00000000;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0A, tmp);
+			dspio_set_uint_param_yes_source(codec, 0x80, 0x0A, tmp);
 			tmp = 0x00000001;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0B, tmp);
+			dspio_set_uint_param_yes_source(codec, 0x80, 0x0B, tmp);
 			tmp = 0x00000004;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			dspio_set_uint_param_yes_source(codec, 0x80, 0x0C, tmp);
 			tmp = 0x00000005;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			dspio_set_uint_param_yes_source(codec, 0x80, 0x0C, tmp);
 			tmp = 0x00000000;
-			dspio_set_uint_param_no_source(codec, 0x80, 0x0C, tmp);
+			dspio_set_uint_param_yes_source(codec, 0x80, 0x0C, tmp);
 			break;
 		default:
 			break;
@@ -7166,7 +7166,7 @@ static void ae5_post_dsp_stream_setup(struct hda_codec *codec)
 
 	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0, 0x725, 0x81);
 
-	chipio_set_conn_rate_no_mutex(codec, 0x70, SR_96_000);
+	chipio_set_conn_rate_yes_mutex(codec, 0x70, SR_96_000);
 
 	chipio_set_stream_channels(codec, 0x0C, 6);
 	chipio_set_stream_control(codec, 0x0C, 1);
@@ -7174,11 +7174,11 @@ static void ae5_post_dsp_stream_setup(struct hda_codec *codec)
 	chipio_set_stream_source_dest(codec, 0x5, 0x43, 0x0);
 
 	chipio_set_stream_source_dest(codec, 0x18, 0x9, 0xd0);
-	chipio_set_conn_rate_no_mutex(codec, 0xd0, SR_96_000);
+	chipio_set_conn_rate_yes_mutex(codec, 0xd0, SR_96_000);
 	chipio_set_stream_channels(codec, 0x18, 6);
 	chipio_set_stream_control(codec, 0x18, 1);
 
-	chipio_set_control_param_no_mutex(codec, CONTROL_PARAM_ASI, 4);
+	chipio_set_control_param_yes_mutex(codec, CONTROL_PARAM_ASI, 4);
 
 	snd_hda_codec_write(codec, WIDGET_CHIP_CTRL, 0,
 			    VENDOR_CHIPIO_8051_ADDRESS_LOW, 0x43);
@@ -7196,13 +7196,13 @@ static void ae5_post_dsp_startup_data(struct hda_codec *codec)
 
 	mutex_lock(&spec->chipio_mutex);
 
-	chipio_write_no_mutex(codec, 0x189000, 0x0001f101);
-	chipio_write_no_mutex(codec, 0x189004, 0x0001f101);
-	chipio_write_no_mutex(codec, 0x189024, 0x00014004);
-	chipio_write_no_mutex(codec, 0x189028, 0x0002000f);
+	chipio_write_yes_mutex(codec, 0x189000, 0x0001f101);
+	chipio_write_yes_mutex(codec, 0x189004, 0x0001f101);
+	chipio_write_yes_mutex(codec, 0x189024, 0x00014004);
+	chipio_write_yes_mutex(codec, 0x189028, 0x0002000f);
 
 	ca0113_mmio_command_set(codec, 0x48, 0x0a, 0x05);
-	chipio_set_control_param_no_mutex(codec, CONTROL_PARAM_ASI, 7);
+	chipio_set_control_param_yes_mutex(codec, CONTROL_PARAM_ASI, 7);
 	ca0113_mmio_command_set(codec, 0x48, 0x0b, 0x12);
 	ca0113_mmio_command_set(codec, 0x48, 0x04, 0x00);
 	ca0113_mmio_command_set(codec, 0x48, 0x06, 0x48);
@@ -7214,7 +7214,7 @@ static void ae5_post_dsp_startup_data(struct hda_codec *codec)
 	ca0113_mmio_gpio_set(codec, 1, true);
 	ca0113_mmio_command_set(codec, 0x48, 0x07, 0x80);
 
-	chipio_write_no_mutex(codec, 0x18b03c, 0x00000012);
+	chipio_write_yes_mutex(codec, 0x18b03c, 0x00000012);
 
 	ca0113_mmio_command_set(codec, 0x48, 0x0f, 0x00);
 	ca0113_mmio_command_set(codec, 0x48, 0x10, 0x00);
@@ -7252,7 +7252,7 @@ static void ca0132_setup_defaults(struct hda_codec *codec)
 	/*set speaker EQ bypass attenuation*/
 	dspio_set_uint_param(codec, 0x8f, 0x01, tmp);
 
-	/* set AMic1 and AMic2 as mono mic */
+	/* set AMic1 and AMic2 as moyes mic */
 	tmp = FLOAT_ONE;
 	dspio_set_uint_param(codec, 0x80, 0x00, tmp);
 	dspio_set_uint_param(codec, 0x80, 0x01, tmp);
@@ -7386,7 +7386,7 @@ static void ae5_setup_defaults(struct hda_codec *codec)
 	chipio_set_stream_control(codec, 0x03, 1);
 	chipio_set_stream_control(codec, 0x04, 1);
 
-	/* New, unknown SCP req's */
+	/* New, unkyeswn SCP req's */
 	tmp = FLOAT_ZERO;
 	dspio_set_uint_param(codec, 0x96, 0x29, tmp);
 	dspio_set_uint_param(codec, 0x96, 0x2a, tmp);
@@ -7518,14 +7518,14 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
 	case QUIRK_AE5:
 		if (request_firmware(&fw_entry, DESKTOP_EFX_FILE,
 					codec->card->dev) != 0)
-			codec_dbg(codec, "Desktop firmware not found.");
+			codec_dbg(codec, "Desktop firmware yest found.");
 		else
 			codec_dbg(codec, "Desktop firmware selected.");
 		break;
 	case QUIRK_R3DI:
 		if (request_firmware(&fw_entry, R3DI_EFX_FILE,
 					codec->card->dev) != 0)
-			codec_dbg(codec, "Recon3Di alt firmware not detected.");
+			codec_dbg(codec, "Recon3Di alt firmware yest detected.");
 		else
 			codec_dbg(codec, "Recon3Di firmware selected.");
 		break;
@@ -7533,7 +7533,7 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
 		break;
 	}
 	/*
-	 * Use default ctefx.bin if no alt firmware is detected, or if none
+	 * Use default ctefx.bin if yes alt firmware is detected, or if yesne
 	 * exists for your particular codec.
 	 */
 	if (!fw_entry) {
@@ -7730,10 +7730,10 @@ static void ca0132_init_chip(struct hda_codec *codec)
 	spec->cur_mic_boost = 0;
 
 	for (i = 0; i < VNODES_COUNT; i++) {
-		spec->vnode_lvol[i] = 0x5a;
-		spec->vnode_rvol[i] = 0x5a;
-		spec->vnode_lswitch[i] = 0;
-		spec->vnode_rswitch[i] = 0;
+		spec->vyesde_lvol[i] = 0x5a;
+		spec->vyesde_rvol[i] = 0x5a;
+		spec->vyesde_lswitch[i] = 0;
+		spec->vyesde_rswitch[i] = 0;
 	}
 
 	/*
@@ -7760,7 +7760,7 @@ static void ca0132_init_chip(struct hda_codec *codec)
 
 	/*
 	 * The ZxR doesn't have a front panel header, and it's line-in is on
-	 * the daughter board. So, there is no input enum control, and we need
+	 * the daughter board. So, there is yes input enum control, and we need
 	 * to make sure that spec->in_enum_val is set properly.
 	 */
 	if (ca0132_quirk(spec) == QUIRK_ZXR)
@@ -7774,7 +7774,7 @@ static void ca0132_init_chip(struct hda_codec *codec)
 /*
  * Recon3Di exit specific commands.
  */
-/* prevents popping noise on shutdown */
+/* prevents popping yesise on shutdown */
 static void r3di_gpio_shutdown(struct hda_codec *codec)
 {
 	snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA, 0x00);
@@ -7957,7 +7957,7 @@ static void ca0132_exit_chip(struct hda_codec *codec)
 
 /*
  * This fixes a problem that was hard to reproduce. Very rarely, I would
- * boot up, and there would be no sound, but the DSP indicated it had loaded
+ * boot up, and there would be yes sound, but the DSP indicated it had loaded
  * properly. I did a few memory dumps to see if anything was different, and
  * there were a few areas of memory uninitialized with a1a2a3a4. This function
  * checks if those areas are uninitialized, and if they are, it'll attempt to
@@ -7988,7 +7988,7 @@ static void sbz_dsp_startup_check(struct hda_codec *codec)
 
 	codec_dbg(codec, "Startup Check: %d ", failure);
 	if (failure)
-		codec_info(codec, "DSP not initialized properly. Attempting to fix.");
+		codec_info(codec, "DSP yest initialized properly. Attempting to fix.");
 	/*
 	 * While the failure condition is true, and we haven't reached our
 	 * three reload limit, continue trying to reload the driver and
@@ -8025,7 +8025,7 @@ static void sbz_dsp_startup_check(struct hda_codec *codec)
  * extra precision for decibel values. If you had the dB value in floating point
  * you would take the value after the decimal point, multiply by 64, and divide
  * by 2. So for 8.59, it's (59 * 64) / 100. Useful if someone wanted to
- * implement fixed point or floating point dB volumes. For now, I'll set them
+ * implement fixed point or floating point dB volumes. For yesw, I'll set them
  * to 0 just incase a value has lingered from a boot into Windows.
  */
 static void ca0132_alt_vol_setup(struct hda_codec *codec)
@@ -8283,7 +8283,7 @@ static int ca0132_init(struct hda_codec *codec)
 	 * false, and the init will be ran again. The other reason it gets
 	 * re entered is on startup for some reason it triggers a suspend and
 	 * resume state. In this case, it will check if the DSP is downloaded,
-	 * and not run the init function again. For codecs using alt_functions,
+	 * and yest run the init function again. For codecs using alt_functions,
 	 * it will check if the DSP is loaded properly.
 	 */
 	if (spec->dsp_state == DSP_DOWNLOADED) {
@@ -8376,7 +8376,7 @@ static int ca0132_init(struct hda_codec *codec)
 
 	/*
 	 * Re set the PlayEnhancement switch on a resume event, because the
-	 * controls will not be reloaded.
+	 * controls will yest be reloaded.
 	 */
 	if (spec->dsp_reload) {
 		spec->dsp_reload = false;
@@ -8451,7 +8451,7 @@ static void dbpro_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
-static void ca0132_reboot_notify(struct hda_codec *codec)
+static void ca0132_reboot_yestify(struct hda_codec *codec)
 {
 	codec->patch_ops.free(codec);
 }
@@ -8475,7 +8475,7 @@ static const struct hda_codec_ops ca0132_patch_ops = {
 #ifdef CONFIG_PM
 	.suspend = ca0132_suspend,
 #endif
-	.reboot_notify = ca0132_reboot_notify,
+	.reboot_yestify = ca0132_reboot_yestify,
 };
 
 static const struct hda_codec_ops dbpro_patch_ops = {
@@ -8561,7 +8561,7 @@ static void ca0132_config(struct hda_codec *codec)
 		spec->unsol_tag_front_hp = spec->out_pins[2];
 
 		spec->adcs[0] = 0x7; /* Rear Mic / Line-in */
-		spec->adcs[1] = 0x8; /* Front Mic, but only if no DSP */
+		spec->adcs[1] = 0x8; /* Front Mic, but only if yes DSP */
 		spec->adcs[2] = 0xa; /* what u hear */
 
 		spec->num_inputs = 2;
@@ -8586,7 +8586,7 @@ static void ca0132_config(struct hda_codec *codec)
 		spec->unsol_tag_front_hp = spec->out_pins[2];
 
 		spec->adcs[0] = 0x7; /* Rear Mic / Line-in */
-		spec->adcs[1] = 0x8; /* Not connected, no front mic */
+		spec->adcs[1] = 0x8; /* Not connected, yes front mic */
 		spec->adcs[2] = 0xa; /* what u hear */
 
 		spec->num_inputs = 2;
@@ -8617,7 +8617,7 @@ static void ca0132_config(struct hda_codec *codec)
 		spec->unsol_tag_front_hp = spec->out_pins[2];
 
 		spec->adcs[0] = 0x7; /* Rear Mic / Line-in */
-		spec->adcs[1] = 0x8; /* Front Mic, but only if no DSP */
+		spec->adcs[1] = 0x8; /* Front Mic, but only if yes DSP */
 		spec->adcs[2] = 0xa; /* what u hear */
 
 		spec->num_inputs = 2;
@@ -8641,7 +8641,7 @@ static void ca0132_config(struct hda_codec *codec)
 		spec->unsol_tag_front_hp = spec->out_pins[2];
 
 		spec->adcs[0] = 0x07; /* Rear Mic / Line-in */
-		spec->adcs[1] = 0x08; /* Front Mic, but only if no DSP */
+		spec->adcs[1] = 0x08; /* Front Mic, but only if yes DSP */
 		spec->adcs[2] = 0x0a; /* what u hear */
 
 		spec->num_inputs = 2;
@@ -8689,7 +8689,7 @@ static int ca0132_prepare_verbs(struct hda_codec *codec)
 	spec->chip_init_verbs = ca0132_init_verbs0;
 	/*
 	 * Since desktop cards use pci_mmio, this can be used to determine
-	 * whether or not to use these verbs instead of a separate bool.
+	 * whether or yest to use these verbs instead of a separate bool.
 	 */
 	if (ca0132_use_pci_mmio(spec))
 		spec->desktop_init_verbs = ca0132_init_verbs1;
@@ -8775,7 +8775,7 @@ static int patch_ca0132(struct hda_codec *codec)
 		codec->patch_ops = ca0132_patch_ops;
 
 	codec->pcm_format_first = 1;
-	codec->no_sticky_stream = 1;
+	codec->yes_sticky_stream = 1;
 
 
 	spec->dsp_state = DSP_DOWNLOAD_INIT;
@@ -8810,7 +8810,7 @@ static int patch_ca0132(struct hda_codec *codec)
 		break;
 	}
 
-	/* Setup whether or not to use alt functions/controls/pci_mmio */
+	/* Setup whether or yest to use alt functions/controls/pci_mmio */
 	switch (ca0132_quirk(spec)) {
 	case QUIRK_SBZ:
 	case QUIRK_R3D:

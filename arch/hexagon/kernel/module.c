@@ -95,7 +95,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 		DEBUGP("%d: value=%08x loc=%p reloc=%d symbol=%s\n",
 		       i, value, location, ELF32_R_TYPE(rela[i].r_info),
 		       sym->st_name ?
-		       &strtab[sym->st_name] : "(anonymous)");
+		       &strtab[sym->st_name] : "(ayesnymous)");
 
 		switch (ELF32_R_TYPE(rela[i].r_info)) {
 		case R_HEXAGON_B22_PCREL: {
@@ -108,7 +108,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 				       "R_HEXAGON_B22_PCREL reloc out of range",
 				       dist, value, (uint32_t)location,
 				       sym->st_name ?
-				       &strtab[sym->st_name] : "(anonymous)");
+				       &strtab[sym->st_name] : "(ayesnymous)");
 				return -ENOEXEC;
 			}
 			DEBUGP("B22_PCREL contents: %08X.\n", *location);
@@ -139,7 +139,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 			       module->name);
 			return -ENOEXEC;
 		default:
-			printk(KERN_ERR "%s: unknown relocation: %u\n",
+			printk(KERN_ERR "%s: unkyeswn relocation: %u\n",
 			       module->name,
 			       ELF32_R_TYPE(rela[i].r_info));
 			return -ENOEXEC;

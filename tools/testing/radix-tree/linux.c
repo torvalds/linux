@@ -27,7 +27,7 @@ struct kmem_cache {
 
 void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
 {
-	struct radix_tree_node *node;
+	struct radix_tree_yesde *yesde;
 
 	if (!(flags & __GFP_DIRECT_RECLAIM))
 		return NULL;
@@ -35,21 +35,21 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
 	pthread_mutex_lock(&cachep->lock);
 	if (cachep->nr_objs) {
 		cachep->nr_objs--;
-		node = cachep->objs;
-		cachep->objs = node->parent;
+		yesde = cachep->objs;
+		cachep->objs = yesde->parent;
 		pthread_mutex_unlock(&cachep->lock);
-		node->parent = NULL;
+		yesde->parent = NULL;
 	} else {
 		pthread_mutex_unlock(&cachep->lock);
-		node = malloc(cachep->size);
+		yesde = malloc(cachep->size);
 		if (cachep->ctor)
-			cachep->ctor(node);
+			cachep->ctor(yesde);
 	}
 
 	uatomic_inc(&nr_allocated);
 	if (kmalloc_verbose)
-		printf("Allocating %p from slab\n", node);
-	return node;
+		printf("Allocating %p from slab\n", yesde);
+	return yesde;
 }
 
 void kmem_cache_free(struct kmem_cache *cachep, void *objp)
@@ -63,10 +63,10 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 		memset(objp, POISON_FREE, cachep->size);
 		free(objp);
 	} else {
-		struct radix_tree_node *node = objp;
+		struct radix_tree_yesde *yesde = objp;
 		cachep->nr_objs++;
-		node->parent = cachep->objs;
-		cachep->objs = node;
+		yesde->parent = cachep->objs;
+		cachep->objs = yesde;
 	}
 	pthread_mutex_unlock(&cachep->lock);
 }

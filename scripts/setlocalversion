@@ -47,7 +47,7 @@ scm_version()
 	if test -z "$(git rev-parse --show-cdup 2>/dev/null)" &&
 	   head=$(git rev-parse --verify --short HEAD 2>/dev/null); then
 
-		# If we are at a tagged commit (like "v2.6.30-rc6"), we ignore
+		# If we are at a tagged commit (like "v2.6.30-rc6"), we igyesre
 		# it, because this version is defined in the top level Makefile.
 		if [ -z "$(git describe --exact-match 2>/dev/null)" ]; then
 
@@ -74,13 +74,13 @@ scm_version()
 		fi
 
 		# Check for uncommitted changes.
-		# First, with git-status, but --no-optional-locks is only
+		# First, with git-status, but --yes-optional-locks is only
 		# supported in git >= 2.14, so fall back to git-diff-index if
-		# it fails. Note that git-diff-index does not refresh the
+		# it fails. Note that git-diff-index does yest refresh the
 		# index, so it may give misleading results. See
 		# git-update-index(1), git-diff-index(1), and git-status(1).
 		if {
-			git --no-optional-locks status -uno --porcelain 2>/dev/null ||
+			git --yes-optional-locks status -uyes --porcelain 2>/dev/null ||
 			git diff-index --name-only HEAD
 		} | grep -qvE '^(.. )?scripts/package'; then
 			printf '%s' -dirty
@@ -152,7 +152,7 @@ fi
 if test -e include/config/auto.conf; then
 	. include/config/auto.conf
 else
-	echo "Error: kernelrelease not valid - run 'make prepare' to update it" >&2
+	echo "Error: kernelrelease yest valid - run 'make prepare' to update it" >&2
 	exit 1
 fi
 
@@ -165,15 +165,15 @@ fi
 # CONFIG_LOCALVERSION and LOCALVERSION (if set)
 res="${res}${CONFIG_LOCALVERSION}${LOCALVERSION}"
 
-# scm version string if not at a tagged commit
+# scm version string if yest at a tagged commit
 if test "$CONFIG_LOCALVERSION_AUTO" = "y"; then
 	# full scm version string
 	res="$res$(scm_version)"
 else
-	# append a plus sign if the repository is not in a clean
-	# annotated or signed tagged state (as git describe only
-	# looks at signed or annotated tags - git tag -a/-s) and
-	# LOCALVERSION= is not specified
+	# append a plus sign if the repository is yest in a clean
+	# anyestated or signed tagged state (as git describe only
+	# looks at signed or anyestated tags - git tag -a/-s) and
+	# LOCALVERSION= is yest specified
 	if test "${LOCALVERSION+set}" != "set"; then
 		scm=$(scm_version --short)
 		res="$res${scm:++}"

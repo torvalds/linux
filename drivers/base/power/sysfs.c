@@ -33,7 +33,7 @@
  *	devices have one of three values for the sysfs power/wakeup file:
  *
  *	 + "enabled\n" to issue the events;
- *	 + "disabled\n" not to do so; or
+ *	 + "disabled\n" yest to do so; or
  *	 + "\n" for temporary or permanent inability to issue wakeup.
  *
  *	(For example, unconfigured USB devices can't issue wakeups.)
@@ -43,15 +43,15 @@
  *	"Wake-On-LAN" Ethernet links, GPIO lines, and more.  Some events
  *	will wake the entire system from a suspend state; others may just
  *	wake up the device (if the system as a whole is already active).
- *	Some wakeup events use normal IRQ lines; other use special out
+ *	Some wakeup events use yesrmal IRQ lines; other use special out
  *	of band signaling.
  *
  *	It is the responsibility of device drivers to enable (or disable)
  *	wakeup signaling as part of changing device power states, respecting
  *	the policy choices provided through the driver model.
  *
- *	Devices may not be able to generate wakeup events from all power
- *	states.  Also, the events may be ignored in some configurations;
+ *	Devices may yest be able to generate wakeup events from all power
+ *	states.  Also, the events may be igyesred in some configurations;
  *	for example, they might need help from other devices that aren't
  *	active, or which may have wakeup disabled.  Some drivers rely on
  *	wakeup events internally (unless they are disabled), keeping
@@ -60,19 +60,19 @@
  *
  *	async - Report/change current async suspend setting for the device
  *
- *	Asynchronous suspend and resume of the device during system-wide power
+ *	Asynchroyesus suspend and resume of the device during system-wide power
  *	state transitions can be enabled by writing "enabled" to this file.
  *	Analogously, if "disabled" is written to this file, the device will be
- *	suspended and resumed synchronously.
+ *	suspended and resumed synchroyesusly.
  *
  *	All devices have one of the following two values for power/async:
  *
- *	 + "enabled\n" to permit the asynchronous suspend/resume of the device;
+ *	 + "enabled\n" to permit the asynchroyesus suspend/resume of the device;
  *	 + "disabled\n" to forbid it;
  *
- *	NOTE: It generally is unsafe to permit the asynchronous suspend/resume
+ *	NOTE: It generally is unsafe to permit the asynchroyesus suspend/resume
  *	of a device unless it is certain that all of the PM dependencies of the
- *	device are known to the PM core.  However, for some devices this
+ *	device are kyeswn to the PM core.  However, for some devices this
  *	attribute is set to "enabled" by bus type code or device drivers and in
  *	that cases it should be safe to leave the default value.
  *
@@ -226,7 +226,7 @@ static ssize_t pm_qos_resume_latency_us_store(struct device *dev,
 
 	if (!kstrtos32(buf, 0, &value)) {
 		/*
-		 * Prevent users from writing negative or "no constraint" values
+		 * Prevent users from writing negative or "yes constraint" values
 		 * directly.
 		 */
 		if (value < 0 || value == PM_QOS_RESUME_LATENCY_NO_CONSTRAINT)
@@ -286,7 +286,7 @@ static ssize_t pm_qos_latency_tolerance_us_store(struct device *dev,
 
 static DEVICE_ATTR_RW(pm_qos_latency_tolerance_us);
 
-static ssize_t pm_qos_no_power_off_show(struct device *dev,
+static ssize_t pm_qos_yes_power_off_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
@@ -294,7 +294,7 @@ static ssize_t pm_qos_no_power_off_show(struct device *dev,
 					& PM_QOS_FLAG_NO_POWER_OFF));
 }
 
-static ssize_t pm_qos_no_power_off_store(struct device *dev,
+static ssize_t pm_qos_yes_power_off_store(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t n)
 {
@@ -310,7 +310,7 @@ static ssize_t pm_qos_no_power_off_store(struct device *dev,
 	return ret < 0 ? ret : n;
 }
 
-static DEVICE_ATTR_RW(pm_qos_no_power_off);
+static DEVICE_ATTR_RW(pm_qos_yes_power_off);
 
 #ifdef CONFIG_PM_SLEEP
 static const char _enabled[] = "enabled";
@@ -515,7 +515,7 @@ static ssize_t runtime_active_kids_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	return sprintf(buf, "%d\n", dev->power.ignore_children ?
+	return sprintf(buf, "%d\n", dev->power.igyesre_children ?
 		0 : atomic_read(&dev->power.child_count));
 }
 static DEVICE_ATTR_RO(runtime_active_kids);
@@ -632,7 +632,7 @@ static const struct attribute_group pm_qos_latency_tolerance_attr_group = {
 };
 
 static struct attribute *pm_qos_flags_attrs[] = {
-	&dev_attr_pm_qos_no_power_off.attr,
+	&dev_attr_pm_qos_yes_power_off.attr,
 	NULL,
 };
 static const struct attribute_group pm_qos_flags_attr_group = {
@@ -645,7 +645,7 @@ int dpm_sysfs_add(struct device *dev)
 	int rc;
 
 	/* No need to create PM sysfs if explicitly disabled. */
-	if (device_pm_not_required(dev))
+	if (device_pm_yest_required(dev))
 		return 0;
 
 	rc = sysfs_create_group(&dev->kobj, &pm_attr_group);
@@ -732,7 +732,7 @@ void rpm_sysfs_remove(struct device *dev)
 
 void dpm_sysfs_remove(struct device *dev)
 {
-	if (device_pm_not_required(dev))
+	if (device_pm_yest_required(dev))
 		return;
 	sysfs_unmerge_group(&dev->kobj, &pm_qos_latency_tolerance_attr_group);
 	dev_pm_qos_constraints_destroy(dev);

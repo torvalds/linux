@@ -12,7 +12,7 @@ Required properties:
   "ti,ths8134b", "ti,ths8134"
   "ti,ths8135"
 
-Required nodes:
+Required yesdes:
 
 This device has two video ports. Their connections are modelled using the OF
 graph bindings specified in Documentation/devicetree/bindings/graph.txt.

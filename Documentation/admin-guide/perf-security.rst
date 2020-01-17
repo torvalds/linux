@@ -52,7 +52,7 @@ perf_events/Perf access control
 To perform security checks, the Linux implementation splits processes
 into two categories [6]_ : a) privileged processes (whose effective user
 ID is 0, referred to as superuser or root), and b) unprivileged
-processes (whose effective UID is nonzero). Privileged processes bypass
+processes (whose effective UID is yesnzero). Privileged processes bypass
 all kernel security permission checks so perf_events performance
 monitoring is fully available to privileged processes without access,
 scope and resource restrictions.
@@ -62,7 +62,7 @@ based on the process's credentials [5]_ (usually: effective UID,
 effective GID, and supplementary group list).
 
 Linux divides the privileges traditionally associated with superuser
-into distinct units, known as capabilities [6]_ , which can be
+into distinct units, kyeswn as capabilities [6]_ , which can be
 independently enabled and disabled on per-thread basis for processes and
 files of unprivileged users.
 
@@ -93,7 +93,7 @@ taken to create such a group of privileged Perf users.
 
 1. Create perf_users group of privileged Perf users, assign perf_users
    group to Perf tool executable and limit access to the executable for
-   other users in the system who are not in the perf_users group:
+   other users in the system who are yest in the perf_users group:
 
 ::
 
@@ -132,14 +132,14 @@ perf_events/Perf unprivileged users
 -----------------------------------
 
 perf_events/Perf *scope* and *access* control for unprivileged processes
-is governed by perf_event_paranoid [2]_ setting:
+is governed by perf_event_parayesid [2]_ setting:
 
 -1:
-     Impose no *scope* and *access* restrictions on using perf_events
+     Impose yes *scope* and *access* restrictions on using perf_events
      performance monitoring. Per-user per-cpu perf_event_mlock_kb [2]_
-     locking limit is ignored when allocating memory buffers for storing
+     locking limit is igyesred when allocating memory buffers for storing
      performance data. This is the least secure mode since allowed
-     monitored *scope* is maximized and no perf_events specific limits
+     monitored *scope* is maximized and yes perf_events specific limits
      are imposed on *resources* allocated for performance monitoring.
 
 >=0:
@@ -148,7 +148,7 @@ is governed by perf_event_paranoid [2]_ setting:
      monitoring. CPU and system events happened when executing either in
      user or in kernel space can be monitored and captured for later
      analysis. Per-user per-cpu perf_event_mlock_kb locking limit is
-     imposed but ignored for unprivileged processes with CAP_IPC_LOCK
+     imposed but igyesred for unprivileged processes with CAP_IPC_LOCK
      [6]_ capability.
 
 >=1:
@@ -156,14 +156,14 @@ is governed by perf_event_paranoid [2]_ setting:
      excludes system wide performance monitoring. CPU and system events
      happened when executing either in user or in kernel space can be
      monitored and captured for later analysis. Per-user per-cpu
-     perf_event_mlock_kb locking limit is imposed but ignored for
+     perf_event_mlock_kb locking limit is imposed but igyesred for
      unprivileged processes with CAP_IPC_LOCK capability.
 
 >=2:
      *scope* includes per-process performance monitoring only. CPU and
      system events happened when executing in user space only can be
      monitored and captured for later analysis. Per-user per-cpu
-     perf_event_mlock_kb locking limit is imposed but ignored for
+     perf_event_mlock_kb locking limit is imposed but igyesred for
      unprivileged processes with CAP_IPC_LOCK capability.
 
 perf_events/Perf resource control
@@ -181,7 +181,7 @@ system, this limit can be easily hit preventing required monitoring
 configuration. RLIMIT_NOFILE limit can be increased on per-user basis
 modifying content of the limits.conf file [12]_ . Ordinarily, a Perf
 sampling session (perf record) requires an amount of open perf_event
-file descriptors that is not less than the number of monitored events
+file descriptors that is yest less than the number of monitored events
 multiplied by the number of monitored CPUs.
 
 Memory allocation
@@ -206,7 +206,7 @@ mode option. Otherwise, the first started performance monitoring process
 allocates all available 4128 KiB and the other processes will fail to
 proceed due to the lack of memory.
 
-RLIMIT_MEMLOCK and perf_event_mlock_kb resource constraints are ignored
+RLIMIT_MEMLOCK and perf_event_mlock_kb resource constraints are igyesred
 for processes with the CAP_IPC_LOCK capability. Thus, perf_events/Perf
 privileged users can be provided with memory above the constraints for
 perf_events/Perf performance monitoring purpose by providing the Perf

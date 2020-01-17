@@ -27,7 +27,7 @@
  *    of peripheral blocks, read-only.
  * - memory clock: clk rate to main memory chips, depends on board
  *    design and is read-only,
- * - lrclk: the static bus clock signal for synchronous operation.
+ * - lrclk: the static bus clock signal for synchroyesus operation.
  *    depends on board design, must be set by bootloader,
  *    but may be required to correctly configure devices attached to
  *    the static bus. The Au1000/1500/1100 manuals call it LCLK, on
@@ -122,7 +122,7 @@ static unsigned long alchemy_clk_cpu_recalc(struct clk_hw *hw,
 
 	/*
 	 * On early Au1000, sys_cpupll was write-only. Since these
-	 * silicon versions of Au1000 are not sold, we don't bend
+	 * silicon versions of Au1000 are yest sold, we don't bend
 	 * over backwards trying to determine the frequency.
 	 */
 	if (unlikely(au1xxx_cpu_has_pll_wo()))
@@ -323,7 +323,7 @@ static struct clk __init *alchemy_clk_setup_mem(const char *pn, int ct)
 	return c;
 }
 
-/* lrclk: external synchronous static bus clock ***********************/
+/* lrclk: external synchroyesus static bus clock ***********************/
 
 static struct clk __init *alchemy_clk_setup_lrclk(const char *pn, int t)
 {
@@ -406,7 +406,7 @@ static int alchemy_clk_fgcs_detr(struct clk_hw *hw,
 	free = NULL;
 
 	/* look at the rates each enabled parent supplies and select
-	 * the one that gets closest to but not over the requested rate.
+	 * the one that gets closest to but yest over the requested rate.
 	 */
 	for (j = 0; j < 7; j++) {
 		pc = clk_hw_get_parent_by_index(hw, j);
@@ -415,7 +415,7 @@ static int alchemy_clk_fgcs_detr(struct clk_hw *hw,
 
 		/* if this parent is currently unused, remember it.
 		 * XXX: we would actually want clk_has_active_children()
-		 * but this is a good-enough approximation for now.
+		 * but this is a good-eyesugh approximation for yesw.
 		 */
 		if (!clk_hw_is_prepared(pc)) {
 			if (!free)
@@ -716,7 +716,7 @@ static int alchemy_clk_fgv2_detr(struct clk_hw *hw,
 	return alchemy_clk_fgcs_detr(hw, req, scale, maxdiv);
 }
 
-/* Au1300 larger input mux, no separate disable bit, flexible divider */
+/* Au1300 larger input mux, yes separate disable bit, flexible divider */
 static const struct clk_ops alchemy_clkops_fgenv2 = {
 	.recalc_rate	= alchemy_clk_fgv2_recalc,
 	.determine_rate	= alchemy_clk_fgv2_detr,
@@ -1076,7 +1076,7 @@ static int __init alchemy_clk_init(void)
 	c = alchemy_clk_setup_mem(ALCHEMY_SYSBUS_CLK, ctype);
 	ERRCK(c)
 
-	/* L/RCLK: external static bus clock for synchronous mode */
+	/* L/RCLK: external static bus clock for synchroyesus mode */
 	c = alchemy_clk_setup_lrclk(ALCHEMY_PERIPH_CLK, ctype);
 	ERRCK(c)
 

@@ -1,4 +1,4 @@
-* MediaTek Universal Asynchronous Receiver/Transmitter (UART)
+* MediaTek Universal Asynchroyesus Receiver/Transmitter (UART)
 
 Required properties:
 - compatible should contain:
@@ -28,7 +28,7 @@ Required properties:
   index 0: an interrupt specifier for the UART controller itself
   index 1: optional, an interrupt specifier with edge sensitivity on Rx pin to
            support Rx in-band wake up. If one would like to use this feature,
-           one must create an addtional pinctrl to reconfigure Rx pin to normal
+           one must create an addtional pinctrl to reconfigure Rx pin to yesrmal
            GPIO before suspend.
 
 - clocks : Must contain an entry for each entry in clock-names.
@@ -38,7 +38,7 @@ Required properties:
   - "bus": The bus clock for register accesses (optional)
 
 For compatibility with older device trees an unnamed clock is used for the
-baud clock if the baudclk does not exist. Do not use this for new designs.
+baud clock if the baudclk does yest exist. Do yest use this for new designs.
 
 Example:
 

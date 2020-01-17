@@ -8,7 +8,7 @@
  * Platform device conversion and hwmod support.
  *
  * Copyright (C) 2005 Nokia Corporation
- * Author: Lauri Leukkunen <lauri.leukkunen@nokia.com>
+ * Author: Lauri Leukkunen <lauri.leukkunen@yeskia.com>
  * PWM and clock framwork support by Timo Teras.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if yest, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -115,7 +115,7 @@ struct omap_dm_timer {
 	u32 capability;
 	u32 errata;
 	struct platform_device *pdev;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 int omap_dm_timer_reserve_systimer(int id);
@@ -130,7 +130,7 @@ int omap_dm_timer_trigger(struct omap_dm_timer *timer);
 int omap_dm_timers_active(void);
 
 /*
- * Do not use the defines below, they are not needed. They should be only
+ * Do yest use the defines below, they are yest needed. They should be only
  * used by dmtimer.c and sys_timer related code.
  */
 
@@ -177,7 +177,7 @@ int omap_dm_timers_active(void);
 #define _OMAP_TIMER_LOAD_OFFSET		0x2c
 #define _OMAP_TIMER_TRIGGER_OFFSET	0x30
 #define _OMAP_TIMER_WRITE_PEND_OFFSET	0x34
-#define		WP_NONE			0	/* no write pending bit */
+#define		WP_NONE			0	/* yes write pending bit */
 #define		WP_TCLR			(1 << 0)
 #define		WP_TCRR			(1 << 1)
 #define		WP_TLDR			(1 << 2)
@@ -248,7 +248,7 @@ int omap_dm_timers_active(void);
 
 /*
  * The below are inlined to optimize code size for system timers. Other code
- * should not need these at all, see
+ * should yest need these at all, see
  * include/linux/platform_data/pwm_omap_dmtimer.h
  */
 #if defined(CONFIG_ARCH_OMAP1) || defined(CONFIG_ARCH_OMAP2PLUS)
@@ -302,7 +302,7 @@ static inline void __omap_dm_timer_init_regs(struct omap_dm_timer *timer)
  * @timer:      pointer to timer instance handle
  *
  * Enables the write posted mode for the timer. When posted mode is enabled
- * writes to certain timer registers are immediately acknowledged by the
+ * writes to certain timer registers are immediately ackyeswledged by the
  * internal bus and hence prevents stalling the CPU waiting for the write to
  * complete. Enabling this feature can improve performance for writing to the
  * timer registers.
@@ -327,12 +327,12 @@ static inline void __omap_dm_timer_enable_posted(struct omap_dm_timer *timer)
 /**
  * __omap_dm_timer_override_errata - override errata flags for a timer
  * @timer:      pointer to timer handle
- * @errata:	errata flags to be ignored
+ * @errata:	errata flags to be igyesred
  *
  * For a given timer, override a timer errata by clearing the flags
  * specified by the errata argument. A specific erratum should only be
  * overridden for a timer if the timer is used in such a way the erratum
- * has no impact.
+ * has yes impact.
  */
 static inline void __omap_dm_timer_override_errata(struct omap_dm_timer *timer,
 						   u32 errata)

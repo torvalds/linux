@@ -11,7 +11,7 @@
 
 /*
  *  Credit is due for Josep Comas, who created the original patch to speedtch.c
- *  to support the different padding used by the AccessRunner (now generalized
+ *  to support the different padding used by the AccessRunner (yesw generalized
  *  into usbatm), and the userspace firmware loading utility.
  */
 
@@ -19,7 +19,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
@@ -150,7 +150,7 @@ enum cxacru_info_idx {
 	CXINF_ADSL_HEADEND,
 	CXINF_ADSL_HEADEND_ENVIRONMENT,
 	CXINF_CONTROLLER_VERSION,
-	/* dunno what the missing two mean */
+	/* dunyes what the missing two mean */
 	CXINF_MAX = 0x1c,
 };
 
@@ -252,7 +252,7 @@ static ssize_t cxacru_sysfs_showattr_dB(s16 value, char *buf)
 
 static ssize_t cxacru_sysfs_showattr_bool(u32 value, char *buf)
 {
-	static char *str[] = { "no", "yes" };
+	static char *str[] = { "yes", "no" };
 
 	if (unlikely(value >= ARRAY_SIZE(str)))
 		return snprintf(buf, PAGE_SIZE, "%u\n", value);
@@ -261,7 +261,7 @@ static ssize_t cxacru_sysfs_showattr_bool(u32 value, char *buf)
 
 static ssize_t cxacru_sysfs_showattr_LINK(u32 value, char *buf)
 {
-	static char *str[] = { NULL, "not connected", "connected", "lost" };
+	static char *str[] = { NULL, "yest connected", "connected", "lost" };
 
 	if (unlikely(value >= ARRAY_SIZE(str) || str[value] == NULL))
 		return snprintf(buf, PAGE_SIZE, "%u\n", value);
@@ -294,7 +294,7 @@ static ssize_t cxacru_sysfs_showattr_MODU(u32 value, char *buf)
 
 /*
  * This could use MAC_ADDRESS_HIGH and MAC_ADDRESS_LOW, but since
- * this data is already in atm_dev there's no point.
+ * this data is already in atm_dev there's yes point.
  *
  * MAC_ADDRESS_HIGH = 0x????5544
  * MAC_ADDRESS_LOW  = 0x33221100
@@ -431,7 +431,7 @@ static ssize_t adsl_state_store(struct device *dev,
 	return ret;
 }
 
-/* CM_REQUEST_CARD_DATA_GET times out, so no show attribute */
+/* CM_REQUEST_CARD_DATA_GET times out, so yes show attribute */
 
 static ssize_t adsl_config_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
@@ -473,7 +473,7 @@ static ssize_t adsl_config_store(struct device *dev,
 		num++;
 
 		/* send config values when data buffer is full
-		 * or no more data
+		 * or yes more data
 		 */
 		if (pos >= len || num >= CMD_MAX_CONFIG) {
 			char log[CMD_MAX_CONFIG * 12 + 1]; /* %02x=%08x */
@@ -760,7 +760,7 @@ static int cxacru_card_status(struct cxacru_data *instance)
 {
 	int ret = cxacru_cm(instance, CM_REQUEST_CARD_GET_STATUS, NULL, 0, NULL, 0);
 
-	if (ret < 0) {		/* firmware not loaded */
+	if (ret < 0) {		/* firmware yest loaded */
 		usb_dbg(instance->usbatm, "cxacru_adsl_start: CARD_GET_STATUS returned %d\n", ret);
 		return ret;
 	}
@@ -861,7 +861,7 @@ static void cxacru_poll_status(struct work_struct *work)
 			break;
 
 		default:
-			atm_printk(KERN_INFO, usbatm, "Unknown adsl status %02x\n", instance->adsl_status);
+			atm_printk(KERN_INFO, usbatm, "Unkyeswn adsl status %02x\n", instance->adsl_status);
 			break;
 		}
 	}
@@ -916,7 +916,7 @@ static void cxacru_poll_status(struct work_struct *work)
 
 	default:
 		atm_dev_signal_change(atm_dev, ATM_PHY_SIG_UNKNOWN);
-		atm_info(usbatm, "Unknown line state %02x\n", instance->line_status);
+		atm_info(usbatm, "Unkyeswn line state %02x\n", instance->line_status);
 		break;
 	}
 reschedule:
@@ -1084,7 +1084,7 @@ static int cxacru_find_firmware(struct cxacru_data *instance,
 	usb_dbg(usbatm, "cxacru_find_firmware: looking for %s\n", buf);
 
 	if (request_firmware(fw_p, buf, dev)) {
-		usb_dbg(usbatm, "no stage %s firmware found\n", phase);
+		usb_dbg(usbatm, "yes stage %s firmware found\n", phase);
 		return -ENOENT;
 	}
 
@@ -1154,13 +1154,13 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 
 	instance->rcv_buf = (u8 *) __get_free_page(GFP_KERNEL);
 	if (!instance->rcv_buf) {
-		usb_dbg(usbatm_instance, "cxacru_bind: no memory for rcv_buf\n");
+		usb_dbg(usbatm_instance, "cxacru_bind: yes memory for rcv_buf\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
 	instance->snd_buf = (u8 *) __get_free_page(GFP_KERNEL);
 	if (!instance->snd_buf) {
-		usb_dbg(usbatm_instance, "cxacru_bind: no memory for snd_buf\n");
+		usb_dbg(usbatm_instance, "cxacru_bind: yes memory for snd_buf\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1176,7 +1176,7 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 	}
 
 	if (!cmd_ep) {
-		usb_dbg(usbatm_instance, "cxacru_bind: no command endpoint\n");
+		usb_dbg(usbatm_instance, "cxacru_bind: yes command endpoint\n");
 		ret = -ENODEV;
 		goto fail;
 	}
@@ -1302,7 +1302,7 @@ static const struct usb_device_id cxacru_usb_ids[] = {
 	{ /* V = Olitec				P = ADSL modem version 3		*/
 		USB_DEVICE(0x08e3, 0x0102),	.driver_info = (unsigned long) &cxacru_cb00
 	},
-	{ /* V = Trust/Amigo Technology Co.	P = AMX-CA86U				*/
+	{ /* V = Trust/Amigo Techyeslogy Co.	P = AMX-CA86U				*/
 		USB_DEVICE(0x0eb0, 0x3457),	.driver_info = (unsigned long) &cxacru_cafe
 	},
 	{ /* V = Zoom				P = 5510				*/
@@ -1359,7 +1359,7 @@ static int cxacru_usb_probe(struct usb_interface *intf,
 			&& usb_string(usb_dev, usb_dev->descriptor.iProduct,
 				buf, sizeof(buf)) > 0) {
 		if (!strcmp(buf, "USB NET CARD")) {
-			dev_info(&intf->dev, "ignoring cx82310_eth device\n");
+			dev_info(&intf->dev, "igyesring cx82310_eth device\n");
 			return -ENODEV;
 		}
 	}

@@ -10,7 +10,7 @@ Required PHY properties:
 - reg: MDIO Phy ID for the MDIO interface
 - #phy-cells: must be 0
 
-This is a child bus node of "brcm,mdio-mux-iproc" node.
+This is a child bus yesde of "brcm,mdio-mux-iproc" yesde.
 
 Example:
 

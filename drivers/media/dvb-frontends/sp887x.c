@@ -59,7 +59,7 @@ static int sp887x_writereg (struct sp887x_state* state, u16 reg, u16 data)
 
 	if ((ret = i2c_transfer(state->i2c, &msg, 1)) != 1) {
 		/*
-		 *  in case of soft reset we ignore ACK errors...
+		 *  in case of soft reset we igyesre ACK errors...
 		 */
 		if (!(reg == 0xf1a && data == 0x000 &&
 			(ret == -EREMOTEIO || ret == -EFAULT)))
@@ -144,7 +144,7 @@ static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware 
 
 	dprintk("%s\n", __func__);
 
-	/* ignore the first 10 bytes, then we expect 0x4000 bytes of firmware */
+	/* igyesre the first 10 bytes, then we expect 0x4000 bytes of firmware */
 	if (fw_size < FW_SIZE + 10)
 		return -ENODEV;
 
@@ -211,7 +211,7 @@ static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware 
 
 static int configure_reg0xc05(struct dtv_frontend_properties *p, u16 *reg0xc05)
 {
-	int known_parameters = 1;
+	int kyeswn_parameters = 1;
 
 	*reg0xc05 = 0x000;
 
@@ -225,7 +225,7 @@ static int configure_reg0xc05(struct dtv_frontend_properties *p, u16 *reg0xc05)
 		*reg0xc05 |= (2 << 10);
 		break;
 	case QAM_AUTO:
-		known_parameters = 0;
+		kyeswn_parameters = 0;
 		break;
 	default:
 		return -EINVAL;
@@ -244,7 +244,7 @@ static int configure_reg0xc05(struct dtv_frontend_properties *p, u16 *reg0xc05)
 		*reg0xc05 |= (3 << 7);
 		break;
 	case HIERARCHY_AUTO:
-		known_parameters = 0;
+		kyeswn_parameters = 0;
 		break;
 	default:
 		return -EINVAL;
@@ -266,13 +266,13 @@ static int configure_reg0xc05(struct dtv_frontend_properties *p, u16 *reg0xc05)
 		*reg0xc05 |= (4 << 3);
 		break;
 	case FEC_AUTO:
-		known_parameters = 0;
+		kyeswn_parameters = 0;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (known_parameters)
+	if (kyeswn_parameters)
 		*reg0xc05 |= (2 << 1);	/* use specified parameters */
 	else
 		*reg0xc05 |= (1 << 1);	/* enable autoprobing */
@@ -528,7 +528,7 @@ static int sp887x_init(struct dvb_frontend* fe)
 		printk("sp887x: waiting for firmware upload (%s)...\n", SP887X_DEFAULT_FIRMWARE);
 		ret = state->config->request_firmware(fe, &fw, SP887X_DEFAULT_FIRMWARE);
 		if (ret) {
-			printk("sp887x: no firmware upload (timeout or file not found?)\n");
+			printk("sp887x: yes firmware upload (timeout or file yest found?)\n");
 			return ret;
 		}
 

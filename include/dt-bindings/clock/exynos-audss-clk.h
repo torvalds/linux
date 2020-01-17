@@ -4,7 +4,7 @@
  * clock controller.
  *
  * The constants defined in this header are being used in dts
- * and exynos audss driver.
+ * and exyyess audss driver.
  */
 
 #ifndef _DT_BINDINGS_CLK_EXYNOS_AUDSS_H

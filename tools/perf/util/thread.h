@@ -22,8 +22,8 @@ struct unwind_libunwind_ops;
 
 struct thread {
 	union {
-		struct rb_node	 rb_node;
-		struct list_head node;
+		struct rb_yesde	 rb_yesde;
+		struct list_head yesde;
 	};
 	struct maps		*maps;
 	pid_t			pid_; /* Not all tools update this */

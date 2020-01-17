@@ -104,8 +104,8 @@ static const struct regmap_range mlx90632_volatile_reg_range[] = {
 };
 
 static const struct regmap_access_table mlx90632_volatile_regs_tbl = {
-	.yes_ranges = mlx90632_volatile_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(mlx90632_volatile_reg_range),
+	.no_ranges = mlx90632_volatile_reg_range,
+	.n_no_ranges = ARRAY_SIZE(mlx90632_volatile_reg_range),
 };
 
 static const struct regmap_range mlx90632_read_reg_range[] = {
@@ -119,19 +119,19 @@ static const struct regmap_range mlx90632_read_reg_range[] = {
 };
 
 static const struct regmap_access_table mlx90632_readable_regs_tbl = {
-	.yes_ranges = mlx90632_read_reg_range,
-	.n_yes_ranges = ARRAY_SIZE(mlx90632_read_reg_range),
+	.no_ranges = mlx90632_read_reg_range,
+	.n_no_ranges = ARRAY_SIZE(mlx90632_read_reg_range),
 };
 
-static const struct regmap_range mlx90632_no_write_reg_range[] = {
+static const struct regmap_range mlx90632_yes_write_reg_range[] = {
 	regmap_reg_range(MLX90632_EE_VERSION, MLX90632_EE_Ka),
 	regmap_reg_range(MLX90632_RAM_1(0),
 			 MLX90632_RAM_3(MLX90632_MAX_MEAS_NUM)),
 };
 
 static const struct regmap_access_table mlx90632_writeable_regs_tbl = {
-	.no_ranges = mlx90632_no_write_reg_range,
-	.n_no_ranges = ARRAY_SIZE(mlx90632_no_write_reg_range),
+	.yes_ranges = mlx90632_yes_write_reg_range,
+	.n_yes_ranges = ARRAY_SIZE(mlx90632_yes_write_reg_range),
 };
 
 static const struct regmap_config mlx90632_regmap = {
@@ -192,7 +192,7 @@ static int mlx90632_perform_measurement(struct mlx90632_data *data)
 	}
 
 	if (tries < 0) {
-		dev_err(&data->client->dev, "data not ready");
+		dev_err(&data->client->dev, "data yest ready");
 		return -ETIMEDOUT;
 	}
 
@@ -671,7 +671,7 @@ static int mlx90632_probe(struct i2c_client *client,
 			"Detected Consumer EEPROM calibration %x\n", read);
 	} else if ((read & MLX90632_DSP_MASK) == MLX90632_DSP_VERSION) {
 		dev_dbg(&client->dev,
-			"Detected Unknown EEPROM calibration %x\n", read);	
+			"Detected Unkyeswn EEPROM calibration %x\n", read);	
 	} else {
 		dev_err(&client->dev,
 			"Wrong DSP version %x (expected %x)\n",
@@ -703,7 +703,7 @@ static int mlx90632_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	mlx90632_sleep(data);
 

@@ -69,7 +69,7 @@ static inline void exception_exit(enum ctx_state prev_ctx)
 
 
 /**
- * ct_state() - return the current context tracking state if known
+ * ct_state() - return the current context tracking state if kyeswn
  *
  * Returns the current cpu's context tracking state if context tracking
  * is enabled.  If context tracking is disabled, returns
@@ -111,7 +111,7 @@ static inline void guest_enter_irqoff(void)
 	if (context_tracking_enabled())
 		__context_tracking_enter(CONTEXT_GUEST);
 
-	/* KVM does not hold any references to rcu protected data when it
+	/* KVM does yest hold any references to rcu protected data when it
 	 * switches CPU into a guest mode. In fact switching to a guest mode
 	 * is very similar to exiting to userspace from rcu point of view. In
 	 * addition CPU may stay in a guest mode for quite a long time (up to
@@ -119,7 +119,7 @@ static inline void guest_enter_irqoff(void)
 	 * we do with user-mode execution.
 	 */
 	if (!context_tracking_enabled_this_cpu())
-		rcu_virt_note_context_switch(smp_processor_id());
+		rcu_virt_yeste_context_switch(smp_processor_id());
 }
 
 static inline void guest_exit_irqoff(void)
@@ -143,7 +143,7 @@ static inline void guest_enter_irqoff(void)
 	 */
 	vtime_account_kernel(current);
 	current->flags |= PF_VCPU;
-	rcu_virt_note_context_switch(smp_processor_id());
+	rcu_virt_yeste_context_switch(smp_processor_id());
 }
 
 static inline void guest_exit_irqoff(void)

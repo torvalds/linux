@@ -3,7 +3,7 @@
  * Driver for Microchip MCP3911, Two-channel Analog Front End
  *
  * Copyright (C) 2018 Marcus Folkesson <marcus.folkesson@gmail.com>
- * Copyright (C) 2018 Kent Gustavsson <kent@minoris.se>
+ * Copyright (C) 2018 Kent Gustavsson <kent@miyesris.se>
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -200,12 +200,12 @@ static const struct iio_info mcp3911_info = {
 	.write_raw = mcp3911_write_raw,
 };
 
-static int mcp3911_config(struct mcp3911 *adc, struct device_node *of_node)
+static int mcp3911_config(struct mcp3911 *adc, struct device_yesde *of_yesde)
 {
 	u32 configreg;
 	int ret;
 
-	of_property_read_u32(of_node, "device-addr", &adc->dev_addr);
+	of_property_read_u32(of_yesde, "device-addr", &adc->dev_addr);
 	if (adc->dev_addr > 3) {
 		dev_err(&adc->spi->dev,
 			"invalid device address (%i). Must be in range 0-3.\n",
@@ -289,12 +289,12 @@ static int mcp3911_probe(struct spi_device *spi)
 		}
 	}
 
-	ret = mcp3911_config(adc, spi->dev.of_node);
+	ret = mcp3911_config(adc, spi->dev.of_yesde);
 	if (ret)
 		goto clk_disable;
 
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mcp3911_info;
@@ -358,6 +358,6 @@ static struct spi_driver mcp3911_driver = {
 module_spi_driver(mcp3911_driver);
 
 MODULE_AUTHOR("Marcus Folkesson <marcus.folkesson@gmail.com>");
-MODULE_AUTHOR("Kent Gustavsson <kent@minoris.se>");
-MODULE_DESCRIPTION("Microchip Technology MCP3911");
+MODULE_AUTHOR("Kent Gustavsson <kent@miyesris.se>");
+MODULE_DESCRIPTION("Microchip Techyeslogy MCP3911");
 MODULE_LICENSE("GPL v2");

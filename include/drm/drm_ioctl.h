@@ -16,7 +16,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -43,7 +43,7 @@ struct file;
 
 /**
  * drm_ioctl_t - DRM ioctl function type.
- * @dev: DRM device inode
+ * @dev: DRM device iyesde
  * @data: private pointer of the ioctl call
  * @file_priv: DRM file this ioctl was made on
  *
@@ -81,19 +81,19 @@ enum drm_ioctl_flags {
 	 * @DRM_AUTH:
 	 *
 	 * This is for ioctl which are used for rendering, and require that the
-	 * file descriptor is either for a render node, or if it's a
-	 * legacy/primary node, then it must be authenticated.
+	 * file descriptor is either for a render yesde, or if it's a
+	 * legacy/primary yesde, then it must be authenticated.
 	 */
 	DRM_AUTH		= BIT(0),
 	/**
 	 * @DRM_MASTER:
 	 *
 	 * This must be set for any ioctl which can change the modeset or
-	 * display state. Userspace must call the ioctl through a primary node,
+	 * display state. Userspace must call the ioctl through a primary yesde,
 	 * while it is the active master.
 	 *
 	 * Note that read-only modeset ioctl can also be called by
-	 * unauthenticated clients, or when a master is not the currently active
+	 * unauthenticated clients, or when a master is yest the currently active
 	 * one.
 	 */
 	DRM_MASTER		= BIT(1),
@@ -102,7 +102,7 @@ enum drm_ioctl_flags {
 	 *
 	 * Anything that could potentially wreak a master file descriptor needs
 	 * to have this flag set. Current that's only for the SETMASTER and
-	 * DROPMASTER ioctl, which e.g. logind can call to force a non-behaving
+	 * DROPMASTER ioctl, which e.g. logind can call to force a yesn-behaving
 	 * master (display compositor) into compliance.
 	 *
 	 * This is equivalent to callers with the SYSADMIN capability.
@@ -112,10 +112,10 @@ enum drm_ioctl_flags {
 	 * @DRM_UNLOCKED:
 	 *
 	 * Whether &drm_ioctl_desc.func should be called with the DRM BKL held
-	 * or not. Enforced as the default for all modern drivers, hence there
+	 * or yest. Enforced as the default for all modern drivers, hence there
 	 * should never be a need to set this flag.
 	 *
-	 * Do not use anywhere else than for the VBLANK_WAIT IOCTL, which is the
+	 * Do yest use anywhere else than for the VBLANK_WAIT IOCTL, which is the
 	 * only legacy IOCTL which needs this.
 	 */
 	DRM_UNLOCKED		= BIT(4),
@@ -123,10 +123,10 @@ enum drm_ioctl_flags {
 	 * @DRM_RENDER_ALLOW:
 	 *
 	 * This is used for all ioctl needed for rendering only, for drivers
-	 * which support render nodes. This should be all new render drivers,
+	 * which support render yesdes. This should be all new render drivers,
 	 * and hence it should be always set for any ioctl with DRM_AUTH set.
 	 * Note though that read-only query ioctl might have this set, but have
-	 * not set DRM_AUTH because they do not require authentication.
+	 * yest set DRM_AUTH because they do yest require authentication.
 	 */
 	DRM_RENDER_ALLOW	= BIT(5),
 };
@@ -177,7 +177,7 @@ long drm_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 #endif
 bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
 
-int drm_noop(struct drm_device *dev, void *data,
+int drm_yesop(struct drm_device *dev, void *data,
 	     struct drm_file *file_priv);
 int drm_invalid_op(struct drm_device *dev, void *data,
 		   struct drm_file *file_priv);

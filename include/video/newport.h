@@ -116,7 +116,7 @@ struct newport_rexregs {
 #define NPORT_DMODE0_TLINE    0x00000014 /* Tline address mode */
 #define NPORT_DMODE0_BLINE    0x00000018 /* Bline address mode */
 
-	/* And now some misc. operation control bits. */
+	/* And yesw some misc. operation control bits. */
 #define NPORT_DMODE0_DOSETUP  0x00000020
 #define NPORT_DMODE0_CHOST    0x00000040
 #define NPORT_DMODE0_AHOST    0x00000080

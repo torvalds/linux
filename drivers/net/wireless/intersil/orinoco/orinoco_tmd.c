@@ -1,13 +1,13 @@
-/* orinoco_tmd.c
+/* oriyesco_tmd.c
  *
- * Driver for Prism II devices which would usually be driven by orinoco_cs,
+ * Driver for Prism II devices which would usually be driven by oriyesco_cs,
  * but are connected to the PCI bus by a TMD7160.
  *
  * Copyright (C) 2003 Joerg Dorchain <joerg AT dorchain.net>
- * based heavily upon orinoco_plx.c Copyright (C) 2001 Daniel Barlow
+ * based heavily upon oriyesco_plx.c Copyright (C) 2001 Daniel Barlow
  *
  * The contents of this file are subject to the Mozilla Public License
- * Version 1.1 (the "License"); you may not use this file except in
+ * Version 1.1 (the "License"); you may yest use this file except in
  * compliance with the License. You may obtain a copy of the License
  * at http://www.mozilla.org/MPL/
  *
@@ -20,24 +20,24 @@
  * terms of the GNU General Public License version 2 (the "GPL"), in
  * which case the provisions of the GPL are applicable instead of the
  * above.  If you wish to allow the use of your version of this file
- * only under the terms of the GPL and not to allow others to use your
+ * only under the terms of the GPL and yest to allow others to use your
  * version of this file under the MPL, indicate your decision by
- * deleting the provisions above and replace them with the notice and
- * other provisions required by the GPL.  If you do not delete the
+ * deleting the provisions above and replace them with the yestice and
+ * other provisions required by the GPL.  If you do yest delete the
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
  *
  * The actual driving is done by main.c, this is just resource
  * allocation stuff.
  *
- * This driver is modeled after the orinoco_plx driver. The main
+ * This driver is modeled after the oriyesco_plx driver. The main
  * difference is that the TMD chip has only IO port ranges and doesn't
  * provide access to the PCMCIA attribute space.
  *
  * Pheecom sells cards with the TMD chip as "ASIC version"
  */
 
-#define DRIVER_NAME "orinoco_tmd"
+#define DRIVER_NAME "oriyesco_tmd"
 #define PFX DRIVER_NAME ": "
 
 #include <linux/module.h>
@@ -47,8 +47,8 @@
 #include <linux/pci.h>
 #include <pcmcia/cisreg.h>
 
-#include "orinoco.h"
-#include "orinoco_pci.h"
+#include "oriyesco.h"
+#include "oriyesco_pci.h"
 
 #define COR_VALUE	(COR_LEVEL_REQ | COR_FUNC_ENA) /* Enable PC card with interrupt in level trigger */
 #define COR_RESET     (0x80)	/* reset bit in the COR register */
@@ -57,10 +57,10 @@
 /*
  * Do a soft reset of the card using the Configuration Option Register
  */
-static int orinoco_tmd_cor_reset(struct orinoco_private *priv)
+static int oriyesco_tmd_cor_reset(struct oriyesco_private *priv)
 {
 	struct hermes *hw = &priv->hw;
-	struct orinoco_pci_card *card = priv->card;
+	struct oriyesco_pci_card *card = priv->card;
 	unsigned long timeout;
 	u16 reg;
 
@@ -70,7 +70,7 @@ static int orinoco_tmd_cor_reset(struct orinoco_private *priv)
 	iowrite8(COR_VALUE, card->bridge_io);
 	mdelay(1);
 
-	/* Just in case, wait more until the card is no longer busy */
+	/* Just in case, wait more until the card is yes longer busy */
 	timeout = jiffies + msecs_to_jiffies(TMD_RESET_TIME);
 	reg = hermes_read_regn(hw, CMD);
 	while (time_before(jiffies, timeout) && (reg & HERMES_CMD_BUSY)) {
@@ -88,45 +88,45 @@ static int orinoco_tmd_cor_reset(struct orinoco_private *priv)
 }
 
 
-static int orinoco_tmd_init_one(struct pci_dev *pdev,
+static int oriyesco_tmd_init_one(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	int err;
-	struct orinoco_private *priv;
-	struct orinoco_pci_card *card;
+	struct oriyesco_private *priv;
+	struct oriyesco_pci_card *card;
 	void __iomem *hermes_io, *bridge_io;
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot enable PCI device\n");
+		printk(KERN_ERR PFX "Canyest enable PCI device\n");
 		return err;
 	}
 
 	err = pci_request_regions(pdev, DRIVER_NAME);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot obtain PCI resources\n");
+		printk(KERN_ERR PFX "Canyest obtain PCI resources\n");
 		goto fail_resources;
 	}
 
 	bridge_io = pci_iomap(pdev, 1, 0);
 	if (!bridge_io) {
-		printk(KERN_ERR PFX "Cannot map bridge registers\n");
+		printk(KERN_ERR PFX "Canyest map bridge registers\n");
 		err = -EIO;
 		goto fail_map_bridge;
 	}
 
 	hermes_io = pci_iomap(pdev, 2, 0);
 	if (!hermes_io) {
-		printk(KERN_ERR PFX "Cannot map chipset registers\n");
+		printk(KERN_ERR PFX "Canyest map chipset registers\n");
 		err = -EIO;
 		goto fail_map_hermes;
 	}
 
 	/* Allocate network device */
-	priv = alloc_orinocodev(sizeof(*card), &pdev->dev,
-				orinoco_tmd_cor_reset, NULL);
+	priv = alloc_oriyescodev(sizeof(*card), &pdev->dev,
+				oriyesco_tmd_cor_reset, NULL);
 	if (!priv) {
-		printk(KERN_ERR PFX "Cannot allocate network device\n");
+		printk(KERN_ERR PFX "Canyest allocate network device\n");
 		err = -ENOMEM;
 		goto fail_alloc;
 	}
@@ -136,29 +136,29 @@ static int orinoco_tmd_init_one(struct pci_dev *pdev,
 
 	hermes_struct_init(&priv->hw, hermes_io, HERMES_16BIT_REGSPACING);
 
-	err = request_irq(pdev->irq, orinoco_interrupt, IRQF_SHARED,
+	err = request_irq(pdev->irq, oriyesco_interrupt, IRQF_SHARED,
 			  DRIVER_NAME, priv);
 	if (err) {
-		printk(KERN_ERR PFX "Cannot allocate IRQ %d\n", pdev->irq);
+		printk(KERN_ERR PFX "Canyest allocate IRQ %d\n", pdev->irq);
 		err = -EBUSY;
 		goto fail_irq;
 	}
 
-	err = orinoco_tmd_cor_reset(priv);
+	err = oriyesco_tmd_cor_reset(priv);
 	if (err) {
 		printk(KERN_ERR PFX "Initial reset failed\n");
 		goto fail;
 	}
 
-	err = orinoco_init(priv);
+	err = oriyesco_init(priv);
 	if (err) {
-		printk(KERN_ERR PFX "orinoco_init() failed\n");
+		printk(KERN_ERR PFX "oriyesco_init() failed\n");
 		goto fail;
 	}
 
-	err = orinoco_if_add(priv, 0, 0, NULL);
+	err = oriyesco_if_add(priv, 0, 0, NULL);
 	if (err) {
-		printk(KERN_ERR PFX "orinoco_if_add() failed\n");
+		printk(KERN_ERR PFX "oriyesco_if_add() failed\n");
 		goto fail;
 	}
 
@@ -170,7 +170,7 @@ static int orinoco_tmd_init_one(struct pci_dev *pdev,
 	free_irq(pdev->irq, priv);
 
  fail_irq:
-	free_orinocodev(priv);
+	free_oriyescodev(priv);
 
  fail_alloc:
 	pci_iounmap(pdev, hermes_io);
@@ -187,34 +187,34 @@ static int orinoco_tmd_init_one(struct pci_dev *pdev,
 	return err;
 }
 
-static void orinoco_tmd_remove_one(struct pci_dev *pdev)
+static void oriyesco_tmd_remove_one(struct pci_dev *pdev)
 {
-	struct orinoco_private *priv = pci_get_drvdata(pdev);
-	struct orinoco_pci_card *card = priv->card;
+	struct oriyesco_private *priv = pci_get_drvdata(pdev);
+	struct oriyesco_pci_card *card = priv->card;
 
-	orinoco_if_del(priv);
+	oriyesco_if_del(priv);
 	free_irq(pdev->irq, priv);
-	free_orinocodev(priv);
+	free_oriyescodev(priv);
 	pci_iounmap(pdev, priv->hw.iobase);
 	pci_iounmap(pdev, card->bridge_io);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 }
 
-static const struct pci_device_id orinoco_tmd_id_table[] = {
+static const struct pci_device_id oriyesco_tmd_id_table[] = {
 	{0x15e8, 0x0131, PCI_ANY_ID, PCI_ANY_ID,},      /* NDC and OEMs, e.g. pheecom */
 	{0,},
 };
 
-MODULE_DEVICE_TABLE(pci, orinoco_tmd_id_table);
+MODULE_DEVICE_TABLE(pci, oriyesco_tmd_id_table);
 
-static struct pci_driver orinoco_tmd_driver = {
+static struct pci_driver oriyesco_tmd_driver = {
 	.name		= DRIVER_NAME,
-	.id_table	= orinoco_tmd_id_table,
-	.probe		= orinoco_tmd_init_one,
-	.remove		= orinoco_tmd_remove_one,
-	.suspend	= orinoco_pci_suspend,
-	.resume		= orinoco_pci_resume,
+	.id_table	= oriyesco_tmd_id_table,
+	.probe		= oriyesco_tmd_init_one,
+	.remove		= oriyesco_tmd_remove_one,
+	.suspend	= oriyesco_pci_suspend,
+	.resume		= oriyesco_pci_resume,
 };
 
 static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
@@ -223,19 +223,19 @@ MODULE_AUTHOR("Joerg Dorchain <joerg@dorchain.net>");
 MODULE_DESCRIPTION("Driver for wireless LAN cards using the TMD7160 PCI bridge");
 MODULE_LICENSE("Dual MPL/GPL");
 
-static int __init orinoco_tmd_init(void)
+static int __init oriyesco_tmd_init(void)
 {
 	printk(KERN_DEBUG "%s\n", version);
-	return pci_register_driver(&orinoco_tmd_driver);
+	return pci_register_driver(&oriyesco_tmd_driver);
 }
 
-static void __exit orinoco_tmd_exit(void)
+static void __exit oriyesco_tmd_exit(void)
 {
-	pci_unregister_driver(&orinoco_tmd_driver);
+	pci_unregister_driver(&oriyesco_tmd_driver);
 }
 
-module_init(orinoco_tmd_init);
-module_exit(orinoco_tmd_exit);
+module_init(oriyesco_tmd_init);
+module_exit(oriyesco_tmd_exit);
 
 /*
  * Local variables:

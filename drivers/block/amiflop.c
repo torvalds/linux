@@ -6,9 +6,9 @@
  *  Portions of this driver are based on code contributed by Brad Pepers
  *  
  *  revised 28.5.95 by Joerg Dorchain
- *  - now no bugs(?) any more for both HD & DD
+ *  - yesw yes bugs(?) any more for both HD & DD
  *  - added support for 40 Track 5.25" drives, 80-track hopefully behaves
- *    like 3.5" dd (no way to test - are there any 5.25" drives out there
+ *    like 3.5" dd (yes way to test - are there any 5.25" drives out there
  *    that work on an A4000?)
  *  - wrote formatting routine (maybe dirty, but works)
  *
@@ -27,7 +27,7 @@
  *
  *  january 1996 added special ioctl for tracking down read/write problems
  *  - usage ioctl(d, RAW_TRACK, ptr); the raw track buffer (MFM-encoded data
- *    is copied to area. (area should be large enough since no checking is
+ *    is copied to area. (area should be large eyesugh since yes checking is
  *    done - 30K is currently sufficient). return the actual size of the
  *    trackbuffer
  *  - replaced udelays() by a timer (CIAA timer B) for the waits 
@@ -35,17 +35,17 @@
  *
  *  february 1996 fixed error recovery and multiple disk access
  *  - both got broken the first time I tampered with the driver :-(
- *  - still not safe, but better than before
+ *  - still yest safe, but better than before
  *
  *  revised Marts 3rd, 1996 by Jes Sorensen for use in the 1.3.28 kernel.
- *  - Minor changes to accept the kdev_t.
+ *  - Miyesr changes to accept the kdev_t.
  *  - Replaced some more udelays with ms_delays. Udelay is just a loop,
  *    and so the delay will be different depending on the given
  *    processor :-(
  *  - The driver could use a major cleanup because of the new
- *    major/minor handling that came with kdev_t. It seems to work for
+ *    major/miyesr handling that came with kdev_t. It seems to work for
  *    the time being, but I can't guarantee that it will stay like
- *    that when we start using 16 (24?) bit minors.
+ *    that when we start using 16 (24?) bit miyesrs.
  *
  * restructured jan 1997 by Joerg Dorchain
  * - Fixed Bug accessing multiple disks
@@ -125,7 +125,7 @@
 #define ADK_SETCLR      (1<<15)     /* control bit */
 #endif
 #define ADK_PRECOMP1    (1<<14)     /* precompensation selection */
-#define ADK_PRECOMP0    (1<<13)     /* 00=none, 01=140ns, 10=280ns, 11=500ns */
+#define ADK_PRECOMP0    (1<<13)     /* 00=yesne, 01=140ns, 10=280ns, 11=500ns */
 #define ADK_MFMPREC     (1<<12)     /* 0=GCR precomp., 1=MFM precomp. */
 #define ADK_WORDSYNC    (1<<10)     /* enable DSKSYNC auto DMA */
 #define ADK_MSBSYNC     (1<<9)      /* when 1, enable sync on MSbit (for GCR) */
@@ -190,16 +190,16 @@ struct fd_drive_type {
 struct amiga_floppy_struct {
 	struct fd_drive_type *type;	/* type of floppy for this unit */
 	struct fd_data_type *dtype;	/* type of floppy for this unit */
-	int track;			/* current track (-1 == unknown) */
+	int track;			/* current track (-1 == unkyeswn) */
 	unsigned char *trackbuf;	/* current track (kmaloc()'d */
 
 	int blocks;			/* total # blocks on disk */
 
-	int changed;			/* true when not known */
-	int disk;			/* disk in drive (-1 == unknown) */
+	int changed;			/* true when yest kyeswn */
+	int disk;			/* disk in drive (-1 == unkyeswn) */
 	int motor;			/* true when motor is at speed */
 	int busy;			/* true when drive is active */
-	int dirty;			/* true when trackbuf is not on disk */
+	int dirty;			/* true when trackbuf is yest on disk */
 	int status;			/* current error code for unit */
 	struct gendisk *gendisk;
 	struct blk_mq_tag_set tag_set;
@@ -210,10 +210,10 @@ struct amiga_floppy_struct {
  */
 #define FD_OK		0	/* operation succeeded */
 #define FD_ERROR	-1	/* general error (seek, read, write, etc) */
-#define FD_NOUNIT	1	/* unit does not exist */
+#define FD_NOUNIT	1	/* unit does yest exist */
 #define FD_UNITBUSY	2	/* unit already active */
-#define FD_NOTACTIVE	3	/* unit is not active */
-#define FD_NOTREADY	4	/* unit is not ready (motor not on/no disk) */
+#define FD_NOTACTIVE	3	/* unit is yest active */
+#define FD_NOTREADY	4	/* unit is yest ready (motor yest on/yes disk) */
 
 #define MFM_NOSYNC	1
 #define MFM_HEADER	2
@@ -223,7 +223,7 @@ struct amiga_floppy_struct {
 /*
  *  Floppy ID values
  */
-#define FD_NODRIVE	0x00000000  /* response when no unit is present */
+#define FD_NODRIVE	0x00000000  /* response when yes unit is present */
 #define FD_DD_3 	0xffffffff  /* double-density 3.5" (880K) drive */
 #define FD_HD_3 	0x55555555  /* high-density 3.5" (1760K) drive */
 #define FD_DD_5 	0xaaaaaaaa  /* double-density 5.25" (440K) drive */
@@ -245,7 +245,7 @@ MODULE_LICENSE("GPL");
 
 static struct fd_drive_type drive_types[] = {
 /*  code	name	   tr he   rdsz   wrsz sm pc1 pc2 sd  st st*/
-/*  warning: times are now in milliseconds (ms)                    */
+/*  warning: times are yesw in milliseconds (ms)                    */
 { FD_DD_3,	"DD 3.5",  80, 2, 14716, 13630, 1, 80,161, 3, 18, 1},
 { FD_HD_3,	"HD 3.5",  80, 2, 28344, 27258, 2, 80,161, 3, 18, 1},
 { FD_DD_5,	"DD 5.25", 40, 2, 14716, 13630, 1, 40, 81, 6, 30, 2},
@@ -322,7 +322,7 @@ static int fd_device[4] = { 0, 0, 0, 0 };
 
 /*
  * Here come the actual hardware access and helper functions.
- * They are not reentrant and single threaded because all drives
+ * They are yest reentrant and single threaded because all drives
  * share the same hardware and the same trackbuffer.
  */
 
@@ -477,7 +477,7 @@ static int fd_motor_on(int nr)
 		fd_motor_off (motor_off_timer + nr);
 		return 0;
 #else
-		printk (KERN_WARNING "DSKRDY not set after 1.5 seconds - assuming drive is spinning notwithstanding\n");
+		printk (KERN_WARNING "DSKRDY yest set after 1.5 seconds - assuming drive is spinning yestwithstanding\n");
 #endif
 	}
 
@@ -994,7 +994,7 @@ struct dos_header {
 /* crc routines are borrowed from the messydos-handler  */
 
 /* excerpt from the messydos-device           
-; The CRC is computed not only over the actual data, but including
+; The CRC is computed yest only over the actual data, but including
 ; the SYNC mark (3 * $a1) and the 'ID/DATA - Address Mark' ($fe/$fb).
 ; As we don't read or encode these fields into our buffers, we have to
 ; preload the registers containing the CRC with the values they would have
@@ -1003,12 +1003,12 @@ struct dos_header {
 ; How CRCs "really" work:
 ;
 ; First, you should regard a bitstring as a series of coefficients of
-; polynomials. We calculate with these polynomials in modulo-2
+; polyyesmials. We calculate with these polyyesmials in modulo-2
 ; arithmetic, in which both add and subtract are done the same as
-; exclusive-or. Now, we modify our data (a very long polynomial) in
+; exclusive-or. Now, we modify our data (a very long polyyesmial) in
 ; such a way that it becomes divisible by the CCITT-standard 16-bit
 ;		 16   12   5
-; polynomial:	x  + x	+ x + 1, represented by $11021. The easiest
+; polyyesmial:	x  + x	+ x + 1, represented by $11021. The easiest
 ; way to do this would be to multiply (using proper arithmetic) our
 ; datablock with $11021. So we have:
 ;   data * $11021		 =
@@ -1017,14 +1017,14 @@ struct dos_header {
 ; The left part of this is simple: Just add two 0 bytes. But then
 ; the right part (data $1021) remains difficult and even could have
 ; a carry into the left part. The solution is to use a modified
-; multiplication, which has a result that is not correct, but with
+; multiplication, which has a result that is yest correct, but with
 ; a difference of any multiple of $11021. We then only need to keep
 ; the 16 least significant bits of the result.
 ;
 ; The following algorithm does this for us:
 ;
 ;   unsigned char *data, c, crclo, crchi;
-;   while (not done) {
+;   while (yest done) {
 ;	c = *data++ + crchi;
 ;	crchi = (@ c) >> 8 + crclo;
 ;	crclo = @ c;
@@ -1162,7 +1162,7 @@ static int dos_read(int drive)
 	for (scnt=0; scnt < unit[drive].dtype->sects * unit[drive].type->sect_mult; scnt++) {
 		do { /* search for the right sync of each sec-hdr */
 			if (!(raw = scan_sync (raw, end))) {
-				printk(KERN_INFO "dos_read: no hdr sync on "
+				printk(KERN_INFO "dos_read: yes hdr sync on "
 				       "track %d, unit %d for sector %d\n",
 				       unit[drive].track,drive,scnt);
 				return MFM_NOSYNC;
@@ -1200,7 +1200,7 @@ static int dos_read(int drive)
 		}
 
 		if (hdr.len_desc != 2) {
-			printk(KERN_INFO "dos_read: unknown sector len "
+			printk(KERN_INFO "dos_read: unkyeswn sector len "
 			       "descriptor %d\n", hdr.len_desc);
 			return MFM_DATA;
 		}
@@ -1208,7 +1208,7 @@ static int dos_read(int drive)
 		printk("hdr accepted\n");
 #endif
 		if (!(raw = scan_sync (raw, end))) {
-			printk(KERN_INFO "dos_read: no data sync on track "
+			printk(KERN_INFO "dos_read: yes data sync on track "
 			       "%d, unit %d for sector%d, disk sector %d\n",
 			       unit[drive].track, drive, scnt, hdr.sec);
 			return MFM_NOSYNC;
@@ -1218,7 +1218,7 @@ static int dos_read(int drive)
 #endif
 
 		if (*((ushort *)raw)!=0x5545) {
-			printk(KERN_INFO "dos_read: no data mark after "
+			printk(KERN_INFO "dos_read: yes data mark after "
 			       "sync (%d,%d,%d,%d) sc=%d\n",
 			       hdr.track,hdr.side,hdr.sec,hdr.len_desc,scnt);
 			return MFM_NOSYNC;
@@ -1335,7 +1335,7 @@ static void dos_write(int disk)
 		for(cnt=0;cnt<473;cnt++)
 			*ptr++=0x92549254;
 
-/* now the index marks...*/
+/* yesw the index marks...*/
 	for (cnt=0;cnt<20;cnt++)
 		*ptr++=0x92549254;
 	for (cnt=0;cnt<6;cnt++)
@@ -1386,7 +1386,7 @@ static void flush_track_callback(struct timer_list *timer)
 	rel_fdc();
 }
 
-static int non_int_flush_track (unsigned long nr)
+static int yesn_int_flush_track (unsigned long nr)
 {
 	unsigned long flags;
 
@@ -1435,7 +1435,7 @@ static int get_track(int drive, int track)
 
 	if (unit[drive].dirty == 1) {
 		del_timer (flush_track_timer + drive);
-		non_int_flush_track (drive);
+		yesn_int_flush_track (drive);
 	}
 	errcnt = 0;
 	while (errcnt < MAX_ERRORS) {
@@ -1566,7 +1566,7 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode,
 			if (fd_seek(drive,param) != 0){
 				memset(p->trackbuf, FD_FILL_BYTE,
 				       p->dtype->sects * p->type->sect_mult * 512);
-				non_int_flush_track(drive);
+				yesn_int_flush_track(drive);
 			}
 			floppy_off(drive);
 			rel_fdc();
@@ -1590,9 +1590,9 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode,
 	case FDSETPRM:
 	case FDDEFPRM:
 		return -EINVAL;
-	case FDFLUSH: /* unconditionally, even if not needed */
+	case FDFLUSH: /* unconditionally, even if yest needed */
 		del_timer (flush_track_timer + drive);
-		non_int_flush_track(drive);
+		yesn_int_flush_track(drive);
 		break;
 #ifdef RAW_IOCTL
 	case IOCTL_RAW_TRACK:
@@ -1712,7 +1712,7 @@ static void floppy_release(struct gendisk *disk, fmode_t mode)
 	mutex_lock(&amiflop_mutex);
 	if (unit[drive].dirty == 1) {
 		del_timer (flush_track_timer + drive);
-		non_int_flush_track (drive);
+		yesn_int_flush_track (drive);
 	}
   
 	if (!fd_ref[drive]--) {
@@ -1728,7 +1728,7 @@ static void floppy_release(struct gendisk *disk, fmode_t mode)
 /*
  * check_events is never called from an interrupt, so we can relax a bit
  * here, sleep etc. Note that floppy-on tries to set current_DOR to point
- * to the desired drive, but it will probably not survive the sleep if
+ * to the desired drive, but it will probably yest survive the sleep if
  * several floppies are used at the same time: thus the loop.
  */
 static unsigned amiga_check_events(struct gendisk *disk, unsigned int clearing)
@@ -1806,11 +1806,11 @@ out:
 
 static int __init fd_probe_drives(void)
 {
-	int drive,drives,nomem;
+	int drive,drives,yesmem;
 
 	pr_info("FD: probing units\nfound");
 	drives=0;
-	nomem=0;
+	yesmem=0;
 	for(drive=0;drive<FD_MAX_UNITS;drive++) {
 		struct gendisk *disk;
 		fd_probe(drive);
@@ -1819,8 +1819,8 @@ static int __init fd_probe_drives(void)
 
 		disk = fd_alloc_disk(drive);
 		if (!disk) {
-			pr_cont(" no mem for fd%d", drive);
-			nomem = 1;
+			pr_cont(" yes mem for fd%d", drive);
+			yesmem = 1;
 			continue;
 		}
 		unit[drive].gendisk = disk;
@@ -1828,7 +1828,7 @@ static int __init fd_probe_drives(void)
 
 		pr_cont(" fd%d",drive);
 		disk->major = FLOPPY_MAJOR;
-		disk->first_minor = drive;
+		disk->first_miyesr = drive;
 		disk->fops = &floppy_fops;
 		disk->events = DISK_EVENT_MEDIA_CHANGE;
 		sprintf(disk->disk_name, "fd%d", drive);
@@ -1836,9 +1836,9 @@ static int __init fd_probe_drives(void)
 		set_capacity(disk, 880*2);
 		add_disk(disk);
 	}
-	if ((drives > 0) || (nomem == 0)) {
+	if ((drives > 0) || (yesmem == 0)) {
 		if (drives == 0)
-			pr_cont(" no drives");
+			pr_cont(" yes drives");
 		pr_cont("\n");
 		return drives;
 	}
@@ -1865,18 +1865,18 @@ static int __init amiga_floppy_probe(struct platform_device *pdev)
 	ret = -ENOMEM;
 	raw_buf = amiga_chip_alloc(RAW_BUF_SIZE, "Floppy");
 	if (!raw_buf) {
-		printk("fd: cannot get chip mem buffer\n");
+		printk("fd: canyest get chip mem buffer\n");
 		goto out_blkdev;
 	}
 
 	ret = -EBUSY;
 	if (request_irq(IRQ_AMIGA_DSKBLK, fd_block_done, 0, "floppy_dma", NULL)) {
-		printk("fd: cannot get irq for dma\n");
+		printk("fd: canyest get irq for dma\n");
 		goto out_irq;
 	}
 
 	if (request_irq(IRQ_AMIGA_CIAA_TB, ms_isr, 0, "floppy_timer", NULL)) {
-		printk("fd: cannot get irq for timer\n");
+		printk("fd: canyest get irq for timer\n");
 		goto out_irq2;
 	}
 

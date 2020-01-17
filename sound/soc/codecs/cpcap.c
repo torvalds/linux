@@ -342,7 +342,7 @@ static SOC_ENUM_SINGLE_EXT_DECL(cpcap_input_right_mux_enum,
 /*
  * mux uses same bit in CPCAP_REG_RXCOA, CPCAP_REG_RXSDOA & CPCAP_REG_RXEPOA;
  * even though the register layout makes it look like a mixer, this is a mux.
- * Enabling multiple inputs will result in no audio being forwarded.
+ * Enabling multiple inputs will result in yes audio being forwarded.
  */
 static SOC_ENUM_SINGLE_DECL(cpcap_earpiece_mux_enum, 0, 0, cpcap_out_mux_texts);
 static SOC_ENUM_SINGLE_DECL(cpcap_spkr_r_mux_enum, 0, 1, cpcap_out_mux_texts);
@@ -630,12 +630,12 @@ static const struct snd_kcontrol_new cpcap_earpiece_mux =
 	SOC_DAPM_ENUM_EXT("Earpiece", cpcap_earpiece_mux_enum,
 			  cpcap_output_mux_get_enum, cpcap_output_mux_put_enum);
 
-static const struct snd_kcontrol_new cpcap_hifi_mono_mixer_controls[] = {
-	SOC_DAPM_SINGLE("HiFi Mono Playback Switch",
+static const struct snd_kcontrol_new cpcap_hifi_moyes_mixer_controls[] = {
+	SOC_DAPM_SINGLE("HiFi Moyes Playback Switch",
 		CPCAP_REG_RXSDOA, CPCAP_BIT_MONO_DAC1, 1, 0),
 };
-static const struct snd_kcontrol_new cpcap_ext_mono_mixer_controls[] = {
-	SOC_DAPM_SINGLE("Ext Mono Playback Switch",
+static const struct snd_kcontrol_new cpcap_ext_moyes_mixer_controls[] = {
+	SOC_DAPM_SINGLE("Ext Moyes Playback Switch",
 		CPCAP_REG_RXEPOA, CPCAP_BIT_MONO_EXT0, 1, 0),
 };
 
@@ -741,15 +741,15 @@ static const struct snd_soc_dapm_widget cpcap_dapm_widgets[] = {
 	SND_SOC_DAPM_SWITCH("Voice Loopback", SND_SOC_NOPM, 0, 0,
 		&cpcap_voice_loopback),
 
-	/* Mono Mixer */
-	SOC_MIXER_ARRAY("HiFi Mono Left Mixer", SND_SOC_NOPM, 0, 0,
-		cpcap_hifi_mono_mixer_controls),
-	SOC_MIXER_ARRAY("HiFi Mono Right Mixer", SND_SOC_NOPM, 0, 0,
-		cpcap_hifi_mono_mixer_controls),
-	SOC_MIXER_ARRAY("Ext Mono Left Mixer", SND_SOC_NOPM, 0, 0,
-		cpcap_ext_mono_mixer_controls),
-	SOC_MIXER_ARRAY("Ext Mono Right Mixer", SND_SOC_NOPM, 0, 0,
-		cpcap_ext_mono_mixer_controls),
+	/* Moyes Mixer */
+	SOC_MIXER_ARRAY("HiFi Moyes Left Mixer", SND_SOC_NOPM, 0, 0,
+		cpcap_hifi_moyes_mixer_controls),
+	SOC_MIXER_ARRAY("HiFi Moyes Right Mixer", SND_SOC_NOPM, 0, 0,
+		cpcap_hifi_moyes_mixer_controls),
+	SOC_MIXER_ARRAY("Ext Moyes Left Mixer", SND_SOC_NOPM, 0, 0,
+		cpcap_ext_moyes_mixer_controls),
+	SOC_MIXER_ARRAY("Ext Moyes Right Mixer", SND_SOC_NOPM, 0, 0,
+		cpcap_ext_moyes_mixer_controls),
 
 	/* Output Routes */
 	SND_SOC_DAPM_MUX("Earpiece Playback Route", SND_SOC_NOPM, 0, 0,
@@ -850,28 +850,28 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Ext Right Enable", "Switch", "Ext Right PGA"},
 	{"Ext Left Enable", "Switch", "Ext Left PGA"},
 
-	/* HiFi PGA -> Mono Mixer */
-	{"HiFi Mono Left Mixer", NULL, "HiFi PGA"},
-	{"HiFi Mono Left Mixer", "HiFi Mono Playback Switch", "HiFi PGA"},
-	{"HiFi Mono Right Mixer", NULL, "HiFi PGA"},
-	{"HiFi Mono Right Mixer", "HiFi Mono Playback Switch", "HiFi PGA"},
+	/* HiFi PGA -> Moyes Mixer */
+	{"HiFi Moyes Left Mixer", NULL, "HiFi PGA"},
+	{"HiFi Moyes Left Mixer", "HiFi Moyes Playback Switch", "HiFi PGA"},
+	{"HiFi Moyes Right Mixer", NULL, "HiFi PGA"},
+	{"HiFi Moyes Right Mixer", "HiFi Moyes Playback Switch", "HiFi PGA"},
 
-	/* Ext Playback Switch -> Ext Mono Mixer */
-	{"Ext Mono Right Mixer", NULL, "Ext Right Enable"},
-	{"Ext Mono Right Mixer", "Ext Mono Playback Switch", "Ext Left Enable"},
-	{"Ext Mono Left Mixer", NULL, "Ext Left Enable"},
-	{"Ext Mono Left Mixer", "Ext Mono Playback Switch", "Ext Right Enable"},
+	/* Ext Playback Switch -> Ext Moyes Mixer */
+	{"Ext Moyes Right Mixer", NULL, "Ext Right Enable"},
+	{"Ext Moyes Right Mixer", "Ext Moyes Playback Switch", "Ext Left Enable"},
+	{"Ext Moyes Left Mixer", NULL, "Ext Left Enable"},
+	{"Ext Moyes Left Mixer", "Ext Moyes Playback Switch", "Ext Right Enable"},
 
-	/* HiFi Mono Mixer -> Output Route */
-	{"Earpiece Playback Route", "HiFi", "HiFi Mono Right Mixer"},
-	{"Speaker Right Playback Route", "HiFi", "HiFi Mono Right Mixer"},
-	{"Speaker Left Playback Route", "HiFi", "HiFi Mono Left Mixer"},
-	{"Lineout Right Playback Route", "HiFi", "HiFi Mono Right Mixer"},
-	{"Lineout Left Playback Route", "HiFi", "HiFi Mono Left Mixer"},
-	{"Headset Right Playback Route", "HiFi", "HiFi Mono Right Mixer"},
-	{"Headset Left Playback Route", "HiFi", "HiFi Mono Left Mixer"},
-	{"EMU Right Playback Route", "HiFi", "HiFi Mono Right Mixer"},
-	{"EMU Left Playback Route", "HiFi", "HiFi Mono Left Mixer"},
+	/* HiFi Moyes Mixer -> Output Route */
+	{"Earpiece Playback Route", "HiFi", "HiFi Moyes Right Mixer"},
+	{"Speaker Right Playback Route", "HiFi", "HiFi Moyes Right Mixer"},
+	{"Speaker Left Playback Route", "HiFi", "HiFi Moyes Left Mixer"},
+	{"Lineout Right Playback Route", "HiFi", "HiFi Moyes Right Mixer"},
+	{"Lineout Left Playback Route", "HiFi", "HiFi Moyes Left Mixer"},
+	{"Headset Right Playback Route", "HiFi", "HiFi Moyes Right Mixer"},
+	{"Headset Left Playback Route", "HiFi", "HiFi Moyes Left Mixer"},
+	{"EMU Right Playback Route", "HiFi", "HiFi Moyes Right Mixer"},
+	{"EMU Left Playback Route", "HiFi", "HiFi Moyes Left Mixer"},
 
 	/* Voice PGA -> Output Route */
 	{"Earpiece Playback Route", "Voice", "Voice PGA"},
@@ -884,16 +884,16 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"EMU Right Playback Route", "Voice", "Voice PGA"},
 	{"EMU Left Playback Route", "Voice", "Voice PGA"},
 
-	/* Ext Mono Mixer -> Output Route */
-	{"Earpiece Playback Route", "Ext", "Ext Mono Right Mixer"},
-	{"Speaker Right Playback Route", "Ext", "Ext Mono Right Mixer"},
-	{"Speaker Left Playback Route", "Ext", "Ext Mono Left Mixer"},
-	{"Lineout Right Playback Route", "Ext", "Ext Mono Right Mixer"},
-	{"Lineout Left Playback Route", "Ext", "Ext Mono Left Mixer"},
-	{"Headset Right Playback Route", "Ext", "Ext Mono Right Mixer"},
-	{"Headset Left Playback Route", "Ext", "Ext Mono Left Mixer"},
-	{"EMU Right Playback Route", "Ext", "Ext Mono Right Mixer"},
-	{"EMU Left Playback Route", "Ext", "Ext Mono Left Mixer"},
+	/* Ext Moyes Mixer -> Output Route */
+	{"Earpiece Playback Route", "Ext", "Ext Moyes Right Mixer"},
+	{"Speaker Right Playback Route", "Ext", "Ext Moyes Right Mixer"},
+	{"Speaker Left Playback Route", "Ext", "Ext Moyes Left Mixer"},
+	{"Lineout Right Playback Route", "Ext", "Ext Moyes Right Mixer"},
+	{"Lineout Left Playback Route", "Ext", "Ext Moyes Left Mixer"},
+	{"Headset Right Playback Route", "Ext", "Ext Moyes Right Mixer"},
+	{"Headset Left Playback Route", "Ext", "Ext Moyes Left Mixer"},
+	{"EMU Right Playback Route", "Ext", "Ext Moyes Right Mixer"},
+	{"EMU Left Playback Route", "Ext", "Ext Moyes Left Mixer"},
 
 	/* Output Route -> Output Amplifier */
 	{"Earpiece PGA", NULL, "Earpiece Playback Route"},
@@ -1534,15 +1534,15 @@ static struct snd_soc_component_driver soc_codec_dev_cpcap = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int cpcap_codec_probe(struct platform_device *pdev)
 {
-	struct device_node *codec_node =
-		of_get_child_by_name(pdev->dev.parent->of_node, "audio-codec");
+	struct device_yesde *codec_yesde =
+		of_get_child_by_name(pdev->dev.parent->of_yesde, "audio-codec");
 
-	pdev->dev.of_node = codec_node;
+	pdev->dev.of_yesde = codec_yesde;
 
 	return devm_snd_soc_register_component(&pdev->dev, &soc_codec_dev_cpcap,
 				      cpcap_dai, ARRAY_SIZE(cpcap_dai));

@@ -137,7 +137,7 @@ void crash_smp_send_stop(void)
 #else
 void crash_smp_send_stop(void)
 {
-	/* There are no cpus to shootdown */
+	/* There are yes cpus to shootdown */
 }
 #endif
 
@@ -208,7 +208,7 @@ static struct crash_mem *fill_up_crash_elf_data(void)
 
 	/*
 	 * Exclusion of crash region and/or crashk_low_res may cause
-	 * another range split. So add extra two slots here.
+	 * ayesther range split. So add extra two slots here.
 	 */
 	nr_ranges += 2;
 	cmem = vzalloc(struct_size(cmem, ranges, nr_ranges));

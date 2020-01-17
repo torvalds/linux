@@ -373,7 +373,7 @@ bfa_fcs_itnim_sm_hcb_offline(struct bfa_fcs_itnim_s *itnim,
 
 /*
  * This state is set when a discovered rport is also in intiator mode.
- * This ITN is marked as no_op and is not active and will not be truned into
+ * This ITN is marked as yes_op and is yest active and will yest be truned into
  * online state.
  */
 static void
@@ -390,7 +390,7 @@ bfa_fcs_itnim_sm_initiator(struct bfa_fcs_itnim_s *itnim,
 		break;
 
 	/*
-	 * fcs_online is expected here for well known initiator ports
+	 * fcs_online is expected here for well kyeswn initiator ports
 	 */
 	case BFA_FCS_ITNIM_SM_FCS_ONLINE:
 		bfa_sm_send_event(itnim->rport, RPSM_EVENT_FC4_FCS_ONLINE);
@@ -418,7 +418,7 @@ bfa_fcs_itnim_aen_post(struct bfa_fcs_itnim_s *itnim,
 	struct bfad_s *bfad = (struct bfad_s *)itnim->fcs->bfad;
 	struct bfa_aen_entry_s	*aen_entry;
 
-	/* Don't post events for well known addresses */
+	/* Don't post events for well kyeswn addresses */
 	if (BFA_FCS_PID_IS_WKA(rport->pid))
 		return;
 
@@ -432,7 +432,7 @@ bfa_fcs_itnim_aen_post(struct bfa_fcs_itnim_s *itnim,
 	aen_entry->aen_data.itnim.lpwwn = bfa_fcs_lport_get_pwwn(rport->port);
 	aen_entry->aen_data.itnim.rpwwn = rport->pwwn;
 
-	/* Send the AEN notification */
+	/* Send the AEN yestification */
 	bfad_im_post_vendor_event(aen_entry, bfad, ++rport->fcs->fcs_aen_seq,
 				  BFA_AEN_CAT_ITNIM, event);
 }
@@ -502,7 +502,7 @@ bfa_fcs_itnim_prli_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 			bfa_trc(itnim->fcs, rsp_len);
 			/*
 			 * Check if this  r-port is also in Initiator mode.
-			 * If so, we need to set this ITN as a no-op.
+			 * If so, we need to set this ITN as a yes-op.
 			 */
 			if (prli_resp->parampage.servparams.initiator) {
 				bfa_trc(itnim->fcs, prli_resp->parampage.type);
@@ -647,7 +647,7 @@ bfa_fcs_itnim_rport_offline(struct bfa_fcs_itnim_s *itnim)
 }
 
 /*
- * Called by rport when remote port is known to be an initiator from
+ * Called by rport when remote port is kyeswn to be an initiator from
  * PRLI received.
  */
 void
@@ -725,7 +725,7 @@ bfa_cb_itnim_tov(void *cb_arg)
 }
 
 /*
- *		BFA notification to FCS/driver for second level error recovery.
+ *		BFA yestification to FCS/driver for second level error recovery.
  *
  * Atleast one I/O request has timedout and target is unresponsive to
  * repeated abort requests. Second level error recovery should be initiated

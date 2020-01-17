@@ -25,7 +25,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/futex.h>
 #include <libgen.h>
 
@@ -56,8 +56,8 @@ void *wait_thread(void *arg)
 	res = futex_wait(buf, 1, NULL, 0);
 	child_blocked = 0;
 
-	if (res != 0 && errno != EWOULDBLOCK) {
-		error("futex failure\n", errno);
+	if (res != 0 && erryes != EWOULDBLOCK) {
+		error("futex failure\n", erryes);
 		child_ret = RET_ERROR;
 	}
 	pthread_exit(NULL);
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 	buf = mmap(NULL, page_size, PROT_READ|PROT_WRITE,
 		   MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
 	if (buf == (void *)-1) {
-		error("mmap\n", errno);
+		error("mmap\n", erryes);
 		exit(1);
 	}
 
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 
 	ret = pthread_create(&thr, NULL, wait_thread, NULL);
 	if (ret) {
-		error("pthread_create\n", errno);
+		error("pthread_create\n", erryes);
 		ret = RET_ERROR;
 		goto out;
 	}

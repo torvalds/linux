@@ -161,7 +161,7 @@ struct altera_tse_mdio {
 	u32 reg1f;
 };
 
-/* MAC register Space. Note that some of these registers may or may not be
+/* MAC register Space. Note that some of these registers may or may yest be
  * present depending upon options chosen by the user when the core was
  * configured and built. Please consult the Altera Triple Speed Ethernet User
  * Guide for details.

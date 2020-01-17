@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -204,23 +204,23 @@ int hitfb_blank(int blank_mode, struct fb_info *info)
 	return 0;
 }
 
-static int hitfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int hitfb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp, struct fb_info *info)
 {
-	if (regno >= 256)
+	if (regyes >= 256)
 		return 1;
 
 	switch (info->var.bits_per_pixel) {
 	case 8:
-		fb_writew(regno << 8, HD64461_CPTWAR);
+		fb_writew(regyes << 8, HD64461_CPTWAR);
 		fb_writew(red >> 10, HD64461_CPTWDR);
 		fb_writew(green >> 10, HD64461_CPTWDR);
 		fb_writew(blue >> 10, HD64461_CPTWDR);
 		break;
 	case 16:
-		if (regno >= 16)
+		if (regyes >= 16)
 			return 1;
-		((u32 *) (info->pseudo_palette))[regno] =
+		((u32 *) (info->pseudo_palette))[regyes] =
 		    ((red & 0xf800)) |
 		    ((green & 0xfc00) >> 5) | ((blue & 0xf800) >> 11);
 		break;

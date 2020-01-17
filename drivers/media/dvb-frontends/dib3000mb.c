@@ -9,7 +9,7 @@
  *
  * Copyright (C) 2004 Amaury Demol for DiBcom
  *
- * Acknowledgements
+ * Ackyeswledgements
  *
  *  Amaury Demol from DiBcom for providing specs and driver
  *  sources, on which this driver (and the dvb-dibusb) are based.
@@ -87,7 +87,7 @@ static int dib3000_search_status(u16 irq,u16 lock)
 			deb_srch("auto search succeeded\n");
 			return 1; // auto search succeeded
 		} else {
-			deb_srch("auto search not successful\n");
+			deb_srch("auto search yest successful\n");
 			return 0; // auto search failed
 		}
 	} else if (irq & 0x01)  {
@@ -140,7 +140,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend *fe, int tuner)
 			case 0:
 				return -EOPNOTSUPP;
 			default:
-				pr_err("unknown bandwidth value.\n");
+				pr_err("unkyeswn bandwidth value.\n");
 				return -EINVAL;
 		}
 		deb_setf("bandwidth: %d MHZ\n", c->bandwidth_hz / 1000000);
@@ -223,7 +223,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend *fe, int tuner)
 	}
 	switch (c->hierarchy) {
 		case HIERARCHY_NONE:
-			deb_setf("hierarchy: none\n");
+			deb_setf("hierarchy: yesne\n");
 			/* fall through */
 		case HIERARCHY_1:
 			deb_setf("hierarchy: alpha=1\n");
@@ -275,7 +275,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend *fe, int tuner)
 			wr(DIB3000MB_REG_VIT_CODE_RATE, DIB3000_FEC_7_8);
 			break;
 		case FEC_NONE:
-			deb_setf("fec: none\n");
+			deb_setf("fec: yesne\n");
 			break;
 		case FEC_AUTO:
 			deb_setf("fec: auto\n");
@@ -382,14 +382,14 @@ static int dib3000mb_fe_init(struct dvb_frontend* fe, int mobile_mode)
 
 	wr_foreach(dib3000mb_reg_timing_freq, dib3000mb_timing_freq[2]);
 
-	wr_foreach(dib3000mb_reg_impulse_noise,
-			dib3000mb_impulse_noise_values[DIB3000MB_IMPNOISE_OFF]);
+	wr_foreach(dib3000mb_reg_impulse_yesise,
+			dib3000mb_impulse_yesise_values[DIB3000MB_IMPNOISE_OFF]);
 
 	wr_foreach(dib3000mb_reg_agc_gain, dib3000mb_default_agc_gain);
 
 	wr(DIB3000MB_REG_PHASE_NOISE, DIB3000MB_PHASE_NOISE_DEFAULT);
 
-	wr_foreach(dib3000mb_reg_phase_noise, dib3000mb_default_noise_phase);
+	wr_foreach(dib3000mb_reg_phase_yesise, dib3000mb_default_yesise_phase);
 
 	wr_foreach(dib3000mb_reg_lock_duration, dib3000mb_default_lock_duration);
 
@@ -681,7 +681,7 @@ static int dib3000mb_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_fr
 	return 0;
 }
 
-static int dib3000mb_fe_init_nonmobile(struct dvb_frontend* fe)
+static int dib3000mb_fe_init_yesnmobile(struct dvb_frontend* fe)
 {
 	return dib3000mb_fe_init(fe, 0);
 }
@@ -698,20 +698,20 @@ static void dib3000mb_release(struct dvb_frontend* fe)
 }
 
 /* pid filter and transfer stuff */
-static int dib3000mb_pid_control(struct dvb_frontend *fe,int index, int pid,int onoff)
+static int dib3000mb_pid_control(struct dvb_frontend *fe,int index, int pid,int oyesff)
 {
 	struct dib3000_state *state = fe->demodulator_priv;
-	pid = (onoff ? pid | DIB3000_ACTIVATE_PID_FILTERING : 0);
+	pid = (oyesff ? pid | DIB3000_ACTIVATE_PID_FILTERING : 0);
 	wr(index+DIB3000MB_REG_FIRST_PID,pid);
 	return 0;
 }
 
-static int dib3000mb_fifo_control(struct dvb_frontend *fe, int onoff)
+static int dib3000mb_fifo_control(struct dvb_frontend *fe, int oyesff)
 {
 	struct dib3000_state *state = fe->demodulator_priv;
 
-	deb_xfer("%s fifo\n",onoff ? "enabling" : "disabling");
-	if (onoff) {
+	deb_xfer("%s fifo\n",oyesff ? "enabling" : "disabling");
+	if (oyesff) {
 		wr(DIB3000MB_REG_FIFO, DIB3000MB_FIFO_ACTIVATE);
 	} else {
 		wr(DIB3000MB_REG_FIFO, DIB3000MB_FIFO_INHIBIT);
@@ -719,18 +719,18 @@ static int dib3000mb_fifo_control(struct dvb_frontend *fe, int onoff)
 	return 0;
 }
 
-static int dib3000mb_pid_parse(struct dvb_frontend *fe, int onoff)
+static int dib3000mb_pid_parse(struct dvb_frontend *fe, int oyesff)
 {
 	struct dib3000_state *state = fe->demodulator_priv;
-	deb_xfer("%s pid parsing\n",onoff ? "enabling" : "disabling");
-	wr(DIB3000MB_REG_PID_PARSE,onoff);
+	deb_xfer("%s pid parsing\n",oyesff ? "enabling" : "disabling");
+	wr(DIB3000MB_REG_PID_PARSE,oyesff);
 	return 0;
 }
 
-static int dib3000mb_tuner_pass_ctrl(struct dvb_frontend *fe, int onoff, u8 pll_addr)
+static int dib3000mb_tuner_pass_ctrl(struct dvb_frontend *fe, int oyesff, u8 pll_addr)
 {
 	struct dib3000_state *state = fe->demodulator_priv;
-	if (onoff) {
+	if (oyesff) {
 		wr(DIB3000MB_REG_TUNER, DIB3000_TUNER_WRITE_ENABLE(pll_addr));
 	} else {
 		wr(DIB3000MB_REG_TUNER, DIB3000_TUNER_WRITE_DISABLE(pll_addr));
@@ -797,7 +797,7 @@ static const struct dvb_frontend_ops dib3000mb_ops = {
 
 	.release = dib3000mb_release,
 
-	.init = dib3000mb_fe_init_nonmobile,
+	.init = dib3000mb_fe_init_yesnmobile,
 	.sleep = dib3000mb_sleep,
 
 	.set_frontend = dib3000mb_set_frontend_and_tuner,

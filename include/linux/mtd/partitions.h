@@ -48,7 +48,7 @@ struct mtd_partition {
 	uint64_t size;			/* partition size */
 	uint64_t offset;		/* offset within the master MTD space */
 	uint32_t mask_flags;		/* master MTD flags to mask out for this partition */
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 };
 
 #define MTDPART_OFS_RETAIN	(-3)
@@ -58,7 +58,7 @@ struct mtd_partition {
 
 
 struct mtd_info;
-struct device_node;
+struct device_yesde;
 
 /**
  * struct mtd_part_parser_data - used to pass data to MTD partition parsers.
@@ -108,7 +108,7 @@ extern void deregister_mtd_parser(struct mtd_part_parser *parser);
 int mtd_is_partition(const struct mtd_info *mtd);
 int mtd_add_partition(struct mtd_info *master, const char *name,
 		      long long offset, long long length);
-int mtd_del_partition(struct mtd_info *master, int partno);
+int mtd_del_partition(struct mtd_info *master, int partyes);
 uint64_t mtd_get_device_size(const struct mtd_info *mtd);
 
 #endif

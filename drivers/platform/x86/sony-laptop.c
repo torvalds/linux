@@ -80,9 +80,9 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "set this to 1 (and RTFM) if you want to help "
 		 "the development of this driver");
 
-static int no_spic;		/* = 0 */
-module_param(no_spic, int, 0444);
-MODULE_PARM_DESC(no_spic,
+static int yes_spic;		/* = 0 */
+module_param(yes_spic, int, 0444);
+MODULE_PARM_DESC(yes_spic,
 		 "set this if you don't want to enable the SPIC device");
 
 static int compat;		/* = 0 */
@@ -102,10 +102,10 @@ MODULE_PARM_DESC(camera,
 		 "(only use it if you have a C1VE or C1VN model)");
 
 #ifdef CONFIG_SONYPI_COMPAT
-static int minor = -1;
-module_param(minor, int, 0);
-MODULE_PARM_DESC(minor,
-		 "minor number of the misc device for the SPIC compatibility code, "
+static int miyesr = -1;
+module_param(miyesr, int, 0);
+MODULE_PARM_DESC(miyesr,
+		 "miyesr number of the misc device for the SPIC compatibility code, "
 		 "default is -1 (automatic)");
 #endif
 
@@ -114,13 +114,13 @@ module_param(kbd_backlight, int, 0444);
 MODULE_PARM_DESC(kbd_backlight,
 		 "set this to 0 to disable keyboard backlight, "
 		 "1 to enable it with automatic control and 2 to have it always "
-		 "on (default: no change from current value)");
+		 "on (default: yes change from current value)");
 
 static int kbd_backlight_timeout = -1;
 module_param(kbd_backlight_timeout, int, 0444);
 MODULE_PARM_DESC(kbd_backlight_timeout,
 		 "meaningful values vary from 0 to 3 and their meaning depends "
-		 "on the model (default: no change from current value)");
+		 "on the model (default: yes change from current value)");
 
 #ifdef CONFIG_PM_SLEEP
 static void sony_nc_thermal_resume(void);
@@ -209,7 +209,7 @@ struct sony_laptop_keypress {
  * and input layer indexes in the keymap
  */
 static const int sony_laptop_input_index[] = {
-	-1,	/*  0 no event */
+	-1,	/*  0 yes event */
 	-1,	/*  1 SONYPI_EVENT_JOGDIAL_DOWN */
 	-1,	/*  2 SONYPI_EVENT_JOGDIAL_UP */
 	-1,	/*  3 SONYPI_EVENT_JOGDIAL_DOWN_PRESSED */
@@ -380,7 +380,7 @@ static void sony_laptop_report_input_event(u8 event)
 
 	if (event == SONYPI_EVENT_FNKEY_RELEASED ||
 			event == SONYPI_EVENT_ANYBUTTON_RELEASED) {
-		/* Nothing, not all VAIOs generate this event */
+		/* Nothing, yest all VAIOs generate this event */
 		return;
 	}
 
@@ -407,7 +407,7 @@ static void sony_laptop_report_input_event(u8 event)
 
 	default:
 		if (event >= ARRAY_SIZE(sony_laptop_input_index)) {
-			dprintk("sony_laptop_report_input_event, event not known: %d\n", event);
+			dprintk("sony_laptop_report_input_event, event yest kyeswn: %d\n", event);
 			break;
 		}
 		if ((scancode = sony_laptop_input_index[event]) != -1) {
@@ -433,7 +433,7 @@ static void sony_laptop_report_input_event(u8 event)
 		mod_timer(&sony_laptop_input.release_key_timer,
 			  jiffies + msecs_to_jiffies(10));
 	} else
-		dprintk("unknown input event %.2x\n", event);
+		dprintk("unkyeswn input event %.2x\n", event);
 }
 
 static int sony_laptop_setup_input(struct acpi_device *acpi_device)
@@ -542,7 +542,7 @@ static void sony_laptop_remove_input(void)
 
 	/*
 	 * Generate key-up events for remaining keys. Note that we don't
-	 * need locking since nobody is adding new events to the kfifo.
+	 * need locking since yesbody is adding new events to the kfifo.
 	 */
 	while (kfifo_out(&sony_laptop_input.fifo,
 			 (unsigned char *)&kp, sizeof(kp)) == sizeof(kp)) {
@@ -706,7 +706,7 @@ static struct sony_nc_value sony_nc_values[] = {
 			boolean_validate, 0),
 	SNC_HANDLE(gainbass, snc_gainbass_get, snc_gainbass_set,
 			boolean_validate, 0),
-	/* unknown methods */
+	/* unkyeswn methods */
 	SNC_HANDLE(PID, snc_PID_get, NULL, NULL, 1),
 	SNC_HANDLE(CTR, snc_CTR_get, snc_CTR_set, NULL, 1),
 	SNC_HANDLE(PCR, snc_PCR_get, snc_PCR_set, NULL, 1),
@@ -886,7 +886,7 @@ static int sony_find_snc_handle(int handle)
 {
 	int i;
 
-	/* not initialized yet, return early */
+	/* yest initialized yet, return early */
 	if (!handles || !handle)
 		return -EINVAL;
 
@@ -897,7 +897,7 @@ static int sony_find_snc_handle(int handle)
 			return i;
 		}
 	}
-	dprintk("handle 0x%.4x not found\n", handle);
+	dprintk("handle 0x%.4x yest found\n", handle);
 	return -EINVAL;
 }
 
@@ -1074,7 +1074,7 @@ static const struct backlight_ops sony_backlight_ng_ops = {
 };
 
 /*
- * New SNC-only Vaios event mapping to driver known keys
+ * New SNC-only Vaios event mapping to driver kyeswn keys
  */
 struct sony_nc_event {
 	u8	data;
@@ -1172,7 +1172,7 @@ static int sony_nc_hotkeys_decode(u32 event, unsigned int handle)
 	}
 
 	if (!key_event->data)
-		pr_info("Unknown hotkey 0x%.2x/0x%.2x (handle 0x%.2x)\n",
+		pr_info("Unkyeswn hotkey 0x%.2x/0x%.2x (handle 0x%.2x)\n",
 				event, result, handle);
 
 	return ret;
@@ -1186,13 +1186,13 @@ enum event_types {
 	KILLSWITCH,
 	GFX_SWITCH
 };
-static void sony_nc_notify(struct acpi_device *device, u32 event)
+static void sony_nc_yestify(struct acpi_device *device, u32 event)
 {
 	u32 real_ev = event;
 	u8 ev_type = 0;
 	int ret;
 
-	dprintk("sony_nc_notify, event: 0x%.2x\n", event);
+	dprintk("sony_nc_yestify, event: 0x%.2x\n", event);
 
 	if (event >= 0x90) {
 		unsigned int result = 0;
@@ -1207,7 +1207,7 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 		}
 		handle = handles->cap[offset];
 
-		/* list of handles known for generating events */
+		/* list of handles kyeswn for generating events */
 		switch (handle) {
 		/* hotkey event */
 		case 0x0100:
@@ -1227,7 +1227,7 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 		case 0x0135:
 			/* events on this handle are reported when the
 			 * switch changes position or for battery
-			 * events. We'll notify both of them but only
+			 * events. We'll yestify both of them but only
 			 * update the rfkill device status when the
 			 * switch is moved.
 			 */
@@ -1261,7 +1261,7 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 			real_ev = __sony_nc_gfx_switch_status_get();
 			break;
 		default:
-			dprintk("Unknown event 0x%x for handle 0x%x\n",
+			dprintk("Unkyeswn event 0x%x for handle 0x%x\n",
 					event, handle);
 			break;
 		}
@@ -1691,7 +1691,7 @@ static void sony_nc_rfkill_update(void)
 
 		if (hwblock) {
 			if (rfkill_set_hw_state(sony_rfkill_devices[i], true)) {
-				/* we already know we're blocked */
+				/* we already kyesw we're blocked */
 			}
 			continue;
 		}
@@ -1719,21 +1719,21 @@ static int sony_nc_rfkill_setup(struct acpi_device *device,
 
 	/* The buffer is filled with magic numbers describing the devices
 	 * available, 0xff terminates the enumeration.
-	 * Known codes:
+	 * Kyeswn codes:
 	 *	0x00 WLAN
 	 *	0x10 BLUETOOTH
 	 *	0x20 WWAN GPRS-EDGE
 	 *	0x21 WWAN HSDPA
 	 *	0x22 WWAN EV-DO
 	 *	0x23 WWAN GPS
-	 *	0x25 Gobi WWAN no GPS
+	 *	0x25 Gobi WWAN yes GPS
 	 *	0x26 Gobi WWAN + GPS
-	 *	0x28 Gobi WWAN no GPS
+	 *	0x28 Gobi WWAN yes GPS
 	 *	0x29 Gobi WWAN + GPS
 	 *	0x30 WIMAX
-	 *	0x50 Gobi WWAN no GPS
+	 *	0x50 Gobi WWAN yes GPS
 	 *	0x51 Gobi WWAN + GPS
-	 *	0x70 no SIM card slot
+	 *	0x70 yes SIM card slot
 	 *	0x71 SIM card slot
 	 */
 	for (i = 0; i < ARRAY_SIZE(buffer); i++) {
@@ -1881,7 +1881,7 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 		return -EBUSY;
 	}
 
-	/* verify the kbd backlight presence, some of these handles are not used
+	/* verify the kbd backlight presence, some of these handles are yest used
 	 * for keyboard backlight only
 	 */
 	switch (handle) {
@@ -1905,7 +1905,7 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 
 	if ((handle == 0x0137 && !(result & 0x02)) ||
 			!(result & 0x01)) {
-		dprintk("no backlight keyboard found\n");
+		dprintk("yes backlight keyboard found\n");
 		return 0;
 	}
 
@@ -1917,7 +1917,7 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 	kbdbl_ctl->timeout = kbd_backlight_timeout;
 	kbdbl_ctl->handle = handle;
 	kbdbl_ctl->base = ctl_base;
-	/* Some models do not allow timeout control */
+	/* Some models do yest allow timeout control */
 	kbdbl_ctl->has_timeout = handle != 0x0153;
 
 	sysfs_attr_init(&kbdbl_ctl->mode_attr.attr);
@@ -1991,7 +1991,7 @@ static ssize_t sony_nc_battery_care_limit_store(struct device *dev,
 		return -EINVAL;
 
 	/*  limit values (2 bits):
-	 *  00 - none
+	 *  00 - yesne
 	 *  01 - 80%
 	 *  10 - 50%
 	 *  11 - 100%
@@ -2020,7 +2020,7 @@ static ssize_t sony_nc_battery_care_limit_store(struct device *dev,
 		/*
 		 * handle 0x0115 should allow storing on battery too;
 		 * handle 0x0136 same as 0x0115 + health status;
-		 * handle 0x013f, same as 0x0136 but no storing on the battery
+		 * handle 0x013f, same as 0x0136 but yes storing on the battery
 		 */
 		if (bcare_ctl->handle != 0x013f)
 			cmd = cmd | (cmd << 2);
@@ -2096,7 +2096,7 @@ static int sony_nc_battery_care_setup(struct platform_device *pd,
 	if (ret)
 		goto outkzalloc;
 
-	/* 0x0115 is for models with no health reporting capability */
+	/* 0x0115 is for models with yes health reporting capability */
 	if (handle == 0x0115)
 		return 0;
 
@@ -2155,7 +2155,7 @@ static int sony_nc_thermal_mode_set(unsigned short mode)
 	/* the thermal profile seems to be a two bit bitmask:
 	 * lsb -> silent
 	 * msb -> performance
-	 * no bit set is the normal operation and is always valid
+	 * yes bit set is the yesrmal operation and is always valid
 	 * Some vaio models only have "balanced" and "performance"
 	 */
 	if ((mode && !(th_handle->profiles & mode)) || mode >= THM_PROFILE_MAX)
@@ -2477,7 +2477,7 @@ static int __sony_nc_gfx_switch_status_get(void)
 		return result & 0x1 ? STAMINA : SPEED;
 		break;
 	case 0x0128:
-		/* it's a more elaborated bitmask, for now:
+		/* it's a more elaborated bitmask, for yesw:
 		 * 2: integrated GFX (stamina)
 		 * 0: discrete GFX (speed)
 		 */
@@ -2501,7 +2501,7 @@ static ssize_t sony_nc_gfx_switch_status_show(struct device *dev,
 	return snprintf(buffer, PAGE_SIZE, "%s\n",
 					pos == SPEED ? "speed" :
 					pos == STAMINA ? "stamina" :
-					pos == AUTO ? "auto" : "unknown");
+					pos == AUTO ? "auto" : "unkyeswn");
 }
 
 static int sony_nc_gfx_switch_setup(struct platform_device *pd,
@@ -2581,7 +2581,7 @@ static int sony_nc_highspeed_charging_setup(struct platform_device *pd)
 	unsigned int result;
 
 	if (sony_call_snc_handle(0x0131, 0x0000, &result) || !(result & 0x01)) {
-		/* some models advertise the handle but have no implementation
+		/* some models advertise the handle but have yes implementation
 		 * for it
 		 */
 		pr_info("No High Speed Charging capability found\n");
@@ -2828,7 +2828,7 @@ static int sony_nc_usb_charge_setup(struct platform_device *pd)
 	unsigned int result;
 
 	if (sony_call_snc_handle(0x0155, 0x0000, &result) || !(result & 0x01)) {
-		/* some models advertise the handle but have no implementation
+		/* some models advertise the handle but have yes implementation
 		 * for it
 		 */
 		pr_info("No USB Charge capability found\n");
@@ -3174,9 +3174,9 @@ static int sony_nc_add(struct acpi_device *device)
 
 	/* read device status */
 	result = acpi_bus_get_status(device);
-	/* bail IFF the above call was successful and the device is not present */
+	/* bail IFF the above call was successful and the device is yest present */
 	if (!result && !device->status.present) {
-		dprintk("Device not present\n");
+		dprintk("Device yest present\n");
 		result = -ENODEV;
 		goto outwalk;
 	}
@@ -3319,7 +3319,7 @@ static struct acpi_driver sony_nc_driver = {
 	.ops = {
 		.add = sony_nc_add,
 		.remove = sony_nc_remove,
-		.notify = sony_nc_notify,
+		.yestify = sony_nc_yestify,
 		},
 	.drv.pm = &sony_nc_pm,
 };
@@ -3751,7 +3751,7 @@ out:
 #define SONYPI_CAMERA_PICTURE_MODE_MASK		0x30
 #define SONYPI_CAMERA_MUTE_MASK			0x40
 
-/* the rest don't need a loop until not 0xff */
+/* the rest don't need a loop until yest 0xff */
 #define SONYPI_CAMERA_AGC			6
 #define SONYPI_CAMERA_AGC_MASK			0x30
 #define SONYPI_CAMERA_SHUTTER_MASK 		0x7
@@ -3779,7 +3779,7 @@ static int __sony_pic_camera_ready(void)
 static int __sony_pic_camera_off(void)
 {
 	if (!camera) {
-		pr_warn("camera control not enabled\n");
+		pr_warn("camera control yest enabled\n");
 		return -ENODEV;
 	}
 
@@ -3799,7 +3799,7 @@ static int __sony_pic_camera_on(void)
 	int i, j, x;
 
 	if (!camera) {
-		pr_warn("camera control not enabled\n");
+		pr_warn("camera control yest enabled\n");
 		return -ENODEV;
 	}
 
@@ -4058,13 +4058,13 @@ static int sonypi_misc_fasync(int fd, struct file *filp, int on)
 	return fasync_helper(fd, filp, on, &sonypi_compat.fifo_async);
 }
 
-static int sonypi_misc_release(struct inode *inode, struct file *file)
+static int sonypi_misc_release(struct iyesde *iyesde, struct file *file)
 {
 	atomic_dec(&sonypi_compat.open_count);
 	return 0;
 }
 
-static int sonypi_misc_open(struct inode *inode, struct file *file)
+static int sonypi_misc_open(struct iyesde *iyesde, struct file *file)
 {
 	/* Flush input queue on first open */
 	unsigned long flags;
@@ -4103,8 +4103,8 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 	}
 
 	if (ret > 0) {
-		struct inode *inode = file_inode(file);
-		inode->i_atime = current_time(inode);
+		struct iyesde *iyesde = file_iyesde(file);
+		iyesde->i_atime = current_time(iyesde);
 	}
 
 	return ret;
@@ -4267,11 +4267,11 @@ static const struct file_operations sonypi_misc_fops = {
 	.release	= sonypi_misc_release,
 	.fasync		= sonypi_misc_fasync,
 	.unlocked_ioctl	= sonypi_misc_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct miscdevice sonypi_misc_device = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.miyesr		= MISC_DYNAMIC_MINOR,
 	.name		= "sonypi",
 	.fops		= &sonypi_misc_fops,
 };
@@ -4298,16 +4298,16 @@ static int sonypi_compat_init(void)
 
 	init_waitqueue_head(&sonypi_compat.fifo_proc_list);
 
-	if (minor != -1)
-		sonypi_misc_device.minor = minor;
+	if (miyesr != -1)
+		sonypi_misc_device.miyesr = miyesr;
 	error = misc_register(&sonypi_misc_device);
 	if (error) {
 		pr_err("misc_register failed\n");
 		goto err_free_kfifo;
 	}
-	if (minor == -1)
-		pr_info("device allocated minor is %d\n",
-			sonypi_misc_device.minor);
+	if (miyesr == -1)
+		pr_info("device allocated miyesr is %d\n",
+			sonypi_misc_device.miyesr);
 
 	return 0;
 
@@ -4358,7 +4358,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 			struct sony_pic_irq *interrupt = NULL;
 			if (!p || !p->interrupt_count) {
 				/*
-				 * IRQ descriptors may have no IRQ# bits set,
+				 * IRQ descriptors may have yes IRQ# bits set,
 				 * particularly those those w/ _STA disabled
 				 */
 				dprintk("Blank IRQ resource\n");
@@ -4405,7 +4405,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 						ioport->io2.address_length);
 			}
 			else {
-				pr_err("Unknown SPIC Type, more than 2 IO Ports\n");
+				pr_err("Unkyeswn SPIC Type, more than 2 IO Ports\n");
 				return AE_ERROR;
 			}
 			return AE_OK;
@@ -4415,7 +4415,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 		return AE_OK;
 
 	default:
-		dprintk("Resource %d isn't an IRQ nor an IO port\n",
+		dprintk("Resource %d isn't an IRQ yesr an IO port\n",
 			resource->type);
 		return AE_CTRL_TERMINATE;
 
@@ -4621,20 +4621,20 @@ static irqreturn_t sony_pic_irq(int irq, void *dev_id)
 			if (ev == dev->event_types[i].events[j].data) {
 				device_event =
 					dev->event_types[i].events[j].event;
-				/* some events may require ignoring */
+				/* some events may require igyesring */
 				if (!device_event)
 					return IRQ_HANDLED;
 				goto found;
 			}
 		}
 	}
-	/* Still not able to decode the event try to pass
+	/* Still yest able to decode the event try to pass
 	 * it over to the minidriver
 	 */
 	if (dev->handle_irq && dev->handle_irq(data_mask, ev) == 0)
 		return IRQ_HANDLED;
 
-	dprintk("unknown event ([%.2x] [%.2x]) at port 0x%.4x(+0x%.2x)\n",
+	dprintk("unkyeswn event ([%.2x] [%.2x]) at port 0x%.4x(+0x%.2x)\n",
 			ev, data_mask, dev->cur_ioport->io1.minimum,
 			dev->evport_offset);
 	return IRQ_HANDLED;
@@ -4892,7 +4892,7 @@ static int __init sony_laptop_init(void)
 {
 	int result;
 
-	if (!no_spic && dmi_check_system(sonypi_dmi_table)) {
+	if (!yes_spic && dmi_check_system(sonypi_dmi_table)) {
 		result = acpi_bus_register_driver(&sony_pic_driver);
 		if (result) {
 			pr_err("Unable to register SPIC driver\n");

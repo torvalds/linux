@@ -34,7 +34,7 @@
  * scan commands and generates an event to inform the applications
  * of the scan completion.
  *
- * For Power Save command failure, we do not retry enter PS
+ * For Power Save command failure, we do yest retry enter PS
  * command in case of Ad-hoc mode.
  *
  * For all other response errors, the current command buffer is freed
@@ -60,7 +60,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 		mwifiex_dbg(adapter, ERROR,
 			    "PS_MODE_ENH cmd failed: result=0x%x action=0x%X\n",
 			    resp->result, le16_to_cpu(pm->action));
-		/* We do not re-try enter-ps command in ad-hoc mode. */
+		/* We do yest re-try enter-ps command in ad-hoc mode. */
 		if (le16_to_cpu(pm->action) == EN_AUTO_PS &&
 		    (le16_to_cpu(pm->params.ps_bitmap) & BITMAP_STA_PS) &&
 		    priv->bss_mode == NL80211_IFTYPE_ADHOC)
@@ -84,7 +84,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 		break;
 	}
 	/* Handling errors here */
-	mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
+	mwifiex_recycle_cmd_yesde(adapter, adapter->curr_cmd);
 
 	spin_lock_bh(&adapter->mwifiex_cmd_lock);
 	adapter->curr_cmd = NULL;
@@ -261,7 +261,7 @@ static int mwifiex_ret_get_log(struct mwifiex_private *priv,
  *      - HT MCS rate bitmaps
  *
  * Based on the new rate bitmaps, the function re-evaluates if
- * auto data rate has been activated. If not, it sends another
+ * auto data rate has been activated. If yest, it sends ayesther
  * query to the firmware to get the current Tx data rate.
  */
 static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
@@ -417,7 +417,7 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 		break;
 	default:
 		mwifiex_dbg(adapter, ERROR,
-			    "CMD_RESP: unknown cmd action %d\n",
+			    "CMD_RESP: unkyeswn cmd action %d\n",
 			    action);
 		return 0;
 	}
@@ -656,20 +656,20 @@ static int mwifiex_ret_802_11d_domain_info(struct mwifiex_private *priv,
 		&resp->params.domain_info_resp;
 	struct mwifiex_ietypes_domain_param_set *domain = &domain_info->domain;
 	u16 action = le16_to_cpu(domain_info->action);
-	u8 no_of_triplet;
+	u8 yes_of_triplet;
 
-	no_of_triplet = (u8) ((le16_to_cpu(domain->header.len)
+	yes_of_triplet = (u8) ((le16_to_cpu(domain->header.len)
 				- IEEE80211_COUNTRY_STRING_LEN)
 			      / sizeof(struct ieee80211_country_ie_triplet));
 
 	mwifiex_dbg(priv->adapter, INFO,
-		    "info: 11D Domain Info Resp: no_of_triplet=%d\n",
-		    no_of_triplet);
+		    "info: 11D Domain Info Resp: yes_of_triplet=%d\n",
+		    yes_of_triplet);
 
-	if (no_of_triplet > MWIFIEX_MAX_TRIPLET_802_11D) {
+	if (yes_of_triplet > MWIFIEX_MAX_TRIPLET_802_11D) {
 		mwifiex_dbg(priv->adapter, FATAL,
 			    "11D: invalid number of triplets %d returned\n",
-			    no_of_triplet);
+			    yes_of_triplet);
 		return -1;
 	}
 
@@ -875,13 +875,13 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 	struct host_cmd_ds_tdls_oper *cmd_tdls_oper = &resp->params.tdls_oper;
 	u16 reason = le16_to_cpu(cmd_tdls_oper->reason);
 	u16 action = le16_to_cpu(cmd_tdls_oper->tdls_action);
-	struct mwifiex_sta_node *node =
+	struct mwifiex_sta_yesde *yesde =
 			   mwifiex_get_sta_entry(priv, cmd_tdls_oper->peer_mac);
 
 	switch (action) {
 	case ACT_TDLS_DELETE:
 		if (reason) {
-			if (!node || reason == TDLS_ERR_LINK_NONEXISTENT)
+			if (!yesde || reason == TDLS_ERR_LINK_NONEXISTENT)
 				mwifiex_dbg(priv->adapter, MSG,
 					    "TDLS link delete for %pM failed: reason %d\n",
 					    cmd_tdls_oper->peer_mac, reason);
@@ -900,8 +900,8 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 			mwifiex_dbg(priv->adapter, ERROR,
 				    "TDLS link creation for %pM failed: reason %d",
 				    cmd_tdls_oper->peer_mac, reason);
-			if (node && reason != TDLS_ERR_LINK_EXISTS)
-				node->tdls_status = TDLS_SETUP_FAILURE;
+			if (yesde && reason != TDLS_ERR_LINK_EXISTS)
+				yesde->tdls_status = TDLS_SETUP_FAILURE;
 		} else {
 			mwifiex_dbg(priv->adapter, MSG,
 				    "TDLS link creation for %pM successful",
@@ -913,8 +913,8 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 			mwifiex_dbg(priv->adapter, ERROR,
 				    "TDLS link config for %pM failed, reason %d\n",
 				    cmd_tdls_oper->peer_mac, reason);
-			if (node)
-				node->tdls_status = TDLS_SETUP_FAILURE;
+			if (yesde)
+				yesde->tdls_status = TDLS_SETUP_FAILURE;
 		} else {
 			mwifiex_dbg(priv->adapter, MSG,
 				    "TDLS link config for %pM successful\n",
@@ -923,7 +923,7 @@ static int mwifiex_ret_tdls_oper(struct mwifiex_private *priv,
 		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,
-			    "Unknown TDLS command action response %d", action);
+			    "Unkyeswn TDLS command action response %d", action);
 		return -1;
 	}
 
@@ -954,14 +954,14 @@ static int mwifiex_ret_uap_sta_list(struct mwifiex_private *priv,
 		&resp->params.sta_list;
 	struct mwifiex_ie_types_sta_info *sta_info = (void *)&sta_list->tlv;
 	int i;
-	struct mwifiex_sta_node *sta_node;
+	struct mwifiex_sta_yesde *sta_yesde;
 
 	for (i = 0; i < (le16_to_cpu(sta_list->sta_count)); i++) {
-		sta_node = mwifiex_get_sta_entry(priv, sta_info->mac);
-		if (unlikely(!sta_node))
+		sta_yesde = mwifiex_get_sta_entry(priv, sta_info->mac);
+		if (unlikely(!sta_yesde))
 			continue;
 
-		sta_node->stats.rssi = sta_info->rssi;
+		sta_yesde->stats.rssi = sta_info->rssi;
 		sta_info++;
 	}
 
@@ -1188,20 +1188,20 @@ static int mwifiex_ret_get_chan_info(struct mwifiex_private *priv,
  * This is a generic function, which calls command specific
  * response handlers based on the command ID.
  */
-int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
+int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_yes,
 				struct host_cmd_ds_command *resp)
 {
 	int ret = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	void *data_buf = adapter->curr_cmd->data_buf;
 
-	/* If the command is not successful, cleanup and return failure */
+	/* If the command is yest successful, cleanup and return failure */
 	if (resp->result != HostCmd_RESULT_OK) {
 		mwifiex_process_cmdresp_error(priv, resp);
 		return -1;
 	}
 	/* Command successful, handle response */
-	switch (cmdresp_no) {
+	switch (cmdresp_yes) {
 	case HostCmd_CMD_GET_HW_SPEC:
 		ret = mwifiex_ret_get_hw_spec(priv, resp);
 		break;
@@ -1350,7 +1350,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	case HostCmd_CMD_PMIC_REG_ACCESS:
 	case HostCmd_CMD_CAU_REG_ACCESS:
 	case HostCmd_CMD_802_11_EEPROM_ACCESS:
-		ret = mwifiex_ret_reg_access(cmdresp_no, resp, data_buf);
+		ret = mwifiex_ret_reg_access(cmdresp_yes, resp, data_buf);
 		break;
 	case HostCmd_CMD_SET_BSS_MODE:
 		break;
@@ -1410,7 +1410,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	default:
 		mwifiex_dbg(adapter, ERROR,
-			    "CMD_RESP: unknown cmd response %#x\n",
+			    "CMD_RESP: unkyeswn cmd response %#x\n",
 			    resp->command);
 		break;
 	}

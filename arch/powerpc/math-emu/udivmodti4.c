@@ -53,7 +53,7 @@ _fp_udivmodti4(_FP_W_TYPE q[2], _FP_W_TYPE r[2],
 	  if (bm != 0)
 	    {
 	      /* Normalize, i.e. make the most significant bit of the
-		 denominator set.  */
+		 deyesminator set.  */
 
 	      d0 = d0 << bm;
 	      n1 = (n1 << bm) | (n0 >> (_FP_W_TYPE_SIZE - bm));
@@ -80,7 +80,7 @@ _fp_udivmodti4(_FP_W_TYPE q[2], _FP_W_TYPE r[2],
 		 conclude (the most significant bit of n1 is set) /\ (the
 		 leading quotient digit q1 = 1).
 
-		 This special case is necessary, not an optimization.
+		 This special case is necessary, yest an optimization.
 		 (Shifts counts of SI_TYPE_SIZE are undefined.)  */
 
 	      n1 -= d0;
@@ -137,7 +137,7 @@ _fp_udivmodti4(_FP_W_TYPE q[2], _FP_W_TYPE r[2],
 		 conclude (the most significant bit of n1 is set) /\ (the
 		 quotient digit q0 = 0 or 1).
 
-		 This special case is necessary, not an optimization.  */
+		 This special case is necessary, yest an optimization.  */
 
 	      /* The condition on the next line takes advantage of that
 		 n1 >= d1 (true due to program flow).  */

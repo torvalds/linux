@@ -104,7 +104,7 @@ void show_opcodes(struct pt_regs *regs, const char *loglvl)
 	 * memory by pointing the userspace instruction pointer at it.
 	 */
 	bad_ip = user_mode(regs) &&
-		__chk_range_not_ok(prologue, OPCODE_BUFSIZE, TASK_SIZE_MAX);
+		__chk_range_yest_ok(prologue, OPCODE_BUFSIZE, TASK_SIZE_MAX);
 
 	if (bad_ip || probe_kernel_read(opcodes, (u8 *)prologue,
 					OPCODE_BUFSIZE)) {
@@ -152,7 +152,7 @@ static void show_regs_if_on_stack(struct stack_info *info, struct pt_regs *regs,
 				       IRET_FRAME_SIZE)) {
 		/*
 		 * When an interrupt or exception occurs in entry code, the
-		 * full pt_regs might not have been saved yet.  In that case
+		 * full pt_regs might yest have been saved yet.  In that case
 		 * just print the iret frame.
 		 */
 		show_iret_regs(regs);
@@ -216,7 +216,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		 * Scan the stack, printing any text addresses we find.  At the
 		 * same time, follow proper stack frames with the unwinder.
 		 *
-		 * Addresses found during the scan which are not reported by
+		 * Addresses found during the scan which are yest reported by
 		 * the unwinder are considered to be additional clues which are
 		 * sometimes useful for debugging and are prefixed with '?'.
 		 * This also serves as a failsafe option in case the unwinder
@@ -326,7 +326,7 @@ unsigned long oops_begin(void)
 }
 NOKPROBE_SYMBOL(oops_begin);
 
-void __noreturn rewind_stack_do_exit(int signr);
+void __yesreturn rewind_stack_do_exit(int signr);
 
 void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 {
@@ -354,7 +354,7 @@ void oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 		panic("Fatal exception");
 
 	/*
-	 * We're not going to return, but we might be on an IST stack or
+	 * We're yest going to return, but we might be on an IST stack or
 	 * have very little stack space left.  Rewind the stack and kill
 	 * the task.
 	 * Before we rewind the stack, we have to tell KASAN that we're going to
@@ -388,7 +388,7 @@ int __die(const char *str, struct pt_regs *regs, long err)
 	show_regs(regs);
 	print_modules();
 
-	if (notify_die(DIE_OOPS, str, regs, err,
+	if (yestify_die(DIE_OOPS, str, regs, err,
 			current->thread.trap_nr, SIGSEGV) == NOTIFY_STOP)
 		return 1;
 

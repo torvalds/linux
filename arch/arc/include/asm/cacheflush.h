@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  *  vineetg: May 2011: for Non-aliasing VIPT D-cache following can be NOPs
  *   -flush_cache_dup_mm (fork)
@@ -9,7 +9,7 @@
  *
  *  vineetg: April 2008
  *   -Added a critical CacheLine flush to copy_to_user_page( ) which
- *     was causing gdbserver to not setup breakpoints consistently
+ *     was causing gdbserver to yest setup breakpoints consistently
  */
 
 #ifndef _ASM_CACHEFLUSH_H
@@ -19,9 +19,9 @@
 #include <asm/shmparam.h>
 
 /*
- * Semantically we need this because icache doesn't snoop dcache/dma.
- * However ARC Cache flush requires paddr as well as vaddr, latter not available
- * in the flush_icache_page() API. So we no-op it but do the equivalent work
+ * Semantically we need this because icache doesn't syesop dcache/dma.
+ * However ARC Cache flush requires paddr as well as vaddr, latter yest available
+ * in the flush_icache_page() API. So we yes-op it but do the equivalent work
  * in update_mmu_cache()
  */
 #define flush_icache_page(vma, page)
@@ -70,7 +70,7 @@ void flush_cache_page(struct vm_area_struct *vma,
  * get_user_pages() uses a kernel mapping to access the page
  */
 #define ARCH_HAS_FLUSH_ANON_PAGE
-void flush_anon_page(struct vm_area_struct *vma,
+void flush_ayesn_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long u_vaddr);
 
 #endif	/* CONFIG_ARC_CACHE_VIPT_ALIASING */
@@ -98,7 +98,7 @@ static inline int cache_is_vipt_aliasing(void)
 /*
  * checks if two addresses (after page aligning) index into same cache set
  */
-#define addr_not_cache_congruent(addr1, addr2)				\
+#define addr_yest_cache_congruent(addr1, addr2)				\
 ({									\
 	cache_is_vipt_aliasing() ? 					\
 		(CACHE_COLOR(addr1) != CACHE_COLOR(addr2)) : 0;		\

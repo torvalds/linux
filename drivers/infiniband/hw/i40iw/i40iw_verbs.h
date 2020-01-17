@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -142,7 +142,7 @@ struct i40iw_qp {
 	void *allocated_buffer;
 	atomic_t refcount;
 	struct iw_cm_id *cm_id;
-	void *cm_node;
+	void *cm_yesde;
 	struct ib_mr *lsmm_mr;
 	struct work_struct work;
 	enum ib_qp_state ibqp_state;

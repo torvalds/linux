@@ -42,7 +42,7 @@ static inline void set_fs(mm_segment_t val)
 {
 	__asm__ __volatile__ ("movec %0,%/sfc\n\t"
 			      "movec %0,%/dfc\n\t"
-			      : /* no outputs */ : "r" (val.seg) : "memory");
+			      : /* yes outputs */ : "r" (val.seg) : "memory");
 }
 
 #else

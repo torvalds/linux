@@ -10,7 +10,7 @@
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -158,7 +158,7 @@ static int ocfb_setupfb(struct ocfb_dev *fbdev)
 		break;
 
 	default:
-		dev_err(dev, "no bpp specified\n");
+		dev_err(dev, "yes bpp specified\n");
 		break;
 	}
 
@@ -171,15 +171,15 @@ static int ocfb_setupfb(struct ocfb_dev *fbdev)
 	return 0;
 }
 
-static int ocfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int ocfb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			  unsigned blue, unsigned transp,
 			  struct fb_info *info)
 {
 	struct ocfb_dev *fbdev = (struct ocfb_dev *)info->par;
 	u32 color;
 
-	if (regno >= info->cmap.len) {
-		dev_err(info->device, "regno >= cmap.len\n");
+	if (regyes >= info->cmap.len) {
+		dev_err(info->device, "regyes >= cmap.len\n");
 		return 1;
 	}
 
@@ -194,11 +194,11 @@ static int ocfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	transp >>= (16 - info->var.transp.length);
 
 	if (info->var.bits_per_pixel == 8 && !info->var.grayscale) {
-		regno <<= 2;
+		regyes <<= 2;
 		color = (red << 16) | (green << 8) | blue;
-		ocfb_writereg(fbdev, OCFB_PALETTE + regno, color);
+		ocfb_writereg(fbdev, OCFB_PALETTE + regyes, color);
 	} else {
-		((u32 *)(info->pseudo_palette))[regno] =
+		((u32 *)(info->pseudo_palette))[regyes] =
 			(red << info->var.red.offset) |
 			(green << info->var.green.offset) |
 			(blue << info->var.blue.offset) |

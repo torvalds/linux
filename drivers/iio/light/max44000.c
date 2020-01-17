@@ -54,7 +54,7 @@
 #define MAX44000_CFG_TRIM               0x20
 
 /*
- * Upper 4 bits are not documented but start as 1 on powerup
+ * Upper 4 bits are yest documented but start as 1 on powerup
  * Setting them to 0 causes proximity to misbehave so set them to 1
  */
 #define MAX44000_REG_CFG_RX_DEFAULT 0xf0
@@ -510,12 +510,12 @@ static irqreturn_t max44000_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(indio_dev, buf,
 					   iio_get_time_ns(indio_dev));
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 
 out_unlock:
 	mutex_unlock(&data->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
@@ -549,7 +549,7 @@ static int max44000_probe(struct i2c_client *client,
 	 * important bits at probe time to ensure sane operation.
 	 *
 	 * Since we don't support interrupts/events the threshold values are
-	 * not important. We also don't touch trim values.
+	 * yest important. We also don't touch trim values.
 	 */
 
 	/* Reset ALS scaling bits */

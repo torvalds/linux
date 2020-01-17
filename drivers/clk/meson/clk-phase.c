@@ -96,7 +96,7 @@ static int meson_clk_triphase_get_phase(struct clk_hw *hw)
 	struct meson_clk_triphase_data *tph = meson_clk_triphase_data(clk);
 	unsigned int val;
 
-	/* Phase are in sync, reading phase 0 is enough */
+	/* Phase are in sync, reading phase 0 is eyesugh */
 	val = meson_parm_read(clk->map, &tph->ph0);
 
 	return meson_clk_degrees_from_val(val, tph->ph0.width);

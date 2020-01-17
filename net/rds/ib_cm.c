@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -69,7 +69,7 @@ static void rds_ib_set_flow_control(struct rds_connection *conn, u32 credits)
 
 /*
  * Tune RNR behavior. Without flow control, we use a rather
- * low timeout, but not the absolute minimum - this should
+ * low timeout, but yest the absolute minimum - this should
  * be tunable.
  *
  * We already set the RNR retry count to 7 (which is the
@@ -104,7 +104,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	__be64 ack_seq = 0;
 	__be32 credit = 0;
 	u8 major = 0;
-	u8 minor = 0;
+	u8 miyesr = 0;
 	int err;
 
 	dp = event->param.conn.private_data;
@@ -112,9 +112,9 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 		if (event->param.conn.private_data_len >=
 		    sizeof(struct rds6_ib_connect_private)) {
 			major = dp->ricp_v6.dp_protocol_major;
-			minor = dp->ricp_v6.dp_protocol_minor;
+			miyesr = dp->ricp_v6.dp_protocol_miyesr;
 			credit = dp->ricp_v6.dp_credit;
-			/* dp structure start is not guaranteed to be 8 bytes
+			/* dp structure start is yest guaranteed to be 8 bytes
 			 * aligned.  Since dp_ack_seq is 64-bit extended load
 			 * operations can be used so go through get_unaligned
 			 * to avoid unaligned errors.
@@ -124,20 +124,20 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	} else if (event->param.conn.private_data_len >=
 		   sizeof(struct rds_ib_connect_private)) {
 		major = dp->ricp_v4.dp_protocol_major;
-		minor = dp->ricp_v4.dp_protocol_minor;
+		miyesr = dp->ricp_v4.dp_protocol_miyesr;
 		credit = dp->ricp_v4.dp_credit;
 		ack_seq = get_unaligned(&dp->ricp_v4.dp_ack_seq);
 	}
 
 	/* make sure it isn't empty data */
 	if (major) {
-		rds_ib_set_protocol(conn, RDS_PROTOCOL(major, minor));
+		rds_ib_set_protocol(conn, RDS_PROTOCOL(major, miyesr));
 		rds_ib_set_flow_control(conn, be32_to_cpu(credit));
 	}
 
 	if (conn->c_version < RDS_PROTOCOL_VERSION) {
 		if (conn->c_version != RDS_PROTOCOL_COMPAT_VERSION) {
-			pr_notice("RDS/IB: Connection <%pI6c,%pI6c> version %u.%u no longer supported\n",
+			pr_yestice("RDS/IB: Connection <%pI6c,%pI6c> version %u.%u yes longer supported\n",
 				  &conn->c_laddr, &conn->c_faddr,
 				  RDS_PROTOCOL_MAJOR(conn->c_version),
 				  RDS_PROTOCOL_MINOR(conn->c_version));
@@ -146,7 +146,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 		}
 	}
 
-	pr_notice("RDS/IB: %s conn connected <%pI6c,%pI6c,%d> version %u.%u%s\n",
+	pr_yestice("RDS/IB: %s conn connected <%pI6c,%pI6c,%d> version %u.%u%s\n",
 		  ic->i_active_side ? "Active" : "Passive",
 		  &conn->c_laddr, &conn->c_faddr, conn->c_tos,
 		  RDS_PROTOCOL_MAJOR(conn->c_version),
@@ -221,9 +221,9 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 			dp->ricp_v6.dp_daddr = conn->c_faddr;
 			dp->ricp_v6.dp_protocol_major =
 			    RDS_PROTOCOL_MAJOR(protocol_version);
-			dp->ricp_v6.dp_protocol_minor =
+			dp->ricp_v6.dp_protocol_miyesr =
 			    RDS_PROTOCOL_MINOR(protocol_version);
-			dp->ricp_v6.dp_protocol_minor_mask =
+			dp->ricp_v6.dp_protocol_miyesr_mask =
 			    cpu_to_be16(RDS_IB_SUPPORTED_PROTOCOLS);
 			dp->ricp_v6.dp_ack_seq =
 			    cpu_to_be64(rds_ib_piggyb_ack(ic));
@@ -236,9 +236,9 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 			dp->ricp_v4.dp_daddr = conn->c_faddr.s6_addr32[3];
 			dp->ricp_v4.dp_protocol_major =
 			    RDS_PROTOCOL_MAJOR(protocol_version);
-			dp->ricp_v4.dp_protocol_minor =
+			dp->ricp_v4.dp_protocol_miyesr =
 			    RDS_PROTOCOL_MINOR(protocol_version);
-			dp->ricp_v4.dp_protocol_minor_mask =
+			dp->ricp_v4.dp_protocol_miyesr_mask =
 			    cpu_to_be16(RDS_IB_SUPPORTED_PROTOCOLS);
 			dp->ricp_v4.dp_ack_seq =
 			    cpu_to_be64(rds_ib_piggyb_ack(ic));
@@ -320,12 +320,12 @@ static void rds_ib_tasklet_fn_send(unsigned long data)
 
 	rds_ib_stats_inc(s_ib_tasklet_call);
 
-	/* if cq has been already reaped, ignore incoming cq event */
+	/* if cq has been already reaped, igyesre incoming cq event */
 	if (atomic_read(&ic->i_cq_quiesce))
 		return;
 
 	poll_scq(ic, ic->i_send_cq, ic->i_send_wc);
-	ib_req_notify_cq(ic->i_send_cq, IB_CQ_NEXT_COMP);
+	ib_req_yestify_cq(ic->i_send_cq, IB_CQ_NEXT_COMP);
 	poll_scq(ic, ic->i_send_cq, ic->i_send_wc);
 
 	if (rds_conn_up(conn) &&
@@ -365,13 +365,13 @@ static void rds_ib_tasklet_fn_recv(unsigned long data)
 
 	rds_ib_stats_inc(s_ib_tasklet_call);
 
-	/* if cq has been already reaped, ignore incoming cq event */
+	/* if cq has been already reaped, igyesre incoming cq event */
 	if (atomic_read(&ic->i_cq_quiesce))
 		return;
 
 	memset(&state, 0, sizeof(state));
 	poll_rcq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
-	ib_req_notify_cq(ic->i_recv_cq, IB_CQ_SOLICITED);
+	ib_req_yestify_cq(ic->i_recv_cq, IB_CQ_SOLICITED);
 	poll_rcq(ic, ic->i_recv_cq, ic->i_recv_wc, &state);
 
 	if (state.ack_next_valid)
@@ -395,7 +395,7 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 
 	switch (event->event) {
 	case IB_EVENT_COMM_EST:
-		rdma_notify(ic->i_cm_id, IB_EVENT_COMM_EST);
+		rdma_yestify(ic->i_cm_id, IB_EVENT_COMM_EST);
 		break;
 	default:
 		rdsdebug("Fatal QP Event %u (%s) - connection %pI6c->%pI6c, reconnecting\n",
@@ -460,13 +460,13 @@ struct rds_header **rds_dma_hdrs_alloc(struct ib_device *ibdev,
 	dma_addr_t *hdr_daddrs;
 	u32 i;
 
-	hdrs = kvmalloc_node(sizeof(*hdrs) * num_hdrs, GFP_KERNEL,
-			     ibdev_to_node(ibdev));
+	hdrs = kvmalloc_yesde(sizeof(*hdrs) * num_hdrs, GFP_KERNEL,
+			     ibdev_to_yesde(ibdev));
 	if (!hdrs)
 		return NULL;
 
-	hdr_daddrs = kvmalloc_node(sizeof(*hdr_daddrs) * num_hdrs, GFP_KERNEL,
-				   ibdev_to_node(ibdev));
+	hdr_daddrs = kvmalloc_yesde(sizeof(*hdr_daddrs) * num_hdrs, GFP_KERNEL,
+				   ibdev_to_yesde(ibdev));
 	if (!hdr_daddrs) {
 		kvfree(hdrs);
 		return NULL;
@@ -503,7 +503,7 @@ void rds_dma_hdrs_free(struct dma_pool *pool, struct rds_header **hdrs,
 }
 
 /*
- * This needs to be very careful to not leave IS_ERR pointers around for
+ * This needs to be very careful to yest leave IS_ERR pointers around for
  * cleanup to trip over.
  */
 static int rds_ib_setup_qp(struct rds_connection *conn)
@@ -518,7 +518,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	struct dma_pool *pool;
 
 	/*
-	 * It's normal to see a null device if an incoming connection races
+	 * It's yesrmal to see a null device if an incoming connection races
 	 * with device removal, so we don't print a warning.
 	 */
 	rds_ibdev = rds_ib_get_client_data(dev);
@@ -531,7 +531,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	 */
 	fr_queue_space = (rds_ibdev->use_fastreg ? RDS_IB_DEFAULT_FR_WR : 0);
 
-	/* add the conn now so that connection establishment has the dev */
+	/* add the conn yesw so that connection establishment has the dev */
 	rds_ib_add_conn(rds_ibdev, conn);
 
 	max_wrs = rds_ibdev->max_wrs < rds_ib_sysctl_max_send_wr + 1 ?
@@ -575,15 +575,15 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		goto send_cq_out;
 	}
 
-	ret = ib_req_notify_cq(ic->i_send_cq, IB_CQ_NEXT_COMP);
+	ret = ib_req_yestify_cq(ic->i_send_cq, IB_CQ_NEXT_COMP);
 	if (ret) {
-		rdsdebug("ib_req_notify_cq send failed: %d\n", ret);
+		rdsdebug("ib_req_yestify_cq send failed: %d\n", ret);
 		goto recv_cq_out;
 	}
 
-	ret = ib_req_notify_cq(ic->i_recv_cq, IB_CQ_SOLICITED);
+	ret = ib_req_yestify_cq(ic->i_recv_cq, IB_CQ_SOLICITED);
 	if (ret) {
-		rdsdebug("ib_req_notify_cq recv failed: %d\n", ret);
+		rdsdebug("ib_req_yestify_cq recv failed: %d\n", ret);
 		goto recv_cq_out;
 	}
 
@@ -636,18 +636,18 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		goto recv_hdrs_dma_out;
 	}
 
-	ic->i_sends = vzalloc_node(array_size(sizeof(struct rds_ib_send_work),
+	ic->i_sends = vzalloc_yesde(array_size(sizeof(struct rds_ib_send_work),
 					      ic->i_send_ring.w_nr),
-				   ibdev_to_node(dev));
+				   ibdev_to_yesde(dev));
 	if (!ic->i_sends) {
 		ret = -ENOMEM;
 		rdsdebug("send allocation failed\n");
 		goto ack_dma_out;
 	}
 
-	ic->i_recvs = vzalloc_node(array_size(sizeof(struct rds_ib_recv_work),
+	ic->i_recvs = vzalloc_yesde(array_size(sizeof(struct rds_ib_recv_work),
 					      ic->i_recv_ring.w_nr),
-				   ibdev_to_node(dev));
+				   ibdev_to_yesde(dev));
 	if (!ic->i_recvs) {
 		ret = -ENOMEM;
 		rdsdebug("recv allocation failed\n");
@@ -699,7 +699,7 @@ out:
 static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event, bool isv6)
 {
 	const union rds_ib_conn_priv *dp = event->param.conn.private_data;
-	u8 data_len, major, minor;
+	u8 data_len, major, miyesr;
 	u32 version = 0;
 	__be16 mask;
 	u16 common;
@@ -714,9 +714,9 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event, bool isv6)
 	 * We really should have changed this for OFED 1.3 :-(
 	 */
 
-	/* Be paranoid. RDS always has privdata */
+	/* Be parayesid. RDS always has privdata */
 	if (!event->param.conn.private_data_len) {
-		printk(KERN_NOTICE "RDS incoming connection has no private data, "
+		printk(KERN_NOTICE "RDS incoming connection has yes private data, "
 			"rejecting\n");
 		return 0;
 	}
@@ -724,16 +724,16 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event, bool isv6)
 	if (isv6) {
 		data_len = sizeof(struct rds6_ib_connect_private);
 		major = dp->ricp_v6.dp_protocol_major;
-		minor = dp->ricp_v6.dp_protocol_minor;
-		mask = dp->ricp_v6.dp_protocol_minor_mask;
+		miyesr = dp->ricp_v6.dp_protocol_miyesr;
+		mask = dp->ricp_v6.dp_protocol_miyesr_mask;
 	} else {
 		data_len = sizeof(struct rds_ib_connect_private);
 		major = dp->ricp_v4.dp_protocol_major;
-		minor = dp->ricp_v4.dp_protocol_minor;
-		mask = dp->ricp_v4.dp_protocol_minor_mask;
+		miyesr = dp->ricp_v4.dp_protocol_miyesr;
+		mask = dp->ricp_v4.dp_protocol_miyesr_mask;
 	}
 
-	/* Even if len is crap *now* I still want to check it. -ASG */
+	/* Even if len is crap *yesw* I still want to check it. -ASG */
 	if (event->param.conn.private_data_len < data_len || major == 0)
 		return RDS_PROTOCOL_4_0;
 
@@ -743,15 +743,15 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event, bool isv6)
 		while ((common >>= 1) != 0)
 			version++;
 	} else if (RDS_PROTOCOL_COMPAT_VERSION ==
-		   RDS_PROTOCOL(major, minor)) {
+		   RDS_PROTOCOL(major, miyesr)) {
 		version = RDS_PROTOCOL_COMPAT_VERSION;
 	} else {
 		if (isv6)
 			printk_ratelimited(KERN_NOTICE "RDS: Connection from %pI6c using incompatible protocol version %u.%u\n",
-					   &dp->ricp_v6.dp_saddr, major, minor);
+					   &dp->ricp_v6.dp_saddr, major, miyesr);
 		else
 			printk_ratelimited(KERN_NOTICE "RDS: Connection from %pI4 using incompatible protocol version %u.%u\n",
-					   &dp->ricp_v4.dp_saddr, major, minor);
+					   &dp->ricp_v4.dp_saddr, major, miyesr);
 	}
 	return version;
 }
@@ -763,7 +763,7 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event, bool isv6)
  * the request is using a link local address.
  *
  * Note one problem in this search.  It is possible that two interfaces have
- * the same link local address.  Unfortunately, this cannot be solved unless
+ * the same link local address.  Unfortunately, this canyest be solved unless
  * the underlying layer gives us the interface which an incoming RDMA connect
  * request comes from.
  */
@@ -823,7 +823,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 		 * connection.
 		 */
 		if (ipv6_addr_type(daddr6) & IPV6_ADDR_LINKLOCAL) {
-			/* Using init_net for now ..  */
+			/* Using init_net for yesw ..  */
 			ifindex = __rds_find_ifindex(&init_net, daddr6);
 			/* No index found...  Need to bail out. */
 			if (ifindex == 0) {
@@ -857,7 +857,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 		 (unsigned long long)be64_to_cpu(lguid),
 		 (unsigned long long)be64_to_cpu(fguid), dp_cmn->ricpc_dp_toss);
 
-	/* RDS/IB is not currently netns aware, thus init_net */
+	/* RDS/IB is yest currently netns aware, thus init_net */
 	conn = rds_conn_create(&init_net, daddr6, saddr6,
 			       &rds_ib_transport, dp_cmn->ricpc_dp_toss,
 			       GFP_KERNEL, ifindex);
@@ -906,7 +906,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 	cm_id->context = conn;
 
 	/* We got halfway through setting up the ib_connection, if we
-	 * fail now, we have to take the long route out of this mess. */
+	 * fail yesw, we have to take the long route out of this mess. */
 	destroy = 0;
 
 	err = rds_ib_setup_qp(conn);
@@ -959,8 +959,8 @@ int rds_ib_cm_initiate_connect(struct rdma_cm_id *cm_id, bool isv6)
 		rds_ib_conn_error(conn, "rdma_connect failed (%d)\n", ret);
 
 out:
-	/* Beware - returning non-zero tells the rdma_cm to destroy
-	 * the cm_id. We should certainly not do it as long as we still
+	/* Beware - returning yesn-zero tells the rdma_cm to destroy
+	 * the cm_id. We should certainly yest do it as long as we still
 	 * "own" the cm_id. */
 	if (ret) {
 		if (ic->i_cm_id == cm_id)
@@ -1075,10 +1075,10 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 		/*
 		 * We want to wait for tx and rx completion to finish
 		 * before we tear down the connection, but we have to be
-		 * careful not to get stuck waiting on a send ring that
+		 * careful yest to get stuck waiting on a send ring that
 		 * only has unsignaled sends in it.  We've shutdown new
 		 * sends before getting here so by waiting for signaled
-		 * sends to complete we're ensured that there will be no
+		 * sends to complete we're ensured that there will be yes
 		 * more tx processing.
 		 */
 		wait_event(rds_ib_ring_empty_wait,
@@ -1148,7 +1148,7 @@ void rds_ib_conn_path_shutdown(struct rds_conn_path *cp)
 		rdma_destroy_id(ic->i_cm_id);
 
 		/*
-		 * Move connection back to the nodev list.
+		 * Move connection back to the yesdev list.
 		 */
 		if (ic->rds_ibdev)
 			rds_ib_remove_conn(ic->rds_ibdev, conn);
@@ -1215,7 +1215,7 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 		return ret;
 	}
 
-	INIT_LIST_HEAD(&ic->ib_node);
+	INIT_LIST_HEAD(&ic->ib_yesde);
 	tasklet_init(&ic->i_send_tasklet, rds_ib_tasklet_fn_send,
 		     (unsigned long)ic);
 	tasklet_init(&ic->i_recv_tasklet, rds_ib_tasklet_fn_recv,
@@ -1237,9 +1237,9 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	ic->conn = conn;
 	conn->c_transport_data = ic;
 
-	spin_lock_irqsave(&ib_nodev_conns_lock, flags);
-	list_add_tail(&ic->ib_node, &ib_nodev_conns);
-	spin_unlock_irqrestore(&ib_nodev_conns_lock, flags);
+	spin_lock_irqsave(&ib_yesdev_conns_lock, flags);
+	list_add_tail(&ic->ib_yesde, &ib_yesdev_conns);
+	spin_unlock_irqrestore(&ib_yesdev_conns_lock, flags);
 
 
 	rdsdebug("conn %p conn ic %p\n", conn, conn->c_transport_data);
@@ -1247,7 +1247,7 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 }
 
 /*
- * Free a connection. Connection must be shut down and not set for reconnect.
+ * Free a connection. Connection must be shut down and yest set for reconnect.
  */
 void rds_ib_conn_free(void *arg)
 {
@@ -1257,14 +1257,14 @@ void rds_ib_conn_free(void *arg)
 	rdsdebug("ic %p\n", ic);
 
 	/*
-	 * Conn is either on a dev's list or on the nodev list.
+	 * Conn is either on a dev's list or on the yesdev list.
 	 * A race with shutdown() or connect() would cause problems
 	 * (since rds_ibdev would change) but that should never happen.
 	 */
-	lock_ptr = ic->rds_ibdev ? &ic->rds_ibdev->spinlock : &ib_nodev_conns_lock;
+	lock_ptr = ic->rds_ibdev ? &ic->rds_ibdev->spinlock : &ib_yesdev_conns_lock;
 
 	spin_lock_irq(lock_ptr);
-	list_del(&ic->ib_node);
+	list_del(&ic->ib_yesde);
 	spin_unlock_irq(lock_ptr);
 
 	rds_ib_recv_free_caches(ic);

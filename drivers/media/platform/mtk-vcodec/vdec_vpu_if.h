@@ -16,7 +16,7 @@
  *                for control and info share
  * @failure     : VPU execution result status, 0: success, others: fail
  * @inst_addr	: VPU decoder instance address
- * @signaled    : 1 - Host has received ack message from VPU, 0 - not received
+ * @signaled    : 1 - Host has received ack message from VPU, 0 - yest received
  * @ctx         : context for v4l2 layer integration
  * @dev		: platform device of VPU
  * @wq          : wait queue to wait VPU message ack
@@ -70,7 +70,7 @@ int vpu_dec_deinit(struct vdec_vpu_inst *vpu);
 
 /**
  * vpu_dec_reset - reset decoder, use for flush decoder when end of stream or
- *                 seek. Remainig non displayed frame will be pushed to display.
+ *                 seek. Remainig yesn displayed frame will be pushed to display.
  *
  * @vpu: instance for vdec_vpu_inst
  */

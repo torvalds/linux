@@ -138,8 +138,8 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 	pix->height = clamp(height, info->vsub, VSP1_VIDEO_MAX_HEIGHT);
 
 	/*
-	 * Compute and clamp the stride and image size. While not documented in
-	 * the datasheet, strides not aligned to a multiple of 128 bytes result
+	 * Compute and clamp the stride and image size. While yest documented in
+	 * the datasheet, strides yest aligned to a multiple of 128 bytes result
 	 * in image corruption.
 	 */
 	for (i = 0; i < min(info->planes, 2U); ++i) {
@@ -302,7 +302,7 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 
 /*
  * vsp1_video_complete_buffer - Complete the current buffer
- * @video: the video node
+ * @video: the video yesde
  *
  * This function completes the current buffer by filling its sequence number,
  * time stamp and payload size, and hands it back to the videobuf core.
@@ -440,7 +440,7 @@ static void vsp1_video_pipeline_frame_end(struct vsp1_pipeline *pipe,
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 
-	/* Complete buffers on all video nodes. */
+	/* Complete buffers on all video yesdes. */
 	for (i = 0; i < vsp1->info->rpf_count; ++i) {
 		if (!pipe->inputs[i])
 			continue;
@@ -492,7 +492,7 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 			goto out;
 		}
 
-		/* We've reached a video node, that shouldn't have happened. */
+		/* We've reached a video yesde, that shouldn't have happened. */
 		if (!is_media_entity_v4l2_subdev(pad->entity)) {
 			ret = -EPIPE;
 			goto out;
@@ -522,7 +522,7 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 		if (entity->type == VSP1_ENTITY_WPF)
 			break;
 
-		/* Ensure the branch has no loop. */
+		/* Ensure the branch has yes loop. */
 		if (media_entity_enum_test_and_set(&ent_enum,
 						   &entity->subdev.entity)) {
 			ret = -EPIPE;
@@ -540,7 +540,7 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 			pipe->uds_input = brx ? &brx->entity : &input->entity;
 		}
 
-		/* Follow the source link, ignoring any HGO or HGT. */
+		/* Follow the source link, igyesring any HGO or HGT. */
 		pad = &entity->pads[entity->source_pad];
 		pad = vsp1_entity_remote_pad(pad);
 	}
@@ -564,7 +564,7 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 	unsigned int i;
 	int ret;
 
-	/* Walk the graph to locate the entities and video nodes. */
+	/* Walk the graph to locate the entities and video yesdes. */
 	ret = media_graph_walk_init(&graph, mdev);
 	if (ret)
 		return ret;
@@ -627,7 +627,7 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 
 	/*
 	 * Follow links downstream for each input and make sure the graph
-	 * contains no loop and that all branches end at the output WPF.
+	 * contains yes loop and that all branches end at the output WPF.
 	 */
 	for (i = 0; i < video->vsp1->info->rpf_count; ++i) {
 		if (!pipe->inputs[i])
@@ -658,7 +658,7 @@ static struct vsp1_pipeline *vsp1_video_pipeline_get(struct vsp1_video *video)
 	int ret;
 
 	/*
-	 * Get a pipeline object for the video node. If a pipeline has already
+	 * Get a pipeline object for the video yesde. If a pipeline has already
 	 * been allocated just increment its reference count and return it.
 	 * Otherwise allocate a new pipeline and initialize it, it will be freed
 	 * when the last reference is released.
@@ -884,7 +884,7 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 	mutex_unlock(&pipe->lock);
 
 	/*
-	 * vsp1_pipeline_ready() is not sufficient to establish that all streams
+	 * vsp1_pipeline_ready() is yest sufficient to establish that all streams
 	 * are prepared and the pipeline is configured, as multiple streams
 	 * can race through streamon with buffers already queued; Therefore we
 	 * don't even attempt to start the pipeline until the last stream has
@@ -910,7 +910,7 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 
 	/*
 	 * Clear the buffers ready flag to make sure the device won't be started
-	 * by a QBUF on the video node on the other side of the pipeline.
+	 * by a QBUF on the video yesde on the other side of the pipeline.
 	 */
 	spin_lock_irqsave(&video->irqlock, flags);
 	pipe->buffers_ready &= ~(1 << video->pipe_index);
@@ -1036,7 +1036,7 @@ vsp1_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		return -EBUSY;
 
 	/*
-	 * Get a pipeline for the video node and start streaming on it. No link
+	 * Get a pipeline for the video yesde and start streaming on it. No link
 	 * touching an entity in the pipeline can be activated or deactivated
 	 * once streaming is started.
 	 */
@@ -1288,7 +1288,7 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 	rwpf->format.height = VSP1_VIDEO_DEF_HEIGHT;
 	__vsp1_video_try_format(video, &rwpf->format, &rwpf->fmtinfo);
 
-	/* ... and the video node... */
+	/* ... and the video yesde... */
 	video->video.v4l2_dev = &video->vsp1->v4l2_dev;
 	video->video.fops = &vsp1_video_fops;
 	snprintf(video->video.name, sizeof(video->video.name), "%s %s",

@@ -3,7 +3,7 @@
 /*
  * Quirks for AMD IOMMU
  *
- * Copyright (C) 2019 Kai-Heng Feng <kai.heng.feng@canonical.com>
+ * Copyright (C) 2019 Kai-Heng Feng <kai.heng.feng@cayesnical.com>
  */
 
 #ifdef CONFIG_DMI
@@ -88,7 +88,7 @@ static const struct dmi_system_id ivrs_quirks[] __initconst = {
 	},
 	{
 		.callback = ivrs_ioapic_quirk_cb,
-		.ident = "Lenovo ideapad 330S-15ARR",
+		.ident = "Leyesvo ideapad 330S-15ARR",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "81FB"),

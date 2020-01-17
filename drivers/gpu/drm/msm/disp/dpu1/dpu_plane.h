@@ -103,7 +103,7 @@ void dpu_plane_set_error(struct drm_plane *plane, bool error);
  * @type:  Plane type - PRIMARY/OVERLAY/CURSOR
  * @possible_crtcs: bitmask of crtc that can be attached to the given pipe
  * @master_plane_id: primary plane id of a multirect pipe. 0 value passed for
- *                   a regular plane initialization. A non-zero primary plane
+ *                   a regular plane initialization. A yesn-zero primary plane
  *                   id will be passed for a virtual pipe initialization.
  *
  */

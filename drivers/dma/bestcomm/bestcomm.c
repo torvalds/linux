@@ -81,7 +81,7 @@ bcom_task_alloc(int bd_count, int bd_size, int priv_size)
 		tsk->priv = (void*)tsk + sizeof(struct bcom_task);
 
 	/* Get IRQ of that task */
-	tsk->irq = irq_of_parse_and_map(bcom_eng->ofnode, tsk->tasknum);
+	tsk->irq = irq_of_parse_and_map(bcom_eng->ofyesde, tsk->tasknum);
 	if (!tsk->irq)
 		goto error;
 
@@ -211,7 +211,7 @@ bcom_set_initiator(int task, int initiator)
 
 	bcom_set_tcr_initiator(task, initiator);
 
-	/* Just setting tcr is apparently not enough due to some problem */
+	/* Just setting tcr is apparently yest eyesugh due to some problem */
 	/* with it. So we just go thru all the microcode and replace in  */
 	/* the DRD directly */
 
@@ -261,7 +261,7 @@ static u32 fdt_ops[] = {
 	0x21e00000,	/* FDT[51] - or()         */
 	0x21500000,	/* FDT[52] - xor()        */
 	0x21400000,	/* FDT[53] - andn()       */
-	0x21500000,	/* FDT[54] - not()        */
+	0x21500000,	/* FDT[54] - yest()        */
 	0x20400000,	/* FDT[55] - add()        */
 	0x20500000,	/* FDT[56] - sub()        */
 	0x20800000,	/* FDT[57] - lsh()        */
@@ -367,7 +367,7 @@ bcom_engine_cleanup(void)
 
 static int mpc52xx_bcom_probe(struct platform_device *op)
 {
-	struct device_node *ofn_sram;
+	struct device_yesde *ofn_sram;
 	struct resource res_bcom;
 
 	int rv;
@@ -375,11 +375,11 @@ static int mpc52xx_bcom_probe(struct platform_device *op)
 	/* Inform user we're ok so far */
 	printk(KERN_INFO "DMA: MPC52xx BestComm driver\n");
 
-	/* Get the bestcomm node */
-	of_node_get(op->dev.of_node);
+	/* Get the bestcomm yesde */
+	of_yesde_get(op->dev.of_yesde);
 
 	/* Prepare SRAM */
-	ofn_sram = of_find_matching_node(NULL, mpc52xx_sram_ids);
+	ofn_sram = of_find_matching_yesde(NULL, mpc52xx_sram_ids);
 	if (!ofn_sram) {
 		printk(KERN_ERR DRIVER_NAME ": "
 			"No SRAM found in device tree\n");
@@ -387,7 +387,7 @@ static int mpc52xx_bcom_probe(struct platform_device *op)
 		goto error_ofput;
 	}
 	rv = bcom_sram_init(ofn_sram, DRIVER_NAME);
-	of_node_put(ofn_sram);
+	of_yesde_put(ofn_sram);
 
 	if (rv) {
 		printk(KERN_ERR DRIVER_NAME ": "
@@ -402,11 +402,11 @@ static int mpc52xx_bcom_probe(struct platform_device *op)
 		goto error_sramclean;
 	}
 
-	/* Save the node */
-	bcom_eng->ofnode = op->dev.of_node;
+	/* Save the yesde */
+	bcom_eng->ofyesde = op->dev.of_yesde;
 
 	/* Get, reserve & map io */
-	if (of_address_to_resource(op->dev.of_node, 0, &res_bcom)) {
+	if (of_address_to_resource(op->dev.of_yesde, 0, &res_bcom)) {
 		printk(KERN_ERR DRIVER_NAME ": "
 			"Can't get resource\n");
 		rv = -EINVAL;
@@ -450,7 +450,7 @@ error_sramclean:
 	kfree(bcom_eng);
 	bcom_sram_cleanup();
 error_ofput:
-	of_node_put(op->dev.of_node);
+	of_yesde_put(op->dev.of_yesde);
 
 	printk(KERN_ERR "DMA: MPC52xx BestComm init failed !\n");
 
@@ -470,8 +470,8 @@ static int mpc52xx_bcom_remove(struct platform_device *op)
 	iounmap(bcom_eng->regs);
 	release_mem_region(bcom_eng->regs_base, sizeof(struct mpc52xx_sdma));
 
-	/* Release the node */
-	of_node_put(bcom_eng->ofnode);
+	/* Release the yesde */
+	of_yesde_put(bcom_eng->ofyesde);
 
 	/* Release memory */
 	kfree(bcom_eng);
@@ -515,7 +515,7 @@ mpc52xx_bcom_exit(void)
 	platform_driver_unregister(&mpc52xx_bcom_of_platform_driver);
 }
 
-/* If we're not a module, we must make sure everything is setup before  */
+/* If we're yest a module, we must make sure everything is setup before  */
 /* anyone tries to use us ... that's why we use subsys_initcall instead */
 /* of module_init. */
 subsys_initcall(mpc52xx_bcom_init);

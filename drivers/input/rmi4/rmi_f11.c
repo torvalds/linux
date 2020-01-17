@@ -30,7 +30,7 @@
 #define DEFAULT_MIN_ABS_MT_TRACKING_ID 1
 #define DEFAULT_MAX_ABS_MT_TRACKING_ID 10
 
-/** A note about RMI4 F11 register structure.
+/** A yeste about RMI4 F11 register structure.
  *
  * The properties for
  * a given sensor are described by its query registers.  The number of query
@@ -54,7 +54,7 @@
  * directly generate the input events, but their size, location and contents
  * are critical to determining where the data we are interested in lives.
  *
- * At this time, the driver does not yet comprehend all possible F11
+ * At this time, the driver does yest yet comprehend all possible F11
  * configuration options, but it should be sufficient to cover 99% of RMI4 F11
  * devices currently in the field.
  */
@@ -224,7 +224,7 @@
  * @has_flick - flick detection is supported.
  * @has_press - press gesture reporting is supported.
  * @has_pinch - pinch gesture detection is supported.
- * @has_palm_det - the 2-D sensor notifies the host whenever a large conductive
+ * @has_palm_det - the 2-D sensor yestifies the host whenever a large conductive
  * object such as a palm or a cheek touches the 2-D sensor.
  * @has_rotate - rotation gesture detection is supported.
  * @has_touch_shapes - TouchShapes are supported.  A TouchShape is a fixed
@@ -236,10 +236,10 @@
  * more than one finger is involved in a scrolling action.
  *
  * Convenience for checking bytes in the gesture info registers.  This is done
- * often enough that we put it here to declutter the conditionals
+ * often eyesugh that we put it here to declutter the conditionals
  *
- * @query7_nonzero - true if none of the query 7 bits are set
- * @query8_nonzero - true if none of the query 8 bits are set
+ * @query7_yesnzero - true if yesne of the query 7 bits are set
+ * @query8_yesnzero - true if yesne of the query 8 bits are set
  *
  * Query 9 is present if the has_query9 is set.
  *
@@ -262,7 +262,7 @@
  *
  * @has_z_tuning - if set, the sensor supports Z tuning and registers
  * F11_2D_Ctrl29 through F11_2D_Ctrl33 exist.
- * @has_algorithm_selection - controls choice of noise suppression algorithm
+ * @has_algorithm_selection - controls choice of yesise suppression algorithm
  * @has_w_tuning - the sensor supports Wx and Wy scaling and registers
  * F11_2D_Ctrl36 through F11_2D_Ctrl39 exist.
  * @has_pitch_info - the X and Y pitches of the sensor electrodes can be
@@ -347,7 +347,7 @@ struct f11_2d_sensor_queries {
 	bool has_pinch;
 	bool has_chiral;
 
-	bool query7_nonzero;
+	bool query7_yesnzero;
 
 	/* query 8 */
 	bool has_palm_det;
@@ -359,7 +359,7 @@ struct f11_2d_sensor_queries {
 	bool has_mf_edge_motion;
 	bool has_mf_scroll_inertia;
 
-	bool query8_nonzero;
+	bool query8_yesnzero;
 
 	/* Query 9 */
 	bool has_pen;
@@ -488,7 +488,7 @@ struct f11_2d_data {
  * @dev_query - F11 device specific query registers.
  * @dev_controls - F11 device specific control registers.
  * @dev_controls_mutex - lock for the control registers.
- * @rezero_wait_ms - if nonzero, upon resume we will wait this many
+ * @rezero_wait_ms - if yesnzero, upon resume we will wait this many
  * milliseconds before rezeroing the sensor(s).  This is useful in systems with
  * poor electrical behavior on resume, where the initial calibration of the
  * sensor(s) coming out of sleep state may be bogus.
@@ -608,7 +608,7 @@ static void rmi_f11_finger_handler(struct f11_data *f11,
 		for (i = 0; i < abs_fingers; i++) {
 			finger_state = rmi_f11_parse_finger_state(f_state, i);
 			if (finger_state == F11_RESERVED)
-				/* no need to send twice the error */
+				/* yes need to send twice the error */
 				continue;
 
 			rmi_2d_sensor_abs_report(sensor, &sensor->objs[i], i);
@@ -647,12 +647,12 @@ static int f11_2d_construct_data(struct f11_data *f11)
 	if (query->has_rel)
 		sensor->pkt_size +=  (sensor->nbr_fingers * 2);
 
-	/* Check if F11_2D_Query7 is non-zero */
-	if (query->query7_nonzero)
+	/* Check if F11_2D_Query7 is yesn-zero */
+	if (query->query7_yesnzero)
 		sensor->pkt_size += sizeof(u8);
 
-	/* Check if F11_2D_Query7 or F11_2D_Query8 is non-zero */
-	if (query->query7_nonzero || query->query8_nonzero)
+	/* Check if F11_2D_Query7 or F11_2D_Query8 is yesn-zero */
+	if (query->query7_yesnzero || query->query8_yesnzero)
 		sensor->pkt_size += sizeof(u8);
 
 	if (query->has_pinch || query->has_flick || query->has_rotate) {
@@ -685,12 +685,12 @@ static int f11_2d_construct_data(struct f11_data *f11)
 		i += (sensor->nbr_fingers * RMI_F11_REL_BYTES);
 	}
 
-	if (query->query7_nonzero) {
+	if (query->query7_yesnzero) {
 		data->gest_1 = &sensor->data_pkt[i];
 		i++;
 	}
 
-	if (query->query7_nonzero || query->query8_nonzero) {
+	if (query->query7_yesnzero || query->query8_yesnzero) {
 		data->gest_2 = &sensor->data_pkt[i];
 		i++;
 	}
@@ -860,8 +860,8 @@ static int rmi_f11_get_query_parameters(struct rmi_device *rmi_dev,
 		sensor_query->has_mf_scroll_inertia =
 			!!(query_buf[1] & RMI_F11_HAS_MF_SCROLL_INERTIA);
 
-		sensor_query->query7_nonzero = !!(query_buf[0]);
-		sensor_query->query8_nonzero = !!(query_buf[1]);
+		sensor_query->query7_yesnzero = !!(query_buf[0]);
+		sensor_query->query8_yesnzero = !!(query_buf[1]);
 
 		query_size += 2;
 	}
@@ -1061,7 +1061,7 @@ static int rmi_f11_initialize(struct rmi_function *fn)
 	if (!f11)
 		return -ENOMEM;
 
-	if (fn->dev.of_node) {
+	if (fn->dev.of_yesde) {
 		rc = rmi_2d_sensor_of_probe(&fn->dev, &f11->sensor_pdata);
 		if (rc)
 			return rc;

@@ -6,10 +6,10 @@
  * Copyright 2005 Andi Kleen <ak@suse.de>
  * Copyright 2004 Pavel Machek <pavel@suse.cz>
  *
- * swsusp_arch_resume must not use any stack or any nonlocal variables while
+ * swsusp_arch_resume must yest use any stack or any yesnlocal variables while
  * copying pages:
  *
- * Its rewriting one kernel image with another. What is stack in "old"
+ * Its rewriting one kernel image with ayesther. What is stack in "old"
  * image could very well be data page in "new" image, and overwriting
  * your own stack under you is bad idea.
  */

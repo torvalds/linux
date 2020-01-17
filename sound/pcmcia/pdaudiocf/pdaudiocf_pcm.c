@@ -283,7 +283,7 @@ int snd_pdacf_pcm_new(struct snd_pdacf *chip)
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
-	pcm->nonatomic = true;
+	pcm->yesnatomic = true;
 	strcpy(pcm->name, chip->card->shortname);
 	chip->pcm = pcm;
 	

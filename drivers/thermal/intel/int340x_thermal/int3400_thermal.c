@@ -194,7 +194,7 @@ static int int3400_thermal_run_osc(acpi_handle handle,
 	return result;
 }
 
-static void int3400_notify(acpi_handle handle,
+static void int3400_yestify(acpi_handle handle,
 			u32 event,
 			void *data)
 {
@@ -218,7 +218,7 @@ static void int3400_notify(acpi_handle handle,
 				thermal_prop);
 		break;
 	default:
-		/* Ignore unknown notification codes sent to INT3400 device */
+		/* Igyesre unkyeswn yestification codes sent to INT3400 device */
 		break;
 	}
 }
@@ -274,8 +274,8 @@ static struct thermal_zone_device_ops int3400_thermal_ops = {
 };
 
 static struct thermal_zone_params int3400_thermal_params = {
-	.governor_name = "user_space",
-	.no_hwmon = true,
+	.goveryesr_name = "user_space",
+	.yes_hwmon = true,
 };
 
 static int int3400_thermal_probe(struct platform_device *pdev)
@@ -327,8 +327,8 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 	if (result)
 		goto free_rel_misc;
 
-	result = acpi_install_notify_handler(
-			priv->adev->handle, ACPI_DEVICE_NOTIFY, int3400_notify,
+	result = acpi_install_yestify_handler(
+			priv->adev->handle, ACPI_DEVICE_NOTIFY, int3400_yestify,
 			(void *)priv);
 	if (result)
 		goto free_sysfs;
@@ -353,9 +353,9 @@ static int int3400_thermal_remove(struct platform_device *pdev)
 {
 	struct int3400_thermal_priv *priv = platform_get_drvdata(pdev);
 
-	acpi_remove_notify_handler(
+	acpi_remove_yestify_handler(
 			priv->adev->handle, ACPI_DEVICE_NOTIFY,
-			int3400_notify);
+			int3400_yestify);
 
 	if (!priv->rel_misc_dev_res)
 		acpi_thermal_rel_misc_device_remove(priv->adev->handle);

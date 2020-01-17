@@ -14,7 +14,7 @@
 #include <linux/list.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <uapi/linux/kernelcapi.h>
 
 struct capi20_appl {
@@ -47,8 +47,8 @@ int capi20_manufacturer(unsigned long cmd, void __user *data);
 #define CAPICTR_UP			0
 #define CAPICTR_DOWN			1
 
-int register_capictr_notifier(struct notifier_block *nb);
-int unregister_capictr_notifier(struct notifier_block *nb);
+int register_capictr_yestifier(struct yestifier_block *nb);
+int unregister_capictr_yestifier(struct yestifier_block *nb);
 
 #define CAPI_NOERROR                      0x0000
 
@@ -95,7 +95,7 @@ typedef enum {
         CapiB3ProtocolParameterNotSupported             = 0x3006,
         CapiBProtocolCombinationNotSupported            = 0x3007,
         CapiNcpiNotSupported                            = 0x3008,
-        CapiCipValueUnknown                             = 0x3009,
+        CapiCipValueUnkyeswn                             = 0x3009,
         CapiFlagsNotSupported                           = 0x300a,
         CapiFacilityNotSupported                        = 0x300b,
         CapiDataLengthNotSupportedByCurrentProtocol     = 0x300c,

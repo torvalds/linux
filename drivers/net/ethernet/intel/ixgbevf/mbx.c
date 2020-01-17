@@ -5,10 +5,10 @@
 #include "ixgbevf.h"
 
 /**
- *  ixgbevf_poll_for_msg - Wait for message notification
+ *  ixgbevf_poll_for_msg - Wait for message yestification
  *  @hw: pointer to the HW structure
  *
- *  returns 0 if it successfully received a message notification
+ *  returns 0 if it successfully received a message yestification
  **/
 static s32 ixgbevf_poll_for_msg(struct ixgbe_hw *hw)
 {
@@ -28,10 +28,10 @@ static s32 ixgbevf_poll_for_msg(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbevf_poll_for_ack - Wait for message acknowledgment
+ *  ixgbevf_poll_for_ack - Wait for message ackyeswledgment
  *  @hw: pointer to the HW structure
  *
- *  returns 0 if it successfully received a message acknowledgment
+ *  returns 0 if it successfully received a message ackyeswledgment
  **/
 static s32 ixgbevf_poll_for_ack(struct ixgbe_hw *hw)
 {
@@ -51,12 +51,12 @@ static s32 ixgbevf_poll_for_ack(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbevf_read_posted_mbx - Wait for message notification and receive message
+ *  ixgbevf_read_posted_mbx - Wait for message yestification and receive message
  *  @hw: pointer to the HW structure
  *  @msg: The message buffer
  *  @size: Length of buffer
  *
- *  returns 0 if it successfully received a message notification and
+ *  returns 0 if it successfully received a message yestification and
  *  copied it into the receive buffer.
  **/
 static s32 ixgbevf_read_posted_mbx(struct ixgbe_hw *hw, u32 *msg, u16 size)
@@ -233,7 +233,7 @@ static s32 ixgbevf_write_mbx_vf(struct ixgbe_hw *hw, u32 *msg, u16 size)
 	/* lock the mailbox to prevent PF/VF race condition */
 	ret_val = ixgbevf_obtain_mbx_lock_vf(hw);
 	if (ret_val)
-		goto out_no_write;
+		goto out_yes_write;
 
 	/* flush msg and acks as we are overwriting the message buffer */
 	ixgbevf_check_for_msg_vf(hw);
@@ -249,7 +249,7 @@ static s32 ixgbevf_write_mbx_vf(struct ixgbe_hw *hw, u32 *msg, u16 size)
 	/* Drop VFU and interrupt the PF to tell it a message has been sent */
 	IXGBE_WRITE_REG(hw, IXGBE_VFMAILBOX, IXGBE_VFMAILBOX_REQ);
 
-out_no_write:
+out_yes_write:
 	return ret_val;
 }
 
@@ -269,19 +269,19 @@ static s32 ixgbevf_read_mbx_vf(struct ixgbe_hw *hw, u32 *msg, u16 size)
 	/* lock the mailbox to prevent PF/VF race condition */
 	ret_val = ixgbevf_obtain_mbx_lock_vf(hw);
 	if (ret_val)
-		goto out_no_read;
+		goto out_yes_read;
 
 	/* copy the message from the mailbox memory buffer */
 	for (i = 0; i < size; i++)
 		msg[i] = IXGBE_READ_REG_ARRAY(hw, IXGBE_VFMBMEM, i);
 
-	/* Acknowledge receipt and release mailbox, then we're done */
+	/* Ackyeswledge receipt and release mailbox, then we're done */
 	IXGBE_WRITE_REG(hw, IXGBE_VFMAILBOX, IXGBE_VFMAILBOX_ACK);
 
 	/* update stats */
 	hw->mbx.stats.msgs_rx++;
 
-out_no_read:
+out_yes_read:
 	return ret_val;
 }
 
@@ -324,10 +324,10 @@ const struct ixgbe_mbx_operations ixgbevf_mbx_ops = {
 };
 
 /* Mailbox operations when running on Hyper-V.
- * On Hyper-V, PF/VF communication is not through the
+ * On Hyper-V, PF/VF communication is yest through the
  * hardware mailbox; this communication is through
  * a software mediated path.
- * Most mail box operations are noop while running on
+ * Most mail box operations are yesop while running on
  * Hyper-V.
  */
 const struct ixgbe_mbx_operations ixgbevf_hv_mbx_ops = {

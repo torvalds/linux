@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -37,7 +37,7 @@
  * for the entire GPU, there are multiple VM page tables active
  * at any given time.  The VM page tables can contain a mix
  * vram pages and system memory pages and system memory pages
- * can be mapped as snooped (cached system pages) or unsnooped
+ * can be mapped as syesoped (cached system pages) or unsyesoped
  * (uncached system pages).
  * Each VM has an ID associated with it and there is a page table
  * associated with each VMID.  When execting a command buffer,
@@ -286,7 +286,7 @@ void radeon_vm_fence(struct radeon_device *rdev,
  *
  * Find @bo inside the requested vm (cayman+).
  * Search inside the @bos vm list for the requested vm
- * Returns the found bo_va or NULL if none is found
+ * Returns the found bo_va or NULL if yesne is found
  *
  * Object has to be reserved!
  */
@@ -478,7 +478,7 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 	soffset /= RADEON_GPU_PAGE_SIZE;
 	eoffset /= RADEON_GPU_PAGE_SIZE;
 	if (soffset || eoffset) {
-		struct interval_tree_node *it;
+		struct interval_tree_yesde *it;
 		it = interval_tree_iter_first(&vm->va, soffset, eoffset);
 		if (it && it != &bo_va->it) {
 			struct radeon_bo_va *tmp;
@@ -736,7 +736,7 @@ static void radeon_vm_frag_ptes(struct radeon_device *rdev,
 {
 	/**
 	 * The MC L1 TLB supports variable sized pages, based on a fragment
-	 * field in the PTE. When this field is set to a non-zero value, page
+	 * field in the PTE. When this field is set to a yesn-zero value, page
 	 * granularity is increased from 4KB to (1 << (12 + frag)). The PTE
 	 * flags are considered valid for all PTEs within the fragment range
 	 * and corresponding mappings are assumed to be physically contiguous.
@@ -765,7 +765,7 @@ static void radeon_vm_frag_ptes(struct radeon_device *rdev,
 
 	unsigned count;
 
-	/* system pages are non continuously */
+	/* system pages are yesn continuously */
 	if ((flags & R600_PTE_SYSTEM) || !(flags & R600_PTE_VALID) ||
 	    (frag_start >= frag_end)) {
 
@@ -1199,7 +1199,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	pts_size = pd_entries * sizeof(struct radeon_vm_pt);
 	vm->page_tables = kzalloc(pts_size, GFP_KERNEL);
 	if (vm->page_tables == NULL) {
-		DRM_ERROR("Cannot allocate memory for page table array\n");
+		DRM_ERROR("Canyest allocate memory for page table array\n");
 		return -ENOMEM;
 	}
 

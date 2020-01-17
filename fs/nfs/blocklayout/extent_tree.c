@@ -10,30 +10,30 @@
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
 
 static inline struct pnfs_block_extent *
-ext_node(struct rb_node *node)
+ext_yesde(struct rb_yesde *yesde)
 {
-	return rb_entry(node, struct pnfs_block_extent, be_node);
+	return rb_entry(yesde, struct pnfs_block_extent, be_yesde);
 }
 
 static struct pnfs_block_extent *
 ext_tree_first(struct rb_root *root)
 {
-	struct rb_node *node = rb_first(root);
-	return node ? ext_node(node) : NULL;
+	struct rb_yesde *yesde = rb_first(root);
+	return yesde ? ext_yesde(yesde) : NULL;
 }
 
 static struct pnfs_block_extent *
 ext_tree_prev(struct pnfs_block_extent *be)
 {
-	struct rb_node *node = rb_prev(&be->be_node);
-	return node ? ext_node(node) : NULL;
+	struct rb_yesde *yesde = rb_prev(&be->be_yesde);
+	return yesde ? ext_yesde(yesde) : NULL;
 }
 
 static struct pnfs_block_extent *
 ext_tree_next(struct pnfs_block_extent *be)
 {
-	struct rb_node *node = rb_next(&be->be_node);
-	return node ? ext_node(node) : NULL;
+	struct rb_yesde *yesde = rb_next(&be->be_yesde);
+	return yesde ? ext_yesde(yesde) : NULL;
 }
 
 static inline sector_t
@@ -45,15 +45,15 @@ ext_f_end(struct pnfs_block_extent *be)
 static struct pnfs_block_extent *
 __ext_tree_search(struct rb_root *root, sector_t start)
 {
-	struct rb_node *node = root->rb_node;
+	struct rb_yesde *yesde = root->rb_yesde;
 	struct pnfs_block_extent *be = NULL;
 
-	while (node) {
-		be = ext_node(node);
+	while (yesde) {
+		be = ext_yesde(yesde);
 		if (start < be->be_f_offset)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (start >= ext_f_end(be))
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return be;
 	}
@@ -98,8 +98,8 @@ ext_try_to_merge_left(struct rb_root *root, struct pnfs_block_extent *be)
 
 	if (left && ext_can_merge(left, be)) {
 		left->be_length += be->be_length;
-		rb_erase(&be->be_node, root);
-		nfs4_put_deviceid_node(be->be_device);
+		rb_erase(&be->be_yesde, root);
+		nfs4_put_deviceid_yesde(be->be_device);
 		kfree(be);
 		return left;
 	}
@@ -114,8 +114,8 @@ ext_try_to_merge_right(struct rb_root *root, struct pnfs_block_extent *be)
 
 	if (right && ext_can_merge(be, right)) {
 		be->be_length += right->be_length;
-		rb_erase(&right->be_node, root);
-		nfs4_put_deviceid_node(right->be_device);
+		rb_erase(&right->be_yesde, root);
+		nfs4_put_deviceid_yesde(right->be_device);
 		kfree(right);
 	}
 
@@ -127,7 +127,7 @@ static void __ext_put_deviceids(struct list_head *head)
 	struct pnfs_block_extent *be, *tmp;
 
 	list_for_each_entry_safe(be, tmp, head, be_list) {
-		nfs4_put_deviceid_node(be->be_device);
+		nfs4_put_deviceid_yesde(be->be_device);
 		kfree(be);
 	}
 }
@@ -136,12 +136,12 @@ static void
 __ext_tree_insert(struct rb_root *root,
 		struct pnfs_block_extent *new, bool merge_ok)
 {
-	struct rb_node **p = &root->rb_node, *parent = NULL;
+	struct rb_yesde **p = &root->rb_yesde, *parent = NULL;
 	struct pnfs_block_extent *be;
 
 	while (*p) {
 		parent = *p;
-		be = ext_node(parent);
+		be = ext_yesde(parent);
 
 		if (new->be_f_offset < be->be_f_offset) {
 			if (merge_ok && ext_can_merge(new, be)) {
@@ -165,11 +165,11 @@ __ext_tree_insert(struct rb_root *root,
 		}
 	}
 
-	rb_link_node(&new->be_node, parent, p);
-	rb_insert_color(&new->be_node, root);
+	rb_link_yesde(&new->be_yesde, parent, p);
+	rb_insert_color(&new->be_yesde, root);
 	return;
 free_new:
-	nfs4_put_deviceid_node(new->be_device);
+	nfs4_put_deviceid_yesde(new->be_device);
 	kfree(new);
 }
 
@@ -234,7 +234,7 @@ __ext_tree_remove(struct rb_root *root,
 		while (be && ext_f_end(be) <= end) {
 			struct pnfs_block_extent *next = ext_tree_next(be);
 
-			rb_erase(&be->be_node, root);
+			rb_erase(&be->be_yesde, root);
 			list_add_tail(&be->be_list, tmp);
 			be = next;
 		}
@@ -279,7 +279,7 @@ retry:
 		__ext_tree_insert(root, new, true);
 	} else if (new->be_f_offset >= be->be_f_offset) {
 		if (ext_f_end(new) <= ext_f_end(be)) {
-			nfs4_put_deviceid_node(new->be_device);
+			nfs4_put_deviceid_yesde(new->be_device);
 			kfree(new);
 		} else {
 			sector_t new_len = ext_f_end(new) - ext_f_end(be);
@@ -322,16 +322,16 @@ static bool
 __ext_tree_lookup(struct rb_root *root, sector_t isect,
 		struct pnfs_block_extent *ret)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct pnfs_block_extent *be;
 
-	node = root->rb_node;
-	while (node) {
-		be = ext_node(node);
+	yesde = root->rb_yesde;
+	while (yesde) {
+		be = ext_yesde(yesde);
 		if (isect < be->be_f_offset)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else if (isect >= ext_f_end(be))
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else {
 			*ret = *be;
 			return true;
@@ -555,7 +555,7 @@ static int ext_tree_encode_commit(struct pnfs_block_layout *bl, __be32 *p,
 int
 ext_tree_prepare_commit(struct nfs4_layoutcommit_args *arg)
 {
-	struct pnfs_block_layout *bl = BLK_LO2EXT(NFS_I(arg->inode)->layout);
+	struct pnfs_block_layout *bl = BLK_LO2EXT(NFS_I(arg->iyesde)->layout);
 	size_t count = 0, buffer_size = PAGE_SIZE;
 	__be32 *start_p;
 	int ret;
@@ -614,7 +614,7 @@ retry:
 void
 ext_tree_mark_committed(struct nfs4_layoutcommit_args *arg, int status)
 {
-	struct pnfs_block_layout *bl = BLK_LO2EXT(NFS_I(arg->inode)->layout);
+	struct pnfs_block_layout *bl = BLK_LO2EXT(NFS_I(arg->iyesde)->layout);
 	struct rb_root *root = &bl->bl_ext_rw;
 	struct pnfs_block_extent *be;
 

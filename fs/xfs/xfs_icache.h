@@ -18,16 +18,16 @@ struct xfs_eofblocks {
 };
 
 #define SYNC_WAIT		0x0001	/* wait for i/o to complete */
-#define SYNC_TRYLOCK		0x0002  /* only try to lock inodes */
+#define SYNC_TRYLOCK		0x0002  /* only try to lock iyesdes */
 
 /*
- * tags for inode radix tree
+ * tags for iyesde radix tree
  */
 #define XFS_ICI_NO_TAG		(-1)	/* special flag for an untagged lookup
-					   in xfs_inode_ag_iterator */
-#define XFS_ICI_RECLAIM_TAG	0	/* inode is to be reclaimed */
-#define XFS_ICI_EOFBLOCKS_TAG	1	/* inode has blocks beyond EOF */
-#define XFS_ICI_COWBLOCKS_TAG	2	/* inode can have cow blocks to gc */
+					   in xfs_iyesde_ag_iterator */
+#define XFS_ICI_RECLAIM_TAG	0	/* iyesde is to be reclaimed */
+#define XFS_ICI_EOFBLOCKS_TAG	1	/* iyesde has blocks beyond EOF */
+#define XFS_ICI_COWBLOCKS_TAG	2	/* iyesde can have cow blocks to gc */
 
 /*
  * Flags for xfs_iget()
@@ -38,47 +38,47 @@ struct xfs_eofblocks {
 #define XFS_IGET_INCORE		0x8	/* don't read from disk or reinit */
 
 /*
- * flags for AG inode iterator
+ * flags for AG iyesde iterator
  */
-#define XFS_AGITER_INEW_WAIT	0x1	/* wait on new inodes */
+#define XFS_AGITER_INEW_WAIT	0x1	/* wait on new iyesdes */
 
-int xfs_iget(struct xfs_mount *mp, struct xfs_trans *tp, xfs_ino_t ino,
-	     uint flags, uint lock_flags, xfs_inode_t **ipp);
+int xfs_iget(struct xfs_mount *mp, struct xfs_trans *tp, xfs_iyes_t iyes,
+	     uint flags, uint lock_flags, xfs_iyesde_t **ipp);
 
-/* recovery needs direct inode allocation capability */
-struct xfs_inode * xfs_inode_alloc(struct xfs_mount *mp, xfs_ino_t ino);
-void xfs_inode_free(struct xfs_inode *ip);
+/* recovery needs direct iyesde allocation capability */
+struct xfs_iyesde * xfs_iyesde_alloc(struct xfs_mount *mp, xfs_iyes_t iyes);
+void xfs_iyesde_free(struct xfs_iyesde *ip);
 
 void xfs_reclaim_worker(struct work_struct *work);
 
-int xfs_reclaim_inodes(struct xfs_mount *mp, int mode);
-int xfs_reclaim_inodes_count(struct xfs_mount *mp);
-long xfs_reclaim_inodes_nr(struct xfs_mount *mp, int nr_to_scan);
+int xfs_reclaim_iyesdes(struct xfs_mount *mp, int mode);
+int xfs_reclaim_iyesdes_count(struct xfs_mount *mp);
+long xfs_reclaim_iyesdes_nr(struct xfs_mount *mp, int nr_to_scan);
 
-void xfs_inode_set_reclaim_tag(struct xfs_inode *ip);
+void xfs_iyesde_set_reclaim_tag(struct xfs_iyesde *ip);
 
-void xfs_inode_set_eofblocks_tag(struct xfs_inode *ip);
-void xfs_inode_clear_eofblocks_tag(struct xfs_inode *ip);
+void xfs_iyesde_set_eofblocks_tag(struct xfs_iyesde *ip);
+void xfs_iyesde_clear_eofblocks_tag(struct xfs_iyesde *ip);
 int xfs_icache_free_eofblocks(struct xfs_mount *, struct xfs_eofblocks *);
-int xfs_inode_free_quota_eofblocks(struct xfs_inode *ip);
+int xfs_iyesde_free_quota_eofblocks(struct xfs_iyesde *ip);
 void xfs_eofblocks_worker(struct work_struct *);
 void xfs_queue_eofblocks(struct xfs_mount *);
 
-void xfs_inode_set_cowblocks_tag(struct xfs_inode *ip);
-void xfs_inode_clear_cowblocks_tag(struct xfs_inode *ip);
+void xfs_iyesde_set_cowblocks_tag(struct xfs_iyesde *ip);
+void xfs_iyesde_clear_cowblocks_tag(struct xfs_iyesde *ip);
 int xfs_icache_free_cowblocks(struct xfs_mount *, struct xfs_eofblocks *);
-int xfs_inode_free_quota_cowblocks(struct xfs_inode *ip);
+int xfs_iyesde_free_quota_cowblocks(struct xfs_iyesde *ip);
 void xfs_cowblocks_worker(struct work_struct *);
 void xfs_queue_cowblocks(struct xfs_mount *);
 
-int xfs_inode_ag_iterator(struct xfs_mount *mp,
-	int (*execute)(struct xfs_inode *ip, int flags, void *args),
+int xfs_iyesde_ag_iterator(struct xfs_mount *mp,
+	int (*execute)(struct xfs_iyesde *ip, int flags, void *args),
 	int flags, void *args);
-int xfs_inode_ag_iterator_flags(struct xfs_mount *mp,
-	int (*execute)(struct xfs_inode *ip, int flags, void *args),
+int xfs_iyesde_ag_iterator_flags(struct xfs_mount *mp,
+	int (*execute)(struct xfs_iyesde *ip, int flags, void *args),
 	int flags, void *args, int iter_flags);
-int xfs_inode_ag_iterator_tag(struct xfs_mount *mp,
-	int (*execute)(struct xfs_inode *ip, int flags, void *args),
+int xfs_iyesde_ag_iterator_tag(struct xfs_mount *mp,
+	int (*execute)(struct xfs_iyesde *ip, int flags, void *args),
 	int flags, void *args, int tag);
 
 static inline int
@@ -116,8 +116,8 @@ xfs_fs_eofblocks_from_user(
 	return 0;
 }
 
-int xfs_icache_inode_is_allocated(struct xfs_mount *mp, struct xfs_trans *tp,
-				  xfs_ino_t ino, bool *inuse);
+int xfs_icache_iyesde_is_allocated(struct xfs_mount *mp, struct xfs_trans *tp,
+				  xfs_iyes_t iyes, bool *inuse);
 
 void xfs_stop_block_reaping(struct xfs_mount *mp);
 void xfs_start_block_reaping(struct xfs_mount *mp);

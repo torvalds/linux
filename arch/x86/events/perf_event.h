@@ -21,7 +21,7 @@
 /*
  *          |   NHM/WSM    |      SNB     |
  * register -------------------------------
- *          |  HT  | no HT |  HT  | no HT |
+ *          |  HT  | yes HT |  HT  | yes HT |
  *-----------------------------------------
  * offcore  | core | core  | cpu  | core  |
  * lbr_sel  | core | core  | cpu  | core  |
@@ -33,7 +33,7 @@
  * per-core reg tables.
  */
 enum extra_reg_type {
-	EXTRA_REG_NONE  = -1,	/* not used */
+	EXTRA_REG_NONE  = -1,	/* yest used */
 
 	EXTRA_REG_RSP_0 = 0,	/* offcore_response_0 */
 	EXTRA_REG_RSP_1 = 1,	/* offcore_response_1 */
@@ -69,7 +69,7 @@ static inline bool constraint_match(struct event_constraint *c, u64 ecode)
 #define PERF_X86_EVENT_PEBS_ST		0x0002 /* st data address sampling */
 #define PERF_X86_EVENT_PEBS_ST_HSW	0x0004 /* haswell style datala, store */
 #define PERF_X86_EVENT_PEBS_LD_HSW	0x0008 /* haswell style datala, load */
-#define PERF_X86_EVENT_PEBS_NA_HSW	0x0010 /* haswell style datala, unknown */
+#define PERF_X86_EVENT_PEBS_NA_HSW	0x0010 /* haswell style datala, unkyeswn */
 #define PERF_X86_EVENT_EXCL		0x0020 /* HT exclusivity on counter */
 #define PERF_X86_EVENT_DYNAMIC		0x0040 /* dynamic alloc'd constraint */
 #define PERF_X86_EVENT_RDPMC_ALLOWED	0x0080 /* grant rdpmc permission */
@@ -294,7 +294,7 @@ struct cpu_hw_events {
 
 /*
  * The constraint_match() function only works for 'simple' event codes
- * and not for extended (AMD64_EVENTSEL_EVENT) events codes.
+ * and yest for extended (AMD64_EVENTSEL_EVENT) events codes.
  */
 #define EVENT_CONSTRAINT_RANGE(c, e, n, m) \
 	__EVENT_CONSTRAINT_RANGE(c, e, n, m, HWEIGHT(n), 0, 0)
@@ -305,16 +305,16 @@ struct cpu_hw_events {
 
 /*
  * The overlap flag marks event constraints with overlapping counter
- * masks. This is the case if the counter mask of such an event is not
+ * masks. This is the case if the counter mask of such an event is yest
  * a subset of any other counter mask of a constraint with an equal or
  * higher weight, e.g.:
  *
  *  c_overlaps = EVENT_CONSTRAINT_OVERLAP(0, 0x09, 0);
- *  c_another1 = EVENT_CONSTRAINT(0, 0x07, 0);
- *  c_another2 = EVENT_CONSTRAINT(0, 0x38, 0);
+ *  c_ayesther1 = EVENT_CONSTRAINT(0, 0x07, 0);
+ *  c_ayesther2 = EVENT_CONSTRAINT(0, 0x38, 0);
  *
- * The event scheduler may not select the correct counter in the first
- * cycle because it needs to know which subsequent events will be
+ * The event scheduler may yest select the correct counter in the first
+ * cycle because it needs to kyesw which subsequent events will be
  * scheduled. It may fail to schedule the events then. So we set the
  * overlap flag for such constraints to give the scheduler a hint which
  * events to select for counter rescheduling.
@@ -451,7 +451,7 @@ struct cpu_hw_events {
  * We define the end marker as having a weight of -1
  * to enable blacklisting of events using a counter bitmask
  * of zero and thus a weight of zero.
- * The end marker has a weight that cannot possibly be
+ * The end marker has a weight that canyest possibly be
  * obtained from counting the bits in the bitmask.
  */
 #define EVENT_CONSTRAINT_END { .weight = -1 }
@@ -656,8 +656,8 @@ struct x86_pmu {
 			pebs_active		:1,
 			pebs_broken		:1,
 			pebs_prec_dist		:1,
-			pebs_no_tlb		:1,
-			pebs_no_isolation	:1;
+			pebs_yes_tlb		:1,
+			pebs_yes_isolation	:1;
 	int		pebs_record_size;
 	int		pebs_buffer_size;
 	int		max_pebs_events;
@@ -737,7 +737,7 @@ do {									\
 /*
  * x86_pmu flags
  */
-#define PMU_FL_NO_HT_SHARING	0x1 /* no hyper-threading resource sharing */
+#define PMU_FL_NO_HT_SHARING	0x1 /* yes hyper-threading resource sharing */
 #define PMU_FL_HAS_RSP_1	0x2 /* has 2 equivalent offcore_rsp regs   */
 #define PMU_FL_EXCL_CNTRS	0x4 /* has exclusive counter requirements  */
 #define PMU_FL_EXCL_ENABLED	0x8 /* exclusive counter active */
@@ -761,11 +761,11 @@ static struct perf_pmu_events_attr event_attr_##v = {			\
 	.event_str	= str,						\
 };
 
-#define EVENT_ATTR_STR_HT(_name, v, noht, ht)				\
+#define EVENT_ATTR_STR_HT(_name, v, yesht, ht)				\
 static struct perf_pmu_events_ht_attr event_attr_##v = {		\
 	.attr		= __ATTR(_name, 0444, events_ht_sysfs_show, NULL),\
 	.id		= 0,						\
-	.event_str_noht	= noht,						\
+	.event_str_yesht	= yesht,						\
 	.event_str_ht	= ht,						\
 }
 
@@ -785,7 +785,7 @@ int x86_perf_event_set_period(struct perf_event *event);
 /*
  * Generalized hw caching related hw_event table, filled
  * in on a per model basis. A value of 0 means
- * 'not supported', -1 means 'hw_event makes no sense on
+ * 'yest supported', -1 means 'hw_event makes yes sense on
  * this CPU', any other value means the raw hw_event
  * ID.
  */
@@ -882,14 +882,14 @@ static inline bool kernel_ip(unsigned long ip)
 
 /*
  * Not all PMUs provide the right context information to place the reported IP
- * into full context. Specifically segment registers are typically not
+ * into full context. Specifically segment registers are typically yest
  * supplied.
  *
  * Assuming the address is a linear address (it is for IBS), we fake the CS and
- * vm86 mode using the known zero-based code segment and 'fix up' the registers
+ * vm86 mode using the kyeswn zero-based code segment and 'fix up' the registers
  * to reflect this.
  *
- * Intel PEBS/LBR appear to typically provide the effective address, nothing
+ * Intel PEBS/LBR appear to typically provide the effective address, yesthing
  * much we can do about that but pray and treat it like a linear address.
  */
 static inline void set_linear_ip(struct pt_regs *regs, unsigned long ip)

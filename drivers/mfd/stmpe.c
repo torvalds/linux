@@ -260,7 +260,7 @@ EXPORT_SYMBOL_GPL(stmpe_block_write);
  * @pins is assumed to have a bit set for each of the bits whose alternate
  * function is to be changed, numbered according to the GPIOXY numbers.
  *
- * If the GPIO module is not enabled, this function automatically enables it in
+ * If the GPIO module is yest enabled, this function automatically enables it in
  * order to perform the change.
  */
 int stmpe_set_altfunc(struct stmpe *stmpe, u32 pins, enum stmpe_block block)
@@ -326,10 +326,10 @@ static const struct mfd_cell stmpe_gpio_cell = {
 	.num_resources	= ARRAY_SIZE(stmpe_gpio_resources),
 };
 
-static const struct mfd_cell stmpe_gpio_cell_noirq = {
+static const struct mfd_cell stmpe_gpio_cell_yesirq = {
 	.name		= "stmpe-gpio",
 	.of_compatible	= "st,stmpe-gpio",
-	/* gpio cell resources consist of an irq only so no resources here */
+	/* gpio cell resources consist of an irq only so yes resources here */
 };
 
 /*
@@ -402,9 +402,9 @@ static struct stmpe_variant_block stmpe801_blocks[] = {
 	},
 };
 
-static struct stmpe_variant_block stmpe801_blocks_noirq[] = {
+static struct stmpe_variant_block stmpe801_blocks_yesirq[] = {
 	{
-		.cell	= &stmpe_gpio_cell_noirq,
+		.cell	= &stmpe_gpio_cell_yesirq,
 		.block	= STMPE_BLOCK_GPIO,
 	},
 };
@@ -430,14 +430,14 @@ static struct stmpe_variant_info stmpe801 = {
 	.enable		= stmpe801_enable,
 };
 
-static struct stmpe_variant_info stmpe801_noirq = {
+static struct stmpe_variant_info stmpe801_yesirq = {
 	.name		= "stmpe801",
 	.id_val		= STMPE801_ID,
 	.id_mask	= 0xffff,
 	.num_gpios	= 8,
 	.regs		= stmpe801_regs,
-	.blocks		= stmpe801_blocks_noirq,
-	.num_blocks	= ARRAY_SIZE(stmpe801_blocks_noirq),
+	.blocks		= stmpe801_blocks_yesirq,
+	.num_blocks	= ARRAY_SIZE(stmpe801_blocks_yesirq),
 	.enable		= stmpe801_enable,
 };
 
@@ -558,14 +558,14 @@ int stmpe811_adc_common_init(struct stmpe *stmpe)
 	ret = stmpe_set_bits(stmpe, STMPE811_REG_ADC_CTRL1,
 			adc_ctrl1_mask, adc_ctrl1);
 	if (ret) {
-		dev_err(stmpe->dev, "Could not setup ADC\n");
+		dev_err(stmpe->dev, "Could yest setup ADC\n");
 		return ret;
 	}
 
 	ret = stmpe_set_bits(stmpe, STMPE811_REG_ADC_CTRL2,
 			STMPE_ADC_FREQ(0xff), STMPE_ADC_FREQ(stmpe->adc_freq));
 	if (ret) {
-		dev_err(stmpe->dev, "Could not setup ADC\n");
+		dev_err(stmpe->dev, "Could yest setup ADC\n");
 		return ret;
 	}
 
@@ -729,7 +729,7 @@ static int stmpe_round_timeout(int timeout)
 	}
 
 	/*
-	 * requests for delays longer than supported should not return the
+	 * requests for delays longer than supported should yest return the
 	 * longest supported delay
 	 */
 	return -EINVAL;
@@ -934,7 +934,7 @@ static struct stmpe_variant_info stmpe1801 = {
 	.num_blocks	= ARRAY_SIZE(stmpe1801_blocks),
 	.num_irqs	= STMPE1801_NR_INTERNAL_IRQS,
 	.enable		= stmpe1801_enable,
-	/* stmpe1801 do not have any gpio alternate function */
+	/* stmpe1801 do yest have any gpio alternate function */
 	.get_altfunc	= NULL,
 };
 
@@ -1070,13 +1070,13 @@ static struct stmpe_variant_info *stmpe_variant_info[STMPE_NBR_PARTS] = {
 };
 
 /*
- * These devices can be connected in a 'no-irq' configuration - the irq pin
- * is not used and the device cannot interrupt the CPU. Here we only list
+ * These devices can be connected in a 'yes-irq' configuration - the irq pin
+ * is yest used and the device canyest interrupt the CPU. Here we only list
  * devices which support this configuration - the driver will fail probing
- * for any devices not listed here which are configured in this way.
+ * for any devices yest listed here which are configured in this way.
  */
-static struct stmpe_variant_info *stmpe_noirq_variant_info[STMPE_NBR_PARTS] = {
-	[STMPE801]	= &stmpe801_noirq,
+static struct stmpe_variant_info *stmpe_yesirq_variant_info[STMPE_NBR_PARTS] = {
+	[STMPE801]	= &stmpe801_yesirq,
 };
 
 static irqreturn_t stmpe_irq(int irq, void *data)
@@ -1199,7 +1199,7 @@ static int stmpe_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_data(virq, stmpe);
 	irq_set_chip_and_handler(virq, chip, handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_yesprobe(virq);
 
 	return 0;
 }
@@ -1216,7 +1216,7 @@ static const struct irq_domain_ops stmpe_irq_ops = {
         .xlate  = irq_domain_xlate_twocell,
 };
 
-static int stmpe_irq_init(struct stmpe *stmpe, struct device_node *np)
+static int stmpe_irq_init(struct stmpe *stmpe, struct device_yesde *np)
 {
 	int base = 0;
 	int num_irqs = stmpe->variant->num_irqs;
@@ -1248,7 +1248,7 @@ static int stmpe_chip_init(struct stmpe *stmpe)
 
 	id = (data[0] << 8) | data[1];
 	if ((id & variant->id_mask) != variant->id_val) {
-		dev_err(stmpe->dev, "unknown chip id: %#x\n", id);
+		dev_err(stmpe->dev, "unkyeswn chip id: %#x\n", id);
 		return -EINVAL;
 	}
 
@@ -1330,16 +1330,16 @@ static int stmpe_devices_init(struct stmpe *stmpe)
 
 	if (platform_blocks)
 		dev_warn(stmpe->dev,
-			 "platform wants blocks (%#x) not present on variant",
+			 "platform wants blocks (%#x) yest present on variant",
 			 platform_blocks);
 
 	return ret;
 }
 
 static void stmpe_of_probe(struct stmpe_platform_data *pdata,
-			   struct device_node *np)
+			   struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 
 	pdata->id = of_alias_get_id(np, "stmpe-i2c");
 	if (pdata->id < 0)
@@ -1357,18 +1357,18 @@ static void stmpe_of_probe(struct stmpe_platform_data *pdata,
 
 	pdata->autosleep = (pdata->autosleep_timeout) ? true : false;
 
-	for_each_child_of_node(np, child) {
-		if (of_node_name_eq(child, "stmpe_gpio")) {
+	for_each_child_of_yesde(np, child) {
+		if (of_yesde_name_eq(child, "stmpe_gpio")) {
 			pdata->blocks |= STMPE_BLOCK_GPIO;
-		} else if (of_node_name_eq(child, "stmpe_keypad")) {
+		} else if (of_yesde_name_eq(child, "stmpe_keypad")) {
 			pdata->blocks |= STMPE_BLOCK_KEYPAD;
-		} else if (of_node_name_eq(child, "stmpe_touchscreen")) {
+		} else if (of_yesde_name_eq(child, "stmpe_touchscreen")) {
 			pdata->blocks |= STMPE_BLOCK_TOUCHSCREEN;
-		} else if (of_node_name_eq(child, "stmpe_adc")) {
+		} else if (of_yesde_name_eq(child, "stmpe_adc")) {
 			pdata->blocks |= STMPE_BLOCK_ADC;
-		} else if (of_node_name_eq(child, "stmpe_pwm")) {
+		} else if (of_yesde_name_eq(child, "stmpe_pwm")) {
 			pdata->blocks |= STMPE_BLOCK_PWM;
-		} else if (of_node_name_eq(child, "stmpe_rotator")) {
+		} else if (of_yesde_name_eq(child, "stmpe_rotator")) {
 			pdata->blocks |= STMPE_BLOCK_ROTATOR;
 		}
 	}
@@ -1378,7 +1378,7 @@ static void stmpe_of_probe(struct stmpe_platform_data *pdata,
 int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum)
 {
 	struct stmpe_platform_data *pdata;
-	struct device_node *np = ci->dev->of_node;
+	struct device_yesde *np = ci->dev->of_yesde;
 	struct stmpe *stmpe;
 	int ret;
 	u32 val;
@@ -1448,17 +1448,17 @@ int stmpe_probe(struct stmpe_client_info *ci, enum stmpe_partnum partnum)
 	}
 
 	if (stmpe->irq < 0) {
-		/* use alternate variant info for no-irq mode, if supported */
+		/* use alternate variant info for yes-irq mode, if supported */
 		dev_info(stmpe->dev,
-			"%s configured in no-irq mode by platform data\n",
+			"%s configured in yes-irq mode by platform data\n",
 			stmpe->variant->name);
-		if (!stmpe_noirq_variant_info[stmpe->partnum]) {
+		if (!stmpe_yesirq_variant_info[stmpe->partnum]) {
 			dev_err(stmpe->dev,
-				"%s does not support no-irq mode!\n",
+				"%s does yest support yes-irq mode!\n",
 				stmpe->variant->name);
 			return -ENODEV;
 		}
-		stmpe->variant = stmpe_noirq_variant_info[stmpe->partnum];
+		stmpe->variant = stmpe_yesirq_variant_info[stmpe->partnum];
 	} else if (pdata->irq_trigger == IRQF_TRIGGER_NONE) {
 		pdata->irq_trigger = irq_get_trigger_type(stmpe->irq);
 	}

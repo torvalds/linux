@@ -7,7 +7,7 @@
  *  Author: Hans J. Koch <hjk@linutronix.de>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -89,13 +89,13 @@ static irqreturn_t sdv_gpio_pub_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int sdv_xlate(struct irq_domain *h, struct device_node *node,
+static int sdv_xlate(struct irq_domain *h, struct device_yesde *yesde,
 		const u32 *intspec, u32 intsize, irq_hw_number_t *out_hwirq,
 		u32 *out_type)
 {
 	u32 line, type;
 
-	if (node != irq_domain_get_of_node(h))
+	if (yesde != irq_domain_get_of_yesde(h))
 		return -EINVAL;
 
 	if (intsize < 2)
@@ -169,7 +169,7 @@ static int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 			IRQ_GC_INIT_MASK_CACHE, IRQ_NOREQUEST,
 			IRQ_LEVEL | IRQ_NOPROBE);
 
-	sd->id = irq_domain_add_legacy(pdev->dev.of_node, SDV_NUM_PUB_GPIOS,
+	sd->id = irq_domain_add_legacy(pdev->dev.of_yesde, SDV_NUM_PUB_GPIOS,
 				sd->irq_base, 0, &irq_domain_sdv_ops, sd);
 	if (!sd->id)
 		return -ENODEV;
@@ -202,7 +202,7 @@ static int sdv_gpio_probe(struct pci_dev *pdev,
 
 	sd->gpio_pub_base = pcim_iomap_table(pdev)[GPIO_BAR];
 
-	ret = of_property_read_u32(pdev->dev.of_node, "intel,muxctl", &mux_val);
+	ret = of_property_read_u32(pdev->dev.of_yesde, "intel,muxctl", &mux_val);
 	if (!ret)
 		writel(mux_val, sd->gpio_pub_base + GPMUXCTL);
 

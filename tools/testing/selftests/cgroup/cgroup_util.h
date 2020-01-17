@@ -38,12 +38,12 @@ extern int cg_run(const char *cgroup,
 extern int cg_enter(const char *cgroup, int pid);
 extern int cg_enter_current(const char *cgroup);
 extern int cg_enter_current_thread(const char *cgroup);
-extern int cg_run_nowait(const char *cgroup,
+extern int cg_run_yeswait(const char *cgroup,
 			 int (*fn)(const char *cgroup, void *arg),
 			 void *arg);
 extern int get_temp_fd(void);
 extern int alloc_pagecache(int fd, size_t size);
-extern int alloc_anon(const char *cgroup, void *arg);
+extern int alloc_ayesn(const char *cgroup, void *arg);
 extern int is_swap_enabled(void);
 extern int set_oom_adj_score(int pid, int score);
 extern int cg_wait_for_proc_count(const char *cgroup, int count);

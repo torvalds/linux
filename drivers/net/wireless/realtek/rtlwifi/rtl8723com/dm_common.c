@@ -23,7 +23,7 @@ void rtl8723_dm_init_edca_turbo(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	rtlpriv->dm.current_turbo_edca = false;
-	rtlpriv->dm.is_any_nonbepkts = false;
+	rtlpriv->dm.is_any_yesnbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
 EXPORT_SYMBOL_GPL(rtl8723_dm_init_edca_turbo);

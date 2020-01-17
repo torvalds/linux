@@ -266,7 +266,7 @@ struct ccp_cmd_queue {
 	/* Queue dma pool */
 	struct dma_pool *dma_pool;
 
-	/* Queue base address (not neccessarily aligned)*/
+	/* Queue base address (yest neccessarily aligned)*/
 	struct ccp5_desc *qbase;
 
 	/* Aligned queue start address (per requirement) */
@@ -284,7 +284,7 @@ struct ccp_cmd_queue {
 
 	/* Bitmap of LSBs that can be accessed by this queue */
 	DECLARE_BITMAP(lsbmask, MAX_LSB_CNT);
-	/* Private LSB that is assigned to this queue, or -1 if none.
+	/* Private LSB that is assigned to this queue, or -1 if yesne.
 	 * Bitmap for my private LSB, unused otherwise
 	 */
 	int lsb;

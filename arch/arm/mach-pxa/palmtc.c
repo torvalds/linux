@@ -367,12 +367,12 @@ static inline void palmtc_ts_init(void) {}
 struct gpio_led palmtc_gpio_leds[] = {
 {
 	.name			= "palmtc:green:user",
-	.default_trigger	= "none",
+	.default_trigger	= "yesne",
 	.gpio			= GPIO_NR_PALMTC_LED_POWER,
 	.active_low		= 1,
 }, {
 	.name			= "palmtc:vibra:vibra",
-	.default_trigger	= "none",
+	.default_trigger	= "yesne",
 	.gpio			= GPIO_NR_PALMTC_VIBRA_POWER,
 	.active_low		= 1,
 }
@@ -449,12 +449,12 @@ static struct platform_device palmtc_flash = {
 	},
 };
 
-static void __init palmtc_nor_init(void)
+static void __init palmtc_yesr_init(void)
 {
 	platform_device_register(&palmtc_flash);
 }
 #else
-static inline void palmtc_nor_init(void) {}
+static inline void palmtc_yesr_init(void) {}
 #endif
 
 /******************************************************************************
@@ -511,7 +511,7 @@ static void __init palmtc_init(void)
 	palmtc_mkp_init();
 	palmtc_udc_init();
 	palmtc_ts_init();
-	palmtc_nor_init();
+	palmtc_yesr_init();
 	palmtc_lcd_init();
 	palmtc_leds_init();
 };

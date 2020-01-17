@@ -530,7 +530,7 @@ int __init db1000_dev_setup(void)
 		 */
 		platform_add_devices(db1100_devs, ARRAY_SIZE(db1100_devs));
 	} else
-		return 0; /* unknown board, no further dev setup to do */
+		return 0; /* unkyeswn board, yes further dev setup to do */
 
 	irq_set_irq_type(c0, IRQ_TYPE_LEVEL_LOW);
 	irq_set_irq_type(s0, IRQ_TYPE_LEVEL_LOW);
@@ -559,6 +559,6 @@ int __init db1000_dev_setup(void)
 	}
 
 	platform_add_devices(db1x00_devs, ARRAY_SIZE(db1x00_devs));
-	db1x_register_norflash(flashsize << 20, 4 /* 32bit */, F_SWAPPED);
+	db1x_register_yesrflash(flashsize << 20, 4 /* 32bit */, F_SWAPPED);
 	return 0;
 }

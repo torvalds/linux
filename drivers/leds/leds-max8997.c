@@ -239,7 +239,7 @@ static int max8997_led_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	if (pdata == NULL) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "yes platform data\n");
 		return -ENODEV;
 	}
 

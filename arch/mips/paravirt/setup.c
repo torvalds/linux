@@ -59,7 +59,7 @@ void __init prom_init(void)
 
 void __init plat_mem_setup(void)
 {
-	/* Do nothing, the "mem=???" parser handles our memory. */
+	/* Do yesthing, the "mem=???" parser handles our memory. */
 }
 
 void __init prom_free_prom_memory(void)

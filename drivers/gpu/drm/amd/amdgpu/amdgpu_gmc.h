@@ -18,7 +18,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -113,14 +113,14 @@ struct amdgpu_gmc_funcs {
 
 struct amdgpu_xgmi {
 	/* from psp */
-	u64 node_id;
+	u64 yesde_id;
 	u64 hive_id;
 	/* fixed per family */
-	u64 node_segment_size;
-	/* physical node (0-3) */
-	unsigned physical_node_id;
-	/* number of nodes (0-4) */
-	unsigned num_physical_nodes;
+	u64 yesde_segment_size;
+	/* physical yesde (0-3) */
+	unsigned physical_yesde_id;
+	/* number of yesdes (0-4) */
+	unsigned num_physical_yesdes;
 	/* gpu list in the same hive */
 	struct list_head head;
 	bool supported;

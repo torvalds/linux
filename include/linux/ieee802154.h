@@ -9,7 +9,7 @@
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
  * Maxim Osipov <maxim.osipov@siemens.com>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 
 #ifndef LINUX_IEEE802154_H
@@ -53,7 +53,7 @@
 
 #define IEEE802154_FC_TYPE_BEACON	0x0	/* Frame is beacon */
 #define	IEEE802154_FC_TYPE_DATA		0x1	/* Frame is data */
-#define IEEE802154_FC_TYPE_ACK		0x2	/* Frame is acknowledgment */
+#define IEEE802154_FC_TYPE_ACK		0x2	/* Frame is ackyeswledgment */
 #define IEEE802154_FC_TYPE_MAC_CMD	0x3	/* Frame is MAC command */
 
 #define IEEE802154_FC_TYPE_SHIFT		0
@@ -138,7 +138,7 @@ enum {
 	/* The beacon was lost following a synchronization request. */
 	IEEE802154_BEACON_LOSS = 0xe0,
 	/*
-	 * A transmission could not take place due to activity on the
+	 * A transmission could yest take place due to activity on the
 	 * channel, i.e., the CSMA-CA mechanism has failed.
 	 */
 	IEEE802154_CHNL_ACCESS_FAIL = 0xe1,
@@ -158,26 +158,26 @@ enum {
 	IEEE802154_FRAME_TOO_LONG = 0xe5,
 	/*
 	 * The requested GTS transmission failed because the specified GTS
-	 * either did not have a transmit GTS direction or was not defined.
+	 * either did yest have a transmit GTS direction or was yest defined.
 	 */
 	IEEE802154_INVALID_GTS = 0xe6,
 	/*
 	 * A request to purge an MSDU from the transaction queue was made using
-	 * an MSDU handle that was not found in the transaction table.
+	 * an MSDU handle that was yest found in the transaction table.
 	 */
 	IEEE802154_INVALID_HANDLE = 0xe7,
 	/* A parameter in the primitive is out of the valid range.*/
 	IEEE802154_INVALID_PARAMETER = 0xe8,
-	/* No acknowledgment was received after aMaxFrameRetries. */
+	/* No ackyeswledgment was received after aMaxFrameRetries. */
 	IEEE802154_NO_ACK = 0xe9,
 	/* A scan operation failed to find any network beacons.*/
 	IEEE802154_NO_BEACON = 0xea,
 	/* No response data were available following a request. */
 	IEEE802154_NO_DATA = 0xeb,
-	/* The operation failed because a short address was not allocated. */
+	/* The operation failed because a short address was yest allocated. */
 	IEEE802154_NO_SHORT_ADDRESS = 0xec,
 	/*
-	 * A receiver enable request was unsuccessful because it could not be
+	 * A receiver enable request was unsuccessful because it could yest be
 	 * completed within the CAP.
 	 */
 	IEEE802154_OUT_OF_CAP = 0xed,
@@ -190,18 +190,18 @@ enum {
 	IEEE802154_REALIGMENT = 0xef,
 	/* The transaction has expired and its information discarded. */
 	IEEE802154_TRANSACTION_EXPIRED = 0xf0,
-	/* There is no capacity to store the transaction. */
+	/* There is yes capacity to store the transaction. */
 	IEEE802154_TRANSACTION_OVERFLOW = 0xf1,
 	/*
 	 * The transceiver was in the transmitter enabled state when the
 	 * receiver was requested to be enabled.
 	 */
 	IEEE802154_TX_ACTIVE = 0xf2,
-	/* The appropriate key is not available in the ACL. */
+	/* The appropriate key is yest available in the ACL. */
 	IEEE802154_UNAVAILABLE_KEY = 0xf3,
 	/*
 	 * A SET/GET request was issued with the identifier of a PIB attribute
-	 * that is not supported.
+	 * that is yest supported.
 	 */
 	IEEE802154_UNSUPPORTED_ATTR = 0xf4,
 	/*
@@ -247,7 +247,7 @@ static inline bool ieee802154_is_secen(__le16 fc)
 }
 
 /**
- * ieee802154_is_ackreq - check if acknowledgment request bit is set
+ * ieee802154_is_ackreq - check if ackyeswledgment request bit is set
  * @fc: frame control bytes in little-endian byteorder
  */
 static inline bool ieee802154_is_ackreq(__le16 fc)
@@ -286,7 +286,7 @@ static inline __le16 ieee802154_saddr_mode(__le16 fc)
  * ieee802154_is_valid_psdu_len - check if psdu len is valid
  * available lengths:
  *	0-4	Reserved
- *	5	MPDU (Acknowledgment)
+ *	5	MPDU (Ackyeswledgment)
  *	6-8	Reserved
  *	9-127	MPDU
  *

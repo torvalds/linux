@@ -169,7 +169,7 @@ static void tango_select_chip(struct nand_chip *chip, int idx)
 }
 
 /*
- * The controller does not check for bitflips in erased pages,
+ * The controller does yest check for bitflips in erased pages,
  * therefore software must check instead.
  */
 static int check_erased_page(struct nand_chip *chip, u8 *buf)
@@ -214,7 +214,7 @@ static int decode_error_report(struct nand_chip *chip)
 	if (DECODE_FAIL_PKT_0(res) || DECODE_FAIL_PKT_N(res))
 		return -EBADMSG;
 
-	/* ERR_COUNT_PKT_N is max, not sum, but that's all we have */
+	/* ERR_COUNT_PKT_N is max, yest sum, but that's all we have */
 	mtd->ecc_stats.corrected +=
 		ERR_COUNT_PKT_0(res) + ERR_COUNT_PKT_N(res);
 
@@ -345,7 +345,7 @@ static void aux_write(struct nand_chip *chip, const u8 **buf, int len, int *pos)
 }
 
 /*
- * Physical page layout (not drawn to scale)
+ * Physical page layout (yest drawn to scale)
  *
  * NB: Bad Block Marker area splits PKT_N in two (N1, N2).
  *
@@ -463,7 +463,7 @@ static int oob_ecc(struct mtd_info *mtd, int idx, struct mtd_oob_region *res)
 
 static int oob_free(struct mtd_info *mtd, int idx, struct mtd_oob_region *res)
 {
-	return -ERANGE; /* no free space in spare area */
+	return -ERANGE; /* yes free space in spare area */
 }
 
 static const struct mtd_ooblayout_ops tango_nand_ooblayout_ops = {
@@ -530,7 +530,7 @@ static const struct nand_controller_ops tango_controller_ops = {
 	.setup_data_interface = tango_set_timings,
 };
 
-static int chip_init(struct device *dev, struct device_node *np)
+static int chip_init(struct device *dev, struct device_yesde *np)
 {
 	u32 cs;
 	int err, res;
@@ -549,7 +549,7 @@ static int chip_init(struct device *dev, struct device_node *np)
 		return res;
 
 	if (res != 1)
-		return -ENOTSUPP; /* Multi-CS chips are not supported */
+		return -ENOTSUPP; /* Multi-CS chips are yest supported */
 
 	err = of_property_read_u32_index(np, "reg", 0, &cs);
 	if (err)
@@ -574,7 +574,7 @@ static int chip_init(struct device *dev, struct device_node *np)
 	chip->controller = &nfc->hw;
 	tchip->base = nfc->pbus_base + (cs * 256);
 
-	nand_set_flash_node(chip, np);
+	nand_set_flash_yesde(chip, np);
 	mtd_set_ooblayout(mtd, &tango_nand_ooblayout_ops);
 	mtd->dev.parent = dev;
 
@@ -619,7 +619,7 @@ static int tango_nand_probe(struct platform_device *pdev)
 	struct clk *clk;
 	struct resource *res;
 	struct tango_nfc *nfc;
-	struct device_node *np;
+	struct device_yesde *np;
 
 	nfc = devm_kzalloc(&pdev->dev, sizeof(*nfc), GFP_KERNEL);
 	if (!nfc)
@@ -655,11 +655,11 @@ static int tango_nand_probe(struct platform_device *pdev)
 	nfc->hw.ops = &tango_controller_ops;
 	nfc->freq_kHz = clk_get_rate(clk) / 1000;
 
-	for_each_child_of_node(pdev->dev.of_node, np) {
+	for_each_child_of_yesde(pdev->dev.of_yesde, np) {
 		err = chip_init(&pdev->dev, np);
 		if (err) {
 			tango_nand_remove(pdev);
-			of_node_put(np);
+			of_yesde_put(np);
 			return err;
 		}
 	}

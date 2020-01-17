@@ -16,7 +16,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
@@ -76,10 +76,10 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 			fid->volatile_fid, FSCTL_LMR_REQUEST_RESILIENCY,
 			true /* is_fsctl */,
 			(char *)&nr_ioctl_req, sizeof(nr_ioctl_req),
-			CIFSMaxBufSize, NULL, NULL /* no return info */);
+			CIFSMaxBufSize, NULL, NULL /* yes return info */);
 		if (rc == -EOPNOTSUPP) {
 			cifs_dbg(VFS,
-			     "resiliency not supported by server, disabling\n");
+			     "resiliency yest supported by server, disabling\n");
 			oparms->tcon->use_resilient = false;
 		} else if (rc)
 			cifs_dbg(FYI, "error %d setting resiliency\n", rc);
@@ -88,7 +88,7 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 	}
 
 	if (buf) {
-		/* if open response does not have IndexNumber field - get it */
+		/* if open response does yest have IndexNumber field - get it */
 		if (smb2_data->IndexNumber == 0) {
 			rc = SMB2_get_srv_num(xid, oparms->tcon,
 				      fid->persistent_fid,
@@ -96,7 +96,7 @@ smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms,
 				      &smb2_data->IndexNumber);
 			if (rc) {
 				/*
-				 * let get_inode_info disable server inode
+				 * let get_iyesde_info disable server iyesde
 				 * numbers
 				 */
 				smb2_data->IndexNumber = 0;
@@ -121,7 +121,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 	unsigned int max_num, num = 0, max_buf;
 	struct smb2_lock_element *buf, *cur;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
-	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
+	struct cifsIyesdeInfo *ciyesde = CIFS_I(d_iyesde(cfile->dentry));
 	struct cifsLockInfo *li, *tmp;
 	__u64 length = 1 + flock->fl_end - flock->fl_start;
 	struct list_head tmp_llist;
@@ -145,7 +145,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 
 	cur = buf;
 
-	cifs_down_write(&cinode->lock_sem);
+	cifs_down_write(&ciyesde->lock_sem);
 	list_for_each_entry_safe(li, tmp, &cfile->llist->locks, llist) {
 		if (flock->fl_start > li->offset ||
 		    (flock->fl_start + length) <
@@ -153,7 +153,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 			continue;
 		if (current->tgid != li->pid)
 			continue;
-		if (cinode->can_cache_brlcks) {
+		if (ciyesde->can_cache_brlcks) {
 			/*
 			 * We can cache brlock requests - simply remove a lock
 			 * from the file's list.
@@ -206,7 +206,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 		} else
 			cifs_free_llist(&tmp_llist);
 	}
-	up_write(&cinode->lock_sem);
+	up_write(&ciyesde->lock_sem);
 
 	kfree(buf);
 	return rc;
@@ -259,7 +259,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	unsigned int xid;
 	unsigned int max_num, max_buf;
 	struct smb2_lock_element *buf;
-	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
+	struct cifsIyesdeInfo *ciyesde = CIFS_I(d_iyesde(cfile->dentry));
 	struct cifs_fid_locks *fdlocks;
 
 	xid = get_xid();
@@ -283,7 +283,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 		return -ENOMEM;
 	}
 
-	list_for_each_entry(fdlocks, &cinode->llist, llist) {
+	list_for_each_entry(fdlocks, &ciyesde->llist, llist) {
 		stored_rc = smb2_push_mand_fdlocks(fdlocks, xid, buf, max_num);
 		if (stored_rc)
 			rc = stored_rc;

@@ -29,7 +29,7 @@ static struct ata_port_operations isapnp_port_ops = {
 	.cable_detect	= ata_cable_40wire,
 };
 
-static struct ata_port_operations isapnp_noalt_port_ops = {
+static struct ata_port_operations isapnp_yesalt_port_ops = {
 	.inherits	= &ata_sff_port_ops,
 	.cable_detect	= ata_cable_40wire,
 	/* No altstatus so we don't want to use the lost interrupt poll */
@@ -42,7 +42,7 @@ static struct ata_port_operations isapnp_noalt_port_ops = {
  *	@dev_id: matching detect line
  *
  *	Register an ISA bus IDE interface. Such interfaces are PIO 0 and
- *	non shared IRQ.
+ *	yesn shared IRQ.
  */
 
 static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev_id)
@@ -73,7 +73,7 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 
 	ap = host->ports[0];
 
-	ap->ops = &isapnp_noalt_port_ops;
+	ap->ops = &isapnp_yesalt_port_ops;
 	ap->pio_mask = ATA_PIO0;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
@@ -103,7 +103,7 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
  *	@idev: PnP device
  *
  *	Remove a previously configured PnP ATA port. Called only on module
- *	unload events as the core does not currently deal with ISAPnP docking.
+ *	unload events as the core does yest currently deal with ISAPnP docking.
  */
 
 static void isapnp_remove_one(struct pnp_dev *idev)

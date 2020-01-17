@@ -4,7 +4,7 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/of.h>
 #include <soc/fsl/qe/qe.h>
 
@@ -63,7 +63,7 @@ struct usb_ctlr {
 #define CPMFCR_DTB	((u_char)0x00)	/* Flag doesn't exist in CPM1 */
 #define CPMFCR_BDB	((u_char)0x00)	/* Flag doesn't exist in CPM1 */
 #else
-#define CPMFCR_GBL	((u_char)0x20)	/* Set memory snooping */
+#define CPMFCR_GBL	((u_char)0x20)	/* Set memory syesoping */
 #define CPMFCR_TC2	((u_char)0x04)	/* Transfer code 2 value */
 #define CPMFCR_DTB	((u_char)0x02)	/* Use local bus for data when set */
 #define CPMFCR_BDB	((u_char)0x01)	/* Use local bus for BD when set */
@@ -106,7 +106,7 @@ typedef struct cpm_buf_desc {
 #define BD_SC_BR	(0x0020)	/* Break received */
 #define BD_SC_FR	(0x0010)	/* Framing error */
 #define BD_SC_PR	(0x0008)	/* Parity error */
-#define BD_SC_NAK	(0x0004)	/* NAK - did not respond */
+#define BD_SC_NAK	(0x0004)	/* NAK - did yest respond */
 #define BD_SC_OV	(0x0002)	/* Overrun */
 #define BD_SC_UN	(0x0002)	/* Underrun */
 #define BD_SC_CD	(0x0001)	/* */

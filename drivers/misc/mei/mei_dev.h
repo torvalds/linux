@@ -76,8 +76,8 @@ enum mei_file_transaction_states {
  * @MEI_FOP_CONNECT:    connect
  * @MEI_FOP_DISCONNECT: disconnect
  * @MEI_FOP_DISCONNECT_RSP: disconnect response
- * @MEI_FOP_NOTIFY_START:   start notification
- * @MEI_FOP_NOTIFY_STOP:    stop notification
+ * @MEI_FOP_NOTIFY_START:   start yestification
+ * @MEI_FOP_NOTIFY_STOP:    stop yestification
  */
 enum mei_cb_file_ops {
 	MEI_FOP_READ = 0,
@@ -95,7 +95,7 @@ enum mei_cb_file_ops {
  * @MEI_CL_IO_TX_BLOCKING: send is blocking
  * @MEI_CL_IO_TX_INTERNAL: internal communication between driver and FW
  *
- * @MEI_CL_IO_RX_NONBLOCK: recv is non-blocking
+ * @MEI_CL_IO_RX_NONBLOCK: recv is yesn-blocking
  */
 enum mei_cl_io_mode {
 	MEI_CL_IO_TX_BLOCKING = BIT(0),
@@ -201,8 +201,8 @@ struct mei_cl_cb {
  * @tx_wait: wait queue for tx completion
  * @rx_wait: wait queue for rx completion
  * @wait:  wait queue for management operation
- * @ev_wait: notification wait queue
- * @ev_async: event async notification
+ * @ev_wait: yestification wait queue
+ * @ev_async: event async yestification
  * @status: connection status
  * @me_cl: fw client connected
  * @fp: file associated with client
@@ -210,8 +210,8 @@ struct mei_cl_cb {
  * @tx_flow_ctrl_creds: transmit flow credentials
  * @rx_flow_ctrl_creds: receive flow credentials
  * @timer_count:  watchdog timer for operation completion
- * @notify_en: notification - enabled/disabled
- * @notify_ev: pending notification event
+ * @yestify_en: yestification - enabled/disabled
+ * @yestify_ev: pending yestification event
  * @tx_cb_queued: number of tx callbacks in queue
  * @writing_state: state of the tx
  * @rd_pending: pending read credits
@@ -235,8 +235,8 @@ struct mei_cl {
 	u8 tx_flow_ctrl_creds;
 	u8 rx_flow_ctrl_creds;
 	u8 timer_count;
-	u8 notify_en;
-	u8 notify_ev;
+	u8 yestify_en;
+	u8 yestify_ev;
 	u8 tx_cb_queued;
 	enum mei_file_transaction_states writing_state;
 	struct list_head rd_pending;
@@ -262,7 +262,7 @@ struct mei_cl {
  * @fw_status        : get fw status registers
  * @trc_status       : get trc status register
  * @pg_state         : power gating state of the device
- * @pg_in_transition : is device now in pg transition
+ * @pg_in_transition : is device yesw in pg transition
  * @pg_is_enabled    : is power gating enabled
  *
  * @intr_clear       : clear pending interrupts
@@ -324,7 +324,7 @@ ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length,
 		      unsigned int mode, unsigned long timeout);
 bool mei_cl_bus_rx_event(struct mei_cl *cl);
-bool mei_cl_bus_notify_event(struct mei_cl *cl);
+bool mei_cl_bus_yestify_event(struct mei_cl *cl);
 void mei_cl_bus_remove_devices(struct mei_device *bus);
 int mei_cl_bus_init(void);
 void mei_cl_bus_exit(void);
@@ -332,7 +332,7 @@ void mei_cl_bus_exit(void);
 /**
  * enum mei_pg_event - power gating transition events
  *
- * @MEI_PG_EVENT_IDLE: the driver is not in power gating transition
+ * @MEI_PG_EVENT_IDLE: the driver is yest in power gating transition
  * @MEI_PG_EVENT_WAIT: the driver is waiting for a pg event to complete
  * @MEI_PG_EVENT_RECEIVED: the driver received pg event
  * @MEI_PG_EVENT_INTR_WAIT: the driver is waiting for a pg event interrupt
@@ -349,7 +349,7 @@ enum mei_pg_event {
 /**
  * enum mei_pg_state - device internal power gating state
  *
- * @MEI_PG_OFF: device is not power gated - it is active
+ * @MEI_PG_OFF: device is yest power gated - it is active
  * @MEI_PG_ON:  device is power gated - it is in lower power state
  */
 enum mei_pg_state {
@@ -364,15 +364,15 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  *
  * @platform: platform identifier
  * @major: major version field
- * @minor: minor version field
- * @buildno: build number version field
+ * @miyesr: miyesr version field
+ * @buildyes: build number version field
  * @hotfix: hotfix number version field
  */
 struct mei_fw_version {
 	u8 platform;
 	u8 major;
-	u16 minor;
-	u16 buildno;
+	u16 miyesr;
+	u16 buildyes;
 	u16 hotfix;
 };
 
@@ -383,7 +383,7 @@ struct mei_fw_version {
  *
  * @dev         : device on a bus
  * @cdev        : character device
- * @minor       : minor number allocated for device
+ * @miyesr       : miyesr number allocated for device
  *
  * @write_list  : write pending list
  * @write_waiting_list : write completion list
@@ -421,7 +421,7 @@ struct mei_fw_version {
  * @hbm_f_pg_supported  : hbm feature pgi protocol
  * @hbm_f_dc_supported  : hbm feature dynamic clients
  * @hbm_f_dot_supported : hbm feature disconnect on timeout
- * @hbm_f_ev_supported  : hbm feature event notification
+ * @hbm_f_ev_supported  : hbm feature event yestification
  * @hbm_f_fa_supported  : hbm feature fixed address client
  * @hbm_f_ie_supported  : hbm feature immediate reply to enum request
  * @hbm_f_os_supported  : hbm feature support OS ver message
@@ -453,7 +453,7 @@ struct mei_fw_version {
 struct mei_device {
 	struct device *dev;
 	struct cdev cdev;
-	int minor;
+	int miyesr;
 
 	struct list_head write_list;
 	struct list_head write_waiting_list;

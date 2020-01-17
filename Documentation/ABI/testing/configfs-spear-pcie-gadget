@@ -11,15 +11,15 @@ Description:
 
 	Nodes are only visible when configfs is mounted. To mount configfs
 	in /config directory use:
-	# mount -t configfs none /config/
+	# mount -t configfs yesne /config/
 
 	For nth PCIe Device Controller
 	/config/pcie-gadget.n/
 		link ... used to enable ltssm and read its status.
 		int_type ...used to configure and read type of supported
 			interrupt
-		no_of_msi ... used to configure number of MSI vector needed and
-			to read no of MSI granted.
+		yes_of_msi ... used to configure number of MSI vector needed and
+			to read yes of MSI granted.
 		inta ... write 1 to assert INTA and 0 to de-assert.
 		send_msi ... write MSI vector to be sent.
 		vendor_id ... used to write and read vendor id (hex)

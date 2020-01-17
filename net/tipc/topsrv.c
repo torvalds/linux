@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -339,7 +339,7 @@ err:
 }
 
 /* tipc_conn_write_space - interrupt callback after a sendmsg EAGAIN
- * Indicates that there now is more space in the send buffer
+ * Indicates that there yesw is more space in the send buffer
  * The queued work is launched into tipc_send_work()->tipc_conn_send_to_sock()
  */
 static void tipc_conn_write_space(struct sock *sk)
@@ -537,7 +537,7 @@ static int tipc_topsrv_create_listener(struct tipc_topsrv *srv)
 	 *
 	 * However, the reference count is ever increased twice in
 	 * sock_create_kern(): one is to increase the reference count of owner
-	 * of TIPC socket's proto_ops struct; another is to increment the
+	 * of TIPC socket's proto_ops struct; ayesther is to increment the
 	 * reference count of owner of TIPC proto struct. Therefore, we must
 	 * decrement the module reference count twice to ensure that it keeps
 	 * zero after server's listening socket is created. Of course, we

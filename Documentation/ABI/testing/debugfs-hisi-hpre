@@ -15,7 +15,7 @@ What:           /sys/kernel/debug/hisi_hpre/<bdf>/rdclr_en
 Date:           Sep 2019
 Contact:        linux-crypto@vger.kernel.org
 Description:    HPRE cores debug registers read clear control. 1 means enable
-		register read clear, otherwise 0. Writing to this file has no
+		register read clear, otherwise 0. Writing to this file has yes
 		functional effect, only enable or disable counters clear after
 		reading of these registers.
 		Only available for PF.
@@ -52,6 +52,6 @@ Date:           Sep 2019
 Contact:        linux-crypto@vger.kernel.org
 Description:    QM debug registers(qm_regs) read clear control. 1 means enable
 		register read clear, otherwise 0.
-		Writing to this file has no functional effect, only enable or
+		Writing to this file has yes functional effect, only enable or
 		disable counters clear after reading of these registers.
 		Only available for PF.

@@ -103,17 +103,17 @@ enum dev_type {
  * @HW_EVENT_ERR_CORRECTED:	Corrected Error - Indicates that an ECC
  *				corrected error was detected
  * @HW_EVENT_ERR_UNCORRECTED:	Uncorrected Error - Indicates an error that
- *				can't be corrected by ECC, but it is not
+ *				can't be corrected by ECC, but it is yest
  *				fatal (maybe it is on an unused memory area,
  *				or the memory controller could recover from
  *				it for example, by re-trying the operation).
  * @HW_EVENT_ERR_DEFERRED:	Deferred Error - Indicates an uncorrectable
- *				error whose handling is not urgent. This could
+ *				error whose handling is yest urgent. This could
  *				be due to hardware data poisoning where the
  *				system can continue operation until the poisoned
  *				data is consumed. Preemptive measures may also
  *				be taken, e.g. offlining pages, etc.
- * @HW_EVENT_ERR_FATAL:		Fatal Error - Uncorrected error that could not
+ * @HW_EVENT_ERR_FATAL:		Fatal Error - Uncorrected error that could yest
  *				be recovered.
  * @HW_EVENT_ERR_INFO:		Informational - The CPER spec defines a forth
  *				type of error: informational logs.
@@ -149,12 +149,12 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  *
  * @MEM_EMPTY:		Empty csrow
  * @MEM_RESERVED:	Reserved csrow type
- * @MEM_UNKNOWN:	Unknown csrow type
+ * @MEM_UNKNOWN:	Unkyeswn csrow type
  * @MEM_FPM:		FPM - Fast Page Mode, used on systems up to 1995.
  * @MEM_EDO:		EDO - Extended data out, used on systems up to 1998.
  * @MEM_BEDO:		BEDO - Burst Extended data out, an EDO variant.
  * @MEM_SDR:		SDR - Single data rate SDRAM
- *			http://en.wikipedia.org/wiki/Synchronous_dynamic_random-access_memory
+ *			http://en.wikipedia.org/wiki/Synchroyesus_dynamic_random-access_memory
  *			They use 3 pins for chip select: Pins 0 and 2 are
  *			for rank 0; pins 1 and 3 are for rank 1, if the memory
  *			is dual-rank.
@@ -171,7 +171,7 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  *			differentiate from DDR.
  * @MEM_FB_DDR2:	Fully-Buffered DDR2, as described at JEDEC Std No. 205
  *			and JESD206.
- *			Those memories are accessed per DIMM slot, and not by
+ *			Those memories are accessed per DIMM slot, and yest by
  *			a chip select signal.
  * @MEM_RDDR2:		Registered DDR2 RAM
  *			This is a variant of the DDR2 memories.
@@ -238,11 +238,11 @@ enum mem_type {
 
 /**
  * enum edac-type - Error Detection and Correction capabilities and mode
- * @EDAC_UNKNOWN:	Unknown if ECC is available
+ * @EDAC_UNKNOWN:	Unkyeswn if ECC is available
  * @EDAC_NONE:		Doesn't support ECC
  * @EDAC_RESERVED:	Reserved ECC type
  * @EDAC_PARITY:	Detects parity errors
- * @EDAC_EC:		Error Checking - no correction
+ * @EDAC_EC:		Error Checking - yes correction
  * @EDAC_SECDED:	Single bit error correction, Double detection
  * @EDAC_S2ECD2ED:	Chipkill x2 devices - do these exist?
  * @EDAC_S4ECD4ED:	Chipkill x4 devices
@@ -274,7 +274,7 @@ enum edac_type {
 
 /**
  * enum scrub_type - scrubbing capabilities
- * @SCRUB_UNKNOWN:		Unknown if scrubber is available
+ * @SCRUB_UNKNOWN:		Unkyeswn if scrubber is available
  * @SCRUB_NONE:			No scrubber
  * @SCRUB_SW_PROG:		SW progressive (sequential) scrubbing
  * @SCRUB_SW_SRC:		Software scrub only errors
@@ -307,7 +307,7 @@ enum scrub_type {
 #define SCRUB_FLAG_HW_PROG_SRC	BIT(SCRUB_HW_PROG_SRC)
 #define SCRUB_FLAG_HW_TUN	BIT(SCRUB_HW_TUNABLE)
 
-/* FIXME - should have notify capabilities: NMI, LOG, PROC, etc */
+/* FIXME - should have yestify capabilities: NMI, LOG, PROC, etc */
 
 /* EDAC internal operation states */
 #define	OP_ALLOC		0x100
@@ -323,7 +323,7 @@ enum scrub_type {
  * @EDAC_MC_LAYER_CHANNEL:	memory layer is named "channel"
  * @EDAC_MC_LAYER_SLOT:		memory layer is named "slot"
  * @EDAC_MC_LAYER_CHIP_SELECT:	memory layer is named "chip select"
- * @EDAC_MC_LAYER_ALL_MEM:	memory layout is unknown. All memory is mapped
+ * @EDAC_MC_LAYER_ALL_MEM:	memory layout is unkyeswn. All memory is mapped
  *				as a single memory area. This is used when
  *				retrieving errors from a firmware driven driver.
  *
@@ -356,7 +356,7 @@ struct edac_mc_layer {
 /*
  * Maximum number of layers used by the memory controller to uniquely
  * identify a single memory stick.
- * NOTE: Changing this constant requires not only to change the constant
+ * NOTE: Changing this constant requires yest only to change the constant
  * below, but also to change the existing code at the core, as there are
  * some code there that are optimized for 3 layers.
  */
@@ -415,7 +415,7 @@ struct csrow_info {
 	unsigned long first_page;	/* first page number in csrow */
 	unsigned long last_page;	/* last page number in csrow */
 	unsigned long page_mask;	/* used for interleaving -
-					 * 0UL for non intlv */
+					 * 0UL for yesn intlv */
 
 	int csrow_idx;			/* the chip-select row */
 
@@ -447,8 +447,8 @@ struct errcount_attribute_data {
  * @low_layer:			low layer of the error (layer[2])
  * @page_frame_number:		page where the error happened
  * @offset_in_page:		page offset
- * @syndrome:			syndrome of the error (or 0 if unknown or if
- * 				the syndrome is not applicable)
+ * @syndrome:			syndrome of the error (or 0 if unkyeswn or if
+ * 				the syndrome is yest applicable)
  * @msg:			error message
  * @location:			location of the error
  * @label:			label of the affected DIMM(s)
@@ -491,7 +491,7 @@ struct mem_ctl_info {
 				 * capable of s4ecd4ed which would be listed
 				 * in edac_ctl_cap, but if channels aren't
 				 * capable of s4ecd4ed then the edac_cap would
-				 * not have that capability.
+				 * yest have that capability.
 				 */
 	unsigned long scrub_cap;	/* chipset scrub capabilities */
 	enum scrub_type scrub_mode;	/* current scrub mode */
@@ -516,7 +516,7 @@ struct mem_ctl_info {
 	 * Remaps memory pages: controller pages to physical pages.
 	 * For most MC's, this will be NULL.
 	 */
-	/* FIXME - why not send the phys page to begin with? */
+	/* FIXME - why yest send the phys page to begin with? */
 	unsigned long (*ctl_page_to_phys) (struct mem_ctl_info * mci,
 					   unsigned long page);
 	int mc_idx;
@@ -545,7 +545,7 @@ struct mem_ctl_info {
 	/*
 	 * FIXME - what about controllers on other busses? - IDs must be
 	 * unique.  dev pointer should be sufficiently unique, but
-	 * BUS:SLOT.FUNC numbers may not be unique.
+	 * BUS:SLOT.FUNC numbers may yest be unique.
 	 */
 	struct device *pdev;
 	const char *mod_name;
@@ -558,7 +558,7 @@ struct mem_ctl_info {
 	 * drivers shouldn't access those fields directly, as the core
 	 * already handles that.
 	 */
-	u32 ce_noinfo_count, ue_noinfo_count;
+	u32 ce_yesinfo_count, ue_yesinfo_count;
 	u32 ue_mc, ce_mc;
 	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
 
@@ -572,7 +572,7 @@ struct mem_ctl_info {
 	 * An array of structures, NULL terminated
 	 *
 	 * If attributes are desired, then set to array of attributes
-	 * If no attributes are desired, leave NULL
+	 * If yes attributes are desired, leave NULL
 	 */
 	const struct mcidev_sysfs_attribute *mc_driver_sysfs_attributes;
 

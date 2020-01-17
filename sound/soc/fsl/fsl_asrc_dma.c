@@ -62,7 +62,7 @@ static int fsl_asrc_dma_prepare_and_submit(struct snd_pcm_substream *substream,
 	unsigned long flags = DMA_CTRL_ACK;
 
 	/* Prepare and submit Front-End DMA channel */
-	if (!substream->runtime->no_period_wakeup)
+	if (!substream->runtime->yes_period_wakeup)
 		flags |= DMA_PREP_INTERRUPT;
 
 	pair->pos = 0;

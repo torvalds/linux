@@ -14,7 +14,7 @@
  * @clk: clock to be configured
  * @new_mode: true for new timing mode introduced in A83T and later
  *
- * Returns 0 on success, -ENOTSUPP if the clock does not support
+ * Returns 0 on success, -ENOTSUPP if the clock does yest support
  * switching modes.
  */
 int sunxi_ccu_set_mmc_timing_mode(struct clk *clk, bool new_mode)
@@ -47,7 +47,7 @@ EXPORT_SYMBOL_GPL(sunxi_ccu_set_mmc_timing_mode);
  * @clk: clock to query
  *
  * Returns 0 if the clock is in old timing mode, > 0 if it is in
- * new timing mode, and -ENOTSUPP if the clock does not support
+ * new timing mode, and -ENOTSUPP if the clock does yest support
  * this function.
  */
 int sunxi_ccu_get_mmc_timing_mode(struct clk *clk)

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,7 +23,7 @@
  */
 #include "chan.h"
 
-#include <core/notify.h>
+#include <core/yestify.h>
 #include <engine/fifo.h>
 
 #include <nvif/event.h>
@@ -48,17 +48,17 @@ nvkm_sw_chan_mthd(struct nvkm_sw_chan *chan, int subc, u32 mthd, u32 data)
 
 static int
 nvkm_sw_chan_event_ctor(struct nvkm_object *object, void *data, u32 size,
-			struct nvkm_notify *notify)
+			struct nvkm_yestify *yestify)
 {
 	union {
-		struct nvif_notify_uevent_req none;
+		struct nvif_yestify_uevent_req yesne;
 	} *req = data;
 	int ret = -ENOSYS;
 
-	if (!(ret = nvif_unvers(ret, &data, &size, req->none))) {
-		notify->size  = sizeof(struct nvif_notify_uevent_rep);
-		notify->types = 1;
-		notify->index = 0;
+	if (!(ret = nvif_unvers(ret, &data, &size, req->yesne))) {
+		yestify->size  = sizeof(struct nvif_yestify_uevent_rep);
+		yestify->types = 1;
+		yestify->index = 0;
 	}
 
 	return ret;

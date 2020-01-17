@@ -21,7 +21,7 @@ struct vringh {
 	/* Everything is little endian */
 	bool little_endian;
 
-	/* Guest publishes used event idx (note: we always do). */
+	/* Guest publishes used event idx (yeste: we always do). */
 	bool event_indices;
 
 	/* Can we get away with weak barriers? */
@@ -33,14 +33,14 @@ struct vringh {
 	/* Last index we used. */
 	u16 last_used_idx;
 
-	/* How many descriptors we've completed since last need_notify(). */
+	/* How many descriptors we've completed since last need_yestify(). */
 	u32 completed;
 
-	/* The vring (note: it may contain user pointers!) */
+	/* The vring (yeste: it may contain user pointers!) */
 	struct vring vring;
 
-	/* The function to call to notify the guest about added buffers */
-	void (*notify)(struct vringh *);
+	/* The function to call to yestify the guest about added buffers */
+	void (*yestify)(struct vringh *);
 };
 
 /**
@@ -50,7 +50,7 @@ struct vringh {
  *	nhvrs: the number of host vrings to find
  *	hvrs: on success, includes new host vrings
  *	callbacks: array of driver callbacks, for each host vring
- *		include a NULL entry for vqs that do not need a callback
+ *		include a NULL entry for vqs that do yest need a callback
  *	Returns 0 on success or error status
  * @del_vrhs: free the host vrings found by find_vrhs().
  */
@@ -151,11 +151,11 @@ int vringh_complete_multi_user(struct vringh *vrh,
 /* Pretend we've never seen descriptor (for easy error handling). */
 void vringh_abandon_user(struct vringh *vrh, unsigned int num);
 
-/* Do we need to fire the eventfd to notify the other side? */
-int vringh_need_notify_user(struct vringh *vrh);
+/* Do we need to fire the eventfd to yestify the other side? */
+int vringh_need_yestify_user(struct vringh *vrh);
 
-bool vringh_notify_enable_user(struct vringh *vrh);
-void vringh_notify_disable_user(struct vringh *vrh);
+bool vringh_yestify_enable_user(struct vringh *vrh);
+void vringh_yestify_disable_user(struct vringh *vrh);
 
 /* Helpers for kernelspace vrings. */
 int vringh_init_kern(struct vringh *vrh, u64 features,
@@ -201,16 +201,16 @@ ssize_t vringh_iov_push_kern(struct vringh_kiov *wiov,
 void vringh_abandon_kern(struct vringh *vrh, unsigned int num);
 int vringh_complete_kern(struct vringh *vrh, u16 head, u32 len);
 
-bool vringh_notify_enable_kern(struct vringh *vrh);
-void vringh_notify_disable_kern(struct vringh *vrh);
+bool vringh_yestify_enable_kern(struct vringh *vrh);
+void vringh_yestify_disable_kern(struct vringh *vrh);
 
-int vringh_need_notify_kern(struct vringh *vrh);
+int vringh_need_yestify_kern(struct vringh *vrh);
 
 /* Notify the guest about buffers added to the used ring */
-static inline void vringh_notify(struct vringh *vrh)
+static inline void vringh_yestify(struct vringh *vrh)
 {
-	if (vrh->notify)
-		vrh->notify(vrh);
+	if (vrh->yestify)
+		vrh->yestify(vrh);
 }
 
 static inline bool vringh_is_little_endian(const struct vringh *vrh)

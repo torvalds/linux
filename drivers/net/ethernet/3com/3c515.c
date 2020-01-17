@@ -13,7 +13,7 @@
 
 
 	2000/2/2- Added support for kernel-level ISAPnP
-		by Stephen Frost <sfrost@snowman.net> and Alessandro Zummo
+		by Stephen Frost <sfrost@syeswman.net> and Alessandro Zummo
 	Cleaned up for 2.3.x/softnet by Jeff Garzik and Alan Cox.
 
 	2001/11/17 - Added ethtool support (jgarzik)
@@ -31,12 +31,12 @@ DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " becker@scyld.com and others\n";
 
 #define CORKSCREW 1
 
-/* "Knobs" that adjust features and parameters. */
+/* "Kyesbs" that adjust features and parameters. */
 /* Set the copy breakpoint for the copy-only-tiny-frames scheme.
    Setting to > 1512 effectively disables this feature. */
 static int rx_copybreak = 200;
 
-/* Allow setting MTU to a larger size, bypassing the normal ethernet setup. */
+/* Allow setting MTU to a larger size, bypassing the yesrmal ethernet setup. */
 static const int mtu = 1500;
 
 /* Maximum events (Rx packets, etc.) to handle at each interrupt. */
@@ -62,7 +62,7 @@ static int max_interrupt_work = 20;
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
 #include <linux/skbuff.h>
@@ -86,18 +86,18 @@ MODULE_DESCRIPTION("3Com 3c515 Corkscrew driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
-/* "Knobs" for adjusting internal parameters. */
-/* Put out somewhat more debugging messages. (0 - no msg, 1 minimal msgs). */
+/* "Kyesbs" for adjusting internal parameters. */
+/* Put out somewhat more debugging messages. (0 - yes msg, 1 minimal msgs). */
 #define DRIVER_DEBUG 1
 /* Some values here only for performance evaluation and path-coverage
    debugging. */
-static int rx_nocopy, rx_copy, queued_packet;
+static int rx_yescopy, rx_copy, queued_packet;
 
 /* Number of times to check to see if the Tx FIFO has space, used in some
    limited cases. */
 #define WAIT_TX_AVAIL 200
 
-/* Operational parameter that usually are not changed. */
+/* Operational parameter that usually are yest changed. */
 #define TX_TIMEOUT  ((4*HZ)/10)	/* Time in jiffies before concluding Tx hung */
 
 /* The size here is somewhat misleading: the Corkscrew also uses the ISA
@@ -120,11 +120,11 @@ I. Board Compatibility
 
 This device driver is designed for the 3Com 3c515 ISA Fast EtherLink XL,
 3Com's ISA bus adapter for Fast Ethernet.  Due to the unique I/O port layout,
-it's not practical to integrate this driver with the other EtherLink drivers.
+it's yest practical to integrate this driver with the other EtherLink drivers.
 
 II. Board-specific settings
 
-The Corkscrew has an EEPROM for configuration, but no special settings are
+The Corkscrew has an EEPROM for configuration, but yes special settings are
 needed for Linux.
 
 III. Driver operation
@@ -166,7 +166,7 @@ of 1.5K, but the changes to support 4.5K are minimal.
 */
 
 /* Operational definitions.
-   These are not used by other compilation units and thus are not
+   These are yest used by other compilation units and thus are yest
    exported in a ".h" file.
 
    First the windows.  There are eight register windows, with the command
@@ -179,7 +179,7 @@ of 1.5K, but the changes to support 4.5K are minimal.
 /* The top five bits written to EL3_CMD are a command, the lower
    11 bits are the parameter, if applicable.
    Note that 11 parameters bits was fine for ethernet, but the new chips
-   can handle FDDI length frames (~4500 octets) and now parameters count
+   can handle FDDI length frames (~4500 octets) and yesw parameters count
    32-bit 'Dwords' rather than octets. */
 
 enum corkscrew_cmd {
@@ -210,7 +210,7 @@ enum corkscrew_status {
 	CmdInProgress = 1 << 12,	/* EL3_CMD is still busy. */
 };
 
-/* Register window 1 offsets, the window used in normal operation.
+/* Register window 1 offsets, the window used in yesrmal operation.
    On the Corkscrew this window is always mapped at offsets 0x10-0x1f. */
 enum Window1 {
 	TX_FIFO = 0x10, RX_FIFO = 0x10, RxErrors = 0x14,
@@ -360,7 +360,7 @@ static struct isapnp_device_id corkscrew_isapnp_adapters[] = {
 
 MODULE_DEVICE_TABLE(isapnp, corkscrew_isapnp_adapters);
 
-static int nopnp;
+static int yespnp;
 #endif /* __ISAPNP__ */
 
 static struct net_device *corkscrew_scan(int unit);
@@ -441,7 +441,7 @@ struct net_device *tc515_probe(int unit)
 
 	return dev;
 }
-#endif				/* not MODULE */
+#endif				/* yest MODULE */
 
 static int check_device(unsigned ioaddr)
 {
@@ -502,8 +502,8 @@ static struct net_device *corkscrew_scan(int unit)
 	}
 
 #ifdef __ISAPNP__
-	if(nopnp == 1)
-		goto no_pnp;
+	if(yespnp == 1)
+		goto yes_pnp;
 	for(i=0; corkscrew_isapnp_adapters[i].vendor != 0; i++) {
 		struct pnp_dev *idev = NULL;
 		int irq;
@@ -543,7 +543,7 @@ static struct net_device *corkscrew_scan(int unit)
 			cleanup_card(dev);
 		}
 	}
-no_pnp:
+yes_pnp:
 #endif /* __ISAPNP__ */
 
 	/* Check all locations on the ISA bus -- evil! */
@@ -759,9 +759,9 @@ static int corkscrew_open(struct net_device *dev)
 
 	outw(SetStatusEnb | 0x00, ioaddr + EL3_CMD);
 
-	/* Use the now-standard shared IRQ implementation. */
+	/* Use the yesw-standard shared IRQ implementation. */
 	if (vp->capabilities == 0x11c7) {
-		/* Corkscrew: Cannot share ISA resources. */
+		/* Corkscrew: Canyest share ISA resources. */
 		if (dev->irq == 0 ||
 		    dev->dma == 0 ||
 		    request_irq(dev->irq, corkscrew_interrupt, 0,
@@ -810,7 +810,7 @@ static int corkscrew_open(struct net_device *dev)
 	/* ..and on the Boomerang we enable the extra statistics bits. */
 	outw(0x0040, ioaddr + Wn4_NetDiag);
 
-	/* Switch to register set 7 for normal use. */
+	/* Switch to register set 7 for yesrmal use. */
 	EL3WINDOW(7);
 
 	if (vp->full_bus_master_rx) {	/* Boomerang bus master. */
@@ -901,7 +901,7 @@ static void corkscrew_timer(struct timer_list *t)
 						media_tbl[dev->if_port].name,
 						media_status);
 			} else if (corkscrew_debug > 1)
-				pr_debug("%s: Media %s is has no link beat, %x.\n",
+				pr_debug("%s: Media %s is has yes link beat, %x.\n",
 					dev->name,
 					media_tbl[dev->if_port].name,
 					media_status);
@@ -909,7 +909,7 @@ static void corkscrew_timer(struct timer_list *t)
 			break;
 		default:	/* Other media types handled by Tx timeouts. */
 			if (corkscrew_debug > 1)
-				pr_debug("%s: Media %s is has no indication, %x.\n",
+				pr_debug("%s: Media %s is has yes indication, %x.\n",
 					dev->name,
 					media_tbl[dev->if_port].name,
 					media_status);
@@ -932,7 +932,7 @@ static void corkscrew_timer(struct timer_list *t)
 						media_tbl[dev->if_port].name);
 			} else {
 				if (corkscrew_debug > 1)
-					pr_debug("%s: Media selection failed, now trying %s port.\n",
+					pr_debug("%s: Media selection failed, yesw trying %s port.\n",
 						dev->name,
 						media_tbl[dev->if_port].name);
 				vp->timer.expires = jiffies + media_tbl[dev->if_port].wait;
@@ -1125,7 +1125,7 @@ static netdev_tx_t corkscrew_start_xmit(struct sk_buff *skb,
 
 static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 {
-	/* Use the now-standard shared IRQ implementation. */
+	/* Use the yesw-standard shared IRQ implementation. */
 	struct net_device *dev = dev_id;
 	struct corkscrew_private *lp = netdev_priv(dev);
 	int ioaddr, status;
@@ -1145,7 +1145,7 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 	if ((status & 0xE000) != 0xE000) {
 		static int donedidthis;
 		/* Some interrupt controllers store a bogus interrupt from boot-time.
-		   Ignore a single early interrupt, but don't hang the machine for
+		   Igyesre a single early interrupt, but don't hang the machine for
 		   other interrupt problems. */
 		if (donedidthis++ > 100) {
 			pr_err("%s: Bogus interrupt, bailing. Status %4.4x, start=%d.\n",
@@ -1215,11 +1215,11 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 				/* This occurs when we have the wrong media type! */
 				if (DoneDidThat == 0 && inw(ioaddr + EL3_STATUS) & StatsFull) {
 					int win, reg;
-					pr_notice("%s: Updating stats failed, disabling stats as an interrupt source.\n",
+					pr_yestice("%s: Updating stats failed, disabling stats as an interrupt source.\n",
 						dev->name);
 					for (win = 0; win < 8; win++) {
 						EL3WINDOW(win);
-						pr_notice("Vortex window %d:", win);
+						pr_yestice("Vortex window %d:", win);
 						for (reg = 0; reg < 16; reg++)
 							pr_cont(" %2.2x", inb(ioaddr + reg));
 						pr_cont("\n");
@@ -1251,7 +1251,7 @@ static irqreturn_t corkscrew_interrupt(int irq, void *dev_id)
 			outw(AckIntr | 0x7FF, ioaddr + EL3_CMD);
 			break;
 		}
-		/* Acknowledge the IRQ. */
+		/* Ackyeswledge the IRQ. */
 		outw(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD);
 
 	} while ((status = inw(ioaddr + EL3_STATUS)) & (IntLatch | RxComplete));
@@ -1364,7 +1364,7 @@ static int boomerang_rx(struct net_device *dev)
 				pr_debug("Receiving packet size %d status %4.4x.\n",
 				     pkt_len, rx_status);
 
-			/* Check if the packet is long enough to just accept without
+			/* Check if the packet is long eyesugh to just accept without
 			   copying to a properly sized skbuff. */
 			if (pkt_len < rx_copybreak &&
 			    (skb = netdev_alloc_skb(dev, pkt_len + 4)) != NULL) {
@@ -1382,11 +1382,11 @@ static int boomerang_rx(struct net_device *dev)
 				temp = skb_put(skb, pkt_len);
 				/* Remove this checking code for final release. */
 				if (isa_bus_to_virt(vp->rx_ring[entry].addr) != temp)
-					pr_warn("%s: Warning -- the skbuff addresses do not match in boomerang_rx: %p vs. %p / %p\n",
+					pr_warn("%s: Warning -- the skbuff addresses do yest match in boomerang_rx: %p vs. %p / %p\n",
 						dev->name,
 						isa_bus_to_virt(vp->rx_ring[entry].addr),
 						skb->head, temp);
-				rx_nocopy++;
+				rx_yescopy++;
 			}
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
@@ -1423,8 +1423,8 @@ static int corkscrew_close(struct net_device *dev)
 		pr_debug("%s: corkscrew_close() status %4.4x, Tx status %2.2x.\n",
 		     dev->name, inw(ioaddr + EL3_STATUS),
 		     inb(ioaddr + TxStatus));
-		pr_debug("%s: corkscrew close stats: rx_nocopy %d rx_copy %d tx_queued %d.\n",
-			dev->name, rx_nocopy, rx_copy, queued_packet);
+		pr_debug("%s: corkscrew close stats: rx_yescopy %d rx_copy %d tx_queued %d.\n",
+			dev->name, rx_yescopy, rx_copy, queued_packet);
 	}
 
 	del_timer_sync(&vp->timer);
@@ -1479,7 +1479,7 @@ static struct net_device_stats *corkscrew_get_stats(struct net_device *dev)
 }
 
 /*  Update statistics.
-	Unlike with the EL3 we need not worry about interrupts changing
+	Unlike with the EL3 we need yest worry about interrupts changing
 	the window setting from underneath us, but we must still guard
 	against a race condition with a StatsUpdate interrupt updating the
 	table.  This is done by checking that the ASM (!) code generated uses
@@ -1487,7 +1487,7 @@ static struct net_device_stats *corkscrew_get_stats(struct net_device *dev)
 	*/
 static void update_stats(int ioaddr, struct net_device *dev)
 {
-	/* Unlike the 3c5x9 we need not turn off stats updates while reading. */
+	/* Unlike the 3c5x9 we need yest turn off stats updates while reading. */
 	/* Switch to the stats window, and read everything. */
 	EL3WINDOW(6);
 	dev->stats.tx_carrier_errors += inb(ioaddr + 0);
@@ -1510,12 +1510,12 @@ static void update_stats(int ioaddr, struct net_device *dev)
 	EL3WINDOW(4);
 	inb(ioaddr + 12);
 
-	/* We change back to window 7 (not 1) with the Vortex. */
+	/* We change back to window 7 (yest 1) with the Vortex. */
 	EL3WINDOW(7);
 }
 
 /* This new version of set_rx_mode() supports v1.4 kernels.
-   The Vortex chip has no documented multicast filter, so the only
+   The Vortex chip has yes documented multicast filter, so the only
    multicast setting is to receive all multicast frames.  At least
    the chip has a very clean way to set the mode, unlike many others. */
 static void set_rx_mode(struct net_device *dev)

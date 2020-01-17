@@ -69,7 +69,7 @@ struct vic_device {
 	struct irq_domain *domain;
 };
 
-/* we cannot allocate memory when VICs are initially registered */
+/* we canyest allocate memory when VICs are initially registered */
 static struct vic_device vic_devices[CONFIG_ARM_VIC_NR];
 
 static int vic_id;
@@ -108,7 +108,7 @@ static void resume_one_vic(struct vic_device *vic)
 	writel(vic->int_select, base + VIC_INT_SELECT);
 	writel(vic->protect, base + VIC_PROTECT);
 
-	/* set the enabled ints and then clear the non-enabled */
+	/* set the enabled ints and then clear the yesn-enabled */
 	writel(vic->int_enable, base + VIC_INT_ENABLE);
 	writel(~vic->int_enable, base + VIC_INT_ENABLE_CLEAR);
 
@@ -193,7 +193,7 @@ static int vic_irqdomain_map(struct irq_domain *d, unsigned int irq,
 }
 
 /*
- * Handle each interrupt in a single VIC.  Returns non-zero if we've
+ * Handle each interrupt in a single VIC.  Returns yesn-zero if we've
  * handled at least one interrupt.  This reads the status register
  * before handling each interrupt, which is necessary given that
  * handle_IRQ may briefly re-enable interrupts for soft IRQ handling.
@@ -229,7 +229,7 @@ static void vic_handle_irq_cascaded(struct irq_desc *desc)
 }
 
 /*
- * Keep iterating over all registered VIC's until there are no pending
+ * Keep iterating over all registered VIC's until there are yes pending
  * interrupts.
  */
 static void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
@@ -254,9 +254,9 @@ static const struct irq_domain_ops vic_irqdomain_ops = {
  * @irq: The base IRQ for the VIC.
  * @valid_sources: bitmask of valid interrupts
  * @resume_sources: bitmask of interrupts allowed for resume sources.
- * @node: The device tree node associated with the VIC.
+ * @yesde: The device tree yesde associated with the VIC.
  *
- * Register the VIC with the system device tree so that it can be notified
+ * Register the VIC with the system device tree so that it can be yestified
  * of suspend and resume requests and ensure that the correct actions are
  * taken to re-instate the settings on resume.
  *
@@ -265,7 +265,7 @@ static const struct irq_domain_ops vic_irqdomain_ops = {
 static void __init vic_register(void __iomem *base, unsigned int parent_irq,
 				unsigned int irq,
 				u32 valid_sources, u32 resume_sources,
-				struct device_node *node)
+				struct device_yesde *yesde)
 {
 	struct vic_device *v;
 	int i;
@@ -287,13 +287,13 @@ static void __init vic_register(void __iomem *base, unsigned int parent_irq,
 						 vic_handle_irq_cascaded, v);
 	}
 
-	v->domain = irq_domain_add_simple(node, fls(valid_sources), irq,
+	v->domain = irq_domain_add_simple(yesde, fls(valid_sources), irq,
 					  &vic_irqdomain_ops, v);
 	/* create an IRQ mapping for each valid IRQ */
 	for (i = 0; i < fls(valid_sources); i++)
 		if (valid_sources & (1 << i))
 			irq_create_mapping(v->domain, i);
-	/* If no base IRQ was passed, figure out our allocated base */
+	/* If yes base IRQ was passed, figure out our allocated base */
 	if (irq)
 		v->irq = irq;
 	else
@@ -399,7 +399,7 @@ static void __init vic_clear_interrupts(void __iomem *base)
  *  and 020 within the page. We call this "second block".
  */
 static void __init vic_init_st(void __iomem *base, unsigned int irq_start,
-			       u32 vic_sources, struct device_node *node)
+			       u32 vic_sources, struct device_yesde *yesde)
 {
 	unsigned int i;
 	int vic_2nd_block = ((unsigned long)base & ~PAGE_MASK) != 0;
@@ -416,7 +416,7 @@ static void __init vic_init_st(void __iomem *base, unsigned int irq_start,
 	if (vic_2nd_block) {
 		vic_clear_interrupts(base);
 
-		/* ST has 16 vectors as well, but we don't enable them by now */
+		/* ST has 16 vectors as well, but we don't enable them by yesw */
 		for (i = 0; i < 16; i++) {
 			void __iomem *reg = base + VIC_VECT_CNTL0 + (i * 4);
 			writel(0, reg);
@@ -425,12 +425,12 @@ static void __init vic_init_st(void __iomem *base, unsigned int irq_start,
 		writel(32, base + VIC_PL190_DEF_VECT_ADDR);
 	}
 
-	vic_register(base, 0, irq_start, vic_sources, 0, node);
+	vic_register(base, 0, irq_start, vic_sources, 0, yesde);
 }
 
 void __init __vic_init(void __iomem *base, int parent_irq, int irq_start,
 			      u32 vic_sources, u32 resume_sources,
-			      struct device_node *node)
+			      struct device_yesde *yesde)
 {
 	unsigned int i;
 	u32 cellid = 0;
@@ -448,10 +448,10 @@ void __init __vic_init(void __iomem *base, int parent_irq, int irq_start,
 
 	switch(vendor) {
 	case AMBA_VENDOR_ST:
-		vic_init_st(base, irq_start, vic_sources, node);
+		vic_init_st(base, irq_start, vic_sources, yesde);
 		return;
 	default:
-		printk(KERN_WARNING "VIC: unknown vendor, continuing anyways\n");
+		printk(KERN_WARNING "VIC: unkyeswn vendor, continuing anyways\n");
 		/* fall through */
 	case AMBA_VENDOR_ARM:
 		break;
@@ -465,7 +465,7 @@ void __init __vic_init(void __iomem *base, int parent_irq, int irq_start,
 
 	vic_init2(base);
 
-	vic_register(base, parent_irq, irq_start, vic_sources, resume_sources, node);
+	vic_register(base, parent_irq, irq_start, vic_sources, resume_sources, yesde);
 }
 
 /**
@@ -503,27 +503,27 @@ int __init vic_init_cascaded(void __iomem *base, unsigned int parent_irq,
 EXPORT_SYMBOL_GPL(vic_init_cascaded);
 
 #ifdef CONFIG_OF
-static int __init vic_of_init(struct device_node *node,
-			      struct device_node *parent)
+static int __init vic_of_init(struct device_yesde *yesde,
+			      struct device_yesde *parent)
 {
 	void __iomem *regs;
 	u32 interrupt_mask = ~0;
 	u32 wakeup_mask = ~0;
 
-	if (WARN(parent, "non-root VICs are not supported"))
+	if (WARN(parent, "yesn-root VICs are yest supported"))
 		return -EINVAL;
 
-	regs = of_iomap(node, 0);
+	regs = of_iomap(yesde, 0);
 	if (WARN_ON(!regs))
 		return -EIO;
 
-	of_property_read_u32(node, "valid-mask", &interrupt_mask);
-	of_property_read_u32(node, "valid-wakeup-mask", &wakeup_mask);
+	of_property_read_u32(yesde, "valid-mask", &interrupt_mask);
+	of_property_read_u32(yesde, "valid-wakeup-mask", &wakeup_mask);
 
 	/*
 	 * Passing 0 as first IRQ makes the simple domain allocate descriptors
 	 */
-	__vic_init(regs, 0, 0, interrupt_mask, wakeup_mask, node);
+	__vic_init(regs, 0, 0, interrupt_mask, wakeup_mask, yesde);
 
 	return 0;
 }

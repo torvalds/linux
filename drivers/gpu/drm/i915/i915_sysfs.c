@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -38,10 +38,10 @@
 #include "intel_pm.h"
 #include "intel_sideband.h"
 
-static inline struct drm_i915_private *kdev_minor_to_i915(struct device *kdev)
+static inline struct drm_i915_private *kdev_miyesr_to_i915(struct device *kdev)
 {
-	struct drm_minor *minor = dev_get_drvdata(kdev);
-	return to_i915(minor->dev);
+	struct drm_miyesr *miyesr = dev_get_drvdata(kdev);
+	return to_i915(miyesr->dev);
 }
 
 #ifdef CONFIG_PM
@@ -60,7 +60,7 @@ static u32 calc_residency(struct drm_i915_private *dev_priv,
 static ssize_t
 show_rc6_mask(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	unsigned int mask;
 
 	mask = 0;
@@ -77,7 +77,7 @@ show_rc6_mask(struct device *kdev, struct device_attribute *attr, char *buf)
 static ssize_t
 show_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	u32 rc6_residency = calc_residency(dev_priv, GEN6_GT_GFX_RC6);
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6_residency);
 }
@@ -85,7 +85,7 @@ show_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 static ssize_t
 show_rc6p_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	u32 rc6p_residency = calc_residency(dev_priv, GEN6_GT_GFX_RC6p);
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6p_residency);
 }
@@ -93,7 +93,7 @@ show_rc6p_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 static ssize_t
 show_rc6pp_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	u32 rc6pp_residency = calc_residency(dev_priv, GEN6_GT_GFX_RC6pp);
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6pp_residency);
 }
@@ -101,7 +101,7 @@ show_rc6pp_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 static ssize_t
 show_media_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	u32 rc6_residency = calc_residency(dev_priv, VLV_GT_MEDIA_RC6);
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6_residency);
 }
@@ -165,7 +165,7 @@ i915_l3_read(struct file *filp, struct kobject *kobj,
 	     loff_t offset, size_t count)
 {
 	struct device *kdev = kobj_to_dev(kobj);
-	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *i915 = kdev_miyesr_to_i915(kdev);
 	int slice = (int)(uintptr_t)attr->private;
 	int ret;
 
@@ -193,7 +193,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	      loff_t offset, size_t count)
 {
 	struct device *kdev = kobj_to_dev(kobj);
-	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *i915 = kdev_miyesr_to_i915(kdev);
 	int slice = (int)(uintptr_t)attr->private;
 	u32 *remap_info, *freeme = NULL;
 	struct i915_gem_context *ctx;
@@ -231,7 +231,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 
 	/*
 	 * TODO: Ideally we really want a GPU reset here to make sure errors
-	 * aren't propagated. Since I cannot find a stable way to reset the GPU
+	 * aren't propagated. Since I canyest find a stable way to reset the GPU
 	 * at this point it is left as a TODO.
 	*/
 
@@ -259,7 +259,7 @@ static const struct bin_attribute dpf_attrs_1 = {
 static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	struct intel_rps *rps = &dev_priv->gt.rps;
 	intel_wakeref_t wakeref;
 	u32 freq;
@@ -284,7 +284,7 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	struct intel_rps *rps = &dev_priv->gt.rps;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
@@ -293,7 +293,7 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 
 static ssize_t gt_boost_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	struct intel_rps *rps = &dev_priv->gt.rps;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
@@ -304,7 +304,7 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t count)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	struct intel_rps *rps = &dev_priv->gt.rps;
 	bool boost = false;
 	ssize_t ret;
@@ -334,7 +334,7 @@ static ssize_t gt_boost_freq_mhz_store(struct device *kdev,
 static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
 				     struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	struct intel_rps *rps = &dev_priv->gt.rps;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
@@ -343,7 +343,7 @@ static ssize_t vlv_rpe_freq_mhz_show(struct device *kdev,
 
 static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	struct intel_rps *rps = &dev_priv->gt.rps;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
@@ -354,7 +354,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	struct intel_rps *rps = &dev_priv->gt.rps;
 	ssize_t ret;
 	u32 val;
@@ -398,7 +398,7 @@ unlock:
 
 static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	struct intel_rps *rps = &dev_priv->gt.rps;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n",
@@ -409,7 +409,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	struct intel_rps *rps = &dev_priv->gt.rps;
 	ssize_t ret;
 	u32 val;
@@ -460,10 +460,10 @@ static DEVICE_ATTR(gt_RP0_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
 static DEVICE_ATTR(gt_RP1_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
 static DEVICE_ATTR(gt_RPn_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);
 
-/* For now we have a static number of RP states */
+/* For yesw we have a static number of RP states */
 static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 	struct intel_rps *rps = &dev_priv->gt.rps;
 	u32 val;
 
@@ -512,7 +512,7 @@ static ssize_t error_state_read(struct file *filp, struct kobject *kobj,
 {
 
 	struct device *kdev = kobj_to_dev(kobj);
-	struct drm_i915_private *i915 = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *i915 = kdev_miyesr_to_i915(kdev);
 	struct i915_gpu_state *gpu;
 	ssize_t ret;
 
@@ -538,7 +538,7 @@ static ssize_t error_state_write(struct file *file, struct kobject *kobj,
 				 loff_t off, size_t count)
 {
 	struct device *kdev = kobj_to_dev(kobj);
-	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	struct drm_i915_private *dev_priv = kdev_miyesr_to_i915(kdev);
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
 	i915_reset_error_state(dev_priv);

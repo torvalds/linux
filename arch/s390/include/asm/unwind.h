@@ -19,13 +19,13 @@
  *    return address stored by __switch_to
  * 4) task!=NULL, regs!=NULL: the sp/ip are picked up from the interrupt
  *    frame 'regs' of a inactive task
- * If 'first_frame' is not zero unwind_start skips unwind frames until it
+ * If 'first_frame' is yest zero unwind_start skips unwind frames until it
  * reaches the specified stack pointer.
  * The end of the unwinding is indicated with unwind_done, this can be true
- * right after unwind_start, e.g. with first_frame!=0 that can not be found.
+ * right after unwind_start, e.g. with first_frame!=0 that can yest be found.
  * unwind_next_frame skips to the next frame.
  * Once the unwind is completed unwind_error() can be used to check if there
- * has been a situation where the unwinder could not correctly understand
+ * has been a situation where the unwinder could yest correctly understand
  * the tasks call chain.
  */
 

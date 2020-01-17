@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* devices.c: Initial scan of the prom device tree for important
- *	      Sparc device nodes which we need to find.
+ *	      Sparc device yesdes which we need to find.
  *
  * This is based on the sparc64 version, but sun4m doesn't always use
  * the hardware MIDs, so be careful.
@@ -12,7 +12,7 @@
 #include <linux/threads.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <asm/page.h>
 #include <asm/oplib.h>
@@ -31,13 +31,13 @@ static char *cpu_mid_prop(void)
 	return "mid";
 }
 
-static int check_cpu_node(phandle nd, int *cur_inst,
+static int check_cpu_yesde(phandle nd, int *cur_inst,
 		int (*compare)(phandle, int, void *), void *compare_arg,
-		phandle *prom_node, int *mid)
+		phandle *prom_yesde, int *mid)
 {
 	if (!compare(nd, *cur_inst, compare_arg)) {
-		if (prom_node)
-			*prom_node = nd;
+		if (prom_yesde)
+			*prom_yesde = nd;
 		if (mid) {
 			*mid = prom_getintdefault(nd, cpu_mid_prop(), 0);
 			if (sparc_cpu_model == sun4m)
@@ -52,18 +52,18 @@ static int check_cpu_node(phandle nd, int *cur_inst,
 }
 
 static int __cpu_find_by(int (*compare)(phandle, int, void *),
-		void *compare_arg, phandle *prom_node, int *mid)
+		void *compare_arg, phandle *prom_yesde, int *mid)
 {
-	struct device_node *dp;
+	struct device_yesde *dp;
 	int cur_inst;
 
 	cur_inst = 0;
-	for_each_node_by_type(dp, "cpu") {
-		int err = check_cpu_node(dp->phandle, &cur_inst,
+	for_each_yesde_by_type(dp, "cpu") {
+		int err = check_cpu_yesde(dp->phandle, &cur_inst,
 					 compare, compare_arg,
-					 prom_node, mid);
+					 prom_yesde, mid);
 		if (!err) {
-			of_node_put(dp);
+			of_yesde_put(dp);
 			return 0;
 		}
 	}
@@ -80,10 +80,10 @@ static int cpu_instance_compare(phandle nd, int instance, void *_arg)
 	return -ENODEV;
 }
 
-int cpu_find_by_instance(int instance, phandle *prom_node, int *mid)
+int cpu_find_by_instance(int instance, phandle *prom_yesde, int *mid)
 {
 	return __cpu_find_by(cpu_instance_compare, (void *)instance,
-			     prom_node, mid);
+			     prom_yesde, mid);
 }
 
 static int cpu_mid_compare(phandle nd, int instance, void *_arg)
@@ -98,19 +98,19 @@ static int cpu_mid_compare(phandle nd, int instance, void *_arg)
 	return -ENODEV;
 }
 
-int cpu_find_by_mid(int mid, phandle *prom_node)
+int cpu_find_by_mid(int mid, phandle *prom_yesde)
 {
 	return __cpu_find_by(cpu_mid_compare, (void *)mid,
-			     prom_node, NULL);
+			     prom_yesde, NULL);
 }
 
 /* sun4m uses truncated mids since we base the cpuid on the ttable/irqset
  * address (0-3).  This gives us the true hardware mid, which might have
  * some other bits set.  On 4d hardware and software mids are the same.
  */
-int cpu_get_hwmid(phandle prom_node)
+int cpu_get_hwmid(phandle prom_yesde)
 {
-	return prom_getintdefault(prom_node, cpu_mid_prop(), -ENODEV);
+	return prom_getintdefault(prom_yesde, cpu_mid_prop(), -ENODEV);
 }
 
 void __init device_scan(void)
@@ -119,15 +119,15 @@ void __init device_scan(void)
 
 #ifndef CONFIG_SMP
 	{
-		phandle cpu_node;
+		phandle cpu_yesde;
 		int err;
-		err = cpu_find_by_instance(0, &cpu_node, NULL);
+		err = cpu_find_by_instance(0, &cpu_yesde, NULL);
 		if (err) {
 			/* Probably a sun4e, Sun is trying to trick us ;-) */
-			prom_printf("No cpu nodes, cannot continue\n");
+			prom_printf("No cpu yesdes, canyest continue\n");
 			prom_halt();
 		}
-		cpu_data(0).clock_tick = prom_getintdefault(cpu_node,
+		cpu_data(0).clock_tick = prom_getintdefault(cpu_yesde,
 							    "clock-frequency",
 							    0);
 	}

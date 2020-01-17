@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -153,9 +153,9 @@ static int at91_cf_set_io_map(struct pcmcia_socket *s, struct pccard_io_map *io)
 	/*
 	 * Use 16 bit accesses unless/until we need 8-bit i/o space.
 	 *
-	 * NOTE: this CF controller ignores IOIS16, so we can't really do
+	 * NOTE: this CF controller igyesres IOIS16, so we can't really do
 	 * MAP_AUTOSZ.  The 16bit mode allows single byte access on either
-	 * D0-D7 (even addr) or D8-D15 (odd), so it's close enough for many
+	 * D0-D7 (even addr) or D8-D15 (odd), so it's close eyesugh for many
 	 * purposes (and handles ide-cs).
 	 *
 	 * The 8bit mode is needed for odd byte access on D0-D7.  It seems
@@ -224,10 +224,10 @@ static int at91_cf_dt_init(struct platform_device *pdev)
 	if (!board)
 		return -ENOMEM;
 
-	board->irq_pin = of_get_gpio(pdev->dev.of_node, 0);
-	board->det_pin = of_get_gpio(pdev->dev.of_node, 1);
-	board->vcc_pin = of_get_gpio(pdev->dev.of_node, 2);
-	board->rst_pin = of_get_gpio(pdev->dev.of_node, 3);
+	board->irq_pin = of_get_gpio(pdev->dev.of_yesde, 0);
+	board->det_pin = of_get_gpio(pdev->dev.of_yesde, 1);
+	board->vcc_pin = of_get_gpio(pdev->dev.of_yesde, 2);
+	board->rst_pin = of_get_gpio(pdev->dev.of_yesde, 3);
 
 	pdev->dev.platform_data = board;
 
@@ -297,7 +297,7 @@ static int at91_cf_probe(struct platform_device *pdev)
 
 	/*
 	 * The card driver will request this irq later as needed.
-	 * but it causes lots of "irqNN: nobody cared" messages
+	 * but it causes lots of "irqNN: yesbody cared" messages
 	 * unless we report that we handle everything (sigh).
 	 * (Note:  DK board doesn't wire the IRQ pin...)
 	 */
@@ -315,7 +315,7 @@ static int at91_cf_probe(struct platform_device *pdev)
 		cf->socket.pci_irq = nr_irqs + 1;
 
 	/*
-	 * pcmcia layer only remaps "real" memory not iospace
+	 * pcmcia layer only remaps "real" memory yest iospace
 	 * io_offset is set to 0x10000 to avoid the check in static_find_io().
 	 * */
 	cf->socket.io_offset = 0x10000;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018-2019 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare eDMA v0 core
+ * Copyright (c) 2018-2019 Syyespsys, Inc. and/or its affiliates.
+ * Syyespsys DesignWare eDMA v0 core
  *
- * Author: Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+ * Author: Gustavo Pimentel <gustavo.pimentel@syyespsys.com>
  */
 
 #include <linux/debugfs.h>

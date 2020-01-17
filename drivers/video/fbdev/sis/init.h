@@ -19,7 +19,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if yest, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -28,11 +28,11 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    yestice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    yestice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may yest be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -931,8 +931,8 @@ static const struct SiS_LCDData SiS_LCD1280x720Data[] =  /* 2.03.00 */
 /* About 1280x768: For TMDS, Panel_1280x768 will only be set if
  * the panel is a Fujitsu 7911 (VL-17WDX8) (with clock 81, 1688x802)
  * Other TMDS panels of this resolution will be treated as custom.
- * For LVDS, we know another type (_2).
- * (Note: 1280x768_3 is now special for SiS301/NetVista
+ * For LVDS, we kyesw ayesther type (_2).
+ * (Note: 1280x768_3 is yesw special for SiS301/NetVista
  */
 
 static const struct SiS_LCDData SiS_StLCD1280x768_2Data[] = /* 2.03.00 */
@@ -965,7 +965,7 @@ static const struct SiS_LCDData SiS_ExtLCD1280x768_2Data[] = /* 2.03.00 */
 	{  16,   15, 1600,  750, 1600,  806 }  /* 1280x720 */
 };
 
-#if 0  /* Not used; _3 now reserved for NetVista (SiS301) */
+#if 0  /* Not used; _3 yesw reserved for NetVista (SiS301) */
 static const struct SiS_LCDData SiS_LCD1280x768_3Data[] =
 {
 	{  64,   25, 1056,  422, 1664,  798 },			/* 640x400 */
@@ -1095,7 +1095,7 @@ static const struct SiS_LCDData SiS_ExtLCD1400x1050Data[] =
 /*	{ 211,  117, 1638,  613, 1688, 1066 },    800x600 (6330) */
 	{ 211,   72, 1008,  609, 1688, 1066 }, /* 800x600 (6325) WORKS */
 	{ 211,  128, 1400,  776, 1688, 1066 }, /* 1024x768 */
-	{ 211,  205, 1680, 1041, 1688, 1066 }, /* 1280x1024 - not used (always unscaled) */
+	{ 211,  205, 1680, 1041, 1688, 1066 }, /* 1280x1024 - yest used (always unscaled) */
 	{   1,    1, 1688, 1066, 1688, 1066 }, /* 1400x1050 */
 	{   0,    0,    0,    0,    0,    0 }, /* kludge */
 	{ 211,  120, 1400,  730, 1688, 1066 }, /* 1280x720 */
@@ -1152,7 +1152,7 @@ static const struct SiS_LCDData SiS_ExtLCD1600x1200Data[] =
 	{ 4, 1,1080, 625, 2160, 1250 },
 	{ 5, 2,1350, 800, 2160, 1250 },
 	{27,16,1500,1064, 2160, 1250 }, /* 1280x1024 */
-	{72,49,1680,1092, 2160, 1250 }, /* 1400x1050 (6330, was not supported on 6325) */
+	{72,49,1680,1092, 2160, 1250 }, /* 1400x1050 (6330, was yest supported on 6325) */
 	{ 1, 1,2160,1250, 2160, 1250 },
 	{ 0, 0,   0,   0,    0,    0 },
 	{ 0, 0,   0,   0,    0,    0 },
@@ -1194,7 +1194,7 @@ static const struct SiS_LCDData SiS_NoScaleData[] =
 	{ 1, 1,1120, 618,1120, 618 },  /* 0x1d: 960x600 */
 	{ 1, 1,1408, 816,1408, 816 },  /* 0x1f: 1280x800 (TMDS special) */
 	{ 1, 1,1760,1235,1760,1235 },  /* 0x20: 1600x1200 for LCDA */
-	{ 1, 1,2048,1320,2048,1320 },  /* 0x21: 1600x1200 for non-SiS LVDS */
+	{ 1, 1,2048,1320,2048,1320 },  /* 0x21: 1600x1200 for yesn-SiS LVDS */
 	{ 1, 1,1664, 861,1664, 861 }   /* 0x22: 1280x854 */
 };
 

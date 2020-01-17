@@ -56,7 +56,7 @@ static void __test_function(volatile long *ptr)
 }
 #endif
 
-static noinline int test_function(void)
+static yesinline int test_function(void)
 {
 	__test_function(&the_var);
 	the_var++;
@@ -88,7 +88,7 @@ static void sig_handler(int signum __maybe_unused,
 		 * time, consider this the recursive issue.
 		 *
 		 * We can get out of here by disable events,
-		 * so no new SIGIO is delivered.
+		 * so yes new SIGIO is delivered.
 		 */
 		ioctl(fd1, PERF_EVENT_IOC_DISABLE, 0);
 		ioctl(fd2, PERF_EVENT_IOC_DISABLE, 0);
@@ -184,7 +184,7 @@ int test__bp_signal(struct test *test __maybe_unused, int subtest __maybe_unused
 	 *
 	 * fd1 - breakpoint event on __test_function with SIGIO
 	 *       signal configured. We should get signal
-	 *       notification each time the breakpoint is hit
+	 *       yestification each time the breakpoint is hit
 	 *
 	 * fd2 - breakpoint event on sig_handler with SIGUSR1
 	 *       configured. We should get SIGUSR1 each time when
@@ -285,7 +285,7 @@ int test__bp_signal(struct test *test __maybe_unused, int subtest __maybe_unused
 bool test__bp_signal_is_supported(void)
 {
 	/*
-	 * PowerPC and S390 do not support creation of instruction
+	 * PowerPC and S390 do yest support creation of instruction
 	 * breakpoints using the perf_event interface.
 	 *
 	 * ARM requires explicit rounding down of the instruction

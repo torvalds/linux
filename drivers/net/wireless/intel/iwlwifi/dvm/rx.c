@@ -49,7 +49,7 @@ static void iwlagn_rx_reply_error(struct iwl_priv *priv,
 static void iwlagn_rx_csa(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_csa_notification *csa = (void *)pkt->data;
+	struct iwl_csa_yestification *csa = (void *)pkt->data;
 	/*
 	 * MULTI-FIXME
 	 * See iwlagn_mac_channel_switch.
@@ -63,22 +63,22 @@ static void iwlagn_rx_csa(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb)
 	if (!le32_to_cpu(csa->status) && csa->channel == priv->switch_channel) {
 		rxon->channel = csa->channel;
 		ctx->staging.channel = csa->channel;
-		IWL_DEBUG_11H(priv, "CSA notif: channel %d\n",
+		IWL_DEBUG_11H(priv, "CSA yestif: channel %d\n",
 			      le16_to_cpu(csa->channel));
 		iwl_chswitch_done(priv, true);
 	} else {
-		IWL_ERR(priv, "CSA notif (fail) : channel %d\n",
+		IWL_ERR(priv, "CSA yestif (fail) : channel %d\n",
 			le16_to_cpu(csa->channel));
 		iwl_chswitch_done(priv, false);
 	}
 }
 
 
-static void iwlagn_rx_spectrum_measure_notif(struct iwl_priv *priv,
+static void iwlagn_rx_spectrum_measure_yestif(struct iwl_priv *priv,
 					     struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_spectrum_notification *report = (void *)pkt->data;
+	struct iwl_spectrum_yestification *report = (void *)pkt->data;
 
 	if (!report->state) {
 		IWL_DEBUG_11H(priv,
@@ -90,40 +90,40 @@ static void iwlagn_rx_spectrum_measure_notif(struct iwl_priv *priv,
 	priv->measurement_status |= MEASUREMENT_READY;
 }
 
-static void iwlagn_rx_pm_sleep_notif(struct iwl_priv *priv,
+static void iwlagn_rx_pm_sleep_yestif(struct iwl_priv *priv,
 				     struct iwl_rx_cmd_buffer *rxb)
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_sleep_notification *sleep = (void *)pkt->data;
+	struct iwl_sleep_yestification *sleep = (void *)pkt->data;
 	IWL_DEBUG_RX(priv, "sleep mode: %d, src: %d\n",
 		     sleep->pm_sleep_mode, sleep->pm_wakeup_src);
 #endif
 }
 
-static void iwlagn_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
+static void iwlagn_rx_pm_debug_statistics_yestif(struct iwl_priv *priv,
 						struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u32 __maybe_unused len = iwl_rx_packet_len(pkt);
 	IWL_DEBUG_RADIO(priv, "Dumping %d bytes of unhandled "
-			"notification for PM_DEBUG_STATISTIC_NOTIFIC:\n", len);
+			"yestification for PM_DEBUG_STATISTIC_NOTIFIC:\n", len);
 	iwl_print_hex_dump(priv, IWL_DL_RADIO, pkt->data, len);
 }
 
-static void iwlagn_rx_beacon_notif(struct iwl_priv *priv,
+static void iwlagn_rx_beacon_yestif(struct iwl_priv *priv,
 				   struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwlagn_beacon_notif *beacon = (void *)pkt->data;
+	struct iwlagn_beacon_yestif *beacon = (void *)pkt->data;
 #ifdef CONFIG_IWLWIFI_DEBUG
-	u16 status = le16_to_cpu(beacon->beacon_notify_hdr.status.status);
-	u8 rate = iwl_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
+	u16 status = le16_to_cpu(beacon->beacon_yestify_hdr.status.status);
+	u8 rate = iwl_hw_get_rate(beacon->beacon_yestify_hdr.rate_n_flags);
 
 	IWL_DEBUG_RX(priv, "beacon status %#x, retries:%d ibssmgr:%d "
 		"tsf:0x%.8x%.8x rate:%d\n",
 		status & TX_STATUS_MSK,
-		beacon->beacon_notify_hdr.failure_frame,
+		beacon->beacon_yestify_hdr.failure_frame,
 		le32_to_cpu(beacon->ibss_mgr_status),
 		le32_to_cpu(beacon->high_tsf),
 		le32_to_cpu(beacon->low_tsf), rate);
@@ -178,7 +178,7 @@ int iwl_force_rf_reset(struct iwl_priv *priv, bool external)
 		return -EAGAIN;
 
 	if (!iwl_is_any_associated(priv)) {
-		IWL_DEBUG_SCAN(priv, "force reset rejected: not associated\n");
+		IWL_DEBUG_SCAN(priv, "force reset rejected: yest associated\n");
 		return -ENOLINK;
 	}
 
@@ -195,8 +195,8 @@ int iwl_force_rf_reset(struct iwl_priv *priv, bool external)
 	rf_reset->last_reset_jiffies = jiffies;
 
 	/*
-	 * There is no easy and better way to force reset the radio,
-	 * the only known method is switching channel which will force to
+	 * There is yes easy and better way to force reset the radio,
+	 * the only kyeswn method is switching channel which will force to
 	 * reset and tune the radio.
 	 * Use internal short scan (single channel) operation to should
 	 * achieve this objective.
@@ -222,11 +222,11 @@ static void iwlagn_recover_from_statistics(struct iwl_priv *priv,
 
 	msecs = jiffies_to_msecs(stamp - priv->rx_statistics_jiffies);
 
-	/* Only gather statistics and update time stamp when not associated */
+	/* Only gather statistics and update time stamp when yest associated */
 	if (!iwl_is_any_associated(priv))
 		return;
 
-	/* Do not check/recover when do not have enough statistics data */
+	/* Do yest check/recover when do yest have eyesugh statistics data */
 	if (msecs < 99)
 		return;
 
@@ -234,18 +234,18 @@ static void iwlagn_recover_from_statistics(struct iwl_priv *priv,
 		iwl_force_rf_reset(priv, false);
 }
 
-/* Calculate noise level, based on measurements during network silence just
- *   before arriving beacon.  This measurement can be done only if we know
+/* Calculate yesise level, based on measurements during network silence just
+ *   before arriving beacon.  This measurement can be done only if we kyesw
  *   exactly when to expect beacons, therefore only when we're associated. */
-static void iwlagn_rx_calc_noise(struct iwl_priv *priv)
+static void iwlagn_rx_calc_yesise(struct iwl_priv *priv)
 {
-	struct statistics_rx_non_phy *rx_info;
+	struct statistics_rx_yesn_phy *rx_info;
 	int num_active_rx = 0;
 	int total_silence = 0;
 	int bcn_silence_a, bcn_silence_b, bcn_silence_c;
-	int last_rx_noise;
+	int last_rx_yesise;
 
-	rx_info = &priv->statistics.rx_non_phy;
+	rx_info = &priv->statistics.rx_yesn_phy;
 
 	bcn_silence_a =
 		le32_to_cpu(rx_info->beacon_silence_rssi_a) & IN_BAND_FILTER;
@@ -269,19 +269,19 @@ static void iwlagn_rx_calc_noise(struct iwl_priv *priv)
 
 	/* Average among active antennas */
 	if (num_active_rx)
-		last_rx_noise = (total_silence / num_active_rx) - 107;
+		last_rx_yesise = (total_silence / num_active_rx) - 107;
 	else
-		last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
+		last_rx_yesise = IWL_NOISE_MEAS_NOT_AVAILABLE;
 
 	IWL_DEBUG_CALIB(priv, "inband silence a %u, b %u, c %u, dBm %d\n",
 			bcn_silence_a, bcn_silence_b, bcn_silence_c,
-			last_rx_noise);
+			last_rx_yesise);
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 /*
  *  based on the assumption of all statistics counter are in DWORD
- *  FIXME: This function is for debugging, do not deal with
+ *  FIXME: This function is for debugging, do yest deal with
  *  the case of counters roll-over.
  */
 static void accum_stats(__le32 *prev, __le32 *cur, __le32 *delta,
@@ -305,7 +305,7 @@ static void accum_stats(__le32 *prev, __le32 *cur, __le32 *delta,
 static void
 iwlagn_accumulative_statistics(struct iwl_priv *priv,
 			    struct statistics_general_common *common,
-			    struct statistics_rx_non_phy *rx_non_phy,
+			    struct statistics_rx_yesn_phy *rx_yesn_phy,
 			    struct statistics_rx_phy *rx_ofdm,
 			    struct statistics_rx_ht_phy *rx_ofdm_ht,
 			    struct statistics_rx_phy *rx_cck,
@@ -321,7 +321,7 @@ iwlagn_accumulative_statistics(struct iwl_priv *priv,
 		    sizeof(*_name));
 
 	ACCUM(common);
-	ACCUM(rx_non_phy);
+	ACCUM(rx_yesn_phy);
 	ACCUM(rx_ofdm);
 	ACCUM(rx_ofdm_ht);
 	ACCUM(rx_cck);
@@ -334,7 +334,7 @@ iwlagn_accumulative_statistics(struct iwl_priv *priv,
 static inline void
 iwlagn_accumulative_statistics(struct iwl_priv *priv,
 			    struct statistics_general_common *common,
-			    struct statistics_rx_non_phy *rx_non_phy,
+			    struct statistics_rx_yesn_phy *rx_yesn_phy,
 			    struct statistics_rx_phy *rx_ofdm,
 			    struct statistics_rx_ht_phy *rx_ofdm_ht,
 			    struct statistics_rx_phy *rx_cck,
@@ -354,24 +354,24 @@ static void iwlagn_rx_statistics(struct iwl_priv *priv,
 	u32 len = iwl_rx_packet_payload_len(pkt);
 	__le32 *flag;
 	struct statistics_general_common *common;
-	struct statistics_rx_non_phy *rx_non_phy;
+	struct statistics_rx_yesn_phy *rx_yesn_phy;
 	struct statistics_rx_phy *rx_ofdm;
 	struct statistics_rx_ht_phy *rx_ofdm_ht;
 	struct statistics_rx_phy *rx_cck;
 	struct statistics_tx *tx;
 	struct statistics_bt_activity *bt_activity;
 
-	IWL_DEBUG_RX(priv, "Statistics notification received (%d bytes).\n",
+	IWL_DEBUG_RX(priv, "Statistics yestification received (%d bytes).\n",
 		     len);
 
 	spin_lock(&priv->statistics.lock);
 
-	if (len == sizeof(struct iwl_bt_notif_statistics)) {
-		struct iwl_bt_notif_statistics *stats;
+	if (len == sizeof(struct iwl_bt_yestif_statistics)) {
+		struct iwl_bt_yestif_statistics *stats;
 		stats = (void *)&pkt->data;
 		flag = &stats->flag;
 		common = &stats->general.common;
-		rx_non_phy = &stats->rx.general.common;
+		rx_yesn_phy = &stats->rx.general.common;
 		rx_ofdm = &stats->rx.ofdm;
 		rx_ofdm_ht = &stats->rx.ofdm_ht;
 		rx_cck = &stats->rx.cck;
@@ -384,21 +384,21 @@ static void iwlagn_rx_statistics(struct iwl_priv *priv,
 		le32_add_cpu(&priv->statistics.accum_num_bt_kills,
 			     le32_to_cpu(stats->rx.general.num_bt_kills));
 #endif
-	} else if (len == sizeof(struct iwl_notif_statistics)) {
-		struct iwl_notif_statistics *stats;
+	} else if (len == sizeof(struct iwl_yestif_statistics)) {
+		struct iwl_yestif_statistics *stats;
 		stats = (void *)&pkt->data;
 		flag = &stats->flag;
 		common = &stats->general.common;
-		rx_non_phy = &stats->rx.general;
+		rx_yesn_phy = &stats->rx.general;
 		rx_ofdm = &stats->rx.ofdm;
 		rx_ofdm_ht = &stats->rx.ofdm_ht;
 		rx_cck = &stats->rx.cck;
 		tx = &stats->tx;
 		bt_activity = NULL;
 	} else {
-		WARN_ONCE(1, "len %d doesn't match BT (%zu) or normal (%zu)\n",
-			  len, sizeof(struct iwl_bt_notif_statistics),
-			  sizeof(struct iwl_notif_statistics));
+		WARN_ONCE(1, "len %d doesn't match BT (%zu) or yesrmal (%zu)\n",
+			  len, sizeof(struct iwl_bt_yestif_statistics),
+			  sizeof(struct iwl_yestif_statistics));
 		spin_unlock(&priv->statistics.lock);
 		return;
 	}
@@ -407,14 +407,14 @@ static void iwlagn_rx_statistics(struct iwl_priv *priv,
 		 (*flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
 		 (priv->statistics.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK);
 
-	iwlagn_accumulative_statistics(priv, common, rx_non_phy, rx_ofdm,
+	iwlagn_accumulative_statistics(priv, common, rx_yesn_phy, rx_ofdm,
 				    rx_ofdm_ht, rx_cck, tx, bt_activity);
 
 	iwlagn_recover_from_statistics(priv, rx_ofdm, rx_ofdm_ht, tx, stamp);
 
 	priv->statistics.flag = *flag;
 	memcpy(&priv->statistics.common, common, sizeof(*common));
-	memcpy(&priv->statistics.rx_non_phy, rx_non_phy, sizeof(*rx_non_phy));
+	memcpy(&priv->statistics.rx_yesn_phy, rx_yesn_phy, sizeof(*rx_yesn_phy));
 	memcpy(&priv->statistics.rx_ofdm, rx_ofdm, sizeof(*rx_ofdm));
 	memcpy(&priv->statistics.rx_ofdm_ht, rx_ofdm_ht, sizeof(*rx_ofdm_ht));
 	memcpy(&priv->statistics.rx_cck, rx_cck, sizeof(*rx_cck));
@@ -438,7 +438,7 @@ static void iwlagn_rx_statistics(struct iwl_priv *priv,
 
 	if (unlikely(!test_bit(STATUS_SCANNING, &priv->status)) &&
 	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
-		iwlagn_rx_calc_noise(priv);
+		iwlagn_rx_calc_yesise(priv);
 		queue_work(priv->workqueue, &priv->run_time_calib_work);
 	}
 	if (priv->lib->temperature && change)
@@ -451,7 +451,7 @@ static void iwlagn_rx_reply_statistics(struct iwl_priv *priv,
 				       struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_notif_statistics *stats = (void *)pkt->data;
+	struct iwl_yestif_statistics *stats = (void *)pkt->data;
 
 	if (le32_to_cpu(stats->flag) & UCODE_STATISTICS_CLEAR_MSK) {
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -468,14 +468,14 @@ static void iwlagn_rx_reply_statistics(struct iwl_priv *priv,
 	iwlagn_rx_statistics(priv, rxb);
 }
 
-/* Handle notification from uCode that card's power state is changing
+/* Handle yestification from uCode that card's power state is changing
  * due to software, hardware, or critical temperature RFKILL */
-static void iwlagn_rx_card_state_notif(struct iwl_priv *priv,
+static void iwlagn_rx_card_state_yestif(struct iwl_priv *priv,
 				       struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_card_state_notif *card_state_notif = (void *)pkt->data;
-	u32 flags = le32_to_cpu(card_state_notif->flags);
+	struct iwl_card_state_yestif *card_state_yestif = (void *)pkt->data;
+	u32 flags = le32_to_cpu(card_state_yestif->flags);
 	unsigned long status = priv->status;
 
 	IWL_DEBUG_RF_KILL(priv, "Card state received: HW:%s SW:%s CT:%s\n",
@@ -520,12 +520,12 @@ static void iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 			test_bit(STATUS_RF_KILL_HW, &priv->status));
 }
 
-static void iwlagn_rx_missed_beacon_notif(struct iwl_priv *priv,
+static void iwlagn_rx_missed_beacon_yestif(struct iwl_priv *priv,
 					  struct iwl_rx_cmd_buffer *rxb)
 
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_missed_beacon_notif *missed_beacon = (void *)pkt->data;
+	struct iwl_missed_beacon_yestif *missed_beacon = (void *)pkt->data;
 
 	if (le32_to_cpu(missed_beacon->consecutive_missed_beacons) >
 	    priv->missed_beacon_threshold) {
@@ -554,7 +554,7 @@ static void iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
 }
 
 /*
- * returns non-zero if packet should be dropped
+ * returns yesn-zero if packet should be dropped
  */
 static int iwlagn_set_decrypted_flag(struct iwl_priv *priv,
 				  struct ieee80211_hdr *hdr,
@@ -621,7 +621,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	/* We only process data packets if the interface is open */
 	if (unlikely(!priv->is_open)) {
 		IWL_DEBUG_DROP_LIMIT(priv,
-		    "Dropping packet while interface is not open.\n");
+		    "Dropping packet while interface is yest open.\n");
 		return;
 	}
 
@@ -630,7 +630,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	    iwlagn_set_decrypted_flag(priv, hdr, ampdu_status, stats))
 		return;
 
-	/* Dont use dev_alloc_skb(), we'll have enough headroom once
+	/* Dont use dev_alloc_skb(), we'll have eyesugh headroom once
 	 * ieee80211_hdr pulled.
 	 */
 	skb = alloc_skb(128, GFP_ATOMIC);
@@ -638,8 +638,8 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 		IWL_ERR(priv, "alloc_skb failed\n");
 		return;
 	}
-	/* If frame is small enough to fit in skb->head, pull it completely.
-	 * If not, only pull ieee80211_hdr so that splice() or TCP coalesce
+	/* If frame is small eyesugh to fit in skb->head, pull it completely.
+	 * If yest, only pull ieee80211_hdr so that splice() or TCP coalesce
 	 * are more efficient.
 	 */
 	hdrlen = (len <= skb_tailroom(skb)) ? len : sizeof(*hdr);
@@ -662,12 +662,12 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	* sometimes even after already having transmitted frames for the
 	* association because the new RXON may reset the information.
 	*/
-	if (unlikely(ieee80211_is_beacon(fc) && priv->passive_no_rx)) {
+	if (unlikely(ieee80211_is_beacon(fc) && priv->passive_yes_rx)) {
 		for_each_context(priv, ctx) {
 			if (!ether_addr_equal(hdr->addr3,
 					      ctx->active.bssid_addr))
 				continue;
-			iwlagn_lift_passive_no_rx(priv);
+			iwlagn_lift_passive_yes_rx(priv);
 		}
 	}
 
@@ -687,17 +687,17 @@ static u32 iwlagn_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)
 
 	decrypt_out |= (decrypt_in & RX_RES_STATUS_SEC_TYPE_MSK);
 
-	/* packet was not encrypted */
+	/* packet was yest encrypted */
 	if ((decrypt_in & RX_RES_STATUS_SEC_TYPE_MSK) ==
 					RX_RES_STATUS_SEC_TYPE_NONE)
 		return decrypt_out;
 
-	/* packet was encrypted with unknown alg */
+	/* packet was encrypted with unkyeswn alg */
 	if ((decrypt_in & RX_RES_STATUS_SEC_TYPE_MSK) ==
 					RX_RES_STATUS_SEC_TYPE_ERR)
 		return decrypt_out;
 
-	/* decryption was not done in HW */
+	/* decryption was yest done in HW */
 	if ((decrypt_in & RX_MPDU_RES_STATUS_DEC_DONE_MSK) !=
 					RX_MPDU_RES_STATUS_DEC_DONE_MSK)
 		return decrypt_out;
@@ -740,14 +740,14 @@ static int iwlagn_calc_rssi(struct iwl_priv *priv,
 			     struct iwl_rx_phy_res *rx_resp)
 {
 	/* data from PHY/DSP regarding signal strength, etc.,
-	 *   contents are always there, not configurable by host
+	 *   contents are always there, yest configurable by host
 	 */
-	struct iwlagn_non_cfg_phy *ncphy =
-		(struct iwlagn_non_cfg_phy *)rx_resp->non_cfg_phy_buf;
+	struct iwlagn_yesn_cfg_phy *ncphy =
+		(struct iwlagn_yesn_cfg_phy *)rx_resp->yesn_cfg_phy_buf;
 	u32 val, rssi_a, rssi_b, rssi_c, max_rssi;
 	u8 agc;
 
-	val  = le32_to_cpu(ncphy->non_cfg_phy[IWLAGN_RX_RES_AGC_IDX]);
+	val  = le32_to_cpu(ncphy->yesn_cfg_phy[IWLAGN_RX_RES_AGC_IDX]);
 	agc = (val & IWLAGN_OFDM_AGC_MSK) >> IWLAGN_OFDM_AGC_BIT_POS;
 
 	/* Find max rssi among 3 possible receivers.
@@ -756,12 +756,12 @@ static int iwlagn_calc_rssi(struct iwl_priv *priv,
 	 *   if the radio's automatic gain control (AGC) is working right.
 	 * AGC value (see below) will provide the "interesting" info.
 	 */
-	val = le32_to_cpu(ncphy->non_cfg_phy[IWLAGN_RX_RES_RSSI_AB_IDX]);
+	val = le32_to_cpu(ncphy->yesn_cfg_phy[IWLAGN_RX_RES_RSSI_AB_IDX]);
 	rssi_a = (val & IWLAGN_OFDM_RSSI_INBAND_A_BITMSK) >>
 		IWLAGN_OFDM_RSSI_A_BIT_POS;
 	rssi_b = (val & IWLAGN_OFDM_RSSI_INBAND_B_BITMSK) >>
 		IWLAGN_OFDM_RSSI_B_BIT_POS;
-	val = le32_to_cpu(ncphy->non_cfg_phy[IWLAGN_RX_RES_RSSI_C_IDX]);
+	val = le32_to_cpu(ncphy->yesn_cfg_phy[IWLAGN_RX_RES_RSSI_C_IDX]);
 	rssi_c = (val & IWLAGN_OFDM_RSSI_INBAND_C_BITMSK) >>
 		IWLAGN_OFDM_RSSI_C_BIT_POS;
 
@@ -864,7 +864,7 @@ static void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 
 	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_AGG_MSK) {
 		/*
-		 * We know which subframes of an A-MPDU belong
+		 * We kyesw which subframes of an A-MPDU belong
 		 * together since we get a single PHY response
 		 * from the firmware for all of them
 		 */
@@ -888,18 +888,18 @@ static void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 				    rxb, &rx_status);
 }
 
-static void iwlagn_rx_noa_notification(struct iwl_priv *priv,
+static void iwlagn_rx_yesa_yestification(struct iwl_priv *priv,
 				       struct iwl_rx_cmd_buffer *rxb)
 {
-	struct iwl_wipan_noa_data *new_data, *old_data;
+	struct iwl_wipan_yesa_data *new_data, *old_data;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_wipan_noa_notification *noa_notif = (void *)pkt->data;
+	struct iwl_wipan_yesa_yestification *yesa_yestif = (void *)pkt->data;
 
-	/* no condition -- we're in softirq */
-	old_data = rcu_dereference_protected(priv->noa_data, true);
+	/* yes condition -- we're in softirq */
+	old_data = rcu_dereference_protected(priv->yesa_data, true);
 
-	if (noa_notif->noa_active) {
-		u32 len = le16_to_cpu(noa_notif->noa_attribute.length);
+	if (yesa_yestif->yesa_active) {
+		u32 len = le16_to_cpu(yesa_yestif->yesa_attribute.length);
 		u32 copylen = len;
 
 		/* EID, len, OUI, subtype */
@@ -912,18 +912,18 @@ static void iwlagn_rx_noa_notification(struct iwl_priv *priv,
 		if (new_data) {
 			new_data->length = len;
 			new_data->data[0] = WLAN_EID_VENDOR_SPECIFIC;
-			new_data->data[1] = len - 2; /* not counting EID, len */
+			new_data->data[1] = len - 2; /* yest counting EID, len */
 			new_data->data[2] = (WLAN_OUI_WFA >> 16) & 0xff;
 			new_data->data[3] = (WLAN_OUI_WFA >> 8) & 0xff;
 			new_data->data[4] = (WLAN_OUI_WFA >> 0) & 0xff;
 			new_data->data[5] = WLAN_OUI_TYPE_WFA_P2P;
-			memcpy(&new_data->data[6], &noa_notif->noa_attribute,
+			memcpy(&new_data->data[6], &yesa_yestif->yesa_attribute,
 			       copylen);
 		}
 	} else
 		new_data = NULL;
 
-	rcu_assign_pointer(priv->noa_data, new_data);
+	rcu_assign_pointer(priv->yesa_data, new_data);
 
 	if (old_data)
 		kfree_rcu(old_data, rcu_head);
@@ -944,28 +944,28 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	handlers[REPLY_ERROR]			= iwlagn_rx_reply_error;
 	handlers[CHANNEL_SWITCH_NOTIFICATION]	= iwlagn_rx_csa;
 	handlers[SPECTRUM_MEASURE_NOTIFICATION]	=
-		iwlagn_rx_spectrum_measure_notif;
-	handlers[PM_SLEEP_NOTIFICATION]		= iwlagn_rx_pm_sleep_notif;
+		iwlagn_rx_spectrum_measure_yestif;
+	handlers[PM_SLEEP_NOTIFICATION]		= iwlagn_rx_pm_sleep_yestif;
 	handlers[PM_DEBUG_STATISTIC_NOTIFIC]	=
-		iwlagn_rx_pm_debug_statistics_notif;
-	handlers[BEACON_NOTIFICATION]		= iwlagn_rx_beacon_notif;
+		iwlagn_rx_pm_debug_statistics_yestif;
+	handlers[BEACON_NOTIFICATION]		= iwlagn_rx_beacon_yestif;
 	handlers[REPLY_ADD_STA]			= iwl_add_sta_callback;
 
-	handlers[REPLY_WIPAN_NOA_NOTIFICATION]	= iwlagn_rx_noa_notification;
+	handlers[REPLY_WIPAN_NOA_NOTIFICATION]	= iwlagn_rx_yesa_yestification;
 
 	/*
 	 * The same handler is used for both the REPLY to a discrete
 	 * statistics request from the host as well as for the periodic
-	 * statistics notifications (after received beacons) from the uCode.
+	 * statistics yestifications (after received beacons) from the uCode.
 	 */
 	handlers[REPLY_STATISTICS_CMD]		= iwlagn_rx_reply_statistics;
 	handlers[STATISTICS_NOTIFICATION]	= iwlagn_rx_statistics;
 
 	iwl_setup_rx_scan_handlers(priv);
 
-	handlers[CARD_STATE_NOTIFICATION]	= iwlagn_rx_card_state_notif;
+	handlers[CARD_STATE_NOTIFICATION]	= iwlagn_rx_card_state_yestif;
 	handlers[MISSED_BEACONS_NOTIFICATION]	=
-		iwlagn_rx_missed_beacon_notif;
+		iwlagn_rx_missed_beacon_yestif;
 
 	/* Rx handlers */
 	handlers[REPLY_RX_PHY_CMD]		= iwlagn_rx_reply_rx_phy;
@@ -977,8 +977,8 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 
 	priv->rx_handlers[REPLY_TX] = iwlagn_rx_reply_tx;
 
-	/* set up notification wait support */
-	iwl_notification_wait_init(&priv->notif_wait);
+	/* set up yestification wait support */
+	iwl_yestification_wait_init(&priv->yestif_wait);
 
 	/* Set up BT Rx handlers */
 	if (priv->lib->bt_params)
@@ -992,13 +992,13 @@ void iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
 	/*
-	 * Do the notification wait before RX handlers so
+	 * Do the yestification wait before RX handlers so
 	 * even if the RX handler consumes the RXB we have
-	 * access to it in the notification wait entry.
+	 * access to it in the yestification wait entry.
 	 */
-	iwl_notification_wait_notify(&priv->notif_wait, pkt);
+	iwl_yestification_wait_yestify(&priv->yestif_wait, pkt);
 
-	/* Based on type of command response or notification,
+	/* Based on type of command response or yestification,
 	 *   handle those that need handling via function in
 	 *   rx_handlers table.  See iwl_setup_rx_handlers() */
 	if (priv->rx_handlers[pkt->hdr.cmd]) {

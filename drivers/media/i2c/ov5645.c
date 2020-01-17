@@ -31,7 +31,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 
 #define OV5645_SYSTEM_CTRL0		0x3008
@@ -89,7 +89,7 @@ struct ov5645 {
 	struct device *dev;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	struct v4l2_fwnode_endpoint ep;
+	struct v4l2_fwyesde_endpoint ep;
 	struct v4l2_mbus_framefmt fmt;
 	struct v4l2_rect crop;
 	struct clk *xclk;
@@ -690,7 +690,7 @@ static int ov5645_s_power(struct v4l2_subdev *sd, int on)
 					ARRAY_SIZE(ov5645_global_init_setting));
 			if (ret < 0) {
 				dev_err(ov5645->dev,
-					"could not set init registers\n");
+					"could yest set init registers\n");
 				ov5645_set_power_off(ov5645);
 				goto exit;
 			}
@@ -993,14 +993,14 @@ static int ov5645_s_stream(struct v4l2_subdev *subdev, int enable)
 					ov5645->current_mode->data,
 					ov5645->current_mode->data_size);
 		if (ret < 0) {
-			dev_err(ov5645->dev, "could not set mode %dx%d\n",
+			dev_err(ov5645->dev, "could yest set mode %dx%d\n",
 				ov5645->current_mode->width,
 				ov5645->current_mode->height);
 			return ret;
 		}
 		ret = v4l2_ctrl_handler_setup(&ov5645->ctrls);
 		if (ret < 0) {
-			dev_err(ov5645->dev, "could not sync v4l2 controls\n");
+			dev_err(ov5645->dev, "could yest sync v4l2 controls\n");
 			return ret;
 		}
 
@@ -1052,7 +1052,7 @@ static const struct v4l2_subdev_ops ov5645_subdev_ops = {
 static int ov5645_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct device_node *endpoint;
+	struct device_yesde *endpoint;
 	struct ov5645 *ov5645;
 	u8 chip_id_high, chip_id_low;
 	unsigned int i;
@@ -1066,19 +1066,19 @@ static int ov5645_probe(struct i2c_client *client)
 	ov5645->i2c_client = client;
 	ov5645->dev = dev;
 
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	endpoint = of_graph_get_next_endpoint(dev->of_yesde, NULL);
 	if (!endpoint) {
-		dev_err(dev, "endpoint node not found\n");
+		dev_err(dev, "endpoint yesde yest found\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
+	ret = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(endpoint),
 					 &ov5645->ep);
 
-	of_node_put(endpoint);
+	of_yesde_put(endpoint);
 
 	if (ret < 0) {
-		dev_err(dev, "parsing endpoint node failed\n");
+		dev_err(dev, "parsing endpoint yesde failed\n");
 		return ret;
 	}
 
@@ -1090,26 +1090,26 @@ static int ov5645_probe(struct i2c_client *client)
 	/* get system clock (xclk) */
 	ov5645->xclk = devm_clk_get(dev, "xclk");
 	if (IS_ERR(ov5645->xclk)) {
-		dev_err(dev, "could not get xclk");
+		dev_err(dev, "could yest get xclk");
 		return PTR_ERR(ov5645->xclk);
 	}
 
-	ret = of_property_read_u32(dev->of_node, "clock-frequency", &xclk_freq);
+	ret = of_property_read_u32(dev->of_yesde, "clock-frequency", &xclk_freq);
 	if (ret) {
-		dev_err(dev, "could not get xclk frequency\n");
+		dev_err(dev, "could yest get xclk frequency\n");
 		return ret;
 	}
 
 	/* external clock must be 24MHz, allow 1% tolerance */
 	if (xclk_freq < 23760000 || xclk_freq > 24240000) {
-		dev_err(dev, "external clock frequency %u is not supported\n",
+		dev_err(dev, "external clock frequency %u is yest supported\n",
 			xclk_freq);
 		return -EINVAL;
 	}
 
 	ret = clk_set_rate(ov5645->xclk, xclk_freq);
 	if (ret) {
-		dev_err(dev, "could not set xclk frequency\n");
+		dev_err(dev, "could yest set xclk frequency\n");
 		return ret;
 	}
 
@@ -1123,13 +1123,13 @@ static int ov5645_probe(struct i2c_client *client)
 
 	ov5645->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(ov5645->enable_gpio)) {
-		dev_err(dev, "cannot get enable gpio\n");
+		dev_err(dev, "canyest get enable gpio\n");
 		return PTR_ERR(ov5645->enable_gpio);
 	}
 
 	ov5645->rst_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ov5645->rst_gpio)) {
-		dev_err(dev, "cannot get reset gpio\n");
+		dev_err(dev, "canyest get reset gpio\n");
 		return PTR_ERR(ov5645->rst_gpio);
 	}
 
@@ -1182,25 +1182,25 @@ static int ov5645_probe(struct i2c_client *client)
 
 	ret = media_entity_pads_init(&ov5645->sd.entity, 1, &ov5645->pad);
 	if (ret < 0) {
-		dev_err(dev, "could not register media entity\n");
+		dev_err(dev, "could yest register media entity\n");
 		goto free_ctrl;
 	}
 
 	ret = ov5645_s_power(&ov5645->sd, true);
 	if (ret < 0) {
-		dev_err(dev, "could not power up OV5645\n");
+		dev_err(dev, "could yest power up OV5645\n");
 		goto free_entity;
 	}
 
 	ret = ov5645_read_reg(ov5645, OV5645_CHIP_ID_HIGH, &chip_id_high);
 	if (ret < 0 || chip_id_high != OV5645_CHIP_ID_HIGH_BYTE) {
-		dev_err(dev, "could not read ID high\n");
+		dev_err(dev, "could yest read ID high\n");
 		ret = -ENODEV;
 		goto power_down;
 	}
 	ret = ov5645_read_reg(ov5645, OV5645_CHIP_ID_LOW, &chip_id_low);
 	if (ret < 0 || chip_id_low != OV5645_CHIP_ID_LOW_BYTE) {
-		dev_err(dev, "could not read ID low\n");
+		dev_err(dev, "could yest read ID low\n");
 		ret = -ENODEV;
 		goto power_down;
 	}
@@ -1210,7 +1210,7 @@ static int ov5645_probe(struct i2c_client *client)
 	ret = ov5645_read_reg(ov5645, OV5645_AEC_PK_MANUAL,
 			      &ov5645->aec_pk_manual);
 	if (ret < 0) {
-		dev_err(dev, "could not read AEC/AGC mode\n");
+		dev_err(dev, "could yest read AEC/AGC mode\n");
 		ret = -ENODEV;
 		goto power_down;
 	}
@@ -1218,7 +1218,7 @@ static int ov5645_probe(struct i2c_client *client)
 	ret = ov5645_read_reg(ov5645, OV5645_TIMING_TC_REG20,
 			      &ov5645->timing_tc_reg20);
 	if (ret < 0) {
-		dev_err(dev, "could not read vflip value\n");
+		dev_err(dev, "could yest read vflip value\n");
 		ret = -ENODEV;
 		goto power_down;
 	}
@@ -1226,7 +1226,7 @@ static int ov5645_probe(struct i2c_client *client)
 	ret = ov5645_read_reg(ov5645, OV5645_TIMING_TC_REG21,
 			      &ov5645->timing_tc_reg21);
 	if (ret < 0) {
-		dev_err(dev, "could not read hflip value\n");
+		dev_err(dev, "could yest read hflip value\n");
 		ret = -ENODEV;
 		goto power_down;
 	}
@@ -1235,7 +1235,7 @@ static int ov5645_probe(struct i2c_client *client)
 
 	ret = v4l2_async_register_subdev(&ov5645->sd);
 	if (ret < 0) {
-		dev_err(dev, "could not register v4l2 device\n");
+		dev_err(dev, "could yest register v4l2 device\n");
 		goto free_entity;
 	}
 

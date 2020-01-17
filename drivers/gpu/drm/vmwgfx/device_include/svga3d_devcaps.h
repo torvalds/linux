@@ -10,7 +10,7 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright yestice and this permission yestice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -45,12 +45,12 @@
  *   The hardware version is stored in the SVGA_FIFO_3D_HWVERSION fifo
  *   register.   Is set by the host and read by the guest.  This lets
  *   us make new guest drivers which are backwards-compatible with old
- *   SVGA hardware revisions.  It does not let us support old guest
- *   drivers.  Good enough for now.
+ *   SVGA hardware revisions.  It does yest let us support old guest
+ *   drivers.  Good eyesugh for yesw.
  *
  */
 
-#define SVGA3D_MAKE_HWVERSION(major, minor)      (((major) << 16) | ((minor) & 0xFF))
+#define SVGA3D_MAKE_HWVERSION(major, miyesr)      (((major) << 16) | ((miyesr) & 0xFF))
 #define SVGA3D_MAJOR_HWVERSION(version)          ((version) >> 16)
 #define SVGA3D_MINOR_HWVERSION(version)          ((version) & 0xFF)
 
@@ -154,7 +154,7 @@ typedef enum {
 
    /*
     * Note that MAX_SIMULTANEOUS_RENDER_TARGETS is a maximum count of color
-    * render targets.  This does not include the depth or stencil targets.
+    * render targets.  This does yest include the depth or stencil targets.
     */
    SVGA3D_DEVCAP_MAX_SIMULTANEOUS_RENDER_TARGETS   = 64,
 
@@ -246,7 +246,7 @@ typedef enum {
     * that can be expected to work correctly with a DXContext?
     *
     * The guest is allowed to set up to SVGA3D_DX_MAX_VERTEXBUFFERS, but
-    * anything in excess of this cap is not guaranteed to render correctly.
+    * anything in excess of this cap is yest guaranteed to render correctly.
     *
     * Similarly, the guest can set up to SVGA3D_DX_MAX_VERTEXINPUTREGISTERS
     * input registers without the SVGA3D_DEVCAP_SM4_1 cap, or
@@ -265,7 +265,7 @@ typedef enum {
     * work correctly with a DX context?
     *
     * The guest is allowed to set up to SVGA3D_DX_MAX_CONSTBUFFERS, but
-    * anything in excess of this cap is not guaranteed to render correctly.
+    * anything in excess of this cap is yest guaranteed to render correctly.
     *
     * If guest-drivers are able to expose a lower-limit, it's recommended
     * that they clamp to this value.  Otherwise, the host will make a

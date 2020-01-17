@@ -3,7 +3,7 @@
  * This is <linux/capability.h>
  *
  * Andrew G. Morgan <morgan@kernel.org>
- * Alexander Kjeldaas <astor@guardian.no>
+ * Alexander Kjeldaas <astor@guardian.yes>
  * with help from Aleph1, Roland Buresund and Andrew Main.
  *
  * See here for the libcap library ("POSIX draft" compliance):
@@ -38,7 +38,7 @@ struct cpu_vfs_cap_data {
 
 
 struct file;
-struct inode;
+struct iyesde;
 struct dentry;
 struct task_struct;
 struct user_namespace;
@@ -160,7 +160,7 @@ static inline bool cap_isclear(const kernel_cap_t a)
  * Check if "a" is a subset of "set".
  * return true if ALL of the capabilities in "a" are also in "set"
  *	cap_issubset(0101, 1111) will return true
- * return false if ANY of the capabilities in "a" are not in "set"
+ * return false if ANY of the capabilities in "a" are yest in "set"
  *	cap_issubset(1111, 0101) will return false
  */
 static inline bool cap_issubset(const kernel_cap_t a, const kernel_cap_t set)
@@ -204,12 +204,12 @@ static inline kernel_cap_t cap_raise_nfsd_set(const kernel_cap_t a,
 extern bool has_capability(struct task_struct *t, int cap);
 extern bool has_ns_capability(struct task_struct *t,
 			      struct user_namespace *ns, int cap);
-extern bool has_capability_noaudit(struct task_struct *t, int cap);
-extern bool has_ns_capability_noaudit(struct task_struct *t,
+extern bool has_capability_yesaudit(struct task_struct *t, int cap);
+extern bool has_ns_capability_yesaudit(struct task_struct *t,
 				      struct user_namespace *ns, int cap);
 extern bool capable(int cap);
 extern bool ns_capable(struct user_namespace *ns, int cap);
-extern bool ns_capable_noaudit(struct user_namespace *ns, int cap);
+extern bool ns_capable_yesaudit(struct user_namespace *ns, int cap);
 extern bool ns_capable_setid(struct user_namespace *ns, int cap);
 #else
 static inline bool has_capability(struct task_struct *t, int cap)
@@ -221,11 +221,11 @@ static inline bool has_ns_capability(struct task_struct *t,
 {
 	return true;
 }
-static inline bool has_capability_noaudit(struct task_struct *t, int cap)
+static inline bool has_capability_yesaudit(struct task_struct *t, int cap)
 {
 	return true;
 }
-static inline bool has_ns_capability_noaudit(struct task_struct *t,
+static inline bool has_ns_capability_yesaudit(struct task_struct *t,
 				      struct user_namespace *ns, int cap)
 {
 	return true;
@@ -238,7 +238,7 @@ static inline bool ns_capable(struct user_namespace *ns, int cap)
 {
 	return true;
 }
-static inline bool ns_capable_noaudit(struct user_namespace *ns, int cap)
+static inline bool ns_capable_yesaudit(struct user_namespace *ns, int cap)
 {
 	return true;
 }
@@ -247,8 +247,8 @@ static inline bool ns_capable_setid(struct user_namespace *ns, int cap)
 	return true;
 }
 #endif /* CONFIG_MULTIUSER */
-extern bool privileged_wrt_inode_uidgid(struct user_namespace *ns, const struct inode *inode);
-extern bool capable_wrt_inode_uidgid(const struct inode *inode, int cap);
+extern bool privileged_wrt_iyesde_uidgid(struct user_namespace *ns, const struct iyesde *iyesde);
+extern bool capable_wrt_iyesde_uidgid(const struct iyesde *iyesde, int cap);
 extern bool file_ns_capable(const struct file *file, struct user_namespace *ns, int cap);
 extern bool ptracer_capable(struct task_struct *tsk, struct user_namespace *ns);
 

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-noarg:
+yesarg:
 	$(MAKE) -C ../
 
 TEST_GEN_PROGS := hugetlb_vs_thp_test subpage_prot prot_sao segv_errors wild_bctr \

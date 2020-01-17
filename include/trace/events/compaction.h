@@ -83,7 +83,7 @@ TRACE_EVENT(mm_compaction_migratepages,
 		struct list_head *page_lru;
 
 		/*
-		 * migrate_pages() returns either a non-negative number
+		 * migrate_pages() returns either a yesn-negative number
 		 * with the number of pages that failed migration, or an
 		 * error code, in which case we need to count the remaining
 		 * pages manually
@@ -216,7 +216,7 @@ DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
 		__entry->ret = ret;
 	),
 
-	TP_printk("node=%d zone=%-8s order=%d ret=%s",
+	TP_printk("yesde=%d zone=%-8s order=%d ret=%s",
 		__entry->nid,
 		__print_symbolic(__entry->idx, ZONE_TYPE),
 		__entry->order,
@@ -265,7 +265,7 @@ DECLARE_EVENT_CLASS(mm_compaction_defer_template,
 		__entry->order_failed = zone->compact_order_failed;
 	),
 
-	TP_printk("node=%d zone=%-8s order=%d order_failed=%d consider=%u limit=%lu",
+	TP_printk("yesde=%d zone=%-8s order=%d order_failed=%d consider=%u limit=%lu",
 		__entry->nid,
 		__print_symbolic(__entry->idx, ZONE_TYPE),
 		__entry->order,

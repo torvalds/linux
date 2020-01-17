@@ -161,7 +161,7 @@ static int brcmstb_get_temp(void *data, int *temp)
 	val = __raw_readl(priv->tmon_base + AVS_TMON_STATUS);
 
 	if (!(val & AVS_TMON_STATUS_valid_msk)) {
-		dev_err(priv->dev, "reading not valid\n");
+		dev_err(priv->dev, "reading yest valid\n");
 		return -EIO;
 	}
 
@@ -324,7 +324,7 @@ static int brcmstb_thermal_probe(struct platform_device *pdev)
 						       &of_ops);
 	if (IS_ERR(thermal)) {
 		ret = PTR_ERR(thermal);
-		dev_err(&pdev->dev, "could not register sensor: %d\n", ret);
+		dev_err(&pdev->dev, "could yest register sensor: %d\n", ret);
 		return ret;
 	}
 
@@ -332,14 +332,14 @@ static int brcmstb_thermal_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "could not get IRQ\n");
+		dev_err(&pdev->dev, "could yest get IRQ\n");
 		return irq;
 	}
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					brcmstb_tmon_irq_thread, IRQF_ONESHOT,
 					DRV_NAME, priv);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not request IRQ: %d\n", ret);
+		dev_err(&pdev->dev, "could yest request IRQ: %d\n", ret);
 		return ret;
 	}
 

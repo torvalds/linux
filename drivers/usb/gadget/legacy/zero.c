@@ -8,7 +8,7 @@
 
 /*
  * Gadget Zero only needs two bulk endpoints, and is an example of how you
- * can write a hardware-agnostic gadget driver running inside a USB device.
+ * can write a hardware-agyesstic gadget driver running inside a USB device.
  * Some hardware details are visible, but don't affect most of the driver.
  *
  * Use it with the Linux host/master side "usbtest" driver to get a basic
@@ -30,7 +30,7 @@
 
 /*
  * driver assumes self-powered hardware, and
- * has no way for users to trigger remote wakeup.
+ * has yes way for users to trigger remote wakeup.
  */
 
 /* #define VERBOSE_DEBUG */
@@ -52,7 +52,7 @@ static const char longname[] = "Gadget Zero";
 
 /*
  * Normally the "loopback" configuration is second (index 1) so
- * it's not the default.  Here's where to change that order, to
+ * it's yest the default.  Here's where to change that order, to
  * work better with hosts where config changes are problematic or
  * controllers (like original superh) that only support one config.
  */
@@ -70,10 +70,10 @@ static struct usb_zero_options gzero_options = {
 
 /*-------------------------------------------------------------------------*/
 
-/* Thanks to NetChip Technologies for donating this product ID.
+/* Thanks to NetChip Techyeslogies for donating this product ID.
  *
  * DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+ * Instead:  allocate your own, using yesrmal USB-IF procedures.
  */
 #ifndef	CONFIG_USB_ZERO_HNPTEST
 #define DRIVER_VENDOR_NUM	0x0525		/* NetChip */
@@ -231,7 +231,7 @@ static struct usb_configuration sourcesink_driver = {
 
 module_param_named(buflen, gzero_options.bulk_buflen, uint, 0);
 module_param_named(pattern, gzero_options.pattern, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(pattern, "0 = all zeroes, 1 = mod63, 2 = none");
+MODULE_PARM_DESC(pattern, "0 = all zeroes, 1 = mod63, 2 = yesne");
 
 module_param_named(isoc_interval, gzero_options.isoc_interval, uint,
 		S_IRUGO|S_IWUSR);
@@ -268,7 +268,7 @@ static int zero_bind(struct usb_composite_dev *cdev)
 	struct f_lb_opts	*lb_opts;
 	int			status;
 
-	/* Allocate string descriptor numbers ... note that string
+	/* Allocate string descriptor numbers ... yeste that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
 	status = usb_string_ids_tab(cdev, strings_dev);

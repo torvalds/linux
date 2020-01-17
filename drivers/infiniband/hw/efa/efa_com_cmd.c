@@ -75,7 +75,7 @@ int efa_com_modify_qp(struct efa_com_dev *edev,
 	cmd.cur_qp_state = params->cur_qp_state;
 	cmd.qkey = params->qkey;
 	cmd.sq_psn = params->sq_psn;
-	cmd.sq_drained_async_notify = params->sq_drained_async_notify;
+	cmd.sq_drained_async_yestify = params->sq_drained_async_yestify;
 
 	err = efa_com_cmd_exec(aq,
 			       (struct efa_admin_aq_entry *)&cmd,

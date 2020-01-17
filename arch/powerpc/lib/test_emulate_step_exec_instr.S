@@ -9,7 +9,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/ppc_asm.h>
 #include <asm/code-patching-asm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 /* int exec_instr(struct pt_regs *regs) */
 _GLOBAL(exec_instr)
@@ -22,20 +22,20 @@ _GLOBAL(exec_instr)
 	 */
 
 	/*
-	 * Allocate a new stack frame with enough space to hold the register
+	 * Allocate a new stack frame with eyesugh space to hold the register
 	 * states in an in-memory pt_regs and also create the back chain to
 	 * the caller's stack frame.
 	 */
 	stdu	r1, -INT_FRAME_SIZE(r1)
 
 	/*
-	 * Save non-volatile GPRs on stack. This includes TOC pointer (GPR2)
+	 * Save yesn-volatile GPRs on stack. This includes TOC pointer (GPR2)
 	 * and local variables (GPR14 to GPR31). The register for the pt_regs
 	 * parameter (GPR3) is saved additionally to ensure that the resulting
 	 * register state can still be saved even if GPR3 gets overwritten
 	 * when loading the initial register state for the test instruction.
-	 * The stack pointer (GPR1) and the thread pointer (GPR13) are not
-	 * saved as these should not be modified anyway.
+	 * The stack pointer (GPR1) and the thread pointer (GPR13) are yest
+	 * saved as these should yest be modified anyway.
 	 */
 	SAVE_2GPRS(2, r1)
 	SAVE_NVGPRS(r1)
@@ -49,14 +49,14 @@ _GLOBAL(exec_instr)
 
 	/*
 	 * Save CR on stack. For simplicity, the entire register is saved
-	 * even though only fields 2 to 4 are non-volatile.
+	 * even though only fields 2 to 4 are yesn-volatile.
 	 */
 	mfcr	r0
 	std	r0, _CCR(r1)
 
 	/*
 	 * Load register state for the test instruction without touching the
-	 * critical non-volatile registers. The register state is passed as a
+	 * critical yesn-volatile registers. The register state is passed as a
 	 * pointer to a pt_regs instance.
 	 */
 	subi	r31, r3, GPR0
@@ -80,7 +80,7 @@ _GLOBAL(exec_instr)
 	REST_NVGPRS(r31)
 
 	/* Placeholder for the test instruction */
-1:	nop
+1:	yesp
 	patch_site 1b patch__exec_instr
 
 	/*
@@ -117,16 +117,16 @@ _GLOBAL(exec_instr)
 	ld	r0, 8(r1)
 	std	r0, GPR3(r3)
 
-	/* Set return value to denote execution success */
+	/* Set return value to deyeste execution success */
 	li	r3, 0
 
 	/* Continue */
 	b	3f
 
-	/* Set return value to denote execution failure */
+	/* Set return value to deyeste execution failure */
 2:	li	r3, -EFAULT
 
-	/* Restore the non-volatile GPRs from stack */
+	/* Restore the yesn-volatile GPRs from stack */
 3:	REST_GPR(2, r1)
 	REST_NVGPRS(r1)
 

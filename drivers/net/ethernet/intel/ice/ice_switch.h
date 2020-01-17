@@ -30,7 +30,7 @@ struct ice_vsi_ctx {
 
 enum ice_sw_fwd_act_type {
 	ICE_FWD_TO_VSI = 0,
-	ICE_FWD_TO_VSI_LIST, /* Do not use this when adding filter */
+	ICE_FWD_TO_VSI_LIST, /* Do yest use this when adding filter */
 	ICE_FWD_TO_Q,
 	ICE_FWD_TO_QGRP,
 	ICE_DROP_PACKET,

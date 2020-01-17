@@ -164,7 +164,7 @@ static int zx_spdif_hw_params(struct snd_pcm_substream *substream,
 		val |= ZX_CTRL_MODA_24;
 		break;
 	default:
-		dev_err(socdai->dev, "Format not support!\n");
+		dev_err(socdai->dev, "Format yest support!\n");
 		return -EINVAL;
 	}
 

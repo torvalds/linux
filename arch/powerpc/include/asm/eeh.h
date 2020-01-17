@@ -78,7 +78,7 @@ struct eeh_pe {
 	int addr;			/* PE configuration address	*/
 	struct pci_controller *phb;	/* Associated PHB		*/
 	struct pci_bus *bus;		/* Top PCI bus for bus PE	*/
-	int check_count;		/* Times of ignored error	*/
+	int check_count;		/* Times of igyesred error	*/
 	int freeze_count;		/* Times of froze up		*/
 	time64_t tstamp;		/* Time on first-time freeze	*/
 	int false_positives;		/* Times of reported #ff's	*/
@@ -96,7 +96,7 @@ struct eeh_pe {
 	 * thread if it turns out to due to a real problem rather than
 	 * a hot-remove.
 	 *
-	 * A max of 64 entries might be overkill, but it also might not be.
+	 * A max of 64 entries might be overkill, but it also might yest be.
 	 */
 	unsigned long stack_trace[64];
 	int trace_entries;
@@ -116,9 +116,9 @@ static inline bool eeh_pe_passed(struct eeh_pe *pe)
 
 /*
  * The struct is used to trace EEH state for the associated
- * PCI device node or PCI device. In future, it might
+ * PCI device yesde or PCI device. In future, it might
  * represent PE as well so that the EEH device to form
- * another tree except the currently existing tree of PCI
+ * ayesther tree except the currently existing tree of PCI
  * buses and PCI devices
  */
 #define EEH_DEV_BRIDGE		(1 << 0)	/* PCI bridge		*/
@@ -145,7 +145,7 @@ struct eeh_dev {
 	struct eeh_pe *pe;		/* Associated PE		*/
 	struct list_head entry;		/* Membership in eeh_pe.edevs	*/
 	struct list_head rmv_entry;	/* Membership in rmv_list	*/
-	struct pci_dn *pdn;		/* Associated PCI device node	*/
+	struct pci_dn *pdn;		/* Associated PCI device yesde	*/
 	struct pci_dev *pdev;		/* Associated PCI device	*/
 	bool in_error;			/* Error flag for edev		*/
 	struct pci_dev *physfn;		/* Associated SRIOV PF		*/
@@ -200,7 +200,7 @@ enum {
 #define EEH_OPT_THAW_DMA	3	/* DMA enable	*/
 #define EEH_OPT_FREEZE_PE	4	/* Freeze PE	*/
 #define EEH_STATE_UNAVAILABLE	(1 << 0)	/* State unavailable	*/
-#define EEH_STATE_NOT_SUPPORT	(1 << 1)	/* EEH not supported	*/
+#define EEH_STATE_NOT_SUPPORT	(1 << 1)	/* EEH yest supported	*/
 #define EEH_STATE_RESET_ACTIVE	(1 << 2)	/* Active reset		*/
 #define EEH_STATE_MMIO_ACTIVE	(1 << 3)	/* Active MMIO		*/
 #define EEH_STATE_DMA_ACTIVE	(1 << 4)	/* Active DMA		*/
@@ -228,12 +228,12 @@ struct eeh_ops {
 	int (*write_config)(struct pci_dn *pdn, int where, int size, u32 val);
 	int (*next_error)(struct eeh_pe **pe);
 	int (*restore_config)(struct pci_dn *pdn);
-	int (*notify_resume)(struct pci_dn *pdn);
+	int (*yestify_resume)(struct pci_dn *pdn);
 };
 
 extern int eeh_subsystem_flags;
 extern u32 eeh_max_freezes;
-extern bool eeh_debugfs_no_recover;
+extern bool eeh_debugfs_yes_recover;
 extern struct eeh_ops *eeh_ops;
 extern raw_spinlock_t confirm_error_lock;
 
@@ -281,7 +281,7 @@ int eeh_wait_state(struct eeh_pe *pe, int max_wait);
 struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb);
 struct eeh_pe *eeh_pe_next(struct eeh_pe *pe, struct eeh_pe *root);
 struct eeh_pe *eeh_pe_get(struct pci_controller *phb,
-			  int pe_no, int config_addr);
+			  int pe_yes, int config_addr);
 int eeh_add_to_parent_pe(struct eeh_dev *edev);
 int eeh_rmv_from_parent_pe(struct eeh_dev *edev);
 void eeh_pe_update_time_stamp(struct eeh_pe *pe);

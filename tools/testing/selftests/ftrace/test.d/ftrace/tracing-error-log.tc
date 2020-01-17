@@ -10,7 +10,7 @@ fail() { #msg
 # event tracing is currently the only ftrace tracer that uses the
 # tracing error_log, hence this check
 if [ ! -f set_event ]; then
-    echo "event tracing is not supported"
+    echo "event tracing is yest supported"
     exit_unsupported
 fi
 

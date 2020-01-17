@@ -134,7 +134,7 @@ static inline const char *tomoyo_filetype(const umode_t mode)
 	case S_IFCHR:
 		return tomoyo_condition_keyword[TOMOYO_TYPE_IS_CHAR_DEV];
 	}
-	return "unknown"; /* This should not happen. */
+	return "unkyeswn"; /* This should yest happen. */
 }
 
 /**
@@ -166,7 +166,7 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 		       "#%04u/%02u/%02u %02u:%02u:%02u# profile=%u mode=%s granted=%s (global-pid=%u) task={ pid=%u ppid=%u uid=%u gid=%u euid=%u egid=%u suid=%u sgid=%u fsuid=%u fsgid=%u }",
 		       stamp.year, stamp.month, stamp.day, stamp.hour,
 		       stamp.min, stamp.sec, r->profile, tomoyo_mode[r->mode],
-		       tomoyo_yesno(r->granted), gpid, tomoyo_sys_getpid(),
+		       tomoyo_noyes(r->granted), gpid, tomoyo_sys_getpid(),
 		       tomoyo_sys_getppid(),
 		       from_kuid(&init_user_ns, current_uid()),
 		       from_kgid(&init_user_ns, current_gid()),
@@ -177,7 +177,7 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 		       from_kuid(&init_user_ns, current_fsuid()),
 		       from_kgid(&init_user_ns, current_fsgid()));
 	if (!obj)
-		goto no_obj_info;
+		goto yes_obj_info;
 	if (!obj->validate_done) {
 		tomoyo_get_attributes(obj);
 		obj->validate_done = true;
@@ -195,33 +195,33 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 		if (i & 1) {
 			pos += snprintf(buffer + pos,
 					tomoyo_buffer_len - 1 - pos,
-					" path%u.parent={ uid=%u gid=%u ino=%lu perm=0%o }",
+					" path%u.parent={ uid=%u gid=%u iyes=%lu perm=0%o }",
 					(i >> 1) + 1,
 					from_kuid(&init_user_ns, stat->uid),
 					from_kgid(&init_user_ns, stat->gid),
-					(unsigned long)stat->ino,
+					(unsigned long)stat->iyes,
 					stat->mode & S_IALLUGO);
 			continue;
 		}
 		pos += snprintf(buffer + pos, tomoyo_buffer_len - 1 - pos,
-				" path%u={ uid=%u gid=%u ino=%lu major=%u minor=%u perm=0%o type=%s",
+				" path%u={ uid=%u gid=%u iyes=%lu major=%u miyesr=%u perm=0%o type=%s",
 				(i >> 1) + 1,
 				from_kuid(&init_user_ns, stat->uid),
 				from_kgid(&init_user_ns, stat->gid),
-				(unsigned long)stat->ino,
+				(unsigned long)stat->iyes,
 				MAJOR(dev), MINOR(dev),
 				mode & S_IALLUGO, tomoyo_filetype(mode));
 		if (S_ISCHR(mode) || S_ISBLK(mode)) {
 			dev = stat->rdev;
 			pos += snprintf(buffer + pos,
 					tomoyo_buffer_len - 1 - pos,
-					" dev_major=%u dev_minor=%u",
+					" dev_major=%u dev_miyesr=%u",
 					MAJOR(dev), MINOR(dev));
 		}
 		pos += snprintf(buffer + pos, tomoyo_buffer_len - 1 - pos,
 				" }");
 	}
-no_obj_info:
+yes_obj_info:
 	if (pos < tomoyo_buffer_len - 1)
 		return buffer;
 	kfree(buffer);
@@ -360,7 +360,7 @@ static bool tomoyo_get_audit(const struct tomoyo_policy_namespace *ns,
  * @fmt:  The printf()'s format string.
  * @args: va_list structure for @fmt.
  *
- * Returns nothing.
+ * Returns yesthing.
  */
 void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
 		       va_list args)
@@ -414,7 +414,7 @@ out:
  * @r:   Pointer to "struct tomoyo_request_info".
  * @fmt: The printf()'s format string, followed by parameters.
  *
- * Returns nothing.
+ * Returns yesthing.
  */
 void tomoyo_write_log(struct tomoyo_request_info *r, const char *fmt, ...)
 {
@@ -434,7 +434,7 @@ void tomoyo_write_log(struct tomoyo_request_info *r, const char *fmt, ...)
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Returns nothing.
+ * Returns yesthing.
  */
 void tomoyo_read_log(struct tomoyo_io_buffer *head)
 {

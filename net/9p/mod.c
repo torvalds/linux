@@ -12,7 +12,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/moduleparam.h>
 #include <net/9p/9p.h>
@@ -44,9 +44,9 @@ void _p9_debug(enum p9_debug_flags level, const char *func,
 	vaf.va = &args;
 
 	if (level == P9_DEBUG_9P)
-		pr_notice("(%8.8d) %pV", task_pid_nr(current), &vaf);
+		pr_yestice("(%8.8d) %pV", task_pid_nr(current), &vaf);
 	else
-		pr_notice("-- %s (%d): %pV", func, task_pid_nr(current), &vaf);
+		pr_yestice("-- %s (%d): %pV", func, task_pid_nr(current), &vaf);
 
 	va_end(args);
 }

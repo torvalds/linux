@@ -64,9 +64,9 @@
  * so consolidate the bits definition as below:
  *
  * 0b0000 - Sample offset applies based on the instruction state, we
- *          rely on EDDEVID to check if EDPCSR is implemented or not
+ *          rely on EDDEVID to check if EDPCSR is implemented or yest
  * 0b0001 - No offset applies.
- * 0b0010 - No offset applies, but do not use in AArch32 mode
+ * 0b0010 - No offset applies, but do yest use in AArch32 mode
  *
  */
 #define EDDEVID1_PCSR_OFFSET_MASK	GENMASK(3, 0)
@@ -120,13 +120,13 @@ static void debug_os_unlock(struct debug_drvdata *drvdata)
 /*
  * According to ARM DDI 0487A.k, before access external debug
  * registers should firstly check the access permission; if any
- * below condition has been met then cannot access debug
+ * below condition has been met then canyest access debug
  * registers to avoid lockup issue:
  *
  * - CPU power domain is powered off;
  * - The OS Double Lock is locked;
  *
- * By checking EDPRSR can get to know if meet these conditions.
+ * By checking EDPRSR can get to kyesw if meet these conditions.
  */
 static bool debug_access_permitted(struct debug_drvdata *drvdata)
 {
@@ -162,8 +162,8 @@ try_again:
 			drvdata->edprsr, (drvdata->edprsr & EDPRSR_PU),
 			DEBUG_WAIT_SLEEP, DEBUG_WAIT_TIMEOUT)) {
 		/*
-		 * Unfortunately the CPU cannot be powered up, so return
-		 * back and later has no permission to access other
+		 * Unfortunately the CPU canyest be powered up, so return
+		 * back and later has yes permission to access other
 		 * registers. For this case, should disable CPU low power
 		 * states to ensure CPU power domain is enabled!
 		 */
@@ -173,7 +173,7 @@ try_again:
 	}
 
 	/*
-	 * At this point the CPU is powered up, so set the no powerdown
+	 * At this point the CPU is powered up, so set the yes powerdown
 	 * request bit so we don't lose power and emulate power down.
 	 */
 	edprcr = readl_relaxed(drvdata->base + EDPRCR);
@@ -221,7 +221,7 @@ static void debug_read_regs(struct debug_drvdata *drvdata)
 		goto out;
 
 	/*
-	 * A read of the EDPCSR normally has the side-effect of
+	 * A read of the EDPCSR yesrmally has the side-effect of
 	 * indirectly writing to EDCIDSR, EDVIDSR and EDPCSR_HI;
 	 * at this point it's safe to read value from them.
 	 */
@@ -268,9 +268,9 @@ static unsigned long debug_adjust_pc(struct debug_drvdata *drvdata)
 
 	/*
 	 * Handle arm instruction offset, if the arm instruction
-	 * is not 4 byte alignment then it's possible the case
+	 * is yest 4 byte alignment then it's possible the case
 	 * for implementation defined; keep original value for this
-	 * case and print info for notice.
+	 * case and print info for yestice.
 	 */
 	if (pc & BIT(1))
 		dev_emerg(drvdata->dev,
@@ -355,7 +355,7 @@ static void debug_init_arch_data(void *info)
 		 * In ARM DDI 0487A.k, the EDDEVID1.PCSROffset is used to
 		 * define if has the offset for PC sampling value; if read
 		 * back EDDEVID1.PCSROffset == 0x2, then this means the debug
-		 * module does not sample the instruction set state when
+		 * module does yest sample the instruction set state when
 		 * armv8 CPU in AArch32 state.
 		 */
 		drvdata->edpcsr_present =
@@ -373,7 +373,7 @@ static void debug_init_arch_data(void *info)
 /*
  * Dump out information on panic.
  */
-static int debug_notifier_call(struct notifier_block *self,
+static int debug_yestifier_call(struct yestifier_block *self,
 			       unsigned long v, void *p)
 {
 	int cpu;
@@ -403,8 +403,8 @@ skip_dump:
 	return 0;
 }
 
-static struct notifier_block debug_notifier = {
-	.notifier_call = debug_notifier_call,
+static struct yestifier_block debug_yestifier = {
+	.yestifier_call = debug_yestifier_call,
 };
 
 static int debug_enable_func(void)
@@ -440,7 +440,7 @@ err:
 	 */
 	for_each_cpu(cpu, &mask) {
 		drvdata = per_cpu(debug_drvdata, cpu);
-		pm_runtime_put_noidle(drvdata->dev);
+		pm_runtime_put_yesidle(drvdata->dev);
 	}
 
 	return ret;
@@ -469,7 +469,7 @@ static int debug_disable_func(void)
 	return err;
 }
 
-static ssize_t debug_func_knob_write(struct file *f,
+static ssize_t debug_func_kyesb_write(struct file *f,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
 	u8 val;
@@ -503,7 +503,7 @@ err:
 	return ret;
 }
 
-static ssize_t debug_func_knob_read(struct file *f,
+static ssize_t debug_func_kyesb_read(struct file *f,
 		char __user *ubuf, size_t count, loff_t *ppos)
 {
 	ssize_t ret;
@@ -517,26 +517,26 @@ static ssize_t debug_func_knob_read(struct file *f,
 	return ret;
 }
 
-static const struct file_operations debug_func_knob_fops = {
+static const struct file_operations debug_func_kyesb_fops = {
 	.open	= simple_open,
-	.read	= debug_func_knob_read,
-	.write	= debug_func_knob_write,
+	.read	= debug_func_kyesb_read,
+	.write	= debug_func_kyesb_write,
 };
 
 static int debug_func_init(void)
 {
 	int ret;
 
-	/* Create debugfs node */
+	/* Create debugfs yesde */
 	debug_debugfs_dir = debugfs_create_dir("coresight_cpu_debug", NULL);
 	debugfs_create_file("enable", 0644, debug_debugfs_dir, NULL,
-			    &debug_func_knob_fops);
+			    &debug_func_kyesb_fops);
 
 	/* Register function to be called for panic */
-	ret = atomic_notifier_chain_register(&panic_notifier_list,
-					     &debug_notifier);
+	ret = atomic_yestifier_chain_register(&panic_yestifier_list,
+					     &debug_yestifier);
 	if (ret) {
-		pr_err("%s: unable to register notifier: %d\n",
+		pr_err("%s: unable to register yestifier: %d\n",
 		       __func__, ret);
 		goto err;
 	}
@@ -550,8 +550,8 @@ err:
 
 static void debug_func_exit(void)
 {
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-					 &debug_notifier);
+	atomic_yestifier_chain_unregister(&panic_yestifier_list,
+					 &debug_yestifier);
 	debugfs_remove_recursive(debug_debugfs_dir);
 }
 

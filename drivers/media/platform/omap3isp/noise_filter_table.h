@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * noise_filter_table.h
+ * yesise_filter_table.h
  *
  * TI OMAP3 ISP - Noise filter table
  *

@@ -3,7 +3,7 @@
  * Texas Instruments System Control Interface Protocol Driver
  *
  * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
- *	Nishanth Menon
+ *	Nishanth Meyesn
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -73,7 +73,7 @@ struct ti_sci_xfers_info {
  * Note: This is used only as a work around for using RM range apis
  *	for AM654 SoC. For future SoCs dev_id will be used as type
  *	for RM range APIs. In order to maintain ABI backward compatibility
- *	type is not being changed for AM654 SoC.
+ *	type is yest being changed for AM654 SoC.
  */
 struct ti_sci_rm_type_map {
 	u32 dev_id;
@@ -111,13 +111,13 @@ struct ti_sci_desc {
  * @chan_tx:	Transmit mailbox channel
  * @chan_rx:	Receive mailbox channel
  * @minfo:	Message info
- * @node:	list head
+ * @yesde:	list head
  * @host_id:	Host ID
  * @users:	Number of users of this instance
  */
 struct ti_sci_info {
 	struct device *dev;
-	struct notifier_block nb;
+	struct yestifier_block nb;
 	const struct ti_sci_desc *desc;
 	struct dentry *d;
 	void __iomem *debug_region;
@@ -128,7 +128,7 @@ struct ti_sci_info {
 	struct mbox_chan *chan_tx;
 	struct mbox_chan *chan_rx;
 	struct ti_sci_xfers_info minfo;
-	struct list_head node;
+	struct list_head yesde;
 	u8 host_id;
 	/* protected by ti_sci_list_mutex */
 	int users;
@@ -156,7 +156,7 @@ static int ti_sci_debug_show(struct seq_file *s, void *unused)
 		      info->debug_region_size);
 	/*
 	 * We don't trust firmware to leave NULL terminated last byte (hence
-	 * we have allocated 1 extra 0 byte). Since we cannot guarantee any
+	 * we have allocated 1 extra 0 byte). Since we canyest guarantee any
 	 * specific data format for debug messages, We just present the data
 	 * in the buffer as is - we expect the messages to be self explanatory.
 	 */
@@ -274,7 +274,7 @@ static void ti_sci_rx_callback(struct mbox_client *cl, void *m)
 	 * NOTE: barriers were implicit in locks used for modifying the bitmap
 	 */
 	if (!test_bit(xfer_id, minfo->xfer_alloc_table)) {
-		dev_err(dev, "Message for %d is not expected!\n", xfer_id);
+		dev_err(dev, "Message for %d is yest expected!\n", xfer_id);
 		return;
 	}
 
@@ -398,7 +398,7 @@ static void ti_sci_put_one_xfer(struct ti_sci_xfers_info *minfo,
 
 	/*
 	 * Keep the locked section as small as possible
-	 * NOTE: we might escape with smp_mb and no lock here..
+	 * NOTE: we might escape with smp_mb and yes lock here..
 	 * but just be conservative and symmetric.
 	 */
 	spin_lock_irqsave(&minfo->xfer_lock, flags);
@@ -414,7 +414,7 @@ static void ti_sci_put_one_xfer(struct ti_sci_xfers_info *minfo,
  * @info:	Pointer to SCI entity information
  * @xfer:	Transfer to initiate and wait for response
  *
- * Return: -ETIMEDOUT in case of no response, if transmit error,
+ * Return: -ETIMEDOUT in case of yes response, if transmit error,
  *	   return corresponding error, else if all goes well,
  *	   return 0.
  */
@@ -439,7 +439,7 @@ static inline int ti_sci_do_xfer(struct ti_sci_info *info,
 		ret = -ETIMEDOUT;
 	}
 	/*
-	 * NOTE: we might prefer not to need the mailbox ticker to manage the
+	 * NOTE: we might prefer yest to need the mailbox ticker to manage the
 	 * transfer queueing since the protocol layer queues things by itself.
 	 * Unfortunately, we have to kick the mailbox framework after we have
 	 * received our message.
@@ -485,7 +485,7 @@ static int ti_sci_cmd_get_revision(struct ti_sci_info *info)
 	}
 
 	ver->abi_major = rev_info->abi_major;
-	ver->abi_minor = rev_info->abi_minor;
+	ver->abi_miyesr = rev_info->abi_miyesr;
 	ver->firmware_revision = rev_info->firmware_revision;
 	strncpy(ver->firmware_description, rev_info->firmware_description,
 		sizeof(ver->firmware_description));
@@ -1456,12 +1456,12 @@ fail:
  *		Each device has it's own set of clock inputs. This indexes
  *		which clock input to modify.
  * @min_freq:	The minimum allowable frequency in Hz. This is the minimum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does yest account for clock
  *		tolerances and jitter.
  * @target_freq: The target clock frequency in Hz. A frequency will be
  *		processed as close to this target frequency as possible.
  * @max_freq:	The maximum allowable frequency in Hz. This is the maximum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does yest account for clock
  *		tolerances and jitter.
  * @match_freq:	Frequency match in Hz response.
  *
@@ -1534,12 +1534,12 @@ fail:
  *		Each device has it's own set of clock inputs. This indexes
  *		which clock input to modify.
  * @min_freq:	The minimum allowable frequency in Hz. This is the minimum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does yest account for clock
  *		tolerances and jitter.
  * @target_freq: The target clock frequency in Hz. A frequency will be
  *		processed as close to this target frequency as possible.
  * @max_freq:	The maximum allowable frequency in Hz. This is the maximum
- *		allowable programmed frequency and does not account for clock
+ *		allowable programmed frequency and does yest account for clock
  *		tolerances and jitter.
  *
  * Return: 0 if all went well, else returns appropriate error value.
@@ -1717,7 +1717,7 @@ static int ti_sci_get_resource_type(struct ti_sci_info *info, u16 dev_id,
 	bool found = false;
 	int i;
 
-	/* If map is not provided then assume dev_id is used as type */
+	/* If map is yest provided then assume dev_id is used as type */
 	if (!rm_type_map) {
 		*type = dev_id;
 		return 0;
@@ -2478,8 +2478,8 @@ static int ti_sci_cmd_rm_udmap_rx_ch_cfg(const struct ti_sci_handle *handle,
 	req->rx_pause_on_err = params->rx_pause_on_err;
 	req->rx_atype = params->rx_atype;
 	req->rx_chan_type = params->rx_chan_type;
-	req->rx_ignore_short = params->rx_ignore_short;
-	req->rx_ignore_long = params->rx_ignore_long;
+	req->rx_igyesre_short = params->rx_igyesre_short;
+	req->rx_igyesre_long = params->rx_igyesre_long;
 	req->rx_burst_size = params->rx_burst_size;
 
 	ret = ti_sci_do_xfer(info, xfer);
@@ -2993,17 +2993,17 @@ static void ti_sci_setup_ops(struct ti_sci_info *info)
  * ti_sci_get_handle() - Get the TI SCI handle for a device
  * @dev:	Pointer to device for which we want SCI handle
  *
- * NOTE: The function does not track individual clients of the framework
+ * NOTE: The function does yest track individual clients of the framework
  * and is expected to be maintained by caller of TI SCI protocol library.
  * ti_sci_put_handle must be balanced with successful ti_sci_get_handle
  * Return: pointer to handle if successful, else:
- * -EPROBE_DEFER if the instance is not ready
- * -ENODEV if the required node handler is missing
+ * -EPROBE_DEFER if the instance is yest ready
+ * -ENODEV if the required yesde handler is missing
  * -EINVAL if invalid conditions are encountered.
  */
 const struct ti_sci_handle *ti_sci_get_handle(struct device *dev)
 {
-	struct device_node *ti_sci_np;
+	struct device_yesde *ti_sci_np;
 	struct list_head *p;
 	struct ti_sci_handle *handle = NULL;
 	struct ti_sci_info *info;
@@ -3012,7 +3012,7 @@ const struct ti_sci_handle *ti_sci_get_handle(struct device *dev)
 		pr_err("I need a device pointer\n");
 		return ERR_PTR(-EINVAL);
 	}
-	ti_sci_np = of_get_parent(dev->of_node);
+	ti_sci_np = of_get_parent(dev->of_yesde);
 	if (!ti_sci_np) {
 		dev_err(dev, "No OF information\n");
 		return ERR_PTR(-EINVAL);
@@ -3020,15 +3020,15 @@ const struct ti_sci_handle *ti_sci_get_handle(struct device *dev)
 
 	mutex_lock(&ti_sci_list_mutex);
 	list_for_each(p, &ti_sci_list) {
-		info = list_entry(p, struct ti_sci_info, node);
-		if (ti_sci_np == info->dev->of_node) {
+		info = list_entry(p, struct ti_sci_info, yesde);
+		if (ti_sci_np == info->dev->of_yesde) {
 			handle = &info->handle;
 			info->users++;
 			break;
 		}
 	}
 	mutex_unlock(&ti_sci_list_mutex);
-	of_node_put(ti_sci_np);
+	of_yesde_put(ti_sci_np);
 
 	if (!handle)
 		return ERR_PTR(-EPROBE_DEFER);
@@ -3041,7 +3041,7 @@ EXPORT_SYMBOL_GPL(ti_sci_get_handle);
  * ti_sci_put_handle() - Release the handle acquired by ti_sci_get_handle
  * @handle:	Handle acquired by ti_sci_get_handle
  *
- * NOTE: The function does not track individual clients of the framework
+ * NOTE: The function does yest track individual clients of the framework
  * and is expected to be maintained by caller of TI SCI protocol library.
  * ti_sci_put_handle must be balanced with successful ti_sci_get_handle
  *
@@ -3084,8 +3084,8 @@ static void devm_ti_sci_release(struct device *dev, void *res)
  * @dev:	device for which we want SCI handle for.
  *
  * NOTE: This releases the handle once the device resources are
- * no longer needed. MUST NOT BE released with ti_sci_put_handle.
- * The function does not track individual clients of the framework
+ * yes longer needed. MUST NOT BE released with ti_sci_put_handle.
+ * The function does yest track individual clients of the framework
  * and is expected to be maintained by caller of TI SCI protocol library.
  *
  * Return: 0 if all went fine, else corresponding error.
@@ -3113,22 +3113,22 @@ EXPORT_SYMBOL_GPL(devm_ti_sci_get_handle);
 
 /**
  * ti_sci_get_by_phandle() - Get the TI SCI handle using DT phandle
- * @np:		device node
- * @property:	property name containing phandle on TISCI node
+ * @np:		device yesde
+ * @property:	property name containing phandle on TISCI yesde
  *
- * NOTE: The function does not track individual clients of the framework
+ * NOTE: The function does yest track individual clients of the framework
  * and is expected to be maintained by caller of TI SCI protocol library.
  * ti_sci_put_handle must be balanced with successful ti_sci_get_by_phandle
  * Return: pointer to handle if successful, else:
- * -EPROBE_DEFER if the instance is not ready
- * -ENODEV if the required node handler is missing
+ * -EPROBE_DEFER if the instance is yest ready
+ * -ENODEV if the required yesde handler is missing
  * -EINVAL if invalid conditions are encountered.
  */
-const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
+const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_yesde *np,
 						  const char *property)
 {
 	struct ti_sci_handle *handle = NULL;
-	struct device_node *ti_sci_np;
+	struct device_yesde *ti_sci_np;
 	struct ti_sci_info *info;
 	struct list_head *p;
 
@@ -3143,15 +3143,15 @@ const struct ti_sci_handle *ti_sci_get_by_phandle(struct device_node *np,
 
 	mutex_lock(&ti_sci_list_mutex);
 	list_for_each(p, &ti_sci_list) {
-		info = list_entry(p, struct ti_sci_info, node);
-		if (ti_sci_np == info->dev->of_node) {
+		info = list_entry(p, struct ti_sci_info, yesde);
+		if (ti_sci_np == info->dev->of_yesde) {
 			handle = &info->handle;
 			info->users++;
 			break;
 		}
 	}
 	mutex_unlock(&ti_sci_list_mutex);
-	of_node_put(ti_sci_np);
+	of_yesde_put(ti_sci_np);
 
 	if (!handle)
 		return ERR_PTR(-EPROBE_DEFER);
@@ -3163,11 +3163,11 @@ EXPORT_SYMBOL_GPL(ti_sci_get_by_phandle);
 /**
  * devm_ti_sci_get_by_phandle() - Managed get handle using phandle
  * @dev:	Device pointer requesting TISCI handle
- * @property:	property name containing phandle on TISCI node
+ * @property:	property name containing phandle on TISCI yesde
  *
  * NOTE: This releases the handle once the device resources are
- * no longer needed. MUST NOT BE released with ti_sci_put_handle.
- * The function does not track individual clients of the framework
+ * yes longer needed. MUST NOT BE released with ti_sci_put_handle.
+ * The function does yest track individual clients of the framework
  * and is expected to be maintained by caller of TI SCI protocol library.
  *
  * Return: 0 if all went fine, else corresponding error.
@@ -3181,7 +3181,7 @@ const struct ti_sci_handle *devm_ti_sci_get_by_phandle(struct device *dev,
 	ptr = devres_alloc(devm_ti_sci_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
-	handle = ti_sci_get_by_phandle(dev_of_node(dev), property);
+	handle = ti_sci_get_by_phandle(dev_of_yesde(dev), property);
 
 	if (!IS_ERR(handle)) {
 		*ptr = handle;
@@ -3282,10 +3282,10 @@ devm_ti_sci_get_of_resource(const struct ti_sci_handle *handle,
 	if (!res)
 		return ERR_PTR(-ENOMEM);
 
-	ret = of_property_count_elems_of_size(dev_of_node(dev), of_prop,
+	ret = of_property_count_elems_of_size(dev_of_yesde(dev), of_prop,
 					      sizeof(u32));
 	if (ret < 0) {
-		dev_err(dev, "%s resource type ids not available\n", of_prop);
+		dev_err(dev, "%s resource type ids yest available\n", of_prop);
 		return ERR_PTR(ret);
 	}
 	res->sets = ret;
@@ -3296,7 +3296,7 @@ devm_ti_sci_get_of_resource(const struct ti_sci_handle *handle,
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < res->sets; i++) {
-		ret = of_property_read_u32_index(dev_of_node(dev), of_prop, i,
+		ret = of_property_read_u32_index(dev_of_yesde(dev), of_prop, i,
 						 &resource_subtype);
 		if (ret)
 			return ERR_PTR(-EINVAL);
@@ -3306,7 +3306,7 @@ devm_ti_sci_get_of_resource(const struct ti_sci_handle *handle,
 							&res->desc[i].start,
 							&res->desc[i].num);
 		if (ret) {
-			dev_dbg(dev, "dev = %d subtype %d not allocated for this host\n",
+			dev_dbg(dev, "dev = %d subtype %d yest allocated for this host\n",
 				dev_id, resource_subtype);
 			res->desc[i].start = 0;
 			res->desc[i].num = 0;
@@ -3332,7 +3332,7 @@ devm_ti_sci_get_of_resource(const struct ti_sci_handle *handle,
 	return ERR_PTR(-EINVAL);
 }
 
-static int tisci_reboot_handler(struct notifier_block *nb, unsigned long mode,
+static int tisci_reboot_handler(struct yestifier_block *nb, unsigned long mode,
 				void *cmd)
 {
 	struct ti_sci_info *info = reboot_to_ti_sci_info(nb);
@@ -3340,7 +3340,7 @@ static int tisci_reboot_handler(struct notifier_block *nb, unsigned long mode,
 
 	ti_sci_cmd_core_reboot(handle);
 
-	/* call fail OR pass, we should not be here in the first place */
+	/* call fail OR pass, we should yest be here in the first place */
 	return NOTIFY_BAD;
 }
 
@@ -3410,8 +3410,8 @@ static int ti_sci_probe(struct platform_device *pdev)
 
 	info->dev = dev;
 	info->desc = desc;
-	ret = of_property_read_u32(dev->of_node, "ti,host-id", &h_id);
-	/* if the property is not present in DT, use a default from desc */
+	ret = of_property_read_u32(dev->of_yesde, "ti,host-id", &h_id);
+	/* if the property is yest present in DT, use a default from desc */
 	if (ret < 0) {
 		info->host_id = info->desc->default_host_id;
 	} else {
@@ -3423,9 +3423,9 @@ static int ti_sci_probe(struct platform_device *pdev)
 		}
 	}
 
-	reboot = of_property_read_bool(dev->of_node,
+	reboot = of_property_read_bool(dev->of_yesde,
 				       "ti,system-reboot-controller");
-	INIT_LIST_HEAD(&info->node);
+	INIT_LIST_HEAD(&info->yesde);
 	minfo = &info->minfo;
 
 	/*
@@ -3473,7 +3473,7 @@ static int ti_sci_probe(struct platform_device *pdev)
 	cl->dev = dev;
 	cl->tx_block = false;
 	cl->rx_callback = ti_sci_rx_callback;
-	cl->knows_txdone = true;
+	cl->kyesws_txdone = true;
 
 	spin_lock_init(&minfo->xfer_lock);
 	sema_init(&minfo->sem_xfer_count, desc->max_msgs);
@@ -3498,7 +3498,7 @@ static int ti_sci_probe(struct platform_device *pdev)
 	ti_sci_setup_ops(info);
 
 	if (reboot) {
-		info->nb.notifier_call = tisci_reboot_handler;
+		info->nb.yestifier_call = tisci_reboot_handler;
 		info->nb.priority = 128;
 
 		ret = register_restart_handler(&info->nb);
@@ -3509,15 +3509,15 @@ static int ti_sci_probe(struct platform_device *pdev)
 	}
 
 	dev_info(dev, "ABI: %d.%d (firmware rev 0x%04x '%s')\n",
-		 info->handle.version.abi_major, info->handle.version.abi_minor,
+		 info->handle.version.abi_major, info->handle.version.abi_miyesr,
 		 info->handle.version.firmware_revision,
 		 info->handle.version.firmware_description);
 
 	mutex_lock(&ti_sci_list_mutex);
-	list_add_tail(&info->node, &ti_sci_list);
+	list_add_tail(&info->yesde, &ti_sci_list);
 	mutex_unlock(&ti_sci_list_mutex);
 
-	return of_platform_populate(dev->of_node, NULL, NULL, dev);
+	return of_platform_populate(dev->of_yesde, NULL, NULL, dev);
 out:
 	if (!IS_ERR(info->chan_tx))
 		mbox_free_channel(info->chan_tx);
@@ -3537,20 +3537,20 @@ static int ti_sci_remove(struct platform_device *pdev)
 
 	info = platform_get_drvdata(pdev);
 
-	if (info->nb.notifier_call)
+	if (info->nb.yestifier_call)
 		unregister_restart_handler(&info->nb);
 
 	mutex_lock(&ti_sci_list_mutex);
 	if (info->users)
 		ret = -EBUSY;
 	else
-		list_del(&info->node);
+		list_del(&info->yesde);
 	mutex_unlock(&ti_sci_list_mutex);
 
 	if (!ret) {
 		ti_sci_debugfs_destroy(pdev, info);
 
-		/* Safe to free channels since no more users */
+		/* Safe to free channels since yes more users */
 		mbox_free_channel(info->chan_tx);
 		mbox_free_channel(info->chan_rx);
 	}
@@ -3570,5 +3570,5 @@ module_platform_driver(ti_sci_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("TI System Control Interface(SCI) driver");
-MODULE_AUTHOR("Nishanth Menon");
+MODULE_AUTHOR("Nishanth Meyesn");
 MODULE_ALIAS("platform:ti-sci");

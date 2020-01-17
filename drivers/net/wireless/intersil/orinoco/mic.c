@@ -1,6 +1,6 @@
-/* Orinoco MIC helpers
+/* Oriyesco MIC helpers
  *
- * See copyright notice in main.c
+ * See copyright yestice in main.c
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -8,17 +8,17 @@
 #include <linux/scatterlist.h>
 #include <crypto/hash.h>
 
-#include "orinoco.h"
+#include "oriyesco.h"
 #include "mic.h"
 
 /********************************************************************/
 /* Michael MIC crypto setup                                         */
 /********************************************************************/
-int orinoco_mic_init(struct orinoco_private *priv)
+int oriyesco_mic_init(struct oriyesco_private *priv)
 {
 	priv->tx_tfm_mic = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->tx_tfm_mic)) {
-		printk(KERN_DEBUG "%s: could not allocate "
+		printk(KERN_DEBUG "%s: could yest allocate "
 		       "crypto API michael_mic\n", __func__);
 		priv->tx_tfm_mic = NULL;
 		return -ENOMEM;
@@ -26,7 +26,7 @@ int orinoco_mic_init(struct orinoco_private *priv)
 
 	priv->rx_tfm_mic = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->rx_tfm_mic)) {
-		printk(KERN_DEBUG "%s: could not allocate "
+		printk(KERN_DEBUG "%s: could yest allocate "
 		       "crypto API michael_mic\n", __func__);
 		priv->rx_tfm_mic = NULL;
 		return -ENOMEM;
@@ -35,7 +35,7 @@ int orinoco_mic_init(struct orinoco_private *priv)
 	return 0;
 }
 
-void orinoco_mic_free(struct orinoco_private *priv)
+void oriyesco_mic_free(struct oriyesco_private *priv)
 {
 	if (priv->tx_tfm_mic)
 		crypto_free_shash(priv->tx_tfm_mic);
@@ -43,7 +43,7 @@ void orinoco_mic_free(struct orinoco_private *priv)
 		crypto_free_shash(priv->rx_tfm_mic);
 }
 
-int orinoco_mic(struct crypto_shash *tfm_michael, u8 *key,
+int oriyesco_mic(struct crypto_shash *tfm_michael, u8 *key,
 		u8 *da, u8 *sa, u8 priority,
 		u8 *data, size_t data_len, u8 *mic)
 {

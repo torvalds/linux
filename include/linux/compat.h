@@ -31,7 +31,7 @@
  * It may be useful for an architecture to override the definitions of the
  * COMPAT_SYSCALL_DEFINE0 and COMPAT_SYSCALL_DEFINEx() macros, in particular
  * to use a different calling convention for syscalls. To allow for that,
- + the prototypes for the compat_sys_*() functions below will *not* be included
+ + the prototypes for the compat_sys_*() functions below will *yest* be included
  * if CONFIG_ARCH_HAS_SYSCALL_WRAPPER is enabled.
  */
 #include <asm/syscall_wrapper.h>
@@ -73,7 +73,7 @@
 #ifndef COMPAT_SYSCALL_DEFINEx
 #define COMPAT_SYSCALL_DEFINEx(x, name, ...)					\
 	__diag_push();								\
-	__diag_ignore(GCC, 8, "-Wattribute-alias",				\
+	__diag_igyesre(GCC, 8, "-Wattribute-alias",				\
 		      "Type aliasing is used to sanitize syscall arguments");\
 	asmlinkage long compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
 	asmlinkage long compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
@@ -154,13 +154,13 @@ typedef union compat_sigval {
 } compat_sigval_t;
 
 typedef struct compat_siginfo {
-	int si_signo;
+	int si_sigyes;
 #ifndef __ARCH_HAS_SWAPPED_SIGINFO
-	int si_errno;
+	int si_erryes;
 	int si_code;
 #else
 	int si_code;
-	int si_errno;
+	int si_erryes;
 #endif
 
 	union {
@@ -210,10 +210,10 @@ typedef struct compat_siginfo {
 		struct {
 			compat_uptr_t _addr;	/* faulting insn/memory ref. */
 #ifdef __ARCH_SI_TRAPNO
-			int _trapno;	/* TRAP # which caused the signal */
+			int _trapyes;	/* TRAP # which caused the signal */
 #endif
-#define __COMPAT_ADDR_BND_PKEY_PAD  (__alignof__(compat_uptr_t) < sizeof(short) ? \
-				     sizeof(short) : __alignof__(compat_uptr_t))
+#define __COMPAT_ADDR_BND_PKEY_PAD  (__aligyesf__(compat_uptr_t) < sizeof(short) ? \
+				     sizeof(short) : __aligyesf__(compat_uptr_t))
 			union {
 				/*
 				 * used when si_code=BUS_MCEERR_AR or
@@ -293,7 +293,7 @@ struct compat_siginfo;
 struct __compat_aio_sigset;
 
 struct compat_dirent {
-	u32		d_ino;
+	u32		d_iyes;
 	compat_off_t	d_off;
 	u16		d_reclen;
 	char		d_name[256];
@@ -301,7 +301,7 @@ struct compat_dirent {
 
 struct compat_ustat {
 	compat_daddr_t		f_tfree;
-	compat_ino_t		f_tinode;
+	compat_iyes_t		f_tiyesde;
 	char			f_fname[6];
 	char			f_fpack[6];
 };
@@ -310,8 +310,8 @@ struct compat_ustat {
 
 typedef struct compat_sigevent {
 	compat_sigval_t sigev_value;
-	compat_int_t sigev_signo;
-	compat_int_t sigev_notify;
+	compat_int_t sigev_sigyes;
+	compat_int_t sigev_yestify;
 	union {
 		compat_int_t _pad[COMPAT_SIGEV_PAD_SIZE];
 		compat_int_t _tid;
@@ -498,12 +498,12 @@ int __compat_save_altstack(compat_stack_t __user *, unsigned long);
  * include/uapi/asm-generic/unistd.h. Deprecated or obsolete system calls
  * go below.
  *
- * Please note that these prototypes here are only provided for information
+ * Please yeste that these prototypes here are only provided for information
  * purposes, for static analysis, and for linking from the syscall table.
- * These functions should not be called elsewhere from kernel code.
+ * These functions should yest be called elsewhere from kernel code.
  *
  * As the syscall calling convention may be different from the default
- * for architectures overriding the syscall calling convention, do not
+ * for architectures overriding the syscall calling convention, do yest
  * include the prototypes if CONFIG_ARCH_HAS_SYSCALL_WRAPPER is enabled.
  */
 #ifndef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
@@ -734,8 +734,8 @@ asmlinkage long compat_sys_sysinfo(struct compat_sysinfo __user *info);
 asmlinkage long compat_sys_mq_open(const char __user *u_name,
 			int oflag, compat_mode_t mode,
 			struct compat_mq_attr __user *u_attr);
-asmlinkage long compat_sys_mq_notify(mqd_t mqdes,
-			const struct compat_sigevent __user *u_notification);
+asmlinkage long compat_sys_mq_yestify(mqd_t mqdes,
+			const struct compat_sigevent __user *u_yestification);
 asmlinkage long compat_sys_mq_getsetattr(mqd_t mqdes,
 			const struct compat_mq_attr __user *u_mqstat,
 			struct compat_mq_attr __user *u_omqstat);
@@ -783,20 +783,20 @@ asmlinkage long compat_sys_execve(const char __user *filename, const compat_uptr
 asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
 				 compat_ulong_t mode,
 				 compat_ulong_t __user *nmask,
-				 compat_ulong_t maxnode, compat_ulong_t flags);
+				 compat_ulong_t maxyesde, compat_ulong_t flags);
 asmlinkage long compat_sys_get_mempolicy(int __user *policy,
 					 compat_ulong_t __user *nmask,
-					 compat_ulong_t maxnode,
+					 compat_ulong_t maxyesde,
 					 compat_ulong_t addr,
 					 compat_ulong_t flags);
 asmlinkage long compat_sys_set_mempolicy(int mode, compat_ulong_t __user *nmask,
-					 compat_ulong_t maxnode);
+					 compat_ulong_t maxyesde);
 asmlinkage long compat_sys_migrate_pages(compat_pid_t pid,
-		compat_ulong_t maxnode, const compat_ulong_t __user *old_nodes,
-		const compat_ulong_t __user *new_nodes);
+		compat_ulong_t maxyesde, const compat_ulong_t __user *old_yesdes,
+		const compat_ulong_t __user *new_yesdes);
 asmlinkage long compat_sys_move_pages(pid_t pid, compat_ulong_t nr_pages,
 				      __u32 __user *pages,
-				      const int __user *nodes,
+				      const int __user *yesdes,
 				      int __user *status,
 				      int flags);
 
@@ -812,7 +812,7 @@ asmlinkage long compat_sys_recvmmsg_time32(int fd, struct compat_mmsghdr __user 
 asmlinkage long compat_sys_wait4(compat_pid_t pid,
 				 compat_uint_t __user *stat_addr, int options,
 				 struct compat_rusage __user *ru);
-asmlinkage long compat_sys_fanotify_mark(int, unsigned int, __u32, __u32,
+asmlinkage long compat_sys_fayestify_mark(int, unsigned int, __u32, __u32,
 					    int, const char __user *);
 asmlinkage long compat_sys_open_by_handle_at(int mountdirfd,
 					     struct file_handle __user *handle,
@@ -911,7 +911,7 @@ asmlinkage long compat_sys_socketcall(int call, u32 __user *args);
 
 
 /*
- * For most but not all architectures, "am I in a compat syscall?" and
+ * For most but yest all architectures, "am I in a compat syscall?" and
  * "am I a compat task?" are the same question.  For architectures on which
  * they aren't the same question, arch code can override in_compat_syscall.
  */
@@ -922,7 +922,7 @@ static inline bool in_compat_syscall(void) { return is_compat_task(); }
 
 /**
  * ns_to_old_timeval32 - Compat version of ns_to_timeval
- * @nsec:	the nanoseconds value to be converted
+ * @nsec:	the nayesseconds value to be converted
  *
  * Returns the old_timeval32 representation of the nsec parameter.
  */
@@ -939,7 +939,7 @@ static inline struct old_timeval32 ns_to_old_timeval32(s64 nsec)
 }
 
 /*
- * Kernel code should not call compat syscalls (i.e., compat_sys_xyzyyz())
+ * Kernel code should yest call compat syscalls (i.e., compat_sys_xyzyyz())
  * directly.  Instead, use one of the functions which work equivalently, such
  * as the kcompat_sys_xyzyyz() functions prototyped below.
  */
@@ -952,7 +952,7 @@ int kcompat_sys_fstatfs64(unsigned int fd, compat_size_t sz,
 #else /* !CONFIG_COMPAT */
 
 #define is_compat_task() (0)
-/* Ensure no one redefines in_compat_syscall() under !CONFIG_COMPAT */
+/* Ensure yes one redefines in_compat_syscall() under !CONFIG_COMPAT */
 #define in_compat_syscall in_compat_syscall
 static inline bool in_compat_syscall(void) { return false; }
 

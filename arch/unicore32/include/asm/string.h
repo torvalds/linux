@@ -11,7 +11,7 @@
 
 /*
  * We don't do inline string functions, since the
- * optimised inline asm versions are not small.
+ * optimised inline asm versions are yest small.
  */
 
 #define __HAVE_ARCH_STRRCHR

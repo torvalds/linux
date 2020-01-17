@@ -36,7 +36,7 @@ struct clockevent_mps2 {
 
 static void __iomem *sched_clock_base;
 
-static u64 notrace mps2_sched_read(void)
+static u64 yestrace mps2_sched_read(void)
 {
 	return ~readl_relaxed(sched_clock_base + TIMER_VALUE);
 }
@@ -95,7 +95,7 @@ static irqreturn_t mps2_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init mps2_clockevent_init(struct device_node *np)
+static int __init mps2_clockevent_init(struct device_yesde *np)
 {
 	void __iomem *base;
 	struct clk *clk = NULL;
@@ -180,7 +180,7 @@ out:
 	return ret;
 }
 
-static int __init mps2_clocksource_init(struct device_node *np)
+static int __init mps2_clocksource_init(struct device_yesde *np)
 {
 	void __iomem *base;
 	struct clk *clk = NULL;
@@ -246,7 +246,7 @@ out:
 	return ret;
 }
 
-static int __init mps2_timer_init(struct device_node *np)
+static int __init mps2_timer_init(struct device_yesde *np)
 {
 	static int has_clocksource, has_clockevent;
 	int ret;

@@ -70,7 +70,7 @@ To obtain the priv pointer use this helper function:
 .. c:function::
 	void *cec_get_drvdata(const struct cec_adapter *adap);
 
-To register the /dev/cecX device node and the remote control device (if
+To register the /dev/cecX device yesde and the remote control device (if
 CEC_CAP_RC is set) you call:
 
 .. c:function::
@@ -98,7 +98,7 @@ your driver:
 
 .. c:type:: struct cec_adap_ops
 
-.. code-block:: none
+.. code-block:: yesne
 
 	struct cec_adap_ops
 	{
@@ -129,9 +129,9 @@ To enable/disable the hardware:
 	int (*adap_enable)(struct cec_adapter *adap, bool enable);
 
 This callback enables or disables the CEC hardware. Enabling the CEC hardware
-means powering it up in a state where no logical addresses are claimed. This
+means powering it up in a state where yes logical addresses are claimed. This
 op assumes that the physical address (adap->phys_addr) is valid when enable is
-true and will not change while the CEC adapter remains enabled. The initial
+true and will yest change while the CEC adapter remains enabled. The initial
 state of the CEC adapter after calling cec_allocate_adapter() is disabled.
 
 Note that adap_enable must return 0 if enable is false.
@@ -143,7 +143,7 @@ To enable/disable the 'monitor all' mode:
 	int (*adap_monitor_all_enable)(struct cec_adapter *adap, bool enable);
 
 If enabled, then the adapter should be put in a mode to also monitor messages
-that not for us. Not all hardware supports this and this function is only
+that yest for us. Not all hardware supports this and this function is only
 called if the CEC_CAP_MONITOR_ALL capability is set. This callback is optional
 (some hardware may always be in 'monitor all' mode).
 
@@ -233,7 +233,7 @@ CEC_TX_STATUS_OK:
 	the transmit was successful.
 
 CEC_TX_STATUS_ARB_LOST:
-	arbitration was lost: another CEC initiator
+	arbitration was lost: ayesther CEC initiator
 	took control of the CEC line and you lost the arbitration.
 
 CEC_TX_STATUS_NACK:
@@ -247,27 +247,27 @@ CEC_TX_STATUS_LOW_DRIVE:
 
 CEC_TX_STATUS_ERROR:
 	some unspecified error occurred: this can be one of ARB_LOST
-	or LOW_DRIVE if the hardware cannot differentiate or something
+	or LOW_DRIVE if the hardware canyest differentiate or something
 	else entirely. Some hardware only supports OK and FAIL as the
-	result of a transmit, i.e. there is no way to differentiate
+	result of a transmit, i.e. there is yes way to differentiate
 	between the different possible errors. In that case map FAIL
-	to CEC_TX_STATUS_NACK and not to CEC_TX_STATUS_ERROR.
+	to CEC_TX_STATUS_NACK and yest to CEC_TX_STATUS_ERROR.
 
 CEC_TX_STATUS_MAX_RETRIES:
-	could not transmit the message after trying multiple times.
+	could yest transmit the message after trying multiple times.
 	Should only be set by the driver if it has hardware support for
 	retrying messages. If set, then the framework assumes that it
-	doesn't have to make another attempt to transmit the message
+	doesn't have to make ayesther attempt to transmit the message
 	since the hardware did that already.
 
 The hardware must be able to differentiate between OK, NACK and 'something
 else'.
 
 The \*_cnt arguments are the number of error conditions that were seen.
-This may be 0 if no information is available. Drivers that do not support
+This may be 0 if yes information is available. Drivers that do yest support
 hardware retry can just set the counter corresponding to the transmit error
 to 1, if the hardware does support retry then either set these counters to
-0 if the hardware provides no feedback of which errors occurred and how many
+0 if the hardware provides yes feedback of which errors occurred and how many
 times, or fill in the correct values as reported by the hardware.
 
 Be aware that calling these functions can immediately start a new transmit
@@ -290,7 +290,7 @@ Implementing the interrupt handler
 ----------------------------------
 
 Typically the CEC hardware provides interrupts that signal when a transmit
-finished and whether it was successful or not, and it provides and interrupt
+finished and whether it was successful or yest, and it provides and interrupt
 when a CEC message was received.
 
 The CEC driver should always process the transmit interrupts first before
@@ -304,7 +304,7 @@ Optional: Implementing Error Injection Support
 If the CEC adapter supports Error Injection functionality, then that can
 be exposed through the Error Injection callbacks:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	struct cec_adap_ops {
 		/* Low-level callbacks */
@@ -321,8 +321,8 @@ be exposed through the Error Injection callbacks:
 If both callbacks are set, then an ``error-inj`` file will appear in debugfs.
 The basic syntax is as follows:
 
-Leading spaces/tabs are ignored. If the next character is a ``#`` or the end of the
-line was reached, then the whole line is ignored. Otherwise a command is expected.
+Leading spaces/tabs are igyesred. If the next character is a ``#`` or the end of the
+line was reached, then the whole line is igyesred. Otherwise a command is expected.
 
 This basic parsing is done in the CEC Framework. It is up to the driver to decide
 what commands to implement. The only requirement is that the command ``clear`` without
@@ -330,12 +330,12 @@ any arguments must be implemented and that it will remove all current error inje
 commands.
 
 This ensures that you can always do ``echo clear >error-inj`` to clear any error
-injections without having to know the details of the driver-specific commands.
+injections without having to kyesw the details of the driver-specific commands.
 
 Note that the output of ``error-inj`` shall be valid as input to ``error-inj``.
 So this must work:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	$ cat error-inj >einj.txt
 	$ cat einj.txt >error-inj
@@ -356,7 +356,7 @@ The second callback will parse commands written to the ``error-inj`` file:
 
 The ``line`` argument points to the start of the command. Any leading
 spaces or tabs have already been skipped. It is a single line only (so there
-are no embedded newlines) and it is 0-terminated. The callback is free to
+are yes embedded newlines) and it is 0-terminated. The callback is free to
 modify the contents of the buffer. It is only called for lines containing a
 command, so this callback is never called for empty lines or comment lines.
 
@@ -368,7 +368,7 @@ Implementing the High-Level CEC Adapter
 The low-level operations drive the hardware, the high-level operations are
 CEC protocol driven. The following high-level callbacks are available:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	struct cec_adap_ops {
 		/* Low-level callbacks */
@@ -390,7 +390,7 @@ received CEC message
 If the driver wants to process a CEC message, then it can implement this
 callback. If it doesn't want to handle this message, then it should return
 -ENOMSG, otherwise the CEC framework assumes it processed this message and
-it will not do anything with it.
+it will yest do anything with it.
 
 
 CEC framework functions
@@ -418,7 +418,7 @@ return until this process has finished.
 When the physical address is set to a valid value the CEC adapter will
 be enabled (see the adap_enable op). When it is set to CEC_PHYS_ADDR_INVALID,
 then the CEC adapter will be disabled. If you change a valid physical address
-to another valid physical address, then this function will first set the
+to ayesther valid physical address, then this function will first set the
 address to CEC_PHYS_ADDR_INVALID before enabling the new physical address.
 
 .. c:function::
@@ -427,7 +427,7 @@ address to CEC_PHYS_ADDR_INVALID before enabling the new physical address.
 
 A helper function that extracts the physical address from the edid struct
 and calls cec_s_phys_addr() with that address, or CEC_PHYS_ADDR_INVALID
-if the EDID did not contain a physical address or edid was a NULL pointer.
+if the EDID did yest contain a physical address or edid was a NULL pointer.
 
 .. c:function::
 	int cec_s_log_addrs(struct cec_adapter *adap,
@@ -437,7 +437,7 @@ Claim the CEC logical addresses. Should never be called if CEC_CAP_LOG_ADDRS
 is set. If block is true, then wait until the logical addresses have been
 claimed, otherwise just queue it and return. To unconfigure all logical
 addresses call this function with log_addrs set to NULL or with
-log_addrs->num_log_addrs set to 0. The block argument is ignored when
+log_addrs->num_log_addrs set to 0. The block argument is igyesred when
 unconfiguring. This function will just return if the physical address is
 invalid. Once the physical address becomes valid, then the framework will
 attempt to claim these logical addresses.
@@ -464,11 +464,11 @@ CEC pin transitions from low to high or vice versa.
 CEC Notifier framework
 ----------------------
 
-Most drm HDMI implementations have an integrated CEC implementation and no
-notifier support is needed. But some have independent CEC implementations
+Most drm HDMI implementations have an integrated CEC implementation and yes
+yestifier support is needed. But some have independent CEC implementations
 that have their own driver. This could be an IP block for an SoC or a
 completely separate chip that deals with the CEC pin. For those cases a
-drm driver can install a notifier and use the notifier to inform the
+drm driver can install a yestifier and use the yestifier to inform the
 CEC driver about changes in the physical address.
 
-.. kernel-doc:: include/media/cec-notifier.h
+.. kernel-doc:: include/media/cec-yestifier.h

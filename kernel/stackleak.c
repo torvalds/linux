@@ -48,9 +48,9 @@ int stack_erasing_sysctl(struct ctl_table *table, int write,
 #define skip_erasing()	false
 #endif /* CONFIG_STACKLEAK_RUNTIME_DISABLE */
 
-asmlinkage void notrace stackleak_erase(void)
+asmlinkage void yestrace stackleak_erase(void)
 {
-	/* It would be nice not to have 'kstack_ptr' and 'boundary' on stack */
+	/* It would be nice yest to have 'kstack_ptr' and 'boundary' on stack */
 	unsigned long kstack_ptr = current->lowest_stack;
 	unsigned long boundary = (unsigned long)end_of_stack(current);
 	unsigned int poison_count = 0;
@@ -75,7 +75,7 @@ asmlinkage void notrace stackleak_erase(void)
 
 	/*
 	 * One 'long int' at the bottom of the thread stack is reserved and
-	 * should not be poisoned (see CONFIG_SCHED_STACK_END_CHECK=y).
+	 * should yest be poisoned (see CONFIG_SCHED_STACK_END_CHECK=y).
 	 */
 	if (kstack_ptr == boundary)
 		kstack_ptr += sizeof(unsigned long);
@@ -104,7 +104,7 @@ asmlinkage void notrace stackleak_erase(void)
 }
 NOKPROBE_SYMBOL(stackleak_erase);
 
-void __used notrace stackleak_track_stack(void)
+void __used yestrace stackleak_track_stack(void)
 {
 	/*
 	 * N.B. stackleak_erase() fills the kernel stack with the poison value,

@@ -3,9 +3,9 @@
 #define _ASM_POWERPC_NOHASH_PGTABLE_H
 
 #if defined(CONFIG_PPC64)
-#include <asm/nohash/64/pgtable.h>
+#include <asm/yeshash/64/pgtable.h>
 #else
-#include <asm/nohash/32/pgtable.h>
+#include <asm/yeshash/32/pgtable.h>
 #endif
 
 /* Permission masks used for kernel mappings */
@@ -48,25 +48,25 @@ static inline int pte_write(pte_t pte)
 static inline int pte_read(pte_t pte)		{ return 1; }
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
-static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
+static inline int pte_yesne(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
 static inline bool pte_hashpte(pte_t pte)	{ return false; }
 static inline bool pte_ci(pte_t pte)		{ return pte_val(pte) & _PAGE_NO_CACHE; }
 static inline bool pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_EXEC; }
 
 #ifdef CONFIG_NUMA_BALANCING
 /*
- * These work without NUMA balancing but the kernel does not care. See the
+ * These work without NUMA balancing but the kernel does yest care. See the
  * comment in include/asm-generic/pgtable.h . On powerpc, this will only
  * work for user pages and always return true for kernel pages.
  */
-static inline int pte_protnone(pte_t pte)
+static inline int pte_protyesne(pte_t pte)
 {
 	return pte_present(pte) && !pte_user(pte);
 }
 
-static inline int pmd_protnone(pmd_t pmd)
+static inline int pmd_protyesne(pmd_t pmd)
 {
-	return pte_protnone(pmd_pte(pmd));
+	return pte_protyesne(pmd_pte(pmd));
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
@@ -81,7 +81,7 @@ static inline bool pte_hw_valid(pte_t pte)
 }
 
 /*
- * Don't just check for any non zero bits in __PAGE_USER, since for book3e
+ * Don't just check for any yesn zero bits in __PAGE_USER, since for book3e
  * and PTE_64BIT, PAGE_KERNEL_X contains _PAGE_BAP_SR which is also in
  * _PAGE_USER.  Need to explicitly match _PAGE_BAP_UR bit in that case too.
  */
@@ -94,7 +94,7 @@ static inline bool pte_user(pte_t pte)
 
 /*
  * We only find page table entry in the last level
- * Hence no need for other accessors
+ * Hence yes need for other accessors
  */
 #define pte_access_permitted pte_access_permitted
 static inline bool pte_access_permitted(pte_t pte, bool write)
@@ -116,7 +116,7 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
  * and a page entry and page directory to the page they refer to.
  *
  * Even if PTEs can be unsigned long long, a PFN is always an unsigned
- * long for now.
+ * long for yesw.
  */
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot) {
 	return __pte(((pte_basic_t)(pfn) << PTE_RPN_SHIFT) |
@@ -186,7 +186,7 @@ extern void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 
 /* This low level function performs the actual PTE insertion
  * Setting the PTE depends on the MMU type and other factors. It's
- * an horrible mess that I'm not going to try to clean up now but
+ * an horrible mess that I'm yest going to try to clean up yesw but
  * I'm keeping it in one place rather than spread around
  */
 static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
@@ -206,8 +206,8 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 		: "r" (pte) : "memory");
 		return;
 	}
-	/* Anything else just stores the PTE normally. That covers all 64-bit
-	 * cases, and 32-bit non-hash with 32-bit PTEs.
+	/* Anything else just stores the PTE yesrmally. That covers all 64-bit
+	 * cases, and 32-bit yesn-hash with 32-bit PTEs.
 	 */
 #if defined(CONFIG_PPC_8xx) && defined(CONFIG_PPC_16K_PAGES)
 	ptep->pte = ptep->pte1 = ptep->pte2 = ptep->pte3 = pte_val(pte);
@@ -237,10 +237,10 @@ extern int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long addre
 #define _PAGE_CACHE_CTL	(_PAGE_COHERENT | _PAGE_GUARDED | _PAGE_NO_CACHE | \
 			 _PAGE_WRITETHRU)
 
-#define pgprot_noncached(prot)	  (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+#define pgprot_yesncached(prot)	  (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
 				            _PAGE_NO_CACHE | _PAGE_GUARDED))
 
-#define pgprot_noncached_wc(prot) (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+#define pgprot_yesncached_wc(prot) (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
 				            _PAGE_NO_CACHE))
 
 #define pgprot_cached(prot)       (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
@@ -250,13 +250,13 @@ extern int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long addre
 #define pgprot_cached_wthru(prot) (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
 				            _PAGE_COHERENT | _PAGE_WRITETHRU))
 #else
-#define pgprot_cached_wthru(prot)	pgprot_noncached(prot)
+#define pgprot_cached_wthru(prot)	pgprot_yesncached(prot)
 #endif
 
-#define pgprot_cached_noncoherent(prot) \
+#define pgprot_cached_yesncoherent(prot) \
 		(__pgprot(pgprot_val(prot) & ~_PAGE_CACHE_CTL))
 
-#define pgprot_writecombine pgprot_noncached_wc
+#define pgprot_writecombine pgprot_yesncached_wc
 
 struct file;
 extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,

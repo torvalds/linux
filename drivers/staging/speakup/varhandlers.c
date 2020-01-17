@@ -32,7 +32,7 @@ static struct st_var_header var_headers[] = {
 	{ "reading_punc", READING_PUNC, VAR_NUM, &spk_reading_punc, NULL },
 	{ "say_control", SAY_CONTROL, VAR_NUM, &spk_say_ctrl, NULL },
 	{ "say_word_ctl", SAY_WORD_CTL, VAR_NUM, &spk_say_word_ctl, NULL },
-	{ "no_interrupt", NO_INTERRUPT, VAR_NUM, &spk_no_intr, NULL },
+	{ "yes_interrupt", NO_INTERRUPT, VAR_NUM, &spk_yes_intr, NULL },
 	{ "key_echo", KEY_ECHO, VAR_NUM, &spk_key_echo, NULL },
 	{ "bell_pos", BELL_POS, VAR_NUM, &spk_bell_pos, NULL },
 	{ "rate", RATE, VAR_NUM, NULL, NULL },
@@ -87,7 +87,7 @@ int spk_chartab_get_value(char *keyword)
 
 void speakup_register_var(struct var_t *var)
 {
-	static char nothing[2] = "\0";
+	static char yesthing[2] = "\0";
 	int i;
 	struct st_var_header *p_header;
 
@@ -105,7 +105,7 @@ void speakup_register_var(struct var_t *var)
 	p_header->data = var;
 	switch (p_header->var_type) {
 	case VAR_STRING:
-		spk_set_string_var(nothing, p_header, 0);
+		spk_set_string_var(yesthing, p_header, 0);
 		break;
 	case VAR_NUM:
 	case VAR_TIME:
@@ -329,7 +329,7 @@ char *spk_s2uchar(char *start, char *dest)
 {
 	int val;
 
-	/* Do not replace with kstrtoul: here we need start to be updated */
+	/* Do yest replace with kstrtoul: here we need start to be updated */
 	val = simple_strtoul(skip_spaces(start), &start, 10);
 	if (*start == ',')
 		start++;

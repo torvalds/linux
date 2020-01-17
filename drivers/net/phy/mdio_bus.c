@@ -10,7 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -61,8 +61,8 @@ static int mdiobus_register_reset(struct mdio_device *mdiodev)
 {
 	struct reset_control *reset = NULL;
 
-	if (mdiodev->dev.of_node)
-		reset = of_reset_control_get_exclusive(mdiodev->dev.of_node,
+	if (mdiodev->dev.of_yesde)
+		reset = of_reset_control_get_exclusive(mdiodev->dev.of_yesde,
 						       "phy");
 	if (IS_ERR(reset)) {
 		if (PTR_ERR(reset) == -ENOENT || PTR_ERR(reset) == -ENOTSUPP)
@@ -138,7 +138,7 @@ EXPORT_SYMBOL(mdiobus_is_registered_device);
 /**
  * mdiobus_alloc_size - allocate a mii_bus structure
  * @size: extra amount of memory to allocate for private storage.
- * If non-zero, then bus->priv is points to that memory.
+ * If yesn-zero, then bus->priv is points to that memory.
  *
  * Description: called by a bus driver to allocate an mii_bus
  * structure to fill in.
@@ -262,33 +262,33 @@ static struct class mdio_bus_class = {
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
 /**
- * of_mdio_find_bus - Given an mii_bus node, find the mii_bus.
+ * of_mdio_find_bus - Given an mii_bus yesde, find the mii_bus.
  * @mdio_bus_np: Pointer to the mii_bus.
  *
- * Returns a reference to the mii_bus, or NULL if none found.  The
+ * Returns a reference to the mii_bus, or NULL if yesne found.  The
  * embedded struct device will have its reference count incremented,
  * and this must be put once the bus is finished with.
  *
- * Because the association of a device_node and mii_bus is made via
- * of_mdiobus_register(), the mii_bus cannot be found before it is
+ * Because the association of a device_yesde and mii_bus is made via
+ * of_mdiobus_register(), the mii_bus canyest be found before it is
  * registered with of_mdiobus_register().
  *
  */
-struct mii_bus *of_mdio_find_bus(struct device_node *mdio_bus_np)
+struct mii_bus *of_mdio_find_bus(struct device_yesde *mdio_bus_np)
 {
 	struct device *d;
 
 	if (!mdio_bus_np)
 		return NULL;
 
-	d = class_find_device_by_of_node(&mdio_bus_class, mdio_bus_np);
+	d = class_find_device_by_of_yesde(&mdio_bus_class, mdio_bus_np);
 	return d ? to_mii_bus(d) : NULL;
 }
 EXPORT_SYMBOL(of_mdio_find_bus);
 
-/* Walk the list of subnodes of a mdio bus and look for a node that
+/* Walk the list of subyesdes of a mdio bus and look for a yesde that
  * matches the mdio device's address with its 'reg' property. If
- * found, set the of_node pointer for the mdio device. This allows
+ * found, set the of_yesde pointer for the mdio device. This allows
  * auto-probed phy devices to be supplied with information passed in
  * via DT.
  */
@@ -296,12 +296,12 @@ static void of_mdiobus_link_mdiodev(struct mii_bus *bus,
 				    struct mdio_device *mdiodev)
 {
 	struct device *dev = &mdiodev->dev;
-	struct device_node *child;
+	struct device_yesde *child;
 
-	if (dev->of_node || !bus->dev.of_node)
+	if (dev->of_yesde || !bus->dev.of_yesde)
 		return;
 
-	for_each_available_child_of_node(bus->dev.of_node, child) {
+	for_each_available_child_of_yesde(bus->dev.of_yesde, child) {
 		int addr;
 
 		addr = of_mdio_parse_addr(dev, child);
@@ -309,8 +309,8 @@ static void of_mdiobus_link_mdiodev(struct mii_bus *bus,
 			continue;
 
 		if (addr == mdiodev->addr) {
-			dev->of_node = child;
-			dev->fwnode = of_fwnode_handle(child);
+			dev->of_yesde = child;
+			dev->fwyesde = of_fwyesde_handle(child);
 			return;
 		}
 	}
@@ -360,8 +360,8 @@ static int mdiobus_create_device(struct mii_bus *bus,
  * Description: Called by a bus driver to bring up all the PHYs
  *   on a given bus, and attach them to the bus. Drivers should use
  *   mdiobus_register() rather than __mdiobus_register() unless they
- *   need to pass a specific owner module. MDIO devices which are not
- *   PHYs will not be brought up by this function. They are expected to
+ *   need to pass a specific owner module. MDIO devices which are yest
+ *   PHYs will yest be brought up by this function. They are expected to
  *   to be explicitly listed in DT and instantiated by of_mdiobus_register().
  *
  * Returns 0 on success or < 0 on error.
@@ -509,7 +509,7 @@ EXPORT_SYMBOL(mdiobus_free);
  * MDIO devices have such registers, but PHY devices typically
  * do. Hence this function assumes anything found is a PHY, or can be
  * treated as a PHY. Other MDIO devices, such as switches, will
- * probably not be found during the scan.
+ * probably yest be found during the scan.
  */
 struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 {
@@ -522,7 +522,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 
 	/*
 	 * For DT, see if the auto-probed phy has a correspoding child
-	 * in the bus node, and set the of_node pointer in this case.
+	 * in the bus yesde, and set the of_yesde pointer in this case.
 	 */
 	of_mdiobus_link_mdiodev(bus, &phydev->mdio);
 
@@ -756,7 +756,7 @@ void mdio_bus_exit(void)
 EXPORT_SYMBOL_GPL(mdio_bus_exit);
 #else
 module_init(mdio_bus_init);
-/* no module_exit, intentional */
+/* yes module_exit, intentional */
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MDIO bus/device layer");
 #endif

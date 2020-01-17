@@ -42,7 +42,7 @@ usually an 8x16 font.
 GOTCHA: A common bug report is enabling the framebuffer without enabling the
 framebuffer console.  Depending on the driver, you may get a blanked or
 garbled display, but the system still boots to completion.  If you are
-fortunate to have a driver that does not alter the graphics chip, then you
+fortunate to have a driver that does yest alter the graphics chip, then you
 will still get a VGA console.
 
 B. Loading
@@ -52,7 +52,7 @@ Possible scenarios:
 
 1. Driver and fbcon are compiled statically
 
-	 Usually, fbcon will automatically take over your console. The notable
+	 Usually, fbcon will automatically take over your console. The yestable
 	 exception is vesafb.  It needs to be explicitly activated with the
 	 vga= boot option parameter.
 
@@ -75,7 +75,7 @@ Possible scenarios:
 
 C. Boot options
 
-	 The framebuffer console has several, largely unknown, boot options
+	 The framebuffer console has several, largely unkyeswn, boot options
 	 that can change its behavior.
 
 1. fbcon=font:<name>
@@ -84,7 +84,7 @@ C. Boot options
 	compiled-in fonts: 10x18, 6x10, 7x14, Acorn8x8, MINI4x6,
 	PEARL8x8, ProFont6x11, SUN12x22, SUN8x16, TER16x32, VGA8x16, VGA8x8.
 
-	Note, not all drivers can handle font with widths not divisible by 8,
+	Note, yest all drivers can handle font with widths yest divisible by 8,
 	such as vga16fb.
 
 2. fbcon=scrollback:<value>[k]
@@ -110,7 +110,7 @@ C. Boot options
 
 	One side effect that may be useful is using a map value that exceeds
 	the number of loaded fb drivers. For example, if only one driver is
-	available, fb0, adding fbcon=map:1 tells fbcon not to take over the
+	available, fb0, adding fbcon=map:1 tells fbcon yest to take over the
 	console.
 
 	Later on, when you want to map the console the to the framebuffer
@@ -132,7 +132,7 @@ C. Boot options
 	This option changes the orientation angle of the console display. The
 	value 'n' accepts the following:
 
-	    - 0 - normal orientation (0 degree)
+	    - 0 - yesrmal orientation (0 degree)
 	    - 1 - clockwise orientation (90 degrees)
 	    - 2 - upside down orientation (180 degrees)
 	    - 3 - counterclockwise orientation (270 degrees)
@@ -148,20 +148,20 @@ C. Boot options
 	Rotation support is compiled in your kernel.
 
 	NOTE: This is purely console rotation.  Any other applications that
-	use the framebuffer will remain at their 'normal' orientation.
-	Actually, the underlying fb driver is totally ignorant of console
+	use the framebuffer will remain at their 'yesrmal' orientation.
+	Actually, the underlying fb driver is totally igyesrant of console
 	rotation.
 
 5. fbcon=margin:<color>
 
 	This option specifies the color of the margins. The margins are the
-	leftover area at the right and the bottom of the screen that are not
+	leftover area at the right and the bottom of the screen that are yest
 	used by text. By default, this area will be black. The 'color' value
 	is an integer number that depends on the framebuffer driver being used.
 
-6. fbcon=nodefer
+6. fbcon=yesdefer
 
-	If the kernel is compiled with deferred fbcon takeover support, normally
+	If the kernel is compiled with deferred fbcon takeover support, yesrmally
 	the framebuffer contents, left in place by the firmware/bootloader, will
 	be preserved until there actually is some text is output to the console.
 	This option causes fbcon to bind immediately to the fbdev device.
@@ -185,7 +185,7 @@ the hardware. Thus, in a VGA console::
 	console ---> VGA driver ---> hardware.
 
 Assuming the VGA driver can be unloaded, one must first unbind the VGA driver
-from the console layer before unloading the driver.  The VGA driver cannot be
+from the console layer before unloading the driver.  The VGA driver canyest be
 unloaded if it is still bound to the console layer. (See
 Documentation/driver-api/console.rst for more information).
 
@@ -194,13 +194,13 @@ because fbcon is an intermediate layer between the console and the drivers::
 
 	console ---> fbcon ---> fbdev drivers ---> hardware
 
-The fbdev drivers cannot be unloaded if bound to fbcon, and fbcon cannot
+The fbdev drivers canyest be unloaded if bound to fbcon, and fbcon canyest
 be unloaded if it's bound to the console layer.
 
 So to unload the fbdev drivers, one must first unbind fbcon from the console,
 then unbind the fbdev drivers from fbcon.  Fortunately, unbinding fbcon from
 the console layer will automatically unbind framebuffer drivers from
-fbcon. Thus, there is no need to explicitly unbind the fbdev drivers from
+fbcon. Thus, there is yes need to explicitly unbind the fbdev drivers from
 fbcon.
 
 So, how do we unbind fbcon from the console? Part of the answer is in
@@ -221,7 +221,7 @@ must take a few additional steps to make sure that your VGA text mode is
 restored properly. The following is one of the several methods that you can do:
 
 1. Download or install vbetool.  This utility is included with most
-   distributions nowadays, and is usually part of the suspend/resume tool.
+   distributions yeswadays, and is usually part of the suspend/resume tool.
 
 2. In your kernel configuration, ensure that CONFIG_FRAMEBUFFER_CONSOLE is set
    to 'y' or 'm'. Enable one or more of your favorite framebuffer drivers.
@@ -261,7 +261,7 @@ Notes for vesafb users:
 =======================
 
 Unfortunately, if your bootline includes a vga=xxx parameter that sets the
-hardware in graphics mode, such as when loading vesafb, vgacon will not load.
+hardware in graphics mode, such as when loading vesafb, vgacon will yest load.
 Instead, vgacon will replace the default boot console with dummycon, and you
 won't get any display after detaching fbcon. Your machine is still alive, so
 you can reattach vesafb. However, to reattach vesafb, you need to do one of
@@ -289,7 +289,7 @@ Variation 2:
 
 	vbetool vbemode get
 
-    b. Take note of the mode number
+    b. Take yeste of the mode number
 
     b. Detach fbcon as in step 5.
 
@@ -347,4 +347,4 @@ framebuffer console driver if you are on an X86 box::
     fi
   done
 
-Antonino Daplas <adaplas@pol.net>
+Antoniyes Daplas <adaplas@pol.net>

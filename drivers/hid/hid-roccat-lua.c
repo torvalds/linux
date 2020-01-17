@@ -134,7 +134,7 @@ static int lua_init_specials(struct hid_device *hdev)
 
 	retval = lua_create_sysfs_attributes(intf);
 	if (retval) {
-		hid_err(hdev, "cannot create sysfs files\n");
+		hid_err(hdev, "canyest create sysfs files\n");
 		goto exit;
 	}
 

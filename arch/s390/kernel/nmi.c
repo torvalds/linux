@@ -11,7 +11,7 @@
 
 #include <linux/kernel_stat.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/hardirq.h>
 #include <linux/log2.h>
 #include <linux/kprobes.h>
@@ -90,7 +90,7 @@ static int __init nmi_init(void)
 	if (!origin)
 		panic("Couldn't allocate nmi save area");
 	/* The pointer is stored with mcesa_bits ORed in */
-	kmemleak_not_leak((void *) origin);
+	kmemleak_yest_leak((void *) origin);
 	__ctl_store(cr0, 0, 0);
 	__ctl_clear_bit(0, 28); /* disable lowcore protection */
 	/* Replace boot_mcesa on the boot CPU */
@@ -110,7 +110,7 @@ int nmi_alloc_per_cpu(struct lowcore *lc)
 	if (!origin)
 		return -ENOMEM;
 	/* The pointer is stored with mcesa_bits ORed in */
-	kmemleak_not_leak((void *) origin);
+	kmemleak_yest_leak((void *) origin);
 	lc->mcesad = origin | mcesa_origin_lc;
 	return 0;
 }
@@ -122,7 +122,7 @@ void nmi_free_per_cpu(struct lowcore *lc)
 	kmem_cache_free(mcesa_cache, (void *)(lc->mcesad & MCESA_ORIGIN_MASK));
 }
 
-static notrace void s390_handle_damage(void)
+static yestrace void s390_handle_damage(void)
 {
 	smp_emergency_stop();
 	disabled_wait();
@@ -159,14 +159,14 @@ void s390_handle_mcck(void)
 	 * (actually until the machine is powered off, or the problem is gone)
 	 * So we just stop listening for the WARNING MCH and avoid continuously
 	 * being interrupted.  One caveat is however, that we must do this per
-	 * processor and cannot use the smp version of ctl_clear_bit().
+	 * processor and canyest use the smp version of ctl_clear_bit().
 	 * On VM we only get one interrupt per virtally presented machinecheck.
 	 * Though one suffices, we may get one interrupt per (virtual) cpu.
 	 */
 	if (mcck.warning) {	/* WARNING pending ? */
 		static int mchchk_wng_posted = 0;
 
-		/* Use single cpu clear, as we cannot handle smp here. */
+		/* Use single cpu clear, as we canyest handle smp here. */
 		__ctl_clear_bit(14, 24);	/* Disable WARNING MCH */
 		if (xchg(&mchchk_wng_posted, 1) == 0)
 			kill_cad_pid(SIGPWR, 1);
@@ -188,7 +188,7 @@ EXPORT_SYMBOL_GPL(s390_handle_mcck);
  * returns 0 if all required registers are available
  * returns 1 otherwise
  */
-static int notrace s390_check_registers(union mci mci, int umode)
+static int yestrace s390_check_registers(union mci mci, int umode)
 {
 	union ctlreg2 cr2;
 	int kill_task;
@@ -198,7 +198,7 @@ static int notrace s390_check_registers(union mci mci, int umode)
 	if (!mci.gr) {
 		/*
 		 * General purpose registers couldn't be restored and have
-		 * unknown contents. Stop system or terminate process.
+		 * unkyeswn contents. Stop system or terminate process.
 		 */
 		if (!umode)
 			s390_handle_damage();
@@ -207,7 +207,7 @@ static int notrace s390_check_registers(union mci mci, int umode)
 	/* Check control registers */
 	if (!mci.cr) {
 		/*
-		 * Control registers have unknown contents.
+		 * Control registers have unkyeswn contents.
 		 * Can't recover and therefore stopping machine.
 		 */
 		s390_handle_damage();
@@ -255,7 +255,7 @@ static int notrace s390_check_registers(union mci mci, int umode)
 	/* Check if access registers are valid */
 	if (!mci.ar) {
 		/*
-		 * Access registers have unknown contents.
+		 * Access registers have unkyeswn contents.
 		 * Terminating task.
 		 */
 		kill_task = 1;
@@ -299,7 +299,7 @@ NOKPROBE_SYMBOL(s390_check_registers);
 /*
  * Backup the guest's machine check info to its description block
  */
-static void notrace s390_backup_mcck_info(struct pt_regs *regs)
+static void yestrace s390_backup_mcck_info(struct pt_regs *regs)
 {
 	struct mcck_volatile_info *mcck_backup;
 	struct sie_page *sie_page;
@@ -333,7 +333,7 @@ NOKPROBE_SYMBOL(s390_backup_mcck_info);
 /*
  * machine check handler.
  */
-void notrace s390_do_machine_check(struct pt_regs *regs)
+void yestrace s390_do_machine_check(struct pt_regs *regs)
 {
 	static int ipd_count;
 	static DEFINE_SPINLOCK(ipd_lock);
@@ -452,7 +452,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 
 	/*
 	 * If there are only Channel Report Pending and External Damage
-	 * machine checks, they will not be reinjected into the guest
+	 * machine checks, they will yest be reinjected into the guest
 	 * because they refer to host conditions only.
 	 */
 	mcck_dam_code = (mci.val & MCIC_SUBCLASS_MASK);

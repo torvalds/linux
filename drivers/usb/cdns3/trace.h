@@ -204,8 +204,8 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__field(unsigned int, length)
 		__field(int, status)
 		__field(int, zero)
-		__field(int, short_not_ok)
-		__field(int, no_interrupt)
+		__field(int, short_yest_ok)
+		__field(int, yes_interrupt)
 		__field(int, start_trb)
 		__field(int, end_trb)
 		__field(struct cdns3_trb *, start_trb_addr)
@@ -219,8 +219,8 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__entry->length = req->request.length;
 		__entry->status = req->request.status;
 		__entry->zero = req->request.zero;
-		__entry->short_not_ok = req->request.short_not_ok;
-		__entry->no_interrupt = req->request.no_interrupt;
+		__entry->short_yest_ok = req->request.short_yest_ok;
+		__entry->yes_interrupt = req->request.yes_interrupt;
 		__entry->start_trb = req->start_trb;
 		__entry->end_trb = req->end_trb;
 		__entry->start_trb_addr = req->trb;
@@ -231,8 +231,8 @@ DECLARE_EVENT_CLASS(cdns3_log_request,
 		__get_str(name), __entry->req, __entry->buf, __entry->actual,
 		__entry->length,
 		__entry->zero ? "Z" : "z",
-		__entry->short_not_ok ? "S" : "s",
-		__entry->no_interrupt ? "I" : "i",
+		__entry->short_yest_ok ? "S" : "s",
+		__entry->yes_interrupt ? "I" : "i",
 		__entry->status,
 		__entry->start_trb,
 		__entry->end_trb,
@@ -468,7 +468,7 @@ DECLARE_EVENT_CLASS(cdns3_log_request_handled,
 	TP_printk("Req: %p %s, DMA pos: %d, ep deq: %d, ep enq: %d,"
 		  " start trb: %d, end trb: %d",
 		__entry->priv_req,
-		__entry->handled ? "handled" : "not handled",
+		__entry->handled ? "handled" : "yest handled",
 		__entry->dma_position, __entry->dequeue_idx,
 		__entry->enqueue_idx, __entry->start_trb,
 		__entry->end_trb

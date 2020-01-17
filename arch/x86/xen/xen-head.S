@@ -4,7 +4,7 @@
 
 #ifdef CONFIG_XEN
 
-#include <linux/elfnote.h>
+#include <linux/elfyeste.h>
 #include <linux/init.h>
 
 #include <asm/boot.h>
@@ -14,7 +14,7 @@
 #include <asm/percpu.h>
 #include <asm/unwind_hints.h>
 
-#include <xen/interface/elfnote.h>
+#include <xen/interface/elfyeste.h>
 #include <xen/interface/features.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/xen-mca.h>
@@ -92,7 +92,7 @@ SYM_CODE_END(hypercall_page)
 		.long (1 << XENFEAT_writable_page_tables) |       \
 		      (1 << XENFEAT_dom0) |                       \
 		      (1 << XENFEAT_linux_rsdp_unrestricted))
-	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz "yes")
+	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz "no")
 	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz "generic")
 	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,
 		.quad _PAGE_PRESENT; .quad _PAGE_PRESENT)

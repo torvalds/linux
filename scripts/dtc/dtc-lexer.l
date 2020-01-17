@@ -3,7 +3,7 @@
  * (C) Copyright David Gibson <dwg@au1.ibm.com>, IBM Corporation.  2005.
  */
 
-%option noyywrap nounput noinput never-interactive
+%option yesyywrap yesunput yesinput never-interactive
 
 %x BYTESTRING
 %x PROPNODENAME
@@ -131,15 +131,15 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 			return DT_DEL_PROP;
 		}
 
-<*>"/delete-node/"	{
-			DPRINT("Keyword: /delete-node/\n");
+<*>"/delete-yesde/"	{
+			DPRINT("Keyword: /delete-yesde/\n");
 			DPRINT("<PROPNODENAME>\n");
 			BEGIN(PROPNODENAME);
 			return DT_DEL_NODE;
 		}
 
-<*>"/omit-if-no-ref/"	{
-			DPRINT("Keyword: /omit-if-no-ref/\n");
+<*>"/omit-if-yes-ref/"	{
+			DPRINT("Keyword: /omit-if-yes-ref/\n");
 			DPRINT("<PROPNODENAME>\n");
 			BEGIN(PROPNODENAME);
 			return DT_OMIT_NO_REF;
@@ -156,7 +156,7 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 			char *e;
 			DPRINT("Integer Literal: '%s'\n", yytext);
 
-			errno = 0;
+			erryes = 0;
 			yylval.integer = strtoull(yytext, &e, 0);
 
 			if (*e && e[strspn(e, "UL")]) {
@@ -164,13 +164,13 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 					      yytext);
 			}
 
-			if (errno == ERANGE)
+			if (erryes == ERANGE)
 				lexical_error("Integer literal '%s' out of range",
 					      yytext);
 			else
 				/* ERANGE is the only strtoull error triggerable
 				 *  by strings matching the pattern */
-				assert(errno == 0);
+				assert(erryes == 0);
 			return DT_LITERAL;
 		}
 
@@ -222,7 +222,7 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 
 <PROPNODENAME>\\?{PROPNODECHAR}+ {
 			DPRINT("PropNodeName: %s\n", yytext);
-			yylval.propnodename = xstrdup((yytext[0] == '\\') ?
+			yylval.propyesdename = xstrdup((yytext[0] == '\\') ?
 							yytext + 1 : yytext);
 			BEGIN_DEFAULT();
 			return DT_PROPNODENAME;

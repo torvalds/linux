@@ -130,7 +130,7 @@ static int cxgb4_mqprio_alloc_hw_resources(struct net_device *dev)
 	int ret, msix = 0;
 	u32 i;
 
-	/* Allocate ETHOFLD hardware queue structures if not done already */
+	/* Allocate ETHOFLD hardware queue structures if yest done already */
 	if (!refcount_read(&adap->tc_mqprio->refcnt)) {
 		adap->sge.eohw_rxq = kcalloc(adap->sge.eoqsets,
 					     sizeof(struct sge_ofld_rxq),
@@ -252,11 +252,11 @@ static void cxgb4_mqprio_free_hw_resources(struct net_device *dev)
 	struct sge_eohw_txq *eotxq;
 	u32 i;
 
-	/* Return if no ETHOFLD structures have been allocated yet */
+	/* Return if yes ETHOFLD structures have been allocated yet */
 	if (!refcount_read(&adap->tc_mqprio->refcnt))
 		return;
 
-	/* Return if no hardware queues have been allocated */
+	/* Return if yes hardware queues have been allocated */
 	if (!adap->sge.eohw_rxq[pi->first_qset].rspq.desc)
 		return;
 
@@ -266,7 +266,7 @@ static void cxgb4_mqprio_free_hw_resources(struct net_device *dev)
 
 		/* Device removal path will already disable NAPI
 		 * before unregistering netdevice. So, only disable
-		 * NAPI if we're not in device removal path
+		 * NAPI if we're yest in device removal path
 		 */
 		if (!(adap->flags & CXGB4_SHUTTING_DOWN))
 			cxgb4_quiesce_rx(&eorxq->rspq);
@@ -281,7 +281,7 @@ static void cxgb4_mqprio_free_hw_resources(struct net_device *dev)
 		t4_sge_free_ethofld_txq(adap, eotxq);
 	}
 
-	/* Free up ETHOFLD structures if there are no users */
+	/* Free up ETHOFLD structures if there are yes users */
 	if (refcount_dec_and_test(&adap->tc_mqprio->refcnt)) {
 		kfree(adap->sge.eohw_txq);
 		kfree(adap->sge.eohw_rxq);
@@ -376,7 +376,7 @@ static void cxgb4_mqprio_class_unbind(struct net_device *dev,
 	struct adapter *adap = netdev2adap(dev);
 	struct ch_sched_flowc fe;
 
-	/* If we're shutting down, interrupts are disabled and no completions
+	/* If we're shutting down, interrupts are disabled and yes completions
 	 * come back. So, skip waiting for completions in this scenario.
 	 */
 	if (!(adap->flags & CXGB4_SHUTTING_DOWN))
@@ -440,7 +440,7 @@ static int cxgb4_mqprio_enable_offload(struct net_device *dev,
 
 	/* Inform the stack about the configured tc params.
 	 *
-	 * Set the correct queue map. If no queue count has been
+	 * Set the correct queue map. If yes queue count has been
 	 * specified, then send the traffic through default NIC
 	 * queues; instead of ETHOFLD queues.
 	 */
@@ -560,7 +560,7 @@ int cxgb4_setup_tc_mqprio(struct net_device *dev,
 	cxgb4_mqprio_disable_offload(dev);
 
 	/* If requested for clear, then just return since resources are
-	 * already freed up by now.
+	 * already freed up by yesw.
 	 */
 	if (!mqprio->qopt.num_tc)
 		goto out;

@@ -174,17 +174,17 @@
  * Below is some version info we got:
  *    SOC   Version   IP-Version  Glitch- [TR]WRN_INT IRQ Err Memory err RTR re-
  *                                Filter? connected?  Passive detection  ception in MB
- *   MX25  FlexCAN2  03.00.00.00     no        no        no       no        no
- *   MX28  FlexCAN2  03.00.04.00    yes       yes        no       no        no
- *   MX35  FlexCAN2  03.00.00.00     no        no        no       no        no
- *   MX53  FlexCAN2  03.00.00.00    yes        no        no       no        no
- *   MX6s  FlexCAN3  10.00.12.00    yes       yes        no       no       yes
- *   VF610 FlexCAN3  ?               no       yes        no      yes       yes?
- * LS1021A FlexCAN2  03.00.04.00     no       yes        no       no       yes
+ *   MX25  FlexCAN2  03.00.00.00     yes        yes        yes       yes        yes
+ *   MX28  FlexCAN2  03.00.04.00    no       no        yes       yes        yes
+ *   MX35  FlexCAN2  03.00.00.00     yes        yes        yes       yes        yes
+ *   MX53  FlexCAN2  03.00.00.00    no        yes        yes       yes        yes
+ *   MX6s  FlexCAN3  10.00.12.00    no       no        yes       yes       no
+ *   VF610 FlexCAN3  ?               yes       no        yes      no       no?
+ * LS1021A FlexCAN2  03.00.04.00     yes       no        yes       yes       no
  *
- * Some SOCs do not have the RX_WARN & TX_WARN interrupt line connected.
+ * Some SOCs do yest have the RX_WARN & TX_WARN interrupt line connected.
  */
-#define FLEXCAN_QUIRK_BROKEN_WERR_STATE	BIT(1) /* [TR]WRN_INT not connected */
+#define FLEXCAN_QUIRK_BROKEN_WERR_STATE	BIT(1) /* [TR]WRN_INT yest connected */
 #define FLEXCAN_QUIRK_DISABLE_RXFG	BIT(2) /* Disable RX FIFO Global mask */
 #define FLEXCAN_QUIRK_ENABLE_EACEN_RRS	BIT(3) /* Enable EACEN and RRS bit in ctrl2 */
 #define FLEXCAN_QUIRK_DISABLE_MECR	BIT(4) /* Disable Memory error detection */
@@ -1086,7 +1086,7 @@ static int flexcan_chip_start(struct net_device *dev)
 	/* MCR
 	 *
 	 * enable freeze
-	 * halt now
+	 * halt yesw
 	 * only supervisor access
 	 * enable warning int
 	 * enable individual RX masking
@@ -1112,15 +1112,15 @@ static int flexcan_chip_start(struct net_device *dev)
 
 	/* MCR
 	 *
-	 * NOTE: In loopback mode, the CAN_MCR[SRXDIS] cannot be
+	 * NOTE: In loopback mode, the CAN_MCR[SRXDIS] canyest be
 	 *       asserted because this will impede the self reception
-	 *       of a transmitted message. This is not documented in
+	 *       of a transmitted message. This is yest documented in
 	 *       earlier versions of flexcan block guide.
 	 *
 	 * Self Reception:
 	 * - enable Self Reception for loopback mode
 	 *   (by clearing "Self Reception Disable" bit)
-	 * - disable for normal operation
+	 * - disable for yesrmal operation
 	 */
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		reg_mcr &= ~FLEXCAN_MCR_SRX_DIS;
@@ -1158,7 +1158,7 @@ static int flexcan_chip_start(struct net_device *dev)
 
 	/* save for later use */
 	priv->reg_ctrl_default = reg_ctrl;
-	/* leave interrupts disabled for now */
+	/* leave interrupts disabled for yesw */
 	reg_ctrl &= ~FLEXCAN_CTRL_ERR_ALL;
 	netdev_dbg(dev, "%s: writing ctrl=0x%08x", __func__, reg_ctrl);
 	priv->write(reg_ctrl, &regs->ctrl);
@@ -1437,11 +1437,11 @@ static int register_flexcandev(struct net_device *dev)
 	/* Currently we only support newer versions of this core
 	 * featuring a RX hardware FIFO (although this driver doesn't
 	 * make use of it on some cores). Older cores, found on some
-	 * Coldfire derivates are not tested.
+	 * Coldfire derivates are yest tested.
 	 */
 	reg = priv->read(&regs->mcr);
 	if (!(reg & FLEXCAN_MCR_FEN)) {
-		netdev_err(dev, "Could not enable RX FIFO, unsupported core\n");
+		netdev_err(dev, "Could yest enable RX FIFO, unsupported core\n");
 		err = -ENODEV;
 		goto out_chip_disable;
 	}
@@ -1451,7 +1451,7 @@ static int register_flexcandev(struct net_device *dev)
 		goto out_chip_disable;
 
 	/* Disable core and let pm_runtime_put() disable the clocks.
-	 * If CONFIG_PM is not enabled, the clocks will stay powered.
+	 * If CONFIG_PM is yest enabled, the clocks will stay powered.
 	 */
 	flexcan_chip_disable(priv);
 	pm_runtime_put(priv->dev);
@@ -1473,8 +1473,8 @@ static void unregister_flexcandev(struct net_device *dev)
 static int flexcan_setup_stop_mode(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *gpr_np;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *gpr_np;
 	struct flexcan_priv *priv;
 	phandle phandle;
 	u32 out_val[5];
@@ -1489,23 +1489,23 @@ static int flexcan_setup_stop_mode(struct platform_device *pdev)
 	ret = of_property_read_u32_array(np, "fsl,stop-mode", out_val,
 					 ARRAY_SIZE(out_val));
 	if (ret) {
-		dev_dbg(&pdev->dev, "no stop-mode property\n");
+		dev_dbg(&pdev->dev, "yes stop-mode property\n");
 		return ret;
 	}
 	phandle = *out_val;
 
-	gpr_np = of_find_node_by_phandle(phandle);
+	gpr_np = of_find_yesde_by_phandle(phandle);
 	if (!gpr_np) {
-		dev_dbg(&pdev->dev, "could not find gpr node by phandle\n");
+		dev_dbg(&pdev->dev, "could yest find gpr yesde by phandle\n");
 		return -ENODEV;
 	}
 
 	priv = netdev_priv(dev);
-	priv->stm.gpr = syscon_node_to_regmap(gpr_np);
+	priv->stm.gpr = syscon_yesde_to_regmap(gpr_np);
 	if (IS_ERR(priv->stm.gpr)) {
-		dev_dbg(&pdev->dev, "could not find gpr regmap\n");
+		dev_dbg(&pdev->dev, "could yest find gpr regmap\n");
 		ret = PTR_ERR(priv->stm.gpr);
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	priv->stm.req_gpr = out_val[1];
@@ -1525,8 +1525,8 @@ static int flexcan_setup_stop_mode(struct platform_device *pdev)
 
 	return 0;
 
-out_put_node:
-	of_node_put(gpr_np);
+out_put_yesde:
+	of_yesde_put(gpr_np);
 	return ret;
 }
 
@@ -1568,23 +1568,23 @@ static int flexcan_probe(struct platform_device *pdev)
 	else if (IS_ERR(reg_xceiver))
 		reg_xceiver = NULL;
 
-	if (pdev->dev.of_node) {
-		of_property_read_u32(pdev->dev.of_node,
+	if (pdev->dev.of_yesde) {
+		of_property_read_u32(pdev->dev.of_yesde,
 				     "clock-frequency", &clock_freq);
-		of_property_read_u8(pdev->dev.of_node,
+		of_property_read_u8(pdev->dev.of_yesde,
 				    "fsl,clk-source", &clk_src);
 	}
 
 	if (!clock_freq) {
 		clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 		if (IS_ERR(clk_ipg)) {
-			dev_err(&pdev->dev, "no ipg clock defined\n");
+			dev_err(&pdev->dev, "yes ipg clock defined\n");
 			return PTR_ERR(clk_ipg);
 		}
 
 		clk_per = devm_clk_get(&pdev->dev, "per");
 		if (IS_ERR(clk_per)) {
-			dev_err(&pdev->dev, "no per clock defined\n");
+			dev_err(&pdev->dev, "yes per clock defined\n");
 			return PTR_ERR(clk_per);
 		}
 		clock_freq = clk_get_rate(clk_per);
@@ -1621,7 +1621,7 @@ static int flexcan_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(dev);
 
-	if (of_property_read_bool(pdev->dev.of_node, "big-endian") ||
+	if (of_property_read_bool(pdev->dev.of_yesde, "big-endian") ||
 	    devtype_data->quirks & FLEXCAN_QUIRK_DEFAULT_BIG_ENDIAN) {
 		priv->read = flexcan_read_be;
 		priv->write = flexcan_write_be;
@@ -1645,7 +1645,7 @@ static int flexcan_probe(struct platform_device *pdev)
 	priv->devtype_data = devtype_data;
 	priv->reg_xceiver = reg_xceiver;
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
@@ -1756,7 +1756,7 @@ static int __maybe_unused flexcan_runtime_resume(struct device *device)
 	return flexcan_clks_enable(priv);
 }
 
-static int __maybe_unused flexcan_noirq_suspend(struct device *device)
+static int __maybe_unused flexcan_yesirq_suspend(struct device *device)
 {
 	struct net_device *dev = dev_get_drvdata(device);
 	struct flexcan_priv *priv = netdev_priv(dev);
@@ -1767,7 +1767,7 @@ static int __maybe_unused flexcan_noirq_suspend(struct device *device)
 	return 0;
 }
 
-static int __maybe_unused flexcan_noirq_resume(struct device *device)
+static int __maybe_unused flexcan_yesirq_resume(struct device *device)
 {
 	struct net_device *dev = dev_get_drvdata(device);
 	struct flexcan_priv *priv = netdev_priv(dev);
@@ -1781,7 +1781,7 @@ static int __maybe_unused flexcan_noirq_resume(struct device *device)
 static const struct dev_pm_ops flexcan_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(flexcan_suspend, flexcan_resume)
 	SET_RUNTIME_PM_OPS(flexcan_runtime_suspend, flexcan_runtime_resume, NULL)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(flexcan_noirq_suspend, flexcan_noirq_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(flexcan_yesirq_suspend, flexcan_yesirq_resume)
 };
 
 static struct platform_driver flexcan_driver = {

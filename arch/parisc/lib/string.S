@@ -15,15 +15,15 @@
 	t1 = r21
 	t2 = r22
 
-ENTRY_CFI(strlen, frame=0,no_calls)
+ENTRY_CFI(strlen, frame=0,yes_calls)
 	or,COND(<>) arg0,r0,ret0
 	b,l,n	.Lstrlen_null_ptr,r0
 	depwi	0,31,2,ret0
-	cmpb,COND(<>) arg0,ret0,.Lstrlen_not_aligned
+	cmpb,COND(<>) arg0,ret0,.Lstrlen_yest_aligned
 	ldw,ma	4(ret0),t0
 	cmpib,tr 0,r0,.Lstrlen_loop
 	uxor,nbz r0,t0,r0
-.Lstrlen_not_aligned:
+.Lstrlen_yest_aligned:
 	uaddcm	arg0,ret0,t1
 	shladd	t1,3,r0,t1
 	mtsar	t1
@@ -49,7 +49,7 @@ ENTRY_CFI(strlen, frame=0,no_calls)
 ENDPROC_CFI(strlen)
 
 
-ENTRY_CFI(strcpy, frame=0,no_calls)
+ENTRY_CFI(strcpy, frame=0,yes_calls)
 	ldb	0(arg1),t0
 	stb	t0,0(arg0)
 	ldo	0(arg0),ret0
@@ -65,7 +65,7 @@ ENTRY_CFI(strcpy, frame=0,no_calls)
 ENDPROC_CFI(strcpy)
 
 
-ENTRY_CFI(strncpy, frame=0,no_calls)
+ENTRY_CFI(strncpy, frame=0,yes_calls)
 	ldb	0(arg1),t0
 	stb	t0,0(arg0)
 	ldo	1(arg1),t1
@@ -83,7 +83,7 @@ ENTRY_CFI(strncpy, frame=0,no_calls)
 ENDPROC_CFI(strncpy)
 
 
-ENTRY_CFI(strcat, frame=0,no_calls)
+ENTRY_CFI(strcat, frame=0,yes_calls)
 	ldb	0(arg0),t0
 	cmpb,=	t0,r0,2f
 	ldo	0(arg0),ret0
@@ -101,7 +101,7 @@ ENTRY_CFI(strcat, frame=0,no_calls)
 ENDPROC_CFI(strcat)
 
 
-ENTRY_CFI(memset, frame=0,no_calls)
+ENTRY_CFI(memset, frame=0,yes_calls)
 	copy	arg0,ret0
 	cmpb,COND(=) r0,arg0,4f
 	copy	arg0,t2

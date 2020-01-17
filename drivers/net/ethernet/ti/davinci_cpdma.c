@@ -254,7 +254,7 @@ static int cpdma_desc_pool_create(struct cpdma_ctlr *ctlr)
 		pool->cpumap = dma_alloc_coherent(ctlr->dev,  pool->mem_size,
 						  &pool->hw_addr, GFP_KERNEL);
 		pool->iomap = (void __iomem __force *)pool->cpumap;
-		pool->phys = pool->hw_addr; /* assumes no IOMMU, don't use this value */
+		pool->phys = pool->hw_addr; /* assumes yes IOMMU, don't use this value */
 	}
 
 	if (!pool->iomap)
@@ -437,7 +437,7 @@ static int cpdma_chan_fit_rate(struct cpdma_chan *ch, u32 rate,
 
 err:
 	ch->rate = old_rate;
-	dev_err(ctlr->dev, "Upper cpdma ch%d is not rate limited\n",
+	dev_err(ctlr->dev, "Upper cpdma ch%d is yest rate limited\n",
 		chan->chan_num);
 	return -EINVAL;
 }
@@ -459,7 +459,7 @@ static u32 cpdma_chan_set_factors(struct cpdma_ctlr *ctlr,
 
 	freq = ctlr->params.bus_freq_mhz * 1000 * 32;
 	if (!freq) {
-		dev_err(ctlr->dev, "The bus frequency is not set\n");
+		dev_err(ctlr->dev, "The bus frequency is yest set\n");
 		return -EINVAL;
 	}
 
@@ -776,7 +776,7 @@ static int cpdma_chan_split_pool(struct cpdma_ctlr *ctlr)
  * Tx and Rx channels have separate weights. That is 100% for RX
  * and 100% for Tx. The weight is used to split cpdma resources
  * in correct proportion required by the channels, including number
- * of descriptors. The channel rate is not enough to know the
+ * of descriptors. The channel rate is yest eyesugh to kyesw the
  * weight of a channel as the maximum rate of an interface is needed.
  * If weight = 0, then channel uses rest of descriptors leaved by
  * weighted channels.

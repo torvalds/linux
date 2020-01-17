@@ -343,7 +343,7 @@ static inline const char *kretprobed(const char *name)
 	int size = sizeof(tramp_name);
 
 	if (strncmp(tramp_name, name, size) == 0)
-		return "[unknown/kretprobe'd]";
+		return "[unkyeswn/kretprobe'd]";
 	return name;
 }
 #else
@@ -665,7 +665,7 @@ struct trace_event *ftrace_find_event(int type)
 
 	key = type & (EVENT_HASHSIZE - 1);
 
-	hlist_for_each_entry(event, &event_hash[key], node) {
+	hlist_for_each_entry(event, &event_hash[key], yesde) {
 		if (event->type == type)
 			return event;
 	}
@@ -774,17 +774,17 @@ int register_trace_event(struct trace_event *event)
 	}
 
 	if (event->funcs->trace == NULL)
-		event->funcs->trace = trace_nop_print;
+		event->funcs->trace = trace_yesp_print;
 	if (event->funcs->raw == NULL)
-		event->funcs->raw = trace_nop_print;
+		event->funcs->raw = trace_yesp_print;
 	if (event->funcs->hex == NULL)
-		event->funcs->hex = trace_nop_print;
+		event->funcs->hex = trace_yesp_print;
 	if (event->funcs->binary == NULL)
-		event->funcs->binary = trace_nop_print;
+		event->funcs->binary = trace_yesp_print;
 
 	key = event->type & (EVENT_HASHSIZE - 1);
 
-	hlist_add_head(&event->node, &event_hash[key]);
+	hlist_add_head(&event->yesde, &event_hash[key]);
 
 	ret = event->type;
  out:
@@ -799,13 +799,13 @@ EXPORT_SYMBOL_GPL(register_trace_event);
  */
 int __unregister_trace_event(struct trace_event *event)
 {
-	hlist_del(&event->node);
+	hlist_del(&event->yesde);
 	list_del(&event->list);
 	return 0;
 }
 
 /**
- * unregister_trace_event - remove a no longer used event
+ * unregister_trace_event - remove a yes longer used event
  * @event: the event to remove
  */
 int unregister_trace_event(struct trace_event *event)
@@ -822,7 +822,7 @@ EXPORT_SYMBOL_GPL(unregister_trace_event);
  * Standard events
  */
 
-enum print_line_t trace_nop_print(struct trace_iterator *iter, int flags,
+enum print_line_t trace_yesp_print(struct trace_iterator *iter, int flags,
 				  struct trace_event *event)
 {
 	trace_seq_printf(&iter->seq, "type: %d\n", iter->ent->type);
@@ -1167,8 +1167,8 @@ trace_hwlat_print(struct trace_iterator *iter, int flags,
 
 	if (field->nmi_count) {
 		/*
-		 * The generic sched_clock() is not NMI safe, thus
-		 * we only record the count and not the time.
+		 * The generic sched_clock() is yest NMI safe, thus
+		 * we only record the count and yest the time.
 		 */
 		if (!IS_ENABLED(CONFIG_GENERIC_SCHED_CLOCK))
 			trace_seq_printf(s, " nmi-total:%llu",

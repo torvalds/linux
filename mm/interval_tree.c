@@ -24,16 +24,16 @@ INTERVAL_TREE_DEFINE(struct vm_area_struct, shared.rb,
 		     unsigned long, shared.rb_subtree_last,
 		     vma_start_pgoff, vma_last_pgoff,, vma_interval_tree)
 
-/* Insert node immediately after prev in the interval tree */
-void vma_interval_tree_insert_after(struct vm_area_struct *node,
+/* Insert yesde immediately after prev in the interval tree */
+void vma_interval_tree_insert_after(struct vm_area_struct *yesde,
 				    struct vm_area_struct *prev,
 				    struct rb_root_cached *root)
 {
-	struct rb_node **link;
+	struct rb_yesde **link;
 	struct vm_area_struct *parent;
-	unsigned long last = vma_last_pgoff(node);
+	unsigned long last = vma_last_pgoff(yesde);
 
-	VM_BUG_ON_VMA(vma_start_pgoff(node) != vma_start_pgoff(prev), node);
+	VM_BUG_ON_VMA(vma_start_pgoff(yesde) != vma_start_pgoff(prev), yesde);
 
 	if (!prev->shared.rb.rb_right) {
 		parent = prev;
@@ -52,60 +52,60 @@ void vma_interval_tree_insert_after(struct vm_area_struct *node,
 		link = &parent->shared.rb.rb_left;
 	}
 
-	node->shared.rb_subtree_last = last;
-	rb_link_node(&node->shared.rb, &parent->shared.rb, link);
-	rb_insert_augmented(&node->shared.rb, &root->rb_root,
+	yesde->shared.rb_subtree_last = last;
+	rb_link_yesde(&yesde->shared.rb, &parent->shared.rb, link);
+	rb_insert_augmented(&yesde->shared.rb, &root->rb_root,
 			    &vma_interval_tree_augment);
 }
 
-static inline unsigned long avc_start_pgoff(struct anon_vma_chain *avc)
+static inline unsigned long avc_start_pgoff(struct ayesn_vma_chain *avc)
 {
 	return vma_start_pgoff(avc->vma);
 }
 
-static inline unsigned long avc_last_pgoff(struct anon_vma_chain *avc)
+static inline unsigned long avc_last_pgoff(struct ayesn_vma_chain *avc)
 {
 	return vma_last_pgoff(avc->vma);
 }
 
-INTERVAL_TREE_DEFINE(struct anon_vma_chain, rb, unsigned long, rb_subtree_last,
+INTERVAL_TREE_DEFINE(struct ayesn_vma_chain, rb, unsigned long, rb_subtree_last,
 		     avc_start_pgoff, avc_last_pgoff,
-		     static inline, __anon_vma_interval_tree)
+		     static inline, __ayesn_vma_interval_tree)
 
-void anon_vma_interval_tree_insert(struct anon_vma_chain *node,
+void ayesn_vma_interval_tree_insert(struct ayesn_vma_chain *yesde,
 				   struct rb_root_cached *root)
 {
 #ifdef CONFIG_DEBUG_VM_RB
-	node->cached_vma_start = avc_start_pgoff(node);
-	node->cached_vma_last = avc_last_pgoff(node);
+	yesde->cached_vma_start = avc_start_pgoff(yesde);
+	yesde->cached_vma_last = avc_last_pgoff(yesde);
 #endif
-	__anon_vma_interval_tree_insert(node, root);
+	__ayesn_vma_interval_tree_insert(yesde, root);
 }
 
-void anon_vma_interval_tree_remove(struct anon_vma_chain *node,
+void ayesn_vma_interval_tree_remove(struct ayesn_vma_chain *yesde,
 				   struct rb_root_cached *root)
 {
-	__anon_vma_interval_tree_remove(node, root);
+	__ayesn_vma_interval_tree_remove(yesde, root);
 }
 
-struct anon_vma_chain *
-anon_vma_interval_tree_iter_first(struct rb_root_cached *root,
+struct ayesn_vma_chain *
+ayesn_vma_interval_tree_iter_first(struct rb_root_cached *root,
 				  unsigned long first, unsigned long last)
 {
-	return __anon_vma_interval_tree_iter_first(root, first, last);
+	return __ayesn_vma_interval_tree_iter_first(root, first, last);
 }
 
-struct anon_vma_chain *
-anon_vma_interval_tree_iter_next(struct anon_vma_chain *node,
+struct ayesn_vma_chain *
+ayesn_vma_interval_tree_iter_next(struct ayesn_vma_chain *yesde,
 				 unsigned long first, unsigned long last)
 {
-	return __anon_vma_interval_tree_iter_next(node, first, last);
+	return __ayesn_vma_interval_tree_iter_next(yesde, first, last);
 }
 
 #ifdef CONFIG_DEBUG_VM_RB
-void anon_vma_interval_tree_verify(struct anon_vma_chain *node)
+void ayesn_vma_interval_tree_verify(struct ayesn_vma_chain *yesde)
 {
-	WARN_ON_ONCE(node->cached_vma_start != avc_start_pgoff(node));
-	WARN_ON_ONCE(node->cached_vma_last != avc_last_pgoff(node));
+	WARN_ON_ONCE(yesde->cached_vma_start != avc_start_pgoff(yesde));
+	WARN_ON_ONCE(yesde->cached_vma_last != avc_last_pgoff(yesde));
 }
 #endif

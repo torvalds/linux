@@ -52,7 +52,7 @@ bss_loop:
 	CLR	.S2	B2,0,1,B2
 	MVC	.S2	B2,NTSR
 
-	;; pass DTB pointer to machine_init (or zero if none)
+	;; pass DTB pointer to machine_init (or zero if yesne)
 	MVKL	.S1	OF_DT_HEADER,A0
 	MVKH	.S1	OF_DT_HEADER,A0
 	CMPEQ	.L1	A10,A0,A0

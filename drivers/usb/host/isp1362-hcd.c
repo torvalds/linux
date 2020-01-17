@@ -26,12 +26,12 @@
  * Use the corresponding macros USE_PLATFORM_DELAY and USE_NDELAY in the
  * platform specific section of isp1362.h to select the appropriate variant.
  *
- * Also note that according to the Philips "ISP1362 Errata" document
+ * Also yeste that according to the Philips "ISP1362 Errata" document
  * Rev 1.00 from 27 May data corruption may occur when the #WR signal
  * is reasserted (even with #CS deasserted) within 132ns after a
  * write cycle to any controller register. If the hardware doesn't
  * implement the recommended fix (gating the #WR with #CS) software
- * must ensure that no further write cycle (not necessarily to the chip!)
+ * must ensure that yes further write cycle (yest necessarily to the chip!)
  * is issued by the CPU within this interval.
 
  * For PXA25x this can be ensured by using VLIO with the maximum
@@ -67,7 +67,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
@@ -259,7 +259,7 @@ static inline void release_ptd_buffers(struct isp1362_ep_queue *epq, struct isp1
 */
 static void prepare_ptd(struct isp1362_hcd *isp1362_hcd, struct urb *urb,
 			struct isp1362_ep *ep, struct isp1362_ep_queue *epq,
-			u16 fno)
+			u16 fyes)
 {
 	struct ptd *ptd;
 	int toggle;
@@ -280,8 +280,8 @@ static void prepare_ptd(struct isp1362_hcd *isp1362_hcd, struct urb *urb,
 		if (usb_pipecontrol(urb->pipe)) {
 			len = min_t(size_t, ep->maxpacket, buf_len);
 		} else if (usb_pipeisoc(urb->pipe)) {
-			len = min_t(size_t, urb->iso_frame_desc[fno].length, MAX_XFER_SIZE);
-			ep->data = urb->transfer_buffer + urb->iso_frame_desc[fno].offset;
+			len = min_t(size_t, urb->iso_frame_desc[fyes].length, MAX_XFER_SIZE);
+			ep->data = urb->transfer_buffer + urb->iso_frame_desc[fyes].offset;
 		} else
 			len = max_transfer_size(epq, buf_len, ep->maxpacket);
 		DBG(1, "%s: IN    len %d/%d/%d from URB\n", __func__, len, ep->maxpacket,
@@ -337,7 +337,7 @@ static void prepare_ptd(struct isp1362_hcd *isp1362_hcd, struct urb *urb,
 		ptd->faddr |= PTD_PR(ep->interval ? __ffs(ep->interval) : 0);
 	}
 	if (usb_pipeisoc(urb->pipe))
-		ptd->faddr |= PTD_SF_ISO(fno);
+		ptd->faddr |= PTD_SF_ISO(fyes);
 
 	DBG(1, "%s: Finished\n", __func__);
 }
@@ -521,7 +521,7 @@ static void postproc_ep(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep)
 	len = urb->transfer_buffer_length - urb->actual_length;
 
 	/* Data underrun is special. For allowed underrun
-	   we clear the error and continue as normal. For
+	   we clear the error and continue as yesrmal. For
 	   forbidden underrun we finish the DATA stage
 	   immediately while for control transfer,
 	   we do a STATUS stage.
@@ -529,7 +529,7 @@ static void postproc_ep(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep)
 	if (cc == PTD_DATAUNDERRUN) {
 		if (short_ok) {
 			DBG(1, "%s: req %d Allowed data underrun short_%sok %d/%d/%d byte\n",
-			    __func__, ep->num_req, short_ok ? "" : "not_",
+			    __func__, ep->num_req, short_ok ? "" : "yest_",
 			    PTD_GET_COUNT(ptd), ep->maxpacket, len);
 			cc = PTD_CC_NOERROR;
 			urbstat = 0;
@@ -537,7 +537,7 @@ static void postproc_ep(struct isp1362_hcd *isp1362_hcd, struct isp1362_ep *ep)
 			DBG(1, "%s: req %d Data Underrun %s nextpid %02x short_%sok %d/%d/%d byte\n",
 			    __func__, ep->num_req,
 			    usb_pipein(urb->pipe) ? "IN" : "OUT", ep->nextpid,
-			    short_ok ? "" : "not_",
+			    short_ok ? "" : "yest_",
 			    PTD_GET_COUNT(ptd), ep->maxpacket, len);
 			/* save the data underrun error code for later and
 			 * proceed with the status stage
@@ -722,7 +722,7 @@ static int submit_req(struct isp1362_hcd *isp1362_hcd, struct urb *urb,
 		    ep->num_req, epq->name, ep->num_ptds, epq->buf_map, epq->skip_map);
 		return index;
 	} else if (index == -EOVERFLOW) {
-		DBG(1, "%s: req %d Not enough space for %d byte %s PTD %d %08lx:%08lx\n",
+		DBG(1, "%s: req %d Not eyesugh space for %d byte %s PTD %d %08lx:%08lx\n",
 		    __func__, ep->num_req, ep->length, epq->name, ep->num_ptds,
 		    epq->buf_map, epq->skip_map);
 		return index;
@@ -861,7 +861,7 @@ static void start_iso_transfers(struct isp1362_hcd *isp1362_hcd)
 	int ptd_offset;
 	struct isp1362_ep *ep;
 	struct isp1362_ep *tmp;
-	u16 fno = isp1362_read_reg32(isp1362_hcd, HCFMNUM);
+	u16 fyes = isp1362_read_reg32(isp1362_hcd, HCFMNUM);
 
  fill2:
 	epq = &isp1362_hcd->istl_queue[flip];
@@ -876,7 +876,7 @@ static void start_iso_transfers(struct isp1362_hcd *isp1362_hcd)
 	ptd_offset = epq->buf_start;
 	list_for_each_entry_safe(ep, tmp, &isp1362_hcd->isoc, schedule) {
 		struct urb *urb = get_urb(ep);
-		s16 diff = fno - (u16)urb->start_frame;
+		s16 diff = fyes - (u16)urb->start_frame;
 
 		DBG(1, "%s: Processing %s ep %p\n", __func__, epq->name, ep);
 
@@ -885,17 +885,17 @@ static void start_iso_transfers(struct isp1362_hcd *isp1362_hcd)
 			finish_request(isp1362_hcd, ep, urb, -EOVERFLOW);
 			continue;
 		} else if (diff < -1) {
-			/* URB is not due in this frame or the next one.
+			/* URB is yest due in this frame or the next one.
 			 * Comparing with '-1' instead of '0' accounts for double
 			 * buffering in the ISP1362 which enables us to queue the PTD
 			 * one frame ahead of time
 			 */
 		} else if (diff == -1) {
 			/* submit PTD's that are due in the next frame */
-			prepare_ptd(isp1362_hcd, urb, ep, epq, fno);
+			prepare_ptd(isp1362_hcd, urb, ep, epq, fyes);
 			if (ptd_offset + PTD_HEADER_SIZE + ep->length >
 			    epq->buf_start + epq->buf_size) {
-				pr_err("%s: Not enough ISO buffer space for %d byte PTD\n",
+				pr_err("%s: Not eyesugh ISO buffer space for %d byte PTD\n",
 				    __func__, ep->length);
 				continue;
 			}
@@ -927,7 +927,7 @@ static void start_iso_transfers(struct isp1362_hcd *isp1362_hcd)
 	/* check, whether the second ISTL buffer may also be filled */
 	if (!(isp1362_read_reg16(isp1362_hcd, HCBUFSTAT) &
 	      (flip ? HCBUFSTAT_ISTL0_FULL : HCBUFSTAT_ISTL1_FULL))) {
-		fno++;
+		fyes++;
 		ptd_count = 0;
 		flip = 1 - flip;
 		goto fill2;
@@ -975,7 +975,7 @@ static void finish_transfers(struct isp1362_hcd *isp1362_hcd, unsigned long done
 			break;
 	}
 	if (done_map)
-		pr_warn("%s: done_map not clear: %08lx:%08lx\n",
+		pr_warn("%s: done_map yest clear: %08lx:%08lx\n",
 			__func__, done_map, epq->skip_map);
 	atomic_dec(&epq->finishing);
 }
@@ -1186,7 +1186,7 @@ static int balance(struct isp1362_hcd *isp1362_hcd, u16 interval, u16 load)
 	int i, branch = -ENOSPC;
 
 	/* search for the least loaded schedule branch of that interval
-	 * which has enough bandwidth left unreserved.
+	 * which has eyesugh bandwidth left unreserved.
 	 */
 	for (i = 0; i < interval; i++) {
 		if (branch < 0 || isp1362_hcd->load[branch] > isp1362_hcd->load[i]) {
@@ -1231,7 +1231,7 @@ static int isp1362_urb_enqueue(struct usb_hcd *hcd,
 	DBG(3, "%s: urb %p\n", __func__, urb);
 
 	if (type == PIPE_ISOCHRONOUS) {
-		pr_err("Isochronous transfers not supported\n");
+		pr_err("Isochroyesus transfers yest supported\n");
 		return -ENOSPC;
 	}
 
@@ -1261,13 +1261,13 @@ static int isp1362_urb_enqueue(struct usb_hcd *hcd,
 	    !HC_IS_RUNNING(hcd->state)) {
 		kfree(ep);
 		retval = -ENODEV;
-		goto fail_not_linked;
+		goto fail_yest_linked;
 	}
 
 	retval = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (retval) {
 		kfree(ep);
-		goto fail_not_linked;
+		goto fail_yest_linked;
 	}
 
 	if (hep->hcpriv) {
@@ -1387,7 +1387,7 @@ static int isp1362_urb_enqueue(struct usb_hcd *hcd,
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
 
 
- fail_not_linked:
+ fail_yest_linked:
 	spin_unlock_irqrestore(&isp1362_hcd->lock, flags);
 	if (retval)
 		DBG(0, "%s: urb %p failed with %d\n", __func__, urb, retval);
@@ -1501,7 +1501,7 @@ static int isp1362_hub_status_data(struct usb_hcd *hcd, char *buf)
 	if (!HC_IS_RUNNING(hcd->state))
 		return -ESHUTDOWN;
 
-	/* Report no status change now, if we are scheduled to be
+	/* Report yes status change yesw, if we are scheduled to be
 	   called later */
 	if (timer_pending(&hcd->rh_timer))
 		return 0;
@@ -1815,7 +1815,7 @@ static int isp1362_bus_suspend(struct usb_hcd *hcd)
 	} else
 #endif
 	{
-		/* no resumes until devices finish suspending */
+		/* yes resumes until devices finish suspending */
 		isp1362_hcd->next_statechange = jiffies + msecs_to_jiffies(5);
 	}
 done:
@@ -1878,7 +1878,7 @@ static int isp1362_bus_resume(struct usb_hcd *hcd)
 	while (port--) {
 		u32 stat = isp1362_read_reg32(isp1362_hcd, HCRHPORT1 + port);
 
-		/* force global, not selective, resume */
+		/* force global, yest selective, resume */
 		if (!(stat & RH_PS_PSS)) {
 			DBG(0, "%s: Not Resuming RH port %d\n", __func__, port);
 			continue;
@@ -1930,7 +1930,7 @@ static void dump_int(struct seq_file *s, char *label, u32 mask)
 	seq_printf(s, "%-15s %08x%s%s%s%s%s%s%s\n", label, mask,
 		   mask & OHCI_INTR_MIE ? " MIE" : "",
 		   mask & OHCI_INTR_RHSC ? " rhsc" : "",
-		   mask & OHCI_INTR_FNO ? " fno" : "",
+		   mask & OHCI_INTR_FNO ? " fyes" : "",
 		   mask & OHCI_INTR_UE ? " ue" : "",
 		   mask & OHCI_INTR_RD ? " rd" : "",
 		   mask & OHCI_INTR_SF ? " sof" : "",
@@ -2345,7 +2345,7 @@ static int isp1362_hc_reset(struct usb_hcd *hcd)
 	isp1362_write_reg16(isp1362_hcd, HCuPINT, HCuPINT_CLKRDY);
 	spin_unlock_irqrestore(&isp1362_hcd->lock, flags);
 	if (!clkrdy) {
-		pr_err("Clock not ready after %lums\n", timeout);
+		pr_err("Clock yest ready after %lums\n", timeout);
 		ret = -ENODEV;
 	}
 	return ret;
@@ -2511,7 +2511,7 @@ static int isp1362_hc_start(struct usb_hcd *hcd)
 	if (board->sel15Kres)
 		hwcfg |= HCHWCFG_PULLDOWN_DS2 |
 			((MAX_ROOT_PORTS > 1) ? HCHWCFG_PULLDOWN_DS1 : 0);
-	if (board->clknotstop)
+	if (board->clkyeststop)
 		hwcfg |= HCHWCFG_CLKNOTSTOP;
 	if (board->oc_enable)
 		hwcfg |= HCHWCFG_ANALOG_OC;
@@ -2536,7 +2536,7 @@ static int isp1362_hc_start(struct usb_hcd *hcd)
 
 	/* Root hub conf */
 	isp1362_hcd->rhdesca = 0;
-	if (board->no_power_switching)
+	if (board->yes_power_switching)
 		isp1362_hcd->rhdesca |= RH_A_NPS;
 	if (board->power_switching_mode)
 		isp1362_hcd->rhdesca |= RH_A_PSM;

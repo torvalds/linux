@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp6000_pcie.c
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
+ * Authors: Jakub Kicinski <jakub.kicinski@netroyesme.com>
+ *          Jason McMullan <jason.mcmullan@netroyesme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroyesme.com>
  *
  * Multiplexes the NFP BARs between NFP internal resources and
  * implements the PCIe specific interface for generic CPP bus access.
@@ -384,9 +384,9 @@ find_matching_bar(struct nfp6000_pcie *nfp,
 	return -1;
 }
 
-/* Return EAGAIN if no resource is available */
+/* Return EAGAIN if yes resource is available */
 static int
-find_unused_bar_noblock(const struct nfp6000_pcie *nfp,
+find_unused_bar_yesblock(const struct nfp6000_pcie *nfp,
 			int tgt, int act, int tok,
 			u64 offset, size_t size, int width)
 {
@@ -428,7 +428,7 @@ find_unused_bar_and_lock(struct nfp6000_pcie *nfp,
 
 	spin_lock_irqsave(&nfp->bar_lock, flags);
 
-	n = find_unused_bar_noblock(nfp, tgt, act, tok, offset, size, width);
+	n = find_unused_bar_yesblock(nfp, tgt, act, tok, offset, size, width);
 	if (n < 0)
 		spin_unlock_irqrestore(&nfp->bar_lock, flags);
 	else
@@ -461,7 +461,7 @@ nfp_wait_for_bar(struct nfp6000_pcie *nfp, int *barnum,
 static int
 nfp_alloc_bar(struct nfp6000_pcie *nfp,
 	      u32 tgt, u32 act, u32 tok,
-	      u64 offset, size_t size, int width, int nonblocking)
+	      u64 offset, size_t size, int width, int yesnblocking)
 {
 	unsigned long irqflags;
 	int barnum, retval;
@@ -478,11 +478,11 @@ nfp_alloc_bar(struct nfp6000_pcie *nfp,
 		return barnum;
 	}
 
-	barnum = find_unused_bar_noblock(nfp, tgt, act, tok,
+	barnum = find_unused_bar_yesblock(nfp, tgt, act, tok,
 					 offset, size, width);
 	if (barnum < 0) {
-		if (nonblocking)
-			goto err_nobar;
+		if (yesnblocking)
+			goto err_yesbar;
 
 		/* Wait until a BAR becomes available.  The
 		 * find_unused_bar function will reclaim the bar_lock
@@ -504,7 +504,7 @@ nfp_alloc_bar(struct nfp6000_pcie *nfp,
 		barnum = retval;
 	}
 
-err_nobar:
+err_yesbar:
 	spin_unlock_irqrestore(&nfp->bar_lock, irqflags);
 	return barnum;
 }
@@ -575,7 +575,7 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 
 		res = &nfp->pdev->resource[(i >> 3) * 2];
 
-		/* Skip over BARs that are not IORESOURCE_MEM */
+		/* Skip over BARs that are yest IORESOURCE_MEM */
 		if (!(resource_type(res) & IORESOURCE_MEM)) {
 			bar--;
 			continue;
@@ -611,7 +611,7 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 	/* Configure, and lock, BAR0.0 for General Target use (MSI-X SRAM) */
 	bar = &nfp->bar[0];
 	if (nfp_bar_resource_len(bar) >= NFP_PCI_MIN_MAP_SIZE)
-		bar->iomem = ioremap_nocache(nfp_bar_resource_start(bar),
+		bar->iomem = ioremap_yescache(nfp_bar_resource_start(bar),
 					     nfp_bar_resource_len(bar));
 	if (bar->iomem) {
 		int pf;
@@ -677,7 +677,7 @@ static int enable_bars(struct nfp6000_pcie *nfp, u16 interface)
 		}
 
 		bar = &nfp->bar[4 + i];
-		bar->iomem = ioremap_nocache(nfp_bar_resource_start(bar),
+		bar->iomem = ioremap_yescache(nfp_bar_resource_start(bar),
 					     nfp_bar_resource_len(bar));
 		if (bar->iomem) {
 			msg += snprintf(msg, end - msg,
@@ -858,7 +858,7 @@ static int nfp6000_area_acquire(struct nfp_cpp_area *area)
 		priv->iomem = priv->bar->iomem + priv->bar_offset;
 	else
 		/* Must have been too big. Sub-allocate. */
-		priv->iomem = ioremap_nocache(priv->phys, priv->size);
+		priv->iomem = ioremap_yescache(priv->phys, priv->size);
 
 	if (IS_ERR_OR_NULL(priv->iomem)) {
 		dev_err(nfp->dev, "Can't ioremap() a %d byte region of BAR %d\n",
@@ -1323,7 +1323,7 @@ struct nfp_cpp *nfp_cpp_from_nfp6000_pcie(struct pci_dev *pdev)
 
 	/*  Finished with card initialization. */
 	dev_info(&pdev->dev,
-		 "Netronome Flow Processor NFP4000/NFP5000/NFP6000 PCIe Card Probe\n");
+		 "Netroyesme Flow Processor NFP4000/NFP5000/NFP6000 PCIe Card Probe\n");
 	pcie_print_link_status(pdev);
 
 	nfp = kzalloc(sizeof(*nfp), GFP_KERNEL);
@@ -1342,7 +1342,7 @@ struct nfp_cpp *nfp_cpp_from_nfp6000_pcie(struct pci_dev *pdev)
 	if (NFP_CPP_INTERFACE_TYPE_of(interface) !=
 	    NFP_CPP_INTERFACE_TYPE_PCI) {
 		dev_err(&pdev->dev,
-			"Interface type %d is not the expected %d\n",
+			"Interface type %d is yest the expected %d\n",
 			NFP_CPP_INTERFACE_TYPE_of(interface),
 			NFP_CPP_INTERFACE_TYPE_PCI);
 		err = -ENODEV;
@@ -1351,7 +1351,7 @@ struct nfp_cpp *nfp_cpp_from_nfp6000_pcie(struct pci_dev *pdev)
 
 	if (NFP_CPP_INTERFACE_CHANNEL_of(interface) !=
 	    NFP_CPP_INTERFACE_CHANNEL_PEROPENER) {
-		dev_err(&pdev->dev, "Interface channel %d is not the expected %d\n",
+		dev_err(&pdev->dev, "Interface channel %d is yest the expected %d\n",
 			NFP_CPP_INTERFACE_CHANNEL_of(interface),
 			NFP_CPP_INTERFACE_CHANNEL_PEROPENER);
 		err = -ENODEV;

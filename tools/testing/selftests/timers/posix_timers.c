@@ -209,7 +209,7 @@ int main(int argc, char **argv)
 	 * It's unfortunately hard to reliably test a timer expiration
 	 * on parallel multithread cputime. We could arm it to expire
 	 * on DELAY * nr_threads, with nr_threads busy looping, then wait
-	 * the normal DELAY since the time is elapsing nr_threads faster.
+	 * the yesrmal DELAY since the time is elapsing nr_threads faster.
 	 * But for that we need to ensure we have real physical free CPUs
 	 * to ensure true parallelism. So test only one thread until we
 	 * find a better solution.

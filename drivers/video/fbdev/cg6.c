@@ -11,7 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -165,7 +165,7 @@ static struct fb_ops cg6_ops = {
 #define CG6_THC_MISC_INIT		0x9f
 #define CG6_THC_CURSOFF			((65536-32) | ((65536-32) << 16))
 
-/* The contents are unknown */
+/* The contents are unkyeswn */
 struct cg6_tec {
 	int tec_matrix;
 	int tec_clip;
@@ -344,14 +344,14 @@ static void cg6_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 }
 
 /**
- *	cg6_copyarea - Copies one area of the screen to another area.
+ *	cg6_copyarea - Copies one area of the screen to ayesther area.
  *
  *	@info: frame buffer structure that represents a single frame buffer
  *	@area: Structure providing the data to copy the framebuffer contents
- *		from one region to another.
+ *		from one region to ayesther.
  *
  *	This drawing operation copies a rectangular area from one area of the
- *	screen to another area.
+ *	screen to ayesther area.
  */
 static void cg6_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
@@ -474,14 +474,14 @@ static void cg6_imageblit(struct fb_info *info, const struct fb_image *image)
 /**
  *	cg6_setcolreg - Sets a color register.
  *
- *	@regno: boolean, 0 copy local, 1 get_user() function
+ *	@regyes: boolean, 0 copy local, 1 get_user() function
  *	@red: frame buffer colormap structure
  *	@green: The green value which can be up to 16 bits wide
  *	@blue:  The blue value which can be up to 16 bits wide.
  *	@transp: If supported the alpha value which can be up to 16 bits wide.
  *	@info: frame buffer info structure
  */
-static int cg6_setcolreg(unsigned regno,
+static int cg6_setcolreg(unsigned regyes,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp, struct fb_info *info)
 {
@@ -489,7 +489,7 @@ static int cg6_setcolreg(unsigned regno,
 	struct bt_regs __iomem *bt = par->bt;
 	unsigned long flags;
 
-	if (regno >= 256)
+	if (regyes >= 256)
 		return 1;
 
 	red >>= 8;
@@ -498,7 +498,7 @@ static int cg6_setcolreg(unsigned regno,
 
 	spin_lock_irqsave(&par->lock, flags);
 
-	sbus_writel((u32)regno << 24, &bt->addr);
+	sbus_writel((u32)regyes << 24, &bt->addr);
 	sbus_writel((u32)red << 24, &bt->color_map);
 	sbus_writel((u32)green << 24, &bt->color_map);
 	sbus_writel((u32)blue << 24, &bt->color_map);
@@ -740,7 +740,7 @@ static void cg6_unmap_regs(struct platform_device *op, struct fb_info *info,
 
 static int cg6_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	struct fb_info *info;
 	struct cg6_par *par;
 	int linebytes, err;

@@ -3,9 +3,9 @@ Samsung S5P/EXYNOS SoC series JPEG codec
 Required properties:
 
 - compatible	: should be one of:
-		  "samsung,s5pv210-jpeg", "samsung,exynos4210-jpeg",
-		  "samsung,exynos3250-jpeg", "samsung,exynos5420-jpeg",
-		  "samsung,exynos5433-jpeg";
+		  "samsung,s5pv210-jpeg", "samsung,exyyess4210-jpeg",
+		  "samsung,exyyess3250-jpeg", "samsung,exyyess5420-jpeg",
+		  "samsung,exyyess5433-jpeg";
 - reg		: address and length of the JPEG codec IP register set;
 - interrupts	: specifies the JPEG codec IP interrupt;
 - clock-names   : should contain:

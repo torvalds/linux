@@ -37,7 +37,7 @@ static const char *dso__name(struct dso *dso)
 }
 
 static int inline_list__append(struct symbol *symbol, char *srcline,
-			       struct inline_node *node)
+			       struct inline_yesde *yesde)
 {
 	struct inline_list *ilist;
 
@@ -49,9 +49,9 @@ static int inline_list__append(struct symbol *symbol, char *srcline,
 	ilist->srcline = srcline;
 
 	if (callchain_param.order == ORDER_CALLEE)
-		list_add_tail(&ilist->list, &node->val);
+		list_add_tail(&ilist->list, &yesde->val);
 	else
-		list_add(&ilist->list, &node->val);
+		list_add(&ilist->list, &yesde->val);
 
 	return 0;
 }
@@ -100,7 +100,7 @@ static struct symbol *new_inline_sym(struct dso *dso,
 		/* reuse the real, existing symbol */
 		inline_sym = base_sym;
 		/* ensure that we don't alias an inlined symbol, which could
-		 * lead to double frees in inline_node__delete
+		 * lead to double frees in inline_yesde__delete
 		 */
 		assert(!base_sym->inlined);
 	} else {
@@ -175,9 +175,9 @@ static int slurp_symtab(bfd *abfd, struct a2l_data *a2l)
 
 	syms = malloc(storage);
 	if (dynamic)
-		symcount = bfd_canonicalize_dynamic_symtab(abfd, syms);
+		symcount = bfd_cayesnicalize_dynamic_symtab(abfd, syms);
 	else
-		symcount = bfd_canonicalize_symtab(abfd, syms);
+		symcount = bfd_cayesnicalize_symtab(abfd, syms);
 
 	if (symcount < 0) {
 		free(syms);
@@ -262,7 +262,7 @@ static void addr2line_cleanup(struct a2l_data *a2l)
 #define MAX_INLINE_NEST 1024
 
 static int inline_list__append_dso_a2l(struct dso *dso,
-				       struct inline_node *node,
+				       struct inline_yesde *yesde,
 				       struct symbol *sym)
 {
 	struct a2l_data *a2l = dso->a2l;
@@ -272,12 +272,12 @@ static int inline_list__append_dso_a2l(struct dso *dso,
 	if (a2l->filename)
 		srcline = srcline_from_fileline(a2l->filename, a2l->line);
 
-	return inline_list__append(inline_sym, srcline, node);
+	return inline_list__append(inline_sym, srcline, yesde);
 }
 
 static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line, struct dso *dso,
-		     bool unwind_inlines, struct inline_node *node,
+		     bool unwind_inlines, struct inline_yesde *yesde,
 		     struct symbol *sym)
 {
 	int ret = 0;
@@ -305,7 +305,7 @@ static int addr2line(const char *dso_name, u64 addr,
 	if (unwind_inlines) {
 		int cnt = 0;
 
-		if (node && inline_list__append_dso_a2l(dso, node, sym))
+		if (yesde && inline_list__append_dso_a2l(dso, yesde, sym))
 			return 0;
 
 		while (bfd_find_inliner_info(a2l->abfd, &a2l->filename,
@@ -315,8 +315,8 @@ static int addr2line(const char *dso_name, u64 addr,
 			if (a2l->filename && !strlen(a2l->filename))
 				a2l->filename = NULL;
 
-			if (node != NULL) {
-				if (inline_list__append_dso_a2l(dso, node, sym))
+			if (yesde != NULL) {
+				if (inline_list__append_dso_a2l(dso, yesde, sym))
 					return 0;
 				// found at least one inline frame
 				ret = 1;
@@ -347,22 +347,22 @@ void dso__free_a2l(struct dso *dso)
 	dso->a2l = NULL;
 }
 
-static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
+static struct inline_yesde *addr2inlines(const char *dso_name, u64 addr,
 					struct dso *dso, struct symbol *sym)
 {
-	struct inline_node *node;
+	struct inline_yesde *yesde;
 
-	node = zalloc(sizeof(*node));
-	if (node == NULL) {
-		perror("not enough memory for the inline node");
+	yesde = zalloc(sizeof(*yesde));
+	if (yesde == NULL) {
+		perror("yest eyesugh memory for the inline yesde");
 		return NULL;
 	}
 
-	INIT_LIST_HEAD(&node->val);
-	node->addr = addr;
+	INIT_LIST_HEAD(&yesde->val);
+	yesde->addr = addr;
 
-	addr2line(dso_name, addr, NULL, NULL, dso, true, node, sym);
-	return node;
+	addr2line(dso_name, addr, NULL, NULL, dso, true, yesde, sym);
+	return yesde;
 }
 
 #else /* HAVE_LIBBFD_SUPPORT */
@@ -392,7 +392,7 @@ static int addr2line(const char *dso_name, u64 addr,
 		     char **file, unsigned int *line_nr,
 		     struct dso *dso __maybe_unused,
 		     bool unwind_inlines __maybe_unused,
-		     struct inline_node *node __maybe_unused,
+		     struct inline_yesde *yesde __maybe_unused,
 		     struct symbol *sym __maybe_unused)
 {
 	FILE *fp;
@@ -411,7 +411,7 @@ static int addr2line(const char *dso_name, u64 addr,
 	}
 
 	if (getline(&filename, &len, fp) < 0 || !len) {
-		pr_warning("addr2line has no output for %s\n", dso_name);
+		pr_warning("addr2line has yes output for %s\n", dso_name);
 		goto out;
 	}
 
@@ -432,13 +432,13 @@ void dso__free_a2l(struct dso *dso __maybe_unused)
 {
 }
 
-static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
+static struct inline_yesde *addr2inlines(const char *dso_name, u64 addr,
 					struct dso *dso __maybe_unused,
 					struct symbol *sym)
 {
 	FILE *fp;
 	char cmd[PATH_MAX];
-	struct inline_node *node;
+	struct inline_yesde *yesde;
 	char *filename = NULL;
 	char *funcname = NULL;
 	size_t filelen, funclen;
@@ -453,14 +453,14 @@ static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 		return NULL;
 	}
 
-	node = zalloc(sizeof(*node));
-	if (node == NULL) {
-		perror("not enough memory for the inline node");
+	yesde = zalloc(sizeof(*yesde));
+	if (yesde == NULL) {
+		perror("yest eyesugh memory for the inline yesde");
 		goto out;
 	}
 
-	INIT_LIST_HEAD(&node->val);
-	node->addr = addr;
+	INIT_LIST_HEAD(&yesde->val);
+	yesde->addr = addr;
 
 	/* addr2line -f generates two lines for each inlined functions */
 	while (getline(&funcname, &funclen, fp) != -1) {
@@ -478,7 +478,7 @@ static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 		srcline = srcline_from_fileline(filename, line_nr);
 		inline_sym = new_inline_sym(dso, sym, funcname);
 
-		if (inline_list__append(inline_sym, srcline, node) != 0) {
+		if (inline_list__append(inline_sym, srcline, yesde) != 0) {
 			free(srcline);
 			if (inline_sym && inline_sym->inlined)
 				symbol__delete(inline_sym);
@@ -491,7 +491,7 @@ out:
 	free(filename);
 	free(funcname);
 
-	return node;
+	return yesde;
 }
 
 #endif /* HAVE_LIBBFD_SUPPORT */
@@ -591,31 +591,31 @@ char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
 	return __get_srcline(dso, addr, sym, show_sym, show_addr, false, ip);
 }
 
-struct srcline_node {
+struct srcline_yesde {
 	u64			addr;
 	char			*srcline;
-	struct rb_node		rb_node;
+	struct rb_yesde		rb_yesde;
 };
 
 void srcline__tree_insert(struct rb_root_cached *tree, u64 addr, char *srcline)
 {
-	struct rb_node **p = &tree->rb_root.rb_node;
-	struct rb_node *parent = NULL;
-	struct srcline_node *i, *node;
+	struct rb_yesde **p = &tree->rb_root.rb_yesde;
+	struct rb_yesde *parent = NULL;
+	struct srcline_yesde *i, *yesde;
 	bool leftmost = true;
 
-	node = zalloc(sizeof(struct srcline_node));
-	if (!node) {
-		perror("not enough memory for the srcline node");
+	yesde = zalloc(sizeof(struct srcline_yesde));
+	if (!yesde) {
+		perror("yest eyesugh memory for the srcline yesde");
 		return;
 	}
 
-	node->addr = addr;
-	node->srcline = srcline;
+	yesde->addr = addr;
+	yesde->srcline = srcline;
 
 	while (*p != NULL) {
 		parent = *p;
-		i = rb_entry(parent, struct srcline_node, rb_node);
+		i = rb_entry(parent, struct srcline_yesde, rb_yesde);
 		if (addr < i->addr)
 			p = &(*p)->rb_left;
 		else {
@@ -623,17 +623,17 @@ void srcline__tree_insert(struct rb_root_cached *tree, u64 addr, char *srcline)
 			leftmost = false;
 		}
 	}
-	rb_link_node(&node->rb_node, parent, p);
-	rb_insert_color_cached(&node->rb_node, tree, leftmost);
+	rb_link_yesde(&yesde->rb_yesde, parent, p);
+	rb_insert_color_cached(&yesde->rb_yesde, tree, leftmost);
 }
 
 char *srcline__tree_find(struct rb_root_cached *tree, u64 addr)
 {
-	struct rb_node *n = tree->rb_root.rb_node;
+	struct rb_yesde *n = tree->rb_root.rb_yesde;
 
 	while (n) {
-		struct srcline_node *i = rb_entry(n, struct srcline_node,
-						  rb_node);
+		struct srcline_yesde *i = rb_entry(n, struct srcline_yesde,
+						  rb_yesde);
 
 		if (addr < i->addr)
 			n = n->rb_left;
@@ -648,19 +648,19 @@ char *srcline__tree_find(struct rb_root_cached *tree, u64 addr)
 
 void srcline__tree_delete(struct rb_root_cached *tree)
 {
-	struct srcline_node *pos;
-	struct rb_node *next = rb_first_cached(tree);
+	struct srcline_yesde *pos;
+	struct rb_yesde *next = rb_first_cached(tree);
 
 	while (next) {
-		pos = rb_entry(next, struct srcline_node, rb_node);
-		next = rb_next(&pos->rb_node);
-		rb_erase_cached(&pos->rb_node, tree);
+		pos = rb_entry(next, struct srcline_yesde, rb_yesde);
+		next = rb_next(&pos->rb_yesde);
+		rb_erase_cached(&pos->rb_yesde, tree);
 		free_srcline(pos->srcline);
 		zfree(&pos);
 	}
 }
 
-struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
+struct inline_yesde *dso__parse_addr_inlines(struct dso *dso, u64 addr,
 					    struct symbol *sym)
 {
 	const char *dso_name;
@@ -672,11 +672,11 @@ struct inline_node *dso__parse_addr_inlines(struct dso *dso, u64 addr,
 	return addr2inlines(dso_name, addr, dso, sym);
 }
 
-void inline_node__delete(struct inline_node *node)
+void inline_yesde__delete(struct inline_yesde *yesde)
 {
 	struct inline_list *ilist, *tmp;
 
-	list_for_each_entry_safe(ilist, tmp, &node->val, list) {
+	list_for_each_entry_safe(ilist, tmp, &yesde->val, list) {
 		list_del_init(&ilist->list);
 		free_srcline(ilist->srcline);
 		/* only the inlined symbols are owned by the list */
@@ -685,21 +685,21 @@ void inline_node__delete(struct inline_node *node)
 		free(ilist);
 	}
 
-	free(node);
+	free(yesde);
 }
 
 void inlines__tree_insert(struct rb_root_cached *tree,
-			  struct inline_node *inlines)
+			  struct inline_yesde *inlines)
 {
-	struct rb_node **p = &tree->rb_root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &tree->rb_root.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	const u64 addr = inlines->addr;
-	struct inline_node *i;
+	struct inline_yesde *i;
 	bool leftmost = true;
 
 	while (*p != NULL) {
 		parent = *p;
-		i = rb_entry(parent, struct inline_node, rb_node);
+		i = rb_entry(parent, struct inline_yesde, rb_yesde);
 		if (addr < i->addr)
 			p = &(*p)->rb_left;
 		else {
@@ -707,17 +707,17 @@ void inlines__tree_insert(struct rb_root_cached *tree,
 			leftmost = false;
 		}
 	}
-	rb_link_node(&inlines->rb_node, parent, p);
-	rb_insert_color_cached(&inlines->rb_node, tree, leftmost);
+	rb_link_yesde(&inlines->rb_yesde, parent, p);
+	rb_insert_color_cached(&inlines->rb_yesde, tree, leftmost);
 }
 
-struct inline_node *inlines__tree_find(struct rb_root_cached *tree, u64 addr)
+struct inline_yesde *inlines__tree_find(struct rb_root_cached *tree, u64 addr)
 {
-	struct rb_node *n = tree->rb_root.rb_node;
+	struct rb_yesde *n = tree->rb_root.rb_yesde;
 
 	while (n) {
-		struct inline_node *i = rb_entry(n, struct inline_node,
-						 rb_node);
+		struct inline_yesde *i = rb_entry(n, struct inline_yesde,
+						 rb_yesde);
 
 		if (addr < i->addr)
 			n = n->rb_left;
@@ -732,13 +732,13 @@ struct inline_node *inlines__tree_find(struct rb_root_cached *tree, u64 addr)
 
 void inlines__tree_delete(struct rb_root_cached *tree)
 {
-	struct inline_node *pos;
-	struct rb_node *next = rb_first_cached(tree);
+	struct inline_yesde *pos;
+	struct rb_yesde *next = rb_first_cached(tree);
 
 	while (next) {
-		pos = rb_entry(next, struct inline_node, rb_node);
-		next = rb_next(&pos->rb_node);
-		rb_erase_cached(&pos->rb_node, tree);
-		inline_node__delete(pos);
+		pos = rb_entry(next, struct inline_yesde, rb_yesde);
+		next = rb_next(&pos->rb_yesde);
+		rb_erase_cached(&pos->rb_yesde, tree);
+		inline_yesde__delete(pos);
 	}
 }

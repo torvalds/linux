@@ -9,7 +9,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/dma-buf.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -82,7 +82,7 @@ struct gntdev_dmabuf_priv {
 	struct mutex lock;
 	/*
 	 * We reference this file while exporting dma-bufs, so
-	 * the grant device context is not destroyed while there are
+	 * the grant device context is yest destroyed while there are
 	 * external users alive.
 	 */
 	struct file *filp;
@@ -173,7 +173,7 @@ static int dmabuf_exp_wait_released(struct gntdev_dmabuf_priv *priv, int fd,
 
 	pr_debug("Will wait for dma-buf with fd %d\n", fd);
 	/*
-	 * Try to find the DMA buffer: if not found means that
+	 * Try to find the DMA buffer: if yest found means that
 	 * either the buffer has already been released or file descriptor
 	 * provided is wrong.
 	 */
@@ -182,7 +182,7 @@ static int dmabuf_exp_wait_released(struct gntdev_dmabuf_priv *priv, int fd,
 		return PTR_ERR(gntdev_dmabuf);
 
 	/*
-	 * gntdev_dmabuf still exists and is reference count locked by us now,
+	 * gntdev_dmabuf still exists and is reference count locked by us yesw,
 	 * so prepare to wait: allocate wait object and add it to the wait list,
 	 * so we can find it on release.
 	 */
@@ -280,7 +280,7 @@ dmabuf_exp_ops_map_dma_buf(struct dma_buf_attachment *attach,
 
 	/*
 	 * Two mappings with different directions for the same attachment are
-	 * not allowed.
+	 * yest allowed.
 	 */
 	if (gntdev_dmabuf_attach->dir != DMA_NONE)
 		return ERR_PTR(-EBUSY);
@@ -522,7 +522,7 @@ dmabuf_imp_grant_foreign_access(struct page **pages, u32 *refs,
 
 	ret = gnttab_alloc_grant_references(count, &priv_gref_head);
 	if (ret < 0) {
-		pr_debug("Cannot allocate grant references, ret %d\n", ret);
+		pr_debug("Canyest allocate grant references, ret %d\n", ret);
 		return ret;
 	}
 
@@ -532,7 +532,7 @@ dmabuf_imp_grant_foreign_access(struct page **pages, u32 *refs,
 		cur_ref = gnttab_claim_grant_reference(&priv_gref_head);
 		if (cur_ref < 0) {
 			ret = cur_ref;
-			pr_debug("Cannot claim grant reference, ret %d\n", ret);
+			pr_debug("Canyest claim grant reference, ret %d\n", ret);
 			goto out;
 		}
 
@@ -571,7 +571,7 @@ static struct gntdev_dmabuf *dmabuf_imp_alloc_storage(int count)
 
 	gntdev_dmabuf = kzalloc(sizeof(*gntdev_dmabuf), GFP_KERNEL);
 	if (!gntdev_dmabuf)
-		goto fail_no_free;
+		goto fail_yes_free;
 
 	gntdev_dmabuf->u.imp.refs = kcalloc(count,
 					    sizeof(gntdev_dmabuf->u.imp.refs[0]),
@@ -594,7 +594,7 @@ static struct gntdev_dmabuf *dmabuf_imp_alloc_storage(int count)
 
 fail:
 	dmabuf_imp_free_storage(gntdev_dmabuf);
-fail_no_free:
+fail_yes_free:
 	return ERR_PTR(-ENOMEM);
 }
 
@@ -652,7 +652,7 @@ dmabuf_imp_to_refs(struct gntdev_dmabuf_priv *priv, struct device *dev,
 		struct page *page = sg_page_iter_page(&sg_iter);
 		/*
 		 * Check if page is valid: this can happen if we are given
-		 * a page from VRAM or other resources which are not backed
+		 * a page from VRAM or other resources which are yest backed
 		 * by a struct page.
 		 */
 		if (!pfn_valid(page_to_pfn(page))) {
@@ -758,7 +758,7 @@ long gntdev_ioctl_dmabuf_exp_from_refs(struct gntdev_priv *priv, int use_ptemod,
 	long ret;
 
 	if (use_ptemod) {
-		pr_debug("Cannot provide dma-buf: use_ptemode %d\n",
+		pr_debug("Canyest provide dma-buf: use_ptemode %d\n",
 			 use_ptemod);
 		return -EINVAL;
 	}

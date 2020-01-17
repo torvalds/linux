@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -57,7 +57,7 @@
  *
  * "S-" + 3 bytes for version field + 15 for authority field + NULL terminator
  *
- * For authority field, max is when all 6 values are non-zero and it must be
+ * For authority field, max is when all 6 values are yesn-zero and it must be
  * represented in hex. So "-0x" + 12 hex digits.
  *
  * Add 11 bytes for each subauthority field (10 bytes each + 1 for '-')

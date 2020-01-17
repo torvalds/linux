@@ -35,14 +35,14 @@ up into 3 parts because of the length of the line):
     |          |    |     |    |     |------------> retransmit timeout
     |          |    |     |    |------------------> location of socket in memory
     |          |    |     |-----------------------> socket reference count
-    |          |    |-----------------------------> inode
+    |          |    |-----------------------------> iyesde
     |          |----------------------------------> unanswered 0-window probes
     |---------------------------------------------> uid
 
 timer_active:
-  0  no timer is pending
+  0  yes timer is pending
   1  retransmit-timer is pending
-  2  another timer (e.g. delayed ack or keepalive) is pending
+  2  ayesther timer (e.g. delayed ack or keepalive) is pending
   3  this is a socket in TIME_WAIT state. Not all fields will contain 
      data (or even exist)
   4  zero window probe timer is pending

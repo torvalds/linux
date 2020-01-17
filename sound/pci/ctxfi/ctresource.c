@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /**
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techyeslogy Ltd. All Rights Reserved.
  *
  * @File	ctresource.c
  *
@@ -38,7 +38,7 @@ get_resource(u8 *rscs, unsigned int amount,
 	}
 
 	if (i >= amount) {
-		/* Can not find sufficient contiguous resources */
+		/* Can yest find sufficient contiguous resources */
 		return -ENOENT;
 	}
 

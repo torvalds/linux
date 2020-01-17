@@ -52,7 +52,7 @@ enum {
 };
 
 static const char * const lid_init_state_str[] = {
-	[ACPI_BUTTON_LID_INIT_IGNORE]		= "ignore",
+	[ACPI_BUTTON_LID_INIT_IGNORE]		= "igyesre",
 	[ACPI_BUTTON_LID_INIT_OPEN]		= "open",
 	[ACPI_BUTTON_LID_INIT_METHOD]		= "method",
 	[ACPI_BUTTON_LID_INIT_DISABLED]		= "disabled",
@@ -113,8 +113,8 @@ static const struct dmi_system_id dmi_lid_quirks[] = {
 	},
 	{
 		/*
-		 * Medion Akoya E2215T, notification of the LID device only
-		 * happens on close, not on open and _LID always returns closed.
+		 * Medion Akoya E2215T, yestification of the LID device only
+		 * happens on close, yest on open and _LID always returns closed.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDION"),
@@ -127,7 +127,7 @@ static const struct dmi_system_id dmi_lid_quirks[] = {
 
 static int acpi_button_add(struct acpi_device *device);
 static int acpi_button_remove(struct acpi_device *device);
-static void acpi_button_notify(struct acpi_device *device, u32 event);
+static void acpi_button_yestify(struct acpi_device *device, u32 event);
 
 #ifdef CONFIG_PM_SLEEP
 static int acpi_button_suspend(struct device *dev);
@@ -145,7 +145,7 @@ static struct acpi_driver acpi_button_driver = {
 	.ops = {
 		.add = acpi_button_add,
 		.remove = acpi_button_remove,
-		.notify = acpi_button_notify,
+		.yestify = acpi_button_yestify,
 	},
 	.drv.pm = &acpi_button_pm,
 };
@@ -186,16 +186,16 @@ static int acpi_lid_evaluate_state(struct acpi_device *device)
 	return lid_state ? 1 : 0;
 }
 
-static int acpi_lid_notify_state(struct acpi_device *device, int state)
+static int acpi_lid_yestify_state(struct acpi_device *device, int state)
 {
 	struct acpi_button *button = acpi_driver_data(device);
 	ktime_t next_report;
 	bool do_update;
 
 	/*
-	 * In lid_init_state=ignore mode, if user opens/closes lid
+	 * In lid_init_state=igyesre mode, if user opens/closes lid
 	 * frequently with "open" missing, and "last_time" is also updated
-	 * frequently, "close" cannot be delivered to the userspace.
+	 * frequently, "close" canyest be delivered to the userspace.
 	 * So "last_time" is only updated after a timeout or an actual
 	 * switch.
 	 */
@@ -210,7 +210,7 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 	if (button->last_state == !!state &&
 	    ktime_after(ktime_get(), next_report)) {
 		/* Complain the buggy firmware */
-		pr_warn_once("The lid device is not compliant to SW_LID.\n");
+		pr_warn_once("The lid device is yest compliant to SW_LID.\n");
 
 		/*
 		 * Send the unreliable complement switch event:
@@ -225,14 +225,14 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 		 *     https://bugzilla.kernel.org/show_bug.cgi?id=106941
 		 * On these buggy platforms, the usage model of the ACPI
 		 * lid device actually is:
-		 * 1. The initial returning value of _LID may not be
+		 * 1. The initial returning value of _LID may yest be
 		 *    reliable.
-		 * 2. The open event may not be reliable.
+		 * 2. The open event may yest be reliable.
 		 * 3. The close event is reliable.
 		 *
 		 * But SW_LID is typed as input switch event, the input
 		 * layer checks if the event is redundant. Hence if the
-		 * state is not switched, the userspace cannot see this
+		 * state is yest switched, the userspace canyest see this
 		 * platform triggered reliable event. By inserting a
 		 * complement switch event, it then is guaranteed that the
 		 * platform triggered reliable one can always be seen by
@@ -244,8 +244,8 @@ static int acpi_lid_notify_state(struct acpi_device *device, int state)
 			 * Do generate complement switch event for "close"
 			 * as "close" is reliable and wrong "open" won't
 			 * trigger unexpected behaviors.
-			 * Do not generate complement switch event for
-			 * "open" as "open" is not reliable and wrong
+			 * Do yest generate complement switch event for
+			 * "open" as "open" is yest reliable and wrong
 			 * "close" will trigger unexpected behaviors.
 			 */
 			if (!state) {
@@ -383,14 +383,14 @@ static int acpi_lid_update_state(struct acpi_device *device,
 	if (state && signal_wakeup)
 		acpi_pm_wakeup_event(&device->dev);
 
-	return acpi_lid_notify_state(device, state);
+	return acpi_lid_yestify_state(device, state);
 }
 
 static void acpi_lid_initialize_state(struct acpi_device *device)
 {
 	switch (lid_init_state) {
 	case ACPI_BUTTON_LID_INIT_OPEN:
-		(void)acpi_lid_notify_state(device, 1);
+		(void)acpi_lid_yestify_state(device, 1);
 		break;
 	case ACPI_BUTTON_LID_INIT_METHOD:
 		(void)acpi_lid_update_state(device, false);
@@ -401,7 +401,7 @@ static void acpi_lid_initialize_state(struct acpi_device *device)
 	}
 }
 
-static void acpi_button_notify(struct acpi_device *device, u32 event)
+static void acpi_button_yestify(struct acpi_device *device, u32 event)
 {
 	struct acpi_button *button = acpi_driver_data(device);
 	struct input_dev *input;
@@ -642,9 +642,9 @@ static int acpi_button_register_driver(struct acpi_driver *driver)
 	}
 
 	/*
-	 * Modules such as nouveau.ko and i915.ko have a link time dependency
-	 * on acpi_lid_open(), and would therefore not be loadable on ACPI
-	 * capable kernels booted in non-ACPI mode if the return value of
+	 * Modules such as yesuveau.ko and i915.ko have a link time dependency
+	 * on acpi_lid_open(), and would therefore yest be loadable on ACPI
+	 * capable kernels booted in yesn-ACPI mode if the return value of
 	 * acpi_bus_register_driver() is returned from here with ACPI disabled
 	 * when this driver is built as a module.
 	 */

@@ -5,7 +5,7 @@
  * Copyright 2018 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/videodev2.h>
 #include "codec-v4l2-fwht.h"
@@ -316,7 +316,7 @@ int v4l2_fwht_decode(struct v4l2_fwht_state *state, u8 *p_in, u8 *p_out)
 
 	version = ntohl(state->header.version);
 	if (!version || version > FWHT_VERSION) {
-		pr_err("version %d is not supported, current version is %d\n",
+		pr_err("version %d is yest supported, current version is %d\n",
 		       version, FWHT_VERSION);
 		return -EINVAL;
 	}

@@ -17,7 +17,7 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf,
 
 	spin_lock_irq(&dice->lock);
 
-	while (!dice->dev_lock_changed && dice->notification_bits == 0) {
+	while (!dice->dev_lock_changed && dice->yestification_bits == 0) {
 		prepare_to_wait(&dice->hwdep_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_unlock_irq(&dice->lock);
 		schedule();
@@ -35,12 +35,12 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf,
 
 		count = min_t(long, count, sizeof(event.lock_status));
 	} else {
-		event.dice_notification.type =
+		event.dice_yestification.type =
 					SNDRV_FIREWIRE_EVENT_DICE_NOTIFICATION;
-		event.dice_notification.notification = dice->notification_bits;
-		dice->notification_bits = 0;
+		event.dice_yestification.yestification = dice->yestification_bits;
+		dice->yestification_bits = 0;
 
-		count = min_t(long, count, sizeof(event.dice_notification));
+		count = min_t(long, count, sizeof(event.dice_yestification));
 	}
 
 	spin_unlock_irq(&dice->lock);
@@ -60,7 +60,7 @@ static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 	poll_wait(file, &dice->hwdep_wait, wait);
 
 	spin_lock_irq(&dice->lock);
-	if (dice->dev_lock_changed || dice->notification_bits != 0)
+	if (dice->dev_lock_changed || dice->yestification_bits != 0)
 		events = EPOLLIN | EPOLLRDNORM;
 	else
 		events = 0;

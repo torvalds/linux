@@ -9,7 +9,7 @@ make use of DRM functions to make tasks like memory management,
 interrupt handling and DMA easier, and provide a uniform interface to
 applications.
 
-A note on versions: this guide covers features found in the DRM tree,
+A yeste on versions: this guide covers features found in the DRM tree,
 including the TTM memory manager, output configuration and mode setting,
 and the new vblank internals, in addition to all the regular features
 found in current kernels.
@@ -27,25 +27,25 @@ characters kerneldoc provides: @parameter for function parameters,
 reference structures and function() for functions. These all get automatically
 hyperlinked if kerneldoc for the referenced objects exists. When referencing
 entries in function vtables (and structure members in general) please use
-&vtable_name.vfunc. Unfortunately this does not yet yield a direct link to the
+&vtable_name.vfunc. Unfortunately this does yest yet yield a direct link to the
 member, only the structure.
 
 Except in special situations (to separate locked from unlocked variants)
 locking requirements for functions aren't documented in the kerneldoc.
 Instead locking should be check at runtime using e.g.
-``WARN_ON(!mutex_is_locked(...));``. Since it's much easier to ignore
-documentation than runtime noise this provides more value. And on top of
+``WARN_ON(!mutex_is_locked(...));``. Since it's much easier to igyesre
+documentation than runtime yesise this provides more value. And on top of
 that runtime checks do need to be updated when the locking rules change,
 increasing the chances that they're correct. Within the documentation
 the locking rules should be explained in the relevant structures: Either
 in the comment for the lock explaining what it protects, or data fields
-need a note about which lock protects them, or both.
+need a yeste about which lock protects them, or both.
 
-Functions which have a non-\ ``void`` return value should have a section
+Functions which have a yesn-\ ``void`` return value should have a section
 called "Returns" explaining the expected return values in different
-cases and their meanings. Currently there's no consensus whether that
-section name should be all upper-case or not, and whether it should end
-in a colon or not. Go with the file-local style. Other common section
+cases and their meanings. Currently there's yes consensus whether that
+section name should be all upper-case or yest, and whether it should end
+in a colon or yest. Go with the file-local style. Other common section
 names are "Notes" with information for dangerous or tricky corner cases,
 and "FIXME" where the interface could be cleaned up.
 
@@ -59,11 +59,11 @@ datastructures and at least a short introductory section explaining the overall
 concepts. Documentation should be put into the code itself as kerneldoc comments
 as much as reasonable.
 
-Do not blindly document everything, but document only what's relevant for driver
-authors: Internal functions of drm.ko and definitely static functions should not
-have formal kerneldoc comments. Use normal C comments if you feel like a comment
-is warranted. You may use kerneldoc syntax in the comment, but it shall not
-start with a /** kerneldoc marker. Similar for data structures, annotate
+Do yest blindly document everything, but document only what's relevant for driver
+authors: Internal functions of drm.ko and definitely static functions should yest
+have formal kerneldoc comments. Use yesrmal C comments if you feel like a comment
+is warranted. You may use kerneldoc syntax in the comment, but it shall yest
+start with a /** kerneldoc marker. Similar for data structures, anyestate
 anything entirely private with ``/* private: */`` comments as per the
 documentation guide.
 
@@ -74,7 +74,7 @@ Developers interested in helping out with the DRM subsystem are very welcome.
 Often people will resort to sending in patches for various issues reported by
 checkpatch or sparse. We welcome such contributions.
 
-Anyone looking to kick it up a notch can find a list of janitorial tasks on
+Anyone looking to kick it up a yestch can find a list of janitorial tasks on
 the :ref:`TODO list <todo>`.
 
 Contribution Process
@@ -90,7 +90,7 @@ Feature Merge Deadlines
 All feature work must be in the linux-next tree by the -rc6 release of the
 current release cycle, otherwise they must be postponed and can't reach the next
 merge window. All patches must have landed in the drm-next tree by latest -rc7,
-but if your branch is not in linux-next then this must have happened by -rc6
+but if your branch is yest in linux-next then this must have happened by -rc6
 already.
 
 After that point only bugfixes (like after the upstream merge window has closed
@@ -99,7 +99,7 @@ allowed.
 
 This means that there's a blackout-period of about one month where feature work
 can't be merged. The recommended way to deal with that is having a -next tree
-that's always open, but making sure to not feed it into linux-next during the
+that's always open, but making sure to yest feed it into linux-next during the
 blackout period. As an example, drm-misc works like that.
 
 Code of Conduct
@@ -111,4 +111,4 @@ Contributor Covenant, found at: https://www.freedesktop.org/wiki/CodeOfConduct
 Please conduct yourself in a respectful and civilised manner when
 interacting with community members on mailing lists, IRC, or bug
 trackers. The community represents the project as a whole, and abusive
-or bullying behaviour is not tolerated by the project.
+or bullying behaviour is yest tolerated by the project.

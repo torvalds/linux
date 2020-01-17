@@ -22,15 +22,15 @@
  *   - MMU/MPU is off
  *   - cpu is v7m w/o cache support
  *   - device is coherent
- *  otherwise arm_nommu_dma_ops is used.
+ *  otherwise arm_yesmmu_dma_ops is used.
  *
- *  arm_nommu_dma_ops rely on consistent DMA memory (please, refer to
+ *  arm_yesmmu_dma_ops rely on consistent DMA memory (please, refer to
  *  [1] on how to declare such memory).
  *
  *  [1] Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt
  */
 
-static void *arm_nommu_dma_alloc(struct device *dev, size_t size,
+static void *arm_yesmmu_dma_alloc(struct device *dev, size_t size,
 				 dma_addr_t *dma_handle, gfp_t gfp,
 				 unsigned long attrs)
 
@@ -40,18 +40,18 @@ static void *arm_nommu_dma_alloc(struct device *dev, size_t size,
 	/*
 	 * dma_alloc_from_global_coherent() may fail because:
 	 *
-	 * - no consistent DMA region has been defined, so we can't
+	 * - yes consistent DMA region has been defined, so we can't
 	 *   continue.
-	 * - there is no space left in consistent DMA region, so we
+	 * - there is yes space left in consistent DMA region, so we
 	 *   only can fallback to generic allocator if we are
-	 *   advertised that consistency is not required.
+	 *   advertised that consistency is yest required.
 	 */
 
 	WARN_ON_ONCE(ret == NULL);
 	return ret;
 }
 
-static void arm_nommu_dma_free(struct device *dev, size_t size,
+static void arm_yesmmu_dma_free(struct device *dev, size_t size,
 			       void *cpu_addr, dma_addr_t dma_addr,
 			       unsigned long attrs)
 {
@@ -60,7 +60,7 @@ static void arm_nommu_dma_free(struct device *dev, size_t size,
 	WARN_ON_ONCE(ret == 0);
 }
 
-static int arm_nommu_dma_mmap(struct device *dev, struct vm_area_struct *vma,
+static int arm_yesmmu_dma_mmap(struct device *dev, struct vm_area_struct *vma,
 			      void *cpu_addr, dma_addr_t dma_addr, size_t size,
 			      unsigned long attrs)
 {
@@ -94,7 +94,7 @@ static void __dma_page_dev_to_cpu(phys_addr_t paddr, size_t size,
 	}
 }
 
-static dma_addr_t arm_nommu_dma_map_page(struct device *dev, struct page *page,
+static dma_addr_t arm_yesmmu_dma_map_page(struct device *dev, struct page *page,
 					 unsigned long offset, size_t size,
 					 enum dma_data_direction dir,
 					 unsigned long attrs)
@@ -106,7 +106,7 @@ static dma_addr_t arm_nommu_dma_map_page(struct device *dev, struct page *page,
 	return handle;
 }
 
-static void arm_nommu_dma_unmap_page(struct device *dev, dma_addr_t handle,
+static void arm_yesmmu_dma_unmap_page(struct device *dev, dma_addr_t handle,
 				     size_t size, enum dma_data_direction dir,
 				     unsigned long attrs)
 {
@@ -114,7 +114,7 @@ static void arm_nommu_dma_unmap_page(struct device *dev, dma_addr_t handle,
 }
 
 
-static int arm_nommu_dma_map_sg(struct device *dev, struct scatterlist *sgl,
+static int arm_yesmmu_dma_map_sg(struct device *dev, struct scatterlist *sgl,
 				int nents, enum dma_data_direction dir,
 				unsigned long attrs)
 {
@@ -130,7 +130,7 @@ static int arm_nommu_dma_map_sg(struct device *dev, struct scatterlist *sgl,
 	return nents;
 }
 
-static void arm_nommu_dma_unmap_sg(struct device *dev, struct scatterlist *sgl,
+static void arm_yesmmu_dma_unmap_sg(struct device *dev, struct scatterlist *sgl,
 				   int nents, enum dma_data_direction dir,
 				   unsigned long attrs)
 {
@@ -141,19 +141,19 @@ static void arm_nommu_dma_unmap_sg(struct device *dev, struct scatterlist *sgl,
 		__dma_page_dev_to_cpu(sg_dma_address(sg), sg_dma_len(sg), dir);
 }
 
-static void arm_nommu_dma_sync_single_for_device(struct device *dev,
+static void arm_yesmmu_dma_sync_single_for_device(struct device *dev,
 		dma_addr_t handle, size_t size, enum dma_data_direction dir)
 {
 	__dma_page_cpu_to_dev(handle, size, dir);
 }
 
-static void arm_nommu_dma_sync_single_for_cpu(struct device *dev,
+static void arm_yesmmu_dma_sync_single_for_cpu(struct device *dev,
 		dma_addr_t handle, size_t size, enum dma_data_direction dir)
 {
 	__dma_page_cpu_to_dev(handle, size, dir);
 }
 
-static void arm_nommu_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sgl,
+static void arm_yesmmu_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sgl,
 					     int nents, enum dma_data_direction dir)
 {
 	struct scatterlist *sg;
@@ -163,7 +163,7 @@ static void arm_nommu_dma_sync_sg_for_device(struct device *dev, struct scatterl
 		__dma_page_cpu_to_dev(sg_dma_address(sg), sg_dma_len(sg), dir);
 }
 
-static void arm_nommu_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sgl,
+static void arm_yesmmu_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sgl,
 					  int nents, enum dma_data_direction dir)
 {
 	struct scatterlist *sg;
@@ -173,20 +173,20 @@ static void arm_nommu_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist
 		__dma_page_dev_to_cpu(sg_dma_address(sg), sg_dma_len(sg), dir);
 }
 
-const struct dma_map_ops arm_nommu_dma_ops = {
-	.alloc			= arm_nommu_dma_alloc,
-	.free			= arm_nommu_dma_free,
-	.mmap			= arm_nommu_dma_mmap,
-	.map_page		= arm_nommu_dma_map_page,
-	.unmap_page		= arm_nommu_dma_unmap_page,
-	.map_sg			= arm_nommu_dma_map_sg,
-	.unmap_sg		= arm_nommu_dma_unmap_sg,
-	.sync_single_for_device	= arm_nommu_dma_sync_single_for_device,
-	.sync_single_for_cpu	= arm_nommu_dma_sync_single_for_cpu,
-	.sync_sg_for_device	= arm_nommu_dma_sync_sg_for_device,
-	.sync_sg_for_cpu	= arm_nommu_dma_sync_sg_for_cpu,
+const struct dma_map_ops arm_yesmmu_dma_ops = {
+	.alloc			= arm_yesmmu_dma_alloc,
+	.free			= arm_yesmmu_dma_free,
+	.mmap			= arm_yesmmu_dma_mmap,
+	.map_page		= arm_yesmmu_dma_map_page,
+	.unmap_page		= arm_yesmmu_dma_unmap_page,
+	.map_sg			= arm_yesmmu_dma_map_sg,
+	.unmap_sg		= arm_yesmmu_dma_unmap_sg,
+	.sync_single_for_device	= arm_yesmmu_dma_sync_single_for_device,
+	.sync_single_for_cpu	= arm_yesmmu_dma_sync_single_for_cpu,
+	.sync_sg_for_device	= arm_yesmmu_dma_sync_sg_for_device,
+	.sync_sg_for_cpu	= arm_yesmmu_dma_sync_sg_for_cpu,
 };
-EXPORT_SYMBOL(arm_nommu_dma_ops);
+EXPORT_SYMBOL(arm_yesmmu_dma_ops);
 
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 			const struct iommu_ops *iommu, bool coherent)
@@ -194,18 +194,18 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	if (IS_ENABLED(CONFIG_CPU_V7M)) {
 		/*
 		 * Cache support for v7m is optional, so can be treated as
-		 * coherent if no cache has been detected. Note that it is not
-		 * enough to check if MPU is in use or not since in absense of
+		 * coherent if yes cache has been detected. Note that it is yest
+		 * eyesugh to check if MPU is in use or yest since in absense of
 		 * MPU system memory map is used.
 		 */
 		dev->archdata.dma_coherent = (cacheid) ? coherent : true;
 	} else {
 		/*
-		 * Assume coherent DMA in case MMU/MPU has not been set up.
+		 * Assume coherent DMA in case MMU/MPU has yest been set up.
 		 */
 		dev->archdata.dma_coherent = (get_cr() & CR_M) ? coherent : true;
 	}
 
 	if (!dev->archdata.dma_coherent)
-		set_dma_ops(dev, &arm_nommu_dma_ops);
+		set_dma_ops(dev, &arm_yesmmu_dma_ops);
 }

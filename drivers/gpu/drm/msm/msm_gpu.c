@@ -9,7 +9,7 @@
 #include "msm_mmu.h"
 #include "msm_fence.h"
 #include "msm_gpu_trace.h"
-#include "adreno/adreno_gpu.h"
+#include "adreyes/adreyes_gpu.h"
 
 #include <generated/utsrelease.h>
 #include <linux/string_helpers.h>
@@ -158,7 +158,7 @@ static int disable_clk(struct msm_gpu *gpu)
 
 	/*
 	 * Set the clock to a deliberately low rate. On older targets the clock
-	 * speed had to be non zero to avoid problems. On newer targets this
+	 * speed had to be yesn zero to avoid problems. On newer targets this
 	 * will be rounded down to zero anyway so it all works out.
 	 */
 	if (gpu->core_clk)
@@ -311,7 +311,7 @@ static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
 	state_bo->size = obj->base.size;
 	state_bo->iova = iova;
 
-	/* Only store data for non imported buffer objects marked for read */
+	/* Only store data for yesn imported buffer objects marked for read */
 	if ((flags & MSM_SUBMIT_BO_READ) && !obj->base.import_attach) {
 		void *ptr;
 
@@ -391,12 +391,12 @@ static void update_fences(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 {
 	struct msm_gem_submit *submit;
 
-	list_for_each_entry(submit, &ring->submits, node) {
-		if (submit->seqno > fence)
+	list_for_each_entry(submit, &ring->submits, yesde) {
+		if (submit->seqyes > fence)
 			break;
 
 		msm_update_fence(submit->ring->fctx,
-			submit->fence->seqno);
+			submit->fence->seqyes);
 	}
 }
 
@@ -407,8 +407,8 @@ find_submit(struct msm_ringbuffer *ring, uint32_t fence)
 
 	WARN_ON(!mutex_is_locked(&ring->gpu->dev->struct_mutex));
 
-	list_for_each_entry(submit, &ring->submits, node)
-		if (submit->seqno == fence)
+	list_for_each_entry(submit, &ring->submits, yesde)
+		if (submit->seqyes == fence)
 			return submit;
 
 	return NULL;
@@ -498,7 +498,7 @@ static void recover_worker(struct work_struct *work)
 		for (i = 0; i < gpu->nr_rings; i++) {
 			struct msm_ringbuffer *ring = gpu->rb[i];
 
-			list_for_each_entry(submit, &ring->submits, node)
+			list_for_each_entry(submit, &ring->submits, yesde)
 				gpu->funcs->submit(gpu, submit, NULL);
 		}
 	}
@@ -526,21 +526,21 @@ static void hangcheck_handler(struct timer_list *t)
 	if (fence != ring->hangcheck_fence) {
 		/* some progress has been made.. ya! */
 		ring->hangcheck_fence = fence;
-	} else if (fence < ring->seqno) {
-		/* no progress and not done.. hung! */
+	} else if (fence < ring->seqyes) {
+		/* yes progress and yest done.. hung! */
 		ring->hangcheck_fence = fence;
 		DRM_DEV_ERROR(dev->dev, "%s: hangcheck detected gpu lockup rb %d!\n",
 				gpu->name, ring->id);
 		DRM_DEV_ERROR(dev->dev, "%s:     completed fence: %u\n",
 				gpu->name, fence);
 		DRM_DEV_ERROR(dev->dev, "%s:     submitted fence: %u\n",
-				gpu->name, ring->seqno);
+				gpu->name, ring->seqyes);
 
 		queue_work(priv->wq, &gpu->recover_work);
 	}
 
 	/* if still more pending work, reset the hangcheck timer: */
-	if (ring->seqno > ring->hangcheck_fence)
+	if (ring->seqyes > ring->hangcheck_fence)
 		hangcheck_timer_reset(gpu);
 
 	/* workaround for missing irq: */
@@ -618,7 +618,7 @@ void msm_gpu_perfcntr_stop(struct msm_gpu *gpu)
 	pm_runtime_put_sync(&gpu->pdev->dev);
 }
 
-/* returns -errno or # of cntrs sampled */
+/* returns -erryes or # of cntrs sampled */
 int msm_gpu_perfcntr_sample(struct msm_gpu *gpu, uint32_t *activetime,
 		uint32_t *totaltime, uint32_t ncntrs, uint32_t *cntrs)
 {
@@ -652,13 +652,13 @@ out:
 static void retire_submit(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
 		struct msm_gem_submit *submit)
 {
-	int index = submit->seqno % MSM_GPU_SUBMIT_STATS_COUNT;
+	int index = submit->seqyes % MSM_GPU_SUBMIT_STATS_COUNT;
 	volatile struct msm_gpu_submit_stats *stats;
 	u64 elapsed, clock = 0;
 	int i;
 
 	stats = &ring->memptrs->stats[index];
-	/* Convert 19.2Mhz alwayson ticks to nanoseconds for elapsed time */
+	/* Convert 19.2Mhz alwayson ticks to nayesseconds for elapsed time */
 	elapsed = (stats->alwayson_end - stats->alwayson_start) * 10000;
 	do_div(elapsed, 192);
 
@@ -696,7 +696,7 @@ static void retire_submits(struct msm_gpu *gpu)
 	for (i = 0; i < gpu->nr_rings; i++) {
 		struct msm_ringbuffer *ring = gpu->rb[i];
 
-		list_for_each_entry_safe(submit, tmp, &ring->submits, node) {
+		list_for_each_entry_safe(submit, tmp, &ring->submits, yesde) {
 			if (dma_fence_is_signaled(submit->fence))
 				retire_submit(gpu, ring, submit);
 		}
@@ -740,9 +740,9 @@ void msm_gpu_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 	msm_gpu_hw_init(gpu);
 
-	submit->seqno = ++ring->seqno;
+	submit->seqyes = ++ring->seqyes;
 
-	list_add_tail(&submit->node, &ring->submits);
+	list_add_tail(&submit->yesde, &ring->submits);
 
 	msm_rd_dump_submit(priv->rd, submit, NULL);
 
@@ -812,10 +812,10 @@ msm_gpu_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev,
 
 	/*
 	 * Setup IOMMU.. eventually we will (I think) do this once per context
-	 * and have separate page tables per context.  For now, to keep things
+	 * and have separate page tables per context.  For yesw, to keep things
 	 * simple and to get something working, just use a single address space:
 	 */
-	if (!adreno_is_a2xx(to_adreno_gpu(gpu))) {
+	if (!adreyes_is_a2xx(to_adreyes_gpu(gpu))) {
 		struct iommu_domain *iommu = iommu_domain_alloc(&platform_bus_type);
 		if (!iommu)
 			return NULL;
@@ -924,7 +924,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		config->va_start, config->va_end);
 
 	if (gpu->aspace == NULL)
-		DRM_DEV_INFO(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
+		DRM_DEV_INFO(drm->dev, "%s: yes IOMMU, fallback to VRAM carveout!\n", name);
 	else if (IS_ERR(gpu->aspace)) {
 		ret = PTR_ERR(gpu->aspace);
 		goto fail;
@@ -937,7 +937,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	if (IS_ERR(memptrs)) {
 		ret = PTR_ERR(memptrs);
-		DRM_DEV_ERROR(drm->dev, "could not allocate memptrs: %d\n", ret);
+		DRM_DEV_ERROR(drm->dev, "could yest allocate memptrs: %d\n", ret);
 		goto fail;
 	}
 
@@ -956,7 +956,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		if (IS_ERR(gpu->rb[i])) {
 			ret = PTR_ERR(gpu->rb[i]);
 			DRM_DEV_ERROR(drm->dev,
-				"could not create ringbuffer %d: %d\n", i, ret);
+				"could yest create ringbuffer %d: %d\n", i, ret);
 			goto fail;
 		}
 

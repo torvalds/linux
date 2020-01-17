@@ -413,7 +413,7 @@ static void is2_entry_set(struct ocelot *ocelot, int ix,
 		VCAP_KEY_BIT_SET(MAC_ARP_ARP_LEN_OK, arp->length);
 		VCAP_KEY_BIT_SET(MAC_ARP_ARP_TGT_MATCH, arp->dmac_match);
 		VCAP_KEY_BIT_SET(MAC_ARP_ARP_SENDER_MATCH, arp->smac_match);
-		VCAP_KEY_BIT_SET(MAC_ARP_ARP_OPCODE_UNKNOWN, arp->unknown);
+		VCAP_KEY_BIT_SET(MAC_ARP_ARP_OPCODE_UNKNOWN, arp->unkyeswn);
 
 		/* OPCODE is inverse, bit 0 is reply flag, bit 1 is RARP flag */
 		val = ((arp->req == OCELOT_VCAP_BIT_0 ? 1 : 0) |

@@ -300,7 +300,7 @@ static int ads8688_write_raw(struct iio_dev *indio_dev,
 	mutex_lock(&st->lock);
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		/* If the offset is 0 the ±2.5 * VREF mode is not available */
+		/* If the offset is 0 the ±2.5 * VREF mode is yest available */
 		offset = ads8688_range_def[st->range[chan->channel]].offset;
 		if (offset == 0 && val2 == ads8688_range_def[0].scale * st->vref_mv) {
 			mutex_unlock(&st->lock);
@@ -328,7 +328,7 @@ static int ads8688_write_raw(struct iio_dev *indio_dev,
 		}
 
 		/*
-		 * If the device are in ±2.5 * VREF mode, it's not allowed to
+		 * If the device are in ±2.5 * VREF mode, it's yest allowed to
 		 * switch to a mode where the offset is 0
 		 */
 		if (val == 0 &&
@@ -396,7 +396,7 @@ static irqreturn_t ads8688_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
 			iio_get_time_ns(indio_dev));
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -450,7 +450,7 @@ static int ads8688_probe(struct spi_device *spi)
 
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;

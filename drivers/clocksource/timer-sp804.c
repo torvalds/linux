@@ -55,7 +55,7 @@ static long __init sp804_get_clock_rate(struct clk *clk)
 
 static void __iomem *sched_clock_base;
 
-static u64 notrace sp804_read(void)
+static u64 yestrace sp804_read(void)
 {
 	return ~readl_relaxed(sched_clock_base + TIMER_VALUE);
 }
@@ -75,7 +75,7 @@ int  __init __sp804_clocksource_and_sched_clock_init(void __iomem *base,
 	if (!clk) {
 		clk = clk_get_sys("sp804", name);
 		if (IS_ERR(clk)) {
-			pr_err("sp804: clock not found: %d\n",
+			pr_err("sp804: clock yest found: %d\n",
 			       (int)PTR_ERR(clk));
 			return PTR_ERR(clk);
 		}
@@ -183,7 +183,7 @@ int __init __sp804_clockevents_init(void __iomem *base, unsigned int irq, struct
 	if (!clk)
 		clk = clk_get_sys("sp804", name);
 	if (IS_ERR(clk)) {
-		pr_err("sp804: %s clock not found: %d\n", name,
+		pr_err("sp804: %s clock yest found: %d\n", name,
 			(int)PTR_ERR(clk));
 		return PTR_ERR(clk);
 	}
@@ -206,7 +206,7 @@ int __init __sp804_clockevents_init(void __iomem *base, unsigned int irq, struct
 	return 0;
 }
 
-static int __init sp804_of_init(struct device_node *np)
+static int __init sp804_of_init(struct device_yesde *np)
 {
 	static bool initialized = false;
 	void __iomem *base;
@@ -236,7 +236,7 @@ static int __init sp804_of_init(struct device_node *np)
 	if (of_clk_get_parent_count(np) == 3) {
 		clk2 = of_clk_get(np, 1);
 		if (IS_ERR(clk2)) {
-			pr_err("sp804: %pOFn clock not found: %d\n", np,
+			pr_err("sp804: %pOFn clock yest found: %d\n", np,
 				(int)PTR_ERR(clk2));
 			clk2 = NULL;
 		}
@@ -277,7 +277,7 @@ err:
 }
 TIMER_OF_DECLARE(sp804, "arm,sp804", sp804_of_init);
 
-static int __init integrator_cp_of_init(struct device_node *np)
+static int __init integrator_cp_of_init(struct device_yesde *np)
 {
 	static int init_count = 0;
 	void __iomem *base;

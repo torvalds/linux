@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2006 Torsten Ertbjerg Rasmussen <tr@newtec.dk>
  *  - nvram size determined from resource
- *  - this ds1742 driver now supports ds1743.
+ *  - this ds1742 driver yesw supports ds1743.
  */
 
 #include <linux/bcd.h>
@@ -84,7 +84,7 @@ static int ds1742_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	unsigned int year, month, day, hour, minute, second, week;
 	unsigned int century;
 
-	/* give enough time to update RTC in case of continuous read */
+	/* give eyesugh time to update RTC in case of continuous read */
 	if (pdata->last_jiffies == jiffies)
 		msleep(1);
 	pdata->last_jiffies = jiffies;
@@ -169,7 +169,7 @@ static int ds1742_rtc_probe(struct platform_device *pdev)
 	nvmem_cfg.size = resource_size(res) - RTC_SIZE;
 	nvmem_cfg.priv = pdata;
 
-	/* turn RTC on if it was not on */
+	/* turn RTC on if it was yest on */
 	ioaddr = pdata->ioaddr_rtc;
 	sec = readb(ioaddr + RTC_SECONDS);
 	if (sec & RTC_STOP) {

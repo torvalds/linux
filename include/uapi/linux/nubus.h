@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
   nubus.h: various definitions and prototypes for NuBus drivers to use.
 
@@ -41,7 +41,7 @@ enum nubus_type_cpu {
 	NUBUS_TYPE_68040         = 0x0005
 };
 
-/* Known <Cat,Type,SW,HW> tuples: (according to TattleTech and Slots)
+/* Kyeswn <Cat,Type,SW,HW> tuples: (according to TattleTech and Slots)
  *  68030 motherboards: <10,4,0,24>
  *  68040 motherboards: <10,5,0,24>
  *  DuoDock Plus: <32,1,1,2>
@@ -50,7 +50,7 @@ enum nubus_type_cpu {
  *  RBV built-in video (IIci): <3,1,1,24>
  *  Valkyrie built-in video (Q630): <3,1,1,46>
  *  Macintosh Display Card: <3,1,1,25>
- *  Sonora built-in video (P460): <3,1,1,34>
+ *  Soyesra built-in video (P460): <3,1,1,34>
  *  Jet framebuffer (DuoDock Plus): <3,1,1,41>
  *
  *  SONIC comm-slot/on-board and DuoDock Ethernet: <4,1,1,272>
@@ -74,10 +74,10 @@ enum nubus_type_cpu {
 
 /* DrSW: Uniquely identifies the software interface to a board.  This
    is usually the one you want to look at when writing a driver.  It's
-   not as useful as you think, though, because as we should know by
-   now (duh), "Apple Compatible" can mean a lot of things... */
+   yest as useful as you think, though, because as we should kyesw by
+   yesw (duh), "Apple Compatible" can mean a lot of things... */
 
-/* Add known DrSW values here */
+/* Add kyeswn DrSW values here */
 enum nubus_drsw {
 	/* NUBUS_CAT_DISPLAY */
 	NUBUS_DRSW_APPLE        = 0x0001,
@@ -103,10 +103,10 @@ enum nubus_drsw {
 };
 
 /* DrHW: Uniquely identifies the hardware interface to a board (or at
-   least, it should...  some video cards are known to incorrectly
+   least, it should...  some video cards are kyeswn to incorrectly
    identify themselves as Toby cards) */
 
-/* Add known DrHW values here */
+/* Add kyeswn DrHW values here */
 enum nubus_drhw {
 	/* NUBUS_CAT_DISPLAY */
 	NUBUS_DRHW_APPLE_TFB      = 0x0001, /* Toby frame buffer card */
@@ -114,12 +114,12 @@ enum nubus_drhw {
 	NUBUS_DRHW_SIGMA_CLRMAX   = 0x0007, /* Sigma Design ColorMax */
 	NUBUS_DRHW_APPLE_SE30     = 0x0009, /* Apple SE/30 video */
 	NUBUS_DRHW_APPLE_HRVC     = 0x0013, /* Mac II High-Res Video Card */
-	NUBUS_DRHW_APPLE_MVC      = 0x0014, /* Mac II Monochrome Video Card */
+	NUBUS_DRHW_APPLE_MVC      = 0x0014, /* Mac II Moyeschrome Video Card */
 	NUBUS_DRHW_APPLE_PVC      = 0x0017, /* Mac II Portrait Video Card */
 	NUBUS_DRHW_APPLE_RBV1     = 0x0018, /* IIci RBV video */
 	NUBUS_DRHW_APPLE_MDC      = 0x0019, /* Macintosh Display Card */
 	NUBUS_DRHW_APPLE_VSC      = 0x0020, /* Duo MiniDock ViSC framebuffer */
-	NUBUS_DRHW_APPLE_SONORA   = 0x0022, /* Sonora built-in video */
+	NUBUS_DRHW_APPLE_SONORA   = 0x0022, /* Soyesra built-in video */
 	NUBUS_DRHW_APPLE_JET      = 0x0029, /* Jet framebuffer (DuoDock) */
 	NUBUS_DRHW_APPLE_24AC     = 0x002b, /* Mac 24AC Video Card */
 	NUBUS_DRHW_APPLE_VALKYRIE = 0x002e,
@@ -158,7 +158,7 @@ enum nubus_drhw {
 };
 
 /* Resource IDs: These are the identifiers for the various weird and
-   wonderful tidbits of information that may or may not reside in the
+   wonderful tidbits of information that may or may yest reside in the
    NuBus ROM directory. */
 enum nubus_res_id {
 	NUBUS_RESID_TYPE         = 0x0001,

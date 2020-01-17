@@ -9,8 +9,8 @@ Required Properties:
 - dvdd-supply: Digital core voltage supply, 1.8 volts
 - reset-gpios: Low active reset gpio
 
-The device node shall contain one 'port' child node with an
-'endpoint' subnode for its digital output video port,
+The device yesde shall contain one 'port' child yesde with an
+'endpoint' subyesde for its digital output video port,
 in accordance with the video interface bindings defined in
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 The endpoint optional property 'data-lanes' shall be "<1>".

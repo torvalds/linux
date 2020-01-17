@@ -2,7 +2,7 @@
 /* CAN driver for Geschwister Schneider USB/CAN devices
  * and bytewerk.org candleLight USB CAN interfaces.
  *
- * Copyright (C) 2013-2016 Geschwister Schneider Technologie-,
+ * Copyright (C) 2013-2016 Geschwister Schneider Techyeslogie-,
  * Entwicklungs- und Vertriebs UG (Haftungsbeschränkt).
  * Copyright (C) 2016 Hubert Denkmair
  *
@@ -143,7 +143,7 @@ struct gs_host_frame {
 	u8 data[8];
 } __packed;
 /* The GS USB devices make use of the same flags and masks as in
- * linux/can.h and linux/can/error.h, and no additional mapping is necessary.
+ * linux/can.h and linux/can/error.h, and yes additional mapping is necessary.
  */
 
 /* Only send a max of GS_MAX_TX_URBS frames per channel at a time. */
@@ -189,7 +189,7 @@ struct gs_usb {
 };
 
 /* 'allocate' a tx context.
- * returns a valid tx context or NULL if there is no space.
+ * returns a valid tx context or NULL if there is yes space.
  */
 static struct gs_tx_context *gs_alloc_tx_context(struct gs_can *dev)
 {
@@ -308,7 +308,7 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		return;
 	default:
-		/* do not resubmit aborted urbs. eg: when device goes down */
+		/* do yest resubmit aborted urbs. eg: when device goes down */
 		return;
 	}
 
@@ -324,7 +324,7 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 	if (!netif_device_present(netdev))
 		return;
 
-	if (hf->echo_id == -1) { /* normal rx */
+	if (hf->echo_id == -1) { /* yesrmal rx */
 		skb = alloc_can_skb(dev->netdev, &cf);
 		if (!skb)
 			return;
@@ -482,13 +482,13 @@ static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
 	/* create a URB, and a buffer for it */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
-		goto nomem_urb;
+		goto yesmem_urb;
 
 	hf = usb_alloc_coherent(dev->udev, sizeof(*hf), GFP_ATOMIC,
 				&urb->transfer_dma);
 	if (!hf) {
 		netdev_err(netdev, "No memory left for USB buffer\n");
-		goto nomem_hf;
+		goto yesmem_hf;
 	}
 
 	idx = txc->echo_id;
@@ -556,10 +556,10 @@ static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
 			  sizeof(*hf),
 			  hf,
 			  urb->transfer_dma);
- nomem_hf:
+ yesmem_hf:
 	usb_free_urb(urb);
 
- nomem_urb:
+ yesmem_urb:
 	gs_free_tx_context(txc);
 	dev_kfree_skb(skb);
 	stats->tx_dropped++;
@@ -647,7 +647,7 @@ static int gs_can_open(struct net_device *netdev)
 	else if (ctrlmode & CAN_CTRLMODE_LISTENONLY)
 		dm->flags |= GS_CAN_MODE_LISTEN_ONLY;
 
-	/* Controller is not allowed to retry TX
+	/* Controller is yest allowed to retry TX
 	 * this mode is unavailable on atmels uc3c hardware
 	 */
 	if (ctrlmode & CAN_CTRLMODE_ONE_SHOT)
@@ -957,7 +957,7 @@ static int gs_usb_probe(struct usb_interface *intf,
 
 	if (icount > GS_MAX_INTF) {
 		dev_err(&intf->dev,
-			"Driver cannot handle more that %d CAN interfaces\n",
+			"Driver canyest handle more that %d CAN interfaces\n",
 			GS_MAX_INTF);
 		kfree(dconf);
 		return -EINVAL;
@@ -1007,7 +1007,7 @@ static void gs_usb_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	if (!dev) {
-		dev_err(&intf->dev, "Disconnect (nodata)\n");
+		dev_err(&intf->dev, "Disconnect (yesdata)\n");
 		return;
 	}
 
@@ -1040,7 +1040,7 @@ module_usb_driver(gs_usb_driver);
 
 MODULE_AUTHOR("Maximilian Schneider <mws@schneidersoft.net>");
 MODULE_DESCRIPTION(
-"Socket CAN device driver for Geschwister Schneider Technologie-, "
+"Socket CAN device driver for Geschwister Schneider Techyeslogie-, "
 "Entwicklungs- und Vertriebs UG. USB2.0 to CAN interfaces\n"
 "and bytewerk.org candleLight USB CAN interfaces.");
 MODULE_LICENSE("GPL v2");

@@ -179,7 +179,7 @@ int hid_sensor_power_state(struct hid_sensor_common *st, bool state)
 	}
 	if (ret < 0) {
 		if (state)
-			pm_runtime_put_noidle(&st->pdev->dev);
+			pm_runtime_put_yesidle(&st->pdev->dev);
 		return ret;
 	}
 
@@ -228,7 +228,7 @@ void hid_sensor_remove_trigger(struct hid_sensor_common *attrb)
 		pm_runtime_disable(&attrb->pdev->dev);
 
 	pm_runtime_set_suspended(&attrb->pdev->dev);
-	pm_runtime_put_noidle(&attrb->pdev->dev);
+	pm_runtime_put_yesidle(&attrb->pdev->dev);
 
 	cancel_work_sync(&attrb->work);
 	iio_trigger_unregister(attrb->trigger);
@@ -275,7 +275,7 @@ int hid_sensor_setup_trigger(struct iio_dev *indio_dev, const char *name,
 
 	INIT_WORK(&attrb->work, hid_sensor_set_power_work);
 
-	pm_suspend_ignore_children(&attrb->pdev->dev, true);
+	pm_suspend_igyesre_children(&attrb->pdev->dev, true);
 	/* Default to 3 seconds, but can be changed from sysfs */
 	pm_runtime_set_autosuspend_delay(&attrb->pdev->dev,
 					 3000);

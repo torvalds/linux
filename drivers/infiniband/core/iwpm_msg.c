@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -186,10 +186,10 @@ int iwpm_add_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 	if (ret)
 		goto add_mapping_error;
 
-	/* If flags are required and we're not V4, then return a quiet error */
+	/* If flags are required and we're yest V4, then return a quiet error */
 	if (pm_msg->flags && iwpm_ulib_version == IWPM_UABI_VERSION_MIN) {
 		ret = -EINVAL;
-		goto add_mapping_error_nowarn;
+		goto add_mapping_error_yeswarn;
 	}
 	if (iwpm_ulib_version > IWPM_UABI_VERSION_MIN) {
 		ret = ibnl_put_attr(skb, nlh, sizeof(u32), &pm_msg->flags,
@@ -212,7 +212,7 @@ int iwpm_add_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 	return ret;
 add_mapping_error:
 	pr_info("%s: %s (client = %d)\n", __func__, err_str, nl_client);
-add_mapping_error_nowarn:
+add_mapping_error_yeswarn:
 	dev_kfree_skb(skb);
 	if (nlmsg_request)
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
@@ -280,10 +280,10 @@ int iwpm_add_and_query_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 	if (ret)
 		goto query_mapping_error;
 
-	/* If flags are required and we're not V4, then return a quite error */
+	/* If flags are required and we're yest V4, then return a quite error */
 	if (pm_msg->flags && iwpm_ulib_version == IWPM_UABI_VERSION_MIN) {
 		ret = -EINVAL;
-		goto query_mapping_error_nowarn;
+		goto query_mapping_error_yeswarn;
 	}
 	if (iwpm_ulib_version > IWPM_UABI_VERSION_MIN) {
 		ret = ibnl_put_attr(skb, nlh, sizeof(u32), &pm_msg->flags,
@@ -305,7 +305,7 @@ int iwpm_add_and_query_mapping(struct iwpm_sa_data *pm_msg, u8 nl_client)
 	return ret;
 query_mapping_error:
 	pr_info("%s: %s (client = %d)\n", __func__, err_str, nl_client);
-query_mapping_error_nowarn:
+query_mapping_error_yeswarn:
 	dev_kfree_skb(skb);
 	if (nlmsg_request)
 		iwpm_free_nlmsg_request(&nlmsg_request->kref);
@@ -416,7 +416,7 @@ int iwpm_register_pid_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	msg_seq = nla_get_u32(nltb[IWPM_NLA_RREG_PID_SEQ]);
 	nlmsg_request = iwpm_find_nlmsg_request(msg_seq);
 	if (!nlmsg_request) {
-		pr_info("%s: Could not find a matching request (seq = %u)\n",
+		pr_info("%s: Could yest find a matching request (seq = %u)\n",
 				 __func__, msg_seq);
 		return -EINVAL;
 	}
@@ -491,7 +491,7 @@ int iwpm_add_mapping_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	msg_seq = nla_get_u32(nltb[IWPM_NLA_RMANAGE_MAPPING_SEQ]);
 	nlmsg_request = iwpm_find_nlmsg_request(msg_seq);
 	if (!nlmsg_request) {
-		pr_info("%s: Could not find a matching request (seq = %u)\n",
+		pr_info("%s: Could yest find a matching request (seq = %u)\n",
 				 __func__, msg_seq);
 		return -EINVAL;
 	}
@@ -569,7 +569,7 @@ int iwpm_add_and_query_mapping_cb(struct sk_buff *skb,
 	msg_seq = nla_get_u32(nltb[IWPM_NLA_RQUERY_MAPPING_SEQ]);
 	nlmsg_request = iwpm_find_nlmsg_request(msg_seq);
 	if (!nlmsg_request) {
-		pr_info("%s: Could not find a matching request (seq = %u)\n",
+		pr_info("%s: Could yest find a matching request (seq = %u)\n",
 				 __func__, msg_seq);
 		return -EINVAL;
 	}
@@ -704,7 +704,7 @@ static const struct nla_policy resp_mapinfo_policy[IWPM_NLA_MAPINFO_REQ_MAX] = {
 };
 
 /**
- * iwpm_mapping_info_cb - Process a notification that the userspace
+ * iwpm_mapping_info_cb - Process a yestification that the userspace
  *                        port mapper daemon is started
  * @skb:
  * @cb: Contains the received message (payload and netlink header)
@@ -794,7 +794,7 @@ static const struct nla_policy map_error_policy[IWPM_NLA_ERR_MAX] = {
 };
 
 /**
- * iwpm_mapping_error_cb - Process port mapper notification for error
+ * iwpm_mapping_error_cb - Process port mapper yestification for error
  *
  * @skb:
  * @cb: Contains the received message (payload and netlink header)
@@ -819,8 +819,8 @@ int iwpm_mapping_error_cb(struct sk_buff *skb, struct netlink_callback *cb)
 	/* look for nlmsg_request */
 	nlmsg_request = iwpm_find_nlmsg_request(msg_seq);
 	if (!nlmsg_request) {
-		/* not all errors have associated requests */
-		pr_debug("Could not find matching req (seq = %u)\n", msg_seq);
+		/* yest all errors have associated requests */
+		pr_debug("Could yest find matching req (seq = %u)\n", msg_seq);
 		return 0;
 	}
 	atomic_set(&echo_nlmsg_seq, cb->nlh->nlmsg_seq);

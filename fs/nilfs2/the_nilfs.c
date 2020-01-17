@@ -26,12 +26,12 @@
 static int nilfs_valid_sb(struct nilfs_super_block *sbp);
 
 void nilfs_set_last_segment(struct the_nilfs *nilfs,
-			    sector_t start_blocknr, u64 seq, __u64 cno)
+			    sector_t start_blocknr, u64 seq, __u64 cyes)
 {
 	spin_lock(&nilfs->ns_last_segment_lock);
 	nilfs->ns_last_pseg = start_blocknr;
 	nilfs->ns_last_seq = seq;
-	nilfs->ns_last_cno = cno;
+	nilfs->ns_last_cyes = cyes;
 
 	if (!nilfs_sb_dirty(nilfs)) {
 		if (nilfs->ns_prev_seq == nilfs->ns_last_seq)
@@ -66,8 +66,8 @@ struct the_nilfs *alloc_nilfs(struct super_block *sb)
 	init_rwsem(&nilfs->ns_sem);
 	mutex_init(&nilfs->ns_snapshot_mount_mutex);
 	INIT_LIST_HEAD(&nilfs->ns_dirty_files);
-	INIT_LIST_HEAD(&nilfs->ns_gc_inodes);
-	spin_lock_init(&nilfs->ns_inode_lock);
+	INIT_LIST_HEAD(&nilfs->ns_gc_iyesdes);
+	spin_lock_init(&nilfs->ns_iyesde_lock);
 	spin_lock_init(&nilfs->ns_next_gen_lock);
 	spin_lock_init(&nilfs->ns_last_segment_lock);
 	nilfs->ns_cptree = RB_ROOT;
@@ -99,9 +99,9 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs,
 	struct buffer_head *bh_sr;
 	struct nilfs_super_root *raw_sr;
 	struct nilfs_super_block **sbp = nilfs->ns_sbp;
-	struct nilfs_inode *rawi;
+	struct nilfs_iyesde *rawi;
 	unsigned int dat_entry_size, segment_usage_size, checkpoint_size;
-	unsigned int inode_size;
+	unsigned int iyesde_size;
 	int err;
 
 	err = nilfs_read_super_root_block(nilfs, sr_block, &bh_sr, 1);
@@ -114,26 +114,26 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs,
 	segment_usage_size = le16_to_cpu(sbp[0]->s_segment_usage_size);
 	up_read(&nilfs->ns_sem);
 
-	inode_size = nilfs->ns_inode_size;
+	iyesde_size = nilfs->ns_iyesde_size;
 
-	rawi = (void *)bh_sr->b_data + NILFS_SR_DAT_OFFSET(inode_size);
+	rawi = (void *)bh_sr->b_data + NILFS_SR_DAT_OFFSET(iyesde_size);
 	err = nilfs_dat_read(sb, dat_entry_size, rawi, &nilfs->ns_dat);
 	if (err)
 		goto failed;
 
-	rawi = (void *)bh_sr->b_data + NILFS_SR_CPFILE_OFFSET(inode_size);
+	rawi = (void *)bh_sr->b_data + NILFS_SR_CPFILE_OFFSET(iyesde_size);
 	err = nilfs_cpfile_read(sb, checkpoint_size, rawi, &nilfs->ns_cpfile);
 	if (err)
 		goto failed_dat;
 
-	rawi = (void *)bh_sr->b_data + NILFS_SR_SUFILE_OFFSET(inode_size);
+	rawi = (void *)bh_sr->b_data + NILFS_SR_SUFILE_OFFSET(iyesde_size);
 	err = nilfs_sufile_read(sb, segment_usage_size, rawi,
 				&nilfs->ns_sufile);
 	if (err)
 		goto failed_cpfile;
 
 	raw_sr = (struct nilfs_super_root *)bh_sr->b_data;
-	nilfs->ns_nongc_ctime = le64_to_cpu(raw_sr->sr_nongc_ctime);
+	nilfs->ns_yesngc_ctime = le64_to_cpu(raw_sr->sr_yesngc_ctime);
 
  failed:
 	brelse(bh_sr);
@@ -174,14 +174,14 @@ static int nilfs_store_log_cursor(struct the_nilfs *nilfs,
 	int ret = 0;
 
 	nilfs->ns_last_pseg = le64_to_cpu(sbp->s_last_pseg);
-	nilfs->ns_last_cno = le64_to_cpu(sbp->s_last_cno);
+	nilfs->ns_last_cyes = le64_to_cpu(sbp->s_last_cyes);
 	nilfs->ns_last_seq = le64_to_cpu(sbp->s_last_seq);
 
 	nilfs->ns_prev_seq = nilfs->ns_last_seq;
 	nilfs->ns_seg_seq = nilfs->ns_last_seq;
 	nilfs->ns_segnum =
 		nilfs_get_segnum_of_block(nilfs, nilfs->ns_last_pseg);
-	nilfs->ns_cno = nilfs->ns_last_cno + 1;
+	nilfs->ns_cyes = nilfs->ns_last_cyes + 1;
 	if (nilfs->ns_segnum >= nilfs->ns_nsegments) {
 		nilfs_msg(nilfs->ns_sb, KERN_ERR,
 			  "pointed segment number is out of range: segnum=%llu, nsegments=%lu",
@@ -282,7 +282,7 @@ int load_nilfs(struct the_nilfs *nilfs, struct super_block *sb)
 
 		if (nilfs_test_opt(nilfs, NORECOVERY)) {
 			nilfs_msg(sb, KERN_INFO,
-				  "norecovery option specified, skipping roll-forward recovery");
+				  "yesrecovery option specified, skipping roll-forward recovery");
 			goto skip_recovery;
 		}
 		features = le64_to_cpu(nilfs->ns_sbp[0]->s_feature_compat_ro) &
@@ -296,14 +296,14 @@ int load_nilfs(struct the_nilfs *nilfs, struct super_block *sb)
 		}
 		if (really_read_only) {
 			nilfs_msg(sb, KERN_ERR,
-				  "write access unavailable, cannot proceed");
+				  "write access unavailable, canyest proceed");
 			err = -EROFS;
 			goto failed_unload;
 		}
 		sb->s_flags &= ~SB_RDONLY;
 	} else if (nilfs_test_opt(nilfs, NORECOVERY)) {
 		nilfs_msg(sb, KERN_ERR,
-			  "recovery cancelled because norecovery option was specified for a read/write mount");
+			  "recovery cancelled because yesrecovery option was specified for a read/write mount");
 		err = -EINVAL;
 		goto failed_unload;
 	}
@@ -381,7 +381,7 @@ static int nilfs_store_disk_layout(struct the_nilfs *nilfs,
 		nilfs_msg(nilfs->ns_sb, KERN_ERR,
 			  "unsupported revision (superblock rev.=%d.%d, current rev.=%d.%d). Please check the version of mkfs.nilfs(2).",
 			  le32_to_cpu(sbp->s_rev_level),
-			  le16_to_cpu(sbp->s_minor_rev_level),
+			  le16_to_cpu(sbp->s_miyesr_rev_level),
 			  NILFS_CURRENT_REV, NILFS_MINOR_REV);
 		return -EINVAL;
 	}
@@ -389,20 +389,20 @@ static int nilfs_store_disk_layout(struct the_nilfs *nilfs,
 	if (nilfs->ns_sbsize > BLOCK_SIZE)
 		return -EINVAL;
 
-	nilfs->ns_inode_size = le16_to_cpu(sbp->s_inode_size);
-	if (nilfs->ns_inode_size > nilfs->ns_blocksize) {
+	nilfs->ns_iyesde_size = le16_to_cpu(sbp->s_iyesde_size);
+	if (nilfs->ns_iyesde_size > nilfs->ns_blocksize) {
 		nilfs_msg(nilfs->ns_sb, KERN_ERR,
-			  "too large inode size: %d bytes",
-			  nilfs->ns_inode_size);
+			  "too large iyesde size: %d bytes",
+			  nilfs->ns_iyesde_size);
 		return -EINVAL;
-	} else if (nilfs->ns_inode_size < NILFS_MIN_INODE_SIZE) {
+	} else if (nilfs->ns_iyesde_size < NILFS_MIN_INODE_SIZE) {
 		nilfs_msg(nilfs->ns_sb, KERN_ERR,
-			  "too small inode size: %d bytes",
-			  nilfs->ns_inode_size);
+			  "too small iyesde size: %d bytes",
+			  nilfs->ns_iyesde_size);
 		return -EINVAL;
 	}
 
-	nilfs->ns_first_ino = le32_to_cpu(sbp->s_first_ino);
+	nilfs->ns_first_iyes = le32_to_cpu(sbp->s_first_iyes);
 
 	nilfs->ns_blocks_per_segment = le32_to_cpu(sbp->s_blocks_per_segment);
 	if (nilfs->ns_blocks_per_segment < NILFS_SEG_MIN_BLOCKS) {
@@ -494,7 +494,7 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 {
 	struct nilfs_super_block **sbp = nilfs->ns_sbp;
 	struct buffer_head **sbh = nilfs->ns_sbh;
-	u64 sb2off = NILFS_SB2_OFFSET_BYTES(nilfs->ns_bdev->bd_inode->i_size);
+	u64 sb2off = NILFS_SB2_OFFSET_BYTES(nilfs->ns_bdev->bd_iyesde->i_size);
 	int valid[2], swp = 0;
 
 	sbp[0] = nilfs_read_super_block(sb, NILFS_SB_OFFSET_BYTES, blocksize,
@@ -522,8 +522,8 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 	valid[0] = nilfs_valid_sb(sbp[0]);
 	valid[1] = nilfs_valid_sb(sbp[1]);
 	swp = valid[1] && (!valid[0] ||
-			   le64_to_cpu(sbp[1]->s_last_cno) >
-			   le64_to_cpu(sbp[0]->s_last_cno));
+			   le64_to_cpu(sbp[1]->s_last_cyes) >
+			   le64_to_cpu(sbp[0]->s_last_cyes));
 
 	if (valid[swp] && nilfs_sb2_bad_offset(sbp[swp], sb2off)) {
 		brelse(sbh[1]);
@@ -713,19 +713,19 @@ int nilfs_near_disk_full(struct the_nilfs *nilfs)
 	return ncleansegs <= nilfs->ns_nrsvsegs + nincsegs;
 }
 
-struct nilfs_root *nilfs_lookup_root(struct the_nilfs *nilfs, __u64 cno)
+struct nilfs_root *nilfs_lookup_root(struct the_nilfs *nilfs, __u64 cyes)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 	struct nilfs_root *root;
 
 	spin_lock(&nilfs->ns_cptree_lock);
-	n = nilfs->ns_cptree.rb_node;
+	n = nilfs->ns_cptree.rb_yesde;
 	while (n) {
-		root = rb_entry(n, struct nilfs_root, rb_node);
+		root = rb_entry(n, struct nilfs_root, rb_yesde);
 
-		if (cno < root->cno) {
+		if (cyes < root->cyes) {
 			n = n->rb_left;
-		} else if (cno > root->cno) {
+		} else if (cyes > root->cyes) {
 			n = n->rb_right;
 		} else {
 			refcount_inc(&root->count);
@@ -739,13 +739,13 @@ struct nilfs_root *nilfs_lookup_root(struct the_nilfs *nilfs, __u64 cno)
 }
 
 struct nilfs_root *
-nilfs_find_or_create_root(struct the_nilfs *nilfs, __u64 cno)
+nilfs_find_or_create_root(struct the_nilfs *nilfs, __u64 cyes)
 {
-	struct rb_node **p, *parent;
+	struct rb_yesde **p, *parent;
 	struct nilfs_root *root, *new;
 	int err;
 
-	root = nilfs_lookup_root(nilfs, cno);
+	root = nilfs_lookup_root(nilfs, cyes);
 	if (root)
 		return root;
 
@@ -755,16 +755,16 @@ nilfs_find_or_create_root(struct the_nilfs *nilfs, __u64 cno)
 
 	spin_lock(&nilfs->ns_cptree_lock);
 
-	p = &nilfs->ns_cptree.rb_node;
+	p = &nilfs->ns_cptree.rb_yesde;
 	parent = NULL;
 
 	while (*p) {
 		parent = *p;
-		root = rb_entry(parent, struct nilfs_root, rb_node);
+		root = rb_entry(parent, struct nilfs_root, rb_yesde);
 
-		if (cno < root->cno) {
+		if (cyes < root->cyes) {
 			p = &(*p)->rb_left;
-		} else if (cno > root->cno) {
+		} else if (cyes > root->cyes) {
 			p = &(*p)->rb_right;
 		} else {
 			refcount_inc(&root->count);
@@ -774,15 +774,15 @@ nilfs_find_or_create_root(struct the_nilfs *nilfs, __u64 cno)
 		}
 	}
 
-	new->cno = cno;
+	new->cyes = cyes;
 	new->ifile = NULL;
 	new->nilfs = nilfs;
 	refcount_set(&new->count, 1);
-	atomic64_set(&new->inodes_count, 0);
+	atomic64_set(&new->iyesdes_count, 0);
 	atomic64_set(&new->blocks_count, 0);
 
-	rb_link_node(&new->rb_node, parent, p);
-	rb_insert_color(&new->rb_node, &nilfs->ns_cptree);
+	rb_link_yesde(&new->rb_yesde, parent, p);
+	rb_insert_color(&new->rb_yesde, &nilfs->ns_cptree);
 
 	spin_unlock(&nilfs->ns_cptree_lock);
 
@@ -803,7 +803,7 @@ void nilfs_put_root(struct nilfs_root *root)
 		nilfs_sysfs_delete_snapshot_group(root);
 
 		spin_lock(&nilfs->ns_cptree_lock);
-		rb_erase(&root->rb_node, &nilfs->ns_cptree);
+		rb_erase(&root->rb_yesde, &nilfs->ns_cptree);
 		spin_unlock(&nilfs->ns_cptree_lock);
 		iput(root->ifile);
 

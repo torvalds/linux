@@ -16,7 +16,7 @@ struct test_struct {
 #define MAGIC		0xf00ff00f
 /* Size of each of the NULL-terminated input arrays */
 #define INPUT_MAX	128
-/* Expected number of non-NULL elements in the output array */
+/* Expected number of yesn-NULL elements in the output array */
 #define EXPECT		(INPUT_MAX * 2 - 2)
 
 static int __init test_memcat_p_init(void)

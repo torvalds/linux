@@ -72,15 +72,15 @@ enum dso_type {
 	DSO__TYPE_X32BIT,
 };
 
-enum dso_load_errno {
+enum dso_load_erryes {
 	DSO_LOAD_ERRNO__SUCCESS		= 0,
 
 	/*
-	 * Choose an arbitrary negative big number not to clash with standard
-	 * errno since SUS requires the errno has distinct positive values.
+	 * Choose an arbitrary negative big number yest to clash with standard
+	 * erryes since SUS requires the erryes has distinct positive values.
 	 * See 'Issue 6' in the link below.
 	 *
-	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/errno.h.html
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/erryes.h.html
 	 */
 	__DSO_LOAD_ERRNO__START		= -10000,
 
@@ -128,12 +128,12 @@ enum dso_load_errno {
 struct dso_id {
 	u32	maj;
 	u32	min;
-	u64	ino;
-	u64	ino_generation;
+	u64	iyes;
+	u64	iyes_generation;
 };
 
 struct dso_cache {
-	struct rb_node	rb_node;
+	struct rb_yesde	rb_yesde;
 	u64 offset;
 	u64 size;
 	char data[0];
@@ -143,12 +143,12 @@ struct auxtrace_cache;
 
 struct dso {
 	pthread_mutex_t	 lock;
-	struct list_head node;
-	struct rb_node	 rb_node;	/* rbtree node sorted by long name */
-	struct rb_root	 *root;		/* root of rbtree that rb_node is in */
+	struct list_head yesde;
+	struct rb_yesde	 rb_yesde;	/* rbtree yesde sorted by long name */
+	struct rb_root	 *root;		/* root of rbtree that rb_yesde is in */
 	struct rb_root_cached symbols;
 	struct rb_root_cached symbol_names;
-	struct rb_root_cached inlined_nodes;
+	struct rb_root_cached inlined_yesdes;
 	struct rb_root_cached srclines;
 	struct {
 		u64		addr;
@@ -161,12 +161,12 @@ struct dso {
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;
 	enum dso_binary_type	binary_type;
-	enum dso_load_errno	load_errno;
+	enum dso_load_erryes	load_erryes;
 	u8		 adjust_symbols:1;
 	u8		 has_build_id:1;
 	u8		 has_srcline:1;
 	u8		 hit:1;
-	u8		 annotate_warned:1;
+	u8		 anyestate_warned:1;
 	u8		 short_name_allocated:1;
 	u8		 long_name_allocated:1;
 	u8		 is_64_bit:1;
@@ -215,7 +215,7 @@ struct dso {
  *
  * @dso: the 'struct dso *' in which symbols itereated
  * @pos: the 'struct symbol *' to use as a loop cursor
- * @n: the 'struct rb_node *' to use as a temporary storage
+ * @n: the 'struct rb_yesde *' to use as a temporary storage
  */
 #define dso__for_each_symbol(dso, pos, n)	\
 	symbols__for_each_entry(&(dso)->symbols, pos, n)
@@ -325,7 +325,7 @@ void dso__set_module_info(struct dso *dso, struct kmod_path *m,
  * Eventually close DSO's fd:
  *   dso__data_close(dso);
  *
- * It is not necessary to close the DSO object data file. Each time new
+ * It is yest necessary to close the DSO object data file. Each time new
  * DSO data file is opened, the limit (RLIMIT_NOFILE/2) is checked. Once
  * it is crossed, the oldest opened DSO object is closed.
  *

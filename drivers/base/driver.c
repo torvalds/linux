@@ -10,7 +10,7 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
@@ -18,7 +18,7 @@
 
 static struct device *next_device(struct klist_iter *i)
 {
-	struct klist_node *n = klist_next(i);
+	struct klist_yesde *n = klist_next(i);
 	struct device *dev = NULL;
 	struct device_private *dev_prv;
 
@@ -48,8 +48,8 @@ int driver_for_each_device(struct device_driver *drv, struct device *start,
 	if (!drv)
 		return -EINVAL;
 
-	klist_iter_init_node(&drv->p->klist_devices, &i,
-			     start ? &start->p->knode_driver : NULL);
+	klist_iter_init_yesde(&drv->p->klist_devices, &i,
+			     start ? &start->p->kyesde_driver : NULL);
 	while (!error && (dev = next_device(&i)))
 		error = fn(dev, data);
 	klist_iter_exit(&i);
@@ -68,9 +68,9 @@ EXPORT_SYMBOL_GPL(driver_for_each_device);
  * it returns a reference to a device that is 'found' for later use, as
  * determined by the @match callback.
  *
- * The callback should return 0 if the device doesn't match and non-zero
- * if it does.  If the callback returns non-zero, this function will
- * return to the caller and not iterate over any more devices.
+ * The callback should return 0 if the device doesn't match and yesn-zero
+ * if it does.  If the callback returns yesn-zero, this function will
+ * return to the caller and yest iterate over any more devices.
  */
 struct device *driver_find_device(struct device_driver *drv,
 				  struct device *start, const void *data,
@@ -82,8 +82,8 @@ struct device *driver_find_device(struct device_driver *drv,
 	if (!drv || !drv->p)
 		return NULL;
 
-	klist_iter_init_node(&drv->p->klist_devices, &i,
-			     (start ? &start->p->knode_driver : NULL));
+	klist_iter_init_yesde(&drv->p->klist_devices, &i,
+			     (start ? &start->p->kyesde_driver : NULL));
 	while ((dev = next_device(&i)))
 		if (match(dev, data) && get_device(dev))
 			break;
@@ -149,7 +149,7 @@ int driver_register(struct device_driver *drv)
 	struct device_driver *other;
 
 	if (!drv->bus->p) {
-		pr_err("Driver '%s' was unable to register with bus_type '%s' because the bus was not initialized.\n",
+		pr_err("Driver '%s' was unable to register with bus_type '%s' because the bus was yest initialized.\n",
 			   drv->name, drv->bus->name);
 		return -EINVAL;
 	}
@@ -206,7 +206,7 @@ EXPORT_SYMBOL_GPL(driver_unregister);
  * Call kset_find_obj() to iterate over list of drivers on
  * a bus to find driver by name. Return driver if found.
  *
- * This routine provides no locking to prevent the driver it returns
+ * This routine provides yes locking to prevent the driver it returns
  * from being unregistered or unloaded while the caller is using it.
  * The caller is responsible for preventing this.
  */

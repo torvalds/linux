@@ -70,7 +70,7 @@ static char *omap3_l3_code_string(u8 code)
 	case OMAP_L3_CODE_REQ_TOUT_NOT_ACCEPT:
 		return "Request Timeout Not Accepted";
 	case OMAP_L3_CODE_REQ_TOUT_NO_RESP:
-		return "Request Timeout, no response";
+		return "Request Timeout, yes response";
 	default:
 		return "UNKNOWN error";
 	}
@@ -169,10 +169,10 @@ static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 	if (!int_type) {
 		status = omap3_l3_readll(l3->rt, L3_SI_FLAG_STATUS_0);
 		/*
-		 * if we have a timeout error, there's nothing we can
+		 * if we have a timeout error, there's yesthing we can
 		 * do besides rebooting the board. So let's BUG on any
 		 * of such errors and handle the others. timeout error
-		 * is severe and not expected to occur.
+		 * is severe and yest expected to occur.
 		 */
 		BUG_ON(status & L3_STATUS_0_TIMEOUT_MASK);
 	} else {

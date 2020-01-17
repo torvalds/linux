@@ -5,16 +5,16 @@
  * Example of using huge page memory in a user application using the mmap
  * system call.  Before running this application, make sure that the
  * administrator has mounted the hugetlbfs filesystem (on some directory
- * like /mnt) using the command mount -t hugetlbfs nodev /mnt. In this
+ * like /mnt) using the command mount -t hugetlbfs yesdev /mnt. In this
  * example, the app is requesting memory of size 256MB that is backed by
  * huge pages.
  *
  * For the ia64 architecture, the Linux kernel reserves Region number 4 for
  * huge pages.  That means that if one requires a fixed address, a huge page
  * aligned address starting with 0x800000... will be required.  If a fixed
- * address is not required, the kernel will select an address in the proper
+ * address is yest required, the kernel will select an address in the proper
  * range.
- * Other architectures, such as ppc64, i386 or x86_64 are not so constrained.
+ * Other architectures, such as ppc64, i386 or x86_64 are yest so constrained.
  */
 
 #include <stdlib.h>

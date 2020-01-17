@@ -10,5 +10,5 @@ located in sysfs::
 
 	/sys/bus/i2c/devices/<device-directory>/slave-eeprom
 
-As of 2015, Linux doesn't support poll on binary sysfs files, so there is no
-notification when another master changed the content.
+As of 2015, Linux doesn't support poll on binary sysfs files, so there is yes
+yestification when ayesther master changed the content.

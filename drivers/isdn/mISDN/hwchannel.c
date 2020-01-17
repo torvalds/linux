@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- * Author	Karsten Keil <kkeil@novell.com>
+ * Author	Karsten Keil <kkeil@yesvell.com>
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@yesvell.com>
  */
 
 #include <linux/gfp.h>
@@ -254,7 +254,7 @@ recv_Bchannel(struct bchannel *bch, unsigned int id, bool force)
 	if (unlikely(!bch->rx_skb))
 		return;
 	if (unlikely(!bch->rx_skb->len)) {
-		/* we have no data to send - this may happen after recovery
+		/* we have yes data to send - this may happen after recovery
 		 * from overflow or too small allocation.
 		 * We need to free the buffer here */
 		dev_kfree_skb(bch->rx_skb);
@@ -311,7 +311,7 @@ confirm_Dsend(struct dchannel *dch)
 	skb = _alloc_mISDN_skb(PH_DATA_CNF, mISDN_HEAD_ID(dch->tx_skb),
 			       0, NULL, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_ERR "%s: no skb id %x\n", __func__,
+		printk(KERN_ERR "%s: yes skb id %x\n", __func__,
 		       mISDN_HEAD_ID(dch->tx_skb));
 		return;
 	}
@@ -348,7 +348,7 @@ confirm_Bsend(struct bchannel *bch)
 	skb = _alloc_mISDN_skb(PH_DATA_CNF, mISDN_HEAD_ID(bch->tx_skb),
 			       0, NULL, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_ERR "%s: no skb id %x\n", __func__,
+		printk(KERN_ERR "%s: yes skb id %x\n", __func__,
 		       mISDN_HEAD_ID(bch->tx_skb));
 		return;
 	}
@@ -474,10 +474,10 @@ bchannel_get_rxbuf(struct bchannel *bch, int reqlen)
 	if (bch->rx_skb) {
 		len = skb_tailroom(bch->rx_skb);
 		if (len < reqlen) {
-			pr_warn("B%d no space for %d (only %d) bytes\n",
+			pr_warn("B%d yes space for %d (only %d) bytes\n",
 				bch->nr, reqlen, len);
 			if (test_bit(FLG_TRANSPARENT, &bch->Flags)) {
-				/* send what we have now and try a new buffer */
+				/* send what we have yesw and try a new buffer */
 				recv_Bchannel(bch, 0, true);
 			} else {
 				/* on HDLC we have to drop too big frames */
@@ -503,12 +503,12 @@ bchannel_get_rxbuf(struct bchannel *bch, int reqlen)
 				len = bch->maxlen;
 		}
 	} else {
-		/* with HDLC we do not know the length yet */
+		/* with HDLC we do yest kyesw the length yet */
 		len = bch->maxlen;
 	}
 	bch->rx_skb = mI_alloc_skb(len, GFP_ATOMIC);
 	if (!bch->rx_skb) {
-		pr_warn("B%d receive no memory for %d bytes\n", bch->nr, len);
+		pr_warn("B%d receive yes memory for %d bytes\n", bch->nr, len);
 		len = -ENOMEM;
 	}
 	return len;

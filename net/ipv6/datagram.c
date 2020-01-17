@@ -8,7 +8,7 @@
  */
 
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
@@ -301,7 +301,7 @@ void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 	skb->protocol = htons(ETH_P_IPV6);
 
 	serr = SKB_EXT_ERR(skb);
-	serr->ee.ee_errno = err;
+	serr->ee.ee_erryes = err;
 	serr->ee.ee_origin = SO_EE_ORIGIN_ICMP6;
 	serr->ee.ee_type = icmph->icmp6_type;
 	serr->ee.ee_code = icmph->icmp6_code;
@@ -342,7 +342,7 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi6 *fl6, u32 info)
 	ip6_flow_hdr(iph, 0, 0);
 
 	serr = SKB_EXT_ERR(skb);
-	serr->ee.ee_errno = err;
+	serr->ee.ee_erryes = err;
 	serr->ee.ee_origin = SO_EE_ORIGIN_LOCAL;
 	serr->ee.ee_type = 0;
 	serr->ee.ee_code = 0;
@@ -407,8 +407,8 @@ static inline bool ipv6_datagram_support_addr(struct sock_exterr_skb *serr)
 /* IPv6 supports cmsg on all origins aside from SO_EE_ORIGIN_LOCAL.
  *
  * At one point, excluding local errors was a quick test to identify icmp/icmp6
- * errors. This is no longer true, but the test remained, so the v6 stack,
- * unlike v4, also honors cmsg requests on all wifi and timestamp errors.
+ * errors. This is yes longer true, but the test remained, so the v6 stack,
+ * unlike v4, also hoyesrs cmsg requests on all wifi and timestamp errors.
  */
 static bool ip6_datagram_support_cmsg(struct sk_buff *skb,
 				      struct sock_exterr_skb *serr)
@@ -627,11 +627,11 @@ void ip6_datagram_recv_specific_ctl(struct sock *sk, struct msghdr *msg,
 	if (opt->lastopt &&
 	    (np->rxopt.bits.dstopts || np->rxopt.bits.srcrt)) {
 		/*
-		 * Silly enough, but we need to reparse in order to
+		 * Silly eyesugh, but we need to reparse in order to
 		 * report extension headers (except for HbH)
 		 * in order.
 		 *
-		 * Also note that IPV6_RECVRTHDRDSTOPTS is NOT
+		 * Also yeste that IPV6_RECVRTHDRDSTOPTS is NOT
 		 * (and WILL NOT be) defined because
 		 * IPV6_RECVDSTOPTS is more generic. --yoshfuji
 		 */
@@ -804,7 +804,7 @@ int ip6_datagram_send_ctl(struct net *net, struct sock *sk,
 
 			if (addr_type != IPV6_ADDR_ANY) {
 				int strict = __ipv6_addr_src_scope(addr_type) <= IPV6_ADDR_SCOPE_LINKLOCAL;
-				if (!ipv6_can_nonlocal_bind(net, inet_sk(sk)) &&
+				if (!ipv6_can_yesnlocal_bind(net, inet_sk(sk)) &&
 				    !ipv6_chk_addr_and_flags(net, &src_info->ipi6_addr,
 							     dev, !strict, 0,
 							     IFA_F_TENTATIVE) &&
@@ -1044,7 +1044,7 @@ void __ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp,
 		   0, 0L, 0,
 		   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sp)),
 		   0,
-		   sock_i_ino(sp),
+		   sock_i_iyes(sp),
 		   refcount_read(&sp->sk_refcnt), sp,
 		   atomic_read(&sp->sk_drops));
 }

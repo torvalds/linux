@@ -11,33 +11,33 @@
 /*
  * This file implements garbage collection. The procedure for garbage collection
  * is different depending on whether a LEB as an index LEB (contains index
- * nodes) or not. For non-index LEBs, garbage collection finds a LEB which
- * contains a lot of dirty space (obsolete nodes), and copies the non-obsolete
- * nodes to the journal, at which point the garbage-collected LEB is free to be
- * reused. For index LEBs, garbage collection marks the non-obsolete index nodes
+ * yesdes) or yest. For yesn-index LEBs, garbage collection finds a LEB which
+ * contains a lot of dirty space (obsolete yesdes), and copies the yesn-obsolete
+ * yesdes to the journal, at which point the garbage-collected LEB is free to be
+ * reused. For index LEBs, garbage collection marks the yesn-obsolete index yesdes
  * dirty in the TNC, and after the next commit, the garbage-collected LEB is
- * to be reused. Garbage collection will cause the number of dirty index nodes
+ * to be reused. Garbage collection will cause the number of dirty index yesdes
  * to grow, however sufficient space is reserved for the index to ensure the
  * commit will never run out of space.
  *
  * Notes about dead watermark. At current UBIFS implementation we assume that
  * LEBs which have less than @c->dead_wm bytes of free + dirty space are full
- * and not worth garbage-collecting. The dead watermark is one min. I/O unit
- * size, or min. UBIFS node size, depending on what is greater. Indeed, UBIFS
+ * and yest worth garbage-collecting. The dead watermark is one min. I/O unit
+ * size, or min. UBIFS yesde size, depending on what is greater. Indeed, UBIFS
  * Garbage Collector has to synchronize the GC head's write buffer before
  * returning, so this is about wasting one min. I/O unit. However, UBIFS GC can
  * actually reclaim even very small pieces of dirty space by garbage collecting
- * enough dirty LEBs, but we do not bother doing this at this implementation.
+ * eyesugh dirty LEBs, but we do yest bother doing this at this implementation.
  *
  * Notes about dark watermark. The results of GC work depends on how big are
- * the UBIFS nodes GC deals with. Large nodes make GC waste more space. Indeed,
- * if GC move data from LEB A to LEB B and nodes in LEB A are large, GC would
- * have to waste large pieces of free space at the end of LEB B, because nodes
- * from LEB A would not fit. And the worst situation is when all nodes are of
+ * the UBIFS yesdes GC deals with. Large yesdes make GC waste more space. Indeed,
+ * if GC move data from LEB A to LEB B and yesdes in LEB A are large, GC would
+ * have to waste large pieces of free space at the end of LEB B, because yesdes
+ * from LEB A would yest fit. And the worst situation is when all yesdes are of
  * maximum size. So dark watermark is the amount of free + dirty space in LEB
  * which are guaranteed to be reclaimable. If LEB has less space, the GC might
  * be unable to reclaim it. So, LEBs with free + dirty greater than dark
- * watermark are "good" LEBs from GC's point of view. The other LEBs are not so
+ * watermark are "good" LEBs from GC's point of view. The other LEBs are yest so
  * good, and GC takes extra care when moving them.
  */
 
@@ -76,7 +76,7 @@ static int switch_gc_head(struct ubifs_info *c)
 	       wbuf->lnum, wbuf->offs + wbuf->used, gc_lnum,
 	       c->leb_size - wbuf->offs - wbuf->used);
 
-	err = ubifs_wbuf_sync_nolock(wbuf);
+	err = ubifs_wbuf_sync_yeslock(wbuf);
 	if (err)
 		return err;
 
@@ -93,31 +93,31 @@ static int switch_gc_head(struct ubifs_info *c)
 		return err;
 
 	c->gc_lnum = -1;
-	err = ubifs_wbuf_seek_nolock(wbuf, gc_lnum, 0);
+	err = ubifs_wbuf_seek_yeslock(wbuf, gc_lnum, 0);
 	return err;
 }
 
 /**
- * data_nodes_cmp - compare 2 data nodes.
+ * data_yesdes_cmp - compare 2 data yesdes.
  * @priv: UBIFS file-system description object
- * @a: first data node
- * @b: second data node
+ * @a: first data yesde
+ * @b: second data yesde
  *
- * This function compares data nodes @a and @b. Returns %1 if @a has greater
- * inode or block number, and %-1 otherwise.
+ * This function compares data yesdes @a and @b. Returns %1 if @a has greater
+ * iyesde or block number, and %-1 otherwise.
  */
-static int data_nodes_cmp(void *priv, struct list_head *a, struct list_head *b)
+static int data_yesdes_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
-	ino_t inuma, inumb;
+	iyes_t inuma, inumb;
 	struct ubifs_info *c = priv;
-	struct ubifs_scan_node *sa, *sb;
+	struct ubifs_scan_yesde *sa, *sb;
 
 	cond_resched();
 	if (a == b)
 		return 0;
 
-	sa = list_entry(a, struct ubifs_scan_node, list);
-	sb = list_entry(b, struct ubifs_scan_node, list);
+	sa = list_entry(a, struct ubifs_scan_yesde, list);
+	sb = list_entry(b, struct ubifs_scan_yesde, list);
 
 	ubifs_assert(c, key_type(c, &sa->key) == UBIFS_DATA_KEY);
 	ubifs_assert(c, key_type(c, &sb->key) == UBIFS_DATA_KEY);
@@ -140,35 +140,35 @@ static int data_nodes_cmp(void *priv, struct list_head *a, struct list_head *b)
 }
 
 /*
- * nondata_nodes_cmp - compare 2 non-data nodes.
+ * yesndata_yesdes_cmp - compare 2 yesn-data yesdes.
  * @priv: UBIFS file-system description object
- * @a: first node
- * @a: second node
+ * @a: first yesde
+ * @a: second yesde
  *
- * This function compares nodes @a and @b. It makes sure that inode nodes go
- * first and sorted by length in descending order. Directory entry nodes go
- * after inode nodes and are sorted in ascending hash valuer order.
+ * This function compares yesdes @a and @b. It makes sure that iyesde yesdes go
+ * first and sorted by length in descending order. Directory entry yesdes go
+ * after iyesde yesdes and are sorted in ascending hash valuer order.
  */
-static int nondata_nodes_cmp(void *priv, struct list_head *a,
+static int yesndata_yesdes_cmp(void *priv, struct list_head *a,
 			     struct list_head *b)
 {
-	ino_t inuma, inumb;
+	iyes_t inuma, inumb;
 	struct ubifs_info *c = priv;
-	struct ubifs_scan_node *sa, *sb;
+	struct ubifs_scan_yesde *sa, *sb;
 
 	cond_resched();
 	if (a == b)
 		return 0;
 
-	sa = list_entry(a, struct ubifs_scan_node, list);
-	sb = list_entry(b, struct ubifs_scan_node, list);
+	sa = list_entry(a, struct ubifs_scan_yesde, list);
+	sb = list_entry(b, struct ubifs_scan_yesde, list);
 
 	ubifs_assert(c, key_type(c, &sa->key) != UBIFS_DATA_KEY &&
 		     key_type(c, &sb->key) != UBIFS_DATA_KEY);
 	ubifs_assert(c, sa->type != UBIFS_DATA_NODE &&
 		     sb->type != UBIFS_DATA_NODE);
 
-	/* Inodes go before directory entries */
+	/* Iyesdes go before directory entries */
 	if (sa->type == UBIFS_INO_NODE) {
 		if (sb->type == UBIFS_INO_NODE)
 			return sb->len - sa->len;
@@ -202,144 +202,144 @@ static int nondata_nodes_cmp(void *priv, struct list_head *a,
 }
 
 /**
- * sort_nodes - sort nodes for GC.
+ * sort_yesdes - sort yesdes for GC.
  * @c: UBIFS file-system description object
- * @sleb: describes nodes to sort and contains the result on exit
- * @nondata: contains non-data nodes on exit
- * @min: minimum node size is returned here
+ * @sleb: describes yesdes to sort and contains the result on exit
+ * @yesndata: contains yesn-data yesdes on exit
+ * @min: minimum yesde size is returned here
  *
- * This function sorts the list of inodes to garbage collect. First of all, it
- * kills obsolete nodes and separates data and non-data nodes to the
- * @sleb->nodes and @nondata lists correspondingly.
+ * This function sorts the list of iyesdes to garbage collect. First of all, it
+ * kills obsolete yesdes and separates data and yesn-data yesdes to the
+ * @sleb->yesdes and @yesndata lists correspondingly.
  *
- * Data nodes are then sorted in block number order - this is important for
- * bulk-read; data nodes with lower inode number go before data nodes with
- * higher inode number, and data nodes with lower block number go before data
- * nodes with higher block number;
+ * Data yesdes are then sorted in block number order - this is important for
+ * bulk-read; data yesdes with lower iyesde number go before data yesdes with
+ * higher iyesde number, and data yesdes with lower block number go before data
+ * yesdes with higher block number;
  *
- * Non-data nodes are sorted as follows.
- *   o First go inode nodes - they are sorted in descending length order.
- *   o Then go directory entry nodes - they are sorted in hash order, which
- *     should supposedly optimize 'readdir()'. Direntry nodes with lower parent
- *     inode number go before direntry nodes with higher parent inode number,
- *     and direntry nodes with lower name hash values go before direntry nodes
+ * Non-data yesdes are sorted as follows.
+ *   o First go iyesde yesdes - they are sorted in descending length order.
+ *   o Then go directory entry yesdes - they are sorted in hash order, which
+ *     should supposedly optimize 'readdir()'. Direntry yesdes with lower parent
+ *     iyesde number go before direntry yesdes with higher parent iyesde number,
+ *     and direntry yesdes with lower name hash values go before direntry yesdes
  *     with higher name hash values.
  *
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-static int sort_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
-		      struct list_head *nondata, int *min)
+static int sort_yesdes(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
+		      struct list_head *yesndata, int *min)
 {
 	int err;
-	struct ubifs_scan_node *snod, *tmp;
+	struct ubifs_scan_yesde *syesd, *tmp;
 
 	*min = INT_MAX;
 
-	/* Separate data nodes and non-data nodes */
-	list_for_each_entry_safe(snod, tmp, &sleb->nodes, list) {
-		ubifs_assert(c, snod->type == UBIFS_INO_NODE  ||
-			     snod->type == UBIFS_DATA_NODE ||
-			     snod->type == UBIFS_DENT_NODE ||
-			     snod->type == UBIFS_XENT_NODE ||
-			     snod->type == UBIFS_TRUN_NODE ||
-			     snod->type == UBIFS_AUTH_NODE);
+	/* Separate data yesdes and yesn-data yesdes */
+	list_for_each_entry_safe(syesd, tmp, &sleb->yesdes, list) {
+		ubifs_assert(c, syesd->type == UBIFS_INO_NODE  ||
+			     syesd->type == UBIFS_DATA_NODE ||
+			     syesd->type == UBIFS_DENT_NODE ||
+			     syesd->type == UBIFS_XENT_NODE ||
+			     syesd->type == UBIFS_TRUN_NODE ||
+			     syesd->type == UBIFS_AUTH_NODE);
 
-		if (snod->type != UBIFS_INO_NODE  &&
-		    snod->type != UBIFS_DATA_NODE &&
-		    snod->type != UBIFS_DENT_NODE &&
-		    snod->type != UBIFS_XENT_NODE) {
-			/* Probably truncation node, zap it */
-			list_del(&snod->list);
-			kfree(snod);
+		if (syesd->type != UBIFS_INO_NODE  &&
+		    syesd->type != UBIFS_DATA_NODE &&
+		    syesd->type != UBIFS_DENT_NODE &&
+		    syesd->type != UBIFS_XENT_NODE) {
+			/* Probably truncation yesde, zap it */
+			list_del(&syesd->list);
+			kfree(syesd);
 			continue;
 		}
 
-		ubifs_assert(c, key_type(c, &snod->key) == UBIFS_DATA_KEY ||
-			     key_type(c, &snod->key) == UBIFS_INO_KEY  ||
-			     key_type(c, &snod->key) == UBIFS_DENT_KEY ||
-			     key_type(c, &snod->key) == UBIFS_XENT_KEY);
+		ubifs_assert(c, key_type(c, &syesd->key) == UBIFS_DATA_KEY ||
+			     key_type(c, &syesd->key) == UBIFS_INO_KEY  ||
+			     key_type(c, &syesd->key) == UBIFS_DENT_KEY ||
+			     key_type(c, &syesd->key) == UBIFS_XENT_KEY);
 
-		err = ubifs_tnc_has_node(c, &snod->key, 0, sleb->lnum,
-					 snod->offs, 0);
+		err = ubifs_tnc_has_yesde(c, &syesd->key, 0, sleb->lnum,
+					 syesd->offs, 0);
 		if (err < 0)
 			return err;
 
 		if (!err) {
-			/* The node is obsolete, remove it from the list */
-			list_del(&snod->list);
-			kfree(snod);
+			/* The yesde is obsolete, remove it from the list */
+			list_del(&syesd->list);
+			kfree(syesd);
 			continue;
 		}
 
-		if (snod->len < *min)
-			*min = snod->len;
+		if (syesd->len < *min)
+			*min = syesd->len;
 
-		if (key_type(c, &snod->key) != UBIFS_DATA_KEY)
-			list_move_tail(&snod->list, nondata);
+		if (key_type(c, &syesd->key) != UBIFS_DATA_KEY)
+			list_move_tail(&syesd->list, yesndata);
 	}
 
-	/* Sort data and non-data nodes */
-	list_sort(c, &sleb->nodes, &data_nodes_cmp);
-	list_sort(c, nondata, &nondata_nodes_cmp);
+	/* Sort data and yesn-data yesdes */
+	list_sort(c, &sleb->yesdes, &data_yesdes_cmp);
+	list_sort(c, yesndata, &yesndata_yesdes_cmp);
 
-	err = dbg_check_data_nodes_order(c, &sleb->nodes);
+	err = dbg_check_data_yesdes_order(c, &sleb->yesdes);
 	if (err)
 		return err;
-	err = dbg_check_nondata_nodes_order(c, nondata);
+	err = dbg_check_yesndata_yesdes_order(c, yesndata);
 	if (err)
 		return err;
 	return 0;
 }
 
 /**
- * move_node - move a node.
+ * move_yesde - move a yesde.
  * @c: UBIFS file-system description object
- * @sleb: describes the LEB to move nodes from
- * @snod: the mode to move
- * @wbuf: write-buffer to move node to
+ * @sleb: describes the LEB to move yesdes from
+ * @syesd: the mode to move
+ * @wbuf: write-buffer to move yesde to
  *
- * This function moves node @snod to @wbuf, changes TNC correspondingly, and
- * destroys @snod. Returns zero in case of success and a negative error code in
+ * This function moves yesde @syesd to @wbuf, changes TNC correspondingly, and
+ * destroys @syesd. Returns zero in case of success and a negative error code in
  * case of failure.
  */
-static int move_node(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
-		     struct ubifs_scan_node *snod, struct ubifs_wbuf *wbuf)
+static int move_yesde(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
+		     struct ubifs_scan_yesde *syesd, struct ubifs_wbuf *wbuf)
 {
 	int err, new_lnum = wbuf->lnum, new_offs = wbuf->offs + wbuf->used;
 
 	cond_resched();
-	err = ubifs_wbuf_write_nolock(wbuf, snod->node, snod->len);
+	err = ubifs_wbuf_write_yeslock(wbuf, syesd->yesde, syesd->len);
 	if (err)
 		return err;
 
-	err = ubifs_tnc_replace(c, &snod->key, sleb->lnum,
-				snod->offs, new_lnum, new_offs,
-				snod->len);
-	list_del(&snod->list);
-	kfree(snod);
+	err = ubifs_tnc_replace(c, &syesd->key, sleb->lnum,
+				syesd->offs, new_lnum, new_offs,
+				syesd->len);
+	list_del(&syesd->list);
+	kfree(syesd);
 	return err;
 }
 
 /**
- * move_nodes - move nodes.
+ * move_yesdes - move yesdes.
  * @c: UBIFS file-system description object
- * @sleb: describes the LEB to move nodes from
+ * @sleb: describes the LEB to move yesdes from
  *
- * This function moves valid nodes from data LEB described by @sleb to the GC
+ * This function moves valid yesdes from data LEB described by @sleb to the GC
  * journal head. This function returns zero in case of success, %-EAGAIN if
  * commit is required, and other negative error codes in case of other
  * failures.
  */
-static int move_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb)
+static int move_yesdes(struct ubifs_info *c, struct ubifs_scan_leb *sleb)
 {
 	int err, min;
-	LIST_HEAD(nondata);
+	LIST_HEAD(yesndata);
 	struct ubifs_wbuf *wbuf = &c->jheads[GCHD].wbuf;
 
 	if (wbuf->lnum == -1) {
 		/*
-		 * The GC journal head is not set, because it is the first GC
+		 * The GC journal head is yest set, because it is the first GC
 		 * invocation since mount.
 		 */
 		err = switch_gc_head(c);
@@ -347,96 +347,96 @@ static int move_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb)
 			return err;
 	}
 
-	err = sort_nodes(c, sleb, &nondata, &min);
+	err = sort_yesdes(c, sleb, &yesndata, &min);
 	if (err)
 		goto out;
 
-	/* Write nodes to their new location. Use the first-fit strategy */
+	/* Write yesdes to their new location. Use the first-fit strategy */
 	while (1) {
 		int avail, moved = 0;
-		struct ubifs_scan_node *snod, *tmp;
+		struct ubifs_scan_yesde *syesd, *tmp;
 
-		/* Move data nodes */
-		list_for_each_entry_safe(snod, tmp, &sleb->nodes, list) {
+		/* Move data yesdes */
+		list_for_each_entry_safe(syesd, tmp, &sleb->yesdes, list) {
 			avail = c->leb_size - wbuf->offs - wbuf->used -
-					ubifs_auth_node_sz(c);
-			if  (snod->len > avail)
+					ubifs_auth_yesde_sz(c);
+			if  (syesd->len > avail)
 				/*
-				 * Do not skip data nodes in order to optimize
+				 * Do yest skip data yesdes in order to optimize
 				 * bulk-read.
 				 */
 				break;
 
 			err = ubifs_shash_update(c, c->jheads[GCHD].log_hash,
-						 snod->node, snod->len);
+						 syesd->yesde, syesd->len);
 			if (err)
 				goto out;
 
-			err = move_node(c, sleb, snod, wbuf);
+			err = move_yesde(c, sleb, syesd, wbuf);
 			if (err)
 				goto out;
 			moved = 1;
 		}
 
-		/* Move non-data nodes */
-		list_for_each_entry_safe(snod, tmp, &nondata, list) {
+		/* Move yesn-data yesdes */
+		list_for_each_entry_safe(syesd, tmp, &yesndata, list) {
 			avail = c->leb_size - wbuf->offs - wbuf->used -
-					ubifs_auth_node_sz(c);
+					ubifs_auth_yesde_sz(c);
 			if (avail < min)
 				break;
 
-			if  (snod->len > avail) {
+			if  (syesd->len > avail) {
 				/*
-				 * Keep going only if this is an inode with
+				 * Keep going only if this is an iyesde with
 				 * some data. Otherwise stop and switch the GC
-				 * head. IOW, we assume that data-less inode
-				 * nodes and direntry nodes are roughly of the
+				 * head. IOW, we assume that data-less iyesde
+				 * yesdes and direntry yesdes are roughly of the
 				 * same size.
 				 */
-				if (key_type(c, &snod->key) == UBIFS_DENT_KEY ||
-				    snod->len == UBIFS_INO_NODE_SZ)
+				if (key_type(c, &syesd->key) == UBIFS_DENT_KEY ||
+				    syesd->len == UBIFS_INO_NODE_SZ)
 					break;
 				continue;
 			}
 
 			err = ubifs_shash_update(c, c->jheads[GCHD].log_hash,
-						 snod->node, snod->len);
+						 syesd->yesde, syesd->len);
 			if (err)
 				goto out;
 
-			err = move_node(c, sleb, snod, wbuf);
+			err = move_yesde(c, sleb, syesd, wbuf);
 			if (err)
 				goto out;
 			moved = 1;
 		}
 
 		if (ubifs_authenticated(c) && moved) {
-			struct ubifs_auth_node *auth;
+			struct ubifs_auth_yesde *auth;
 
-			auth = kmalloc(ubifs_auth_node_sz(c), GFP_NOFS);
+			auth = kmalloc(ubifs_auth_yesde_sz(c), GFP_NOFS);
 			if (!auth) {
 				err = -ENOMEM;
 				goto out;
 			}
 
-			err = ubifs_prepare_auth_node(c, auth,
+			err = ubifs_prepare_auth_yesde(c, auth,
 						c->jheads[GCHD].log_hash);
 			if (err) {
 				kfree(auth);
 				goto out;
 			}
 
-			err = ubifs_wbuf_write_nolock(wbuf, auth,
-						      ubifs_auth_node_sz(c));
+			err = ubifs_wbuf_write_yeslock(wbuf, auth,
+						      ubifs_auth_yesde_sz(c));
 			if (err) {
 				kfree(auth);
 				goto out;
 			}
 
-			ubifs_add_dirt(c, wbuf->lnum, ubifs_auth_node_sz(c));
+			ubifs_add_dirt(c, wbuf->lnum, ubifs_auth_yesde_sz(c));
 		}
 
-		if (list_empty(&sleb->nodes) && list_empty(&nondata))
+		if (list_empty(&sleb->yesdes) && list_empty(&yesndata))
 			break;
 
 		/*
@@ -451,7 +451,7 @@ static int move_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb)
 	return 0;
 
 out:
-	list_splice_tail(&nondata, &sleb->nodes);
+	list_splice_tail(&yesndata, &sleb->yesdes);
 	return err;
 }
 
@@ -459,11 +459,11 @@ out:
  * gc_sync_wbufs - sync write-buffers for GC.
  * @c: UBIFS file-system description object
  *
- * We must guarantee that obsoleting nodes are on flash. Unfortunately they may
- * be in a write-buffer instead. That is, a node could be written to a
- * write-buffer, obsoleting another node in a LEB that is GC'd. If that LEB is
+ * We must guarantee that obsoleting yesdes are on flash. Unfortunately they may
+ * be in a write-buffer instead. That is, a yesde could be written to a
+ * write-buffer, obsoleting ayesther yesde in a LEB that is GC'd. If that LEB is
  * erased before the write-buffer is sync'd and then there is an unclean
- * unmount, then an existing node is lost. To avoid this, we sync all
+ * unmount, then an existing yesde is lost. To avoid this, we sync all
  * write-buffers.
  *
  * This function returns %0 on success or a negative error code on failure.
@@ -494,7 +494,7 @@ static int gc_sync_wbufs(struct ubifs_info *c)
 int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp)
 {
 	struct ubifs_scan_leb *sleb;
-	struct ubifs_scan_node *snod;
+	struct ubifs_scan_yesde *syesd;
 	struct ubifs_wbuf *wbuf = &c->jheads[GCHD].wbuf;
 	int err = 0, lnum = lp->lnum;
 
@@ -542,22 +542,22 @@ int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp)
 	if (IS_ERR(sleb))
 		return PTR_ERR(sleb);
 
-	ubifs_assert(c, !list_empty(&sleb->nodes));
-	snod = list_entry(sleb->nodes.next, struct ubifs_scan_node, list);
+	ubifs_assert(c, !list_empty(&sleb->yesdes));
+	syesd = list_entry(sleb->yesdes.next, struct ubifs_scan_yesde, list);
 
-	if (snod->type == UBIFS_IDX_NODE) {
+	if (syesd->type == UBIFS_IDX_NODE) {
 		struct ubifs_gced_idx_leb *idx_gc;
 
 		dbg_gc("indexing LEB %d (free %d, dirty %d)",
 		       lnum, lp->free, lp->dirty);
-		list_for_each_entry(snod, &sleb->nodes, list) {
-			struct ubifs_idx_node *idx = snod->node;
+		list_for_each_entry(syesd, &sleb->yesdes, list) {
+			struct ubifs_idx_yesde *idx = syesd->yesde;
 			int level = le16_to_cpu(idx->level);
 
-			ubifs_assert(c, snod->type == UBIFS_IDX_NODE);
-			key_read(c, ubifs_idx_key(c, idx), &snod->key);
-			err = ubifs_dirty_idx_node(c, &snod->key, level, lnum,
-						   snod->offs);
+			ubifs_assert(c, syesd->type == UBIFS_IDX_NODE);
+			key_read(c, ubifs_idx_key(c, idx), &syesd->key);
+			err = ubifs_dirty_idx_yesde(c, &syesd->key, level, lnum,
+						   syesd->offs);
 			if (err)
 				goto out;
 		}
@@ -587,7 +587,7 @@ int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp)
 		dbg_gc("data LEB %d (free %d, dirty %d)",
 		       lnum, lp->free, lp->dirty);
 
-		err = move_nodes(c, sleb);
+		err = move_yesdes(c, sleb);
 		if (err)
 			goto out_inc_seq;
 
@@ -609,7 +609,7 @@ int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp)
 			c->gc_lnum = lnum;
 			err = LEB_RETAINED;
 		} else {
-			err = ubifs_wbuf_sync_nolock(wbuf);
+			err = ubifs_wbuf_sync_yeslock(wbuf);
 			if (err)
 				goto out;
 
@@ -626,7 +626,7 @@ out:
 	return err;
 
 out_inc_seq:
-	/* We may have moved at least some nodes so allow for races with TNC */
+	/* We may have moved at least some yesdes so allow for races with TNC */
 	c->gced_lnum = lnum;
 	smp_wmb();
 	c->gc_seq += 1;
@@ -646,18 +646,18 @@ out_inc_seq:
  *   o other negative error codes in case of other errors.
  *
  * Garbage collector writes data to the journal when GC'ing data LEBs, and just
- * marking indexing nodes dirty when GC'ing indexing LEBs. Thus, at some point
- * commit may be required. But commit cannot be run from inside GC, because the
+ * marking indexing yesdes dirty when GC'ing indexing LEBs. Thus, at some point
+ * commit may be required. But commit canyest be run from inside GC, because the
  * caller might be holding the commit lock, so %-EAGAIN is returned instead;
  * And this error code means that the caller has to run commit, and re-run GC
- * if there is still no free space.
+ * if there is still yes free space.
  *
  * There are many reasons why this function may return %-EAGAIN:
- * o the log is full and there is no space to write an LEB reference for
+ * o the log is full and there is yes space to write an LEB reference for
  *   @c->gc_lnum;
  * o the journal is too large and exceeds size limitations;
  * o GC moved indexing LEBs, but they can be used only after the commit;
- * o the shrinker fails to find clean znodes to free and requests the commit;
+ * o the shrinker fails to find clean zyesdes to free and requests the commit;
  * o etc.
  *
  * Note, if the file-system is close to be full, this function may return
@@ -665,9 +665,9 @@ out_inc_seq:
  * the function. E.g., this happens if the limits on the journal size are too
  * tough and GC writes too much to the journal before an LEB is freed. This
  * might also mean that the journal is too large, and the TNC becomes to big,
- * so that the shrinker is constantly called, finds not clean znodes to free,
+ * so that the shrinker is constantly called, finds yest clean zyesdes to free,
  * and requests commit. Well, this may also happen if the journal is all right,
- * but another kernel process consumes too much memory. Anyway, infinite
+ * but ayesther kernel process consumes too much memory. Anyway, infinite
  * %-EAGAIN may happen, but in some extreme/misconfiguration cases.
  */
 int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
@@ -705,7 +705,7 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 
 		if (i > SOFT_LEBS_LIMIT && !list_empty(&c->idx_gc)) {
 			/*
-			 * We've done enough iterations. Indexing LEBs were
+			 * We've done eyesugh iterations. Indexing LEBs were
 			 * moved and will be available after the commit.
 			 */
 			dbg_gc("soft limit, some index LEBs GC'ed, -EAGAIN");
@@ -716,7 +716,7 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 
 		if (i > HARD_LEBS_LIMIT) {
 			/*
-			 * We've moved too many LEBs and have not made
+			 * We've moved too many LEBs and have yest made
 			 * progress, give up.
 			 */
 			dbg_gc("hard limit, -ENOSPC");
@@ -734,7 +734,7 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 		ret = ubifs_find_dirty_leb(c, &lp, min_space, anyway ? 0 : 1);
 		if (ret) {
 			if (ret == -ENOSPC)
-				dbg_gc("no more dirty LEBs");
+				dbg_gc("yes more dirty LEBs");
 			break;
 		}
 
@@ -750,7 +750,7 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 		if (ret < 0) {
 			if (ret == -EAGAIN) {
 				/*
-				 * This is not error, so we have to return the
+				 * This is yest error, so we have to return the
 				 * LEB to lprops. But if 'ubifs_return_leb()'
 				 * fails, its failure code is propagated to the
 				 * caller instead of the original '-EAGAIN'.
@@ -772,7 +772,7 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 
 		if (ret == LEB_FREED_IDX) {
 			/*
-			 * This was an indexing LEB and it cannot be
+			 * This was an indexing LEB and it canyest be
 			 * immediately used. And instead of requesting the
 			 * commit straight away, we try to garbage collect some
 			 * more.
@@ -794,18 +794,18 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 			continue;
 		}
 
-		dbg_gc("did not make progress");
+		dbg_gc("did yest make progress");
 
 		/*
-		 * GC moved an LEB bud have not done any progress. This means
+		 * GC moved an LEB bud have yest done any progress. This means
 		 * that the previous GC head LEB contained too few free space
-		 * and the LEB which was GC'ed contained only large nodes which
-		 * did not fit that space.
+		 * and the LEB which was GC'ed contained only large yesdes which
+		 * did yest fit that space.
 		 *
 		 * We can do 2 things:
-		 * 1. pick another LEB in a hope it'll contain a small node
+		 * 1. pick ayesther LEB in a hope it'll contain a small yesde
 		 *    which will fit the space we have at the end of current GC
-		 *    head LEB, but there is no guarantee, so we try this out
+		 *    head LEB, but there is yes guarantee, so we try this out
 		 *    unless we have already been working for too long;
 		 * 2. request an LEB with more dirty space, which will force
 		 *    'ubifs_find_dirty_leb()' to start scanning the lprops
@@ -824,12 +824,12 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 	}
 
 	if (ret == -ENOSPC && !list_empty(&c->idx_gc)) {
-		dbg_gc("no space, some index LEBs GC'ed, -EAGAIN");
+		dbg_gc("yes space, some index LEBs GC'ed, -EAGAIN");
 		ubifs_commit_required(c);
 		ret = -EAGAIN;
 	}
 
-	err = ubifs_wbuf_sync_nolock(wbuf);
+	err = ubifs_wbuf_sync_yeslock(wbuf);
 	if (!err)
 		err = ubifs_leb_unmap(c, c->gc_lnum);
 	if (err) {
@@ -843,7 +843,7 @@ out_unlock:
 out:
 	ubifs_assert(c, ret < 0);
 	ubifs_assert(c, ret != -ENOSPC && ret != -EAGAIN);
-	ubifs_wbuf_sync_nolock(wbuf);
+	ubifs_wbuf_sync_yeslock(wbuf);
 	ubifs_ro_mode(c, ret);
 	mutex_unlock(&wbuf->io_mutex);
 	ubifs_return_leb(c, lp.lnum);
@@ -855,9 +855,9 @@ out:
  * @c: UBIFS file-system description object
  *
  * If a LEB has only dirty and free space, then we may safely unmap it and make
- * it free.  Note, we cannot do this with indexing LEBs because dirty space may
- * correspond index nodes that are required for recovery.  In that case, the
- * LEB cannot be unmapped until after the next commit.
+ * it free.  Note, we canyest do this with indexing LEBs because dirty space may
+ * correspond index yesdes that are required for recovery.  In that case, the
+ * LEB canyest be unmapped until after the next commit.
  *
  * This function returns %0 upon success and a negative error code upon failure.
  */
@@ -870,7 +870,7 @@ int ubifs_gc_start_commit(struct ubifs_info *c)
 	ubifs_get_lprops(c);
 
 	/*
-	 * Unmap (non-index) freeable LEBs. Note that recovery requires that all
+	 * Unmap (yesn-index) freeable LEBs. Note that recovery requires that all
 	 * wbufs are sync'd before this, which is done in 'do_commit()'.
 	 */
 	while (1) {
@@ -967,7 +967,7 @@ out:
  * @c: UBIFS file-system description object
  *
  * This function destroys the @c->idx_gc list. It is called when unmounting
- * so locks are not needed. Returns zero in case of success and a negative
+ * so locks are yest needed. Returns zero in case of success and a negative
  * error code in case of failure.
  */
 void ubifs_destroy_idx_gc(struct ubifs_info *c)
@@ -987,7 +987,7 @@ void ubifs_destroy_idx_gc(struct ubifs_info *c)
  * ubifs_get_idx_gc_leb - get a LEB from GC'd index LEB list.
  * @c: UBIFS file-system description object
  *
- * Called during start commit so locks are not needed.
+ * Called during start commit so locks are yest needed.
  */
 int ubifs_get_idx_gc_leb(struct ubifs_info *c)
 {

@@ -258,7 +258,7 @@ static int em28xx_is_ac97_ready(struct em28xx *dev)
 	}
 
 	dev_warn(&dev->intf->dev,
-		 "AC97 command still being executed: not handled properly!\n");
+		 "AC97 command still being executed: yest handled properly!\n");
 	return -EBUSY;
 }
 
@@ -554,7 +554,7 @@ int em28xx_audio_setup(struct em28xx *dev)
 		/*
 		 * Device likely doesn't support AC97
 		 * Note: (some) em2800 devices without eeprom reports 0x91 on
-		 *	 CHIPCFG register, even not having an AC97 chip
+		 *	 CHIPCFG register, even yest having an AC97 chip
 		 */
 		dev_warn(&dev->intf->dev,
 			 "AC97 chip type couldn't be determined\n");
@@ -601,7 +601,7 @@ init_audio:
 		break;
 	case EM28XX_AC97_OTHER:
 		dev_warn(&dev->intf->dev,
-			 "Unknown AC97 audio processor detected!\n");
+			 "Unkyeswn AC97 audio processor detected!\n");
 		break;
 	default:
 		break;
@@ -901,7 +901,7 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		if ((xfer_bulk && !dev->dvb_ep_bulk) ||
 		    (!xfer_bulk && !dev->dvb_ep_isoc)) {
 			dev_err(&dev->intf->dev,
-				"no endpoint for DVB mode and transfer type %d\n",
+				"yes endpoint for DVB mode and transfer type %d\n",
 				xfer_bulk > 0);
 			return -EINVAL;
 		}
@@ -910,7 +910,7 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		if ((xfer_bulk && !dev->analog_ep_bulk) ||
 		    (!xfer_bulk && !dev->analog_ep_isoc)) {
 			dev_err(&dev->intf->dev,
-				"no endpoint for analog mode and transfer type %d\n",
+				"yes endpoint for analog mode and transfer type %d\n",
 				xfer_bulk > 0);
 			return -EINVAL;
 		}
@@ -1022,7 +1022,7 @@ int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
 
 	if (mode == EM28XX_DIGITAL_MODE) {
 		usb_bufs = &dev->usb_ctl.digital_bufs;
-		/* no need to free/alloc usb buffers in digital mode */
+		/* yes need to free/alloc usb buffers in digital mode */
 		alloc = 0;
 	} else {
 		usb_bufs = &dev->usb_ctl.analog_bufs;

@@ -5,7 +5,7 @@
  * Copyright 2005, Broadcom Corporation
  * Copyright 2006, 2007, Michael Buesch <m@bues.ch>
  * Copyright 2006, 2007, Felix Fietkau <nbd@openwrt.org>
- * Copyright 2007, Aurelien Jarno <aurelien@aurel32.net>
+ * Copyright 2007, Aurelien Jaryes <aurelien@aurel32.net>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
@@ -63,7 +63,7 @@ int ssb_extif_serial_init(struct ssb_extif *extif, struct ssb_serial_port *ports
 	for (i = 0; i < 2; i++) {
 		void __iomem *uart_regs;
 
-		uart_regs = ioremap_nocache(SSB_EUART, 16);
+		uart_regs = ioremap_yescache(SSB_EUART, 16);
 		if (uart_regs) {
 			uart_regs += (i * 8);
 

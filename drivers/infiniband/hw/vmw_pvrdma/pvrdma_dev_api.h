@@ -21,11 +21,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -66,7 +66,7 @@
 
 /*
  * Masks and accessors for page directory, which is a two-level lookup:
- * page directory -> page table -> page. Only one directory for now, but we
+ * page directory -> page table -> page. Only one directory for yesw, but we
  * could expand that easily. 9 bits for tables, 9 bits for pages, gives one
  * gigabyte for memory regions and so forth.
  */
@@ -125,7 +125,7 @@
 
 /*
  * GID types. The interpretation of the gid_types bit field in the device
- * capabilities will depend on the device mode. For now, the device only
+ * capabilities will depend on the device mode. For yesw, the device only
  * supports RoCE as mode, so only the different GID types for RoCE are
  * defined.
  */
@@ -174,8 +174,8 @@ enum pvrdma_device_ctl {
 enum pvrdma_intr_vector {
 	PVRDMA_INTR_VECTOR_RESPONSE,	/* Command response. */
 	PVRDMA_INTR_VECTOR_ASYNC,	/* Async events. */
-	PVRDMA_INTR_VECTOR_CQ,		/* CQ notification. */
-	/* Additional CQ notification vectors. */
+	PVRDMA_INTR_VECTOR_CQ,		/* CQ yestification. */
+	/* Additional CQ yestification vectors. */
 };
 
 enum pvrdma_intr_cause {
@@ -185,13 +185,13 @@ enum pvrdma_intr_cause {
 };
 
 enum pvrdma_gos_bits {
-	PVRDMA_GOS_BITS_UNK,		/* Unknown. */
+	PVRDMA_GOS_BITS_UNK,		/* Unkyeswn. */
 	PVRDMA_GOS_BITS_32,		/* 32-bit. */
 	PVRDMA_GOS_BITS_64,		/* 64-bit. */
 };
 
 enum pvrdma_gos_type {
-	PVRDMA_GOS_TYPE_UNK,		/* Unknown. */
+	PVRDMA_GOS_TYPE_UNK,		/* Unkyeswn. */
 	PVRDMA_GOS_TYPE_LINUX,		/* Linux. */
 };
 
@@ -211,7 +211,7 @@ struct pvrdma_gos_info {
 
 struct pvrdma_device_caps {
 	u64 fw_ver;				/* R: Query device. */
-	__be64 node_guid;
+	__be64 yesde_guid;
 	__be64 sys_image_guid;
 	u64 max_mr_size;
 	u64 page_size_cap;
@@ -319,7 +319,7 @@ struct pvrdma_eqe {
 	u32 info;	/* Handle, other. */
 };
 
-/* CQ notification queue element. */
+/* CQ yestification queue element. */
 struct pvrdma_cqne {
 	u32 info;	/* Handle */
 };

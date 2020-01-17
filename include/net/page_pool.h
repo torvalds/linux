@@ -16,7 +16,7 @@
  * page_pool_alloc_pages() call.  Drivers should likely use
  * page_pool_dev_alloc_pages() replacing dev_alloc_pages().
  *
- * API keeps track of in-flight pages, in-order to let API user know
+ * API keeps track of in-flight pages, in-order to let API user kyesw
  * when it is safe to dealloactor page_pool object.  Thus, API users
  * must make sure to call page_pool_release_page() when a page is
  * "leaving" the page_pool.  Or call page_pool_put_page() where
@@ -42,7 +42,7 @@
 					* DMA-synced-for-device according to
 					* the length provided by the device
 					* driver.
-					* Please note DMA-sync-for-CPU is still
+					* Please yeste DMA-sync-for-CPU is still
 					* device driver responsibility
 					*/
 #define PP_FLAG_ALL		(PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV)
@@ -72,7 +72,7 @@ struct page_pool_params {
 	unsigned int	flags;
 	unsigned int	order;
 	unsigned int	pool_size;
-	int		nid;  /* Numa node id to allocate from pages from */
+	int		nid;  /* Numa yesde id to allocate from pages from */
 	struct device	*dev; /* device, for DMA pre-mapping purposes */
 	enum dma_data_direction dma_dir; /* DMA mapping direction */
 	unsigned int	max_len; /* max DMA sync memory size */
@@ -107,7 +107,7 @@ struct page_pool {
 	/* Data structure for storing recycled pages.
 	 *
 	 * Returning/freeing pages is more complicated synchronization
-	 * wise, because free's can happen on remote CPUs, with no
+	 * wise, because free's can happen on remote CPUs, with yes
 	 * association with allocation resource.
 	 *
 	 * Use ptr_ring, as it separates consumer and producer
@@ -185,7 +185,7 @@ static inline void page_pool_recycle_direct(struct page_pool *pool,
 
 /* Disconnects a page (from a page_pool).  API users can have a need
  * to disconnect a page (from a page_pool), to allow it to be used as
- * a regular page (that will eventually be returned to the normal
+ * a regular page (that will eventually be returned to the yesrmal
  * page-allocator via put_page).
  */
 void page_pool_unmap_page(struct page_pool *pool, struct page *page);

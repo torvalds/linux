@@ -29,14 +29,14 @@ ARCH		?= $(SUBARCH)
 # all isn't the first target in the file.
 .DEFAULT_GOAL := all
 
-# Invoke headers install with --no-builtin-rules to avoid circular
+# Invoke headers install with --yes-builtin-rules to avoid circular
 # dependency in "make kselftest" case. In this case, second level
 # make inherits builtin-rules which will use the rule generate
 # Makefile.o and runs into
 # "Circular Makefile.o <- prepare dependency dropped."
 # and headers_install fails and test compile fails.
 # O= KBUILD_OUTPUT cases don't run into this error, since main Makefile
-# invokes them as sub-makes and --no-builtin-rules is not necessary,
+# invokes them as sub-makes and --yes-builtin-rules is yest necessary,
 # but doesn't cause any failures. Keep it simple and use the same
 # flags in both cases.
 # Note that the support to install headers from lib.mk is necessary
@@ -47,9 +47,9 @@ ARCH		?= $(SUBARCH)
 khdr:
 ifndef KSFT_KHDR_INSTALL_DONE
 ifeq (1,$(DEFAULT_INSTALL_HDR_PATH))
-	make --no-builtin-rules ARCH=$(ARCH) -C $(top_srcdir) headers_install
+	make --yes-builtin-rules ARCH=$(ARCH) -C $(top_srcdir) headers_install
 else
-	make --no-builtin-rules INSTALL_HDR_PATH=$$OUTPUT/usr \
+	make --yes-builtin-rules INSTALL_HDR_PATH=$$OUTPUT/usr \
 		ARCH=$(ARCH) -C $(top_srcdir) headers_install
 endif
 endif

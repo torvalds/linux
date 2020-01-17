@@ -48,29 +48,29 @@ static void memswap(void *a, void *b, size_t len)
 }
 
 /**
- * Swap i_data and associated attributes between @inode1 and @inode2.
- * This function is used for the primary swap between inode1 and inode2
+ * Swap i_data and associated attributes between @iyesde1 and @iyesde2.
+ * This function is used for the primary swap between iyesde1 and iyesde2
  * and also to revert this primary swap in case of errors.
  *
  * Therefore you have to make sure, that calling this method twice
  * will revert all changes.
  *
- * @inode1:     pointer to first inode
- * @inode2:     pointer to second inode
+ * @iyesde1:     pointer to first iyesde
+ * @iyesde2:     pointer to second iyesde
  */
-static void swap_inode_data(struct inode *inode1, struct inode *inode2)
+static void swap_iyesde_data(struct iyesde *iyesde1, struct iyesde *iyesde2)
 {
 	loff_t isize;
-	struct ext4_inode_info *ei1;
-	struct ext4_inode_info *ei2;
+	struct ext4_iyesde_info *ei1;
+	struct ext4_iyesde_info *ei2;
 	unsigned long tmp;
 
-	ei1 = EXT4_I(inode1);
-	ei2 = EXT4_I(inode2);
+	ei1 = EXT4_I(iyesde1);
+	ei2 = EXT4_I(iyesde2);
 
-	swap(inode1->i_version, inode2->i_version);
-	swap(inode1->i_atime, inode2->i_atime);
-	swap(inode1->i_mtime, inode2->i_mtime);
+	swap(iyesde1->i_version, iyesde2->i_version);
+	swap(iyesde1->i_atime, iyesde2->i_atime);
+	swap(iyesde1->i_mtime, iyesde2->i_mtime);
 
 	memswap(ei1->i_data, ei2->i_data, sizeof(ei1->i_data));
 	tmp = ei1->i_flags & EXT4_FL_SHOULD_SWAP;
@@ -78,23 +78,23 @@ static void swap_inode_data(struct inode *inode1, struct inode *inode2)
 		(ei1->i_flags & ~EXT4_FL_SHOULD_SWAP);
 	ei2->i_flags = tmp | (ei2->i_flags & ~EXT4_FL_SHOULD_SWAP);
 	swap(ei1->i_disksize, ei2->i_disksize);
-	ext4_es_remove_extent(inode1, 0, EXT_MAX_BLOCKS);
-	ext4_es_remove_extent(inode2, 0, EXT_MAX_BLOCKS);
+	ext4_es_remove_extent(iyesde1, 0, EXT_MAX_BLOCKS);
+	ext4_es_remove_extent(iyesde2, 0, EXT_MAX_BLOCKS);
 
-	isize = i_size_read(inode1);
-	i_size_write(inode1, i_size_read(inode2));
-	i_size_write(inode2, isize);
+	isize = i_size_read(iyesde1);
+	i_size_write(iyesde1, i_size_read(iyesde2));
+	i_size_write(iyesde2, isize);
 }
 
-static void reset_inode_seed(struct inode *inode)
+static void reset_iyesde_seed(struct iyesde *iyesde)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
-	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-	__le32 inum = cpu_to_le32(inode->i_ino);
-	__le32 gen = cpu_to_le32(inode->i_generation);
+	struct ext4_iyesde_info *ei = EXT4_I(iyesde);
+	struct ext4_sb_info *sbi = EXT4_SB(iyesde->i_sb);
+	__le32 inum = cpu_to_le32(iyesde->i_iyes);
+	__le32 gen = cpu_to_le32(iyesde->i_generation);
 	__u32 csum;
 
-	if (!ext4_has_metadata_csum(inode->i_sb))
+	if (!ext4_has_metadata_csum(iyesde->i_sb))
 		return;
 
 	csum = ext4_chksum(sbi, sbi->s_csum_seed, (__u8 *)&inum, sizeof(inum));
@@ -102,158 +102,158 @@ static void reset_inode_seed(struct inode *inode)
 }
 
 /**
- * Swap the information from the given @inode and the inode
+ * Swap the information from the given @iyesde and the iyesde
  * EXT4_BOOT_LOADER_INO. It will basically swap i_data and all other
- * important fields of the inodes.
+ * important fields of the iyesdes.
  *
  * @sb:         the super block of the filesystem
- * @inode:      the inode to swap with EXT4_BOOT_LOADER_INO
+ * @iyesde:      the iyesde to swap with EXT4_BOOT_LOADER_INO
  *
  */
-static long swap_inode_boot_loader(struct super_block *sb,
-				struct inode *inode)
+static long swap_iyesde_boot_loader(struct super_block *sb,
+				struct iyesde *iyesde)
 {
 	handle_t *handle;
 	int err;
-	struct inode *inode_bl;
-	struct ext4_inode_info *ei_bl;
+	struct iyesde *iyesde_bl;
+	struct ext4_iyesde_info *ei_bl;
 	qsize_t size, size_bl, diff;
 	blkcnt_t blocks;
 	unsigned short bytes;
 
-	inode_bl = ext4_iget(sb, EXT4_BOOT_LOADER_INO, EXT4_IGET_SPECIAL);
-	if (IS_ERR(inode_bl))
-		return PTR_ERR(inode_bl);
-	ei_bl = EXT4_I(inode_bl);
+	iyesde_bl = ext4_iget(sb, EXT4_BOOT_LOADER_INO, EXT4_IGET_SPECIAL);
+	if (IS_ERR(iyesde_bl))
+		return PTR_ERR(iyesde_bl);
+	ei_bl = EXT4_I(iyesde_bl);
 
-	/* Protect orig inodes against a truncate and make sure,
-	 * that only 1 swap_inode_boot_loader is running. */
-	lock_two_nondirectories(inode, inode_bl);
+	/* Protect orig iyesdes against a truncate and make sure,
+	 * that only 1 swap_iyesde_boot_loader is running. */
+	lock_two_yesndirectories(iyesde, iyesde_bl);
 
-	if (inode->i_nlink != 1 || !S_ISREG(inode->i_mode) ||
-	    IS_SWAPFILE(inode) || IS_ENCRYPTED(inode) ||
-	    (EXT4_I(inode)->i_flags & EXT4_JOURNAL_DATA_FL) ||
-	    ext4_has_inline_data(inode)) {
+	if (iyesde->i_nlink != 1 || !S_ISREG(iyesde->i_mode) ||
+	    IS_SWAPFILE(iyesde) || IS_ENCRYPTED(iyesde) ||
+	    (EXT4_I(iyesde)->i_flags & EXT4_JOURNAL_DATA_FL) ||
+	    ext4_has_inline_data(iyesde)) {
 		err = -EINVAL;
 		goto journal_err_out;
 	}
 
-	if (IS_RDONLY(inode) || IS_APPEND(inode) || IS_IMMUTABLE(inode) ||
-	    !inode_owner_or_capable(inode) || !capable(CAP_SYS_ADMIN)) {
+	if (IS_RDONLY(iyesde) || IS_APPEND(iyesde) || IS_IMMUTABLE(iyesde) ||
+	    !iyesde_owner_or_capable(iyesde) || !capable(CAP_SYS_ADMIN)) {
 		err = -EPERM;
 		goto journal_err_out;
 	}
 
-	down_write(&EXT4_I(inode)->i_mmap_sem);
-	err = filemap_write_and_wait(inode->i_mapping);
+	down_write(&EXT4_I(iyesde)->i_mmap_sem);
+	err = filemap_write_and_wait(iyesde->i_mapping);
 	if (err)
 		goto err_out;
 
-	err = filemap_write_and_wait(inode_bl->i_mapping);
+	err = filemap_write_and_wait(iyesde_bl->i_mapping);
 	if (err)
 		goto err_out;
 
 	/* Wait for all existing dio workers */
-	inode_dio_wait(inode);
-	inode_dio_wait(inode_bl);
+	iyesde_dio_wait(iyesde);
+	iyesde_dio_wait(iyesde_bl);
 
-	truncate_inode_pages(&inode->i_data, 0);
-	truncate_inode_pages(&inode_bl->i_data, 0);
+	truncate_iyesde_pages(&iyesde->i_data, 0);
+	truncate_iyesde_pages(&iyesde_bl->i_data, 0);
 
-	handle = ext4_journal_start(inode_bl, EXT4_HT_MOVE_EXTENTS, 2);
+	handle = ext4_journal_start(iyesde_bl, EXT4_HT_MOVE_EXTENTS, 2);
 	if (IS_ERR(handle)) {
 		err = -EINVAL;
 		goto err_out;
 	}
 
 	/* Protect extent tree against block allocations via delalloc */
-	ext4_double_down_write_data_sem(inode, inode_bl);
+	ext4_double_down_write_data_sem(iyesde, iyesde_bl);
 
-	if (inode_bl->i_nlink == 0) {
-		/* this inode has never been used as a BOOT_LOADER */
-		set_nlink(inode_bl, 1);
-		i_uid_write(inode_bl, 0);
-		i_gid_write(inode_bl, 0);
-		inode_bl->i_flags = 0;
+	if (iyesde_bl->i_nlink == 0) {
+		/* this iyesde has never been used as a BOOT_LOADER */
+		set_nlink(iyesde_bl, 1);
+		i_uid_write(iyesde_bl, 0);
+		i_gid_write(iyesde_bl, 0);
+		iyesde_bl->i_flags = 0;
 		ei_bl->i_flags = 0;
-		inode_set_iversion(inode_bl, 1);
-		i_size_write(inode_bl, 0);
-		inode_bl->i_mode = S_IFREG;
+		iyesde_set_iversion(iyesde_bl, 1);
+		i_size_write(iyesde_bl, 0);
+		iyesde_bl->i_mode = S_IFREG;
 		if (ext4_has_feature_extents(sb)) {
-			ext4_set_inode_flag(inode_bl, EXT4_INODE_EXTENTS);
-			ext4_ext_tree_init(handle, inode_bl);
+			ext4_set_iyesde_flag(iyesde_bl, EXT4_INODE_EXTENTS);
+			ext4_ext_tree_init(handle, iyesde_bl);
 		} else
 			memset(ei_bl->i_data, 0, sizeof(ei_bl->i_data));
 	}
 
-	err = dquot_initialize(inode);
+	err = dquot_initialize(iyesde);
 	if (err)
 		goto err_out1;
 
-	size = (qsize_t)(inode->i_blocks) * (1 << 9) + inode->i_bytes;
-	size_bl = (qsize_t)(inode_bl->i_blocks) * (1 << 9) + inode_bl->i_bytes;
+	size = (qsize_t)(iyesde->i_blocks) * (1 << 9) + iyesde->i_bytes;
+	size_bl = (qsize_t)(iyesde_bl->i_blocks) * (1 << 9) + iyesde_bl->i_bytes;
 	diff = size - size_bl;
-	swap_inode_data(inode, inode_bl);
+	swap_iyesde_data(iyesde, iyesde_bl);
 
-	inode->i_ctime = inode_bl->i_ctime = current_time(inode);
+	iyesde->i_ctime = iyesde_bl->i_ctime = current_time(iyesde);
 
-	inode->i_generation = prandom_u32();
-	inode_bl->i_generation = prandom_u32();
-	reset_inode_seed(inode);
-	reset_inode_seed(inode_bl);
+	iyesde->i_generation = prandom_u32();
+	iyesde_bl->i_generation = prandom_u32();
+	reset_iyesde_seed(iyesde);
+	reset_iyesde_seed(iyesde_bl);
 
-	ext4_discard_preallocations(inode);
+	ext4_discard_preallocations(iyesde);
 
-	err = ext4_mark_inode_dirty(handle, inode);
+	err = ext4_mark_iyesde_dirty(handle, iyesde);
 	if (err < 0) {
 		/* No need to update quota information. */
-		ext4_warning(inode->i_sb,
-			"couldn't mark inode #%lu dirty (err %d)",
-			inode->i_ino, err);
+		ext4_warning(iyesde->i_sb,
+			"couldn't mark iyesde #%lu dirty (err %d)",
+			iyesde->i_iyes, err);
 		/* Revert all changes: */
-		swap_inode_data(inode, inode_bl);
-		ext4_mark_inode_dirty(handle, inode);
+		swap_iyesde_data(iyesde, iyesde_bl);
+		ext4_mark_iyesde_dirty(handle, iyesde);
 		goto err_out1;
 	}
 
-	blocks = inode_bl->i_blocks;
-	bytes = inode_bl->i_bytes;
-	inode_bl->i_blocks = inode->i_blocks;
-	inode_bl->i_bytes = inode->i_bytes;
-	err = ext4_mark_inode_dirty(handle, inode_bl);
+	blocks = iyesde_bl->i_blocks;
+	bytes = iyesde_bl->i_bytes;
+	iyesde_bl->i_blocks = iyesde->i_blocks;
+	iyesde_bl->i_bytes = iyesde->i_bytes;
+	err = ext4_mark_iyesde_dirty(handle, iyesde_bl);
 	if (err < 0) {
 		/* No need to update quota information. */
-		ext4_warning(inode_bl->i_sb,
-			"couldn't mark inode #%lu dirty (err %d)",
-			inode_bl->i_ino, err);
+		ext4_warning(iyesde_bl->i_sb,
+			"couldn't mark iyesde #%lu dirty (err %d)",
+			iyesde_bl->i_iyes, err);
 		goto revert;
 	}
 
-	/* Bootloader inode should not be counted into quota information. */
+	/* Bootloader iyesde should yest be counted into quota information. */
 	if (diff > 0)
-		dquot_free_space(inode, diff);
+		dquot_free_space(iyesde, diff);
 	else
-		err = dquot_alloc_space(inode, -1 * diff);
+		err = dquot_alloc_space(iyesde, -1 * diff);
 
 	if (err < 0) {
 revert:
 		/* Revert all changes: */
-		inode_bl->i_blocks = blocks;
-		inode_bl->i_bytes = bytes;
-		swap_inode_data(inode, inode_bl);
-		ext4_mark_inode_dirty(handle, inode);
-		ext4_mark_inode_dirty(handle, inode_bl);
+		iyesde_bl->i_blocks = blocks;
+		iyesde_bl->i_bytes = bytes;
+		swap_iyesde_data(iyesde, iyesde_bl);
+		ext4_mark_iyesde_dirty(handle, iyesde);
+		ext4_mark_iyesde_dirty(handle, iyesde_bl);
 	}
 
 err_out1:
 	ext4_journal_stop(handle);
-	ext4_double_up_write_data_sem(inode, inode_bl);
+	ext4_double_up_write_data_sem(iyesde, iyesde_bl);
 
 err_out:
-	up_write(&EXT4_I(inode)->i_mmap_sem);
+	up_write(&EXT4_I(iyesde)->i_mmap_sem);
 journal_err_out:
-	unlock_two_nondirectories(inode, inode_bl);
-	iput(inode_bl);
+	unlock_two_yesndirectories(iyesde, iyesde_bl);
+	iput(iyesde_bl);
 	return err;
 }
 
@@ -270,14 +270,14 @@ static int uuid_is_zero(__u8 u[16])
 #endif
 
 /*
- * If immutable is set and we are not clearing it, we're not allowed to change
- * anything else in the inode.  Don't error out if we're only trying to set
+ * If immutable is set and we are yest clearing it, we're yest allowed to change
+ * anything else in the iyesde.  Don't error out if we're only trying to set
  * immutable on an immutable file.
  */
-static int ext4_ioctl_check_immutable(struct inode *inode, __u32 new_projid,
+static int ext4_ioctl_check_immutable(struct iyesde *iyesde, __u32 new_projid,
 				      unsigned int flags)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_iyesde_info *ei = EXT4_I(iyesde);
 	unsigned int oldflags = ei->i_flags;
 
 	if (!(oldflags & EXT4_IMMUTABLE_FL) || !(flags & EXT4_IMMUTABLE_FL))
@@ -285,26 +285,26 @@ static int ext4_ioctl_check_immutable(struct inode *inode, __u32 new_projid,
 
 	if ((oldflags & ~EXT4_IMMUTABLE_FL) != (flags & ~EXT4_IMMUTABLE_FL))
 		return -EPERM;
-	if (ext4_has_feature_project(inode->i_sb) &&
+	if (ext4_has_feature_project(iyesde->i_sb) &&
 	    __kprojid_val(ei->i_projid) != new_projid)
 		return -EPERM;
 
 	return 0;
 }
 
-static int ext4_ioctl_setflags(struct inode *inode,
+static int ext4_ioctl_setflags(struct iyesde *iyesde,
 			       unsigned int flags)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_iyesde_info *ei = EXT4_I(iyesde);
 	handle_t *handle = NULL;
 	int err = -EPERM, migrate = 0;
 	struct ext4_iloc iloc;
 	unsigned int oldflags, mask, i;
 	unsigned int jflag;
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 
-	/* Is it quota file? Do not allow user to mess with it */
-	if (ext4_is_quota_file(inode))
+	/* Is it quota file? Do yest allow user to mess with it */
+	if (ext4_is_quota_file(iyesde))
 		goto flags_out;
 
 	oldflags = ei->i_flags;
@@ -312,7 +312,7 @@ static int ext4_ioctl_setflags(struct inode *inode,
 	/* The JOURNAL_DATA flag is modifiable only by root */
 	jflag = flags & EXT4_JOURNAL_DATA_FL;
 
-	err = vfs_ioc_setflags_prepare(inode, oldflags, flags);
+	err = vfs_ioc_setflags_prepare(iyesde, oldflags, flags);
 	if (err)
 		goto flags_out;
 
@@ -334,7 +334,7 @@ static int ext4_ioctl_setflags(struct inode *inode,
 			goto flags_out;
 		}
 	} else if (oldflags & EXT4_EOFBLOCKS_FL) {
-		err = ext4_truncate(inode);
+		err = ext4_truncate(iyesde);
 		if (err)
 			goto flags_out;
 	}
@@ -345,12 +345,12 @@ static int ext4_ioctl_setflags(struct inode *inode,
 			goto flags_out;
 		}
 
-		if (!S_ISDIR(inode->i_mode)) {
+		if (!S_ISDIR(iyesde->i_mode)) {
 			err = -ENOTDIR;
 			goto flags_out;
 		}
 
-		if (!ext4_empty_dir(inode)) {
+		if (!ext4_empty_dir(iyesde)) {
 			err = -ENOTEMPTY;
 			goto flags_out;
 		}
@@ -362,22 +362,22 @@ static int ext4_ioctl_setflags(struct inode *inode,
 	 * subsequent attempt to write to the file (particularly mmap pages)
 	 * will come through the filesystem and fail.
 	 */
-	if (S_ISREG(inode->i_mode) && !IS_IMMUTABLE(inode) &&
+	if (S_ISREG(iyesde->i_mode) && !IS_IMMUTABLE(iyesde) &&
 	    (flags & EXT4_IMMUTABLE_FL)) {
-		inode_dio_wait(inode);
-		err = filemap_write_and_wait(inode->i_mapping);
+		iyesde_dio_wait(iyesde);
+		err = filemap_write_and_wait(iyesde->i_mapping);
 		if (err)
 			goto flags_out;
 	}
 
-	handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
+	handle = ext4_journal_start(iyesde, EXT4_HT_INODE, 1);
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
 		goto flags_out;
 	}
-	if (IS_SYNC(inode))
+	if (IS_SYNC(iyesde))
 		ext4_handle_sync(handle);
-	err = ext4_reserve_inode_write(handle, inode, &iloc);
+	err = ext4_reserve_iyesde_write(handle, iyesde, &iloc);
 	if (err)
 		goto flags_err;
 
@@ -388,15 +388,15 @@ static int ext4_ioctl_setflags(struct inode *inode,
 		if (mask == EXT4_JOURNAL_DATA_FL || mask == EXT4_EXTENTS_FL)
 			continue;
 		if (mask & flags)
-			ext4_set_inode_flag(inode, i);
+			ext4_set_iyesde_flag(iyesde, i);
 		else
-			ext4_clear_inode_flag(inode, i);
+			ext4_clear_iyesde_flag(iyesde, i);
 	}
 
-	ext4_set_inode_flags(inode);
-	inode->i_ctime = current_time(inode);
+	ext4_set_iyesde_flags(iyesde);
+	iyesde->i_ctime = current_time(iyesde);
 
-	err = ext4_mark_iloc_dirty(handle, inode, &iloc);
+	err = ext4_mark_iloc_dirty(handle, iyesde, &iloc);
 flags_err:
 	ext4_journal_stop(handle);
 	if (err)
@@ -407,20 +407,20 @@ flags_err:
 		 * Changes to the journaling mode can cause unsafe changes to
 		 * S_DAX if we are using the DAX mount option.
 		 */
-		if (test_opt(inode->i_sb, DAX)) {
+		if (test_opt(iyesde->i_sb, DAX)) {
 			err = -EBUSY;
 			goto flags_out;
 		}
 
-		err = ext4_change_inode_journal_flag(inode, jflag);
+		err = ext4_change_iyesde_journal_flag(iyesde, jflag);
 		if (err)
 			goto flags_out;
 	}
 	if (migrate) {
 		if (flags & EXT4_EXTENTS_FL)
-			err = ext4_ext_migrate(inode);
+			err = ext4_ext_migrate(iyesde);
 		else
-			err = ext4_ind_migrate(inode);
+			err = ext4_ind_migrate(iyesde);
 	}
 
 flags_out:
@@ -430,14 +430,14 @@ flags_out:
 #ifdef CONFIG_QUOTA
 static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 {
-	struct inode *inode = file_inode(filp);
-	struct super_block *sb = inode->i_sb;
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct super_block *sb = iyesde->i_sb;
+	struct ext4_iyesde_info *ei = EXT4_I(iyesde);
 	int err, rc;
 	handle_t *handle;
 	kprojid_t kprojid;
 	struct ext4_iloc iloc;
-	struct ext4_inode *raw_inode;
+	struct ext4_iyesde *raw_iyesde;
 	struct dquot *transfer_to[MAXQUOTAS] = { };
 
 	if (!ext4_has_feature_project(sb)) {
@@ -452,21 +452,21 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 
 	kprojid = make_kprojid(&init_user_ns, (projid_t)projid);
 
-	if (projid_eq(kprojid, EXT4_I(inode)->i_projid))
+	if (projid_eq(kprojid, EXT4_I(iyesde)->i_projid))
 		return 0;
 
 	err = -EPERM;
-	/* Is it quota file? Do not allow user to mess with it */
-	if (ext4_is_quota_file(inode))
+	/* Is it quota file? Do yest allow user to mess with it */
+	if (ext4_is_quota_file(iyesde))
 		return err;
 
-	err = ext4_get_inode_loc(inode, &iloc);
+	err = ext4_get_iyesde_loc(iyesde, &iloc);
 	if (err)
 		return err;
 
-	raw_inode = ext4_raw_inode(&iloc);
-	if (!EXT4_FITS_IN_INODE(raw_inode, ei, i_projid)) {
-		err = ext4_expand_extra_isize(inode,
+	raw_iyesde = ext4_raw_iyesde(&iloc);
+	if (!EXT4_FITS_IN_INODE(raw_iyesde, ei, i_projid)) {
+		err = ext4_expand_extra_isize(iyesde,
 					      EXT4_SB(sb)->s_want_extra_isize,
 					      &iloc);
 		if (err)
@@ -475,38 +475,38 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 		brelse(iloc.bh);
 	}
 
-	err = dquot_initialize(inode);
+	err = dquot_initialize(iyesde);
 	if (err)
 		return err;
 
-	handle = ext4_journal_start(inode, EXT4_HT_QUOTA,
+	handle = ext4_journal_start(iyesde, EXT4_HT_QUOTA,
 		EXT4_QUOTA_INIT_BLOCKS(sb) +
 		EXT4_QUOTA_DEL_BLOCKS(sb) + 3);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
-	err = ext4_reserve_inode_write(handle, inode, &iloc);
+	err = ext4_reserve_iyesde_write(handle, iyesde, &iloc);
 	if (err)
 		goto out_stop;
 
 	transfer_to[PRJQUOTA] = dqget(sb, make_kqid_projid(kprojid));
 	if (!IS_ERR(transfer_to[PRJQUOTA])) {
 
-		/* __dquot_transfer() calls back ext4_get_inode_usage() which
-		 * counts xattr inode references.
+		/* __dquot_transfer() calls back ext4_get_iyesde_usage() which
+		 * counts xattr iyesde references.
 		 */
-		down_read(&EXT4_I(inode)->xattr_sem);
-		err = __dquot_transfer(inode, transfer_to);
-		up_read(&EXT4_I(inode)->xattr_sem);
+		down_read(&EXT4_I(iyesde)->xattr_sem);
+		err = __dquot_transfer(iyesde, transfer_to);
+		up_read(&EXT4_I(iyesde)->xattr_sem);
 		dqput(transfer_to[PRJQUOTA]);
 		if (err)
 			goto out_dirty;
 	}
 
-	EXT4_I(inode)->i_projid = kprojid;
-	inode->i_ctime = current_time(inode);
+	EXT4_I(iyesde)->i_projid = kprojid;
+	iyesde->i_ctime = current_time(iyesde);
 out_dirty:
-	rc = ext4_mark_iloc_dirty(handle, inode, &iloc);
+	rc = ext4_mark_iloc_dirty(handle, iyesde, &iloc);
 	if (!err)
 		err = rc;
 out_stop:
@@ -699,7 +699,7 @@ static int ext4_ioc_getfsmap(struct super_block *sb,
 static long ext4_ioctl_group_add(struct file *file,
 				 struct ext4_new_group_data *input)
 {
-	struct super_block *sb = file_inode(file)->i_sb;
+	struct super_block *sb = file_iyesde(file)->i_sb;
 	int err, err2=0;
 
 	err = ext4_resize_begin(sb);
@@ -708,7 +708,7 @@ static long ext4_ioctl_group_add(struct file *file,
 
 	if (ext4_has_feature_bigalloc(sb)) {
 		ext4_msg(sb, KERN_ERR,
-			 "Online resizing not supported with bigalloc");
+			 "Online resizing yest supported with bigalloc");
 		err = -EOPNOTSUPP;
 		goto group_add_out;
 	}
@@ -734,14 +734,14 @@ group_add_out:
 	return err;
 }
 
-static void ext4_fill_fsxattr(struct inode *inode, struct fsxattr *fa)
+static void ext4_fill_fsxattr(struct iyesde *iyesde, struct fsxattr *fa)
 {
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct ext4_iyesde_info *ei = EXT4_I(iyesde);
 
 	simple_fill_fsxattr(fa, ext4_iflags_to_xflags(ei->i_flags &
 						      EXT4_FL_USER_VISIBLE));
 
-	if (ext4_has_feature_project(inode->i_sb))
+	if (ext4_has_feature_project(iyesde->i_sb))
 		fa->fsx_projid = from_kprojid(&init_user_ns, ei->i_projid);
 }
 
@@ -776,8 +776,8 @@ static int ext4_ioctl_get_es_cache(struct file *filp, unsigned long arg)
 	struct fiemap fiemap;
 	struct fiemap __user *ufiemap = (struct fiemap __user *) arg;
 	struct fiemap_extent_info fieinfo = { 0, };
-	struct inode *inode = file_inode(filp);
-	struct super_block *sb = inode->i_sb;
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct super_block *sb = iyesde->i_sb;
 	u64 len;
 	int error;
 
@@ -802,9 +802,9 @@ static int ext4_ioctl_get_es_cache(struct file *filp, unsigned long arg)
 		return -EFAULT;
 
 	if (fieinfo.fi_flags & FIEMAP_FLAG_SYNC)
-		filemap_write_and_wait(inode->i_mapping);
+		filemap_write_and_wait(iyesde->i_mapping);
 
-	error = ext4_get_es_cache(inode, &fieinfo, fiemap.fm_start, len);
+	error = ext4_get_es_cache(iyesde, &fieinfo, fiemap.fm_start, len);
 	fiemap.fm_flags = fieinfo.fi_flags;
 	fiemap.fm_mapped_extents = fieinfo.fi_extents_mapped;
 	if (copy_to_user(ufiemap, &fiemap, sizeof(fiemap)))
@@ -815,9 +815,9 @@ static int ext4_ioctl_get_es_cache(struct file *filp, unsigned long arg)
 
 long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
-	struct super_block *sb = inode->i_sb;
-	struct ext4_inode_info *ei = EXT4_I(inode);
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct super_block *sb = iyesde->i_sb;
+	struct ext4_iyesde_info *ei = EXT4_I(iyesde);
 	unsigned int flags;
 
 	ext4_debug("cmd = %u, arg = %lu\n", cmd, arg);
@@ -827,13 +827,13 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return ext4_ioc_getfsmap(sb, (void __user *)arg);
 	case EXT4_IOC_GETFLAGS:
 		flags = ei->i_flags & EXT4_FL_USER_VISIBLE;
-		if (S_ISREG(inode->i_mode))
+		if (S_ISREG(iyesde->i_mode))
 			flags &= ~EXT4_PROJINHERIT_FL;
 		return put_user(flags, (int __user *) arg);
 	case EXT4_IOC_SETFLAGS: {
 		int err;
 
-		if (!inode_owner_or_capable(inode))
+		if (!iyesde_owner_or_capable(iyesde))
 			return -EACCES;
 
 		if (get_user(flags, (int __user *) arg))
@@ -843,31 +843,31 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EOPNOTSUPP;
 		/*
 		 * chattr(1) grabs flags via GETFLAGS, modifies the result and
-		 * passes that to SETFLAGS. So we cannot easily make SETFLAGS
+		 * passes that to SETFLAGS. So we canyest easily make SETFLAGS
 		 * more restrictive than just silently masking off visible but
-		 * not settable flags as we always did.
+		 * yest settable flags as we always did.
 		 */
 		flags &= EXT4_FL_USER_MODIFIABLE;
-		if (ext4_mask_flags(inode->i_mode, flags) != flags)
+		if (ext4_mask_flags(iyesde->i_mode, flags) != flags)
 			return -EOPNOTSUPP;
 
 		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
 
-		inode_lock(inode);
-		err = ext4_ioctl_check_immutable(inode,
+		iyesde_lock(iyesde);
+		err = ext4_ioctl_check_immutable(iyesde,
 				from_kprojid(&init_user_ns, ei->i_projid),
 				flags);
 		if (!err)
-			err = ext4_ioctl_setflags(inode, flags);
-		inode_unlock(inode);
+			err = ext4_ioctl_setflags(iyesde, flags);
+		iyesde_unlock(iyesde);
 		mnt_drop_write_file(filp);
 		return err;
 	}
 	case EXT4_IOC_GETVERSION:
 	case EXT4_IOC_GETVERSION_OLD:
-		return put_user(inode->i_generation, (int __user *) arg);
+		return put_user(iyesde->i_generation, (int __user *) arg);
 	case EXT4_IOC_SETVERSION:
 	case EXT4_IOC_SETVERSION_OLD: {
 		handle_t *handle;
@@ -875,11 +875,11 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		__u32 generation;
 		int err;
 
-		if (!inode_owner_or_capable(inode))
+		if (!iyesde_owner_or_capable(iyesde))
 			return -EPERM;
 
-		if (ext4_has_metadata_csum(inode->i_sb)) {
-			ext4_warning(sb, "Setting inode version is not "
+		if (ext4_has_metadata_csum(iyesde->i_sb)) {
+			ext4_warning(sb, "Setting iyesde version is yest "
 				     "supported with metadata_csum enabled.");
 			return -ENOTTY;
 		}
@@ -892,22 +892,22 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto setversion_out;
 		}
 
-		inode_lock(inode);
-		handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
+		iyesde_lock(iyesde);
+		handle = ext4_journal_start(iyesde, EXT4_HT_INODE, 1);
 		if (IS_ERR(handle)) {
 			err = PTR_ERR(handle);
 			goto unlock_out;
 		}
-		err = ext4_reserve_inode_write(handle, inode, &iloc);
+		err = ext4_reserve_iyesde_write(handle, iyesde, &iloc);
 		if (err == 0) {
-			inode->i_ctime = current_time(inode);
-			inode->i_generation = generation;
-			err = ext4_mark_iloc_dirty(handle, inode, &iloc);
+			iyesde->i_ctime = current_time(iyesde);
+			iyesde->i_generation = generation;
+			err = ext4_mark_iloc_dirty(handle, iyesde, &iloc);
 		}
 		ext4_journal_stop(handle);
 
 unlock_out:
-		inode_unlock(inode);
+		iyesde_unlock(iyesde);
 setversion_out:
 		mnt_drop_write_file(filp);
 		return err;
@@ -927,7 +927,7 @@ setversion_out:
 
 		if (ext4_has_feature_bigalloc(sb)) {
 			ext4_msg(sb, KERN_ERR,
-				 "Online resizing not supported with bigalloc");
+				 "Online resizing yest supported with bigalloc");
 			err = -EOPNOTSUPP;
 			goto group_extend_out;
 		}
@@ -952,7 +952,7 @@ group_extend_out:
 
 	case EXT4_IOC_MOVE_EXT: {
 		struct move_extent me;
-		struct fd donor;
+		struct fd doyesr;
 		int err;
 
 		if (!(filp->f_mode & FMODE_READ) ||
@@ -964,23 +964,23 @@ group_extend_out:
 			return -EFAULT;
 		me.moved_len = 0;
 
-		donor = fdget(me.donor_fd);
-		if (!donor.file)
+		doyesr = fdget(me.doyesr_fd);
+		if (!doyesr.file)
 			return -EBADF;
 
-		if (!(donor.file->f_mode & FMODE_WRITE)) {
+		if (!(doyesr.file->f_mode & FMODE_WRITE)) {
 			err = -EBADF;
 			goto mext_out;
 		}
 
 		if (ext4_has_feature_bigalloc(sb)) {
 			ext4_msg(sb, KERN_ERR,
-				 "Online defrag not supported with bigalloc");
+				 "Online defrag yest supported with bigalloc");
 			err = -EOPNOTSUPP;
 			goto mext_out;
-		} else if (IS_DAX(inode)) {
+		} else if (IS_DAX(iyesde)) {
 			ext4_msg(sb, KERN_ERR,
-				 "Online defrag not supported with DAX");
+				 "Online defrag yest supported with DAX");
 			err = -EOPNOTSUPP;
 			goto mext_out;
 		}
@@ -989,15 +989,15 @@ group_extend_out:
 		if (err)
 			goto mext_out;
 
-		err = ext4_move_extents(filp, donor.file, me.orig_start,
-					me.donor_start, me.len, &me.moved_len);
+		err = ext4_move_extents(filp, doyesr.file, me.orig_start,
+					me.doyesr_start, me.len, &me.moved_len);
 		mnt_drop_write_file(filp);
 
 		if (copy_to_user((struct move_extent __user *)arg,
 				 &me, sizeof(me)))
 			err = -EFAULT;
 mext_out:
-		fdput(donor);
+		fdput(doyesr);
 		return err;
 	}
 
@@ -1014,21 +1014,21 @@ mext_out:
 	case EXT4_IOC_MIGRATE:
 	{
 		int err;
-		if (!inode_owner_or_capable(inode))
+		if (!iyesde_owner_or_capable(iyesde))
 			return -EACCES;
 
 		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
 		/*
-		 * inode_mutex prevent write and truncate on the file.
+		 * iyesde_mutex prevent write and truncate on the file.
 		 * Read still goes through. We take i_data_sem in
-		 * ext4_ext_swap_inode_data before we switch the
-		 * inode format to prevent read.
+		 * ext4_ext_swap_iyesde_data before we switch the
+		 * iyesde format to prevent read.
 		 */
-		inode_lock((inode));
-		err = ext4_ext_migrate(inode);
-		inode_unlock((inode));
+		iyesde_lock((iyesde));
+		err = ext4_ext_migrate(iyesde);
+		iyesde_unlock((iyesde));
 		mnt_drop_write_file(filp);
 		return err;
 	}
@@ -1036,13 +1036,13 @@ mext_out:
 	case EXT4_IOC_ALLOC_DA_BLKS:
 	{
 		int err;
-		if (!inode_owner_or_capable(inode))
+		if (!iyesde_owner_or_capable(iyesde))
 			return -EACCES;
 
 		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
-		err = ext4_alloc_da_blocks(inode);
+		err = ext4_alloc_da_blocks(iyesde);
 		mnt_drop_write_file(filp);
 		return err;
 	}
@@ -1055,7 +1055,7 @@ mext_out:
 		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
-		err = swap_inode_boot_loader(sb, inode);
+		err = swap_iyesde_boot_loader(sb, iyesde);
 		mnt_drop_write_file(filp);
 		return err;
 	}
@@ -1110,7 +1110,7 @@ resizefs_out:
 			return -EOPNOTSUPP;
 
 		/*
-		 * We haven't replayed the journal, so we cannot use our
+		 * We haven't replayed the journal, so we canyest use our
 		 * block-bitmap-guided storage zapping commands.
 		 */
 		if (test_opt(sb, NOLOAD) && ext4_has_feature_journal(sb))
@@ -1133,7 +1133,7 @@ resizefs_out:
 		return 0;
 	}
 	case EXT4_IOC_PRECACHE_EXTENTS:
-		return ext4_ext_precache(inode);
+		return ext4_ext_precache(iyesde);
 
 	case EXT4_IOC_SET_ENCRYPTION_POLICY:
 		if (!ext4_has_feature_encrypt(sb))
@@ -1212,9 +1212,9 @@ resizefs_out:
 
 	case EXT4_IOC_CLEAR_ES_CACHE:
 	{
-		if (!inode_owner_or_capable(inode))
+		if (!iyesde_owner_or_capable(iyesde))
 			return -EACCES;
-		ext4_clear_inode_es(inode);
+		ext4_clear_iyesde_es(iyesde);
 		return 0;
 	}
 
@@ -1222,13 +1222,13 @@ resizefs_out:
 	{
 		__u32	state = 0;
 
-		if (ext4_test_inode_state(inode, EXT4_STATE_EXT_PRECACHED))
+		if (ext4_test_iyesde_state(iyesde, EXT4_STATE_EXT_PRECACHED))
 			state |= EXT4_STATE_FLAG_EXT_PRECACHED;
-		if (ext4_test_inode_state(inode, EXT4_STATE_NEW))
+		if (ext4_test_iyesde_state(iyesde, EXT4_STATE_NEW))
 			state |= EXT4_STATE_FLAG_NEW;
-		if (ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY))
+		if (ext4_test_iyesde_state(iyesde, EXT4_STATE_NEWENTRY))
 			state |= EXT4_STATE_FLAG_NEWENTRY;
-		if (ext4_test_inode_state(inode, EXT4_STATE_DA_ALLOC_CLOSE))
+		if (ext4_test_iyesde_state(iyesde, EXT4_STATE_DA_ALLOC_CLOSE))
 			state |= EXT4_STATE_FLAG_DA_ALLOC_CLOSE;
 
 		return put_user(state, (__u32 __user *) arg);
@@ -1241,7 +1241,7 @@ resizefs_out:
 	{
 		struct fsxattr fa;
 
-		ext4_fill_fsxattr(inode, &fa);
+		ext4_fill_fsxattr(iyesde, &fa);
 
 		if (copy_to_user((struct fsxattr __user *)arg,
 				 &fa, sizeof(fa)))
@@ -1258,36 +1258,36 @@ resizefs_out:
 			return -EFAULT;
 
 		/* Make sure caller has proper permission */
-		if (!inode_owner_or_capable(inode))
+		if (!iyesde_owner_or_capable(iyesde))
 			return -EACCES;
 
 		if (fa.fsx_xflags & ~EXT4_SUPPORTED_FS_XFLAGS)
 			return -EOPNOTSUPP;
 
 		flags = ext4_xflags_to_iflags(fa.fsx_xflags);
-		if (ext4_mask_flags(inode->i_mode, flags) != flags)
+		if (ext4_mask_flags(iyesde->i_mode, flags) != flags)
 			return -EOPNOTSUPP;
 
 		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
 
-		inode_lock(inode);
-		ext4_fill_fsxattr(inode, &old_fa);
-		err = vfs_ioc_fssetxattr_check(inode, &old_fa, &fa);
+		iyesde_lock(iyesde);
+		ext4_fill_fsxattr(iyesde, &old_fa);
+		err = vfs_ioc_fssetxattr_check(iyesde, &old_fa, &fa);
 		if (err)
 			goto out;
 		flags = (ei->i_flags & ~EXT4_FL_XFLAG_VISIBLE) |
 			 (flags & EXT4_FL_XFLAG_VISIBLE);
-		err = ext4_ioctl_check_immutable(inode, fa.fsx_projid, flags);
+		err = ext4_ioctl_check_immutable(iyesde, fa.fsx_projid, flags);
 		if (err)
 			goto out;
-		err = ext4_ioctl_setflags(inode, flags);
+		err = ext4_ioctl_setflags(iyesde, flags);
 		if (err)
 			goto out;
 		err = ext4_ioctl_setproject(filp, fa.fsx_projid);
 out:
-		inode_unlock(inode);
+		iyesde_unlock(iyesde);
 		mnt_drop_write_file(filp);
 		return err;
 	}
@@ -1349,8 +1349,8 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		uinput = compat_ptr(arg);
 		err = get_user(input.group, &uinput->group);
 		err |= get_user(input.block_bitmap, &uinput->block_bitmap);
-		err |= get_user(input.inode_bitmap, &uinput->inode_bitmap);
-		err |= get_user(input.inode_table, &uinput->inode_table);
+		err |= get_user(input.iyesde_bitmap, &uinput->iyesde_bitmap);
+		err |= get_user(input.iyesde_table, &uinput->iyesde_table);
 		err |= get_user(input.blocks_count, &uinput->blocks_count);
 		err |= get_user(input.reserved_blocks,
 				&uinput->reserved_blocks);

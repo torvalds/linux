@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Asynchronous Compression operations
+ * Asynchroyesus Compression operations
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Weigang Li <weigang.li@intel.com>
  *          Giovanni Cabiddu <giovanni.cabiddu@intel.com>
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
@@ -187,4 +187,4 @@ void crypto_unregister_acomps(struct acomp_alg *algs, int count)
 EXPORT_SYMBOL_GPL(crypto_unregister_acomps);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Asynchronous compression type");
+MODULE_DESCRIPTION("Asynchroyesus compression type");

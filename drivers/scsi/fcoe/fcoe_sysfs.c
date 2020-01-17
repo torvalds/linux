@@ -15,8 +15,8 @@
 #include <scsi/libfcoe.h>
 
 /*
- * OK to include local libfcoe.h for debug_logging, but cannot include
- * <scsi/libfcoe.h> otherwise non-netdev based fcoe solutions would have
+ * OK to include local libfcoe.h for debug_logging, but canyest include
+ * <scsi/libfcoe.h> otherwise yesn-netdev based fcoe solutions would have
  * have to include more than fcoe_sysfs.h.
  */
 #include "libfcoe.h"
@@ -39,7 +39,7 @@ MODULE_PARM_DESC(fcf_dev_loss_tmo,
 
 /*
  * These are used by the fcoe_*_show_function routines, they
- * are intentionally placed in the .c file as they're not intended
+ * are intentionally placed in the .c file as they're yest intended
  * for use throughout the code.
  */
 #define fcoe_ctlr_id(x)				\
@@ -215,7 +215,7 @@ static const char *get_fcoe_##title##_name(enum table_type table_key)	\
 }
 
 static char *fip_conn_type_names[] = {
-	[ FIP_CONN_TYPE_UNKNOWN ] = "Unknown",
+	[ FIP_CONN_TYPE_UNKNOWN ] = "Unkyeswn",
 	[ FIP_CONN_TYPE_FABRIC ]  = "Fabric",
 	[ FIP_CONN_TYPE_VN2VN ]   = "VN2VN",
 };
@@ -234,7 +234,7 @@ static enum fip_conn_type fcoe_parse_mode(const char *buf)
 }
 
 static char *fcf_state_names[] = {
-	[ FCOE_FCF_STATE_UNKNOWN ]      = "Unknown",
+	[ FCOE_FCF_STATE_UNKNOWN ]      = "Unkyeswn",
 	[ FCOE_FCF_STATE_DISCONNECTED ] = "Disconnected",
 	[ FCOE_FCF_STATE_CONNECTED ]    = "Connected",
 };
@@ -288,18 +288,18 @@ static ssize_t store_ctlr_mode(struct device *dev,
 
 	switch (ctlr->enabled) {
 	case FCOE_CTLR_ENABLED:
-		LIBFCOE_SYSFS_DBG(ctlr, "Cannot change mode when enabled.\n");
+		LIBFCOE_SYSFS_DBG(ctlr, "Canyest change mode when enabled.\n");
 		return -EBUSY;
 	case FCOE_CTLR_DISABLED:
 		if (!ctlr->f->set_fcoe_ctlr_mode) {
 			LIBFCOE_SYSFS_DBG(ctlr,
-					  "Mode change not supported by LLD.\n");
+					  "Mode change yest supported by LLD.\n");
 			return -ENOTSUPP;
 		}
 
 		ctlr->mode = fcoe_parse_mode(mode);
 		if (ctlr->mode == FIP_CONN_TYPE_UNKNOWN) {
-			LIBFCOE_SYSFS_DBG(ctlr, "Unknown mode %s provided.\n",
+			LIBFCOE_SYSFS_DBG(ctlr, "Unkyeswn mode %s provided.\n",
 					  buf);
 			return -EINVAL;
 		}
@@ -310,7 +310,7 @@ static ssize_t store_ctlr_mode(struct device *dev,
 		return count;
 	case FCOE_CTLR_UNUSED:
 	default:
-		LIBFCOE_SYSFS_DBG(ctlr, "Mode change not supported.\n");
+		LIBFCOE_SYSFS_DBG(ctlr, "Mode change yest supported.\n");
 		return -ENOTSUPP;
 	};
 }
@@ -695,7 +695,7 @@ static void fcoe_ctlr_device_flush_work(struct fcoe_ctlr_device *ctlr)
 	if (!fcoe_ctlr_work_q(ctlr)) {
 		printk(KERN_ERR
 		       "ERROR: FIP Ctlr '%d' attempted to flush work, "
-		       "when no workqueue created.\n", ctlr->id);
+		       "when yes workqueue created.\n", ctlr->id);
 		dump_stack();
 		return;
 	}
@@ -717,7 +717,7 @@ static int fcoe_ctlr_device_queue_work(struct fcoe_ctlr_device *ctlr,
 	if (unlikely(!fcoe_ctlr_work_q(ctlr))) {
 		printk(KERN_ERR
 		       "ERROR: FIP Ctlr '%d' attempted to queue work, "
-		       "when no workqueue created.\n", ctlr->id);
+		       "when yes workqueue created.\n", ctlr->id);
 		dump_stack();
 
 		return -EINVAL;
@@ -735,7 +735,7 @@ static void fcoe_ctlr_device_flush_devloss(struct fcoe_ctlr_device *ctlr)
 	if (!fcoe_ctlr_devloss_work_q(ctlr)) {
 		printk(KERN_ERR
 		       "ERROR: FIP Ctlr '%d' attempted to flush work, "
-		       "when no workqueue created.\n", ctlr->id);
+		       "when yes workqueue created.\n", ctlr->id);
 		dump_stack();
 		return;
 	}
@@ -759,7 +759,7 @@ static int fcoe_ctlr_device_queue_devloss_work(struct fcoe_ctlr_device *ctlr,
 	if (unlikely(!fcoe_ctlr_devloss_work_q(ctlr))) {
 		printk(KERN_ERR
 		       "ERROR: FIP Ctlr '%d' attempted to queue work, "
-		       "when no workqueue created.\n", ctlr->id);
+		       "when yes workqueue created.\n", ctlr->id);
 		dump_stack();
 
 		return -EINVAL;
@@ -857,13 +857,13 @@ EXPORT_SYMBOL_GPL(fcoe_ctlr_device_add);
  * to be deleted as well.
  *
  * The ctlr is detached from sysfs and it's resources
- * are freed (work q), but the memory is not freed
+ * are freed (work q), but the memory is yest freed
  * until its last reference is released.
  *
- * This routine expects no locks to be held before
+ * This routine expects yes locks to be held before
  * calling.
  *
- * TODO: Currently there are no callbacks to clean up LLD data
+ * TODO: Currently there are yes callbacks to clean up LLD data
  * for a fcoe_fcf_device. LLDs must keep this in mind as they need
  * to clean up each of their LLD data for all fcoe_fcf_device before
  * calling fcoe_ctlr_device_delete.

@@ -85,7 +85,7 @@ static int atl_clk_enable(struct clk_hw *hw)
 		goto out;
 
 	if (unlikely(!cdesc->valid))
-		dev_warn(cdesc->cinfo->dev, "atl%d has not been configured\n",
+		dev_warn(cdesc->cinfo->dev, "atl%d has yest been configured\n",
 			 cdesc->id);
 	pm_runtime_get_sync(cdesc->cinfo->dev);
 
@@ -168,7 +168,7 @@ static const struct clk_ops atl_clk_ops = {
 	.set_rate	= atl_clk_set_rate,
 };
 
-static void __init of_dra7_atl_clock_setup(struct device_node *node)
+static void __init of_dra7_atl_clock_setup(struct device_yesde *yesde)
 {
 	struct dra7_atl_desc *clk_hw = NULL;
 	struct clk_init_data init = { NULL };
@@ -177,20 +177,20 @@ static void __init of_dra7_atl_clock_setup(struct device_node *node)
 
 	clk_hw = kzalloc(sizeof(*clk_hw), GFP_KERNEL);
 	if (!clk_hw) {
-		pr_err("%s: could not allocate dra7_atl_desc\n", __func__);
+		pr_err("%s: could yest allocate dra7_atl_desc\n", __func__);
 		return;
 	}
 
 	clk_hw->hw.init = &init;
 	clk_hw->divider = 1;
-	init.name = node->name;
+	init.name = yesde->name;
 	init.ops = &atl_clk_ops;
 	init.flags = CLK_IGNORE_UNUSED;
-	init.num_parents = of_clk_get_parent_count(node);
+	init.num_parents = of_clk_get_parent_count(yesde);
 
 	if (init.num_parents != 1) {
 		pr_err("%s: atl clock %pOFn must have 1 parent\n", __func__,
-		       node);
+		       yesde);
 		goto cleanup;
 	}
 
@@ -199,14 +199,14 @@ static void __init of_dra7_atl_clock_setup(struct device_node *node)
 	if (!parent_names)
 		goto cleanup;
 
-	parent_names[0] = of_clk_get_parent_name(node, 0);
+	parent_names[0] = of_clk_get_parent_name(yesde, 0);
 
 	init.parent_names = parent_names;
 
-	clk = ti_clk_register(NULL, &clk_hw->hw, node->name);
+	clk = ti_clk_register(NULL, &clk_hw->hw, yesde->name);
 
 	if (!IS_ERR(clk)) {
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+		of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 		kfree(parent_names);
 		return;
 	}
@@ -218,19 +218,19 @@ CLK_OF_DECLARE(dra7_atl_clock, "ti,dra7-atl-clock", of_dra7_atl_clock_setup);
 
 static int of_dra7_atl_clk_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct dra7_atl_clock_info *cinfo;
 	int i;
 	int ret = 0;
 
-	if (!node)
+	if (!yesde)
 		return -ENODEV;
 
 	cinfo = devm_kzalloc(&pdev->dev, sizeof(*cinfo), GFP_KERNEL);
 	if (!cinfo)
 		return -ENOMEM;
 
-	cinfo->iobase = of_iomap(node, 0);
+	cinfo->iobase = of_iomap(yesde, 0);
 	cinfo->dev = &pdev->dev;
 	pm_runtime_enable(cinfo->dev);
 	pm_runtime_irq_safe(cinfo->dev);
@@ -239,14 +239,14 @@ static int of_dra7_atl_clk_probe(struct platform_device *pdev)
 	atl_write(cinfo, DRA7_ATL_PCLKMUX_REG(0), DRA7_ATL_PCLKMUX);
 
 	for (i = 0; i < DRA7_ATL_INSTANCES; i++) {
-		struct device_node *cfg_node;
+		struct device_yesde *cfg_yesde;
 		char prop[5];
 		struct dra7_atl_desc *cdesc;
 		struct of_phandle_args clkspec;
 		struct clk *clk;
 		int rc;
 
-		rc = of_parse_phandle_with_args(node, "ti,provided-clocks",
+		rc = of_parse_phandle_with_args(yesde, "ti,provided-clocks",
 						NULL, i, &clkspec);
 
 		if (rc) {
@@ -268,11 +268,11 @@ static int of_dra7_atl_clk_probe(struct platform_device *pdev)
 
 		/* Get configuration for the ATL instances */
 		snprintf(prop, sizeof(prop), "atl%u", i);
-		cfg_node = of_get_child_by_name(node, prop);
-		if (cfg_node) {
-			ret = of_property_read_u32(cfg_node, "bws",
+		cfg_yesde = of_get_child_by_name(yesde, prop);
+		if (cfg_yesde) {
+			ret = of_property_read_u32(cfg_yesde, "bws",
 						   &cdesc->bws);
-			ret |= of_property_read_u32(cfg_node, "aws",
+			ret |= of_property_read_u32(cfg_yesde, "aws",
 						    &cdesc->aws);
 			if (!ret) {
 				cdesc->valid = true;
@@ -281,7 +281,7 @@ static int of_dra7_atl_clk_probe(struct platform_device *pdev)
 				atl_write(cinfo, DRA7_ATL_AWSMUX_REG(i),
 					  cdesc->aws);
 			}
-			of_node_put(cfg_node);
+			of_yesde_put(cfg_yesde);
 		}
 
 		cdesc->probed = true;

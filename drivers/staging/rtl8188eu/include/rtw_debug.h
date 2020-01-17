@@ -17,7 +17,7 @@
 #define _drv_crit_			4
 #define _drv_err_			5
 #define	_drv_warning_			6
-#define _drv_notice_			7
+#define _drv_yestice_			7
 #define _drv_info_			8
 #define	_drv_debug_			9
 

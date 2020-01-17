@@ -13,8 +13,8 @@ Required properties for the AD5593R:
 Required properties for all supported chips:
 	- #address-cells: Should be 1.
 	- #size-cells: Should be 0.
-	- channel nodes:
-	  Each child node represents one channel and has the following
+	- channel yesdes:
+	  Each child yesde represents one channel and has the following
 	  Required properties:
 		* reg: Pin on which this channel is connected to.
 		* adi,mode: Mode or function of this channel.
@@ -27,7 +27,7 @@ Required properties for all supported chips:
 				* CH_MODE_DAC (the pin is DAC output)
 				* CH_MODE_DAC_AND_ADC (the pin is DAC output
 					but can be monitored by an ADC, since
-					there is no disadvantage this
+					there is yes disadvantage this
 					this should be considered as the
 					preferred DAC mode)
 				* CH_MODE_GPIO (the pin is registered
@@ -48,10 +48,10 @@ Required properties for all supported chips:
 Optional properties:
 	- vref-supply: Phandle to the external reference voltage supply. This should
 	  only be set if there is an external reference voltage connected to the VREF
-	  pin. If the property is not set the internal 2.5V reference is used.
+	  pin. If the property is yest set the internal 2.5V reference is used.
 	- reset-gpios : GPIO spec for the RESET pin. If specified, it will be
 	  asserted during driver probe.
-	- gpio-controller: Marks the device node as a GPIO controller.
+	- gpio-controller: Marks the device yesde as a GPIO controller.
 	- #gpio-cells: Should be 2. The first cell is the GPIO number and the second
 	  cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>.
 

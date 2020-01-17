@@ -94,7 +94,7 @@ info
 	driver_name = "mwifiex"
 	driver_version = <driver_name, driver_version, (firmware_version)>
 	interface_name = "mlanX"
-	bss_mode = "Ad-hoc" | "Managed" | "Auto" | "Unknown"
+	bss_mode = "Ad-hoc" | "Managed" | "Auto" | "Unkyeswn"
 	media_state = "Disconnected" | "Connected"
 	mac_address = <6-byte adapter MAC address>
 	multicase_count = <multicast address count>
@@ -125,13 +125,13 @@ info
 	curr_tx_buf_size = <current Tx buffer size>
 	ps_mode = <0/1, CAM mode/PS mode>
 	ps_state = <0/1/2/3, full power state/awake state/pre-sleep state/sleep state>
-	is_deep_sleep = <0/1, not deep sleep state/deep sleep state>
-	wakeup_dev_req = <0/1, wakeup device not required/required>
+	is_deep_sleep = <0/1, yest deep sleep state/deep sleep state>
+	wakeup_dev_req = <0/1, wakeup device yest required/required>
 	wakeup_tries = <wakeup device count, cleared when device awake>
-	hs_configured = <0/1, host sleep not configured/configured>
-	hs_activated = <0/1, extended host sleep not activated/activated>
+	hs_configured = <0/1, host sleep yest configured/configured>
+	hs_activated = <0/1, extended host sleep yest activated/activated>
 	num_tx_timeout = <number of Tx timeout>
-	is_cmd_timedout = <0/1 command timeout not occurred/occurred>
+	is_cmd_timedout = <0/1 command timeout yest occurred/occurred>
 	timeout_cmd_id = <command id of the last timeout command>
 	timeout_cmd_act = <command action of the last timeout command>
 	last_cmd_id = <command id of the last several commands sent to device>
@@ -154,8 +154,8 @@ info
 	data_sent = <0/1, send data resources available/sending data to device>
 	mp_rd_bitmap = <SDIO multi-port read bitmap>
 	mp_wr_bitmap = <SDIO multi-port write bitmap>
-	cmd_resp_received = <0/1, no cmd response to process/response received and yet to process>
-	event_received = <0/1, no event to process/event received and yet to process>
+	cmd_resp_received = <0/1, yes cmd response to process/response received and yet to process>
+	event_received = <0/1, yes event to process/event received and yet to process>
 	cmd_pending = <number of cmd pending>
 	tx_pending = <number of Tx packet pending>
 	rx_pending = <number of Rx packet pending>
@@ -235,7 +235,7 @@ hscfg
 			 will be used instead).
 		[gap]:   the gap in milliseconds between wakeup signal and
 			 wakeup event or 0xff for special setting (host
-			 acknowledge required) when GPIO is used to wakeup host.
+			 ackyeswledge required) when GPIO is used to wakeup host.
 
 	Examples:
 		echo "-1" > hscfg        : Cancel host sleep mode

@@ -76,7 +76,7 @@ sti_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode)
 
 	/* Set rate and prepare/enable pixel clock */
 	if (clk_set_rate(pix_clk, rate) < 0) {
-		DRM_ERROR("Cannot set rate (%dHz) for pix clk\n", rate);
+		DRM_ERROR("Canyest set rate (%dHz) for pix clk\n", rate);
 		goto pix_error;
 	}
 	if (clk_prepare_enable(pix_clk)) {
@@ -127,7 +127,7 @@ static void sti_crtc_disable(struct drm_crtc *crtc)
 }
 
 static void
-sti_crtc_mode_set_nofb(struct drm_crtc *crtc)
+sti_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 	sti_crtc_mode_set(crtc, &crtc->state->adjusted_mode);
 }
@@ -150,7 +150,7 @@ static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
 
 		switch (plane->status) {
 		case STI_PLANE_UPDATED:
-			/* ignore update for other CRTC */
+			/* igyesre update for other CRTC */
 			if (p->state->crtc != crtc)
 				continue;
 
@@ -159,13 +159,13 @@ static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
 					 sti_plane_to_str(plane));
 
 			if (sti_mixer_set_plane_depth(mixer, plane)) {
-				DRM_ERROR("Cannot set plane %s depth\n",
+				DRM_ERROR("Canyest set plane %s depth\n",
 					  sti_plane_to_str(plane));
 				break;
 			}
 
 			if (sti_mixer_set_plane_status(mixer, plane, true)) {
-				DRM_ERROR("Cannot enable plane %s at mixer\n",
+				DRM_ERROR("Canyest enable plane %s at mixer\n",
 					  sti_plane_to_str(plane));
 				break;
 			}
@@ -183,7 +183,7 @@ static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
 					 sti_plane_to_str(plane));
 
 			if (sti_mixer_set_plane_status(mixer, plane, false)) {
-				DRM_ERROR("Cannot disable plane %s at mixer\n",
+				DRM_ERROR("Canyest disable plane %s at mixer\n",
 					  sti_plane_to_str(plane));
 				continue;
 			}
@@ -201,7 +201,7 @@ static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
 
 			break;
 		default:
-			/* Other status case are not handled */
+			/* Other status case are yest handled */
 			break;
 		}
 	}
@@ -220,7 +220,7 @@ static void sti_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs sti_crtc_helper_funcs = {
-	.mode_set_nofb = sti_crtc_mode_set_nofb,
+	.mode_set_yesfb = sti_crtc_mode_set_yesfb,
 	.atomic_flush = sti_crtc_atomic_flush,
 	.atomic_enable = sti_crtc_atomic_enable,
 	.atomic_disable = sti_crtc_atomic_disable,
@@ -240,7 +240,7 @@ static int sti_crtc_set_property(struct drm_crtc *crtc,
 	return 0;
 }
 
-int sti_crtc_vblank_cb(struct notifier_block *nb,
+int sti_crtc_vblank_cb(struct yestifier_block *nb,
 		       unsigned long event, void *data)
 {
 	struct sti_compositor *compo;
@@ -254,7 +254,7 @@ int sti_crtc_vblank_cb(struct notifier_block *nb,
 
 	if ((event != VTG_TOP_FIELD_EVENT) &&
 	    (event != VTG_BOTTOM_FIELD_EVENT)) {
-		DRM_ERROR("unknown event: %lu\n", event);
+		DRM_ERROR("unkyeswn event: %lu\n", event);
 		return -EINVAL;
 	}
 
@@ -283,14 +283,14 @@ int sti_crtc_enable_vblank(struct drm_device *dev, unsigned int pipe)
 {
 	struct sti_private *dev_priv = dev->dev_private;
 	struct sti_compositor *compo = dev_priv->compo;
-	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb[pipe];
+	struct yestifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb[pipe];
 	struct drm_crtc *crtc = &compo->mixer[pipe]->drm_crtc;
 	struct sti_vtg *vtg = compo->vtg[pipe];
 
 	DRM_DEBUG_DRIVER("\n");
 
 	if (sti_vtg_register_client(vtg, vtg_vblank_nb, crtc)) {
-		DRM_ERROR("Cannot register VTG notifier\n");
+		DRM_ERROR("Canyest register VTG yestifier\n");
 		return -EINVAL;
 	}
 
@@ -301,13 +301,13 @@ void sti_crtc_disable_vblank(struct drm_device *drm_dev, unsigned int pipe)
 {
 	struct sti_private *priv = drm_dev->dev_private;
 	struct sti_compositor *compo = priv->compo;
-	struct notifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb[pipe];
+	struct yestifier_block *vtg_vblank_nb = &compo->vtg_vblank_nb[pipe];
 	struct sti_vtg *vtg = compo->vtg[pipe];
 
 	DRM_DEBUG_DRIVER("\n");
 
 	if (sti_vtg_unregister_client(vtg, vtg_vblank_nb))
-		DRM_DEBUG_DRIVER("Warning: cannot unregister VTG notifier\n");
+		DRM_DEBUG_DRIVER("Warning: canyest unregister VTG yestifier\n");
 }
 
 static int sti_crtc_late_register(struct drm_crtc *crtc)

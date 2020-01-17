@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/pci.h>
@@ -249,7 +249,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * ME maps runtime suspend/resume to D0i states,
 	 * hence we need to go around native PCI runtime service which
 	 * eventually brings the device into D3cold/hot state,
-	 * but the mei device cannot wake up from D3 unlike from D0i3.
+	 * but the mei device canyest wake up from D3 unlike from D0i3.
 	 * To get around the PCI device native runtime pm,
 	 * ME uses runtime pm domain handlers which take precedence
 	 * over the driver's pm handlers.
@@ -257,7 +257,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mei_me_set_pm_domain(dev);
 
 	if (mei_pg_is_enabled(dev)) {
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 		if (hw->d0i3_supported)
 			pm_runtime_allow(&pdev->dev);
 	}
@@ -282,7 +282,7 @@ end:
  *
  * @pdev: PCI device structure
  *
- * mei_me_shutdown is called from the reboot notifier
+ * mei_me_shutdown is called from the reboot yestifier
  * it's a simplified version of remove so we go down
  * faster.
  */
@@ -320,7 +320,7 @@ static void mei_me_remove(struct pci_dev *pdev)
 		return;
 
 	if (mei_pg_is_enabled(dev))
-		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_get_yesresume(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "stop\n");
 	mei_stop(dev);

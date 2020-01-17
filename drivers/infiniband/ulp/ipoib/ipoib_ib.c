@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2004, 2005 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -483,7 +483,7 @@ poll_more:
 
 	if (done < budget) {
 		napi_complete(napi);
-		if (unlikely(ib_req_notify_cq(priv->recv_cq,
+		if (unlikely(ib_req_yestify_cq(priv->recv_cq,
 					      IB_CQ_NEXT_COMP |
 					      IB_CQ_REPORT_MISSED_EVENTS)) &&
 		    napi_reschedule(napi))
@@ -514,7 +514,7 @@ poll_more:
 
 	if (n < budget) {
 		napi_complete(napi);
-		if (unlikely(ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
+		if (unlikely(ib_req_yestify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
 					      IB_CQ_REPORT_MISSED_EVENTS)) &&
 		    napi_reschedule(napi))
 			goto poll_more;
@@ -594,7 +594,7 @@ int ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	}
 	if (skb_shinfo(skb)->nr_frags > usable_sge) {
 		if (skb_linearize(skb) < 0) {
-			ipoib_warn(priv, "skb could not be linearized\n");
+			ipoib_warn(priv, "skb could yest be linearized\n");
 			++dev->stats.tx_dropped;
 			++dev->stats.tx_errors;
 			dev_kfree_skb_any(skb);
@@ -643,9 +643,9 @@ int ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	skb_dst_drop(skb);
 
 	if (netif_queue_stopped(dev))
-		if (ib_req_notify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
+		if (ib_req_yestify_cq(priv->send_cq, IB_CQ_NEXT_COMP |
 				     IB_CQ_REPORT_MISSED_EVENTS) < 0)
-			ipoib_warn(priv, "request notify on send CQ failed\n");
+			ipoib_warn(priv, "request yestify on send CQ failed\n");
 
 	rc = post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
 		       address, dqpn, tx_req, phead, hlen);
@@ -793,7 +793,7 @@ int ipoib_ib_dev_stop_default(struct net_device *dev)
 	while (priv->tx_head != priv->tx_tail || recvs_pending(dev)) {
 		if (time_after(jiffies, begin + 5 * HZ)) {
 			ipoib_warn(priv,
-				   "timing out; %d sends %d receives not completed\n",
+				   "timing out; %d sends %d receives yest completed\n",
 				   priv->tx_head - priv->tx_tail,
 				   recvs_pending(dev));
 
@@ -836,7 +836,7 @@ timeout:
 	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
 		ipoib_warn(priv, "Failed to modify QP to RESET state\n");
 
-	ib_req_notify_cq(priv->recv_cq, IB_CQ_NEXT_COMP);
+	ib_req_yestify_cq(priv->recv_cq, IB_CQ_NEXT_COMP);
 
 	return 0;
 }
@@ -892,7 +892,7 @@ int ipoib_ib_dev_open(struct net_device *dev)
 
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
 		ipoib_warn(priv, "P_Key 0x%04x is %s\n", priv->pkey,
-			   (!(priv->pkey & 0x7fff) ? "Invalid" : "not found"));
+			   (!(priv->pkey & 0x7fff) ? "Invalid" : "yest found"));
 		return -1;
 	}
 
@@ -940,7 +940,7 @@ void ipoib_ib_dev_up(struct net_device *dev)
 	ipoib_pkey_dev_check_presence(dev);
 
 	if (!test_bit(IPOIB_PKEY_ASSIGNED, &priv->flags)) {
-		ipoib_dbg(priv, "PKEY is not assigned.\n");
+		ipoib_dbg(priv, "PKEY is yest assigned.\n");
 		return;
 	}
 
@@ -999,7 +999,7 @@ void ipoib_drain_cq(struct net_device *dev)
 	} while (n == IPOIB_NUM_WC);
 
 	while (poll_tx(priv))
-		; /* nothing */
+		; /* yesthing */
 
 	local_bh_enable();
 }
@@ -1073,7 +1073,7 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 
 	netif_addr_lock_bh(priv->dev);
 
-	/* The subnet prefix may have changed, update it now so we won't have
+	/* The subnet prefix may have changed, update it yesw so we won't have
 	 * to do it later
 	 */
 	priv->local_gid.global.subnet_prefix = gid0.global.subnet_prefix;
@@ -1109,10 +1109,10 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 	 *
 	 * The issue is that there are devices that don't follow the spec,
 	 * they change the port GUID when the HCA is powered, so in order
-	 * not to break userspace applications, We need to check if the
+	 * yest to break userspace applications, We need to check if the
 	 * user wanted to control the device address and we assume that
 	 * if he sets the device address back to be based on GID index 0,
-	 * he no longer wishs to control it.
+	 * he yes longer wishs to control it.
 	 *
 	 * If the user doesn't control the the device address,
 	 * IPOIB_FLAG_DEV_ADDR_SET is set and ib_find_gid failed it means
@@ -1173,10 +1173,10 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 
 	if (!test_bit(IPOIB_FLAG_INITIALIZED, &priv->flags) &&
 	    level != IPOIB_FLUSH_HEAVY) {
-		/* Make sure the dev_addr is set even if not flushing */
+		/* Make sure the dev_addr is set even if yest flushing */
 		if (level == IPOIB_FLUSH_LIGHT)
 			ipoib_dev_addr_changed_valid(priv);
-		ipoib_dbg(priv, "Not flushing - IPOIB_FLAG_INITIALIZED not set.\n");
+		ipoib_dbg(priv, "Not flushing - IPOIB_FLAG_INITIALIZED yest set.\n");
 		return;
 	}
 
@@ -1189,19 +1189,19 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 				update_child_pkey(priv);
 		} else if (level == IPOIB_FLUSH_LIGHT)
 			ipoib_dev_addr_changed_valid(priv);
-		ipoib_dbg(priv, "Not flushing - IPOIB_FLAG_ADMIN_UP not set.\n");
+		ipoib_dbg(priv, "Not flushing - IPOIB_FLAG_ADMIN_UP yest set.\n");
 		return;
 	}
 
 	if (level == IPOIB_FLUSH_HEAVY) {
-		/* child devices chase their origin pkey value, while non-child
+		/* child devices chase their origin pkey value, while yesn-child
 		 * (parent) devices should always takes what present in pkey index 0
 		 */
 		if (test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 			result = update_child_pkey(priv);
 			if (result) {
 				/* restart QP only if P_Key index is changed */
-				ipoib_dbg(priv, "Not flushing - P_Key index not changed.\n");
+				ipoib_dbg(priv, "Not flushing - P_Key index yest changed.\n");
 				return;
 			}
 
@@ -1209,7 +1209,7 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 			result = update_parent_pkey(priv);
 			/* restart QP only if P_Key value changed */
 			if (result) {
-				ipoib_dbg(priv, "Not flushing - P_Key value not changed.\n");
+				ipoib_dbg(priv, "Not flushing - P_Key value yest changed.\n");
 				return;
 			}
 		}
@@ -1246,7 +1246,7 @@ static void __ipoib_ib_dev_flush(struct ipoib_dev_priv *priv,
 
 	/*
 	 * The device could have been brought down between the start and when
-	 * we get here, don't bring it back up if it's not configured up
+	 * we get here, don't bring it back up if it's yest configured up
 	 */
 	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags)) {
 		if (level >= IPOIB_FLUSH_NORMAL)
@@ -1264,10 +1264,10 @@ void ipoib_ib_dev_flush_light(struct work_struct *work)
 	__ipoib_ib_dev_flush(priv, IPOIB_FLUSH_LIGHT, 0);
 }
 
-void ipoib_ib_dev_flush_normal(struct work_struct *work)
+void ipoib_ib_dev_flush_yesrmal(struct work_struct *work)
 {
 	struct ipoib_dev_priv *priv =
-		container_of(work, struct ipoib_dev_priv, flush_normal);
+		container_of(work, struct ipoib_dev_priv, flush_yesrmal);
 
 	__ipoib_ib_dev_flush(priv, IPOIB_FLUSH_NORMAL, 0);
 }
@@ -1288,8 +1288,8 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 
 	ipoib_dbg(priv, "cleaning up ib_dev\n");
 	/*
-	 * We must make sure there are no more (path) completions
-	 * that may wish to touch priv fields that are no longer valid
+	 * We must make sure there are yes more (path) completions
+	 * that may wish to touch priv fields that are yes longer valid
 	 */
 	ipoib_flush_paths(dev);
 
@@ -1300,7 +1300,7 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
 	 * All of our ah references aren't free until after
 	 * ipoib_mcast_dev_flush(), ipoib_flush_paths, and
 	 * the neighbor garbage collection is stopped and reaped.
-	 * That should all be done now, so make a final ah flush.
+	 * That should all be done yesw, so make a final ah flush.
 	 */
 	ipoib_stop_ah(dev);
 

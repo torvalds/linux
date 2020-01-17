@@ -10,7 +10,7 @@
 
 #include <linux/cpuidle.h>
 #include <linux/cpumask.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -18,9 +18,9 @@
 
 #include "dt_idle_states.h"
 
-static int init_state_node(struct cpuidle_state *idle_state,
+static int init_state_yesde(struct cpuidle_state *idle_state,
 			   const struct of_device_id *match_id,
-			   struct device_node *state_node)
+			   struct device_yesde *state_yesde)
 {
 	int err;
 	const char *desc;
@@ -32,30 +32,30 @@ static int init_state_node(struct cpuidle_state *idle_state,
 	 */
 	idle_state->enter = match_id->data;
 	/*
-	 * Since this is not a "coupled" state, it's safe to assume interrupts
+	 * Since this is yest a "coupled" state, it's safe to assume interrupts
 	 * won't be enabled when it exits allowing the tick to be frozen
 	 * safely. So enter() can be also enter_s2idle() callback.
 	 */
 	idle_state->enter_s2idle = match_id->data;
 
-	err = of_property_read_u32(state_node, "wakeup-latency-us",
+	err = of_property_read_u32(state_yesde, "wakeup-latency-us",
 				   &idle_state->exit_latency);
 	if (err) {
 		u32 entry_latency, exit_latency;
 
-		err = of_property_read_u32(state_node, "entry-latency-us",
+		err = of_property_read_u32(state_yesde, "entry-latency-us",
 					   &entry_latency);
 		if (err) {
 			pr_debug(" * %pOF missing entry-latency-us property\n",
-				 state_node);
+				 state_yesde);
 			return -EINVAL;
 		}
 
-		err = of_property_read_u32(state_node, "exit-latency-us",
+		err = of_property_read_u32(state_yesde, "exit-latency-us",
 					   &exit_latency);
 		if (err) {
 			pr_debug(" * %pOF missing exit-latency-us property\n",
-				 state_node);
+				 state_yesde);
 			return -EINVAL;
 		}
 		/*
@@ -65,27 +65,27 @@ static int init_state_node(struct cpuidle_state *idle_state,
 		idle_state->exit_latency = entry_latency + exit_latency;
 	}
 
-	err = of_property_read_u32(state_node, "min-residency-us",
+	err = of_property_read_u32(state_yesde, "min-residency-us",
 				   &idle_state->target_residency);
 	if (err) {
 		pr_debug(" * %pOF missing min-residency-us property\n",
-			     state_node);
+			     state_yesde);
 		return -EINVAL;
 	}
 
-	err = of_property_read_string(state_node, "idle-state-name", &desc);
+	err = of_property_read_string(state_yesde, "idle-state-name", &desc);
 	if (err)
-		desc = state_node->name;
+		desc = state_yesde->name;
 
 	idle_state->flags = 0;
-	if (of_property_read_bool(state_node, "local-timer-stop"))
+	if (of_property_read_bool(state_yesde, "local-timer-stop"))
 		idle_state->flags |= CPUIDLE_FLAG_TIMER_STOP;
 	/*
 	 * TODO:
 	 *	replace with kstrdup and pointer assignment when name
 	 *	and desc become string pointers
 	 */
-	strncpy(idle_state->name, state_node->name, CPUIDLE_NAME_LEN - 1);
+	strncpy(idle_state->name, state_yesde->name, CPUIDLE_NAME_LEN - 1);
 	strncpy(idle_state->desc, desc, CPUIDLE_DESC_LEN - 1);
 	return 0;
 }
@@ -94,30 +94,30 @@ static int init_state_node(struct cpuidle_state *idle_state,
  * Check that the idle state is uniform across all CPUs in the CPUidle driver
  * cpumask
  */
-static bool idle_state_valid(struct device_node *state_node, unsigned int idx,
+static bool idle_state_valid(struct device_yesde *state_yesde, unsigned int idx,
 			     const cpumask_t *cpumask)
 {
 	int cpu;
-	struct device_node *cpu_node, *curr_state_node;
+	struct device_yesde *cpu_yesde, *curr_state_yesde;
 	bool valid = true;
 
 	/*
 	 * Compare idle state phandles for index idx on all CPUs in the
 	 * CPUidle driver cpumask. Start from next logical cpu following
-	 * cpumask_first(cpumask) since that's the CPU state_node was
+	 * cpumask_first(cpumask) since that's the CPU state_yesde was
 	 * retrieved from. If a mismatch is found bail out straight
 	 * away since we certainly hit a firmware misconfiguration.
 	 */
 	for (cpu = cpumask_next(cpumask_first(cpumask), cpumask);
 	     cpu < nr_cpu_ids; cpu = cpumask_next(cpu, cpumask)) {
-		cpu_node = of_cpu_device_node_get(cpu);
-		curr_state_node = of_parse_phandle(cpu_node, "cpu-idle-states",
+		cpu_yesde = of_cpu_device_yesde_get(cpu);
+		curr_state_yesde = of_parse_phandle(cpu_yesde, "cpu-idle-states",
 						   idx);
-		if (state_node != curr_state_node)
+		if (state_yesde != curr_state_yesde)
 			valid = false;
 
-		of_node_put(curr_state_node);
-		of_node_put(cpu_node);
+		of_yesde_put(curr_state_yesde);
+		of_yesde_put(cpu_yesde);
 		if (!valid)
 			break;
 	}
@@ -130,7 +130,7 @@ static bool idle_state_valid(struct device_node *state_node, unsigned int idx,
  *			   idle driver states array
  * @drv:	  Pointer to CPU idle driver to be initialized
  * @matches:	  Array of of_device_id match structures to search in for
- *		  compatible idle state nodes. The data pointer for each valid
+ *		  compatible idle state yesdes. The data pointer for each valid
  *		  struct of_device_id entry in the matches array must point to
  *		  a function with the following signature, that corresponds to
  *		  the CPUidle state enter function signature:
@@ -152,7 +152,7 @@ int dt_init_idle_driver(struct cpuidle_driver *drv,
 			unsigned int start_idx)
 {
 	struct cpuidle_state *idle_state;
-	struct device_node *state_node, *cpu_node;
+	struct device_yesde *state_yesde, *cpu_yesde;
 	const struct of_device_id *match_id;
 	int i, err = 0;
 	const cpumask_t *cpumask;
@@ -162,32 +162,32 @@ int dt_init_idle_driver(struct cpuidle_driver *drv,
 		return -EINVAL;
 	/*
 	 * We get the idle states for the first logical cpu in the
-	 * driver mask (or cpu_possible_mask if the driver cpumask is not set)
+	 * driver mask (or cpu_possible_mask if the driver cpumask is yest set)
 	 * and we check through idle_state_valid() if they are uniform
 	 * across CPUs, otherwise we hit a firmware misconfiguration.
 	 */
 	cpumask = drv->cpumask ? : cpu_possible_mask;
-	cpu_node = of_cpu_device_node_get(cpumask_first(cpumask));
+	cpu_yesde = of_cpu_device_yesde_get(cpumask_first(cpumask));
 
 	for (i = 0; ; i++) {
-		state_node = of_parse_phandle(cpu_node, "cpu-idle-states", i);
-		if (!state_node)
+		state_yesde = of_parse_phandle(cpu_yesde, "cpu-idle-states", i);
+		if (!state_yesde)
 			break;
 
-		match_id = of_match_node(matches, state_node);
+		match_id = of_match_yesde(matches, state_yesde);
 		if (!match_id) {
 			err = -ENODEV;
 			break;
 		}
 
-		if (!of_device_is_available(state_node)) {
-			of_node_put(state_node);
+		if (!of_device_is_available(state_yesde)) {
+			of_yesde_put(state_yesde);
 			continue;
 		}
 
-		if (!idle_state_valid(state_node, i, cpumask)) {
-			pr_warn("%pOF idle state not valid, bailing out\n",
-				state_node);
+		if (!idle_state_valid(state_yesde, i, cpumask)) {
+			pr_warn("%pOF idle state yest valid, bailing out\n",
+				state_yesde);
 			err = -EINVAL;
 			break;
 		}
@@ -198,18 +198,18 @@ int dt_init_idle_driver(struct cpuidle_driver *drv,
 		}
 
 		idle_state = &drv->states[state_idx++];
-		err = init_state_node(idle_state, match_id, state_node);
+		err = init_state_yesde(idle_state, match_id, state_yesde);
 		if (err) {
-			pr_err("Parsing idle state node %pOF failed with err %d\n",
-			       state_node, err);
+			pr_err("Parsing idle state yesde %pOF failed with err %d\n",
+			       state_yesde, err);
 			err = -EINVAL;
 			break;
 		}
-		of_node_put(state_node);
+		of_yesde_put(state_yesde);
 	}
 
-	of_node_put(state_node);
-	of_node_put(cpu_node);
+	of_yesde_put(state_yesde);
+	of_yesde_put(cpu_yesde);
 	if (err)
 		return err;
 	/*

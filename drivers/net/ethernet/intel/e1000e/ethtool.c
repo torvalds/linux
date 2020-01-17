@@ -52,7 +52,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	E1000_NETDEV_STAT("rx_over_errors", rx_over_errors),
 	E1000_STAT("rx_crc_errors", stats.crcerrs),
 	E1000_NETDEV_STAT("rx_frame_errors", rx_frame_errors),
-	E1000_STAT("rx_no_buffer_count", stats.rnbc),
+	E1000_STAT("rx_yes_buffer_count", stats.rnbc),
 	E1000_STAT("rx_missed_errors", stats.mpc),
 	E1000_STAT("tx_aborted_errors", stats.ecol),
 	E1000_STAT("tx_carrier_errors", stats.tncrs),
@@ -199,7 +199,7 @@ static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx)
 
 	mac->autoneg = 0;
 
-	/* Make sure dplx is at most 1 bit and lsb of speed is not set
+	/* Make sure dplx is at most 1 bit and lsb of speed is yest set
 	 * for the switch() below to work
 	 */
 	if ((spd & 1) || (dplx & ~1))
@@ -233,7 +233,7 @@ static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx)
 			mac->forced_speed_duplex = ADVERTISE_1000_FULL;
 		}
 		break;
-	case SPEED_1000 + DUPLEX_HALF:	/* not supported */
+	case SPEED_1000 + DUPLEX_HALF:	/* yest supported */
 	default:
 		goto err_inval;
 	}
@@ -262,11 +262,11 @@ static int e1000_set_link_ksettings(struct net_device *netdev,
 	pm_runtime_get_sync(netdev->dev.parent);
 
 	/* When SoL/IDER sessions are active, autoneg/speed/duplex
-	 * cannot be changed
+	 * canyest be changed
 	 */
 	if (hw->phy.ops.check_reset_block &&
 	    hw->phy.ops.check_reset_block(hw)) {
-		e_err("Cannot change link characteristics when SoL/IDER is active.\n");
+		e_err("Canyest change link characteristics when SoL/IDER is active.\n");
 		ret_val = -EINVAL;
 		goto out;
 	}
@@ -283,7 +283,7 @@ static int e1000_set_link_ksettings(struct net_device *netdev,
 
 		if ((cmd->base.eth_tp_mdix_ctrl != ETH_TP_MDI_AUTO) &&
 		    (cmd->base.autoneg != AUTONEG_ENABLE)) {
-			e_err("forcing MDI/MDI-X state is not supported when link speed and/or duplex are forced\n");
+			e_err("forcing MDI/MDI-X state is yest supported when link speed and/or duplex are forced\n");
 			ret_val = -EINVAL;
 			goto out;
 		}
@@ -386,7 +386,7 @@ static int e1000_set_pauseparam(struct net_device *netdev,
 		else if (!pause->rx_pause && pause->tx_pause)
 			hw->fc.requested_mode = e1000_fc_tx_pause;
 		else if (!pause->rx_pause && !pause->tx_pause)
-			hw->fc.requested_mode = e1000_fc_none;
+			hw->fc.requested_mode = e1000_fc_yesne;
 
 		hw->fc.current_mode = hw->fc.requested_mode;
 
@@ -459,7 +459,7 @@ static void e1000_get_regs(struct net_device *netdev,
 	regs_buff[12] = adapter->hw.phy.type;	/* PHY type (IGP=1, M88=0) */
 
 	/* ethtool doesn't use anything past this point, so all this
-	 * code is likely legacy junk for apps that may or may not exist
+	 * code is likely legacy junk for apps that may or may yest exist
 	 */
 	if (hw->phy.type == e1000_phy_m88) {
 		e1e_rphy(hw, M88E1000_PHY_SPEC_STATUS, &phy_data);
@@ -682,14 +682,14 @@ static int e1000_set_ringparam(struct net_device *netdev,
 
 	if ((new_tx_count == adapter->tx_ring_count) &&
 	    (new_rx_count == adapter->rx_ring_count))
-		/* nothing to do */
+		/* yesthing to do */
 		return 0;
 
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
 		usleep_range(1000, 2000);
 
 	if (!netif_running(adapter->netdev)) {
-		/* Set counts now and allocate resources during open() */
+		/* Set counts yesw and allocate resources during open() */
 		adapter->tx_ring->count = new_tx_count;
 		adapter->rx_ring->count = new_rx_count;
 		adapter->tx_ring_count = new_tx_count;
@@ -830,7 +830,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	u32 wlock_mac = 0;
 
 	/* The status register is Read Only, so a write should fail.
-	 * Some bits that get toggled are ignored.  There are several bits
+	 * Some bits that get toggled are igyesred.  There are several bits
 	 * on newer hardware that are r/w.
 	 */
 	switch (mac->type) {
@@ -909,7 +909,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 
 	for (i = 0; i < mac->rar_entry_count; i++) {
 		if (mac->type >= e1000_pch_lpt) {
-			/* Cannot test write-protected SHRAL[n] registers */
+			/* Canyest test write-protected SHRAL[n] registers */
 			if ((wlock_mac == 1) || (wlock_mac && (i > wlock_mac)))
 				continue;
 
@@ -962,7 +962,7 @@ static int e1000_eeprom_test(struct e1000_adapter *adapter, u64 *data)
 		checksum += temp;
 	}
 
-	/* If Checksum is not Correct return error else test passed */
+	/* If Checksum is yest Correct return error else test passed */
 	if ((checksum != (u16)NVM_SUM) && !(*data))
 		*data = 2;
 
@@ -1058,7 +1058,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 		/* Enable the interrupt to be reported in
 		 * the cause register and then force the same
 		 * interrupt and see if one gets posted.  If
-		 * an interrupt was not posted to the bus, the
+		 * an interrupt was yest posted to the bus, the
 		 * test failed.
 		 */
 		adapter->test_icr = 0;
@@ -1179,7 +1179,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 				       sizeof(struct e1000_buffer), GFP_KERNEL);
 	if (!tx_ring->buffer_info) {
 		ret_val = 1;
-		goto err_nomem;
+		goto err_yesmem;
 	}
 
 	tx_ring->size = tx_ring->count * sizeof(struct e1000_tx_desc);
@@ -1188,7 +1188,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 					   &tx_ring->dma, GFP_KERNEL);
 	if (!tx_ring->desc) {
 		ret_val = 2;
-		goto err_nomem;
+		goto err_yesmem;
 	}
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
@@ -1210,7 +1210,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		skb = alloc_skb(skb_size, GFP_KERNEL);
 		if (!skb) {
 			ret_val = 3;
-			goto err_nomem;
+			goto err_yesmem;
 		}
 		skb_put(skb, skb_size);
 		tx_ring->buffer_info[i].skb = skb;
@@ -1221,7 +1221,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		if (dma_mapping_error(&pdev->dev,
 				      tx_ring->buffer_info[i].dma)) {
 			ret_val = 4;
-			goto err_nomem;
+			goto err_yesmem;
 		}
 		tx_desc->buffer_addr = cpu_to_le64(tx_ring->buffer_info[i].dma);
 		tx_desc->lower.data = cpu_to_le32(skb->len);
@@ -1240,7 +1240,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 				       sizeof(struct e1000_buffer), GFP_KERNEL);
 	if (!rx_ring->buffer_info) {
 		ret_val = 5;
-		goto err_nomem;
+		goto err_yesmem;
 	}
 
 	rx_ring->size = rx_ring->count * sizeof(union e1000_rx_desc_extended);
@@ -1248,7 +1248,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 					   &rx_ring->dma, GFP_KERNEL);
 	if (!rx_ring->desc) {
 		ret_val = 6;
-		goto err_nomem;
+		goto err_yesmem;
 	}
 	rx_ring->next_to_use = 0;
 	rx_ring->next_to_clean = 0;
@@ -1275,7 +1275,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		skb = alloc_skb(2048 + NET_IP_ALIGN, GFP_KERNEL);
 		if (!skb) {
 			ret_val = 7;
-			goto err_nomem;
+			goto err_yesmem;
 		}
 		skb_reserve(skb, NET_IP_ALIGN);
 		rx_ring->buffer_info[i].skb = skb;
@@ -1285,7 +1285,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		if (dma_mapping_error(&pdev->dev,
 				      rx_ring->buffer_info[i].dma)) {
 			ret_val = 8;
-			goto err_nomem;
+			goto err_yesmem;
 		}
 		rx_desc = E1000_RX_DESC_EXT(*rx_ring, i);
 		rx_desc->read.buffer_addr =
@@ -1295,7 +1295,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 
 	return 0;
 
-err_nomem:
+err_yesmem:
 	e1000_free_desc_rings(adapter);
 	return ret_val;
 }
@@ -1377,7 +1377,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		/* Workaround: K1 must be disabled for stable 1Gbps operation */
 		ret_val = hw->phy.ops.acquire(hw);
 		if (ret_val) {
-			e_err("Cannot setup 1Gbps loopback.\n");
+			e_err("Canyest setup 1Gbps loopback.\n");
 			return ret_val;
 		}
 		e1000_configure_k1_ich8lan(hw, false);
@@ -1426,7 +1426,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	ew32(CTRL, ctrl_reg);
 
 	/* Disable the receiver on the PHY so when a cable is plugged in, the
-	 * PHY does not begin to autoneg when a cable is reconnected to the NIC.
+	 * PHY does yest begin to autoneg when a cable is reconnected to the NIC.
 	 */
 	if (hw->phy.type == e1000_phy_m88)
 		e1000_phy_disable_receiver(adapter);
@@ -1501,7 +1501,7 @@ static int e1000_set_es2lan_mac_loopback(struct e1000_adapter *adapter)
 	ctrl |= E1000_RCTL_LBM_MAC;
 	ew32(RCTL, ctrl);
 
-	/* set testing mode parameters (no need to reset later) */
+	/* set testing mode parameters (yes need to reset later) */
 #define KMRNCTRLSTA_OPMODE (0x1F << 16)
 #define KMRNCTRLSTA_OPMODE_1GB_FD_GMII 0x0582
 	ew32(KMRNCTRLSTA,
@@ -1522,7 +1522,7 @@ static int e1000_setup_loopback_test(struct e1000_adapter *adapter)
 		tarc0 = er32(TARC(0));
 		/* clear bits 28 & 29 (control of MULR concurrent requests) */
 		tarc0 &= 0xcfffffff;
-		/* set bit 29 (value of MULR requests is now 2) */
+		/* set bit 29 (value of MULR requests is yesw 2) */
 		tarc0 |= 0x20000000;
 		ew32(TARC(0), tarc0);
 	}
@@ -1566,7 +1566,7 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 		ew32(FEXTNVM11, fext_nvm11);
 		tarc0 = er32(TARC(0));
 		/* clear bits 28 & 29 (control of MULR concurrent requests) */
-		/* set bit 29 (value of MULR requests is now 0) */
+		/* set bit 29 (value of MULR requests is yesw 0) */
 		tarc0 &= 0xcfffffff;
 		ew32(TARC(0), tarc0);
 		/* fall through */
@@ -1687,7 +1687,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 			if (l == rx_ring->count)
 				l = 0;
 			/* time + 20 msecs (200 msecs on 2.4) is more than
-			 * enough time to complete the receives, if it's
+			 * eyesugh time to complete the receives, if it's
 			 * exceeded, break and error off
 			 */
 		} while ((good_cnt < 64) && !time_after(jiffies, time + 20));
@@ -1707,10 +1707,10 @@ static int e1000_loopback_test(struct e1000_adapter *adapter, u64 *data)
 {
 	struct e1000_hw *hw = &adapter->hw;
 
-	/* PHY loopback cannot be performed if SoL/IDER sessions are active */
+	/* PHY loopback canyest be performed if SoL/IDER sessions are active */
 	if (hw->phy.ops.check_reset_block &&
 	    hw->phy.ops.check_reset_block(hw)) {
-		e_err("Cannot do PHY loopback test when SoL/IDER is active.\n");
+		e_err("Canyest do PHY loopback test when SoL/IDER is active.\n");
 		*data = 0;
 		goto out;
 	}
@@ -1856,7 +1856,7 @@ static void e1000_diag_test(struct net_device *netdev,
 
 		e_info("online testing starting\n");
 
-		/* register, eeprom, intr and loopback tests not run online */
+		/* register, eeprom, intr and loopback tests yest run online */
 		data[0] = 0;
 		data[1] = 0;
 		data[2] = 0;
@@ -1900,7 +1900,7 @@ static void e1000_get_wol(struct net_device *netdev,
 		wol->supported &= ~WAKE_UCAST;
 
 		if (adapter->wol & E1000_WUFC_EX)
-			e_err("Interface does not support directed (unicast) frame wake-up packets\n");
+			e_err("Interface does yest support directed (unicast) frame wake-up packets\n");
 	}
 
 	if (adapter->wol & E1000_WUFC_EX)
@@ -2206,7 +2206,7 @@ static int e1000e_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 	if (hw->phy.type == e1000_phy_82579)
 		phy_data <<= 8;
 
-	/* Result of the EEE auto negotiation - there is no register that
+	/* Result of the EEE auto negotiation - there is yes register that
 	 * has the status of the EEE negotiation so do a best-guess based
 	 * on whether Tx or Rx LPI indications have been received.
 	 */
@@ -2239,12 +2239,12 @@ static int e1000e_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
 		return ret_val;
 
 	if (eee_curr.tx_lpi_enabled != edata->tx_lpi_enabled) {
-		e_err("Setting EEE tx-lpi is not supported\n");
+		e_err("Setting EEE tx-lpi is yest supported\n");
 		return -EINVAL;
 	}
 
 	if (eee_curr.tx_lpi_timer != edata->tx_lpi_timer) {
-		e_err("Setting EEE Tx LPI timer is not supported\n");
+		e_err("Setting EEE Tx LPI timer is yest supported\n");
 		return -EINVAL;
 	}
 

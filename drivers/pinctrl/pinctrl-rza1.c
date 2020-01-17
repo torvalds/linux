@@ -452,7 +452,7 @@ struct rza1_mux_conf {
 /**
  * rza1_port - describes a pin port
  *
- * This is mostly useful to lock register writes per-bank and not globally.
+ * This is mostly useful to lock register writes per-bank and yest globally.
  *
  * @lock: protect access to HW registers
  * @id: port number
@@ -597,8 +597,8 @@ static inline unsigned int rza1_get_bit(struct rza1_port *port,
  *
  * Reset pin state disabling input buffer and bi-directional control,
  * and configure it as input port.
- * Note that pin is now configured with direction as input but with input
- * buffer disabled. This implies the pin value cannot be read in this state.
+ * Note that pin is yesw configured with direction as input but with input
+ * buffer disabled. This implies the pin value canyest be read in this state.
  *
  * @port: port where pin sits on
  * @pin: pin offset
@@ -692,7 +692,7 @@ static int rza1_pin_mux_single(struct rza1_pinctrl *rza1_pctl,
 	/*
 	 * Enable alternate function mode and select it.
 	 *
-	 * Be careful here: the pin mux sub-nodes in device tree
+	 * Be careful here: the pin mux sub-yesdes in device tree
 	 * enumerate alternate functions from 1 to 8;
 	 * subtract 1 before using macros to match registers configuration
 	 * which expects numbers from 0 to 7 instead.
@@ -842,14 +842,14 @@ static const struct gpio_chip rza1_gpiochip_template = {
  */
 
 /**
- * rza1_dt_node_pin_count() - Count number of pins in a dt node or in all its
- *			      children sub-nodes
+ * rza1_dt_yesde_pin_count() - Count number of pins in a dt yesde or in all its
+ *			      children sub-yesdes
  *
- * @np: device tree node to parse
+ * @np: device tree yesde to parse
  */
-static int rza1_dt_node_pin_count(struct device_node *np)
+static int rza1_dt_yesde_pin_count(struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	struct property *of_pins;
 	unsigned int npins;
 
@@ -858,10 +858,10 @@ static int rza1_dt_node_pin_count(struct device_node *np)
 		return of_pins->length / sizeof(u32);
 
 	npins = 0;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		of_pins = of_find_property(child, "pinmux", NULL);
 		if (!of_pins) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return -EINVAL;
 		}
 
@@ -872,15 +872,15 @@ static int rza1_dt_node_pin_count(struct device_node *np)
 }
 
 /**
- * rza1_parse_pmx_function() - parse a pin mux sub-node
+ * rza1_parse_pmx_function() - parse a pin mux sub-yesde
  *
  * @rza1_pctl: RZ/A1 pin controller device
- * @np: of pmx sub-node
+ * @np: of pmx sub-yesde
  * @mux_confs: array of pin mux configurations to fill with parsed info
  * @grpins: array of pin ids to mux
  */
-static int rza1_parse_pinmux_node(struct rza1_pinctrl *rza1_pctl,
-				  struct device_node *np,
+static int rza1_parse_pinmux_yesde(struct rza1_pinctrl *rza1_pctl,
+				  struct device_yesde *np,
 				  struct rza1_mux_conf *mux_confs,
 				  unsigned int *grpins)
 {
@@ -903,7 +903,7 @@ static int rza1_parse_pinmux_node(struct rza1_pinctrl *rza1_pctl,
 
 	/*
 	 * Collect pin configuration properties: they apply to all pins in
-	 * this sub-node
+	 * this sub-yesde
 	 */
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &pin_configs,
 					      &npin_configs);
@@ -964,32 +964,32 @@ static int rza1_parse_pinmux_node(struct rza1_pinctrl *rza1_pctl,
 }
 
 /**
- * rza1_dt_node_to_map() - map a pin mux node to a function/group
+ * rza1_dt_yesde_to_map() - map a pin mux yesde to a function/group
  *
  * Parse and register a pin mux function.
  *
  * @pctldev: pin controller device
- * @np: device tree node to parse
+ * @np: device tree yesde to parse
  * @map: pointer to pin map (output)
  * @num_maps: number of collected maps (output)
  */
-static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
-			       struct device_node *np,
+static int rza1_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+			       struct device_yesde *np,
 			       struct pinctrl_map **map,
 			       unsigned int *num_maps)
 {
 	struct rza1_pinctrl *rza1_pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct rza1_mux_conf *mux_confs, *mux_conf;
 	unsigned int *grpins, *grpin;
-	struct device_node *child;
+	struct device_yesde *child;
 	const char *grpname;
 	const char **fngrps;
 	int ret, npins;
 	int gsel, fsel;
 
-	npins = rza1_dt_node_pin_count(np);
+	npins = rza1_dt_yesde_pin_count(np);
 	if (npins < 0) {
-		dev_err(rza1_pctl->dev, "invalid pinmux node structure\n");
+		dev_err(rza1_pctl->dev, "invalid pinmux yesde structure\n");
 		return -EINVAL;
 	}
 
@@ -1009,20 +1009,20 @@ static int rza1_dt_node_to_map(struct pinctrl_dev *pctldev,
 		return -ENOMEM;
 
 	/*
-	 * Parse the pinmux node.
-	 * If the node does not contain "pinmux" property (-ENOENT)
-	 * that property shall be specified in all its children sub-nodes.
+	 * Parse the pinmux yesde.
+	 * If the yesde does yest contain "pinmux" property (-ENOENT)
+	 * that property shall be specified in all its children sub-yesdes.
 	 */
 	mux_conf = &mux_confs[0];
 	grpin = &grpins[0];
 
-	ret = rza1_parse_pinmux_node(rza1_pctl, np, mux_conf, grpin);
+	ret = rza1_parse_pinmux_yesde(rza1_pctl, np, mux_conf, grpin);
 	if (ret == -ENOENT)
-		for_each_child_of_node(np, child) {
-			ret = rza1_parse_pinmux_node(rza1_pctl, child, mux_conf,
+		for_each_child_of_yesde(np, child) {
+			ret = rza1_parse_pinmux_yesde(rza1_pctl, child, mux_conf,
 						     grpin);
 			if (ret < 0) {
-				of_node_put(child);
+				of_yesde_put(child);
 				return ret;
 			}
 
@@ -1093,7 +1093,7 @@ static const struct pinctrl_ops rza1_pinctrl_ops = {
 	.get_groups_count	= pinctrl_generic_get_group_count,
 	.get_group_name		= pinctrl_generic_get_group_name,
 	.get_group_pins		= pinctrl_generic_get_group_pins,
-	.dt_node_to_map		= rza1_dt_node_to_map,
+	.dt_yesde_to_map		= rza1_dt_yesde_to_map,
 	.dt_free_map		= rza1_dt_free_map,
 };
 
@@ -1149,12 +1149,12 @@ static const struct pinmux_ops rza1_pinmux_ops = {
  * RZ/A1 pin controller driver operations
  */
 
-static unsigned int rza1_count_gpio_chips(struct device_node *np)
+static unsigned int rza1_count_gpio_chips(struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	unsigned int count = 0;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (!of_property_read_bool(child, "gpio-controller"))
 			continue;
 
@@ -1167,16 +1167,16 @@ static unsigned int rza1_count_gpio_chips(struct device_node *np)
 /**
  * rza1_parse_gpiochip() - parse and register a gpio chip and pin range
  *
- * The gpio controller subnode shall provide a "gpio-ranges" list property as
+ * The gpio controller subyesde shall provide a "gpio-ranges" list property as
  * defined by gpio device tree binding documentation.
  *
  * @rza1_pctl: RZ/A1 pin controller device
- * @np: of gpio-controller node
+ * @np: of gpio-controller yesde
  * @chip: gpio chip to register to gpiolib
  * @range: pin range to register to pinctrl core
  */
 static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
-			       struct device_node *np,
+			       struct device_yesde *np,
 			       struct gpio_chip *chip,
 			       struct pinctrl_gpio_range *range)
 {
@@ -1213,7 +1213,7 @@ static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
 		return -ENOMEM;
 
 	chip->ngpio	= of_args.args[2];
-	chip->of_node	= np;
+	chip->of_yesde	= np;
 	chip->parent	= rza1_pctl->dev;
 
 	range->id	= gpioport;
@@ -1242,10 +1242,10 @@ static int rza1_parse_gpiochip(struct rza1_pinctrl *rza1_pctl,
  */
 static int rza1_gpio_register(struct rza1_pinctrl *rza1_pctl)
 {
-	struct device_node *np = rza1_pctl->dev->of_node;
+	struct device_yesde *np = rza1_pctl->dev->of_yesde;
 	struct pinctrl_gpio_range *gpio_ranges;
 	struct gpio_chip *gpio_chips;
-	struct device_node *child;
+	struct device_yesde *child;
 	unsigned int ngpiochips;
 	unsigned int i;
 	int ret;
@@ -1264,14 +1264,14 @@ static int rza1_gpio_register(struct rza1_pinctrl *rza1_pctl)
 		return -ENOMEM;
 
 	i = 0;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (!of_property_read_bool(child, "gpio-controller"))
 			continue;
 
 		ret = rza1_parse_gpiochip(rza1_pctl, child, &gpio_chips[i],
 					  &gpio_ranges[i]);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 

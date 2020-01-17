@@ -460,7 +460,7 @@ static int s6e63m0_probe(struct spi_device *spi)
 
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
-		DRM_DEV_ERROR(dev, "cannot get reset-gpios %ld\n",
+		DRM_DEV_ERROR(dev, "canyest get reset-gpios %ld\n",
 			      PTR_ERR(ctx->reset_gpio));
 		return PTR_ERR(ctx->reset_gpio);
 	}

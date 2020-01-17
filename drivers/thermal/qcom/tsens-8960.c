@@ -92,7 +92,7 @@ static int resume_8960(struct tsens_priv *priv)
 		return ret;
 
 	/*
-	 * Separate CONFIG restore is not needed only for 8660 as
+	 * Separate CONFIG restore is yest needed only for 8660 as
 	 * config is part of CTRL Addr and its restored as such
 	 */
 	if (priv->num_sensors > 1) {

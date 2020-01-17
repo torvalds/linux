@@ -471,7 +471,7 @@ static void s5h1409_set_qam_amhum_mode(struct dvb_frontend *fe)
 	u16 reg;
 
 	if (state->qam_state < QAM_STATE_INTERLEAVE_SET) {
-		/* We should not perform amhum optimization until
+		/* We should yest perform amhum optimization until
 		   the interleave mode has been configured */
 		return;
 	}
@@ -640,13 +640,13 @@ static int s5h1409_set_frontend(struct dvb_frontend *fe)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	/* Issue a reset to the demod so it knows to resync against the
+	/* Issue a reset to the demod so it kyesws to resync against the
 	   newly tuned frequency */
 	s5h1409_softreset(fe);
 
 	/* Optimize the demod for QAM */
 	if (state->current_modulation != VSB_8) {
-		/* This almost certainly applies to all boards, but for now
+		/* This almost certainly applies to all boards, but for yesw
 		   only do it for the HVR-1600.  Once the other boards are
 		   tested, the "legacy" versions can just go away */
 		if (state->config->hvr1600_opt == S5H1409_HVR1600_OPTIMIZE) {
@@ -716,7 +716,7 @@ static int s5h1409_init(struct dvb_frontend *fe)
 		/* VSB AGC REF */
 		s5h1409_writereg(state, 0x09, 0x0050);
 
-		/* Unknown but Windows driver does it... */
+		/* Unkyeswn but Windows driver does it... */
 		s5h1409_writereg(state, 0x21, 0x0001);
 		s5h1409_writereg(state, 0x50, 0x030e);
 
@@ -753,7 +753,7 @@ static int s5h1409_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	/* Optimize the demod for QAM */
 	if (state->current_modulation != VSB_8) {
-		/* This almost certainly applies to all boards, but for now
+		/* This almost certainly applies to all boards, but for yesw
 		   only do it for the HVR-1600.  Once the other boards are
 		   tested, the "legacy" versions can just go away */
 		if (state->config->hvr1600_opt == S5H1409_HVR1600_OPTIMIZE) {

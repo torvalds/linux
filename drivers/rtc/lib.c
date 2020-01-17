@@ -2,7 +2,7 @@
 /*
  * rtc and date/time utility functions
  *
- * Copyright (C) 2005-06 Tower Technologies
+ * Copyright (C) 2005-06 Tower Techyeslogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * based on arch/arm/common/rtctime.c and other bits

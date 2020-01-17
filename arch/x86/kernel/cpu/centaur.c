@@ -154,7 +154,7 @@ static void init_centaur(struct cpuinfo_x86 *c)
 	u32  aa, bb, cc, dd;
 
 	/*
-	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
+	 * Bit 31 in yesrmal CPUID used for yesnstandard 3DNow ID;
 	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
 	 */
 	clear_cpu_cap(c, 0*32+31);
@@ -186,7 +186,7 @@ static void init_centaur(struct cpuinfo_x86 *c)
 			name = "C6";
 			fcr_set = ECX8|DSMC|EDCTLB|EMMX|ERETSTK;
 			fcr_clr = DPDC;
-			pr_notice("Disabling bugged TSC.\n");
+			pr_yestice("Disabling bugged TSC.\n");
 			clear_cpu_cap(c, X86_FEATURE_TSC);
 			break;
 		case 8:
@@ -219,7 +219,7 @@ static void init_centaur(struct cpuinfo_x86 *c)
 		newlo = (lo|fcr_set) & (~fcr_clr);
 
 		if (newlo != lo) {
-			pr_info("Centaur FCR was 0x%X now 0x%X\n",
+			pr_info("Centaur FCR was 0x%X yesw 0x%X\n",
 				lo, newlo);
 			wrmsr(MSR_IDT_FCR1, newlo, hi);
 		} else {

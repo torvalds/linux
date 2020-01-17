@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/io.h>
 
@@ -44,7 +44,7 @@
  *                 abortion
  *   0x2 idle:     Module is in Idle mode (only OCP part). It is functional if
  *                 using separate functional clock
- *   0x3 disabled: Module is disabled and cannot be accessed
+ *   0x3 disabled: Module is disabled and canyest be accessed
  *
  */
 #define CLKCTRL_IDLEST_FUNCTIONAL		0x0
@@ -264,11 +264,11 @@ static void omap4_cminst_clkdm_force_sleep(u8 part, u16 inst, u16 cdoffs)
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
- * @bit_shift: bit shift for the register, ignored for OMAP4+
+ * @bit_shift: bit shift for the register, igyesred for OMAP4+
  *
  * Wait for the module IDLEST to be functional. If the idle state is in any
- * the non functional state (trans, idle or disabled), module and thus the
- * sysconfig cannot be accessed and will probably lead to an "imprecise
+ * the yesn functional state (trans, idle or disabled), module and thus the
+ * sysconfig canyest be accessed and will probably lead to an "imprecise
  * external abort"
  */
 static int omap4_cminst_wait_module_ready(u8 part, s16 inst, u16 clkctrl_offs,
@@ -288,7 +288,7 @@ static int omap4_cminst_wait_module_ready(u8 part, s16 inst, u16 clkctrl_offs,
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
- * @bit_shift: Bit shift for the register, ignored for OMAP4+
+ * @bit_shift: Bit shift for the register, igyesred for OMAP4+
  *
  * Wait for the module IDLEST to be disabled. Some PRCM transition,
  * like reset assertion or parent clock de-activation must wait the

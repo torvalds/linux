@@ -175,28 +175,28 @@ static int pcan_usb_set_sja1000(struct peak_usb_device *dev, u8 mode)
 	return pcan_usb_send_cmd(dev, 9, 2, args);
 }
 
-static int pcan_usb_set_bus(struct peak_usb_device *dev, u8 onoff)
+static int pcan_usb_set_bus(struct peak_usb_device *dev, u8 oyesff)
 {
 	u8 args[PCAN_USB_CMD_ARGS_LEN] = {
-		[0] = !!onoff,
+		[0] = !!oyesff,
 	};
 
 	return pcan_usb_send_cmd(dev, 3, 2, args);
 }
 
-static int pcan_usb_set_silent(struct peak_usb_device *dev, u8 onoff)
+static int pcan_usb_set_silent(struct peak_usb_device *dev, u8 oyesff)
 {
 	u8 args[PCAN_USB_CMD_ARGS_LEN] = {
-		[0] = !!onoff,
+		[0] = !!oyesff,
 	};
 
 	return pcan_usb_send_cmd(dev, 3, 3, args);
 }
 
-static int pcan_usb_set_ext_vcc(struct peak_usb_device *dev, u8 onoff)
+static int pcan_usb_set_ext_vcc(struct peak_usb_device *dev, u8 oyesff)
 {
 	u8 args[PCAN_USB_CMD_ARGS_LEN] = {
-		[0] = !!onoff,
+		[0] = !!oyesff,
 	};
 
 	return pcan_usb_send_cmd(dev, 10, 2, args);
@@ -229,15 +229,15 @@ static int pcan_usb_set_bittiming(struct peak_usb_device *dev,
 /*
  * init/reset can
  */
-static int pcan_usb_write_mode(struct peak_usb_device *dev, u8 onoff)
+static int pcan_usb_write_mode(struct peak_usb_device *dev, u8 oyesff)
 {
 	int err;
 
-	err = pcan_usb_set_bus(dev, onoff);
+	err = pcan_usb_set_bus(dev, oyesff);
 	if (err)
 		return err;
 
-	if (!onoff) {
+	if (!oyesff) {
 		err = pcan_usb_set_sja1000(dev, SJA1000_MODE_INIT);
 	} else {
 		/* the PCAN-USB needs time to init */
@@ -256,7 +256,7 @@ static void pcan_usb_restart(struct timer_list *t)
 	struct pcan_usb *pdev = from_timer(pdev, t, restart_timer);
 	struct peak_usb_device *dev = &pdev->dev;
 
-	/* notify candev and netdev */
+	/* yestify candev and netdev */
 	peak_usb_restart_complete(dev);
 }
 
@@ -276,7 +276,7 @@ static void pcan_usb_restart_pending(struct urb *urb)
 }
 
 /*
- * handle asynchronous restart
+ * handle asynchroyesus restart
  */
 static int pcan_usb_restart_async(struct peak_usb_device *dev, struct urb *urb,
 				  u8 *buf)
@@ -352,9 +352,9 @@ static int pcan_usb_update_ts(struct pcan_usb_msg_context *mc)
 	mc->ts16 = le16_to_cpu(tmp16);
 
 	if (mc->rec_idx > 0)
-		peak_usb_update_ts_now(&mc->pdev->time_ref, mc->ts16);
+		peak_usb_update_ts_yesw(&mc->pdev->time_ref, mc->ts16);
 	else
-		peak_usb_set_ts_now(&mc->pdev->time_ref, mc->ts16);
+		peak_usb_set_ts_yesw(&mc->pdev->time_ref, mc->ts16);
 
 	return 0;
 }
@@ -402,7 +402,7 @@ static int pcan_usb_decode_error(struct pcan_usb_msg_context *mc, u8 n,
 	struct can_frame *cf;
 	enum can_state new_state;
 
-	/* ignore this error until 1st ts received */
+	/* igyesre this error until 1st ts received */
 	if (n == PCAN_USB_ERROR_QOVR)
 		if (!mc->pdev->time_ref.tick_count)
 			return 0;
@@ -435,7 +435,7 @@ static int pcan_usb_decode_error(struct pcan_usb_msg_context *mc, u8 n,
 			break;
 		}
 		if ((n & PCAN_USB_ERROR_BUS_LIGHT) == 0) {
-			/* no error (back to active state) */
+			/* yes error (back to active state) */
 			new_state = CAN_STATE_ERROR_ACTIVE;
 			break;
 		}
@@ -460,18 +460,18 @@ static int pcan_usb_decode_error(struct pcan_usb_msg_context *mc, u8 n,
 		}
 
 		if ((n & PCAN_USB_ERROR_BUS_HEAVY) == 0) {
-			/* no error (back to warning state) */
+			/* yes error (back to warning state) */
 			new_state = CAN_STATE_ERROR_WARNING;
 			break;
 		}
 		break;
 
 	default:
-		/* do nothing waiting for restart */
+		/* do yesthing waiting for restart */
 		return 0;
 	}
 
-	/* donot post any error if current state didn't change */
+	/* doyest post any error if current state didn't change */
 	if (mc->pdev->dev.can.state == new_state)
 		return 0;
 
@@ -534,7 +534,7 @@ static int pcan_usb_decode_error(struct pcan_usb_msg_context *mc, u8 n,
 }
 
 /*
- * decode non-data usb message
+ * decode yesn-data usb message
  */
 static int pcan_usb_decode_status(struct pcan_usb_msg_context *mc,
 				  u8 status_len)
@@ -571,12 +571,12 @@ static int pcan_usb_decode_status(struct pcan_usb_msg_context *mc,
 		break;
 
 	case PCAN_USB_REC_ANALOG:
-		/* analog values (ignored) */
+		/* analog values (igyesred) */
 		rec_len = 2;
 		break;
 
 	case PCAN_USB_REC_BUSLOAD:
-		/* bus load (ignored) */
+		/* bus load (igyesred) */
 		rec_len = 1;
 		break;
 
@@ -698,7 +698,7 @@ static int pcan_usb_decode_msg(struct peak_usb_device *dev, u8 *ibuf, u32 lbuf)
 		/* handle status and error frames here */
 		if (sl & PCAN_USB_STATUSLEN_INTERNAL) {
 			err = pcan_usb_decode_status(&mc, sl);
-		/* handle normal can frames here */
+		/* handle yesrmal can frames here */
 		} else {
 			err = pcan_usb_decode_data(&mc, sl);
 		}
@@ -807,7 +807,7 @@ static int pcan_usb_init(struct peak_usb_device *dev)
 
 	/*
 	 * explicit use of dev_xxx() instead of netdev_xxx() here:
-	 * information displayed are related to the device itself, not
+	 * information displayed are related to the device itself, yest
 	 * to the canx netdevice.
 	 */
 	err = pcan_usb_get_serial(dev, &serial_number);

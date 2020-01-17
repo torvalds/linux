@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -128,7 +128,7 @@ static void set_extend_sge(struct hns_roce_qp *qp, const struct ib_send_wr *wr,
 	shift = qp->hr_buf.page_shift;
 
 	/*
-	 * Check whether wr->num_sge sges are in the same page. If not, we
+	 * Check whether wr->num_sge sges are in the same page. If yest, we
 	 * should calculate how many sges in the first page and the second
 	 * page.
 	 */
@@ -716,12 +716,12 @@ static int hns_roce_v2_cmd_hw_reseted(struct hns_roce_dev *hr_dev,
 				      unsigned long reset_stage)
 {
 	/* When hardware reset has been completed once or more, we should stop
-	 * sending mailbox&cmq&doorbell to hardware. If now in .init_instance()
-	 * function, we should exit with error. If now at HNAE3_INIT_CLIENT
+	 * sending mailbox&cmq&doorbell to hardware. If yesw in .init_instance()
+	 * function, we should exit with error. If yesw at HNAE3_INIT_CLIENT
 	 * stage of soft reset process, we should exit with error, and then
 	 * HNAE3_INIT_CLIENT related process can rollback the operation like
-	 * notifing hardware to free resources, HNAE3_INIT_CLIENT related
-	 * process will exit with error to notify NIC driver to reschedule soft
+	 * yestifing hardware to free resources, HNAE3_INIT_CLIENT related
+	 * process will exit with error to yestify NIC driver to reschedule soft
 	 * reset process once again.
 	 */
 	hr_dev->is_reset = true;
@@ -743,12 +743,12 @@ static int hns_roce_v2_cmd_hw_resetting(struct hns_roce_dev *hr_dev,
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 
 	/* When hardware reset is detected, we should stop sending mailbox&cmq&
-	 * doorbell to hardware. If now in .init_instance() function, we should
-	 * exit with error. If now at HNAE3_INIT_CLIENT stage of soft reset
+	 * doorbell to hardware. If yesw in .init_instance() function, we should
+	 * exit with error. If yesw at HNAE3_INIT_CLIENT stage of soft reset
 	 * process, we should exit with error, and then HNAE3_INIT_CLIENT
-	 * related process can rollback the operation like notifing hardware to
+	 * related process can rollback the operation like yestifing hardware to
 	 * free resources, HNAE3_INIT_CLIENT related process will exit with
-	 * error to notify NIC driver to reschedule soft reset process once
+	 * error to yestify NIC driver to reschedule soft reset process once
 	 * again.
 	 */
 	hr_dev->dis_db = true;
@@ -797,8 +797,8 @@ static int hns_roce_v2_rst_process_cmd(struct hns_roce_dev *hr_dev)
 	 * the meaning of the following variables from NIC driver are described
 	 * as below:
 	 * reset_cnt -- The count value of completed hardware reset.
-	 * hw_resetting -- Whether hardware device is resetting now.
-	 * sw_resetting -- Whether NIC's software reset process is running now.
+	 * hw_resetting -- Whether hardware device is resetting yesw.
+	 * sw_resetting -- Whether NIC's software reset process is running yesw.
 	 */
 	instance_stage = handle->rinfo.instance_state;
 	reset_stage = handle->rinfo.reset_state;
@@ -1636,7 +1636,7 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	}
 
 	hr_dev->vendor_part_id = hr_dev->pci_dev->device;
-	hr_dev->sys_image_guid = be64_to_cpu(hr_dev->ib_dev.node_guid);
+	hr_dev->sys_image_guid = be64_to_cpu(hr_dev->ib_dev.yesde_guid);
 
 	caps->num_qps		= HNS_ROCE_V2_MAX_QP_NUM;
 	caps->max_wqes		= HNS_ROCE_V2_MAX_WQE_NUM;
@@ -2619,18 +2619,18 @@ static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 		       HNS_ROCE_V2_CQ_DEFAULT_INTERVAL);
 }
 
-static int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq,
-				     enum ib_cq_notify_flags flags)
+static int hns_roce_v2_req_yestify_cq(struct ib_cq *ibcq,
+				     enum ib_cq_yestify_flags flags)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibcq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ibcq);
-	u32 notification_flag;
+	u32 yestification_flag;
 	__le32 doorbell[2];
 
 	doorbell[0] = 0;
 	doorbell[1] = 0;
 
-	notification_flag = (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
+	yestification_flag = (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
 			     V2_CQ_DB_REQ_NOT : V2_CQ_DB_REQ_NOT_SOL;
 	/*
 	 * flags = 0; Notification Flag = 1, next
@@ -2646,7 +2646,7 @@ static int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq,
 	roce_set_field(doorbell[1], V2_CQ_DB_PARAMETER_CMD_SN_M,
 		       V2_CQ_DB_PARAMETER_CMD_SN_S, hr_cq->arm_sn & 0x3);
 	roce_set_bit(doorbell[1], V2_CQ_DB_PARAMETER_NOTIFY_S,
-		     notification_flag);
+		     yestification_flag);
 
 	hns_roce_write64(hr_dev, doorbell, hr_cq->cq_db_l);
 
@@ -2723,7 +2723,7 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 		hr_dev = to_hr_dev(hr_cq->ib_cq.device);
 		hr_qp = __hns_roce_qp_lookup(hr_dev, qpn);
 		if (unlikely(!hr_qp)) {
-			dev_err(hr_dev->dev, "CQ %06lx with entry for unknown QPN %06x\n",
+			dev_err(hr_dev->dev, "CQ %06lx with entry for unkyeswn QPN %06x\n",
 				hr_cq->cqn, (qpn & HNS_ROCE_V2_CQE_QPN_MASK));
 			return -EINVAL;
 		}
@@ -3022,7 +3022,7 @@ static int get_op_for_set_hem(struct hns_roce_dev *hr_dev, u32 type,
 		break;
 	default:
 		dev_warn(hr_dev->dev,
-			 "Table %d not to be written by mailbox!\n", type);
+			 "Table %d yest to be written by mailbox!\n", type);
 		return -EINVAL;
 	}
 
@@ -3134,7 +3134,7 @@ static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
 		op = HNS_ROCE_CMD_DESTROY_SRQC_BT0;
 		break;
 	default:
-		dev_warn(dev, "Table %d not to be destroyed by mailbox!\n",
+		dev_warn(dev, "Table %d yest to be destroyed by mailbox!\n",
 			 table->type);
 		return 0;
 	}
@@ -3294,7 +3294,7 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 
 	/*
 	 * Set some fields in context to zero, Because the default values
-	 * of all fields in context are zero, we need not set them to 0 again.
+	 * of all fields in context are zero, we need yest set them to 0 again.
 	 * but we should set the relevant fields of context mask to 0.
 	 */
 	roce_set_bit(qpc_mask->byte_56_dqpn_err, V2_QPC_BYTE_56_SQ_TX_ERR_S, 0);
@@ -3852,7 +3852,7 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_52_udpspn_dmac, V2_QPC_BYTE_52_DMAC_M,
 		       V2_QPC_BYTE_52_DMAC_S, 0);
 
-	/* mtu*(2^LP_PKTN_INI) should not bigger than 1 message length 64kb */
+	/* mtu*(2^LP_PKTN_INI) should yest bigger than 1 message length 64kb */
 	roce_set_field(context->byte_56_dqpn_err, V2_QPC_BYTE_56_LP_PKTN_INI_M,
 		       V2_QPC_BYTE_56_LP_PKTN_INI_S, 4);
 	roce_set_field(qpc_mask->byte_56_dqpn_err, V2_QPC_BYTE_56_LP_PKTN_INI_M,
@@ -3989,7 +3989,7 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 
 	/*
 	 * Set some fields in context to zero, Because the default values
-	 * of all fields in context are zero, we need not set them to 0 again.
+	 * of all fields in context are zero, we need yest set them to 0 again.
 	 * but we should set the relevant fields of context mask to 0.
 	 */
 	roce_set_field(qpc_mask->byte_232_irrl_sge,
@@ -4105,7 +4105,7 @@ static int hns_roce_v2_set_path(struct ib_qp *ibqp,
 	}
 
 	if (attr->ah_attr.type != RDMA_AH_ATTR_TYPE_ROCE) {
-		dev_err(hr_dev->dev, "ah attr is not RDMA roce type\n");
+		dev_err(hr_dev->dev, "ah attr is yest RDMA roce type\n");
 		return -EINVAL;
 	}
 
@@ -4759,7 +4759,7 @@ static int hns_roce_v2_qp_flow_control_init(struct hns_roce_dev *hr_dev,
 		goto out;
 	}
 
-	/* query scc context clear is done or not */
+	/* query scc context clear is done or yest */
 	resp = (struct hns_roce_sccc_clr_done *)desc.data;
 	for (i = 0; i <= HNS_ROCE_CMQ_SCC_CLR_DONE_CNT; i++) {
 		hns_roce_cmq_setup_basic_desc(&desc,
@@ -4834,7 +4834,7 @@ static void hns_roce_set_qps_to_err(struct hns_roce_dev *hr_dev, u32 qpn)
 
 	hr_qp = __hns_roce_qp_lookup(hr_dev, qpn);
 	if (!hr_qp) {
-		dev_warn(hr_dev->dev, "no hr_qp can be found!\n");
+		dev_warn(hr_dev->dev, "yes hr_qp can be found!\n");
 		return;
 	}
 
@@ -5187,7 +5187,7 @@ static irqreturn_t hns_roce_v2_msix_interrupt_eq(int irq, void *eq_ptr)
 		/* Completion event interrupt */
 		int_work = hns_roce_v2_ceq_int(hr_dev, eq);
 	else
-		/* Asychronous event interrupt */
+		/* Asychroyesus event interrupt */
 		int_work = hns_roce_v2_aeq_int(hr_dev, eq);
 
 	return IRQ_RETVAL(int_work);
@@ -5201,7 +5201,7 @@ static irqreturn_t hns_roce_v2_msix_interrupt_abn(int irq, void *dev_id)
 	u32 int_st;
 	u32 int_en;
 
-	/* Abnormal interrupt */
+	/* Abyesrmal interrupt */
 	int_st = roce_read(hr_dev, ROCEE_VF_ABN_INT_ST_REG);
 	int_en = roce_read(hr_dev, ROCEE_VF_ABN_INT_EN_REG);
 
@@ -5247,7 +5247,7 @@ static irqreturn_t hns_roce_v2_msix_interrupt_abn(int irq, void *dev_id)
 
 		int_work = 1;
 	} else
-		dev_err(dev, "There is no abnormal irq found!\n");
+		dev_err(dev, "There is yes abyesrmal irq found!\n");
 
 	return IRQ_RETVAL(int_work);
 }
@@ -5396,7 +5396,7 @@ static void hns_roce_config_eqc(struct hns_roce_dev *hr_dev,
 	eq->doorbell = hr_dev->reg_base + ROCEE_VF_EQ_DB_CFG0_REG;
 	eq->hop_num = hr_dev->caps.eqe_hop_num;
 	eq->cons_index = 0;
-	eq->over_ignore = HNS_ROCE_V2_EQ_OVER_IGNORE_0;
+	eq->over_igyesre = HNS_ROCE_V2_EQ_OVER_IGNORE_0;
 	eq->coalesce = HNS_ROCE_V2_EQ_COALESCE_0;
 	eq->arm_st = HNS_ROCE_V2_EQ_ALWAYS_ARMED;
 	eq->eqe_ba_pg_sz = hr_dev->caps.eqe_ba_pg_sz;
@@ -5419,10 +5419,10 @@ static void hns_roce_config_eqc(struct hns_roce_dev *hr_dev,
 		       HNS_ROCE_EQC_HOP_NUM_M,
 		       HNS_ROCE_EQC_HOP_NUM_S, eq->hop_num);
 
-	/* set eqc over_ignore */
+	/* set eqc over_igyesre */
 	roce_set_field(eqc->byte_4,
 		       HNS_ROCE_EQC_OVER_IGNORE_M,
-		       HNS_ROCE_EQC_OVER_IGNORE_S, eq->over_ignore);
+		       HNS_ROCE_EQC_OVER_IGNORE_S, eq->over_igyesre);
 
 	/* set eqc coalesce */
 	roce_set_field(eqc->byte_4,
@@ -5826,7 +5826,7 @@ static int __hns_roce_request_irq(struct hns_roce_dev *hr_dev, int irq_num,
 		}
 	}
 
-	/* irq contains: abnormal + AEQ + CEQ */
+	/* irq contains: abyesrmal + AEQ + CEQ */
 	for (j = 0; j < other_num; j++)
 		snprintf((char *)hr_dev->irq_names[j],
 			 HNS_ROCE_INT_NAME_LEN, "hns-abn-%d", j);
@@ -6311,7 +6311,7 @@ static const struct ib_device_ops hns_roce_v2_dev_ops = {
 	.post_recv = hns_roce_v2_post_recv,
 	.post_send = hns_roce_v2_post_send,
 	.query_qp = hns_roce_v2_query_qp,
-	.req_notify_cq = hns_roce_v2_req_notify_cq,
+	.req_yestify_cq = hns_roce_v2_req_yestify_cq,
 };
 
 static const struct ib_device_ops hns_roce_v2_dev_srq_ops = {
@@ -6345,7 +6345,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.modify_cq = hns_roce_v2_modify_cq,
 	.post_send = hns_roce_v2_post_send,
 	.post_recv = hns_roce_v2_post_recv,
-	.req_notify_cq = hns_roce_v2_req_notify_cq,
+	.req_yestify_cq = hns_roce_v2_req_yestify_cq,
 	.poll_cq = hns_roce_v2_poll_cq,
 	.init_eq = hns_roce_v2_init_eq_table,
 	.cleanup_eq = hns_roce_v2_cleanup_eq_table,
@@ -6388,7 +6388,7 @@ static void hns_roce_hw_v2_get_cfg(struct hns_roce_dev *hr_dev,
 	hr_dev->iboe.netdevs[0] = handle->rinfo.netdev;
 	hr_dev->iboe.phy_port[0] = 0;
 
-	addrconf_addr_eui48((u8 *)&hr_dev->ib_dev.node_guid,
+	addrconf_addr_eui48((u8 *)&hr_dev->ib_dev.yesde_guid,
 			    hr_dev->iboe.netdevs[0]->dev_addr);
 
 	for (i = 0; i < HNS_ROCE_V2_MAX_IRQ_NUM; i++)
@@ -6506,7 +6506,7 @@ static void hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 
 	handle->rinfo.instance_state = HNS_ROCE_STATE_NON_INIT;
 }
-static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
+static int hns_roce_hw_v2_reset_yestify_down(struct hnae3_handle *handle)
 {
 	struct hns_roce_dev *hr_dev;
 	struct ib_event event;
@@ -6535,7 +6535,7 @@ static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
 	return 0;
 }
 
-static int hns_roce_hw_v2_reset_notify_init(struct hnae3_handle *handle)
+static int hns_roce_hw_v2_reset_yestify_init(struct hnae3_handle *handle)
 {
 	struct device *dev = &handle->pdev->dev;
 	int ret;
@@ -6551,7 +6551,7 @@ static int hns_roce_hw_v2_reset_notify_init(struct hnae3_handle *handle)
 	dev_info(&handle->pdev->dev, "In reset process RoCE client reinit.\n");
 	ret = __hns_roce_hw_v2_init_instance(handle);
 	if (ret) {
-		/* when reset notify type is HNAE3_INIT_CLIENT In reset notify
+		/* when reset yestify type is HNAE3_INIT_CLIENT In reset yestify
 		 * callback function, RoCE Engine reinitialize. If RoCE reinit
 		 * failed, we should inform NIC driver.
 		 */
@@ -6565,7 +6565,7 @@ static int hns_roce_hw_v2_reset_notify_init(struct hnae3_handle *handle)
 	return ret;
 }
 
-static int hns_roce_hw_v2_reset_notify_uninit(struct hnae3_handle *handle)
+static int hns_roce_hw_v2_reset_yestify_uninit(struct hnae3_handle *handle)
 {
 	if (test_bit(HNS_ROCE_RST_DIRECT_RETURN, &handle->rinfo.state))
 		return 0;
@@ -6578,20 +6578,20 @@ static int hns_roce_hw_v2_reset_notify_uninit(struct hnae3_handle *handle)
 	return 0;
 }
 
-static int hns_roce_hw_v2_reset_notify(struct hnae3_handle *handle,
-				       enum hnae3_reset_notify_type type)
+static int hns_roce_hw_v2_reset_yestify(struct hnae3_handle *handle,
+				       enum hnae3_reset_yestify_type type)
 {
 	int ret = 0;
 
 	switch (type) {
 	case HNAE3_DOWN_CLIENT:
-		ret = hns_roce_hw_v2_reset_notify_down(handle);
+		ret = hns_roce_hw_v2_reset_yestify_down(handle);
 		break;
 	case HNAE3_INIT_CLIENT:
-		ret = hns_roce_hw_v2_reset_notify_init(handle);
+		ret = hns_roce_hw_v2_reset_yestify_init(handle);
 		break;
 	case HNAE3_UNINIT_CLIENT:
-		ret = hns_roce_hw_v2_reset_notify_uninit(handle);
+		ret = hns_roce_hw_v2_reset_yestify_uninit(handle);
 		break;
 	default:
 		break;
@@ -6603,7 +6603,7 @@ static int hns_roce_hw_v2_reset_notify(struct hnae3_handle *handle,
 static const struct hnae3_client_ops hns_roce_hw_v2_ops = {
 	.init_instance = hns_roce_hw_v2_init_instance,
 	.uninit_instance = hns_roce_hw_v2_uninit_instance,
-	.reset_notify = hns_roce_hw_v2_reset_notify,
+	.reset_yestify = hns_roce_hw_v2_reset_yestify,
 };
 
 static struct hnae3_client hns_roce_hw_v2_client = {

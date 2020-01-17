@@ -73,7 +73,7 @@ static int userio_device_write(struct serio *id, unsigned char val)
 	return 0;
 }
 
-static int userio_char_open(struct inode *inode, struct file *file)
+static int userio_char_open(struct iyesde *iyesde, struct file *file)
 {
 	struct userio_device *userio;
 
@@ -99,7 +99,7 @@ static int userio_char_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int userio_char_release(struct inode *inode, struct file *file)
+static int userio_char_release(struct iyesde *iyesde, struct file *file)
 {
 	struct userio_device *userio = file->private_data;
 
@@ -123,24 +123,24 @@ static ssize_t userio_char_read(struct file *file, char __user *user_buffer,
 {
 	struct userio_device *userio = file->private_data;
 	int error;
-	size_t nonwrap_len, copylen;
+	size_t yesnwrap_len, copylen;
 	unsigned char buf[USERIO_BUFSIZE];
 	unsigned long flags;
 
 	/*
 	 * By the time we get here, the data that was waiting might have
-	 * been taken by another thread. Grab the buffer lock and check if
+	 * been taken by ayesther thread. Grab the buffer lock and check if
 	 * there's still any data waiting, otherwise repeat this process
-	 * until we have data (unless the file descriptor is non-blocking
+	 * until we have data (unless the file descriptor is yesn-blocking
 	 * of course).
 	 */
 	for (;;) {
 		spin_lock_irqsave(&userio->buf_lock, flags);
 
-		nonwrap_len = CIRC_CNT_TO_END(userio->head,
+		yesnwrap_len = CIRC_CNT_TO_END(userio->head,
 					      userio->tail,
 					      USERIO_BUFSIZE);
-		copylen = min(nonwrap_len, count);
+		copylen = min(yesnwrap_len, count);
 		if (copylen) {
 			memcpy(buf, &userio->buf[userio->tail], copylen);
 			userio->tail = (userio->tail + copylen) %
@@ -149,7 +149,7 @@ static ssize_t userio_char_read(struct file *file, char __user *user_buffer,
 
 		spin_unlock_irqrestore(&userio->buf_lock, flags);
 
-		if (nonwrap_len)
+		if (yesnwrap_len)
 			break;
 
 		/* buffer was/is empty */
@@ -157,7 +157,7 @@ static ssize_t userio_char_read(struct file *file, char __user *user_buffer,
 			return -EAGAIN;
 
 		/*
-		 * count == 0 is special - no IO is done but we check
+		 * count == 0 is special - yes IO is done but we check
 		 * for error conditions (see above).
 		 */
 		if (count == 0)
@@ -267,12 +267,12 @@ static const struct file_operations userio_fops = {
 	.read		= userio_char_read,
 	.write		= userio_char_write,
 	.poll		= userio_char_poll,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice userio_misc = {
 	.fops	= &userio_fops,
-	.minor	= USERIO_MINOR,
+	.miyesr	= USERIO_MINOR,
 	.name	= USERIO_NAME,
 };
 module_driver(userio_misc, misc_register, misc_deregister);

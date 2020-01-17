@@ -86,7 +86,7 @@ struct auxtrace_record
 	}
 
 	if (found_etm && found_spe) {
-		pr_err("Concurrent ARM Coresight ETM and SPE operation not currently supported\n");
+		pr_err("Concurrent ARM Coresight ETM and SPE operation yest currently supported\n");
 		*err = -EOPNOTSUPP;
 		return NULL;
 	}

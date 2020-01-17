@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * include/linux/nfsd/export.h
  * 
@@ -38,7 +38,7 @@
 #define NFSEXP_NOHIDE		0x0200
 #define NFSEXP_NOSUBTREECHECK	0x0400
 #define	NFSEXP_NOAUTHNLM	0x0800		/* Don't authenticate NLM requests - just trust */
-#define NFSEXP_MSNFS		0x1000	/* do silly things that MS clients expect; no longer supported */
+#define NFSEXP_MSNFS		0x1000	/* do silly things that MS clients expect; yes longer supported */
 #define NFSEXP_FSID		0x2000
 #define	NFSEXP_CROSSMOUNT	0x4000
 #define	NFSEXP_NOACL		0x8000	/* reserved for possible ACL related use */
@@ -46,7 +46,7 @@
  * The NFSEXP_V4ROOT flag causes the kernel to give access only to NFSv4
  * clients, and only to the single directory that is the root of the
  * export; further lookup and readdir operations are treated as if every
- * subdirectory was a mountpoint, and ignored if they are not themselves
+ * subdirectory was a mountpoint, and igyesred if they are yest themselves
  * exported.  This is used by nfsd and mountd to construct the NFSv4
  * pseudofilesystem, which provides access only to paths leading to each
  * exported filesystem.

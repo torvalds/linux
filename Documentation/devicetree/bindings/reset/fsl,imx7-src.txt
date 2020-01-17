@@ -28,8 +28,8 @@ Specifying reset lines connected to IP modules
 ==============================================
 
 The system reset controller can be used to reset various set of
-peripherals. Device nodes that need access to reset lines should
-specify them as a reset phandle in their corresponding node as
+peripherals. Device yesdes that need access to reset lines should
+specify them as a reset phandle in their corresponding yesde as
 specified in reset.txt.
 
 Example:

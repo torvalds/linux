@@ -7,7 +7,7 @@ Required properties:
 Optional properties:
   - nuvoton,vldo: Internal reference voltage in millivolts to be
     configured valid values are between 2400 mV and 4500 mV.
-  - interrupts: IRQ line for the ADC. If not used the driver will use
+  - interrupts: IRQ line for the ADC. If yest used the driver will use
     polling.
 
 Example:

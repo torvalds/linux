@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005-2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005-2017 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
  * Copyright (c) 2005 PathScale, Inc. All rights reserved.
  *
@@ -16,11 +16,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -59,13 +59,13 @@ int uobj_destroy(struct ib_uobject *uobj, struct uverbs_attr_bundle *attrs);
 void uverbs_uobject_get(struct ib_uobject *uobject);
 
 /*
- * In order to indicate we no longer needs this uobject, uverbs_uobject_put
+ * In order to indicate we yes longer needs this uobject, uverbs_uobject_put
  * is called. When the reference count is decreased, the uobject is freed.
  * For example, this is used when attaching a completion channel to a CQ.
  */
 void uverbs_uobject_put(struct ib_uobject *uobject);
 
-/* Indicate this fd is no longer used by this consumer, but its memory isn't
+/* Indicate this fd is yes longer used by this consumer, but its memory isn't
  * necessarily released yet. When the last reference is put, we release the
  * memory. After this call is executed, calling uverbs_uobject_get isn't
  * allowed.
@@ -97,7 +97,7 @@ uverbs_get_uobject_from_file(u16 object_id, enum uverbs_obj_access access,
  * a commit action and a destroy action or two destroy objects in the same
  * action. The rule of thumb is to have one destroy or commit action with
  * multiple lookups.
- * The first non zero return value of finalize_object is returned from this
+ * The first yesn zero return value of finalize_object is returned from this
  * function. For example, this could happen when we couldn't destroy an
  * object.
  */
@@ -155,7 +155,7 @@ struct uverbs_api {
 
 	unsigned int num_write;
 	unsigned int num_write_ex;
-	struct uverbs_api_write_method notsupp_method;
+	struct uverbs_api_write_method yestsupp_method;
 	const struct uverbs_api_write_method **write_methods;
 	const struct uverbs_api_write_method **write_ex_methods;
 };

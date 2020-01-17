@@ -12,7 +12,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/stddef.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
@@ -233,7 +233,7 @@ uec_set_ringparam(struct net_device *netdev,
 	int queue = 0, ret = 0;
 
 	if (ring->rx_pending < UCC_GETH_RX_BD_RING_SIZE_MIN) {
-		netdev_info(netdev, "RxBD ring size must be no smaller than %d\n",
+		netdev_info(netdev, "RxBD ring size must be yes smaller than %d\n",
 			    UCC_GETH_RX_BD_RING_SIZE_MIN);
 		return -EINVAL;
 	}
@@ -243,7 +243,7 @@ uec_set_ringparam(struct net_device *netdev,
 		return -EINVAL;
 	}
 	if (ring->tx_pending < UCC_GETH_TX_BD_RING_SIZE_MIN) {
-		netdev_info(netdev, "TxBD ring size must be no smaller than %d\n",
+		netdev_info(netdev, "TxBD ring size must be yes smaller than %d\n",
 			    UCC_GETH_TX_BD_RING_SIZE_MIN);
 		return -EINVAL;
 	}

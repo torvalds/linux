@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    driver for Microsemi PQI-based storage controllers
- *    Copyright (c) 2019 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2019 Microchip Techyeslogy Inc. and its subsidiaries
  *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
@@ -9,7 +9,7 @@
  *
  */
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 #if !defined(_SMARTPQI_H)
 #define _SMARTPQI_H
@@ -125,7 +125,7 @@ struct pqi_sg_descriptor {
 struct pqi_iu_header {
 	u8	iu_type;
 	u8	reserved;
-	__le16	iu_length;	/* in bytes - does not include the length */
+	__le16	iu_length;	/* in bytes - does yest include the length */
 				/* of this header */
 	__le16	response_queue_id;	/* specifies the OQ where the */
 					/*   response IU is to be delivered */
@@ -359,7 +359,7 @@ struct pqi_event_response {
 	struct pqi_iu_header header;
 	u8	event_type;
 	u8	reserved2 : 7;
-	u8	request_acknowlege : 1;
+	u8	request_ackyeswlege : 1;
 	__le16	event_id;
 	__le32	additional_event_id;
 	union {
@@ -375,7 +375,7 @@ struct pqi_event_response {
 	} data;
 };
 
-struct pqi_event_acknowledge_request {
+struct pqi_event_ackyeswledge_request {
 	struct pqi_iu_header header;
 	u8	event_type;
 	u8	reserved2;
@@ -1003,12 +1003,12 @@ struct ciss_vpd_logical_volume_status {
 #define CISS_LV_DISABLED_SCSI_ID_CONFLICT		13
 #define CISS_LV_EJECTED					14
 #define CISS_LV_UNDERGOING_ERASE			15
-/* state 16 not used */
+/* state 16 yest used */
 #define CISS_LV_READY_FOR_PREDICTIVE_SPARE_REBUILD	17
 #define CISS_LV_UNDERGOING_RPI				18
 #define CISS_LV_PENDING_RPI				19
 #define CISS_LV_ENCRYPTED_NO_KEY			20
-/* state 21 not used */
+/* state 21 yest used */
 #define CISS_LV_UNDERGOING_ENCRYPTION			22
 #define CISS_LV_UNDERGOING_ENCRYPTION_REKEYING		23
 #define CISS_LV_ENCRYPTED_IN_NON_ENCRYPTED_CONTROLLER	24
@@ -1018,11 +1018,11 @@ struct ciss_vpd_logical_volume_status {
 #define CISS_LV_STATUS_UNAVAILABLE			255
 
 /* constants for flags field of ciss_vpd_logical_volume_status */
-#define CISS_LV_FLAGS_NO_HOST_IO	0x1	/* volume not available for */
+#define CISS_LV_FLAGS_NO_HOST_IO	0x1	/* volume yest available for */
 						/* host I/O */
 
 /* for SAS hosts and SAS expanders */
-struct pqi_sas_node {
+struct pqi_sas_yesde {
 	struct device *parent_dev;
 	struct list_head port_list_head;
 };
@@ -1034,7 +1034,7 @@ struct pqi_sas_port {
 	struct sas_port *port;
 	int	next_phy_index;
 	struct list_head phy_list_head;
-	struct pqi_sas_node *parent_node;
+	struct pqi_sas_yesde *parent_yesde;
 	struct sas_rphy *rphy;
 };
 
@@ -1154,7 +1154,7 @@ struct pqi_ctrl_info {
 	struct delayed_work rescan_work;
 	struct delayed_work update_time_work;
 
-	struct pqi_sas_node *sas_host;
+	struct pqi_sas_yesde *sas_host;
 	u64		sas_address;
 
 	struct pqi_io_request *io_request_pool;
@@ -1268,7 +1268,7 @@ struct bmic_identify_physical_device {
 	u8	serial_number[40];	/* Drive Serial Number */
 	u8	firmware_revision[8];	/* drive firmware revision */
 	u8	scsi_inquiry_bits;	/* inquiry byte 7 bits */
-	u8	compaq_drive_stamp;	/* 0 means drive not stamped */
+	u8	compaq_drive_stamp;	/* 0 means drive yest stamped */
 	u8	last_failure_reason;
 	u8	flags;
 	u8	more_flags;
@@ -1427,7 +1427,7 @@ void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 
 int pqi_add_sas_host(struct Scsi_Host *shost, struct pqi_ctrl_info *ctrl_info);
 void pqi_delete_sas_host(struct pqi_ctrl_info *ctrl_info);
-int pqi_add_sas_device(struct pqi_sas_node *pqi_sas_node,
+int pqi_add_sas_device(struct pqi_sas_yesde *pqi_sas_yesde,
 	struct pqi_scsi_dev *device);
 void pqi_remove_sas_device(struct pqi_scsi_dev *device);
 struct pqi_scsi_dev *pqi_find_device_by_sas_rphy(

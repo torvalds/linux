@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -26,15 +26,15 @@
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_dma.h"
 #include "nv10_fence.h"
 
 int
-nv17_fence_sync(struct nouveau_fence *fence,
-		struct nouveau_channel *prev, struct nouveau_channel *chan)
+nv17_fence_sync(struct yesuveau_fence *fence,
+		struct yesuveau_channel *prev, struct yesuveau_channel *chan)
 {
-	struct nouveau_cli *cli = (void *)prev->user.client;
+	struct yesuveau_cli *cli = (void *)prev->user.client;
 	struct nv10_fence_priv *priv = chan->drm->fence;
 	struct nv10_fence_chan *fctx = chan->fence;
 	u32 value;
@@ -72,7 +72,7 @@ nv17_fence_sync(struct nouveau_fence *fence,
 }
 
 static int
-nv17_fence_context_new(struct nouveau_channel *chan)
+nv17_fence_context_new(struct yesuveau_channel *chan)
 {
 	struct nv10_fence_priv *priv = chan->drm->fence;
 	struct nv10_fence_chan *fctx;
@@ -85,7 +85,7 @@ nv17_fence_context_new(struct nouveau_channel *chan)
 	if (!fctx)
 		return -ENOMEM;
 
-	nouveau_fence_context_new(chan, &fctx->base);
+	yesuveau_fence_context_new(chan, &fctx->base);
 	fctx->base.emit = nv10_fence_emit;
 	fctx->base.read = nv10_fence_read;
 	fctx->base.sync = nv17_fence_sync;
@@ -104,15 +104,15 @@ nv17_fence_context_new(struct nouveau_channel *chan)
 }
 
 void
-nv17_fence_resume(struct nouveau_drm *drm)
+nv17_fence_resume(struct yesuveau_drm *drm)
 {
 	struct nv10_fence_priv *priv = drm->fence;
 
-	nouveau_bo_wr32(priv->bo, 0, priv->sequence);
+	yesuveau_bo_wr32(priv->bo, 0, priv->sequence);
 }
 
 int
-nv17_fence_create(struct nouveau_drm *drm)
+nv17_fence_create(struct yesuveau_drm *drm)
 {
 	struct nv10_fence_priv *priv;
 	int ret = 0;
@@ -127,17 +127,17 @@ nv17_fence_create(struct nouveau_drm *drm)
 	priv->base.context_del = nv10_fence_context_del;
 	spin_lock_init(&priv->lock);
 
-	ret = nouveau_bo_new(&drm->client, 4096, 0x1000, TTM_PL_FLAG_VRAM,
+	ret = yesuveau_bo_new(&drm->client, 4096, 0x1000, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, NULL, &priv->bo);
 	if (!ret) {
-		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM, false);
+		ret = yesuveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM, false);
 		if (!ret) {
-			ret = nouveau_bo_map(priv->bo);
+			ret = yesuveau_bo_map(priv->bo);
 			if (ret)
-				nouveau_bo_unpin(priv->bo);
+				yesuveau_bo_unpin(priv->bo);
 		}
 		if (ret)
-			nouveau_bo_ref(NULL, &priv->bo);
+			yesuveau_bo_ref(NULL, &priv->bo);
 	}
 
 	if (ret) {
@@ -145,6 +145,6 @@ nv17_fence_create(struct nouveau_drm *drm)
 		return ret;
 	}
 
-	nouveau_bo_wr32(priv->bo, 0x000, 0x00000000);
+	yesuveau_bo_wr32(priv->bo, 0x000, 0x00000000);
 	return ret;
 }

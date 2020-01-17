@@ -15,7 +15,7 @@
 
 #ifndef __ASSEMBLY__
 
-static inline notrace unsigned long arch_local_save_flags(void)
+static inline yestrace unsigned long arch_local_save_flags(void)
 {
 	unsigned long flags;
 
@@ -27,47 +27,47 @@ static inline notrace unsigned long arch_local_save_flags(void)
 	return flags;
 }
 
-static inline notrace void arch_local_irq_restore(unsigned long flags)
+static inline yestrace void arch_local_irq_restore(unsigned long flags)
 {
 	__asm__ __volatile__(
 		"wrpr	%0, %%pil"
-		: /* no output */
+		: /* yes output */
 		: "r" (flags)
 		: "memory"
 	);
 }
 
-static inline notrace void arch_local_irq_disable(void)
+static inline yestrace void arch_local_irq_disable(void)
 {
 	__asm__ __volatile__(
 		"wrpr	%0, %%pil"
-		: /* no outputs */
+		: /* yes outputs */
 		: "i" (PIL_NORMAL_MAX)
 		: "memory"
 	);
 }
 
-static inline notrace void arch_local_irq_enable(void)
+static inline yestrace void arch_local_irq_enable(void)
 {
 	__asm__ __volatile__(
 		"wrpr	0, %%pil"
-		: /* no outputs */
-		: /* no inputs */
+		: /* yes outputs */
+		: /* yes inputs */
 		: "memory"
 	);
 }
 
-static inline notrace int arch_irqs_disabled_flags(unsigned long flags)
+static inline yestrace int arch_irqs_disabled_flags(unsigned long flags)
 {
 	return (flags > 0);
 }
 
-static inline notrace int arch_irqs_disabled(void)
+static inline yestrace int arch_irqs_disabled(void)
 {
 	return arch_irqs_disabled_flags(arch_local_save_flags());
 }
 
-static inline notrace unsigned long arch_local_irq_save(void)
+static inline yestrace unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags, tmp;
 

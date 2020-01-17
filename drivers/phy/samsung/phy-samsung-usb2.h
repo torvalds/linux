@@ -62,9 +62,9 @@ struct samsung_usb2_phy_config {
 	bool has_refclk_sel;
 };
 
-extern const struct samsung_usb2_phy_config exynos3250_usb2_phy_config;
-extern const struct samsung_usb2_phy_config exynos4210_usb2_phy_config;
-extern const struct samsung_usb2_phy_config exynos4x12_usb2_phy_config;
-extern const struct samsung_usb2_phy_config exynos5250_usb2_phy_config;
+extern const struct samsung_usb2_phy_config exyyess3250_usb2_phy_config;
+extern const struct samsung_usb2_phy_config exyyess4210_usb2_phy_config;
+extern const struct samsung_usb2_phy_config exyyess4x12_usb2_phy_config;
+extern const struct samsung_usb2_phy_config exyyess5250_usb2_phy_config;
 extern const struct samsung_usb2_phy_config s5pv210_usb2_phy_config;
 #endif

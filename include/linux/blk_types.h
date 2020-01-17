@@ -21,7 +21,7 @@ typedef void (bio_end_io_t) (struct bio *);
 
 /*
  * Block error status values.  See block/blk-core:blk_errors for the details.
- * Alpha cannot write a byte atomically, so we need to use 32-bit value.
+ * Alpha canyest write a byte atomically, so we need to use 32-bit value.
  */
 #if defined(CONFIG_ALPHA) && !defined(__alpha_bwx__)
 typedef u32 __bitwise blk_status_t;
@@ -51,13 +51,13 @@ typedef u8 __bitwise blk_status_t;
  * that the queue will be rerun in the future once resources become
  * available again. This is typically the case for device specific
  * resources that are consumed for IO. If the driver fails allocating these
- * resources, we know that inflight (or pending) IO will free these
+ * resources, we kyesw that inflight (or pending) IO will free these
  * resource upon completion.
  *
  * This is different from BLK_STS_RESOURCE in that it explicitly references
  * a device specific resource. For resources of wider scope, allocation
  * failure can happen without having pending IO. This means that we can't
- * rely on request completions freeing these resources, as IO may not be in
+ * rely on request completions freeing these resources, as IO may yest be in
  * flight. Examples of that are kernel memory allocations, DMA mappings, or
  * any other system wide resources.
  */
@@ -68,11 +68,11 @@ typedef u8 __bitwise blk_status_t;
  * @error: status the request was completed with
  *
  * Description:
- *     This classifies block error status into non-retryable errors and ones
+ *     This classifies block error status into yesn-retryable errors and ones
  *     that may be successful if retried on a failover path.
  *
  * Return:
- *     %false - retrying failover path will not help
+ *     %false - retrying failover path will yest help
  *     %true  - may succeed if retried
  */
 static inline bool blk_path_error(blk_status_t error)
@@ -152,7 +152,7 @@ struct bio {
 	unsigned short		bi_ioprio;
 	unsigned short		bi_write_hint;
 	blk_status_t		bi_status;
-	u8			bi_partno;
+	u8			bi_partyes;
 	atomic_t		__bi_remaining;
 
 	struct bvec_iter	bi_iter;
@@ -163,8 +163,8 @@ struct bio {
 #ifdef CONFIG_BLK_CGROUP
 	/*
 	 * Represents the association of the css and request_queue for the bio.
-	 * If a bio goes direct to device, it will not have a blkg as it will
-	 * not have a request_queue associated with it.  The reference is put
+	 * If a bio goes direct to device, it will yest have a blkg as it will
+	 * yest have a request_queue associated with it.  The reference is put
 	 * on release of the bio.
 	 */
 	struct blkcg_gq		*bi_blkg;
@@ -236,7 +236,7 @@ enum {
 
 /*
  * Top 3 bits of bio flags indicate the pool the bvecs came from.  We add
- * 1 to the actual index so that 0 indicates that there are no bvecs to be
+ * 1 to the actual index so that 0 indicates that there are yes bvecs to be
  * freed.
  */
 #define BVEC_POOL_BITS		(3)
@@ -262,9 +262,9 @@ typedef __u32 __bitwise blk_mq_req_flags_t;
  * transfer direction:
  *
  *   - if the least significant bit is set transfers are TO the device
- *   - if the least significant bit is not set transfers are FROM the device
+ *   - if the least significant bit is yest set transfers are FROM the device
  *
- * If a operation does not transfer data the least significant bit has no
+ * If a operation does yest transfer data the least significant bit has yes
  * meaning.
  */
 #define REQ_OP_BITS	8
@@ -308,10 +308,10 @@ enum req_opf {
 };
 
 enum req_flag_bits {
-	__REQ_FAILFAST_DEV =	/* no driver retries of device errors */
+	__REQ_FAILFAST_DEV =	/* yes driver retries of device errors */
 		REQ_OP_BITS,
-	__REQ_FAILFAST_TRANSPORT, /* no driver retries of transport errors */
-	__REQ_FAILFAST_DRIVER,	/* no driver retries of driver errors */
+	__REQ_FAILFAST_TRANSPORT, /* yes driver retries of transport errors */
+	__REQ_FAILFAST_DRIVER,	/* yes driver retries of driver errors */
 	__REQ_SYNC,		/* request is sync (sync write or read) */
 	__REQ_META,		/* metadata io request */
 	__REQ_PRIO,		/* boost priority in cfq */
@@ -326,7 +326,7 @@ enum req_flag_bits {
 	__REQ_NOWAIT_INLINE,	/* Return would-block error inline */
 	/*
 	 * When a shared kthread needs to issue a bio for a cgroup, doing
-	 * so synchronously can lead to priority inversions as the kthread
+	 * so synchroyesusly can lead to priority inversions as the kthread
 	 * can be trapped waiting for that cgroup.  CGROUP_PUNT flag makes
 	 * submit_bio() punt the actual issuing to a dedicated per-blkcg
 	 * work item to avoid such priority inversions.
@@ -334,7 +334,7 @@ enum req_flag_bits {
 	__REQ_CGROUP_PUNT,
 
 	/* command specific flags for REQ_OP_WRITE_ZEROES: */
-	__REQ_NOUNMAP,		/* do not free blocks when zeroing */
+	__REQ_NOUNMAP,		/* do yest free blocks when zeroing */
 
 	__REQ_HIPRI,
 
@@ -409,8 +409,8 @@ static inline bool op_is_flush(unsigned int op)
 }
 
 /*
- * Reads are always treated as synchronous, as are requests with the FUA or
- * PREFLUSH flag.  Other operations may be marked as synchronous using the
+ * Reads are always treated as synchroyesus, as are requests with the FUA or
+ * PREFLUSH flag.  Other operations may be marked as synchroyesus using the
  * REQ_SYNC flag.
  */
 static inline bool op_is_sync(unsigned int op)

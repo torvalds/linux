@@ -20,15 +20,15 @@
 #define NCR5380_read(reg)           readb(hostdata->io + ((reg) << 2))
 #define NCR5380_write(reg, value)   writeb(value, hostdata->io + ((reg) << 2))
 
-#define NCR5380_dma_xfer_len		NCR5380_dma_xfer_none
+#define NCR5380_dma_xfer_len		NCR5380_dma_xfer_yesne
 #define NCR5380_dma_recv_setup		oakscsi_pread
 #define NCR5380_dma_send_setup		oakscsi_pwrite
-#define NCR5380_dma_residual		NCR5380_dma_residual_none
+#define NCR5380_dma_residual		NCR5380_dma_residual_yesne
 
 #define NCR5380_queue_command		oakscsi_queue_command
 #define NCR5380_info			oakscsi_info
 
-#define NCR5380_implementation_fields	/* none */
+#define NCR5380_implementation_fields	/* yesne */
 
 #include "../NCR5380.h"
 

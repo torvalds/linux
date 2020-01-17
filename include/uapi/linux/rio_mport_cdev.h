@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause) */
 /*
- * Copyright (c) 2015-2016, Integrated Device Technology Inc.
- * Copyright (c) 2015, Prodrive Technologies
+ * Copyright (c) 2015-2016, Integrated Device Techyeslogy Inc.
+ * Copyright (c) 2015, Prodrive Techyeslogies
  * Copyright (c) 2015, Texas Instruments Incorporated
  * Copyright (c) 2015, RapidIO Trade Association
  * All rights reserved.
@@ -13,14 +13,14 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice,
+ * 1. Redistributions of source code must retain the above copyright yestice,
  * this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * 2. Redistributions in binary form must reproduce the above copyright yestice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the copyright holder nor the names of its contributors
+ * 3. Neither the name of the copyright holder yesr the names of its contributors
  * may be used to endorse or promote products derived from this software without
  * specific prior written permission.
  *
@@ -119,7 +119,7 @@ struct rio_pw_filter {
 };
 
 /* RapidIO base address for inbound requests set to value defined below
- * indicates that no specific RIO-to-local address translation is requested
+ * indicates that yes specific RIO-to-local address translation is requested
  * and driver should use direct (one-to-one) address mapping.
 */
 #define RIO_MAP_ANY_ADDR	(__u64)(~((__u64) 0))
@@ -149,8 +149,8 @@ struct rio_event {
 };
 
 enum rio_transfer_sync {
-	RIO_TRANSFER_SYNC,	/* synchronous transfer */
-	RIO_TRANSFER_ASYNC,	/* asynchronous transfer */
+	RIO_TRANSFER_SYNC,	/* synchroyesus transfer */
+	RIO_TRANSFER_ASYNC,	/* asynchroyesus transfer */
 	RIO_TRANSFER_FAF,	/* fire-and-forget transfer */
 };
 
@@ -173,7 +173,7 @@ enum rio_transfer_dir {
  * NWRITE:   write up to 256 bytes from local memory to remote device memory
  *           without confirmation
  * SWRITE:   as NWRITE, but all addresses and payloads must be 64-bit aligned
- * NWRITE_R: as NWRITE, but expect acknowledgment from remote device.
+ * NWRITE_R: as NWRITE, but expect ackyeswledgment from remote device.
  *
  * The default exchange is chosen from NREAD and any of the WRITE modes as the
  * driver sees fit. For write requests the user can explicitly choose between

@@ -1,6 +1,6 @@
 UniPhier watchdog timer controller
 
-This UniPhier watchdog timer controller must be under sysctrl node.
+This UniPhier watchdog timer controller must be under sysctrl yesde.
 
 Required properties:
 - compatible: should be "socionext,uniphier-wdt"
@@ -16,5 +16,5 @@ Example:
 			compatible = "socionext,uniphier-wdt";
 		}
 
-		other nodes ...
+		other yesdes ...
 	};

@@ -20,14 +20,14 @@
 static u32 *samples;
 
 /* spu_prof_running is a flag used to indicate if spu profiling is enabled
- * or not.  It is set by the routines start_spu_profiling_cycles() and
+ * or yest.  It is set by the routines start_spu_profiling_cycles() and
  * start_spu_profiling_events().  The flag is cleared by the routines
  * stop_spu_profiling_cycles() and stop_spu_profiling_events().  These
  * routines are called via global_start() and global_stop() which are called in
  * op_powerpc_start() and op_powerpc_stop().  These routines are called once
  * per system as a result of the user starting/stopping oprofile.  Hence, only
  * one CPU per user at a time will be changing  the value of spu_prof_running.
- * In general, OProfile does not protect against multiple users trying to run
+ * In general, OProfile does yest protect against multiple users trying to run
  * OProfile at a time.
  */
 int spu_prof_running;
@@ -48,15 +48,15 @@ void set_spu_profiling_frequency(unsigned int freq_khz, unsigned int cycles_rese
 	if (!freq_khz)
 		freq_khz = ppc_proc_freq/1000;
 
-	/* To calculate a timeout in nanoseconds, the basic
+	/* To calculate a timeout in nayesseconds, the basic
 	 * formula is ns = cycles_reset * (NSEC_PER_SEC / cpu frequency).
 	 * To avoid floating point math, we use the scale math
 	 * technique as described in linux/jiffies.h.  We use
 	 * a scale factor of SCALE_SHIFT, which provides 4 decimal places
-	 * of precision.  This is close enough for the purpose at hand.
+	 * of precision.  This is close eyesugh for the purpose at hand.
 	 *
-	 * The value of the timeout should be small enough that the hw
-	 * trace buffer will not get more than about 1/3 full for the
+	 * The value of the timeout should be small eyesugh that the hw
+	 * trace buffer will yest get more than about 1/3 full for the
 	 * maximum user specified (the LFSR value) hw sampling frequency.
 	 * This is to ensure the trace buffer will never fill even if the
 	 * kernel thread scheduling varies under a heavy system load.
@@ -108,7 +108,7 @@ static int cell_spu_pc_collection(int cpu)
 	u32 trace_addr;
 	int entry;
 
-	/* process the collected SPU PC for the node */
+	/* process the collected SPU PC for the yesde */
 
 	entry = 0;
 
@@ -133,7 +133,7 @@ static int cell_spu_pc_collection(int cpu)
 static enum hrtimer_restart profile_spus(struct hrtimer *timer)
 {
 	ktime_t kt;
-	int cpu, node, k, num_samples, spu_num;
+	int cpu, yesde, k, num_samples, spu_num;
 
 	if (!spu_prof_running)
 		goto stop;
@@ -142,7 +142,7 @@ static enum hrtimer_restart profile_spus(struct hrtimer *timer)
 		if (cbe_get_hw_thread_id(cpu))
 			continue;
 
-		node = cbe_cpu_to_node(cpu);
+		yesde = cbe_cpu_to_yesde(cpu);
 
 		/* There should only be one kernel thread at a time processing
 		 * the samples.	 In the very unlikely case that the processing
@@ -150,7 +150,7 @@ static enum hrtimer_restart profile_spus(struct hrtimer *timer)
 		 * started to process the samples.  Make sure only one kernel
 		 * thread is working on the samples array at a time.  The
 		 * sample array must be loaded and then processed for a given
-		 * cpu.	 The sample array is not per cpu.
+		 * cpu.	 The sample array is yest per cpu.
 		 */
 		spin_lock_irqsave(&oprof_spu_smpl_arry_lck,
 				  oprof_spu_smpl_arry_lck_flags);
@@ -163,7 +163,7 @@ static enum hrtimer_restart profile_spus(struct hrtimer *timer)
 		}
 
 		for (k = 0; k < SPUS_PER_NODE; k++) {
-			spu_num = k + (node * SPUS_PER_NODE);
+			spu_num = k + (yesde * SPUS_PER_NODE);
 			spu_sync_buffer(spu_num,
 					samples + (k * TRACE_ARRAY_SIZE),
 					num_samples);
@@ -190,7 +190,7 @@ static enum hrtimer_restart profile_spus(struct hrtimer *timer)
 static struct hrtimer timer;
 /*
  * Entry point for SPU cycle profiling.
- * NOTE:  SPU profiling is done system-wide, not per-CPU.
+ * NOTE:  SPU profiling is done system-wide, yest per-CPU.
  *
  * cycles_reset is the count value specified by the user when
  * setting up OProfile to count SPU_CYCLES.
@@ -221,7 +221,7 @@ int start_spu_profiling_cycles(unsigned int cycles_reset)
 
 /*
  * Entry point for SPU event profiling.
- * NOTE:  SPU profiling is done system-wide, not per-CPU.
+ * NOTE:  SPU profiling is done system-wide, yest per-CPU.
  *
  * cycles_reset is the count value specified by the user when
  * setting up OProfile to count SPU_CYCLES.

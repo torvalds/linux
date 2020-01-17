@@ -23,7 +23,7 @@ static unsigned long			xo15_sci_gpe;
 static bool				lid_wake_on_close;
 
 /*
- * The normal ACPI LID wakeup behavior is wake-on-open, but not
+ * The yesrmal ACPI LID wakeup behavior is wake-on-open, but yest
  * wake-on-close. This is implemented as standard by the XO-1.5 DSDT.
  *
  * We provide here a sysfs attribute that will additionally enable

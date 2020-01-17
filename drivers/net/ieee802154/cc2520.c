@@ -560,7 +560,7 @@ static int cc2520_rx(struct cc2520_private *priv)
 	}
 
 	/* In promiscuous mode, we configure the radio to include the
-	 * CRC (AUTOCRC==0) and we pass on the packet unconditionally. If not
+	 * CRC (AUTOCRC==0) and we pass on the packet unconditionally. If yest
 	 * in promiscuous mode, we check the CRC here, but leave the
 	 * RSSI/LQI/CRC_OK bytes as they will get removed in the mac layer.
 	 */
@@ -585,7 +585,7 @@ static int cc2520_rx(struct cc2520_private *priv)
 		 * the range 0-255. According to section 20.6, the correlation
 		 * value ranges from 50-110. Ideally this would be calibrated
 		 * per hardware design, but we use roughly the datasheet values
-		 * to get close enough while avoiding floating point.
+		 * to get close eyesugh while avoiding floating point.
 		 */
 		lqi = skb->data[len - 1] & 0x7f;
 		if (lqi < 50)
@@ -914,7 +914,7 @@ static irqreturn_t cc2520_sfd_isr(int irq, void *data)
 static int cc2520_get_platform_data(struct spi_device *spi,
 				    struct cc2520_platform_data *pdata)
 {
-	struct device_node *np = spi->dev.of_node;
+	struct device_yesde *np = spi->dev.of_yesde;
 	struct cc2520_private *priv = spi_get_drvdata(spi);
 
 	if (!np) {
@@ -979,7 +979,7 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 	/* If the CC2520 is connected to a CC2591 amplifier, we must both
 	 * configure GPIOs on the CC2520 to correctly configure the CC2591
 	 * and change a couple settings of the CC2520 to work with the
-	 * amplifier. See section 8 page 17 of TI application note AN065.
+	 * amplifier. See section 8 page 17 of TI application yeste AN065.
 	 * http://www.ti.com/lit/an/swra229a/swra229a.pdf
 	 */
 	if (priv->amplified) {
@@ -1081,7 +1081,7 @@ static int cc2520_probe(struct spi_device *spi)
 
 	ret = cc2520_get_platform_data(spi, &pdata);
 	if (ret < 0) {
-		dev_err(&spi->dev, "no platform data\n");
+		dev_err(&spi->dev, "yes platform data\n");
 		return -EINVAL;
 	}
 
@@ -1097,12 +1097,12 @@ static int cc2520_probe(struct spi_device *spi)
 	spin_lock_init(&priv->lock);
 	init_completion(&priv->tx_complete);
 
-	/* Assumption that CC2591 is not connected */
+	/* Assumption that CC2591 is yest connected */
 	priv->amplified = false;
 
 	/* Request all the gpio's */
 	if (!gpio_is_valid(pdata.fifo)) {
-		dev_err(&spi->dev, "fifo gpio is not valid\n");
+		dev_err(&spi->dev, "fifo gpio is yest valid\n");
 		ret = -EINVAL;
 		goto err_hw_init;
 	}
@@ -1113,7 +1113,7 @@ static int cc2520_probe(struct spi_device *spi)
 		goto err_hw_init;
 
 	if (!gpio_is_valid(pdata.cca)) {
-		dev_err(&spi->dev, "cca gpio is not valid\n");
+		dev_err(&spi->dev, "cca gpio is yest valid\n");
 		ret = -EINVAL;
 		goto err_hw_init;
 	}
@@ -1124,7 +1124,7 @@ static int cc2520_probe(struct spi_device *spi)
 		goto err_hw_init;
 
 	if (!gpio_is_valid(pdata.fifop)) {
-		dev_err(&spi->dev, "fifop gpio is not valid\n");
+		dev_err(&spi->dev, "fifop gpio is yest valid\n");
 		ret = -EINVAL;
 		goto err_hw_init;
 	}
@@ -1135,7 +1135,7 @@ static int cc2520_probe(struct spi_device *spi)
 		goto err_hw_init;
 
 	if (!gpio_is_valid(pdata.sfd)) {
-		dev_err(&spi->dev, "sfd gpio is not valid\n");
+		dev_err(&spi->dev, "sfd gpio is yest valid\n");
 		ret = -EINVAL;
 		goto err_hw_init;
 	}
@@ -1146,7 +1146,7 @@ static int cc2520_probe(struct spi_device *spi)
 		goto err_hw_init;
 
 	if (!gpio_is_valid(pdata.reset)) {
-		dev_err(&spi->dev, "reset gpio is not valid\n");
+		dev_err(&spi->dev, "reset gpio is yest valid\n");
 		ret = -EINVAL;
 		goto err_hw_init;
 	}
@@ -1157,7 +1157,7 @@ static int cc2520_probe(struct spi_device *spi)
 		goto err_hw_init;
 
 	if (!gpio_is_valid(pdata.vreg)) {
-		dev_err(&spi->dev, "vreg gpio is not valid\n");
+		dev_err(&spi->dev, "vreg gpio is yest valid\n");
 		ret = -EINVAL;
 		goto err_hw_init;
 	}
@@ -1185,7 +1185,7 @@ static int cc2520_probe(struct spi_device *spi)
 			       dev_name(&spi->dev),
 			       priv);
 	if (ret) {
-		dev_err(&spi->dev, "could not get fifop irq\n");
+		dev_err(&spi->dev, "could yest get fifop irq\n");
 		goto err_hw_init;
 	}
 
@@ -1197,7 +1197,7 @@ static int cc2520_probe(struct spi_device *spi)
 			       dev_name(&spi->dev),
 			       priv);
 	if (ret) {
-		dev_err(&spi->dev, "could not get sfd irq\n");
+		dev_err(&spi->dev, "could yest get sfd irq\n");
 		goto err_hw_init;
 	}
 

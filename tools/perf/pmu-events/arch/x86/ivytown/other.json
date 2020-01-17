@@ -22,7 +22,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Unhalted core cycles when the thread is not in ring 0.",
+        "PublicDescription": "Unhalted core cycles when the thread is yest in ring 0.",
         "EventCode": "0x5C",
         "Counter": "0,1,2,3",
         "UMask": "0x2",

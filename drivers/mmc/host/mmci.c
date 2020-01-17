@@ -122,7 +122,7 @@ static struct variant_data variant_u300 = {
 	.f_max			= 100000000,
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
-	.pwrreg_nopower		= true,
+	.pwrreg_yespower		= true,
 	.mmcimask1		= true,
 	.irq_pio_mask		= MCI_IRQ_PIO_MASK,
 	.start_err		= MCI_STARTBITERR,
@@ -130,7 +130,7 @@ static struct variant_data variant_u300 = {
 	.init			= mmci_variant_init,
 };
 
-static struct variant_data variant_nomadik = {
+static struct variant_data variant_yesmadik = {
 	.fifosize		= 16 * 4,
 	.fifohalfsize		= 8 * 4,
 	.clkreg			= MCI_CLK_ENABLE,
@@ -148,7 +148,7 @@ static struct variant_data variant_nomadik = {
 	.f_max			= 100000000,
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
-	.pwrreg_nopower		= true,
+	.pwrreg_yespower		= true,
 	.mmcimask1		= true,
 	.irq_pio_mask		= MCI_IRQ_PIO_MASK,
 	.start_err		= MCI_STARTBITERR,
@@ -180,7 +180,7 @@ static struct variant_data variant_ux500 = {
 	.busy_dpsm_flag		= MCI_DPSM_ST_BUSYMODE,
 	.busy_detect_flag	= MCI_ST_CARDBUSY,
 	.busy_detect_mask	= MCI_ST_BUSYENDMASK,
-	.pwrreg_nopower		= true,
+	.pwrreg_yespower		= true,
 	.mmcimask1		= true,
 	.irq_pio_mask		= MCI_IRQ_PIO_MASK,
 	.start_err		= MCI_STARTBITERR,
@@ -213,7 +213,7 @@ static struct variant_data variant_ux500v2 = {
 	.busy_dpsm_flag		= MCI_DPSM_ST_BUSYMODE,
 	.busy_detect_flag	= MCI_ST_CARDBUSY,
 	.busy_detect_mask	= MCI_ST_BUSYENDMASK,
-	.pwrreg_nopower		= true,
+	.pwrreg_yespower		= true,
 	.mmcimask1		= true,
 	.irq_pio_mask		= MCI_IRQ_PIO_MASK,
 	.start_err		= MCI_STARTBITERR,
@@ -241,7 +241,7 @@ static struct variant_data variant_stm32 = {
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.f_max			= 48000000,
 	.pwrreg_clkgate		= true,
-	.pwrreg_nopower		= true,
+	.pwrreg_yespower		= true,
 	.init			= mmci_variant_init,
 };
 
@@ -679,7 +679,7 @@ static bool ux500_busy_complete(struct mmci_host *host, u32 status, u32 err_msk)
 /*
  * All the DMA operation mode stuff goes inside this ifdef.
  * This assumes that you have a generic DMA device interface,
- * no custom DMA interfaces are supported.
+ * yes custom DMA interfaces are supported.
  */
 #ifdef CONFIG_DMA_ENGINE
 struct mmci_dmae_next {
@@ -714,7 +714,7 @@ int mmci_dmae_setup(struct mmci_host *host)
 	/*
 	 * If only an RX channel is specified, the driver will
 	 * attempt to use it bidirectionally, however if it is
-	 * is specified but cannot be located, DMA will be disabled.
+	 * is specified but canyest be located, DMA will be disabled.
 	 */
 	if (dmae->rx_channel && !dmae->tx_channel)
 		dmae->tx_channel = dmae->rx_channel;
@@ -722,12 +722,12 @@ int mmci_dmae_setup(struct mmci_host *host)
 	if (dmae->rx_channel)
 		rxname = dma_chan_name(dmae->rx_channel);
 	else
-		rxname = "none";
+		rxname = "yesne";
 
 	if (dmae->tx_channel)
 		txname = dma_chan_name(dmae->tx_channel);
 	else
-		txname = "none";
+		txname = "yesne";
 
 	dev_info(mmc_dev(host->mmc), "DMA channels RX %s, TX %s\n",
 		 rxname, txname);
@@ -825,7 +825,7 @@ void mmci_dmae_finalize(struct mmci_host *host, struct mmc_data *data)
 	/*
 	 * Check to see whether we still have some data left in the FIFO -
 	 * this catches DMA controllers which are unable to monitor the
-	 * DMALBREQ and DMALSREQ signals while allowing us to DMA to non-
+	 * DMALBREQ and DMALSREQ signals while allowing us to DMA to yesn-
 	 * contiguous buffers.  On TX, we'll get a FIFO underrun error.
 	 */
 	if (status & MCI_RXDATAAVLBLMASK) {
@@ -850,7 +850,7 @@ void mmci_dmae_finalize(struct mmci_host *host, struct mmc_data *data)
 	dmae->desc_current = NULL;
 }
 
-/* prepares DMA channel and DMA descriptor, returns non-zero on failure */
+/* prepares DMA channel and DMA descriptor, returns yesn-zero on failure */
 static int _mmci_dmae_prep_data(struct mmci_host *host, struct mmc_data *data,
 				struct dma_chan **dma_chan,
 				struct dma_async_tx_descriptor **dma_desc)
@@ -880,7 +880,7 @@ static int _mmci_dmae_prep_data(struct mmci_host *host, struct mmc_data *data,
 		chan = dmae->tx_channel;
 	}
 
-	/* If there's no DMA channel, fall back to PIO */
+	/* If there's yes DMA channel, fall back to PIO */
 	if (!chan)
 		return -EINVAL;
 
@@ -930,7 +930,7 @@ int mmci_dmae_prep_data(struct mmci_host *host,
 	if (dmae->cur && dmae->desc_current)
 		return 0;
 
-	/* No job were prepared thus do it now. */
+	/* No job were prepared thus do it yesw. */
 	return _mmci_dmae_prep_data(host, data, &dmae->cur,
 				    &dmae->desc_current);
 }
@@ -1094,7 +1094,7 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 		/*
 		 * The ST Micro variant for SDIO small write transfers
 		 * needs to have clock H/W flow control disabled,
-		 * otherwise the transfer will not start. The threshold
+		 * otherwise the transfer will yest start. The threshold
 		 * depends on the rate of MCLK.
 		 */
 		if (variant->st_sdio && data->flags & MMC_DATA_WRITE &&
@@ -1223,7 +1223,7 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		/*
 		 * Calculate how far we are into the transfer.  Note that
 		 * the data counter gives the number of bytes transferred
-		 * on the MMC bus, not on the host side.  On reads, this
+		 * on the MMC bus, yest on the host side.  On reads, this
 		 * can be as much as a FIFO-worth of data ahead.  This
 		 * matters for FIFO overruns only.
 		 */
@@ -1237,7 +1237,7 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		dev_dbg(mmc_dev(host->mmc), "MCI ERROR IRQ, status 0x%08x at 0x%08x\n",
 			status_err, success);
 		if (status_err & MCI_DATACRCFAIL) {
-			/* Last block was not successful */
+			/* Last block was yest successful */
 			success -= 1;
 			data->error = -EILSEQ;
 		} else if (status_err & MCI_DATATIMEOUT) {
@@ -1385,7 +1385,7 @@ static int mmci_pio_read(struct mmci_host *host, char *buffer, unsigned int rema
 
 		/*
 		 * SDIO especially may want to send something that is
-		 * not divisible by 4 (as opposed to card sectors
+		 * yest divisible by 4 (as opposed to card sectors
 		 * etc). Therefore make sure to always read the last bytes
 		 * while only doing full 32-bit reads towards the FIFO.
 		 */
@@ -1430,7 +1430,7 @@ static int mmci_pio_write(struct mmci_host *host, char *buffer, unsigned int rem
 
 		/*
 		 * SDIO especially may want to send something that is
-		 * not divisible by 4 (as opposed to card sectors
+		 * yest divisible by 4 (as opposed to card sectors
 		 * etc), and the FIFO only accept full 32-bit writes.
 		 * So compensate by adding +3 on the count, a single
 		 * byte become a 32bit write, 7 bytes will be two
@@ -1698,7 +1698,7 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			pwr |= variant->opendrain;
 	} else {
 		/*
-		 * If the variant cannot configure the pads by its own, then we
+		 * If the variant canyest configure the pads by its own, then we
 		 * expect the pinctrl to be able to do that for us
 		 */
 		if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN)
@@ -1797,7 +1797,7 @@ static struct mmc_host_ops mmci_ops = {
 	.start_signal_voltage_switch = mmci_sig_volt_switch,
 };
 
-static int mmci_of_parse(struct device_node *np, struct mmc_host *mmc)
+static int mmci_of_parse(struct device_yesde *np, struct mmc_host *mmc)
 {
 	struct mmci_host *host = mmc_priv(mmc);
 	int ret = mmc_of_parse(mmc);
@@ -1836,7 +1836,7 @@ static int mmci_probe(struct amba_device *dev,
 	const struct amba_id *id)
 {
 	struct mmci_platform_data *plat = dev->dev.platform_data;
-	struct device_node *np = dev->dev.of_node;
+	struct device_yesde *np = dev->dev.of_yesde;
 	struct variant_data *variant = id->data;
 	struct mmci_host *host;
 	struct mmc_host *mmc;
@@ -1956,9 +1956,9 @@ static int mmci_probe(struct amba_device *dev,
 	else
 		mmc->f_min = DIV_ROUND_UP(host->mclk, 512);
 	/*
-	 * If no maximum operating frequency is supplied, fall back to use
+	 * If yes maximum operating frequency is supplied, fall back to use
 	 * the module parameter, which has a (low) default value in case it
-	 * is not specified. Either value must not exceed the clock rate into
+	 * is yest specified. Either value must yest exceed the clock rate into
 	 * the block, of course.
 	 */
 	if (mmc->f_max)
@@ -1986,7 +1986,7 @@ static int mmci_probe(struct amba_device *dev,
 	if (!mmc->ocr_avail)
 		mmc->ocr_avail = plat->ocr_mask;
 	else if (plat->ocr_mask)
-		dev_warn(mmc_dev(mmc), "Platform OCR mask is ignored\n");
+		dev_warn(mmc_dev(mmc), "Platform OCR mask is igyesred\n");
 
 	/* We support these capabilities. */
 	mmc->caps |= MMC_CAP_CMD23;
@@ -2056,10 +2056,10 @@ static int mmci_probe(struct amba_device *dev,
 
 	/*
 	 * If:
-	 * - not using DT but using a descriptor table, or
+	 * - yest using DT but using a descriptor table, or
 	 * - using a table of descriptors ALONGSIDE DT, or
 	 * look up these descriptors named "cd" and "wp" right here, fail
-	 * silently of these do not exist
+	 * silently of these do yest exist
 	 */
 	if (!np) {
 		ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
@@ -2151,7 +2151,7 @@ static void mmci_save(struct mmci_host *host)
 	spin_lock_irqsave(&host->lock, flags);
 
 	writel(0, host->base + MMCIMASK0);
-	if (host->variant->pwrreg_nopower) {
+	if (host->variant->pwrreg_yespower) {
 		writel(0, host->base + MMCIDATACTRL);
 		writel(0, host->base + MMCIPOWER);
 		writel(0, host->base + MMCICLOCK);
@@ -2167,7 +2167,7 @@ static void mmci_restore(struct mmci_host *host)
 
 	spin_lock_irqsave(&host->lock, flags);
 
-	if (host->variant->pwrreg_nopower) {
+	if (host->variant->pwrreg_yespower) {
 		writel(host->clk_reg, host->base + MMCICLOCK);
 		writel(host->datactrl_reg, host->base + MMCIDATACTRL);
 		writel(host->pwr_reg, host->base + MMCIPOWER);
@@ -2246,12 +2246,12 @@ static const struct amba_id mmci_ids[] = {
 	{
 		.id     = 0x10180180,
 		.mask   = 0xf0ffffff,
-		.data	= &variant_nomadik,
+		.data	= &variant_yesmadik,
 	},
 	{
 		.id     = 0x00280180,
 		.mask   = 0x00ffffff,
-		.data	= &variant_nomadik,
+		.data	= &variant_yesmadik,
 	},
 	{
 		.id     = 0x00480180,

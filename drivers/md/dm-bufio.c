@@ -66,16 +66,16 @@
 
 /*
  * Linking of buffers:
- *	All buffers are linked to buffer_tree with their node field.
+ *	All buffers are linked to buffer_tree with their yesde field.
  *
- *	Clean buffers that are not being written (B_WRITING not set)
+ *	Clean buffers that are yest being written (B_WRITING yest set)
  *	are linked to lru[LIST_CLEAN] with their lru_list field.
  *
  *	Dirty and clean buffers that are being written are linked to
  *	lru[LIST_DIRTY] with their lru_list field. When the write
- *	finishes, the buffer cannot be relinked immediately (because we
+ *	finishes, the buffer canyest be relinked immediately (because we
  *	are in an interrupt context and relinking requires process
- *	context), so some clean-not-writing buffers can be held on
+ *	context), so some clean-yest-writing buffers can be held on
  *	dirty_lru too.  They are later added to lru in the process
  *	context.
  */
@@ -131,7 +131,7 @@ enum data_mode {
 };
 
 struct dm_buffer {
-	struct rb_node node;
+	struct rb_yesde yesde;
 	struct list_head lru_list;
 	struct list_head global_list;
 	sector_t block;
@@ -247,11 +247,11 @@ static void buffer_record_stack(struct dm_buffer *b)
  *--------------------------------------------------------------*/
 static struct dm_buffer *__find(struct dm_bufio_client *c, sector_t block)
 {
-	struct rb_node *n = c->buffer_tree.rb_node;
+	struct rb_yesde *n = c->buffer_tree.rb_yesde;
 	struct dm_buffer *b;
 
 	while (n) {
-		b = container_of(n, struct dm_buffer, node);
+		b = container_of(n, struct dm_buffer, yesde);
 
 		if (b->block == block)
 			return b;
@@ -264,11 +264,11 @@ static struct dm_buffer *__find(struct dm_bufio_client *c, sector_t block)
 
 static void __insert(struct dm_bufio_client *c, struct dm_buffer *b)
 {
-	struct rb_node **new = &c->buffer_tree.rb_node, *parent = NULL;
+	struct rb_yesde **new = &c->buffer_tree.rb_yesde, *parent = NULL;
 	struct dm_buffer *found;
 
 	while (*new) {
-		found = container_of(*new, struct dm_buffer, node);
+		found = container_of(*new, struct dm_buffer, yesde);
 
 		if (found->block == b->block) {
 			BUG_ON(found != b);
@@ -280,13 +280,13 @@ static void __insert(struct dm_bufio_client *c, struct dm_buffer *b)
 			&((*new)->rb_left) : &((*new)->rb_right);
 	}
 
-	rb_link_node(&b->node, parent, new);
-	rb_insert_color(&b->node, &c->buffer_tree);
+	rb_link_yesde(&b->yesde, parent, new);
+	rb_insert_color(&b->yesde, &c->buffer_tree);
 }
 
 static void __remove(struct dm_bufio_client *c, struct dm_buffer *b)
 {
-	rb_erase(&b->node, &c->buffer_tree);
+	rb_erase(&b->yesde, &c->buffer_tree);
 }
 
 /*----------------------------------------------------------------*/
@@ -361,7 +361,7 @@ static void __cache_size_refresh(void)
  *
  * __get_free_pages can randomly fail if the memory is fragmented.
  * __vmalloc won't randomly fail, but vmalloc space is limited (it may be
- * as low as 128M) so using it for caching is not appropriate.
+ * as low as 128M) so using it for caching is yest appropriate.
  *
  * If the allocation may fail we use __get_free_pages. Memory fragmentation
  * won't have a fatal effect here, but it just causes flushes of some other
@@ -369,7 +369,7 @@ static void __cache_size_refresh(void)
  * always fails (i.e. order >= MAX_ORDER).
  *
  * If the allocation shouldn't fail we use __vmalloc. This is only for the
- * initial reserve allocation, so there's no risk of wasting all vmalloc
+ * initial reserve allocation, so there's yes risk of wasting all vmalloc
  * space.
  */
 static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
@@ -392,17 +392,17 @@ static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
 	/*
 	 * __vmalloc allocates the data pages and auxiliary structures with
 	 * gfp_flags that were specified, but pagetables are always allocated
-	 * with GFP_KERNEL, no matter what was specified as gfp_mask.
+	 * with GFP_KERNEL, yes matter what was specified as gfp_mask.
 	 *
 	 * Consequently, we must set per-process flag PF_MEMALLOC_NOIO so that
 	 * all allocations done by this process (including pagetables) are done
 	 * as if GFP_NOIO was specified.
 	 */
 	if (gfp_mask & __GFP_NORETRY) {
-		unsigned noio_flag = memalloc_noio_save();
+		unsigned yesio_flag = memalloc_yesio_save();
 		void *ptr = __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
 
-		memalloc_noio_restore(noio_flag);
+		memalloc_yesio_restore(yesio_flag);
 		return ptr;
 	}
 
@@ -527,12 +527,12 @@ static void __relink_lru(struct dm_buffer *b, int dirty)
  *
  * Bio interface is faster but it has some problems:
  *	the vector list is limited (increasing this limit increases
- *	memory-consumption per buffer, so it is not viable);
+ *	memory-consumption per buffer, so it is yest viable);
  *
- *	the memory must be direct-mapped, not vmalloced;
+ *	the memory must be direct-mapped, yest vmalloced;
  *
- * If the buffer is small enough (up to DM_BUFIO_INLINE_VECS pages) and
- * it is not vmalloced, try using the bio interface.
+ * If the buffer is small eyesugh (up to DM_BUFIO_INLINE_VECS pages) and
+ * it is yest vmalloced, try using the bio interface.
  *
  * If the buffer is big, if it is vmalloced or if the underlying device
  * rejects the bio because it is too large, use dm-io layer to do the I/O.
@@ -558,8 +558,8 @@ static void use_dmio(struct dm_buffer *b, int rw, sector_t sector,
 	struct dm_io_request io_req = {
 		.bi_op = rw,
 		.bi_op_flags = 0,
-		.notify.fn = dmio_complete,
-		.notify.context = b,
+		.yestify.fn = dmio_complete,
+		.yestify.context = b,
 		.client = b->c->dm_io,
 	};
 	struct dm_io_region region = {
@@ -578,7 +578,7 @@ static void use_dmio(struct dm_buffer *b, int rw, sector_t sector,
 
 	r = dm_io(&io_req, 1, &region, NULL);
 	if (unlikely(r))
-		b->end_io(b, errno_to_blk_status(r));
+		b->end_io(b, erryes_to_blk_status(r));
 }
 
 static void bio_complete(struct bio *bio)
@@ -686,7 +686,7 @@ static void write_endio(struct dm_buffer *b, blk_status_t status)
 		struct dm_bufio_client *c = b->c;
 
 		(void)cmpxchg(&c->async_write_error, 0,
-				blk_status_to_errno(status));
+				blk_status_to_erryes(status));
 	}
 
 	BUG_ON(!test_bit(B_WRITING, &b->state));
@@ -701,7 +701,7 @@ static void write_endio(struct dm_buffer *b, blk_status_t status)
 /*
  * Initiate a write on a dirty buffer, but don't wait for it.
  *
- * - If the buffer is not dirty, exit.
+ * - If the buffer is yest dirty, exit.
  * - If there some previous write going on, wait for it to finish (we can't
  *   have two writes on the same buffer simultaneously).
  * - Submit our write and don't wait on it. We set B_WRITING indicating
@@ -741,8 +741,8 @@ static void __flush_write_list(struct list_head *write_list)
 
 /*
  * Wait until any activity on the buffer finishes.  Possibly write the
- * buffer if it is dirty.  When this function finishes, there is no I/O
- * running on the buffer and the buffer is not dirty.
+ * buffer if it is dirty.  When this function finishes, there is yes I/O
+ * running on the buffer and the buffer is yest dirty.
  */
 static void __make_buffer_clean(struct dm_buffer *b)
 {
@@ -757,7 +757,7 @@ static void __make_buffer_clean(struct dm_buffer *b)
 }
 
 /*
- * Find some buffer that is not held by anybody, clean it, unlink it and
+ * Find some buffer that is yest held by anybody, clean it, unlink it and
  * return it.
  */
 static struct dm_buffer *__get_unclaimed_buffer(struct dm_bufio_client *c)
@@ -820,27 +820,27 @@ enum new_flag {
 };
 
 /*
- * Allocate a new buffer. If the allocation is not possible, wait until
+ * Allocate a new buffer. If the allocation is yest possible, wait until
  * some other thread frees a buffer.
  *
  * May drop the lock and regain it.
  */
-static struct dm_buffer *__alloc_buffer_wait_no_callback(struct dm_bufio_client *c, enum new_flag nf)
+static struct dm_buffer *__alloc_buffer_wait_yes_callback(struct dm_bufio_client *c, enum new_flag nf)
 {
 	struct dm_buffer *b;
-	bool tried_noio_alloc = false;
+	bool tried_yesio_alloc = false;
 
 	/*
 	 * dm-bufio is resistant to allocation failures (it just keeps
 	 * one buffer reserved in cases all the allocations fail).
-	 * So set flags to not try too hard:
+	 * So set flags to yest try too hard:
 	 *	GFP_NOWAIT: don't wait; if we need to sleep we'll release our
 	 *		    mutex and wait ourselves.
 	 *	__GFP_NORETRY: don't retry and rather return failure
 	 *	__GFP_NOMEMALLOC: don't use emergency reserves
 	 *	__GFP_NOWARN: don't print a warning in case of failure
 	 *
-	 * For debugging, if we set the cache size to 1, no new buffers will
+	 * For debugging, if we set the cache size to 1, yes new buffers will
 	 * be allocated.
 	 */
 	while (1) {
@@ -853,13 +853,13 @@ static struct dm_buffer *__alloc_buffer_wait_no_callback(struct dm_bufio_client 
 		if (nf == NF_PREFETCH)
 			return NULL;
 
-		if (dm_bufio_cache_size_latch != 1 && !tried_noio_alloc) {
+		if (dm_bufio_cache_size_latch != 1 && !tried_yesio_alloc) {
 			dm_bufio_unlock(c);
 			b = alloc_buffer(c, GFP_NOIO | __GFP_NORETRY | __GFP_NOMEMALLOC | __GFP_NOWARN);
 			dm_bufio_lock(c);
 			if (b)
 				return b;
-			tried_noio_alloc = true;
+			tried_yesio_alloc = true;
 		}
 
 		if (!list_empty(&c->reserved_buffers)) {
@@ -881,7 +881,7 @@ static struct dm_buffer *__alloc_buffer_wait_no_callback(struct dm_bufio_client 
 
 static struct dm_buffer *__alloc_buffer_wait(struct dm_bufio_client *c, enum new_flag nf)
 {
-	struct dm_buffer *b = __alloc_buffer_wait_no_callback(c, nf);
+	struct dm_buffer *b = __alloc_buffer_wait_yes_callback(c, nf);
 
 	if (!b)
 		return NULL;
@@ -909,7 +909,7 @@ static void __free_buffer_wake(struct dm_buffer *b)
 	wake_up(&c->free_buffer_wait);
 }
 
-static void __write_dirty_buffers_async(struct dm_bufio_client *c, int no_wait,
+static void __write_dirty_buffers_async(struct dm_bufio_client *c, int yes_wait,
 					struct list_head *write_list)
 {
 	struct dm_buffer *b, *tmp;
@@ -923,7 +923,7 @@ static void __write_dirty_buffers_async(struct dm_bufio_client *c, int no_wait,
 			continue;
 		}
 
-		if (no_wait && test_bit(B_WRITING, &b->state))
+		if (yes_wait && test_bit(B_WRITING, &b->state))
 			return;
 
 		__write_dirty_buffer(b, write_list);
@@ -1063,7 +1063,7 @@ static void *new_read(struct dm_bufio_client *c, sector_t block,
 	wait_on_bit_io(&b->state, B_READING, TASK_UNINTERRUPTIBLE);
 
 	if (b->read_error) {
-		int error = blk_status_to_errno(b->read_error);
+		int error = blk_status_to_erryes(b->read_error);
 
 		dm_bufio_release(b);
 
@@ -1159,8 +1159,8 @@ void dm_bufio_release(struct dm_buffer *b)
 		wake_up(&c->free_buffer_wait);
 
 		/*
-		 * If there were errors on the buffer, and the buffer is not
-		 * to be written, free the buffer. There is no point in caching
+		 * If there were errors on the buffer, and the buffer is yest
+		 * to be written, free the buffer. There is yes point in caching
 		 * invalid buffer.
 		 */
 		if ((b->read_error || b->write_error) &&
@@ -1223,7 +1223,7 @@ void dm_bufio_write_dirty_buffers_async(struct dm_bufio_client *c)
 EXPORT_SYMBOL_GPL(dm_bufio_write_dirty_buffers_async);
 
 /*
- * For performance, it is essential that the buffers are written asynchronously
+ * For performance, it is essential that the buffers are written asynchroyesusly
  * and simultaneously (so that the block layer can merge the writes) and then
  * waited upon.
  *
@@ -1273,14 +1273,14 @@ again:
 		cond_resched();
 
 		/*
-		 * If we dropped the lock, the list is no longer consistent,
+		 * If we dropped the lock, the list is yes longer consistent,
 		 * so we must restart the search.
 		 *
 		 * In the most common case, the buffer just processed is
 		 * relinked to the clean list, so we won't loop scanning the
 		 * same buffer again and again.
 		 *
-		 * This may livelock if there is another thread simultaneously
+		 * This may livelock if there is ayesther thread simultaneously
 		 * dirtying buffers, so we count the number of buffers walked
 		 * and if it exceeds the total number of buffers, it means that
 		 * someone is doing some writes simultaneously with us.  In
@@ -1334,7 +1334,7 @@ EXPORT_SYMBOL_GPL(dm_bufio_issue_flush);
  * in the buffer tree for the new location.
  *
  * If there was someone else holding the buffer, we write it to the new
- * location but not relink it, because that other user needs to have the buffer
+ * location but yest relink it, because that other user needs to have the buffer
  * at the same place.
  */
 void dm_bufio_release_move(struct dm_buffer *b, sector_t new_block)
@@ -1405,7 +1405,7 @@ EXPORT_SYMBOL_GPL(dm_bufio_release_move);
  * Free the given buffer.
  *
  * This is just a hint, if the buffer is in use or dirty, this function
- * does nothing.
+ * does yesthing.
  */
 void dm_bufio_forget(struct dm_bufio_client *c, sector_t block)
 {
@@ -1437,7 +1437,7 @@ EXPORT_SYMBOL_GPL(dm_bufio_get_block_size);
 
 sector_t dm_bufio_get_device_size(struct dm_bufio_client *c)
 {
-	sector_t s = i_size_read(c->bdev->bd_inode) >> SECTOR_SHIFT;
+	sector_t s = i_size_read(c->bdev->bd_iyesde) >> SECTOR_SHIFT;
 	if (likely(c->sectors_per_block_bits >= 0))
 		s >>= c->sectors_per_block_bits;
 	else
@@ -1479,7 +1479,7 @@ static void drop_buffers(struct dm_bufio_client *c)
 	BUG_ON(dm_bufio_in_request());
 
 	/*
-	 * An optimization so that the buffers are not written one-by-one.
+	 * An optimization so that the buffers are yest written one-by-one.
 	 */
 	dm_bufio_write_dirty_buffers_async(c);
 
@@ -1513,10 +1513,10 @@ static void drop_buffers(struct dm_bufio_client *c)
 }
 
 /*
- * We may not be able to evict this buffer if IO pending or the client
- * is still using it.  Caller is expected to know buffer is too old.
+ * We may yest be able to evict this buffer if IO pending or the client
+ * is still using it.  Caller is expected to kyesw buffer is too old.
  *
- * And if GFP_NOFS is used, we must not do any I/O because we hold
+ * And if GFP_NOFS is used, we must yest do any I/O because we hold
  * dm_bufio_clients_lock and we would risk deadlock if the I/O gets
  * rerouted to different bufio client.
  */
@@ -1613,7 +1613,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	char slab_name[27];
 
 	if (!block_size || block_size & ((1 << SECTOR_SHIFT) - 1)) {
-		DMERR("%s: block size not specified or is not multiple of 512b", __func__);
+		DMERR("%s: block size yest specified or is yest multiple of 512b", __func__);
 		r = -EINVAL;
 		goto bad_client;
 	}
@@ -1723,7 +1723,7 @@ EXPORT_SYMBOL_GPL(dm_bufio_client_create);
 
 /*
  * Free the buffering interface.
- * It is required that there are no references on any buffers.
+ * It is required that there are yes references on any buffers.
  */
 void dm_bufio_client_destroy(struct dm_bufio_client *c)
 {

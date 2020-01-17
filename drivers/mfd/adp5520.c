@@ -33,7 +33,7 @@ struct adp5520_chip {
 	struct i2c_client *client;
 	struct device *dev;
 	struct mutex lock;
-	struct blocking_notifier_head notifier_list;
+	struct blocking_yestifier_head yestifier_list;
 	int irq;
 	unsigned long id;
 	uint8_t mode;
@@ -140,7 +140,7 @@ int adp5520_clr_bits(struct device *dev, int reg, uint8_t bit_mask)
 }
 EXPORT_SYMBOL_GPL(adp5520_clr_bits);
 
-int adp5520_register_notifier(struct device *dev, struct notifier_block *nb,
+int adp5520_register_yestifier(struct device *dev, struct yestifier_block *nb,
 				unsigned int events)
 {
 	struct adp5520_chip *chip = dev_get_drvdata(dev);
@@ -150,15 +150,15 @@ int adp5520_register_notifier(struct device *dev, struct notifier_block *nb,
 			events & (ADP5520_KP_IEN | ADP5520_KR_IEN |
 			ADP5520_OVP_IEN | ADP5520_CMPR_IEN));
 
-		return blocking_notifier_chain_register(&chip->notifier_list,
+		return blocking_yestifier_chain_register(&chip->yestifier_list,
 			 nb);
 	}
 
 	return -ENODEV;
 }
-EXPORT_SYMBOL_GPL(adp5520_register_notifier);
+EXPORT_SYMBOL_GPL(adp5520_register_yestifier);
 
-int adp5520_unregister_notifier(struct device *dev, struct notifier_block *nb,
+int adp5520_unregister_yestifier(struct device *dev, struct yestifier_block *nb,
 				unsigned int events)
 {
 	struct adp5520_chip *chip = dev_get_drvdata(dev);
@@ -167,9 +167,9 @@ int adp5520_unregister_notifier(struct device *dev, struct notifier_block *nb,
 		events & (ADP5520_KP_IEN | ADP5520_KR_IEN |
 		ADP5520_OVP_IEN | ADP5520_CMPR_IEN));
 
-	return blocking_notifier_chain_unregister(&chip->notifier_list, nb);
+	return blocking_yestifier_chain_unregister(&chip->yestifier_list, nb);
 }
-EXPORT_SYMBOL_GPL(adp5520_unregister_notifier);
+EXPORT_SYMBOL_GPL(adp5520_unregister_yestifier);
 
 static irqreturn_t adp5520_irq_thread(int irq, void *data)
 {
@@ -185,7 +185,7 @@ static irqreturn_t adp5520_irq_thread(int irq, void *data)
 	events =  reg_val & (ADP5520_OVP_INT | ADP5520_CMPR_INT |
 		ADP5520_GPI_INT | ADP5520_KR_INT | ADP5520_KP_INT);
 
-	blocking_notifier_call_chain(&chip->notifier_list, events, NULL);
+	blocking_yestifier_call_chain(&chip->yestifier_list, events, NULL);
 	/* ACK, Sticky bits are W1C */
 	__adp5520_ack_bits(chip->client, ADP5520_MODE_STATUS, events);
 
@@ -214,7 +214,7 @@ static int adp5520_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter,
 					I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&client->dev, "SMBUS Word Data not Supported\n");
+		dev_err(&client->dev, "SMBUS Word Data yest Supported\n");
 		return -EIO;
 	}
 
@@ -236,7 +236,7 @@ static int adp5520_probe(struct i2c_client *client,
 	mutex_init(&chip->lock);
 
 	if (chip->irq) {
-		BLOCKING_INIT_NOTIFIER_HEAD(&chip->notifier_list);
+		BLOCKING_INIT_NOTIFIER_HEAD(&chip->yestifier_list);
 
 		ret = request_threaded_irq(chip->irq, NULL, adp5520_irq_thread,
 				IRQF_TRIGGER_LOW | IRQF_ONESHOT,

@@ -55,7 +55,7 @@ static inline void rpc_proc_exit(struct net *net)
 #endif
 
 #ifdef MODULE
-void			rpc_modcount(struct inode *, int);
+void			rpc_modcount(struct iyesde *, int);
 #endif
 
 #ifdef CONFIG_PROC_FS

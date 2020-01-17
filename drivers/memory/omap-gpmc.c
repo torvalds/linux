@@ -55,13 +55,13 @@
 #define GPMC_ECC_CONTROL	0x1f8
 #define GPMC_ECC_SIZE_CONFIG	0x1fc
 #define GPMC_ECC1_RESULT        0x200
-#define GPMC_ECC_BCH_RESULT_0   0x240   /* not available on OMAP2 */
-#define	GPMC_ECC_BCH_RESULT_1	0x244	/* not available on OMAP2 */
-#define	GPMC_ECC_BCH_RESULT_2	0x248	/* not available on OMAP2 */
-#define	GPMC_ECC_BCH_RESULT_3	0x24c	/* not available on OMAP2 */
-#define	GPMC_ECC_BCH_RESULT_4	0x300	/* not available on OMAP2 */
-#define	GPMC_ECC_BCH_RESULT_5	0x304	/* not available on OMAP2 */
-#define	GPMC_ECC_BCH_RESULT_6	0x308	/* not available on OMAP2 */
+#define GPMC_ECC_BCH_RESULT_0   0x240   /* yest available on OMAP2 */
+#define	GPMC_ECC_BCH_RESULT_1	0x244	/* yest available on OMAP2 */
+#define	GPMC_ECC_BCH_RESULT_2	0x248	/* yest available on OMAP2 */
+#define	GPMC_ECC_BCH_RESULT_3	0x24c	/* yest available on OMAP2 */
+#define	GPMC_ECC_BCH_RESULT_4	0x300	/* yest available on OMAP2 */
+#define	GPMC_ECC_BCH_RESULT_5	0x304	/* yest available on OMAP2 */
+#define	GPMC_ECC_BCH_RESULT_6	0x308	/* yest available on OMAP2 */
 
 /* GPMC ECC control settings */
 #define GPMC_ECC_CTRL_ECCCLEAR		0x100
@@ -413,7 +413,7 @@ static void gpmc_cs_bool_timings(int cs, const struct gpmc_bool_timings *p)
  * @end_bit: End Bit. Must be >= @st_bit.
  * @ma:x     Maximum parameter value (before optional @shift).
  *           If 0, maximum is as high as @st_bit and @end_bit allow.
- * @name:    DTS node name, w/o "gpmc,"
+ * @name:    DTS yesde name, w/o "gpmc,"
  * @cd:      Clock Domain of timing parameter.
  * @shift:   Parameter value left shifts @shift, which is then printed instead of value.
  * @raw:     Raw Format Option.
@@ -421,7 +421,7 @@ static void gpmc_cs_bool_timings(int cs, const struct gpmc_bool_timings *p)
  *           tick format: gpmc,name = <value> /&zwj;* x ns -- y ns; x ticks *&zwj;/
  *           Where x ns -- y ns result in the same tick value.
  *           When @max is exceeded, "invalid" is printed inside comment.
- * @noval:   Parameter values equal to 0 are not printed.
+ * @yesval:   Parameter values equal to 0 are yest printed.
  * @return:  Specified timing parameter (after optional @shift).
  *
  */
@@ -432,7 +432,7 @@ static int get_gpmc_timing_reg(
 	/* value transform */
 	int shift,
 	/* format specifiers */
-	bool raw, bool noval)
+	bool raw, bool yesval)
 {
 	u32 l;
 	int nr_bits;
@@ -448,7 +448,7 @@ static int get_gpmc_timing_reg(
 	invalid = l > max;
 	if (shift)
 		l = (shift << l);
-	if (noval && (l == 0))
+	if (yesval && (l == 0))
 		return 0;
 	if (!raw) {
 		/* DTS tick format for timings in ns */
@@ -716,14 +716,14 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 	 * See if we need to change the divider for waitmonitoringtime.
 	 *
 	 * Calculate GPMCFCLKDIVIDER independent of gpmc,sync-clk-ps in DT for
-	 * pure asynchronous accesses, i.e. both read and write asynchronous.
+	 * pure asynchroyesus accesses, i.e. both read and write asynchroyesus.
 	 * However, only do so if WAITMONITORINGTIME is actually used, i.e.
 	 * either WAITREADMONITORING or WAITWRITEMONITORING is set.
 	 *
-	 * This statement must not change div to scale async WAITMONITORINGTIME
-	 * to protect mixed synchronous and asynchronous accesses.
+	 * This statement must yest change div to scale async WAITMONITORINGTIME
+	 * to protect mixed synchroyesus and asynchroyesus accesses.
 	 *
-	 * We raise an error later if WAITMONITORINGTIME does not fit.
+	 * We raise an error later if WAITMONITORINGTIME does yest fit.
 	 */
 	if (!s->sync_read && !s->sync_write &&
 	    (s->wait_on_read || s->wait_on_write)
@@ -955,7 +955,7 @@ static int gpmc_cs_remap(int cs, u32 base)
 	}
 
 	/*
-	 * Make sure we ignore any device offsets from the GPMC partition
+	 * Make sure we igyesre any device offsets from the GPMC partition
 	 * allocated for the chip select and that the new base confirms
 	 * to the GPMC 16MB minimum granularity.
 	 */ 
@@ -1031,7 +1031,7 @@ void gpmc_cs_free(int cs)
 
 	spin_lock(&gpmc_mem_lock);
 	if (cs >= gpmc_cs_num || cs < 0 || !gpmc_cs_reserved(cs)) {
-		printk(KERN_ERR "Trying to free non-reserved GPMC CS%d\n", cs);
+		printk(KERN_ERR "Trying to free yesn-reserved GPMC CS%d\n", cs);
 		BUG();
 		spin_unlock(&gpmc_mem_lock);
 		return;
@@ -1065,7 +1065,7 @@ int gpmc_configure(int cmd, int wval)
 		break;
 
 	default:
-		pr_err("%s: command not supported\n", __func__);
+		pr_err("%s: command yest supported\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1187,7 +1187,7 @@ static void gpmc_omap_onenand_calc_sync_timings(struct gpmc_timings *t,
 		break;
 	}
 
-	/* Set synchronous read timings */
+	/* Set synchroyesus read timings */
 	memset(&dev_t, 0, sizeof(dev_t));
 
 	if (!s->sync_write) {
@@ -1223,7 +1223,7 @@ int gpmc_omap_onenand_set_timings(struct device *dev, int cs, int freq,
 	struct gpmc_timings gpmc_t;
 	struct gpmc_settings gpmc_s;
 
-	gpmc_read_settings_dt(dev->of_node, &gpmc_s);
+	gpmc_read_settings_dt(dev->of_yesde, &gpmc_s);
 
 	info->sync_read = gpmc_s.sync_read;
 	info->sync_write = gpmc_s.sync_write;
@@ -1299,7 +1299,7 @@ static void gpmc_irq_edge_config(unsigned long hwirq, bool rising_edge)
 {
 	u32 regval;
 
-	/* NAND IRQs polarity is not configurable */
+	/* NAND IRQs polarity is yest configurable */
 	if (hwirq < GPMC_NR_NAND_IRQS)
 		return;
 
@@ -1421,7 +1421,7 @@ static int gpmc_setup_irq(struct gpmc_device *gpmc)
 	gpmc->irq_chip.irq_unmask = gpmc_irq_unmask;
 	gpmc->irq_chip.irq_set_type = gpmc_irq_set_type;
 
-	gpmc_irq_domain = irq_domain_add_linear(gpmc->dev->of_node,
+	gpmc_irq_domain = irq_domain_add_linear(gpmc->dev->of_yesde,
 						gpmc->nirqs,
 						&gpmc_irq_domain_ops,
 						gpmc);
@@ -1512,7 +1512,7 @@ static int gpmc_calc_sync_read_timings(struct gpmc_timings *gpmc_t,
 	temp = dev_t->t_avdp_r;
 	/* XXX: mux check required ? */
 	if (mux) {
-		/* XXX: t_avdp not to be required for sync, only added for tusb
+		/* XXX: t_avdp yest to be required for sync, only added for tusb
 		 * this indirectly necessitates requirement of t_avdp_r and
 		 * t_avdp_w instead of having a single t_avdp
 		 */
@@ -1593,7 +1593,7 @@ static int gpmc_calc_sync_write_timings(struct gpmc_timings *gpmc_t,
 		gpmc_t->we_on = gpmc_t->wr_data_mux_bus;
 
 	/* wr_access */
-	/* XXX: gpmc_capability check reqd ? , even if not, will not harm */
+	/* XXX: gpmc_capability check reqd ? , even if yest, will yest harm */
 	gpmc_t->wr_access = gpmc_t->access;
 
 	/* we_off */
@@ -1813,11 +1813,11 @@ int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
 }
 
 /**
- * gpmc_cs_program_settings - programs non-timing related settings
+ * gpmc_cs_program_settings - programs yesn-timing related settings
  * @cs:		GPMC chip-select to program
  * @p:		pointer to GPMC settings structure
  *
- * Programs non-timing related settings for a GPMC chip-select, such as
+ * Programs yesn-timing related settings for a GPMC chip-select, such as
  * bus-width, burst configuration, etc. Function should be called once
  * for each chip-select that is being used and must be called before
  * calling gpmc_cs_set_timings() as timing parameters in the CONFIG1
@@ -1833,7 +1833,7 @@ int gpmc_cs_program_settings(int cs, struct gpmc_settings *p)
 		return -EINVAL;
 	}
 
-	/* Address-data multiplexing not supported for NAND devices */
+	/* Address-data multiplexing yest supported for NAND devices */
 	if (p->device_nand && p->mux_add_data) {
 		pr_err("%s: invalid configuration!\n", __func__);
 		return -EINVAL;
@@ -1907,7 +1907,7 @@ static const struct of_device_id gpmc_dt_ids[] = {
 
 /**
  * gpmc_read_settings_dt - read gpmc settings from device-tree
- * @np:		pointer to device-tree node for a gpmc child device
+ * @np:		pointer to device-tree yesde for a gpmc child device
  * @p:		pointer to gpmc settings structure
  *
  * Reads the GPMC settings for a GPMC child device from device-tree and
@@ -1915,7 +1915,7 @@ static const struct of_device_id gpmc_dt_ids[] = {
  * structure is initialised to zero by this function and so any
  * previously stored settings will be cleared.
  */
-void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
+void gpmc_read_settings_dt(struct device_yesde *np, struct gpmc_settings *p)
 {
 	memset(p, 0, sizeof(struct gpmc_settings));
 
@@ -1929,7 +1929,7 @@ void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
 		p->burst_read = of_property_read_bool(np, "gpmc,burst-read");
 		p->burst_write = of_property_read_bool(np, "gpmc,burst-write");
 		if (!p->burst_read && !p->burst_write)
-			pr_warn("%s: page/burst-length set but not used!\n",
+			pr_warn("%s: page/burst-length set but yest used!\n",
 				__func__);
 	}
 
@@ -1939,12 +1939,12 @@ void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
 		p->wait_on_write = of_property_read_bool(np,
 							 "gpmc,wait-on-write");
 		if (!p->wait_on_read && !p->wait_on_write)
-			pr_debug("%s: rd/wr wait monitoring not enabled!\n",
+			pr_debug("%s: rd/wr wait monitoring yest enabled!\n",
 				 __func__);
 	}
 }
 
-static void __maybe_unused gpmc_read_timings_dt(struct device_node *np,
+static void __maybe_unused gpmc_read_timings_dt(struct device_yesde *np,
 						struct gpmc_timings *gpmc_t)
 {
 	struct gpmc_bool_timings *p;
@@ -1954,7 +1954,7 @@ static void __maybe_unused gpmc_read_timings_dt(struct device_node *np,
 
 	memset(gpmc_t, 0, sizeof(*gpmc_t));
 
-	/* minimum clock period for syncronous mode */
+	/* minimum clock period for syncroyesus mode */
 	of_property_read_u32(np, "gpmc,sync-clk-ps", &gpmc_t->sync_clk);
 
 	/* chip select timtings */
@@ -2023,13 +2023,13 @@ static void __maybe_unused gpmc_read_timings_dt(struct device_node *np,
 /**
  * gpmc_probe_generic_child - configures the gpmc for a child device
  * @pdev:	pointer to gpmc platform device
- * @child:	pointer to device-tree node for child device
+ * @child:	pointer to device-tree yesde for child device
  *
  * Allocates and configures a GPMC chip-select for a child device.
  * Returns 0 on success and appropriate negative error code on failure.
  */
 static int gpmc_probe_generic_child(struct platform_device *pdev,
-				struct device_node *child)
+				struct device_yesde *child)
 {
 	struct gpmc_settings gpmc_s;
 	struct gpmc_timings gpmc_t;
@@ -2042,7 +2042,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	struct gpmc_device *gpmc = platform_get_drvdata(pdev);
 
 	if (of_property_read_u32(child, "reg", &cs) < 0) {
-		dev_err(&pdev->dev, "%pOF has no 'reg' property\n",
+		dev_err(&pdev->dev, "%pOF has yes 'reg' property\n",
 			child);
 		return -ENODEV;
 	}
@@ -2059,12 +2059,12 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	 * timings.
 	 */
 	name = gpmc_cs_get_name(cs);
-	if (name && of_node_name_eq(child, name))
-		goto no_timings;
+	if (name && of_yesde_name_eq(child, name))
+		goto yes_timings;
 
 	ret = gpmc_cs_request(cs, resource_size(&res), &base);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot request GPMC CS %d\n", cs);
+		dev_err(&pdev->dev, "canyest request GPMC CS %d\n", cs);
 		return ret;
 	}
 	gpmc_cs_set_name(cs, child->full_name);
@@ -2082,7 +2082,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 			cs);
 		gpmc_cs_show_timings(cs,
 				     "please add GPMC bootloader timings to .dts");
-		goto no_timings;
+		goto yes_timings;
 	}
 
 	/* CS must be disabled while making changes to gpmc configuration */
@@ -2098,35 +2098,35 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	 */
 	ret = gpmc_cs_remap(cs, res.start);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot remap GPMC CS %d to %pa\n",
+		dev_err(&pdev->dev, "canyest remap GPMC CS %d to %pa\n",
 			cs, &res.start);
 		if (res.start < GPMC_MEM_START) {
 			dev_info(&pdev->dev,
-				 "GPMC CS %d start cannot be lesser than 0x%x\n",
+				 "GPMC CS %d start canyest be lesser than 0x%x\n",
 				 cs, GPMC_MEM_START);
 		} else if (res.end > GPMC_MEM_END) {
 			dev_info(&pdev->dev,
-				 "GPMC CS %d end cannot be greater than 0x%x\n",
+				 "GPMC CS %d end canyest be greater than 0x%x\n",
 				 cs, GPMC_MEM_END);
 		}
 		goto err;
 	}
 
-	if (of_node_name_eq(child, "nand")) {
-		/* Warn about older DT blobs with no compatible property */
+	if (of_yesde_name_eq(child, "nand")) {
+		/* Warn about older DT blobs with yes compatible property */
 		if (!of_property_read_bool(child, "compatible")) {
 			dev_warn(&pdev->dev,
-				 "Incompatible NAND node: missing compatible");
+				 "Incompatible NAND yesde: missing compatible");
 			ret = -EINVAL;
 			goto err;
 		}
 	}
 
-	if (of_node_name_eq(child, "onenand")) {
-		/* Warn about older DT blobs with no compatible property */
+	if (of_yesde_name_eq(child, "onenand")) {
+		/* Warn about older DT blobs with yes compatible property */
 		if (!of_property_read_bool(child, "compatible")) {
 			dev_warn(&pdev->dev,
-				 "Incompatible OneNAND node: missing compatible");
+				 "Incompatible OneNAND yesde: missing compatible");
 			ret = -EINVAL;
 			goto err;
 		}
@@ -2158,7 +2158,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 					   &gpmc_s.device_width);
 		if (ret < 0 && !gpmc_s.device_width) {
 			dev_err(&pdev->dev,
-				"%pOF has no 'gpmc,device-width' property\n",
+				"%pOF has yes 'gpmc,device-width' property\n",
 				child);
 			goto err;
 		}
@@ -2200,14 +2200,14 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	/* Enable CS region */
 	gpmc_cs_enable_mem(cs);
 
-no_timings:
+yes_timings:
 
 	/* create platform device, NULL on error or when disabled */
 	if (!of_platform_device_create(child, NULL, &pdev->dev))
 		goto err_child_fail;
 
 	/* is child a common bus? */
-	if (of_match_node(of_default_bus_match_table, child))
+	if (of_match_yesde(of_default_bus_match_table, child))
 		/* create children and other common bus children */
 		if (of_platform_default_populate(child, NULL, &pdev->dev))
 			goto err_child_fail;
@@ -2236,24 +2236,24 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 	if (!of_id)
 		return 0;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "gpmc,num-cs",
+	ret = of_property_read_u32(pdev->dev.of_yesde, "gpmc,num-cs",
 				   &gpmc_cs_num);
 	if (ret < 0) {
-		pr_err("%s: number of chip-selects not defined\n", __func__);
+		pr_err("%s: number of chip-selects yest defined\n", __func__);
 		return ret;
 	} else if (gpmc_cs_num < 1) {
 		pr_err("%s: all chip-selects are disabled\n", __func__);
 		return -EINVAL;
 	} else if (gpmc_cs_num > GPMC_CS_NUM) {
-		pr_err("%s: number of supported chip-selects cannot be > %d\n",
+		pr_err("%s: number of supported chip-selects canyest be > %d\n",
 					 __func__, GPMC_CS_NUM);
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "gpmc,num-waitpins",
+	ret = of_property_read_u32(pdev->dev.of_yesde, "gpmc,num-waitpins",
 				   &gpmc_nr_waitpins);
 	if (ret < 0) {
-		pr_err("%s: number of wait pins not found!\n", __func__);
+		pr_err("%s: number of wait pins yest found!\n", __func__);
 		return ret;
 	}
 
@@ -2263,9 +2263,9 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 static void gpmc_probe_dt_children(struct platform_device *pdev)
 {
 	int ret;
-	struct device_node *child;
+	struct device_yesde *child;
 
-	for_each_available_child_of_node(pdev->dev.of_node, child) {
+	for_each_available_child_of_yesde(pdev->dev.of_yesde, child) {
 		ret = gpmc_probe_generic_child(pdev, child);
 		if (ret) {
 			dev_err(&pdev->dev, "failed to probe DT child '%pOFn': %d\n",
@@ -2334,7 +2334,7 @@ static int gpmc_gpio_init(struct gpmc_device *gpmc)
 
 	ret = devm_gpiochip_add_data(gpmc->dev, &gpmc->gpio_chip, NULL);
 	if (ret < 0) {
-		dev_err(gpmc->dev, "could not register gpio chip: %d\n", ret);
+		dev_err(gpmc->dev, "could yest register gpio chip: %d\n", ret);
 		return ret;
 	}
 
@@ -2385,7 +2385,7 @@ static int gpmc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		rc = gpmc_probe_dt(pdev);
 		if (rc)
 			return rc;
@@ -2402,7 +2402,7 @@ static int gpmc_probe(struct platform_device *pdev)
 	/*
 	 * FIXME: Once device-tree migration is complete the below flags
 	 * should be populated based upon the device-tree compatible
-	 * string. For now just use the IP revision. OMAP3+ devices have
+	 * string. For yesw just use the IP revision. OMAP3+ devices have
 	 * the wr_access and wr_data_mux_bus register fields. OMAP4+
 	 * devices support the addr-addr-data multiplex protocol.
 	 *

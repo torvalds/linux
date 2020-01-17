@@ -42,8 +42,8 @@
  | 1 << ND_CMD_VENDOR_EFFECT_LOG | 1 << ND_CMD_VENDOR)
 
 /*
- * Command numbers that the kernel needs to know about to handle
- * non-default DSM revision ids
+ * Command numbers that the kernel needs to kyesw about to handle
+ * yesn-default DSM revision ids
  */
 enum nvdimm_family_cmds {
 	NVDIMM_INTEL_LATCH_SHUTDOWN = 10,
@@ -107,8 +107,8 @@ enum nfit_uuids {
  * LSB and the function as the MSB.
  */
 #define NFIT_FIC_BYTE cpu_to_le16(0x101) /* byte-addressable energy backed */
-#define NFIT_FIC_BLK cpu_to_le16(0x201) /* block-addressable non-energy backed */
-#define NFIT_FIC_BYTEN cpu_to_le16(0x301) /* byte-addressable non-energy backed */
+#define NFIT_FIC_BLK cpu_to_le16(0x201) /* block-addressable yesn-energy backed */
+#define NFIT_FIC_BYTEN cpu_to_le16(0x301) /* byte-addressable yesn-energy backed */
 
 enum {
 	NFIT_BLK_READ_FLUSH = 1,
@@ -123,12 +123,12 @@ enum {
 	NFIT_ARS_TIMEOUT = 90,
 };
 
-enum nfit_root_notifiers {
+enum nfit_root_yestifiers {
 	NFIT_NOTIFY_UPDATE = 0x80,
 	NFIT_NOTIFY_UC_MEMORY_ERROR = 0x81,
 };
 
-enum nfit_dimm_notifiers {
+enum nfit_dimm_yestifiers {
 	NFIT_NOTIFY_DIMM_HEALTH = 0x81,
 };
 
@@ -193,7 +193,7 @@ struct nfit_mem {
 	struct acpi_nfit_system_address *spa_bdw;
 	struct acpi_nfit_interleave *idt_dcr;
 	struct acpi_nfit_interleave *idt_bdw;
-	struct kernfs_node *flags_attr;
+	struct kernfs_yesde *flags_attr;
 	struct nfit_flush *nfit_flush;
 	struct list_head list;
 	struct acpi_device *adev;
@@ -230,7 +230,7 @@ struct acpi_nfit_desc {
 	struct nfit_spa *scrub_spa;
 	struct delayed_work dwork;
 	struct list_head list;
-	struct kernfs_node *scrub_count_state;
+	struct kernfs_yesde *scrub_count_state;
 	unsigned int max_ars;
 	unsigned int scrub_count;
 	unsigned int scrub_mode;
@@ -339,8 +339,8 @@ static inline void nfit_device_unlock(struct device *dev)
 const guid_t *to_nfit_uuid(enum nfit_uuids id);
 int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *nfit, acpi_size sz);
 void acpi_nfit_shutdown(void *data);
-void __acpi_nfit_notify(struct device *dev, acpi_handle handle, u32 event);
-void __acpi_nvdimm_notify(struct device *dev, u32 event);
+void __acpi_nfit_yestify(struct device *dev, acpi_handle handle, u32 event);
+void __acpi_nvdimm_yestify(struct device *dev, u32 event);
 int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 		unsigned int cmd, void *buf, unsigned int buf_len, int *cmd_rc);
 void acpi_nfit_desc_init(struct acpi_nfit_desc *acpi_desc, struct device *dev);

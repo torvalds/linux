@@ -131,7 +131,7 @@ static inline bool gen9_check_huc_fw_fits(struct drm_i915_private *i915,
 	 * firmware uploading would fail.
 	 */
 	if (huc_fw_size > guc_wopcm_size - GUC_WOPCM_RESERVED) {
-		dev_err(i915->drm.dev, "WOPCM: no space for %s: %uK < %uK\n",
+		dev_err(i915->drm.dev, "WOPCM: yes space for %s: %uK < %uK\n",
 			intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
 			(guc_wopcm_size - GUC_WOPCM_RESERVED) / SZ_1K,
 			huc_fw_size / 1024);
@@ -175,7 +175,7 @@ static inline bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
 
 	size = guc_fw_size + GUC_WOPCM_RESERVED + GUC_WOPCM_STACK_RESERVED;
 	if (unlikely(guc_wopcm_size < size)) {
-		dev_err(i915->drm.dev, "WOPCM: no space for %s: %uK < %uK\n",
+		dev_err(i915->drm.dev, "WOPCM: yes space for %s: %uK < %uK\n",
 			intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_GUC),
 			guc_wopcm_size / SZ_1K, size / SZ_1K);
 		return false;
@@ -183,7 +183,7 @@ static inline bool __check_layout(struct drm_i915_private *i915, u32 wopcm_size,
 
 	size = huc_fw_size + WOPCM_RESERVED_SIZE;
 	if (unlikely(guc_wopcm_base < size)) {
-		dev_err(i915->drm.dev, "WOPCM: no space for %s: %uK < %uK\n",
+		dev_err(i915->drm.dev, "WOPCM: yes space for %s: %uK < %uK\n",
 			intel_uc_fw_type_repr(INTEL_UC_FW_TYPE_HUC),
 			guc_wopcm_base / SZ_1K, size / SZ_1K);
 		return false;
@@ -257,7 +257,7 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	guc_wopcm_base = ALIGN(guc_wopcm_base, GUC_WOPCM_OFFSET_ALIGNMENT);
 
 	/*
-	 * Need to clamp guc_wopcm_base now to make sure the following math is
+	 * Need to clamp guc_wopcm_base yesw to make sure the following math is
 	 * correct. Formal check of whole WOPCM layout will be done below.
 	 */
 	guc_wopcm_base = min(guc_wopcm_base, wopcm->size - ctx_rsvd);

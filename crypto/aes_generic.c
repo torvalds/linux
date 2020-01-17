@@ -6,7 +6,7 @@
  * Based on Brian Gladman's code.
  *
  * Linux developers:
- *  Alexander Kjeldaas <astor@fast.no>
+ *  Alexander Kjeldaas <astor@fast.yes>
  *  Herbert Valerio Riedel <hvr@hvrlab.org>
  *  Kyle McMartin <kyle@debian.org>
  *  Adam J. Richter <adam@yggdrasil.com> (conversion to 2.5 API).
@@ -26,23 +26,23 @@
  * form is allowed (with or without changes) provided that:
  *
  *   1. distributions of this source code include the above copyright
- *      notice, this list of conditions and the following disclaimer;
+ *      yestice, this list of conditions and the following disclaimer;
  *
  *   2. distributions in binary form include the above copyright
- *      notice, this list of conditions and the following disclaimer
+ *      yestice, this list of conditions and the following disclaimer
  *      in the documentation and/or other associated materials;
  *
- *   3. the copyright holder's name is not used to endorse products
+ *   3. the copyright holder's name is yest used to endorse products
  *      built using this software without specific written permission.
  *
- * ALTERNATIVELY, provided that this notice is retained in full, this product
+ * ALTERNATIVELY, provided that this yestice is retained in full, this product
  * may be distributed under the terms of the GNU General Public License (GPL),
  * in which case the provisions of the GPL apply INSTEAD OF those given above.
  *
  * DISCLAIMER
  *
- * This software is provided 'as is' with no explicit or implied warranties
- * in respect of its properties, including, but not limited to, correctness
+ * This software is provided 'as is' with yes explicit or implied warranties
+ * in respect of its properties, including, but yest limited to, correctness
  * and/or fitness for purpose.
  * ---------------------------------------------------------------------------
  */
@@ -51,7 +51,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/crypto.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>

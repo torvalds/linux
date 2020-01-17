@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -38,11 +38,11 @@ therm_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
 			therm = nvbios_rd32(bios, bit_P.offset + 16);
 		else
 			nvkm_error(&bios->subdev,
-				   "unknown offset for thermal in BIT P %d\n",
+				   "unkyeswn offset for thermal in BIT P %d\n",
 				   bit_P.version);
 	}
 
-	/* exit now if we haven't found the thermal table */
+	/* exit yesw if we haven't found the thermal table */
 	if (!therm)
 		return 0;
 
@@ -72,7 +72,7 @@ nvbios_therm_sensor_parse(struct nvkm_bios *bios,
 	u8 ver, len, i;
 	u32 entry;
 
-	/* we only support the core domain for now */
+	/* we only support the core domain for yesw */
 	if (domain != NVBIOS_THERM_DOMAIN_CORE)
 		return -EINVAL;
 
@@ -87,7 +87,7 @@ nvbios_therm_sensor_parse(struct nvkm_bios *bios,
 		case 0x0:
 			thrs_section = value;
 			if (value > 0)
-				return 0; /* we do not try to support ambient */
+				return 0; /* we do yest try to support ambient */
 			break;
 		case 0x01:
 			sensor_section++;

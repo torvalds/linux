@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -19,14 +19,14 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nouveau_vmm.h"
-#include "nouveau_drv.h"
-#include "nouveau_bo.h"
-#include "nouveau_svm.h"
-#include "nouveau_mem.h"
+#include "yesuveau_vmm.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_bo.h"
+#include "yesuveau_svm.h"
+#include "yesuveau_mem.h"
 
 void
-nouveau_vma_unmap(struct nouveau_vma *vma)
+yesuveau_vma_unmap(struct yesuveau_vma *vma)
 {
 	if (vma->mem) {
 		nvif_vmm_unmap(&vma->vmm->vmm, vma->addr);
@@ -35,20 +35,20 @@ nouveau_vma_unmap(struct nouveau_vma *vma)
 }
 
 int
-nouveau_vma_map(struct nouveau_vma *vma, struct nouveau_mem *mem)
+yesuveau_vma_map(struct yesuveau_vma *vma, struct yesuveau_mem *mem)
 {
 	struct nvif_vma tmp = { .addr = vma->addr };
-	int ret = nouveau_mem_map(mem, &vma->vmm->vmm, &tmp);
+	int ret = yesuveau_mem_map(mem, &vma->vmm->vmm, &tmp);
 	if (ret)
 		return ret;
 	vma->mem = mem;
 	return 0;
 }
 
-struct nouveau_vma *
-nouveau_vma_find(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm)
+struct yesuveau_vma *
+yesuveau_vma_find(struct yesuveau_bo *nvbo, struct yesuveau_vmm *vmm)
 {
-	struct nouveau_vma *vma;
+	struct yesuveau_vma *vma;
 
 	list_for_each_entry(vma, &nvbo->vma_list, head) {
 		if (vma->vmm == vmm)
@@ -59,9 +59,9 @@ nouveau_vma_find(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm)
 }
 
 void
-nouveau_vma_del(struct nouveau_vma **pvma)
+yesuveau_vma_del(struct yesuveau_vma **pvma)
 {
-	struct nouveau_vma *vma = *pvma;
+	struct yesuveau_vma *vma = *pvma;
 	if (vma && --vma->refs <= 0) {
 		if (likely(vma->addr != ~0ULL)) {
 			struct nvif_vma tmp = { .addr = vma->addr, .size = 1 };
@@ -74,15 +74,15 @@ nouveau_vma_del(struct nouveau_vma **pvma)
 }
 
 int
-nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
-		struct nouveau_vma **pvma)
+yesuveau_vma_new(struct yesuveau_bo *nvbo, struct yesuveau_vmm *vmm,
+		struct yesuveau_vma **pvma)
 {
-	struct nouveau_mem *mem = nouveau_mem(&nvbo->bo.mem);
-	struct nouveau_vma *vma;
+	struct yesuveau_mem *mem = yesuveau_mem(&nvbo->bo.mem);
+	struct yesuveau_vma *vma;
 	struct nvif_vma tmp;
 	int ret;
 
-	if ((vma = *pvma = nouveau_vma_find(nvbo, vmm))) {
+	if ((vma = *pvma = yesuveau_vma_find(nvbo, vmm))) {
 		vma->refs++;
 		return 0;
 	}
@@ -104,7 +104,7 @@ nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
 			goto done;
 
 		vma->addr = tmp.addr;
-		ret = nouveau_vma_map(vma, mem);
+		ret = yesuveau_vma_map(vma, mem);
 	} else {
 		ret = nvif_vmm_get(&vmm->vmm, PTES, false, mem->mem.page, 0,
 				   mem->mem.size, &tmp);
@@ -113,20 +113,20 @@ nouveau_vma_new(struct nouveau_bo *nvbo, struct nouveau_vmm *vmm,
 
 done:
 	if (ret)
-		nouveau_vma_del(pvma);
+		yesuveau_vma_del(pvma);
 	return ret;
 }
 
 void
-nouveau_vmm_fini(struct nouveau_vmm *vmm)
+yesuveau_vmm_fini(struct yesuveau_vmm *vmm)
 {
-	nouveau_svmm_fini(&vmm->svmm);
+	yesuveau_svmm_fini(&vmm->svmm);
 	nvif_vmm_fini(&vmm->vmm);
 	vmm->cli = NULL;
 }
 
 int
-nouveau_vmm_init(struct nouveau_cli *cli, s32 oclass, struct nouveau_vmm *vmm)
+yesuveau_vmm_init(struct yesuveau_cli *cli, s32 oclass, struct yesuveau_vmm *vmm)
 {
 	int ret = nvif_vmm_init(&cli->mmu, oclass, false, PAGE_SIZE, 0, NULL, 0,
 				&vmm->vmm);

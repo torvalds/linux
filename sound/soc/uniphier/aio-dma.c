@@ -5,7 +5,7 @@
 // Copyright (c) 2016-2018 Socionext Inc.
 
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <sound/core.h>
@@ -77,7 +77,7 @@ static irqreturn_t aiodma_irq(int irq, void *p)
 		for (j = 0; j < ARRAY_SIZE(aio->sub); j++) {
 			struct uniphier_aio_sub *sub = &aio->sub[j];
 
-			/* Skip channel that does not trigger */
+			/* Skip channel that does yest trigger */
 			if (!sub->running || !aiodma_rb_is_irq(sub))
 				continue;
 
@@ -177,7 +177,7 @@ static int uniphier_aiodma_trigger(struct snd_soc_component *component,
 
 		break;
 	default:
-		dev_warn(dev, "Unknown trigger(%d) ignored\n", cmd);
+		dev_warn(dev, "Unkyeswn trigger(%d) igyesred\n", cmd);
 		break;
 	}
 	spin_unlock_irqrestore(&sub->lock, flags);

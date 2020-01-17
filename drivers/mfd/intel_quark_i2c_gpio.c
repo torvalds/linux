@@ -23,7 +23,7 @@
 #define MFD_I2C_BAR		0
 #define MFD_GPIO_BAR		1
 
-/* ACPI _ADR value to match the child node */
+/* ACPI _ADR value to match the child yesde */
 #define MFD_ACPI_MATCH_GPIO	0ULL
 #define MFD_ACPI_MATCH_I2C	1ULL
 
@@ -102,7 +102,7 @@ static struct mfd_cell intel_quark_mfd_cells[] = {
 		.acpi_match = &intel_quark_acpi_match_gpio,
 		.num_resources = ARRAY_SIZE(intel_quark_gpio_res),
 		.resources = intel_quark_gpio_res,
-		.ignore_resource_conflicts = true,
+		.igyesre_resource_conflicts = true,
 	},
 	{
 		.id = MFD_I2C_BAR,
@@ -110,7 +110,7 @@ static struct mfd_cell intel_quark_mfd_cells[] = {
 		.acpi_match = &intel_quark_acpi_match_i2c,
 		.num_resources = ARRAY_SIZE(intel_quark_i2c_res),
 		.resources = intel_quark_i2c_res,
-		.ignore_resource_conflicts = true,
+		.igyesre_resource_conflicts = true,
 	},
 };
 
@@ -211,7 +211,7 @@ static int intel_quark_gpio_setup(struct pci_dev *pdev, struct mfd_cell *cell)
 		return -ENOMEM;
 
 	/* Set the properties for portA */
-	pdata->properties->fwnode	= NULL;
+	pdata->properties->fwyesde	= NULL;
 	pdata->properties->idx		= 0;
 	pdata->properties->ngpio	= INTEL_QUARK_MFD_NGPIO;
 	pdata->properties->gpio_base	= INTEL_QUARK_MFD_GPIO_BASE;

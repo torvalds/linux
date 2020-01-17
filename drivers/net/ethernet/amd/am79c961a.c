@@ -8,7 +8,7 @@
  *
  * This is a special driver for the am79c961A Lance chip used in the
  * Intel (formally Digital Equipment Corp) EBSA110 platform.  Please
- * note that this can not be built as a module (it doesn't make sense).
+ * yeste that this can yest be built as a module (it doesn't make sense).
  */
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -16,7 +16,7 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
@@ -396,7 +396,7 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 		 */
 		while ((read_rreg(dev->base_addr, CTRL1) & CTRL1_SPND) == 0) {
 			spin_unlock_irqrestore(&priv->chip_lock, flags);
-			nop();
+			yesp();
 			spin_lock_irqsave(&priv->chip_lock, flags);
 		}
 	}
@@ -463,7 +463,7 @@ am79c961_sendpacket(struct sk_buff *skb, struct net_device *dev)
 
 	/*
 	 * If the next packet is owned by the ethernet device,
-	 * then the tx ring is full and we can't add another
+	 * then the tx ring is full and we can't add ayesther
 	 * packet.
 	 */
 	if (am_readword(dev, priv->txhdr + (priv->txhead << 3) + 2) & TMD_OWN)
@@ -696,13 +696,13 @@ static int am79c961_probe(struct platform_device *pdev)
 
 	if (ret < 0) {
 		ret = -ENODEV;
-		goto nodev;
+		goto yesdev;
 	}
 	dev->irq = ret;
 
 	ret = -ENODEV;
 	if (!request_region(dev->base_addr, 0x18, dev->name))
-		goto nodev;
+		goto yesdev;
 
 	/*
 	 * Reset the device.
@@ -742,7 +742,7 @@ static int am79c961_probe(struct platform_device *pdev)
 
 release:
 	release_region(dev->base_addr, 0x18);
-nodev:
+yesdev:
 	free_netdev(dev);
 out:
 	return ret;

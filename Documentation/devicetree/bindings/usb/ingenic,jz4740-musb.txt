@@ -13,7 +13,7 @@ Required properties:
 Example:
 
 usb_phy: usb-phy@0 {
-	compatible = "usb-nop-xceiv";
+	compatible = "usb-yesp-xceiv";
 	#phy-cells = <0>;
 };
 

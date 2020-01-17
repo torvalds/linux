@@ -36,7 +36,7 @@ int sdw_find_col_index(int col)
 			return i;
 	}
 
-	pr_warn("Requested column not found, selecting lowest column no: 2\n");
+	pr_warn("Requested column yest found, selecting lowest column yes: 2\n");
 	return 0;
 }
 EXPORT_SYMBOL(sdw_find_col_index);
@@ -50,7 +50,7 @@ int sdw_find_row_index(int row)
 			return i;
 	}
 
-	pr_warn("Requested row not found, selecting lowest row no: 48\n");
+	pr_warn("Requested row yest found, selecting lowest row yes: 48\n");
 	return 0;
 }
 EXPORT_SYMBOL(sdw_find_row_index);
@@ -93,7 +93,7 @@ static int _sdw_program_slave_port_params(struct sdw_bus *bus,
 	/*
 	 * Data ports are FULL, SIMPLE and REDUCED. This function handles
 	 * FULL and REDUCED only and beyond this point only FULL is
-	 * handled, so bail out if we are not FULL data port type
+	 * handled, so bail out if we are yest FULL data port type
 	 */
 	if (type != SDW_DPN_FULL)
 		return ret;
@@ -265,8 +265,8 @@ static int sdw_program_port_params(struct sdw_master_runtime *m_rt)
 	int ret = 0;
 
 	/* Program transport & port parameters for Slave(s) */
-	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
-		list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
+	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_yesde) {
+		list_for_each_entry(p_rt, &s_rt->port_list, port_yesde) {
 			ret = sdw_program_slave_port_params(bus, s_rt, p_rt);
 			if (ret < 0)
 				return ret;
@@ -274,7 +274,7 @@ static int sdw_program_port_params(struct sdw_master_runtime *m_rt)
 	}
 
 	/* Program transport & port parameters for Master(s) */
-	list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+	list_for_each_entry(p_rt, &m_rt->port_list, port_yesde) {
 		ret = sdw_program_master_port_params(bus, p_rt);
 		if (ret < 0)
 			return ret;
@@ -351,7 +351,7 @@ static int sdw_enable_disable_master_ports(struct sdw_master_runtime *m_rt,
 		}
 	} else {
 		dev_err(bus->dev,
-			"dpn_port_enable_ch not supported, %s failed\n",
+			"dpn_port_enable_ch yest supported, %s failed\n",
 			en ? "enable" : "disable");
 		return -EINVAL;
 	}
@@ -373,8 +373,8 @@ static int sdw_enable_disable_ports(struct sdw_master_runtime *m_rt, bool en)
 	int ret = 0;
 
 	/* Enable/Disable Slave port(s) */
-	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
-		list_for_each_entry(s_port, &s_rt->port_list, port_node) {
+	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_yesde) {
+		list_for_each_entry(s_port, &s_rt->port_list, port_yesde) {
 			ret = sdw_enable_disable_slave_ports(m_rt->bus, s_rt,
 							     s_port, en);
 			if (ret < 0)
@@ -383,7 +383,7 @@ static int sdw_enable_disable_ports(struct sdw_master_runtime *m_rt, bool en)
 	}
 
 	/* Enable/Disable Master port(s) */
-	list_for_each_entry(m_port, &m_rt->port_list, port_node) {
+	list_for_each_entry(m_port, &m_rt->port_list, port_yesde) {
 		ret = sdw_enable_disable_master_ports(m_rt, m_port, en);
 		if (ret < 0)
 			return ret;
@@ -433,7 +433,7 @@ static int sdw_prep_deprep_slave_ports(struct sdw_bus *bus,
 					  prep_ch.num);
 	if (!dpn_prop) {
 		dev_err(bus->dev,
-			"Slave Port:%d properties not found\n", prep_ch.num);
+			"Slave Port:%d properties yest found\n", prep_ch.num);
 		return -EINVAL;
 	}
 
@@ -542,8 +542,8 @@ static int sdw_prep_deprep_ports(struct sdw_master_runtime *m_rt, bool prep)
 	int ret = 0;
 
 	/* Prepare/De-prepare Slave port(s) */
-	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
-		list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
+	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_yesde) {
+		list_for_each_entry(p_rt, &s_rt->port_list, port_yesde) {
 			ret = sdw_prep_deprep_slave_ports(m_rt->bus, s_rt,
 							  p_rt, prep);
 			if (ret < 0)
@@ -552,7 +552,7 @@ static int sdw_prep_deprep_ports(struct sdw_master_runtime *m_rt, bool prep)
 	}
 
 	/* Prepare/De-prepare Master port(s) */
-	list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+	list_for_each_entry(p_rt, &m_rt->port_list, port_yesde) {
 		ret = sdw_prep_deprep_master_ports(m_rt, p_rt, prep);
 		if (ret < 0)
 			return ret;
@@ -562,14 +562,14 @@ static int sdw_prep_deprep_ports(struct sdw_master_runtime *m_rt, bool prep)
 }
 
 /**
- * sdw_notify_config() - Notify bus configuration
+ * sdw_yestify_config() - Notify bus configuration
  *
  * @m_rt: Master runtime handle
  *
- * This function notifies the Master(s) and Slave(s) of the
+ * This function yestifies the Master(s) and Slave(s) of the
  * new bus configuration.
  */
-static int sdw_notify_config(struct sdw_master_runtime *m_rt)
+static int sdw_yestify_config(struct sdw_master_runtime *m_rt)
 {
 	struct sdw_slave_runtime *s_rt;
 	struct sdw_bus *bus = m_rt->bus;
@@ -582,7 +582,7 @@ static int sdw_notify_config(struct sdw_master_runtime *m_rt)
 			return ret;
 	}
 
-	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
+	list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_yesde) {
 		slave = s_rt->slave;
 
 		if (slave->ops->bus_config) {
@@ -608,7 +608,7 @@ static int sdw_program_params(struct sdw_bus *bus)
 	struct sdw_master_runtime *m_rt;
 	int ret = 0;
 
-	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+	list_for_each_entry(m_rt, &bus->m_rt_list, bus_yesde) {
 		ret = sdw_program_port_params(m_rt);
 		if (ret < 0) {
 			dev_err(bus->dev,
@@ -616,7 +616,7 @@ static int sdw_program_params(struct sdw_bus *bus)
 			return ret;
 		}
 
-		ret = sdw_notify_config(m_rt);
+		ret = sdw_yestify_config(m_rt);
 		if (ret < 0) {
 			dev_err(bus->dev,
 				"Notify bus config failed: %d\n", ret);
@@ -747,7 +747,7 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 	bool multi_link = false;
 	int ret = 0;
 
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		bus = m_rt->bus;
 		ops = bus->ops;
 
@@ -783,9 +783,9 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 	 * For multi link cases, it is expected that the bank switch is
 	 * triggered by the post_bank_switch for the first Master in the list
 	 * and for the other Masters the post_bank_switch() should return doing
-	 * nothing.
+	 * yesthing.
 	 */
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		bus = m_rt->bus;
 		ops = bus->ops;
 
@@ -800,11 +800,11 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 			}
 		} else if (bus->multi_link && stream->m_rt_count > 1) {
 			dev_err(bus->dev,
-				"Post bank switch ops not implemented\n");
+				"Post bank switch ops yest implemented\n");
 			goto error;
 		}
 
-		/* Set the bank switch timeout to default, if not set */
+		/* Set the bank switch timeout to default, if yest set */
 		if (!bus->bank_switch_timeout)
 			bus->bank_switch_timeout = DEFAULT_BANK_SWITCH_TIMEOUT;
 
@@ -823,7 +823,7 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 	return ret;
 
 error:
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		bus = m_rt->bus;
 
 		kfree(bus->defer_msg.msg->buf);
@@ -833,7 +833,7 @@ error:
 msg_unlock:
 
 	if (multi_link) {
-		list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+		list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 			bus = m_rt->bus;
 			if (mutex_is_locked(&bus->msg_lock))
 				mutex_unlock(&bus->msg_lock);
@@ -889,7 +889,7 @@ static struct sdw_master_runtime
 	struct sdw_master_runtime *m_rt;
 
 	/* Retrieve Bus handle if already available */
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		if (m_rt->bus == bus)
 			return m_rt;
 	}
@@ -928,9 +928,9 @@ static struct sdw_master_runtime
 	/* Initialization of Master runtime handle */
 	INIT_LIST_HEAD(&m_rt->port_list);
 	INIT_LIST_HEAD(&m_rt->slave_rt_list);
-	list_add_tail(&m_rt->stream_node, &stream->master_list);
+	list_add_tail(&m_rt->stream_yesde, &stream->master_list);
 
-	list_add_tail(&m_rt->bus_node, &bus->m_rt_list);
+	list_add_tail(&m_rt->bus_yesde, &bus->m_rt_list);
 
 stream_config:
 	m_rt->ch_count = stream_config->ch_count;
@@ -974,8 +974,8 @@ static void sdw_master_port_release(struct sdw_bus *bus,
 {
 	struct sdw_port_runtime *p_rt, *_p_rt;
 
-	list_for_each_entry_safe(p_rt, _p_rt, &m_rt->port_list, port_node) {
-		list_del(&p_rt->port_node);
+	list_for_each_entry_safe(p_rt, _p_rt, &m_rt->port_list, port_yesde) {
+		list_del(&p_rt->port_yesde);
 		kfree(p_rt);
 	}
 }
@@ -988,14 +988,14 @@ static void sdw_slave_port_release(struct sdw_bus *bus,
 	struct sdw_master_runtime *m_rt;
 	struct sdw_slave_runtime *s_rt;
 
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
-		list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
+		list_for_each_entry(s_rt, &m_rt->slave_rt_list, m_rt_yesde) {
 			if (s_rt->slave != slave)
 				continue;
 
 			list_for_each_entry_safe(p_rt, _p_rt,
-						 &s_rt->port_list, port_node) {
-				list_del(&p_rt->port_node);
+						 &s_rt->port_list, port_yesde) {
+				list_del(&p_rt->port_yesde);
 				kfree(p_rt);
 			}
 		}
@@ -1016,12 +1016,12 @@ static void sdw_release_slave_stream(struct sdw_slave *slave,
 	struct sdw_slave_runtime *s_rt, *_s_rt;
 	struct sdw_master_runtime *m_rt;
 
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		/* Retrieve Slave runtime handle */
 		list_for_each_entry_safe(s_rt, _s_rt,
-					 &m_rt->slave_rt_list, m_rt_node) {
+					 &m_rt->slave_rt_list, m_rt_yesde) {
 			if (s_rt->slave == slave) {
-				list_del(&s_rt->m_rt_node);
+				list_del(&s_rt->m_rt_yesde);
 				kfree(s_rt);
 				return;
 			}
@@ -1032,26 +1032,26 @@ static void sdw_release_slave_stream(struct sdw_slave *slave,
 /**
  * sdw_release_master_stream() - Free Master runtime handle
  *
- * @m_rt: Master runtime node
+ * @m_rt: Master runtime yesde
  * @stream: Stream runtime handle.
  *
  * This function is to be called with bus_lock held
  * It frees the Master runtime handle and associated Slave(s) runtime
  * handle. If this is called first then sdw_release_slave_stream() will have
- * no effect as Slave(s) runtime handle would already be freed up.
+ * yes effect as Slave(s) runtime handle would already be freed up.
  */
 static void sdw_release_master_stream(struct sdw_master_runtime *m_rt,
 				      struct sdw_stream_runtime *stream)
 {
 	struct sdw_slave_runtime *s_rt, *_s_rt;
 
-	list_for_each_entry_safe(s_rt, _s_rt, &m_rt->slave_rt_list, m_rt_node) {
+	list_for_each_entry_safe(s_rt, _s_rt, &m_rt->slave_rt_list, m_rt_yesde) {
 		sdw_slave_port_release(s_rt->slave->bus, s_rt->slave, stream);
 		sdw_release_slave_stream(s_rt->slave, stream);
 	}
 
-	list_del(&m_rt->stream_node);
-	list_del(&m_rt->bus_node);
+	list_del(&m_rt->stream_yesde);
+	list_del(&m_rt->bus_yesde);
 	kfree(m_rt);
 }
 
@@ -1071,7 +1071,7 @@ int sdw_stream_remove_master(struct sdw_bus *bus,
 	mutex_lock(&bus->bus_lock);
 
 	list_for_each_entry_safe(m_rt, _m_rt,
-				 &stream->master_list, stream_node) {
+				 &stream->master_list, stream_yesde) {
 		if (m_rt->bus != bus)
 			continue;
 
@@ -1131,18 +1131,18 @@ static int sdw_config_stream(struct device *dev,
 	 * source. For more than one data source (multilink),
 	 * match the rate, bps, stream type and increment number of channels.
 	 *
-	 * If rate/bps is zero, it means the values are not set, so skip
+	 * If rate/bps is zero, it means the values are yest set, so skip
 	 * comparison and allow the value to be set and stored in stream
 	 */
 	if (stream->params.rate &&
 	    stream->params.rate != stream_config->frame_rate) {
-		dev_err(dev, "rate not matching, stream:%s\n", stream->name);
+		dev_err(dev, "rate yest matching, stream:%s\n", stream->name);
 		return -EINVAL;
 	}
 
 	if (stream->params.bps &&
 	    stream->params.bps != stream_config->bps) {
-		dev_err(dev, "bps not matching, stream:%s\n", stream->name);
+		dev_err(dev, "bps yest matching, stream:%s\n", stream->name);
 		return -EINVAL;
 	}
 
@@ -1205,7 +1205,7 @@ static int sdw_master_port_config(struct sdw_bus *bus,
 		 * configuration (audio mode support)
 		 */
 
-		list_add_tail(&p_rt->port_node, &m_rt->port_list);
+		list_add_tail(&p_rt->port_yesde, &m_rt->port_list);
 	}
 
 	return 0;
@@ -1240,7 +1240,7 @@ static int sdw_slave_port_config(struct sdw_slave *slave,
 		 * configuration (audio mode support)
 		 */
 
-		list_add_tail(&p_rt->port_node, &s_rt->port_list);
+		list_add_tail(&p_rt->port_yesde, &s_rt->port_list);
 	}
 
 	return 0;
@@ -1273,7 +1273,7 @@ int sdw_stream_add_master(struct sdw_bus *bus,
 	 */
 	if (!bus->multi_link && stream->m_rt_count > 0) {
 		dev_err(bus->dev,
-			"Multilink not supported, link %d\n", bus->link_id);
+			"Multilink yest supported, link %d\n", bus->link_id);
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -1333,7 +1333,7 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 	mutex_lock(&slave->bus->bus_lock);
 
 	/*
-	 * If this API is invoked by Slave first then m_rt is not valid.
+	 * If this API is invoked by Slave first then m_rt is yest valid.
 	 * So, allocate m_rt and add Slave to it.
 	 */
 	m_rt = sdw_alloc_master_rt(slave->bus, stream_config, stream);
@@ -1358,7 +1358,7 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 	if (ret)
 		goto stream_error;
 
-	list_add_tail(&s_rt->m_rt_node, &m_rt->slave_rt_list);
+	list_add_tail(&s_rt->m_rt_yesde, &m_rt->slave_rt_list);
 
 	ret = sdw_slave_port_config(slave, s_rt, port_config, num_ports);
 	if (ret)
@@ -1366,8 +1366,8 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 
 	/*
 	 * Change stream state to CONFIGURED on first Slave add.
-	 * Bus is not aware of number of Slave(s) in a stream at this
-	 * point so cannot depend on all Slave(s) to be added in order to
+	 * Bus is yest aware of number of Slave(s) in a stream at this
+	 * point so canyest depend on all Slave(s) to be added in order to
 	 * change stream state to CONFIGURED.
 	 */
 	stream->state = SDW_STREAM_CONFIGURED;
@@ -1432,7 +1432,7 @@ static void sdw_acquire_bus_lock(struct sdw_stream_runtime *stream)
 	struct sdw_bus *bus = NULL;
 
 	/* Iterate for all Master(s) in Master list */
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		bus = m_rt->bus;
 
 		mutex_lock(&bus->bus_lock);
@@ -1454,7 +1454,7 @@ static void sdw_release_bus_lock(struct sdw_stream_runtime *stream)
 	struct sdw_bus *bus = NULL;
 
 	/* Iterate for all Master(s) in Master list */
-	list_for_each_entry_reverse(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry_reverse(m_rt, &stream->master_list, stream_yesde) {
 		bus = m_rt->bus;
 		mutex_unlock(&bus->bus_lock);
 	}
@@ -1469,14 +1469,14 @@ static int _sdw_prepare_stream(struct sdw_stream_runtime *stream)
 	int ret;
 
 	/* Prepare  Master(s) and Slave(s) port(s) associated with stream */
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		bus = m_rt->bus;
 		prop = &bus->prop;
 		memcpy(&params, &bus->params, sizeof(params));
 
-		/* TODO: Support Asynchronous mode */
+		/* TODO: Support Asynchroyesus mode */
 		if ((prop->max_clk_freq % stream->params.rate) != 0) {
-			dev_err(bus->dev, "Async mode not supported\n");
+			dev_err(bus->dev, "Async mode yest supported\n");
 			return -EINVAL;
 		}
 
@@ -1514,7 +1514,7 @@ static int _sdw_prepare_stream(struct sdw_stream_runtime *stream)
 		goto restore_params;
 	}
 
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		bus = m_rt->bus;
 
 		/* Prepare port(s) on the new clock configuration */
@@ -1547,7 +1547,7 @@ int sdw_prepare_stream(struct sdw_stream_runtime *stream)
 	int ret = 0;
 
 	if (!stream) {
-		pr_err("SoundWire: Handle not found for stream\n");
+		pr_err("SoundWire: Handle yest found for stream\n");
 		return -EINVAL;
 	}
 
@@ -1569,7 +1569,7 @@ static int _sdw_enable_stream(struct sdw_stream_runtime *stream)
 	int ret;
 
 	/* Enable Master(s) and Slave(s) port(s) associated with stream */
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		bus = m_rt->bus;
 
 		/* Program params */
@@ -1615,7 +1615,7 @@ int sdw_enable_stream(struct sdw_stream_runtime *stream)
 	int ret;
 
 	if (!stream) {
-		pr_err("SoundWire: Handle not found for stream\n");
+		pr_err("SoundWire: Handle yest found for stream\n");
 		return -EINVAL;
 	}
 
@@ -1635,7 +1635,7 @@ static int _sdw_disable_stream(struct sdw_stream_runtime *stream)
 	struct sdw_master_runtime *m_rt;
 	int ret;
 
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		struct sdw_bus *bus = m_rt->bus;
 
 		/* Disable port(s) */
@@ -1647,7 +1647,7 @@ static int _sdw_disable_stream(struct sdw_stream_runtime *stream)
 	}
 	stream->state = SDW_STREAM_DISABLED;
 
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		struct sdw_bus *bus = m_rt->bus;
 
 		/* Program params */
@@ -1665,7 +1665,7 @@ static int _sdw_disable_stream(struct sdw_stream_runtime *stream)
 	}
 
 	/* make sure alternate bank (previous current) is also disabled */
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		struct sdw_bus *bus = m_rt->bus;
 
 		/* Disable port(s) */
@@ -1691,7 +1691,7 @@ int sdw_disable_stream(struct sdw_stream_runtime *stream)
 	int ret;
 
 	if (!stream) {
-		pr_err("SoundWire: Handle not found for stream\n");
+		pr_err("SoundWire: Handle yest found for stream\n");
 		return -EINVAL;
 	}
 
@@ -1712,7 +1712,7 @@ static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 	struct sdw_bus *bus;
 	int ret = 0;
 
-	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
+	list_for_each_entry(m_rt, &stream->master_list, stream_yesde) {
 		bus = m_rt->bus;
 		/* De-prepare port(s) */
 		ret = sdw_prep_deprep_ports(m_rt, false);
@@ -1750,7 +1750,7 @@ int sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 	int ret;
 
 	if (!stream) {
-		pr_err("SoundWire: Handle not found for stream\n");
+		pr_err("SoundWire: Handle yest found for stream\n");
 		return -EINVAL;
 	}
 

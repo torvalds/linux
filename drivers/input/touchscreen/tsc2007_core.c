@@ -91,12 +91,12 @@ bool tsc2007_is_pen_down(struct tsc2007 *ts)
 	 * NOTE: We can't rely on the pressure to determine the pen down
 	 * state, even though this controller has a pressure sensor.
 	 * The pressure value can fluctuate for quite a while after
-	 * lifting the pen and in some cases may not even settle at the
+	 * lifting the pen and in some cases may yest even settle at the
 	 * expected value.
 	 *
 	 * The only safe way to check for the pen up condition is in the
 	 * work function by reading the pen signal state (it's a GPIO
-	 * and IRQ). Unfortunately such callback is not always available,
+	 * and IRQ). Unfortunately such callback is yest always available,
 	 * in that case we assume that the pen is down and expect caller
 	 * to fall back on the pressure reading.
 	 */
@@ -153,7 +153,7 @@ static irqreturn_t tsc2007_soft_irq(int irq, void *handle)
 			 * beyond the maximum. Don't report it to user space,
 			 * repeat at least once more the measurement.
 			 */
-			dev_dbg(&ts->client->dev, "ignored pressure %d\n", rt);
+			dev_dbg(&ts->client->dev, "igyesred pressure %d\n", rt);
 		}
 
 		wait_event_timeout(ts->wait, ts->stopped, ts->poll_period);
@@ -231,7 +231,7 @@ static int tsc2007_get_pendown_state_gpio(struct device *dev)
 
 static int tsc2007_probe_dt(struct i2c_client *client, struct tsc2007 *ts)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	u32 val32;
 	u64 val64;
 
@@ -271,7 +271,7 @@ static int tsc2007_probe_dt(struct i2c_client *client, struct tsc2007 *ts)
 		ts->get_pendown_state = tsc2007_get_pendown_state_gpio;
 	else
 		dev_warn(&client->dev,
-			 "GPIO not specified in DT (of_get_gpio returned %d)\n",
+			 "GPIO yest specified in DT (of_get_gpio returned %d)\n",
 			 ts->gpio);
 
 	return 0;
@@ -299,7 +299,7 @@ static int tsc2007_probe_pdev(struct i2c_client *client, struct tsc2007 *ts,
 	ts->fuzzz             = pdata->fuzzz;
 
 	if (pdata->x_plate_ohms == 0) {
-		dev_err(&client->dev, "x_plate_ohms is not set up in platform data");
+		dev_err(&client->dev, "x_plate_ohms is yest set up in platform data");
 		return -EINVAL;
 	}
 
@@ -399,12 +399,12 @@ static int tsc2007_probe(struct i2c_client *client,
 
 	tsc2007_stop(ts);
 
-	/* power down the chip (TSC2007_SETUP does not ACK on I2C) */
+	/* power down the chip (TSC2007_SETUP does yest ACK on I2C) */
 	err = tsc2007_xfer(ts, PWRDOWN);
 	if (err < 0) {
 		dev_err(&client->dev,
 			"Failed to setup chip: %d\n", err);
-		return err;	/* chip does not respond */
+		return err;	/* chip does yest respond */
 	}
 
 	err = input_register_device(input_dev);

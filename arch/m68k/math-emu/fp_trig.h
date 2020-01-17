@@ -7,7 +7,7 @@
 
   I hereby give permission, free of charge, to copy, modify, and
   redistribute this software, in source or binary form, provided that
-  the above copyright notice and the following disclaimer are included
+  the above copyright yestice and the following disclaimer are included
   in all such copies.
 
   THIS SOFTWARE IS PROVIDED "AS IS", WITH ABSOLUTELY NO WARRANTY, REAL
@@ -20,7 +20,7 @@
 
 #include "fp_emu.h"
 
-/* floating point trigonometric instructions:
+/* floating point trigoyesmetric instructions:
 
    the arguments to these are in the "internal" extended format, that
    is, an "exploded" version of the 96-bit extended fp format used by

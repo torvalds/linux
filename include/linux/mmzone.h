@@ -14,7 +14,7 @@
 #include <linux/numa.h>
 #include <linux/init.h>
 #include <linux/seqlock.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/pageblock-flags.h>
 #include <linux/page-flags-layout.h>
 #include <linux/atomic.h>
@@ -34,7 +34,7 @@
  * PAGE_ALLOC_COSTLY_ORDER is the order at which allocations are deemed
  * costly to service.  That is between allocation orders which should
  * coalesce naturally under reasonable reclaim pressure and those which
- * will not.
+ * will yest.
  */
 #define PAGE_ALLOC_COSTLY_ORDER 3
 
@@ -100,7 +100,7 @@ struct free_area {
 	unsigned long		nr_free;
 };
 
-/* Used for pages not on another list */
+/* Used for pages yest on ayesther list */
 static inline void add_to_free_area(struct page *page, struct free_area *area,
 			     int migratetype)
 {
@@ -108,7 +108,7 @@ static inline void add_to_free_area(struct page *page, struct free_area *area,
 	area->nr_free++;
 }
 
-/* Used for pages not on another list */
+/* Used for pages yest on ayesther list */
 static inline void add_to_free_area_tail(struct page *page, struct free_area *area,
 				  int migratetype)
 {
@@ -128,7 +128,7 @@ static inline void add_to_free_area_random(struct page *page,
 }
 #endif
 
-/* Used for pages which are on another list */
+/* Used for pages which are on ayesther list */
 static inline void move_to_free_area(struct page *page, struct free_area *area,
 			     int migratetype)
 {
@@ -162,12 +162,12 @@ struct pglist_data;
  * zone->lock and the zone lru_lock are two of the hottest locks in the kernel.
  * So add a wild amount of padding here to ensure that they fall into separate
  * cachelines.  There are very few zone structures in the machine, so space
- * consumption is not a concern here.
+ * consumption is yest a concern here.
  */
 #if defined(CONFIG_SMP)
 struct zone_padding {
 	char x[0];
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 #define ZONE_PADDING(name)	struct zone_padding name;
 #else
 #define ZONE_PADDING(name)
@@ -175,12 +175,12 @@ struct zone_padding {
 
 #ifdef CONFIG_NUMA
 enum numa_stat_item {
-	NUMA_HIT,		/* allocated in intended node */
-	NUMA_MISS,		/* allocated in non intended node */
+	NUMA_HIT,		/* allocated in intended yesde */
+	NUMA_MISS,		/* allocated in yesn intended yesde */
 	NUMA_FOREIGN,		/* was intended here, hit elsewhere */
 	NUMA_INTERLEAVE_HIT,	/* interleaver preferred this zone */
-	NUMA_LOCAL,		/* allocation from local node */
-	NUMA_OTHER,		/* allocation from other node */
+	NUMA_LOCAL,		/* allocation from local yesde */
+	NUMA_OTHER,		/* allocation from other yesde */
 	NR_VM_NUMA_STAT_ITEMS
 };
 #else
@@ -208,7 +208,7 @@ enum zone_stat_item {
 	NR_FREE_CMA_PAGES,
 	NR_VM_ZONE_STAT_ITEMS };
 
-enum node_stat_item {
+enum yesde_stat_item {
 	NR_LRU_BASE,
 	NR_INACTIVE_ANON = NR_LRU_BASE, /* must match order of LRU_[IN]ACTIVE */
 	NR_ACTIVE_ANON,		/*  "     "     "   "       "         */
@@ -217,14 +217,14 @@ enum node_stat_item {
 	NR_UNEVICTABLE,		/*  "     "     "   "       "         */
 	NR_SLAB_RECLAIMABLE,
 	NR_SLAB_UNRECLAIMABLE,
-	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
+	NR_ISOLATED_ANON,	/* Temporary isolated pages from ayesn lru */
 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
 	WORKINGSET_NODES,
 	WORKINGSET_REFAULT,
 	WORKINGSET_ACTIVATE,
 	WORKINGSET_RESTORE,
 	WORKINGSET_NODERECLAIM,
-	NR_ANON_MAPPED,	/* Mapped anonymous pages */
+	NR_ANON_MAPPED,	/* Mapped ayesnymous pages */
 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
 			   only modified from process context */
 	NR_FILE_PAGES,
@@ -242,7 +242,7 @@ enum node_stat_item {
 	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
 	NR_DIRTIED,		/* page dirtyings since bootup */
 	NR_WRITTEN,		/* page writings since bootup */
-	NR_KERNEL_MISC_RECLAIMABLE,	/* reclaimable non-slab kernel pages */
+	NR_KERNEL_MISC_RECLAIMABLE,	/* reclaimable yesn-slab kernel pages */
 	NR_VM_NODE_STAT_ITEMS
 };
 
@@ -289,7 +289,7 @@ struct zone_reclaim_stat {
 	 * The higher the rotated/scanned ratio, the more valuable
 	 * that cache is.
 	 *
-	 * The anon LRU stats live in [0], file LRU stats in [1]
+	 * The ayesn LRU stats live in [0], file LRU stats in [1]
 	 */
 	unsigned long		recent_rotated[2];
 	unsigned long		recent_scanned[2];
@@ -317,7 +317,7 @@ struct lruvec {
 
 /* Isolate unmapped pages */
 #define ISOLATE_UNMAPPED	((__force isolate_mode_t)0x2)
-/* Isolate for asynchronous migration */
+/* Isolate for asynchroyesus migration */
 #define ISOLATE_ASYNC_MIGRATE	((__force isolate_mode_t)0x4)
 /* Isolate unevictable pages */
 #define ISOLATE_UNEVICTABLE	((__force isolate_mode_t)0x8)
@@ -358,16 +358,16 @@ struct per_cpu_pageset {
 #endif
 };
 
-struct per_cpu_nodestat {
+struct per_cpu_yesdestat {
 	s8 stat_threshold;
-	s8 vm_node_stat_diff[NR_VM_NODE_STAT_ITEMS];
+	s8 vm_yesde_stat_diff[NR_VM_NODE_STAT_ITEMS];
 };
 
 #endif /* !__GENERATING_BOUNDS.H */
 
 enum zone_type {
 	/*
-	 * ZONE_DMA and ZONE_DMA32 are used when there are peripherals not able
+	 * ZONE_DMA and ZONE_DMA32 are used when there are peripherals yest able
 	 * to DMA to all of the addressable memory (ZONE_NORMAL).
 	 * On architectures where this area covers the whole 32 bit address
 	 * space ZONE_DMA32 is used. ZONE_DMA is left for the ones with smaller
@@ -439,7 +439,7 @@ struct zone {
 	unsigned long nr_reserved_highatomic;
 
 	/*
-	 * We don't know if the memory that we're going to allocate will be
+	 * We don't kyesw if the memory that we're going to allocate will be
 	 * freeable or/and it will be released eventually, so to avoid totally
 	 * wasting several GB of ram we must reserve some of the lower zone
 	 * memory (otherwise we risk to run OOM on the lower zones despite
@@ -450,7 +450,7 @@ struct zone {
 	long lowmem_reserve[MAX_NR_ZONES];
 
 #ifdef CONFIG_NUMA
-	int node;
+	int yesde;
 #endif
 	struct pglist_data	*zone_pgdat;
 	struct per_cpu_pageset __percpu *pageset;
@@ -576,7 +576,7 @@ struct zone {
 	/* Zone statistics */
 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
 	atomic_long_t		vm_numa_stat[NR_VM_NUMA_STAT_ITEMS];
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 enum pgdat_flags {
 	PGDAT_DIRTY,			/* reclaim scanning has recently found
@@ -621,7 +621,7 @@ static inline bool zone_is_empty(struct zone *zone)
 }
 
 /*
- * Return true if [start_pfn, start_pfn + nr_pages) range has a non-empty
+ * Return true if [start_pfn, start_pfn + nr_pages) range has a yesn-empty
  * intersection with the given zone
  */
 static inline bool zone_intersects(struct zone *zone,
@@ -651,7 +651,7 @@ enum {
 #ifdef CONFIG_NUMA
 	/*
 	 * The NUMA zonelists are doubled because we need zonelists that
-	 * restrict the allocations to a single node for __GFP_THISNODE.
+	 * restrict the allocations to a single yesde for __GFP_THISNODE.
 	 */
 	ZONELIST_NOFALLBACK,	/* zonelist without fallback (__GFP_THISNODE) */
 #endif
@@ -679,7 +679,7 @@ struct zoneref {
  *
  * zonelist_zone()	- Return the struct zone * for an entry in _zonerefs
  * zonelist_zone_idx()	- Return the index of the zone for an entry
- * zonelist_node_idx()	- Return the index of the node for an entry
+ * zonelist_yesde_idx()	- Return the index of the yesde for an entry
  */
 struct zonelist {
 	struct zoneref _zonerefs[MAX_ZONES_PER_ZONELIST + 1];
@@ -699,7 +699,7 @@ struct deferred_split {
 #endif
 
 /*
- * On NUMA machines, each NUMA node would have a pg_data_t to describe
+ * On NUMA machines, each NUMA yesde would have a pg_data_t to describe
  * it's memory layout. On UMA machines there is a single pglist_data which
  * describes the whole memory.
  *
@@ -708,33 +708,33 @@ struct deferred_split {
  */
 struct bootmem_data;
 typedef struct pglist_data {
-	struct zone node_zones[MAX_NR_ZONES];
-	struct zonelist node_zonelists[MAX_ZONELISTS];
+	struct zone yesde_zones[MAX_NR_ZONES];
+	struct zonelist yesde_zonelists[MAX_ZONELISTS];
 	int nr_zones;
 #ifdef CONFIG_FLAT_NODE_MEM_MAP	/* means !SPARSEMEM */
-	struct page *node_mem_map;
+	struct page *yesde_mem_map;
 #ifdef CONFIG_PAGE_EXTENSION
-	struct page_ext *node_page_ext;
+	struct page_ext *yesde_page_ext;
 #endif
 #endif
 #if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_DEFERRED_STRUCT_PAGE_INIT)
 	/*
-	 * Must be held any time you expect node_start_pfn,
-	 * node_present_pages, node_spanned_pages or nr_zones to stay constant.
+	 * Must be held any time you expect yesde_start_pfn,
+	 * yesde_present_pages, yesde_spanned_pages or nr_zones to stay constant.
 	 *
 	 * pgdat_resize_lock() and pgdat_resize_unlock() are provided to
-	 * manipulate node_size_lock without checking for CONFIG_MEMORY_HOTPLUG
+	 * manipulate yesde_size_lock without checking for CONFIG_MEMORY_HOTPLUG
 	 * or CONFIG_DEFERRED_STRUCT_PAGE_INIT.
 	 *
 	 * Nests above zone->lock and zone->span_seqlock
 	 */
-	spinlock_t node_size_lock;
+	spinlock_t yesde_size_lock;
 #endif
-	unsigned long node_start_pfn;
-	unsigned long node_present_pages; /* total number of physical pages */
-	unsigned long node_spanned_pages; /* total size of physical page
+	unsigned long yesde_start_pfn;
+	unsigned long yesde_present_pages; /* total number of physical pages */
+	unsigned long yesde_spanned_pages; /* total size of physical page
 					     range, including holes */
-	int node_id;
+	int yesde_id;
 	wait_queue_head_t kswapd_wait;
 	wait_queue_head_t pfmemalloc_wait;
 	struct task_struct *kswapd;	/* Protected by
@@ -751,7 +751,7 @@ typedef struct pglist_data {
 	struct task_struct *kcompactd;
 #endif
 	/*
-	 * This is a per-node reserve of pages that are not available
+	 * This is a per-yesde reserve of pages that are yest available
 	 * to userspace allocations.
 	 */
 	unsigned long		totalreserve_pages;
@@ -793,31 +793,31 @@ typedef struct pglist_data {
 
 	ZONE_PADDING(_pad2_)
 
-	/* Per-node vmstats */
-	struct per_cpu_nodestat __percpu *per_cpu_nodestats;
+	/* Per-yesde vmstats */
+	struct per_cpu_yesdestat __percpu *per_cpu_yesdestats;
 	atomic_long_t		vm_stat[NR_VM_NODE_STAT_ITEMS];
 } pg_data_t;
 
-#define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
-#define node_spanned_pages(nid)	(NODE_DATA(nid)->node_spanned_pages)
+#define yesde_present_pages(nid)	(NODE_DATA(nid)->yesde_present_pages)
+#define yesde_spanned_pages(nid)	(NODE_DATA(nid)->yesde_spanned_pages)
 #ifdef CONFIG_FLAT_NODE_MEM_MAP
-#define pgdat_page_nr(pgdat, pagenr)	((pgdat)->node_mem_map + (pagenr))
+#define pgdat_page_nr(pgdat, pagenr)	((pgdat)->yesde_mem_map + (pagenr))
 #else
-#define pgdat_page_nr(pgdat, pagenr)	pfn_to_page((pgdat)->node_start_pfn + (pagenr))
+#define pgdat_page_nr(pgdat, pagenr)	pfn_to_page((pgdat)->yesde_start_pfn + (pagenr))
 #endif
 #define nid_page_nr(nid, pagenr) 	pgdat_page_nr(NODE_DATA(nid),(pagenr))
 
-#define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
-#define node_end_pfn(nid) pgdat_end_pfn(NODE_DATA(nid))
+#define yesde_start_pfn(nid)	(NODE_DATA(nid)->yesde_start_pfn)
+#define yesde_end_pfn(nid) pgdat_end_pfn(NODE_DATA(nid))
 
 static inline unsigned long pgdat_end_pfn(pg_data_t *pgdat)
 {
-	return pgdat->node_start_pfn + pgdat->node_spanned_pages;
+	return pgdat->yesde_start_pfn + pgdat->yesde_spanned_pages;
 }
 
 static inline bool pgdat_is_empty(pg_data_t *pgdat)
 {
-	return !pgdat->node_start_pfn && !pgdat->node_spanned_pages;
+	return !pgdat->yesde_start_pfn && !pgdat->yesde_spanned_pages;
 }
 
 #include <linux/memory_hotplug.h>
@@ -866,15 +866,15 @@ static inline void memblocks_present(void) {}
 #endif
 
 #ifdef CONFIG_HAVE_MEMORYLESS_NODES
-int local_memory_node(int node_id);
+int local_memory_yesde(int yesde_id);
 #else
-static inline int local_memory_node(int node_id) { return node_id; };
+static inline int local_memory_yesde(int yesde_id) { return yesde_id; };
 #endif
 
 /*
  * zone_idx() returns 0 for the ZONE_DMA zone, 1 for the ZONE_NORMAL zone, etc.
  */
-#define zone_idx(zone)		((zone) - (zone)->zone_pgdat->node_zones)
+#define zone_idx(zone)		((zone) - (zone)->zone_pgdat->yesde_zones)
 
 /*
  * Returns true if a zone has pages managed by the buddy allocator.
@@ -896,12 +896,12 @@ static inline bool populated_zone(struct zone *zone)
 #ifdef CONFIG_NUMA
 static inline int zone_to_nid(struct zone *zone)
 {
-	return zone->node;
+	return zone->yesde;
 }
 
 static inline void zone_set_nid(struct zone *zone, int nid)
 {
-	zone->node = nid;
+	zone->yesde = nid;
 }
 #else
 static inline int zone_to_nid(struct zone *zone)
@@ -937,7 +937,7 @@ static inline int is_highmem_idx(enum zone_type idx)
 
 /**
  * is_highmem - helper function to quickly check if a struct zone is a
- *              highmem zone or not.  This is an attempt to keep references
+ *              highmem zone or yest.  This is an attempt to keep references
  *              to ZONE_{DMA/NORMAL/HIGHMEM/etc} in general code to a minimum.
  * @zone - pointer to struct zone variable
  */
@@ -990,7 +990,7 @@ extern struct pglist_data *next_online_pgdat(struct pglist_data *pgdat);
 extern struct zone *next_zone(struct zone *zone);
 
 /**
- * for_each_online_pgdat - helper macro to iterate over all online nodes
+ * for_each_online_pgdat - helper macro to iterate over all online yesdes
  * @pgdat - pointer to a pg_data_t variable
  */
 #define for_each_online_pgdat(pgdat)			\
@@ -1005,16 +1005,16 @@ extern struct zone *next_zone(struct zone *zone);
  * fills it in.
  */
 #define for_each_zone(zone)			        \
-	for (zone = (first_online_pgdat())->node_zones; \
+	for (zone = (first_online_pgdat())->yesde_zones; \
 	     zone;					\
 	     zone = next_zone(zone))
 
 #define for_each_populated_zone(zone)		        \
-	for (zone = (first_online_pgdat())->node_zones; \
+	for (zone = (first_online_pgdat())->yesde_zones; \
 	     zone;					\
 	     zone = next_zone(zone))			\
 		if (!populated_zone(zone))		\
-			; /* do nothing */		\
+			; /* do yesthing */		\
 		else
 
 static inline struct zone *zonelist_zone(struct zoneref *zoneref)
@@ -1027,81 +1027,81 @@ static inline int zonelist_zone_idx(struct zoneref *zoneref)
 	return zoneref->zone_idx;
 }
 
-static inline int zonelist_node_idx(struct zoneref *zoneref)
+static inline int zonelist_yesde_idx(struct zoneref *zoneref)
 {
 	return zone_to_nid(zoneref->zone);
 }
 
 struct zoneref *__next_zones_zonelist(struct zoneref *z,
 					enum zone_type highest_zoneidx,
-					nodemask_t *nodes);
+					yesdemask_t *yesdes);
 
 /**
- * next_zones_zonelist - Returns the next zone at or below highest_zoneidx within the allowed nodemask using a cursor within a zonelist as a starting point
+ * next_zones_zonelist - Returns the next zone at or below highest_zoneidx within the allowed yesdemask using a cursor within a zonelist as a starting point
  * @z - The cursor used as a starting point for the search
  * @highest_zoneidx - The zone index of the highest zone to return
- * @nodes - An optional nodemask to filter the zonelist with
+ * @yesdes - An optional yesdemask to filter the zonelist with
  *
  * This function returns the next zone at or below a given zone index that is
- * within the allowed nodemask using a cursor as the starting point for the
+ * within the allowed yesdemask using a cursor as the starting point for the
  * search. The zoneref returned is a cursor that represents the current zone
  * being examined. It should be advanced by one before calling
  * next_zones_zonelist again.
  */
 static __always_inline struct zoneref *next_zones_zonelist(struct zoneref *z,
 					enum zone_type highest_zoneidx,
-					nodemask_t *nodes)
+					yesdemask_t *yesdes)
 {
-	if (likely(!nodes && zonelist_zone_idx(z) <= highest_zoneidx))
+	if (likely(!yesdes && zonelist_zone_idx(z) <= highest_zoneidx))
 		return z;
-	return __next_zones_zonelist(z, highest_zoneidx, nodes);
+	return __next_zones_zonelist(z, highest_zoneidx, yesdes);
 }
 
 /**
- * first_zones_zonelist - Returns the first zone at or below highest_zoneidx within the allowed nodemask in a zonelist
+ * first_zones_zonelist - Returns the first zone at or below highest_zoneidx within the allowed yesdemask in a zonelist
  * @zonelist - The zonelist to search for a suitable zone
  * @highest_zoneidx - The zone index of the highest zone to return
- * @nodes - An optional nodemask to filter the zonelist with
+ * @yesdes - An optional yesdemask to filter the zonelist with
  * @return - Zoneref pointer for the first suitable zone found (see below)
  *
  * This function returns the first zone at or below a given zone index that is
- * within the allowed nodemask. The zoneref returned is a cursor that can be
+ * within the allowed yesdemask. The zoneref returned is a cursor that can be
  * used to iterate the zonelist with next_zones_zonelist by advancing it by
  * one before calling.
  *
- * When no eligible zone is found, zoneref->zone is NULL (zoneref itself is
- * never NULL). This may happen either genuinely, or due to concurrent nodemask
+ * When yes eligible zone is found, zoneref->zone is NULL (zoneref itself is
+ * never NULL). This may happen either genuinely, or due to concurrent yesdemask
  * update due to cpuset modification.
  */
 static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
 					enum zone_type highest_zoneidx,
-					nodemask_t *nodes)
+					yesdemask_t *yesdes)
 {
 	return next_zones_zonelist(zonelist->_zonerefs,
-							highest_zoneidx, nodes);
+							highest_zoneidx, yesdes);
 }
 
 /**
- * for_each_zone_zonelist_nodemask - helper macro to iterate over valid zones in a zonelist at or below a given zone index and within a nodemask
+ * for_each_zone_zonelist_yesdemask - helper macro to iterate over valid zones in a zonelist at or below a given zone index and within a yesdemask
  * @zone - The current zone in the iterator
  * @z - The current pointer within zonelist->_zonerefs being iterated
  * @zlist - The zonelist being iterated
  * @highidx - The zone index of the highest zone to return
- * @nodemask - Nodemask allowed by the allocator
+ * @yesdemask - Nodemask allowed by the allocator
  *
  * This iterator iterates though all zones at or below a given zone index and
- * within a given nodemask
+ * within a given yesdemask
  */
-#define for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, nodemask) \
-	for (z = first_zones_zonelist(zlist, highidx, nodemask), zone = zonelist_zone(z);	\
+#define for_each_zone_zonelist_yesdemask(zone, z, zlist, highidx, yesdemask) \
+	for (z = first_zones_zonelist(zlist, highidx, yesdemask), zone = zonelist_zone(z);	\
 		zone;							\
-		z = next_zones_zonelist(++z, highidx, nodemask),	\
+		z = next_zones_zonelist(++z, highidx, yesdemask),	\
 			zone = zonelist_zone(z))
 
-#define for_next_zone_zonelist_nodemask(zone, z, zlist, highidx, nodemask) \
+#define for_next_zone_zonelist_yesdemask(zone, z, zlist, highidx, yesdemask) \
 	for (zone = z->zone;	\
 		zone;							\
-		z = next_zones_zonelist(++z, highidx, nodemask),	\
+		z = next_zones_zonelist(++z, highidx, yesdemask),	\
 			zone = zonelist_zone(z))
 
 
@@ -1115,7 +1115,7 @@ static inline struct zoneref *first_zones_zonelist(struct zonelist *zonelist,
  * This iterator iterates though all zones at or below a given zone index.
  */
 #define for_each_zone_zonelist(zone, z, zlist, highidx) \
-	for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, NULL)
+	for_each_zone_zonelist_yesdemask(zone, z, zlist, highidx, NULL)
 
 #ifdef CONFIG_SPARSEMEM
 #include <asm/sparsemem.h>
@@ -1200,7 +1200,7 @@ struct mem_section {
 	 * pages.  However, it is stored with some other magic.
 	 * (see sparse.c::sparse_init_one_section())
 	 *
-	 * Additionally during early boot we encode node id of
+	 * Additionally during early boot we encode yesde id of
 	 * the location of the section here to guide allocation.
 	 * (see sparse.c::memory_present())
 	 *
@@ -1424,7 +1424,7 @@ void memory_present(int nid, unsigned long start, unsigned long end);
  * If it is possible to have holes within a MAX_ORDER_NR_PAGES, then we
  * need to check pfn validity within that MAX_ORDER_NR_PAGES block.
  * pfn_valid_within() should be used in this case; we optimise this away
- * when we have no holes within a MAX_ORDER_NR_PAGES block.
+ * when we have yes holes within a MAX_ORDER_NR_PAGES block.
  */
 #ifdef CONFIG_HOLES_IN_ZONE
 #define pfn_valid_within(pfn) pfn_valid(pfn)
@@ -1435,9 +1435,9 @@ void memory_present(int nid, unsigned long start, unsigned long end);
 #ifdef CONFIG_ARCH_HAS_HOLES_MEMORYMODEL
 /*
  * pfn_valid() is meant to be able to tell if a given PFN has valid memmap
- * associated with it or not. This means that a struct page exists for this
- * pfn. The caller cannot assume the page is fully initialized in general.
- * Hotplugable pages might not have been onlined yet. pfn_to_online_page()
+ * associated with it or yest. This means that a struct page exists for this
+ * pfn. The caller canyest assume the page is fully initialized in general.
+ * Hotplugable pages might yest have been onlined yet. pfn_to_online_page()
  * will ensure the struct page is fully online and initialized. Special pages
  * (e.g. ZONE_DEVICE) are never onlined and should be treated accordingly.
  *

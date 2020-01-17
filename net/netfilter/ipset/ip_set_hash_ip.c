@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/random.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -38,7 +38,7 @@ MODULE_ALIAS("ip_set_hash:ip");
 
 /* Member elements */
 struct hash_ip4_elem {
-	/* Zero valued IP addresses cannot be stored */
+	/* Zero valued IP addresses canyest be stored */
 	__be32 ip;
 };
 
@@ -95,7 +95,7 @@ hash_ip4_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
-	      enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+	      enum ipset_adt adt, u32 *lineyes, u32 flags, bool retried)
 {
 	const struct hash_ip4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -105,7 +105,7 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	int ret = 0;
 
 	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+		*lineyes = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP]))
 		return -IPSET_ERR_PROTOCOL;
@@ -230,7 +230,7 @@ hash_ip6_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_ip6_uadt(struct ip_set *set, struct nlattr *tb[],
-	      enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+	      enum ipset_adt adt, u32 *lineyes, u32 flags, bool retried)
 {
 	const struct hash_ip6 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -239,7 +239,7 @@ hash_ip6_uadt(struct ip_set *set, struct nlattr *tb[],
 	int ret;
 
 	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+		*lineyes = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP]))
 		return -IPSET_ERR_PROTOCOL;

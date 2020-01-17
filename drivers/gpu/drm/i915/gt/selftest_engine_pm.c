@@ -30,8 +30,8 @@ static int live_engine_pm(void *arg)
 
 		for (p = igt_atomic_phases; p->name; p++) {
 			/*
-			 * Acquisition is always synchronous, except if we
-			 * know that the engine is already awake, in which
+			 * Acquisition is always synchroyesus, except if we
+			 * kyesw that the engine is already awake, in which
 			 * case we should use intel_engine_pm_get_if_awake()
 			 * to atomically grab the wakeref.
 			 *
@@ -41,7 +41,7 @@ static int live_engine_pm(void *arg)
 			 * occurs in one thread, while simultaneously
 			 *    intel_engine_pm_get_if_awake();
 			 *    intel_engine_pm_put();
-			 * occurs from atomic context in another.
+			 * occurs from atomic context in ayesther.
 			 */
 			GEM_BUG_ON(intel_engine_pm_is_awake(engine));
 			intel_engine_pm_get(engine);

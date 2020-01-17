@@ -31,9 +31,9 @@ bool evswitch__discard(struct evswitch *evswitch, struct evsel *evsel)
 	return false;
 }
 
-static int evswitch__fprintf_enoent(FILE *fp, const char *evtype, const char *evname)
+static int evswitch__fprintf_eyesent(FILE *fp, const char *evtype, const char *evname)
 {
-	int printed = fprintf(fp, "ERROR: switch-%s event not found (%s)\n", evtype, evname);
+	int printed = fprintf(fp, "ERROR: switch-%s event yest found (%s)\n", evtype, evname);
 
 	return printed += fprintf(fp, "HINT:  use 'perf evlist' to see the available event names\n");
 }
@@ -43,7 +43,7 @@ int evswitch__init(struct evswitch *evswitch, struct evlist *evlist, FILE *fp)
 	if (evswitch->on_name) {
 		evswitch->on = perf_evlist__find_evsel_by_str(evlist, evswitch->on_name);
 		if (evswitch->on == NULL) {
-			evswitch__fprintf_enoent(fp, "on", evswitch->on_name);
+			evswitch__fprintf_eyesent(fp, "on", evswitch->on_name);
 			return -ENOENT;
 		}
 		evswitch->discarding = true;
@@ -52,7 +52,7 @@ int evswitch__init(struct evswitch *evswitch, struct evlist *evlist, FILE *fp)
 	if (evswitch->off_name) {
 		evswitch->off = perf_evlist__find_evsel_by_str(evlist, evswitch->off_name);
 		if (evswitch->off == NULL) {
-			evswitch__fprintf_enoent(fp, "off", evswitch->off_name);
+			evswitch__fprintf_eyesent(fp, "off", evswitch->off_name);
 			return -ENOENT;
 		}
 	}

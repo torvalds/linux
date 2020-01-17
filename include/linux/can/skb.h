@@ -18,9 +18,9 @@
 
 /*
  * The struct can_skb_priv is used to transport additional information along
- * with the stored struct can(fd)_frame that can not be contained in existing
+ * with the stored struct can(fd)_frame that can yest be contained in existing
  * struct sk_buff elements.
- * N.B. that this information must not be modified in cloned CAN sk_buffs.
+ * N.B. that this information must yest be modified in cloned CAN sk_buffs.
  * To modify the CAN frame content or the struct can_skb_priv content
  * skb_copy() needs to be used instead of skb_clone().
  */

@@ -67,7 +67,7 @@ struct superio_device {
  * that contains a SuperIO chip AND has CONFIG_SUPERIO enabled.
  *
  * This could be fixed by checking to see if function 1 exists, and
- * if it is SuperIO Legacy IO; but really now, is this combination
+ * if it is SuperIO Legacy IO; but really yesw, is this combination
  * going to EVER happen?
  */
 

@@ -1,13 +1,13 @@
 cat <<EOF
 /**
- * ${atomic}_inc_not_zero - increment unless the number is zero
+ * ${atomic}_inc_yest_zero - increment unless the number is zero
  * @v: pointer of type ${atomic}_t
  *
- * Atomically increments @v by 1, if @v is non-zero.
+ * Atomically increments @v by 1, if @v is yesn-zero.
  * Returns true if the increment was done.
  */
 static inline bool
-${atomic}_inc_not_zero(${atomic}_t *v)
+${atomic}_inc_yest_zero(${atomic}_t *v)
 {
 	return ${atomic}_add_unless(v, 1, 0);
 }

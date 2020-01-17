@@ -168,7 +168,7 @@ cocci.print_main("WARNING: Assignment of 0/1 to bool variable",p1)
 p2 << r4.p2;
 @@
 
-cocci.print_main("ERROR: Assignment of non-0/1 constant to bool variable",p2)
+cocci.print_main("ERROR: Assignment of yesn-0/1 constant to bool variable",p2)
 
 @script:python depends on report@
 p << r1.p;
@@ -192,4 +192,4 @@ coccilib.report.print_report(p1[0],"WARNING: Assignment of 0/1 to bool variable"
 p2 << r4.p2;
 @@
 
-coccilib.report.print_report(p2[0],"ERROR: Assignment of non-0/1 constant to bool variable")
+coccilib.report.print_report(p2[0],"ERROR: Assignment of yesn-0/1 constant to bool variable")

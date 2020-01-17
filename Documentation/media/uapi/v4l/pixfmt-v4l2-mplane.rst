@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 ******************************
 Multi-planar format structures
@@ -40,7 +40,7 @@ describing all planes of that format.
 
 	Clients are allowed to set the sizeimage field for variable length
 	compressed data flagged with ``V4L2_FMT_FLAG_COMPRESSED`` at
-	:ref:`VIDIOC_ENUM_FMT`, but the driver may ignore it and set the
+	:ref:`VIDIOC_ENUM_FMT`, but the driver may igyesre it and set the
 	value itself, or it may modify the provided value based on
 	alignment requirements or minimum/maximum size requirements.
 	If the client wants to leave this to the driver, then it should
@@ -100,7 +100,7 @@ describing all planes of that format.
     * - __u8
       - ``flags``
       - Flags set by the application or driver, see :ref:`format-flags`.
-    * - :cspan:`2` union { (anonymous)
+    * - :cspan:`2` union { (ayesnymous)
     * - __u8
       - ``ycbcr_enc``
       - Y'CbCr encoding, from enum :c:type:`v4l2_ycbcr_encoding`.
@@ -133,4 +133,4 @@ describing all planes of that format.
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize

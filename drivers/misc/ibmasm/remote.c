@@ -5,7 +5,7 @@
  * Copyright (C) IBM Corporation, 2004
  *
  * Authors: Max Asböck <amax@us.ibm.com>
- *          Vernon Mauery <vernux@us.ibm.com>
+ *          Veryesn Mauery <vernux@us.ibm.com>
  */
 
 /* Remote mouse and keyboard event handling functions */

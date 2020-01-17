@@ -13,7 +13,7 @@ and many of them are used within the kernel as a matter of course.
 
 There is some support for compiling the kernel with ``clang`` [clang]_
 and ``icc`` [icc]_ for several of the architectures, although at the time
-of writing it is not completed, requiring third-party patches.
+of writing it is yest completed, requiring third-party patches.
 
 Attributes
 ----------
@@ -24,9 +24,9 @@ implementation-defined semantics to language entities (like variables,
 functions or types) without having to make significant syntactic changes
 to the language (e.g. adding a new keyword) [n2049]_.
 
-In some cases, attributes are optional (i.e. a compiler not supporting them
-should still produce proper code, even if it is slower or does not perform
-as many compile-time checks/diagnostics).
+In some cases, attributes are optional (i.e. a compiler yest supporting them
+should still produce proper code, even if it is slower or does yest perform
+as many compile-time checks/diagyesstics).
 
 The kernel defines pseudo-keywords (e.g. ``__pure``) instead of using
 directly the GNU attribute syntax (e.g. ``__attribute__((__pure__))``)

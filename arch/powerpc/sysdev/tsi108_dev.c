@@ -8,7 +8,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/major.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
@@ -37,17 +37,17 @@ static phys_addr_t tsi108_csr_base = -1;
 
 phys_addr_t get_csrbase(void)
 {
-	struct device_node *tsi;
+	struct device_yesde *tsi;
 
 	if (tsi108_csr_base != -1)
 		return tsi108_csr_base;
 
-	tsi = of_find_node_by_type(NULL, "tsi-bridge");
+	tsi = of_find_yesde_by_type(NULL, "tsi-bridge");
 	if (tsi) {
 		unsigned int size;
 		const void *prop = of_get_property(tsi, "reg", &size);
 		tsi108_csr_base = of_translate_address(tsi, prop);
-		of_node_put(tsi);
+		of_yesde_put(tsi);
 	}
 	return tsi108_csr_base;
 }
@@ -62,15 +62,15 @@ EXPORT_SYMBOL(get_vir_csrbase);
 
 static int __init tsi108_eth_of_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned int i = 0;
 	struct platform_device *tsi_eth_dev;
 	struct resource res;
 	int ret;
 
-	for_each_compatible_node(np, "network", "tsi108-ethernet") {
+	for_each_compatible_yesde(np, "network", "tsi108-ethernet") {
 		struct resource r[2];
-		struct device_node *phy, *mdio;
+		struct device_yesde *phy, *mdio;
 		hw_info tsi_eth_data;
 		const unsigned int *phy_id;
 		const void *mac_addr;
@@ -106,14 +106,14 @@ static int __init tsi108_eth_of_init(void)
 			ether_addr_copy(tsi_eth_data.mac_addr, mac_addr);
 
 		ph = of_get_property(np, "mdio-handle", NULL);
-		mdio = of_find_node_by_phandle(*ph);
+		mdio = of_find_yesde_by_phandle(*ph);
 		ret = of_address_to_resource(mdio, 0, &res);
-		of_node_put(mdio);
+		of_yesde_put(mdio);
 		if (ret)
 			goto unreg;
 
 		ph = of_get_property(np, "phy-handle", NULL);
-		phy = of_find_node_by_phandle(*ph);
+		phy = of_find_yesde_by_phandle(*ph);
 
 		if (phy == NULL) {
 			ret = -ENODEV;
@@ -132,12 +132,12 @@ static int __init tsi108_eth_of_init(void)
 		 * requires a workaround.  The special
 		 * "txc-rxc-delay-disable" property enables this
 		 * workaround.  FIXME: Need to port the tsi108_eth
-		 * driver itself to phylib and use a non-misleading
-		 * name for the workaround flag - it's not actually to
+		 * driver itself to phylib and use a yesn-misleading
+		 * name for the workaround flag - it's yest actually to
 		 * do with the model of PHY in use */
 		if (of_get_property(phy, "txc-rxc-delay-disable", NULL))
 			tsi_eth_data.phy_type = TSI108_PHY_BCM54XX;
-		of_node_put(phy);
+		of_yesde_put(phy);
 
 		ret =
 		    platform_device_add_data(tsi_eth_dev, &tsi_eth_data,
@@ -149,7 +149,7 @@ static int __init tsi108_eth_of_init(void)
 unreg:
 	platform_device_unregister(tsi_eth_dev);
 err:
-	of_node_put(np);
+	of_yesde_put(np);
 	return ret;
 }
 

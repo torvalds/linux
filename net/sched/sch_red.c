@@ -26,7 +26,7 @@
 	limit		- bytes (must be > qth_max + burst)
 
 	Hard limit on queue length, should be chosen >qth_max
-	to allow packet bursts. This parameter does not
+	to allow packet bursts. This parameter does yest
 	affect the algorithms behaviour and can be chosen
 	arbitrarily high (well, less than ram size)
 	Really, this limit will never be reached
@@ -222,7 +222,7 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 
-		/* child is fifo, no need to check for noop_qdisc */
+		/* child is fifo, yes need to check for yesop_qdisc */
 		qdisc_hash_add(child, true);
 	}
 
@@ -275,7 +275,7 @@ static int red_init(struct Qdisc *sch, struct nlattr *opt,
 {
 	struct red_sched_data *q = qdisc_priv(sch);
 
-	q->qdisc = &noop_qdisc;
+	q->qdisc = &yesop_qdisc;
 	q->sch = sch;
 	timer_setup(&q->adapt_timer, red_adaptative_timer, 0);
 	return red_change(sch, opt, extack);
@@ -315,7 +315,7 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (err)
 		goto nla_put_failure;
 
-	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	opts = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_RED_PARMS, sizeof(opt), &opt) ||
@@ -385,7 +385,7 @@ static int red_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 	struct red_sched_data *q = qdisc_priv(sch);
 
 	if (new == NULL)
-		new = &noop_qdisc;
+		new = &yesop_qdisc;
 
 	*old = qdisc_replace(sch, new, &q->qdisc);
 

@@ -23,9 +23,9 @@
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
 
-#include "inno_hdmi.h"
+#include "inyes_hdmi.h"
 
-#define to_inno_hdmi(x)	container_of(x, struct inno_hdmi, x)
+#define to_inyes_hdmi(x)	container_of(x, struct inyes_hdmi, x)
 
 struct hdmi_data_info {
 	int vic;
@@ -36,7 +36,7 @@ struct hdmi_data_info {
 	unsigned int colorimetry;
 };
 
-struct inno_hdmi_i2c {
+struct inyes_hdmi_i2c {
 	struct i2c_adapter adap;
 
 	u8 ddc_addr;
@@ -46,7 +46,7 @@ struct inno_hdmi_i2c {
 	struct completion cmp;
 };
 
-struct inno_hdmi {
+struct inyes_hdmi {
 	struct device *dev;
 	struct drm_device *drm_dev;
 
@@ -57,7 +57,7 @@ struct inno_hdmi {
 	struct drm_connector	connector;
 	struct drm_encoder	encoder;
 
-	struct inno_hdmi_i2c *i2c;
+	struct inyes_hdmi_i2c *i2c;
 	struct i2c_adapter *ddc;
 
 	unsigned int tmds_rate;
@@ -145,17 +145,17 @@ static const char coeff_csc[][24] = {
 	},
 };
 
-static inline u8 hdmi_readb(struct inno_hdmi *hdmi, u16 offset)
+static inline u8 hdmi_readb(struct inyes_hdmi *hdmi, u16 offset)
 {
 	return readl_relaxed(hdmi->regs + (offset) * 0x04);
 }
 
-static inline void hdmi_writeb(struct inno_hdmi *hdmi, u16 offset, u32 val)
+static inline void hdmi_writeb(struct inyes_hdmi *hdmi, u16 offset, u32 val)
 {
 	writel_relaxed(val, hdmi->regs + (offset) * 0x04);
 }
 
-static inline void hdmi_modb(struct inno_hdmi *hdmi, u16 offset,
+static inline void hdmi_modb(struct inyes_hdmi *hdmi, u16 offset,
 			     u32 msk, u32 val)
 {
 	u8 temp = hdmi_readb(hdmi, offset) & ~msk;
@@ -164,7 +164,7 @@ static inline void hdmi_modb(struct inno_hdmi *hdmi, u16 offset,
 	hdmi_writeb(hdmi, offset, temp);
 }
 
-static void inno_hdmi_i2c_init(struct inno_hdmi *hdmi)
+static void inyes_hdmi_i2c_init(struct inyes_hdmi *hdmi)
 {
 	int ddc_bus_freq;
 
@@ -178,7 +178,7 @@ static void inno_hdmi_i2c_init(struct inno_hdmi *hdmi)
 	hdmi_writeb(hdmi, HDMI_INTERRUPT_STATUS1, m_INT_EDID_READY);
 }
 
-static void inno_hdmi_sys_power(struct inno_hdmi *hdmi, bool enable)
+static void inyes_hdmi_sys_power(struct inyes_hdmi *hdmi, bool enable)
 {
 	if (enable)
 		hdmi_modb(hdmi, HDMI_SYS_CTRL, m_POWER, v_PWR_ON);
@@ -186,11 +186,11 @@ static void inno_hdmi_sys_power(struct inno_hdmi *hdmi, bool enable)
 		hdmi_modb(hdmi, HDMI_SYS_CTRL, m_POWER, v_PWR_OFF);
 }
 
-static void inno_hdmi_set_pwr_mode(struct inno_hdmi *hdmi, int mode)
+static void inyes_hdmi_set_pwr_mode(struct inyes_hdmi *hdmi, int mode)
 {
 	switch (mode) {
 	case NORMAL:
-		inno_hdmi_sys_power(hdmi, false);
+		inyes_hdmi_sys_power(hdmi, false);
 
 		hdmi_writeb(hdmi, HDMI_PHY_PRE_EMPHASIS, 0x6f);
 		hdmi_writeb(hdmi, HDMI_PHY_DRIVER, 0xbb);
@@ -202,11 +202,11 @@ static void inno_hdmi_set_pwr_mode(struct inno_hdmi *hdmi, int mode)
 		hdmi_writeb(hdmi, HDMI_PHY_SYNC, 0x00);
 		hdmi_writeb(hdmi, HDMI_PHY_SYNC, 0x01);
 
-		inno_hdmi_sys_power(hdmi, true);
+		inyes_hdmi_sys_power(hdmi, true);
 		break;
 
 	case LOWER_PWR:
-		inno_hdmi_sys_power(hdmi, false);
+		inyes_hdmi_sys_power(hdmi, false);
 		hdmi_writeb(hdmi, HDMI_PHY_DRIVER, 0x00);
 		hdmi_writeb(hdmi, HDMI_PHY_PRE_EMPHASIS, 0x00);
 		hdmi_writeb(hdmi, HDMI_PHY_CHG_PWR, 0x00);
@@ -215,11 +215,11 @@ static void inno_hdmi_set_pwr_mode(struct inno_hdmi *hdmi, int mode)
 		break;
 
 	default:
-		DRM_DEV_ERROR(hdmi->dev, "Unknown power mode %d\n", mode);
+		DRM_DEV_ERROR(hdmi->dev, "Unkyeswn power mode %d\n", mode);
 	}
 }
 
-static void inno_hdmi_reset(struct inno_hdmi *hdmi)
+static void inyes_hdmi_reset(struct inyes_hdmi *hdmi)
 {
 	u32 val;
 	u32 msk;
@@ -234,10 +234,10 @@ static void inno_hdmi_reset(struct inno_hdmi *hdmi)
 	val = v_REG_CLK_INV | v_REG_CLK_SOURCE_SYS | v_PWR_ON | v_INT_POL_HIGH;
 	hdmi_modb(hdmi, HDMI_SYS_CTRL, msk, val);
 
-	inno_hdmi_set_pwr_mode(hdmi, NORMAL);
+	inyes_hdmi_set_pwr_mode(hdmi, NORMAL);
 }
 
-static int inno_hdmi_upload_frame(struct inno_hdmi *hdmi, int setup_rc,
+static int inyes_hdmi_upload_frame(struct inyes_hdmi *hdmi, int setup_rc,
 				  union hdmi_infoframe *frame, u32 frame_index,
 				  u32 mask, u32 disable, u32 enable)
 {
@@ -266,7 +266,7 @@ static int inno_hdmi_upload_frame(struct inno_hdmi *hdmi, int setup_rc,
 	return setup_rc;
 }
 
-static int inno_hdmi_config_video_vsi(struct inno_hdmi *hdmi,
+static int inyes_hdmi_config_video_vsi(struct inyes_hdmi *hdmi,
 				      struct drm_display_mode *mode)
 {
 	union hdmi_infoframe frame;
@@ -276,11 +276,11 @@ static int inno_hdmi_config_video_vsi(struct inno_hdmi *hdmi,
 							 &hdmi->connector,
 							 mode);
 
-	return inno_hdmi_upload_frame(hdmi, rc, &frame, INFOFRAME_VSI,
+	return inyes_hdmi_upload_frame(hdmi, rc, &frame, INFOFRAME_VSI,
 		m_PACKET_VSI_EN, v_PACKET_VSI_EN(0), v_PACKET_VSI_EN(1));
 }
 
-static int inno_hdmi_config_video_avi(struct inno_hdmi *hdmi,
+static int inyes_hdmi_config_video_avi(struct inyes_hdmi *hdmi,
 				      struct drm_display_mode *mode)
 {
 	union hdmi_infoframe frame;
@@ -297,10 +297,10 @@ static int inno_hdmi_config_video_avi(struct inno_hdmi *hdmi,
 	else
 		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
 
-	return inno_hdmi_upload_frame(hdmi, rc, &frame, INFOFRAME_AVI, 0, 0, 0);
+	return inyes_hdmi_upload_frame(hdmi, rc, &frame, INFOFRAME_AVI, 0, 0, 0);
 }
 
-static int inno_hdmi_config_video_csc(struct inno_hdmi *hdmi)
+static int inyes_hdmi_config_video_csc(struct inyes_hdmi *hdmi)
 {
 	struct hdmi_data_info *data = &hdmi->hdmi_data;
 	int c0_c2_change = 0;
@@ -377,7 +377,7 @@ static int inno_hdmi_config_video_csc(struct inno_hdmi *hdmi)
 	return 0;
 }
 
-static int inno_hdmi_config_video_timing(struct inno_hdmi *hdmi,
+static int inyes_hdmi_config_video_timing(struct inyes_hdmi *hdmi,
 					 struct drm_display_mode *mode)
 {
 	int value;
@@ -429,7 +429,7 @@ static int inno_hdmi_config_video_timing(struct inno_hdmi *hdmi,
 	return 0;
 }
 
-static int inno_hdmi_setup(struct inno_hdmi *hdmi,
+static int inyes_hdmi_setup(struct inyes_hdmi *hdmi,
 			   struct drm_display_mode *mode)
 {
 	hdmi->hdmi_data.vic = drm_match_cea_mode(mode);
@@ -453,13 +453,13 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 	hdmi_writeb(hdmi, HDMI_HDCP_CTRL,
 		    v_HDMI_DVI(hdmi->hdmi_data.sink_is_hdmi));
 
-	inno_hdmi_config_video_timing(hdmi, mode);
+	inyes_hdmi_config_video_timing(hdmi, mode);
 
-	inno_hdmi_config_video_csc(hdmi);
+	inyes_hdmi_config_video_csc(hdmi);
 
 	if (hdmi->hdmi_data.sink_is_hdmi) {
-		inno_hdmi_config_video_avi(hdmi, mode);
-		inno_hdmi_config_video_vsi(hdmi, mode);
+		inyes_hdmi_config_video_avi(hdmi, mode);
+		inyes_hdmi_config_video_vsi(hdmi, mode);
 	}
 
 	/*
@@ -469,7 +469,7 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 	 * clock rate, and reconfigure the DDC clock.
 	 */
 	hdmi->tmds_rate = mode->clock * 1000;
-	inno_hdmi_i2c_init(hdmi);
+	inyes_hdmi_i2c_init(hdmi);
 
 	/* Unmute video and audio output */
 	hdmi_modb(hdmi, HDMI_AV_MUTE, m_AUDIO_MUTE | m_VIDEO_BLACK,
@@ -478,33 +478,33 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 	return 0;
 }
 
-static void inno_hdmi_encoder_mode_set(struct drm_encoder *encoder,
+static void inyes_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 				       struct drm_display_mode *mode,
 				       struct drm_display_mode *adj_mode)
 {
-	struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
+	struct inyes_hdmi *hdmi = to_inyes_hdmi(encoder);
 
-	inno_hdmi_setup(hdmi, adj_mode);
+	inyes_hdmi_setup(hdmi, adj_mode);
 
 	/* Store the display mode for plugin/DPMS poweron events */
 	memcpy(&hdmi->previous_mode, adj_mode, sizeof(hdmi->previous_mode));
 }
 
-static void inno_hdmi_encoder_enable(struct drm_encoder *encoder)
+static void inyes_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
-	struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
+	struct inyes_hdmi *hdmi = to_inyes_hdmi(encoder);
 
-	inno_hdmi_set_pwr_mode(hdmi, NORMAL);
+	inyes_hdmi_set_pwr_mode(hdmi, NORMAL);
 }
 
-static void inno_hdmi_encoder_disable(struct drm_encoder *encoder)
+static void inyes_hdmi_encoder_disable(struct drm_encoder *encoder)
 {
-	struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
+	struct inyes_hdmi *hdmi = to_inyes_hdmi(encoder);
 
-	inno_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
+	inyes_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
 }
 
-static bool inno_hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
+static bool inyes_hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
 					 const struct drm_display_mode *mode,
 					 struct drm_display_mode *adj_mode)
 {
@@ -512,7 +512,7 @@ static bool inno_hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
 }
 
 static int
-inno_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
+inyes_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 			       struct drm_crtc_state *crtc_state,
 			       struct drm_connector_state *conn_state)
 {
@@ -524,30 +524,30 @@ inno_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static struct drm_encoder_helper_funcs inno_hdmi_encoder_helper_funcs = {
-	.enable     = inno_hdmi_encoder_enable,
-	.disable    = inno_hdmi_encoder_disable,
-	.mode_fixup = inno_hdmi_encoder_mode_fixup,
-	.mode_set   = inno_hdmi_encoder_mode_set,
-	.atomic_check = inno_hdmi_encoder_atomic_check,
+static struct drm_encoder_helper_funcs inyes_hdmi_encoder_helper_funcs = {
+	.enable     = inyes_hdmi_encoder_enable,
+	.disable    = inyes_hdmi_encoder_disable,
+	.mode_fixup = inyes_hdmi_encoder_mode_fixup,
+	.mode_set   = inyes_hdmi_encoder_mode_set,
+	.atomic_check = inyes_hdmi_encoder_atomic_check,
 };
 
-static struct drm_encoder_funcs inno_hdmi_encoder_funcs = {
+static struct drm_encoder_funcs inyes_hdmi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
 static enum drm_connector_status
-inno_hdmi_connector_detect(struct drm_connector *connector, bool force)
+inyes_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
-	struct inno_hdmi *hdmi = to_inno_hdmi(connector);
+	struct inyes_hdmi *hdmi = to_inyes_hdmi(connector);
 
 	return (hdmi_readb(hdmi, HDMI_STATUS) & m_HOTPLUG) ?
 		connector_status_connected : connector_status_disconnected;
 }
 
-static int inno_hdmi_connector_get_modes(struct drm_connector *connector)
+static int inyes_hdmi_connector_get_modes(struct drm_connector *connector)
 {
-	struct inno_hdmi *hdmi = to_inno_hdmi(connector);
+	struct inyes_hdmi *hdmi = to_inyes_hdmi(connector);
 	struct edid *edid;
 	int ret = 0;
 
@@ -567,64 +567,64 @@ static int inno_hdmi_connector_get_modes(struct drm_connector *connector)
 }
 
 static enum drm_mode_status
-inno_hdmi_connector_mode_valid(struct drm_connector *connector,
+inyes_hdmi_connector_mode_valid(struct drm_connector *connector,
 			       struct drm_display_mode *mode)
 {
 	return MODE_OK;
 }
 
 static int
-inno_hdmi_probe_single_connector_modes(struct drm_connector *connector,
+inyes_hdmi_probe_single_connector_modes(struct drm_connector *connector,
 				       uint32_t maxX, uint32_t maxY)
 {
 	return drm_helper_probe_single_connector_modes(connector, 1920, 1080);
 }
 
-static void inno_hdmi_connector_destroy(struct drm_connector *connector)
+static void inyes_hdmi_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 
-static const struct drm_connector_funcs inno_hdmi_connector_funcs = {
-	.fill_modes = inno_hdmi_probe_single_connector_modes,
-	.detect = inno_hdmi_connector_detect,
-	.destroy = inno_hdmi_connector_destroy,
+static const struct drm_connector_funcs inyes_hdmi_connector_funcs = {
+	.fill_modes = inyes_hdmi_probe_single_connector_modes,
+	.detect = inyes_hdmi_connector_detect,
+	.destroy = inyes_hdmi_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static struct drm_connector_helper_funcs inno_hdmi_connector_helper_funcs = {
-	.get_modes = inno_hdmi_connector_get_modes,
-	.mode_valid = inno_hdmi_connector_mode_valid,
+static struct drm_connector_helper_funcs inyes_hdmi_connector_helper_funcs = {
+	.get_modes = inyes_hdmi_connector_get_modes,
+	.mode_valid = inyes_hdmi_connector_mode_valid,
 };
 
-static int inno_hdmi_register(struct drm_device *drm, struct inno_hdmi *hdmi)
+static int inyes_hdmi_register(struct drm_device *drm, struct inyes_hdmi *hdmi)
 {
 	struct drm_encoder *encoder = &hdmi->encoder;
 	struct device *dev = hdmi->dev;
 
-	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
+	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_yesde);
 
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
 	 * supposed to be connected to, it's because the CRTC has
-	 * not been registered yet.  Defer probing, and hope that
+	 * yest been registered yet.  Defer probing, and hope that
 	 * the required CRTC is added later.
 	 */
 	if (encoder->possible_crtcs == 0)
 		return -EPROBE_DEFER;
 
-	drm_encoder_helper_add(encoder, &inno_hdmi_encoder_helper_funcs);
-	drm_encoder_init(drm, encoder, &inno_hdmi_encoder_funcs,
+	drm_encoder_helper_add(encoder, &inyes_hdmi_encoder_helper_funcs);
+	drm_encoder_init(drm, encoder, &inyes_hdmi_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS, NULL);
 
 	hdmi->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
 	drm_connector_helper_add(&hdmi->connector,
-				 &inno_hdmi_connector_helper_funcs);
-	drm_connector_init(drm, &hdmi->connector, &inno_hdmi_connector_funcs,
+				 &inyes_hdmi_connector_helper_funcs);
+	drm_connector_init(drm, &hdmi->connector, &inyes_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_HDMIA);
 
 	drm_connector_attach_encoder(&hdmi->connector, encoder);
@@ -632,9 +632,9 @@ static int inno_hdmi_register(struct drm_device *drm, struct inno_hdmi *hdmi)
 	return 0;
 }
 
-static irqreturn_t inno_hdmi_i2c_irq(struct inno_hdmi *hdmi)
+static irqreturn_t inyes_hdmi_i2c_irq(struct inyes_hdmi *hdmi)
 {
-	struct inno_hdmi_i2c *i2c = hdmi->i2c;
+	struct inyes_hdmi_i2c *i2c = hdmi->i2c;
 	u8 stat;
 
 	stat = hdmi_readb(hdmi, HDMI_INTERRUPT_STATUS1);
@@ -649,14 +649,14 @@ static irqreturn_t inno_hdmi_i2c_irq(struct inno_hdmi *hdmi)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t inno_hdmi_hardirq(int irq, void *dev_id)
+static irqreturn_t inyes_hdmi_hardirq(int irq, void *dev_id)
 {
-	struct inno_hdmi *hdmi = dev_id;
+	struct inyes_hdmi *hdmi = dev_id;
 	irqreturn_t ret = IRQ_NONE;
 	u8 interrupt;
 
 	if (hdmi->i2c)
-		ret = inno_hdmi_i2c_irq(hdmi);
+		ret = inyes_hdmi_i2c_irq(hdmi);
 
 	interrupt = hdmi_readb(hdmi, HDMI_STATUS);
 	if (interrupt & m_INT_HOTPLUG) {
@@ -667,16 +667,16 @@ static irqreturn_t inno_hdmi_hardirq(int irq, void *dev_id)
 	return ret;
 }
 
-static irqreturn_t inno_hdmi_irq(int irq, void *dev_id)
+static irqreturn_t inyes_hdmi_irq(int irq, void *dev_id)
 {
-	struct inno_hdmi *hdmi = dev_id;
+	struct inyes_hdmi *hdmi = dev_id;
 
 	drm_helper_hpd_irq_event(hdmi->connector.dev);
 
 	return IRQ_HANDLED;
 }
 
-static int inno_hdmi_i2c_read(struct inno_hdmi *hdmi, struct i2c_msg *msgs)
+static int inyes_hdmi_i2c_read(struct inyes_hdmi *hdmi, struct i2c_msg *msgs)
 {
 	int length = msgs->len;
 	u8 *buf = msgs->buf;
@@ -692,7 +692,7 @@ static int inno_hdmi_i2c_read(struct inno_hdmi *hdmi, struct i2c_msg *msgs)
 	return 0;
 }
 
-static int inno_hdmi_i2c_write(struct inno_hdmi *hdmi, struct i2c_msg *msgs)
+static int inyes_hdmi_i2c_write(struct inyes_hdmi *hdmi, struct i2c_msg *msgs)
 {
 	/*
 	 * The DDC module only support read EDID message, so
@@ -722,11 +722,11 @@ static int inno_hdmi_i2c_write(struct inno_hdmi *hdmi, struct i2c_msg *msgs)
 	return 0;
 }
 
-static int inno_hdmi_i2c_xfer(struct i2c_adapter *adap,
+static int inyes_hdmi_i2c_xfer(struct i2c_adapter *adap,
 			      struct i2c_msg *msgs, int num)
 {
-	struct inno_hdmi *hdmi = i2c_get_adapdata(adap);
-	struct inno_hdmi_i2c *i2c = hdmi->i2c;
+	struct inyes_hdmi *hdmi = i2c_get_adapdata(adap);
+	struct inyes_hdmi_i2c *i2c = hdmi->i2c;
 	int i, ret = 0;
 
 	mutex_lock(&i2c->lock);
@@ -741,9 +741,9 @@ static int inno_hdmi_i2c_xfer(struct i2c_adapter *adap,
 			      i + 1, num, msgs[i].len, msgs[i].flags);
 
 		if (msgs[i].flags & I2C_M_RD)
-			ret = inno_hdmi_i2c_read(hdmi, &msgs[i]);
+			ret = inyes_hdmi_i2c_read(hdmi, &msgs[i]);
 		else
-			ret = inno_hdmi_i2c_write(hdmi, &msgs[i]);
+			ret = inyes_hdmi_i2c_write(hdmi, &msgs[i]);
 
 		if (ret < 0)
 			break;
@@ -760,20 +760,20 @@ static int inno_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	return ret;
 }
 
-static u32 inno_hdmi_i2c_func(struct i2c_adapter *adapter)
+static u32 inyes_hdmi_i2c_func(struct i2c_adapter *adapter)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static const struct i2c_algorithm inno_hdmi_algorithm = {
-	.master_xfer	= inno_hdmi_i2c_xfer,
-	.functionality	= inno_hdmi_i2c_func,
+static const struct i2c_algorithm inyes_hdmi_algorithm = {
+	.master_xfer	= inyes_hdmi_i2c_xfer,
+	.functionality	= inyes_hdmi_i2c_func,
 };
 
-static struct i2c_adapter *inno_hdmi_i2c_adapter(struct inno_hdmi *hdmi)
+static struct i2c_adapter *inyes_hdmi_i2c_adapter(struct inyes_hdmi *hdmi)
 {
 	struct i2c_adapter *adap;
-	struct inno_hdmi_i2c *i2c;
+	struct inyes_hdmi_i2c *i2c;
 	int ret;
 
 	i2c = devm_kzalloc(hdmi->dev, sizeof(*i2c), GFP_KERNEL);
@@ -787,14 +787,14 @@ static struct i2c_adapter *inno_hdmi_i2c_adapter(struct inno_hdmi *hdmi)
 	adap->class = I2C_CLASS_DDC;
 	adap->owner = THIS_MODULE;
 	adap->dev.parent = hdmi->dev;
-	adap->dev.of_node = hdmi->dev->of_node;
-	adap->algo = &inno_hdmi_algorithm;
-	strlcpy(adap->name, "Inno HDMI", sizeof(adap->name));
+	adap->dev.of_yesde = hdmi->dev->of_yesde;
+	adap->algo = &inyes_hdmi_algorithm;
+	strlcpy(adap->name, "Inyes HDMI", sizeof(adap->name));
 	i2c_set_adapdata(adap, hdmi);
 
 	ret = i2c_add_adapter(adap);
 	if (ret) {
-		dev_warn(hdmi->dev, "cannot add %s I2C adapter\n", adap->name);
+		dev_warn(hdmi->dev, "canyest add %s I2C adapter\n", adap->name);
 		devm_kfree(hdmi->dev, i2c);
 		return ERR_PTR(ret);
 	}
@@ -806,12 +806,12 @@ static struct i2c_adapter *inno_hdmi_i2c_adapter(struct inno_hdmi *hdmi)
 	return adap;
 }
 
-static int inno_hdmi_bind(struct device *dev, struct device *master,
+static int inyes_hdmi_bind(struct device *dev, struct device *master,
 				 void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = data;
-	struct inno_hdmi *hdmi;
+	struct inyes_hdmi *hdmi;
 	struct resource *iores;
 	int irq;
 	int ret;
@@ -837,7 +837,7 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	ret = clk_prepare_enable(hdmi->pclk);
 	if (ret) {
 		DRM_DEV_ERROR(hdmi->dev,
-			      "Cannot enable HDMI pclk clock: %d\n", ret);
+			      "Canyest enable HDMI pclk clock: %d\n", ret);
 		return ret;
 	}
 
@@ -847,9 +847,9 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 		goto err_disable_clk;
 	}
 
-	inno_hdmi_reset(hdmi);
+	inyes_hdmi_reset(hdmi);
 
-	hdmi->ddc = inno_hdmi_i2c_adapter(hdmi);
+	hdmi->ddc = inyes_hdmi_i2c_adapter(hdmi);
 	if (IS_ERR(hdmi->ddc)) {
 		ret = PTR_ERR(hdmi->ddc);
 		hdmi->ddc = NULL;
@@ -863,9 +863,9 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	 * and reconfigure the DDC clock.
 	 */
 	hdmi->tmds_rate = clk_get_rate(hdmi->pclk);
-	inno_hdmi_i2c_init(hdmi);
+	inyes_hdmi_i2c_init(hdmi);
 
-	ret = inno_hdmi_register(drm, hdmi);
+	ret = inyes_hdmi_register(drm, hdmi);
 	if (ret)
 		goto err_put_adapter;
 
@@ -874,8 +874,8 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	/* Unmute hotplug interrupt */
 	hdmi_modb(hdmi, HDMI_STATUS, m_MASK_INT_HOTPLUG, v_MASK_INT_HOTPLUG(1));
 
-	ret = devm_request_threaded_irq(dev, irq, inno_hdmi_hardirq,
-					inno_hdmi_irq, IRQF_SHARED,
+	ret = devm_request_threaded_irq(dev, irq, inyes_hdmi_hardirq,
+					inyes_hdmi_irq, IRQF_SHARED,
 					dev_name(dev), hdmi);
 	if (ret < 0)
 		goto err_cleanup_hdmi;
@@ -891,10 +891,10 @@ err_disable_clk:
 	return ret;
 }
 
-static void inno_hdmi_unbind(struct device *dev, struct device *master,
+static void inyes_hdmi_unbind(struct device *dev, struct device *master,
 			     void *data)
 {
-	struct inno_hdmi *hdmi = dev_get_drvdata(dev);
+	struct inyes_hdmi *hdmi = dev_get_drvdata(dev);
 
 	hdmi->connector.funcs->destroy(&hdmi->connector);
 	hdmi->encoder.funcs->destroy(&hdmi->encoder);
@@ -903,35 +903,35 @@ static void inno_hdmi_unbind(struct device *dev, struct device *master,
 	clk_disable_unprepare(hdmi->pclk);
 }
 
-static const struct component_ops inno_hdmi_ops = {
-	.bind	= inno_hdmi_bind,
-	.unbind	= inno_hdmi_unbind,
+static const struct component_ops inyes_hdmi_ops = {
+	.bind	= inyes_hdmi_bind,
+	.unbind	= inyes_hdmi_unbind,
 };
 
-static int inno_hdmi_probe(struct platform_device *pdev)
+static int inyes_hdmi_probe(struct platform_device *pdev)
 {
-	return component_add(&pdev->dev, &inno_hdmi_ops);
+	return component_add(&pdev->dev, &inyes_hdmi_ops);
 }
 
-static int inno_hdmi_remove(struct platform_device *pdev)
+static int inyes_hdmi_remove(struct platform_device *pdev)
 {
-	component_del(&pdev->dev, &inno_hdmi_ops);
+	component_del(&pdev->dev, &inyes_hdmi_ops);
 
 	return 0;
 }
 
-static const struct of_device_id inno_hdmi_dt_ids[] = {
-	{ .compatible = "rockchip,rk3036-inno-hdmi",
+static const struct of_device_id inyes_hdmi_dt_ids[] = {
+	{ .compatible = "rockchip,rk3036-inyes-hdmi",
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, inno_hdmi_dt_ids);
+MODULE_DEVICE_TABLE(of, inyes_hdmi_dt_ids);
 
-struct platform_driver inno_hdmi_driver = {
-	.probe  = inno_hdmi_probe,
-	.remove = inno_hdmi_remove,
+struct platform_driver inyes_hdmi_driver = {
+	.probe  = inyes_hdmi_probe,
+	.remove = inyes_hdmi_remove,
 	.driver = {
-		.name = "innohdmi-rockchip",
-		.of_match_table = inno_hdmi_dt_ids,
+		.name = "inyeshdmi-rockchip",
+		.of_match_table = inyes_hdmi_dt_ids,
 	},
 };

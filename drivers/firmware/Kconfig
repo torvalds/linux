@@ -22,7 +22,7 @@ config ARM_SCMI_PROTOCOL
 	  such as application processors and other accelerators, Clock
 	  management which is the ability to set and inquire rates on platform
 	  managed clocks and Sensor management which is the ability to read
-	  sensor data, and be notified of sensor value.
+	  sensor data, and be yestified of sensor value.
 
 	  This protocol library provides interface for all the client drivers
 	  making use of the features offered by the SCMI.
@@ -75,7 +75,7 @@ config ARM_SDE_INTERFACE
 	help
 	  The Software Delegated Exception Interface (SDEI) is an ARM
 	  standard for registering callbacks from the platform firmware
-	  into the OS. This is typically used to implement RAS notifications.
+	  into the OS. This is typically used to implement RAS yestifications.
 
 config EDD
 	tristate "BIOS Enhanced Disk Drive calls determine boot disk"
@@ -85,9 +85,9 @@ config EDD
 	  Services real mode BIOS calls to determine which disk
 	  BIOS tries boot from.  This information is then exported via sysfs.
 
-	  This option is experimental and is known to fail to boot on some
+	  This option is experimental and is kyeswn to fail to boot on some
           obscure configurations. Most disk controller BIOS vendors do
-          not yet implement this feature.
+          yest yet implement this feature.
 
 config EDD_OFF
 	bool "Sets default behavior for EDD detection to off"
@@ -123,7 +123,7 @@ config EFI_PCDP
 	  device, it will become the console automatically.  Otherwise,
 	  you must specify the "console=hcdp" kernel boot argument.
 
-	  Neither the PCDP nor the HCDP affects naming of serial devices,
+	  Neither the PCDP yesr the HCDP affects naming of serial devices,
 	  so a serial console may be /dev/ttyS0, /dev/ttyS1, etc, depending
 	  on how the driver discovers devices.
 
@@ -222,7 +222,7 @@ config INTEL_STRATIX10_RSU
 	help
 	  The Intel Remote System Update (RSU) driver exposes interfaces
 	  access through the Intel Service Layer to user space via sysfs
-	  device attribute nodes. The RSU interfaces report/control some of
+	  device attribute yesdes. The RSU interfaces report/control some of
 	  the optional RSU features of the Stratix 10 SoC FPGA.
 
 	  The RSU provides a way for customers to update the boot
@@ -287,7 +287,7 @@ config TRUSTED_FOUNDATIONS
 	  comments in linux/firmware/trusted_foundations.h or the device tree
 	  bindings for "tlm,trusted-foundations" for details on how to use it.
 
-	  Choose N if you don't know what this is about.
+	  Choose N if you don't kyesw what this is about.
 
 config TURRIS_MOX_RWTM
 	tristate "Turris Mox rWTM secure firmware driver"

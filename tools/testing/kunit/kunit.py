@@ -31,7 +31,7 @@ class KunitStatus(Enum):
 	TEST_FAILURE = auto()
 
 def create_default_kunitconfig():
-	if not os.path.exists(kunit_kernel.kunitconfig_path):
+	if yest os.path.exists(kunit_kernel.kunitconfig_path):
 		shutil.copyfile('arch/um/configs/kunit_defconfig',
 				kunit_kernel.kunitconfig_path)
 
@@ -40,23 +40,23 @@ def run_tests(linux: kunit_kernel.LinuxSourceTree,
 	config_start = time.time()
 	success = linux.build_reconfig(request.build_dir)
 	config_end = time.time()
-	if not success:
-		return KunitResult(KunitStatus.CONFIG_FAILURE, 'could not configure kernel')
+	if yest success:
+		return KunitResult(KunitStatus.CONFIG_FAILURE, 'could yest configure kernel')
 
 	kunit_parser.print_with_timestamp('Building KUnit Kernel ...')
 
 	build_start = time.time()
 	success = linux.build_um_kernel(request.jobs, request.build_dir)
 	build_end = time.time()
-	if not success:
-		return KunitResult(KunitStatus.BUILD_FAILURE, 'could not build kernel')
+	if yest success:
+		return KunitResult(KunitStatus.BUILD_FAILURE, 'could yest build kernel')
 
 	kunit_parser.print_with_timestamp('Starting KUnit Kernel ...')
 	test_start = time.time()
 
 	test_result = kunit_parser.TestResult(kunit_parser.TestStatus.SUCCESS,
 					      [],
-					      'Tests not Parsed.')
+					      'Tests yest Parsed.')
 	if request.raw_output:
 		kunit_parser.raw_output(
 			linux.run_kernel(timeout=request.timeout,
@@ -91,7 +91,7 @@ def main(argv, linux=None):
 
 	run_parser.add_argument('--timeout',
 				help='maximum number of seconds to allow for all tests '
-				'to run. This does not include time taken to build the '
+				'to run. This does yest include time taken to build the '
 				'tests.',
 				type=int,
 				default=300,
@@ -115,7 +115,7 @@ def main(argv, linux=None):
 
 	if cli_args.subcommand == 'run':
 		if cli_args.build_dir:
-			if not os.path.exists(cli_args.build_dir):
+			if yest os.path.exists(cli_args.build_dir):
 				os.mkdir(cli_args.build_dir)
 			kunit_kernel.kunitconfig_path = os.path.join(
 				cli_args.build_dir,
@@ -124,7 +124,7 @@ def main(argv, linux=None):
 		if cli_args.defconfig:
 			create_default_kunitconfig()
 
-		if not linux:
+		if yest linux:
 			linux = kunit_kernel.LinuxSourceTree()
 
 		request = KunitRequest(cli_args.raw_output,

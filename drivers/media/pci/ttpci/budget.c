@@ -2,7 +2,7 @@
 /*
  * budget.c: driver for the SAA7146 based Budget DVB cards
  *
- * Compiled from various sources by Michael Hunold <michael@mihu.de>
+ * Compiled from various sources by Michael Huyesld <michael@mihu.de>
  *
  * Copyright (C) 2002 Ralph Metzler <rjkm@metzlerbros.de>
  *
@@ -491,7 +491,7 @@ static void frontend_init(struct budget *budget)
 			break;
 		}
 
-		// try the ALPS BSRU6 now
+		// try the ALPS BSRU6 yesw
 		budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsru6_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
@@ -751,7 +751,7 @@ static void frontend_init(struct budget *budget)
 	}
 
 	if (budget->dvb_frontend == NULL) {
-		printk("budget: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		printk("budget: A frontend driver was yest found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       budget->dev->pci->vendor,
 		       budget->dev->pci->device,
 		       budget->dev->pci->subsystem_vendor,
@@ -879,5 +879,5 @@ module_init(budget_init);
 module_exit(budget_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, Michael Hunold, others");
-MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB cards by Siemens, Technotrend, Hauppauge");
+MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, Michael Huyesld, others");
+MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB cards by Siemens, Techyestrend, Hauppauge");

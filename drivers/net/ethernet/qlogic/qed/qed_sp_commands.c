@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -33,7 +33,7 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include "qed.h"
@@ -51,7 +51,7 @@ void qed_sp_destroy_request(struct qed_hwfn *p_hwfn,
 			    struct qed_spq_entry *p_ent)
 {
 	/* qed_spq_get_entry() can either get an entry from the free_pool,
-	 * or, if no entries are left, allocate a new entry and add it to
+	 * or, if yes entries are left, allocate a new entry and add it to
 	 * the unlimited_pending list.
 	 */
 	if (p_ent->queue == &p_hwfn->p_spq->unlimited_pending)
@@ -106,7 +106,7 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
 		break;
 
 	default:
-		DP_NOTICE(p_hwfn, "Unknown SPQE completion mode %d\n",
+		DP_NOTICE(p_hwfn, "Unkyeswn SPQE completion mode %d\n",
 			  p_ent->comp_mode);
 		goto err;
 	}
@@ -416,7 +416,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		p_ramrod->personality = PERSONALITY_RDMA_AND_ETH;
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown personality %d\n",
+		DP_NOTICE(p_hwfn, "Unkyeswn personality %d\n",
 			  p_hwfn->hw_info.personality);
 		p_ramrod->personality = PERSONALITY_ETH;
 	}
@@ -428,7 +428,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 		p_ramrod->num_vfs = (u8) p_iov->total_vfs;
 	}
 	p_ramrod->hsi_fp_ver.major_ver_arr[ETH_VER_KEY] = ETH_HSI_VER_MAJOR;
-	p_ramrod->hsi_fp_ver.minor_ver_arr[ETH_VER_KEY] = ETH_HSI_VER_MINOR;
+	p_ramrod->hsi_fp_ver.miyesr_ver_arr[ETH_VER_KEY] = ETH_HSI_VER_MINOR;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
 		   "Setting event_ring_sb [id %04x index %02x], outer_tag.tci [%d]\n",

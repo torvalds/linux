@@ -12,6 +12,6 @@
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H __FILE__
 
-/* currently nothing here, placeholder */
+/* currently yesthing here, placeholder */
 
 #endif /* __ASM_ARCH_IRQ_H */

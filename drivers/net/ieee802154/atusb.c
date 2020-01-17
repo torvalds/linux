@@ -46,7 +46,7 @@ struct atusb {
 	struct ieee802154_hw *hw;
 	struct usb_device *usb_dev;
 	struct atusb_chip_data *data;
-	int shutdown;			/* non-zero if shutting down */
+	int shutdown;			/* yesn-zero if shutting down */
 	int err;			/* set by first error */
 
 	/* RX variables */
@@ -62,7 +62,7 @@ struct atusb {
 
 	/* Firmware variable */
 	unsigned char fw_ver_maj;	/* Firmware major version number */
-	unsigned char fw_ver_min;	/* Firmware minor version number */
+	unsigned char fw_ver_min;	/* Firmware miyesr version number */
 	unsigned char fw_hw_type;	/* Firmware hardware type */
 };
 
@@ -254,7 +254,7 @@ static void atusb_work_urbs(struct work_struct *work)
 			      msecs_to_jiffies(ATUSB_ALLOC_DELAY_MS) + 1);
 }
 
-/* ----- Asynchronous USB -------------------------------------------------- */
+/* ----- Asynchroyesus USB -------------------------------------------------- */
 
 static void atusb_tx_done(struct atusb *atusb, u8 seq)
 {
@@ -268,7 +268,7 @@ static void atusb_tx_done(struct atusb *atusb, u8 seq)
 	} else {
 		/* TODO I experience this case when atusb has a tx complete
 		 * irq before probing, we should fix the firmware it's an
-		 * unlikely case now that seq == expect is then true, but can
+		 * unlikely case yesw that seq == expect is then true, but can
 		 * happen and fail with a tx_skb = NULL;
 		 */
 		ieee802154_wake_queue(atusb->hw);
@@ -672,7 +672,7 @@ static int hulusb_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	 * If we do that in cfg802154, this is a more generic calculation.
 	 *
 	 * This should also protected from ifs_timer. Means cancel timer and
-	 * init with a new value. For now, this is okay.
+	 * init with a new value. For yesw, this is okay.
 	 */
 	if (channel == 0) {
 		if (page == 0) {
@@ -835,7 +835,7 @@ static int atusb_get_and_show_revision(struct atusb *atusb)
 		}
 
 		dev_info(&usb_dev->dev,
-			 "Firmware: major: %u, minor: %u, hardware type: %s (%d)\n",
+			 "Firmware: major: %u, miyesr: %u, hardware type: %s (%d)\n",
 			 atusb->fw_ver_maj, atusb->fw_ver_min, hw_name,
 			 atusb->fw_hw_type);
 	}
@@ -905,7 +905,7 @@ static int atusb_get_and_conf_chip(struct atusb *atusb)
 
 	if ((man_id_1 << 8 | man_id_0) != ATUSB_JEDEC_ATMEL) {
 		dev_err(&usb_dev->dev,
-			"non-Atmel transceiver xxxx%02x%02x\n",
+			"yesn-Atmel transceiver xxxx%02x%02x\n",
 			man_id_1, man_id_0);
 		goto fail;
 	}
@@ -971,7 +971,7 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 	u64 addr;
 	int ret;
 
-	/* Firmware versions before 0.3 do not support the EUI64_READ command.
+	/* Firmware versions before 0.3 do yest support the EUI64_READ command.
 	 * Just use a random address and be done.
 	 */
 	if (atusb->fw_ver_maj == 0 && atusb->fw_ver_min < 3) {
@@ -983,7 +983,7 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 	if (!buffer)
 		return -ENOMEM;
 
-	/* Firmware is new enough so we fetch the address from EEPROM */
+	/* Firmware is new eyesugh so we fetch the address from EEPROM */
 	ret = atusb_control_msg(atusb, usb_rcvctrlpipe(usb_dev, 0),
 				ATUSB_EUI64_READ, ATUSB_REQ_FROM_DEV, 0, 0,
 				buffer, IEEE802154_EXTENDED_ADDR_LEN, 1000);
@@ -995,9 +995,9 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 	}
 
 	memcpy(&extended_addr, buffer, IEEE802154_EXTENDED_ADDR_LEN);
-	/* Check if read address is not empty and the unicast bit is set correctly */
+	/* Check if read address is yest empty and the unicast bit is set correctly */
 	if (!ieee802154_is_valid_extended_unicast_addr(extended_addr)) {
-		dev_info(&usb_dev->dev, "no permanent extended address found, random address set\n");
+		dev_info(&usb_dev->dev, "yes permanent extended address found, random address set\n");
 		ieee802154_random_extended_addr(&atusb->hw->phy->perm_extended_addr);
 	} else {
 		atusb->hw->phy->perm_extended_addr = extended_addr;
@@ -1069,7 +1069,7 @@ static int atusb_probe(struct usb_interface *interface,
 	if (ret)
 		goto fail;
 
-	/* If we just powered on, we're now in P_ON and need to enter TRX_OFF
+	/* If we just powered on, we're yesw in P_ON and need to enter TRX_OFF
 	 * explicitly. Any resets after that will send us straight to TRX_OFF,
 	 * making the command below redundant.
 	 */

@@ -2,7 +2,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 
 #include "liburing.h"
@@ -18,7 +18,7 @@ static int io_uring_mmap(int fd, struct io_uring_params *p,
 	ptr = mmap(0, sq->ring_sz, PROT_READ | PROT_WRITE,
 			MAP_SHARED | MAP_POPULATE, fd, IORING_OFF_SQ_RING);
 	if (ptr == MAP_FAILED)
-		return -errno;
+		return -erryes;
 	sq->khead = ptr + p->sq_off.head;
 	sq->ktail = ptr + p->sq_off.tail;
 	sq->kring_mask = ptr + p->sq_off.ring_mask;
@@ -32,7 +32,7 @@ static int io_uring_mmap(int fd, struct io_uring_params *p,
 				MAP_SHARED | MAP_POPULATE, fd,
 				IORING_OFF_SQES);
 	if (sq->sqes == MAP_FAILED) {
-		ret = -errno;
+		ret = -erryes;
 err:
 		munmap(sq->khead, sq->ring_sz);
 		return ret;
@@ -42,7 +42,7 @@ err:
 	ptr = mmap(0, cq->ring_sz, PROT_READ | PROT_WRITE,
 			MAP_SHARED | MAP_POPULATE, fd, IORING_OFF_CQ_RING);
 	if (ptr == MAP_FAILED) {
-		ret = -errno;
+		ret = -erryes;
 		munmap(sq->sqes, p->sq_entries * sizeof(struct io_uring_sqe));
 		goto err;
 	}

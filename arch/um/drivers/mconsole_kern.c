@@ -11,7 +11,7 @@
 #include <linux/list.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/sched/debug.h>
 #include <linux/proc_fs.h>
@@ -36,19 +36,19 @@
 #include "mconsole_kern.h"
 #include <os.h>
 
-static int do_unlink_socket(struct notifier_block *notifier,
+static int do_unlink_socket(struct yestifier_block *yestifier,
 			    unsigned long what, void *data)
 {
 	return mconsole_unlink_socket();
 }
 
 
-static struct notifier_block reboot_notifier = {
-	.notifier_call		= do_unlink_socket,
+static struct yestifier_block reboot_yestifier = {
+	.yestifier_call		= do_unlink_socket,
 	.priority		= 0,
 };
 
-/* Safe without explicit locking for now.  Tasklets provide their own
+/* Safe without explicit locking for yesw.  Tasklets provide their own
  * locking, and the interrupt handler is safe because it can't interrupt
  * itself and it can only happen on CPU 0.
  */
@@ -104,7 +104,7 @@ void mconsole_version(struct mc_request *req)
 	char version[256];
 
 	sprintf(version, "%s %s %s %s %s", utsname()->sysname,
-		utsname()->nodename, utsname()->release, utsname()->version,
+		utsname()->yesdename, utsname()->release, utsname()->version,
 		utsname()->machine);
 	mconsole_reply(req, version, 0, 0);
 }
@@ -180,7 +180,7 @@ void mconsole_proc(struct mc_request *req)
     remove <dev> - Remove a device from UML \n\
     sysrq <letter> - Performs the SysRq action controlled by the letter \n\
     cad - invoke the Ctrl-Alt-Del handler \n\
-    stop - pause the UML; it will do nothing until it receives a 'go' \n\
+    stop - pause the UML; it will do yesthing until it receives a 'go' \n\
     go - continue the UML after a 'stop' \n\
     log <string> - make UML enter <string> into the kernel log\n\
     proc <file> - returns the contents of the UML's /proc/<file>\n\
@@ -354,7 +354,7 @@ static int mem_config(char *str, char **error_out)
 				err = os_drop_memory(addr, PAGE_SIZE);
 				if (err) {
 					printk(KERN_ERR "Failed to release "
-					       "memory - errno = %d\n", err);
+					       "memory - erryes = %d\n", err);
 					*error_out = "Failed to release memory";
 					goto out_unlock;
 				}
@@ -634,7 +634,7 @@ void mconsole_sysrq(struct mc_request *req)
 #else
 void mconsole_sysrq(struct mc_request *req)
 {
-	mconsole_reply(req, "Sysrq not compiled in", 1, 0);
+	mconsole_reply(req, "Sysrq yest compiled in", 1, 0);
 }
 #endif
 
@@ -687,7 +687,7 @@ void mconsole_stack(struct mc_request *req)
  * Changed by mconsole_setup, which is __setup, and called before SMP is
  * active.
  */
-static char *notify_socket = NULL;
+static char *yestify_socket = NULL;
 
 static int __init mconsole_init(void)
 {
@@ -708,7 +708,7 @@ static int __init mconsole_init(void)
 	if (os_set_fd_block(sock, 0))
 		goto out;
 
-	register_reboot_notifier(&reboot_notifier);
+	register_reboot_yestifier(&reboot_yestifier);
 
 	err = um_request_irq(MCONSOLE_IRQ, sock, IRQ_READ, mconsole_interrupt,
 			     IRQF_SHARED, "mconsole", (void *)sock);
@@ -717,10 +717,10 @@ static int __init mconsole_init(void)
 		goto out;
 	}
 
-	if (notify_socket != NULL) {
-		notify_socket = kstrdup(notify_socket, GFP_KERNEL);
-		if (notify_socket != NULL)
-			mconsole_notify(notify_socket, MCONSOLE_SOCKET,
+	if (yestify_socket != NULL) {
+		yestify_socket = kstrdup(yestify_socket, GFP_KERNEL);
+		if (yestify_socket != NULL)
+			mconsole_yestify(yestify_socket, MCONSOLE_SOCKET,
 					mconsole_socket_name,
 					strlen(mconsole_socket_name) + 1);
 		else printk(KERN_ERR "mconsole_setup failed to strdup "
@@ -747,7 +747,7 @@ static ssize_t mconsole_proc_write(struct file *file,
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 
-	mconsole_notify(notify_socket, MCONSOLE_USER_NOTIFY, buf, count);
+	mconsole_yestify(yestify_socket, MCONSOLE_USER_NOTIFY, buf, count);
 	kfree(buf);
 	return count;
 }
@@ -755,14 +755,14 @@ static ssize_t mconsole_proc_write(struct file *file,
 static const struct file_operations mconsole_proc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= mconsole_proc_write,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static int create_proc_mconsole(void)
 {
 	struct proc_dir_entry *ent;
 
-	if (notify_socket == NULL)
+	if (yestify_socket == NULL)
 		return 0;
 
 	ent = proc_create("mconsole", 0200, NULL, &mconsole_proc_fops);
@@ -773,73 +773,73 @@ static int create_proc_mconsole(void)
 	return 0;
 }
 
-static DEFINE_SPINLOCK(notify_spinlock);
+static DEFINE_SPINLOCK(yestify_spinlock);
 
-void lock_notify(void)
+void lock_yestify(void)
 {
-	spin_lock(&notify_spinlock);
+	spin_lock(&yestify_spinlock);
 }
 
-void unlock_notify(void)
+void unlock_yestify(void)
 {
-	spin_unlock(&notify_spinlock);
+	spin_unlock(&yestify_spinlock);
 }
 
 __initcall(create_proc_mconsole);
 
-#define NOTIFY "notify:"
+#define NOTIFY "yestify:"
 
 static int mconsole_setup(char *str)
 {
 	if (!strncmp(str, NOTIFY, strlen(NOTIFY))) {
 		str += strlen(NOTIFY);
-		notify_socket = str;
+		yestify_socket = str;
 	}
-	else printk(KERN_ERR "mconsole_setup : Unknown option - '%s'\n", str);
+	else printk(KERN_ERR "mconsole_setup : Unkyeswn option - '%s'\n", str);
 	return 1;
 }
 
 __setup("mconsole=", mconsole_setup);
 
 __uml_help(mconsole_setup,
-"mconsole=notify:<socket>\n"
+"mconsole=yestify:<socket>\n"
 "    Requests that the mconsole driver send a message to the named Unix\n"
 "    socket containing the name of the mconsole socket.  This also serves\n"
-"    to notify outside processes when UML has booted far enough to respond\n"
+"    to yestify outside processes when UML has booted far eyesugh to respond\n"
 "    to mconsole requests.\n\n"
 );
 
-static int notify_panic(struct notifier_block *self, unsigned long unused1,
+static int yestify_panic(struct yestifier_block *self, unsigned long unused1,
 			void *ptr)
 {
 	char *message = ptr;
 
-	if (notify_socket == NULL)
+	if (yestify_socket == NULL)
 		return 0;
 
-	mconsole_notify(notify_socket, MCONSOLE_PANIC, message,
+	mconsole_yestify(yestify_socket, MCONSOLE_PANIC, message,
 			strlen(message) + 1);
 	return 0;
 }
 
-static struct notifier_block panic_exit_notifier = {
-	.notifier_call 		= notify_panic,
+static struct yestifier_block panic_exit_yestifier = {
+	.yestifier_call 		= yestify_panic,
 	.next 			= NULL,
 	.priority 		= 1
 };
 
-static int add_notifier(void)
+static int add_yestifier(void)
 {
-	atomic_notifier_chain_register(&panic_notifier_list,
-			&panic_exit_notifier);
+	atomic_yestifier_chain_register(&panic_yestifier_list,
+			&panic_exit_yestifier);
 	return 0;
 }
 
-__initcall(add_notifier);
+__initcall(add_yestifier);
 
-char *mconsole_notify_socket(void)
+char *mconsole_yestify_socket(void)
 {
-	return notify_socket;
+	return yestify_socket;
 }
 
-EXPORT_SYMBOL(mconsole_notify_socket);
+EXPORT_SYMBOL(mconsole_yestify_socket);

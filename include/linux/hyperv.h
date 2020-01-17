@@ -88,18 +88,18 @@ struct hv_ring_buffer {
 	 * 1) It will set the pending_send_sz field in the guest->host ring
 	 *    buffer when it is waiting for space to become available, and
 	 * 2) It will read the pending_send_sz field in the host->guest
-	 *    ring buffer and interrupt the host when it frees enough space
+	 *    ring buffer and interrupt the host when it frees eyesugh space
 	 *
 	 * Similarly, if the host sets the feature bit in the host->guest
 	 * ring buffer, the host is telling the guest that:
 	 * 1) It will set the pending_send_sz field in the host->guest ring
 	 *    buffer when it is waiting for space to become available, and
 	 * 2) It will read the pending_send_sz field in the guest->host
-	 *    ring buffer and interrupt the guest when it frees enough space
+	 *    ring buffer and interrupt the guest when it frees eyesugh space
 	 *
-	 * If either the guest or host does not set the feature bit that it
+	 * If either the guest or host does yest set the feature bit that it
 	 * owns, that guest or host must do polling if it encounters a full
-	 * ring buffer, and not signal the other end with an interrupt.
+	 * ring buffer, and yest signal the other end with an interrupt.
 	 */
 	u32 pending_send_sz;
 	u32 reserved1[12];
@@ -175,7 +175,7 @@ static inline u32 hv_get_avail_to_write_percent(
 
 /*
  * VMBUS version is 32 bit entity broken up into
- * two 16 bit quantities: major_number. minor_number.
+ * two 16 bit quantities: major_number. miyesr_number.
  *
  * 0 . 13 (Windows Server 2008)
  * 1 . 1  (Windows 7)
@@ -205,7 +205,7 @@ static inline u32 hv_get_avail_to_write_percent(
 #define VMBUS_PIPE_TYPE_BYTE		0x00000000
 #define VMBUS_PIPE_TYPE_MESSAGE		0x00000004
 
-/* The size of the user defined data buffer for non-pipe offers. */
+/* The size of the user defined data buffer for yesn-pipe offers. */
 #define MAX_USER_DEFINED_BYTES		120
 
 /* The size of the user defined data buffer for pipe offers. */
@@ -220,7 +220,7 @@ struct vmbus_channel_offer {
 	guid_t if_instance;
 
 	/*
-	 * These two fields are not currently used.
+	 * These two fields are yest currently used.
 	 */
 	u64 reserved1;
 	u64 reserved2;
@@ -248,7 +248,7 @@ struct vmbus_channel_offer {
 	} u;
 	/*
 	 * The sub_channel_index is defined in Win8: a value of zero means a
-	 * primary channel and a value of non-zero means a sub-channel.
+	 * primary channel and a value of yesn-zero means a sub-channel.
 	 *
 	 * Before Win8, the field is reserved, meaning it's always zero.
 	 */
@@ -318,7 +318,7 @@ struct gpa_range {
 
 /*
  * This is the format for an Establish Gpadl packet, which contains a handle by
- * which this GPADL will be known and a set of GPA ranges associated with it.
+ * which this GPADL will be kyeswn and a set of GPA ranges associated with it.
  * This can be converted to a MDL by the guest OS.  If there are multiple GPA
  * ranges, then the resulting MDL will be "chained," representing multiple VA
  * ranges.
@@ -461,10 +461,10 @@ struct vmbus_channel_offer_channel {
 	u8 reserved:7;
 	/*
 	 * These are new fields added in win7 and later.
-	 * Do not access these fields without checking the
+	 * Do yest access these fields without checking the
 	 * negotiated protocol.
 	 *
-	 * If "is_dedicated_interrupt" is set, we must not set the
+	 * If "is_dedicated_interrupt" is set, we must yest set the
 	 * associated bit in the channel bitmap while sending the
 	 * interrupt to the host.
 	 *
@@ -488,12 +488,12 @@ hv_ringbuffer_pending_size(const struct hv_ring_buffer_info *rbi)
 }
 
 /*
- * Request Offer -- no parameters, SynIC message contains the partition ID
- * Set Snoop -- no parameters, SynIC message contains the partition ID
- * Clear Snoop -- no parameters, SynIC message contains the partition ID
- * All Offers Delivered -- no parameters, SynIC message contains the partition
+ * Request Offer -- yes parameters, SynIC message contains the partition ID
+ * Set Syesop -- yes parameters, SynIC message contains the partition ID
+ * Clear Syesop -- yes parameters, SynIC message contains the partition ID
+ * All Offers Delivered -- yes parameters, SynIC message contains the partition
  *		           ID
- * Flush Client -- no parameters, SynIC message contains the partition ID
+ * Flush Client -- yes parameters, SynIC message contains the partition ID
  */
 
 /* Open Channel parameters */
@@ -753,7 +753,7 @@ struct vmbus_channel {
 
 	/*
 	 * Guest to host interrupts caused by the outbound ring buffer changing
-	 * from empty to not empty.
+	 * from empty to yest empty.
 	 */
 	u64 intr_out_empty;
 
@@ -803,8 +803,8 @@ struct vmbus_channel {
 	/*
 	 * State to manage the CPU affiliation of channels.
 	 */
-	struct cpumask alloced_cpus_in_node;
-	int numa_node;
+	struct cpumask alloced_cpus_in_yesde;
+	int numa_yesde;
 	/*
 	 * Support for sub-channels. For high performance devices,
 	 * it will be useful to have multiple sub-channels to support
@@ -814,7 +814,7 @@ struct vmbus_channel {
 	 * The initial offer is considered the primary channel and this
 	 * offer message will indicate if the host supports sub-channels.
 	 * The guest is free to ask for sub-channels to be offerred and can
-	 * open these sub-channels as a normal "primary" channel. However,
+	 * open these sub-channels as a yesrmal "primary" channel. However,
 	 * all sub-channels will have the same type and instance guids as the
 	 * primary channel. Requests sent on a given channel will result in a
 	 * response on the same channel.
@@ -829,7 +829,7 @@ struct vmbus_channel {
 
 	/*
 	 * Channel rescind callback. Some channels (the hvsock ones), need to
-	 * register a callback which is invoked in vmbus_onoffer_rescind().
+	 * register a callback which is invoked in vmbus_oyesffer_rescind().
 	 */
 	void (*chn_rescind_callback)(struct vmbus_channel *channel);
 
@@ -899,11 +899,11 @@ struct vmbus_channel {
 	 * NUMA distribution policy:
 	 * We support two policies:
 	 * 1) Balanced: Here all performance critical channels are
-	 *    distributed evenly amongst all the NUMA nodes.
+	 *    distributed evenly amongst all the NUMA yesdes.
 	 *    This policy will be the default policy.
 	 * 2) Localized: All channels of a given instance of a
 	 *    performance critical service will be assigned CPUs
-	 *    within a selected NUMA node.
+	 *    within a selected NUMA yesde.
 	 */
 	enum hv_numa_policy affinity_policy;
 
@@ -919,7 +919,7 @@ struct vmbus_channel {
 
 	/*
 	 * Guest to host interrupts caused by the inbound ring buffer changing
-	 * from full to not full while a packet is waiting.
+	 * from full to yest full while a packet is waiting.
 	 */
 	u64 intr_in_full;
 
@@ -941,10 +941,10 @@ struct vmbus_channel {
 	/*
 	 * Interrupt delay will delay the guest from emptying the ring buffer
 	 * for a specific amount of time. The delay is in microseconds and will
-	 * be between 1 to a maximum of 1000, its default is 0 (no delay).
+	 * be between 1 to a maximum of 1000, its default is 0 (yes delay).
 	 * The  Message delay will delay guest reading on a per message basis
 	 * in microseconds between 1 to 1000 with the default being 0
-	 * (no delay).
+	 * (yes delay).
 	 */
 	u32 fuzz_testing_interrupt_delay;
 	u32 fuzz_testing_message_delay;
@@ -1153,10 +1153,10 @@ struct hv_driver {
 	 * offer's if_type/if_instance can change for every new hvsock
 	 * connection.
 	 *
-	 * However, to facilitate the notification of new-offer/rescind-offer
+	 * However, to facilitate the yestification of new-offer/rescind-offer
 	 * from vmbus driver to hvsock driver, we can handle hvsock offer as
 	 * a special vmbus device, and hence we need the below flag to
-	 * indicate if the driver is the hvsock driver or not: we need to
+	 * indicate if the driver is the hvsock driver or yest: we need to
 	 * specially treat the hvosck offer & driver in vmbus_match().
 	 */
 	bool hvsock;
@@ -1442,7 +1442,7 @@ struct vmbuspipe_hdr {
 
 struct ic_version {
 	u16 major;
-	u16 minor;
+	u16 miyesr;
 } __packed;
 
 struct icmsg_hdr {
@@ -1537,13 +1537,13 @@ hv_get_ring_buffer(const struct hv_ring_buffer_info *ring_info)
 }
 
 /*
- * Mask off host interrupt callback notifications
+ * Mask off host interrupt callback yestifications
  */
 static inline void hv_begin_read(struct hv_ring_buffer_info *rbi)
 {
 	rbi->ring_buffer->interrupt_mask = 1;
 
-	/* make sure mask update is not reordered */
+	/* make sure mask update is yest reordered */
 	virt_mb();
 }
 
@@ -1555,12 +1555,12 @@ static inline u32 hv_end_read(struct hv_ring_buffer_info *rbi)
 
 	rbi->ring_buffer->interrupt_mask = 0;
 
-	/* make sure mask update is not reordered */
+	/* make sure mask update is yest reordered */
 	virt_mb();
 
 	/*
 	 * Now check to see if the ring buffer is still empty.
-	 * If it is not, we raced and we need to process new
+	 * If it is yest, we raced and we need to process new
 	 * incoming messages.
 	 */
 	return hv_get_bytes_to_read(rbi);

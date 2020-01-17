@@ -92,7 +92,7 @@ struct linux_romvec {
 	struct linux_mem_v0 pv_v0mem;
 
 	/* Node operations. */
-	struct linux_nodeops *pv_nodeops;
+	struct linux_yesdeops *pv_yesdeops;
 
 	char **pv_bootstr;
 	struct linux_dev_v0_funcs pv_v0devops;
@@ -122,7 +122,7 @@ struct linux_romvec {
 	void (*pv_halt)(void);
 	void (**pv_synchook)(void);
 
-	/* Evaluate a forth string, not different proto for V0 and V2->up. */
+	/* Evaluate a forth string, yest different proto for V0 and V2->up. */
 	union {
 		void (*v0_eval)(int len, char *str);
 		void (*v2_eval)(char *str);
@@ -170,13 +170,13 @@ struct linux_romvec {
 };
 
 /* Routines for traversing the prom device tree. */
-struct linux_nodeops {
-	phandle (*no_nextnode)(phandle node);
-	phandle (*no_child)(phandle node);
-	int (*no_proplen)(phandle node, const char *name);
-	int (*no_getprop)(phandle node, const char *name, char *val);
-	int (*no_setprop)(phandle node, const char *name, char *val, int len);
-	char * (*no_nextprop)(phandle node, char *name);
+struct linux_yesdeops {
+	phandle (*yes_nextyesde)(phandle yesde);
+	phandle (*yes_child)(phandle yesde);
+	int (*yes_proplen)(phandle yesde, const char *name);
+	int (*yes_getprop)(phandle yesde, const char *name, char *val);
+	int (*yes_setprop)(phandle yesde, const char *name, char *val, int len);
+	char * (*yes_nextprop)(phandle yesde, char *name);
 };
 
 /* More fun PROM structures for device probing. */
@@ -230,7 +230,7 @@ struct linux_prom_pci_registers {
 #else
 struct linux_prom_pci_registers {
 	/*
-	 * We don't know what information this field contain.
+	 * We don't kyesw what information this field contain.
 	 * We guess, PCI device function is in bits 15:8
 	 * So, ...
 	 */
@@ -264,7 +264,7 @@ struct linux_prom_pci_intmap {
 
 	unsigned int interrupt;
 
-	int          cnode;
+	int          cyesde;
 	unsigned int cinterrupt;
 };
 

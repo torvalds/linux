@@ -59,7 +59,7 @@ struct hip04_irq_data {
 static DEFINE_RAW_SPINLOCK(irq_controller_lock);
 
 /*
- * The GIC mapping of CPU interfaces does not necessarily match
+ * The GIC mapping of CPU interfaces does yest necessarily match
  * the logical CPU numbering.  Let's use a mapping as returned
  * by the GIC itself.
  */
@@ -86,7 +86,7 @@ static inline unsigned int hip04_irq(struct irq_data *d)
 }
 
 /*
- * Routines to acknowledge, disable and enable interrupts
+ * Routines to ackyeswledge, disable and enable interrupts
  */
 static void hip04_mask_irq(struct irq_data *d)
 {
@@ -132,7 +132,7 @@ static int hip04_irq_set_type(struct irq_data *d, unsigned int type)
 
 	ret = gic_configure_irq(irq, type, base + GIC_DIST_CONFIG, NULL);
 	if (ret && irq < 32) {
-		/* Misconfigured PPIs are usually not fatal */
+		/* Misconfigured PPIs are usually yest fatal */
 		pr_warn("GIC: PPI%d is secure or misconfigured\n", irq - 16);
 		ret = 0;
 	}
@@ -224,7 +224,7 @@ static u16 hip04_get_cpumask(struct hip04_irq_data *intc)
 	}
 
 	if (!mask)
-		pr_crit("GIC CPU mask not found - kernel will fail to boot.\n");
+		pr_crit("GIC CPU mask yest found - kernel will fail to boot.\n");
 
 	return mask;
 }
@@ -323,14 +323,14 @@ static int hip04_irq_domain_map(struct irq_domain *d, unsigned int irq,
 }
 
 static int hip04_irq_domain_xlate(struct irq_domain *d,
-				  struct device_node *controller,
+				  struct device_yesde *controller,
 				  const u32 *intspec, unsigned int intsize,
 				  unsigned long *out_hwirq,
 				  unsigned int *out_type)
 {
 	unsigned long ret = 0;
 
-	if (irq_domain_get_of_node(d) != controller)
+	if (irq_domain_get_of_yesde(d) != controller)
 		return -EINVAL;
 	if (intsize < 3)
 		return -EINVAL;
@@ -359,18 +359,18 @@ static const struct irq_domain_ops hip04_irq_domain_ops = {
 };
 
 static int __init
-hip04_of_init(struct device_node *node, struct device_node *parent)
+hip04_of_init(struct device_yesde *yesde, struct device_yesde *parent)
 {
 	irq_hw_number_t hwirq_base = 16;
 	int nr_irqs, irq_base, i;
 
-	if (WARN_ON(!node))
+	if (WARN_ON(!yesde))
 		return -ENODEV;
 
-	hip04_data.dist_base = of_iomap(node, 0);
+	hip04_data.dist_base = of_iomap(yesde, 0);
 	WARN(!hip04_data.dist_base, "fail to map hip04 intc dist registers\n");
 
-	hip04_data.cpu_base = of_iomap(node, 1);
+	hip04_data.cpu_base = of_iomap(yesde, 1);
 	WARN(!hip04_data.cpu_base, "unable to map hip04 intc cpu registers\n");
 
 	/*
@@ -392,13 +392,13 @@ hip04_of_init(struct device_node *node, struct device_node *parent)
 
 	nr_irqs -= hwirq_base; /* calculate # of irqs to allocate */
 
-	irq_base = irq_alloc_descs(-1, hwirq_base, nr_irqs, numa_node_id());
+	irq_base = irq_alloc_descs(-1, hwirq_base, nr_irqs, numa_yesde_id());
 	if (irq_base < 0) {
 		pr_err("failed to allocate IRQ numbers\n");
 		return -EINVAL;
 	}
 
-	hip04_data.domain = irq_domain_add_legacy(node, nr_irqs, irq_base,
+	hip04_data.domain = irq_domain_add_legacy(yesde, nr_irqs, irq_base,
 						  hwirq_base,
 						  &hip04_irq_domain_ops,
 						  &hip04_data);

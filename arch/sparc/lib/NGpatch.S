@@ -30,5 +30,5 @@ niagara_patch_copyops:
 	NG_DO_PATCH(raw_copy_from_user, NGcopy_from_user)
 	NG_DO_PATCH(raw_copy_to_user, NGcopy_to_user)
 	retl
-	 nop
+	 yesp
 	.size	niagara_patch_copyops,.-niagara_patch_copyops

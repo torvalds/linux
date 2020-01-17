@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -106,7 +106,7 @@ static int cvmx_helper_setup_red_queue(int queue, int pass_thresh,
 	red_marks.s.pass = pass_thresh;
 	cvmx_write_csr(CVMX_IPD_QOSX_RED_MARKS(queue), red_marks.u64);
 
-	/* Use the actual queue 0 counter, not the average */
+	/* Use the actual queue 0 counter, yest the average */
 	red_param.u64 = 0;
 	red_param.s.prb_con =
 	    (255ul << 24) / (red_marks.s.pass - red_marks.s.drop);
@@ -152,7 +152,7 @@ int cvmx_helper_setup_red(int pass_thresh, int drop_thresh)
 		cvmx_helper_setup_red_queue(queue, pass_thresh, drop_thresh);
 
 	/* Shutoff the dropping based on the per port page count. SW isn't
-	   decrementing it right now */
+	   decrementing it right yesw */
 	ipd_bp_prt_red_end.u64 = 0;
 	ipd_bp_prt_red_end.s.prt_enb = 0;
 	cvmx_write_csr(CVMX_IPD_BP_PRT_RED_END, ipd_bp_prt_red_end.u64);

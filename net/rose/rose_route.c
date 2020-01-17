@@ -4,7 +4,7 @@
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  * Copyright (C) Terry Dawson VK2KTJ (terry@animats.net)
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -27,16 +27,16 @@
 #include <linux/termios.h>	/* For TIOCINQ/OUTQ */
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/init.h>
 #include <net/rose.h>
 #include <linux/seq_file.h>
 #include <linux/export.h>
 
-static unsigned int rose_neigh_no = 1;
+static unsigned int rose_neigh_yes = 1;
 
-static struct rose_node  *rose_node_list;
-static DEFINE_SPINLOCK(rose_node_list_lock);
+static struct rose_yesde  *rose_yesde_list;
+static DEFINE_SPINLOCK(rose_yesde_list_lock);
 static struct rose_neigh *rose_neigh_list;
 static DEFINE_SPINLOCK(rose_neigh_list_lock);
 static struct rose_route *rose_route_list;
@@ -45,29 +45,29 @@ static DEFINE_SPINLOCK(rose_route_list_lock);
 struct rose_neigh *rose_loopback_neigh;
 
 /*
- *	Add a new route to a node, and in the process add the node and the
+ *	Add a new route to a yesde, and in the process add the yesde and the
  *	neighbour if it is new.
  */
-static int __must_check rose_add_node(struct rose_route_struct *rose_route,
+static int __must_check rose_add_yesde(struct rose_route_struct *rose_route,
 	struct net_device *dev)
 {
-	struct rose_node  *rose_node, *rose_tmpn, *rose_tmpp;
+	struct rose_yesde  *rose_yesde, *rose_tmpn, *rose_tmpp;
 	struct rose_neigh *rose_neigh;
 	int i, res = 0;
 
-	spin_lock_bh(&rose_node_list_lock);
+	spin_lock_bh(&rose_yesde_list_lock);
 	spin_lock_bh(&rose_neigh_list_lock);
 
-	rose_node = rose_node_list;
-	while (rose_node != NULL) {
-		if ((rose_node->mask == rose_route->mask) &&
-		    (rosecmpm(&rose_route->address, &rose_node->address,
+	rose_yesde = rose_yesde_list;
+	while (rose_yesde != NULL) {
+		if ((rose_yesde->mask == rose_route->mask) &&
+		    (rosecmpm(&rose_route->address, &rose_yesde->address,
 			      rose_route->mask) == 0))
 			break;
-		rose_node = rose_node->next;
+		rose_yesde = rose_yesde->next;
 	}
 
-	if (rose_node != NULL && rose_node->loopback) {
+	if (rose_yesde != NULL && rose_yesde->loopback) {
 		res = -EINVAL;
 		goto out;
 	}
@@ -96,7 +96,7 @@ static int __must_check rose_add_node(struct rose_route_struct *rose_route,
 		rose_neigh->use       = 0;
 		rose_neigh->dce_mode  = 0;
 		rose_neigh->loopback  = 0;
-		rose_neigh->number    = rose_neigh_no++;
+		rose_neigh->number    = rose_neigh_yes++;
 		rose_neigh->restarted = 0;
 
 		skb_queue_head_init(&rose_neigh->queue);
@@ -128,14 +128,14 @@ static int __must_check rose_add_node(struct rose_route_struct *rose_route,
 	}
 
 	/*
-	 * This is a new node to be inserted into the list. Find where it needs
+	 * This is a new yesde to be inserted into the list. Find where it needs
 	 * to be inserted into the list, and insert it. We want to be sure
 	 * to order the list in descending order of mask size to ensure that
 	 * later when we are searching this list the first match will be the
 	 * best match.
 	 */
-	if (rose_node == NULL) {
-		rose_tmpn = rose_node_list;
+	if (rose_yesde == NULL) {
+		rose_tmpn = rose_yesde_list;
 		rose_tmpp = NULL;
 
 		while (rose_tmpn != NULL) {
@@ -147,34 +147,34 @@ static int __must_check rose_add_node(struct rose_route_struct *rose_route,
 			}
 		}
 
-		/* create new node */
-		rose_node = kmalloc(sizeof(*rose_node), GFP_ATOMIC);
-		if (rose_node == NULL) {
+		/* create new yesde */
+		rose_yesde = kmalloc(sizeof(*rose_yesde), GFP_ATOMIC);
+		if (rose_yesde == NULL) {
 			res = -ENOMEM;
 			goto out;
 		}
 
-		rose_node->address      = rose_route->address;
-		rose_node->mask         = rose_route->mask;
-		rose_node->count        = 1;
-		rose_node->loopback     = 0;
-		rose_node->neighbour[0] = rose_neigh;
+		rose_yesde->address      = rose_route->address;
+		rose_yesde->mask         = rose_route->mask;
+		rose_yesde->count        = 1;
+		rose_yesde->loopback     = 0;
+		rose_yesde->neighbour[0] = rose_neigh;
 
 		if (rose_tmpn == NULL) {
 			if (rose_tmpp == NULL) {	/* Empty list */
-				rose_node_list  = rose_node;
-				rose_node->next = NULL;
+				rose_yesde_list  = rose_yesde;
+				rose_yesde->next = NULL;
 			} else {
-				rose_tmpp->next = rose_node;
-				rose_node->next = NULL;
+				rose_tmpp->next = rose_yesde;
+				rose_yesde->next = NULL;
 			}
 		} else {
-			if (rose_tmpp == NULL) {	/* 1st node */
-				rose_node->next = rose_node_list;
-				rose_node_list  = rose_node;
+			if (rose_tmpp == NULL) {	/* 1st yesde */
+				rose_yesde->next = rose_yesde_list;
+				rose_yesde_list  = rose_yesde;
 			} else {
-				rose_tmpp->next = rose_node;
-				rose_node->next = rose_tmpn;
+				rose_tmpp->next = rose_yesde;
+				rose_yesde->next = rose_tmpn;
 			}
 		}
 		rose_neigh->count++;
@@ -183,36 +183,36 @@ static int __must_check rose_add_node(struct rose_route_struct *rose_route,
 	}
 
 	/* We have space, slot it in */
-	if (rose_node->count < 3) {
-		rose_node->neighbour[rose_node->count] = rose_neigh;
-		rose_node->count++;
+	if (rose_yesde->count < 3) {
+		rose_yesde->neighbour[rose_yesde->count] = rose_neigh;
+		rose_yesde->count++;
 		rose_neigh->count++;
 	}
 
 out:
 	spin_unlock_bh(&rose_neigh_list_lock);
-	spin_unlock_bh(&rose_node_list_lock);
+	spin_unlock_bh(&rose_yesde_list_lock);
 
 	return res;
 }
 
 /*
- * Caller is holding rose_node_list_lock.
+ * Caller is holding rose_yesde_list_lock.
  */
-static void rose_remove_node(struct rose_node *rose_node)
+static void rose_remove_yesde(struct rose_yesde *rose_yesde)
 {
-	struct rose_node *s;
+	struct rose_yesde *s;
 
-	if ((s = rose_node_list) == rose_node) {
-		rose_node_list = rose_node->next;
-		kfree(rose_node);
+	if ((s = rose_yesde_list) == rose_yesde) {
+		rose_yesde_list = rose_yesde->next;
+		kfree(rose_yesde);
 		return;
 	}
 
 	while (s != NULL && s->next != NULL) {
-		if (s->next == rose_node) {
-			s->next = rose_node->next;
-			kfree(rose_node);
+		if (s->next == rose_yesde) {
+			s->next = rose_yesde->next;
+			kfree(rose_yesde);
 			return;
 		}
 
@@ -286,29 +286,29 @@ static void rose_remove_route(struct rose_route *rose_route)
 }
 
 /*
- *	"Delete" a node. Strictly speaking remove a route to a node. The node
- *	is only deleted if no routes are left to it.
+ *	"Delete" a yesde. Strictly speaking remove a route to a yesde. The yesde
+ *	is only deleted if yes routes are left to it.
  */
-static int rose_del_node(struct rose_route_struct *rose_route,
+static int rose_del_yesde(struct rose_route_struct *rose_route,
 	struct net_device *dev)
 {
-	struct rose_node  *rose_node;
+	struct rose_yesde  *rose_yesde;
 	struct rose_neigh *rose_neigh;
 	int i, err = 0;
 
-	spin_lock_bh(&rose_node_list_lock);
+	spin_lock_bh(&rose_yesde_list_lock);
 	spin_lock_bh(&rose_neigh_list_lock);
 
-	rose_node = rose_node_list;
-	while (rose_node != NULL) {
-		if ((rose_node->mask == rose_route->mask) &&
-		    (rosecmpm(&rose_route->address, &rose_node->address,
+	rose_yesde = rose_yesde_list;
+	while (rose_yesde != NULL) {
+		if ((rose_yesde->mask == rose_route->mask) &&
+		    (rosecmpm(&rose_route->address, &rose_yesde->address,
 			      rose_route->mask) == 0))
 			break;
-		rose_node = rose_node->next;
+		rose_yesde = rose_yesde->next;
 	}
 
-	if (rose_node == NULL || rose_node->loopback) {
+	if (rose_yesde == NULL || rose_yesde->loopback) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -327,26 +327,26 @@ static int rose_del_node(struct rose_route_struct *rose_route,
 		goto out;
 	}
 
-	for (i = 0; i < rose_node->count; i++) {
-		if (rose_node->neighbour[i] == rose_neigh) {
+	for (i = 0; i < rose_yesde->count; i++) {
+		if (rose_yesde->neighbour[i] == rose_neigh) {
 			rose_neigh->count--;
 
 			if (rose_neigh->count == 0 && rose_neigh->use == 0)
 				rose_remove_neigh(rose_neigh);
 
-			rose_node->count--;
+			rose_yesde->count--;
 
-			if (rose_node->count == 0) {
-				rose_remove_node(rose_node);
+			if (rose_yesde->count == 0) {
+				rose_remove_yesde(rose_yesde);
 			} else {
 				switch (i) {
 				case 0:
-					rose_node->neighbour[0] =
-						rose_node->neighbour[1];
+					rose_yesde->neighbour[0] =
+						rose_yesde->neighbour[1];
 					/* fall through */
 				case 1:
-					rose_node->neighbour[1] =
-						rose_node->neighbour[2];
+					rose_yesde->neighbour[1] =
+						rose_yesde->neighbour[2];
 				case 2:
 					break;
 				}
@@ -358,7 +358,7 @@ static int rose_del_node(struct rose_route_struct *rose_route,
 
 out:
 	spin_unlock_bh(&rose_neigh_list_lock);
-	spin_unlock_bh(&rose_node_list_lock);
+	spin_unlock_bh(&rose_yesde_list_lock);
 
 	return err;
 }
@@ -383,7 +383,7 @@ void rose_add_loopback_neigh(void)
 	sn->use       = 0;
 	sn->dce_mode  = 1;
 	sn->loopback  = 1;
-	sn->number    = rose_neigh_no++;
+	sn->number    = rose_neigh_yes++;
 	sn->restarted = 1;
 
 	skb_queue_head_init(&sn->queue);
@@ -398,77 +398,77 @@ void rose_add_loopback_neigh(void)
 }
 
 /*
- *	Add a loopback node.
+ *	Add a loopback yesde.
  */
-int rose_add_loopback_node(rose_address *address)
+int rose_add_loopback_yesde(rose_address *address)
 {
-	struct rose_node *rose_node;
+	struct rose_yesde *rose_yesde;
 	int err = 0;
 
-	spin_lock_bh(&rose_node_list_lock);
+	spin_lock_bh(&rose_yesde_list_lock);
 
-	rose_node = rose_node_list;
-	while (rose_node != NULL) {
-		if ((rose_node->mask == 10) &&
-		     (rosecmpm(address, &rose_node->address, 10) == 0) &&
-		     rose_node->loopback)
+	rose_yesde = rose_yesde_list;
+	while (rose_yesde != NULL) {
+		if ((rose_yesde->mask == 10) &&
+		     (rosecmpm(address, &rose_yesde->address, 10) == 0) &&
+		     rose_yesde->loopback)
 			break;
-		rose_node = rose_node->next;
+		rose_yesde = rose_yesde->next;
 	}
 
-	if (rose_node != NULL)
+	if (rose_yesde != NULL)
 		goto out;
 
-	if ((rose_node = kmalloc(sizeof(*rose_node), GFP_ATOMIC)) == NULL) {
+	if ((rose_yesde = kmalloc(sizeof(*rose_yesde), GFP_ATOMIC)) == NULL) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-	rose_node->address      = *address;
-	rose_node->mask         = 10;
-	rose_node->count        = 1;
-	rose_node->loopback     = 1;
-	rose_node->neighbour[0] = rose_loopback_neigh;
+	rose_yesde->address      = *address;
+	rose_yesde->mask         = 10;
+	rose_yesde->count        = 1;
+	rose_yesde->loopback     = 1;
+	rose_yesde->neighbour[0] = rose_loopback_neigh;
 
 	/* Insert at the head of list. Address is always mask=10 */
-	rose_node->next = rose_node_list;
-	rose_node_list  = rose_node;
+	rose_yesde->next = rose_yesde_list;
+	rose_yesde_list  = rose_yesde;
 
 	rose_loopback_neigh->count++;
 
 out:
-	spin_unlock_bh(&rose_node_list_lock);
+	spin_unlock_bh(&rose_yesde_list_lock);
 
 	return err;
 }
 
 /*
- *	Delete a loopback node.
+ *	Delete a loopback yesde.
  */
-void rose_del_loopback_node(rose_address *address)
+void rose_del_loopback_yesde(rose_address *address)
 {
-	struct rose_node *rose_node;
+	struct rose_yesde *rose_yesde;
 
-	spin_lock_bh(&rose_node_list_lock);
+	spin_lock_bh(&rose_yesde_list_lock);
 
-	rose_node = rose_node_list;
-	while (rose_node != NULL) {
-		if ((rose_node->mask == 10) &&
-		    (rosecmpm(address, &rose_node->address, 10) == 0) &&
-		    rose_node->loopback)
+	rose_yesde = rose_yesde_list;
+	while (rose_yesde != NULL) {
+		if ((rose_yesde->mask == 10) &&
+		    (rosecmpm(address, &rose_yesde->address, 10) == 0) &&
+		    rose_yesde->loopback)
 			break;
-		rose_node = rose_node->next;
+		rose_yesde = rose_yesde->next;
 	}
 
-	if (rose_node == NULL)
+	if (rose_yesde == NULL)
 		goto out;
 
-	rose_remove_node(rose_node);
+	rose_remove_yesde(rose_yesde);
 
 	rose_loopback_neigh->count--;
 
 out:
-	spin_unlock_bh(&rose_node_list_lock);
+	spin_unlock_bh(&rose_yesde_list_lock);
 }
 
 /*
@@ -477,10 +477,10 @@ out:
 void rose_rt_device_down(struct net_device *dev)
 {
 	struct rose_neigh *s, *rose_neigh;
-	struct rose_node  *t, *rose_node;
+	struct rose_yesde  *t, *rose_yesde;
 	int i;
 
-	spin_lock_bh(&rose_node_list_lock);
+	spin_lock_bh(&rose_yesde_list_lock);
 	spin_lock_bh(&rose_neigh_list_lock);
 	rose_neigh = rose_neigh_list;
 	while (rose_neigh != NULL) {
@@ -490,11 +490,11 @@ void rose_rt_device_down(struct net_device *dev)
 		if (s->dev != dev)
 			continue;
 
-		rose_node = rose_node_list;
+		rose_yesde = rose_yesde_list;
 
-		while (rose_node != NULL) {
-			t         = rose_node;
-			rose_node = rose_node->next;
+		while (rose_yesde != NULL) {
+			t         = rose_yesde;
+			rose_yesde = rose_yesde->next;
 
 			for (i = 0; i < t->count; i++) {
 				if (t->neighbour[i] != s)
@@ -514,13 +514,13 @@ void rose_rt_device_down(struct net_device *dev)
 			}
 
 			if (t->count <= 0)
-				rose_remove_node(t);
+				rose_remove_yesde(t);
 		}
 
 		rose_remove_neigh(s);
 	}
 	spin_unlock_bh(&rose_neigh_list_lock);
-	spin_unlock_bh(&rose_node_list_lock);
+	spin_unlock_bh(&rose_yesde_list_lock);
 }
 
 #if 0 /* Currently unused */
@@ -545,26 +545,26 @@ void rose_route_device_down(struct net_device *dev)
 #endif
 
 /*
- *	Clear all nodes and neighbours out, except for neighbours with
+ *	Clear all yesdes and neighbours out, except for neighbours with
  *	active connections going through them.
- *  Do not clear loopback neighbour and nodes.
+ *  Do yest clear loopback neighbour and yesdes.
  */
 static int rose_clear_routes(void)
 {
 	struct rose_neigh *s, *rose_neigh;
-	struct rose_node  *t, *rose_node;
+	struct rose_yesde  *t, *rose_yesde;
 
-	spin_lock_bh(&rose_node_list_lock);
+	spin_lock_bh(&rose_yesde_list_lock);
 	spin_lock_bh(&rose_neigh_list_lock);
 
 	rose_neigh = rose_neigh_list;
-	rose_node  = rose_node_list;
+	rose_yesde  = rose_yesde_list;
 
-	while (rose_node != NULL) {
-		t         = rose_node;
-		rose_node = rose_node->next;
+	while (rose_yesde != NULL) {
+		t         = rose_yesde;
+		rose_yesde = rose_yesde->next;
 		if (!t->loopback)
-			rose_remove_node(t);
+			rose_remove_yesde(t);
 	}
 
 	while (rose_neigh != NULL) {
@@ -578,7 +578,7 @@ static int rose_clear_routes(void)
 	}
 
 	spin_unlock_bh(&rose_neigh_list_lock);
-	spin_unlock_bh(&rose_node_list_lock);
+	spin_unlock_bh(&rose_yesde_list_lock);
 
 	return 0;
 }
@@ -672,30 +672,30 @@ struct rose_route *rose_route_free_lci(unsigned int lci, struct rose_neigh *neig
  *	Find a neighbour or a route given a ROSE address.
  */
 struct rose_neigh *rose_get_neigh(rose_address *addr, unsigned char *cause,
-	unsigned char *diagnostic, int route_frame)
+	unsigned char *diagyesstic, int route_frame)
 {
 	struct rose_neigh *res = NULL;
-	struct rose_node *node;
+	struct rose_yesde *yesde;
 	int failed = 0;
 	int i;
 
-	if (!route_frame) spin_lock_bh(&rose_node_list_lock);
-	for (node = rose_node_list; node != NULL; node = node->next) {
-		if (rosecmpm(addr, &node->address, node->mask) == 0) {
-			for (i = 0; i < node->count; i++) {
-				if (node->neighbour[i]->restarted) {
-					res = node->neighbour[i];
+	if (!route_frame) spin_lock_bh(&rose_yesde_list_lock);
+	for (yesde = rose_yesde_list; yesde != NULL; yesde = yesde->next) {
+		if (rosecmpm(addr, &yesde->address, yesde->mask) == 0) {
+			for (i = 0; i < yesde->count; i++) {
+				if (yesde->neighbour[i]->restarted) {
+					res = yesde->neighbour[i];
 					goto out;
 				}
 			}
 		}
 	}
 	if (!route_frame) { /* connect request */
-		for (node = rose_node_list; node != NULL; node = node->next) {
-			if (rosecmpm(addr, &node->address, node->mask) == 0) {
-				for (i = 0; i < node->count; i++) {
-					if (!rose_ftimer_running(node->neighbour[i])) {
-						res = node->neighbour[i];
+		for (yesde = rose_yesde_list; yesde != NULL; yesde = yesde->next) {
+			if (rosecmpm(addr, &yesde->address, yesde->mask) == 0) {
+				for (i = 0; i < yesde->count; i++) {
+					if (!rose_ftimer_running(yesde->neighbour[i])) {
+						res = yesde->neighbour[i];
 						failed = 0;
 						goto out;
 					}
@@ -707,14 +707,14 @@ struct rose_neigh *rose_get_neigh(rose_address *addr, unsigned char *cause,
 
 	if (failed) {
 		*cause      = ROSE_OUT_OF_ORDER;
-		*diagnostic = 0;
+		*diagyesstic = 0;
 	} else {
 		*cause      = ROSE_NOT_OBTAINABLE;
-		*diagnostic = 0;
+		*diagyesstic = 0;
 	}
 
 out:
-	if (!route_frame) spin_unlock_bh(&rose_node_list_lock);
+	if (!route_frame) spin_unlock_bh(&rose_yesde_list_lock);
 	return res;
 }
 
@@ -739,7 +739,7 @@ int rose_rt_ioctl(unsigned int cmd, void __user *arg)
 			return -EINVAL;
 		if (rose_route.ndigis > AX25_MAX_DIGIS)
 			return -EINVAL;
-		err = rose_add_node(&rose_route, dev);
+		err = rose_add_yesde(&rose_route, dev);
 		return err;
 
 	case SIOCDELRT:
@@ -747,7 +747,7 @@ int rose_rt_ioctl(unsigned int cmd, void __user *arg)
 			return -EFAULT;
 		if ((dev = rose_ax25_dev_find(rose_route.device)) == NULL)
 			return -EINVAL;
-		err = rose_del_node(&rose_route, dev);
+		err = rose_del_yesde(&rose_route, dev);
 		return err;
 
 	case SIOCRSCLRRT:
@@ -858,7 +858,7 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	struct sock *sk;
 	unsigned short frametype;
 	unsigned int lci, new_lci;
-	unsigned char cause, diagnostic;
+	unsigned char cause, diagyesstic;
 	struct net_device *dev;
 	int res = 0;
 	char buf[11];
@@ -891,7 +891,7 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	}
 
 	if (rose_neigh == NULL) {
-		printk("rose_route : unknown neighbour or device %s\n",
+		printk("rose_route : unkyeswn neighbour or device %s\n",
 		       ax2asc(buf, &ax25->dest_addr));
 		goto out;
 	}
@@ -920,7 +920,7 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 			/* Remove an existing unused socket */
 			rose_clear_queues(sk);
 			rose->cause	 = ROSE_NETWORK_CONGESTION;
-			rose->diagnostic = 0;
+			rose->diagyesstic = 0;
 			rose->neighbour->use--;
 			rose->neighbour	 = NULL;
 			rose->lci	 = 0;
@@ -1006,7 +1006,7 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	}
 
 	/*
-	 *	We know that:
+	 *	We kyesw that:
 	 *	1. The frame isn't for us,
 	 *	2. It isn't "owned" by any existing route.
 	 */
@@ -1039,8 +1039,8 @@ int rose_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 		rose_route = rose_route->next;
 	}
 
-	if ((new_neigh = rose_get_neigh(dest_addr, &cause, &diagnostic, 1)) == NULL) {
-		rose_transmit_clear_request(rose_neigh, lci, cause, diagnostic);
+	if ((new_neigh = rose_get_neigh(dest_addr, &cause, &diagyesstic, 1)) == NULL) {
+		rose_transmit_clear_request(rose_neigh, lci, cause, diagyesstic);
 		goto out;
 	}
 
@@ -1086,37 +1086,37 @@ out:
 
 #ifdef CONFIG_PROC_FS
 
-static void *rose_node_start(struct seq_file *seq, loff_t *pos)
-	__acquires(rose_node_list_lock)
+static void *rose_yesde_start(struct seq_file *seq, loff_t *pos)
+	__acquires(rose_yesde_list_lock)
 {
-	struct rose_node *rose_node;
+	struct rose_yesde *rose_yesde;
 	int i = 1;
 
-	spin_lock_bh(&rose_node_list_lock);
+	spin_lock_bh(&rose_yesde_list_lock);
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	for (rose_node = rose_node_list; rose_node && i < *pos;
-	     rose_node = rose_node->next, ++i);
+	for (rose_yesde = rose_yesde_list; rose_yesde && i < *pos;
+	     rose_yesde = rose_yesde->next, ++i);
 
-	return (i == *pos) ? rose_node : NULL;
+	return (i == *pos) ? rose_yesde : NULL;
 }
 
-static void *rose_node_next(struct seq_file *seq, void *v, loff_t *pos)
+static void *rose_yesde_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
 
-	return (v == SEQ_START_TOKEN) ? rose_node_list
-		: ((struct rose_node *)v)->next;
+	return (v == SEQ_START_TOKEN) ? rose_yesde_list
+		: ((struct rose_yesde *)v)->next;
 }
 
-static void rose_node_stop(struct seq_file *seq, void *v)
-	__releases(rose_node_list_lock)
+static void rose_yesde_stop(struct seq_file *seq, void *v)
+	__releases(rose_yesde_list_lock)
 {
-	spin_unlock_bh(&rose_node_list_lock);
+	spin_unlock_bh(&rose_yesde_list_lock);
 }
 
-static int rose_node_show(struct seq_file *seq, void *v)
+static int rose_yesde_show(struct seq_file *seq, void *v)
 {
 	char rsbuf[11];
 	int i;
@@ -1124,20 +1124,20 @@ static int rose_node_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, "address    mask n neigh neigh neigh\n");
 	else {
-		const struct rose_node *rose_node = v;
-		/* if (rose_node->loopback) {
+		const struct rose_yesde *rose_yesde = v;
+		/* if (rose_yesde->loopback) {
 			seq_printf(seq, "%-10s %04d 1 loopback\n",
-				   rose2asc(rsbuf, &rose_node->address),
-				   rose_node->mask);
+				   rose2asc(rsbuf, &rose_yesde->address),
+				   rose_yesde->mask);
 		} else { */
 			seq_printf(seq, "%-10s %04d %d",
-				   rose2asc(rsbuf, &rose_node->address),
-				   rose_node->mask,
-				   rose_node->count);
+				   rose2asc(rsbuf, &rose_yesde->address),
+				   rose_yesde->mask,
+				   rose_yesde->count);
 
-			for (i = 0; i < rose_node->count; i++)
+			for (i = 0; i < rose_yesde->count; i++)
 				seq_printf(seq, " %05d",
-					rose_node->neighbour[i]->number);
+					rose_yesde->neighbour[i]->number);
 
 			seq_puts(seq, "\n");
 		/* } */
@@ -1145,11 +1145,11 @@ static int rose_node_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-const struct seq_operations rose_node_seqops = {
-	.start = rose_node_start,
-	.next = rose_node_next,
-	.stop = rose_node_stop,
-	.show = rose_node_show,
+const struct seq_operations rose_yesde_seqops = {
+	.start = rose_yesde_start,
+	.next = rose_yesde_next,
+	.stop = rose_yesde_stop,
+	.show = rose_yesde_show,
 };
 
 static void *rose_neigh_start(struct seq_file *seq, loff_t *pos)
@@ -1201,7 +1201,7 @@ static int rose_neigh_show(struct seq_file *seq, void *v)
 			   rose_neigh->count,
 			   rose_neigh->use,
 			   (rose_neigh->dce_mode) ? "DCE" : "DTE",
-			   (rose_neigh->restarted) ? "yes" : "no",
+			   (rose_neigh->restarted) ? "no" : "yes",
 			   ax25_display_timer(&rose_neigh->t0timer) / HZ,
 			   ax25_display_timer(&rose_neigh->ftimer)  / HZ);
 
@@ -1302,7 +1302,7 @@ struct seq_operations rose_route_seqops = {
 void __exit rose_rt_free(void)
 {
 	struct rose_neigh *s, *rose_neigh = rose_neigh_list;
-	struct rose_node  *t, *rose_node  = rose_node_list;
+	struct rose_yesde  *t, *rose_yesde  = rose_yesde_list;
 	struct rose_route *u, *rose_route = rose_route_list;
 
 	while (rose_neigh != NULL) {
@@ -1312,11 +1312,11 @@ void __exit rose_rt_free(void)
 		rose_remove_neigh(s);
 	}
 
-	while (rose_node != NULL) {
-		t         = rose_node;
-		rose_node = rose_node->next;
+	while (rose_yesde != NULL) {
+		t         = rose_yesde;
+		rose_yesde = rose_yesde->next;
 
-		rose_remove_node(t);
+		rose_remove_yesde(t);
 	}
 
 	while (rose_route != NULL) {

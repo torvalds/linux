@@ -73,7 +73,7 @@ struct trip_point {
 struct tz_info {
 	char type[256]; /* e.g. acpitz */
 	int instance;
-	int passive; /* active zone has passive node to force passive mode */
+	int passive; /* active zone has passive yesde to force passive mode */
 	int nr_cdev; /* number of cooling device binded */
 	int nr_trip_pts;
 	struct trip_point tp[MAX_NR_TRIP];
@@ -140,7 +140,7 @@ extern FILE *tmon_log;
 extern int cur_thermal_record; /* index to the trec array */
 extern struct thermal_data_record trec[];
 extern const char *trip_type_name[];
-extern unsigned long no_control;
+extern unsigned long yes_control;
 
 extern void initialize_curses(void);
 extern void show_controller_stats(char *line);

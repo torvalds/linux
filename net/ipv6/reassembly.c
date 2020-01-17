@@ -25,7 +25,7 @@
 
 #define pr_fmt(fmt) "IPv6: " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/socket.h>
@@ -122,8 +122,8 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 
 	if ((unsigned int)end > IPV6_MAXPLEN) {
 		*prob_offset = (u8 *)&fhdr->frag_off - skb_network_header(skb);
-		/* note that if prob_offset is set, the skb is freed elsewhere,
-		 * we do not free it here.
+		/* yeste that if prob_offset is set, the skb is freed elsewhere,
+		 * we do yest free it here.
 		 */
 		return -1;
 	}
@@ -178,7 +178,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	if (err)
 		goto discard_fq;
 
-	/* Note : skb->rbnode and skb->dev share the same location. */
+	/* Note : skb->rbyesde and skb->dev share the same location. */
 	dev = skb->dev;
 	/* Makes sure compiler wont do silly aliasing games */
 	barrier();
@@ -242,7 +242,7 @@ err:
  *	Check if this packet is complete.
  *
  *	It is called with locked fq, and caller must check that
- *	queue is eligible for reassembly i.e. it is not COMPLETE,
+ *	queue is eligible for reassembly i.e. it is yest COMPLETE,
  *	the last and the first frames arrived and all the bits are here.
  */
 static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *skb,
@@ -307,7 +307,7 @@ out_oversize:
 	net_dbg_ratelimited("ip6_frag_reasm: payload len = %d\n", payload_len);
 	goto out_fail;
 out_oom:
-	net_dbg_ratelimited("ip6_frag_reasm: no memory for reassembly\n");
+	net_dbg_ratelimited("ip6_frag_reasm: yes memory for reassembly\n");
 out_fail:
 	rcu_read_lock();
 	__IP6_INC_STATS(net, __in6_dev_stats_get(dev, skb), IPSTATS_MIB_REASMFAILS);
@@ -341,7 +341,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	fhdr = (struct frag_hdr *)skb_transport_header(skb);
 
 	if (!(fhdr->frag_off & htons(0xFFF9))) {
-		/* It is not a fragmented frame */
+		/* It is yest a fragmented frame */
 		skb->transport_header += sizeof(struct frag_hdr);
 		__IP6_INC_STATS(net,
 				ip6_dst_idev(skb_dst(skb)), IPSTATS_MIB_REASMOKS);
@@ -538,7 +538,7 @@ static struct pernet_operations ip6_frags_ops = {
 };
 
 static const struct rhashtable_params ip6_rhash_params = {
-	.head_offset		= offsetof(struct inet_frag_queue, node),
+	.head_offset		= offsetof(struct inet_frag_queue, yesde),
 	.hashfn			= ip6frag_key_hashfn,
 	.obj_hashfn		= ip6frag_obj_hashfn,
 	.obj_cmpfn		= ip6frag_obj_cmpfn,

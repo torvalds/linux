@@ -11,7 +11,7 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
@@ -181,7 +181,7 @@ static int altera_spi_probe(struct platform_device *pdev)
 	master->num_chipselect = 16;
 	master->mode_bits = SPI_CS_HIGH;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->transfer_one = altera_spi_txrx;
 	master->set_cs = altera_spi_set_cs;
 

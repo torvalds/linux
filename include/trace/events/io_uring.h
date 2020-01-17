@@ -56,7 +56,7 @@ TRACE_EVENT(io_uring_create,
  * @opcode:			describes which operation to perform
  * @nr_user_files:	number of registered files
  * @nr_user_bufs:	number of registered buffers
- * @cq_ev_fd:		whether eventfs registered or not
+ * @cq_ev_fd:		whether eventfs registered or yest
  * @ret:			return code
  *
  * Allows to trace fixed files/buffers/eventfds, that could be registered to
@@ -128,11 +128,11 @@ TRACE_EVENT(io_uring_file_get,
  * io_uring_queue_async_work - called before submitting a new async work
  *
  * @ctx:	pointer to a ring context structure
- * @hashed:	type of workqueue, hashed or normal
+ * @hashed:	type of workqueue, hashed or yesrmal
  * @req:	pointer to a submitted request
  * @work:	pointer to a submitted io_wq_work
  *
- * Allows to trace asynchronous work submission.
+ * Allows to trace asynchroyesus work submission.
  */
 TRACE_EVENT(io_uring_queue_async_work,
 
@@ -159,7 +159,7 @@ TRACE_EVENT(io_uring_queue_async_work,
 
 	TP_printk("ring %p, request %p, flags %d, %s queue, work %p",
 			  __entry->ctx, __entry->req, __entry->flags,
-			  __entry->rw ? "hashed" : "normal", __entry->work)
+			  __entry->rw ? "hashed" : "yesrmal", __entry->work)
 );
 
 /**
@@ -170,7 +170,7 @@ TRACE_EVENT(io_uring_queue_async_work,
  * @user_data:	user data associated with the request
  *
  * Allows to track deferred requests, to get an insight about what requests are
- * not started immediately.
+ * yest started immediately.
  */
 TRACE_EVENT(io_uring_defer,
 
@@ -196,7 +196,7 @@ TRACE_EVENT(io_uring_defer,
 
 /**
  * io_uring_link - called before the io_uring request added into link_list of
- * 				   another request
+ * 				   ayesther request
  *
  * @ctx:			pointer to a ring context structure
  * @req:			pointer to a linked request
@@ -262,7 +262,7 @@ TRACE_EVENT(io_uring_cqring_wait,
  * @req:	request, which links were cancelled
  * @link:	cancelled link
  *
- * Allows to track linked requests cancellation, to see not only that some work
+ * Allows to track linked requests cancellation, to see yest only that some work
  * was cancelled, but also which request was the reason.
  */
 TRACE_EVENT(io_uring_fail_link,
@@ -321,7 +321,7 @@ TRACE_EVENT(io_uring_complete,
  *
  * @ctx:		pointer to a ring context structure
  * @user_data:		user data associated with the request
- * @force_nonblock:	whether a context blocking or not
+ * @force_yesnblock:	whether a context blocking or yest
  * @sq_thread:		true if sq_thread has submitted this SQE
  *
  * Allows to track SQE submitting, to understand what was the source of it, SQ
@@ -329,27 +329,27 @@ TRACE_EVENT(io_uring_complete,
  */
 TRACE_EVENT(io_uring_submit_sqe,
 
-	TP_PROTO(void *ctx, u64 user_data, bool force_nonblock, bool sq_thread),
+	TP_PROTO(void *ctx, u64 user_data, bool force_yesnblock, bool sq_thread),
 
-	TP_ARGS(ctx, user_data, force_nonblock, sq_thread),
+	TP_ARGS(ctx, user_data, force_yesnblock, sq_thread),
 
 	TP_STRUCT__entry (
 		__field(  void *,	ctx		)
 		__field(  u64,		user_data	)
-		__field(  bool,		force_nonblock	)
+		__field(  bool,		force_yesnblock	)
 		__field(  bool,		sq_thread	)
 	),
 
 	TP_fast_assign(
 		__entry->ctx		= ctx;
 		__entry->user_data	= user_data;
-		__entry->force_nonblock	= force_nonblock;
+		__entry->force_yesnblock	= force_yesnblock;
 		__entry->sq_thread	= sq_thread;
 	),
 
-	TP_printk("ring %p, user data 0x%llx, non block %d, sq_thread %d",
+	TP_printk("ring %p, user data 0x%llx, yesn block %d, sq_thread %d",
 			  __entry->ctx, (unsigned long long) __entry->user_data,
-			  __entry->force_nonblock, __entry->sq_thread)
+			  __entry->force_yesnblock, __entry->sq_thread)
 );
 
 #endif /* _TRACE_IO_URING_H */

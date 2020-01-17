@@ -24,7 +24,7 @@ config EL3
 	  If you have a network (Ethernet) card belonging to the 3Com
 	  EtherLinkIII series, say Y here.
 
-	  If your card is not working you may need to use the DOS
+	  If your card is yest working you may need to use the DOS
 	  setup disk to disable Plug & Play mode, and to select the default
 	  media type.
 

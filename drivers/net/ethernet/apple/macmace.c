@@ -275,12 +275,12 @@ static void mace_reset(struct net_device *dev)
 		break;
 	}
 	if (!i) {
-		printk(KERN_ERR "macmace: cannot reset chip!\n");
+		printk(KERN_ERR "macmace: canyest reset chip!\n");
 		return;
 	}
 
 	mb->maccc = 0;	/* turn off tx, rx */
-	mb->imr = 0xFF;	/* disable all intrs for now */
+	mb->imr = 0xFF;	/* disable all intrs for yesw */
 	i = mb->ir;
 
 	mb->biucc = XMTSP_64;
@@ -450,7 +450,7 @@ static netdev_tx_t mace_xmit_start(struct sk_buff *skb, struct net_device *dev)
 	local_irq_save(flags);
 	netif_stop_queue(dev);
 	if (!mp->tx_count) {
-		printk(KERN_ERR "macmace: tx queue running but no free buffers.\n");
+		printk(KERN_ERR "macmace: tx queue running but yes free buffers.\n");
 		local_irq_restore(flags);
 		return NETDEV_TX_BUSY;
 	}
@@ -566,7 +566,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 	if (intr & XMTINT) {
 		fs = mb->xmtfs;
 		if ((fs & XMTSV) == 0) {
-			printk(KERN_ERR "macmace: xmtfs not valid! (fs=%x)\n", fs);
+			printk(KERN_ERR "macmace: xmtfs yest valid! (fs=%x)\n", fs);
 			mace_reset(dev);
 			/*
 			 * XXX mace likes to hang the machine after a xmtfs error.

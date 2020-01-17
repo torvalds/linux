@@ -110,7 +110,7 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 	u32 eventcause = adapter->event_cause;
 	struct station_info *sinfo;
 	struct mwifiex_assoc_event *event;
-	struct mwifiex_sta_node *node;
+	struct mwifiex_sta_yesde *yesde;
 	u8 *deauth_mac;
 	struct host_cmd_ds_11n_batimeout *ba_timeout;
 	u16 ctrl;
@@ -145,10 +145,10 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		cfg80211_new_sta(priv->netdev, event->sta_addr, sinfo,
 				 GFP_KERNEL);
 
-		node = mwifiex_add_sta_entry(priv, event->sta_addr);
-		if (!node) {
+		yesde = mwifiex_add_sta_entry(priv, event->sta_addr);
+		if (!yesde) {
 			mwifiex_dbg(adapter, ERROR,
-				    "could not create station entry!\n");
+				    "could yest create station entry!\n");
 			kfree(sinfo);
 			return -1;
 		}
@@ -159,16 +159,16 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		}
 
 		mwifiex_set_sta_ht_cap(priv, sinfo->assoc_req_ies,
-				       sinfo->assoc_req_ies_len, node);
+				       sinfo->assoc_req_ies_len, yesde);
 
 		for (i = 0; i < MAX_NUM_TID; i++) {
-			if (node->is_11n_enabled)
-				node->ampdu_sta[i] =
+			if (yesde->is_11n_enabled)
+				yesde->ampdu_sta[i] =
 					      priv->aggr_prio_tbl[i].ampdu_user;
 			else
-				node->ampdu_sta[i] = BA_STREAM_NOT_ALLOWED;
+				yesde->ampdu_sta[i] = BA_STREAM_NOT_ALLOWED;
 		}
-		memset(node->rx_seq, 0xff, sizeof(node->rx_seq));
+		memset(yesde->rx_seq, 0xff, sizeof(yesde->rx_seq));
 		kfree(sinfo);
 		break;
 	case EVENT_UAP_STA_DEAUTH:
@@ -332,7 +332,7 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 
 	default:
 		mwifiex_dbg(adapter, EVENT,
-			    "event: unknown event id: %#x\n", eventcause);
+			    "event: unkyeswn event id: %#x\n", eventcause);
 		break;
 	}
 
@@ -344,13 +344,13 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
  * tables created for this station are deleted.
  */
 void mwifiex_uap_del_sta_data(struct mwifiex_private *priv,
-			      struct mwifiex_sta_node *node)
+			      struct mwifiex_sta_yesde *yesde)
 {
-	if (priv->ap_11n_enabled && node->is_11n_enabled) {
-		mwifiex_11n_del_rx_reorder_tbl_by_ta(priv, node->mac_addr);
-		mwifiex_del_tx_ba_stream_tbl_by_ra(priv, node->mac_addr);
+	if (priv->ap_11n_enabled && yesde->is_11n_enabled) {
+		mwifiex_11n_del_rx_reorder_tbl_by_ta(priv, yesde->mac_addr);
+		mwifiex_del_tx_ba_stream_tbl_by_ra(priv, yesde->mac_addr);
 	}
-	mwifiex_del_sta_entry(priv, node->mac_addr);
+	mwifiex_del_sta_entry(priv, yesde->mac_addr);
 
 	return;
 }

@@ -198,7 +198,7 @@ static void xlp9xx_i2c_drain_rx_fifo(struct xlp9xx_i2c_dev *priv)
 		 * interrupt, and the buffer contents are only copied
 		 * during subsequent interrupts. If in case the interrupts
 		 * get merged we would complete the transaction without
-		 * copying out the bytes from RX fifo. To avoid this now we
+		 * copying out the bytes from RX fifo. To avoid this yesw we
 		 * drain the fifo as and when data is available.
 		 * We drained the rlen byte already, decrement total length
 		 * by one.
@@ -541,7 +541,7 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 	priv->adapter.algo = &xlp9xx_i2c_algo;
 	priv->adapter.class = I2C_CLASS_HWMON;
 	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&pdev->dev));
-	priv->adapter.dev.of_node = pdev->dev.of_node;
+	priv->adapter.dev.of_yesde = pdev->dev.of_yesde;
 	priv->dev = &pdev->dev;
 
 	snprintf(priv->adapter.name, sizeof(priv->adapter.name), "xlp9xx-i2c");

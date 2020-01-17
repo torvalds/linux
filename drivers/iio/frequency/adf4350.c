@@ -154,7 +154,7 @@ static int adf4350_set_freq(struct adf4350_state *st, unsigned long long freq)
 
 	/*
 	 * Allow a predefined reference division factor
-	 * if not set, compute our own
+	 * if yest set, compute our own
 	 */
 	if (pdata->ref_div_factor)
 		r_cnt = pdata->ref_div_factor - 1;
@@ -378,7 +378,7 @@ static const struct iio_info adf4350_info = {
 #ifdef CONFIG_OF
 static struct adf4350_platform_data *adf4350_parse_dt(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct adf4350_platform_data *pdata;
 	unsigned int tmp;
 	int ret;
@@ -497,7 +497,7 @@ static int adf4350_probe(struct spi_device *spi)
 	struct clk *clk = NULL;
 	int ret;
 
-	if (spi->dev.of_node) {
+	if (spi->dev.of_yesde) {
 		pdata = adf4350_parse_dt(&spi->dev);
 		if (pdata == NULL)
 			return -EINVAL;
@@ -506,7 +506,7 @@ static int adf4350_probe(struct spi_device *spi)
 	}
 
 	if (!pdata) {
-		dev_warn(&spi->dev, "no platform data? using default\n");
+		dev_warn(&spi->dev, "yes platform data? using default\n");
 		pdata = &default_pdata;
 	}
 

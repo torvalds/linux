@@ -33,7 +33,7 @@ static DEFINE_IDR(uio_idr);
 static const struct file_operations uio_fops;
 
 /* Protect idr accesses */
-static DEFINE_MUTEX(minor_lock);
+static DEFINE_MUTEX(miyesr_lock);
 
 /*
  * attributes
@@ -148,7 +148,7 @@ static ssize_t portio_size_show(struct uio_port *port, char *buf)
 
 static ssize_t portio_porttype_show(struct uio_port *port, char *buf)
 {
-	const char *porttypes[] = {"none", "x86", "gpio", "other"};
+	const char *porttypes[] = {"yesne", "x86", "gpio", "other"};
 
 	if ((port->porttype < 0) || (port->porttype > UIO_PORT_OTHER))
 		return -EINVAL;
@@ -396,35 +396,35 @@ static void uio_dev_del_attributes(struct uio_device *idev)
 	kobject_put(idev->portio_dir);
 }
 
-static int uio_get_minor(struct uio_device *idev)
+static int uio_get_miyesr(struct uio_device *idev)
 {
 	int retval = -ENOMEM;
 
-	mutex_lock(&minor_lock);
+	mutex_lock(&miyesr_lock);
 	retval = idr_alloc(&uio_idr, idev, 0, UIO_MAX_DEVICES, GFP_KERNEL);
 	if (retval >= 0) {
-		idev->minor = retval;
+		idev->miyesr = retval;
 		retval = 0;
 	} else if (retval == -ENOSPC) {
 		dev_err(&idev->dev, "too many uio devices\n");
 		retval = -EINVAL;
 	}
-	mutex_unlock(&minor_lock);
+	mutex_unlock(&miyesr_lock);
 	return retval;
 }
 
-static void uio_free_minor(struct uio_device *idev)
+static void uio_free_miyesr(struct uio_device *idev)
 {
-	mutex_lock(&minor_lock);
-	idr_remove(&uio_idr, idev->minor);
-	mutex_unlock(&minor_lock);
+	mutex_lock(&miyesr_lock);
+	idr_remove(&uio_idr, idev->miyesr);
+	mutex_unlock(&miyesr_lock);
 }
 
 /**
- * uio_event_notify - trigger an interrupt event
+ * uio_event_yestify - trigger an interrupt event
  * @info: UIO device capabilities
  */
-void uio_event_notify(struct uio_info *info)
+void uio_event_yestify(struct uio_info *info)
 {
 	struct uio_device *idev = info->uio_dev;
 
@@ -432,7 +432,7 @@ void uio_event_notify(struct uio_info *info)
 	wake_up_interruptible(&idev->wait);
 	kill_fasync(&idev->async_queue, SIGIO, POLL_IN);
 }
-EXPORT_SYMBOL_GPL(uio_event_notify);
+EXPORT_SYMBOL_GPL(uio_event_yestify);
 
 /**
  * uio_interrupt - hardware interrupt handler
@@ -446,7 +446,7 @@ static irqreturn_t uio_interrupt(int irq, void *dev_id)
 
 	ret = idev->info->handler(irq, idev->info);
 	if (ret == IRQ_HANDLED)
-		uio_event_notify(idev->info);
+		uio_event_yestify(idev->info);
 
 	return ret;
 }
@@ -456,15 +456,15 @@ struct uio_listener {
 	s32 event_count;
 };
 
-static int uio_open(struct inode *inode, struct file *filep)
+static int uio_open(struct iyesde *iyesde, struct file *filep)
 {
 	struct uio_device *idev;
 	struct uio_listener *listener;
 	int ret = 0;
 
-	mutex_lock(&minor_lock);
-	idev = idr_find(&uio_idr, iminor(inode));
-	mutex_unlock(&minor_lock);
+	mutex_lock(&miyesr_lock);
+	idev = idr_find(&uio_idr, imiyesr(iyesde));
+	mutex_unlock(&miyesr_lock);
 	if (!idev) {
 		ret = -ENODEV;
 		goto out;
@@ -495,7 +495,7 @@ static int uio_open(struct inode *inode, struct file *filep)
 	}
 
 	if (idev->info->open)
-		ret = idev->info->open(idev->info, inode);
+		ret = idev->info->open(idev->info, iyesde);
 	mutex_unlock(&idev->info_lock);
 	if (ret)
 		goto err_infoopen;
@@ -523,7 +523,7 @@ static int uio_fasync(int fd, struct file *filep, int on)
 	return fasync_helper(fd, filep, on, &idev->async_queue);
 }
 
-static int uio_release(struct inode *inode, struct file *filep)
+static int uio_release(struct iyesde *iyesde, struct file *filep)
 {
 	int ret = 0;
 	struct uio_listener *listener = filep->private_data;
@@ -531,7 +531,7 @@ static int uio_release(struct inode *inode, struct file *filep)
 
 	mutex_lock(&idev->info_lock);
 	if (idev->info && idev->info->release)
-		ret = idev->info->release(idev->info, inode);
+		ret = idev->info->release(idev->info, iyesde);
 	mutex_unlock(&idev->info_lock);
 
 	module_put(idev->owner);
@@ -739,10 +739,10 @@ static int uio_mmap_physical(struct vm_area_struct *vma)
 
 	vma->vm_ops = &uio_physical_vm_ops;
 	if (idev->info->mem[mi].memtype == UIO_MEM_PHYS)
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	/*
-	 * We cannot use the vm_iomap_memory() helper here,
+	 * We canyest use the vm_iomap_memory() helper here,
 	 * because vma->vm_pgoff is the map index we looked
 	 * up above in uio_find_mem_index(), rather than an
 	 * actual page offset into the mmap.
@@ -822,7 +822,7 @@ static const struct file_operations uio_fops = {
 	.mmap		= uio_mmap,
 	.poll		= uio_poll,
 	.fasync		= uio_fasync,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static int uio_major_init(void)
@@ -939,20 +939,20 @@ int __uio_register_device(struct module *owner,
 	init_waitqueue_head(&idev->wait);
 	atomic_set(&idev->event, 0);
 
-	ret = uio_get_minor(idev);
+	ret = uio_get_miyesr(idev);
 	if (ret) {
 		kfree(idev);
 		return ret;
 	}
 
 	device_initialize(&idev->dev);
-	idev->dev.devt = MKDEV(uio_major, idev->minor);
+	idev->dev.devt = MKDEV(uio_major, idev->miyesr);
 	idev->dev.class = &uio_class;
 	idev->dev.parent = parent;
 	idev->dev.release = uio_device_release;
 	dev_set_drvdata(&idev->dev, idev);
 
-	ret = dev_set_name(&idev->dev, "uio%d", idev->minor);
+	ret = dev_set_name(&idev->dev, "uio%d", idev->miyesr);
 	if (ret)
 		goto err_device_create;
 
@@ -972,7 +972,7 @@ int __uio_register_device(struct module *owner,
 		 * here. The parent module can unregister the UIO device
 		 * and call pci_disable_msi, which requires that this
 		 * irq has been freed. However, the device may have open
-		 * FDs at the time of unregister and therefore may not be
+		 * FDs at the time of unregister and therefore may yest be
 		 * freed until they are released.
 		 */
 		ret = request_irq(info->irq, uio_interrupt,
@@ -990,7 +990,7 @@ err_request_irq:
 err_uio_dev_add_attributes:
 	device_del(&idev->dev);
 err_device_create:
-	uio_free_minor(idev);
+	uio_free_miyesr(idev);
 	put_device(&idev->dev);
 	return ret;
 }
@@ -1010,7 +1010,7 @@ void uio_unregister_device(struct uio_info *info)
 
 	idev = info->uio_dev;
 
-	uio_free_minor(idev);
+	uio_free_miyesr(idev);
 
 	mutex_lock(&idev->info_lock);
 	uio_dev_del_attributes(idev);

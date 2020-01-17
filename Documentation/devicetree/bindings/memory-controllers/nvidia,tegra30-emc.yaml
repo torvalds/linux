@@ -34,7 +34,7 @@ properties:
   nvidia,memory-controller:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Phandle of the Memory Controller node.
+      Phandle of the Memory Controller yesde.
 
 patternProperties:
   "^emc-timings-[0-9]+$":

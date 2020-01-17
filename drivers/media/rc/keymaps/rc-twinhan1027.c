@@ -86,4 +86,4 @@ module_init(init_rc_map_twinhan_vp1027)
 module_exit(exit_rc_map_twinhan_vp1027)
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Sergey Ivanov <123kash@gmail.com>");
+MODULE_AUTHOR("Sergey Ivayesv <123kash@gmail.com>");

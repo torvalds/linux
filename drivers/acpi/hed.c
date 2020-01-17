@@ -6,7 +6,7 @@
  *	Author: Huang Ying <ying.huang@intel.com>
  *
  * ACPI Hardware Error Device is used to report some hardware errors
- * notified via SCI, mainly the corrected errors.
+ * yestified via SCI, mainly the corrected errors.
  */
 
 #include <linux/kernel.h>
@@ -23,28 +23,28 @@ MODULE_DEVICE_TABLE(acpi, acpi_hed_ids);
 
 static acpi_handle hed_handle;
 
-static BLOCKING_NOTIFIER_HEAD(acpi_hed_notify_list);
+static BLOCKING_NOTIFIER_HEAD(acpi_hed_yestify_list);
 
-int register_acpi_hed_notifier(struct notifier_block *nb)
+int register_acpi_hed_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&acpi_hed_notify_list, nb);
+	return blocking_yestifier_chain_register(&acpi_hed_yestify_list, nb);
 }
-EXPORT_SYMBOL_GPL(register_acpi_hed_notifier);
+EXPORT_SYMBOL_GPL(register_acpi_hed_yestifier);
 
-void unregister_acpi_hed_notifier(struct notifier_block *nb)
+void unregister_acpi_hed_yestifier(struct yestifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&acpi_hed_notify_list, nb);
+	blocking_yestifier_chain_unregister(&acpi_hed_yestify_list, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_acpi_hed_notifier);
+EXPORT_SYMBOL_GPL(unregister_acpi_hed_yestifier);
 
 /*
  * SCI to report hardware error is forwarded to the listeners of HED,
- * it is used by HEST Generic Hardware Error Source with notify type
+ * it is used by HEST Generic Hardware Error Source with yestify type
  * SCI.
  */
-static void acpi_hed_notify(struct acpi_device *device, u32 event)
+static void acpi_hed_yestify(struct acpi_device *device, u32 event)
 {
-	blocking_notifier_call_chain(&acpi_hed_notify_list, 0, NULL);
+	blocking_yestifier_call_chain(&acpi_hed_yestify_list, 0, NULL);
 }
 
 static int acpi_hed_add(struct acpi_device *device)
@@ -69,7 +69,7 @@ static struct acpi_driver acpi_hed_driver = {
 	.ops = {
 		.add = acpi_hed_add,
 		.remove = acpi_hed_remove,
-		.notify = acpi_hed_notify,
+		.yestify = acpi_hed_yestify,
 	},
 };
 module_acpi_driver(acpi_hed_driver);

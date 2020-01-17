@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_ENC_INDEX:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_ENC_INDEX - Get meta data about a compressed video stream
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_ENC_INDEX, struct v4l2_enc_idx *argp )
@@ -40,7 +40,7 @@ Description
 ===========
 
 The :ref:`VIDIOC_G_ENC_INDEX <VIDIOC_G_ENC_INDEX>` ioctl provides meta data about a compressed
-video stream the same or another application currently reads from the
+video stream the same or ayesther application currently reads from the
 driver, which is useful for random access into the stream without
 decoding it.
 
@@ -54,9 +54,9 @@ Each element of the ``entry`` array contains meta data about one
 picture. A :ref:`VIDIOC_G_ENC_INDEX <VIDIOC_G_ENC_INDEX>` call reads up to
 ``V4L2_ENC_IDX_ENTRIES`` entries from a driver buffer, which can hold up
 to ``entries_cap`` entries. This number can be lower or higher than
-``V4L2_ENC_IDX_ENTRIES``, but not zero. When the application fails to
+``V4L2_ENC_IDX_ENTRIES``, but yest zero. When the application fails to
 read the meta data in time the oldest entries will be lost. When the
-buffer is empty or no capturing/encoding is in progress, ``entries``
+buffer is empty or yes capturing/encoding is in progress, ``entries``
 will be zero.
 
 Currently this ioctl is only defined for MPEG-2 program streams and
@@ -151,6 +151,6 @@ video elementary streams.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

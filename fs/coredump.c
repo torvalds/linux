@@ -33,7 +33,7 @@
 #include <linux/audit.h>
 #include <linux/tracehook.h>
 #include <linux/kmod.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/fs_struct.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/oom.h>
@@ -161,7 +161,7 @@ static int cn_print_exe_file(struct core_name *cn)
 
 	exe_file = get_mm_exe_file(current->mm);
 	if (!exe_file)
-		return cn_esc_printf(cn, "%s (path unknown)", current->comm);
+		return cn_esc_printf(cn, "%s (path unkyeswn)", current->comm);
 
 	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!pathbuf) {
@@ -282,7 +282,7 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 			/* signal that caused the coredump */
 			case 's':
 				err = cn_printf(cn, "%d",
-						cprm->siginfo->si_signo);
+						cprm->siginfo->si_sigyes);
 				break;
 			/* UNIX time of coredump */
 			case 't': {
@@ -296,7 +296,7 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 			case 'h':
 				down_read(&uts_sem);
 				err = cn_esc_printf(cn, "%s",
-					      utsname()->nodename);
+					      utsname()->yesdename);
 				up_read(&uts_sem);
 				break;
 			/* executable */
@@ -324,9 +324,9 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 out:
 	/* Backward compatibility with core_uses_pid:
 	 *
-	 * If core_pattern does not include a %p (as is the default)
+	 * If core_pattern does yest include a %p (as is the default)
 	 * and core_uses_pid is set, then .%pid will be appended to
-	 * the filename. Do not do this for piped commands. */
+	 * the filename. Do yest do this for piped commands. */
 	if (!ispipe && !pid_in_pattern && core_uses_pid) {
 		err = cn_printf(cn, ".%d", task_tgid_vnr(current));
 		if (err)
@@ -340,7 +340,7 @@ static int zap_process(struct task_struct *start, int exit_code, int flags)
 	struct task_struct *t;
 	int nr = 0;
 
-	/* ignore all signals except SIGKILL, see prepare_signal() */
+	/* igyesre all signals except SIGKILL, see prepare_signal() */
 	start->signal->flags = SIGNAL_GROUP_COREDUMP | flags;
 	start->signal->group_exit_code = exit_code;
 	start->signal->group_stop_count = 0;
@@ -397,14 +397,14 @@ static int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	 *
 	 * de_thread:
 	 *	It does list_replace_rcu(&leader->tasks, &current->tasks),
-	 *	we must see either old or new leader, this does not matter.
+	 *	we must see either old or new leader, this does yest matter.
 	 *	However, it can change p->sighand, so lock_task_sighand(p)
 	 *	must be used. Since p->mm != NULL and we hold ->mmap_sem
 	 *	it can't fail.
 	 *
 	 *	Note also that "g" can be the old leader with ->mm == NULL
 	 *	and already unhashed and thus removed from ->thread_group.
-	 *	This is OK, __unhash_process()->list_del_rcu() does not
+	 *	This is OK, __unhash_process()->list_del_rcu() does yest
 	 *	clear the ->next pointer, we will find the new leader via
 	 *	next_thread().
 	 */
@@ -453,7 +453,7 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 	if (core_waiters > 0) {
 		struct core_thread *ptr;
 
-		freezer_do_not_count();
+		freezer_do_yest_count();
 		wait_for_completion(&core_state->startup);
 		freezer_count();
 		/*
@@ -488,7 +488,7 @@ static void coredump_finish(struct mm_struct *mm, bool core_dumped)
 		next = curr->next;
 		task = curr->task;
 		/*
-		 * see exit_mm(), curr->task must not see
+		 * see exit_mm(), curr->task must yest see
 		 * ->task == NULL before we read ->next.
 		 */
 		smp_mb();
@@ -512,7 +512,7 @@ static bool dump_interrupted(void)
 
 static void wait_for_dump_helpers(struct file *file)
 {
-	struct pipe_inode_info *pipe = file->private_data;
+	struct pipe_iyesde_info *pipe = file->private_data;
 
 	pipe_lock(pipe);
 	pipe->readers++;
@@ -575,7 +575,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	size_t *argv = NULL;
 	int argc = 0;
 	struct files_struct *displaced;
-	/* require nonrelative corefile path and be extra careful */
+	/* require yesnrelative corefile path and be extra careful */
 	bool need_suid_safe = false;
 	bool core_dumped = false;
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
@@ -585,13 +585,13 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		.limit = rlimit(RLIMIT_CORE),
 		/*
 		 * We must use the same mm->flags while dumping core to avoid
-		 * inconsistency of bit flags, since this flag is not protected
+		 * inconsistency of bit flags, since this flag is yest protected
 		 * by any locks.
 		 */
 		.mm_flags = mm->flags,
 	};
 
-	audit_core_dumps(siginfo->si_signo);
+	audit_core_dumps(siginfo->si_sigyes);
 
 	binfmt = mm->binfmt;
 	if (!binfmt || !binfmt->core_dump)
@@ -603,8 +603,8 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	if (!cred)
 		goto fail;
 	/*
-	 * We cannot trust fsuid as being the "true" uid of the process
-	 * nor do we know its entire history. We only know it was tainted
+	 * We canyest trust fsuid as being the "true" uid of the process
+	 * yesr do we kyesw its entire history. We only kyesw it was tainted
 	 * so we dump it as root in mode 2, and only into a controlled
 	 * environment (pipe handler or fully qualified path).
 	 */
@@ -614,7 +614,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		need_suid_safe = true;
 	}
 
-	retval = coredump_wait(siginfo->si_signo, &core_state);
+	retval = coredump_wait(siginfo->si_sigyes, &core_state);
 	if (retval < 0)
 		goto fail_creds;
 
@@ -638,7 +638,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 			/* See umh_pipe_setup() which sets RLIMIT_CORE = 1.
 			 *
 			 * Normally core limits are irrelevant to pipes, since
-			 * we're not writing to the file system, but we use
+			 * we're yest writing to the file system, but we use
 			 * cprm.limit of 1 here as a special value, this is a
 			 * consistent way to catch recursive crashes.
 			 * We can still crash if the core_pattern binary sets
@@ -692,7 +692,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 			goto close_fail;
 		}
 	} else {
-		struct inode *inode;
+		struct iyesde *iyesde;
 		int open_flags = O_CREAT | O_RDWR | O_NOFOLLOW |
 				 O_LARGEFILE | O_EXCL;
 
@@ -710,7 +710,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		/*
 		 * Unlink the file if it exists unless this is a SUID
 		 * binary - in that case, we're running around with root
-		 * privs and don't want to unlink another user's coredump.
+		 * privs and don't want to unlink ayesther user's coredump.
 		 */
 		if (!need_suid_safe) {
 			/*
@@ -723,19 +723,19 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		/*
 		 * There is a race between unlinking and creating the
 		 * file, but if that causes an EEXIST here, that's
-		 * fine - another process raced with us while creating
+		 * fine - ayesther process raced with us while creating
 		 * the corefile, and the other process won. To userspace,
 		 * what matters is that at least one of the two processes
-		 * writes its coredump successfully, not which one.
+		 * writes its coredump successfully, yest which one.
 		 */
 		if (need_suid_safe) {
 			/*
-			 * Using user namespaces, normal user tasks can change
+			 * Using user namespaces, yesrmal user tasks can change
 			 * their current->fs->root to point to arbitrary
 			 * directories. Since the intention of the "only dump
 			 * with a fully qualified path" rule is to control where
 			 * coredumps may be placed using root privileges,
-			 * current->fs->root must not be used. Instead, use the
+			 * current->fs->root must yest be used. Instead, use the
 			 * root directory of init_task.
 			 */
 			struct path root;
@@ -752,16 +752,16 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		if (IS_ERR(cprm.file))
 			goto fail_unlock;
 
-		inode = file_inode(cprm.file);
-		if (inode->i_nlink > 1)
+		iyesde = file_iyesde(cprm.file);
+		if (iyesde->i_nlink > 1)
 			goto close_fail;
 		if (d_unhashed(cprm.file->f_path.dentry))
 			goto close_fail;
 		/*
-		 * AK: actually i see no reason to not allow this for named
-		 * pipes etc, but keep the previous behaviour for now.
+		 * AK: actually i see yes reason to yest allow this for named
+		 * pipes etc, but keep the previous behaviour for yesw.
 		 */
-		if (!S_ISREG(inode->i_mode))
+		if (!S_ISREG(iyesde->i_mode))
 			goto close_fail;
 		/*
 		 * Don't dump core if the filesystem changed owner or mode
@@ -769,9 +769,9 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 		 * a process dumps core while its cwd is e.g. on a vfat
 		 * filesystem.
 		 */
-		if (!uid_eq(inode->i_uid, current_fsuid()))
+		if (!uid_eq(iyesde->i_uid, current_fsuid()))
 			goto close_fail;
-		if ((inode->i_mode & 0677) != 0600)
+		if ((iyesde->i_mode & 0677) != 0600)
 			goto close_fail;
 		if (!(cprm.file->f_mode & FMODE_CAN_WRITE))
 			goto close_fail;
@@ -779,7 +779,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 			goto close_fail;
 	}
 
-	/* get us an unshared descriptor table; almost always a no-op */
+	/* get us an unshared descriptor table; almost always a yes-op */
 	retval = unshare_files(&displaced);
 	if (retval)
 		goto close_fail;
@@ -840,7 +840,7 @@ int dump_skip(struct coredump_params *cprm, size_t nr)
 {
 	static char zeroes[PAGE_SIZE];
 	struct file *file = cprm->file;
-	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
+	if (file->f_op->llseek && file->f_op->llseek != yes_llseek) {
 		if (dump_interrupted() ||
 		    file->f_op->llseek(file, nr, SEEK_CUR) < 0)
 			return 0;
@@ -867,7 +867,7 @@ int dump_align(struct coredump_params *cprm, int align)
 EXPORT_SYMBOL(dump_align);
 
 /*
- * Ensures that file size is big enough to contain the current file
+ * Ensures that file size is big eyesugh to contain the current file
  * postion. This prevents gdb from complaining about a truncated file
  * if the last "write" to the file was dump_skip.
  */
@@ -876,7 +876,7 @@ void dump_truncate(struct coredump_params *cprm)
 	struct file *file = cprm->file;
 	loff_t offset;
 
-	if (file->f_op->llseek && file->f_op->llseek != no_llseek) {
+	if (file->f_op->llseek && file->f_op->llseek != yes_llseek) {
 		offset = file->f_op->llseek(file, 0, SEEK_CUR);
 		if (i_size_read(file->f_mapping->host) < offset)
 			do_truncate(file->f_path.dentry, offset, 0, file);

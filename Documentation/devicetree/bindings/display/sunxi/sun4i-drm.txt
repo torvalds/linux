@@ -59,7 +59,7 @@ Required properties:
     * audio-tx: The channel used for audio transmission
   - dma-names: the channel names mentioned above
 
-  - ports: A ports node with endpoint definitions as defined in
+  - ports: A ports yesde with endpoint definitions as defined in
     Documentation/devicetree/bindings/media/video-interfaces.txt. The
     first port should be the input endpoint. The second should be the
     output, usually to an HDMI connector.
@@ -67,10 +67,10 @@ Required properties:
 DWC HDMI TX Encoder
 -------------------
 
-The HDMI transmitter is a Synopsys DesignWare HDMI 1.4 TX controller IP
+The HDMI transmitter is a Syyespsys DesignWare HDMI 1.4 TX controller IP
 with Allwinner's own PHY IP. It supports audio and video outputs and CEC.
 
-These DT bindings follow the Synopsys DWC HDMI TX bindings defined in
+These DT bindings follow the Syyespsys DWC HDMI TX bindings defined in
 Documentation/devicetree/bindings/display/bridge/dw_hdmi.txt with the
 following device-specific properties.
 
@@ -98,7 +98,7 @@ Required properties:
   - phys: phandle to the DWC HDMI PHY
   - phy-names: must be "phy"
 
-  - ports: A ports node with endpoint definitions as defined in
+  - ports: A ports yesde with endpoint definitions as defined in
     Documentation/devicetree/bindings/media/video-interfaces.txt. The
     first port should be the input endpoint. The second should be the
     output, usually to an HDMI connector.
@@ -140,7 +140,7 @@ Required properties:
  - clocks: the clocks driving the TV encoder
  - resets: phandle to the reset controller driving the encoder
 
-- ports: A ports node with endpoint definitions as defined in
+- ports: A ports yesde with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt. The
   first port should be the input endpoint.
 
@@ -181,16 +181,16 @@ Required properties:
  - clock-output-names: Name of the pixel clock created, if TCON supports
    channel 0.
 
-- ports: A ports node with endpoint definitions as defined in
+- ports: A ports yesde with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt. The
   first port should be the input endpoint, the second one the output
 
   The output may have multiple endpoints. TCON can have 1 or 2 channels,
   usually with the first channel being used for the panels interfaces
   (RGB, LVDS, etc.), and the second being used for the outputs that
-  require another controller (TV Encoder, HDMI, etc.). The endpoints
+  require ayesther controller (TV Encoder, HDMI, etc.). The endpoints
   will take an extra property, allwinner,tcon-channel, to specify the
-  channel the endpoint is associated to. If that property is not
+  channel the endpoint is associated to. If that property is yest
   present, the endpoint number will be used as the channel number.
 
 For TCONs with channel 0, there is one more clock required:
@@ -250,7 +250,7 @@ Required properties:
     TCON TV1 channel clock (R40 only) and DSI channel clock (R40 only), in
     that order.
 
-- ports: A ports node with endpoint definitions as defined in
+- ports: A ports yesde with endpoint definitions as defined in
     Documentation/devicetree/bindings/media/video-interfaces.txt. 6 ports should
     be defined:
     * port 0 is input for mixer0 mux
@@ -289,7 +289,7 @@ Required properties:
   - clock-names: the clock names mentioned above
   - resets: phandles to the reset line driving the DRC
 
-- ports: A ports node with endpoint definitions as defined in
+- ports: A ports yesde with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt. The
   first port should be the input endpoints, the second one the outputs
 
@@ -317,7 +317,7 @@ Required properties:
   - clock-names: the clock names mentioned above
   - resets: phandles to the reset controllers driving the backend
 
-- ports: A ports node with endpoint definitions as defined in
+- ports: A ports yesde with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt. The
   first port should be the input endpoints, the second one the output
 
@@ -347,7 +347,7 @@ Required properties:
   - clock-names: the clock names mentioned above
   - resets: phandles to the reset line driving the DEU
 
-- ports: A ports node with endpoint definitions as defined in
+- ports: A ports yesde with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt. The
   first port should be the input endpoints, the second one the outputs
 
@@ -375,7 +375,7 @@ Required properties:
   - clock-names: the clock names mentioned above
   - resets: phandles to the reset controllers driving the backend
 
-- ports: A ports node with endpoint definitions as defined in
+- ports: A ports yesde with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt. The
   first port should be the input endpoints, the second one the outputs
 
@@ -403,7 +403,7 @@ Required properties:
   - clock-names: the clock names mentioned above
   - resets: phandles to the reset controllers driving the mixer
 
-- ports: A ports node with endpoint definitions as defined in
+- ports: A ports yesde with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt. The
   first port should be the input endpoints, the second one the output
 
@@ -413,7 +413,7 @@ Display Engine Pipeline
 
 The display engine pipeline (and its entry point, since it can be
 either directly the backend or the frontend) is represented as an
-extra node.
+extra yesde.
 
 Required properties:
   - compatible: value must be one of:
@@ -439,7 +439,7 @@ Required properties:
 Example:
 
 panel: panel {
-	compatible = "olimex,lcd-olinuxino-43-ts";
+	compatible = "olimex,lcd-olinuxiyes-43-ts";
 	#address-cells = <1>;
 	#size-cells = <0>;
 

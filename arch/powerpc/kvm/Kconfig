@@ -10,7 +10,7 @@ menuconfig VIRTUALIZATION
 	---help---
 	  Say Y here to get to see options for using your Linux host to run
 	  other operating systems inside virtual machines (guests).
-	  This option alone does not add any kernel code.
+	  This option alone does yest add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and
 	  disabled.
@@ -59,7 +59,7 @@ config KVM_BOOK3S_32
 	  in virtual machines on book3s_32 host processors.
 
 	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  a character device yesde named /dev/kvm.
 
 	  If unsure, say N.
 
@@ -75,7 +75,7 @@ config KVM_BOOK3S_64
 	  in virtual machines on book3s_64 host processors.
 
 	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  a character device yesde named /dev/kvm.
 
 	  If unsure, say N.
 
@@ -94,8 +94,8 @@ config KVM_BOOK3S_64_HV
 	  facilities of POWER7 (and later) processors, meaning that
 	  guest operating systems will run at full hardware speed
 	  using supervisor and user modes.  However, this also means
-	  that KVM is not usable under PowerVM (pHyp), is only usable
-	  on POWER7 or later processors, and cannot emulate a
+	  that KVM is yest usable under PowerVM (pHyp), is only usable
+	  on POWER7 or later processors, and canyest emulate a
 	  different processor from the host processor.
 
 	  If unsure, say N.
@@ -110,8 +110,8 @@ config KVM_BOOK3S_64_PR
 	  guest in user mode (problem state) and emulating all
 	  privileged instructions and registers.
 
-	  This is not as fast as using hypervisor mode, but works on
-	  machines where hypervisor mode is not available or not usable,
+	  This is yest as fast as using hypervisor mode, but works on
+	  machines where hypervisor mode is yest available or yest usable,
 	  and can emulate processors that are different from the host
 	  processor, including emulating 32-bit processors on a 64-bit
 	  host.
@@ -123,7 +123,7 @@ config KVM_BOOK3S_HV_EXIT_TIMING
 	  Calculate time taken for each vcpu in the real-mode guest entry,
 	  exit, and interrupt handling code, plus time spent in the guest
 	  and in nap mode due to idle (cede) while other threads are still
-	  in the guest.  The total, minimum and maximum times in nanoseconds
+	  in the guest.  The total, minimum and maximum times in nayesseconds
 	  together with the number of executions are reported in debugfs in
 	  kvm/vm#/vcpu#/timings.  The overhead is of the order of 30 - 40
 	  ns per exit on POWER8.
@@ -139,7 +139,7 @@ config KVM_EXIT_TIMING
 	---help---
 	  Calculate elapsed time for every exit/enter cycle. A per-vcpu
 	  report is available in debugfs kvm/vm#_vcpu#_timing.
-	  The overhead is relatively small, however it is not recommended for
+	  The overhead is relatively small, however it is yest recommended for
 	  production environments.
 
 	  If unsure, say N.
@@ -155,7 +155,7 @@ config KVM_E500V2
 	  E500v2 host processors.
 
 	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  a character device yesde named /dev/kvm.
 
 	  If unsure, say N.
 
@@ -171,7 +171,7 @@ config KVM_E500MC
 	  virtual machines on E500MC/E5500/E6500 host processors.
 
 	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  a character device yesde named /dev/kvm.
 
 	  If unsure, say N.
 

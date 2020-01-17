@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * io.c
  *
@@ -19,7 +19,7 @@
 #include "ocfs2.h"
 
 #include "alloc.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "journal.h"
 #include "uptodate.h"
 #include "buffer_head_io.h"
@@ -47,12 +47,12 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 	BUG_ON(bh->b_blocknr < OCFS2_SUPER_BLOCK_BLKNO);
 	BUG_ON(buffer_jbd(bh));
 
-	/* No need to check for a soft readonly file system here. non
+	/* No need to check for a soft readonly file system here. yesn
 	 * journalled writes are only ever done on system files which
 	 * can get modified during recovery even if read-only. */
 	if (ocfs2_is_hard_readonly(osb)) {
 		ret = -EROFS;
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
@@ -74,10 +74,10 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 		ocfs2_set_buffer_uptodate(ci, bh);
 	} else {
 		/* We don't need to remove the clustered uptodate
-		 * information for this bh as it's not marked locally
+		 * information for this bh as it's yest marked locally
 		 * uptodate. */
 		ret = -EIO;
-		mlog_errno(ret);
+		mlog_erryes(ret);
 	}
 
 	ocfs2_metadata_cache_io_unlock(ci);
@@ -85,7 +85,7 @@ out:
 	return ret;
 }
 
-/* Caller must provide a bhs[] with all NULL or non-NULL entries, so it
+/* Caller must provide a bhs[] with all NULL or yesn-NULL entries, so it
  * will be easier to handle read failure.
  */
 int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
@@ -111,7 +111,7 @@ int ocfs2_read_blocks_sync(struct ocfs2_super *osb, u64 block,
 			bhs[i] = sb_getblk(osb->sb, block++);
 			if (bhs[i] == NULL) {
 				status = -ENOMEM;
-				mlog_errno(status);
+				mlog_erryes(status);
 				break;
 			}
 		}
@@ -189,7 +189,7 @@ bail:
 	return status;
 }
 
-/* Caller must provide a bhs[] with all NULL or non-NULL entries, so it
+/* Caller must provide a bhs[] with all NULL or yesn-NULL entries, so it
  * will be easier to handle read failure.
  */
 int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
@@ -198,7 +198,7 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 				      struct buffer_head *bh))
 {
 	int status = 0;
-	int i, ignore_cache = 0;
+	int i, igyesre_cache = 0;
 	struct buffer_head *bh;
 	struct super_block *sb = ocfs2_metadata_cache_get_super(ci);
 	int new_bh = 0;
@@ -211,14 +211,14 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 
 	if (bhs == NULL) {
 		status = -EINVAL;
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto bail;
 	}
 
 	if (nr < 0) {
 		mlog(ML_ERROR, "asked to read %d blocks!\n", nr);
 		status = -EINVAL;
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto bail;
 	}
 
@@ -239,13 +239,13 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 			if (bhs[i] == NULL) {
 				ocfs2_metadata_cache_io_unlock(ci);
 				status = -ENOMEM;
-				mlog_errno(status);
+				mlog_erryes(status);
 				/* Don't forget to put previous bh! */
 				break;
 			}
 		}
 		bh = bhs[i];
-		ignore_cache = (flags & OCFS2_BH_IGNORE_CACHE);
+		igyesre_cache = (flags & OCFS2_BH_IGNORE_CACHE);
 
 		/* There are three read-ahead cases here which we need to
 		 * be concerned with. All three assume a buffer has
@@ -257,7 +257,7 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 		 *    matters - the code can just wait on the buffer
 		 *    lock and re-submit.
 		 *
-		 * 2) The current request is cached, but not
+		 * 2) The current request is cached, but yest
 		 *    readahead. ocfs2_buffer_uptodate() will return
 		 *    false anyway, so we'll wind up waiting on the
 		 *    buffer lock to do I/O. We re-check the request
@@ -271,23 +271,23 @@ int ocfs2_read_blocks(struct ocfs2_caching_info *ci, u64 block, int nr,
 		 *    before our is-it-in-flight check.
 		 */
 
-		if (!ignore_cache && !ocfs2_buffer_uptodate(ci, bh)) {
+		if (!igyesre_cache && !ocfs2_buffer_uptodate(ci, bh)) {
 			trace_ocfs2_read_blocks_from_disk(
 			     (unsigned long long)bh->b_blocknr,
 			     (unsigned long long)ocfs2_metadata_cache_owner(ci));
-			/* We're using ignore_cache here to say
+			/* We're using igyesre_cache here to say
 			 * "go to disk" */
-			ignore_cache = 1;
+			igyesre_cache = 1;
 		}
 
 		trace_ocfs2_read_blocks_bh((unsigned long long)bh->b_blocknr,
-			ignore_cache, buffer_jbd(bh), buffer_dirty(bh));
+			igyesre_cache, buffer_jbd(bh), buffer_dirty(bh));
 
 		if (buffer_jbd(bh)) {
 			continue;
 		}
 
-		if (ignore_cache) {
+		if (igyesre_cache) {
 			if (buffer_dirty(bh)) {
 				/* This should probably be a BUG, or
 				 * at least return an error. */
@@ -358,7 +358,7 @@ read_failure:
 				}
 				continue;
 			}
-			/* We know this can't have changed as we hold the
+			/* We kyesw this can't have changed as we hold the
 			 * owner sem. Avoid doing any work on the bh if the
 			 * journal has it. */
 			if (!buffer_jbd(bh))
@@ -369,7 +369,7 @@ read_failure:
 				 * so we can safely record this and loop back
 				 * to cleanup the other buffers. Don't need to
 				 * remove the clustered uptodate information
-				 * for this bh as it's not marked locally
+				 * for this bh as it's yest marked locally
 				 * uptodate. */
 				status = -EIO;
 				clear_buffer_needs_validate(bh);
@@ -379,7 +379,7 @@ read_failure:
 			if (buffer_needs_validate(bh)) {
 				/* We never set NeedsValidate if the
 				 * buffer was held by the journal, so
-				 * that better not have changed */
+				 * that better yest have changed */
 				BUG_ON(buffer_jbd(bh));
 				clear_buffer_needs_validate(bh);
 				status = validate(sb, bh);
@@ -396,26 +396,26 @@ read_failure:
 	ocfs2_metadata_cache_io_unlock(ci);
 
 	trace_ocfs2_read_blocks_end((unsigned long long)block, nr,
-				    flags, ignore_cache);
+				    flags, igyesre_cache);
 
 bail:
 
 	return status;
 }
 
-/* Check whether the blkno is the super block or one of the backups. */
+/* Check whether the blkyes is the super block or one of the backups. */
 static void ocfs2_check_super_or_backup(struct super_block *sb,
-					sector_t blkno)
+					sector_t blkyes)
 {
 	int i;
-	u64 backup_blkno;
+	u64 backup_blkyes;
 
-	if (blkno == OCFS2_SUPER_BLOCK_BLKNO)
+	if (blkyes == OCFS2_SUPER_BLOCK_BLKNO)
 		return;
 
 	for (i = 0; i < OCFS2_MAX_BACKUP_SUPERBLOCKS; i++) {
-		backup_blkno = ocfs2_backup_super_blkno(sb, i);
-		if (backup_blkno == blkno)
+		backup_blkyes = ocfs2_backup_super_blkyes(sb, i);
+		if (backup_blkyes == blkyes)
 			return;
 	}
 
@@ -431,14 +431,14 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 				struct buffer_head *bh)
 {
 	int ret = 0;
-	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
+	struct ocfs2_diyesde *di = (struct ocfs2_diyesde *)bh->b_data;
 
 	BUG_ON(buffer_jbd(bh));
 	ocfs2_check_super_or_backup(osb->sb, bh->b_blocknr);
 
 	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb)) {
 		ret = -EROFS;
-		mlog_errno(ret);
+		mlog_erryes(ret);
 		goto out;
 	}
 
@@ -457,7 +457,7 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 
 	if (!buffer_uptodate(bh)) {
 		ret = -EIO;
-		mlog_errno(ret);
+		mlog_erryes(ret);
 	}
 
 out:

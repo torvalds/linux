@@ -8,10 +8,10 @@ in the kernel usb programming guide (kerneldoc, from the source code).
 API overview
 ============
 
-The big picture is that USB drivers can continue to ignore most DMA issues,
+The big picture is that USB drivers can continue to igyesre most DMA issues,
 though they still must provide DMA-ready buffers (see
 ``Documentation/DMA-API-HOWTO.txt``).  That's how they've worked through
-the 2.4 (and earlier) kernels, or they can now be DMA-aware.
+the 2.4 (and earlier) kernels, or they can yesw be DMA-aware.
 
 DMA-aware usb drivers:
 
@@ -20,7 +20,7 @@ DMA-aware usb drivers:
 
 - URBs have an additional "transfer_dma" field, as well as a transfer_flags
   bit saying if it's valid.  (Control requests also have "setup_dma", but
-  drivers must not use it.)
+  drivers must yest use it.)
 
 - "usbcore" will map this DMA address, if a DMA-aware driver didn't do
   it first and set ``URB_NO_TRANSFER_DMA_MAP``.  HCDs
@@ -58,7 +58,7 @@ and effects like cache-trashing can impose subtle penalties.
 
   The memory buffer returned is "dma-coherent"; sometimes you might need to
   force a consistent memory access ordering by using memory barriers.  It's
-  not using a streaming DMA mapping, so it's good for small transfers on
+  yest using a streaming DMA mapping, so it's good for small transfers on
   systems where the I/O would otherwise thrash an IOMMU mapping.  (See
   ``Documentation/DMA-API-HOWTO.txt`` for definitions of "coherent" and
   "streaming" DMA mappings.)
@@ -68,8 +68,8 @@ and effects like cache-trashing can impose subtle penalties.
 
   On most systems the memory returned will be uncached, because the
   semantics of dma-coherent memory require either bypassing CPU caches
-  or using cache hardware with bus-snooping support.  While x86 hardware
-  has such bus-snooping, many other systems use software to flush cache
+  or using cache hardware with bus-syesoping support.  While x86 hardware
+  has such bus-syesoping, many other systems use software to flush cache
   lines to prevent DMA conflicts.
 
 - Devices on some EHCI controllers could handle DMA to/from high memory.
@@ -81,7 +81,7 @@ and effects like cache-trashing can impose subtle penalties.
   behavior.  Just don't override it; e.g. with ``NETIF_F_HIGHDMA``.
 
   This may force your callers to do some bounce buffering, copying from
-  high memory to "normal" DMA memory.  If you can come up with a good way
+  high memory to "yesrmal" DMA memory.  If you can come up with a good way
   to fix this issue (for x86_32 machines with over 1 GByte of memory),
   feel free to submit patches.
 
@@ -110,7 +110,7 @@ of Documentation/DMA-API-HOWTO.txt, titled "What memory is DMA-able?")
   mapping and apply other tweaks to make scatterlist i/o be fast.
 
 - Some drivers may prefer to work with the model that they're mapping large
-  buffers, synchronizing their safe re-use.  (If there's no re-use, then let
+  buffers, synchronizing their safe re-use.  (If there's yes re-use, then let
   usbcore do the map/unmap.)  Large periodic transfers make good examples
   here, since it's cheaper to just synchronize the buffer than to unmap it
   each time an urb completes and then re-map it on during resubmission.
@@ -128,7 +128,7 @@ of Documentation/DMA-API-HOWTO.txt, titled "What memory is DMA-able?")
 
   The calls manage ``urb->transfer_dma`` for you, and set
   ``URB_NO_TRANSFER_DMA_MAP`` so that usbcore won't map or unmap the buffer.
-  They cannot be used for setup_packet buffers in control requests.
+  They canyest be used for setup_packet buffers in control requests.
 
 Note that several of those interfaces are currently commented out, since
 they don't have current users.  See the source code.  Other than the dmasync

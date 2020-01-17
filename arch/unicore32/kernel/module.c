@@ -21,7 +21,7 @@
 
 void *module_alloc(unsigned long size)
 {
-	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+	return __vmalloc_yesde_range(size, 1, MODULES_VADDR, MODULES_END,
 				GFP_KERNEL, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
 				__builtin_return_address(0));
 }
@@ -65,7 +65,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 
 		switch (ELF32_R_TYPE(rel->r_info)) {
 		case R_UNICORE_NONE:
-			/* ignore */
+			/* igyesre */
 			break;
 
 		case R_UNICORE_ABS32:
@@ -97,7 +97,7 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			break;
 
 		default:
-			printk(KERN_ERR "%s: unknown relocation: %u\n",
+			printk(KERN_ERR "%s: unkyeswn relocation: %u\n",
 			       module->name, ELF32_R_TYPE(rel->r_info));
 			return -ENOEXEC;
 		}

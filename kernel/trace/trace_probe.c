@@ -495,7 +495,7 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 		break;
 	}
 	if (!ret && code->op == FETCH_OP_NOP) {
-		/* Parsed, but do not find fetch method */
+		/* Parsed, but do yest find fetch method */
 		trace_probe_log_err(offs, BAD_FETCH_ARG);
 		ret = -EINVAL;
 	}
@@ -592,11 +592,11 @@ static int traceprobe_parse_probe_arg_body(char *arg, ssize_t *size,
 	}
 
 	/*
-	 * Since $comm and immediate string can not be dereferred,
+	 * Since $comm and immediate string can yest be dereferred,
 	 * we can find those by strcmp.
 	 */
 	if (strcmp(arg, "$comm") == 0 || strncmp(arg, "\\\"", 2) == 0) {
-		/* The type of $comm must be "string", and not an array. */
+		/* The type of $comm must be "string", and yest an array. */
 		if (parg->count || (t && strcmp(t, "string")))
 			return -EINVAL;
 		parg->type = find_fetch_type("string");
@@ -728,7 +728,7 @@ fail:
 	return ret;
 }
 
-/* Return 1 if name is reserved or already used by another argument */
+/* Return 1 if name is reserved or already used by ayesther argument */
 static int traceprobe_conflict_field_name(const char *name,
 					  struct probe_arg *args, int narg)
 {

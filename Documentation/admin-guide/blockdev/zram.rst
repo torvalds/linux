@@ -11,7 +11,7 @@ in memory itself. These disks allow very fast I/O and compression provides
 good amounts of memory savings. Some of the usecases include /tmp storage,
 use as swap disks, various caches under /var and maybe many more :)
 
-Statistics for individual zram devices are exported through sysfs nodes at
+Statistics for individual zram devices are exported through sysfs yesdes at
 /sys/block/zram<id>/
 
 Usage
@@ -27,7 +27,7 @@ IOW, zram and zram_control sysfs attributes.
 
 In order to get a better idea about zramctl please consult util-linux
 documentation, zramctl man-page or `zramctl --help`. Please be informed
-that zram maintainers do not develop/maintain util-linux or zramctl, should
+that zram maintainers do yest develop/maintain util-linux or zramctl, should
 you have any questions please contact util-linux@vger.kernel.org
 
 Following shows a typical sequence of steps for using zram.
@@ -42,9 +42,9 @@ zram sysfs attributes always return negative values in case of errors.
 The list of possible return codes:
 
 ========  =============================================================
--EBUSY	  an attempt to modify an attribute that cannot be changed once
+-EBUSY	  an attempt to modify an attribute that canyest be changed once
 	  the device has been initialised. Please reset device first;
--ENOMEM	  zram was not able to allocate enough memory to fulfil your
+-ENOMEM	  zram was yest able to allocate eyesugh memory to fulfil your
 	  needs;
 -EINVAL	  invalid input has been provided.
 ========  =============================================================
@@ -77,7 +77,7 @@ Regardless the value passed to this attribute, ZRAM will always
 allocate multiple compression streams - one per online CPUs - thus
 allowing several concurrent compression operations. The number of
 allocated compression streams goes down when some of the CPUs
-become offline. There is no single-compression-stream mode anymore,
+become offline. There is yes single-compression-stream mode anymore,
 unless you are running a UP system or has only 1 CPU online.
 
 To find out how many streams are currently available::
@@ -90,7 +90,7 @@ To find out how many streams are currently available::
 Using comp_algorithm device attribute one can see available and
 currently selected (shown in square brackets) compression algorithms,
 change selected compression algorithm (once the device is initialised
-there is no way to change compression algorithm).
+there is yes way to change compression algorithm).
 
 Examples::
 
@@ -101,10 +101,10 @@ Examples::
 	#select lzo compression algorithm
 	echo lzo > /sys/block/zram0/comp_algorithm
 
-For the time being, the `comp_algorithm` content does not necessarily
+For the time being, the `comp_algorithm` content does yest necessarily
 show every compression algorithm supported by the kernel. We keep this
 list primarily to simplify device configuration and one can configure
-a new device with a compression algorithm that is not listed in
+a new device with a compression algorithm that is yest listed in
 `comp_algorithm`. The thing is that, internally, ZRAM uses Crypto API
 and, if some of the algorithms were built as modules, it's impossible
 to list all of them using, for instance, /proc/crypto or any other
@@ -114,7 +114,7 @@ custom crypto compression modules (implementing S/W or H/W compression).
 4) Set Disksize
 ===============
 
-Set disk size by writing the value to sysfs node 'disksize'.
+Set disk size by writing the value to sysfs yesde 'disksize'.
 The value can be either in bytes or you can use mem suffixes.
 Examples::
 
@@ -129,12 +129,12 @@ Examples::
 Note:
 There is little point creating a zram of greater than twice the size of memory
 since we expect a 2:1 compression ratio. Note that zram uses about 0.1% of the
-size of the disk when not in use so a huge zram is wasteful.
+size of the disk when yest in use so a huge zram is wasteful.
 
 5) Set memory limit: Optional
 =============================
 
-Set memory limit by writing the value to sysfs node 'mem_limit'.
+Set memory limit by writing the value to sysfs yesde 'mem_limit'.
 The value can be either in bytes or you can use mem suffixes.
 In addition, you could change the value in runtime.
 Examples::
@@ -184,7 +184,7 @@ execute::
 8) Stats
 ========
 
-Per-device statistics are exported as various nodes under /sys/block/zram<id>/
+Per-device statistics are exported as various yesdes under /sys/block/zram<id>/
 
 A brief description of exported device attributes. For more details please
 read Documentation/ABI/testing/sysfs-block-zram.
@@ -220,19 +220,19 @@ details.
 
 File /sys/block/zram<id>/io_stat
 
-The stat file represents device's I/O statistics not accounted by block
-layer and, thus, not available in zram<id>/stat file. It consists of a
+The stat file represents device's I/O statistics yest accounted by block
+layer and, thus, yest available in zram<id>/stat file. It consists of a
 single line of text and contains the following stats separated by
 whitespace:
 
  =============    =============================================================
  failed_reads     The number of failed reads
  failed_writes    The number of failed writes
- invalid_io       The number of non-page-size-aligned I/O requests
- notify_free      Depending on device usage scenario it may account
+ invalid_io       The number of yesn-page-size-aligned I/O requests
+ yestify_free      Depending on device usage scenario it may account
 
                   a) the number of pages freed because of swap slot free
-                     notifications
+                     yestifications
                   b) the number of pages freed because of
                      REQ_OP_DISCARD requests sent by bio. The former ones are
                      sent to a swap block device when a swap slot is freed,
@@ -251,7 +251,7 @@ line of text and contains the following stats separated by whitespace:
  ================ =============================================================
  orig_data_size   uncompressed size of data stored in this disk.
 		  This excludes same-element-filled pages (same_pages) since
-		  no memory is allocated for them.
+		  yes memory is allocated for them.
                   Unit: bytes
  compr_data_size  compressed size of data stored in this disk
  mem_used_total   the amount of memory allocated for this disk. This
@@ -294,7 +294,7 @@ a single line of text and contains the following stats separated by whitespace:
 10) Reset
 =========
 
-	Write any positive value to 'reset' sysfs node::
+	Write any positive value to 'reset' sysfs yesde::
 
 		echo 1 > /sys/block/zram0/reset
 		echo 1 > /sys/block/zram1/reset
@@ -325,7 +325,7 @@ as idle::
 
 	echo all > /sys/block/zramX/idle
 
-From now on, any pages on zram are idle pages. The idle mark
+From yesw on, any pages on zram are idle pages. The idle mark
 will be removed until someone request access of the block.
 IOW, unless there is access request, those pages are still idle pages.
 
@@ -381,12 +381,12 @@ writeback happened until you reset the zram to allocate extra writeback
 budget in next setting is user's job.
 
 If admin want to measure writeback count in a certain period, he could
-know it via /sys/block/zram0/bd_stat's 3rd column.
+kyesw it via /sys/block/zram0/bd_stat's 3rd column.
 
 memory tracking
 ===============
 
-With CONFIG_ZRAM_MEMORY_TRACKING, user can know information of the
+With CONFIG_ZRAM_MEMORY_TRACKING, user can kyesw information of the
 zram block. It could be useful to catch cold or incompressible
 pages of the process with*pagemap.
 

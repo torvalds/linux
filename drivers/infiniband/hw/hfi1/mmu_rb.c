@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -46,14 +46,14 @@
  */
 #include <linux/list.h>
 #include <linux/rculist.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/interval_tree_generic.h>
 
 #include "mmu_rb.h"
 #include "trace.h"
 
 struct mmu_rb_handler {
-	struct mmu_notifier mn;
+	struct mmu_yestifier mn;
 	struct rb_root_cached root;
 	void *ops_arg;
 	spinlock_t lock;        /* protect the RB tree */
@@ -65,31 +65,31 @@ struct mmu_rb_handler {
 	struct workqueue_struct *wq;
 };
 
-static unsigned long mmu_node_start(struct mmu_rb_node *);
-static unsigned long mmu_node_last(struct mmu_rb_node *);
-static int mmu_notifier_range_start(struct mmu_notifier *,
-		const struct mmu_notifier_range *);
-static struct mmu_rb_node *__mmu_rb_search(struct mmu_rb_handler *,
+static unsigned long mmu_yesde_start(struct mmu_rb_yesde *);
+static unsigned long mmu_yesde_last(struct mmu_rb_yesde *);
+static int mmu_yestifier_range_start(struct mmu_yestifier *,
+		const struct mmu_yestifier_range *);
+static struct mmu_rb_yesde *__mmu_rb_search(struct mmu_rb_handler *,
 					   unsigned long, unsigned long);
 static void do_remove(struct mmu_rb_handler *handler,
 		      struct list_head *del_list);
 static void handle_remove(struct work_struct *work);
 
-static const struct mmu_notifier_ops mn_opts = {
-	.invalidate_range_start = mmu_notifier_range_start,
+static const struct mmu_yestifier_ops mn_opts = {
+	.invalidate_range_start = mmu_yestifier_range_start,
 };
 
-INTERVAL_TREE_DEFINE(struct mmu_rb_node, node, unsigned long, __last,
-		     mmu_node_start, mmu_node_last, static, __mmu_int_rb);
+INTERVAL_TREE_DEFINE(struct mmu_rb_yesde, yesde, unsigned long, __last,
+		     mmu_yesde_start, mmu_yesde_last, static, __mmu_int_rb);
 
-static unsigned long mmu_node_start(struct mmu_rb_node *node)
+static unsigned long mmu_yesde_start(struct mmu_rb_yesde *yesde)
 {
-	return node->addr & PAGE_MASK;
+	return yesde->addr & PAGE_MASK;
 }
 
-static unsigned long mmu_node_last(struct mmu_rb_node *node)
+static unsigned long mmu_yesde_last(struct mmu_rb_yesde *yesde)
 {
-	return PAGE_ALIGN(node->addr + node->len) - 1;
+	return PAGE_ALIGN(yesde->addr + yesde->len) - 1;
 }
 
 int hfi1_mmu_rb_register(void *ops_arg, struct mm_struct *mm,
@@ -116,7 +116,7 @@ int hfi1_mmu_rb_register(void *ops_arg, struct mm_struct *mm,
 	INIT_LIST_HEAD(&handlr->lru_list);
 	handlr->wq = wq;
 
-	ret = mmu_notifier_register(&handlr->mn, handlr->mm);
+	ret = mmu_yestifier_register(&handlr->mn, handlr->mm);
 	if (ret) {
 		kfree(handlr);
 		return ret;
@@ -128,28 +128,28 @@ int hfi1_mmu_rb_register(void *ops_arg, struct mm_struct *mm,
 
 void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler)
 {
-	struct mmu_rb_node *rbnode;
-	struct rb_node *node;
+	struct mmu_rb_yesde *rbyesde;
+	struct rb_yesde *yesde;
 	unsigned long flags;
 	struct list_head del_list;
 
-	/* Unregister first so we don't get any more notifications. */
-	mmu_notifier_unregister(&handler->mn, handler->mm);
+	/* Unregister first so we don't get any more yestifications. */
+	mmu_yestifier_unregister(&handler->mn, handler->mm);
 
 	/*
-	 * Make sure the wq delete handler is finished running.  It will not
-	 * be triggered once the mmu notifiers are unregistered above.
+	 * Make sure the wq delete handler is finished running.  It will yest
+	 * be triggered once the mmu yestifiers are unregistered above.
 	 */
 	flush_work(&handler->del_work);
 
 	INIT_LIST_HEAD(&del_list);
 
 	spin_lock_irqsave(&handler->lock, flags);
-	while ((node = rb_first_cached(&handler->root))) {
-		rbnode = rb_entry(node, struct mmu_rb_node, node);
-		rb_erase_cached(node, &handler->root);
+	while ((yesde = rb_first_cached(&handler->root))) {
+		rbyesde = rb_entry(yesde, struct mmu_rb_yesde, yesde);
+		rb_erase_cached(yesde, &handler->root);
 		/* move from LRU list to delete list */
-		list_move(&rbnode->list, &del_list);
+		list_move(&rbyesde->list, &del_list);
 	}
 	spin_unlock_irqrestore(&handler->lock, flags);
 
@@ -159,26 +159,26 @@ void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler)
 }
 
 int hfi1_mmu_rb_insert(struct mmu_rb_handler *handler,
-		       struct mmu_rb_node *mnode)
+		       struct mmu_rb_yesde *myesde)
 {
-	struct mmu_rb_node *node;
+	struct mmu_rb_yesde *yesde;
 	unsigned long flags;
 	int ret = 0;
 
-	trace_hfi1_mmu_rb_insert(mnode->addr, mnode->len);
+	trace_hfi1_mmu_rb_insert(myesde->addr, myesde->len);
 	spin_lock_irqsave(&handler->lock, flags);
-	node = __mmu_rb_search(handler, mnode->addr, mnode->len);
-	if (node) {
+	yesde = __mmu_rb_search(handler, myesde->addr, myesde->len);
+	if (yesde) {
 		ret = -EINVAL;
 		goto unlock;
 	}
-	__mmu_int_rb_insert(mnode, &handler->root);
-	list_add(&mnode->list, &handler->lru_list);
+	__mmu_int_rb_insert(myesde, &handler->root);
+	list_add(&myesde->list, &handler->lru_list);
 
-	ret = handler->ops->insert(handler->ops_arg, mnode);
+	ret = handler->ops->insert(handler->ops_arg, myesde);
 	if (ret) {
-		__mmu_int_rb_remove(mnode, &handler->root);
-		list_del(&mnode->list); /* remove from LRU list */
+		__mmu_int_rb_remove(myesde, &handler->root);
+		list_del(&myesde->list); /* remove from LRU list */
 	}
 unlock:
 	spin_unlock_irqrestore(&handler->lock, flags);
@@ -186,55 +186,55 @@ unlock:
 }
 
 /* Caller must hold handler lock */
-static struct mmu_rb_node *__mmu_rb_search(struct mmu_rb_handler *handler,
+static struct mmu_rb_yesde *__mmu_rb_search(struct mmu_rb_handler *handler,
 					   unsigned long addr,
 					   unsigned long len)
 {
-	struct mmu_rb_node *node = NULL;
+	struct mmu_rb_yesde *yesde = NULL;
 
 	trace_hfi1_mmu_rb_search(addr, len);
 	if (!handler->ops->filter) {
-		node = __mmu_int_rb_iter_first(&handler->root, addr,
+		yesde = __mmu_int_rb_iter_first(&handler->root, addr,
 					       (addr + len) - 1);
 	} else {
-		for (node = __mmu_int_rb_iter_first(&handler->root, addr,
+		for (yesde = __mmu_int_rb_iter_first(&handler->root, addr,
 						    (addr + len) - 1);
-		     node;
-		     node = __mmu_int_rb_iter_next(node, addr,
+		     yesde;
+		     yesde = __mmu_int_rb_iter_next(yesde, addr,
 						   (addr + len) - 1)) {
-			if (handler->ops->filter(node, addr, len))
-				return node;
+			if (handler->ops->filter(yesde, addr, len))
+				return yesde;
 		}
 	}
-	return node;
+	return yesde;
 }
 
 bool hfi1_mmu_rb_remove_unless_exact(struct mmu_rb_handler *handler,
 				     unsigned long addr, unsigned long len,
-				     struct mmu_rb_node **rb_node)
+				     struct mmu_rb_yesde **rb_yesde)
 {
-	struct mmu_rb_node *node;
+	struct mmu_rb_yesde *yesde;
 	unsigned long flags;
 	bool ret = false;
 
 	spin_lock_irqsave(&handler->lock, flags);
-	node = __mmu_rb_search(handler, addr, len);
-	if (node) {
-		if (node->addr == addr && node->len == len)
+	yesde = __mmu_rb_search(handler, addr, len);
+	if (yesde) {
+		if (yesde->addr == addr && yesde->len == len)
 			goto unlock;
-		__mmu_int_rb_remove(node, &handler->root);
-		list_del(&node->list); /* remove from LRU list */
+		__mmu_int_rb_remove(yesde, &handler->root);
+		list_del(&yesde->list); /* remove from LRU list */
 		ret = true;
 	}
 unlock:
 	spin_unlock_irqrestore(&handler->lock, flags);
-	*rb_node = node;
+	*rb_yesde = yesde;
 	return ret;
 }
 
 void hfi1_mmu_rb_evict(struct mmu_rb_handler *handler, void *evict_arg)
 {
-	struct mmu_rb_node *rbnode, *ptr;
+	struct mmu_rb_yesde *rbyesde, *ptr;
 	struct list_head del_list;
 	unsigned long flags;
 	bool stop = false;
@@ -242,13 +242,13 @@ void hfi1_mmu_rb_evict(struct mmu_rb_handler *handler, void *evict_arg)
 	INIT_LIST_HEAD(&del_list);
 
 	spin_lock_irqsave(&handler->lock, flags);
-	list_for_each_entry_safe_reverse(rbnode, ptr, &handler->lru_list,
+	list_for_each_entry_safe_reverse(rbyesde, ptr, &handler->lru_list,
 					 list) {
-		if (handler->ops->evict(handler->ops_arg, rbnode, evict_arg,
+		if (handler->ops->evict(handler->ops_arg, rbyesde, evict_arg,
 					&stop)) {
-			__mmu_int_rb_remove(rbnode, &handler->root);
+			__mmu_int_rb_remove(rbyesde, &handler->root);
 			/* move from LRU list to delete list */
-			list_move(&rbnode->list, &del_list);
+			list_move(&rbyesde->list, &del_list);
 		}
 		if (stop)
 			break;
@@ -256,53 +256,53 @@ void hfi1_mmu_rb_evict(struct mmu_rb_handler *handler, void *evict_arg)
 	spin_unlock_irqrestore(&handler->lock, flags);
 
 	while (!list_empty(&del_list)) {
-		rbnode = list_first_entry(&del_list, struct mmu_rb_node, list);
-		list_del(&rbnode->list);
-		handler->ops->remove(handler->ops_arg, rbnode);
+		rbyesde = list_first_entry(&del_list, struct mmu_rb_yesde, list);
+		list_del(&rbyesde->list);
+		handler->ops->remove(handler->ops_arg, rbyesde);
 	}
 }
 
 /*
- * It is up to the caller to ensure that this function does not race with the
- * mmu invalidate notifier which may be calling the users remove callback on
- * 'node'.
+ * It is up to the caller to ensure that this function does yest race with the
+ * mmu invalidate yestifier which may be calling the users remove callback on
+ * 'yesde'.
  */
 void hfi1_mmu_rb_remove(struct mmu_rb_handler *handler,
-			struct mmu_rb_node *node)
+			struct mmu_rb_yesde *yesde)
 {
 	unsigned long flags;
 
-	/* Validity of handler and node pointers has been checked by caller. */
-	trace_hfi1_mmu_rb_remove(node->addr, node->len);
+	/* Validity of handler and yesde pointers has been checked by caller. */
+	trace_hfi1_mmu_rb_remove(yesde->addr, yesde->len);
 	spin_lock_irqsave(&handler->lock, flags);
-	__mmu_int_rb_remove(node, &handler->root);
-	list_del(&node->list); /* remove from LRU list */
+	__mmu_int_rb_remove(yesde, &handler->root);
+	list_del(&yesde->list); /* remove from LRU list */
 	spin_unlock_irqrestore(&handler->lock, flags);
 
-	handler->ops->remove(handler->ops_arg, node);
+	handler->ops->remove(handler->ops_arg, yesde);
 }
 
-static int mmu_notifier_range_start(struct mmu_notifier *mn,
-		const struct mmu_notifier_range *range)
+static int mmu_yestifier_range_start(struct mmu_yestifier *mn,
+		const struct mmu_yestifier_range *range)
 {
 	struct mmu_rb_handler *handler =
 		container_of(mn, struct mmu_rb_handler, mn);
 	struct rb_root_cached *root = &handler->root;
-	struct mmu_rb_node *node, *ptr = NULL;
+	struct mmu_rb_yesde *yesde, *ptr = NULL;
 	unsigned long flags;
 	bool added = false;
 
 	spin_lock_irqsave(&handler->lock, flags);
-	for (node = __mmu_int_rb_iter_first(root, range->start, range->end-1);
-	     node; node = ptr) {
-		/* Guard against node removal. */
-		ptr = __mmu_int_rb_iter_next(node, range->start,
+	for (yesde = __mmu_int_rb_iter_first(root, range->start, range->end-1);
+	     yesde; yesde = ptr) {
+		/* Guard against yesde removal. */
+		ptr = __mmu_int_rb_iter_next(yesde, range->start,
 					     range->end - 1);
-		trace_hfi1_mmu_mem_invalidate(node->addr, node->len);
-		if (handler->ops->invalidate(handler->ops_arg, node)) {
-			__mmu_int_rb_remove(node, root);
+		trace_hfi1_mmu_mem_invalidate(yesde->addr, yesde->len);
+		if (handler->ops->invalidate(handler->ops_arg, yesde)) {
+			__mmu_int_rb_remove(yesde, root);
 			/* move from LRU list to delete list */
-			list_move(&node->list, &handler->del_list);
+			list_move(&yesde->list, &handler->del_list);
 			added = true;
 		}
 	}
@@ -317,23 +317,23 @@ static int mmu_notifier_range_start(struct mmu_notifier *mn,
 /*
  * Call the remove function for the given handler and the list.  This
  * is expected to be called with a delete list extracted from handler.
- * The caller should not be holding the handler lock.
+ * The caller should yest be holding the handler lock.
  */
 static void do_remove(struct mmu_rb_handler *handler,
 		      struct list_head *del_list)
 {
-	struct mmu_rb_node *node;
+	struct mmu_rb_yesde *yesde;
 
 	while (!list_empty(del_list)) {
-		node = list_first_entry(del_list, struct mmu_rb_node, list);
-		list_del(&node->list);
-		handler->ops->remove(handler->ops_arg, node);
+		yesde = list_first_entry(del_list, struct mmu_rb_yesde, list);
+		list_del(&yesde->list);
+		handler->ops->remove(handler->ops_arg, yesde);
 	}
 }
 
 /*
- * Work queue function to remove all nodes that have been queued up to
- * be removed.  The key feature is that mm->mmap_sem is not being held
+ * Work queue function to remove all yesdes that have been queued up to
+ * be removed.  The key feature is that mm->mmap_sem is yest being held
  * and the remove callback can sleep while taking it, if needed.
  */
 static void handle_remove(struct work_struct *work)

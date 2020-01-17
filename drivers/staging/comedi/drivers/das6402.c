@@ -15,7 +15,7 @@
  *   DAS6402-16 (das6402-16)
  * Author: H Hartley Sweeten <hsweeten@visionengravers.com>
  * Updated: Fri, 14 Mar 2014 10:18:43 -0700
- * Status: unknown
+ * Status: unkyeswn
  *
  * Configuration Options:
  *   [0] - I/O base address
@@ -102,7 +102,7 @@ static const struct comedi_lrange das6402_ai_ranges = {
 
 /*
  * Analog output ranges are programmable on the DAS6402/12.
- * For the DAS6402/16 the range bits have no function, the
+ * For the DAS6402/16 the range bits have yes function, the
  * DAC ranges are selected by switches on the board.
  */
 static const struct comedi_lrange das6402_ao_ranges = {

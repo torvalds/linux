@@ -16,7 +16,7 @@
  | Divide the 96 bit quantity pointed to by a, by that pointed to by b, and  |
  | put the 96 bit result at the location d.                                  |
  |                                                                           |
- | The result may not be accurate to 96 bits. It is intended for use where   |
+ | The result may yest be accurate to 96 bits. It is intended for use where   |
  | a result better than 64 bits is required. The result should usually be    |
  | good to at least 94 bits.                                                 |
  | The returned result is actually divided by one half. This is done to      |
@@ -87,7 +87,7 @@ SYM_FUNC_START(div_Xsig)
 	pushl	%ebx
 
 	movl	PARAM1,%esi	/* pointer to num */
-	movl	PARAM2,%ebx	/* pointer to denom */
+	movl	PARAM2,%ebx	/* pointer to deyesm */
 
 #ifdef PARANOID
 	testl	$0x80000000, XsigH(%ebx)	/* Divisor */
@@ -98,7 +98,7 @@ SYM_FUNC_START(div_Xsig)
 /*---------------------------------------------------------------------------+
  |  Divide:   Return  arg1/arg2 to arg3.                                     |
  |                                                                           |
- |  The maximum returned value is (ignoring exponents)                       |
+ |  The maximum returned value is (igyesring exponents)                       |
  |               .ffffffff ffffffff                                          |
  |               ------------------  =  1.ffffffff fffffffe                  |
  |               .80000000 00000000                                          |
@@ -136,38 +136,38 @@ SYM_FUNC_START(div_Xsig)
 	/* We will divide by a number which is too large */
 	movl	XsigH(%ebx),%ecx
 	addl	$1,%ecx
-	jnc	LFirst_div_not_1
+	jnc	LFirst_div_yest_1
 
 	/* here we need to divide by 100000000h,
-	   i.e., no division at all.. */
+	   i.e., yes division at all.. */
 	mov	%edx,%eax
 	jmp	LFirst_div_done
 
-LFirst_div_not_1:
+LFirst_div_yest_1:
 	divl	%ecx		/* Divide the numerator by the augmented
-				   denom ms dw */
+				   deyesm ms dw */
 
 LFirst_div_done:
 	movl	%eax,FPU_result_3	/* Put the result in the answer */
 
-	mull	XsigH(%ebx)	/* mul by the ms dw of the denom */
+	mull	XsigH(%ebx)	/* mul by the ms dw of the deyesm */
 
 	subl	%eax,FPU_accum_2	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_3
 
 	movl	FPU_result_3,%eax	/* Get the result back */
-	mull	XsigL(%ebx)	/* now mul the ls dw of the denom */
+	mull	XsigL(%ebx)	/* yesw mul the ls dw of the deyesm */
 
 	subl	%eax,FPU_accum_1	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_2
 	sbbl	$0,FPU_accum_3
-	je	LDo_2nd_32_bits		/* Must check for non-zero result here */
+	je	LDo_2nd_32_bits		/* Must check for yesn-zero result here */
 
 #ifdef PARANOID
 	jb	L_bugged_1
 #endif /* PARANOID */ 
 
-	/* need to subtract another once of the denom */
+	/* need to subtract ayesther once of the deyesm */
 	incl	FPU_result_3	/* Correct the answer */
 
 	movl	XsigL(%ebx),%eax
@@ -177,13 +177,13 @@ LFirst_div_done:
 
 #ifdef PARANOID
 	sbbl	$0,FPU_accum_3
-	jne	L_bugged_1	/* Must check for non-zero result here */
+	jne	L_bugged_1	/* Must check for yesn-zero result here */
 #endif /* PARANOID */ 
 
 /*----------------------------------------------------------------------*/
 /* Half of the main problem is done, there is just a reduced numerator
-   to handle now.
-   Work with the second 32 bits, FPU_accum_0 not used from now on */
+   to handle yesw.
+   Work with the second 32 bits, FPU_accum_0 yest used from yesw on */
 LDo_2nd_32_bits:
 	movl	FPU_accum_2,%edx	/* get the reduced num */
 	movl	FPU_accum_1,%eax
@@ -211,20 +211,20 @@ LPrevent_2nd_overflow:
 #endif /* PARANOID */ 
 
 LDo_2nd_div:
-	cmpl	$0,%ecx		/* augmented denom msw */
-	jnz	LSecond_div_not_1
+	cmpl	$0,%ecx		/* augmented deyesm msw */
+	jnz	LSecond_div_yest_1
 
 	/* %ecx == 0, we are dividing by 1.0 */
 	mov	%edx,%eax
 	jmp	LSecond_div_done
 
-LSecond_div_not_1:
-	divl	%ecx		/* Divide the numerator by the denom ms dw */
+LSecond_div_yest_1:
+	divl	%ecx		/* Divide the numerator by the deyesm ms dw */
 
 LSecond_div_done:
 	movl	%eax,FPU_result_2	/* Put the result in the answer */
 
-	mull	XsigH(%ebx)	/* mul by the ms dw of the denom */
+	mull	XsigH(%ebx)	/* mul by the ms dw of the deyesm */
 
 	subl	%eax,FPU_accum_1	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_2
@@ -234,7 +234,7 @@ LSecond_div_done:
 #endif /* PARANOID */
 
 	movl	FPU_result_2,%eax	/* Get the result back */
-	mull	XsigL(%ebx)	/* now mul the ls dw of the denom */
+	mull	XsigL(%ebx)	/* yesw mul the ls dw of the deyesm */
 
 	subl	%eax,FPU_accum_0	/* Subtract from the num local reg */
 	sbbl	%edx,FPU_accum_1	/* Subtract from the num local reg */
@@ -251,7 +251,7 @@ LSecond_div_done:
 	jne	L_bugged_2
 #endif /* PARANOID */ 
 
-	/* need to subtract another once of the denom */
+	/* need to subtract ayesther once of the deyesm */
 	movl	XsigL(%ebx),%eax
 	movl	XsigH(%ebx),%edx
 	subl	%eax,FPU_accum_0	/* Subtract from the num local reg */
@@ -267,7 +267,7 @@ LSecond_div_done:
 	adcl	$0,FPU_result_3
 
 #ifdef PARANOID
-	jc	L_bugged_2	/* Must check for non-zero result here */
+	jc	L_bugged_2	/* Must check for yesn-zero result here */
 #endif /* PARANOID */ 
 
 /*----------------------------------------------------------------------*/
@@ -293,9 +293,9 @@ LDo_3rd_32_bits:
 	subl	$1,FPU_result_2		/* Adjust the answer */
 	sbbl	$0,FPU_result_3
 
-	/* The above addition might not have been enough, check again. */
+	/* The above addition might yest have been eyesugh, check again. */
 	movl	FPU_accum_1,%edx	/* get the reduced num */
-	cmpl	XsigH(%ebx),%edx	/* denom */
+	cmpl	XsigH(%ebx),%edx	/* deyesm */
 	jb	LDo_3rd_div
 
 	movl	XsigH(%ebx),%edx
@@ -309,7 +309,7 @@ LTest_over:
 	movl	FPU_accum_1,%edx	/* get the reduced num */
 
 	/* need to check for possible subsequent overflow */
-	cmpl	XsigH(%ebx),%edx	/* denom */
+	cmpl	XsigH(%ebx),%edx	/* deyesm */
 	jb	LDo_3rd_div
 
 	/* prevent overflow */

@@ -31,11 +31,11 @@ to initialize the system view of the time during boot.
 Because we wanted to minimize the impact on existing user-level apps using
 the CMOS clock, we decided to expose an API that was very similar to the one
 used today with the legacy RTC driver (driver/char/rtc.c). However, because
-EFI provides a simpler services, not all ioctl() are available. Also
-new ioctl()s have been introduced for things that EFI provides but not the
+EFI provides a simpler services, yest all ioctl() are available. Also
+new ioctl()s have been introduced for things that EFI provides but yest the
 legacy.
 
-EFI uses a slightly different way of representing the time, noticeably
+EFI uses a slightly different way of representing the time, yesticeably
 the reference date is different. Year is the using the full 4-digit format.
 The Epoch is January 1st 1998. For backward compatibility reasons we don't
 expose this new way of representing time. Instead we use something very
@@ -130,7 +130,7 @@ status information::
           struct rtc_time time;
   }
 
-As of today, none of the existing user-level apps supports this feature.
+As of today, yesne of the existing user-level apps supports this feature.
 However writing such a program should be hard by simply using those two
 ioctl().
 
@@ -141,4 +141,4 @@ Root privileges are required to be able to set the alarm.
 
 Checkout the following Web site for more information on EFI:
 
-http://developer.intel.com/technology/efi/
+http://developer.intel.com/techyeslogy/efi/

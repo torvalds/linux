@@ -18,10 +18,10 @@
  *
  * The tag number of any field (regardless of containing struct)
  * will be available as T_ ## field_name,
- * so you cannot have the same field name in two differnt structs.
+ * so you canyest have the same field name in two differnt structs.
  *
  * The tag numbers themselves are per struct, though,
- * so should always begin at 1 (not 0, that is the special "NLA_UNSPEC" type,
+ * so should always begin at 1 (yest 0, that is the special "NLA_UNSPEC" type,
  * which we won't use here).
  * The tag numbers are used as index in the respective nla_policy array.
  *
@@ -39,20 +39,20 @@
  *
  * GENL_mc_group(group)
  *	genl_magic_struct.h
- *		does nothing
+ *		does yesthing
  *	genl_magic_func.h
  *		defines and registers the mcast group,
  *		and provides a send helper
  *
- * GENL_notification(op_name, op_num, mcast_group, tla list)
- *	These are notifications to userspace.
+ * GENL_yestification(op_name, op_num, mcast_group, tla list)
+ *	These are yestifications to userspace.
  *
  *	genl_magic_struct.h
  *		generates an entry in the genl_ops enum,
  *	genl_magic_func.h
- *		does nothing
+ *		does yesthing
  *
- *	mcast group: the name of the mcast group this notification should be
+ *	mcast group: the name of the mcast group this yestification should be
  *	expected on
  *	tla list: the list of expected top level attributes,
  *	for documentation and sanity checking.
@@ -60,7 +60,7 @@
  * GENL_op(op_name, op_num, flags and handler, tla list) - "genl operations"
  *	These are requests from userspace.
  *
- *	_op and _notification share the same "number space",
+ *	_op and _yestification share the same "number space",
  *	op_nr will be assigned to "genlmsghdr->cmd"
  *
  *	genl_magic_struct.h
@@ -91,7 +91,7 @@ GENL_struct(DRBD_NLA_CFG_REPLY, 1, drbd_cfg_reply,
 )
 
 /* Configuration requests typically need a context to operate on.
- * Possible keys are device minor (fits in the drbd_genlmsghdr),
+ * Possible keys are device miyesr (fits in the drbd_genlmsghdr),
  * the replication link (aka connection) name,
  * and/or the replication group (aka resource) name,
  * and the volume id within the resource. */
@@ -139,7 +139,7 @@ GENL_struct(DRBD_NLA_DISK_CONF, 3, disk_conf,
 
 GENL_struct(DRBD_NLA_RESOURCE_OPTS, 4, res_opts,
 	__str_field_def(1,	DRBD_GENLA_F_MANDATORY,	cpu_mask,       DRBD_CPU_MASK_SIZE)
-	__u32_field_def(2,	DRBD_GENLA_F_MANDATORY,	on_no_data, DRBD_ON_NO_DATA_DEF)
+	__u32_field_def(2,	DRBD_GENLA_F_MANDATORY,	on_yes_data, DRBD_ON_NO_DATA_DEF)
 )
 
 GENL_struct(DRBD_NLA_NET_CONF, 5, net_conf,
@@ -175,7 +175,7 @@ GENL_struct(DRBD_NLA_NET_CONF, 5, net_conf,
 	__flg_field_def(29,	DRBD_GENLA_F_MANDATORY,	use_rle, DRBD_USE_RLE_DEF)
 	/* 9: __u32_field_def(30,	DRBD_GENLA_F_MANDATORY,	fencing_policy, DRBD_FENCING_DEF) */
 	/* 9: __str_field_def(31,     DRBD_GENLA_F_MANDATORY, name, SHARED_SECRET_MAX) */
-	/* 9: __u32_field(32,         DRBD_F_REQUIRED | DRBD_F_INVARIANT,     peer_node_id) */
+	/* 9: __u32_field(32,         DRBD_F_REQUIRED | DRBD_F_INVARIANT,     peer_yesde_id) */
 	__flg_field_def(33, 0 /* OPTIONAL */,	csums_after_crash_only, DRBD_CSUMS_AFTER_CRASH_ONLY_DEF)
 	__u32_field_def(34, 0 /* OPTIONAL */, sock_check_timeo, DRBD_SOCKET_CHECK_TIMEO_DEF)
 )
@@ -187,7 +187,7 @@ GENL_struct(DRBD_NLA_SET_ROLE_PARMS, 6, set_role_parms,
 GENL_struct(DRBD_NLA_RESIZE_PARMS, 7, resize_parms,
 	__u64_field(1, DRBD_GENLA_F_MANDATORY,	resize_size)
 	__flg_field(2, DRBD_GENLA_F_MANDATORY,	resize_force)
-	__flg_field(3, DRBD_GENLA_F_MANDATORY,	no_resync)
+	__flg_field(3, DRBD_GENLA_F_MANDATORY,	yes_resync)
 	__u32_field_def(4, 0 /* OPTIONAL */, al_stripes, DRBD_AL_STRIPES_DEF)
 	__u32_field_def(5, 0 /* OPTIONAL */, al_stripe_size, DRBD_AL_STRIPE_SIZE_DEF)
 )
@@ -202,7 +202,7 @@ GENL_struct(DRBD_NLA_STATE_INFO, 8, state_info,
 
 	/* These are for broadcast from after state change work.
 	 * prev_state and new_state are from the moment the state change took
-	 * place, new_state is not neccessarily the same as current_state,
+	 * place, new_state is yest neccessarily the same as current_state,
 	 * there may have been more state changes since.  Which will be
 	 * broadcasted soon, in their respective after state change work.  */
 	__u32_field(5, DRBD_GENLA_F_MANDATORY,	prev_state)
@@ -217,7 +217,7 @@ GENL_struct(DRBD_NLA_STATE_INFO, 8, state_info,
 	__u64_field(11, DRBD_GENLA_F_MANDATORY,	bits_rs_total)
 	__u64_field(12, DRBD_GENLA_F_MANDATORY,	bits_rs_failed)
 
-	/* for pre and post notifications of helper execution */
+	/* for pre and post yestifications of helper execution */
 	__str_field(13, DRBD_GENLA_F_MANDATORY,	helper, 32)
 	__u32_field(14, DRBD_GENLA_F_MANDATORY,	helper_exit_code)
 
@@ -256,7 +256,7 @@ GENL_struct(DRBD_NLA_DETACH_PARMS, 13, detach_parms,
 GENL_struct(DRBD_NLA_RESOURCE_INFO, 15, resource_info,
 	__u32_field(1, 0, res_role)
 	__flg_field(2, 0, res_susp)
-	__flg_field(3, 0, res_susp_nod)
+	__flg_field(3, 0, res_susp_yesd)
 	__flg_field(4, 0, res_susp_fen)
 	/* __flg_field(5, 0, res_weak) */
 )
@@ -314,7 +314,7 @@ GENL_struct(DRBD_NLA_PEER_DEVICE_STATISTICS, 22, peer_device_statistics,
 	__u32_field(9, 0, peer_dev_flags)
 )
 
-GENL_struct(DRBD_NLA_NOTIFICATION_HEADER, 23, drbd_notification_header,
+GENL_struct(DRBD_NLA_NOTIFICATION_HEADER, 23, drbd_yestification_header,
 	__u32_field(1, DRBD_GENLA_F_MANDATORY, nh_type)
 )
 
@@ -328,8 +328,8 @@ GENL_struct(DRBD_NLA_HELPER, 24, drbd_helper_info,
  */
 GENL_mc_group(events)
 
-	/* kernel -> userspace announcement of changes */
-GENL_notification(
+	/* kernel -> userspace anyesuncement of changes */
+GENL_yestification(
 	DRBD_EVENT, 1, events,
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_STATE_INFO, DRBD_F_REQUIRED)
@@ -352,10 +352,10 @@ GENL_op(
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_GENLA_F_MANDATORY)
 )
 
-	/* add DRBD minor devices as volumes to resources */
-GENL_op(DRBD_ADM_NEW_MINOR, 5, GENL_doit(drbd_adm_new_minor),
+	/* add DRBD miyesr devices as volumes to resources */
+GENL_op(DRBD_ADM_NEW_MINOR, 5, GENL_doit(drbd_adm_new_miyesr),
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
-GENL_op(DRBD_ADM_DEL_MINOR, 6, GENL_doit(drbd_adm_del_minor),
+GENL_op(DRBD_ADM_DEL_MINOR, 6, GENL_doit(drbd_adm_del_miyesr),
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED))
 
 	/* add or delete resources */
@@ -491,28 +491,28 @@ GENL_op(DRBD_ADM_GET_PEER_DEVICES, 33,
 	 GENL_tla_expected(DRBD_NLA_PEER_DEVICE_INFO, DRBD_GENLA_F_MANDATORY)
 	 GENL_tla_expected(DRBD_NLA_PEER_DEVICE_STATISTICS, DRBD_GENLA_F_MANDATORY))
 
-GENL_notification(
+GENL_yestification(
 	DRBD_RESOURCE_STATE, 34, events,
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_NOTIFICATION_HEADER, DRBD_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_RESOURCE_INFO, DRBD_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_RESOURCE_STATISTICS, DRBD_F_REQUIRED))
 
-GENL_notification(
+GENL_yestification(
 	DRBD_DEVICE_STATE, 35, events,
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_NOTIFICATION_HEADER, DRBD_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_DEVICE_INFO, DRBD_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_DEVICE_STATISTICS, DRBD_F_REQUIRED))
 
-GENL_notification(
+GENL_yestification(
 	DRBD_CONNECTION_STATE, 36, events,
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_NOTIFICATION_HEADER, DRBD_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_CONNECTION_INFO, DRBD_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_CONNECTION_STATISTICS, DRBD_F_REQUIRED))
 
-GENL_notification(
+GENL_yestification(
 	DRBD_PEER_DEVICE_STATE, 37, events,
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_NOTIFICATION_HEADER, DRBD_F_REQUIRED)
@@ -526,11 +526,11 @@ GENL_op(
 	),
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_GENLA_F_MANDATORY))
 
-GENL_notification(
+GENL_yestification(
 	DRBD_HELPER, 40, events,
 	GENL_tla_expected(DRBD_NLA_CFG_CONTEXT, DRBD_F_REQUIRED)
 	GENL_tla_expected(DRBD_NLA_HELPER, DRBD_F_REQUIRED))
 
-GENL_notification(
+GENL_yestification(
 	DRBD_INITIAL_STATE_DONE, 41, events,
 	GENL_tla_expected(DRBD_NLA_NOTIFICATION_HEADER, DRBD_F_REQUIRED))

@@ -12,7 +12,7 @@
  * published by the Free Software Foundation.                                *
  *                                                                           *
  * You should have received a copy of the GNU General Public License along   *
- * with this program; if not, see <http://www.gnu.org/licenses/>.            *
+ * with this program; if yest, see <http://www.gnu.org/licenses/>.            *
  *                                                                           *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED    *
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF      *
@@ -615,7 +615,7 @@ static int vpd_macaddress_get(adapter_t *adapter, int index, u8 mac_addr[])
  * If the PHY can auto-negotiate first decide what to advertise, then
  * enable/disable auto-negotiation as desired and reset.
  *
- * If the PHY does not auto-negotiate we just reset it.
+ * If the PHY does yest auto-negotiate we just reset it.
  *
  * If auto-negotiation is off set the MAC to the proper speed/duplex/FC,
  * otherwise do it later based on the outcome of auto-negotiation.
@@ -931,7 +931,7 @@ static int board_init(adapter_t *adapter, const struct board_info *bi)
 		t1_tpi_par(adapter, 0xf);
 		t1_tpi_write(adapter, A_ELMER0_GPO, 0x1800);
 
-		/* TBD XXX Might not need.  This fixes a problem
+		/* TBD XXX Might yest need.  This fixes a problem
 		 *         described in the Intel SR XPAK errata.
 		 */
 		power_sequence_xpak(adapter);
@@ -1110,7 +1110,7 @@ int t1_init_sw_modules(adapter_t *adapter, const struct board_info *bi)
 		if (!t1_is_asic(adapter) || bi->chip_mac == CHBT_MAC_DUMMY)
 			mac->ops->macaddress_get(mac, hw_addr);
 		else if (vpd_macaddress_get(adapter, i, hw_addr)) {
-			pr_err("%s: could not read MAC address from VPD ROM\n",
+			pr_err("%s: could yest read MAC address from VPD ROM\n",
 			       adapter->port[i].dev->name);
 			goto error;
 		}

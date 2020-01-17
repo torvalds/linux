@@ -25,7 +25,7 @@
 
 #include <asm/mshyperv.h>
 #include <linux/delay.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/ptrace.h>
 #include <linux/screen_info.h>
 #include <linux/kdebug.h>
@@ -36,7 +36,7 @@
 #include "hyperv_vmbus.h"
 
 struct vmbus_dynid {
-	struct list_head node;
+	struct list_head yesde;
 	struct hv_vmbus_device_id id;
 };
 
@@ -48,7 +48,7 @@ static int hyperv_cpuhp_online;
 
 static void *hv_panic_page;
 
-static int hyperv_panic_event(struct notifier_block *nb, unsigned long val,
+static int hyperv_panic_event(struct yestifier_block *nb, unsigned long val,
 			      void *args)
 {
 	struct pt_regs *regs;
@@ -59,7 +59,7 @@ static int hyperv_panic_event(struct notifier_block *nb, unsigned long val,
 	return NOTIFY_DONE;
 }
 
-static int hyperv_die_event(struct notifier_block *nb, unsigned long val,
+static int hyperv_die_event(struct yestifier_block *nb, unsigned long val,
 			    void *args)
 {
 	struct die_args *die = (struct die_args *)args;
@@ -69,11 +69,11 @@ static int hyperv_die_event(struct notifier_block *nb, unsigned long val,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block hyperv_die_block = {
-	.notifier_call = hyperv_die_event,
+static struct yestifier_block hyperv_die_block = {
+	.yestifier_call = hyperv_die_event,
 };
-static struct notifier_block hyperv_panic_block = {
-	.notifier_call = hyperv_panic_event,
+static struct yestifier_block hyperv_panic_block = {
+	.yestifier_call = hyperv_panic_event,
 };
 
 static const char *fb_mmio_name = "fb_range";
@@ -201,7 +201,7 @@ static ssize_t modalias_show(struct device *dev,
 static DEVICE_ATTR_RO(modalias);
 
 #ifdef CONFIG_NUMA
-static ssize_t numa_node_show(struct device *dev,
+static ssize_t numa_yesde_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
@@ -209,9 +209,9 @@ static ssize_t numa_node_show(struct device *dev,
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	return sprintf(buf, "%d\n", hv_dev->channel->numa_node);
+	return sprintf(buf, "%d\n", hv_dev->channel->numa_yesde);
 }
-static DEVICE_ATTR_RO(numa_node);
+static DEVICE_ATTR_RO(numa_yesde);
 #endif
 
 static ssize_t server_monitor_pending_show(struct device *dev,
@@ -596,7 +596,7 @@ static struct attribute *vmbus_dev_attrs[] = {
 	&dev_attr_device_id.attr,
 	&dev_attr_modalias.attr,
 #ifdef CONFIG_NUMA
-	&dev_attr_numa_node.attr,
+	&dev_attr_numa_yesde.attr,
 #endif
 	&dev_attr_server_monitor_pending.attr,
 	&dev_attr_client_monitor_pending.attr,
@@ -623,7 +623,7 @@ static struct attribute *vmbus_dev_attrs[] = {
 
 /*
  * Device-level attribute_group callback function. Returns the permission for
- * each attribute, and returns 0 if an attribute is not visible.
+ * each attribute, and returns 0 if an attribute is yest visible.
  */
 static umode_t vmbus_dev_attr_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int idx)
@@ -631,7 +631,7 @@ static umode_t vmbus_dev_attr_is_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	const struct hv_device *hv_dev = device_to_hv_device(dev);
 
-	/* Hide the monitor attributes if the monitor mechanism is not used. */
+	/* Hide the monitor attributes if the monitor mechanism is yest used. */
 	if (!hv_dev->channel->offermsg.monitor_allocated &&
 	    (attr == &dev_attr_monitor_id.attr ||
 	     attr == &dev_attr_server_monitor_pending.attr ||
@@ -693,7 +693,7 @@ hv_vmbus_dynid_match(struct hv_driver *drv, const guid_t *guid)
 	struct vmbus_dynid *dynid;
 
 	spin_lock(&drv->dynids.lock);
-	list_for_each_entry(dynid, &drv->dynids.list, node) {
+	list_for_each_entry(dynid, &drv->dynids.list, yesde) {
 		if (guid_equal(&dynid->id.guid, guid)) {
 			id = &dynid->id;
 			break;
@@ -708,7 +708,7 @@ static const struct hv_vmbus_device_id vmbus_device_null;
 
 /*
  * Return a matching hv_vmbus_device_id pointer.
- * If there is no match, return NULL.
+ * If there is yes match, return NULL.
  */
 static const struct hv_vmbus_device_id *hv_vmbus_get_id(struct hv_driver *drv,
 							struct hv_device *dev)
@@ -744,7 +744,7 @@ static int vmbus_add_dynid(struct hv_driver *drv, guid_t *guid)
 	dynid->id.guid = *guid;
 
 	spin_lock(&drv->dynids.lock);
-	list_add_tail(&dynid->node, &drv->dynids.list);
+	list_add_tail(&dynid->yesde, &drv->dynids.list);
 	spin_unlock(&drv->dynids.lock);
 
 	return driver_attach(&drv->driver);
@@ -755,8 +755,8 @@ static void vmbus_free_dynids(struct hv_driver *drv)
 	struct vmbus_dynid *dynid, *n;
 
 	spin_lock(&drv->dynids.lock);
-	list_for_each_entry_safe(dynid, n, &drv->dynids.list, node) {
-		list_del(&dynid->node);
+	list_for_each_entry_safe(dynid, n, &drv->dynids.list, yesde) {
+		list_del(&dynid->yesde);
 		kfree(dynid);
 	}
 	spin_unlock(&drv->dynids.lock);
@@ -807,11 +807,11 @@ static ssize_t remove_id_store(struct device_driver *driver, const char *buf,
 
 	retval = -ENODEV;
 	spin_lock(&drv->dynids.lock);
-	list_for_each_entry_safe(dynid, n, &drv->dynids.list, node) {
+	list_for_each_entry_safe(dynid, n, &drv->dynids.list, yesde) {
 		struct hv_vmbus_device_id *id = &dynid->id;
 
 		if (guid_equal(&id->guid, &guid)) {
-			list_del(&dynid->node);
+			list_del(&dynid->yesde);
 			kfree(dynid);
 			retval = count;
 			break;
@@ -868,7 +868,7 @@ static int vmbus_probe(struct device *child_device)
 			       dev_name(child_device), ret);
 
 	} else {
-		pr_err("probe not set for driver %s\n",
+		pr_err("probe yest set for driver %s\n",
 		       dev_name(child_device));
 		ret = -ENODEV;
 	}
@@ -902,7 +902,7 @@ static void vmbus_shutdown(struct device *child_device)
 	struct hv_device *dev = device_to_hv_device(child_device);
 
 
-	/* The device may not be attached yet */
+	/* The device may yest be attached yet */
 	if (!child_device->driver)
 		return;
 
@@ -921,7 +921,7 @@ static int vmbus_suspend(struct device *child_device)
 	struct hv_driver *drv;
 	struct hv_device *dev = device_to_hv_device(child_device);
 
-	/* The device may not be attached yet */
+	/* The device may yest be attached yet */
 	if (!child_device->driver)
 		return 0;
 
@@ -940,7 +940,7 @@ static int vmbus_resume(struct device *child_device)
 	struct hv_driver *drv;
 	struct hv_device *dev = device_to_hv_device(child_device);
 
-	/* The device may not be attached yet */
+	/* The device may yest be attached yet */
 	if (!child_device->driver)
 		return 0;
 
@@ -998,7 +998,7 @@ static void vmbus_onmessage_work(struct work_struct *work)
 {
 	struct onmessage_work_context *ctx;
 
-	/* Do not process messages if we're in DISCONNECTED state */
+	/* Do yest process messages if we're in DISCONNECTED state */
 	if (vmbus_connection.conn_state == DISCONNECTED)
 		return;
 
@@ -1020,7 +1020,7 @@ void vmbus_on_msg_dpc(unsigned long data)
 	u32 message_type = msg->header.message_type;
 
 	if (message_type == HVMSG_NONE)
-		/* no msg */
+		/* yes msg */
 		return;
 
 	hdr = (struct vmbus_channel_message_header *)msg->u.payload;
@@ -1028,7 +1028,7 @@ void vmbus_on_msg_dpc(unsigned long data)
 	trace_vmbus_on_msg_dpc(hdr);
 
 	if (hdr->msgtype >= CHANNELMSG_COUNT) {
-		WARN_ONCE(1, "unknown msgtype=%d\n", hdr->msgtype);
+		WARN_ONCE(1, "unkyeswn msgtype=%d\n", hdr->msgtype);
 		goto msg_handled;
 	}
 
@@ -1077,7 +1077,7 @@ msg_handled:
 #ifdef CONFIG_PM_SLEEP
 /*
  * Fake RESCIND_CHANNEL messages to clean up hv_sock channels by force for
- * hibernation, because hv_sock connections can not persist across hibernation.
+ * hibernation, because hv_sock connections can yest persist across hibernation.
  */
 static void vmbus_force_channel_rescinded(struct vmbus_channel *channel)
 {
@@ -1087,13 +1087,13 @@ static void vmbus_force_channel_rescinded(struct vmbus_channel *channel)
 	WARN_ON(!is_hvsock_channel(channel));
 
 	/*
-	 * sizeof(*ctx) is small and the allocation should really not fail,
+	 * sizeof(*ctx) is small and the allocation should really yest fail,
 	 * otherwise the state of the hv_sock connections ends up in limbo.
 	 */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL | __GFP_NOFAIL);
 
 	/*
-	 * So far, these are not really used by Linux. Just set them to the
+	 * So far, these are yest really used by Linux. Just set them to the
 	 * reasonable values conforming to the definitions of the fields.
 	 */
 	ctx->msg.header.message_type = 1;
@@ -1362,7 +1362,7 @@ static int vmbus_bus_init(void)
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
 		u64 hyperv_crash_ctl;
 		/*
-		 * Sysctl registration is not fatal, since by default
+		 * Sysctl registration is yest fatal, since by default
 		 * reporting is enabled.
 		 */
 		hv_ctl_table_hdr = register_sysctl_table(hv_root_table);
@@ -1386,8 +1386,8 @@ static int vmbus_bus_init(void)
 					"allocation failed");
 		}
 
-		register_die_notifier(&hyperv_die_block);
-		atomic_notifier_chain_register(&panic_notifier_list,
+		register_die_yestifier(&hyperv_die_block);
+		atomic_yestifier_chain_register(&panic_yestifier_list,
 					       &hyperv_panic_block);
 	}
 
@@ -1681,7 +1681,7 @@ static struct attribute *vmbus_chan_attrs[] = {
 
 /*
  * Channel-level attribute_group callback function. Returns the permission for
- * each attribute, and returns 0 if an attribute is not visible.
+ * each attribute, and returns 0 if an attribute is yest visible.
  */
 static umode_t vmbus_chan_attr_is_visible(struct kobject *kobj,
 					  struct attribute *attr, int idx)
@@ -1689,7 +1689,7 @@ static umode_t vmbus_chan_attr_is_visible(struct kobject *kobj,
 	const struct vmbus_channel *channel =
 		container_of(kobj, struct vmbus_channel, kobj);
 
-	/* Hide the monitor attributes if the monitor mechanism is not used. */
+	/* Hide the monitor attributes if the monitor mechanism is yest used. */
 	if (!channel->offermsg.monitor_allocated &&
 	    (attr == &chan_attr_pending.attr ||
 	     attr == &chan_attr_latency.attr ||
@@ -1858,7 +1858,7 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 	switch (res->type) {
 
 	/*
-	 * "Address" descriptors are for bus windows. Ignore
+	 * "Address" descriptors are for bus windows. Igyesre
 	 * "memory" descriptors, which are for registers on
 	 * devices.
 	 */
@@ -1878,7 +1878,7 @@ static acpi_status vmbus_walk_resources(struct acpi_resource *res, void *ctx)
 
 	}
 	/*
-	 * Ignore ranges that are below 1MB, as they're not
+	 * Igyesre ranges that are below 1MB, as they're yest
 	 * necessary or useful here.
 	 */
 	if (end < 0x100000)
@@ -1960,7 +1960,7 @@ static void vmbus_reserve_fb(void)
 	int size;
 	/*
 	 * Make a claim for the frame buffer in the resource tree under the
-	 * first node, which will be the one below 4GB.  The length seems to
+	 * first yesde, which will be the one below 4GB.  The length seems to
 	 * be underreported, particularly in a Generation 1 VM.  So start out
 	 * reserving a larger area and make it smaller until it succeeds.
 	 */
@@ -2000,7 +2000,7 @@ static void vmbus_reserve_fb(void)
  * matches the constraints supplied in these parameters and by
  * that _CRS.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 			resource_size_t min, resource_size_t max,
@@ -2018,7 +2018,7 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 	/*
 	 * If overlaps with frame buffers are allowed, then first attempt to
 	 * make the allocation from within the reserved region.  Because it
-	 * is already reserved, no shadow allocation is necessary.
+	 * is already reserved, yes shadow allocation is necessary.
 	 */
 	if (fb_overlap_ok && fb_mmio && !(min > fb_mmio->end) &&
 	    !(max < fb_mmio->start)) {
@@ -2155,14 +2155,14 @@ static int vmbus_bus_suspend(struct device *dev)
 	 * cleaned up. Sub-channels should be destroyed upon suspend, otherwise
 	 * they would conflict with the new sub-channels that will be created
 	 * in the resume path. hv_sock channels should also be destroyed, but
-	 * a hv_sock channel of an established hv_sock connection can not be
+	 * a hv_sock channel of an established hv_sock connection can yest be
 	 * really destroyed since it may still be referenced by the userspace
 	 * application, so we just force the hv_sock channel to be rescinded
 	 * by vmbus_force_channel_rescinded(), and the userspace application
 	 * will thoroughly destroy the channel after hibernation.
 	 *
 	 * Note: the counter nr_chan_close_on_suspend may never go above 0 if
-	 * the VM has no sub-channel and hv_sock channel, e.g. a 1-vCPU VM.
+	 * the VM has yes sub-channel and hv_sock channel, e.g. a 1-vCPU VM.
 	 */
 	if (atomic_read(&vmbus_connection.nr_chan_close_on_suspend) > 0)
 		wait_for_completion(&vmbus_connection.ready_for_suspend_event);
@@ -2173,14 +2173,14 @@ static int vmbus_bus_suspend(struct device *dev)
 
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
 		/*
-		 * Invalidate the field. Upon resume, vmbus_onoffer() will fix
+		 * Invalidate the field. Upon resume, vmbus_oyesffer() will fix
 		 * up the field, and the other fields (if necessary).
 		 */
 		channel->offermsg.child_relid = INVALID_RELID;
 
 		if (is_hvsock_channel(channel)) {
 			if (!channel->rescind) {
-				pr_err("hv_sock channel not rescinded!\n");
+				pr_err("hv_sock channel yest rescinded!\n");
 				WARN_ON_ONCE(1);
 			}
 			continue;
@@ -2188,7 +2188,7 @@ static int vmbus_bus_suspend(struct device *dev)
 
 		spin_lock_irqsave(&channel->lock, flags);
 		list_for_each_entry(sc, &channel->sc_list, sc_list) {
-			pr_err("Sub-channel not deleted!\n");
+			pr_err("Sub-channel yest deleted!\n");
 			WARN_ON_ONCE(1);
 		}
 		spin_unlock_irqrestore(&channel->lock, flags);
@@ -2260,12 +2260,12 @@ MODULE_DEVICE_TABLE(acpi, vmbus_acpi_device_ids);
 
 /*
  * Note: we must use SET_NOIRQ_SYSTEM_SLEEP_PM_OPS rather than
- * SET_SYSTEM_SLEEP_PM_OPS, otherwise NIC SR-IOV can not work, because the
- * "pci_dev_pm_ops" uses the "noirq" callbacks: in the resume path, the
- * pci "noirq" restore callback runs before "non-noirq" callbacks (see
+ * SET_SYSTEM_SLEEP_PM_OPS, otherwise NIC SR-IOV can yest work, because the
+ * "pci_dev_pm_ops" uses the "yesirq" callbacks: in the resume path, the
+ * pci "yesirq" restore callback runs before "yesn-yesirq" callbacks (see
  * resume_target_kernel() -> dpm_resume_start(), and hibernation_restore() ->
  * dpm_resume_end()). This means vmbus_bus_resume() and the pci-hyperv's
- * resume callback must also run via the "noirq" callbacks.
+ * resume callback must also run via the "yesirq" callbacks.
  */
 static const struct dev_pm_ops vmbus_bus_pm = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(vmbus_bus_suspend, vmbus_bus_resume)
@@ -2312,14 +2312,14 @@ static void hv_crash_handler(struct pt_regs *regs)
 static int hv_synic_suspend(void)
 {
 	/*
-	 * When we reach here, all the non-boot CPUs have been offlined.
+	 * When we reach here, all the yesn-boot CPUs have been offlined.
 	 * If we're in a legacy configuration where stimer Direct Mode is
-	 * not enabled, the stimers on the non-boot CPUs have been unbound
+	 * yest enabled, the stimers on the yesn-boot CPUs have been unbound
 	 * in hv_synic_cleanup() -> hv_stimer_legacy_cleanup() ->
 	 * hv_stimer_cleanup() -> clockevents_unbind_device().
 	 *
 	 * hv_synic_suspend() only runs on CPU0 with interrupts disabled.
-	 * Here we do not call hv_stimer_legacy_cleanup() on CPU0 because:
+	 * Here we do yest call hv_stimer_legacy_cleanup() on CPU0 because:
 	 * 1) it's unnecessary as interrupts remain disabled between
 	 * syscore_suspend() and syscore_resume(): see create_image() and
 	 * resume_target_kernel()
@@ -2342,7 +2342,7 @@ static void hv_synic_resume(void)
 
 	/*
 	 * Note: we don't need to call hv_stimer_init(0), because the timer
-	 * on CPU0 is not unbound in hv_synic_suspend(), and the timer is
+	 * on CPU0 is yest unbound in hv_synic_suspend(), and the timer is
 	 * automatically re-enabled in timekeeping_resume().
 	 */
 }
@@ -2418,8 +2418,8 @@ static void __exit vmbus_exit(void)
 
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
 		kmsg_dump_unregister(&hv_kmsg_dumper);
-		unregister_die_notifier(&hyperv_die_block);
-		atomic_notifier_chain_unregister(&panic_notifier_list,
+		unregister_die_yestifier(&hyperv_die_block);
+		atomic_yestifier_chain_unregister(&panic_yestifier_list,
 						 &hyperv_panic_block);
 	}
 

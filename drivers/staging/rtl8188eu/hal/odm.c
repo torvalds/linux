@@ -15,15 +15,15 @@ u32 GlobalDebugLevel;
 /* avoid to warn in FreeBSD ==> To DO modify */
 static u32 EDCAParam[HT_IOT_PEER_MAX][3] = {
 	/*  UL			DL */
-	{0x5ea42b, 0x5ea42b, 0x5ea42b}, /* 0:unknown AP */
+	{0x5ea42b, 0x5ea42b, 0x5ea42b}, /* 0:unkyeswn AP */
 	{0xa44f, 0x5ea44f, 0x5e431c}, /*  1:realtek AP */
-	{0x5ea42b, 0x5ea42b, 0x5ea42b}, /*  2:unknown AP => realtek_92SE */
+	{0x5ea42b, 0x5ea42b, 0x5ea42b}, /*  2:unkyeswn AP => realtek_92SE */
 	{0x5ea32b, 0x5ea42b, 0x5e4322}, /*  3:broadcom AP */
 	{0x5ea422, 0x00a44f, 0x00a44f}, /*  4:ralink AP */
 	{0x5ea322, 0x00a630, 0x00a44f}, /*  5:atheros AP */
 	{0x5e4322, 0x5e4322, 0x5e4322},/*  6:cisco AP */
 	{0x5ea44f, 0x00a44f, 0x5ea42b}, /*  8:marvell AP */
-	{0x5ea42b, 0x5ea42b, 0x5ea42b}, /*  10:unknown AP=> 92U AP */
+	{0x5ea42b, 0x5ea42b, 0x5ea42b}, /*  10:unkyeswn AP=> 92U AP */
 	{0x5ea42b, 0xa630, 0x5e431c}, /*  11:airgocap AP */
 };
 
@@ -178,7 +178,7 @@ void ODM_DMInit(struct odm_dm_struct *pDM_Odm)
 }
 
 /*  2011/09/20 MH This is the entry pointer for all team to execute HW out source DM. */
-/*  You can not add any dummy function here, be care, you can only use DM structure */
+/*  You can yest add any dummy function here, be care, you can only use DM structure */
 /*  to perform any new ODM_DM. */
 void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 {
@@ -407,9 +407,9 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG() : No Link\n"));
 	}
 
-	/* 1 Modify DIG lower bound, deal with abnormally large false alarm */
+	/* 1 Modify DIG lower bound, deal with abyesrmally large false alarm */
 	if (pFalseAlmCnt->Cnt_all > 10000) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("dm_DIG(): Abnormally false alarm case.\n"));
+		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("dm_DIG(): Abyesrmally false alarm case.\n"));
 
 		if (pDM_DigTable->LargeFAHit != 3)
 			pDM_DigTable->LargeFAHit++;
@@ -783,7 +783,7 @@ void odm_RefreshRateAdaptiveMaskCE(struct odm_dm_struct *pDM_Odm)
 	}
 
 	if (!pDM_Odm->bUseRAMask) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD, ("<---- odm_RefreshRateAdaptiveMask(): driver does not control rate adaptive mask\n"));
+		ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD, ("<---- odm_RefreshRateAdaptiveMask(): driver does yest control rate adaptive mask\n"));
 		return;
 	}
 
@@ -812,7 +812,7 @@ bool ODM_RAStateCheck(struct odm_dm_struct *pDM_Odm, s32 RSSI, bool bForceUpdate
 	u8 RATRState;
 
 	/*  Threshold Adjustment: */
-	/*  when RSSI state trends to go up one or two levels, make sure RSSI is high enough. */
+	/*  when RSSI state trends to go up one or two levels, make sure RSSI is high eyesugh. */
 	/*  Here GoUpGap is added to solve the boundary's level alternation issue. */
 	switch (*pRATRState) {
 	case DM_RATR_STA_INIT:

@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
+ * along with this program; see the file COPYING.  If yest, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -59,7 +59,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -473,7 +473,7 @@ static void setup_SCBs(struct orc_host * host)
  *	@host: host map to configure
  *
  *	Initialise the allocation maps for this device. If the device
- *	is not quiescent the caller must hold the allocation lock
+ *	is yest quiescent the caller must hold the allocation lock
  */
 
 static void init_alloc_map(struct orc_host * host)
@@ -520,7 +520,7 @@ static int init_orchid(struct orc_host * host)
 		} else {
 			setup_SCBs(host);	/* Setup SCB base and SCB Size registers */
 		}
-	} else {		/* Orchid is not Ready          */
+	} else {		/* Orchid is yest Ready          */
 		outb(DEVRST, host->base + ORC_HCTRL);	/* Reset Host Adapter   */
 		if (wait_chip_ready(host) == 0)
 			return -1;
@@ -657,7 +657,7 @@ static int orc_device_reset(struct orc_host * host, struct scsi_cmnd *cmd, unsig
  *	@host: host to allocate from
  *
  *	Allocate an SCB and return a pointer to the SCB object. NULL
- *	is returned if no SCB is free. The caller must already hold
+ *	is returned if yes SCB is free. The caller must already hold
  *	the allocator lock at this point.
  */
 
@@ -690,7 +690,7 @@ static struct orc_scb *__orc_alloc_scb(struct orc_host * host)
  *	@host: host to allocate from
  *
  *	Allocate an SCB and return a pointer to the SCB object. NULL
- *	is returned if no SCB is free.
+ *	is returned if yes SCB is free.
  */
 
 static struct orc_scb *orc_alloc_scb(struct orc_host * host)
@@ -707,7 +707,7 @@ static struct orc_scb *orc_alloc_scb(struct orc_host * host)
 /**
  *	orc_release_scb			-	release an SCB
  *	@host: host owning the SCB
- *	@scb: SCB that is now free
+ *	@scb: SCB that is yesw free
  *
  *	Called to return a completed SCB to the allocation pool. Before
  *	calling the SCB must be out of use on both the host and the HA.
@@ -772,7 +772,7 @@ static int inia100_abort_cmd(struct orc_host * host, struct scsi_cmnd *cmd)
 
 	/* Walk the queue until we find the SCB that belongs to the command
 	   block. This isn't a performance critical path so a walk in the park
-	   here does no harm */
+	   here does yes harm */
 
 	for (i = 0; i < ORC_MAXQUEUE; i++, scb++) {
 		escb = scb->escb;
@@ -1003,19 +1003,19 @@ static void inia100_scb_handler(struct orc_host *host, struct orc_scb *scb)
 
 	switch (scb->hastat) {
 	case 0x0:
-	case 0xa:		/* Linked command complete without error and linked normally */
+	case 0xa:		/* Linked command complete without error and linked yesrmally */
 	case 0xb:		/* Linked command complete without error interrupt generated */
 		scb->hastat = 0;
 		break;
 
 	case 0x11:		/* Selection time out-The initiator selection or target
-				   reselection was not complete within the SCSI Time out period */
+				   reselection was yest complete within the SCSI Time out period */
 		scb->hastat = DID_TIME_OUT;
 		break;
 
 	case 0x14:		/* Target bus phase sequence failure-An invalid bus phase or bus
 				   phase sequence was requested by the target. The host adapter
-				   will generate a SCSI Reset Condition, notifying the host with
+				   will generate a SCSI Reset Condition, yestifying the host with
 				   a SCRD interrupt */
 		scb->hastat = DID_RESET;
 		break;
@@ -1048,13 +1048,13 @@ static void inia100_scb_handler(struct orc_host *host, struct orc_scb *scb)
 
 /**
  *	inia100_intr		-	interrupt handler
- *	@irqno: Interrupt value
+ *	@irqyes: Interrupt value
  *	@devid: Host adapter
  *
  *	Entry point for IRQ handling. All the real work is performed
  *	by orc_interrupt.
  */
-static irqreturn_t inia100_intr(int irqno, void *devid)
+static irqreturn_t inia100_intr(int irqyes, void *devid)
 {
 	struct Scsi_Host *shost = (struct Scsi_Host *)devid;
 	struct orc_host *host = (struct orc_host *)shost->hostdata;
@@ -1095,7 +1095,7 @@ static int inia100_probe_one(struct pci_dev *pdev,
 		goto out;
 	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 		printk(KERN_WARNING "Unable to set 32bit DMA "
-				    "on inia100 adapter, ignoring.\n");
+				    "on inia100 adapter, igyesring.\n");
 		goto out_disable_device;
 	}
 

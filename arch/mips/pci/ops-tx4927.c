@@ -317,7 +317,7 @@ void __init tx4927_pcic_setup(struct tx4927_pcic_reg __iomem *pcicptr,
 		     | TX4927_PCIC_PCICCFG_ICAEN | TX4927_PCIC_PCICCFG_TCAR,
 		     &pcicptr->pciccfg);
 
-	/* Do not use MEMMUL, MEMINF: YMFPCI card causes M_ABORT. */
+	/* Do yest use MEMMUL, MEMINF: YMFPCI card causes M_ABORT. */
 	__raw_writel(0, &pcicptr->pcicfg1);
 
 	__raw_writel((__raw_readl(&pcicptr->g2ptocnt) & ~0xffff)

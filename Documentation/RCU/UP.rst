@@ -5,8 +5,8 @@ RCU on Uniprocessor Systems
 
 A common misconception is that, on UP systems, the call_rcu() primitive
 may immediately invoke its function.  The basis of this misconception
-is that since there is only one CPU, it should not be necessary to
-wait for anything else to get done, since there are no other CPUs for
+is that since there is only one CPU, it should yest be necessary to
+wait for anything else to get done, since there are yes other CPUs for
 anything else to be happening on.  Although this approach will *sort of*
 work a surprising amount of the time, it is a very bad idea in general.
 This document presents three examples that demonstrate exactly how bad
@@ -49,7 +49,7 @@ underlying RCU, namely that call_rcu() defers invoking its arguments until
 all RCU read-side critical sections currently executing have completed.
 
 Quick Quiz #1:
-	Why is it *not* legal to invoke synchronize_rcu() in this case?
+	Why is it *yest* legal to invoke synchronize_rcu() in this case?
 
 :ref:`Answers to Quick Quiz <answer_quick_quiz_up>`
 
@@ -74,7 +74,7 @@ there are cases where this can be quite ugly:
 	so that delaying the call_rcu() until the lock is released
 	requires that the data item be passed up via a common API.
 	It is far better to guarantee that callbacks are invoked
-	with no locks held than to have to modify such APIs to allow
+	with yes locks held than to have to modify such APIs to allow
 	arbitrary data items to be passed back up through them.
 
 If call_rcu() directly invokes the callback, painful locking restrictions
@@ -89,9 +89,9 @@ Summary
 -------
 
 Permitting call_rcu() to immediately invoke its arguments breaks RCU,
-even on a UP system.  So do not do it!  Even on a UP system, the RCU
+even on a UP system.  So do yest do it!  Even on a UP system, the RCU
 infrastructure *must* respect grace periods, and *must* invoke callbacks
-from a known environment in which no locks are held.
+from a kyeswn environment in which yes locks are held.
 
 Note that it *is* safe for synchronize_rcu() to return immediately on
 UP systems, including PREEMPT SMP builds running on UP systems.
@@ -103,12 +103,12 @@ Quick Quiz #3:
 .. _answer_quick_quiz_up:
 
 Answer to Quick Quiz #1:
-	Why is it *not* legal to invoke synchronize_rcu() in this case?
+	Why is it *yest* legal to invoke synchronize_rcu() in this case?
 
 	Because the calling function is scanning an RCU-protected linked
 	list, and is therefore within an RCU read-side critical section.
 	Therefore, the called function has been invoked within an RCU
-	read-side critical section, and is not permitted to block.
+	read-side critical section, and is yest permitted to block.
 
 Answer to Quick Quiz #2:
 	What locking restriction must RCU callbacks respect?
@@ -117,7 +117,7 @@ Answer to Quick Quiz #2:
 	elsewhere using an _bh variant of the spinlock primitive.
 	For example, if "mylock" is acquired by an RCU callback, then
 	a process-context acquisition of this lock must use something
-	like spin_lock_bh() to acquire the lock.  Please note that
+	like spin_lock_bh() to acquire the lock.  Please yeste that
 	it is also OK to use _irq variants of spinlocks, for example,
 	spin_lock_irqsave().
 

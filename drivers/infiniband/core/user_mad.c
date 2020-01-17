@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -49,7 +49,7 @@
 #include <linux/sched.h>
 #include <linux/semaphore.h>
 #include <linux/slab.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include <linux/uaccess.h>
 
@@ -299,7 +299,7 @@ static ssize_t copy_recv_mad(struct ib_umad_file *file, char __user *buf,
 	recv_buf = &packet->recv_wc->recv_buf;
 	seg_size = packet->recv_wc->mad_seg_size;
 
-	/* We need enough room to copy the first (or only) MAD segment. */
+	/* We need eyesugh room to copy the first (or only) MAD segment. */
 	if ((packet->length <= seg_size &&
 	     count < hdr_size(file) + packet->length) ||
 	    (packet->length > seg_size &&
@@ -674,7 +674,7 @@ static int ib_umad_reg_agent(struct ib_umad_file *file, void __user *arg,
 	mutex_lock(&file->mutex);
 
 	if (!file->port->ib_dev) {
-		dev_notice(&file->port->dev,
+		dev_yestice(&file->port->dev,
 			   "ib_umad_reg_agent: invalid device\n");
 		ret = -EPIPE;
 		goto out;
@@ -686,7 +686,7 @@ static int ib_umad_reg_agent(struct ib_umad_file *file, void __user *arg,
 	}
 
 	if (ureq.qpn != 0 && ureq.qpn != 1) {
-		dev_notice(&file->port->dev,
+		dev_yestice(&file->port->dev,
 			   "ib_umad_reg_agent: invalid QPN %d specified\n",
 			   ureq.qpn);
 		ret = -EINVAL;
@@ -697,7 +697,7 @@ static int ib_umad_reg_agent(struct ib_umad_file *file, void __user *arg,
 		if (!__get_agent(file, agent_id))
 			goto found;
 
-	dev_notice(&file->port->dev,
+	dev_yestice(&file->port->dev,
 		   "ib_umad_reg_agent: Max Agents (%u) reached\n",
 		   IB_UMAD_MAX_AGENTS);
 	ret = -ENOMEM;
@@ -743,7 +743,7 @@ found:
 		file->already_used = 1;
 		if (!file->use_pkey_index) {
 			dev_warn(&file->port->dev,
-				"process %s did not enable P_Key index support.\n",
+				"process %s did yest enable P_Key index support.\n",
 				current->comm);
 			dev_warn(&file->port->dev,
 				"   Documentation/infiniband/user_mad.rst has info on the new ABI.\n");
@@ -776,7 +776,7 @@ static int ib_umad_reg_agent2(struct ib_umad_file *file, void __user *arg)
 	mutex_lock(&file->mutex);
 
 	if (!file->port->ib_dev) {
-		dev_notice(&file->port->dev,
+		dev_yestice(&file->port->dev,
 			   "ib_umad_reg_agent2: invalid device\n");
 		ret = -EPIPE;
 		goto out;
@@ -788,7 +788,7 @@ static int ib_umad_reg_agent2(struct ib_umad_file *file, void __user *arg)
 	}
 
 	if (ureq.qpn != 0 && ureq.qpn != 1) {
-		dev_notice(&file->port->dev,
+		dev_yestice(&file->port->dev,
 			   "ib_umad_reg_agent2: invalid QPN %d specified\n",
 			   ureq.qpn);
 		ret = -EINVAL;
@@ -796,7 +796,7 @@ static int ib_umad_reg_agent2(struct ib_umad_file *file, void __user *arg)
 	}
 
 	if (ureq.flags & ~IB_USER_MAD_REG_FLAGS_CAP) {
-		dev_notice(&file->port->dev,
+		dev_yestice(&file->port->dev,
 			   "ib_umad_reg_agent2 failed: invalid registration flags specified 0x%x; supported 0x%x\n",
 			   ureq.flags, IB_USER_MAD_REG_FLAGS_CAP);
 		ret = -EINVAL;
@@ -813,7 +813,7 @@ static int ib_umad_reg_agent2(struct ib_umad_file *file, void __user *arg)
 		if (!__get_agent(file, agent_id))
 			goto found;
 
-	dev_notice(&file->port->dev,
+	dev_yestice(&file->port->dev,
 		   "ib_umad_reg_agent2: Max Agents (%u) reached\n",
 		   IB_UMAD_MAX_AGENTS);
 	ret = -ENOMEM;
@@ -825,7 +825,7 @@ found:
 		req.mgmt_class         = ureq.mgmt_class;
 		req.mgmt_class_version = ureq.mgmt_class_version;
 		if (ureq.oui & 0xff000000) {
-			dev_notice(&file->port->dev,
+			dev_yestice(&file->port->dev,
 				   "ib_umad_reg_agent2 failed: oui invalid 0x%08x\n",
 				   ureq.oui);
 			ret = -EINVAL;
@@ -891,7 +891,7 @@ static int ib_umad_unreg_agent(struct ib_umad_file *file, u32 __user *arg)
 	mutex_lock(&file->port->file_mutex);
 	mutex_lock(&file->mutex);
 
-	id = array_index_nospec(id, IB_UMAD_MAX_AGENTS);
+	id = array_index_yesspec(id, IB_UMAD_MAX_AGENTS);
 	if (!__get_agent(file, id)) {
 		ret = -EINVAL;
 		goto out;
@@ -962,21 +962,21 @@ static long ib_umad_compat_ioctl(struct file *filp, unsigned int cmd,
 #endif
 
 /*
- * ib_umad_open() does not need the BKL:
+ * ib_umad_open() does yest need the BKL:
  *
  *  - the ib_umad_port structures are properly reference counted, and
  *    everything else is purely local to the file being created, so
- *    races against other open calls are not a problem;
- *  - the ioctl method does not affect any global state outside of the
+ *    races against other open calls are yest a problem;
+ *  - the ioctl method does yest affect any global state outside of the
  *    file structure being operated on;
  */
-static int ib_umad_open(struct inode *inode, struct file *filp)
+static int ib_umad_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct ib_umad_port *port;
 	struct ib_umad_file *file;
 	int ret = 0;
 
-	port = container_of(inode->i_cdev, struct ib_umad_port, cdev);
+	port = container_of(iyesde->i_cdev, struct ib_umad_port, cdev);
 
 	mutex_lock(&port->file_mutex);
 
@@ -1007,13 +1007,13 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 
 	list_add_tail(&file->port_list, &port->file_list);
 
-	stream_open(inode, filp);
+	stream_open(iyesde, filp);
 out:
 	mutex_unlock(&port->file_mutex);
 	return ret;
 }
 
-static int ib_umad_close(struct inode *inode, struct file *filp)
+static int ib_umad_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct ib_umad_file *file = filp->private_data;
 	struct ib_umad_packet *packet, *tmp;
@@ -1058,10 +1058,10 @@ static const struct file_operations umad_fops = {
 #endif
 	.open		= ib_umad_open,
 	.release	= ib_umad_close,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
-static int ib_umad_sm_open(struct inode *inode, struct file *filp)
+static int ib_umad_sm_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct ib_umad_port *port;
 	struct ib_port_modify props = {
@@ -1069,7 +1069,7 @@ static int ib_umad_sm_open(struct inode *inode, struct file *filp)
 	};
 	int ret;
 
-	port = container_of(inode->i_cdev, struct ib_umad_port, sm_cdev);
+	port = container_of(iyesde->i_cdev, struct ib_umad_port, sm_cdev);
 
 	if (filp->f_flags & O_NONBLOCK) {
 		if (down_trylock(&port->sm_sem)) {
@@ -1094,7 +1094,7 @@ static int ib_umad_sm_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = port;
 
-	nonseekable_open(inode, filp);
+	yesnseekable_open(iyesde, filp);
 	return 0;
 
 err_up_sem:
@@ -1104,7 +1104,7 @@ fail:
 	return ret;
 }
 
-static int ib_umad_sm_close(struct inode *inode, struct file *filp)
+static int ib_umad_sm_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct ib_umad_port *port = filp->private_data;
 	struct ib_port_modify props = {
@@ -1126,7 +1126,7 @@ static const struct file_operations umad_sm_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = ib_umad_sm_open,
 	.release = ib_umad_sm_close,
-	.llseek	 = no_llseek,
+	.llseek	 = yes_llseek,
 };
 
 static int ib_umad_get_nl_info(struct ib_device *ibdev, void *client_data,
@@ -1203,7 +1203,7 @@ static struct attribute *umad_class_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(umad_class_dev);
 
-static char *umad_devnode(struct device *dev, umode_t *mode)
+static char *umad_devyesde(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
 }
@@ -1223,7 +1223,7 @@ ATTRIBUTE_GROUPS(umad_class);
 
 static struct class umad_class = {
 	.name		= "infiniband_mad",
-	.devnode	= umad_devnode,
+	.devyesde	= umad_devyesde,
 	.class_groups	= umad_class_groups,
 	.dev_groups	= umad_class_dev_groups,
 };

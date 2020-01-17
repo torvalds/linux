@@ -16,7 +16,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -46,7 +46,7 @@
  *	|	_s390_regs_common		|
  *	|	_s390_fp_regs			|
  *	-----------------------------------------
- *	| int signo				|
+ *	| int sigyes				|
  *	-----------------------------------------
  *	| _sigregs_ext with			|
  *	|	gprs_high 64 byte (opt)		|
@@ -56,7 +56,7 @@
  *	-----------------------------------------
  *	| __u16 svc_insn			|
  *	-----------------------------------------
- * The svc_insn entry with the sigreturn system call opcode does not
+ * The svc_insn entry with the sigreturn system call opcode does yest
  * have a fixed position and moves if gprs_high or vxrs exist.
  * Future extensions will be added to _sigregs_ext.
  */
@@ -65,7 +65,7 @@ struct sigframe
 	__u8 callee_used_stack[__SIGNAL_FRAMESIZE];
 	struct sigcontext sc;
 	_sigregs sregs;
-	int signo;
+	int sigyes;
 	_sigregs_ext sregs_ext;
 	__u16 svc_insn;		/* Offset of svc_insn is NOT fixed! */
 };
@@ -116,7 +116,7 @@ static void load_sigregs(void)
 	restore_access_regs(current->thread.acrs);
 }
 
-/* Returns non-zero on fault. */
+/* Returns yesn-zero on fault. */
 static int save_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 {
 	_sigregs user_sregs;
@@ -140,7 +140,7 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	_sigregs user_sregs;
 
 	/* Alwys make any pending restarted system call return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	if (__copy_from_user(&user_sregs, sregs, sizeof(user_sregs)))
 		return -EFAULT;
@@ -173,7 +173,7 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	return 0;
 }
 
-/* Returns non-zero on fault. */
+/* Returns yesn-zero on fault. */
 static int save_sigregs_ext(struct pt_regs *regs,
 			    _sigregs_ext __user *sregs_ext)
 {
@@ -268,7 +268,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 {
 	unsigned long sp;
 
-	/* Default to using normal stack */
+	/* Default to using yesrmal stack */
 	sp = regs->gprs[15];
 
 	/* Overflow on alternate signal stack gives SIGSEGV. */
@@ -323,7 +323,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		return -EFAULT;
 
 	/* Place signal number on stack to allow backtrace from handler.  */
-	if (__put_user(regs->gprs[2], (int __user *) &frame->signo))
+	if (__put_user(regs->gprs[2], (int __user *) &frame->sigyes))
 		return -EFAULT;
 
 	/* Create _sigregs_ext on the signal stack */
@@ -358,7 +358,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	   To avoid breaking binary compatibility, they are passed as args. */
 	if (sig == SIGSEGV || sig == SIGBUS || sig == SIGILL ||
 	    sig == SIGTRAP || sig == SIGFPE) {
-		/* set extra registers only for synchronous signals */
+		/* set extra registers only for synchroyesus signals */
 		regs->gprs[4] = regs->int_code & 127;
 		regs->gprs[5] = regs->int_parm_long;
 		regs->gprs[6] = current->thread.last_break;
@@ -452,7 +452,7 @@ static void handle_signal(struct ksignal *ksig, sigset_t *oldset,
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  *
  * Note that we go through the signals twice: once to check the signals that
@@ -528,14 +528,14 @@ void do_signal(struct pt_regs *regs)
 	}
 
 	/*
-	 * If there's no signal to deliver, we just put the saved sigmask back.
+	 * If there's yes signal to deliver, we just put the saved sigmask back.
 	 */
 	restore_saved_sigmask();
 }
 
-void do_notify_resume(struct pt_regs *regs)
+void do_yestify_resume(struct pt_regs *regs)
 {
 	clear_thread_flag(TIF_NOTIFY_RESUME);
-	tracehook_notify_resume(regs);
-	rseq_handle_notify_resume(NULL, regs);
+	tracehook_yestify_resume(regs);
+	rseq_handle_yestify_resume(NULL, regs);
 }

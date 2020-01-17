@@ -63,7 +63,7 @@ static unsigned int b43_phy_ac_op_get_default_chan(struct b43_wldev *dev)
 }
 
 static enum b43_txpwr_result
-b43_phy_ac_op_recalc_txpower(struct b43_wldev *dev, bool ignore_tssi)
+b43_phy_ac_op_recalc_txpower(struct b43_wldev *dev, bool igyesre_tssi)
 {
 	return B43_TXPWR_RES_DONE;
 }

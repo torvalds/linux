@@ -1,8 +1,8 @@
 Device tree bindings for Low Power General Purpose Register found in i.MX6Q/D
 and i.MX7 Secure Non-Volatile Storage.
 
-This DT node should be represented as a sub-node of a "syscon",
-"simple-mfd" node.
+This DT yesde should be represented as a sub-yesde of a "syscon",
+"simple-mfd" yesde.
 
 Required properties:
 - compatible: should be one of the fallowing variants:

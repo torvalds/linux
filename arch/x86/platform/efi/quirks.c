@@ -78,7 +78,7 @@ struct quark_security_header {
 
 static const efi_char16_t efi_dummy_name[] = L"DUMMY";
 
-static bool efi_no_storage_paranoia;
+static bool efi_yes_storage_parayesia;
 
 /*
  * Some firmware implementations refuse to boot if there's insufficient
@@ -90,23 +90,23 @@ static bool efi_no_storage_paranoia;
  * Enabling this option disables the space checks in
  * efi_query_variable_store() and forces garbage collection.
  *
- * Only enable this option if deleting EFI variables does not free up
+ * Only enable this option if deleting EFI variables does yest free up
  * space in your variable store, e.g. if despite deleting variables
  * you're unable to create new ones.
  */
-static int __init setup_storage_paranoia(char *arg)
+static int __init setup_storage_parayesia(char *arg)
 {
-	efi_no_storage_paranoia = true;
+	efi_yes_storage_parayesia = true;
 	return 0;
 }
-early_param("efi_no_storage_paranoia", setup_storage_paranoia);
+early_param("efi_yes_storage_parayesia", setup_storage_parayesia);
 
 /*
  * Deleting the dummy variable which kicks off garbage collection
 */
 void efi_delete_dummy_variable(void)
 {
-	efi.set_variable_nonblocking((efi_char16_t *)efi_dummy_name,
+	efi.set_variable_yesnblocking((efi_char16_t *)efi_dummy_name,
 				     &EFI_DUMMY_GUID,
 				     EFI_VARIABLE_NON_VOLATILE |
 				     EFI_VARIABLE_BOOTSERVICE_ACCESS |
@@ -114,8 +114,8 @@ void efi_delete_dummy_variable(void)
 }
 
 /*
- * In the nonblocking case we do not attempt to perform garbage
- * collection if we do not have enough free space. Rather, we do the
+ * In the yesnblocking case we do yest attempt to perform garbage
+ * collection if we do yest have eyesugh free space. Rather, we do the
  * bare minimum check and give up immediately if the available space
  * is below EFI_MIN_RESERVE.
  *
@@ -123,12 +123,12 @@ void efi_delete_dummy_variable(void)
  * invoked from crash handler paths.
  */
 static efi_status_t
-query_variable_store_nonblocking(u32 attributes, unsigned long size)
+query_variable_store_yesnblocking(u32 attributes, unsigned long size)
 {
 	efi_status_t status;
 	u64 storage_size, remaining_size, max_size;
 
-	status = efi.query_variable_info_nonblocking(attributes, &storage_size,
+	status = efi.query_variable_info_yesnblocking(attributes, &storage_size,
 						     &remaining_size,
 						     &max_size);
 	if (status != EFI_SUCCESS)
@@ -148,7 +148,7 @@ query_variable_store_nonblocking(u32 attributes, unsigned long size)
  * store.
  */
 efi_status_t efi_query_variable_store(u32 attributes, unsigned long size,
-				      bool nonblocking)
+				      bool yesnblocking)
 {
 	efi_status_t status;
 	u64 storage_size, remaining_size, max_size;
@@ -156,8 +156,8 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size,
 	if (!(attributes & EFI_VARIABLE_NON_VOLATILE))
 		return 0;
 
-	if (nonblocking)
-		return query_variable_store_nonblocking(attributes, size);
+	if (yesnblocking)
+		return query_variable_store_yesnblocking(attributes, size);
 
 	status = efi.query_variable_info(attributes, &storage_size,
 					 &remaining_size, &max_size);
@@ -170,7 +170,7 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size,
 	 * Samsung, so should be safe.
 	 */
 	if ((remaining_size - size < EFI_MIN_RESERVE) &&
-		!efi_no_storage_paranoia) {
+		!efi_yes_storage_parayesia) {
 
 		/*
 		 * Triggering garbage collection may require that the firmware
@@ -201,7 +201,7 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size,
 		kfree(dummy);
 
 		/*
-		 * The runtime code may now have triggered a garbage collection
+		 * The runtime code may yesw have triggered a garbage collection
 		 * run, so check the variable info again
 		 */
 		status = efi.query_variable_info(attributes, &storage_size,
@@ -211,7 +211,7 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size,
 			return status;
 
 		/*
-		 * There still isn't enough room, so return an error
+		 * There still isn't eyesugh room, so return an error
 		 */
 		if (remaining_size - size < EFI_MIN_RESERVE)
 			return EFI_OUT_OF_RESOURCES;
@@ -224,7 +224,7 @@ EXPORT_SYMBOL_GPL(efi_query_variable_store);
 /*
  * The UEFI specification makes it clear that the operating system is
  * free to do whatever it wants with boot services code after
- * ExitBootServices() has been called. Ignoring this recommendation a
+ * ExitBootServices() has been called. Igyesring this recommendation a
  * significant bunch of EFI implementations continue calling into boot
  * services code (SetVirtualAddressMap). In order to work around such
  * buggy implementations we reserve boot services region during EFI
@@ -275,7 +275,7 @@ void __init efi_arch_mem_reserve(phys_addr_t addr, u64 size)
 
 	new_phys = efi_memmap_alloc(num_entries);
 	if (!new_phys) {
-		pr_err("Could not allocate boot services memmap\n");
+		pr_err("Could yest allocate boot services memmap\n");
 		return;
 	}
 
@@ -297,7 +297,7 @@ void __init efi_arch_mem_reserve(phys_addr_t addr, u64 size)
  * Helper function for efi_reserve_boot_services() to figure out if we
  * can free regions in efi_free_boot_services().
  *
- * Use this function to ensure we do not free regions owned by somebody
+ * Use this function to ensure we do yest free regions owned by somebody
  * else. We must only reserve (and then free) regions:
  *
  * - Not within any part of the kernel
@@ -336,12 +336,12 @@ void __init efi_reserve_boot_services(void)
 		 * Because the following memblock_reserve() is paired
 		 * with memblock_free_late() for this region in
 		 * efi_free_boot_services(), we must be extremely
-		 * careful not to reserve, and subsequently free,
+		 * careful yest to reserve, and subsequently free,
 		 * critical regions of memory (like the kernel image) or
 		 * those regions that somebody else has already
 		 * reserved.
 		 *
-		 * A good example of a critical region that must not be
+		 * A good example of a critical region that must yest be
 		 * freed is page zero (first 4Kb of memory), which may
 		 * contain boot services code/data but is marked
 		 * E820_TYPE_RESERVED by trim_bios_range().
@@ -350,7 +350,7 @@ void __init efi_reserve_boot_services(void)
 			memblock_reserve(start, size);
 
 			/*
-			 * If we are the first to reserve the region, no
+			 * If we are the first to reserve the region, yes
 			 * one else cares about it. We own it and can
 			 * free it later.
 			 */
@@ -359,12 +359,12 @@ void __init efi_reserve_boot_services(void)
 		}
 
 		/*
-		 * We don't own the region. We must not free it.
+		 * We don't own the region. We must yest free it.
 		 *
 		 * Setting this bit for a boot services region really
 		 * doesn't make sense as far as the firmware is
 		 * concerned, but it does provide us with a way to tag
-		 * those regions that must not be paired with
+		 * those regions that must yest be paired with
 		 * memblock_free_late().
 		 */
 		md->attribute |= EFI_MEMORY_RUNTIME;
@@ -423,7 +423,7 @@ void __init efi_free_boot_services(void)
 			continue;
 		}
 
-		/* Do not free, someone else owns it: */
+		/* Do yest free, someone else owns it: */
 		if (md->attribute & EFI_MEMORY_RUNTIME) {
 			num_entries++;
 			continue;
@@ -445,7 +445,7 @@ void __init efi_free_boot_services(void)
 		 *
 		 * I've seen this on a Dell XPS 13 9350 with firmware
 		 * 1.4.4 with SGX enabled booting Linux via Fedora 24's
-		 * grub2-efi on a hard disk.  (And no, I don't know why
+		 * grub2-efi on a hard disk.  (And yes, I don't kyesw why
 		 * this happened, but Linux should still try to boot rather
 		 * panicing early.)
 		 */
@@ -477,8 +477,8 @@ void __init efi_free_boot_services(void)
 
 	/*
 	 * Build a new EFI memmap that excludes any boot services
-	 * regions that are not tagged EFI_MEMORY_RUNTIME, since those
-	 * regions have now been freed.
+	 * regions that are yest tagged EFI_MEMORY_RUNTIME, since those
+	 * regions have yesw been freed.
 	 */
 	new_md = new;
 	for_each_efi_memory_desc(md) {
@@ -494,7 +494,7 @@ void __init efi_free_boot_services(void)
 	memunmap(new);
 
 	if (efi_memmap_install(new_phys, num_entries)) {
-		pr_err("Could not install new EFI memmap\n");
+		pr_err("Could yest install new EFI memmap\n");
 		return;
 	}
 }
@@ -536,7 +536,7 @@ int __init efi_reuse_config(u64 tables, int nr_tables)
 
 	p = tablep = early_memremap(tables, nr_tables * sz);
 	if (!p) {
-		pr_err("Could not map Configuration table!\n");
+		pr_err("Could yest map Configuration table!\n");
 		ret = -ENOMEM;
 		goto out_memremap;
 	}
@@ -572,7 +572,7 @@ void __init efi_apply_memmap_quirks(void)
 {
 	/*
 	 * Once setup is done earlier, unmap the EFI memory map on mismatched
-	 * firmware/kernel architectures since there is no support for runtime
+	 * firmware/kernel architectures since there is yes support for runtime
 	 * services.
 	 */
 	if (!efi_runtime_supported()) {
@@ -587,10 +587,10 @@ void __init efi_apply_memmap_quirks(void)
 
 /*
  * For most modern platforms the preferred method of powering off is via
- * ACPI. However, there are some that are known to require the use of
- * EFI runtime services and for which ACPI does not work at all.
+ * ACPI. However, there are some that are kyeswn to require the use of
+ * EFI runtime services and for which ACPI does yest work at all.
  *
- * Using EFI is a last resort, to be used only if no other option
+ * Using EFI is a last resort, to be used only if yes other option
  * exists.
  */
 bool efi_reboot_required(void)
@@ -604,7 +604,7 @@ bool efi_reboot_required(void)
 
 bool efi_poweroff_required(void)
 {
-	return acpi_gbl_reduced_hardware || acpi_no_s5;
+	return acpi_gbl_reduced_hardware || acpi_yes_s5;
 }
 
 #ifdef CONFIG_EFI_CAPSULE_QUIRK_QUARK_CSH
@@ -630,7 +630,7 @@ static int qrk_capsule_setup_info(struct capsule_info *cap_info, void **pkbuff,
 	pr_debug("Quark security header detected\n");
 
 	if (csh->rsvd_next_header != 0) {
-		pr_err("multiple Quark security headers not supported\n");
+		pr_err("multiple Quark security headers yest supported\n");
 		return -EINVAL;
 	}
 
@@ -645,9 +645,9 @@ static int qrk_capsule_setup_info(struct capsule_info *cap_info, void **pkbuff,
 	/*
 	 * cap_info->capsule should point at a virtual mapping of the entire
 	 * capsule, starting at the capsule header. Our image has the Quark
-	 * security header prepended, so we cannot rely on the default vmap()
+	 * security header prepended, so we canyest rely on the default vmap()
 	 * mapping created by the generic capsule code.
-	 * Given that the Quark firmware does not appear to care about the
+	 * Given that the Quark firmware does yest appear to care about the
 	 * virtual mapping, let's just point cap_info->capsule at our copy
 	 * of the capsule header.
 	 */
@@ -683,7 +683,7 @@ int efi_capsule_setup_info(struct capsule_info *cap_info, void *kbuff,
 		 * The quirk handler is supposed to return
 		 *  - a value > 0 if the setup should continue, after advancing
 		 *    kbuff as needed
-		 *  - 0 if not enough hdr_bytes are available yet
+		 *  - 0 if yest eyesugh hdr_bytes are available yet
 		 *  - a negative error code otherwise
 		 */
 		quirk_handler = (typeof(quirk_handler))id->driver_data;
@@ -709,7 +709,7 @@ int efi_capsule_setup_info(struct capsule_info *cap_info, void *kbuff,
  *    b. Disable EFI Runtime Services forever and
  *    c. Freeze efi_rts_wq and schedule new process.
  *
- * @return: Returns, if the page fault is not handled. This function
+ * @return: Returns, if the page fault is yest handled. This function
  * will never return if the page fault is handled successfully.
  */
 void efi_recover_from_page_fault(unsigned long phys_addr)
@@ -719,7 +719,7 @@ void efi_recover_from_page_fault(unsigned long phys_addr)
 
 	/*
 	 * Make sure that an efi runtime service caused the page fault.
-	 * "efi_mm" cannot be used to check if the page fault had occurred
+	 * "efi_mm" canyest be used to check if the page fault had occurred
 	 * in the firmware context because efi=old_map doesn't use efi_pgd.
 	 */
 	if (efi_rts_work.efi_rts_id == EFI_NONE)
@@ -733,7 +733,7 @@ void efi_recover_from_page_fault(unsigned long phys_addr)
 		return;
 
 	/*
-	 * Print stack trace as it might be useful to know which EFI Runtime
+	 * Print stack trace as it might be useful to kyesw which EFI Runtime
 	 * Service is buggy.
 	 */
 	WARN(1, FW_BUG "Page fault caused by firmware at PA: 0x%lx\n",
@@ -743,7 +743,7 @@ void efi_recover_from_page_fault(unsigned long phys_addr)
 	 * Buggy efi_reset_system() is handled differently from other EFI
 	 * Runtime Services as it doesn't use efi_rts_wq. Although,
 	 * native_machine_emergency_restart() says that machine_real_restart()
-	 * could fail, it's better not to compilcate this fault handler
+	 * could fail, it's better yest to compilcate this fault handler
 	 * because this case occurs *very* rarely and hence could be improved
 	 * on a need by basis.
 	 */

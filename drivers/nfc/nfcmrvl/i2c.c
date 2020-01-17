@@ -42,10 +42,10 @@ static int nfcmrvl_i2c_read(struct nfcmrvl_i2c_drv_data *drv_data,
 	int ret;
 	struct nci_ctrl_hdr nci_hdr;
 
-	/* Read NCI header to know the payload size */
+	/* Read NCI header to kyesw the payload size */
 	ret = i2c_master_recv(drv_data->i2c, (u8 *)&nci_hdr, NCI_CTRL_HDR_SIZE);
 	if (ret != NCI_CTRL_HDR_SIZE) {
-		nfc_err(&drv_data->i2c->dev, "cannot read NCI header\n");
+		nfc_err(&drv_data->i2c->dev, "canyest read NCI header\n");
 		return -EBADMSG;
 	}
 
@@ -169,23 +169,23 @@ static struct nfcmrvl_if_ops i2c_ops = {
 	.nci_update_config = nfcmrvl_i2c_nci_update_config,
 };
 
-static int nfcmrvl_i2c_parse_dt(struct device_node *node,
+static int nfcmrvl_i2c_parse_dt(struct device_yesde *yesde,
 				struct nfcmrvl_platform_data *pdata)
 {
 	int ret;
 
-	ret = nfcmrvl_parse_dt(node, pdata);
+	ret = nfcmrvl_parse_dt(yesde, pdata);
 	if (ret < 0) {
 		pr_err("Failed to get generic entries\n");
 		return ret;
 	}
 
-	if (of_find_property(node, "i2c-int-falling", NULL))
+	if (of_find_property(yesde, "i2c-int-falling", NULL))
 		pdata->irq_polarity = IRQF_TRIGGER_FALLING;
 	else
 		pdata->irq_polarity = IRQF_TRIGGER_RISING;
 
-	ret = irq_of_parse_and_map(node, 0);
+	ret = irq_of_parse_and_map(yesde, 0);
 	if (ret < 0) {
 		pr_err("Unable to get irq, error: %d\n", ret);
 		return ret;
@@ -220,8 +220,8 @@ static int nfcmrvl_i2c_probe(struct i2c_client *client,
 
 	pdata = client->dev.platform_data;
 
-	if (!pdata && client->dev.of_node)
-		if (nfcmrvl_i2c_parse_dt(client->dev.of_node, &config) == 0)
+	if (!pdata && client->dev.of_yesde)
+		if (nfcmrvl_i2c_parse_dt(client->dev.of_yesde, &config) == 0)
 			pdata = &config;
 
 	if (!pdata)

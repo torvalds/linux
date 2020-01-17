@@ -6,7 +6,7 @@
  *
  * Support for BMA250 (c) Peter Meerwald <pmeerw@pmeerw.net>
  *
- * SPI is not supported by driver
+ * SPI is yest supported by driver
  * BMA180: 7-bit I2C slave address 0x40 or 0x41
  * BMA250: 7-bit I2C slave address 0x18 or 0x19
  */
@@ -536,7 +536,7 @@ static const struct iio_info bma180_info = {
 	.write_raw		= bma180_write_raw,
 };
 
-static const char * const bma180_power_modes[] = { "low_noise", "low_power" };
+static const char * const bma180_power_modes[] = { "low_yesise", "low_power" };
 
 static int bma180_get_power_mode(struct iio_dev *indio_dev,
 		const struct iio_chan_spec *chan)
@@ -682,7 +682,7 @@ static irqreturn_t bma180_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buff, time_ns);
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -724,7 +724,7 @@ static int bma180_probe(struct i2c_client *client,
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		chip = (enum chip_ids)of_device_get_match_data(&client->dev);
 	else
 		chip = id->driver_data;

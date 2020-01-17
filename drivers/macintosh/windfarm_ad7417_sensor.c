@@ -6,7 +6,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -237,7 +237,7 @@ static int wf_ad7417_probe(struct i2c_client *client,
 	const char *loc;
 	int cpu_nr;
 
-	loc = of_get_property(client->dev.of_node, "hwsensor-location", NULL);
+	loc = of_get_property(client->dev.of_yesde, "hwsensor-location", NULL);
 	if (!loc) {
 		dev_warn(&client->dev, "Missing hwsensor-location property!\n");
 		return -ENXIO;
@@ -276,9 +276,9 @@ static int wf_ad7417_probe(struct i2c_client *client,
 	wf_ad7417_init_chip(pv);
 
 	/*
-	 * We cannot rely on Apple device-tree giving us child
-	 * node with the names of the individual sensors so we
-	 * just hard code what we know about them
+	 * We canyest rely on Apple device-tree giving us child
+	 * yesde with the names of the individual sensors so we
+	 * just hard code what we kyesw about them
 	 */
 	wf_ad7417_add_sensor(pv, 0, "cpu-amb-temp", &wf_ad7417_temp_ops);
 	wf_ad7417_add_sensor(pv, 1, "cpu-diode-temp", &wf_ad7417_adc_ops);

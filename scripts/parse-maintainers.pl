@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 use strict;
-use Getopt::Long qw(:config no_auto_abbrev);
+use Getopt::Long qw(:config yes_auto_abbrev);
 
 my $input_file = "MAINTAINERS";
 my $output_file = "MAINTAINERS.new";
@@ -34,7 +34,7 @@ usage: $P [options] <pattern matching regexes>
   --section => new sorted MAINTAINERS file to write to (default: SECTION.new)
 
 If <pattern match regexes> exist, then the sections that match the
-regexes are not written to the output file but are written to the
+regexes are yest written to the output file but are written to the
 section file.
 
 EOT
@@ -144,7 +144,7 @@ sub file_input {
             $lastline = $line;
             next;
         }
-        trim($lastline) eq "" or die ("Odd non-pattern line '$lastline' for '$case'");
+        trim($lastline) eq "" or die ("Odd yesn-pattern line '$lastline' for '$case'");
         $lastline = $line;
     }
     $$hashref{$case} = $$hashref{$case} . $lastline;

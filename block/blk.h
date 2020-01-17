@@ -56,7 +56,7 @@ is_flush_rq(struct request *req, struct blk_mq_hw_ctx *hctx)
 }
 
 struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
-		int node, int cmd_size, gfp_t flags);
+		int yesde, int cmd_size, gfp_t flags);
 void blk_free_flush_queue(struct blk_flush_queue *q);
 
 void blk_freeze_queue(struct request_queue *q);
@@ -67,7 +67,7 @@ static inline void blk_queue_enter_live(struct request_queue *q)
 	 * Given that running in generic_make_request() context
 	 * guarantees that a live reference against q_usage_counter has
 	 * been established, further references under that same context
-	 * need not check that the queue has been frozen (marked dead).
+	 * need yest check that the queue has been frozen (marked dead).
 	 */
 	percpu_ref_get(&q->q_usage_counter);
 }
@@ -187,7 +187,7 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 
 void blk_account_io_start(struct request *req, bool new_io);
 void blk_account_io_completion(struct request *req, unsigned int bytes);
-void blk_account_io_done(struct request *req, u64 now);
+void blk_account_io_done(struct request *req, u64 yesw);
 
 /*
  * Internal elevator interface
@@ -212,7 +212,7 @@ static inline void elevator_exit(struct request_queue *q,
 	__elevator_exit(q, e);
 }
 
-struct hd_struct *__disk_get_part(struct gendisk *disk, int partno);
+struct hd_struct *__disk_get_part(struct gendisk *disk, int partyes);
 
 #ifdef CONFIG_FAIL_IO_TIMEOUT
 int blk_should_fake_timeout(struct request_queue *);
@@ -254,7 +254,7 @@ static inline bool blk_do_io_stat(struct request *rq)
 	return rq->rq_disk && (rq->rq_flags & RQF_IO_STAT);
 }
 
-static inline void req_set_nomerge(struct request_queue *q, struct request *req)
+static inline void req_set_yesmerge(struct request_queue *q, struct request *req)
 {
 	req->cmd_flags |= REQ_NOMERGE;
 	if (req == q->last_merge)
@@ -280,12 +280,12 @@ struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
 			     gfp_t gfp_mask);
 void ioc_clear_queue(struct request_queue *q);
 
-int create_task_io_context(struct task_struct *task, gfp_t gfp_mask, int node);
+int create_task_io_context(struct task_struct *task, gfp_t gfp_mask, int yesde);
 
 /**
  * create_io_context - try to create task->io_context
  * @gfp_mask: allocation mask
- * @node: allocation node
+ * @yesde: allocation yesde
  *
  * If %current->io_context is %NULL, allocate a new io_context and install
  * it.  Returns the current %current->io_context which may be %NULL if
@@ -294,11 +294,11 @@ int create_task_io_context(struct task_struct *task, gfp_t gfp_mask, int node);
  * Note that this function can't be called with IRQ disabled because
  * task_lock which protects %current->io_context is IRQ-unsafe.
  */
-static inline struct io_context *create_io_context(gfp_t gfp_mask, int node)
+static inline struct io_context *create_io_context(gfp_t gfp_mask, int yesde)
 {
 	WARN_ON_ONCE(irqs_disabled());
 	if (unlikely(!current->io_context))
-		create_task_io_context(current, gfp_mask, node);
+		create_task_io_context(current, gfp_mask, yesde);
 	return current->io_context;
 }
 

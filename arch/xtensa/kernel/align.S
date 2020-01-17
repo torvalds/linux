@@ -32,7 +32,7 @@
 
 /* Big and little endian 16-bit values are located in
  * different halves of a register.  HWORD_START helps to
- * abstract the notion of extracting a 16-bit value from a
+ * abstract the yestion of extracting a 16-bit value from a
  * register.
  * We also have to define new shifting instructions because
  * lsb and msb are on 'opposite' ends in a register for
@@ -217,7 +217,7 @@ ENTRY(fast_unaligned)
 	addi	a6, a5, -OP0_S32I_N
 	_beqz	a6, .Lstore		# S32I.N, do a store
 #endif
-	/* 'store indicator bit' not set, jump */
+	/* 'store indicator bit' yest set, jump */
 	_bbci.l	a4, OP1_SI_BIT + INSN_OP1, .Lload
 
 	/* Store: Jump to table entry to get the value in the source register.*/
@@ -312,7 +312,7 @@ ENTRY(fast_unaligned)
 	mov	a3, a14		;	_j 1f;	.align 8
 	mov	a3, a15		;	_j 1f;	.align 8
 
-	/* We cannot handle this exception. */
+	/* We canyest handle this exception. */
 
 	.extern _kernel_exception
 .Linvalid_instruction_load:

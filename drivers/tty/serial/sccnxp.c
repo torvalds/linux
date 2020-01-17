@@ -432,7 +432,7 @@ static void sccnxp_handle_rx(struct uart_port *port)
 		if (uart_handle_sysrq_char(port, ch))
 			continue;
 
-		if (sr & port->ignore_status_mask)
+		if (sr & port->igyesre_status_mask)
 			continue;
 
 		uart_insert_char(port, sr, SR_OVR, ch, flag);
@@ -542,7 +542,7 @@ static void sccnxp_start_tx(struct uart_port *port)
 
 static void sccnxp_stop_tx(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do yesthing */
 }
 
 static void sccnxp_stop_rx(struct uart_port *port)
@@ -698,14 +698,14 @@ static void sccnxp_set_termios(struct uart_port *port,
 	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
 		port->read_status_mask |= SR_BRK;
 
-	/* Set status ignore mask */
-	port->ignore_status_mask = 0;
+	/* Set status igyesre mask */
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNBRK)
-		port->ignore_status_mask |= SR_BRK;
+		port->igyesre_status_mask |= SR_BRK;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= SR_PE;
+		port->igyesre_status_mask |= SR_PE;
 	if (!(termios->c_cflag & CREAD))
-		port->ignore_status_mask |= SR_PE | SR_OVR | SR_FE | SR_BRK;
+		port->igyesre_status_mask |= SR_PE | SR_OVR | SR_FE | SR_BRK;
 
 	/* Setup baudrate */
 	baud = uart_get_baud_rate(port, termios, old, 50,
@@ -788,12 +788,12 @@ static const char *sccnxp_type(struct uart_port *port)
 
 static void sccnxp_release_port(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do yesthing */
 }
 
 static int sccnxp_request_port(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do yesthing */
 	return 0;
 }
 
@@ -834,9 +834,9 @@ static const struct uart_ops sccnxp_ops = {
 #ifdef CONFIG_SERIAL_SCCNXP_CONSOLE
 static void sccnxp_console_putchar(struct uart_port *port, int c)
 {
-	int tryes = 100000;
+	int trno = 100000;
 
-	while (tryes--) {
+	while (trno--) {
 		if (sccnxp_port_read(port, SCCNXP_SR_REG) & SR_TXRDY) {
 			sccnxp_port_write(port, SCCNXP_THR_REG, c);
 			break;
@@ -938,7 +938,7 @@ static int sccnxp_probe(struct platform_device *pdev)
 	}
 
 	if (!uartclk) {
-		dev_notice(&pdev->dev, "Using default clock frequency\n");
+		dev_yestice(&pdev->dev, "Using default clock frequency\n");
 		uartclk = s->chip->freq_std;
 	}
 
@@ -969,7 +969,7 @@ static int sccnxp_probe(struct platform_device *pdev)
 	s->uart.owner		= THIS_MODULE;
 	s->uart.dev_name	= "ttySC";
 	s->uart.major		= SCCNXP_MAJOR;
-	s->uart.minor		= SCCNXP_MINOR;
+	s->uart.miyesr		= SCCNXP_MINOR;
 	s->uart.nr		= s->chip->nr;
 #ifdef CONFIG_SERIAL_SCCNXP_CONSOLE
 	s->uart.cons		= &s->console;

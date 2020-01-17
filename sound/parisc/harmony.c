@@ -641,7 +641,7 @@ snd_harmony_pcm_init(struct snd_harmony *h)
 				  BUF_SIZE*GRAVEYARD_BUFS,
 				  &h->gdma);
 	if (err < 0) {
-		printk(KERN_ERR PFX "cannot allocate graveyard buffer!\n");
+		printk(KERN_ERR PFX "canyest allocate graveyard buffer!\n");
 		return err;
 	}
 	
@@ -651,7 +651,7 @@ snd_harmony_pcm_init(struct snd_harmony *h)
 				  BUF_SIZE*SILENCE_BUFS,
 				  &h->sdma);
 	if (err < 0) {
-		printk(KERN_ERR PFX "cannot allocate silence buffer!\n");
+		printk(KERN_ERR PFX "canyest allocate silence buffer!\n");
 		return err;
 	}
 
@@ -907,7 +907,7 @@ snd_harmony_create(struct snd_card *card,
 	h->card = card;
 	h->dev = padev;
 	h->irq = -1;
-	h->iobase = ioremap_nocache(padev->hpa.start, HARMONY_SIZE);
+	h->iobase = ioremap_yescache(padev->hpa.start, HARMONY_SIZE);
 	if (h->iobase == NULL) {
 		printk(KERN_ERR PFX "unable to remap hpa 0x%lx\n",
 		       (unsigned long)padev->hpa.start);
@@ -918,7 +918,7 @@ snd_harmony_create(struct snd_card *card,
 	err = request_irq(padev->irq, snd_harmony_interrupt, 0,
 			  "harmony", h);
 	if (err) {
-		printk(KERN_ERR PFX "could not obtain interrupt %d",
+		printk(KERN_ERR PFX "could yest obtain interrupt %d",
 		       padev->irq);
 		goto free_and_ret;
 	}

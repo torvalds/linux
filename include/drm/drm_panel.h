@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -25,10 +25,10 @@
 #define __DRM_PANEL_H__
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 
-struct device_node;
+struct device_yesde;
 struct drm_connector;
 struct drm_device;
 struct drm_panel;
@@ -53,11 +53,11 @@ struct display_timing;
  * Before stopping video transmission from the display controller it can be
  * necessary to turn off the panel to avoid visual glitches. This is done in
  * the .disable() function. Analogously to .enable() this typically involves
- * turning off the backlight and waiting for some time to make sure no image
+ * turning off the backlight and waiting for some time to make sure yes image
  * is visible on the panel. It is then safe for the display controller to
  * cease transmission of video data.
  *
- * To save power when no video data is transmitted, a driver can power down
+ * To save power when yes video data is transmitted, a driver can power down
  * the panel. This is the job of the .unprepare() function.
  */
 struct drm_panel_funcs {
@@ -175,9 +175,9 @@ int drm_panel_disable(struct drm_panel *panel);
 int drm_panel_get_modes(struct drm_panel *panel);
 
 #if defined(CONFIG_OF) && defined(CONFIG_DRM_PANEL)
-struct drm_panel *of_drm_find_panel(const struct device_node *np);
+struct drm_panel *of_drm_find_panel(const struct device_yesde *np);
 #else
-static inline struct drm_panel *of_drm_find_panel(const struct device_node *np)
+static inline struct drm_panel *of_drm_find_panel(const struct device_yesde *np)
 {
 	return ERR_PTR(-ENODEV);
 }

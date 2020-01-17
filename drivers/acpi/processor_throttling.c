@@ -26,13 +26,13 @@
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_throttling");
 
-/* ignore_tpc:
- *  0 -> acpi processor driver doesn't ignore _TPC values
- *  1 -> acpi processor driver ignores _TPC values
+/* igyesre_tpc:
+ *  0 -> acpi processor driver doesn't igyesre _TPC values
+ *  1 -> acpi processor driver igyesres _TPC values
  */
-static int ignore_tpc;
-module_param(ignore_tpc, int, 0644);
-MODULE_PARM_DESC(ignore_tpc, "Disable broken BIOS _TPC throttling support");
+static int igyesre_tpc;
+module_param(igyesre_tpc, int, 0644);
+MODULE_PARM_DESC(igyesre_tpc, "Disable broken BIOS _TPC throttling support");
 
 struct throttling_tstate {
 	unsigned int cpu;		/* cpu nr */
@@ -177,7 +177,7 @@ err_ret:
 			continue;
 
 		/*
-		 * Assume no coordination on any error parsing domain info.
+		 * Assume yes coordination on any error parsing domain info.
 		 * The coordination type will be forced as SW_ALL.
 		 */
 		if (retval) {
@@ -199,13 +199,13 @@ void acpi_processor_throttling_init(void)
 {
 	if (acpi_processor_update_tsd_coord()) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"Assume no T-state coordination\n"));
+			"Assume yes T-state coordination\n"));
 	}
 
 	return;
 }
 
-static int acpi_processor_throttling_notifier(unsigned long event, void *data)
+static int acpi_processor_throttling_yestifier(unsigned long event, void *data)
 {
 	struct throttling_tstate *p_tstate = data;
 	struct acpi_processor *pr;
@@ -262,7 +262,7 @@ static int acpi_processor_throttling_notifier(unsigned long event, void *data)
 		break;
 	default:
 		printk(KERN_WARNING
-			"Unsupported Throttling notifier event\n");
+			"Unsupported Throttling yestifier event\n");
 		break;
 	}
 
@@ -280,7 +280,7 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 	if (!pr)
 		return -EINVAL;
 
-	if (ignore_tpc)
+	if (igyesre_tpc)
 		goto end;
 
 	status = acpi_evaluate_integer(pr->handle, "_TPC", NULL, &tpc);
@@ -304,7 +304,7 @@ int acpi_processor_tstate_has_changed(struct acpi_processor *pr)
 	struct acpi_processor_limit *limit;
 	int target_state;
 
-	if (ignore_tpc)
+	if (igyesre_tpc)
 		return 0;
 
 	result = acpi_processor_get_platform_limit(pr);
@@ -355,7 +355,7 @@ int acpi_processor_tstate_has_changed(struct acpi_processor *pr)
 /*
  * This function is used to reevaluate whether the T-state is valid
  * after one CPU is onlined/offlined.
- * It is noted that it won't reevaluate the following properties for
+ * It is yested that it won't reevaluate the following properties for
  * the T-state.
  *	1. Control method.
  *	2. the number of supported T-state
@@ -387,7 +387,7 @@ void acpi_processor_reevaluate_tstate(struct acpi_processor *pr,
 
 	/* Disable throttling (if enabled).  We'll let subsequent
 	 * policy (e.g.thermal) decide to lower performance if it
-	 * so chooses, but for now we'll crank up the speed.
+	 * so chooses, but for yesw we'll crank up the speed.
 	 */
 
 	result = acpi_processor_get_throttling(pr);
@@ -616,13 +616,13 @@ static int acpi_processor_get_tsd(struct acpi_processor *pr)
 	}
 
 	if (pdomain->num_entries != ACPI_TSD_REV0_ENTRIES) {
-		printk(KERN_ERR PREFIX "Unknown _TSD:num_entries\n");
+		printk(KERN_ERR PREFIX "Unkyeswn _TSD:num_entries\n");
 		result = -EFAULT;
 		goto end;
 	}
 
 	if (pdomain->revision != ACPI_TSD_REV0_REVISION) {
-		printk(KERN_ERR PREFIX "Unknown _TSD:revision\n");
+		printk(KERN_ERR PREFIX "Unkyeswn _TSD:revision\n");
 		result = -EFAULT;
 		goto end;
 	}
@@ -632,7 +632,7 @@ static int acpi_processor_get_tsd(struct acpi_processor *pr)
 	pthrottling->shared_type = pdomain->coord_type;
 	cpumask_set_cpu(pr->id, pthrottling->shared_cpu_map);
 	/*
-	 * If the coordination type is not defined in ACPI spec,
+	 * If the coordination type is yest defined in ACPI spec,
 	 * the tsd_valid_flag will be clear and coordination type
 	 * will be forecd as DOMAIN_COORD_TYPE_SW_ALL.
 	 */
@@ -666,7 +666,7 @@ static int acpi_processor_get_throttling_fadt(struct acpi_processor *pr)
 
 	/*
 	 * We don't care about error returns - we just try to mark
-	 * these reserved so that nobody else is confused into thinking
+	 * these reserved so that yesbody else is confused into thinking
 	 * that this region might be unused..
 	 *
 	 * (In particular, allocating the IO range for Cardbus)
@@ -788,7 +788,7 @@ static int acpi_read_throttling_status(struct acpi_processor *pr,
 		ret = acpi_throttling_rdmsr(value);
 		break;
 	default:
-		printk(KERN_ERR PREFIX "Unknown addr space %d\n",
+		printk(KERN_ERR PREFIX "Unkyeswn addr space %d\n",
 		       (u32) (throttling->status_register.space_id));
 	}
 	return ret;
@@ -821,7 +821,7 @@ static int acpi_write_throttling_state(struct acpi_processor *pr,
 		ret = acpi_throttling_wrmsr(value);
 		break;
 	default:
-		printk(KERN_ERR PREFIX "Unknown addr space %d\n",
+		printk(KERN_ERR PREFIX "Unkyeswn addr space %d\n",
 		       (u32) (throttling->control_register.space_id));
 	}
 	return ret;
@@ -915,7 +915,7 @@ static int acpi_processor_get_throttling(struct acpi_processor *pr)
 	/*
 	 * This is either called from the CPU hotplug callback of
 	 * processor_driver or via the ACPI probe function. In the latter
-	 * case the CPU is not guaranteed to be online. Both call sites are
+	 * case the CPU is yest guaranteed to be online. Both call sites are
 	 * protected against CPU hotplug.
 	 */
 	if (!cpu_online(pr->id))
@@ -1102,13 +1102,13 @@ static int __acpi_processor_set_throttling(struct acpi_processor *pr,
 	p_throttling = &(pr->throttling);
 
 	/*
-	 * The throttling notifier will be called for every
+	 * The throttling yestifier will be called for every
 	 * affected cpu in order to get one proper T-state.
-	 * The notifier event is THROTTLING_PRECHANGE.
+	 * The yestifier event is THROTTLING_PRECHANGE.
 	 */
 	for_each_cpu_and(i, cpu_online_mask, p_throttling->shared_cpu_map) {
 		t_state.cpu = i;
-		acpi_processor_throttling_notifier(THROTTLING_PRECHANGE,
+		acpi_processor_throttling_yestifier(THROTTLING_PRECHANGE,
 							&t_state);
 	}
 	/*
@@ -1161,13 +1161,13 @@ static int __acpi_processor_set_throttling(struct acpi_processor *pr,
 	}
 	/*
 	 * After the set_throttling is called, the
-	 * throttling notifier is called for every
+	 * throttling yestifier is called for every
 	 * affected cpu to update the T-states.
-	 * The notifier event is THROTTLING_POSTCHANGE
+	 * The yestifier event is THROTTLING_POSTCHANGE
 	 */
 	for_each_cpu_and(i, cpu_online_mask, p_throttling->shared_cpu_map) {
 		t_state.cpu = i;
-		acpi_processor_throttling_notifier(THROTTLING_POSTCHANGE,
+		acpi_processor_throttling_yestifier(THROTTLING_POSTCHANGE,
 							&t_state);
 	}
 
@@ -1193,7 +1193,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 
 	/*
 	 * Evaluate _PTC, _TSS and _TPC
-	 * They must all be present or none of them can be used.
+	 * They must all be present or yesne of them can be used.
 	 */
 	if (acpi_processor_get_throttling_control(pr) ||
 		acpi_processor_get_throttling_states(pr) ||
@@ -1214,7 +1214,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 
 	/*
 	 * If TSD package for one CPU can't be parsed successfully, it means
-	 * that this CPU will have no coordination with other CPUs.
+	 * that this CPU will have yes coordination with other CPUs.
 	 */
 	if (acpi_processor_get_tsd(pr)) {
 		pthrottling = &pr->throttling;
@@ -1230,7 +1230,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 	 */
 	if (errata.piix4.throttle) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Throttling not supported on PIIX4 A- or B-step\n"));
+				  "Throttling yest supported on PIIX4 A- or B-step\n"));
 		return 0;
 	}
 
@@ -1241,7 +1241,7 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 
 	/*
 	 * Disable throttling (if enabled).  We'll let subsequent policy (e.g.
-	 * thermal) decide to lower performance if it so chooses, but for now
+	 * thermal) decide to lower performance if it so chooses, but for yesw
 	 * we'll crank up the speed.
 	 */
 

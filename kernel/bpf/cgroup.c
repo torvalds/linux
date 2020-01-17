@@ -47,8 +47,8 @@ static void cgroup_bpf_release(struct work_struct *work)
 		struct list_head *progs = &cgrp->bpf.progs[type];
 		struct bpf_prog_list *pl, *tmp;
 
-		list_for_each_entry_safe(pl, tmp, progs, node) {
-			list_del(&pl->node);
+		list_for_each_entry_safe(pl, tmp, progs, yesde) {
+			list_del(&pl->yesde);
 			bpf_prog_put(pl->prog);
 			for_each_cgroup_storage_type(stype) {
 				bpf_cgroup_storage_unlink(pl->storage[stype]);
@@ -86,14 +86,14 @@ static void cgroup_bpf_release_fn(struct percpu_ref *ref)
 }
 
 /* count number of elements in the list.
- * it's slow but the list cannot be long
+ * it's slow but the list canyest be long
  */
 static u32 prog_list_length(struct list_head *head)
 {
 	struct bpf_prog_list *pl;
 	u32 cnt = 0;
 
-	list_for_each_entry(pl, head, node) {
+	list_for_each_entry(pl, head, yesde) {
 		if (!pl->prog)
 			continue;
 		cnt++;
@@ -101,7 +101,7 @@ static u32 prog_list_length(struct list_head *head)
 	return cnt;
 }
 
-/* if parent has non-overridable prog attached,
+/* if parent has yesn-overridable prog attached,
  * disallow attaching new programs to the descendent cgroup.
  * if parent has overridable or multi-prog, allow attaching
  */
@@ -163,7 +163,7 @@ static int compute_effective_progs(struct cgroup *cgrp,
 		if (cnt > 0 && !(p->bpf.flags[type] & BPF_F_ALLOW_MULTI))
 			continue;
 
-		list_for_each_entry(pl, &p->bpf.progs[type], node) {
+		list_for_each_entry(pl, &p->bpf.progs[type], yesde) {
 			if (!pl->prog)
 				continue;
 
@@ -271,7 +271,7 @@ static int update_effective_progs(struct cgroup *cgrp,
 
 cleanup:
 	/* oom while computing effective. Free all computed effective arrays
-	 * since they were not activated
+	 * since they were yest activated
 	 */
 	css_for_each_descendant_pre(css, &cgrp->self) {
 		struct cgroup *desc = container_of(css, struct cgroup, self);
@@ -315,9 +315,9 @@ int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
 		return -EPERM;
 
 	if (!list_empty(progs) && cgrp->bpf.flags[type] != flags)
-		/* Disallow attaching non-overridable on top
+		/* Disallow attaching yesn-overridable on top
 		 * of existing overridable in this cgroup.
-		 * Disallow attaching multi-prog if overridable or none
+		 * Disallow attaching multi-prog if overridable or yesne
 		 */
 		return -EPERM;
 
@@ -335,7 +335,7 @@ int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
 	}
 
 	if (flags & BPF_F_ALLOW_MULTI) {
-		list_for_each_entry(pl, progs, node) {
+		list_for_each_entry(pl, progs, yesde) {
 			if (pl->prog == prog) {
 				/* disallow attaching the same prog twice */
 				for_each_cgroup_storage_type(stype)
@@ -355,7 +355,7 @@ int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
 		pl->prog = prog;
 		for_each_cgroup_storage_type(stype)
 			pl->storage[stype] = storage[stype];
-		list_add_tail(&pl->node, progs);
+		list_add_tail(&pl->yesde, progs);
 	} else {
 		if (list_empty(progs)) {
 			pl = kmalloc(sizeof(*pl), GFP_KERNEL);
@@ -365,9 +365,9 @@ int __cgroup_bpf_attach(struct cgroup *cgrp, struct bpf_prog *prog,
 				return -ENOMEM;
 			}
 			pl_was_allocated = true;
-			list_add_tail(&pl->node, progs);
+			list_add_tail(&pl->yesde, progs);
 		} else {
-			pl = list_first_entry(progs, typeof(*pl), node);
+			pl = list_first_entry(progs, typeof(*pl), yesde);
 			old_prog = pl->prog;
 			for_each_cgroup_storage_type(stype) {
 				old_storage[stype] = pl->storage[stype];
@@ -409,7 +409,7 @@ cleanup:
 		bpf_cgroup_storage_link(old_storage[stype], cgrp, type);
 	}
 	if (pl_was_allocated) {
-		list_del(&pl->node);
+		list_del(&pl->yesde);
 		kfree(pl);
 	}
 	return err;
@@ -442,17 +442,17 @@ int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 			return -EINVAL;
 	} else {
 		if (list_empty(progs))
-			/* report error when trying to detach and nothing is attached */
+			/* report error when trying to detach and yesthing is attached */
 			return -ENOENT;
 	}
 
 	if (flags & BPF_F_ALLOW_MULTI) {
 		/* find the prog and detach it */
-		list_for_each_entry(pl, progs, node) {
+		list_for_each_entry(pl, progs, yesde) {
 			if (pl->prog != prog)
 				continue;
 			old_prog = prog;
-			/* mark it deleted, so it's ignored while
+			/* mark it deleted, so it's igyesred while
 			 * recomputing effective
 			 */
 			pl->prog = NULL;
@@ -464,7 +464,7 @@ int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 		/* to maintain backward compatibility NONE and OVERRIDE cgroups
 		 * allow detaching with invalid FD (prog==NULL)
 		 */
-		pl = list_first_entry(progs, typeof(*pl), node);
+		pl = list_first_entry(progs, typeof(*pl), yesde);
 		old_prog = pl->prog;
 		pl->prog = NULL;
 	}
@@ -473,8 +473,8 @@ int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
 	if (err)
 		goto cleanup;
 
-	/* now can actually delete it from this cgroup list */
-	list_del(&pl->node);
+	/* yesw can actually delete it from this cgroup list */
+	list_del(&pl->yesde);
 	for_each_cgroup_storage_type(stype) {
 		bpf_cgroup_storage_unlink(pl->storage[stype]);
 		bpf_cgroup_storage_free(pl->storage[stype]);
@@ -532,7 +532,7 @@ int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 		u32 id;
 
 		i = 0;
-		list_for_each_entry(pl, progs, node) {
+		list_for_each_entry(pl, progs, yesde) {
 			id = pl->prog->aux->id;
 			if (copy_to_user(prog_ids + i, &id, sizeof(id)))
 				return -EFAULT;
@@ -603,16 +603,16 @@ int cgroup_bpf_prog_query(const union bpf_attr *attr,
  * @skb: The skb that is being sent or received
  * @type: The type of program to be exectuted
  *
- * If no socket is passed, or the socket is not of type INET or INET6,
- * this function does nothing and returns 0.
+ * If yes socket is passed, or the socket is yest of type INET or INET6,
+ * this function does yesthing and returns 0.
  *
  * The program type passed in via @type must be suitable for network
  * filtering. No further check is performed to assert that.
  *
  * For egress packets, this function can return:
  *   NET_XMIT_SUCCESS    (0)	- continue with packet output
- *   NET_XMIT_DROP       (1)	- drop packet and notify TCP to call cwr
- *   NET_XMIT_CN         (2)	- continue with packet output and notify TCP
+ *   NET_XMIT_DROP       (1)	- drop packet and yestify TCP to call cwr
+ *   NET_XMIT_CN         (2)	- continue with packet output and yestify TCP
  *				  to call cwr
  *   -EPERM			- drop packet
  *
@@ -711,7 +711,7 @@ int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
 	struct cgroup *cgrp;
 	int ret;
 
-	/* Check socket family since not all sockets represent network
+	/* Check socket family since yest all sockets represent network
 	 * endpoint (e.g. AF_UNIX).
 	 */
 	if (sk->sk_family != AF_INET && sk->sk_family != AF_INET6)
@@ -733,7 +733,7 @@ EXPORT_SYMBOL(__cgroup_bpf_run_filter_sock_addr);
  * __cgroup_bpf_run_filter_sock_ops() - Run a program on a sock
  * @sk: socket to get cgroup from
  * @sock_ops: bpf_sock_ops_kern struct to pass to program. Contains
- * sk with connection information (IP addresses, etc.) May not contain
+ * sk with connection information (IP addresses, etc.) May yest contain
  * cgroup info if it is a req sock.
  * @type: The type of program to be exectuted
  *
@@ -758,14 +758,14 @@ int __cgroup_bpf_run_filter_sock_ops(struct sock *sk,
 }
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_sock_ops);
 
-int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
+int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 miyesr,
 				      short access, enum bpf_attach_type type)
 {
 	struct cgroup *cgrp;
 	struct bpf_cgroup_dev_ctx ctx = {
 		.access_type = (access << 16) | dev_type,
 		.major = major,
-		.minor = minor,
+		.miyesr = miyesr,
 	};
 	int allow = 1;
 
@@ -1001,7 +1001,7 @@ int __cgroup_bpf_run_filter_setsockopt(struct sock *sk, int *level,
 		return 0;
 
 	/* Allocate a bit more than the initial user buffer for
-	 * BPF program. The canonical use case is overriding
+	 * BPF program. The cayesnical use case is overriding
 	 * TCP_CONGESTION(nv) to TCP_CONGESTION(cubic).
 	 */
 	max_optlen = max_t(int, 16, *optlen);
@@ -1116,7 +1116,7 @@ int __cgroup_bpf_run_filter_getsockopt(struct sock *sk, int level,
 		goto out;
 	}
 
-	/* BPF programs only allowed to set retval to 0, not some
+	/* BPF programs only allowed to set retval to 0, yest some
 	 * arbitrary value.
 	 */
 	if (ctx.retval != 0 && ctx.retval != retval) {
@@ -1355,7 +1355,7 @@ static u32 sysctl_convert_ctx_access(enum bpf_access_type type,
 	case offsetof(struct bpf_sysctl, file_pos):
 		/* ppos is a pointer so it should be accessed via indirect
 		 * loads and stores. Also for stores additional temporary
-		 * register is used since neither src_reg nor dst_reg can be
+		 * register is used since neither src_reg yesr dst_reg can be
 		 * overridden.
 		 */
 		if (type == BPF_WRITE) {

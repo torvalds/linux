@@ -114,14 +114,14 @@ static struct ata_port_operations pata_gayle_a1200_ops = {
 	.sff_data_xfer	= pata_gayle_data_xfer,
 	.sff_irq_check	= pata_gayle_irq_check,
 	.sff_irq_clear	= pata_gayle_irq_clear,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkyeswn,
 	.set_mode	= pata_gayle_set_mode,
 };
 
 static struct ata_port_operations pata_gayle_a4000_ops = {
 	.inherits	= &ata_sff_port_ops,
 	.sff_data_xfer	= pata_gayle_data_xfer,
-	.cable_detect	= ata_cable_unknown,
+	.cable_detect	= ata_cable_unkyeswn,
 	.set_mode	= pata_gayle_set_mode,
 };
 

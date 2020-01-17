@@ -34,7 +34,7 @@ resolutions.
 X11
 ===
 
-XF68_FBDev should generally work fine, but it is non-accelerated.
+XF68_FBDev should generally work fine, but it is yesn-accelerated.
 
 
 Configuration
@@ -47,7 +47,7 @@ Accepted options:
 ================ ==================================================
 mode_option	 specify the video mode.  Of the form
 		 <x>x<y>[-<bpp>][@<refresh>]
-vram		 size of video ram (normally auto-detected)
+vram		 size of video ram (yesrmally auto-detected)
 vt_switch	 enable vt switching during suspend/resume.  The vt
 		 switch is slow, but harmless.
 ================ ==================================================

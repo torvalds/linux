@@ -11,7 +11,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -94,8 +94,8 @@ static const struct camif_fmt camif_formats[] = {
 /**
  * s3c_camif_find_format() - lookup camif color format by fourcc or an index
  * @vp: video path (DMA) description (codec/preview)
- * @pixelformat: fourcc to match, ignored if null
- * @index: index to the camif_formats array, ignored if negative
+ * @pixelformat: fourcc to match, igyesred if null
+ * @index: index to the camif_formats array, igyesred if negative
  */
 const struct camif_fmt *s3c_camif_find_format(struct camif_vp *vp,
 					      const u32 *pixelformat,
@@ -271,24 +271,24 @@ static int camif_create_media_links(struct camif_dev *camif)
 	return ret;
 }
 
-static int camif_register_video_nodes(struct camif_dev *camif)
+static int camif_register_video_yesdes(struct camif_dev *camif)
 {
-	int ret = s3c_camif_register_video_node(camif, VP_CODEC);
+	int ret = s3c_camif_register_video_yesde(camif, VP_CODEC);
 	if (ret < 0)
 		return ret;
 
-	return s3c_camif_register_video_node(camif, VP_PREVIEW);
+	return s3c_camif_register_video_yesde(camif, VP_PREVIEW);
 }
 
-static void camif_unregister_video_nodes(struct camif_dev *camif)
+static void camif_unregister_video_yesdes(struct camif_dev *camif)
 {
-	s3c_camif_unregister_video_node(camif, VP_CODEC);
-	s3c_camif_unregister_video_node(camif, VP_PREVIEW);
+	s3c_camif_unregister_video_yesde(camif, VP_CODEC);
+	s3c_camif_unregister_video_yesde(camif, VP_PREVIEW);
 }
 
 static void camif_unregister_media_entities(struct camif_dev *camif)
 {
-	camif_unregister_video_nodes(camif);
+	camif_unregister_video_yesdes(camif);
 	camif_unregister_sensor(camif);
 	s3c_camif_unregister_subdev(camif);
 }
@@ -474,11 +474,11 @@ static int s3c_camif_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_sens;
 
-	ret = v4l2_device_register_subdev_nodes(&camif->v4l2_dev);
+	ret = v4l2_device_register_subdev_yesdes(&camif->v4l2_dev);
 	if (ret < 0)
 		goto err_sens;
 
-	ret = camif_register_video_nodes(camif);
+	ret = camif_register_video_yesdes(camif);
 	if (ret < 0)
 		goto err_sens;
 

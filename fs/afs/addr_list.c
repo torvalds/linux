@@ -163,7 +163,7 @@ struct afs_vlserver_list *afs_parse_text_addrs(struct afs_net *net,
 
 		p = q;
 		if (stop != p) {
-			problem = "nostop";
+			problem = "yesstop";
 			goto bad_address;
 		}
 
@@ -226,7 +226,7 @@ error_vl:
  * Compare old and new address lists to see if there's been any change.
  * - How to do this in better than O(Nlog(N)) time?
  *   - We don't really want to sort the address list, but would rather take the
- *     list as we got it so as not to undo record rotation by the DNS server.
+ *     list as we got it so as yest to undo record rotation by the DNS server.
  */
 #if 0
 static int afs_cmp_addr_list(const struct afs_addr_list *a1,

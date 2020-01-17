@@ -192,7 +192,7 @@ static int mchp23k256_probe(struct spi_device *spi)
 	if (!flash->caps)
 		flash->caps = &mchp23k256_caps;
 
-	mtd_set_of_node(&flash->mtd, spi->dev.of_node);
+	mtd_set_of_yesde(&flash->mtd, spi->dev.of_yesde);
 	flash->mtd.dev.parent	= &spi->dev;
 	flash->mtd.type		= MTD_RAM;
 	flash->mtd.flags	= MTD_CAP_RAM;

@@ -2,18 +2,18 @@
 /*
  * hcd.c - DesignWare HS OTG Controller host-mode routines
  *
- * Copyright (C) 2004-2013 Synopsys, Inc.
+ * Copyright (C) 2004-2013 Syyespsys, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
+ * 3. The names of the above-listed copyright holders may yest be used
  *    to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -103,7 +103,7 @@ static int dwc2_gahbcfg_init(struct dwc2_hsotg *hsotg)
 
 	switch (hsotg->hw_params.arch) {
 	case GHWCFG2_EXT_DMA_ARCH:
-		dev_err(hsotg->dev, "External DMA Mode not supported\n");
+		dev_err(hsotg->dev, "External DMA Mode yest supported\n");
 		return -EINVAL;
 
 	case GHWCFG2_INT_DMA_ARCH:
@@ -241,9 +241,9 @@ static void dwc2_calculate_dynamic_fifo(struct dwc2_hsotg *hsotg)
 
 	/*
 	 * Will use Method 2 defined in the DWC2 spec: minimum FIFO depth
-	 * allocation with support for high bandwidth endpoints. Synopsys
+	 * allocation with support for high bandwidth endpoints. Syyespsys
 	 * defines MPS(Max Packet size) for a periodic EP=1024, and for
-	 * non-periodic as 512.
+	 * yesn-periodic as 512.
 	 */
 	if (total_fifo_size < (rxfsiz + nptxfsiz + ptxfsiz)) {
 		/*
@@ -255,8 +255,8 @@ static void dwc2_calculate_dynamic_fifo(struct dwc2_hsotg *hsotg)
 		rxfsiz = 516 + hw->host_channels;
 
 		/*
-		 * min non-periodic tx fifo depth
-		 * 2 * (largest non-periodic USB packet used / 4)
+		 * min yesn-periodic tx fifo depth
+		 * 2 * (largest yesn-periodic USB packet used / 4)
 		 * 2 * (512/4) = 256
 		 */
 		nptxfsiz = 256;
@@ -277,7 +277,7 @@ static void dwc2_calculate_dynamic_fifo(struct dwc2_hsotg *hsotg)
 	 * If the summation of RX, NPTX and PTX fifo sizes is still
 	 * bigger than the total_fifo_size, then we have a problem.
 	 *
-	 * We won't be able to allocate as many endpoints. Right now,
+	 * We won't be able to allocate as many endpoints. Right yesw,
 	 * we're just printing an error message, but ideally this FIFO
 	 * allocation algorithm would be improved in the future.
 	 *
@@ -412,7 +412,7 @@ void dwc2_read_packet(struct dwc2_hsotg *hsotg, u8 *dest, u16 bytes)
 	int i;
 
 	/*
-	 * Todo: Account for the case where dest is not dword aligned. This
+	 * Todo: Account for the case where dest is yest dword aligned. This
 	 * requires reading data from the FIFO into a u32 temp buffer, then
 	 * moving it into the data buffer.
 	 */
@@ -472,15 +472,15 @@ static void dwc2_dump_channel_info(struct dwc2_hsotg *hsotg,
 	dev_dbg(hsotg->dev, "    xfer_len: %d\n", chan->xfer_len);
 	dev_dbg(hsotg->dev, "    qh: %p\n", chan->qh);
 	dev_dbg(hsotg->dev, "  NP inactive sched:\n");
-	list_for_each_entry(qh, &hsotg->non_periodic_sched_inactive,
+	list_for_each_entry(qh, &hsotg->yesn_periodic_sched_inactive,
 			    qh_list_entry)
 		dev_dbg(hsotg->dev, "    %p\n", qh);
 	dev_dbg(hsotg->dev, "  NP waiting sched:\n");
-	list_for_each_entry(qh, &hsotg->non_periodic_sched_waiting,
+	list_for_each_entry(qh, &hsotg->yesn_periodic_sched_waiting,
 			    qh_list_entry)
 		dev_dbg(hsotg->dev, "    %p\n", qh);
 	dev_dbg(hsotg->dev, "  NP active sched:\n");
-	list_for_each_entry(qh, &hsotg->non_periodic_sched_active,
+	list_for_each_entry(qh, &hsotg->yesn_periodic_sched_active,
 			    qh_list_entry)
 		dev_dbg(hsotg->dev, "    %p\n", qh);
 	dev_dbg(hsotg->dev, "  Channels:\n");
@@ -596,7 +596,7 @@ static void dwc2_hc_enable_slave_ints(struct dwc2_hsotg *hsotg,
 		}
 		break;
 	default:
-		dev_err(hsotg->dev, "## Unknown EP type ##\n");
+		dev_err(hsotg->dev, "## Unkyeswn EP type ##\n");
 		break;
 	}
 
@@ -612,7 +612,7 @@ static void dwc2_hc_enable_dma_ints(struct dwc2_hsotg *hsotg,
 
 	/*
 	 * For Descriptor DMA mode core halts the channel on AHB error.
-	 * Interrupt is not required.
+	 * Interrupt is yest required.
 	 */
 	if (!hsotg->params.dma_desc_enable) {
 		if (dbg_hc(chan))
@@ -778,13 +778,13 @@ static void dwc2_hc_init(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan)
  * @halt_status: Reason for halting the channel
  *
  * This function should only be called in Slave mode or to abort a transfer in
- * either Slave mode or DMA mode. Under normal circumstances in DMA mode, the
+ * either Slave mode or DMA mode. Under yesrmal circumstances in DMA mode, the
  * controller halts the channel when the transfer is complete or a condition
  * occurs that requires application intervention.
  *
  * In slave mode, checks for a free request queue entry, then sets the Channel
  * Enable and Channel Disable bits of the Host Channel Characteristics
- * register of the specified channel to intiate the halt. If there is no free
+ * register of the specified channel to intiate the halt. If there is yes free
  * request queue entry, sets only the Channel Disable bit of the HCCHARn
  * register to flush requests for this channel. In the latter case, sets a
  * flag to indicate that the host channel needs to be halted when a request
@@ -808,7 +808,7 @@ void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
 
 	/*
 	 * In buffer DMA or external DMA mode channel can't be halted
-	 * for non-split periodic channels. At the end of the next
+	 * for yesn-split periodic channels. At the end of the next
 	 * uframe/frame (in the worst case), the core generates a channel
 	 * halted and disables the channel automatically.
 	 */
@@ -840,8 +840,8 @@ void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
 		dwc2_writel(hsotg, hcintmsk, HCINTMSK(chan->hc_num));
 
 		/*
-		 * Make sure no other interrupts besides halt are currently
-		 * pending. Handling another interrupt could cause a crash due
+		 * Make sure yes other interrupts besides halt are currently
+		 * pending. Handling ayesther interrupt could cause a crash due
 		 * to the QTD and QH state.
 		 */
 		dwc2_writel(hsotg, ~hcintmsk, HCINT(chan->hc_num));
@@ -858,11 +858,11 @@ void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
 			/*
 			 * The channel is either already halted or it hasn't
 			 * started yet. In DMA mode, the transfer may halt if
-			 * it finishes normally or a condition occurs that
+			 * it finishes yesrmally or a condition occurs that
 			 * requires driver intervention. Don't want to halt
 			 * the channel again. In either Slave or DMA mode,
 			 * it's possible that the transfer has been assigned
-			 * to a channel, but not started yet when an URB is
+			 * to a channel, but yest started yet when an URB is
 			 * dequeued. Don't want to halt a channel that hasn't
 			 * started yet.
 			 */
@@ -897,7 +897,7 @@ void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
 
 	if (!hsotg->params.host_dma) {
 		if (dbg_hc(chan))
-			dev_vdbg(hsotg->dev, "DMA not enabled\n");
+			dev_vdbg(hsotg->dev, "DMA yest enabled\n");
 		hcchar |= HCCHAR_CHENA;
 
 		/* Check for space in the request queue to issue the halt */
@@ -959,7 +959,7 @@ void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
  * @hsotg: Programming view of DWC_otg controller
  * @chan:  Identifies the host channel to clean up
  *
- * This function is normally called after a transfer is done and the host
+ * This function is yesrmally called after a transfer is done and the host
  * channel is being released
  */
 void dwc2_hc_cleanup(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan)
@@ -988,7 +988,7 @@ void dwc2_hc_cleanup(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan)
  * @chan:   Identifies the host channel to set up and its properties
  * @hcchar: Current value of the HCCHAR register for the specified host channel
  *
- * This function has no effect on non-periodic transfers
+ * This function has yes effect on yesn-periodic transfers
  */
 static void dwc2_hc_set_even_odd_frame(struct dwc2_hsotg *hsotg,
 				       struct dwc2_host_chan *chan, u32 *hcchar)
@@ -1015,9 +1015,9 @@ static void dwc2_hc_set_even_odd_frame(struct dwc2_hsotg *hsotg,
 		 * right away).  We might want to do this if the frame number
 		 * _just_ ticked, but we might also want to do this in order
 		 * to continue a split transaction that happened late in a
-		 * microframe (so we didn't know to queue the next transfer
+		 * microframe (so we didn't kyesw to queue the next transfer
 		 * until the frame number had ticked).  The problem is that we
-		 * need a lot of knowledge to know if there's actually still
+		 * need a lot of kyeswledge to kyesw if there's actually still
 		 * time to send things or if it would be better to wait until
 		 * the next frame.
 		 *
@@ -1030,7 +1030,7 @@ static void dwc2_hc_set_even_odd_frame(struct dwc2_hsotg *hsotg,
 		host_speed = (chan->speed != USB_SPEED_HIGH &&
 			      !chan->do_split) ? chan->speed : USB_SPEED_HIGH;
 
-		/* See how many bytes are in the periodic FIFO right now */
+		/* See how many bytes are in the periodic FIFO right yesw */
 		fifo_space = (dwc2_readl(hsotg, HPTXSTS) &
 			      TXSTS_FSPCAVAIL_MASK) >> TXSTS_FSPCAVAIL_SHIFT;
 		bytes_in_fifo = sizeof(u32) *
@@ -1060,7 +1060,7 @@ static void dwc2_hc_set_even_odd_frame(struct dwc2_hsotg *hsotg,
 		 * it's hopeless.  Just schedule right away and hope for the
 		 * best.  Note that it _might_ be wise to call back into the
 		 * scheduler to pick a better frame, but this is better than
-		 * nothing.
+		 * yesthing.
 		 */
 		if (dwc2_frame_num_gt(frame_number, wire_frame)) {
 			dwc2_sch_vdbg(hsotg,
@@ -1073,7 +1073,7 @@ static void dwc2_hc_set_even_odd_frame(struct dwc2_hsotg *hsotg,
 			/*
 			 * We picked a different frame number; communicate this
 			 * back to the scheduler so it doesn't try to schedule
-			 * another in the same frame.
+			 * ayesther in the same frame.
 			 *
 			 * Remember that next_active_frame is 1 before the wire
 			 * frame.
@@ -1119,7 +1119,7 @@ static void dwc2_set_pid_isoc(struct dwc2_host_chan *chan)
  * @chan:  Information needed to initialize the host channel
  *
  * This function should only be called in Slave mode. For a channel associated
- * with a non-periodic EP, the non-periodic Tx FIFO is written. For a channel
+ * with a yesn-periodic EP, the yesn-periodic Tx FIFO is written. For a channel
  * associated with a periodic EP, the periodic Tx FIFO is written.
  *
  * Upon return the xfer_buf and xfer_count fields in chan are incremented by
@@ -1150,7 +1150,7 @@ static void dwc2_hc_write_packet(struct dwc2_hsotg *hsotg,
 		for (i = 0; i < dword_count; i++, data_buf++)
 			dwc2_writel(hsotg, *data_buf, HCFIFO(chan->hc_num));
 	} else {
-		/* xfer_buf is not DWORD aligned */
+		/* xfer_buf is yest DWORD aligned */
 		for (i = 0; i < dword_count; i++, data_buf++) {
 			u32 data = data_buf[0] | data_buf[1] << 8 |
 				   data_buf[2] << 16 | data_buf[3] << 24;
@@ -1216,7 +1216,7 @@ static void dwc2_hc_do_ping(struct dwc2_hsotg *hsotg,
  * For a PING transfer in Slave mode, the Do Ping bit is set in the HCTSIZ
  * register along with a packet count of 1 and the channel is enabled. This
  * causes a single PING transaction to occur. Other fields in HCTSIZ are
- * simply set to 0 since no data transfer occurs in this case.
+ * simply set to 0 since yes data transfer occurs in this case.
  *
  * For a PING transfer in DMA mode, the HCTSIZ register is initialized with
  * all the information required to perform the subsequent data transfer. In
@@ -1240,7 +1240,7 @@ static void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 	if (chan->do_ping) {
 		if (!hsotg->params.host_dma) {
 			if (dbg_hc(chan))
-				dev_vdbg(hsotg->dev, "ping, no DMA\n");
+				dev_vdbg(hsotg->dev, "ping, yes DMA\n");
 			dwc2_hc_do_ping(hsotg, chan);
 			chan->xfer_started = 1;
 			return;
@@ -1279,7 +1279,7 @@ static void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 			ec_mc = 1;
 	} else {
 		if (dbg_hc(chan))
-			dev_vdbg(hsotg->dev, "no split\n");
+			dev_vdbg(hsotg->dev, "yes split\n");
 		/*
 		 * Ensure that the transfer length and packet count will fit
 		 * in the widths allocated for them in the HCTSIZn register
@@ -1287,7 +1287,7 @@ static void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 		if (chan->ep_type == USB_ENDPOINT_XFER_INT ||
 		    chan->ep_type == USB_ENDPOINT_XFER_ISOC) {
 			/*
-			 * Make sure the transfer size is no larger than one
+			 * Make sure the transfer size is yes larger than one
 			 * (micro)frame's worth of data. (A check was done
 			 * when the periodic transfer was accepted to ensure
 			 * that a (micro)frame's worth of data can be
@@ -1340,7 +1340,7 @@ static void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 		hctsiz |= chan->xfer_len << TSIZ_XFERSIZE_SHIFT &
 			  TSIZ_XFERSIZE_MASK;
 
-		/* The ec_mc gets the multi_count for non-split */
+		/* The ec_mc gets the multi_count for yesn-split */
 		ec_mc = chan->multi_count;
 	}
 
@@ -1450,7 +1450,7 @@ void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
 	if (chan->ep_type == USB_ENDPOINT_XFER_ISOC)
 		dwc2_set_pid_isoc(chan);
 
-	/* Packet Count and Xfer Size are not used in Descriptor DMA mode */
+	/* Packet Count and Xfer Size are yest used in Descriptor DMA mode */
 	hctsiz |= chan->data_pid_start << TSIZ_SC_MC_PID_SHIFT &
 		  TSIZ_SC_MC_PID_MASK;
 
@@ -1516,15 +1516,15 @@ void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
  *
  * The caller must ensure there is sufficient space in the request queue and Tx
  * Data FIFO. This function should only be called in Slave mode. In DMA mode,
- * the controller acts autonomously to complete transfers programmed to a host
+ * the controller acts autoyesmously to complete transfers programmed to a host
  * channel.
  *
  * For an OUT transfer, a new data packet is loaded into the appropriate FIFO
- * if there is any data remaining to be queued. For an IN transfer, another
+ * if there is any data remaining to be queued. For an IN transfer, ayesther
  * data packet is always requested. For the SETUP phase of a control transfer,
- * this function does nothing.
+ * this function does yesthing.
  *
- * Return: 1 if a new request is queued, 0 if no more requests are required
+ * Return: 1 if a new request is queued, 0 if yes more requests are required
  * for this transfer
  */
 static int dwc2_hc_continue_transfer(struct dwc2_hsotg *hsotg,
@@ -1544,12 +1544,12 @@ static int dwc2_hc_continue_transfer(struct dwc2_hsotg *hsotg,
 
 	if (chan->ep_is_in) {
 		/*
-		 * Always queue another request for other IN transfers. If
+		 * Always queue ayesther request for other IN transfers. If
 		 * back-to-back INs are issued and NAKs are received for both,
 		 * the driver may still be processing the first NAK when the
 		 * second NAK is received. When the interrupt handler clears
 		 * the NAK interrupt for the first NAK, the second NAK will
-		 * not be seen. So we can't depend on the NAK interrupt
+		 * yest be seen. So we can't depend on the NAK interrupt
 		 * handler to requeue a NAK'd request. Instead, IN requests
 		 * are issued each time this function is called. When the
 		 * transfer completes, the extra requests for the channel will
@@ -1629,7 +1629,7 @@ static void dwc2_qh_list_free(struct dwc2_hsotg *hsotg,
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 
-	/* Ensure there are no QTDs or URBs left */
+	/* Ensure there are yes QTDs or URBs left */
 	dwc2_kill_urbs_in_qh_list(hsotg, qh_list);
 
 	list_for_each_entry_safe(qh, qh_tmp, qh_list, qh_list_entry) {
@@ -1652,7 +1652,7 @@ static void dwc2_qh_list_free(struct dwc2_hsotg *hsotg,
 }
 
 /*
- * Responds with an error status of -ETIMEDOUT to all URBs in the non-periodic
+ * Responds with an error status of -ETIMEDOUT to all URBs in the yesn-periodic
  * and periodic schedules. The QTD associated with each URB is removed from
  * the schedule and freed. This function may be called when a disconnect is
  * detected or when the HCD is being stopped.
@@ -1661,9 +1661,9 @@ static void dwc2_qh_list_free(struct dwc2_hsotg *hsotg,
  */
 static void dwc2_kill_all_urbs(struct dwc2_hsotg *hsotg)
 {
-	dwc2_kill_urbs_in_qh_list(hsotg, &hsotg->non_periodic_sched_inactive);
-	dwc2_kill_urbs_in_qh_list(hsotg, &hsotg->non_periodic_sched_waiting);
-	dwc2_kill_urbs_in_qh_list(hsotg, &hsotg->non_periodic_sched_active);
+	dwc2_kill_urbs_in_qh_list(hsotg, &hsotg->yesn_periodic_sched_inactive);
+	dwc2_kill_urbs_in_qh_list(hsotg, &hsotg->yesn_periodic_sched_waiting);
+	dwc2_kill_urbs_in_qh_list(hsotg, &hsotg->yesn_periodic_sched_active);
 	dwc2_kill_urbs_in_qh_list(hsotg, &hsotg->periodic_sched_inactive);
 	dwc2_kill_urbs_in_qh_list(hsotg, &hsotg->periodic_sched_ready);
 	dwc2_kill_urbs_in_qh_list(hsotg, &hsotg->periodic_sched_assigned);
@@ -1742,7 +1742,7 @@ static void dwc2_hcd_cleanup_channels(struct dwc2_hsotg *hsotg)
 		hsotg->available_host_channels =
 			hsotg->params.host_channels;
 	} else {
-		hsotg->non_periodic_channels = 0;
+		hsotg->yesn_periodic_channels = 0;
 		hsotg->periodic_channels = 0;
 	}
 }
@@ -1891,7 +1891,7 @@ static int dwc2_hcd_urb_enqueue(struct dwc2_hsotg *hsotg,
 
 	dev_speed = dwc2_host_get_speed(hsotg, urb->priv);
 
-	/* Some configurations cannot support LS traffic on a FS root port */
+	/* Some configurations canyest support LS traffic on a FS root port */
 	if ((dev_speed == USB_SPEED_LOW) &&
 	    (hsotg->hw_params.fs_phy_type == GHWCFG2_FS_PHY_TYPE_DEDICATED) &&
 	    (hsotg->hw_params.hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI)) {
@@ -1921,7 +1921,7 @@ static int dwc2_hcd_urb_enqueue(struct dwc2_hsotg *hsotg,
 		if (qtd->qh->ep_type == USB_ENDPOINT_XFER_BULK &&
 		    !(qtd->urb->flags & URB_GIVEBACK_ASAP))
 			/*
-			 * Do not schedule SG transactions until qtd has
+			 * Do yest schedule SG transactions until qtd has
 			 * URB_GIVEBACK_ASAP set
 			 */
 			return 0;
@@ -1963,7 +1963,7 @@ static int dwc2_hcd_urb_dequeue(struct dwc2_hsotg *hsotg,
 			/*
 			 * If still connected (i.e. in host mode), halt the
 			 * channel so it can be used for other transfers. If
-			 * no longer connected, the host registers can't be
+			 * yes longer connected, the host registers can't be
 			 * written to halt the channel since the core is in
 			 * device mode.
 			 */
@@ -2097,7 +2097,7 @@ int dwc2_core_init(struct dwc2_hsotg *hsotg, bool initial_setup)
 	 * Reset the Controller
 	 *
 	 * We only need to reset the controller if this is a re-init.
-	 * For the first init we know for sure that earlier code reset us (it
+	 * For the first init we kyesw for sure that earlier code reset us (it
 	 * needed to in order to properly detect various parameters).
 	 */
 	if (!initial_setup) {
@@ -2172,7 +2172,7 @@ static void dwc2_core_host_init(struct dwc2_hsotg *hsotg)
 	 * duration in the core to account for any additional delays
 	 * introduced by the PHY. This can be required, because the delay
 	 * introduced by the PHY in generating the linestate condition
-	 * can vary from one PHY to another.
+	 * can vary from one PHY to ayesther.
 	 */
 	usbcfg = dwc2_readl(hsotg, GUSBCFG);
 	usbcfg |= GUSBCFG_TOUTCAL(7);
@@ -2193,7 +2193,7 @@ static void dwc2_core_host_init(struct dwc2_hsotg *hsotg)
 	/*
 	 * This bit allows dynamic reloading of the HFIR register during
 	 * runtime. This bit needs to be programmed during initial configuration
-	 * and its value must not be changed during runtime.
+	 * and its value must yest be changed during runtime.
 	 */
 	if (hsotg->params.reload_ctl) {
 		hfir = dwc2_readl(hsotg, HFIR);
@@ -2210,7 +2210,7 @@ static void dwc2_core_host_init(struct dwc2_hsotg *hsotg)
 		    op_mode == GHWCFG2_OP_MODE_NO_SRP_CAPABLE_DEVICE ||
 		    op_mode == GHWCFG2_OP_MODE_UNDEFINED) {
 			dev_err(hsotg->dev,
-				"Hardware does not support descriptor DMA mode -\n");
+				"Hardware does yest support descriptor DMA mode -\n");
 			dev_err(hsotg->dev,
 				"falling back to buffer DMA mode.\n");
 			hsotg->params.dma_desc_enable = false;
@@ -2255,7 +2255,7 @@ static void dwc2_core_host_init(struct dwc2_hsotg *hsotg)
 			}
 		}
 
-		/* Halt all channels to put them into a known state */
+		/* Halt all channels to put them into a kyeswn state */
 		for (i = 0; i < num_channels; i++) {
 			hcchar = dwc2_readl(hsotg, HCCHAR(i));
 			if (hcchar & HCCHAR_CHENA) {
@@ -2307,13 +2307,13 @@ static void dwc2_hcd_reinit(struct dwc2_hsotg *hsotg)
 	int i;
 
 	hsotg->flags.d32 = 0;
-	hsotg->non_periodic_qh_ptr = &hsotg->non_periodic_sched_active;
+	hsotg->yesn_periodic_qh_ptr = &hsotg->yesn_periodic_sched_active;
 
 	if (hsotg->params.uframe_sched) {
 		hsotg->available_host_channels =
 			hsotg->params.host_channels;
 	} else {
-		hsotg->non_periodic_channels = 0;
+		hsotg->yesn_periodic_channels = 0;
 		hsotg->periodic_channels = 0;
 	}
 
@@ -2381,7 +2381,7 @@ static void dwc2_hc_init_xfer(struct dwc2_hsotg *hsotg,
 
 		case DWC2_CONTROL_STATUS:
 			/*
-			 * Direction is opposite of data direction or IN if no
+			 * Direction is opposite of data direction or IN if yes
 			 * data
 			 */
 			dev_vdbg(hsotg->dev, "  Control status transaction\n");
@@ -2510,7 +2510,7 @@ static int dwc2_alloc_dma_aligned_buffer(struct urb *urb, gfp_t mem_flags)
 		return 0;
 
 	/*
-	 * Allocate a buffer with enough padding for original transfer_buffer
+	 * Allocate a buffer with eyesugh padding for original transfer_buffer
 	 * pointer. This allocation is guaranteed to be aligned properly for
 	 * DMA
 	 */
@@ -2545,7 +2545,7 @@ static int dwc2_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 {
 	int ret;
 
-	/* We assume setup_dma is always aligned; warn if not */
+	/* We assume setup_dma is always aligned; warn if yest */
 	WARN_ON_ONCE(urb->setup_dma &&
 		     (urb->setup_dma & (DWC2_USB_DMA_ALIGN - 1)));
 
@@ -2658,13 +2658,13 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	/* Set the transfer attributes */
 	dwc2_hc_init_xfer(hsotg, chan, qtd);
 
-	/* For non-dword aligned buffers */
+	/* For yesn-dword aligned buffers */
 	if (hsotg->params.host_dma && qh->do_split &&
 	    chan->ep_is_in && (chan->xfer_dma & 0x3)) {
 		dev_vdbg(hsotg->dev, "Non-aligned buffer\n");
 		if (dwc2_alloc_split_dma_aligned_buf(hsotg, qh, chan)) {
 			dev_err(hsotg->dev,
-				"Failed to allocate memory to handle non-aligned buffer\n");
+				"Failed to allocate memory to handle yesn-aligned buffer\n");
 			/* Add channel back to free list */
 			chan->align_buf = 0;
 			chan->multi_count = 0;
@@ -2676,8 +2676,8 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 		}
 	} else {
 		/*
-		 * We assume that DMA is always aligned in non-split
-		 * case or split out case. Warn if not.
+		 * We assume that DMA is always aligned in yesn-split
+		 * case or split out case. Warn if yest.
 		 */
 		WARN_ON_ONCE(hsotg->params.host_dma &&
 			     (chan->xfer_dma & 0x3));
@@ -2749,15 +2749,15 @@ enum dwc2_transaction_type dwc2_hcd_select_transactions(
 	}
 
 	/*
-	 * Process entries in the inactive portion of the non-periodic
-	 * schedule. Some free host channels may not be used if they are
+	 * Process entries in the inactive portion of the yesn-periodic
+	 * schedule. Some free host channels may yest be used if they are
 	 * reserved for periodic transfers.
 	 */
 	num_channels = hsotg->params.host_channels;
-	qh_ptr = hsotg->non_periodic_sched_inactive.next;
-	while (qh_ptr != &hsotg->non_periodic_sched_inactive) {
+	qh_ptr = hsotg->yesn_periodic_sched_inactive.next;
+	while (qh_ptr != &hsotg->yesn_periodic_sched_inactive) {
 		if (!hsotg->params.uframe_sched &&
-		    hsotg->non_periodic_channels >= num_channels -
+		    hsotg->yesn_periodic_channels >= num_channels -
 						hsotg->periodic_channels)
 			break;
 		if (list_empty(&hsotg->free_hc_list))
@@ -2773,12 +2773,12 @@ enum dwc2_transaction_type dwc2_hcd_select_transactions(
 			break;
 
 		/*
-		 * Move the QH from the non-periodic inactive schedule to the
-		 * non-periodic active schedule
+		 * Move the QH from the yesn-periodic inactive schedule to the
+		 * yesn-periodic active schedule
 		 */
 		qh_ptr = qh_ptr->next;
 		list_move_tail(&qh->qh_list_entry,
-			       &hsotg->non_periodic_sched_active);
+			       &hsotg->yesn_periodic_sched_active);
 
 		if (ret_val == DWC2_TRANSACTION_NONE)
 			ret_val = DWC2_TRANSACTION_NON_PERIODIC;
@@ -2786,7 +2786,7 @@ enum dwc2_transaction_type dwc2_hcd_select_transactions(
 			ret_val = DWC2_TRANSACTION_ALL;
 
 		if (!hsotg->params.uframe_sched)
-			hsotg->non_periodic_channels++;
+			hsotg->yesn_periodic_channels++;
 	}
 
 	return ret_val;
@@ -2794,17 +2794,17 @@ enum dwc2_transaction_type dwc2_hcd_select_transactions(
 
 /**
  * dwc2_queue_transaction() - Attempts to queue a single transaction request for
- * a host channel associated with either a periodic or non-periodic transfer
+ * a host channel associated with either a periodic or yesn-periodic transfer
  *
  * @hsotg: The HCD state structure
  * @chan:  Host channel descriptor associated with either a periodic or
- *         non-periodic transfer
+ *         yesn-periodic transfer
  * @fifo_dwords_avail: Number of DWORDs available in the periodic Tx FIFO
- *                     for periodic transfers or the non-periodic Tx FIFO
- *                     for non-periodic transfers
+ *                     for periodic transfers or the yesn-periodic Tx FIFO
+ *                     for yesn-periodic transfers
  *
  * Return: 1 if a request is queued and more requests may be needed to
- * complete the transfer, 0 if no more requests are required for this
+ * complete the transfer, 0 if yes more requests are required for this
  * transfer, -1 if there is insufficient space in the Tx FIFO
  *
  * This function assumes that there is space available in the appropriate
@@ -2883,8 +2883,8 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 	u32 fspcavail;
 	u32 gintmsk;
 	int status;
-	bool no_queue_space = false;
-	bool no_fifo_space = false;
+	bool yes_queue_space = false;
+	bool yes_fifo_space = false;
 	u32 qspcavail;
 
 	/* If empty list then just adjust interrupt enables */
@@ -2913,7 +2913,7 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 		qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
 			    TXSTS_QSPCAVAIL_SHIFT;
 		if (qspcavail == 0) {
-			no_queue_space = true;
+			yes_queue_space = true;
 			break;
 		}
 
@@ -2942,13 +2942,13 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 			    TXSTS_FSPCAVAIL_SHIFT;
 		status = dwc2_queue_transaction(hsotg, qh->channel, fspcavail);
 		if (status < 0) {
-			no_fifo_space = true;
+			yes_fifo_space = true;
 			break;
 		}
 
 		/*
 		 * In Slave mode, stay on the current transfer until there is
-		 * nothing more to do or the high-bandwidth request count is
+		 * yesthing more to do or the high-bandwidth request count is
 		 * reached. In DMA mode, only need to queue one request. The
 		 * controller automatically handles multiple packets for
 		 * high-bandwidth transfers.
@@ -2969,7 +2969,7 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 	}
 
 exit:
-	if (no_queue_space || no_fifo_space ||
+	if (yes_queue_space || yes_fifo_space ||
 	    (!hsotg->params.host_dma &&
 	     !list_empty(&hsotg->periodic_sched_assigned))) {
 		/*
@@ -2987,8 +2987,8 @@ exit:
 	} else {
 		/*
 		 * Disable the Tx FIFO empty interrupt since there are
-		 * no more transactions that need to be queued right
-		 * now. This function is called from interrupt
+		 * yes more transactions that need to be queued right
+		 * yesw. This function is called from interrupt
 		 * handlers to queue more transactions as transfer
 		 * states change.
 		 */
@@ -3001,7 +3001,7 @@ exit:
 }
 
 /*
- * Processes active non-periodic channels and queues transactions for these
+ * Processes active yesn-periodic channels and queues transactions for these
  * channels to the DWC_otg controller. After queueing transactions, the NP Tx
  * FIFO Empty interrupt is enabled if there are more transactions to queue as
  * NP Tx FIFO or request queue space becomes available. Otherwise, the NP Tx
@@ -3009,7 +3009,7 @@ exit:
  *
  * Must be called with interrupt disabled and spinlock held
  */
-static void dwc2_process_non_periodic_channels(struct dwc2_hsotg *hsotg)
+static void dwc2_process_yesn_periodic_channels(struct dwc2_hsotg *hsotg)
 {
 	struct list_head *orig_qh_ptr;
 	struct dwc2_qh *qh;
@@ -3018,11 +3018,11 @@ static void dwc2_process_non_periodic_channels(struct dwc2_hsotg *hsotg)
 	u32 fspcavail;
 	u32 gintmsk;
 	int status;
-	int no_queue_space = 0;
-	int no_fifo_space = 0;
+	int yes_queue_space = 0;
+	int yes_fifo_space = 0;
 	int more_to_do = 0;
 
-	dev_vdbg(hsotg->dev, "Queue non-periodic transactions\n");
+	dev_vdbg(hsotg->dev, "Queue yesn-periodic transactions\n");
 
 	tx_status = dwc2_readl(hsotg, GNPTXSTS);
 	qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
@@ -3038,12 +3038,12 @@ static void dwc2_process_non_periodic_channels(struct dwc2_hsotg *hsotg)
 	 * Keep track of the starting point. Skip over the start-of-list
 	 * entry.
 	 */
-	if (hsotg->non_periodic_qh_ptr == &hsotg->non_periodic_sched_active)
-		hsotg->non_periodic_qh_ptr = hsotg->non_periodic_qh_ptr->next;
-	orig_qh_ptr = hsotg->non_periodic_qh_ptr;
+	if (hsotg->yesn_periodic_qh_ptr == &hsotg->yesn_periodic_sched_active)
+		hsotg->yesn_periodic_qh_ptr = hsotg->yesn_periodic_qh_ptr->next;
+	orig_qh_ptr = hsotg->yesn_periodic_qh_ptr;
 
 	/*
-	 * Process once through the active list or until no more space is
+	 * Process once through the active list or until yes more space is
 	 * available in the request queue or the Tx FIFO
 	 */
 	do {
@@ -3051,11 +3051,11 @@ static void dwc2_process_non_periodic_channels(struct dwc2_hsotg *hsotg)
 		qspcavail = (tx_status & TXSTS_QSPCAVAIL_MASK) >>
 			    TXSTS_QSPCAVAIL_SHIFT;
 		if (!hsotg->params.host_dma && qspcavail == 0) {
-			no_queue_space = 1;
+			yes_queue_space = 1;
 			break;
 		}
 
-		qh = list_entry(hsotg->non_periodic_qh_ptr, struct dwc2_qh,
+		qh = list_entry(hsotg->yesn_periodic_qh_ptr, struct dwc2_qh,
 				qh_list_entry);
 		if (!qh->channel)
 			goto next;
@@ -3071,17 +3071,17 @@ static void dwc2_process_non_periodic_channels(struct dwc2_hsotg *hsotg)
 		if (status > 0) {
 			more_to_do = 1;
 		} else if (status < 0) {
-			no_fifo_space = 1;
+			yes_fifo_space = 1;
 			break;
 		}
 next:
 		/* Advance to next QH, skipping start-of-list entry */
-		hsotg->non_periodic_qh_ptr = hsotg->non_periodic_qh_ptr->next;
-		if (hsotg->non_periodic_qh_ptr ==
-				&hsotg->non_periodic_sched_active)
-			hsotg->non_periodic_qh_ptr =
-					hsotg->non_periodic_qh_ptr->next;
-	} while (hsotg->non_periodic_qh_ptr != orig_qh_ptr);
+		hsotg->yesn_periodic_qh_ptr = hsotg->yesn_periodic_qh_ptr->next;
+		if (hsotg->yesn_periodic_qh_ptr ==
+				&hsotg->yesn_periodic_sched_active)
+			hsotg->yesn_periodic_qh_ptr =
+					hsotg->yesn_periodic_qh_ptr->next;
+	} while (hsotg->yesn_periodic_qh_ptr != orig_qh_ptr);
 
 	if (!hsotg->params.host_dma) {
 		tx_status = dwc2_readl(hsotg, GNPTXSTS);
@@ -3096,10 +3096,10 @@ next:
 			 "  NP Tx FIFO Space Avail (after queue): %d\n",
 			 fspcavail);
 
-		if (more_to_do || no_queue_space || no_fifo_space) {
+		if (more_to_do || yes_queue_space || yes_fifo_space) {
 			/*
 			 * May need to queue more transactions as the request
-			 * queue or Tx FIFO empties. Enable the non-periodic
+			 * queue or Tx FIFO empties. Enable the yesn-periodic
 			 * Tx FIFO empty interrupt. (Always use the half-empty
 			 * level to ensure that new requests are loaded as
 			 * soon as possible.)
@@ -3110,8 +3110,8 @@ next:
 		} else {
 			/*
 			 * Disable the Tx FIFO empty interrupt since there are
-			 * no more transactions that need to be queued right
-			 * now. This function is called from interrupt
+			 * yes more transactions that need to be queued right
+			 * yesw. This function is called from interrupt
 			 * handlers to queue more transactions as transfer
 			 * states change.
 			 */
@@ -3128,7 +3128,7 @@ next:
  * from the HCD interrupt handler functions.
  *
  * @hsotg:   The HCD state structure
- * @tr_type: The type(s) of transactions to queue (non-periodic, periodic,
+ * @tr_type: The type(s) of transactions to queue (yesn-periodic, periodic,
  *           or both)
  *
  * Must be called with interrupt disabled and spinlock held
@@ -3144,15 +3144,15 @@ void dwc2_hcd_queue_transactions(struct dwc2_hsotg *hsotg,
 	    tr_type == DWC2_TRANSACTION_ALL)
 		dwc2_process_periodic_channels(hsotg);
 
-	/* Process host channels associated with non-periodic transfers */
+	/* Process host channels associated with yesn-periodic transfers */
 	if (tr_type == DWC2_TRANSACTION_NON_PERIODIC ||
 	    tr_type == DWC2_TRANSACTION_ALL) {
-		if (!list_empty(&hsotg->non_periodic_sched_active)) {
-			dwc2_process_non_periodic_channels(hsotg);
+		if (!list_empty(&hsotg->yesn_periodic_sched_active)) {
+			dwc2_process_yesn_periodic_channels(hsotg);
 		} else {
 			/*
 			 * Ensure NP Tx FIFO empty interrupt is disabled when
-			 * there are no non-periodic transfers to process
+			 * there are yes yesn-periodic transfers to process
 			 */
 			u32 gintmsk = dwc2_readl(hsotg, GINTMSK);
 
@@ -3390,7 +3390,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		default:
 			retval = -EINVAL;
 			dev_err(hsotg->dev,
-				"ClearHubFeature request %1xh unknown\n",
+				"ClearHubFeature request %1xh unkyeswn\n",
 				wvalue);
 		}
 		break;
@@ -3434,7 +3434,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		case USB_PORT_FEAT_INDICATOR:
 			dev_dbg(hsotg->dev,
 				"ClearPortFeature USB_PORT_FEAT_INDICATOR\n");
-			/* Port indicator not supported */
+			/* Port indicator yest supported */
 			break;
 
 		case USB_PORT_FEAT_C_CONNECTION:
@@ -3489,7 +3489,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		default:
 			retval = -EINVAL;
 			dev_err(hsotg->dev,
-				"ClearPortFeature request %1xh unknown or unsupported\n",
+				"ClearPortFeature request %1xh unkyeswn or unsupported\n",
 				wvalue);
 		}
 		break;
@@ -3702,7 +3702,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		default:
 			retval = -EINVAL;
 			dev_err(hsotg->dev,
-				"SetPortFeature %1xh unknown or unsupported\n",
+				"SetPortFeature %1xh unkyeswn or unsupported\n",
 				wvalue);
 			break;
 		}
@@ -3712,7 +3712,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 error:
 		retval = -EINVAL;
 		dev_dbg(hsotg->dev,
-			"Unknown hub control request: %1xh wIndex: %1xh wValue: %1xh\n",
+			"Unkyeswn hub control request: %1xh wIndex: %1xh wValue: %1xh\n",
 			typereq, windex, wvalue);
 		break;
 	}
@@ -3933,8 +3933,8 @@ void dwc2_hcd_dump_state(struct dwc2_hsotg *hsotg)
 		}
 	}
 
-	dev_dbg(hsotg->dev, "  non_periodic_channels: %d\n",
-		hsotg->non_periodic_channels);
+	dev_dbg(hsotg->dev, "  yesn_periodic_channels: %d\n",
+		hsotg->yesn_periodic_channels);
 	dev_dbg(hsotg->dev, "  periodic_channels: %d\n",
 		hsotg->periodic_channels);
 	dev_dbg(hsotg->dev, "  periodic_usecs: %d\n", hsotg->periodic_usecs);
@@ -4039,7 +4039,7 @@ struct dwc2_tt *dwc2_host_get_tt_info(struct dwc2_hsotg *hsotg, void *context,
  */
 void dwc2_host_put_tt_info(struct dwc2_hsotg *hsotg, struct dwc2_tt *dwc_tt)
 {
-	/* Model kfree and make put of NULL a no-op */
+	/* Model kfree and make put of NULL a yes-op */
 	if (!dwc_tt)
 		return;
 
@@ -4254,7 +4254,7 @@ static int _dwc2_hcd_start(struct usb_hcd *hcd)
 		spin_lock_irqsave(&hsotg->lock, flags);
 	}
 
-	/* Initialize and connect root hub if one is not already attached */
+	/* Initialize and connect root hub if one is yest already attached */
 	if (bus->root_hub) {
 		dev_dbg(hsotg->dev, "DWC OTG HCD Has Root Hub\n");
 		/* Inform the HUB driver to resume */
@@ -4326,7 +4326,7 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 
 	/*
 	 * Drive USB suspend and disable port Power
-	 * if usb bus is not suspended.
+	 * if usb bus is yest suspended.
 	 */
 	if (!hsotg->bus_suspended) {
 		hprt0 = dwc2_read_hprt0(hsotg);
@@ -4357,7 +4357,7 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 			goto skip_power_saving;
 		}
 
-		/* After entering partial_power_down, hardware is no more accessible */
+		/* After entering partial_power_down, hardware is yes more accessible */
 		clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	}
 
@@ -4397,9 +4397,9 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 	}
 
 	/*
-	 * Enable power if not already done.
-	 * This must not be spinlocked since duration
-	 * of this call is unknown.
+	 * Enable power if yest already done.
+	 * This must yest be spinlocked since duration
+	 * of this call is unkyeswn.
 	 */
 	if (!IS_ERR_OR_NULL(hsotg->uphy)) {
 		spin_unlock_irqrestore(&hsotg->lock, flags);
@@ -4611,7 +4611,7 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	if (hcd_uses_dma(hcd)) {
 		if (!buf && (urb->transfer_dma & 3)) {
 			dev_err(hsotg->dev,
-				"%s: unaligned transfer with no transfer_buffer",
+				"%s: unaligned transfer with yes transfer_buffer",
 				__func__);
 			retval = -EINVAL;
 			goto fail0;
@@ -4785,7 +4785,7 @@ static void _dwc2_hcd_endpoint_reset(struct usb_hcd *hcd,
 
 /*
  * Handles host mode interrupts for the DWC_otg controller. Returns IRQ_NONE if
- * there was no interrupt to handle. Returns IRQ_HANDLED if there was a valid
+ * there was yes interrupt to handle. Returns IRQ_HANDLED if there was a valid
  * interrupt.
  *
  * This function is called by the USB core when an interrupt occurs
@@ -4936,9 +4936,9 @@ static void dwc2_hcd_free(struct dwc2_hsotg *hsotg)
 	dev_dbg(hsotg->dev, "DWC OTG HCD FREE\n");
 
 	/* Free memory for QH/QTD lists */
-	dwc2_qh_list_free(hsotg, &hsotg->non_periodic_sched_inactive);
-	dwc2_qh_list_free(hsotg, &hsotg->non_periodic_sched_waiting);
-	dwc2_qh_list_free(hsotg, &hsotg->non_periodic_sched_active);
+	dwc2_qh_list_free(hsotg, &hsotg->yesn_periodic_sched_inactive);
+	dwc2_qh_list_free(hsotg, &hsotg->yesn_periodic_sched_waiting);
+	dwc2_qh_list_free(hsotg, &hsotg->yesn_periodic_sched_active);
 	dwc2_qh_list_free(hsotg, &hsotg->periodic_sched_inactive);
 	dwc2_qh_list_free(hsotg, &hsotg->periodic_sched_ready);
 	dwc2_qh_list_free(hsotg, &hsotg->periodic_sched_assigned);
@@ -5044,7 +5044,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 	if (hsotg->params.host_dma &&
 	    !hsotg->dev->dma_mask) {
 		dev_warn(hsotg->dev,
-			 "dma_mask not set, disabling DMA\n");
+			 "dma_mask yest set, disabling DMA\n");
 		hsotg->params.host_dma = false;
 		hsotg->params.dma_desc_enable = false;
 	}
@@ -5100,10 +5100,10 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 
 	timer_setup(&hsotg->wkp_timer, dwc2_wakeup_detected, 0);
 
-	/* Initialize the non-periodic schedule */
-	INIT_LIST_HEAD(&hsotg->non_periodic_sched_inactive);
-	INIT_LIST_HEAD(&hsotg->non_periodic_sched_waiting);
-	INIT_LIST_HEAD(&hsotg->non_periodic_sched_active);
+	/* Initialize the yesn-periodic schedule */
+	INIT_LIST_HEAD(&hsotg->yesn_periodic_sched_inactive);
+	INIT_LIST_HEAD(&hsotg->yesn_periodic_sched_waiting);
+	INIT_LIST_HEAD(&hsotg->yesn_periodic_sched_active);
 
 	/* Initialize the periodic schedule */
 	INIT_LIST_HEAD(&hsotg->periodic_sched_inactive);
@@ -5136,7 +5136,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 	INIT_WORK(&hsotg->phy_reset_work, dwc2_hcd_phy_reset_func);
 
 	/*
-	 * Allocate space for storing data on status transactions. Normally no
+	 * Allocate space for storing data on status transactions. Normally yes
 	 * data is sent, but this space acts as a bit bucket. This must be
 	 * done after usb_add_hcd since that function allocates the DMA buffer
 	 * pool.
@@ -5168,7 +5168,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 				"unable to create dwc2 generic desc cache\n");
 
 			/*
-			 * Disable descriptor dma mode since it will not be
+			 * Disable descriptor dma mode since it will yest be
 			 * usable.
 			 */
 			hsotg->params.dma_desc_enable = false;
@@ -5185,7 +5185,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 			kmem_cache_destroy(hsotg->desc_gen_cache);
 
 			/*
-			 * Disable descriptor dma mode since it will not be
+			 * Disable descriptor dma mode since it will yest be
 			 * usable.
 			 */
 			hsotg->params.dma_desc_enable = false;
@@ -5195,7 +5195,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 
 	if (hsotg->params.host_dma) {
 		/*
-		 * Create kmem caches to handle non-aligned buffer
+		 * Create kmem caches to handle yesn-aligned buffer
 		 * in Buffer DMA mode.
 		 */
 		hsotg->unaligned_cache = kmem_cache_create("dwc2-unaligned-dma",
@@ -5342,7 +5342,7 @@ int dwc2_restore_host_registers(struct dwc2_hsotg *hsotg)
 	/* Restore host regs */
 	hr = &hsotg->hr_backup;
 	if (!hr->valid) {
-		dev_err(hsotg->dev, "%s: no host registers to restore\n",
+		dev_err(hsotg->dev, "%s: yes host registers to restore\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -5472,7 +5472,7 @@ int dwc2_host_enter_hibernation(struct dwc2_hsotg *hsotg)
  * @rem_wakeup: indicates whether resume is initiated by Device or Host.
  * @param reset: indicates whether resume is initiated by Reset.
  *
- * Return: non-zero if failed to enter to hibernation.
+ * Return: yesn-zero if failed to enter to hibernation.
  *
  * This function is for exiting from Host mode hibernation by
  * Host Initiated Resume/Reset and Device Initiated Remote-Wakeup.
@@ -5497,7 +5497,7 @@ int dwc2_host_exit_hibernation(struct dwc2_hsotg *hsotg, int rem_wakeup,
 	hsotg->hibernated = 0;
 
 	/*
-	 * This step is not described in functional spec but if not wait for
+	 * This step is yest described in functional spec but if yest wait for
 	 * this delay, mismatch interrupts occurred because just after restore
 	 * core is in Device mode(gintsts.curmode == 0)
 	 */

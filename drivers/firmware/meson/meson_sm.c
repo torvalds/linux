@@ -134,7 +134,7 @@ EXPORT_SYMBOL(meson_sm_call);
  * @arg4:	SMC32 Argument 4
  *
  * Return:	size of read data on success, a negative value on error
- *		When 0 is returned there is no guarantee about the amount of
+ *		When 0 is returned there is yes guarantee about the amount of
  *		data read and bsize bytes are copied in buffer.
  */
 int meson_sm_call_read(struct meson_sm_firmware *fw, void *buffer,
@@ -216,13 +216,13 @@ EXPORT_SYMBOL(meson_sm_call_write);
 /**
  * meson_sm_get - get pointer to meson_sm_firmware structure.
  *
- * @sm_node:		Pointer to the secure-monitor Device Tree node.
+ * @sm_yesde:		Pointer to the secure-monitor Device Tree yesde.
  *
- * Return:		NULL is the secure-monitor device is not ready.
+ * Return:		NULL is the secure-monitor device is yest ready.
  */
-struct meson_sm_firmware *meson_sm_get(struct device_node *sm_node)
+struct meson_sm_firmware *meson_sm_get(struct device_yesde *sm_yesde)
 {
-	struct platform_device *pdev = of_find_device_by_node(sm_node);
+	struct platform_device *pdev = of_find_device_by_yesde(sm_yesde);
 
 	if (!pdev)
 		return NULL;

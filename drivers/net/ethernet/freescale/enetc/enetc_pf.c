@@ -393,7 +393,7 @@ static int enetc_pf_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan,
 		return -EINVAL;
 
 	if (proto != htons(ETH_P_8021Q))
-		/* only C-tags supported for now */
+		/* only C-tags supported for yesw */
 		return -EPROTONOSUPPORT;
 
 	enetc_set_isol_vlan(&priv->si->hw, vf + 1, vlan, qos);
@@ -429,7 +429,7 @@ static void enetc_port_setup_primary_mac_address(struct enetc_si *si)
 		if (!is_zero_ether_addr(mac_addr))
 			continue;
 		eth_random_addr(mac_addr);
-		dev_info(&si->pdev->dev, "no MAC address specified for SI%d, using %pM\n",
+		dev_info(&si->pdev->dev, "yes MAC address specified for SI%d, using %pM\n",
 			 i, mac_addr);
 		enetc_pf_set_primary_mac_addr(hw, i, mac_addr);
 	}
@@ -560,7 +560,7 @@ static void enetc_configure_port(struct enetc_pf *pf)
 	/* split up RFS entries */
 	enetc_port_assign_rfs_entries(pf->si);
 
-	/* fix-up primary MAC addresses, if not set already */
+	/* fix-up primary MAC addresses, if yest set already */
 	enetc_port_setup_primary_mac_address(pf->si);
 
 	/* enforce VLAN promisc mode for all SIs */
@@ -615,7 +615,7 @@ void enetc_msg_handle_rxmsg(struct enetc_pf *pf, int vf_id, u16 *status)
 		*status = enetc_msg_pf_set_vf_primary_mac_addr(pf, vf_id);
 		break;
 	default:
-		dev_err(dev, "command not supported (cmd_type: 0x%x)\n",
+		dev_err(dev, "command yest supported (cmd_type: 0x%x)\n",
 			cmd_type);
 	}
 }
@@ -752,19 +752,19 @@ static void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 static int enetc_of_get_phy(struct enetc_ndev_priv *priv)
 {
 	struct enetc_pf *pf = enetc_si_priv(priv->si);
-	struct device_node *np = priv->dev->of_node;
-	struct device_node *mdio_np;
+	struct device_yesde *np = priv->dev->of_yesde;
+	struct device_yesde *mdio_np;
 	int err;
 
 	if (!np) {
-		dev_err(priv->dev, "missing ENETC port node\n");
+		dev_err(priv->dev, "missing ENETC port yesde\n");
 		return -ENODEV;
 	}
 
-	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!priv->phy_node) {
+	priv->phy_yesde = of_parse_phandle(np, "phy-handle", 0);
+	if (!priv->phy_yesde) {
 		if (!of_phy_is_fixed_link(np)) {
-			dev_err(priv->dev, "PHY not specified\n");
+			dev_err(priv->dev, "PHY yest specified\n");
 			return -ENODEV;
 		}
 
@@ -774,15 +774,15 @@ static int enetc_of_get_phy(struct enetc_ndev_priv *priv)
 			return err;
 		}
 
-		priv->phy_node = of_node_get(np);
+		priv->phy_yesde = of_yesde_get(np);
 	}
 
 	mdio_np = of_get_child_by_name(np, "mdio");
 	if (mdio_np) {
-		of_node_put(mdio_np);
+		of_yesde_put(mdio_np);
 		err = enetc_mdio_probe(pf);
 		if (err) {
-			of_node_put(priv->phy_node);
+			of_yesde_put(priv->phy_yesde);
 			return err;
 		}
 	}
@@ -790,7 +790,7 @@ static int enetc_of_get_phy(struct enetc_ndev_priv *priv)
 	err = of_get_phy_mode(np, &priv->if_mode);
 	if (err) {
 		dev_err(priv->dev, "missing phy type\n");
-		of_node_put(priv->phy_node);
+		of_yesde_put(priv->phy_yesde);
 		if (of_phy_is_fixed_link(np))
 			of_phy_deregister_fixed_link(np);
 		else
@@ -804,12 +804,12 @@ static int enetc_of_get_phy(struct enetc_ndev_priv *priv)
 
 static void enetc_of_put_phy(struct enetc_ndev_priv *priv)
 {
-	struct device_node *np = priv->dev->of_node;
+	struct device_yesde *np = priv->dev->of_yesde;
 
 	if (np && of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
-	if (priv->phy_node)
-		of_node_put(priv->phy_node);
+	if (priv->phy_yesde)
+		of_yesde_put(priv->phy_yesde);
 }
 
 static int enetc_pf_probe(struct pci_dev *pdev,
@@ -821,7 +821,7 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	struct enetc_pf *pf;
 	int err;
 
-	if (pdev->dev.of_node && !of_device_is_available(pdev->dev.of_node)) {
+	if (pdev->dev.of_yesde && !of_device_is_available(pdev->dev.of_yesde)) {
 		dev_info(&pdev->dev, "device is disabled, skipping\n");
 		return -ENODEV;
 	}
@@ -835,7 +835,7 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 	si = pci_get_drvdata(pdev);
 	if (!si->hw.port || !si->hw.global) {
 		err = -ENODEV;
-		dev_err(&pdev->dev, "could not map PF space, probing a VF?\n");
+		dev_err(&pdev->dev, "could yest map PF space, probing a VF?\n");
 		goto err_map_pf_space;
 	}
 

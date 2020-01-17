@@ -81,8 +81,8 @@ dbl_fmpyfadd(
 	 */
 	if (Dbl_isinfinity_exponent(opnd1p1)) {
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
-			if (Dbl_isnotnan(opnd2p1,opnd2p2) &&
-			    Dbl_isnotnan(opnd3p1,opnd3p2)) {
+			if (Dbl_isyestnan(opnd2p1,opnd2p2) &&
+			    Dbl_isyestnan(opnd3p1,opnd3p2)) {
 				if (Dbl_iszero_exponentmantissa(opnd2p1,opnd2p2)) {
 					/* 
 					 * invalid since operands are infinity 
@@ -172,7 +172,7 @@ dbl_fmpyfadd(
 	 */
 	if (Dbl_isinfinity_exponent(opnd2p1)) {
 		if (Dbl_iszero_mantissa(opnd2p1,opnd2p2)) {
-			if (Dbl_isnotnan(opnd3p1,opnd3p2)) {
+			if (Dbl_isyestnan(opnd3p1,opnd3p2)) {
 				if (Dbl_iszero_exponentmantissa(opnd1p1,opnd1p2)) {
 					/* 
 					 * invalid since multiply operands are
@@ -276,7 +276,7 @@ dbl_fmpyfadd(
 	/*
 	 * Generate multiply mantissa
 	 */
-	if (Dbl_isnotzero_exponent(opnd1p1)) {
+	if (Dbl_isyestzero_exponent(opnd1p1)) {
 		/* set hidden bit */
 		Dbl_clear_signexponent_set_hidden(opnd1p1);
 	}
@@ -298,11 +298,11 @@ dbl_fmpyfadd(
 			 */
 			else if (Dbl_iszero_exponent(opnd3p1) &&
 			         Is_underflowtrap_enabled()) {
-                    		/* need to normalize results mantissa */
+                    		/* need to yesrmalize results mantissa */
                     		sign_save = Dbl_signextendedsign(opnd3p1);
 				result_exponent = 0;
                     		Dbl_leftshiftby1(opnd3p1,opnd3p2);
-                    		Dbl_normalize(opnd3p1,opnd3p2,result_exponent);
+                    		Dbl_yesrmalize(opnd3p1,opnd3p2,result_exponent);
                     		Dbl_set_sign(opnd3p1,/*using*/sign_save);
                     		Dbl_setwrapped_exponent(opnd3p1,result_exponent,
 							unfl);
@@ -313,13 +313,13 @@ dbl_fmpyfadd(
 			Dbl_copytoptr(opnd3p1,opnd3p2,dstptr);
 			return(NOEXCEPTION);
 		}
-		/* is denormalized, adjust exponent */
+		/* is deyesrmalized, adjust exponent */
 		Dbl_clear_signexponent(opnd1p1);
 		Dbl_leftshiftby1(opnd1p1,opnd1p2);
-		Dbl_normalize(opnd1p1,opnd1p2,mpy_exponent);
+		Dbl_yesrmalize(opnd1p1,opnd1p2,mpy_exponent);
 	}
 	/* opnd2 needs to have hidden bit set with msb in hidden bit */
-	if (Dbl_isnotzero_exponent(opnd2p1)) {
+	if (Dbl_isyestzero_exponent(opnd2p1)) {
 		Dbl_clear_signexponent_set_hidden(opnd2p1);
 	}
 	else {
@@ -340,11 +340,11 @@ dbl_fmpyfadd(
 			 */
 			else if (Dbl_iszero_exponent(opnd3p1) &&
 			    Is_underflowtrap_enabled()) {
-                    		/* need to normalize results mantissa */
+                    		/* need to yesrmalize results mantissa */
                     		sign_save = Dbl_signextendedsign(opnd3p1);
 				result_exponent = 0;
                     		Dbl_leftshiftby1(opnd3p1,opnd3p2);
-                    		Dbl_normalize(opnd3p1,opnd3p2,result_exponent);
+                    		Dbl_yesrmalize(opnd3p1,opnd3p2,result_exponent);
                     		Dbl_set_sign(opnd3p1,/*using*/sign_save);
                     		Dbl_setwrapped_exponent(opnd3p1,result_exponent,
 							unfl);
@@ -355,17 +355,17 @@ dbl_fmpyfadd(
 			Dbl_copytoptr(opnd3p1,opnd3p2,dstptr);
 			return(NOEXCEPTION);
 		}
-		/* is denormalized; want to normalize */
+		/* is deyesrmalized; want to yesrmalize */
 		Dbl_clear_signexponent(opnd2p1);
 		Dbl_leftshiftby1(opnd2p1,opnd2p2);
-		Dbl_normalize(opnd2p1,opnd2p2,mpy_exponent);
+		Dbl_yesrmalize(opnd2p1,opnd2p2,mpy_exponent);
 	}
 
 	/* Multiply the first two source mantissas together */
 
 	/* 
 	 * The intermediate result will be kept in tmpres,
-	 * which needs enough room for 106 bits of mantissa,
+	 * which needs eyesugh room for 106 bits of mantissa,
 	 * so lets call it a Double extended.
 	 */
 	Dblext_setzero(tmpresp1,tmpresp2,tmpresp3,tmpresp4);
@@ -395,7 +395,7 @@ dbl_fmpyfadd(
 		}
 		Dbl_rightshiftby4(opnd1p1,opnd1p2);
 	}
-	if (Is_dexthiddenoverflow(tmpresp1)) {
+	if (Is_dexthiddeyesverflow(tmpresp1)) {
 		/* result mantissa >= 2 (mantissa overflow) */
 		mpy_exponent++;
 		Dblext_rightshiftby1(tmpresp1,tmpresp2,tmpresp3,tmpresp4);
@@ -415,15 +415,15 @@ dbl_fmpyfadd(
 	/*
 	 * Now we are ready to perform the add portion of the operation.
 	 *
-	 * The exponents need to be kept as integers for now, since the
-	 * multiply result might not fit into the exponent field.  We
+	 * The exponents need to be kept as integers for yesw, since the
+	 * multiply result might yest fit into the exponent field.  We
 	 * can't overflow or underflow because of this yet, since the
 	 * add could bring the final result back into range.
 	 */
 	add_exponent = Dbl_exponent(opnd3p1);
 
 	/*
-	 * Check for denormalized or zero add operand.
+	 * Check for deyesrmalized or zero add operand.
 	 */
 	if (add_exponent == 0) {
 		/* check for zero */
@@ -431,7 +431,7 @@ dbl_fmpyfadd(
 			/* right is zero */
 			/* Left can't be zero and must be result.
 			 *
-			 * The final result is now in tmpres and mpy_exponent,
+			 * The final result is yesw in tmpres and mpy_exponent,
 			 * and needs to be rounded and squeezed back into
 			 * double precision format from double extended.
 			 */
@@ -444,12 +444,12 @@ dbl_fmpyfadd(
 
 		/* 
 		 * Neither are zeroes.  
-		 * Adjust exponent and normalize add operand.
+		 * Adjust exponent and yesrmalize add operand.
 		 */
 		sign_save = Dbl_signextendedsign(opnd3p1);	/* save sign */
 		Dbl_clear_signexponent(opnd3p1);
 		Dbl_leftshiftby1(opnd3p1,opnd3p2);
-		Dbl_normalize(opnd3p1,opnd3p2,add_exponent);
+		Dbl_yesrmalize(opnd3p1,opnd3p2,add_exponent);
 		Dbl_set_sign(opnd3p1,sign_save);	/* restore sign */
 	} else {
 		Dbl_clear_exponent_set_hidden(opnd3p1);
@@ -488,7 +488,7 @@ dbl_fmpyfadd(
 		diff_exponent = mpy_exponent - add_exponent;
 		result_exponent = mpy_exponent;
 	}
-	/* Invariant: left is not smaller than right. */
+	/* Invariant: left is yest smaller than right. */
 
 	/*
 	 * Special case alignment of operands that would force alignment
@@ -510,15 +510,15 @@ dbl_fmpyfadd(
 		/*
 		 * Difference of the two operands.  Overflow can occur if the
 		 * multiply overflowed.  A borrow can occur out of the hidden
-		 * bit and force a post normalization phase.
+		 * bit and force a post yesrmalization phase.
 		 */
 		Dblext_subtract(tmpresp1,tmpresp2,tmpresp3,tmpresp4,
 			rightp1,rightp2,rightp3,rightp4,
 			resultp1,resultp2,resultp3,resultp4);
 		sign_save = Dbl_signextendedsign(resultp1);
 		if (Dbl_iszero_hidden(resultp1)) {
-			/* Handle normalization */
-		/* A straightforward algorithm would now shift the
+			/* Handle yesrmalization */
+		/* A straightforward algorithm would yesw shift the
 		 * result and extension left until the hidden bit
 		 * becomes one.  Not all of the extension bits need
 		 * participate in the shift.  Only the two most 
@@ -528,7 +528,7 @@ dbl_fmpyfadd(
 		 * extension must participate in the rounding.
 		 * If more than a single shift is needed, then all
 		 * bits to the right of the guard bit are zeros, 
-		 * and the guard bit may or may not be zero. */
+		 * and the guard bit may or may yest be zero. */
 			Dblext_leftshiftby1(resultp1,resultp2,resultp3,
 				resultp4);
 
@@ -545,16 +545,16 @@ dbl_fmpyfadd(
 			}
 			result_exponent--;
 
-			/* Look to see if normalization is finished. */
+			/* Look to see if yesrmalization is finished. */
 			if (Dbl_isone_hidden(resultp1)) {
-				/* No further normalization is needed */
+				/* No further yesrmalization is needed */
 				goto round;
 			}
 
 			/* Discover first one bit to determine shift amount.
 			 * Use a modified binary search.  We have already
 			 * shifted the result one position right and still
-			 * not found a one so the remainder of the extension
+			 * yest found a one so the remainder of the extension
 			 * must be zero and simplifies rounding. */
 			/* Scan bytes */
 			while (Dbl_iszero_hiddenhigh7mantissa(resultp1)) {
@@ -564,12 +564,12 @@ dbl_fmpyfadd(
 			/* Now narrow it down to the nibble */
 			if (Dbl_iszero_hiddenhigh3mantissa(resultp1)) {
 				/* The lower nibble contains the
-				 * normalizing one */
+				 * yesrmalizing one */
 				Dblext_leftshiftby4(resultp1,resultp2,resultp3,resultp4);
 				result_exponent -= 4;
 			}
 			/* Select case where first bit is set (already
-			 * normalized) otherwise select the proper shift. */
+			 * yesrmalized) otherwise select the proper shift. */
 			jumpsize = Dbl_hiddenhigh3mantissa(resultp1);
 			if (jumpsize <= 7) switch(jumpsize) {
 			case 1:
@@ -601,34 +601,34 @@ dbl_fmpyfadd(
 			rightp1,rightp2,rightp3,rightp4,
 			/*to*/resultp1,resultp2,resultp3,resultp4);
 		sign_save = Dbl_signextendedsign(resultp1);
-		if (Dbl_isone_hiddenoverflow(resultp1)) {
-	    		/* Prenormalization required. */
+		if (Dbl_isone_hiddeyesverflow(resultp1)) {
+	    		/* Preyesrmalization required. */
 	    		Dblext_arithrightshiftby1(resultp1,resultp2,resultp3,
 				resultp4);
 	    		result_exponent++;
-		} /* end if hiddenoverflow... */
+		} /* end if hiddeyesverflow... */
 	} /* end else ...add magnitudes... */
 
 	/* Round the result.  If the extension and lower two words are
 	 * all zeros, then the result is exact.  Otherwise round in the
-	 * correct direction.  Underflow is possible. If a postnormalization
-	 * is necessary, then the mantissa is all zeros so no shift is needed.
+	 * correct direction.  Underflow is possible. If a postyesrmalization
+	 * is necessary, then the mantissa is all zeros so yes shift is needed.
 	 */
   round:
 	if (result_exponent <= 0 && !Is_underflowtrap_enabled()) {
-		Dblext_denormalize(resultp1,resultp2,resultp3,resultp4,
+		Dblext_deyesrmalize(resultp1,resultp2,resultp3,resultp4,
 			result_exponent,is_tiny);
 	}
 	Dbl_set_sign(resultp1,/*using*/sign_save);
-	if (Dblext_isnotzero_mantissap3(resultp3) || 
-	    Dblext_isnotzero_mantissap4(resultp4)) {
+	if (Dblext_isyestzero_mantissap3(resultp3) || 
+	    Dblext_isyestzero_mantissap4(resultp4)) {
 		inexact = TRUE;
 		switch(Rounding_mode()) {
 		case ROUNDNEAREST: /* The default. */
 			if (Dblext_isone_highp3(resultp3)) {
 				/* at least 1/2 ulp */
-				if (Dblext_isnotzero_low31p3(resultp3) ||
-				    Dblext_isnotzero_mantissap4(resultp4) ||
+				if (Dblext_isyestzero_low31p3(resultp3) ||
+				    Dblext_isyestzero_mantissap4(resultp4) ||
 				    Dblext_isone_lowp2(resultp2)) {
 					/* either exactly half way and odd or
 					 * more than 1/2ulp */
@@ -653,7 +653,7 @@ dbl_fmpyfadd(
 		case ROUNDZERO:;
 			/* truncate is simple */
 		} /* end switch... */
-		if (Dbl_isone_hiddenoverflow(resultp1)) result_exponent++;
+		if (Dbl_isone_hiddeyesverflow(resultp1)) result_exponent++;
 	}
 	if (result_exponent >= DBL_INFINITY_EXPONENT) {
                 /* trap if OVERFLOWTRAP enabled */
@@ -741,8 +741,8 @@ unsigned int *status;
 	 */
 	if (Dbl_isinfinity_exponent(opnd1p1)) {
 		if (Dbl_iszero_mantissa(opnd1p1,opnd1p2)) {
-			if (Dbl_isnotnan(opnd2p1,opnd2p2) &&
-			    Dbl_isnotnan(opnd3p1,opnd3p2)) {
+			if (Dbl_isyestnan(opnd2p1,opnd2p2) &&
+			    Dbl_isyestnan(opnd3p1,opnd3p2)) {
 				if (Dbl_iszero_exponentmantissa(opnd2p1,opnd2p2)) {
 					/* 
 					 * invalid since operands are infinity 
@@ -832,7 +832,7 @@ unsigned int *status;
 	 */
 	if (Dbl_isinfinity_exponent(opnd2p1)) {
 		if (Dbl_iszero_mantissa(opnd2p1,opnd2p2)) {
-			if (Dbl_isnotnan(opnd3p1,opnd3p2)) {
+			if (Dbl_isyestnan(opnd3p1,opnd3p2)) {
 				if (Dbl_iszero_exponentmantissa(opnd1p1,opnd1p2)) {
 					/* 
 					 * invalid since multiply operands are
@@ -936,7 +936,7 @@ unsigned int *status;
 	/*
 	 * Generate multiply mantissa
 	 */
-	if (Dbl_isnotzero_exponent(opnd1p1)) {
+	if (Dbl_isyestzero_exponent(opnd1p1)) {
 		/* set hidden bit */
 		Dbl_clear_signexponent_set_hidden(opnd1p1);
 	}
@@ -958,11 +958,11 @@ unsigned int *status;
 			 */
 			else if (Dbl_iszero_exponent(opnd3p1) &&
 			         Is_underflowtrap_enabled()) {
-                    		/* need to normalize results mantissa */
+                    		/* need to yesrmalize results mantissa */
                     		sign_save = Dbl_signextendedsign(opnd3p1);
 				result_exponent = 0;
                     		Dbl_leftshiftby1(opnd3p1,opnd3p2);
-                    		Dbl_normalize(opnd3p1,opnd3p2,result_exponent);
+                    		Dbl_yesrmalize(opnd3p1,opnd3p2,result_exponent);
                     		Dbl_set_sign(opnd3p1,/*using*/sign_save);
                     		Dbl_setwrapped_exponent(opnd3p1,result_exponent,
 							unfl);
@@ -973,13 +973,13 @@ unsigned int *status;
 			Dbl_copytoptr(opnd3p1,opnd3p2,dstptr);
 			return(NOEXCEPTION);
 		}
-		/* is denormalized, adjust exponent */
+		/* is deyesrmalized, adjust exponent */
 		Dbl_clear_signexponent(opnd1p1);
 		Dbl_leftshiftby1(opnd1p1,opnd1p2);
-		Dbl_normalize(opnd1p1,opnd1p2,mpy_exponent);
+		Dbl_yesrmalize(opnd1p1,opnd1p2,mpy_exponent);
 	}
 	/* opnd2 needs to have hidden bit set with msb in hidden bit */
-	if (Dbl_isnotzero_exponent(opnd2p1)) {
+	if (Dbl_isyestzero_exponent(opnd2p1)) {
 		Dbl_clear_signexponent_set_hidden(opnd2p1);
 	}
 	else {
@@ -1000,11 +1000,11 @@ unsigned int *status;
 			 */
 			else if (Dbl_iszero_exponent(opnd3p1) &&
 			    Is_underflowtrap_enabled()) {
-                    		/* need to normalize results mantissa */
+                    		/* need to yesrmalize results mantissa */
                     		sign_save = Dbl_signextendedsign(opnd3p1);
 				result_exponent = 0;
                     		Dbl_leftshiftby1(opnd3p1,opnd3p2);
-                    		Dbl_normalize(opnd3p1,opnd3p2,result_exponent);
+                    		Dbl_yesrmalize(opnd3p1,opnd3p2,result_exponent);
                     		Dbl_set_sign(opnd3p1,/*using*/sign_save);
                     		Dbl_setwrapped_exponent(opnd3p1,result_exponent,
 							unfl);
@@ -1015,17 +1015,17 @@ unsigned int *status;
 			Dbl_copytoptr(opnd3p1,opnd3p2,dstptr);
 			return(NOEXCEPTION);
 		}
-		/* is denormalized; want to normalize */
+		/* is deyesrmalized; want to yesrmalize */
 		Dbl_clear_signexponent(opnd2p1);
 		Dbl_leftshiftby1(opnd2p1,opnd2p2);
-		Dbl_normalize(opnd2p1,opnd2p2,mpy_exponent);
+		Dbl_yesrmalize(opnd2p1,opnd2p2,mpy_exponent);
 	}
 
 	/* Multiply the first two source mantissas together */
 
 	/* 
 	 * The intermediate result will be kept in tmpres,
-	 * which needs enough room for 106 bits of mantissa,
+	 * which needs eyesugh room for 106 bits of mantissa,
 	 * so lets call it a Double extended.
 	 */
 	Dblext_setzero(tmpresp1,tmpresp2,tmpresp3,tmpresp4);
@@ -1055,7 +1055,7 @@ unsigned int *status;
 		}
 		Dbl_rightshiftby4(opnd1p1,opnd1p2);
 	}
-	if (Is_dexthiddenoverflow(tmpresp1)) {
+	if (Is_dexthiddeyesverflow(tmpresp1)) {
 		/* result mantissa >= 2 (mantissa overflow) */
 		mpy_exponent++;
 		Dblext_rightshiftby1(tmpresp1,tmpresp2,tmpresp3,tmpresp4);
@@ -1075,15 +1075,15 @@ unsigned int *status;
 	/*
 	 * Now we are ready to perform the add portion of the operation.
 	 *
-	 * The exponents need to be kept as integers for now, since the
-	 * multiply result might not fit into the exponent field.  We
+	 * The exponents need to be kept as integers for yesw, since the
+	 * multiply result might yest fit into the exponent field.  We
 	 * can't overflow or underflow because of this yet, since the
 	 * add could bring the final result back into range.
 	 */
 	add_exponent = Dbl_exponent(opnd3p1);
 
 	/*
-	 * Check for denormalized or zero add operand.
+	 * Check for deyesrmalized or zero add operand.
 	 */
 	if (add_exponent == 0) {
 		/* check for zero */
@@ -1091,7 +1091,7 @@ unsigned int *status;
 			/* right is zero */
 			/* Left can't be zero and must be result.
 			 *
-			 * The final result is now in tmpres and mpy_exponent,
+			 * The final result is yesw in tmpres and mpy_exponent,
 			 * and needs to be rounded and squeezed back into
 			 * double precision format from double extended.
 			 */
@@ -1104,12 +1104,12 @@ unsigned int *status;
 
 		/* 
 		 * Neither are zeroes.  
-		 * Adjust exponent and normalize add operand.
+		 * Adjust exponent and yesrmalize add operand.
 		 */
 		sign_save = Dbl_signextendedsign(opnd3p1);	/* save sign */
 		Dbl_clear_signexponent(opnd3p1);
 		Dbl_leftshiftby1(opnd3p1,opnd3p2);
-		Dbl_normalize(opnd3p1,opnd3p2,add_exponent);
+		Dbl_yesrmalize(opnd3p1,opnd3p2,add_exponent);
 		Dbl_set_sign(opnd3p1,sign_save);	/* restore sign */
 	} else {
 		Dbl_clear_exponent_set_hidden(opnd3p1);
@@ -1148,7 +1148,7 @@ unsigned int *status;
 		diff_exponent = mpy_exponent - add_exponent;
 		result_exponent = mpy_exponent;
 	}
-	/* Invariant: left is not smaller than right. */
+	/* Invariant: left is yest smaller than right. */
 
 	/*
 	 * Special case alignment of operands that would force alignment
@@ -1170,15 +1170,15 @@ unsigned int *status;
 		/*
 		 * Difference of the two operands.  Overflow can occur if the
 		 * multiply overflowed.  A borrow can occur out of the hidden
-		 * bit and force a post normalization phase.
+		 * bit and force a post yesrmalization phase.
 		 */
 		Dblext_subtract(tmpresp1,tmpresp2,tmpresp3,tmpresp4,
 			rightp1,rightp2,rightp3,rightp4,
 			resultp1,resultp2,resultp3,resultp4);
 		sign_save = Dbl_signextendedsign(resultp1);
 		if (Dbl_iszero_hidden(resultp1)) {
-			/* Handle normalization */
-		/* A straightforward algorithm would now shift the
+			/* Handle yesrmalization */
+		/* A straightforward algorithm would yesw shift the
 		 * result and extension left until the hidden bit
 		 * becomes one.  Not all of the extension bits need
 		 * participate in the shift.  Only the two most 
@@ -1188,7 +1188,7 @@ unsigned int *status;
 		 * extension must participate in the rounding.
 		 * If more than a single shift is needed, then all
 		 * bits to the right of the guard bit are zeros, 
-		 * and the guard bit may or may not be zero. */
+		 * and the guard bit may or may yest be zero. */
 			Dblext_leftshiftby1(resultp1,resultp2,resultp3,
 				resultp4);
 
@@ -1205,16 +1205,16 @@ unsigned int *status;
 			}
 			result_exponent--;
 
-			/* Look to see if normalization is finished. */
+			/* Look to see if yesrmalization is finished. */
 			if (Dbl_isone_hidden(resultp1)) {
-				/* No further normalization is needed */
+				/* No further yesrmalization is needed */
 				goto round;
 			}
 
 			/* Discover first one bit to determine shift amount.
 			 * Use a modified binary search.  We have already
 			 * shifted the result one position right and still
-			 * not found a one so the remainder of the extension
+			 * yest found a one so the remainder of the extension
 			 * must be zero and simplifies rounding. */
 			/* Scan bytes */
 			while (Dbl_iszero_hiddenhigh7mantissa(resultp1)) {
@@ -1224,12 +1224,12 @@ unsigned int *status;
 			/* Now narrow it down to the nibble */
 			if (Dbl_iszero_hiddenhigh3mantissa(resultp1)) {
 				/* The lower nibble contains the
-				 * normalizing one */
+				 * yesrmalizing one */
 				Dblext_leftshiftby4(resultp1,resultp2,resultp3,resultp4);
 				result_exponent -= 4;
 			}
 			/* Select case where first bit is set (already
-			 * normalized) otherwise select the proper shift. */
+			 * yesrmalized) otherwise select the proper shift. */
 			jumpsize = Dbl_hiddenhigh3mantissa(resultp1);
 			if (jumpsize <= 7) switch(jumpsize) {
 			case 1:
@@ -1261,34 +1261,34 @@ unsigned int *status;
 			rightp1,rightp2,rightp3,rightp4,
 			/*to*/resultp1,resultp2,resultp3,resultp4);
 		sign_save = Dbl_signextendedsign(resultp1);
-		if (Dbl_isone_hiddenoverflow(resultp1)) {
-	    		/* Prenormalization required. */
+		if (Dbl_isone_hiddeyesverflow(resultp1)) {
+	    		/* Preyesrmalization required. */
 	    		Dblext_arithrightshiftby1(resultp1,resultp2,resultp3,
 				resultp4);
 	    		result_exponent++;
-		} /* end if hiddenoverflow... */
+		} /* end if hiddeyesverflow... */
 	} /* end else ...add magnitudes... */
 
 	/* Round the result.  If the extension and lower two words are
 	 * all zeros, then the result is exact.  Otherwise round in the
-	 * correct direction.  Underflow is possible. If a postnormalization
-	 * is necessary, then the mantissa is all zeros so no shift is needed.
+	 * correct direction.  Underflow is possible. If a postyesrmalization
+	 * is necessary, then the mantissa is all zeros so yes shift is needed.
 	 */
   round:
 	if (result_exponent <= 0 && !Is_underflowtrap_enabled()) {
-		Dblext_denormalize(resultp1,resultp2,resultp3,resultp4,
+		Dblext_deyesrmalize(resultp1,resultp2,resultp3,resultp4,
 			result_exponent,is_tiny);
 	}
 	Dbl_set_sign(resultp1,/*using*/sign_save);
-	if (Dblext_isnotzero_mantissap3(resultp3) || 
-	    Dblext_isnotzero_mantissap4(resultp4)) {
+	if (Dblext_isyestzero_mantissap3(resultp3) || 
+	    Dblext_isyestzero_mantissap4(resultp4)) {
 		inexact = TRUE;
 		switch(Rounding_mode()) {
 		case ROUNDNEAREST: /* The default. */
 			if (Dblext_isone_highp3(resultp3)) {
 				/* at least 1/2 ulp */
-				if (Dblext_isnotzero_low31p3(resultp3) ||
-				    Dblext_isnotzero_mantissap4(resultp4) ||
+				if (Dblext_isyestzero_low31p3(resultp3) ||
+				    Dblext_isyestzero_mantissap4(resultp4) ||
 				    Dblext_isone_lowp2(resultp2)) {
 					/* either exactly half way and odd or
 					 * more than 1/2ulp */
@@ -1313,7 +1313,7 @@ unsigned int *status;
 		case ROUNDZERO:;
 			/* truncate is simple */
 		} /* end switch... */
-		if (Dbl_isone_hiddenoverflow(resultp1)) result_exponent++;
+		if (Dbl_isone_hiddeyesverflow(resultp1)) result_exponent++;
 	}
 	if (result_exponent >= DBL_INFINITY_EXPONENT) {
 		/* Overflow */
@@ -1398,7 +1398,7 @@ unsigned int *status;
 	 */
 	if (Sgl_isinfinity_exponent(opnd1)) {
 		if (Sgl_iszero_mantissa(opnd1)) {
-			if (Sgl_isnotnan(opnd2) && Sgl_isnotnan(opnd3)) {
+			if (Sgl_isyestnan(opnd2) && Sgl_isyestnan(opnd3)) {
 				if (Sgl_iszero_exponentmantissa(opnd2)) {
 					/* 
 					 * invalid since operands are infinity 
@@ -1488,7 +1488,7 @@ unsigned int *status;
 	 */
 	if (Sgl_isinfinity_exponent(opnd2)) {
 		if (Sgl_iszero_mantissa(opnd2)) {
-			if (Sgl_isnotnan(opnd3)) {
+			if (Sgl_isyestnan(opnd3)) {
 				if (Sgl_iszero_exponentmantissa(opnd1)) {
 					/* 
 					 * invalid since multiply operands are
@@ -1592,7 +1592,7 @@ unsigned int *status;
 	/*
 	 * Generate multiply mantissa
 	 */
-	if (Sgl_isnotzero_exponent(opnd1)) {
+	if (Sgl_isyestzero_exponent(opnd1)) {
 		/* set hidden bit */
 		Sgl_clear_signexponent_set_hidden(opnd1);
 	}
@@ -1614,11 +1614,11 @@ unsigned int *status;
 			 */
 			else if (Sgl_iszero_exponent(opnd3) &&
 			         Is_underflowtrap_enabled()) {
-                    		/* need to normalize results mantissa */
+                    		/* need to yesrmalize results mantissa */
                     		sign_save = Sgl_signextendedsign(opnd3);
 				result_exponent = 0;
                     		Sgl_leftshiftby1(opnd3);
-                    		Sgl_normalize(opnd3,result_exponent);
+                    		Sgl_yesrmalize(opnd3,result_exponent);
                     		Sgl_set_sign(opnd3,/*using*/sign_save);
                     		Sgl_setwrapped_exponent(opnd3,result_exponent,
 							unfl);
@@ -1629,13 +1629,13 @@ unsigned int *status;
 			Sgl_copytoptr(opnd3,dstptr);
 			return(NOEXCEPTION);
 		}
-		/* is denormalized, adjust exponent */
+		/* is deyesrmalized, adjust exponent */
 		Sgl_clear_signexponent(opnd1);
 		Sgl_leftshiftby1(opnd1);
-		Sgl_normalize(opnd1,mpy_exponent);
+		Sgl_yesrmalize(opnd1,mpy_exponent);
 	}
 	/* opnd2 needs to have hidden bit set with msb in hidden bit */
-	if (Sgl_isnotzero_exponent(opnd2)) {
+	if (Sgl_isyestzero_exponent(opnd2)) {
 		Sgl_clear_signexponent_set_hidden(opnd2);
 	}
 	else {
@@ -1656,11 +1656,11 @@ unsigned int *status;
 			 */
 			else if (Sgl_iszero_exponent(opnd3) &&
 			    Is_underflowtrap_enabled()) {
-                    		/* need to normalize results mantissa */
+                    		/* need to yesrmalize results mantissa */
                     		sign_save = Sgl_signextendedsign(opnd3);
 				result_exponent = 0;
                     		Sgl_leftshiftby1(opnd3);
-                    		Sgl_normalize(opnd3,result_exponent);
+                    		Sgl_yesrmalize(opnd3,result_exponent);
                     		Sgl_set_sign(opnd3,/*using*/sign_save);
                     		Sgl_setwrapped_exponent(opnd3,result_exponent,
 							unfl);
@@ -1671,17 +1671,17 @@ unsigned int *status;
 			Sgl_copytoptr(opnd3,dstptr);
 			return(NOEXCEPTION);
 		}
-		/* is denormalized; want to normalize */
+		/* is deyesrmalized; want to yesrmalize */
 		Sgl_clear_signexponent(opnd2);
 		Sgl_leftshiftby1(opnd2);
-		Sgl_normalize(opnd2,mpy_exponent);
+		Sgl_yesrmalize(opnd2,mpy_exponent);
 	}
 
 	/* Multiply the first two source mantissas together */
 
 	/* 
 	 * The intermediate result will be kept in tmpres,
-	 * which needs enough room for 106 bits of mantissa,
+	 * which needs eyesugh room for 106 bits of mantissa,
 	 * so lets call it a Double extended.
 	 */
 	Sglext_setzero(tmpresp1,tmpresp2);
@@ -1707,7 +1707,7 @@ unsigned int *status;
 		}
 		Sgl_rightshiftby4(opnd1);
 	}
-	if (Is_sexthiddenoverflow(tmpresp1)) {
+	if (Is_sexthiddeyesverflow(tmpresp1)) {
 		/* result mantissa >= 2 (mantissa overflow) */
 		mpy_exponent++;
 		Sglext_rightshiftby4(tmpresp1,tmpresp2);
@@ -1729,15 +1729,15 @@ unsigned int *status;
 	/*
 	 * Now we are ready to perform the add portion of the operation.
 	 *
-	 * The exponents need to be kept as integers for now, since the
-	 * multiply result might not fit into the exponent field.  We
+	 * The exponents need to be kept as integers for yesw, since the
+	 * multiply result might yest fit into the exponent field.  We
 	 * can't overflow or underflow because of this yet, since the
 	 * add could bring the final result back into range.
 	 */
 	add_exponent = Sgl_exponent(opnd3);
 
 	/*
-	 * Check for denormalized or zero add operand.
+	 * Check for deyesrmalized or zero add operand.
 	 */
 	if (add_exponent == 0) {
 		/* check for zero */
@@ -1745,7 +1745,7 @@ unsigned int *status;
 			/* right is zero */
 			/* Left can't be zero and must be result.
 			 *
-			 * The final result is now in tmpres and mpy_exponent,
+			 * The final result is yesw in tmpres and mpy_exponent,
 			 * and needs to be rounded and squeezed back into
 			 * double precision format from double extended.
 			 */
@@ -1757,12 +1757,12 @@ unsigned int *status;
 
 		/* 
 		 * Neither are zeroes.  
-		 * Adjust exponent and normalize add operand.
+		 * Adjust exponent and yesrmalize add operand.
 		 */
 		sign_save = Sgl_signextendedsign(opnd3);	/* save sign */
 		Sgl_clear_signexponent(opnd3);
 		Sgl_leftshiftby1(opnd3);
-		Sgl_normalize(opnd3,add_exponent);
+		Sgl_yesrmalize(opnd3,add_exponent);
 		Sgl_set_sign(opnd3,sign_save);		/* restore sign */
 	} else {
 		Sgl_clear_exponent_set_hidden(opnd3);
@@ -1800,7 +1800,7 @@ unsigned int *status;
 		diff_exponent = mpy_exponent - add_exponent;
 		result_exponent = mpy_exponent;
 	}
-	/* Invariant: left is not smaller than right. */
+	/* Invariant: left is yest smaller than right. */
 
 	/*
 	 * Special case alignment of operands that would force alignment
@@ -1821,14 +1821,14 @@ unsigned int *status;
 		/*
 		 * Difference of the two operands.  Overflow can occur if the
 		 * multiply overflowed.  A borrow can occur out of the hidden
-		 * bit and force a post normalization phase.
+		 * bit and force a post yesrmalization phase.
 		 */
 		Sglext_subtract(tmpresp1,tmpresp2, rightp1,rightp2,
 			resultp1,resultp2);
 		sign_save = Sgl_signextendedsign(resultp1);
 		if (Sgl_iszero_hidden(resultp1)) {
-			/* Handle normalization */
-		/* A straightforward algorithm would now shift the
+			/* Handle yesrmalization */
+		/* A straightforward algorithm would yesw shift the
 		 * result and extension left until the hidden bit
 		 * becomes one.  Not all of the extension bits need
 		 * participate in the shift.  Only the two most 
@@ -1838,7 +1838,7 @@ unsigned int *status;
 		 * extension must participate in the rounding.
 		 * If more than a single shift is needed, then all
 		 * bits to the right of the guard bit are zeros, 
-		 * and the guard bit may or may not be zero. */
+		 * and the guard bit may or may yest be zero. */
 			Sglext_leftshiftby1(resultp1,resultp2);
 
 			/* Need to check for a zero result.  The sign and
@@ -1854,16 +1854,16 @@ unsigned int *status;
 			}
 			result_exponent--;
 
-			/* Look to see if normalization is finished. */
+			/* Look to see if yesrmalization is finished. */
 			if (Sgl_isone_hidden(resultp1)) {
-				/* No further normalization is needed */
+				/* No further yesrmalization is needed */
 				goto round;
 			}
 
 			/* Discover first one bit to determine shift amount.
 			 * Use a modified binary search.  We have already
 			 * shifted the result one position right and still
-			 * not found a one so the remainder of the extension
+			 * yest found a one so the remainder of the extension
 			 * must be zero and simplifies rounding. */
 			/* Scan bytes */
 			while (Sgl_iszero_hiddenhigh7mantissa(resultp1)) {
@@ -1873,12 +1873,12 @@ unsigned int *status;
 			/* Now narrow it down to the nibble */
 			if (Sgl_iszero_hiddenhigh3mantissa(resultp1)) {
 				/* The lower nibble contains the
-				 * normalizing one */
+				 * yesrmalizing one */
 				Sglext_leftshiftby4(resultp1,resultp2);
 				result_exponent -= 4;
 			}
 			/* Select case where first bit is set (already
-			 * normalized) otherwise select the proper shift. */
+			 * yesrmalized) otherwise select the proper shift. */
 			jumpsize = Sgl_hiddenhigh3mantissa(resultp1);
 			if (jumpsize <= 7) switch(jumpsize) {
 			case 1:
@@ -1906,30 +1906,30 @@ unsigned int *status;
 		Sglext_addition(tmpresp1,tmpresp2,
 			rightp1,rightp2, /*to*/resultp1,resultp2);
 		sign_save = Sgl_signextendedsign(resultp1);
-		if (Sgl_isone_hiddenoverflow(resultp1)) {
-	    		/* Prenormalization required. */
+		if (Sgl_isone_hiddeyesverflow(resultp1)) {
+	    		/* Preyesrmalization required. */
 	    		Sglext_arithrightshiftby1(resultp1,resultp2);
 	    		result_exponent++;
-		} /* end if hiddenoverflow... */
+		} /* end if hiddeyesverflow... */
 	} /* end else ...add magnitudes... */
 
 	/* Round the result.  If the extension and lower two words are
 	 * all zeros, then the result is exact.  Otherwise round in the
-	 * correct direction.  Underflow is possible. If a postnormalization
-	 * is necessary, then the mantissa is all zeros so no shift is needed.
+	 * correct direction.  Underflow is possible. If a postyesrmalization
+	 * is necessary, then the mantissa is all zeros so yes shift is needed.
 	 */
   round:
 	if (result_exponent <= 0 && !Is_underflowtrap_enabled()) {
-		Sglext_denormalize(resultp1,resultp2,result_exponent,is_tiny);
+		Sglext_deyesrmalize(resultp1,resultp2,result_exponent,is_tiny);
 	}
 	Sgl_set_sign(resultp1,/*using*/sign_save);
-	if (Sglext_isnotzero_mantissap2(resultp2)) {
+	if (Sglext_isyestzero_mantissap2(resultp2)) {
 		inexact = TRUE;
 		switch(Rounding_mode()) {
 		case ROUNDNEAREST: /* The default. */
 			if (Sglext_isone_highp2(resultp2)) {
 				/* at least 1/2 ulp */
-				if (Sglext_isnotzero_low31p2(resultp2) ||
+				if (Sglext_isyestzero_low31p2(resultp2) ||
 				    Sglext_isone_lowp1(resultp1)) {
 					/* either exactly half way and odd or
 					 * more than 1/2ulp */
@@ -1954,7 +1954,7 @@ unsigned int *status;
 		case ROUNDZERO:;
 			/* truncate is simple */
 		} /* end switch... */
-		if (Sgl_isone_hiddenoverflow(resultp1)) result_exponent++;
+		if (Sgl_isone_hiddeyesverflow(resultp1)) result_exponent++;
 	}
 	if (result_exponent >= SGL_INFINITY_EXPONENT) {
 		/* Overflow */
@@ -2040,7 +2040,7 @@ unsigned int *status;
 	 */
 	if (Sgl_isinfinity_exponent(opnd1)) {
 		if (Sgl_iszero_mantissa(opnd1)) {
-			if (Sgl_isnotnan(opnd2) && Sgl_isnotnan(opnd3)) {
+			if (Sgl_isyestnan(opnd2) && Sgl_isyestnan(opnd3)) {
 				if (Sgl_iszero_exponentmantissa(opnd2)) {
 					/* 
 					 * invalid since operands are infinity 
@@ -2130,7 +2130,7 @@ unsigned int *status;
 	 */
 	if (Sgl_isinfinity_exponent(opnd2)) {
 		if (Sgl_iszero_mantissa(opnd2)) {
-			if (Sgl_isnotnan(opnd3)) {
+			if (Sgl_isyestnan(opnd3)) {
 				if (Sgl_iszero_exponentmantissa(opnd1)) {
 					/* 
 					 * invalid since multiply operands are
@@ -2234,7 +2234,7 @@ unsigned int *status;
 	/*
 	 * Generate multiply mantissa
 	 */
-	if (Sgl_isnotzero_exponent(opnd1)) {
+	if (Sgl_isyestzero_exponent(opnd1)) {
 		/* set hidden bit */
 		Sgl_clear_signexponent_set_hidden(opnd1);
 	}
@@ -2256,11 +2256,11 @@ unsigned int *status;
 			 */
 			else if (Sgl_iszero_exponent(opnd3) &&
 			         Is_underflowtrap_enabled()) {
-                    		/* need to normalize results mantissa */
+                    		/* need to yesrmalize results mantissa */
                     		sign_save = Sgl_signextendedsign(opnd3);
 				result_exponent = 0;
                     		Sgl_leftshiftby1(opnd3);
-                    		Sgl_normalize(opnd3,result_exponent);
+                    		Sgl_yesrmalize(opnd3,result_exponent);
                     		Sgl_set_sign(opnd3,/*using*/sign_save);
                     		Sgl_setwrapped_exponent(opnd3,result_exponent,
 							unfl);
@@ -2271,13 +2271,13 @@ unsigned int *status;
 			Sgl_copytoptr(opnd3,dstptr);
 			return(NOEXCEPTION);
 		}
-		/* is denormalized, adjust exponent */
+		/* is deyesrmalized, adjust exponent */
 		Sgl_clear_signexponent(opnd1);
 		Sgl_leftshiftby1(opnd1);
-		Sgl_normalize(opnd1,mpy_exponent);
+		Sgl_yesrmalize(opnd1,mpy_exponent);
 	}
 	/* opnd2 needs to have hidden bit set with msb in hidden bit */
-	if (Sgl_isnotzero_exponent(opnd2)) {
+	if (Sgl_isyestzero_exponent(opnd2)) {
 		Sgl_clear_signexponent_set_hidden(opnd2);
 	}
 	else {
@@ -2298,11 +2298,11 @@ unsigned int *status;
 			 */
 			else if (Sgl_iszero_exponent(opnd3) &&
 			    Is_underflowtrap_enabled()) {
-                    		/* need to normalize results mantissa */
+                    		/* need to yesrmalize results mantissa */
                     		sign_save = Sgl_signextendedsign(opnd3);
 				result_exponent = 0;
                     		Sgl_leftshiftby1(opnd3);
-                    		Sgl_normalize(opnd3,result_exponent);
+                    		Sgl_yesrmalize(opnd3,result_exponent);
                     		Sgl_set_sign(opnd3,/*using*/sign_save);
                     		Sgl_setwrapped_exponent(opnd3,result_exponent,
 							unfl);
@@ -2313,17 +2313,17 @@ unsigned int *status;
 			Sgl_copytoptr(opnd3,dstptr);
 			return(NOEXCEPTION);
 		}
-		/* is denormalized; want to normalize */
+		/* is deyesrmalized; want to yesrmalize */
 		Sgl_clear_signexponent(opnd2);
 		Sgl_leftshiftby1(opnd2);
-		Sgl_normalize(opnd2,mpy_exponent);
+		Sgl_yesrmalize(opnd2,mpy_exponent);
 	}
 
 	/* Multiply the first two source mantissas together */
 
 	/* 
 	 * The intermediate result will be kept in tmpres,
-	 * which needs enough room for 106 bits of mantissa,
+	 * which needs eyesugh room for 106 bits of mantissa,
 	 * so lets call it a Double extended.
 	 */
 	Sglext_setzero(tmpresp1,tmpresp2);
@@ -2349,7 +2349,7 @@ unsigned int *status;
 		}
 		Sgl_rightshiftby4(opnd1);
 	}
-	if (Is_sexthiddenoverflow(tmpresp1)) {
+	if (Is_sexthiddeyesverflow(tmpresp1)) {
 		/* result mantissa >= 2 (mantissa overflow) */
 		mpy_exponent++;
 		Sglext_rightshiftby4(tmpresp1,tmpresp2);
@@ -2371,15 +2371,15 @@ unsigned int *status;
 	/*
 	 * Now we are ready to perform the add portion of the operation.
 	 *
-	 * The exponents need to be kept as integers for now, since the
-	 * multiply result might not fit into the exponent field.  We
+	 * The exponents need to be kept as integers for yesw, since the
+	 * multiply result might yest fit into the exponent field.  We
 	 * can't overflow or underflow because of this yet, since the
 	 * add could bring the final result back into range.
 	 */
 	add_exponent = Sgl_exponent(opnd3);
 
 	/*
-	 * Check for denormalized or zero add operand.
+	 * Check for deyesrmalized or zero add operand.
 	 */
 	if (add_exponent == 0) {
 		/* check for zero */
@@ -2387,7 +2387,7 @@ unsigned int *status;
 			/* right is zero */
 			/* Left can't be zero and must be result.
 			 *
-			 * The final result is now in tmpres and mpy_exponent,
+			 * The final result is yesw in tmpres and mpy_exponent,
 			 * and needs to be rounded and squeezed back into
 			 * double precision format from double extended.
 			 */
@@ -2399,12 +2399,12 @@ unsigned int *status;
 
 		/* 
 		 * Neither are zeroes.  
-		 * Adjust exponent and normalize add operand.
+		 * Adjust exponent and yesrmalize add operand.
 		 */
 		sign_save = Sgl_signextendedsign(opnd3);	/* save sign */
 		Sgl_clear_signexponent(opnd3);
 		Sgl_leftshiftby1(opnd3);
-		Sgl_normalize(opnd3,add_exponent);
+		Sgl_yesrmalize(opnd3,add_exponent);
 		Sgl_set_sign(opnd3,sign_save);		/* restore sign */
 	} else {
 		Sgl_clear_exponent_set_hidden(opnd3);
@@ -2442,7 +2442,7 @@ unsigned int *status;
 		diff_exponent = mpy_exponent - add_exponent;
 		result_exponent = mpy_exponent;
 	}
-	/* Invariant: left is not smaller than right. */
+	/* Invariant: left is yest smaller than right. */
 
 	/*
 	 * Special case alignment of operands that would force alignment
@@ -2463,14 +2463,14 @@ unsigned int *status;
 		/*
 		 * Difference of the two operands.  Overflow can occur if the
 		 * multiply overflowed.  A borrow can occur out of the hidden
-		 * bit and force a post normalization phase.
+		 * bit and force a post yesrmalization phase.
 		 */
 		Sglext_subtract(tmpresp1,tmpresp2, rightp1,rightp2,
 			resultp1,resultp2);
 		sign_save = Sgl_signextendedsign(resultp1);
 		if (Sgl_iszero_hidden(resultp1)) {
-			/* Handle normalization */
-		/* A straightforward algorithm would now shift the
+			/* Handle yesrmalization */
+		/* A straightforward algorithm would yesw shift the
 		 * result and extension left until the hidden bit
 		 * becomes one.  Not all of the extension bits need
 		 * participate in the shift.  Only the two most 
@@ -2480,7 +2480,7 @@ unsigned int *status;
 		 * extension must participate in the rounding.
 		 * If more than a single shift is needed, then all
 		 * bits to the right of the guard bit are zeros, 
-		 * and the guard bit may or may not be zero. */
+		 * and the guard bit may or may yest be zero. */
 			Sglext_leftshiftby1(resultp1,resultp2);
 
 			/* Need to check for a zero result.  The sign and
@@ -2496,16 +2496,16 @@ unsigned int *status;
 			}
 			result_exponent--;
 
-			/* Look to see if normalization is finished. */
+			/* Look to see if yesrmalization is finished. */
 			if (Sgl_isone_hidden(resultp1)) {
-				/* No further normalization is needed */
+				/* No further yesrmalization is needed */
 				goto round;
 			}
 
 			/* Discover first one bit to determine shift amount.
 			 * Use a modified binary search.  We have already
 			 * shifted the result one position right and still
-			 * not found a one so the remainder of the extension
+			 * yest found a one so the remainder of the extension
 			 * must be zero and simplifies rounding. */
 			/* Scan bytes */
 			while (Sgl_iszero_hiddenhigh7mantissa(resultp1)) {
@@ -2515,12 +2515,12 @@ unsigned int *status;
 			/* Now narrow it down to the nibble */
 			if (Sgl_iszero_hiddenhigh3mantissa(resultp1)) {
 				/* The lower nibble contains the
-				 * normalizing one */
+				 * yesrmalizing one */
 				Sglext_leftshiftby4(resultp1,resultp2);
 				result_exponent -= 4;
 			}
 			/* Select case where first bit is set (already
-			 * normalized) otherwise select the proper shift. */
+			 * yesrmalized) otherwise select the proper shift. */
 			jumpsize = Sgl_hiddenhigh3mantissa(resultp1);
 			if (jumpsize <= 7) switch(jumpsize) {
 			case 1:
@@ -2548,30 +2548,30 @@ unsigned int *status;
 		Sglext_addition(tmpresp1,tmpresp2,
 			rightp1,rightp2, /*to*/resultp1,resultp2);
 		sign_save = Sgl_signextendedsign(resultp1);
-		if (Sgl_isone_hiddenoverflow(resultp1)) {
-	    		/* Prenormalization required. */
+		if (Sgl_isone_hiddeyesverflow(resultp1)) {
+	    		/* Preyesrmalization required. */
 	    		Sglext_arithrightshiftby1(resultp1,resultp2);
 	    		result_exponent++;
-		} /* end if hiddenoverflow... */
+		} /* end if hiddeyesverflow... */
 	} /* end else ...add magnitudes... */
 
 	/* Round the result.  If the extension and lower two words are
 	 * all zeros, then the result is exact.  Otherwise round in the
-	 * correct direction.  Underflow is possible. If a postnormalization
-	 * is necessary, then the mantissa is all zeros so no shift is needed.
+	 * correct direction.  Underflow is possible. If a postyesrmalization
+	 * is necessary, then the mantissa is all zeros so yes shift is needed.
 	 */
   round:
 	if (result_exponent <= 0 && !Is_underflowtrap_enabled()) {
-		Sglext_denormalize(resultp1,resultp2,result_exponent,is_tiny);
+		Sglext_deyesrmalize(resultp1,resultp2,result_exponent,is_tiny);
 	}
 	Sgl_set_sign(resultp1,/*using*/sign_save);
-	if (Sglext_isnotzero_mantissap2(resultp2)) {
+	if (Sglext_isyestzero_mantissap2(resultp2)) {
 		inexact = TRUE;
 		switch(Rounding_mode()) {
 		case ROUNDNEAREST: /* The default. */
 			if (Sglext_isone_highp2(resultp2)) {
 				/* at least 1/2 ulp */
-				if (Sglext_isnotzero_low31p2(resultp2) ||
+				if (Sglext_isyestzero_low31p2(resultp2) ||
 				    Sglext_isone_lowp1(resultp1)) {
 					/* either exactly half way and odd or
 					 * more than 1/2ulp */
@@ -2596,7 +2596,7 @@ unsigned int *status;
 		case ROUNDZERO:;
 			/* truncate is simple */
 		} /* end switch... */
-		if (Sgl_isone_hiddenoverflow(resultp1)) result_exponent++;
+		if (Sgl_isone_hiddeyesverflow(resultp1)) result_exponent++;
 	}
 	if (result_exponent >= SGL_INFINITY_EXPONENT) {
 		/* Overflow */

@@ -287,7 +287,7 @@ static struct qmi_elem_info test_data_resp_msg_v01_ei[] = {
 /*
  * ping_write() - ping_pong debugfs file write handler
  * @file:	debugfs file context
- * @user_buf:	reference to the user data (ignored)
+ * @user_buf:	reference to the user data (igyesred)
  * @count:	number of bytes in @user_buf
  * @ppos:	offset in @file to write
  *
@@ -296,7 +296,7 @@ static struct qmi_elem_info test_data_resp_msg_v01_ei[] = {
  * transaction. It serves as an example of how to provide a custom response
  * handler.
  *
- * Return: @count, or negative errno on failure.
+ * Return: @count, or negative erryes on failure.
  */
 static ssize_t ping_write(struct file *file, const char __user *user_buf,
 			  size_t count, loff_t *ppos)
@@ -363,7 +363,7 @@ static void ping_pong_cb(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
  * transaction. It serves as an example of how to have the QMI helpers decode a
  * transaction response into a provided object automatically.
  *
- * Return: @count, or negative errno on failure.
+ * Return: @count, or negative erryes on failure.
  */
 static ssize_t data_write(struct file *file, const char __user *user_buf,
 			  size_t count, loff_t *ppos)
@@ -475,7 +475,7 @@ static int qmi_sample_probe(struct platform_device *pdev)
 		goto err_release_qmi_handle;
 	}
 
-	snprintf(path, sizeof(path), "%d:%d", sq->sq_node, sq->sq_port);
+	snprintf(path, sizeof(path), "%d:%d", sq->sq_yesde, sq->sq_port);
 
 	sample->de_dir = debugfs_create_dir(path, qmi_debug_dir);
 	if (IS_ERR(sample->de_dir)) {
@@ -536,7 +536,7 @@ static int qmi_sample_new_server(struct qmi_handle *qmi,
 				 struct qmi_service *service)
 {
 	struct platform_device *pdev;
-	struct sockaddr_qrtr sq = { AF_QIPCRTR, service->node, service->port };
+	struct sockaddr_qrtr sq = { AF_QIPCRTR, service->yesde, service->port };
 	int ret;
 
 	pdev = platform_device_alloc("qmi_sample_client", PLATFORM_DEVID_AUTO);

@@ -19,7 +19,7 @@
 #include <linux/string.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/in.h>
 #include <linux/inet.h>
 #include <linux/inetdevice.h>
@@ -187,7 +187,7 @@ void fib_flush(struct net *net)
 
 	for (h = 0; h < FIB_TABLE_HASHSZ; h++) {
 		struct hlist_head *head = &net->ipv4.fib_table_hash[h];
-		struct hlist_node *tmp;
+		struct hlist_yesde *tmp;
 		struct fib_table *tb;
 
 		hlist_for_each_entry_safe(tb, tmp, head, tb_hlist)
@@ -332,7 +332,7 @@ bool fib_info_nh_uses_dev(struct fib_info *fi, const struct net_device *dev)
 EXPORT_SYMBOL_GPL(fib_info_nh_uses_dev);
 
 /* Given (packet source, input interface) and optional (dst, oif, tos):
- * - (main) check, that source is valid i.e. not broadcast or our local
+ * - (main) check, that source is valid i.e. yest broadcast or our local
  *   address.
  * - figure out what "logical" interface this packet arrived
  *   and calculate "specific destination" address.
@@ -345,7 +345,7 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 {
 	struct net *net = dev_net(dev);
 	struct flow_keys flkeys;
-	int ret, no_addr;
+	int ret, yes_addr;
 	struct fib_result res;
 	struct flowi4 fl4;
 	bool dev_match;
@@ -362,7 +362,7 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	fl4.flowi4_flags = 0;
 	fl4.flowi4_uid = sock_net_uid(net, NULL);
 
-	no_addr = idev->ifa_list == NULL;
+	yes_addr = idev->ifa_list == NULL;
 
 	fl4.flowi4_mark = IN_DEV_SRC_VMARK(idev) ? skb->mark : 0;
 	if (!fib4_rules_early_flow_dissect(net, skb, &fl4, &flkeys)) {
@@ -379,8 +379,8 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	fib_combine_itag(itag, &res);
 
 	dev_match = fib_info_nh_uses_dev(res.fi, dev);
-	/* This is not common, loopback packets retain skb_dst so normally they
-	 * would not even hit this slow path.
+	/* This is yest common, loopback packets retain skb_dst so yesrmally they
+	 * would yest even hit this slow path.
 	 */
 	dev_match = dev_match || (res.type == RTN_LOCAL &&
 				  dev == net->loopback_dev);
@@ -388,7 +388,7 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 		ret = FIB_RES_NHC(res)->nhc_scope >= RT_SCOPE_HOST;
 		return ret;
 	}
-	if (no_addr)
+	if (yes_addr)
 		goto last_resort;
 	if (rpf == 1)
 		goto e_rpf;
@@ -413,7 +413,7 @@ e_rpf:
 	return -EXDEV;
 }
 
-/* Ignore rp_filter for packets protected by IPsec. */
+/* Igyesre rp_filter for packets protected by IPsec. */
 int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 			u8 tos, int oif, struct net_device *dev,
 			struct in_device *idev, u32 *itag)
@@ -702,7 +702,7 @@ int fib_gw_from_via(struct fib_config *cfg, struct nlattr *nla,
 		cfg->fc_gw_family = AF_INET6;
 		cfg->fc_gw6 = *((struct in6_addr *)via->rtvia_addr);
 #else
-		NL_SET_ERR_MSG(extack, "IPv6 support not enabled in kernel");
+		NL_SET_ERR_MSG(extack, "IPv6 support yest enabled in kernel");
 		return -EINVAL;
 #endif
 		break;
@@ -822,7 +822,7 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 
 	if (has_gw && has_via) {
 		NL_SET_ERR_MSG(extack,
-			       "Nexthop configuration can not contain both GATEWAY and VIA");
+			       "Nexthop configuration can yest contain both GATEWAY and VIA");
 		goto errout;
 	}
 
@@ -844,14 +844,14 @@ static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto errout;
 
 	if (cfg.fc_nh_id && !nexthop_find_by_id(net, cfg.fc_nh_id)) {
-		NL_SET_ERR_MSG(extack, "Nexthop id does not exist");
+		NL_SET_ERR_MSG(extack, "Nexthop id does yest exist");
 		err = -EINVAL;
 		goto errout;
 	}
 
 	tb = fib_get_table(net, cfg.fc_table);
 	if (!tb) {
-		NL_SET_ERR_MSG(extack, "FIB table does not exist");
+		NL_SET_ERR_MSG(extack, "FIB table does yest exist");
 		err = -ESRCH;
 		goto errout;
 	}
@@ -983,7 +983,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 		filter.flags = rtm->rtm_flags & (RTM_F_PREFIX | RTM_F_CLONED);
 	}
 
-	/* ipv4 does not use prefix flag */
+	/* ipv4 does yest use prefix flag */
 	if (filter.flags & RTM_F_PREFIX)
 		return skb->len;
 
@@ -993,7 +993,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 			if (filter.dump_all_families)
 				return skb->len;
 
-			NL_SET_ERR_MSG(cb->extack, "ipv4: FIB table does not exist");
+			NL_SET_ERR_MSG(cb->extack, "ipv4: FIB table does yest exist");
 			return -ENOENT;
 		}
 
@@ -1040,7 +1040,7 @@ out_err:
 
 /* Prepare and feed intra-kernel routing request.
  * Really, it should be netlink message, but :-( netlink
- * can be not configured, so that we feed it directly
+ * can be yest configured, so that we feed it directly
  * to fib engine. It is legal, because all events occur
  * only when netlink is already locked.
  */
@@ -1172,7 +1172,7 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 	unsigned int ok = 0;
 	int subnet = 0;		/* Primary network */
 	int gone = 1;		/* Address is missing */
-	int same_prefsrc = 0;	/* Another primary with same IP */
+	int same_prefsrc = 0;	/* Ayesther primary with same IP */
 
 	if (ifa->ifa_flags & IFA_F_SECONDARY) {
 		prim = inet_ifa_byprefix(in_dev, any, ifa->ifa_mask);
@@ -1198,10 +1198,10 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 	}
 
 	if (in_dev->dead)
-		goto no_promotions;
+		goto yes_promotions;
 
 	/* Deletion is more complicated than add.
-	 * We should take care of not to delete too much :-)
+	 * We should take care of yest to delete too much :-)
 	 *
 	 * Scan address list to be sure that addresses are really gone.
 	 */
@@ -1212,14 +1212,14 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 			gone = 0;
 			continue;
 		}
-		/* Ignore IFAs from our subnet */
+		/* Igyesre IFAs from our subnet */
 		if (iprim && ifa1->ifa_mask == iprim->ifa_mask &&
 		    inet_ifa_match(ifa1->ifa_address, iprim))
 			continue;
 
-		/* Ignore ifa1 if it uses different primary IP (prefsrc) */
+		/* Igyesre ifa1 if it uses different primary IP (prefsrc) */
 		if (ifa1->ifa_flags & IFA_F_SECONDARY) {
-			/* Another address from our subnet? */
+			/* Ayesther address from our subnet? */
 			if (ifa1->ifa_mask == prim->ifa_mask &&
 			    inet_ifa_match(ifa1->ifa_address, prim))
 				prim1 = prim;
@@ -1229,7 +1229,7 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 				 */
 				if (!same_prefsrc)
 					continue;
-				/* Search new prim1 if ifa1 is not
+				/* Search new prim1 if ifa1 is yest
 				 * using the current prim1
 				 */
 				if (!prim1 ||
@@ -1276,7 +1276,7 @@ void fib_del_ifaddr(struct in_ifaddr *ifa, struct in_ifaddr *iprim)
 	}
 	rcu_read_unlock();
 
-no_promotions:
+yes_promotions:
 	if (!(ok & BRD_OK))
 		fib_magic(RTM_DELROUTE, RTN_BROADCAST, ifa->ifa_broadcast, 32,
 			  prim, 0);
@@ -1297,7 +1297,7 @@ no_promotions:
 		addr_type = inet_addr_type_dev_table(dev_net(dev), dev,
 						     ifa->ifa_local);
 		if (gone && addr_type != RTN_LOCAL) {
-			/* And the last, but not the least thing.
+			/* And the last, but yest the least thing.
 			 * We must flush stray FIB entries.
 			 *
 			 * First of all, we scan fib_info list searching
@@ -1406,7 +1406,7 @@ static void fib_disable_ip(struct net_device *dev, unsigned long event,
 	arp_ifdown(dev);
 }
 
-static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, void *ptr)
+static int fib_inetaddr_event(struct yestifier_block *this, unsigned long event, void *ptr)
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
 	struct net_device *dev = ifa->ifa_dev->dev;
@@ -1437,11 +1437,11 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 	return NOTIFY_DONE;
 }
 
-static int fib_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
+static int fib_netdev_event(struct yestifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
-	struct netdev_notifier_changeupper_info *upper_info = ptr;
-	struct netdev_notifier_info_ext *info_ext = ptr;
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
+	struct netdev_yestifier_changeupper_info *upper_info = ptr;
+	struct netdev_yestifier_info_ext *info_ext = ptr;
 	struct in_device *in_dev;
 	struct net *net = dev_net(dev);
 	struct in_ifaddr *ifa;
@@ -1496,12 +1496,12 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block fib_inetaddr_notifier = {
-	.notifier_call = fib_inetaddr_event,
+static struct yestifier_block fib_inetaddr_yestifier = {
+	.yestifier_call = fib_inetaddr_event,
 };
 
-static struct notifier_block fib_netdev_notifier = {
-	.notifier_call = fib_netdev_event,
+static struct yestifier_block fib_netdev_yestifier = {
+	.yestifier_call = fib_netdev_event,
 };
 
 static int __net_init ip_fib_net_init(struct net *net)
@@ -1509,7 +1509,7 @@ static int __net_init ip_fib_net_init(struct net *net)
 	int err;
 	size_t size = sizeof(struct hlist_head) * FIB_TABLE_HASHSZ;
 
-	err = fib4_notifier_init(net);
+	err = fib4_yestifier_init(net);
 	if (err)
 		return err;
 
@@ -1530,7 +1530,7 @@ static int __net_init ip_fib_net_init(struct net *net)
 err_rules_init:
 	kfree(net->ipv4.fib_table_hash);
 err_table_hash_alloc:
-	fib4_notifier_exit(net);
+	fib4_yestifier_exit(net);
 	return err;
 }
 
@@ -1550,7 +1550,7 @@ static void ip_fib_net_exit(struct net *net)
 	 */
 	for (i = FIB_TABLE_HASHSZ - 1; i >= 0; i--) {
 		struct hlist_head *head = &net->ipv4.fib_table_hash[i];
-		struct hlist_node *tmp;
+		struct hlist_yesde *tmp;
 		struct fib_table *tb;
 
 		hlist_for_each_entry_safe(tb, tmp, head, tb_hlist) {
@@ -1565,7 +1565,7 @@ static void ip_fib_net_exit(struct net *net)
 #endif
 	rtnl_unlock();
 	kfree(net->ipv4.fib_table_hash);
-	fib4_notifier_exit(net);
+	fib4_yestifier_exit(net);
 }
 
 static int __net_init fib_net_init(struct net *net)
@@ -1612,8 +1612,8 @@ void __init ip_fib_init(void)
 
 	register_pernet_subsys(&fib_net_ops);
 
-	register_netdevice_notifier(&fib_netdev_notifier);
-	register_inetaddr_notifier(&fib_inetaddr_notifier);
+	register_netdevice_yestifier(&fib_netdev_yestifier);
+	register_inetaddr_yestifier(&fib_inetaddr_yestifier);
 
 	rtnl_register(PF_INET, RTM_NEWROUTE, inet_rtm_newroute, NULL, 0);
 	rtnl_register(PF_INET, RTM_DELROUTE, inet_rtm_delroute, NULL, 0);

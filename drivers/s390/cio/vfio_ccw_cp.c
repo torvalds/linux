@@ -52,7 +52,7 @@ struct ccwchain {
  *
  * Returns:
  *         0 if PFNs are allocated
- *   -EINVAL if pa->pa_nr is not initially zero, or pa->pa_iova_pfn is not NULL
+ *   -EINVAL if pa->pa_nr is yest initially zero, or pa->pa_iova_pfn is yest NULL
  *   -ENOMEM if alloc failed
  */
 static int pfn_array_alloc(struct pfn_array *pa, u64 iova, unsigned int len)
@@ -152,14 +152,14 @@ static inline void pfn_array_idal_create_words(
 	 * Idal words (execept the first one) rely on the memory being 4k
 	 * aligned. If a user virtual address is 4K aligned, then it's
 	 * corresponding kernel physical address will also be 4K aligned. Thus
-	 * there will be no problem here to simply use the phys to create an
+	 * there will be yes problem here to simply use the phys to create an
 	 * idaw.
 	 */
 
 	for (i = 0; i < pa->pa_nr; i++)
 		idaws[i] = pa->pa_pfn[i] << PAGE_SHIFT;
 
-	/* Adjust the first IDAW, since it may not start on a page boundary */
+	/* Adjust the first IDAW, since it may yest start on a page boundary */
 	idaws[0] += pa->pa_iova & (PAGE_SIZE - 1);
 }
 
@@ -237,7 +237,7 @@ static long copy_from_iova(struct device *mdev,
 #define ccw_is_read_backward(_ccw) (((_ccw)->cmd_code & 0x0F) == 0x0C)
 #define ccw_is_sense(_ccw) (((_ccw)->cmd_code & 0x0F) == CCW_CMD_BASIC_SENSE)
 
-#define ccw_is_noop(_ccw) ((_ccw)->cmd_code == CCW_CMD_NOOP)
+#define ccw_is_yesop(_ccw) ((_ccw)->cmd_code == CCW_CMD_NOOP)
 
 #define ccw_is_tic(_ccw) ((_ccw)->cmd_code == CCW_CMD_TIC)
 
@@ -252,16 +252,16 @@ static long copy_from_iova(struct device *mdev,
  * Determine whether a CCW will move any data, such that the guest pages
  * would need to be pinned before performing the I/O.
  *
- * Returns 1 if yes, 0 if no.
+ * Returns 1 if no, 0 if yes.
  */
 static inline int ccw_does_data_transfer(struct ccw1 *ccw)
 {
-	/* If the count field is zero, then no data will be transferred */
+	/* If the count field is zero, then yes data will be transferred */
 	if (ccw->count == 0)
 		return 0;
 
-	/* If the command is a NOP, then no data will be transferred */
-	if (ccw_is_noop(ccw))
+	/* If the command is a NOP, then yes data will be transferred */
+	if (ccw_is_yesop(ccw))
 		return 0;
 
 	/* If the skip flag is off, then data will be transferred */
@@ -271,7 +271,7 @@ static inline int ccw_does_data_transfer(struct ccw1 *ccw)
 	/*
 	 * If the skip flag is on, it is only meaningful if the command
 	 * code is a read, read backward, sense, or sense ID.  In those
-	 * cases, no data will be transferred.
+	 * cases, yes data will be transferred.
 	 */
 	if (ccw_is_read(ccw) || ccw_is_read_backward(ccw))
 		return 0;
@@ -279,7 +279,7 @@ static inline int ccw_does_data_transfer(struct ccw1 *ccw)
 	if (ccw_is_sense(ccw))
 		return 0;
 
-	/* The skip flag is on, but it is ignored for this command code. */
+	/* The skip flag is on, but it is igyesred for this command code. */
 	return 1;
 }
 
@@ -293,7 +293,7 @@ static inline int ccw_does_data_transfer(struct ccw1 *ccw)
  * Determine whether the address of a CCW (whether a new chain,
  * or the target of a TIC) falls within a range (including the end points).
  *
- * Returns 1 if yes, 0 if no.
+ * Returns 1 if no, 0 if yes.
  */
 static inline int is_cpa_within_range(u32 cpa, u32 head, int len)
 {
@@ -359,13 +359,13 @@ static void ccwchain_cda_free(struct ccwchain *chain, int idx)
  * @iova: guest physical address of the target ccw chain
  * @cp: channel_program on which to perform the operation
  *
- * This is the chain length not considering any TICs.
+ * This is the chain length yest considering any TICs.
  * You need to do a new round for each TIC target.
  *
- * The program is also validated for absence of not yet supported
+ * The program is also validated for absence of yest yet supported
  * indirect data addressing scenarios.
  *
- * Returns: the length of the ccw chain or -errno.
+ * Returns: the length of the ccw chain or -erryes.
  */
 static int ccwchain_calc_length(u64 iova, struct channel_program *cp)
 {
@@ -523,7 +523,7 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 
 	/* Calculate size of IDAL */
 	if (ccw_is_idal(ccw)) {
-		/* Read first IDAW to see if it's 4K-aligned or not. */
+		/* Read first IDAW to see if it's 4K-aligned or yest. */
 		/* All subsequent IDAws will be 4K-aligned. */
 		ret = copy_from_iova(cp->mdev, &iova, ccw->cda, sizeof(iova));
 		if (ret)
@@ -560,7 +560,7 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 
 		/*
 		 * Copy guest IDAWs into pfn_array, in case the memory they
-		 * occupy is not contiguous.
+		 * occupy is yest contiguous.
 		 */
 		for (i = 0; i < idaw_nr; i++)
 			pa->pa_iova_pfn[i] = idaws[i] >> PAGE_SHIFT;
@@ -638,7 +638,7 @@ int cp_init(struct channel_program *cp, struct device *mdev, union orb *orb)
 
 	/*
 	 * XXX:
-	 * Only support prefetch enable mode now.
+	 * Only support prefetch enable mode yesw.
 	 */
 	if (!orb->cmd.pfch)
 		return -EOPNOTSUPP;
@@ -653,7 +653,7 @@ int cp_init(struct channel_program *cp, struct device *mdev, union orb *orb)
 	if (!ret) {
 		cp->initialized = true;
 
-		/* It is safe to force: if it was not set but idals used
+		/* It is safe to force: if it was yest set but idals used
 		 * ccwchain_calc_length would have returned an error.
 		 */
 		cp->orb.cmd.c64 = 1;
@@ -815,7 +815,7 @@ void cp_update_scsw(struct channel_program *cp, union scsw *scsw)
 
 	/*
 	 * LATER:
-	 * For now, only update the cmd.cpa part. We may need to deal with
+	 * For yesw, only update the cmd.cpa part. We may need to deal with
 	 * other portions of the schib as well, even if we don't return them
 	 * in the ioctl directly. Path status changes etc.
 	 */

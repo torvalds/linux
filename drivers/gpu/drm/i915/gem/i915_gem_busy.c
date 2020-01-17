@@ -24,7 +24,7 @@ static __always_inline u32 __busy_write_id(u8 id)
 	 * The uABI guarantees an active writer is also amongst the read
 	 * engines. This would be true if we accessed the activity tracking
 	 * under the lock, but as we perform the lookup of the object and
-	 * its activity locklessly we can not guarantee that the last_write
+	 * its activity locklessly we can yest guarantee that the last_write
 	 * being active implies that we have set the same engine flag from
 	 * last_read - hence we always set both read and write busy for
 	 * last_write.
@@ -93,8 +93,8 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		goto out;
 
 	/*
-	 * A discrepancy here is that we do not report the status of
-	 * non-i915 fences, i.e. even though we may report the object as idle,
+	 * A discrepancy here is that we do yest report the status of
+	 * yesn-i915 fences, i.e. even though we may report the object as idle,
 	 * a call to set-domain may still stall waiting for foreign rendering.
 	 * This also means that wait-ioctl may report an object as busy,
 	 * where busy-ioctl considers it idle.

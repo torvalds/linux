@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techyeslogies Co., Ltd
  */
 
 #ifndef HINIC_HW_IF_H
@@ -160,7 +160,7 @@
 #define HINIC_PCI_MSIX_ENTRY_VECTOR_CTRL        12
 #define HINIC_PCI_MSIX_ENTRY_CTRL_MASKBIT       1
 
-enum hinic_pcie_nosnoop {
+enum hinic_pcie_yessyesop {
 	HINIC_PCIE_SNOOP        = 0,
 	HINIC_PCIE_NO_SNOOP     = 1,
 };
@@ -183,7 +183,7 @@ enum hinic_mod_type {
 	HINIC_MOD_MAX   = 15
 };
 
-enum hinic_node_id {
+enum hinic_yesde_id {
 	HINIC_NODE_ID_MGMT = 21,
 };
 

@@ -8,7 +8,7 @@
 
 #include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/jiffies.h>
 #include <linux/skbuff.h>
 #include <linux/string.h>
@@ -17,7 +17,7 @@
 
 /* For these data types, attribute length should be exactly the given
  * size. However, to maintain compatibility with broken commands, if the
- * attribute length does not match the expected size a warning is emitted
+ * attribute length does yest match the expected size a warning is emitted
  * to the user that the command is sending invalid data and needs to be fixed.
  */
 static const u8 nla_attr_len[NLA_TYPE_MAX+1] = {
@@ -60,7 +60,7 @@ static int validate_nla_bitfield32(const struct nlattr *nla,
 	if (bf->value & ~*valid_flags_mask)
 		return -EINVAL;
 
-	/*disallow valid bit values that are not selected*/
+	/*disallow valid bit values that are yest selected*/
 	if (bf->value & ~bf->selector)
 		return -EINVAL;
 
@@ -131,7 +131,7 @@ static int nla_validate_int_range(const struct nla_policy *pt,
 		value = nla_get_s64(nla);
 		break;
 	case NLA_U64:
-		/* treat this one specially, since it may not fit into s64 */
+		/* treat this one specially, since it may yest fit into s64 */
 		if ((validate_min && nla_get_u64(nla) < pt->min) ||
 		    (validate_max && nla_get_u64(nla) > pt->max)) {
 			NL_SET_ERR_MSG_ATTR(extack, nla,
@@ -194,7 +194,7 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		if (pt->type != NLA_NESTED && pt->type != NLA_NESTED_ARRAY &&
 		    pt->type != NLA_UNSPEC && (nla->nla_type & NLA_F_NESTED)) {
 			NL_SET_ERR_MSG_ATTR(extack, nla,
-					    "NLA_F_NESTED not expected");
+					    "NLA_F_NESTED yest expected");
 			return -EINVAL;
 		}
 	}
@@ -261,7 +261,7 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		break;
 
 	case NLA_NESTED:
-		/* a nested attributes is allowed to be empty; if its not,
+		/* a nested attributes is allowed to be empty; if its yest,
 		 * it must have a size of at least NLA_HDRLEN.
 		 */
 		if (attrlen == 0)
@@ -282,7 +282,7 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 		}
 		break;
 	case NLA_NESTED_ARRAY:
-		/* a nested array attribute is allowed to be empty; if its not,
+		/* a nested array attribute is allowed to be empty; if its yest,
 		 * it must have a size of at least NLA_HDRLEN.
 		 */
 		if (attrlen == 0)
@@ -330,7 +330,7 @@ static int validate_nla(const struct nlattr *nla, int maxtype,
 	/* further validation */
 	switch (pt->validation_type) {
 	case NLA_VALIDATE_NONE:
-		/* nothing to do */
+		/* yesthing to do */
 		break;
 	case NLA_VALIDATE_RANGE:
 	case NLA_VALIDATE_MIN:
@@ -372,7 +372,7 @@ static int __nla_validate_parse(const struct nlattr *head, int len, int maxtype,
 		if (type == 0 || type > maxtype) {
 			if (validate & NL_VALIDATE_MAXTYPE) {
 				NL_SET_ERR_MSG_ATTR(extack, nla,
-						    "Unknown attribute type");
+						    "Unkyeswn attribute type");
 				return -EINVAL;
 			}
 			continue;
@@ -557,7 +557,7 @@ char *nla_strdup(const struct nlattr *nla, gfp_t flags)
 EXPORT_SYMBOL(nla_strdup);
 
 /**
- * nla_memcpy - Copy a netlink attribute into another memory area
+ * nla_memcpy - Copy a netlink attribute into ayesther memory area
  * @dest: where to copy to memcpy
  * @src: netlink attribute to copy from
  * @count: size of the destination area
@@ -600,7 +600,7 @@ EXPORT_SYMBOL(nla_memcmp);
 /**
  * nla_strcmp - Compare a string attribute against a string
  * @nla: netlink string attribute
- * @str: another string
+ * @str: ayesther string
  */
 int nla_strcmp(const struct nlattr *nla, const char *str)
 {
@@ -628,9 +628,9 @@ EXPORT_SYMBOL(nla_strcmp);
  * @attrlen: length of attribute payload
  *
  * Adds a netlink attribute header to a socket buffer and reserves
- * room for the payload but does not copy it.
+ * room for the payload but does yest copy it.
  *
- * The caller is responsible to ensure that the skb provides enough
+ * The caller is responsible to ensure that the skb provides eyesugh
  * tailroom for the attribute header and payload.
  */
 struct nlattr *__nla_reserve(struct sk_buff *skb, int attrtype, int attrlen)
@@ -655,10 +655,10 @@ EXPORT_SYMBOL(__nla_reserve);
  * @padattr: attribute type for the padding
  *
  * Adds a netlink attribute header to a socket buffer and reserves
- * room for the payload but does not copy it. It also ensure that this
+ * room for the payload but does yest copy it. It also ensure that this
  * attribute will have a 64-bit aligned nla_data() area.
  *
- * The caller is responsible to ensure that the skb provides enough
+ * The caller is responsible to ensure that the skb provides eyesugh
  * tailroom for the attribute header and payload.
  */
 struct nlattr *__nla_reserve_64bit(struct sk_buff *skb, int attrtype,
@@ -672,20 +672,20 @@ struct nlattr *__nla_reserve_64bit(struct sk_buff *skb, int attrtype,
 EXPORT_SYMBOL(__nla_reserve_64bit);
 
 /**
- * __nla_reserve_nohdr - reserve room for attribute without header
+ * __nla_reserve_yeshdr - reserve room for attribute without header
  * @skb: socket buffer to reserve room on
  * @attrlen: length of attribute payload
  *
  * Reserves room for attribute payload without a header.
  *
- * The caller is responsible to ensure that the skb provides enough
+ * The caller is responsible to ensure that the skb provides eyesugh
  * tailroom for the payload.
  */
-void *__nla_reserve_nohdr(struct sk_buff *skb, int attrlen)
+void *__nla_reserve_yeshdr(struct sk_buff *skb, int attrlen)
 {
 	return skb_put_zero(skb, NLA_ALIGN(attrlen));
 }
-EXPORT_SYMBOL(__nla_reserve_nohdr);
+EXPORT_SYMBOL(__nla_reserve_yeshdr);
 
 /**
  * nla_reserve - reserve room for attribute on the skb
@@ -694,7 +694,7 @@ EXPORT_SYMBOL(__nla_reserve_nohdr);
  * @attrlen: length of attribute payload
  *
  * Adds a netlink attribute header to a socket buffer and reserves
- * room for the payload but does not copy it.
+ * room for the payload but does yest copy it.
  *
  * Returns NULL if the tailroom of the skb is insufficient to store
  * the attribute header and payload.
@@ -716,7 +716,7 @@ EXPORT_SYMBOL(nla_reserve);
  * @padattr: attribute type for the padding
  *
  * Adds a netlink attribute header to a socket buffer and reserves
- * room for the payload but does not copy it. It also ensure that this
+ * room for the payload but does yest copy it. It also ensure that this
  * attribute will have a 64-bit aligned nla_data() area.
  *
  * Returns NULL if the tailroom of the skb is insufficient to store
@@ -739,7 +739,7 @@ struct nlattr *nla_reserve_64bit(struct sk_buff *skb, int attrtype, int attrlen,
 EXPORT_SYMBOL(nla_reserve_64bit);
 
 /**
- * nla_reserve_nohdr - reserve room for attribute without header
+ * nla_reserve_yeshdr - reserve room for attribute without header
  * @skb: socket buffer to reserve room on
  * @attrlen: length of attribute payload
  *
@@ -748,14 +748,14 @@ EXPORT_SYMBOL(nla_reserve_64bit);
  * Returns NULL if the tailroom of the skb is insufficient to store
  * the attribute payload.
  */
-void *nla_reserve_nohdr(struct sk_buff *skb, int attrlen)
+void *nla_reserve_yeshdr(struct sk_buff *skb, int attrlen)
 {
 	if (unlikely(skb_tailroom(skb) < NLA_ALIGN(attrlen)))
 		return NULL;
 
-	return __nla_reserve_nohdr(skb, attrlen);
+	return __nla_reserve_yeshdr(skb, attrlen);
 }
-EXPORT_SYMBOL(nla_reserve_nohdr);
+EXPORT_SYMBOL(nla_reserve_yeshdr);
 
 /**
  * __nla_put - Add a netlink attribute to a socket buffer
@@ -764,7 +764,7 @@ EXPORT_SYMBOL(nla_reserve_nohdr);
  * @attrlen: length of attribute payload
  * @data: head of attribute payload
  *
- * The caller is responsible to ensure that the skb provides enough
+ * The caller is responsible to ensure that the skb provides eyesugh
  * tailroom for the attribute header and payload.
  */
 void __nla_put(struct sk_buff *skb, int attrtype, int attrlen,
@@ -785,7 +785,7 @@ EXPORT_SYMBOL(__nla_put);
  * @data: head of attribute payload
  * @padattr: attribute type for the padding
  *
- * The caller is responsible to ensure that the skb provides enough
+ * The caller is responsible to ensure that the skb provides eyesugh
  * tailroom for the attribute header and payload.
  */
 void __nla_put_64bit(struct sk_buff *skb, int attrtype, int attrlen,
@@ -799,22 +799,22 @@ void __nla_put_64bit(struct sk_buff *skb, int attrtype, int attrlen,
 EXPORT_SYMBOL(__nla_put_64bit);
 
 /**
- * __nla_put_nohdr - Add a netlink attribute without header
+ * __nla_put_yeshdr - Add a netlink attribute without header
  * @skb: socket buffer to add attribute to
  * @attrlen: length of attribute payload
  * @data: head of attribute payload
  *
- * The caller is responsible to ensure that the skb provides enough
+ * The caller is responsible to ensure that the skb provides eyesugh
  * tailroom for the attribute payload.
  */
-void __nla_put_nohdr(struct sk_buff *skb, int attrlen, const void *data)
+void __nla_put_yeshdr(struct sk_buff *skb, int attrlen, const void *data)
 {
 	void *start;
 
-	start = __nla_reserve_nohdr(skb, attrlen);
+	start = __nla_reserve_yeshdr(skb, attrlen);
 	memcpy(start, data, attrlen);
 }
-EXPORT_SYMBOL(__nla_put_nohdr);
+EXPORT_SYMBOL(__nla_put_yeshdr);
 
 /**
  * nla_put - Add a netlink attribute to a socket buffer
@@ -865,7 +865,7 @@ int nla_put_64bit(struct sk_buff *skb, int attrtype, int attrlen,
 EXPORT_SYMBOL(nla_put_64bit);
 
 /**
- * nla_put_nohdr - Add a netlink attribute without header
+ * nla_put_yeshdr - Add a netlink attribute without header
  * @skb: socket buffer to add attribute to
  * @attrlen: length of attribute payload
  * @data: head of attribute payload
@@ -873,15 +873,15 @@ EXPORT_SYMBOL(nla_put_64bit);
  * Returns -EMSGSIZE if the tailroom of the skb is insufficient to store
  * the attribute payload.
  */
-int nla_put_nohdr(struct sk_buff *skb, int attrlen, const void *data)
+int nla_put_yeshdr(struct sk_buff *skb, int attrlen, const void *data)
 {
 	if (unlikely(skb_tailroom(skb) < NLA_ALIGN(attrlen)))
 		return -EMSGSIZE;
 
-	__nla_put_nohdr(skb, attrlen, data);
+	__nla_put_yeshdr(skb, attrlen, data);
 	return 0;
 }
-EXPORT_SYMBOL(nla_put_nohdr);
+EXPORT_SYMBOL(nla_put_yeshdr);
 
 /**
  * nla_append - Add a netlink attribute without header or padding

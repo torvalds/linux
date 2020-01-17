@@ -99,7 +99,7 @@ static void numachip_send_IPI_one(int cpu, int vector)
 	preempt_disable();
 	local_apicid = __this_cpu_read(x86_cpu_to_apicid);
 
-	/* Send via local APIC where non-local part matches */
+	/* Send via local APIC where yesn-local part matches */
 	if (!((apicid ^ local_apicid) >> NUMACHIP_LAPIC_BITS)) {
 		unsigned long flags;
 
@@ -167,20 +167,20 @@ static int __init numachip2_probe(void)
 	return apic == &apic_numachip2;
 }
 
-static void fixup_cpu_id(struct cpuinfo_x86 *c, int node)
+static void fixup_cpu_id(struct cpuinfo_x86 *c, int yesde)
 {
 	u64 val;
-	u32 nodes = 1;
+	u32 yesdes = 1;
 
-	this_cpu_write(cpu_llc_id, node);
+	this_cpu_write(cpu_llc_id, yesde);
 
-	/* Account for nodes per socket in multi-core-module processors */
+	/* Account for yesdes per socket in multi-core-module processors */
 	if (boot_cpu_has(X86_FEATURE_NODEID_MSR)) {
 		rdmsrl(MSR_FAM10H_NODE_ID, val);
-		nodes = ((val >> 3) & 7) + 1;
+		yesdes = ((val >> 3) & 7) + 1;
 	}
 
-	c->phys_proc_id = node / nodes;
+	c->phys_proc_id = yesde / yesdes;
 }
 
 static int __init numachip_system_init(void)
@@ -275,7 +275,7 @@ static const struct apic apic_numachip1 __refconst = {
 	.send_IPI_self			= numachip_send_IPI_self,
 
 	.wakeup_secondary_cpu		= numachip_wakeup_secondary,
-	.inquire_remote_apic		= NULL, /* REMRD not supported */
+	.inquire_remote_apic		= NULL, /* REMRD yest supported */
 
 	.read				= native_apic_mem_read,
 	.write				= native_apic_mem_write,
@@ -324,7 +324,7 @@ static const struct apic apic_numachip2 __refconst = {
 	.send_IPI_self			= numachip_send_IPI_self,
 
 	.wakeup_secondary_cpu		= numachip_wakeup_secondary,
-	.inquire_remote_apic		= NULL, /* REMRD not supported */
+	.inquire_remote_apic		= NULL, /* REMRD yest supported */
 
 	.read				= native_apic_mem_read,
 	.write				= native_apic_mem_write,

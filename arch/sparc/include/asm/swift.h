@@ -31,7 +31,7 @@
 static inline void swift_inv_insn_tag(unsigned long addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (addr), "i" (ASI_M_TXTC_TAG)
 			     : "memory");
 }
@@ -40,7 +40,7 @@ static inline void swift_inv_insn_tag(unsigned long addr)
 static inline void swift_inv_data_tag(unsigned long addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (addr), "i" (ASI_M_DATAC_TAG)
 			     : "memory");
 }
@@ -75,7 +75,7 @@ static inline void swift_idflash_clear(void)
 static inline void swift_flush_page(unsigned long page)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (page), "i" (ASI_M_FLUSH_PAGE)
 			     : "memory");
 }
@@ -83,7 +83,7 @@ static inline void swift_flush_page(unsigned long page)
 static inline void swift_flush_segment(unsigned long addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (addr), "i" (ASI_M_FLUSH_SEG)
 			     : "memory");
 }
@@ -91,7 +91,7 @@ static inline void swift_flush_segment(unsigned long addr)
 static inline void swift_flush_region(unsigned long addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (addr), "i" (ASI_M_FLUSH_REGION)
 			     : "memory");
 }
@@ -99,7 +99,7 @@ static inline void swift_flush_region(unsigned long addr)
 static inline void swift_flush_context(void)
 {
 	__asm__ __volatile__("sta %%g0, [%%g0] %0\n\t"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "i" (ASI_M_FLUSH_CTX)
 			     : "memory");
 }

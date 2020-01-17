@@ -48,9 +48,9 @@ static void xadc_handle_event(struct iio_dev *indio_dev, unsigned int event)
 			iio_get_time_ns(indio_dev));
 	} else {
 		/*
-		 * For other channels we don't know whether it is a upper or
+		 * For other channels we don't kyesw whether it is a upper or
 		 * lower threshold event. Userspace will have to check the
-		 * channel value if it wants to know.
+		 * channel value if it wants to kyesw.
 		 */
 		iio_push_event(indio_dev,
 			IIO_UNMOD_EVENT_CODE(chan->type, chan->channel,
@@ -155,7 +155,7 @@ err_out:
 	return ret;
 }
 
-/* Register value is msb aligned, the lower 4 bits are ignored */
+/* Register value is msb aligned, the lower 4 bits are igyesred */
 #define XADC_THRESHOLD_VALUE_SHIFT 4
 
 int xadc_read_event_value(struct iio_dev *indio_dev,

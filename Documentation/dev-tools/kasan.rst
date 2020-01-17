@@ -70,7 +70,7 @@ A typical out-of-bounds access generic KASAN report looks like this::
      dump_stack+0x94/0xd8
      print_address_description+0x73/0x280
      kasan_report+0x144/0x187
-     __asan_report_store1_noabort+0x17/0x20
+     __asan_report_store1_yesabort+0x17/0x20
      kmalloc_oob_right+0xa8/0xbc [test_kasan]
      kmalloc_tests_init+0x16/0x700 [test_kasan]
      do_one_initcall+0xa5/0x3ae
@@ -145,7 +145,7 @@ The state of each 8 aligned bytes of memory is encoded in one shadow byte.
 Those 8 bytes can be accessible, partially accessible, freed or be a redzone.
 We use the following encoding for each shadow byte: 0 means that all 8 bytes
 of the corresponding memory region are accessible; number N (1 <= N <= 7) means
-that the first N bytes are accessible, and other (8 - N) bytes are not;
+that the first N bytes are accessible, and other (8 - N) bytes are yest;
 any negative value indicates that the entire 8-byte word is inaccessible.
 We use different negative values to distinguish between different kinds of
 inaccessible memory like redzones or freed memory (see mm/kasan/kasan.h).
@@ -186,7 +186,7 @@ where ``KASAN_SHADOW_SCALE_SHIFT = 3``.
 Compile-time instrumentation is used to insert memory access checks. Compiler
 inserts function calls (__asan_load*(addr), __asan_store*(addr)) before each
 memory access of size 1, 2, 4, 8 or 16. These functions check whether memory
-access is valid or not by checking corresponding shadow memory.
+access is valid or yest by checking corresponding shadow memory.
 
 GCC 5.0 has possibility to perform inline instrumentation. Instead of making
 function calls GCC directly inserts the code to check the shadow memory.
@@ -196,7 +196,7 @@ boost over outline instrumented kernel.
 Software tag-based KASAN
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Tag-based KASAN uses the Top Byte Ignore (TBI) feature of modern arm64 CPUs to
+Tag-based KASAN uses the Top Byte Igyesre (TBI) feature of modern arm64 CPUs to
 store a pointer tag in the top byte of kernel pointers. Like generic KASAN it
 uses shadow memory to store memory tags associated with each 16-byte memory
 cell (therefore it dedicates 1/16th of the kernel memory for shadow memory).
@@ -227,7 +227,7 @@ space. This poses something of a problem for KASAN, which requires
 that all addresses accessed by instrumented code have a valid shadow
 region.
 
-The range of kernel virtual addresses is large: there is not enough
+The range of kernel virtual addresses is large: there is yest eyesugh
 real memory to support a real shadow region for every address that
 could be accessed by the kernel.
 
@@ -240,7 +240,7 @@ other areas - such as vmalloc and vmemmap space - a single read-only
 page is mapped over the shadow area. This read-only shadow page
 declares all memory accesses as permitted.
 
-This presents a problem for modules: they do not live in the linear
+This presents a problem for modules: they do yest live in the linear
 mapping, but in a dedicated module space. By hooking in to the module
 allocator, KASAN can temporarily map real shadow memory to cover
 them. This allows detection of invalid accesses to module globals, for
@@ -276,8 +276,8 @@ memory.
 
 To avoid the difficulties around swapping mappings around, we expect
 that the part of the shadow region that covers the vmalloc space will
-not be covered by the early shadow page, but will be left
+yest be covered by the early shadow page, but will be left
 unmapped. This will require changes in arch-specific code.
 
 This allows ``VMAP_STACK`` support on x86, and can simplify support of
-architectures that do not have a fixed module region.
+architectures that do yest have a fixed module region.

@@ -5,13 +5,13 @@
  *  Written by Jacob Shin - AMD, Inc.
  *  Maintained by: Borislav Petkov <bp@alien8.de>
  *
- *  All MC4_MISCi registers are shared between cores on a node.
+ *  All MC4_MISCi registers are shared between cores on a yesde.
  */
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kobject.h>
 #include <linux/percpu.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/sysfs.h>
 #include <linux/slab.h>
@@ -62,7 +62,7 @@ static const char * const th_names[] = {
 	"insn_fetch",
 	"combined_unit",
 	"decode_unit",
-	"northbridge",
+	"yesrthbridge",
 	"execution_unit",
 };
 
@@ -236,10 +236,10 @@ static void smca_configure(unsigned int bank, unsigned int cpu)
 	/* Set appropriate bits in MCA_CONFIG */
 	if (!rdmsr_safe(smca_config, &low, &high)) {
 		/*
-		 * OS is required to set the MCAX bit to acknowledge that it is
-		 * now using the new MSR ranges and new registers under each
+		 * OS is required to set the MCAX bit to ackyeswledge that it is
+		 * yesw using the new MSR ranges and new registers under each
 		 * bank. It also means that the OS will configure deferred
-		 * errors in the new MCx_CONFIG register. If the bit is not set,
+		 * errors in the new MCx_CONFIG register. If the bit is yest set,
 		 * uncorrectable errors will cause a system panic.
 		 *
 		 * MCA_CONFIG[MCAX] is bit 32 (0 in the high portion of the MSR.)
@@ -254,7 +254,7 @@ static void smca_configure(unsigned int bank, unsigned int cpu)
 		 *
 		 * MCA_CONFIG[DeferredIntType] is bits [38:37] ([6:5] in the
 		 * high portion of the MSR). OS should set this to 0x1 to enable
-		 * APIC based interrupt. First, check that no interrupt has been
+		 * APIC based interrupt. First, check that yes interrupt has been
 		 * set.
 		 */
 		if ((low & BIT(5)) && !((high >> 5) & 0x3))
@@ -305,7 +305,7 @@ static inline bool is_shared_bank(int bank)
 	if (mce_flags.smca)
 		return false;
 
-	/* Bank 4 is for northbridge reporting and is thus shared */
+	/* Bank 4 is for yesrthbridge reporting and is thus shared */
 	return (bank == 4);
 }
 
@@ -382,7 +382,7 @@ static void threshold_restart_bank(void *_tr)
 	rdmsr(tr->b->address, lo, hi);
 
 	if (tr->b->threshold_limit < (hi & THRESHOLD_MAX))
-		tr->reset = 1;	/* limit cannot be lower than err count */
+		tr->reset = 1;	/* limit canyest be lower than err count */
 
 	if (tr->reset) {		/* reset err count and overflow bit */
 		hi =
@@ -459,7 +459,7 @@ static void deferred_error_interrupt_enable(struct cpuinfo_x86 *c)
 
 	def_new = (low & MASK_DEF_LVTOFF) >> 4;
 	if (!(low & MASK_DEF_LVTOFF)) {
-		pr_err(FW_BUG "Your BIOS is not setting up LVT offset 0x2 for deferred error IRQs correctly.\n");
+		pr_err(FW_BUG "Your BIOS is yest setting up LVT offset 0x2 for deferred error IRQs correctly.\n");
 		def_new = DEF_LVT_OFF;
 		low = (low & ~MASK_DEF_LVTOFF) | (DEF_LVT_OFF << 4);
 	}
@@ -579,7 +579,7 @@ bool amd_filter_mce(struct mce *m)
 
 /*
  * Turn off thresholding banks for the following conditions:
- * - MC4_MISC thresholding is not supported on Family 0x15.
+ * - MC4_MISC thresholding is yest supported on Family 0x15.
  * - Prevent possible spurious interrupts from the IF bank on Family 0x17
  *   Models 0x10-0x2F due to Erratum #1114.
  */
@@ -659,11 +659,11 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 		deferred_error_interrupt_enable(c);
 }
 
-int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)
+int umc_yesrmaddr_to_sysaddr(u64 yesrm_addr, u16 nid, u8 umc, u64 *sys_addr)
 {
 	u64 dram_base_addr, dram_limit_addr, dram_hole_base;
-	/* We start from the normalized address */
-	u64 ret_addr = norm_addr;
+	/* We start from the yesrmalized address */
+	u64 ret_addr = yesrm_addr;
 
 	u32 tmp;
 
@@ -679,11 +679,11 @@ int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)
 	if (amd_df_indirect_read(nid, 0, 0x1B4, umc, &tmp))
 		goto out_err;
 
-	/* Remove HiAddrOffset from normalized address, if enabled: */
+	/* Remove HiAddrOffset from yesrmalized address, if enabled: */
 	if (tmp & BIT(0)) {
 		u64 hi_addr_offset = (tmp & GENMASK_ULL(31, 20)) << 8;
 
-		if (norm_addr >= hi_addr_offset) {
+		if (yesrm_addr >= hi_addr_offset) {
 			ret_addr -= hi_addr_offset;
 			base = 1;
 		}
@@ -742,7 +742,7 @@ int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)
 	num_intlv_bits = intlv_num_chan;
 
 	if (intlv_num_dies > 2) {
-		pr_err("%s: Invalid number of interleaved nodes/dies %d.\n",
+		pr_err("%s: Invalid number of interleaved yesdes/dies %d.\n",
 			__func__, intlv_num_dies);
 		goto out_err;
 	}
@@ -857,7 +857,7 @@ int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)
 out_err:
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(umc_normaddr_to_sysaddr);
+EXPORT_SYMBOL_GPL(umc_yesrmaddr_to_sysaddr);
 
 bool amd_mce_is_memory_error(struct mce *m)
 {
@@ -943,7 +943,7 @@ _log_error_bank(unsigned int bank, u32 msr_stat, u32 msr_addr, u64 misc)
  * 1) Non-SMCA systems check MCA_STATUS and log error if found.
  * 2) SMCA systems check MCA_STATUS. If error is found then log it and also
  *    clear MCA_DESTAT.
- * 3) SMCA systems check MCA_DESTAT, if error was not found in MCA_STATUS, and
+ * 3) SMCA systems check MCA_DESTAT, if error was yest found in MCA_STATUS, and
  *    log it.
  */
 static void log_error_deferred(unsigned int bank)
@@ -1303,7 +1303,7 @@ static int __threshold_add_blocks(struct threshold_bank *b)
 static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 {
 	struct device *dev = per_cpu(mce_device, cpu);
-	struct amd_northbridge *nb = NULL;
+	struct amd_yesrthbridge *nb = NULL;
 	struct threshold_bank *b = NULL;
 	const char *name = get_name(bank, NULL);
 	int err = 0;
@@ -1312,11 +1312,11 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		return -ENODEV;
 
 	if (is_shared_bank(bank)) {
-		nb = node_to_amd_nb(amd_get_nb_id(cpu));
+		nb = yesde_to_amd_nb(amd_get_nb_id(cpu));
 
-		/* threshold descriptor already initialized on this node? */
+		/* threshold descriptor already initialized on this yesde? */
 		if (nb && nb->bank4) {
-			/* yes, use it */
+			/* no, use it */
 			b = nb->bank4;
 			err = kobject_add(b->kobj, &dev->kobj, name);
 			if (err)
@@ -1399,7 +1399,7 @@ static void __threshold_remove_blocks(struct threshold_bank *b)
 
 static void threshold_remove_bank(unsigned int cpu, int bank)
 {
-	struct amd_northbridge *nb;
+	struct amd_yesrthbridge *nb;
 	struct threshold_bank *b;
 
 	b = per_cpu(threshold_banks, cpu)[bank];
@@ -1416,10 +1416,10 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 			return;
 		} else {
 			/*
-			 * the last CPU on this node using the shared bank is
-			 * going away, remove that bank now.
+			 * the last CPU on this yesde using the shared bank is
+			 * going away, remove that bank yesw.
 			 */
-			nb = node_to_amd_nb(amd_get_nb_id(cpu));
+			nb = yesde_to_amd_nb(amd_get_nb_id(cpu));
 			nb->bank4 = NULL;
 		}
 	}
@@ -1482,7 +1482,7 @@ static __init int threshold_init_device(void)
 {
 	unsigned lcpu = 0;
 
-	/* to hit CPUs online before the notifier is up */
+	/* to hit CPUs online before the yestifier is up */
 	for_each_online_cpu(lcpu) {
 		int err = mce_threshold_create_device(lcpu);
 

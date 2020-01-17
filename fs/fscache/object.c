@@ -56,7 +56,7 @@ static const struct fscache_state *fscache_object_dead(struct fscache_object *, 
  * Define a wait state.  Wait states are event processing states.  No execution
  * is performed by them.  Wait states are just tables of "if event X occurs,
  * clear it and transition to state Y".  The dispatcher returns to the
- * scheduler if none of the events in which the wait state has an interest are
+ * scheduler if yesne of the events in which the wait state has an interest are
  * currently pending.
  */
 #define WAIT_STATE(n, sn, ...) \
@@ -107,7 +107,7 @@ static WAIT_STATE(WAIT_FOR_CLEARANCE,	"?CLR",
 /*
  * Out-of-band event transition tables.  These are for handling unexpected
  * events, such as an I/O error.  If an OOB event occurs, the state machine
- * clears and disables the event and forces a transition to the nominated work
+ * clears and disables the event and forces a transition to the yesminated work
  * state (acurrently executing work states will complete first).
  *
  * In such a situation, object->state remembers the state the machine should
@@ -143,7 +143,7 @@ static void fscache_dequeue_object(struct fscache_object *);
 static void fscache_update_aux_data(struct fscache_object *);
 
 /*
- * we need to notify the parent when an op completes that we had outstanding
+ * we need to yestify the parent when an op completes that we had outstanding
  * upon it
  */
 static inline void fscache_done_parent_op(struct fscache_object *object)
@@ -179,7 +179,7 @@ static void fscache_object_sm_dispatcher(struct fscache_object *object)
 
 	event_mask = object->event_mask;
 restart:
-	object->event_mask = 0; /* Mask normal event handling */
+	object->event_mask = 0; /* Mask yesrmal event handling */
 	state = object->state;
 restart_masked:
 	events = object->events;
@@ -234,7 +234,7 @@ execute_work_state:
 	new_state = state->work(object, event);
 	event = -1;
 	if (new_state == NO_TRANSIT) {
-		_debug("{OBJ%x} %s notrans", object->debug_id, state->name);
+		_debug("{OBJ%x} %s yestrans", object->debug_id, state->name);
 		if (unlikely(state == STATE(OBJECT_DEAD))) {
 			_leave(" [dead]");
 			return;
@@ -339,7 +339,7 @@ void fscache_object_init(struct fscache_object *object,
 EXPORT_SYMBOL(fscache_object_init);
 
 /*
- * Mark the object as no longer being live, making sure that we synchronise
+ * Mark the object as yes longer being live, making sure that we synchronise
  * against op submission.
  */
 static inline void fscache_mark_object_dead(struct fscache_object *object)
@@ -367,7 +367,7 @@ static const struct fscache_state *fscache_abort_initialisation(struct fscache_o
  * - check the specified object's parent to see if we can make use of it
  *   immediately to do a creation
  * - we may need to start the process of creating a parent and we need to wait
- *   for the parent's lookup and creation to complete if it's not there yet
+ *   for the parent's lookup and creation to complete if it's yest there yet
  */
 static const struct fscache_state *fscache_initialise_object(struct fscache_object *object,
 							     int event)
@@ -381,7 +381,7 @@ static const struct fscache_state *fscache_initialise_object(struct fscache_obje
 
 	parent = object->parent;
 	if (!parent) {
-		_leave(" [no parent]");
+		_leave(" [yes parent]");
 		return transit_to(DROP_OBJECT);
 	}
 
@@ -414,7 +414,7 @@ static const struct fscache_state *fscache_initialise_object(struct fscache_obje
 		return transit_to(DROP_OBJECT);
 	}
 
-	/* fscache_acquire_non_index_cookie() uses this
+	/* fscache_acquire_yesn_index_cookie() uses this
 	 * to wake the chain up */
 	fscache_raise_event(parent, FSCACHE_OBJECT_EV_NEW_CHILD);
 	_leave(" [wait]");
@@ -445,7 +445,7 @@ static const struct fscache_state *fscache_parent_ready(struct fscache_object *o
 
 /*
  * look an object up in the cache from which it was allocated
- * - we hold an "access lock" on the parent object, so the parent object cannot
+ * - we hold an "access lock" on the parent object, so the parent object canyest
  *   be withdrawn by either party till we've finished
  */
 static const struct fscache_state *fscache_look_up_object(struct fscache_object *object,
@@ -484,7 +484,7 @@ static const struct fscache_state *fscache_look_up_object(struct fscache_object 
 	fscache_unuse_cookie(object);
 
 	if (ret == -ETIMEDOUT) {
-		/* probably stuck behind another object, so move this one to
+		/* probably stuck behind ayesther object, so move this one to
 		 * the back of the queue */
 		fscache_stat(&fscache_n_object_lookups_timed_out);
 		_leave(" [timeout]");
@@ -505,7 +505,7 @@ static const struct fscache_state *fscache_look_up_object(struct fscache_object 
  * @object: Object pointing to cookie to mark
  *
  * Note negative lookup, permitting those waiting to read data from an already
- * existing backing object to continue as there's no data for them to read.
+ * existing backing object to continue as there's yes data for them to read.
  */
 void fscache_object_lookup_negative(struct fscache_object *object)
 {
@@ -604,7 +604,7 @@ static const struct fscache_state *fscache_object_available(struct fscache_objec
 }
 
 /*
- * Wake up this object's dependent objects now that we've become available.
+ * Wake up this object's dependent objects yesw that we've become available.
  */
 static const struct fscache_state *fscache_jumpstart_dependents(struct fscache_object *object,
 								int event)
@@ -714,7 +714,7 @@ static const struct fscache_state *fscache_drop_object(struct fscache_object *ob
 		fscache_update_aux_data(object);
 	}
 
-	/* Make sure the cookie no longer points here and that the netfs isn't
+	/* Make sure the cookie yes longer points here and that the netfs isn't
 	 * waiting for us.
 	 */
 	spin_lock(&cookie->lock);
@@ -745,7 +745,7 @@ static const struct fscache_state *fscache_drop_object(struct fscache_object *ob
 	cache->ops->drop_object(object);
 	fscache_stat_d(&fscache_n_cop_drop_object);
 
-	/* The parent object wants to know when all it dependents have gone */
+	/* The parent object wants to kyesw when all it dependents have gone */
 	if (parent) {
 		_debug("release parent OBJ%x {%d}",
 		       parent->debug_id, parent->n_children);
@@ -801,7 +801,7 @@ void fscache_object_destroy(struct fscache_object *object)
 {
 	fscache_objlist_remove(object);
 
-	/* We can get rid of the cookie now */
+	/* We can get rid of the cookie yesw */
 	fscache_cookie_put(object->cookie, fscache_cookie_put_object);
 	object->cookie = NULL;
 }
@@ -836,7 +836,7 @@ void fscache_enqueue_object(struct fscache_object *object)
  *
  * The caller must set up a wake up event before calling this and must have set
  * the appropriate sleep mode (such as TASK_UNINTERRUPTIBLE) and tested its own
- * condition before calling this function as no test is made here.
+ * condition before calling this function as yes test is made here.
  *
  * %true is returned if the object wq is congested, %false otherwise.
  */
@@ -928,7 +928,7 @@ enum fscache_checkaux fscache_check_aux(struct fscache_object *object,
 	enum fscache_checkaux result;
 
 	if (!object->cookie->def->check_aux) {
-		fscache_stat(&fscache_n_checkaux_none);
+		fscache_stat(&fscache_n_checkaux_yesne);
 		return FSCACHE_CHECKAUX_OKAY;
 	}
 
@@ -959,7 +959,7 @@ enum fscache_checkaux fscache_check_aux(struct fscache_object *object,
 EXPORT_SYMBOL(fscache_check_aux);
 
 /*
- * Asynchronously invalidate an object.
+ * Asynchroyesusly invalidate an object.
  */
 static const struct fscache_state *_fscache_invalidate_object(struct fscache_object *object,
 							      int event)
@@ -969,13 +969,13 @@ static const struct fscache_state *_fscache_invalidate_object(struct fscache_obj
 
 	_enter("{OBJ%x},%d", object->debug_id, event);
 
-	/* We're going to need the cookie.  If the cookie is not available then
+	/* We're going to need the cookie.  If the cookie is yest available then
 	 * retire the object instead.
 	 */
 	if (!fscache_use_cookie(object)) {
 		ASSERT(radix_tree_empty(&object->cookie->stores));
 		set_bit(FSCACHE_OBJECT_RETIRED, &object->flags);
-		_leave(" [no cookie]");
+		_leave(" [yes cookie]");
 		return transit_to(KILL_OBJECT);
 	}
 
@@ -987,7 +987,7 @@ static const struct fscache_state *_fscache_invalidate_object(struct fscache_obj
 	/* Now we have to wait for in-progress reads and writes */
 	op = kzalloc(sizeof(*op), GFP_KERNEL);
 	if (!op)
-		goto nomem;
+		goto yesmem;
 
 	fscache_operation_init(cookie, op, object->cache->ops->invalidate_object,
 			       NULL, NULL);
@@ -1002,7 +1002,7 @@ static const struct fscache_state *_fscache_invalidate_object(struct fscache_obj
 	spin_unlock(&cookie->lock);
 	fscache_put_operation(op);
 
-	/* Once we've completed the invalidation, we know there will be no data
+	/* Once we've completed the invalidation, we kyesw there will be yes data
 	 * stored in the cache and thus we can reinstate the data-check-skip
 	 * optimisation.
 	 */
@@ -1016,7 +1016,7 @@ static const struct fscache_state *_fscache_invalidate_object(struct fscache_obj
 	_leave(" [ok]");
 	return transit_to(UPDATE_OBJECT);
 
-nomem:
+yesmem:
 	fscache_mark_object_dead(object);
 	fscache_unuse_cookie(object);
 	_leave(" [ENOMEM]");
@@ -1055,7 +1055,7 @@ static void fscache_update_aux_data(struct fscache_object *object)
 }
 
 /*
- * Asynchronously update an object.
+ * Asynchroyesusly update an object.
  */
 static const struct fscache_state *fscache_update_object(struct fscache_object *object,
 							 int event)
@@ -1077,7 +1077,7 @@ static const struct fscache_state *fscache_update_object(struct fscache_object *
  */
 void fscache_object_retrying_stale(struct fscache_object *object)
 {
-	fscache_stat(&fscache_n_cache_no_space_reject);
+	fscache_stat(&fscache_n_cache_yes_space_reject);
 }
 EXPORT_SYMBOL(fscache_object_retrying_stale);
 
@@ -1100,7 +1100,7 @@ void fscache_object_mark_killed(struct fscache_object *object,
 
 	switch (why) {
 	case FSCACHE_OBJECT_NO_SPACE:
-		fscache_stat(&fscache_n_cache_no_space_reject);
+		fscache_stat(&fscache_n_cache_yes_space_reject);
 		break;
 	case FSCACHE_OBJECT_IS_STALE:
 		fscache_stat(&fscache_n_cache_stale_objects);

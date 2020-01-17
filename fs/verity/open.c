@@ -14,7 +14,7 @@ static struct kmem_cache *fsverity_info_cachep;
 /**
  * fsverity_init_merkle_tree_params() - initialize Merkle tree parameters
  * @params: the parameters struct to initialize
- * @inode: the inode for which the Merkle tree is being built
+ * @iyesde: the iyesde for which the Merkle tree is being built
  * @hash_algorithm: number of hash algorithm to use
  * @log_blocksize: log base 2 of block size to use
  * @salt: pointer to salt (optional)
@@ -23,10 +23,10 @@ static struct kmem_cache *fsverity_info_cachep;
  * Validate the hash algorithm and block size, then compute the tree topology
  * (num levels, num blocks in each level, etc.) and initialize @params.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
-				     const struct inode *inode,
+				     const struct iyesde *iyesde,
 				     unsigned int hash_algorithm,
 				     unsigned int log_blocksize,
 				     const u8 *salt, size_t salt_size)
@@ -39,7 +39,7 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 
 	memset(params, 0, sizeof(*params));
 
-	hash_alg = fsverity_get_hash_alg(inode, hash_algorithm);
+	hash_alg = fsverity_get_hash_alg(iyesde, hash_algorithm);
 	if (IS_ERR(hash_alg))
 		return PTR_ERR(hash_alg);
 	params->hash_alg = hash_alg;
@@ -50,12 +50,12 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	if (IS_ERR(params->hashstate)) {
 		err = PTR_ERR(params->hashstate);
 		params->hashstate = NULL;
-		fsverity_err(inode, "Error %d preparing hash state", err);
+		fsverity_err(iyesde, "Error %d preparing hash state", err);
 		goto out_err;
 	}
 
 	if (log_blocksize != PAGE_SHIFT) {
-		fsverity_warn(inode, "Unsupported log_blocksize: %u",
+		fsverity_warn(iyesde, "Unsupported log_blocksize: %u",
 			      log_blocksize);
 		err = -EINVAL;
 		goto out_err;
@@ -68,7 +68,7 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 		goto out_err;
 	}
 	if (params->block_size < 2 * params->digest_size) {
-		fsverity_warn(inode,
+		fsverity_warn(iyesde,
 			      "Merkle tree block size (%u) too small for hash algorithm \"%s\"",
 			      params->block_size, hash_alg->name);
 		err = -EINVAL;
@@ -89,11 +89,11 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	 */
 
 	/* Compute number of levels and the number of blocks in each level */
-	blocks = (inode->i_size + params->block_size - 1) >> log_blocksize;
-	pr_debug("Data is %lld bytes (%llu blocks)\n", inode->i_size, blocks);
+	blocks = (iyesde->i_size + params->block_size - 1) >> log_blocksize;
+	pr_debug("Data is %lld bytes (%llu blocks)\n", iyesde->i_size, blocks);
 	while (blocks > 1) {
 		if (params->num_levels >= FS_VERITY_MAX_LEVELS) {
-			fsverity_err(inode, "Too many levels in Merkle tree");
+			fsverity_err(iyesde, "Too many levels in Merkle tree");
 			err = -EINVAL;
 			goto out_err;
 		}
@@ -144,7 +144,7 @@ static int compute_file_measurement(const struct fsverity_hash_alg *hash_alg,
  * Validate the given fsverity_descriptor and create a new fsverity_info from
  * it.  The signature (if present) is also checked.
  */
-struct fsverity_info *fsverity_create_info(const struct inode *inode,
+struct fsverity_info *fsverity_create_info(const struct iyesde *iyesde,
 					   void *_desc, size_t desc_size)
 {
 	struct fsverity_descriptor *desc = _desc;
@@ -152,45 +152,45 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 	int err;
 
 	if (desc_size < sizeof(*desc)) {
-		fsverity_err(inode, "Unrecognized descriptor size: %zu bytes",
+		fsverity_err(iyesde, "Unrecognized descriptor size: %zu bytes",
 			     desc_size);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (desc->version != 1) {
-		fsverity_err(inode, "Unrecognized descriptor version: %u",
+		fsverity_err(iyesde, "Unrecognized descriptor version: %u",
 			     desc->version);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (memchr_inv(desc->__reserved, 0, sizeof(desc->__reserved))) {
-		fsverity_err(inode, "Reserved bits set in descriptor");
+		fsverity_err(iyesde, "Reserved bits set in descriptor");
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (desc->salt_size > sizeof(desc->salt)) {
-		fsverity_err(inode, "Invalid salt_size: %u", desc->salt_size);
+		fsverity_err(iyesde, "Invalid salt_size: %u", desc->salt_size);
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (le64_to_cpu(desc->data_size) != inode->i_size) {
-		fsverity_err(inode,
-			     "Wrong data_size: %llu (desc) != %lld (inode)",
-			     le64_to_cpu(desc->data_size), inode->i_size);
+	if (le64_to_cpu(desc->data_size) != iyesde->i_size) {
+		fsverity_err(iyesde,
+			     "Wrong data_size: %llu (desc) != %lld (iyesde)",
+			     le64_to_cpu(desc->data_size), iyesde->i_size);
 		return ERR_PTR(-EINVAL);
 	}
 
 	vi = kmem_cache_zalloc(fsverity_info_cachep, GFP_KERNEL);
 	if (!vi)
 		return ERR_PTR(-ENOMEM);
-	vi->inode = inode;
+	vi->iyesde = iyesde;
 
-	err = fsverity_init_merkle_tree_params(&vi->tree_params, inode,
+	err = fsverity_init_merkle_tree_params(&vi->tree_params, iyesde,
 					       desc->hash_algorithm,
 					       desc->log_blocksize,
 					       desc->salt, desc->salt_size);
 	if (err) {
-		fsverity_err(inode,
+		fsverity_err(iyesde,
 			     "Error %d initializing Merkle tree parameters",
 			     err);
 		goto out;
@@ -201,7 +201,7 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 	err = compute_file_measurement(vi->tree_params.hash_alg, desc,
 				       vi->measurement);
 	if (err) {
-		fsverity_err(inode, "Error %d computing file measurement", err);
+		fsverity_err(iyesde, "Error %d computing file measurement", err);
 		goto out;
 	}
 	pr_debug("Computed file measurement: %s:%*phN\n",
@@ -217,13 +217,13 @@ out:
 	return vi;
 }
 
-void fsverity_set_info(struct inode *inode, struct fsverity_info *vi)
+void fsverity_set_info(struct iyesde *iyesde, struct fsverity_info *vi)
 {
 	/*
 	 * Multiple processes may race to set ->i_verity_info, so use cmpxchg.
 	 * This pairs with the READ_ONCE() in fsverity_get_info().
 	 */
-	if (cmpxchg(&inode->i_verity_info, NULL, vi) != NULL)
+	if (cmpxchg(&iyesde->i_verity_info, NULL, vi) != NULL)
 		fsverity_free_info(vi);
 }
 
@@ -235,43 +235,43 @@ void fsverity_free_info(struct fsverity_info *vi)
 	kmem_cache_free(fsverity_info_cachep, vi);
 }
 
-/* Ensure the inode has an ->i_verity_info */
-static int ensure_verity_info(struct inode *inode)
+/* Ensure the iyesde has an ->i_verity_info */
+static int ensure_verity_info(struct iyesde *iyesde)
 {
-	struct fsverity_info *vi = fsverity_get_info(inode);
+	struct fsverity_info *vi = fsverity_get_info(iyesde);
 	struct fsverity_descriptor *desc;
 	int res;
 
 	if (vi)
 		return 0;
 
-	res = inode->i_sb->s_vop->get_verity_descriptor(inode, NULL, 0);
+	res = iyesde->i_sb->s_vop->get_verity_descriptor(iyesde, NULL, 0);
 	if (res < 0) {
-		fsverity_err(inode,
+		fsverity_err(iyesde,
 			     "Error %d getting verity descriptor size", res);
 		return res;
 	}
 	if (res > FS_VERITY_MAX_DESCRIPTOR_SIZE) {
-		fsverity_err(inode, "Verity descriptor is too large (%d bytes)",
+		fsverity_err(iyesde, "Verity descriptor is too large (%d bytes)",
 			     res);
 		return -EMSGSIZE;
 	}
 	desc = kmalloc(res, GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
-	res = inode->i_sb->s_vop->get_verity_descriptor(inode, desc, res);
+	res = iyesde->i_sb->s_vop->get_verity_descriptor(iyesde, desc, res);
 	if (res < 0) {
-		fsverity_err(inode, "Error %d reading verity descriptor", res);
+		fsverity_err(iyesde, "Error %d reading verity descriptor", res);
 		goto out_free_desc;
 	}
 
-	vi = fsverity_create_info(inode, desc, res);
+	vi = fsverity_create_info(iyesde, desc, res);
 	if (IS_ERR(vi)) {
 		res = PTR_ERR(vi);
 		goto out_free_desc;
 	}
 
-	fsverity_set_info(inode, vi);
+	fsverity_set_info(iyesde, vi);
 	res = 0;
 out_free_desc:
 	kfree(desc);
@@ -280,47 +280,47 @@ out_free_desc:
 
 /**
  * fsverity_file_open() - prepare to open a verity file
- * @inode: the inode being opened
+ * @iyesde: the iyesde being opened
  * @filp: the struct file being set up
  *
  * When opening a verity file, deny the open if it is for writing.  Otherwise,
- * set up the inode's ->i_verity_info if not already done.
+ * set up the iyesde's ->i_verity_info if yest already done.
  *
  * When combined with fscrypt, this must be called after fscrypt_file_open().
  * Otherwise, we won't have the key set up to decrypt the verity metadata.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
-int fsverity_file_open(struct inode *inode, struct file *filp)
+int fsverity_file_open(struct iyesde *iyesde, struct file *filp)
 {
-	if (!IS_VERITY(inode))
+	if (!IS_VERITY(iyesde))
 		return 0;
 
 	if (filp->f_mode & FMODE_WRITE) {
-		pr_debug("Denying opening verity file (ino %lu) for write\n",
-			 inode->i_ino);
+		pr_debug("Denying opening verity file (iyes %lu) for write\n",
+			 iyesde->i_iyes);
 		return -EPERM;
 	}
 
-	return ensure_verity_info(inode);
+	return ensure_verity_info(iyesde);
 }
 EXPORT_SYMBOL_GPL(fsverity_file_open);
 
 /**
- * fsverity_prepare_setattr() - prepare to change a verity inode's attributes
- * @dentry: dentry through which the inode is being changed
+ * fsverity_prepare_setattr() - prepare to change a verity iyesde's attributes
+ * @dentry: dentry through which the iyesde is being changed
  * @attr: attributes to change
  *
  * Verity files are immutable, so deny truncates.  This isn't covered by the
- * open-time check because sys_truncate() takes a path, not a file descriptor.
+ * open-time check because sys_truncate() takes a path, yest a file descriptor.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int fsverity_prepare_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	if (IS_VERITY(d_inode(dentry)) && (attr->ia_valid & ATTR_SIZE)) {
-		pr_debug("Denying truncate of verity file (ino %lu)\n",
-			 d_inode(dentry)->i_ino);
+	if (IS_VERITY(d_iyesde(dentry)) && (attr->ia_valid & ATTR_SIZE)) {
+		pr_debug("Denying truncate of verity file (iyes %lu)\n",
+			 d_iyesde(dentry)->i_iyes);
 		return -EPERM;
 	}
 	return 0;
@@ -328,16 +328,16 @@ int fsverity_prepare_setattr(struct dentry *dentry, struct iattr *attr)
 EXPORT_SYMBOL_GPL(fsverity_prepare_setattr);
 
 /**
- * fsverity_cleanup_inode() - free the inode's verity info, if present
+ * fsverity_cleanup_iyesde() - free the iyesde's verity info, if present
  *
- * Filesystems must call this on inode eviction to free ->i_verity_info.
+ * Filesystems must call this on iyesde eviction to free ->i_verity_info.
  */
-void fsverity_cleanup_inode(struct inode *inode)
+void fsverity_cleanup_iyesde(struct iyesde *iyesde)
 {
-	fsverity_free_info(inode->i_verity_info);
-	inode->i_verity_info = NULL;
+	fsverity_free_info(iyesde->i_verity_info);
+	iyesde->i_verity_info = NULL;
 }
-EXPORT_SYMBOL_GPL(fsverity_cleanup_inode);
+EXPORT_SYMBOL_GPL(fsverity_cleanup_iyesde);
 
 int __init fsverity_init_info_cache(void)
 {

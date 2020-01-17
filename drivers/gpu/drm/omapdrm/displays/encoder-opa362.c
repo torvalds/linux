@@ -88,7 +88,7 @@ static int opa362_probe(struct platform_device *pdev)
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(1) | BIT(0);
 
-	dssdev->next = omapdss_of_find_connected_device(pdev->dev.of_node, 1);
+	dssdev->next = omapdss_of_find_connected_device(pdev->dev.of_yesde, 1);
 	if (IS_ERR(dssdev->next)) {
 		if (PTR_ERR(dssdev->next) != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "failed to find video sink\n");

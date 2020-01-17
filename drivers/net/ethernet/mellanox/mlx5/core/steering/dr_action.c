@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #include "dr_types.h"
 
@@ -459,7 +459,7 @@ static void dr_actions_apply_tx(struct mlx5dr_domain *dmn,
 		/* Whenever prio_tag_required enabled, we can be sure that the
 		 * previous table (ACL) already push vlan to our packet,
 		 * And due to HW limitation we need to set this bit, otherwise
-		 * push vlan + reformat will not work.
+		 * push vlan + reformat will yest work.
 		 */
 		if (MLX5_CAP_GEN(dmn->mdev, prio_tag_required))
 			mlx5dr_ste_set_go_back_bit(last_ste);
@@ -743,7 +743,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 			attr.hit_gvmi = action->vport.caps->vhca_gvmi;
 			dest_action = action;
 			if (rx_rule) {
-				/* Loopback on WIRE vport is not supported */
+				/* Loopback on WIRE vport is yest supported */
 				if (action->vport.caps->num == WIRE_PORT)
 					goto out_invalid_arg;
 
@@ -1043,13 +1043,13 @@ dr_action_verify_reformat_params(enum mlx5dr_action_type reformat_type,
 	if (dmn->type == MLX5DR_DOMAIN_TYPE_NIC_RX) {
 		if (reformat_type != DR_ACTION_TYP_TNL_L2_TO_L2 &&
 		    reformat_type != DR_ACTION_TYP_TNL_L3_TO_L2) {
-			mlx5dr_dbg(dmn, "Action reformat type not support on RX domain\n");
+			mlx5dr_dbg(dmn, "Action reformat type yest support on RX domain\n");
 			goto out_err;
 		}
 	} else if (dmn->type == MLX5DR_DOMAIN_TYPE_NIC_TX) {
 		if (reformat_type != DR_ACTION_TYP_L2_TO_TNL_L2 &&
 		    reformat_type != DR_ACTION_TYP_L2_TO_TNL_L3) {
-			mlx5dr_dbg(dmn, "Action reformat type not support on TX domain\n");
+			mlx5dr_dbg(dmn, "Action reformat type yest support on TX domain\n");
 			goto out_err;
 		}
 	}
@@ -1117,7 +1117,7 @@ dr_action_create_reformat_action(struct mlx5dr_domain *dmn,
 		return 0;
 	}
 	default:
-		mlx5dr_info(dmn, "Reformat type is not supported %d\n", action->action_type);
+		mlx5dr_info(dmn, "Reformat type is yest supported %d\n", action->action_type);
 		return -EINVAL;
 	}
 }
@@ -1200,15 +1200,15 @@ dr_action_modify_get_hw_info(u16 sw_field)
 	const struct dr_action_modify_field_conv *hw_action_info;
 
 	if (sw_field >= ARRAY_SIZE(dr_action_conv_arr))
-		goto not_found;
+		goto yest_found;
 
 	hw_action_info = &dr_action_conv_arr[sw_field];
 	if (!hw_action_info->end && !hw_action_info->start)
-		goto not_found;
+		goto yest_found;
 
 	return hw_action_info;
 
-not_found:
+yest_found:
 	return NULL;
 }
 
@@ -1369,7 +1369,7 @@ static int dr_actions_convert_modify_header(struct mlx5dr_domain *dmn,
 		if (ret)
 			return ret;
 
-		/* Due to a HW limitation we cannot modify 2 different L3 types */
+		/* Due to a HW limitation we canyest modify 2 different L3 types */
 		if (l3_type && hw_action_info->l3_type &&
 		    hw_action_info->l3_type != l3_type) {
 			mlx5dr_dbg(dmn, "Action list can't support two different L3 types\n");
@@ -1378,7 +1378,7 @@ static int dr_actions_convert_modify_header(struct mlx5dr_domain *dmn,
 		if (hw_action_info->l3_type)
 			l3_type = hw_action_info->l3_type;
 
-		/* Due to a HW limitation we cannot modify two different L4 types */
+		/* Due to a HW limitation we canyest modify two different L4 types */
 		if (l4_type && hw_action_info->l4_type &&
 		    hw_action_info->l4_type != l4_type) {
 			mlx5dr_dbg(dmn, "Action list can't support two different L4 types\n");

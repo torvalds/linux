@@ -96,8 +96,8 @@ static const char *wm8971_alc_func[] = { "Off", "Right", "Left", "Stereo" };
 static const char *wm8971_ng_type[] = { "Constant PGA Gain",
 	"Mute ADC Output" };
 static const char *wm8971_deemp[] = { "None", "32kHz", "44.1kHz", "48kHz" };
-static const char *wm8971_mono_mux[] = {"Stereo", "Mono (Left)",
-	"Mono (Right)", "Digital Mono"};
+static const char *wm8971_moyes_mux[] = {"Stereo", "Moyes (Left)",
+	"Moyes (Right)", "Digital Moyes"};
 static const char *wm8971_dac_phase[] = { "Non Inverted", "Inverted" };
 static const char *wm8971_lline_mux[] = {"Line", "NC", "NC", "PGA",
 	"Differential"};
@@ -115,14 +115,14 @@ static const struct soc_enum wm8971_enum[] = {
 	SOC_ENUM_SINGLE(WM8971_ALC1, 7, 4, wm8971_alc_func),
 	SOC_ENUM_SINGLE(WM8971_NGATE, 1, 2, wm8971_ng_type),    /* 4 */
 	SOC_ENUM_SINGLE(WM8971_ADCDAC, 1, 4, wm8971_deemp),
-	SOC_ENUM_SINGLE(WM8971_ADCTL1, 4, 4, wm8971_mono_mux),
+	SOC_ENUM_SINGLE(WM8971_ADCTL1, 4, 4, wm8971_moyes_mux),
 	SOC_ENUM_SINGLE(WM8971_ADCTL1, 1, 2, wm8971_dac_phase),
 	SOC_ENUM_SINGLE(WM8971_LOUTM1, 0, 5, wm8971_lline_mux), /* 8 */
 	SOC_ENUM_SINGLE(WM8971_ROUTM1, 0, 5, wm8971_rline_mux),
 	SOC_ENUM_SINGLE(WM8971_LADCIN, 6, 4, wm8971_lpga_sel),
 	SOC_ENUM_SINGLE(WM8971_RADCIN, 6, 4, wm8971_rpga_sel),
 	SOC_ENUM_SINGLE(WM8971_ADCDAC, 5, 4, wm8971_adcpol),    /* 12 */
-	SOC_ENUM_SINGLE(WM8971_ADCIN, 6, 4, wm8971_mono_mux),
+	SOC_ENUM_SINGLE(WM8971_ADCIN, 6, 4, wm8971_moyes_mux),
 };
 
 static const struct snd_kcontrol_new wm8971_snd_controls[] = {
@@ -135,7 +135,7 @@ static const struct snd_kcontrol_new wm8971_snd_controls[] = {
 		WM8971_ROUT1V, 7, 1, 0),
 	SOC_DOUBLE_R("Speaker Playback ZC Switch", WM8971_LOUT2V,
 		WM8971_ROUT2V, 7, 1, 0),
-	SOC_SINGLE("Mono Playback ZC Switch", WM8971_MOUTV, 7, 1, 0),
+	SOC_SINGLE("Moyes Playback ZC Switch", WM8971_MOUTV, 7, 1, 0),
 
 	SOC_DOUBLE_R("PCM Volume", WM8971_LDAC, WM8971_RDAC, 0, 255, 0),
 
@@ -143,7 +143,7 @@ static const struct snd_kcontrol_new wm8971_snd_controls[] = {
 		WM8971_LOUTM2, 4, 7, 1),
 	SOC_DOUBLE_R("Bypass Right Playback Volume", WM8971_ROUTM1,
 		WM8971_ROUTM2, 4, 7, 1),
-	SOC_DOUBLE_R("Bypass Mono Playback Volume", WM8971_MOUTM1,
+	SOC_DOUBLE_R("Bypass Moyes Playback Volume", WM8971_MOUTM1,
 		WM8971_MOUTM2, 4, 7, 1),
 
 	SOC_DOUBLE_R("Headphone Playback Volume", WM8971_LOUT1V,
@@ -204,8 +204,8 @@ SOC_DAPM_SINGLE("Playback Switch", WM8971_ROUTM2, 8, 1, 0),
 SOC_DAPM_SINGLE("Right Bypass Switch", WM8971_ROUTM2, 7, 1, 0),
 };
 
-/* Mono Mixer */
-static const struct snd_kcontrol_new wm8971_mono_mixer_controls[] = {
+/* Moyes Mixer */
+static const struct snd_kcontrol_new wm8971_moyes_mixer_controls[] = {
 SOC_DAPM_SINGLE("Left Playback Switch", WM8971_MOUTM1, 8, 1, 0),
 SOC_DAPM_SINGLE("Left Bypass Switch", WM8971_MOUTM1, 7, 1, 0),
 SOC_DAPM_SINGLE("Right Playback Switch", WM8971_MOUTM2, 8, 1, 0),
@@ -228,8 +228,8 @@ SOC_DAPM_ENUM("Route", wm8971_enum[10]);
 static const struct snd_kcontrol_new wm8971_right_pga_controls =
 SOC_DAPM_ENUM("Route", wm8971_enum[11]);
 
-/* Mono ADC Mux */
-static const struct snd_kcontrol_new wm8971_monomux_controls =
+/* Moyes ADC Mux */
+static const struct snd_kcontrol_new wm8971_moyesmux_controls =
 SOC_DAPM_ENUM("Route", wm8971_enum[13]);
 
 static const struct snd_soc_dapm_widget wm8971_dapm_widgets[] = {
@@ -239,9 +239,9 @@ static const struct snd_soc_dapm_widget wm8971_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("Right Mixer", SND_SOC_NOPM, 0, 0,
 		&wm8971_right_mixer_controls[0],
 		ARRAY_SIZE(wm8971_right_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Mono Mixer", WM8971_PWR2, 2, 0,
-		&wm8971_mono_mixer_controls[0],
-		ARRAY_SIZE(wm8971_mono_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Moyes Mixer", WM8971_PWR2, 2, 0,
+		&wm8971_moyes_mixer_controls[0],
+		ARRAY_SIZE(wm8971_moyes_mixer_controls)),
 
 	SND_SOC_DAPM_PGA("Right Out 2", WM8971_PWR2, 3, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Left Out 2", WM8971_PWR2, 4, 0, NULL, 0),
@@ -249,7 +249,7 @@ static const struct snd_soc_dapm_widget wm8971_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Left Out 1", WM8971_PWR2, 6, 0, NULL, 0),
 	SND_SOC_DAPM_DAC("Right DAC", "Right Playback", WM8971_PWR2, 7, 0),
 	SND_SOC_DAPM_DAC("Left DAC", "Left Playback", WM8971_PWR2, 8, 0),
-	SND_SOC_DAPM_PGA("Mono Out 1", WM8971_PWR2, 2, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Moyes Out 1", WM8971_PWR2, 2, 0, NULL, 0),
 
 	SND_SOC_DAPM_SUPPLY("Mic Bias", WM8971_PWR1, 1, 0, NULL, 0),
 	SND_SOC_DAPM_ADC("Right ADC", "Right Capture", WM8971_PWR1, 2, 0),
@@ -265,9 +265,9 @@ static const struct snd_soc_dapm_widget wm8971_dapm_widgets[] = {
 		&wm8971_right_line_controls),
 
 	SND_SOC_DAPM_MUX("Left ADC Mux", SND_SOC_NOPM, 0, 0,
-		&wm8971_monomux_controls),
+		&wm8971_moyesmux_controls),
 	SND_SOC_DAPM_MUX("Right ADC Mux", SND_SOC_NOPM, 0, 0,
-		&wm8971_monomux_controls),
+		&wm8971_moyesmux_controls),
 
 	SND_SOC_DAPM_OUTPUT("LOUT1"),
 	SND_SOC_DAPM_OUTPUT("ROUT1"),
@@ -309,15 +309,15 @@ static const struct snd_soc_dapm_route wm8971_dapm_routes[] = {
 	{"Right Out 2", NULL, "Right Mixer"},
 	{"ROUT2", NULL, "Right Out 2"},
 
-	/* mono mixer */
-	{"Mono Mixer", "Left Playback Switch", "Left DAC"},
-	{"Mono Mixer", "Left Bypass Switch", "Left Line Mux"},
-	{"Mono Mixer", "Right Playback Switch", "Right DAC"},
-	{"Mono Mixer", "Right Bypass Switch", "Right Line Mux"},
+	/* moyes mixer */
+	{"Moyes Mixer", "Left Playback Switch", "Left DAC"},
+	{"Moyes Mixer", "Left Bypass Switch", "Left Line Mux"},
+	{"Moyes Mixer", "Right Playback Switch", "Right DAC"},
+	{"Moyes Mixer", "Right Bypass Switch", "Right Line Mux"},
 
-	/* mono out */
-	{"Mono Out", NULL, "Mono Mixer"},
-	{"MONO1", NULL, "Mono Out"},
+	/* moyes out */
+	{"Moyes Out", NULL, "Moyes Mixer"},
+	{"MONO1", NULL, "Moyes Out"},
 
 	/* Left Line Mux */
 	{"Left Line Mux", "Line", "LINPUT1"},
@@ -344,13 +344,13 @@ static const struct snd_soc_dapm_route wm8971_dapm_routes[] = {
 
 	/* Left ADC Mux */
 	{"Left ADC Mux", "Stereo", "Left PGA Mux"},
-	{"Left ADC Mux", "Mono (Left)", "Left PGA Mux"},
-	{"Left ADC Mux", "Digital Mono", "Left PGA Mux"},
+	{"Left ADC Mux", "Moyes (Left)", "Left PGA Mux"},
+	{"Left ADC Mux", "Digital Moyes", "Left PGA Mux"},
 
 	/* Right ADC Mux */
 	{"Right ADC Mux", "Stereo", "Right PGA Mux"},
-	{"Right ADC Mux", "Mono (Right)", "Right PGA Mux"},
-	{"Right ADC Mux", "Digital Mono", "Right PGA Mux"},
+	{"Right ADC Mux", "Moyes (Right)", "Right PGA Mux"},
+	{"Right ADC Mux", "Digital Moyes", "Right PGA Mux"},
 
 	/* ADC */
 	{"Left ADC", NULL, "Left ADC Mux"},
@@ -658,7 +658,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8971 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8971_regmap = {

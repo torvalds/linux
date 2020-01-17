@@ -16,7 +16,7 @@
 #include <linux/fs.h>
 
 static inline bool spacetab(char c) { return c == ' ' || c == '\t'; }
-static inline char *next_non_spacetab(char *first, const char *last)
+static inline char *next_yesn_spacetab(char *first, const char *last)
 {
 	for (; first <= last; first++)
 		if (!spacetab(*first))
@@ -45,13 +45,13 @@ static int load_script(struct linux_binprm *bprm)
 	/*
 	 * If the script filename will be inaccessible after exec, typically
 	 * because it is a "/dev/fd/<fd>/.." path against an O_CLOEXEC fd, give
-	 * up now (on the assumption that the interpreter will want to load
+	 * up yesw (on the assumption that the interpreter will want to load
 	 * this file).
 	 */
 	if (bprm->interp_flags & BINPRM_FLAGS_PATH_INACCESSIBLE)
 		return -ENOENT;
 
-	/* Release since we are not mapping a binary into memory. */
+	/* Release since we are yest mapping a binary into memory. */
 	allow_write_access(bprm->file);
 	fput(bprm->file);
 	bprm->file = NULL;
@@ -59,12 +59,12 @@ static int load_script(struct linux_binprm *bprm)
 	/*
 	 * This section handles parsing the #! line into separate
 	 * interpreter path and argument strings. We must be careful
-	 * because bprm->buf is not yet guaranteed to be NUL-terminated
+	 * because bprm->buf is yest yet guaranteed to be NUL-terminated
 	 * (though the buffer will have trailing NUL padding when the
 	 * file size was smaller than the buffer size).
 	 *
-	 * We do not want to exec a truncated interpreter path, so either
-	 * we find a newline (which indicates nothing is truncated), or
+	 * We do yest want to exec a truncated interpreter path, so either
+	 * we find a newline (which indicates yesthing is truncated), or
 	 * we find a space/tab/NUL after the interpreter path (which
 	 * itself may be preceded by spaces/tabs). Truncating the
 	 * arguments is fine: the interpreter can re-read the script to
@@ -73,11 +73,11 @@ static int load_script(struct linux_binprm *bprm)
 	buf_end = bprm->buf + sizeof(bprm->buf) - 1;
 	cp = strnchr(bprm->buf, sizeof(bprm->buf), '\n');
 	if (!cp) {
-		cp = next_non_spacetab(bprm->buf + 2, buf_end);
+		cp = next_yesn_spacetab(bprm->buf + 2, buf_end);
 		if (!cp)
 			return -ENOEXEC; /* Entire buf is spaces/tabs */
 		/*
-		 * If there is no later space/tab/NUL we must assume the
+		 * If there is yes later space/tab/NUL we must assume the
 		 * interpreter path is truncated.
 		 */
 		if (!next_terminator(cp, buf_end))
@@ -99,7 +99,7 @@ static int load_script(struct linux_binprm *bprm)
 	i_name = cp;
 	i_arg = NULL;
 	for ( ; *cp && (*cp != ' ') && (*cp != '\t'); cp++)
-		/* nothing */ ;
+		/* yesthing */ ;
 	while ((*cp == ' ') || (*cp == '\t'))
 		*cp++ = '\0';
 	if (*cp)
@@ -136,7 +136,7 @@ static int load_script(struct linux_binprm *bprm)
 		return retval;
 
 	/*
-	 * OK, now restart the process with the interpreter's dentry.
+	 * OK, yesw restart the process with the interpreter's dentry.
 	 */
 	file = open_exec(i_name);
 	if (IS_ERR(file))

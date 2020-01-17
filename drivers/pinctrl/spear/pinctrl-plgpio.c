@@ -27,7 +27,7 @@
 							* sizeof(int *))
 
 /*
- * plgpio pins in all machines are not one to one mapped, bitwise with registers
+ * plgpio pins in all machines are yest one to one mapped, bitwise with registers
  * bits. These set of macros define register masks for which below functions
  * (pin_to_offset and offset_to_pin) are required to be called.
  */
@@ -55,9 +55,9 @@ struct plgpio_regs {
  * base: base address of plgpio block
  * chip: gpio framework specific chip information structure
  * p2o: function ptr for pin to offset conversion. This is required only for
- *	machines where mapping b/w pin and offset is not 1-to-1.
+ *	machines where mapping b/w pin and offset is yest 1-to-1.
  * o2p: function ptr for offset to pin conversion. This is required only for
- *	machines where mapping b/w pin and offset is not 1-to-1.
+ *	machines where mapping b/w pin and offset is yest 1-to-1.
  * p2o_regs: mask of registers for which p2o and o2p are applicable
  * regs: register offsets
  * csave_regs: context save registers for standby/sleep/hibernate cases
@@ -382,7 +382,7 @@ static void plgpio_irq_handler(struct irq_desc *desc)
 		 * clear extra bits in last register having gpios < MAX/REG
 		 * ex: Suppose there are max 102 plgpios. then last register
 		 * must have only (102 - MAX_GPIO_PER_REG * 3) = 6 relevant bits
-		 * so, we must not take other 28 bits into consideration for
+		 * so, we must yest take other 28 bits into consideration for
 		 * checking interrupt. so clear those bits.
 		 */
 		count = count - i * MAX_GPIO_PER_REG;
@@ -412,7 +412,7 @@ static void plgpio_irq_handler(struct irq_desc *desc)
  *
  * In spear310 there is inconsistency among bit positions in plgpio regiseters,
  * for different plgpio pins. For example: for pin 27, bit offset is 23, pin
- * 28-33 are not supported, pin 95 has offset bit 95, bit 100 has offset bit 1
+ * 28-33 are yest supported, pin 95 has offset bit 95, bit 100 has offset bit 1
  */
 static int spear310_p2o(int pin)
 {
@@ -444,7 +444,7 @@ static int spear310_o2p(int offset)
 
 static int plgpio_probe_dt(struct platform_device *pdev, struct plgpio *plgpio)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret = -EINVAL;
 	u32 val;
 
@@ -557,7 +557,7 @@ static int plgpio_probe(struct platform_device *pdev)
 	plgpio->chip.label = dev_name(&pdev->dev);
 	plgpio->chip.parent = &pdev->dev;
 	plgpio->chip.owner = THIS_MODULE;
-	plgpio->chip.of_node = pdev->dev.of_node;
+	plgpio->chip.of_yesde = pdev->dev.of_yesde;
 
 	if (!IS_ERR(plgpio->clk)) {
 		ret = clk_prepare(plgpio->clk);
@@ -633,7 +633,7 @@ static int plgpio_suspend(struct device *dev)
  * This is used to correct the values in end registers. End registers contain
  * extra bits that might be used for other purpose in platform. So, we shouldn't
  * overwrite these bits. This macro, reads given register again, preserves other
- * bit values (non-plgpio bits), and retain captured value (plgpio bits).
+ * bit values (yesn-plgpio bits), and retain captured value (plgpio bits).
  */
 #define plgpio_prepare_reg(__reg, _off, _mask, _tmp)		\
 {								\

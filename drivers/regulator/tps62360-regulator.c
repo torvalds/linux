@@ -17,7 +17,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  * 02111-1307, USA
  */
@@ -82,14 +82,14 @@ struct tps62360_chip {
  * The finding of the new VSET register will be based on the LRU mechanism.
  * Each VSET register will have different voltage configured . This
  * Function will look if any of the VSET register have requested voltage set
- * or not.
+ * or yest.
  *     - If it is already there then it will make that register as most
- *       recently used and return as found so that caller need not to set
+ *       recently used and return as found so that caller need yest to set
  *       the VSET register but need to set the proper gpios to select this
  *       VSET register.
- *     - If requested voltage is not found then it will use the least
+ *     - If requested voltage is yest found then it will use the least
  *       recently mechanism to get new VSET register for new configuration
- *       and will return not_found so that caller need to set new VSET
+ *       and will return yest_found so that caller need to set new VSET
  *       register and then gpios (both).
  */
 static bool find_voltage_set_register(struct tps62360_chip *tps,
@@ -297,13 +297,13 @@ static struct tps62360_regulator_platform_data *
 				      const struct regulator_desc *desc)
 {
 	struct tps62360_regulator_platform_data *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	pdata->reg_init_data = of_get_regulator_init_data(dev, dev->of_node,
+	pdata->reg_init_data = of_get_regulator_init_data(dev, dev->of_yesde,
 							  desc);
 	if (!pdata->reg_init_data) {
 		dev_err(dev, "Not able to get OF regulator init data\n");
@@ -363,7 +363,7 @@ static int tps62360_probe(struct i2c_client *client,
 	tps->desc.owner = THIS_MODULE;
 	tps->desc.uV_step = 10000;
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		const struct of_device_id *match;
 		match = of_match_device(of_match_ptr(tps62360_of_match),
 				&client->dev);
@@ -383,7 +383,7 @@ static int tps62360_probe(struct i2c_client *client,
 	}
 
 	if (!pdata) {
-		dev_err(&client->dev, "%s(): Platform data not found\n",
+		dev_err(&client->dev, "%s(): Platform data yest found\n",
 						__func__);
 		return -EIO;
 	}
@@ -434,7 +434,7 @@ static int tps62360_probe(struct i2c_client *client,
 				gpio_flags, "tps62360-vsel0");
 		if (ret) {
 			dev_err(&client->dev,
-				"%s(): Could not obtain vsel0 GPIO %d: %d\n",
+				"%s(): Could yest obtain vsel0 GPIO %d: %d\n",
 				__func__, tps->vsel0_gpio, ret);
 			return ret;
 		}
@@ -445,7 +445,7 @@ static int tps62360_probe(struct i2c_client *client,
 				gpio_flags, "tps62360-vsel1");
 		if (ret) {
 			dev_err(&client->dev,
-				"%s(): Could not obtain vsel1 GPIO %d: %d\n",
+				"%s(): Could yest obtain vsel1 GPIO %d: %d\n",
 				__func__, tps->vsel1_gpio, ret);
 			return ret;
 		}
@@ -471,7 +471,7 @@ static int tps62360_probe(struct i2c_client *client,
 	config.dev = &client->dev;
 	config.init_data = pdata->reg_init_data;
 	config.driver_data = tps;
-	config.of_node = client->dev.of_node;
+	config.of_yesde = client->dev.of_yesde;
 
 	/* Register the regulators */
 	rdev = devm_regulator_register(&client->dev, &tps->desc, &config);

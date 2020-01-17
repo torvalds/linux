@@ -5,12 +5,12 @@
  *   Copyright (C) 2010 Johan Hovold <jhovold@gmail.com>
  *   Copyright (C) 2001 Utz-Uwe Haus <haus@uuhaus.de>
  *
- * All information about the device was acquired using SniffUSB ans snoopUSB
+ * All information about the device was acquired using SniffUSB ans syesopUSB
  * on Windows98.
  * It was written out of frustration with the PalmConnect USB Serial adapter
  * sold by Palm Inc.
- * Neither Palm, nor their contractor (MCCI) or their supplier (KLSI) provided
- * information that was not already available.
+ * Neither Palm, yesr their contractor (MCCI) or their supplier (KLSI) provided
+ * information that was yest already available.
  *
  * It seems that KLSI bought some silicon-design information from ScanLogic,
  * whose SL11R processor is at the core of the KL5KUSB chipset from KLSI.
@@ -19,20 +19,20 @@
  * original KLSI device and can provide some information on it, I would be
  * most interested in adding support for it here. If you have any information
  * on the protocol used (or find errors in my reverse-engineered stuff), please
- * let me know.
+ * let me kyesw.
  *
  * The code was only tested with a PalmConnect USB adapter; if you
- * are adventurous, try it with any KLSI-based device and let me know how it
+ * are adventurous, try it with any KLSI-based device and let me kyesw how it
  * breaks so that I can fix it!
  */
 
 /* TODO:
  *	check modem line signals
- *	implement handshaking or decide that we do not support it
+ *	implement handshaking or decide that we do yest support it
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -101,8 +101,8 @@ struct klsi_105_port_settings {
 	u8	pktlen;		/* always 5, it seems */
 	u8	baudrate;
 	u8	databits;
-	u8	unknown1;
-	u8	unknown2;
+	u8	unkyeswn1;
+	u8	unkyeswn2;
 };
 
 struct klsi_105_private {
@@ -140,7 +140,7 @@ static int klsi_105_chg_port_settings(struct usb_serial_port *port,
 	dev_dbg(&port->dev,
 		"pktlen %u, baudrate 0x%02x, databits %u, u1 %u, u2 %u\n",
 		settings->pktlen, settings->baudrate, settings->databits,
-		settings->unknown1, settings->unknown2);
+		settings->unkyeswn1, settings->unkyeswn2);
 
 	return rc;
 }
@@ -219,8 +219,8 @@ static int klsi_105_port_probe(struct usb_serial_port *port)
 	priv->cfg.pktlen    = 5;
 	priv->cfg.baudrate  = kl5kusb105a_sio_b9600;
 	priv->cfg.databits  = kl5kusb105a_dtb_8;
-	priv->cfg.unknown1  = 0;
-	priv->cfg.unknown2  = 1;
+	priv->cfg.unkyeswn1  = 0;
+	priv->cfg.unkyeswn2  = 1;
 
 	priv->line_state    = 0;
 
@@ -264,16 +264,16 @@ static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port)
 	cfg->pktlen   = 5;
 	cfg->baudrate = kl5kusb105a_sio_b9600;
 	cfg->databits = kl5kusb105a_dtb_8;
-	cfg->unknown1 = 0;
-	cfg->unknown2 = 1;
+	cfg->unkyeswn1 = 0;
+	cfg->unkyeswn2 = 1;
 	klsi_105_chg_port_settings(port, cfg);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->cfg.pktlen   = cfg->pktlen;
 	priv->cfg.baudrate = cfg->baudrate;
 	priv->cfg.databits = cfg->databits;
-	priv->cfg.unknown1 = cfg->unknown1;
-	priv->cfg.unknown2 = cfg->unknown2;
+	priv->cfg.unkyeswn1 = cfg->unkyeswn1;
+	priv->cfg.unkyeswn2 = cfg->unkyeswn2;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* READ_ON and urb submission */
@@ -376,7 +376,7 @@ static void klsi_105_process_read_urb(struct urb *urb)
 	unsigned char *data = urb->transfer_buffer;
 	unsigned len;
 
-	/* empty urbs seem to happen, we ignore them */
+	/* empty urbs seem to happen, we igyesre them */
 	if (!urb->actual_length)
 		return;
 
@@ -468,11 +468,11 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 		/* set the number of data bits */
 		switch (cflag & CSIZE) {
 		case CS5:
-			dev_dbg(dev, "%s - 5 bits/byte not supported\n", __func__);
+			dev_dbg(dev, "%s - 5 bits/byte yest supported\n", __func__);
 			spin_unlock_irqrestore(&priv->lock, flags);
 			goto err;
 		case CS6:
-			dev_dbg(dev, "%s - 6 bits/byte not supported\n", __func__);
+			dev_dbg(dev, "%s - 6 bits/byte yest supported\n", __func__);
 			spin_unlock_irqrestore(&priv->lock, flags);
 			goto err;
 		case CS7:
@@ -482,7 +482,7 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 			priv->cfg.databits = kl5kusb105a_dtb_8;
 			break;
 		default:
-			dev_err(dev, "CSIZE was not CS5-CS8, using default of 8\n");
+			dev_err(dev, "CSIZE was yest CS5-CS8, using default of 8\n");
 			priv->cfg.databits = kl5kusb105a_dtb_8;
 			break;
 		}
@@ -497,7 +497,7 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 		tty->termios.c_cflag &= ~(PARENB|PARODD|CSTOPB);
 	}
 	/*
-	 * Set flow control: well, I do not really now how to handle DTR/RTS.
+	 * Set flow control: well, I do yest really yesw how to handle DTR/RTS.
 	 * Just do what we have seen with SniffUSB on Win98.
 	 */
 	if ((iflag & IXOFF) != (old_iflag & IXOFF)
@@ -509,7 +509,7 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 	memcpy(cfg, &priv->cfg, sizeof(*cfg));
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* now commit changes to device */
+	/* yesw commit changes to device */
 	klsi_105_chg_port_settings(port, cfg);
 err:
 	kfree(cfg);

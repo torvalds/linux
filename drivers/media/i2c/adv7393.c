@@ -1,10 +1,10 @@
 /*
  * adv7393 - ADV7393 Video Encoder Driver
  *
- * The encoder hardware does not support SECAM.
+ * The encoder hardware does yest support SECAM.
  *
  * Copyright (C) 2010-2012 ADVANSEE - http://www.advansee.com/
- * Benoît Thébaudeau <benoit.thebaudeau@advansee.com>
+ * Beyesît Thébaudeau <beyesit.thebaudeau@advansee.com>
  *
  * Based on ADV7343 driver,
  *
@@ -151,7 +151,7 @@ static int adv7393_setstd(struct v4l2_subdev *sd, v4l2_std_id std)
 
 	if (i == num_std) {
 		v4l2_dbg(1, debug, sd,
-				"Invalid std or std is not supported: %llx\n",
+				"Invalid std or std is yest supported: %llx\n",
 						(unsigned long long)std);
 		return -EINVAL;
 	}
@@ -214,7 +214,7 @@ static int adv7393_setoutput(struct v4l2_subdev *sd, u32 output_type)
 
 	if (output_type > ADV7393_SVIDEO_ID) {
 		v4l2_dbg(1, debug, sd,
-			"Invalid output type or output type not supported:%d\n",
+			"Invalid output type or output type yest supported:%d\n",
 								output_type);
 		return -EINVAL;
 	}

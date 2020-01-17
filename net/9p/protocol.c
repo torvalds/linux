@@ -11,7 +11,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
@@ -81,7 +81,7 @@ pdu_write_u(struct p9_fcall *pdu, struct iov_iter *from, size_t size)
 	g - numeric gid
 	S - stat
 	Q - qid
-	D - data blob (int32_t size followed by void *, results are not freed)
+	D - data blob (int32_t size followed by void *, results are yest freed)
 	T - array of strings (int16_t count, followed by strings)
 	R - array of qids (int16_t count, followed by qids)
 	A - stat for 9p2000.L (p9_stat_dotl)

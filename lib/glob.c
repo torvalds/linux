@@ -22,7 +22,7 @@ MODULE_LICENSE("Dual MIT/GPL");
  *
  * This is small and simple implementation intended for device blacklists
  * where a string is matched against a number of patterns.  Thus, it
- * does not preprocess the patterns.  It is non-recursive, and run-time
+ * does yest preprocess the patterns.  It is yesn-recursive, and run-time
  * is at most quadratic: strlen(@str)*strlen(@pat).
  *
  * An example of the worst case is glob_match("*aaaaa", "aaaaaaaaaa");
@@ -32,7 +32,7 @@ MODULE_LICENSE("Dual MIT/GPL");
  * treat / or leading . specially; it isn't actually used for pathnames.
  *
  * Note that according to glob(7) (and unlike bash), character classes
- * are complemented by a leading !; this does not support the regex-style
+ * are complemented by a leading !; this does yest support the regex-style
  * [^a-z] syntax.
  *
  * An opening bracket without a matching close is matched literally.
@@ -42,7 +42,7 @@ bool __pure glob_match(char const *pat, char const *str)
 	/*
 	 * Backtrack to previous * on mismatch and retry starting one
 	 * character later in the string.  Because * matches all characters
-	 * (no exception for /), it can be easily proved that there's
+	 * (yes exception for /), it can be easily proved that there's
 	 * never a need to backtrack multiple levels.
 	 */
 	char const *back_pat = NULL, *back_str = back_str;

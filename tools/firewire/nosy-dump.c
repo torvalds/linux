@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * nosy-dump - Interface to snoop mode driver for TI PCILynx 1394 controllers
+ * yessy-dump - Interface to syesop mode driver for TI PCILynx 1394 controllers
  * Copyright (C) 2002-2006 Kristian Høgsberg
  */
 
@@ -20,8 +20,8 @@
 #include <unistd.h>
 
 #include "list.h"
-#include "nosy-dump.h"
-#include "nosy-user.h"
+#include "yessy-dump.h"
+#include "yessy-user.h"
 
 enum {
 	PACKET_FIELD_DETAIL		= 0x01,
@@ -36,7 +36,7 @@ static void decode_link_packet(struct link_packet *packet, size_t length,
 static int run = 1;
 sig_t sys_sigint_handler;
 
-static char *option_nosy_device = "/dev/nosy";
+static char *option_yessy_device = "/dev/yessy";
 static char *option_view = "packet";
 static char *option_output;
 static char *option_input;
@@ -57,8 +57,8 @@ static const struct poptOption options[] = {
 		.longName	= "device",
 		.shortName	= 'd',
 		.argInfo	= POPT_ARG_STRING,
-		.arg		= &option_nosy_device,
-		.descrip	= "Path to nosy device.",
+		.arg		= &option_yessy_device,
+		.descrip	= "Path to yessy device.",
 		.argDescrip	= "DEVICE"
 	},
 	{
@@ -157,13 +157,13 @@ static struct list pending_transaction_list = {
 };
 
 static struct link_transaction *
-link_transaction_lookup(int request_node, int response_node, int tlabel)
+link_transaction_lookup(int request_yesde, int response_yesde, int tlabel)
 {
 	struct link_transaction *t;
 
 	list_for_each_entry(t, &pending_transaction_list, link) {
-		if (t->request_node == request_node &&
-		    t->response_node == response_node &&
+		if (t->request_yesde == request_yesde &&
+		    t->response_yesde == response_yesde &&
 		    t->tlabel == tlabel)
 			return t;
 	}
@@ -171,8 +171,8 @@ link_transaction_lookup(int request_node, int response_node, int tlabel)
 	t = malloc(sizeof *t);
 	if (!t)
 		exit(EXIT_FAILURE);
-	t->request_node = request_node;
-	t->response_node = response_node;
+	t->request_yesde = request_yesde;
+	t->response_yesde = response_yesde;
 	t->tlabel = tlabel;
 	list_init(&t->request_list);
 	list_init(&t->response_list);
@@ -224,7 +224,7 @@ handle_transaction(struct link_transaction *t)
 		if (protocol_decoders[i].decode(t))
 			break;
 
-	/* HACK: decode only fcp right now. */
+	/* HACK: decode only fcp right yesw. */
 	return;
 
 	decode_link_packet(&t->request->packet, t->request->length,
@@ -233,7 +233,7 @@ handle_transaction(struct link_transaction *t)
 		decode_link_packet(&t->response->packet, t->request->length,
 				   PACKET_FIELD_TRANSACTION, 0);
 	else
-		printf("[no response]");
+		printf("[yes response]");
 
 	if (option_verbose) {
 		list_for_each_entry(sa, &t->request_list, link)
@@ -270,7 +270,7 @@ static const char * const tcode_names[] = {
 };
 
 static const char * const ack_names[] = {
-	[0x0] = "no ack",			[0x8] = "reserved (0x08)",
+	[0x0] = "yes ack",			[0x8] = "reserved (0x08)",
 	[0x1] = "ack_complete",			[0x9] = "reserved (0x09)",
 	[0x2] = "ack_pending",			[0xa] = "reserved (0x0a)",
 	[0x3] = "reserved (0x03)",		[0xb] = "reserved (0x0b)",
@@ -578,7 +578,7 @@ handle_response_packet(uint32_t *data, size_t length)
 		prev = list_tail(&t->request_list, struct subaction, link);
 		if (prev->ack != ACK_PENDING) {
 			/*
-			 * error, should not get response unless last request got
+			 * error, should yest get response unless last request got
 			 * ack_pending.
 			 */
 		}
@@ -608,7 +608,7 @@ handle_response_packet(uint32_t *data, size_t length)
 	case ACK_BUSY_X:
 	case ACK_BUSY_A:
 	case ACK_BUSY_B:
-		/* no problem, wait for next retry */
+		/* yes problem, wait for next retry */
 		break;
 	}
 
@@ -759,7 +759,7 @@ print_packet(uint32_t *data, size_t length)
 		struct phy_packet *pp = (struct phy_packet *) data;
 
 		/* phy packet are 3 quadlets: the 1 quadlet payload,
-		 * the bitwise inverse of the payload and the snoop
+		 * the bitwise inverse of the payload and the syesop
 		 * mode ack */
 
 		switch (pp->common.identifier) {
@@ -789,7 +789,7 @@ print_packet(uint32_t *data, size_t length)
 				};
 				printf("self id: phy_id=%02x, link %s, gap_count=%d, speed=%s%s%s",
 				       pp->self_id.phy_id,
-				       (pp->self_id.link_active ? "active" : "not active"),
+				       (pp->self_id.link_active ? "active" : "yest active"),
 				       pp->self_id.gap_count,
 				       speed_names[pp->self_id.phy_speed],
 				       (pp->self_id.contender ? ", irm contender" : ""),
@@ -797,7 +797,7 @@ print_packet(uint32_t *data, size_t length)
 			}
 			break;
 		default:
-			printf("unknown phy packet: ");
+			printf("unkyeswn phy packet: ");
 			for (i = 1; i < length / 4; i++)
 				printf("%s%08x", i == 0 ? "[" : " ", data[i]);
 			printf("]");
@@ -829,7 +829,7 @@ print_stats(uint32_t *data, size_t length)
 	static int bus_reset_count, short_packet_count, phy_packet_count;
 	static int tcode_count[16];
 	static struct timeval last_update;
-	struct timeval now;
+	struct timeval yesw;
 	int i;
 
 	if (length == 0)
@@ -843,12 +843,12 @@ print_stats(uint32_t *data, size_t length)
 		tcode_count[packet->common.tcode]++;
 	}
 
-	gettimeofday(&now, NULL);
-	if (now.tv_sec <= last_update.tv_sec &&
-	    now.tv_usec < last_update.tv_usec + 500000)
+	gettimeofday(&yesw, NULL);
+	if (yesw.tv_sec <= last_update.tv_sec &&
+	    yesw.tv_usec < last_update.tv_usec + 500000)
 		return;
 
-	last_update = now;
+	last_update = yesw;
 	printf(CLEAR HIDE_CURSOR
 	       "  bus resets              : %8d\n"
 	       "  short packets           : %8d\n"
@@ -913,24 +913,24 @@ int main(int argc, const char *argv[])
 	}
 
 	if (option_version) {
-		printf("dump tool for nosy sniffer, version %s\n", VERSION);
+		printf("dump tool for yessy sniffer, version %s\n", VERSION);
 		return 0;
 	}
 
 	if (__BYTE_ORDER != __LITTLE_ENDIAN)
-		fprintf(stderr, "warning: nosy has only been tested on little "
+		fprintf(stderr, "warning: yessy has only been tested on little "
 			"endian machines\n");
 
 	if (option_input != NULL) {
 		input = fopen(option_input, "r");
 		if (input == NULL) {
-			fprintf(stderr, "Could not open %s, %m\n", option_input);
+			fprintf(stderr, "Could yest open %s, %m\n", option_input);
 			return -1;
 		}
 	} else {
-		fd = open(option_nosy_device, O_RDWR);
+		fd = open(option_yessy_device, O_RDWR);
 		if (fd < 0) {
-			fprintf(stderr, "Could not open %s, %m\n", option_nosy_device);
+			fprintf(stderr, "Could yest open %s, %m\n", option_yessy_device);
 			return -1;
 		}
 		set_input_mode();
@@ -946,7 +946,7 @@ int main(int argc, const char *argv[])
 	if (option_output) {
 		output = fopen(option_output, "w");
 		if (output == NULL) {
-			fprintf(stderr, "Could not open %s, %m\n", option_output);
+			fprintf(stderr, "Could yest open %s, %m\n", option_output);
 			return -1;
 		}
 	}

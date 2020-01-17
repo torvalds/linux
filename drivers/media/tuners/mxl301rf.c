@@ -8,7 +8,7 @@
 /*
  * NOTICE:
  * This driver is incomplete and lacks init/config of the chips,
- * as the necessary info is not disclosed.
+ * as the necessary info is yest disclosed.
  * Other features like get_if_frequency() are missing as well.
  * It assumes that users of this driver (such as a PCI bridge of
  * DTV receiver cards) properly init and configure the chip
@@ -245,7 +245,7 @@ static int mxl301rf_sleep(struct dvb_frontend *fe)
 }
 
 
-/* init sequence is not public.
+/* init sequence is yest public.
  * the parent must have init'ed the device.
  * just wake up here.
  */

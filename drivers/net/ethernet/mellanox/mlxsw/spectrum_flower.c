@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <net/net_namespace.h>
 #include <net/flow_dissector.h>
@@ -37,21 +37,21 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 		case FLOW_ACTION_ACCEPT:
 			err = mlxsw_sp_acl_rulei_act_terminate(rulei);
 			if (err) {
-				NL_SET_ERR_MSG_MOD(extack, "Cannot append terminate action");
+				NL_SET_ERR_MSG_MOD(extack, "Canyest append terminate action");
 				return err;
 			}
 			break;
 		case FLOW_ACTION_DROP:
 			err = mlxsw_sp_acl_rulei_act_drop(rulei);
 			if (err) {
-				NL_SET_ERR_MSG_MOD(extack, "Cannot append drop action");
+				NL_SET_ERR_MSG_MOD(extack, "Canyest append drop action");
 				return err;
 			}
 			break;
 		case FLOW_ACTION_TRAP:
 			err = mlxsw_sp_acl_rulei_act_trap(rulei);
 			if (err) {
-				NL_SET_ERR_MSG_MOD(extack, "Cannot append trap action");
+				NL_SET_ERR_MSG_MOD(extack, "Canyest append trap action");
 				return err;
 			}
 			break;
@@ -69,7 +69,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			group_id = mlxsw_sp_acl_ruleset_group_id(ruleset);
 			err = mlxsw_sp_acl_rulei_act_jump(rulei, group_id);
 			if (err) {
-				NL_SET_ERR_MSG_MOD(extack, "Cannot append jump action");
+				NL_SET_ERR_MSG_MOD(extack, "Canyest append jump action");
 				return err;
 			}
 			}
@@ -80,7 +80,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			u16 fid_index;
 
 			if (mlxsw_sp_acl_block_is_egress_bound(block)) {
-				NL_SET_ERR_MSG_MOD(extack, "Redirect action is not supported on egress");
+				NL_SET_ERR_MSG_MOD(extack, "Redirect action is yest supported on egress");
 				return -EOPNOTSUPP;
 			}
 
@@ -107,7 +107,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			struct net_device *out_dev = act->dev;
 
 			if (mirror_act_count++) {
-				NL_SET_ERR_MSG_MOD(extack, "Multiple mirror actions per rule are not supported");
+				NL_SET_ERR_MSG_MOD(extack, "Multiple mirror actions per rule are yest supported");
 				return -EOPNOTSUPP;
 			}
 
@@ -162,7 +162,7 @@ static int mlxsw_sp_flower_parse_meta(struct mlxsw_sp_acl_rule_info *rulei,
 	}
 
 	if (!mlxsw_sp_port_dev_check(ingress_dev)) {
-		NL_SET_ERR_MSG_MOD(f->common.extack, "Can't match on non-mlxsw ingress port");
+		NL_SET_ERR_MSG_MOD(f->common.extack, "Can't match on yesn-mlxsw ingress port");
 		return -EINVAL;
 	}
 
@@ -274,8 +274,8 @@ static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
 	flow_rule_match_tcp(rule, &match);
 
 	if (match.mask->flags & htons(0x0E00)) {
-		NL_SET_ERR_MSG_MOD(f->common.extack, "TCP flags match not supported on reserved bits");
-		dev_err(mlxsw_sp->bus_info->dev, "TCP flags match not supported on reserved bits\n");
+		NL_SET_ERR_MSG_MOD(f->common.extack, "TCP flags match yest supported on reserved bits");
+		dev_err(mlxsw_sp->bus_info->dev, "TCP flags match yest supported on reserved bits\n");
 		return -EINVAL;
 	}
 
@@ -409,7 +409,7 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 
 		flow_rule_match_vlan(rule, &match);
 		if (mlxsw_sp_acl_block_is_egress_bound(block)) {
-			NL_SET_ERR_MSG_MOD(f->common.extack, "vlan_id key is not supported on egress");
+			NL_SET_ERR_MSG_MOD(f->common.extack, "vlan_id key is yest supported on egress");
 			return -EOPNOTSUPP;
 		}
 

@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * fs/inotify_user.c - inotify support for userspace
+ * fs/iyestify_user.c - iyestify support for userspace
  *
  * Authors:
  *	John McCutchan	<ttb@tentacle.dhs.org>
- *	Robert Love	<rml@novell.com>
+ *	Robert Love	<rml@yesvell.com>
  *
  * Copyright (C) 2005 John McCutchan
  * Copyright 2006 Hewlett-Packard Development Company, L.P.
  *
  * Copyright (C) 2009 Eric Paris <Red Hat Inc>
- * inotify was largely rewriten to make use of the fsnotify infrastructure
+ * iyestify was largely rewriten to make use of the fsyestify infrastructure
  */
 
 #include <linux/dcache.h> /* d_unlinked */
-#include <linux/fs.h> /* struct inode */
-#include <linux/fsnotify_backend.h>
-#include <linux/inotify.h>
+#include <linux/fs.h> /* struct iyesde */
+#include <linux/fsyestify_backend.h>
+#include <linux/iyestify.h>
 #include <linux/path.h> /* struct path */
 #include <linux/slab.h> /* kmem_* */
 #include <linux/types.h>
@@ -24,55 +24,55 @@
 #include <linux/sched/user.h>
 #include <linux/sched/mm.h>
 
-#include "inotify.h"
+#include "iyestify.h"
 
 /*
  * Check if 2 events contain the same information.
  */
-static bool event_compare(struct fsnotify_event *old_fsn,
-			  struct fsnotify_event *new_fsn)
+static bool event_compare(struct fsyestify_event *old_fsn,
+			  struct fsyestify_event *new_fsn)
 {
-	struct inotify_event_info *old, *new;
+	struct iyestify_event_info *old, *new;
 
 	old = INOTIFY_E(old_fsn);
 	new = INOTIFY_E(new_fsn);
 	if (old->mask & FS_IN_IGNORED)
 		return false;
 	if ((old->mask == new->mask) &&
-	    (old_fsn->inode == new_fsn->inode) &&
+	    (old_fsn->iyesde == new_fsn->iyesde) &&
 	    (old->name_len == new->name_len) &&
 	    (!old->name_len || !strcmp(old->name, new->name)))
 		return true;
 	return false;
 }
 
-static int inotify_merge(struct list_head *list,
-			  struct fsnotify_event *event)
+static int iyestify_merge(struct list_head *list,
+			  struct fsyestify_event *event)
 {
-	struct fsnotify_event *last_event;
+	struct fsyestify_event *last_event;
 
-	last_event = list_entry(list->prev, struct fsnotify_event, list);
+	last_event = list_entry(list->prev, struct fsyestify_event, list);
 	return event_compare(last_event, event);
 }
 
-int inotify_handle_event(struct fsnotify_group *group,
-			 struct inode *inode,
+int iyestify_handle_event(struct fsyestify_group *group,
+			 struct iyesde *iyesde,
 			 u32 mask, const void *data, int data_type,
 			 const struct qstr *file_name, u32 cookie,
-			 struct fsnotify_iter_info *iter_info)
+			 struct fsyestify_iter_info *iter_info)
 {
-	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
-	struct inotify_inode_mark *i_mark;
-	struct inotify_event_info *event;
-	struct fsnotify_event *fsn_event;
+	struct fsyestify_mark *iyesde_mark = fsyestify_iter_iyesde_mark(iter_info);
+	struct iyestify_iyesde_mark *i_mark;
+	struct iyestify_event_info *event;
+	struct fsyestify_event *fsn_event;
 	int ret;
 	int len = 0;
-	int alloc_len = sizeof(struct inotify_event_info);
+	int alloc_len = sizeof(struct iyestify_event_info);
 
-	if (WARN_ON(fsnotify_iter_vfsmount_mark(iter_info)))
+	if (WARN_ON(fsyestify_iter_vfsmount_mark(iter_info)))
 		return 0;
 
-	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
+	if ((iyesde_mark->mask & FS_EXCL_UNLINK) &&
 	    (data_type == FSNOTIFY_EVENT_PATH)) {
 		const struct path *path = data;
 
@@ -84,14 +84,14 @@ int inotify_handle_event(struct fsnotify_group *group,
 		alloc_len += len + 1;
 	}
 
-	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
+	pr_debug("%s: group=%p iyesde=%p mask=%x\n", __func__, group, iyesde,
 		 mask);
 
-	i_mark = container_of(inode_mark, struct inotify_inode_mark,
+	i_mark = container_of(iyesde_mark, struct iyestify_iyesde_mark,
 			      fsn_mark);
 
 	/*
-	 * Whoever is interested in the event, pays for the allocation. Do not
+	 * Whoever is interested in the event, pays for the allocation. Do yest
 	 * trigger OOM killer in the target monitoring memcg as it may have
 	 * security repercussion.
 	 */
@@ -102,23 +102,23 @@ int inotify_handle_event(struct fsnotify_group *group,
 	if (unlikely(!event)) {
 		/*
 		 * Treat lost event due to ENOMEM the same way as queue
-		 * overflow to let userspace know event was lost.
+		 * overflow to let userspace kyesw event was lost.
 		 */
-		fsnotify_queue_overflow(group);
+		fsyestify_queue_overflow(group);
 		return -ENOMEM;
 	}
 
 	/*
-	 * We now report FS_ISDIR flag with MOVE_SELF and DELETE_SELF events
-	 * for fanotify. inotify never reported IN_ISDIR with those events.
+	 * We yesw report FS_ISDIR flag with MOVE_SELF and DELETE_SELF events
+	 * for fayestify. iyestify never reported IN_ISDIR with those events.
 	 * It looks like an oversight, but to avoid the risk of breaking
-	 * existing inotify programs, mask the flag out from those events.
+	 * existing iyestify programs, mask the flag out from those events.
 	 */
 	if (mask & (IN_MOVE_SELF | IN_DELETE_SELF))
 		mask &= ~IN_ISDIR;
 
 	fsn_event = &event->fse;
-	fsnotify_init_event(fsn_event, inode);
+	fsyestify_init_event(fsn_event, iyesde);
 	event->mask = mask;
 	event->wd = i_mark->wd;
 	event->sync_cookie = cookie;
@@ -126,34 +126,34 @@ int inotify_handle_event(struct fsnotify_group *group,
 	if (len)
 		strcpy(event->name, file_name->name);
 
-	ret = fsnotify_add_event(group, fsn_event, inotify_merge);
+	ret = fsyestify_add_event(group, fsn_event, iyestify_merge);
 	if (ret) {
 		/* Our event wasn't used in the end. Free it. */
-		fsnotify_destroy_event(group, fsn_event);
+		fsyestify_destroy_event(group, fsn_event);
 	}
 
-	if (inode_mark->mask & IN_ONESHOT)
-		fsnotify_destroy_mark(inode_mark, group);
+	if (iyesde_mark->mask & IN_ONESHOT)
+		fsyestify_destroy_mark(iyesde_mark, group);
 
 	return 0;
 }
 
-static void inotify_freeing_mark(struct fsnotify_mark *fsn_mark, struct fsnotify_group *group)
+static void iyestify_freeing_mark(struct fsyestify_mark *fsn_mark, struct fsyestify_group *group)
 {
-	inotify_ignored_and_remove_idr(fsn_mark, group);
+	iyestify_igyesred_and_remove_idr(fsn_mark, group);
 }
 
 /*
- * This is NEVER supposed to be called.  Inotify marks should either have been
+ * This is NEVER supposed to be called.  Iyestify marks should either have been
  * removed from the idr when the watch was removed or in the
- * fsnotify_destroy_mark_by_group() call when the inotify instance was being
+ * fsyestify_destroy_mark_by_group() call when the iyestify instance was being
  * torn down.  This is only called if the idr is about to be freed but there
  * are still marks in it.
  */
 static int idr_callback(int id, void *p, void *data)
 {
-	struct fsnotify_mark *fsn_mark;
-	struct inotify_inode_mark *i_mark;
+	struct fsyestify_mark *fsn_mark;
+	struct iyestify_iyesde_mark *i_mark;
 	static bool warned = false;
 
 	if (warned)
@@ -161,15 +161,15 @@ static int idr_callback(int id, void *p, void *data)
 
 	warned = true;
 	fsn_mark = p;
-	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
+	i_mark = container_of(fsn_mark, struct iyestify_iyesde_mark, fsn_mark);
 
-	WARN(1, "inotify closing but id=%d for fsn_mark=%p in group=%p still in "
+	WARN(1, "iyestify closing but id=%d for fsn_mark=%p in group=%p still in "
 		"idr.  Probably leaking memory\n", id, p, data);
 
 	/*
 	 * I'm taking the liberty of assuming that the mark in question is a
 	 * valid address and I'm dereferencing it.  This might help to figure
-	 * out why we got here and the panic is no worse than the original
+	 * out why we got here and the panic is yes worse than the original
 	 * BUG() that was here.
 	 */
 	if (fsn_mark)
@@ -178,34 +178,34 @@ static int idr_callback(int id, void *p, void *data)
 	return 0;
 }
 
-static void inotify_free_group_priv(struct fsnotify_group *group)
+static void iyestify_free_group_priv(struct fsyestify_group *group)
 {
 	/* ideally the idr is empty and we won't hit the BUG in the callback */
-	idr_for_each(&group->inotify_data.idr, idr_callback, group);
-	idr_destroy(&group->inotify_data.idr);
-	if (group->inotify_data.ucounts)
-		dec_inotify_instances(group->inotify_data.ucounts);
+	idr_for_each(&group->iyestify_data.idr, idr_callback, group);
+	idr_destroy(&group->iyestify_data.idr);
+	if (group->iyestify_data.ucounts)
+		dec_iyestify_instances(group->iyestify_data.ucounts);
 }
 
-static void inotify_free_event(struct fsnotify_event *fsn_event)
+static void iyestify_free_event(struct fsyestify_event *fsn_event)
 {
 	kfree(INOTIFY_E(fsn_event));
 }
 
 /* ding dong the mark is dead */
-static void inotify_free_mark(struct fsnotify_mark *fsn_mark)
+static void iyestify_free_mark(struct fsyestify_mark *fsn_mark)
 {
-	struct inotify_inode_mark *i_mark;
+	struct iyestify_iyesde_mark *i_mark;
 
-	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
+	i_mark = container_of(fsn_mark, struct iyestify_iyesde_mark, fsn_mark);
 
-	kmem_cache_free(inotify_inode_mark_cachep, i_mark);
+	kmem_cache_free(iyestify_iyesde_mark_cachep, i_mark);
 }
 
-const struct fsnotify_ops inotify_fsnotify_ops = {
-	.handle_event = inotify_handle_event,
-	.free_group_priv = inotify_free_group_priv,
-	.free_event = inotify_free_event,
-	.freeing_mark = inotify_freeing_mark,
-	.free_mark = inotify_free_mark,
+const struct fsyestify_ops iyestify_fsyestify_ops = {
+	.handle_event = iyestify_handle_event,
+	.free_group_priv = iyestify_free_group_priv,
+	.free_event = iyestify_free_event,
+	.freeing_mark = iyestify_freeing_mark,
+	.free_mark = iyestify_free_mark,
 };

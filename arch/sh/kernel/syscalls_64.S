@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2004 - 2007  Paul Mundt
- * Copyright (C) 2003, 2004 Richard Curnow
+ * Copyright (C) 2003, 2004 Richard Curyesw
  */
 
 #include <linux/sys.h>
@@ -31,7 +31,7 @@ sys_call_table:
 	.long sys_execve
 	.long sys_chdir
 	.long sys_time
-	.long sys_mknod
+	.long sys_mkyesd
 	.long sys_chmod			/* 15 */
 	.long sys_lchown16
 	.long sys_ni_syscall	/* old break syscall holder */
@@ -179,7 +179,7 @@ sys_call_table:
 	.long sys_sched_get_priority_max
 	.long sys_sched_get_priority_min  /* 160 */
 	.long sys_sched_rr_get_interval
-	.long sys_nanosleep
+	.long sys_nayessleep
 	.long sys_mremap
 	.long sys_setresuid16
 	.long sys_getresuid16		/* 165 */
@@ -318,7 +318,7 @@ sys_call_table:
  	.long sys_clock_settime
  	.long sys_clock_gettime
  	.long sys_clock_getres
- 	.long sys_clock_nanosleep	/* 295 */
+ 	.long sys_clock_nayessleep	/* 295 */
 	.long sys_statfs64
 	.long sys_fstatfs64
 	.long sys_tgkill
@@ -332,7 +332,7 @@ sys_call_table:
 	.long sys_mq_unlink
 	.long sys_mq_timedsend
 	.long sys_mq_timedreceive
-	.long sys_mq_notify
+	.long sys_mq_yestify
 	.long sys_mq_getsetattr		/* 310 */
 	.long sys_ni_syscall	/* Reserved for kexec */
 	.long sys_waitid
@@ -341,14 +341,14 @@ sys_call_table:
 	.long sys_keyctl		/* 315 */
 	.long sys_ioprio_set
 	.long sys_ioprio_get
-	.long sys_inotify_init
-	.long sys_inotify_add_watch
-	.long sys_inotify_rm_watch	/* 320 */
+	.long sys_iyestify_init
+	.long sys_iyestify_add_watch
+	.long sys_iyestify_rm_watch	/* 320 */
 	.long sys_ni_syscall
 	.long sys_migrate_pages
 	.long sys_openat
 	.long sys_mkdirat
-	.long sys_mknodat		/* 325 */
+	.long sys_mkyesdat		/* 325 */
 	.long sys_fchownat
 	.long sys_futimesat
 	.long sys_fstatat64
@@ -383,15 +383,15 @@ sys_call_table:
 	.long sys_epoll_create1
 	.long sys_dup3
 	.long sys_pipe2
-	.long sys_inotify_init1		/* 360 */
+	.long sys_iyestify_init1		/* 360 */
 	.long sys_preadv
 	.long sys_pwritev
 	.long sys_rt_tgsigqueueinfo
 	.long sys_perf_event_open
 	.long sys_recvmmsg		/* 365 */
 	.long sys_accept4
-	.long sys_fanotify_init
-	.long sys_fanotify_mark
+	.long sys_fayestify_init
+	.long sys_fayestify_mark
 	.long sys_prlimit64
 	.long sys_name_to_handle_at	/* 370 */
 	.long sys_open_by_handle_at

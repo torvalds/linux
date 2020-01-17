@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  Copyright (C) 2006 Jonathan McDowell <noodles@earth.li>
+ *  Copyright (C) 2006 Jonathan McDowell <yesodles@earth.li>
  *
  *  Derived from drivers/mtd/nand/toto.c (removed in v2.6.28)
  *    Copyright (c) 2003 Texas Instruments
@@ -353,5 +353,5 @@ static struct platform_driver ams_delta_nand_driver = {
 module_platform_driver(ams_delta_nand_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Jonathan McDowell <noodles@earth.li>");
+MODULE_AUTHOR("Jonathan McDowell <yesodles@earth.li>");
 MODULE_DESCRIPTION("Glue layer for NAND flash on Amstrad E3 (Delta)");

@@ -12,7 +12,7 @@
  * for more details.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -187,7 +187,7 @@ void __init config_q40(void)
 	/* disable a few things that SMSQ might have left enabled */
 	q40_disable_irqs();
 
-	/* no DMA at all, but ide-scsi requires it.. make sure
+	/* yes DMA at all, but ide-scsi requires it.. make sure
 	 * all physical RAM fits into the boundary - otherwise
 	 * allocator may play costly and useless tricks */
 	mach_max_dma_address = 1024*1024*1024;
@@ -200,7 +200,7 @@ int __init q40_parse_bootinfo(const struct bi_record *rec)
 }
 
 /*
- * Looks like op is non-zero for setting the clock, and zero for
+ * Looks like op is yesn-zero for setting the clock, and zero for
  * reading the clock.
  *
  *  struct hwclk_time {
@@ -210,7 +210,7 @@ int __init q40_parse_bootinfo(const struct bi_record *rec)
  *         unsigned        day;       1..31
  *         unsigned        mon;       0..11
  *         unsigned        year;      00...
- *         int             wday;      0..6, 0 is Sunday, -1 means unknown/don't set
+ *         int             wday;      0..6, 0 is Sunday, -1 means unkyeswn/don't set
  * };
  */
 

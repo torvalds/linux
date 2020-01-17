@@ -9,7 +9,7 @@
 
 /*
 ** This file is private to iosapic driver.
-** If stuff needs to be used by another driver, move it to a common file.
+** If stuff needs to be used by ayesther driver, move it to a common file.
 **
 ** WARNING: fields most data structures here are ordered to make sure
 **          they pack nicely for 64-bit compilation. (ie sizeof(long) == 8)
@@ -61,7 +61,7 @@ struct irt_entry {
 	**    0x3 corresponds to INT_D# 
 	** PCI device number where interrupt originates 
 	*/
-	u8 src_bus_irq_devno;
+	u8 src_bus_irq_devyes;
 
 	/* Source Bus ID identifies the bus where interrupt signal comes from */
 	u8 src_bus_id;

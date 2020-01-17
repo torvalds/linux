@@ -24,7 +24,7 @@ Getting started quick
 
 - Now you can mount /dev/pktcdvd/dev_name and copy files to it. Enjoy::
 
-	# mount /dev/pktcdvd/dev_name /cdrom -t udf -o rw,noatime
+	# mount /dev/pktcdvd/dev_name /cdrom -t udf -o rw,yesatime
 
 
 Packet writing for DVD-RW media
@@ -39,7 +39,7 @@ overwrite mode, run::
 You can then use the disc the same way you would use a CD-RW disc::
 
 	# pktsetup dev_name /dev/hdc
-	# mount /dev/pktcdvd/dev_name /cdrom -t udf -o rw,noatime
+	# mount /dev/pktcdvd/dev_name /cdrom -t udf -o rw,yesatime
 
 
 Packet writing for DVD+RW media
@@ -53,12 +53,12 @@ that it should be possible to put any filesystem with a block size >=
 	# dvd+rw-format /dev/hdc   (only needed if the disc has never
 	                            been formatted)
 	# mkudffs /dev/hdc
-	# mount /dev/hdc /cdrom -t udf -o rw,noatime
+	# mount /dev/hdc /cdrom -t udf -o rw,yesatime
 
 However, some drives don't follow the specification and expect the
 host to perform aligned writes at 32KB boundaries. Other drives do
 follow the specification, but suffer bad performance problems if the
-writes are not 32KB aligned.
+writes are yest 32KB aligned.
 
 Both problems can be solved by using the pktcdvd driver, which always
 generates aligned writes::
@@ -66,13 +66,13 @@ generates aligned writes::
 	# dvd+rw-format /dev/hdc
 	# pktsetup dev_name /dev/hdc
 	# mkudffs /dev/pktcdvd/dev_name
-	# mount /dev/pktcdvd/dev_name /cdrom -t udf -o rw,noatime
+	# mount /dev/pktcdvd/dev_name /cdrom -t udf -o rw,yesatime
 
 
 Packet writing for DVD-RAM media
 --------------------------------
 
-DVD-RAM discs are random writable, so using the pktcdvd driver is not
+DVD-RAM discs are random writable, so using the pktcdvd driver is yest
 necessary. However, using the pktcdvd driver can improve performance
 in the same way it does for DVD+RW media.
 
@@ -80,11 +80,11 @@ in the same way it does for DVD+RW media.
 Notes
 -----
 
-- CD-RW media can usually not be overwritten more than about 1000
+- CD-RW media can usually yest be overwritten more than about 1000
   times, so to avoid unnecessary wear on the media, you should always
-  use the noatime mount option.
+  use the yesatime mount option.
 
-- Defect management (ie automatic remapping of bad sectors) has not
+- Defect management (ie automatic remapping of bad sectors) has yest
   been implemented yet, so you are likely to get at least some
   filesystem corruption if the disc wears out.
 
@@ -108,7 +108,7 @@ this interface. (see http://tom.ist-im-web.de/download/pktcdvd )
 
 	# pktcdvd -a dev_name /dev/hdc
 	# mkudffs /dev/pktcdvd/dev_name
-	# mount -t udf -o rw,noatime /dev/pktcdvd/dev_name /dvdram
+	# mount -t udf -o rw,yesatime /dev/pktcdvd/dev_name /dvdram
 	# cp files /dvdram
 	# umount /dvdram
 	# pktcdvd -r dev_name

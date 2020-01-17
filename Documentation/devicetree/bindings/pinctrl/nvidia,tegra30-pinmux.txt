@@ -10,12 +10,12 @@ Required properties:
 - reg: Should contain the register physical address and length for each of
   the pad control and mux registers.
 
-Tegra30 adds the following optional properties for pin configuration subnodes:
-- nvidia,enable-input: Integer. Enable the pin's input path. 0: no, 1: yes.
-- nvidia,open-drain: Integer. Enable open drain mode. 0: no, 1: yes.
+Tegra30 adds the following optional properties for pin configuration subyesdes:
+- nvidia,enable-input: Integer. Enable the pin's input path. 0: yes, 1: no.
+- nvidia,open-drain: Integer. Enable open drain mode. 0: yes, 1: no.
 - nvidia,lock: Integer. Lock the pin configuration against further changes
-    until reset. 0: no, 1: yes.
-- nvidia,io-reset: Integer. Reset the IO path. 0: no, 1: yes.
+    until reset. 0: yes, 1: no.
+- nvidia,io-reset: Integer. Reset the IO path. 0: yes, 1: no.
 
 As with Tegra20, see the Tegra TRM for complete details regarding which groups
 support which functionality.
@@ -83,7 +83,7 @@ Valid values for pin and group names are:
   drive groups:
 
     These all support nvidia,pull-down-strength, nvidia,pull-up-strength,
-    nvidia,slew-rate-rising, nvidia,slew-rate-falling. Most but not all
+    nvidia,slew-rate-rising, nvidia,slew-rate-falling. Most but yest all
     support nvidia,high-speed-mode, nvidia,schmitt, nvidia,low-power-mode.
 
     ao1, ao2, at1, at2, at3, at4, at5, cdev1, cdev2, cec, crt, csus, dap1,

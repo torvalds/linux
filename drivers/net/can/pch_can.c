@@ -12,7 +12,7 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/can.h>
@@ -249,9 +249,9 @@ static void pch_can_rw_msg_obj(void __iomem *creq_addr, u32 num)
 }
 
 static void pch_can_set_int_enables(struct pch_can_priv *priv,
-				    enum pch_can_mode interrupt_no)
+				    enum pch_can_mode interrupt_yes)
 {
-	switch (interrupt_no) {
+	switch (interrupt_yes) {
 	case PCH_CAN_DISABLE:
 		pch_can_bit_clear(&priv->regs->cont, PCH_CTRL_IE);
 		break;
@@ -627,7 +627,7 @@ static void pch_can_rx_msg_lost(struct net_device *ndev, int obj_id)
 	netif_receive_skb(skb);
 }
 
-static int pch_can_rx_normal(struct net_device *ndev, u32 obj_num, int quota)
+static int pch_can_rx_yesrmal(struct net_device *ndev, u32 obj_num, int quota)
 {
 	u32 reg;
 	canid_t id;
@@ -755,7 +755,7 @@ static int pch_can_poll(struct napi_struct *napi, int quota)
 		goto end;
 
 	if ((int_stat >= PCH_RX_OBJ_START) && (int_stat <= PCH_RX_OBJ_END)) {
-		quota -= pch_can_rx_normal(ndev, int_stat, quota);
+		quota -= pch_can_rx_yesrmal(ndev, int_stat, quota);
 	} else if ((int_stat >= PCH_TX_OBJ_START) &&
 		   (int_stat <= PCH_TX_OBJ_END)) {
 		/* Handle transmission interrupt */
@@ -881,14 +881,14 @@ static netdev_tx_t pch_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct pch_can_priv *priv = netdev_priv(ndev);
 	struct can_frame *cf = (struct can_frame *)skb->data;
-	int tx_obj_no;
+	int tx_obj_yes;
 	int i;
 	u32 id2;
 
 	if (can_dropped_invalid_skb(ndev, skb))
 		return NETDEV_TX_OK;
 
-	tx_obj_no = priv->tx_obj;
+	tx_obj_yes = priv->tx_obj;
 	if (priv->tx_obj == PCH_TX_OBJ_END) {
 		if (ioread32(&priv->regs->treq2) & PCH_TREQ2_TX_MASK)
 			netif_stop_queue(ndev);
@@ -924,13 +924,13 @@ static netdev_tx_t pch_xmit(struct sk_buff *skb, struct net_device *ndev)
 			  &priv->regs->ifregs[1].data[i / 2]);
 	}
 
-	can_put_echo_skb(skb, ndev, tx_obj_no - PCH_RX_OBJ_END - 1);
+	can_put_echo_skb(skb, ndev, tx_obj_yes - PCH_RX_OBJ_END - 1);
 
 	/* Set the size of the data. Update if2_mcont */
 	iowrite32(cf->can_dlc | PCH_IF_MCONT_NEWDAT | PCH_IF_MCONT_TXRQXT |
 		  PCH_IF_MCONT_TXIE, &priv->regs->ifregs[1].mcont);
 
-	pch_can_rw_msg_obj(&priv->regs->ifregs[1].creq, tx_obj_no);
+	pch_can_rw_msg_obj(&priv->regs->ifregs[1].creq, tx_obj_yes);
 
 	return NETDEV_TX_OK;
 }

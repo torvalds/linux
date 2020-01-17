@@ -49,7 +49,7 @@
 #define ERRMASK	7
 #define FAIL	13
 
-#define ENOERR	0 /* no error */
+#define ENOERR	0 /* yes error */
 #define EID	1
 #define ECMD	2
 #define ECRC	3
@@ -116,7 +116,7 @@ static void dump_status_reg(unsigned long *status)
 #endif
 }
 
-static int wait_until_not_busy(struct spi_device *spi)
+static int wait_until_yest_busy(struct spi_device *spi)
 {
 	unsigned long status;
 	int ret, loop = 0;
@@ -150,7 +150,7 @@ static int machxo2_cleanup(struct fpga_manager *mgr)
 	if (ret)
 		goto fail;
 
-	ret = wait_until_not_busy(spi);
+	ret = wait_until_yest_busy(spi);
 	if (ret)
 		goto fail;
 
@@ -198,7 +198,7 @@ static int machxo2_write_init(struct fpga_manager *mgr,
 
 	if ((info->flags & FPGA_MGR_PARTIAL_RECONFIG)) {
 		dev_err(&mgr->dev,
-			"Partial reconfiguration is not supported\n");
+			"Partial reconfiguration is yest supported\n");
 		return -ENOTSUPP;
 	}
 
@@ -218,7 +218,7 @@ static int machxo2_write_init(struct fpga_manager *mgr,
 	if (ret)
 		goto fail;
 
-	ret = wait_until_not_busy(spi);
+	ret = wait_until_yest_busy(spi);
 	if (ret)
 		goto fail;
 
@@ -302,7 +302,7 @@ static int machxo2_write_complete(struct fpga_manager *mgr,
 	ret = spi_sync(spi, &msg);
 	if (ret)
 		goto fail;
-	ret = wait_until_not_busy(spi);
+	ret = wait_until_yest_busy(spi);
 	if (ret)
 		goto fail;
 

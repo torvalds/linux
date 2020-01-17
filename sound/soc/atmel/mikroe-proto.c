@@ -64,15 +64,15 @@ static int snd_proto_probe(struct platform_device *pdev)
 {
 	struct snd_soc_dai_link *dai;
 	struct snd_soc_dai_link_component *comp;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *codec_np, *cpu_np;
-	struct device_node *bitclkmaster = NULL;
-	struct device_node *framemaster = NULL;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *codec_np, *cpu_np;
+	struct device_yesde *bitclkmaster = NULL;
+	struct device_yesde *framemaster = NULL;
 	unsigned int dai_fmt;
 	int ret = 0;
 
 	if (!np) {
-		dev_err(&pdev->dev, "No device node supplied\n");
+		dev_err(&pdev->dev, "No device yesde supplied\n");
 		return -EINVAL;
 	}
 
@@ -107,18 +107,18 @@ static int snd_proto_probe(struct platform_device *pdev)
 
 	codec_np = of_parse_phandle(np, "audio-codec", 0);
 	if (!codec_np) {
-		dev_err(&pdev->dev, "audio-codec node missing\n");
+		dev_err(&pdev->dev, "audio-codec yesde missing\n");
 		return -EINVAL;
 	}
-	dai->codecs->of_node = codec_np;
+	dai->codecs->of_yesde = codec_np;
 
 	cpu_np = of_parse_phandle(np, "i2s-controller", 0);
 	if (!cpu_np) {
 		dev_err(&pdev->dev, "i2s-controller missing\n");
 		return -EINVAL;
 	}
-	dai->cpus->of_node = cpu_np;
-	dai->platforms->of_node = cpu_np;
+	dai->cpus->of_yesde = cpu_np;
+	dai->platforms->of_yesde = cpu_np;
 
 	dai_fmt = snd_soc_of_parse_daifmt(np, NULL,
 					  &bitclkmaster, &framemaster);
@@ -133,12 +133,12 @@ static int snd_proto_probe(struct platform_device *pdev)
 		else
 			dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
 	}
-	of_node_put(bitclkmaster);
-	of_node_put(framemaster);
+	of_yesde_put(bitclkmaster);
+	of_yesde_put(framemaster);
 	dai->dai_fmt = dai_fmt;
 
-	of_node_put(codec_np);
-	of_node_put(cpu_np);
+	of_yesde_put(codec_np);
+	of_yesde_put(cpu_np);
 
 	ret = snd_soc_register_card(&snd_proto);
 	if (ret && ret != -EPROBE_DEFER)

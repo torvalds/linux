@@ -3,7 +3,7 @@
 #include <asm/asm.h>
 #include <asm/bitsperlong.h>
 #include <asm/kvm_vcpu_regs.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 #define WORD_SIZE (BITS_PER_LONG / 8)
 
@@ -193,7 +193,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	 * speculative use of the guest's values, even those that are reloaded
 	 * via the stack.  In theory, an L1 cache miss when restoring registers
 	 * could lead to speculative execution with the guest's values.
-	 * Zeroing XORs are dirt cheap, i.e. the extra paranoia is essentially
+	 * Zeroing XORs are dirt cheap, i.e. the extra parayesia is essentially
 	 * free.  RSP and RAX are exempt as RSP is restored by hardware during
 	 * VM-Exit and RAX is explicitly loaded with 0 or 1 to return VM-Fail.
 	 */

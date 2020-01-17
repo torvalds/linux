@@ -37,7 +37,7 @@ struct hda_jack_tbl {
 	unsigned int jack_detect:1;	/* capable of jack-detection? */
 	unsigned int jack_dirty:1;	/* needs to update? */
 	unsigned int phantom_jack:1;    /* a fixed, always present port? */
-	unsigned int block_report:1;    /* in a transitional state - do not report to userspace */
+	unsigned int block_report:1;    /* in a transitional state - do yest report to userspace */
 	hda_nid_t gating_jack;		/* valid when gating jack plugged */
 	hda_nid_t gated_jack;		/* gated is dependent on this jack */
 	int type;
@@ -86,7 +86,7 @@ snd_hda_jack_detect_enable_callback_mst(struct hda_codec *codec, hda_nid_t nid,
  * @func: callback function to register
  *
  * In the case of error, the return value will be a pointer embedded with
- * errno.  Check and handle the return value appropriately with standard
+ * erryes.  Check and handle the return value appropriately with standard
  * macros such as @IS_ERR() and @PTR_ERR().
  */
 static inline struct hda_jack_callback *

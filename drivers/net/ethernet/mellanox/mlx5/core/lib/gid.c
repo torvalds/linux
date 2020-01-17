@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -56,7 +56,7 @@ void mlx5_cleanup_reserved_gids(struct mlx5_core_dev *dev)
 int mlx5_core_reserve_gids(struct mlx5_core_dev *dev, unsigned int count)
 {
 	if (test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state)) {
-		mlx5_core_err(dev, "Cannot reserve GIDs when interfaces are up\n");
+		mlx5_core_err(dev, "Canyest reserve GIDs when interfaces are up\n");
 		return -EPERM;
 	}
 	if (dev->roce.reserved_gids.start < count) {

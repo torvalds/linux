@@ -7,14 +7,14 @@
  * TODO:
  *  - implement DAPM and input muxing
  *  - implement modulation limit
- *  - implement non-default PWM start
+ *  - implement yesn-default PWM start
  *
  * Note that this chip has a very unusual register layout, specifically
  * because the registers are of unequal size, and multi-byte registers
- * require bulk writes to take effect. Regmap does not support that kind
+ * require bulk writes to take effect. Regmap does yest support that kind
  * of devices.
  *
- * Currently, the driver does not touch any of the registers >= 0x20, so
+ * Currently, the driver does yest touch any of the registers >= 0x20, so
  * it doesn't matter because the entire map can be accessed as 8-bit
  * array. In case more features will be added in the future
  * that require access to higher registers, the entire regmap H/W I/O
@@ -398,7 +398,7 @@ static int tas5086_hw_params(struct snd_pcm_substream *substream,
 
 	/*
 	 * The chip has a very unituitive register mapping and muxes information
-	 * about data format and sample depth into the same register, but not on
+	 * about data format and sample depth into the same register, but yest on
 	 * a logical bit-boundary. Hence, we have to refer to the format passed
 	 * in the set_dai_fmt() callback and set up everything from here.
 	 *
@@ -439,7 +439,7 @@ static int tas5086_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	/* clock is considered valid now */
+	/* clock is considered valid yesw */
 	ret = regmap_update_bits(priv->regmap, TAS5086_CLOCK_CONTROL,
 				 TAS5086_CLOCK_VALID, TAS5086_CLOCK_VALID);
 	if (ret < 0)
@@ -520,7 +520,7 @@ static int tas5086_init(struct device *dev, struct tas5086_private *priv)
 	if (ret < 0)
 		return ret;
 
-	/* mute all channels for now */
+	/* mute all channels for yesw */
 	ret = regmap_write(priv->regmap, TAS5086_SOFT_MUTE,
 			   TAS5086_SOFT_MUTE_ALL);
 	if (ret < 0)
@@ -829,9 +829,9 @@ static int tas5086_probe(struct snd_soc_component *component)
 	priv->charge_period = 1300000; /* hardware default is 1300 ms */
 
 	if (of_match_device(of_match_ptr(tas5086_dt_ids), component->dev)) {
-		struct device_node *of_node = component->dev->of_node;
+		struct device_yesde *of_yesde = component->dev->of_yesde;
 
-		of_property_read_u32(of_node, "ti,charge-period",
+		of_property_read_u32(of_yesde, "ti,charge-period",
 				     &priv->charge_period);
 
 		for (i = 0; i < 6; i++) {
@@ -840,7 +840,7 @@ static int tas5086_probe(struct snd_soc_component *component)
 			snprintf(name, sizeof(name),
 				 "ti,mid-z-channel-%d", i + 1);
 
-			if (of_get_property(of_node, name, NULL) != NULL)
+			if (of_get_property(of_yesde, name, NULL) != NULL)
 				priv->pwm_start_mid_z |= 1 << i;
 		}
 	}
@@ -888,7 +888,7 @@ static const struct snd_soc_component_driver soc_component_dev_tas5086 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct i2c_device_id tas5086_i2c_id[] = {
@@ -943,8 +943,8 @@ static int tas5086_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, priv);
 
 	if (of_match_device(of_match_ptr(tas5086_dt_ids), dev)) {
-		struct device_node *of_node = dev->of_node;
-		gpio_nreset = of_get_named_gpio(of_node, "reset-gpio", 0);
+		struct device_yesde *of_yesde = dev->of_yesde;
+		gpio_nreset = of_get_named_gpio(of_yesde, "reset-gpio", 0);
 	}
 
 	if (gpio_is_valid(gpio_nreset))

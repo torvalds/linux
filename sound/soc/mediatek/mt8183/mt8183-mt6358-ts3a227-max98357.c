@@ -133,7 +133,7 @@ SND_SOC_DAILINK_DEFS(capture3,
 	DAILINK_COMP_ARRAY(COMP_DUMMY()),
 	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
-SND_SOC_DAILINK_DEFS(capture_mono,
+SND_SOC_DAILINK_DEFS(capture_moyes,
 	DAILINK_COMP_ARRAY(COMP_CPU("UL_MONO_1")),
 	DAILINK_COMP_ARRAY(COMP_DUMMY()),
 	DAILINK_COMP_ARRAY(COMP_EMPTY()));
@@ -330,13 +330,13 @@ mt8183_mt6358_ts3a227_max98357_dai_links[] = {
 		SND_SOC_DAILINK_REG(capture3),
 	},
 	{
-		.name = "Capture_Mono_1",
-		.stream_name = "Capture_Mono_1",
+		.name = "Capture_Moyes_1",
+		.stream_name = "Capture_Moyes_1",
 		.trigger = {SND_SOC_DPCM_TRIGGER_PRE,
 			    SND_SOC_DPCM_TRIGGER_PRE},
 		.dynamic = 1,
 		.dpcm_capture = 1,
-		SND_SOC_DAILINK_REG(capture_mono),
+		SND_SOC_DAILINK_REG(capture_moyes),
 	},
 	{
 		.name = "Playback_HDMI",
@@ -350,8 +350,8 @@ mt8183_mt6358_ts3a227_max98357_dai_links[] = {
 	{
 		.name = "Wake on Voice",
 		.stream_name = "Wake on Voice",
-		.ignore_suspend = 1,
-		.ignore = 1,
+		.igyesre_suspend = 1,
+		.igyesre = 1,
 		SND_SOC_DAILINK_REG(wake_on_voice),
 		.ops = &mt8183_mt6358_ts3a227_max98357_wov_ops,
 	},
@@ -359,81 +359,81 @@ mt8183_mt6358_ts3a227_max98357_dai_links[] = {
 	/* BE */
 	{
 		.name = "Primary Codec",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		SND_SOC_DAILINK_REG(primary_codec),
 	},
 	{
 		.name = "PCM 1",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		SND_SOC_DAILINK_REG(pcm1),
 	},
 	{
 		.name = "PCM 2",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		SND_SOC_DAILINK_REG(pcm2),
 	},
 	{
 		.name = "I2S0",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
 		.ops = &mt8183_mt6358_i2s_ops,
 		SND_SOC_DAILINK_REG(i2s0),
 	},
 	{
 		.name = "I2S1",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
 		.ops = &mt8183_mt6358_i2s_ops,
 		SND_SOC_DAILINK_REG(i2s1),
 	},
 	{
 		.name = "I2S2",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
 		.ops = &mt8183_mt6358_i2s_ops,
 		SND_SOC_DAILINK_REG(i2s2),
 	},
 	{
 		.name = "I2S3",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
 		.ops = &mt8183_mt6358_i2s_ops,
 		SND_SOC_DAILINK_REG(i2s3),
 	},
 	{
 		.name = "I2S5",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
 		.ops = &mt8183_mt6358_i2s_ops,
 		SND_SOC_DAILINK_REG(i2s5),
 	},
 	{
 		.name = "TDM",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S |
 			   SND_SOC_DAIFMT_IB_IF |
 			   SND_SOC_DAIFMT_CBM_CFM,
 		.dpcm_playback = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		.be_hw_params_fixup = mt8183_i2s_hw_params_fixup,
 		.ops = &mt8183_mt6358_tdm_ops,
 		SND_SOC_DAILINK_REG(tdm),
@@ -479,7 +479,7 @@ static int
 mt8183_mt6358_ts3a227_max98357_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt8183_mt6358_ts3a227_max98357_card;
-	struct device_node *platform_node, *ec_codec;
+	struct device_yesde *platform_yesde, *ec_codec;
 	struct snd_soc_dai_link *dai_link;
 	struct mt8183_mt6358_ts3a227_max98357_priv *priv;
 	int ret;
@@ -487,14 +487,14 @@ mt8183_mt6358_ts3a227_max98357_dev_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	platform_node = of_parse_phandle(pdev->dev.of_node,
+	platform_yesde = of_parse_phandle(pdev->dev.of_yesde,
 					 "mediatek,platform", 0);
-	if (!platform_node) {
+	if (!platform_yesde) {
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
 
-	ec_codec = of_parse_phandle(pdev->dev.of_node, "mediatek,ec-codec", 0);
+	ec_codec = of_parse_phandle(pdev->dev.of_yesde, "mediatek,ec-codec", 0);
 
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->platforms->name)
@@ -502,22 +502,22 @@ mt8183_mt6358_ts3a227_max98357_dev_probe(struct platform_device *pdev)
 
 		if (ec_codec && strcmp(dai_link->name, "Wake on Voice") == 0) {
 			dai_link->cpus[0].name = NULL;
-			dai_link->cpus[0].of_node = ec_codec;
+			dai_link->cpus[0].of_yesde = ec_codec;
 			dai_link->cpus[0].dai_name = NULL;
 			dai_link->codecs[0].name = NULL;
-			dai_link->codecs[0].of_node = ec_codec;
+			dai_link->codecs[0].of_yesde = ec_codec;
 			dai_link->codecs[0].dai_name = "Wake on Voice";
-			dai_link->platforms[0].of_node = ec_codec;
-			dai_link->ignore = 0;
+			dai_link->platforms[0].of_yesde = ec_codec;
+			dai_link->igyesre = 0;
 		} else {
-			dai_link->platforms->of_node = platform_node;
+			dai_link->platforms->of_yesde = platform_yesde;
 		}
 	}
 
-	mt8183_mt6358_ts3a227_max98357_headset_dev.dlc.of_node =
-		of_parse_phandle(pdev->dev.of_node,
+	mt8183_mt6358_ts3a227_max98357_headset_dev.dlc.of_yesde =
+		of_parse_phandle(pdev->dev.of_yesde,
 				 "mediatek,headset-codec", 0);
-	if (mt8183_mt6358_ts3a227_max98357_headset_dev.dlc.of_node) {
+	if (mt8183_mt6358_ts3a227_max98357_headset_dev.dlc.of_yesde) {
 		card->aux_dev = &mt8183_mt6358_ts3a227_max98357_headset_dev;
 		card->num_aux_devs = 1;
 	}

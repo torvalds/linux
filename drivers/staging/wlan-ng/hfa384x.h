@@ -9,7 +9,7 @@
  * linux-wlan
  *
  *   The contents of this file are subject to the Mozilla Public
- *   License Version 1.1 (the "License"); you may not use this file
+ *   License Version 1.1 (the "License"); you may yest use this file
  *   except in compliance with the License. You may obtain a copy of
  *   the License at http://www.mozilla.org/MPL/
  *
@@ -22,10 +22,10 @@
  *   terms of the GNU Public License version 2 (the "GPL"), in which
  *   case the provisions of the GPL are applicable instead of the
  *   above.  If you wish to allow the use of your version of this file
- *   only under the terms of the GPL and not to allow others to use
+ *   only under the terms of the GPL and yest to allow others to use
  *   your version of this file under the MPL, indicate your decision
- *   by deleting the provisions above and replace them with the notice
- *   and other provisions required by the GPL.  If you do not delete
+ *   by deleting the provisions above and replace them with the yestice
+ *   and other provisions required by the GPL.  If you do yest delete
  *   the provisions above, a recipient may use your version of this
  *   file under either the MPL or the GPL.
  *
@@ -45,7 +45,7 @@
  *
  * --------------------------------------------------------------------
  *
- *   [Implementation and usage notes]
+ *   [Implementation and usage yestes]
  *
  *   [References]
  *	CW10 Programmer's Manual v1.5
@@ -71,7 +71,7 @@
 #define	HFA384x_SCANRESULT_MAX		((u16)31)
 #define	HFA384x_HSCANRESULT_MAX		((u16)31)
 #define	HFA384x_CHINFORESULT_MAX	((u16)16)
-#define	HFA384x_RID_GUESSING_MAXLEN	2048	/* I'm not really sure */
+#define	HFA384x_RID_GUESSING_MAXLEN	2048	/* I'm yest really sure */
 #define	HFA384x_RIDDATA_MAXLEN		HFA384x_RID_GUESSING_MAXLEN
 #define	HFA384x_USB_RWMEM_MAXLEN	2048
 
@@ -167,8 +167,8 @@
 /*--- Programming Modes --------------------------
  *	MODE 0: Disable programming
  *	MODE 1: Enable volatile memory programming
- *	MODE 2: Enable non-volatile memory programming
- *	MODE 3: Program non-volatile memory section
+ *	MODE 2: Enable yesn-volatile memory programming
+ *	MODE 3: Program yesn-volatile memory section
  *-------------------------------------------------
  */
 #define		HFA384x_PROGMODE_DISABLE	((u16)0x00)
@@ -190,7 +190,7 @@
 
 /*--------------------------------------------------------------------
  * Configuration RID lengths: Network Params, Static Config Entities
- * This is the length of JUST the DATA part of the RID (does not
+ * This is the length of JUST the DATA part of the RID (does yest
  * include the len or code fields)
  *--------------------------------------------------------------------
  */
@@ -228,7 +228,7 @@
 
 /*----------------------------------------------------------------------
  * Information RID Lengths: NIC Information
- * This is the length of JUST the DATA part of the RID (does not
+ * This is the length of JUST the DATA part of the RID (does yest
  * include the len or code fields)
  *---------------------------------------------------------------------
  */
@@ -250,7 +250,7 @@
 
 /*--------------------------------------------------------------------
  * Information RID Lengths:  MAC Information
- * This is the length of JUST the DATA part of the RID (does not
+ * This is the length of JUST the DATA part of the RID (does yest
  * include the len or code fields)
  *--------------------------------------------------------------------
  */
@@ -374,7 +374,7 @@ struct hfa384x_compident {
 	u16 id;
 	u16 variant;
 	u16 major;
-	u16 minor;
+	u16 miyesr;
 } __packed;
 
 struct hfa384x_caplevel {
@@ -597,7 +597,7 @@ struct hfa384x_rx_frame {
  *--------------------------------------------------------------------
  */
 
-/*--  Inquiry Frame, Diagnose: Communication Tallies --*/
+/*--  Inquiry Frame, Diagyesse: Communication Tallies --*/
 struct hfa384x_comm_tallies_16 {
 	__le16 txunicastframes;
 	__le16 txmulticastframes;
@@ -615,7 +615,7 @@ struct hfa384x_comm_tallies_16 {
 	__le16 rxunicastoctets;
 	__le16 rxmulticastoctets;
 	__le16 rxfcserrors;
-	__le16 rxdiscardsnobuffer;
+	__le16 rxdiscardsyesbuffer;
 	__le16 txdiscardswrongsa;
 	__le16 rxdiscardswepundecr;
 	__le16 rxmsginmsgfrag;
@@ -639,14 +639,14 @@ struct hfa384x_comm_tallies_32 {
 	__le32 rxunicastoctets;
 	__le32 rxmulticastoctets;
 	__le32 rxfcserrors;
-	__le32 rxdiscardsnobuffer;
+	__le32 rxdiscardsyesbuffer;
 	__le32 txdiscardswrongsa;
 	__le32 rxdiscardswepundecr;
 	__le32 rxmsginmsgfrag;
 	__le32 rxmsginbadmsgfrag;
 } __packed;
 
-/*--  Inquiry Frame, Diagnose: Scan Results & Subfields--*/
+/*--  Inquiry Frame, Diagyesse: Scan Results & Subfields--*/
 struct hfa384x_scan_result_sub {
 	u16 chid;
 	u16 anl;
@@ -665,7 +665,7 @@ struct hfa384x_scan_result {
 	struct hfa384x_scan_result_sub result[HFA384x_SCANRESULT_MAX];
 } __packed;
 
-/*--  Inquiry Frame, Diagnose: ChInfo Results & Subfields--*/
+/*--  Inquiry Frame, Diagyesse: ChInfo Results & Subfields--*/
 struct hfa384x_ch_info_result_sub {
 	u16 chid;
 	u16 anl;
@@ -681,7 +681,7 @@ struct hfa384x_ch_info_result {
 	struct hfa384x_ch_info_result_sub result[HFA384x_CHINFORESULT_MAX];
 } __packed;
 
-/*--  Inquiry Frame, Diagnose: Host Scan Results & Subfields--*/
+/*--  Inquiry Frame, Diagyesse: Host Scan Results & Subfields--*/
 struct hfa384x_hscan_result_sub {
 	__le16 chid;
 	__le16 anl;
@@ -885,7 +885,7 @@ struct hfa384x_usb_error {
 } __packed;
 
 /*----------------------------------------------------------*/
-/* Unions for packaging all the known packet types together */
+/* Unions for packaging all the kyeswn packet types together */
 
 union hfa384x_usbout {
 	__le16 type;
@@ -969,7 +969,7 @@ struct hfa384x_pdr_nicid {
 	u16 id;
 	u16 variant;
 	u16 major;
-	u16 minor;
+	u16 miyesr;
 } __packed;
 
 struct hfa384x_pdr_refdac_measurements {
@@ -1147,7 +1147,7 @@ struct hfa384x_rridresult {
 };
 
 enum ctlx_state {
-	CTLX_START = 0,		/* Start state, not queued */
+	CTLX_START = 0,		/* Start state, yest queued */
 
 	CTLX_COMPLETE,		/* CTLX successfully completed */
 	CTLX_REQ_FAILED,	/* OUT URB completed w/ error */
@@ -1209,7 +1209,7 @@ struct hfa384x_metacmd {
 #define WLAN_ACCESS_NONE	0   /* No stations may be authenticated. */
 #define WLAN_ACCESS_ALL		1   /* All stations may be authenticated. */
 #define WLAN_ACCESS_ALLOW	2   /* Authenticate only "allowed" stations. */
-#define WLAN_ACCESS_DENY	3   /* Do not authenticate "denied" stations. */
+#define WLAN_ACCESS_DENY	3   /* Do yest authenticate "denied" stations. */
 
 /* XXX These are going away ASAP */
 struct prism2sta_authlist {
@@ -1304,7 +1304,7 @@ struct hfa384x {
 
 	int dbmadjust;
 
-	/* Group Addresses - right now, there are up to a total
+	/* Group Addresses - right yesw, there are up to a total
 	 * of MAX_GRP_ADDR group addresses
 	 */
 	u8 dot11_grp_addr[MAX_GRP_ADDR][ETH_ALEN];

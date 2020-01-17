@@ -79,14 +79,14 @@ struct snd_soc_acpi_mach_params {
  * @id: ACPI ID (usually the codec's) used to find a matching machine driver.
  * @link_mask: describes required board layout, e.g. for SoundWire.
  * @drv_name: machine driver name
- * @fw_filename: firmware file name. Used when SOF is not enabled.
+ * @fw_filename: firmware file name. Used when SOF is yest enabled.
  * @board: board name
  * @machine_quirk: pointer to quirk, usually based on DMI information when
- * ACPI ID alone is not sufficient, wrong or misleading
+ * ACPI ID alone is yest sufficient, wrong or misleading
  * @quirk_data: data used to uniquely identify a machine, usually a list of
  * audio codecs whose presence if checked with ACPI
  * @pdata: intended for platform data or machine specific-ops. This structure
- *  is not constant since this field may be updated at run-time
+ *  is yest constant since this field may be updated at run-time
  * @sof_fw_filename: Sound Open Firmware file name, if enabled
  * @sof_tplg_filename: Sound Open Firmware topology file name, if enabled
  */

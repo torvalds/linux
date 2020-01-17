@@ -79,7 +79,7 @@ void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
 {
 	if (__ieee80211_recalc_txpower(sdata) ||
 	    (update_bss && ieee80211_sdata_running(sdata)))
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_TXPOWER);
+		ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_TXPOWER);
 }
 
 static u32 __ieee80211_idle_off(struct ieee80211_local *local)
@@ -264,7 +264,7 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 			/*
 			 * Allow only a single IBSS interface to be up at any
 			 * time. This is restricted because beacon distribution
-			 * cannot work properly if both are in the same IBSS.
+			 * canyest work properly if both are in the same IBSS.
 			 *
 			 * To remove this restriction we'd have to disallow them
 			 * from setting the same SSID on different IBSS interfaces
@@ -275,7 +275,7 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 			    nsdata->vif.type == NL80211_IFTYPE_ADHOC)
 				return -EBUSY;
 			/*
-			 * will not add another interface while any channel
+			 * will yest add ayesther interface while any channel
 			 * switch is active.
 			 */
 			if (nsdata->vif.csa_active)
@@ -515,8 +515,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 				      struct ieee80211_sub_if_data, u.ap);
 		sdata->control_port_protocol =
 			master->control_port_protocol;
-		sdata->control_port_no_encrypt =
-			master->control_port_no_encrypt;
+		sdata->control_port_yes_encrypt =
+			master->control_port_yes_encrypt;
 		sdata->control_port_over_nl80211 =
 			master->control_port_over_nl80211;
 		sdata->vif.cab_queue = master->vif.cab_queue;
@@ -541,13 +541,13 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	case NL80211_IFTYPE_P2P_DEVICE:
 	case NL80211_IFTYPE_OCB:
 	case NL80211_IFTYPE_NAN:
-		/* no special treatment */
+		/* yes special treatment */
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NUM_NL80211_IFTYPES:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
-		/* cannot happen */
+		/* canyest happen */
 		WARN_ON(1);
 		break;
 	}
@@ -564,7 +564,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	}
 
 	/*
-	 * Copy the hopefully now-present MAC address to
+	 * Copy the hopefully yesw-present MAC address to
 	 * this interface, if it has the special null one.
 	 */
 	if (dev && is_zero_ether_addr(dev->dev_addr)) {
@@ -581,7 +581,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:
-		/* no need to tell driver, but set carrier and chanctx */
+		/* yes need to tell driver, but set carrier and chanctx */
 		if (rtnl_dereference(sdata->bss->beacon)) {
 			ieee80211_vif_vlan_copy_chanctx(sdata);
 			netif_carrier_on(dev);
@@ -645,7 +645,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
 		    sdata->vif.type != NL80211_IFTYPE_NAN)
 			changed |= ieee80211_reset_erp_info(sdata);
-		ieee80211_bss_info_change_notify(sdata, changed);
+		ieee80211_bss_info_change_yestify(sdata, changed);
 
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
@@ -660,7 +660,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		case NL80211_IFTYPE_NAN:
 			break;
 		default:
-			/* not reached */
+			/* yest reached */
 			WARN_ON(1);
 		}
 
@@ -840,14 +840,14 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	 * Remove all stations associated with this interface.
 	 *
 	 * This must be done before calling ops->remove_interface()
-	 * because otherwise we can later invoke ops->sta_notify()
+	 * because otherwise we can later invoke ops->sta_yestify()
 	 * whenever the STAs are removed, and that invalidates driver
 	 * assumptions about always getting a vif pointer that is valid
 	 * (because if we remove a STA after ops->remove_interface()
 	 * the driver will have removed the vif info already!)
 	 *
 	 * In WDS mode a station must exist here and be flushed, for
-	 * AP_VLANs stations may exist since there's nothing else that
+	 * AP_VLANs stations may exist since there's yesthing else that
 	 * would have removed them, but in other modes there shouldn't
 	 * be any stations.
 	 */
@@ -943,7 +943,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		RCU_INIT_POINTER(sdata->vif.chanctx_conf, NULL);
 		/* see comment in the default case below */
 		ieee80211_free_keys(sdata, true);
-		/* no need to tell driver */
+		/* yes need to tell driver */
 		break;
 	case NL80211_IFTYPE_MONITOR:
 		if (sdata->u.mntr.flags & MONITOR_FLAG_COOK_FRAMES) {
@@ -987,7 +987,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		 * Force the key freeing to always synchronize_net()
 		 * to wait for the RX path in case it is using this
 		 * interface enqueuing frames at this very time on
-		 * another CPU.
+		 * ayesther CPU.
 		 */
 		ieee80211_free_keys(sdata, true);
 		skb_queue_purge(&sdata->skb_queue);
@@ -1058,7 +1058,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	if (local->open_count == 0) {
 		ieee80211_stop_device(local);
 
-		/* no reconfiguring after stop! */
+		/* yes reconfiguring after stop! */
 		return;
 	}
 
@@ -1219,7 +1219,7 @@ static void ieee80211_if_setup(struct net_device *dev)
 	dev->priv_destructor = ieee80211_if_free;
 }
 
-static void ieee80211_if_setup_no_queue(struct net_device *dev)
+static void ieee80211_if_setup_yes_queue(struct net_device *dev)
 {
 	ieee80211_if_setup(dev);
 	dev->priv_flags |= IFF_NO_QUEUE;
@@ -1274,7 +1274,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 			mutex_unlock(&local->sta_mtx);
 		} else if (ieee80211_is_action(mgmt->frame_control) &&
 			   mgmt->u.action.category == WLAN_CATEGORY_VHT) {
-			switch (mgmt->u.action.u.vht_group_notif.action_code) {
+			switch (mgmt->u.action.u.vht_group_yestif.action_code) {
 			case WLAN_VHT_ACTION_OPMODE_NOTIF: {
 				struct ieee80211_rx_status *status;
 				enum nl80211_band band;
@@ -1282,7 +1282,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 
 				status = IEEE80211_SKB_RXCB(skb);
 				band = status->band;
-				opmode = mgmt->u.action.u.vht_opmode_notif.operating_mode;
+				opmode = mgmt->u.action.u.vht_opmode_yestif.operating_mode;
 
 				mutex_lock(&local->sta_mtx);
 				sta = sta_info_get_bss(sdata, mgmt->sa);
@@ -1310,7 +1310,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 			 * the if statement is correct.
 			 *
 			 * Warn if we have other data frame types here,
-			 * they must not get here.
+			 * they must yest get here.
 			 */
 			WARN_ON(hdr->frame_control &
 					cpu_to_le16(IEEE80211_STYPE_NULLFUNC));
@@ -1318,7 +1318,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 					cpu_to_le16(IEEE80211_SCTL_FRAG)));
 			/*
 			 * This was a fragment of a frame, received while
-			 * a block-ack session was active. That cannot be
+			 * a block-ack session was active. That canyest be
 			 * right, so terminate the session.
 			 */
 			mutex_lock(&local->sta_mtx);
@@ -1399,11 +1399,11 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	sdata->wdev.iftype = type;
 
 	sdata->control_port_protocol = cpu_to_be16(ETH_P_PAE);
-	sdata->control_port_no_encrypt = false;
+	sdata->control_port_yes_encrypt = false;
 	sdata->encrypt_headroom = IEEE80211_ENCRYPT_HEADROOM;
 	sdata->vif.bss_conf.idle = true;
 
-	sdata->noack_map = 0;
+	sdata->yesack_map = 0;
 
 	/* only monitor/p2p-device differ */
 	if (sdata->dev) {
@@ -1500,7 +1500,7 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_OCB:
 		/*
 		 * Could maybe also all others here?
-		 * Just not sure how that interacts
+		 * Just yest sure how that interacts
 		 * with the RX/config path e.g. for
 		 * mesh.
 		 */
@@ -1546,7 +1546,7 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 		type = ieee80211_vif_type_p2p(&sdata->vif);
 
 	/*
-	 * Ignore return value here, there's not much we can do since
+	 * Igyesre return value here, there's yest much we can do since
 	 * the driver changed the interface type internally already.
 	 * The warnings will hopefully make driver authors fix it :-)
 	 */
@@ -1618,7 +1618,7 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 			memcpy(perm_addr, sdata->vif.addr, ETH_ALEN);
 			break;
 		}
-		/* keep default if no AP interface present */
+		/* keep default if yes AP interface present */
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
@@ -1664,8 +1664,8 @@ static void ieee80211_assign_perm_addr(struct ieee80211_local *local,
 			((u64)m[4] << 1*8) | ((u64)m[5] << 0*8);
 
 		if (__ffs64(mask) + hweight64(mask) != fls64(mask)) {
-			/* not a contiguous mask ... not handled now! */
-			pr_info("not contiguous\n");
+			/* yest a contiguous mask ... yest handled yesw! */
+			pr_info("yest contiguous\n");
 			break;
 		}
 
@@ -1760,7 +1760,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 				    local->hw.txq_data_size;
 
 		if (local->ops->wake_tx_queue) {
-			if_setup = ieee80211_if_setup_no_queue;
+			if_setup = ieee80211_if_setup_yes_queue;
 		} else {
 			if_setup = ieee80211_if_setup;
 			if (local->hw.queues >= IEEE80211_NUM_ACS)
@@ -1969,10 +1969,10 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 	}
 }
 
-static int netdev_notify(struct notifier_block *nb,
+static int netdev_yestify(struct yestifier_block *nb,
 			 unsigned long state, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct ieee80211_sub_if_data *sdata;
 
 	if (state != NETDEV_CHANGENAME)
@@ -1991,18 +1991,18 @@ static int netdev_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block mac80211_netdev_notifier = {
-	.notifier_call = netdev_notify,
+static struct yestifier_block mac80211_netdev_yestifier = {
+	.yestifier_call = netdev_yestify,
 };
 
 int ieee80211_iface_init(void)
 {
-	return register_netdevice_notifier(&mac80211_netdev_notifier);
+	return register_netdevice_yestifier(&mac80211_netdev_yestifier);
 }
 
 void ieee80211_iface_exit(void)
 {
-	unregister_netdevice_notifier(&mac80211_netdev_notifier);
+	unregister_netdevice_yestifier(&mac80211_netdev_yestifier);
 }
 
 void ieee80211_vif_inc_num_mcast(struct ieee80211_sub_if_data *sdata)

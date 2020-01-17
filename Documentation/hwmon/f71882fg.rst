@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'f71808e'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Not public
 
@@ -15,7 +15,7 @@ Supported chips:
 
     Prefix: 'f71808a'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Not public
 
@@ -23,7 +23,7 @@ Supported chips:
 
     Prefix: 'f71858fg'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -31,7 +31,7 @@ Supported chips:
 
     Prefix: 'f71862fg'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -39,7 +39,7 @@ Supported chips:
 
     Prefix: 'f71869'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -47,7 +47,7 @@ Supported chips:
 
     Prefix: 'f71869a'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Not public
 
@@ -55,7 +55,7 @@ Supported chips:
 
     Prefix: 'f71882fg'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -63,7 +63,7 @@ Supported chips:
 
     Prefix: 'f71889fg'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -71,7 +71,7 @@ Supported chips:
 
     Prefix: 'f71889ed'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Should become available on the Fintek website soon
 
@@ -79,7 +79,7 @@ Supported chips:
 
     Prefix: 'f71889a'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Should become available on the Fintek website soon
 
@@ -87,7 +87,7 @@ Supported chips:
 
     Prefix: 'f8000'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Not public
 
@@ -95,7 +95,7 @@ Supported chips:
 
     Prefix: 'f71889fg'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Not public
 
@@ -108,7 +108,7 @@ Supported chips:
 
     Prefix: 'f81865f'
 
-    Addresses scanned: none, address read from Super I/O config space
+    Addresses scanned: yesne, address read from Super I/O config space
 
     Datasheet: Available from the Fintek website
 
@@ -125,7 +125,7 @@ sensors.
 These chips also have fan controlling features, using either DC or PWM, in
 three different modes (one manual, two automatic).
 
-The driver assumes that no more than one chip is present, which seems
+The driver assumes that yes more than one chip is present, which seems
 reasonable.
 
 
@@ -159,8 +159,8 @@ Since both modes work in a 0-100% (mapped to 0-255) scale, there isn't a
 whole lot of a difference when modifying fan control settings. The only
 important difference is that in RPM mode the 0-100% controls the fan speed
 between 0-100% of fan#_full_speed. It is assumed that if the BIOS programs
-RPM mode, it will also set fan#_full_speed properly, if it does not then
-fan control will not work properly, unless you set a sane fan#_full_speed
+RPM mode, it will also set fan#_full_speed properly, if it does yest then
+fan control will yest work properly, unless you set a sane fan#_full_speed
 value yourself.
 
 Switching between these modes requires re-initializing a whole bunch of
@@ -168,7 +168,7 @@ registers, so the mode which the BIOS has set is kept. The mode is
 printed when loading the driver.
 
 Three different fan control modes are supported; the mode number is written
-to the pwm#_enable file. Note that not all modes are supported on all
+to the pwm#_enable file. Note that yest all modes are supported on all
 chips, and some modes may only be available in RPM / PWM mode.
 Writing an unsupported mode will result in an invalid parameter error.
 

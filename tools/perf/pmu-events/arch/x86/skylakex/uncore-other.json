@@ -253,42 +253,42 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Core Cross Snoops Issued; Multiple Core Requests",
+        "BriefDescription": "Core Cross Syesops Issued; Multiple Core Requests",
         "Counter": "0,1,2,3",
         "EventCode": "0x33",
         "EventName": "UNC_CHA_CORE_SNP.CORE_GTONE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of transactions that trigger a configurable number of cross snoops.  Cores are snooped if the transaction looks up the cache and determines that it is necessary based on the operation type and what CoreValid bits are set.  For example, if 2 CV bits are set on a data read, the cores must have the data in S state so it is not necessary to snoop them.  However, if only 1 CV bit is set the core my have modified the data.  If the transaction was an RFO, it would need to invalidate the lines.  This event can be filtered based on who triggered the initial snoop(s).",
+        "PublicDescription": "Counts the number of transactions that trigger a configurable number of cross syesops.  Cores are syesoped if the transaction looks up the cache and determines that it is necessary based on the operation type and what CoreValid bits are set.  For example, if 2 CV bits are set on a data read, the cores must have the data in S state so it is yest necessary to syesop them.  However, if only 1 CV bit is set the core my have modified the data.  If the transaction was an RFO, it would need to invalidate the lines.  This event can be filtered based on who triggered the initial syesop(s).",
         "UMask": "0x42",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Core Cross Snoops Issued; Multiple Eviction",
+        "BriefDescription": "Core Cross Syesops Issued; Multiple Eviction",
         "Counter": "0,1,2,3",
         "EventCode": "0x33",
         "EventName": "UNC_CHA_CORE_SNP.EVICT_GTONE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of transactions that trigger a configurable number of cross snoops.  Cores are snooped if the transaction looks up the cache and determines that it is necessary based on the operation type and what CoreValid bits are set.  For example, if 2 CV bits are set on a data read, the cores must have the data in S state so it is not necessary to snoop them.  However, if only 1 CV bit is set the core my have modified the data.  If the transaction was an RFO, it would need to invalidate the lines.  This event can be filtered based on who triggered the initial snoop(s).",
+        "PublicDescription": "Counts the number of transactions that trigger a configurable number of cross syesops.  Cores are syesoped if the transaction looks up the cache and determines that it is necessary based on the operation type and what CoreValid bits are set.  For example, if 2 CV bits are set on a data read, the cores must have the data in S state so it is yest necessary to syesop them.  However, if only 1 CV bit is set the core my have modified the data.  If the transaction was an RFO, it would need to invalidate the lines.  This event can be filtered based on who triggered the initial syesop(s).",
         "UMask": "0x82",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Multi-socket cacheline Directory state lookups; Snoop Not Needed",
+        "BriefDescription": "Multi-socket cacheline Directory state lookups; Syesop Not Needed",
         "Counter": "0,1,2,3",
         "EventCode": "0x53",
         "EventName": "UNC_CHA_DIR_LOOKUP.NO_SNP",
         "PerPkg": "1",
-        "PublicDescription": "Counts transactions that looked into the multi-socket cacheline Directory state, and therefore did not send a snoop because the Directory indicated it was not needed",
+        "PublicDescription": "Counts transactions that looked into the multi-socket cacheline Directory state, and therefore did yest send a syesop because the Directory indicated it was yest needed",
         "UMask": "0x02",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Multi-socket cacheline Directory state lookups; Snoop Needed",
+        "BriefDescription": "Multi-socket cacheline Directory state lookups; Syesop Needed",
         "Counter": "0,1,2,3",
         "EventCode": "0x53",
         "EventName": "UNC_CHA_DIR_LOOKUP.SNP",
         "PerPkg": "1",
-        "PublicDescription": "Counts  transactions that looked into the multi-socket cacheline Directory state, and sent one or more snoops, because the Directory indicated it was needed",
+        "PublicDescription": "Counts  transactions that looked into the multi-socket cacheline Directory state, and sent one or more syesops, because the Directory indicated it was needed",
         "UMask": "0x01",
         "Unit": "CHA"
     },
@@ -298,7 +298,7 @@
         "EventCode": "0x54",
         "EventName": "UNC_CHA_DIR_UPDATE.HA",
         "PerPkg": "1",
-        "PublicDescription": "Counts only multi-socket cacheline Directory state updates memory writes issued from the HA pipe. This does not include memory write requests which are for I (Invalid) or E (Exclusive) cachelines.",
+        "PublicDescription": "Counts only multi-socket cacheline Directory state updates memory writes issued from the HA pipe. This does yest include memory write requests which are for I (Invalid) or E (Exclusive) cachelines.",
         "UMask": "0x01",
         "Unit": "CHA"
     },
@@ -308,7 +308,7 @@
         "EventCode": "0x54",
         "EventName": "UNC_CHA_DIR_UPDATE.TOR",
         "PerPkg": "1",
-        "PublicDescription": "Counts only multi-socket cacheline Directory state updates due to memory writes issued from the TOR pipe which are the result of remote transaction hitting the SF/LLC and returning data Core2Core. This does not include memory write requests which are for I (Invalid) or E (Exclusive) cachelines.",
+        "PublicDescription": "Counts only multi-socket cacheline Directory state updates due to memory writes issued from the TOR pipe which are the result of remote transaction hitting the SF/LLC and returning data Core2Core. This does yest include memory write requests which are for I (Invalid) or E (Exclusive) cachelines.",
         "UMask": "0x02",
         "Unit": "CHA"
     },
@@ -328,7 +328,7 @@
         "EventCode": "0x59",
         "EventName": "UNC_CHA_IMC_READS_COUNT.NORMAL",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a normal (Non-Isochronous) read is issued to any of the memory controller channels from the CHA.",
+        "PublicDescription": "Counts when a yesrmal (Non-Isochroyesus) read is issued to any of the memory controller channels from the CHA.",
         "UMask": "0x01",
         "Unit": "CHA"
     },
@@ -338,7 +338,7 @@
         "EventCode": "0x5B",
         "EventName": "UNC_CHA_IMC_WRITES_COUNT.FULL",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a normal (Non-Isochronous) full line write is issued from the CHA to the any of the memory controller channels.",
+        "PublicDescription": "Counts when a yesrmal (Non-Isochroyesus) full line write is issued from the CHA to the any of the memory controller channels.",
         "UMask": "0x01",
         "Unit": "CHA"
     },
@@ -373,62 +373,62 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "RspCnflct* Snoop Responses Received",
+        "BriefDescription": "RspCnflct* Syesop Responses Received",
         "Counter": "0,1,2,3",
         "EventCode": "0x5C",
         "EventName": "UNC_CHA_SNOOP_RESP.RSPCNFLCTS",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a a transaction with the opcode type RspCnflct* Snoop Response was received. This is returned when a snoop finds an existing outstanding transaction in a remote caching agent. This triggers conflict resolution hardware. This covers both the opcode RspCnflct and RspCnflctWbI.",
+        "PublicDescription": "Counts when a a transaction with the opcode type RspCnflct* Syesop Response was received. This is returned when a syesop finds an existing outstanding transaction in a remote caching agent. This triggers conflict resolution hardware. This covers both the opcode RspCnflct and RspCnflctWbI.",
         "UMask": "0x40",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "RspI Snoop Responses Received",
+        "BriefDescription": "RspI Syesop Responses Received",
         "Counter": "0,1,2,3",
         "EventCode": "0x5C",
         "EventName": "UNC_CHA_SNOOP_RESP.RSPI",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a transaction with the opcode type RspI Snoop Response was received which indicates the remote cache does not have the data, or when the remote cache silently evicts data (such as when an RFO: the Read for Ownership issued before a write hits non-modified data).",
+        "PublicDescription": "Counts when a transaction with the opcode type RspI Syesop Response was received which indicates the remote cache does yest have the data, or when the remote cache silently evicts data (such as when an RFO: the Read for Ownership issued before a write hits yesn-modified data).",
         "UMask": "0x01",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "RspIFwd Snoop Responses Received",
+        "BriefDescription": "RspIFwd Syesop Responses Received",
         "Counter": "0,1,2,3",
         "EventCode": "0x5C",
         "EventName": "UNC_CHA_SNOOP_RESP.RSPIFWD",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a a transaction with the opcode type RspIFwd Snoop Response was received which indicates a remote caching agent forwarded the data and the requesting agent is able to acquire the data in E (Exclusive) or M (modified) states.  This is commonly returned with RFO (the Read for Ownership issued before a write) transactions.  The snoop could have either been to a cacheline in the M,E,F (Modified, Exclusive or Forward)  states.",
+        "PublicDescription": "Counts when a a transaction with the opcode type RspIFwd Syesop Response was received which indicates a remote caching agent forwarded the data and the requesting agent is able to acquire the data in E (Exclusive) or M (modified) states.  This is commonly returned with RFO (the Read for Ownership issued before a write) transactions.  The syesop could have either been to a cacheline in the M,E,F (Modified, Exclusive or Forward)  states.",
         "UMask": "0x04",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "RspSFwd Snoop Responses Received",
+        "BriefDescription": "RspSFwd Syesop Responses Received",
         "Counter": "0,1,2,3",
         "EventCode": "0x5C",
         "EventName": "UNC_CHA_SNOOP_RESP.RSPSFWD",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a a transaction with the opcode type RspSFwd Snoop Response was received which indicates a remote caching agent forwarded the data but held on to its current copy.  This is common for data and code reads that hit in a remote socket in E (Exclusive) or F (Forward) state.",
+        "PublicDescription": "Counts when a a transaction with the opcode type RspSFwd Syesop Response was received which indicates a remote caching agent forwarded the data but held on to its current copy.  This is common for data and code reads that hit in a remote socket in E (Exclusive) or F (Forward) state.",
         "UMask": "0x08",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Rsp*Fwd*WB Snoop Responses Received",
+        "BriefDescription": "Rsp*Fwd*WB Syesop Responses Received",
         "Counter": "0,1,2,3",
         "EventCode": "0x5C",
         "EventName": "UNC_CHA_SNOOP_RESP.RSP_FWD_WB",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a transaction with the opcode type Rsp*Fwd*WB Snoop Response was received which indicates the data was written back to it's home socket, and the cacheline was forwarded to the requestor socket.  This snoop response is only used in >= 4 socket systems.  It is used when a snoop HITM's in a remote caching agent and it directly forwards data to a requestor, and simultaneously returns data to it's home socket to be written back to memory.",
+        "PublicDescription": "Counts when a transaction with the opcode type Rsp*Fwd*WB Syesop Response was received which indicates the data was written back to it's home socket, and the cacheline was forwarded to the requestor socket.  This syesop response is only used in >= 4 socket systems.  It is used when a syesop HITM's in a remote caching agent and it directly forwards data to a requestor, and simultaneously returns data to it's home socket to be written back to memory.",
         "UMask": "0x20",
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "Rsp*WB Snoop Responses Received",
+        "BriefDescription": "Rsp*WB Syesop Responses Received",
         "Counter": "0,1,2,3",
         "EventCode": "0x5C",
         "EventName": "UNC_CHA_SNOOP_RESP.RSP_WBWB",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a transaction with the opcode type Rsp*WB Snoop Response was received which indicates which indicates the data was written back to it's home.  This is returned when a non-RFO request hits a cacheline in the Modified state. The Cache can either downgrade the cacheline to a S (Shared) or I (Invalid) state depending on how the system has been configured.  This response will also be sent when a cache requests E (Exclusive) ownership of a cache line without receiving data, because the cache must acquire ownership.",
+        "PublicDescription": "Counts when a transaction with the opcode type Rsp*WB Syesop Response was received which indicates which indicates the data was written back to it's home.  This is returned when a yesn-RFO request hits a cacheline in the Modified state. The Cache can either downgrade the cacheline to a S (Shared) or I (Invalid) state depending on how the system has been configured.  This response will also be sent when a cache requests E (Exclusive) ownership of a cache line without receiving data, because the cache must acquire ownership.",
         "UMask": "0x10",
         "Unit": "CHA"
     },
@@ -730,12 +730,12 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "Traffic in which the M2M to iMC Bypass was not taken",
+        "BriefDescription": "Traffic in which the M2M to iMC Bypass was yest taken",
         "Counter": "0,1,2,3",
         "EventCode": "0x22",
         "EventName": "UNC_M2M_BYPASS_M2M_Egress.NOT_TAKEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts traffic in which the M2M (Mesh to Memory) to iMC (Memory Controller) bypass was not taken",
+        "PublicDescription": "Counts traffic in which the M2M (Mesh to Memory) to iMC (Memory Controller) bypass was yest taken",
         "UMask": "0x2",
         "Unit": "M2M"
     },
@@ -818,7 +818,7 @@
         "EventCode": "0x2D",
         "EventName": "UNC_M2M_DIRECTORY_LOOKUP.STATE_A",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) looks into the multi-socket cacheline Directory state, and found the cacheline marked in the A (SnoopAll) state, indicating the cacheline is stored in another socket in any state, and we must snoop the other sockets to make sure we get the latest data.  The data may be stored in any state in the local socket.",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) looks into the multi-socket cacheline Directory state, and found the cacheline marked in the A (SyesopAll) state, indicating the cacheline is stored in ayesther socket in any state, and we must syesop the other sockets to make sure we get the latest data.  The data may be stored in any state in the local socket.",
         "UMask": "0x8",
         "Unit": "M2M"
     },
@@ -828,7 +828,7 @@
         "EventCode": "0x2D",
         "EventName": "UNC_M2M_DIRECTORY_LOOKUP.STATE_I",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) looks into the multi-socket cacheline Directory state , and found the cacheline marked in the I (Invalid) state indicating the cacheline is not stored in another socket, and so there is no need to snoop the other sockets for the latest data.  The data may be stored in any state in the local socket.",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) looks into the multi-socket cacheline Directory state , and found the cacheline marked in the I (Invalid) state indicating the cacheline is yest stored in ayesther socket, and so there is yes need to syesop the other sockets for the latest data.  The data may be stored in any state in the local socket.",
         "UMask": "0x2",
         "Unit": "M2M"
     },
@@ -838,7 +838,7 @@
         "EventCode": "0x2D",
         "EventName": "UNC_M2M_DIRECTORY_LOOKUP.STATE_S",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) looks into the multi-socket cacheline Directory state , and found the cacheline marked in the S (Shared) state indicating the cacheline is either stored in another socket in the S(hared) state , and so there is no need to snoop the other sockets for the latest data.  The data may be stored in any state in the local socket.",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) looks into the multi-socket cacheline Directory state , and found the cacheline marked in the S (Shared) state indicating the cacheline is either stored in ayesther socket in the S(hared) state , and so there is yes need to syesop the other sockets for the latest data.  The data may be stored in any state in the local socket.",
         "UMask": "0x4",
         "Unit": "M2M"
     },
@@ -848,7 +848,7 @@
         "EventCode": "0x2E",
         "EventName": "UNC_M2M_DIRECTORY_UPDATE.A2I",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from A (SnoopAll) to I (Invalid)",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from A (SyesopAll) to I (Invalid)",
         "UMask": "0x20",
         "Unit": "M2M"
     },
@@ -858,7 +858,7 @@
         "EventCode": "0x2E",
         "EventName": "UNC_M2M_DIRECTORY_UPDATE.A2S",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from A (SnoopAll) to S (Shared)",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from A (SyesopAll) to S (Shared)",
         "UMask": "0x40",
         "Unit": "M2M"
     },
@@ -878,7 +878,7 @@
         "EventCode": "0x2E",
         "EventName": "UNC_M2M_DIRECTORY_UPDATE.I2A",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from I (Invalid) to A (SnoopAll)",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from I (Invalid) to A (SyesopAll)",
         "UMask": "0x4",
         "Unit": "M2M"
     },
@@ -898,7 +898,7 @@
         "EventCode": "0x2E",
         "EventName": "UNC_M2M_DIRECTORY_UPDATE.S2A",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from S (Shared) to A (SnoopAll)",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) updates the multi-socket cacheline Directory state from from S (Shared) to A (SyesopAll)",
         "UMask": "0x10",
         "Unit": "M2M"
     },
@@ -923,12 +923,12 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Reads to iMC issued at Normal Priority (Non-Isochronous)",
+        "BriefDescription": "Reads to iMC issued at Normal Priority (Non-Isochroyesus)",
         "Counter": "0,1,2,3",
         "EventCode": "0x37",
         "EventName": "UNC_M2M_IMC_READS.NORMAL",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) issues reads to the iMC (Memory Controller).  It only counts  normal priority non-isochronous reads.",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) issues reads to the iMC (Memory Controller).  It only counts  yesrmal priority yesn-isochroyesus reads.",
         "UMask": "0x1",
         "Unit": "M2M"
     },
@@ -943,12 +943,12 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "Partial Non-Isochronous writes to the iMC",
+        "BriefDescription": "Partial Non-Isochroyesus writes to the iMC",
         "Counter": "0,1,2,3",
         "EventCode": "0x38",
         "EventName": "UNC_M2M_IMC_WRITES.PARTIAL",
         "PerPkg": "1",
-        "PublicDescription": "Counts when the M2M (Mesh to Memory) issues partial writes to the iMC (Memory Controller).  It only counts normal priority non-isochronous writes.",
+        "PublicDescription": "Counts when the M2M (Mesh to Memory) issues partial writes to the iMC (Memory Controller).  It only counts yesrmal priority yesn-isochroyesus writes.",
         "UMask": "0x2",
         "Unit": "M2M"
     },
@@ -1023,7 +1023,7 @@
         "EventCode": "0x21",
         "EventName": "UNC_UPI_L1_POWER_CYCLES",
         "PerPkg": "1",
-        "PublicDescription": "Counts cycles when the Intel Ultra Path Interconnect (UPI) is in L1 power mode.  L1 is a mode that totally shuts down the UPI link.  Link power states are per link and per direction, so for example the Tx direction could be in one state while Rx was in another, this event only coutns when both links are shutdown.",
+        "PublicDescription": "Counts cycles when the Intel Ultra Path Interconnect (UPI) is in L1 power mode.  L1 is a mode that totally shuts down the UPI link.  Link power states are per link and per direction, so for example the Tx direction could be in one state while Rx was in ayesther, this event only coutns when both links are shutdown.",
         "Unit": "UPI LL"
     },
     {

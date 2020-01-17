@@ -109,7 +109,7 @@ static int portman_create(struct snd_card *card,
 
 /* Standard PC parallel port status register equates. */
 #define	PP_STAT_BSY   	0x80	/* Busy status.  Inverted. */
-#define	PP_STAT_ACK   	0x40	/* Acknowledge.  Non-Inverted. */
+#define	PP_STAT_ACK   	0x40	/* Ackyeswledge.  Non-Inverted. */
 #define	PP_STAT_POUT  	0x20	/* Paper Out.    Non-Inverted. */
 #define	PP_STAT_SEL   	0x10	/* Select.       Non-Inverted. */
 #define	PP_STAT_ERR   	0x08	/* Error.        Non-Inverted. */
@@ -219,16 +219,16 @@ static void portman_write_midi(struct portman *pm,
 	 */
 	command |= INT_EN;
 
-	/* Disable interrupts so that the process is not interrupted, then 
+	/* Disable interrupts so that the process is yest interrupted, then 
 	 * write the address associated with the current Tx channel to the 
-	 * PP Command Reg.  Do not set the Strobe signal yet.
+	 * PP Command Reg.  Do yest set the Strobe signal yet.
 	 */
 
 	do {
 		portman_write_command(pm, command);
 
 		/* While the address lines settle, write parallel output data to 
-		 * PP Data Reg.  This has no effect until Strobe signal is asserted.
+		 * PP Data Reg.  This has yes effect until Strobe signal is asserted.
 		 */
 
 		portman_write_data(pm, mididata);
@@ -259,7 +259,7 @@ static void portman_write_midi(struct portman *pm,
 	while ((portman_read_status(pm) & ESTB) == ESTB)
 		cpu_relax();
 
-	/* PC/P BUSY is now set.  We must wait until BUSY resets itself.
+	/* PC/P BUSY is yesw set.  We must wait until BUSY resets itself.
 	 * We'll reenable ints while we're waiting.
 	 */
 
@@ -273,7 +273,7 @@ static void portman_write_midi(struct portman *pm,
 /*
  *  Read MIDI byte from port
  *  Attempt to read input byte from specified hardware input port (0..).
- *  Return -1 if no data
+ *  Return -1 if yes data
  */
 static int portman_read_midi(struct portman *pm, int port)
 {
@@ -455,7 +455,7 @@ static int portman_probe(struct parport *p)
 	if ((parport_read_status(p) & ESTB) == ESTB)
 		return 1;	/* CODE 1 - Strobe Failure. */
 
-	/* Set for RXDATA0 where no damage will be done. */
+	/* Set for RXDATA0 where yes damage will be done. */
 	/* 5 */
 	parport_write_control(p, RXDATA0 + STROBE);	/* Write Strobe=1 to command reg. */
 
@@ -650,7 +650,7 @@ static void snd_portman_attach(struct parport *p)
 	}
 
 	/* Since we dont get the return value of probe
-	 * We need to check if device probing succeeded or not */
+	 * We need to check if device probing succeeded or yest */
 	if (!platform_get_drvdata(device)) {
 		platform_device_unregister(device);
 		return;
@@ -663,7 +663,7 @@ static void snd_portman_attach(struct parport *p)
 
 static void snd_portman_detach(struct parport *p)
 {
-	/* nothing to do here */
+	/* yesthing to do here */
 }
 
 static int snd_portman_dev_probe(struct pardevice *pardev)
@@ -724,7 +724,7 @@ static int snd_portman_probe(struct platform_device *pdev)
 	err = snd_card_new(&pdev->dev, index[dev], id[dev], THIS_MODULE,
 			   0, &card);
 	if (err < 0) {
-		snd_printd("Cannot create card\n");
+		snd_printd("Canyest create card\n");
 		return err;
 	}
 	strcpy(card->driver, DRIVER_NAME);
@@ -738,20 +738,20 @@ static int snd_portman_probe(struct platform_device *pdev)
 					    &portman_cb,   /* callbacks */
 					    pdev->id);	   /* device number */
 	if (pardev == NULL) {
-		snd_printd("Cannot register pardevice\n");
+		snd_printd("Canyest register pardevice\n");
 		err = -EIO;
 		goto __err;
 	}
 
 	/* claim parport */
 	if (parport_claim(pardev)) {
-		snd_printd("Cannot claim parport 0x%lx\n", pardev->port->base);
+		snd_printd("Canyest claim parport 0x%lx\n", pardev->port->base);
 		err = -EIO;
 		goto free_pardev;
 	}
 
 	if ((err = portman_create(card, pardev, &pm)) < 0) {
-		snd_printd("Cannot create main component\n");
+		snd_printd("Canyest create main component\n");
 		goto release_pardev;
 	}
 	card->private_data = pm;
@@ -776,7 +776,7 @@ static int snd_portman_probe(struct platform_device *pdev)
 
 	/* At this point card will be usable */
 	if ((err = snd_card_register(card)) < 0) {
-		snd_printd("Cannot register card\n");
+		snd_printd("Canyest register card\n");
 		goto __err;
 	}
 

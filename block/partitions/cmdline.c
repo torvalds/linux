@@ -5,7 +5,7 @@
  *
  * Read block device partition table from the command line.
  * Typically used for fixed block (eMMC) embedded devices.
- * It has no MBR, so saves storage space. Bootloader can be easily accessed
+ * It has yes MBR, so saves storage space. Bootloader can be easily accessed
  * by absolute address of data on the block device.
  * Users can easily change the partition.
  *

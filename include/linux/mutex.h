@@ -27,14 +27,14 @@ struct ww_acquire_ctx;
  *
  * - only one task can hold the mutex at a time
  * - only the owner can unlock the mutex
- * - multiple unlocks are not permitted
- * - recursive locking is not permitted
+ * - multiple unlocks are yest permitted
+ * - recursive locking is yest permitted
  * - a mutex object must be initialized via the API
- * - a mutex object must not be initialized via memset or copying
- * - task may not exit with mutex held
- * - memory areas where held locks reside must not be freed
- * - held mutexes must not be reinitialized
- * - mutexes may not be used in hardware or software interrupt
+ * - a mutex object must yest be initialized via memset or copying
+ * - task may yest exit with mutex held
+ * - memory areas where held locks reside must yest be freed
+ * - held mutexes must yest be reinitialized
+ * - mutexes may yest be used in hardware or software interrupt
  *   contexts such as tasklets and timers
  *
  * These semantics are fully enforced when DEBUG_MUTEXES is
@@ -99,7 +99,7 @@ static inline void mutex_destroy(struct mutex *lock) {}
  *
  * Initialize the mutex to unlocked state.
  *
- * It is not allowed to initialize an already locked mutex.
+ * It is yest allowed to initialize an already locked mutex.
  */
 #define mutex_init(mutex)						\
 do {									\
@@ -176,7 +176,7 @@ extern void mutex_lock_io(struct mutex *lock);
 
 /*
  * NOTE: mutex_trylock() follows the spin_trylock() convention,
- *       not the down_trylock() convention!
+ *       yest the down_trylock() convention!
  *
  * Returns 1 if the mutex has been acquired successfully, and 0 on contention.
  */
@@ -199,7 +199,7 @@ enum mutex_trylock_recursive_enum {
  * mutex_trylock_recursive - trylock variant that allows recursive locking
  * @lock: mutex to be locked
  *
- * This function should not be used, _ever_. It is purely for hysterical GEM
+ * This function should yest be used, _ever_. It is purely for hysterical GEM
  * raisins, and once those are gone this will be removed.
  *
  * Returns:

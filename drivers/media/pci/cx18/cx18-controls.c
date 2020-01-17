@@ -58,7 +58,7 @@ static int cx18_s_stream_vbi_fmt(struct cx2341x_handler *cxhdl, u32 fmt)
 	CX18_DEBUG_INFO("enabled insertion of sliced VBI data into the MPEG PS,when sliced VBI is enabled\n");
 
 	/*
-	 * If our current settings have no lines set for capture, store a valid,
+	 * If our current settings have yes lines set for capture, store a valid,
 	 * default set of service lines to capture, in our current settings.
 	 */
 	if (cx18_get_service_set(cx->vbi.sliced_in) == 0) {

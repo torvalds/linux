@@ -108,12 +108,12 @@ struct a6xx_hfi_msg_perf_table {
 struct a6xx_hfi_msg_bw_table {
 	u32 header;
 	u32 bw_level_num;
-	u32 cnoc_cmds_num;
+	u32 cyesc_cmds_num;
 	u32 ddr_cmds_num;
-	u32 cnoc_wait_bitmask;
+	u32 cyesc_wait_bitmask;
 	u32 ddr_wait_bitmask;
-	u32 cnoc_cmds_addrs[6];
-	u32 cnoc_cmds_data[2][6];
+	u32 cyesc_cmds_addrs[6];
+	u32 cyesc_cmds_data[2][6];
 	u32 ddr_cmds_addrs[8];
 	u32 ddr_cmds_data[16][8];
 };

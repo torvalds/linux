@@ -66,7 +66,7 @@
 /* door-bell */
 #define CQHCI_TDBR			0x28
 
-/* task completion notification */
+/* task completion yestification */
 #define CQHCI_TCN			0x2C
 
 /* device queue status */

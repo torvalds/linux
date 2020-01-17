@@ -208,14 +208,14 @@ struct spu_context_ops {
 extern struct spu_context_ops spu_hw_ops;
 extern struct spu_context_ops spu_backing_ops;
 
-struct spufs_inode_info {
+struct spufs_iyesde_info {
 	struct spu_context *i_ctx;
 	struct spu_gang *i_gang;
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 	int i_openers;
 };
-#define SPUFS_I(inode) \
-	container_of(inode, struct spufs_inode_info, vfs_inode)
+#define SPUFS_I(iyesde) \
+	container_of(iyesde, struct spufs_iyesde_info, vfs_iyesde)
 
 struct spufs_tree_descr {
 	const char *name;
@@ -225,7 +225,7 @@ struct spufs_tree_descr {
 };
 
 extern const struct spufs_tree_descr spufs_dir_contents[];
-extern const struct spufs_tree_descr spufs_dir_nosched_contents[];
+extern const struct spufs_tree_descr spufs_dir_yessched_contents[];
 extern const struct spufs_tree_descr spufs_dir_debug_contents[];
 
 /* system call implementation */
@@ -234,9 +234,9 @@ struct coredump_params;
 long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *status);
 long spufs_create(struct path *nd, struct dentry *dentry, unsigned int flags,
 			umode_t mode, struct file *filp);
-/* ELF coredump callbacks for writing SPU ELF notes */
-extern int spufs_coredump_extra_notes_size(void);
-extern int spufs_coredump_extra_notes_write(struct coredump_params *cprm);
+/* ELF coredump callbacks for writing SPU ELF yestes */
+extern int spufs_coredump_extra_yestes_size(void);
+extern int spufs_coredump_extra_yestes_write(struct coredump_params *cprm);
 
 extern const struct file_operations spufs_context_fops;
 
@@ -281,8 +281,8 @@ void spu_del_from_rq(struct spu_context *ctx);
 int spu_activate(struct spu_context *ctx, unsigned long flags);
 void spu_deactivate(struct spu_context *ctx);
 void spu_yield(struct spu_context *ctx);
-void spu_switch_notify(struct spu *spu, struct spu_context *ctx);
-void spu_switch_log_notify(struct spu *spu, struct spu_context *ctx,
+void spu_switch_yestify(struct spu *spu, struct spu_context *ctx);
+void spu_switch_log_yestify(struct spu *spu, struct spu_context *ctx,
 		u32 type, u32 val);
 void spu_set_timeslice(struct spu_context *ctx);
 void spu_update_sched_info(struct spu_context *ctx);
@@ -343,7 +343,7 @@ struct spufs_coredump_reader {
 	size_t size;
 };
 extern const struct spufs_coredump_reader spufs_coredump_read[];
-extern int spufs_coredump_num_notes;
+extern int spufs_coredump_num_yestes;
 
 extern int spu_init_csa(struct spu_state *csa);
 extern void spu_fini_csa(struct spu_state *csa);

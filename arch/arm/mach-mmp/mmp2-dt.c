@@ -2,7 +2,7 @@
 /*
  *  linux/arch/arm/mach-mmp/mmp2-dt.c
  *
- *  Copyright (C) 2012 Marvell Technology Group Ltd.
+ *  Copyright (C) 2012 Marvell Techyeslogy Group Ltd.
  *  Author: Haojian Zhuang <haojian.zhuang@marvell.com>
  */
 

@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -100,7 +100,7 @@ enum svga3d_block_desc {
 	/* Channels are unsigned integers */
 	SVGA3DBLOCKDESC_UINT        = 1 << 14,
 
-	/* Channels are normalized (when sampling) */
+	/* Channels are yesrmalized (when sampling) */
 	SVGA3DBLOCKDESC_NORM        = 1 << 15,
 
 	/* Channels are in SRGB */
@@ -1540,7 +1540,7 @@ svga3dsurface_get_loc(const struct svga3dsurface_cache *cache,
  * in each dimension.
  * @loc: Pointer to a struct svga3dsurface_loc to be incremented.
  *
- * When computing the size of a range as size = end - start, the range does not
+ * When computing the size of a range as size = end - start, the range does yest
  * include the end element. However a location representing the last byte
  * of a touched region in the backing store *is* included in the range.
  * This function modifies such a location to match the end definition

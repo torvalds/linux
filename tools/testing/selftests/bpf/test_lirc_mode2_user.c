@@ -30,7 +30,7 @@
 #include <linux/bpf.h>
 #include <linux/lirc.h>
 #include <linux/input.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,8 +73,8 @@ int main(int argc, char **argv)
 
 	/* Let's try detach it before it was ever attached */
 	ret = bpf_prog_detach2(progfd, lircfd, BPF_LIRC_MODE2);
-	if (ret != -1 || errno != ENOENT) {
-		printf("bpf_prog_detach2 not attached should fail: %m\n");
+	if (ret != -1 || erryes != ENOENT) {
+		printf("bpf_prog_detach2 yest attached should fail: %m\n");
 		return 1;
 	}
 
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 	}
 
 	if (prog_cnt != 0) {
-		printf("Expected nothing to be attached\n");
+		printf("Expected yesthing to be attached\n");
 		return 1;
 	}
 
@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	/* Let's try detaching it now it is actually attached */
+	/* Let's try detaching it yesw it is actually attached */
 	ret = bpf_prog_detach2(progfd, lircfd, BPF_LIRC_MODE2);
 	if (ret) {
 		printf("bpf_prog_detach2: returned %m\n");

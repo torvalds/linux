@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -40,7 +40,7 @@ static void do_send_completion(struct htc_endpoint *ep,
 	struct htc_packet *packet;
 
 	if (list_empty(queue_to_indicate)) {
-		/* nothing to indicate */
+		/* yesthing to indicate */
 		return;
 	}
 
@@ -55,7 +55,7 @@ static void do_send_completion(struct htc_endpoint *ep,
 		 */
 		ep->ep_cb.tx_comp_multi(ep->target, queue_to_indicate);
 		/*
-		 * all packets are now owned by the callback,
+		 * all packets are yesw owned by the callback,
 		 * reset queue to be safe
 		 */
 		INIT_LIST_HEAD(queue_to_indicate);
@@ -132,7 +132,7 @@ static void get_htc_packet_credit_based(struct htc_target *target,
 		if (ep->eid == ENDPOINT_0) {
 			/*
 			 * endpoint 0 is special, it always has a credit and
-			 * does not require credit based flow control
+			 * does yest require credit based flow control
 			 */
 			credits_required = 0;
 
@@ -155,7 +155,7 @@ static void get_htc_packet_credit_based(struct htc_target *target,
 			}
 		}
 
-		/* now we can fully dequeue */
+		/* yesw we can fully dequeue */
 		packet = list_first_entry(&ep->txq, struct htc_packet, list);
 
 		list_del(&packet->list);
@@ -163,8 +163,8 @@ static void get_htc_packet_credit_based(struct htc_target *target,
 		packet->info.tx.cred_used = credits_required;
 		/* save send flags */
 		packet->info.tx.flags = send_flags;
-		packet->info.tx.seqno = ep->seqno;
-		ep->seqno++;
+		packet->info.tx.seqyes = ep->seqyes;
+		ep->seqyes++;
 		/* queue this packet into the caller's queue */
 		list_add_tail(&packet->list, queue);
 	}
@@ -189,10 +189,10 @@ static void get_htc_packet(struct htc_target *target,
 		ath6kl_dbg(ATH6KL_DBG_HTC,
 			   "%s: got packet:0x%p , new queue depth: %d\n",
 			   __func__, packet, get_queue_depth(&ep->txq));
-		packet->info.tx.seqno = ep->seqno;
+		packet->info.tx.seqyes = ep->seqyes;
 		packet->info.tx.flags = 0;
 		packet->info.tx.cred_used = 0;
-		ep->seqno++;
+		ep->seqyes++;
 
 		/* queue this packet into the caller's queue */
 		list_add_tail(&packet->list, queue);
@@ -242,7 +242,7 @@ static int htc_issue_packets(struct htc_target *target,
 		htc_hdr->flags = packet->info.tx.flags;
 		htc_hdr->eid = (u8) packet->endpoint;
 		htc_hdr->ctrl[0] = 0;
-		htc_hdr->ctrl[1] = (u8) packet->info.tx.seqno;
+		htc_hdr->ctrl[1] = (u8) packet->info.tx.seqyes;
 
 		spin_lock_bh(&target->tx_lock);
 
@@ -351,7 +351,7 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 		if ((overflow <= 0) ||
 		    (ep->ep_cb.tx_full == NULL)) {
 			/*
-			 * all packets will fit or caller did not provide send
+			 * all packets will fit or caller did yest provide send
 			 * full indication handler -- just move all of them
 			 * to the local send_queue object
 			 */
@@ -364,7 +364,7 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 			}
 
 			/* we have overflowed, and a callback is provided */
-			/* dequeue all non-overflow packets to the sendqueue */
+			/* dequeue all yesn-overflow packets to the sendqueue */
 			for (i = 0; i < good_pkts; i++) {
 				/* pop off caller's queue */
 				packet = list_first_entry(txq,
@@ -401,7 +401,7 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 			}
 
 			if (list_empty(&send_queue)) {
-				/* no packets made it in, caller will cleanup */
+				/* yes packets made it in, caller will cleanup */
 				return HTC_SEND_QUEUE_DROP;
 			}
 		}
@@ -432,7 +432,7 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 
 	if (ep->tx_proc_cnt > 1) {
 		/*
-		 * Another thread or task is draining the TX queues on this
+		 * Ayesther thread or task is draining the TX queues on this
 		 * endpoint that thread will reset the tx processing count
 		 * when the queue is drained.
 		 */
@@ -445,7 +445,7 @@ static enum htc_send_queue_result htc_try_send(struct htc_target *target,
 
 	/*
 	 * Now drain the endpoint TX queue for transmission as long as we have
-	 * enough transmit resources.
+	 * eyesugh transmit resources.
 	 */
 	while (true) {
 		if (get_queue_depth(&ep->txq) == 0)
@@ -767,9 +767,9 @@ static int ath6kl_htc_pipe_tx_complete(struct ath6kl *ar, struct sk_buff *skb)
 
 	if (!ep->pipe.tx_credit_flow_enabled) {
 		/*
-		 * note: when using TX credit flow, the re-checking of queues
+		 * yeste: when using TX credit flow, the re-checking of queues
 		 * happens when credits flow back from the target. in the
-		 * non-TX credit case, we recheck after the packet completes
+		 * yesn-TX credit case, we recheck after the packet completes
 		 */
 		htc_try_send(target, ep, NULL);
 	}
@@ -868,7 +868,7 @@ static int htc_process_trailer(struct htc_target *target, u8 *buffer,
 		buffer += sizeof(struct htc_record_hdr);
 
 		if (record->len > len) {
-			/* no room left in buffer for record */
+			/* yes room left in buffer for record */
 			ath6kl_dbg(ATH6KL_DBG_HTC,
 				   "invalid length: %d (id:%d) buffer has: %d bytes left\n",
 				   record->len, record->rec_id, len);
@@ -912,7 +912,7 @@ static void do_recv_completion(struct htc_endpoint *ep,
 	struct htc_packet *packet;
 
 	if (list_empty(queue_to_indicate)) {
-		/* nothing to indicate */
+		/* yesthing to indicate */
 		return;
 	}
 
@@ -961,7 +961,7 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 	 * via ath6kl_recv_complete -> ath6kl_usb_io_comp_work.
 	 */
 	if (WARN_ON_ONCE(!target)) {
-		ath6kl_err("Target not yet initialized\n");
+		ath6kl_err("Target yest yet initialized\n");
 		status = -EINVAL;
 		goto free_skb;
 	}
@@ -1024,11 +1024,11 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 		/* handle HTC control message */
 		if (target->htc_flags & HTC_OP_STATE_SETUP_COMPLETE) {
 			/*
-			 * fatal: target should not send unsolicited
+			 * fatal: target should yest send unsolicited
 			 * messageson the endpoint 0
 			 */
 			ath6kl_dbg(ATH6KL_DBG_HTC,
-				   "HTC ignores Rx Ctrl after setup complete\n");
+				   "HTC igyesres Rx Ctrl after setup complete\n");
 			status = -EINVAL;
 			goto free_skb;
 		}
@@ -1311,7 +1311,7 @@ static int ath6kl_htc_pipe_conn_service(struct htc_target *target,
 
 		if (resp_msg->msg_id != cpu_to_le16(HTC_MSG_CONN_SVC_RESP_ID) ||
 		    (target->pipe.ctrl_response_len < sizeof(*resp_msg))) {
-			/* this message is not valid */
+			/* this message is yest valid */
 			WARN_ON_ONCE(1);
 			status = -EINVAL;
 			goto free_packet;
@@ -1612,7 +1612,7 @@ static void ath6kl_htc_pipe_flush_txep(struct htc_target *target,
 
 	if (ep->svc_id == 0) {
 		WARN_ON_ONCE(1);
-		/* not in use.. */
+		/* yest in use.. */
 		return;
 	}
 

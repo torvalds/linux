@@ -65,7 +65,7 @@ struct scif_endpt_qp_info {
  * @peer: peer port information
  * @backlog: maximum pending connection requests
  * @qp_info: Endpoint QP information for SCIF messaging
- * @remote_dev: scifdev used by this endpt to communicate with remote node.
+ * @remote_dev: scifdev used by this endpt to communicate with remote yesde.
  * @remote_ep: remote endpoint
  * @conreqcnt: Keep track of number of connection requests.
  * @files: Open file information used to match the id passed in with
@@ -90,8 +90,8 @@ struct scif_endpt_qp_info {
  * @conn_pend_wq: Used by poll while waiting for incoming connections
  * @conn_list: List of async connection requests
  * @rma_info: Information for triggering SCIF RMA and DMA operations
- * @mmu_list: link to list of MMU notifier cleanup work
- * @anon: anonymous file for use in kernel mode scif poll
+ * @mmu_list: link to list of MMU yestifier cleanup work
+ * @ayesn: ayesnymous file for use in kernel mode scif poll
  */
 struct scif_endpt {
 	enum scif_epd_state state;
@@ -124,7 +124,7 @@ struct scif_endpt {
 	struct list_head conn_list;
 	struct scif_endpt_rma_info rma_info;
 	struct list_head mmu_list;
-	struct file *anon;
+	struct file *ayesn;
 };
 
 static inline int scifdev_alive(struct scif_endpt *ep)
@@ -153,18 +153,18 @@ static inline int scif_verify_epd(struct scif_endpt *ep)
 	return 0;
 }
 
-static inline int scif_anon_inode_getfile(scif_epd_t epd)
+static inline int scif_ayesn_iyesde_getfile(scif_epd_t epd)
 {
-	epd->anon = anon_inode_getfile("scif", &scif_anon_fops, NULL, 0);
+	epd->ayesn = ayesn_iyesde_getfile("scif", &scif_ayesn_fops, NULL, 0);
 
-	return PTR_ERR_OR_ZERO(epd->anon);
+	return PTR_ERR_OR_ZERO(epd->ayesn);
 }
 
-static inline void scif_anon_inode_fput(scif_epd_t epd)
+static inline void scif_ayesn_iyesde_fput(scif_epd_t epd)
 {
-	if (epd->anon) {
-		fput(epd->anon);
-		epd->anon = NULL;
+	if (epd->ayesn) {
+		fput(epd->ayesn);
+		epd->ayesn = NULL;
 	}
 }
 
@@ -172,7 +172,7 @@ void scif_cleanup_zombie_epd(void);
 void scif_teardown_ep(void *endpt);
 void scif_cleanup_ep_qp(struct scif_endpt *ep);
 void scif_add_epd_to_zombie_list(struct scif_endpt *ep, bool eplock_held);
-void scif_get_node_info(void);
+void scif_get_yesde_info(void);
 void scif_send_acks(struct scif_dev *dev);
 void scif_conn_handler(struct work_struct *work);
 int scif_rsrv_port(u16 port);
@@ -190,7 +190,7 @@ void scif_discnct(struct scif_dev *scifdev, struct scifmsg *msg);
 void scif_discnt_ack(struct scif_dev *scifdev, struct scifmsg *msg);
 void scif_clientsend(struct scif_dev *scifdev, struct scifmsg *msg);
 void scif_clientrcvd(struct scif_dev *scifdev, struct scifmsg *msg);
-int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block);
+int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool yesn_block);
 int __scif_flush(scif_epd_t epd);
 int scif_mmap(struct vm_area_struct *vma, scif_epd_t epd);
 __poll_t __scif_pollfd(struct file *f, poll_table *wait,

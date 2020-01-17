@@ -22,20 +22,20 @@ static ssize_t format_show(struct kobject *kobj, struct kobj_attribute *attr,
 			   char *buf)
 {
 	ssize_t rc = 0;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	const char *format;
 
-	node = of_find_compatible_node(NULL, NULL, "ibm,secvar-backend");
-	if (!of_device_is_available(node))
+	yesde = of_find_compatible_yesde(NULL, NULL, "ibm,secvar-backend");
+	if (!of_device_is_available(yesde))
 		return -ENODEV;
 
-	rc = of_property_read_string(node, "format", &format);
+	rc = of_property_read_string(yesde, "format", &format);
 	if (rc)
 		return rc;
 
 	rc = sprintf(buf, "%s\n", format);
 
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	return rc;
 }
@@ -138,17 +138,17 @@ static struct kobj_type secvar_ktype = {
 static int update_kobj_size(void)
 {
 
-	struct device_node *node;
+	struct device_yesde *yesde;
 	u64 varsize;
 	int rc = 0;
 
-	node = of_find_compatible_node(NULL, NULL, "ibm,secvar-backend");
-	if (!of_device_is_available(node)) {
+	yesde = of_find_compatible_yesde(NULL, NULL, "ibm,secvar-backend");
+	if (!of_device_is_available(yesde)) {
 		rc = -ENODEV;
 		goto out;
 	}
 
-	rc = of_property_read_u64(node, "max-var-size", &varsize);
+	rc = of_property_read_u64(yesde, "max-var-size", &varsize);
 	if (rc)
 		goto out;
 
@@ -156,7 +156,7 @@ static int update_kobj_size(void)
 	update_attr.size = varsize;
 
 out:
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	return rc;
 }
@@ -236,7 +236,7 @@ static int secvar_sysfs_init(void)
 
 	rc = update_kobj_size();
 	if (rc) {
-		pr_err("Cannot read the size of the attribute\n");
+		pr_err("Canyest read the size of the attribute\n");
 		return rc;
 	}
 

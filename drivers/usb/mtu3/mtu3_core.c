@@ -212,7 +212,7 @@ static void mtu3_ep_reset(struct mtu3_ep *mep)
 	mtu3_clrbits(mtu->mac_base, U3D_EP_RST, rst_bit);
 }
 
-/* set/clear the stall and toggle bits for non-ep0 */
+/* set/clear the stall and toggle bits for yesn-ep0 */
 void mtu3_ep_stall_set(struct mtu3_ep *mep, bool set)
 {
 	struct mtu3 *mtu = mep->mtu;
@@ -297,7 +297,7 @@ void mtu3_stop(struct mtu3 *mtu)
 	mtu3_setbits(mtu->ippc_base, U3D_SSUSB_IP_PW_CTRL2, SSUSB_IP_DEV_PDN);
 }
 
-/* for non-ep0 */
+/* for yesn-ep0 */
 int mtu3_config_ep(struct mtu3 *mtu, struct mtu3_ep *mep,
 			int interval, int burst, int mult)
 {
@@ -399,7 +399,7 @@ int mtu3_config_ep(struct mtu3 *mtu, struct mtu3_ep *mep,
 	return 0;
 }
 
-/* for non-ep0 */
+/* for yesn-ep0 */
 void mtu3_deconfig_ep(struct mtu3 *mtu, struct mtu3_ep *mep)
 {
 	void __iomem *mbase = mtu->mac_base;
@@ -429,9 +429,9 @@ void mtu3_deconfig_ep(struct mtu3 *mtu, struct mtu3_ep *mep)
  *	are separated;
  * 2. when supports only HS, the fifo is shared for all EPs, and
  *	the capability registers of @EPNTXFFSZ or @EPNRXFFSZ indicate
- *	the total fifo size of non-ep0, and ep0's is fixed to 64B,
+ *	the total fifo size of yesn-ep0, and ep0's is fixed to 64B,
  *	so the total fifo size is 64B + @EPNTXFFSZ;
- *	Due to the first 64B should be reserved for EP0, non-ep0's fifo
+ *	Due to the first 64B should be reserved for EP0, yesn-ep0's fifo
  *	starts from offset 64 and are divided into two equal parts for
  *	TX or RX EPs for simplification.
  */
@@ -508,7 +508,7 @@ static int mtu3_mem_alloc(struct mtu3 *mtu)
 		 mtu3_readl(mbase, U3D_CAP_EPNTXFFSZ), in_ep_num,
 		 mtu3_readl(mbase, U3D_CAP_EPNRXFFSZ), out_ep_num);
 
-	/* one for ep0, another is reserved */
+	/* one for ep0, ayesther is reserved */
 	mtu->num_eps = min(in_ep_num, out_ep_num) + 1;
 	ep_array = kcalloc(mtu->num_eps * 2, sizeof(*ep_array), GFP_KERNEL);
 	if (ep_array == NULL)
@@ -799,7 +799,7 @@ static void mtu3_hw_exit(struct mtu3 *mtu)
 
 /**
  * we set 32-bit DMA mask by default, here check whether the controller
- * supports 36-bit DMA or not, if it does, set 36-bit DMA mask.
+ * supports 36-bit DMA or yest, if it does, set 36-bit DMA mask.
  */
 static int mtu3_set_dma_mask(struct mtu3 *mtu)
 {

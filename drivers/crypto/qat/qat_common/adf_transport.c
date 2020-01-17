@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -194,7 +194,7 @@ static int adf_init_ring(struct adf_etr_ring_data *ring)
 	memset(ring->base_addr, 0x7F, ring_size_bytes);
 	/* The base_addr has to be aligned to the size of the buffer */
 	if (adf_check_ring_alignment(ring->dma_addr, ring_size_bytes)) {
-		dev_err(&GET_DEV(accel_dev), "Ring address not aligned\n");
+		dev_err(&GET_DEV(accel_dev), "Ring address yest aligned\n");
 		dma_free_coherent(&GET_DEV(accel_dev), ring_size_bytes,
 				  ring->base_addr, ring->dma_addr);
 		return -EFAULT;
@@ -255,7 +255,7 @@ int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
 		return -EFAULT;
 	}
 	if (adf_cfg_get_param_value(accel_dev, section, ring_name, val)) {
-		dev_err(&GET_DEV(accel_dev), "Section %s, no such entry : %s\n",
+		dev_err(&GET_DEV(accel_dev), "Section %s, yes such entry : %s\n",
 			section, ring_name);
 		return -EFAULT;
 	}
@@ -413,9 +413,9 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 		ring = &bank->rings[i];
 		if (hw_data->tx_rings_mask & (1 << i)) {
 			ring->inflights =
-				kzalloc_node(sizeof(atomic_t),
+				kzalloc_yesde(sizeof(atomic_t),
 					     GFP_KERNEL,
-					     dev_to_node(&GET_DEV(accel_dev)));
+					     dev_to_yesde(&GET_DEV(accel_dev)));
 			if (!ring->inflights)
 				goto err;
 		} else {
@@ -465,15 +465,15 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev)
 	uint32_t num_banks = 0;
 	int i, ret;
 
-	etr_data = kzalloc_node(sizeof(*etr_data), GFP_KERNEL,
-				dev_to_node(&GET_DEV(accel_dev)));
+	etr_data = kzalloc_yesde(sizeof(*etr_data), GFP_KERNEL,
+				dev_to_yesde(&GET_DEV(accel_dev)));
 	if (!etr_data)
 		return -ENOMEM;
 
 	num_banks = GET_MAX_BANKS(accel_dev);
 	size = num_banks * sizeof(struct adf_etr_bank_data);
-	etr_data->banks = kzalloc_node(size, GFP_KERNEL,
-				       dev_to_node(&GET_DEV(accel_dev)));
+	etr_data->banks = kzalloc_yesde(size, GFP_KERNEL,
+				       dev_to_yesde(&GET_DEV(accel_dev)));
 	if (!etr_data->banks) {
 		ret = -ENOMEM;
 		goto err_bank;
@@ -483,7 +483,7 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev)
 	i = hw_data->get_etr_bar_id(hw_data);
 	csr_addr = accel_dev->accel_pci_dev.pci_bars[i].virt_addr;
 
-	/* accel_dev->debugfs_dir should always be non-NULL here */
+	/* accel_dev->debugfs_dir should always be yesn-NULL here */
 	etr_data->debug = debugfs_create_dir("transport",
 					     accel_dev->debugfs_dir);
 

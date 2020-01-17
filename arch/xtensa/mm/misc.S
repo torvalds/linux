@@ -22,7 +22,7 @@
 
 
 /*
- * clear_page and clear_user_page are the same for non-cache-aliased configs.
+ * clear_page and clear_user_page are the same for yesn-cache-aliased configs.
  *
  * clear_page (unsigned long page)
  *                    a2
@@ -49,7 +49,7 @@ ENTRY(clear_page)
 ENDPROC(clear_page)
 
 /*
- * copy_page and copy_user_page are the same for non-cache-aliased configs.
+ * copy_page and copy_user_page are the same for yesn-cache-aliased configs.
  *
  * copy_page (void *to, void *from)
  *               a2          a3
@@ -118,7 +118,7 @@ ENTRY(clear_page_alias)
 
 	abi_entry_default
 
-	/* Skip setting up a temporary DTLB if not aliased low page. */
+	/* Skip setting up a temporary DTLB if yest aliased low page. */
 
 	movi	a5, PAGE_OFFSET
 	movi	a6, 0
@@ -166,7 +166,7 @@ ENTRY(copy_page_alias)
 
 	abi_entry_default
 
-	/* Skip setting up a temporary DTLB for destination if not aliased. */
+	/* Skip setting up a temporary DTLB for destination if yest aliased. */
 
 	movi	a6, 0
 	movi	a7, 0
@@ -178,7 +178,7 @@ ENTRY(copy_page_alias)
 	wdtlb	a6, a2
 	dsync
 
-	/* Skip setting up a temporary DTLB for source if not aliased. */
+	/* Skip setting up a temporary DTLB for source if yest aliased. */
 
 1:	beqz	a5, 1f
 

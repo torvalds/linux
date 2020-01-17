@@ -123,9 +123,9 @@ enum fe_stv0900_search_standard {
 };
 
 enum fe_stv0900_search_algo {
-	STV0900_BLIND_SEARCH,/* offset freq and SR are Unknown */
-	STV0900_COLD_START,/* only the SR is known */
-	STV0900_WARM_START/* offset freq and SR are known */
+	STV0900_BLIND_SEARCH,/* offset freq and SR are Unkyeswn */
+	STV0900_COLD_START,/* only the SR is kyeswn */
+	STV0900_WARM_START/* offset freq and SR are kyeswn */
 };
 
 enum fe_stv0900_modulation {
@@ -278,7 +278,7 @@ struct stv0900_signal_info {
 	enum fe_stv0900_rolloff			rolloff;
 
 	s32 Power;/* Power of the RF signal (dBm) */
-	s32 C_N;/* Carrier to noise ratio (dB x10)*/
+	s32 C_N;/* Carrier to yesise ratio (dB x10)*/
 	u32 BER;/* Bit error rate (x10^7) */
 
 };
@@ -303,7 +303,7 @@ struct stv0900_internal{
 	enum fe_stv0900_search_algo	srch_algo[2];
 	/* search standard: Auto, DVBS1/DSS only or DVBS2 only*/
 	enum fe_stv0900_search_standard	srch_standard[2];
-	/* inversion search : auto, auto norma first, normal or inverted */
+	/* inversion search : auto, auto yesrma first, yesrmal or inverted */
 	enum fe_stv0900_search_iq	srch_iq_inv[2];
 	enum fe_stv0900_modcode		modcode[2];
 	enum fe_stv0900_modulation	modulation[2];

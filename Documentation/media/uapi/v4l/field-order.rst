@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _field-order:
 
@@ -24,7 +24,7 @@ rates similar to film the image would fade out too quickly. Transmitting
 fields reduces the flicker without the necessity of doubling the frame
 rate and with it the bandwidth required for each channel.
 
-It is important to understand a video camera does not expose one frame
+It is important to understand a video camera does yest expose one frame
 at a time, merely transmitting the frames separated into fields. The
 fields are in fact captured at two different instances in time. An
 object on screen may well move between one field and the next. For
@@ -45,7 +45,7 @@ frame. Only when the source was progressive to begin with, e. g. when
 transferring film to video, two fields may come from the same frame,
 creating a natural order.
 
-Counter to intuition the top field is not necessarily the older field.
+Counter to intuition the top field is yest necessarily the older field.
 Whether the older field contains the top or bottom lines is a convention
 determined by the video standard. Hence the distinction between temporal
 and spatial order of fields. The diagrams below should make this
@@ -60,7 +60,7 @@ All video capture and output devices must report the current field
 order. Some drivers may permit the selection of a different order, to
 this end applications initialize the ``field`` field of struct
 :c:type:`v4l2_pix_format` before calling the
-:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. If this is not desired it
+:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl. If this is yest desired it
 should have the value ``V4L2_FIELD_ANY`` (0).
 
 
@@ -92,7 +92,7 @@ enum v4l2_field
 	``V4L2_FIELD_ANY``.
     * - ``V4L2_FIELD_NONE``
       - 1
-      - Images are in progressive (frame-based) format, not interlaced
+      - Images are in progressive (frame-based) format, yest interlaced
         (field-based).
     * - ``V4L2_FIELD_TOP``
       - 2
@@ -115,13 +115,13 @@ enum v4l2_field
       - Images contain both fields, the top field lines are stored first
 	in memory, immediately followed by the bottom field lines. Fields
 	are always stored in temporal order, the older one first in
-	memory. Image sizes refer to the frame, not fields.
+	memory. Image sizes refer to the frame, yest fields.
     * - ``V4L2_FIELD_SEQ_BT``
       - 6
       - Images contain both fields, the bottom field lines are stored
 	first in memory, immediately followed by the top field lines.
 	Fields are always stored in temporal order, the older one first in
-	memory. Image sizes refer to the frame, not fields.
+	memory. Image sizes refer to the frame, yest fields.
     * - ``V4L2_FIELD_ALTERNATE``
       - 7
       - The two fields of a frame are passed in separate buffers, in
@@ -134,8 +134,8 @@ enum v4l2_field
 	any dropped fields between them (fields can drop individually),
 	can be determined from the struct
 	:c:type:`v4l2_buffer` ``sequence`` field. This
-	format cannot be selected when using the read/write I/O method
-	since there is no way to communicate if a field was a top or
+	format canyest be selected when using the read/write I/O method
+	since there is yes way to communicate if a field was a top or
 	bottom field.
     * - ``V4L2_FIELD_INTERLACED_TB``
       - 8

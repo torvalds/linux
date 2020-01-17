@@ -13,7 +13,7 @@
  *  and/or sell copies of the Software, and to permit persons to whom the
  *  Software is furnished to do so, subject to the following conditions:
  *
- *  The above copyright notice and this permission notice shall be included in
+ *  The above copyright yestice and this permission yestice shall be included in
  *  all copies or substantial portions of the Software.
  *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -131,10 +131,10 @@ static int mpcs_consumer_thread(void)
 		 */
 		if (iterations % 8 != 0) {
 			ASSERT(sync_wait(fence, -1) > 0,
-			       "Producers did not increment as expected\n");
+			       "Producers did yest increment as expected\n");
 		} else {
 			ASSERT(busy_wait_on_fence(fence) == 0,
-			       "Producers did not increment as expected\n");
+			       "Producers did yest increment as expected\n");
 		}
 
 		ASSERT(test_data_mpsc.counter == n * it,

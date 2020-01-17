@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 
-void test_xdp_noinline(void)
+void test_xdp_yesinline(void)
 {
-	const char *file = "./test_xdp_noinline.o";
+	const char *file = "./test_xdp_yesinline.o";
 	unsigned int nr_cpus = bpf_num_possible_cpus();
 	struct vip key = {.protocol = 6};
 	struct vip_meta {
@@ -53,15 +53,15 @@ void test_xdp_noinline(void)
 				buf, &size, &retval, &duration);
 	CHECK(err || retval != 1 || size != 54 ||
 	      *magic != MAGIC_VAL, "ipv4",
-	      "err %d errno %d retval %d size %d magic %x\n",
-	      err, errno, retval, size, *magic);
+	      "err %d erryes %d retval %d size %d magic %x\n",
+	      err, erryes, retval, size, *magic);
 
 	err = bpf_prog_test_run(prog_fd, NUM_ITER, &pkt_v6, sizeof(pkt_v6),
 				buf, &size, &retval, &duration);
 	CHECK(err || retval != 1 || size != 74 ||
 	      *magic != MAGIC_VAL, "ipv6",
-	      "err %d errno %d retval %d size %d magic %x\n",
-	      err, errno, retval, size, *magic);
+	      "err %d erryes %d retval %d size %d magic %x\n",
+	      err, erryes, retval, size, *magic);
 
 	map_fd = bpf_find_map(__func__, obj, "stats");
 	if (map_fd < 0)
@@ -73,7 +73,7 @@ void test_xdp_noinline(void)
 	}
 	if (CHECK_FAIL(bytes != MAGIC_BYTES * NUM_ITER * 2 ||
 		       pkts != NUM_ITER * 2)) {
-		printf("test_xdp_noinline:FAIL:stats %lld %lld\n",
+		printf("test_xdp_yesinline:FAIL:stats %lld %lld\n",
 		       bytes, pkts);
 	}
 out:

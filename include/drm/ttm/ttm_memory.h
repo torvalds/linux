@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -32,7 +32,7 @@
 #include <linux/spinlock.h>
 #include <linux/bug.h>
 #include <linux/wait.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kobject.h>
 #include <linux/mm.h>
 #include "ttm_bo_api.h"
@@ -57,7 +57,7 @@
  * @zone_highmem: Pointer to the highmem zone if there is one.
  * @zone_dma32: Pointer to the dma32 zone if there is one.
  *
- * Note that this structure is not per device. It should be global for all
+ * Note that this structure is yest per device. It should be global for all
  * graphics devices.
  */
 

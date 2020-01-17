@@ -19,7 +19,7 @@
 #include <linux/mutex.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
+static const unsigned short yesrmal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
 
 /* Many LM80 constants specified below */
@@ -56,7 +56,7 @@ static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
  * Conversions. Rounding and limit checking is only done on the TO_REG
  * variants. Note that you should be a bit careful with which arguments
  * these macros are called: arguments may be evaluated more than once.
- * Fixing this is just not worth it.
+ * Fixing this is just yest worth it.
  */
 
 #define IN_TO_REG(val)		(clamp_val(((val) + 5) / 10, 0, 255))
@@ -123,7 +123,7 @@ struct lm80_data {
 	u8 in[i_num_in][7];	/* Register value, 1st index is enum in_index */
 	u8 fan[f_num_fan][2];	/* Register value, 1st index enum fan_index */
 	u8 fan_div[2];		/* Register encoding, shifted right */
-	s16 temp[t_num_temp];	/* Register values, normalized to 16 bit */
+	s16 temp[t_num_temp];	/* Register values, yesrmalized to 16 bit */
 	u16 alarms;		/* Register encoding, combined */
 };
 
@@ -374,7 +374,7 @@ static ssize_t fan_div_store(struct device *dev,
 		break;
 	default:
 		dev_err(dev,
-			"fan_div value %ld not supported. Choose one of 1, 2, 4 or 8!\n",
+			"fan_div value %ld yest supported. Choose one of 1, 2, 4 or 8!\n",
 			val);
 		mutex_unlock(&data->update_lock);
 		return -EINVAL;
@@ -562,7 +562,7 @@ static int lm80_detect(struct i2c_client *client, struct i2c_board_info *info)
 
 	/*
 	 * The LM96080 has manufacturer and stepping/die rev registers so we
-	 * can just check that. The LM80 does not have such registers so we
+	 * can just check that. The LM80 does yest have such registers so we
 	 * have to use a more expensive trick.
 	 */
 	man_id = lm80_read_value(client, LM96080_REG_MAN_ID);
@@ -644,7 +644,7 @@ static struct i2c_driver lm80_driver = {
 	.probe		= lm80_probe,
 	.id_table	= lm80_id,
 	.detect		= lm80_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(lm80_driver);

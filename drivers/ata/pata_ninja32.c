@@ -9,15 +9,15 @@
  * method as the PIO method is always called and will set the right PIO
  * timing parameters.
  *
- * The Ninja32 Cardbus is not a generic SFF controller. Instead it is
+ * The Ninja32 Cardbus is yest a generic SFF controller. Instead it is
  * laid out as follows off BAR 0. This is based upon Mark Lord's delkin
- * driver and the extensive analysis done by the BSD developers, notably
+ * driver and the extensive analysis done by the BSD developers, yestably
  * ITOH Yasufumi.
  *
  *	Base + 0x00 IRQ Status
  *	Base + 0x01 IRQ control
  *	Base + 0x02 Chipset control
- *	Base + 0x03 Unknown
+ *	Base + 0x03 Unkyeswn
  *	Base + 0x04 VDMA and reset control + wait bits
  *	Base + 0x08 BMIMBA
  *	Base + 0x0C DMA Length
@@ -93,10 +93,10 @@ static void ninja32_program(void __iomem *base)
 {
 	iowrite8(0x05, base + 0x01);	/* Enable interrupt lines */
 	iowrite8(0xBE, base + 0x02);	/* Burst, ?? setup */
-	iowrite8(0x01, base + 0x03);	/* Unknown */
+	iowrite8(0x01, base + 0x03);	/* Unkyeswn */
 	iowrite8(0x20, base + 0x04);	/* WAIT0 */
-	iowrite8(0x8f, base + 0x05);	/* Unknown */
-	iowrite8(0xa4, base + 0x1c);	/* Unknown */
+	iowrite8(0x8f, base + 0x05);	/* Unkyeswn */
+	iowrite8(0xa4, base + 0x1c);	/* Unkyeswn */
 	iowrite8(0x83, base + 0x1d);	/* BMDMA control: WAIT0 */
 }
 

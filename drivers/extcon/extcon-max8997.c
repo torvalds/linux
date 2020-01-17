@@ -121,9 +121,9 @@ struct max8997_muic_info {
 
 	/*
 	 * Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * yestify cable state to yestifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should yestify cable state to upper layer.
 	 */
 	struct delayed_work wq_detcable;
 
@@ -298,7 +298,7 @@ static int max8997_muic_get_cable_type(struct max8997_muic_info *info,
 
 		break;
 	default:
-		dev_err(info->dev, "Unknown cable group (%d)\n", group);
+		dev_err(info->dev, "Unkyeswn cable group (%d)\n", group);
 		cable_type = -EINVAL;
 		break;
 	}
@@ -447,7 +447,7 @@ static int max8997_muic_adc_handler(struct max8997_muic_info *info)
 		return -EAGAIN;
 	default:
 		dev_err(info->dev,
-			"failed to detect %s unknown cable (type:0x%x)\n",
+			"failed to detect %s unkyeswn cable (type:0x%x)\n",
 			attached ? "attached" : "detached", cable_type);
 		return -EINVAL;
 	}
@@ -494,7 +494,7 @@ static int max8997_muic_chg_handler(struct max8997_muic_info *info)
 		break;
 	default:
 		dev_err(info->dev,
-			"failed to detect %s unknown chg cable (type:0x%x)\n",
+			"failed to detect %s unkyeswn chg cable (type:0x%x)\n",
 			attached ? "attached" : "detached", chg_type);
 		return -EINVAL;
 	}
@@ -591,7 +591,7 @@ static int max8997_muic_detect_dev(struct max8997_muic_info *info)
 	if (attached && adc != MAX8997_MUIC_ADC_OPEN) {
 		ret = max8997_muic_adc_handler(info);
 		if (ret < 0) {
-			dev_err(info->dev, "Cannot detect ADC cable\n");
+			dev_err(info->dev, "Canyest detect ADC cable\n");
 			mutex_unlock(&info->mutex);
 			return ret;
 		}
@@ -602,7 +602,7 @@ static int max8997_muic_detect_dev(struct max8997_muic_info *info)
 	if (attached && chg_type != MAX8997_CHARGER_TYPE_NONE) {
 		ret = max8997_muic_chg_handler(info);
 		if (ret < 0) {
-			dev_err(info->dev, "Cannot detect charger cable\n");
+			dev_err(info->dev, "Canyest detect charger cable\n");
 			mutex_unlock(&info->mutex);
 			return ret;
 		}
@@ -743,9 +743,9 @@ static int max8997_muic_probe(struct platform_device *pdev)
 	 * Detect accessory after completing the initialization of platform
 	 *
 	 * - Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * yestify cable state to yestifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should yestify cable state to upper layer.
 	 */
 	INIT_DELAYED_WORK(&info->wq_detcable, max8997_muic_detect_cable_wq);
 	queue_delayed_work(system_power_efficient_wq, &info->wq_detcable,

@@ -3,7 +3,7 @@
  * device driver for Conexant 2388x based TV cards
  * card-specific stuff.
  *
- * (c) 2003 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2003 Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #include "cx88.h"
@@ -83,7 +83,7 @@ static const struct cx88_board cx88_boards[] = {
 		}, {
 			.type   = CX88_VMUX_DEBUG,
 			.vmux   = 0,
-			.gpio0  = 0xff01,  // mono from tuner chip
+			.gpio0  = 0xff01,  // moyes from tuner chip
 		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
@@ -459,7 +459,7 @@ static const struct cx88_board cx88_boards[] = {
 		}, {
 			.type   = CX88_VMUX_DEBUG,
 			.vmux   = 0,
-			.gpio0  = 0x07f9,  // mono from tuner chip
+			.gpio0  = 0x07f9,  // moyes from tuner chip
 		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
@@ -483,7 +483,7 @@ static const struct cx88_board cx88_boards[] = {
 		/*
 		 * GPIO[0] resets DT3302 DTV receiver
 		 *     0 - reset asserted
-		 *     1 - normal operation
+		 *     1 - yesrmal operation
 		 * GPIO[1] mutes analog audio output connector
 		 *     0 - enable selected source
 		 *     1 - mute
@@ -494,7 +494,7 @@ static const struct cx88_board cx88_boards[] = {
 		 *     0 - RF connector labeled CABLE
 		 *     1 - RF connector labeled ANT
 		 * GPIO[4] selects high RF for QAM256 mode
-		 *     0 - normal RF
+		 *     0 - yesrmal RF
 		 *     1 - high RF
 		 */
 		.input          = { {
@@ -571,7 +571,7 @@ static const struct cx88_board cx88_boards[] = {
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_DNTV_LIVE_DVB_T] = {
-		.name		= "digitalnow DNTV Live! DVB-T",
+		.name		= "digitalyesw DNTV Live! DVB-T",
 		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
@@ -1050,7 +1050,7 @@ static const struct cx88_board cx88_boards[] = {
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_DNTV_LIVE_DVB_T_PRO] = {
-		.name           = "digitalnow DNTV Live! DVB-T Pro",
+		.name           = "digitalyesw DNTV Live! DVB-T Pro",
 		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
@@ -1362,7 +1362,7 @@ static const struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0x84bf,
-			/* 1: TV Audio / FM Mono */
+			/* 1: TV Audio / FM Moyes */
 			.audioroute = 1,
 		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
@@ -1450,7 +1450,7 @@ static const struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0	= 0xef88,
-			/* 1: TV Audio / FM Mono */
+			/* 1: TV Audio / FM Moyes */
 			.audioroute = 1,
 		}, {
 			.type	= CX88_VMUX_COMPOSITE1,
@@ -1532,8 +1532,8 @@ static const struct cx88_board cx88_boards[] = {
 		.mpeg           = CX88_MPEG_DVB,
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO] = {
-		.name           = "DViCO FusionHDTV 5 PCI nano",
-		/* xc3008 tuner, digital only for now */
+		.name           = "DViCO FusionHDTV 5 PCI nayes",
+		/* xc3008 tuner, digital only for yesw */
 		.tuner_type     = UNSET,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
@@ -1709,7 +1709,7 @@ static const struct cx88_board cx88_boards[] = {
 		.input          = { {
 			/*
 			 * Due to the way the cx88 driver is written,
-			 * there is no way to deactivate audio pass-
+			 * there is yes way to deactivate audio pass-
 			 * through without this entry. Furthermore, if
 			 * the TV mux entry is first, you get audio
 			 * from the tuner on boot for a little while.
@@ -1987,7 +1987,7 @@ static const struct cx88_board cx88_boards[] = {
 		 *
 		 * WM8775 ADC
 		 *
-		 * 1: TV Audio / FM Mono
+		 * 1: TV Audio / FM Moyes
 		 * 2: Line-In
 		 * 3: Line-In Expansion
 		 * 4: FM Stereo
@@ -1996,7 +1996,7 @@ static const struct cx88_board cx88_boards[] = {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
 			.gpio0  = 0xc4bf,
-			/* 1: TV Audio / FM Mono */
+			/* 1: TV Audio / FM Moyes */
 			.audioroute = 1,
 		}, {
 			.type   = CX88_VMUX_COMPOSITE1,
@@ -2618,7 +2618,7 @@ static const struct cx88_subid cx88_subids[] = {
 	}, {
 		.subvendor = 0x1461,
 		.subdevice = 0xc111, /* AverMedia M150-D */
-		/* This board is known to work with the ASUS PVR416 config */
+		/* This board is kyeswn to work with the ASUS PVR416 config */
 		.card      = CX88_BOARD_ASUS_PVR_416,
 	}, {
 		.subvendor = 0xc180,
@@ -2894,10 +2894,10 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	case 14029: /* WinTV-HVR3000 (Retail, IR, b/panel video, 3.5mm audio in - 880 bridge) */
 	case 14109: /* WinTV-HVR3000 (Retail, IR, b/panel video, 3.5mm audio in - low profile) */
 	case 14129: /* WinTV-HVR3000 (Retail, IR, b/panel video, 3.5mm audio in - 880 bridge - LP) */
-	case 14559: /* WinTV-HVR3000 (OEM, no IR, b/panel video, 3.5mm audio in) */
-	case 14569: /* WinTV-HVR3000 (OEM, no IR, no back panel video) */
-	case 14659: /* WinTV-HVR3000 (OEM, no IR, b/panel video, RCA audio in - Low profile) */
-	case 14669: /* WinTV-HVR3000 (OEM, no IR, no b/panel video - Low profile) */
+	case 14559: /* WinTV-HVR3000 (OEM, yes IR, b/panel video, 3.5mm audio in) */
+	case 14569: /* WinTV-HVR3000 (OEM, yes IR, yes back panel video) */
+	case 14659: /* WinTV-HVR3000 (OEM, yes IR, b/panel video, RCA audio in - Low profile) */
+	case 14669: /* WinTV-HVR3000 (OEM, yes IR, yes b/panel video - Low profile) */
 	case 28552: /* WinTV-PVR 'Roslyn' (No IR) */
 	case 34519: /* WinTV-PCI-FM */
 	case 69009:
@@ -2905,8 +2905,8 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	case 69100: /* WinTV-HVR4000LITE (DVBS/S2, IR) */
 	case 69500: /* WinTV-HVR4000LITE (DVBS/S2, No IR) */
 	case 69559:
-		/* WinTV-HVR4000 (DVBS/S2/T, Video no IR, back panel inputs) */
-	case 69569: /* WinTV-HVR4000 (DVBS/S2/T, Video no IR) */
+		/* WinTV-HVR4000 (DVBS/S2/T, Video yes IR, back panel inputs) */
+	case 69569: /* WinTV-HVR4000 (DVBS/S2/T, Video yes IR) */
 	case 90002: /* Nova-T-PCI (9002) */
 	case 92001: /* Nova-S-Plus (Video and IR) */
 	case 92002: /* Nova-S-Plus (Video and IR) */
@@ -2919,17 +2919,17 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	case 94501: /* WinTV-HVR1100 (Video and IR OEM) */
 	case 96009: /* WinTV-HVR1300 (PAL Video, MPEG Video and IR RX) */
 	case 96019: /* WinTV-HVR1300 (PAL Video, MPEG Video and IR RX/TX) */
-	case 96559: /* WinTV-HVR1300 (PAL Video, MPEG Video no IR) */
+	case 96559: /* WinTV-HVR1300 (PAL Video, MPEG Video yes IR) */
 	case 96569: /* WinTV-HVR1300 () */
 	case 96659: /* WinTV-HVR1300 () */
-	case 98559: /* WinTV-HVR1100LP (Video no IR, Retail - Low Profile) */
-		/* known */
+	case 98559: /* WinTV-HVR1100LP (Video yes IR, Retail - Low Profile) */
+		/* kyeswn */
 		break;
 	case CX88_BOARD_SAMSUNG_SMT_7020:
 		cx_set(MO_GP0_IO, 0x008989FF);
 		break;
 	default:
-		pr_warn("warning: unknown hauppauge model #%d\n", tv.model);
+		pr_warn("warning: unkyeswn hauppauge model #%d\n", tv.model);
 		break;
 	}
 
@@ -2937,7 +2937,7 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 }
 
 /*
- * some GDI (was: Modular Technology) specific stuff
+ * some GDI (was: Modular Techyeslogy) specific stuff
  */
 
 static const struct {
@@ -2980,7 +2980,7 @@ static void gdi_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	const char *name = (eeprom_data[0x0d] < ARRAY_SIZE(gdi_tuner))
 		? gdi_tuner[eeprom_data[0x0d]].name : NULL;
 
-	pr_info("GDI: tuner=%s\n", name ? name : "unknown");
+	pr_info("GDI: tuner=%s\n", name ? name : "unkyeswn");
 	if (!name)
 		return;
 	core->board.tuner_type = gdi_tuner[eeprom_data[0x0d]].id;
@@ -3224,19 +3224,19 @@ static int cx88_xc5000_tuner_callback(struct cx88_core *core,
 			 * pulling MO_SRST_IO low does reset the xc5000, this
 			 * also resets in the s5h1409 being reset as well.
 			 * This causes tuning to always fail since the internal
-			 * state of the s5h1409 does not match the driver's
+			 * state of the s5h1409 does yest match the driver's
 			 * state.  Given that the only two conditions in which
 			 * the driver performs a reset is during firmware load
 			 * and powering down the chip, I am taking out the
-			 * reset.  We know that the chip is being reset
-			 * when the cx88 comes online, and not being able to
+			 * reset.  We kyesw that the chip is being reset
+			 * when the cx88 comes online, and yest being able to
 			 * do power management for this board is worse than
-			 * not having any tuning at all.
+			 * yest having any tuning at all.
 			 */
 			return 0;
 		}
 
-		dprintk(1, "xc5000: unknown tuner callback command.\n");
+		dprintk(1, "xc5000: unkyeswn tuner callback command.\n");
 		return -EINVAL;
 	case CX88_BOARD_DVICO_FUSIONHDTV_7_GOLD:
 		if (command == 0) { /* This is the reset command from xc5000 */
@@ -3246,7 +3246,7 @@ static int cx88_xc5000_tuner_callback(struct cx88_core *core,
 			return 0;
 		}
 
-		dprintk(1, "xc5000: unknown tuner callback command.\n");
+		dprintk(1, "xc5000: unkyeswn tuner callback command.\n");
 		return -EINVAL;
 	}
 	return 0; /* Should never be here */
@@ -3296,12 +3296,12 @@ static void cx88_card_list(struct cx88_core *core, struct pci_dev *pci)
 	int i;
 
 	if (!pci->subsystem_vendor && !pci->subsystem_device) {
-		pr_err("Your board has no valid PCI Subsystem ID and thus can't\n");
+		pr_err("Your board has yes valid PCI Subsystem ID and thus can't\n");
 		pr_err("be autodetected.  Please pass card=<n> insmod option to\n");
 		pr_err("workaround that.  Redirect complaints to the vendor of\n");
 		pr_err("the TV card\n");
 	} else {
-		pr_err("Your board isn't known (yet) to the driver.  You can\n");
+		pr_err("Your board isn't kyeswn (yet) to the driver.  You can\n");
 		pr_err("try to pick one of the existing card configs via\n");
 		pr_err("card=<n> insmod option.  Updating to the latest\n");
 		pr_err("version might help as well.\n");
@@ -3409,23 +3409,23 @@ void cx88_setup_xc3028(struct cx88_core *core, struct xc2028_ctrl *ctl)
 	case CX88_BOARD_GENIATECH_X8000_MT:
 		/*
 		 * FIXME: For this board, the xc3028 never recovers after being
-		 * powered down (the reset GPIO probably is not set properly).
-		 * We don't have access to the hardware so we cannot determine
+		 * powered down (the reset GPIO probably is yest set properly).
+		 * We don't have access to the hardware so we canyest determine
 		 * which GPIO is used for xc3028, so just disable power xc3028
-		 * power management for now
+		 * power management for yesw
 		 */
 		ctl->disable_power_mgmt = 1;
 		break;
 	case CX88_BOARD_NOTONLYTV_LV3H:
 		ctl->demod			= XC3028_FE_ZARLINK456;
 		ctl->fname			= XC3028L_DEFAULT_FIRMWARE;
-		ctl->read_not_reliable	= 1;
+		ctl->read_yest_reliable	= 1;
 		break;
 	case CX88_BOARD_WINFAST_TV2000_XP_GLOBAL:
 	case CX88_BOARD_PROLINK_PV_GLOBAL_XTREME:
 	case CX88_BOARD_PROLINK_PV_8000GT:
 		/*
-		 * Those boards uses non-MTS firmware
+		 * Those boards uses yesn-MTS firmware
 		 */
 		break;
 	case CX88_BOARD_PINNACLE_HYBRID_PCTV:
@@ -3552,7 +3552,7 @@ static void cx88_card_setup(struct cx88_core *core)
 		memset(&ctl, 0, sizeof(ctl));
 
 		ctl.high_cut  = 1;
-		ctl.st_noise  = 1;
+		ctl.st_yesise  = 1;
 		ctl.deemph_75 = 1;
 		ctl.xtal_freq = TEA5767_HIGH_LO_13MHz;
 
@@ -3717,11 +3717,11 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 
 	/*
 	 * Note: Setting initial standard here would cause first call to
-	 * cx88_set_tvnorm() to return without programming any registers.  Leave
+	 * cx88_set_tvyesrm() to return without programming any registers.  Leave
 	 * it blank for at this point and it will get set later in
 	 * cx8800_initdev()
 	 */
-	core->tvnorm  = 0;
+	core->tvyesrm  = 0;
 
 	core->width   = 320;
 	core->height  = 240;
@@ -3810,7 +3810,7 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	/* load tuner module, if needed */
 	if (core->board.tuner_type != UNSET) {
 		/*
-		 * Ignore 0x6b and 0x6f on cx88 boards.
+		 * Igyesre 0x6b and 0x6f on cx88 boards.
 		 * FusionHDTV5 RT Gold has an ir receiver at 0x6b
 		 * and an RTC at 0x6f which can get corrupted if probed.
 		 */

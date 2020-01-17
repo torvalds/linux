@@ -2,7 +2,7 @@
 /*
  * PWM Controller Driver for HiSilicon BVT SoCs
  *
- * Copyright (c) 2016 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2016 HiSilicon Techyeslogies Co., Ltd.
  */
 
 #include <linux/bitops.h>

@@ -24,14 +24,14 @@
 /**
  * struct vdso_timestamp - basetime per clock_id
  * @sec:	seconds
- * @nsec:	nanoseconds
+ * @nsec:	nayesseconds
  *
  * There is one vdso_timestamp object in vvar for each vDSO-accelerated
  * clock_id. For high-resolution clocks, this encodes the time
  * corresponding to vdso_data.cycle_last. For coarse clocks this encodes
  * the actual time.
  *
- * To be noticed that for highres clocks nsec is left-shifted by
+ * To be yesticed that for highres clocks nsec is left-shifted by
  * vdso_data.cs[x].shift.
  */
 struct vdso_timestamp {
@@ -76,8 +76,8 @@ struct vdso_data {
 /*
  * We use the hidden visibility to prevent the compiler from generating a GOT
  * relocation. Not only is going through a GOT useless (the entry couldn't and
- * must not be overridden by another library), it does not even work: the linker
- * cannot generate an absolute address to the data page.
+ * must yest be overridden by ayesther library), it does yest even work: the linker
+ * canyest generate an absolute address to the data page.
  *
  * With the hidden visibility, the compiler simply generates a PC-relative
  * relocation, and this is what we need.

@@ -21,10 +21,10 @@
  * by way of evt2irq() translation.
  *
  * Note: For platforms that use a flat vector space without INTEVT this
- * basically just mimics irq_domain_xlate_onecell() by way of a nopped
+ * basically just mimics irq_domain_xlate_onecell() by way of a yespped
  * out evt2irq() implementation.
  */
-static int intc_evt_xlate(struct irq_domain *d, struct device_node *ctrlr,
+static int intc_evt_xlate(struct irq_domain *d, struct device_yesde *ctrlr,
 			  const u32 *intspec, unsigned int intsize,
 			  unsigned long *out_hwirq, unsigned int *out_type)
 {
@@ -56,7 +56,7 @@ void __init intc_irq_domain_init(struct intc_desc_int *d,
 	 * Linear domains have a hard-wired assertion that IRQs start at
 	 * 0 in order to make some performance optimizations. Lamely
 	 * restrict the linear case to these conditions here, taking the
-	 * tree penalty for linear cases with non-zero hwirq bases.
+	 * tree penalty for linear cases with yesn-zero hwirq bases.
 	 */
 	if (irq_base == 0 && irq_end == (irq_base + hw->nr_vectors - 1))
 		d->domain = irq_domain_add_linear(NULL, hw->nr_vectors,

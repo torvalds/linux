@@ -55,7 +55,7 @@ struct aic3x_setup_data {
 };
 
 struct aic3x_pdata {
-	int gpio_reset; /* < 0 if not used */
+	int gpio_reset; /* < 0 if yest used */
 	struct aic3x_setup_data *setup;
 
 	/* Selects the micbias voltage */

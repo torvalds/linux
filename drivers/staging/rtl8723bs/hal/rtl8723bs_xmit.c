@@ -10,7 +10,7 @@
 #include <rtw_debug.h>
 #include <rtl8723b_hal.h>
 
-static u8 rtw_sdio_wait_enough_TxOQT_space(struct adapter *padapter, u8 agg_num)
+static u8 rtw_sdio_wait_eyesugh_TxOQT_space(struct adapter *padapter, u8 agg_num)
 {
 	u32 n = 0;
 	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
@@ -84,7 +84,7 @@ static s32 rtl8723_dequeue_writeport(struct adapter *padapter)
 	}
 
 query_free_page:
-	/*  check if hardware tx fifo page is enough */
+	/*  check if hardware tx fifo page is eyesugh */
 	if (!rtw_hal_sdio_query_tx_freepage(pri_padapter, PageIdx, pxmitbuf->pg_num)) {
 		if (!bUpdatePageNum) {
 			/*  Total number of page is NOT available, so update current FIFO status */
@@ -104,13 +104,13 @@ query_free_page:
 	) {
 		RT_TRACE(
 			_module_hal_xmit_c_,
-			_drv_notice_,
+			_drv_yestice_,
 			("%s: bSurpriseRemoved(write port)\n", __func__)
 		);
 		goto free_xmitbuf;
 	}
 
-	if (rtw_sdio_wait_enough_TxOQT_space(padapter, pxmitbuf->agg_num) == false)
+	if (rtw_sdio_wait_eyesugh_TxOQT_space(padapter, pxmitbuf->agg_num) == false)
 		goto free_xmitbuf;
 
 	traffic_check_for_leave_lps(padapter, true, pxmitbuf->agg_num);
@@ -194,8 +194,8 @@ s32 rtl8723bs_xmit_buf_handler(struct adapter *padapter)
  *
  * Return:
  *0	Success
- *-1	Hardware resource(TX FIFO) not ready
- *-2	Software resource(xmitbuf) not ready
+ *-1	Hardware resource(TX FIFO) yest ready
+ *-2	Software resource(xmitbuf) yest ready
  */
 static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv)
 {
@@ -251,7 +251,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 		sta_phead = get_list_head(phwxmit->sta_queue);
 		sta_plist = get_next(sta_phead);
 		/* because stop_sta_xmit may delete sta_plist at any time */
-		/* so we should add lock here, or while loop can not exit */
+		/* so we should add lock here, or while loop can yest exit */
 		while (sta_phead != sta_plist) {
 			ptxservq = LIST_CONTAINOR(sta_plist, struct tx_servq, tx_pending);
 			sta_plist = get_next(sta_plist);
@@ -280,7 +280,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 				frame_plist = get_next(frame_phead);
 				pxmitframe = LIST_CONTAINOR(frame_plist, struct xmit_frame, list);
 
-				/*  check xmit_buf size enough or not */
+				/*  check xmit_buf size eyesugh or yest */
 				txlen = txdesc_size + rtw_wlan_pkt_size(pxmitframe);
 				if(	!pxmitbuf ||
 					((_RND(pxmitbuf->len, 8) + txlen) > max_xmit_len) ||
@@ -298,7 +298,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 							rtw_free_xmitframe(pxmitpriv, pframe);
 							pxmitbuf->priv_data = NULL;
 							enqueue_pending_xmitbuf(pxmitpriv, pxmitbuf);
-							/* can not yield under lock */
+							/* can yest yield under lock */
 							/* yield(); */
 						} else
 							rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
@@ -307,7 +307,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 					pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
 					if (!pxmitbuf) {
 #ifdef DBG_XMIT_BUF
-						DBG_871X_LEVEL(_drv_err_, "%s: xmit_buf is not enough!\n", __func__);
+						DBG_871X_LEVEL(_drv_err_, "%s: xmit_buf is yest eyesugh!\n", __func__);
 #endif
 						err = -2;
 						complete(&(pxmitpriv->xmit_comp));
@@ -323,7 +323,7 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 						(pxmitframe->attrib.triggered == 0)
 					) {
 						DBG_871X(
-							"%s: one not triggered pkt in queue when this STA sleep,"
+							"%s: one yest triggered pkt in queue when this STA sleep,"
 							" break and goto next sta\n",
 							__func__
 						);
@@ -430,7 +430,7 @@ next:
 	) {
 		RT_TRACE(
 			_module_hal_xmit_c_,
-			_drv_notice_,
+			_drv_yestice_,
 			(
 				"%s: bDriverStopped(%d) bSurpriseRemoved(%d)\n",
 				__func__,
@@ -497,7 +497,7 @@ int rtl8723bs_xmit_thread(void *context)
 
 	complete(&pxmitpriv->SdioXmitTerminate);
 
-	RT_TRACE(_module_hal_xmit_c_, _drv_notice_, ("-%s\n", __func__));
+	RT_TRACE(_module_hal_xmit_c_, _drv_yestice_, ("-%s\n", __func__));
 
 	thread_exit();
 }

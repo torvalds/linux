@@ -44,9 +44,9 @@ static SUNXI_CCU_NKM_WITH_GATE_LOCK(pll_cpu_clk, "pll-cpu",
  *
  * With sigma-delta modulation for fractional-N on the audio PLL,
  * we have to use specific dividers. This means the variable divider
- * can no longer be used, as the audio codec requests the exact clock
- * rates we support through this mechanism. So we now hard code the
- * variable divider to 1. This means the clock rates will no longer
+ * can yes longer be used, as the audio codec requests the exact clock
+ * rates we support through this mechanism. So we yesw hard code the
+ * variable divider to 1. This means the clock rates will yes longer
  * match the clock names.
  */
 #define SUN6I_A31_PLL_AUDIO_REG	0x008
@@ -137,7 +137,7 @@ static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_gpu_clk, "pll-gpu",
  *
  * The MIPI mode is a standard NKM-style clock. The HDMI mode is an
  * integer / fractional clock with switchable multipliers and dividers.
- * This is not supported here. We hardcode the PLL to MIPI mode.
+ * This is yest supported here. We hardcode the PLL to MIPI mode.
  */
 #define SUN6I_A31_PLL_MIPI_REG	0x040
 
@@ -489,7 +489,7 @@ static SUNXI_CCU_GATE(usb_ohci1_clk,	"usb-ohci1",	"osc24M",
 static SUNXI_CCU_GATE(usb_ohci2_clk,	"usb-ohci2",	"osc24M",
 		      0x0cc, BIT(18), 0);
 
-/* TODO emac clk not supported yet */
+/* TODO emac clk yest supported yet */
 
 static const char * const dram_parents[] = { "pll-ddr", "pll-periph" };
 static SUNXI_CCU_MP_WITH_MUX_GATE(mdfs_clk, "mdfs", dram_parents, 0x0f0,
@@ -959,7 +959,7 @@ static const struct clk_hw *clk_parent_pll_audio[] = {
 	&pll_audio_base_clk.common.hw
 };
 
-/* We hardcode the divider to 1 for now */
+/* We hardcode the divider to 1 for yesw */
 static CLK_FIXED_FACTOR_HWS(pll_audio_clk, "pll-audio",
 			    clk_parent_pll_audio,
 			    1, 1, CLK_SET_RATE_PARENT);
@@ -1226,14 +1226,14 @@ static struct ccu_mux_nb sun6i_a31_cpu_nb = {
 	.bypass_index	= 1, /* index of 24 MHz oscillator */
 };
 
-static void __init sun6i_a31_ccu_setup(struct device_node *node)
+static void __init sun6i_a31_ccu_setup(struct device_yesde *yesde)
 {
 	void __iomem *reg;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
+		pr_err("%pOF: Could yest map the clock registers\n", yesde);
 		return;
 	}
 
@@ -1257,9 +1257,9 @@ static void __init sun6i_a31_ccu_setup(struct device_node *node)
 	val |= 0x3 << 12;
 	writel(val, reg + SUN6I_A31_AHB1_REG);
 
-	sunxi_ccu_probe(node, reg, &sun6i_a31_ccu_desc);
+	sunxi_ccu_probe(yesde, reg, &sun6i_a31_ccu_desc);
 
-	ccu_mux_notifier_register(pll_cpu_clk.common.hw.clk,
+	ccu_mux_yestifier_register(pll_cpu_clk.common.hw.clk,
 				  &sun6i_a31_cpu_nb);
 }
 CLK_OF_DECLARE(sun6i_a31_ccu, "allwinner,sun6i-a31-ccu",

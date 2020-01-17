@@ -24,12 +24,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -87,7 +87,7 @@ static inline u8 port_states_to_phys_state(struct opa_port_states *ps)
  * values are the same in OmniPath Architecture. OPA leverages some of the same
  * concepts as InfiniBand, but has a few other states as well.
  *
- * When writing, only values 0-3 are valid, other values are ignored.
+ * When writing, only values 0-3 are valid, other values are igyesred.
  * When reading, 0 is reserved.
  *
  * Returned by the ibphys_portstate() routine.
@@ -122,7 +122,7 @@ enum opa_port_phys_state {
 	OPA_PORTPHYSSTATE_TEST = 11,
 
 	OPA_PORTPHYSSTATE_MAX = 11,
-	/* values 12-15 are reserved/ignored */
+	/* values 12-15 are reserved/igyesred */
 };
 
 #endif /* _LINUX_H */

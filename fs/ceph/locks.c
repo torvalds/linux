@@ -17,7 +17,7 @@ static inline u64 secure_addr(void *addr)
 {
 	u64 v = lock_secret ^ (u64)(unsigned long)addr;
 	/*
-	 * Set the most significant bit, so that MDS knows the 'owner'
+	 * Set the most significant bit, so that MDS kyesws the 'owner'
 	 * is sufficient to identify the owner of lock. (old code uses
 	 * both 'owner' and 'pid')
 	 */
@@ -33,16 +33,16 @@ void __init ceph_flock_init(void)
 static void ceph_fl_copy_lock(struct file_lock *dst, struct file_lock *src)
 {
 	struct ceph_file_info *fi = dst->fl_file->private_data;
-	struct inode *inode = file_inode(dst->fl_file);
-	atomic_inc(&ceph_inode(inode)->i_filelock_ref);
+	struct iyesde *iyesde = file_iyesde(dst->fl_file);
+	atomic_inc(&ceph_iyesde(iyesde)->i_filelock_ref);
 	atomic_inc(&fi->num_locks);
 }
 
 static void ceph_fl_release_lock(struct file_lock *fl)
 {
 	struct ceph_file_info *fi = fl->fl_file->private_data;
-	struct inode *inode = file_inode(fl->fl_file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct iyesde *iyesde = file_iyesde(fl->fl_file);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	atomic_dec(&fi->num_locks);
 	if (atomic_dec_and_test(&ci->i_filelock_ref)) {
 		/* clear error when all locks are released */
@@ -60,10 +60,10 @@ static const struct file_lock_operations ceph_fl_lock_ops = {
 /**
  * Implement fcntl and flock locking functions.
  */
-static int ceph_lock_message(u8 lock_type, u16 operation, struct inode *inode,
+static int ceph_lock_message(u8 lock_type, u16 operation, struct iyesde *iyesde,
 			     int cmd, u8 wait, struct file_lock *fl)
 {
-	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(iyesde->i_sb)->mdsc;
 	struct ceph_mds_request *req;
 	int err;
 	u64 length = 0;
@@ -73,7 +73,7 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct inode *inode,
 		/*
 		 * increasing i_filelock_ref closes race window between
 		 * handling request reply and adding file_lock struct to
-		 * inode. Otherwise, auth caps may get trimmed in the
+		 * iyesde. Otherwise, auth caps may get trimmed in the
 		 * window. Caller function will decrease the counter.
 		 */
 		fl->fl_ops = &ceph_fl_lock_ops;
@@ -86,8 +86,8 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct inode *inode,
 	req = ceph_mdsc_create_request(mdsc, operation, USE_AUTH_MDS);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	req->r_inode = inode;
-	ihold(inode);
+	req->r_iyesde = iyesde;
+	ihold(iyesde);
 	req->r_num_caps = 1;
 
 	/* mds requires start and length rather than start and end */
@@ -114,7 +114,7 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct inode *inode,
 	if (wait)
 		req->r_wait_for_completion = ceph_lock_wait_for_completion;
 
-	err = ceph_mdsc_do_request(mdsc, inode, req);
+	err = ceph_mdsc_do_request(mdsc, iyesde, req);
 	if (!err && operation == CEPH_MDS_OP_GETFILELOCK) {
 		fl->fl_pid = -le64_to_cpu(req->r_reply_info.filelock_reply->pid);
 		if (CEPH_LOCK_SHARED == req->r_reply_info.filelock_reply->type)
@@ -145,7 +145,7 @@ static int ceph_lock_wait_for_completion(struct ceph_mds_client *mdsc,
                                          struct ceph_mds_request *req)
 {
 	struct ceph_mds_request *intr_req;
-	struct inode *inode = req->r_inode;
+	struct iyesde *iyesde = req->r_iyesde;
 	int err, lock_type;
 
 	BUG_ON(req->r_op != CEPH_MDS_OP_SETFILELOCK);
@@ -192,15 +192,15 @@ static int ceph_lock_wait_for_completion(struct ceph_mds_client *mdsc,
 	if (IS_ERR(intr_req))
 		return PTR_ERR(intr_req);
 
-	intr_req->r_inode = inode;
-	ihold(inode);
+	intr_req->r_iyesde = iyesde;
+	ihold(iyesde);
 	intr_req->r_num_caps = 1;
 
 	intr_req->r_args.filelock_change = req->r_args.filelock_change;
 	intr_req->r_args.filelock_change.rule = lock_type;
 	intr_req->r_args.filelock_change.type = CEPH_LOCK_UNLOCK;
 
-	err = ceph_mdsc_do_request(mdsc, inode, intr_req);
+	err = ceph_mdsc_do_request(mdsc, iyesde, intr_req);
 	ceph_mdsc_put_request(intr_req);
 
 	if (err && err != -ERESTARTSYS)
@@ -212,12 +212,12 @@ static int ceph_lock_wait_for_completion(struct ceph_mds_client *mdsc,
 
 /**
  * Attempt to set an fcntl lock.
- * For now, this just goes away to the server. Later it may be more awesome.
+ * For yesw, this just goes away to the server. Later it may be more awesome.
  */
 int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	int err = 0;
 	u16 op = CEPH_MDS_OP_SETFILELOCK;
 	u8 wait = 0;
@@ -255,7 +255,7 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 	else
 		lock_cmd = CEPH_LOCK_UNLOCK;
 
-	err = ceph_lock_message(CEPH_LOCK_FCNTL, op, inode, lock_cmd, wait, fl);
+	err = ceph_lock_message(CEPH_LOCK_FCNTL, op, iyesde, lock_cmd, wait, fl);
 	if (!err) {
 		if (op == CEPH_MDS_OP_SETFILELOCK) {
 			dout("mds locked, locking locally\n");
@@ -264,7 +264,7 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 				/* undo! This should only happen if
 				 * the kernel detects local
 				 * deadlock. */
-				ceph_lock_message(CEPH_LOCK_FCNTL, op, inode,
+				ceph_lock_message(CEPH_LOCK_FCNTL, op, iyesde,
 						  CEPH_LOCK_UNLOCK, 0, fl);
 				dout("got %d on posix_lock_file, undid lock\n",
 				     err);
@@ -276,8 +276,8 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 
 int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 {
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	int err = 0;
 	u8 wait = 0;
 	u8 lock_cmd;
@@ -312,13 +312,13 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 		lock_cmd = CEPH_LOCK_UNLOCK;
 
 	err = ceph_lock_message(CEPH_LOCK_FLOCK, CEPH_MDS_OP_SETFILELOCK,
-				inode, lock_cmd, wait, fl);
+				iyesde, lock_cmd, wait, fl);
 	if (!err) {
 		err = locks_lock_file_wait(file, fl);
 		if (err) {
 			ceph_lock_message(CEPH_LOCK_FLOCK,
 					  CEPH_MDS_OP_SETFILELOCK,
-					  inode, CEPH_LOCK_UNLOCK, 0, fl);
+					  iyesde, CEPH_LOCK_UNLOCK, 0, fl);
 			dout("got %d on locks_lock_file_wait, undid lock\n", err);
 		}
 	}
@@ -329,7 +329,7 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
  * Fills in the passed counter variables, so you can prepare pagelist metadata
  * before calling ceph_encode_locks.
  */
-void ceph_count_locks(struct inode *inode, int *fcntl_count, int *flock_count)
+void ceph_count_locks(struct iyesde *iyesde, int *fcntl_count, int *flock_count)
 {
 	struct file_lock *lock;
 	struct file_lock_context *ctx;
@@ -337,7 +337,7 @@ void ceph_count_locks(struct inode *inode, int *fcntl_count, int *flock_count)
 	*fcntl_count = 0;
 	*flock_count = 0;
 
-	ctx = inode->i_flctx;
+	ctx = iyesde->i_flctx;
 	if (ctx) {
 		spin_lock(&ctx->flc_lock);
 		list_for_each_entry(lock, &ctx->flc_posix, fl_list)
@@ -374,7 +374,7 @@ static int lock_to_ceph_filelock(struct file_lock *lock,
 		cephlock->type = CEPH_LOCK_UNLOCK;
 		break;
 	default:
-		dout("Have unknown lock type %d\n", lock->fl_type);
+		dout("Have unkyeswn lock type %d\n", lock->fl_type);
 		err = -EINVAL;
 	}
 
@@ -382,16 +382,16 @@ static int lock_to_ceph_filelock(struct file_lock *lock,
 }
 
 /**
- * Encode the flock and fcntl locks for the given inode into the ceph_filelock
- * array. Must be called with inode->i_lock already held.
+ * Encode the flock and fcntl locks for the given iyesde into the ceph_filelock
+ * array. Must be called with iyesde->i_lock already held.
  * If we encounter more of a specific lock type than expected, return -ENOSPC.
  */
-int ceph_encode_locks_to_buffer(struct inode *inode,
+int ceph_encode_locks_to_buffer(struct iyesde *iyesde,
 				struct ceph_filelock *flocks,
 				int num_fcntl_locks, int num_flock_locks)
 {
 	struct file_lock *lock;
-	struct file_lock_context *ctx = inode->i_flctx;
+	struct file_lock_context *ctx = iyesde->i_flctx;
 	int err = 0;
 	int seen_fcntl = 0;
 	int seen_flock = 0;

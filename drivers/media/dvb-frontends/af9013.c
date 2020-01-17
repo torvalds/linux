@@ -593,7 +593,7 @@ static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 			state->strength_en = 1;
 		} else {
-			/* Signal strength is not supported */
+			/* Signal strength is yest supported */
 			state->strength_en = 2;
 			break;
 		}
@@ -646,7 +646,7 @@ static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			goto err;
 
 		if (!((utmp >> 3) & 0x01)) {
-			dev_dbg(&client->dev, "cnr not ready\n");
+			dev_dbg(&client->dev, "cnr yest ready\n");
 			break;
 		}
 
@@ -728,7 +728,7 @@ static int af9013_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			goto err;
 
 		if (!((utmp >> 4) & 0x01)) {
-			dev_dbg(&client->dev, "ber not ready\n");
+			dev_dbg(&client->dev, "ber yest ready\n");
 			break;
 		}
 
@@ -940,8 +940,8 @@ static int af9013_init(struct dvb_frontend *fe)
 		break;
 	case AF9013_TUNER_UNKNOWN:
 	default:
-		len = ARRAY_SIZE(tuner_init_tab_unknown);
-		tab = tuner_init_tab_unknown;
+		len = ARRAY_SIZE(tuner_init_tab_unkyeswn);
+		tab = tuner_init_tab_unkyeswn;
 		break;
 	}
 
@@ -1050,7 +1050,7 @@ static int af9013_download_firmware(struct af9013_state *state)
 	/* Request the firmware, will block and timeout */
 	ret = request_firmware(&firmware, name, &client->dev);
 	if (ret) {
-		dev_info(&client->dev, "firmware file '%s' not found %d\n",
+		dev_info(&client->dev, "firmware file '%s' yest found %d\n",
 			 name, ret);
 		goto err;
 	}
@@ -1103,7 +1103,7 @@ static int af9013_download_firmware(struct af9013_state *state)
 
 	if (utmp == 0x04) {
 		ret = -ENODEV;
-		dev_err(&client->dev, "firmware did not run\n");
+		dev_err(&client->dev, "firmware did yest run\n");
 		goto err;
 	} else if (utmp != 0x0c) {
 		ret = -ENODEV;
@@ -1160,15 +1160,15 @@ static const struct dvb_frontend_ops af9013_ops = {
 	.read_ucblocks = af9013_read_ucblocks,
 };
 
-static int af9013_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+static int af9013_pid_filter_ctrl(struct dvb_frontend *fe, int oyesff)
 {
 	struct af9013_state *state = fe->demodulator_priv;
 	struct i2c_client *client = state->client;
 	int ret;
 
-	dev_dbg(&client->dev, "onoff %d\n", onoff);
+	dev_dbg(&client->dev, "oyesff %d\n", oyesff);
 
-	ret = regmap_update_bits(state->regmap, 0xd503, 0x01, onoff);
+	ret = regmap_update_bits(state->regmap, 0xd503, 0x01, oyesff);
 	if (ret)
 		goto err;
 
@@ -1179,15 +1179,15 @@ err:
 }
 
 static int af9013_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid,
-			     int onoff)
+			     int oyesff)
 {
 	struct af9013_state *state = fe->demodulator_priv;
 	struct i2c_client *client = state->client;
 	int ret;
 	u8 buf[2];
 
-	dev_dbg(&client->dev, "index %d, pid %04x, onoff %d\n",
-		index, pid, onoff);
+	dev_dbg(&client->dev, "index %d, pid %04x, oyesff %d\n",
+		index, pid, oyesff);
 
 	if (pid > 0x1fff) {
 		/* 0x2000 is kernel virtual pid for whole ts (all pids) */
@@ -1200,7 +1200,7 @@ static int af9013_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid,
 	ret = regmap_bulk_write(state->regmap, 0xd505, buf, 2);
 	if (ret)
 		goto err;
-	ret = regmap_write(state->regmap, 0xd504, onoff << 5 | index << 0);
+	ret = regmap_write(state->regmap, 0xd504, oyesff << 5 | index << 0);
 	if (ret)
 		goto err;
 

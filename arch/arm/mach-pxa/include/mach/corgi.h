@@ -16,7 +16,7 @@
  */
 #define CORGI_GPIO_KEY_INT			(0)	/* Keyboard Interrupt */
 #define CORGI_GPIO_AC_IN			(1) /* Charger Detection */
-#define CORGI_GPIO_WAKEUP			(3) /* System wakeup notification? */
+#define CORGI_GPIO_WAKEUP			(3) /* System wakeup yestification? */
 #define CORGI_GPIO_AK_INT			(4)	/* Headphone Jack Control Interrupt */
 #define CORGI_GPIO_TP_INT			(5)	/* Touch Panel Interrupt */
 #define CORGI_GPIO_nSD_WP			(7) /* SD Write Protect? */
@@ -36,7 +36,7 @@
 #define CORGI_GPIO_SD_PWR			(33) /* MMC/SD Power */
 #define CORGI_GPIO_CHRG_ON			(38) /* Enable battery Charging */
 #define CORGI_GPIO_DISCHARGE_ON		(42) /* Enable battery Discharge */
-#define CORGI_GPIO_CHRG_UKN			(43) /* Unknown Charging (Bypass Control?) */
+#define CORGI_GPIO_CHRG_UKN			(43) /* Unkyeswn Charging (Bypass Control?) */
 #define CORGI_GPIO_HSYNC			(44) /* LCD HSync Pulse */
 #define CORGI_GPIO_USB_PULLUP		(45) /* USB show presence to host */
 

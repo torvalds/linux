@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -33,7 +33,7 @@
 #include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -71,8 +71,8 @@
 #include "ecpf.h"
 #include "lib/hv_vhca.h"
 
-MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox 5th generation network adapters (ConnectX series) core driver");
+MODULE_AUTHOR("Eli Cohen <eli@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx 5th generation network adapters (ConnectX series) core driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRIVER_VERSION);
 
@@ -536,7 +536,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 	mlx5_core_dbg(dev, "Current Pkey table size %d Setting new size %d\n",
 		      mlx5_to_sw_pkey_sz(MLX5_CAP_GEN(dev, pkey_table_size)),
 		      128);
-	/* we limit the size of the pkey table to 128 entries for now */
+	/* we limit the size of the pkey table to 128 entries for yesw */
 	MLX5_SET(cmd_hca_cap, set_hca_cap, pkey_table_size,
 		 to_fw_pkey_sz(dev, 128));
 
@@ -704,7 +704,7 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 			return err;
 		}
 
-		mlx5_core_warn(dev, "Query ISSI is not supported by FW, ISSI is 0\n");
+		mlx5_core_warn(dev, "Query ISSI is yest supported by FW, ISSI is 0\n");
 		dev->issi = 0;
 		return 0;
 	}
@@ -745,11 +745,11 @@ static int mlx5_pci_init(struct mlx5_core_dev *dev, struct pci_dev *pdev,
 	pci_set_drvdata(dev->pdev, dev);
 
 	dev->bar_addr = pci_resource_start(pdev, 0);
-	priv->numa_node = dev_to_node(&dev->pdev->dev);
+	priv->numa_yesde = dev_to_yesde(&dev->pdev->dev);
 
 	err = mlx5_pci_enable_device(dev);
 	if (err) {
-		mlx5_core_err(dev, "Cannot enable PCI device, aborting\n");
+		mlx5_core_err(dev, "Canyest enable PCI device, aborting\n");
 		return err;
 	}
 
@@ -1287,7 +1287,7 @@ static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 	priv->dbg_root = debugfs_create_dir(dev_name(dev->device),
 					    mlx5_debugfs_root);
 	if (!priv->dbg_root) {
-		dev_err(dev->device, "mlx5_core: error, Cannot create debugfs dir, aborting\n");
+		dev_err(dev->device, "mlx5_core: error, Canyest create debugfs dir, aborting\n");
 		return -ENOMEM;
 	}
 
@@ -1354,7 +1354,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_load_one;
 	}
 
-	request_module_nowait(MLX5_IB_MOD);
+	request_module_yeswait(MLX5_IB_MOD);
 
 	err = mlx5_crdump_enable(dev);
 	if (err)
@@ -1505,7 +1505,7 @@ static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 	}
 
 	/* Panic tear down fw command will stop the PCI bus communication
-	 * with the HCA, so the health polll is no longer needed.
+	 * with the HCA, so the health polll is yes longer needed.
 	 */
 	mlx5_drain_health_wq(dev);
 	mlx5_stop_health_poll(dev, false);
@@ -1527,7 +1527,7 @@ succeed:
 
 	/* Some platforms requiring freeing the IRQ's in the shutdown
 	 * flow. If they aren't freed they can't be allocated after
-	 * kexec. There is no need to cleanup the mlx5_core software
+	 * kexec. There is yes need to cleanup the mlx5_core software
 	 * contexts.
 	 */
 	mlx5_core_eq_free_irqs(dev);

@@ -76,8 +76,8 @@ struct iscsi_bsg_request {
 struct iscsi_bsg_reply {
 	/*
 	 * The completion result. Result exists in two forms:
-	 * if negative, it is an -Exxx system errno value. There will
-	 * be no further reply information supplied.
+	 * if negative, it is an -Exxx system erryes value. There will
+	 * be yes further reply information supplied.
 	 * else, it's the 4-byte scsi error result, with driver, host,
 	 * msg and status fields. The per-msgcode reply structure
 	 * will contain valid data.

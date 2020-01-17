@@ -4,11 +4,11 @@ Required properties:
  - regulator-name: should be "buck1", "buck2", "buck3", "ldo1", "ldo2", "ldo3",
 		   "led_ldo1", "led_ldo2"
 
-List of regulators provided by this controller. BD70528 regulators node
-should be sub node of the BD70528 MFD node. See BD70528 MFD bindings at
+List of regulators provided by this controller. BD70528 regulators yesde
+should be sub yesde of the BD70528 MFD yesde. See BD70528 MFD bindings at
 Documentation/devicetree/bindings/mfd/rohm,bd70528-pmic.txt
 
-The valid names for BD70528 regulator nodes are:
+The valid names for BD70528 regulator yesdes are:
 BUCK1, BUCK2, BUCK3, LDO1, LDO2, LDO3, LED_LDO1, LED_LDO2
 
 Optional properties:

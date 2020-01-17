@@ -90,7 +90,7 @@ __kernel_clock_gettime:
 	stcke	0(%r15)				/* Store TOD clock */
 	lg	%r1,1(%r15)
 	lg	%r0,__VDSO_TS_END(%r5)		/* TOD steering end time */
-	slgr	%r0,%r1				/* now - ts_steering_end */
+	slgr	%r0,%r1				/* yesw - ts_steering_end */
 	ltgr	%r0,%r0				/* past end of steering ? */
 	jm	17f
 	srlg	%r0,%r0,15			/* 1 per 2^16 */
@@ -130,8 +130,8 @@ __kernel_clock_gettime:
 	.insn	ssf,0xc80100000000,__VDSO_ECTG_BASE(4),__VDSO_ECTG_USER(4),4
 	sacf	0
 	algr	%r1,%r0				/* r1 = cputime as TOD value */
-	mghi	%r1,1000			/* convert to nanoseconds */
-	srlg	%r1,%r1,12			/* r1 = cputime in nanosec */
+	mghi	%r1,1000			/* convert to nayesseconds */
+	srlg	%r1,%r1,12			/* r1 = cputime in nayessec */
 	lgr	%r4,%r1
 	larl	%r5,13f
 	srlg	%r1,%r1,9			/* divide by 1000000000 */

@@ -21,7 +21,7 @@
 #include <linux/string.h>
 #include <linux/compat.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include "pcm_plugin.h"
@@ -34,7 +34,7 @@
 
 static int dsp_map[SNDRV_CARDS];
 static int adsp_map[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 1};
-static bool nonblock_open = 1;
+static bool yesnblock_open = 1;
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Abramo Bagnara <abramo@alsa-project.org>");
 MODULE_DESCRIPTION("PCM OSS emulation for ALSA.");
@@ -43,8 +43,8 @@ module_param_array(dsp_map, int, NULL, 0444);
 MODULE_PARM_DESC(dsp_map, "PCM device number assigned to 1st OSS device.");
 module_param_array(adsp_map, int, NULL, 0444);
 MODULE_PARM_DESC(adsp_map, "PCM device number assigned to 2nd OSS device.");
-module_param(nonblock_open, bool, 0644);
-MODULE_PARM_DESC(nonblock_open, "Don't block opening busy PCM devices.");
+module_param(yesnblock_open, bool, 0644);
+MODULE_PARM_DESC(yesnblock_open, "Don't block opening busy PCM devices.");
 MODULE_ALIAS_SNDRV_MINOR(SNDRV_MINOR_OSS_PCM);
 MODULE_ALIAS_SNDRV_MINOR(SNDRV_MINOR_OSS_PCM1);
 
@@ -73,7 +73,7 @@ static int snd_interval_refine_min(struct snd_interval *i, unsigned int min, int
 		}
 	}
 	if (snd_interval_checkempty(i)) {
-		snd_interval_none(i);
+		snd_interval_yesne(i);
 		return -EINVAL;
 	}
 	return changed;
@@ -97,7 +97,7 @@ static int snd_interval_refine_max(struct snd_interval *i, unsigned int max, int
 		}
 	}
 	if (snd_interval_checkempty(i)) {
-		snd_interval_none(i);
+		snd_interval_yesne(i);
 		return -EINVAL;
 	}
 	return changed;
@@ -269,7 +269,7 @@ static int _snd_pcm_hw_param_max(struct snd_pcm_hw_params *params,
 	}
 	if (hw_is_mask(var)) {
 		if (val == 0 && open) {
-			snd_mask_none(hw_param_mask(params, var));
+			snd_mask_yesne(hw_param_mask(params, var));
 			changed = -EINVAL;
 		} else
 			changed = snd_mask_refine_max(hw_param_mask(params, var),
@@ -368,7 +368,7 @@ static int boundary_nearer(int min, int mindir,
  *
  * Inside configuration space defined by PARAMS set PAR to the available value
  * nearest to VAL. Reduce configuration space accordingly.
- * This function cannot be called for SNDRV_PCM_HW_PARAM_ACCESS,
+ * This function canyest be called for SNDRV_PCM_HW_PARAM_ACCESS,
  * SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_HW_PARAM_SUBFORMAT.
  * Return the value found.
   */
@@ -452,7 +452,7 @@ static int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
 		struct snd_mask *m = hw_param_mask(params, var);
 		if (val == 0 && dir < 0) {
 			changed = -EINVAL;
-			snd_mask_none(m);
+			snd_mask_yesne(m);
 		} else {
 			if (dir > 0)
 				val++;
@@ -464,7 +464,7 @@ static int _snd_pcm_hw_param_set(struct snd_pcm_hw_params *params,
 		struct snd_interval *i = hw_param_interval(params, var);
 		if (val == 0 && dir < 0) {
 			changed = -EINVAL;
-			snd_interval_none(i);
+			snd_interval_yesne(i);
 		} else if (dir == 0)
 			changed = snd_interval_refine_set(i, val);
 		else {
@@ -803,7 +803,7 @@ static int choose_rate(struct snd_pcm_substream *substream,
 			break;
 	}
 
-	/* not found, use the nearest rate */
+	/* yest found, use the nearest rate */
 	kfree(save);
 	return snd_pcm_hw_param_near(substream, params, SNDRV_PCM_HW_PARAM_RATE, best_rate, NULL);
 }
@@ -858,7 +858,7 @@ static int snd_pcm_oss_change_params_locked(struct snd_pcm_substream *substream)
 	_snd_pcm_hw_params_any(sparams);
 	_snd_pcm_hw_param_setinteger(sparams, SNDRV_PCM_HW_PARAM_PERIODS);
 	_snd_pcm_hw_param_min(sparams, SNDRV_PCM_HW_PARAM_PERIODS, 2, 0);
-	snd_mask_none(&mask);
+	snd_mask_yesne(&mask);
 	if (atomic_read(&substream->mmap_count))
 		snd_mask_set(&mask, (__force int)SNDRV_PCM_ACCESS_MMAP_INTERLEAVED);
 	else {
@@ -893,7 +893,7 @@ static int snd_pcm_oss_change_params_locked(struct snd_pcm_substream *substream)
 				break;
 		}
 		if ((__force int)sformat > (__force int)SNDRV_PCM_FORMAT_LAST) {
-			pcm_dbg(substream->pcm, "Cannot find a format!!!\n");
+			pcm_dbg(substream->pcm, "Canyest find a format!!!\n");
 			err = -EINVAL;
 			goto failure;
 		}
@@ -996,7 +996,7 @@ static int snd_pcm_oss_change_params_locked(struct snd_pcm_substream *substream)
 	sw_params->avail_min = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
 		1 : runtime->period_size;
 	if (atomic_read(&substream->mmap_count) ||
-	    substream->oss.setup.nosilence) {
+	    substream->oss.setup.yessilence) {
 		sw_params->silence_threshold = 0;
 		sw_params->silence_size = 0;
 	} else {
@@ -1114,8 +1114,8 @@ static int snd_pcm_oss_get_active_substream(struct snd_pcm_oss_file *pcm_oss_fil
 }
 
 /* call with params_lock held */
-/* NOTE: this always call PREPARE unconditionally no matter whether
- * runtime->oss.prepare is set or not
+/* NOTE: this always call PREPARE unconditionally yes matter whether
+ * runtime->oss.prepare is set or yest
  */
 static int snd_pcm_oss_prepare(struct snd_pcm_substream *substream)
 {
@@ -1225,7 +1225,7 @@ snd_pcm_sframes_t snd_pcm_oss_write3(struct snd_pcm_substream *substream, const 
 		if (ret != -EPIPE && ret != -ESTRPIPE)
 			break;
 		/* test, if we can't store new data, because the stream */
-		/* has not been started */
+		/* has yest been started */
 		if (runtime->status->state == SNDRV_PCM_STATE_PREPARED)
 			return -EAGAIN;
 	}
@@ -1296,7 +1296,7 @@ snd_pcm_sframes_t snd_pcm_oss_writev3(struct snd_pcm_substream *substream, void 
 			break;
 
 		/* test, if we can't store new data, because the stream */
-		/* has not been started */
+		/* has yest been started */
 		if (runtime->status->state == SNDRV_PCM_STATE_PREPARED)
 			return -EAGAIN;
 	}
@@ -1570,8 +1570,8 @@ static int snd_pcm_oss_post(struct snd_pcm_oss_file *pcm_oss_file)
 			return err;
 		snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_START, NULL);
 	}
-	/* note: all errors from the start action are ignored */
-	/* OSS apps do not know, how to handle them */
+	/* yeste: all errors from the start action are igyesred */
+	/* OSS apps do yest kyesw, how to handle them */
 	return 0;
 }
 
@@ -1970,7 +1970,7 @@ static int snd_pcm_oss_set_fragment(struct snd_pcm_oss_file *pcm_oss_file, unsig
 	return err;
 }
 
-static int snd_pcm_oss_nonblock(struct file * file)
+static int snd_pcm_oss_yesnblock(struct file * file)
 {
 	spin_lock(&file->f_lock);
 	file->f_flags |= O_NONBLOCK;
@@ -2324,13 +2324,13 @@ static void snd_pcm_oss_release_substream(struct snd_pcm_substream *substream)
 
 static void snd_pcm_oss_init_substream(struct snd_pcm_substream *substream,
 				       struct snd_pcm_oss_setup *setup,
-				       int minor)
+				       int miyesr)
 {
 	struct snd_pcm_runtime *runtime;
 
 	substream->oss.oss = 1;
 	substream->oss.setup = *setup;
-	if (setup->nonblock)
+	if (setup->yesnblock)
 		substream->f_flags |= O_NONBLOCK;
 	else if (setup->block)
 		substream->f_flags &= ~O_NONBLOCK;
@@ -2339,7 +2339,7 @@ static void snd_pcm_oss_init_substream(struct snd_pcm_substream *substream,
 	runtime->oss.trigger = 1;
 	runtime->oss.rate = 8000;
 	mutex_init(&runtime->oss.params_lock);
-	switch (SNDRV_MINOR_OSS_DEVICE(minor)) {
+	switch (SNDRV_MINOR_OSS_DEVICE(miyesr)) {
 	case SNDRV_MINOR_OSS_PCM_8:
 		runtime->oss.format = AFMT_U8;
 		break;
@@ -2374,7 +2374,7 @@ static int snd_pcm_oss_release_file(struct snd_pcm_oss_file *pcm_oss_file)
 static int snd_pcm_oss_open_file(struct file *file,
 				 struct snd_pcm *pcm,
 				 struct snd_pcm_oss_file **rpcm_oss_file,
-				 int minor,
+				 int miyesr,
 				 struct snd_pcm_oss_setup *setup)
 {
 	int idx, err;
@@ -2398,7 +2398,7 @@ static int snd_pcm_oss_open_file(struct file *file,
 		if (setup[idx].disable)
 			continue;
 		if (! pcm->streams[idx].substream_count)
-			continue; /* no matching substream */
+			continue; /* yes matching substream */
 		if (idx == SNDRV_PCM_STREAM_PLAYBACK) {
 			if (! (f_mode & FMODE_WRITE))
 				continue;
@@ -2413,7 +2413,7 @@ static int snd_pcm_oss_open_file(struct file *file,
 		}
 
 		pcm_oss_file->streams[idx] = substream;
-		snd_pcm_oss_init_substream(substream, &setup[idx], minor);
+		snd_pcm_oss_init_substream(substream, &setup[idx], miyesr);
 	}
 	
 	if (!pcm_oss_file->streams[0] && !pcm_oss_file->streams[1]) {
@@ -2440,21 +2440,21 @@ static int snd_task_name(struct task_struct *task, char *name, size_t size)
 	return 0;
 }
 
-static int snd_pcm_oss_open(struct inode *inode, struct file *file)
+static int snd_pcm_oss_open(struct iyesde *iyesde, struct file *file)
 {
 	int err;
 	char task_name[32];
 	struct snd_pcm *pcm;
 	struct snd_pcm_oss_file *pcm_oss_file;
 	struct snd_pcm_oss_setup setup[2];
-	int nonblock;
+	int yesnblock;
 	wait_queue_entry_t wait;
 
-	err = nonseekable_open(inode, file);
+	err = yesnseekable_open(iyesde, file);
 	if (err < 0)
 		return err;
 
-	pcm = snd_lookup_oss_minor_data(iminor(inode),
+	pcm = snd_lookup_oss_miyesr_data(imiyesr(iyesde),
 					SNDRV_OSS_DEVICE_TYPE_PCM);
 	if (pcm == NULL) {
 		err = -ENODEV;
@@ -2479,20 +2479,20 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 		snd_pcm_oss_look_for_setup(pcm, SNDRV_PCM_STREAM_CAPTURE,
 					   task_name, &setup[1]);
 
-	nonblock = !!(file->f_flags & O_NONBLOCK);
-	if (!nonblock)
-		nonblock = nonblock_open;
+	yesnblock = !!(file->f_flags & O_NONBLOCK);
+	if (!yesnblock)
+		yesnblock = yesnblock_open;
 
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&pcm->open_wait, &wait);
 	mutex_lock(&pcm->open_mutex);
 	while (1) {
 		err = snd_pcm_oss_open_file(file, pcm, &pcm_oss_file,
-					    iminor(inode), setup);
+					    imiyesr(iyesde), setup);
 		if (err >= 0)
 			break;
 		if (err == -EAGAIN) {
-			if (nonblock) {
+			if (yesnblock) {
 				err = -EBUSY;
 				break;
 			}
@@ -2528,7 +2528,7 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-static int snd_pcm_oss_release(struct inode *inode, struct file *file)
+static int snd_pcm_oss_release(struct iyesde *iyesde, struct file *file)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_substream *substream;
@@ -2662,7 +2662,7 @@ static long snd_pcm_oss_ioctl(struct file *file, unsigned int cmd, unsigned long
 				SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK,
 			(struct audio_buf_info __user *) arg);
 	case SNDCTL_DSP_NONBLOCK:
-		return snd_pcm_oss_nonblock(file);
+		return snd_pcm_oss_yesnblock(file);
 	case SNDCTL_DSP_GETCAPS:
 		res = snd_pcm_oss_get_caps(pcm_oss_file);
 		if (res < 0)
@@ -2690,7 +2690,7 @@ static long snd_pcm_oss_ioctl(struct file *file, unsigned int cmd, unsigned long
 				SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK,
 			(struct buffmem_desc __user *) arg);
 	case SNDCTL_DSP_SETSYNCRO:
-		/* stop DMA now.. */
+		/* stop DMA yesw.. */
 		return 0;
 	case SNDCTL_DSP_SETDUPLEX:
 		if (snd_pcm_oss_get_caps(pcm_oss_file) & DSP_CAP_DUPLEX)
@@ -2705,9 +2705,9 @@ static long snd_pcm_oss_ioctl(struct file *file, unsigned int cmd, unsigned long
 		}
 		return put_user(res, p);
 	case SNDCTL_DSP_PROFILE:
-		return 0;	/* silently ignore */
+		return 0;	/* silently igyesre */
 	default:
-		pr_debug("pcm_oss: unknown command = 0x%x\n", cmd);
+		pr_debug("pcm_oss: unkyeswn command = 0x%x\n", cmd);
 	}
 	return -EINVAL;
 }
@@ -2719,7 +2719,7 @@ static long snd_pcm_oss_ioctl_compat(struct file *file, unsigned int cmd,
 {
 	/*
 	 * Everything is compatbile except SNDCTL_DSP_MAPINBUF/SNDCTL_DSP_MAPOUTBUF,
-	 * which are not implemented for the native case either
+	 * which are yest implemented for the native case either
 	 */
 	return snd_pcm_oss_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 }
@@ -2925,9 +2925,9 @@ static void snd_pcm_oss_proc_read(struct snd_info_entry *entry,
 			    setup->disable ? " disable" : "",
 			    setup->direct ? " direct" : "",
 			    setup->block ? " block" : "",
-			    setup->nonblock ? " non-block" : "",
+			    setup->yesnblock ? " yesn-block" : "",
 			    setup->partialfrag ? " partial-frag" : "",
-			    setup->nosilence ? " no-silence" : "");
+			    setup->yessilence ? " yes-silence" : "");
 		setup = setup->next;
 	}
 	mutex_unlock(&pstr->oss.setup_mutex);
@@ -2987,12 +2987,12 @@ static void snd_pcm_oss_proc_write(struct snd_info_entry *entry,
 				template.direct = 1;
 			} else if (!strcmp(str, "block")) {
 				template.block = 1;
-			} else if (!strcmp(str, "non-block")) {
-				template.nonblock = 1;
+			} else if (!strcmp(str, "yesn-block")) {
+				template.yesnblock = 1;
 			} else if (!strcmp(str, "partial-frag")) {
 				template.partialfrag = 1;
-			} else if (!strcmp(str, "no-silence")) {
-				template.nosilence = 1;
+			} else if (!strcmp(str, "yes-silence")) {
+				template.yessilence = 1;
 			} else if (!strcmp(str, "buggy-ptr")) {
 				template.buggyptr = 1;
 			}
@@ -3073,7 +3073,7 @@ static const struct file_operations snd_pcm_oss_f_reg =
 	.write =	snd_pcm_oss_write,
 	.open =		snd_pcm_oss_open,
 	.release =	snd_pcm_oss_release,
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 	.poll =		snd_pcm_oss_poll,
 	.unlocked_ioctl =	snd_pcm_oss_ioctl,
 	.compat_ioctl =	snd_pcm_oss_ioctl_compat,
@@ -3090,7 +3090,7 @@ static void register_oss_dsp(struct snd_pcm *pcm, int index)
 	}
 }
 
-static int snd_pcm_oss_register_minor(struct snd_pcm *pcm)
+static int snd_pcm_oss_register_miyesr(struct snd_pcm *pcm)
 {
 	pcm->oss.reg = 0;
 	if (dsp_map[pcm->card->number] == (int)pcm->device) {
@@ -3121,7 +3121,7 @@ static int snd_pcm_oss_register_minor(struct snd_pcm *pcm)
 	return 0;
 }
 
-static int snd_pcm_oss_disconnect_minor(struct snd_pcm *pcm)
+static int snd_pcm_oss_disconnect_miyesr(struct snd_pcm *pcm)
 {
 	if (pcm->oss.reg) {
 		if (pcm->oss.reg_mask & 1) {
@@ -3144,18 +3144,18 @@ static int snd_pcm_oss_disconnect_minor(struct snd_pcm *pcm)
 	return 0;
 }
 
-static int snd_pcm_oss_unregister_minor(struct snd_pcm *pcm)
+static int snd_pcm_oss_unregister_miyesr(struct snd_pcm *pcm)
 {
-	snd_pcm_oss_disconnect_minor(pcm);
+	snd_pcm_oss_disconnect_miyesr(pcm);
 	snd_pcm_oss_proc_done(pcm);
 	return 0;
 }
 
-static struct snd_pcm_notify snd_pcm_oss_notify =
+static struct snd_pcm_yestify snd_pcm_oss_yestify =
 {
-	.n_register =	snd_pcm_oss_register_minor,
-	.n_disconnect = snd_pcm_oss_disconnect_minor,
-	.n_unregister =	snd_pcm_oss_unregister_minor,
+	.n_register =	snd_pcm_oss_register_miyesr,
+	.n_disconnect = snd_pcm_oss_disconnect_miyesr,
+	.n_unregister =	snd_pcm_oss_unregister_miyesr,
 };
 
 static int __init alsa_pcm_oss_init(void)
@@ -3176,14 +3176,14 @@ static int __init alsa_pcm_oss_init(void)
 			adsp_map[i] = 1;
 		}
 	}
-	if ((err = snd_pcm_notify(&snd_pcm_oss_notify, 0)) < 0)
+	if ((err = snd_pcm_yestify(&snd_pcm_oss_yestify, 0)) < 0)
 		return err;
 	return 0;
 }
 
 static void __exit alsa_pcm_oss_exit(void)
 {
-	snd_pcm_notify(&snd_pcm_oss_notify, 1);
+	snd_pcm_yestify(&snd_pcm_oss_yestify, 1);
 }
 
 module_init(alsa_pcm_oss_init)

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_ASM_PARISC_SIGNAL_H
 #define _UAPI_ASM_PARISC_SIGNAL_H
 
@@ -37,7 +37,7 @@
 #define SIGUNUSED	31
 #define SIGSYS		31 /* Linux doesn't use this */
 
-/* These should not be considered constants from userland.  */
+/* These should yest be considered constants from userland.  */
 #define SIGRTMIN	32
 #define SIGRTMAX	_NSIG /* it's 44 under HP/UX */
 
@@ -75,7 +75,7 @@
 #define SIG_SETMASK        2	/* for setting the signal mask */
 
 #define SIG_DFL	((__sighandler_t)0)	/* default signal handling */
-#define SIG_IGN	((__sighandler_t)1)	/* ignore signal */
+#define SIG_IGN	((__sighandler_t)1)	/* igyesre signal */
 #define SIG_ERR	((__sighandler_t)-1)	/* error return from signal */
 
 # ifndef __ASSEMBLY__

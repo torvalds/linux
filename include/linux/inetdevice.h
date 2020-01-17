@@ -135,7 +135,7 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 #define IN_DEV_ARP_NOTIFY(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_NOTIFY)
 
 struct in_ifaddr {
-	struct hlist_node	hash;
+	struct hlist_yesde	hash;
 	struct in_ifaddr	__rcu *ifa_next;
 	struct in_device	*ifa_dev;
 	struct rcu_head		rcu_head;
@@ -162,12 +162,12 @@ struct in_validator_info {
 	struct netlink_ext_ack	*extack;
 };
 
-int register_inetaddr_notifier(struct notifier_block *nb);
-int unregister_inetaddr_notifier(struct notifier_block *nb);
-int register_inetaddr_validator_notifier(struct notifier_block *nb);
-int unregister_inetaddr_validator_notifier(struct notifier_block *nb);
+int register_inetaddr_yestifier(struct yestifier_block *nb);
+int unregister_inetaddr_yestifier(struct yestifier_block *nb);
+int register_inetaddr_validator_yestifier(struct yestifier_block *nb);
+int unregister_inetaddr_validator_yestifier(struct yestifier_block *nb);
 
-void inet_netconf_notify_devconf(struct net *net, int event, int type,
+void inet_netconf_yestify_devconf(struct net *net, int event, int type,
 				 int ifindex, struct ipv4_devconf *devconf);
 
 struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref);
@@ -237,7 +237,7 @@ static inline struct in_device *__in_dev_get_rtnl(const struct net_device *dev)
 }
 
 /* called with rcu_read_lock or rtnl held */
-static inline bool ip_ignore_linkdown(const struct net_device *dev)
+static inline bool ip_igyesre_linkdown(const struct net_device *dev)
 {
 	struct in_device *in_dev;
 	bool rc = false;

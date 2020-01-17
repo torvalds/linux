@@ -10,7 +10,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -56,7 +56,7 @@
 /*
  * Leaf 2 (0x40000x01)
  * EAX[31:16]: Xen major version.
- * EAX[15: 0]: Xen minor version.
+ * EAX[15: 0]: Xen miyesr version.
  * EBX-EDX: Reserved (currently all zeroes).
  */
 
@@ -76,10 +76,10 @@
 /*
  * Leaf 4 (0x40000x03)
  * Sub-leaf 0: EAX: bit 0: emulated tsc
- *                  bit 1: host tsc is known to be reliable
+ *                  bit 1: host tsc is kyeswn to be reliable
  *                  bit 2: RDTSCP instruction available
  *             EBX: tsc_mode: 0=default (emulate if necessary), 1=emulate,
- *                            2=no emulation, 3=no emulation + TSC_AUX support
+ *                            2=yes emulation, 3=yes emulation + TSC_AUX support
  *             ECX: guest tsc frequency in kHz
  *             EDX: guest tsc incarnation (migration count)
  * Sub-leaf 1: EAX: tsc offset low part

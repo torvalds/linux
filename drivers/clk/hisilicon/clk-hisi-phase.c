@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2017 HiSilicon Technologies Co., Ltd.
+ * Copyright (c) 2017 HiSilicon Techyeslogies Co., Ltd.
  *
  * Simple HiSilicon phase clock implementation.
  */

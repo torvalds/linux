@@ -16,7 +16,7 @@
  *    -l	Also limit flows doing loopback
  *    -n <#>	To create cgroup \"/hbm#\" and attach prog
  *		Default is /hbm1
- *    --no_cn   Do not return cn notifications
+ *    --yes_cn   Do yest return cn yestifications
  *    -r <rate>	Rate limit in Mbps
  *    -s	Get HBM stats (marked, dropped, etc.)
  *    -t <time>	Exit after specified seconds (default is 0)
@@ -37,7 +37,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <linux/unistd.h>
 
@@ -61,12 +61,12 @@ bool stats_flag;
 bool loopback_flag;
 bool debugFlag;
 bool work_conserving_flag;
-bool no_cn_flag;
+bool yes_cn_flag;
 bool edt_flag;
 
 static void Usage(void);
 static void read_trace_pipe2(void);
-static void do_error(char *msg, bool errno_flag);
+static void do_error(char *msg, bool erryes_flag);
 
 #define DEBUGFS "/sys/kernel/debug/tracing/"
 
@@ -110,10 +110,10 @@ static void read_trace_pipe2(void)
 	}
 }
 
-static void do_error(char *msg, bool errno_flag)
+static void do_error(char *msg, bool erryes_flag)
 {
-	if (errno_flag)
-		printf("ERROR: %s, errno: %d\n", msg, errno);
+	if (erryes_flag)
+		printf("ERROR: %s, erryes: %d\n", msg, erryes);
 	else
 		printf("ERROR: %s\n", msg);
 	exit(1);
@@ -132,7 +132,7 @@ static int prog_load(char *prog)
 	int ret = 0;
 
 	if (access(prog, O_RDONLY) < 0) {
-		printf("Error accessing file %s: %s\n", prog, strerror(errno));
+		printf("Error accessing file %s: %s\n", prog, strerror(erryes));
 		return 1;
 	}
 	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &bpfprog_fd))
@@ -141,7 +141,7 @@ static int prog_load(char *prog)
 		map = bpf_object__find_map_by_name(obj, "queue_stats");
 		map_fd = bpf_map__fd(map);
 		if (map_fd < 0) {
-			printf("Map not found: %s\n", strerror(map_fd));
+			printf("Map yest found: %s\n", strerror(map_fd));
 			ret = 1;
 		}
 	}
@@ -189,9 +189,9 @@ static int run_bpf_prog(char *prog, int cg_id)
 	qstats.rate = rate;
 	qstats.stats = stats_flag ? 1 : 0;
 	qstats.loopback = loopback_flag ? 1 : 0;
-	qstats.no_cn = no_cn_flag ? 1 : 0;
+	qstats.yes_cn = yes_cn_flag ? 1 : 0;
 	if (bpf_map_update_elem(map_fd, &key, &qstats, BPF_ANY)) {
-		printf("ERROR: Could not update map element\n");
+		printf("ERROR: Could yest update map element\n");
 		goto err;
 	}
 
@@ -253,7 +253,7 @@ static int run_bpf_prog(char *prog, int cg_id)
 			if (delta_rate < RATE_THRESHOLD) {
 				/* can increase cgroup rate limit, but first
 				 * check if we are using the current limit.
-				 * Currently increasing by 6.25%, unknown
+				 * Currently increasing by 6.25%, unkyeswn
 				 * if that is the optimal rate.
 				 */
 				int rate_diff100;
@@ -280,7 +280,7 @@ static int run_bpf_prog(char *prog, int cg_id)
 				}
 			} else {
 				/* Need to decrease cgroup rate limit.
-				 * Currently decreasing by 12.5%, unknown
+				 * Currently decreasing by 12.5%, unkyeswn
 				 * if that is optimal
 				 */
 				printf(" DEC\n");
@@ -306,7 +306,7 @@ static int run_bpf_prog(char *prog, int cg_id)
 			sprintf(fname, "hbm.%d.out", cg_id);
 		fout = fopen(fname, "w");
 		fprintf(fout, "id:%d\n", cg_id);
-		fprintf(fout, "ERROR: Could not lookup queue_stats\n");
+		fprintf(fout, "ERROR: Could yest lookup queue_stats\n");
 	} else if (stats_flag && qstats.lastPacketTime >
 		   qstats.firstPacketTime) {
 		long long delta_us = (qstats.lastPacketTime -
@@ -409,7 +409,7 @@ static void Usage(void)
 {
 	printf("This program loads a cgroup skb BPF program to enforce\n"
 	       "cgroup output (egress) bandwidth limits.\n\n"
-	       "USAGE: hbm [-o] [-d]  [-l] [-n <id>] [--no_cn] [-r <rate>]\n"
+	       "USAGE: hbm [-o] [-d]  [-l] [-n <id>] [--yes_cn] [-r <rate>]\n"
 	       "           [-s] [-t <secs>] [-w] [-h] [prog]\n"
 	       "  Where:\n"
 	       "    -o         indicates egress direction (default)\n"
@@ -418,7 +418,7 @@ static void Usage(void)
 	       "    -l         also limit flows using loopback\n"
 	       "    -n <#>     to create cgroup \"/hbm#\" and attach prog\n"
 	       "               Default is /hbm1\n"
-	       "    --no_cn    disable CN notifications\n"
+	       "    --yes_cn    disable CN yestifications\n"
 	       "    -r <rate>  Rate in Mbps\n"
 	       "    -s         Update HBM stats\n"
 	       "    -t <time>  Exit after specified seconds (default is 0)\n"
@@ -439,7 +439,7 @@ int main(int argc, char **argv)
 	int cg_id = 1;
 	char *optstring = "iodln:r:st:wh";
 	struct option loptions[] = {
-		{"no_cn", 0, NULL, 1},
+		{"yes_cn", 0, NULL, 1},
 		{"edt", 0, NULL, 2},
 		{NULL, 0, NULL, 0}
 	};
@@ -447,7 +447,7 @@ int main(int argc, char **argv)
 	while ((k = getopt_long(argc, argv, optstring, loptions, NULL)) != -1) {
 		switch (k) {
 		case 1:
-			no_cn_flag = true;
+			yes_cn_flag = true;
 			break;
 		case 2:
 			prog = "hbm_edt_kern.o";

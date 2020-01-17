@@ -19,12 +19,12 @@
 /**
  * struct sensor_hub_data - Hold a instance data for a HID hub device
  * @hsdev:		Stored hid instance for current hub device.
- * @mutex:		Mutex to serialize synchronous request.
+ * @mutex:		Mutex to serialize synchroyesus request.
  * @lock:		Spin lock to protect pending request structure.
  * @dyn_callback_list:	Holds callback function
  * @dyn_callback_lock:	spin lock to protect callback list
  * @hid_sensor_hub_client_devs:	Stores all MFD cells for a hub instance.
- * @hid_sensor_client_cnt: Number of MFD cells, (no of sensors attached).
+ * @hid_sensor_client_cnt: Number of MFD cells, (yes of sensors attached).
  * @ref_cnt:		Number of MFD clients have opened this device
  */
 struct sensor_hub_data {
@@ -609,7 +609,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 
 	sd = devm_kzalloc(&hdev->dev, sizeof(*sd), GFP_KERNEL);
 	if (!sd) {
-		hid_err(hdev, "cannot allocate Sensor data\n");
+		hid_err(hdev, "canyest allocate Sensor data\n");
 		return -ENOMEM;
 	}
 
@@ -659,7 +659,7 @@ static int sensor_hub_probe(struct hid_device *hdev,
 			hsdev = devm_kzalloc(&hdev->dev, sizeof(*hsdev),
 					     GFP_KERNEL);
 			if (!hsdev) {
-				hid_err(hdev, "cannot allocate hid_sensor_hub_device\n");
+				hid_err(hdev, "canyest allocate hid_sensor_hub_device\n");
 				ret = -ENOMEM;
 				goto err_stop_hw;
 			}

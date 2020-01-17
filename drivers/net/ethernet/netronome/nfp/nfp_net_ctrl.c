@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroyesme Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <linux/device.h>
@@ -41,7 +41,7 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 		data += 4;
 
 		if (length % NFP_NET_CFG_TLV_LENGTH_INC) {
-			dev_err(dev, "TLV size not multiple of %u offset:%u len:%u\n",
+			dev_err(dev, "TLV size yest multiple of %u offset:%u len:%u\n",
 				NFP_NET_CFG_TLV_LENGTH_INC, offset, length);
 			return -EINVAL;
 		}
@@ -118,7 +118,7 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 			if (!FIELD_GET(NFP_NET_CFG_TLV_HEADER_REQUIRED, hdr))
 				break;
 
-			dev_err(dev, "unknown TLV type:%u offset:%u len:%u\n",
+			dev_err(dev, "unkyeswn TLV type:%u offset:%u len:%u\n",
 				FIELD_GET(NFP_NET_CFG_TLV_HEADER_TYPE, hdr),
 				offset, length);
 			return -EINVAL;

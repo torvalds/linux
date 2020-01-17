@@ -6,7 +6,7 @@ kernel version 2.6.29
 
 Copyright (c) 1998, 1999,  Rik van Riel <riel@nl.linux.org>
 
-Copyright (c) 2008         Peter W. Morreale <pmorreale@novell.com>
+Copyright (c) 2008         Peter W. Morreale <pmorreale@yesvell.com>
 
 For general info and legal blurb, please look in index.rst.
 
@@ -83,12 +83,12 @@ with the capability cap_sys_admin.
 
 admin_reserve_kbytes defaults to min(3% of free pages, 8MB)
 
-That should provide enough for the admin to log in and kill a process,
+That should provide eyesugh for the admin to log in and kill a process,
 if necessary, under the default overcommit 'guess' mode.
 
 Systems running under overcommit 'never' should increase this to account
 for the full Virtual Memory Size of programs used to recover. Otherwise,
-root may not be able to log in to recover the system.
+root may yest be able to log in to recover the system.
 
 How do you calculate a minimum useful reserve?
 
@@ -107,7 +107,7 @@ Changing this takes effect whenever an application requests memory.
 block_dump
 ==========
 
-block_dump enables block I/O debugging when set to a nonzero value. More
+block_dump enables block I/O debugging when set to a yesnzero value. More
 information on block I/O debugging is in Documentation/admin-guide/laptops/laptop-mode.rst.
 
 
@@ -125,7 +125,7 @@ compact_unevictable_allowed
 
 Available only when CONFIG_COMPACTION is set. When set to 1, compaction is
 allowed to examine the unevictable lru (mlocked pages) for pages to compact.
-This should be used on systems where stalls for minor page faults are an
+This should be used on systems where stalls for miyesr page faults are an
 acceptable trade for large contiguous free memory.  Set to 0 to prevent
 compaction from moving pages that are unevictable.  Default value is 1.
 
@@ -150,7 +150,7 @@ Contains, as a percentage of total available memory that contains free pages
 and reclaimable pages, the number of pages at which the background kernel
 flusher threads will start writing out dirty data.
 
-The total available memory is not equal to total system memory.
+The total available memory is yest equal to total system memory.
 
 
 dirty_bytes
@@ -165,14 +165,14 @@ account to evaluate the dirty memory limits and the other appears as 0 when
 read.
 
 Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
-value lower than this limit will be ignored and the old configuration will be
+value lower than this limit will be igyesred and the old configuration will be
 retained.
 
 
 dirty_expire_centisecs
 ======================
 
-This tunable is used to define when dirty data is old enough to be eligible
+This tunable is used to define when dirty data is old eyesugh to be eligible
 for writeout by the kernel flusher threads.  It is expressed in 100'ths
 of a second.  Data which has been dirty in-memory for longer than this
 interval will be written out next time a flusher thread wakes up.
@@ -185,18 +185,18 @@ Contains, as a percentage of total available memory that contains free pages
 and reclaimable pages, the number of pages at which a process which is
 generating disk writes will itself start writing out dirty data.
 
-The total available memory is not equal to total system memory.
+The total available memory is yest equal to total system memory.
 
 
 dirtytime_expire_seconds
 ========================
 
-When a lazytime inode is constantly having its pages dirtied, the inode with
+When a lazytime iyesde is constantly having its pages dirtied, the iyesde with
 an updated timestamp will never get chance to be written out.  And, if the
-only thing that has happened on the file system is a dirtytime inode caused
-by an atime update, a worker will be scheduled to make sure that inode
+only thing that has happened on the file system is a dirtytime iyesde caused
+by an atime update, a worker will be scheduled to make sure that iyesde
 eventually gets pushed out to disk.  This tunable is used to define when dirty
-inode is old enough to be eligible for writeback by the kernel flusher threads.
+iyesde is old eyesugh to be eligible for writeback by the kernel flusher threads.
 And, it is also used as the interval to wakeup dirtytime_writeback thread.
 
 
@@ -214,14 +214,14 @@ drop_caches
 ===========
 
 Writing to this will cause the kernel to drop clean caches, as well as
-reclaimable slab objects like dentries and inodes.  Once dropped, their
+reclaimable slab objects like dentries and iyesdes.  Once dropped, their
 memory becomes free.
 
 To free pagecache::
 
 	echo 1 > /proc/sys/vm/drop_caches
 
-To free reclaimable slab objects (includes dentries and inodes)::
+To free reclaimable slab objects (includes dentries and iyesdes)::
 
 	echo 2 > /proc/sys/vm/drop_caches
 
@@ -229,27 +229,27 @@ To free slab objects and pagecache::
 
 	echo 3 > /proc/sys/vm/drop_caches
 
-This is a non-destructive operation and will not free any dirty objects.
+This is a yesn-destructive operation and will yest free any dirty objects.
 To increase the number of objects freed by this operation, the user may run
 `sync` prior to writing to /proc/sys/vm/drop_caches.  This will minimize the
 number of dirty objects on the system and create more candidates to be
 dropped.
 
-This file is not a means to control the growth of the various kernel caches
-(inodes, dentries, pagecache, etc...)  These objects are automatically
+This file is yest a means to control the growth of the various kernel caches
+(iyesdes, dentries, pagecache, etc...)  These objects are automatically
 reclaimed by the kernel when memory is needed elsewhere on the system.
 
 Use of this file can cause performance problems.  Since it discards cached
 objects, it may cost a significant amount of I/O and CPU to recreate the
 dropped objects, especially if they were under heavy use.  Because of this,
-use outside of a testing or debugging environment is not recommended.
+use outside of a testing or debugging environment is yest recommended.
 
 You may see informational messages in your kernel log when this file is
 used::
 
 	cat (1234): drop_caches: 3
 
-These are informational only.  They do not mean that anything is wrong
+These are informational only.  They do yest mean that anything is wrong
 with your system.  To disable them, echo 4 (bit 2) into drop_caches.
 
 
@@ -263,7 +263,7 @@ the system. Values tending towards 0 imply allocations would fail due to lack
 of memory, values towards 1000 imply failures are due to fragmentation and -1
 implies that the allocation will succeed as long as watermarks are met.
 
-The kernel will not compact memory in a zone if the
+The kernel will yest compact memory in a zone if the
 fragmentation index is <= extfrag_threshold. The default value is 500.
 
 
@@ -273,13 +273,13 @@ highmem_is_dirtyable
 Available only for systems with CONFIG_HIGHMEM enabled (32b systems).
 
 This parameter controls whether the high memory is considered for dirty
-writers throttling.  This is not the case by default which means that
+writers throttling.  This is yest the case by default which means that
 only the amount of memory directly visible/usable by the kernel can
 be dirtied. As a result, on systems with a large amount of memory and
 lowmem basically depleted writers might be throttled too early and
 streaming writes can get very slow.
 
-Changing the value to non zero would allow more memory to be dirtied
+Changing the value to yesn zero would allow more memory to be dirtied
 and thus allow writers to write more data which can be flushed to the
 storage more effectively. Note this also comes with a risk of pre-mature
 OOM killer because some writers (e.g. direct block device writes) can
@@ -297,14 +297,14 @@ shared memory segment using hugetlb page.
 laptop_mode
 ===========
 
-laptop_mode is a knob that controls "laptop mode". All the things that are
-controlled by this knob are discussed in Documentation/admin-guide/laptops/laptop-mode.rst.
+laptop_mode is a kyesb that controls "laptop mode". All the things that are
+controlled by this kyesb are discussed in Documentation/admin-guide/laptops/laptop-mode.rst.
 
 
 legacy_va_layout
 ================
 
-If non-zero, this sysctl disables the new 32-bit mmap layout - the kernel
+If yesn-zero, this sysctl disables the new 32-bit mmap layout - the kernel
 will use the legacy (2.4) layout for all processes.
 
 
@@ -332,7 +332,7 @@ The `lowmem_reserve_ratio` tunable determines how aggressive the kernel is
 in defending these lower zones.
 
 If you have a machine which uses highmem or ISA DMA and your
-applications are using mlock(), or if you are running with no swap then
+applications are using mlock(), or if you are running with yes swap then
 you probably should change the lowmem_reserve_ratio setting.
 
 The lowmem_reserve_ratio is an array. You can see them by reading this file::
@@ -340,7 +340,7 @@ The lowmem_reserve_ratio is an array. You can see them by reading this file::
 	% cat /proc/sys/vm/lowmem_reserve_ratio
 	256     256     32
 
-But, these values are not used directly. The kernel calculates # of protection
+But, these values are yest used directly. The kernel calculates # of protection
 pages for each zones from them. These are shown as array of protection pages
 in /proc/zoneinfo like followings. (This is an example of x86-64 box).
 Each zone has an array of protection pages like this::
@@ -362,23 +362,23 @@ Each zone has an array of protection pages like this::
 These protections are added to score to judge whether this zone should be used
 for page allocation or should be reclaimed.
 
-In this example, if normal pages (index=2) are required to this DMA zone and
+In this example, if yesrmal pages (index=2) are required to this DMA zone and
 watermark[WMARK_HIGH] is used for watermark, the kernel judges this zone should
-not be used because pages_free(1355) is smaller than watermark + protection[2]
+yest be used because pages_free(1355) is smaller than watermark + protection[2]
 (4 + 2004 = 2008). If this protection value is 0, this zone would be used for
-normal page requirement. If requirement is DMA zone(index=0), protection[0]
+yesrmal page requirement. If requirement is DMA zone(index=0), protection[0]
 (=0) is used.
 
 zone[i]'s protection[j] is calculated by following expression::
 
   (i < j):
     zone[i]->protection[j]
-    = (total sums of managed_pages from zone[i+1] to zone[j] on the node)
+    = (total sums of managed_pages from zone[i+1] to zone[j] on the yesde)
       / lowmem_reserve_ratio[i];
   (i = j):
-     (should not be protected. = 0;
+     (should yest be protected. = 0;
   (i > j):
-     (not necessary, but looks 0)
+     (yest necessary, but looks 0)
 
 The default values of lowmem_reserve_ratio[i] are
 
@@ -389,7 +389,7 @@ The default values of lowmem_reserve_ratio[i] are
 
 As above expression, they are reciprocal number of ratio.
 256 means 1/256. # of protection pages becomes about "0.39%" of total managed
-pages of higher zones on the node.
+pages of higher zones on the yesde.
 
 If you would like to protect more pages, smaller values are effective.
 The minimum value is 1 (1/1 -> 100%). The value less than 1 completely
@@ -416,14 +416,14 @@ memory_failure_early_kill:
 
 Control how to kill processes when uncorrected memory error (typically
 a 2bit error in a memory module) is detected in the background by hardware
-that cannot be handled by the kernel. In some cases (like the page
+that canyest be handled by the kernel. In some cases (like the page
 still having a valid copy on disk) the kernel will handle the failure
 transparently without affecting any applications. But if there is
-no other uptodate copy of the data it will kill to prevent any data
+yes other uptodate copy of the data it will kill to prevent any data
 corruptions from propagating.
 
-1: Kill all processes that have the corrupted and not reloadable page mapped
-as soon as the corruption is detected.  Note this is not supported
+1: Kill all processes that have the corrupted and yest reloadable page mapped
+as soon as the corruption is detected.  Note this is yest supported
 for a few types of pages, like kernel internally allocated data or
 the swap cache, but works for the majority of user pages.
 
@@ -478,9 +478,9 @@ systems that rarely perform global reclaim.
 
 The default is 5 percent.
 
-Note that slab reclaim is triggered in a per zone / node fashion.
-The process of reclaiming slab memory is currently not node specific
-and may not be fast.
+Note that slab reclaim is triggered in a per zone / yesde fashion.
+The process of reclaiming slab memory is currently yest yesde specific
+and may yest be fast.
 
 
 min_unmapped_ratio
@@ -494,7 +494,7 @@ zone_reclaim_mode allows to be reclaimed.
 
 If zone_reclaim_mode has the value 4 OR'd, then the percentage is compared
 against all file-backed unmapped pages including swapcache pages and tmpfs
-files. Otherwise, only unmapped pages backed by normal files but not tmpfs
+files. Otherwise, only unmapped pages backed by yesrmal files but yest tmpfs
 files and similar are considered.
 
 The default is 1 percent.
@@ -506,8 +506,8 @@ mmap_min_addr
 This file indicates the amount of address space  which a user process will
 be restricted from mmapping.  Since kernel null dereference bugs could
 accidentally operate based on the information in the first couple of pages
-of memory userspace processes should not be allowed to write to them.  By
-default this value is set to 0 and no protections will be enforced by the
+of memory userspace processes should yest be allowed to write to them.  By
+default this value is set to 0 and yes protections will be enforced by the
 security module.  Setting this value to something like 64k will allow the
 vast majority of applications to work correctly and provide defense in depth
 against future potential kernel bugs.
@@ -552,7 +552,7 @@ nr_hugepages_mempolicy
 ======================
 
 Change the size of the hugepage pool at run-time on a specific
-set of NUMA nodes.
+set of NUMA yesdes.
 
 See Documentation/admin-guide/mm/hugetlbpage.rst
 
@@ -580,7 +580,7 @@ trimming of allocations is initiated.
 
 The default value is 1.
 
-See Documentation/nommu-mmap.txt for more information.
+See Documentation/yesmmu-mmap.txt for more information.
 
 
 numa_zonelist_order
@@ -591,16 +591,16 @@ Node order will fail!
 
 'where the memory is allocated from' is controlled by zonelists.
 
-(This documentation ignores ZONE_HIGHMEM/ZONE_DMA32 for simple explanation.
+(This documentation igyesres ZONE_HIGHMEM/ZONE_DMA32 for simple explanation.
 you may be able to read ZONE_DMA as ZONE_DMA32...)
 
-In non-NUMA case, a zonelist for GFP_KERNEL is ordered as following.
+In yesn-NUMA case, a zonelist for GFP_KERNEL is ordered as following.
 ZONE_NORMAL -> ZONE_DMA
 This means that a memory allocation request for GFP_KERNEL will
-get memory from ZONE_DMA only when ZONE_NORMAL is not available.
+get memory from ZONE_DMA only when ZONE_NORMAL is yest available.
 
 In NUMA case, you can think of following 2 types of order.
-Assume 2 node NUMA and below is zonelist of Node(0)'s GFP_KERNEL::
+Assume 2 yesde NUMA and below is zonelist of Node(0)'s GFP_KERNEL::
 
   (A) Node(0) ZONE_NORMAL -> Node(0) ZONE_DMA -> Node(1) ZONE_NORMAL
   (B) Node(0) ZONE_NORMAL -> Node(1) ZONE_NORMAL -> Node(0) ZONE_DMA.
@@ -609,15 +609,15 @@ Type(A) offers the best locality for processes on Node(0), but ZONE_DMA
 will be used before ZONE_NORMAL exhaustion. This increases possibility of
 out-of-memory(OOM) of ZONE_DMA because ZONE_DMA is tend to be small.
 
-Type(B) cannot offer the best locality but is more robust against OOM of
+Type(B) canyest offer the best locality but is more robust against OOM of
 the DMA zone.
 
 Type(A) is called as "Node" order. Type (B) is "Zone" order.
 
-"Node order" orders the zonelists by node, then by zone within each node.
-Specify "[Nn]ode" for node order
+"Node order" orders the zonelists by yesde, then by zone within each yesde.
+Specify "[Nn]ode" for yesde order
 
-"Zone Order" orders the zonelists by zone type, then by node within each
+"Zone Order" orders the zonelists by zone type, then by yesde within each
 zone.  Specify "[Zz]one" for zone order.
 
 Specify "[Dd]efault" to request automatic configuration.
@@ -625,7 +625,7 @@ Specify "[Dd]efault" to request automatic configuration.
 On 32-bit, the Normal zone needs to be preserved for allocations accessible
 by the kernel, so "zone" order will be selected.
 
-On 64-bit, devices that require DMA32/DMA are relatively rare, so "node"
+On 64-bit, devices that require DMA32/DMA are relatively rare, so "yesde"
 order will be selected.
 
 Default order is recommended unless this is causing problems for your
@@ -643,12 +643,12 @@ invoked, to identify the rogue task that caused it, and to determine why
 the OOM killer chose the task it did to kill.
 
 If this is set to zero, this information is suppressed.  On very
-large systems with thousands of tasks it may not be feasible to dump
-the memory state information for each one.  Such systems should not
+large systems with thousands of tasks it may yest be feasible to dump
+the memory state information for each one.  Such systems should yest
 be forced to incur a performance penalty in OOM conditions when the
-information may not be desired.
+information may yest be desired.
 
-If this is set to non-zero, this information is shown whenever the
+If this is set to yesn-zero, this information is shown whenever the
 OOM killer actually kills a memory-hogging task.
 
 The default value is 1 (enabled).
@@ -661,11 +661,11 @@ This enables or disables killing the OOM-triggering task in
 out-of-memory situations.
 
 If this is set to zero, the OOM killer will scan through the entire
-tasklist and select a task based on heuristics to kill.  This normally
+tasklist and select a task based on heuristics to kill.  This yesrmally
 selects a rogue memory-hogging task that frees up a large amount of
 memory when killed.
 
-If this is set to non-zero, the OOM killer simply kills the task that
+If this is set to yesn-zero, the OOM killer simply kills the task that
 triggered the out-of-memory condition.  This avoids the expensive
 tasklist scan.
 
@@ -678,7 +678,7 @@ The default value is 0.
 overcommit_kbytes
 =================
 
-When overcommit_memory is set to 2, the committed address space is not
+When overcommit_memory is set to 2, the committed address space is yest
 permitted to exceed swap plus this amount of physical RAM. See below.
 
 Note: overcommit_kbytes is the counterpart of overcommit_ratio. Only one
@@ -694,7 +694,7 @@ This value contains a flag that enables memory overcommitment.
 When this flag is 0, the kernel attempts to estimate the amount
 of free memory left when userspace requests more memory.
 
-When this flag is 1, the kernel pretends there is always enough
+When this flag is 1, the kernel pretends there is always eyesugh
 memory until it actually runs out.
 
 When this flag is 2, the kernel uses a "never overcommit"
@@ -708,14 +708,14 @@ and don't use much of it.
 The default value is 0.
 
 See Documentation/vm/overcommit-accounting.rst and
-mm/util.c::__vm_enough_memory() for more information.
+mm/util.c::__vm_eyesugh_memory() for more information.
 
 
 overcommit_ratio
 ================
 
 When overcommit_memory is set to 2, the committed address
-space is not permitted to exceed swap plus this percentage
+space is yest permitted to exceed swap plus this percentage
 of physical RAM.  See above.
 
 
@@ -725,7 +725,7 @@ page-cluster
 page-cluster controls the number of pages up to which consecutive pages
 are read in from swap in a single attempt. This is the swap counterpart
 to page cache readahead.
-The mentioned consecutivity is not in terms of virtual/physical addresses,
+The mentioned consecutivity is yest in terms of virtual/physical addresses,
 but consecutive on swap space - that means they were swapped out together.
 
 It is a logarithmic value - setting it to zero means "1 page", setting
@@ -751,11 +751,11 @@ called oom_killer.  Usually, oom_killer can kill rogue processes and
 system will survive.
 
 If this is set to 1, the kernel panics when out-of-memory happens.
-However, if a process limits using nodes by mempolicy/cpusets,
-and those nodes become memory exhaustion status, one process
+However, if a process limits using yesdes by mempolicy/cpusets,
+and those yesdes become memory exhaustion status, one process
 may be killed by oom-killer. No panic occurs in this case.
-Because other nodes' memory may be free. This means system total status
-may be not fatal yet.
+Because other yesdes' memory may be free. This means system total status
+may be yest fatal yet.
 
 If this is set to 2, the kernel panics compulsorily even on the
 above-mentioned. Even oom happens under memory cgroup, the whole
@@ -783,7 +783,7 @@ of hot per cpu pagelists.  User can specify a number like 100 to allocate
 The batch value of each per cpu pagelist is also updated as a result.  It is
 set to pcp->high/4.  The upper limit of batch is (PAGE_SHIFT * 8)
 
-The initial value is zero.  Kernel does not use this value at boot time to set
+The initial value is zero.  Kernel does yest use this value at boot time to set
 the high water marks for each per cpu page list.  If the user writes '0' to this
 sysctl, it will revert to this default behavior.
 
@@ -804,8 +804,8 @@ e.g. cat /proc/sys/vm/stat_refresh /proc/meminfo
 
 As a side-effect, it also checks for negative totals (elsewhere reported
 as 0) and "fails" with EINVAL if any are found, with a warning in dmesg.
-(At time of writing, a few stats are known sometimes to be found negative,
-with no ill effects: errors and warnings on these stats are suppressed.)
+(At time of writing, a few stats are kyeswn sometimes to be found negative,
+with yes ill effects: errors and warnings on these stats are suppressed.)
 
 
 numa_stat
@@ -819,7 +819,7 @@ do::
 
 	echo 0 > /proc/sys/vm/numa_stat
 
-When page allocation performance is not a bottleneck and you want all
+When page allocation performance is yest a bottleneck and you want all
 tooling to work, you can do::
 
 	echo 1 > /proc/sys/vm/numa_stat
@@ -830,7 +830,7 @@ swappiness
 
 This control is used to define how aggressive the kernel will swap
 memory pages.  Higher values will increase aggressiveness, lower values
-decrease the amount of swap.  A value of 0 instructs the kernel not to
+decrease the amount of swap.  A value of 0 instructs the kernel yest to
 initiate swap until the amount of free and file-backed pages is less
 than the high water mark in a zone.
 
@@ -854,14 +854,14 @@ user_reserve_kbytes
 When overcommit_memory is set to 2, "never overcommit" mode, reserve
 min(3% of current process size, user_reserve_kbytes) of free memory.
 This is intended to prevent a user from starting a single memory hogging
-process, such that they cannot recover (kill the hog).
+process, such that they canyest recover (kill the hog).
 
 user_reserve_kbytes defaults to min(3% of the current process size, 128MB).
 
 If this is reduced to zero, then the user will be allowed to allocate
 all free memory with a single process, minus admin_reserve_kbytes.
 Any subsequent attempts to execute a command will result in
-"fork: Cannot allocate memory".
+"fork: Canyest allocate memory".
 
 Changing this takes effect whenever an application requests memory.
 
@@ -870,19 +870,19 @@ vfs_cache_pressure
 ==================
 
 This percentage value controls the tendency of the kernel to reclaim
-the memory which is used for caching of directory and inode objects.
+the memory which is used for caching of directory and iyesde objects.
 
 At the default value of vfs_cache_pressure=100 the kernel will attempt to
-reclaim dentries and inodes at a "fair" rate with respect to pagecache and
+reclaim dentries and iyesdes at a "fair" rate with respect to pagecache and
 swapcache reclaim.  Decreasing vfs_cache_pressure causes the kernel to prefer
-to retain dentry and inode caches. When vfs_cache_pressure=0, the kernel will
-never reclaim dentries and inodes due to memory pressure and this can easily
+to retain dentry and iyesde caches. When vfs_cache_pressure=0, the kernel will
+never reclaim dentries and iyesdes due to memory pressure and this can easily
 lead to out-of-memory conditions. Increasing vfs_cache_pressure beyond 100
-causes the kernel to prefer to reclaim dentries and inodes.
+causes the kernel to prefer to reclaim dentries and iyesdes.
 
 Increasing vfs_cache_pressure significantly beyond 100 may have negative
 performance impact. Reclaim code needs to take various locks to find freeable
-directory and inode objects. With vfs_cache_pressure=1000, it will look for
+directory and iyesde objects. With vfs_cache_pressure=1000, it will look for
 ten times more freeable objects than there are.
 
 
@@ -910,17 +910,17 @@ watermark_scale_factor
 ======================
 
 This factor controls the aggressiveness of kswapd. It defines the
-amount of memory left in a node/system before kswapd is woken up and
+amount of memory left in a yesde/system before kswapd is woken up and
 how much memory needs to be free before kswapd goes back to sleep.
 
 The unit is in fractions of 10,000. The default value of 10 means the
 distances between watermarks are 0.1% of the available memory in the
-node/system. The maximum value is 1000, or 10% of memory.
+yesde/system. The maximum value is 1000, or 10% of memory.
 
 A high rate of threads entering direct reclaim (allocstall) or kswapd
 going to sleep prematurely (kswapd_low_wmark_hit_quickly) can indicate
 that the number of free pages kswapd maintains for latency reasons is
-too small for the allocation bursts occurring in the system. This knob
+too small for the allocation bursts occurring in the system. This kyesb
 can then be used to tune kswapd aggressiveness accordingly.
 
 
@@ -928,8 +928,8 @@ zone_reclaim_mode
 =================
 
 Zone_reclaim_mode allows someone to set more or less aggressive approaches to
-reclaim memory when a zone runs out of memory. If it is set to zero then no
-zone reclaim occurs. Allocations will be satisfied from other zones / nodes
+reclaim memory when a zone runs out of memory. If it is set to zero then yes
+zone reclaim occurs. Allocations will be satisfied from other zones / yesdes
 in the system.
 
 This is value OR'ed together of
@@ -945,20 +945,20 @@ that benefit from having their data cached, zone_reclaim_mode should be
 left disabled as the caching effect is likely to be more important than
 data locality.
 
-zone_reclaim may be enabled if it's known that the workload is partitioned
-such that each partition fits within a NUMA node and that accessing remote
+zone_reclaim may be enabled if it's kyeswn that the workload is partitioned
+such that each partition fits within a NUMA yesde and that accessing remote
 memory would cause a measurable performance reduction.  The page allocator
 will then reclaim easily reusable pages (those page cache pages that are
-currently not used) before allocating off node pages.
+currently yest used) before allocating off yesde pages.
 
 Allowing zone reclaim to write out pages stops processes that are
-writing large amounts of data from dirtying pages on other nodes. Zone
+writing large amounts of data from dirtying pages on other yesdes. Zone
 reclaim will write out dirty pages if a zone fills up and so effectively
 throttle the process. This may decrease the performance of a single process
-since it cannot use all of system memory to buffer the outgoing writes
-anymore but it preserve the memory on other nodes so that the performance
-of other processes running on other nodes will not be affected.
+since it canyest use all of system memory to buffer the outgoing writes
+anymore but it preserve the memory on other yesdes so that the performance
+of other processes running on other yesdes will yest be affected.
 
 Allowing regular swap effectively restricts allocations to the local
-node unless explicitly overridden by memory policies or cpuset
+yesde unless explicitly overridden by memory policies or cpuset
 configurations.

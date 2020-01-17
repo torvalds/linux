@@ -269,14 +269,14 @@ static u64 power9_bhrb_filter_map(u64 branch_sample_type)
 	 * filter configuration. BHRB is always recorded along with a
 	 * regular PMU event. As the privilege state filter is handled
 	 * in the basic PMC configuration of the accompanying regular
-	 * PMU event, we ignore any separate BHRB specific request.
+	 * PMU event, we igyesre any separate BHRB specific request.
 	 */
 
 	/* No branch filter requested */
 	if (branch_sample_type & PERF_SAMPLE_BRANCH_ANY)
 		return pmu_bhrb_filter;
 
-	/* Invalid branch filter options - HW does not support */
+	/* Invalid branch filter options - HW does yest support */
 	if (branch_sample_type & PERF_SAMPLE_BRANCH_ANY_RETURN)
 		return -1;
 
@@ -307,7 +307,7 @@ static void power9_config_bhrb(u64 pmu_bhrb_filter)
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means yest supported, -1 means yesnsensical, other values
  * are event codes.
  */
 static int power9_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {

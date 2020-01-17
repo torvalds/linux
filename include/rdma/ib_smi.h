@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2004 Mellayesx Techyeslogies Ltd.  All rights reserved.
  * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
@@ -16,11 +16,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -119,13 +119,13 @@ struct ib_port_info {
 	u8 link_roundtrip_latency[3];
 };
 
-struct ib_node_info {
+struct ib_yesde_info {
 	u8 base_version;
 	u8 class_version;
-	u8 node_type;
+	u8 yesde_type;
 	u8 num_ports;
 	__be64 sys_guid;
-	__be64 node_guid;
+	__be64 yesde_guid;
 	__be64 port_guid;
 	__be16 partition_cap;
 	__be16 device_id;

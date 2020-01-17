@@ -2,7 +2,7 @@
 /*
  * JZ4780 NAND/external memory controller (NEMC)
  *
- * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2015 Imagination Techyeslogies
  * Author: Alex Smith <alex@alex-smith.me.uk>
  */
 
@@ -70,7 +70,7 @@ unsigned int jz4780_nemc_num_banks(struct device *dev)
 	unsigned long referenced = 0;
 	int i = 0;
 
-	while ((prop = of_get_address(dev->of_node, i++, NULL, NULL))) {
+	while ((prop = of_get_address(dev->of_yesde, i++, NULL, NULL))) {
 		bank = of_read_number(prop, 1);
 		if (!(referenced & BIT(bank))) {
 			referenced |= BIT(bank);
@@ -155,7 +155,7 @@ static uint32_t jz4780_nemc_ns_to_cycles(struct jz4780_nemc *nemc, uint32_t ns)
 
 static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 				       unsigned int bank,
-				       struct device_node *node)
+				       struct device_yesde *yesde)
 {
 	uint32_t smcr, val, cycles;
 
@@ -185,7 +185,7 @@ static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 	smcr = readl(nemc->base + NEMC_SMCRn(bank));
 	smcr &= ~NEMC_SMCR_SMT;
 
-	if (!of_property_read_u32(node, "ingenic,nemc-bus-width", &val)) {
+	if (!of_property_read_u32(yesde, "ingenic,nemc-bus-width", &val)) {
 		smcr &= ~NEMC_SMCR_BW_MASK;
 		switch (val) {
 		case 8:
@@ -194,14 +194,14 @@ static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 		default:
 			/*
 			 * Earlier SoCs support a 16 bit bus width (the 4780
-			 * does not), until those are properly supported, error.
+			 * does yest), until those are properly supported, error.
 			 */
 			dev_err(nemc->dev, "unsupported bus width: %u\n", val);
 			return false;
 		}
 	}
 
-	if (of_property_read_u32(node, "ingenic,nemc-tAS", &val) == 0) {
+	if (of_property_read_u32(yesde, "ingenic,nemc-tAS", &val) == 0) {
 		smcr &= ~NEMC_SMCR_TAS_MASK;
 		cycles = jz4780_nemc_ns_to_cycles(nemc, val);
 		if (cycles > nemc->soc_info->tas_tah_cycles_max) {
@@ -213,7 +213,7 @@ static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 		smcr |= cycles << NEMC_SMCR_TAS_SHIFT;
 	}
 
-	if (of_property_read_u32(node, "ingenic,nemc-tAH", &val) == 0) {
+	if (of_property_read_u32(yesde, "ingenic,nemc-tAH", &val) == 0) {
 		smcr &= ~NEMC_SMCR_TAH_MASK;
 		cycles = jz4780_nemc_ns_to_cycles(nemc, val);
 		if (cycles > nemc->soc_info->tas_tah_cycles_max) {
@@ -225,7 +225,7 @@ static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 		smcr |= cycles << NEMC_SMCR_TAH_SHIFT;
 	}
 
-	if (of_property_read_u32(node, "ingenic,nemc-tBP", &val) == 0) {
+	if (of_property_read_u32(yesde, "ingenic,nemc-tBP", &val) == 0) {
 		smcr &= ~NEMC_SMCR_TBP_MASK;
 		cycles = jz4780_nemc_ns_to_cycles(nemc, val);
 		if (cycles > 31) {
@@ -237,7 +237,7 @@ static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 		smcr |= convert_tBP_tAW[cycles] << NEMC_SMCR_TBP_SHIFT;
 	}
 
-	if (of_property_read_u32(node, "ingenic,nemc-tAW", &val) == 0) {
+	if (of_property_read_u32(yesde, "ingenic,nemc-tAW", &val) == 0) {
 		smcr &= ~NEMC_SMCR_TAW_MASK;
 		cycles = jz4780_nemc_ns_to_cycles(nemc, val);
 		if (cycles > 31) {
@@ -249,7 +249,7 @@ static bool jz4780_nemc_configure_bank(struct jz4780_nemc *nemc,
 		smcr |= convert_tBP_tAW[cycles] << NEMC_SMCR_TAW_SHIFT;
 	}
 
-	if (of_property_read_u32(node, "ingenic,nemc-tSTRV", &val) == 0) {
+	if (of_property_read_u32(yesde, "ingenic,nemc-tSTRV", &val) == 0) {
 		smcr &= ~NEMC_SMCR_TSTRV_MASK;
 		cycles = jz4780_nemc_ns_to_cycles(nemc, val);
 		if (cycles > 63) {
@@ -270,7 +270,7 @@ static int jz4780_nemc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct jz4780_nemc *nemc;
 	struct resource *res;
-	struct device_node *child;
+	struct device_yesde *child;
 	const __be32 *prop;
 	unsigned int bank;
 	unsigned long referenced;
@@ -316,12 +316,12 @@ static int jz4780_nemc_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Iterate over child devices, check that they do not conflict with
+	 * Iterate over child devices, check that they do yest conflict with
 	 * each other, and register child devices for them. If a child device
-	 * has invalid properties, it is ignored and no platform device is
+	 * has invalid properties, it is igyesred and yes platform device is
 	 * registered for it.
 	 */
-	for_each_child_of_node(nemc->dev->of_node, child) {
+	for_each_child_of_yesde(nemc->dev->of_yesde, child) {
 		referenced = 0;
 		i = 0;
 		while ((prop = of_get_address(child, i++, NULL, NULL))) {
@@ -340,11 +340,11 @@ static int jz4780_nemc_probe(struct platform_device *pdev)
 		}
 
 		if (!referenced) {
-			dev_err(nemc->dev, "%pOF has no addresses\n",
+			dev_err(nemc->dev, "%pOF has yes addresses\n",
 				child);
 			continue;
 		} else if (nemc->banks_present & referenced) {
-			dev_err(nemc->dev, "%pOF conflicts with another node\n",
+			dev_err(nemc->dev, "%pOF conflicts with ayesther yesde\n",
 				child);
 			continue;
 		}

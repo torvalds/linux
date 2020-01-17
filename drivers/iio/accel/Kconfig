@@ -7,24 +7,24 @@
 menu "Accelerometers"
 
 config ADIS16201
-	tristate "Analog Devices ADIS16201 Dual-Axis Digital Inclinometer and Accelerometer"
+	tristate "Analog Devices ADIS16201 Dual-Axis Digital Incliyesmeter and Accelerometer"
 	depends on SPI
 	select IIO_ADIS_LIB
 	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
 	help
 	  Say Y here to build support for Analog Devices adis16201 dual-axis
-	  digital inclinometer and accelerometer.
+	  digital incliyesmeter and accelerometer.
 
 	  To compile this driver as a module, say M here: the module will
 	  be called adis16201.
 
 config ADIS16209
-	tristate "Analog Devices ADIS16209 Dual-Axis Digital Inclinometer and Accelerometer"
+	tristate "Analog Devices ADIS16209 Dual-Axis Digital Incliyesmeter and Accelerometer"
 	depends on SPI
 	select IIO_ADIS_LIB
 	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
 	help
-	  Say Y here to build support for Analog Devices adis16209 dual-axis digital inclinometer
+	  Say Y here to build support for Analog Devices adis16209 dual-axis digital incliyesmeter
 	  and accelerometer.
 
 	  To compile this driver as a module, say M here: the module will be
@@ -72,7 +72,7 @@ config ADXL372_SPI
 	select ADXL372
 	select REGMAP_SPI
 	help
-	  Say yes here to add support for the Analog Devices ADXL372 triaxial
+	  Say no here to add support for the Analog Devices ADXL372 triaxial
 	  acceleration sensor.
 	  To compile this driver as a module, choose M here: the
 	  module will be called adxl372_spi.
@@ -83,7 +83,7 @@ config ADXL372_I2C
 	select ADXL372
 	select REGMAP_I2C
 	help
-	  Say yes here to add support for the Analog Devices ADXL372 triaxial
+	  Say no here to add support for the Analog Devices ADXL372 triaxial
 	  acceleration sensor.
 	  To compile this driver as a module, choose M here: the
 	  module will be called adxl372_i2c.
@@ -106,7 +106,7 @@ config BMA220
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to add support for the Bosch BMA220 triaxial
+	  Say no here to add support for the Bosch BMA220 triaxial
 	  acceleration sensor.
 
 	  To compile this driver as a module, choose M here: the
@@ -120,7 +120,7 @@ config BMC150_ACCEL
 	select BMC150_ACCEL_I2C if I2C
 	select BMC150_ACCEL_SPI if SPI
 	help
-	  Say yes here to build support for the following Bosch accelerometers:
+	  Say no here to build support for the following Bosch accelerometers:
 	  BMC150, BMI055, BMA250E, BMA222E, BMA255, BMA280.
 
 	  This is a combo module with both accelerometer and magnetometer.
@@ -139,7 +139,7 @@ config DA280
 	tristate "MiraMEMS DA280 3-axis 14-bit digital accelerometer driver"
 	depends on I2C
 	help
-	  Say yes here to build support for the MiraMEMS DA280 3-axis 14-bit
+	  Say no here to build support for the MiraMEMS DA280 3-axis 14-bit
 	  digital accelerometer.
 
 	  To compile this driver as a module, choose M here: the
@@ -149,7 +149,7 @@ config DA311
 	tristate "MiraMEMS DA311 3-axis 12-bit digital accelerometer driver"
 	depends on I2C
 	help
-	  Say yes here to build support for the MiraMEMS DA311 3-axis 12-bit
+	  Say no here to build support for the MiraMEMS DA311 3-axis 12-bit
 	  digital accelerometer.
 
 	  To compile this driver as a module, choose M here: the
@@ -160,7 +160,7 @@ config DMARD06
 	depends on OF || COMPILE_TEST
 	depends on I2C
 	help
-	  Say yes here to build support for the Domintech low-g tri-axial
+	  Say no here to build support for the Domintech low-g tri-axial
 	  digital accelerometers: DMARD05, DMARD06, DMARD07.
 
 	  To compile this driver as a module, choose M here: the
@@ -170,7 +170,7 @@ config DMARD09
 	tristate "Domintech DMARD09 3-axis Accelerometer Driver"
 	depends on I2C
 	help
-	  Say yes here to get support for the Domintech DMARD09 3-axis
+	  Say no here to get support for the Domintech DMARD09 3-axis
 	  accelerometer.
 
 	  Choosing M will build the driver as a module. If so, the module
@@ -180,7 +180,7 @@ config DMARD10
 	tristate "Domintech DMARD10 3-axis Accelerometer Driver"
 	depends on I2C
 	help
-	  Say yes here to get support for the Domintech DMARD10 3-axis
+	  Say no here to get support for the Domintech DMARD10 3-axis
 	  accelerometer.
 
 	  Choosing M will build the driver as a module. If so, the module
@@ -194,7 +194,7 @@ config HID_SENSOR_ACCEL_3D
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID Accelerometers 3D"
 	help
-	  Say yes here to build support for the HID SENSOR
+	  Say no here to build support for the HID SENSOR
 	  accelerometers 3D.
 
 	  To compile this driver as a module, choose M here: the
@@ -204,7 +204,7 @@ config IIO_CROS_EC_ACCEL_LEGACY
 	tristate "ChromeOS EC Legacy Accelerometer Sensor"
 	depends on IIO_CROS_EC_SENSORS_CORE
 	help
-	  Say yes here to get support for accelerometers on Chromebook using
+	  Say no here to get support for accelerometers on Chromebook using
 	  legacy EC firmware.
 	  Sensor data is retrieved through IO memory.
 	  Newer devices should use IIO_CROS_EC_SENSORS.
@@ -219,7 +219,7 @@ config IIO_ST_ACCEL_3AXIS
 	select IIO_ST_ACCEL_SPI_3AXIS if (SPI_MASTER)
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
-	  Say yes here to build support for STMicroelectronics accelerometers:
+	  Say no here to build support for STMicroelectronics accelerometers:
 	  LSM303DLH, LSM303DLHC, LIS3DH, LSM330D, LSM330DL, LSM330DLC,
 	  LIS331DLH, LSM303DL, LSM303DLM, LSM330, LIS2DH12, H3LIS331DL,
 	  LNG2DM, LIS3DE, LIS2DE12
@@ -247,7 +247,7 @@ config KXSD9
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for the Kionix KXSD9 accelerometer.
+	  Say no here to build support for the Kionix KXSD9 accelerometer.
 	  It can be accessed using an (optional) SPI or I2C interface.
 
 	  To compile this driver as a module, choose M here: the module
@@ -260,7 +260,7 @@ config KXSD9_SPI
 	default KXSD9
 	select REGMAP_SPI
 	help
-	  Say yes here to enable the Kionix KXSD9 accelerometer
+	  Say no here to enable the Kionix KXSD9 accelerometer
 	  SPI transport channel.
 
 config KXSD9_I2C
@@ -270,7 +270,7 @@ config KXSD9_I2C
 	default KXSD9
 	select REGMAP_I2C
 	help
-	  Say yes here to enable the Kionix KXSD9 accelerometer
+	  Say no here to enable the Kionix KXSD9 accelerometer
 	  I2C transport channel.
 
 config KXCJK1013
@@ -290,7 +290,7 @@ config MC3230
 	tristate "mCube MC3230 Digital Accelerometer Driver"
 	depends on I2C
 	help
-	  Say yes here to build support for the mCube MC3230 low-g tri-axial
+	  Say no here to build support for the mCube MC3230 low-g tri-axial
 	  digital accelerometer.
 
 	  To compile this driver as a module, choose M here: the
@@ -307,7 +307,7 @@ config MMA7455_I2C
 	select MMA7455
 	select REGMAP_I2C
 	help
-	  Say yes here to build support for the Freescale MMA7455L and
+	  Say no here to build support for the Freescale MMA7455L and
 	  MMA7456L 3-axis accelerometer.
 
 	  To compile this driver as a module, choose M here: the module
@@ -319,7 +319,7 @@ config MMA7455_SPI
 	select MMA7455
 	select REGMAP_SPI
 	help
-	  Say yes here to build support for the Freescale MMA7455L and
+	  Say no here to build support for the Freescale MMA7455L and
 	  MMA7456L 3-axis accelerometer.
 
 	  To compile this driver as a module, choose M here: the module
@@ -329,7 +329,7 @@ config MMA7660
 	tristate "Freescale MMA7660FC 3-Axis Accelerometer Driver"
 	depends on I2C
 	help
-	  Say yes here to get support for the Freescale MMA7660FC 3-Axis
+	  Say no here to get support for the Freescale MMA7660FC 3-Axis
 	  accelerometer.
 
 	  Choosing M will build the driver as a module. If so, the module
@@ -341,7 +341,7 @@ config MMA8452
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for the following Freescale / NXP 3-axis
+	  Say no here to build support for the following Freescale / NXP 3-axis
 	  accelerometers: MMA8451Q, MMA8452Q, MMA8453Q, MMA8652FC, MMA8653FC,
 	  FXLS8471Q.
 
@@ -357,7 +357,7 @@ config MMA9551
 	select MMA9551_CORE
 
 	help
-	  Say yes here to build support for the Freescale MMA9551L
+	  Say no here to build support for the Freescale MMA9551L
 	  Intelligent Motion-Sensing Platform Driver.
 
 	  To compile this driver as a module, choose M here: the module
@@ -368,7 +368,7 @@ config MMA9553
 	depends on I2C
 	select MMA9551_CORE
 	help
-	  Say yes here to build support for the Freescale MMA9553L
+	  Say no here to build support for the Freescale MMA9553L
 	  Intelligent Pedometer Platform Driver.
 
 	  To compile this driver as a module, choose M here: the module
@@ -381,7 +381,7 @@ config MXC4005
 	select IIO_TRIGGERED_BUFFER
 	select REGMAP_I2C
 	help
-	  Say yes here to build support for the Memsic MXC4005XC 3-axis
+	  Say no here to build support for the Memsic MXC4005XC 3-axis
 	  accelerometer.
 
 	  To compile this driver as a module, choose M. The module will be
@@ -392,7 +392,7 @@ config MXC6255
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  Say yes here to build support for the Memsic MXC6255 Orientation
+	  Say no here to build support for the Memsic MXC6255 Orientation
 	  Sensing Accelerometer Driver.
 
 	  To compile this driver as a module, choose M here: the module will be
@@ -416,7 +416,7 @@ config STK8312
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to get support for the Sensortek STK8312 3-axis
+	  Say no here to get support for the Sensortek STK8312 3-axis
 	  accelerometer.
 
 	  Choosing M will build the driver as a module. If so, the module
@@ -428,7 +428,7 @@ config STK8BA50
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to get support for the Sensortek STK8BA50 3-axis
+	  Say no here to get support for the Sensortek STK8BA50 3-axis
 	  accelerometer.
 
 	  Choosing M will build the driver as a module. If so, the module

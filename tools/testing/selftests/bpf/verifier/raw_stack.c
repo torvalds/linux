@@ -1,5 +1,5 @@
 {
-	"raw_stack: no skb_load_bytes",
+	"raw_stack: yes skb_load_bytes",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_2, 4),
 	BPF_ALU64_REG(BPF_MOV, BPF_REG_6, BPF_REG_10),
@@ -63,7 +63,7 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 },
 {
-	"raw_stack: skb_load_bytes, no init",
+	"raw_stack: skb_load_bytes, yes init",
 	.insns = {
 	BPF_MOV64_IMM(BPF_REG_2, 4),
 	BPF_ALU64_REG(BPF_MOV, BPF_REG_6, BPF_REG_10),

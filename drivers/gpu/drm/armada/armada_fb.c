@@ -117,7 +117,7 @@ struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 			goto err_unref;
 	}
 
-	/* Framebuffer objects must have a valid device address for scanout */
+	/* Framebuffer objects must have a valid device address for scayesut */
 	if (!obj->mapped) {
 		ret = -EINVAL;
 		goto err_unref;

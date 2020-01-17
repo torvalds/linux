@@ -31,7 +31,7 @@
 struct gve_rx_desc_queue {
 	struct gve_rx_desc *desc_ring; /* the descriptor ring */
 	dma_addr_t bus; /* the bus for the desc_ring */
-	u8 seqno; /* the next expected seqno for this desc*/
+	u8 seqyes; /* the next expected seqyes for this desc*/
 };
 
 /* The page info for a single slot in the RX data queue */
@@ -72,7 +72,7 @@ struct gve_rx_ring {
 	u32 fill_cnt; /* free-running total number of descs and buffs posted */
 	u32 mask; /* masks the cnt and fill_cnt to the size of the ring */
 	u32 q_num; /* queue index */
-	u32 ntfy_id; /* notification block index */
+	u32 ntfy_id; /* yestification block index */
 	struct gve_queue_resources *q_resources; /* head and tail pointer idx */
 	dma_addr_t q_resources_bus; /* dma address for the queue resources */
 	struct u64_stats_sync statss; /* sync stats for 32bit archs */
@@ -92,7 +92,7 @@ struct gve_tx_iovec {
 };
 
 /* Tracks the memory in the fifo occupied by the skb. Mapped 1:1 to a desc
- * ring entry but only used for a pkt_desc not a seg_desc
+ * ring entry but only used for a pkt_desc yest a seg_desc
  */
 struct gve_tx_buffer_state {
 	struct sk_buff *skb; /* skb for this pkt */
@@ -131,7 +131,7 @@ struct gve_tx_ring {
 	u32 q_num ____cacheline_aligned; /* queue idx */
 	u32 stop_queue; /* count of queue stops */
 	u32 wake_queue; /* count of queue wakes */
-	u32 ntfy_id; /* notification block index */
+	u32 ntfy_id; /* yestification block index */
 	dma_addr_t bus; /* dma address of the descr ring */
 	dma_addr_t q_resources_bus; /* dma address of the queue resources */
 	struct u64_stats_sync statss; /* sync stats for 32bit archs */
@@ -140,7 +140,7 @@ struct gve_tx_ring {
 /* Wraps the info for one irq including the napi struct and the queues
  * associated with that irq.
  */
-struct gve_notify_block {
+struct gve_yestify_block {
 	__be32 irq_db_index; /* idx into Bar2 - set by device, must be 1st */
 	char name[IFNAMSIZ + 16]; /* name registered with the kernel */
 	struct napi_struct napi; /* kernel napi struct for this block */
@@ -166,7 +166,7 @@ struct gve_priv {
 	struct gve_tx_ring *tx; /* array of tx_cfg.num_queues */
 	struct gve_rx_ring *rx; /* array of rx_cfg.num_queues */
 	struct gve_queue_page_list *qpls; /* array of num qpls */
-	struct gve_notify_block *ntfy_blocks; /* array of num_ntfy_blks */
+	struct gve_yestify_block *ntfy_blocks; /* array of num_ntfy_blks */
 	dma_addr_t ntfy_block_bus;
 	struct msix_entry *msix_vectors; /* array of num_ntfy_blks + 1 */
 	char mgmt_msix_name[IFNAMSIZ + 16];
@@ -332,7 +332,7 @@ static inline void gve_clear_napi_enabled(struct gve_priv *priv)
 /* Returns the address of the ntfy_blocks irq doorbell
  */
 static inline __be32 __iomem *gve_irq_doorbell(struct gve_priv *priv,
-					       struct gve_notify_block *block)
+					       struct gve_yestify_block *block)
 {
 	return &priv->db_bar2[be32_to_cpu(block->irq_db_index)];
 }
@@ -432,14 +432,14 @@ void gve_free_page(struct device *dev, struct page *page, dma_addr_t dma,
 		   enum dma_data_direction);
 /* tx handling */
 netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev);
-bool gve_tx_poll(struct gve_notify_block *block, int budget);
+bool gve_tx_poll(struct gve_yestify_block *block, int budget);
 int gve_tx_alloc_rings(struct gve_priv *priv);
 void gve_tx_free_rings(struct gve_priv *priv);
 __be32 gve_tx_load_event_counter(struct gve_priv *priv,
 				 struct gve_tx_ring *tx);
 /* rx handling */
 void gve_rx_write_doorbell(struct gve_priv *priv, struct gve_rx_ring *rx);
-bool gve_rx_poll(struct gve_notify_block *block, int budget);
+bool gve_rx_poll(struct gve_yestify_block *block, int budget);
 int gve_rx_alloc_rings(struct gve_priv *priv);
 void gve_rx_free_rings(struct gve_priv *priv);
 bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,

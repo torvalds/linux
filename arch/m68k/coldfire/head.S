@@ -23,8 +23,8 @@
  *	If we don't have a fixed memory size, then lets build in code
  *	to auto detect the DRAM size. Obviously this is the preferred
  *	method, and should work for most boards. It won't work for those
- *	that do not have their RAM starting at address 0, and it only
- *	works on SDRAM (not boards fitted with SRAM).
+ *	that do yest have their RAM starting at address 0, and it only
+ *	works on SDRAM (yest boards fitted with SRAM).
  */
 #if CONFIG_RAMSIZE != 0
 .macro GET_MEM_SIZE
@@ -87,14 +87,14 @@
 .endm
 
 #else
-#error "ERROR: I don't know how to probe your boards memory size?"
+#error "ERROR: I don't kyesw how to probe your boards memory size?"
 #endif
 
 /*****************************************************************************/
 
 /*
  *	Boards and platforms can do specific early hardware setup if
- *	they need to. Most don't need this, define away if not required.
+ *	they need to. Most don't need this, define away if yest required.
  */
 #ifndef PLATFORM_SETUP
 #define	PLATFORM_SETUP
@@ -116,7 +116,7 @@
 .data
 
 /*
- *	During startup we store away the RAM setup. These are not in the
+ *	During startup we store away the RAM setup. These are yest in the
  *	bss, since their values are determined and written before the bss
  *	has been cleared.
  */
@@ -151,11 +151,11 @@ _start0:
  */
 
 _start:
-	nop					/* filler */
-	movew	#0x2700, %sr			/* no interrupts */
+	yesp					/* filler */
+	movew	#0x2700, %sr			/* yes interrupts */
 	movel	#CACHE_INIT,%d0			/* disable cache */
 	movec	%d0,%CACR
-	nop
+	yesp
 #if defined(CONFIG_UBOOT)
 	movel	%sp,_init_sp			/* save initial stack pointer */
 #endif
@@ -165,7 +165,7 @@ _start:
 #endif
 
 	/*
-	 *	Do any platform or board specific setup now. Most boards
+	 *	Do any platform or board specific setup yesw. Most boards
 	 *	don't need anything. Those exceptions are define this in
 	 *	their board specific includes.
 	 */
@@ -187,7 +187,7 @@ _start:
 	movel	%d0,_ramend			/* set end ram addr */
 
 	/*
-	 *	Now that we know what the memory is, lets enable cache
+	 *	Now that we kyesw what the memory is, lets enable cache
 	 *	and get things moving. This is Coldfire CPU specific. Not
 	 *	all version cores have identical cache register setup. But
 	 *	it is very similar. Define the exact settings in the headers
@@ -205,7 +205,7 @@ _start:
 #endif
 	movel	#CACHE_MODE,%d0			/* enable cache */
 	movec	%d0,%CACR
-	nop
+	yesp
 
 #ifdef CONFIG_MMU
 	/*
@@ -220,7 +220,7 @@ _start:
 
 	movel	#MMUCR_EN,%d0			/* Enable the identity map */
 	movel	%d0,MMUCR
-	nop					/* sync i-pipeline */
+	yesp					/* sync i-pipeline */
 
 	movel	#_vstart,%a0			/* jump to "virtual" space */
 	jmp	%a0@

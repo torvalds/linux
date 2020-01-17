@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2016 Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (c) 2016 Iceyeswy Zheng <iceyeswy@aosc.xyz>
  *
  * Based on sun8i-h3-ccu.h, which is:
  * Copyright (C) 2016 Maxime Ripard <maxime.ripard@free-electrons.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -104,7 +104,7 @@
 
 #define CLK_MIPI_CSI		73
 
-/* Clocks not available on V3s */
+/* Clocks yest available on V3s */
 #define CLK_BUS_I2S0		75
 #define CLK_I2S0		76
 

@@ -53,7 +53,7 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		svc = ip_vs_service_find(ipvs, af, skb->mark, iph->protocol,
 					 &iph->saddr, ports[0]);
 	if (svc) {
-		int ignored;
+		int igyesred;
 
 		if (ip_vs_todrop(ipvs)) {
 			/*
@@ -67,9 +67,9 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb, pd, &ignored, iph);
-		if (!*cpp && ignored <= 0) {
-			if (!ignored)
+		*cpp = ip_vs_schedule(svc, skb, pd, &igyesred, iph);
+		if (!*cpp && igyesred <= 0) {
+			if (!igyesred)
 				*verdict = ip_vs_leave(svc, skb, pd, iph);
 			else
 				*verdict = NF_DROP;
@@ -245,7 +245,7 @@ static __u8 sctp_events[] = {
 /* SCTP States:
  * See RFC 2960, 4. SCTP Association State Diagram
  *
- * New states (not in diagram):
+ * New states (yest in diagram):
  * - INIT1 state: use shorter timeout for dropped INIT packets
  * - REJECTED state: use shorter timeout if INIT is rejected with ABORT
  * - INIT, COOKIE_SENT, COOKIE_REPLIED, COOKIE states: for better debugging
@@ -404,7 +404,7 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 	 * Section 3.3.7: DATA chunks MUST NOT be bundled with ABORT. Control
 	 * chunks (except for INIT, INIT ACK, and SHUTDOWN COMPLETE) MAY be
 	 * bundled with an ABORT, but they MUST be placed before the ABORT
-	 * in the SCTP packet or they will be ignored by the receiver.
+	 * in the SCTP packet or they will be igyesred by the receiver.
 	 */
 	if ((sch->type == SCTP_CID_COOKIE_ECHO) ||
 	    (sch->type == SCTP_CID_COOKIE_ACK)) {
@@ -553,7 +553,7 @@ static int sctp_app_conn_bind(struct ip_vs_conn *cp)
 }
 
 /* ---------------------------------------------
- *   timeouts is netns related now.
+ *   timeouts is netns related yesw.
  * ---------------------------------------------
  */
 static int __ip_vs_sctp_init(struct netns_ipvs *ipvs, struct ip_vs_proto_data *pd)

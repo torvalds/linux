@@ -8,7 +8,7 @@
 
 #include <linux/cache.h>
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
@@ -87,7 +87,7 @@ static size_t sigframe_size(struct rt_sigframe_user_layout const *user)
 /*
  * Sanity limit on the approximate maximum size of signal frame we'll
  * try to generate.  Stack alignment padding and the frame record are
- * not taken into account.  This limit is not a guarantee and is
+ * yest taken into account.  This limit is yest a guarantee and is
  * NOT ABI.
  */
 #define SIGFRAME_MAXSZ SZ_64K
@@ -120,7 +120,7 @@ static int __sigframe_alloc(struct rt_sigframe_user_layout *user,
 		user->limit = SIGFRAME_MAXSZ - TERMINATOR_SIZE;
 	}
 
-	/* Still not enough space?  Bad luck! */
+	/* Still yest eyesugh space?  Bad luck! */
 	if (padded_size > user->limit - user->size)
 		return -ENOMEM;
 
@@ -285,7 +285,7 @@ static int restore_sve_fpsimd_context(struct user_ctxs *user)
 	 */
 
 	fpsimd_flush_task_state(current);
-	/* From now, fpsimd_thread_switch() won't touch thread.sve_state */
+	/* From yesw, fpsimd_thread_switch() won't touch thread.sve_state */
 
 	sve_alloc(current);
 	err = __copy_from_user(current->thread.sve_state,
@@ -314,7 +314,7 @@ fpsimd_only:
 
 #else /* ! CONFIG_ARM64_SVE */
 
-/* Turn any non-optimised out attempts to use these into a link error: */
+/* Turn any yesn-optimised out attempts to use these into a link error: */
 extern int preserve_sve_context(void __user *ctx);
 extern int restore_sve_fpsimd_context(struct user_ctxs *user);
 
@@ -381,7 +381,7 @@ static int parse_user_sigframe(struct user_ctxs *user,
 			break;
 
 		case ESR_MAGIC:
-			/* ignore */
+			/* igyesre */
 			break;
 
 		case SVE_MAGIC:
@@ -448,7 +448,7 @@ static int parse_user_sigframe(struct user_ctxs *user,
 				goto invalid;
 
 			/*
-			 * Ignore trailing terminator in __reserved[]
+			 * Igyesre trailing terminator in __reserved[]
 			 * and start parsing extra data:
 			 */
 			offset = 0;
@@ -529,7 +529,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	struct rt_sigframe __user *frame;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	/*
 	 * Since we stacked the signal on a 128-bit boundary, then 'sp' should
@@ -552,7 +552,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	return regs->regs[0];
 
 badframe:
-	arm64_notify_segfault(regs->sp);
+	arm64_yestify_segfault(regs->sp);
 	return 0;
 }
 
@@ -818,7 +818,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  *
  * Note that we go through the signals twice: once to check the signals that
@@ -885,7 +885,7 @@ static void do_signal(struct pt_regs *regs)
 
 	/*
 	 * Handle restarting a different system call. As above, if a debugger
-	 * has chosen to restart at a different PC, ignore the restart.
+	 * has chosen to restart at a different PC, igyesre the restart.
 	 */
 	if (syscall && regs->pc == restart_addr) {
 		if (retval == -ERESTART_RESTARTBLOCK)
@@ -896,7 +896,7 @@ static void do_signal(struct pt_regs *regs)
 	restore_saved_sigmask();
 }
 
-asmlinkage void do_notify_resume(struct pt_regs *regs,
+asmlinkage void do_yestify_resume(struct pt_regs *regs,
 				 unsigned long thread_flags)
 {
 	/*
@@ -919,15 +919,15 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 			local_daif_restore(DAIF_PROCCTX);
 
 			if (thread_flags & _TIF_UPROBE)
-				uprobe_notify_resume(regs);
+				uprobe_yestify_resume(regs);
 
 			if (thread_flags & _TIF_SIGPENDING)
 				do_signal(regs);
 
 			if (thread_flags & _TIF_NOTIFY_RESUME) {
 				clear_thread_flag(TIF_NOTIFY_RESUME);
-				tracehook_notify_resume(regs);
-				rseq_handle_notify_resume(NULL, regs);
+				tracehook_yestify_resume(regs);
+				rseq_handle_yestify_resume(NULL, regs);
 			}
 
 			if (thread_flags & _TIF_FOREIGN_FPSTATE)
@@ -954,7 +954,7 @@ void __init minsigstksz_setup(void)
 
 	/*
 	 * If this fails, SIGFRAME_MAXSZ needs to be enlarged.  It won't
-	 * be big enough, but it's our best guess:
+	 * be big eyesugh, but it's our best guess:
 	 */
 	if (WARN_ON(setup_sigframe_layout(&user, true)))
 		return;

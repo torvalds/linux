@@ -24,7 +24,7 @@ struct sd {
 #define HamaUSBSightcam 1
 #define HamaUSBSightcam2 2
 #define IntelEasyPCCamera 3
-#define MicroInnovationIC200 4
+#define MicroInyesvationIC200 4
 #define ViewQuestVQ110 5
 };
 
@@ -70,7 +70,7 @@ static const u16 spca508_init_data[][2] = {
 	{0x0002, 0x8116},	/* 200 kHz pump clock */
 	/* UNKNOWN DIRECTION (URB_FUNCTION_SELECT_INTERFACE:) */
 	{0x0003, 0x8111},	/* Reset compression & memory */
-	{0x0000, 0x8111},	/* Normal mode (not reset) */
+	{0x0000, 0x8111},	/* Normal mode (yest reset) */
 	{0x0098, 0x8110},
 		/* Enable charge pump output, sync.serial,external 2x clock */
 	{0x000d, 0x8114},	/* SW GPIO data */
@@ -80,7 +80,7 @@ static const u16 spca508_init_data[][2] = {
 	{0x000f, 0x8402},	/* memory bank */
 	{0x0000, 0x8403},	/* ... address */
 /* --------------------------------------- */
-/* 0x88__ is Synchronous Serial Interface. */
+/* 0x88__ is Synchroyesus Serial Interface. */
 /* TBD: This table could be expressed more compactly */
 /* using spca508_write_i2c_vector(). */
 /* TBD: Should see if the values in spca50x_i2c_data */
@@ -347,7 +347,7 @@ static const u16 spca508_init_data[][2] = {
 	{0x0040, 0x8654},
 	{0x0000, 0x8655},
 	{0x0001, 0x863f},	/* Fixed gamma correction enable, USB control,
-				 * lum filter disable, lum noise clip disable */
+				 * lum filter disable, lum yesise clip disable */
 	{0x00a1, 0x8656},	/* Window1 size 256x256, Windows2 size 64x64,
 				 * gamma look-up disable,
 				 * new edge enhancement enable */
@@ -475,7 +475,7 @@ static const u16 spca508cs110_init_data[][2] = {
 	{0x0003, 0x8111},	/* Soft Reset compression, memory, TG & CDSP */
 	{0x0000, 0x8111},	/* Normal operation on reset */
 	{0x0090, 0x8110},
-		 /* External Clock 2x & Synchronous Serial Interface Output */
+		 /* External Clock 2x & Synchroyesus Serial Interface Output */
 	{0x0020, 0x8112},	/* Video Drop packet enable */
 	{0x0000, 0x8114},	/* Software GPIO output data */
 	{0x0001, 0x8114},
@@ -483,7 +483,7 @@ static const u16 spca508cs110_init_data[][2] = {
 	{0x0001, 0x8114},
 	{0x0003, 0x8114},
 
-	/* Initial sequence Synchronous Serial Interface */
+	/* Initial sequence Synchroyesus Serial Interface */
 	{0x000f, 0x8402},	/* Memory bank Address */
 	{0x0000, 0x8403},	/* Memory bank Address */
 	{0x00ba, 0x8804},	/* SSI Slave address */
@@ -491,7 +491,7 @@ static const u16 spca508cs110_init_data[][2] = {
 	{0x0010, 0x8802},	/* 93.75kHz SSI Clock two DataByte */
 
 	{0x0001, 0x8801},
-	{0x000a, 0x8805},	/* a - NWG: Dunno what this is about */
+	{0x000a, 0x8805},	/* a - NWG: Dunyes what this is about */
 	{0x0000, 0x8800},
 	{0x0010, 0x8802},
 
@@ -583,7 +583,7 @@ static const u16 spca508_sightcam_init_data[][2] = {
 
 /* This section is just needed, it probably
  * does something like the previous section,
- * but the cam won't start if it's not included.
+ * but the cam won't start if it's yest included.
  */
 	{0x0014, 0x8801},
 	{0x0008, 0x8800},
@@ -597,7 +597,7 @@ static const u16 spca508_sightcam_init_data[][2] = {
 	{0x0044, 0x8800},
 
 /* Makes the picture darker - and the
- * cam won't start if not included
+ * cam won't start if yest included
  */
 	{0x001e, 0x8801},
 	{0x00ea, 0x8800},
@@ -612,7 +612,7 @@ static const u16 spca508_sightcam_init_data[][2] = {
 	{0x0016, 0x8600},
 	{0x0002, 0x8606},
 
-/* if not included the pictures becomes _very_ dark */
+/* if yest included the pictures becomes _very_ dark */
 	{0x0064, 0x8607},
 	{0x003a, 0x8601},
 	{0x0000, 0x8602},
@@ -623,7 +623,7 @@ static const u16 spca508_sightcam_init_data[][2] = {
 	{0x0008, 0x8618},
 	{0x00a1, 0x8656},
 
-/* webcam won't start if not included */
+/* webcam won't start if yest included */
 	{0x0007, 0x865b},
 	{0x0001, 0x865c},
 	{0x0058, 0x865d},
@@ -974,9 +974,9 @@ static const u16 spca508_sightcam2_init_data[][2] = {
 	{0x0012, 0x8657},
 	{0x0064, 0x8619},
 
-/* This line starts it all, it is not needed here */
+/* This line starts it all, it is yest needed here */
 /* since it has been build into the driver */
-/* jfm: don't start now */
+/* jfm: don't start yesw */
 /*	{0x0030, 0x8112}, */
 	{}
 };
@@ -1176,7 +1176,7 @@ static const u16 spca508_vista_init_data[][2] = {
 	{0x0001, 0x863f},	/* Enable fixed gamma correction */
 
 	{0x00a1, 0x8656},	/* Size - Window1: 256x256, Window2: 128x128,
-				 * UV division: UV no change,
+				 * UV division: UV yes change,
 				 * Enable New edge enhancement */
 	{0x0018, 0x8657},	/* Edge gain high threshold */
 	{0x0020, 0x8658},	/* Edge gain low threshold */
@@ -1269,7 +1269,7 @@ static int reg_read(struct gspca_dev *gspca_dev,
 	return gspca_dev->usb_buf[0];
 }
 
-/* send 1 or 2 bytes to the sensor via the Synchronous Serial Interface */
+/* send 1 or 2 bytes to the sensor via the Synchroyesus Serial Interface */
 static int ssi_w(struct gspca_dev *gspca_dev,
 		u16 reg, u16 val)
 {
@@ -1291,7 +1291,7 @@ static int ssi_w(struct gspca_dev *gspca_dev,
 	if (ret < 0)
 		goto out;
 
-	/* poll until not busy */
+	/* poll until yest busy */
 	retry = 10;
 	for (;;) {
 		ret = reg_read(gspca_dev, 0x8803);
@@ -1346,7 +1346,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		spca508_sightcam_init_data,	/* HamaUSBSightcam 1 */
 		spca508_sightcam2_init_data,	/* HamaUSBSightcam2 2 */
 		spca508cs110_init_data,		/* IntelEasyPCCamera 3 */
-		spca508cs110_init_data,		/* MicroInnovationIC200 4 */
+		spca508cs110_init_data,		/* MicroInyesvationIC200 4 */
 		spca508_init_data,		/* ViewQuestVQ110 5 */
 	};
 	int data1, data2;
@@ -1474,7 +1474,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

@@ -85,8 +85,8 @@ void uwb_rc_init(struct uwb_rc *rc)
 	uwb_rc_neh_create(rc);
 	rc->beaconing = -1;
 	rc->scan_type = UWB_SCAN_DISABLED;
-	INIT_LIST_HEAD(&rc->notifs_chain.list);
-	mutex_init(&rc->notifs_chain.mutex);
+	INIT_LIST_HEAD(&rc->yestifs_chain.list);
+	mutex_init(&rc->yestifs_chain.mutex);
 	INIT_LIST_HEAD(&rc->uwb_beca.list);
 	mutex_init(&rc->uwb_beca.mutex);
 	uwb_drp_avail_init(rc);
@@ -163,7 +163,7 @@ static ssize_t ASIE_store(struct device *dev,
 		return size;
 	}
 
-	/* if non-empty string, convert string of hex chars to binary. */
+	/* if yesn-empty string, convert string of hex chars to binary. */
 	while (ie_len < sizeof(ie_buf)) {
 		int char_count;
 
@@ -239,7 +239,7 @@ static void __uwb_rc_sys_rm(struct uwb_rc *rc)
  * If the EUI-48 address is 00:00:00:00:00:00 or FF:FF:FF:FF:FF:FF
  * then a random locally administered EUI-48 is generated and set on
  * the device.  The probability of address collisions is sufficiently
- * unlikely (1/2^40 = 9.1e-13) that they're not checked for.
+ * unlikely (1/2^40 = 9.1e-13) that they're yest checked for.
  */
 static
 int uwb_rc_mac_addr_setup(struct uwb_rc *rc)
@@ -252,7 +252,7 @@ int uwb_rc_mac_addr_setup(struct uwb_rc *rc)
 
 	result = uwb_rc_mac_addr_get(rc, &addr);
 	if (result < 0) {
-		dev_err(dev, "cannot retrieve UWB EUI-48 address: %d\n", result);
+		dev_err(dev, "canyest retrieve UWB EUI-48 address: %d\n", result);
 		return result;
 	}
 
@@ -263,7 +263,7 @@ int uwb_rc_mac_addr_setup(struct uwb_rc *rc)
 		result = uwb_rc_mac_addr_set(rc, &addr);
 		if (result < 0) {
 			uwb_mac_addr_print(devname, sizeof(devname), &addr);
-			dev_err(dev, "cannot set EUI-48 address %s: %d\n",
+			dev_err(dev, "canyest set EUI-48 address %s: %d\n",
 				devname, result);
 			return result;
 		}
@@ -281,27 +281,27 @@ static int uwb_rc_setup(struct uwb_rc *rc)
 
 	result = uwb_radio_setup(rc);
 	if (result < 0) {
-		dev_err(dev, "cannot setup UWB radio: %d\n", result);
+		dev_err(dev, "canyest setup UWB radio: %d\n", result);
 		goto error;
 	}
 	result = uwb_rc_mac_addr_setup(rc);
 	if (result < 0) {
-		dev_err(dev, "cannot setup UWB MAC address: %d\n", result);
+		dev_err(dev, "canyest setup UWB MAC address: %d\n", result);
 		goto error;
 	}
 	result = uwb_rc_dev_addr_assign(rc);
 	if (result < 0) {
-		dev_err(dev, "cannot assign UWB DevAddr: %d\n", result);
+		dev_err(dev, "canyest assign UWB DevAddr: %d\n", result);
 		goto error;
 	}
 	result = uwb_rc_ie_setup(rc);
 	if (result < 0) {
-		dev_err(dev, "cannot setup IE subsystem: %d\n", result);
+		dev_err(dev, "canyest setup IE subsystem: %d\n", result);
 		goto error_ie_setup;
 	}
 	result = uwb_rsv_setup(rc);
 	if (result < 0) {
-		dev_err(dev, "cannot setup reservation subsystem: %d\n", result);
+		dev_err(dev, "canyest setup reservation subsystem: %d\n", result);
 		goto error_rsv_setup;
 	}
 	uwb_dbg_add_rc(rc);
@@ -350,7 +350,7 @@ int uwb_rc_add(struct uwb_rc *rc, struct device *parent_dev, void *priv)
 
 	result = uwb_rc_setup(rc);
 	if (result < 0) {
-		dev_err(dev, "cannot setup UWB radio controller: %d\n", result);
+		dev_err(dev, "canyest setup UWB radio controller: %d\n", result);
 		goto error_rc_setup;
 	}
 
@@ -360,7 +360,7 @@ int uwb_rc_add(struct uwb_rc *rc, struct device *parent_dev, void *priv)
 
 	result = uwb_rc_sys_add(rc);
 	if (result < 0) {
-		dev_err(parent_dev, "cannot register UWB radio controller "
+		dev_err(parent_dev, "canyest register UWB radio controller "
 			"dev attributes: %d\n", result);
 		goto error_sys_add;
 	}
@@ -443,7 +443,7 @@ static int find_rc_try_get(struct device *dev, const void *data)
 /**
  * Given a radio controller descriptor, validate and refcount it
  *
- * @returns NULL if the rc does not exist or is quiescing; the ptr to
+ * @returns NULL if the rc does yest exist or is quiescing; the ptr to
  *               it otherwise.
  */
 struct uwb_rc *__uwb_rc_try_get(struct uwb_rc *target_rc)
@@ -492,14 +492,14 @@ static int find_rc_grandpa(struct device *dev, const void *data)
  * Locate and refcount a radio controller given a common grand-parent
  *
  * @grandpa_dev  Pointer to the 'grandparent' device structure.
- * @returns NULL If the rc does not exist or is quiescing; the ptr to
+ * @returns NULL If the rc does yest exist or is quiescing; the ptr to
  *               it otherwise, properly referenced.
  *
  * The Radio Control interface (or the UWB Radio Controller) is always
  * an interface of a device. The parent is the interface, the
  * grandparent is the device that encapsulates the interface.
  *
- * There is no need to lock around as the "grandpa" would be
+ * There is yes need to lock around as the "grandpa" would be
  * refcounted by the target, and to remove the referemes, the
  * uwb_rc_class->sem would have to be taken--we hold it, ergo we
  * should be safe.

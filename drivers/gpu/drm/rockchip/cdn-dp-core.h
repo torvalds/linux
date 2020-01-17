@@ -53,7 +53,7 @@ struct cdn_firmware_header {
 
 struct cdn_dp_port {
 	struct cdn_dp_device *dp;
-	struct notifier_block event_nb;
+	struct yestifier_block event_nb;
 	struct extcon_dev *extcon;
 	struct phy *phy;
 	u8 lanes;

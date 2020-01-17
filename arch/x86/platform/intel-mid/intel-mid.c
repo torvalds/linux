@@ -17,7 +17,7 @@
 #include <linux/sfi.h>
 #include <linux/irq.h>
 #include <linux/export.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include <asm/setup.h>
 #include <asm/mpspec_def.h>
@@ -45,7 +45,7 @@
  * to see if we are on lincroft or penwell, then set up both lapic or apbt
  * clocks accordingly.
  * i.e. by default, medfield uses configuration #2, moorestown uses #1.
- * config #3 is supported but not recommended on medfield.
+ * config #3 is supported but yest recommended on medfield.
  *
  * rating and feature summary:
  * lapic (with C3STOP) --------- 100
@@ -63,7 +63,7 @@ static void intel_mid_power_off(void)
 	/* Shut down South Complex via PWRMU */
 	intel_mid_pwr_power_off();
 
-	/* Only for Tangier, the rest will ignore this command */
+	/* Only for Tangier, the rest will igyesre this command */
 	intel_scu_ipc_simple_command(IPCMSG_COLD_OFF, 1);
 };
 
@@ -93,7 +93,7 @@ static void __init intel_mid_time_init(void)
 	default:
 		if (!boot_cpu_has(X86_FEATURE_ARAT))
 			break;
-		/* Lapic only, no apbt */
+		/* Lapic only, yes apbt */
 		x86_init.timers.setup_percpu_clockev = setup_boot_APIC_clock;
 		x86_cpuinit.setup_percpu_clockev = setup_secondary_APIC_clock;
 		return;
@@ -105,7 +105,7 @@ static void __init intel_mid_time_init(void)
 static void intel_mid_arch_setup(void)
 {
 	if (boot_cpu_data.x86 != 6) {
-		pr_err("Unknown Intel MID CPU (%d:%d), default to Penwell\n",
+		pr_err("Unkyeswn Intel MID CPU (%d:%d), default to Penwell\n",
 			boot_cpu_data.x86, boot_cpu_data.x86_model);
 		__intel_mid_cpu_chip = INTEL_MID_CPU_CHIP_PENWELL;
 		goto out;
@@ -130,7 +130,7 @@ out:
 	/*
 	 * Intel MID platforms are using explicitly defined regulators.
 	 *
-	 * Let the regulator core know that we do not have any additional
+	 * Let the regulator core kyesw that we do yest have any additional
 	 * regulators left. This lets it substitute unprovided regulators with
 	 * dummy ones:
 	 */
@@ -138,7 +138,7 @@ out:
 }
 
 /*
- * Moorestown does not have external NMI source nor port 0x61 to report
+ * Moorestown does yest have external NMI source yesr port 0x61 to report
  * NMI status. The possible NMI sources are from pmu as a result of NMI
  * watchdog or lock debug. Reading io port 0x61 results in 0xff which
  * misled NMI handler.
@@ -154,14 +154,14 @@ static unsigned char intel_mid_get_nmi_reason(void)
  */
 void __init x86_intel_mid_early_setup(void)
 {
-	x86_init.resources.probe_roms = x86_init_noop;
-	x86_init.resources.reserve_resources = x86_init_noop;
+	x86_init.resources.probe_roms = x86_init_yesop;
+	x86_init.resources.reserve_resources = x86_init_yesop;
 
 	x86_init.timers.timer_init = intel_mid_time_init;
-	x86_init.timers.setup_percpu_clockev = x86_init_noop;
+	x86_init.timers.setup_percpu_clockev = x86_init_yesop;
 	x86_init.timers.wallclock_init = intel_mid_rtc_init;
 
-	x86_init.irqs.pre_vector_init = x86_init_noop;
+	x86_init.irqs.pre_vector_init = x86_init_yesop;
 
 	x86_init.oem.arch_setup = intel_mid_arch_setup;
 
@@ -170,27 +170,27 @@ void __init x86_intel_mid_early_setup(void)
 	x86_platform.get_nmi_reason = intel_mid_get_nmi_reason;
 
 	x86_init.pci.arch_init = intel_mid_pci_init;
-	x86_init.pci.fixup_irqs = x86_init_noop;
+	x86_init.pci.fixup_irqs = x86_init_yesop;
 
 	legacy_pic = &null_legacy_pic;
 
 	/*
-	 * Do nothing for now as everything needed done in
+	 * Do yesthing for yesw as everything needed done in
 	 * x86_intel_mid_early_setup() below.
 	 */
-	x86_init.acpi.reduced_hw_early_init = x86_init_noop;
+	x86_init.acpi.reduced_hw_early_init = x86_init_yesop;
 
 	pm_power_off = intel_mid_power_off;
 	machine_ops.emergency_restart  = intel_mid_reboot;
 
 	/* Avoid searching for BIOS MP tables */
-	x86_init.mpparse.find_smp_config = x86_init_noop;
-	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
-	set_bit(MP_BUS_ISA, mp_bus_not_pci);
+	x86_init.mpparse.find_smp_config = x86_init_yesop;
+	x86_init.mpparse.get_smp_config = x86_init_uint_yesop;
+	set_bit(MP_BUS_ISA, mp_bus_yest_pci);
 }
 
 /*
- * if user does not want to use per CPU apb timer, just give it a lower rating
+ * if user does yest want to use per CPU apb timer, just give it a lower rating
  * than local apic timer and skip the late per cpu timer init.
  */
 static inline int __init setup_x86_intel_mid_timer(char *arg)
@@ -203,7 +203,7 @@ static inline int __init setup_x86_intel_mid_timer(char *arg)
 	else if (strcmp("lapic_and_apbt", arg) == 0)
 		intel_mid_timer_options = INTEL_MID_TIMER_LAPIC_APBT;
 	else {
-		pr_warn("X86 INTEL_MID timer option %s not recognised use x86_intel_mid_timer=apbt_only or lapic_and_apbt\n",
+		pr_warn("X86 INTEL_MID timer option %s yest recognised use x86_intel_mid_timer=apbt_only or lapic_and_apbt\n",
 			arg);
 		return -EINVAL;
 	}

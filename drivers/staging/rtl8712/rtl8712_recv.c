@@ -97,10 +97,10 @@ void r8712_free_recv_priv(struct recv_priv *precvpriv)
 	kfree(precvpriv->pallocated_recv_buf);
 	skb_queue_purge(&precvpriv->rx_skb_queue);
 	if (skb_queue_len(&precvpriv->rx_skb_queue))
-		netdev_warn(padapter->pnetdev, "r8712u: rx_skb_queue not empty\n");
+		netdev_warn(padapter->pnetdev, "r8712u: rx_skb_queue yest empty\n");
 	skb_queue_purge(&precvpriv->free_recv_skb_queue);
 	if (skb_queue_len(&precvpriv->free_recv_skb_queue))
-		netdev_warn(padapter->pnetdev, "r8712u: free_recv_skb_queue not empty %d\n",
+		netdev_warn(padapter->pnetdev, "r8712u: free_recv_skb_queue yest empty %d\n",
 			    skb_queue_len(&precvpriv->free_recv_skb_queue));
 }
 
@@ -336,7 +336,7 @@ static void amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 	a_len = prframe->u.hdr.len;
 	pdata = prframe->u.hdr.rx_data;
 	while (a_len > ETH_HLEN) {
-		/* Offset 12 denote 2 mac address */
+		/* Offset 12 deyeste 2 mac address */
 		nSubframe_Length = *((u16 *)(pdata + 12));
 		/*==m==>change the length order*/
 		nSubframe_Length = (nSubframe_Length >> 8) +
@@ -583,7 +583,7 @@ static int recv_indicatepkt_reorder(struct _adapter *padapter,
 	/*s4.
 	 * Indication process.
 	 * After Packet dropping and Sliding Window shifting as above, we can
-	 * now just indicate the packets with the SeqNum smaller than latest
+	 * yesw just indicate the packets with the SeqNum smaller than latest
 	 * WinStart and buffer other packets.
 	 *
 	 * For Rx Reorder condition:
@@ -728,9 +728,9 @@ static void query_rx_phy_status(struct _adapter *padapter,
 	if (bcck_rate) {
 		u8 report;
 
-		/* CCK Driver info Structure is not the same as OFDM packet.*/
+		/* CCK Driver info Structure is yest the same as OFDM packet.*/
 		pcck_buf = (struct phy_cck_rx_status *)pphy_stat;
-		/* (1)Hardware does not provide RSSI for CCK
+		/* (1)Hardware does yest provide RSSI for CCK
 		 * (2)PWDB, Average PWDB calculated by hardware
 		 * (for rate adaptive)
 		 */

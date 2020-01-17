@@ -41,7 +41,7 @@ struct section {
 
 struct symbol {
 	struct list_head list;
-	struct hlist_node hash;
+	struct hlist_yesde hash;
 	GElf_Sym sym;
 	struct section *sec;
 	char *name;
@@ -55,7 +55,7 @@ struct symbol {
 
 struct rela {
 	struct list_head list;
-	struct hlist_node hash;
+	struct hlist_yesde hash;
 	GElf_Rela rela;
 	struct section *sec;
 	struct symbol *sym;

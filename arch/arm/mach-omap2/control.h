@@ -79,7 +79,7 @@
 #define OMAP242X_CONTROL_OCM_RAM_PERM	(OMAP2_CONTROL_GENERAL + 0x0068)
 
 /* 243x-only CONTROL_GENERAL register offsets */
-/* CONTROL_IVA2_BOOT{ADDR,MOD} are at the same place on 343x - noted below */
+/* CONTROL_IVA2_BOOT{ADDR,MOD} are at the same place on 343x - yested below */
 #define OMAP243X_CONTROL_DEVCONF1	(OMAP2_CONTROL_GENERAL + 0x0078)
 #define OMAP243X_CONTROL_CSIRXFE	(OMAP2_CONTROL_GENERAL + 0x007c)
 #define OMAP243X_CONTROL_IVA2_BOOTADDR	(OMAP2_CONTROL_GENERAL + 0x0190)
@@ -299,7 +299,7 @@
 #define DRA7_SPEEDSELECT_MASK		(0x3 << 8)
 
 /*
- * REVISIT: This list of registers is not comprehensive - there are more
+ * REVISIT: This list of registers is yest comprehensive - there are more
  * that should be added.
  */
 
@@ -307,7 +307,7 @@
  * Control module register bit defines - these should eventually go into
  * their own regbits file.  Some of these will be complicated, depending
  * on the device type (general-purpose, emulator, test, secure, bad, other)
- * and the security mode (secure, non-secure, don't care)
+ * and the security mode (secure, yesn-secure, don't care)
  */
 /* CONTROL_DEVCONF0 bits */
 #define OMAP2_MMCSDIO1ADPCLKISEL	(1 << 24) /* MMC1 loop back clock */

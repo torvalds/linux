@@ -115,7 +115,7 @@ static void spi_pci_remove(struct pci_dev *pdev)
 	struct dw_spi *dws = pci_get_drvdata(pdev);
 
 	pm_runtime_forbid(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 
 	dw_spi_remove_host(dws);
 	pci_free_irq_vectors(pdev);

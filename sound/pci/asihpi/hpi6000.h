@@ -37,8 +37,8 @@ struct hpi_hif_6000 {
 	u32 control_cache_count;
 };
 
-#define HPI_HIF_PACK_ADAPTER_INFO(adapter, version_major, version_minor) \
-		((adapter << 16) | (version_major << 8) | version_minor)
+#define HPI_HIF_PACK_ADAPTER_INFO(adapter, version_major, version_miyesr) \
+		((adapter << 16) | (version_major << 8) | version_miyesr)
 #define HPI_HIF_ADAPTER_INFO_EXTRACT_ADAPTER(adapterinfo) \
 		((adapterinfo >> 16) & 0xffff)
 #define HPI_HIF_ADAPTER_INFO_EXTRACT_HWVERSION_MAJOR(adapterinfo) \

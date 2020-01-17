@@ -5,12 +5,12 @@
  *
  * ABSTRACT:
  * This driver handles devices resembling the CDC NCM standard, but
- * encapsulating another protocol inside it. An example are some Huawei 3G
+ * encapsulating ayesther protocol inside it. An example are some Huawei 3G
  * devices, exposing an embedded AT channel where you can set up the NCM
  * connection.
  * This code has been heavily inspired by the cdc_mbim.c driver, which is
  * Copyright (c) 2012  Smith Micro Software, Inc.
- * Copyright (c) 2012  Bjørn Mork <bjorn@mork.no>
+ * Copyright (c) 2012  Bjørn Mork <bjorn@mork.yes>
  */
 
 #include <linux/module.h>
@@ -89,7 +89,7 @@ static int huawei_cdc_ncm_bind(struct usbnet *usbnet_dev,
 	ctx = drvstate->ctx;
 
 	if (usbnet_dev->status)
-		/* The wMaxCommand buffer must be big enough to hold
+		/* The wMaxCommand buffer must be big eyesugh to hold
 		 * any message from the modem. Experience has shown
 		 * that some replies are more than 256 bytes long
 		 */

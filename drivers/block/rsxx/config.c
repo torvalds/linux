@@ -90,7 +90,7 @@ static int rsxx_save_config(struct rsxx_cardinfo *card)
 
 	if (unlikely(cfg.hdr.version != RSXX_CFG_VERSION)) {
 		dev_err(CARD_TO_DEV(card),
-			"Cannot save config with invalid version %d\n",
+			"Canyest save config with invalid version %d\n",
 			cfg.hdr.version);
 		return -EINVAL;
 	}
@@ -132,7 +132,7 @@ int rsxx_load_config(struct rsxx_cardinfo *card)
 	if (card->config.hdr.version == RSXX_CFG_VERSION) {
 		/*
 		 * We calculate the CRC with the data in little endian, because
-		 * early drivers did not take big endian CPUs into account.
+		 * early drivers did yest take big endian CPUs into account.
 		 * The data is always stored in big endian, so we need to byte
 		 * swap it before calculating the CRC.
 		 */

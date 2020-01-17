@@ -286,10 +286,10 @@ static int __init plat_setup_devices(void)
 	nand_slot0_res[0].end = nand_slot0_res[0].start + 0x1000;
 
 	/* Read and map device controller 3 */
-	dev3.base = ioremap_nocache(readl(IDT434_REG_BASE + DEV3BASE), 1);
+	dev3.base = ioremap_yescache(readl(IDT434_REG_BASE + DEV3BASE), 1);
 
 	if (!dev3.base) {
-		printk(KERN_ERR "rb532: cannot remap device controller 3\n");
+		printk(KERN_ERR "rb532: canyest remap device controller 3\n");
 		return -ENXIO;
 	}
 

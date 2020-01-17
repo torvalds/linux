@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - eeprom access
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
@@ -185,7 +185,7 @@ struct tb_drom_header {
 	/* BYTE 13 */
 	u8 device_rom_revision; /* should be <= 1 */
 	u16 data_len:10;
-	u8 __unknown1:6;
+	u8 __unkyeswn1:6;
 	/* BYTES 16-21 */
 	u16 vendor_id;
 	u16 model_id;
@@ -217,12 +217,12 @@ struct tb_drom_entry_port {
 	/* BYTE 2 */
 	u8 dual_link_port_rid:4;
 	u8 link_nr:1;
-	u8 unknown1:2;
+	u8 unkyeswn1:2;
 	bool has_dual_link_port:1;
 
 	/* BYTE 3 */
 	u8 dual_link_port_nr:6;
-	u8 unknown2:2;
+	u8 unkyeswn2:2;
 
 	/* BYTES 4 - 5 TODO decode */
 	u8 micro2:4;
@@ -231,10 +231,10 @@ struct tb_drom_entry_port {
 
 	/* BYTES 6-7, TODO: verify (find hardware that has these set) */
 	u8 peer_port_rid:4;
-	u8 unknown3:3;
+	u8 unkyeswn3:3;
 	bool has_peer_port:1;
 	u8 peer_port_nr:6;
-	u8 unknown4:2;
+	u8 unkyeswn4:2;
 } __packed;
 
 
@@ -246,7 +246,7 @@ static int tb_eeprom_get_drom_offset(struct tb_switch *sw, u16 *offset)
 	struct tb_cap_plug_events cap;
 	int res;
 	if (!sw->cap_plug_events) {
-		tb_sw_warn(sw, "no TB_CAP_PLUG_EVENTS, cannot read eeprom\n");
+		tb_sw_warn(sw, "yes TB_CAP_PLUG_EVENTS, canyest read eeprom\n");
 		return -ENOSYS;
 	}
 	res = tb_sw_read(sw, &cap, TB_CFG_SWITCH, sw->cap_plug_events,
@@ -254,8 +254,8 @@ static int tb_eeprom_get_drom_offset(struct tb_switch *sw, u16 *offset)
 	if (res)
 		return res;
 
-	if (!cap.eeprom_ctl.present || cap.eeprom_ctl.not_present) {
-		tb_sw_warn(sw, "no NVM\n");
+	if (!cap.eeprom_ctl.present || cap.eeprom_ctl.yest_present) {
+		tb_sw_warn(sw, "yes NVM\n");
 		return -ENOSYS;
 	}
 
@@ -271,7 +271,7 @@ static int tb_eeprom_get_drom_offset(struct tb_switch *sw, u16 *offset)
 /**
  * tb_drom_read_uid_only - read uid directly from drom
  *
- * Does not use the cached copy in sw->drom. Used during resume to check switch
+ * Does yest use the cached copy in sw->drom. Used during resume to check switch
  * identity.
  */
 int tb_drom_read_uid_only(struct tb_switch *sw, u64 *uid)
@@ -340,7 +340,7 @@ static int tb_drom_parse_entry_port(struct tb_switch *sw,
 	 * so we skip those but allow the parser to continue.
 	 */
 	if (header->index > sw->config.max_port_number) {
-		dev_info_once(&sw->dev, "ignoring unnecessary extra entries in DROM\n");
+		dev_info_once(&sw->dev, "igyesring unnecessary extra entries in DROM\n");
 		return 0;
 	}
 
@@ -511,7 +511,7 @@ int tb_drom_read(struct tb_switch *sw)
 
 		/*
 		 * The root switch contains only a dummy drom (header only,
-		 * no entries). Hardcode the configuration here.
+		 * yes entries). Hardcode the configuration here.
 		 */
 		tb_drom_read_uid_only(sw, &sw->uid);
 		return 0;
@@ -567,7 +567,7 @@ parse:
 	}
 
 	if (header->device_rom_revision > 2)
-		tb_sw_warn(sw, "drom device_rom_revision %#x unknown\n",
+		tb_sw_warn(sw, "drom device_rom_revision %#x unkyeswn\n",
 			header->device_rom_revision);
 
 	return tb_drom_parse_entries(sw);

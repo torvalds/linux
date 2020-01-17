@@ -100,7 +100,7 @@ static ssize_t isku_sysfs_set_actual_profile(struct device *dev,
 	roccat_report.data1 = profile + 1;
 	roccat_report.data2 = 0;
 	roccat_report.profile = profile + 1;
-	roccat_report_event(isku->chrdev_minor, (uint8_t const *)&roccat_report);
+	roccat_report_event(isku->chrdev_miyesr, (uint8_t const *)&roccat_report);
 
 	mutex_unlock(&isku->isku_lock);
 
@@ -294,7 +294,7 @@ static int isku_init_specials(struct hid_device *hdev)
 	if (retval < 0) {
 		hid_err(hdev, "couldn't init char dev\n");
 	} else {
-		isku->chrdev_minor = retval;
+		isku->chrdev_miyesr = retval;
 		isku->roccat_claimed = 1;
 	}
 
@@ -315,7 +315,7 @@ static void isku_remove_specials(struct hid_device *hdev)
 
 	isku = hid_get_drvdata(hdev);
 	if (isku->roccat_claimed)
-		roccat_disconnect(isku->chrdev_minor);
+		roccat_disconnect(isku->chrdev_miyesr);
 	kfree(isku);
 }
 
@@ -388,7 +388,7 @@ static void isku_report_to_chrdev(struct isku_device const *isku,
 	roccat_report.data1 = button_report->data1;
 	roccat_report.data2 = button_report->data2;
 	roccat_report.profile = isku->actual_profile + 1;
-	roccat_report_event(isku->chrdev_minor,
+	roccat_report_event(isku->chrdev_miyesr,
 			(uint8_t const *)&roccat_report);
 }
 

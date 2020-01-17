@@ -204,7 +204,7 @@ static void bcm_kp_close(struct input_dev *dev)
 static int bcm_kp_matrix_key_parse_dt(struct bcm_kp *kp)
 {
 	struct device *dev = kp->input_dev->dev.parent;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int error;
 	unsigned int dt_val;
 	unsigned int i;
@@ -334,7 +334,7 @@ static int bcm_kp_probe(struct platform_device *pdev)
 	__set_bit(EV_KEY, input_dev->evbit);
 
 	/* Enable auto repeat feature of Linux input subsystem */
-	if (of_property_read_bool(pdev->dev.of_node, "autorepeat"))
+	if (of_property_read_bool(pdev->dev.of_yesde, "autorepeat"))
 		__set_bit(EV_REP, input_dev->evbit);
 
 	input_dev->name = pdev->name;
@@ -391,7 +391,7 @@ static int bcm_kp_probe(struct platform_device *pdev)
 		unsigned int desired_rate;
 		long actual_rate;
 
-		error = of_property_read_u32(pdev->dev.of_node,
+		error = of_property_read_u32(pdev->dev.of_yesde,
 					     "clock-frequency", &desired_rate);
 		if (error < 0)
 			desired_rate = DEFAULT_CLK_HZ;
@@ -409,7 +409,7 @@ static int bcm_kp_probe(struct platform_device *pdev)
 			return error;
 	}
 
-	/* Put the kp into a known sane state */
+	/* Put the kp into a kyeswn sane state */
 	bcm_kp_stop(kp);
 
 	kp->irq = platform_get_irq(pdev, 0);

@@ -33,7 +33,7 @@ struct proc_dir_entry *acpi_lock_ac_dir(void)
 		lock_ac_dir_cnt++;
 	} else {
 		printk(KERN_ERR PREFIX
-				  "Cannot create %s\n", ACPI_AC_CLASS);
+				  "Canyest create %s\n", ACPI_AC_CLASS);
 	}
 	mutex_unlock(&cm_sbs_mutex);
 	return acpi_ac_dir;
@@ -64,7 +64,7 @@ struct proc_dir_entry *acpi_lock_battery_dir(void)
 		lock_battery_dir_cnt++;
 	} else {
 		printk(KERN_ERR PREFIX
-				  "Cannot create %s\n", ACPI_BATTERY_CLASS);
+				  "Canyest create %s\n", ACPI_BATTERY_CLASS);
 	}
 	mutex_unlock(&cm_sbs_mutex);
 	return acpi_battery_dir;

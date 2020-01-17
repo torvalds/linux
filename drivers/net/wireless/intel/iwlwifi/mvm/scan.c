@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -123,7 +123,7 @@ static struct iwl_mvm_scan_timing_params scan_timing[] = {
 };
 
 struct iwl_mvm_scan_params {
-	/* For CDB this is low band scan type, for non-CDB - type. */
+	/* For CDB this is low band scan type, for yesn-CDB - type. */
 	enum iwl_mvm_scan_type type;
 	enum iwl_mvm_scan_type hb_type;
 	u32 n_channels;
@@ -134,7 +134,7 @@ struct iwl_mvm_scan_params {
 	u32 flags;
 	u8 *mac_addr;
 	u8 *mac_addr_mask;
-	bool no_cck;
+	bool yes_cck;
 	bool pass_all;
 	int n_match_sets;
 	struct iwl_scan_probe_req preq;
@@ -199,14 +199,14 @@ static inline __le16 iwl_mvm_scan_rx_chain(struct iwl_mvm *mvm)
 
 static inline __le32
 iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum nl80211_band band,
-			  bool no_cck)
+			  bool yes_cck)
 {
 	u32 tx_ant;
 
 	iwl_mvm_toggle_tx_ant(mvm, &mvm->scan_last_antenna_idx);
 	tx_ant = BIT(mvm->scan_last_antenna_idx) << RATE_MCS_ANT_POS;
 
-	if (band == NL80211_BAND_2GHZ && !no_cck)
+	if (band == NL80211_BAND_2GHZ && !yes_cck)
 		return cpu_to_le32(IWL_RATE_1M_PLCP | RATE_MCS_CCK_MSK |
 				   tx_ant);
 	else
@@ -390,23 +390,23 @@ int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm)
 	 * in the same command. So the correct implementation of this function
 	 * is just iwl_mvm_max_scan_ie_fw_cmd_room() / 2. Currently the scan
 	 * command has only 512 bytes and it would leave us with about 240
-	 * bytes for scan IEs, which is clearly not enough. So meanwhile
+	 * bytes for scan IEs, which is clearly yest eyesugh. So meanwhile
 	 * we will report an incorrect value. This may result in a failure to
 	 * issue a scan in unified_scan_lmac and unified_sched_scan_lmac
-	 * functions with -ENOBUFS, if a large enough probe will be provided.
+	 * functions with -ENOBUFS, if a large eyesugh probe will be provided.
 	 */
 	return max_ie_len;
 }
 
-void iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_lmac_scan_iter_complete_yestif(struct iwl_mvm *mvm,
 					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_lmac_scan_complete_notif *notif = (void *)pkt->data;
+	struct iwl_lmac_scan_complete_yestif *yestif = (void *)pkt->data;
 
 	IWL_DEBUG_SCAN(mvm,
 		       "Scan offload iteration complete: status=0x%x scanned channels=%d\n",
-		       notif->status, notif->scanned_channels);
+		       yestif->status, yestif->scanned_channels);
 
 	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_FOUND) {
 		IWL_DEBUG_SCAN(mvm, "Pass all scheduled scan results found\n");
@@ -436,15 +436,15 @@ static const char *iwl_mvm_ebs_status_str(enum iwl_scan_ebs_status status)
 	}
 }
 
-void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_lmac_scan_complete_yestif(struct iwl_mvm *mvm,
 					 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_periodic_scan_complete *scan_notif = (void *)pkt->data;
-	bool aborted = (scan_notif->status == IWL_SCAN_OFFLOAD_ABORTED);
+	struct iwl_periodic_scan_complete *scan_yestif = (void *)pkt->data;
+	bool aborted = (scan_yestif->status == IWL_SCAN_OFFLOAD_ABORTED);
 
 	/* If this happens, the firmware has mistakenly sent an LMAC
-	 * notification during UMAC scans -- warn and ignore it.
+	 * yestification during UMAC scans -- warn and igyesre it.
 	 */
 	if (WARN_ON_ONCE(fw_has_capa(&mvm->fw->ucode_capa,
 				     IWL_UCODE_TLV_CAPA_UMAC_SCAN)))
@@ -468,18 +468,18 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 
 		IWL_DEBUG_SCAN(mvm, "Scheduled scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
-			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
+			       iwl_mvm_ebs_status_str(scan_yestif->ebs_status));
 		IWL_DEBUG_SCAN(mvm,
 			       "Last line %d, Last iteration %d, Time after last iteration %d\n",
-			       scan_notif->last_schedule_line,
-			       scan_notif->last_schedule_iteration,
-			       __le32_to_cpu(scan_notif->time_after_last_iter));
+			       scan_yestif->last_schedule_line,
+			       scan_yestif->last_schedule_iteration,
+			       __le32_to_cpu(scan_yestif->time_after_last_iter));
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_STOPPING_SCHED;
 	} else if (mvm->scan_status & IWL_MVM_SCAN_STOPPING_REGULAR) {
 		IWL_DEBUG_SCAN(mvm, "Regular scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
-			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
+			       iwl_mvm_ebs_status_str(scan_yestif->ebs_status));
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_STOPPING_REGULAR;
 	} else if (mvm->scan_status & IWL_MVM_SCAN_SCHED) {
@@ -487,12 +487,12 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 
 		IWL_DEBUG_SCAN(mvm, "Scheduled scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
-			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
+			       iwl_mvm_ebs_status_str(scan_yestif->ebs_status));
 		IWL_DEBUG_SCAN(mvm,
 			       "Last line %d, Last iteration %d, Time after last iteration %d (FW)\n",
-			       scan_notif->last_schedule_line,
-			       scan_notif->last_schedule_iteration,
-			       __le32_to_cpu(scan_notif->time_after_last_iter));
+			       scan_yestif->last_schedule_line,
+			       scan_yestif->last_schedule_iteration,
+			       __le32_to_cpu(scan_yestif->time_after_last_iter));
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_SCHED;
 		ieee80211_sched_scan_stopped(mvm->hw);
@@ -504,7 +504,7 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 
 		IWL_DEBUG_SCAN(mvm, "Regular scan %s, EBS status %s (FW)\n",
 			       aborted ? "aborted" : "completed",
-			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
+			       iwl_mvm_ebs_status_str(scan_yestif->ebs_status));
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_REGULAR;
 		ieee80211_scan_completed(mvm->hw, &info);
@@ -512,12 +512,12 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 		iwl_mvm_resume_tcm(mvm);
 	} else {
 		IWL_ERR(mvm,
-			"got scan complete notification but no scan is running\n");
+			"got scan complete yestification but yes scan is running\n");
 	}
 
 	mvm->last_ebs_successful =
-			scan_notif->ebs_status == IWL_SCAN_EBS_SUCCESS ||
-			scan_notif->ebs_status == IWL_SCAN_EBS_INACTIVE;
+			scan_yestif->ebs_status == IWL_SCAN_EBS_SUCCESS ||
+			scan_yestif->ebs_status == IWL_SCAN_EBS_INACTIVE;
 }
 
 static int iwl_ssid_exist(u8 *ssid, u8 ssid_len, struct iwl_ssid_ie *ssid_list)
@@ -627,9 +627,9 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 	profile_cfg->num_profiles = req->n_match_sets;
 	profile_cfg->active_clients = SCAN_CLIENT_SCHED_SCAN;
 	profile_cfg->pass_match = SCAN_CLIENT_SCHED_SCAN;
-	profile_cfg->match_notify = SCAN_CLIENT_SCHED_SCAN;
+	profile_cfg->match_yestify = SCAN_CLIENT_SCHED_SCAN;
 	if (!req->n_match_sets || !req->match_sets[0].ssid.ssid_len)
-		profile_cfg->any_beacon_notify = SCAN_CLIENT_SCHED_SCAN;
+		profile_cfg->any_beacon_yestify = SCAN_CLIENT_SCHED_SCAN;
 
 	for (i = 0; i < req->n_match_sets; i++) {
 		profile = &profile_cfg->profiles[i];
@@ -685,9 +685,9 @@ static int iwl_mvm_lmac_scan_abort(struct iwl_mvm *mvm)
 		/*
 		 * The scan abort will return 1 for success or
 		 * 2 for "failure".  A failure condition can be
-		 * due to simply not being in an active scan which
+		 * due to simply yest being in an active scan which
 		 * can occur if we send the scan abort before the
-		 * microcode has notified us that a scan is completed.
+		 * microcode has yestified us that a scan is completed.
 		 */
 		IWL_DEBUG_SCAN(mvm, "SCAN OFFLOAD ABORT ret %d.\n", status);
 		ret = -ENOENT;
@@ -698,20 +698,20 @@ static int iwl_mvm_lmac_scan_abort(struct iwl_mvm *mvm)
 
 static void iwl_mvm_scan_fill_tx_cmd(struct iwl_mvm *mvm,
 				     struct iwl_scan_req_tx_cmd *tx_cmd,
-				     bool no_cck)
+				     bool yes_cck)
 {
 	tx_cmd[0].tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL |
 					 TX_CMD_FLG_BT_DIS);
 	tx_cmd[0].rate_n_flags = iwl_mvm_scan_rate_n_flags(mvm,
 							   NL80211_BAND_2GHZ,
-							   no_cck);
+							   yes_cck);
 	tx_cmd[0].sta_id = mvm->aux_sta.sta_id;
 
 	tx_cmd[1].tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL |
 					 TX_CMD_FLG_BT_DIS);
 	tx_cmd[1].rate_n_flags = iwl_mvm_scan_rate_n_flags(mvm,
 							   NL80211_BAND_5GHZ,
-							   no_cck);
+							   yes_cck);
 	tx_cmd[1].sta_id = mvm->aux_sta.sta_id;
 }
 
@@ -798,7 +798,7 @@ iwl_mvm_build_scan_probe(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		params->mac_addr : NULL;
 
 	/*
-	 * Unfortunately, right now the offload scan doesn't support randomising
+	 * Unfortunately, right yesw the offload scan doesn't support randomising
 	 * within the firmware, so until the firmware API is ready we implement
 	 * it in the driver. This means that the scan iterations won't really be
 	 * random, only when it's restarted, but at least that helps a bit.
@@ -891,8 +891,8 @@ static inline bool iwl_mvm_scan_use_ebs(struct iwl_mvm *mvm,
 	 *	1. the feature is supported;
 	 *	2. the last EBS was successful;
 	 *	3. if only single scan, the single scan EBS API is supported;
-	 *	4. it's not a p2p find operation.
-	 *	5. we are not in low latency mode,
+	 *	4. it's yest a p2p find operation.
+	 *	5. we are yest in low latency mode,
 	 *	   or if fragmented ebs is supported by the FW
 	 */
 	return ((capa->flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT) &&
@@ -939,7 +939,7 @@ static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_MATCH;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (mvm->scan_iter_notif_enabled)
+	if (mvm->scan_iter_yestif_enabled)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_ITER_COMPLETE;
 #endif
 
@@ -996,7 +996,7 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	cmd->flags = cpu_to_le32(band);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
 					MAC_FILTER_IN_BEACON);
-	iwl_mvm_scan_fill_tx_cmd(mvm, cmd->tx_cmd, params->no_cck);
+	iwl_mvm_scan_fill_tx_cmd(mvm, cmd->tx_cmd, params->yes_cck);
 	iwl_scan_build_ssids(params, cmd->direct_scan, &ssid_bitmap);
 
 	/* this API uses bits 1-20 instead of 0-19 */
@@ -1014,7 +1014,7 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/*
 	 * If the number of iterations of the last scan plan is set to
-	 * zero, it should run infinitely. However, this is not always the case.
+	 * zero, it should run infinitely. However, this is yest always the case.
 	 * For example, when regular scan is requested the driver sets one scan
 	 * plan with one iteration.
 	 */
@@ -1026,13 +1026,13 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
 				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
 				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
-		cmd->channel_opt[0].non_ebs_ratio =
+		cmd->channel_opt[0].yesn_ebs_ratio =
 			cpu_to_le16(IWL_DENSE_EBS_SCAN_RATIO);
 		cmd->channel_opt[1].flags =
 			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
 				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
 				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
-		cmd->channel_opt[1].non_ebs_ratio =
+		cmd->channel_opt[1].yesn_ebs_ratio =
 			cpu_to_le16(IWL_SPARSE_EBS_SCAN_RATIO);
 	}
 
@@ -1708,7 +1708,7 @@ static u16 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (mvm->scan_iter_notif_enabled)
+	if (mvm->scan_iter_yestif_enabled)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE;
 #endif
 
@@ -1737,7 +1737,7 @@ static u16 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 		/* Since IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL and
 		 * NL80211_SCAN_FLAG_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION shares
 		 * the same bit, we need to make sure that we use this bit here
-		 * only when IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL cannot be
+		 * only when IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL canyest be
 		 * used. */
 		if ((params->flags &
 		     NL80211_SCAN_FLAG_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION) &&
@@ -1771,7 +1771,7 @@ iwl_mvm_fill_scan_sched_params(struct iwl_mvm_scan_params *params,
 
 	/*
 	 * If the number of iterations of the last scan plan is set to
-	 * zero, it should run infinitely. However, this is not always the case.
+	 * zero, it should run infinitely. However, this is yest always the case.
 	 * For example, when regular scan is requested the driver sets one scan
 	 * plan with one iteration.
 	 */
@@ -2052,7 +2052,7 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 	 * different type of scan, we stop the opposite type to make
 	 * space for the new request.  The reason is backwards
 	 * compatibility with old wpa_supplicant that wouldn't stop a
-	 * scheduled scan before starting a normal scan.
+	 * scheduled scan before starting a yesrmal scan.
 	 */
 
 	/* FW supports only a single periodic scan */
@@ -2076,7 +2076,7 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 			return -EBUSY;
 		return iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_REGULAR, true);
 	case IWL_MVM_SCAN_NETDETECT:
-		/* For non-unified images, there's no need to stop
+		/* For yesn-unified images, there's yes need to stop
 		 * anything for net-detect since the firmware is
 		 * restarted anyway.  This way, any sched scans that
 		 * were running will be restarted when we resume.
@@ -2088,7 +2088,7 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 		 * we need to stop something.  Prefer stopping regular
 		 * scans, because the results are useless at this
 		 * point, and we should be able to keep running
-		 * another scheduled scan while suspended.
+		 * ayesther scheduled scan while suspended.
 		 */
 		if (mvm->scan_status & IWL_MVM_SCAN_REGULAR_MASK)
 			return iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_REGULAR,
@@ -2096,7 +2096,7 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 		if (mvm->scan_status & IWL_MVM_SCAN_SCHED_MASK)
 			return iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_SCHED,
 						 true);
-		/* Something is wrong if no scan was running but we
+		/* Something is wrong if yes scan was running but we
 		 * ran out of scans.
 		 */
 		/* fall through */
@@ -2211,7 +2211,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	lockdep_assert_held(&mvm->mutex);
 
 	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
-		IWL_ERR(mvm, "scan while LAR regdomain is not set\n");
+		IWL_ERR(mvm, "scan while LAR regdomain is yest set\n");
 		return -EBUSY;
 	}
 
@@ -2234,7 +2234,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	params.channels = req->channels;
 	params.mac_addr = req->mac_addr;
 	params.mac_addr_mask = req->mac_addr_mask;
-	params.no_cck = req->no_cck;
+	params.yes_cck = req->yes_cck;
 	params.pass_all = true;
 	params.n_match_sets = 0;
 	params.match_sets = NULL;
@@ -2298,7 +2298,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
-		IWL_ERR(mvm, "sched-scan while LAR regdomain is not set\n");
+		IWL_ERR(mvm, "sched-scan while LAR regdomain is yest set\n");
 		return -EBUSY;
 	}
 
@@ -2320,7 +2320,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	params.channels = req->channels;
 	params.mac_addr = req->mac_addr;
 	params.mac_addr_mask = req->mac_addr_mask;
-	params.no_cck = false;
+	params.yes_cck = false;
 	params.pass_all =  iwl_mvm_scan_pass_all(mvm, req);
 	params.n_match_sets = req->n_match_sets;
 	params.match_sets = req->match_sets;
@@ -2372,18 +2372,18 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	return ret;
 }
 
-void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_umac_scan_complete_yestif(struct iwl_mvm *mvm,
 					 struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_umac_scan_complete *notif = (void *)pkt->data;
-	u32 uid = __le32_to_cpu(notif->uid);
-	bool aborted = (notif->status == IWL_SCAN_OFFLOAD_ABORTED);
+	struct iwl_umac_scan_complete *yestif = (void *)pkt->data;
+	u32 uid = __le32_to_cpu(yestif->uid);
+	bool aborted = (yestif->status == IWL_SCAN_OFFLOAD_ABORTED);
 
 	if (WARN_ON(!(mvm->scan_uid_status[uid] & mvm->scan_status)))
 		return;
 
-	/* if the scan is already stopping, we don't need to notify mac80211 */
+	/* if the scan is already stopping, we don't need to yestify mac80211 */
 	if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_REGULAR) {
 		struct cfg80211_scan_info info = {
 			.aborted = aborted,
@@ -2404,32 +2404,32 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	IWL_DEBUG_SCAN(mvm,
 		       "Scan completed, uid %u type %u, status %s, EBS status %s\n",
 		       uid, mvm->scan_uid_status[uid],
-		       notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
+		       yestif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
 				"completed" : "aborted",
-		       iwl_mvm_ebs_status_str(notif->ebs_status));
+		       iwl_mvm_ebs_status_str(yestif->ebs_status));
 	IWL_DEBUG_SCAN(mvm,
 		       "Last line %d, Last iteration %d, Time from last iteration %d\n",
-		       notif->last_schedule, notif->last_iter,
-		       __le32_to_cpu(notif->time_from_last_iter));
+		       yestif->last_schedule, yestif->last_iter,
+		       __le32_to_cpu(yestif->time_from_last_iter));
 
-	if (notif->ebs_status != IWL_SCAN_EBS_SUCCESS &&
-	    notif->ebs_status != IWL_SCAN_EBS_INACTIVE)
+	if (yestif->ebs_status != IWL_SCAN_EBS_SUCCESS &&
+	    yestif->ebs_status != IWL_SCAN_EBS_INACTIVE)
 		mvm->last_ebs_successful = false;
 
 	mvm->scan_uid_status[uid] = 0;
 }
 
-void iwl_mvm_rx_umac_scan_iter_complete_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_umac_scan_iter_complete_yestif(struct iwl_mvm *mvm,
 					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_umac_scan_iter_complete_notif *notif = (void *)pkt->data;
+	struct iwl_umac_scan_iter_complete_yestif *yestif = (void *)pkt->data;
 
-	mvm->scan_start = le64_to_cpu(notif->start_tsf);
+	mvm->scan_start = le64_to_cpu(yestif->start_tsf);
 
 	IWL_DEBUG_SCAN(mvm,
 		       "UMAC Scan iteration complete: status=0x%x scanned_channels=%d\n",
-		       notif->status, notif->scanned_channels);
+		       yestif->status, yestif->scanned_channels);
 
 	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_FOUND) {
 		IWL_DEBUG_SCAN(mvm, "Pass all scheduled scan results found\n");
@@ -2473,16 +2473,16 @@ static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
 
 static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 {
-	struct iwl_notification_wait wait_scan_done;
-	static const u16 scan_done_notif[] = { SCAN_COMPLETE_UMAC,
+	struct iwl_yestification_wait wait_scan_done;
+	static const u16 scan_done_yestif[] = { SCAN_COMPLETE_UMAC,
 					      SCAN_OFFLOAD_COMPLETE, };
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	iwl_init_notification_wait(&mvm->notif_wait, &wait_scan_done,
-				   scan_done_notif,
-				   ARRAY_SIZE(scan_done_notif),
+	iwl_init_yestification_wait(&mvm->yestif_wait, &wait_scan_done,
+				   scan_done_yestif,
+				   ARRAY_SIZE(scan_done_yestif),
 				   NULL, NULL);
 
 	IWL_DEBUG_SCAN(mvm, "Preparing to stop scan, type %x\n", type);
@@ -2494,11 +2494,11 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 
 	if (ret) {
 		IWL_DEBUG_SCAN(mvm, "couldn't stop scan type %d\n", type);
-		iwl_remove_notification(&mvm->notif_wait, &wait_scan_done);
+		iwl_remove_yestification(&mvm->yestif_wait, &wait_scan_done);
 		return ret;
 	}
 
-	return iwl_wait_notification(&mvm->notif_wait, &wait_scan_done,
+	return iwl_wait_yestification(&mvm->yestif_wait, &wait_scan_done,
 				     1 * HZ);
 }
 
@@ -2580,12 +2580,12 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 		}
 
 		/* We shouldn't have any UIDs still set.  Loop over all the
-		 * UIDs to make sure there's nothing left there and warn if
+		 * UIDs to make sure there's yesthing left there and warn if
 		 * any is found.
 		 */
 		for (i = 0; i < mvm->max_scans; i++) {
 			if (WARN_ONCE(mvm->scan_uid_status[i],
-				      "UMAC scan UID %d status was not cleaned\n",
+				      "UMAC scan UID %d status was yest cleaned\n",
 				      i))
 				mvm->scan_uid_status[i] = 0;
 		}
@@ -2599,7 +2599,7 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 		}
 
 		/* Sched scan will be restarted by mac80211 in
-		 * restart_hw, so do not report if FW is about to be
+		 * restart_hw, so do yest report if FW is about to be
 		 * restarted.
 		 */
 		if ((mvm->scan_status & IWL_MVM_SCAN_SCHED) &&
@@ -2610,7 +2610,7 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 	}
 }
 
-int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify)
+int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool yestify)
 {
 	int ret;
 
@@ -2635,14 +2635,14 @@ out:
 
 	if (type == IWL_MVM_SCAN_REGULAR) {
 		cancel_delayed_work(&mvm->scan_timeout_dwork);
-		if (notify) {
+		if (yestify) {
 			struct cfg80211_scan_info info = {
 				.aborted = true,
 			};
 
 			ieee80211_scan_completed(mvm->hw, &info);
 		}
-	} else if (notify) {
+	} else if (yestify) {
 		ieee80211_sched_scan_stopped(mvm->hw);
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 	}

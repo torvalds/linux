@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * linux/arch/arm/mach-sa1100/nanoengine.c
+ * linux/arch/arm/mach-sa1100/nayesengine.c
  *
- * Bright Star Engineering's nanoEngine board init code.
+ * Bright Star Engineering's nayesEngine board init code.
  *
  * Copyright (C) 2010 Marcelo Roberto Jimenez <mroberto@cpti.cetuc.puc-rio.br>
  */
@@ -24,15 +24,15 @@
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
-#include <mach/nanoengine.h>
+#include <mach/nayesengine.h>
 #include <mach/irqs.h>
 
 #include "generic.h"
 
 /* Flash bank 0 */
-static struct mtd_partition nanoengine_partitions[] = {
+static struct mtd_partition nayesengine_partitions[] = {
 	{
-		.name	= "nanoEngine boot firmware and parameter table",
+		.name	= "nayesEngine boot firmware and parameter table",
 		.size		= 0x00010000,  /* 32K */
 		.offset		= 0,
 		.mask_flags	= MTD_WRITEABLE,
@@ -49,18 +49,18 @@ static struct mtd_partition nanoengine_partitions[] = {
 	}
 };
 
-static struct flash_platform_data nanoengine_flash_data = {
+static struct flash_platform_data nayesengine_flash_data = {
 	.map_name	= "jedec_probe",
-	.parts		= nanoengine_partitions,
-	.nr_parts	= ARRAY_SIZE(nanoengine_partitions),
+	.parts		= nayesengine_partitions,
+	.nr_parts	= ARRAY_SIZE(nayesengine_partitions),
 };
 
-static struct resource nanoengine_flash_resources[] = {
+static struct resource nayesengine_flash_resources[] = {
 	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_32M),
 	DEFINE_RES_MEM(SA1100_CS1_PHYS, SZ_32M),
 };
 
-static struct map_desc nanoengine_io_desc[] __initdata = {
+static struct map_desc nayesengine_io_desc[] __initdata = {
 	{
 		/* System Registers */
 		.virtual	= 0xf0000000,
@@ -82,21 +82,21 @@ static struct map_desc nanoengine_io_desc[] __initdata = {
 	}
 };
 
-static void __init nanoengine_map_io(void)
+static void __init nayesengine_map_io(void)
 {
 	sa1100_map_io();
-	iotable_init(nanoengine_io_desc, ARRAY_SIZE(nanoengine_io_desc));
+	iotable_init(nayesengine_io_desc, ARRAY_SIZE(nayesengine_io_desc));
 
 	sa1100_register_uart(0, 1);
 	sa1100_register_uart(1, 2);
 	sa1100_register_uart(2, 3);
 	Ser1SDCR0 |= SDCR0_UART;
-	/* disable IRDA -- UART2 is used as a normal serial port */
+	/* disable IRDA -- UART2 is used as a yesrmal serial port */
 	Ser2UTCR4 = 0;
 	Ser2HSCR0 = 0;
 }
 
-static struct gpiod_lookup_table nanoengine_pcmcia0_gpio_table = {
+static struct gpiod_lookup_table nayesengine_pcmcia0_gpio_table = {
 	.dev_id = "sa11x0-pcmcia.0",
 	.table = {
 		GPIO_LOOKUP("gpio", 11, "ready", GPIO_ACTIVE_HIGH),
@@ -106,7 +106,7 @@ static struct gpiod_lookup_table nanoengine_pcmcia0_gpio_table = {
 	},
 };
 
-static struct gpiod_lookup_table nanoengine_pcmcia1_gpio_table = {
+static struct gpiod_lookup_table nayesengine_pcmcia1_gpio_table = {
 	.dev_id = "sa11x0-pcmcia.1",
 	.table = {
 		GPIO_LOOKUP("gpio", 12, "ready", GPIO_ACTIVE_HIGH),
@@ -116,21 +116,21 @@ static struct gpiod_lookup_table nanoengine_pcmcia1_gpio_table = {
 	},
 };
 
-static void __init nanoengine_init(void)
+static void __init nayesengine_init(void)
 {
-	sa11x0_register_pcmcia(0, &nanoengine_pcmcia0_gpio_table);
-	sa11x0_register_pcmcia(1, &nanoengine_pcmcia1_gpio_table);
-	sa11x0_register_mtd(&nanoengine_flash_data, nanoengine_flash_resources,
-		ARRAY_SIZE(nanoengine_flash_resources));
+	sa11x0_register_pcmcia(0, &nayesengine_pcmcia0_gpio_table);
+	sa11x0_register_pcmcia(1, &nayesengine_pcmcia1_gpio_table);
+	sa11x0_register_mtd(&nayesengine_flash_data, nayesengine_flash_resources,
+		ARRAY_SIZE(nayesengine_flash_resources));
 }
 
-MACHINE_START(NANOENGINE, "BSE nanoEngine")
+MACHINE_START(NANOENGINE, "BSE nayesEngine")
 	.atag_offset	= 0x100,
-	.map_io		= nanoengine_map_io,
+	.map_io		= nayesengine_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.init_time	= sa1100_timer_init,
-	.init_machine	= nanoengine_init,
+	.init_machine	= nayesengine_init,
 	.init_late	= sa11x0_init_late,
 	.restart	= sa11x0_restart,
 MACHINE_END

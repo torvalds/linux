@@ -22,8 +22,8 @@ struct sequencer_file_header {
 	u32	csum;
 	/* numeric major version */
 	u32	major;
-	/* numeric minor version */
-	u32	minor;
+	/* numeric miyesr version */
+	u32	miyesr;
 	/* version string printed by driver */
 	char	version[16];
 	u32	cseq_table_offset;

@@ -3,9 +3,9 @@ LIBBPF_0.0.1 {
 		bpf_btf_get_fd_by_id;
 		bpf_create_map;
 		bpf_create_map_in_map;
-		bpf_create_map_in_map_node;
+		bpf_create_map_in_map_yesde;
 		bpf_create_map_name;
-		bpf_create_map_node;
+		bpf_create_map_yesde;
 		bpf_create_map_xattr;
 		bpf_load_btf;
 		bpf_load_program;

@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -60,7 +60,7 @@ MODULE_FIRMWARE(SD7220_FW_NAME);
 #define kr_ibserdesctrl KREG_IDX(IBSerDesCtrl)
 #define kr_scratch KREG_IDX(Scratch)
 #define kr_xgxs_cfg KREG_IDX(XGXSCfg)
-/* these are used only here, not in qib_iba7220.c */
+/* these are used only here, yest in qib_iba7220.c */
 #define kr_ibsd_epb_access_ctrl KREG_IDX(ibsd_epb_access_ctrl)
 #define kr_ibsd_epb_transaction_reg KREG_IDX(ibsd_epb_transaction_reg)
 #define kr_pciesd_epb_transaction_reg KREG_IDX(pciesd_epb_transaction_reg)
@@ -117,7 +117,7 @@ static int qib_sd7220_ib_vfy(struct qib_devdata *dd,
  * Below keeps track of whether the "once per power-on" initialization has
  * been done, because uC code Version 1.32.17 or higher allows the uC to
  * be reset at will, and Automatic Equalization may require it. So the
- * state of the reset "pin", is no longer valid. Instead, we check for the
+ * state of the reset "pin", is yes longer valid. Instead, we check for the
  * actual uC code having been loaded.
  */
 static int qib_ibsd_ucode_loaded(struct qib_pportdata *ppd,
@@ -166,7 +166,7 @@ bail:
 /*
  * After a reset or other unusual event, the epb interface may need
  * to be re-synchronized, between the host and the uC.
- * returns <0 for failure to resync within IBSD_RESYNC_TRIES (not expected)
+ * returns <0 for failure to resync within IBSD_RESYNC_TRIES (yest expected)
  */
 #define IBSD_RESYNC_TRIES 3
 #define IB_PGUDP(chn) (EPB_LOC((chn), 2, 1) | EPB_IB_QUAD0_CS)
@@ -314,7 +314,7 @@ static void qib_sd_trimdone_monitor(struct qib_devdata *dd,
 
 	ret = qib_resync_ibepb(dd);
 	if (ret < 0)
-		qib_dev_err(dd, "not able to re-sync IB EPB (%s)\n", where);
+		qib_dev_err(dd, "yest able to re-sync IB EPB (%s)\n", where);
 
 	/* Do "sacrificial read" to get EPB in sane state after reset */
 	ret = qib_sd7220_reg_mod(dd, IB_7220_SERDES, IB_CTRL2(0), 0, 0);
@@ -388,7 +388,7 @@ static void qib_sd_trimdone_monitor(struct qib_devdata *dd,
 /*
  * Below is portion of IBA7220-specific bringup_serdes() that actually
  * deals with registers and memory within the SerDes itself.
- * Post IB uC code version 1.32.17, was_reset being 1 is not really
+ * Post IB uC code version 1.32.17, was_reset being 1 is yest really
  * informative, so we double-check.
  */
 int qib_sd7220_init(struct qib_devdata *dd)
@@ -400,7 +400,7 @@ int qib_sd7220_init(struct qib_devdata *dd)
 	/* SERDES MPU reset recorded in D0 */
 	was_reset = (qib_read_kreg64(dd, kr_ibserdesctrl) & 1);
 	if (!was_reset) {
-		/* entered with reset not asserted, we need to do it */
+		/* entered with reset yest asserted, we need to do it */
 		qib_ibsd_reset(dd, 1);
 		qib_sd_trimdone_monitor(dd, "Driver-reload");
 	}
@@ -416,10 +416,10 @@ int qib_sd7220_init(struct qib_devdata *dd)
 	if (ret < 0)
 		goto bail;
 
-	first_reset = !ret; /* First reset if IBSD uCode not yet loaded */
+	first_reset = !ret; /* First reset if IBSD uCode yest yet loaded */
 	/*
 	 * Alter some regs per vendor latest doc, reset-defaults
-	 * are not right for IB.
+	 * are yest right for IB.
 	 */
 	ret = qib_sd_early(dd);
 	if (ret < 0) {
@@ -495,12 +495,12 @@ int qib_sd7220_init(struct qib_devdata *dd)
 
 		qib_ibsd_reset(dd, 0);
 		/*
-		 * If this is not the first reset, trimdone should be set
+		 * If this is yest the first reset, trimdone should be set
 		 * already. We may need to check about this.
 		 */
 		trim_done = qib_sd_trimdone_poll(dd);
 		/*
-		 * Whether or not trimdone succeeded, we need to put the
+		 * Whether or yest trimdone succeeded, we need to put the
 		 * uC back into reset to avoid a possible fight with the
 		 * IBC state-machine.
 		 */
@@ -515,7 +515,7 @@ int qib_sd7220_init(struct qib_devdata *dd)
 		 * gotten cleared, and re-set them.
 		 */
 		qib_sd_trimdone_monitor(dd, "First-reset");
-		/* Remember so we do not re-do the load, dactrim, etc. */
+		/* Remember so we do yest re-do the load, dactrim, etc. */
 		dd->cspec->serdes_first_init_done = 1;
 	}
 	/*
@@ -593,7 +593,7 @@ static int epb_access(struct qib_devdata *dd, int sdnum, int claim)
 		u64 newval = 0;
 
 		qib_write_kreg(dd, acc, newval);
-		/* First read after write is not trustworthy */
+		/* First read after write is yest trustworthy */
 		pollval = qib_read_kreg32(dd, acc);
 		udelay(5);
 		pollval = qib_read_kreg32(dd, acc);
@@ -605,7 +605,7 @@ static int epb_access(struct qib_devdata *dd, int sdnum, int claim)
 		u64 newval = EPB_ACC_REQ | oct_sel;
 
 		qib_write_kreg(dd, acc, newval);
-		/* First read after write is not trustworthy */
+		/* First read after write is yest trustworthy */
 		pollval = qib_read_kreg32(dd, acc);
 		udelay(5);
 		pollval = qib_read_kreg32(dd, acc);
@@ -744,7 +744,7 @@ static int qib_sd7220_reg_mod(struct qib_devdata *dd, int sdnum, u32 loc,
 
 /* Transfer date to/from uC Program RAM of IB or PCIe SerDes */
 static int qib_sd7220_ram_xfer(struct qib_devdata *dd, int sdnum, u32 loc,
-			       u8 *buf, int cnt, int rd_notwr)
+			       u8 *buf, int cnt, int rd_yestwr)
 {
 	u16 trans;
 	u64 transval;
@@ -784,7 +784,7 @@ static int qib_sd7220_ram_xfer(struct qib_devdata *dd, int sdnum, u32 loc,
 
 	/*
 	 * In future code, we may need to distinguish several address ranges,
-	 * and select various memories based on this. For now, just trim
+	 * and select various memories based on this. For yesw, just trim
 	 * "loc" (location including address and memory select) to
 	 * "addr" (address within memory). we will only support PRAM
 	 * The memory is 8KB.
@@ -807,7 +807,7 @@ static int qib_sd7220_ram_xfer(struct qib_devdata *dd, int sdnum, u32 loc,
 
 		/* First, we set control to "Read" or "Write" */
 		transval = csbit | EPB_UC_CTL |
-			(rd_notwr ? EPB_ROM_R : EPB_ROM_W);
+			(rd_yestwr ? EPB_ROM_R : EPB_ROM_W);
 		tries = epb_trans(dd, trans, transval, &transval);
 		while (tries > 0 && sofar < cnt) {
 			if (!sofar) {
@@ -827,14 +827,14 @@ static int qib_sd7220_ram_xfer(struct qib_devdata *dd, int sdnum, u32 loc,
 					break;
 			}
 
-			if (rd_notwr)
+			if (rd_yestwr)
 				transval = csbit | EPB_ROMDATA | EPB_RD;
 			else
 				transval = csbit | EPB_ROMDATA | buf[sofar];
 			tries = epb_trans(dd, trans, transval, &transval);
 			if (tries <= 0)
 				break;
-			if (rd_notwr)
+			if (rd_yestwr)
 				buf[sofar] = transval & EPB_DATA_MASK;
 			++sofar;
 		}
@@ -921,7 +921,7 @@ qib_sd7220_ib_vfy(struct qib_devdata *dd, const struct firmware *fw)
 }
 
 /*
- * IRQ not set up at this point in init, so we poll.
+ * IRQ yest set up at this point in init, so we poll.
  */
 #define IB_SERDES_TRIM_DONE (1ULL << 11)
 #define TRIM_TMO (15)
@@ -932,7 +932,7 @@ static int qib_sd_trimdone_poll(struct qib_devdata *dd)
 	uint64_t val;
 
 	/*
-	 * Default to failure, so IBC will not start
+	 * Default to failure, so IBC will yest start
 	 * without IB_SERDES_TRIM_DONE.
 	 */
 	ret = 0;
@@ -1016,7 +1016,7 @@ static struct rxeq_init {
 	u16 rdesc;      /* in form used in SerDesDDSRXEQ */
 	u8  rdata[4];
 } rxeq_init_vals[] = {
-	/* Set Rcv Eq. to Preset node */
+	/* Set Rcv Eq. to Preset yesde */
 	RXEQ_VAL_ALL(7, 0x27, 0x10),
 	/* Set DFELTHFDR/HDR thresholds */
 	RXEQ_VAL(7, 8,    0, 0, 0, 0), /* FDR, was 0, 1, 2, 3 */
@@ -1116,13 +1116,13 @@ static int qib_sd_setvals(struct qib_devdata *dd)
 
 /*
  * Repeat a "store" across all channels of the IB SerDes.
- * Although nominally it inherits the "read value" of the last
+ * Although yesminally it inherits the "read value" of the last
  * channel it modified, the only really useful return is <0 for
  * failure, >= 0 for success. The parameter 'loc' is assumed to
  * be the location in some channel of the register to be modified
  * The caller can specify use of the "gang write" option of EPB,
  * in which case we use the specified channel data for any fields
- * not explicitely written.
+ * yest explicitely written.
  */
 static int ibsd_mod_allchnls(struct qib_devdata *dd, int loc, int val,
 			     int mask)
@@ -1133,7 +1133,7 @@ static int ibsd_mod_allchnls(struct qib_devdata *dd, int loc, int val,
 	if (loc & EPB_GLOBAL_WR) {
 		/*
 		 * Our caller has assured us that we can set all four
-		 * channels at once. Trust that. If mask is not 0xFF,
+		 * channels at once. Trust that. If mask is yest 0xFF,
 		 * we will read the _specified_ channel for our starting
 		 * value.
 		 */
@@ -1185,7 +1185,7 @@ static int ibsd_mod_allchnls(struct qib_devdata *dd, int loc, int val,
 }
 
 /*
- * Set the Tx values normally modified by IBC in IB1.2 mode to default
+ * Set the Tx values yesrmally modified by IBC in IB1.2 mode to default
  * values, as gotten from first row of init table.
  */
 static int set_dds_vals(struct qib_devdata *dd, struct dds_init *ddi)
@@ -1199,7 +1199,7 @@ static int set_dds_vals(struct qib_devdata *dd, struct dds_init *ddi)
 		reg = (regmap & 0xF);
 		regmap >>= 4;
 		data = ddi->reg_vals[idx];
-		/* Vendor says RMW not needed for these regs, use 0xFF mask */
+		/* Vendor says RMW yest needed for these regs, use 0xFF mask */
 		ret = ibsd_mod_allchnls(dd, EPB_LOC(0, 9, reg), data, 0xFF);
 		if (ret < 0)
 			break;
@@ -1208,7 +1208,7 @@ static int set_dds_vals(struct qib_devdata *dd, struct dds_init *ddi)
 }
 
 /*
- * Set the Rx values normally modified by IBC in IB1.2 mode to default
+ * Set the Rx values yesrmally modified by IBC in IB1.2 mode to default
  * values, as gotten from selected column of init table.
  */
 static int set_rxeq_vals(struct qib_devdata *dd, int vsel)
@@ -1382,7 +1382,7 @@ void shutdown_7220_relock_poll(struct qib_devdata *dd)
 static unsigned qib_relock_by_timer = 1;
 module_param_named(relock_by_timer, qib_relock_by_timer, uint,
 		   S_IWUSR | S_IRUGO);
-MODULE_PARM_DESC(relock_by_timer, "Allow relock attempt if link not up");
+MODULE_PARM_DESC(relock_by_timer, "Allow relock attempt if link yest up");
 
 static void qib_run_relock(struct timer_list *t)
 {
@@ -1393,9 +1393,9 @@ static void qib_run_relock(struct timer_list *t)
 
 	/*
 	 * Check link-training state for "stuck" state, when down.
-	 * if found, try relock and schedule another try at
+	 * if found, try relock and schedule ayesther try at
 	 * exponentially growing delay, maxed at one second.
-	 * if not stuck, our work is done.
+	 * if yest stuck, our work is done.
 	 */
 	if ((dd->flags & QIB_INITTED) && !(ppd->lflags &
 	    (QIBL_IB_AUTONEG_INPROG | QIBL_LINKINIT | QIBL_LINKARMED |
@@ -1419,7 +1419,7 @@ void set_7220_relock_poll(struct qib_devdata *dd, int ibup)
 	struct qib_chip_specific *cs = dd->cspec;
 
 	if (ibup) {
-		/* We are now up, relax timer to 1 second interval */
+		/* We are yesw up, relax timer to 1 second interval */
 		if (cs->relock_timer_active) {
 			cs->relock_interval = HZ;
 			mod_timer(&cs->relock_timer, jiffies + HZ);
@@ -1431,7 +1431,7 @@ void set_7220_relock_poll(struct qib_devdata *dd, int ibup)
 		timeout = msecs_to_jiffies(RELOCK_FIRST_MS);
 		if (timeout == 0)
 			timeout = 1;
-		/* If timer has not yet been started, do so. */
+		/* If timer has yest yet been started, do so. */
 		if (!cs->relock_timer_active) {
 			cs->relock_timer_active = 1;
 			timer_setup(&cs->relock_timer, qib_run_relock, 0);

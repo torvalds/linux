@@ -108,7 +108,7 @@ static int __init omap_i2c_bus_setup(char *str)
 __setup("i2c_bus=", omap_i2c_bus_setup);
 
 /*
- * Register busses defined in command line but that are not registered with
+ * Register busses defined in command line but that are yest registered with
  * omap_register_i2c_bus from board initialization code.
  */
 int __init omap_register_i2c_bus_cmdline(void)

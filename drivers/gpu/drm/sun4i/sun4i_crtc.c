@@ -134,7 +134,7 @@ static void sun4i_crtc_atomic_enable(struct drm_crtc *crtc,
 	drm_crtc_vblank_on(crtc);
 }
 
-static void sun4i_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void sun4i_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct drm_encoder *encoder = sun4i_crtc_get_encoder(crtc);
@@ -149,7 +149,7 @@ static const struct drm_crtc_helper_funcs sun4i_crtc_helper_funcs = {
 	.atomic_flush	= sun4i_crtc_atomic_flush,
 	.atomic_enable	= sun4i_crtc_atomic_enable,
 	.atomic_disable	= sun4i_crtc_atomic_disable,
-	.mode_set_nofb	= sun4i_crtc_mode_set_nofb,
+	.mode_set_yesfb	= sun4i_crtc_mode_set_yesfb,
 };
 
 static int sun4i_crtc_enable_vblank(struct drm_crtc *crtc)
@@ -233,8 +233,8 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm,
 
 	drm_crtc_helper_add(&scrtc->crtc, &sun4i_crtc_helper_funcs);
 
-	/* Set crtc.port to output port node of the tcon */
-	scrtc->crtc.port = of_graph_get_port_by_id(scrtc->tcon->dev->of_node,
+	/* Set crtc.port to output port yesde of the tcon */
+	scrtc->crtc.port = of_graph_get_port_by_id(scrtc->tcon->dev->of_yesde,
 						   1);
 
 	/* Set possible_crtcs to this crtc for overlay planes */

@@ -95,7 +95,7 @@ int
 islpci_mgmt_rx_fill(struct net_device *ndev)
 {
 	islpci_private *priv = netdev_priv(ndev);
-	isl38xx_control_block *cb =	/* volatile not needed */
+	isl38xx_control_block *cb =	/* volatile yest needed */
 	    (isl38xx_control_block *) priv->control_block;
 	u32 curr = le32_to_cpu(cb->driver_curr_frag[ISL38XX_CB_RX_MGMTQ]);
 
@@ -132,7 +132,7 @@ islpci_mgmt_rx_fill(struct net_device *ndev)
 		curr++;
 
 		/* The fragment address in the control block must have
-		 * been written before announcing the frame buffer to
+		 * been written before anyesuncing the frame buffer to
 		 * device */
 		wmb();
 		cb->driver_curr_frag[ISL38XX_CB_RX_MGMTQ] = cpu_to_le32(curr);
@@ -206,7 +206,7 @@ islpci_mgt_transmit(struct net_device *ndev, int operation, unsigned long oid,
 	buf.pci_addr = pci_map_single(priv->pdev, buf.mem, frag_len,
 				      PCI_DMA_TODEVICE);
 	if (pci_dma_mapping_error(priv->pdev, buf.pci_addr)) {
-		printk(KERN_WARNING "%s: cannot map PCI memory for mgmt\n",
+		printk(KERN_WARNING "%s: canyest map PCI memory for mgmt\n",
 		       ndev->name);
 		goto error_free;
 	}
@@ -229,7 +229,7 @@ islpci_mgt_transmit(struct net_device *ndev, int operation, unsigned long oid,
 	frag->address = cpu_to_le32(buf.pci_addr);
 
 	/* The fragment address in the control block must have
-	 * been written before announcing the frame buffer to
+	 * been written before anyesuncing the frame buffer to
 	 * device */
 	wmb();
 	cb->driver_curr_frag[ISL38XX_CB_TX_MGMTQ] = cpu_to_le32(curr_frag + 1);
@@ -278,10 +278,10 @@ islpci_mgt_receive(struct net_device *ndev)
 		int size;
 		struct islpci_mgmtframe *frame;
 
-		/* I have no idea (and no documentation) if flags != 0
+		/* I have yes idea (and yes documentation) if flags != 0
 		 * is possible.  Drop the frame, reuse the buffer. */
 		if (le16_to_cpu(cb->rx_data_mgmt[index].flags) != 0) {
-			printk(KERN_WARNING "%s: unknown flags 0x%04x\n",
+			printk(KERN_WARNING "%s: unkyeswn flags 0x%04x\n",
 			       ndev->name,
 			       le16_to_cpu(cb->rx_data_mgmt[index].flags));
 			continue;
@@ -291,7 +291,7 @@ islpci_mgt_receive(struct net_device *ndev)
 		frag_len = le16_to_cpu(cb->rx_data_mgmt[index].size);
 
 		/*
-		 * We appear to have no way to tell the device the
+		 * We appear to have yes way to tell the device the
 		 * size of a receive buffer.  Thus, if this check
 		 * triggers, we likely have kernel heap corruption. */
 		if (frag_len > MGMT_FRAME_SIZE) {
@@ -308,7 +308,7 @@ islpci_mgt_receive(struct net_device *ndev)
 		/* Perform endianess conversion for PIMFOR header in-place. */
 		header = pimfor_decode_header(buf->mem, frag_len);
 		if (!header) {
-			printk(KERN_WARNING "%s: no PIMFOR header found\n",
+			printk(KERN_WARNING "%s: yes PIMFOR header found\n",
 			       ndev->name);
 			continue;
 		}
@@ -330,7 +330,7 @@ islpci_mgt_receive(struct net_device *ndev)
 			       header->length);
 #endif
 
-		/* nobody sends these */
+		/* yesbody sends these */
 		if (header->flags & PIMFOR_FLAG_APPLIC_ORIGIN) {
 			printk(KERN_DEBUG
 			       "%s: errant PIMFOR application frame\n",
@@ -374,7 +374,7 @@ islpci_mgt_receive(struct net_device *ndev)
 			 * has been received. */
 			if ((frame = xchg(&priv->mgmt_received, frame)) != NULL) {
 				printk(KERN_WARNING
-				       "%s: mgmt response not collected\n",
+				       "%s: mgmt response yest collected\n",
 				       ndev->name);
 				kfree(frame);
 			}
@@ -396,7 +396,7 @@ void
 islpci_mgt_cleanup_transmit(struct net_device *ndev)
 {
 	islpci_private *priv = netdev_priv(ndev);
-	isl38xx_control_block *cb =	/* volatile not needed */
+	isl38xx_control_block *cb =	/* volatile yest needed */
 	    (isl38xx_control_block *) priv->control_block;
 	u32 curr_frag;
 

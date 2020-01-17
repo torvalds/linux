@@ -10,7 +10,7 @@
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-pca.h>
 
@@ -35,7 +35,7 @@ static int i2c_debug;
 static void pca_reset(struct i2c_algo_pca_data *adap)
 {
 	if (adap->chip == I2C_PCA_CHIP_9665) {
-		/* Ignore the reset function from the module,
+		/* Igyesre the reset function from the module,
 		 * we can use the parallel bus reset.
 		 */
 		pca_outw(adap, I2C_PCA_INDPTR, I2C_PCA_IPRESET);
@@ -81,7 +81,7 @@ static int pca_repeated_start(struct i2c_algo_pca_data *adap)
  *
  * returns after the stop condition has been generated
  *
- * STOPs do not generate an interrupt or set the SI flag, since the
+ * STOPs do yest generate an interrupt or set the SI flag, since the
  * part returns the idle state (0xf8). Hence we don't need to
  * pca_wait here.
  */
@@ -182,7 +182,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 		if (time_before(jiffies, timeout)) {
 			msleep(10);
 		} else {
-			dev_dbg(&i2c_adap->dev, "bus is not idle. status is "
+			dev_dbg(&i2c_adap->dev, "bus is yest idle. status is "
 				"%#04x\n", state);
 			return -EBUSY;
 		}
@@ -419,7 +419,7 @@ static int pca_init(struct i2c_adapter *adap)
 			printk(KERN_WARNING "%s: "
 				"Choosing the clock frequency based on "
 				"index is deprecated."
-				" Use the nominal frequency.\n", adap->name);
+				" Use the yesminal frequency.\n", adap->name);
 		}
 
 		pca_reset(pca_data);

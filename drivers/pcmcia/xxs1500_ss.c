@@ -255,7 +255,7 @@ static int xxs1500_pcmcia_probe(struct platform_device *pdev)
 				 mips_io_port_base);
 
 	if (!sock->virt_io) {
-		dev_err(&pdev->dev, "cannot remap IO area\n");
+		dev_err(&pdev->dev, "canyest remap IO area\n");
 		ret = -ENOMEM;
 		goto out0;
 	}
@@ -278,7 +278,7 @@ static int xxs1500_pcmcia_probe(struct platform_device *pdev)
 	irq_set_irq_type(irq, IRQ_TYPE_EDGE_BOTH);
 	ret = request_irq(irq, cdirq, 0, "pcmcia_carddetect", sock);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot setup cd irq\n");
+		dev_err(&pdev->dev, "canyest setup cd irq\n");
 		goto out1;
 	}
 

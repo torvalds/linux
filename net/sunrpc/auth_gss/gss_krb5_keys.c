@@ -6,10 +6,10 @@
  * Permission is granted to use, copy, create derivative works
  * and redistribute this software and such derivative works
  * for any purpose, so long as the name of The University of
- * Michigan is not used in any advertising or publicity
+ * Michigan is yest used in any advertising or publicity
  * pertaining to the use of distribution of this software
  * without specific, written prior authorization.  If the
- * above copyright notice or any other identification of the
+ * above copyright yestice or any other identification of the
  * University of Michigan is included in any copy of any
  * portion of this software, then the disclaimer below must
  * also be included.
@@ -41,11 +41,11 @@
  * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
  * distribute this software and its documentation for any purpose and
  * without fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright notice and
- * this permission notice appear in supporting documentation, and that
- * the name of FundsXpress. not be used in advertising or publicity pertaining
+ * yestice appear in all copies and that both that copyright yestice and
+ * this permission yestice appear in supporting documentation, and that
+ * the name of FundsXpress. yest be used in advertising or publicity pertaining
  * to distribution of the software without specific, written prior
- * permission.  FundsXpress makes no representations about the suitability of
+ * permission.  FundsXpress makes yes representations about the suitability of
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
  *
@@ -85,7 +85,7 @@ static void krb5_nfold(u32 inbits, const u8 *in,
 	/* first compute lcm(n,k) */
 	ulcm = lcm(inbits, outbits);
 
-	/* now do the real work */
+	/* yesw do the real work */
 
 	memset(out, 0, outbits);
 	byte = 0;
@@ -193,7 +193,7 @@ u32 krb5_derive_key(const struct gss_krb5_enctype *gk5e,
 			   inblock.len * 8, inblock.data);
 	}
 
-	/* loop encrypting the blocks until enough key bytes are generated */
+	/* loop encrypting the blocks until eyesugh key bytes are generated */
 
 	n = 0;
 	while (n < keybytes) {

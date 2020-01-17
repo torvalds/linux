@@ -3,7 +3,7 @@
  *
  * The white papers on CRC32C calculations with PCLMULQDQ instruction can be
  * downloaded from:
- * http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/crc-iscsi-polynomial-crc32-instruction-paper.pdf
+ * http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/crc-iscsi-polyyesmial-crc32-instruction-paper.pdf
  * http://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-crc-computation-paper.pdf
  *
  * Copyright (C) 2012 Intel Corporation.
@@ -25,11 +25,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -45,7 +45,7 @@
 
 #include <asm/inst.h>
 #include <linux/linkage.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 ## ISCSI CRC 32 Implementation with crc32 and pclmulqdq Instruction
 
@@ -63,7 +63,7 @@
 
 # Define threshold where buffers are considered "small" and routed to more
 # efficient "by-1" code. This "by-1" code only handles up to 255 bytes, so
-# SMALL_SIZE can be no larger than 255.
+# SMALL_SIZE can be yes larger than 255.
 
 #define SMALL_SIZE 200
 
@@ -198,7 +198,7 @@ crc_array:
 .rept 128-1
 .altmacro
 LABEL crc_ %i
-.noaltmacro
+.yesaltmacro
 	crc32q   -i*8(block_0), crc_init
 	crc32q   -i*8(block_1), crc1
 	crc32q   -i*8(block_2), crc2
@@ -207,7 +207,7 @@ LABEL crc_ %i
 
 .altmacro
 LABEL crc_ %i
-.noaltmacro
+.yesaltmacro
 	crc32q   -i*8(block_0), crc_init
 	crc32q   -i*8(block_1), crc1
 # SKIP  crc32  -i*8(block_2), crc2 ; Don't do this one yet
@@ -274,7 +274,7 @@ LABEL less_than_ %j			# less_than_j: Length should be in
 	j=(j/2)
 	shl     $1, len_dw		# Get next MSB
 	JNC_LESS_THAN %j
-.noaltmacro
+.yesaltmacro
 	i=0
 .rept (j/8)
 	crc32q  i(bufptmp), crc_init	# Compute crc32 of 8-byte data
@@ -323,7 +323,7 @@ jump_table:
 .rept 129
 .altmacro
 JMPTBL_ENTRY %i
-.noaltmacro
+.yesaltmacro
 	i=i+1
 .endr
 

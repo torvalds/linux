@@ -34,7 +34,7 @@
 /*
  * This component encapsulates the TTY layer glue needed to provide basic
  * "serial port" functionality through the USB gadget stack.  Each such
- * port is exposed through a /dev/ttyGS* node.
+ * port is exposed through a /dev/ttyGS* yesde.
  *
  * After this module has been loaded, the individual TTY port can be requested
  * (gserial_alloc_line()) and it will stay available until they are removed
@@ -44,10 +44,10 @@
  * connected to the host.
  *
  * A given TTY port can be made available in multiple configurations.
- * For example, each one might expose a ttyGS0 node which provides a
+ * For example, each one might expose a ttyGS0 yesde which provides a
  * login application.  In one case that might use CDC ACM interface 0,
- * while another configuration might use interface 3 for that.  The
- * work to handle that (including descriptor management) is not part
+ * while ayesther configuration might use interface 3 for that.  The
+ * work to handle that (including descriptor management) is yest part
  * of this component.
  *
  * Configurations may expose more than one TTY port.  For example, if
@@ -92,8 +92,8 @@ struct gs_console {
 };
 
 /*
- * The port structure holds info for each port, one for each minor number
- * (and thus for each /dev/ node).
+ * The port structure holds info for each port, one for each miyesr number
+ * (and thus for each /dev/ yesde).
  */
 struct gs_port {
 	struct tty_port		port;
@@ -192,7 +192,7 @@ EXPORT_SYMBOL_GPL(gs_free_req);
  * gs_send_packet
  *
  * If there is data to send, a packet is built in the given
- * buffer and the size is returned.  If there is no data to
+ * buffer and the size is returned.  If there is yes data to
  * send, 0 is returned.
  *
  * Called with port_lock held.
@@ -215,11 +215,11 @@ gs_send_packet(struct gs_port *port, char *packet, unsigned size)
  *
  * This function finds available write requests, calls
  * gs_send_packet to fill these packets with data, and
- * continues until either there are no more write requests
- * available or no more data to send.  This function is
+ * continues until either there are yes more write requests
+ * available or yes more data to send.  This function is
  * run whenever data arrives or write requests are available.
  *
- * Context: caller owns port_lock; port_usb is non-null.
+ * Context: caller owns port_lock; port_usb is yesn-null.
  */
 static int gs_start_tx(struct gs_port *port)
 /*
@@ -309,7 +309,7 @@ __acquires(&port->port_lock)
 		int			status;
 		struct tty_struct	*tty;
 
-		/* no more rx if closed */
+		/* yes more rx if closed */
 		tty = port->port.tty;
 		if (!tty)
 			break;
@@ -348,7 +348,7 @@ __acquires(&port->port_lock)
  * layer until it refuses to take any more data (or is throttled back).
  * Then it issues reads for any further data.
  *
- * If the RX queue becomes full enough that no usb_request is queued,
+ * If the RX queue becomes full eyesugh that yes usb_request is queued,
  * the OUT endpoint may begin NAKing as soon as its FIFO fills up.
  * So QUEUE_SIZE packets plus however many the FIFO holds (usually two)
  * can be buffered before the TTY layer's buffers (currently 64 KB).
@@ -386,7 +386,7 @@ static void gs_rx_push(struct work_struct *work)
 				port->port_num, req->status);
 			/* FALLTHROUGH */
 		case 0:
-			/* normal completion */
+			/* yesrmal completion */
 			break;
 		}
 
@@ -430,11 +430,11 @@ static void gs_rx_push(struct work_struct *work)
 
 
 	/* We want our data queue to become empty ASAP, keeping data
-	 * in the tty and ldisc (not here).  If we couldn't push any
+	 * in the tty and ldisc (yest here).  If we couldn't push any
 	 * this time around, RX may be starved, so wait until next jiffy.
 	 *
-	 * We may leave non-empty queue only when there is a tty, and
-	 * either it is throttled or there is no more room in flip buffer.
+	 * We may leave yesn-empty queue only when there is a tty, and
+	 * either it is throttled or there is yes more room in flip buffer.
 	 */
 	if (!list_empty(queue) && !tty_throttled(tty))
 		schedule_delayed_work(&port->push, 1);
@@ -472,7 +472,7 @@ static void gs_write_complete(struct usb_ep *ep, struct usb_request *req)
 			__func__, ep->name, req->status);
 		/* FALL THROUGH */
 	case 0:
-		/* normal completion */
+		/* yesrmal completion */
 		gs_start_tx(port);
 		break;
 
@@ -526,10 +526,10 @@ static int gs_alloc_requests(struct usb_ep *ep, struct list_head *head,
 /**
  * gs_start_io - start USB I/O streams
  * @dev: encapsulates endpoints to use
- * Context: holding port_lock; port_tty and port_usb are non-null
+ * Context: holding port_lock; port_tty and port_usb are yesn-null
  *
  * We only start I/O when something is connected to both sides of
- * this port.  If nothing is listening on the host side, we may
+ * this port.  If yesthing is listening on the host side, we may
  * be pointlessly filling up our TX buffers and FIFO.
  */
 static int gs_start_io(struct gs_port *port)
@@ -581,7 +581,7 @@ static int gs_start_io(struct gs_port *port)
 /*
  * gs_open sets up the link between a gs_port and its associated TTY.
  * That link is broken *only* by TTY close(), and all driver methods
- * know that.
+ * kyesw that.
  */
 static int gs_open(struct tty_struct *tty, struct file *file)
 {
@@ -611,7 +611,7 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 		status = kfifo_alloc(&port->port_write_buf,
 				     WRITE_BUF_SIZE, GFP_KERNEL);
 		if (status) {
-			pr_debug("gs_open: ttyGS%d (%p,%p) no buffer\n",
+			pr_debug("gs_open: ttyGS%d (%p,%p) yes buffer\n",
 				 port_num, tty, file);
 			goto out;
 		}
@@ -697,7 +697,7 @@ raced_with_open:
 		gser = port->port_usb;
 	}
 
-	/* Iff we're disconnected, there can be no I/O in flight so it's
+	/* Iff we're disconnected, there can be yes I/O in flight so it's
 	 * ok to free the circular buffer; else just scrub it.  And don't
 	 * let the push tasklet fire again until we're re-opened.
 	 */
@@ -808,7 +808,7 @@ static void gs_unthrottle(struct tty_struct *tty)
 	if (port->port_usb) {
 		/* Kickstart read queue processing.  We don't do xon/xoff,
 		 * rts/cts, or other handshaking with the host, but if the
-		 * read queue backs up enough we'll be NAKing OUT packets.
+		 * read queue backs up eyesugh we'll be NAKing OUT packets.
 		 */
 		pr_vdebug("ttyGS%d: unthrottle\n", port->port_num);
 		schedule_delayed_work(&port->push, 0);
@@ -862,7 +862,7 @@ static void gs_console_complete_out(struct usb_ep *ep, struct usb_request *req)
 			__func__, ep->name, req->status);
 		/* fall through */
 	case 0:
-		/* normal completion */
+		/* yesrmal completion */
 		spin_lock(&cons->lock);
 		req->length = 0;
 		schedule_work(&cons->work);
@@ -1203,7 +1203,7 @@ void gserial_free_line(unsigned char port_num)
 }
 EXPORT_SYMBOL_GPL(gserial_free_line);
 
-int gserial_alloc_line_no_console(unsigned char *line_num)
+int gserial_alloc_line_yes_console(unsigned char *line_num)
 {
 	struct usb_cdc_line_coding	coding;
 	struct gs_port			*port;
@@ -1247,11 +1247,11 @@ int gserial_alloc_line_no_console(unsigned char *line_num)
 err:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(gserial_alloc_line_no_console);
+EXPORT_SYMBOL_GPL(gserial_alloc_line_yes_console);
 
 int gserial_alloc_line(unsigned char *line_num)
 {
-	int ret = gserial_alloc_line_no_console(line_num);
+	int ret = gserial_alloc_line_yes_console(line_num);
 
 	if (!ret && !*line_num)
 		gs_console_init(ports[*line_num].port);
@@ -1261,15 +1261,15 @@ int gserial_alloc_line(unsigned char *line_num)
 EXPORT_SYMBOL_GPL(gserial_alloc_line);
 
 /**
- * gserial_connect - notify TTY I/O glue that USB link is active
+ * gserial_connect - yestify TTY I/O glue that USB link is active
  * @gser: the function, set up with endpoints and descriptors
  * @port_num: which port is active
  * Context: any (usually from irq)
  *
- * This is called activate endpoints and let the TTY layer know that
- * the connection is active ... not unlike "carrier detect".  It won't
+ * This is called activate endpoints and let the TTY layer kyesw that
+ * the connection is active ... yest unlike "carrier detect".  It won't
  * necessarily start I/O queues; unless the TTY is held open by any
- * task, there would be no point.  However, the endpoints will be
+ * task, there would be yes point.  However, the endpoints will be
  * activated so the USB host can perform I/O, subject to basic USB
  * hardware flow control.
  *
@@ -1278,7 +1278,7 @@ EXPORT_SYMBOL_GPL(gserial_alloc_line);
  * endpoint descriptors, and also have allocate @port_num by calling
  * @gserial_alloc_line().
  *
- * Returns negative errno or zero.
+ * Returns negative erryes or zero.
  * On success, ep->driver_data will be overwritten.
  */
 int gserial_connect(struct gserial *gser, u8 port_num)
@@ -1292,7 +1292,7 @@ int gserial_connect(struct gserial *gser, u8 port_num)
 
 	port = ports[port_num].port;
 	if (!port) {
-		pr_err("serial line %d not allocated.\n", port_num);
+		pr_err("serial line %d yest allocated.\n", port_num);
 		return -EINVAL;
 	}
 	if (port->port_usb) {
@@ -1323,7 +1323,7 @@ int gserial_connect(struct gserial *gser, u8 port_num)
 
 	/* REVISIT if waiting on "carrier detect", signal. */
 
-	/* if it's already open, start I/O ... and notify the serial
+	/* if it's already open, start I/O ... and yestify the serial
 	 * protocol about open/close status (connect/disconnect).
 	 */
 	if (port->port.count) {
@@ -1347,15 +1347,15 @@ fail_out:
 }
 EXPORT_SYMBOL_GPL(gserial_connect);
 /**
- * gserial_disconnect - notify TTY I/O glue that USB link is inactive
+ * gserial_disconnect - yestify TTY I/O glue that USB link is inactive
  * @gser: the function, on which gserial_connect() was called
  * Context: any (usually from irq)
  *
- * This is called to deactivate endpoints and let the TTY layer know
- * that the connection went inactive ... not unlike "hangup".
+ * This is called to deactivate endpoints and let the TTY layer kyesw
+ * that the connection went inactive ... yest unlike "hangup".
  *
  * On return, the state is as if gserial_connect() had never been called;
- * there is no active USB I/O on these endpoints.
+ * there is yes active USB I/O on these endpoints.
  */
 void gserial_disconnect(struct gserial *gser)
 {
@@ -1365,7 +1365,7 @@ void gserial_disconnect(struct gserial *gser)
 	if (!port)
 		return;
 
-	/* tell the TTY glue not to do I/O here any more */
+	/* tell the TTY glue yest to do I/O here any more */
 	spin_lock_irqsave(&port->port_lock, flags);
 
 	gs_console_disconnect(port);
@@ -1435,7 +1435,7 @@ static int userial_init(void)
 	/* export the driver ... */
 	status = tty_register_driver(gs_tty_driver);
 	if (status) {
-		pr_err("%s: cannot register, err %d\n",
+		pr_err("%s: canyest register, err %d\n",
 				__func__, status);
 		goto fail;
 	}

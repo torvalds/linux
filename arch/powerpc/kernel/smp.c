@@ -27,7 +27,7 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/topology.h>
 #include <linux/profile.h>
 #include <linux/processor.h>
@@ -138,7 +138,7 @@ int smp_generic_kick_cpu(int nr)
 
 	/*
 	 * The processor is currently spinning, waiting for the
-	 * cpu_start field to become non-zero After we set cpu_start,
+	 * cpu_start field to become yesn-zero After we set cpu_start,
 	 * the processor will continue on to secondary_start
 	 */
 	if (!paca_ptrs[nr]->cpu_start) {
@@ -149,7 +149,7 @@ int smp_generic_kick_cpu(int nr)
 
 #ifdef CONFIG_HOTPLUG_CPU
 	/*
-	 * Ok it's not there, so it might be soft-unplugged, let's
+	 * Ok it's yest there, so it might be soft-unplugged, let's
 	 * try to bring it back
 	 */
 	generic_set_cpu_up(nr);
@@ -201,7 +201,7 @@ static irq_handler_t smp_ipi_action[] = {
 };
 
 /*
- * The NMI IPI is a fallback and not truly non-maskable. It is simpler
+ * The NMI IPI is a fallback and yest truly yesn-maskable. It is simpler
  * than going through the call function infrastructure, and strongly
  * serialized, so it is more appropriate for debugging.
  */
@@ -352,20 +352,20 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 /*
  * "NMI IPI" system.
  *
- * NMI IPIs may not be recoverable, so should not be used as ongoing part of
+ * NMI IPIs may yest be recoverable, so should yest be used as ongoing part of
  * a running system. They can be used for crash, debug, halt/reboot, etc.
  *
  * The IPI call waits with interrupts disabled until all targets enter the
  * NMI handler, then returns. Subsequent IPIs can be issued before targets
- * have returned from their handlers, so there is no guarantee about
+ * have returned from their handlers, so there is yes guarantee about
  * concurrency or re-entrancy.
  *
  * A new NMI can be issued before all targets exit the handler.
  *
  * The IPI call may time out without all targets entering the NMI handler.
- * In that case, there is some logic to recover (and ignore subsequent
+ * In that case, there is some logic to recover (and igyesre subsequent
  * NMI interrupts that may eventually be raised), but the platform interrupt
- * handler may not be able to distinguish this from other exception causes,
+ * handler may yest be able to distinguish this from other exception causes,
  * which may cause a crash.
  */
 
@@ -416,7 +416,7 @@ int smp_handle_nmi_ipi(struct pt_regs *regs)
 	int ret = 0;
 
 	/*
-	 * Unexpected NMIs are possible here because the interrupt may not
+	 * Unexpected NMIs are possible here because the interrupt may yest
 	 * be able to distinguish NMI IPIs from other types of NMIs, or
 	 * because the caller may have timed out.
 	 */
@@ -454,7 +454,7 @@ static void do_smp_send_nmi_ipi(int cpu, bool safe)
 }
 
 /*
- * - cpu is the target CPU (must not be this CPU), or NMI_IPI_ALL_OTHERS.
+ * - cpu is the target CPU (must yest be this CPU), or NMI_IPI_ALL_OTHERS.
  * - fn is the target callback function.
  * - delay_us > 0 is the delay before giving up waiting for targets to
  *   begin executing the handler, == 0 specifies indefinite delay.
@@ -660,19 +660,19 @@ static void set_cpus_unrelated(int i, int j,
 
 /*
  * parse_thread_groups: Parses the "ibm,thread-groups" device tree
- *                      property for the CPU device node @dn and stores
+ *                      property for the CPU device yesde @dn and stores
  *                      the parsed output in the thread_groups
  *                      structure @tg if the ibm,thread-groups[0]
  *                      matches @property.
  *
- * @dn: The device node of the CPU device.
+ * @dn: The device yesde of the CPU device.
  * @tg: Pointer to a thread group structure into which the parsed
  *      output of "ibm,thread-groups" is stored.
  * @property: The property of the thread-group that the caller is
  *            interested in.
  *
  * ibm,thread-groups[0..N-1] array defines which group of threads in
- * the CPU-device node can be grouped together based on the property.
+ * the CPU-device yesde can be grouped together based on the property.
  *
  * ibm,thread-groups[0] tells us the property based on which the
  * threads are being grouped together. If this value is 1, it implies
@@ -695,11 +695,11 @@ static void set_cpus_unrelated(int i, int j,
  * and the "ibm,ppc-interrupt-server#s" of the second group is {9, 10,
  * 11, 12} structure
  *
- * Returns 0 on success, -EINVAL if the property does not exist,
- * -ENODATA if property does not have a value, and -EOVERFLOW if the
- * property data isn't large enough.
+ * Returns 0 on success, -EINVAL if the property does yest exist,
+ * -ENODATA if property does yest have a value, and -EOVERFLOW if the
+ * property data isn't large eyesugh.
  */
-static int parse_thread_groups(struct device_node *dn,
+static int parse_thread_groups(struct device_yesde *dn,
 			       struct thread_groups *tg,
 			       unsigned int property)
 {
@@ -743,7 +743,7 @@ static int parse_thread_groups(struct device_node *dn,
  *                              that @cpu belongs to.
  *
  * @cpu : The logical CPU whose thread group is being searched.
- * @tg : The thread-group structure of the CPU node which @cpu belongs
+ * @tg : The thread-group structure of the CPU yesde which @cpu belongs
  *       to.
  *
  * Returns the index to tg->thread_list that points to the the start
@@ -774,7 +774,7 @@ static int get_cpu_thread_group_start(int cpu, struct thread_groups *tg)
 static int init_cpu_l1_cache_map(int cpu)
 
 {
-	struct device_node *dn = of_get_cpu_node(cpu, NULL);
+	struct device_yesde *dn = of_get_cpu_yesde(cpu, NULL);
 	struct thread_groups tg = {.property = 0,
 				   .nr_groups = 0,
 				   .threads_per_group = 0};
@@ -788,9 +788,9 @@ static int init_cpu_l1_cache_map(int cpu)
 	if (err)
 		goto out;
 
-	zalloc_cpumask_var_node(&per_cpu(cpu_l1_cache_map, cpu),
+	zalloc_cpumask_var_yesde(&per_cpu(cpu_l1_cache_map, cpu),
 				GFP_KERNEL,
-				cpu_to_node(cpu));
+				cpu_to_yesde(cpu));
 
 	cpu_group_start = get_cpu_thread_group_start(cpu, &tg);
 
@@ -814,7 +814,7 @@ static int init_cpu_l1_cache_map(int cpu)
 	}
 
 out:
-	of_node_put(dn);
+	of_yesde_put(dn);
 	return err;
 }
 
@@ -828,9 +828,9 @@ static int init_big_cores(void)
 		if (err)
 			return err;
 
-		zalloc_cpumask_var_node(&per_cpu(cpu_smallcore_map, cpu),
+		zalloc_cpumask_var_yesde(&per_cpu(cpu_smallcore_map, cpu),
 					GFP_KERNEL,
-					cpu_to_node(cpu));
+					cpu_to_yesde(cpu));
 	}
 
 	has_big_cores = true;
@@ -845,7 +845,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	/* 
 	 * setup_cpu may need to be called on the boot cpu. We havent
-	 * spun any cpus up but lets be paranoid.
+	 * spun any cpus up but lets be parayesid.
 	 */
 	BUG_ON(boot_cpuid != smp_processor_id());
 
@@ -854,19 +854,19 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	cpu_callin_map[boot_cpuid] = 1;
 
 	for_each_possible_cpu(cpu) {
-		zalloc_cpumask_var_node(&per_cpu(cpu_sibling_map, cpu),
-					GFP_KERNEL, cpu_to_node(cpu));
-		zalloc_cpumask_var_node(&per_cpu(cpu_l2_cache_map, cpu),
-					GFP_KERNEL, cpu_to_node(cpu));
-		zalloc_cpumask_var_node(&per_cpu(cpu_core_map, cpu),
-					GFP_KERNEL, cpu_to_node(cpu));
+		zalloc_cpumask_var_yesde(&per_cpu(cpu_sibling_map, cpu),
+					GFP_KERNEL, cpu_to_yesde(cpu));
+		zalloc_cpumask_var_yesde(&per_cpu(cpu_l2_cache_map, cpu),
+					GFP_KERNEL, cpu_to_yesde(cpu));
+		zalloc_cpumask_var_yesde(&per_cpu(cpu_core_map, cpu),
+					GFP_KERNEL, cpu_to_yesde(cpu));
 		/*
-		 * numa_node_id() works after this.
+		 * numa_yesde_id() works after this.
 		 */
 		if (cpu_present(cpu)) {
-			set_cpu_numa_node(cpu, numa_cpu_lookup_table[cpu]);
+			set_cpu_numa_yesde(cpu, numa_cpu_lookup_table[cpu]);
 			set_cpu_numa_mem(cpu,
-				local_memory_node(numa_cpu_lookup_table[cpu]));
+				local_memory_yesde(numa_cpu_lookup_table[cpu]));
 		}
 	}
 
@@ -891,7 +891,7 @@ void smp_prepare_boot_cpu(void)
 #ifdef CONFIG_PPC64
 	paca_ptrs[boot_cpuid]->__current = current;
 #endif
-	set_numa_node(numa_cpu_lookup_table[boot_cpuid]);
+	set_numa_yesde(numa_cpu_lookup_table[boot_cpuid]);
 	current_set[boot_cpuid] = current;
 }
 
@@ -947,7 +947,7 @@ void generic_set_cpu_dead(unsigned int cpu)
 /*
  * The cpu_state should be set to CPU_UP_PREPARE in kick_cpu(), otherwise
  * the cpu_state is always CPU_DEAD after calling generic_set_cpu_dead(),
- * which makes the delay in generic_cpu_die() not happen.
+ * which makes the delay in generic_cpu_die() yest happen.
  */
 void generic_set_cpu_up(unsigned int cpu)
 {
@@ -1071,11 +1071,11 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
  */
 int cpu_to_core_id(int cpu)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const __be32 *reg;
 	int id = -1;
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_yesde(cpu, NULL);
 	if (!np)
 		goto out;
 
@@ -1085,7 +1085,7 @@ int cpu_to_core_id(int cpu)
 
 	id = be32_to_cpup(reg);
 out:
-	of_node_put(np);
+	of_yesde_put(np);
 	return id;
 }
 EXPORT_SYMBOL_GPL(cpu_to_core_id);
@@ -1103,31 +1103,31 @@ int cpu_first_thread_of_core(int core)
 }
 EXPORT_SYMBOL_GPL(cpu_first_thread_of_core);
 
-/* Must be called when no change can occur to cpu_present_mask,
+/* Must be called when yes change can occur to cpu_present_mask,
  * i.e. during cpu online or offline.
  */
-static struct device_node *cpu_to_l2cache(int cpu)
+static struct device_yesde *cpu_to_l2cache(int cpu)
 {
-	struct device_node *np;
-	struct device_node *cache;
+	struct device_yesde *np;
+	struct device_yesde *cache;
 
 	if (!cpu_present(cpu))
 		return NULL;
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_yesde(cpu, NULL);
 	if (np == NULL)
 		return NULL;
 
-	cache = of_find_next_cache_node(np);
+	cache = of_find_next_cache_yesde(np);
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return cache;
 }
 
 static bool update_mask_by_l2(int cpu, struct cpumask *(*mask_fn)(int))
 {
-	struct device_node *l2_cache, *np;
+	struct device_yesde *l2_cache, *np;
 	int i;
 
 	l2_cache = cpu_to_l2cache(cpu);
@@ -1136,7 +1136,7 @@ static bool update_mask_by_l2(int cpu, struct cpumask *(*mask_fn)(int))
 
 	for_each_cpu(i, cpu_online_mask) {
 		/*
-		 * when updating the marks the current CPU has not been marked
+		 * when updating the marks the current CPU has yest been marked
 		 * online, but we need to update the cache masks
 		 */
 		np = cpu_to_l2cache(i);
@@ -1146,9 +1146,9 @@ static bool update_mask_by_l2(int cpu, struct cpumask *(*mask_fn)(int))
 		if (np == l2_cache)
 			set_cpus_related(cpu, i, mask_fn);
 
-		of_node_put(np);
+		of_yesde_put(np);
 	}
-	of_node_put(l2_cache);
+	of_yesde_put(l2_cache);
 
 	return true;
 }
@@ -1192,7 +1192,7 @@ static void add_cpu_to_masks(int cpu)
 	int i;
 
 	/*
-	 * This CPU will not be in the online mask yet so we need to manually
+	 * This CPU will yest be in the online mask yet so we need to manually
 	 * add it to it's own thread sibling mask.
 	 */
 	cpumask_set_cpu(cpu, cpu_sibling_mask(cpu));
@@ -1266,18 +1266,18 @@ void start_secondary(void *unused)
 	if (!cpumask_equal(cpu_l2_cache_mask(cpu), sibling_mask(cpu)))
 		shared_caches = true;
 
-	set_numa_node(numa_cpu_lookup_table[cpu]);
-	set_numa_mem(local_memory_node(numa_cpu_lookup_table[cpu]));
+	set_numa_yesde(numa_cpu_lookup_table[cpu]);
+	set_numa_mem(local_memory_yesde(numa_cpu_lookup_table[cpu]));
 
 	smp_wmb();
-	notify_cpu_starting(cpu);
+	yestify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
 
 	boot_init_stack_canary();
 
 	local_irq_enable();
 
-	/* We can enable ftrace for secondary cpus now */
+	/* We can enable ftrace for secondary cpus yesw */
 	this_cpu_enable_ftrace();
 
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
@@ -1325,7 +1325,7 @@ static int powerpc_shared_cache_flags(void)
 
 /*
  * We can't just pass cpu_l2_cache_mask() directly because
- * returns a non-const pointer and the compiler barfs on that.
+ * returns a yesn-const pointer and the compiler barfs on that.
  */
 static const struct cpumask *shared_cache_mask(int cpu)
 {
@@ -1374,7 +1374,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	}
 #endif
 	/*
-	 * If any CPU detects that it's sharing a cache with another CPU then
+	 * If any CPU detects that it's sharing a cache with ayesther CPU then
 	 * use the deeper topology that is aware of this sharing.
 	 */
 	if (shared_caches) {

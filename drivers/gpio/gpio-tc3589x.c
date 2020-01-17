@@ -287,13 +287,13 @@ static irqreturn_t tc3589x_gpio_irq(int irq, void *dev)
 static int tc3589x_gpio_probe(struct platform_device *pdev)
 {
 	struct tc3589x *tc3589x = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct tc3589x_gpio *tc3589x_gpio;
 	int ret;
 	int irq;
 
 	if (!np) {
-		dev_err(&pdev->dev, "No Device Tree node found\n");
+		dev_err(&pdev->dev, "No Device Tree yesde found\n");
 		return -EINVAL;
 	}
 
@@ -315,7 +315,7 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 	tc3589x_gpio->chip.ngpio = tc3589x->num_gpio;
 	tc3589x_gpio->chip.parent = &pdev->dev;
 	tc3589x_gpio->chip.base = -1;
-	tc3589x_gpio->chip.of_node = np;
+	tc3589x_gpio->chip.of_yesde = np;
 
 	/* Bring the GPIO module out of reset */
 	ret = tc3589x_set_bits(tc3589x, TC3589x_RSTCTRL,
@@ -346,7 +346,7 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 					   IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"could not connect irqchip to gpiochip\n");
+			"could yest connect irqchip to gpiochip\n");
 		return ret;
 	}
 

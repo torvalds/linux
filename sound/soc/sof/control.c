@@ -103,7 +103,7 @@ int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 		cdata->chanv[i].value = value;
 	}
 
-	/* notify DSP of mixer updates */
+	/* yestify DSP of mixer updates */
 	if (pm_runtime_active(sdev->dev))
 		snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
 					      SOF_IPC_COMP_SET_VALUE,
@@ -152,7 +152,7 @@ int snd_sof_switch_put(struct snd_kcontrol *kcontrol,
 	if (scontrol->led_ctl.use_led)
 		update_mute_led(scontrol, kcontrol, ucontrol);
 
-	/* notify DSP of mixer updates */
+	/* yestify DSP of mixer updates */
 	if (pm_runtime_active(sdev->dev))
 		snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
 					      SOF_IPC_COMP_SET_VALUE,
@@ -199,7 +199,7 @@ int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
 		cdata->chanv[i].value = value;
 	}
 
-	/* notify DSP of enum updates */
+	/* yestify DSP of enum updates */
 	if (pm_runtime_active(sdev->dev))
 		snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
 					      SOF_IPC_COMP_SET_VALUE,
@@ -273,7 +273,7 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 	/* copy from kcontrol */
 	memcpy(data, ucontrol->value.bytes.data, size);
 
-	/* notify DSP of byte control updates */
+	/* yestify DSP of byte control updates */
 	if (pm_runtime_active(sdev->dev))
 		snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
 					      SOF_IPC_COMP_SET_DATA,
@@ -299,7 +299,7 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 
 	/*
 	 * The beginning of bytes data contains a header from where
-	 * the length (as bytes) is needed to know the correct copy
+	 * the length (as bytes) is needed to kyesw the correct copy
 	 * length of data from tlvd->tlv.
 	 */
 	if (copy_from_user(&header, tlvd, sizeof(const struct snd_ctl_tlv)))
@@ -341,7 +341,7 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	/* notify DSP of byte control updates */
+	/* yestify DSP of byte control updates */
 	if (pm_runtime_active(sdev->dev))
 		snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
 					      SOF_IPC_COMP_SET_DATA,
@@ -369,7 +369,7 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 
 	/*
 	 * Decrement the limit by ext bytes header size to
-	 * ensure the user space buffer is not exceeded.
+	 * ensure the user space buffer is yest exceeded.
 	 */
 	size -= sizeof(const struct snd_ctl_tlv);
 

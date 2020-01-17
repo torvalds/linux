@@ -17,7 +17,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/proc_fs.h>
@@ -60,7 +60,7 @@ static const char name_conf[]	 = "config";
  */
 
 /*
- *	Generic /proc/net/vlan/<file> file and inode operations
+ *	Generic /proc/net/vlan/<file> file and iyesde operations
  */
 
 static const struct seq_operations vlan_seq_ops = {
@@ -100,7 +100,7 @@ void vlan_proc_cleanup(struct net *net)
 		remove_proc_entry(name_root, net->proc_net);
 
 	/* Dynamically added entries should be cleaned up as their vlan_device
-	 * is removed, so we should not have to take care of it here...
+	 * is removed, so we should yest have to take care of it here...
 	 */
 }
 
@@ -263,7 +263,7 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, fmt64, "total frames transmitted", stats->tx_packets);
 	seq_printf(seq, fmt64, "total bytes transmitted", stats->tx_bytes);
 	seq_printf(seq, "Device: %s", vlan->real_dev->name);
-	/* now show all PRIORITY mappings relating to this VLAN */
+	/* yesw show all PRIORITY mappings relating to this VLAN */
 	seq_printf(seq, "\nINGRESS priority mappings: "
 			"0:%u  1:%u  2:%u  3:%u  4:%u  5:%u  6:%u 7:%u\n",
 		   vlan->ingress_priority_map[0],

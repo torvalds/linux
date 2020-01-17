@@ -1,10 +1,10 @@
 /*
  * This is the Fusion MPT base driver providing common API layer interface
- * for access to MPT (Message Passing Technology) firmware.
+ * for access to MPT (Message Passing Techyeslogy) firmware.
  *
  * This code is based on drivers/scsi/mpt3sas/mpt3sas_base.h
  * Copyright (C) 2012-2014  LSI Corporation
- * Copyright (C) 2013-2014 Avago Technologies
+ * Copyright (C) 2013-2014 Avago Techyeslogies
  *  (mailto: MPT-FusionLinux.pdl@avagotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -24,7 +24,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
 
@@ -38,7 +38,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -74,7 +74,7 @@
 
 /* driver versioning info */
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
-#define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
+#define MPT3SAS_AUTHOR "Avago Techyeslogies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
 #define MPT3SAS_DRIVER_VERSION		"32.100.00.00"
 #define MPT3SAS_MAJOR_VERSION		32
@@ -165,8 +165,8 @@ struct mpt3sas_nvme_cmd {
  */
 #define ioc_err(ioc, fmt, ...)						\
 	pr_err("%s: " fmt, (ioc)->name, ##__VA_ARGS__)
-#define ioc_notice(ioc, fmt, ...)					\
-	pr_notice("%s: " fmt, (ioc)->name, ##__VA_ARGS__)
+#define ioc_yestice(ioc, fmt, ...)					\
+	pr_yestice("%s: " fmt, (ioc)->name, ##__VA_ARGS__)
 #define ioc_warn(ioc, fmt, ...)						\
 	pr_warn("%s: " fmt, (ioc)->name, ##__VA_ARGS__)
 #define ioc_info(ioc, fmt, ...)						\
@@ -445,7 +445,7 @@ struct MPT3SAS_TARGET {
  * @flags: MPT_DEVICE_XXX flags
  * @configured_lun: lun is configured
  * @block: device is in SDEV_BLOCK state
- * @tlr_snoop_check: flag used in determining whether to disable TLR
+ * @tlr_syesop_check: flag used in determining whether to disable TLR
  * @eedp_enable: eedp support enable bit
  * @eedp_type: 0(type_1), 1(type_2), 2(type_3)
  * @eedp_block_length: block size
@@ -457,15 +457,15 @@ struct MPT3SAS_DEVICE {
 	u32	flags;
 	u8	configured_lun;
 	u8	block;
-	u8	tlr_snoop_check;
-	u8	ignore_delay_remove;
+	u8	tlr_syesop_check;
+	u8	igyesre_delay_remove;
 	/* Iopriority Command Handling */
 	u8	ncq_prio_enable;
 	/*
 	 * Bug workaround for SATL handling: the mpt2/3sas firmware
 	 * doesn't return BUSY or TASK_SET_FULL for subsequent
 	 * commands while a SATL pass through is in operation as the
-	 * spec requires, it simply does nothing with them until the
+	 * spec requires, it simply does yesthing with them until the
 	 * pass through completes, causing them possibly to timeout if
 	 * the passthrough is a long executing command (like format or
 	 * secure erase).  This variable allows us to do the right
@@ -524,7 +524,7 @@ struct _internal_cmd {
  * @pend_sas_rphy_add: flag to check if device is in sas_rphy_add()
  *	addition routine.
  * @chassis_slot: chassis slot
- * @is_chassis_slot_valid: chassis slot valid or not
+ * @is_chassis_slot_valid: chassis slot valid or yest
  */
 struct _sas_device {
 	struct list_head list;
@@ -669,7 +669,7 @@ static inline void pcie_device_put(struct _pcie_device *p)
  * @num_pds: number of hidden raid components
  * @responding: used in _scsih_raid_device_mark_responding
  * @percent_complete: resync percent complete
- * @direct_io_enabled: Whether direct io to PDs are allowed or not
+ * @direct_io_enabled: Whether direct io to PDs are allowed or yest
  * @stripe_exponent: X where 2powX is the stripe sz in blocks
  * @block_exponent: X where 2powX is the block sz in bytes
  * @max_lba: Maximum number of LBA in the volume
@@ -753,7 +753,7 @@ struct _sas_phy {
 };
 
 /**
- * struct _sas_node - sas_host/expander information
+ * struct _sas_yesde - sas_host/expander information
  * @list: list of expanders
  * @parent_dev: parent device class
  * @num_phys: number phys belonging to this sas_host/expander
@@ -766,7 +766,7 @@ struct _sas_phy {
  * @phy: a list of phys that make up this sas_host/expander
  * @sas_port_list: list of ports attached to this sas_host/expander
  */
-struct _sas_node {
+struct _sas_yesde {
 	struct list_head list;
 	struct device *parent_dev;
 	u8	num_phys;
@@ -782,18 +782,18 @@ struct _sas_node {
 
 
 /**
- * struct _enclosure_node - enclosure information
+ * struct _enclosure_yesde - enclosure information
  * @list: list of enclosures
  * @pg0: enclosure pg0;
  */
-struct _enclosure_node {
+struct _enclosure_yesde {
 	struct list_head list;
 	Mpi2SasEnclosurePage0_t pg0;
 };
 
 /**
  * enum reset_type - reset state
- * @FORCE_BIG_HAMMER: issue diagnostic reset
+ * @FORCE_BIG_HAMMER: issue diagyesstic reset
  * @SOFT_RESET: issue message_unit_reset, if fails to to big hammer
  */
 enum reset_type {
@@ -878,7 +878,7 @@ struct _sc_list {
 };
 
 /**
- * struct _event_ack_list - delayed event acknowledgment list
+ * struct _event_ack_list - delayed event ackyeswledgment list
  * @Event: Event ID
  * @EventContext: used to track the event uniquely
  */
@@ -896,10 +896,10 @@ struct _event_ack_list {
  * @reply_post_host_index: head index in the pool where FW completes IO
  * @reply_post_free: reply post base virt address
  * @name: the name registered to request_irq()
- * @busy: isr is actively processing replies on another cpu
+ * @busy: isr is actively processing replies on ayesther cpu
  * @os_irq: irq number
  * @irqpoll: irq_poll object
- * @irq_poll_scheduled: Tells whether irq poll is scheduled or not
+ * @irq_poll_scheduled: Tells whether irq poll is scheduled or yest
  * @list: this list
 */
 struct adapter_reply_queue {
@@ -933,7 +933,7 @@ typedef void (*NVME_BUILD_PRP)(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	dma_addr_t data_out_dma, size_t data_out_sz, dma_addr_t data_in_dma,
 	size_t data_in_sz);
 
-/* To support atomic and non atomic descriptors*/
+/* To support atomic and yesn atomic descriptors*/
 typedef void (*PUT_SMID_IO_FP_HIP) (struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	u16 funcdep);
 typedef void (*PUT_SMID_DEFAULT) (struct MPT3SAS_ADAPTER *ioc, u16 smid);
@@ -1015,7 +1015,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @fwfault_debug: debuging FW timeouts
  * @ir_firmware: IR firmware present
  * @bars: bitmask of BAR's that must be configured
- * @mask_interrupts: ignore interrupt
+ * @mask_interrupts: igyesre interrupt
  * @dma_mask: used to set the consistent dma mask
  * @pci_access_mutex: Mutex to synchronize ioctl, sysfs show path and
  *			pci resource handling
@@ -1031,7 +1031,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @shost_recovery: host reset in progress
  * @ioc_reset_in_progress_lock:
  * @ioc_link_reset_in_progress: phy/hard reset in progress
- * @ignore_loginfos: ignore loginfos during task management
+ * @igyesre_loginfos: igyesre loginfos during task management
  * @remove_host: flag for when driver unloads, to avoid sending dev resets
  * @pci_error_recovery: flag to prevent ioc access until slot reset completes
  * @wait_for_discovery_to_complete: flag set at driver load time when
@@ -1088,7 +1088,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @sas_hba: sas host object
  * @sas_expander_list: expander object list
  * @enclosure_list: enclosure object list
- * @sas_node_lock:
+ * @sas_yesde_lock:
  * @sas_device_list: sas device object list
  * @sas_device_init_list: sas device object list (used only at init time)
  * @sas_device_lock:
@@ -1214,7 +1214,7 @@ struct MPT3SAS_ADAPTER {
 	spinlock_t	ioc_reset_in_progress_lock;
 	u8		ioc_link_reset_in_progress;
 
-	u8		ignore_loginfos;
+	u8		igyesre_loginfos;
 	u8		remove_host;
 	u8		pci_error_recovery;
 	u8		wait_for_discovery_to_complete;
@@ -1230,7 +1230,7 @@ struct MPT3SAS_ADAPTER {
 	resource_size_t __iomem **reply_post_host_index;
 	u32		ioc_reset_count;
 	MPT3SAS_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;
-	u32             non_operational_loop;
+	u32             yesn_operational_loop;
 	atomic64_t      total_io_cnt;
 	atomic64_t	high_iops_outstanding;
 	bool            msix_load_balance;
@@ -1305,10 +1305,10 @@ struct MPT3SAS_ADAPTER {
 	struct _boot_device current_boot_device;
 
 	/* sas hba, expander, and device list */
-	struct _sas_node sas_hba;
+	struct _sas_yesde sas_hba;
 	struct list_head sas_expander_list;
 	struct list_head enclosure_list;
-	spinlock_t	sas_node_lock;
+	spinlock_t	sas_yesde_lock;
 	struct list_head sas_device_list;
 	struct list_head sas_device_init_list;
 	spinlock_t	sas_device_lock;
@@ -1435,7 +1435,7 @@ struct MPT3SAS_ADAPTER {
 	u8		diag_buffer_status[MPI2_DIAG_BUF_TYPE_COUNT];
 	u32		unique_id[MPI2_DIAG_BUF_TYPE_COUNT];
 	u32		product_specific[MPI2_DIAG_BUF_TYPE_COUNT][23];
-	u32		diagnostic_flags[MPI2_DIAG_BUF_TYPE_COUNT];
+	u32		diagyesstic_flags[MPI2_DIAG_BUF_TYPE_COUNT];
 	u32		ring_buffer_offset;
 	u32		ring_buffer_sz;
 	u8		is_warpdrive;
@@ -1478,7 +1478,7 @@ extern char    driver_name[MPT_NAME_LENGTH];
  * fault conditions which will trigger the dead_ioc thread to
  * deallocate pci resource, resulting deleting the IOC netry from list,
  * this deletion need to protected by spinlock to enusre that
- * ioc removal is syncrhonized, if not synchronized it might lead to
+ * ioc removal is syncrhonized, if yest synchronized it might lead to
  * list_del corruption as the ioc list is traversed in cli path.
  */
 extern spinlock_t gioc_lock;
@@ -1577,9 +1577,9 @@ void mpt3sas_device_remove_by_sas_address(struct MPT3SAS_ADAPTER *ioc,
 u8 mpt3sas_check_for_pending_internal_cmds(struct MPT3SAS_ADAPTER *ioc,
 	u16 smid);
 
-struct _sas_node *mpt3sas_scsih_expander_find_by_handle(
+struct _sas_yesde *mpt3sas_scsih_expander_find_by_handle(
 	struct MPT3SAS_ADAPTER *ioc, u16 handle);
-struct _sas_node *mpt3sas_scsih_expander_find_by_sas_address(
+struct _sas_yesde *mpt3sas_scsih_expander_find_by_sas_address(
 	struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
 struct _sas_device *mpt3sas_get_sdev_by_addr(
 	 struct MPT3SAS_ADAPTER *ioc, u64 sas_address);
@@ -1751,7 +1751,7 @@ bool scsih_ncq_prio_supp(struct scsi_device *sdev);
 /**
  * _scsih_is_pcie_scsi_device - determines if device is an pcie scsi device
  * @device_info: bitfield providing information about the device.
- * Context: none
+ * Context: yesne
  *
  * Returns 1 if scsi device.
  */

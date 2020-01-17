@@ -1,6 +1,6 @@
 /*
  * Copyright 2011, Siemens AG
- * written by Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * written by Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 
 /* Based on patches from Jon Smirl <jonsmirl@gmail.com>
@@ -25,11 +25,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -208,7 +208,7 @@ lowpan_iphc_ctx_get_by_addr(const struct net_device *dev,
 	int i;
 
 	for (i = 0; i < LOWPAN_IPHC_CTX_TABLE_SIZE; i++) {
-		/* Check if context is valid. A context that is not valid
+		/* Check if context is valid. A context that is yest valid
 		 * MUST NOT be used for compression.
 		 */
 		if (!lowpan_iphc_ctx_is_active(&table[i]) ||
@@ -254,7 +254,7 @@ lowpan_iphc_ctx_get_by_mcast_addr(const struct net_device *dev,
 	memcpy(&addr_mcast, addr, sizeof(*addr));
 
 	for (i = 0; i < LOWPAN_IPHC_CTX_TABLE_SIZE; i++) {
-		/* Check if context is valid. A context that is not valid
+		/* Check if context is valid. A context that is yest valid
 		 * MUST NOT be used for compression.
 		 */
 		if (!lowpan_iphc_ctx_is_active(&table[i]) ||
@@ -296,7 +296,7 @@ static void lowpan_iphc_uncompress_lladdr(const struct net_device *dev,
 }
 
 /* Uncompress address function for source and
- * destination address(non-multicast).
+ * destination address(yesn-multicast).
  *
  * address_mode is the masked value for sam or dam value
  */
@@ -358,7 +358,7 @@ static int lowpan_iphc_uncompress_addr(struct sk_buff *skb,
 }
 
 /* Uncompress address function for source context
- * based address(non-multicast).
+ * based address(yesn-multicast).
  */
 static int lowpan_iphc_uncompress_ctx_addr(struct sk_buff *skb,
 					   const struct net_device *dev,
@@ -373,7 +373,7 @@ static int lowpan_iphc_uncompress_ctx_addr(struct sk_buff *skb,
 	case LOWPAN_IPHC_DAM_00:
 		fail = false;
 		/* SAM_00 -> unspec address ::
-		 * Do nothing, address is already ::
+		 * Do yesthing, address is already ::
 		 *
 		 * DAM 00 -> reserved should never occur.
 		 */
@@ -626,7 +626,7 @@ int lowpan_header_decompress(struct sk_buff *skb, const struct net_device *dev,
 
 	hdr.version = 6;
 
-	/* default CID = 0, another if the CID flag is set */
+	/* default CID = 0, ayesther if the CID flag is set */
 	if (iphc1 & LOWPAN_IPHC_CID) {
 		if (lowpan_fetch_skb(skb, &cid, sizeof(cid)))
 			return -EINVAL;
@@ -891,7 +891,7 @@ static u8 lowpan_compress_ctx_addr(u8 **hc_ptr, const struct net_device *dev,
 		goto out;
 	}
 
-	WARN_ONCE(1, "context found but no address mode matched\n");
+	WARN_ONCE(1, "context found but yes address mode matched\n");
 	return LOWPAN_IPHC_DAM_00;
 out:
 
@@ -974,7 +974,7 @@ static u8 lowpan_compress_addr_64(u8 **hc_ptr, const struct net_device *dev,
 		goto out;
 	}
 
-	/* do not compress IID => xxxx::IID */
+	/* do yest compress IID => xxxx::IID */
 	lowpan_push_hc_data(hc_ptr, &ipaddr->s6_addr16[4], 8);
 	raw_dump_inline(NULL, "Compressed ipv6 addr is (64 bits)",
 			*hc_ptr - 8, 8);
@@ -1000,7 +1000,7 @@ static inline u8 lowpan_iphc_get_tc(const struct ipv6hdr *hdr)
 	ecn = (hdr->flow_lbl[0] & 0x30);
 	/* for pretty debug output, also shift ecn to get the ecn value */
 	pr_debug("ecn 0x%02x dscp 0x%02x\n", ecn >> 4, dscp);
-	/* ECN is at 0x30 now, shift it to have ECN + DCSP */
+	/* ECN is at 0x30 yesw, shift it to have ECN + DCSP */
 	return (ecn << 2) | dscp;
 }
 
@@ -1154,7 +1154,7 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 	/* As we copy some bit-length fields, in the IPHC encoding bytes,
 	 * we sometimes use |=
 	 * If the field is 0, and the current bit value in memory is 1,
-	 * this does not work. We therefore reset the IPHC encoding here
+	 * this does yest work. We therefore reset the IPHC encoding here
 	 */
 	iphc0 = LOWPAN_DISPATCH_IPHC;
 	iphc1 = 0;
@@ -1194,7 +1194,7 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 	/* NOTE: payload length is always compressed */
 
 	/* Check if we provide the nhc format for nexthdr and compression
-	 * functionality. If not nexthdr is handled inline and not compressed.
+	 * functionality. If yest nexthdr is handled inline and yest compressed.
 	 */
 	ret = lowpan_nhc_check_compression(skb, hdr, &hc_ptr);
 	if (ret == -ENOENT)
@@ -1207,7 +1207,7 @@ int lowpan_header_compress(struct sk_buff *skb, const struct net_device *dev,
 	 * if 1:   compress, encoding is 01
 	 * if 64:  compress, encoding is 10
 	 * if 255: compress, encoding is 11
-	 * else do not compress
+	 * else do yest compress
 	 */
 	switch (hdr->hop_limit) {
 	case 1:

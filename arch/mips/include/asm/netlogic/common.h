@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -54,7 +54,7 @@
 #include <linux/cpumask.h>
 #include <linux/spinlock.h>
 #include <asm/irq.h>
-#include <asm/mach-netlogic/multi-node.h>
+#include <asm/mach-netlogic/multi-yesde.h>
 
 struct irq_desc;
 void nlm_smp_function_ipi_handler(struct irq_desc *desc);
@@ -91,40 +91,40 @@ extern unsigned int nlm_threads_per_core;
 extern cpumask_t nlm_cpumask;
 
 struct irq_data;
-uint64_t nlm_pci_irqmask(int node);
-void nlm_setup_pic_irq(int node, int picirq, int irq, int irt);
-void nlm_set_pic_extra_ack(int node, int irq,  void (*xack)(struct irq_data *));
+uint64_t nlm_pci_irqmask(int yesde);
+void nlm_setup_pic_irq(int yesde, int picirq, int irq, int irt);
+void nlm_set_pic_extra_ack(int yesde, int irq,  void (*xack)(struct irq_data *));
 
 #ifdef CONFIG_PCI_MSI
-void nlm_dispatch_msi(int node, int lirq);
-void nlm_dispatch_msix(int node, int msixirq);
+void nlm_dispatch_msi(int yesde, int lirq);
+void nlm_dispatch_msix(int yesde, int msixirq);
 #endif
 
 /*
- * The NR_IRQs is divided between nodes, each of them has a separate irq space
+ * The NR_IRQs is divided between yesdes, each of them has a separate irq space
  */
-static inline int nlm_irq_to_xirq(int node, int irq)
+static inline int nlm_irq_to_xirq(int yesde, int irq)
 {
-	return node * NR_IRQS / NLM_NR_NODES + irq;
+	return yesde * NR_IRQS / NLM_NR_NODES + irq;
 }
 
 #ifdef CONFIG_CPU_XLR
-#define nlm_cores_per_node()	8
+#define nlm_cores_per_yesde()	8
 #else
-static inline int nlm_cores_per_node(void)
+static inline int nlm_cores_per_yesde(void)
 {
 	return ((read_c0_prid() & PRID_IMP_MASK)
 				== PRID_IMP_NETLOGIC_XLP9XX) ? 32 : 8;
 }
 #endif
-static inline int nlm_threads_per_node(void)
+static inline int nlm_threads_per_yesde(void)
 {
-	return nlm_cores_per_node() * NLM_THREADS_PER_CORE;
+	return nlm_cores_per_yesde() * NLM_THREADS_PER_CORE;
 }
 
-static inline int nlm_hwtid_to_node(int hwtid)
+static inline int nlm_hwtid_to_yesde(int hwtid)
 {
-	return hwtid / nlm_threads_per_node();
+	return hwtid / nlm_threads_per_yesde();
 }
 
 extern int nlm_cpu_ready[];

@@ -2,7 +2,7 @@
 #ifndef __NVKM_EVENT_H__
 #define __NVKM_EVENT_H__
 #include <core/os.h>
-struct nvkm_notify;
+struct nvkm_yestify;
 struct nvkm_object;
 
 struct nvkm_event {
@@ -19,8 +19,8 @@ struct nvkm_event {
 
 struct nvkm_event_func {
 	int  (*ctor)(struct nvkm_object *, void *data, u32 size,
-		     struct nvkm_notify *);
-	void (*send)(void *data, u32 size, struct nvkm_notify *);
+		     struct nvkm_yestify *);
+	void (*send)(void *data, u32 size, struct nvkm_yestify *);
 	void (*init)(struct nvkm_event *, int type, int index);
 	void (*fini)(struct nvkm_event *, int type, int index);
 };

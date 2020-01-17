@@ -77,13 +77,13 @@ static irqreturn_t srf04_handle_irq(int irq, void *dev_id)
 {
 	struct iio_dev *indio_dev = dev_id;
 	struct srf04_data *data = iio_priv(indio_dev);
-	ktime_t now = ktime_get();
+	ktime_t yesw = ktime_get();
 
 	if (gpiod_get_value(data->gpiod_echo)) {
-		data->ts_rising = now;
+		data->ts_rising = yesw;
 		complete(&data->rising);
 	} else {
-		data->ts_falling = now;
+		data->ts_falling = yesw;
 		complete(&data->falling);
 	}
 
@@ -110,7 +110,7 @@ static int srf04_read(struct srf04_data *data)
 	udelay(data->cfg->trigger_pulse_us);
 	gpiod_set_value(data->gpiod_trig, 0);
 
-	/* it should not take more than 20 ms until echo is rising */
+	/* it should yest take more than 20 ms until echo is rising */
 	ret = wait_for_completion_killable_timeout(&data->rising, HZ/50);
 	if (ret < 0) {
 		mutex_unlock(&data->lock);
@@ -120,7 +120,7 @@ static int srf04_read(struct srf04_data *data)
 		return -ETIMEDOUT;
 	}
 
-	/* it cannot take more than 50 ms until echo is falling */
+	/* it canyest take more than 50 ms until echo is falling */
 	ret = wait_for_completion_killable_timeout(&data->falling, HZ/20);
 	if (ret < 0) {
 		mutex_unlock(&data->lock);
@@ -138,8 +138,8 @@ static int srf04_read(struct srf04_data *data)
 	/*
 	 * measuring more than 6,45 meters is beyond the capabilities of
 	 * the supported sensors
-	 * ==> filter out invalid results for not measuring echos of
-	 *     another us sensor
+	 * ==> filter out invalid results for yest measuring echos of
+	 *     ayesther us sensor
 	 *
 	 * formula:
 	 *         distance     6,45 * 2 m
@@ -269,7 +269,7 @@ static int srf04_probe(struct platform_device *pdev)
 	}
 
 	if (gpiod_cansleep(data->gpiod_echo)) {
-		dev_err(data->dev, "cansleep-GPIOs not supported\n");
+		dev_err(data->dev, "cansleep-GPIOs yest supported\n");
 		return -ENODEV;
 	}
 

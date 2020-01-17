@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -93,7 +93,7 @@ static void amdgpu_display_flip_work_func(struct work_struct *__work)
 	 * targeted by the flip
 	 */
 	if (amdgpu_crtc->enabled &&
-	    (amdgpu_display_get_crtc_scanoutpos(adev->ddev, work->crtc_id, 0,
+	    (amdgpu_display_get_crtc_scayesutpos(adev->ddev, work->crtc_id, 0,
 						&vpos, &hpos, NULL, NULL,
 						&crtc->hwmode)
 	     & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
@@ -299,7 +299,7 @@ int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
 		adev->have_disp_power_ref = true;
 		return ret;
 	}
-	/* if we have no active crtcs, then drop the power ref
+	/* if we have yes active crtcs, then drop the power ref
 	   we got before */
 	if (!active && adev->have_disp_power_ref) {
 		pm_runtime_put_autosuspend(dev->dev);
@@ -407,7 +407,7 @@ void amdgpu_display_print_display_setup(struct drm_device *dev)
 			    connector->connector_type == DRM_MODE_CONNECTOR_DVIA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)
-				DRM_INFO("  DDC: no ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
+				DRM_INFO("  DDC: yes ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
 		}
 		DRM_INFO("  Encoders:\n");
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
@@ -507,10 +507,10 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 #if defined(CONFIG_DRM_AMD_DC)
 	/*
 	 * if amdgpu_bo_support_uswc returns false it means that USWC mappings
-	 * is not supported for this board. But this mapping is required
-	 * to avoid hang caused by placement of scanout BO in GTT on certain
+	 * is yest supported for this board. But this mapping is required
+	 * to avoid hang caused by placement of scayesut BO in GTT on certain
 	 * APUs. So force the BO placement to VRAM in case this architecture
-	 * will not allow USWC mappings.
+	 * will yest allow USWC mappings.
 	 * Also, don't allow GTT domain if the BO doens't have USWC falg set.
 	 */
 	if (adev->asic_type >= CHIP_CARRIZO &&
@@ -557,9 +557,9 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 		return ERR_PTR(-ENOENT);
 	}
 
-	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
+	/* Handle is imported dma-buf, so canyest be migrated to VRAM for scayesut */
 	if (obj->import_attach) {
-		DRM_DEBUG_KMS("Cannot create framebuffer from imported dma_buf\n");
+		DRM_DEBUG_KMS("Canyest create framebuffer from imported dma_buf\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -758,7 +758,7 @@ bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 }
 
 /*
- * Retrieve current video scanout position of crtc on a given gpu, and
+ * Retrieve current video scayesut position of crtc on a given gpu, and
  * an optional accurate timestamp of when query happened.
  *
  * \param dev Device to query.
@@ -773,17 +773,17 @@ bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  *              fudged earlier start of vblank in *vpos and the distance
  *              to true start of vblank in *hpos.
  *
- * \param *vpos Location where vertical scanout position should be stored.
- * \param *hpos Location where horizontal scanout position should go.
+ * \param *vpos Location where vertical scayesut position should be stored.
+ * \param *hpos Location where horizontal scayesut position should go.
  * \param *stime Target location for timestamp taken immediately before
- *               scanout position query. Can be NULL to skip timestamp.
+ *               scayesut position query. Can be NULL to skip timestamp.
  * \param *etime Target location for timestamp taken immediately after
- *               scanout position query. Can be NULL to skip timestamp.
+ *               scayesut position query. Can be NULL to skip timestamp.
  *
- * Returns vpos as a positive number while in active scanout area.
+ * Returns vpos as a positive number while in active scayesut area.
  * Returns vpos as a negative number inside vblank, counting the number
  * of scanlines to go until end of vblank, e.g., -1 means "one scanline
- * until start of active scanout / end of vblank."
+ * until start of active scayesut / end of vblank."
  *
  * \return Flags, or'ed together as follows:
  *
@@ -791,10 +791,10 @@ bool amdgpu_display_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * DRM_SCANOUTPOS_INVBL = Inside vblank.
  * DRM_SCANOUTPOS_ACCURATE = Returned position is accurate. A lack of
  * this flag means that returned position may be offset by a constant but
- * unknown small number of scanlines wrt. real scanout position.
+ * unkyeswn small number of scanlines wrt. real scayesut position.
  *
  */
-int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
+int amdgpu_display_get_crtc_scayesutpos(struct drm_device *dev,
 			unsigned int pipe, unsigned int flags, int *vpos,
 			int *hpos, ktime_t *stime, ktime_t *etime,
 			const struct drm_display_mode *mode)
@@ -811,7 +811,7 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 	if (stime)
 		*stime = ktime_get();
 
-	if (amdgpu_display_page_flip_get_scanoutpos(adev, pipe, &vbl, &position) == 0)
+	if (amdgpu_display_page_flip_get_scayesutpos(adev, pipe, &vbl, &position) == 0)
 		ret |= DRM_SCANOUTPOS_VALID;
 
 	/* Get optional system timestamp after query. */
@@ -820,7 +820,7 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 
 	/* preempt_enable_rt() should go right here in PREEMPT_RT patchset. */
 
-	/* Decode into vertical and horizontal scanout position. */
+	/* Decode into vertical and horizontal scayesut position. */
 	*vpos = position & 0x1fff;
 	*hpos = (position >> 16) & 0x1fff;
 
@@ -850,13 +850,13 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 	 *
 	 * The cause of the "early" vblank irq is that the irq is triggered
 	 * by the line buffer logic when the line buffer read position enters
-	 * the vblank, whereas our crtc scanout position naturally lags the
+	 * the vblank, whereas our crtc scayesut position naturally lags the
 	 * line buffer read position.
 	 */
 	if (!(flags & USE_REAL_VBLANKSTART))
 		vbl_start -= adev->mode_info.crtcs[pipe]->lb_vblank_lead_lines;
 
-	/* Test scanout position against vblank region. */
+	/* Test scayesut position against vblank region. */
 	if ((*vpos < vbl_start) && (*vpos >= vbl_end))
 		in_vbl = false;
 
@@ -872,9 +872,9 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 	}
 
 	/* Check if inside vblank area and apply corrective offsets:
-	 * vpos will then be >=0 in video scanout area, but negative
+	 * vpos will then be >=0 in video scayesut area, but negative
 	 * within vblank area, counting down the number of lines until
-	 * start of scanout.
+	 * start of scayesut.
 	 */
 
 	/* Inside "upper part" of vblank area? Apply corrective offset if so: */
@@ -883,7 +883,7 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 
 		/* With variable refresh rate displays the vpos can exceed
 		 * the vtotal value. Clamp to 0 to return -vbl_end instead
-		 * of guessing the remaining number of lines until scanout.
+		 * of guessing the remaining number of lines until scayesut.
 		 */
 		*vpos = (*vpos < vtotal) ? (*vpos - vtotal) : 0;
 	}

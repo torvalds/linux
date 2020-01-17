@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -36,7 +36,7 @@
  * @host:	host to identify
  * @buffer:	userspace buffer for identification
  *
- * Return an identifying string at @buffer, if @buffer is non-NULL, filling
+ * Return an identifying string at @buffer, if @buffer is yesn-NULL, filling
  * to the length stored at * (int *) @buffer.
  */
 static int ioctl_probe(struct Scsi_Host *host, void __user *buffer)
@@ -69,7 +69,7 @@ static int ioctl_probe(struct Scsi_Host *host, void __user *buffer)
  * The IOCTL_NORMAL_TIMEOUT and NORMAL_RETRIES  variables are used.  
  * 
  * dev is the SCSI device struct ptr, *(int *) arg is the length of the
- * input data, if any, not including the command string & counts, 
+ * input data, if any, yest including the command string & counts, 
  * *((int *)arg + 1) is the output buffer size in bytes.
  * 
  * *(char *) ((int *) arg)[2] the actual command byte.   
@@ -77,11 +77,11 @@ static int ioctl_probe(struct Scsi_Host *host, void __user *buffer)
  * Note that if more than MAX_BUF bytes are requested to be transferred,
  * the ioctl will fail with error EINVAL.
  * 
- * This size *does not* include the initial lengths that were passed.
+ * This size *does yest* include the initial lengths that were passed.
  * 
  * The SCSI command is read from the memory location immediately after the
  * length words, and the input data is right after the command.  The SCSI
- * routines know the command size based on the opcode decode.  
+ * routines kyesw the command size based on the opcode decode.  
  * 
  * The output area is then filled in starting from the command byte. 
  */
@@ -114,17 +114,17 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 					    "asc=0x%x ascq=0x%x\n",
 					    sshdr.asc, sshdr.ascq);
 			break;
-		case NOT_READY:	/* This happens if there is no disc in drive */
+		case NOT_READY:	/* This happens if there is yes disc in drive */
 			if (sdev->removable)
 				break;
 			/* FALLTHROUGH */
 		case UNIT_ATTENTION:
 			if (sdev->removable) {
 				sdev->changed = 1;
-				result = 0;	/* This is no longer considered an error */
+				result = 0;	/* This is yes longer considered an error */
 				break;
 			}
-			/* FALLTHROUGH -- for non-removable media */
+			/* FALLTHROUGH -- for yesn-removable media */
 		default:
 			sdev_printk(KERN_INFO, sdev,
 				    "ioctl_internal_command return code = %x\n",
@@ -196,7 +196,7 @@ static int scsi_ioctl_get_pci(struct scsi_device *sdev, void __user *arg)
  * @arg: data associated with ioctl
  *
  * Description: The scsi_ioctl() function differs from most ioctls in that it
- * does not take a major/minor number as the dev field.  Rather, it takes
+ * does yest take a major/miyesr number as the dev field.  Rather, it takes
  * a pointer to a &struct scsi_device.
  */
 int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
@@ -228,13 +228,13 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 		__put_user((sdev->id & 0xff)
 			 + ((sdev->lun & 0xff) << 8)
 			 + ((sdev->channel & 0xff) << 16)
-			 + ((sdev->host->host_no & 0xff) << 24),
+			 + ((sdev->host->host_yes & 0xff) << 24),
 			 &((struct scsi_idlun __user *)arg)->dev_id);
 		__put_user(sdev->host->unique_id,
 			 &((struct scsi_idlun __user *)arg)->host_unique_id);
 		return 0;
 	case SCSI_IOCTL_GET_BUS_NUMBER:
-		return put_user(sdev->host->host_no, (int __user *)arg);
+		return put_user(sdev->host->host_yes, (int __user *)arg);
 	case SCSI_IOCTL_PROBE_HOST:
 		return ioctl_probe(sdev->host, arg);
 	case SCSI_IOCTL_SEND_COMMAND:

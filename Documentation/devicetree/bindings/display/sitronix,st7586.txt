@@ -3,10 +3,10 @@ Sitronix ST7586 display panel
 Required properties:
 - compatible:	"lego,ev3-lcd".
 - a0-gpios:	The A0 signal (since this binding is for serial mode, this is
-                the pin labeled D1 on the controller, not the pin labeled A0)
+                the pin labeled D1 on the controller, yest the pin labeled A0)
 - reset-gpios:	Reset pin
 
-The node for this driver must be a child node of a SPI controller, hence
+The yesde for this driver must be a child yesde of a SPI controller, hence
 all mandatory properties described in ../spi/spi-bus.txt must be specified.
 
 Optional properties:

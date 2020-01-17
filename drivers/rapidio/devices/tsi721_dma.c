@@ -2,12 +2,12 @@
 /*
  * DMA Engine support for Tsi721 PCIExpress-to-SRIO bridge
  *
- * Copyright (c) 2011-2014 Integrated Device Technology, Inc.
+ * Copyright (c) 2011-2014 Integrated Device Techyeslogy, Inc.
  * Alexandre Bounine <alexandre.bounine@idt.com>
  */
 
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -304,14 +304,14 @@ static void tsi721_start_dma(struct tsi721_bdma_chan *bdma_chan)
 {
 	if (!tsi721_dma_is_idle(bdma_chan)) {
 		tsi_err(&bdma_chan->dchan.dev->device,
-			"DMAC%d Attempt to start non-idle channel",
+			"DMAC%d Attempt to start yesn-idle channel",
 			bdma_chan->id);
 		return;
 	}
 
 	if (bdma_chan->wr_count == bdma_chan->wr_count_next) {
 		tsi_err(&bdma_chan->dchan.dev->device,
-			"DMAC%d Attempt to start DMA with no BDs ready %d",
+			"DMAC%d Attempt to start DMA with yes BDs ready %d",
 			bdma_chan->id, task_pid_nr(current));
 		return;
 	}
@@ -376,7 +376,7 @@ static void tsi721_dma_tx_err(struct tsi721_bdma_chan *bdma_chan,
 	dma_async_tx_callback callback = txd->callback;
 	void *param = txd->callback_param;
 
-	list_move(&desc->desc_node, &bdma_chan->free_list);
+	list_move(&desc->desc_yesde, &bdma_chan->free_list);
 
 	if (callback)
 		callback(param);
@@ -423,14 +423,14 @@ static int tsi721_submit_sg(struct tsi721_tx_desc *desc)
 	struct device *ch_dev = &dchan->dev->device;
 
 	if (!tsi721_dma_is_idle(bdma_chan)) {
-		tsi_err(ch_dev, "DMAC%d ERR: Attempt to use non-idle channel",
+		tsi_err(ch_dev, "DMAC%d ERR: Attempt to use yesn-idle channel",
 			bdma_chan->id);
 		return -EIO;
 	}
 
 	/*
 	 * Fill DMA channel's hardware buffer descriptors.
-	 * (NOTE: RapidIO destination address is limited to 64 bits for now)
+	 * (NOTE: RapidIO destination address is limited to 64 bits for yesw)
 	 */
 	rio_addr = desc->rio_addr;
 	next_addr = -1;
@@ -540,13 +540,13 @@ static void tsi721_advance_work(struct tsi721_bdma_chan *bdma_chan,
 		return;
 
 	/*
-	 * If there is no data transfer in progress, fetch new descriptor from
+	 * If there is yes data transfer in progress, fetch new descriptor from
 	 * the pending queue.
 	*/
 	if (!desc && !bdma_chan->active_tx && !list_empty(&bdma_chan->queue)) {
 		desc = list_first_entry(&bdma_chan->queue,
-					struct tsi721_tx_desc, desc_node);
-		list_del_init((&desc->desc_node));
+					struct tsi721_tx_desc, desc_yesde);
+		list_del_init((&desc->desc_yesde));
 		bdma_chan->active_tx = desc;
 	}
 
@@ -639,7 +639,7 @@ static void tsi721_dma_tasklet(unsigned long data)
 		desc = bdma_chan->active_tx;
 		desc->status = DMA_ERROR;
 		dma_cookie_complete(&desc->txd);
-		list_add(&desc->desc_node, &bdma_chan->free_list);
+		list_add(&desc->desc_yesde, &bdma_chan->free_list);
 		bdma_chan->active_tx = NULL;
 		if (bdma_chan->active)
 			tsi721_advance_work(bdma_chan, NULL);
@@ -669,7 +669,7 @@ static void tsi721_dma_tasklet(unsigned long data)
 				callback = desc->txd.callback;
 				param = desc->txd.callback_param;
 			}
-			list_add(&desc->desc_node, &bdma_chan->free_list);
+			list_add(&desc->desc_yesde, &bdma_chan->free_list);
 			bdma_chan->active_tx = NULL;
 			if (bdma_chan->active)
 				tsi721_advance_work(bdma_chan, NULL);
@@ -695,7 +695,7 @@ static dma_cookie_t tsi721_tx_submit(struct dma_async_tx_descriptor *txd)
 	dma_cookie_t cookie;
 
 	/* Check if the descriptor is detached from any lists */
-	if (!list_empty(&desc->desc_node)) {
+	if (!list_empty(&desc->desc_yesde)) {
 		tsi_err(&bdma_chan->dchan.dev->device,
 			"DMAC%d wrong state of descriptor %p",
 			bdma_chan->id, txd);
@@ -711,7 +711,7 @@ static dma_cookie_t tsi721_tx_submit(struct dma_async_tx_descriptor *txd)
 
 	cookie = dma_cookie_assign(txd);
 	desc->status = DMA_IN_PROGRESS;
-	list_add_tail(&desc->desc_node, &bdma_chan->queue);
+	list_add_tail(&desc->desc_yesde, &bdma_chan->queue);
 	tsi721_advance_work(bdma_chan, NULL);
 
 	spin_unlock_bh(&bdma_chan->lock);
@@ -750,7 +750,7 @@ static int tsi721_alloc_chan_resources(struct dma_chan *dchan)
 		dma_async_tx_descriptor_init(&desc[i].txd, dchan);
 		desc[i].txd.tx_submit = tsi721_tx_submit;
 		desc[i].txd.flags = DMA_CTRL_ACK;
-		list_add(&desc[i].desc_node, &bdma_chan->free_list);
+		list_add(&desc[i].desc_yesde, &bdma_chan->free_list);
 	}
 
 	dma_cookie_init(dchan);
@@ -867,8 +867,8 @@ struct dma_async_tx_descriptor *tsi721_prep_rio_sg(struct dma_chan *dchan,
 
 	if (!list_empty(&bdma_chan->free_list)) {
 		desc = list_first_entry(&bdma_chan->free_list,
-				struct tsi721_tx_desc, desc_node);
-		list_del_init(&desc->desc_node);
+				struct tsi721_tx_desc, desc_yesde);
+		list_del_init(&desc->desc_yesde);
 		desc->destid = rext->destid;
 		desc->rio_addr = rext->rio_addr;
 		desc->rio_addr_u = 0;
@@ -883,7 +883,7 @@ struct dma_async_tx_descriptor *tsi721_prep_rio_sg(struct dma_chan *dchan,
 
 	if (!txd) {
 		tsi_debug(DMA, &dchan->dev->device,
-			  "DMAC%d free TXD is not available", bdma_chan->id);
+			  "DMAC%d free TXD is yest available", bdma_chan->id);
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -918,10 +918,10 @@ static int tsi721_terminate_all(struct dma_chan *dchan)
 	}
 
 	if (bdma_chan->active_tx)
-		list_add(&bdma_chan->active_tx->desc_node, &list);
+		list_add(&bdma_chan->active_tx->desc_yesde, &list);
 	list_splice_init(&bdma_chan->queue, &list);
 
-	list_for_each_entry_safe(desc, _d, &list, desc_node)
+	list_for_each_entry_safe(desc, _d, &list, desc_yesde)
 		tsi721_dma_tx_err(bdma_chan, desc);
 
 	spin_unlock_bh(&bdma_chan->lock);
@@ -990,7 +990,7 @@ int tsi721_register_dma(struct tsi721_device *priv)
 
 		tasklet_init(&bdma_chan->tasklet, tsi721_dma_tasklet,
 			     (unsigned long)bdma_chan);
-		list_add_tail(&bdma_chan->dchan.device_node,
+		list_add_tail(&bdma_chan->dchan.device_yesde,
 			      &mport->dma.channels);
 		nr_channels++;
 	}
@@ -1025,7 +1025,7 @@ void tsi721_unregister_dma(struct tsi721_device *priv)
 	dma_async_device_unregister(&mport->dma);
 
 	list_for_each_entry_safe(chan, _c, &mport->dma.channels,
-					device_node) {
+					device_yesde) {
 		bdma_chan = to_tsi721_chan(chan);
 		if (bdma_chan->active) {
 			tsi721_bdma_interrupt_enable(bdma_chan, 0);
@@ -1037,6 +1037,6 @@ void tsi721_unregister_dma(struct tsi721_device *priv)
 			tsi721_bdma_ch_free(bdma_chan);
 		}
 
-		list_del(&chan->device_node);
+		list_del(&chan->device_yesde);
 	}
 }

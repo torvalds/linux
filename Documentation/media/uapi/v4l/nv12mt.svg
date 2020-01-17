@@ -1,8 +1,8 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!--
     This file is dual-licensed: you can use it either under the terms
     of the GPL 2.0 or the GFDL 1.1+ license, at your option. Note that this
-    dual licensing only applies to this file, and not this project as a
+    dual licensing only applies to this file, and yest this project as a
     whole.
 
     a) This file is free software; you can redistribute it and/or
@@ -20,11 +20,11 @@
     b) Permission is granted to copy, distribute and/or modify this
        document under the terms of the GNU Free Documentation License,
        Version 1.1 or any later version published by the Free Software
-       Foundation, with no Invariant Sections, no Front-Cover Texts
-       and no Back-Cover Texts. A copy of the license is included at
+       Foundation, with yes Invariant Sections, yes Front-Cover Texts
+       and yes Back-Cover Texts. A copy of the license is included at
        Documentation/media/uapi/fdl-appendix.rst.
 
-    TODO: replace it to GPL-2.0 OR GFDL-1.1-or-later WITH no-invariant-sections
+    TODO: replace it to GPL-2.0 OR GFDL-1.1-or-later WITH yes-invariant-sections
 -->
 <svg
    xmlns:dc="http://purl.org/dc/elements/1.1/"
@@ -43,7 +43,7 @@
    id="svg2"
    inkscape:version="0.91 r13725"
    sodipodi:docname="nv12mt.svg"
-   style="fill-rule:evenodd;stroke-width:28.22200012;stroke-linejoin:round"><metadata
+   style="fill-rule:eveyesdd;stroke-width:28.22200012;stroke-linejoin:round"><metadata
      id="metadata383"><rdf:RDF><cc:Work
 	 rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type
 	   rdf:resource="http://purl.org/dc/dcmitype/StillImage" /><dc:title></dc:title></cc:Work></rdf:RDF></metadata><sodipodi:namedview
@@ -106,11 +106,11 @@
 		 width="2403"
 		 height="1403"
 		 id="rect187"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 4500,4600 -1200,0 0,-1400 2400,0 0,1400 -1200,0 z"
 		 id="path189"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#3465a4" /><text
+		 style="fill:yesne;stroke:#3465a4" /><text
 		 class="TextShape"
 		 id="text191"><tspan
 		   class="TextParagraph"
@@ -123,7 +123,7 @@
 		     y="4121"
 		     id="tspan195"><tspan
 		       id="tspan197"
-		       style="fill:#000000;stroke:none">0</tspan></tspan></tspan></text>
+		       style="fill:#000000;stroke:yesne">0</tspan></tspan></tspan></text>
 </g></g><g
 	     class="com.sun.star.drawing.CustomShape"
 	     id="g199"><g
@@ -134,11 +134,11 @@
 		 width="2403"
 		 height="1403"
 		 id="rect202"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 6900,4600 -1200,0 0,-1400 2400,0 0,1400 -1200,0 z"
 		 id="path204"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#3465a4" /></g></g><g
+		 style="fill:yesne;stroke:#3465a4" /></g></g><g
 	     class="com.sun.star.drawing.CustomShape"
 	     id="g206"><g
 	       id="id8"><rect
@@ -148,11 +148,11 @@
 		 width="2403"
 		 height="1403"
 		 id="rect209"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 9300,4600 -1200,0 0,-1400 2400,0 0,1400 -1200,0 z"
 		 id="path211"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#3465a4" /><text
+		 style="fill:yesne;stroke:#3465a4" /><text
 		 class="TextShape"
 		 id="text213"><tspan
 		   class="TextParagraph"
@@ -165,7 +165,7 @@
 		     y="4121"
 		     id="tspan217"><tspan
 		       id="tspan219"
-		       style="fill:#000000;stroke:none">6</tspan></tspan></tspan></text>
+		       style="fill:#000000;stroke:yesne">6</tspan></tspan></tspan></text>
 </g></g><g
 	     class="com.sun.star.drawing.CustomShape"
 	     id="g221"><g
@@ -176,11 +176,11 @@
 		 width="2403"
 		 height="1403"
 		 id="rect224"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 6900,4600 -1200,0 0,-1400 2400,0 0,1400 -1200,0 z"
 		 id="path226"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#3465a4" /><text
+		 style="fill:yesne;stroke:#3465a4" /><text
 		 class="TextShape"
 		 id="text228"><tspan
 		   class="TextParagraph"
@@ -193,7 +193,7 @@
 		     y="4121"
 		     id="tspan232"><tspan
 		       id="tspan234"
-		       style="fill:#000000;stroke:none">1</tspan></tspan></tspan></text>
+		       style="fill:#000000;stroke:yesne">1</tspan></tspan></tspan></text>
 </g></g><g
 	     class="com.sun.star.drawing.CustomShape"
 	     id="g236"><g
@@ -204,11 +204,11 @@
 		 width="2403"
 		 height="1403"
 		 id="rect239"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 11700,4600 -1200,0 0,-1400 2400,0 0,1400 -1200,0 z"
 		 id="path241"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#3465a4" /><text
+		 style="fill:yesne;stroke:#3465a4" /><text
 		 class="TextShape"
 		 id="text243"><tspan
 		   class="TextParagraph"
@@ -221,7 +221,7 @@
 		     y="4121"
 		     id="tspan247"><tspan
 		       id="tspan249"
-		       style="fill:#000000;stroke:none">7</tspan></tspan></tspan></text>
+		       style="fill:#000000;stroke:yesne">7</tspan></tspan></tspan></text>
 </g></g><g
 	     class="com.sun.star.drawing.CustomShape"
 	     id="g251"><g
@@ -232,11 +232,11 @@
 		 width="2403"
 		 height="1403"
 		 id="rect254"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 4500,6000 -1200,0 0,-1400 2400,0 0,1400 -1200,0 z"
 		 id="path256"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#3465a4" /><text
+		 style="fill:yesne;stroke:#3465a4" /><text
 		 class="TextShape"
 		 id="text258"><tspan
 		   class="TextParagraph"
@@ -249,7 +249,7 @@
 		     y="5521"
 		     id="tspan262"><tspan
 		       id="tspan264"
-		       style="fill:#000000;stroke:none">2</tspan></tspan></tspan></text>
+		       style="fill:#000000;stroke:yesne">2</tspan></tspan></tspan></text>
 </g></g><g
 	     class="com.sun.star.drawing.CustomShape"
 	     id="g266"><g
@@ -260,11 +260,11 @@
 		 width="2403"
 		 height="1403"
 		 id="rect269"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 6900,6000 -1200,0 0,-1400 2400,0 0,1400 -1200,0 z"
 		 id="path271"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#3465a4" /></g></g><g
+		 style="fill:yesne;stroke:#3465a4" /></g></g><g
 	     class="com.sun.star.drawing.CustomShape"
 	     id="g273"><g
 	       id="id13"><rect
@@ -274,11 +274,11 @@
 		 width="2403"
 		 height="1403"
 		 id="rect276"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 9300,6000 -1200,0 0,-1400 2400,0 0,1400 -1200,0 z"
 		 id="path278"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#3465a4" /><text
+		 style="fill:yesne;stroke:#3465a4" /><text
 		 class="TextShape"
 		 id="text280"><tspan
 		   class="TextParagraph"
@@ -291,7 +291,7 @@
 		     y="5521"
 		     id="tspan284"><tspan
 		       id="tspan286"
-		       style="fill:#000000;stroke:none">4</tspan></tspan></tspan></text>
+		       style="fill:#000000;stroke:yesne">4</tspan></tspan></tspan></text>
 </g></g><g
 	     class="com.sun.star.drawing.CustomShape"
 	     id="g288"><g
@@ -302,11 +302,11 @@
 		 width="2403"
 		 height="1403"
 		 id="rect291"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 6900,6000 -1200,0 0,-1400 2400,0 0,1400 -1200,0 z"
 		 id="path293"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#3465a4" /><text
+		 style="fill:yesne;stroke:#3465a4" /><text
 		 class="TextShape"
 		 id="text295"><tspan
 		   class="TextParagraph"
@@ -319,7 +319,7 @@
 		     y="5521"
 		     id="tspan299"><tspan
 		       id="tspan301"
-		       style="fill:#000000;stroke:none">3</tspan></tspan></tspan></text>
+		       style="fill:#000000;stroke:yesne">3</tspan></tspan></tspan></text>
 </g></g><g
 	     class="com.sun.star.drawing.CustomShape"
 	     id="g303"><g
@@ -330,11 +330,11 @@
 		 width="2403"
 		 height="1403"
 		 id="rect306"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 11700,6000 -1200,0 0,-1400 2400,0 0,1400 -1200,0 z"
 		 id="path308"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#3465a4" /><text
+		 style="fill:yesne;stroke:#3465a4" /><text
 		 class="TextShape"
 		 id="text310"><tspan
 		   class="TextParagraph"
@@ -347,7 +347,7 @@
 		     y="5521"
 		     id="tspan314"><tspan
 		       id="tspan316"
-		       style="fill:#000000;stroke:none">5</tspan></tspan></tspan></text>
+		       style="fill:#000000;stroke:yesne">5</tspan></tspan></tspan></text>
 </g></g><g
 	     class="com.sun.star.drawing.LineShape"
 	     id="g318"><g
@@ -358,15 +358,15 @@
 		 width="1402"
 		 height="301"
 		 id="rect321"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 5200,4000 970,0"
 		 id="path323"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#ff3333" /><path
+		 style="fill:yesne;stroke:#ff3333" /><path
 		 d="m 6600,4000 -450,-150 0,300 450,-150 z"
 		 id="path325"
 		 inkscape:connector-curvature="0"
-		 style="fill:#ff3333;stroke:none" /></g></g><g
+		 style="fill:#ff3333;stroke:yesne" /></g></g><g
 	     class="com.sun.star.drawing.LineShape"
 	     id="g327"><g
 	       id="id17"><rect
@@ -376,15 +376,15 @@
 		 width="1202"
 		 height="802"
 		 id="rect330"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 6200,4300 -842,561"
 		 id="path332"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#ff3333" /><path
+		 style="fill:yesne;stroke:#ff3333" /><path
 		 d="m 5000,5100 458,-125 -167,-249 -291,374 z"
 		 id="path334"
 		 inkscape:connector-curvature="0"
-		 style="fill:#ff3333;stroke:none" /></g></g><g
+		 style="fill:#ff3333;stroke:yesne" /></g></g><g
 	     class="com.sun.star.drawing.LineShape"
 	     id="g336"><g
 	       id="id18"><rect
@@ -394,15 +394,15 @@
 		 width="1202"
 		 height="301"
 		 id="rect339"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 5400,5400 770,0"
 		 id="path341"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#ff3333" /><path
+		 style="fill:yesne;stroke:#ff3333" /><path
 		 d="m 6600,5400 -450,-150 0,300 450,-150 z"
 		 id="path343"
 		 inkscape:connector-curvature="0"
-		 style="fill:#ff3333;stroke:none" /></g></g><g
+		 style="fill:#ff3333;stroke:yesne" /></g></g><g
 	     class="com.sun.star.drawing.LineShape"
 	     id="g345"><g
 	       id="id19"><rect
@@ -412,15 +412,15 @@
 		 width="1202"
 		 height="301"
 		 id="rect348"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 7600,5400 770,0"
 		 id="path350"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#ff3333" /><path
+		 style="fill:yesne;stroke:#ff3333" /><path
 		 d="m 8800,5400 -450,-150 0,300 450,-150 z"
 		 id="path352"
 		 inkscape:connector-curvature="0"
-		 style="fill:#ff3333;stroke:none" /></g></g><g
+		 style="fill:#ff3333;stroke:yesne" /></g></g><g
 	     class="com.sun.star.drawing.LineShape"
 	     id="g354"><g
 	       id="id20"><rect
@@ -430,15 +430,15 @@
 		 width="1402"
 		 height="301"
 		 id="rect357"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 9800,5400 970,0"
 		 id="path359"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#ff3333" /><path
+		 style="fill:yesne;stroke:#ff3333" /><path
 		 d="m 11200,5400 -450,-150 0,300 450,-150 z"
 		 id="path361"
 		 inkscape:connector-curvature="0"
-		 style="fill:#ff3333;stroke:none" /></g></g><g
+		 style="fill:#ff3333;stroke:yesne" /></g></g><g
 	     class="com.sun.star.drawing.LineShape"
 	     id="g363"><g
 	       id="id21"><rect
@@ -448,15 +448,15 @@
 		 width="1202"
 		 height="802"
 		 id="rect366"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 11100,5000 -842,-561"
 		 id="path368"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#ff3333" /><path
+		 style="fill:yesne;stroke:#ff3333" /><path
 		 d="m 9900,4200 291,374 167,-249 -458,-125 z"
 		 id="path370"
 		 inkscape:connector-curvature="0"
-		 style="fill:#ff3333;stroke:none" /></g></g><g
+		 style="fill:#ff3333;stroke:yesne" /></g></g><g
 	     class="com.sun.star.drawing.LineShape"
 	     id="g372"><g
 	       id="id22"><rect
@@ -466,12 +466,12 @@
 		 width="1402"
 		 height="301"
 		 id="rect375"
-		 style="fill:none;stroke:none" /><path
+		 style="fill:yesne;stroke:yesne" /><path
 		 d="m 10000,4000 970,0"
 		 id="path377"
 		 inkscape:connector-curvature="0"
-		 style="fill:none;stroke:#ff3333" /><path
+		 style="fill:yesne;stroke:#ff3333" /><path
 		 d="m 11400,4000 -450,-150 0,300 450,-150 z"
 		 id="path379"
 		 inkscape:connector-curvature="0"
-		 style="fill:#ff3333;stroke:none" /></g></g></g></g></g></g></svg>
+		 style="fill:#ff3333;stroke:yesne" /></g></g></g></g></g></g></svg>

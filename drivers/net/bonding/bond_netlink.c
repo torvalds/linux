@@ -6,7 +6,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_link.h>
@@ -236,7 +236,7 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 		int arp_interval = nla_get_u32(data[IFLA_BOND_ARP_INTERVAL]);
 
 		if (arp_interval && miimon) {
-			netdev_err(bond->dev, "ARP monitoring cannot be used with MII monitoring\n");
+			netdev_err(bond->dev, "ARP monitoring canyest be used with MII monitoring\n");
 			return -EINVAL;
 		}
 
@@ -274,7 +274,7 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 		int arp_validate = nla_get_u32(data[IFLA_BOND_ARP_VALIDATE]);
 
 		if (arp_validate && miimon) {
-			netdev_err(bond->dev, "ARP validating cannot be used with MII monitoring\n");
+			netdev_err(bond->dev, "ARP validating canyest be used with MII monitoring\n");
 			return -EINVAL;
 		}
 
@@ -343,10 +343,10 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 			return err;
 	}
 	if (data[IFLA_BOND_NUM_PEER_NOTIF]) {
-		int num_peer_notif =
+		int num_peer_yestif =
 			nla_get_u8(data[IFLA_BOND_NUM_PEER_NOTIF]);
 
-		bond_opt_initval(&newval, num_peer_notif);
+		bond_opt_initval(&newval, num_peer_yestif);
 		err = __bond_opt_set(bond, BOND_OPT_NUM_PEER_NOTIF, &newval);
 		if (err)
 			return err;
@@ -547,7 +547,7 @@ static int bond_fill_info(struct sk_buff *skb,
 		goto nla_put_failure;
 
 	if (nla_put_u32(skb, IFLA_BOND_PEER_NOTIF_DELAY,
-			bond->params.peer_notif_delay * bond->params.miimon))
+			bond->params.peer_yestif_delay * bond->params.miimon))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_USE_CARRIER, bond->params.use_carrier))
@@ -556,7 +556,7 @@ static int bond_fill_info(struct sk_buff *skb,
 	if (nla_put_u32(skb, IFLA_BOND_ARP_INTERVAL, bond->params.arp_interval))
 		goto nla_put_failure;
 
-	targets = nla_nest_start_noflag(skb, IFLA_BOND_ARP_IP_TARGET);
+	targets = nla_nest_start_yesflag(skb, IFLA_BOND_ARP_IP_TARGET);
 	if (!targets)
 		goto nla_put_failure;
 
@@ -603,7 +603,7 @@ static int bond_fill_info(struct sk_buff *skb,
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_NUM_PEER_NOTIF,
-		       bond->params.num_peer_notif))
+		       bond->params.num_peer_yestif))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_ALL_SLAVES_ACTIVE,
@@ -654,7 +654,7 @@ static int bond_fill_info(struct sk_buff *skb,
 		if (!bond_3ad_get_active_agg_info(bond, &info)) {
 			struct nlattr *nest;
 
-			nest = nla_nest_start_noflag(skb, IFLA_BOND_AD_INFO);
+			nest = nla_nest_start_yesflag(skb, IFLA_BOND_AD_INFO);
 			if (!nest)
 				goto nla_put_failure;
 
@@ -721,7 +721,7 @@ static int bond_fill_linkxstats(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	nest = nla_nest_start_noflag(skb, LINK_XSTATS_TYPE_BOND);
+	nest = nla_nest_start_yesflag(skb, LINK_XSTATS_TYPE_BOND);
 	if (!nest)
 		return -EMSGSIZE;
 	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
@@ -732,7 +732,7 @@ static int bond_fill_linkxstats(struct sk_buff *skb,
 		else
 			stats = &BOND_AD_INFO(bond).stats;
 
-		nest2 = nla_nest_start_noflag(skb, BOND_XSTATS_3AD);
+		nest2 = nla_nest_start_yesflag(skb, BOND_XSTATS_3AD);
 		if (!nest2) {
 			nla_nest_end(skb, nest);
 			return -EMSGSIZE;

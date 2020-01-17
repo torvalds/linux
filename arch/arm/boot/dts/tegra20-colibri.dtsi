@@ -314,7 +314,7 @@
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 			};
 
-			/* Colibri VGA not supported */
+			/* Colibri VGA yest supported */
 			vga {
 				nvidia,pins = "crtp";
 				nvidia,function = "crt";
@@ -408,7 +408,7 @@
 			/*
 			 * THERMD_ALERT# (On-module), unlatched I2C address pin
 			 * of LM95245 temperature sensor therefore requires
-			 * disabling for now
+			 * disabling for yesw
 			 */
 			lvp0 {
 				nvidia,pins = "lvp0";
@@ -516,7 +516,7 @@
 					regulator-always-on;
 				};
 
-				/* LDO0 is not connected to anything */
+				/* LDO0 is yest connected to anything */
 
 				/*
 				 * +3.3V_ENABLE_N switching via FET:
@@ -536,7 +536,7 @@
 					regulator-max-microvolt = <1200000>;
 				};
 
-				/* LDO3 is not connected to anything */
+				/* LDO3 is yest connected to anything */
 
 				ldo4 {
 					regulator-name = "VDDIO_SYS_1.8V";

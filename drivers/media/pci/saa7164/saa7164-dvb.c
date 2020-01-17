@@ -297,7 +297,7 @@ static int saa7164_dvb_start_feed(struct dvb_demux_feed *feed)
 			ret = saa7164_dvb_start_port(port);
 		}
 		mutex_unlock(&dvb->lock);
-		dprintk(DBGLVL_DVB, "%s(port=%d) now feeding = %d\n",
+		dprintk(DBGLVL_DVB, "%s(port=%d) yesw feeding = %d\n",
 			__func__, port->nr, dvb->feeding);
 	}
 
@@ -321,7 +321,7 @@ static int saa7164_dvb_stop_feed(struct dvb_demux_feed *feed)
 			ret = saa7164_dvb_stop_streaming(port);
 		}
 		mutex_unlock(&dvb->lock);
-		dprintk(DBGLVL_DVB, "%s(port=%d) now feeding = %d\n",
+		dprintk(DBGLVL_DVB, "%s(port=%d) yesw feeding = %d\n",
 			__func__, port->nr, dvb->feeding);
 	}
 
@@ -343,7 +343,7 @@ static int dvb_register(struct saa7164_port *port)
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
 		result = -ENOMEM;
-		printk(KERN_ERR "%s: dvb_register_adapter failed (errno = %d), NO PCI configuration\n",
+		printk(KERN_ERR "%s: dvb_register_adapter failed (erryes = %d), NO PCI configuration\n",
 			DRIVER_NAME, result);
 		goto fail_adapter;
 	}
@@ -371,7 +371,7 @@ static int dvb_register(struct saa7164_port *port)
 
 		if (!buf) {
 			result = -ENOMEM;
-			printk(KERN_ERR "%s: dvb_register_adapter failed (errno = %d), unable to allocate buffers\n",
+			printk(KERN_ERR "%s: dvb_register_adapter failed (erryes = %d), unable to allocate buffers\n",
 				DRIVER_NAME, result);
 			goto fail_adapter;
 		}
@@ -385,7 +385,7 @@ static int dvb_register(struct saa7164_port *port)
 	result = dvb_register_adapter(&dvb->adapter, DRIVER_NAME, THIS_MODULE,
 			&dev->pci->dev, adapter_nr);
 	if (result < 0) {
-		printk(KERN_ERR "%s: dvb_register_adapter failed (errno = %d)\n",
+		printk(KERN_ERR "%s: dvb_register_adapter failed (erryes = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_adapter;
 	}
@@ -394,7 +394,7 @@ static int dvb_register(struct saa7164_port *port)
 	/* register frontend */
 	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
 	if (result < 0) {
-		printk(KERN_ERR "%s: dvb_register_frontend failed (errno = %d)\n",
+		printk(KERN_ERR "%s: dvb_register_frontend failed (erryes = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_frontend;
 	}
@@ -410,7 +410,7 @@ static int dvb_register(struct saa7164_port *port)
 	dvb->demux.stop_feed  = saa7164_dvb_stop_feed;
 	result = dvb_dmx_init(&dvb->demux);
 	if (result < 0) {
-		printk(KERN_ERR "%s: dvb_dmx_init failed (errno = %d)\n",
+		printk(KERN_ERR "%s: dvb_dmx_init failed (erryes = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_dmx;
 	}
@@ -420,7 +420,7 @@ static int dvb_register(struct saa7164_port *port)
 	dvb->dmxdev.capabilities = 0;
 	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (result < 0) {
-		printk(KERN_ERR "%s: dvb_dmxdev_init failed (errno = %d)\n",
+		printk(KERN_ERR "%s: dvb_dmxdev_init failed (erryes = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_dmxdev;
 	}
@@ -428,7 +428,7 @@ static int dvb_register(struct saa7164_port *port)
 	dvb->fe_hw.source = DMX_FRONTEND_0;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		printk(KERN_ERR "%s: add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
+		printk(KERN_ERR "%s: add_frontend failed (DMX_FRONTEND_0, erryes = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_fe_hw;
 	}
@@ -436,14 +436,14 @@ static int dvb_register(struct saa7164_port *port)
 	dvb->fe_mem.source = DMX_MEMORY_FE;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
-		printk(KERN_ERR "%s: add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+		printk(KERN_ERR "%s: add_frontend failed (DMX_MEMORY_FE, erryes = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_fe_mem;
 	}
 
 	result = dvb->demux.dmx.connect_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		printk(KERN_ERR "%s: connect_frontend failed (errno = %d)\n",
+		printk(KERN_ERR "%s: connect_frontend failed (erryes = %d)\n",
 		       DRIVER_NAME, result);
 		goto fail_fe_conn;
 	}

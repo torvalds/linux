@@ -5,7 +5,7 @@
  *
  * Author(s): Christian Borntraeger <borntraeger@de.ibm.com>
  *
- * z/VMs CP offers the possibility to issue commands via the diagnose code 8
+ * z/VMs CP offers the possibility to issue commands via the diagyesse code 8
  * this driver implements a character device that issues these commands and
  * returns the answer of CP.
  *
@@ -98,7 +98,7 @@ static void vmcp_response_free(struct vmcp_session *session)
 	session->response = NULL;
 }
 
-static int vmcp_open(struct inode *inode, struct file *file)
+static int vmcp_open(struct iyesde *iyesde, struct file *file)
 {
 	struct vmcp_session *session;
 
@@ -114,10 +114,10 @@ static int vmcp_open(struct inode *inode, struct file *file)
 	session->resp_size = 0;
 	mutex_init(&session->mutex);
 	file->private_data = session;
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
-static int vmcp_release(struct inode *inode, struct file *file)
+static int vmcp_release(struct iyesde *iyesde, struct file *file)
 {
 	struct vmcp_session *session;
 
@@ -186,14 +186,14 @@ vmcp_write(struct file *file, const char __user *buff, size_t count,
 
 
 /*
- * These ioctls are available, as the semantics of the diagnose 8 call
- * does not fit very well into a Linux call. Diagnose X'08' is described in
+ * These ioctls are available, as the semantics of the diagyesse 8 call
+ * does yest fit very well into a Linux call. Diagyesse X'08' is described in
  * CP Programming Services SC24-6084-00
  *
  * VMCP_GETCODE: gives the CP return code back to user space
- * VMCP_SETBUF: sets the response buffer for the next write call. diagnose 8
+ * VMCP_SETBUF: sets the response buffer for the next write call. diagyesse 8
  * expects adjacent pages in real storage and to make matters worse, we
- * dont know the size of the response. Therefore we default to PAGESIZE and
+ * dont kyesw the size of the response. Therefore we default to PAGESIZE and
  * let userspace to change the response size, if userspace expects a bigger
  * response
  */
@@ -242,12 +242,12 @@ static const struct file_operations vmcp_fops = {
 	.write		= vmcp_write,
 	.unlocked_ioctl	= vmcp_ioctl,
 	.compat_ioctl	= vmcp_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice vmcp_dev = {
 	.name	= "vmcp",
-	.minor	= MISC_DYNAMIC_MINOR,
+	.miyesr	= MISC_DYNAMIC_MINOR,
 	.fops	= &vmcp_fops,
 };
 

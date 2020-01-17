@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * I2C multi-instantiate driver, pseudo driver to instantiate multiple
- * i2c-clients from a single fwnode.
+ * i2c-clients from a single fwyesde.
  *
  * Copyright 2018 Hans de Goede <hdegoede@redhat.com>
  */
@@ -161,7 +161,7 @@ static const struct i2c_inst_data bsg1160_data[]  = {
 static const struct i2c_inst_data bsg2150_data[]  = {
 	{ "bmc150_accel", IRQ_RESOURCE_GPIO, 0 },
 	{ "bmc150_magn" },
-	/* The resources describe a 3th client, but it is not really there. */
+	/* The resources describe a 3th client, but it is yest really there. */
 	{ "bsg2150_dummy_dev" },
 	{}
 };

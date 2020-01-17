@@ -174,10 +174,10 @@ static void run_test(int cgroup_fd)
 	struct bpf_object *obj;
 	void *server_err;
 	pthread_t tid;
-	int ignored;
+	int igyesred;
 	int err;
 
-	err = bpf_prog_load_xattr(&attr, &obj, &ignored);
+	err = bpf_prog_load_xattr(&attr, &obj, &igyesred);
 	if (CHECK_FAIL(err))
 		return;
 

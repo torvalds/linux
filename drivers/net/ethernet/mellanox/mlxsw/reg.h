@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #ifndef _MLXSW_REG_H
 #define _MLXSW_REG_H
@@ -41,7 +41,7 @@ MLXSW_REG_DEFINE(sgcr, MLXSW_REG_SGCR_ID, MLXSW_REG_SGCR_LEN);
 /* reg_sgcr_llb
  * Link Local Broadcast (Default=0)
  * When set, all Link Local packets (224.0.0.X) will be treated as broadcast
- * packets and ignore the IGMP snooping entries.
+ * packets and igyesre the IGMP syesoping entries.
  * Access: RW
  */
 MLXSW_ITEM32(reg, sgcr, llb, 0x04, 0, 1);
@@ -145,7 +145,7 @@ MLXSW_ITEM32(reg, sspr, local_port, 0x00, 16, 8);
 
 /* reg_sspr_sub_port
  * Virtual port within the physical port.
- * Should be set to 0 when virtual ports are not enabled on the port.
+ * Should be set to 0 when virtual ports are yest enabled on the port.
  *
  * Access: RW
  */
@@ -235,19 +235,19 @@ enum mlxsw_reg_sfd_op {
 	 * added to the FDB.
 	 */
 	MLXSW_REG_SFD_OP_WRITE_TEST = 0,
-	/* Add/modify. Aged-out records cannot be added. This command removes
-	 * the learning notification of the {MAC, VID/FID}. Response includes
+	/* Add/modify. Aged-out records canyest be added. This command removes
+	 * the learning yestification of the {MAC, VID/FID}. Response includes
 	 * the entries that were added to the FDB.
 	 */
 	MLXSW_REG_SFD_OP_WRITE_EDIT = 1,
 	/* Remove record by {MAC, VID/FID}. This command also removes
-	 * the learning notification and aged-out notifications
+	 * the learning yestification and aged-out yestifications
 	 * of the {MAC, VID/FID}. The response provides current (pre-removal)
-	 * entries as non-aged-out.
+	 * entries as yesn-aged-out.
 	 */
 	MLXSW_REG_SFD_OP_WRITE_REMOVE = 2,
-	/* Remove learned notification by {MAC, VID/FID}. The response provides
-	 * the removed learning notification.
+	/* Remove learned yestification by {MAC, VID/FID}. The response provides
+	 * the removed learning yestification.
 	 */
 	MLXSW_REG_SFD_OP_WRITE_REMOVE_NOTIFICATION = 2,
 };
@@ -309,7 +309,7 @@ enum mlxsw_reg_sfd_rec_policy {
 	/* Replacement disabled, aging disabled. */
 	MLXSW_REG_SFD_REC_POLICY_STATIC_ENTRY = 0,
 	/* (mlag remote): Replacement enabled, aging disabled,
-	 * learning notification enabled on this port.
+	 * learning yestification enabled on this port.
 	 */
 	MLXSW_REG_SFD_REC_POLICY_DYNAMIC_ENTRY_MLAG = 1,
 	/* (ingress device): Replacement enabled, aging enabled. */
@@ -344,7 +344,7 @@ enum mlxsw_reg_sfd_rec_action {
 	MLXSW_REG_SFD_REC_ACTION_NOP = 0,
 	/* forward and trap, trap_id is FDB_TRAP */
 	MLXSW_REG_SFD_REC_ACTION_MIRROR_TO_CPU = 1,
-	/* trap and do not forward, trap_id is FDB_TRAP */
+	/* trap and do yest forward, trap_id is FDB_TRAP */
 	MLXSW_REG_SFD_REC_ACTION_TRAP = 2,
 	/* forward to IP router */
 	MLXSW_REG_SFD_REC_ACTION_FORWARD_IP_ROUTER = 3,
@@ -361,8 +361,8 @@ MLXSW_ITEM32_INDEXED(reg, sfd, rec_action, MLXSW_REG_SFD_BASE_LEN, 28, 4,
 
 /* reg_sfd_uc_sub_port
  * VEPA channel on local port.
- * Valid only if local port is a non-stacking port. Must be 0 if multichannel
- * VEPA is not enabled.
+ * Valid only if local port is a yesn-stacking port. Must be 0 if multichannel
+ * VEPA is yest enabled.
  * Access: RW
  */
 MLXSW_ITEM32_INDEXED(reg, sfd, uc_sub_port, MLXSW_REG_SFD_BASE_LEN, 16, 8,
@@ -375,7 +375,7 @@ MLXSW_ITEM32_INDEXED(reg, sfd, uc_sub_port, MLXSW_REG_SFD_BASE_LEN, 16, 8,
  * - Static entries (policy 0) use VID
  * - When independent learning is configured, VID=FID
  * For Spectrum: use FID for both Dynamic and Static entries.
- * VID should not be used.
+ * VID should yest be used.
  * Access: Index
  */
 MLXSW_ITEM32_INDEXED(reg, sfd, uc_fid_vid, MLXSW_REG_SFD_BASE_LEN, 0, 16,
@@ -428,7 +428,7 @@ static inline void mlxsw_reg_sfd_uc_unpack(char *payload, int rec_index,
 
 /* reg_sfd_uc_lag_sub_port
  * LAG sub port.
- * Must be 0 if multichannel VEPA is not enabled.
+ * Must be 0 if multichannel VEPA is yest enabled.
  * Access: RW
  */
 MLXSW_ITEM32_INDEXED(reg, sfd, uc_lag_sub_port, MLXSW_REG_SFD_BASE_LEN, 16, 8,
@@ -441,7 +441,7 @@ MLXSW_ITEM32_INDEXED(reg, sfd, uc_lag_sub_port, MLXSW_REG_SFD_BASE_LEN, 16, 8,
  * - Static entries (policy 0) use VID
  * - When independent learning is configured, VID=FID
  * For Spectrum: use FID for both Dynamic and Static entries.
- * VID should not be used.
+ * VID should yest be used.
  * Access: Index
  */
 MLXSW_ITEM32_INDEXED(reg, sfd, uc_lag_fid_vid, MLXSW_REG_SFD_BASE_LEN, 0, 16,
@@ -583,8 +583,8 @@ mlxsw_reg_sfd_uc_tunnel_pack(char *payload, int rec_index,
 
 /* SFN - Switch FDB Notification Register
  * -------------------------------------------
- * The switch provides notifications on newly learned FDB entries and
- * aged out entries. The notifications can be polled by software.
+ * The switch provides yestifications on newly learned FDB entries and
+ * aged out entries. The yestifications can be polled by software.
  */
 #define MLXSW_REG_SFN_ID 0x200B
 #define MLXSW_REG_SFN_BASE_LEN 0x10 /* base length, without records */
@@ -608,9 +608,9 @@ MLXSW_ITEM32(reg, sfn, swid, 0x00, 24, 8);
 MLXSW_ITEM32(reg, sfn, end, 0x04, 20, 1);
 
 /* reg_sfn_num_rec
- * Request: Number of learned notifications and aged-out notification
+ * Request: Number of learned yestifications and aged-out yestification
  * records requested.
- * Response: Number of notification records returned (must be smaller
+ * Response: Number of yestification records returned (must be smaller
  * than or equal to the value requested)
  * Ranges 0..64
  * Access: OP
@@ -663,7 +663,7 @@ MLXSW_ITEM_BUF_INDEXED(reg, sfn, rec_mac, MLXSW_REG_SFN_BASE_LEN, 6,
 
 /* reg_sfn_mac_sub_port
  * VEPA channel on the local port.
- * 0 if multichannel VEPA is not enabled.
+ * 0 if multichannel VEPA is yest enabled.
  * Access: RO
  */
 MLXSW_ITEM32_INDEXED(reg, sfn, mac_sub_port, MLXSW_REG_SFN_BASE_LEN, 16, 8,
@@ -792,9 +792,9 @@ enum mlxsw_reg_spms_state {
 
 /* reg_spms_state
  * Spanning tree state of each VLAN ID (VID) of the local port.
- * 0 - Do not change spanning tree state (used only when writing).
+ * 0 - Do yest change spanning tree state (used only when writing).
  * 1 - Discarding. No learning or forwarding to/from this port (default).
- * 2 - Learning. Port is learning, but not forwarding.
+ * 2 - Learning. Port is learning, but yest forwarding.
  * 3 - Forwarding. Port is learning and forwarding.
  * Access: RW
  */
@@ -829,7 +829,7 @@ MLXSW_ITEM32(reg, spvid, local_port, 0x00, 16, 8);
 
 /* reg_spvid_sub_port
  * Virtual port within the physical port.
- * Should be set to 0 when virtual ports are not enabled on the port.
+ * Should be set to 0 when virtual ports are yest enabled on the port.
  * Access: Index
  */
 MLXSW_ITEM32(reg, spvid, sub_port, 0x00, 8, 8);
@@ -850,7 +850,7 @@ static inline void mlxsw_reg_spvid_pack(char *payload, u8 local_port, u16 pvid)
 /* SPVM - Switch Port VLAN Membership
  * ----------------------------------
  * The Switch Port VLAN Membership register configures the VLAN membership
- * of a port in a VLAN denoted by VID. VLAN membership is managed per
+ * of a port in a VLAN deyested by VID. VLAN membership is managed per
  * virtual port. The register can be used to add and remove VID(s) from a port.
  */
 #define MLXSW_REG_SPVM_ID 0x200F
@@ -885,7 +885,7 @@ MLXSW_ITEM32(reg, spvm, local_port, 0x00, 16, 8);
 
 /* reg_spvm_sub_port
  * Virtual port within the physical port.
- * Should be set to 0 when virtual ports are not enabled on the port.
+ * Should be set to 0 when virtual ports are yest enabled on the port.
  * Access: Index
  */
 MLXSW_ITEM32(reg, spvm, sub_port, 0x00, 8, 8);
@@ -962,13 +962,13 @@ MLXSW_REG_DEFINE(spaft, MLXSW_REG_SPAFT_ID, MLXSW_REG_SPAFT_LEN);
  * Local port number.
  * Access: Index
  *
- * Note: CPU port is not supported (all tag types are allowed).
+ * Note: CPU port is yest supported (all tag types are allowed).
  */
 MLXSW_ITEM32(reg, spaft, local_port, 0x00, 16, 8);
 
 /* reg_spaft_sub_port
  * Virtual port within the physical port.
- * Should be set to 0 when virtual ports are not enabled on the port.
+ * Should be set to 0 when virtual ports are yest enabled on the port.
  * Access: RW
  */
 MLXSW_ITEM32(reg, spaft, sub_port, 0x00, 8, 8);
@@ -1053,7 +1053,7 @@ enum mlxsw_flood_table_type {
  * See mlxsw_flood_table_type
  * Access: RW
  *
- * Note: FID offset and FID types are not supported in SwitchX-2.
+ * Note: FID offset and FID types are yest supported in SwitchX-2.
  */
 MLXSW_ITEM32(reg, sfgc, table_type, 0x04, 16, 3);
 
@@ -1169,7 +1169,7 @@ static inline void mlxsw_reg_sftr_pack(char *payload,
 /* SFDF - Switch Filtering DB Flush
  * --------------------------------
  * The switch filtering DB flush register is used to flush the FDB.
- * Note that FDB notifications are flushed as well.
+ * Note that FDB yestifications are flushed as well.
  */
 #define MLXSW_REG_SFDF_ID 0x2013
 #define MLXSW_REG_SFDF_LEN 0x14
@@ -1385,28 +1385,28 @@ MLXSW_ITEM32(reg, slcr, type, 0x00, 0, 4);
 #define MLXSW_REG_SLCR_LAG_HASH_IN_PORT		BIT(0)
 /* SMAC - for IPv4 and IPv6 packets */
 #define MLXSW_REG_SLCR_LAG_HASH_SMAC_IP		BIT(1)
-/* SMAC - for non-IP packets */
+/* SMAC - for yesn-IP packets */
 #define MLXSW_REG_SLCR_LAG_HASH_SMAC_NONIP	BIT(2)
 #define MLXSW_REG_SLCR_LAG_HASH_SMAC \
 	(MLXSW_REG_SLCR_LAG_HASH_SMAC_IP | \
 	 MLXSW_REG_SLCR_LAG_HASH_SMAC_NONIP)
 /* DMAC - for IPv4 and IPv6 packets */
 #define MLXSW_REG_SLCR_LAG_HASH_DMAC_IP		BIT(3)
-/* DMAC - for non-IP packets */
+/* DMAC - for yesn-IP packets */
 #define MLXSW_REG_SLCR_LAG_HASH_DMAC_NONIP	BIT(4)
 #define MLXSW_REG_SLCR_LAG_HASH_DMAC \
 	(MLXSW_REG_SLCR_LAG_HASH_DMAC_IP | \
 	 MLXSW_REG_SLCR_LAG_HASH_DMAC_NONIP)
 /* Ethertype - for IPv4 and IPv6 packets */
 #define MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE_IP	BIT(5)
-/* Ethertype - for non-IP packets */
+/* Ethertype - for yesn-IP packets */
 #define MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE_NONIP	BIT(6)
 #define MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE \
 	(MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE_IP | \
 	 MLXSW_REG_SLCR_LAG_HASH_ETHERTYPE_NONIP)
 /* VLAN ID - for IPv4 and IPv6 packets */
 #define MLXSW_REG_SLCR_LAG_HASH_VLANID_IP	BIT(7)
-/* VLAN ID - for non-IP packets */
+/* VLAN ID - for yesn-IP packets */
 #define MLXSW_REG_SLCR_LAG_HASH_VLANID_NONIP	BIT(8)
 #define MLXSW_REG_SLCR_LAG_HASH_VLANID \
 	(MLXSW_REG_SLCR_LAG_HASH_VLANID_IP | \
@@ -1557,7 +1557,7 @@ MLXSW_ITEM32(reg, spmlr, local_port, 0x00, 16, 8);
 
 /* reg_spmlr_sub_port
  * Virtual port within the physical port.
- * Should be set to 0 when virtual ports are not enabled on the port.
+ * Should be set to 0 when virtual ports are yest enabled on the port.
  * Access: Index
  */
 MLXSW_ITEM32(reg, spmlr, sub_port, 0x00, 8, 8);
@@ -1574,8 +1574,8 @@ enum mlxsw_reg_spmlr_learn_mode {
  * 2 - Learning enabled.
  * 3 - Security mode.
  *
- * In security mode the switch does not learn MACs on the port, but uses the
- * SMAC to see if it exists on another ingress port. If so, the packet is
+ * In security mode the switch does yest learn MACs on the port, but uses the
+ * SMAC to see if it exists on ayesther ingress port. If so, the packet is
  * classified as a bad packet and is discarded unless the software registers
  * to receive port security error packets usign HPKT.
  */
@@ -1693,7 +1693,7 @@ MLXSW_REG_DEFINE(svpe, MLXSW_REG_SVPE_ID, MLXSW_REG_SVPE_LEN);
  * Local port number
  * Access: Index
  *
- * Note: CPU port is not supported (uses VLAN mode only).
+ * Note: CPU port is yest supported (uses VLAN mode only).
  */
 MLXSW_ITEM32(reg, svpe, local_port, 0x00, 16, 8);
 
@@ -1751,7 +1751,7 @@ MLXSW_ITEM32(reg, sfmr, fid_offset, 0x08, 0, 16);
 
 /* reg_sfmr_vtfp
  * Valid Tunnel Flood Pointer.
- * If not set, then nve_tunnel_flood_ptr is reserved and considered NULL.
+ * If yest set, then nve_tunnel_flood_ptr is reserved and considered NULL.
  * Access: RW
  *
  * Note: Reserved for 802.1Q FIDs.
@@ -1768,7 +1768,7 @@ MLXSW_ITEM32(reg, sfmr, nve_tunnel_flood_ptr, 0x0C, 0, 24);
 
 /* reg_sfmr_vv
  * VNI Valid.
- * If not set, then vni is reserved.
+ * If yest set, then vni is reserved.
  * Access: RW
  *
  * Note: Reserved for 802.1Q FIDs.
@@ -1813,7 +1813,7 @@ MLXSW_REG_DEFINE(spvmlr, MLXSW_REG_SPVMLR_ID, MLXSW_REG_SPVMLR_LEN);
  * Local ingress port.
  * Access: Index
  *
- * Note: CPU port is not supported.
+ * Note: CPU port is yest supported.
  */
 MLXSW_ITEM32(reg, spvmlr, local_port, 0x00, 16, 8);
 
@@ -2136,7 +2136,7 @@ static inline void mlxsw_reg_ppbt_pack(char *payload, enum mlxsw_reg_pxbt_e e,
 MLXSW_REG_DEFINE(pacl, MLXSW_REG_PACL_ID, MLXSW_REG_PACL_LEN);
 
 /* reg_pacl_v
- * Valid. Setting the v bit makes the ACL valid. It should not be cleared
+ * Valid. Setting the v bit makes the ACL valid. It should yest be cleared
  * while the ACL is bounded to either a port, VLAN or ACL rule.
  * Access: RW
  */
@@ -2184,10 +2184,10 @@ MLXSW_REG_DEFINE(pagt, MLXSW_REG_PAGT_ID, MLXSW_REG_PAGT_LEN);
 /* reg_pagt_size
  * Number of ACLs in the group.
  * Size 0 invalidates a group.
- * Range 0 .. cap_max_acl_group_size (hard coded to 16 for now)
+ * Range 0 .. cap_max_acl_group_size (hard coded to 16 for yesw)
  * Total number of ACLs in all groups must be lower or equal
  * to cap_max_acl_tot_groups
- * Note: a group which is binded must not be invalidated
+ * Note: a group which is binded must yest be invalidated
  * Access: Index
  */
 MLXSW_ITEM32(reg, pagt, size, 0x00, 0, 8);
@@ -2233,7 +2233,7 @@ static inline void mlxsw_reg_pagt_acl_id_pack(char *payload, int index,
 /* PTAR - Policy-Engine TCAM Allocation Register
  * ---------------------------------------------
  * This register is used for allocation of regions in the TCAM.
- * Note: Query method is not supported on this register.
+ * Note: Query method is yest supported on this register.
  */
 #define MLXSW_REG_PTAR_ID 0x3006
 #define MLXSW_REG_PTAR_BASE_LEN 0x20
@@ -2508,7 +2508,7 @@ static inline void mlxsw_reg_pefa_unpack(char *payload, bool *p_a)
  * --------------------------------------------------------------
  * This register is used for binding Multicast router to an ACL group
  * that serves the MC router.
- * This register is not supported by SwitchX/-2 and Spectrum.
+ * This register is yest supported by SwitchX/-2 and Spectrum.
  */
 #define MLXSW_REG_PEMRBT_ID 0x3014
 #define MLXSW_REG_PEMRBT_LEN 0x14
@@ -2545,7 +2545,7 @@ mlxsw_reg_pemrbt_pack(char *payload, enum mlxsw_reg_pemrbt_protocol protocol,
  * -----------------------------------------------------
  * This register is used for accessing rules within a TCAM region.
  * It is a new version of PTCE in order to support wider key,
- * mask and action within a TCAM region. This register is not supported
+ * mask and action within a TCAM region. This register is yest supported
  * by SwitchX and SwitchX-2.
  */
 #define MLXSW_REG_PTCE2_ID 0x3017
@@ -2596,8 +2596,8 @@ MLXSW_ITEM32(reg, ptce2, offset, 0x00, 0, 16);
 
 /* reg_ptce2_priority
  * Priority of the rule, higher values win. The range is 1..cap_kvd_size-1.
- * Note: priority does not have to be unique per rule.
- * Within a region, higher priority should have lower offset (no limitation
+ * Note: priority does yest have to be unique per rule.
+ * Within a region, higher priority should have lower offset (yes limitation
  * between regions in a multi-region).
  * Access: RW
  */
@@ -2622,7 +2622,7 @@ MLXSW_ITEM_BUF(reg, ptce2, flex_key_blocks, 0x20,
 /* reg_ptce2_mask
  * mask- in the same size as key. A bit that is set directs the TCAM
  * to compare the corresponding bit in key. A bit that is clear directs
- * the TCAM to ignore the corresponding bit in key.
+ * the TCAM to igyesre the corresponding bit in key.
  * Access: RW
  */
 MLXSW_ITEM_BUF(reg, ptce2, mask, 0x80,
@@ -2726,7 +2726,7 @@ MLXSW_ITEM_BIT_ARRAY(reg, perpt, erp_vector, 0x14, 4, 1);
 
 /* reg_perpt_mask
  * Mask
- * 0 - A-TCAM will ignore the bit in key
+ * 0 - A-TCAM will igyesre the bit in key
  * 1 - A-TCAM will compare the bit in key
  * Access: RW
  */
@@ -2804,7 +2804,7 @@ static inline void mlxsw_reg_perar_pack(char *payload, u16 region_id,
 /* PTCE-V3 - Policy-Engine TCAM Entry Register Version 3
  * -----------------------------------------------------
  * This register is a new version of PTCE-V2 in order to support the
- * A-TCAM. This register is not supported by SwitchX/-2 and Spectrum.
+ * A-TCAM. This register is yest supported by SwitchX/-2 and Spectrum.
  */
 #define MLXSW_REG_PTCE3_ID 0x3027
 #define MLXSW_REG_PTCE3_LEN 0xF0
@@ -2821,7 +2821,7 @@ enum mlxsw_reg_ptce3_op {
 	/* Write operation. Used to write a new entry to the table.
 	 * All R/W fields are relevant for new entry. Activity bit is set
 	 * for new entries. Write with v = 0 will delete the entry. Must
-	 * not be used if an entry exists.
+	 * yest be used if an entry exists.
 	 */
 	 MLXSW_REG_PTCE3_OP_WRITE_WRITE = 0,
 	 /* Update operation */
@@ -2838,7 +2838,7 @@ MLXSW_ITEM32(reg, ptce3, op, 0x00, 20, 3);
 /* reg_ptce3_priority
  * Priority of the rule. Higher values win.
  * For Spectrum-2 range is 1..cap_kvd_size - 1
- * Note: Priority does not have to be unique per rule.
+ * Note: Priority does yest have to be unique per rule.
  * Access: RW
  */
 MLXSW_ITEM32(reg, ptce3, priority, 0x04, 0, 24);
@@ -2865,7 +2865,7 @@ MLXSW_ITEM_BUF(reg, ptce3, flex2_key_blocks, 0x20,
 MLXSW_ITEM32(reg, ptce3, erp_id, 0x80, 0, 4);
 
 /* reg_ptce3_delta_start
- * Start point of delta_value and delta_mask, in bits. Must not exceed
+ * Start point of delta_value and delta_mask, in bits. Must yest exceed
  * num_key_blocks * 36 - 8. Reserved when delta_mask = 0.
  * Access: Index
  */
@@ -2873,10 +2873,10 @@ MLXSW_ITEM32(reg, ptce3, delta_start, 0x84, 0, 10);
 
 /* reg_ptce3_delta_mask
  * Delta mask.
- * 0 - Ignore relevant bit in delta_value
+ * 0 - Igyesre relevant bit in delta_value
  * 1 - Compare relevant bit in delta_value
- * Delta mask must not be set for reserved fields in the key blocks.
- * Note: No delta when no eRPs. Thus, for regions with
+ * Delta mask must yest be set for reserved fields in the key blocks.
+ * Note: No delta when yes eRPs. Thus, for regions with
  * PERERP.erpt_pointer_valid = 0 the delta mask must be 0.
  * Access: Index
  */
@@ -2893,7 +2893,7 @@ MLXSW_ITEM32(reg, ptce3, delta_value, 0x88, 0, 8);
  * Pruning vector relative to the PERPT.erp_id.
  * Used for reducing lookups.
  * 0 - NEED: Do a lookup using the eRP.
- * 1 - PRUNE: Do not perform a lookup using the eRP.
+ * 1 - PRUNE: Do yest perform a lookup using the eRP.
  * Maybe be modified by PEAPBL and PEAPBM.
  * Note: In Spectrum-2, a region of 8 key blocks must be set to either
  * all 1's or all 0's.
@@ -2904,7 +2904,7 @@ MLXSW_ITEM_BIT_ARRAY(reg, ptce3, prune_vector, 0x90, 4, 1);
 /* reg_ptce3_prune_ctcam
  * Pruning on C-TCAM. Used for reducing lookups.
  * 0 - NEED: Do a lookup in the C-TCAM.
- * 1 - PRUNE: Do not perform a lookup in the C-TCAM.
+ * 1 - PRUNE: Do yest perform a lookup in the C-TCAM.
  * Access: RW
  */
 MLXSW_ITEM32(reg, ptce3, prune_ctcam, 0x94, 31, 1);
@@ -2912,12 +2912,12 @@ MLXSW_ITEM32(reg, ptce3, prune_ctcam, 0x94, 31, 1);
 /* reg_ptce3_large_exists
  * Large entry key ID exists.
  * Within the region:
- * 0 - SINGLE: The large_entry_key_id is not currently in use.
+ * 0 - SINGLE: The large_entry_key_id is yest currently in use.
  * For rule insert: The MSB of the key (blocks 6..11) will be added.
  * For rule delete: The MSB of the key will be removed.
  * 1 - NON_SINGLE: The large_entry_key_id is currently in use.
- * For rule insert: The MSB of the key (blocks 6..11) will not be added.
- * For rule delete: The MSB of the key will not be removed.
+ * For rule insert: The MSB of the key (blocks 6..11) will yest be added.
+ * For rule delete: The MSB of the key will yest be removed.
  * Access: WO
  */
 MLXSW_ITEM32(reg, ptce3, large_exists, 0x98, 31, 1);
@@ -2980,17 +2980,17 @@ MLXSW_REG_DEFINE(percr, MLXSW_REG_PERCR_ID, MLXSW_REG_PERCR_LEN);
  */
 MLXSW_ITEM32(reg, percr, region_id, 0x00, 0, 16);
 
-/* reg_percr_atcam_ignore_prune
- * Ignore prune_vector by other A-TCAM rules. Used e.g., for a new rule.
+/* reg_percr_atcam_igyesre_prune
+ * Igyesre prune_vector by other A-TCAM rules. Used e.g., for a new rule.
  * Access: RW
  */
-MLXSW_ITEM32(reg, percr, atcam_ignore_prune, 0x04, 25, 1);
+MLXSW_ITEM32(reg, percr, atcam_igyesre_prune, 0x04, 25, 1);
 
-/* reg_percr_ctcam_ignore_prune
- * Ignore prune_ctcam by other A-TCAM rules. Used e.g., for a new rule.
+/* reg_percr_ctcam_igyesre_prune
+ * Igyesre prune_ctcam by other A-TCAM rules. Used e.g., for a new rule.
  * Access: RW
  */
-MLXSW_ITEM32(reg, percr, ctcam_ignore_prune, 0x04, 24, 1);
+MLXSW_ITEM32(reg, percr, ctcam_igyesre_prune, 0x04, 24, 1);
 
 /* reg_percr_bf_bypass
  * Bloom filter bypass.
@@ -3003,7 +3003,7 @@ MLXSW_ITEM32(reg, percr, bf_bypass, 0x04, 16, 1);
 
 /* reg_percr_master_mask
  * Master mask. Logical OR mask of all masks of all rules of a region
- * (both A-TCAM and C-TCAM). When there are no eRPs
+ * (both A-TCAM and C-TCAM). When there are yes eRPs
  * (erpt_pointer_valid = 0), then this provides the mask.
  * Access: RW
  */
@@ -3013,8 +3013,8 @@ static inline void mlxsw_reg_percr_pack(char *payload, u16 region_id)
 {
 	MLXSW_REG_ZERO(percr, payload);
 	mlxsw_reg_percr_region_id_set(payload, region_id);
-	mlxsw_reg_percr_atcam_ignore_prune_set(payload, false);
-	mlxsw_reg_percr_ctcam_ignore_prune_set(payload, false);
+	mlxsw_reg_percr_atcam_igyesre_prune_set(payload, false);
+	mlxsw_reg_percr_ctcam_igyesre_prune_set(payload, false);
 	mlxsw_reg_percr_bf_bypass_set(payload, false);
 }
 
@@ -3066,14 +3066,14 @@ MLXSW_ITEM32(reg, pererp, erpt_pointer, 0x10, 0, 8);
 /* reg_pererp_erpt_vector
  * Vector of allowed eRP indexes starting from erpt_pointer within the
  * erpt_bank_pointer. Next entries will be in next bank.
- * Note that eRP index is used and not eRP ID.
+ * Note that eRP index is used and yest eRP ID.
  * Reserved when erpt_pointer_valid = 0
  * Access: RW
  */
 MLXSW_ITEM_BIT_ARRAY(reg, pererp, erpt_vector, 0x14, 4, 1);
 
 /* reg_pererp_master_rp_id
- * Master RP ID. When there are no eRPs, then this provides the eRP ID
+ * Master RP ID. When there are yes eRPs, then this provides the eRP ID
  * for the lookup. Can be changed for an existing region.
  * Reserved when erpt_pointer_valid = 1
  * Access: RW
@@ -3173,7 +3173,7 @@ static inline void mlxsw_reg_peabfe_rec_pack(char *payload, int rec_index,
 /* IEDR - Infrastructure Entry Delete Register
  * ----------------------------------------------------
  * This register is used for deleting entries from the entry tables.
- * It is legitimate to attempt to delete a nonexisting entry (the device will
+ * It is legitimate to attempt to delete a yesnexisting entry (the device will
  * respond as a good flow).
  */
 #define MLXSW_REG_IEDR_ID 0x3804
@@ -3331,7 +3331,7 @@ enum mlxsw_reg_qpcr_rate_type {
 
 /* reg_qpcr_rate_type
  * Policer can have one limit (single rate) or 2 limits with specific operation
- * for packets that exceed the lower rate but not the upper one.
+ * for packets that exceed the lower rate but yest the upper one.
  * (For cpu port must be single rate)
  * Access: RW for unbounded policer. RO for bounded policer.
  */
@@ -3339,11 +3339,11 @@ MLXSW_ITEM32(reg, qpcr, rate_type, 0x04, 8, 2);
 
 /* reg_qpc_cbs
  * Policer's committed burst size.
- * The policer is working with time slices of 50 nano sec. By default every
+ * The policer is working with time slices of 50 nayes sec. By default every
  * slice is granted the proportionate share of the committed rate. If we want to
  * allow a slice to exceed that share (while still keeping the rate per sec) we
  * can allow burst. The burst size is between the default proportionate share
- * (and no lower than 8) to 32Gb. (Even though giving a number higher than the
+ * (and yes lower than 8) to 32Gb. (Even though giving a number higher than the
  * committed rate will result in exceeding the rate). The burst size must be a
  * log of 2 and will be determined by 2^cbs.
  * Access: RW
@@ -3423,13 +3423,13 @@ MLXSW_REG_DEFINE(qtct, MLXSW_REG_QTCT_ID, MLXSW_REG_QTCT_LEN);
  * Local port number.
  * Access: Index
  *
- * Note: CPU port is not supported.
+ * Note: CPU port is yest supported.
  */
 MLXSW_ITEM32(reg, qtct, local_port, 0x00, 16, 8);
 
 /* reg_qtct_sub_port
  * Virtual port within the physical port.
- * Should be set to 0 when virtual ports are not enabled on the port.
+ * Should be set to 0 when virtual ports are yest enabled on the port.
  * Access: Index
  */
 MLXSW_ITEM32(reg, qtct, sub_port, 0x00, 8, 8);
@@ -3772,7 +3772,7 @@ MLXSW_ITEM32(reg, qpdpm, local_port, 0x00, 16, 8);
 
 /* reg_qpdpm_dscp_e
  * Enable update of the specific entry. When cleared, the switch_prio and color
- * fields are ignored and the previous switch_prio and color values are
+ * fields are igyesred and the previous switch_prio and color values are
  * preserved.
  * Access: WO
  */
@@ -3806,7 +3806,7 @@ mlxsw_reg_qpdpm_dscp_pack(char *payload, unsigned short dscp, u8 prio)
  * based on Multicast packet indication. If so, then multicast packets will get
  * a Traffic Class that is plus (cap_max_tclass_data/2) the value configured by
  * QTCT.
- * By default, Switch Priority to Traffic Class mapping is not based on
+ * By default, Switch Priority to Traffic Class mapping is yest based on
  * Multicast packet indication.
  */
 #define MLXSW_REG_QTCTM_ID 0x401A
@@ -3824,7 +3824,7 @@ MLXSW_ITEM32(reg, qtctm, local_port, 0x00, 16, 8);
 /* reg_qtctm_mc
  * Multicast Mode
  * Whether Switch Priority to Traffic Class mapping is based on Multicast packet
- * indication (default is 0, not based on Multicast packet indication).
+ * indication (default is 0, yest based on Multicast packet indication).
  */
 MLXSW_ITEM32(reg, qtctm, mc, 0x04, 0, 1);
 
@@ -3898,7 +3898,7 @@ MLXSW_ITEM32(reg, qpsc, ptsc_we, 0x10, 31, 1);
 
 /* reg_qpsc_port_to_shaper_credits
  * For split ports: range 1..57
- * For non-split ports: range 1..112
+ * For yesn-split ports: range 1..112
  * Written only when ptsc_we is set.
  * Access: RW
  */
@@ -3987,7 +3987,7 @@ MLXSW_ITEM32_INDEXED(reg, pmlp, module, 0x04, 0, 8, 0x04, 0x00, false);
 MLXSW_ITEM32_INDEXED(reg, pmlp, tx_lane, 0x04, 16, 4, 0x04, 0x00, false);
 
 /* reg_pmlp_rx_lane
- * Rx Lane. When rxtx field is cleared, this field is ignored and Rx lane is
+ * Rx Lane. When rxtx field is cleared, this field is igyesred and Rx lane is
  * equal to Tx lane.
  * Access: RW
  */
@@ -4054,7 +4054,7 @@ static inline void mlxsw_reg_pmtu_pack(char *payload, u8 local_port,
  * -----------------------------------
  * Configures and reports the port speed type.
  *
- * Note: When set while the link is up, the changes will not take effect
+ * Note: When set while the link is up, the changes will yest take effect
  * until the port transitions from down to up state.
  */
 #define MLXSW_REG_PTYS_ID 0x5004
@@ -4395,7 +4395,7 @@ MLXSW_ITEM32(reg, paos, admin_status, 0x00, 8, 4);
  * Port operational state (the current state):
  * 1 - Up.
  * 2 - Down.
- * 3 - Down by port failure. This means that the device will not let the
+ * 3 - Down by port failure. This means that the device will yest let the
  *     port up again until explicitly specified by software.
  * Access: RO
  */
@@ -4416,7 +4416,7 @@ MLXSW_ITEM32(reg, paos, ee, 0x04, 30, 1);
 
 /* reg_paos_e
  * Event generation on operational state change:
- * 0 - Do not generate event.
+ * 0 - Do yest generate event.
  * 1 - Generate Event.
  * 2 - Generate Single Event.
  * Access: RW
@@ -4479,7 +4479,7 @@ MLXSW_ITEM32(reg, pfcc, shl_opr, 0x00, 0, 1);
 
 /* reg_pfcc_ppan
  * Pause policy auto negotiation.
- * 0 - Disabled. Generate / ignore Pause frames based on pptx / pprtx.
+ * 0 - Disabled. Generate / igyesre Pause frames based on pptx / pprtx.
  * 1 - Enabled. When auto-negotiation is performed, set the Pause policy
  *     based on the auto-negotiation resolution.
  * Access: RW
@@ -4533,7 +4533,7 @@ MLXSW_ITEM32(reg, pfcc, pfctx, 0x08, 16, 8);
 
 /* reg_pfcc_pprx
  * Admin Pause policy on Rx.
- * 0 - Ignore received Pause frames (default).
+ * 0 - Igyesre received Pause frames (default).
  * 1 - Respect received Pause frames.
  * Access: RW
  */
@@ -4541,7 +4541,7 @@ MLXSW_ITEM32(reg, pfcc, pprx, 0x0C, 31, 1);
 
 /* reg_pfcc_aprx
  * Active (operational) Pause policy on Rx.
- * 0 - Ignore received Pause frames.
+ * 0 - Igyesre received Pause frames.
  * 1 - Respect received Pause frames.
  * Access: RO
  */
@@ -4549,7 +4549,7 @@ MLXSW_ITEM32(reg, pfcc, aprx, 0x0C, 30, 1);
 
 /* reg_pfcc_pfcrx
  * Priority based flow control policy on Rx[7:0]. Per-priority bit mask:
- * 0 - Ignore incoming priority Pause frames on the specified priority
+ * 0 - Igyesre incoming priority Pause frames on the specified priority
  *     (default).
  * 1 - Respect incoming priority Pause frames on the specified priority.
  * Access: RW
@@ -4888,10 +4888,10 @@ MLXSW_ITEM64(reg, ppcnt, dot3stats_fcs_errors,
 MLXSW_ITEM64(reg, ppcnt, dot3stats_symbol_errors,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x60, 0, 64);
 
-/* reg_ppcnt_dot3control_in_unknown_opcodes
+/* reg_ppcnt_dot3control_in_unkyeswn_opcodes
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, dot3control_in_unknown_opcodes,
+MLXSW_ITEM64(reg, ppcnt, dot3control_in_unkyeswn_opcodes,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x68, 0, 64);
 
 /* reg_ppcnt_dot3in_pause_frames
@@ -5043,18 +5043,18 @@ MLXSW_ITEM64(reg, ppcnt, tx_pause_transition,
 /* reg_ppcnt_tc_transmit_queue
  * Contains the transmit queue depth in cells of traffic class
  * selected by prio_tc and the port selected by local_port.
- * The field cannot be cleared.
+ * The field canyest be cleared.
  * Access: RO
  */
 MLXSW_ITEM64(reg, ppcnt, tc_transmit_queue,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x00, 0, 64);
 
-/* reg_ppcnt_tc_no_buffer_discard_uc
+/* reg_ppcnt_tc_yes_buffer_discard_uc
  * The number of unicast packets dropped due to lack of shared
  * buffer resources.
  * Access: RO
  */
-MLXSW_ITEM64(reg, ppcnt, tc_no_buffer_discard_uc,
+MLXSW_ITEM64(reg, ppcnt, tc_yes_buffer_discard_uc,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x08, 0, 64);
 
 /* Ethernet Per Traffic Class Congestion Group Counters */
@@ -5517,7 +5517,7 @@ MLXSW_ITEM32(reg, htgt, pid, 0x04, 0, 8);
  * Mirror action to use.
  * 0 - Trap to CPU.
  * 1 - Trap to CPU and mirror to a mirroring agent.
- * 2 - Mirror to a mirroring agent and do not trap to CPU.
+ * 2 - Mirror to a mirroring agent and do yest trap to CPU.
  * Access: RW
  *
  * Note: Mirroring to a mirroring agent is only supported in Spectrum.
@@ -5540,7 +5540,7 @@ MLXSW_ITEM32(reg, htgt, mirroring_agent, 0x08, 0, 3);
  * Supported values are 0-7, with 7 represnting the highest priority.
  * Access: RW
  *
- * Note: In SwitchX-2 this field is ignored and the priority value is replaced
+ * Note: In SwitchX-2 this field is igyesred and the priority value is replaced
  * by the 'trap_group' field.
  */
 MLXSW_ITEM32(reg, htgt, priority, 0x0C, 0, 4);
@@ -5603,12 +5603,12 @@ enum {
 };
 
 /* reg_hpkt_ack
- * Require acknowledgements from the host for events.
- * If set, then the device will wait for the event it sent to be acknowledged
+ * Require ackyeswledgements from the host for events.
+ * If set, then the device will wait for the event it sent to be ackyeswledged
  * by the host. This option is only relevant for event trap IDs.
  * Access: RW
  *
- * Note: Currently not supported by firmware.
+ * Note: Currently yest supported by firmware.
  */
 MLXSW_ITEM32(reg, hpkt, ack, 0x00, 24, 1);
 
@@ -5663,9 +5663,9 @@ enum {
 
 /* reg_hpkt_ctrl
  * Configure dedicated buffer resources for control packets.
- * Ignored by SwitchX-2.
+ * Igyesred by SwitchX-2.
  * 0 - Keep factory defaults.
- * 1 - Do not use control buffer for this trap ID.
+ * 1 - Do yest use control buffer for this trap ID.
  * 2 - Use control buffer for this trap ID.
  * Access: RW
  */
@@ -5737,7 +5737,7 @@ MLXSW_ITEM32(reg, rgcr, pcp_rw, 0x18, 16, 2);
 /* reg_rgcr_activity_dis
  * Activity disable:
  * 0 - Activity will be set when an entry is hit (default).
- * 1 - Activity will not be set when an entry is hit.
+ * 1 - Activity will yest be set when an entry is hit.
  *
  * Bit 0 - Disable activity bit in Router Algorithmic LPM Unicast Entry
  * (RALUE).
@@ -5826,7 +5826,7 @@ enum {
  * 0 - Create or edit RIF.
  * 1 - Delete RIF.
  * Reserved for SwitchX-2. For Spectrum, editing of interface properties
- * is not supported. An interface must be deleted and re-created in order
+ * is yest supported. An interface must be deleted and re-created in order
  * to update properties.
  * Access: WO
  */
@@ -5988,7 +5988,7 @@ MLXSW_ITEM32(reg, ritr, loopback_protocol, 0x08, 28, 4);
 enum mlxsw_reg_ritr_loopback_ipip_type {
 	/* Tunnel is IPinIP. */
 	MLXSW_REG_RITR_LOOPBACK_IPIP_TYPE_IP_IN_IP,
-	/* Tunnel is GRE, no key. */
+	/* Tunnel is GRE, yes key. */
 	MLXSW_REG_RITR_LOOPBACK_IPIP_TYPE_IP_IN_GRE_IN_IP,
 	/* Tunnel is GRE, with a key. */
 	MLXSW_REG_RITR_LOOPBACK_IPIP_TYPE_IP_IN_GRE_KEY_IN_IP,
@@ -6034,7 +6034,7 @@ MLXSW_ITEM32(reg, ritr, loopback_ipip_usip4, 0x24, 0, 32);
 
 /* reg_ritr_loopback_ipip_gre_key
  * GRE Key.
- * Reserved when ipip_type is not IP_IN_GRE_KEY_IN_IP.
+ * Reserved when ipip_type is yest IP_IN_GRE_KEY_IN_IP.
  * Access: RW
  */
 MLXSW_ITEM32(reg, ritr, loopback_ipip_gre_key, 0x28, 0, 32);
@@ -6231,8 +6231,8 @@ enum mlxsw_reg_ratr_op {
 	/* Write Adjacency entry */
 	MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY = 1,
 	/* Write Adjacency entry only if the activity is cleared.
-	 * The write may not succeed if the activity is set. There is not
-	 * direct feedback if the write has succeeded or not, however
+	 * The write may yest succeed if the activity is set. There is yest
+	 * direct feedback if the write has succeeded or yest, however
 	 * the get will reveal the actual entry (SW can compare the get
 	 * response to the set command).
 	 */
@@ -6242,7 +6242,7 @@ enum mlxsw_reg_ratr_op {
 /* reg_ratr_op
  * Note that Write operation may also be used for updating
  * counter_set_type and counter_index. In this case all other
- * fields must not be updated.
+ * fields must yest be updated.
  * Access: OP
  */
 MLXSW_ITEM32(reg, ratr, op, 0x00, 28, 4);
@@ -6250,10 +6250,10 @@ MLXSW_ITEM32(reg, ratr, op, 0x00, 28, 4);
 /* reg_ratr_v
  * Valid bit. Indicates if the adjacency entry is valid.
  * Note: the device may need some time before reusing an invalidated
- * entry. During this time the entry can not be reused. It is
- * recommended to use another entry before reusing an invalidated
+ * entry. During this time the entry can yest be reused. It is
+ * recommended to use ayesther entry before reusing an invalidated
  * entry (e.g. software can put it at the end of the list for
- * reusing). Trying to access an invalidated entry not yet cleared
+ * reusing). Trying to access an invalidated entry yest yet cleared
  * by the device results with failure indicating "Try Again" status.
  * When valid is '0' then egress_router_interface,trap_action,
  * adjacency_parameters and counters are reserved
@@ -6547,48 +6547,48 @@ MLXSW_ITEM64(reg, ricnt, good_multicast_packets, 0x10, 0, 64);
 MLXSW_ITEM64(reg, ricnt, good_broadcast_packets, 0x18, 0, 64);
 
 /* reg_ricnt_good_unicast_bytes
- * A count of L3 data and padding octets not including L2 headers
+ * A count of L3 data and padding octets yest including L2 headers
  * for good unicast frames.
  * Access: RW
  */
 MLXSW_ITEM64(reg, ricnt, good_unicast_bytes, 0x20, 0, 64);
 
 /* reg_ricnt_good_multicast_bytes
- * A count of L3 data and padding octets not including L2 headers
+ * A count of L3 data and padding octets yest including L2 headers
  * for good multicast frames.
  * Access: RW
  */
 MLXSW_ITEM64(reg, ricnt, good_multicast_bytes, 0x28, 0, 64);
 
 /* reg_ritr_good_broadcast_bytes
- * A count of L3 data and padding octets not including L2 headers
+ * A count of L3 data and padding octets yest including L2 headers
  * for good broadcast frames.
  * Access: RW
  */
 MLXSW_ITEM64(reg, ricnt, good_broadcast_bytes, 0x30, 0, 64);
 
 /* reg_ricnt_error_packets
- * A count of errored frames that do not pass the router checks.
+ * A count of errored frames that do yest pass the router checks.
  * Access: RW
  */
 MLXSW_ITEM64(reg, ricnt, error_packets, 0x38, 0, 64);
 
 /* reg_ricnt_discrad_packets
- * A count of non-errored frames that do not pass the router checks.
+ * A count of yesn-errored frames that do yest pass the router checks.
  * Access: RW
  */
 MLXSW_ITEM64(reg, ricnt, discard_packets, 0x40, 0, 64);
 
 /* reg_ricnt_error_bytes
- * A count of L3 data and padding octets not including L2 headers
+ * A count of L3 data and padding octets yest including L2 headers
  * for errored frames.
  * Access: RW
  */
 MLXSW_ITEM64(reg, ricnt, error_bytes, 0x48, 0, 64);
 
 /* reg_ricnt_discard_bytes
- * A count of L3 data and padding octets not including L2 headers
- * for non-errored frames that do not pass the router checks.
+ * A count of L3 data and padding octets yest including L2 headers
+ * for yesn-errored frames that do yest pass the router checks.
  * Access: RW
  */
 MLXSW_ITEM64(reg, ricnt, discard_bytes, 0x50, 0, 64);
@@ -6713,10 +6713,10 @@ static inline void mlxsw_reg_ralta_pack(char *payload, bool alloc,
  * ------------------------------------------------------
  * RALST is used to set and query the structure of an LPM tree.
  * The structure of the tree must be sorted as a sorted binary tree, while
- * each node is a bin that is tagged as the length of the prefixes the lookup
+ * each yesde is a bin that is tagged as the length of the prefixes the lookup
  * will refer to. Therefore, bin X refers to a set of entries with prefixes
  * of X bits to match with the destination address. The bin 0 indicates
- * the default action, when there is no match of any prefix.
+ * the default action, when there is yes match of any prefix.
  */
 #define MLXSW_REG_RALST_ID 0x8011
 #define MLXSW_REG_RALST_LEN 0x104
@@ -6762,7 +6762,7 @@ static inline void mlxsw_reg_ralst_pack(char *payload, u8 root_bin, u8 tree_id)
 {
 	MLXSW_REG_ZERO(ralst, payload);
 
-	/* Initialize all bins to have no left or right child */
+	/* Initialize all bins to have yes left or right child */
 	memset(payload + MLXSW_REG_RALST_BIN_OFFSET,
 	       MLXSW_REG_RALST_BIN_NO_CHILD, MLXSW_REG_RALST_BIN_COUNT * 2);
 
@@ -6932,7 +6932,7 @@ enum mlxsw_reg_ralue_entry_type {
 MLXSW_ITEM32(reg, ralue, entry_type, 0x1C, 30, 2);
 
 /* reg_ralue_bmp_len
- * The best match prefix length in the case that there is no match for
+ * The best match prefix length in the case that there is yes match for
  * longer prefixes.
  * If (entry_type != MARKER_ENTRY), bmp_len must be equal to prefix_len
  * Note for any update operation with entry_type modification this
@@ -7010,7 +7010,7 @@ MLXSW_ITEM32(reg, ralue, local_erif, 0x24, 0, 16);
  * If valid = 0 then trap to CPU as IP2ME trap ID.
  * If valid = 1 and the packet format allows NVE or IPinIP tunnel
  * decapsulation then tunnel decapsulation is done.
- * If valid = 1 and packet format does not allow NVE or IPinIP tunnel
+ * If valid = 1 and packet format does yest allow NVE or IPinIP tunnel
  * decapsulation then trap as IP2ME trap ID.
  * Only relevant in case of IP2ME action.
  * Access: RW
@@ -7321,11 +7321,11 @@ static inline void mlxsw_reg_raleu_pack(char *payload,
 /* RAUHTD - Router Algorithmic LPM Unicast Host Table Dump Register
  * ----------------------------------------------------------------
  * The RAUHTD register allows dumping entries from the Router Unicast Host
- * Table. For a given session an entry is dumped no more than one time. The
+ * Table. For a given session an entry is dumped yes more than one time. The
  * first RAUHTD access after reset is a new session. A session ends when the
  * num_rec response is smaller than num_rec request or for IPv4 when the
  * num_entries is smaller than 4. The clear activity affect the current session
- * or the last session if a new session has not started.
+ * or the last session if a new session has yest started.
  */
 #define MLXSW_REG_RAUHTD_ID 0x8018
 #define MLXSW_REG_RAUHTD_BASE_LEN 0x20
@@ -7341,7 +7341,7 @@ MLXSW_REG_DEFINE(rauhtd, MLXSW_REG_RAUHTD_ID, MLXSW_REG_RAUHTD_LEN);
 #define MLXSW_REG_RAUHTD_FILTER_RIF BIT(3)
 
 /* reg_rauhtd_filter_fields
- * if a bit is '0' then the relevant field is ignored and dump is done
+ * if a bit is '0' then the relevant field is igyesred and dump is done
  * regardless of the field value
  * Bit0 - filter by activity: entry_a
  * Bit3 - filter by entry rip: entry_rif
@@ -7538,11 +7538,11 @@ MLXSW_ITEM32(reg, rtdp, ipip_irif, 0x04, 16, 16);
 enum mlxsw_reg_rtdp_ipip_sip_check {
 	/* No sip checks. */
 	MLXSW_REG_RTDP_IPIP_SIP_CHECK_NO,
-	/* Filter packet if underlay is not IPv4 or if underlay SIP does not
+	/* Filter packet if underlay is yest IPv4 or if underlay SIP does yest
 	 * equal ipv4_usip.
 	 */
 	MLXSW_REG_RTDP_IPIP_SIP_CHECK_FILTER_IPV4,
-	/* Filter packet if underlay is not IPv6 or if underlay SIP does not
+	/* Filter packet if underlay is yest IPv6 or if underlay SIP does yest
 	 * equal ipv6_usip.
 	 */
 	MLXSW_REG_RTDP_IPIP_SIP_CHECK_FILTER_IPV6 = 3,
@@ -7572,7 +7572,7 @@ MLXSW_ITEM32(reg, rtdp, ipip_type_check, 0x08, 24, 3);
 /* reg_rtdp_ipip_gre_key_check
  * Whether GRE key should be checked. When check is enabled:
  * - A packet received as IPinIP (without GRE) will always pass.
- * - A packet received as IPinGREinIP without a key will not pass the check.
+ * - A packet received as IPinGREinIP without a key will yest pass the check.
  * - A packet received as IPinGREinIP with a key will pass the check only if the
  *   key in the packet is equal to expected_gre_key.
  * If decapsulation failed due to GRE key then trap_id is IPIP_DECAP_ERROR.
@@ -7582,7 +7582,7 @@ MLXSW_ITEM32(reg, rtdp, ipip_gre_key_check, 0x08, 23, 1);
 
 /* reg_rtdp_ipip_ipv4_usip
  * Underlay IPv4 address for ipv4 source address check.
- * Reserved when sip_check is not '1'.
+ * Reserved when sip_check is yest '1'.
  * Access: RW
  */
 MLXSW_ITEM32(reg, rtdp, ipip_ipv4_usip, 0x0C, 0, 32);
@@ -7591,7 +7591,7 @@ MLXSW_ITEM32(reg, rtdp, ipip_ipv4_usip, 0x0C, 0, 32);
  * This field is valid when sip_check is "sipv6 check explicitly". This is a
  * pointer to the IPv6 DIP which is configured by RIPS. For Spectrum, the index
  * is to the KVD linear.
- * Reserved when sip_check is not MLXSW_REG_RTDP_IPIP_SIP_CHECK_FILTER_IPV6.
+ * Reserved when sip_check is yest MLXSW_REG_RTDP_IPIP_SIP_CHECK_FILTER_IPV6.
  * Access: RW
  */
 MLXSW_ITEM32(reg, rtdp, ipip_ipv6_usip_ptr, 0x10, 0, 24);
@@ -7735,11 +7735,11 @@ MLXSW_ITEM32(reg, recr2, sh, 0x00, 8, 1);
 MLXSW_ITEM32(reg, recr2, seed, 0x08, 0, 32);
 
 enum {
-	/* Enable IPv4 fields if packet is not TCP and not UDP */
+	/* Enable IPv4 fields if packet is yest TCP and yest UDP */
 	MLXSW_REG_RECR2_IPV4_EN_NOT_TCP_NOT_UDP	= 3,
 	/* Enable IPv4 fields if packet is TCP or UDP */
 	MLXSW_REG_RECR2_IPV4_EN_TCP_UDP		= 4,
-	/* Enable IPv6 fields if packet is not TCP and not UDP */
+	/* Enable IPv6 fields if packet is yest TCP and yest UDP */
 	MLXSW_REG_RECR2_IPV6_EN_NOT_TCP_NOT_UDP	= 5,
 	/* Enable IPv6 fields if packet is TCP or UDP */
 	MLXSW_REG_RECR2_IPV6_EN_TCP_UDP		= 6,
@@ -7926,7 +7926,7 @@ MLXSW_ITEM32(reg, rmft2, dip4, 0x1C, 0, 32);
 
 /* reg_rmft2_dip{4,6}_mask
  * A bit that is set directs the TCAM to compare the corresponding bit in key. A
- * bit that is clear directs the TCAM to ignore the corresponding bit in key.
+ * bit that is clear directs the TCAM to igyesre the corresponding bit in key.
  * Access: RW
  */
 MLXSW_ITEM_BUF(reg, rmft2, dip6_mask, 0x20, 16);
@@ -7941,7 +7941,7 @@ MLXSW_ITEM32(reg, rmft2, sip4, 0x3C, 0, 32);
 
 /* reg_rmft2_sip{4,6}_mask
  * A bit that is set directs the TCAM to compare the corresponding bit in key. A
- * bit that is clear directs the TCAM to ignore the corresponding bit in key.
+ * bit that is clear directs the TCAM to igyesre the corresponding bit in key.
  * Access: RW
  */
 MLXSW_ITEM_BUF(reg, rmft2, sip6_mask, 0x40, 16);
@@ -8131,7 +8131,7 @@ static inline void mlxsw_reg_mfsm_pack(char *payload, u8 tacho)
 /* MFSL - Management Fan Speed Limit Register
  * ------------------------------------------
  * The Fan Speed Limit register is used to configure the fan speed
- * event / interrupt notification mechanism. Fan speed threshold are
+ * event / interrupt yestification mechanism. Fan speed threshold are
  * defined for both under-speed and over-speed.
  */
 #define MLXSW_REG_MFSL_ID 0x9004
@@ -8277,7 +8277,7 @@ MLXSW_ITEM32(reg, mtmp, max_temperature, 0x08, 0, 16);
 
 /* reg_mtmp_tee
  * Temperature Event Enable.
- * 0 - Do not generate event
+ * 0 - Do yest generate event
  * 1 - Generate event
  * 2 - Generate single event
  * Access: RW
@@ -8524,7 +8524,7 @@ static inline void mlxsw_reg_mcia_pack(char *payload, u8 module, u8 lock,
 /* MPAT - Monitoring Port Analyzer Table
  * -------------------------------------
  * MPAT Register is used to query and configure the Switch PortAnalyzer Table.
- * For an enabled analyzer, all fields except e (enable) cannot be modified.
+ * For an enabled analyzer, all fields except e (enable) canyest be modified.
  */
 #define MLXSW_REG_MPAT_ID 0x901A
 #define MLXSW_REG_MPAT_LEN 0x78
@@ -8561,10 +8561,10 @@ MLXSW_ITEM32(reg, mpat, e, 0x04, 31, 1);
 MLXSW_ITEM32(reg, mpat, qos, 0x04, 26, 1);
 
 /* reg_mpat_be
- * Best effort mode. Indicates mirroring traffic should not cause packet
+ * Best effort mode. Indicates mirroring traffic should yest cause packet
  * drop or back pressure, but will discard the mirrored packets. Mirrored
  * packets will be forwarded on a best effort manner.
- * 0: Do not discard mirrored packets
+ * 0: Do yest discard mirrored packets
  * 1: Discard mirrored packets if causing congestion
  * Access: RW
  */
@@ -8572,7 +8572,7 @@ MLXSW_ITEM32(reg, mpat, be, 0x04, 25, 1);
 
 enum mlxsw_reg_mpat_span_type {
 	/* Local SPAN Ethernet.
-	 * The original packet is not encapsulated.
+	 * The original packet is yest encapsulated.
 	 */
 	MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH = 0x0,
 
@@ -8805,15 +8805,15 @@ MLXSW_ITEM_BUF(reg, mgir, fw_info_psid, 0x30, MLXSW_REG_MGIR_FW_INFO_PSID_SIZE);
  */
 MLXSW_ITEM32(reg, mgir, fw_info_extended_major, 0x44, 0, 32);
 
-/* reg_mgir_fw_info_extended_minor
+/* reg_mgir_fw_info_extended_miyesr
  * Access: RO
  */
-MLXSW_ITEM32(reg, mgir, fw_info_extended_minor, 0x48, 0, 32);
+MLXSW_ITEM32(reg, mgir, fw_info_extended_miyesr, 0x48, 0, 32);
 
-/* reg_mgir_fw_info_extended_sub_minor
+/* reg_mgir_fw_info_extended_sub_miyesr
  * Access: RO
  */
-MLXSW_ITEM32(reg, mgir, fw_info_extended_sub_minor, 0x4C, 0, 32);
+MLXSW_ITEM32(reg, mgir, fw_info_extended_sub_miyesr, 0x4C, 0, 32);
 
 static inline void mlxsw_reg_mgir_pack(char *payload)
 {
@@ -8822,13 +8822,13 @@ static inline void mlxsw_reg_mgir_pack(char *payload)
 
 static inline void
 mlxsw_reg_mgir_unpack(char *payload, u32 *hw_rev, char *fw_info_psid,
-		      u32 *fw_major, u32 *fw_minor, u32 *fw_sub_minor)
+		      u32 *fw_major, u32 *fw_miyesr, u32 *fw_sub_miyesr)
 {
 	*hw_rev = mlxsw_reg_mgir_hw_info_device_hw_revision_get(payload);
 	mlxsw_reg_mgir_fw_info_psid_memcpy_from(payload, fw_info_psid);
 	*fw_major = mlxsw_reg_mgir_fw_info_extended_major_get(payload);
-	*fw_minor = mlxsw_reg_mgir_fw_info_extended_minor_get(payload);
-	*fw_sub_minor = mlxsw_reg_mgir_fw_info_extended_sub_minor_get(payload);
+	*fw_miyesr = mlxsw_reg_mgir_fw_info_extended_miyesr_get(payload);
+	*fw_sub_miyesr = mlxsw_reg_mgir_fw_info_extended_sub_miyesr_get(payload);
 }
 
 /* MRSR - Management Reset and Shutdown Register
@@ -8843,7 +8843,7 @@ MLXSW_REG_DEFINE(mrsr, MLXSW_REG_MRSR_ID, MLXSW_REG_MRSR_LEN);
 
 /* reg_mrsr_command
  * Reset/shutdown command
- * 0 - do nothing
+ * 0 - do yesthing
  * 1 - software reset
  * Access: WO
  */
@@ -9032,7 +9032,7 @@ MLXSW_ITEM32(reg, mcqi, info_type, 0x08, 0, 5);
 MLXSW_ITEM32(reg, mcqi, offset, 0x10, 0, 32);
 
 /* reg_mcqi_data_size
- * The requested/returned data size, given in bytes. If data_size is not DWORD
+ * The requested/returned data size, given in bytes. If data_size is yest DWORD
  * aligned, the last bytes are zero padded.
  * Access: RW
  */
@@ -9418,7 +9418,7 @@ static inline void mlxsw_reg_mtpppc_pack(char *payload, u16 ing, u16 egr)
  * ---------------------------------------------------
  * The MTPPTR is used for reading the per port PTP timestamp FIFO.
  * There is a trap for packets which are latched to the timestamp FIFO, thus the
- * SW knows which FIFO to read. Note that packets enter the FIFO before been
+ * SW kyesws which FIFO to read. Note that packets enter the FIFO before been
  * trapped. The sequence number is used to synchronize the timestamp FIFO
  * entries and the trapped packets.
  * Reserved when Spectrum-2.
@@ -9546,7 +9546,7 @@ MLXSW_ITEM32(reg, mtptpt, trap_id, 0x00, 0, 4);
 
 /* reg_mtptpt_message_type
  * Bitwise vector of PTP message types to trap. This is a necessary but
- * non-sufficient condition since need to enable also per port. See MTPPPC.
+ * yesn-sufficient condition since need to enable also per port. See MTPPPC.
  * Message types are defined by IEEE 1588 Each bit corresponds to a value (e.g.
  * Bit0: Sync, Bit1: Delay_Req)
  */
@@ -9663,7 +9663,7 @@ MLXSW_ITEM32(reg, tngcr, nve_ttl_uc, 0x04, 0, 8);
 MLXSW_ITEM32(reg, tngcr, nve_ttl_mc, 0x08, 0, 8);
 
 enum {
-	/* Do not copy flow label. Calculate flow label using nve_flh. */
+	/* Do yest copy flow label. Calculate flow label using nve_flh. */
 	MLXSW_REG_TNGCR_FL_NO_COPY,
 	/* Copy flow label from inner packet if packet is IPv6 and
 	 * encapsulation is by IPv6. Otherwise, calculate flow label using
@@ -9780,7 +9780,7 @@ MLXSW_ITEM32(reg, tngcr, underlay_rif, 0x24, 0, 16);
 MLXSW_ITEM32(reg, tngcr, usipv4, 0x28, 0, 32);
 
 /* reg_tngcr_usipv6
- * Underlay source IPv6 address of the NVE. For Spectrum, must not be
+ * Underlay source IPv6 address of the NVE. For Spectrum, must yest be
  * modified under traffic of NVE tunneling encapsulation.
  * Access: RW
  */
@@ -9907,7 +9907,7 @@ MLXSW_REG_DEFINE(tnqcr, MLXSW_REG_TNQCR_ID, MLXSW_REG_TNQCR_LEN);
 /* reg_tnqcr_enc_set_dscp
  * For encapsulation: How to set DSCP field:
  * 0 - Copy the DSCP from the overlay (inner) IP header to the underlay
- * (outer) IP header. If there is no IP header, use TNQDR.dscp
+ * (outer) IP header. If there is yes IP header, use TNQDR.dscp
  * 1 - Set the DSCP field as TNQDR.dscp
  * Access: RW
  */
@@ -10197,7 +10197,7 @@ MLXSW_ITEM32(reg, sbcm, local_port, 0x00, 16, 8);
  * For PG buffer: range is 0..cap_max_pg_buffers - 1
  * For traffic class: range is 0..cap_max_tclass - 1
  * Note that when traffic class is in MC aware mode then the traffic
- * classes which are MC aware cannot be configured.
+ * classes which are MC aware canyest be configured.
  * Access: Index
  */
 MLXSW_ITEM32(reg, sbcm, pg_buff, 0x00, 8, 6);
@@ -10408,7 +10408,7 @@ static inline void mlxsw_reg_sbmm_pack(char *payload, u8 prio, u32 min_buff,
  * Port-Pool. Note that this register enables reading a large amount of data.
  * It is the user's responsibility to limit the amount of data to ensure the
  * response can match the maximum transfer unit. In case the response exceeds
- * the maximum transport unit, it will be truncated with no special notice.
+ * the maximum transport unit, it will be truncated with yes special yestice.
  */
 #define MLXSW_REG_SBSR_ID 0xB005
 #define MLXSW_REG_SBSR_BASE_LEN 0x5C /* base length, without records */
@@ -10432,7 +10432,7 @@ MLXSW_ITEM32(reg, sbsr, clr, 0x00, 31, 1);
  * Bit vector for all ingress network ports.
  * Indicates which of the ports (for which the relevant bit is set)
  * are affected by the set operation. Configuration of any other port
- * does not change.
+ * does yest change.
  * Access: Index
  */
 MLXSW_ITEM_BIT_ARRAY(reg, sbsr, ingress_port_mask, 0x10, 0x20, 1);
@@ -10441,7 +10441,7 @@ MLXSW_ITEM_BIT_ARRAY(reg, sbsr, ingress_port_mask, 0x10, 0x20, 1);
  * Bit vector for all switch priority groups.
  * Indicates which of the priorities (for which the relevant bit is set)
  * are affected by the set operation. Configuration of any other priority
- * does not change.
+ * does yest change.
  * Range is 0..cap_max_pg_buffers - 1
  * Access: Index
  */
@@ -10451,7 +10451,7 @@ MLXSW_ITEM_BIT_ARRAY(reg, sbsr, pg_buff_mask, 0x30, 0x4, 1);
  * Bit vector for all egress network ports.
  * Indicates which of the ports (for which the relevant bit is set)
  * are affected by the set operation. Configuration of any other port
- * does not change.
+ * does yest change.
  * Access: Index
  */
 MLXSW_ITEM_BIT_ARRAY(reg, sbsr, egress_port_mask, 0x34, 0x20, 1);
@@ -10460,7 +10460,7 @@ MLXSW_ITEM_BIT_ARRAY(reg, sbsr, egress_port_mask, 0x34, 0x20, 1);
  * Bit vector for all traffic classes.
  * Indicates which of the traffic classes (for which the relevant bit is
  * set) are affected by the set operation. Configuration of any other
- * traffic class does not change.
+ * traffic class does yest change.
  * Range is 0..cap_max_tclass - 1
  * Access: Index
  */
@@ -10500,7 +10500,7 @@ static inline void mlxsw_reg_sbsr_rec_unpack(char *payload, int rec_index,
 /* SBIB - Shared Buffer Internal Buffer Register
  * ---------------------------------------------
  * The SBIB register configures per port buffers for internal use. The internal
- * buffers consume memory on the port buffers (note that the port buffers are
+ * buffers consume memory on the port buffers (yeste that the port buffers are
  * used also by PBMC).
  *
  * For Spectrum this is used for egress mirroring.
@@ -10706,7 +10706,7 @@ MLXSW_ITEM32(reg, pude, admin_status, 0x00, 8, 4);
  * Port operatioanl state.
  * 1 - Up.
  * 2 - Down.
- * 3 - Down by port failure. This means that the device will not let the
+ * 3 - Down by port failure. This means that the device will yest let the
  *     port up again until explicitly specified by software.
  * Access: RO
  */

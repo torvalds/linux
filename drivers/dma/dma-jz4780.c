@@ -2,7 +2,7 @@
 /*
  * Ingenic JZ4780 DMA controller
  *
- * Copyright (c) 2015 Imagination Technologies
+ * Copyright (c) 2015 Imagination Techyeslogies
  * Author: Alex Smith <alex@alex-smith.me.uk>
  */
 
@@ -325,7 +325,7 @@ static int jz4780_dma_setup_hwdesc(struct jz4780_dma_chan *jzchan,
 	 * This calculates the maximum transfer size that can be used with the
 	 * given address, length, width and maximum burst size. The address
 	 * must be aligned to the transfer size, the total length must be
-	 * divisible by the transfer size, and we must not use more than the
+	 * divisible by the transfer size, and we must yest use more than the
 	 * maximum burst specified by the user.
 	 */
 	tsz = jz4780_dma_transfer_size(jzchan, addr | len | (width * maxburst),
@@ -487,7 +487,7 @@ static void jz4780_dma_begin(struct jz4780_dma_chan *jzchan)
 		if (!vdesc)
 			return;
 
-		list_del(&vdesc->node);
+		list_del(&vdesc->yesde);
 
 		jzchan->desc = to_jz4780_dma_desc(vdesc);
 		jzchan->curr_hwdesc = 0;
@@ -498,7 +498,7 @@ static void jz4780_dma_begin(struct jz4780_dma_chan *jzchan)
 			 * interrupt after processing each descriptor, only
 			 * after processing an entire terminated list of
 			 * descriptors. For a cyclic DMA setup the list of
-			 * descriptors is not terminated so we can never get an
+			 * descriptors is yest terminated so we can never get an
 			 * interrupt.
 			 *
 			 * If the user requested a callback for a cyclic DMA
@@ -713,7 +713,7 @@ static bool jz4780_dma_chan_irq(struct jz4780_dma_dev *jzdma,
 		}
 	} else {
 		dev_err(&jzchan->vchan.chan.dev->device,
-			"channel IRQ with no active transfer\n");
+			"channel IRQ with yes active transfer\n");
 	}
 
 	spin_unlock(&jzchan->vchan.lock);
@@ -808,7 +808,7 @@ static struct dma_chan *jz4780_of_dma_xlate(struct of_phandle_args *dma_spec,
 	if (data.channel > -1) {
 		if (data.channel >= jzdma->soc_data->nb_channels) {
 			dev_err(jzdma->dma_device.dev,
-				"device requested non-existent channel %u\n",
+				"device requested yesn-existent channel %u\n",
 				data.channel);
 			return NULL;
 		}
@@ -827,7 +827,7 @@ static struct dma_chan *jz4780_of_dma_xlate(struct of_phandle_args *dma_spec,
 			&jzdma->chan[data.channel].vchan.chan);
 	} else {
 		return __dma_request_channel(&mask, jz4780_dma_filter_fn, &data,
-					     ofdma->of_node);
+					     ofdma->of_yesde);
 	}
 }
 
@@ -841,7 +841,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, ret;
 
-	if (!dev->of_node) {
+	if (!dev->of_yesde) {
 		dev_err(dev, "This driver must be probed from devicetree\n");
 		return -EINVAL;
 	}
@@ -869,7 +869,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 			return PTR_ERR(jzdma->ctrl_base);
 	} else if (soc_data->flags & JZ_SOC_DATA_ALLOW_LEGACY_DT) {
 		/*
-		 * On JZ4780, if the second memory resource was not supplied,
+		 * On JZ4780, if the second memory resource was yest supplied,
 		 * assume we're using an old devicetree, and calculate the
 		 * offset to the control registers.
 		 */
@@ -902,7 +902,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	clk_prepare_enable(jzdma->clk);
 
 	/* Property is optional, if it doesn't exist the value will remain 0. */
-	of_property_read_u32_index(dev->of_node, "ingenic,reserved-channels",
+	of_property_read_u32_index(dev->of_yesde, "ingenic,reserved-channels",
 				   0, &jzdma->chan_reserved);
 
 	dd = &jzdma->dma_device;
@@ -929,9 +929,9 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	dd->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 
 	/*
-	 * Enable DMA controller, mark all channels as not programmable.
+	 * Enable DMA controller, mark all channels as yest programmable.
 	 * Also set the FMSC bit - it increases MSC performance, so it makes
-	 * little sense not to enable it.
+	 * little sense yest to enable it.
 	 */
 	jz4780_dma_ctrl_writel(jzdma, JZ_DMA_REG_DMAC, JZ_DMA_DMAC_DMAE |
 			       JZ_DMA_DMAC_FAIC | JZ_DMA_DMAC_FMSC);
@@ -956,7 +956,7 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 	}
 
 	/* Register with OF DMA helpers. */
-	ret = of_dma_controller_register(dev->of_node, jz4780_of_dma_xlate,
+	ret = of_dma_controller_register(dev->of_yesde, jz4780_of_dma_xlate,
 					 jzdma);
 	if (ret) {
 		dev_err(dev, "failed to register OF DMA controller\n");
@@ -979,7 +979,7 @@ static int jz4780_dma_remove(struct platform_device *pdev)
 	struct jz4780_dma_dev *jzdma = platform_get_drvdata(pdev);
 	int i;
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 
 	clk_disable_unprepare(jzdma->clk);
 	free_irq(jzdma->irq, jzdma);

@@ -2,7 +2,7 @@
 
 Required properties:
 - compatible: Should be
-    - "nxp,pn532" Place a node with this inside the devicetree node of the bus
+    - "nxp,pn532" Place a yesde with this inside the devicetree yesde of the bus
                   where the NFC chip is connected to.
                   Currently the kernel has phy bindings for uart and i2c.
     - "nxp,pn532-i2c" (DEPRECATED) only works for the i2c binding.

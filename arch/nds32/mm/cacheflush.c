@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/mm.h>
 #include <linux/sched.h>
@@ -297,11 +297,11 @@ void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
 	local_irq_restore(flags);
 }
 
-void flush_anon_page(struct vm_area_struct *vma,
+void flush_ayesn_page(struct vm_area_struct *vma,
 		     struct page *page, unsigned long vaddr)
 {
 	unsigned long kaddr, flags, ktmp;
-	if (!PageAnon(page))
+	if (!PageAyesn(page))
 		return;
 
 	if (vma->vm_mm != current->active_mm)

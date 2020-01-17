@@ -25,8 +25,8 @@ For monitoring and control pktgen creates:
 Tuning NIC for max performance
 ==============================
 
-The default NIC settings are (likely) not tuned for pktgen's artificial
-overload type of benchmarking, as this could hurt the normal use-case.
+The default NIC settings are (likely) yest tuned for pktgen's artificial
+overload type of benchmarking, as this could hurt the yesrmal use-case.
 
 Specifically increasing the TX ring buffer in the NIC:
  # ethtool -G ethX tx 1024
@@ -133,7 +133,7 @@ Examples:
  pgset "count 200000"    sets number of packets to send, set to zero
                          for continuous sends until explicitly stopped.
 
- pgset "delay 5000"      adds delay to hard_start_xmit(). nanoseconds
+ pgset "delay 5000"      adds delay to hard_start_xmit(). nayesseconds
 
  pgset "dst 10.0.0.1"    sets IP destination address
                          (BEWARE! This generator is very aggressive!)
@@ -170,7 +170,7 @@ Examples:
                               QUEUE_MAP_CPU # queue map mirrors smp_processor_id()
                               UDPCSUM,
                               IPSEC # IPsec encapsulation (needs CONFIG_XFRM)
-                              NODE_ALLOC # node specific memory allocation
+                              NODE_ALLOC # yesde specific memory allocation
                               NO_TIMESTAMP # disable timestamping
  pgset 'flag ![name]'    Clear a flag to determine behaviour.
                          Note that you might need to use single quote in
@@ -190,9 +190,9 @@ Examples:
  pgset "mpls 0001000a,0002000a,0000000a" set MPLS labels (in this example
                                          outer label=16,middle label=32,
 					 inner label=0 (IPv4 NULL)) Note that
-					 there must be no spaces between the
+					 there must be yes spaces between the
 					 arguments. Leading zeros are required.
-					 Do not set the bottom of stack bit,
+					 Do yest set the bottom of stack bit,
 					 that's done automatically. If you do
 					 set the bottom of stack bit, that
 					 indicates that you want to randomly
@@ -205,24 +205,24 @@ Examples:
 
  pgset "vlan_id 77"       set VLAN ID 0-4095
  pgset "vlan_p 3"         set priority bit 0-7 (default 0)
- pgset "vlan_cfi 0"       set canonical format identifier 0-1 (default 0)
+ pgset "vlan_cfi 0"       set cayesnical format identifier 0-1 (default 0)
 
  pgset "svlan_id 22"      set SVLAN ID 0-4095
  pgset "svlan_p 3"        set priority bit 0-7 (default 0)
- pgset "svlan_cfi 0"      set canonical format identifier 0-1 (default 0)
+ pgset "svlan_cfi 0"      set cayesnical format identifier 0-1 (default 0)
 
  pgset "vlan_id 9999"     > 4095 remove vlan and svlan tags
  pgset "svlan 9999"       > 4095 remove svlan tag
 
 
- pgset "tos XX"           set former IPv4 TOS field (e.g. "tos 28" for AF11 no ECN, default 00)
- pgset "traffic_class XX" set former IPv6 TRAFFIC CLASS (e.g. "traffic_class B8" for EF no ECN, default 00)
+ pgset "tos XX"           set former IPv4 TOS field (e.g. "tos 28" for AF11 yes ECN, default 00)
+ pgset "traffic_class XX" set former IPv6 TRAFFIC CLASS (e.g. "traffic_class B8" for EF yes ECN, default 00)
 
  pgset "rate 300M"        set rate to 300 Mb/s
  pgset "ratep 1000000"    set rate to 1Mpps
 
  pgset "xmit_mode netif_receive"  RX inject into stack netif_receive_skb()
-				  Works with "burst" but not with "clone_skb".
+				  Works with "burst" but yest with "clone_skb".
 				  Default xmit_mode is "start_xmit".
 
 Sample scripts
@@ -328,7 +328,7 @@ udp_src_max
 udp_dst_min
 udp_dst_max
 
-node
+yesde
 
 flag
   IPSRC_RND

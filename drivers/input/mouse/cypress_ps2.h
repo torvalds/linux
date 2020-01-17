@@ -12,8 +12,8 @@
 #define CYTP_CMD_ABS_NO_PRESSURE_MODE       ENCODE_CMD(0, 1, 0, 0)
 #define CYTP_CMD_ABS_WITH_PRESSURE_MODE     ENCODE_CMD(0, 1, 0, 1)
 #define CYTP_CMD_SMBUS_MODE                 ENCODE_CMD(0, 1, 1, 0)
-#define CYTP_CMD_STANDARD_MODE              ENCODE_CMD(0, 2, 0, 0)  /* not implemented yet. */
-#define CYTP_CMD_CYPRESS_REL_MODE           ENCODE_CMD(1, 1, 1, 1)  /* not implemented yet. */
+#define CYTP_CMD_STANDARD_MODE              ENCODE_CMD(0, 2, 0, 0)  /* yest implemented yet. */
+#define CYTP_CMD_CYPRESS_REL_MODE           ENCODE_CMD(1, 1, 1, 1)  /* yest implemented yet. */
 #define CYTP_CMD_READ_CYPRESS_ID            ENCODE_CMD(0, 0, 0, 0)
 #define CYTP_CMD_READ_TP_METRICS            ENCODE_CMD(0, 0, 0, 1)
 #define CYTP_CMD_SET_HSCROLL_WIDTH(w)       ENCODE_CMD(1, 1, 0, (w))
@@ -102,7 +102,7 @@
 #define ABS_MULTIFINGER_TAP 0x04
 #define ABS_EDGE_MOTION_MASK 0x80
 
-#define DFLT_RESP_BITS_VALID     0x88  /* SMBus bit should not be set. */
+#define DFLT_RESP_BITS_VALID     0x88  /* SMBus bit should yest be set. */
 #define DFLT_RESP_SMBUS_BIT      0x80
 #define   DFLT_SMBUS_MODE        0x80
 #define   DFLT_PS2_MODE          0x00

@@ -535,7 +535,7 @@ struct SRingBufferDescriptor {
 };
 
 enum STREAMMODEFLAGS {
-	StreamMode_NONE   = 0, /* Stream not used */
+	StreamMode_NONE   = 0, /* Stream yest used */
 	StreamMode_ANALOG = 1, /* Analog: Stream 0,1 = Video, 2,3 = Audio */
 	StreamMode_TSIN   = 2, /* Transport stream input (all) */
 	StreamMode_HDTV   = 4, /* HDTV: Maximum 1920x1080p30,1920x1080i60
@@ -596,7 +596,7 @@ struct mychip {
 
 #ifdef NGENE_V4L
 struct ngene_overlay {
-	int                    tvnorm;
+	int                    tvyesrm;
 	struct v4l2_rect       w;
 	enum v4l2_field        field;
 	struct v4l2_clip       *clips;
@@ -604,11 +604,11 @@ struct ngene_overlay {
 	int                    setup_ok;
 };
 
-struct ngene_tvnorm {
+struct ngene_tvyesrm {
 	int   v4l2_id;
 	char  *name;
 	u16   swidth, sheight; /* scaled standard width, height */
-	int   tuner_norm;
+	int   tuner_yesrm;
 	int   soundstd;
 };
 
@@ -689,7 +689,7 @@ struct ngene_channel {
 
 	/* stuff from analog driver */
 
-	int minor;
+	int miyesr;
 	struct mychip        *mychip;
 	struct snd_card      *soundcard;
 	u8                   *evenbuffer;
@@ -703,9 +703,9 @@ struct ngene_channel {
 	int                   tun_dec_rdy;
 	int                   lastbufferflag;
 
-	struct ngene_tvnorm  *tvnorms;
-	int                   tvnorm_num;
-	int                   tvnorm;
+	struct ngene_tvyesrm  *tvyesrms;
+	int                   tvyesrm_num;
+	int                   tvyesrm;
 
 #ifdef NGENE_V4L
 	int                   videousers;
@@ -884,7 +884,7 @@ struct ngene_buffer {
 
 	/* ngene specific */
 	const struct ngene_format *fmt;
-	int                        tvnorm;
+	int                        tvyesrm;
 	int                        btformat;
 	int                        btswap;
 };

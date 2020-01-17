@@ -28,7 +28,7 @@ void cgroup_rstat_updated(struct cgroup *cgrp, int cpu)
 	struct cgroup *parent;
 	unsigned long flags;
 
-	/* nothing to do for root */
+	/* yesthing to do for root */
 	if (!cgroup_parent(cgrp))
 		return;
 
@@ -94,7 +94,7 @@ static struct cgroup *cgroup_rstat_cpu_pop_updated(struct cgroup *pos,
 
 	/*
 	 * We're gonna walk down to the first leaf and visit/remove it.  We
-	 * can pick whatever unvisited node as the starting point.
+	 * can pick whatever unvisited yesde as the starting point.
 	 */
 	if (!pos)
 		pos = root;
@@ -169,7 +169,7 @@ static void cgroup_rstat_flush_locked(struct cgroup *cgrp, bool may_sleep)
 
 			rcu_read_lock();
 			list_for_each_entry_rcu(css, &pos->rstat_css_list,
-						rstat_css_node)
+						rstat_css_yesde)
 				css->ss->css_rstat_flush(css, cpu);
 			rcu_read_unlock();
 		}

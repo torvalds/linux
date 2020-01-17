@@ -3,7 +3,7 @@
  * allow multiple VGA devices to be used in a system in a safe way.
  *
  * (C) Copyright 2005 Benjamin Herrenschmidt <benh@kernel.crashing.org>
- * (C) Copyright 2007 Paulo R. Zanoni <przanoni@gmail.com>
+ * (C) Copyright 2007 Paulo R. Zayesni <przayesni@gmail.com>
  * (C) Copyright 2007, 2009 Tiago Vignatti <vignatti@freedesktop.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -59,7 +59,7 @@ struct pci_dev;
  *     @decodes: bit mask of what legacy regions the card decodes
  *
  *     Indicates to the arbiter if the card decodes legacy VGA IOs,
- *     legacy VGA Memory, both, or none. All cards default to both,
+ *     legacy VGA Memory, both, or yesne. All cards default to both,
  *     the card driver (fbdev for example) should tell the arbiter
  *     if it has disabled legacy decoding, so the card can be left
  *     out of the arbitration process (and can be safe to take

@@ -2,7 +2,7 @@
 /*
  * PSC clock descriptions for TI DaVinci DM646x
  *
- * Copyright (C) 2018 David Lechner <david@lechnology.com>
+ * Copyright (C) 2018 David Lechner <david@lechyeslogy.com>
  */
 
 #include <linux/clk-provider.h>

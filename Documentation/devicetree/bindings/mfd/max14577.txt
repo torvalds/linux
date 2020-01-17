@@ -13,7 +13,7 @@ Required properties:
 - interrupts : IRQ line for the chip.
 
 
-Required nodes:
+Required yesdes:
  - charger :
 	Node for configuring the charger driver.
 	Required properties:
@@ -37,7 +37,7 @@ Required nodes:
 			- 4350000;
 
 
-Optional nodes:
+Optional yesdes:
 - max14577-muic/max77836-muic :
 	Node used only by extcon consumers.
 	Required properties:
@@ -48,16 +48,16 @@ Optional nodes:
 		- compatible : "maxim,max14577-regulator"
 			or "maxim,max77836-regulator"
 
-	May contain a sub-node per regulator from the list below. Each
-	sub-node should contain the constraints and initialization information
+	May contain a sub-yesde per regulator from the list below. Each
+	sub-yesde should contain the constraints and initialization information
 	for that regulator. See regulator.txt for a description of standard
-	properties for these sub-nodes.
+	properties for these sub-yesdes.
 
 	List of valid regulator names:
 	- for max14577: CHARGER, SAFEOUT.
 	- for max77836: CHARGER, SAFEOUT, LDO1, LDO2.
 
-	The SAFEOUT is a fixed voltage regulator so there is no need to specify
+	The SAFEOUT is a fixed voltage regulator so there is yes need to specify
 	voltages for it.
 
 

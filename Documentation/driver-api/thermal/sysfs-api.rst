@@ -27,8 +27,8 @@ An intelligent thermal management application can make decisions based on
 inputs from thermal zone attributes (the current temperature and trip point
 temperature) and throttle appropriate devices.
 
-- `[0-*]`	denotes any positive number starting from 0
-- `[1-*]`	denotes any positive number starting from 1
+- `[0-*]`	deyestes any positive number starting from 0
+- `[1-*]`	deyestes any positive number starting from 1
 
 1. thermal sysfs driver interface functions
 ===========================================
@@ -115,15 +115,15 @@ temperature) and throttle appropriate devices.
 	This interface adds a new sensor to a DT thermal zone.
 	This function will search the list of thermal zones described in
 	device tree and look for the zone that refer to the sensor device
-	pointed by dev->of_node as temperature providers. For the zone
-	pointing to the sensor node, the sensor will be added to the DT
+	pointed by dev->of_yesde as temperature providers. For the zone
+	pointing to the sensor yesde, the sensor will be added to the DT
 	thermal zone device.
 
 	The parameters for this interface are:
 
 	dev:
-			Device node of sensor containing valid node pointer in
-			dev->of_node.
+			Device yesde of sensor containing valid yesde pointer in
+			dev->of_yesde.
 	sensor_id:
 			a sensor identifier, in case the sensor IP has more
 			than one sensors
@@ -153,7 +153,7 @@ temperature) and throttle appropriate devices.
 
 	It returns error pointer if fails otherwise valid thermal zone device
 	handle. Caller should check the return handle with IS_ERR() for finding
-	whether success or not.
+	whether success or yest.
 
 	::
 
@@ -182,7 +182,7 @@ temperature) and throttle appropriate devices.
 	section 1.1.3 is applicable here.
 
 	The benefit of using this interface to register sensor is that it
-	is not require to explicitly call thermal_zone_of_sensor_unregister()
+	is yest require to explicitly call thermal_zone_of_sensor_unregister()
 	in error path or during driver unbinding as this is done by driver
 	resource manager.
 
@@ -195,7 +195,7 @@ temperature) and throttle appropriate devices.
 	thermal_zone_of_sensor_unregister().
 	All details of thermal_zone_of_sensor_unregister() described in
 	section 1.1.4 is applicable here.
-	Normally this function will not need to be called and the resource
+	Normally this function will yest need to be called and the resource
 	management code will ensure that the resource is freed.
 
 	::
@@ -274,11 +274,11 @@ temperature) and throttle appropriate devices.
 	  is associated with.
     upper:
 	  the Maximum cooling state for this trip point.
-	  THERMAL_NO_LIMIT means no upper limit,
+	  THERMAL_NO_LIMIT means yes upper limit,
 	  and the cooling device can be in max_state.
     lower:
 	  the Minimum cooling state can be used for this trip point.
-	  THERMAL_NO_LIMIT means no lower limit,
+	  THERMAL_NO_LIMIT means yes lower limit,
 	  and the cooling device can be in cooling state 0.
     weight:
 	  the influence of this cooling device in this thermal
@@ -318,7 +318,7 @@ temperature) and throttle appropriate devices.
 	     zone. This is relative to the rest of the cooling
 	     devices. For example, if all cooling devices have a
 	     weight of 1, then they all contribute the same. You can
-	     use percentages if you want, but it's not mandatory. A
+	     use percentages if you want, but it's yest mandatory. A
 	     weight of 0 means that this cooling device doesn't
 	     contribute to the cooling of this zone unless all cooling
 	     devices have a weight of 0. If all weights are 0, then
@@ -346,15 +346,15 @@ temperature) and throttle appropriate devices.
 
     This structure defines the platform level parameters for a thermal zone.
     This data, for each thermal zone should come from the platform layer.
-    This is an optional feature where some platforms can choose not to
+    This is an optional feature where some platforms can choose yest to
     provide this data.
 
-    .governor_name:
-	       Name of the thermal governor used for this zone
-    .no_hwmon:
+    .goveryesr_name:
+	       Name of the thermal goveryesr used for this zone
+    .yes_hwmon:
 	       a boolean to indicate if the thermal to hwmon sysfs interface
-	       is required. when no_hwmon == false, a hwmon sysfs interface
-	       will be created. when no_hwmon == true, nothing will be done.
+	       is required. when yes_hwmon == false, a hwmon sysfs interface
+	       will be created. when yes_hwmon == true, yesthing will be done.
 	       In case the thermal_zone_params is NULL, the hwmon interface
 	       will be created (for backward compatibility).
     .num_tbps:
@@ -381,12 +381,12 @@ Thermal zone device sys I/F, created once it's registered::
     |---type:			Type of the thermal zone
     |---temp:			Current temperature
     |---mode:			Working mode of the thermal zone
-    |---policy:			Thermal governor used for this zone
-    |---available_policies:	Available thermal governors for this zone
+    |---policy:			Thermal goveryesr used for this zone
+    |---available_policies:	Available thermal goveryesrs for this zone
     |---trip_point_[0-*]_temp:	Trip point temperature
     |---trip_point_[0-*]_type:	Trip point type
     |---trip_point_[0-*]_hyst:	Hysteresis value for this trip point
-    |---emul_temp:		Emulated temperature set node
+    |---emul_temp:		Emulated temperature set yesde
     |---sustainable_power:      Sustainable dissipatable power
     |---k_po:                   Proportional term during temperature overshoot
     |---k_pu:                   Proportional term during temperature undershoot
@@ -445,7 +445,7 @@ type
 	This is given by thermal zone driver as part of registration.
 	E.g: "acpitz" indicates it's an ACPI thermal device.
 	In order to keep it consistent with hwmon sys attribute; this should
-	be a short, lowercase string, not containing spaces nor dashes.
+	be a short, lowercase string, yest containing spaces yesr dashes.
 	RO, Required
 
 temp
@@ -469,12 +469,12 @@ mode
 	RW, Optional
 
 policy
-	One of the various thermal governors used for a particular zone.
+	One of the various thermal goveryesrs used for a particular zone.
 
 	RW, Required
 
 available_policies
-	Available thermal governors which can be used for a particular zone.
+	Available thermal goveryesrs which can be used for a particular zone.
 
 	RO, Required
 
@@ -499,14 +499,14 @@ available_policies
 	RW, Optional
 
 `cdev[0-*]`
-	Sysfs link to the thermal cooling device node where the sys I/F
+	Sysfs link to the thermal cooling device yesde where the sys I/F
 	for cooling device throttling control represents.
 
 	RO, Optional
 
 `cdev[0-*]_trip_point`
 	The trip point in this thermal zone which `cdev[0-*]` is associated
-	with; -1 means the cooling device is not associated with any trip
+	with; -1 means the cooling device is yest associated with any trip
 	point.
 
 	RO, Optional
@@ -522,7 +522,7 @@ available_policies
 
 passive
 	Attribute is only present for zones in which the passive cooling
-	policy is not supported by native thermal driver. Default is zero
+	policy is yest supported by native thermal driver. Default is zero
 	and can be set to a temperature (in millidegrees) to enable a
 	passive trip point for the zone. Activation is done by polling with
 	an interval of 1 second.
@@ -538,8 +538,8 @@ emul_temp
 	(sensor). After setting this temperature, the thermal zone may pass
 	this temperature to platform emulation function if registered or
 	cache it locally. This is useful in debugging different temperature
-	threshold and its associated cooling action. This is write only node
-	and writing 0 on this node should disable emulation.
+	threshold and its associated cooling action. This is write only yesde
+	and writing 0 on this yesde should disable emulation.
 	Unit: millidegree Celsius
 
 	WO, Optional
@@ -547,11 +547,11 @@ emul_temp
 	  WARNING:
 	    Be careful while enabling this option on production systems,
 	    because userland can easily disable the thermal policy by simply
-	    flooding this sysfs node with low temperature values.
+	    flooding this sysfs yesde with low temperature values.
 
 sustainable_power
 	An estimate of the sustained power that can be dissipated by
-	the thermal zone. Used by the power allocator governor. For
+	the thermal zone. Used by the power allocator goveryesr. For
 	more information see Documentation/driver-api/thermal/power_allocator.rst
 
 	Unit: milliwatts
@@ -559,7 +559,7 @@ sustainable_power
 	RW, Optional
 
 k_po
-	The proportional term of the power allocator governor's PID
+	The proportional term of the power allocator goveryesr's PID
 	controller during temperature overshoot. Temperature overshoot
 	is when the current temperature is above the "desired
 	temperature" trip point. For more information see
@@ -568,7 +568,7 @@ k_po
 	RW, Optional
 
 k_pu
-	The proportional term of the power allocator governor's PID
+	The proportional term of the power allocator goveryesr's PID
 	controller during temperature undershoot. Temperature undershoot
 	is when the current temperature is below the "desired
 	temperature" trip point. For more information see
@@ -577,7 +577,7 @@ k_pu
 	RW, Optional
 
 k_i
-	The integral term of the power allocator governor's PID
+	The integral term of the power allocator goveryesr's PID
 	controller. This term allows the PID controller to compensate
 	for long term drift. For more information see
 	Documentation/driver-api/thermal/power_allocator.rst
@@ -585,7 +585,7 @@ k_i
 	RW, Optional
 
 k_d
-	The derivative term of the power allocator governor's PID
+	The derivative term of the power allocator goveryesr's PID
 	controller. For more information see
 	Documentation/driver-api/thermal/power_allocator.rst
 
@@ -594,7 +594,7 @@ k_d
 integral_cutoff
 	Temperature offset from the desired temperature trip point
 	above which the integral term of the power allocator
-	governor's PID controller starts accumulating errors. For
+	goveryesr's PID controller starts accumulating errors. For
 	example, if integral_cutoff is 0, then the integral term only
 	accumulates error when temperature is above the desired
 	temperature trip point. For more information see
@@ -641,7 +641,7 @@ cur_state
 	The current cooling state of this cooling device.
 	The value can any integer numbers between 0 and max_state:
 
-	- cur_state == 0 means no cooling
+	- cur_state == 0 means yes cooling
 	- cur_state == max_state means the maximum cooling.
 
 	RW, Required
@@ -742,16 +742,16 @@ temperature values.
 
 This function returns the thermal_instance corresponding to a given
 {thermal_zone, cooling_device, trip_point} combination. Returns NULL
-if such an instance does not exist.
+if such an instance does yest exist.
 
-4.3. thermal_notify_framework
+4.3. thermal_yestify_framework
 -----------------------------
 
 This function handles the trip events from sensor drivers. It starts
 throttling the cooling devices according to the policy configured.
-For CRITICAL and HOT trip points, this notifies the respective drivers,
+For CRITICAL and HOT trip points, this yestifies the respective drivers,
 and does actual throttling for other trip points i.e ACTIVE and PASSIVE.
-The throttling policy is based on the configured platform data; if no
+The throttling policy is based on the configured platform data; if yes
 platform data is provided, this uses the step_wise throttling policy.
 
 4.4. thermal_cdev_update
@@ -779,6 +779,6 @@ orderly_poweroff(). In case of failure of an orderly_poweroff() the
 emergency poweroff kicks in after the delay has elapsed and shuts down
 the system.
 
-If set to 0 emergency poweroff will not be supported. So a carefully
-profiled non-zero positive value is a must for emergerncy poweroff to be
+If set to 0 emergency poweroff will yest be supported. So a carefully
+profiled yesn-zero positive value is a must for emergerncy poweroff to be
 triggered.

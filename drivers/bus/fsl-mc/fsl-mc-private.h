@@ -27,7 +27,7 @@
 struct dpmng_rsp_get_version {
 	__le32 revision;
 	__le32 version_major;
-	__le32 version_minor;
+	__le32 version_miyesr;
 };
 
 /*
@@ -179,7 +179,7 @@ struct dprc_rsp_get_obj {
 	__le32 state;
 	/* response word 2 */
 	__le16 version_major;
-	__le16 version_minor;
+	__le16 version_miyesr;
 	__le16 flags;
 	__le16 pad1;
 	/* response word 3-4 */
@@ -404,7 +404,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 int dprc_get_api_version(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 *major_ver,
-			 u16 *minor_ver);
+			 u16 *miyesr_ver);
 
 int dprc_get_container_id(struct fsl_mc_io *mc_io,
 			  u32 cmd_flags,
@@ -467,7 +467,7 @@ struct dpbp_rsp_get_attributes {
 	__le32 id;
 	/* response word 1 */
 	__le16 version_major;
-	__le16 version_minor;
+	__le16 version_miyesr;
 };
 
 /*
@@ -509,7 +509,7 @@ struct dpcon_rsp_get_attr {
 	u8 pad;
 };
 
-struct dpcon_cmd_set_notification {
+struct dpcon_cmd_set_yestification {
 	/* cmd word 0 */
 	__le32 dpio_id;
 	u8 priority;
@@ -531,7 +531,7 @@ struct dpcon_cmd_set_notification {
  * @max_count: maximum number of resources in the pool
  * @free_count: number of free resources in the pool
  * @mutex: mutex to serialize access to the pool's free list
- * @free_list: anchor node of list of free resources in the pool
+ * @free_list: anchor yesde of list of free resources in the pool
  * @mc_bus: pointer to the MC bus that owns this resource pool
  */
 struct fsl_mc_resource_pool {

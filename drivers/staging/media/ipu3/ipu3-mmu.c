@@ -435,11 +435,11 @@ struct imgu_mmu_info *imgu_mmu_init(struct device *parent, void __iomem *base)
 	mmu->base = base;
 	spin_lock_init(&mmu->lock);
 
-	/* Disallow external memory access when having no valid page tables. */
+	/* Disallow external memory access when having yes valid page tables. */
 	imgu_mmu_set_halt(mmu, true);
 
 	/*
-	 * The MMU does not have a "valid" bit, so we have to use a dummy
+	 * The MMU does yest have a "valid" bit, so we have to use a dummy
 	 * page for invalid entries.
 	 */
 	mmu->dummy_page = (void *)__get_free_page(GFP_KERNEL);
@@ -502,7 +502,7 @@ void imgu_mmu_exit(struct imgu_mmu_info *info)
 {
 	struct imgu_mmu *mmu = to_imgu_mmu(info);
 
-	/* We are going to free our page tables, no more memory access. */
+	/* We are going to free our page tables, yes more memory access. */
 	imgu_mmu_set_halt(mmu, true);
 	imgu_mmu_tlb_invalidate(mmu);
 

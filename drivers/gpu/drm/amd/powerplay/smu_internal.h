@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -61,8 +61,8 @@
 	((smu)->ppt_funcs->set_min_dcef_deep_sleep ? (smu)->ppt_funcs->set_min_dcef_deep_sleep((smu)) : 0)
 #define smu_set_tool_table_location(smu) \
 	((smu)->ppt_funcs->set_tool_table_location ? (smu)->ppt_funcs->set_tool_table_location((smu)) : 0)
-#define smu_notify_memory_pool_location(smu) \
-	((smu)->ppt_funcs->notify_memory_pool_location ? (smu)->ppt_funcs->notify_memory_pool_location((smu)) : 0)
+#define smu_yestify_memory_pool_location(smu) \
+	((smu)->ppt_funcs->yestify_memory_pool_location ? (smu)->ppt_funcs->yestify_memory_pool_location((smu)) : 0)
 #define smu_gfx_off_control(smu, enable) \
 	((smu)->ppt_funcs->gfx_off_control ? (smu)->ppt_funcs->gfx_off_control((smu), (enable)) : 0)
 
@@ -91,8 +91,8 @@ int smu_send_smc_msg(struct smu_context *smu, enum smu_message_type msg);
 	((smu)->ppt_funcs->get_enabled_mask? (smu)->ppt_funcs->get_enabled_mask((smu), (mask), (num)) : 0)
 #define smu_is_dpm_running(smu) \
 	((smu)->ppt_funcs->is_dpm_running ? (smu)->ppt_funcs->is_dpm_running((smu)) : 0)
-#define smu_notify_display_change(smu) \
-	((smu)->ppt_funcs->notify_display_change? (smu)->ppt_funcs->notify_display_change((smu)) : 0)
+#define smu_yestify_display_change(smu) \
+	((smu)->ppt_funcs->yestify_display_change? (smu)->ppt_funcs->yestify_display_change((smu)) : 0)
 #define smu_store_powerplay_table(smu) \
 	((smu)->ppt_funcs->store_powerplay_table ? (smu)->ppt_funcs->store_powerplay_table((smu)) : 0)
 #define smu_check_powerplay_table(smu) \
@@ -127,8 +127,8 @@ int smu_send_smc_msg(struct smu_context *smu, enum smu_message_type msg);
 	((smu)->ppt_funcs->display_config_changed ? (smu)->ppt_funcs->display_config_changed((smu)) : 0)
 #define smu_apply_clocks_adjust_rules(smu) \
 	((smu)->ppt_funcs->apply_clocks_adjust_rules ? (smu)->ppt_funcs->apply_clocks_adjust_rules((smu)) : 0)
-#define smu_notify_smc_dispaly_config(smu) \
-	((smu)->ppt_funcs->notify_smc_dispaly_config ? (smu)->ppt_funcs->notify_smc_dispaly_config((smu)) : 0)
+#define smu_yestify_smc_dispaly_config(smu) \
+	((smu)->ppt_funcs->yestify_smc_dispaly_config ? (smu)->ppt_funcs->yestify_smc_dispaly_config((smu)) : 0)
 #define smu_force_dpm_limit_value(smu, highest) \
 	((smu)->ppt_funcs->force_dpm_limit_value ? (smu)->ppt_funcs->force_dpm_limit_value((smu), (highest)) : 0)
 #define smu_unforce_dpm_levels(smu) \

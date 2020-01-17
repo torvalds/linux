@@ -15,7 +15,7 @@
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
 #include <asm/cpufeature.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/esr.h>
 #include <asm/irq.h>
 #include <asm/memory.h>
@@ -69,7 +69,7 @@ alternative_if ARM64_UNMAP_KERNEL_AT_EL0
 	mov	x30, xzr
 	.endif
 	.endif
-alternative_else_nop_endif
+alternative_else_yesp_endif
 #endif
 
 	sub	sp, sp, #S_FRAME_SIZE
@@ -110,7 +110,7 @@ alternative_else_nop_endif
 	mrs	x0, tpidr_el0			// sp of interrupted context
 	sub	x0, sp, x0			// delta with top of overflow stack
 	tst	x0, #~(OVERFLOW_STACK_SIZE - 1)	// within range?
-	b.ne	__bad_stack			// no? -> bad stack pointer
+	b.ne	__bad_stack			// yes? -> bad stack pointer
 
 	/* We were already on the overflow stack. Restore sp/x0 and carry on. */
 	sub	sp, sp, x0
@@ -138,7 +138,7 @@ alternative_cb_end
 	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_2
 	mov	w1, #\state
 alternative_cb	arm64_update_smccc_conduit
-	nop					// Patched to SMC/HVC #0
+	yesp					// Patched to SMC/HVC #0
 alternative_cb_end
 .L__asm_ssbd_skip\@:
 #endif
@@ -202,15 +202,15 @@ alternative_cb_end
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	/*
 	 * Set the TTBR0 PAN bit in SPSR. When the exception is taken from
-	 * EL0, there is no need to check the state of TTBR0_EL1 since
+	 * EL0, there is yes need to check the state of TTBR0_EL1 since
 	 * accesses are always enabled.
 	 * Note that the meaning of this bit differs from the ARMv8.1 PAN
-	 * feature as all TTBR0_EL1 accesses are disabled, not just those to
+	 * feature as all TTBR0_EL1 accesses are disabled, yest just those to
 	 * user mappings.
 	 */
 alternative_if ARM64_HAS_PAN
 	b	1f				// skip TTBR0 PAN
-alternative_else_nop_endif
+alternative_else_yesp_endif
 
 	.if	\el != 0
 	mrs	x21, ttbr0_el1
@@ -243,7 +243,7 @@ alternative_else_nop_endif
 alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	mrs_s	x20, SYS_ICC_PMR_EL1
 	str	x20, [sp, #S_PMR_SAVE]
-alternative_else_nop_endif
+alternative_else_yesp_endif
 
 	/*
 	 * Registers that may be useful after this macro is invoked:
@@ -274,7 +274,7 @@ alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	tbz	x21, #6, .L__skip_pmr_sync\@	// Check for ICC_CTLR_EL1.PMHE
 	dsb	sy				// Ensure priority change is seen by redistributor
 .L__skip_pmr_sync\@:
-alternative_else_nop_endif
+alternative_else_yesp_endif
 
 	ldp	x21, x22, [sp, #S_PC]		// load ELR, SPSR
 	.if	\el == 0
@@ -283,12 +283,12 @@ alternative_else_nop_endif
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	/*
-	 * Restore access to TTBR0_EL1. If returning to EL0, no need for SPSR
+	 * Restore access to TTBR0_EL1. If returning to EL0, yes need for SPSR
 	 * PAN bit checking.
 	 */
 alternative_if ARM64_HAS_PAN
 	b	2f				// skip TTBR0 PAN
-alternative_else_nop_endif
+alternative_else_yesp_endif
 
 	.if	\el != 0
 	tbnz	x22, #22, 1f			// Skip re-enabling TTBR0 access if the PSR_PAN_BIT is set
@@ -307,7 +307,7 @@ alternative_else_nop_endif
 	.endif
 1:
 	.if	\el != 0
-	and	x22, x22, #~PSR_PAN_BIT		// ARMv8.0 CPUs do not understand this bit
+	and	x22, x22, #~PSR_PAN_BIT		// ARMv8.0 CPUs do yest understand this bit
 	.endif
 2:
 #endif
@@ -326,13 +326,13 @@ alternative_if ARM64_WORKAROUND_845719
 #else
 	msr contextidr_el1, xzr
 #endif
-alternative_else_nop_endif
+alternative_else_yesp_endif
 #endif
 3:
 #ifdef CONFIG_ARM64_ERRATUM_1418040
-alternative_if_not ARM64_WORKAROUND_1418040
+alternative_if_yest ARM64_WORKAROUND_1418040
 	b	4f
-alternative_else_nop_endif
+alternative_else_yesp_endif
 	/*
 	 * if (x22.mode32 == cntkctl_el1.el0vcten)
 	 *     cntkctl_el1.el0vcten = ~cntkctl_el1.el0vcten
@@ -368,7 +368,7 @@ alternative_else_nop_endif
 	add	sp, sp, #S_FRAME_SIZE		// restore sp
 
 	.if	\el == 0
-alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
+alternative_insn eret, yesp, ARM64_UNMAP_KERNEL_AT_EL0
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	bne	5f
 	msr	far_el1, x30
@@ -431,7 +431,7 @@ tsk	.req	x28		// current thread_info
 #ifdef CONFIG_ARM64_PSEUDO_NMI
 	/*
 	 * Set res to 0 if irqs were unmasked in interrupted context.
-	 * Otherwise set res to non-0 value.
+	 * Otherwise set res to yesn-0 value.
 	 */
 	.macro	test_irqs_unmasked res:req, pmr:req
 alternative_if ARM64_HAS_IRQ_PRIO_MASKING
@@ -447,7 +447,7 @@ alternative_endif
 	alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	mov	\tmp, #(GIC_PRIO_PSR_I_SET | GIC_PRIO_IRQON)
 	msr_s	SYS_ICC_PMR_EL1, \tmp
-	alternative_else_nop_endif
+	alternative_else_yesp_endif
 #endif
 	.endm
 
@@ -456,7 +456,7 @@ alternative_endif
 	alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	orr	\tmp, \pmr, #GIC_PRIO_PSR_I_SET
 	msr_s	SYS_ICC_PMR_EL1, \tmp
-	alternative_else_nop_endif
+	alternative_else_yesp_endif
 #endif
 	.endm
 
@@ -469,28 +469,28 @@ alternative_endif
 
 	.align	11
 ENTRY(vectors)
-	kernel_ventry	1, sync_invalid			// Synchronous EL1t
+	kernel_ventry	1, sync_invalid			// Synchroyesus EL1t
 	kernel_ventry	1, irq_invalid			// IRQ EL1t
 	kernel_ventry	1, fiq_invalid			// FIQ EL1t
 	kernel_ventry	1, error_invalid		// Error EL1t
 
-	kernel_ventry	1, sync				// Synchronous EL1h
+	kernel_ventry	1, sync				// Synchroyesus EL1h
 	kernel_ventry	1, irq				// IRQ EL1h
 	kernel_ventry	1, fiq_invalid			// FIQ EL1h
 	kernel_ventry	1, error			// Error EL1h
 
-	kernel_ventry	0, sync				// Synchronous 64-bit EL0
+	kernel_ventry	0, sync				// Synchroyesus 64-bit EL0
 	kernel_ventry	0, irq				// IRQ 64-bit EL0
 	kernel_ventry	0, fiq_invalid			// FIQ 64-bit EL0
 	kernel_ventry	0, error			// Error 64-bit EL0
 
 #ifdef CONFIG_COMPAT
-	kernel_ventry	0, sync_compat, 32		// Synchronous 32-bit EL0
+	kernel_ventry	0, sync_compat, 32		// Synchroyesus 32-bit EL0
 	kernel_ventry	0, irq_compat, 32		// IRQ 32-bit EL0
 	kernel_ventry	0, fiq_invalid_compat, 32	// FIQ 32-bit EL0
 	kernel_ventry	0, error_compat, 32		// Error 32-bit EL0
 #else
-	kernel_ventry	0, sync_invalid, 32		// Synchronous 32-bit EL0
+	kernel_ventry	0, sync_invalid, 32		// Synchroyesus 32-bit EL0
 	kernel_ventry	0, irq_invalid, 32		// IRQ 32-bit EL0
 	kernel_ventry	0, fiq_invalid, 32		// FIQ 32-bit EL0
 	kernel_ventry	0, error_invalid, 32		// Error 32-bit EL0
@@ -614,7 +614,7 @@ alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	 */
 	mrs	x0, daif
 	orr	x24, x24, x0
-alternative_else_nop_endif
+alternative_else_yesp_endif
 	cbnz	x24, 1f				// preempt count != 0 || NMI return path
 	bl	arm64_preempt_schedule_irq	// irq en/disable is done inside
 1:
@@ -727,7 +727,7 @@ ENDPROC(el0_error)
  */
 work_pending:
 	mov	x0, sp				// 'regs'
-	bl	do_notify_resume
+	bl	do_yestify_resume
 #ifdef CONFIG_TRACE_IRQFLAGS
 	bl	trace_hardirqs_on		// enabled while in userspace
 #endif
@@ -768,12 +768,12 @@ alternative_if ARM64_WORKAROUND_QCOM_FALKOR_E1003
 	/* ASID already in \tmp[63:48] */
 	movk	\tmp, #:abs_g2_nc:(TRAMP_VALIAS >> 12)
 	movk	\tmp, #:abs_g1_nc:(TRAMP_VALIAS >> 12)
-	/* 2MB boundary containing the vectors, so we nobble the walk cache */
+	/* 2MB boundary containing the vectors, so we yesbble the walk cache */
 	movk	\tmp, #:abs_g0_nc:((TRAMP_VALIAS & ~(SZ_2M - 1)) >> 12)
 	isb
 	tlbi	vae1, \tmp
 	dsb	nsh
-alternative_else_nop_endif
+alternative_else_yesp_endif
 #endif /* CONFIG_QCOM_FALKOR_ERRATUM_1003 */
 	.endm
 
@@ -806,14 +806,14 @@ alternative_else_nop_endif
 	tramp_map_kernel	x30
 #ifdef CONFIG_RANDOMIZE_BASE
 	adr	x30, tramp_vectors + PAGE_SIZE
-alternative_insn isb, nop, ARM64_WORKAROUND_QCOM_FALKOR_E1003
+alternative_insn isb, yesp, ARM64_WORKAROUND_QCOM_FALKOR_E1003
 	ldr	x30, [x30]
 #else
 	ldr	x30, =vectors
 #endif
-alternative_if_not ARM64_WORKAROUND_CAVIUM_TX2_219_PRFM
+alternative_if_yest ARM64_WORKAROUND_CAVIUM_TX2_219_PRFM
 	prfm	plil1strm, [x30, #(1b - tramp_vectors)]
-alternative_else_nop_endif
+alternative_else_yesp_endif
 	msr	vbar_el1, x30
 	add	x30, x30, #(1b - tramp_vectors)
 	isb
@@ -871,7 +871,7 @@ __entry_tramp_data_start:
  * and restored. On entry:
  *   x0 = previous task_struct (must be preserved across the switch)
  *   x1 = next task_struct
- * Previous and next are guaranteed not to be the same.
+ * Previous and next are guaranteed yest to be the same.
  *
  */
 ENTRY(cpu_switch_to)
@@ -904,7 +904,7 @@ NOKPROBE(cpu_switch_to)
  */
 ENTRY(ret_from_fork)
 	bl	schedule_tail
-	cbz	x19, 1f				// not a kernel thread
+	cbz	x19, 1f				// yest a kernel thread
 	mov	x0, x20
 	blr	x19
 1:	get_current_task tsk
@@ -1025,12 +1025,12 @@ ENTRY(__sdei_asm_handler)
 #ifdef CONFIG_VMAP_STACK
 	/*
 	 * entry.S may have been using sp as a scratch register, find whether
-	 * this is a normal or critical event and switch to the appropriate
+	 * this is a yesrmal or critical event and switch to the appropriate
 	 * stack for this CPU.
 	 */
 	ldrb	w4, [x19, #SDEI_EVENT_PRIORITY]
 	cbnz	w4, 1f
-	ldr_this_cpu dst=x5, sym=sdei_stack_normal_ptr, tmp=x6
+	ldr_this_cpu dst=x5, sym=sdei_stack_yesrmal_ptr, tmp=x6
 	b	2f
 1:	ldr_this_cpu dst=x5, sym=sdei_stack_critical_ptr, tmp=x6
 2:	mov	x6, #SDEI_STACK_SIZE
@@ -1077,9 +1077,9 @@ ENTRY(__sdei_asm_handler)
 
 	ldr_l	x2, sdei_exit_mode
 
-alternative_if_not ARM64_UNMAP_KERNEL_AT_EL0
+alternative_if_yest ARM64_UNMAP_KERNEL_AT_EL0
 	sdei_handler_exit exit_mode=x2
-alternative_else_nop_endif
+alternative_else_yesp_endif
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	tramp_alias	dst=x5, sym=__sdei_asm_exit_trampoline

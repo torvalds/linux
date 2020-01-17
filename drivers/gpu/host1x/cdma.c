@@ -27,7 +27,7 @@
  *
  * The push buffer is a circular array of words to be fetched by command DMA.
  * Note that it works slightly differently to the sync queue; fence == pos
- * means that the push buffer is full, not empty.
+ * means that the push buffer is full, yest empty.
  */
 
 /*
@@ -133,7 +133,7 @@ iommu_free_mem:
 
 /*
  * Push two words to the push buffer
- * Caller must ensure push buffer is not full
+ * Caller must ensure push buffer is yest full
  */
 static void host1x_pushbuffer_push(struct push_buffer *pb, u32 op1, u32 op2)
 {
@@ -150,7 +150,7 @@ static void host1x_pushbuffer_push(struct push_buffer *pb, u32 op1, u32 op2)
 
 /*
  * Pop a number of two word slots from the push buffer
- * Caller must ensure push buffer is not empty
+ * Caller must ensure push buffer is yest empty
  */
 static void host1x_pushbuffer_pop(struct push_buffer *pb, unsigned int slots)
 {
@@ -228,7 +228,7 @@ unsigned int host1x_cdma_wait_locked(struct host1x_cdma *cdma,
 }
 
 /*
- * Sleep (if necessary) until the push buffer has enough free space.
+ * Sleep (if necessary) until the push buffer has eyesugh free space.
  *
  * Must be called with the cdma lock held.
  */
@@ -305,7 +305,7 @@ static void stop_cdma_timer_locked(struct host1x_cdma *cdma)
  *  - unpin & unref their mems
  *  - pop their push buffer slots
  *  - remove them from the sync queue
- * This is normally called from the host code's worker thread, but can be
+ * This is yesrmally called from the host code's worker thread, but can be
  * called manually if necessary.
  * Must be called with the cdma lock held.
  */
@@ -327,7 +327,7 @@ static void update_cdma_locked(struct host1x_cdma *cdma)
 		struct host1x_syncpt *sp =
 			host1x_syncpt_get(host1x, job->syncpt_id);
 
-		/* Check whether this syncpt has completed, and bail if not */
+		/* Check whether this syncpt has completed, and bail if yest */
 		if (!host1x_syncpt_is_expired(sp, job->syncpt_end)) {
 			/* Start timer on next pending syncpt */
 			if (job->timeout)
@@ -546,7 +546,7 @@ void host1x_cdma_push(struct host1x_cdma *cdma, u32 op1, u32 op2)
 
 /*
  * Push four words into two consecutive push buffer slots. Note that extra
- * care needs to be taken not to split the two slots across the end of the
+ * care needs to be taken yest to split the two slots across the end of the
  * push buffer. Otherwise the RESTART opcode at the end of the push buffer
  * that ensures processing will restart at the beginning will break up the
  * four words.

@@ -2,7 +2,7 @@
 /*
 	usa67msg.h
 
-	Copyright (c) 1998-2007 InnoSys Incorporated.  All Rights Reserved
+	Copyright (c) 1998-2007 InyesSys Incorporated.  All Rights Reserved
 	This file is available under a BSD-style copyright
 
 	Keyspan USB Async Firmware to run on Anchor FX1
@@ -13,18 +13,18 @@
 
 	1. Redistributions of source code must retain this licence text
    	without modification, this list of conditions, and the following
-   	disclaimer.  The following copyright notice must appear immediately at
+   	disclaimer.  The following copyright yestice must appear immediately at
    	the beginning of all source files:
 
-        	Copyright (c) 1998-2007 InnoSys Incorporated.  All Rights Reserved
+        	Copyright (c) 1998-2007 InyesSys Incorporated.  All Rights Reserved
 
         	This file is available under a BSD-style copyright
 
 	2. Redistributions in binary form must reproduce the above copyright
-   	notice, this list of conditions and the following disclaimer in the
+   	yestice, this list of conditions and the following disclaimer in the
    	documentation and/or other materials provided with the distribution.
 
-	3. The name of InnoSys Incorprated may not be used to endorse or promote
+	3. The name of InyesSys Incorprated may yest be used to endorse or promote
    	products derived from this software without specific prior written
    	permission.
 
@@ -42,7 +42,7 @@
 
 	Fourth revision: This message format supports the USA28XG
 
-	Buffer formats for RX/TX data messages are not defined by
+	Buffer formats for RX/TX data messages are yest defined by
 	a structure, but are described here:
 
 	USB OUT (host -> USAxx, transmit) messages contain a
@@ -98,7 +98,7 @@
 
 	revision history:
 
-	1999feb10	add reportHskiaChanges to allow us to ignore them
+	1999feb10	add reportHskiaChanges to allow us to igyesre them
 	1999feb10	add txAckThreshold for fast+loose throughput enhancement
 	1999mar30	beef up support for RX error reporting
 	1999apr14	add resetDataToggle to control message
@@ -143,7 +143,7 @@ typedef struct keyspan_usa67_portControlMessage
 
 		setTxTriState_setRts,
 						// host requests TX tri-state be set
-		txTriState_rts,	// 1=active (normal), 0=tristate (off)
+		txTriState_rts,	// 1=active (yesrmal), 0=tristate (off)
 
 		setHskoa_setDtr,
 						// host requests HSKOA output be set
@@ -152,23 +152,23 @@ typedef struct keyspan_usa67_portControlMessage
 		setPrescaler,	// host requests prescalar be set (default: 13)
 		prescaler;		// specified as N/8; values 8-ff are valid
 						// must be set any time internal baud rate is set;
-						// must not be set when external clocking is used
+						// must yest be set when external clocking is used
 
 	/*
-		3.	configuration data which is simply used as is (no overhead,
+		3.	configuration data which is simply used as is (yes overhead,
 			but must be specified correctly in every host message).
 	*/
 	u8	forwardingLength,  // forward when this number of chars available
 		reportHskiaChanges_dsrFlowControl,
-						// 1=normal; 0=ignore external clock
+						// 1=yesrmal; 0=igyesre external clock
 						// 1=use DSR flow control, 0=don't
-		txAckThreshold,	// 0=not allowed, 1=normal, 2-255 deliver ACK faster
-		loopbackMode;	// 0=no loopback, 1=loopback enabled
+		txAckThreshold,	// 0=yest allowed, 1=yesrmal, 2-255 deliver ACK faster
+		loopbackMode;	// 0=yes loopback, 1=loopback enabled
 
 	/*
 		4.	commands which are flags only; these are processed in order
 			(so that, e.g., if both _txOn and _txOff flags are set, the
-			port ends in a TX_OFF state); any non-zero value is respected
+			port ends in a TX_OFF state); any yesn-zero value is respected
 	*/
 	u8	_txOn,			// enable transmitting (and continue if there's data)
 		_txOff,			// stop transmitting
@@ -206,7 +206,7 @@ typedef struct keyspan_usa67_portStatusMessage	// one for each port
 		gpia_dcd,		// reports GPIA pin
 		_txOff,			// port has been disabled (by host)
 		_txXoff,		// port is in XOFF state (either host or RX XOFF)
-		txAck,			// indicates a TX message acknowledgement
+		txAck,			// indicates a TX message ackyeswledgement
 		rxEnabled,		// as configured by rxOn/rxOff 1=on, 0=off
 		controlResponse;// 1=a control message has been processed
 } keyspan_usa67_portStatusMessage;

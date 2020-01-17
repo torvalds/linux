@@ -107,7 +107,7 @@ static inline unsigned int cxgbit_sgl_len(unsigned int n)
  * @skb: the packet
  *
  * Returns the number of flits needed for the given offload packet.
- * These packets are already fully constructed and no additional headers
+ * These packets are already fully constructed and yes additional headers
  * will be added.
  */
 static unsigned int cxgbit_calc_tx_flits_ofld(const struct sk_buff *skb)
@@ -225,7 +225,7 @@ void cxgbit_push_tx_frames(struct cxgbit_sock *csk)
 			credits_needed += DIV_ROUND_UP(
 				sizeof(struct fw_ofld_tx_data_wr), 16);
 		/*
-		 * Assumes the initial credits is large enough to support
+		 * Assumes the initial credits is large eyesugh to support
 		 * fw_flowc_wr plus largest possible first payload
 		 */
 
@@ -367,7 +367,7 @@ cxgbit_map_skb(struct iscsi_cmd *cmd, struct sk_buff *skb, u32 data_offset,
 		nr_frags--;
 
 	/*
-	 * We know each entry in t_data_sg contains a page.
+	 * We kyesw each entry in t_data_sg contains a page.
 	 */
 	sg = &cmd->se_cmd.t_data_sg[data_offset / PAGE_SIZE];
 	page_off = (data_offset % PAGE_SIZE);
@@ -547,7 +547,7 @@ cxgbit_xmit_datain_pdu(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 }
 
 static int
-cxgbit_xmit_nondatain_pdu(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
+cxgbit_xmit_yesndatain_pdu(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 			  const void *data_buf, u32 data_buf_len)
 {
 	struct cxgbit_sock *csk = conn->context;
@@ -583,7 +583,7 @@ cxgbit_xmit_pdu(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 	if (dr)
 		return cxgbit_xmit_datain_pdu(conn, cmd, dr, buf);
 	else
-		return cxgbit_xmit_nondatain_pdu(conn, cmd, buf, buf_len);
+		return cxgbit_xmit_yesndatain_pdu(conn, cmd, buf, buf_len);
 }
 
 int cxgbit_validate_params(struct iscsi_conn *conn)
@@ -617,7 +617,7 @@ static int cxgbit_set_digest(struct cxgbit_sock *csk)
 
 	param = iscsi_find_param_from_key(HEADERDIGEST, conn->param_list);
 	if (!param) {
-		pr_err("param not found key %s\n", HEADERDIGEST);
+		pr_err("param yest found key %s\n", HEADERDIGEST);
 		return -1;
 	}
 
@@ -627,7 +627,7 @@ static int cxgbit_set_digest(struct cxgbit_sock *csk)
 	param = iscsi_find_param_from_key(DATADIGEST, conn->param_list);
 	if (!param) {
 		csk->submode = 0;
-		pr_err("param not found key %s\n", DATADIGEST);
+		pr_err("param yest found key %s\n", DATADIGEST);
 		return -1;
 	}
 
@@ -655,7 +655,7 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
 		param = iscsi_find_param_from_key(MAXBURSTLENGTH,
 						  conn->param_list);
 		if (!param) {
-			pr_err("param not found key %s\n", MAXBURSTLENGTH);
+			pr_err("param yest found key %s\n", MAXBURSTLENGTH);
 			return -1;
 		}
 
@@ -683,7 +683,7 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
 }
 
 /*
- * cxgbit_seq_pdu_inorder()
+ * cxgbit_seq_pdu_iyesrder()
  * @csk: pointer to cxgbit socket structure
  *
  * This function checks whether data sequence and data
@@ -691,9 +691,9 @@ static int cxgbit_set_iso_npdu(struct cxgbit_sock *csk)
  *
  * Return: returns -1 on error, 0 if data sequence and
  * data pdu are in order, 1 if data sequence or data pdu
- * is not in order.
+ * is yest in order.
  */
-static int cxgbit_seq_pdu_inorder(struct cxgbit_sock *csk)
+static int cxgbit_seq_pdu_iyesrder(struct cxgbit_sock *csk)
 {
 	struct iscsi_conn *conn = csk->conn;
 	struct iscsi_param *param;
@@ -702,7 +702,7 @@ static int cxgbit_seq_pdu_inorder(struct cxgbit_sock *csk)
 		param = iscsi_find_param_from_key(DATASEQUENCEINORDER,
 						  conn->param_list);
 		if (!param) {
-			pr_err("param not found key %s\n", DATASEQUENCEINORDER);
+			pr_err("param yest found key %s\n", DATASEQUENCEINORDER);
 			return -1;
 		}
 
@@ -712,7 +712,7 @@ static int cxgbit_seq_pdu_inorder(struct cxgbit_sock *csk)
 		param = iscsi_find_param_from_key(DATAPDUINORDER,
 						  conn->param_list);
 		if (!param) {
-			pr_err("param not found key %s\n", DATAPDUINORDER);
+			pr_err("param yest found key %s\n", DATAPDUINORDER);
 			return -1;
 		}
 
@@ -748,7 +748,7 @@ static int cxgbit_set_params(struct iscsi_conn *conn)
 		param = iscsi_find_param_from_key(ERRORRECOVERYLEVEL,
 						  conn->param_list);
 		if (!param) {
-			pr_err("param not found key %s\n", ERRORRECOVERYLEVEL);
+			pr_err("param yest found key %s\n", ERRORRECOVERYLEVEL);
 			return -1;
 		}
 		if (kstrtou8(param->value, 0, &erl) < 0)
@@ -760,7 +760,7 @@ static int cxgbit_set_params(struct iscsi_conn *conn)
 	if (!erl) {
 		int ret;
 
-		ret = cxgbit_seq_pdu_inorder(csk);
+		ret = cxgbit_seq_pdu_iyesrder(csk);
 		if (ret < 0) {
 			return -1;
 		} else if (ret > 0) {
@@ -863,7 +863,7 @@ static struct iscsi_cmd *cxgbit_allocate_cmd(struct cxgbit_sock *csk)
 	}
 
 	ccmd = iscsit_priv_cmd(cmd);
-	ccmd->ttinfo.tag = ppm->tformat.no_ddp_mask;
+	ccmd->ttinfo.tag = ppm->tformat.yes_ddp_mask;
 	ccmd->setup_ddp = true;
 
 	return cmd;
@@ -945,7 +945,7 @@ after_immediate_data:
 		/*
 		 * A PDU/CmdSN carrying Immediate Data passed
 		 * DataCRC, check against ExpCmdSN/MaxCmdSN if
-		 * Immediate Bit is not set.
+		 * Immediate Bit is yest set.
 		 */
 		cmdsn_ret = iscsit_sequence_cmd(conn, cmd,
 						(unsigned char *)hdr,
@@ -969,7 +969,7 @@ after_immediate_data:
 		 * FIXME: Send Unsolicited NOPIN with reserved
 		 * TTT here to help the initiator figure out
 		 * the missing CmdSN, although they should be
-		 * intelligent enough to determine the missing
+		 * intelligent eyesugh to determine the missing
 		 * CmdSN and issue a retry to plug the sequence.
 		 */
 		cmd->i_state = ISTATE_REMOVE;
@@ -1086,16 +1086,16 @@ check_payload:
 	return 0;
 }
 
-static int cxgbit_handle_nop_out(struct cxgbit_sock *csk, struct iscsi_cmd *cmd)
+static int cxgbit_handle_yesp_out(struct cxgbit_sock *csk, struct iscsi_cmd *cmd)
 {
 	struct iscsi_conn *conn = csk->conn;
 	struct cxgbit_lro_pdu_cb *pdu_cb = cxgbit_rx_pdu_cb(csk->skb);
-	struct iscsi_nopout *hdr = (struct iscsi_nopout *)pdu_cb->hdr;
+	struct iscsi_yespout *hdr = (struct iscsi_yespout *)pdu_cb->hdr;
 	unsigned char *ping_data = NULL;
 	u32 payload_length = pdu_cb->dlen;
 	int ret;
 
-	ret = iscsit_setup_nop_out(conn, cmd, hdr);
+	ret = iscsit_setup_yesp_out(conn, cmd, hdr);
 	if (ret < 0)
 		return 0;
 
@@ -1146,7 +1146,7 @@ static int cxgbit_handle_nop_out(struct cxgbit_sock *csk, struct iscsi_cmd *cmd)
 		pr_debug("Ping Data: \"%s\"\n", ping_data);
 	}
 
-	return iscsit_process_nop_out(conn, cmd, hdr);
+	return iscsit_process_yesp_out(conn, cmd, hdr);
 out:
 	if (cmd)
 		iscsit_free_cmd(cmd, false);
@@ -1234,7 +1234,7 @@ static int cxgbit_target_rx_opcode(struct cxgbit_sock *csk)
 				goto reject;
 		}
 
-		ret = cxgbit_handle_nop_out(csk, cmd);
+		ret = cxgbit_handle_yesp_out(csk, cmd);
 		break;
 	case ISCSI_OP_SCSI_TMFUNC:
 		cmd = cxgbit_allocate_cmd(csk);
@@ -1272,7 +1272,7 @@ static int cxgbit_target_rx_opcode(struct cxgbit_sock *csk)
 		ret = iscsit_handle_snack(conn, (unsigned char *)hdr);
 		break;
 	default:
-		pr_err("Got unknown iSCSI OpCode: 0x%02x\n", opcode);
+		pr_err("Got unkyeswn iSCSI OpCode: 0x%02x\n", opcode);
 		dump_stack();
 		break;
 	}

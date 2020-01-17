@@ -21,7 +21,7 @@
  * them into the cache in precisely the same order as they appear in the
  * journal.
  *
- * We only journal keys that go in leaf nodes, which simplifies things quite a
+ * We only journal keys that go in leaf yesdes, which simplifies things quite a
  * bit.
  */
 
@@ -66,7 +66,7 @@ reread:		left = ca->sb.bucket_size - offset;
 		closure_bio_submit(ca->set, bio, &cl);
 		closure_sync(&cl);
 
-		/* This function could be simpler now since we no longer write
+		/* This function could be simpler yesw since we yes longer write
 		 * journal entries that overlap bucket boundaries; this means
 		 * the start of a bucket will always have a valid journal entry
 		 * if it has any journal entries at all.
@@ -102,8 +102,8 @@ reread:		left = ca->sb.bucket_size - offset;
 
 			/*
 			 * Nodes in 'list' are in linear increasing order of
-			 * i->j.seq, the node on head has the smallest (oldest)
-			 * journal seq, the node on tail has the biggest
+			 * i->j.seq, the yesde on head has the smallest (oldest)
+			 * journal seq, the yesde on tail has the biggest
 			 * (latest) journal seq.
 			 */
 
@@ -224,7 +224,7 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 			if (read_bucket(l))
 				goto bsearch;
 
-		/* no journal entries on this device? */
+		/* yes journal entries on this device? */
 		if (l == ca->sb.njournal_buckets)
 			continue;
 bsearch:
@@ -419,7 +419,7 @@ err:
 
 static void btree_flush_write(struct cache_set *c)
 {
-	struct btree *b, *t, *btree_nodes[BTREE_FLUSH_NR];
+	struct btree *b, *t, *btree_yesdes[BTREE_FLUSH_NR];
 	unsigned int i, n;
 
 	if (c->journal.btree_flushing)
@@ -434,17 +434,17 @@ static void btree_flush_write(struct cache_set *c)
 	spin_unlock(&c->journal.flush_write_lock);
 
 	atomic_long_inc(&c->flush_write);
-	memset(btree_nodes, 0, sizeof(btree_nodes));
+	memset(btree_yesdes, 0, sizeof(btree_yesdes));
 	n = 0;
 
 	mutex_lock(&c->bucket_lock);
 	list_for_each_entry_safe_reverse(b, t, &c->btree_cache, list) {
-		if (btree_node_journal_flush(b))
-			pr_err("BUG: flush_write bit should not be set here!");
+		if (btree_yesde_journal_flush(b))
+			pr_err("BUG: flush_write bit should yest be set here!");
 
 		mutex_lock(&b->write_lock);
 
-		if (!btree_node_dirty(b)) {
+		if (!btree_yesde_dirty(b)) {
 			mutex_unlock(&b->write_lock);
 			continue;
 		}
@@ -454,26 +454,26 @@ static void btree_flush_write(struct cache_set *c)
 			continue;
 		}
 
-		set_btree_node_journal_flush(b);
+		set_btree_yesde_journal_flush(b);
 
 		mutex_unlock(&b->write_lock);
 
-		btree_nodes[n++] = b;
+		btree_yesdes[n++] = b;
 		if (n == BTREE_FLUSH_NR)
 			break;
 	}
 	mutex_unlock(&c->bucket_lock);
 
 	for (i = 0; i < n; i++) {
-		b = btree_nodes[i];
+		b = btree_yesdes[i];
 		if (!b) {
-			pr_err("BUG: btree_nodes[%d] is NULL", i);
+			pr_err("BUG: btree_yesdes[%d] is NULL", i);
 			continue;
 		}
 
 		/* safe to check without holding b->write_lock */
-		if (!btree_node_journal_flush(b)) {
-			pr_err("BUG: bnode %p: journal_flush bit cleaned", b);
+		if (!btree_yesde_journal_flush(b)) {
+			pr_err("BUG: byesde %p: journal_flush bit cleaned", b);
 			continue;
 		}
 
@@ -481,18 +481,18 @@ static void btree_flush_write(struct cache_set *c)
 		if (!btree_current_write(b)->journal) {
 			clear_bit(BTREE_NODE_journal_flush, &b->flags);
 			mutex_unlock(&b->write_lock);
-			pr_debug("bnode %p: written by others", b);
+			pr_debug("byesde %p: written by others", b);
 			continue;
 		}
 
-		if (!btree_node_dirty(b)) {
+		if (!btree_yesde_dirty(b)) {
 			clear_bit(BTREE_NODE_journal_flush, &b->flags);
 			mutex_unlock(&b->write_lock);
-			pr_debug("bnode %p: dirty bit cleaned by others", b);
+			pr_debug("byesde %p: dirty bit cleaned by others", b);
 			continue;
 		}
 
-		__bch_btree_node_write(b, NULL);
+		__bch_btree_yesde_write(b, NULL);
 		clear_bit(BTREE_NODE_journal_flush, &b->flags);
 		mutex_unlock(&b->write_lock);
 	}
@@ -669,7 +669,7 @@ static void journal_write_done(struct closure *cl)
 		: &j->w[0];
 
 	__closure_wake_up(&w->wait);
-	continue_at_nobarrier(cl, journal_write, bch_journal_wq);
+	continue_at_yesbarrier(cl, journal_write, bch_journal_wq);
 }
 
 static void journal_write_unlock(struct closure *cl)
@@ -820,7 +820,7 @@ static struct journal_write *journal_wait_for_write(struct cache_set *c,
 			/*
 			 * XXX: If we were inserting so many keys that they
 			 * won't fit in an _empty_ journal write, we'll
-			 * deadlock. For now, handle this in
+			 * deadlock. For yesw, handle this in
 			 * bch_keylist_realloc() - but something to think about.
 			 */
 			BUG_ON(!w->data->keys);

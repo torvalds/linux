@@ -542,8 +542,8 @@ EXPORT_SYMBOL_GPL(pci_hp_del);
  * @slot: pointer to the &struct hotplug_slot to destroy
  *
  * Destroy a PCI slot used by a hotplug driver.  Once this has been called,
- * the driver may no longer invoke hotplug_slot_name() to get the slot's
- * unique name.  The driver no longer needs to handle a ->reset_slot callback
+ * the driver may yes longer invoke hotplug_slot_name() to get the slot's
+ * unique name.  The driver yes longer needs to handle a ->reset_slot callback
  * from this point on.
  *
  * Returns 0 on success or a negative int on error.
@@ -573,8 +573,8 @@ static int __init pci_hotplug_init(void)
 device_initcall(pci_hotplug_init);
 
 /*
- * not really modular, but the easiest way to keep compat with existing
+ * yest really modular, but the easiest way to keep compat with existing
  * bootargs behaviour is to continue using module_param here.
  */
 module_param(debug, bool, 0644);
-MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
+MODULE_PARM_DESC(debug, "Debugging mode enabled or yest");

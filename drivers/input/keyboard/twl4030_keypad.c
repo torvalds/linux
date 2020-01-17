@@ -141,7 +141,7 @@ static int twl4030_kpwrite_u8(struct twl4030_keypad *kp, u8 data, u32 reg)
 
 	if (ret < 0)
 		dev_warn(kp->dbg_dev,
-			"Could not write TWL4030: %X - ret %d[%x]\n",
+			"Could yest write TWL4030: %X - ret %d[%x]\n",
 			 reg, ret, ret);
 
 	return ret;
@@ -267,7 +267,7 @@ static int twl4030_kp_program(struct twl4030_keypad *kp)
 	u8 reg;
 	int i;
 
-	/* Enable controller, with hardware decoding but not autorepeat */
+	/* Enable controller, with hardware decoding but yest autorepeat */
 	reg = KEYP_CTRL_SOFT_NRST | KEYP_CTRL_SOFTMODEN
 		| KEYP_CTRL_TOE_EN | KEYP_CTRL_KBD_ON;
 	if (twl4030_kpwrite_u8(kp, reg, KEYP_CTRL) < 0)
@@ -377,7 +377,7 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 
 	kp->irq = platform_get_irq(pdev, 0);
 	if (!kp->irq) {
-		dev_err(&pdev->dev, "no keyboard irq assigned\n");
+		dev_err(&pdev->dev, "yes keyboard irq assigned\n");
 		return -EINVAL;
 	}
 
@@ -410,17 +410,17 @@ static int twl4030_kp_probe(struct platform_device *pdev)
 	 * This ISR will always execute in kernel thread context because of
 	 * the need to access the TWL4030 over the I2C bus.
 	 *
-	 * NOTE:  we assume this host is wired to TWL4040 INT1, not INT2 ...
+	 * NOTE:  we assume this host is wired to TWL4040 INT1, yest INT2 ...
 	 */
 	error = devm_request_threaded_irq(&pdev->dev, kp->irq, NULL, do_kp_irq,
 					  0, pdev->name, kp);
 	if (error) {
-		dev_info(kp->dbg_dev, "request_irq failed for irq no=%d: %d\n",
+		dev_info(kp->dbg_dev, "request_irq failed for irq yes=%d: %d\n",
 			kp->irq, error);
 		return error;
 	}
 
-	/* Enable KP and TO interrupts now. */
+	/* Enable KP and TO interrupts yesw. */
 	reg = (u8) ~(KEYP_IMR1_KP | KEYP_IMR1_TO);
 	if (twl4030_kpwrite_u8(kp, reg, KEYP_IMR1)) {
 		/* mask all events - we don't care about the result */

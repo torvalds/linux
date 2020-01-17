@@ -101,19 +101,19 @@ static const char * const cam_mode_text[] = {
 static SOC_ENUM_SINGLE_DECL(cam_mode_enum, CS4265_SPDIF_CTL1, 5,
 		cam_mode_text);
 
-static const char * const cam_mono_stereo_text[] = {
-	"Stereo", "Mono"
+static const char * const cam_moyes_stereo_text[] = {
+	"Stereo", "Moyes"
 };
 
-static SOC_ENUM_SINGLE_DECL(spdif_mono_stereo_enum, CS4265_SPDIF_CTL2, 2,
-		cam_mono_stereo_text);
+static SOC_ENUM_SINGLE_DECL(spdif_moyes_stereo_enum, CS4265_SPDIF_CTL2, 2,
+		cam_moyes_stereo_text);
 
-static const char * const mono_select_text[] = {
+static const char * const moyes_select_text[] = {
 	"Channel A", "Channel B"
 };
 
-static SOC_ENUM_SINGLE_DECL(spdif_mono_select_enum, CS4265_SPDIF_CTL2, 0,
-		mono_select_text);
+static SOC_ENUM_SINGLE_DECL(spdif_moyes_select_enum, CS4265_SPDIF_CTL2, 0,
+		moyes_select_text);
 
 static const struct snd_kcontrol_new mic_linein_mux =
 	SOC_DAPM_ENUM("ADC Input Capture Mux", mic_linein_enum);
@@ -153,9 +153,9 @@ static const struct snd_kcontrol_new cs4265_snd_controls[] = {
 	SOC_SINGLE("SPDIF Switch", CS4265_SPDIF_CTL2, 5, 1, 1),
 	SOC_SINGLE("Validity Bit Control Switch", CS4265_SPDIF_CTL2,
 				3, 1, 0),
-	SOC_ENUM("SPDIF Mono/Stereo", spdif_mono_stereo_enum),
+	SOC_ENUM("SPDIF Moyes/Stereo", spdif_moyes_stereo_enum),
 	SOC_SINGLE("MMTLR Data Switch", CS4265_SPDIF_CTL2, 0, 1, 0),
-	SOC_ENUM("Mono Channel Select", spdif_mono_select_enum),
+	SOC_ENUM("Moyes Channel Select", spdif_moyes_select_enum),
 	SND_SOC_BYTES("C Data Buffer", CS4265_C_DATA_BUFF, 24),
 };
 
@@ -553,7 +553,7 @@ static const struct snd_soc_component_driver soc_component_cs4265 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs4265_regmap = {

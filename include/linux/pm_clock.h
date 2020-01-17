@@ -9,10 +9,10 @@
 #define _LINUX_PM_CLOCK_H
 
 #include <linux/device.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
-struct pm_clk_notifier_block {
-	struct notifier_block nb;
+struct pm_clk_yestifier_block {
+	struct yestifier_block nb;
 	struct dev_pm_domain *pm_domain;
 	char *con_ids[];
 };
@@ -30,7 +30,7 @@ extern int pm_clk_runtime_resume(struct device *dev);
 #endif
 
 #ifdef CONFIG_PM_CLK
-static inline bool pm_clk_no_clocks(struct device *dev)
+static inline bool pm_clk_yes_clocks(struct device *dev)
 {
 	return dev && dev->power.subsys_data
 		&& list_empty(&dev->power.subsys_data->clock_list);
@@ -48,7 +48,7 @@ extern void pm_clk_remove_clk(struct device *dev, struct clk *clk);
 extern int pm_clk_suspend(struct device *dev);
 extern int pm_clk_resume(struct device *dev);
 #else
-static inline bool pm_clk_no_clocks(struct device *dev)
+static inline bool pm_clk_yes_clocks(struct device *dev)
 {
 	return true;
 }
@@ -86,11 +86,11 @@ static inline void pm_clk_remove_clk(struct device *dev, struct clk *clk)
 #endif
 
 #ifdef CONFIG_HAVE_CLK
-extern void pm_clk_add_notifier(struct bus_type *bus,
-					struct pm_clk_notifier_block *clknb);
+extern void pm_clk_add_yestifier(struct bus_type *bus,
+					struct pm_clk_yestifier_block *clknb);
 #else
-static inline void pm_clk_add_notifier(struct bus_type *bus,
-					struct pm_clk_notifier_block *clknb)
+static inline void pm_clk_add_yestifier(struct bus_type *bus,
+					struct pm_clk_yestifier_block *clknb)
 {
 }
 #endif

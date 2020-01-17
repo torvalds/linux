@@ -183,8 +183,8 @@
 /* Define action or option for CMD_BT_ACCESS */
 enum cmd_bt_access_opts {
 	/* The bt commands start at 5 instead of 1 because the old dft commands
-	 * are mapped to 1-4.  These old commands are no longer maintained and
-	 * should not be called.
+	 * are mapped to 1-4.  These old commands are yes longer maintained and
+	 * should yest be called.
 	 */
 	CMD_ACT_BT_ACCESS_ADD = 5,
 	CMD_ACT_BT_ACCESS_DEL,
@@ -412,7 +412,7 @@ struct cmd_ds_get_hw_spec {
 	__le16 version;
 	/* Max number of TxPD FW can handle */
 	__le16 nr_txpd;
-	/* Max no of Multicast address */
+	/* Max yes of Multicast address */
 	__le16 nr_mcast_adr;
 	/* MAC address */
 	u8 permanentaddr[6];
@@ -526,7 +526,7 @@ struct cmd_ds_802_11_associate {
 	__le16 listeninterval;
 	__le16 bcnperiod;
 	u8 dtimperiod;
-	u8 iebuf[512];    /* Enough for required and most optional IEs */
+	u8 iebuf[512];    /* Eyesugh for required and most optional IEs */
 } __packed;
 
 struct cmd_ds_802_11_associate_response {
@@ -635,9 +635,9 @@ struct cmd_ds_802_11_rssi {
 	 * The following fields are only set in the response.
 	 * In the request these are reserved and should be set to 0.
 	 */
-	__le16 nf;       /* most recent beacon noise floor */
+	__le16 nf;       /* most recent beacon yesise floor */
 	__le16 avg_snr;  /* average SNR weighted by N from request */
-	__le16 avg_nf;   /* average noise floor weighted by N from request */
+	__le16 avg_nf;   /* average yesise floor weighted by N from request */
 } __packed;
 
 struct cmd_ds_802_11_mac_address {
@@ -826,7 +826,7 @@ struct MrvlIEtype_keyParamSet {
 #define MAX_WOL_RULES 		16
 
 struct host_wol_rule {
-	uint8_t rule_no;
+	uint8_t rule_yes;
 	uint8_t rule_ops;
 	__le16 sig_offset;
 	__le16 sig_length;
@@ -838,7 +838,7 @@ struct host_wol_rule {
 struct wol_config {
 	uint8_t action;
 	uint8_t pattern;
-	uint8_t no_rules_in_cmd;
+	uint8_t yes_rules_in_cmd;
 	uint8_t result;
 	struct host_wol_rule rule[MAX_WOL_RULES];
 } __packed;

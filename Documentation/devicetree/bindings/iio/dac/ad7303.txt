@@ -9,7 +9,7 @@ Required properties:
 Optional properties:
 	- REF-supply: Phandle to the external reference voltage supply. This should
 	  only be set if there is an external reference voltage connected to the REF
-	  pin. If the property is not set Vdd/2 is used as the reference voltage.
+	  pin. If the property is yest set Vdd/2 is used as the reference voltage.
 
 Example:
 

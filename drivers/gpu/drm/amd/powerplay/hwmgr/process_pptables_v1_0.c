@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -55,15 +55,15 @@ static void set_hw_cap(struct pp_hwmgr *hwmgr, bool setIt, enum phm_platform_cap
 static int set_platform_caps(struct pp_hwmgr *hwmgr, uint32_t powerplay_caps)
 {
 	PP_ASSERT_WITH_CODE((~powerplay_caps & ____RETIRE16____),
-		"ATOM_PP_PLATFORM_CAP_ASPM_L1 is not supported!", continue);
+		"ATOM_PP_PLATFORM_CAP_ASPM_L1 is yest supported!", continue);
 	PP_ASSERT_WITH_CODE((~powerplay_caps & ____RETIRE64____),
-		"ATOM_PP_PLATFORM_CAP_GEMINIPRIMARY is not supported!", continue);
+		"ATOM_PP_PLATFORM_CAP_GEMINIPRIMARY is yest supported!", continue);
 	PP_ASSERT_WITH_CODE((~powerplay_caps & ____RETIRE512____),
-		"ATOM_PP_PLATFORM_CAP_SIDEPORTCONTROL is not supported!", continue);
+		"ATOM_PP_PLATFORM_CAP_SIDEPORTCONTROL is yest supported!", continue);
 	PP_ASSERT_WITH_CODE((~powerplay_caps & ____RETIRE1024____),
-		"ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1 is not supported!", continue);
+		"ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1 is yest supported!", continue);
 	PP_ASSERT_WITH_CODE((~powerplay_caps & ____RETIRE2048____),
-		"ATOM_PP_PLATFORM_CAP_HTLINKCONTROL is not supported!", continue);
+		"ATOM_PP_PLATFORM_CAP_HTLINKCONTROL is yest supported!", continue);
 
 	set_hw_cap(
 			hwmgr,
@@ -745,7 +745,7 @@ static int get_gpio_table(struct pp_hwmgr *hwmgr,
 	if (pp_table_information->vdd_dep_on_sclk->count <
 			atom_gpio_table->ucVRHotTriggeredSclkDpmIndex)
 		PP_ASSERT_WITH_CODE(false,
-				"SCLK DPM index for VRHot cannot exceed the total sclk level count!",);
+				"SCLK DPM index for VRHot canyest exceed the total sclk level count!",);
 	else
 		pp_gpio_table->vrhot_triggered_sclk_dpm_index =
 				atom_gpio_table->ucVRHotTriggeredSclkDpmIndex;
@@ -892,7 +892,7 @@ static int init_thermal_controller(
 		(((unsigned long)powerplay_table) +
 		le16_to_cpu(powerplay_table->usThermalControllerOffset));
 	PP_ASSERT_WITH_CODE((0 != powerplay_table->usThermalControllerOffset),
-		"Thermal controller table not set!", return -1);
+		"Thermal controller table yest set!", return -1);
 
 	hwmgr->thermal_controller.ucType = thermal_controller->ucType;
 	hwmgr->thermal_controller.ucI2cLine = thermal_controller->ucI2cLine;
@@ -926,7 +926,7 @@ static int init_thermal_controller(
 		le16_to_cpu(powerplay_table->usFanTableOffset));
 
 	PP_ASSERT_WITH_CODE((0 != powerplay_table->usFanTableOffset),
-		"Fan table not set!", return -1);
+		"Fan table yest set!", return -1);
 	PP_ASSERT_WITH_CODE((0 < fan_table->ucRevId),
 		"Unsupported fan table format!", return -1);
 
@@ -1048,7 +1048,7 @@ static int check_powerplay_tables(
 		powerplay_table->sHeader.ucTableFormatRevision),
 		"Unsupported PPTable format!", return -1);
 	PP_ASSERT_WITH_CODE((0 != powerplay_table->usStateArrayOffset),
-		"State table is not set!", return -1);
+		"State table is yest set!", return -1);
 	PP_ASSERT_WITH_CODE((0 < powerplay_table->sHeader.usStructureSize),
 		"Invalid PowerPlay Table!", return -1);
 	PP_ASSERT_WITH_CODE((0 < state_arrays->ucNumEntries),
@@ -1281,7 +1281,7 @@ static int ppt_get_vce_state_table_entry_v1_0(struct pp_hwmgr *hwmgr, uint32_t i
 * @param hwmgr Pointer to the hardware manager.
 * @param entry_index The index of the entry to be extracted from the table.
 * @param power_state The address of the PowerState instance being created.
-* @return -1 if the entry cannot be retrieved.
+* @return -1 if the entry canyest be retrieved.
 */
 int get_powerplay_table_entry_v1_0(struct pp_hwmgr *hwmgr,
 		uint32_t entry_index, struct pp_power_state *power_state,

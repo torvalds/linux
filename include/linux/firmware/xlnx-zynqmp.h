@@ -252,7 +252,7 @@ enum zynqmp_pm_request_ack {
 	ZYNQMP_PM_REQUEST_ACK_NON_BLOCKING,
 };
 
-enum pm_node_id {
+enum pm_yesde_id {
 	NODE_SD_0 = 39,
 	NODE_SD_1,
 };
@@ -291,18 +291,18 @@ struct zynqmp_eemi_ops {
 	int (*clock_getrate)(u32 clock_id, u64 *rate);
 	int (*clock_setparent)(u32 clock_id, u32 parent_id);
 	int (*clock_getparent)(u32 clock_id, u32 *parent_id);
-	int (*ioctl)(u32 node_id, u32 ioctl_id, u32 arg1, u32 arg2, u32 *out);
+	int (*ioctl)(u32 yesde_id, u32 ioctl_id, u32 arg1, u32 arg2, u32 *out);
 	int (*reset_assert)(const enum zynqmp_pm_reset reset,
 			    const enum zynqmp_pm_reset_action assert_flag);
 	int (*reset_get_status)(const enum zynqmp_pm_reset reset, u32 *status);
 	int (*init_finalize)(void);
 	int (*set_suspend_mode)(u32 mode);
-	int (*request_node)(const u32 node,
+	int (*request_yesde)(const u32 yesde,
 			    const u32 capabilities,
 			    const u32 qos,
 			    const enum zynqmp_pm_request_ack ack);
-	int (*release_node)(const u32 node);
-	int (*set_requirement)(const u32 node,
+	int (*release_yesde)(const u32 yesde);
+	int (*set_requirement)(const u32 yesde,
 			       const u32 capabilities,
 			       const u32 qos,
 			       const enum zynqmp_pm_request_ack ack);

@@ -299,12 +299,12 @@ static int versatile_panel_probe(struct platform_device *pdev)
 
 	parent = dev->parent;
 	if (!parent) {
-		dev_err(dev, "no parent for versatile panel\n");
+		dev_err(dev, "yes parent for versatile panel\n");
 		return -ENODEV;
 	}
-	map = syscon_node_to_regmap(parent->of_node);
+	map = syscon_yesde_to_regmap(parent->of_yesde);
 	if (IS_ERR(map)) {
-		dev_err(dev, "no regmap for versatile panel parent\n");
+		dev_err(dev, "yes regmap for versatile panel parent\n");
 		return PTR_ERR(map);
 	}
 
@@ -314,7 +314,7 @@ static int versatile_panel_probe(struct platform_device *pdev)
 
 	ret = regmap_read(map, SYS_CLCD, &val);
 	if (ret) {
-		dev_err(dev, "cannot access syscon regs\n");
+		dev_err(dev, "canyest access syscon regs\n");
 		return ret;
 	}
 
@@ -332,7 +332,7 @@ static int versatile_panel_probe(struct platform_device *pdev)
 
 	/* No panel detected or VGA, let's leave this show */
 	if (i == ARRAY_SIZE(versatile_panels)) {
-		dev_info(dev, "no panel detected\n");
+		dev_info(dev, "yes panel detected\n");
 		return -ENODEV;
 	}
 

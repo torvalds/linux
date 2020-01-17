@@ -3,7 +3,7 @@
 #define _SCSI_DISK_H
 
 /*
- * More than enough for everybody ;)  The huge number of majors
+ * More than eyesugh for everybody ;)  The huge number of majors
  * is a leftover from 16bit dev_t days, we don't really need that
  * much numberspace.
  */
@@ -77,7 +77,7 @@ struct scsi_disk {
 	u32		nr_zones;
 	u32		zone_blocks;
 	u32		zones_optimal_open;
-	u32		zones_optimal_nonseq;
+	u32		zones_optimal_yesnseq;
 	u32		zones_max_open;
 #endif
 	atomic_t	openers;
@@ -115,7 +115,7 @@ struct scsi_disk {
 	unsigned	zoned: 2;
 	unsigned	urswrz : 1;
 	unsigned	security : 1;
-	unsigned	ignore_medium_access_errors : 1;
+	unsigned	igyesre_medium_access_errors : 1;
 };
 #define to_scsi_disk(obj) container_of(obj,struct scsi_disk,dev)
 

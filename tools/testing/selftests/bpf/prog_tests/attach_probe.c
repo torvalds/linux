@@ -26,7 +26,7 @@ ssize_t get_base_addr() {
 
 	f = fopen("/proc/self/maps", "r");
 	if (!f)
-		return -errno;
+		return -erryes;
 
 	while (fscanf(f, "%zx-%*x %s %*s\n", &start, buf) == 2) {
 		if (strcmp(buf, "r-xp") == 0) {
@@ -43,8 +43,8 @@ EMBED_FILE(probe, "test_attach_probe.o");
 
 void test_attach_probe(void)
 {
-	const char *kprobe_name = "kprobe/sys_nanosleep";
-	const char *kretprobe_name = "kretprobe/sys_nanosleep";
+	const char *kprobe_name = "kprobe/sys_nayessleep";
+	const char *kretprobe_name = "kretprobe/sys_nayessleep";
 	const char *uprobe_name = "uprobe/trigger_func";
 	const char *uretprobe_name = "uretprobe/trigger_func";
 	const int kprobe_idx = 0, kretprobe_idx = 1;
@@ -84,19 +84,19 @@ void test_attach_probe(void)
 
 	kprobe_prog = bpf_object__find_program_by_title(obj, kprobe_name);
 	if (CHECK(!kprobe_prog, "find_probe",
-		  "prog '%s' not found\n", kprobe_name))
+		  "prog '%s' yest found\n", kprobe_name))
 		goto cleanup;
 	kretprobe_prog = bpf_object__find_program_by_title(obj, kretprobe_name);
 	if (CHECK(!kretprobe_prog, "find_probe",
-		  "prog '%s' not found\n", kretprobe_name))
+		  "prog '%s' yest found\n", kretprobe_name))
 		goto cleanup;
 	uprobe_prog = bpf_object__find_program_by_title(obj, uprobe_name);
 	if (CHECK(!uprobe_prog, "find_probe",
-		  "prog '%s' not found\n", uprobe_name))
+		  "prog '%s' yest found\n", uprobe_name))
 		goto cleanup;
 	uretprobe_prog = bpf_object__find_program_by_title(obj, uretprobe_name);
 	if (CHECK(!uretprobe_prog, "find_probe",
-		  "prog '%s' not found\n", uretprobe_name))
+		  "prog '%s' yest found\n", uretprobe_name))
 		goto cleanup;
 
 	/* create maps && load programs */

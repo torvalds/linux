@@ -5,8 +5,8 @@
 /*
  * Vortex PCM ALSA driver.
  *
- * Supports ADB and WT DMA. Unfortunately, WT channels do not run yet.
- * It remains stuck,and DMA transfers do not happen. 
+ * Supports ADB and WT DMA. Unfortunately, WT channels do yest run yet.
+ * It remains stuck,and DMA transfers do yest happen. 
  */
 #include <sound/asoundef.h>
 #include <linux/time.h>
@@ -111,14 +111,14 @@ static const struct snd_pcm_hw_constraint_list hw_constraints_au8830_channels = 
 };
 #endif
 
-static void vortex_notify_pcm_vol_change(struct snd_card *card,
+static void vortex_yestify_pcm_vol_change(struct snd_card *card,
 			struct snd_kcontrol *kctl, int activate)
 {
 	if (activate)
 		kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	else
 		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE |
+	snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE |
 				SNDRV_CTL_EVENT_MASK_INFO, &(kctl->id));
 }
 
@@ -250,7 +250,7 @@ snd_vortex_pcm_hw_params(struct snd_pcm_substream *substream,
 					 params_periods(hw_params));
 		if (VORTEX_PCM_TYPE(substream->pcm) == VORTEX_PCM_ADB) {
 			chip->pcm_vol[substream->number].active = 1;
-			vortex_notify_pcm_vol_change(chip->card,
+			vortex_yestify_pcm_vol_change(chip->card,
 				chip->pcm_vol[substream->number].kctl, 1);
 		}
 	}
@@ -285,7 +285,7 @@ static int snd_vortex_pcm_hw_free(struct snd_pcm_substream *substream)
 		if (stream != NULL) {
 			if (VORTEX_PCM_TYPE(substream->pcm) == VORTEX_PCM_ADB) {
 				chip->pcm_vol[substream->number].active = 0;
-				vortex_notify_pcm_vol_change(chip->card,
+				vortex_yestify_pcm_vol_change(chip->card,
 					chip->pcm_vol[substream->number].kctl,
 					0);
 			}

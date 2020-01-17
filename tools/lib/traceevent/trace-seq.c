@@ -69,7 +69,7 @@ void trace_seq_reset(struct trace_seq *s)
  * trace_seq_destroy - free up memory of a trace_seq
  * @s: a pointer to the trace_seq to free the buffer
  *
- * Only frees the buffer, not the trace_seq struct itself.
+ * Only frees the buffer, yest the trace_seq struct itself.
  */
 void trace_seq_destroy(struct trace_seq *s)
 {
@@ -107,7 +107,7 @@ static void expand_buffer(struct trace_seq *s)
  * copy to user routines. To simplify formating of a trace
  * trace_seq_printf is used to store strings into a special
  * buffer (@s). Then the output may be either used by
- * the sequencer or pulled into another buffer.
+ * the sequencer or pulled into ayesther buffer.
  */
 int
 trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
@@ -149,7 +149,7 @@ trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
  * copy to user routines. To simplify formating of a trace
  * trace_seq_printf is used to store strings into a special
  * buffer (@s). Then the output may be either used by
- * the sequencer or pulled into another buffer.
+ * the sequencer or pulled into ayesther buffer.
  */
 int
 trace_seq_vprintf(struct trace_seq *s, const char *fmt, va_list args)

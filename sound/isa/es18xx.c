@@ -10,7 +10,7 @@
  * - There are pops (we can't delay in trigger function, cause midlevel 
  *   often need to trigger down and then up very quickly).
  *   Any ideas?
- * - Support for 16 bit DMA seems to be broken. I've no hardware to tune it.
+ * - Support for 16 bit DMA seems to be broken. I've yes hardware to tune it.
  */
 
 /*
@@ -35,19 +35,19 @@
  *   independently.
  *
  * - Zoom Video is implemented by sharing the FM DAC, thus the user can
- *   have either FM playback or Video playback but not both simultaneously.
+ *   have either FM playback or Video playback but yest both simultaneously.
  *   The Video Playback Switch mixer control toggles this choice.
  *
  * BUGS:
  *
- * - There is a major trouble I noted:
+ * - There is a major trouble I yested:
  *
  *   using both channel for playback stereo 16 bit samples at 44100 Hz
  *   the second pcm (Audio1) DMA slows down irregularly and sound is garbled.
  *   
  *   The same happens using Audio1 for captureing.
  *
- *   The Windows driver does not suffer of this (although it use Audio1
+ *   The Windows driver does yest suffer of this (although it use Audio1
  *   only for captureing). I'm unable to discover why.
  *
  */
@@ -58,7 +58,7 @@
  *   seems to be effected (speaker_test plays a lower frequency). Can't find
  *   anything in the datasheet to account for this, so a Video Playback Switch
  *   control has been included to allow ZV to be enabled only when necessary.
- *   Then again on at least one test system the 0x71 bit 6 enable bit is not 
+ *   Then again on at least one test system the 0x71 bit 6 enable bit is yest 
  *   needed for ZV, so maybe the datasheet is entirely wrong here.
  */
  
@@ -132,12 +132,12 @@ struct snd_es18xx {
 #define ES18XX_PCM2	0x0001	/* Has two useable PCM */
 #define ES18XX_SPATIALIZER 0x0002	/* Has 3D Spatializer */
 #define ES18XX_RECMIX	0x0004	/* Has record mixer */
-#define ES18XX_DUPLEX_MONO 0x0008	/* Has mono duplex only */
+#define ES18XX_DUPLEX_MONO 0x0008	/* Has moyes duplex only */
 #define ES18XX_DUPLEX_SAME 0x0010	/* Playback and record must share the same rate */
 #define ES18XX_NEW_RATE	0x0020	/* More precise rate setting */
 #define ES18XX_AUXB	0x0040	/* AuxB mixer control */
 #define ES18XX_HWV	0x0080	/* Has separate hardware volume mixer controls*/
-#define ES18XX_MONO	0x0100	/* Mono_in mixer control */
+#define ES18XX_MONO	0x0100	/* Moyes_in mixer control */
 #define ES18XX_I2S	0x0200	/* I2S mixer control */
 #define ES18XX_MUTEREC	0x0400	/* Record source can be muted */
 #define ES18XX_CONTROL	0x0800	/* Has control ports */
@@ -219,7 +219,7 @@ static int snd_es18xx_read(struct snd_es18xx *chip, unsigned char reg)
 	data = snd_es18xx_dsp_get_byte(chip);
 	ret = data;
 #ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Reg %02x now is %02x (%d)\n", reg, data, ret);
+	snd_printk(KERN_DEBUG "Reg %02x yesw is %02x (%d)\n", reg, data, ret);
 #endif
  end:
         spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -287,7 +287,7 @@ static inline int snd_es18xx_mixer_read(struct snd_es18xx *chip, unsigned char r
 	data = inb(chip->port + 0x05);
         spin_unlock_irqrestore(&chip->mixer_lock, flags);
 #ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Mixer reg %02x now is %02x\n", reg, data);
+	snd_printk(KERN_DEBUG "Mixer reg %02x yesw is %02x\n", reg, data);
 #endif
         return data;
 }
@@ -327,7 +327,7 @@ static inline int snd_es18xx_mixer_writable(struct snd_es18xx *chip, unsigned ch
 	new = inb(chip->port + 0x05);
         spin_unlock_irqrestore(&chip->mixer_lock, flags);
 #ifdef REG_DEBUG
-	snd_printk(KERN_DEBUG "Mixer reg %02x was %02x, set to %02x, now is %02x\n",
+	snd_printk(KERN_DEBUG "Mixer reg %02x was %02x, set to %02x, yesw is %02x\n",
 		   reg, old, expected, new);
 #endif
 	return expected == new;
@@ -571,7 +571,7 @@ static int snd_es18xx_capture_prepare(struct snd_pcm_substream *substream)
 
 	snd_es18xx_reset_fifo(chip);
 
-        /* Set stereo/mono */
+        /* Set stereo/moyes */
         snd_es18xx_bits(chip, 0xA8, 0x03, runtime->channels == 1 ? 0x02 : 0x01);
 
         snd_es18xx_rate_set(chip, substream, ADC1);
@@ -637,7 +637,7 @@ static int snd_es18xx_playback2_prepare(struct snd_es18xx *chip,
 
 	snd_es18xx_reset_fifo(chip);
 
-        /* Set stereo/mono */
+        /* Set stereo/moyes */
         snd_es18xx_bits(chip, 0xA8, 0x03, runtime->channels == 1 ? 0x02 : 0x01);
 
         snd_es18xx_rate_set(chip, substream, DAC1);
@@ -775,15 +775,15 @@ static irqreturn_t snd_es18xx_interrupt(int irq, void *dev_id)
 		int split = 0;
 		if (chip->caps & ES18XX_HWV) {
 			split = snd_es18xx_mixer_read(chip, 0x64) & 0x80;
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 					&chip->hw_switch->id);
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 					&chip->hw_volume->id);
 		}
 		if (!split) {
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 					&chip->master_switch->id);
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 					&chip->master_volume->id);
 		}
 		/* ack interrupt */
@@ -1029,7 +1029,7 @@ static int snd_es18xx_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 	return (snd_es18xx_mixer_bits(chip, 0x1c, 0x07, val) != val) || retVal;
 }
 
-#define snd_es18xx_info_spatializer_enable	snd_ctl_boolean_mono_info
+#define snd_es18xx_info_spatializer_enable	snd_ctl_boolean_moyes_info
 
 static int snd_es18xx_get_spatializer_enable(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -1294,8 +1294,8 @@ static struct snd_kcontrol_new snd_es18xx_opt_speaker =
 static struct snd_kcontrol_new snd_es18xx_opt_1869[] = {
 ES18XX_SINGLE("Capture Switch", 0, 0x1c, 4, 1, ES18XX_FL_INVERT),
 ES18XX_SINGLE("Video Playback Switch", 0, 0x7f, 0, 1, 0),
-ES18XX_DOUBLE("Mono Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
-ES18XX_DOUBLE("Mono Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0)
+ES18XX_DOUBLE("Moyes Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0),
+ES18XX_DOUBLE("Moyes Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0)
 };
 
 static struct snd_kcontrol_new snd_es18xx_opt_1878 =
@@ -1500,7 +1500,7 @@ static int snd_es18xx_initialize(struct snd_es18xx *chip,
 	if (chip->caps & ES18XX_NEW_RATE) {
 		/* Change behaviour of register A1
 		   4x oversampling
-		   2nd channel DAC asynchronous */
+		   2nd channel DAC asynchroyesus */
 		snd_es18xx_mixer_write(chip, 0x71, 0x32);
 	}
 	if (!(chip->caps & ES18XX_PCM2)) {
@@ -1616,7 +1616,7 @@ static int snd_es18xx_probe(struct snd_es18xx *chip,
 			    unsigned long fm_port)
 {
 	if (snd_es18xx_identify(chip) < 0) {
-		snd_printk(KERN_ERR PFX "[0x%lx] ESS chip not found\n", chip->port);
+		snd_printk(KERN_ERR PFX "[0x%lx] ESS chip yest found\n", chip->port);
                 return -ENODEV;
 	}
 
@@ -1729,7 +1729,7 @@ static int snd_es18xx_resume(struct snd_card *card)
 {
 	struct snd_es18xx *chip = card->private_data;
 
-	/* restore PM register, we won't wake till (not 0x07) i/o activity though */
+	/* restore PM register, we won't wake till (yest 0x07) i/o activity though */
 	snd_es18xx_write(chip, ES18XX_PM, chip->pm_reg ^= ES18XX_PM_FM);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
@@ -2144,7 +2144,7 @@ static int snd_audiodrive_probe(struct snd_card *card, int dev)
 		if (snd_opl3_create(card, fm_port[dev], fm_port[dev] + 2,
 				    OPL3_HW_OPL3, 0, &opl3) < 0) {
 			snd_printk(KERN_WARNING PFX
-				   "opl3 not detected at 0x%lx\n",
+				   "opl3 yest detected at 0x%lx\n",
 				   fm_port[dev]);
 		} else {
 			err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
@@ -2270,7 +2270,7 @@ static int snd_audiodrive_pnp_detect(struct pnp_dev *pdev,
 	struct snd_card *card;
 
 	if (pnp_device_is_isapnp(pdev))
-		return -ENOENT;	/* we have another procedure - card */
+		return -ENOENT;	/* we have ayesther procedure - card */
 	for (; dev < SNDRV_CARDS; dev++) {
 		if (enable[dev] && isapnp[dev])
 			break;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/compiler.h>
 #include <linux/of_address.h>
@@ -15,7 +15,7 @@ static const struct of_device_id atl2c_ids[] __initconst = {
 
 static int __init atl2c_of_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource res;
 	unsigned long tmp = 0;
 	unsigned long l2set, l2way, l2clsz;
@@ -23,7 +23,7 @@ static int __init atl2c_of_init(void)
 	if (!(__nds32__mfsr(NDS32_SR_MSC_CFG) & MSC_CFG_mskL2C))
 		return -ENODEV;
 
-	np = of_find_matching_node(NULL, atl2c_ids);
+	np = of_find_matching_yesde(NULL, atl2c_ids);
 	if (!np)
 		return -ENODEV;
 

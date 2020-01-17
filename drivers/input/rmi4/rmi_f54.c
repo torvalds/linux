@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2015 Synaptics Incorporated
- * Copyright (C) 2016 Zodiac Inflight Innovations
+ * Copyright (C) 2016 Zodiac Inflight Inyesvations
  */
 
 #include <linux/kernel.h>
@@ -71,7 +71,7 @@ enum rmi_f54_report_type {
 };
 
 static const char * const rmi_f54_report_type_names[] = {
-	[F54_REPORT_NONE]		= "Unknown",
+	[F54_REPORT_NONE]		= "Unkyeswn",
 	[F54_8BIT_IMAGE]		= "Normalized 8-Bit Image",
 	[F54_16BIT_IMAGE]		= "Normalized 16-Bit Image",
 	[F54_RAW_16BIT_IMAGE]		= "Raw 16-Bit Image",
@@ -481,7 +481,7 @@ static int rmi_f54_vidioc_g_parm(struct file *file, void *fh,
 
 	a->parm.capture.readbuffers = 1;
 	a->parm.capture.timeperframe.numerator = 1;
-	a->parm.capture.timeperframe.denominator = 10;
+	a->parm.capture.timeperframe.deyesminator = 10;
 	return 0;
 }
 
@@ -539,7 +539,7 @@ static void rmi_f54_work(struct work_struct *work)
 
 	/*
 	 * Need to check if command has completed.
-	 * If not try again later.
+	 * If yest try again later.
 	 */
 	error = rmi_read(fn->rmi_dev, f54->fn->fd.command_base_addr,
 			 &command);

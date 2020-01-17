@@ -81,7 +81,7 @@ unsigned int ceph_str_hash_rjenkins(const char *str, unsigned int length)
 		/* fall through */
 	case 1:
 		a = a + k[0];
-		/* case 0: nothing left to add */
+		/* case 0: yesthing left to add */
 	}
 	mix(a, b, c);
 
@@ -125,7 +125,7 @@ const char *ceph_str_hash_name(int type)
 	case CEPH_STR_HASH_RJENKINS:
 		return "rjenkins";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 EXPORT_SYMBOL(ceph_str_hash_name);

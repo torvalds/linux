@@ -28,14 +28,14 @@
 
 bool hugetlb_disabled = false;
 
-#define hugepd_none(hpd)	(hpd_val(hpd) == 0)
+#define hugepd_yesne(hpd)	(hpd_val(hpd) == 0)
 
 #define PTE_T_ORDER	(__builtin_ffs(sizeof(pte_t)) - __builtin_ffs(sizeof(void *)))
 
 pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr, unsigned long sz)
 {
 	/*
-	 * Only called for hugetlbfs pages, hence can ignore THP and the
+	 * Only called for hugetlbfs pages, hence can igyesre THP and the
 	 * irq disabled walk.
 	 */
 	return __find_linux_pte(mm->pgd, addr, NULL, NULL);
@@ -86,10 +86,10 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 	 * We have multiple higher-level entries that point to the same
 	 * actual pte location.  Fill in each as we go and backtrack on error.
 	 * We need all of these so the DTLB pgtable walk code can find the
-	 * right higher-level entry without knowing if it's a hugepage or not.
+	 * right higher-level entry without kyeswing if it's a hugepage or yest.
 	 */
 	for (i = 0; i < num_hugepd; i++, hpdp++) {
-		if (unlikely(!hugepd_none(*hpdp)))
+		if (unlikely(!hugepd_yesne(*hpdp)))
 			break;
 		hugepd_populate(hpdp, new, pshift);
 	}
@@ -99,7 +99,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 			*hpdp = __hugepd(0);
 		kmem_cache_free(cachep, new);
 	} else {
-		kmemleak_ignore(new);
+		kmemleak_igyesre(new);
 	}
 	spin_unlock(ptl);
 	return 0;
@@ -181,9 +181,9 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
 	if (!hpdp)
 		return NULL;
 
-	BUG_ON(!hugepd_none(*hpdp) && !hugepd_ok(*hpdp));
+	BUG_ON(!hugepd_yesne(*hpdp) && !hugepd_ok(*hpdp));
 
-	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr,
+	if (hugepd_yesne(*hpdp) && __hugepte_alloc(mm, hpdp, addr,
 						  pdshift, pshift, ptl))
 		return NULL;
 
@@ -347,10 +347,10 @@ static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
 		next = pmd_addr_end(addr, end);
 		if (!is_hugepd(__hugepd(pmd_val(*pmd)))) {
 			/*
-			 * if it is not hugepd pointer, we should already find
+			 * if it is yest hugepd pointer, we should already find
 			 * it cleared.
 			 */
-			WARN_ON(!pmd_none_or_clear_bad(pmd));
+			WARN_ON(!pmd_yesne_or_clear_bad(pmd));
 			continue;
 		}
 		/*
@@ -397,7 +397,7 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
 		pud = pud_offset(pgd, addr);
 		next = pud_addr_end(addr, end);
 		if (!is_hugepd(__hugepd(pud_val(*pud)))) {
-			if (pud_none_or_clear_bad(pud))
+			if (pud_yesne_or_clear_bad(pud))
 				continue;
 			hugetlb_free_pmd_range(tlb, pud, addr, next, floor,
 					       ceiling);
@@ -447,18 +447,18 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 
 	/*
 	 * Because there are a number of different possible pagetable
-	 * layouts for hugepage ranges, we limit knowledge of how
+	 * layouts for hugepage ranges, we limit kyeswledge of how
 	 * things should be laid out to the allocation path
 	 * (huge_pte_alloc(), above).  Everything else works out the
 	 * structure as it goes from information in the hugepd
 	 * pointers.  That means that we can't here use the
-	 * optimization used in the normal page free_pgd_range(), of
-	 * checking whether we're actually covering a large enough
+	 * optimization used in the yesrmal page free_pgd_range(), of
+	 * checking whether we're actually covering a large eyesugh
 	 * range to have to do anything at the top level of the walk
 	 * instead of at the bottom.
 	 *
 	 * To make sense of this, you should probably go read the big
-	 * block comment at the top of the normal free_pgd_range(),
+	 * block comment at the top of the yesrmal free_pgd_range(),
 	 * too.
 	 */
 
@@ -466,7 +466,7 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 		next = pgd_addr_end(addr, end);
 		pgd = pgd_offset(tlb->mm, addr);
 		if (!is_hugepd(__hugepd(pgd_val(*pgd)))) {
-			if (pgd_none_or_clear_bad(pgd))
+			if (pgd_yesne_or_clear_bad(pgd))
 				continue;
 			hugetlb_free_pud_range(tlb, pgd, addr, next, floor, ceiling);
 		} else {

@@ -228,7 +228,7 @@ static int advk_pcie_wait_for_link(struct advk_pcie *pcie)
 	struct device *dev = &pcie->pdev->dev;
 	int retries;
 
-	/* check if the link is up or not */
+	/* check if the link is up or yest */
 	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
 		if (advk_pcie_link_up(pcie)) {
 			dev_info(dev, "link up\n");
@@ -389,7 +389,7 @@ static void advk_pcie_check_pio_status(struct advk_pcie *pcie)
 		strcomp_status = "CA";
 		break;
 	default:
-		strcomp_status = "Unknown";
+		strcomp_status = "Unkyeswn";
 		break;
 	}
 
@@ -779,7 +779,7 @@ static const struct irq_domain_ops advk_pcie_irq_domain_ops = {
 static int advk_pcie_init_msi_irq_domain(struct advk_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct irq_chip *bottom_ic, *msi_ic;
 	struct msi_domain_info *msi_di;
 	phys_addr_t msi_msg_phys;
@@ -814,7 +814,7 @@ static int advk_pcie_init_msi_irq_domain(struct advk_pcie *pcie)
 		return -ENOMEM;
 
 	pcie->msi_domain =
-		pci_msi_create_irq_domain(of_node_to_fwnode(node),
+		pci_msi_create_irq_domain(of_yesde_to_fwyesde(yesde),
 					  msi_di, pcie->msi_inner_domain);
 	if (!pcie->msi_domain) {
 		irq_domain_remove(pcie->msi_inner_domain);
@@ -833,14 +833,14 @@ static void advk_pcie_remove_msi_irq_domain(struct advk_pcie *pcie)
 static int advk_pcie_init_irq_domain(struct advk_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *pcie_intc_node;
+	struct device_yesde *yesde = dev->of_yesde;
+	struct device_yesde *pcie_intc_yesde;
 	struct irq_chip *irq_chip;
 	int ret = 0;
 
-	pcie_intc_node =  of_get_next_child(node, NULL);
-	if (!pcie_intc_node) {
-		dev_err(dev, "No PCIe Intc node found\n");
+	pcie_intc_yesde =  of_get_next_child(yesde, NULL);
+	if (!pcie_intc_yesde) {
+		dev_err(dev, "No PCIe Intc yesde found\n");
 		return -ENODEV;
 	}
 
@@ -850,7 +850,7 @@ static int advk_pcie_init_irq_domain(struct advk_pcie *pcie)
 					dev_name(dev));
 	if (!irq_chip->name) {
 		ret = -ENOMEM;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	irq_chip->irq_mask = advk_pcie_irq_mask;
@@ -858,16 +858,16 @@ static int advk_pcie_init_irq_domain(struct advk_pcie *pcie)
 	irq_chip->irq_unmask = advk_pcie_irq_unmask;
 
 	pcie->irq_domain =
-		irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
+		irq_domain_add_linear(pcie_intc_yesde, PCI_NUM_INTX,
 				      &advk_pcie_irq_domain_ops, pcie);
 	if (!pcie->irq_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
 		ret = -ENOMEM;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
-out_put_node:
-	of_node_put(pcie_intc_node);
+out_put_yesde:
+	of_yesde_put(pcie_intc_yesde);
 	return ret;
 }
 
@@ -1032,7 +1032,7 @@ static struct platform_driver advk_pcie_driver = {
 	.driver = {
 		.name = "advk-pcie",
 		.of_match_table = advk_pcie_of_match_table,
-		/* Driver unloading/unbinding currently not supported */
+		/* Driver unloading/unbinding currently yest supported */
 		.suppress_bind_attrs = true,
 	},
 	.probe = advk_pcie_probe,

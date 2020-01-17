@@ -36,7 +36,7 @@ struct port_data {
 	int psy_status;
 	int psy_current_max;
 	int psy_voltage_max_design;
-	int psy_voltage_now;
+	int psy_voltage_yesw;
 	int psy_power_max;
 	struct charger_data *charger;
 	unsigned long last_update;
@@ -50,7 +50,7 @@ struct charger_data {
 	int num_usbpd_ports;
 	int num_registered_psy;
 	struct port_data *ports[EC_USB_PD_MAX_PORTS];
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 };
 
 static enum power_supply_property cros_usbpd_charger_props[] = {
@@ -83,7 +83,7 @@ static enum power_supply_usb_type cros_usbpd_charger_usb_types[] = {
 	POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID
 };
 
-/* Input voltage/current limit in mV/mA. Default to none. */
+/* Input voltage/current limit in mV/mA. Default to yesne. */
 static u16 input_voltage_limit = EC_POWER_LIMIT_NONE;
 static u16 input_current_limit = EC_POWER_LIMIT_NONE;
 
@@ -226,12 +226,12 @@ static int cros_usbpd_charger_get_power_info(struct port_data *port)
 		port->psy_online = 1;
 		break;
 	default:
-		dev_err(dev, "Unknown role %d\n", resp.role);
+		dev_err(dev, "Unkyeswn role %d\n", resp.role);
 		break;
 	}
 
 	port->psy_voltage_max_design = resp.meas.voltage_max;
-	port->psy_voltage_now = resp.meas.voltage_now;
+	port->psy_voltage_yesw = resp.meas.voltage_yesw;
 	port->psy_current_max = resp.meas.current_max;
 	port->psy_power_max = resp.max_power;
 
@@ -274,8 +274,8 @@ static int cros_usbpd_charger_get_power_info(struct port_data *port)
 		/*
 		 * While the EC is trying to determine the type of charger that
 		 * has been plugged in, it will report the charger type as
-		 * unknown. Additionally since the power capabilities are
-		 * unknown, report the max current and voltage as zero.
+		 * unkyeswn. Additionally since the power capabilities are
+		 * unkyeswn, report the max current and voltage as zero.
 		 */
 		port->psy_usb_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
 		port->psy_voltage_max_design = 0;
@@ -292,9 +292,9 @@ static int cros_usbpd_charger_get_power_info(struct port_data *port)
 		port->psy_desc.type = POWER_SUPPLY_TYPE_USB;
 
 	dev_dbg(dev,
-		"Port %d: type=%d vmax=%d vnow=%d cmax=%d clim=%d pmax=%d\n",
+		"Port %d: type=%d vmax=%d vyesw=%d cmax=%d clim=%d pmax=%d\n",
 		port->port_number, resp.type, resp.meas.voltage_max,
-		resp.meas.voltage_now, resp.meas.current_max,
+		resp.meas.voltage_yesw, resp.meas.current_max,
 		resp.meas.current_lim, resp.max_power);
 
 	/*
@@ -384,8 +384,8 @@ static int cros_usbpd_charger_get_prop(struct power_supply *psy,
 		 * other properties are read.
 		 *
 		 * Allow an ec_port_status refresh for online property check
-		 * if we're not already online to check for plug events if
-		 * not mkbp_event_supported.
+		 * if we're yest already online to check for plug events if
+		 * yest mkbp_event_supported.
 		 */
 		if (ec_device->mkbp_event_supported || port->psy_online)
 			break;
@@ -418,7 +418,7 @@ static int cros_usbpd_charger_get_prop(struct power_supply *psy,
 		val->intval = port->psy_voltage_max_design * 1000;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = port->psy_voltage_now * 1000;
+		val->intval = port->psy_voltage_yesw * 1000;
 		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		val->intval = port->psy_usb_type;
@@ -523,15 +523,15 @@ static int cros_usbpd_charger_property_is_writeable(struct power_supply *psy,
 	return ret;
 }
 
-static int cros_usbpd_charger_ec_event(struct notifier_block *nb,
+static int cros_usbpd_charger_ec_event(struct yestifier_block *nb,
 				       unsigned long queued_during_suspend,
-				       void *_notify)
+				       void *_yestify)
 {
 	struct cros_ec_device *ec_device;
 	struct charger_data *charger;
 	u32 host_event;
 
-	charger = container_of(nb, struct charger_data, notifier);
+	charger = container_of(nb, struct charger_data, yestifier);
 	ec_device = charger->ec_device;
 
 	host_event = cros_ec_get_host_event(ec_device);
@@ -543,13 +543,13 @@ static int cros_usbpd_charger_ec_event(struct notifier_block *nb,
 	}
 }
 
-static void cros_usbpd_charger_unregister_notifier(void *data)
+static void cros_usbpd_charger_unregister_yestifier(void *data)
 {
 	struct charger_data *charger = data;
 	struct cros_ec_device *ec_device = charger->ec_device;
 
-	blocking_notifier_chain_unregister(&ec_device->event_notifier,
-					   &charger->notifier);
+	blocking_yestifier_chain_unregister(&ec_device->event_yestifier,
+					   &charger->yestifier);
 }
 
 static int cros_usbpd_charger_probe(struct platform_device *pd)
@@ -576,7 +576,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 	platform_set_drvdata(pd, charger);
 
 	/*
-	 * We need to know the number of USB PD ports in order to know whether
+	 * We need to kyesw the number of USB PD ports in order to kyesw whether
 	 * there is a dedicated port. The dedicated port will always be
 	 * after the USB PD ports, and there should be only one.
 	 */
@@ -585,7 +585,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 	if (charger->num_usbpd_ports <= 0) {
 		/*
 		 * This can happen on a system that doesn't support USB PD.
-		 * Log a message, but no need to warn.
+		 * Log a message, but yes need to warn.
 		 */
 		dev_info(dev, "No USB PD charging ports found\n");
 	}
@@ -594,12 +594,12 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 	if (charger->num_charger_ports < 0) {
 		/*
 		 * This can happen on a system that doesn't support USB PD.
-		 * Log a message, but no need to warn.
-		 * Older ECs do not support the above command, in that case
+		 * Log a message, but yes need to warn.
+		 * Older ECs do yest support the above command, in that case
 		 * let's set up the number of charger ports equal to the number
 		 * of USB PD ports
 		 */
-		dev_info(dev, "Could not get charger port count\n");
+		dev_info(dev, "Could yest get charger port count\n");
 		charger->num_charger_ports = charger->num_usbpd_ports;
 	}
 
@@ -607,11 +607,11 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 		/*
 		 * This can happen on a system that doesn't support USB PD and
 		 * doesn't have a dedicated port.
-		 * Log a message, but no need to warn.
+		 * Log a message, but yes need to warn.
 		 */
 		dev_info(dev, "No charging ports found\n");
 		ret = -ENODEV;
-		goto fail_nowarn;
+		goto fail_yeswarn;
 	}
 
 	/*
@@ -622,7 +622,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 	    charger->num_charger_ports > (charger->num_usbpd_ports + 1)) {
 		dev_err(dev, "Unexpected number of charge port count\n");
 		ret = -EPROTO;
-		goto fail_nowarn;
+		goto fail_yeswarn;
 	}
 
 	for (i = 0; i < charger->num_charger_ports; i++) {
@@ -666,7 +666,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 
 		psy_desc->name = port->name;
 
-		psy = devm_power_supply_register_no_ws(dev, psy_desc,
+		psy = devm_power_supply_register_yes_ws(dev, psy_desc,
 						       &psy_cfg);
 		if (IS_ERR(psy)) {
 			dev_err(dev, "Failed to register power supply\n");
@@ -685,15 +685,15 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 
 	if (ec_device->mkbp_event_supported) {
 		/* Get PD events from the EC */
-		charger->notifier.notifier_call = cros_usbpd_charger_ec_event;
-		ret = blocking_notifier_chain_register(
-						&ec_device->event_notifier,
-						&charger->notifier);
+		charger->yestifier.yestifier_call = cros_usbpd_charger_ec_event;
+		ret = blocking_yestifier_chain_register(
+						&ec_device->event_yestifier,
+						&charger->yestifier);
 		if (ret < 0) {
-			dev_warn(dev, "failed to register notifier\n");
+			dev_warn(dev, "failed to register yestifier\n");
 		} else {
 			ret = devm_add_action_or_reset(dev,
-					cros_usbpd_charger_unregister_notifier,
+					cros_usbpd_charger_unregister_yestifier,
 					charger);
 			if (ret < 0)
 				goto fail;
@@ -705,7 +705,7 @@ static int cros_usbpd_charger_probe(struct platform_device *pd)
 fail:
 	WARN(1, "%s: Failing probe (err:0x%x)\n", dev_name(dev), ret);
 
-fail_nowarn:
+fail_yeswarn:
 	dev_info(dev, "Failing probe (err:0x%x)\n", ret);
 	return ret;
 }

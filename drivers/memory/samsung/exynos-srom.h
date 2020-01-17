@@ -3,7 +3,7 @@
  * Copyright (c) 2015 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Exynos SROMC register definitions
+ * Exyyess SROMC register definitions
  */
 
 #ifndef __EXYNOS_SROM_H

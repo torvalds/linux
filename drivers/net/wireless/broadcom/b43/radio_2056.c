@@ -10192,7 +10192,7 @@ static const struct b2056_inittabs_pts
 }
 
 static void b2056_upload_inittab(struct b43_wldev *dev, bool ghz5,
-				 bool ignore_uploadflag, u16 routing,
+				 bool igyesre_uploadflag, u16 routing,
 				 const struct b2056_inittab_entry *e,
 				 unsigned int length)
 {
@@ -10202,7 +10202,7 @@ static void b2056_upload_inittab(struct b43_wldev *dev, bool ghz5,
 	for (i = 0; i < length; i++, e++) {
 		if (!(e->flags & B2056_INITTAB_ENTRY_OK))
 			continue;
-		if ((e->flags & B2056_INITTAB_UPLOAD) || ignore_uploadflag) {
+		if ((e->flags & B2056_INITTAB_UPLOAD) || igyesre_uploadflag) {
 			if (ghz5)
 				value = e->ghz5;
 			else
@@ -10213,7 +10213,7 @@ static void b2056_upload_inittab(struct b43_wldev *dev, bool ghz5,
 }
 
 void b2056_upload_inittabs(struct b43_wldev *dev,
-			   bool ghz5, bool ignore_uploadflag)
+			   bool ghz5, bool igyesre_uploadflag)
 {
 	const struct b2056_inittabs_pts *pts;
 
@@ -10223,15 +10223,15 @@ void b2056_upload_inittabs(struct b43_wldev *dev,
 		return;
 	}
 
-	b2056_upload_inittab(dev, ghz5, ignore_uploadflag,
+	b2056_upload_inittab(dev, ghz5, igyesre_uploadflag,
 				B2056_SYN, pts->syn, pts->syn_length);
-	b2056_upload_inittab(dev, ghz5, ignore_uploadflag,
+	b2056_upload_inittab(dev, ghz5, igyesre_uploadflag,
 				B2056_TX0, pts->tx, pts->tx_length);
-	b2056_upload_inittab(dev, ghz5, ignore_uploadflag,
+	b2056_upload_inittab(dev, ghz5, igyesre_uploadflag,
 				B2056_TX1, pts->tx, pts->tx_length);
-	b2056_upload_inittab(dev, ghz5, ignore_uploadflag,
+	b2056_upload_inittab(dev, ghz5, igyesre_uploadflag,
 				B2056_RX0, pts->rx, pts->rx_length);
-	b2056_upload_inittab(dev, ghz5, ignore_uploadflag,
+	b2056_upload_inittab(dev, ghz5, igyesre_uploadflag,
 				B2056_RX1, pts->rx, pts->rx_length);
 }
 

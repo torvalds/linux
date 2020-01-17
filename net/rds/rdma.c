@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -65,13 +65,13 @@ static unsigned int rds_pages_in_vec(struct rds_iovec *vec)
 static struct rds_mr *rds_mr_tree_walk(struct rb_root *root, u64 key,
 				       struct rds_mr *insert)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &root->rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct rds_mr *mr;
 
 	while (*p) {
 		parent = *p;
-		mr = rb_entry(parent, struct rds_mr, r_rb_node);
+		mr = rb_entry(parent, struct rds_mr, r_rb_yesde);
 
 		if (key < mr->r_key)
 			p = &(*p)->rb_left;
@@ -82,8 +82,8 @@ static struct rds_mr *rds_mr_tree_walk(struct rb_root *root, u64 key,
 	}
 
 	if (insert) {
-		rb_link_node(&insert->r_rb_node, parent, p);
-		rb_insert_color(&insert->r_rb_node, root);
+		rb_link_yesde(&insert->r_rb_yesde, parent, p);
+		rb_insert_color(&insert->r_rb_yesde, root);
 		refcount_inc(&insert->r_refcount);
 	}
 	return NULL;
@@ -105,8 +105,8 @@ static void rds_destroy_mr(struct rds_mr *mr)
 		return;
 
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
-	if (!RB_EMPTY_NODE(&mr->r_rb_node))
-		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
+	if (!RB_EMPTY_NODE(&mr->r_rb_yesde))
+		rb_erase(&mr->r_rb_yesde, &rs->rs_rdma_keys);
 	trans_private = mr->r_trans_private;
 	mr->r_trans_private = NULL;
 	spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
@@ -128,17 +128,17 @@ void __rds_put_mr_final(struct rds_mr *mr)
 void rds_rdma_drop_keys(struct rds_sock *rs)
 {
 	struct rds_mr *mr;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	unsigned long flags;
 
 	/* Release any MRs associated with this socket */
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
-	while ((node = rb_first(&rs->rs_rdma_keys))) {
-		mr = rb_entry(node, struct rds_mr, r_rb_node);
+	while ((yesde = rb_first(&rs->rs_rdma_keys))) {
+		mr = rb_entry(yesde, struct rds_mr, r_rb_yesde);
 		if (mr->r_trans == rs->rs_transport)
 			mr->r_invalidate = 0;
-		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
-		RB_CLEAR_NODE(&mr->r_rb_node);
+		rb_erase(&mr->r_rb_yesde, &rs->rs_rdma_keys);
+		RB_CLEAR_NODE(&mr->r_rb_yesde);
 		spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
 		rds_destroy_mr(mr);
 		rds_mr_put(mr);
@@ -186,7 +186,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	int ret;
 
 	if (ipv6_addr_any(&rs->rs_bound_addr) || !rs->rs_transport) {
-		ret = -ENOTCONN; /* XXX not a great errno */
+		ret = -ENOTCONN; /* XXX yest a great erryes */
 		goto out;
 	}
 
@@ -226,7 +226,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	}
 
 	refcount_set(&mr->r_refcount, 1);
-	RB_CLEAR_NODE(&mr->r_rb_node);
+	RB_CLEAR_NODE(&mr->r_rb_yesde);
 	mr->r_trans = rs->rs_transport;
 	mr->r_sock = rs;
 
@@ -243,7 +243,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	 * the whole region after transferring the partial page references
 	 * to the sg array so that we can have one page ref cleanup path.
 	 *
-	 * For now we have no flag that tells us whether the mapping is
+	 * For yesw we have yes flag that tells us whether the mapping is
 	 * r/o or r/w. We need to assume r/w, or we'll do a lot of RDMA to
 	 * the zero page.
 	 */
@@ -267,9 +267,9 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	rdsdebug("RDS: trans_private nents is %u\n", nents);
 
 	/* Obtain a transport specific MR. If this succeeds, the
-	 * s/g list is now owned by the MR.
+	 * s/g list is yesw owned by the MR.
 	 * Note that dma_map() implies that pending writes are
-	 * flushed to RAM, so no dma_sync is needed here. */
+	 * flushed to RAM, so yes dma_sync is needed here. */
 	trans_private = rs->rs_transport->get_mr(sg, nents, rs,
 						 &mr->r_key,
 						 cp ? cp->cp_conn : NULL);
@@ -385,14 +385,14 @@ int rds_free_mr(struct rds_sock *rs, char __user *optval, int optlen)
 	}
 
 	/* Look up the MR given its R_key and remove it from the rbtree
-	 * so nobody else finds it.
+	 * so yesbody else finds it.
 	 * This should also prevent races with rds_rdma_unuse.
 	 */
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	mr = rds_mr_tree_walk(&rs->rs_rdma_keys, rds_rdma_cookie_key(args.cookie), NULL);
 	if (mr) {
-		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
-		RB_CLEAR_NODE(&mr->r_rb_node);
+		rb_erase(&mr->r_rb_yesde, &rs->rs_rdma_keys);
+		RB_CLEAR_NODE(&mr->r_rb_yesde);
 		if (args.flags & RDS_RDMA_INVALIDATE)
 			mr->r_invalidate = 1;
 	}
@@ -403,7 +403,7 @@ int rds_free_mr(struct rds_sock *rs, char __user *optval, int optlen)
 
 	/*
 	 * call rds_destroy_mr() ourselves so that we're sure it's done by the time
-	 * we return.  If we let rds_mr_put() do it it might not happen until
+	 * we return.  If we let rds_mr_put() do it it might yest happen until
 	 * someone else drops their ref.
 	 */
 	rds_destroy_mr(mr);
@@ -425,15 +425,15 @@ void rds_rdma_unuse(struct rds_sock *rs, u32 r_key, int force)
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	mr = rds_mr_tree_walk(&rs->rs_rdma_keys, r_key, NULL);
 	if (!mr) {
-		pr_debug("rds: trying to unuse MR with unknown r_key %u!\n",
+		pr_debug("rds: trying to unuse MR with unkyeswn r_key %u!\n",
 			 r_key);
 		spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
 		return;
 	}
 
 	if (mr->r_use_once || force) {
-		rb_erase(&mr->r_rb_node, &rs->rs_rdma_keys);
-		RB_CLEAR_NODE(&mr->r_rb_node);
+		rb_erase(&mr->r_rb_yesde, &rs->rs_rdma_keys);
+		RB_CLEAR_NODE(&mr->r_rb_yesde);
 		zot_me = 1;
 	}
 	spin_unlock_irqrestore(&rs->rs_rdma_lock, flags);
@@ -469,8 +469,8 @@ void rds_rdma_free_op(struct rm_rdma_op *ro)
 		put_page(page);
 	}
 
-	kfree(ro->op_notifier);
-	ro->op_notifier = NULL;
+	kfree(ro->op_yestifier);
+	ro->op_yestifier = NULL;
 	ro->op_active = 0;
 }
 
@@ -484,8 +484,8 @@ void rds_atomic_free_op(struct rm_atomic_op *ao)
 	set_page_dirty(page);
 	put_page(page);
 
-	kfree(ao->op_notifier);
-	ao->op_notifier = NULL;
+	kfree(ao->op_yestifier);
+	ao->op_yestifier = NULL;
 	ao->op_active = 0;
 }
 
@@ -509,7 +509,7 @@ static int rds_rdma_pages(struct rds_iovec iov[], int nr_iovecs)
 
 		/*
 		 * nr_pages for one entry is limited to (UINT_MAX>>PAGE_SHIFT)+1,
-		 * so tot_pages cannot overflow without first going negative.
+		 * so tot_pages canyest overflow without first going negative.
 		 */
 		if (tot_pages < 0)
 			return -EINVAL;
@@ -556,7 +556,7 @@ int rds_rdma_extra_size(struct rds_rdma_args *args,
 
 		/*
 		 * nr_pages for one entry is limited to (UINT_MAX>>PAGE_SHIFT)+1,
-		 * so tot_pages cannot overflow without first going negative.
+		 * so tot_pages canyest overflow without first going negative.
 		 */
 		if (tot_pages < 0)
 			return -EINVAL;
@@ -589,7 +589,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	args = CMSG_DATA(cmsg);
 
 	if (ipv6_addr_any(&rs->rs_bound_addr)) {
-		ret = -ENOTCONN; /* XXX not a great errno */
+		ret = -ENOTCONN; /* XXX yest a great erryes */
 		goto out_ret;
 	}
 
@@ -619,7 +619,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 
 	op->op_write = !!(args->flags & RDS_RDMA_READWRITE);
 	op->op_fence = !!(args->flags & RDS_RDMA_FENCE);
-	op->op_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
+	op->op_yestify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
 	op->op_silent = !!(args->flags & RDS_RDMA_SILENT);
 	op->op_active = 1;
 	op->op_recverr = rs->rs_recverr;
@@ -628,19 +628,19 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	if (!op->op_sg)
 		goto out_pages;
 
-	if (op->op_notify || op->op_recverr) {
-		/* We allocate an uninitialized notifier here, because
+	if (op->op_yestify || op->op_recverr) {
+		/* We allocate an uninitialized yestifier here, because
 		 * we don't want to do that in the completion handler. We
 		 * would have to use GFP_ATOMIC there, and don't want to deal
 		 * with failed allocations.
 		 */
-		op->op_notifier = kmalloc(sizeof(struct rds_notifier), GFP_KERNEL);
-		if (!op->op_notifier) {
+		op->op_yestifier = kmalloc(sizeof(struct rds_yestifier), GFP_KERNEL);
+		if (!op->op_yestifier) {
 			ret = -ENOMEM;
 			goto out_pages;
 		}
-		op->op_notifier->n_user_token = args->user_token;
-		op->op_notifier->n_status = RDS_RDMA_SUCCESS;
+		op->op_yestifier->n_user_token = args->user_token;
+		op->op_yestifier->n_status = RDS_RDMA_SUCCESS;
 	}
 
 	/* The cookie contains the R_Key of the remote memory region, and
@@ -662,7 +662,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 
 	for (i = 0; i < args->nr_local; i++) {
 		struct rds_iovec *iov = &iovs[i];
-		/* don't need to check, rds_rdma_pages() verified nr will be +nonzero */
+		/* don't need to check, rds_rdma_pages() verified nr will be +yesnzero */
 		unsigned int nr = rds_pages_in_vec(iov);
 
 		rs->rs_user_addr = iov->addr;
@@ -702,7 +702,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	}
 
 	if (nr_bytes > args->remote_vec.bytes) {
-		rdsdebug("RDS nr_bytes %u remote_bytes %u do not match\n",
+		rdsdebug("RDS nr_bytes %u remote_bytes %u do yest match\n",
 				nr_bytes,
 				(unsigned int) args->remote_vec.bytes);
 		ret = -EINVAL;
@@ -741,7 +741,7 @@ int rds_cmsg_rdma_dest(struct rds_sock *rs, struct rds_message *rm,
 
 	/* We are reusing a previously mapped MR here. Most likely, the
 	 * application has written to the buffer, so we need to explicitly
-	 * flush those writes to RAM. Otherwise the HCA may not see them
+	 * flush those writes to RAM. Otherwise the HCA may yest see them
 	 * when doing a DMA from that buffer.
 	 */
 	r_key = rds_rdma_cookie_key(rm->m_rdma_cookie);
@@ -799,12 +799,12 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 	case RDS_CMSG_ATOMIC_FADD:
 		rm->atomic.op_type = RDS_ATOMIC_TYPE_FADD;
 		rm->atomic.op_m_fadd.add = args->fadd.add;
-		rm->atomic.op_m_fadd.nocarry_mask = 0;
+		rm->atomic.op_m_fadd.yescarry_mask = 0;
 		break;
 	case RDS_CMSG_MASKED_ATOMIC_FADD:
 		rm->atomic.op_type = RDS_ATOMIC_TYPE_FADD;
 		rm->atomic.op_m_fadd.add = args->m_fadd.add;
-		rm->atomic.op_m_fadd.nocarry_mask = args->m_fadd.nocarry_mask;
+		rm->atomic.op_m_fadd.yescarry_mask = args->m_fadd.yescarry_mask;
 		break;
 	case RDS_CMSG_ATOMIC_CSWP:
 		rm->atomic.op_type = RDS_ATOMIC_TYPE_CSWP;
@@ -824,7 +824,7 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 		BUG(); /* should never happen */
 	}
 
-	rm->atomic.op_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
+	rm->atomic.op_yestify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
 	rm->atomic.op_silent = !!(args->flags & RDS_RDMA_SILENT);
 	rm->atomic.op_active = 1;
 	rm->atomic.op_recverr = rs->rs_recverr;
@@ -845,20 +845,20 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 
 	sg_set_page(rm->atomic.op_sg, page, 8, offset_in_page(args->local_addr));
 
-	if (rm->atomic.op_notify || rm->atomic.op_recverr) {
-		/* We allocate an uninitialized notifier here, because
+	if (rm->atomic.op_yestify || rm->atomic.op_recverr) {
+		/* We allocate an uninitialized yestifier here, because
 		 * we don't want to do that in the completion handler. We
 		 * would have to use GFP_ATOMIC there, and don't want to deal
 		 * with failed allocations.
 		 */
-		rm->atomic.op_notifier = kmalloc(sizeof(*rm->atomic.op_notifier), GFP_KERNEL);
-		if (!rm->atomic.op_notifier) {
+		rm->atomic.op_yestifier = kmalloc(sizeof(*rm->atomic.op_yestifier), GFP_KERNEL);
+		if (!rm->atomic.op_yestifier) {
 			ret = -ENOMEM;
 			goto err;
 		}
 
-		rm->atomic.op_notifier->n_user_token = args->user_token;
-		rm->atomic.op_notifier->n_status = RDS_RDMA_SUCCESS;
+		rm->atomic.op_yestifier->n_user_token = args->user_token;
+		rm->atomic.op_yestifier->n_status = RDS_RDMA_SUCCESS;
 	}
 
 	rm->atomic.op_rkey = rds_rdma_cookie_key(args->cookie);
@@ -869,7 +869,7 @@ err:
 	if (page)
 		put_page(page);
 	rm->atomic.op_active = 0;
-	kfree(rm->atomic.op_notifier);
+	kfree(rm->atomic.op_yestifier);
 
 	return ret;
 }

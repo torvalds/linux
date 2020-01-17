@@ -457,7 +457,7 @@ static irqreturn_t act8945a_status_changed(int irq, void *dev_id)
 static int act8945a_charger_config(struct device *dev,
 				   struct act8945a_charger *charger)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct regmap *regmap = charger->regmap;
 
 	u32 total_time_out;
@@ -469,7 +469,7 @@ static int act8945a_charger_config(struct device *dev,
 	unsigned int value = 0;
 
 	if (!np) {
-		dev_err(dev, "no charger of node\n");
+		dev_err(dev, "yes charger of yesde\n");
 		return -EINVAL;
 	}
 
@@ -583,7 +583,7 @@ static int act8945a_charger_probe(struct platform_device *pdev)
 
 	charger->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!charger->regmap) {
-		dev_err(&pdev->dev, "Parent did not provide regmap\n");
+		dev_err(&pdev->dev, "Parent did yest provide regmap\n");
 		return -EINVAL;
 	}
 
@@ -591,7 +591,7 @@ static int act8945a_charger_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	irq = of_irq_get(pdev->dev.of_node, 0);
+	irq = of_irq_get(pdev->dev.of_yesde, 0);
 	if (irq <= 0) {
 		dev_err(&pdev->dev, "failed to find IRQ number\n");
 		return irq ?: -ENXIO;
@@ -614,7 +614,7 @@ static int act8945a_charger_probe(struct platform_device *pdev)
 	if (ret)
 		return -EINVAL;
 
-	psy_cfg.of_node	= pdev->dev.of_node;
+	psy_cfg.of_yesde	= pdev->dev.of_yesde;
 	psy_cfg.drv_data = charger;
 
 	charger->psy = devm_power_supply_register(&pdev->dev,

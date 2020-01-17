@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*
- * Mellanox platform driver
+ * Mellayesx platform driver
  *
- * Copyright (C) 2016-2018 Mellanox Technologies
- * Copyright (C) 2016-2018 Vadim Pasternak <vadimp@mellanox.com>
+ * Copyright (C) 2016-2018 Mellayesx Techyeslogies
+ * Copyright (C) 2016-2018 Vadim Pasternak <vadimp@mellayesx.com>
  */
 
 #include <linux/device.h>
@@ -1956,77 +1956,77 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 	{
 		.callback = mlxplat_dmi_msn274x_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellayesx Techyeslogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN274"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_default_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellayesx Techyeslogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN24"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_default_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellayesx Techyeslogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN27"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_default_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellayesx Techyeslogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSB"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_default_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellayesx Techyeslogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSX"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_msn21xx_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellayesx Techyeslogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN21"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_msn201x_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellayesx Techyeslogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN201"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellayesx Techyeslogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MQM87"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellayesx Techyeslogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN37"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellayesx Techyeslogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN34"),
 		},
 	},
 	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellayesx Techyeslogies"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MSN38"),
 		},
 	},
@@ -2056,11 +2056,11 @@ static int mlxplat_mlxcpld_verify_bus_topology(int *nr)
 		break;
 	}
 
-	/* Return with error if free id for adapter is not found. */
+	/* Return with error if free id for adapter is yest found. */
 	if (i == MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM)
 		return -ENODEV;
 
-	/* Shift adapter ids, since expected parent adapter is not free. */
+	/* Shift adapter ids, since expected parent adapter is yest free. */
 	*nr = i;
 	for (i = 0; i < ARRAY_SIZE(mlxplat_mux_data); i++) {
 		shift = *nr - mlxplat_mux_data[i].parent;
@@ -2273,6 +2273,6 @@ static void __exit mlxplat_exit(void)
 }
 module_exit(mlxplat_exit);
 
-MODULE_AUTHOR("Vadim Pasternak (vadimp@mellanox.com)");
-MODULE_DESCRIPTION("Mellanox platform driver");
+MODULE_AUTHOR("Vadim Pasternak (vadimp@mellayesx.com)");
+MODULE_DESCRIPTION("Mellayesx platform driver");
 MODULE_LICENSE("Dual BSD/GPL");

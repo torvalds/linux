@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _dmx_fopen:
 
@@ -19,7 +19,7 @@ Name
 Digital TV demux open()
 
 
-Synopsis
+Syyespsis
 --------
 
 .. c:function:: int open(const char *deviceName, int flags)
@@ -51,7 +51,7 @@ Arguments
 
     -
        - ``O_NONBLOCK``
-       - open in non-blocking mode
+       - open in yesn-blocking mode
          (blocking mode is the default)
 
 
@@ -69,10 +69,10 @@ all PES filters set in the corresponding demux device
 (``/dev/dvb/adapter?/demux?``) having the output set to ``DMX_OUT_TS_TAP``.
 A recorded Transport Stream is replayed by writing to this device.
 
-The significance of blocking or non-blocking mode is described in the
-documentation for functions where there is a difference. It does not
+The significance of blocking or yesn-blocking mode is described in the
+documentation for functions where there is a difference. It does yest
 affect the semantics of the ``open()`` call itself. A device opened
-in blocking mode can later be put into non-blocking mode (and vice versa)
+in blocking mode can later be put into yesn-blocking mode (and vice versa)
 using the ``F_SETFL`` command of the fcntl system call.
 
 
@@ -81,7 +81,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erryes`` variable is set
 appropriately.
 
 .. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
@@ -92,7 +92,7 @@ appropriately.
     :widths: 1 16
 
     -  -  ``EMFILE``
-       -  “Too many open files”, i.e. no more filters available.
+       -  “Too many open files”, i.e. yes more filters available.
 
 The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

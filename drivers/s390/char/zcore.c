@@ -56,7 +56,7 @@ static struct ipl_parameter_block *zcore_ipl_block;
 static char hsa_buf[PAGE_SIZE] __aligned(PAGE_SIZE);
 
 /*
- * Copy memory from HSA to user memory (not reentrant):
+ * Copy memory from HSA to user memory (yest reentrant):
  *
  * @dest:  User buffer where memory should be copied to
  * @src:   Start address within HSA where data should be copied
@@ -86,7 +86,7 @@ int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count)
 }
 
 /*
- * Copy memory from HSA to kernel memory (not reentrant):
+ * Copy memory from HSA to kernel memory (yest reentrant):
  *
  * @dest:  Kernel or user buffer where memory should be copied to
  * @src:   Start address within HSA where data should be copied
@@ -123,7 +123,7 @@ static int __init init_cpu_info(void)
 	if (!sa)
 		return -ENOMEM;
 	if (memcpy_hsa_kernel(hsa_buf, __LC_FPREGS_SAVE_AREA, 512) < 0) {
-		TRACE("could not copy from HSA\n");
+		TRACE("could yest copy from HSA\n");
 		return -EIO;
 	}
 	save_area_add_regs(sa, hsa_buf); /* vx registers are saved in smp.c */
@@ -146,7 +146,7 @@ static ssize_t zcore_memmap_read(struct file *filp, char __user *buf,
 				       memblock.memory.cnt * CHUNK_INFO_SIZE);
 }
 
-static int zcore_memmap_open(struct inode *inode, struct file *filp)
+static int zcore_memmap_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct memblock_region *reg;
 	char *buf;
@@ -162,10 +162,10 @@ static int zcore_memmap_open(struct inode *inode, struct file *filp)
 			(unsigned long long) reg->size);
 	}
 	filp->private_data = buf;
-	return nonseekable_open(inode, filp);
+	return yesnseekable_open(iyesde, filp);
 }
 
-static int zcore_memmap_release(struct inode *inode, struct file *filp)
+static int zcore_memmap_release(struct iyesde *iyesde, struct file *filp)
 {
 	kfree(filp->private_data);
 	return 0;
@@ -176,7 +176,7 @@ static const struct file_operations zcore_memmap_fops = {
 	.read		= zcore_memmap_read,
 	.open		= zcore_memmap_open,
 	.release	= zcore_memmap_release,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static ssize_t zcore_reipl_write(struct file *filp, const char __user *buf,
@@ -189,12 +189,12 @@ static ssize_t zcore_reipl_write(struct file *filp, const char __user *buf,
 	return count;
 }
 
-static int zcore_reipl_open(struct inode *inode, struct file *filp)
+static int zcore_reipl_open(struct iyesde *iyesde, struct file *filp)
 {
-	return stream_open(inode, filp);
+	return stream_open(iyesde, filp);
 }
 
-static int zcore_reipl_release(struct inode *inode, struct file *filp)
+static int zcore_reipl_release(struct iyesde *iyesde, struct file *filp)
 {
 	return 0;
 }
@@ -204,7 +204,7 @@ static const struct file_operations zcore_reipl_fops = {
 	.write		= zcore_reipl_write,
 	.open		= zcore_reipl_open,
 	.release	= zcore_reipl_release,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static ssize_t zcore_hsa_read(struct file *filp, char __user *buf,
@@ -238,14 +238,14 @@ static const struct file_operations zcore_hsa_fops = {
 	.owner		= THIS_MODULE,
 	.write		= zcore_hsa_write,
 	.read		= zcore_hsa_read,
-	.open		= nonseekable_open,
-	.llseek		= no_llseek,
+	.open		= yesnseekable_open,
+	.llseek		= yes_llseek,
 };
 
 static int __init check_sdias(void)
 {
 	if (!sclp.hsa_size) {
-		TRACE("Could not determine HSA size\n");
+		TRACE("Could yest determine HSA size\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -276,7 +276,7 @@ static int __init zcore_reipl_init(void)
 				 PAGE_SIZE);
 	if (rc || (__force u32)csum_partial(zcore_ipl_block, zcore_ipl_block->hdr.len, 0) !=
 	    ipib_info.checksum) {
-		TRACE("Checksum does not match\n");
+		TRACE("Checksum does yest match\n");
 		free_page((unsigned long) zcore_ipl_block);
 		zcore_ipl_block = NULL;
 	}
@@ -297,7 +297,7 @@ static int __init zcore_init(void)
 	debug_register_view(zcore_dbf, &debug_sprintf_view);
 	debug_set_level(zcore_dbf, 6);
 
-	TRACE("devno:  %x\n", ipl_info.data.fcp.dev_id.devno);
+	TRACE("devyes:  %x\n", ipl_info.data.fcp.dev_id.devyes);
 	TRACE("wwpn:   %llx\n", (unsigned long long) ipl_info.data.fcp.wwpn);
 	TRACE("lun:    %llx\n", (unsigned long long) ipl_info.data.fcp.lun);
 
@@ -315,7 +315,7 @@ static int __init zcore_init(void)
 		goto fail;
 
 	if (arch == ARCH_S390) {
-		pr_alert("The 64-bit dump tool cannot be used for a "
+		pr_alert("The 64-bit dump tool canyest be used for a "
 			 "32-bit system\n");
 		rc = -EINVAL;
 		goto fail;

@@ -2,8 +2,8 @@
 /* -
  * net/sched/act_ct.c  Connection Tracking action
  *
- * Authors:   Paul Blakey <paulb@mellanox.com>
- *            Yossi Kuperman <yossiku@mellanox.com>
+ * Authors:   Paul Blakey <paulb@mellayesx.com>
+ *            Yossi Kuperman <yossiku@mellayesx.com>
  *            Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>
  */
 
@@ -156,7 +156,7 @@ static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 	int err = 0;
 	bool frag;
 
-	/* Previously seen (loopback)? Ignore. */
+	/* Previously seen (loopback)? Igyesre. */
 	ct = nf_ct_get(skb, &ctinfo);
 	if ((ct && !nf_ct_is_template(ct)) || ctinfo == IP_CT_UNTRACKED)
 		return 0;
@@ -194,7 +194,7 @@ static int tcf_ct_handle_fragments(struct net *net, struct sk_buff *skb,
 	}
 
 	skb_clear_hash(skb);
-	skb->ignore_df = 1;
+	skb->igyesre_df = 1;
 	return err;
 
 out_free:
@@ -335,7 +335,7 @@ static int tcf_ct_act_nat(struct sk_buff *skb,
 	if (!(ct_action & TCA_CT_ACT_NAT))
 		return NF_ACCEPT;
 
-	/* Add NAT extension if not confirmed yet. */
+	/* Add NAT extension if yest confirmed yet. */
 	if (!nf_ct_is_confirmed(ct) && !nf_ct_nat_ext_add(ct))
 		return NF_DROP;   /* Can't NAT. */
 
@@ -984,8 +984,8 @@ static void __exit ct_cleanup_module(void)
 
 module_init(ct_init_module);
 module_exit(ct_cleanup_module);
-MODULE_AUTHOR("Paul Blakey <paulb@mellanox.com>");
-MODULE_AUTHOR("Yossi Kuperman <yossiku@mellanox.com>");
+MODULE_AUTHOR("Paul Blakey <paulb@mellayesx.com>");
+MODULE_AUTHOR("Yossi Kuperman <yossiku@mellayesx.com>");
 MODULE_AUTHOR("Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>");
 MODULE_DESCRIPTION("Connection tracking action");
 MODULE_LICENSE("GPL v2");

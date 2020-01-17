@@ -45,7 +45,7 @@ DECLARE_EVENT_CLASS(jbd2_commit,
 
 	TP_fast_assign(
 		__entry->dev		= journal->j_fs_dev->bd_dev;
-		__entry->sync_commit = commit_transaction->t_synchronous_commit;
+		__entry->sync_commit = commit_transaction->t_synchroyesus_commit;
 		__entry->transaction	= commit_transaction->t_tid;
 	),
 
@@ -103,7 +103,7 @@ TRACE_EVENT(jbd2_end_commit,
 
 	TP_fast_assign(
 		__entry->dev		= journal->j_fs_dev->bd_dev;
-		__entry->sync_commit = commit_transaction->t_synchronous_commit;
+		__entry->sync_commit = commit_transaction->t_synchroyesus_commit;
 		__entry->transaction	= commit_transaction->t_tid;
 		__entry->head		= journal->j_tail_sequence;
 	),
@@ -113,37 +113,37 @@ TRACE_EVENT(jbd2_end_commit,
 		  __entry->transaction, __entry->sync_commit, __entry->head)
 );
 
-TRACE_EVENT(jbd2_submit_inode_data,
-	TP_PROTO(struct inode *inode),
+TRACE_EVENT(jbd2_submit_iyesde_data,
+	TP_PROTO(struct iyesde *iyesde),
 
-	TP_ARGS(inode),
+	TP_ARGS(iyesde),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
-		__field(	ino_t,	ino			)
+		__field(	iyes_t,	iyes			)
 	),
 
 	TP_fast_assign(
-		__entry->dev	= inode->i_sb->s_dev;
-		__entry->ino	= inode->i_ino;
+		__entry->dev	= iyesde->i_sb->s_dev;
+		__entry->iyes	= iyesde->i_iyes;
 	),
 
-	TP_printk("dev %d,%d ino %lu",
+	TP_printk("dev %d,%d iyes %lu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  (unsigned long) __entry->ino)
+		  (unsigned long) __entry->iyes)
 );
 
 DECLARE_EVENT_CLASS(jbd2_handle_start_class,
 	TP_PROTO(dev_t dev, unsigned long tid, unsigned int type,
-		 unsigned int line_no, int requested_blocks),
+		 unsigned int line_yes, int requested_blocks),
 
-	TP_ARGS(dev, tid, type, line_no, requested_blocks),
+	TP_ARGS(dev, tid, type, line_yes, requested_blocks),
 
 	TP_STRUCT__entry(
 		__field(		dev_t,	dev		)
 		__field(	unsigned long,	tid		)
 		__field(	 unsigned int,	type		)
-		__field(	 unsigned int,	line_no		)
+		__field(	 unsigned int,	line_yes		)
 		__field(		  int,	requested_blocks)
 	),
 
@@ -151,42 +151,42 @@ DECLARE_EVENT_CLASS(jbd2_handle_start_class,
 		__entry->dev		  = dev;
 		__entry->tid		  = tid;
 		__entry->type		  = type;
-		__entry->line_no	  = line_no;
+		__entry->line_yes	  = line_yes;
 		__entry->requested_blocks = requested_blocks;
 	),
 
-	TP_printk("dev %d,%d tid %lu type %u line_no %u "
+	TP_printk("dev %d,%d tid %lu type %u line_yes %u "
 		  "requested_blocks %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->tid,
-		  __entry->type, __entry->line_no, __entry->requested_blocks)
+		  __entry->type, __entry->line_yes, __entry->requested_blocks)
 );
 
 DEFINE_EVENT(jbd2_handle_start_class, jbd2_handle_start,
 	TP_PROTO(dev_t dev, unsigned long tid, unsigned int type,
-		 unsigned int line_no, int requested_blocks),
+		 unsigned int line_yes, int requested_blocks),
 
-	TP_ARGS(dev, tid, type, line_no, requested_blocks)
+	TP_ARGS(dev, tid, type, line_yes, requested_blocks)
 );
 
 DEFINE_EVENT(jbd2_handle_start_class, jbd2_handle_restart,
 	TP_PROTO(dev_t dev, unsigned long tid, unsigned int type,
-		 unsigned int line_no, int requested_blocks),
+		 unsigned int line_yes, int requested_blocks),
 
-	TP_ARGS(dev, tid, type, line_no, requested_blocks)
+	TP_ARGS(dev, tid, type, line_yes, requested_blocks)
 );
 
 TRACE_EVENT(jbd2_handle_extend,
 	TP_PROTO(dev_t dev, unsigned long tid, unsigned int type,
-		 unsigned int line_no, int buffer_credits,
+		 unsigned int line_yes, int buffer_credits,
 		 int requested_blocks),
 
-	TP_ARGS(dev, tid, type, line_no, buffer_credits, requested_blocks),
+	TP_ARGS(dev, tid, type, line_yes, buffer_credits, requested_blocks),
 
 	TP_STRUCT__entry(
 		__field(		dev_t,	dev		)
 		__field(	unsigned long,	tid		)
 		__field(	 unsigned int,	type		)
-		__field(	 unsigned int,	line_no		)
+		__field(	 unsigned int,	line_yes		)
 		__field(		  int,	buffer_credits  )
 		__field(		  int,	requested_blocks)
 	),
@@ -195,31 +195,31 @@ TRACE_EVENT(jbd2_handle_extend,
 		__entry->dev		  = dev;
 		__entry->tid		  = tid;
 		__entry->type		  = type;
-		__entry->line_no	  = line_no;
+		__entry->line_yes	  = line_yes;
 		__entry->buffer_credits   = buffer_credits;
 		__entry->requested_blocks = requested_blocks;
 	),
 
-	TP_printk("dev %d,%d tid %lu type %u line_no %u "
+	TP_printk("dev %d,%d tid %lu type %u line_yes %u "
 		  "buffer_credits %d requested_blocks %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->tid,
-		  __entry->type, __entry->line_no, __entry->buffer_credits,
+		  __entry->type, __entry->line_yes, __entry->buffer_credits,
 		  __entry->requested_blocks)
 );
 
 TRACE_EVENT(jbd2_handle_stats,
 	TP_PROTO(dev_t dev, unsigned long tid, unsigned int type,
-		 unsigned int line_no, int interval, int sync,
+		 unsigned int line_yes, int interval, int sync,
 		 int requested_blocks, int dirtied_blocks),
 
-	TP_ARGS(dev, tid, type, line_no, interval, sync,
+	TP_ARGS(dev, tid, type, line_yes, interval, sync,
 		requested_blocks, dirtied_blocks),
 
 	TP_STRUCT__entry(
 		__field(		dev_t,	dev		)
 		__field(	unsigned long,	tid		)
 		__field(	 unsigned int,	type		)
-		__field(	 unsigned int,	line_no		)
+		__field(	 unsigned int,	line_yes		)
 		__field(		  int,	interval	)
 		__field(		  int,	sync		)
 		__field(		  int,	requested_blocks)
@@ -230,17 +230,17 @@ TRACE_EVENT(jbd2_handle_stats,
 		__entry->dev		  = dev;
 		__entry->tid		  = tid;
 		__entry->type		  = type;
-		__entry->line_no	  = line_no;
+		__entry->line_yes	  = line_yes;
 		__entry->interval	  = interval;
 		__entry->sync		  = sync;
 		__entry->requested_blocks = requested_blocks;
 		__entry->dirtied_blocks	  = dirtied_blocks;
 	),
 
-	TP_printk("dev %d,%d tid %lu type %u line_no %u interval %d "
+	TP_printk("dev %d,%d tid %lu type %u line_yes %u interval %d "
 		  "sync %d requested_blocks %d dirtied_blocks %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->tid,
-		  __entry->type, __entry->line_no, __entry->interval,
+		  __entry->type, __entry->line_yes, __entry->interval,
 		  __entry->sync, __entry->requested_blocks,
 		  __entry->dirtied_blocks)
 );

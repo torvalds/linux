@@ -6,7 +6,7 @@
  *
  * Based on rtc-max6902.c
  *
- * Copyright (C) 2006 8D Technologies inc.
+ * Copyright (C) 2006 8D Techyeslogies inc.
  * Copyright (C) 2004 Compulab Ltd.
  */
 
@@ -48,7 +48,7 @@ static int write_reg(struct device *dev, int address, unsigned char data)
 	return spi_write(spi, buf, ARRAY_SIZE(buf));
 }
 
-static int read_regs(struct device *dev, unsigned char *regs, int no_regs)
+static int read_regs(struct device *dev, unsigned char *regs, int yes_regs)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	u8 txbuf[1], rxbuf[1];
@@ -56,7 +56,7 @@ static int read_regs(struct device *dev, unsigned char *regs, int no_regs)
 
 	ret = 0;
 
-	for (k = 0; ret == 0 && k < no_regs; k++) {
+	for (k = 0; ret == 0 && k < yes_regs; k++) {
 		txbuf[0] = 0x80 | regs[k];
 		ret = spi_write_then_read(spi, txbuf, 1, rxbuf, 1);
 		regs[k] = rxbuf[0];
@@ -126,7 +126,7 @@ static int r9701_probe(struct spi_device *spi)
 	tmp = R100CNT;
 	res = read_regs(&spi->dev, &tmp, 1);
 	if (res || tmp != 0x20) {
-		dev_err(&spi->dev, "cannot read RTC register\n");
+		dev_err(&spi->dev, "canyest read RTC register\n");
 		return -ENODEV;
 	}
 
@@ -146,7 +146,7 @@ static int r9701_probe(struct spi_device *spi)
 
 		if (r9701_set_datetime(&spi->dev, &dt) ||
 				r9701_get_datetime(&spi->dev, &dt)) {
-			dev_err(&spi->dev, "cannot repair RTC register\n");
+			dev_err(&spi->dev, "canyest repair RTC register\n");
 			return -ENODEV;
 		}
 	}

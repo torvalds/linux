@@ -8,13 +8,13 @@
 #include "xfs_bit.h"
 
 /*
- * XFS bit manipulation routines, used in non-realtime code.
+ * XFS bit manipulation routines, used in yesn-realtime code.
  */
 
 /*
  * Return whether bitmap is empty.
  * Size is number of words in the bitmap, which is padded to word boundary
- * Returns 1 for empty, 0 for non-empty.
+ * Returns 1 for empty, 0 for yesn-empty.
  */
 int
 xfs_bitmap_empty(uint *map, uint size)
@@ -68,10 +68,10 @@ found:
 /*
  * This takes the bit number to start looking from and
  * returns the next set bit from there.  It returns -1
- * if there are no more bits set or the start bit is
+ * if there are yes more bits set or the start bit is
  * beyond the end of the bitmap.
  *
- * Size is the number of words, not bytes, in the bitmap.
+ * Size is the number of words, yest bytes, in the bitmap.
  */
 int xfs_next_bit(uint *map, uint size, uint start_bit)
 {

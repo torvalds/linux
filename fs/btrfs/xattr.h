@@ -10,16 +10,16 @@
 
 extern const struct xattr_handler *btrfs_xattr_handlers[];
 
-int btrfs_getxattr(struct inode *inode, const char *name,
+int btrfs_getxattr(struct iyesde *iyesde, const char *name,
 		void *buffer, size_t size);
-int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
+int btrfs_setxattr(struct btrfs_trans_handle *trans, struct iyesde *iyesde,
 		   const char *name, const void *value, size_t size, int flags);
-int btrfs_setxattr_trans(struct inode *inode, const char *name,
+int btrfs_setxattr_trans(struct iyesde *iyesde, const char *name,
 			 const void *value, size_t size, int flags);
 ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 
 int btrfs_xattr_security_init(struct btrfs_trans_handle *trans,
-				     struct inode *inode, struct inode *dir,
+				     struct iyesde *iyesde, struct iyesde *dir,
 				     const struct qstr *qstr);
 
 #endif

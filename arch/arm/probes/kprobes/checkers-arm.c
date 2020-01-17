@@ -16,7 +16,7 @@ static enum probes_insn __kprobes arm_check_stack(probes_opcode_t insn,
 {
 	/*
 	 * PROBES_LDRSTRD, PROBES_LDMSTM, PROBES_STORE,
-	 * PROBES_STORE_EXTRA may get here. Simply mark all normal
+	 * PROBES_STORE_EXTRA may get here. Simply mark all yesrmal
 	 * insns as STACK_USE_NONE.
 	 */
 	static const union decode_item table[] = {
@@ -90,7 +90,7 @@ const struct decode_checker arm_stack_checker[NUM_PROBES_ARM_ACTIONS] = {
 	[PROBES_LDMSTM] = {.checker = arm_check_stack},
 };
 
-static enum probes_insn __kprobes arm_check_regs_nouse(probes_opcode_t insn,
+static enum probes_insn __kprobes arm_check_regs_yesuse(probes_opcode_t insn,
 		struct arch_probes_insn *asi,
 		const struct decode_header *h)
 {
@@ -98,7 +98,7 @@ static enum probes_insn __kprobes arm_check_regs_nouse(probes_opcode_t insn,
 	return INSN_GOOD;
 }
 
-static enum probes_insn arm_check_regs_normal(probes_opcode_t insn,
+static enum probes_insn arm_check_regs_yesrmal(probes_opcode_t insn,
 		struct arch_probes_insn *asi,
 		const struct decode_header *h)
 {
@@ -150,34 +150,34 @@ static enum probes_insn arm_check_regs_ldrdstrd(probes_opcode_t insn,
 		const struct decode_header *h)
 {
 	int rdt = (insn >> 12) & 0xf;
-	arm_check_regs_normal(insn, asi, h);
+	arm_check_regs_yesrmal(insn, asi, h);
 	asi->register_usage_flags |= 1 << (rdt + 1);
 	return INSN_GOOD;
 }
 
 
 const struct decode_checker arm_regs_checker[NUM_PROBES_ARM_ACTIONS] = {
-	[PROBES_MRS] = {.checker = arm_check_regs_normal},
-	[PROBES_SATURATING_ARITHMETIC] = {.checker = arm_check_regs_normal},
-	[PROBES_MUL1] = {.checker = arm_check_regs_normal},
-	[PROBES_MUL2] = {.checker = arm_check_regs_normal},
-	[PROBES_MUL_ADD_LONG] = {.checker = arm_check_regs_normal},
-	[PROBES_MUL_ADD] = {.checker = arm_check_regs_normal},
-	[PROBES_LOAD] = {.checker = arm_check_regs_normal},
-	[PROBES_LOAD_EXTRA] = {.checker = arm_check_regs_normal},
-	[PROBES_STORE] = {.checker = arm_check_regs_normal},
-	[PROBES_STORE_EXTRA] = {.checker = arm_check_regs_normal},
-	[PROBES_DATA_PROCESSING_REG] = {.checker = arm_check_regs_normal},
-	[PROBES_DATA_PROCESSING_IMM] = {.checker = arm_check_regs_normal},
-	[PROBES_SEV] = {.checker = arm_check_regs_nouse},
-	[PROBES_WFE] = {.checker = arm_check_regs_nouse},
-	[PROBES_SATURATE] = {.checker = arm_check_regs_normal},
-	[PROBES_REV] = {.checker = arm_check_regs_normal},
-	[PROBES_MMI] = {.checker = arm_check_regs_normal},
-	[PROBES_PACK] = {.checker = arm_check_regs_normal},
-	[PROBES_EXTEND] = {.checker = arm_check_regs_normal},
-	[PROBES_EXTEND_ADD] = {.checker = arm_check_regs_normal},
-	[PROBES_BITFIELD] = {.checker = arm_check_regs_normal},
+	[PROBES_MRS] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_SATURATING_ARITHMETIC] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_MUL1] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_MUL2] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_MUL_ADD_LONG] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_MUL_ADD] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_LOAD] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_LOAD_EXTRA] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_STORE] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_STORE_EXTRA] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_DATA_PROCESSING_REG] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_DATA_PROCESSING_IMM] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_SEV] = {.checker = arm_check_regs_yesuse},
+	[PROBES_WFE] = {.checker = arm_check_regs_yesuse},
+	[PROBES_SATURATE] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_REV] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_MMI] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_PACK] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_EXTEND] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_EXTEND_ADD] = {.checker = arm_check_regs_yesrmal},
+	[PROBES_BITFIELD] = {.checker = arm_check_regs_yesrmal},
 	[PROBES_LDMSTM] = {.checker = arm_check_regs_ldmstm},
 	[PROBES_MOV_IP_SP] = {.checker = arm_check_regs_mov_ip_sp},
 	[PROBES_LDRSTRD] = {.checker = arm_check_regs_ldrdstrd},

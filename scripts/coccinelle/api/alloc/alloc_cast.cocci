@@ -4,15 +4,15 @@
 ///
 //# This makes an effort to find cases of casting of values returned by
 //# kmalloc, kzalloc, kcalloc, kmem_cache_alloc, kmem_cache_zalloc,
-//# kmem_cache_alloc_node, kmalloc_node and kzalloc_node and removes
-//# the casting as it is not required. The result in the patch case may
+//# kmem_cache_alloc_yesde, kmalloc_yesde and kzalloc_yesde and removes
+//# the casting as it is yest required. The result in the patch case may
 //# need some reformatting.
 //
 // Confidence: High
 // Copyright: (C) 2014 Himangi Saraogi
 // Copyright: (C) 2017 Himanshu Jha
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 //
 
 virtual context
@@ -32,11 +32,11 @@ type T;
 
   (T *)
   \(kmalloc\|kzalloc\|kcalloc\|kmem_cache_alloc\|kmem_cache_zalloc\|
-   kmem_cache_alloc_node\|kmalloc_node\|kzalloc_node\|vmalloc\|vzalloc\|
+   kmem_cache_alloc_yesde\|kmalloc_yesde\|kzalloc_yesde\|vmalloc\|vzalloc\|
    dma_alloc_coherent\|devm_kmalloc\|devm_kzalloc\|
-   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|pci_alloc_consistent\|
+   kvmalloc\|kvzalloc\|kvmalloc_yesde\|kvzalloc_yesde\|pci_alloc_consistent\|
    pci_zalloc_consistent\|kmem_alloc\|kmem_zalloc\|kmem_zone_alloc\|
-   kmem_zone_zalloc\|vmalloc_node\|vzalloc_node\)(...)
+   kmem_zone_zalloc\|vmalloc_yesde\|vzalloc_yesde\)(...)
 
 //----------------------------------------------------------
 //  For context mode
@@ -55,11 +55,11 @@ type r1.T;
 
 * (T *)
   \(kmalloc\|kzalloc\|kcalloc\|kmem_cache_alloc\|kmem_cache_zalloc\|
-   kmem_cache_alloc_node\|kmalloc_node\|kzalloc_node\|vmalloc\|vzalloc\|
+   kmem_cache_alloc_yesde\|kmalloc_yesde\|kzalloc_yesde\|vmalloc\|vzalloc\|
    dma_alloc_coherent\|devm_kmalloc\|devm_kzalloc\|
-   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|pci_alloc_consistent\|
+   kvmalloc\|kvzalloc\|kvmalloc_yesde\|kvzalloc_yesde\|pci_alloc_consistent\|
    pci_zalloc_consistent\|kmem_alloc\|kmem_zalloc\|kmem_zone_alloc\|
-   kmem_zone_zalloc\|vmalloc_node\|vzalloc_node\)(...)
+   kmem_zone_zalloc\|vmalloc_yesde\|vzalloc_yesde\)(...)
 
 //----------------------------------------------------------
 //  For patch mode
@@ -78,11 +78,11 @@ type r1.T;
 
 - (T *)
   \(kmalloc\|kzalloc\|kcalloc\|kmem_cache_alloc\|kmem_cache_zalloc\|
-   kmem_cache_alloc_node\|kmalloc_node\|kzalloc_node\|vmalloc\|vzalloc\|
+   kmem_cache_alloc_yesde\|kmalloc_yesde\|kzalloc_yesde\|vmalloc\|vzalloc\|
    dma_alloc_coherent\|devm_kmalloc\|devm_kzalloc\|
-   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|pci_alloc_consistent\|
+   kvmalloc\|kvzalloc\|kvmalloc_yesde\|kvzalloc_yesde\|pci_alloc_consistent\|
    pci_zalloc_consistent\|kmem_alloc\|kmem_zalloc\|kmem_zone_alloc\|
-   kmem_zone_zalloc\|vmalloc_node\|vzalloc_node\)(...)
+   kmem_zone_zalloc\|vmalloc_yesde\|vzalloc_yesde\)(...)
 
 //----------------------------------------------------------
 //  For org and report mode
@@ -95,11 +95,11 @@ position p;
 
  (T@p *)
   \(kmalloc\|kzalloc\|kcalloc\|kmem_cache_alloc\|kmem_cache_zalloc\|
-   kmem_cache_alloc_node\|kmalloc_node\|kzalloc_node\|vmalloc\|vzalloc\|
+   kmem_cache_alloc_yesde\|kmalloc_yesde\|kzalloc_yesde\|vmalloc\|vzalloc\|
    dma_alloc_coherent\|devm_kmalloc\|devm_kzalloc\|
-   kvmalloc\|kvzalloc\|kvmalloc_node\|kvzalloc_node\|pci_alloc_consistent\|
+   kvmalloc\|kvzalloc\|kvmalloc_yesde\|kvzalloc_yesde\|pci_alloc_consistent\|
    pci_zalloc_consistent\|kmem_alloc\|kmem_zalloc\|kmem_zone_alloc\|
-   kmem_zone_zalloc\|vmalloc_node\|vzalloc_node\)(...)
+   kmem_zone_zalloc\|vmalloc_yesde\|vzalloc_yesde\)(...)
 
 @script:python depends on org@
 p << r2.p;

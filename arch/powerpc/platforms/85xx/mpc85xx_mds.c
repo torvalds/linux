@@ -16,7 +16,7 @@
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/reboot.h>
 #include <linux/pci.h>
 #include <linux/kdev_t.h>
@@ -159,16 +159,16 @@ static int mpc8568_mds_phy_fixups(struct phy_device *phydev)
 #ifdef CONFIG_QUICC_ENGINE
 static void __init mpc85xx_mds_reset_ucc_phys(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	static u8 __iomem *bcsr_regs;
 
 	/* Map BCSR area */
-	np = of_find_node_by_name(NULL, "bcsr");
+	np = of_find_yesde_by_name(NULL, "bcsr");
 	if (!np)
 		return;
 
 	bcsr_regs = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!bcsr_regs)
 		return;
 
@@ -197,7 +197,7 @@ static void __init mpc85xx_mds_reset_ucc_phys(void)
 		/*
 		 * U-Boot mangles interrupt polarity for Marvell PHYs,
 		 * so reset built-in and UEM Marvell PHYs, this puts
-		 * the PHYs into their normal state.
+		 * the PHYs into their yesrmal state.
 		 */
 		clrbits8(&bcsr_regs[7], BCSR7_UCC12_GETHnRST);
 		setbits8(&bcsr_regs[8], BCSR8_UEM_MARVELL_RST);
@@ -205,7 +205,7 @@ static void __init mpc85xx_mds_reset_ucc_phys(void)
 		setbits8(&bcsr_regs[7], BCSR7_UCC12_GETHnRST);
 		clrbits8(&bcsr_regs[8], BCSR8_UEM_MARVELL_RST);
 
-		for_each_compatible_node(np, "network", "ucc_geth") {
+		for_each_compatible_yesde(np, "network", "ucc_geth") {
 			const unsigned int *prop;
 			int ucc_num;
 
@@ -235,7 +235,7 @@ static void __init mpc85xx_mds_reset_ucc_phys(void)
 
 static void __init mpc85xx_mds_qe_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	mpc85xx_qe_par_io_init();
 	mpc85xx_mds_reset_ucc_phys();
@@ -244,11 +244,11 @@ static void __init mpc85xx_mds_qe_init(void)
 
 		struct ccsr_guts __iomem *guts;
 
-		np = of_find_node_by_name(NULL, "global-utilities");
+		np = of_find_yesde_by_name(NULL, "global-utilities");
 		if (np) {
 			guts = of_iomap(np, 0);
 			if (!guts)
-				pr_err("mpc85xx-rdb: could not map global utilities register\n");
+				pr_err("mpc85xx-rdb: could yest map global utilities register\n");
 			else{
 			/* P1021 has pins muxed for QE and other functions. To
 			 * enable QE UEC mode, we need to set bit QE0 for UCC1
@@ -262,7 +262,7 @@ static void __init mpc85xx_mds_qe_init(void)
 						  MPC85xx_PMUXCR_QE(12));
 				iounmap(guts);
 			}
-			of_node_put(np);
+			of_yesde_put(np);
 		}
 
 	}
@@ -270,17 +270,17 @@ static void __init mpc85xx_mds_qe_init(void)
 
 static void __init mpc85xx_mds_qeic_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,qe");
 	if (!of_device_is_available(np)) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,qe-ic");
 	if (!np) {
-		np = of_find_node_by_type(NULL, "qeic");
+		np = of_find_yesde_by_type(NULL, "qeic");
 		if (!np)
 			return;
 	}
@@ -290,7 +290,7 @@ static void __init mpc85xx_mds_qeic_init(void)
 				qe_ic_cascade_high_mpic);
 	else
 		qe_ic_init(np, 0, qe_ic_cascade_muxed_mpic, NULL);
-	of_node_put(np);
+	of_yesde_put(np);
 }
 #else
 static void __init mpc85xx_mds_qe_init(void) { }
@@ -317,12 +317,12 @@ static int __init board_fixups(void)
 {
 	char phy_id[20];
 	char *compstrs[2] = {"fsl,gianfar-mdio", "fsl,ucc-mdio"};
-	struct device_node *mdio;
+	struct device_yesde *mdio;
 	struct resource res;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(compstrs); i++) {
-		mdio = of_find_compatible_node(NULL, NULL, compstrs[i]);
+		mdio = of_find_compatible_yesde(NULL, NULL, compstrs[i]);
 
 		of_address_to_resource(mdio, 0, &res);
 		snprintf(phy_id, sizeof(phy_id), "%llx:%02x",
@@ -336,7 +336,7 @@ static int __init board_fixups(void)
 			(unsigned long long)res.start, 7);
 		phy_register_fixup_for_id(phy_id, mpc8568_mds_phy_fixups);
 
-		of_node_put(mdio);
+		of_yesde_put(mdio);
 	}
 
 	return 0;

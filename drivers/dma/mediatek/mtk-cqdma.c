@@ -73,7 +73,7 @@
  * @dest:                  The destination address device wants to move to
  * @src:                   The source address device wants to move from
  * @ch:                    The pointer to the corresponding dma channel
- * @node:                  The lise_head struct to build link-list for VDs
+ * @yesde:                  The lise_head struct to build link-list for VDs
  * @parent:                The pointer to the parent CVD
  */
 struct mtk_cqdma_vdesc {
@@ -84,7 +84,7 @@ struct mtk_cqdma_vdesc {
 	dma_addr_t src;
 	struct dma_chan *ch;
 
-	struct list_head node;
+	struct list_head yesde;
 	struct mtk_cqdma_vdesc *parent;
 };
 
@@ -273,7 +273,7 @@ static void mtk_cqdma_issue_vchan_pending(struct mtk_cqdma_vchan *cvc)
 	lockdep_assert_held(&cvc->vc.lock);
 	lockdep_assert_held(&pc->lock);
 
-	list_for_each_entry_safe(vd, vd2, &cvc->vc.desc_issued, node) {
+	list_for_each_entry_safe(vd, vd2, &cvc->vc.desc_issued, yesde) {
 		/* need to trigger dma engine if PC's queue is empty */
 		if (list_empty(&pc->queue))
 			trigger_engine = true;
@@ -281,14 +281,14 @@ static void mtk_cqdma_issue_vchan_pending(struct mtk_cqdma_vchan *cvc)
 		cvd = to_cqdma_vdesc(vd);
 
 		/* add VD into PC's queue */
-		list_add_tail(&cvd->node, &pc->queue);
+		list_add_tail(&cvd->yesde, &pc->queue);
 
 		/* start the dma engine */
 		if (trigger_engine)
 			mtk_cqdma_start(pc, cvd);
 
 		/* remove VD from list desc_issued */
-		list_del(&vd->node);
+		list_del(&vd->yesde);
 	}
 }
 
@@ -300,7 +300,7 @@ static bool mtk_cqdma_is_vchan_active(struct mtk_cqdma_vchan *cvc)
 {
 	struct mtk_cqdma_vdesc *cvd;
 
-	list_for_each_entry(cvd, &cvc->pc->queue, node)
+	list_for_each_entry(cvd, &cvc->pc->queue, yesde)
 		if (cvc == to_cqdma_vchan(cvd->ch))
 			return true;
 
@@ -318,7 +318,7 @@ static struct mtk_cqdma_vdesc
 
 	/* consume a CVD from PC's queue */
 	cvd = list_first_entry_or_null(&pc->queue,
-				       struct mtk_cqdma_vdesc, node);
+				       struct mtk_cqdma_vdesc, yesde);
 	if (unlikely(!cvd || !cvd->parent))
 		return NULL;
 
@@ -329,7 +329,7 @@ static struct mtk_cqdma_vdesc
 	cvd->parent->residue -= cvd->len;
 
 	/* delete CVD from PC's queue */
-	list_del(&cvd->node);
+	list_del(&cvd->yesde);
 
 	spin_lock(&cvc->vc.lock);
 
@@ -349,7 +349,7 @@ static struct mtk_cqdma_vdesc
 
 	/* start transaction for next CVD in the queue */
 	cvd = list_first_entry_or_null(&pc->queue,
-				       struct mtk_cqdma_vdesc, node);
+				       struct mtk_cqdma_vdesc, yesde);
 	if (cvd)
 		mtk_cqdma_start(pc, cvd);
 
@@ -406,7 +406,7 @@ static irqreturn_t mtk_cqdma_irq(int irq, void *devid)
 
 		if (schedule_tasklet) {
 			/* disable interrupt */
-			disable_irq_nosync(cqdma->pc[i]->irq);
+			disable_irq_yessync(cqdma->pc[i]->irq);
 
 			/* schedule the tasklet to handle the transactions */
 			tasklet_schedule(&cqdma->pc[i]->tasklet);
@@ -424,14 +424,14 @@ static struct virt_dma_desc *mtk_cqdma_find_active_desc(struct dma_chan *c,
 	unsigned long flags;
 
 	spin_lock_irqsave(&cvc->pc->lock, flags);
-	list_for_each_entry(vd, &cvc->pc->queue, node)
+	list_for_each_entry(vd, &cvc->pc->queue, yesde)
 		if (vd->tx.cookie == cookie) {
 			spin_unlock_irqrestore(&cvc->pc->lock, flags);
 			return vd;
 		}
 	spin_unlock_irqrestore(&cvc->pc->lock, flags);
 
-	list_for_each_entry(vd, &cvc->vc.desc_issued, node)
+	list_for_each_entry(vd, &cvc->vc.desc_issued, yesde)
 		if (vd->tx.cookie == cookie)
 			return vd;
 
@@ -500,7 +500,7 @@ mtk_cqdma_prep_dma_memcpy(struct dma_chan *c, dma_addr_t dest,
 	 * and the first one is referred as the parent CVD,
 	 * while the others are child CVDs.
 	 * The parent CVD's tx descriptor is the only tx descriptor
-	 * returned to the DMA user, and it should not be completed
+	 * returned to the DMA user, and it should yest be completed
 	 * until all the child CVDs completed.
 	 */
 	nr_vd = DIV_ROUND_UP(len, MTK_CQDMA_MAX_LEN);
@@ -601,7 +601,7 @@ static void mtk_cqdma_free_active_desc(struct dma_chan *c)
 
 static int mtk_cqdma_terminate_all(struct dma_chan *c)
 {
-	/* free descriptors not processed yet by hardware */
+	/* free descriptors yest processed yet by hardware */
 	mtk_cqdma_free_inactive_desc(c);
 
 	/* free descriptors being processed by hardware */
@@ -665,7 +665,7 @@ static void mtk_cqdma_free_chan_resources(struct dma_chan *c)
 
 	spin_lock_irqsave(&cvc->pc->lock, flags);
 
-	/* PC is not freed until there is no VC mapped to it */
+	/* PC is yest freed until there is yes VC mapped to it */
 	if (refcount_dec_and_test(&cvc->pc->refcnt)) {
 		/* start the flush operation and stop the engine */
 		mtk_dma_set(cvc->pc, MTK_CQDMA_FLUSH, MTK_CQDMA_FLUSH_BIT);
@@ -784,7 +784,7 @@ static int mtk_cqdma_probe(struct platform_device *pdev)
 	dd->dev = &pdev->dev;
 	INIT_LIST_HEAD(&dd->channels);
 
-	if (pdev->dev.of_node && of_property_read_u32(pdev->dev.of_node,
+	if (pdev->dev.of_yesde && of_property_read_u32(pdev->dev.of_yesde,
 						      "dma-requests",
 						      &cqdma->dma_requests)) {
 		dev_info(&pdev->dev,
@@ -794,7 +794,7 @@ static int mtk_cqdma_probe(struct platform_device *pdev)
 		cqdma->dma_requests = MTK_CQDMA_NR_VCHANS;
 	}
 
-	if (pdev->dev.of_node && of_property_read_u32(pdev->dev.of_node,
+	if (pdev->dev.of_yesde && of_property_read_u32(pdev->dev.of_yesde,
 						      "dma-channels",
 						      &cqdma->dma_channels)) {
 		dev_info(&pdev->dev,
@@ -859,7 +859,7 @@ static int mtk_cqdma_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	err = of_dma_controller_register(pdev->dev.of_node,
+	err = of_dma_controller_register(pdev->dev.of_yesde,
 					 of_dma_xlate_by_chan_id, cqdma);
 	if (err) {
 		dev_err(&pdev->dev,
@@ -902,7 +902,7 @@ static int mtk_cqdma_remove(struct platform_device *pdev)
 	for (i = 0; i < cqdma->dma_requests; i++) {
 		vc = &cqdma->vc[i];
 
-		list_del(&vc->vc.chan.device_node);
+		list_del(&vc->vc.chan.device_yesde);
 		tasklet_kill(&vc->vc.task);
 	}
 
@@ -923,7 +923,7 @@ static int mtk_cqdma_remove(struct platform_device *pdev)
 	mtk_cqdma_hw_deinit(cqdma);
 
 	dma_async_device_unregister(&cqdma->ddev);
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 
 	return 0;
 }

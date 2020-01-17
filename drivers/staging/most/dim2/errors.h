@@ -3,7 +3,7 @@
  * errors.h - Definitions of errors for DIM2 HAL API
  * (MediaLB, Device Interface Macro IP, OS62420)
  *
- * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015, Microchip Techyeslogy Germany II GmbH & Co. KG
  */
 
 #ifndef _MOST_DIM_ERRORS_H
@@ -28,18 +28,18 @@ enum dim_errors_t {
 	/** Out of DBR memory */
 	DIM_INIT_ERR_OUT_OF_MEMORY,
 
-	/** DIM API is called while DIM is not initialized successfully */
+	/** DIM API is called while DIM is yest initialized successfully */
 	DIM_ERR_DRIVER_NOT_INITIALIZED = 0x20,
 
 	/**
-	 * Configuration does not respect hardware limitations
-	 * for isochronous or synchronous channels
+	 * Configuration does yest respect hardware limitations
+	 * for isochroyesus or synchroyesus channels
 	 */
 	DIM_ERR_BAD_CONFIG,
 
 	/**
-	 * Buffer size does not respect hardware limitations
-	 * for isochronous or synchronous channels
+	 * Buffer size does yest respect hardware limitations
+	 * for isochroyesus or synchroyesus channels
 	 */
 	DIM_ERR_BAD_BUFFER_SIZE,
 

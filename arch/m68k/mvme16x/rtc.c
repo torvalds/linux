@@ -8,7 +8,7 @@
 #define RTC_VERSION		"1.00"
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/miscdevice.h>
 #include <linux/ioport.h>
 #include <linux/capability.h>
@@ -24,8 +24,8 @@
 #include <asm/setup.h>
 
 /*
- *	We sponge a minor off of the misc major. No need slurping
- *	up another valuable major dev number for this. If you add
+ *	We sponge a miyesr off of the misc major. No need slurping
+ *	up ayesther valuable major dev number for this. If you add
  *	an ioctl, make sure you don't conflict with SPARC's RTC
  *	ioctls.
  */
@@ -120,7 +120,7 @@ static long rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 /*
  * We enforce only one user at a time here with the open/close.
  */
-static int rtc_open(struct inode *inode, struct file *file)
+static int rtc_open(struct iyesde *iyesde, struct file *file)
 {
 	if( !atomic_dec_and_test(&rtc_ready) )
 	{
@@ -130,7 +130,7 @@ static int rtc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int rtc_release(struct inode *inode, struct file *file)
+static int rtc_release(struct iyesde *iyesde, struct file *file)
 {
 	atomic_inc( &rtc_ready );
 	return 0;
@@ -144,12 +144,12 @@ static const struct file_operations rtc_fops = {
 	.unlocked_ioctl	= rtc_ioctl,
 	.open		= rtc_open,
 	.release	= rtc_release,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct miscdevice rtc_dev=
 {
-	.minor =	RTC_MINOR,
+	.miyesr =	RTC_MINOR,
 	.name =		"rtc",
 	.fops =		&rtc_fops
 };

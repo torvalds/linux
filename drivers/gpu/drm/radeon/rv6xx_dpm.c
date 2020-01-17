@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -126,7 +126,7 @@ static void rv6xx_enable_pll_sleep_in_l1(struct radeon_device *rdev)
 	tmp |= LC_L1_INACTIVITY(8);
 	WREG32_PCIE_PORT(PCIE_LC_CNTL, tmp);
 
-	/* NOTE, this is a PCIE indirect reg, not PCIE PORT */
+	/* NOTE, this is a PCIE indirect reg, yest PCIE PORT */
 	tmp = RREG32_PCIE(PCIE_P_CNTL);
 	tmp |= P_PLL_PWRDN_IN_L1L23;
 	tmp &= ~P_PLL_BUF_PDNB;
@@ -1791,13 +1791,13 @@ union pplib_power_state {
 	struct _ATOM_PPLIB_STATE_V2 v2;
 };
 
-static void rv6xx_parse_pplib_non_clock_info(struct radeon_device *rdev,
+static void rv6xx_parse_pplib_yesn_clock_info(struct radeon_device *rdev,
 					     struct radeon_ps *rps,
-					     struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info)
+					     struct _ATOM_PPLIB_NONCLOCK_INFO *yesn_clock_info)
 {
-	rps->caps = le32_to_cpu(non_clock_info->ulCapsAndSettings);
-	rps->class = le16_to_cpu(non_clock_info->usClassification);
-	rps->class2 = le16_to_cpu(non_clock_info->usClassification2);
+	rps->caps = le32_to_cpu(yesn_clock_info->ulCapsAndSettings);
+	rps->class = le16_to_cpu(yesn_clock_info->usClassification);
+	rps->class2 = le16_to_cpu(yesn_clock_info->usClassification2);
 
 	if (r600_is_uvd_state(rps->class, rps->class2)) {
 		rps->vclk = RV6XX_DEFAULT_VCLK_FREQ;
@@ -1872,7 +1872,7 @@ static void rv6xx_parse_pplib_clock_info(struct radeon_device *rdev,
 static int rv6xx_parse_power_table(struct radeon_device *rdev)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
-	struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info;
+	struct _ATOM_PPLIB_NONCLOCK_INFO *yesn_clock_info;
 	union pplib_power_state *power_state;
 	int i, j;
 	union pplib_clock_info *clock_info;
@@ -1898,7 +1898,7 @@ static int rv6xx_parse_power_table(struct radeon_device *rdev)
 			(mode_info->atom_context->bios + data_offset +
 			 le16_to_cpu(power_info->pplib.usStateArrayOffset) +
 			 i * power_info->pplib.ucStateEntrySize);
-		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
+		yesn_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
 			(mode_info->atom_context->bios + data_offset +
 			 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset) +
 			 (power_state->v1.ucNonClockStateIndex *
@@ -1911,8 +1911,8 @@ static int rv6xx_parse_power_table(struct radeon_device *rdev)
 				return -ENOMEM;
 			}
 			rdev->pm.dpm.ps[i].ps_priv = ps;
-			rv6xx_parse_pplib_non_clock_info(rdev, &rdev->pm.dpm.ps[i],
-							 non_clock_info);
+			rv6xx_parse_pplib_yesn_clock_info(rdev, &rdev->pm.dpm.ps[i],
+							 yesn_clock_info);
 			idx = (u8 *)&power_state->v1.ucClockStateIndices[0];
 			for (j = 0; j < (power_info->pplib.ucStateEntrySize - 1); j++) {
 				clock_info = (union pplib_clock_info *)

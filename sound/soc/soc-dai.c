@@ -3,7 +3,7 @@
 // soc-dai.c
 //
 // Copyright (C) 2019 Renesas Electronics Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
 //
 
 #include <sound/soc.h>
@@ -145,7 +145,7 @@ static int snd_soc_xlate_tdm_slot_mask(unsigned int slots,
  * channel and so on.
  *
  * TDM mode can be disabled by passing 0 for @slots. In this case @tx_mask,
- * @rx_mask and @slot_width will be ignored.
+ * @rx_mask and @slot_width will be igyesred.
  *
  * Returns 0 on success, a negative error code otherwise.
  */

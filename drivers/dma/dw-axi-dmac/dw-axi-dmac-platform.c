@@ -1,10 +1,10 @@
 // SPDX-License-Identifier:  GPL-2.0
-// (C) 2017-2018 Synopsys, Inc. (www.synopsys.com)
+// (C) 2017-2018 Syyespsys, Inc. (www.syyespsys.com)
 
 /*
- * Synopsys DesignWare AXI DMA Controller driver.
+ * Syyespsys DesignWare AXI DMA Controller driver.
  *
- * Author: Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
+ * Author: Eugeniy Paltsev <Eugeniy.Paltsev@syyespsys.com>
  */
 
 #include <linux/bitops.h>
@@ -203,7 +203,7 @@ static struct axi_dma_desc *axi_desc_get(struct axi_dma_chan *chan)
 
 	desc = dma_pool_zalloc(dw->desc_pool, GFP_NOWAIT, &phys);
 	if (unlikely(!desc)) {
-		dev_err(chan2dev(chan), "%s: not enough descriptors available\n",
+		dev_err(chan2dev(chan), "%s: yest eyesugh descriptors available\n",
 			axi_chan_name(chan));
 		return NULL;
 	}
@@ -277,7 +277,7 @@ static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 	u8 lms = 0; /* Select AXI0 master for LLI fetching */
 
 	if (unlikely(axi_chan_is_hw_enable(chan))) {
-		dev_err(chan2dev(chan), "%s is non-idle!\n",
+		dev_err(chan2dev(chan), "%s is yesn-idle!\n",
 			axi_chan_name(chan));
 
 		return;
@@ -339,7 +339,7 @@ static int dma_chan_alloc_chan_resources(struct dma_chan *dchan)
 
 	/* ASSERT: channel is idle */
 	if (axi_chan_is_hw_enable(chan)) {
-		dev_err(chan2dev(chan), "%s is non-idle!\n",
+		dev_err(chan2dev(chan), "%s is yesn-idle!\n",
 			axi_chan_name(chan));
 		return -EBUSY;
 	}
@@ -357,7 +357,7 @@ static void dma_chan_free_chan_resources(struct dma_chan *dchan)
 
 	/* ASSERT: channel is idle */
 	if (axi_chan_is_hw_enable(chan))
-		dev_err(dchan2dev(dchan), "%s is non-idle!\n",
+		dev_err(dchan2dev(dchan), "%s is yesn-idle!\n",
 			axi_chan_name(chan));
 
 	axi_chan_disable(chan);
@@ -502,7 +502,7 @@ dma_chan_prep_dma_memcpy(struct dma_chan *dchan, dma_addr_t dst_adr,
 		src_adr += xfer_len;
 	}
 
-	/* Total len of src/dest sg == 0, so no descriptor were allocated */
+	/* Total len of src/dest sg == 0, so yes descriptor were allocated */
 	if (unlikely(!first))
 		return NULL;
 
@@ -540,7 +540,7 @@ static void axi_chan_list_dump_lli(struct axi_dma_chan *chan,
 		axi_chan_dump_lli(chan, desc);
 }
 
-static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
+static yesinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
 {
 	struct virt_dma_desc *vd;
 	unsigned long flags;
@@ -552,7 +552,7 @@ static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
 	/* The bad descriptor currently is in the head of vc list */
 	vd = vchan_next_desc(&chan->vc);
 	/* Remove the completed descriptor from issued list */
-	list_del(&vd->node);
+	list_del(&vd->yesde);
 
 	/* WARN about bad descriptor */
 	dev_err(chan2dev(chan),
@@ -575,7 +575,7 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
 	if (unlikely(axi_chan_is_hw_enable(chan))) {
-		dev_err(chan2dev(chan), "BUG: %s caught DWAXIDMAC_IRQ_DMA_TRF, but channel not idle!\n",
+		dev_err(chan2dev(chan), "BUG: %s caught DWAXIDMAC_IRQ_DMA_TRF, but channel yest idle!\n",
 			axi_chan_name(chan));
 		axi_chan_disable(chan);
 	}
@@ -583,7 +583,7 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 	/* The completed descriptor currently is in the head of vc list */
 	vd = vchan_next_desc(&chan->vc);
 	/* Remove the completed descriptor from issued list before completing */
-	list_del(&vd->node);
+	list_del(&vd->yesde);
 	vchan_cookie_complete(vd);
 
 	/* Submit queued descriptors after processing the completed ones */
@@ -923,10 +923,10 @@ static int dw_probe(struct platform_device *pdev)
 
 	/*
 	 * We can't just call pm_runtime_get here instead of
-	 * pm_runtime_get_noresume + axi_dma_resume because we need
+	 * pm_runtime_get_yesresume + axi_dma_resume because we need
 	 * driver to work also without Runtime PM.
 	 */
-	pm_runtime_get_noresume(chip->dev);
+	pm_runtime_get_yesresume(chip->dev);
 	ret = axi_dma_resume(chip);
 	if (ret < 0)
 		goto err_pm_disable;
@@ -973,8 +973,8 @@ static int dw_remove(struct platform_device *pdev)
 	devm_free_irq(chip->dev, chip->irq, chip);
 
 	list_for_each_entry_safe(chan, _chan, &dw->dma.channels,
-			vc.chan.device_node) {
-		list_del(&chan->vc.chan.device_node);
+			vc.chan.device_yesde) {
+		list_del(&chan->vc.chan.device_yesde);
 		tasklet_kill(&chan->vc.task);
 	}
 
@@ -1003,5 +1003,5 @@ static struct platform_driver dw_driver = {
 module_platform_driver(dw_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys DesignWare AXI DMA Controller platform driver");
-MODULE_AUTHOR("Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>");
+MODULE_DESCRIPTION("Syyespsys DesignWare AXI DMA Controller platform driver");
+MODULE_AUTHOR("Eugeniy Paltsev <Eugeniy.Paltsev@syyespsys.com>");

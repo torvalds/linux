@@ -23,7 +23,7 @@
 #include <string.h>
 #include <cpuid.h>
 #include <dirent.h>
-#include <errno.h>
+#include <erryes.h>
 
 #include <stdarg.h>
 #include <sys/ioctl.h>

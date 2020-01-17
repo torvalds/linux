@@ -18,17 +18,17 @@ struct dyn_event;
 /**
  * struct dyn_event_operations - Methods for each type of dynamic events
  *
- * These methods must be set for each type, since there is no default method.
+ * These methods must be set for each type, since there is yes default method.
  * Before using this for dyn_event_init(), it must be registered by
  * dyn_event_register().
  *
  * @create: Parse and create event method. This is invoked when user passes
- *  a event definition to dynamic_events interface. This must not destruct
+ *  a event definition to dynamic_events interface. This must yest destruct
  *  the arguments and return -ECANCELED if given arguments doesn't match its
  *  command prefix.
  * @show: Showing method. This is invoked when user reads the event definitions
  *  via dynamic_events interface.
- * @is_busy: Check whether given event is busy so that it can not be deleted.
+ * @is_busy: Check whether given event is busy so that it can yest be deleted.
  *  Return true if it is busy, otherwides false.
  * @free: Delete the given event. Return 0 if success, otherwides error.
  * @match: Check whether given event and system name match this event. The argc

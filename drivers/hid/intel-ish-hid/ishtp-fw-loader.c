@@ -67,7 +67,7 @@ enum ish_loader_commands {
  * from the sensor data streaming. Here we download a large (300+ Kb)
  * image directly to ISH SRAM memory. There is limited benefit of
  * DMA'ing 300 Kb image in 4 Kb chucks limit. Hence, we introduce
- * this "direct dma" mode, where we do not use ISH-TP for DMA, but
+ * this "direct dma" mode, where we do yest use ISH-TP for DMA, but
  * instead manage the DMA directly in kernel driver and Shim firmware
  * loader (allocate buffer, break in chucks and transfer). This allows
  * to overcome 4 Kb limit, and optimize the data flow path in firmware.
@@ -114,7 +114,7 @@ struct loader_xfer_query {
 
 struct ish_fw_version {
 	u16 major;
-	u16 minor;
+	u16 miyesr;
 	u16 hotfix;
 	u16 build;
 } __packed;
@@ -123,7 +123,7 @@ union loader_version {
 	u32 value;
 	struct {
 		u8 major;
-		u8 minor;
+		u8 miyesr;
 		u8 hotfix;
 		u8 build;
 	};
@@ -222,7 +222,7 @@ struct ishtp_cl_data {
 	 * In certain failure scenrios, it makes sense to reset the ISH
 	 * subsystem and retry Host firmware loading (e.g. bad message
 	 * packet, ENOMEM, etc.). On the other hand, failures due to
-	 * protocol mismatch, etc., are not recoverable. We do not
+	 * protocol mismatch, etc., are yest recoverable. We do yest
 	 * retry them.
 	 *
 	 * If set, the flag indicates that we should re-try the
@@ -345,7 +345,7 @@ static void process_recv(struct ishtp_cl *loader_ishtp_cl,
 
 	if (client_data->response.received) {
 		dev_err(cl_data_to_dev(client_data),
-			"Previous firmware message not yet processed\n");
+			"Previous firmware message yest yet processed\n");
 		client_data->response.error = -EINVAL;
 		goto end;
 	}
@@ -486,7 +486,7 @@ static int ish_query_loader_prop(struct ishtp_cl_data *client_data,
 	/* On success, the return value is the received buffer size */
 	if (rv != sizeof(struct loader_xfer_query_response)) {
 		dev_err(cl_data_to_dev(client_data),
-			"data size %d is not equal to size of loader_xfer_query_response %zu\n",
+			"data size %d is yest equal to size of loader_xfer_query_response %zu\n",
 			rv, sizeof(struct loader_xfer_query_response));
 		client_data->flag_retry = true;
 		return -EMSGSIZE;
@@ -497,9 +497,9 @@ static int ish_query_loader_prop(struct ishtp_cl_data *client_data,
 
 	/* Loader firmware properties */
 	dev_dbg(cl_data_to_dev(client_data),
-		"ish_fw_version: major=%d minor=%d hotfix=%d build=%d protocol_version=0x%x loader_version=%d\n",
+		"ish_fw_version: major=%d miyesr=%d hotfix=%d build=%d protocol_version=0x%x loader_version=%d\n",
 		fw_info->ish_fw_version.major,
-		fw_info->ish_fw_version.minor,
+		fw_info->ish_fw_version.miyesr,
 		fw_info->ish_fw_version.hotfix,
 		fw_info->ish_fw_version.build,
 		fw_info->protocol_version,
@@ -604,7 +604,7 @@ static int ish_fw_xfer_ishtp(struct ishtp_cl_data *client_data,
 	return 0;
 
 end_err_resp_buf_release:
-	/* Free ISH buffer if not done already, in error case */
+	/* Free ISH buffer if yest done already, in error case */
 	kfree(ldr_xfer_ipc_frag);
 	return rv;
 }
@@ -650,7 +650,7 @@ static int ish_fw_xfer_direct_dma(struct ishtp_cl_data *client_data,
 
 	/*
 	 * Buffer size should be multiple of cacheline size
-	 * if it's not, select the previous cacheline boundary.
+	 * if it's yest, select the previous cacheline boundary.
 	 */
 	payload_max_size &= ~(L1_CACHE_BYTES - 1);
 
@@ -694,7 +694,7 @@ static int ish_fw_xfer_direct_dma(struct ishtp_cl_data *client_data,
 
 		/*
 		 * Flush cache here because the dma_sync_single_for_device()
-		 * does not do for x86.
+		 * does yest do for x86.
 		 */
 		clflush_cache_range(dma_buf, payload_max_size);
 
@@ -723,7 +723,7 @@ static int ish_fw_xfer_direct_dma(struct ishtp_cl_data *client_data,
 	return 0;
 
 end_err_resp_buf_release:
-	/* Free ISH buffer if not done already, in error case */
+	/* Free ISH buffer if yest done already, in error case */
 	dma_unmap_single(devc, dma_buf_phy, payload_max_size, DMA_TO_DEVICE);
 end_err_dma_buf_release:
 	kfree(dma_buf);
@@ -880,7 +880,7 @@ static int loader_init(struct ishtp_cl *loader_ishtp_cl, int reset)
 				       &loader_ishtp_guid);
 	if (!fw_client) {
 		dev_err(cl_data_to_dev(client_data),
-			"ISH client uuid not found\n");
+			"ISH client uuid yest found\n");
 		rv = -ENOENT;
 		goto err_cl_unlink;
 	}

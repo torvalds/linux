@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -107,7 +107,7 @@ extern const char gfar_driver_version[];
 /* The number of Exact Match registers */
 #define GFAR_EM_NUM	15
 
-/* Latency of interface clock in nanoseconds */
+/* Latency of interface clock in nayesseconds */
 /* Interface clock latency , in this case, means the
  * time described by a value of 1 in the interrupt
  * coalescing registers' time fields.  Since those fields
@@ -211,7 +211,7 @@ extern const char gfar_driver_version[];
 #define RQUEUE_EN7		0x00000001
 #define RQUEUE_EN_ALL		0x000000FF
 
-/* Init to do tx snooping for buffers and descriptors */
+/* Init to do tx syesoping for buffers and descriptors */
 #define DMACTRL_INIT_SETTINGS   0x000000c3
 #define DMACTRL_GRS             0x00000010
 #define DMACTRL_GTS             0x00000008
@@ -361,7 +361,7 @@ extern const char gfar_driver_version[];
 
 /* Attribute fields */
 
-/* This enables rx snooping for buffers and descriptors */
+/* This enables rx syesoping for buffers and descriptors */
 #define ATTR_BDSTASH		0x00000800
 
 #define ATTR_BUFSTASH		0x00004000
@@ -553,7 +553,7 @@ struct rxfcb {
 };
 
 struct gianfar_skb_cb {
-	unsigned int bytes_sent; /* bytes-on-wire (i.e. no FCB) */
+	unsigned int bytes_sent; /* bytes-on-wire (i.e. yes FCB) */
 };
 
 #define GFAR_CB(skb) ((struct gianfar_skb_cb *)((skb)->cb))
@@ -574,7 +574,7 @@ struct rmon_mib
 	u32	rbca;	/* 0x.6ac - Receive Broadcast Packet Counter */
 	u32	rxcf;	/* 0x.6b0 - Receive Control Frame Packet Counter */
 	u32	rxpf;	/* 0x.6b4 - Receive Pause Frame Packet Counter */
-	u32	rxuo;	/* 0x.6b8 - Receive Unknown OP Code Counter */
+	u32	rxuo;	/* 0x.6b8 - Receive Unkyeswn OP Code Counter */
 	u32	raln;	/* 0x.6bc - Receive Alignment Error Counter */
 	u32	rflr;	/* 0x.6c0 - Receive Frame Length Error Counter */
 	u32	rcde;	/* 0x.6c4 - Receive Code Error Counter */
@@ -614,7 +614,7 @@ struct gfar_extra_stats {
 	atomic64_t rx_alloc_err;
 	atomic64_t rx_large;
 	atomic64_t rx_short;
-	atomic64_t rx_nonoctet;
+	atomic64_t rx_yesyesctet;
 	atomic64_t rx_crcerr;
 	atomic64_t rx_overrun;
 	atomic64_t rx_bsy;
@@ -1078,7 +1078,7 @@ enum gfar_dev_state {
 };
 
 /* Struct stolen almost completely (and shamelessly) from the FCC enet source
- * (Ok, that's not so true anymore, but there is a family resemblance)
+ * (Ok, that's yest so true anymore, but there is a family resemblance)
  * The GFAR buffer descriptors track the ring buffers.  The rx_bd_base
  * and tx_bd_base always point to the currently available buffer.
  * The dirty_tx tracks the current buffer that is being sent by the
@@ -1117,8 +1117,8 @@ struct gfar_private {
 
 	/* PHY stuff */
 	phy_interface_t interface;
-	struct device_node *phy_node;
-	struct device_node *tbi_node;
+	struct device_yesde *phy_yesde;
+	struct device_yesde *tbi_yesde;
 	struct mii_bus *mii_bus;
 	int oldspeed;
 	int oldduplex;

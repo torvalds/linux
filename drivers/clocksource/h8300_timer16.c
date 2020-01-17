@@ -2,7 +2,7 @@
 /*
  *  H8/300 16bit Timer driver
  *
- *  Copyright 2015 Yoshinori Sato <ysato@users.sourcefoge.jp>
+ *  Copyright 2015 Yoshiyesri Sato <ysato@users.sourcefoge.jp>
  */
 
 #include <linux/interrupt.h>
@@ -127,40 +127,40 @@ static struct timer16_priv timer16_priv = {
 #define REG_CH   0
 #define REG_COMM 1
 
-static int __init h8300_16timer_init(struct device_node *node)
+static int __init h8300_16timer_init(struct device_yesde *yesde)
 {
 	void __iomem *base[2];
 	int ret, irq;
 	unsigned int ch;
 	struct clk *clk;
 
-	clk = of_clk_get(node, 0);
+	clk = of_clk_get(yesde, 0);
 	if (IS_ERR(clk)) {
 		pr_err("failed to get clock for clocksource\n");
 		return PTR_ERR(clk);
 	}
 
 	ret = -ENXIO;
-	base[REG_CH] = of_iomap(node, 0);
+	base[REG_CH] = of_iomap(yesde, 0);
 	if (!base[REG_CH]) {
 		pr_err("failed to map registers for clocksource\n");
 		goto free_clk;
 	}
 
-	base[REG_COMM] = of_iomap(node, 1);
+	base[REG_COMM] = of_iomap(yesde, 1);
 	if (!base[REG_COMM]) {
 		pr_err("failed to map registers for clocksource\n");
 		goto unmap_ch;
 	}
 
 	ret = -EINVAL;
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (!irq) {
 		pr_err("failed to get irq for clockevent\n");
 		goto unmap_comm;
 	}
 
-	of_property_read_u32(node, "renesas,channel", &ch);
+	of_property_read_u32(yesde, "renesas,channel", &ch);
 
 	timer16_priv.mapbase = base[REG_CH];
 	timer16_priv.mapcommon = base[REG_COMM];

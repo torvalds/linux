@@ -35,17 +35,17 @@
 
 /*
  * Some of the macros here need to be casted to appropriate types when used
- * from C.  They definitely must not be casted from assembly language so we
+ * from C.  They definitely must yest be casted from assembly language so we
  * use some new ANSI preprocessor stuff to paste these on where needed.
  */
 
 /*
  * The following couple of definitions will eventually need to be variables,
- * since the amount of address space assigned to each node depends on
- * whether the system is running in N-mode (more nodes with less memory)
- * or M-mode (fewer nodes with more memory).  We expect that it will
+ * since the amount of address space assigned to each yesde depends on
+ * whether the system is running in N-mode (more yesdes with less memory)
+ * or M-mode (fewer yesdes with more memory).  We expect that it will
  * be a while before we need to make this decision dynamically, though,
- * so for now we just use defines bracketed by an ifdef.
+ * so for yesw we just use defines bracketed by an ifdef.
  */
 
 #ifdef CONFIG_SGI_SN_N_MODE
@@ -97,7 +97,7 @@
 /*
  * The following definitions pertain to the IO special address
  * space.  They define the location of the big and little windows
- * of any given node.
+ * of any given yesde.
  */
 
 #define BWIN_INDEX_BITS		3
@@ -111,7 +111,7 @@
 #define BWIN_WIDGETADDR(addr)	((addr) & BWIN_SIZEMASK)
 #define BWIN_WINDOWNUM(addr)	(((addr) >> BWIN_SIZE_BITS) & BWIN_WIDGET_MASK)
 /*
- * Verify if addr belongs to large window address of node with "nasid"
+ * Verify if addr belongs to large window address of yesde with "nasid"
  *
  *
  * NOTE: "addr" is expected to be XKPHYS address, and NOT physical
@@ -129,7 +129,7 @@
  * The following define the major position-independent aliases used
  * in SN0.
  *	CALIAS -- Varies in size, points to the first n bytes of memory
- *			on the reader's node.
+ *			on the reader's yesde.
  */
 
 #define CALIAS_BASE		CAC_BASE

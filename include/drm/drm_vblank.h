@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -82,7 +82,7 @@ struct drm_pending_vblank_event {
  * This structure tracks the vblank state for one CRTC.
  *
  * Note that for historical reasons - the vblank handling code is still shared
- * with legacy/non-kms drivers - this is a free-standing structure not directly
+ * with legacy/yesn-kms drivers - this is a free-standing structure yest directly
  * connected to &struct drm_crtc. But all public interface functions are taking
  * a &struct drm_crtc to hide this implementation detail.
  */
@@ -155,7 +155,7 @@ struct drm_vblank_crtc {
 	 * drm_crtc_set_max_vblank_count(). If this is used the driver
 	 * must leave the device wide &drm_device.max_vblank_count at zero.
 	 *
-	 * If non-zero, &drm_crtc_funcs.get_vblank_counter must be set.
+	 * If yesn-zero, &drm_crtc_funcs.get_vblank_counter must be set.
 	 */
 	u32 max_vblank_count;
 	/**
@@ -174,13 +174,13 @@ struct drm_vblank_crtc {
 	unsigned int pipe;
 	/**
 	 * @framedur_ns: Frame/Field duration in ns, used by
-	 * drm_calc_vbltimestamp_from_scanoutpos() and computed by
+	 * drm_calc_vbltimestamp_from_scayesutpos() and computed by
 	 * drm_calc_timestamping_constants().
 	 */
 	int framedur_ns;
 	/**
 	 * @linedur_ns: Line duration in ns, used by
-	 * drm_calc_vbltimestamp_from_scanoutpos() and computed by
+	 * drm_calc_vbltimestamp_from_scayesutpos() and computed by
 	 * drm_calc_timestamping_constants().
 	 */
 	int linedur_ns;
@@ -190,7 +190,7 @@ struct drm_vblank_crtc {
 	 *
 	 * Cache of the current hardware display mode. Only valid when @enabled
 	 * is set. This is used by helpers like
-	 * drm_calc_vbltimestamp_from_scanoutpos(). We can't just access the
+	 * drm_calc_vbltimestamp_from_scayesutpos(). We can't just access the
 	 * hardware mode by e.g. looking at &drm_crtc_state.adjusted_mode,
 	 * because that one is really hard to get from interrupt context.
 	 */
@@ -199,7 +199,7 @@ struct drm_vblank_crtc {
 	/**
 	 * @enabled: Tracks the enabling state of the corresponding &drm_crtc to
 	 * avoid double-disabling and hence corrupting saved state. Needed by
-	 * drivers not using atomic KMS, since those might go through their CRTC
+	 * drivers yest using atomic KMS, since those might go through their CRTC
 	 * disabling functions multiple times.
 	 */
 	bool enabled;
@@ -215,7 +215,7 @@ void drm_crtc_arm_vblank_event(struct drm_crtc *crtc,
 			      struct drm_pending_vblank_event *e);
 void drm_vblank_set_event(struct drm_pending_vblank_event *e,
 			  u64 *seq,
-			  ktime_t *now);
+			  ktime_t *yesw);
 bool drm_handle_vblank(struct drm_device *dev, unsigned int pipe);
 bool drm_crtc_handle_vblank(struct drm_crtc *crtc);
 int drm_crtc_vblank_get(struct drm_crtc *crtc);
@@ -229,7 +229,7 @@ u64 drm_crtc_accurate_vblank_count(struct drm_crtc *crtc);
 void drm_vblank_restore(struct drm_device *dev, unsigned int pipe);
 void drm_crtc_vblank_restore(struct drm_crtc *crtc);
 
-bool drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
+bool drm_calc_vbltimestamp_from_scayesutpos(struct drm_device *dev,
 					   unsigned int pipe, int *max_error,
 					   ktime_t *vblank_time,
 					   bool in_vblank_irq);

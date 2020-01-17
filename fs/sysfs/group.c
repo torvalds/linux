@@ -16,7 +16,7 @@
 #include "sysfs.h"
 
 
-static void remove_files(struct kernfs_node *parent,
+static void remove_files(struct kernfs_yesde *parent,
 			 const struct attribute_group *grp)
 {
 	struct attribute *const *attr;
@@ -30,7 +30,7 @@ static void remove_files(struct kernfs_node *parent,
 			kernfs_remove_by_name(parent, (*bin_attr)->attr.name);
 }
 
-static int create_files(struct kernfs_node *parent, struct kobject *kobj,
+static int create_files(struct kernfs_yesde *parent, struct kobject *kobj,
 			kuid_t uid, kgid_t gid,
 			const struct attribute_group *grp, int update)
 {
@@ -107,7 +107,7 @@ exit:
 static int internal_create_group(struct kobject *kobj, int update,
 				 const struct attribute_group *grp)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 	kuid_t uid;
 	kgid_t gid;
 	int error;
@@ -119,7 +119,7 @@ static int internal_create_group(struct kobject *kobj, int update,
 	if (unlikely(update && !kobj->sd))
 		return -EINVAL;
 	if (!grp->attrs && !grp->bin_attrs) {
-		WARN(1, "sysfs: (bin_)attrs not set by subsystem for group: %s/%s\n",
+		WARN(1, "sysfs: (bin_)attrs yest set by subsystem for group: %s/%s\n",
 			kobj->name, grp->name ?: "");
 		return -EINVAL;
 	}
@@ -128,7 +128,7 @@ static int internal_create_group(struct kobject *kobj, int update,
 		if (update) {
 			kn = kernfs_find_and_get(kobj->sd, grp->name);
 			if (!kn) {
-				pr_warn("Can't update unknown attr grp name: %s/%s\n",
+				pr_warn("Can't update unkyeswn attr grp name: %s/%s\n",
 					kobj->name, grp->name);
 				return -EINVAL;
 			}
@@ -222,7 +222,7 @@ EXPORT_SYMBOL_GPL(sysfs_create_groups);
  *
  * This function update a bunch of attribute groups.  If an error occurs when
  * updating a group, all previously updated groups will be removed together
- * with already existing (not updated) attributes.
+ * with already existing (yest updated) attributes.
  *
  * Returns 0 on success or error code from sysfs_update_group on failure.
  */
@@ -239,12 +239,12 @@ EXPORT_SYMBOL_GPL(sysfs_update_groups);
  * @grp:	The attribute group to update
  *
  * This function updates an attribute group.  Unlike
- * sysfs_create_group(), it will explicitly not warn or error if any
+ * sysfs_create_group(), it will explicitly yest warn or error if any
  * of the attribute files being created already exist.  Furthermore,
  * if the visibility of the files has changed through the is_visible()
  * callback, it will update the permissions and add or remove the
  * relevant files. Changing a group's name (subdirectory name under
- * kobj's directory in sysfs) is not allowed.
+ * kobj's directory in sysfs) is yest allowed.
  *
  * The primary use for this function is to call it after making a change
  * that affects group visibility.
@@ -269,14 +269,14 @@ EXPORT_SYMBOL_GPL(sysfs_update_group);
 void sysfs_remove_group(struct kobject *kobj,
 			const struct attribute_group *grp)
 {
-	struct kernfs_node *parent = kobj->sd;
-	struct kernfs_node *kn;
+	struct kernfs_yesde *parent = kobj->sd;
+	struct kernfs_yesde *kn;
 
 	if (grp->name) {
 		kn = kernfs_find_and_get(parent, grp->name);
 		if (!kn) {
 			WARN(!kn, KERN_WARNING
-			     "sysfs group '%s' not found for kobject '%s'\n",
+			     "sysfs group '%s' yest found for kobject '%s'\n",
 			     grp->name, kobject_name(kobj));
 			return;
 		}
@@ -299,7 +299,7 @@ EXPORT_SYMBOL_GPL(sysfs_remove_group);
  * @kobj:	The kobject for the groups to be removed from
  * @groups:	NULL terminated list of groups to be removed
  *
- * If groups is not NULL, remove the specified groups from the kobject.
+ * If groups is yest NULL, remove the specified groups from the kobject.
  */
 void sysfs_remove_groups(struct kobject *kobj,
 			 const struct attribute_group **groups)
@@ -319,13 +319,13 @@ EXPORT_SYMBOL_GPL(sysfs_remove_groups);
  * @grp:	The files to create and the attribute group they belong to.
  *
  * This function returns an error if the group doesn't exist or any of the
- * files already exist in that group, in which case none of the new files
+ * files already exist in that group, in which case yesne of the new files
  * are created.
  */
 int sysfs_merge_group(struct kobject *kobj,
 		       const struct attribute_group *grp)
 {
-	struct kernfs_node *parent;
+	struct kernfs_yesde *parent;
 	kuid_t uid;
 	kgid_t gid;
 	int error = 0;
@@ -359,7 +359,7 @@ EXPORT_SYMBOL_GPL(sysfs_merge_group);
 void sysfs_unmerge_group(struct kobject *kobj,
 		       const struct attribute_group *grp)
 {
-	struct kernfs_node *parent;
+	struct kernfs_yesde *parent;
 	struct attribute *const *attr;
 
 	parent = kernfs_find_and_get(kobj->sd, grp->name);
@@ -381,7 +381,7 @@ EXPORT_SYMBOL_GPL(sysfs_unmerge_group);
 int sysfs_add_link_to_group(struct kobject *kobj, const char *group_name,
 			    struct kobject *target, const char *link_name)
 {
-	struct kernfs_node *parent;
+	struct kernfs_yesde *parent;
 	int error = 0;
 
 	parent = kernfs_find_and_get(kobj->sd, group_name);
@@ -404,7 +404,7 @@ EXPORT_SYMBOL_GPL(sysfs_add_link_to_group);
 void sysfs_remove_link_from_group(struct kobject *kobj, const char *group_name,
 				  const char *link_name)
 {
-	struct kernfs_node *parent;
+	struct kernfs_yesde *parent;
 
 	parent = kernfs_find_and_get(kobj->sd, group_name);
 	if (parent) {
@@ -425,9 +425,9 @@ int __compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
 				      struct kobject *target_kobj,
 				      const char *target_name)
 {
-	struct kernfs_node *target;
-	struct kernfs_node *entry;
-	struct kernfs_node *link;
+	struct kernfs_yesde *target;
+	struct kernfs_yesde *entry;
+	struct kernfs_yesde *link;
 
 	/*
 	 * We don't own @target_kobj and it may be removed at any time.

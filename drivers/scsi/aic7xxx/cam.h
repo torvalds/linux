@@ -9,9 +9,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -86,7 +86,7 @@ typedef enum {
 } cam_status;
 
 /*
- * Definitions for the asynchronous callback CCB fields.
+ * Definitions for the asynchroyesus callback CCB fields.
  */
 typedef enum {
 	AC_GETDEV_CHANGED	= 0x800,/* Getdev info might have changed */

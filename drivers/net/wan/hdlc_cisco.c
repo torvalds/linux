@@ -6,7 +6,7 @@
  * Copyright (C) 2000 - 2006 Krzysztof Halasa <khc@pm.waw.pl>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
@@ -55,7 +55,7 @@ struct cisco_state {
 	spinlock_t lock;
 	unsigned long last_poll;
 	int up;
-	u32 txseq; /* TX sequence number, 0 = none */
+	u32 txseq; /* TX sequence number, 0 = yesne */
 	u32 rxseq; /* RX sequence number */
 };
 
@@ -168,7 +168,7 @@ static int cisco_rx(struct sk_buff *skb)
 
 	switch (ntohs(data->protocol)) {
 	case CISCO_SYS_INFO:
-		/* Packet is not needed, drop it. */
+		/* Packet is yest needed, drop it. */
 		dev_kfree_skb_any(skb);
 		return NET_RX_SUCCESS;
 
@@ -371,7 +371,7 @@ static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr)
 		spin_lock_init(&state(hdlc)->lock);
 		dev->header_ops = &cisco_header_ops;
 		dev->type = ARPHRD_CISCO;
-		call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
+		call_netdevice_yestifiers(NETDEV_POST_TYPE_CHANGE, dev);
 		netif_dormant_on(dev);
 		return 0;
 	}

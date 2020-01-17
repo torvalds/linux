@@ -1,6 +1,6 @@
 Renesas RZ/N1 SPI Controller
 
-This controller is based on the Synopsys DW Synchronous Serial Interface and
+This controller is based on the Syyespsys DW Synchroyesus Serial Interface and
 inherits all properties defined in snps,dw-apb-ssi.txt except for the
 compatible property.
 

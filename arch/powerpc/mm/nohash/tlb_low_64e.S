@@ -28,14 +28,14 @@
 /**********************************************************************
  *                                                                    *
  * TLB miss handling for Book3E with a bolted linear mapping          *
- * No virtual page table, no nested TLB misses                        *
+ * No virtual page table, yes nested TLB misses                        *
  *                                                                    *
  **********************************************************************/
 
 /*
- * Note that, unlike non-bolted handlers, TLB_EXFRAME is not
+ * Note that, unlike yesn-bolted handlers, TLB_EXFRAME is yest
  * modified by the TLB miss handlers themselves, since the TLB miss
- * handler code will not itself cause a recursive TLB miss.
+ * handler code will yest itself cause a recursive TLB miss.
  *
  * TLB_EXFRAME will be modified when crit/mc/debug exceptions are
  * entered/exited.
@@ -105,9 +105,9 @@ END_BTB_FLUSH_SECTION
 	 * ESR_ST   is 0x00800000
 	 * _PAGE_BAP_SW is 0x00000010
 	 * So the shift is >> 19. This tests for supervisor writeability.
-	 * If the page happens to be supervisor writeable and not user
+	 * If the page happens to be supervisor writeable and yest user
 	 * writeable, we will take a new fault later, but that should be
-	 * a rare enough case.
+	 * a rare eyesugh case.
 	 *
 	 * We also move ESR_ST in _PAGE_DIRTY position
 	 * _PAGE_DIRTY is 0x00001000 so the shift is >> 11
@@ -175,7 +175,7 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
 	clrrdi	r15,r15,3
 	cmpdi	cr0,r14,0
 	bge	tlb_miss_fault_bolted
-	ldx	r14,r14,r15		/* Grab PTE, normal (!huge) page */
+	ldx	r14,r14,r15		/* Grab PTE, yesrmal (!huge) page */
 
 	/* Check if required permissions are met */
 	andc.	r15,r11,r14
@@ -187,9 +187,9 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
 	 * MAS 0   :	Fully setup with defaults in MAS4 and TLBnCFG
 	 * MAS 1   :	Almost fully setup
 	 *               - PID already updated by caller if necessary
-	 *               - TSIZE need change if !base page size, not
-	 *                 yet implemented for now
-	 * MAS 2   :	Defaults not useful, need to be redone
+	 *               - TSIZE need change if !base page size, yest
+	 *                 yet implemented for yesw
+	 * MAS 2   :	Defaults yest useful, need to be redone
 	 * MAS 3+7 :	Needs to be done
 	 */
 	clrrdi	r11,r16,12		/* Clear low crap in EA */
@@ -260,7 +260,7 @@ itlb_miss_fault_bolted:
 /*
  * TLB miss handling for e6500 and derivatives, using hardware tablewalk.
  *
- * Linear mapping is bolted: no virtual page table or nested TLB misses
+ * Linear mapping is bolted: yes virtual page table or nested TLB misses
  * Indirect entries in TLB1, hardware loads resulting direct entries
  *    into TLB0
  * No HES or NV hint on TLB1, so we need to do software round-robin
@@ -315,7 +315,7 @@ BEGIN_FTR_SECTION		/* CPU_FTR_SMT */
 	 */
 	lhz	r10,PACAPACAINDEX(r13)
 	addi	r10,r10,1
-	crclr	cr1*4+eq	/* set cr1.eq = 0 for non-recursive */
+	crclr	cr1*4+eq	/* set cr1.eq = 0 for yesn-recursive */
 1:	lbarx	r15,0,r11
 	cmpdi	r15,0
 	bne	2f
@@ -424,9 +424,9 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_SMT)
 	 * MAS 0   :	ESEL needs to be filled by software round-robin
 	 * MAS 1   :	Fully set up
 	 *               - PID already updated by caller if necessary
-	 *               - TSIZE for now is base ind page size always
+	 *               - TSIZE for yesw is base ind page size always
 	 *               - TID already cleared if necessary
-	 * MAS 2   :	Default not 2M-aligned, need to be redone
+	 * MAS 2   :	Default yest 2M-aligned, need to be redone
 	 * MAS 3+7 :	Needs to be done
 	 */
 
@@ -451,7 +451,7 @@ tlb_miss_huge_done_e6500:
 tlb_miss_done_e6500:
 	.macro	tlb_unlock_e6500
 BEGIN_FTR_SECTION
-	beq	cr1,1f		/* no unlock if lock was recursively grabbed */
+	beq	cr1,1f		/* yes unlock if lock was recursively grabbed */
 	li	r15,0
 	isync
 	stb	r15,0(r11)
@@ -478,7 +478,7 @@ tlb_miss_huge_e6500:
 	 * MAS 0   :	ESEL needs to be filled by software round-robin
 	 *		 - can be handled by indirect code
 	 * MAS 1   :	Need to clear IND and set TSIZE
-	 * MAS 2,3+7:	Needs to be redone similar to non-tablewalk handler
+	 * MAS 2,3+7:	Needs to be redone similar to yesn-tablewalk handler
 	 */
 
 	subi	r15,r15,10		/* Convert psize to tsize */
@@ -539,9 +539,9 @@ itlb_miss_fault_e6500:
 	START_EXCEPTION(data_tlb_miss)
 	TLB_MISS_PROLOG
 
-	/* Now we handle the fault proper. We only save DEAR in normal
+	/* Now we handle the fault proper. We only save DEAR in yesrmal
 	 * fault case since that's the only interesting values here.
-	 * We could probably also optimize by not saving SRR0/1 in the
+	 * We could probably also optimize by yest saving SRR0/1 in the
 	 * linear mapping case but I'll leave that for later
 	 */
 	mfspr	r14,SPRN_ESR
@@ -549,10 +549,10 @@ itlb_miss_fault_e6500:
 	srdi	r15,r16,60		/* get region */
 	cmpldi	cr0,r15,0xc		/* linear mapping ? */
 	TLB_MISS_STATS_SAVE_INFO
-	beq	tlb_load_linear		/* yes -> go to linear map load */
+	beq	tlb_load_linear		/* no -> go to linear map load */
 
 	/* The page tables are mapped virtually linear. At this point, though,
-	 * we don't know whether we are trying to fault in a first level
+	 * we don't kyesw whether we are trying to fault in a first level
 	 * virtual address or a virtual page table address. We can get that
 	 * from bit 0x1 of the region ID which we have set for a page table
 	 */
@@ -577,9 +577,9 @@ itlb_miss_fault_e6500:
 	 * ESR_ST   is 0x00800000
 	 * _PAGE_BAP_SW is 0x00000010
 	 * So the shift is >> 19. This tests for supervisor writeability.
-	 * If the page happens to be supervisor writeable and not user
+	 * If the page happens to be supervisor writeable and yest user
 	 * writeable, we will take a new fault later, but that should be
-	 * a rare enough case.
+	 * a rare eyesugh case.
 	 *
 	 * We also move ESR_ST in _PAGE_DIRTY position
 	 * _PAGE_DIRTY is 0x00001000 so the shift is >> 11
@@ -589,13 +589,13 @@ itlb_miss_fault_e6500:
 	 */
 	rlwimi	r11,r14,32-19,27,27
 	rlwimi	r11,r14,32-16,19,19
-	beq	normal_tlb_miss
+	beq	yesrmal_tlb_miss
 	/* XXX replace the RMW cycles with immediate loads + writes */
 1:	mfspr	r10,SPRN_MAS1
 	cmpldi	cr0,r15,8		/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1		/* Clear TID */
 	mtspr	SPRN_MAS1,r10
-	beq+	normal_tlb_miss
+	beq+	yesrmal_tlb_miss
 
 	/* We got a crappy address, just fault with whatever DEAR and ESR
 	 * are here
@@ -609,15 +609,15 @@ itlb_miss_fault_e6500:
 	TLB_MISS_PROLOG
 
 	/* If we take a recursive fault, the second level handler may need
-	 * to know whether we are handling a data or instruction fault in
+	 * to kyesw whether we are handling a data or instruction fault in
 	 * order to get to the right store fault handler. We provide that
 	 * info by writing a crazy value in ESR in our exception frame
 	 */
 	li	r14,-1	/* store to exception frame is done later */
 
-	/* Now we handle the fault proper. We only save DEAR in the non
-	 * linear mapping case since we know the linear mapping case will
-	 * not re-enter. We could indeed optimize and also not save SRR0/1
+	/* Now we handle the fault proper. We only save DEAR in the yesn
+	 * linear mapping case since we kyesw the linear mapping case will
+	 * yest re-enter. We could indeed optimize and also yest save SRR0/1
 	 * in the linear mapping case but I'll leave that for later
 	 *
 	 * Faulting address is SRR0 which is already in r16
@@ -625,7 +625,7 @@ itlb_miss_fault_e6500:
 	srdi	r15,r16,60		/* get region */
 	cmpldi	cr0,r15,0xc		/* linear mapping ? */
 	TLB_MISS_STATS_SAVE_INFO
-	beq	tlb_load_linear		/* yes -> go to linear map load */
+	beq	tlb_load_linear		/* no -> go to linear map load */
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
@@ -634,7 +634,7 @@ itlb_miss_fault_e6500:
 
 	cmpldi	cr0,r15,0			/* Check for user region */
 	std	r14,EX_TLB_ESR(r12)		/* write crazy -1 to frame */
-	beq	normal_tlb_miss
+	beq	yesrmal_tlb_miss
 
 	li	r11,_PAGE_PRESENT|_PAGE_BAP_SX	/* Base perm */
 	oris	r11,r11,_PAGE_ACCESSED@h
@@ -643,7 +643,7 @@ itlb_miss_fault_e6500:
 	cmpldi	cr0,r15,8			/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1			/* Clear TID */
 	mtspr	SPRN_MAS1,r10
-	beq+	normal_tlb_miss
+	beq+	yesrmal_tlb_miss
 
 	/* We got a crappy address, just fault */
 	TLB_MISS_STATS_I(MMSTAT_TLB_MISS_NORM_FAULT)
@@ -662,9 +662,9 @@ itlb_miss_fault_e6500:
  * r11 = PTE permission mask
  * r10 = crap (free to use)
  */
-normal_tlb_miss:
+yesrmal_tlb_miss:
 	/* So we first construct the page table address. We do that by
-	 * shifting the bottom of the address (not the region ID) by
+	 * shifting the bottom of the address (yest the region ID) by
 	 * PAGE_SHIFT-3, clearing the bottom 3 bits (get a PTE ptr) and
 	 * or'ing the fourth high bit.
 	 *
@@ -683,24 +683,24 @@ BEGIN_MMU_FTR_SECTION
 	 */
 	PPC_TLBSRX_DOT(0,R16)
 	ld	r14,0(r10)
-	beq	normal_tlb_miss_done
+	beq	yesrmal_tlb_miss_done
 MMU_FTR_SECTION_ELSE
 	ld	r14,0(r10)
 ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
 
-finish_normal_tlb_miss:
+finish_yesrmal_tlb_miss:
 	/* Check if required permissions are met */
 	andc.	r15,r11,r14
-	bne-	normal_tlb_miss_access_fault
+	bne-	yesrmal_tlb_miss_access_fault
 
 	/* Now we build the MAS:
 	 *
 	 * MAS 0   :	Fully setup with defaults in MAS4 and TLBnCFG
 	 * MAS 1   :	Almost fully setup
 	 *               - PID already updated by caller if necessary
-	 *               - TSIZE need change if !base page size, not
-	 *                 yet implemented for now
-	 * MAS 2   :	Defaults not useful, need to be redone
+	 *               - TSIZE need change if !base page size, yest
+	 *                 yet implemented for yesw
+	 * MAS 2   :	Defaults yest useful, need to be redone
 	 * MAS 3+7 :	Needs to be done
 	 *
 	 * TODO: mix up code below for better scheduling
@@ -709,7 +709,7 @@ finish_normal_tlb_miss:
 	rlwimi	r11,r14,32-19,27,31	/* Insert WIMGE */
 	mtspr	SPRN_MAS2,r11
 
-	/* Check page size, if not standard, update MAS1 */
+	/* Check page size, if yest standard, update MAS1 */
 	rldicl	r11,r14,64-8,64-8
 	cmpldi	cr0,r11,BOOK3E_PAGESZ_4K
 	beq-	1f
@@ -740,8 +740,8 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 
 	tlbwe
 
-normal_tlb_miss_done:
-	/* We don't bother with restoring DEAR or ESR since we know we are
+yesrmal_tlb_miss_done:
+	/* We don't bother with restoring DEAR or ESR since we kyesw we are
 	 * level 0 and just going back to userland. They are only needed
 	 * if you are going to take an access fault
 	 */
@@ -749,7 +749,7 @@ normal_tlb_miss_done:
 	TLB_MISS_EPILOG_SUCCESS
 	rfi
 
-normal_tlb_miss_access_fault:
+yesrmal_tlb_miss_access_fault:
 	/* We need to check if it was an instruction miss */
 	andi.	r10,r11,_PAGE_EXEC
 	bne	1f
@@ -786,14 +786,14 @@ normal_tlb_miss_access_fault:
  * avoid too much complication, it will restart the whole fault at level
  * 0 so we don't care too much about clobbers
  *
- * XXX That code was written back when we couldn't clobber r14. We can now,
+ * XXX That code was written back when we couldn't clobber r14. We can yesw,
  * so we could probably optimize things a bit
  */
 virt_page_table_tlb_miss:
 	/* Are we hitting a kernel page table ? */
 	andi.	r10,r15,0x8
 
-	/* The cool thing now is that r10 contains 0 for user and 8 for kernel,
+	/* The cool thing yesw is that r10 contains 0 for user and 8 for kernel,
 	 * and we happen to have the swapper_pg_dir at offset 8 from the user
 	 * pgdir in the PACA :-).
 	 */
@@ -846,7 +846,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_TLBRSRV)
 	cmpdi	cr0,r15,0
 	bge	virt_page_table_tlb_miss_fault
 
-	/* Ok, we're all right, we can now create a kernel translation for
+	/* Ok, we're all right, we can yesw create a kernel translation for
 	 * a 4K or 64K page from r16 -> r15.
 	 */
 	/* Now we build the MAS:
@@ -854,11 +854,11 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_TLBRSRV)
 	 * MAS 0   :	Fully setup with defaults in MAS4 and TLBnCFG
 	 * MAS 1   :	Almost fully setup
 	 *               - PID already updated by caller if necessary
-	 *               - TSIZE for now is base page size always
+	 *               - TSIZE for yesw is base page size always
 	 * MAS 2   :	Use defaults
 	 * MAS 3+7 :	Needs to be done
 	 *
-	 * So we only do MAS 2 and 3 for now...
+	 * So we only do MAS 2 and 3 for yesw...
 	 */
 	clrldi	r11,r15,4		/* remove region ID from RPN */
 	ori	r10,r11,1		/* Or-in SR */
@@ -877,8 +877,8 @@ BEGIN_MMU_FTR_SECTION
 virt_page_table_tlb_miss_done:
 
 	/* We have overridden MAS2:EPN but currently our primary TLB miss
-	 * handler will always restore it so that should not be an issue,
-	 * if we ever optimize the primary handler to not write MAS2 on
+	 * handler will always restore it so that should yest be an issue,
+	 * if we ever optimize the primary handler to yest write MAS2 on
 	 * some cases, we'll have to restore MAS2:EPN here based on the
 	 * original fault's DEAR. If we do that we have to modify the
 	 * ITLB miss handler to also store SRR0 in the exception frame
@@ -886,7 +886,7 @@ virt_page_table_tlb_miss_done:
 	 *
 	 * However, one nasty thing we did is we cleared the reservation
 	 * (well, potentially we did). We do a trick here thus if we
-	 * are not a level 0 exception (we interrupted the TLB miss) we
+	 * are yest a level 0 exception (we interrupted the TLB miss) we
 	 * offset the return address by -4 in order to replay the tlbsrx
 	 * instruction there
 	 */
@@ -898,7 +898,7 @@ virt_page_table_tlb_miss_done:
 	std	r10,PACA_EXTLB+EX_TLB_SIZE+EX_TLB_SRR0(r13)
 1:
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_TLBRSRV)
-	/* Return to caller, normal case */
+	/* Return to caller, yesrmal case */
 	TLB_MISS_STATS_X(MMSTAT_TLB_MISS_PT_OK);
 	TLB_MISS_EPILOG_SUCCESS
 	rfi
@@ -908,7 +908,7 @@ virt_page_table_tlb_miss_fault:
 	 * either data or instruction store fault, and we need to retrieve
 	 * the original fault address and ESR (for data).
 	 *
-	 * The thing is, we know that in normal circumstances, this is
+	 * The thing is, we kyesw that in yesrmal circumstances, this is
 	 * always called as a second level tlb miss for SW load or as a first
 	 * level TLB miss for HW load, so we should be able to peek at the
 	 * relevant information in the first exception frame in the PACA.
@@ -944,7 +944,7 @@ virt_page_table_tlb_miss_fault:
 
 virt_page_table_tlb_miss_whacko_fault:
 	/* The linear fault will restart everything so ESR and DEAR will
-	 * not have been clobbered, let's just fault with what we have
+	 * yest have been clobbered, let's just fault with what we have
 	 */
 	TLB_MISS_STATS_X(MMSTAT_TLB_MISS_PT_FAULT);
 	TLB_MISS_EPILOG_ERROR
@@ -962,9 +962,9 @@ virt_page_table_tlb_miss_whacko_fault:
 	START_EXCEPTION(data_tlb_miss_htw)
 	TLB_MISS_PROLOG
 
-	/* Now we handle the fault proper. We only save DEAR in normal
+	/* Now we handle the fault proper. We only save DEAR in yesrmal
 	 * fault case since that's the only interesting values here.
-	 * We could probably also optimize by not saving SRR0/1 in the
+	 * We could probably also optimize by yest saving SRR0/1 in the
 	 * linear mapping case but I'll leave that for later
 	 */
 	mfspr	r14,SPRN_ESR
@@ -972,7 +972,7 @@ virt_page_table_tlb_miss_whacko_fault:
 	srdi	r11,r16,60		/* get region */
 	cmpldi	cr0,r11,0xc		/* linear mapping ? */
 	TLB_MISS_STATS_SAVE_INFO
-	beq	tlb_load_linear		/* yes -> go to linear map load */
+	beq	tlb_load_linear		/* no -> go to linear map load */
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
@@ -1000,15 +1000,15 @@ virt_page_table_tlb_miss_whacko_fault:
 	TLB_MISS_PROLOG
 
 	/* If we take a recursive fault, the second level handler may need
-	 * to know whether we are handling a data or instruction fault in
+	 * to kyesw whether we are handling a data or instruction fault in
 	 * order to get to the right store fault handler. We provide that
 	 * info by keeping a crazy value for ESR in r14
 	 */
 	li	r14,-1	/* store to exception frame is done later */
 
-	/* Now we handle the fault proper. We only save DEAR in the non
-	 * linear mapping case since we know the linear mapping case will
-	 * not re-enter. We could indeed optimize and also not save SRR0/1
+	/* Now we handle the fault proper. We only save DEAR in the yesn
+	 * linear mapping case since we kyesw the linear mapping case will
+	 * yest re-enter. We could indeed optimize and also yest save SRR0/1
 	 * in the linear mapping case but I'll leave that for later
 	 *
 	 * Faulting address is SRR0 which is already in r16
@@ -1016,7 +1016,7 @@ virt_page_table_tlb_miss_whacko_fault:
 	srdi	r11,r16,60		/* get region */
 	cmpldi	cr0,r11,0xc		/* linear mapping ? */
 	TLB_MISS_STATS_SAVE_INFO
-	beq	tlb_load_linear		/* yes -> go to linear map load */
+	beq	tlb_load_linear		/* no -> go to linear map load */
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
@@ -1093,12 +1093,12 @@ htw_tlb_miss:
 	cmpdi	cr0,r15,0
 	bge	htw_tlb_miss_fault
 
-	/* Ok, we're all right, we can now create an indirect entry for
+	/* Ok, we're all right, we can yesw create an indirect entry for
 	 * a 1M or 256M page.
 	 *
-	 * The last trick is now that because we use "half" pages for
+	 * The last trick is yesw that because we use "half" pages for
 	 * the HTW (1M IND is 2K and 256M IND is 32K) we need to account
-	 * for an added LSB bit to the RPN. For 64K pages, there is no
+	 * for an added LSB bit to the RPN. For 64K pages, there is yes
 	 * problem as we already use 32K arrays (half PTE pages), but for
 	 * 4K page we need to extract a bit from the virtual address and
 	 * insert it into the "PA52" bit of the RPN.
@@ -1109,7 +1109,7 @@ htw_tlb_miss:
 	 * MAS 0   :	Fully setup with defaults in MAS4 and TLBnCFG
 	 * MAS 1   :	Almost fully setup
 	 *               - PID already updated by caller if necessary
-	 *               - TSIZE for now is base ind page size always
+	 *               - TSIZE for yesw is base ind page size always
 	 * MAS 2   :	Use defaults
 	 * MAS 3+7 :	Needs to be done
 	 */
@@ -1126,7 +1126,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 	tlbwe
 
 htw_tlb_miss_done:
-	/* We don't bother with restoring DEAR or ESR since we know we are
+	/* We don't bother with restoring DEAR or ESR since we kyesw we are
 	 * level 0 and just going back to userland. They are only needed
 	 * if you are going to take an access fault
 	 */
@@ -1135,7 +1135,7 @@ htw_tlb_miss_done:
 	rfi
 
 htw_tlb_miss_fault:
-	/* We need to check if it was an instruction miss. We know this
+	/* We need to check if it was an instruction miss. We kyesw this
 	 * though because r14 would contain -1
 	 */
 	cmpdi	cr0,r14,-1
@@ -1162,11 +1162,11 @@ htw_tlb_miss_fault:
  * r11 = crap (free to use)
  * r10 = crap (free to use)
  *
- * In addition we know that we will not re-enter, so in theory, we could
- * use a simpler epilog not restoring SRR0/1 etc.. but we'll do that later.
+ * In addition we kyesw that we will yest re-enter, so in theory, we could
+ * use a simpler epilog yest restoring SRR0/1 etc.. but we'll do that later.
  *
  * We also need to be careful about MAS registers here & TLB reservation,
- * as we know we'll have clobbered them if we interrupt the main TLB miss
+ * as we kyesw we'll have clobbered them if we interrupt the main TLB miss
  * handlers in which case we probably want to do a full restart at level
  * 0 rather than saving / restoring the MAS.
  *
@@ -1174,9 +1174,9 @@ htw_tlb_miss_fault:
  *       a few things around
  */
 tlb_load_linear:
-	/* For now, we assume the linear mapping is contiguous and stops at
+	/* For yesw, we assume the linear mapping is contiguous and stops at
 	 * linear_map_top. We also assume the size is a multiple of 1G, thus
-	 * we only use 1G pages for now. That might have to be changed in a
+	 * we only use 1G pages for yesw. That might have to be changed in a
 	 * final implementation, especially when dealing with hypervisors
 	 */
 	ld	r11,PACATOC(r13)

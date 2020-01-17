@@ -114,7 +114,7 @@ struct fs_platform_info {
 
 	void(*init_ioports)(struct fs_platform_info *);
 	/* device specific information */
-	int fs_no;		/* controller index            */
+	int fs_yes;		/* controller index            */
 	char fs_type[4];	/* controller type             */
 
 	u32 cp_page;		/* CPM page */
@@ -133,7 +133,7 @@ struct fs_platform_info {
 	
 	u32 device_flags;
 
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 	const struct fs_mii_bus_info *bus_info;
 
 	int rx_ring, tx_ring;	/* number of buffers on rx     */
@@ -154,12 +154,12 @@ struct fs_mii_fec_platform_info {
 static inline int fs_get_id(struct fs_platform_info *fpi)
 {
 	if(strstr(fpi->fs_type, "SCC"))
-		return fs_scc_index2id(fpi->fs_no);
+		return fs_scc_index2id(fpi->fs_yes);
 	if(strstr(fpi->fs_type, "FCC"))
-		return fs_fcc_index2id(fpi->fs_no);
+		return fs_fcc_index2id(fpi->fs_yes);
 	if(strstr(fpi->fs_type, "FEC"))
-		return fs_fec_index2id(fpi->fs_no);
-	return fpi->fs_no;
+		return fs_fec_index2id(fpi->fs_yes);
+	return fpi->fs_yes;
 }
 
 #endif

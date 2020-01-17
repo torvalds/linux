@@ -8,7 +8,7 @@
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i3c/master.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -381,7 +381,7 @@ struct cdns_i3c_cmd {
 };
 
 struct cdns_i3c_xfer {
-	struct list_head node;
+	struct list_head yesde;
 	struct completion comp;
 	int ret;
 	unsigned int ncmds;
@@ -505,7 +505,7 @@ cdns_i3c_master_alloc_xfer(struct cdns_i3c_master *master, unsigned int ncmds)
 	if (!xfer)
 		return NULL;
 
-	INIT_LIST_HEAD(&xfer->node);
+	INIT_LIST_HEAD(&xfer->yesde);
 	xfer->ncmds = ncmds;
 	xfer->ret = -ETIMEDOUT;
 
@@ -612,9 +612,9 @@ static void cdns_i3c_master_end_xfer_locked(struct cdns_i3c_master *master,
 	complete(&xfer->comp);
 
 	xfer = list_first_entry_or_null(&master->xferqueue.list,
-					struct cdns_i3c_xfer, node);
+					struct cdns_i3c_xfer, yesde);
 	if (xfer)
-		list_del_init(&xfer->node);
+		list_del_init(&xfer->yesde);
 
 	master->xferqueue.cur = xfer;
 	cdns_i3c_master_start_xfer_locked(master);
@@ -628,7 +628,7 @@ static void cdns_i3c_master_queue_xfer(struct cdns_i3c_master *master,
 	init_completion(&xfer->comp);
 	spin_lock_irqsave(&master->xferqueue.lock, flags);
 	if (master->xferqueue.cur) {
-		list_add_tail(&xfer->node, &master->xferqueue.list);
+		list_add_tail(&xfer->yesde, &master->xferqueue.list);
 	} else {
 		master->xferqueue.cur = xfer;
 		cdns_i3c_master_start_xfer_locked(master);
@@ -658,7 +658,7 @@ static void cdns_i3c_master_unqueue_xfer(struct cdns_i3c_master *master,
 		writel(readl(master->regs + CTRL) | CTRL_DEV_EN,
 		       master->regs + CTRL);
 	} else {
-		list_del_init(&xfer->node);
+		list_del_init(&xfer->yesde);
 	}
 	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
 }
@@ -1161,10 +1161,10 @@ static int cdns_i3c_master_do_daa(struct i3c_master_controller *m)
 		i3c_master_add_i3c_dev_locked(m, addrs[slot]);
 
 	/*
-	 * Clear slots that ended up not being used. Can be caused by I3C
-	 * device creation failure or when the I3C device was already known
+	 * Clear slots that ended up yest being used. Can be caused by I3C
+	 * device creation failure or when the I3C device was already kyeswn
 	 * by the system but with a different address (in this case the device
-	 * already has a slot and does not need a new one).
+	 * already has a slot and does yest need a new one).
 	 */
 	writel(readl(master->regs + DEVS_CTRL) |
 	       master->free_rr_slots << DEVS_CTRL_DEV_CLR_SHIFT,
@@ -1316,7 +1316,7 @@ out_unlock:
 	spin_unlock(&master->ibi.lock);
 
 out:
-	/* Consume data from the FIFO if it's not been done already. */
+	/* Consume data from the FIFO if it's yest been done already. */
 	if (!data_consumed) {
 		int i;
 

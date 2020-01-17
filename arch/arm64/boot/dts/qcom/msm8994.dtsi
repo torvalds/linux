@@ -6,7 +6,7 @@
 #include <dt-bindings/clock/qcom,gcc-msm8994.h>
 
 / {
-	model = "Qualcomm Technologies, Inc. MSM 8994";
+	model = "Qualcomm Techyeslogies, Inc. MSM 8994";
 	compatible = "qcom,msm8994";
 	// msm-id and pmic-id are required by bootloader for
 	// proper selection of dt blob
@@ -187,7 +187,7 @@
 
 		smem_mem: smem_region@6a00000 {
 			reg = <0x0 0x6a00000 0x0 0x200000>;
-			no-map;
+			yes-map;
 		};
 	};
 

@@ -30,7 +30,7 @@
  * cpu_arm946_proc_init()
  * cpu_arm946_switch_mm()
  *
- * These are not required.
+ * These are yest required.
  */
 ENTRY(cpu_arm946_proc_init)
 ENTRY(cpu_arm946_switch_mm)
@@ -158,7 +158,7 @@ ENTRY(arm946_flush_user_cache_range)
  *	coherent_kern_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start, end.  If you have non-snooping
+ *	region described by start, end.  If you have yesn-syesoping
  *	Harvard caches, you need to implement this function.
  *
  *	- start	- virtual start address
@@ -171,7 +171,7 @@ ENTRY(arm946_coherent_kern_range)
  *	coherent_user_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start, end.  If you have non-snooping
+ *	region described by start, end.  If you have yesn-syesoping
  *	Harvard caches, you need to implement this function.
  *
  *	- start	- virtual start address
@@ -192,7 +192,7 @@ ENTRY(arm946_coherent_user_range)
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
  *
- *	Ensure no D cache aliasing occurs, either with itself or
+ *	Ensure yes D cache aliasing occurs, either with itself or
  *	the I cache
  *
  *	- addr	- kernel address
@@ -214,8 +214,8 @@ ENTRY(arm946_flush_kern_dcache_area)
  *	dma_inv_range(start, end)
  *
  *	Invalidate (discard) the specified virtual address range.
- *	May not write back any entries.  If 'start' or 'end'
- *	are not cache line aligned, those lines must be written
+ *	May yest write back any entries.  If 'start' or 'end'
+ *	are yest cache line aligned, those lines must be written
  *	back.
  *
  *	- start	- virtual start address
@@ -365,7 +365,7 @@ __arm946_setup:
  * 	region 0 (whole)	rw	--	: b0001
  * 	region 1 (RAM)		rw	rw	: b0011
  * 	region 2 (FLASH)	rw	r-	: b0010
- *	region 3~7 (none)	--	--	: b0000
+ *	region 3~7 (yesne)	--	--	: b0000
  */
 	mov	r0, #0x00000031
 	orr	r0, r0, #0x00000200
@@ -385,7 +385,7 @@ __arm946_setup:
 	__INITDATA
 
 	@ define struct processor (see <asm/proc-fns.h> and proc-macros.S)
-	define_processor_functions arm946, dabort=nommu_early_abort, pabort=legacy_pabort, nommu=1
+	define_processor_functions arm946, dabort=yesmmu_early_abort, pabort=legacy_pabort, yesmmu=1
 
 	.section ".rodata"
 

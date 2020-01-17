@@ -49,7 +49,7 @@ struct pcdp_uart {
 	u32				clock_rate;
 	u8				pci_prog_intfc;
 	u8				flags;
-	u16				conout_index;
+	u16				coyesut_index;
 	u32				reserved;
 } __attribute__((packed));
 
@@ -88,7 +88,7 @@ struct pcdp_device {
 	u8			flags;
 	u16			length;
 	u16			efi_index;
-	/* next data is pcdp_if_pci or pcdp_if_acpi (not yet supported) */
+	/* next data is pcdp_if_pci or pcdp_if_acpi (yest yet supported) */
 	/* next data is device specific type (currently only pcdp_vga) */
 } __attribute__((packed));
 

@@ -4,26 +4,26 @@
 $id: http://devicetree.org/schemas/arm/samsung/pmu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung Exynos SoC series Power Management Unit (PMU)
+title: Samsung Exyyess SoC series Power Management Unit (PMU)
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
 
-# Custom select to avoid matching all nodes with 'syscon'
+# Custom select to avoid matching all yesdes with 'syscon'
 select:
   properties:
     compatible:
       contains:
         enum:
-          - samsung,exynos3250-pmu
-          - samsung,exynos4210-pmu
-          - samsung,exynos4412-pmu
-          - samsung,exynos5250-pmu
-          - samsung,exynos5260-pmu
-          - samsung,exynos5410-pmu
-          - samsung,exynos5420-pmu
-          - samsung,exynos5433-pmu
-          - samsung,exynos7-pmu
+          - samsung,exyyess3250-pmu
+          - samsung,exyyess4210-pmu
+          - samsung,exyyess4412-pmu
+          - samsung,exyyess5250-pmu
+          - samsung,exyyess5260-pmu
+          - samsung,exyyess5410-pmu
+          - samsung,exyyess5420-pmu
+          - samsung,exyyess5433-pmu
+          - samsung,exyyess7-pmu
   required:
     - compatible
 
@@ -31,15 +31,15 @@ properties:
   compatible:
     items:
       - enum:
-          - samsung,exynos3250-pmu
-          - samsung,exynos4210-pmu
-          - samsung,exynos4412-pmu
-          - samsung,exynos5250-pmu
-          - samsung,exynos5260-pmu
-          - samsung,exynos5410-pmu
-          - samsung,exynos5420-pmu
-          - samsung,exynos5433-pmu
-          - samsung,exynos7-pmu
+          - samsung,exyyess3250-pmu
+          - samsung,exyyess4210-pmu
+          - samsung,exyyess4412-pmu
+          - samsung,exyyess5250-pmu
+          - samsung,exyyess5260-pmu
+          - samsung,exyyess5410-pmu
+          - samsung,exyyess5420-pmu
+          - samsung,exyyess5433-pmu
+          - samsung,exyyess7-pmu
       - const: syscon
 
   reg:
@@ -91,10 +91,10 @@ required:
 
 examples:
   - |
-    #include <dt-bindings/clock/exynos5250.h>
+    #include <dt-bindings/clock/exyyess5250.h>
 
     pmu_system_controller: system-controller@10040000 {
-        compatible = "samsung,exynos5250-pmu", "syscon";
+        compatible = "samsung,exyyess5250-pmu", "syscon";
         reg = <0x10040000 0x5000>;
         interrupt-controller;
         #interrupt-cells = <3>;

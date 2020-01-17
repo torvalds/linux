@@ -584,39 +584,39 @@ static struct of_regulator_match as3722_regulator_matches[] = {
 static int as3722_get_regulator_dt_data(struct platform_device *pdev,
 		struct as3722_regulators *as3722_regs)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct as3722_regulator_config_data *reg_config;
 	u32 prop;
 	int id;
 	int ret;
 
-	np = of_get_child_by_name(pdev->dev.parent->of_node, "regulators");
+	np = of_get_child_by_name(pdev->dev.parent->of_yesde, "regulators");
 	if (!np) {
-		dev_err(&pdev->dev, "Device is not having regulators node\n");
+		dev_err(&pdev->dev, "Device is yest having regulators yesde\n");
 		return -ENODEV;
 	}
-	pdev->dev.of_node = np;
+	pdev->dev.of_yesde = np;
 
 	ret = of_regulator_match(&pdev->dev, np, as3722_regulator_matches,
 			ARRAY_SIZE(as3722_regulator_matches));
-	of_node_put(np);
+	of_yesde_put(np);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Parsing of regulator node failed: %d\n",
+		dev_err(&pdev->dev, "Parsing of regulator yesde failed: %d\n",
 			ret);
 		return ret;
 	}
 
 	for (id = 0; id < ARRAY_SIZE(as3722_regulator_matches); ++id) {
-		struct device_node *reg_node;
+		struct device_yesde *reg_yesde;
 
 		reg_config = &as3722_regs->reg_config_data[id];
 		reg_config->reg_init = as3722_regulator_matches[id].init_data;
-		reg_node = as3722_regulator_matches[id].of_node;
+		reg_yesde = as3722_regulator_matches[id].of_yesde;
 
-		if (!reg_config->reg_init || !reg_node)
+		if (!reg_config->reg_init || !reg_yesde)
 			continue;
 
-		ret = of_property_read_u32(reg_node, "ams,ext-control", &prop);
+		ret = of_property_read_u32(reg_yesde, "ams,ext-control", &prop);
 		if (!ret) {
 			if (prop < 3)
 				reg_config->ext_control = prop;
@@ -626,7 +626,7 @@ static int as3722_get_regulator_dt_data(struct platform_device *pdev,
 					prop);
 		}
 		reg_config->enable_tracking =
-			of_property_read_bool(reg_node, "ams,enable-tracking");
+			of_property_read_bool(reg_yesde, "ams,enable-tracking");
 	}
 	return 0;
 }
@@ -792,7 +792,7 @@ static int as3722_regulator_probe(struct platform_device *pdev)
 		}
 		desc->ops = ops;
 		config.init_data = reg_config->reg_init;
-		config.of_node = as3722_regulator_matches[id].of_node;
+		config.of_yesde = as3722_regulator_matches[id].of_yesde;
 		rdev = devm_regulator_register(&pdev->dev, desc, &config);
 		if (IS_ERR(rdev)) {
 			ret = PTR_ERR(rdev);

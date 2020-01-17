@@ -40,8 +40,8 @@ Examples:
 	vmmc-supply = <&wlan_en>;
 
 	bus-width = <4>;
-	non-removable;
-	ti,non-removable;
+	yesn-removable;
+	ti,yesn-removable;
 	cap-power-off-card;
 
 	pinctrl-names = "default";

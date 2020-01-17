@@ -17,7 +17,7 @@ static inline int access_ok(const void __user *addr,
 }
 
 /*
- * Not all varients of the 68k family support the notion of address spaces.
+ * Not all varients of the 68k family support the yestion of address spaces.
  * The traditional 680x0 parts do, and they use the sfc/dfc registers and
  * the "moves" instruction to access user space from kernel space. Other
  * family members like ColdFire don't support this, and only have a single

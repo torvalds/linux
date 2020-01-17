@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. c:type:: dvb_frontend_parameters
 
@@ -18,11 +18,11 @@ on the kind of hardware you are using.
 
 The struct ``dvb_frontend_parameters`` uses a union with specific
 per-system parameters. However, as newer delivery systems required more
-data, the structure size weren't enough to fit, and just extending its
+data, the structure size weren't eyesugh to fit, and just extending its
 size would break the existing applications. So, those parameters were
 replaced by the usage of
 :ref:`FE_GET_PROPERTY/FE_SET_PROPERTY <FE_GET_PROPERTY>`
-ioctl's. The new API is flexible enough to add new parameters to
+ioctl's. The new API is flexible eyesugh to add new parameters to
 existing delivery systems, and to add newer delivery systems.
 
 So, newer applications should use

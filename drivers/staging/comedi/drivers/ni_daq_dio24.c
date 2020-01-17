@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Comedi driver for National Instruments PCMCIA DAQ-Card DIO-24
- * Copyright (C) 2002 Daniel Vecino Castel <dvecino@able.es>
+ * Copyright (C) 2002 Daniel Veciyes Castel <dveciyes@able.es>
  *
  * PCMCIA crap at end of file is adapted from dummy_cs.c 1.31
  * 2001/08/24 12:13:13 from the pcmcia package.
@@ -13,7 +13,7 @@
 /*
  * Driver: ni_daq_dio24
  * Description: National Instruments PCMCIA DAQ-Card DIO-24
- * Author: Daniel Vecino Castel <dvecino@able.es>
+ * Author: Daniel Veciyes Castel <dveciyes@able.es>
  * Devices: [National Instruments] PCMCIA DAQ-Card DIO-24 (ni_daq_dio24)
  * Status: ?
  * Updated: Thu, 07 Nov 2002 21:53:06 -0800
@@ -76,7 +76,7 @@ static struct pcmcia_driver dio24_cs_driver = {
 };
 module_comedi_pcmcia_driver(driver_dio24, dio24_cs_driver);
 
-MODULE_AUTHOR("Daniel Vecino Castel <dvecino@able.es>");
+MODULE_AUTHOR("Daniel Veciyes Castel <dveciyes@able.es>");
 MODULE_DESCRIPTION(
 	"Comedi driver for National Instruments PCMCIA DAQ-Card DIO-24");
 MODULE_LICENSE("GPL");

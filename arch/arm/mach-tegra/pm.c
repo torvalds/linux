@@ -215,7 +215,7 @@ void tegra_idle_lp2_last(void)
 	 * Resume L2 cache if it wasn't re-enabled early during resume,
 	 * which is the case for Tegra30 that has to re-enable the cache
 	 * via firmware call. In other cases cache is already enabled and
-	 * hence re-enabling is a no-op. This is always a no-op on Tegra114+.
+	 * hence re-enabling is a yes-op. This is always a yes-op on Tegra114+.
 	 */
 	outer_resume();
 
@@ -239,7 +239,7 @@ static int tegra_sleep_core(unsigned long v2p)
 {
 	/*
 	 * Cache have to be disabled with MMU-on if cache maintenance is done
-	 * via Trusted Foundations firmware. This is a no-op on Tegra114+.
+	 * via Trusted Foundations firmware. This is a yes-op on Tegra114+.
 	 */
 	if (trusted_foundations_registered())
 		outer_disable();
@@ -259,7 +259,7 @@ static int tegra_sleep_core(unsigned long v2p)
  * tegra_lp1_iram_hook
  *
  * Hooking the address of LP1 reset vector and SDRAM self-refresh code in
- * SDRAM. These codes not be copied to IRAM in this fuction. We need to
+ * SDRAM. These codes yest be copied to IRAM in this fuction. We need to
  * copy these code to IRAM before LP0/LP1 suspend and restore the content
  * of IRAM after resume.
  */
@@ -339,7 +339,7 @@ static void tegra_suspend_exit_lp1(void)
 }
 
 static const char *lp_state[TEGRA_MAX_SUSPEND_MODE] = {
-	[TEGRA_SUSPEND_NONE] = "none",
+	[TEGRA_SUSPEND_NONE] = "yesne",
 	[TEGRA_SUSPEND_LP2] = "LP2",
 	[TEGRA_SUSPEND_LP1] = "LP1",
 	[TEGRA_SUSPEND_LP0] = "LP0",
@@ -377,7 +377,7 @@ static int tegra_suspend_enter(suspend_state_t state)
 	 * Resume L2 cache if it wasn't re-enabled early during resume,
 	 * which is the case for Tegra30 that has to re-enable the cache
 	 * via firmware call. In other cases cache is already enabled and
-	 * hence re-enabling is a no-op.
+	 * hence re-enabling is a yes-op.
 	 */
 	outer_resume();
 

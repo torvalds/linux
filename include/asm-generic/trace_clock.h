@@ -8,7 +8,7 @@
 /*
  * Additional trace clocks added to the trace_clocks
  * array in kernel/trace/trace.c
- * None if the architecture has not defined it.
+ * None if the architecture has yest defined it.
  */
 #ifndef ARCH_TRACE_CLOCKS
 # define ARCH_TRACE_CLOCKS

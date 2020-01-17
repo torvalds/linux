@@ -3,7 +3,7 @@
  * Xilinx Virtex ML410 / ML510 boards.
  *
  * Copyright 2009 Roderick Colenbrander
- * Copyright 2009 Secret Lab Technologies Ltd.
+ * Copyright 2009 Secret Lab Techyeslogies Ltd.
  *
  * The pci bridge fixup code was copied from ppc4xx_pci.c and was written
  * by Benjamin Herrenschmidt.
@@ -47,7 +47,7 @@ static void xilinx_pci_fixup_bridge(struct pci_dev *dev)
 	if (!hose)
 		return;
 
-	if (!of_match_node(xilinx_pci_match, hose->dn))
+	if (!of_match_yesde(xilinx_pci_match, hose->dn))
 		return;
 
 	/* Hide the PCI host BARs from the kernel as their content doesn't
@@ -66,9 +66,9 @@ DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, xilinx_pci_fixup_bridge);
 
 #ifdef DEBUG
 /**
- * xilinx_pci_exclude_device - Don't do config access for non-root bus
+ * xilinx_pci_exclude_device - Don't do config access for yesn-root bus
  *
- * This is a hack.  Config access to any bus other than bus 0 does not
+ * This is a hack.  Config access to any bus other than bus 0 does yest
  * currently work on the ML510 so we prevent it here.
  */
 static int
@@ -124,18 +124,18 @@ void __init xilinx_pci_init(void)
 	struct pci_controller *hose;
 	struct resource r;
 	void __iomem *pci_reg;
-	struct device_node *pci_node;
+	struct device_yesde *pci_yesde;
 
-	pci_node = of_find_matching_node(NULL, xilinx_pci_match);
-	if (!pci_node)
+	pci_yesde = of_find_matching_yesde(NULL, xilinx_pci_match);
+	if (!pci_yesde)
 		return;
 
-	if (of_address_to_resource(pci_node, 0, &r)) {
-		pr_err("xilinx-pci: cannot resolve base address\n");
+	if (of_address_to_resource(pci_yesde, 0, &r)) {
+		pr_err("xilinx-pci: canyest resolve base address\n");
 		return;
 	}
 
-	hose = pcibios_alloc_controller(pci_node);
+	hose = pcibios_alloc_controller(pci_yesde);
 	if (!hose) {
 		pr_err("xilinx-pci: pcibios_alloc_controller() failed\n");
 		return;
@@ -155,14 +155,14 @@ void __init xilinx_pci_init(void)
 	/* Set the max latency timer to 255 */
 	early_write_config_byte(hose, 0, 0, PCI_LATENCY_TIMER, 0xff);
 
-	/* Set the max bus number to 255, and bus/subbus no's to 0 */
-	pci_reg = of_iomap(pci_node, 0);
+	/* Set the max bus number to 255, and bus/subbus yes's to 0 */
+	pci_reg = of_iomap(pci_yesde, 0);
 	WARN_ON(!pci_reg);
 	out_be32(pci_reg + XPLB_PCI_BUS, 0x000000ff);
 	iounmap(pci_reg);
 
 	/* Register the host bridge with the linux kernel! */
-	pci_process_bridge_OF_ranges(hose, pci_node,
+	pci_process_bridge_OF_ranges(hose, pci_yesde,
 					INDIRECT_TYPE_SET_CFG_TYPE);
 
 	pr_info("xilinx-pci: Registered PCI host bridge\n");

@@ -88,7 +88,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 	size_t i;
 
 	if (machine == NULL) {
-		pr_debug("Not enough memory for machine setup\n");
+		pr_debug("Not eyesugh memory for machine setup\n");
 		return NULL;
 	}
 
@@ -155,7 +155,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 	return machine;
 
 out:
-	pr_debug("Not enough memory for machine setup\n");
+	pr_debug("Not eyesugh memory for machine setup\n");
 	machine__delete_threads(machine);
 	return NULL;
 }
@@ -164,7 +164,7 @@ void print_hists_in(struct hists *hists)
 {
 	int i = 0;
 	struct rb_root_cached *root;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
@@ -172,11 +172,11 @@ void print_hists_in(struct hists *hists)
 		root = hists->entries_in;
 
 	pr_info("----- %s --------\n", __func__);
-	node = rb_first_cached(root);
-	while (node) {
+	yesde = rb_first_cached(root);
+	while (yesde) {
 		struct hist_entry *he;
 
-		he = rb_entry(node, struct hist_entry, rb_node_in);
+		he = rb_entry(yesde, struct hist_entry, rb_yesde_in);
 
 		if (!he->filtered) {
 			pr_info("%2d: entry: %-8s [%-8s] %20s: period = %"PRIu64"\n",
@@ -186,7 +186,7 @@ void print_hists_in(struct hists *hists)
 		}
 
 		i++;
-		node = rb_next(node);
+		yesde = rb_next(yesde);
 	}
 }
 
@@ -194,16 +194,16 @@ void print_hists_out(struct hists *hists)
 {
 	int i = 0;
 	struct rb_root_cached *root;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	root = &hists->entries;
 
 	pr_info("----- %s --------\n", __func__);
-	node = rb_first_cached(root);
-	while (node) {
+	yesde = rb_first_cached(root);
+	while (yesde) {
 		struct hist_entry *he;
 
-		he = rb_entry(node, struct hist_entry, rb_node);
+		he = rb_entry(yesde, struct hist_entry, rb_yesde);
 
 		if (!he->filtered) {
 			pr_info("%2d: entry: %8s:%5d [%-8s] %20s: period = %"PRIu64"/%"PRIu64"\n",
@@ -214,6 +214,6 @@ void print_hists_out(struct hists *hists)
 		}
 
 		i++;
-		node = rb_next(node);
+		yesde = rb_next(yesde);
 	}
 }

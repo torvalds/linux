@@ -17,7 +17,7 @@
 
 #define MAX_CPUS 64 /* WARNING - sync with _user.c */
 
-/* Special map type that can XDP_REDIRECT frames to another CPU */
+/* Special map type that can XDP_REDIRECT frames to ayesther CPU */
 struct {
 	__uint(type, BPF_MAP_TYPE_CPUMAP);
 	__uint(key_size, sizeof(u32));
@@ -48,7 +48,7 @@ struct {
 	__type(key, u32);
 	__type(value, struct datarec);
 	__uint(max_entries, 2);
-	/* TODO: have entries for all possible errno's */
+	/* TODO: have entries for all possible erryes's */
 } redirect_err_cnt SEC(".maps");
 
 /* Used by trace point */
@@ -101,7 +101,7 @@ struct {
 
 /* Parse Ethernet layer 2, extract network layer 3 offset and protocol
  *
- * Returns false on error and non-supported ether-type
+ * Returns false on error and yesn-supported ether-type
  */
 struct vlan_hdr {
 	__be16 h_vlan_TCI;
@@ -121,7 +121,7 @@ bool parse_eth(struct ethhdr *eth, void *data_end,
 
 	eth_type = eth->h_proto;
 
-	/* Skip non 802.3 Ethertypes */
+	/* Skip yesn 802.3 Ethertypes */
 	if (unlikely(ntohs(eth_type) < ETH_P_802_3_MIN))
 		return false;
 
@@ -198,7 +198,7 @@ int get_proto_ipv6(struct xdp_md *ctx, u64 nh_off)
 }
 
 SEC("xdp_cpu_map0")
-int  xdp_prognum0_no_touch(struct xdp_md *ctx)
+int  xdp_prognum0_yes_touch(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data     = (void *)(long)ctx->data;
@@ -255,7 +255,7 @@ int  xdp_prognum1_touch_data(struct xdp_md *ctx)
 		return XDP_ABORTED;
 	rec->processed++;
 
-	/* Read packet data, and use it (drop non 802.3 Ethertypes) */
+	/* Read packet data, and use it (drop yesn 802.3 Ethertypes) */
 	eth_type = eth->h_proto;
 	if (ntohs(eth_type) < ETH_P_802_3_MIN) {
 		rec->dropped++;
@@ -573,7 +573,7 @@ char _license[] SEC("license") = "GPL";
  * Code in:                kernel/include/trace/events/xdp.h
  */
 struct xdp_redirect_ctx {
-	u64 __pad;	// First 8 bytes are not accessible by bpf code
+	u64 __pad;	// First 8 bytes are yest accessible by bpf code
 	int prog_id;	//	offset:8;  size:4; signed:1;
 	u32 act;	//	offset:12  size:4; signed:0;
 	int ifindex;	//	offset:16  size:4; signed:1;
@@ -603,7 +603,7 @@ int xdp_redirect_collect_stat(struct xdp_redirect_ctx *ctx)
 		return 0;
 	rec->dropped += 1;
 
-	return 0; /* Indicate event was filtered (no further processing)*/
+	return 0; /* Indicate event was filtered (yes further processing)*/
 	/*
 	 * Returning 1 here would allow e.g. a perf-record tracepoint
 	 * to see and record these events, but it doesn't work well
@@ -628,7 +628,7 @@ int trace_xdp_redirect_map_err(struct xdp_redirect_ctx *ctx)
  * Code in:                kernel/include/trace/events/xdp.h
  */
 struct xdp_exception_ctx {
-	u64 __pad;	// First 8 bytes are not accessible by bpf code
+	u64 __pad;	// First 8 bytes are yest accessible by bpf code
 	int prog_id;	//	offset:8;  size:4; signed:1;
 	u32 act;	//	offset:12; size:4; signed:0;
 	int ifindex;	//	offset:16; size:4; signed:1;
@@ -652,7 +652,7 @@ int trace_xdp_exception(struct xdp_exception_ctx *ctx)
  * Code in:         kernel/include/trace/events/xdp.h
  */
 struct cpumap_enqueue_ctx {
-	u64 __pad;		// First 8 bytes are not accessible by bpf code
+	u64 __pad;		// First 8 bytes are yest accessible by bpf code
 	int map_id;		//	offset:8;  size:4; signed:1;
 	u32 act;		//	offset:12; size:4; signed:0;
 	int cpu;		//	offset:16; size:4; signed:1;
@@ -692,7 +692,7 @@ int trace_xdp_cpumap_enqueue(struct cpumap_enqueue_ctx *ctx)
  * Code in:         kernel/include/trace/events/xdp.h
  */
 struct cpumap_kthread_ctx {
-	u64 __pad;		// First 8 bytes are not accessible by bpf code
+	u64 __pad;		// First 8 bytes are yest accessible by bpf code
 	int map_id;		//	offset:8;  size:4; signed:1;
 	u32 act;		//	offset:12; size:4; signed:0;
 	int cpu;		//	offset:16; size:4; signed:1;

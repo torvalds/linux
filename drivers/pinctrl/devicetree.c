@@ -15,12 +15,12 @@
 
 /**
  * struct pinctrl_dt_map - mapping table chunk parsed from device tree
- * @node: list node for struct pinctrl's @dt_maps field
+ * @yesde: list yesde for struct pinctrl's @dt_maps field
  * @pctldev: the pin controller that allocated this struct, and will free it
  * @maps: the mapping table entries
  */
 struct pinctrl_dt_map {
-	struct list_head node;
+	struct list_head yesde;
 	struct pinctrl_dev *pctldev;
 	struct pinctrl_map *map;
 	unsigned num_maps;
@@ -41,7 +41,7 @@ static void dt_free_map(struct pinctrl_dev *pctldev,
 		if (ops->dt_free_map)
 			ops->dt_free_map(pctldev, map, num_maps);
 	} else {
-		/* There is no pctldev for PIN_MAP_TYPE_DUMMY_STATE */
+		/* There is yes pctldev for PIN_MAP_TYPE_DUMMY_STATE */
 		kfree(map);
 	}
 }
@@ -50,15 +50,15 @@ void pinctrl_dt_free_maps(struct pinctrl *p)
 {
 	struct pinctrl_dt_map *dt_map, *n1;
 
-	list_for_each_entry_safe(dt_map, n1, &p->dt_maps, node) {
+	list_for_each_entry_safe(dt_map, n1, &p->dt_maps, yesde) {
 		pinctrl_unregister_map(dt_map->map);
-		list_del(&dt_map->node);
+		list_del(&dt_map->yesde);
 		dt_free_map(dt_map->pctldev, dt_map->map,
 			    dt_map->num_maps);
 		kfree(dt_map);
 	}
 
-	of_node_put(p->dev->of_node);
+	of_yesde_put(p->dev->of_yesde);
 }
 
 static int dt_remember_or_free_map(struct pinctrl *p, const char *statename,
@@ -90,7 +90,7 @@ static int dt_remember_or_free_map(struct pinctrl *p, const char *statename,
 	dt_map->pctldev = pctldev;
 	dt_map->map = map;
 	dt_map->num_maps = num_maps;
-	list_add_tail(&dt_map->node, &p->dt_maps);
+	list_add_tail(&dt_map->yesde, &p->dt_maps);
 
 	return pinctrl_register_map(map, num_maps, false);
 
@@ -99,18 +99,18 @@ err_free_map:
 	return -ENOMEM;
 }
 
-struct pinctrl_dev *of_pinctrl_get(struct device_node *np)
+struct pinctrl_dev *of_pinctrl_get(struct device_yesde *np)
 {
-	return get_pinctrl_dev_from_of_node(np);
+	return get_pinctrl_dev_from_of_yesde(np);
 }
 
 static int dt_to_map_one_config(struct pinctrl *p,
 				struct pinctrl_dev *hog_pctldev,
 				const char *statename,
-				struct device_node *np_config)
+				struct device_yesde *np_config)
 {
 	struct pinctrl_dev *pctldev = NULL;
-	struct device_node *np_pctldev;
+	struct device_yesde *np_pctldev;
 	const struct pinctrl_ops *ops;
 	int ret;
 	struct pinctrl_map *map;
@@ -118,15 +118,15 @@ static int dt_to_map_one_config(struct pinctrl *p,
 	bool allow_default = false;
 
 	/* Find the pin controller containing np_config */
-	np_pctldev = of_node_get(np_config);
+	np_pctldev = of_yesde_get(np_config);
 	for (;;) {
 		if (!allow_default)
 			allow_default = of_property_read_bool(np_pctldev,
 							      "pinctrl-use-default");
 
 		np_pctldev = of_get_next_parent(np_pctldev);
-		if (!np_pctldev || of_node_is_root(np_pctldev)) {
-			of_node_put(np_pctldev);
+		if (!np_pctldev || of_yesde_is_root(np_pctldev)) {
+			of_yesde_put(np_pctldev);
 			/* keep deferring if modules are enabled unless we've timed out */
 			if (IS_ENABLED(CONFIG_MODULES) && !allow_default)
 				return driver_deferred_probe_check_state_continue(p->dev);
@@ -134,42 +134,42 @@ static int dt_to_map_one_config(struct pinctrl *p,
 			return driver_deferred_probe_check_state(p->dev);
 		}
 		/* If we're creating a hog we can use the passed pctldev */
-		if (hog_pctldev && (np_pctldev == p->dev->of_node)) {
+		if (hog_pctldev && (np_pctldev == p->dev->of_yesde)) {
 			pctldev = hog_pctldev;
 			break;
 		}
-		pctldev = get_pinctrl_dev_from_of_node(np_pctldev);
+		pctldev = get_pinctrl_dev_from_of_yesde(np_pctldev);
 		if (pctldev)
 			break;
-		/* Do not defer probing of hogs (circular loop) */
-		if (np_pctldev == p->dev->of_node) {
-			of_node_put(np_pctldev);
+		/* Do yest defer probing of hogs (circular loop) */
+		if (np_pctldev == p->dev->of_yesde) {
+			of_yesde_put(np_pctldev);
 			return -ENODEV;
 		}
 	}
-	of_node_put(np_pctldev);
+	of_yesde_put(np_pctldev);
 
 	/*
-	 * Call pinctrl driver to parse device tree node, and
+	 * Call pinctrl driver to parse device tree yesde, and
 	 * generate mapping table entries
 	 */
 	ops = pctldev->desc->pctlops;
-	if (!ops->dt_node_to_map) {
+	if (!ops->dt_yesde_to_map) {
 		dev_err(p->dev, "pctldev %s doesn't support DT\n",
 			dev_name(pctldev->dev));
 		return -ENODEV;
 	}
-	ret = ops->dt_node_to_map(pctldev, np_config, &map, &num_maps);
+	ret = ops->dt_yesde_to_map(pctldev, np_config, &map, &num_maps);
 	if (ret < 0)
 		return ret;
 	else if (num_maps == 0) {
 		/*
-		 * If we have no valid maps (maybe caused by empty pinctrl node
-		 * or typing error) ther is no need remember this, so just
+		 * If we have yes valid maps (maybe caused by empty pinctrl yesde
+		 * or typing error) ther is yes need remember this, so just
 		 * return.
 		 */
 		dev_info(p->dev,
-			 "there is not valid maps for state %s\n", statename);
+			 "there is yest valid maps for state %s\n", statename);
 		return 0;
 	}
 
@@ -185,7 +185,7 @@ static int dt_remember_dummy_state(struct pinctrl *p, const char *statename)
 	if (!map)
 		return -ENOMEM;
 
-	/* There is no pctldev for PIN_MAP_TYPE_DUMMY_STATE */
+	/* There is yes pctldev for PIN_MAP_TYPE_DUMMY_STATE */
 	map->type = PIN_MAP_TYPE_DUMMY_STATE;
 
 	return dt_remember_or_free_map(p, statename, NULL, map, 1);
@@ -193,7 +193,7 @@ static int dt_remember_dummy_state(struct pinctrl *p, const char *statename)
 
 int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev)
 {
-	struct device_node *np = p->dev->of_node;
+	struct device_yesde *np = p->dev->of_yesde;
 	int state, ret;
 	char *propname;
 	struct property *prop;
@@ -201,18 +201,18 @@ int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev)
 	const __be32 *list;
 	int size, config;
 	phandle phandle;
-	struct device_node *np_config;
+	struct device_yesde *np_config;
 
-	/* CONFIG_OF enabled, p->dev not instantiated from DT */
+	/* CONFIG_OF enabled, p->dev yest instantiated from DT */
 	if (!np) {
 		if (of_have_populated_dt())
 			dev_dbg(p->dev,
-				"no of_node; not parsing pinctrl DT\n");
+				"yes of_yesde; yest parsing pinctrl DT\n");
 		return 0;
 	}
 
-	/* We may store pointers to property names within the node */
-	of_node_get(np);
+	/* We may store pointers to property names within the yesde */
+	of_yesde_get(np);
 
 	/* For each defined state ID */
 	for (state = 0; ; state++) {
@@ -222,7 +222,7 @@ int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev)
 		kfree(propname);
 		if (!prop) {
 			if (state == 0) {
-				of_node_put(np);
+				of_yesde_put(np);
 				return -ENODEV;
 			}
 			break;
@@ -234,19 +234,19 @@ int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev)
 		ret = of_property_read_string_index(np, "pinctrl-names",
 						    state, &statename);
 		/*
-		 * If not, statename is just the integer state ID. But rather
+		 * If yest, statename is just the integer state ID. But rather
 		 * than dynamically allocate it and have to free it later,
 		 * just point part way into the property name for the string.
 		 */
 		if (ret < 0)
 			statename = prop->name + strlen("pinctrl-");
 
-		/* For every referenced pin configuration node in it */
+		/* For every referenced pin configuration yesde in it */
 		for (config = 0; config < size; config++) {
 			phandle = be32_to_cpup(list++);
 
-			/* Look up the pin configuration node */
-			np_config = of_find_node_by_phandle(phandle);
+			/* Look up the pin configuration yesde */
+			np_config = of_find_yesde_by_phandle(phandle);
 			if (!np_config) {
 				dev_err(p->dev,
 					"prop %s index %i invalid phandle\n",
@@ -255,10 +255,10 @@ int pinctrl_dt_to_map(struct pinctrl *p, struct pinctrl_dev *pctldev)
 				goto err;
 			}
 
-			/* Parse the node */
+			/* Parse the yesde */
 			ret = dt_to_map_one_config(p, pctldev, statename,
 						   np_config);
-			of_node_put(np_config);
+			of_yesde_put(np_config);
 			if (ret < 0)
 				goto err;
 		}
@@ -282,7 +282,7 @@ err:
  * For pinctrl binding, typically #pinctrl-cells is for the pin controller
  * device, so either parent or grandparent. See pinctrl-bindings.txt.
  */
-static int pinctrl_find_cells_size(const struct device_node *np)
+static int pinctrl_find_cells_size(const struct device_yesde *np)
 {
 	const char *cells_name = "#pinctrl-cells";
 	int cells_size, error;
@@ -300,7 +300,7 @@ static int pinctrl_find_cells_size(const struct device_node *np)
 
 /**
  * pinctrl_get_list_and_count - Gets the list and it's cell size and number
- * @np: pointer to device node with the property
+ * @np: pointer to device yesde with the property
  * @list_name: property that contains the list
  * @list: pointer for the list found
  * @cells_size: pointer for the cell size found
@@ -308,7 +308,7 @@ static int pinctrl_find_cells_size(const struct device_node *np)
  *
  * Typically np is a single pinctrl entry containing the list.
  */
-static int pinctrl_get_list_and_count(const struct device_node *np,
+static int pinctrl_get_list_and_count(const struct device_yesde *np,
 				      const char *list_name,
 				      const __be32 **list,
 				      int *cells_size,
@@ -335,14 +335,14 @@ static int pinctrl_get_list_and_count(const struct device_node *np,
 
 /**
  * pinctrl_count_index_with_args - Count number of elements in a pinctrl entry
- * @np: pointer to device node with the property
+ * @np: pointer to device yesde with the property
  * @list_name: property that contains the list
  *
  * Counts the number of elements in a pinctrl array consisting of an index
  * within the controller and a number of u32 entries specified for each
- * entry. Note that device_node is always for the parent pin controller device.
+ * entry. Note that device_yesde is always for the parent pin controller device.
  */
-int pinctrl_count_index_with_args(const struct device_node *np,
+int pinctrl_count_index_with_args(const struct device_yesde *np,
 				  const char *list_name)
 {
 	const __be32 *list;
@@ -359,7 +359,7 @@ EXPORT_SYMBOL_GPL(pinctrl_count_index_with_args);
 
 /**
  * pinctrl_copy_args - Populates of_phandle_args based on index
- * @np: pointer to device node with the property
+ * @np: pointer to device yesde with the property
  * @list: pointer to a list with the elements
  * @index: entry within the list of elements
  * @nr_cells: number of cells in the list
@@ -368,7 +368,7 @@ EXPORT_SYMBOL_GPL(pinctrl_count_index_with_args);
  *
  * Populates the of_phandle_args based on the index in the list.
  */
-static int pinctrl_copy_args(const struct device_node *np,
+static int pinctrl_copy_args(const struct device_yesde *np,
 			     const __be32 *list,
 			     int index, int nr_cells, int nr_elem,
 			     struct of_phandle_args *out_args)
@@ -376,7 +376,7 @@ static int pinctrl_copy_args(const struct device_node *np,
 	int i;
 
 	memset(out_args, 0, sizeof(*out_args));
-	out_args->np = (struct device_node *)np;
+	out_args->np = (struct device_yesde *)np;
 	out_args->args_count = nr_cells + 1;
 
 	if (index >= nr_elem)
@@ -391,17 +391,17 @@ static int pinctrl_copy_args(const struct device_node *np,
 }
 
 /**
- * pinctrl_parse_index_with_args - Find a node pointed by index in a list
- * @np: pointer to device node with the property
+ * pinctrl_parse_index_with_args - Find a yesde pointed by index in a list
+ * @np: pointer to device yesde with the property
  * @list_name: property that contains the list
  * @index: index within the list
  * @out_arts: entries in the list pointed by index
  *
  * Finds the selected element in a pinctrl array consisting of an index
  * within the controller and a number of u32 entries specified for each
- * entry. Note that device_node is always for the parent pin controller device.
+ * entry. Note that device_yesde is always for the parent pin controller device.
  */
-int pinctrl_parse_index_with_args(const struct device_node *np,
+int pinctrl_parse_index_with_args(const struct device_yesde *np,
 				  const char *list_name, int index,
 				  struct of_phandle_args *out_args)
 {

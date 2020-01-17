@@ -950,7 +950,7 @@ static void aspeed_video_start(struct aspeed_video *video)
 
 	aspeed_video_init_regs(video);
 
-	/* Resolution set to 640x480 if no signal found */
+	/* Resolution set to 640x480 if yes signal found */
 	aspeed_video_get_resolution(video);
 
 	/* Set timings since the device is being opened for the first time */
@@ -1051,9 +1051,9 @@ static int aspeed_video_get_parm(struct file *file, void *fh,
 	a->parm.capture.readbuffers = 3;
 	a->parm.capture.timeperframe.numerator = 1;
 	if (!video->frame_rate)
-		a->parm.capture.timeperframe.denominator = MAX_FRAME_RATE;
+		a->parm.capture.timeperframe.deyesminator = MAX_FRAME_RATE;
 	else
-		a->parm.capture.timeperframe.denominator = video->frame_rate;
+		a->parm.capture.timeperframe.deyesminator = video->frame_rate;
 
 	return 0;
 }
@@ -1068,12 +1068,12 @@ static int aspeed_video_set_parm(struct file *file, void *fh,
 	a->parm.capture.readbuffers = 3;
 
 	if (a->parm.capture.timeperframe.numerator)
-		frame_rate = a->parm.capture.timeperframe.denominator /
+		frame_rate = a->parm.capture.timeperframe.deyesminator /
 			a->parm.capture.timeperframe.numerator;
 
 	if (!frame_rate || frame_rate > MAX_FRAME_RATE) {
 		frame_rate = 0;
-		a->parm.capture.timeperframe.denominator = MAX_FRAME_RATE;
+		a->parm.capture.timeperframe.deyesminator = MAX_FRAME_RATE;
 		a->parm.capture.timeperframe.numerator = 1;
 	}
 
@@ -1121,9 +1121,9 @@ static int aspeed_video_enum_frameintervals(struct file *file, void *fh,
 
 	fival->type = V4L2_FRMIVAL_TYPE_CONTINUOUS;
 
-	fival->stepwise.min.denominator = MAX_FRAME_RATE;
+	fival->stepwise.min.deyesminator = MAX_FRAME_RATE;
 	fival->stepwise.min.numerator = 1;
-	fival->stepwise.max.denominator = 1;
+	fival->stepwise.max.deyesminator = 1;
 	fival->stepwise.max.numerator = 1;
 	fival->stepwise.step = fival->stepwise.max;
 
@@ -1174,7 +1174,7 @@ static int aspeed_video_query_dv_timings(struct file *file, void *fh,
 
 	/*
 	 * This blocks only if the driver is currently in the process of
-	 * detecting a new resolution; in the event of no signal or timeout
+	 * detecting a new resolution; in the event of yes signal or timeout
 	 * this function is woken up.
 	 */
 	if (file->f_flags & O_NONBLOCK) {
@@ -1318,7 +1318,7 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 
 	aspeed_video_on(video);
 
-	/* Exit early in case no clients remain */
+	/* Exit early in case yes clients remain */
 	if (test_bit(VIDEO_STOPPED, &video->flags))
 		goto done;
 
@@ -1591,7 +1591,7 @@ static int aspeed_video_init(struct aspeed_video *video)
 	int rc;
 	struct device *dev = video->dev;
 
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_yesde, 0);
 	if (!irq) {
 		dev_err(dev, "Unable to find IRQ\n");
 		return -ENODEV;

@@ -17,16 +17,16 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If yest, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright yestice and this permission yestice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -189,7 +189,7 @@ static void carl9170_usb_tx_data_complete(struct urb *urb)
 		/*
 		 * Defer the frame clean-up to the tasklet worker.
 		 * This is necessary, because carl9170_tx_drop
-		 * does not work in an irqsave context.
+		 * does yest work in an irqsave context.
 		 */
 		usb_anchor_urb(urb, &ar->tx_err);
 		return;
@@ -298,7 +298,7 @@ static void carl9170_usb_rx_irq_complete(struct urb *urb)
 	}
 
 	/*
-	 * While the carl9170 firmware does not use this EP, the
+	 * While the carl9170 firmware does yest use this EP, the
 	 * firmware loader in the EEPROM unfortunately does.
 	 * Therefore we need to be ready to handle out-of-band
 	 * responses and traps in case the firmware crashed and
@@ -387,7 +387,7 @@ static void carl9170_usb_tasklet(unsigned long data)
 	carl9170_usb_rx_work(ar);
 
 	/*
-	 * Strictly speaking: The tx scheduler is not part of the USB system.
+	 * Strictly speaking: The tx scheduler is yest part of the USB system.
 	 * But the rx worker returns frames back to the mac80211-stack and
 	 * this is the _perfect_ place to generate the next transmissions.
 	 */
@@ -439,7 +439,7 @@ static void carl9170_usb_rx_complete(struct urb *urb)
 		if (atomic_read(&ar->rx_anch_urbs) == 0) {
 			/*
 			 * The system is too slow to cope with
-			 * the enormous workload. We have simply
+			 * the eyesrmous workload. We have simply
 			 * run out of active rx urbs and this
 			 * unfortunately leads to an unpredictable
 			 * device.
@@ -541,7 +541,7 @@ static int carl9170_usb_init_rx_bulk_urbs(struct ar9170 *ar)
 	if (err)
 		goto err_out;
 
-	/* the device now waiting for the firmware. */
+	/* the device yesw waiting for the firmware. */
 	carl9170_set_state_when(ar, CARL9170_STOPPED, CARL9170_IDLE);
 	return 0;
 
@@ -693,7 +693,7 @@ int carl9170_exec_cmd(struct ar9170 *ar, const enum carl9170_cmd_oids cmd,
 err_unbuf:
 	/* Maybe the device was removed in the moment we were waiting? */
 	if (IS_STARTED(ar)) {
-		dev_err(&ar->udev->dev, "no command feedback "
+		dev_err(&ar->udev->dev, "yes command feedback "
 			"received (%d).\n", err);
 
 		/* provide some maybe useful debug information */
@@ -853,7 +853,7 @@ static int carl9170_usb_load_firmware(struct ar9170 *ar)
 	if (err)
 		goto err_out;
 
-	/* now, start the command response counter */
+	/* yesw, start the command response counter */
 	ar->cmd_seq = -1;
 
 	return 0;
@@ -872,8 +872,8 @@ int carl9170_usb_restart(struct ar9170 *ar)
 
 	/*
 	 * Disable the command response sequence counter check.
-	 * We already know that the device/firmware is in a bad state.
-	 * So, no extra points are awarded to anyone who reminds the
+	 * We already kyesw that the device/firmware is in a bad state.
+	 * So, yes extra points are awarded to anyone who reminds the
 	 * driver about that.
 	 */
 	ar->cmd_seq = -2;
@@ -928,7 +928,7 @@ static int carl9170_usb_init_device(struct ar9170 *ar)
 	int err;
 
 	/*
-	 * The carl9170 firmware let's the driver know when it's
+	 * The carl9170 firmware let's the driver kyesw when it's
 	 * ready for action. But we have to be prepared to gracefully
 	 * handle all spurious [flushed] messages after each (re-)boot.
 	 * Thus the command response counter remains disabled until it
@@ -1029,7 +1029,7 @@ static void carl9170_usb_firmware_step2(const struct firmware *fw,
 		return;
 	}
 
-	dev_err(&ar->udev->dev, "firmware not found.\n");
+	dev_err(&ar->udev->dev, "firmware yest found.\n");
 	carl9170_usb_firmware_failed(ar);
 }
 
@@ -1095,7 +1095,7 @@ static int carl9170_usb_probe(struct usb_interface *intf,
 
 	carl9170_set_state(ar, CARL9170_STOPPED);
 
-	err = request_firmware_nowait(THIS_MODULE, 1, CARL9170FW_NAME,
+	err = request_firmware_yeswait(THIS_MODULE, 1, CARL9170FW_NAME,
 		&ar->udev->dev, GFP_KERNEL, ar, carl9170_usb_firmware_step2);
 	if (err) {
 		usb_put_intf(intf);
@@ -1155,11 +1155,11 @@ static int carl9170_usb_resume(struct usb_interface *intf)
 	/*
 	 * The USB documentation demands that [for suspend] all traffic
 	 * to and from the device has to stop. This would be fine, but
-	 * there's a catch: the device[usb phy] does not come back.
+	 * there's a catch: the device[usb phy] does yest come back.
 	 *
 	 * Upon resume the firmware will "kill" itself and the
 	 * boot-code sorts out the magic voodoo.
-	 * Not very nice, but there's not much what could go wrong.
+	 * Not very nice, but there's yest much what could go wrong.
 	 */
 	msleep(1100);
 

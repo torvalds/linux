@@ -70,7 +70,7 @@ extern void __add_wrong_size(void)
 	})
 
 /*
- * Note: no "lock" prefix even on SMP: xchg always implies lock anyway.
+ * Note: yes "lock" prefix even on SMP: xchg always implies lock anyway.
  * Since this is generally used to protect other memory information, we
  * use "asm volatile" and "memory" clobbers to prevent gcc from moving
  * information around.

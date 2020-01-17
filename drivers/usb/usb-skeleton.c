@@ -9,7 +9,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
@@ -30,13 +30,13 @@ static const struct usb_device_id skel_table[] = {
 MODULE_DEVICE_TABLE(usb, skel_table);
 
 
-/* Get a minor range for your devices from the usb maintainer */
+/* Get a miyesr range for your devices from the usb maintainer */
 #define USB_SKEL_MINOR_BASE	192
 
 /* our private defines. if this grows any larger, use your own .h file */
 #define MAX_TRANSFER		(PAGE_SIZE - 512)
 /*
- * MAX_TRANSFER is chosen so that the VM is not stressed by
+ * MAX_TRANSFER is chosen so that the VM is yest stressed by
  * allocations > PAGE_SIZE and the number of packets in a page
  * is an integer 512 is the largest possible packet on EHCI
  */
@@ -80,19 +80,19 @@ static void skel_delete(struct kref *kref)
 	kfree(dev);
 }
 
-static int skel_open(struct inode *inode, struct file *file)
+static int skel_open(struct iyesde *iyesde, struct file *file)
 {
 	struct usb_skel *dev;
 	struct usb_interface *interface;
-	int subminor;
+	int submiyesr;
 	int retval = 0;
 
-	subminor = iminor(inode);
+	submiyesr = imiyesr(iyesde);
 
-	interface = usb_find_interface(&skel_driver, subminor);
+	interface = usb_find_interface(&skel_driver, submiyesr);
 	if (!interface) {
-		pr_err("%s - error, can't find device for minor %d\n",
-			__func__, subminor);
+		pr_err("%s - error, can't find device for miyesr %d\n",
+			__func__, submiyesr);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -117,7 +117,7 @@ exit:
 	return retval;
 }
 
-static int skel_release(struct inode *inode, struct file *file)
+static int skel_release(struct iyesde *iyesde, struct file *file)
 {
 	struct usb_skel *dev;
 
@@ -171,7 +171,7 @@ static void skel_read_bulk_callback(struct urb *urb)
 		    urb->status == -ECONNRESET ||
 		    urb->status == -ESHUTDOWN))
 			dev_err(&dev->interface->dev,
-				"%s - nonzero write bulk status received: %d\n",
+				"%s - yesnzero write bulk status received: %d\n",
 				__func__, urb->status);
 
 		dev->errors = urb->status;
@@ -202,7 +202,7 @@ static int skel_do_read_io(struct usb_skel *dev, size_t count)
 	dev->ongoing_read = 1;
 	spin_unlock_irq(&dev->err_lock);
 
-	/* submit bulk in urb, which means no data to deliver */
+	/* submit bulk in urb, which means yes data to deliver */
 	dev->bulk_in_filled = 0;
 	dev->bulk_in_copied = 0;
 
@@ -233,7 +233,7 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 	if (!count)
 		return 0;
 
-	/* no concurrent readers */
+	/* yes concurrent readers */
 	rv = mutex_lock_interruptible(&dev->io_mutex);
 	if (rv < 0)
 		return rv;
@@ -243,14 +243,14 @@ static ssize_t skel_read(struct file *file, char *buffer, size_t count,
 		goto exit;
 	}
 
-	/* if IO is under way, we must not touch things */
+	/* if IO is under way, we must yest touch things */
 retry:
 	spin_lock_irq(&dev->err_lock);
 	ongoing_io = dev->ongoing_read;
 	spin_unlock_irq(&dev->err_lock);
 
 	if (ongoing_io) {
-		/* nonblocking IO shall not wait */
+		/* yesnblocking IO shall yest wait */
 		if (file->f_flags & O_NONBLOCK) {
 			rv = -EAGAIN;
 			goto exit;
@@ -269,7 +269,7 @@ retry:
 	if (rv < 0) {
 		/* any error is reported once */
 		dev->errors = 0;
-		/* to preserve notifications about reset */
+		/* to preserve yestifications about reset */
 		rv = (rv == -EPIPE) ? rv : -EIO;
 		/* report it */
 		goto exit;
@@ -317,7 +317,7 @@ retry:
 		if (available < count)
 			skel_do_read_io(dev, count - chunk);
 	} else {
-		/* no data in the buffer */
+		/* yes data in the buffer */
 		rv = skel_do_read_io(dev, count);
 		if (rv < 0)
 			goto exit;
@@ -342,7 +342,7 @@ static void skel_write_bulk_callback(struct urb *urb)
 		    urb->status == -ECONNRESET ||
 		    urb->status == -ESHUTDOWN))
 			dev_err(&dev->interface->dev,
-				"%s - nonzero write bulk status received: %d\n",
+				"%s - yesnzero write bulk status received: %d\n",
 				__func__, urb->status);
 
 		spin_lock_irqsave(&dev->err_lock, flags);
@@ -392,7 +392,7 @@ static ssize_t skel_write(struct file *file, const char *user_buffer,
 	if (retval < 0) {
 		/* any error is reported once */
 		dev->errors = 0;
-		/* to preserve notifications about reset */
+		/* to preserve yestifications about reset */
 		retval = (retval == -EPIPE) ? retval : -EIO;
 	}
 	spin_unlock_irq(&dev->err_lock);
@@ -472,17 +472,17 @@ static const struct file_operations skel_fops = {
 	.open =		skel_open,
 	.release =	skel_release,
 	.flush =	skel_flush,
-	.llseek =	noop_llseek,
+	.llseek =	yesop_llseek,
 };
 
 /*
- * usb class driver info in order to get a minor number from the usb core,
+ * usb class driver info in order to get a miyesr number from the usb core,
  * and to have the device registered with the driver core
  */
 static struct usb_class_driver skel_class = {
 	.name =		"skel%d",
 	.fops =		&skel_fops,
-	.minor_base =	USB_SKEL_MINOR_BASE,
+	.miyesr_base =	USB_SKEL_MINOR_BASE,
 };
 
 static int skel_probe(struct usb_interface *interface,
@@ -513,7 +513,7 @@ static int skel_probe(struct usb_interface *interface,
 			&bulk_in, &bulk_out, NULL, NULL);
 	if (retval) {
 		dev_err(&interface->dev,
-			"Could not find both bulk-in and bulk-out endpoints\n");
+			"Could yest find both bulk-in and bulk-out endpoints\n");
 		goto error;
 	}
 
@@ -535,20 +535,20 @@ static int skel_probe(struct usb_interface *interface,
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
 
-	/* we can register the device now, as it is ready */
+	/* we can register the device yesw, as it is ready */
 	retval = usb_register_dev(interface, &skel_class);
 	if (retval) {
 		/* something prevented us from registering this driver */
 		dev_err(&interface->dev,
-			"Not able to get a minor for this device.\n");
+			"Not able to get a miyesr for this device.\n");
 		usb_set_intfdata(interface, NULL);
 		goto error;
 	}
 
-	/* let the user know what node this device is now attached to */
+	/* let the user kyesw what yesde this device is yesw attached to */
 	dev_info(&interface->dev,
-		 "USB Skeleton device now attached to USBSkel-%d",
-		 interface->minor);
+		 "USB Skeleton device yesw attached to USBSkel-%d",
+		 interface->miyesr);
 	return 0;
 
 error:
@@ -561,12 +561,12 @@ error:
 static void skel_disconnect(struct usb_interface *interface)
 {
 	struct usb_skel *dev;
-	int minor = interface->minor;
+	int miyesr = interface->miyesr;
 
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 
-	/* give back our minor */
+	/* give back our miyesr */
 	usb_deregister_dev(interface, &skel_class);
 
 	/* prevent more I/O from starting */
@@ -580,7 +580,7 @@ static void skel_disconnect(struct usb_interface *interface)
 	/* decrement our usage count */
 	kref_put(&dev->kref, skel_delete);
 
-	dev_info(&interface->dev, "USB Skeleton #%d now disconnected", minor);
+	dev_info(&interface->dev, "USB Skeleton #%d yesw disconnected", miyesr);
 }
 
 static void skel_draw_down(struct usb_skel *dev)
@@ -622,7 +622,7 @@ static int skel_post_reset(struct usb_interface *intf)
 {
 	struct usb_skel *dev = usb_get_intfdata(intf);
 
-	/* we are sure no URBs are active - no locking needed */
+	/* we are sure yes URBs are active - yes locking needed */
 	dev->errors = -EPIPE;
 	mutex_unlock(&dev->io_mutex);
 

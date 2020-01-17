@@ -22,7 +22,7 @@ enum {
 
 static void __iomem *tcd;
 
-static u64 notrace clps711x_sched_clock_read(void)
+static u64 yestrace clps711x_sched_clock_read(void)
 {
 	return ~readw(tcd);
 }
@@ -73,7 +73,7 @@ static int __init _clps711x_clkevt_init(struct clk *clock, void __iomem *base,
 			   "clps711x-timer", clkevt);
 }
 
-static int __init clps711x_timer_init(struct device_node *np)
+static int __init clps711x_timer_init(struct device_yesde *np)
 {
 	unsigned int irq = irq_of_parse_and_map(np, 0);
 	struct clk *clock = of_clk_get(np, 0);

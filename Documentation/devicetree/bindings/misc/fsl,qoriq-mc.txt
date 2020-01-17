@@ -46,12 +46,12 @@ Required properties:
                         this machine and must always be present
 
                        -the second region is the MC control registers. This
-                        region may not be present in some scenarios, such
+                        region may yest be present in some scenarios, such
                         as in the device tree presented to a virtual machine.
 
     - msi-parent
         Value type: <phandle>
-        Definition: Must be present and point to the MSI controller node
+        Definition: Must be present and point to the MSI controller yesde
                     handling message interrupts for the MC.
 
     - ranges
@@ -74,26 +74,26 @@ Required properties:
         Value type: <u32>
         Definition: Must be 1.
 
-Sub-nodes:
+Sub-yesdes:
 
-        The fsl-mc node may optionally have dpmac sub-nodes that describe
+        The fsl-mc yesde may optionally have dpmac sub-yesdes that describe
         the relationship between the Ethernet MACs which belong to the MC
         and the Ethernet PHYs on the system board.
 
-        The dpmac nodes must be under a node named "dpmacs" which contains
+        The dpmac yesdes must be under a yesde named "dpmacs" which contains
         the following properties:
 
             - #address-cells
               Value type: <u32>
-              Definition: Must be present if dpmac sub-nodes are defined and must
+              Definition: Must be present if dpmac sub-yesdes are defined and must
                           have a value of 1.
 
             - #size-cells
               Value type: <u32>
-              Definition: Must be present if dpmac sub-nodes are defined and must
+              Definition: Must be present if dpmac sub-yesdes are defined and must
                           have a value of 0.
 
-        These nodes must have the following properties:
+        These yesdes must have the following properties:
 
             - compatible
               Value type: <string>
@@ -105,7 +105,7 @@ Sub-nodes:
 
             - phy-handle
               Value type: <phandle>
-              Definition: Specifies the phandle to the PHY device node associated
+              Definition: Specifies the phandle to the PHY device yesde associated
                           with the this dpmac.
 Optional properties:
 

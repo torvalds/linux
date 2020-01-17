@@ -25,7 +25,7 @@
 
 /* Reserved for doorbell */
 #define HDA_IPC_RSVD_31		BIT(31)
-/* Target, 0 - normal message, 1 - compact message(cAVS compatible) */
+/* Target, 0 - yesrmal message, 1 - compact message(cAVS compatible) */
 #define HDA_IPC_MSG_COMPACT	BIT(30)
 /* Direction, 0 - request, 1 - response */
 #define HDA_IPC_RSP		BIT(29)

@@ -323,7 +323,7 @@ void rtw_fw_wl_ch_info(struct rtw_dev *rtwdev, u8 link, u8 ch, u8 bw);
 void rtw_fw_query_bt_mp_info(struct rtw_dev *rtwdev,
 			     struct rtw_coex_info_req *req);
 void rtw_fw_force_bt_tx_power(struct rtw_dev *rtwdev, u8 bt_pwr_dec_lvl);
-void rtw_fw_bt_ignore_wlan_action(struct rtw_dev *rtwdev, bool enable);
+void rtw_fw_bt_igyesre_wlan_action(struct rtw_dev *rtwdev, bool enable);
 void rtw_fw_coex_tdma_type(struct rtw_dev *rtwdev,
 			   u8 para1, u8 para2, u8 para3, u8 para4, u8 para5);
 void rtw_fw_bt_wifi_control(struct rtw_dev *rtwdev, u8 op_code, u8 *data);

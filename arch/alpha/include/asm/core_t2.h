@@ -92,7 +92,7 @@
 #define T2_HAE_ADDRESS		T2_HAE_1
 #endif
 
-/*  T2 CSRs are in the non-cachable primary IO space from 3.8000.0000 to
+/*  T2 CSRs are in the yesn-cachable primary IO space from 3.8000.0000 to
  3.8fff.ffff
  *
  *  +--------------+ 3 8000 0000
@@ -474,7 +474,7 @@ __EXTERN_INLINE u16 t2_readw(const volatile void __iomem *xaddr)
 
 /*
  * On SABLE with T2, we must use SPARSE memory even for 32-bit access,
- * because we cannot access all of DENSE without changing its HAE.
+ * because we canyest access all of DENSE without changing its HAE.
  */
 __EXTERN_INLINE u32 t2_readl(const volatile void __iomem *xaddr)
 {
@@ -524,7 +524,7 @@ __EXTERN_INLINE void t2_writew(u16 b, volatile void __iomem *xaddr)
 
 /*
  * On SABLE with T2, we must use SPARSE memory even for 32-bit access,
- * because we cannot access all of DENSE without changing its HAE.
+ * because we canyest access all of DENSE without changing its HAE.
  */
 __EXTERN_INLINE void t2_writel(u32 b, volatile void __iomem *xaddr)
 {

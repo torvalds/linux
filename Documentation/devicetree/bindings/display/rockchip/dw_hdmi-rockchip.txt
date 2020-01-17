@@ -1,10 +1,10 @@
 Rockchip DWC HDMI TX Encoder
 ============================
 
-The HDMI transmitter is a Synopsys DesignWare HDMI 1.4 TX controller IP
+The HDMI transmitter is a Syyespsys DesignWare HDMI 1.4 TX controller IP
 with a companion PHY IP.
 
-These DT bindings follow the Synopsys DWC HDMI TX bindings defined in
+These DT bindings follow the Syyespsys DWC HDMI TX bindings defined in
 Documentation/devicetree/bindings/display/bridge/dw_hdmi.txt with the
 following device-specific properties.
 

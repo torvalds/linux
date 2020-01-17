@@ -234,7 +234,7 @@ static int stm32_timers_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ddata);
 
-	ret = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	ret = of_platform_populate(pdev->dev.of_yesde, NULL, NULL, &pdev->dev);
 	if (ret)
 		stm32_timers_dma_remove(dev, ddata);
 
@@ -257,7 +257,7 @@ static int stm32_timers_remove(struct platform_device *pdev)
 
 static const struct of_device_id stm32_timers_of_match[] = {
 	{ .compatible = "st,stm32-timers", },
-	{ /* end node */ },
+	{ /* end yesde */ },
 };
 MODULE_DEVICE_TABLE(of, stm32_timers_of_match);
 

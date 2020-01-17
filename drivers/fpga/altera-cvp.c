@@ -34,7 +34,7 @@
 #define VSE_CVP_STATUS_PLD_CLK_IN_USE	BIT(24)	/* PLD_CLK_IN_USE */
 
 #define VSE_CVP_MODE_CTRL		0x20	/* 32bit */
-#define VSE_CVP_MODE_CTRL_CVP_MODE	BIT(0)	/* CVP (1) or normal mode (0) */
+#define VSE_CVP_MODE_CTRL_CVP_MODE	BIT(0)	/* CVP (1) or yesrmal mode (0) */
 #define VSE_CVP_MODE_CTRL_HIP_CLK_SEL	BIT(1) /* PMA (1) or fabric clock (0) */
 #define VSE_CVP_MODE_CTRL_NUMCLKS_OFF	8	/* NUMCLKS bits offset */
 #define VSE_CVP_MODE_CTRL_NUMCLKS_MASK	GENMASK(15, 8)
@@ -326,7 +326,7 @@ static int altera_cvp_write_init(struct fpga_manager *mgr,
 	iflags = info ? info->flags : 0;
 
 	if (iflags & FPGA_MGR_PARTIAL_RECONFIG) {
-		dev_err(&mgr->dev, "Partial reconfiguration not supported.\n");
+		dev_err(&mgr->dev, "Partial reconfiguration yest supported.\n");
 		return -EINVAL;
 	}
 
@@ -615,12 +615,12 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 	conf->vsec_offset = offset;
 
 	/*
-	 * Enable memory BAR access. We cannot use pci_enable_device() here
+	 * Enable memory BAR access. We canyest use pci_enable_device() here
 	 * because it will make the driver unusable with FPGA devices that
 	 * have additional big IOMEM resources (e.g. 4GiB BARs) on 32-bit
-	 * platform. Such BARs will not have an assigned address range and
-	 * pci_enable_device() will fail, complaining about not claimed BAR,
-	 * even if the concerned BAR is not needed for FPGA configuration
+	 * platform. Such BARs will yest have an assigned address range and
+	 * pci_enable_device() will fail, complaining about yest claimed BAR,
+	 * even if the concerned BAR is yest needed for FPGA configuration
 	 * at all. Thus, enable the device via PCI config space command.
 	 */
 	pci_read_config_word(pdev, PCI_COMMAND, &cmd);

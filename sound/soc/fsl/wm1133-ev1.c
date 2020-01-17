@@ -37,7 +37,7 @@ struct _wm8350_audio {
 
 /* in order of power consumption per rate (lowest first) */
 static const struct _wm8350_audio wm8350_audio[] = {
-	/* 16bit mono modes */
+	/* 16bit moyes modes */
 	{1, SNDRV_PCM_FORMAT_S16_LE, 8000, 12288000 >> 1,
 	 WM8350_BCLK_DIV_48, WM8350_DACDIV_3, 16,},
 
@@ -118,13 +118,13 @@ static int wm1133_ev1_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_dai_set_clkdiv(codec_dai, WM8350_BCLK_CLKDIV,
 			       wm8350_audio[i].bclkdiv);
 
-	/* DAI is synchronous and clocked with DAC LRCLK & ADC LRC */
+	/* DAI is synchroyesus and clocked with DAC LRCLK & ADC LRC */
 	snd_soc_dai_set_clkdiv(codec_dai,
 			       WM8350_DACLR_CLKDIV, wm8350_audio[i].lr_rate);
 	snd_soc_dai_set_clkdiv(codec_dai,
 			       WM8350_ADCLR_CLKDIV, wm8350_audio[i].lr_rate);
 
-	/* now configure DAC and ADC clocks */
+	/* yesw configure DAC and ADC clocks */
 	snd_soc_dai_set_clkdiv(codec_dai,
 			       WM8350_DAC_CLKDIV, wm8350_audio[i].clkdiv);
 

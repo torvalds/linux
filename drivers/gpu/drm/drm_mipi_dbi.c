@@ -225,7 +225,7 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 		drm_fb_xrgb8888_to_rgb565(dst, src, fb, clip, swap);
 		break;
 	default:
-		dev_err_once(fb->dev->dev, "Format is not supported: %s\n",
+		dev_err_once(fb->dev->dev, "Format is yest supported: %s\n",
 			     drm_get_format_name(fb->format->format,
 						 &format_name));
 		return -EINVAL;
@@ -380,7 +380,7 @@ static void mipi_dbi_blank(struct mipi_dbi_dev *dbidev)
  * mipi_dbi_pipe_disable - MIPI DBI pipe disable helper
  * @pipe: Display pipe
  *
- * This function disables backlight if present, if not the display memory is
+ * This function disables backlight if present, if yest the display memory is
  * blanked. The regulator is disabled if in use. Drivers can use this as their
  * &drm_simple_display_pipe_funcs->disable callback.
  */
@@ -674,7 +674,7 @@ static int mipi_dbi_poweron_reset_conditional(struct mipi_dbi_dev *dbidev, bool 
 	}
 
 	/*
-	 * If we did a hw reset, we know the controller is in Sleep mode and
+	 * If we did a hw reset, we kyesw the controller is in Sleep mode and
 	 * per MIPI DSC spec should wait 5ms after soft reset. If we didn't,
 	 * we assume worst case and wait 120ms.
 	 */
@@ -708,7 +708,7 @@ EXPORT_SYMBOL(mipi_dbi_poweron_reset);
  *
  * This function enables the regulator if used and if the display is off, it
  * does a hardware and software reset. If mipi_dbi_display_is_on() determines
- * that the display is on, no reset is performed.
+ * that the display is on, yes reset is performed.
  *
  * Returns:
  * Zero if the controller was reset, 1 if the display was already on, or a
@@ -794,7 +794,7 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *dbi, int dc,
 		if (WARN_ON_ONCE(len != 1))
 			return -EINVAL;
 
-		/* Command: pad no-op's (zeroes) at beginning of block */
+		/* Command: pad yes-op's (zeroes) at beginning of block */
 		dst = dbi->tx_buf9;
 		memset(dst, 0, 9);
 		dst[8] = *src;
@@ -805,7 +805,7 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *dbi, int dc,
 
 	/* max with room for adding one bit per byte */
 	max_chunk = max_chunk / 9 * 8;
-	/* but no bigger than len */
+	/* but yes bigger than len */
 	max_chunk = min(max_chunk, len);
 	/* 8 byte blocks */
 	max_chunk = max_t(size_t, 8, max_chunk & ~0x7);
@@ -820,7 +820,7 @@ static int mipi_dbi_spi1e_transfer(struct mipi_dbi *dbi, int dc,
 		if (chunk < 8) {
 			u8 val, carry = 0;
 
-			/* Data: pad no-op's (zeroes) at end of block */
+			/* Data: pad yes-op's (zeroes) at end of block */
 			memset(dst, 0, 9);
 
 			if (swap_bytes) {
@@ -992,7 +992,7 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *dbi, u8 *cmd,
 		return -EINVAL;
 
 	/*
-	 * Support non-standard 24-bit and 32-bit Nokia read commands which
+	 * Support yesn-standard 24-bit and 32-bit Nokia read commands which
 	 * start with a dummy clock, so we need to read an extra byte.
 	 */
 	if (*cmd == MIPI_DCS_GET_DISPLAY_ID ||
@@ -1070,13 +1070,13 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *dbi, u8 *cmd,
  * usual read commands. It should be followed by a call to mipi_dbi_dev_init() or
  * a driver-specific init.
  *
- * If @dc is set, a Type C Option 3 interface is assumed, if not
+ * If @dc is set, a Type C Option 3 interface is assumed, if yest
  * Type C Option 1.
  *
  * If the SPI master driver doesn't support the necessary bits per word,
  * the following transformation is used:
  *
- * - 9-bit: reorder buffer as 9x 8-bit words, padded with no-op command.
+ * - 9-bit: reorder buffer as 9x 8-bit words, padded with yes-op command.
  * - 16-bit: if big endian send as 8-bit, if little endian swap bytes
  *
  * Returns:
@@ -1089,11 +1089,11 @@ int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *dbi,
 	int ret;
 
 	/*
-	 * Even though it's not the SPI device that does DMA (the master does),
+	 * Even though it's yest the SPI device that does DMA (the master does),
 	 * the dma mask is necessary for the dma_alloc_wc() in
 	 * drm_gem_cma_create(). The dma_addr returned will be a physical
 	 * address which might be different from the bus address, but this is
-	 * not a problem since the address will not be used.
+	 * yest a problem since the address will yest be used.
 	 * The virtual address is used in the transfer and the SPI core
 	 * re-maps it on the SPI master device using the DMA streaming API
 	 * (spi_map_buf()).
@@ -1283,11 +1283,11 @@ static int mipi_dbi_debugfs_command_show(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int mipi_dbi_debugfs_command_open(struct inode *inode,
+static int mipi_dbi_debugfs_command_open(struct iyesde *iyesde,
 					 struct file *file)
 {
 	return single_open(file, mipi_dbi_debugfs_command_show,
-			   inode->i_private);
+			   iyesde->i_private);
 }
 
 static const struct file_operations mipi_dbi_debugfs_command_fops = {
@@ -1301,7 +1301,7 @@ static const struct file_operations mipi_dbi_debugfs_command_fops = {
 
 /**
  * mipi_dbi_debugfs_init - Create debugfs entries
- * @minor: DRM minor
+ * @miyesr: DRM miyesr
  *
  * This function creates a 'command' debugfs file for sending commands to the
  * controller or getting the read command values.
@@ -1310,14 +1310,14 @@ static const struct file_operations mipi_dbi_debugfs_command_fops = {
  * Returns:
  * Zero on success, negative error code on failure.
  */
-int mipi_dbi_debugfs_init(struct drm_minor *minor)
+int mipi_dbi_debugfs_init(struct drm_miyesr *miyesr)
 {
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(minor->dev);
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(miyesr->dev);
 	umode_t mode = S_IFREG | S_IWUSR;
 
 	if (dbidev->dbi.read_commands)
 		mode |= S_IRUGO;
-	debugfs_create_file("command", mode, minor->debugfs_root, dbidev,
+	debugfs_create_file("command", mode, miyesr->debugfs_root, dbidev,
 			    &mipi_dbi_debugfs_command_fops);
 
 	return 0;

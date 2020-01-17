@@ -310,7 +310,7 @@
 	tuning-step = <2>;
 	vmmc-supply = <&reg_3p3v>;
 	wakeup-source;
-	no-1-8-v;
+	yes-1-8-v;
 	keep-power-in-suspend;
 	status = "okay";
 };
@@ -318,8 +318,8 @@
 &usdhc2 { /* Wifi SDIO */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2 &pinctrl_wifi_clk>;
-	no-1-8-v;
-	non-removable;
+	yes-1-8-v;
+	yesn-removable;
 	keep-power-in-suspend;
 	wakeup-source;
 	vmmc-supply = <&reg_wlreg_on>;
@@ -335,9 +335,9 @@
 	assigned-clocks = <&clks IMX7D_USDHC3_ROOT_CLK>;
 	assigned-clock-rates = <400000000>;
 	bus-width = <8>;
-	no-1-8-v;
+	yes-1-8-v;
 	fsl,tuning-step = <2>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 

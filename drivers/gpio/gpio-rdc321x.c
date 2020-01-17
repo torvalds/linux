@@ -123,7 +123,7 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
+		dev_err(&pdev->dev, "yes platform data supplied\n");
 		return -ENODEV;
 	}
 
@@ -163,7 +163,7 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rdc321x_gpio_dev);
 
-	/* This might not be, what others (BIOS, bootloader, etc.)
+	/* This might yest be, what others (BIOS, bootloader, etc.)
 	   wrote to these registers before, but it's a good guess. Still
 	   better than just using 0xffffffff. */
 	err = pci_read_config_dword(rdc321x_gpio_dev->sb_pdev,

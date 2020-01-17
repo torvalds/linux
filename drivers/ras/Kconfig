@@ -24,7 +24,7 @@ menuconfig RAS
 	  Note that Reliability and Availability are distinct concepts:
 	  Reliability is a measure of the ability of a system to function
 	  correctly, including avoiding data corruption, whereas Availability
-	  measures how often it is available for use, even though it may not
+	  measures how often it is available for use, even though it may yest
 	  be functioning correctly. For example, a server may run forever and
 	  so have ideal availability, but may be unreliable, with frequent
 	  data corruption.

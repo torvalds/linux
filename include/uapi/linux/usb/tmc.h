@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2007 Stefan Kopp, Gechingen, Germany
  * Copyright (C) 2008 Novell, Inc.
@@ -11,7 +11,7 @@
  * published by the USB-IF.
  *
  * It also has the ioctl and capability definitions for the
- * usbtmc kernel driver that userspace needs to know about.
+ * usbtmc kernel driver that userspace needs to kyesw about.
  */
 
 #ifndef __LINUX_USB_TMC_H
@@ -69,7 +69,7 @@ struct usbtmc_termchar {
 struct usbtmc_message {
 	__u32 transfer_size; /* size of bytes to transfer */
 	__u32 transferred; /* size of received/written bytes */
-	__u32 flags; /* bit 0: 0 = synchronous; 1 = asynchronous */
+	__u32 flags; /* bit 0: 0 = synchroyesus; 1 = asynchroyesus */
 	void __user *message; /* pointer to header and data in user space */
 } __attribute__ ((packed));
 
@@ -102,7 +102,7 @@ struct usbtmc_message {
 #define USBTMC_IOCTL_MSG_IN_ATTR	_IOR(USBTMC_IOC_NR, 24, __u8)
 #define USBTMC_IOCTL_AUTO_ABORT		_IOW(USBTMC_IOC_NR, 25, __u8)
 
-/* Cancel and cleanup asynchronous calls */
+/* Cancel and cleanup asynchroyesus calls */
 #define USBTMC_IOCTL_CANCEL_IO		_IO(USBTMC_IOC_NR, 35)
 #define USBTMC_IOCTL_CLEANUP_IO		_IO(USBTMC_IOC_NR, 36)
 

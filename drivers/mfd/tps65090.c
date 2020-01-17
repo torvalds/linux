@@ -172,9 +172,9 @@ static int tps65090_i2c_probe(struct i2c_client *client,
 	struct tps65090 *tps65090;
 	int ret;
 
-	if (!pdata && !client->dev.of_node) {
+	if (!pdata && !client->dev.of_yesde) {
 		dev_err(&client->dev,
-			"tps65090 requires platform data or of_node\n");
+			"tps65090 requires platform data or of_yesde\n");
 		return -EINVAL;
 	}
 

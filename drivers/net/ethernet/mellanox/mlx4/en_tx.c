@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -48,14 +48,14 @@
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring **pring, u32 size,
-			   u16 stride, int node, int queue_index)
+			   u16 stride, int yesde, int queue_index)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_tx_ring *ring;
 	int tmp;
 	int err;
 
-	ring = kzalloc_node(sizeof(*ring), GFP_KERNEL, node);
+	ring = kzalloc_yesde(sizeof(*ring), GFP_KERNEL, yesde);
 	if (!ring) {
 		en_err(priv, "Failed allocating TX ring\n");
 		return -ENOMEM;
@@ -67,7 +67,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	ring->full_size = ring->size - HEADROOM - MAX_DESC_TXBBS;
 
 	tmp = size * sizeof(struct mlx4_en_tx_info);
-	ring->tx_info = kvmalloc_node(tmp, GFP_KERNEL, node);
+	ring->tx_info = kvmalloc_yesde(tmp, GFP_KERNEL, yesde);
 	if (!ring->tx_info) {
 		err = -ENOMEM;
 		goto err_ring;
@@ -76,7 +76,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	en_dbg(DRV, priv, "Allocated tx_info ring at addr:%p size:%d\n",
 		 ring->tx_info, tmp);
 
-	ring->bounce_buf = kmalloc_node(MAX_DESC_SIZE, GFP_KERNEL, node);
+	ring->bounce_buf = kmalloc_yesde(MAX_DESC_SIZE, GFP_KERNEL, yesde);
 	if (!ring->bounce_buf) {
 		ring->bounce_buf = kmalloc(MAX_DESC_SIZE, GFP_KERNEL);
 		if (!ring->bounce_buf) {
@@ -86,10 +86,10 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	}
 	ring->buf_size = ALIGN(size * ring->sp_stride, MLX4_EN_PAGE_SIZE);
 
-	/* Allocate HW buffers on provided NUMA node */
-	set_dev_node(&mdev->dev->persist->pdev->dev, node);
+	/* Allocate HW buffers on provided NUMA yesde */
+	set_dev_yesde(&mdev->dev->persist->pdev->dev, yesde);
 	err = mlx4_alloc_hwq_res(mdev->dev, &ring->sp_wqres, ring->buf_size);
-	set_dev_node(&mdev->dev->persist->pdev->dev, mdev->dev->numa_node);
+	set_dev_yesde(&mdev->dev->persist->pdev->dev, mdev->dev->numa_yesde);
 	if (err) {
 		en_err(priv, "Failed allocating hwq resources\n");
 		goto err_bounce;
@@ -116,7 +116,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	}
 	ring->sp_qp.event = mlx4_en_sqp_event;
 
-	err = mlx4_bf_alloc(mdev->dev, &ring->bf, node);
+	err = mlx4_bf_alloc(mdev->dev, &ring->bf, yesde);
 	if (err) {
 		en_dbg(DRV, priv, "working without blueflame (%d)\n", err);
 		ring->bf.uar = &mdev->priv_uar;
@@ -135,7 +135,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	if (queue_index < priv->num_tx_rings_p_up)
 		cpumask_set_cpu(cpumask_local_spread(queue_index,
-						     priv->mdev->dev->numa_node),
+						     priv->mdev->dev->numa_yesde),
 				&ring->sp_affinity_mask);
 
 	*pring = ring;
@@ -238,7 +238,7 @@ static void mlx4_en_stamp_wqe(struct mlx4_en_priv *priv,
 	__be32 *ptr = (__be32 *)tx_desc;
 	int i;
 
-	/* Optimize the common case when there are no wraparounds */
+	/* Optimize the common case when there are yes wraparounds */
 	if (likely((void *)tx_desc +
 		   (tx_info->nr_txbb << LOG_TXBB_SIZE) <= end)) {
 		/* Stamp the freed descriptor */
@@ -275,7 +275,7 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 	int nr_maps = tx_info->nr_maps;
 	int i;
 
-	/* We do not touch skb here, so prefetch skb->users location
+	/* We do yest touch skb here, so prefetch skb->users location
 	 * to speedup consume_skb()
 	 */
 	prefetchw(&skb->users);
@@ -298,7 +298,7 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				       tx_info->map0_dma,
 				       tx_info->map0_byte_count,
 				       PCI_DMA_TODEVICE);
-		/* Optimize the common case when there are no wraparounds */
+		/* Optimize the common case when there are yes wraparounds */
 		if (likely((void *)tx_desc +
 			   (tx_info->nr_txbb << LOG_TXBB_SIZE) <= end)) {
 			for (i = 1; i < nr_maps; i++) {
@@ -484,7 +484,7 @@ bool mlx4_en_process_tx_cq(struct net_device *dev,
 
 	netdev_tx_completed_queue(ring->tx_queue, packets, bytes);
 
-	/* Wakeup Tx queue if this stopped, and ring is not full.
+	/* Wakeup Tx queue if this stopped, and ring is yest full.
 	 */
 	if (netif_tx_queue_stopped(ring->tx_queue) &&
 	    !mlx4_en_is_tx_ring_full(ring)) {
@@ -554,10 +554,10 @@ static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
 
 /* Decide if skb can be inlined in tx descriptor to avoid dma mapping
  *
- * It seems strange we do not simply use skb_copy_bits().
+ * It seems strange we do yest simply use skb_copy_bits().
  * This would allow to inline all skbs iff skb->len <= inline_thold
  *
- * Note that caller already checked skb was not a gso packet
+ * Note that caller already checked skb was yest a gso packet
  */
 static bool is_inline(int inline_thold, const struct sk_buff *skb,
 		      const struct skb_shared_info *shinfo,
@@ -705,7 +705,7 @@ static void mlx4_bf_copy(void __iomem *dst, const void *src,
 void mlx4_en_xmit_doorbell(struct mlx4_en_tx_ring *ring)
 {
 	wmb();
-	/* Since there is no iowrite*_native() that writes the
+	/* Since there is yes iowrite*_native() that writes the
 	 * value as is, without byteswapping - using the one
 	 * the doesn't do byteswapping in the relevant arch
 	 * endianness.
@@ -894,8 +894,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	index = ring->prod & ring->size_mask;
 	bf_index = ring->prod;
 
-	/* See if we have enough space for whole descriptor TXBB for setting
-	 * SW ownership on next descriptor; if not, use a bounce buffer. */
+	/* See if we have eyesugh space for whole descriptor TXBB for setting
+	 * SW ownership on next descriptor; if yest, use a bounce buffer. */
 	if (likely(index + nr_txbb <= ring->size))
 		tx_desc = ring->buf + (index << LOG_TXBB_SIZE);
 	else {
@@ -919,7 +919,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		data_offset = offsetof(struct mlx4_en_tx_desc, lso) + lso_align;
 	}
 
-	/* valid only for none inline segments */
+	/* valid only for yesne inline segments */
 	tx_info->data_offset = data_offset;
 
 	tx_info->inl = inline_ok;
@@ -983,7 +983,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 			shinfo->gso_size << 16 | lso_header_size);
 
 		/* Copy headers;
-		 * note that we already verified that it is linear */
+		 * yeste that we already verified that it is linear */
 		memcpy(tx_desc->lso.header, skb->data, lso_header_size);
 
 		ring->tso_packets++;
@@ -1058,7 +1058,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* If queue was emptied after the if (stop_queue) , and before
 		 * the netif_tx_stop_queue() - need to wake the queue,
 		 * or else it will remain stopped forever.
-		 * Need a memory barrier to make sure ring->cons was not
+		 * Need a memory barrier to make sure ring->cons was yest
 		 * updated before queue was stopped.
 		 */
 		smp_rmb();

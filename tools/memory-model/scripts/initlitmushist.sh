@@ -3,7 +3,7 @@
 #
 # Runs the C-language litmus tests matching the specified criteria.
 # Generates the output for each .litmus file into a corresponding
-# .litmus.out file, and does not judge the result.
+# .litmus.out file, and does yest judge the result.
 #
 # sh initlitmushist.sh
 #
@@ -33,7 +33,7 @@
 #
 # Note that there are historical tests for which herd7 will fail
 # completely, for example, litmus/manual/atomic/C-unlock-wait-00.litmus
-# contains a call to spin_unlock_wait(), which no longer exists in either
+# contains a call to spin_unlock_wait(), which yes longer exists in either
 # the kernel or LKMM.
 
 . scripts/parseargs.sh
@@ -58,7 +58,7 @@ then
 	( cd "$LKMM_DESTDIR"; sed -e 's/^/mkdir -p /' | sh )
 fi
 
-# Create a list of the C-language litmus tests with no more than the
+# Create a list of the C-language litmus tests with yes more than the
 # specified number of processes (per the --procs argument).
 find litmus -name '*.litmus' -exec grep -l -m 1 "^C " {} \; > $T/list-C
 xargs < $T/list-C -r grep -L "^P${LKMM_PROCS}" > $T/list-C-short

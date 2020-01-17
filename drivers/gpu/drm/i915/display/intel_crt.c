@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -77,7 +77,7 @@ bool intel_crt_port_enabled(struct drm_i915_private *dev_priv,
 
 	val = I915_READ(adpa_reg);
 
-	/* asserts want to know the pipe even if the port is disabled */
+	/* asserts want to kyesw the pipe even if the port is disabled */
 	if (HAS_PCH_CPT(dev_priv))
 		*pipe = (val & ADPA_PIPE_SEL_MASK_CPT) >> ADPA_PIPE_SEL_SHIFT_CPT;
 	else
@@ -153,7 +153,7 @@ static void hsw_crt_get_config(struct intel_encoder *encoder,
 	pipe_config->base.adjusted_mode.crtc_clock = lpt_get_iclkip(dev_priv);
 }
 
-/* Note: The caller is required to filter out dpms modes not supported by the
+/* Note: The caller is required to filter out dpms modes yest supported by the
  * platform. */
 static void intel_crt_set_dpms(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *crtc_state,
@@ -455,7 +455,7 @@ static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 		}
 	}
 
-	/* Check the status to see if both blue and green are on now */
+	/* Check the status to see if both blue and green are on yesw */
 	adpa = I915_READ(crt->adpa_reg);
 	if ((adpa & ADPA_CRT_HOTPLUG_MONITOR_MASK) != 0)
 		ret = true;
@@ -503,7 +503,7 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 		I915_WRITE(crt->adpa_reg, save_adpa);
 	}
 
-	/* Check the status to see if both blue and green are on now */
+	/* Check the status to see if both blue and green are on yesw */
 	adpa = I915_READ(crt->adpa_reg);
 	if ((adpa & ADPA_CRT_HOTPLUG_MONITOR_MASK) != 0)
 		ret = true;
@@ -624,10 +624,10 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 			DRM_DEBUG_KMS("CRT detected via DDC:0x50 [EDID]\n");
 			ret = true;
 		} else {
-			DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
+			DRM_DEBUG_KMS("CRT yest detected via DDC:0x50 [EDID reports a digital panel]\n");
 		}
 	} else {
-		DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [no valid EDID found]\n");
+		DRM_DEBUG_KMS("CRT yest detected via DDC:0x50 [yes valid EDID found]\n");
 	}
 
 	kfree(edid);
@@ -811,8 +811,8 @@ intel_crt_detect(struct drm_connector *connector,
 					  intel_encoder->power_domain);
 
 	if (I915_HAS_HOTPLUG(dev_priv)) {
-		/* We can not rely on the HPD pin always being correctly wired
-		 * up, for example many KVM do not pass it through, and so
+		/* We can yest rely on the HPD pin always being correctly wired
+		 * up, for example many KVM do yest pass it through, and so
 		 * only trust an assertion that the monitor is connected.
 		 */
 		if (intel_crt_detect_hotplug(connector)) {
@@ -820,7 +820,7 @@ intel_crt_detect(struct drm_connector *connector,
 			status = connector_status_connected;
 			goto out;
 		} else
-			DRM_DEBUG_KMS("CRT not detected via hotplug\n");
+			DRM_DEBUG_KMS("CRT yest detected via hotplug\n");
 	}
 
 	if (intel_crt_detect_ddc(connector)) {
@@ -831,7 +831,7 @@ intel_crt_detect(struct drm_connector *connector,
 	/* Load detection is broken on HPD capable machines. Whoever wants a
 	 * broken monitor (without edid) to work behind a broken kvm (that fails
 	 * to have the right resistors for HP detection) needs to fix this up.
-	 * For now just bail out. */
+	 * For yesw just bail out. */
 	if (I915_HAS_HOTPLUG(dev_priv)) {
 		status = connector_status_disconnected;
 		goto out;
@@ -854,10 +854,10 @@ load_detect:
 		else if (i915_modparams.load_detect_test)
 			status = connector_status_disconnected;
 		else
-			status = connector_status_unknown;
+			status = connector_status_unkyeswn;
 		intel_release_load_detect_pipe(connector, &tmp, ctx);
 	} else if (ret == 0) {
-		status = connector_status_unknown;
+		status = connector_status_unkyeswn;
 	} else {
 		status = ret;
 	}
@@ -965,9 +965,9 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	if ((adpa & ADPA_DAC_ENABLE) == 0) {
 		/*
 		 * On some machines (some IVB at least) CRT can be
-		 * fused off, but there's no known fuse bit to
+		 * fused off, but there's yes kyeswn fuse bit to
 		 * indicate that. On these machine the ADPA register
-		 * works normally, except the DAC enable bit won't
+		 * works yesrmally, except the DAC enable bit won't
 		 * take. So the only way to tell is attempt to enable
 		 * it and see what happens.
 		 */
@@ -1059,7 +1059,7 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 
 	/*
 	 * TODO: find a proper way to discover whether we need to set the the
-	 * polarity and link reversal bits or not, instead of relying on the
+	 * polarity and link reversal bits or yest, instead of relying on the
 	 * BIOS.
 	 */
 	if (HAS_PCH_LPT(dev_priv)) {

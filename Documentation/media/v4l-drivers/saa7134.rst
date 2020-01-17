@@ -17,7 +17,7 @@ Status
 Almost everything is working.  video, sound, tuner, radio, mpeg ts, ...
 
 As with bttv, card-specific tweaks are needed.  Check CARDLIST for a
-list of known TV cards and saa7134-cards.c for the drivers card
+list of kyeswn TV cards and saa7134-cards.c for the drivers card
 configuration info.
 
 
@@ -28,12 +28,12 @@ Pick up videodev + v4l2 patches from http://bytesex.org/patches/.
 Configure, build, install + boot the new kernel.  You'll need at least
 these config options:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	CONFIG_I2C=m
 	CONFIG_VIDEO_DEV=m
 
-Type "make" to build the driver now.  "make install" installs the
+Type "make" to build the driver yesw.  "make install" installs the
 driver.  "modprobe saa7134" should load it.  Depending on the card you
 might have to pass card=<nr> as insmod option, check CARDLIST for
 valid choices.
@@ -47,11 +47,11 @@ forget to tell me what it changes / which problem it fixes / whatever
 it is good for ...
 
 
-Known Problems
+Kyeswn Problems
 --------------
 
 * The tuner for the flyvideos isn't detected automatically and the
-  default might not work for you depending on which version you have.
+  default might yest work for you depending on which version you have.
   There is a tuner= insmod option to override the driver's default.
 
 Card Variations:

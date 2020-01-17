@@ -7,12 +7,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    yestice, and the entire permission yestice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may yest be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -41,16 +41,16 @@
 	.globl	fp_fscc, fp_fbccw, fp_fbccl
 
 #ifdef FPU_EMU_DEBUG
-fp_fnop:
-	printf	PDECODE,"fnop\n"
+fp_fyesp:
+	printf	PDECODE,"fyesp\n"
 	jra	fp_end
 #else
-#define fp_fnop fp_end
+#define fp_fyesp fp_end
 #endif
 
 fp_fbccw:
 	tst.w	%d2
-	jeq	fp_fnop
+	jeq	fp_fyesp
 	printf	PDECODE,"fbccw "
 	fp_get_pc %a0
 	lea	(-2,%a0,%d2.w),%a0
@@ -93,7 +93,7 @@ fp_fdbcc:
 
 | set flags for decode macros for fs<cc>
 do_fscc=1
-do_no_pc_mode=1
+do_yes_pc_mode=1
 
 fp_fscc:
 	printf	PDECODE,"fscc "

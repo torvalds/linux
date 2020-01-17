@@ -2,16 +2,16 @@
 /*
  * MPC52xx SPI bus driver.
  *
- * Copyright (C) 2008 Secret Lab Technologies Ltd.
+ * Copyright (C) 2008 Secret Lab Techyeslogies Ltd.
  *
  * This is the driver for the MPC5200's dedicated SPI controller.
  *
- * Note: this driver does not support the MPC5200 PSC in SPI mode.  For
+ * Note: this driver does yest support the MPC5200 PSC in SPI mode.  For
  * that driver see drivers/spi/mpc52xx_psc_spi.c
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -23,7 +23,7 @@
 #include <asm/mpc52xx.h>
 
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
-MODULE_DESCRIPTION("MPC52xx SPI (non-PSC) Driver");
+MODULE_DESCRIPTION("MPC52xx SPI (yesn-PSC) Driver");
 MODULE_LICENSE("GPL");
 
 /* Register offsets */
@@ -53,7 +53,7 @@ MODULE_LICENSE("GPL");
 				/* do.  If something interesting happens */
 				/* then an IRQ will be received */
 #define FSM_POLL	1	/* need to poll for completion, an IRQ is */
-				/* not expected */
+				/* yest expected */
 #define FSM_CONTINUE	2	/* Keep iterating the state machine */
 
 /* Driver internal data */
@@ -64,7 +64,7 @@ struct mpc52xx_spi {
 	int irq1;	/* SPIF irq */
 	unsigned int ipb_freq;
 
-	/* Statistics; not used now, but will be reintroduced for debugfs */
+	/* Statistics; yest used yesw, but will be reintroduced for debugfs */
 	int msg_count;
 	int wcol_count;
 	int wcol_ticks;
@@ -136,7 +136,7 @@ static int mpc52xx_spi_fsmstate_wait(int irq, struct mpc52xx_spi *ms,
 /*
  * IDLE state
  *
- * No transfers are in progress; if another transfer is pending then retrieve
+ * No transfers are in progress; if ayesther transfer is pending then retrieve
  * it and kick it off.  Otherwise, stop processing the state machine
  */
 static int
@@ -150,7 +150,7 @@ mpc52xx_spi_fsmstate_idle(int irq, struct mpc52xx_spi *ms, u8 status, u8 data)
 		dev_err(&ms->master->dev, "spurious irq, status=0x%.2x\n",
 			status);
 
-	/* Check if there is another transfer waiting. */
+	/* Check if there is ayesther transfer waiting. */
 	if (list_empty(&ms->queue))
 		return FSM_STOP;
 
@@ -281,8 +281,8 @@ mpc52xx_spi_fsmstate_wait(int irq, struct mpc52xx_spi *ms, u8 status, u8 data)
 
 	ms->message->actual_length += ms->transfer->len;
 
-	/* Check if there is another transfer in this message.  If there
-	 * aren't then deactivate CS, notify sender, and drop back to idle
+	/* Check if there is ayesther transfer in this message.  If there
+	 * aren't then deactivate CS, yestify sender, and drop back to idle
 	 * to start the next message. */
 	if (ms->transfer->transfer_list.next == &ms->message->transfers) {
 		ms->msg_count++;
@@ -294,7 +294,7 @@ mpc52xx_spi_fsmstate_wait(int irq, struct mpc52xx_spi *ms, u8 status, u8 data)
 		return FSM_CONTINUE;
 	}
 
-	/* There is another transfer; kick it off */
+	/* There is ayesther transfer; kick it off */
 
 	if (ms->cs_change)
 		mpc52xx_spi_chipsel(ms, 0);
@@ -387,7 +387,7 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 
 	/* MMIO registers */
 	dev_dbg(&op->dev, "probing mpc5200 SPI device\n");
-	regs = of_iomap(op->dev.of_node, 0);
+	regs = of_iomap(op->dev.of_yesde, 0);
 	if (!regs)
 		return -ENODEV;
 
@@ -399,9 +399,9 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 	out_8(regs + SPI_PORTDATA, 0x8);	/* Deassert /SS signal */
 
 	/* Clear the status register and re-read it to check for a MODF
-	 * failure.  This driver cannot currently handle multiple masters
+	 * failure.  This driver canyest currently handle multiple masters
 	 * on the SPI bus.  This fault will also occur if the SPI signals
-	 * are not connected to any pins (port_config setting) */
+	 * are yest connected to any pins (port_config setting) */
 	in_8(regs + SPI_STATUS);
 	out_8(regs + SPI_CTRL1, ctrl1);
 
@@ -422,18 +422,18 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 	master->transfer = mpc52xx_spi_transfer;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	master->dev.of_node = op->dev.of_node;
+	master->dev.of_yesde = op->dev.of_yesde;
 
 	platform_set_drvdata(op, master);
 
 	ms = spi_master_get_devdata(master);
 	ms->master = master;
 	ms->regs = regs;
-	ms->irq0 = irq_of_parse_and_map(op->dev.of_node, 0);
-	ms->irq1 = irq_of_parse_and_map(op->dev.of_node, 1);
+	ms->irq0 = irq_of_parse_and_map(op->dev.of_yesde, 0);
+	ms->irq1 = irq_of_parse_and_map(op->dev.of_yesde, 1);
 	ms->state = mpc52xx_spi_fsmstate_idle;
-	ms->ipb_freq = mpc5xxx_get_bus_frequency(op->dev.of_node);
-	ms->gpio_cs_count = of_gpio_count(op->dev.of_node);
+	ms->ipb_freq = mpc5xxx_get_bus_frequency(op->dev.of_yesde);
+	ms->gpio_cs_count = of_gpio_count(op->dev.of_yesde);
 	if (ms->gpio_cs_count > 0) {
 		master->num_chipselect = ms->gpio_cs_count;
 		ms->gpio_cs = kmalloc_array(ms->gpio_cs_count,
@@ -445,10 +445,10 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 		}
 
 		for (i = 0; i < ms->gpio_cs_count; i++) {
-			gpio_cs = of_get_gpio(op->dev.of_node, i);
+			gpio_cs = of_get_gpio(op->dev.of_yesde, i);
 			if (!gpio_is_valid(gpio_cs)) {
 				dev_err(&op->dev,
-					"could not parse the gpio field in oftree\n");
+					"could yest parse the gpio field in oftree\n");
 				rc = -ENODEV;
 				goto err_gpio;
 			}

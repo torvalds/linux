@@ -6,7 +6,7 @@
 #include <linux/export.h>
 #include <linux/thread_info.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
@@ -25,13 +25,13 @@
  *
  * bitmaps provide an array of bits, implemented using an an
  * array of unsigned longs.  The number of valid bits in a
- * given bitmap does _not_ need to be an exact multiple of
+ * given bitmap does _yest_ need to be an exact multiple of
  * BITS_PER_LONG.
  *
  * The possible unused bits in the last, partially used word
  * of a bitmap are 'don't care'.  The implementation makes
- * no particular effort to keep them zero.  It ensures that
- * their value will not affect the results of any operation.
+ * yes particular effort to keep them zero.  It ensures that
+ * their value will yest affect the results of any operation.
  * The bitmap operations that return Boolean (bitmap_empty,
  * for example) or scalar (bitmap_weight, for example) results
  * carefully filter out these unused bits from impacting their
@@ -108,7 +108,7 @@ void __bitmap_shift_right(unsigned long *dst, const unsigned long *src,
 		unsigned long upper, lower;
 
 		/*
-		 * If shift is not word aligned, take lower rem bits of
+		 * If shift is yest word aligned, take lower rem bits of
 		 * word above and make them the top rem bits of result.
 		 */
 		if (!rem || off + k + 1 >= lim)
@@ -153,7 +153,7 @@ void __bitmap_shift_left(unsigned long *dst, const unsigned long *src,
 		unsigned long upper, lower;
 
 		/*
-		 * If shift is not word aligned, take upper rem bits of
+		 * If shift is yest word aligned, take upper rem bits of
 		 * word below and make them the bottom rem bits of result.
 		 */
 		if (rem && k > 0)
@@ -206,7 +206,7 @@ void __bitmap_xor(unsigned long *dst, const unsigned long *bitmap1,
 }
 EXPORT_SYMBOL(__bitmap_xor);
 
-int __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
+int __bitmap_andyest(unsigned long *dst, const unsigned long *bitmap1,
 				const unsigned long *bitmap2, unsigned int bits)
 {
 	unsigned int k;
@@ -220,7 +220,7 @@ int __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
 			   BITMAP_LAST_WORD_MASK(bits));
 	return result != 0;
 }
-EXPORT_SYMBOL(__bitmap_andnot);
+EXPORT_SYMBOL(__bitmap_andyest);
 
 void __bitmap_replace(unsigned long *dst,
 		      const unsigned long *old, const unsigned long *new,
@@ -383,7 +383,7 @@ EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
  * than 32 bits (%-EOVERFLOW), and if a chunk specifies a smaller value
  * then leading 0-bits are prepended.  %-EINVAL is returned for illegal
  * characters and for grouping errors such as "1,,5", ",44", "," and "".
- * Leading and trailing whitespace accepted, but not embedded whitespace.
+ * Leading and trailing whitespace accepted, but yest embedded whitespace.
  */
 int __bitmap_parse(const char *buf, unsigned int buflen,
 		int is_user, unsigned long *maskp,
@@ -416,7 +416,7 @@ int __bitmap_parse(const char *buf, unsigned int buflen,
 			/*
 			 * If the last character was a space and the current
 			 * character isn't '\0', we've got embedded whitespace.
-			 * This is a no-no, so throw an error.
+			 * This is a yes-yes, so throw an error.
 			 */
 			if (totaldigits && c && isspace(old_c))
 				return -EINVAL;
@@ -430,7 +430,7 @@ int __bitmap_parse(const char *buf, unsigned int buflen,
 
 			/*
 			 * Make sure there are at least 4 free bits in 'chunk'.
-			 * If not, this hexdigit will overflow 'chunk', so
+			 * If yest, this hexdigit will overflow 'chunk', so
 			 * throw an error.
 			 */
 			if (chunk & ~((1UL << (CHUNKSZ - 4)) - 1))
@@ -467,7 +467,7 @@ EXPORT_SYMBOL(__bitmap_parse);
  *
  * Wrapper for __bitmap_parse(), providing it with user buffer.
  *
- * We cannot have this as an inline function in bitmap.h because it needs
+ * We canyest have this as an inline function in bitmap.h because it needs
  * linux/uaccess.h to get the access_ok() declaration and this causes
  * cyclic dependencies.
  */
@@ -594,7 +594,7 @@ static const char *bitmap_parse_region(const char *str, struct region *r)
 		return str;
 
 	if (end_of_region(*str))
-		goto no_end;
+		goto yes_end;
 
 	if (*str != '-')
 		return ERR_PTR(-EINVAL);
@@ -604,7 +604,7 @@ static const char *bitmap_parse_region(const char *str, struct region *r)
 		return str;
 
 	if (end_of_region(*str))
-		goto no_pattern;
+		goto yes_pattern;
 
 	if (*str != ':')
 		return ERR_PTR(-EINVAL);
@@ -618,9 +618,9 @@ static const char *bitmap_parse_region(const char *str, struct region *r)
 
 	return bitmap_getnum(str + 1, &r->group_len);
 
-no_end:
+yes_end:
 	r->end = r->start;
-no_pattern:
+yes_pattern:
 	r->off = r->end + 1;
 	r->group_len = r->end + 1;
 
@@ -638,13 +638,13 @@ no_pattern:
  * ranges.  Consecutively set bits are shown as two hyphen-separated
  * decimal numbers, the smallest and largest bit numbers set in
  * the range.
- * Optionally each range can be postfixed to denote that only parts of it
+ * Optionally each range can be postfixed to deyeste that only parts of it
  * should be set. The range will divided to groups of specific size.
  * From each group will be used only defined amount of bits.
  * Syntax: range:used_size/group_size
  * Example: 0-1023:2/256 ==> 0,1,256,257,512,513,768,769
  *
- * Returns: 0 on success, -errno on invalid input strings. Error values:
+ * Returns: 0 on success, -erryes on invalid input strings. Error values:
  *
  *   - ``-EINVAL``: wrong region format
  *   - ``-EINVAL``: invalid character in string
@@ -719,8 +719,8 @@ EXPORT_SYMBOL(bitmap_parselist_user);
  *	@nbits: number of valid bit positions in @buf
  *
  * Map the bit at position @pos in @buf (of length @nbits) to the
- * ordinal of which set bit it is.  If it is not set or if @pos
- * is not a valid bit position, map to -1.
+ * ordinal of which set bit it is.  If it is yest set or if @pos
+ * is yest a valid bit position, map to -1.
  *
  * If for example, just bits 4 through 7 are set in @buf, then @pos
  * values 4 through 7 will get mapped to 0 through 3, respectively,
@@ -769,7 +769,7 @@ unsigned int bitmap_ord_to_pos(const unsigned long *buf, unsigned int ord, unsig
 }
 
 /**
- * bitmap_remap - Apply map defined by a pair of bitmaps to another bitmap
+ * bitmap_remap - Apply map defined by a pair of bitmaps to ayesther bitmap
  *	@dst: remapped result
  *	@src: subset to be remapped
  *	@old: defines domain of map
@@ -859,7 +859,7 @@ int bitmap_bitremap(int oldbit, const unsigned long *old,
 }
 
 /**
- * bitmap_onto - translate one bitmap relative to another
+ * bitmap_onto - translate one bitmap relative to ayesther
  *	@dst: resulting translated bitmap
  * 	@orig: original untranslated bitmap
  * 	@relmap: bitmap relative to which translated
@@ -876,10 +876,10 @@ int bitmap_bitremap(int oldbit, const unsigned long *old,
  * m-th set bit of @relmap }.
  *
  * Any set bits in @orig above bit number W, where W is the
- * weight of (number of set bits in) @relmap are mapped nowhere.
+ * weight of (number of set bits in) @relmap are mapped yeswhere.
  * In particular, if for all bits m set in @orig, m >= W, then
  * @dst will end up empty.  In situations where the possibility
- * of such an empty result is not desired, one way to avoid it is
+ * of such an empty result is yest desired, one way to avoid it is
  * to use the bitmap_fold() operator, below, to first fold the
  * @orig bitmap over itself so that all its set bits x are in the
  * range 0 <= x < W.  The bitmap_fold() operator does this by
@@ -910,7 +910,7 @@ int bitmap_bitremap(int oldbit, const unsigned long *old,
  *  @dst corresponding to whatever is the twelfth bit that is
  *  turned on in @relmap.  In the above example, there were
  *  only ten bits turned on in @relmap (30..39), so that bit
- *  11 was set in @orig had no affect on @dst.
+ *  11 was set in @orig had yes affect on @dst.
  *
  * Example [2] for bitmap_fold() + bitmap_onto():
  *  Let's say @relmap has these ten bits set::
@@ -955,14 +955,14 @@ int bitmap_bitremap(int oldbit, const unsigned long *old,
  *     For these marked lines, if we hadn't first done bitmap_fold()
  *     into tmp, then the @dst result would have been empty.
  *
- * If either of @orig or @relmap is empty (no set bits), then @dst
+ * If either of @orig or @relmap is empty (yes set bits), then @dst
  * will be returned empty.
  *
  * If (as explained above) the only set bits in @orig are in positions
  * m where m >= W, (where W is the weight of @relmap) then @dst will
  * once again be returned empty.
  *
- * All bits in @dst not set by the above rule are cleared.
+ * All bits in @dst yest set by the above rule are cleared.
  */
 void bitmap_onto(unsigned long *dst, const unsigned long *orig,
 			const unsigned long *relmap, unsigned int bits)
@@ -1105,7 +1105,7 @@ done:
  * makes the search algorithm much faster.
  *
  * Return the bit offset in bitmap of the allocated region,
- * or -errno on failure.
+ * or -erryes on failure.
  */
 int bitmap_find_free_region(unsigned long *bitmap, unsigned int bits, int order)
 {
@@ -1147,7 +1147,7 @@ EXPORT_SYMBOL(bitmap_release_region);
  * Allocate (set bits in) a specified region of a bitmap.
  *
  * Return 0 on success, or %-EBUSY if specified region wasn't
- * free (not all bits were zero).
+ * free (yest all bits were zero).
  */
 int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos, int order)
 {

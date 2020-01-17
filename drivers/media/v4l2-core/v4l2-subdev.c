@@ -130,7 +130,7 @@ static inline int check_pad(struct v4l2_subdev *sd, u32 pad)
 		return 0;
 	}
 #endif
-	/* allow pad 0 on subdevices not registered as media entities */
+	/* allow pad 0 on subdevices yest registered as media entities */
 	if (pad > 0)
 		return -EINVAL;
 	return 0;
@@ -595,7 +595,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_standard *p = arg;
 		v4l2_std_id id;
 
-		if (v4l2_subdev_call(sd, video, g_tvnorms, &id))
+		if (v4l2_subdev_call(sd, video, g_tvyesrms, &id))
 			return -EINVAL;
 
 		return v4l_video_std_enumstd(p, id);
@@ -793,10 +793,10 @@ void v4l2_subdev_init(struct v4l2_subdev *sd, const struct v4l2_subdev_ops *ops)
 }
 EXPORT_SYMBOL(v4l2_subdev_init);
 
-void v4l2_subdev_notify_event(struct v4l2_subdev *sd,
+void v4l2_subdev_yestify_event(struct v4l2_subdev *sd,
 			      const struct v4l2_event *ev)
 {
-	v4l2_event_queue(sd->devnode, ev);
-	v4l2_subdev_notify(sd, V4L2_DEVICE_NOTIFY_EVENT, (void *)ev);
+	v4l2_event_queue(sd->devyesde, ev);
+	v4l2_subdev_yestify(sd, V4L2_DEVICE_NOTIFY_EVENT, (void *)ev);
 }
-EXPORT_SYMBOL_GPL(v4l2_subdev_notify_event);
+EXPORT_SYMBOL_GPL(v4l2_subdev_yestify_event);

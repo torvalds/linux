@@ -334,7 +334,7 @@ static int aer_inject(struct aer_error_inj *einj)
 		return -ENODEV;
 	rpdev = pcie_find_root_port(dev);
 	if (!rpdev) {
-		pci_err(dev, "Root port not found\n");
+		pci_err(dev, "Root port yest found\n");
 		ret = -ENODEV;
 		goto out_put;
 	}
@@ -462,7 +462,7 @@ static int aer_inject(struct aer_error_inj *einj)
 	if (device) {
 		edev = to_pcie_device(device);
 		if (!get_service_data(edev)) {
-			pci_warn(edev->port, "AER service is not initialized\n");
+			pci_warn(edev->port, "AER service is yest initialized\n");
 			ret = -EPROTONOSUPPORT;
 			goto out_put;
 		}
@@ -472,7 +472,7 @@ static int aer_inject(struct aer_error_inj *einj)
 		generic_handle_irq(edev->irq);
 		local_irq_enable();
 	} else {
-		pci_err(rpdev, "AER device not found\n");
+		pci_err(rpdev, "AER device yest found\n");
 		ret = -ENODEV;
 	}
 out_put:
@@ -505,11 +505,11 @@ static ssize_t aer_inject_write(struct file *filp, const char __user *ubuf,
 static const struct file_operations aer_inject_fops = {
 	.write = aer_inject_write,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static struct miscdevice aer_inject_device = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "aer_inject",
 	.fops = &aer_inject_fops,
 };

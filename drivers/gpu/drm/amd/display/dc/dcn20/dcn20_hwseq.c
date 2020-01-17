@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -134,7 +134,7 @@ void dcn20_display_init(struct dc *dc)
 
 	/* RBBMIF
 	 * disable RBBMIF timeout detection for all clients
-	 * Ensure RBBMIF does not drop register accesses due to the per-client timeout
+	 * Ensure RBBMIF does yest drop register accesses due to the per-client timeout
 	 */
 	REG_WRITE(RBBMIF_TIMEOUT_DIS, 0xFFFFFFFF);
 	REG_WRITE(RBBMIF_TIMEOUT_DIS_2, 0xFFFFFFFF);
@@ -159,8 +159,8 @@ void dcn20_display_init(struct dc *dc)
 	 */
 
 	/* AZ
-	 * default value is 0x64 for 100Mhz ref clock, if the ref clock is 100Mhz, no need to program this regiser,
-	 * if not, it should be programmed according to the ref clock
+	 * default value is 0x64 for 100Mhz ref clock, if the ref clock is 100Mhz, yes need to program this regiser,
+	 * if yest, it should be programmed according to the ref clock
 	 */
 	REG_UPDATE(AZALIA_AUDIO_DTO, AZALIA_AUDIO_DTO_MODULE, 0x64);
 	/* Enable controller clock gating */
@@ -378,7 +378,7 @@ static void dcn20_dpp_pg_control(
 		break;
 	case 5: /* DPP5 */
 		/*
-		 * Do not power gate DPP5, should be left at HW default, power on permanently.
+		 * Do yest power gate DPP5, should be left at HW default, power on permanently.
 		 * PG on Pipe5 is De-featured, attempting to put it to PG state may result in hard
 		 * reset.
 		 * REG_UPDATE(DOMAIN11_PG_CONFIG,
@@ -452,7 +452,7 @@ static void dcn20_hubp_pg_control(
 		break;
 	case 5: /* DCHUBP5 */
 		/*
-		 * Do not power gate DCHUB5, should be left at HW default, power on permanently.
+		 * Do yest power gate DCHUB5, should be left at HW default, power on permanently.
 		 * PG on Pipe5 is De-featured, attempting to put it to PG state may result in hard
 		 * reset.
 		 * REG_UPDATE(DOMAIN10_PG_CONFIG,
@@ -471,7 +471,7 @@ static void dcn20_hubp_pg_control(
 
 
 /* disable HW used by plane.
- * note:  cannot disable until disconnect is complete
+ * yeste:  canyest disable until disconnect is complete
  */
 static void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
@@ -493,7 +493,7 @@ static void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	dpp->funcs->dpp_dppclk_control(dpp, false, false);
 
 	hubp->power_gated = true;
-	dc->optimized_required = false; /* We're powering off, no need to optimize */
+	dc->optimized_required = false; /* We're powering off, yes need to optimize */
 
 	dc->hwss.plane_atomic_power_down(dc,
 			pipe_ctx->plane_res.dpp,
@@ -610,7 +610,7 @@ enum dc_status dcn20_enable_stream_timing(
 		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
 				pipe_ctx->stream_res.tg, event_triggers);
 
-	/* TODO program crtc source select for non-virtual signal*/
+	/* TODO program crtc source select for yesn-virtual signal*/
 	/* TODO program FMT */
 	/* TODO setup link_enc */
 	/* TODO set stream attributes */
@@ -657,10 +657,10 @@ bool dcn20_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 	struct pwl_params *params = NULL;
 	/*
 	 * program OGAM only for the top pipe
-	 * if there is a pipe split then fix diagnostic is required:
+	 * if there is a pipe split then fix diagyesstic is required:
 	 * how to pass OGAM parameter for stream.
 	 * if programming for all pipes is required then remove condition
-	 * pipe_ctx->top_pipe == NULL ,but then fix the diagnostic.
+	 * pipe_ctx->top_pipe == NULL ,but then fix the diagyesstic.
 	 */
 	if (mpc->funcs->power_on_mpc_mem_pwr)
 		mpc->funcs->power_on_mpc_mem_pwr(mpc, mpcc_id, true);
@@ -675,13 +675,13 @@ bool dcn20_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 			&mpc->blender_params, false))
 			params = &mpc->blender_params;
 		/*
-		 * there is no ROM
+		 * there is yes ROM
 		 */
 		if (stream->out_transfer_func->type == TF_TYPE_PREDEFINED)
 			BREAK_TO_DEBUGGER();
 	}
 	/*
-	 * if above if is not executed then 'params' equal to 0 and set in bypass
+	 * if above if is yest executed then 'params' equal to 0 and set in bypass
 	 */
 	mpc->funcs->set_output_gamma(mpc, mpcc_id, params);
 
@@ -813,7 +813,7 @@ bool dcn20_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 				IPP_DEGAMMA_MODE_BYPASS);
 	else {
 		/*
-		 * if we are here, we did not handle correctly.
+		 * if we are here, we did yest handle correctly.
 		 * fix is required for this use case
 		 */
 		BREAK_TO_DEBUGGER();
@@ -1124,8 +1124,8 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 	}
 
 	/*
-	 * Detect opp / tg change, only set on change, not on enable
-	 * Assume mpcc inst = pipe index, if not this code needs to be updated
+	 * Detect opp / tg change, only set on change, yest on enable
+	 * Assume mpcc inst = pipe index, if yest this code needs to be updated
 	 * since mpcc is what is affected by these. In fact all of our sequence
 	 * makes this assumption at the moment with how hubp reset is matched to
 	 * same index mpcc reset.
@@ -1781,7 +1781,7 @@ static void dcn20_init_vm_ctx(
 	struct dcn_hubbub_virt_addr_config config;
 
 	if (vmid == 0) {
-		ASSERT(0); /* VMID cannot be 0 for vm context */
+		ASSERT(0); /* VMID canyest be 0 for vm context */
 		return;
 	}
 
@@ -2077,13 +2077,13 @@ static void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	 * TODO: remove hack
 	 * Note: currently there is a bug in init_hw such that
 	 * on resume from hibernate, BIOS sets up MPCC0, and
-	 * we do mpcc_remove but the mpcc cannot go to idle
+	 * we do mpcc_remove but the mpcc canyest go to idle
 	 * after remove. This cause us to pick mpcc1 here,
-	 * which causes a pstate hang for yet unknown reason.
+	 * which causes a pstate hang for yet unkyeswn reason.
 	 */
 	mpcc_id = hubp->inst;
 
-	/* If there is no full update, don't need to touch MPC tree*/
+	/* If there is yes full update, don't need to touch MPC tree*/
 	if (!pipe_ctx->plane_state->update_flags.bits.full_update) {
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
 		return;
@@ -2125,13 +2125,13 @@ static int find_free_gsl_group(const struct dc *dc)
 	return 0;
 }
 
-/* NOTE: This is not a generic setup_gsl function (hence the suffix as_lock)
+/* NOTE: This is yest a generic setup_gsl function (hence the suffix as_lock)
  * This is only used to lock pipes in pipe splitting case with immediate flip
  * Ordinary MPC/OTG locks suppress VUPDATE which doesn't help with immediate,
- * so we get tearing with freesync since we cannot flip multiple pipes
+ * so we get tearing with freesync since we canyest flip multiple pipes
  * atomically.
  * We use GSL for this:
- * - immediate flip: find first available GSL group if not already assigned
+ * - immediate flip: find first available GSL group if yest already assigned
  *                   program gsl with that group, set current OTG as master
  *                   and always us 0x4 = AND of flip_ready from all pipes
  * - vsync flip: disable GSL if used
@@ -2183,7 +2183,7 @@ void dcn20_setup_gsl_group_as_lock(
 	} else {
 		group_idx = pipe_ctx->stream_res.gsl_group;
 		if (group_idx == 0)
-			return; // if not in use, just return
+			return; // if yest in use, just return
 
 		pipe_ctx->stream_res.gsl_group = 0;
 

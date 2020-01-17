@@ -104,7 +104,7 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 
 	while (address < end) {
 		pg_dir = pgd_offset_k(address);
-		if (pgd_none(*pg_dir)) {
+		if (pgd_yesne(*pg_dir)) {
 			if (mode == POPULATE_ZERO_SHADOW &&
 			    IS_ALIGNED(address, PGDIR_SIZE) &&
 			    end - address >= PGDIR_SIZE) {
@@ -124,7 +124,7 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 		}
 
 		p4_dir = p4d_offset(pg_dir, address);
-		if (p4d_none(*p4_dir)) {
+		if (p4d_yesne(*p4_dir)) {
 			if (mode == POPULATE_ZERO_SHADOW &&
 			    IS_ALIGNED(address, P4D_SIZE) &&
 			    end - address >= P4D_SIZE) {
@@ -144,7 +144,7 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 		}
 
 		pu_dir = pud_offset(p4_dir, address);
-		if (pud_none(*pu_dir)) {
+		if (pud_yesne(*pu_dir)) {
 			if (mode == POPULATE_ZERO_SHADOW &&
 			    IS_ALIGNED(address, PUD_SIZE) &&
 			    end - address >= PUD_SIZE) {
@@ -158,7 +158,7 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 		}
 
 		pm_dir = pmd_offset(pu_dir, address);
-		if (pmd_none(*pm_dir)) {
+		if (pmd_yesne(*pm_dir)) {
 			if (mode == POPULATE_ZERO_SHADOW &&
 			    IS_ALIGNED(address, PMD_SIZE) &&
 			    end - address >= PMD_SIZE) {
@@ -191,7 +191,7 @@ static void __init kasan_early_vmemmap_populate(unsigned long address,
 		}
 
 		pt_dir = pte_offset_kernel(pm_dir, address);
-		if (pte_none(*pt_dir)) {
+		if (pte_yesne(*pt_dir)) {
 			void *page;
 
 			switch (mode) {
@@ -246,7 +246,7 @@ static void __init kasan_early_detect_facilities(void)
 		has_edat = true;
 		__ctl_set_bit(0, 23);
 	}
-	if (!noexec_disabled && test_facility(130)) {
+	if (!yesexec_disabled && test_facility(130)) {
 		has_nx = true;
 		__ctl_set_bit(0, 20);
 	}
@@ -273,7 +273,7 @@ void __init kasan_early_init(void)
 
 	memsize = get_mem_detect_end();
 	if (!memsize)
-		kasan_early_panic("cannot detect physical memory size\n");
+		kasan_early_panic("canyest detect physical memory size\n");
 	/* respect mem= cmdline parameter */
 	if (memory_end_set && memsize > memory_end)
 		memsize = memory_end;

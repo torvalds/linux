@@ -1,8 +1,8 @@
 # event_analyzing_sample.py: general event handler in python
 # SPDX-License-Identifier: GPL-2.0
 #
-# Current perf report is already very powerful with the annotation integrated,
-# and this script is not trying to be as powerful as perf report, but
+# Current perf report is already very powerful with the anyestation integrated,
+# and this script is yest trying to be as powerful as perf report, but
 # providing end user/developer a flexible way to analyze the events other
 # than trace points.
 #
@@ -46,14 +46,14 @@ def trace_begin():
         # load latency info, while gen_events is for general event.
         #
         con.execute("""
-                create table if not exists gen_events (
+                create table if yest exists gen_events (
                         name text,
                         symbol text,
                         comm text,
                         dso text
                 );""")
         con.execute("""
-                create table if not exists pebs_ll (
+                create table if yest exists pebs_ll (
                         name text,
                         symbol text,
                         comm text,
@@ -77,16 +77,16 @@ def process_event(param_dict):
         comm       = param_dict["comm"]
         name       = param_dict["ev_name"]
 
-        # Symbol and dso info are not always resolved
+        # Symbol and dso info are yest always resolved
         if ("dso" in param_dict):
                 dso = param_dict["dso"]
         else:
-                dso = "Unknown_dso"
+                dso = "Unkyeswn_dso"
 
         if ("symbol" in param_dict):
                 symbol = param_dict["symbol"]
         else:
-                symbol = "Unknown_symbol"
+                symbol = "Unkyeswn_symbol"
 
         # Create the event object and insert it to the right table in database
         event = create_event(name, comm, dso, symbol, raw_buf)

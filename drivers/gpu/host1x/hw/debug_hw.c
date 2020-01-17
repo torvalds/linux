@@ -125,7 +125,7 @@ static unsigned int show_channel_command(struct output *o, u32 val,
 			host1x_debug_cont(o, "[])\n");
 			return 0;
 		} else if (*payload == INVALID_PAYLOAD) {
-			host1x_debug_cont(o, "unknown)\n");
+			host1x_debug_cont(o, "unkyeswn)\n");
 			return 0;
 		} else {
 			host1x_debug_cont(o, "[");
@@ -212,7 +212,7 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 				mapped = host1x_bo_mmap(g->bo);
 
 			if (!mapped) {
-				host1x_debug_output(o, "[could not mmap]\n");
+				host1x_debug_output(o, "[could yest mmap]\n");
 				continue;
 			}
 

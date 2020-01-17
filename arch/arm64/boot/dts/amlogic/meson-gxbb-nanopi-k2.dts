@@ -9,8 +9,8 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	compatible = "friendlyarm,nanopi-k2", "amlogic,meson-gxbb";
-	model = "FriendlyARM NanoPi K2";
+	compatible = "friendlyarm,nayespi-k2", "amlogic,meson-gxbb";
+	model = "FriendlyARM NayesPi K2";
 
 	aliases {
 		serial0 = &uart_AO;
@@ -30,7 +30,7 @@
 		compatible = "gpio-leds";
 
 		stat {
-			label = "nanopi-k2:blue:stat";
+			label = "nayespi-k2:blue:stat";
 			gpios = <&gpio_ao GPIOAO_13 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			panic-indicator;
@@ -277,7 +277,7 @@
 	cap-sd-highspeed;
 	max-frequency = <50000000>;
 
-	non-removable;
+	yesn-removable;
 	disable-wp;
 
 	/* WiFi firmware requires power to be kept while in suspend */
@@ -325,7 +325,7 @@
 
 	bus-width = <8>;
 	max-frequency = <200000000>;
-	non-removable;
+	yesn-removable;
 	disable-wp;
 	cap-mmc-highspeed;
 	mmc-ddr-1_8v;

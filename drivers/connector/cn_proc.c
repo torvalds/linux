@@ -4,7 +4,7 @@
  *
  * Copyright (C) Matt Helsley, IBM Corp. 2005
  * Based on cn_fork.c by Guillaume Thouvenin <guillaume.thouvenin@bull.net>
- * Original copyright notice follows:
+ * Original copyright yestice follows:
  * Copyright (C) 2005 BULL SA.
  */
 
@@ -21,7 +21,7 @@
 
 /*
  * Size of a cn_msg followed by a proc_event structure.  Since the
- * sizeof struct cn_msg is a multiple of 4 bytes, but not 8 bytes, we
+ * sizeof struct cn_msg is a multiple of 4 bytes, but yest 8 bytes, we
  * add one 4-byte word to the size here, and then start the actual
  * cn_msg structure 4 bytes into the stack buffer.  The result is that
  * the immediately following proc_event structure is aligned to 8 bytes.
@@ -52,7 +52,7 @@ static inline void send_msg(struct cn_msg *msg)
 	 * Preemption remains disabled during send to ensure the messages are
 	 * ordered according to their sequence numbers.
 	 *
-	 * If cn_netlink_send() fails, the data is not sent.
+	 * If cn_netlink_send() fails, the data is yest sent.
 	 */
 	cn_netlink_send(msg, 0, CN_IDX_PROC, GFP_NOWAIT);
 
@@ -83,9 +83,9 @@ void proc_fork_connector(struct task_struct *task)
 	ev->event_data.fork.child_tgid = task->tgid;
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* yest used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* yest used */
 	send_msg(msg);
 }
 
@@ -107,9 +107,9 @@ void proc_exec_connector(struct task_struct *task)
 	ev->event_data.exec.process_tgid = task->tgid;
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* yest used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* yest used */
 	send_msg(msg);
 }
 
@@ -145,9 +145,9 @@ void proc_id_connector(struct task_struct *task, int which_id)
 	ev->timestamp_ns = ktime_get_ns();
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* yest used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* yest used */
 	send_msg(msg);
 }
 
@@ -169,9 +169,9 @@ void proc_sid_connector(struct task_struct *task)
 	ev->event_data.sid.process_tgid = task->tgid;
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* yest used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* yest used */
 	send_msg(msg);
 }
 
@@ -201,9 +201,9 @@ void proc_ptrace_connector(struct task_struct *task, int ptrace_id)
 		return;
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* yest used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* yest used */
 	send_msg(msg);
 }
 
@@ -226,9 +226,9 @@ void proc_comm_connector(struct task_struct *task)
 	get_task_comm(ev->event_data.comm.comm, task);
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* yest used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* yest used */
 	send_msg(msg);
 }
 
@@ -259,9 +259,9 @@ void proc_coredump_connector(struct task_struct *task)
 	rcu_read_unlock();
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* yest used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* yest used */
 	send_msg(msg);
 }
 
@@ -294,18 +294,18 @@ void proc_exit_connector(struct task_struct *task)
 	rcu_read_unlock();
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
-	msg->ack = 0; /* not used */
+	msg->ack = 0; /* yest used */
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* yest used */
 	send_msg(msg);
 }
 
 /*
- * Send an acknowledgement message to userspace
+ * Send an ackyeswledgement message to userspace
  *
  * Use 0 for success, EFOO otherwise.
  * Note: this is the negative of conventional kernel error
- * values because it's not being returned via syscall return
+ * values because it's yest being returned via syscall return
  * mechanisms.
  */
 static void cn_proc_ack(int err, int rcvd_seq, int rcvd_ack)
@@ -328,7 +328,7 @@ static void cn_proc_ack(int err, int rcvd_seq, int rcvd_ack)
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
 	msg->ack = rcvd_ack + 1;
 	msg->len = sizeof(*ev);
-	msg->flags = 0; /* not used */
+	msg->flags = 0; /* yest used */
 	send_msg(msg);
 }
 
@@ -347,7 +347,7 @@ static void cn_proc_mcast_ctl(struct cn_msg *msg,
 
 	/* 
 	 * Events are reported with respect to the initial pid
-	 * and user namespaces so ignore requestors from
+	 * and user namespaces so igyesre requestors from
 	 * other namespaces.
 	 */
 	if ((current_user_ns() != &init_user_ns) ||

@@ -14,7 +14,7 @@
  *
  *****************************************************************************/
 
-#include <errno.h>
+#include <erryes.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,7 +32,7 @@ void usage(char *prog)
 	printf("Usage: %s\n", prog);
 	printf("  -c	Use color\n");
 	printf("  -h	Display this help message\n");
-	printf("  -t N	Timeout in nanoseconds (default: 100,000)\n");
+	printf("  -t N	Timeout in nayesseconds (default: 100,000)\n");
 	printf("  -v L	Verbosity level: %d=QUIET %d=CRITICAL %d=INFO\n",
 	       VQUIET, VCRITICAL, VINFO);
 }
@@ -76,8 +76,8 @@ int main(int argc, char *argv[])
 
 	info("Calling futex_wait on f1: %u @ %p\n", f1, &f1);
 	res = futex_wait(&f1, f1, &to, FUTEX_PRIVATE_FLAG);
-	if (!res || errno != ETIMEDOUT) {
-		fail("futex_wait returned %d\n", ret < 0 ? errno : ret);
+	if (!res || erryes != ETIMEDOUT) {
+		fail("futex_wait returned %d\n", ret < 0 ? erryes : ret);
 		ret = RET_FAIL;
 	}
 

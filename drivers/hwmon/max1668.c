@@ -306,7 +306,7 @@ static struct attribute *max1668_attribute_common[] = {
 	NULL
 };
 
-/* Attributes not present on MAX1805 */
+/* Attributes yest present on MAX1805 */
 static struct attribute *max1668_attribute_unique[] = {
 	&sensor_dev_attr_temp4_max.dev_attr.attr,
 	&sensor_dev_attr_temp4_min.dev_attr.attr,

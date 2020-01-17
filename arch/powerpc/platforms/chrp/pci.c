@@ -99,7 +99,7 @@ static int rtas_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	unsigned long addr = (offset & 0xff) | ((devfn & 0xff) << 8)
-		| (((bus->number - hose->first_busno) & 0xff) << 16)
+		| (((bus->number - hose->first_busyes) & 0xff) << 16)
 		| (hose->global_number << 24);
         int ret = -1;
 	int rval;
@@ -114,7 +114,7 @@ static int rtas_write_config(struct pci_bus *bus, unsigned int devfn, int offset
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	unsigned long addr = (offset & 0xff) | ((devfn & 0xff) << 8)
-		| (((bus->number - hose->first_busno) & 0xff) << 16)
+		| (((bus->number - hose->first_busyes) & 0xff) << 16)
 		| (hose->global_number << 24);
 	int rval;
 
@@ -134,15 +134,15 @@ volatile struct Hydra __iomem *Hydra = NULL;
 int __init
 hydra_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource r;
 
-	np = of_find_node_by_name(NULL, "mac-io");
+	np = of_find_yesde_by_name(NULL, "mac-io");
 	if (np == NULL || of_address_to_resource(np, 0, &r)) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return 0;
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 	Hydra = ioremap(r.start, resource_size(&r));
 	printk("Hydra Mac I/O at %llx\n", (unsigned long long)r.start);
 	printk("Hydra Feature_Control was %x",
@@ -155,14 +155,14 @@ hydra_init(void)
 					   HYDRA_FC_MPIC_ENABLE |
 					   HYDRA_FC_SLOW_SCC_PCLK |
 					   HYDRA_FC_MPIC_IS_MASTER));
-	printk(", now %x\n", in_le32(&Hydra->Feature_Control));
+	printk(", yesw %x\n", in_le32(&Hydra->Feature_Control));
 	return 1;
 }
 
 #define PRG_CL_RESET_VALID 0x00010000
 
 static void __init
-setup_python(struct pci_controller *hose, struct device_node *dev)
+setup_python(struct pci_controller *hose, struct device_yesde *dev)
 {
 	u32 __iomem *reg;
 	u32 val;
@@ -187,37 +187,37 @@ setup_python(struct pci_controller *hose, struct device_node *dev)
 }
 
 /* Marvell Discovery II based Pegasos 2 */
-static void __init setup_peg2(struct pci_controller *hose, struct device_node *dev)
+static void __init setup_peg2(struct pci_controller *hose, struct device_yesde *dev)
 {
-	struct device_node *root = of_find_node_by_path("/");
-	struct device_node *rtas;
+	struct device_yesde *root = of_find_yesde_by_path("/");
+	struct device_yesde *rtas;
 
-	rtas = of_find_node_by_name (root, "rtas");
+	rtas = of_find_yesde_by_name (root, "rtas");
 	if (rtas) {
 		hose->ops = &rtas_pci_ops;
-		of_node_put(rtas);
+		of_yesde_put(rtas);
 	} else {
-		printk ("RTAS supporting Pegasos OF not found, please upgrade"
+		printk ("RTAS supporting Pegasos OF yest found, please upgrade"
 			" your firmware\n");
 	}
 	pci_add_flags(PCI_REASSIGN_ALL_BUS);
-	/* keep the reference to the root node */
+	/* keep the reference to the root yesde */
 }
 
 void __init
 chrp_find_bridges(void)
 {
-	struct device_node *dev;
+	struct device_yesde *dev;
 	const int *bus_range;
 	int len, index = -1;
 	struct pci_controller *hose;
 	const unsigned int *dma;
 	const char *model, *machine;
 	int is_longtrail = 0, is_mot = 0, is_pegasos = 0;
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_yesde *root = of_find_yesde_by_path("/");
 	struct resource r;
 	/*
-	 * The PCI host bridge nodes on some machines don't have
+	 * The PCI host bridge yesdes on some machines don't have
 	 * properties to adequately identify them, so we have to
 	 * look at what sort of machine this is as well.
 	 */
@@ -230,13 +230,13 @@ chrp_find_bridges(void)
 		else if (strncmp(machine, "Pegasos", 7) == 0)
 			is_pegasos = 1;
 	}
-	for_each_child_of_node(root, dev) {
-		if (!of_node_is_type(dev, "pci"))
+	for_each_child_of_yesde(root, dev) {
+		if (!of_yesde_is_type(dev, "pci"))
 			continue;
 		++index;
 		/* The GG2 bridge on the LongTrail doesn't have an address */
 		if (of_address_to_resource(dev, 0, &r) && !is_longtrail) {
-			printk(KERN_WARNING "Can't use %pOF: no address\n",
+			printk(KERN_WARNING "Can't use %pOF: yes address\n",
 			       dev);
 			continue;
 		}
@@ -262,12 +262,12 @@ chrp_find_bridges(void)
 				dev);
 			continue;
 		}
-		hose->first_busno = hose->self_busno = bus_range[0];
-		hose->last_busno = bus_range[1];
+		hose->first_busyes = hose->self_busyes = bus_range[0];
+		hose->last_busyes = bus_range[1];
 
 		model = of_get_property(dev, "model", NULL);
 		if (model == NULL)
-			model = "<none>";
+			model = "<yesne>";
 		if (strncmp(model, "IBM, Python", 11) == 0) {
 			setup_python(hose, dev);
 		} else if (is_mot
@@ -313,7 +313,7 @@ chrp_find_bridges(void)
 			printk("pci_dram_offset = %lx\n", pci_dram_offset);
 		}
 	}
-	of_node_put(root);
+	of_yesde_put(root);
 }
 
 /* SL82C105 IDE Control/Status Register */
@@ -328,7 +328,7 @@ static void chrp_pci_fixup_winbond_ata(struct pci_dev *sl82c105)
 {
 	u8 progif;
 
-	/* If non-briq machines need that fixup too, please speak up */
+	/* If yesn-briq machines need that fixup too, please speak up */
 	if (!machine_is(chrp) || _chrp_type != _CHRP_briq)
 		return;
 
@@ -354,7 +354,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105,
  * in legacy mode, but sets the PCI registers to PCI native mode.
  * The chip can only operate in legacy mode, so force the PCI class into legacy
  * mode as well. The same fixup must be done to the class-code property in
- * the IDE node /pci@80000000/ide@C,1
+ * the IDE yesde /pci@80000000/ide@C,1
  */
 static void chrp_pci_fixup_vt8231_ata(struct pci_dev *viaide)
 {

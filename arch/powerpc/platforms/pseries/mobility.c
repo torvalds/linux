@@ -2,7 +2,7 @@
 /*
  * Support for Partition Mobility/Migration
  *
- * Copyright (C) 2010 Nathan Fontenot
+ * Copyright (C) 2010 Nathan Fonteyest
  * Copyright (C) 2010 IBM Corporation
  */
 
@@ -56,20 +56,20 @@ static int mobility_rtas_call(int token, char *buf, s32 scope)
 	return rc;
 }
 
-static int delete_dt_node(__be32 phandle)
+static int delete_dt_yesde(__be32 phandle)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
-	dn = of_find_node_by_phandle(be32_to_cpu(phandle));
+	dn = of_find_yesde_by_phandle(be32_to_cpu(phandle));
 	if (!dn)
 		return -ENOENT;
 
-	dlpar_detach_node(dn);
-	of_node_put(dn);
+	dlpar_detach_yesde(dn);
+	of_yesde_put(dn);
 	return 0;
 }
 
-static int update_dt_property(struct device_node *dn, struct property **prop,
+static int update_dt_property(struct device_yesde *dn, struct property **prop,
 			      const char *name, u32 vd, char *value)
 {
 	struct property *new_prop = *prop;
@@ -129,10 +129,10 @@ static int update_dt_property(struct device_node *dn, struct property **prop,
 	return 0;
 }
 
-static int update_dt_node(__be32 phandle, s32 scope)
+static int update_dt_yesde(__be32 phandle, s32 scope)
 {
 	struct update_props_workarea *upwa;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct property *prop = NULL;
 	int i, rc, rtas_rc;
 	char *prop_data;
@@ -149,7 +149,7 @@ static int update_dt_node(__be32 phandle, s32 scope)
 	if (!rtas_buf)
 		return -ENOMEM;
 
-	dn = of_find_node_by_phandle(be32_to_cpu(phandle));
+	dn = of_find_yesde_by_phandle(be32_to_cpu(phandle));
 	if (!dn) {
 		kfree(rtas_buf);
 		return -ENOENT;
@@ -167,10 +167,10 @@ static int update_dt_node(__be32 phandle, s32 scope)
 		prop_data = rtas_buf + sizeof(*upwa);
 		nprops = be32_to_cpu(upwa->nprops);
 
-		/* On the first call to ibm,update-properties for a node the
+		/* On the first call to ibm,update-properties for a yesde the
 		 * the first property value descriptor contains an empty
 		 * property name, the property value length encoded as u32,
-		 * and the property value is the node path being updated.
+		 * and the property value is the yesde path being updated.
 		 */
 		if (*prop_data == 0) {
 			prop_data++;
@@ -189,7 +189,7 @@ static int update_dt_node(__be32 phandle, s32 scope)
 
 			switch (vd) {
 			case 0x00000000:
-				/* name only property, nothing to do */
+				/* name only property, yesthing to do */
 				break;
 
 			case 0x80000000:
@@ -202,7 +202,7 @@ static int update_dt_node(__be32 phandle, s32 scope)
 				rc = update_dt_property(dn, &prop, prop_name,
 							vd, prop_data);
 				if (rc) {
-					printk(KERN_ERR "Could not update %s"
+					printk(KERN_ERR "Could yest update %s"
 					       " property\n", prop_name);
 				}
 
@@ -215,47 +215,47 @@ static int update_dt_node(__be32 phandle, s32 scope)
 		cond_resched();
 	} while (rtas_rc == 1);
 
-	of_node_put(dn);
+	of_yesde_put(dn);
 	kfree(rtas_buf);
 	return 0;
 }
 
-static int add_dt_node(__be32 parent_phandle, __be32 drc_index)
+static int add_dt_yesde(__be32 parent_phandle, __be32 drc_index)
 {
-	struct device_node *dn;
-	struct device_node *parent_dn;
+	struct device_yesde *dn;
+	struct device_yesde *parent_dn;
 	int rc;
 
-	parent_dn = of_find_node_by_phandle(be32_to_cpu(parent_phandle));
+	parent_dn = of_find_yesde_by_phandle(be32_to_cpu(parent_phandle));
 	if (!parent_dn)
 		return -ENOENT;
 
 	dn = dlpar_configure_connector(drc_index, parent_dn);
 	if (!dn) {
-		of_node_put(parent_dn);
+		of_yesde_put(parent_dn);
 		return -ENOENT;
 	}
 
-	rc = dlpar_attach_node(dn, parent_dn);
+	rc = dlpar_attach_yesde(dn, parent_dn);
 	if (rc)
-		dlpar_free_cc_nodes(dn);
+		dlpar_free_cc_yesdes(dn);
 
-	of_node_put(parent_dn);
+	of_yesde_put(parent_dn);
 	return rc;
 }
 
-static void prrn_update_node(__be32 phandle)
+static void prrn_update_yesde(__be32 phandle)
 {
 	struct pseries_hp_errorlog hp_elog;
-	struct device_node *dn;
+	struct device_yesde *dn;
 
 	/*
-	 * If a node is found from a the given phandle, the phandle does not
-	 * represent the drc index of an LMB and we can ignore.
+	 * If a yesde is found from a the given phandle, the phandle does yest
+	 * represent the drc index of an LMB and we can igyesre.
 	 */
-	dn = of_find_node_by_phandle(be32_to_cpu(phandle));
+	dn = of_find_yesde_by_phandle(be32_to_cpu(phandle));
 	if (dn) {
-		of_node_put(dn);
+		of_yesde_put(dn);
 		return;
 	}
 
@@ -271,11 +271,11 @@ int pseries_devicetree_update(s32 scope)
 {
 	char *rtas_buf;
 	__be32 *data;
-	int update_nodes_token;
+	int update_yesdes_token;
 	int rc;
 
-	update_nodes_token = rtas_token("ibm,update-nodes");
-	if (update_nodes_token == RTAS_UNKNOWN_SERVICE)
+	update_yesdes_token = rtas_token("ibm,update-yesdes");
+	if (update_yesdes_token == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;
 
 	rtas_buf = kzalloc(RTAS_DATA_BUF_SIZE, GFP_KERNEL);
@@ -283,7 +283,7 @@ int pseries_devicetree_update(s32 scope)
 		return -ENOMEM;
 
 	do {
-		rc = mobility_rtas_call(update_nodes_token, rtas_buf, scope);
+		rc = mobility_rtas_call(update_yesdes_token, rtas_buf, scope);
 		if (rc && rc != 1)
 			break;
 
@@ -291,28 +291,28 @@ int pseries_devicetree_update(s32 scope)
 		while (be32_to_cpu(*data) & NODE_ACTION_MASK) {
 			int i;
 			u32 action = be32_to_cpu(*data) & NODE_ACTION_MASK;
-			u32 node_count = be32_to_cpu(*data) & NODE_COUNT_MASK;
+			u32 yesde_count = be32_to_cpu(*data) & NODE_COUNT_MASK;
 
 			data++;
 
-			for (i = 0; i < node_count; i++) {
+			for (i = 0; i < yesde_count; i++) {
 				__be32 phandle = *data++;
 				__be32 drc_index;
 
 				switch (action) {
 				case DELETE_DT_NODE:
-					delete_dt_node(phandle);
+					delete_dt_yesde(phandle);
 					break;
 				case UPDATE_DT_NODE:
-					update_dt_node(phandle, scope);
+					update_dt_yesde(phandle, scope);
 
 					if (scope == PRRN_SCOPE)
-						prrn_update_node(phandle);
+						prrn_update_yesde(phandle);
 
 					break;
 				case ADD_DT_NODE:
 					drc_index = *data++;
-					add_dt_node(phandle, drc_index);
+					add_dt_yesde(phandle, drc_index);
 					break;
 				}
 
@@ -334,7 +334,7 @@ void post_mobility_fixup(void)
 
 	activate_fw_token = rtas_token("ibm,activate-firmware");
 	if (activate_fw_token == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_ERR "Could not make post-mobility "
+		printk(KERN_ERR "Could yest make post-mobility "
 		       "activate-fw call.\n");
 		return;
 	}
@@ -354,7 +354,7 @@ void post_mobility_fixup(void)
 
 	/*
 	 * It's common for the destination firmware to replace cache
-	 * nodes.  Release all of the cacheinfo hierarchy's references
+	 * yesdes.  Release all of the cacheinfo hierarchy's references
 	 * before updating the device tree.
 	 */
 	cacheinfo_teardown();

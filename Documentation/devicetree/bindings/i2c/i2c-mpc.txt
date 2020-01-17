@@ -5,7 +5,7 @@ Required properties :
  - reg : Offset and length of the register set for the device
  - compatible : should be "fsl,CHIP-i2c" where CHIP is the name of a
    compatible processor, e.g. mpc8313, mpc8543, mpc8544, mpc5121,
-   mpc5200 or mpc5200b. For the mpc5121, an additional node
+   mpc5200 or mpc5200b. For the mpc5121, an additional yesde
    "fsl,mpc5121-i2c-ctrl" is required as shown in the example below.
 
 Recommended properties :
@@ -16,7 +16,7 @@ Recommended properties :
    the information in section 2) depending on the type of interrupt
    controller you have.
  - fsl,preserve-clocking : boolean; if defined, the clock settings
-   from the bootloader are preserved (not touched).
+   from the bootloader are preserved (yest touched).
  - clock-frequency : desired I2C bus clock frequency in Hz.
  - fsl,timeout : I2C bus timeout in microseconds.
 

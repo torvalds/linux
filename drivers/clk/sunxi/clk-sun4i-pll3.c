@@ -18,9 +18,9 @@
 
 static DEFINE_SPINLOCK(sun4i_a10_pll3_lock);
 
-static void __init sun4i_a10_pll3_setup(struct device_node *node)
+static void __init sun4i_a10_pll3_setup(struct device_yesde *yesde)
 {
-	const char *clk_name = node->name, *parent;
+	const char *clk_name = yesde->name, *parent;
 	struct clk_multiplier *mult;
 	struct clk_gate *gate;
 	struct resource res;
@@ -28,12 +28,12 @@ static void __init sun4i_a10_pll3_setup(struct device_node *node)
 	struct clk *clk;
 	int ret;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
-	parent = of_clk_get_parent_name(node, 0);
+	of_property_read_string(yesde, "clock-output-names", &clk_name);
+	parent = of_clk_get_parent_name(yesde, 0);
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(reg)) {
-		pr_err("%s: Could not map the clock registers\n", clk_name);
+		pr_err("%s: Could yest map the clock registers\n", clk_name);
 		return;
 	}
 
@@ -65,7 +65,7 @@ static void __init sun4i_a10_pll3_setup(struct device_node *node)
 		goto err_free_mult;
 	}
 
-	ret = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	ret = of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 	if (ret) {
 		pr_err("%s: Couldn't register DT provider\n",
 		       clk_name);
@@ -82,7 +82,7 @@ err_free_gate:
 	kfree(gate);
 err_unmap:
 	iounmap(reg);
-	of_address_to_resource(node, 0, &res);
+	of_address_to_resource(yesde, 0, &res);
 	release_mem_region(res.start, resource_size(&res));
 }
 

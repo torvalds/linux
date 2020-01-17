@@ -13,12 +13,12 @@ Required properties
 
 For other required properties e.g. to describe register sets,
 clocks, etc. check the binding documentation of the specific driver.
-The node describing an I3C bus should be named i3c-master.
+The yesde describing an I3C bus should be named i3c-master.
 
 Optional properties
 -------------------
 
-These properties may not be supported by all I3C master drivers. Each I3C
+These properties may yest be supported by all I3C master drivers. Each I3C
 master bindings should specify which of them are supported.
 
 - i3c-scl-hz: frequency of the SCL signal used for I3C transfers.
@@ -32,26 +32,26 @@ master bindings should specify which of them are supported.
 I2C devices
 ===========
 
-Each I2C device connected to the bus should be described in a subnode. All
+Each I2C device connected to the bus should be described in a subyesde. All
 properties described in Documentation/devicetree/bindings/i2c/i2c.txt are
 valid here, but several new properties have been added.
 
 New constraint on existing properties:
 --------------------------------------
 - reg: contains 3 cells
-  + first cell : still encoding the I2C address. 10 bit addressing is not
+  + first cell : still encoding the I2C address. 10 bit addressing is yest
     supported. Devices with 10 bit address can't be properly passed through
     DEFSLVS command.
 
   + second cell: shall be 0
 
   + third cell: shall encode the I3C LVR (Legacy Virtual Register)
-	bit[31:8]: unused/ignored
+	bit[31:8]: unused/igyesred
 	bit[7:5]: I2C device index. Possible values
 	* 0: I2C device has a 50 ns spike filter
-	* 1: I2C device does not have a 50 ns spike filter but supports high
+	* 1: I2C device does yest have a 50 ns spike filter but supports high
 	     frequency on SCL
-	* 2: I2C device does not have a 50 ns spike filter and is not tolerant
+	* 2: I2C device does yest have a 50 ns spike filter and is yest tolerant
 	     to high frequencies
 	* 3-7: reserved
 
@@ -62,20 +62,20 @@ New constraint on existing properties:
 	bit[3:0]: device type
 	* 0-15: reserved
 
-The I2C node unit-address should always match the first cell of the reg
+The I2C yesde unit-address should always match the first cell of the reg
 property: <device-type>@<i2c-address>.
 
 I3C devices
 ===========
 
 All I3C devices are supposed to support DAA (Dynamic Address Assignment), and
-are thus discoverable. So, by default, I3C devices do not have to be described
+are thus discoverable. So, by default, I3C devices do yest have to be described
 in the device tree.
 This being said, one might want to attach extra resources to these devices,
 and those resources may have to be described in the device tree, which in turn
 means we have to describe I3C devices.
 
-Another use case for describing an I3C device in the device tree is when this
+Ayesther use case for describing an I3C device in the device tree is when this
 I3C device has a static I2C address and we want to assign it a specific I3C
 dynamic address before the DAA takes place (so that other devices on the bus
 can't take this dynamic address).
@@ -88,7 +88,7 @@ Required properties
 -------------------
 - reg: contains 3 cells
   + first cell : encodes the static I2C address. Should be 0 if the device does
-		 not have one (0 is not a valid I2C address).
+		 yest have one (0 is yest a valid I2C address).
 
   + second and third cells: should encode the ProvisionalID. The second cell
 			    contains the manufacturer ID left-shifted by 1.

@@ -28,12 +28,12 @@ controller with an AVSBus interface.
 Usage Notes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does yest probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 The ISL68137 AVS operation mode must be enabled/disabled at runtime.
 
-Beyond the normal sysfs pmbus attributes, the driver exposes a control attribute.
+Beyond the yesrmal sysfs pmbus attributes, the driver exposes a control attribute.
 
 Additional Sysfs attributes
 ---------------------------

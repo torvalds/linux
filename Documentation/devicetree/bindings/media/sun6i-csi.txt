@@ -19,15 +19,15 @@ Required properties:
   - clock-names: the clock names mentioned above
   - resets: phandles to the reset line driving the CSI
 
-The CSI node should contain one 'port' child node with one child 'endpoint'
-node, according to the bindings defined in
+The CSI yesde should contain one 'port' child yesde with one child 'endpoint'
+yesde, according to the bindings defined in
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 
-Endpoint node properties for CSI
+Endpoint yesde properties for CSI
 ---------------------------------
 See the video-interfaces.txt for a detailed description of these properties.
 - remote-endpoint	: (required) a phandle to the bus receiver's endpoint
-			   node
+			   yesde
 - bus-width:		: (required) must be 8, 10, 12 or 16
 - pclk-sample		: (optional) (default: sample on falling edge)
 - hsync-active		: (required; parallel-only)

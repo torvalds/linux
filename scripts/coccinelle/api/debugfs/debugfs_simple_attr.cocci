@@ -7,7 +7,7 @@
 //# DEFINE_DEBUGFS_ATTRIBUTE + debugfs_create_file_unsafe().
 //
 // Copyright (C): 2016 Nicolai Stange
-// Options: --no-includes
+// Options: --yes-includes
 //
 
 virtual context

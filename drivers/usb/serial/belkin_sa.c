@@ -20,7 +20,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -189,15 +189,15 @@ static void belkin_sa_read_int_callback(struct urb *urb)
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - yesnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
 
 	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 
-	/* Handle known interrupt data */
-	/* ignore data[0] and data[1] */
+	/* Handle kyeswn interrupt data */
+	/* igyesre data[0] and data[1] */
 
 	priv = usb_get_serial_port_data(port);
 	spin_lock_irqsave(&priv->lock, flags);
@@ -264,7 +264,7 @@ static void belkin_sa_process_read_urb(struct urb *urb)
 			tty_flag = TTY_FRAME;
 		dev_dbg(&port->dev, "tty_flag = %d\n", tty_flag);
 
-		/* Overrun is special, not associated with a char. */
+		/* Overrun is special, yest associated with a char. */
 		if (status & BELKIN_SA_LSR_OE)
 			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 	}
@@ -373,7 +373,7 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 			break;
 		default:
 			dev_dbg(&port->dev,
-				"CSIZE was not CS5-CS8, using default of 8\n");
+				"CSIZE was yest CS5-CS8, using default of 8\n");
 			urb_value = BELKIN_SA_DATA_BITS(8);
 			break;
 		}

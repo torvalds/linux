@@ -279,8 +279,8 @@ TRACE_EVENT(kvm_s390_handle_diag,
 		    __entry->code = code;
 		    ),
 
-	    VCPU_TP_PRINTK("handle diagnose call %04x (%s)", __entry->code,
-			   __print_symbolic(__entry->code, diagnose_codes))
+	    VCPU_TP_PRINTK("handle diagyesse call %04x (%s)", __entry->code,
+			   __print_symbolic(__entry->code, diagyesse_codes))
 	);
 
 TRACE_EVENT(kvm_s390_handle_lctl,

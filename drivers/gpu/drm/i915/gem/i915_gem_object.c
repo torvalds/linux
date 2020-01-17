@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -149,7 +149,7 @@ static void __i915_gem_free_object_rcu(struct rcu_head *head)
 }
 
 static void __i915_gem_free_objects(struct drm_i915_private *i915,
-				    struct llist_node *freed)
+				    struct llist_yesde *freed)
 {
 	struct drm_i915_gem_object *obj, *on;
 	intel_wakeref_t wakeref;
@@ -163,7 +163,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 			/*
 			 * Note that the vma keeps an object reference while
-			 * it is active, so it *should* not sleep while we
+			 * it is active, so it *should* yest sleep while we
 			 * destroy it. Our debug code errs insits it *might*.
 			 * For the moment, play along.
 			 */
@@ -206,7 +206,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 void i915_gem_flush_free_objects(struct drm_i915_private *i915)
 {
-	struct llist_node *freed = llist_del_all(&i915->mm.free_list);
+	struct llist_yesde *freed = llist_del_all(&i915->mm.free_list);
 
 	if (unlikely(freed))
 		__i915_gem_free_objects(i915, freed);
@@ -247,7 +247,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	/*
 	 * Since we require blocking on struct_mutex to unbind the freed
 	 * object from the GPU before releasing resources back to the
-	 * system, we can not do that directly from the RCU callback (which may
+	 * system, we can yest do that directly from the RCU callback (which may
 	 * be a softirq context), but must instead then defer that work onto a
 	 * kthread. We use the RCU callback rather than move the freed object
 	 * directly onto the work queue so that we can mix between using the

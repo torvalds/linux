@@ -2,7 +2,7 @@
 /*---------------------------------------------------------------------------+
  |  poly_2xm1.c                                                              |
  |                                                                           |
- | Function to compute 2^x-1 by a polynomial approximation.                  |
+ | Function to compute 2^x-1 by a polyyesmial approximation.                  |
  |                                                                           |
  | Copyright (C) 1992,1993,1994,1997                                         |
  |                  W. Metzenthen, 22 Parker St, Ormond, Vic 3163, Australia |
@@ -54,14 +54,14 @@ int poly_2xm1(u_char sign, FPU_REG *arg, FPU_REG *result)
 {
 	long int exponent, shift;
 	unsigned long long Xll;
-	Xsig accumulator, Denom, argSignif;
+	Xsig accumulator, Deyesm, argSignif;
 	u_char tag;
 
 	exponent = exponent16(arg);
 
 #ifdef PARANOID
 	if (exponent >= 0) {	/* Don't want a |number| >= 1.0 */
-		/* Number negative, too large, or not Valid. */
+		/* Number negative, too large, or yest Valid. */
 		EXCEPTION(EX_INTERNAL | 0x127);
 		return 1;
 	}
@@ -92,7 +92,7 @@ int poly_2xm1(u_char sign, FPU_REG *arg, FPU_REG *result)
 	}
 
 	accumulator.lsw = accumulator.midw = accumulator.msw = 0;
-	polynomial_Xsig(&accumulator, &Xll, lterms, HIPOWER - 1);
+	polyyesmial_Xsig(&accumulator, &Xll, lterms, HIPOWER - 1);
 	mul_Xsig_Xsig(&accumulator, &argSignif);
 	shr_Xsig(&accumulator, 3);
 
@@ -114,19 +114,19 @@ int poly_2xm1(u_char sign, FPU_REG *arg, FPU_REG *result)
 		/* The argument is negative, use the identity:
 		   f(-x) = -f(x) / (1 + f(x))
 		 */
-		Denom.lsw = accumulator.lsw;
-		XSIG_LL(Denom) = XSIG_LL(accumulator);
+		Deyesm.lsw = accumulator.lsw;
+		XSIG_LL(Deyesm) = XSIG_LL(accumulator);
 		if (exponent < 0)
-			shr_Xsig(&Denom, -exponent);
+			shr_Xsig(&Deyesm, -exponent);
 		else if (exponent > 0) {
 			/* exponent must be 1 here */
-			XSIG_LL(Denom) <<= 1;
-			if (Denom.lsw & 0x80000000)
-				XSIG_LL(Denom) |= 1;
-			(Denom.lsw) <<= 1;
+			XSIG_LL(Deyesm) <<= 1;
+			if (Deyesm.lsw & 0x80000000)
+				XSIG_LL(Deyesm) |= 1;
+			(Deyesm.lsw) <<= 1;
 		}
-		Denom.msw |= 0x80000000;	/* add 1.0 */
-		div_Xsig(&accumulator, &Denom, &accumulator);
+		Deyesm.msw |= 0x80000000;	/* add 1.0 */
+		div_Xsig(&accumulator, &Deyesm, &accumulator);
 	}
 
 	/* Convert to 64 bit signed-compatible */

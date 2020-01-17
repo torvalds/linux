@@ -55,7 +55,7 @@ struct sd {
 	u8 mode;
 	u8 sof_read;
 	u8 header_read;
-	u8 autogain_ignore_frames;
+	u8 autogain_igyesre_frames;
 
 	atomic_t avg_lum;
 };
@@ -69,7 +69,7 @@ static const struct v4l2_pix_format sif_mode[] = {
 		.priv = 1},
 	{352, 288, V4L2_PIX_FMT_PAC207, V4L2_FIELD_NONE,
 		.bytesperline = 352,
-			/* compressed, but only when needed (not compressed
+			/* compressed, but only when needed (yest compressed
 			   when the framerate is low) */
 		.sizeimage = (352 + 2) * 288,
 		.colorspace = V4L2_COLORSPACE_SRGB,
@@ -195,7 +195,7 @@ static void setcontrol(struct gspca_dev *gspca_dev, u16 reg, u16 val)
 {
 	pac207_write_reg(gspca_dev, reg, val);
 	pac207_write_reg(gspca_dev, 0x13, 0x01);	/* Bit 0, auto clear */
-	pac207_write_reg(gspca_dev, 0x1c, 0x01);	/* not documented */
+	pac207_write_reg(gspca_dev, 0x1c, 0x01);	/* yest documented */
 }
 
 static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -213,7 +213,7 @@ static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 		   take effect before doing autogain. */
 		gspca_dev->exposure->val    = PAC207_EXPOSURE_DEFAULT;
 		gspca_dev->gain->val        = PAC207_GAIN_DEFAULT;
-		sd->autogain_ignore_frames  = PAC_AUTOGAIN_IGNORE_FRAMES;
+		sd->autogain_igyesre_frames  = PAC_AUTOGAIN_IGNORE_FRAMES;
 	}
 
 	if (!gspca_dev->streaming)
@@ -265,7 +265,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 				PAC207_GAIN_MIN, PAC207_GAIN_MAX,
 				1, PAC207_GAIN_DEFAULT);
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	v4l2_ctrl_auto_cluster(3, &gspca_dev->autogain, 0, false);
@@ -312,12 +312,12 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	pac207_write_reg(gspca_dev, 0x41, mode);
 
 	pac207_write_reg(gspca_dev, 0x13, 0x01); /* Bit 0, auto clear */
-	pac207_write_reg(gspca_dev, 0x1c, 0x01); /* not documented */
+	pac207_write_reg(gspca_dev, 0x1c, 0x01); /* yest documented */
 	msleep(10);
 	pac207_write_reg(gspca_dev, 0x40, 0x01); /* Start ISO pipe */
 
 	sd->sof_read = 0;
-	sd->autogain_ignore_frames = 0;
+	sd->autogain_igyesre_frames = 0;
 	atomic_set(&sd->avg_lum, -1);
 	return gspca_dev->usb_err;
 }
@@ -345,11 +345,11 @@ static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 	if (avg_lum == -1)
 		return;
 
-	if (sd->autogain_ignore_frames > 0)
-		sd->autogain_ignore_frames--;
+	if (sd->autogain_igyesre_frames > 0)
+		sd->autogain_igyesre_frames--;
 	else if (gspca_coarse_grained_expo_autogain(gspca_dev, avg_lum,
 			90, PAC207_AUTOGAIN_DEADZONE))
-		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
+		sd->autogain_igyesre_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,

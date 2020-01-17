@@ -7,17 +7,17 @@
 	DE450 TP/COAX/AUI PCI
 	DE500 10/100 PCI Fasternet
 
-    but it  will  now attempt  to  support all  cards which   conform to the
+    but it  will  yesw attempt  to  support all  cards which   conform to the
     Digital Semiconductor   SROM   Specification.    The  driver   currently
     recognises the following chips:
 
-        DC21040  (no SROM) 
+        DC21040  (yes SROM) 
 	DC21041[A]  
 	DC21140[A] 
 	DC21142 
 	DC21143 
 
-    So far the driver is known to work with the following cards:
+    So far the driver is kyeswn to work with the following cards:
 
         KINGSTON
 	Linksys
@@ -48,22 +48,22 @@
     and used extensively  during the driver development  (to save those long
     reboot sequences).  Loadable module support  under PCI and EISA has been
     achieved by letting the driver autoprobe as if it were compiled into the
-    kernel. Do make sure  you're not sharing  interrupts with anything  that
-    cannot accommodate  interrupt  sharing!
+    kernel. Do make sure  you're yest sharing  interrupts with anything  that
+    canyest accommodate  interrupt  sharing!
 
     To utilise this ability, you have to do 8 things:
 
     0) have a copy of the loadable modules code installed on your system.
     1) copy de4x5.c from the  /linux/drivers/net directory to your favourite
     temporary directory.
-    2) for fixed  autoprobes (not  recommended),  edit the source code  near
+    2) for fixed  autoprobes (yest  recommended),  edit the source code  near
     line 5594 to reflect the I/O address  you're using, or assign these when
     loading by:
 
                    insmod de4x5 io=0xghh           where g = bus number
 		                                        hh = device number   
 
-       NB: autoprobing for modules is now supported by default. You may just
+       NB: autoprobing for modules is yesw supported by default. You may just
            use:
 
                    insmod de4x5
@@ -87,7 +87,7 @@
     pause while the   driver figures out   where its media went).  My tests
     using ping showed that it appears to work....
 
-    By  default,  the driver will  now   autodetect any  DECchip based card.
+    By  default,  the driver will  yesw   autodetect any  DECchip based card.
     Should you have a need to restrict the driver to DIGITAL only cards, you
     can compile with a  DEC_ONLY define, or if  loading as a module, use the
     'dec_only=1'  parameter. 
@@ -95,20 +95,20 @@
     I've changed the timing routines to  use the kernel timer and scheduling
     functions  so that the  hangs  and other assorted problems that occurred
     while autosensing the  media  should be gone.  A  bonus  for the DC21040
-    auto  media sense algorithm is  that it can now  use one that is more in
+    auto  media sense algorithm is  that it can yesw  use one that is more in
     line with the  rest (the DC21040  chip doesn't  have a hardware  timer).
     The downside is the 1 'jiffies' (10ms) resolution.
 
     IEEE 802.3u MII interface code has  been added in anticipation that some
     products may use it in the future.
 
-    The SMC9332 card  has a non-compliant SROM  which needs fixing -  I have
+    The SMC9332 card  has a yesn-compliant SROM  which needs fixing -  I have
     patched this  driver to detect it  because the SROM format used complies
     to a previous DEC-STD format.
 
-    I have removed the buffer copies needed for receive on Intels.  I cannot
+    I have removed the buffer copies needed for receive on Intels.  I canyest
     remove them for   Alphas since  the  Tulip hardware   only does longword
-    aligned  DMA transfers  and  the  Alphas get   alignment traps with  non
+    aligned  DMA transfers  and  the  Alphas get   alignment traps with  yesn
     longword aligned data copies (which makes them really slow). No comment.
 
     I  have added SROM decoding  routines to make this  driver work with any
@@ -127,13 +127,13 @@
     because  the SCSI card wants to  grab the interrupt  as a fast interrupt
     (runs the   service routine with interrupts turned   off) vs.  this card
     which really needs to run the service routine with interrupts turned on.
-    This driver will  now   add the interrupt service   routine  as  a  fast
+    This driver will  yesw   add the interrupt service   routine  as  a  fast
     interrupt if it   is bounced from the   slow interrupt.  THIS IS NOT   A
     RECOMMENDED WAY TO RUN THE DRIVER  and has been done  for a limited time
     until  people   sort  out their  compatibility    issues and the  kernel
     interrupt  service code  is  fixed.   YOU  SHOULD SEPARATE OUT  THE FAST
-    INTERRUPT CARDS FROM THE SLOW INTERRUPT CARDS to ensure that they do not
-    run on the same interrupt. PCMCIA/CardBus is another can of worms...
+    INTERRUPT CARDS FROM THE SLOW INTERRUPT CARDS to ensure that they do yest
+    run on the same interrupt. PCMCIA/CardBus is ayesther can of worms...
 
     Finally, I think  I have really  fixed  the module  loading problem with
     more than one DECchip based  card.  As a  side effect, I don't mess with
@@ -144,18 +144,18 @@
     limitation.
 
     Where SROM media  detection is used and  full duplex is specified in the
-    SROM,  the feature is  ignored unless  lp->params.fdx  is set at compile
+    SROM,  the feature is  igyesred unless  lp->params.fdx  is set at compile
     time  OR during  a   module load  (insmod  de4x5   args='eth??:fdx' [see
-    below]).  This is because there  is no way  to automatically detect full
+    below]).  This is because there  is yes way  to automatically detect full
     duplex   links  except through   autonegotiation.    When I  include the
     autonegotiation feature in  the SROM autoconf  code, this detection will
     occur automatically for that case.
 
-    Command line  arguments are  now allowed, similar to  passing  arguments
+    Command line  arguments are  yesw allowed, similar to  passing  arguments
     through LILO. This will allow a per adapter board set  up of full duplex
     and media. The only lexical constraints are:  the board name (dev->name)
     appears in  the list before its parameters.  The list of parameters ends
-    either at the end of the parameter list or with another board name.  The
+    either at the end of the parameter list or with ayesther board name.  The
     following parameters are allowed:
 
             fdx        for full duplex
@@ -171,7 +171,7 @@
     For a compiled in driver, in linux/drivers/net/CONFIG, place e.g.
 	DE4X5_OPTS = -DDE4X5_PARM='"eth0:fdx autosense=AUI eth2:autosense=TP"' 
 
-    Yes,  I know full duplex  isn't permissible on BNC  or AUI; they're just
+    Yes,  I kyesw full duplex  isn't permissible on BNC  or AUI; they're just
     examples. By default, full duplex is turned  off and AUTO is the default
     autosense setting. In  reality, I expect only the  full duplex option to
     be used. Note the use of single quotes in the two examples above and the

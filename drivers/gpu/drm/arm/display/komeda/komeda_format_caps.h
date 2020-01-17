@@ -70,7 +70,7 @@ struct komeda_format_caps {
  * @n_formats: the size of format_caps list.
  * @format_caps: format_caps list.
  * @format_mod_supported: Optional. Some HW may have special requirements or
- * limitations which can not be described by format_caps, this func supply HW
+ * limitations which can yest be described by format_caps, this func supply HW
  * the ability to do the further HW specific check.
  */
 struct komeda_format_caps_table {

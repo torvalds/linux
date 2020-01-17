@@ -133,7 +133,7 @@ static void pptp_expectfn(struct nf_conn *ct,
 			nf_ct_unexpect_related(exp_other);
 			nf_ct_expect_put(exp_other);
 		} else {
-			pr_debug("not found\n");
+			pr_debug("yest found\n");
 		}
 	}
 }
@@ -300,7 +300,7 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		break;
 
 	case PPTP_OUT_CALL_REPLY:
-		/* server accepted call, we now expect GRE frames */
+		/* server accepted call, we yesw expect GRE frames */
 		if (info->sstate != PPTP_SESSION_CONFIRMED)
 			goto invalid;
 		if (info->cstate != PPTP_CALL_OUT_REQ &&
@@ -457,7 +457,7 @@ pptp_outbound_pkt(struct sk_buff *skb, unsigned int protoff,
 			goto invalid;
 		/* FUTURE: iterate over all calls and check if
 		 * call ID is valid.  We don't do this without newnat,
-		 * because we only know about last call */
+		 * because we only kyesw about last call */
 		info->cstate = PPTP_CALL_CLEAR_REQ;
 		break;
 
@@ -542,16 +542,16 @@ conntrack_pptp_help(struct sk_buff *skb, unsigned int protoff,
 
 	pptph = skb_header_pointer(skb, nexthdr_off, sizeof(_pptph), &_pptph);
 	if (!pptph) {
-		pr_debug("no full PPTP header, can't track\n");
+		pr_debug("yes full PPTP header, can't track\n");
 		return NF_ACCEPT;
 	}
 	nexthdr_off += sizeof(_pptph);
 	datalen -= sizeof(_pptph);
 
-	/* if it's not a control message we can't do anything with it */
+	/* if it's yest a control message we can't do anything with it */
 	if (ntohs(pptph->packetType) != PPTP_PACKET_CONTROL ||
 	    ntohl(pptph->magicCookie) != PPTP_MAGIC_COOKIE) {
-		pr_debug("not a control packet\n");
+		pr_debug("yest a control packet\n");
 		return NF_ACCEPT;
 	}
 
@@ -578,7 +578,7 @@ conntrack_pptp_help(struct sk_buff *skb, unsigned int protoff,
 	spin_lock_bh(&nf_pptp_lock);
 
 	/* FIXME: We just blindly assume that the control connection is always
-	 * established from PNS->PAC.  However, RFC makes no guarantee */
+	 * established from PNS->PAC.  However, RFC makes yes guarantee */
 	if (dir == IP_CT_DIR_ORIGINAL)
 		/* client -> server (PNS -> PAC) */
 		ret = pptp_outbound_pkt(skb, protoff, ctlh, pptpReq, reqlen, ct,

@@ -17,7 +17,7 @@
 #include <linux/of_device.h>
 #include <linux/module.h>
 #include <linux/serio.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/of_irq.h>
 #include <linux/device.h>
@@ -151,7 +151,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	iowrite32be(0, &priv->regs->ctrl);
 
 	/* IRQ */
-	irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(ofdev->dev.of_yesde, 0);
 	err = devm_request_irq(&ofdev->dev, irq, apbps2_isr,
 				IRQF_SHARED, "apbps2", priv);
 	if (err) {
@@ -160,7 +160,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	}
 
 	/* Get core frequency */
-	if (of_property_read_u32(ofdev->dev.of_node, "freq", &freq_hz)) {
+	if (of_property_read_u32(ofdev->dev.of_yesde, "freq", &freq_hz)) {
 		dev_err(&ofdev->dev, "unable to get core frequency\n");
 		return -EINVAL;
 	}

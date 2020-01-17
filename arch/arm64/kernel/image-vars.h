@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Linker script variables to be set after section resolution, as
- * ld.lld does not like variables assigned before SECTIONS is processed.
+ * ld.lld does yest like variables assigned before SECTIONS is processed.
  */
 #ifndef __ARM64_KERNEL_IMAGE_VARS_H
 #define __ARM64_KERNEL_IMAGE_VARS_H
@@ -19,7 +19,7 @@ __efistub_stext_offset = stext - _text;
  * isolate it from the kernel proper. The following symbols are legally
  * accessed by the stub, so provide some aliases to make them accessible.
  * Only include data symbols here, or text symbols of functions that are
- * guaranteed to be safe when executed at another offset than they were
+ * guaranteed to be safe when executed at ayesther offset than they were
  * linked at. The routines below are all implemented in assembler in a
  * position independent manner
  */

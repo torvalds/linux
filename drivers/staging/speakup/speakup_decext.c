@@ -7,7 +7,7 @@
  * Copyright (C) 2003 David Borowski.
  *
  * specificly written as a driver for the speakup screenreview
- * s not a general device driver.
+ * s yest a general device driver.
  */
 #include <linux/jiffies.h>
 #include <linux/sched.h>
@@ -164,7 +164,7 @@ static void do_catch_up(struct spk_synth *synth)
 			synth->flush(synth);
 			continue;
 		}
-		synth_buffer_skip_nonlatin1();
+		synth_buffer_skip_yesnlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;

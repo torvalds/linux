@@ -98,7 +98,7 @@ void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu)
 /*
  * Write back the vcpu FPSIMD regs if they are dirty, and invalidate the
  * cpu FPSIMD regs so that they can't be spuriously reused if this vcpu
- * disappears and another task or vcpu appears that recycles the same
+ * disappears and ayesther task or vcpu appears that recycles the same
  * struct fpsimd_state.
  */
 void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
@@ -118,7 +118,7 @@ void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
 			*guest_zcr = read_sysreg_s(SYS_ZCR_EL12);
 	} else if (host_has_sve) {
 		/*
-		 * The FPSIMD/SVE state in the CPU has not been touched, and we
+		 * The FPSIMD/SVE state in the CPU has yest been touched, and we
 		 * have SVE (and VHE): CPACR_EL1 (alias CPTR_EL2) has been
 		 * reset to CPACR_EL1_DEFAULT by the Hyp code, disabling SVE
 		 * for EL0.  To avoid spurious traps, restore the trap state

@@ -38,7 +38,7 @@ struct route_info {
 #define RT6_LOOKUP_F_IGNORE_LINKSTATE	0x00000040
 #define RT6_LOOKUP_F_DST_NOREF		0x00000080
 
-/* We do not (yet ?) support IPv6 jumbograms (RFC 2675)
+/* We do yest (yet ?) support IPv6 jumbograms (RFC 2675)
  * Unlike IPv4, hdr->seg_len doesn't include the IPv6 header
  */
 #define IP6_MAX_MTU (0xFFFF + sizeof(struct ipv6hdr))
@@ -68,7 +68,7 @@ static inline bool rt6_need_strict(const struct in6_addr *daddr)
 		(IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK);
 }
 
-/* fib entries using a nexthop object can not be coalesced into
+/* fib entries using a nexthop object can yest be coalesced into
  * a multipath route
  */
 static inline bool rt6_qualify_for_ecmp(const struct fib6_info *f6i)
@@ -84,7 +84,7 @@ struct dst_entry *ip6_route_input_lookup(struct net *net,
 					 struct flowi6 *fl6,
 					 const struct sk_buff *skb, int flags);
 
-struct dst_entry *ip6_route_output_flags_noref(struct net *net,
+struct dst_entry *ip6_route_output_flags_yesref(struct net *net,
 					       const struct sock *sk,
 					       struct flowi6 *fl6, int flags);
 
@@ -127,7 +127,7 @@ int ip6_del_rt(struct net *net, struct fib6_info *f6i);
 
 void rt6_flush_exceptions(struct fib6_info *f6i);
 void rt6_age_exceptions(struct fib6_info *f6i, struct fib6_gc_args *gc_args,
-			unsigned long now);
+			unsigned long yesw);
 
 static inline int ip6_route_get_saddr(struct net *net, struct fib6_info *f6i,
 				      const struct in6_addr *daddr,
@@ -185,7 +185,7 @@ void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu, int oif,
 void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, __be32 mtu);
 void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
 		  kuid_t uid);
-void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif);
+void ip6_redirect_yes_header(struct sk_buff *skb, struct net *net, int oif);
 void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk);
 
 struct netlink_callback;
@@ -275,7 +275,7 @@ static inline bool ip6_sk_accept_pmtu(const struct sock *sk)
 	       inet6_sk(sk)->pmtudisc != IPV6_PMTUDISC_OMIT;
 }
 
-static inline bool ip6_sk_ignore_df(const struct sock *sk)
+static inline bool ip6_sk_igyesre_df(const struct sock *sk)
 {
 	return inet6_sk(sk)->pmtudisc < IPV6_PMTUDISC_DO ||
 	       inet6_sk(sk)->pmtudisc == IPV6_PMTUDISC_OMIT;

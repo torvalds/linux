@@ -43,10 +43,10 @@ struct sgi_gbe {
 	volatile uint32_t ovr_inhwctrl;	/* overlay plane ctrl 1 */
 	volatile uint32_t ovr_control;	/* overlay plane ctrl 1 */
 	uint32_t _pad2[0xfff4/4];
-	volatile uint32_t frm_size_tile;/* normal plane ctrl 0 */
-	volatile uint32_t frm_size_pixel;/*normal plane ctrl 1 */
-	volatile uint32_t frm_inhwctrl;	/* normal plane ctrl 2 */
-	volatile uint32_t frm_control;	/* normal plane ctrl 3 */
+	volatile uint32_t frm_size_tile;/* yesrmal plane ctrl 0 */
+	volatile uint32_t frm_size_pixel;/*yesrmal plane ctrl 1 */
+	volatile uint32_t frm_inhwctrl;	/* yesrmal plane ctrl 2 */
+	volatile uint32_t frm_control;	/* yesrmal plane ctrl 3 */
 	uint32_t _pad3[0xfff0/4];
 	volatile uint32_t did_inhwctrl;	/* DID control */
 	volatile uint32_t did_control;	/* DID shadow */

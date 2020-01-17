@@ -5,7 +5,7 @@
 #ifndef __DMA_IOMMU_H
 #define __DMA_IOMMU_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 
 #ifdef CONFIG_IOMMU_DMA

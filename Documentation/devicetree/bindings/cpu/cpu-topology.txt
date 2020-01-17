@@ -15,166 +15,166 @@ are used to describe the layout of physical CPUs in the system:
 - thread
 
 The bottom hierarchy level sits at core or thread level depending on whether
-symmetric multi-threading (SMT) is supported or not.
+symmetric multi-threading (SMT) is supported or yest.
 
-For instance in a system where CPUs support SMT, "cpu" nodes represent all
+For instance in a system where CPUs support SMT, "cpu" yesdes represent all
 threads existing in the system and map to the hierarchy level "thread" above.
-In systems where SMT is not supported "cpu" nodes represent all cores present
+In systems where SMT is yest supported "cpu" yesdes represent all cores present
 in the system and map to the hierarchy level "core" above.
 
-CPU topology bindings allow one to associate cpu nodes with hierarchical groups
+CPU topology bindings allow one to associate cpu yesdes with hierarchical groups
 corresponding to the system hierarchy; syntactically they are defined as device
-tree nodes.
+tree yesdes.
 
 Currently, only ARM/RISC-V intend to use this cpu topology binding but it may be
 used for any other architecture as well.
 
-The cpu nodes, as per bindings defined in [4], represent the devices that
+The cpu yesdes, as per bindings defined in [4], represent the devices that
 correspond to physical CPUs and are to be mapped to the hierarchy levels.
 
-A topology description containing phandles to cpu nodes that are not compliant
+A topology description containing phandles to cpu yesdes that are yest compliant
 with bindings standardized in [4] is therefore considered invalid.
 
 ===========================================
-2 - cpu-map node
+2 - cpu-map yesde
 ===========================================
 
-The ARM/RISC-V CPU topology is defined within the cpu-map node, which is a direct
-child of the cpus node and provides a container where the actual topology
-nodes are listed.
+The ARM/RISC-V CPU topology is defined within the cpu-map yesde, which is a direct
+child of the cpus yesde and provides a container where the actual topology
+yesdes are listed.
 
-- cpu-map node
+- cpu-map yesde
 
 	Usage: Optional - On SMP systems provide CPUs topology to the OS.
-			  Uniprocessor systems do not require a topology
-			  description and therefore should not define a
-			  cpu-map node.
+			  Uniprocessor systems do yest require a topology
+			  description and therefore should yest define a
+			  cpu-map yesde.
 
-	Description: The cpu-map node is just a container node where its
-		     subnodes describe the CPU topology.
+	Description: The cpu-map yesde is just a container yesde where its
+		     subyesdes describe the CPU topology.
 
 	Node name must be "cpu-map".
 
-	The cpu-map node's parent node must be the cpus node.
+	The cpu-map yesde's parent yesde must be the cpus yesde.
 
-	The cpu-map node's child nodes can be:
+	The cpu-map yesde's child yesdes can be:
 
-	- one or more cluster nodes or
-	- one or more socket nodes in a multi-socket system
+	- one or more cluster yesdes or
+	- one or more socket yesdes in a multi-socket system
 
 	Any other configuration is considered invalid.
 
-The cpu-map node can only contain 4 types of child nodes:
+The cpu-map yesde can only contain 4 types of child yesdes:
 
-- socket node
-- cluster node
-- core node
-- thread node
+- socket yesde
+- cluster yesde
+- core yesde
+- thread yesde
 
 whose bindings are described in paragraph 3.
 
-The nodes describing the CPU topology (socket/cluster/core/thread) can
-only be defined within the cpu-map node and every core/thread in the
+The yesdes describing the CPU topology (socket/cluster/core/thread) can
+only be defined within the cpu-map yesde and every core/thread in the
 system must be defined within the topology.  Any other configuration is
-invalid and therefore must be ignored.
+invalid and therefore must be igyesred.
 
 ===========================================
-2.1 - cpu-map child nodes naming convention
+2.1 - cpu-map child yesdes naming convention
 ===========================================
 
-cpu-map child nodes must follow a naming convention where the node name
-must be "socketN", "clusterN", "coreN", "threadN" depending on the node type
-(ie socket/cluster/core/thread) (where N = {0, 1, ...} is the node number; nodes
-which are siblings within a single common parent node must be given a unique and
+cpu-map child yesdes must follow a naming convention where the yesde name
+must be "socketN", "clusterN", "coreN", "threadN" depending on the yesde type
+(ie socket/cluster/core/thread) (where N = {0, 1, ...} is the yesde number; yesdes
+which are siblings within a single common parent yesde must be given a unique and
 sequential N value, starting from 0).
-cpu-map child nodes which do not share a common parent node can have the same
-name (ie same number N as other cpu-map child nodes at different device tree
+cpu-map child yesdes which do yest share a common parent yesde can have the same
+name (ie same number N as other cpu-map child yesdes at different device tree
 levels) since name uniqueness will be guaranteed by the device tree hierarchy.
 
 ===========================================
-3 - socket/cluster/core/thread node bindings
+3 - socket/cluster/core/thread yesde bindings
 ===========================================
 
-Bindings for socket/cluster/cpu/thread nodes are defined as follows:
+Bindings for socket/cluster/cpu/thread yesdes are defined as follows:
 
-- socket node
+- socket yesde
 
-	 Description: must be declared within a cpu-map node, one node
+	 Description: must be declared within a cpu-map yesde, one yesde
 		      per physical socket in the system. A system can
 		      contain single or multiple physical socket.
-		      The association of sockets and NUMA nodes is beyond
+		      The association of sockets and NUMA yesdes is beyond
 		      the scope of this bindings, please refer [2] for
 		      NUMA bindings.
 
-	This node is optional for a single socket system.
+	This yesde is optional for a single socket system.
 
-	The socket node name must be "socketN" as described in 2.1 above.
-	A socket node can not be a leaf node.
+	The socket yesde name must be "socketN" as described in 2.1 above.
+	A socket yesde can yest be a leaf yesde.
 
-	A socket node's child nodes must be one or more cluster nodes.
+	A socket yesde's child yesdes must be one or more cluster yesdes.
 
 	Any other configuration is considered invalid.
 
-- cluster node
+- cluster yesde
 
-	 Description: must be declared within a cpu-map node, one node
+	 Description: must be declared within a cpu-map yesde, one yesde
 		      per cluster. A system can contain several layers of
 		      clustering within a single physical socket and cluster
-		      nodes can be contained in parent cluster nodes.
+		      yesdes can be contained in parent cluster yesdes.
 
-	The cluster node name must be "clusterN" as described in 2.1 above.
-	A cluster node can not be a leaf node.
+	The cluster yesde name must be "clusterN" as described in 2.1 above.
+	A cluster yesde can yest be a leaf yesde.
 
-	A cluster node's child nodes must be:
+	A cluster yesde's child yesdes must be:
 
-	- one or more cluster nodes; or
-	- one or more core nodes
+	- one or more cluster yesdes; or
+	- one or more core yesdes
 
 	Any other configuration is considered invalid.
 
-- core node
+- core yesde
 
-	Description: must be declared in a cluster node, one node per core in
-		     the cluster. If the system does not support SMT, core
-		     nodes are leaf nodes, otherwise they become containers of
-		     thread nodes.
+	Description: must be declared in a cluster yesde, one yesde per core in
+		     the cluster. If the system does yest support SMT, core
+		     yesdes are leaf yesdes, otherwise they become containers of
+		     thread yesdes.
 
-	The core node name must be "coreN" as described in 2.1 above.
+	The core yesde name must be "coreN" as described in 2.1 above.
 
-	A core node must be a leaf node if SMT is not supported.
+	A core yesde must be a leaf yesde if SMT is yest supported.
 
-	Properties for core nodes that are leaf nodes:
+	Properties for core yesdes that are leaf yesdes:
 
 	- cpu
 		Usage: required
 		Value type: <phandle>
-		Definition: a phandle to the cpu node that corresponds to the
-			    core node.
+		Definition: a phandle to the cpu yesde that corresponds to the
+			    core yesde.
 
-	If a core node is not a leaf node (CPUs supporting SMT) a core node's
-	child nodes can be:
+	If a core yesde is yest a leaf yesde (CPUs supporting SMT) a core yesde's
+	child yesdes can be:
 
-	- one or more thread nodes
+	- one or more thread yesdes
 
 	Any other configuration is considered invalid.
 
-- thread node
+- thread yesde
 
-	Description: must be declared in a core node, one node per thread
-		     in the core if the system supports SMT. Thread nodes are
-		     always leaf nodes in the device tree.
+	Description: must be declared in a core yesde, one yesde per thread
+		     in the core if the system supports SMT. Thread yesdes are
+		     always leaf yesdes in the device tree.
 
-	The thread node name must be "threadN" as described in 2.1 above.
+	The thread yesde name must be "threadN" as described in 2.1 above.
 
-	A thread node must be a leaf node.
+	A thread yesde must be a leaf yesde.
 
-	A thread node must contain the following property:
+	A thread yesde must contain the following property:
 
 	- cpu
 		Usage: required
 		Value type: <phandle>
-		Definition: a phandle to the cpu node that corresponds to
-			    the thread node.
+		Definition: a phandle to the cpu yesde that corresponds to
+			    the thread yesde.
 
 ===========================================
 4 - Example dts
@@ -402,7 +402,7 @@ cpus {
 	};
 };
 
-Example 2 (ARM 32-bit, dual-cluster, 8-cpu system, no SMT):
+Example 2 (ARM 32-bit, dual-cluster, 8-cpu system, yes SMT):
 
 cpus {
 	#size-cells = <0>;

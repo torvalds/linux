@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -156,7 +156,7 @@ int qib_count_units(int *npresentp, int *nupp)
  * @msecs: the number of milliseconds to wait
  *
  * wait up to msecs milliseconds for IB link state change to occur for
- * now, take the easy polling route.  Currently used only by
+ * yesw, take the easy polling route.  Currently used only by
  * qib_set_linkstate.  Returns 0 if state reached, otherwise
  * -ETIMEDOUT state can have multiple states set, for any of several
  * transitions.
@@ -238,7 +238,7 @@ int qib_set_linkstate(struct qib_pportdata *ppd, u8 newstate)
 		 * Since the port can be ACTIVE when we ask for ARMED,
 		 * clear QIBL_LINKV so we can wait for a transition.
 		 * If the link isn't ARMED, then something else happened
-		 * and there is no point waiting for ARMED.
+		 * and there is yes point waiting for ARMED.
 		 */
 		spin_lock_irqsave(&ppd->lflags_lock, flags);
 		ppd->lflags &= ~QIBL_LINKV;
@@ -273,7 +273,7 @@ bail:
 }
 
 /*
- * Get address of eager buffer from it's index (allocated in chunks, not
+ * Get address of eager buffer from it's index (allocated in chunks, yest
  * contiguous).
  */
 static inline void *qib_get_egrbuf(const struct qib_ctxtdata *rcd, u32 etail)
@@ -378,7 +378,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 				if (ruc_res)
 					goto unlock;
 
-				/* Only deal with RDMA Writes for now */
+				/* Only deal with RDMA Writes for yesw */
 				if (opcode <
 				    IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST) {
 					diff = qib_cmp24(psn, qp->r_psn);
@@ -412,7 +412,7 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 			case IB_QPT_UD:
 			case IB_QPT_UC:
 			default:
-				/* For now don't handle any other QP types */
+				/* For yesw don't handle any other QP types */
 				break;
 			}
 
@@ -532,7 +532,7 @@ move_along:
 		} else if (l == hdrqtail)
 			last = 1;
 		/*
-		 * Update head regs etc., every 16 packets, if not last pkt,
+		 * Update head regs etc., every 16 packets, if yest last pkt,
 		 * to help prevent rcvhdrq overflows, when many packets
 		 * are processed and queue is nearly full.
 		 * Don't request an interrupt for intermediate updates.
@@ -576,7 +576,7 @@ bail:
 
 	/*
 	 * Always write head at end, and setup rcv interrupt, even
-	 * if no packets were processed.
+	 * if yes packets were processed.
 	 */
 	lval = (u64)rcd->head | dd->rhdrhead_intr_off;
 	dd->f_update_usrhead(rcd, lval, updegr, etail, i);
@@ -589,7 +589,7 @@ bail:
  * @arg: the new MTU
  *
  * We can handle "any" incoming size, the issue here is whether we
- * need to restrict our outgoing size.   For now, we don't do any
+ * need to restrict our outgoing size.   For yesw, we don't do any
  * sanity checking on this, and we don't deal with what happens to
  * programs that are already running when the size changes.
  * NOTE: changing the MTU will usually cause the IBC to go back to
@@ -615,7 +615,7 @@ int qib_set_mtu(struct qib_pportdata *ppd, u16 arg)
 	ppd->ibmtu = arg;
 
 	if (arg >= (piosize - QIB_PIO_MAXIBHDR)) {
-		/* Only if it's not the initial value (or reset to it) */
+		/* Only if it's yest the initial value (or reset to it) */
 		if (piosize != ppd->init_ibmaxlen) {
 			if (arg > piosize && arg <= ppd->init_ibmaxlen)
 				piosize = ppd->init_ibmaxlen - 2 * sizeof(u32);
@@ -652,14 +652,14 @@ int qib_set_lid(struct qib_pportdata *ppd, u32 lid, u8 lmc)
 
 /*
  * Following deal with the "obviously simple" task of overriding the state
- * of the LEDS, which normally indicate link physical and logical status.
+ * of the LEDS, which yesrmally indicate link physical and logical status.
  * The complications arise in dealing with different hardware mappings
  * and the board-dependent routine being called from interrupts.
  * and then there's the requirement to _flash_ them.
  */
 #define LED_OVER_FREQ_SHIFT 8
 #define LED_OVER_FREQ_MASK (0xFF<<LED_OVER_FREQ_SHIFT)
-/* Below is "non-zero" to force override, but both actual LEDs are off */
+/* Below is "yesn-zero" to force override, but both actual LEDs are off */
 #define LED_OVER_BOTH_OFF (8)
 
 static void qib_run_led_override(struct timer_list *t)
@@ -694,7 +694,7 @@ void qib_set_led_override(struct qib_pportdata *ppd, unsigned int val)
 	if (!(dd->flags & QIB_INITTED))
 		return;
 
-	/* First check if we are blinking. If not, use 1HZ polling */
+	/* First check if we are blinking. If yest, use 1HZ polling */
 	timeoff = HZ;
 	freq = (val & LED_OVER_FREQ_MASK) >> LED_OVER_FREQ_SHIFT;
 
@@ -711,7 +711,7 @@ void qib_set_led_override(struct qib_pportdata *ppd, unsigned int val)
 	ppd->led_override_timeoff = timeoff;
 
 	/*
-	 * If the timer has not already been started, do so. Use a "quick"
+	 * If the timer has yest already been started, do so. Use a "quick"
 	 * timeout so the function will be called soon, to look at our request.
 	 */
 	if (atomic_inc_return(&ppd->led_override_timer_active) == 1) {
@@ -730,10 +730,10 @@ void qib_set_led_override(struct qib_pportdata *ppd, unsigned int val)
  * qib_reset_device - reset the chip if possible
  * @unit: the device to reset
  *
- * Whether or not reset is successful, we attempt to re-initialize the chip
+ * Whether or yest reset is successful, we attempt to re-initialize the chip
  * (that is, much like a driver unload/reload).  We clear the INITTED flag
  * so that the various entry points will fail until we reinitialize.  For
- * now, we only allow this if no user contexts are open that use chip resources
+ * yesw, we only allow this if yes user contexts are open that use chip resources
  */
 int qib_reset_device(int unit)
 {
@@ -752,7 +752,7 @@ int qib_reset_device(int unit)
 
 	if (!dd->kregbase || !(dd->flags & QIB_PRESENT)) {
 		qib_devinfo(dd->pcidev,
-			"Invalid unit number %u or not initialized or not present\n",
+			"Invalid unit number %u or yest initialized or yest present\n",
 			unit);
 		ret = -ENXIO;
 		goto bail;
@@ -777,7 +777,7 @@ int qib_reset_device(int unit)
 			atomic_set(&ppd->led_override_timer_active, 0);
 		}
 
-		/* Shut off LEDs after we are sure timer is not running */
+		/* Shut off LEDs after we are sure timer is yest running */
 		ppd->led_override = LED_OVER_BOTH_OFF;
 		dd->f_setextled(ppd, 0);
 		if (dd->flags & QIB_HAS_SEND_DMA)

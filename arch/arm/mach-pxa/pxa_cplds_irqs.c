@@ -147,7 +147,7 @@ static int cplds_probe(struct platform_device *pdev)
 	}
 
 	irq_set_irq_wake(fpga->irq, 1);
-	fpga->irqdomain = irq_domain_add_linear(pdev->dev.of_node,
+	fpga->irqdomain = irq_domain_add_linear(pdev->dev.of_yesde,
 					       CPLDS_NB_IRQ,
 					       &cplds_irq_domain_ops, fpga);
 	if (!fpga->irqdomain)

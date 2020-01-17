@@ -88,7 +88,7 @@ static int thunder_pem_bridge_read(struct pci_bus *bus, unsigned int devfn,
 		read_val = 0x000f0000;
 		break;
 	case 0xbc:
-		/* EA, 1 entry, no next Cap */
+		/* EA, 1 entry, yes next Cap */
 		read_val = 0x00010014;
 		break;
 	case 0xc0:
@@ -146,9 +146,9 @@ static int thunder_pem_config_read(struct pci_bus *bus, unsigned int devfn,
 }
 
 /*
- * Some of the w1c_bits below also include read-only or non-writable
+ * Some of the w1c_bits below also include read-only or yesn-writable
  * reserved bits, this makes the code simpler and is OK as the bits
- * are not affected by writing zeros to them.
+ * are yest affected by writing zeros to them.
  */
 static u32 thunder_pem_bridge_w1c_bits(u64 where_aligned)
 {
@@ -246,7 +246,7 @@ static int thunder_pem_bridge_write(struct pci_bus *bus, unsigned int devfn,
 
 	/*
 	 * By expanding the write width to 32 bits, we may
-	 * inadvertently hit some W1C bits that were not intended to
+	 * inadvertently hit some W1C bits that were yest intended to
 	 * be written.  Calculate the mask that must be applied to the
 	 * data to be written to avoid these cases.
 	 */
@@ -349,21 +349,21 @@ static void thunder_pem_reserve_range(struct device *dev, int seg,
 		kfree(regionid);
 
 	dev_info(dev, "%pR %s reserved\n", r,
-		 res ? "has been" : "could not be");
+		 res ? "has been" : "could yest be");
 }
 
 static void thunder_pem_legacy_fw(struct acpi_pci_root *root,
 				 struct resource *res_pem)
 {
-	int node = acpi_get_node(root->device->handle);
+	int yesde = acpi_get_yesde(root->device->handle);
 	int index;
 
-	if (node == NUMA_NO_NODE)
-		node = 0;
+	if (yesde == NUMA_NO_NODE)
+		yesde = 0;
 
 	index = root->segment - PEM_MIN_DOM_IN_NODE;
-	index -= node * PEM_MAX_DOM_IN_NODE;
-	res_pem->start = PEM_RES_BASE | FIELD_PREP(PEM_NODE_MASK, node) |
+	index -= yesde * PEM_MAX_DOM_IN_NODE;
+	res_pem->start = PEM_RES_BASE | FIELD_PREP(PEM_NODE_MASK, yesde) |
 					FIELD_PREP(PEM_INDX_MASK, index);
 	res_pem->flags = IORESOURCE_MEM;
 }
@@ -423,7 +423,7 @@ static int thunder_pem_platform_init(struct pci_config_window *cfg)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res_pem;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -EINVAL;
 
 	/*

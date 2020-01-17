@@ -25,18 +25,18 @@ presence of a management port connected to an Ethernet controller capable of
 receiving Ethernet frames from the switch. This is a very common setup for all
 kinds of Ethernet switches found in Small Home and Office products: routers,
 gateways, or even top-of-the rack switches. This host Ethernet controller will
-be later referred to as "master" and "cpu" in DSA terminology and code.
+be later referred to as "master" and "cpu" in DSA termiyeslogy and code.
 
 The D in DSA stands for Distributed, because the subsystem has been designed
 with the ability to configure and manage cascaded switches on top of each other
 using upstream and downstream Ethernet links between switches. These specific
-ports are referred to as "dsa" ports in DSA terminology and code. A collection
+ports are referred to as "dsa" ports in DSA termiyeslogy and code. A collection
 of multiple switches connected to each other is called a "switch tree".
 
 For each front-panel port, DSA will create specialized network devices which are
 used as controlling and data-flowing endpoints for use by the Linux networking
 stack. These specialized network interfaces are referred to as "slave" network
-interfaces in DSA terminology and code.
+interfaces in DSA termiyeslogy and code.
 
 The ideal case for using DSA is when an Ethernet switch supports a "switch tag"
 which is a hardware feature making the switch insert a specific tag for each
@@ -47,11 +47,11 @@ interface figure out:
 - what was the reason why this frame got forwarded
 - how to send CPU originated traffic to specific ports
 
-The subsystem does support switches not capable of inserting/stripping tags, but
+The subsystem does support switches yest capable of inserting/stripping tags, but
 the features might be slightly limited in that case (traffic separation relies
 on Port-based VLAN IDs).
 
-Note that DSA does not currently create network interfaces for the "cpu" and
+Note that DSA does yest currently create network interfaces for the "cpu" and
 "dsa" ports because:
 
 - the "cpu" port is the Ethernet switch facing side of the management
@@ -59,7 +59,7 @@ Note that DSA does not currently create network interfaces for the "cpu" and
   would get two interfaces for the same conduit: master netdev, and "cpu" netdev
 
 - the "dsa" port(s) are just conduits between two or more switches, and as such
-  cannot really be used as proper network interfaces either, only the
+  canyest really be used as proper network interfaces either, only the
   downstream, or the top-most upstream interface makes sense with that model
 
 Switch tagging protocols
@@ -85,7 +85,7 @@ Master network devices
 
 Master network devices are regular, unmodified Linux network device drivers for
 the CPU/management Ethernet interface. Such a driver might occasionally need to
-know whether DSA is enabled (e.g.: to enable/disable specific offload features),
+kyesw whether DSA is enabled (e.g.: to enable/disable specific offload features),
 but the DSA subsystem has been proven to work with industry standard drivers:
 ``e1000e,`` ``mv643xx_eth`` etc. without having to introduce modifications to these
 drivers. Such network devices are also often referred to as conduit network
@@ -99,7 +99,7 @@ When a master netdev is used with DSA, a small hook is placed in in the
 networking stack is in order to have the DSA subsystem process the Ethernet
 switch specific tagging protocol. DSA accomplishes this by registering a
 specific (and fake) Ethernet type (later becoming ``skb->protocol``) with the
-networking stack, this is also known as a ``ptype`` or ``packet_type``. A typical
+networking stack, this is also kyeswn as a ``ptype`` or ``packet_type``. A typical
 Ethernet Frame receive sequence looks like this:
 
 Master network device (e.g.: e1000e):
@@ -250,7 +250,7 @@ arise.
 Lack of CPU/DSA network devices
 -------------------------------
 
-DSA does not currently create slave network devices for the CPU or DSA ports, as
+DSA does yest currently create slave network devices for the CPU or DSA ports, as
 described before. This might be an issue in the following cases:
 
 - inability to fetch switch CPU port statistics counters using ethtool, which
@@ -266,10 +266,10 @@ Common pitfalls using DSA setups
 --------------------------------
 
 Once a master network device is configured to use DSA (dev->dsa_ptr becomes
-non-NULL), and the switch behind it expects a tagging protocol, this network
+yesn-NULL), and the switch behind it expects a tagging protocol, this network
 interface can only exclusively be used as a conduit interface. Sending packets
 directly through this interface (e.g.: opening a socket using this interface)
-will not make us go through the switch tagging protocol transmit function, so
+will yest make us go through the switch tagging protocol transmit function, so
 the Ethernet switch on the other end, expecting a tag will typically drop this
 frame.
 
@@ -289,14 +289,14 @@ DSA currently leverages the following subsystems:
 MDIO/PHY library
 ----------------
 
-Slave network devices exposed by DSA may or may not be interfacing with PHY
+Slave network devices exposed by DSA may or may yest be interfacing with PHY
 devices (``struct phy_device`` as defined in ``include/linux/phy.h)``, but the DSA
 subsystem deals with all possible combinations:
 
 - internal PHY devices, built into the Ethernet switch hardware
 - external PHY devices, connected via an internal or external MDIO bus
 - internal PHY devices, connected via an internal MDIO bus
-- special, non-autonegotiated or non MDIO-managed PHY devices: SFPs, MoCA; a.k.a
+- special, yesn-autonegotiated or yesn MDIO-managed PHY devices: SFPs, MoCA; a.k.a
   fixed PHYs
 
 The PHY configuration is done by the ``dsa_slave_phy_setup()`` function and the
@@ -307,7 +307,7 @@ logic basically looks like this:
   using ``of_phy_connect()``
 
 - if Device Tree is used, and the PHY device is "fixed", that is, conforms to
-  the definition of a non-MDIO managed PHY as defined in
+  the definition of a yesn-MDIO managed PHY as defined in
   ``Documentation/devicetree/bindings/net/fixed-link.txt``, the PHY is registered
   and connected transparently using the special fixed MDIO bus driver
 
@@ -322,7 +322,7 @@ SWITCHDEV
 DSA directly utilizes SWITCHDEV when interfacing with the bridge layer, and
 more specifically with its VLAN filtering portion when configuring VLANs on top
 of per-port slave network devices. Since DSA primarily deals with
-MDIO-connected switches, although not exclusively, SWITCHDEV's
+MDIO-connected switches, although yest exclusively, SWITCHDEV's
 prepare/abort/commit phases are often simplified into a prepare phase which
 checks whether the operation is supported by the DSA switch driver, and a commit
 phase which applies the changes.
@@ -348,7 +348,7 @@ contain the various members described below.
 of drivers to probe for. ``unregister_switch_driver()`` does the exact opposite.
 
 Unless requested differently by setting the priv_size member accordingly, DSA
-does not allocate any driver private context space.
+does yest allocate any driver private context space.
 
 Switch configuration
 --------------------
@@ -360,7 +360,7 @@ Switch configuration
   registration to test for the presence/absence of a switch device. For MDIO
   devices, it is recommended to issue a read towards internal registers using
   the switch pseudo-PHY and return whether this is a supported device. For other
-  buses, return a non-NULL string
+  buses, return a yesn-NULL string
 
 - ``setup``: setup function for the switch, this function is responsible for setting
   up the ``dsa_switch_ops`` private structure with all it needs: register maps,
@@ -379,7 +379,7 @@ PHY devices and link management
 -------------------------------
 
 - ``get_phy_flags``: Some switches are interfaced to various kinds of Ethernet PHYs,
-  if the PHY library PHY driver needs to know about information it cannot obtain
+  if the PHY library PHY driver needs to kyesw about information it canyest obtain
   on its own (e.g.: coming from switch memory mapped registers), this function
   should return a 32-bits bitmask of "flags", that is private between the switch
   driver and the Ethernet PHY driver in ``drivers/net/phy/\*``.
@@ -400,9 +400,9 @@ PHY devices and link management
 
 - ``fixed_link_update``: Function invoked by the PHY library, and specifically by
   the fixed PHY driver asking the switch driver for link parameters that could
-  not be auto-negotiated, or obtained by reading the PHY registers through MDIO.
+  yest be auto-negotiated, or obtained by reading the PHY registers through MDIO.
   This is particularly useful for specific kinds of hardware such as QSGMII,
-  MoCA or other kinds of non-MDIO managed PHYs where out of band link
+  MoCA or other kinds of yesn-MDIO managed PHYs where out of band link
   information is obtained
 
 Ethtool operations
@@ -465,7 +465,7 @@ Power management
   function when a port is administratively brought up, this function should be
   fully enabling a given switch port. DSA takes care of marking the port with
   ``BR_STATE_BLOCKING`` if the port is a bridge member, or ``BR_STATE_FORWARDING`` if it
-  was not, and propagating these changes down to the hardware
+  was yest, and propagating these changes down to the hardware
 
 - ``port_disable``: function invoked by the DSA slave network device ndo_close
   function when a port is administratively brought down, this function should be
@@ -498,17 +498,17 @@ Bridge VLAN filtering
 ---------------------
 
 - ``port_vlan_filtering``: bridge layer function invoked when the bridge gets
-  configured for turning on or off VLAN filtering. If nothing specific needs to
-  be done at the hardware level, this callback does not need to be implemented.
+  configured for turning on or off VLAN filtering. If yesthing specific needs to
+  be done at the hardware level, this callback does yest need to be implemented.
   When VLAN filtering is turned on, the hardware must be programmed with
   rejecting 802.1Q frames which have VLAN IDs outside of the programmed allowed
-  VLAN ID map/rules.  If there is no PVID programmed into the switch port,
+  VLAN ID map/rules.  If there is yes PVID programmed into the switch port,
   untagged frames must be rejected as well. When turned off the switch must
   accept any 802.1Q frames irrespective of their VLAN ID, and untagged frames are
   allowed.
 
 - ``port_vlan_prepare``: bridge layer function invoked when the bridge prepares the
-  configuration of a VLAN on the given port. If the operation is not supported
+  configuration of a VLAN on the given port. If the operation is yest supported
   by the hardware, this function should return ``-EOPNOTSUPP`` to inform the bridge
   code to fallback to a software implementation. No hardware setup must be done
   in this function. See port_vlan_add for this and details.
@@ -526,11 +526,11 @@ Bridge VLAN filtering
 - ``port_fdb_add``: bridge layer function invoked when the bridge wants to install a
   Forwarding Database entry, the switch hardware should be programmed with the
   specified address in the specified VLAN Id in the forwarding database
-  associated with this VLAN ID. If the operation is not supported, this
+  associated with this VLAN ID. If the operation is yest supported, this
   function should return ``-EOPNOTSUPP`` to inform the bridge code to fallback to
   a software implementation.
 
-.. note:: VLAN ID 0 corresponds to the port private database, which, in the context
+.. yeste:: VLAN ID 0 corresponds to the port private database, which, in the context
         of DSA, would be its port-based VLAN, used by the associated bridge device.
 
 - ``port_fdb_del``: bridge layer function invoked when the bridge wants to remove a
@@ -539,11 +539,11 @@ Bridge VLAN filtering
   this port forwarding database
 
 - ``port_fdb_dump``: bridge layer function invoked with a switchdev callback
-  function that the driver has to call for each MAC address known to be behind
+  function that the driver has to call for each MAC address kyeswn to be behind
   the given port. A switchdev object is used to carry the VID and FDB info.
 
 - ``port_mdb_prepare``: bridge layer function invoked when the bridge prepares the
-  installation of a multicast database entry. If the operation is not supported,
+  installation of a multicast database entry. If the operation is yest supported,
   this function should return ``-EOPNOTSUPP`` to inform the bridge code to fallback
   to a software implementation. No hardware setup must be done in this function.
   See ``port_fdb_add`` for this and details.
@@ -553,7 +553,7 @@ Bridge VLAN filtering
   specified address in the specified VLAN ID in the forwarding database
   associated with this VLAN ID.
 
-.. note:: VLAN ID 0 corresponds to the port private database, which, in the context
+.. yeste:: VLAN ID 0 corresponds to the port private database, which, in the context
         of DSA, would be its port-based VLAN, used by the associated bridge device.
 
 - ``port_mdb_del``: bridge layer function invoked when the bridge wants to remove a
@@ -562,7 +562,7 @@ Bridge VLAN filtering
   this port forwarding database.
 
 - ``port_mdb_dump``: bridge layer function invoked with a switchdev callback
-  function that the driver has to call for each MAC address known to be behind
+  function that the driver has to call for each MAC address kyeswn to be behind
   the given port. A switchdev object is used to carry the VID and MDB info.
 
 TODO
@@ -572,7 +572,7 @@ Making SWITCHDEV and DSA converge towards an unified codebase
 -------------------------------------------------------------
 
 SWITCHDEV properly takes care of abstracting the networking stack with offload
-capable hardware, but does not enforce a strict switch device driver model. On
+capable hardware, but does yest enforce a strict switch device driver model. On
 the other DSA enforces a fairly strict device driver model, and deals with most
 of the switch specific. At some point we should envision a merger between these
 two subsystems and get the best of both worlds.
@@ -580,7 +580,7 @@ two subsystems and get the best of both worlds.
 Other hanging fruits
 --------------------
 
-- making the number of ports fully dynamic and not dependent on ``DSA_MAX_PORTS``
+- making the number of ports fully dynamic and yest dependent on ``DSA_MAX_PORTS``
 - allowing more than one CPU/management interface:
   http://comments.gmane.org/gmane.linux.network/365657
 - porting more drivers from other vendors:

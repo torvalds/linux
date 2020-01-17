@@ -10,7 +10,7 @@
  * detaches from the USB bus and reattaches with a new device ID. It can then
  * be claimed by the uvc driver.
  *
- * The firmware is non-free and must be extracted by the user. Tools to do this
+ * The firmware is yesn-free and must be extracted by the user. Tools to do this
  * are available at http://bersace03.free.fr/ift/
  *
  * The isight firmware loading was reverse engineered by Johannes Berg
@@ -20,7 +20,7 @@
 
 #include <linux/usb.h>
 #include <linux/firmware.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 

@@ -27,7 +27,7 @@
 #include "pinctrl-imx.h"
 
 /* The bits in CONFIG cell defined in binding doc*/
-#define IMX_NO_PAD_CTL	0x80000000	/* no pin config need */
+#define IMX_NO_PAD_CTL	0x80000000	/* yes pin config need */
 #define IMX_PAD_SION 0x40000000		/* set SION */
 
 static inline const struct group_desc *imx_pinctrl_find_group_by_name(
@@ -52,26 +52,26 @@ static void imx_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, "%s", dev_name(pctldev->dev));
 }
 
-static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
-			struct device_node *np,
+static int imx_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+			struct device_yesde *np,
 			struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct group_desc *grp;
 	struct pinctrl_map *new_map;
-	struct device_node *parent;
+	struct device_yesde *parent;
 	struct imx_pin *pin;
 	int map_num = 1;
 	int i, j;
 
 	/*
-	 * first find the group of this node and check if we need create
+	 * first find the group of this yesde and check if we need create
 	 * config maps for pins
 	 */
 	grp = imx_pinctrl_find_group_by_name(pctldev, np->name);
 	if (!grp) {
-		dev_err(ipctl->dev, "unable to find group for node %pOFn\n", np);
+		dev_err(ipctl->dev, "unable to find group for yesde %pOFn\n", np);
 		return -EINVAL;
 	}
 
@@ -102,7 +102,7 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 	new_map[0].type = PIN_MAP_TYPE_MUX_GROUP;
 	new_map[0].data.mux.function = parent->name;
 	new_map[0].data.mux.group = np->name;
-	of_node_put(parent);
+	of_yesde_put(parent);
 
 	/* create config map */
 	new_map++;
@@ -111,7 +111,7 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 		/*
 		 * We only create config maps for SCU pads or MMIO pads that
-		 * are not using the default config(a.k.a IMX_NO_PAD_CTL)
+		 * are yest using the default config(a.k.a IMX_NO_PAD_CTL)
 		 */
 		if (!(info->flags & IMX_USE_SCU) &&
 		    (pin->conf.mmio.config & IMX_NO_PAD_CTL))
@@ -155,7 +155,7 @@ static const struct pinctrl_ops imx_pctrl_ops = {
 	.get_group_name = pinctrl_generic_get_group_name,
 	.get_group_pins = pinctrl_generic_get_group_pins,
 	.pin_dbg_show = imx_pin_dbg_show,
-	.dt_node_to_map = imx_dt_node_to_map,
+	.dt_yesde_to_map = imx_dt_yesde_to_map,
 	.dt_free_map = imx_dt_free_map,
 };
 
@@ -171,7 +171,7 @@ static int imx_pmx_set_one_pin_mmio(struct imx_pinctrl *ipctl,
 	pin_reg = &ipctl->pin_regs[pin_id];
 
 	if (pin_reg->mux_reg == -1) {
-		dev_dbg(ipctl->dev, "Pin(%s) does not support mux function\n",
+		dev_dbg(ipctl->dev, "Pin(%s) does yest support mux function\n",
 			info->pins[pin_id].name);
 		return 0;
 	}
@@ -197,7 +197,7 @@ static int imx_pmx_set_one_pin_mmio(struct imx_pinctrl *ipctl,
 	 *     31     23      15      7        0
 	 *     | 0xff | shift | width | select |
 	 * It's used to work around the problem that the select
-	 * input for some pin is not implemented in the select
+	 * input for some pin is yest implemented in the select
 	 * input register but in some general purpose register.
 	 * We encode the select input value, width and shift of
 	 * the bit field into input_val cell of pin function ID
@@ -212,7 +212,7 @@ static int imx_pmx_set_one_pin_mmio(struct imx_pinctrl *ipctl,
 		u32 mask = ((1 << width) - 1) << shift;
 		/*
 		 * The input_reg[i] here is actually some IOMUXC general
-		 * purpose register, not regular select input register.
+		 * purpose register, yest regular select input register.
 		 */
 		val = readl(ipctl->base + pin_mmio->input_reg);
 		val &= ~mask;
@@ -325,7 +325,7 @@ static u32 imx_pinconf_decode_generic_config(struct imx_pinctrl *ipctl,
 	return raw_config;
 }
 
-static u32 imx_pinconf_parse_generic_config(struct device_node *np,
+static u32 imx_pinconf_parse_generic_config(struct device_yesde *np,
 					    struct imx_pinctrl *ipctl)
 {
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
@@ -353,7 +353,7 @@ static int imx_pinconf_get_mmio(struct pinctrl_dev *pctldev, unsigned pin_id,
 	const struct imx_pin_reg *pin_reg = &ipctl->pin_regs[pin_id];
 
 	if (pin_reg->conf_reg == -1) {
-		dev_err(ipctl->dev, "Pin(%s) does not support config function\n",
+		dev_err(ipctl->dev, "Pin(%s) does yest support config function\n",
 			info->pins[pin_id].name);
 		return -EINVAL;
 	}
@@ -388,7 +388,7 @@ static int imx_pinconf_set_mmio(struct pinctrl_dev *pctldev,
 	int i;
 
 	if (pin_reg->conf_reg == -1) {
-		dev_err(ipctl->dev, "Pin(%s) does not support config function\n",
+		dev_err(ipctl->dev, "Pin(%s) does yest support config function\n",
 			info->pins[pin_id].name);
 		return -EINVAL;
 	}
@@ -497,7 +497,7 @@ static const struct pinconf_ops imx_pinconf_ops = {
 /*
  * Each pin represented in fsl,pins consists of a number of u32 PIN_FUNC_ID
  * and 1 u32 CONFIG, the total size is PIN_FUNC_ID + CONFIG for each pin.
- * For generic_pinconf case, there's no extra u32 CONFIG.
+ * For generic_pinconf case, there's yes extra u32 CONFIG.
  *
  * PIN_FUNC_ID format:
  * Default:
@@ -514,7 +514,7 @@ static const struct pinconf_ops imx_pinconf_ops = {
 static void imx_pinctrl_parse_pin_mmio(struct imx_pinctrl *ipctl,
 				       unsigned int *pin_id, struct imx_pin *pin,
 				       const __be32 **list_p,
-				       struct device_node *np)
+				       struct device_yesde *np)
 {
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
 	struct imx_pin_mmio *pin_mmio = &pin->conf.mmio;
@@ -564,7 +564,7 @@ static void imx_pinctrl_parse_pin_mmio(struct imx_pinctrl *ipctl,
 			     pin_mmio->mux_mode, pin_mmio->config);
 }
 
-static int imx_pinctrl_parse_groups(struct device_node *np,
+static int imx_pinctrl_parse_groups(struct device_yesde *np,
 				    struct group_desc *grp,
 				    struct imx_pinctrl *ipctl,
 				    u32 index)
@@ -597,7 +597,7 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 	 * First try legacy 'fsl,pins' property, then fall back to the
 	 * generic 'pinmux'.
 	 *
-	 * Note: for generic 'pinmux' case, there's no CONFIG part in
+	 * Note: for generic 'pinmux' case, there's yes CONFIG part in
 	 * the binding format.
 	 */
 	list = of_get_property(np, "fsl,pins", &size);
@@ -605,14 +605,14 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 		list = of_get_property(np, "pinmux", &size);
 		if (!list) {
 			dev_err(ipctl->dev,
-				"no fsl,pins and pins property in node %pOF\n", np);
+				"yes fsl,pins and pins property in yesde %pOF\n", np);
 			return -EINVAL;
 		}
 	}
 
-	/* we do not check return since it's safe node passed down */
+	/* we do yest check return since it's safe yesde passed down */
 	if (!size || size % pin_size) {
-		dev_err(ipctl->dev, "Invalid fsl,pins or pins property in node %pOF\n", np);
+		dev_err(ipctl->dev, "Invalid fsl,pins or pins property in yesde %pOF\n", np);
 		return -EINVAL;
 	}
 
@@ -639,12 +639,12 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 	return 0;
 }
 
-static int imx_pinctrl_parse_functions(struct device_node *np,
+static int imx_pinctrl_parse_functions(struct device_yesde *np,
 				       struct imx_pinctrl *ipctl,
 				       u32 index)
 {
 	struct pinctrl_dev *pctl = ipctl->pctl;
-	struct device_node *child;
+	struct device_yesde *child;
 	struct function_desc *func;
 	struct group_desc *grp;
 	u32 i = 0;
@@ -659,7 +659,7 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 	func->name = np->name;
 	func->num_group_names = of_get_child_count(np);
 	if (func->num_group_names == 0) {
-		dev_err(ipctl->dev, "no groups defined in %pOF\n", np);
+		dev_err(ipctl->dev, "yes groups defined in %pOF\n", np);
 		return -EINVAL;
 	}
 	func->group_names = devm_kcalloc(ipctl->dev, func->num_group_names,
@@ -667,13 +667,13 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 	if (!func->group_names)
 		return -ENOMEM;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		func->group_names[i] = child->name;
 
 		grp = devm_kzalloc(ipctl->dev, sizeof(struct group_desc),
 				   GFP_KERNEL);
 		if (!grp) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return -ENOMEM;
 		}
 
@@ -689,25 +689,25 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 }
 
 /*
- * Check if the DT contains pins in the direct child nodes. This indicates the
+ * Check if the DT contains pins in the direct child yesdes. This indicates the
  * newer DT format to store pins. This function returns true if the first found
  * fsl,pins property is in a child of np. Otherwise false is returned.
  */
-static bool imx_pinctrl_dt_is_flat_functions(struct device_node *np)
+static bool imx_pinctrl_dt_is_flat_functions(struct device_yesde *np)
 {
-	struct device_node *function_np;
-	struct device_node *pinctrl_np;
+	struct device_yesde *function_np;
+	struct device_yesde *pinctrl_np;
 
-	for_each_child_of_node(np, function_np) {
+	for_each_child_of_yesde(np, function_np) {
 		if (of_property_read_bool(function_np, "fsl,pins")) {
-			of_node_put(function_np);
+			of_yesde_put(function_np);
 			return true;
 		}
 
-		for_each_child_of_node(function_np, pinctrl_np) {
+		for_each_child_of_yesde(function_np, pinctrl_np) {
 			if (of_property_read_bool(pinctrl_np, "fsl,pins")) {
-				of_node_put(pinctrl_np);
-				of_node_put(function_np);
+				of_yesde_put(pinctrl_np);
+				of_yesde_put(function_np);
 				return false;
 			}
 		}
@@ -719,8 +719,8 @@ static bool imx_pinctrl_dt_is_flat_functions(struct device_node *np)
 static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 				struct imx_pinctrl *ipctl)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *child;
 	struct pinctrl_dev *pctl = ipctl->pctl;
 	u32 nfuncs = 0;
 	u32 i = 0;
@@ -735,7 +735,7 @@ static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 	} else {
 		nfuncs = of_get_child_count(np);
 		if (nfuncs == 0) {
-			dev_err(&pdev->dev, "no functions defined\n");
+			dev_err(&pdev->dev, "yes functions defined\n");
 			return -EINVAL;
 		}
 	}
@@ -759,7 +759,7 @@ static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 		pctl->num_groups = of_get_child_count(np);
 	} else {
 		pctl->num_groups = 0;
-		for_each_child_of_node(np, child)
+		for_each_child_of_yesde(np, child)
 			pctl->num_groups += of_get_child_count(child);
 	}
 
@@ -767,7 +767,7 @@ static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 		imx_pinctrl_parse_functions(np, ipctl, 0);
 	} else {
 		i = 0;
-		for_each_child_of_node(np, child)
+		for_each_child_of_yesde(np, child)
 			imx_pinctrl_parse_functions(child, ipctl, i++);
 	}
 
@@ -788,9 +788,9 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 		      const struct imx_pinctrl_soc_info *info)
 {
 	struct regmap_config config = { .name = "gpr" };
-	struct device_node *dev_np = pdev->dev.of_node;
+	struct device_yesde *dev_np = pdev->dev.of_yesde;
 	struct pinctrl_desc *imx_pinctrl_desc;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct imx_pinctrl *ipctl;
 	struct regmap *gpr;
 	int ret, i;
@@ -830,15 +830,15 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 		if (of_property_read_bool(dev_np, "fsl,input-sel")) {
 			np = of_parse_phandle(dev_np, "fsl,input-sel", 0);
 			if (!np) {
-				dev_err(&pdev->dev, "iomuxc fsl,input-sel property not found\n");
+				dev_err(&pdev->dev, "iomuxc fsl,input-sel property yest found\n");
 				return -EINVAL;
 			}
 
 			ipctl->input_sel_base = of_iomap(np, 0);
-			of_node_put(np);
+			of_yesde_put(np);
 			if (!ipctl->input_sel_base) {
 				dev_err(&pdev->dev,
-					"iomuxc input select base address not found\n");
+					"iomuxc input select base address yest found\n");
 				return -ENOMEM;
 			}
 		}
@@ -873,7 +873,7 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 					     imx_pinctrl_desc, ipctl,
 					     &ipctl->pctl);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register IMX pinctrl driver\n");
+		dev_err(&pdev->dev, "could yest register IMX pinctrl driver\n");
 		goto free;
 	}
 

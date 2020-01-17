@@ -26,7 +26,7 @@
 #include <linux/stringify.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #ifdef MODULE_FIRMWARE
 MODULE_FIRMWARE("asihpi/dsp5000.bin");
@@ -66,7 +66,7 @@ static void hpi_send_recv_f(struct hpi_message *phm, struct hpi_response *phr,
 }
 
 /* This is called from hpifunc.c functions, called by ALSA
- * (or other kernel process) In this case there is no file descriptor
+ * (or other kernel process) In this case there is yes file descriptor
  * available for the message cache code
  */
 void hpi_send_recv(struct hpi_message *phm, struct hpi_response *phr)
@@ -157,7 +157,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (hm->h.function) {
 	case HPI_SUBSYS_CREATE_ADAPTER:
 	case HPI_ADAPTER_DELETE:
-		/* Application must not use these functions! */
+		/* Application must yest use these functions! */
 		hr->h.size = sizeof(hr->h);
 		hr->h.error = HPI_ERROR_INVALID_OPERATION;
 		hr->h.function = hm->h.function;
@@ -175,12 +175,12 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	} else {
 		u16 __user *ptr = NULL;
 		u32 size = 0;
-		/* -1=no data 0=read from user mem, 1=write to user mem */
+		/* -1=yes data 0=read from user mem, 1=write to user mem */
 		int wrflag = -1;
 		struct hpi_adapter *pa = NULL;
 
 		if (hm->h.adapter_index < ARRAY_SIZE(adapters))
-			pa = &adapters[array_index_nospec(hm->h.adapter_index,
+			pa = &adapters[array_index_yesspec(hm->h.adapter_index,
 							  ARRAY_SIZE(adapters))];
 
 		if (!pa || !pa->adapter || !pa->adapter->type) {
@@ -228,7 +228,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 						pa->buffer_size = size;
 					else {
 						HPI_DEBUG_LOG(ERROR,
-							"HPI could not allocate "
+							"HPI could yest allocate "
 							"stream buffer size %d\n",
 							size);
 
@@ -314,7 +314,7 @@ static irqreturn_t asihpi_isr(int irq, void *dev_id)
 	int handled;
 
 	if (!a->adapter->irq_query_and_clear) {
-		pr_err("asihpi_isr ASI%04X:%d no handler\n", a->adapter->type,
+		pr_err("asihpi_isr ASI%04X:%d yes handler\n", a->adapter->type,
 			a->adapter->index);
 		return IRQ_NONE;
 	}
@@ -403,7 +403,7 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 		adapter.p_buffer = vmalloc(prealloc_stream_buf);
 		if (!adapter.p_buffer) {
 			HPI_DEBUG_LOG(ERROR,
-				"HPI could not allocate "
+				"HPI could yest allocate "
 				"kernel buffer size %d\n",
 				prealloc_stream_buf);
 			goto err;
@@ -431,7 +431,7 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 		low_latency_mode = 1;
 	else
 		dev_info(&pci_dev->dev,
-			"Adapter at index %d is not in low latency mode\n",
+			"Adapter at index %d is yest in low latency mode\n",
 			adapter.adapter->index);
 
 	/* Check if IRQs are supported */
@@ -442,7 +442,7 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 	hpi_send_recv_ex(&hm, &hr, HOWNER_KERNEL);
 	if (hr.error || !hr.u.ax.property_get.parameter1) {
 		dev_info(&pci_dev->dev,
-			"IRQs not supported by adapter at index %d\n",
+			"IRQs yest supported by adapter at index %d\n",
 			adapter.adapter->index);
 	} else {
 		irq_supported = 1;
@@ -458,7 +458,7 @@ int asihpi_adapter_probe(struct pci_dev *pci_dev,
 	if (low_latency_mode && irq_supported) {
 		if (!adapter.adapter->irq_query_and_clear) {
 			dev_err(&pci_dev->dev,
-				"no IRQ handler for adapter %d, aborting\n",
+				"yes IRQ handler for adapter %d, aborting\n",
 				adapter.adapter->index);
 			goto err;
 		}

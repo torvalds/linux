@@ -48,7 +48,7 @@ Installation
 
     Any device supported by the drivers in drivers/infiniband/hw is acceptable.
 
-    Testing has been performed using several Mellanox-based IB cards, the
+    Testing has been performed using several Mellayesx-based IB cards, the
     Ammasso AMS1100 iWARP adapter, and the Chelsio cxgb3 iWARP adapter.
 
   - Install a Linux distribution and tools
@@ -70,7 +70,7 @@ Installation
 
     $ /sbin/mount.nfs -V
 
-    If the version is less than 1.1.2 or the command does not exist,
+    If the version is less than 1.1.2 or the command does yest exist,
     you should install the latest version of nfs-utils.
 
     Download the latest package from:
@@ -79,7 +79,7 @@ Installation
 
     Uncompress the package and follow the installation instructions.
 
-    If you will not need the idmapper and gssd executables (you do not need
+    If you will yest need the idmapper and gssd executables (you do yest need
     these to create an NFS/RDMA enabled mount command), the installation
     process can be simplified by disabling these features when running
     configure:
@@ -103,7 +103,7 @@ Installation
     by the system mount command.
 
     NOTE: mount.nfs and therefore nfs-utils-1.1.2 or greater is only needed
-    on the NFS client machine. You do not need this specific version of
+    on the NFS client machine. You do yest need this specific version of
     nfs-utils on the server. Furthermore, only the mount.nfs command from
     nfs-utils-1.1.2 is needed on the client.
 
@@ -143,13 +143,13 @@ Installation
     value of SUNRPC_XPRT_RDMA will be:
 
      - N if either SUNRPC or INFINIBAND are N, in this case the NFS/RDMA client
-       and server will not be built
+       and server will yest be built
      - M if both SUNRPC and INFINIBAND are on (M or Y) and at least one is M,
        in this case the NFS/RDMA client and server will be built as modules
      - Y if both SUNRPC and INFINIBAND are Y, in this case the NFS/RDMA client
        and server will be built into the kernel
 
-    Therefore, if you have followed the steps above and turned no NFS and RDMA,
+    Therefore, if you have followed the steps above and turned yes NFS and RDMA,
     the NFS/RDMA client and server will be built.
 
     Build a new kernel, install it, boot it.
@@ -166,7 +166,7 @@ Check RDMA and NFS Setup
   - Check RDMA Setup
 
     If you built the RDMA components as modules, load them at
-    this time. For example, if you are using a Mellanox Tavor/Sinai/Arbel
+    this time. For example, if you are using a Mellayesx Tavor/Sinai/Arbel
     card:
 
     $ modprobe ib_mthca
@@ -175,7 +175,7 @@ Check RDMA and NFS Setup
     If you are using InfiniBand, make sure there is a Subnet Manager (SM)
     running on the network. If your IB switch has an embedded SM, you can
     use it. Otherwise, you will need to run an SM, such as OpenSM, on one
-    of your end nodes.
+    of your end yesdes.
 
     If an SM is running on your network, you should see the following:
 
@@ -214,20 +214,20 @@ NFS/RDMA Setup
 
     Exports entries with the following formats have been tested:
 
-    /vol0   192.168.0.47(fsid=0,rw,async,insecure,no_root_squash)
-    /vol0   192.168.0.0/255.255.255.0(fsid=0,rw,async,insecure,no_root_squash)
+    /vol0   192.168.0.47(fsid=0,rw,async,insecure,yes_root_squash)
+    /vol0   192.168.0.0/255.255.255.0(fsid=0,rw,async,insecure,yes_root_squash)
 
     The IP address(es) is(are) the client's IPoIB address for an InfiniBand
     HCA or the client's iWARP address(es) for an RNIC.
 
     NOTE: The "insecure" option must be used because the NFS/RDMA client does
-    not use a reserved port.
+    yest use a reserved port.
 
  Each time a machine boots:
 
   - Load and configure the RDMA drivers
 
-    For InfiniBand using a Mellanox adapter:
+    For InfiniBand using a Mellayesx adapter:
 
     $ modprobe ib_mthca
     $ modprobe ib_ipoib

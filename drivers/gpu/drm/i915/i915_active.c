@@ -16,26 +16,26 @@
 /*
  * Active refs memory management
  *
- * To be more economical with memory, we reap all the i915_active trees as
- * they idle (when we know the active requests are inactive) and allocate the
- * nodes from a local slab cache to hopefully reduce the fragmentation.
+ * To be more ecoyesmical with memory, we reap all the i915_active trees as
+ * they idle (when we kyesw the active requests are inactive) and allocate the
+ * yesdes from a local slab cache to hopefully reduce the fragmentation.
  */
 static struct i915_global_active {
 	struct i915_global base;
 	struct kmem_cache *slab_cache;
 } global;
 
-struct active_node {
+struct active_yesde {
 	struct i915_active_fence base;
 	struct i915_active *ref;
-	struct rb_node node;
+	struct rb_yesde yesde;
 	u64 timeline;
 };
 
-static inline struct active_node *
-node_from_active(struct i915_active_fence *active)
+static inline struct active_yesde *
+yesde_from_active(struct i915_active_fence *active)
 {
-	return container_of(active, struct active_node, base);
+	return container_of(active, struct active_yesde, base);
 }
 
 #define take_preallocated_barriers(x) llist_del_all(&(x)->preallocated_barriers)
@@ -45,29 +45,29 @@ static inline bool is_barrier(const struct i915_active_fence *active)
 	return IS_ERR(rcu_access_pointer(active->fence));
 }
 
-static inline struct llist_node *barrier_to_ll(struct active_node *node)
+static inline struct llist_yesde *barrier_to_ll(struct active_yesde *yesde)
 {
-	GEM_BUG_ON(!is_barrier(&node->base));
-	return (struct llist_node *)&node->base.cb.node;
+	GEM_BUG_ON(!is_barrier(&yesde->base));
+	return (struct llist_yesde *)&yesde->base.cb.yesde;
 }
 
 static inline struct intel_engine_cs *
-__barrier_to_engine(struct active_node *node)
+__barrier_to_engine(struct active_yesde *yesde)
 {
-	return (struct intel_engine_cs *)READ_ONCE(node->base.cb.node.prev);
+	return (struct intel_engine_cs *)READ_ONCE(yesde->base.cb.yesde.prev);
 }
 
 static inline struct intel_engine_cs *
-barrier_to_engine(struct active_node *node)
+barrier_to_engine(struct active_yesde *yesde)
 {
-	GEM_BUG_ON(!is_barrier(&node->base));
-	return __barrier_to_engine(node);
+	GEM_BUG_ON(!is_barrier(&yesde->base));
+	return __barrier_to_engine(yesde);
 }
 
-static inline struct active_node *barrier_from_ll(struct llist_node *x)
+static inline struct active_yesde *barrier_from_ll(struct llist_yesde *x)
 {
 	return container_of((struct list_head *)x,
-			    struct active_node, base.cb.node);
+			    struct active_yesde, base.cb.yesde);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM) && IS_ENABLED(CONFIG_DEBUG_OBJECTS)
@@ -127,13 +127,13 @@ static inline void debug_active_assert(struct i915_active *ref) { }
 static void
 __active_retire(struct i915_active *ref)
 {
-	struct active_node *it, *n;
+	struct active_yesde *it, *n;
 	struct rb_root root;
 	unsigned long flags;
 
 	GEM_BUG_ON(i915_active_is_idle(ref));
 
-	/* return the unused nodes to our slabcache -- flushing the allocator */
+	/* return the unused yesdes to our slabcache -- flushing the allocator */
 	if (!atomic_dec_and_lock_irqsave(&ref->count, &ref->tree_lock, flags))
 		return;
 
@@ -153,7 +153,7 @@ __active_retire(struct i915_active *ref)
 	/* ... except if you wait on it, you must manage your own references! */
 	wake_up_var(ref);
 
-	rbtree_postorder_for_each_entry_safe(it, n, &root, node) {
+	rbtree_postorder_for_each_entry_safe(it, n, &root, yesde) {
 		GEM_BUG_ON(i915_active_fence_isset(&it->base));
 		kmem_cache_free(global.slab_cache, it);
 	}
@@ -187,10 +187,10 @@ active_retire(struct i915_active *ref)
 }
 
 static void
-node_retire(struct dma_fence *fence, struct dma_fence_cb *cb)
+yesde_retire(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
 	i915_active_fence_cb(fence, cb);
-	active_retire(container_of(cb, struct active_node, base.cb)->ref);
+	active_retire(container_of(cb, struct active_yesde, base.cb)->ref);
 }
 
 static void
@@ -203,8 +203,8 @@ excl_retire(struct dma_fence *fence, struct dma_fence_cb *cb)
 static struct i915_active_fence *
 active_instance(struct i915_active *ref, struct intel_timeline *tl)
 {
-	struct active_node *node, *prealloc;
-	struct rb_node **p, *parent;
+	struct active_yesde *yesde, *prealloc;
+	struct rb_yesde **p, *parent;
 	u64 idx = tl->fence_context;
 
 	/*
@@ -214,9 +214,9 @@ active_instance(struct i915_active *ref, struct intel_timeline *tl)
 	 * after the previous activity has been retired, or if it matches the
 	 * current timeline.
 	 */
-	node = READ_ONCE(ref->cache);
-	if (node && node->timeline == idx)
-		return &node->base;
+	yesde = READ_ONCE(ref->cache);
+	if (yesde && yesde->timeline == idx)
+		return &yesde->base;
 
 	/* Preallocate a replacement, just in case */
 	prealloc = kmem_cache_alloc(global.slab_cache, GFP_KERNEL);
@@ -227,36 +227,36 @@ active_instance(struct i915_active *ref, struct intel_timeline *tl)
 	GEM_BUG_ON(i915_active_is_idle(ref));
 
 	parent = NULL;
-	p = &ref->tree.rb_node;
+	p = &ref->tree.rb_yesde;
 	while (*p) {
 		parent = *p;
 
-		node = rb_entry(parent, struct active_node, node);
-		if (node->timeline == idx) {
+		yesde = rb_entry(parent, struct active_yesde, yesde);
+		if (yesde->timeline == idx) {
 			kmem_cache_free(global.slab_cache, prealloc);
 			goto out;
 		}
 
-		if (node->timeline < idx)
+		if (yesde->timeline < idx)
 			p = &parent->rb_right;
 		else
 			p = &parent->rb_left;
 	}
 
-	node = prealloc;
-	__i915_active_fence_init(&node->base, &tl->mutex, NULL, node_retire);
-	node->ref = ref;
-	node->timeline = idx;
+	yesde = prealloc;
+	__i915_active_fence_init(&yesde->base, &tl->mutex, NULL, yesde_retire);
+	yesde->ref = ref;
+	yesde->timeline = idx;
 
-	rb_link_node(&node->node, parent, p);
-	rb_insert_color(&node->node, &ref->tree);
+	rb_link_yesde(&yesde->yesde, parent, p);
+	rb_insert_color(&yesde->yesde, &ref->tree);
 
 out:
-	ref->cache = node;
+	ref->cache = yesde;
 	spin_unlock_irq(&ref->tree_lock);
 
-	BUILD_BUG_ON(offsetof(typeof(*node), base));
-	return &node->base;
+	BUILD_BUG_ON(offsetof(typeof(*yesde), base));
+	return &yesde->base;
 }
 
 void __i915_active_init(struct i915_active *ref,
@@ -286,33 +286,33 @@ void __i915_active_init(struct i915_active *ref,
 }
 
 static bool ____active_del_barrier(struct i915_active *ref,
-				   struct active_node *node,
+				   struct active_yesde *yesde,
 				   struct intel_engine_cs *engine)
 
 {
-	struct llist_node *head = NULL, *tail = NULL;
-	struct llist_node *pos, *next;
+	struct llist_yesde *head = NULL, *tail = NULL;
+	struct llist_yesde *pos, *next;
 
-	GEM_BUG_ON(node->timeline != engine->kernel_context->timeline->fence_context);
+	GEM_BUG_ON(yesde->timeline != engine->kernel_context->timeline->fence_context);
 
 	/*
-	 * Rebuild the llist excluding our node. We may perform this
+	 * Rebuild the llist excluding our yesde. We may perform this
 	 * outside of the kernel_context timeline mutex and so someone
 	 * else may be manipulating the engine->barrier_tasks, in
 	 * which case either we or they will be upset :)
 	 *
 	 * A second __active_del_barrier() will report failure to claim
-	 * the active_node and the caller will just shrug and know not to
-	 * claim ownership of its node.
+	 * the active_yesde and the caller will just shrug and kyesw yest to
+	 * claim ownership of its yesde.
 	 *
 	 * A concurrent i915_request_add_active_barriers() will miss adding
 	 * any of the tasks, but we will try again on the next -- and since
-	 * we are actively using the barrier, we know that there will be
-	 * at least another opportunity when we idle.
+	 * we are actively using the barrier, we kyesw that there will be
+	 * at least ayesther opportunity when we idle.
 	 */
 	llist_for_each_safe(pos, next, llist_del_all(&engine->barrier_tasks)) {
-		if (node == barrier_from_ll(pos)) {
-			node = NULL;
+		if (yesde == barrier_from_ll(pos)) {
+			yesde = NULL;
 			continue;
 		}
 
@@ -324,13 +324,13 @@ static bool ____active_del_barrier(struct i915_active *ref,
 	if (head)
 		llist_add_batch(head, tail, &engine->barrier_tasks);
 
-	return !node;
+	return !yesde;
 }
 
 static bool
-__active_del_barrier(struct i915_active *ref, struct active_node *node)
+__active_del_barrier(struct i915_active *ref, struct active_yesde *yesde)
 {
-	return ____active_del_barrier(ref, node, barrier_to_engine(node));
+	return ____active_del_barrier(ref, yesde, barrier_to_engine(yesde));
 }
 
 int i915_active_ref(struct i915_active *ref,
@@ -353,13 +353,13 @@ int i915_active_ref(struct i915_active *ref,
 		goto out;
 	}
 
-	if (is_barrier(active)) { /* proto-node used by our idle barrier */
+	if (is_barrier(active)) { /* proto-yesde used by our idle barrier */
 		/*
 		 * This request is on the kernel_context timeline, and so
 		 * we can use it to substitute for the pending idle-barrer
 		 * request that we want to emit on the kernel_context.
 		 */
-		__active_del_barrier(ref, node_from_active(active));
+		__active_del_barrier(ref, yesde_from_active(active));
 		RCU_INIT_POINTER(active->fence, NULL);
 		atomic_dec(&ref->count);
 	}
@@ -377,9 +377,9 @@ void i915_active_set_exclusive(struct i915_active *ref, struct dma_fence *f)
 	GEM_BUG_ON(i915_active_is_idle(ref));
 
 	/*
-	 * As we don't know which mutex the caller is using, we told a small
+	 * As we don't kyesw which mutex the caller is using, we told a small
 	 * lie to the debug code that it is using the i915_active.mutex;
-	 * and now we must stick to that lie.
+	 * and yesw we must stick to that lie.
 	 */
 	mutex_acquire(&ref->mutex.dep_map, 0, 0, _THIS_IP_);
 	if (!__i915_active_fence_set(&ref->excl, f))
@@ -436,7 +436,7 @@ static void enable_signaling(struct i915_active_fence *active)
 
 int i915_active_wait(struct i915_active *ref)
 {
-	struct active_node *it, *n;
+	struct active_yesde *it, *n;
 	int err = 0;
 
 	might_sleep();
@@ -446,13 +446,13 @@ int i915_active_wait(struct i915_active *ref)
 
 	/* Flush lazy signals */
 	enable_signaling(&ref->excl);
-	rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
+	rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, yesde) {
 		if (is_barrier(&it->base)) /* unconnected idle barrier */
 			continue;
 
 		enable_signaling(&it->base);
 	}
-	/* Any fence added after the wait begins will not be auto-signaled */
+	/* Any fence added after the wait begins will yest be auto-signaled */
 
 	i915_active_release(ref);
 	if (err)
@@ -496,14 +496,14 @@ void i915_active_fini(struct i915_active *ref)
 }
 #endif
 
-static inline bool is_idle_barrier(struct active_node *node, u64 idx)
+static inline bool is_idle_barrier(struct active_yesde *yesde, u64 idx)
 {
-	return node->timeline == idx && !i915_active_fence_isset(&node->base);
+	return yesde->timeline == idx && !i915_active_fence_isset(&yesde->base);
 }
 
-static struct active_node *reuse_idle_barrier(struct i915_active *ref, u64 idx)
+static struct active_yesde *reuse_idle_barrier(struct i915_active *ref, u64 idx)
 {
-	struct rb_node *prev, *p;
+	struct rb_yesde *prev, *p;
 
 	if (RB_EMPTY_ROOT(&ref->tree))
 		return NULL;
@@ -512,64 +512,64 @@ static struct active_node *reuse_idle_barrier(struct i915_active *ref, u64 idx)
 	GEM_BUG_ON(i915_active_is_idle(ref));
 
 	/*
-	 * Try to reuse any existing barrier nodes already allocated for this
+	 * Try to reuse any existing barrier yesdes already allocated for this
 	 * i915_active, due to overlapping active phases there is likely a
-	 * node kept alive (as we reuse before parking). We prefer to reuse
+	 * yesde kept alive (as we reuse before parking). We prefer to reuse
 	 * completely idle barriers (less hassle in manipulating the llists),
 	 * but otherwise any will do.
 	 */
 	if (ref->cache && is_idle_barrier(ref->cache, idx)) {
-		p = &ref->cache->node;
+		p = &ref->cache->yesde;
 		goto match;
 	}
 
 	prev = NULL;
-	p = ref->tree.rb_node;
+	p = ref->tree.rb_yesde;
 	while (p) {
-		struct active_node *node =
-			rb_entry(p, struct active_node, node);
+		struct active_yesde *yesde =
+			rb_entry(p, struct active_yesde, yesde);
 
-		if (is_idle_barrier(node, idx))
+		if (is_idle_barrier(yesde, idx))
 			goto match;
 
 		prev = p;
-		if (node->timeline < idx)
+		if (yesde->timeline < idx)
 			p = p->rb_right;
 		else
 			p = p->rb_left;
 	}
 
 	/*
-	 * No quick match, but we did find the leftmost rb_node for the
+	 * No quick match, but we did find the leftmost rb_yesde for the
 	 * kernel_context. Walk the rb_tree in-order to see if there were
 	 * any idle-barriers on this timeline that we missed, or just use
 	 * the first pending barrier.
 	 */
 	for (p = prev; p; p = rb_next(p)) {
-		struct active_node *node =
-			rb_entry(p, struct active_node, node);
+		struct active_yesde *yesde =
+			rb_entry(p, struct active_yesde, yesde);
 		struct intel_engine_cs *engine;
 
-		if (node->timeline > idx)
+		if (yesde->timeline > idx)
 			break;
 
-		if (node->timeline < idx)
+		if (yesde->timeline < idx)
 			continue;
 
-		if (is_idle_barrier(node, idx))
+		if (is_idle_barrier(yesde, idx))
 			goto match;
 
 		/*
 		 * The list of pending barriers is protected by the
-		 * kernel_context timeline, which notably we do not hold
+		 * kernel_context timeline, which yestably we do yest hold
 		 * here. i915_request_add_active_barriers() may consume
 		 * the barrier before we claim it, so we have to check
 		 * for success.
 		 */
-		engine = __barrier_to_engine(node);
+		engine = __barrier_to_engine(yesde);
 		smp_rmb(); /* serialise with add_active_barriers */
-		if (is_barrier(&node->base) &&
-		    ____active_del_barrier(ref, node, engine))
+		if (is_barrier(&yesde->base) &&
+		    ____active_del_barrier(ref, yesde, engine))
 			goto match;
 	}
 
@@ -579,11 +579,11 @@ static struct active_node *reuse_idle_barrier(struct i915_active *ref, u64 idx)
 
 match:
 	rb_erase(p, &ref->tree); /* Hide from waits and sibling allocations */
-	if (p == &ref->cache->node)
+	if (p == &ref->cache->yesde)
 		ref->cache = NULL;
 	spin_unlock_irq(&ref->tree_lock);
 
-	return rb_entry(p, struct active_node, node);
+	return rb_entry(p, struct active_yesde, yesde);
 }
 
 int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
@@ -591,57 +591,57 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 {
 	intel_engine_mask_t tmp, mask = engine->mask;
 	struct intel_gt *gt = engine->gt;
-	struct llist_node *pos, *next;
+	struct llist_yesde *pos, *next;
 	int err;
 
 	GEM_BUG_ON(i915_active_is_idle(ref));
 	GEM_BUG_ON(!llist_empty(&ref->preallocated_barriers));
 
 	/*
-	 * Preallocate a node for each physical engine supporting the target
+	 * Preallocate a yesde for each physical engine supporting the target
 	 * engine (remember virtual engines have more than one sibling).
-	 * We can then use the preallocated nodes in
+	 * We can then use the preallocated yesdes in
 	 * i915_active_acquire_barrier()
 	 */
 	for_each_engine_masked(engine, gt, mask, tmp) {
 		u64 idx = engine->kernel_context->timeline->fence_context;
-		struct active_node *node;
+		struct active_yesde *yesde;
 
-		node = reuse_idle_barrier(ref, idx);
-		if (!node) {
-			node = kmem_cache_alloc(global.slab_cache, GFP_KERNEL);
-			if (!node) {
+		yesde = reuse_idle_barrier(ref, idx);
+		if (!yesde) {
+			yesde = kmem_cache_alloc(global.slab_cache, GFP_KERNEL);
+			if (!yesde) {
 				err = ENOMEM;
 				goto unwind;
 			}
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
-			node->base.lock =
+			yesde->base.lock =
 				&engine->kernel_context->timeline->mutex;
 #endif
-			RCU_INIT_POINTER(node->base.fence, NULL);
-			node->base.cb.func = node_retire;
-			node->timeline = idx;
-			node->ref = ref;
+			RCU_INIT_POINTER(yesde->base.fence, NULL);
+			yesde->base.cb.func = yesde_retire;
+			yesde->timeline = idx;
+			yesde->ref = ref;
 		}
 
-		if (!i915_active_fence_isset(&node->base)) {
+		if (!i915_active_fence_isset(&yesde->base)) {
 			/*
-			 * Mark this as being *our* unconnected proto-node.
+			 * Mark this as being *our* unconnected proto-yesde.
 			 *
-			 * Since this node is not in any list, and we have
+			 * Since this yesde is yest in any list, and we have
 			 * decoupled it from the rbtree, we can reuse the
-			 * request to indicate this is an idle-barrier node
-			 * and then we can use the rb_node and list pointers
+			 * request to indicate this is an idle-barrier yesde
+			 * and then we can use the rb_yesde and list pointers
 			 * for our tracking of the pending barrier.
 			 */
-			RCU_INIT_POINTER(node->base.fence, ERR_PTR(-EAGAIN));
-			node->base.cb.node.prev = (void *)engine;
+			RCU_INIT_POINTER(yesde->base.fence, ERR_PTR(-EAGAIN));
+			yesde->base.cb.yesde.prev = (void *)engine;
 			atomic_inc(&ref->count);
 		}
 
-		GEM_BUG_ON(barrier_to_engine(node) != engine);
-		llist_add(barrier_to_ll(node), &ref->preallocated_barriers);
+		GEM_BUG_ON(barrier_to_engine(yesde) != engine);
+		llist_add(barrier_to_ll(yesde), &ref->preallocated_barriers);
 		intel_engine_pm_get(engine);
 	}
 
@@ -649,55 +649,55 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 
 unwind:
 	llist_for_each_safe(pos, next, take_preallocated_barriers(ref)) {
-		struct active_node *node = barrier_from_ll(pos);
+		struct active_yesde *yesde = barrier_from_ll(pos);
 
 		atomic_dec(&ref->count);
-		intel_engine_pm_put(barrier_to_engine(node));
+		intel_engine_pm_put(barrier_to_engine(yesde));
 
-		kmem_cache_free(global.slab_cache, node);
+		kmem_cache_free(global.slab_cache, yesde);
 	}
 	return err;
 }
 
 void i915_active_acquire_barrier(struct i915_active *ref)
 {
-	struct llist_node *pos, *next;
+	struct llist_yesde *pos, *next;
 	unsigned long flags;
 
 	GEM_BUG_ON(i915_active_is_idle(ref));
 
 	/*
 	 * Transfer the list of preallocated barriers into the
-	 * i915_active rbtree, but only as proto-nodes. They will be
+	 * i915_active rbtree, but only as proto-yesdes. They will be
 	 * populated by i915_request_add_active_barriers() to point to the
 	 * request that will eventually release them.
 	 */
 	llist_for_each_safe(pos, next, take_preallocated_barriers(ref)) {
-		struct active_node *node = barrier_from_ll(pos);
-		struct intel_engine_cs *engine = barrier_to_engine(node);
-		struct rb_node **p, *parent;
+		struct active_yesde *yesde = barrier_from_ll(pos);
+		struct intel_engine_cs *engine = barrier_to_engine(yesde);
+		struct rb_yesde **p, *parent;
 
 		spin_lock_irqsave_nested(&ref->tree_lock, flags,
 					 SINGLE_DEPTH_NESTING);
 		parent = NULL;
-		p = &ref->tree.rb_node;
+		p = &ref->tree.rb_yesde;
 		while (*p) {
-			struct active_node *it;
+			struct active_yesde *it;
 
 			parent = *p;
 
-			it = rb_entry(parent, struct active_node, node);
-			if (it->timeline < node->timeline)
+			it = rb_entry(parent, struct active_yesde, yesde);
+			if (it->timeline < yesde->timeline)
 				p = &parent->rb_right;
 			else
 				p = &parent->rb_left;
 		}
-		rb_link_node(&node->node, parent, p);
-		rb_insert_color(&node->node, &ref->tree);
+		rb_link_yesde(&yesde->yesde, parent, p);
+		rb_insert_color(&yesde->yesde, &ref->tree);
 		spin_unlock_irqrestore(&ref->tree_lock, flags);
 
 		GEM_BUG_ON(!intel_engine_pm_is_awake(engine));
-		llist_add(barrier_to_ll(node), &engine->barrier_tasks);
+		llist_add(barrier_to_ll(yesde), &engine->barrier_tasks);
 		intel_engine_pm_put(engine);
 	}
 }
@@ -705,14 +705,14 @@ void i915_active_acquire_barrier(struct i915_active *ref)
 void i915_request_add_active_barriers(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
-	struct llist_node *node, *next;
+	struct llist_yesde *yesde, *next;
 	unsigned long flags;
 
 	GEM_BUG_ON(intel_engine_is_virtual(engine));
 	GEM_BUG_ON(i915_request_timeline(rq) != engine->kernel_context->timeline);
 
-	node = llist_del_all(&engine->barrier_tasks);
-	if (!node)
+	yesde = llist_del_all(&engine->barrier_tasks);
+	if (!yesde)
 		return;
 	/*
 	 * Attach the list of proto-fences to the in-flight request such
@@ -720,10 +720,10 @@ void i915_request_add_active_barriers(struct i915_request *rq)
 	 * is retired.
 	 */
 	spin_lock_irqsave(&rq->lock, flags);
-	llist_for_each_safe(node, next, node) {
-		RCU_INIT_POINTER(barrier_from_ll(node)->base.fence, &rq->fence);
+	llist_for_each_safe(yesde, next, yesde) {
+		RCU_INIT_POINTER(barrier_from_ll(yesde)->base.fence, &rq->fence);
 		smp_wmb(); /* serialise with reuse_idle_barrier */
-		list_add_tail((struct list_head *)node, &rq->fence.cb_list);
+		list_add_tail((struct list_head *)yesde, &rq->fence.cb_list);
 	}
 	spin_unlock_irqrestore(&rq->lock, flags);
 }
@@ -741,7 +741,7 @@ void i915_request_add_active_barriers(struct i915_request *rq)
  *
  * Records the new @fence as the last active fence along its timeline in
  * this active tracker, moving the tracking callbacks from the previous
- * fence onto this one. Returns the previous fence (if not already completed),
+ * fence onto this one. Returns the previous fence (if yest already completed),
  * which the caller must ensure is executed before the new fence. To ensure
  * that the order of fences within the timeline of the i915_active_fence is
  * maintained, it must be locked by the caller.
@@ -761,7 +761,7 @@ __i915_active_fence_set(struct i915_active_fence *active,
 	if (prev) {
 		GEM_BUG_ON(prev == fence);
 		spin_lock_nested(prev->lock, SINGLE_DEPTH_NESTING);
-		__list_del_entry(&active->cb.node);
+		__list_del_entry(&active->cb.yesde);
 		spin_unlock(prev->lock); /* serialise with prev->cb_list */
 
 		/*
@@ -769,7 +769,7 @@ __i915_active_fence_set(struct i915_active_fence *active,
 		 * interrupt context. We need to serialise our list
 		 * manipulation with the fence->lock to prevent the prev
 		 * being lost inside an interrupt (it can't be replaced as
-		 * no other caller is allowed to enter __i915_active_fence_set
+		 * yes other caller is allowed to enter __i915_active_fence_set
 		 * as we hold the timeline lock). After serialising with
 		 * the callback, we need to double check which ran first,
 		 * our list_del() [decoupling prev from the callback] or
@@ -779,7 +779,7 @@ __i915_active_fence_set(struct i915_active_fence *active,
 	}
 
 	rcu_assign_pointer(active->fence, fence);
-	list_add_tail(&active->cb.node, &fence->cb_list);
+	list_add_tail(&active->cb.yesde, &fence->cb_list);
 
 	spin_unlock_irqrestore(fence->lock, flags);
 
@@ -799,7 +799,7 @@ int i915_active_fence_set(struct i915_active_fence *active,
 	/* Must maintain timeline ordering wrt previous active requests */
 	rcu_read_lock();
 	fence = __i915_active_fence_set(active, &rq->fence);
-	if (fence) /* but the previous fence may not belong to that timeline! */
+	if (fence) /* but the previous fence may yest belong to that timeline! */
 		fence = dma_fence_get_rcu(fence);
 	rcu_read_unlock();
 	if (fence) {
@@ -810,7 +810,7 @@ int i915_active_fence_set(struct i915_active_fence *active,
 	return err;
 }
 
-void i915_active_noop(struct dma_fence *fence, struct dma_fence_cb *cb)
+void i915_active_yesop(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
 	i915_active_fence_cb(fence, cb);
 }
@@ -836,7 +836,7 @@ static struct i915_global_active global = { {
 
 int __init i915_global_active_init(void)
 {
-	global.slab_cache = KMEM_CACHE(active_node, SLAB_HWCACHE_ALIGN);
+	global.slab_cache = KMEM_CACHE(active_yesde, SLAB_HWCACHE_ALIGN);
 	if (!global.slab_cache)
 		return -ENOMEM;
 

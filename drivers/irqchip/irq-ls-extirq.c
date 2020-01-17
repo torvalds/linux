@@ -95,13 +95,13 @@ static const struct irq_domain_ops extirq_domain_ops = {
 };
 
 static int
-ls_extirq_parse_map(struct ls_extirq_data *priv, struct device_node *node)
+ls_extirq_parse_map(struct ls_extirq_data *priv, struct device_yesde *yesde)
 {
 	const __be32 *map;
 	u32 mapsize;
 	int ret;
 
-	map = of_get_property(node, "interrupt-map", &mapsize);
+	map = of_get_property(yesde, "interrupt-map", &mapsize);
 	if (!map)
 		return -ENOENT;
 	if (mapsize % sizeof(*map))
@@ -109,7 +109,7 @@ ls_extirq_parse_map(struct ls_extirq_data *priv, struct device_node *node)
 	mapsize /= sizeof(*map);
 
 	while (mapsize) {
-		struct device_node *ipar;
+		struct device_yesde *ipar;
 		u32 hwirq, intsize, j;
 
 		if (mapsize < 3)
@@ -119,12 +119,12 @@ ls_extirq_parse_map(struct ls_extirq_data *priv, struct device_node *node)
 			return -EINVAL;
 		priv->nirq = max(priv->nirq, hwirq + 1);
 
-		ipar = of_find_node_by_phandle(be32_to_cpup(map + 2));
+		ipar = of_find_yesde_by_phandle(be32_to_cpup(map + 2));
 		map += 3;
 		mapsize -= 3;
 		if (!ipar)
 			return -EINVAL;
-		priv->map[hwirq].fwnode = &ipar->fwnode;
+		priv->map[hwirq].fwyesde = &ipar->fwyesde;
 		ret = of_property_read_u32(ipar, "#interrupt-cells", &intsize);
 		if (ret)
 			return ret;
@@ -141,7 +141,7 @@ ls_extirq_parse_map(struct ls_extirq_data *priv, struct device_node *node)
 }
 
 static int __init
-ls_extirq_of_init(struct device_node *node, struct device_node *parent)
+ls_extirq_of_init(struct device_yesde *yesde, struct device_yesde *parent)
 {
 
 	struct irq_domain *domain, *parent_domain;
@@ -150,7 +150,7 @@ ls_extirq_of_init(struct device_node *node, struct device_node *parent)
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("Cannot find parent domain\n");
+		pr_err("Canyest find parent domain\n");
 		return -ENODEV;
 	}
 
@@ -158,23 +158,23 @@ ls_extirq_of_init(struct device_node *node, struct device_node *parent)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->syscon = syscon_node_to_regmap(node->parent);
+	priv->syscon = syscon_yesde_to_regmap(yesde->parent);
 	if (IS_ERR(priv->syscon)) {
 		ret = PTR_ERR(priv->syscon);
 		pr_err("Failed to lookup parent regmap\n");
 		goto out;
 	}
-	ret = of_property_read_u32(node, "reg", &priv->intpcr);
+	ret = of_property_read_u32(yesde, "reg", &priv->intpcr);
 	if (ret) {
 		pr_err("Missing INTPCR offset value\n");
 		goto out;
 	}
 
-	ret = ls_extirq_parse_map(priv, node);
+	ret = ls_extirq_parse_map(priv, yesde);
 	if (ret)
 		goto out;
 
-	if (of_device_is_compatible(node, "fsl,ls1021a-extirq")) {
+	if (of_device_is_compatible(yesde, "fsl,ls1021a-extirq")) {
 		u32 revcr;
 
 		ret = regmap_read(priv->syscon, LS1021A_SCFGREVCR, &revcr);
@@ -183,7 +183,7 @@ ls_extirq_of_init(struct device_node *node, struct device_node *parent)
 		priv->bit_reverse = (revcr != 0);
 	}
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, priv->nirq, node,
+	domain = irq_domain_add_hierarchy(parent_domain, 0, priv->nirq, yesde,
 					  &extirq_domain_ops, priv);
 	if (!domain)
 		ret = -ENOMEM;

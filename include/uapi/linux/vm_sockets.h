@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * VMware vSockets Driver
  *
@@ -6,7 +6,7 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
- * Software Foundation version 2 and no later version.
+ * Software Foundation version 2 and yes later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -65,15 +65,15 @@
 
 #define SO_VM_SOCKETS_CONNECT_TIMEOUT 6
 
-/* Option name for using non-blocking send/receive.  Use as the option name
- * for setsockopt(3) or getsockopt(3) to set or get the non-blocking
+/* Option name for using yesn-blocking send/receive.  Use as the option name
+ * for setsockopt(3) or getsockopt(3) to set or get the yesn-blocking
  * transmit/receive flag for a STREAM socket.  This flag determines whether
- * send() and recv() can be called in non-blocking contexts for the given
+ * send() and recv() can be called in yesn-blocking contexts for the given
  * socket.  The value is a signed integer.
  *
  * This option is only relevant to kernel endpoints, where descheduling the
- * thread of execution is not allowed, for example, while holding a spinlock.
- * It is not to be confused with conventional non-blocking socket operations.
+ * thread of execution is yest allowed, for example, while holding a spinlock.
+ * It is yest to be confused with conventional yesn-blocking socket operations.
  *
  * Only available for hypervisor endpoints.
  */
@@ -129,8 +129,8 @@
 
 #define VM_SOCKETS_VERSION_MAJOR(_v) (((_v) & 0x00FF0000) >> 16)
 
-/* The minor (third) component of the vSockets version.  Two bytes representing
- * the minor component of the vSockets version.
+/* The miyesr (third) component of the vSockets version.  Two bytes representing
+ * the miyesr component of the vSockets version.
  */
 
 #define VM_SOCKETS_VERSION_MINOR(_v) (((_v) & 0x0000FFFF))

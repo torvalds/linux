@@ -86,8 +86,8 @@ struct voltagedomain;
  * @pwrsts_mem_ret: Possible memory bank pwrstates when pwrdm in RETENTION
  * @pwrsts_mem_on: Possible memory bank pwrstates when pwrdm in ON
  * @pwrdm_clkdms: Clockdomains in this powerdomain
- * @node: list_head linking all powerdomains
- * @voltdm_node: list_head linking all powerdomains in a voltagedomain
+ * @yesde: list_head linking all powerdomains
+ * @voltdm_yesde: list_head linking all powerdomains in a voltagedomain
  * @pwrstctrl_offs: (AM33XX only) XXX_PWRSTCTRL reg offset from prcm_offs
  * @pwrstst_offs: (AM33XX only) XXX_PWRSTST reg offset from prcm_offs
  * @logicretstate_mask: (AM33XX only) mask for logic retention bitfield
@@ -121,8 +121,8 @@ struct powerdomain {
 	const u8 pwrsts_mem_on[PWRDM_MAX_MEM_BANKS];
 	const u8 prcm_partition;
 	struct clockdomain *pwrdm_clkdms[PWRDM_MAX_CLKDMS];
-	struct list_head node;
-	struct list_head voltdm_node;
+	struct list_head yesde;
+	struct list_head voltdm_yesde;
 	int state;
 	unsigned state_counter[PWRDM_MAX_PWRSTS];
 	unsigned ret_logic_off_counter;
@@ -167,12 +167,12 @@ struct powerdomain {
  * @pwrdm_has_voltdm: Check if a voltdm association is needed
  *
  * Regarding @pwrdm_set_lowpwrstchange: On the OMAP2 and 3-family
- * chips, a powerdomain's power state is not allowed to directly
- * transition from one low-power state (e.g., CSWR) to another
+ * chips, a powerdomain's power state is yest allowed to directly
+ * transition from one low-power state (e.g., CSWR) to ayesther
  * low-power state (e.g., OFF) without first waking up the
  * powerdomain.  This wastes energy.  So OMAP4 chips support the
  * ability to transition a powerdomain power state directly from one
- * low-power state to another.  The function pointed to by
+ * low-power state to ayesther.  The function pointed to by
  * @pwrdm_set_lowpwrstchange is intended to configure the OMAP4
  * hardware powerdomain state machine to enable this feature.
  */
@@ -208,7 +208,7 @@ struct powerdomain *pwrdm_lookup(const char *name);
 
 int pwrdm_for_each(int (*fn)(struct powerdomain *pwrdm, void *user),
 			void *user);
-int pwrdm_for_each_nolock(int (*fn)(struct powerdomain *pwrdm, void *user),
+int pwrdm_for_each_yeslock(int (*fn)(struct powerdomain *pwrdm, void *user),
 			void *user);
 
 int pwrdm_add_clkdm(struct powerdomain *pwrdm, struct clockdomain *clkdm);
@@ -239,7 +239,7 @@ int pwrdm_enable_hdwr_sar(struct powerdomain *pwrdm);
 int pwrdm_disable_hdwr_sar(struct powerdomain *pwrdm);
 bool pwrdm_has_hdwr_sar(struct powerdomain *pwrdm);
 
-int pwrdm_state_switch_nolock(struct powerdomain *pwrdm);
+int pwrdm_state_switch_yeslock(struct powerdomain *pwrdm);
 int pwrdm_state_switch(struct powerdomain *pwrdm);
 int pwrdm_pre_transition(struct powerdomain *pwrdm);
 int pwrdm_post_transition(struct powerdomain *pwrdm);

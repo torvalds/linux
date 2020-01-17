@@ -157,7 +157,7 @@
 #define		FIFO_CTRL	0x00000002	/* Allow ctrl. ? */
 #define		FIFO_VALID	0x00000010
 #define 	FIFO_EMPTY	0x00000020
-#define		FIFO_U0		0x00001000	/* Unknown. */
+#define		FIFO_U0		0x00001000	/* Unkyeswn. */
 #define		FIFO_U1		0x00010000
 #define		FIFO_SIZE_BITS 5
 #define		FIFO_SIZE	(1<<FIFO_SIZE_BITS)	// 0x20

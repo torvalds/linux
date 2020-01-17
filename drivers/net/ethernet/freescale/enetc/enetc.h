@@ -199,7 +199,7 @@ struct enetc_ndev_priv {
 
 	struct enetc_cls_rule *cls_rules;
 
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 	phy_interface_t if_mode;
 };
 

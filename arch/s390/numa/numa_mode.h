@@ -14,9 +14,9 @@ struct numa_mode {
 	char *name;				/* Name of mode */
 	void (*setup)(void);			/* Initizalize mode */
 	void (*update_cpu_topology)(void);	/* Called by topology code */
-	int (*__pfn_to_nid)(unsigned long pfn);	/* PFN to node ID */
-	unsigned long (*align)(void);		/* Minimum node alignment */
-	int (*distance)(int a, int b);		/* Distance between two nodes */
+	int (*__pfn_to_nid)(unsigned long pfn);	/* PFN to yesde ID */
+	unsigned long (*align)(void);		/* Minimum yesde alignment */
+	int (*distance)(int a, int b);		/* Distance between two yesdes */
 };
 
 extern const struct numa_mode numa_mode_plain;

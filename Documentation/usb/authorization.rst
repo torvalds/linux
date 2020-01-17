@@ -1,14 +1,14 @@
 ==============================================================
-Authorizing (or not) your USB devices to connect to the system
+Authorizing (or yest) your USB devices to connect to the system
 ==============================================================
 
 Copyright (C) 2007 Inaky Perez-Gonzalez <inaky@linux.intel.com> Intel Corporation
 
 This feature allows you to control if a USB device can be used (or
-not) in a system. This feature will allow you to implement a lock-down
+yest) in a system. This feature will allow you to implement a lock-down
 of USB devices, fully controlled by user space.
 
-As of now, when a USB device is connected it is configured and
+As of yesw, when a USB device is connected it is configured and
 its interfaces are immediately made available to the users.  With this
 modification, only if root authorizes the device to be configured will
 then it be possible to use it.
@@ -74,7 +74,7 @@ could be::
  function device_is_my_type()
  {
    echo 1 > authorized		# temporarily authorize it
-                                # FIXME: make sure none can mount it
+                                # FIXME: make sure yesne can mount it
    mount DEVICENODE /mntpoint
    sum=$(md5sum /mntpoint/.signature)
    if [ $sum = $(cat /etc/lockdown/keysum) ]

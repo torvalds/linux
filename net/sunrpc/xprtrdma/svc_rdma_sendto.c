@@ -15,14 +15,14 @@
  * are met:
  *
  *      Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer.
+ *      yestice, this list of conditions and the following disclaimer.
  *
  *      Redistributions in binary form must reproduce the above
- *      copyright notice, this list of conditions and the following
+ *      copyright yestice, this list of conditions and the following
  *      disclaimer in the documentation and/or other materials provided
  *      with the distribution.
  *
- *      Neither the name of the Network Appliance, Inc. nor the names of
+ *      Neither the name of the Network Appliance, Inc. yesr the names of
  *      its contributors may be used to endorse or promote products
  *      derived from this software without specific prior written
  *      permission.
@@ -61,7 +61,7 @@
  *
  * Page Management
  *
- * The I/O that performs Reply transmission is asynchronous, and may
+ * The I/O that performs Reply transmission is asynchroyesus, and may
  * complete well after sendto returns. Thus pages under I/O must be
  * removed from the svc_rqst before sendto returns.
  *
@@ -73,7 +73,7 @@
  * Write WRs are constructed and posted. Each Write segment gets its own
  * svc_rdma_rw_ctxt, allowing the Write completion handler to find and
  * DMA-unmap the pages under I/O for that Write segment. The Write
- * completion handler does not release any pages.
+ * completion handler does yest release any pages.
  *
  * When the Send WR is constructed, it also gets its own svc_rdma_send_ctxt.
  * The ownership of all of the Reply's pages are transferred into that
@@ -83,7 +83,7 @@
  * Send completion handler finally releases the Reply's pages.
  *
  * This mechanism also assumes that completions on the transport's Send
- * Completion Queue do not run in parallel. Otherwise a Write completion
+ * Completion Queue do yest run in parallel. Otherwise a Write completion
  * and Send completion running at the same time could release pages that
  * are still DMA-mapped.
  *
@@ -92,7 +92,7 @@
  * - If the Send WR is posted successfully, it will either complete
  *   successfully, or get flushed. Either way, the Send completion
  *   handler releases the Reply's pages.
- * - If the Send WR cannot be not posted, the forward path releases
+ * - If the Send WR canyest be yest posted, the forward path releases
  *   the Reply's pages.
  *
  * This handles the case, without the use of page reference counting,
@@ -189,8 +189,8 @@ void svc_rdma_send_ctxts_destroy(struct svcxprt_rdma *rdma)
  * svc_rdma_send_ctxt_get - Get a free send_ctxt
  * @rdma: controlling svcxprt_rdma
  *
- * Returns a ready-to-use send_ctxt, or NULL if none are
- * available and a fresh one cannot be allocated.
+ * Returns a ready-to-use send_ctxt, or NULL if yesne are
+ * available and a fresh one canyest be allocated.
  */
 struct svc_rdma_send_ctxt *svc_rdma_send_ctxt_get(struct svcxprt_rdma *rdma)
 {
@@ -205,7 +205,7 @@ struct svc_rdma_send_ctxt *svc_rdma_send_ctxt_get(struct svcxprt_rdma *rdma)
 
 out:
 	ctxt->sc_send_wr.num_sge = 0;
-	ctxt->sc_cur_sge_no = 0;
+	ctxt->sc_cur_sge_yes = 0;
 	ctxt->sc_page_count = 0;
 	return ctxt;
 
@@ -287,7 +287,7 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
  * @wr: prepared Send WR to post
  *
  * Returns zero the Send WR was posted successfully. Otherwise, a
- * negative errno is returned.
+ * negative erryes is returned.
  */
 int svc_rdma_send(struct svcxprt_rdma *rdma, struct ib_send_wr *wr)
 {
@@ -498,8 +498,8 @@ static int svc_rdma_dma_map_page(struct svcxprt_rdma *rdma,
 	if (ib_dma_mapping_error(dev, dma_addr))
 		goto out_maperr;
 
-	ctxt->sc_sges[ctxt->sc_cur_sge_no].addr = dma_addr;
-	ctxt->sc_sges[ctxt->sc_cur_sge_no].length = len;
+	ctxt->sc_sges[ctxt->sc_cur_sge_yes].addr = dma_addr;
+	ctxt->sc_sges[ctxt->sc_cur_sge_yes].length = len;
 	ctxt->sc_send_wr.num_sge++;
 	return 0;
 
@@ -573,7 +573,7 @@ static bool svc_rdma_pull_up_needed(struct svcxprt_rdma *rdma,
 	return elements >= rdma->sc_max_send_sges;
 }
 
-/* The device is not capable of sending the reply directly.
+/* The device is yest capable of sending the reply directly.
  * Assemble the elements of @xdr into the transport header
  * buffer.
  */
@@ -639,7 +639,7 @@ static int svc_rdma_pull_up_reply_msg(struct svcxprt_rdma *rdma,
  * Load the xdr_buf into the ctxt's sge array, and DMA map each
  * element as it is added.
  *
- * Returns zero on success, or a negative errno on failure.
+ * Returns zero on success, or a negative erryes on failure.
  */
 int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 			   struct svc_rdma_send_ctxt *ctxt,
@@ -655,7 +655,7 @@ int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 	if (svc_rdma_pull_up_needed(rdma, xdr, wr_lst))
 		return svc_rdma_pull_up_reply_msg(rdma, ctxt, xdr, wr_lst);
 
-	++ctxt->sc_cur_sge_no;
+	++ctxt->sc_cur_sge_yes;
 	ret = svc_rdma_dma_map_buf(rdma, ctxt,
 				   xdr->head[0].iov_base,
 				   xdr->head[0].iov_len);
@@ -663,9 +663,9 @@ int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 		return ret;
 
 	/* If a Write chunk is present, the xdr_buf's page list
-	 * is not included inline. However the Upper Layer may
+	 * is yest included inline. However the Upper Layer may
 	 * have added XDR padding in the tail buffer, and that
-	 * should not be included inline.
+	 * should yest be included inline.
 	 */
 	if (wr_lst) {
 		base = xdr->tail[0].iov_base;
@@ -686,7 +686,7 @@ int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 	while (remaining) {
 		len = min_t(u32, PAGE_SIZE - page_off, remaining);
 
-		++ctxt->sc_cur_sge_no;
+		++ctxt->sc_cur_sge_yes;
 		ret = svc_rdma_dma_map_page(rdma, ctxt, *ppages++,
 					    page_off, len);
 		if (ret < 0)
@@ -700,7 +700,7 @@ int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 	len = xdr->tail[0].iov_len;
 tail:
 	if (len) {
-		++ctxt->sc_cur_sge_no;
+		++ctxt->sc_cur_sge_yes;
 		ret = svc_rdma_dma_map_buf(rdma, ctxt, base, len);
 		if (ret < 0)
 			return ret;
@@ -733,7 +733,7 @@ static void svc_rdma_save_io_pages(struct svc_rqst *rqstp,
  * in sc_sges[0], and the RPC xdr_buf is prepared in following sges.
  *
  * Depending on whether a Write list or Reply chunk is present,
- * the server may send all, a portion of, or none of the xdr_buf.
+ * the server may send all, a portion of, or yesne of the xdr_buf.
  * In the latter case, only the transport header (sc_sges[0]) is
  * transmitted.
  *
@@ -774,7 +774,7 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 	return svc_rdma_send(rdma, &sctxt->sc_send_wr);
 }
 
-/* Given the client-provided Write and Reply chunks, the server was not
+/* Given the client-provided Write and Reply chunks, the server was yest
  * able to form a complete reply. Return an RDMA_ERROR message so the
  * client can retire this RPC transaction. As above, the Send completion
  * routine releases payload pages that were part of a previous RDMA Write.
@@ -812,7 +812,7 @@ static int svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
  * @rqstp: processed RPC request, reply XDR already in ::rq_res
  *
  * Any resources still associated with @rqstp are released upon return.
- * If no reply message was possible, the connection is closed.
+ * If yes reply message was possible, the connection is closed.
  *
  * Returns:
  *	%0 if an RPC reply has been successfully posted,
@@ -849,7 +849,7 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 	*p++ = *rdma_argp;
 	*p++ = *(rdma_argp + 1);
 	*p++ = rdma->sc_fc_credits;
-	*p++ = rp_ch ? rdma_nomsg : rdma_msg;
+	*p++ = rp_ch ? rdma_yesmsg : rdma_msg;
 
 	/* Start with empty chunks */
 	*p++ = xdr_zero;

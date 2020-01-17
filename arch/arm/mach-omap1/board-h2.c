@@ -5,15 +5,15 @@
  * Board specific inits for OMAP-1610 H2
  *
  * Copyright (C) 2001 RidgeRun, Inc.
- * Author: Greg Lonnon <glonnon@ridgerun.com>
+ * Author: Greg Lonyesn <glonyesn@ridgerun.com>
  *
  * Copyright (C) 2002 MontaVista Software, Inc.
  *
- * Separated FPGA interrupts from innovator1510.c and cleaned up for 2.6
+ * Separated FPGA interrupts from inyesvator1510.c and cleaned up for 2.6
  * Copyright (C) 2004 Nokia Corporation by Tony Lindrgen <tony@atomide.com>
  *
  * H2 specific changes and cleanup
- * Copyright (C) 2004 Nokia Corporation by Imre Deak <imre.deak@nokia.com>
+ * Copyright (C) 2004 Nokia Corporation by Imre Deak <imre.deak@yeskia.com>
  */
 #include <linux/gpio.h>
 #include <linux/kernel.h>
@@ -46,7 +46,7 @@
 #include "common.h"
 #include "board-h2.h"
 
-/* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
+/* At OMAP1610 Inyesvator the Ethernet is directly connected to CS1 */
 #define OMAP1610_ETHR_START		0x04000300
 
 static const unsigned int h2_keymap[] = {
@@ -87,7 +87,7 @@ static const unsigned int h2_keymap[] = {
 	KEY(4, 5, KEY_SLEEP),
 };
 
-static struct mtd_partition h2_nor_partitions[] = {
+static struct mtd_partition h2_yesr_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
 	{
 	      .name		= "bootloader",
@@ -118,26 +118,26 @@ static struct mtd_partition h2_nor_partitions[] = {
 	}
 };
 
-static struct physmap_flash_data h2_nor_data = {
+static struct physmap_flash_data h2_yesr_data = {
 	.width		= 2,
 	.set_vpp	= omap1_set_vpp,
-	.parts		= h2_nor_partitions,
-	.nr_parts	= ARRAY_SIZE(h2_nor_partitions),
+	.parts		= h2_yesr_partitions,
+	.nr_parts	= ARRAY_SIZE(h2_yesr_partitions),
 };
 
-static struct resource h2_nor_resource = {
+static struct resource h2_yesr_resource = {
 	/* This is on CS3, wherever it's mapped */
 	.flags		= IORESOURCE_MEM,
 };
 
-static struct platform_device h2_nor_device = {
+static struct platform_device h2_yesr_device = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &h2_nor_data,
+		.platform_data	= &h2_yesr_data,
 	},
 	.num_resources	= 1,
-	.resource	= &h2_nor_resource,
+	.resource	= &h2_yesr_resource,
 };
 
 static struct mtd_partition h2_nand_partitions[] = {
@@ -297,7 +297,7 @@ static struct platform_device h2_gpio_leds = {
 };
 
 static struct platform_device *h2_devices[] __initdata = {
-	&h2_nor_device,
+	&h2_yesr_device,
 	&h2_nand_device,
 	&h2_smc91x_device,
 	&h2_kp_device,
@@ -363,15 +363,15 @@ static void __init h2_init(void)
 
 	/* Here we assume the NOR boot config:  NOR on CS3 (possibly swapped
 	 * to address 0 by a dip switch), NAND on CS2B.  The NAND driver will
-	 * notice whether a NAND chip is enabled at probe time.
+	 * yestice whether a NAND chip is enabled at probe time.
 	 *
 	 * FIXME revC boards (and H3) support NAND-boot, with a dip switch to
 	 * put NOR on CS2B and NAND (which on H2 may be 16bit) on CS3.  Try
 	 * detecting that in code here, to avoid probing every possible flash
 	 * configuration...
 	 */
-	h2_nor_resource.end = h2_nor_resource.start = omap_cs3_phys();
-	h2_nor_resource.end += SZ_32M - 1;
+	h2_yesr_resource.end = h2_yesr_resource.start = omap_cs3_phys();
+	h2_yesr_resource.end += SZ_32M - 1;
 
 	h2_nand_resource.end = h2_nand_resource.start = OMAP_CS2B_PHYS;
 	h2_nand_resource.end += SZ_4K - 1;
@@ -417,7 +417,7 @@ static void __init h2_init(void)
 }
 
 MACHINE_START(OMAP_H2, "TI-H2")
-	/* Maintainer: Imre Deak <imre.deak@nokia.com> */
+	/* Maintainer: Imre Deak <imre.deak@yeskia.com> */
 	.atag_offset	= 0x100,
 	.map_io		= omap16xx_map_io,
 	.init_early     = omap1_init_early,

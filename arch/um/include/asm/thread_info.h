@@ -25,7 +25,7 @@ struct thread_info {
 	mm_segment_t		addr_limit;	/* thread address space:
 					 	   0-0xBFFFFFFF for user
 						   0-0xFFFFFFFF for kernel */
-	struct thread_info	*real_thread;    /* Points to non-IRQ stack */
+	struct thread_info	*real_thread;    /* Points to yesn-IRQ stack */
 	unsigned long aux_fp_regs[FP_SIZE];	/* auxiliary fp_regs to save/restore
 						   them out-of-band */
 };

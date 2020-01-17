@@ -24,7 +24,7 @@
  * Context creation is initiated by a RPCSEC_GSS_INIT request arriving.
  * The context handle and gss_token are used as a key into the rpcsec_init cache.
  * The content of this cache includes some of the outputs of GSS_Accept_sec_context,
- * being major_status, minor_status, context_handle, reply_token.
+ * being major_status, miyesr_status, context_handle, reply_token.
  * These are sent back to the client.
  * Sequence window management is handled by the kernel.  The window size if currently
  * a compile time constant.
@@ -63,7 +63,7 @@
  * into replies.
  *
  * Key is context handle (\x if empty) and gss_token.
- * Content is major_status minor_status (integers) context_handle, reply_token.
+ * Content is major_status miyesr_status (integers) context_handle, reply_token.
  *
  */
 
@@ -79,7 +79,7 @@ struct rsi {
 	struct cache_head	h;
 	struct xdr_netobj	in_handle, in_token;
 	struct xdr_netobj	out_handle, out_token;
-	int			major_status, minor_status;
+	int			major_status, miyesr_status;
 	struct rcu_head		rcu_head;
 };
 
@@ -172,7 +172,7 @@ static void update_rsi(struct cache_head *cnew, struct cache_head *citem)
 	item->out_token.data = NULL;
 
 	new->major_status = item->major_status;
-	new->minor_status = item->minor_status;
+	new->miyesr_status = item->miyesr_status;
 }
 
 static struct cache_head *rsi_alloc(void)
@@ -198,7 +198,7 @@ static void rsi_request(struct cache_detail *cd,
 static int rsi_parse(struct cache_detail *cd,
 		    char *mesg, int mlen)
 {
-	/* context token expiry major minor context token */
+	/* context token expiry major miyesr context token */
 	char *buf = mesg;
 	char *ep;
 	int len;
@@ -235,7 +235,7 @@ static int rsi_parse(struct cache_detail *cd,
 	if (expiry == 0)
 		goto out;
 
-	/* major/minor */
+	/* major/miyesr */
 	len = qword_get(&mesg, buf, mlen);
 	if (len <= 0)
 		goto out;
@@ -245,7 +245,7 @@ static int rsi_parse(struct cache_detail *cd,
 	len = qword_get(&mesg, buf, mlen);
 	if (len <= 0)
 		goto out;
-	rsii.minor_status = simple_strtoul(buf, &ep, 10);
+	rsii.miyesr_status = simple_strtoul(buf, &ep, 10);
 	if (*ep)
 		goto out;
 
@@ -332,7 +332,7 @@ struct gss_svc_seq_data {
 	/* highest seq number seen so far: */
 	int			sd_max;
 	/* for i such that sd_max-GSS_SEQ_WIN < i <= sd_max, the i-th bit of
-	 * sd_win is nonzero iff sequence number i has been seen already: */
+	 * sd_win is yesnzero iff sequence number i has been seen already: */
 	unsigned long		sd_win[GSS_SEQ_WIN/BITS_PER_LONG];
 	spinlock_t		sd_lock;
 };
@@ -471,9 +471,9 @@ static int rsc_parse(struct cache_detail *cd,
 		/*
 		 * NOTE: we skip uid_valid()/gid_valid() checks here:
 		 * instead, * -1 id's are later mapped to the
-		 * (export-specific) anonymous id by nfsd_setuser.
+		 * (export-specific) ayesnymous id by nfsd_setuser.
 		 *
-		 * (But supplementary gid's get no such special
+		 * (But supplementary gid's get yes such special
 		 * treatment so are checked for validity here.)
 		 */
 		/* uid */
@@ -863,11 +863,11 @@ unwrap_integ_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct g
 	struct xdr_netobj mic;
 	struct xdr_buf integ_buf;
 
-	/* NFS READ normally uses splice to send data in-place. However
+	/* NFS READ yesrmally uses splice to send data in-place. However
 	 * the data in cache can change after the reply's MIC is computed
 	 * but before the RPC reply is sent. To prevent the client from
 	 * rejecting the server-computed MIC in this somewhat rare case,
-	 * do not use splice with the GSS integrity service.
+	 * do yest use splice with the GSS integrity service.
 	 */
 	clear_bit(RQ_SPLICE_OK, &rqstp->rq_flags);
 
@@ -940,7 +940,7 @@ unwrap_priv_data(struct svc_rqst *rqstp, struct xdr_buf *buf, u32 seq, struct gs
 	}
 	/* buf->len is the number of bytes from the original start of the
 	 * request to the end, where head[0].iov_len is just the bytes
-	 * not yet read from the head, so these two values are different: */
+	 * yest yet read from the head, so these two values are different: */
 	remaining_len = total_buf_len(buf);
 	if (priv_len > remaining_len)
 		return -EINVAL;
@@ -1149,7 +1149,7 @@ static int gss_read_proxy_verf(struct svc_rqst *rqstp,
 static inline int
 gss_write_resv(struct kvec *resv, size_t size_limit,
 	       struct xdr_netobj *out_handle, struct xdr_netobj *out_token,
-	       int major_status, int minor_status)
+	       int major_status, int miyesr_status)
 {
 	if (resv->iov_len + 4 > size_limit)
 		return -1;
@@ -1159,7 +1159,7 @@ gss_write_resv(struct kvec *resv, size_t size_limit,
 	if (resv->iov_len + 3 * 4 > size_limit)
 		return -1;
 	svc_putnl(resv, major_status);
-	svc_putnl(resv, minor_status);
+	svc_putnl(resv, miyesr_status);
 	svc_putnl(resv, GSS_SEQ_WIN);
 	if (svc_safe_putnetobj(resv, out_token))
 		return -1;
@@ -1204,7 +1204,7 @@ static int svcauth_gss_legacy_init(struct svc_rqst *rqstp,
 		goto out;
 	if (gss_write_resv(resv, PAGE_SIZE,
 			   &rsip->out_handle, &rsip->out_token,
-			   rsip->major_status, rsip->minor_status))
+			   rsip->major_status, rsip->miyesr_status))
 		goto out;
 
 	ret = SVC_COMPLETE;
@@ -1244,7 +1244,7 @@ static int gss_proxy_save_rsc(struct cache_detail *cd,
 	/* creds */
 	if (!ud->found_creds) {
 		/* userspace seem buggy, we should always get at least a
-		 * mapping to nobody */
+		 * mapping to yesbody */
 		dprintk("RPC:       No creds found!\n");
 		goto out;
 	} else {
@@ -1302,13 +1302,13 @@ static int svcauth_gss_proxy_init(struct svc_rqst *rqstp,
 
 	ret = SVC_CLOSE;
 
-	/* Perform synchronous upcall to gss-proxy */
+	/* Perform synchroyesus upcall to gss-proxy */
 	status = gssp_accept_sec_context_upcall(net, &ud);
 	if (status)
 		goto out;
 
 	trace_rpcgss_accept_upcall(rqstp->rq_xid, ud.major_status,
-				   ud.minor_status);
+				   ud.miyesr_status);
 
 	switch (ud.major_status) {
 	case GSS_S_CONTINUE_NEEDED:
@@ -1337,7 +1337,7 @@ static int svcauth_gss_proxy_init(struct svc_rqst *rqstp,
 	}
 	if (gss_write_resv(resv, PAGE_SIZE,
 			   &cli_handle, &ud.out_token,
-			   ud.major_status, ud.minor_status)) {
+			   ud.major_status, ud.miyesr_status)) {
 		pr_info("%s: gss_write_resv failed\n", __func__);
 		goto out;
 	}
@@ -1381,7 +1381,7 @@ static bool use_gss_proxy(struct net *net)
 static ssize_t write_gssp(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct net *net = PDE_DATA(file_inode(file));
+	struct net *net = PDE_DATA(file_iyesde(file));
 	char tbuf[20];
 	unsigned long i;
 	int res;
@@ -1409,7 +1409,7 @@ static ssize_t write_gssp(struct file *file, const char __user *buf,
 static ssize_t read_gssp(struct file *file, char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct net *net = PDE_DATA(file_inode(file));
+	struct net *net = PDE_DATA(file_iyesde(file));
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	unsigned long p = *ppos;
 	char tbuf[10];
@@ -1429,7 +1429,7 @@ static ssize_t read_gssp(struct file *file, char __user *buf,
 }
 
 static const struct file_operations use_gss_proxy_ops = {
-	.open = nonseekable_open,
+	.open = yesnseekable_open,
 	.write = write_gssp,
 	.read = read_gssp,
 };
@@ -1560,7 +1560,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 		goto auth_err;
 	}
 
-	/* now act upon the command: */
+	/* yesw act upon the command: */
 	switch (gc->gc_proc) {
 	case RPC_GSS_PROC_DESTROY:
 		if (gss_write_verf(rqstp, rsci->mechctx, gc->gc_seq))
@@ -1640,7 +1640,7 @@ svcauth_gss_prepare_to_wrap(struct xdr_buf *resbuf, struct gss_svc_data *gsd)
 	p = gsd->verf_start;
 	gsd->verf_start = NULL;
 
-	/* If the reply stat is nonzero, don't wrap: */
+	/* If the reply stat is yesnzero, don't wrap: */
 	if (*(p-1) != rpc_success)
 		return NULL;
 	/* Skip the verifier: */
@@ -1649,7 +1649,7 @@ svcauth_gss_prepare_to_wrap(struct xdr_buf *resbuf, struct gss_svc_data *gsd)
 	p += XDR_QUADLEN(verf_len);
 	/* move accept_stat to right place: */
 	memcpy(p, p + 2, 4);
-	/* Also don't wrap if the accept stat is nonzero: */
+	/* Also don't wrap if the accept stat is yesnzero: */
 	if (*p != rpc_success) {
 		resbuf->head[0].iov_len -= 2 * 4;
 		return NULL;
@@ -1698,7 +1698,7 @@ svcauth_gss_wrap_resp_integ(struct svc_rqst *rqstp)
 	memset(mic.data + mic.len, 0,
 			round_up_to_quad(mic.len) - mic.len);
 	resv->iov_len += XDR_QUADLEN(mic.len) << 2;
-	/* not strictly required: */
+	/* yest strictly required: */
 	resbuf->len += XDR_QUADLEN(mic.len) << 2;
 	BUG_ON(resv->iov_len > PAGE_SIZE);
 out:
@@ -1748,7 +1748,7 @@ svcauth_gss_wrap_resp_priv(struct svc_rqst *rqstp)
 		resbuf->tail[0].iov_base += RPC_MAX_AUTH_SIZE;
 	}
 	/*
-	 * If there is no current tail data, make sure there is
+	 * If there is yes current tail data, make sure there is
 	 * room for the head data, and 2 * RPC_MAX_AUTH_SIZE in the
 	 * allotted page, and set up tail information such that there
 	 * is RPC_MAX_AUTH_SIZE slack space available in both the
@@ -1786,7 +1786,7 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 	/* Release can be called twice, but we only wrap once. */
 	if (gsd->verf_start == NULL)
 		goto out;
-	/* normally not set till svc_send, but we need it here: */
+	/* yesrmally yest set till svc_send, but we need it here: */
 	/* XXX: what for?  Do we mess it up the moment we call svc_putu32
 	 * or whatever? */
 	resbuf->len = total_buf_len(resbuf);

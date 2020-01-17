@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -139,7 +139,7 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
 
-	/* set the writeback address whether it's enabled or not */
+	/* set the writeback address whether it's enabled or yest */
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_LO,
 		     lower_32_bits(ih->wptr_addr));
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_HI,
@@ -193,7 +193,7 @@ static void navi10_ih_irq_disable(struct amdgpu_device *adev)
 {
 	navi10_ih_disable_interrupts(adev);
 
-	/* Wait and acknowledge irq */
+	/* Wait and ackyeswledge irq */
 	mdelay(1);
 }
 
@@ -224,7 +224,7 @@ static u32 navi10_ih_get_wptr(struct amdgpu_device *adev,
 	wptr = REG_SET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW, 0);
 
 	/* When a ring buffer overflow happen start parsing interrupt
-	 * from the last not overwritten vector (wptr + 32). Hopefully
+	 * from the last yest overwritten vector (wptr + 32). Hopefully
 	 * this should allow us to catch up.
 	 */
 	tmp = (wptr + 32) & ih->ptr_mask;
@@ -481,7 +481,7 @@ const struct amdgpu_ip_block_version navi10_ih_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_IH,
 	.major = 5,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &navi10_ih_ip_funcs,
 };

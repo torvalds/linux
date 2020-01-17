@@ -1,6 +1,6 @@
 Microchip USB 2.0 Hi-Speed Hub Controller
 
-The device node for the configuration of a Microchip USB251x/xBi USB 2.0
+The device yesde for the configuration of a Microchip USB251x/xBi USB 2.0
 Hi-Speed Controller.
 
 Required properties :
@@ -42,7 +42,7 @@ Optional properties :
 	(boolean, default is speed mode)
  - string-support : enable string descriptor support (required for manufacturer,
 	product and serial string configuration)
- - non-removable-ports : Should specify the ports which have a non-removable
+ - yesn-removable-ports : Should specify the ports which have a yesn-removable
 	device connected.
  - sp-disabled-ports : Specifies the ports which will be self-power disabled
  - bp-disabled-ports : Specifies the ports which will be bus-power disabled
@@ -66,7 +66,7 @@ Optional properties :
 	initiates the power-on sequence to a port until the port has adequate
 	power. The value is given in ms in a 0 - 510 range (default is 100ms).
  - swap-dx-lanes : Specifies the ports which will swap the differential-pair
-	(D+/D-), default is not-swapped.
+	(D+/D-), default is yest-swapped.
 
 Examples:
 	usb2512b@2c {

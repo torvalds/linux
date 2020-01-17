@@ -9,14 +9,14 @@ struct perf_config_item {
 	char *name;
 	char *value;
 	bool from_system_config;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct perf_config_section {
 	char *name;
 	struct list_head items;
 	bool from_system_config;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct perf_config_set {
@@ -31,7 +31,7 @@ int perf_config(config_fn_t fn, void *);
 int perf_config_int(int *dest, const char *, const char *);
 int perf_config_u64(u64 *dest, const char *, const char *);
 int perf_config_bool(const char *, const char *);
-int config_error_nonbool(const char *);
+int config_error_yesnbool(const char *);
 const char *perf_etc_perfconfig(void);
 
 struct perf_config_set *perf_config_set__new(void);
@@ -47,7 +47,7 @@ void perf_config__refresh(void);
  * @section: struct perf_config_section iterator
  */
 #define perf_config_sections__for_each_entry(list, section)	\
-        list_for_each_entry(section, list, node)
+        list_for_each_entry(section, list, yesde)
 
 /**
  * perf_config_items__for_each - iterate thru all the items
@@ -55,7 +55,7 @@ void perf_config__refresh(void);
  * @item: struct perf_config_item iterator
  */
 #define perf_config_items__for_each_entry(list, item)	\
-        list_for_each_entry(item, list, node)
+        list_for_each_entry(item, list, yesde)
 
 /**
  * perf_config_set__for_each - iterate thru all the config section-item pairs

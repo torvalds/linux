@@ -3,8 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004, 2005 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2004, 2005 MIPS Techyeslogies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Techyeslogies Ltd.
  */
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -25,10 +25,10 @@ static ssize_t store_kill(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t len)
 {
 	struct vpe *vpe = get_vpe(aprp_cpu_index());
-	struct vpe_notifications *notifier;
+	struct vpe_yestifications *yestifier;
 
-	list_for_each_entry(notifier, &vpe->notify, list)
-		notifier->stop(aprp_cpu_index());
+	list_for_each_entry(yestifier, &vpe->yestify, list)
+		yestifier->stop(aprp_cpu_index());
 
 	release_progmem(vpe->load_addr);
 	vpe->state = VPE_STATE_UNUSED;
@@ -56,7 +56,7 @@ static ssize_t ntcs_store(struct device *dev, struct device_attribute *attr,
 	if (ret < 0)
 		return ret;
 
-	/* APRP can only reserve one TC in a VPE and no more. */
+	/* APRP can only reserve one TC in a VPE and yes more. */
 	if (new != 1)
 		return -EINVAL;
 
@@ -94,12 +94,12 @@ int __init vpe_module_init(void)
 	int err;
 
 	if (!cpu_has_mipsmt) {
-		pr_warn("VPE loader: not a MIPS MT capable processor\n");
+		pr_warn("VPE loader: yest a MIPS MT capable processor\n");
 		return -ENODEV;
 	}
 
 	if (num_possible_cpus() - aprp_cpu_index() < 1) {
-		pr_warn("No VPEs reserved for AP/SP, not initialize VPE loader\n"
+		pr_warn("No VPEs reserved for AP/SP, yest initialize VPE loader\n"
 			"Pass maxcpus=<n> argument as kernel argument\n");
 		return -ENODEV;
 	}

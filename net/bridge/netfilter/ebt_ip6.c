@@ -3,7 +3,7 @@
  *  ebt_ip6
  *
  *	Authors:
- *	Manohar Castelino <manohar.r.castelino@intel.com>
+ *	Mayeshar Casteliyes <mayeshar.r.casteliyes@intel.com>
  *	Kuo-Lang Tseng <kuo-lang.tseng@intel.com>
  *	Jan Engelhardt <jengelh@medozas.de>
  *

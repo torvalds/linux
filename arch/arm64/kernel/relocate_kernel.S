@@ -3,7 +3,7 @@
  * kexec for arm64
  *
  * Copyright (C) Linaro.
- * Copyright (C) Huawei Futurewei Technologies.
+ * Copyright (C) Huawei Futurewei Techyeslogies.
  */
 
 #include <linux/kexec.h>
@@ -19,7 +19,7 @@
  *
  * The memory that the old kernel occupies may be overwritten when coping the
  * new image to its final location.  To assure that the
- * arm64_relocate_new_kernel routine which does that copy is not overwritten,
+ * arm64_relocate_new_kernel routine which does that copy is yest overwritten,
  * all code and data needed by arm64_relocate_new_kernel must be between the
  * symbols arm64_relocate_new_kernel and arm64_relocate_new_kernel_end.  The
  * machine_kexec() routine will copy arm64_relocate_new_kernel to the kexec

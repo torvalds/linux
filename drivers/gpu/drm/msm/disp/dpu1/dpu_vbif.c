@@ -42,7 +42,7 @@ static int _dpu_vbif_wait_for_xin_halt(struct dpu_hw_vbif *vbif, u32 xin_id)
 
 	if (!status) {
 		rc = -ETIMEDOUT;
-		DPU_ERROR("VBIF %d client %d not halting. TIMEDOUT.\n",
+		DPU_ERROR("VBIF %d client %d yest halting. TIMEDOUT.\n",
 				vbif->idx - VBIF_0, xin_id);
 	} else {
 		rc = 0;
@@ -116,8 +116,8 @@ static u32 _dpu_vbif_get_ot_limit(struct dpu_hw_vbif *vbif,
 		ot_lim = vbif->cap->default_ot_rd_limit;
 
 	/*
-	 * If default ot is not set from dt/catalog,
-	 * then do not configure it.
+	 * If default ot is yest set from dt/catalog,
+	 * then do yest configure it.
 	 */
 	if (ot_lim == 0)
 		goto exit;
@@ -230,7 +230,7 @@ void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 	}
 
 	if (!vbif->ops.set_qos_remap || !mdp->ops.setup_clk_force_ctrl) {
-		DPU_DEBUG("qos remap not supported\n");
+		DPU_DEBUG("qos remap yest supported\n");
 		return;
 	}
 
@@ -238,7 +238,7 @@ void dpu_vbif_set_qos_remap(struct dpu_kms *dpu_kms,
 			&vbif->cap->qos_nrt_tbl;
 
 	if (!qos_tbl->npriority_lvl || !qos_tbl->priority_lvl) {
-		DPU_DEBUG("qos tbl not defined\n");
+		DPU_DEBUG("qos tbl yest defined\n");
 		return;
 	}
 

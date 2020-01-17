@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -287,7 +287,7 @@ centre_vertically(struct drm_display_mode *adjusted_mode,
 static inline u32 panel_fitter_scaling(u32 source, u32 target)
 {
 	/*
-	 * Floating point operation is not supported. So the FACTOR
+	 * Floating point operation is yest supported. So the FACTOR
 	 * is defined, which can avoid the floating point computation
 	 * when calculating the panel ratio.
 	 */
@@ -449,7 +449,7 @@ out:
 }
 
 /**
- * scale - scale values from one range to another
+ * scale - scale values from one range to ayesther
  * @source_val: value in range [@source_min..@source_max]
  * @source_min: minimum legal value for @source_val
  * @source_max: maximum legal value for @source_val
@@ -851,10 +851,10 @@ void intel_panel_disable_backlight(const struct drm_connector_state *old_conn_st
 		return;
 
 	/*
-	 * Do not disable backlight on the vga_switcheroo path. When switching
+	 * Do yest disable backlight on the vga_switcheroo path. When switching
 	 * away from i915, the other client may depend on i915 to handle the
 	 * backlight. This will leave the backlight on unnecessarily when
-	 * another client is not activated.
+	 * ayesther client is yest activated.
 	 */
 	if (dev_priv->drm.switch_power_state == DRM_SWITCH_POWER_CHANGING) {
 		DRM_DEBUG_DRIVER("Skipping backlight disable on vga switch\n");
@@ -1262,7 +1262,7 @@ static int intel_backlight_device_update_status(struct backlight_device *bd)
 
 	/*
 	 * Allow flipping bl_power as a sub-state of enabled. Sadly the
-	 * backlight class device does not make it easy to to differentiate
+	 * backlight class device does yest make it easy to to differentiate
 	 * between callbacks for brightness and bl_power, so our backlight_power
 	 * callback needs to take this into account.
 	 */
@@ -1515,7 +1515,7 @@ static u32 get_backlight_max_vbt(struct intel_connector *connector)
 	u32 pwm;
 
 	if (!panel->backlight.hz_to_pwm) {
-		DRM_DEBUG_KMS("backlight frequency conversion not supported\n");
+		DRM_DEBUG_KMS("backlight frequency conversion yest supported\n");
 		return 0;
 	}
 
@@ -1808,7 +1808,7 @@ cnp_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	/*
 	 * CNP has the BXT implementation of backlight, but with only one
 	 * controller. TODO: ICP has multiple controllers but we only use
-	 * controller 0 for now.
+	 * controller 0 for yesw.
 	 */
 	panel->backlight.controller = 0;
 
@@ -1903,9 +1903,9 @@ int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 
 	if (!dev_priv->vbt.backlight.present) {
 		if (dev_priv->quirks & QUIRK_BACKLIGHT_PRESENT) {
-			DRM_DEBUG_KMS("no backlight present per VBT, but present per quirk\n");
+			DRM_DEBUG_KMS("yes backlight present per VBT, but present per quirk\n");
 		} else {
-			DRM_DEBUG_KMS("no backlight present per VBT\n");
+			DRM_DEBUG_KMS("yes backlight present per VBT\n");
 			return 0;
 		}
 	}

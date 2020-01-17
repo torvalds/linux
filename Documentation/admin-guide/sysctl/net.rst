@@ -78,7 +78,7 @@ And the older cBPF JIT supported on the following archs:
 eBPF JITs are a superset of cBPF JITs, meaning the kernel will
 migrate cBPF instructions into eBPF instructions and then JIT
 compile them transparently. Older cBPF JITs can only translate
-tcpdump filters, seccomp rules, etc, but not mentioned eBPF
+tcpdump filters, seccomp rules, etc, but yest mentioned eBPF
 programs loaded through bpf(2).
 
 Values:
@@ -103,8 +103,8 @@ Values:
 bpf_jit_kallsyms
 ----------------
 
-When BPF JIT compiler is enabled, then compiled images are unknown
-addresses to the kernel, meaning they neither show up in traces nor
+When BPF JIT compiler is enabled, then compiled images are unkyeswn
+addresses to the kernel, meaning they neither show up in traces yesr
 in /proc/kallsyms. This enables export of these addresses, which can
 be used for debugging/tracing. If bpf_jit_harden is enabled, this
 feature is disabled.
@@ -166,8 +166,8 @@ fair queue (sfq), CoDel (codel) or fair queue CoDel (fq_codel). Don't use
 queuing disciplines like Hierarchical Token Bucket or Deficit Round Robin
 which require setting up classes and bandwidths. Note that physical multiqueue
 interfaces still use mq as root qdisc, which in turn uses this default for its
-leaves. Virtual devices (like e.g. lo or veth) ignore this setting and instead
-default to noqueue.
+leaves. Virtual devices (like e.g. lo or veth) igyesre this setting and instead
+default to yesqueue.
 
 Default: pfifo_fast
 
@@ -242,13 +242,13 @@ seconds.
 warnings
 --------
 
-This sysctl is now unused.
+This sysctl is yesw unused.
 
 This was used to control console messages from the networking stack that
 occur because of problems on the network like duplicate address or bad
 checksums.
 
-These messages are now emitted at KERN_DEBUG and can generally be enabled
+These messages are yesw emitted at KERN_DEBUG and can generally be enabled
 and controlled by the dynamic_debug facility.
 
 netdev_budget
@@ -256,8 +256,8 @@ netdev_budget
 
 Maximum number of packets taken from all interfaces in one polling cycle (NAPI
 poll). In one polling cycle interfaces which are registered to polling are
-probed in a round-robin manner. Also, a polling cycle may not exceed
-netdev_budget_usecs microseconds, even if netdev_budget has not been
+probed in a round-robin manner. Also, a polling cycle may yest exceed
+netdev_budget_usecs microseconds, even if netdev_budget has yest been
 exhausted.
 
 netdev_budget_usecs
@@ -278,7 +278,7 @@ netdev_rss_key
 
 RSS (Receive Side Scaling) enabled drivers use a 40 bytes host key that is
 randomly generated.
-Some user space might need to gather its content even if drivers do not
+Some user space might need to gather its content even if drivers do yest
 provide ethtool -x support yet.
 
 ::
@@ -286,7 +286,7 @@ provide ethtool -x support yet.
   myhost:~# cat /proc/sys/net/core/netdev_rss_key
   84:50:f4:00:a8:15:d1:a7:e9:7f:1d:60:35:c7:47:25:42:97:74:ca:56:bb:b6:a1:d8: ... (52 bytes total)
 
-File contains nul bytes if no driver ever called netdev_rss_key_fill() function.
+File contains nul bytes if yes driver ever called netdev_rss_key_fill() function.
 
 Note:
   /proc/sys/net/core/netdev_rss_key contains 52 bytes of key,
@@ -323,7 +323,7 @@ Controls if fallback tunnels (like tunl0, gre0, gretap0, erspan0,
 sit0, ip6tnl0, ip6gre0) are automatically created when a new
 network namespace is created, if corresponding tunnel is present
 in initial network namespace.
-If set to 1, these devices are not automatically created, and
+If set to 1, these devices are yest automatically created, and
 user space is responsible for creating them if needed.
 
 Default : 0  (for compatibility reasons)
@@ -347,7 +347,7 @@ Default : 0  (for compatibility reasons)
 
 There is only one file in this directory.
 unix_dgram_qlen limits the max number of datagrams queued in Unix domain
-socket's buffer. It will not take effect unless PF_UNIX flag is specified.
+socket's buffer. It will yest take effect unless PF_UNIX flag is specified.
 
 
 3. /proc/sys/net/ipv4 - IPV4 settings
@@ -386,7 +386,7 @@ Controls the rate at which expires are checked.
 The directory  /proc/net/appletalk  holds the list of active Appletalk sockets
 on a machine.
 
-The fields  indicate  the DDP type, the local address (in network:node format)
+The fields  indicate  the DDP type, the local address (in network:yesde format)
 the remote  address,  the  size of the transmit pending queue, the size of the
 received queue  (bytes waiting for applications to read) the state and the uid
 owning the socket.
@@ -396,7 +396,7 @@ shows the  name  of the interface, its Appletalk address, the network range on
 that address  (or  network number for phase 1 networks), and the status of the
 interface.
 
-/proc/net/atalk_route lists  each  known  network  route.  It lists the target
+/proc/net/atalk_route lists  each  kyeswn  network  route.  It lists the target
 (network) that the route leads to, the router (may be directly connected), the
 route flags, and the device the route is using.
 
@@ -406,7 +406,7 @@ route flags, and the device the route is using.
 tipc_rmem
 ---------
 
-The TIPC protocol now has a tunable for the receive memory, similar to the
+The TIPC protocol yesw has a tunable for the receive memory, similar to the
 tcp_rmem - i.e. a vector of 3 INTEGERs: (min, default, max)
 
 ::
@@ -417,18 +417,18 @@ tcp_rmem - i.e. a vector of 3 INTEGERs: (min, default, max)
 
 The max value is set to CONN_OVERLOAD_LIMIT, and the default and min values
 are scaled (shifted) versions of that same value.  Note that the min value
-is not at this point in time used in any meaningful way, but the triplet is
+is yest at this point in time used in any meaningful way, but the triplet is
 preserved in order to be consistent with things like tcp_rmem.
 
 named_timeout
 -------------
 
-TIPC name table updates are distributed asynchronously in a cluster, without
+TIPC name table updates are distributed asynchroyesusly in a cluster, without
 any form of transaction handling. This means that different race scenarios are
-possible. One such is that a name withdrawal sent out by one node and received
-by another node may arrive after a second, overlapping name publication already
-has been accepted from a third node, although the conflicting updates
+possible. One such is that a name withdrawal sent out by one yesde and received
+by ayesther yesde may arrive after a second, overlapping name publication already
+has been accepted from a third yesde, although the conflicting updates
 originally may have been issued in the correct sequential order.
-If named_timeout is nonzero, failed topology updates will be placed on a defer
-queue until another event arrives that clears the error, or until the timeout
+If named_timeout is yesnzero, failed topology updates will be placed on a defer
+queue until ayesther event arrives that clears the error, or until the timeout
 expires. Value is in milliseconds.

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -34,7 +34,7 @@
 #include "intel_pipe_crc.h"
 
 static const char * const pipe_crc_sources[] = {
-	[INTEL_PIPE_CRC_SOURCE_NONE] = "none",
+	[INTEL_PIPE_CRC_SOURCE_NONE] = "yesne",
 	[INTEL_PIPE_CRC_SOURCE_PLANE1] = "plane1",
 	[INTEL_PIPE_CRC_SOURCE_PLANE2] = "plane2",
 	[INTEL_PIPE_CRC_SOURCE_PLANE3] = "plane3",
@@ -110,7 +110,7 @@ static int i9xx_pipe_crc_auto_source(struct drm_i915_private *dev_priv,
 				*source = INTEL_PIPE_CRC_SOURCE_DP_D;
 				break;
 			default:
-				WARN(1, "nonexisting DP port %c\n",
+				WARN(1, "yesnexisting DP port %c\n",
 				     port_name(dig_port->base.port));
 				break;
 			}
@@ -222,7 +222,7 @@ static int i9xx_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 		 * The DP CRC source doesn't work on g4x.
 		 * It can be made to work to some degree by selecting
 		 * the correct CRC source before the port is enabled,
-		 * and not touching the CRC source bits again until
+		 * and yest touching the CRC source bits again until
 		 * the port is disabled. But even then the bits
 		 * eventually get stuck and a reboot is needed to get
 		 * working CRCs on the pipe again. Let's simply
@@ -570,7 +570,7 @@ int intel_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 	enum intel_pipe_crc_source source;
 
 	if (display_crc_ctl_parse_source(source_name, &source) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
+		DRM_DEBUG_DRIVER("unkyeswn source %s\n", source_name);
 		return -EINVAL;
 	}
 
@@ -595,7 +595,7 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name)
 	bool enable;
 
 	if (display_crc_ctl_parse_source(source_name, &source) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
+		DRM_DEBUG_DRIVER("unkyeswn source %s\n", source_name);
 		return -EINVAL;
 	}
 
@@ -647,7 +647,7 @@ void intel_crtc_enable_pipe_crc(struct intel_crtc *intel_crtc)
 	if (get_new_crc_ctl_reg(dev_priv, crtc->index, &pipe_crc->source, &val) < 0)
 		return;
 
-	/* Don't need pipe_crc->lock here, IRQs are not generated. */
+	/* Don't need pipe_crc->lock here, IRQs are yest generated. */
 	pipe_crc->skipped = 0;
 
 	I915_WRITE(PIPE_CRC_CTL(crtc->index), val);

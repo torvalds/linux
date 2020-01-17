@@ -42,7 +42,7 @@
  * WC and WT fall back to UC-.  pat_init() updates these values to support
  * more cache modes, WC and WT, when it is safe to do so.  See pat_init()
  * for the details.  Note, __early_ioremap() used during early boot-time
- * takes pgprot_t (pte encoding) and does not use these tables.
+ * takes pgprot_t (pte encoding) and does yest use these tables.
  *
  *   Index into __cachemode2pte_tbl[] is the cachemode.
  *
@@ -115,7 +115,7 @@ __ref void *alloc_low_pages(unsigned int num)
 			ret = __pa(extend_brk(PAGE_SIZE * num, PAGE_SIZE));
 
 		if (!ret)
-			panic("alloc_low_pages: can not alloc memory");
+			panic("alloc_low_pages: can yest alloc memory");
 
 		pfn = ret >> PAGE_SHIFT;
 	} else {
@@ -162,7 +162,7 @@ void  __init early_alloc_pgt_buf(void)
 
 int after_bootmem;
 
-early_param_on_off("gbpages", "nogbpages", direct_gbpages, CONFIG_X86_DIRECT_GBPAGES);
+early_param_on_off("gbpages", "yesgbpages", direct_gbpages, CONFIG_X86_DIRECT_GBPAGES);
 
 struct map_range {
 	unsigned long start;
@@ -197,7 +197,7 @@ static void __init probe_page_size_mask(void)
 
 	/* By the default is everything supported: */
 	__default_kernel_pte_mask = __supported_pte_mask;
-	/* Except when with PTI where the kernel is mostly non-Global: */
+	/* Except when with PTI where the kernel is mostly yesn-Global: */
 	if (cpu_feature_enabled(X86_FEATURE_PTI))
 		__default_kernel_pte_mask &= ~_PAGE_GLOBAL;
 
@@ -236,15 +236,15 @@ static void setup_pcid(void)
 		 * INVPCID's single-context modes (2/3) only work if we set
 		 * X86_CR4_PCIDE, *and* we INVPCID support.  It's unusable
 		 * on systems that have X86_CR4_PCIDE clear, or that have
-		 * no INVPCID support at all.
+		 * yes INVPCID support at all.
 		 */
 		if (boot_cpu_has(X86_FEATURE_INVPCID))
 			setup_force_cpu_cap(X86_FEATURE_INVPCID_SINGLE);
 	} else {
 		/*
 		 * flush_tlb_all(), as currently implemented, won't work if
-		 * PCID is on but PGE is not.  Since that combination
-		 * doesn't exist on real hardware, there's no reason to try
+		 * PCID is on but PGE is yest.  Since that combination
+		 * doesn't exist on real hardware, there's yes reason to try
 		 * to fully support it, but it's polite to avoid corrupting
 		 * data if we're on an improperly configured VM.
 		 */
@@ -343,7 +343,7 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
 
 	limit_pfn = PFN_DOWN(end);
 
-	/* head if not big page alignment ? */
+	/* head if yest big page alignment ? */
 	pfn = start_pfn = PFN_DOWN(start);
 #ifdef CONFIG_X86_32
 	/*
@@ -393,7 +393,7 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
 		pfn = end_pfn;
 	}
 
-	/* tail is not big page (1G) alignment */
+	/* tail is yest big page (1G) alignment */
 	start_pfn = round_up(pfn, PFN_DOWN(PMD_SIZE));
 	end_pfn = round_down(limit_pfn, PFN_DOWN(PMD_SIZE));
 	if (start_pfn < end_pfn) {
@@ -403,7 +403,7 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
 	}
 #endif
 
-	/* tail is not big page (2M) alignment */
+	/* tail is yest big page (2M) alignment */
 	start_pfn = pfn;
 	end_pfn = limit_pfn;
 	nr_range = save_mr(mr, nr_range, start_pfn, end_pfn, 0);
@@ -490,10 +490,10 @@ unsigned long __ref init_memory_mapping(unsigned long start,
 
 /*
  * We need to iterate through the E820 memory map and create direct mappings
- * for only E820_TYPE_RAM and E820_KERN_RESERVED regions. We cannot simply
+ * for only E820_TYPE_RAM and E820_KERN_RESERVED regions. We canyest simply
  * create direct mappings for all pfns from [0 to max_low_pfn) and
  * [4GB to max_pfn) because of possible memory holes in high addresses
- * that cannot be marked as UC by fixed/variable range MTRRs.
+ * that canyest be marked as UC by fixed/variable range MTRRs.
  * Depending on the alignment of E820 ranges, this may possibly result
  * in using smaller size (i.e. 4K instead of 2M or 1G) page tables.
  *
@@ -533,9 +533,9 @@ static unsigned long __init get_new_step_size(unsigned long step_size)
 {
 	/*
 	 * Initial mapped size is PMD_SIZE (2M).
-	 * We can not set step_size to be PUD_SIZE (1G) yet.
+	 * We can yest set step_size to be PUD_SIZE (1G) yet.
 	 * In worse case, when we cross the 1G boundary, and
-	 * PG_LEVEL_2M is not set, we will need 1+1+512 pages (2M + 8k)
+	 * PG_LEVEL_2M is yest set, we will need 1+1+512 pages (2M + 8k)
 	 * to map 1G range with PTE. Hence we use one less than the
 	 * difference of page table level shifts.
 	 *
@@ -730,7 +730,7 @@ void __init poking_init(void)
 
 	/*
 	 * We need to trigger the allocation of the page-tables that will be
-	 * needed for poking now. Later, poking may be performed in an atomic
+	 * needed for poking yesw. Later, poking may be performed in an atomic
 	 * section, which might cause allocation to fail.
 	 */
 	ptep = get_locked_pte(poking_mm, poking_addr, &ptl);
@@ -747,7 +747,7 @@ void __init poking_init(void)
  * and similar apps. Since they map the entire memory range, the whole range
  * must be allowed (for mapping), but any areas that would otherwise be
  * disallowed are flagged as being "zero filled" instead of rejected.
- * Access has to be given to non-kernel-ram areas as well, these contain the
+ * Access has to be given to yesn-kernel-ram areas as well, these contain the
  * PCI mmio resources as well as potential bios/acpi data regions.
  */
 int devmem_is_allowed(unsigned long pagenr)
@@ -797,8 +797,8 @@ void free_init_pages(const char *what, unsigned long begin, unsigned long end)
 		return;
 
 	/*
-	 * If debugging page accesses then do not free this memory but
-	 * mark them not present - any buggy init-section access will
+	 * If debugging page accesses then do yest free this memory but
+	 * mark them yest present - any buggy init-section access will
 	 * create a kernel page fault:
 	 */
 	if (debug_pagealloc_enabled()) {
@@ -812,9 +812,9 @@ void free_init_pages(const char *what, unsigned long begin, unsigned long end)
 		set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
 	} else {
 		/*
-		 * We just marked the kernel text read only above, now that
+		 * We just marked the kernel text read only above, yesw that
 		 * we are going to free part of that, we need to make that
-		 * writeable and non-executable first.
+		 * writeable and yesn-executable first.
 		 */
 		set_memory_nx(begin, (end - begin) >> PAGE_SHIFT);
 		set_memory_rw(begin, (end - begin) >> PAGE_SHIFT);
@@ -839,21 +839,21 @@ void free_kernel_image_pages(const char *what, void *begin, void *end)
 
 	/*
 	 * PTI maps some of the kernel into userspace.  For performance,
-	 * this includes some kernel areas that do not contain secrets.
+	 * this includes some kernel areas that do yest contain secrets.
 	 * Those areas might be adjacent to the parts of the kernel image
 	 * being freed, which may contain secrets.  Remove the "high kernel
-	 * image mapping" for these freed areas, ensuring they are not even
+	 * image mapping" for these freed areas, ensuring they are yest even
 	 * potentially vulnerable to Meltdown regardless of the specific
 	 * optimizations PTI is currently using.
 	 *
-	 * The "noalias" prevents unmapping the direct map alias which is
+	 * The "yesalias" prevents unmapping the direct map alias which is
 	 * needed to access the freed pages.
 	 *
 	 * This is only valid for 64bit kernels. 32bit has only one mapping
 	 * which can't be treated in this way for obvious reasons.
 	 */
 	if (IS_ENABLED(CONFIG_X86_64) && cpu_feature_enabled(X86_FEATURE_PTI))
-		set_memory_np_noalias(begin_ul, len_pages);
+		set_memory_np_yesalias(begin_ul, len_pages);
 }
 
 void __weak mem_encrypt_free_decrypted_mem(void) { }
@@ -872,7 +872,7 @@ void __ref free_initmem(void)
 void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
 	/*
-	 * end could be not aligned, and We can not align that,
+	 * end could be yest aligned, and We can yest align that,
 	 * decompresser could be confused by aligned initrd_end
 	 * We already reserve the end partial page before in
 	 *   - i386_start_kernel()
@@ -915,7 +915,7 @@ void __init memblock_find_dma_reserve(void)
 
 	/*
 	 * Iterate over free memory ranges to calculate the number of free
-	 * pages in the DMA zone, while not counting potential partial
+	 * pages in the DMA zone, while yest counting potential partial
 	 * pages at the beginning or the end of the range:
 	 */
 	nr_free_pages = 0;
@@ -948,7 +948,7 @@ void __init zone_sizes_init(void)
 	max_zone_pfns[ZONE_HIGHMEM]	= max_pfn;
 #endif
 
-	free_area_init_nodes(max_zone_pfns);
+	free_area_init_yesdes(max_zone_pfns);
 }
 
 __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {

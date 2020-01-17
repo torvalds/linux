@@ -41,8 +41,8 @@ static int crypto_arc4_crypt(struct skcipher_request *req)
 
 static struct skcipher_alg arc4_alg = {
 	/*
-	 * For legacy reasons, this is named "ecb(arc4)", not "arc4".
-	 * Nevertheless it's actually a stream cipher, not a block cipher.
+	 * For legacy reasons, this is named "ecb(arc4)", yest "arc4".
+	 * Nevertheless it's actually a stream cipher, yest a block cipher.
 	 */
 	.base.cra_name		=	"ecb(arc4)",
 	.base.cra_driver_name	=	"ecb(arc4)-generic",

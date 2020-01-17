@@ -35,7 +35,7 @@
 
 /* GPIO pin definition
 
-External device stuff   - Leave unconfigured for now...
+External device stuff   - Leave unconfigured for yesw...
 ---------------------
 GPIO0   -   DREQ    (External DMA Request)
 GPIO3   -   nGCS2   (External Chip Select) Where is nGCS0; nGCS1; nGCS4; nGCS5 ?
@@ -62,7 +62,7 @@ GPIO80  -   EXT_IRQ7
 GPIO81  -   EXT_IRQ8
 GPIO87  -   VCCIO_PWREN (External Device PWREN)
 
-Dallas 1-Wire   - Leave unconfigured for now...
+Dallas 1-Wire   - Leave unconfigured for yesw...
 -------------
 GPIO0_2 -   DS - 1Wire
 
@@ -72,7 +72,7 @@ GPIO1   -   DM9000 PWR
 GPIO9   -   DM9K_nIRQ
 GPIO36  -   DM9K_RESET
 
-Keypad  - Leave unconfigured by for now...
+Keypad  - Leave unconfigured by for yesw...
 ------
 GPIO1_2 -   KP_DKIN0
 GPIO5_2 -   KP_MKOUT7
@@ -95,7 +95,7 @@ GPIO124 -   KP_MKOUT4
 GPIO125 -   KP_MKOUT5
 GPIO127 -   KP_MKOUT6
 
-Data Bus    - Leave unconfigured for now...
+Data Bus    - Leave unconfigured for yesw...
 --------
 GPIO2   -   nWait (Data Bus)
 
@@ -126,7 +126,7 @@ GPIO101 -   UTM_SUSPENDM_X
 GPIO102 -   UTM_LINESTATE0
 GPIO103 -   UTM_LINESTATE1
 
-Card-Bus Interface  - Leave unconfigured for now...
+Card-Bus Interface  - Leave unconfigured for yesw...
 ------------------
 GPIO5   -   nPIOR (I/O space output enable)
 GPIO6   -   nPIOW (I/O space write enable)
@@ -159,7 +159,7 @@ GPIO88      -   VCCLCD_PWREN (LCD Panel PWREN)
 GPIO97      -   BACKLIGHT_EN
 GPIO104     -   LCD_PWREN
 
-PWM   - Leave unconfigured for now...
+PWM   - Leave unconfigured for yesw...
 ---
 GPIO11  -   PWM0
 GPIO12  -   PWM1
@@ -215,7 +215,7 @@ GPIO106 -   nRTS3
 GPIO107 -   TXD3
 GPIO108 -   RXD3
 
-SSP3    - Leave unconfigured for now...
+SSP3    - Leave unconfigured for yesw...
 ----
 GPIO89  -   SSP3_CLK
 GPIO90  -   SSP3_SFRM

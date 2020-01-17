@@ -31,7 +31,7 @@
  * Pull up is in the range 1.02k (least sensitive) to 64k (most sensitive)
  * i.e. pull up resistance = 64k Ohms / rpu.
  *
- * Adjust this value if you are having problems with pen detect not
+ * Adjust this value if you are having problems with pen detect yest
  * detecting any down event.
  */
 static int rpu = 8;
@@ -55,7 +55,7 @@ MODULE_PARM_DESC(pil, "Set current used for pressure measurement.");
 /*
  * Set threshold for pressure measurement.
  *
- * Pen down pressure below threshold is ignored.
+ * Pen down pressure below threshold is igyesred.
  */
 static int pressure = DEFAULT_PRESSURE & 0xfff;
 module_param(pressure, int, 0);
@@ -70,7 +70,7 @@ MODULE_PARM_DESC(pressure, "Set threshold for pressure measurement.");
  *
  * This delay can be set by setting delay = n, where n is the array
  * position of the delay in the array delay_table below.
- * Long delays > 1ms are supported for completeness, but are not
+ * Long delays > 1ms are supported for completeness, but are yest
  * recommended.
  */
 static int delay = 4;
@@ -80,7 +80,7 @@ MODULE_PARM_DESC(delay, "Set adc sample delay.");
 /*
  * Set five_wire = 1 to use a 5 wire touchscreen.
  *
- * NOTE: Five wire mode does not allow for readback of pressure.
+ * NOTE: Five wire mode does yest allow for readback of pressure.
  */
 static int five_wire;
 module_param(five_wire, int, 0);
@@ -89,7 +89,7 @@ MODULE_PARM_DESC(five_wire, "Set to '1' to use 5-wire touchscreen.");
 /*
  * Set adc mask function.
  *
- * Sources of glitch noise, such as signals driving an LCD display, may feed
+ * Sources of glitch yesise, such as signals driving an LCD display, may feed
  * through to the touch screen plates and affect measurement accuracy. In
  * order to minimise this, a signal may be applied to the MASK pin to delay or
  * synchronise the sampling.
@@ -171,7 +171,7 @@ static void wm9713_phy_init(struct wm97xx *wm)
 
 		if (pil) {
 			dev_warn(wm->dev,
-				 "Pressure measurement not supported in 5 "
+				 "Pressure measurement yest supported in 5 "
 				 "wire mode, disabling\n");
 			pil = 0;
 		}

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *
  * Copyright (c) 2011, Microsoft Corporation.
@@ -13,7 +13,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+ * this program; if yest, write to the Free Software Foundation, Inc., 59 Temple
  * Place - Suite 330, Boston, MA 02111-1307 USA.
  *
  * Authors:
@@ -152,7 +152,7 @@ struct hv_do_fcopy {
  *
  *
  * Copyright (C) 2010, Novell, Inc.
- * Author : K. Y. Srinivasan <ksrinivasan@novell.com>
+ * Author : K. Y. Srinivasan <ksrinivasan@yesvell.com>
  *
  */
 
@@ -165,11 +165,11 @@ struct hv_do_fcopy {
  * for the IC KVP exchange functionality.  Note that Windows Me/98/95 are
  * limited to 255 character key names.
  *
- * MSDN recommends not storing data values larger than 2048 bytes in the
+ * MSDN recommends yest storing data values larger than 2048 bytes in the
  * registry.
  *
  * Note:  This value is used in defining the KVP exchange message - this value
- * cannot be modified without affecting the message size and compatibility.
+ * canyest be modified without affecting the message size and compatibility.
  */
 
 /*
@@ -207,13 +207,13 @@ struct hv_do_fcopy {
  *	4		OSBuildNumber
  *	5		OSName
  *	6		OSMajorVersion
- *	7		OSMinorVersion
+ *	7		OSMiyesrVersion
  *	8		OSVersion
  *	9		ProcessorArchitecture
  *
  * The Windows host expects the Key Name and Key Value to be encoded in utf16.
  *
- * Guest Kernel/KVP Daemon Protocol: As noted earlier, we implement all of the
+ * Guest Kernel/KVP Daemon Protocol: As yested earlier, we implement all of the
  * data gathering functionality in a user mode daemon. The user level daemon
  * is also responsible for binding the key name to the index as well. The
  * kernel and user-level daemon communicate using a connector channel.
@@ -230,7 +230,7 @@ struct hv_do_fcopy {
  * index received from the Host to the user-level daemon. If the index is
  * valid (supported), the corresponding key as well as its
  * value (both are strings) is returned. If the index is invalid
- * (not supported), a NULL key string is returned.
+ * (yest supported), a NULL key string is returned.
  */
 
 
@@ -257,7 +257,7 @@ struct hv_do_fcopy {
  * An older daemon will always be supported on a newer driver.
  * A given user level daemon will require a minimal version of the
  * kernel driver.
- * If we cannot handle the version differences, we will fail gracefully
+ * If we canyest handle the version differences, we will fail gracefully
  * (this can happen when we have a user level daemon that is more
  * advanced than the KVP driver.
  *
@@ -268,7 +268,7 @@ struct hv_do_fcopy {
  */
 
 /*
- * Daemon code not supporting IP injection (legacy daemon).
+ * Daemon code yest supporting IP injection (legacy daemon).
  */
 
 #define KVP_OP_REGISTER	4

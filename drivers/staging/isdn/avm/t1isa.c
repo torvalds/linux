@@ -78,8 +78,8 @@ static int t1_detectandinit(unsigned int base, unsigned irq, int cardnr)
 	cregs[7] = 0;
 
 	/*
-	 * no one else should use the ISA bus in this moment,
-	 * but no function there to prevent this :-(
+	 * yes one else should use the ISA bus in this moment,
+	 * but yes function there to prevent this :-(
 	 * save_flags(flags); cli();
 	 */
 
@@ -162,7 +162,7 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 			DataB3Len = t1_get_slice(card->port, card->databuf);
 			spin_unlock_irqrestore(&card->lock, flags);
 
-			if (MsgLen < 30) { /* not CAPI 64Bit */
+			if (MsgLen < 30) { /* yest CAPI 64Bit */
 				memset(card->msgbuf + MsgLen, 0, 30 - MsgLen);
 				MsgLen = 30;
 				CAPIMSG_SETLEN(card->msgbuf, 30);
@@ -230,7 +230,7 @@ static irqreturn_t t1isa_interrupt(int interrupt, void *devptr)
 			cinfo->versionlen = t1_get_slice(card->port, cinfo->versionbuf);
 			spin_unlock_irqrestore(&card->lock, flags);
 			b1_parse_version(cinfo);
-			printk(KERN_INFO "%s: %s-card (%s) now active\n",
+			printk(KERN_INFO "%s: %s-card (%s) yesw active\n",
 			       card->name,
 			       cinfo->version[VER_CARDTYPE],
 			       cinfo->version[VER_DRIVER]);
@@ -377,7 +377,7 @@ static int t1isa_probe(struct pci_dev *pdev, int cardnr)
 
 	card = b1_alloc_card(1);
 	if (!card) {
-		printk(KERN_WARNING "t1isa: no memory.\n");
+		printk(KERN_WARNING "t1isa: yes memory.\n");
 		retval = -ENOMEM;
 		goto err;
 	}
@@ -395,7 +395,7 @@ static int t1isa_probe(struct pci_dev *pdev, int cardnr)
 		goto err_free;
 	}
 	if (hema_irq_table[card->irq & 0xf] == 0) {
-		printk(KERN_WARNING "t1isa: irq %d not valid.\n", card->irq);
+		printk(KERN_WARNING "t1isa: irq %d yest valid.\n", card->irq);
 		retval = -EINVAL;
 		goto err_free;
 	}

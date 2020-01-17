@@ -7,7 +7,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -58,7 +58,7 @@ struct intel_pt {
 	struct perf_session *session;
 	struct machine *machine;
 	struct evsel *switch_evsel;
-	struct thread *unknown_thread;
+	struct thread *unkyeswn_thread;
 	bool timeless_decoding;
 	bool sampling_mode;
 	bool snapshot_mode;
@@ -113,8 +113,8 @@ struct intel_pt {
 	u32 tsc_ctc_ratio_n;
 	u32 tsc_ctc_ratio_d;
 	u64 cyc_bit;
-	u64 noretcomp_bit;
-	unsigned max_non_turbo_ratio;
+	u64 yesretcomp_bit;
+	unsigned max_yesn_turbo_ratio;
 	unsigned cbr2khz;
 
 	unsigned long num_events;
@@ -299,7 +299,7 @@ static int intel_pt_get_buffer(struct intel_pt_queue *ptq,
 	return 0;
 }
 
-/* Do not drop buffers with references - refer intel_pt_get_trace() */
+/* Do yest drop buffers with references - refer intel_pt_get_trace() */
 static void intel_pt_lookahead_drop_buffer(struct intel_pt_queue *ptq,
 					   struct auxtrace_buffer *buffer)
 {
@@ -465,7 +465,7 @@ static struct auxtrace_cache *intel_pt_cache(struct dso *dso,
 
 	bits = intel_pt_cache_size(dso, machine);
 
-	/* Ignoring cache creation failure */
+	/* Igyesring cache creation failure */
 	c = auxtrace_cache__new(bits, sizeof(struct intel_pt_cache_entry), 200);
 
 	dso->auxtrace_cache = c;
@@ -541,7 +541,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 	intel_pt_insn->length = 0;
 
 	if (to_ip && *ip == to_ip)
-		goto out_no_cache;
+		goto out_yes_cache;
 
 	cpumode = intel_pt_cpumode(ptq->pt, *ip);
 
@@ -549,7 +549,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 	if (!thread) {
 		if (cpumode != PERF_RECORD_MISC_KERNEL)
 			return -EINVAL;
-		thread = ptq->pt->unknown_thread;
+		thread = ptq->pt->unkyeswn_thread;
 	}
 
 	while (1) {
@@ -577,7 +577,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 				intel_pt_insn->rel = e->rel;
 				memcpy(intel_pt_insn->buf, e->insn,
 				       INTEL_PT_INSN_BUF_SZ);
-				intel_pt_log_insn_no_data(intel_pt_insn, *ip);
+				intel_pt_log_insn_yes_data(intel_pt_insn, *ip);
 				return 0;
 			}
 		}
@@ -608,12 +608,12 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 				goto out;
 
 			if (max_insn_cnt && insn_cnt >= max_insn_cnt)
-				goto out_no_cache;
+				goto out_yes_cache;
 
 			*ip += intel_pt_insn->length;
 
 			if (to_ip && *ip == to_ip)
-				goto out_no_cache;
+				goto out_yes_cache;
 
 			if (*ip >= al.map->end)
 				break;
@@ -626,10 +626,10 @@ out:
 	*insn_cnt_ptr = insn_cnt;
 
 	if (!one_map)
-		goto out_no_cache;
+		goto out_yes_cache;
 
 	/*
-	 * Didn't lookup in the 'to_ip' case, so do it now to prevent duplicate
+	 * Didn't lookup in the 'to_ip' case, so do it yesw to prevent duplicate
 	 * entries.
 	 */
 	if (to_ip) {
@@ -640,13 +640,13 @@ out:
 			return 0;
 	}
 
-	/* Ignore cache errors */
+	/* Igyesre cache errors */
 	intel_pt_cache_add(al.map->dso, machine, start_offset, insn_cnt,
 			   *ip - start_ip, intel_pt_insn);
 
 	return 0;
 
-out_no_cache:
+out_yes_cache:
 	*insn_cnt_ptr = insn_cnt;
 	return 0;
 }
@@ -683,7 +683,7 @@ static bool intel_pt_match_pgd_ip(struct intel_pt *pt, uint64_t ip,
 	}
 
 	if (!hit_tracestop && !hit_filter)
-		intel_pt_log("TIP.PGD ip %#"PRIx64" offset %#"PRIx64" in %s is not in a filter region\n",
+		intel_pt_log("TIP.PGD ip %#"PRIx64" offset %#"PRIx64" in %s is yest in a filter region\n",
 			     ip, offset, filename ? filename : "[kernel]");
 
 	return hit_tracestop || (have_filter && !hit_filter);
@@ -749,12 +749,12 @@ static bool intel_pt_return_compression(struct intel_pt *pt)
 	struct evsel *evsel;
 	u64 config;
 
-	if (!pt->noretcomp_bit)
+	if (!pt->yesretcomp_bit)
 		return true;
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
 		if (intel_pt_get_config(pt, &evsel->core.attr, &config) &&
-		    (config & pt->noretcomp_bit))
+		    (config & pt->yesretcomp_bit))
 			return false;
 	}
 	return true;
@@ -920,7 +920,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.data = ptq;
 	params.return_compression = intel_pt_return_compression(pt);
 	params.branch_enable = intel_pt_branch_enable(pt);
-	params.max_non_turbo_ratio = pt->max_non_turbo_ratio;
+	params.max_yesn_turbo_ratio = pt->max_yesn_turbo_ratio;
 	params.mtc_period = intel_pt_mtc_period(pt);
 	params.tsc_ctc_ratio_n = pt->tsc_ctc_ratio_n;
 	params.tsc_ctc_ratio_d = pt->tsc_ctc_ratio_d;
@@ -1111,7 +1111,7 @@ static int intel_pt_setup_queue(struct intel_pt *pt,
 			state = intel_pt_decode(ptq->decoder);
 			if (state->err) {
 				if (state->err == INTEL_PT_ERR_NODATA) {
-					intel_pt_log("queue %u has no timestamp\n",
+					intel_pt_log("queue %u has yes timestamp\n",
 						     queue_nr);
 					return 0;
 				}
@@ -1211,8 +1211,8 @@ static inline bool intel_pt_skip_event(struct intel_pt *pt)
 }
 
 /*
- * Cannot count CBR as skipped because it won't go away until cbr == cbr_seen.
- * Also ensure CBR is first non-skipped event by allowing for 4 more samples
+ * Canyest count CBR as skipped because it won't go away until cbr == cbr_seen.
+ * Also ensure CBR is first yesn-skipped event by allowing for 4 more samples
  * from this decoder state.
  */
 static inline bool intel_pt_skip_cbr_event(struct intel_pt *pt)
@@ -1310,7 +1310,7 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 	sample.stream_id = ptq->pt->branches_id;
 
 	/*
-	 * perf report cannot handle events without a branch stack when using
+	 * perf report canyest handle events without a branch stack when using
 	 * SORT_MODE__BRANCH so make a dummy one.
 	 */
 	if (pt->synth_opts.last_branch && sort__mode == SORT_MODE__BRANCH) {
@@ -1425,8 +1425,8 @@ static void intel_pt_prep_p_sample(struct intel_pt *pt,
 	intel_pt_prep_sample(pt, ptq, event, sample);
 
 	/*
-	 * Zero IP is used to mean "trace start" but that is not the case for
-	 * power or PTWRITE events with no IP, so clear the flags.
+	 * Zero IP is used to mean "trace start" but that is yest the case for
+	 * power or PTWRITE events with yes IP, so clear the flags.
 	 */
 	if (!sample->ip)
 		sample->flags = 0;
@@ -1476,7 +1476,7 @@ static int intel_pt_synth_cbr_sample(struct intel_pt_queue *ptq)
 	sample.id = ptq->pt->cbr_id;
 	sample.stream_id = ptq->pt->cbr_id;
 
-	flags = (u16)ptq->state->cbr_payload | (pt->max_non_turbo_ratio << 16);
+	flags = (u16)ptq->state->cbr_payload | (pt->max_yesn_turbo_ratio << 16);
 	raw.flags = cpu_to_le32(flags);
 	raw.freq = cpu_to_le32(raw.cbr * pt->cbr2khz);
 	raw.reserved3 = 0;
@@ -1589,7 +1589,7 @@ static int intel_pt_synth_pwrx_sample(struct intel_pt_queue *ptq)
 }
 
 /*
- * PEBS gp_regs array indexes plus 1 so that 0 means not present. Refer
+ * PEBS gp_regs array indexes plus 1 so that 0 means yest present. Refer
  * intel_pt_add_gp_regs().
  */
 static const int pebs_gp_regs[] = {
@@ -1741,7 +1741,7 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 	if (!evsel->core.attr.freq)
 		sample.period = evsel->core.attr.sample_period;
 
-	/* No support for non-zero CS base */
+	/* No support for yesn-zero CS base */
 	if (items->has_ip)
 		sample.ip = items->ip;
 	else if (items->has_rip)
@@ -2232,7 +2232,7 @@ static int intel_pt_run_decoder(struct intel_pt_queue *ptq, u64 *timestamp)
 			intel_pt_log("TSC %"PRIx64" est. TSC %"PRIx64"\n",
 				     state->timestamp, state->est_timestamp);
 			ptq->timestamp = state->est_timestamp;
-		/* Use estimated TSC in unknown switch state */
+		/* Use estimated TSC in unkyeswn switch state */
 		} else if (ptq->sync_switch &&
 			   ptq->switch_state == INTEL_PT_SS_UNKNOWN &&
 			   intel_pt_is_switch_ip(ptq, state->to_ip) &&
@@ -2525,7 +2525,7 @@ static int intel_pt_context_switch_in(struct intel_pt *pt,
 	}
 
 	/*
-	 * If the current tid has not been updated yet, ensure it is now that
+	 * If the current tid has yest been updated yet, ensure it is yesw that
 	 * a "switch in" event has occurred.
 	 */
 	if (machine__get_current_tid(pt->machine, cpu) == tid)
@@ -2560,7 +2560,7 @@ static int intel_pt_context_switch(struct intel_pt *pt, union perf_event *event,
 	}
 
 	if (tid == -1) {
-		pr_err("context_switch event has no tid\n");
+		pr_err("context_switch event has yes tid\n");
 		return -EINVAL;
 	}
 
@@ -2706,7 +2706,7 @@ static void intel_pt_free(struct perf_session *session)
 	auxtrace_heap__free(&pt->heap);
 	intel_pt_free_events(session);
 	session->auxtrace = NULL;
-	thread__put(pt->unknown_thread);
+	thread__put(pt->unkyeswn_thread);
 	addr_filters__exit(&pt->filts);
 	zfree(&pt->filter);
 	zfree(&pt->time_ranges);
@@ -2731,7 +2731,7 @@ static int intel_pt_process_auxtrace_event(struct perf_session *session,
 		} else {
 			data_offset = lseek(fd, 0, SEEK_CUR);
 			if (data_offset == -1)
-				return -errno;
+				return -erryes;
 		}
 
 		err = auxtrace_queues__add_event(&pt->queues, session, event,
@@ -2739,7 +2739,7 @@ static int intel_pt_process_auxtrace_event(struct perf_session *session,
 		if (err)
 			return err;
 
-		/* Dump here now we have copied a piped trace out of the pipe */
+		/* Dump here yesw we have copied a piped trace out of the pipe */
 		if (dump_trace) {
 			if (auxtrace_buffer__get_data(buffer, fd)) {
 				intel_pt_dump_event(pt, buffer->data,
@@ -2850,7 +2850,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 	int err;
 
 	if (!evsel) {
-		pr_debug("There are no selected events with Intel Processor Trace data\n");
+		pr_debug("There are yes selected events with Intel Processor Trace data\n");
 		return 0;
 	}
 
@@ -3137,9 +3137,9 @@ static const char * const intel_pt_info_fmts[] = {
 	[INTEL_PT_PER_CPU_MMAPS]	= "  Per-cpu maps        %"PRId64"\n",
 	[INTEL_PT_MTC_BIT]		= "  MTC bit             %#"PRIx64"\n",
 	[INTEL_PT_TSC_CTC_N]		= "  TSC:CTC numerator   %"PRIu64"\n",
-	[INTEL_PT_TSC_CTC_D]		= "  TSC:CTC denominator %"PRIu64"\n",
+	[INTEL_PT_TSC_CTC_D]		= "  TSC:CTC deyesminator %"PRIu64"\n",
 	[INTEL_PT_CYC_BIT]		= "  CYC bit             %#"PRIx64"\n",
-	[INTEL_PT_MAX_NONTURBO_RATIO]	= "  Max non-turbo ratio %"PRIu64"\n",
+	[INTEL_PT_MAX_NONTURBO_RATIO]	= "  Max yesn-turbo ratio %"PRIu64"\n",
 	[INTEL_PT_FILTER_STR_LEN]	= "  Filter string len.  %"PRIu64"\n",
 };
 
@@ -3207,7 +3207,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	pt->tc.time_zero = auxtrace_info->priv[INTEL_PT_TIME_ZERO];
 	pt->cap_user_time_zero = auxtrace_info->priv[INTEL_PT_CAP_USER_TIME_ZERO];
 	pt->tsc_bit = auxtrace_info->priv[INTEL_PT_TSC_BIT];
-	pt->noretcomp_bit = auxtrace_info->priv[INTEL_PT_NORETCOMP_BIT];
+	pt->yesretcomp_bit = auxtrace_info->priv[INTEL_PT_NORETCOMP_BIT];
 	pt->have_sched_switch = auxtrace_info->priv[INTEL_PT_HAVE_SCHED_SWITCH];
 	pt->snapshot_mode = auxtrace_info->priv[INTEL_PT_SNAPSHOT_MODE];
 	pt->per_cpu_mmaps = auxtrace_info->priv[INTEL_PT_PER_CPU_MMAPS];
@@ -3225,7 +3225,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	}
 
 	if (intel_pt_has(auxtrace_info, INTEL_PT_MAX_NONTURBO_RATIO)) {
-		pt->max_non_turbo_ratio =
+		pt->max_yesn_turbo_ratio =
 			auxtrace_info->priv[INTEL_PT_MAX_NONTURBO_RATIO];
 		intel_pt_print_info(&auxtrace_info->priv[0],
 				    INTEL_PT_MAX_NONTURBO_RATIO,
@@ -3260,7 +3260,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 			if (session->header.needs_swap)
 				mem_bswap_64(pt->filter, len);
 			if (pt->filter[len - 1]) {
-				pr_err("%s: filter string not null terminated\n", __func__);
+				pr_err("%s: filter string yest null terminated\n", __func__);
 				err = -EINVAL;
 				goto err_free_queues;
 			}
@@ -3279,24 +3279,24 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	pt->sampling_mode = intel_pt_sampling_mode(pt);
 	pt->est_tsc = !pt->timeless_decoding;
 
-	pt->unknown_thread = thread__new(999999999, 999999999);
-	if (!pt->unknown_thread) {
+	pt->unkyeswn_thread = thread__new(999999999, 999999999);
+	if (!pt->unkyeswn_thread) {
 		err = -ENOMEM;
 		goto err_free_queues;
 	}
 
 	/*
-	 * Since this thread will not be kept in any rbtree not in a
-	 * list, initialize its list node so that at thread__put() the
+	 * Since this thread will yest be kept in any rbtree yest in a
+	 * list, initialize its list yesde so that at thread__put() the
 	 * current thread lifetime assuption is kept and we don't segfault
 	 * at list_del_init().
 	 */
-	INIT_LIST_HEAD(&pt->unknown_thread->node);
+	INIT_LIST_HEAD(&pt->unkyeswn_thread->yesde);
 
-	err = thread__set_comm(pt->unknown_thread, "unknown", 0);
+	err = thread__set_comm(pt->unkyeswn_thread, "unkyeswn", 0);
 	if (err)
 		goto err_delete_thread;
-	if (thread__init_maps(pt->unknown_thread, pt->machine)) {
+	if (thread__init_maps(pt->unkyeswn_thread, pt->machine)) {
 		err = -ENOMEM;
 		goto err_delete_thread;
 	}
@@ -3331,8 +3331,8 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		pt->synth_opts = *session->itrace_synth_opts;
 	} else {
 		itrace_synth_opts__set_default(&pt->synth_opts,
-				session->itrace_synth_opts->default_no_sample);
-		if (!session->itrace_synth_opts->default_no_sample &&
+				session->itrace_synth_opts->default_yes_sample);
+		if (!session->itrace_synth_opts->default_yes_sample &&
 		    !session->itrace_synth_opts->inject) {
 			pt->synth_opts.branches = false;
 			pt->synth_opts.callchain = true;
@@ -3344,17 +3344,17 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	if (pt->synth_opts.log)
 		intel_pt_log_enable();
 
-	/* Maximum non-turbo ratio is TSC freq / 100 MHz */
+	/* Maximum yesn-turbo ratio is TSC freq / 100 MHz */
 	if (pt->tc.time_mult) {
 		u64 tsc_freq = intel_pt_ns_to_ticks(pt, 1000000000);
 
-		if (!pt->max_non_turbo_ratio)
-			pt->max_non_turbo_ratio =
+		if (!pt->max_yesn_turbo_ratio)
+			pt->max_yesn_turbo_ratio =
 					(tsc_freq + 50000000) / 100000000;
 		intel_pt_log("TSC frequency %"PRIu64"\n", tsc_freq);
-		intel_pt_log("Maximum non-turbo ratio %u\n",
-			     pt->max_non_turbo_ratio);
-		pt->cbr2khz = tsc_freq / pt->max_non_turbo_ratio / 1000;
+		intel_pt_log("Maximum yesn-turbo ratio %u\n",
+			     pt->max_yesn_turbo_ratio);
+		pt->cbr2khz = tsc_freq / pt->max_yesn_turbo_ratio / 1000;
 	}
 
 	err = intel_pt_setup_time_ranges(pt, session->itrace_synth_opts);
@@ -3398,7 +3398,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	return 0;
 
 err_delete_thread:
-	thread__zput(pt->unknown_thread);
+	thread__zput(pt->unkyeswn_thread);
 err_free_queues:
 	intel_pt_log_disable();
 	auxtrace_queues__free(&pt->queues);

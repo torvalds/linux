@@ -21,7 +21,7 @@ and initializes the _tep_, trace event parser context, with it. The buffer
 _buf_ is with _size_, and is supposed to be copied from
 tracefs/events/header_page.
 
-Some old kernels do not have header page info, in this case the
+Some old kernels do yest have header page info, in this case the
 _tep_parse_header_page()_ function  can be called with _size_ equal to 0. The
 _tep_ context is initialized with default values. The _long_size_ can be used in
 this use case, to set the size of a long integer to be used.
@@ -67,7 +67,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

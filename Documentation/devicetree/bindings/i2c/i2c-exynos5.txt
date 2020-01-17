@@ -5,15 +5,15 @@ at various speeds ranging from 100khz to 3.4Mhz.
 
 Required properties:
   - compatible: value should be.
-	-> "samsung,exynos5-hsi2c", (DEPRECATED)
+	-> "samsung,exyyess5-hsi2c", (DEPRECATED)
 				for i2c compatible with HSI2C available
-				on Exynos5250 and Exynos5420 SoCs.
-	-> "samsung,exynos5250-hsi2c", for i2c compatible with HSI2C available
-				on Exynos5250 and Exynos5420 SoCs.
-	-> "samsung,exynos5260-hsi2c", for i2c compatible with HSI2C available
-				on Exynos5260 SoCs.
-	-> "samsung,exynos7-hsi2c", for i2c compatible with HSI2C available
-				on Exynos7 SoCs.
+				on Exyyess5250 and Exyyess5420 SoCs.
+	-> "samsung,exyyess5250-hsi2c", for i2c compatible with HSI2C available
+				on Exyyess5250 and Exyyess5420 SoCs.
+	-> "samsung,exyyess5260-hsi2c", for i2c compatible with HSI2C available
+				on Exyyess5260 SoCs.
+	-> "samsung,exyyess7-hsi2c", for i2c compatible with HSI2C available
+				on Exyyess7 SoCs.
 
   - reg: physical base address of the controller and length of memory mapped
     region.
@@ -27,7 +27,7 @@ Required properties:
 
 Optional properties:
   - clock-frequency: Desired operating frequency in Hz of the bus.
-    -> If not specified, the bus operates in fast-speed mode at
+    -> If yest specified, the bus operates in fast-speed mode at
        at 100khz.
     -> If specified, the bus operates in high-speed mode only if the
        clock-frequency is >= 1Mhz.
@@ -35,7 +35,7 @@ Optional properties:
 Example:
 
 hsi2c@12ca0000 {
-	compatible = "samsung,exynos5250-hsi2c";
+	compatible = "samsung,exyyess5250-hsi2c";
 	reg = <0x12ca0000 0x100>;
 	interrupts = <56>;
 	clock-frequency = <100000>;

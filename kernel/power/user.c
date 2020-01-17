@@ -41,7 +41,7 @@ static struct snapshot_data {
 
 atomic_t snapshot_device_available = ATOMIC_INIT(1);
 
-static int snapshot_open(struct inode *inode, struct file *filp)
+static int snapshot_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct snapshot_data *data;
 	int error, nr_calls = 0;
@@ -61,7 +61,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 		error = -ENOSYS;
 		goto Unlock;
 	}
-	nonseekable_open(inode, filp);
+	yesnseekable_open(iyesde, filp);
 	data = &snapshot_state;
 	filp->private_data = data;
 	memset(&data->handle, 0, sizeof(struct snapshot_handle));
@@ -71,9 +71,9 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 			swap_type_of(swsusp_resume_device, 0, NULL) : -1;
 		data->mode = O_RDONLY;
 		data->free_bitmaps = false;
-		error = __pm_notifier_call_chain(PM_HIBERNATION_PREPARE, -1, &nr_calls);
+		error = __pm_yestifier_call_chain(PM_HIBERNATION_PREPARE, -1, &nr_calls);
 		if (error)
-			__pm_notifier_call_chain(PM_POST_HIBERNATION, --nr_calls, NULL);
+			__pm_yestifier_call_chain(PM_POST_HIBERNATION, --nr_calls, NULL);
 	} else {
 		/*
 		 * Resuming.  We may need to wait for the image device to
@@ -83,7 +83,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 
 		data->swap = -1;
 		data->mode = O_WRONLY;
-		error = __pm_notifier_call_chain(PM_RESTORE_PREPARE, -1, &nr_calls);
+		error = __pm_yestifier_call_chain(PM_RESTORE_PREPARE, -1, &nr_calls);
 		if (!error) {
 			error = create_basic_memory_bitmaps();
 			data->free_bitmaps = !error;
@@ -91,7 +91,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 			nr_calls--;
 
 		if (error)
-			__pm_notifier_call_chain(PM_POST_RESTORE, nr_calls, NULL);
+			__pm_yestifier_call_chain(PM_POST_RESTORE, nr_calls, NULL);
 	}
 	if (error)
 		atomic_inc(&snapshot_device_available);
@@ -106,7 +106,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	return error;
 }
 
-static int snapshot_release(struct inode *inode, struct file *filp)
+static int snapshot_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct snapshot_data *data;
 
@@ -122,7 +122,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 	} else if (data->free_bitmaps) {
 		free_basic_memory_bitmaps();
 	}
-	pm_notifier_call_chain(data->mode == O_RDONLY ?
+	pm_yestifier_call_chain(data->mode == O_RDONLY ?
 			PM_POST_HIBERNATION : PM_POST_RESTORE);
 	atomic_inc(&snapshot_device_available);
 
@@ -280,7 +280,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		/*
 		 * It is necessary to thaw kernel threads here, because
 		 * SNAPSHOT_CREATE_IMAGE may be invoked directly after
-		 * SNAPSHOT_FREE.  In that case, if kernel threads were not
+		 * SNAPSHOT_FREE.  In that case, if kernel threads were yest
 		 * thawed, the preallocation of memory carried out by
 		 * hibernation_snapshot() might run into problems (i.e. it
 		 * might fail or even deadlock).
@@ -336,7 +336,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 			break;
 		}
 		/*
-		 * Tasks are frozen and the notifiers have been called with
+		 * Tasks are frozen and the yestifiers have been called with
 		 * PM_HIBERNATION_PREPARE
 		 */
 		error = suspend_devices_and_enter(PM_SUSPEND_MEM);
@@ -459,7 +459,7 @@ static const struct file_operations snapshot_fops = {
 	.release = snapshot_release,
 	.read = snapshot_read,
 	.write = snapshot_write,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.unlocked_ioctl = snapshot_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = snapshot_compat_ioctl,
@@ -467,7 +467,7 @@ static const struct file_operations snapshot_fops = {
 };
 
 static struct miscdevice snapshot_device = {
-	.minor = SNAPSHOT_MINOR,
+	.miyesr = SNAPSHOT_MINOR,
 	.name = "snapshot",
 	.fops = &snapshot_fops,
 };

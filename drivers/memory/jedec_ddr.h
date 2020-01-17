@@ -61,7 +61,7 @@
 #define B4			2
 #define B8			3
 
-/* Refresh rate in nano-seconds */
+/* Refresh rate in nayes-seconds */
 #define T_REFI_15_6		15600
 #define T_REFI_7_8		7800
 #define T_REFI_3_9		3900
@@ -147,7 +147,7 @@ struct lpddr2_timings {
 
 /*
  * Min value for some parameters in terms of number of tCK cycles(nCK)
- * Please set to zero parameters that are not valid for a given memory
+ * Please set to zero parameters that are yest valid for a given memory
  * type
  */
 struct lpddr2_min_tck {
@@ -203,7 +203,7 @@ struct lpddr3_timings {
 
 /*
  * Min value for some parameters in terms of number of tCK cycles(nCK)
- * Please set to zero parameters that are not valid for a given memory
+ * Please set to zero parameters that are yest valid for a given memory
  * type
  */
 struct lpddr3_min_tck {

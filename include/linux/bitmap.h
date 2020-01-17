@@ -28,7 +28,7 @@
  * The available bitmap operations and their rough meaning in the
  * case that the bitmap is a single unsigned long are thus:
  *
- * The generated code is more efficient when nbits is known at
+ * The generated code is more efficient when nbits is kyeswn at
  * compile-time and at most BITS_PER_LONG.
  *
  * ::
@@ -39,7 +39,7 @@
  *  bitmap_and(dst, src1, src2, nbits)          *dst = *src1 & *src2
  *  bitmap_or(dst, src1, src2, nbits)           *dst = *src1 | *src2
  *  bitmap_xor(dst, src1, src2, nbits)          *dst = *src1 ^ *src2
- *  bitmap_andnot(dst, src1, src2, nbits)       *dst = *src1 & ~(*src2)
+ *  bitmap_andyest(dst, src1, src2, nbits)       *dst = *src1 & ~(*src2)
  *  bitmap_complement(dst, src, nbits)          *dst = ~(*src)
  *  bitmap_equal(src1, src2, nbits)             Are *src1 and *src2 equal?
  *  bitmap_intersects(src1, src2, nbits)        Do *src1 and *src2 overlap?
@@ -103,7 +103,7 @@
 /**
  * DOC: declare bitmap
  * The DECLARE_BITMAP(name,bits) macro, in linux/types.h, can be used
- * to declare an array named 'name' of just enough unsigned longs to
+ * to declare an array named 'name' of just eyesugh unsigned longs to
  * contain all bit positions from 0 to 'bits' - 1.
  */
 
@@ -139,7 +139,7 @@ extern void __bitmap_or(unsigned long *dst, const unsigned long *bitmap1,
 			const unsigned long *bitmap2, unsigned int nbits);
 extern void __bitmap_xor(unsigned long *dst, const unsigned long *bitmap1,
 			const unsigned long *bitmap2, unsigned int nbits);
-extern int __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
+extern int __bitmap_andyest(unsigned long *dst, const unsigned long *bitmap1,
 			const unsigned long *bitmap2, unsigned int nbits);
 extern void __bitmap_replace(unsigned long *dst,
 			const unsigned long *old, const unsigned long *new,
@@ -169,7 +169,7 @@ extern unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
  *
  * The @align_mask should be one less than a power of 2; the effect is that
  * the bit offset of all zero areas this function finds is multiples of that
- * power of 2. A @align_mask of 0 means no alignment is required.
+ * power of 2. A @align_mask of 0 means yes alignment is required.
  */
 static inline unsigned long
 bitmap_find_next_zero_area(unsigned long *map,
@@ -215,7 +215,7 @@ extern int bitmap_print_to_pagebuf(bool list, char *buf,
 #define BITMAP_LAST_WORD_MASK(nbits) (~0UL >> (-(nbits) & (BITS_PER_LONG - 1)))
 
 /*
- * The static inlines below do not handle constant nbits==0 correctly,
+ * The static inlines below do yest handle constant nbits==0 correctly,
  * so make such users (should any ever turn up) call the out-of-line
  * versions.
  */
@@ -254,7 +254,7 @@ static inline void bitmap_copy_clear_tail(unsigned long *dst,
 
 /*
  * On 32-bit systems bitmaps are represented as u32 arrays internally, and
- * therefore conversion is not needed when copying data from/to arrays of u32.
+ * therefore conversion is yest needed when copying data from/to arrays of u32.
  */
 #if BITS_PER_LONG == 64
 extern void bitmap_from_arr32(unsigned long *bitmap, const u32 *buf,
@@ -296,12 +296,12 @@ static inline void bitmap_xor(unsigned long *dst, const unsigned long *src1,
 		__bitmap_xor(dst, src1, src2, nbits);
 }
 
-static inline int bitmap_andnot(unsigned long *dst, const unsigned long *src1,
+static inline int bitmap_andyest(unsigned long *dst, const unsigned long *src1,
 			const unsigned long *src2, unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
 		return (*dst = *src1 & ~(*src2) & BITMAP_LAST_WORD_MASK(nbits)) != 0;
-	return __bitmap_andnot(dst, src1, src2, nbits);
+	return __bitmap_andyest(dst, src1, src2, nbits);
 }
 
 static inline void bitmap_complement(unsigned long *dst, const unsigned long *src,
@@ -479,7 +479,7 @@ static inline int bitmap_parse(const char *buf, unsigned int buflen,
  * words manually.
  *
  * With all that, the macro BITMAP_FROM_U64() does explicit reordering of hi and
- * lo parts of u64.  For LE32 it does nothing, and for BE environment it swaps
+ * lo parts of u64.  For LE32 it does yesthing, and for BE environment it swaps
  * hi and lo words, as is expected by bitmap.
  */
 #if __BITS_PER_LONG == 64

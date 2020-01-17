@@ -8,7 +8,7 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -19,7 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * Slightly modified by AK to not assume 0 terminated input.
+ * Slightly modified by AK to yest assume 0 terminated input.
  */
 
 #include <stdlib.h>
@@ -254,7 +254,7 @@ jsmnerr_t jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 		case 'n':
 #else
 			/*
-			 * In non-strict mode every unquoted value
+			 * In yesn-strict mode every unquoted value
 			 * is a primitive.
 			 */
 			/*FALL THROUGH */
@@ -300,14 +300,14 @@ const char *jsmn_strerror(jsmnerr_t err)
 {
 	switch (err) {
 	case JSMN_ERROR_NOMEM:
-		return "No enough tokens";
+		return "No eyesugh tokens";
 	case JSMN_ERROR_INVAL:
 		return "Invalid character inside JSON string";
 	case JSMN_ERROR_PART:
-		return "The string is not a full JSON packet, more bytes expected";
+		return "The string is yest a full JSON packet, more bytes expected";
 	case JSMN_SUCCESS:
 		return "Success";
 	default:
-		return "Unknown json error";
+		return "Unkyeswn json error";
 	}
 }

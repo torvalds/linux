@@ -30,7 +30,7 @@ static void batadv_bitmap_shift_left(unsigned long *seq_bits, s32 n)
  * @set_mark: whether this packet should be marked in seq_bits
  *
  * Return: true if the window was moved (either new or very old),
- *  false if the window was not moved/shifted.
+ *  false if the window was yest moved/shifted.
  */
 bool batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 			   s32 seq_num_diff, int set_mark)
@@ -72,7 +72,7 @@ bool batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 	/* received a much older packet. The other host either restarted
 	 * or the old packet got delayed somewhere in the network. The
 	 * packet should be dropped without calling this function if the
-	 * seqno window is protected.
+	 * seqyes window is protected.
 	 *
 	 * seq_num_diff <= -BATADV_TQ_LOCAL_WINDOW_SIZE
 	 * or

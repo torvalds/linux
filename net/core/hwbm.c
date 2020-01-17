@@ -55,7 +55,7 @@ int hwbm_pool_add(struct hwbm_pool *bm_pool, unsigned int buf_num)
 	}
 
 	if (buf_num + bm_pool->buf_num > bm_pool->size) {
-		pr_warn("cannot allocate %d buffers for pool\n",
+		pr_warn("canyest allocate %d buffers for pool\n",
 			buf_num);
 		mutex_unlock(&bm_pool->buf_lock);
 		return 0;

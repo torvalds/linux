@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -93,11 +93,11 @@
 
 #define nlm_read_uart_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_uart_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define nlm_get_uart_pcibase(node, inst)	\
-	nlm_pcicfg_base(cpu_is_xlp9xx() ?  XLP9XX_IO_UART_OFFSET(node) : \
-						XLP_IO_UART_OFFSET(node, inst))
-#define nlm_get_uart_regbase(node, inst)	\
-			(nlm_get_uart_pcibase(node, inst) + XLP_IO_PCI_HDRSZ)
+#define nlm_get_uart_pcibase(yesde, inst)	\
+	nlm_pcicfg_base(cpu_is_xlp9xx() ?  XLP9XX_IO_UART_OFFSET(yesde) : \
+						XLP_IO_UART_OFFSET(yesde, inst))
+#define nlm_get_uart_regbase(yesde, inst)	\
+			(nlm_get_uart_pcibase(yesde, inst) + XLP_IO_PCI_HDRSZ)
 
 static inline void
 nlm_uart_set_baudrate(uint64_t base, int baud)

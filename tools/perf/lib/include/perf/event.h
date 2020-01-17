@@ -25,8 +25,8 @@ struct perf_record_mmap2 {
 	__u64			 pgoff;
 	__u32			 maj;
 	__u32			 min;
-	__u64			 ino;
-	__u64			 ino_generation;
+	__u64			 iyes;
+	__u64			 iyes_generation;
 	__u32			 prot;
 	__u32			 flags;
 	char			 filename[PATH_MAX];

@@ -19,10 +19,10 @@ static inline void update_vdso_data(struct vdso_data *vdata,
 	struct vdso_timestamp *vdso_ts;
 	u64 nsec, sec;
 
-	vdata[CS_HRES_COARSE].cycle_last	= tk->tkr_mono.cycle_last;
-	vdata[CS_HRES_COARSE].mask		= tk->tkr_mono.mask;
-	vdata[CS_HRES_COARSE].mult		= tk->tkr_mono.mult;
-	vdata[CS_HRES_COARSE].shift		= tk->tkr_mono.shift;
+	vdata[CS_HRES_COARSE].cycle_last	= tk->tkr_moyes.cycle_last;
+	vdata[CS_HRES_COARSE].mask		= tk->tkr_moyes.mask;
+	vdata[CS_HRES_COARSE].mult		= tk->tkr_moyes.mult;
+	vdata[CS_HRES_COARSE].shift		= tk->tkr_moyes.shift;
 	vdata[CS_RAW].cycle_last		= tk->tkr_raw.cycle_last;
 	vdata[CS_RAW].mask			= tk->tkr_raw.mask;
 	vdata[CS_RAW].mult			= tk->tkr_raw.mult;
@@ -31,16 +31,16 @@ static inline void update_vdso_data(struct vdso_data *vdata,
 	/* CLOCK_REALTIME */
 	vdso_ts		= &vdata[CS_HRES_COARSE].basetime[CLOCK_REALTIME];
 	vdso_ts->sec	= tk->xtime_sec;
-	vdso_ts->nsec	= tk->tkr_mono.xtime_nsec;
+	vdso_ts->nsec	= tk->tkr_moyes.xtime_nsec;
 
 	/* CLOCK_MONOTONIC */
 	vdso_ts		= &vdata[CS_HRES_COARSE].basetime[CLOCK_MONOTONIC];
-	vdso_ts->sec	= tk->xtime_sec + tk->wall_to_monotonic.tv_sec;
+	vdso_ts->sec	= tk->xtime_sec + tk->wall_to_moyestonic.tv_sec;
 
-	nsec = tk->tkr_mono.xtime_nsec;
-	nsec += ((u64)tk->wall_to_monotonic.tv_nsec << tk->tkr_mono.shift);
-	while (nsec >= (((u64)NSEC_PER_SEC) << tk->tkr_mono.shift)) {
-		nsec -= (((u64)NSEC_PER_SEC) << tk->tkr_mono.shift);
+	nsec = tk->tkr_moyes.xtime_nsec;
+	nsec += ((u64)tk->wall_to_moyestonic.tv_nsec << tk->tkr_moyes.shift);
+	while (nsec >= (((u64)NSEC_PER_SEC) << tk->tkr_moyes.shift)) {
+		nsec -= (((u64)NSEC_PER_SEC) << tk->tkr_moyes.shift);
 		vdso_ts->sec++;
 	}
 	vdso_ts->nsec	= nsec;
@@ -48,15 +48,15 @@ static inline void update_vdso_data(struct vdso_data *vdata,
 	/* Copy MONOTONIC time for BOOTTIME */
 	sec	= vdso_ts->sec;
 	/* Add the boot offset */
-	sec	+= tk->monotonic_to_boot.tv_sec;
-	nsec	+= (u64)tk->monotonic_to_boot.tv_nsec << tk->tkr_mono.shift;
+	sec	+= tk->moyestonic_to_boot.tv_sec;
+	nsec	+= (u64)tk->moyestonic_to_boot.tv_nsec << tk->tkr_moyes.shift;
 
 	/* CLOCK_BOOTTIME */
 	vdso_ts		= &vdata[CS_HRES_COARSE].basetime[CLOCK_BOOTTIME];
 	vdso_ts->sec	= sec;
 
-	while (nsec >= (((u64)NSEC_PER_SEC) << tk->tkr_mono.shift)) {
-		nsec -= (((u64)NSEC_PER_SEC) << tk->tkr_mono.shift);
+	while (nsec >= (((u64)NSEC_PER_SEC) << tk->tkr_moyes.shift)) {
+		nsec -= (((u64)NSEC_PER_SEC) << tk->tkr_moyes.shift);
 		vdso_ts->sec++;
 	}
 	vdso_ts->nsec	= nsec;
@@ -69,7 +69,7 @@ static inline void update_vdso_data(struct vdso_data *vdata,
 	/* CLOCK_TAI */
 	vdso_ts		= &vdata[CS_HRES_COARSE].basetime[CLOCK_TAI];
 	vdso_ts->sec	= tk->xtime_sec + (s64)tk->tai_offset;
-	vdso_ts->nsec	= tk->tkr_mono.xtime_nsec;
+	vdso_ts->nsec	= tk->tkr_moyes.xtime_nsec;
 
 	/*
 	 * Read without the seqlock held by clock_getres().
@@ -101,13 +101,13 @@ void update_vsyscall(struct timekeeper *tk)
 	/* CLOCK_REALTIME_COARSE */
 	vdso_ts		= &vdata[CS_HRES_COARSE].basetime[CLOCK_REALTIME_COARSE];
 	vdso_ts->sec	= tk->xtime_sec;
-	vdso_ts->nsec	= tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift;
+	vdso_ts->nsec	= tk->tkr_moyes.xtime_nsec >> tk->tkr_moyes.shift;
 
 	/* CLOCK_MONOTONIC_COARSE */
 	vdso_ts		= &vdata[CS_HRES_COARSE].basetime[CLOCK_MONOTONIC_COARSE];
-	vdso_ts->sec	= tk->xtime_sec + tk->wall_to_monotonic.tv_sec;
-	nsec		= tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift;
-	nsec		= nsec + tk->wall_to_monotonic.tv_nsec;
+	vdso_ts->sec	= tk->xtime_sec + tk->wall_to_moyestonic.tv_sec;
+	nsec		= tk->tkr_moyes.xtime_nsec >> tk->tkr_moyes.shift;
+	nsec		= nsec + tk->wall_to_moyestonic.tv_nsec;
 	vdso_ts->sec	+= __iter_div_u64_rem(nsec, NSEC_PER_SEC, &vdso_ts->nsec);
 
 	update_vdso_data(vdata, tk);

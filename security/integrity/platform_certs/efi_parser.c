@@ -24,7 +24,7 @@
  *
  * For each sublist encountered, the @get_handler_for_guid function is called
  * with the type specifier GUID and returns either a pointer to a function to
- * handle elements of that type or NULL if the type is not of interest.
+ * handle elements of that type or NULL if the type is yest of interest.
  *
  * If the sublist is of interest, each element is passed to the handler
  * function in turn.

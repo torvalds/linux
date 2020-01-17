@@ -5,12 +5,12 @@
  *
  * KVM/MIPS: MIPS specific KVM APIs
  *
- * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012  MIPS Techyeslogies, Inc.  All rights reserved.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/kdebug.h>
 #include <linux/module.h>
@@ -208,7 +208,7 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 {
 	/*
 	 * The slot has been made invalid (ready for moving or deletion), so we
-	 * need to ensure that it can no longer be accessed by any guest VCPUs.
+	 * need to ensure that it can yes longer be accessed by any guest VCPUs.
 	 */
 
 	spin_lock(&kvm->mmu_lock);
@@ -244,7 +244,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 * If dirty page logging is enabled, write protect all pages in the slot
 	 * ready for dirty logging.
 	 *
-	 * There is no need to do this in any of the following cases:
+	 * There is yes need to do this in any of the following cases:
 	 * CREATE:	No dirty mappings will already exist.
 	 * MOVE/DELETE:	The old mappings will already have been cleaned up by
 	 *		kvm_arch_flush_shadow_memslot()
@@ -270,7 +270,7 @@ static inline void dump_handler(const char *symbol, void *start, void *end)
 	pr_debug("LEAF(%s)\n", symbol);
 
 	pr_debug("\t.set push\n");
-	pr_debug("\t.set noreorder\n");
+	pr_debug("\t.set yesreorder\n");
 
 	for (p = start; p < (u32 *)end; ++p)
 		pr_debug("\t.word\t0x%08x\t\t# %p\n", *p, p);
@@ -321,7 +321,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	/*
 	 * Check new ebase actually fits in CP0_EBase. The lack of a write gate
 	 * limits us to the low 512MB of physical address space. If the memory
-	 * we allocate is out of range, just give up now.
+	 * we allocate is out of range, just give up yesw.
 	 */
 	if (!cpu_has_ebase_wg && virt_to_phys(gebase) >= 0x20000000) {
 		kvm_err("CP0_EBase.WG required for guest exception base %pK\n",
@@ -456,10 +456,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	trace_kvm_enter(vcpu);
 
 	/*
-	 * Make sure the read of VCPU requests in vcpu_run() callback is not
+	 * Make sure the read of VCPU requests in vcpu_run() callback is yest
 	 * reordered ahead of the write to vcpu->mode, or we could miss a TLB
 	 * flush request while the requester sees the VCPU as outside of guest
-	 * mode and not needing an IPI.
+	 * mode and yest needing an IPI.
 	 */
 	smp_store_mb(vcpu->mode, IN_GUEST_MODE);
 
@@ -613,7 +613,7 @@ static int kvm_mips_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices)
 				return -EFAULT;
 			++indices;
 
-			/* skip odd doubles if no F64 */
+			/* skip odd doubles if yes F64 */
 			if (i & 1 && !(boot_cpu_data.fpu_id & MIPS_FPIR_F64))
 				continue;
 
@@ -785,7 +785,7 @@ static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
 	switch (reg->id) {
 	/* General purpose registers */
 	case KVM_REG_MIPS_R0:
-		/* Silently ignore requests to set $0 */
+		/* Silently igyesre requests to set $0 */
 		break;
 	case KVM_REG_MIPS_R1 ... KVM_REG_MIPS_R31:
 		vcpu->arch.gprs[reg->id - KVM_REG_MIPS_R0] = v;
@@ -982,7 +982,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl,
  * We call kvm_get_dirty_log_protect() to handle steps 1-3, upon return we
  * always flush the TLB (step 4) even if previous step failed  and the dirty
  * bitmap may be corrupt. Regardless of previous outcome the KVM logging API
- * does not preclude user space subsequent dirty log read. Flushing TLB ensures
+ * does yest preclude user space subsequent dirty log read. Flushing TLB ensures
  * writes will be marked dirty for next log read.
  *
  *   1. Take a snapshot of the bit and clear it if needed.
@@ -1129,7 +1129,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		 *
 		 * When vector partitioning hardware becomes available, support
 		 * could be added by requiring a flag when enabling
-		 * KVM_CAP_MIPS_MSA capability to indicate that userland knows
+		 * KVM_CAP_MIPS_MSA capability to indicate that userland kyesws
 		 * to save/restore the appropriate extra state.
 		 */
 		r = cpu_has_msa && !(boot_cpu_data.msa_id & MSA_IR_WRPF);
@@ -1186,7 +1186,7 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 
 	for (i = 1; i < ARRAY_SIZE(vcpu->arch.gprs); i++)
 		vcpu->arch.gprs[i] = regs->gpr[i];
-	vcpu->arch.gprs[0] = 0; /* zero is special, and cannot be set. */
+	vcpu->arch.gprs[0] = 0; /* zero is special, and canyest be set. */
 	vcpu->arch.hi = regs->hi;
 	vcpu->arch.lo = regs->lo;
 	vcpu->arch.pc = regs->pc;
@@ -1425,7 +1425,7 @@ int kvm_mips_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			opc += 1;
 		inst = 0;
 		kvm_get_badinstr(opc, vcpu, &inst);
-		kvm_err("Exception Code: %d, not yet handled, @ PC: %p, inst: 0x%08x  BadVaddr: %#lx Status: %#x\n",
+		kvm_err("Exception Code: %d, yest yet handled, @ PC: %p, inst: 0x%08x  BadVaddr: %#lx Status: %#x\n",
 			exccode, opc, inst, badvaddr,
 			kvm_read_c0_guest_status(vcpu->arch.cop0));
 		kvm_arch_vcpu_dump_regs(vcpu);
@@ -1445,7 +1445,7 @@ skip_emul:
 		kvm_mips_deliver_interrupts(vcpu, cause);
 
 	if (!(ret & RESUME_HOST)) {
-		/* Only check for signals if not already exiting to userspace */
+		/* Only check for signals if yest already exiting to userspace */
 		if (signal_pending(current)) {
 			run->exit_reason = KVM_EXIT_INTR;
 			ret = (-EINTR << 2) | RESUME_HOST;
@@ -1459,9 +1459,9 @@ skip_emul:
 
 		/*
 		 * Make sure the read of VCPU requests in vcpu_reenter()
-		 * callback is not reordered ahead of the write to vcpu->mode,
+		 * callback is yest reordered ahead of the write to vcpu->mode,
 		 * or we could miss a TLB flush request while the requester sees
-		 * the VCPU as outside of guest mode and not needing an IPI.
+		 * the VCPU as outside of guest mode and yest needing an IPI.
 		 */
 		smp_store_mb(vcpu->mode, IN_GUEST_MODE);
 
@@ -1474,7 +1474,7 @@ skip_emul:
 		 * This should be before returning to the guest exception
 		 * vector, as it may well cause an [MSA] FP exception if there
 		 * are pending exception bits unmasked. (see
-		 * kvm_mips_csr_die_notifier() for how that is handled).
+		 * kvm_mips_csr_die_yestifier() for how that is handled).
 		 */
 		if (kvm_mips_guest_has_fpu(&vcpu->arch) &&
 		    read_c0_status() & ST0_CU1)
@@ -1510,7 +1510,7 @@ void kvm_own_fpu(struct kvm_vcpu *vcpu)
 	 *
 	 * In theory we shouldn't ever hit this case since kvm_lose_fpu() should
 	 * get called when guest CU1 is set, however we can't trust the guest
-	 * not to clobber the status register directly via the commpage.
+	 * yest to clobber the status register directly via the commpage.
 	 */
 	if (cpu_has_msa && sr & ST0_CU1 && !(sr & ST0_FR) &&
 	    vcpu->arch.aux_inuse & KVM_MIPS_AUX_MSA)
@@ -1527,7 +1527,7 @@ void kvm_own_fpu(struct kvm_vcpu *vcpu)
 	}
 	enable_fpu_hazard();
 
-	/* If guest FPU state not active, restore it now */
+	/* If guest FPU state yest active, restore it yesw */
 	if (!(vcpu->arch.aux_inuse & KVM_MIPS_AUX_FPU)) {
 		__kvm_restore_fpu(&vcpu->arch);
 		vcpu->arch.aux_inuse |= KVM_MIPS_AUX_FPU;
@@ -1668,7 +1668,7 @@ void kvm_lose_fpu(struct kvm_vcpu *vcpu)
  * used to restore guest FCSR/MSACSR state and may trigger a "harmless" FP/MSAFP
  * exception if cause bits are set in the value being written.
  */
-static int kvm_mips_csr_die_notify(struct notifier_block *self,
+static int kvm_mips_csr_die_yestify(struct yestifier_block *self,
 				   unsigned long cmd, void *ptr)
 {
 	struct die_args *args = (struct die_args *)ptr;
@@ -1708,8 +1708,8 @@ static int kvm_mips_csr_die_notify(struct notifier_block *self,
 	return NOTIFY_STOP;
 }
 
-static struct notifier_block kvm_mips_csr_die_notifier = {
-	.notifier_call = kvm_mips_csr_die_notify,
+static struct yestifier_block kvm_mips_csr_die_yestifier = {
+	.yestifier_call = kvm_mips_csr_die_yestify,
 };
 
 static int __init kvm_mips_init(void)
@@ -1717,7 +1717,7 @@ static int __init kvm_mips_init(void)
 	int ret;
 
 	if (cpu_has_mmid) {
-		pr_warn("KVM does not yet support MMIDs. KVM Disabled\n");
+		pr_warn("KVM does yest yet support MMIDs. KVM Disabled\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1730,7 +1730,7 @@ static int __init kvm_mips_init(void)
 	if (ret)
 		return ret;
 
-	register_die_notifier(&kvm_mips_csr_die_notifier);
+	register_die_yestifier(&kvm_mips_csr_die_yestifier);
 
 	return 0;
 }
@@ -1739,7 +1739,7 @@ static void __exit kvm_mips_exit(void)
 {
 	kvm_exit();
 
-	unregister_die_notifier(&kvm_mips_csr_die_notifier);
+	unregister_die_yestifier(&kvm_mips_csr_die_yestifier);
 }
 
 module_init(kvm_mips_init);

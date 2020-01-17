@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techyeslogies Co., Ltd
  */
 
 #include <linux/types.h>
@@ -10,7 +10,7 @@
 #include <linux/if_vlan.h>
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include "hinic_hw_if.h"
 #include "hinic_hw_dev.h"
@@ -536,7 +536,7 @@ static int hinic_set_rx_lro_timer(struct hinic_dev *nic_dev, u32 timer_value)
 		/* For this case, we think status (0xFF) is OK */
 		lro_timer.status = 0;
 		dev_dbg(&pdev->dev,
-			"Set lro timer not supported by the current FW version, it will be 1ms default\n");
+			"Set lro timer yest supported by the current FW version, it will be 1ms default\n");
 	}
 
 	if (err || !out_size || lro_timer.status) {

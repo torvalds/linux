@@ -13,7 +13,7 @@
  * for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
+ * along with this program; if yest, write to the Free Software Foundation,
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -33,7 +33,7 @@ struct usb_hcd;
  *			initialization.
  * @port_power_off:	set to 1 if the controller needs to be powered down
  *			after initialization.
- * @no_io_watchdog:	set to 1 if the controller does not need the I/O
+ * @yes_io_watchdog:	set to 1 if the controller does yest need the I/O
  *			watchdog to run.
  * @reset_on_resume:	set to 1 if the controller needs to be reset after
  * 			a suspend / resume cycle (but can't detect that itself).
@@ -44,10 +44,10 @@ struct usb_hcd;
 struct usb_ehci_pdata {
 	int		caps_offset;
 	unsigned	has_tt:1;
-	unsigned	has_synopsys_hc_bug:1;
+	unsigned	has_syyespsys_hc_bug:1;
 	unsigned	big_endian_desc:1;
 	unsigned	big_endian_mmio:1;
-	unsigned	no_io_watchdog:1;
+	unsigned	yes_io_watchdog:1;
 	unsigned	reset_on_resume:1;
 	unsigned	dma_mask_64:1;
 

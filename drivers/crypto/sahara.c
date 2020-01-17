@@ -301,7 +301,7 @@ static const char *sahara_err_dmasrc[8] = {
 };
 
 static const char *sahara_cha_errsrc[12] = {
-	"Input buffer non-empty",
+	"Input buffer yesn-empty",
 	"Illegal address",
 	"Illegal mode",
 	"Illegal data size",
@@ -478,7 +478,7 @@ static int sahara_hw_descriptor_create(struct sahara_dev *dev)
 		return dev->nb_out_sg;
 	}
 	if ((dev->nb_in_sg + dev->nb_out_sg) > SAHARA_MAX_HW_LINK) {
-		dev_err(dev->device, "not enough hw links (%d)\n",
+		dev_err(dev->device, "yest eyesugh hw links (%d)\n",
 			dev->nb_in_sg + dev->nb_out_sg);
 		return -EINVAL;
 	}
@@ -616,7 +616,7 @@ static int sahara_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 		return -EINVAL;
 
 	/*
-	 * The requested key size is not supported by HW, do a fallback.
+	 * The requested key size is yest supported by HW, do a fallback.
 	 */
 	crypto_sync_skcipher_clear_flags(ctx->fallback, CRYPTO_TFM_REQ_MASK);
 	crypto_sync_skcipher_set_flags(ctx->fallback, tfm->base.crt_flags &
@@ -641,7 +641,7 @@ static int sahara_aes_crypt(struct skcipher_request *req, unsigned long mode)
 
 	if (!IS_ALIGNED(req->cryptlen, AES_BLOCK_SIZE)) {
 		dev_err(dev->device,
-			"request size is not exact amount of AES blocks\n");
+			"request size is yest exact amount of AES blocks\n");
 		return -EINVAL;
 	}
 
@@ -807,7 +807,7 @@ static int sahara_sha_hw_links_create(struct sahara_dev *dev,
 		return dev->nb_in_sg;
 	}
 	if ((dev->nb_in_sg) > SAHARA_MAX_HW_LINK) {
-		dev_err(dev->device, "not enough hw links (%d)\n",
+		dev_err(dev->device, "yest eyesugh hw links (%d)\n",
 			dev->nb_in_sg + dev->nb_out_sg);
 		return -EINVAL;
 	}
@@ -957,7 +957,7 @@ static int sahara_sha_prepare_request(struct ahash_request *req)
 					hash_later, 0);
 	}
 
-	/* nbytes should now be multiple of blocksize */
+	/* nbytes should yesw be multiple of blocksize */
 	req->nbytes = req->nbytes - hash_later;
 
 	sahara_walk_and_recalc(req->src, req->nbytes);
@@ -982,7 +982,7 @@ static int sahara_sha_prepare_request(struct ahash_request *req)
 		/* buf was copied into rembuf above */
 		sg_init_one(rctx->in_sg, rctx->rembuf, rctx->buf_cnt);
 		rctx->total = rctx->buf_cnt;
-	/* no data from previous operation */
+	/* yes data from previous operation */
 	} else {
 		rctx->in_sg = req->src;
 		rctx->total = req->nbytes;
@@ -1410,13 +1410,13 @@ static int sahara_probe(struct platform_device *pdev)
 	/* clocks */
 	dev->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(dev->clk_ipg)) {
-		dev_err(&pdev->dev, "Could not get ipg clock\n");
+		dev_err(&pdev->dev, "Could yest get ipg clock\n");
 		return PTR_ERR(dev->clk_ipg);
 	}
 
 	dev->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(dev->clk_ahb)) {
-		dev_err(&pdev->dev, "Could not get ahb clock\n");
+		dev_err(&pdev->dev, "Could yest get ahb clock\n");
 		return PTR_ERR(dev->clk_ahb);
 	}
 
@@ -1425,7 +1425,7 @@ static int sahara_probe(struct platform_device *pdev)
 			SAHARA_MAX_HW_DESC * sizeof(struct sahara_hw_desc),
 			&dev->hw_phys_desc[0], GFP_KERNEL);
 	if (!dev->hw_desc[0]) {
-		dev_err(&pdev->dev, "Could not allocate hw descriptors\n");
+		dev_err(&pdev->dev, "Could yest allocate hw descriptors\n");
 		return -ENOMEM;
 	}
 	dev->hw_desc[1] = dev->hw_desc[0] + 1;
@@ -1436,7 +1436,7 @@ static int sahara_probe(struct platform_device *pdev)
 	dev->key_base = dmam_alloc_coherent(&pdev->dev, 2 * AES_KEYSIZE_128,
 				&dev->key_phys_base, GFP_KERNEL);
 	if (!dev->key_base) {
-		dev_err(&pdev->dev, "Could not allocate memory for key\n");
+		dev_err(&pdev->dev, "Could yest allocate memory for key\n");
 		return -ENOMEM;
 	}
 	dev->iv_base = dev->key_base + AES_KEYSIZE_128;
@@ -1447,7 +1447,7 @@ static int sahara_probe(struct platform_device *pdev)
 					SHA256_DIGEST_SIZE + 4,
 					&dev->context_phys_base, GFP_KERNEL);
 	if (!dev->context_base) {
-		dev_err(&pdev->dev, "Could not allocate memory for MDHA context\n");
+		dev_err(&pdev->dev, "Could yest allocate memory for MDHA context\n");
 		return -ENOMEM;
 	}
 
@@ -1456,7 +1456,7 @@ static int sahara_probe(struct platform_device *pdev)
 			SAHARA_MAX_HW_LINK * sizeof(struct sahara_hw_link),
 			&dev->hw_phys_link[0], GFP_KERNEL);
 	if (!dev->hw_link[0]) {
-		dev_err(&pdev->dev, "Could not allocate hw links\n");
+		dev_err(&pdev->dev, "Could yest allocate hw links\n");
 		return -ENOMEM;
 	}
 	for (i = 1; i < SAHARA_MAX_HW_LINK; i++) {
@@ -1486,17 +1486,17 @@ static int sahara_probe(struct platform_device *pdev)
 		goto clk_ipg_disable;
 
 	version = sahara_read(dev, SAHARA_REG_VERSION);
-	if (of_device_is_compatible(pdev->dev.of_node, "fsl,imx27-sahara")) {
+	if (of_device_is_compatible(pdev->dev.of_yesde, "fsl,imx27-sahara")) {
 		if (version != SAHARA_VERSION_3)
 			err = -ENODEV;
-	} else if (of_device_is_compatible(pdev->dev.of_node,
+	} else if (of_device_is_compatible(pdev->dev.of_yesde,
 			"fsl,imx53-sahara")) {
 		if (((version >> 8) & 0xff) != SAHARA_VERSION_4)
 			err = -ENODEV;
 		version = (version >> 8) & 0xff;
 	}
 	if (err == -ENODEV) {
-		dev_err(&pdev->dev, "SAHARA version %d not supported\n",
+		dev_err(&pdev->dev, "SAHARA version %d yest supported\n",
 				version);
 		goto err_algs;
 	}

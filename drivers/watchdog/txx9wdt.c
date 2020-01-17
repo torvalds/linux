@@ -30,10 +30,10 @@ MODULE_PARM_DESC(timeout,
 	"(0<timeout<((2^" __MODULE_STRING(TXX9_TIMER_BITS) ")/(IMCLK/256)), "
 	"default=" __MODULE_STRING(TIMER_MARGIN) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started "
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+	"Watchdog canyest be stopped once started "
 	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static struct txx9_tmr_reg __iomem *txx9wdt_reg;
@@ -127,14 +127,14 @@ static int __init txx9wdt_probe(struct platform_device *dev)
 	txx9wdt.min_timeout = 1;
 	txx9wdt.max_timeout = WD_MAX_TIMEOUT;
 	txx9wdt.parent = &dev->dev;
-	watchdog_set_nowayout(&txx9wdt, nowayout);
+	watchdog_set_yeswayout(&txx9wdt, yeswayout);
 
 	ret = watchdog_register_device(&txx9wdt);
 	if (ret)
 		goto exit;
 
-	pr_info("Hardware Watchdog Timer: timeout=%d sec (max %ld) (nowayout= %d)\n",
-		timeout, WD_MAX_TIMEOUT, nowayout);
+	pr_info("Hardware Watchdog Timer: timeout=%d sec (max %ld) (yeswayout= %d)\n",
+		timeout, WD_MAX_TIMEOUT, yeswayout);
 
 	return 0;
 exit:

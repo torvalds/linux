@@ -145,8 +145,8 @@ extern struct thread_info *current_thread_info(void);
 #define set_thread_wstate(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_WSTATE] = (val))
 #define get_thread_cwp()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_CWP])
 #define set_thread_cwp(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_CWP] = (val))
-#define get_thread_noerror()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_NOERROR])
-#define set_thread_noerror(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_NOERROR] = (val))
+#define get_thread_yeserror()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_NOERROR])
+#define set_thread_yeserror(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_NOERROR] = (val))
 #define get_thread_fpdepth()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_FPDEPTH])
 #define set_thread_fpdepth(val)		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_FPDEPTH] = (val))
 #define get_thread_wsaved()		(__cur_thread_flag_byte_ptr[TI_FLAG_BYTE_WSAVED])
@@ -159,7 +159,7 @@ extern struct thread_info *current_thread_info(void);
  *
  * On trap return we need to test several values:
  *
- * user:	need_resched, notify_resume, sigpending, wsaved
+ * user:	need_resched, yestify_resume, sigpending, wsaved
  * kernel:	fpdepth
  *
  * So to check for work in the kernel case we simply load the fpdepth
@@ -173,8 +173,8 @@ extern struct thread_info *current_thread_info(void);
  *	sethi		%hi(_TIF_USER_WORK_MASK), REG2
  *	or		REG2, %lo(_TIF_USER_WORK_MASK), REG2
  *	andcc		REG1, REG2, %g0
- *	be,pt		no_work_to_do
- *	 nop
+ *	be,pt		yes_work_to_do
+ *	 yesp
  */
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
 #define TIF_NOTIFY_RESUME	1	/* callback before returning to user */
@@ -184,11 +184,11 @@ extern struct thread_info *current_thread_info(void);
 #define TIF_UNALIGNED		5	/* allowed to do unaligned accesses */
 #define TIF_UPROBE		6	/* breakpointed or singlestepped */
 #define TIF_32BIT		7	/* 32-bit binary */
-#define TIF_NOHZ		8	/* in adaptive nohz mode */
+#define TIF_NOHZ		8	/* in adaptive yeshz mode */
 #define TIF_SECCOMP		9	/* secure computing */
 #define TIF_SYSCALL_AUDIT	10	/* syscall auditing active */
 #define TIF_SYSCALL_TRACEPOINT	11	/* syscall tracepoint instrumentation */
-/* NOTE: Thread flags >= 12 should be ones we have no interest
+/* NOTE: Thread flags >= 12 should be ones we have yes interest
  *       in using in assembly, else we can't use the mask as
  *       an immediate value in instructions such as andcc.
  */
@@ -218,10 +218,10 @@ extern struct thread_info *current_thread_info(void);
 #define is_32bit_task()	(test_thread_flag(TIF_32BIT))
 
 /*
- * Thread-synchronous status.
+ * Thread-synchroyesus status.
  *
- * This is different from the flags in that nobody else
- * ever touches our thread-synchronous status, so we don't
+ * This is different from the flags in that yesbody else
+ * ever touches our thread-synchroyesus status, so we don't
  * have to worry about atomic accesses.
  *
  * Note that there are only 8 bits available.

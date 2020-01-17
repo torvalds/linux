@@ -123,25 +123,25 @@ static int vidioc_enum_fmt(struct file *file, void *priv,
 	struct hantro_ctx *ctx = fh_to_ctx(priv);
 	const struct hantro_fmt *fmt, *formats;
 	unsigned int num_fmts, i, j = 0;
-	bool skip_mode_none;
+	bool skip_mode_yesne;
 
 	/*
 	 * When dealing with an encoder:
 	 *  - on the capture side we want to filter out all MODE_NONE formats.
 	 *  - on the output side we want to filter out all formats that are
-	 *    not MODE_NONE.
+	 *    yest MODE_NONE.
 	 * When dealing with a decoder:
 	 *  - on the capture side we want to filter out all formats that are
-	 *    not MODE_NONE.
+	 *    yest MODE_NONE.
 	 *  - on the output side we want to filter out all MODE_NONE formats.
 	 */
-	skip_mode_none = capture == hantro_is_encoder_ctx(ctx);
+	skip_mode_yesne = capture == hantro_is_encoder_ctx(ctx);
 
 	formats = hantro_get_formats(ctx, &num_fmts);
 	for (i = 0; i < num_fmts; i++) {
-		bool mode_none = formats[i].codec_mode == HANTRO_MODE_NONE;
+		bool mode_yesne = formats[i].codec_mode == HANTRO_MODE_NONE;
 
-		if (skip_mode_none == mode_none)
+		if (skip_mode_yesne == mode_yesne)
 			continue;
 		if (j == f->index) {
 			fmt = &formats[i];
@@ -223,7 +223,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f,
 	} else {
 		vpu_fmt = ctx->vpu_src_fmt;
 		/*
-		 * Width/height on the CAPTURE end of a decoder are ignored and
+		 * Width/height on the CAPTURE end of a decoder are igyesred and
 		 * replaced by the OUTPUT ones.
 		 */
 		pix_mp->width = ctx->src_fmt.width;
@@ -462,7 +462,7 @@ static int vidioc_s_fmt_cap_mplane(struct file *file, void *priv,
 	unsigned int num_fmts;
 	int ret;
 
-	/* Change not allowed if queue is busy. */
+	/* Change yest allowed if queue is busy. */
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
 	if (vb2_is_busy(vq))
 		return -EBUSY;

@@ -26,7 +26,7 @@
  *					x25_proc.c, using seq_file
  *	2005-04-02	Shaun Pereira	Selective sub address matching
  *					with call user data
- *	2005-04-15	Shaun Pereira	Fast select with no restriction on
+ *	2005-04-15	Shaun Pereira	Fast select with yes restriction on
  *					response
  */
 
@@ -34,7 +34,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
 #include <linux/timer.h>
@@ -49,7 +49,7 @@
 #include <linux/uaccess.h>
 #include <linux/fcntl.h>
 #include <linux/termios.h>	/* For TIOCINQ/OUTQ */
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/init.h>
 #include <linux/compat.h>
 #include <linux/ctype.h>
@@ -89,7 +89,7 @@ int x25_parse_address_block(struct sk_buff *skb,
 	int rc;
 
 	if (!pskb_may_pull(skb, 1)) {
-		/* packet has no address block */
+		/* packet has yes address block */
 		rc = 0;
 		goto empty;
 	}
@@ -190,12 +190,12 @@ int x25_addr_aton(unsigned char *p, struct x25_address *called_addr,
 }
 
 /*
- *	Socket removal during an interrupt is now safe.
+ *	Socket removal during an interrupt is yesw safe.
  */
 static void x25_remove_socket(struct sock *sk)
 {
 	write_lock_bh(&x25_list_lock);
-	sk_del_node_init(sk);
+	sk_del_yesde_init(sk);
 	write_unlock_bh(&x25_list_lock);
 }
 
@@ -218,10 +218,10 @@ static void x25_kill_by_device(struct net_device *dev)
 /*
  *	Handle device status changes.
  */
-static int x25_device_event(struct notifier_block *this, unsigned long event,
+static int x25_device_event(struct yestifier_block *this, unsigned long event,
 			    void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct x25_neigh *nb;
 
 	if (!net_eq(dev_net(dev), &init_net))
@@ -260,14 +260,14 @@ static int x25_device_event(struct notifier_block *this, unsigned long event,
 static void x25_insert_socket(struct sock *sk)
 {
 	write_lock_bh(&x25_list_lock);
-	sk_add_node(sk, &x25_list);
+	sk_add_yesde(sk, &x25_list);
 	write_unlock_bh(&x25_list_lock);
 }
 
 /*
  *	Find a socket that wants to accept the Call Request we just
  *	received. Check the full list for an address/cud match.
- *	If no cuds match return the next_best thing, an address match.
+ *	If yes cuds match return the next_best thing, an address match.
  *	Note: if a listening socket has cud set it must only get calls
  *	with matching cud.
  */
@@ -287,7 +287,7 @@ static struct sock *x25_find_listener(struct x25_address *addr,
 					null_x25_address.x25_addr)) &&
 					s->sk_state == TCP_LISTEN) {
 			/*
-			 * Found a listening socket, now check the incoming
+			 * Found a listening socket, yesw check the incoming
 			 * call user data vs this sockets call user data
 			 */
 			if (x25_sk(s)->cudmatchlength > 0 &&
@@ -377,7 +377,7 @@ static void x25_destroy_timer(struct timer_list *t)
 /*
  *	This is called from user mode and the timers. Thus it protects itself
  *	against interrupt users but doesn't worry about being called during
- *	work. Once it is removed from the queue no interrupt or bottom half
+ *	work. Once it is removed from the queue yes interrupt or bottom half
  *	will touch it and we are (fairly 8-) ) safe.
  *	Not static as it's used by the timer
  */
@@ -566,7 +566,7 @@ static int x25_create(struct net *net, struct socket *sock, int protocol,
 	x25->t2    = sysctl_x25_ack_holdback_timeout;
 	x25->state = X25_STATE_0;
 	x25->cudmatchlength = 0;
-	set_bit(X25_ACCPT_APPRV_FLAG, &x25->flags);	/* normally no cud  */
+	set_bit(X25_ACCPT_APPRV_FLAG, &x25->flags);	/* yesrmally yes cud  */
 							/* on call accept   */
 
 	x25->facilities.winsize_in  = X25_DEFAULT_WINDOW_SIZE;
@@ -790,7 +790,7 @@ static int x25_connect(struct socket *sock, struct sockaddr *uaddr,
 		goto out_put_neigh;
 
 	rc = -EINVAL;
-	if (sock_flag(sk, SOCK_ZAPPED)) /* Must bind first - autobinding does not work */
+	if (sock_flag(sk, SOCK_ZAPPED)) /* Must bind first - autobinding does yest work */
 		goto out_put_neigh;
 
 	if (!strcmp(x25->source_addr.x25_addr, null_x25_address.x25_addr))
@@ -1050,9 +1050,9 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	makex25->facilities    = facilities;
 	makex25->dte_facilities= dte_facilities;
 	makex25->vc_facil_mask = x25_sk(sk)->vc_facil_mask;
-	/* ensure no reverse facil on accept */
+	/* ensure yes reverse facil on accept */
 	makex25->vc_facil_mask &= ~X25_MASK_REVERSE;
-	/* ensure no calling address extension on accept */
+	/* ensure yes calling address extension on accept */
 	makex25->vc_facil_mask &= ~X25_MASK_CALLING_AE;
 	makex25->cudmatchlength = x25_sk(sk)->cudmatchlength;
 
@@ -1100,7 +1100,7 @@ static int x25_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	struct sockaddr_x25 sx25;
 	struct sk_buff *skb;
 	unsigned char *asmptr;
-	int noblock = msg->msg_flags & MSG_DONTWAIT;
+	int yesblock = msg->msg_flags & MSG_DONTWAIT;
 	size_t size;
 	int qbit = 0, rc = -EINVAL;
 
@@ -1140,7 +1140,7 @@ static int x25_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	} else {
 		/*
 		 *	FIXME 1003.1g - if the socket is like this because
-		 *	it has become closed (not started closed) we ought
+		 *	it has become closed (yest started closed) we ought
 		 *	to SIGPIPE, EPIPE;
 		 */
 		rc = -ENOTCONN;
@@ -1168,7 +1168,7 @@ static int x25_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	size = len + X25_MAX_L2_LEN + X25_EXT_MIN_LEN;
 
 	release_sock(sk);
-	skb = sock_alloc_send_skb(sk, size, noblock, &rc);
+	skb = sock_alloc_send_skb(sk, size, yesblock, &rc);
 	lock_sock(sk);
 	if (!skb)
 		goto out;
@@ -1734,7 +1734,7 @@ static const struct proto_ops x25_proto_ops = {
 	.release =	x25_release,
 	.bind =		x25_bind,
 	.connect =	x25_connect,
-	.socketpair =	sock_no_socketpair,
+	.socketpair =	sock_yes_socketpair,
 	.accept =	x25_accept,
 	.getname =	x25_getname,
 	.poll =		datagram_poll,
@@ -1744,13 +1744,13 @@ static const struct proto_ops x25_proto_ops = {
 #endif
 	.gettstamp =	sock_gettstamp,
 	.listen =	x25_listen,
-	.shutdown =	sock_no_shutdown,
+	.shutdown =	sock_yes_shutdown,
 	.setsockopt =	x25_setsockopt,
 	.getsockopt =	x25_getsockopt,
 	.sendmsg =	x25_sendmsg,
 	.recvmsg =	x25_recvmsg,
-	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
+	.mmap =		sock_yes_mmap,
+	.sendpage =	sock_yes_sendpage,
 };
 
 static struct packet_type x25_packet_type __read_mostly = {
@@ -1758,8 +1758,8 @@ static struct packet_type x25_packet_type __read_mostly = {
 	.func =	x25_lapb_receive_frame,
 };
 
-static struct notifier_block x25_dev_notifier = {
-	.notifier_call = x25_device_event,
+static struct yestifier_block x25_dev_yestifier = {
+	.yestifier_call = x25_device_event,
 };
 
 void x25_kill_by_neigh(struct x25_neigh *nb)
@@ -1792,7 +1792,7 @@ static int __init x25_init(void)
 
 	dev_add_pack(&x25_packet_type);
 
-	rc = register_netdevice_notifier(&x25_dev_notifier);
+	rc = register_netdevice_yestifier(&x25_dev_yestifier);
 	if (rc)
 		goto out_sock;
 
@@ -1811,7 +1811,7 @@ out:
 out_sysctl:
 	x25_unregister_sysctl();
 out_dev:
-	unregister_netdevice_notifier(&x25_dev_notifier);
+	unregister_netdevice_yestifier(&x25_dev_yestifier);
 out_sock:
 	dev_remove_pack(&x25_packet_type);
 	sock_unregister(AF_X25);
@@ -1829,7 +1829,7 @@ static void __exit x25_exit(void)
 
 	x25_unregister_sysctl();
 
-	unregister_netdevice_notifier(&x25_dev_notifier);
+	unregister_netdevice_yestifier(&x25_dev_yestifier);
 
 	dev_remove_pack(&x25_packet_type);
 

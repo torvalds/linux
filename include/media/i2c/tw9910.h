@@ -3,11 +3,11 @@
  * tw9910 Driver header
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  *
  * Based on ov772x.h
  *
- * Copyright (C) Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Copyright (C) Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  */
 
 #ifndef __TW9910_H__

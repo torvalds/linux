@@ -32,7 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/init.h>
@@ -113,13 +113,13 @@ int com20020_check(struct net_device *dev)
 		com20020_set_subaddress(lp, ioaddr, SUB_SETUP2);
 		arcnet_outb(lp->setup2, ioaddr, COM20020_REG_W_XREG);
 
-		/* must now write the magic "restart operation" command */
+		/* must yesw write the magic "restart operation" command */
 		mdelay(1);
 		arcnet_outb(STARTIOcmd, ioaddr, COM20020_REG_W_COMMAND);
 	}
 
 	lp->config = (lp->timeout << 3) | (lp->backplane << 2) | SUB_NODE;
-	/* set node ID to 0x42 (but transmitter is disabled, so it's okay) */
+	/* set yesde ID to 0x42 (but transmitter is disabled, so it's okay) */
 	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 	arcnet_outb(0x42, ioaddr, COM20020_REG_W_XREG);
 
@@ -134,7 +134,7 @@ int com20020_check(struct net_device *dev)
 	arcnet_outb(CFLAGScmd | RESETclear | CONFIGclear,
 		    ioaddr, COM20020_REG_W_COMMAND);
 	status = arcnet_inb(ioaddr, COM20020_REG_R_STATUS);
-	arc_printk(D_INIT_REASONS, dev, "status after reset acknowledged: %X\n",
+	arc_printk(D_INIT_REASONS, dev, "status after reset ackyeswledged: %X\n",
 		   status);
 
 	/* Read first location of memory */
@@ -144,7 +144,7 @@ int com20020_check(struct net_device *dev)
 
 	status = arcnet_inb(ioaddr, COM20020_REG_RW_MEMDATA);
 	if (status != TESTvalue) {
-		arc_printk(D_NORMAL, dev, "Signature byte not found (%02Xh != D1h).\n",
+		arc_printk(D_NORMAL, dev, "Signature byte yest found (%02Xh != D1h).\n",
 			   status);
 		return -ENODEV;
 	}
@@ -229,7 +229,7 @@ int com20020_found(struct net_device *dev, int shared)
 		com20020_set_subaddress(lp, ioaddr, SUB_SETUP2);
 		arcnet_outb(lp->setup2, ioaddr, COM20020_REG_W_XREG);
 
-		/* must now write the magic "restart operation" command */
+		/* must yesw write the magic "restart operation" command */
 		mdelay(1);
 		arcnet_outb(STARTIOcmd, ioaddr, COM20020_REG_W_COMMAND);
 	}
@@ -317,7 +317,7 @@ static int com20020_reset(struct net_device *dev, int really_reset)
 	if (inbyte != TESTvalue) {
 		arc_printk(D_DEBUG, dev, "%s: %d: %s\n",
 			   __FILE__, __LINE__, __func__);
-		arc_printk(D_NORMAL, dev, "reset failed: TESTvalue not present.\n");
+		arc_printk(D_NORMAL, dev, "reset failed: TESTvalue yest present.\n");
 		return 1;
 	}
 	/* enable extended (512-byte) packets */
@@ -365,9 +365,9 @@ static void com20020_close(struct net_device *dev)
 /* Set or clear the multicast filter for this adaptor.
  * num_addrs == -1    Promiscuous mode, receive all packets
  * num_addrs == 0       Normal mode, clear multicast list
- * num_addrs > 0        Multicast mode, receive normal and MC packets, and do
+ * num_addrs > 0        Multicast mode, receive yesrmal and MC packets, and do
  *                      best-effort filtering.
- *      FIXME - do multicast stuff, not just promiscuous.
+ *      FIXME - do multicast stuff, yest just promiscuous.
  */
 static void com20020_set_mc_list(struct net_device *dev)
 {
@@ -382,7 +382,7 @@ static void com20020_set_mc_list(struct net_device *dev)
 		lp->setup |= PROMISCset;
 		arcnet_outb(lp->setup, ioaddr, COM20020_REG_W_XREG);
 	} else {
-		/* Disable promiscuous mode, use normal mode */
+		/* Disable promiscuous mode, use yesrmal mode */
 		if ((lp->setup & PROMISCset))
 			arc_printk(D_NORMAL, dev, "Resetting promiscuous flag...\n");
 		com20020_set_subaddress(lp, ioaddr, SUB_SETUP1);

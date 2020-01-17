@@ -27,7 +27,7 @@
 #include <acpi/video.h>
 
 /*
- * This driver is needed because a number of Samsung laptops do not hook
+ * This driver is needed because a number of Samsung laptops do yest hook
  * their control settings through ACPI.  So we have to poke around in the
  * BIOS to do things like brightness values, and "special" key controls.
  */
@@ -95,7 +95,7 @@ struct sabi_commands {
 	u16 set_backlight;
 
 	/*
-	 * 0x80 or 0x00 - no action
+	 * 0x80 or 0x00 - yes action
 	 * 0x81 - recovery key pressed
 	 */
 	u16 get_recovery_mode;
@@ -103,7 +103,7 @@ struct sabi_commands {
 
 	/*
 	 * on seclinux: 0 is low, 1 is high,
-	 * on swsmi: 0 is normal, 1 is silent, 2 is turbo
+	 * on swsmi: 0 is yesrmal, 1 is silent, 2 is turbo
 	 */
 	u16 get_performance_level;
 	u16 set_performance_level;
@@ -152,7 +152,7 @@ struct sabi_config {
 
 static const struct sabi_config sabi_configs[] = {
 	{
-		/* I don't know if it is really 2, but it it is
+		/* I don't kyesw if it is really 2, but it it is
 		 * less than 3 anyway */
 		.sabi_version = 2,
 
@@ -208,7 +208,7 @@ static const struct sabi_config sabi_configs[] = {
 				.value = 0,
 			},
 			{
-				.name = "normal",
+				.name = "yesrmal",
 				.value = 1,
 			},
 			{ },
@@ -267,7 +267,7 @@ static const struct sabi_config sabi_configs[] = {
 
 		.performance_levels = {
 			{
-				.name = "normal",
+				.name = "yesrmal",
 				.value = 0,
 			},
 			{
@@ -347,7 +347,7 @@ struct samsung_laptop {
 	struct samsung_laptop_debug debug;
 	struct samsung_quirks *quirks;
 
-	struct notifier_block pm_nb;
+	struct yestifier_block pm_nb;
 
 	bool handle_backlight;
 	bool has_stepping_quirk;
@@ -363,7 +363,7 @@ struct samsung_quirks {
 	bool lid_handling;
 };
 
-static struct samsung_quirks samsung_unknown = {};
+static struct samsung_quirks samsung_unkyeswn = {};
 
 static struct samsung_quirks samsung_broken_acpi_video = {
 	.broken_acpi_video = true,
@@ -389,7 +389,7 @@ MODULE_PARM_DESC(force,
 
 static bool debug;
 module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");
+MODULE_PARM_DESC(debug, "Debug enabled or yest");
 
 static int sabi_command(struct samsung_laptop *samsung, u16 command,
 			struct sabi_data *in,
@@ -433,9 +433,9 @@ static int sabi_command(struct samsung_laptop *samsung, u16 command,
 	complete = readb(samsung->sabi_iface + SABI_IFACE_COMPLETE);
 	iface_data = readb(samsung->sabi_iface + SABI_IFACE_DATA);
 
-	/* iface_data = 0xFF happens when a command is not known
+	/* iface_data = 0xFF happens when a command is yest kyeswn
 	 * so we only add a warning in debug mode since we will
-	 * probably issue some unknown command at startup to find
+	 * probably issue some unkyeswn command at startup to find
 	 * out which features are supported */
 	if (complete != 0xaa || (iface_data == 0xff && debug))
 		pr_warn("SABI command 0x%04x failed with"
@@ -612,7 +612,7 @@ static int swsmi_rfkill_set(void *priv, bool blocked)
 	if (ret)
 		return ret;
 
-	/* Don't set the state for non-present devices */
+	/* Don't set the state for yesn-present devices */
 	for (i = 0; i < 4; i++)
 		if (data.data[i] == 0x02)
 			data.data[1] = 0;
@@ -673,7 +673,7 @@ static ssize_t get_performance_level(struct device *dev,
 		if (sretval.data[0] == config->performance_levels[i].value)
 			return sprintf(buf, "%s\n", config->performance_levels[i].name);
 	}
-	return sprintf(buf, "%s\n", "unknown");
+	return sprintf(buf, "%s\n", "unkyeswn");
 }
 
 static ssize_t set_performance_level(struct device *dev,
@@ -1002,7 +1002,7 @@ static int __init samsung_rfkill_init_swsmi(struct samsung_laptop *samsung)
 		return ret;
 	}
 
-	/* 0x02 seems to mean that the device is no present/available */
+	/* 0x02 seems to mean that the device is yes present/available */
 
 	if (data.data[WL_STATUS_WLAN] != 0x02)
 		ret = samsung_new_rfkill(samsung, &samsung->wlan,
@@ -1394,7 +1394,7 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 	int ret = 0;
 	int i;
 
-	samsung->f0000_segment = ioremap_nocache(0xf0000, 0xffff);
+	samsung->f0000_segment = ioremap_yescache(0xf0000, 0xffff);
 	if (!samsung->f0000_segment) {
 		if (debug || force)
 			pr_err("Can't map the segment at 0xf0000\n");
@@ -1415,7 +1415,7 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 
 	if (loca == 0xffff) {
 		if (debug || force)
-			pr_err("This computer does not support SABI\n");
+			pr_err("This computer does yest support SABI\n");
 		ret = -ENODEV;
 		goto exit;
 	}
@@ -1434,7 +1434,7 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 	if (debug)
 		samsung_sabi_infos(samsung, loca, ifaceP);
 
-	samsung->sabi_iface = ioremap_nocache(ifaceP, 16);
+	samsung->sabi_iface = ioremap_yescache(ifaceP, 16);
 	if (!samsung->sabi_iface) {
 		pr_err("Can't remap %x\n", ifaceP);
 		ret = -EINVAL;
@@ -1446,7 +1446,7 @@ static int __init samsung_sabi_init(struct samsung_laptop *samsung)
 		int retval = sabi_set_commandb(samsung,
 					       commands->set_linux, 0x81);
 		if (retval) {
-			pr_warn("Linux mode was not set!\n");
+			pr_warn("Linux mode was yest set!\n");
 			ret = -ENODEV;
 			goto exit;
 		}
@@ -1474,7 +1474,7 @@ static void samsung_platform_exit(struct samsung_laptop *samsung)
 	}
 }
 
-static int samsung_pm_notification(struct notifier_block *nb,
+static int samsung_pm_yestification(struct yestifier_block *nb,
 				   unsigned long val, void *ptr)
 {
 	struct samsung_laptop *samsung;
@@ -1652,7 +1652,7 @@ static int __init samsung_init(void)
 	if (efi_enabled(EFI_BOOT))
 		return -ENODEV;
 
-	quirks = &samsung_unknown;
+	quirks = &samsung_unkyeswn;
 	if (!force && !dmi_check_system(samsung_dmi_table))
 		return -ENODEV;
 
@@ -1704,8 +1704,8 @@ static int __init samsung_init(void)
 
 	samsung_debugfs_init(samsung);
 
-	samsung->pm_nb.notifier_call = samsung_pm_notification;
-	register_pm_notifier(&samsung->pm_nb);
+	samsung->pm_nb.yestifier_call = samsung_pm_yestification;
+	register_pm_yestifier(&samsung->pm_nb);
 
 	samsung_platform_device = samsung->platform_device;
 	return ret;
@@ -1732,7 +1732,7 @@ static void __exit samsung_exit(void)
 	struct samsung_laptop *samsung;
 
 	samsung = platform_get_drvdata(samsung_platform_device);
-	unregister_pm_notifier(&samsung->pm_nb);
+	unregister_pm_yestifier(&samsung->pm_nb);
 
 	samsung_debugfs_exit(samsung);
 	samsung_lid_handling_exit(samsung);

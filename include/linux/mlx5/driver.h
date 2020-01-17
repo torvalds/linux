@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -46,7 +46,7 @@
 #include <linux/mempool.h>
 #include <linux/interrupt.h>
 #include <linux/idr.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/refcount.h>
 
 #include <linux/mlx5/device.h>
@@ -401,7 +401,7 @@ struct mlx5_uars_page {
 	u32			index;
 	struct list_head	list;
 	unsigned int		bfregs;
-	unsigned long	       *reg_bitmap; /* for non fast path bf regs */
+	unsigned long	       *reg_bitmap; /* for yesn fast path bf regs */
 	unsigned long	       *fp_bitmap;
 	unsigned int		reg_avail;
 	unsigned int		fp_avail;
@@ -449,7 +449,7 @@ struct mlx5_core_health {
 };
 
 struct mlx5_qp_table {
-	struct notifier_block   nb;
+	struct yestifier_block   nb;
 
 	/* protect radix tree
 	 */
@@ -460,7 +460,7 @@ struct mlx5_qp_table {
 struct mlx5_vf_context {
 	int	enabled;
 	u64	port_guid;
-	u64	node_guid;
+	u64	yesde_guid;
 	enum port_state_policy	policy;
 };
 
@@ -557,9 +557,9 @@ struct mlx5_priv {
 	/* end: qp staff */
 
 	/* start: alloc staff */
-	/* protect buffer alocation according to numa node */
+	/* protect buffer alocation according to numa yesde */
 	struct mutex            alloc_mutex;
-	int                     numa_node;
+	int                     numa_yesde;
 
 	struct mutex            pgdir_mutex;
 	struct list_head        pgdir_list;
@@ -652,7 +652,7 @@ struct mlx5_clock {
 	struct cyclecounter        cycles;
 	struct timecounter         tc;
 	struct hwtstamp_config     hwtstamp_config;
-	u32                        nominal_c_mult;
+	u32                        yesminal_c_mult;
 	unsigned long              overflow_period;
 	struct delayed_work        overflow_work;
 	struct ptp_clock          *ptp;
@@ -788,7 +788,7 @@ struct mlx5_hca_vport_context {
 	u8			port_physical_state;
 	u64			sys_image_guid;
 	u64			port_guid;
-	u64			node_guid;
+	u64			yesde_guid;
 	u32			cap_mask1;
 	u32			cap_mask1_perm;
 	u16			cap_mask2;
@@ -928,13 +928,13 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev);
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health);
 void mlx5_drain_health_wq(struct mlx5_core_dev *dev);
 void mlx5_trigger_health_work(struct mlx5_core_dev *dev);
-int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
-			struct mlx5_frag_buf *buf, int node);
+int mlx5_buf_alloc_yesde(struct mlx5_core_dev *dev, int size,
+			struct mlx5_frag_buf *buf, int yesde);
 int mlx5_buf_alloc(struct mlx5_core_dev *dev,
 		   int size, struct mlx5_frag_buf *buf);
 void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf);
-int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
-			     struct mlx5_frag_buf *buf, int node);
+int mlx5_frag_buf_alloc_yesde(struct mlx5_core_dev *dev, int size,
+			     struct mlx5_frag_buf *buf, int yesde);
 void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf);
 struct mlx5_cmd_mailbox *mlx5_alloc_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 						      gfp_t flags, int npages);
@@ -980,8 +980,8 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 u16 reg_num, int arg, int write);
 
 int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db);
-int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db,
-		       int node);
+int mlx5_db_alloc_yesde(struct mlx5_core_dev *dev, struct mlx5_db *db,
+		       int yesde);
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db);
 
 const char *mlx5_command_str(int command);
@@ -1064,10 +1064,10 @@ struct mlx5_interface {
 
 int mlx5_register_interface(struct mlx5_interface *intf);
 void mlx5_unregister_interface(struct mlx5_interface *intf);
-int mlx5_notifier_register(struct mlx5_core_dev *dev, struct notifier_block *nb);
-int mlx5_notifier_unregister(struct mlx5_core_dev *dev, struct notifier_block *nb);
-int mlx5_eq_notifier_register(struct mlx5_core_dev *dev, struct mlx5_nb *nb);
-int mlx5_eq_notifier_unregister(struct mlx5_core_dev *dev, struct mlx5_nb *nb);
+int mlx5_yestifier_register(struct mlx5_core_dev *dev, struct yestifier_block *nb);
+int mlx5_yestifier_unregister(struct mlx5_core_dev *dev, struct yestifier_block *nb);
+int mlx5_eq_yestifier_register(struct mlx5_core_dev *dev, struct mlx5_nb *nb);
+int mlx5_eq_yestifier_unregister(struct mlx5_core_dev *dev, struct mlx5_nb *nb);
 
 int mlx5_core_query_vendor_id(struct mlx5_core_dev *mdev, u32 *vendor_id);
 

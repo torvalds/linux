@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/string.h>
 #include <linux/rhashtable.h>
@@ -52,7 +52,7 @@ struct mlxsw_sp_acl_ruleset_ht_key {
 };
 
 struct mlxsw_sp_acl_ruleset {
-	struct rhash_head ht_node; /* Member of acl HT */
+	struct rhash_head ht_yesde; /* Member of acl HT */
 	struct mlxsw_sp_acl_ruleset_ht_key ht_key;
 	struct rhashtable rule_ht;
 	unsigned int ref_count;
@@ -61,7 +61,7 @@ struct mlxsw_sp_acl_ruleset {
 };
 
 struct mlxsw_sp_acl_rule {
-	struct rhash_head ht_node; /* Member of rule HT */
+	struct rhash_head ht_yesde; /* Member of rule HT */
 	struct list_head list;
 	unsigned long cookie; /* HT key */
 	struct mlxsw_sp_acl_ruleset *ruleset;
@@ -76,14 +76,14 @@ struct mlxsw_sp_acl_rule {
 static const struct rhashtable_params mlxsw_sp_acl_ruleset_ht_params = {
 	.key_len = sizeof(struct mlxsw_sp_acl_ruleset_ht_key),
 	.key_offset = offsetof(struct mlxsw_sp_acl_ruleset, ht_key),
-	.head_offset = offsetof(struct mlxsw_sp_acl_ruleset, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_acl_ruleset, ht_yesde),
 	.automatic_shrinking = true,
 };
 
 static const struct rhashtable_params mlxsw_sp_acl_rule_ht_params = {
 	.key_len = sizeof(unsigned long),
 	.key_offset = offsetof(struct mlxsw_sp_acl_rule, cookie),
-	.head_offset = offsetof(struct mlxsw_sp_acl_rule, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_acl_rule, ht_yesde),
 	.automatic_shrinking = true,
 };
 
@@ -249,7 +249,7 @@ int mlxsw_sp_acl_block_bind(struct mlxsw_sp *mlxsw_sp,
 		return -EEXIST;
 
 	if (!ingress && block->egress_blocker_rule_count) {
-		NL_SET_ERR_MSG_MOD(extack, "Block cannot be bound to egress because it contains unsupported rules");
+		NL_SET_ERR_MSG_MOD(extack, "Block canyest be bound to egress because it contains unsupported rules");
 		return -EOPNOTSUPP;
 	}
 
@@ -322,7 +322,7 @@ mlxsw_sp_acl_ruleset_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_ops_ruleset_add;
 
-	err = rhashtable_insert_fast(&acl->ruleset_ht, &ruleset->ht_node,
+	err = rhashtable_insert_fast(&acl->ruleset_ht, &ruleset->ht_yesde,
 				     mlxsw_sp_acl_ruleset_ht_params);
 	if (err)
 		goto err_ht_insert;
@@ -344,7 +344,7 @@ static void mlxsw_sp_acl_ruleset_destroy(struct mlxsw_sp *mlxsw_sp,
 	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
 	struct mlxsw_sp_acl *acl = mlxsw_sp->acl;
 
-	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_node,
+	rhashtable_remove_fast(&acl->ruleset_ht, &ruleset->ht_yesde,
 			       mlxsw_sp_acl_ruleset_ht_params);
 	ops->ruleset_del(mlxsw_sp, ruleset->priv);
 	rhashtable_destroy(&ruleset->rule_ht);
@@ -685,7 +685,7 @@ int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	err = rhashtable_insert_fast(&ruleset->rule_ht, &rule->ht_node,
+	err = rhashtable_insert_fast(&ruleset->rule_ht, &rule->ht_yesde,
 				     mlxsw_sp_acl_rule_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -707,7 +707,7 @@ int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_ruleset_block_bind:
-	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_node,
+	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_yesde,
 			       mlxsw_sp_acl_rule_ht_params);
 err_rhashtable_insert:
 	ops->rule_del(mlxsw_sp, rule->priv);
@@ -728,7 +728,7 @@ void mlxsw_sp_acl_rule_del(struct mlxsw_sp *mlxsw_sp,
 	    mlxsw_sp_acl_ruleset_is_singular(ruleset))
 		mlxsw_sp_acl_ruleset_block_unbind(mlxsw_sp, ruleset,
 						  ruleset->ht_key.block);
-	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_node,
+	rhashtable_remove_fast(&ruleset->rule_ht, &rule->ht_yesde,
 			       mlxsw_sp_acl_rule_ht_params);
 	ops->rule_del(mlxsw_sp, rule->priv);
 }
@@ -815,7 +815,7 @@ static void mlxsw_sp_acl_rule_activity_update_work(struct work_struct *work)
 
 	err = mlxsw_sp_acl_rules_activity_update(acl);
 	if (err)
-		dev_err(acl->mlxsw_sp->bus_info->dev, "Could not update acl activity");
+		dev_err(acl->mlxsw_sp->bus_info->dev, "Could yest update acl activity");
 
 	mlxsw_sp_acl_rule_activity_work_schedule(acl);
 }

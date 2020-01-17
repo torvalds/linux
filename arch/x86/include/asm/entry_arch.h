@@ -7,7 +7,7 @@
 
 /*
  * The following vectors are part of the Linux architecture, there
- * is no hardware IRQ pin equivalent for them, they are triggered
+ * is yes hardware IRQ pin equivalent for them, they are triggered
  * through the ICC by us (IPIs)
  */
 #ifdef CONFIG_SMP

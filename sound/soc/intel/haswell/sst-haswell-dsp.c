@@ -156,7 +156,7 @@ static int hsw_parse_module(struct sst_dsp *dsp, struct sst_fw *fw,
 
 		ret = sst_module_alloc_blocks(mod);
 		if (ret < 0) {
-			dev_err(dsp->dev, "error: could not allocate blocks for module %d\n",
+			dev_err(dsp->dev, "error: could yest allocate blocks for module %d\n",
 				count);
 			sst_module_free(mod);
 			return ret;

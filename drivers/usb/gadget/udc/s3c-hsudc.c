@@ -533,10 +533,10 @@ static int s3c_hsudc_set_halt(struct usb_ep *_ep, int value)
 	return 0;
 }
 
-/** s3c_hsudc_set_wedge - Sets the halt feature with the clear requests ignored
+/** s3c_hsudc_set_wedge - Sets the halt feature with the clear requests igyesred
  * @_ep: Endpoint on which wedge has to be set.
  *
- * Sets the halt feature with the clear requests ignored.
+ * Sets the halt feature with the clear requests igyesred.
  */
 static int s3c_hsudc_set_wedge(struct usb_ep *_ep)
 {
@@ -818,7 +818,7 @@ static int s3c_hsudc_ep_disable(struct usb_ep *_ep)
 
 /**
  * s3c_hsudc_alloc_request - Allocate a new request.
- * @_ep: Endpoint for which request is allocated (not used).
+ * @_ep: Endpoint for which request is allocated (yest used).
  * @gfp_flags: Flags used for the allocation.
  *
  * Allocates a single transfer request structure when called from gadget driver.
@@ -838,7 +838,7 @@ static struct usb_request *s3c_hsudc_alloc_request(struct usb_ep *_ep,
 
 /**
  * s3c_hsudc_free_request - Deallocate a request.
- * @ep: Endpoint for which request is deallocated (not used).
+ * @ep: Endpoint for which request is deallocated (yest used).
  * @_req: Request to be deallocated.
  *
  * Allocates a single transfer request structure when called from gadget driver.
@@ -1230,14 +1230,14 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget)
 	return 0;
 }
 
-static inline u32 s3c_hsudc_read_frameno(struct s3c_hsudc *hsudc)
+static inline u32 s3c_hsudc_read_frameyes(struct s3c_hsudc *hsudc)
 {
 	return readl(hsudc->regs + S3C_FNR) & 0x3FF;
 }
 
 static int s3c_hsudc_gadget_getframe(struct usb_gadget *gadget)
 {
-	return s3c_hsudc_read_frameno(to_hsudc(gadget));
+	return s3c_hsudc_read_frameyes(to_hsudc(gadget));
 }
 
 static int s3c_hsudc_vbus_draw(struct usb_gadget *gadget, unsigned mA)

@@ -34,7 +34,7 @@ void __iomem  *davinci_sysmod_base;
 
 void davinci_map_sysmod(void)
 {
-	davinci_sysmod_base = ioremap_nocache(DAVINCI_SYSTEM_MODULE_BASE,
+	davinci_sysmod_base = ioremap_yescache(DAVINCI_SYSTEM_MODULE_BASE,
 					      0x800);
 	/*
 	 * Throw a bug since a lot of board initialization code depends
@@ -188,13 +188,13 @@ void __init davinci_setup_mmc(int module, struct davinci_mmc_config *config)
 	/* REVISIT: update PINMUX, ARM_IRQMUX, and EDMA_EVTMUX here too;
 	 * for example if MMCSD1 is used for SDIO, maybe DAT2 is unused.
 	 *
-	 * FIXME dm6441 (no MMC/SD), dm357 (one), and dm335 (two) are
-	 * not handled right here ...
+	 * FIXME dm6441 (yes MMC/SD), dm357 (one), and dm335 (two) are
+	 * yest handled right here ...
 	 */
 	switch (module) {
 	case 1:
 		if (cpu_is_davinci_dm355()) {
-			/* REVISIT we may not need all these pins if e.g. this
+			/* REVISIT we may yest need all these pins if e.g. this
 			 * is a hard-wired SDIO device...
 			 */
 			davinci_cfg_reg(DM355_SD1_CMD);

@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/cache.h>
 #include <linux/slab.h>
@@ -227,7 +227,7 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 		if (!res->flags)
 			goto out;
 
-		/* Skip this resource if not found in head list */
+		/* Skip this resource if yest found in head list */
 		list_for_each_entry(dev_res, head, list) {
 			if (dev_res->res == res) {
 				found_match = true;
@@ -264,11 +264,11 @@ out:
  * assign_requested_resources_sorted() - Satisfy resource requests
  *
  * @head:	Head of the list tracking requests for resources
- * @fail_head:	Head of the list tracking requests that could not be
+ * @fail_head:	Head of the list tracking requests that could yest be
  *		allocated
  *
  * Satisfy resource requests of each element in the list.  Add requests that
- * could not be satisfied to the failed_list.
+ * could yest be satisfied to the failed_list.
  */
 static void assign_requested_resources_sorted(struct list_head *head,
 				 struct list_head *fail_head)
@@ -311,8 +311,8 @@ static unsigned long pci_fail_res_type_mask(struct list_head *fail_head)
 
 	/*
 	 * One pref failed resource will set IORESOURCE_MEM, as we can
-	 * allocate pref in non-pref range.  Will release all assigned
-	 * non-pref sibling resources according to that bit.
+	 * allocate pref in yesn-pref range.  Will release all assigned
+	 * yesn-pref sibling resources according to that bit.
 	 */
 	return mask & (IORESOURCE_IO | IORESOURCE_MEM | IORESOURCE_PREFETCH);
 }
@@ -326,7 +326,7 @@ static bool pci_need_to_release(unsigned long mask, struct resource *res)
 	if (res->flags & IORESOURCE_PREFETCH) {
 		if (mask & IORESOURCE_PREFETCH)
 			return true;
-		/* Count pref if its parent is non-pref */
+		/* Count pref if its parent is yesn-pref */
 		else if ((mask & IORESOURCE_MEM) &&
 			 !(res->parent->flags & IORESOURCE_PREFETCH))
 			return true;
@@ -337,7 +337,7 @@ static bool pci_need_to_release(unsigned long mask, struct resource *res)
 	if (res->flags & IORESOURCE_MEM)
 		return !!(mask & IORESOURCE_MEM);
 
-	return false;	/* Should not get here */
+	return false;	/* Should yest get here */
 }
 
 static void __assign_resources_sorted(struct list_head *head,
@@ -345,12 +345,12 @@ static void __assign_resources_sorted(struct list_head *head,
 				      struct list_head *fail_head)
 {
 	/*
-	 * Should not assign requested resources at first.  They could be
-	 * adjacent, so later reassign can not reallocate them one by one in
+	 * Should yest assign requested resources at first.  They could be
+	 * adjacent, so later reassign can yest reallocate them one by one in
 	 * parent resource window.
 	 *
 	 * Try to assign requested + add_size at beginning.  If could do that,
-	 * could get out early.  If could not do that, we still try to assign
+	 * could get out early.  If could yest do that, we still try to assign
 	 * requested at first, then try to reassign add_size for some resources.
 	 *
 	 * Separate three resource type checking if we need to release
@@ -359,11 +359,11 @@ static void __assign_resources_sorted(struct list_head *head,
 	 *	1. If IO port assignment fails, will release assigned IO
 	 *	   port.
 	 *	2. If pref MMIO assignment fails, release assigned pref
-	 *	   MMIO.  If assigned pref MMIO's parent is non-pref MMIO
-	 *	   and non-pref MMIO assignment fails, will release that
+	 *	   MMIO.  If assigned pref MMIO's parent is yesn-pref MMIO
+	 *	   and yesn-pref MMIO assignment fails, will release that
 	 *	   assigned pref MMIO.
-	 *	3. If non-pref MMIO assignment fails or pref MMIO
-	 *	   assignment fails, will release assigned non-pref MMIO.
+	 *	3. If yesn-pref MMIO assignment fails or pref MMIO
+	 *	   assignment fails, will release assigned yesn-pref MMIO.
 	 */
 	LIST_HEAD(save_head);
 	LIST_HEAD(local_fail_head);
@@ -441,7 +441,7 @@ static void __assign_resources_sorted(struct list_head *head,
 
 	/* Check failed type */
 	fail_type = pci_fail_res_type_mask(&local_fail_head);
-	/* Remove not need to be released assigned res from head list etc */
+	/* Remove yest need to be released assigned res from head list etc */
 	list_for_each_entry_safe(dev_res, tmp_res, head, list)
 		if (dev_res->res->parent &&
 		    !pci_need_to_release(fail_type, dev_res->res)) {
@@ -515,7 +515,7 @@ void pci_setup_cardbus(struct pci_bus *bus)
 	if (res->flags & IORESOURCE_IO) {
 		/*
 		 * The IO resource is allocated a range twice as large as it
-		 * would normally need.  This allows us to set both IO regs.
+		 * would yesrmally need.  This allows us to set both IO regs.
 		 */
 		pci_info(bridge, "  bridge window %pR\n", res);
 		pci_write_config_dword(bridge, PCI_CB_IO_BASE_0,
@@ -559,7 +559,7 @@ EXPORT_SYMBOL(pci_setup_cardbus);
 /*
  * Initialize bridges with base/limit values we have collected.  PCI-to-PCI
  * Bridge Architecture Specification rev. 1.1 (1998) requires that if there
- * are no I/O ports or memory behind the bridge, the corresponding range
+ * are yes I/O ports or memory behind the bridge, the corresponding range
  * must be turned off by writing base value greater than limit to the
  * bridge's base/limit registers.
  *
@@ -633,7 +633,7 @@ static void pci_setup_bridge_mmio_pref(struct pci_dev *bridge)
 
 	/*
 	 * Clear out the upper 32 bits of PREF limit.  If
-	 * PCI_PREF_BASE_UPPER32 was non-zero, this temporarily disables
+	 * PCI_PREF_BASE_UPPER32 was yesn-zero, this temporarily disables
 	 * PREF range, which is ok.
 	 */
 	pci_write_config_dword(bridge, PCI_PREF_LIMIT_UPPER32, 0);
@@ -729,7 +729,7 @@ int pci_claim_bridge_resource(struct pci_dev *bridge, int i)
 
 /*
  * Check whether the bridge supports optional I/O and prefetchable memory
- * ranges.  If not, the respective base/limit registers must be read-only
+ * ranges.  If yest, the respective base/limit registers must be read-only
  * and read as 0.
  */
 static void pci_bridge_check_ranges(struct pci_bus *bus)
@@ -752,15 +752,15 @@ static void pci_bridge_check_ranges(struct pci_bus *bus)
 }
 
 /*
- * Helper function for sizing routines.  Assigned resources have non-NULL
+ * Helper function for sizing routines.  Assigned resources have yesn-NULL
  * parent resource.
  *
- * Return first unassigned resource of the correct type.  If there is none,
- * return first assigned resource of the correct type.  If none of the
+ * Return first unassigned resource of the correct type.  If there is yesne,
+ * return first assigned resource of the correct type.  If yesne of the
  * above, return NULL.
  *
  * Returning an assigned resource of the correct type allows the caller to
- * distinguish between already assigned and no resource of the correct type.
+ * distinguish between already assigned and yes resource of the correct type.
  */
 static struct resource *find_bus_resource_of_type(struct pci_bus *bus,
 						  unsigned long type_mask,
@@ -865,7 +865,7 @@ static resource_size_t window_alignment(struct pci_bus *bus, unsigned long type)
  * @realloc_head:	Track the additional I/O window on this list
  *
  * Sizing the I/O windows of the PCI-PCI bridge is trivial, since these
- * windows have 1K or 4K granularity and the I/O ranges of non-bridge PCI
+ * windows have 1K or 4K granularity and the I/O ranges of yesn-bridge PCI
  * devices are limited to 256 bytes.  We must be careful with the ISA
  * aliasing though.
  */
@@ -883,7 +883,7 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	if (!b_res)
 		return;
 
-	/* If resource is already assigned, nothing more to do */
+	/* If resource is already assigned, yesthing more to do */
 	if (b_res->parent)
 		return;
 
@@ -976,7 +976,7 @@ static inline resource_size_t calculate_mem_align(resource_size_t *aligns,
  * Calculate the size of the bus and minimal alignment which guarantees
  * that all child resources fit in this size.
  *
- * Return -ENOSPC if there's no available bus resource of the desired
+ * Return -ENOSPC if there's yes available bus resource of the desired
  * type.  Otherwise, set the bus resource start/end to indicate the
  * required size, add things to realloc_head (if supplied), and return 0.
  */
@@ -999,7 +999,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	if (!b_res)
 		return -ENOSPC;
 
-	/* If resource is already assigned, nothing more to do */
+	/* If resource is already assigned, yesthing more to do */
 	if (b_res->parent)
 		return 0;
 
@@ -1137,7 +1137,7 @@ handle_b_res_1:
 	}
 
 handle_b_res_2:
-	/* MEM1 must not be pref MMIO */
+	/* MEM1 must yest be pref MMIO */
 	pci_read_config_word(bridge, PCI_CB_BRIDGE_CONTROL, &ctrl);
 	if (ctrl & PCI_CB_BRIDGE_CTL_PREFETCH_MEM1) {
 		ctrl &= ~PCI_CB_BRIDGE_CTL_PREFETCH_MEM1;
@@ -1253,9 +1253,9 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 				additional_mmio_pref_size, realloc_head);
 
 			/*
-			 * If successful, all non-prefetchable resources
+			 * If successful, all yesn-prefetchable resources
 			 * and any 32-bit prefetchable resources will go in
-			 * the non-prefetchable window.
+			 * the yesn-prefetchable window.
 			 */
 			if (ret == 0) {
 				mask = prefmask;
@@ -1265,7 +1265,7 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 		}
 
 		/*
-		 * If there is no 64-bit prefetchable window, compute the
+		 * If there is yes 64-bit prefetchable window, compute the
 		 * size required to put all prefetchable resources in the
 		 * 32-bit prefetchable window (if there is one).
 		 */
@@ -1277,8 +1277,8 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 				additional_mmio_pref_size, realloc_head);
 
 			/*
-			 * If successful, only non-prefetchable resources
-			 * will go in the non-prefetchable window.
+			 * If successful, only yesn-prefetchable resources
+			 * will go in the yesn-prefetchable window.
 			 */
 			if (ret == 0)
 				mask = prefmask;
@@ -1290,16 +1290,16 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 
 		/*
 		 * Compute the size required to put everything else in the
-		 * non-prefetchable window. This includes:
+		 * yesn-prefetchable window. This includes:
 		 *
-		 *   - all non-prefetchable resources
+		 *   - all yesn-prefetchable resources
 		 *   - 32-bit prefetchable resources if there's a 64-bit
-		 *     prefetchable window or no prefetchable window at all
-		 *   - 64-bit prefetchable resources if there's no prefetchable
+		 *     prefetchable window or yes prefetchable window at all
+		 *   - 64-bit prefetchable resources if there's yes prefetchable
 		 *     window at all
 		 *
 		 * Note that the strategy in __pci_assign_resource() must match
-		 * that used here. Specifically, we cannot put a 32-bit
+		 * that used here. Specifically, we canyest put a 32-bit
 		 * prefetchable resource in a 64-bit prefetchable window.
 		 */
 		pbus_size_mem(bus, mask, IORESOURCE_MEM, type2, type3,
@@ -1385,7 +1385,7 @@ void __pci_bus_assign_resources(const struct pci_bus *bus,
 			break;
 
 		default:
-			pci_info(dev, "not setting up bridge for bus %04x:%02x\n",
+			pci_info(dev, "yest setting up bridge for bus %04x:%02x\n",
 				 pci_domain_nr(b), b->number);
 			break;
 		}
@@ -1454,7 +1454,7 @@ static void pci_bus_allocate_resources(struct pci_bus *b)
 		pci_claim_bridge_resources(b->self);
 	}
 
-	list_for_each_entry(child, &b->children, node)
+	list_for_each_entry(child, &b->children, yesde)
 		pci_bus_allocate_resources(child);
 }
 
@@ -1490,7 +1490,7 @@ static void __pci_bridge_assign_resources(const struct pci_dev *bridge,
 		break;
 
 	default:
-		pci_info(bridge, "not setting up bridge for bus %04x:%02x\n",
+		pci_info(bridge, "yest setting up bridge for bus %04x:%02x\n",
 			 pci_domain_nr(b), b->number);
 		break;
 	}
@@ -1513,13 +1513,13 @@ static void pci_bridge_release_resources(struct pci_bus *bus,
 
 	/*
 	 * 1. If IO port assignment fails, release bridge IO port.
-	 * 2. If non pref MMIO assignment fails, release bridge nonpref MMIO.
+	 * 2. If yesn pref MMIO assignment fails, release bridge yesnpref MMIO.
 	 * 3. If 64bit pref MMIO assignment fails, and bridge pref is 64bit,
 	 *    release bridge pref MMIO.
 	 * 4. If pref MMIO assignment fails, and bridge pref is 32bit,
 	 *    release bridge pref MMIO.
-	 * 5. If pref MMIO assignment fails, and bridge pref is not
-	 *    assigned, release bridge nonpref MMIO.
+	 * 5. If pref MMIO assignment fails, and bridge pref is yest
+	 *    assigned, release bridge yesnpref MMIO.
 	 */
 	if (type & IORESOURCE_IO)
 		idx = 0;
@@ -1635,7 +1635,7 @@ static int pci_bus_get_depth(struct pci_bus *bus)
 	int depth = 0;
 	struct pci_bus *child_bus;
 
-	list_for_each_entry(child_bus, &bus->children, node) {
+	list_for_each_entry(child_bus, &bus->children, yesde) {
 		int ret;
 
 		ret = pci_bus_get_depth(child_bus);
@@ -1726,9 +1726,9 @@ static enum enable_type pci_realloc_detect(struct pci_bus *bus,
 #endif
 
 /*
- * First try will not touch PCI bridge res.
+ * First try will yest touch PCI bridge res.
  * Second and later try will clear small leaf bridge res.
- * Will stop till to the max depth if can not find good one.
+ * Will stop till to the max depth if can yest find good one.
  */
 void pci_assign_unassigned_root_bus_resources(struct pci_bus *bus)
 {
@@ -1787,7 +1787,7 @@ again:
 	dev_info(&bus->dev, "No. %d try to assign unassigned res\n",
 		 tried_times + 1);
 
-	/* Third times and later will not check if it is leaf */
+	/* Third times and later will yest check if it is leaf */
 	if ((tried_times + 1) > 2)
 		rel_type = whole_subtree;
 
@@ -1823,7 +1823,7 @@ void __init pci_assign_unassigned_resources(void)
 {
 	struct pci_bus *root_bus;
 
-	list_for_each_entry(root_bus, &pci_root_buses, node) {
+	list_for_each_entry(root_bus, &pci_root_buses, yesde) {
 		pci_assign_unassigned_root_bus_resources(root_bus);
 
 		/* Make sure the root bridge has a companion ACPI device */
@@ -1864,7 +1864,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 					    resource_size_t available_mmio_pref)
 {
 	resource_size_t remaining_io, remaining_mmio, remaining_mmio_pref;
-	unsigned int normal_bridges = 0, hotplug_bridges = 0;
+	unsigned int yesrmal_bridges = 0, hotplug_bridges = 0;
 	struct resource *io_res, *mmio_res, *mmio_pref_res;
 	struct pci_dev *dev, *bridge = bus->self;
 
@@ -1884,7 +1884,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 			     available_mmio_pref);
 
 	/*
-	 * Calculate how many hotplug bridges and normal bridges there
+	 * Calculate how many hotplug bridges and yesrmal bridges there
 	 * are on this bus.  We will distribute the additional available
 	 * resources between hotplug bridges.
 	 */
@@ -1892,7 +1892,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 		if (dev->is_hotplug_bridge)
 			hotplug_bridges++;
 		else
-			normal_bridges++;
+			yesrmal_bridges++;
 	}
 
 	/*
@@ -1900,7 +1900,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 	 * resources which it can then distribute to the possible hotplug
 	 * bridges below.
 	 */
-	if (hotplug_bridges + normal_bridges == 1) {
+	if (hotplug_bridges + yesrmal_bridges == 1) {
 		dev = list_first_entry(&bus->devices, struct pci_dev, bus_list);
 		if (dev->subordinate) {
 			pci_bus_distribute_available_resources(dev->subordinate,
@@ -1917,7 +1917,7 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 	 * Calculate the total amount of extra resource space we can
 	 * pass to bridges below this one.  This is basically the
 	 * extra space reduced by the minimal required space for the
-	 * non-hotplug bridges.
+	 * yesn-hotplug bridges.
 	 */
 	remaining_io = available_io;
 	remaining_mmio = available_mmio;
@@ -2044,7 +2044,7 @@ again:
 			 tried_times + 1);
 
 	/*
-	 * Try to release leaf bridge's resources that aren't big enough
+	 * Try to release leaf bridge's resources that aren't big eyesugh
 	 * to contain child device resources.
 	 */
 	list_for_each_entry(fail_res, &fail_head, list)
@@ -2097,7 +2097,7 @@ int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
 			if ((res->flags ^ type) & PCI_RES_TYPE_MASK)
 				continue;
 
-			/* Ignore BARs which are still in use */
+			/* Igyesre BARs which are still in use */
 			if (res->child)
 				continue;
 

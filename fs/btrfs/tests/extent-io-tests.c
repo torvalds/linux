@@ -10,13 +10,13 @@
 #include "btrfs-tests.h"
 #include "../ctree.h"
 #include "../extent_io.h"
-#include "../btrfs_inode.h"
+#include "../btrfs_iyesde.h"
 
 #define PROCESS_UNLOCK		(1 << 0)
 #define PROCESS_RELEASE		(1 << 1)
 #define PROCESS_TEST_LOCKED	(1 << 2)
 
-static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
+static yesinline int process_page_range(struct iyesde *iyesde, u64 start, u64 end,
 				       unsigned long flags)
 {
 	int ret;
@@ -29,7 +29,7 @@ static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
 	int loops = 0;
 
 	while (nr_pages > 0) {
-		ret = find_get_pages_contig(inode->i_mapping, index,
+		ret = find_get_pages_contig(iyesde->i_mapping, index,
 				     min_t(unsigned long, nr_pages,
 				     ARRAY_SIZE(pages)), pages);
 		for (i = 0; i < ret; i++) {
@@ -58,7 +58,7 @@ static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
 
 static int test_find_delalloc(u32 sectorsize)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct extent_io_tree *tmp;
 	struct page *page;
 	struct page *locked_page = NULL;
@@ -72,15 +72,15 @@ static int test_find_delalloc(u32 sectorsize)
 
 	test_msg("running find delalloc tests");
 
-	inode = btrfs_new_test_inode();
-	if (!inode) {
+	iyesde = btrfs_new_test_iyesde();
+	if (!iyesde) {
 		test_std_err(TEST_ALLOC_INODE);
 		return -ENOMEM;
 	}
-	tmp = &BTRFS_I(inode)->io_tree;
+	tmp = &BTRFS_I(iyesde)->io_tree;
 
 	/*
-	 * Passing NULL as we don't have fs_info but tracepoints are not used
+	 * Passing NULL as we don't have fs_info but tracepoints are yest used
 	 * at this point
 	 */
 	extent_io_tree_init(NULL, tmp, IO_TREE_SELFTEST, NULL);
@@ -91,7 +91,7 @@ static int test_find_delalloc(u32 sectorsize)
 	 * test.
 	 */
 	for (index = 0; index < (total_dirty >> PAGE_SHIFT); index++) {
-		page = find_or_create_page(inode->i_mapping, index, GFP_KERNEL);
+		page = find_or_create_page(iyesde->i_mapping, index, GFP_KERNEL);
 		if (!page) {
 			test_err("failed to allocate test page");
 			ret = -ENOMEM;
@@ -113,7 +113,7 @@ static int test_find_delalloc(u32 sectorsize)
 	set_extent_delalloc(tmp, 0, sectorsize - 1, 0, NULL);
 	start = 0;
 	end = 0;
-	found = find_lock_delalloc_range(inode, locked_page, &start,
+	found = find_lock_delalloc_range(iyesde, locked_page, &start,
 					 &end);
 	if (!found) {
 		test_err("should have found at least one delalloc");
@@ -135,7 +135,7 @@ static int test_find_delalloc(u32 sectorsize)
 	 *           |--- search ---|
 	 */
 	test_start = SZ_64M;
-	locked_page = find_lock_page(inode->i_mapping,
+	locked_page = find_lock_page(iyesde->i_mapping,
 				     test_start >> PAGE_SHIFT);
 	if (!locked_page) {
 		test_err("couldn't find the locked page");
@@ -144,7 +144,7 @@ static int test_find_delalloc(u32 sectorsize)
 	set_extent_delalloc(tmp, sectorsize, max_bytes - 1, 0, NULL);
 	start = test_start;
 	end = 0;
-	found = find_lock_delalloc_range(inode, locked_page, &start,
+	found = find_lock_delalloc_range(iyesde, locked_page, &start,
 					 &end);
 	if (!found) {
 		test_err("couldn't find delalloc in our range");
@@ -155,7 +155,7 @@ static int test_find_delalloc(u32 sectorsize)
 				test_start, max_bytes - 1, start, end);
 		goto out_bits;
 	}
-	if (process_page_range(inode, start, end,
+	if (process_page_range(iyesde, start, end,
 			       PROCESS_TEST_LOCKED | PROCESS_UNLOCK)) {
 		test_err("there were unlocked pages in the range");
 		goto out_bits;
@@ -170,7 +170,7 @@ static int test_find_delalloc(u32 sectorsize)
 	 *                    |--- search ---|
 	 */
 	test_start = max_bytes + sectorsize;
-	locked_page = find_lock_page(inode->i_mapping, test_start >>
+	locked_page = find_lock_page(iyesde->i_mapping, test_start >>
 				     PAGE_SHIFT);
 	if (!locked_page) {
 		test_err("couldn't find the locked page");
@@ -178,14 +178,14 @@ static int test_find_delalloc(u32 sectorsize)
 	}
 	start = test_start;
 	end = 0;
-	found = find_lock_delalloc_range(inode, locked_page, &start,
+	found = find_lock_delalloc_range(iyesde, locked_page, &start,
 					 &end);
 	if (found) {
 		test_err("found range when we shouldn't have");
 		goto out_bits;
 	}
 	if (end != (u64)-1) {
-		test_err("did not return the proper end offset");
+		test_err("did yest return the proper end offset");
 		goto out_bits;
 	}
 
@@ -199,7 +199,7 @@ static int test_find_delalloc(u32 sectorsize)
 	set_extent_delalloc(tmp, max_bytes, total_dirty - 1, 0, NULL);
 	start = test_start;
 	end = 0;
-	found = find_lock_delalloc_range(inode, locked_page, &start,
+	found = find_lock_delalloc_range(iyesde, locked_page, &start,
 					 &end);
 	if (!found) {
 		test_err("didn't find our range");
@@ -210,18 +210,18 @@ static int test_find_delalloc(u32 sectorsize)
 			 test_start, total_dirty - 1, start, end);
 		goto out_bits;
 	}
-	if (process_page_range(inode, start, end,
+	if (process_page_range(iyesde, start, end,
 			       PROCESS_TEST_LOCKED | PROCESS_UNLOCK)) {
-		test_err("pages in range were not all locked");
+		test_err("pages in range were yest all locked");
 		goto out_bits;
 	}
 	unlock_extent(tmp, start, end);
 
 	/*
-	 * Now to test where we run into a page that is no longer dirty in the
+	 * Now to test where we run into a page that is yes longer dirty in the
 	 * range we want to find.
 	 */
-	page = find_get_page(inode->i_mapping,
+	page = find_get_page(iyesde->i_mapping,
 			     (max_bytes + SZ_1M) >> PAGE_SHIFT);
 	if (!page) {
 		test_err("couldn't find our page");
@@ -240,7 +240,7 @@ static int test_find_delalloc(u32 sectorsize)
 	 * this changes at any point in the future we will need to fix this
 	 * tests expected behavior.
 	 */
-	found = find_lock_delalloc_range(inode, locked_page, &start,
+	found = find_lock_delalloc_range(iyesde, locked_page, &start,
 					 &end);
 	if (!found) {
 		test_err("didn't find our range");
@@ -251,9 +251,9 @@ static int test_find_delalloc(u32 sectorsize)
 			 test_start, test_start + PAGE_SIZE - 1, start, end);
 		goto out_bits;
 	}
-	if (process_page_range(inode, start, end, PROCESS_TEST_LOCKED |
+	if (process_page_range(iyesde, start, end, PROCESS_TEST_LOCKED |
 			       PROCESS_UNLOCK)) {
-		test_err("pages in range were not all locked");
+		test_err("pages in range were yest all locked");
 		goto out_bits;
 	}
 	ret = 0;
@@ -262,9 +262,9 @@ out_bits:
 out:
 	if (locked_page)
 		put_page(locked_page);
-	process_page_range(inode, 0, total_dirty - 1,
+	process_page_range(iyesde, 0, total_dirty - 1,
 			   PROCESS_UNLOCK | PROCESS_RELEASE);
-	iput(inode);
+	iput(iyesde);
 	return ret;
 }
 
@@ -279,14 +279,14 @@ static int check_eb_bitmap(unsigned long *bitmap, struct extent_buffer *eb,
 		bit = !!test_bit(i, bitmap);
 		bit1 = !!extent_buffer_test_bit(eb, 0, i);
 		if (bit1 != bit) {
-			test_err("bits do not match");
+			test_err("bits do yest match");
 			return -EINVAL;
 		}
 
 		bit1 = !!extent_buffer_test_bit(eb, i / BITS_PER_BYTE,
 						i % BITS_PER_BYTE);
 		if (bit1 != bit) {
-			test_err("offset bits do not match");
+			test_err("offset bits do yest match");
 			return -EINVAL;
 		}
 	}
@@ -303,7 +303,7 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 	memset(bitmap, 0, len);
 	memzero_extent_buffer(eb, 0, len);
 	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
-		test_err("bitmap was not zeroed");
+		test_err("bitmap was yest zeroed");
 		return -EINVAL;
 	}
 
@@ -351,7 +351,7 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 	}
 
 	/*
-	 * Generate a wonky pseudo-random bit pattern for the sake of not using
+	 * Generate a wonky pseudo-random bit pattern for the sake of yest using
 	 * something repetitive that could miss some hypothetical off-by-n bug.
 	 */
 	x = 0;
@@ -376,7 +376,7 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 	return 0;
 }
 
-static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
+static int test_eb_bitmaps(u32 sectorsize, u32 yesdesize)
 {
 	struct btrfs_fs_info *fs_info;
 	unsigned long len;
@@ -419,7 +419,7 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 
 	/* Do it over again with an extent buffer which isn't page-aligned. */
 	free_extent_buffer(eb);
-	eb = __alloc_dummy_extent_buffer(fs_info, nodesize / 2, len);
+	eb = __alloc_dummy_extent_buffer(fs_info, yesdesize / 2, len);
 	if (!eb) {
 		test_std_err(TEST_ALLOC_ROOT);
 		ret = -ENOMEM;
@@ -516,7 +516,7 @@ static int test_find_first_clear_extent_bit(void)
 	}
 
 	/*
-	 * Search beyond any known range, shall return after last known range
+	 * Search beyond any kyeswn range, shall return after last kyeswn range
 	 * and end should be -1
 	 */
 	find_first_clear_extent_bit(&tree, -1, &start, &end, CHUNK_TRIMMED);
@@ -534,7 +534,7 @@ out:
 	return ret;
 }
 
-int btrfs_test_extent_io(u32 sectorsize, u32 nodesize)
+int btrfs_test_extent_io(u32 sectorsize, u32 yesdesize)
 {
 	int ret;
 
@@ -548,7 +548,7 @@ int btrfs_test_extent_io(u32 sectorsize, u32 nodesize)
 	if (ret)
 		goto out;
 
-	ret = test_eb_bitmaps(sectorsize, nodesize);
+	ret = test_eb_bitmaps(sectorsize, yesdesize);
 out:
 	return ret;
 }

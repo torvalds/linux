@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_IPV6_H
 #define _UAPI_IPV6_H
 
@@ -110,7 +110,7 @@ struct ipv6_destopt_hao {
  *	IPv6 fixed header
  *
  *	BEWARE, it is incorrect. The first 4 bits of flow_lbl
- *	are glued to priority now, forming "class".
+ *	are glued to priority yesw, forming "class".
  */
 
 struct ipv6hdr {

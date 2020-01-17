@@ -1,7 +1,7 @@
 /*
  * arch/h8300/kernel/sim-console.c
  *
- *  Copyright (C) 2015 Yoshinori Sato <ysato@users.sourceforge.jp>
+ *  Copyright (C) 2015 Yoshiyesri Sato <ysato@users.sourceforge.jp>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive

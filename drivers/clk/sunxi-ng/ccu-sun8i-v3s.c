@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2016 Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (c) 2016 Iceyeswy Zheng <iceyeswy@aosc.xyz>
  *
  * Based on ccu-sun8i-h3.c, which is:
  * Copyright (c) 2016 Maxime Ripard. All rights reserved.
@@ -40,7 +40,7 @@ static SUNXI_CCU_NKMP_WITH_GATE_LOCK(pll_cpu_clk, "pll-cpu",
  * the base (2x, 4x and 8x), and one variable divider (the one true
  * pll audio).
  *
- * We don't have any need for the variable divider for now, so we just
+ * We don't have any need for the variable divider for yesw, so we just
  * hardcode it to match with the clock names
  */
 #define SUN8I_V3S_PLL_AUDIO_REG	0x008
@@ -524,7 +524,7 @@ static struct ccu_common *sun8i_v3_ccu_clks[] = {
 	&mipi_csi_clk.common,
 };
 
-/* We hardcode the divider to 4 for now */
+/* We hardcode the divider to 4 for yesw */
 static CLK_FIXED_FACTOR_HWS(pll_audio_clk, "pll-audio",
 			    clk_parent_pll_audio,
 			    4, 1, CLK_SET_RATE_PARENT);
@@ -794,15 +794,15 @@ static const struct sunxi_ccu_desc sun8i_v3_ccu_desc = {
 	.num_resets	= ARRAY_SIZE(sun8i_v3_ccu_resets),
 };
 
-static void __init sun8i_v3_v3s_ccu_init(struct device_node *node,
+static void __init sun8i_v3_v3s_ccu_init(struct device_yesde *yesde,
 					 const struct sunxi_ccu_desc *ccu_desc)
 {
 	void __iomem *reg;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
+		pr_err("%pOF: Could yest map the clock registers\n", yesde);
 		return;
 	}
 
@@ -811,17 +811,17 @@ static void __init sun8i_v3_v3s_ccu_init(struct device_node *node,
 	val &= ~GENMASK(19, 16);
 	writel(val | (3 << 16), reg + SUN8I_V3S_PLL_AUDIO_REG);
 
-	sunxi_ccu_probe(node, reg, ccu_desc);
+	sunxi_ccu_probe(yesde, reg, ccu_desc);
 }
 
-static void __init sun8i_v3s_ccu_setup(struct device_node *node)
+static void __init sun8i_v3s_ccu_setup(struct device_yesde *yesde)
 {
-	sun8i_v3_v3s_ccu_init(node, &sun8i_v3s_ccu_desc);
+	sun8i_v3_v3s_ccu_init(yesde, &sun8i_v3s_ccu_desc);
 }
 
-static void __init sun8i_v3_ccu_setup(struct device_node *node)
+static void __init sun8i_v3_ccu_setup(struct device_yesde *yesde)
 {
-	sun8i_v3_v3s_ccu_init(node, &sun8i_v3_ccu_desc);
+	sun8i_v3_v3s_ccu_init(yesde, &sun8i_v3_ccu_desc);
 }
 
 CLK_OF_DECLARE(sun8i_v3s_ccu, "allwinner,sun8i-v3s-ccu",

@@ -17,7 +17,7 @@ void __hyp_text __kvm_timer_set_cntvoff(u32 cntvoff_low, u32 cntvoff_high)
 }
 
 /*
- * Should only be called on non-VHE systems.
+ * Should only be called on yesn-VHE systems.
  * VHE systems use EL2 timers and configure EL1 timers in kvm_timer_init_vhe().
  */
 void __hyp_text __timer_disable_traps(struct kvm_vcpu *vcpu)
@@ -31,7 +31,7 @@ void __hyp_text __timer_disable_traps(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Should only be called on non-VHE systems.
+ * Should only be called on yesn-VHE systems.
  * VHE systems use EL2 timers and configure EL1 timers in kvm_timer_init_vhe().
  */
 void __hyp_text __timer_enable_traps(struct kvm_vcpu *vcpu)

@@ -104,7 +104,7 @@ static inline int mac_esp_wait_for_empty_fifo(struct esp *esp)
 		udelay(2);
 	} while (--i);
 
-	printk(KERN_ERR PFX "FIFO is not empty (sreg %02x)\n",
+	printk(KERN_ERR PFX "FIFO is yest empty (sreg %02x)\n",
 	       esp_read8(ESP_STATUS));
 	esp->send_cmd_error = 1;
 	return 1;
@@ -166,7 +166,7 @@ static inline int mac_esp_wait_for_dreq(struct esp *esp)
 	     "30:    tstw %3                   \n" \
 	     "       jbeq 40f                  \n" \
 	     "31:    moveb " operands "        \n" \
-	     "32:    nop                       \n" \
+	     "32:    yesp                       \n" \
 	     "40:                              \n" \
 	     "                                 \n" \
 	     "       .section __ex_table,\"a\" \n" \
@@ -347,7 +347,7 @@ static int esp_mac_probe(struct platform_device *dev)
 		break;
 	case MAC_SCSI_QUADRA3:
 		/* These quadras have a real DMA controller (the PSC) but we
-		 * don't know how to drive it so we must use PIO instead.
+		 * don't kyesw how to drive it so we must use PIO instead.
 		 */
 		esp->cfreq     = 25000000;
 		esp->regs      = (void __iomem *)MAC_ESP_REGS_QUADRA3;

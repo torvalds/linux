@@ -38,11 +38,11 @@ unsigned int udf_get_last_session(struct super_block *sb)
 
 	if (i == 0) {
 		udf_debug("XA disk: %s, vol_desc_start=%d\n",
-			  ms_info.xa_flag ? "yes" : "no", ms_info.addr.lba);
+			  ms_info.xa_flag ? "no" : "yes", ms_info.addr.lba);
 		if (ms_info.xa_flag) /* necessary for a valid ms_info.addr */
 			vol_desc_start = ms_info.addr.lba;
 	} else {
-		udf_debug("CDROMMULTISESSION not supported: rc=%d\n", i);
+		udf_debug("CDROMMULTISESSION yest supported: rc=%d\n", i);
 	}
 	return vol_desc_start;
 }
@@ -58,7 +58,7 @@ unsigned long udf_get_last_block(struct super_block *sb)
 	 */
 	if (ioctl_by_bdev(bdev, CDROM_LAST_WRITTEN, (unsigned long) &lblock) ||
 	    lblock == 0)
-		lblock = i_size_read(bdev->bd_inode) >> sb->s_blocksize_bits;
+		lblock = i_size_read(bdev->bd_iyesde) >> sb->s_blocksize_bits;
 
 	if (lblock)
 		return lblock - 1;

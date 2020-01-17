@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -42,7 +42,7 @@
 #define PSP_SHARED_MEM_SIZE		0x4000
 
 struct psp_context;
-struct psp_xgmi_node_info;
+struct psp_xgmi_yesde_info;
 struct psp_xgmi_topology_info;
 
 enum psp_bootloader_cmd {
@@ -102,7 +102,7 @@ struct psp_funcs
 				  enum AMDGPU_UCODE_ID ucode_type);
 	bool (*smu_reload_quirk)(struct psp_context *psp);
 	int (*mode1_reset)(struct psp_context *psp);
-	int (*xgmi_get_node_id)(struct psp_context *psp, uint64_t *node_id);
+	int (*xgmi_get_yesde_id)(struct psp_context *psp, uint64_t *yesde_id);
 	int (*xgmi_get_hive_id)(struct psp_context *psp, uint64_t *hive_id);
 	int (*xgmi_get_topology_info)(struct psp_context *psp, int number_devices,
 				      struct psp_xgmi_topology_info *topology);
@@ -119,16 +119,16 @@ struct psp_funcs
 };
 
 #define AMDGPU_XGMI_MAX_CONNECTED_NODES		64
-struct psp_xgmi_node_info {
-	uint64_t				node_id;
+struct psp_xgmi_yesde_info {
+	uint64_t				yesde_id;
 	uint8_t					num_hops;
 	uint8_t					is_sharing_enabled;
 	enum ta_xgmi_assigned_sdma_engine	sdma_engine;
 };
 
 struct psp_xgmi_topology_info {
-	uint32_t			num_nodes;
-	struct psp_xgmi_node_info	nodes[AMDGPU_XGMI_MAX_CONNECTED_NODES];
+	uint32_t			num_yesdes;
+	struct psp_xgmi_yesde_info	yesdes[AMDGPU_XGMI_MAX_CONNECTED_NODES];
 };
 
 struct psp_xgmi_context {
@@ -261,7 +261,7 @@ struct psp_context
 
 	/* fence value associated with cmd buffer */
 	atomic_t			fence_value;
-	/* flag to mark whether gfx fw autoload is supported or not */
+	/* flag to mark whether gfx fw autoload is supported or yest */
 	bool				autoload_supported;
 
 	/* xgmi ta firmware and buffer */
@@ -318,8 +318,8 @@ struct amdgpu_psp_funcs {
 		((psp)->funcs->support_vmr_ring ? (psp)->funcs->support_vmr_ring((psp)) : false)
 #define psp_mode1_reset(psp) \
 		((psp)->funcs->mode1_reset ? (psp)->funcs->mode1_reset((psp)) : false)
-#define psp_xgmi_get_node_id(psp, node_id) \
-		((psp)->funcs->xgmi_get_node_id ? (psp)->funcs->xgmi_get_node_id((psp), (node_id)) : -EINVAL)
+#define psp_xgmi_get_yesde_id(psp, yesde_id) \
+		((psp)->funcs->xgmi_get_yesde_id ? (psp)->funcs->xgmi_get_yesde_id((psp), (yesde_id)) : -EINVAL)
 #define psp_xgmi_get_hive_id(psp, hive_id) \
 		((psp)->funcs->xgmi_get_hive_id ? (psp)->funcs->xgmi_get_hive_id((psp), (hive_id)) : -EINVAL)
 #define psp_xgmi_get_topology_info(psp, num_device, topology) \

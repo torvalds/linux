@@ -55,7 +55,7 @@ static void of_mmc_spi_exit(struct device *dev, void *mmc)
 struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct of_mmc_spi *oms;
 
 	if (dev->platform_data || !np)
@@ -87,7 +87,7 @@ EXPORT_SYMBOL(mmc_spi_get_pdata);
 void mmc_spi_put_pdata(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct of_mmc_spi *oms = to_of_mmc_spi(dev);
 
 	if (!dev->platform_data || !np)

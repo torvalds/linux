@@ -4,7 +4,7 @@
  */
 
 #include <linux/compat.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/prctl.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
@@ -57,7 +57,7 @@ static int ssbd_prctl_set(struct task_struct *task, unsigned long ctrl)
 	 */
 	switch (ctrl) {
 	case PR_SPEC_ENABLE:
-		/* If speculation is force disabled, enable is not allowed */
+		/* If speculation is force disabled, enable is yest allowed */
 		if (state == ARM64_SSBD_FORCE_ENABLE ||
 		    task_spec_ssb_force_disable(task))
 			return -EPERM;

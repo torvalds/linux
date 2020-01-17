@@ -18,7 +18,7 @@ Required properties:
   The ADV7511 internal registers are split into four pages exposed through
   different I2C addresses, creating four register maps. Each map has it own
   I2C address and acts as a standard slave device on the I2C bus. The main
-  address is mandatory, others are optional and revert to defaults if not
+  address is mandatory, others are optional and revert to defaults if yest
   specified.
 
 
@@ -37,7 +37,7 @@ ADV7511 datasheet that document all the supported combinations.
   data driven on both edges).
 
 The following input format properties are required except in "rgb 1x" and
-"yuv444 1x" modes, in which case they must not be specified.
+"yuv444 1x" modes, in which case they must yest be specified.
 
 - adi,input-style: The input components arrangement variant (1, 2 or 3), as
   listed in the input format tables in the datasheet.
@@ -67,7 +67,7 @@ Optional properties:
 - pd-gpios: Specifier for the GPIO connected to the power down signal
 
 - adi,clock-delay: Video data clock delay relative to the pixel clock, in ps
-  (-1200 ps .. 1600 ps). Defaults to no delay.
+  (-1200 ps .. 1600 ps). Defaults to yes delay.
 - adi,embedded-sync: The input uses synchronization signals embedded in the
   data stream (similar to BT.656). Defaults to separate H/V synchronization
   signals.
@@ -77,17 +77,17 @@ Optional properties:
 - clocks: from common clock binding: reference to the CEC clock.
 - clock-names: from common clock binding: must be "cec".
 - reg-names : Names of maps with programmable addresses.
-	It can contain any map needing a non-default address.
+	It can contain any map needing a yesn-default address.
 	Possible maps names are : "main", "edid", "cec", "packet"
 
-Required nodes:
+Required yesdes:
 
 The ADV7511 has two video ports. Their connections are modelled using the OF
 graph bindings specified in Documentation/devicetree/bindings/graph.txt.
 
 - Video port 0 for the RGB, YUV or DSI input. In the case of ADV7533, the
   remote endpoint phandle should be a reference to a valid mipi_dsi_host device
-  node.
+  yesde.
 - Video port 1 for the HDMI output
 - Audio port 2 for the HDMI audio input
 

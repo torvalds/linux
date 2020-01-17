@@ -23,8 +23,8 @@ static inline bool feats_ok(struct tdescr *td)
 
 /*
  * Obtaining a valid and full-blown ucontext_t from userspace is tricky:
- * libc getcontext does() not save all the regs and messes with some of
- * them (pstate value in particular is not reliable).
+ * libc getcontext does() yest save all the regs and messes with some of
+ * them (pstate value in particular is yest reliable).
  *
  * Here we use a service signal to grab the ucontext_t from inside a
  * dedicated signal handler, since there, it is populated by Kernel
@@ -43,7 +43,7 @@ static inline bool feats_ok(struct tdescr *td)
  * 2. detect if, somehow, a previously grabbed live_uc context has been
  * used actively with a sigreturn: in such a case the execution would have
  * magically resumed in the middle of this function itself (seen_already==1):
- * in such a case return 0, since in fact we have not just simply grabbed
+ * in such a case return 0, since in fact we have yest just simply grabbed
  * the context.
  *
  * This latter case is useful to detect when a fake_sigreturn test-case has
@@ -79,14 +79,14 @@ static __always_inline bool get_current_context(struct tdescr *td,
 	 * - BRK causes a debug exception which is handled by the Kernel
 	 *   and finally causes the SIGTRAP signal to be delivered to this
 	 *   test thread. Since such delivery happens on the ret_to_user()
-	 *   /do_notify_resume() debug exception return-path, we are sure
+	 *   /do_yestify_resume() debug exception return-path, we are sure
 	 *   that the registered SIGTRAP handler has been run to completion
 	 *   before the execution path is restored here: as a consequence
 	 *   we can be sure that the volatile sig_atomic_t live_uc_valid
 	 *   carries a meaningful result. Being in a single thread context
 	 *   we'll also be sure that any access to memory modified by the
 	 *   handler (namely ucontext_t) will be visible once returned.
-	 * - note that since we are using a breakpoint instruction here
+	 * - yeste that since we are using a breakpoint instruction here
 	 *   to cause a SIGTRAP, the ucontext_t grabbed from the signal
 	 *   handler would naturally contain a PC pointing exactly to this
 	 *   BRK line, which means that, on return from the signal handler,
@@ -103,7 +103,7 @@ static __always_inline bool get_current_context(struct tdescr *td,
 	/*
 	 * If we get here with seen_already==1 it implies the td->live_uc
 	 * context has been used to get back here....this probably means
-	 * a test has failed to cause a SEGV...anyway live_uc does not
+	 * a test has failed to cause a SEGV...anyway live_uc does yest
 	 * point to a just acquired copy of ucontext_t...so return 0
 	 */
 	if (seen_already) {

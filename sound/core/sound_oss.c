@@ -9,28 +9,28 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <sound/core.h>
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 #include <sound/info.h>
 #include <linux/sound.h>
 #include <linux/mutex.h>
 
 #define SNDRV_OSS_MINORS 256
 
-static struct snd_minor *snd_oss_minors[SNDRV_OSS_MINORS];
+static struct snd_miyesr *snd_oss_miyesrs[SNDRV_OSS_MINORS];
 static DEFINE_MUTEX(sound_oss_mutex);
 
 /* NOTE: This function increments the refcount of the associated card like
- * snd_lookup_minor_data(); the caller must call snd_card_unref() appropriately
+ * snd_lookup_miyesr_data(); the caller must call snd_card_unref() appropriately
  */
-void *snd_lookup_oss_minor_data(unsigned int minor, int type)
+void *snd_lookup_oss_miyesr_data(unsigned int miyesr, int type)
 {
-	struct snd_minor *mreg;
+	struct snd_miyesr *mreg;
 	void *private_data;
 
-	if (minor >= ARRAY_SIZE(snd_oss_minors))
+	if (miyesr >= ARRAY_SIZE(snd_oss_miyesrs))
 		return NULL;
 	mutex_lock(&sound_oss_mutex);
-	mreg = snd_oss_minors[minor];
+	mreg = snd_oss_miyesrs[miyesr];
 	if (mreg && mreg->type == type) {
 		private_data = mreg->private_data;
 		if (private_data && mreg->card_ptr)
@@ -40,64 +40,64 @@ void *snd_lookup_oss_minor_data(unsigned int minor, int type)
 	mutex_unlock(&sound_oss_mutex);
 	return private_data;
 }
-EXPORT_SYMBOL(snd_lookup_oss_minor_data);
+EXPORT_SYMBOL(snd_lookup_oss_miyesr_data);
 
-static int snd_oss_kernel_minor(int type, struct snd_card *card, int dev)
+static int snd_oss_kernel_miyesr(int type, struct snd_card *card, int dev)
 {
-	int minor;
+	int miyesr;
 
 	switch (type) {
 	case SNDRV_OSS_DEVICE_TYPE_MIXER:
 		if (snd_BUG_ON(!card || dev < 0 || dev > 1))
 			return -EINVAL;
-		minor = SNDRV_MINOR_OSS(card->number, (dev ? SNDRV_MINOR_OSS_MIXER1 : SNDRV_MINOR_OSS_MIXER));
+		miyesr = SNDRV_MINOR_OSS(card->number, (dev ? SNDRV_MINOR_OSS_MIXER1 : SNDRV_MINOR_OSS_MIXER));
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_SEQUENCER:
-		minor = SNDRV_MINOR_OSS_SEQUENCER;
+		miyesr = SNDRV_MINOR_OSS_SEQUENCER;
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_MUSIC:
-		minor = SNDRV_MINOR_OSS_MUSIC;
+		miyesr = SNDRV_MINOR_OSS_MUSIC;
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_PCM:
 		if (snd_BUG_ON(!card || dev < 0 || dev > 1))
 			return -EINVAL;
-		minor = SNDRV_MINOR_OSS(card->number, (dev ? SNDRV_MINOR_OSS_PCM1 : SNDRV_MINOR_OSS_PCM));
+		miyesr = SNDRV_MINOR_OSS(card->number, (dev ? SNDRV_MINOR_OSS_PCM1 : SNDRV_MINOR_OSS_PCM));
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_MIDI:
 		if (snd_BUG_ON(!card || dev < 0 || dev > 1))
 			return -EINVAL;
-		minor = SNDRV_MINOR_OSS(card->number, (dev ? SNDRV_MINOR_OSS_MIDI1 : SNDRV_MINOR_OSS_MIDI));
+		miyesr = SNDRV_MINOR_OSS(card->number, (dev ? SNDRV_MINOR_OSS_MIDI1 : SNDRV_MINOR_OSS_MIDI));
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_DMFM:
-		minor = SNDRV_MINOR_OSS(card->number, SNDRV_MINOR_OSS_DMFM);
+		miyesr = SNDRV_MINOR_OSS(card->number, SNDRV_MINOR_OSS_DMFM);
 		break;
 	case SNDRV_OSS_DEVICE_TYPE_SNDSTAT:
-		minor = SNDRV_MINOR_OSS_SNDSTAT;
+		miyesr = SNDRV_MINOR_OSS_SNDSTAT;
 		break;
 	default:
 		return -EINVAL;
 	}
-	if (minor < 0 || minor >= SNDRV_OSS_MINORS)
+	if (miyesr < 0 || miyesr >= SNDRV_OSS_MINORS)
 		return -EINVAL;
-	return minor;
+	return miyesr;
 }
 
 int snd_register_oss_device(int type, struct snd_card *card, int dev,
 			    const struct file_operations *f_ops, void *private_data)
 {
-	int minor = snd_oss_kernel_minor(type, card, dev);
-	int minor_unit;
-	struct snd_minor *preg;
-	int cidx = SNDRV_MINOR_OSS_CARD(minor);
+	int miyesr = snd_oss_kernel_miyesr(type, card, dev);
+	int miyesr_unit;
+	struct snd_miyesr *preg;
+	int cidx = SNDRV_MINOR_OSS_CARD(miyesr);
 	int track2 = -1;
 	int register1 = -1, register2 = -1;
 	struct device *carddev = snd_card_get_device_link(card);
 
 	if (card && card->number >= SNDRV_MINOR_OSS_DEVICES)
-		return 0; /* ignore silently */
-	if (minor < 0)
-		return minor;
-	preg = kmalloc(sizeof(struct snd_minor), GFP_KERNEL);
+		return 0; /* igyesre silently */
+	if (miyesr < 0)
+		return miyesr;
+	preg = kmalloc(sizeof(struct snd_miyesr), GFP_KERNEL);
 	if (preg == NULL)
 		return -ENOMEM;
 	preg->type = type;
@@ -107,9 +107,9 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 	preg->private_data = private_data;
 	preg->card_ptr = card;
 	mutex_lock(&sound_oss_mutex);
-	snd_oss_minors[minor] = preg;
-	minor_unit = SNDRV_MINOR_OSS_DEVICE(minor);
-	switch (minor_unit) {
+	snd_oss_miyesrs[miyesr] = preg;
+	miyesr_unit = SNDRV_MINOR_OSS_DEVICE(miyesr);
+	switch (miyesr_unit) {
 	case SNDRV_MINOR_OSS_PCM:
 		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_AUDIO);
 		break;
@@ -120,15 +120,15 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_DMMIDI1);
 		break;
 	}
-	register1 = register_sound_special_device(f_ops, minor, carddev);
-	if (register1 != minor)
+	register1 = register_sound_special_device(f_ops, miyesr, carddev);
+	if (register1 != miyesr)
 		goto __end;
 	if (track2 >= 0) {
 		register2 = register_sound_special_device(f_ops, track2,
 							  carddev);
 		if (register2 != track2)
 			goto __end;
-		snd_oss_minors[track2] = preg;
+		snd_oss_miyesrs[track2] = preg;
 	}
 	mutex_unlock(&sound_oss_mutex);
 	return 0;
@@ -138,7 +138,7 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
       		unregister_sound_special(register2);
       	if (register1 >= 0)
       		unregister_sound_special(register1);
-	snd_oss_minors[minor] = NULL;
+	snd_oss_miyesrs[miyesr] = NULL;
 	mutex_unlock(&sound_oss_mutex);
 	kfree(preg);
       	return -EBUSY;
@@ -147,23 +147,23 @@ EXPORT_SYMBOL(snd_register_oss_device);
 
 int snd_unregister_oss_device(int type, struct snd_card *card, int dev)
 {
-	int minor = snd_oss_kernel_minor(type, card, dev);
-	int cidx = SNDRV_MINOR_OSS_CARD(minor);
+	int miyesr = snd_oss_kernel_miyesr(type, card, dev);
+	int cidx = SNDRV_MINOR_OSS_CARD(miyesr);
 	int track2 = -1;
-	struct snd_minor *mptr;
+	struct snd_miyesr *mptr;
 
 	if (card && card->number >= SNDRV_MINOR_OSS_DEVICES)
 		return 0;
-	if (minor < 0)
-		return minor;
+	if (miyesr < 0)
+		return miyesr;
 	mutex_lock(&sound_oss_mutex);
-	mptr = snd_oss_minors[minor];
+	mptr = snd_oss_miyesrs[miyesr];
 	if (mptr == NULL) {
 		mutex_unlock(&sound_oss_mutex);
 		return -ENOENT;
 	}
-	unregister_sound_special(minor);
-	switch (SNDRV_MINOR_OSS_DEVICE(minor)) {
+	unregister_sound_special(miyesr);
+	switch (SNDRV_MINOR_OSS_DEVICE(miyesr)) {
 	case SNDRV_MINOR_OSS_PCM:
 		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_AUDIO);
 		break;
@@ -176,9 +176,9 @@ int snd_unregister_oss_device(int type, struct snd_card *card, int dev)
 	}
 	if (track2 >= 0) {
 		unregister_sound_special(track2);
-		snd_oss_minors[track2] = NULL;
+		snd_oss_miyesrs[track2] = NULL;
 	}
-	snd_oss_minors[minor] = NULL;
+	snd_oss_miyesrs[miyesr] = NULL;
 	mutex_unlock(&sound_oss_mutex);
 	kfree(mptr);
 	return 0;
@@ -209,36 +209,36 @@ static const char *snd_oss_device_type_name(int type)
 	}
 }
 
-static void snd_minor_info_oss_read(struct snd_info_entry *entry,
+static void snd_miyesr_info_oss_read(struct snd_info_entry *entry,
 				    struct snd_info_buffer *buffer)
 {
-	int minor;
-	struct snd_minor *mptr;
+	int miyesr;
+	struct snd_miyesr *mptr;
 
 	mutex_lock(&sound_oss_mutex);
-	for (minor = 0; minor < SNDRV_OSS_MINORS; ++minor) {
-		if (!(mptr = snd_oss_minors[minor]))
+	for (miyesr = 0; miyesr < SNDRV_OSS_MINORS; ++miyesr) {
+		if (!(mptr = snd_oss_miyesrs[miyesr]))
 			continue;
 		if (mptr->card >= 0)
-			snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", minor,
+			snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", miyesr,
 				    mptr->card, mptr->device,
 				    snd_oss_device_type_name(mptr->type));
 		else
-			snd_iprintf(buffer, "%3i:       : %s\n", minor,
+			snd_iprintf(buffer, "%3i:       : %s\n", miyesr,
 				    snd_oss_device_type_name(mptr->type));
 	}
 	mutex_unlock(&sound_oss_mutex);
 }
 
 
-int __init snd_minor_info_oss_init(void)
+int __init snd_miyesr_info_oss_init(void)
 {
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "devices", snd_oss_root);
 	if (!entry)
 		return -ENOMEM;
-	entry->c.text.read = snd_minor_info_oss_read;
+	entry->c.text.read = snd_miyesr_info_oss_read;
 	return snd_info_register(entry); /* freed in error path */
 }
 #endif /* CONFIG_SND_PROC_FS */

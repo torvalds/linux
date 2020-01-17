@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -26,8 +26,8 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/videodev2.h>
-#include <media/drv-intf/exynos-fimc.h>
-#include <media/v4l2-fwnode.h>
+#include <media/drv-intf/exyyess-fimc.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 
 #include "mipi-csis.h"
@@ -149,7 +149,7 @@ static const struct s5pcsis_event s5pcsis_events[] = {
 	{ S5PCSIS_INTSRC_ERR_OVER,	"FIFO Overflow Error" },
 	{ S5PCSIS_INTSRC_ERR_ECC,	"ECC Error" },
 	{ S5PCSIS_INTSRC_ERR_CRC,	"CRC Error" },
-	{ S5PCSIS_INTSRC_ERR_UNKNOWN,	"Unknown Error" },
+	{ S5PCSIS_INTSRC_ERR_UNKNOWN,	"Unkyeswn Error" },
 	/* Non-image data receive events */
 	{ S5PCSIS_INTSRC_EVEN_BEFORE,	"Non-image data before even frame" },
 	{ S5PCSIS_INTSRC_EVEN_AFTER,	"Non-image data after even frame" },
@@ -194,7 +194,7 @@ struct csis_drvdata {
  * @csis_fmt: current CSIS pixel format
  * @format: common media bus format for the source and sink pad
  * @slock: spinlock protecting structure members below
- * @pkt_buf: the frame embedded (non-image) data buffer
+ * @pkt_buf: the frame embedded (yesn-image) data buffer
  * @events: MIPI-CSIS event (error) counters
  */
 struct csis_state {
@@ -469,9 +469,9 @@ static void s5pcsis_clear_counters(struct csis_state *state)
 	spin_unlock_irqrestore(&state->slock, flags);
 }
 
-static void s5pcsis_log_counters(struct csis_state *state, bool non_errors)
+static void s5pcsis_log_counters(struct csis_state *state, bool yesn_errors)
 {
-	int i = non_errors ? S5PCSIS_NUM_EVENTS : S5PCSIS_NUM_EVENTS - 4;
+	int i = yesn_errors ? S5PCSIS_NUM_EVENTS : S5PCSIS_NUM_EVENTS - 4;
 	unsigned long flags;
 
 	spin_lock_irqsave(&state->slock, flags);
@@ -714,25 +714,25 @@ static irqreturn_t s5pcsis_irq_handler(int irq, void *dev_id)
 static int s5pcsis_parse_dt(struct platform_device *pdev,
 			    struct csis_state *state)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct v4l2_fwyesde_endpoint endpoint = { .bus_type = 0 };
 	int ret;
 
-	if (of_property_read_u32(node, "clock-frequency",
+	if (of_property_read_u32(yesde, "clock-frequency",
 				 &state->clk_frequency))
 		state->clk_frequency = DEFAULT_SCLK_CSIS_FREQ;
-	if (of_property_read_u32(node, "bus-width",
+	if (of_property_read_u32(yesde, "bus-width",
 				 &state->max_num_lanes))
 		return -EINVAL;
 
-	node = of_graph_get_next_endpoint(node, NULL);
-	if (!node) {
-		dev_err(&pdev->dev, "No port node at %pOF\n",
-				pdev->dev.of_node);
+	yesde = of_graph_get_next_endpoint(yesde, NULL);
+	if (!yesde) {
+		dev_err(&pdev->dev, "No port yesde at %pOF\n",
+				pdev->dev.of_yesde);
 		return -EINVAL;
 	}
-	/* Get port node and validate MIPI-CSI channel id. */
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(node), &endpoint);
+	/* Get port yesde and validate MIPI-CSI channel id. */
+	ret = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(yesde), &endpoint);
 	if (ret)
 		goto err;
 
@@ -742,16 +742,16 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 		goto err;
 	}
 
-	/* Get MIPI CSI-2 bus configuration from the endpoint node. */
-	of_property_read_u32(node, "samsung,csis-hs-settle",
+	/* Get MIPI CSI-2 bus configuration from the endpoint yesde. */
+	of_property_read_u32(yesde, "samsung,csis-hs-settle",
 					&state->hs_settle);
-	state->wclk_ext = of_property_read_bool(node,
+	state->wclk_ext = of_property_read_bool(yesde,
 					"samsung,csis-wclk");
 
 	state->num_lanes = endpoint.bus.mipi_csi2.num_data_lanes;
 
 err:
-	of_node_put(node);
+	of_yesde_put(yesde);
 	return ret;
 }
 
@@ -776,7 +776,7 @@ static int s5pcsis_probe(struct platform_device *pdev)
 	spin_lock_init(&state->slock);
 	state->pdev = pdev;
 
-	of_id = of_match_node(s5pcsis_of_match, dev->of_node);
+	of_id = of_match_yesde(s5pcsis_of_match, dev->of_yesde);
 	if (WARN_ON(of_id == NULL))
 		return -EINVAL;
 
@@ -996,24 +996,24 @@ static const struct dev_pm_ops s5pcsis_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(s5pcsis_suspend, s5pcsis_resume)
 };
 
-static const struct csis_drvdata exynos4_csis_drvdata = {
+static const struct csis_drvdata exyyess4_csis_drvdata = {
 	.interrupt_mask = S5PCSIS_INTMSK_EXYNOS4_EN_ALL,
 };
 
-static const struct csis_drvdata exynos5_csis_drvdata = {
+static const struct csis_drvdata exyyess5_csis_drvdata = {
 	.interrupt_mask = S5PCSIS_INTMSK_EXYNOS5_EN_ALL,
 };
 
 static const struct of_device_id s5pcsis_of_match[] = {
 	{
 		.compatible = "samsung,s5pv210-csis",
-		.data = &exynos4_csis_drvdata,
+		.data = &exyyess4_csis_drvdata,
 	}, {
-		.compatible = "samsung,exynos4210-csis",
-		.data = &exynos4_csis_drvdata,
+		.compatible = "samsung,exyyess4210-csis",
+		.data = &exyyess4_csis_drvdata,
 	}, {
-		.compatible = "samsung,exynos5250-csis",
-		.data = &exynos5_csis_drvdata,
+		.compatible = "samsung,exyyess5250-csis",
+		.data = &exyyess5_csis_drvdata,
 	},
 	{ /* sentinel */ },
 };

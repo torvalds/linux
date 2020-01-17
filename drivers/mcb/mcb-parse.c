@@ -76,13 +76,13 @@ static int chameleon_parse_gdd(struct mcb_bus *bus,
 
 	dev_mapbase = cb[mdev->bar].addr;
 	if (!dev_mapbase) {
-		pr_info("BAR not assigned for 16z%03d\n", mdev->id);
+		pr_info("BAR yest assigned for 16z%03d\n", mdev->id);
 		ret = 0;
 		goto err;
 	}
 
 	if (dev_mapbase & 0x01) {
-		pr_info("IO mapped Device (16z%03d) not yet supported\n",
+		pr_info("IO mapped Device (16z%03d) yest yet supported\n",
 			mdev->id);
 		ret = 0;
 		goto err;
@@ -139,7 +139,7 @@ static int chameleon_get_bar(char __iomem **base, phys_addr_t mapbase,
 	u32 dtype;
 
 	/*
-	 * For those devices which are not connected
+	 * For those devices which are yest connected
 	 * to the PCI Bus (e.g. LPC) there is a bar
 	 * descriptor located directly after the
 	 * chameleon header. This header is comparable
@@ -206,7 +206,7 @@ int chameleon_parse_cells(struct mcb_bus *bus, phys_addr_t mapbase,
 
 	bus->revision = header->revision;
 	bus->model = header->model;
-	bus->minor = header->minor;
+	bus->miyesr = header->miyesr;
 	snprintf(bus->name, CHAMELEON_FILENAME_LEN + 1, "%s",
 		 header->filename);
 

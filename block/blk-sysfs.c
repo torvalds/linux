@@ -229,7 +229,7 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 	if (ret < 0)
 		return ret;
 
-	max_hw_sectors_kb = min_not_zero(max_hw_sectors_kb, (unsigned long)
+	max_hw_sectors_kb = min_yest_zero(max_hw_sectors_kb, (unsigned long)
 					 q->limits.max_dev_sectors >> 1);
 
 	if (max_sectors_kb > max_hw_sectors_kb || max_sectors_kb < page_kb)
@@ -276,7 +276,7 @@ queue_store_##name(struct request_queue *q, const char *page, size_t count) \
 	return ret;							\
 }
 
-QUEUE_SYSFS_BIT_FNS(nonrot, NONROT, 1);
+QUEUE_SYSFS_BIT_FNS(yesnrot, NONROT, 1);
 QUEUE_SYSFS_BIT_FNS(random, ADD_RANDOM, 0);
 QUEUE_SYSFS_BIT_FNS(iostats, IO_STAT, 0);
 #undef QUEUE_SYSFS_BIT_FNS
@@ -289,7 +289,7 @@ static ssize_t queue_zoned_show(struct request_queue *q, char *page)
 	case BLK_ZONED_HM:
 		return sprintf(page, "host-managed\n");
 	default:
-		return sprintf(page, "none\n");
+		return sprintf(page, "yesne\n");
 	}
 }
 
@@ -298,13 +298,13 @@ static ssize_t queue_nr_zones_show(struct request_queue *q, char *page)
 	return queue_var_show(blk_queue_nr_zones(q), page);
 }
 
-static ssize_t queue_nomerges_show(struct request_queue *q, char *page)
+static ssize_t queue_yesmerges_show(struct request_queue *q, char *page)
 {
-	return queue_var_show((blk_queue_nomerges(q) << 1) |
-			       blk_queue_noxmerges(q), page);
+	return queue_var_show((blk_queue_yesmerges(q) << 1) |
+			       blk_queue_yesxmerges(q), page);
 }
 
-static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
+static ssize_t queue_yesmerges_store(struct request_queue *q, const char *page,
 				    size_t count)
 {
 	unsigned long nm;
@@ -505,7 +505,7 @@ static ssize_t queue_wc_store(struct request_queue *q, const char *page,
 	if (!strncmp(page, "write back", 10))
 		set = 1;
 	else if (!strncmp(page, "write through", 13) ||
-		 !strncmp(page, "none", 4))
+		 !strncmp(page, "yesne", 4))
 		set = 0;
 
 	if (set == -1)
@@ -639,10 +639,10 @@ static struct queue_sysfs_entry queue_write_zeroes_max_entry = {
 	.show = queue_write_zeroes_max_show,
 };
 
-static struct queue_sysfs_entry queue_nonrot_entry = {
+static struct queue_sysfs_entry queue_yesnrot_entry = {
 	.attr = {.name = "rotational", .mode = 0644 },
-	.show = queue_show_nonrot,
-	.store = queue_store_nonrot,
+	.show = queue_show_yesnrot,
+	.store = queue_store_yesnrot,
 };
 
 static struct queue_sysfs_entry queue_zoned_entry = {
@@ -655,10 +655,10 @@ static struct queue_sysfs_entry queue_nr_zones_entry = {
 	.show = queue_nr_zones_show,
 };
 
-static struct queue_sysfs_entry queue_nomerges_entry = {
-	.attr = {.name = "nomerges", .mode = 0644 },
-	.show = queue_nomerges_show,
-	.store = queue_nomerges_store,
+static struct queue_sysfs_entry queue_yesmerges_entry = {
+	.attr = {.name = "yesmerges", .mode = 0644 },
+	.show = queue_yesmerges_show,
+	.store = queue_yesmerges_store,
 };
 
 static struct queue_sysfs_entry queue_rq_affinity_entry = {
@@ -749,10 +749,10 @@ static struct attribute *queue_attrs[] = {
 	&queue_discard_zeroes_data_entry.attr,
 	&queue_write_same_max_entry.attr,
 	&queue_write_zeroes_max_entry.attr,
-	&queue_nonrot_entry.attr,
+	&queue_yesnrot_entry.attr,
 	&queue_zoned_entry.attr,
 	&queue_nr_zones_entry.attr,
-	&queue_nomerges_entry.attr,
+	&queue_yesmerges_entry.attr,
 	&queue_rq_affinity_entry.attr,
 	&queue_iostats_entry.attr,
 	&queue_random_entry.attr,
@@ -942,13 +942,13 @@ int blk_register_queue(struct gendisk *disk)
 		  kobject_name(&dev->kobj));
 
 	/*
-	 * SCSI probing may synchronously create and destroy a lot of
-	 * request_queues for non-existent devices.  Shutting down a fully
+	 * SCSI probing may synchroyesusly create and destroy a lot of
+	 * request_queues for yesn-existent devices.  Shutting down a fully
 	 * functional queue takes measureable wallclock time as RCU grace
 	 * periods are involved.  To avoid excessive latency in these
 	 * cases, a request_queue starts out in a degraded mode which is
 	 * faster to shut down and is made fully functional here as
-	 * request_queues for non-existent devices never get registered.
+	 * request_queues for yesn-existent devices never get registered.
 	 */
 	if (!blk_queue_init_done(q)) {
 		blk_queue_flag_set(QUEUE_FLAG_INIT_DONE, q);

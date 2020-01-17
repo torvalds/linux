@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -674,7 +674,7 @@ mlx5e_ethtool_flow_replace(struct mlx5e_priv *priv,
 
 	num_tuples = validate_flow(priv, fs);
 	if (num_tuples <= 0) {
-		netdev_warn(priv->netdev, "%s: flow is not valid %d\n",
+		netdev_warn(priv->netdev, "%s: flow is yest valid %d\n",
 			    __func__, num_tuples);
 		return num_tuples;
 	}
@@ -822,7 +822,7 @@ static int mlx5e_set_rss_hash_opt(struct mlx5e_priv *priv,
 	if (tt == MLX5E_NUM_INDIR_TIRS)
 		return -EINVAL;
 
-	/*  RSS does not support anything other than hashing to queues
+	/*  RSS does yest support anything other than hashing to queues
 	 *  on src IP, dest IP, TCP/UDP src port and TCP/UDP dest
 	 *  port.
 	 */

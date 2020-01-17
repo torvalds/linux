@@ -96,7 +96,7 @@ int cio_set_options(struct subchannel *sch, int flags)
 }
 
 static int
-cio_start_handle_notoper(struct subchannel *sch, __u8 lpm)
+cio_start_handle_yestoper(struct subchannel *sch, __u8 lpm)
 {
 	char dbf_text[15];
 
@@ -105,14 +105,14 @@ cio_start_handle_notoper(struct subchannel *sch, __u8 lpm)
 	else
 		sch->lpm = 0;
 
-	CIO_MSG_EVENT(2, "cio_start: 'not oper' status for "
+	CIO_MSG_EVENT(2, "cio_start: 'yest oper' status for "
 		      "subchannel 0.%x.%04x!\n", sch->schid.ssid,
-		      sch->schid.sch_no);
+		      sch->schid.sch_yes);
 
 	if (cio_update_schib(sch))
 		return -ENODEV;
 
-	sprintf(dbf_text, "no%s", dev_name(&sch->dev));
+	sprintf(dbf_text, "yes%s", dev_name(&sch->dev));
 	CIO_TRACE_EVENT(0, dbf_text);
 	CIO_HEX_EVENT(0, &sch->schib, sizeof (struct schib));
 
@@ -164,8 +164,8 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 	case 1:		/* status pending */
 	case 2:		/* busy */
 		return -EBUSY;
-	case 3:		/* device/path not operational */
-		return cio_start_handle_notoper(sch, lpm);
+	case 3:		/* device/path yest operational */
+		return cio_start_handle_yestoper(sch, lpm);
 	default:
 		return ccode;
 	}
@@ -205,7 +205,7 @@ cio_resume (struct subchannel *sch)
 	default:
 		/*
 		 * useless to wait for request completion
-		 *  as device is no longer operational !
+		 *  as device is yes longer operational !
 		 */
 		return -ENODEV;
 	}
@@ -240,7 +240,7 @@ cio_halt(struct subchannel *sch)
 	case 1:		/* status pending */
 	case 2:		/* busy */
 		return -EBUSY;
-	default:		/* device not operational */
+	default:		/* device yest operational */
 		return -ENODEV;
 	}
 }
@@ -271,7 +271,7 @@ cio_clear(struct subchannel *sch)
 	case 0:
 		sch->schib.scsw.cmd.actl |= SCSW_ACTL_CLEAR_PEND;
 		return 0;
-	default:		/* device not operational */
+	default:		/* device yest operational */
 		return -ENODEV;
 	}
 }
@@ -281,8 +281,8 @@ EXPORT_SYMBOL_GPL(cio_clear);
  * Function: cio_cancel
  * Issues a "Cancel Subchannel" on the specified subchannel
  * Note: We don't need any fancy intparms and flags here
- *	 since xsch is executed synchronously.
- * Only for common I/O internal use as for now.
+ *	 since xsch is executed synchroyesusly.
+ * Only for common I/O internal use as for yesw.
  */
 int
 cio_cancel (struct subchannel *sch)
@@ -307,9 +307,9 @@ cio_cancel (struct subchannel *sch)
 		return 0;
 	case 1:		/* status pending */
 		return -EBUSY;
-	case 2:		/* not applicable */
+	case 2:		/* yest applicable */
 		return -EINVAL;
-	default:	/* not oper */
+	default:	/* yest oper */
 		return -ENODEV;
 	}
 }
@@ -321,13 +321,13 @@ EXPORT_SYMBOL_GPL(cio_cancel);
  * @sch: subchannel on which to perform the cancel_halt_clear operation
  * @iretry: the number of the times remained to retry the next operation
  *
- * This should be called repeatedly since halt/clear are asynchronous
+ * This should be called repeatedly since halt/clear are asynchroyesus
  * operations. We do one try with cio_cancel, three tries with cio_halt,
  * 255 tries with cio_clear. The caller should initialize @iretry with
  * the value 255 for its first call to this, and keep using the same
- * @iretry in the subsequent calls until it gets a non -EBUSY return.
+ * @iretry in the subsequent calls until it gets a yesn -EBUSY return.
  *
- * Returns 0 if device now idle, -ENODEV for device not operational,
+ * Returns 0 if device yesw idle, -ENODEV for device yest operational,
  * -EBUSY if an interrupt is expected (either from halt/clear or from a
  * status pending), and -EIO if out of retries.
  */
@@ -349,8 +349,8 @@ int cio_cancel_halt_clear(struct subchannel *sch, int *iretry)
 				return ret;
 		}
 		/*
-		 * Cancel io unsuccessful or not applicable (transport mode).
-		 * Continue with asynchronous instructions.
+		 * Cancel io unsuccessful or yest applicable (transport mode).
+		 * Continue with asynchroyesus instructions.
 		 */
 		*iretry = 3;	/* 3 halt retries. */
 	}
@@ -442,7 +442,7 @@ int cio_commit_config(struct subchannel *sch)
 			udelay(100); /* allow for recovery */
 			ret = -EBUSY;
 			break;
-		case 3: /* not operational */
+		case 3: /* yest operational */
 			return -ENODEV;
 		}
 	}
@@ -527,7 +527,7 @@ int cio_disable_subchannel(struct subchannel *sch)
 EXPORT_SYMBOL_GPL(cio_disable_subchannel);
 
 /*
- * do_cio_interrupt() handles all normal I/O device IRQ's
+ * do_cio_interrupt() handles all yesrmal I/O device IRQ's
  */
 static irqreturn_t do_cio_interrupt(int irq, void *dummy)
 {
@@ -591,7 +591,7 @@ void cio_tsch(struct subchannel *sch)
 	irb = this_cpu_ptr(&cio_irb);
 	/* Store interrupt response block to lowcore. */
 	if (tsch(sch->schid, irb) != 0)
-		/* Not status pending or not operational. */
+		/* Not status pending or yest operational. */
 		return;
 	memcpy(&sch->schib.scsw, &irb->scsw, sizeof(union scsw));
 	/* Call interrupt handler with updated status. */
@@ -618,14 +618,14 @@ static int cio_test_for_console(struct subchannel_id schid, void *data)
 	if (stsch(schid, &schib) != 0)
 		return -ENXIO;
 	if ((schib.pmcw.st == SUBCHANNEL_TYPE_IO) && schib.pmcw.dnv &&
-	    (schib.pmcw.dev == console_devno)) {
-		console_irq = schid.sch_no;
+	    (schib.pmcw.dev == console_devyes)) {
+		console_irq = schid.sch_yes;
 		return 1; /* found */
 	}
 	return 0;
 }
 
-static int cio_get_console_sch_no(void)
+static int cio_get_console_sch_yes(void)
 {
 	struct subchannel_id schid;
 	struct schib schib;
@@ -633,13 +633,13 @@ static int cio_get_console_sch_no(void)
 	init_subchannel_id(&schid);
 	if (console_irq != -1) {
 		/* VM provided us with the irq number of the console. */
-		schid.sch_no = console_irq;
+		schid.sch_yes = console_irq;
 		if (stsch(schid, &schib) != 0 ||
 		    (schib.pmcw.st != SUBCHANNEL_TYPE_IO) || !schib.pmcw.dnv)
 			return -1;
-		console_devno = schib.pmcw.dev;
-	} else if (console_devno != -1) {
-		/* At least the console device number is known. */
+		console_devyes = schib.pmcw.dev;
+	} else if (console_devyes != -1) {
+		/* At least the console device number is kyeswn. */
 		for_each_subchannel(cio_test_for_console, NULL);
 	}
 	return console_irq;
@@ -650,15 +650,15 @@ struct subchannel *cio_probe_console(void)
 	struct subchannel_id schid;
 	struct subchannel *sch;
 	struct schib schib;
-	int sch_no, ret;
+	int sch_yes, ret;
 
-	sch_no = cio_get_console_sch_no();
-	if (sch_no == -1) {
+	sch_yes = cio_get_console_sch_yes();
+	if (sch_yes == -1) {
 		pr_warn("No CCW console was found\n");
 		return ERR_PTR(-ENODEV);
 	}
 	init_subchannel_id(&schid);
-	schid.sch_no = sch_no;
+	schid.sch_yes = sch_yes;
 	ret = stsch(schid, &schib);
 	if (ret)
 		return ERR_PTR(-ENODEV);
@@ -708,7 +708,7 @@ void cio_register_early_subchannels(void)
  * @lpm: mask of paths to use
  * @key: storage key to use for storage access
  *
- * Start the tcw on the given subchannel. Return zero on success, non-zero
+ * Start the tcw on the given subchannel. Return zero on success, yesn-zero
  * otherwise.
  */
 int cio_tm_start_key(struct subchannel *sch, struct tcw *tcw, u8 lpm, u8 key)
@@ -730,7 +730,7 @@ int cio_tm_start_key(struct subchannel *sch, struct tcw *tcw, u8 lpm, u8 key)
 	case 2:
 		return -EBUSY;
 	default:
-		return cio_start_handle_notoper(sch, lpm);
+		return cio_start_handle_yestoper(sch, lpm);
 	}
 }
 EXPORT_SYMBOL_GPL(cio_tm_start_key);
@@ -740,7 +740,7 @@ EXPORT_SYMBOL_GPL(cio_tm_start_key);
  * @sch: subchannel on which to perform the interrogate function
  *
  * If the specified subchannel is running in transport-mode, perform the
- * interrogate function. Return zero on success, non-zero otherwie.
+ * interrogate function. Return zero on success, yesn-zero otherwie.
  */
 int cio_tm_intrg(struct subchannel *sch)
 {

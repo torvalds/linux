@@ -17,7 +17,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -119,9 +119,9 @@ struct xiic_i2c {
 #define XIIC_INTR_TX_ERROR_MASK           0x02	/* 1=Tx error/msg complete */
 #define XIIC_INTR_TX_EMPTY_MASK           0x04	/* 1 = Tx FIFO/reg empty  */
 #define XIIC_INTR_RX_FULL_MASK            0x08	/* 1=Rx FIFO/reg=OCY level */
-#define XIIC_INTR_BNB_MASK                0x10	/* 1 = Bus not busy       */
+#define XIIC_INTR_BNB_MASK                0x10	/* 1 = Bus yest busy       */
 #define XIIC_INTR_AAS_MASK                0x20	/* 1 = when addr as slave */
-#define XIIC_INTR_NAAS_MASK               0x40	/* 1 = not addr as slave  */
+#define XIIC_INTR_NAAS_MASK               0x40	/* 1 = yest addr as slave  */
 #define XIIC_INTR_TX_HALF_MASK            0x80	/* 1 = TX FIFO half empty */
 
 /* The following constants specify the depth of the FIFOs */
@@ -356,7 +356,7 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 	u32 pend, isr, ier;
 	u32 clr = 0;
 
-	/* Get the interrupt Status from the IPIF. There is no clearing of
+	/* Get the interrupt Status from the IPIF. There is yes clearing of
 	 * interrupts in the IPIF. Interrupts must be cleared at the source.
 	 * To find which interrupts are pending; AND interrupts pending with
 	 * interrupts masked.
@@ -379,7 +379,7 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 		!(pend & XIIC_INTR_RX_FULL_MASK))) {
 		/* bus arbritration lost, or...
 		 * Transmit error _OR_ RX completed
-		 * if this happens when RX_FULL is not set
+		 * if this happens when RX_FULL is yest set
 		 * this is probably a TX error
 		 */
 
@@ -421,7 +421,7 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 
 			/* send next message if this wasn't the last,
 			 * otherwise the transfer will be finialise when
-			 * receiving the bus not busy interrupt
+			 * receiving the bus yest busy interrupt
 			 */
 			if (i2c->nmsgs > 1) {
 				i2c->nmsgs--;
@@ -434,10 +434,10 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 		}
 	}
 	if (pend & XIIC_INTR_BNB_MASK) {
-		/* IIC bus has transitioned to not busy */
+		/* IIC bus has transitioned to yest busy */
 		clr |= XIIC_INTR_BNB_MASK;
 
-		/* The bus is not busy, disable BusNotBusy interrupt */
+		/* The bus is yest busy, disable BusNotBusy interrupt */
 		xiic_irq_dis(i2c, XIIC_INTR_BNB_MASK);
 
 		if (!i2c->tx_msg)
@@ -476,7 +476,7 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 				xiic_irq_dis(i2c, XIIC_INTR_TX_HALF_MASK);
 
 				dev_dbg(i2c->adap.dev.parent,
-					"%s Got TX IRQ but no more to do...\n",
+					"%s Got TX IRQ but yes more to do...\n",
 					__func__);
 			}
 		} else if (!xiic_tx_space(i2c) && (i2c->nmsgs == 1))
@@ -532,7 +532,7 @@ static void xiic_start_recv(struct xiic_i2c *i2c)
 
 	/* we want to get all but last byte, because the TX_ERROR IRQ is used
 	 * to inidicate error ACK on the address, and negative ack on the last
-	 * received byte, so to not mix them receive all but last.
+	 * received byte, so to yest mix them receive all but last.
 	 * In the case where there is only one byte to receive
 	 * we can check if ERROR and RX full is set at the same time
 	 */
@@ -554,7 +554,7 @@ static void xiic_start_recv(struct xiic_i2c *i2c)
 	local_irq_restore(flags);
 
 	if (i2c->nmsgs == 1)
-		/* very last, enable bus not busy as well */
+		/* very last, enable bus yest busy as well */
 		xiic_irq_clr_en(i2c, XIIC_INTR_BNB_MASK);
 
 	/* the message is tx:ed */
@@ -578,7 +578,7 @@ static void xiic_start_send(struct xiic_i2c *i2c)
 		u16 data = i2c_8bit_addr_from_msg(msg) |
 			XIIC_TX_DYN_START_MASK;
 		if ((i2c->nmsgs == 1) && msg->len == 0)
-			/* no data and last message -> add STOP */
+			/* yes data and last message -> add STOP */
 			data |= XIIC_TX_DYN_STOP_MASK;
 
 		xiic_setreg16(i2c, XIIC_DTR_REG_OFFSET, data);
@@ -596,7 +596,7 @@ static irqreturn_t xiic_isr(int irq, void *dev_id)
 	struct xiic_i2c *i2c = dev_id;
 	u32 pend, isr, ier;
 	irqreturn_t ret = IRQ_NONE;
-	/* Do not processes a devices interrupts if the device has no
+	/* Do yest processes a devices interrupts if the device has yes
 	 * interrupts pending
 	 */
 
@@ -639,7 +639,7 @@ static void __xiic_start_xfer(struct xiic_i2c *i2c)
 		} else {
 			xiic_start_send(i2c);
 			if (xiic_tx_space(i2c) != 0) {
-				/* the message could not be completely sent */
+				/* the message could yest be completely sent */
 				break;
 			}
 		}
@@ -647,7 +647,7 @@ static void __xiic_start_xfer(struct xiic_i2c *i2c)
 		fifo_space = xiic_tx_fifo_space(i2c);
 	}
 
-	/* there are more messages or the current one could not be completely
+	/* there are more messages or the current one could yest be completely
 	 * put into the FIFO, also enable the half empty interrupt
 	 */
 	if (i2c->nmsgs > 1 || xiic_tx_space(i2c))
@@ -753,14 +753,14 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 	i2c->adap = xiic_adapter;
 	i2c_set_adapdata(&i2c->adap, i2c);
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = pdev->dev.of_node;
+	i2c->adap.dev.of_yesde = pdev->dev.of_yesde;
 
 	mutex_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
 
 	i2c->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(i2c->clk)) {
-		dev_err(&pdev->dev, "input clock not found.\n");
+		dev_err(&pdev->dev, "input clock yest found.\n");
 		return PTR_ERR(i2c->clk);
 	}
 	ret = clk_prepare_enable(i2c->clk);
@@ -778,13 +778,13 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 					pdev->name, i2c);
 
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot claim IRQ\n");
+		dev_err(&pdev->dev, "Canyest claim IRQ\n");
 		goto err_clk_dis;
 	}
 
 	/*
 	 * Detect endianness
-	 * Try to reset the TX FIFO. Then check the EMPTY flag. If it is not
+	 * Try to reset the TX FIFO. Then check the EMPTY flag. If it is yest
 	 * set, assume that the endianness was wrong and swap.
 	 */
 	i2c->endianness = LITTLE;
@@ -804,7 +804,7 @@ static int xiic_i2c_probe(struct platform_device *pdev)
 	}
 
 	if (pdata) {
-		/* add in known devices to the bus */
+		/* add in kyeswn devices to the bus */
 		for (i = 0; i < pdata->num_devices; i++)
 			i2c_new_device(&i2c->adap, pdata->devices + i);
 	}
@@ -862,7 +862,7 @@ static int __maybe_unused xiic_i2c_runtime_resume(struct device *dev)
 
 	ret = clk_enable(i2c->clk);
 	if (ret) {
-		dev_err(dev, "Cannot enable clock.\n");
+		dev_err(dev, "Canyest enable clock.\n");
 		return ret;
 	}
 

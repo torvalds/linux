@@ -23,7 +23,7 @@ struct lvs_rh {
 	struct usb_interface *intf;
 	/* if lvs device connected */
 	bool present;
-	/* port no at which lvs device is present */
+	/* port yes at which lvs device is present */
 	int portnum;
 	/* urb buffer */
 	u8 buffer[8];
@@ -53,7 +53,7 @@ static struct usb_device *create_lvs_device(struct usb_interface *intf)
 
 	udev = usb_alloc_dev(hdev, hdev->bus, lvs->portnum);
 	if (!udev) {
-		dev_err(&intf->dev, "Could not allocate lvs udev\n");
+		dev_err(&intf->dev, "Could yest allocate lvs udev\n");
 		return NULL;
 	}
 	udev->speed = USB_SPEED_SUPER;
@@ -365,12 +365,12 @@ static void lvs_rh_work(struct work_struct *work)
 				lvs->present = true;
 				lvs->portnum = i;
 				if (hcd->usb_phy)
-					usb_phy_notify_connect(hcd->usb_phy,
+					usb_phy_yestify_connect(hcd->usb_phy,
 							USB_SPEED_SUPER);
 			} else {
 				lvs->present = false;
 				if (hcd->usb_phy)
-					usb_phy_notify_disconnect(hcd->usb_phy,
+					usb_phy_yestify_disconnect(hcd->usb_phy,
 							USB_SPEED_SUPER);
 			}
 			break;

@@ -10,7 +10,7 @@
 
 /*
  * This file implements the scan which is a general-purpose function for
- * determining what nodes are in an eraseblock. The scan is used to replay the
+ * determining what yesdes are in an eraseblock. The scan is used to replay the
  * journal, to do garbage collection. for the TNC in-the-gaps method, and by
  * debugging functions.
  */
@@ -30,7 +30,7 @@ static int scan_padding_bytes(void *buf, int len)
 	int pad_len = 0, max_pad_len = min_t(int, UBIFS_PAD_NODE_SZ, len);
 	uint8_t *p = buf;
 
-	dbg_scan("not a node");
+	dbg_scan("yest a yesde");
 
 	while (pad_len < max_pad_len && *p++ == UBIFS_PADDING_BYTE)
 		pad_len += 1;
@@ -44,17 +44,17 @@ static int scan_padding_bytes(void *buf, int len)
 }
 
 /**
- * ubifs_scan_a_node - scan for a node or padding.
+ * ubifs_scan_a_yesde - scan for a yesde or padding.
  * @c: UBIFS file-system description object
  * @buf: buffer to scan
  * @len: length of buffer
  * @lnum: logical eraseblock number
  * @offs: offset within the logical eraseblock
- * @quiet: print no messages
+ * @quiet: print yes messages
  *
  * This function returns a scanning code to indicate what was scanned.
  */
-int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
+int ubifs_scan_a_yesde(const struct ubifs_info *c, void *buf, int len, int lnum,
 		      int offs, int quiet)
 {
 	struct ubifs_ch *ch = buf;
@@ -74,39 +74,39 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 		return SCANNED_GARBAGE;
 
 	dbg_scan("scanning %s at LEB %d:%d",
-		 dbg_ntype(ch->node_type), lnum, offs);
+		 dbg_ntype(ch->yesde_type), lnum, offs);
 
-	if (ubifs_check_node(c, buf, lnum, offs, quiet, 1))
+	if (ubifs_check_yesde(c, buf, lnum, offs, quiet, 1))
 		return SCANNED_A_CORRUPT_NODE;
 
-	if (ch->node_type == UBIFS_PAD_NODE) {
-		struct ubifs_pad_node *pad = buf;
+	if (ch->yesde_type == UBIFS_PAD_NODE) {
+		struct ubifs_pad_yesde *pad = buf;
 		int pad_len = le32_to_cpu(pad->pad_len);
-		int node_len = le32_to_cpu(ch->len);
+		int yesde_len = le32_to_cpu(ch->len);
 
-		/* Validate the padding node */
+		/* Validate the padding yesde */
 		if (pad_len < 0 ||
-		    offs + node_len + pad_len > c->leb_size) {
+		    offs + yesde_len + pad_len > c->leb_size) {
 			if (!quiet) {
-				ubifs_err(c, "bad pad node at LEB %d:%d",
+				ubifs_err(c, "bad pad yesde at LEB %d:%d",
 					  lnum, offs);
-				ubifs_dump_node(c, pad);
+				ubifs_dump_yesde(c, pad);
 			}
 			return SCANNED_A_BAD_PAD_NODE;
 		}
 
-		/* Make the node pads to 8-byte boundary */
-		if ((node_len + pad_len) & 7) {
+		/* Make the yesde pads to 8-byte boundary */
+		if ((yesde_len + pad_len) & 7) {
 			if (!quiet)
 				ubifs_err(c, "bad padding length %d - %d",
-					  offs, offs + node_len + pad_len);
+					  offs, offs + yesde_len + pad_len);
 			return SCANNED_A_BAD_PAD_NODE;
 		}
 
-		dbg_scan("%d bytes padded at LEB %d:%d, offset now %d", pad_len,
-			 lnum, offs, ALIGN(offs + node_len + pad_len, 8));
+		dbg_scan("%d bytes padded at LEB %d:%d, offset yesw %d", pad_len,
+			 lnum, offs, ALIGN(offs + yesde_len + pad_len, 8));
 
-		return node_len + pad_len;
+		return yesde_len + pad_len;
 	}
 
 	return SCANNED_A_NODE;
@@ -135,19 +135,19 @@ struct ubifs_scan_leb *ubifs_start_scan(const struct ubifs_info *c, int lnum,
 		return ERR_PTR(-ENOMEM);
 
 	sleb->lnum = lnum;
-	INIT_LIST_HEAD(&sleb->nodes);
+	INIT_LIST_HEAD(&sleb->yesdes);
 	sleb->buf = sbuf;
 
 	err = ubifs_leb_read(c, lnum, sbuf + offs, offs, c->leb_size - offs, 0);
 	if (err && err != -EBADMSG) {
-		ubifs_err(c, "cannot read %d bytes from LEB %d:%d, error %d",
+		ubifs_err(c, "canyest read %d bytes from LEB %d:%d, error %d",
 			  c->leb_size - offs, lnum, offs, err);
 		kfree(sleb);
 		return ERR_PTR(err);
 	}
 
 	/*
-	 * Note, we ignore integrity errors (EBASMSG) because all the nodes are
+	 * Note, we igyesre integrity errors (EBASMSG) because all the yesdes are
 	 * protected by CRC checksums.
 	 */
 	return sleb;
@@ -170,48 +170,48 @@ void ubifs_end_scan(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 }
 
 /**
- * ubifs_add_snod - add a scanned node to LEB scanning information.
+ * ubifs_add_syesd - add a scanned yesde to LEB scanning information.
  * @c: UBIFS file-system description object
  * @sleb: scanning information
- * @buf: buffer containing node
- * @offs: offset of node on flash
+ * @buf: buffer containing yesde
+ * @offs: offset of yesde on flash
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-int ubifs_add_snod(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
+int ubifs_add_syesd(const struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		   void *buf, int offs)
 {
 	struct ubifs_ch *ch = buf;
-	struct ubifs_ino_node *ino = buf;
-	struct ubifs_scan_node *snod;
+	struct ubifs_iyes_yesde *iyes = buf;
+	struct ubifs_scan_yesde *syesd;
 
-	snod = kmalloc(sizeof(struct ubifs_scan_node), GFP_NOFS);
-	if (!snod)
+	syesd = kmalloc(sizeof(struct ubifs_scan_yesde), GFP_NOFS);
+	if (!syesd)
 		return -ENOMEM;
 
-	snod->sqnum = le64_to_cpu(ch->sqnum);
-	snod->type = ch->node_type;
-	snod->offs = offs;
-	snod->len = le32_to_cpu(ch->len);
-	snod->node = buf;
+	syesd->sqnum = le64_to_cpu(ch->sqnum);
+	syesd->type = ch->yesde_type;
+	syesd->offs = offs;
+	syesd->len = le32_to_cpu(ch->len);
+	syesd->yesde = buf;
 
-	switch (ch->node_type) {
+	switch (ch->yesde_type) {
 	case UBIFS_INO_NODE:
 	case UBIFS_DENT_NODE:
 	case UBIFS_XENT_NODE:
 	case UBIFS_DATA_NODE:
 		/*
 		 * The key is in the same place in all keyed
-		 * nodes.
+		 * yesdes.
 		 */
-		key_read(c, &ino->key, &snod->key);
+		key_read(c, &iyes->key, &syesd->key);
 		break;
 	default:
-		invalid_key_init(c, &snod->key);
+		invalid_key_init(c, &syesd->key);
 		break;
 	}
-	list_add_tail(&snod->list, &sleb->nodes);
-	sleb->nodes_cnt += 1;
+	list_add_tail(&syesd->list, &sleb->yesdes);
+	sleb->yesdes_cnt += 1;
 	return 0;
 }
 
@@ -241,14 +241,14 @@ void ubifs_scanned_corruption(const struct ubifs_info *c, int lnum, int offs,
  * @lnum: logical eraseblock number
  * @offs: offset to start at (usually zero)
  * @sbuf: scan buffer (must be of @c->leb_size bytes in size)
- * @quiet: print no messages
+ * @quiet: print yes messages
  *
  * This function scans LEB number @lnum and returns complete information about
  * its contents. Returns the scanned information in case of success and,
  * %-EUCLEAN if the LEB neads recovery, and other negative error codes in case
  * of failure.
  *
- * If @quiet is non-zero, this function does not print large and scary
+ * If @quiet is yesn-zero, this function does yest print large and scary
  * error messages and flash dumps in case of errors.
  */
 struct ubifs_scan_leb *ubifs_scan(const struct ubifs_info *c, int lnum,
@@ -264,16 +264,16 @@ struct ubifs_scan_leb *ubifs_scan(const struct ubifs_info *c, int lnum,
 
 	while (len >= 8) {
 		struct ubifs_ch *ch = buf;
-		int node_len, ret;
+		int yesde_len, ret;
 
 		dbg_scan("look at LEB %d:%d (%d bytes left)",
 			 lnum, offs, len);
 
 		cond_resched();
 
-		ret = ubifs_scan_a_node(c, buf, len, lnum, offs, quiet);
+		ret = ubifs_scan_a_yesde(c, buf, len, lnum, offs, quiet);
 		if (ret > 0) {
-			/* Padding bytes or a valid padding node */
+			/* Padding bytes or a valid padding yesde */
 			offs += ret;
 			buf += ret;
 			len -= ret;
@@ -292,27 +292,27 @@ struct ubifs_scan_leb *ubifs_scan(const struct ubifs_info *c, int lnum,
 			break;
 		case SCANNED_A_CORRUPT_NODE:
 		case SCANNED_A_BAD_PAD_NODE:
-			ubifs_err(c, "bad node");
+			ubifs_err(c, "bad yesde");
 			goto corrupted;
 		default:
-			ubifs_err(c, "unknown");
+			ubifs_err(c, "unkyeswn");
 			err = -EINVAL;
 			goto error;
 		}
 
-		err = ubifs_add_snod(c, sleb, buf, offs);
+		err = ubifs_add_syesd(c, sleb, buf, offs);
 		if (err)
 			goto error;
 
-		node_len = ALIGN(le32_to_cpu(ch->len), 8);
-		offs += node_len;
-		buf += node_len;
-		len -= node_len;
+		yesde_len = ALIGN(le32_to_cpu(ch->len), 8);
+		offs += yesde_len;
+		buf += yesde_len;
+		len -= yesde_len;
 	}
 
 	if (offs % c->min_io_size) {
 		if (!quiet)
-			ubifs_err(c, "empty space starts at non-aligned offset %d",
+			ubifs_err(c, "empty space starts at yesn-aligned offset %d",
 				  offs);
 		goto corrupted;
 	}
@@ -353,14 +353,14 @@ error:
  */
 void ubifs_scan_destroy(struct ubifs_scan_leb *sleb)
 {
-	struct ubifs_scan_node *node;
+	struct ubifs_scan_yesde *yesde;
 	struct list_head *head;
 
-	head = &sleb->nodes;
+	head = &sleb->yesdes;
 	while (!list_empty(head)) {
-		node = list_entry(head->next, struct ubifs_scan_node, list);
-		list_del(&node->list);
-		kfree(node);
+		yesde = list_entry(head->next, struct ubifs_scan_yesde, list);
+		list_del(&yesde->list);
+		kfree(yesde);
 	}
 	kfree(sleb);
 }

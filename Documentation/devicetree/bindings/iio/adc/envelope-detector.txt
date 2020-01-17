@@ -19,7 +19,7 @@ an interrupt pin. Like so:
 
 Required properties:
 - compatible: Should be "axentia,tse850-envelope-detector"
-- io-channels: Channel node of the dac to be used for comparator input.
+- io-channels: Channel yesde of the dac to be used for comparator input.
 - io-channel-names: Should be "dac".
 - interrupt specification for one client interrupt,
   see ../../interrupt-controller/interrupts.txt for details.

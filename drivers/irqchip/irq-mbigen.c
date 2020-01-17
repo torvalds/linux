@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-/* Interrupt numbers per mbigen node supported */
+/* Interrupt numbers per mbigen yesde supported */
 #define IRQS_PER_MBIGEN_NODE		128
 
 /* 64 irqs (Pin0-pin63) are reserved for each mbigen chip */
@@ -33,14 +33,14 @@
 #define IRQ_EVENT_ID_SHIFT		12
 #define IRQ_EVENT_ID_MASK		0x3ff
 
-/* register range of each mbigen node */
+/* register range of each mbigen yesde */
 #define MBIGEN_NODE_OFFSET		0x1000
 
-/* offset of vector register in mbigen node */
+/* offset of vector register in mbigen yesde */
 #define REG_MBIGEN_VEC_OFFSET		0x200
 
 /**
- * offset of clear register in mbigen node
+ * offset of clear register in mbigen yesde
  * This register is used to clear the status
  * of interrupt
  */
@@ -170,7 +170,7 @@ static int mbigen_domain_translate(struct irq_domain *d,
 				    unsigned long *hwirq,
 				    unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode) || is_acpi_device_node(fwspec->fwnode)) {
+	if (is_of_yesde(fwspec->fwyesde) || is_acpi_device_yesde(fwspec->fwyesde)) {
 		if (fwspec->param_count != 2)
 			return -EINVAL;
 
@@ -180,7 +180,7 @@ static int mbigen_domain_translate(struct irq_domain *d,
 		else
 			*hwirq = fwspec->param[0];
 
-		/* If there is no valid irq type, just use the default type */
+		/* If there is yes valid irq type, just use the default type */
 		if ((fwspec->param[1] == IRQ_TYPE_EDGE_RISING) ||
 			(fwspec->param[1] == IRQ_TYPE_LEVEL_HIGH))
 			*type = fwspec->param[1];
@@ -232,24 +232,24 @@ static int mbigen_of_create_domain(struct platform_device *pdev,
 	struct device *parent;
 	struct platform_device *child;
 	struct irq_domain *domain;
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 num_pins;
 
-	for_each_child_of_node(pdev->dev.of_node, np) {
+	for_each_child_of_yesde(pdev->dev.of_yesde, np) {
 		if (!of_property_read_bool(np, "interrupt-controller"))
 			continue;
 
 		parent = platform_bus_type.dev_root;
 		child = of_platform_device_create(np, NULL, parent);
 		if (!child) {
-			of_node_put(np);
+			of_yesde_put(np);
 			return -ENOMEM;
 		}
 
-		if (of_property_read_u32(child->dev.of_node, "num-pins",
+		if (of_property_read_u32(child->dev.of_yesde, "num-pins",
 					 &num_pins) < 0) {
 			dev_err(&pdev->dev, "No num-pins property\n");
-			of_node_put(np);
+			of_yesde_put(np);
 			return -EINVAL;
 		}
 
@@ -258,7 +258,7 @@ static int mbigen_of_create_domain(struct platform_device *pdev,
 							   &mbigen_domain_ops,
 							   mgn_chip);
 		if (!domain) {
-			of_node_put(np);
+			of_yesde_put(np);
 			return -ENOMEM;
 		}
 	}
@@ -281,7 +281,7 @@ static int mbigen_acpi_create_domain(struct platform_device *pdev,
 	 * use "num-pins" to alloc MSI vectors which are needed by client
 	 * devices connected to it.
 	 *
-	 * Here is the DSDT device node used for mbigen in firmware:
+	 * Here is the DSDT device yesde used for mbigen in firmware:
 	 *	Device(MBI0) {
 	 *		Name(_HID, "HISI0152")
 	 *		Name(_UID, Zero)
@@ -341,7 +341,7 @@ static int mbigen_device_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_node)
+	if (IS_ENABLED(CONFIG_OF) && pdev->dev.of_yesde)
 		err = mbigen_of_create_domain(pdev, mgn_chip);
 	else if (ACPI_COMPANION(&pdev->dev))
 		err = mbigen_acpi_create_domain(pdev, mgn_chip);

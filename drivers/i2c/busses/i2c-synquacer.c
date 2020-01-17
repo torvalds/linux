@@ -8,7 +8,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -45,7 +45,7 @@
 #define SYNQUACER_I2C_BCR_INT		BIT(0)	// Interrupt
 #define SYNQUACER_I2C_BCR_INTE		BIT(1)	// Interrupt Enable
 #define SYNQUACER_I2C_BCR_GCAA		BIT(2)	// Gen. Call Access Ack.
-#define SYNQUACER_I2C_BCR_ACK		BIT(3)	// Acknowledge
+#define SYNQUACER_I2C_BCR_ACK		BIT(3)	// Ackyeswledge
 #define SYNQUACER_I2C_BCR_MSS		BIT(4)	// Master Slave Select
 #define SYNQUACER_I2C_BCR_SCC		BIT(5)	// Start Condition Cont.
 #define SYNQUACER_I2C_BCR_BEIE		BIT(6)	// Bus Error Int Enable
@@ -281,7 +281,7 @@ static int synquacer_i2c_master_start(struct synquacer_i2c *i2c,
 		       i2c->base + SYNQUACER_I2C_REG_BCR);
 	} else {
 		if (bcr & SYNQUACER_I2C_BCR_MSS) {
-			dev_dbg(i2c->dev, "not in master mode");
+			dev_dbg(i2c->dev, "yest in master mode");
 			return -EAGAIN;
 		}
 		dev_dbg(i2c->dev, "Start Condition");
@@ -317,7 +317,7 @@ static int synquacer_i2c_doxfer(struct synquacer_i2c *i2c,
 	synquacer_i2c_hw_init(i2c);
 	bsr = readb(i2c->base + SYNQUACER_I2C_REG_BSR);
 	if (bsr & SYNQUACER_I2C_BSR_BB) {
-		dev_err(i2c->dev, "cannot get bus (bus busy)\n");
+		dev_err(i2c->dev, "canyest get bus (bus busy)\n");
 		return -EBUSY;
 	}
 
@@ -381,7 +381,7 @@ static irqreturn_t synquacer_i2c_isr(int irq, void *dev_id)
 	switch (i2c->state) {
 	case STATE_START:
 		if (bsr & SYNQUACER_I2C_BSR_LRB) {
-			dev_dbg(i2c->dev, "ack was not received\n");
+			dev_dbg(i2c->dev, "ack was yest received\n");
 			synquacer_i2c_stop(i2c, -EAGAIN);
 			goto out;
 		}
@@ -444,7 +444,7 @@ static irqreturn_t synquacer_i2c_isr(int irq, void *dev_id)
 		if (!(bsr & SYNQUACER_I2C_BSR_FBT)) /* data */
 			i2c->msg->buf[i2c->msg_ptr++] = byte;
 		else /* address */
-			dev_dbg(i2c->dev, "address:0x%02x. ignore it.\n", byte);
+			dev_dbg(i2c->dev, "address:0x%02x. igyesre it.\n", byte);
 
 prepare_read:
 		if (is_msglast(i2c)) {
@@ -581,14 +581,14 @@ static int synquacer_i2c_probe(struct platform_device *pdev)
 
 	i2c->irq = platform_get_irq(pdev, 0);
 	if (i2c->irq < 0) {
-		dev_err(&pdev->dev, "no IRQ resource found\n");
+		dev_err(&pdev->dev, "yes IRQ resource found\n");
 		return -ENODEV;
 	}
 
 	ret = devm_request_irq(&pdev->dev, i2c->irq, synquacer_i2c_isr,
 			       0, dev_name(&pdev->dev), i2c);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot claim IRQ %d\n", i2c->irq);
+		dev_err(&pdev->dev, "canyest claim IRQ %d\n", i2c->irq);
 		return ret;
 	}
 
@@ -597,7 +597,7 @@ static int synquacer_i2c_probe(struct platform_device *pdev)
 	i2c->adapter = synquacer_i2c_ops;
 	i2c_set_adapdata(&i2c->adapter, i2c);
 	i2c->adapter.dev.parent = &pdev->dev;
-	i2c->adapter.dev.of_node = pdev->dev.of_node;
+	i2c->adapter.dev.of_yesde = pdev->dev.of_yesde;
 	ACPI_COMPANION_SET(&i2c->adapter.dev, ACPI_COMPANION(&pdev->dev));
 	i2c->adapter.nr = pdev->id;
 	init_completion(&i2c->completion);

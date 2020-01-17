@@ -105,8 +105,8 @@
 #define RV3029_CONTROL_E2P_XOFFS	0x31 /* XTAL offset */
 #define RV3029_CONTROL_E2P_XOFFS_SIGN	BIT(7) /* Sign: 1->pos, 0->neg */
 #define RV3029_CONTROL_E2P_QCOEF	0x32 /* XTAL temp drift coef */
-#define RV3029_CONTROL_E2P_TURNOVER	0x33 /* XTAL turnover temp (in *C) */
-#define RV3029_CONTROL_E2P_TOV_MASK	0x3F /* XTAL turnover temp mask */
+#define RV3029_CONTROL_E2P_TURNOVER	0x33 /* XTAL turyesver temp (in *C) */
+#define RV3029_CONTROL_E2P_TOV_MASK	0x3F /* XTAL turyesver temp mask */
 
 /* user ram section */
 #define RV3029_USR1_RAM_PAGE		0x38
@@ -635,17 +635,17 @@ static const struct rv3029_trickle_tab_elem {
 
 static void rv3029_trickle_config(struct device *dev)
 {
-	struct device_node *of_node = dev->of_node;
+	struct device_yesde *of_yesde = dev->of_yesde;
 	const struct rv3029_trickle_tab_elem *elem;
 	int i, err;
 	u32 ohms;
 	u8 trickle_set_bits;
 
-	if (!of_node)
+	if (!of_yesde)
 		return;
 
 	/* Configure the trickle charger. */
-	err = of_property_read_u32(of_node, "trickle-resistor-ohms", &ohms);
+	err = of_property_read_u32(of_yesde, "trickle-resistor-ohms", &ohms);
 	if (err) {
 		/* Disable trickle charger. */
 		trickle_set_bits = 0;
@@ -850,7 +850,7 @@ static int rv3029_i2c_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK |
 				     I2C_FUNC_SMBUS_BYTE)) {
-		dev_err(&client->dev, "Adapter does not support SMBUS_I2C_BLOCK or SMBUS_I2C_BYTE\n");
+		dev_err(&client->dev, "Adapter does yest support SMBUS_I2C_BLOCK or SMBUS_I2C_BYTE\n");
 		return -ENODEV;
 	}
 
@@ -873,7 +873,7 @@ MODULE_DEVICE_TABLE(i2c, rv3029_id);
 
 static const struct of_device_id rv3029_of_match[] = {
 	{ .compatible = "microcrystal,rv3029" },
-	/* Backward compatibility only, do not use compatibles below: */
+	/* Backward compatibility only, do yest use compatibles below: */
 	{ .compatible = "rv3029" },
 	{ .compatible = "rv3029c2" },
 	{ .compatible = "mc,rv3029c2" },

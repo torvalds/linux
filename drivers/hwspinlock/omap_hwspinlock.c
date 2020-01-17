@@ -73,7 +73,7 @@ static const struct hwspinlock_ops omap_hwspinlock_ops = {
 
 static int omap_hwspinlock_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct hwspinlock_device *bank;
 	struct hwspinlock *hwlock;
 	struct resource *res;
@@ -82,7 +82,7 @@ static int omap_hwspinlock_probe(struct platform_device *pdev)
 	/* Only a single hwspinlock block device is supported */
 	int base_id = 0;
 
-	if (!node)
+	if (!yesde)
 		return -ENODEV;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -100,7 +100,7 @@ static int omap_hwspinlock_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 		goto iounmap_base;
 	}
 
@@ -116,7 +116,7 @@ static int omap_hwspinlock_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto iounmap_base;
 
-	/* one of the four lsb's must be set, and nothing else */
+	/* one of the four lsb's must be set, and yesthing else */
 	if (hweight_long(i & 0xf) != 1 || i > 8) {
 		ret = -EINVAL;
 		goto iounmap_base;

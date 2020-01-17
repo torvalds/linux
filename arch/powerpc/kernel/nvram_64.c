@@ -6,7 +6,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/fcntl.h>
@@ -152,10 +152,10 @@ static int read_type;
  *
  * We need to buffer the error logs into nvram to ensure that we have
  * the failure information to decode.  If we have a severe error there
- * is no way to guarantee that the OS or the machine is in a state to
+ * is yes way to guarantee that the OS or the machine is in a state to
  * get back to user land and write the error to disk.  For example if
  * the SCSI device driver causes a Machine Check by writing to a bad
- * IO address, there is no way of guaranteeing that the device driver
+ * IO address, there is yes way of guaranteeing that the device driver
  * is in any state that is would also be able to write the error data
  * captured to disk, thus we buffer it in NVRAM for analysis on the
  * next boot.
@@ -173,7 +173,7 @@ static int read_type;
  * |0            3|4          7|8                  error_log_size-1|
  * +--------------+------------+-----------------------------------+
  *
- * event_logged: 0 if event has not been logged to syslog, 1 if it has
+ * event_logged: 0 if event has yest been logged to syslog, 1 if it has
  * sequence #: The unique sequence # for each event. (until it wraps)
  * error log: The error log from event_scan
  */
@@ -260,13 +260,13 @@ int nvram_read_partition(struct nvram_os_partition *part, char *buff,
  *
  * The general strategy is the following:
  * 1.) If a partition with the indicated name already exists...
- *	- If it's large enough, use it.
+ *	- If it's large eyesugh, use it.
  *	- Otherwise, recycle it and keep going.
- * 2.) Search for a free partition that is large enough.
- * 3.) If there's not a free partition large enough, recycle any obsolete
+ * 2.) Search for a free partition that is large eyesugh.
+ * 3.) If there's yest a free partition large eyesugh, recycle any obsolete
  * OS partitions and try again.
  * 4.) Will first try getting a chunk that will satisfy the requested size.
- * 5.) If a chunk of the requested size cannot be allocated, then try finding
+ * 5.) If a chunk of the requested size canyest be allocated, then try finding
  * a chunk that will satisfy the minum needed.
  *
  * Returns 0 on success, else -1.
@@ -421,7 +421,7 @@ static int nvram_pstore_write(struct pstore_record *record)
 static ssize_t nvram_pstore_read(struct pstore_record *record)
 {
 	struct oops_log_info *oops_hdr;
-	unsigned int err_type, id_no, size = 0;
+	unsigned int err_type, id_yes, size = 0;
 	struct nvram_os_partition *part = NULL;
 	char *buff = NULL;
 	int sig = 0;
@@ -488,7 +488,7 @@ static ssize_t nvram_pstore_read(struct pstore_record *record)
 	if (!buff)
 		return -ENOMEM;
 
-	if (nvram_read_partition(part, buff, part->size, &err_type, &id_no)) {
+	if (nvram_read_partition(part, buff, part->size, &err_type, &id_yes)) {
 		kfree(buff);
 		return 0;
 	}
@@ -496,7 +496,7 @@ static ssize_t nvram_pstore_read(struct pstore_record *record)
 	record->count = 0;
 
 	if (part->os_partition)
-		record->id = id_no;
+		record->id = id_yes;
 
 	if (nvram_type_ids[read_type] == PSTORE_TYPE_DMESG) {
 		size_t length, hdr_size;
@@ -519,7 +519,7 @@ static ssize_t nvram_pstore_read(struct pstore_record *record)
 		if (record->buf == NULL)
 			return -ENOMEM;
 
-		record->ecc_notice_size = 0;
+		record->ecc_yestice_size = 0;
 		if (err_type == ERR_TYPE_KERNEL_PANIC_GZ)
 			record->compressed = true;
 		else
@@ -579,7 +579,7 @@ void __init nvram_init_oops_partition(int rtas_partition_exists)
 			pr_err("nvram: Failed to initialize oops partition!");
 			return;
 		}
-		pr_notice("nvram: Using %s partition to log both"
+		pr_yestice("nvram: Using %s partition to log both"
 			" RTAS errors and oops/panic reports\n",
 			rtas_log_partition.name);
 		memcpy(&oops_log_partition, &rtas_log_partition,
@@ -671,7 +671,7 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 			return;
 		break;
 	default:
-		pr_err("%s: ignoring unrecognized KMSG_DUMP_* reason %d\n",
+		pr_err("%s: igyesring unrecognized KMSG_DUMP_* reason %d\n",
 		       __func__, (int) reason);
 		return;
 	}
@@ -745,7 +745,7 @@ static unsigned char __init nvram_checksum(struct nvram_header *p)
 
 	/* The sum may have spilled into the 3rd byte.  Fold it back. */
 	c_sum = ((c_sum & 0xffff) + (c_sum >> 16)) & 0xffff;
-	/* The sum cannot exceed 2 bytes.  Fold it into a checksum */
+	/* The sum canyest exceed 2 bytes.  Fold it into a checksum */
 	c_sum2 = (c_sum >> 8) + (c_sum << 8);
 	c_sum = ((c_sum + c_sum2) >> 8) & 0xff;
 	return c_sum;
@@ -857,7 +857,7 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 	req_size = _ALIGN_UP(req_size, NVRAM_BLOCK_LEN) / NVRAM_BLOCK_LEN;
 	min_size = _ALIGN_UP(min_size, NVRAM_BLOCK_LEN) / NVRAM_BLOCK_LEN;
 
-	/* If no minimum size specified, make it the same as the
+	/* If yes minimum size specified, make it the same as the
 	 * requested size
 	 */
 	if (min_size == 0)
@@ -963,7 +963,7 @@ int nvram_get_partition_size(loff_t data_index)
  * nvram_find_partition - Find an nvram partition by signature and name
  * @name: Name of the partition or NULL for any name
  * @sig: Signature to test against
- * @out_size: if non-NULL, returns the size of the data part of the partition
+ * @out_size: if yesn-NULL, returns the size of the data part of the partition
  */
 loff_t nvram_find_partition(const char *name, int sig, int *out_size)
 {

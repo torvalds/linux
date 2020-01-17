@@ -46,7 +46,7 @@ do {									\
 	Data type declarations - Can be moded to a header file later
  ****************************************************************************/
 
-static int devno;
+static int devyes;
 
 struct cx25821_audio_buffer {
 	unsigned int bpl;
@@ -117,7 +117,7 @@ MODULE_PARM_DESC(debug, "enable debug messages");
 #define AUD_INT_DN_RISCI1       (1 <<  0)
 #define AUD_INT_UP_RISCI1       (1 <<  1)
 #define AUD_INT_RDS_DN_RISCI1   (1 <<  2)
-#define AUD_INT_DN_RISCI2       (1 <<  4)	/* yes, 3 is skipped */
+#define AUD_INT_DN_RISCI2       (1 <<  4)	/* no, 3 is skipped */
 #define AUD_INT_UP_RISCI2       (1 <<  5)
 #define AUD_INT_RDS_DN_RISCI2   (1 <<  6)
 #define AUD_INT_DN_SYNC         (1 << 12)
@@ -430,7 +430,7 @@ static const struct snd_pcm_hardware snd_cx25821_digital_hw = {
 	.channels_min = 2,
 	.channels_max = 2,
 	/* Analog audio output will be full of clicks and pops if there
-	   are not exactly four lines in the SRAM FIFO buffer.  */
+	   are yest exactly four lines in the SRAM FIFO buffer.  */
 	.period_bytes_min = DEFAULT_FIFO_SIZE / 3,
 	.period_bytes_max = DEFAULT_FIFO_SIZE / 3,
 	.periods_min = 1,
@@ -696,22 +696,22 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 	struct cx25821_audio_dev *chip;
 	int err;
 
-	if (devno >= SNDRV_CARDS) {
-		pr_info("DEBUG ERROR: devno >= SNDRV_CARDS %s\n", __func__);
+	if (devyes >= SNDRV_CARDS) {
+		pr_info("DEBUG ERROR: devyes >= SNDRV_CARDS %s\n", __func__);
 		return -ENODEV;
 	}
 
-	if (!enable[devno]) {
-		++devno;
-		pr_info("DEBUG ERROR: !enable[devno] %s\n", __func__);
+	if (!enable[devyes]) {
+		++devyes;
+		pr_info("DEBUG ERROR: !enable[devyes] %s\n", __func__);
 		return -ENOENT;
 	}
 
-	err = snd_card_new(&dev->pci->dev, index[devno], id[devno],
+	err = snd_card_new(&dev->pci->dev, index[devyes], id[devyes],
 			   THIS_MODULE,
 			   sizeof(struct cx25821_audio_dev), &card);
 	if (err < 0) {
-		pr_info("DEBUG ERROR: cannot create snd_card_new in %s\n",
+		pr_info("DEBUG ERROR: canyest create snd_card_new in %s\n",
 			__func__);
 		return err;
 	}
@@ -740,7 +740,7 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 
 	err = snd_cx25821_pcm(chip, 0, "cx25821 Digital");
 	if (err < 0) {
-		pr_info("DEBUG ERROR: cannot create snd_cx25821_pcm %s\n",
+		pr_info("DEBUG ERROR: canyest create snd_cx25821_pcm %s\n",
 			__func__);
 		goto error;
 	}
@@ -751,17 +751,17 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 	strscpy(card->mixername, "CX25821", sizeof(card->mixername));
 
 	pr_info("%s/%i: ALSA support for cx25821 boards\n", card->driver,
-		devno);
+		devyes);
 
 	err = snd_card_register(card);
 	if (err < 0) {
-		pr_info("DEBUG ERROR: cannot register sound card %s\n",
+		pr_info("DEBUG ERROR: canyest register sound card %s\n",
 			__func__);
 		goto error;
 	}
 
 	dev->card = card;
-	devno++;
+	devyes++;
 	return 0;
 
 error:

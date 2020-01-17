@@ -1,6 +1,6 @@
 Lantiq cpu temperatur sensor
 
-Requires node properties:
+Requires yesde properties:
 - compatible value :
 	"lantiq,cputemp"
 

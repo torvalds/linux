@@ -258,7 +258,7 @@ static int tiadc_start_dma(struct iio_dev *indio_dev)
 	 * Make the fifo thresh as the multiple of total number of
 	 * channels enabled, so make sure that cyclic DMA period
 	 * length is also a multiple of total number of channels
-	 * enabled. This ensures that no invalid data is reported
+	 * enabled. This ensures that yes invalid data is reported
 	 * to the stack via iio_push_to_buffers().
 	 */
 	dma->fifo_thresh = rounddown(FIFO1_THRESHOLD + 1,
@@ -576,13 +576,13 @@ err:
 static int tiadc_parse_dt(struct platform_device *pdev,
 			  struct tiadc_device *adc_dev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct property *prop;
 	const __be32 *cur;
 	int channels = 0;
 	u32 val;
 
-	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
+	of_property_for_each_u32(yesde, "ti,adc-channels", prop, cur, val) {
 		adc_dev->channel_line[channels] = val;
 
 		/* Set Default values for optional DT parameters */
@@ -593,11 +593,11 @@ static int tiadc_parse_dt(struct platform_device *pdev,
 		channels++;
 	}
 
-	of_property_read_u32_array(node, "ti,chan-step-avg",
+	of_property_read_u32_array(yesde, "ti,chan-step-avg",
 				   adc_dev->step_avg, channels);
-	of_property_read_u32_array(node, "ti,chan-step-opendelay",
+	of_property_read_u32_array(yesde, "ti,chan-step-opendelay",
 				   adc_dev->open_delay, channels);
-	of_property_read_u32_array(node, "ti,chan-step-sampledelay",
+	of_property_read_u32_array(yesde, "ti,chan-step-sampledelay",
 				   adc_dev->sample_delay, channels);
 
 	adc_dev->channels = channels;
@@ -608,11 +608,11 @@ static int tiadc_probe(struct platform_device *pdev)
 {
 	struct iio_dev		*indio_dev;
 	struct tiadc_device	*adc_dev;
-	struct device_node	*node = pdev->dev.of_node;
+	struct device_yesde	*yesde = pdev->dev.of_yesde;
 	int			err;
 
-	if (!node) {
-		dev_err(&pdev->dev, "Could not find valid DT data.\n");
+	if (!yesde) {
+		dev_err(&pdev->dev, "Could yest find valid DT data.\n");
 		return -EINVAL;
 	}
 

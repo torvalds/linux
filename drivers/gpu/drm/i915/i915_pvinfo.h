@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -32,14 +32,14 @@
 
 /*
  * The following structure pages are defined in GEN MMIO space
- * for virtualization. (One page for now)
+ * for virtualization. (One page for yesw)
  */
 #define VGT_MAGIC         0x4776544776544776ULL	/* 'vGTvGTvG' */
 #define VGT_VERSION_MAJOR 1
 #define VGT_VERSION_MINOR 0
 
 /*
- * notifications from guest to vgpu device model
+ * yestifications from guest to vgpu device model
  */
 enum vgt_g2v_type {
 	VGT_G2V_PPGTT_L3_PAGE_TABLE_CREATE = 2,
@@ -61,13 +61,13 @@ enum vgt_g2v_type {
 struct vgt_if {
 	u64 magic;		/* VGT_MAGIC */
 	u16 version_major;
-	u16 version_minor;
+	u16 version_miyesr;
 	u32 vgt_id;		/* ID of vGT instance */
 	u32 vgt_caps;		/* VGT capabilities */
 	u32 rsv1[11];		/* pad to offset 0x40 */
 	/*
 	 *  Data structure to describe the balooning info of resources.
-	 *  Each VM can only have one portion of continuous area for now.
+	 *  Each VM can only have one portion of continuous area for yesw.
 	 *  (May support scattered resource in future)
 	 *  (starting from offset 0x40)
 	 */
@@ -81,7 +81,7 @@ struct vgt_if {
 		struct {
 			u32 base;
 			u32 size;
-		} nonmappable_gmadr;	/* non aperture */
+		} yesnmappable_gmadr;	/* yesn aperture */
 		/* allowed fence registers */
 		u32 fence_num;
 		u32 rsv2[3];
@@ -95,7 +95,7 @@ struct vgt_if {
 
 	u32 rsv5[4];
 
-	u32 g2v_notify;
+	u32 g2v_yestify;
 	u32 rsv6[5];
 
 	u32 cursor_x_hot;

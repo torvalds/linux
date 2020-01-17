@@ -23,7 +23,7 @@
 #include <net/sctp/stream_sched.h>
 
 /* Migrates chunks from stream queues to new stream queues if needed,
- * but not across associations. Also, removes those chunks to streams
+ * but yest across associations. Also, removes those chunks to streams
  * higher than the new max.
  */
 static void sctp_stream_outq_migrate(struct sctp_stream *stream,
@@ -38,14 +38,14 @@ static void sctp_stream_outq_migrate(struct sctp_stream *stream,
 	outq = &asoc->outqueue;
 
 	list_for_each_entry_safe(ch, temp, &outq->out_chunk_list, list) {
-		__u16 sid = sctp_chunk_stream_no(ch);
+		__u16 sid = sctp_chunk_stream_yes(ch);
 
 		if (sid < outcnt)
 			continue;
 
 		sctp_sched_dequeue_common(outq, ch);
 		/* No need to call dequeue_done here because
-		 * the chunks are not scheduled by now.
+		 * the chunks are yest scheduled by yesw.
 		 */
 
 		/* Mark as failed send. */
@@ -538,7 +538,7 @@ struct sctp_chunk *sctp_process_strreset_outreq(
 	}
 	asoc->strreset_inseq++;
 
-	/* Check strreset_enable after inseq inc, as sender cannot tell
+	/* Check strreset_enable after inseq inc, as sender canyest tell
 	 * the peer doesn't enable strreset after receiving response with
 	 * result denied, as well as to keep consistent with bsd.
 	 */
@@ -726,14 +726,14 @@ struct sctp_chunk *sctp_process_strreset_tsnreq(
 
 	/* G1: Compute an appropriate value for the Receiver's Next TSN -- the
 	 *     TSN that the peer should use to send the next DATA chunk.  The
-	 *     value SHOULD be the smallest TSN not acknowledged by the
+	 *     value SHOULD be the smallest TSN yest ackyeswledged by the
 	 *     receiver of the request plus 2^31.
 	 */
 	init_tsn = sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map) + (1 << 31);
 	sctp_tsnmap_init(&asoc->peer.tsn_map, SCTP_TSN_MAP_INITIAL,
 			 init_tsn, GFP_ATOMIC);
 
-	/* G3: The same processing as though a SACK chunk with no gap report
+	/* G3: The same processing as though a SACK chunk with yes gap report
 	 *     and a cumulative TSN ACK of the Sender's Next TSN minus 1 were
 	 *     received MUST be performed.
 	 */
@@ -923,7 +923,7 @@ struct sctp_chunk *sctp_process_strreset_resp(
 
 	result = ntohl(resp->result);
 	if (result != SCTP_STRRESET_PERFORMED) {
-		/* if in progress, do nothing but retransmit */
+		/* if in progress, do yesthing but retransmit */
 		if (result == SCTP_STRRESET_IN_PROGRESS)
 			return NULL;
 		else if (result == SCTP_STRRESET_DENIED)
@@ -1006,7 +1006,7 @@ struct sctp_chunk *sctp_process_strreset_resp(
 					 stsn, GFP_ATOMIC);
 
 			/* Clean up sacked and abandoned queues only. As the
-			 * out_chunk_list may not be empty, splice it to temp,
+			 * out_chunk_list may yest be empty, splice it to temp,
 			 * then get it back after sctp_outq_free is done.
 			 */
 			list_splice_init(&asoc->outqueue.out_chunk_list, &temp);

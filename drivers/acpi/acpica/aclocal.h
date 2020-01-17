@@ -71,7 +71,7 @@ struct acpi_rw_lock {
 #define ACPI_MAX_LOCK                   1
 #define ACPI_NUM_LOCK                   (ACPI_MAX_LOCK+1)
 
-/* This Thread ID means that the mutex is not in use (unlocked) */
+/* This Thread ID means that the mutex is yest in use (unlocked) */
 
 #define ACPI_MUTEX_NOT_ACQUIRED         ((acpi_thread_id) 0)
 
@@ -123,22 +123,22 @@ typedef enum {
  * The Namespace Node describes a named object that appears in the AML.
  * descriptor_type is used to differentiate between internal descriptors.
  *
- * The node is optimized for both 32-bit and 64-bit platforms:
+ * The yesde is optimized for both 32-bit and 64-bit platforms:
  * 20 bytes for the 32-bit case, 32 bytes for the 64-bit case.
  *
  * Note: The descriptor_type and Type fields must appear in the identical
- * position in both the struct acpi_namespace_node and union acpi_operand_object
+ * position in both the struct acpi_namespace_yesde and union acpi_operand_object
  * structures.
  */
-struct acpi_namespace_node {
+struct acpi_namespace_yesde {
 	union acpi_operand_object *object;	/* Interpreter object */
 	u8 descriptor_type;	/* Differentiate object descriptor types */
 	u8 type;		/* ACPI Type associated with this name */
 	u16 flags;		/* Miscellaneous flags */
 	union acpi_name_union name;	/* ACPI Name, always 4 chars per ACPI spec */
-	struct acpi_namespace_node *parent;	/* Parent node */
-	struct acpi_namespace_node *child;	/* First child */
-	struct acpi_namespace_node *peer;	/* First peer */
+	struct acpi_namespace_yesde *parent;	/* Parent yesde */
+	struct acpi_namespace_yesde *child;	/* First child */
+	struct acpi_namespace_yesde *peer;	/* First peer */
 	acpi_owner_id owner_id;	/* Node creator */
 
 	/*
@@ -162,12 +162,12 @@ struct acpi_namespace_node {
 #define ANOBJ_METHOD_ARG                0x04	/* Node is a method argument */
 #define ANOBJ_METHOD_LOCAL              0x08	/* Node is a method local */
 #define ANOBJ_SUBTREE_HAS_INI           0x10	/* Used to optimize device initialization */
-#define ANOBJ_EVALUATED                 0x20	/* Set on first evaluation of node */
+#define ANOBJ_EVALUATED                 0x20	/* Set on first evaluation of yesde */
 #define ANOBJ_ALLOCATED_BUFFER          0x40	/* Method AML buffer is dynamic (install_method) */
 #define ANOBJ_NODE_EARLY_INIT           0x80	/* acpi_exec only: Node was create via init file (-fi) */
 
 #define ANOBJ_IS_EXTERNAL               0x08	/* iASL only: This object created via External() */
-#define ANOBJ_METHOD_NO_RETVAL          0x10	/* iASL only: Method has no return value */
+#define ANOBJ_METHOD_NO_RETVAL          0x10	/* iASL only: Method has yes return value */
 #define ANOBJ_METHOD_SOME_NO_RETVAL     0x20	/* iASL only: Method has at least one return value */
 #define ANOBJ_IS_REFERENCED             0x80	/* iASL only: Object was referenced */
 
@@ -204,7 +204,7 @@ struct acpi_find_context {
 };
 
 struct acpi_ns_search_data {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 };
 
 /* Object types used during package copies */
@@ -227,11 +227,11 @@ struct acpi_namestring_info {
 /* Field creation info */
 
 struct acpi_create_field_info {
-	struct acpi_namespace_node *region_node;
-	struct acpi_namespace_node *field_node;
-	struct acpi_namespace_node *register_node;
-	struct acpi_namespace_node *data_register_node;
-	struct acpi_namespace_node *connection_node;
+	struct acpi_namespace_yesde *region_yesde;
+	struct acpi_namespace_yesde *field_yesde;
+	struct acpi_namespace_yesde *register_yesde;
+	struct acpi_namespace_yesde *data_register_yesde;
+	struct acpi_namespace_yesde *connection_yesde;
 	u8 *resource_buffer;
 	u32 bank_value;
 	u32 field_bit_position;
@@ -362,7 +362,7 @@ union acpi_predefined_info {
 
 /* Return object auto-repair info */
 
-typedef acpi_status (*acpi_object_converter) (struct acpi_namespace_node *
+typedef acpi_status (*acpi_object_converter) (struct acpi_namespace_yesde *
 					      scope,
 					      union acpi_operand_object *
 					      original_object,
@@ -414,21 +414,21 @@ struct acpi_sci_handler_info {
 	void *context;		/* Context to be passed to handler */
 };
 
-/* Dispatch info for each GPE -- either a method or handler, cannot be both */
+/* Dispatch info for each GPE -- either a method or handler, canyest be both */
 
 struct acpi_gpe_handler_info {
 	acpi_gpe_handler address;	/* Address of handler, if any */
 	void *context;		/* Context to be passed to handler */
-	struct acpi_namespace_node *method_node;	/* Method node for this GPE level (saved) */
+	struct acpi_namespace_yesde *method_yesde;	/* Method yesde for this GPE level (saved) */
 	u8 original_flags;	/* Original (pre-handler) GPE info */
 	u8 originally_enabled;	/* True if GPE was originally enabled */
 };
 
-/* Notify info for implicit notify, multiple device objects */
+/* Notify info for implicit yestify, multiple device objects */
 
-struct acpi_gpe_notify_info {
-	struct acpi_namespace_node *device_node;	/* Device to be notified */
-	struct acpi_gpe_notify_info *next;
+struct acpi_gpe_yestify_info {
+	struct acpi_namespace_yesde *device_yesde;	/* Device to be yestified */
+	struct acpi_gpe_yestify_info *next;
 };
 
 /*
@@ -436,9 +436,9 @@ struct acpi_gpe_notify_info {
  * of dispatch - Method, Handler, or Implicit Notify.
  */
 union acpi_gpe_dispatch_info {
-	struct acpi_namespace_node *method_node;	/* Method node for this GPE level */
+	struct acpi_namespace_yesde *method_yesde;	/* Method yesde for this GPE level */
 	struct acpi_gpe_handler_info *handler;  /* Installed GPE handler */
-	struct acpi_gpe_notify_info *notify_list;	/* List of _PRW devices for implicit notifies */
+	struct acpi_gpe_yestify_info *yestify_list;	/* List of _PRW devices for implicit yestifies */
 };
 
 /*
@@ -446,7 +446,7 @@ union acpi_gpe_dispatch_info {
  * NOTE: Important to keep this struct as small as possible.
  */
 struct acpi_gpe_event_info {
-	union acpi_gpe_dispatch_info dispatch;	/* Either Method, Handler, or notify_list */
+	union acpi_gpe_dispatch_info dispatch;	/* Either Method, Handler, or yestify_list */
 	struct acpi_gpe_register_info *register_info;	/* Backpointer to register info */
 	u8 flags;		/* Misc info about this GPE */
 	u8 gpe_number;		/* This GPE */
@@ -471,7 +471,7 @@ struct acpi_gpe_register_info {
  * GPE0, GPE1, and one per each installed GPE Block Device.
  */
 struct acpi_gpe_block_info {
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	struct acpi_gpe_block_info *previous;
 	struct acpi_gpe_block_info *next;
 	struct acpi_gpe_xrupt_info *xrupt_block;	/* Backpointer to interrupt block */
@@ -495,7 +495,7 @@ struct acpi_gpe_xrupt_info {
 };
 
 struct acpi_gpe_walk_info {
-	struct acpi_namespace_node *gpe_device;
+	struct acpi_namespace_yesde *gpe_device;
 	struct acpi_gpe_block_info *gpe_block;
 	u16 count;
 	acpi_owner_id owner_id;
@@ -506,7 +506,7 @@ struct acpi_gpe_device_info {
 	u32 index;
 	u32 next_block_base_index;
 	acpi_status status;
-	struct acpi_namespace_node *gpe_device;
+	struct acpi_namespace_yesde *gpe_device;
 };
 
 typedef acpi_status (*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *
@@ -595,7 +595,7 @@ struct acpi_control_state {
  * Scope state - current scope during namespace lookups
  */
 struct acpi_scope_state {
-	ACPI_STATE_COMMON struct acpi_namespace_node *node;
+	ACPI_STATE_COMMON struct acpi_namespace_yesde *yesde;
 };
 
 struct acpi_pscope_state {
@@ -635,20 +635,20 @@ acpi_status (*acpi_parse_upwards) (struct acpi_walk_state * walk_state);
 
 /* Global handlers for AML Notifies */
 
-struct acpi_global_notify_handler {
-	acpi_notify_handler handler;
+struct acpi_global_yestify_handler {
+	acpi_yestify_handler handler;
 	void *context;
 };
 
 /*
- * Notify info - used to pass info to the deferred notify
+ * Notify info - used to pass info to the deferred yestify
  * handler/dispatcher.
  */
-struct acpi_notify_info {
+struct acpi_yestify_info {
 	ACPI_STATE_COMMON u8 handler_list_id;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_operand_object *handler_list_head;
-	struct acpi_global_notify_handler *global;
+	struct acpi_global_yestify_handler *global;
 };
 
 /* Generic state is union of structs above */
@@ -662,7 +662,7 @@ union acpi_generic_state {
 	struct acpi_pkg_state pkg;
 	struct acpi_thread_state thread;
 	struct acpi_result_values results;
-	struct acpi_notify_info notify;
+	struct acpi_yestify_info yestify;
 };
 
 /*****************************************************************************
@@ -678,7 +678,7 @@ acpi_status (*acpi_execute_op) (struct acpi_walk_state * walk_state);
 
 struct acpi_address_range {
 	struct acpi_address_range *next;
-	struct acpi_namespace_node *region_node;
+	struct acpi_namespace_yesde *region_yesde;
 	acpi_physical_address start_address;
 	acpi_physical_address end_address;
 };
@@ -734,7 +734,7 @@ union acpi_parse_value {
 	u16                             aml_opcode;         /* AML opcode */\
 	u8                              *aml;               /* Address of declaration in AML */\
 	union acpi_parse_object         *next;              /* Next op */\
-	struct acpi_namespace_node      *node;              /* For use by interpreter */\
+	struct acpi_namespace_yesde      *yesde;              /* For use by interpreter */\
 	union acpi_parse_value          value;              /* Value or args associated with the opcode */\
 	u8                              arg_list_length;    /* Number of elements in the arg list */\
 	 ACPI_DISASM_ONLY_MEMBERS (\
@@ -744,13 +744,13 @@ union acpi_parse_value {
 	char                            aml_op_name[16])    /* Op name (debug only) */\
 	 ACPI_CONVERTER_ONLY_MEMBERS (\
 	char                            *inline_comment;    /* Inline comment */\
-	char                            *end_node_comment;  /* End of node comment */\
-	char                            *name_comment;      /* Comment associated with the first parameter of the name node */\
+	char                            *end_yesde_comment;  /* End of yesde comment */\
+	char                            *name_comment;      /* Comment associated with the first parameter of the name yesde */\
 	char                            *close_brace_comment; /* Comments that come after } on the same as } */\
-	struct acpi_comment_node        *comment_list;      /* comments that appears before this node */\
-	struct acpi_comment_node        *end_blk_comment;   /* comments that at the end of a block but before ) or } */\
-	char                            *cv_filename;       /* Filename associated with this node. Used for ASL/ASL+ converter */\
-	char                            *cv_parent_filename)	/* Parent filename associated with this node. Used for ASL/ASL+ converter */
+	struct acpi_comment_yesde        *comment_list;      /* comments that appears before this yesde */\
+	struct acpi_comment_yesde        *end_blk_comment;   /* comments that at the end of a block but before ) or } */\
+	char                            *cv_filename;       /* Filename associated with this yesde. Used for ASL/ASL+ converter */\
+	char                            *cv_parent_filename)	/* Parent filename associated with this yesde. Used for ASL/ASL+ converter */
 
 /* categories of comments */
 
@@ -778,10 +778,10 @@ typedef enum {
 #define ACPI_DASM_UUID                  0x05	/* Buffer is a UUID/GUID */
 #define ACPI_DASM_EISAID                0x06	/* Integer is an EISAID */
 #define ACPI_DASM_MATCHOP               0x07	/* Parent opcode is a Match() operator */
-#define ACPI_DASM_LNOT_PREFIX           0x08	/* Start of a Lnot_equal (etc.) pair of opcodes */
-#define ACPI_DASM_LNOT_SUFFIX           0x09	/* End  of a Lnot_equal (etc.) pair of opcodes */
+#define ACPI_DASM_LNOT_PREFIX           0x08	/* Start of a Lyest_equal (etc.) pair of opcodes */
+#define ACPI_DASM_LNOT_SUFFIX           0x09	/* End  of a Lyest_equal (etc.) pair of opcodes */
 #define ACPI_DASM_HID_STRING            0x0A	/* String is a _HID or _CID */
-#define ACPI_DASM_IGNORE_SINGLE         0x0B	/* Ignore the opcode but not it's children */
+#define ACPI_DASM_IGNORE_SINGLE         0x0B	/* Igyesre the opcode but yest it's children */
 #define ACPI_DASM_SWITCH                0x0C	/* While is a Switch */
 #define ACPI_DASM_SWITCH_PREDICATE      0x0D	/* Object is a predicate for a Switch or Case block */
 #define ACPI_DASM_CASE                  0x0E	/* If/Else is a Case in a Switch/Case block */
@@ -790,29 +790,29 @@ typedef enum {
 /*
  * List struct used in the -ca option
  */
-struct acpi_comment_node {
+struct acpi_comment_yesde {
 	char *comment;
-	struct acpi_comment_node *next;
+	struct acpi_comment_yesde *next;
 };
 
-struct acpi_comment_addr_node {
+struct acpi_comment_addr_yesde {
 	u8 *addr;
-	struct acpi_comment_addr_node *next;
+	struct acpi_comment_addr_yesde *next;
 };
 
 /*
- * File node - used for "Include" operator file stack and
+ * File yesde - used for "Include" operator file stack and
  * dependency tree for the -ca option
  */
-struct acpi_file_node {
+struct acpi_file_yesde {
 	void *file;
 	char *filename;
 	char *file_start;	/* Points to AML and indicates when the AML for this particular file starts. */
 	char *file_end;		/* Points to AML and indicates when the AML for this particular file ends. */
-	struct acpi_file_node *next;
-	struct acpi_file_node *parent;
+	struct acpi_file_yesde *next;
+	struct acpi_file_yesde *parent;
 	u8 include_written;
-	struct acpi_comment_node *include_comment;
+	struct acpi_comment_yesde *include_comment;
 };
 
 /*
@@ -829,7 +829,7 @@ struct acpi_parse_obj_named {
 	ACPI_PARSE_COMMON char *path;
 	u8 *data;		/* AML body or bytelist data */
 	u32 length;		/* AML length */
-	u32 name;		/* 4-byte name or zero if no name */
+	u32 name;		/* 4-byte name or zero if yes name */
 };
 
 /* This version is used by the iASL compiler only */
@@ -875,7 +875,7 @@ struct asl_comment_state {
 	u8 comment_type;
 	u32 spaces_before;
 	union acpi_parse_object *latest_parse_op;
-	union acpi_parse_object *parsing_paren_brace_node;
+	union acpi_parse_object *parsing_paren_brace_yesde;
 	u8 capture_comments;
 };
 
@@ -890,7 +890,7 @@ struct acpi_parse_state {
 	u8 *pkg_start;		/* Current package begin */
 	u8 *pkg_end;		/* Current package end */
 	union acpi_parse_object *start_op;	/* Root of parse tree */
-	struct acpi_namespace_node *start_node;
+	struct acpi_namespace_yesde *start_yesde;
 	union acpi_generic_state *scope;	/* Current scope */
 	union acpi_parse_object *start_scope;
 	u32 aml_size;
@@ -931,7 +931,7 @@ struct acpi_bit_register_info {
 };
 
 /*
- * Some ACPI registers have bits that must be ignored -- meaning that they
+ * Some ACPI registers have bits that must be igyesred -- meaning that they
  * must be preserved.
  */
 #define ACPI_PM1_STATUS_PRESERVED_BITS          0x0800	/* Bit 11 */
@@ -940,15 +940,15 @@ struct acpi_bit_register_info {
 
 #define ACPI_PM1_CONTROL_WRITEONLY_BITS         0x2004	/* Bits 13, 2 */
 
-/* For control registers, both ignored and reserved bits must be preserved */
+/* For control registers, both igyesred and reserved bits must be preserved */
 
 /*
  * For PM1 control, the SCI enable bit (bit 0, SCI_EN) is defined by the
  * ACPI specification to be a "preserved" bit - "OSPM always preserves this
  * bit position", section 4.7.3.2.1. However, on some machines the OS must
  * write a one to this bit after resume for the machine to work properly.
- * To enable this, we no longer attempt to preserve this bit. No machines
- * are known to fail if the bit is not preserved. (May 2009)
+ * To enable this, we yes longer attempt to preserve this bit. No machines
+ * are kyeswn to fail if the bit is yest preserved. (May 2009)
  */
 #define ACPI_PM1_CONTROL_IGNORED_BITS           0x0200	/* Bit 9 */
 #define ACPI_PM1_CONTROL_RESERVED_BITS          0xC1F8	/* Bits 14-15, 3-8 */
@@ -1201,7 +1201,7 @@ struct acpi_db_method_info {
 };
 
 struct acpi_integrity_info {
-	u32 nodes;
+	u32 yesdes;
 	u32 objects;
 };
 

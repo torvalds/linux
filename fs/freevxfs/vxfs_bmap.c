@@ -6,9 +6,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -35,7 +35,7 @@
 #include <linux/kernel.h>
 
 #include "vxfs.h"
-#include "vxfs_inode.h"
+#include "vxfs_iyesde.h"
 #include "vxfs_extern.h"
 
 
@@ -52,22 +52,22 @@ vxfs_typdump(struct vxfs_typed *typ)
 
 /**
  * vxfs_bmap_ext4 - do bmap for ext4 extents
- * @ip:		pointer to the inode we do bmap for
+ * @ip:		pointer to the iyesde we do bmap for
  * @iblock:	logical block.
  *
  * Description:
- *   vxfs_bmap_ext4 performs the bmap operation for inodes with
+ *   vxfs_bmap_ext4 performs the bmap operation for iyesdes with
  *   ext4-style extents (which are much like the traditional UNIX
- *   inode organisation).
+ *   iyesde organisation).
  *
  * Returns:
  *   The physical block number on success, else Zero.
  */
 static daddr_t
-vxfs_bmap_ext4(struct inode *ip, long bn)
+vxfs_bmap_ext4(struct iyesde *ip, long bn)
 {
 	struct super_block *sb = ip->i_sb;
-	struct vxfs_inode_info *vip = VXFS_INO(ip);
+	struct vxfs_iyesde_info *vip = VXFS_INO(ip);
 	struct vxfs_sb_info *sbi = VXFS_SBI(sb);
 	unsigned long bsize = sb->s_blocksize;
 	u32 indsize = fs32_to_cpu(sbi, vip->vii_ext4.ve4_indsize);
@@ -85,7 +85,7 @@ vxfs_bmap_ext4(struct inode *ip, long bn)
 
 	if ((bn / (indsize * indsize * bsize / 4)) == 0) {
 		struct buffer_head *buf;
-		daddr_t	bno;
+		daddr_t	byes;
 		__fs32 *indir;
 
 		buf = sb_bread(sb,
@@ -94,13 +94,13 @@ vxfs_bmap_ext4(struct inode *ip, long bn)
 			goto fail_buf;
 
 		indir = (__fs32 *)buf->b_data;
-		bno = fs32_to_cpu(sbi, indir[(bn / indsize) % (indsize * bn)]) +
+		byes = fs32_to_cpu(sbi, indir[(bn / indsize) % (indsize * bn)]) +
 			(bn % indsize);
 
 		brelse(buf);
-		return bno;
+		return byes;
 	} else
-		printk(KERN_WARNING "no matching indir?");
+		printk(KERN_WARNING "yes matching indir?");
 
 	return 0;
 
@@ -112,7 +112,7 @@ fail_buf:
 
 /**
  * vxfs_bmap_indir - recursion for vxfs_bmap_typed
- * @ip:		pointer to the inode we do bmap for
+ * @ip:		pointer to the iyesde we do bmap for
  * @indir:	indirect block we start reading at
  * @size:	size of the typed area to search
  * @block:	partially result from further searches
@@ -128,7 +128,7 @@ fail_buf:
  *   Kernelstack is rare.  Unrecurse?
  */
 static daddr_t
-vxfs_bmap_indir(struct inode *ip, long indir, int size, long block)
+vxfs_bmap_indir(struct iyesde *ip, long indir, int size, long block)
 {
 	struct vxfs_sb_info		*sbi = VXFS_SBI(ip->i_sb);
 	struct buffer_head		*bp = NULL;
@@ -197,7 +197,7 @@ out:
 
 /**
  * vxfs_bmap_typed - bmap for typed extents
- * @ip:		pointer to the inode we do bmap for
+ * @ip:		pointer to the iyesde we do bmap for
  * @iblock:	logical block
  *
  * Description:
@@ -207,9 +207,9 @@ out:
  *   The physical block number on success, else Zero.
  */
 static daddr_t
-vxfs_bmap_typed(struct inode *ip, long iblock)
+vxfs_bmap_typed(struct iyesde *ip, long iblock)
 {
-	struct vxfs_inode_info		*vip = VXFS_INO(ip);
+	struct vxfs_iyesde_info		*vip = VXFS_INO(ip);
 	struct vxfs_sb_info		*sbi = VXFS_SBI(ip->i_sb);
 	daddr_t				pblock = 0;
 	int				i;
@@ -260,7 +260,7 @@ vxfs_bmap_typed(struct inode *ip, long iblock)
 
 /**
  * vxfs_bmap1 - vxfs-internal bmap operation
- * @ip:			pointer to the inode we do bmap for
+ * @ip:			pointer to the iyesde we do bmap for
  * @iblock:		logical block
  *
  * Description:
@@ -271,9 +271,9 @@ vxfs_bmap_typed(struct inode *ip, long iblock)
  *   The physical block number on success, else Zero.
  */
 daddr_t
-vxfs_bmap1(struct inode *ip, long iblock)
+vxfs_bmap1(struct iyesde *ip, long iblock)
 {
-	struct vxfs_inode_info		*vip = VXFS_INO(ip);
+	struct vxfs_iyesde_info		*vip = VXFS_INO(ip);
 
 	if (VXFS_ISEXT4(vip))
 		return vxfs_bmap_ext4(ip, iblock);
@@ -284,12 +284,12 @@ vxfs_bmap1(struct inode *ip, long iblock)
 	if (VXFS_ISIMMED(vip))
 		goto unsupp;
 
-	printk(KERN_WARNING "vxfs: inode %ld has no valid orgtype (%x)\n",
-			ip->i_ino, vip->vii_orgtype);
+	printk(KERN_WARNING "vxfs: iyesde %ld has yes valid orgtype (%x)\n",
+			ip->i_iyes, vip->vii_orgtype);
 	BUG();
 
 unsupp:
-	printk(KERN_WARNING "vxfs: inode %ld has an unsupported orgtype (%x)\n",
-			ip->i_ino, vip->vii_orgtype);
+	printk(KERN_WARNING "vxfs: iyesde %ld has an unsupported orgtype (%x)\n",
+			ip->i_iyes, vip->vii_orgtype);
 	return 0;
 }

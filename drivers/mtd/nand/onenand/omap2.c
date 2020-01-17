@@ -4,7 +4,7 @@
  *
  *  Copyright © 2005-2006 Nokia Corporation
  *
- *  Author: Jarkko Lavinen <jarkko.lavinen@nokia.com> and Juha Yrjölä
+ *  Author: Jarkko Lavinen <jarkko.lavinen@yeskia.com> and Juha Yrjölä
  *  IRQ and DMA support written by Timo Teras
  */
 
@@ -371,7 +371,7 @@ static int omap2_onenand_read_bufferram(struct mtd_info *mtd, int area,
 
 	bram_offset = omap2_onenand_bufferram_offset(mtd, area) + area + offset;
 	/*
-	 * If the buffer address is not DMA-able, len is not long enough to make
+	 * If the buffer address is yest DMA-able, len is yest long eyesugh to make
 	 * DMA transfers profitable or panic_write() may be in an interrupt
 	 * context fallback to PIO mode.
 	 */
@@ -418,7 +418,7 @@ static int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
 
 	bram_offset = omap2_onenand_bufferram_offset(mtd, area) + area + offset;
 	/*
-	 * If the buffer address is not DMA-able, len is not long enough to make
+	 * If the buffer address is yest DMA-able, len is yest long eyesugh to make
 	 * DMA transfers profitable or panic_write() may be in an interrupt
 	 * context fallback to PIO mode.
 	 */
@@ -465,7 +465,7 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 	struct omap2_onenand *c;
 	struct gpmc_onenand_info info;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -475,7 +475,7 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 
 	r = of_property_read_u32(np, "reg", &val);
 	if (r) {
-		dev_err(dev, "reg not found in DT\n");
+		dev_err(dev, "reg yest found in DT\n");
 		return r;
 	}
 
@@ -523,7 +523,7 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 	c->pdev = pdev;
 	c->mtd.priv = &c->onenand;
 	c->mtd.dev.parent = dev;
-	mtd_set_of_node(&c->mtd, dev->of_node);
+	mtd_set_of_yesde(&c->mtd, dev->of_yesde);
 
 	dev_info(dev, "initializing on CS%d (0x%08lx), va %p, %s mode\n",
 		 c->gpmc_cs, c->phys_base, c->onenand.base,
@@ -616,5 +616,5 @@ module_platform_driver(omap2_onenand_driver);
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jarkko Lavinen <jarkko.lavinen@nokia.com>");
+MODULE_AUTHOR("Jarkko Lavinen <jarkko.lavinen@yeskia.com>");
 MODULE_DESCRIPTION("Glue layer for OneNAND flash on OMAP2 / OMAP3");

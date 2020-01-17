@@ -71,7 +71,7 @@ static const struct regmap_range volatile_ranges[] = {
 	}, {
 		/*
 		 * WDT control reg is special. Magic values must be written to
-		 * it in order to change the control. Should not be cached.
+		 * it in order to change the control. Should yest be cached.
 		 */
 		.range_min = BD70528_REG_WDT_CTRL,
 		.range_max = BD70528_REG_WDT_CTRL,
@@ -87,8 +87,8 @@ static const struct regmap_range volatile_ranges[] = {
 };
 
 static const struct regmap_access_table volatile_regs = {
-	.yes_ranges = &volatile_ranges[0],
-	.n_yes_ranges = ARRAY_SIZE(volatile_ranges),
+	.no_ranges = &volatile_ranges[0],
+	.n_no_ranges = ARRAY_SIZE(volatile_ranges),
 };
 
 static struct regmap_config bd70528_regmap = {
@@ -244,7 +244,7 @@ static int bd70528_i2c_probe(struct i2c_client *i2c,
 	}
 
 	/*
-	 * Disallow type setting for all IRQs by default as most of them do not
+	 * Disallow type setting for all IRQs by default as most of them do yest
 	 * support setting type.
 	 */
 	for (i = 0; i < ARRAY_SIZE(bd70528_irqs); i++)
@@ -275,7 +275,7 @@ static int bd70528_i2c_probe(struct i2c_client *i2c,
 		bd70528_irq_chip.num_irqs);
 
 	/*
-	 * BD70528 IRQ controller is not touching the main mask register.
+	 * BD70528 IRQ controller is yest touching the main mask register.
 	 * So enable the GPIO block interrupts at main level. We can just leave
 	 * them enabled as the IRQ controller should disable IRQs from
 	 * sub-registers when IRQ is disabled or freed.

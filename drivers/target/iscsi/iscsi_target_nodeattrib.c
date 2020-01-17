@@ -14,26 +14,26 @@
 #include "iscsi_target_device.h"
 #include "iscsi_target_tpg.h"
 #include "iscsi_target_util.h"
-#include "iscsi_target_nodeattrib.h"
+#include "iscsi_target_yesdeattrib.h"
 
 static inline char *iscsit_na_get_initiatorname(
-	struct iscsi_node_acl *nacl)
+	struct iscsi_yesde_acl *nacl)
 {
-	struct se_node_acl *se_nacl = &nacl->se_node_acl;
+	struct se_yesde_acl *se_nacl = &nacl->se_yesde_acl;
 
 	return &se_nacl->initiatorname[0];
 }
 
-void iscsit_set_default_node_attribues(
-	struct iscsi_node_acl *acl,
+void iscsit_set_default_yesde_attribues(
+	struct iscsi_yesde_acl *acl,
 	struct iscsi_portal_group *tpg)
 {
-	struct iscsi_node_attrib *a = &acl->node_attrib;
+	struct iscsi_yesde_attrib *a = &acl->yesde_attrib;
 
 	a->dataout_timeout = NA_DATAOUT_TIMEOUT;
 	a->dataout_timeout_retries = NA_DATAOUT_TIMEOUT_RETRIES;
-	a->nopin_timeout = NA_NOPIN_TIMEOUT;
-	a->nopin_response_timeout = NA_NOPIN_RESPONSE_TIMEOUT;
+	a->yespin_timeout = NA_NOPIN_TIMEOUT;
+	a->yespin_response_timeout = NA_NOPIN_RESPONSE_TIMEOUT;
 	a->random_datain_pdu_offsets = NA_RANDOM_DATAIN_PDU_OFFSETS;
 	a->random_datain_seq_offsets = NA_RANDOM_DATAIN_SEQ_OFFSETS;
 	a->random_r2t_offsets = NA_RANDOM_R2T_OFFSETS;
@@ -41,10 +41,10 @@ void iscsit_set_default_node_attribues(
 }
 
 int iscsit_na_dataout_timeout(
-	struct iscsi_node_acl *acl,
+	struct iscsi_yesde_acl *acl,
 	u32 dataout_timeout)
 {
-	struct iscsi_node_attrib *a = &acl->node_attrib;
+	struct iscsi_yesde_attrib *a = &acl->yesde_attrib;
 
 	if (dataout_timeout > NA_DATAOUT_TIMEOUT_MAX) {
 		pr_err("Requested DataOut Timeout %u larger than"
@@ -66,10 +66,10 @@ int iscsit_na_dataout_timeout(
 }
 
 int iscsit_na_dataout_timeout_retries(
-	struct iscsi_node_acl *acl,
+	struct iscsi_yesde_acl *acl,
 	u32 dataout_timeout_retries)
 {
-	struct iscsi_node_attrib *a = &acl->node_attrib;
+	struct iscsi_yesde_attrib *a = &acl->yesde_attrib;
 
 	if (dataout_timeout_retries > NA_DATAOUT_TIMEOUT_RETRIES_MAX) {
 		pr_err("Requested DataOut Timeout Retries %u larger"
@@ -91,37 +91,37 @@ int iscsit_na_dataout_timeout_retries(
 	return 0;
 }
 
-int iscsit_na_nopin_timeout(
-	struct iscsi_node_acl *acl,
-	u32 nopin_timeout)
+int iscsit_na_yespin_timeout(
+	struct iscsi_yesde_acl *acl,
+	u32 yespin_timeout)
 {
-	struct iscsi_node_attrib *a = &acl->node_attrib;
+	struct iscsi_yesde_attrib *a = &acl->yesde_attrib;
 	struct iscsi_session *sess;
 	struct iscsi_conn *conn;
-	struct se_node_acl *se_nacl = &a->nacl->se_node_acl;
+	struct se_yesde_acl *se_nacl = &a->nacl->se_yesde_acl;
 	struct se_session *se_sess;
-	u32 orig_nopin_timeout = a->nopin_timeout;
+	u32 orig_yespin_timeout = a->yespin_timeout;
 
-	if (nopin_timeout > NA_NOPIN_TIMEOUT_MAX) {
+	if (yespin_timeout > NA_NOPIN_TIMEOUT_MAX) {
 		pr_err("Requested NopIn Timeout %u larger than maximum"
-			" %u\n", nopin_timeout, NA_NOPIN_TIMEOUT_MAX);
+			" %u\n", yespin_timeout, NA_NOPIN_TIMEOUT_MAX);
 		return -EINVAL;
-	} else if ((nopin_timeout < NA_NOPIN_TIMEOUT_MIN) &&
-		   (nopin_timeout != 0)) {
+	} else if ((yespin_timeout < NA_NOPIN_TIMEOUT_MIN) &&
+		   (yespin_timeout != 0)) {
 		pr_err("Requested NopIn Timeout %u smaller than"
-			" minimum %u and not 0\n", nopin_timeout,
+			" minimum %u and yest 0\n", yespin_timeout,
 			NA_NOPIN_TIMEOUT_MIN);
 		return -EINVAL;
 	}
 
-	a->nopin_timeout = nopin_timeout;
+	a->yespin_timeout = yespin_timeout;
 	pr_debug("Set NopIn Timeout to %u for Initiator"
-		" Node %s\n", a->nopin_timeout,
+		" Node %s\n", a->yespin_timeout,
 		iscsit_na_get_initiatorname(acl));
 	/*
-	 * Reenable disabled nopin_timeout timer for all iSCSI connections.
+	 * Reenable disabled yespin_timeout timer for all iSCSI connections.
 	 */
-	if (!orig_nopin_timeout) {
+	if (!orig_yespin_timeout) {
 		spin_lock_bh(&se_nacl->nacl_sess_lock);
 		se_sess = se_nacl->nacl_sess;
 		if (se_sess) {
@@ -134,9 +134,9 @@ int iscsit_na_nopin_timeout(
 						TARG_CONN_STATE_LOGGED_IN)
 					continue;
 
-				spin_lock(&conn->nopin_timer_lock);
-				__iscsit_start_nopin_timer(conn);
-				spin_unlock(&conn->nopin_timer_lock);
+				spin_lock(&conn->yespin_timer_lock);
+				__iscsit_start_yespin_timer(conn);
+				spin_unlock(&conn->yespin_timer_lock);
 			}
 			spin_unlock(&sess->conn_lock);
 		}
@@ -146,40 +146,40 @@ int iscsit_na_nopin_timeout(
 	return 0;
 }
 
-int iscsit_na_nopin_response_timeout(
-	struct iscsi_node_acl *acl,
-	u32 nopin_response_timeout)
+int iscsit_na_yespin_response_timeout(
+	struct iscsi_yesde_acl *acl,
+	u32 yespin_response_timeout)
 {
-	struct iscsi_node_attrib *a = &acl->node_attrib;
+	struct iscsi_yesde_attrib *a = &acl->yesde_attrib;
 
-	if (nopin_response_timeout > NA_NOPIN_RESPONSE_TIMEOUT_MAX) {
+	if (yespin_response_timeout > NA_NOPIN_RESPONSE_TIMEOUT_MAX) {
 		pr_err("Requested NopIn Response Timeout %u larger"
-			" than maximum %u\n", nopin_response_timeout,
+			" than maximum %u\n", yespin_response_timeout,
 				NA_NOPIN_RESPONSE_TIMEOUT_MAX);
 		return -EINVAL;
-	} else if (nopin_response_timeout < NA_NOPIN_RESPONSE_TIMEOUT_MIN) {
+	} else if (yespin_response_timeout < NA_NOPIN_RESPONSE_TIMEOUT_MIN) {
 		pr_err("Requested NopIn Response Timeout %u smaller"
-			" than minimum %u\n", nopin_response_timeout,
+			" than minimum %u\n", yespin_response_timeout,
 				NA_NOPIN_RESPONSE_TIMEOUT_MIN);
 		return -EINVAL;
 	}
 
-	a->nopin_response_timeout = nopin_response_timeout;
+	a->yespin_response_timeout = yespin_response_timeout;
 	pr_debug("Set NopIn Response Timeout to %u for"
-		" Initiator Node %s\n", a->nopin_timeout,
+		" Initiator Node %s\n", a->yespin_timeout,
 		iscsit_na_get_initiatorname(acl));
 
 	return 0;
 }
 
 int iscsit_na_random_datain_pdu_offsets(
-	struct iscsi_node_acl *acl,
+	struct iscsi_yesde_acl *acl,
 	u32 random_datain_pdu_offsets)
 {
-	struct iscsi_node_attrib *a = &acl->node_attrib;
+	struct iscsi_yesde_attrib *a = &acl->yesde_attrib;
 
 	if (random_datain_pdu_offsets != 0 && random_datain_pdu_offsets != 1) {
-		pr_err("Requested Random DataIN PDU Offsets: %u not"
+		pr_err("Requested Random DataIN PDU Offsets: %u yest"
 			" 0 or 1\n", random_datain_pdu_offsets);
 		return -EINVAL;
 	}
@@ -193,14 +193,14 @@ int iscsit_na_random_datain_pdu_offsets(
 }
 
 int iscsit_na_random_datain_seq_offsets(
-	struct iscsi_node_acl *acl,
+	struct iscsi_yesde_acl *acl,
 	u32 random_datain_seq_offsets)
 {
-	struct iscsi_node_attrib *a = &acl->node_attrib;
+	struct iscsi_yesde_attrib *a = &acl->yesde_attrib;
 
 	if (random_datain_seq_offsets != 0 && random_datain_seq_offsets != 1) {
 		pr_err("Requested Random DataIN Sequence Offsets: %u"
-			" not 0 or 1\n", random_datain_seq_offsets);
+			" yest 0 or 1\n", random_datain_seq_offsets);
 		return -EINVAL;
 	}
 
@@ -213,13 +213,13 @@ int iscsit_na_random_datain_seq_offsets(
 }
 
 int iscsit_na_random_r2t_offsets(
-	struct iscsi_node_acl *acl,
+	struct iscsi_yesde_acl *acl,
 	u32 random_r2t_offsets)
 {
-	struct iscsi_node_attrib *a = &acl->node_attrib;
+	struct iscsi_yesde_attrib *a = &acl->yesde_attrib;
 
 	if (random_r2t_offsets != 0 && random_r2t_offsets != 1) {
-		pr_err("Requested Random R2T Offsets: %u not"
+		pr_err("Requested Random R2T Offsets: %u yest"
 			" 0 or 1\n", random_r2t_offsets);
 		return -EINVAL;
 	}
@@ -233,13 +233,13 @@ int iscsit_na_random_r2t_offsets(
 }
 
 int iscsit_na_default_erl(
-	struct iscsi_node_acl *acl,
+	struct iscsi_yesde_acl *acl,
 	u32 default_erl)
 {
-	struct iscsi_node_attrib *a = &acl->node_attrib;
+	struct iscsi_yesde_attrib *a = &acl->yesde_attrib;
 
 	if (default_erl != 0 && default_erl != 1 && default_erl != 2) {
-		pr_err("Requested default ERL: %u not 0, 1, or 2\n",
+		pr_err("Requested default ERL: %u yest 0, 1, or 2\n",
 				default_erl);
 		return -EINVAL;
 	}

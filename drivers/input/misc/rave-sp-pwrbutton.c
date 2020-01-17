@@ -2,7 +2,7 @@
 //
 // Power Button driver for RAVE SP
 //
-// Copyright (C) 2017 Zodiac Inflight Innovations
+// Copyright (C) 2017 Zodiac Inflight Inyesvations
 //
 //
 
@@ -16,10 +16,10 @@
 
 struct rave_sp_power_button {
 	struct input_dev *idev;
-	struct notifier_block nb;
+	struct yestifier_block nb;
 };
 
-static int rave_sp_power_button_event(struct notifier_block *nb,
+static int rave_sp_power_button_event(struct yestifier_block *nb,
 				      unsigned long action, void *data)
 {
 	struct rave_sp_power_button *pb =
@@ -62,10 +62,10 @@ static int rave_sp_pwrbutton_probe(struct platform_device *pdev)
 		return error;
 
 	pb->idev = idev;
-	pb->nb.notifier_call = rave_sp_power_button_event;
+	pb->nb.yestifier_call = rave_sp_power_button_event;
 	pb->nb.priority = 128;
 
-	error = devm_rave_sp_register_event_notifier(dev, &pb->nb);
+	error = devm_rave_sp_register_event_yestifier(dev, &pb->nb);
 	if (error)
 		return error;
 
@@ -90,5 +90,5 @@ MODULE_DEVICE_TABLE(of, rave_sp_pwrbutton_of_match);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrey Vostrikov <andrey.vostrikov@cogentembedded.com>");
 MODULE_AUTHOR("Nikita Yushchenko <nikita.yoush@cogentembedded.com>");
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiryesv <andrew.smiryesv@gmail.com>");
 MODULE_DESCRIPTION("RAVE SP Power Button driver");

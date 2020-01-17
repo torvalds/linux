@@ -61,7 +61,7 @@ sgl_to_sgl_fcnvfxt(
 	if (src_exponent > SGL_FX_MAX_EXP) {
 		/* check for MININT */
 		if ((src_exponent > SGL_FX_MAX_EXP + 1) || 
-		Sgl_isnotzero_mantissa(src) || Sgl_iszero_sign(src)) {
+		Sgl_isyestzero_mantissa(src) || Sgl_iszero_sign(src)) {
                         if (Sgl_iszero_sign(src)) result = 0x7fffffff;
                         else result = 0x80000000; 
 
@@ -94,7 +94,7 @@ sgl_to_sgl_fcnvfxt(
 		*dstptr = 0;
 
 		/* check for inexact */
-		if (Sgl_isnotzero_exponentmantissa(src)) {
+		if (Sgl_isyestzero_exponentmantissa(src)) {
 			if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 			else Set_inexactflag();
 		}
@@ -125,7 +125,7 @@ sgl_to_dbl_fcnvfxt(
 	if (src_exponent > DBL_FX_MAX_EXP) {
 		/* check for MININT */
 		if ((src_exponent > DBL_FX_MAX_EXP + 1) || 
-		Sgl_isnotzero_mantissa(src) || Sgl_iszero_sign(src)) {
+		Sgl_isyestzero_mantissa(src) || Sgl_iszero_sign(src)) {
                         if (Sgl_iszero_sign(src)) {
                               resultp1 = 0x7fffffff;
 			      resultp2 = 0xffffffff;
@@ -168,7 +168,7 @@ sgl_to_dbl_fcnvfxt(
 		Dint_copytoptr(resultp1,resultp2,dstptr);
 
 		/* check for inexact */
-		if (Sgl_isnotzero_exponentmantissa(src)) {
+		if (Sgl_isyestzero_exponentmantissa(src)) {
 			if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 			else Set_inexactflag();
 		}
@@ -233,7 +233,7 @@ dbl_to_sgl_fcnvfxt(
 		*dstptr = 0;
 
 		/* check for inexact */
-		if (Dbl_isnotzero_exponentmantissa(srcp1,srcp2)) {
+		if (Dbl_isyestzero_exponentmantissa(srcp1,srcp2)) {
 			if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 			else Set_inexactflag();
 		}
@@ -264,7 +264,7 @@ dbl_to_dbl_fcnvfxt(
 	if (src_exponent > DBL_FX_MAX_EXP) {
 		/* check for MININT */
 		if ((src_exponent > DBL_FX_MAX_EXP + 1) || 
-		Dbl_isnotzero_mantissa(srcp1,srcp2) || Dbl_iszero_sign(srcp1)) {
+		Dbl_isyestzero_mantissa(srcp1,srcp2) || Dbl_iszero_sign(srcp1)) {
                         if (Dbl_iszero_sign(srcp1)) {
                               resultp1 = 0x7fffffff;
 			      resultp2 = 0xffffffff;
@@ -306,7 +306,7 @@ dbl_to_dbl_fcnvfxt(
 		Dint_copytoptr(resultp1,resultp2,dstptr);
 
 		/* check for inexact */
-		if (Dbl_isnotzero_exponentmantissa(srcp1,srcp2)) {
+		if (Dbl_isyestzero_exponentmantissa(srcp1,srcp2)) {
 			if (Is_inexacttrap_enabled()) return(INEXACTEXCEPTION);
 			else Set_inexactflag();
 		}

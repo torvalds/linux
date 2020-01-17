@@ -4,7 +4,7 @@
  *
  * Use the z/Architecture Vector Extension Facility to accelerate the
  * computing of bitreflected CRC-32 checksums for IEEE 802.3 Ethernet
- * and Castagnoli.
+ * and Castagyesli.
  *
  * This CRC-32 implementation algorithm is bitreflected and processes
  * the least-significant bit first (Little-Endian).
@@ -14,7 +14,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/nospec-insn.h>
+#include <asm/yesspec-insn.h>
 #include <asm/vx-insn.h>
 
 /* Vector register range containing CRC-32 constants */
@@ -45,15 +45,15 @@
  *	The bitreflected Barret reduction constant, u', is defined as
  *	the bit reversal of floor(x**64 / P(x)).
  *
- *	where P(x) is the polynomial in the normal domain and the P'(x) is the
- *	polynomial in the reversed (bitreflected) domain.
+ *	where P(x) is the polyyesmial in the yesrmal domain and the P'(x) is the
+ *	polyyesmial in the reversed (bitreflected) domain.
  *
- * CRC-32 (IEEE 802.3 Ethernet, ...) polynomials:
+ * CRC-32 (IEEE 802.3 Ethernet, ...) polyyesmials:
  *
  *	P(x)  = 0x04C11DB7
  *	P'(x) = 0xEDB88320
  *
- * CRC-32C (Castagnoli) polynomials:
+ * CRC-32C (Castagyesli) polyyesmials:
  *
  *	P(x)  = 0x1EDC6F41
  *	P'(x) = 0x82F63B78
@@ -226,7 +226,7 @@ ENTRY(crc32_le_vgfm_generic)
 	 * doubleword into the rightmost doubleword element of V1; the other
 	 * half is loaded in the leftmost doubleword.
 	 * The vector register with CONST_R5 contains the R5 constant in the
-	 * rightmost doubleword and the leftmost doubleword is zero to ignore
+	 * rightmost doubleword and the leftmost doubleword is zero to igyesre
 	 * the leftmost product of V1.
 	 */
 	VLEIB	%v9,0x20,7		  /* Shift by words */
@@ -237,8 +237,8 @@ ENTRY(crc32_le_vgfm_generic)
 	/*
 	 * Apply a Barret reduction to compute the final 32-bit CRC value.
 	 *
-	 * The input values to the Barret reduction are the degree-63 polynomial
-	 * in V1 (R(x)), degree-32 generator polynomial, and the reduction
+	 * The input values to the Barret reduction are the degree-63 polyyesmial
+	 * in V1 (R(x)), degree-32 generator polyyesmial, and the reduction
 	 * constant u.	The Barret reduction result is the CRC value of R(x) mod
 	 * P(x).
 	 *
@@ -250,7 +250,7 @@ ENTRY(crc32_le_vgfm_generic)
 	 *
 	 *  Note: The leftmost doubleword of vector register containing
 	 *  CONST_RU_POLY is zero and, thus, the intermediate GF(2) product
-	 *  is zero and does not contribute to the final result.
+	 *  is zero and does yest contribute to the final result.
 	 */
 
 	/* T1(x) = floor( R(x) / x^32 ) GF2MUL u */
@@ -258,7 +258,7 @@ ENTRY(crc32_le_vgfm_generic)
 	VGFMG	%v2,CONST_RU_POLY,%v2
 
 	/*
-	 * Compute the GF(2) product of the CRC polynomial with T1(x) in
+	 * Compute the GF(2) product of the CRC polyyesmial with T1(x) in
 	 * V2 and XOR the intermediate result, T2(x), with the value in V1.
 	 * The final result is stored in word element 2 of V2.
 	 */

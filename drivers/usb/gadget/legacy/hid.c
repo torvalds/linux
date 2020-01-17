@@ -27,10 +27,10 @@
 
 /*-------------------------------------------------------------------------*/
 
-struct hidg_func_node {
+struct hidg_func_yesde {
 	struct usb_function_instance *fi;
 	struct usb_function *f;
-	struct list_head node;
+	struct list_head yesde;
 	struct hidg_func_descriptor *func;
 };
 
@@ -89,7 +89,7 @@ static struct usb_gadget_strings *dev_strings[] = {
 
 static int do_config(struct usb_configuration *c)
 {
-	struct hidg_func_node *e, *n;
+	struct hidg_func_yesde *e, *n;
 	int status = 0;
 
 	if (gadget_is_otg(c->cdev->gadget)) {
@@ -97,7 +97,7 @@ static int do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	list_for_each_entry(e, &hidg_func_list, node) {
+	list_for_each_entry(e, &hidg_func_list, yesde) {
 		e->f = usb_get_function(e->fi);
 		if (IS_ERR(e->f))
 			goto put;
@@ -110,7 +110,7 @@ static int do_config(struct usb_configuration *c)
 
 	return 0;
 put:
-	list_for_each_entry(n, &hidg_func_list, node) {
+	list_for_each_entry(n, &hidg_func_list, yesde) {
 		if (n == e)
 			break;
 		usb_remove_function(c, n->f);
@@ -132,7 +132,7 @@ static int hid_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget *gadget = cdev->gadget;
 	struct list_head *tmp;
-	struct hidg_func_node *n, *m;
+	struct hidg_func_yesde *n, *m;
 	struct f_hid_opts *hid_opts;
 	int status, funcs = 0;
 
@@ -142,7 +142,7 @@ static int hid_bind(struct usb_composite_dev *cdev)
 	if (!funcs)
 		return -ENODEV;
 
-	list_for_each_entry(n, &hidg_func_list, node) {
+	list_for_each_entry(n, &hidg_func_list, yesde) {
 		n->fi = usb_get_function_instance("hid");
 		if (IS_ERR(n->fi)) {
 			status = PTR_ERR(n->fi);
@@ -157,7 +157,7 @@ static int hid_bind(struct usb_composite_dev *cdev)
 	}
 
 
-	/* Allocate string descriptor numbers ... note that string
+	/* Allocate string descriptor numbers ... yeste that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
 
@@ -192,7 +192,7 @@ free_otg_desc:
 	kfree(otg_desc[0]);
 	otg_desc[0] = NULL;
 put:
-	list_for_each_entry(m, &hidg_func_list, node) {
+	list_for_each_entry(m, &hidg_func_list, yesde) {
 		if (m == n)
 			break;
 		usb_put_function_instance(m->fi);
@@ -202,9 +202,9 @@ put:
 
 static int hid_unbind(struct usb_composite_dev *cdev)
 {
-	struct hidg_func_node *n;
+	struct hidg_func_yesde *n;
 
-	list_for_each_entry(n, &hidg_func_list, node) {
+	list_for_each_entry(n, &hidg_func_list, yesde) {
 		usb_put_function(n->f);
 		usb_put_function_instance(n->fi);
 	}
@@ -218,7 +218,7 @@ static int hid_unbind(struct usb_composite_dev *cdev)
 static int hidg_plat_driver_probe(struct platform_device *pdev)
 {
 	struct hidg_func_descriptor *func = dev_get_platdata(&pdev->dev);
-	struct hidg_func_node *entry;
+	struct hidg_func_yesde *entry;
 
 	if (!func) {
 		dev_err(&pdev->dev, "Platform data missing\n");
@@ -230,17 +230,17 @@ static int hidg_plat_driver_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	entry->func = func;
-	list_add_tail(&entry->node, &hidg_func_list);
+	list_add_tail(&entry->yesde, &hidg_func_list);
 
 	return 0;
 }
 
 static int hidg_plat_driver_remove(struct platform_device *pdev)
 {
-	struct hidg_func_node *e, *n;
+	struct hidg_func_yesde *e, *n;
 
-	list_for_each_entry_safe(e, n, &hidg_func_list, node) {
-		list_del(&e->node);
+	list_for_each_entry_safe(e, n, &hidg_func_list, yesde) {
+		list_del(&e->yesde);
 		kfree(e);
 	}
 
@@ -248,7 +248,7 @@ static int hidg_plat_driver_remove(struct platform_device *pdev)
 }
 
 
-/****************************** Some noise ******************************/
+/****************************** Some yesise ******************************/
 
 
 static struct usb_composite_driver hidg_driver = {

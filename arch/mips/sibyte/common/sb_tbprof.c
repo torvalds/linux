@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2001, 2002, 2003 Broadcom Corporation
  * Copyright (C) 2007 Ralf Baechle <ralf@linux-mips.org>
- * Copyright (C) 2007 MIPS Technologies, Inc.
+ * Copyright (C) 2007 MIPS Techyeslogies, Inc.
  *    written by Ralf Baechle <ralf@linux-mips.org>
  */
 
@@ -18,7 +18,7 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <asm/io.h>
 #include <asm/sibyte/sb1250.h>
@@ -91,8 +91,8 @@ static struct sbprof_tb sbp;
 
 /*
  * Configures SCD counter 0 to count ZCLKs starting from val;
- * Configures SCD counters1,2,3 to count nothing.
- * Must not be called while gathering ZBbus profiles.
+ * Configures SCD counters1,2,3 to count yesthing.
+ * Must yest be called while gathering ZBbus profiles.
  */
 
 #define zclk_timer_init(val) \
@@ -102,7 +102,7 @@ static struct sbprof_tb sbp;
 			"sd   %0, 0x10($8);"   /* write val to counter0 */ \
 			"sd   %1, 0($8);"      /* config counter0 for zclks*/ \
 			".set pop" \
-			: /* no outputs */ \
+			: /* yes outputs */ \
 						     /* enable, counter0 */ \
 			: /* inputs */ "r"(val), "r" ((1ULL << 33) | 1ULL) \
 			: /* modifies */ "$8" )
@@ -153,7 +153,7 @@ static void arm_tb(void)
 	scdperfcnt = __raw_readq(IOADDR(A_SCD_PERF_CNT_CFG));
 
 	/*
-	 * Unfortunately, in Pass 2 we must clear all counters to knock down
+	 * Unfortunately, in Pass 2 we must clear all counters to kyesck down
 	 * a previous interrupt request.  This means that bus profiling
 	 * requires ALL of the SCD perf counters.
 	 */
@@ -223,7 +223,7 @@ static irqreturn_t sbprof_tb_intr(int irq, void *dev_id)
 			sbp.tb_armed = 0;
 			wake_up_interruptible(&sbp.tb_sync);
 		} else {
-			/* knock down current interrupt and get another one later */
+			/* kyesck down current interrupt and get ayesther one later */
 			arm_tb();
 		}
 	} else {
@@ -287,7 +287,7 @@ static int sbprof_zbprof_start(struct file *filp)
 
 	/*
 	 * I need the core to mask these, but the interrupt mapper to
-	 *  pass them through.	I am exploiting my knowledge that
+	 *  pass them through.	I am exploiting my kyeswledge that
 	 *  cp0_status masks out IP[5]. krw
 	 */
 #if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
@@ -386,12 +386,12 @@ static int sbprof_zbprof_stop(void)
 	return err;
 }
 
-static int sbprof_tb_open(struct inode *inode, struct file *filp)
+static int sbprof_tb_open(struct iyesde *iyesde, struct file *filp)
 {
-	int minor;
+	int miyesr;
 
-	minor = iminor(inode);
-	if (minor != 0)
+	miyesr = imiyesr(iyesde);
+	if (miyesr != 0)
 		return -ENODEV;
 
 	if (xchg(&sbp.open, SB_OPENING) != SB_CLOSED)
@@ -415,12 +415,12 @@ static int sbprof_tb_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int sbprof_tb_release(struct inode *inode, struct file *filp)
+static int sbprof_tb_release(struct iyesde *iyesde, struct file *filp)
 {
-	int minor;
+	int miyesr;
 
-	minor = iminor(inode);
-	if (minor != 0 || sbp.open != SB_CLOSED)
+	miyesr = imiyesr(iyesde);
+	if (miyesr != 0 || sbp.open != SB_CLOSED)
 		return -ENODEV;
 
 	mutex_lock(&sbp.lock);

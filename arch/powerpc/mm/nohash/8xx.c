@@ -38,7 +38,7 @@ phys_addr_t v_block_mapped(unsigned long va)
 }
 
 /*
- * Return VA for a given PA mapped with LTLBs or 0 if not mapped
+ * Return VA for a given PA mapped with LTLBs or 0 if yest mapped
  */
 unsigned long p_block_mapped(phys_addr_t pa)
 {
@@ -137,7 +137,7 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 		/*
 		 * Populate page tables to:
 		 * - have them appear in /sys/kernel/debug/kernel_page_tables
-		 * - allow the BDI to find the pages when they are not PINNED
+		 * - allow the BDI to find the pages when they are yest PINNED
 		 */
 		mmu_mapin_ram_chunk(0, einittext8, PAGE_KERNEL_X);
 		mmu_mapin_ram_chunk(einittext8, mapped, PAGE_KERNEL);
@@ -147,11 +147,11 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 	mmu_patch_cmp_limit(&patch__dtlbmiss_linmem_top, mapped);
 	mmu_patch_cmp_limit(&patch__fixupdar_linmem_top, mapped);
 
-	/* If the size of RAM is not an exact power of two, we may not
+	/* If the size of RAM is yest an exact power of two, we may yest
 	 * have covered RAM in its entirety with 8 MiB
 	 * pages. Consequently, restrict the top end of RAM currently
 	 * allocable so that calls to the MEMBLOCK to allocate PTEs for "tail"
-	 * coverage with normal-sized pages (or other reasons) do not
+	 * coverage with yesrmal-sized pages (or other reasons) do yest
 	 * attempt to allocate outside the allowed range.
 	 */
 	if (mapped)
@@ -208,7 +208,7 @@ void mmu_mark_rodata_ro(void)
 void __init setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				       phys_addr_t first_memblock_size)
 {
-	/* We don't currently support the first MEMBLOCK not mapping 0
+	/* We don't currently support the first MEMBLOCK yest mapping 0
 	 * physical on those processors
 	 */
 	BUG_ON(first_memblock_base != 0);
@@ -273,7 +273,7 @@ void __init setup_kuap(bool disabled)
 	pr_info("Activating Kernel Userspace Access Protection\n");
 
 	if (disabled)
-		pr_warn("KUAP cannot be disabled yet on 8xx when compiled in\n");
+		pr_warn("KUAP canyest be disabled yet on 8xx when compiled in\n");
 
 	mtspr(SPRN_MD_AP, MD_APG_KUAP);
 }

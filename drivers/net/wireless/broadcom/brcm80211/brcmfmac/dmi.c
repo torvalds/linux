@@ -70,7 +70,7 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		 * and board_name are unique to the GPDwin, where as only one
 		 * other board has the same board_serial and 3 others have
 		 * the same default product_name. Also the GPDwin is the
-		 * only device to have both board_ and product_name not set.
+		 * only device to have both board_ and product_name yest set.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),

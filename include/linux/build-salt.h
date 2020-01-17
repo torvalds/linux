@@ -1,7 +1,7 @@
 #ifndef __BUILD_SALT_H
 #define __BUILD_SALT_H
 
-#include <linux/elfnote.h>
+#include <linux/elfyeste.h>
 
 #define LINUX_ELFNOTE_BUILD_SALT       0x100
 

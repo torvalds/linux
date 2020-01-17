@@ -28,7 +28,7 @@ Current available format styles are:
 'default'::
 Default style. This is mainly for human reading.
 ---------------------
-% perf bench sched pipe                      # with no style specified
+% perf bench sched pipe                      # with yes style specified
 (executing 1000000 pipe operations between two tasks)
         Total time:5.855 sec
                 5.855061 usecs/op

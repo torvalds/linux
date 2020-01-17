@@ -77,17 +77,17 @@
 //	calculating the Internet checksum.
 //
 // NOT YET DONE:
-//	- Maybe another algorithm which would take care of the folding at the
+//	- Maybe ayesther algorithm which would take care of the folding at the
 //	  end in a different manner
-//	- Work with people more knowledgeable than me on the network stack
-//	  to figure out if we could not split the function depending on the
+//	- Work with people more kyeswledgeable than me on the network stack
+//	  to figure out if we could yest split the function depending on the
 //	  type of packet or alignment we get. Like the ip_fast_csum() routine
-//	  where we know we have at least 20bytes worth of data to checksum.
+//	  where we kyesw we have at least 20bytes worth of data to checksum.
 //	- Do a better job of handling small packets.
 //	- Note on prefetching: it was found that under various load, i.e. ftp read/write,
 //	  nfs read/write, the L1 cache hit rate is at 60% and L2 cache hit rate is at 99.8%
 //	  on the data that buffer points to (partly because the checksum is often preceded by
-//	  a copy_from_user()).  This finding indiate that lfetch will not be beneficial since
+//	  a copy_from_user()).  This finding indiate that lfetch will yest be beneficial since
 //	  the data is already in the cache.
 //
 
@@ -235,7 +235,7 @@ GLOBAL_ENTRY(do_csum)
 (p[0])	ld8 word2[0]=[first2],16
 	br.ctop.sptk 1b
 	;;
-	// Since len is a 32-bit value, carry cannot be larger than a 64-bit value.
+	// Since len is a 32-bit value, carry canyest be larger than a 64-bit value.
 (pC1[1])adds carry1=1,carry1	// since we miss the last one
 (pC2[1])adds carry2=1,carry2
 	;;
@@ -256,8 +256,8 @@ GLOBAL_ENTRY(do_csum)
 	;;
 .do_csum_exit:
 	//
-	// now fold 64 into 16 bits taking care of carry
-	// that's not very good because it has lots of sequentiality
+	// yesw fold 64 into 16 bits taking care of carry
+	// that's yest very good because it has lots of sequentiality
 	//
 	mov tmp3=0xffff
 	zxt4 tmp1=result1[0]
@@ -290,7 +290,7 @@ GLOBAL_ENTRY(do_csum)
 	br.ret.sptk.many rp
 
 //	I (Jun Nakajima) wrote an equivalent code (see below), but it was
-//	not much better than the original. So keep the original there so that
+//	yest much better than the original. So keep the original there so that
 //	someone else can challenge.
 //
 //	shr.u word1[0]=result1[0],32

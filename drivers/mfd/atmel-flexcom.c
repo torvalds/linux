@@ -36,7 +36,7 @@ struct atmel_flexcom {
 
 static int atmel_flexcom_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct resource *res;
 	struct atmel_flexcom *ddata;
 	int err;

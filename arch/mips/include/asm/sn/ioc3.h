@@ -156,7 +156,7 @@ struct ioc3 {
 	struct ioc3_sioregs	sregs;	/* 0x20000 */
 	u32	pad2[(0x40000 - 0x20180) / 4];
 
-	/* SSRAM Diagnostic Access */
+	/* SSRAM Diagyesstic Access */
 	u32	ssram[(0x80000 - 0x40000) / 4];
 
 	/* Bytebus device offsets
@@ -250,9 +250,9 @@ struct ioc3_etxd {
 #define IOC3_SIO_UB_BASE	(IOC3_SIO_BASE+UARTB_BASE)	/* UART B */
 #define IOC3_SIO_UA_BASE	(IOC3_SIO_BASE+UARTA_BASE)	/* UART A */
 
-/* SSRAM Diagnostic Access */
-#define IOC3_SSRAM	IOC3_RAM_OFF	/* base of SSRAM diagnostic access */
-#define IOC3_SSRAM_LEN	0x40000	/* 256kb (addrspc sz, may not be populated) */
+/* SSRAM Diagyesstic Access */
+#define IOC3_SSRAM	IOC3_RAM_OFF	/* base of SSRAM diagyesstic access */
+#define IOC3_SSRAM_LEN	0x40000	/* 256kb (addrspc sz, may yest be populated) */
 #define IOC3_SSRAM_DM	0x0000ffff	/* data mask */
 #define IOC3_SSRAM_PM	0x00010000	/* parity mask */
 

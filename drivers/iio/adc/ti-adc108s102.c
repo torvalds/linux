@@ -42,9 +42,9 @@
 
 /*
  * 16-bit SPI command format:
- *   [15:14] Ignored
+ *   [15:14] Igyesred
  *   [13:11] 3-bit channel address
- *   [10:0]  Ignored
+ *   [10:0]  Igyesred
  */
 #define ADC108S102_CMD(ch)		((u16)(ch) << 11)
 
@@ -145,15 +145,15 @@ static irqreturn_t adc108s102_trigger_handler(int irq, void *p)
 
 	ret = spi_sync(st->spi, &st->ring_msg);
 	if (ret < 0)
-		goto out_notify;
+		goto out_yestify;
 
 	/* Skip the dummy response in the first slot */
 	iio_push_to_buffers_with_timestamp(indio_dev,
 					   (u8 *)&st->rx_buf[1],
 					   iio_get_time_ns(indio_dev));
 
-out_notify:
-	iio_trigger_notify_done(indio_dev->trig);
+out_yestify:
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -235,7 +235,7 @@ static int adc108s102_probe(struct spi_device *spi)
 
 		ret = regulator_enable(st->reg);
 		if (ret < 0) {
-			dev_err(&spi->dev, "Cannot enable vref regulator\n");
+			dev_err(&spi->dev, "Canyest enable vref regulator\n");
 			return ret;
 		}
 

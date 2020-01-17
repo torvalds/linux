@@ -39,7 +39,7 @@ static int pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 	if (pblk_line_is_full(line)) {
 		struct pblk_line *prev_line = line;
 
-		/* If we cannot allocate a new line, make sure to store metadata
+		/* If we canyest allocate a new line, make sure to store metadata
 		 * on current line and then fail
 		 */
 		line = pblk_line_replace_data(pblk);
@@ -182,7 +182,7 @@ int pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 	if (!e_line)
 		return -ENOSPC;
 
-	/* Erase blocks that are bad in this line but might not be in next */
+	/* Erase blocks that are bad in this line but might yest be in next */
 	if (unlikely(pblk_ppa_empty(*erase_ppa)) &&
 			bitmap_weight(d_line->blk_bitmap, lm->blk_per_line)) {
 		int bit = -1;

@@ -575,7 +575,7 @@
 
 #define NV04_PRAMIN						0x00700000
 
-/* Fifo commands. These are not regs, neither masks */
+/* Fifo commands. These are yest regs, neither masks */
 #define NV03_FIFO_CMD_JUMP                                 0x20000000
 #define NV03_FIFO_CMD_JUMP_OFFSET_MASK                     0x1ffffffc
 #define NV03_FIFO_CMD_REWIND                               (NV03_FIFO_CMD_JUMP | (0 & NV03_FIFO_CMD_JUMP_OFFSET_MASK))

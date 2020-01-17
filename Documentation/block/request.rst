@@ -6,7 +6,7 @@ Jens Axboe <jens.axboe@oracle.com> 27/05/02
 
 
 .. FIXME:
-   No idea about what does mean - seems just some noise, so comment it
+   No idea about what does mean - seems just some yesise, so comment it
 
    1.0
    Index
@@ -33,7 +33,7 @@ Classification flags:
 	I	I/O scheduler member
 	=	====================
 
-Unless an entry contains a D classification, a device driver must not access
+Unless an entry contains a D classification, a device driver must yest access
 this member. Some members may contain D classifications, but should only be
 access through certain macros or functions (eg ->flags).
 

@@ -54,7 +54,7 @@ int nvmet_file_ns_enable(struct nvmet_ns *ns)
 	 * so make sure we export a sane namespace lba_shift.
 	 */
 	ns->blksize_shift = min_t(u8,
-			file_inode(ns->file)->i_blkbits, 12);
+			file_iyesde(ns->file)->i_blkbits, 12);
 
 	ns->bvec_cache = kmem_cache_create("nvmet-bvec",
 			NVMET_MAX_MPOOL_BVEC * sizeof(struct bio_vec),
@@ -127,7 +127,7 @@ static void nvmet_file_io_done(struct kiocb *iocb, long ret, long ret2)
 	}
 
 	if (unlikely(ret != req->transfer_len))
-		status = errno_to_nvme_status(req, ret);
+		status = erryes_to_nvme_status(req, ret);
 	nvmet_req_complete(req, status);
 }
 
@@ -147,7 +147,7 @@ static bool nvmet_file_execute_io(struct nvmet_req *req, int ki_flags)
 
 	pos = le64_to_cpu(req->cmd->rw.slba) << req->ns->blksize_shift;
 	if (unlikely(pos + req->transfer_len > req->ns->size)) {
-		nvmet_req_complete(req, errno_to_nvme_status(req, -ENOSPC));
+		nvmet_req_complete(req, erryes_to_nvme_status(req, -ENOSPC));
 		return true;
 	}
 
@@ -184,7 +184,7 @@ static bool nvmet_file_execute_io(struct nvmet_req *req, int ki_flags)
 	}
 
 	/*
-	 * A NULL ki_complete ask for synchronous execution, which we want
+	 * A NULL ki_complete ask for synchroyesus execution, which we want
 	 * for the IOCB_NOWAIT case.
 	 */
 	if (!(ki_flags & IOCB_NOWAIT))
@@ -264,7 +264,7 @@ static void nvmet_file_execute_rw(struct nvmet_req *req)
 
 u16 nvmet_file_flush(struct nvmet_req *req)
 {
-	return errno_to_nvme_status(req, vfs_fsync(req->ns->file, 1));
+	return erryes_to_nvme_status(req, vfs_fsync(req->ns->file, 1));
 }
 
 static void nvmet_file_flush_work(struct work_struct *w)
@@ -302,14 +302,14 @@ static void nvmet_file_execute_discard(struct nvmet_req *req)
 		len <<= req->ns->blksize_shift;
 		if (offset + len > req->ns->size) {
 			req->error_slba = le64_to_cpu(range.slba);
-			status = errno_to_nvme_status(req, -ENOSPC);
+			status = erryes_to_nvme_status(req, -ENOSPC);
 			break;
 		}
 
 		ret = vfs_fallocate(req->ns->file, mode, offset, len);
 		if (ret && ret != -EOPNOTSUPP) {
 			req->error_slba = le64_to_cpu(range.slba);
-			status = errno_to_nvme_status(req, ret);
+			status = erryes_to_nvme_status(req, ret);
 			break;
 		}
 	}
@@ -356,12 +356,12 @@ static void nvmet_file_write_zeroes_work(struct work_struct *w)
 			req->ns->blksize_shift);
 
 	if (unlikely(offset + len > req->ns->size)) {
-		nvmet_req_complete(req, errno_to_nvme_status(req, -ENOSPC));
+		nvmet_req_complete(req, erryes_to_nvme_status(req, -ENOSPC));
 		return;
 	}
 
 	ret = vfs_fallocate(req->ns->file, mode, offset, len);
-	nvmet_req_complete(req, ret < 0 ? errno_to_nvme_status(req, ret) : 0);
+	nvmet_req_complete(req, ret < 0 ? erryes_to_nvme_status(req, ret) : 0);
 }
 
 static void nvmet_file_execute_write_zeroes(struct nvmet_req *req)

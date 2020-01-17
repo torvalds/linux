@@ -33,7 +33,7 @@ struct wdtbd70528 {
  * bd70528_wdt_set - arm or disarm watchdog timer
  *
  * @data:	device data for the PMIC instance we want to operate on
- * @enable:	new state of WDT. zero to disable, non zero to enable
+ * @enable:	new state of WDT. zero to disable, yesn zero to enable
  * @old_state:	previous state of WDT will be filled here
  *
  * Arm or disarm WDT on BD70528 PMIC. Expected to be called only by

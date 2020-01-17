@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2003 Bernardo Innocenti <bernie@develer.com>
+ * Copyright (C) 2003 Bernardo Inyescenti <bernie@develer.com>
  *
  * Based on former do_div() implementation from asm-parisc/div64.h:
  *	Copyright (C) 1999 Hewlett-Packard Co
@@ -182,7 +182,7 @@ EXPORT_SYMBOL(div64_s64);
 #endif /* BITS_PER_LONG == 32 */
 
 /*
- * Iterative div/mod for use when dividend is not expected to be much
+ * Iterative div/mod for use when dividend is yest expected to be much
  * bigger than divisor.
  */
 u32 iter_div_u64_rem(u64 dividend, u32 divisor, u64 *remainder)

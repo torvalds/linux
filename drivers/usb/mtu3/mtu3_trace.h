@@ -126,7 +126,7 @@ DECLARE_EVENT_CLASS(mtu3_log_request,
 		__field(unsigned int, length)
 		__field(int, status)
 		__field(int, zero)
-		__field(int, no_interrupt)
+		__field(int, yes_interrupt)
 	),
 	TP_fast_assign(
 		__assign_str(name, mreq->mep->name);
@@ -136,13 +136,13 @@ DECLARE_EVENT_CLASS(mtu3_log_request,
 		__entry->length = mreq->request.length;
 		__entry->status = mreq->request.status;
 		__entry->zero = mreq->request.zero;
-		__entry->no_interrupt = mreq->request.no_interrupt;
+		__entry->yes_interrupt = mreq->request.yes_interrupt;
 	),
 	TP_printk("%s: req %p gpd %p len %u/%u %s%s --> %d",
 		__get_str(name), __entry->mreq, __entry->gpd,
 		__entry->actual, __entry->length,
 		__entry->zero ? "Z" : "z",
-		__entry->no_interrupt ? "i" : "I",
+		__entry->yes_interrupt ? "i" : "I",
 		__entry->status
 	)
 );

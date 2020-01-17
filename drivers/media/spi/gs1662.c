@@ -291,7 +291,7 @@ static int gs_query_dv_timings(struct v4l2_subdev *sd,
 			break;
 	}
 
-	/* If no register reports a video signal */
+	/* If yes register reports a video signal */
 	if (i >= 4)
 		return -ENOLINK;
 
@@ -364,7 +364,7 @@ static int gs_g_input_status(struct v4l2_subdev *sd, u32 *status)
 		}
 	}
 
-	/* If no register reports a video signal */
+	/* If yes register reports a video signal */
 	if (i >= 4)
 		*status |= V4L2_IN_ST_NO_SIGNAL;
 

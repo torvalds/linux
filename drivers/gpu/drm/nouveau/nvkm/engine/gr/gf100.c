@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -984,7 +984,7 @@ gf100_gr_zbc_init(struct gf100_gr *gr)
 
 /**
  * Wait until GR goes idle. GR is considered idle if it is disabled by the
- * MC (0x200) register, or GR is not busy and a context switch is not in
+ * MC (0x200) register, or GR is yest busy and a context switch is yest in
  * progress.
  */
 int
@@ -1293,7 +1293,7 @@ gf100_gr_trap_tpc(struct gf100_gr *gr, int gpc, int tpc)
 	}
 
 	if (stat) {
-		nvkm_error(subdev, "GPC%d/TPC%d/%08x: unknown\n", gpc, tpc, stat);
+		nvkm_error(subdev, "GPC%d/TPC%d/%08x: unkyeswn\n", gpc, tpc, stat);
 	}
 }
 
@@ -1341,7 +1341,7 @@ gf100_gr_trap_gpc(struct gf100_gr *gr, int gpc)
 	}
 
 	if (stat) {
-		nvkm_error(subdev, "GPC%d/%08x: unknown\n", gpc, stat);
+		nvkm_error(subdev, "GPC%d/%08x: unkyeswn\n", gpc, stat);
 	}
 }
 
@@ -1558,7 +1558,7 @@ gf100_gr_intr(struct nvkm_gr *base)
 	u32 data = nvkm_rd32(device, 0x400708);
 	u32 code = nvkm_rd32(device, 0x400110);
 	u32 class;
-	const char *name = "unknown";
+	const char *name = "unkyeswn";
 	int chid = -1;
 
 	chan = nvkm_fifo_chan_inst(device->fifo, (u64)inst << 12, &flags);
@@ -1574,8 +1574,8 @@ gf100_gr_intr(struct nvkm_gr *base)
 
 	if (stat & 0x00000001) {
 		/*
-		 * notifier interrupt, only needed for cyclestats
-		 * can be safely ignored
+		 * yestifier interrupt, only needed for cyclestats
+		 * can be safely igyesred
 		 */
 		nvkm_wr32(device, 0x400100, 0x00000001);
 		stat &= ~0x00000001;
@@ -1684,7 +1684,7 @@ gf100_gr_init_csdata(struct gf100_gr *gr,
 	nvkm_wr32(device, falcon + 0x01c4, star + 4);
 }
 
-/* Initialize context from an external (secure or not) firmware */
+/* Initialize context from an external (secure or yest) firmware */
 static int
 gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 {
@@ -1749,8 +1749,8 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 
 	/*XXX: We (likely) require PMU support to even bother with this.
 	 *
-	 *     Also, it seems like not all GPUs support ELPG.  Traces I
-	 *     have here show RM enabling it on Kepler/Turing, but none
+	 *     Also, it seems like yest all GPUs support ELPG.  Traces I
+	 *     have here show RM enabling it on Kepler/Turing, but yesne
 	 *     of the GPUs between those.  NVGPU decides this by PCIID.
 	 */
 	if (0) {
@@ -1865,7 +1865,7 @@ gf100_gr_oneinit_tiles(struct gf100_gr *gr)
 		3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61
 	};
 	int init_frac[GPC_MAX], init_err[GPC_MAX], run_err[GPC_MAX], i, j;
-	u32 mul_factor, comm_denom;
+	u32 mul_factor, comm_deyesm;
 	u8  gpc_map[GPC_MAX];
 	bool sorted;
 
@@ -1914,19 +1914,19 @@ gf100_gr_oneinit_tiles(struct gf100_gr *gr)
 	else
 		mul_factor = 1;
 
-	comm_denom = gr->gpc_nr * gr->tpc_max * mul_factor;
+	comm_deyesm = gr->gpc_nr * gr->tpc_max * mul_factor;
 
 	for (i = 0; i < gr->gpc_nr; i++) {
 		init_frac[i] = gr->tpc_nr[gpc_map[i]] * gr->gpc_nr * mul_factor;
-		 init_err[i] = i * gr->tpc_max * mul_factor - comm_denom/2;
+		 init_err[i] = i * gr->tpc_max * mul_factor - comm_deyesm/2;
 		  run_err[i] = init_frac[i] + init_err[i];
 	}
 
 	for (i = 0; i < gr->tpc_total;) {
 		for (j = 0; j < gr->gpc_nr; j++) {
-			if ((run_err[j] * 2) >= comm_denom) {
+			if ((run_err[j] * 2) >= comm_deyesm) {
 				gr->tile[i++] = gpc_map[j];
-				run_err[j] += init_frac[j] - comm_denom;
+				run_err[j] += init_frac[j] - comm_deyesm;
 			} else {
 				run_err[j] += init_frac[j];
 			}
@@ -2046,7 +2046,7 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	gf100_gr_dtor_init(gr->fuc_bundle);
 	gf100_gr_dtor_init(gr->fuc_method);
 	gf100_gr_dtor_init(gr->fuc_sw_ctx);
-	gf100_gr_dtor_init(gr->fuc_sw_nonctx);
+	gf100_gr_dtor_init(gr->fuc_sw_yesnctx);
 
 	return gr;
 }
@@ -2086,18 +2086,18 @@ gf100_gr_ctor_fw_legacy(struct gf100_gr *gr, const char *fwname,
 	else if (!strcmp(fwname, "gpccs_data"))
 		fwname = "fuc41ad";
 	else {
-		/* nope, let's just return the error we got */
+		/* yespe, let's just return the error we got */
 		nvkm_error(subdev, "failed to load %s\n", fwname);
 		return ret;
 	}
 
-	/* yes, try to load from the legacy path */
+	/* no, try to load from the legacy path */
 	nvkm_debug(subdev, "%s: falling back to legacy path\n", fwname);
 
-	snprintf(f, sizeof(f), "nouveau/nv%02x_%s", device->chipset, fwname);
+	snprintf(f, sizeof(f), "yesuveau/nv%02x_%s", device->chipset, fwname);
 	ret = request_firmware(&fw, f, device->dev);
 	if (ret) {
-		snprintf(f, sizeof(f), "nouveau/%s", fwname);
+		snprintf(f, sizeof(f), "yesuveau/%s", fwname);
 		ret = request_firmware(&fw, f, device->dev);
 		if (ret) {
 			nvkm_error(subdev, "failed to load %s\n", fwname);
@@ -2295,8 +2295,8 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	gr->func->init_gpc_mmu(gr);
 
-	if (gr->fuc_sw_nonctx)
-		gf100_gr_mmio(gr, gr->fuc_sw_nonctx);
+	if (gr->fuc_sw_yesnctx)
+		gf100_gr_mmio(gr, gr->fuc_sw_yesnctx);
 	else
 		gf100_gr_mmio(gr, gr->func->mmio);
 

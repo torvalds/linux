@@ -21,11 +21,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -186,7 +186,7 @@ static int pvrdma_set_sq_size(struct pvrdma_dev *dev, struct ib_qp_cap *req_cap,
  * @init_attr: queue pair attributes
  * @udata: user data
  *
- * @return: the ib_qp pointer on success, otherwise returns an errno.
+ * @return: the ib_qp pointer on success, otherwise returns an erryes.
  */
 struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 			       struct ib_qp_init_attr *init_attr,
@@ -215,14 +215,14 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	if (init_attr->qp_type != IB_QPT_RC &&
 	    init_attr->qp_type != IB_QPT_UD &&
 	    init_attr->qp_type != IB_QPT_GSI) {
-		dev_warn(&dev->pdev->dev, "queuepair type %d not supported\n",
+		dev_warn(&dev->pdev->dev, "queuepair type %d yest supported\n",
 			 init_attr->qp_type);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (is_srq && !dev->dsr->caps.max_srq) {
 		dev_warn(&dev->pdev->dev,
-			 "SRQs not supported by device\n");
+			 "SRQs yest supported by device\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -269,7 +269,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 			if (dev->dsr_version >= PVRDMA_QPHANDLE_VERSION &&
 			    udata->outlen < sizeof(qp_resp)) {
 				dev_warn(&dev->pdev->dev,
-					 "create queuepair not supported\n");
+					 "create queuepair yest supported\n");
 				ret = -EOPNOTSUPP;
 				goto err_qp;
 			}
@@ -334,7 +334,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 					   qp->is_kernel);
 		if (ret) {
 			dev_warn(&dev->pdev->dev,
-				 "could not allocate page directory\n");
+				 "could yest allocate page directory\n");
 			goto err_umem;
 		}
 
@@ -388,7 +388,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_CREATE_QP_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not create queuepair, error: %d\n", ret);
+			 "could yest create queuepair, error: %d\n", ret);
 		goto err_pdir;
 	}
 
@@ -472,9 +472,9 @@ static void pvrdma_free_qp(struct pvrdma_qp *qp)
 		_pvrdma_flush_cqe(qp, rcq);
 
 	/*
-	 * We're now unlocking the CQs before clearing out the qp handle this
+	 * We're yesw unlocking the CQs before clearing out the qp handle this
 	 * should still be safe. We have destroyed the backend QP and flushed
-	 * the CQEs so there should be no other completions for this QP.
+	 * the CQEs so there should be yes other completions for this QP.
 	 */
 	pvrdma_unlock_cqs(scq, rcq, &scq_flags, &rcq_flags);
 
@@ -529,7 +529,7 @@ static void __pvrdma_destroy_qp(struct pvrdma_dev *dev,
  * @attr_mask: attributes mask
  * @udata: user data
  *
- * @returns 0 on success, otherwise returns an errno.
+ * @returns 0 on success, otherwise returns an erryes.
  */
 int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		     int attr_mask, struct ib_udata *udata)
@@ -603,7 +603,7 @@ int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		ib_access_flags_to_pvrdma(attr->qp_access_flags);
 	cmd->attrs.pkey_index = attr->pkey_index;
 	cmd->attrs.alt_pkey_index = attr->alt_pkey_index;
-	cmd->attrs.en_sqd_async_notify = attr->en_sqd_async_notify;
+	cmd->attrs.en_sqd_async_yestify = attr->en_sqd_async_yestify;
 	cmd->attrs.sq_draining = attr->sq_draining;
 	cmd->attrs.max_rd_atomic = attr->max_rd_atomic;
 	cmd->attrs.max_dest_rd_atomic = attr->max_dest_rd_atomic;
@@ -621,10 +621,10 @@ int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_MODIFY_QP_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not modify queuepair, error: %d\n", ret);
+			 "could yest modify queuepair, error: %d\n", ret);
 	} else if (rsp.hdr.err > 0) {
 		dev_warn(&dev->pdev->dev,
-			 "cannot modify queuepair, error: %d\n", rsp.hdr.err);
+			 "canyest modify queuepair, error: %d\n", rsp.hdr.err);
 		ret = -EINVAL;
 	}
 
@@ -672,7 +672,7 @@ static int set_reg_seg(struct pvrdma_sq_wqe_hdr *wqe_hdr,
  * @wr: work request list to post
  * @bad_wr: the first bad WR returned
  *
- * @return: 0 on success, otherwise errno returned.
+ * @return: 0 on success, otherwise erryes returned.
  */
 int pvrdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		     const struct ib_send_wr **bad_wr)
@@ -882,7 +882,7 @@ out:
  * @wr: the work request list to post
  * @bad_wr: the first bad WR returned
  *
- * @return: 0 on success, otherwise errno returned.
+ * @return: 0 on success, otherwise erryes returned.
  */
 int pvrdma_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 		     const struct ib_recv_wr **bad_wr)
@@ -975,7 +975,7 @@ out:
  * @attr_mask: attributes mask
  * @init_attr: initial queue pair attributes
  *
- * @returns 0 on success, otherwise returns an errno.
+ * @returns 0 on success, otherwise returns an erryes.
  */
 int pvrdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_qp_init_attr *init_attr)
@@ -1003,7 +1003,7 @@ int pvrdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	ret = pvrdma_cmd_post(dev, &req, &rsp, PVRDMA_CMD_QUERY_QP_RESP);
 	if (ret < 0) {
 		dev_warn(&dev->pdev->dev,
-			 "could not query queuepair, error: %d\n", ret);
+			 "could yest query queuepair, error: %d\n", ret);
 		goto out;
 	}
 
@@ -1021,7 +1021,7 @@ int pvrdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		pvrdma_access_flags_to_ib(resp->attrs.qp_access_flags);
 	attr->pkey_index = resp->attrs.pkey_index;
 	attr->alt_pkey_index = resp->attrs.alt_pkey_index;
-	attr->en_sqd_async_notify = resp->attrs.en_sqd_async_notify;
+	attr->en_sqd_async_yestify = resp->attrs.en_sqd_async_yestify;
 	attr->sq_draining = resp->attrs.sq_draining;
 	attr->max_rd_atomic = resp->attrs.max_rd_atomic;
 	attr->max_dest_rd_atomic = resp->attrs.max_dest_rd_atomic;

@@ -128,8 +128,8 @@ static void do_null_syscall(unsigned long nr)
 
 int main(void)
 {
-	unsigned long tb_start, tb_now;
-	struct timespec tv_start, tv_now;
+	unsigned long tb_start, tb_yesw;
+	struct timespec tv_start, tv_yesw;
 	unsigned long long elapsed_ns, elapsed_tb;
 
 	get_proc_frequency();
@@ -139,12 +139,12 @@ int main(void)
 
 	do_null_syscall(NR_LOOPS);
 
-	clock_gettime(CLOCK_MONOTONIC, &tv_now);
-	tb_now = mftb();
+	clock_gettime(CLOCK_MONOTONIC, &tv_yesw);
+	tb_yesw = mftb();
 
-	elapsed_ns = (tv_now.tv_sec - tv_start.tv_sec) * 1000000000ULL +
-			(tv_now.tv_nsec - tv_start.tv_nsec);
-	elapsed_tb = tb_now - tb_start;
+	elapsed_ns = (tv_yesw.tv_sec - tv_start.tv_sec) * 1000000000ULL +
+			(tv_yesw.tv_nsec - tv_start.tv_nsec);
+	elapsed_tb = tb_yesw - tb_start;
 
 	printf("%10.2f ns %10.2f cycles\n", (float)elapsed_ns / NR_LOOPS,
 			(float)elapsed_tb * timebase_multiplier / NR_LOOPS);

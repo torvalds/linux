@@ -8,7 +8,7 @@
  */
 
 #include <linux/version.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/threads.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -19,7 +19,7 @@
 #include <asm/spitfire.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/signal.h>
 #include <asm/processor.h>
 #include <asm/lsu.h>
@@ -97,9 +97,9 @@ sparc64_boot:
 	andn	%g1, PSTATE_AM, %g1
 	wrpr	%g1, 0x0, %pstate
 	ba,a,pt	%xcc, 1f
-	 nop
+	 yesp
 
-	.globl	prom_finddev_name, prom_chosen_path, prom_root_node
+	.globl	prom_finddev_name, prom_chosen_path, prom_root_yesde
 	.globl	prom_getprop_name, prom_mmu_name, prom_peer_name
 	.globl	prom_callmethod_name, prom_translate_name, prom_root_compatible
 	.globl	prom_map_name, prom_unmap_name, prom_mmu_ihandle_cache
@@ -144,9 +144,9 @@ prom_root_compatible:
 	.skip	64
 prom_cpu_compatible:
 	.skip	64
-prom_root_node:
+prom_root_yesde:
 	.word	0
-EXPORT_SYMBOL(prom_root_node)
+EXPORT_SYMBOL(prom_root_yesde)
 prom_mmu_ihandle_cache:
 	.word	0
 prom_boot_mapped_pc:
@@ -170,7 +170,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	sub	%l0, %l1, %l1
 	mov	0, %l2
 
-	/* prom_root_node = prom_peer(0) */
+	/* prom_root_yesde = prom_peer(0) */
 	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "peer"
 	mov	1, %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 1
@@ -180,8 +180,8 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	call	%l7
 	 add	%sp, (2047 + 128), %o0		! argument array
 
-	ldx	[%sp + 2047 + 128 + 0x20], %l4	! prom root node
-	mov	(1b - prom_root_node), %l1
+	ldx	[%sp + 2047 + 128 + 0x20], %l4	! prom root yesde
+	mov	(1b - prom_root_yesde), %l1
 	sub	%l0, %l1, %l1
 	stw	%l4, [%l1]
 
@@ -192,7 +192,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	sub	%l0, %l2, %l2
 	sub	%l0, %l5, %l5
 
-	/* prom_getproperty(prom_root_node, "compatible",
+	/* prom_getproperty(prom_root_yesde, "compatible",
 	 *                  &prom_root_compatible, 64)
 	 */
 	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "getprop"
@@ -200,7 +200,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 4
 	mov	1, %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
-	stx	%l4, [%sp + 2047 + 128 + 0x18]	! arg1, prom_root_node
+	stx	%l4, [%sp + 2047 + 128 + 0x18]	! arg1, prom_root_yesde
 	stx	%l2, [%sp + 2047 + 128 + 0x20]	! arg2, "compatible"
 	stx	%l5, [%sp + 2047 + 128 + 0x28]	! arg3, &prom_root_compatible
 	mov	64, %l3
@@ -218,7 +218,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	stw	%l0, [%l3]
 	sub	%sp, (192 + 128), %sp
 
-	/* chosen_node = prom_finddevice("/chosen") */
+	/* chosen_yesde = prom_finddevice("/chosen") */
 	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "finddevice"
 	mov	1, %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 1
@@ -228,7 +228,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	call	%l7
 	 add	%sp, (2047 + 128), %o0		! argument array
 
-	ldx	[%sp + 2047 + 128 + 0x20], %l4	! chosen device node
+	ldx	[%sp + 2047 + 128 + 0x20], %l4	! chosen device yesde
 
 	mov	(1b - prom_getprop_name), %l1
 	mov	(1b - prom_mmu_name), %l2
@@ -237,13 +237,13 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	sub	%l0, %l2, %l2
 	sub	%l0, %l5, %l5
 
-	/* prom_mmu_ihandle_cache = prom_getint(chosen_node, "mmu") */
+	/* prom_mmu_ihandle_cache = prom_getint(chosen_yesde, "mmu") */
 	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "getprop"
 	mov	4, %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 4
 	mov	1, %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
-	stx	%l4, [%sp + 2047 + 128 + 0x18]	! arg1, chosen_node
+	stx	%l4, [%sp + 2047 + 128 + 0x18]	! arg1, chosen_yesde
 	stx	%l2, [%sp + 2047 + 128 + 0x20]	! arg2, "mmu"
 	stx	%l5, [%sp + 2047 + 128 + 0x28]	! arg3, &prom_mmu_ihandle_cache
 	mov	4, %l3
@@ -339,7 +339,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	mov	1, %g7
 	stw	%g7, [%g1]
 
-	/* cpu_node = prom_finddevice("/cpu") */
+	/* cpu_yesde = prom_finddevice("/cpu") */
 	mov	(1b - prom_finddev_name), %l1
 	mov	(1b - prom_cpu_path), %l2
 	sub	%l0, %l1, %l1
@@ -355,7 +355,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	call	%l7
 	 add	%sp, (2047 + 128), %o0		! argument array
 
-	ldx	[%sp + 2047 + 128 + 0x20], %l4	! cpu device node
+	ldx	[%sp + 2047 + 128 + 0x20], %l4	! cpu device yesde
 
 	mov	(1b - prom_getprop_name), %l1
 	mov	(1b - prom_compatible_name), %l2
@@ -364,7 +364,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	sub	%l0, %l2, %l2
 	sub	%l0, %l5, %l5
 
-	/* prom_getproperty(cpu_node, "compatible",
+	/* prom_getproperty(cpu_yesde, "compatible",
 	 *                  &prom_cpu_compatible, 64)
 	 */
 	stx	%l1, [%sp + 2047 + 128 + 0x00]	! service, "getprop"
@@ -372,7 +372,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	stx	%l3, [%sp + 2047 + 128 + 0x08]	! num_args, 4
 	mov	1, %l3
 	stx	%l3, [%sp + 2047 + 128 + 0x10]	! num_rets, 1
-	stx	%l4, [%sp + 2047 + 128 + 0x18]	! arg1, cpu_node
+	stx	%l4, [%sp + 2047 + 128 + 0x18]	! arg1, cpu_yesde
 	stx	%l2, [%sp + 2047 + 128 + 0x20]	! arg2, "compatible"
 	stx	%l5, [%sp + 2047 + 128 + 0x28]	! arg3, &prom_cpu_compatible
 	mov	64, %l3
@@ -397,7 +397,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	bne,pt	%xcc, 90b
 	 add	%g1, 1, %g1
 	ba,pt	%xcc, 91f
-	 nop
+	 yesp
 
 89:	sethi	%hi(prom_cpu_compatible), %g1
 	or	%g1, %lo(prom_cpu_compatible), %g1
@@ -422,7 +422,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	be,pt	%xcc, 70f
 	 cmp	%g2, 'S'
 	bne,pn	%xcc, 49f
-	 nop
+	 yesp
 
 70:	ldub	[%g1 + 7], %g2
 	cmp	%g2, CPU_ID_NIAGARA3
@@ -447,7 +447,7 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	be,pt	%xcc, 5f
 	 mov	SUN4V_CHIP_SPARC_SN, %g4
 	ba,pt	%xcc, 49f
-	 nop
+	 yesp
 
 91:	sethi	%hi(prom_cpu_compatible), %g1
 	or	%g1, %lo(prom_cpu_compatible), %g1
@@ -488,12 +488,12 @@ EXPORT_SYMBOL(sun4v_chip_type)
 	BRANCH_IF_CHEETAH_BASE(g1,g7,cheetah_boot)
 	BRANCH_IF_CHEETAH_PLUS_OR_FOLLOWON(g1,g7,cheetah_plus_boot)
 	ba,pt	%xcc, spitfire_boot
-	 nop
+	 yesp
 
 cheetah_plus_boot:
 	/* Preserve OBP chosen DCU and DCR register settings.  */
 	ba,pt	%xcc, cheetah_generic_boot
-	 nop
+	 yesp
 
 cheetah_boot:
 	mov	DCR_BPE | DCR_RPE | DCR_SI | DCR_IFPOE | DCR_MS, %g1
@@ -525,7 +525,7 @@ cheetah_generic_boot:
 
 spitfire_boot:
 	/* Typically PROM has already enabled both MMU's and both on-chip
-	 * caches, but we do it here anyway just to be paranoid.
+	 * caches, but we do it here anyway just to be parayesid.
 	 */
 	mov	(LSU_CONTROL_IC|LSU_CONTROL_DC|LSU_CONTROL_IM|LSU_CONTROL_DM), %g1
 	stxa	%g1, [%g0] ASI_LSU_CONTROL
@@ -545,7 +545,7 @@ jump_to_sun4u_init:
 
 	set	sun4u_init, %g2
 	jmpl    %g2 + %g0, %g0
-	 nop
+	 yesp
 
 	__REF
 sun4u_init:
@@ -590,86 +590,86 @@ niagara_tlb_fixup:
 	be,pt	%xcc, niagara_patch
 	 cmp	%g1, SUN4V_CHIP_NIAGARA2
 	be,pt	%xcc, niagara2_patch
-	 nop
+	 yesp
 	cmp	%g1, SUN4V_CHIP_NIAGARA3
 	be,pt	%xcc, niagara2_patch
-	 nop
+	 yesp
 	cmp	%g1, SUN4V_CHIP_NIAGARA4
 	be,pt	%xcc, niagara4_patch
-	 nop
+	 yesp
 	cmp	%g1, SUN4V_CHIP_NIAGARA5
 	be,pt	%xcc, niagara4_patch
-	 nop
+	 yesp
 	cmp	%g1, SUN4V_CHIP_SPARC_M6
 	be,pt	%xcc, niagara4_patch
-	 nop
+	 yesp
 	cmp	%g1, SUN4V_CHIP_SPARC_M7
 	be,pt	%xcc, sparc_m7_patch
-	 nop
+	 yesp
 	cmp	%g1, SUN4V_CHIP_SPARC_M8
 	be,pt	%xcc, sparc_m7_patch
-	 nop
+	 yesp
 	cmp	%g1, SUN4V_CHIP_SPARC_SN
 	be,pt	%xcc, niagara4_patch
-	 nop
+	 yesp
 
 	call	generic_patch_copyops
-	 nop
+	 yesp
 	call	generic_patch_bzero
-	 nop
+	 yesp
 	call	generic_patch_pageops
-	 nop
+	 yesp
 
 	ba,a,pt	%xcc, 80f
-	 nop
+	 yesp
 
 sparc_m7_patch:
 	call	m7_patch_copyops
-	 nop
+	 yesp
 	call	m7_patch_bzero
-	 nop
+	 yesp
 	call	m7_patch_pageops
-	 nop
+	 yesp
 
 	ba,a,pt	%xcc, 80f
-	 nop
+	 yesp
 
 niagara4_patch:
 	call	niagara4_patch_copyops
-	 nop
+	 yesp
 	call	niagara4_patch_bzero
-	 nop
+	 yesp
 	call	niagara4_patch_pageops
-	 nop
+	 yesp
 	call	niagara4_patch_fls
-	 nop
+	 yesp
 
 	ba,a,pt	%xcc, 80f
-	 nop
+	 yesp
 
 niagara2_patch:
 	call	niagara2_patch_copyops
-	 nop
+	 yesp
 	call	niagara_patch_bzero
-	 nop
+	 yesp
 	call	niagara_patch_pageops
-	 nop
+	 yesp
 
 	ba,a,pt	%xcc, 80f
-	 nop
+	 yesp
 
 niagara_patch:
 	call	niagara_patch_copyops
-	 nop
+	 yesp
 	call	niagara_patch_bzero
-	 nop
+	 yesp
 	call	niagara_patch_pageops
-	 nop
+	 yesp
 
 80:
 	/* Patch TLB/cache ops.  */
 	call	hypervisor_patch_cachetlbops
-	 nop
+	 yesp
 
 	ba,a,pt	%xcc, tlb_fixup_done
 
@@ -684,11 +684,11 @@ cheetah_tlb_fixup:
 
 	/* Patch copy/page operations to cheetah optimized versions. */
 	call	cheetah_patch_copyops
-	 nop
+	 yesp
 	call	cheetah_patch_copy_page
-	 nop
+	 yesp
 	call	cheetah_patch_cachetlbops
-	 nop
+	 yesp
 
 	ba,a,pt	%xcc, tlb_fixup_done
 
@@ -734,7 +734,7 @@ tlb_fixup_done:
 	 * do the rest of the boot from a C helper function.
 	 */
 	call	start_early_boot
-	 nop
+	 yesp
 	/* Not reached... */
 
 	.previous
@@ -742,19 +742,19 @@ tlb_fixup_done:
 	/* This is meant to allow the sharing of this code between
 	 * boot processor invocation (via setup_tba() below) and
 	 * secondary processor startup (via trampoline.S).  The
-	 * former does use this code, the latter does not yet due
+	 * former does use this code, the latter does yest yet due
 	 * to some complexities.  That should be fixed up at some
 	 * point.
 	 *
-	 * There used to be enormous complexity wrt. transferring
+	 * There used to be eyesrmous complexity wrt. transferring
 	 * over from the firmware's trap table to the Linux kernel's.
 	 * For example, there was a chicken & egg problem wrt. building
 	 * the OBP page tables, yet needing to be on the Linux kernel
 	 * trap table (to translate PAGE_OFFSET addresses) in order to
 	 * do that.
 	 *
-	 * We now handle OBP tlb misses differently, via linear lookups
-	 * into the prom_trans[] array.  So that specific problem no
+	 * We yesw handle OBP tlb misses differently, via linear lookups
+	 * into the prom_trans[] array.  So that specific problem yes
 	 * longer exists.  Yet, unfortunately there are still some issues
 	 * preventing trampoline.S from using this code... ho hum.
 	 */
@@ -773,7 +773,7 @@ setup_trap_table:
 	sethi	%hi(is_sun4v), %o0
 	lduw	[%o0 + %lo(is_sun4v)], %o0
 	brz,pt	%o0, 1f
-	 nop
+	 yesp
 
 	TRAP_LOAD_TRAP_BLOCK(%g2, %g3)
 	add	%g2, TRAP_PER_CPU_FAULT_INFO, %g2
@@ -855,7 +855,7 @@ setup_trap_table:
 	wrpr	%g0, %g0, %wstate
 
 	call	init_irqwork_curcpu
-	 nop
+	 yesp
 
 	/* Now we can restore interrupt state. */
 	wrpr	%l0, 0, %pstate
@@ -878,7 +878,7 @@ setup_tba:
 	stx	%g7, [%o1]
 
 	call	setup_trap_table
-	 nop
+	 yesp
 
 	ret
 	 restore
@@ -933,7 +933,7 @@ swapper_4m_tsb:
 	 *
 	 * There is a binutils bug (bugzilla #4558) which causes
 	 * the relocation overflow checks for such instructions to
-	 * not be done correctly.  So bintuils will not notice the
+	 * yest be done correctly.  So bintuils will yest yestice the
 	 * error and will instead write junk into the relocation and
 	 * you'll have an unbootable kernel.
 	 */

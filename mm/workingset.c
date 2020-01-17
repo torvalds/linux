@@ -19,7 +19,7 @@
 /*
  *		Double CLOCK lists
  *
- * Per node, two clock lists are maintained for file pages: the
+ * Per yesde, two clock lists are maintained for file pages: the
  * inactive and the active list.  Freshly faulted pages start out at
  * the head of the inactive list and page reclaim scans pages from the
  * tail.  Pages that are accessed multiple times on the inactive list
@@ -39,11 +39,11 @@
  *		Access frequency and refault distance
  *
  * A workload is thrashing when its pages are frequently used but they
- * are evicted from the inactive list every time before another access
+ * are evicted from the inactive list every time before ayesther access
  * would have promoted them to the active list.
  *
  * In cases where the average access distance between thrashing pages
- * is bigger than the size of memory there is nothing that can be
+ * is bigger than the size of memory there is yesthing that can be
  * done - the thrashing set could never fit into memory under any
  * circumstance.
  *
@@ -92,9 +92,9 @@
  *    the number of page slots on the inactive list.
  *
  * 2. In addition, measuring the sum of evictions and activations (E)
- *    at the time of a page's eviction, and comparing it to another
+ *    at the time of a page's eviction, and comparing it to ayesther
  *    reading (R) at the time the page faults back into memory tells
- *    the minimum number of accesses while the page was not cached.
+ *    the minimum number of accesses while the page was yest cached.
  *    This is called the refault distance.
  *
  * Because the first access of the page was the fault and the second
@@ -104,7 +104,7 @@
  *
  *      NR_inactive + (R - E)
  *
- * And knowing the minimum access distance of a page, we can easily
+ * And kyeswing the minimum access distance of a page, we can easily
  * tell if the page would be able to stay in cache assuming all page
  * slots in the cache were available:
  *
@@ -116,22 +116,22 @@
  *
  * Put into words, the refault distance (out-of-cache) can be seen as
  * a deficit in inactive list space (in-cache).  If the inactive list
- * had (R - E) more page slots, the page would not have been evicted
+ * had (R - E) more page slots, the page would yest have been evicted
  * in between accesses, but activated instead.  And on a full system,
  * the only thing eating into inactive list space is active pages.
  *
  *
  *		Refaulting inactive pages
  *
- * All that is known about the active list is that the pages have been
+ * All that is kyeswn about the active list is that the pages have been
  * accessed more than once in the past.  This means that at any given
  * time there is actually a good chance that pages on the active list
- * are no longer in active use.
+ * are yes longer in active use.
  *
  * So when a refault distance of (R - E) is observed and there are at
  * least (R - E) active pages, the refaulting page is activated
  * optimistically in the hope that (R - E) active pages are actually
- * used less frequently than the refaulting page - or even not used at
+ * used less frequently than the refaulting page - or even yest used at
  * all anymore.
  *
  * That means if inactive cache is refaulting with a suitable refault
@@ -148,7 +148,7 @@
  *		Refaulting active pages
  *
  * If on the other hand the refaulting pages have recently been
- * deactivated, it means that the active list is no longer protecting
+ * deactivated, it means that the active list is yes longer protecting
  * actively used cache from reclaim. The cache is NOT transitioning to
  * a different workingset; the existing workingset is thrashing in the
  * space allocated to the page cache.
@@ -156,11 +156,11 @@
  *
  *		Implementation
  *
- * For each node's file LRU lists, a counter for inactive evictions
- * and activations is maintained (node->inactive_age).
+ * For each yesde's file LRU lists, a counter for inactive evictions
+ * and activations is maintained (yesde->inactive_age).
  *
  * On eviction, a snapshot of this counter (along with some bits to
- * identify the node) is stored in the now empty page cache
+ * identify the yesde) is stored in the yesw empty page cache
  * slot of the evicted page.  This is called a shadow entry.
  *
  * On cache misses for which there are shadow entries, an eligible
@@ -175,7 +175,7 @@
  * Eviction timestamps need to be able to cover the full range of
  * actionable refaults. However, bits are tight in the xarray
  * entry, and after storing the identifier for the lruvec there might
- * not be enough left to represent every single actionable refault. In
+ * yest be eyesugh left to represent every single actionable refault. In
  * that case, we have to sacrifice granularity for distance, and group
  * evictions into coarser buckets by shaving off lower timestamp bits.
  */
@@ -187,7 +187,7 @@ static void *pack_shadow(int memcgid, pg_data_t *pgdat, unsigned long eviction,
 	eviction >>= bucket_order;
 	eviction &= EVICTION_MASK;
 	eviction = (eviction << MEM_CGROUP_ID_SHIFT) | memcgid;
-	eviction = (eviction << NODES_SHIFT) | pgdat->node_id;
+	eviction = (eviction << NODES_SHIFT) | pgdat->yesde_id;
 	eviction = (eviction << 1) | workingset;
 
 	return xa_mk_value(eviction);
@@ -219,7 +219,7 @@ static void advance_inactive_age(struct mem_cgroup *memcg, pg_data_t *pgdat)
 	 * Reclaiming a cgroup means reclaiming all its children in a
 	 * round-robin fashion. That means that each cgroup has an LRU
 	 * order that is composed of the LRU orders of its child
-	 * cgroups; and every page has an LRU position not just in the
+	 * cgroups; and every page has an LRU position yest just in the
 	 * cgroup that owns it, but in all of that group's ancestors.
 	 *
 	 * So when the physical inactive list of a leaf cgroup ages,
@@ -235,7 +235,7 @@ static void advance_inactive_age(struct mem_cgroup *memcg, pg_data_t *pgdat)
 }
 
 /**
- * workingset_eviction - note the eviction of a page from memory
+ * workingset_eviction - yeste the eviction of a page from memory
  * @target_memcg: the cgroup that is causing the reclaim
  * @page: the page being evicted
  *
@@ -269,7 +269,7 @@ void *workingset_eviction(struct page *page, struct mem_cgroup *target_memcg)
  * @shadow: shadow entry of the evicted page
  *
  * Calculates and evaluates the refault distance of the previously
- * evicted page in the context of the node and the memcg whose memory
+ * evicted page in the context of the yesde and the memcg whose memory
  * pressure caused the eviction.
  */
 void workingset_refault(struct page *page, void *shadow)
@@ -318,15 +318,15 @@ void workingset_refault(struct page *page, void *shadow)
 	 * The unsigned subtraction here gives an accurate distance
 	 * across inactive_age overflows in most cases. There is a
 	 * special case: usually, shadow entries have a short lifetime
-	 * and are either refaulted or reclaimed along with the inode
-	 * before they get too old.  But it is not impossible for the
+	 * and are either refaulted or reclaimed along with the iyesde
+	 * before they get too old.  But it is yest impossible for the
 	 * inactive_age to lap a shadow entry in the field, which can
 	 * then result in a false small refault distance, leading to a
 	 * false activation should this old entry actually refault
 	 * again.  However, earlier kernels used to deactivate
 	 * unconditionally with *every* reclaim invocation for the
 	 * longest time, so the occasional inappropriate activation
-	 * leading to pressure on the active list is not a problem.
+	 * leading to pressure on the active list is yest a problem.
 	 */
 	refault_distance = (refault - eviction) & EVICTION_MASK;
 
@@ -365,7 +365,7 @@ out:
 }
 
 /**
- * workingset_activation - note a page activation
+ * workingset_activation - yeste a page activation
  * @page: page that is being activated
  */
 void workingset_activation(struct page *page)
@@ -374,7 +374,7 @@ void workingset_activation(struct page *page)
 
 	rcu_read_lock();
 	/*
-	 * Filter non-memcg pages here, e.g. unmap can call
+	 * Filter yesn-memcg pages here, e.g. unmap can call
 	 * mark_page_accessed() on VDSO pages.
 	 *
 	 * XXX: See workingset_refault() - this should return
@@ -389,55 +389,55 @@ out:
 }
 
 /*
- * Shadow entries reflect the share of the working set that does not
+ * Shadow entries reflect the share of the working set that does yest
  * fit into memory, so their number depends on the access pattern of
  * the workload.  In most cases, they will refault or get reclaimed
- * along with the inode, but a (malicious) workload that streams
+ * along with the iyesde, but a (malicious) workload that streams
  * through files with a total size several times that of available
- * memory, while preventing the inodes from being reclaimed, can
- * create excessive amounts of shadow nodes.  To keep a lid on this,
- * track shadow nodes and reclaim them when they grow way past the
+ * memory, while preventing the iyesdes from being reclaimed, can
+ * create excessive amounts of shadow yesdes.  To keep a lid on this,
+ * track shadow yesdes and reclaim them when they grow way past the
  * point where they would still be useful.
  */
 
-static struct list_lru shadow_nodes;
+static struct list_lru shadow_yesdes;
 
-void workingset_update_node(struct xa_node *node)
+void workingset_update_yesde(struct xa_yesde *yesde)
 {
 	/*
-	 * Track non-empty nodes that contain only shadow entries;
+	 * Track yesn-empty yesdes that contain only shadow entries;
 	 * unlink those that contain pages or are being freed.
 	 *
-	 * Avoid acquiring the list_lru lock when the nodes are
+	 * Avoid acquiring the list_lru lock when the yesdes are
 	 * already where they should be. The list_empty() test is safe
-	 * as node->private_list is protected by the i_pages lock.
+	 * as yesde->private_list is protected by the i_pages lock.
 	 */
 	VM_WARN_ON_ONCE(!irqs_disabled());  /* For __inc_lruvec_page_state */
 
-	if (node->count && node->count == node->nr_values) {
-		if (list_empty(&node->private_list)) {
-			list_lru_add(&shadow_nodes, &node->private_list);
-			__inc_lruvec_slab_state(node, WORKINGSET_NODES);
+	if (yesde->count && yesde->count == yesde->nr_values) {
+		if (list_empty(&yesde->private_list)) {
+			list_lru_add(&shadow_yesdes, &yesde->private_list);
+			__inc_lruvec_slab_state(yesde, WORKINGSET_NODES);
 		}
 	} else {
-		if (!list_empty(&node->private_list)) {
-			list_lru_del(&shadow_nodes, &node->private_list);
-			__dec_lruvec_slab_state(node, WORKINGSET_NODES);
+		if (!list_empty(&yesde->private_list)) {
+			list_lru_del(&shadow_yesdes, &yesde->private_list);
+			__dec_lruvec_slab_state(yesde, WORKINGSET_NODES);
 		}
 	}
 }
 
-static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+static unsigned long count_shadow_yesdes(struct shrinker *shrinker,
 					struct shrink_control *sc)
 {
-	unsigned long max_nodes;
-	unsigned long nodes;
+	unsigned long max_yesdes;
+	unsigned long yesdes;
 	unsigned long pages;
 
-	nodes = list_lru_shrink_count(&shadow_nodes, sc);
+	yesdes = list_lru_shrink_count(&shadow_yesdes, sc);
 
 	/*
-	 * Approximate a reasonable limit for the nodes
+	 * Approximate a reasonable limit for the yesdes
 	 * containing shadow entries. We don't need to keep more
 	 * shadow entries than possible pages on the active list,
 	 * since refault distances bigger than that are dismissed.
@@ -447,16 +447,16 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
 	 * inactive list. Assume the total cache size for that.
 	 *
 	 * Nodes might be sparsely populated, with only one shadow
-	 * entry in the extreme case. Obviously, we cannot keep one
-	 * node for every eligible shadow entry, so compromise on a
-	 * worst-case density of 1/8th. Below that, not all eligible
+	 * entry in the extreme case. Obviously, we canyest keep one
+	 * yesde for every eligible shadow entry, so compromise on a
+	 * worst-case density of 1/8th. Below that, yest all eligible
 	 * refaults can be detected anymore.
 	 *
-	 * On 64-bit with 7 xa_nodes per page and 64 slots
+	 * On 64-bit with 7 xa_yesdes per page and 64 slots
 	 * each, this will reclaim shadow entries when they consume
 	 * ~1.8% of available memory:
 	 *
-	 * PAGE_SIZE / xa_nodes / node_entries * 8 / PAGE_SIZE
+	 * PAGE_SIZE / xa_yesdes / yesde_entries * 8 / PAGE_SIZE
 	 */
 #ifdef CONFIG_MEMCG
 	if (sc->memcg) {
@@ -471,16 +471,16 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
 		pages += lruvec_page_state_local(lruvec, NR_SLAB_UNRECLAIMABLE);
 	} else
 #endif
-		pages = node_present_pages(sc->nid);
+		pages = yesde_present_pages(sc->nid);
 
-	max_nodes = pages >> (XA_CHUNK_SHIFT - 3);
+	max_yesdes = pages >> (XA_CHUNK_SHIFT - 3);
 
-	if (!nodes)
+	if (!yesdes)
 		return SHRINK_EMPTY;
 
-	if (nodes <= max_nodes)
+	if (yesdes <= max_yesdes)
 		return 0;
-	return nodes - max_nodes;
+	return yesdes - max_yesdes;
 }
 
 static enum lru_status shadow_lru_isolate(struct list_head *item,
@@ -488,24 +488,24 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 					  spinlock_t *lru_lock,
 					  void *arg) __must_hold(lru_lock)
 {
-	struct xa_node *node = container_of(item, struct xa_node, private_list);
-	XA_STATE(xas, node->array, 0);
+	struct xa_yesde *yesde = container_of(item, struct xa_yesde, private_list);
+	XA_STATE(xas, yesde->array, 0);
 	struct address_space *mapping;
 	int ret;
 
 	/*
 	 * Page cache insertions and deletions synchroneously maintain
-	 * the shadow node LRU under the i_pages lock and the
+	 * the shadow yesde LRU under the i_pages lock and the
 	 * lru_lock.  Because the page cache tree is emptied before
-	 * the inode can be destroyed, holding the lru_lock pins any
-	 * address_space that has nodes on the LRU.
+	 * the iyesde can be destroyed, holding the lru_lock pins any
+	 * address_space that has yesdes on the LRU.
 	 *
 	 * We can then safely transition to the i_pages lock to
-	 * pin only the address_space of the particular node we want
-	 * to reclaim, take the node off-LRU, and drop the lru_lock.
+	 * pin only the address_space of the particular yesde we want
+	 * to reclaim, take the yesde off-LRU, and drop the lru_lock.
 	 */
 
-	mapping = container_of(node->array, struct address_space, i_pages);
+	mapping = container_of(yesde->array, struct address_space, i_pages);
 
 	/* Coming from the list, invert the lock order */
 	if (!xa_trylock(&mapping->i_pages)) {
@@ -515,30 +515,30 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 	}
 
 	list_lru_isolate(lru, item);
-	__dec_lruvec_slab_state(node, WORKINGSET_NODES);
+	__dec_lruvec_slab_state(yesde, WORKINGSET_NODES);
 
 	spin_unlock(lru_lock);
 
 	/*
-	 * The nodes should only contain one or more shadow entries,
-	 * no pages, so we expect to be able to remove them all and
-	 * delete and free the empty node afterwards.
+	 * The yesdes should only contain one or more shadow entries,
+	 * yes pages, so we expect to be able to remove them all and
+	 * delete and free the empty yesde afterwards.
 	 */
-	if (WARN_ON_ONCE(!node->nr_values))
+	if (WARN_ON_ONCE(!yesde->nr_values))
 		goto out_invalid;
-	if (WARN_ON_ONCE(node->count != node->nr_values))
+	if (WARN_ON_ONCE(yesde->count != yesde->nr_values))
 		goto out_invalid;
-	mapping->nrexceptional -= node->nr_values;
-	xas.xa_node = xa_parent_locked(&mapping->i_pages, node);
-	xas.xa_offset = node->offset;
-	xas.xa_shift = node->shift + XA_CHUNK_SHIFT;
-	xas_set_update(&xas, workingset_update_node);
+	mapping->nrexceptional -= yesde->nr_values;
+	xas.xa_yesde = xa_parent_locked(&mapping->i_pages, yesde);
+	xas.xa_offset = yesde->offset;
+	xas.xa_shift = yesde->shift + XA_CHUNK_SHIFT;
+	xas_set_update(&xas, workingset_update_yesde);
 	/*
 	 * We could store a shadow entry here which was the minimum of the
 	 * shadow entries we were tracking ...
 	 */
 	xas_store(&xas, NULL);
-	__inc_lruvec_slab_state(node, WORKINGSET_NODERECLAIM);
+	__inc_lruvec_slab_state(yesde, WORKINGSET_NODERECLAIM);
 
 out_invalid:
 	xa_unlock_irq(&mapping->i_pages);
@@ -549,18 +549,18 @@ out:
 	return ret;
 }
 
-static unsigned long scan_shadow_nodes(struct shrinker *shrinker,
+static unsigned long scan_shadow_yesdes(struct shrinker *shrinker,
 				       struct shrink_control *sc)
 {
 	/* list_lru lock nests inside the IRQ-safe i_pages lock */
-	return list_lru_shrink_walk_irq(&shadow_nodes, sc, shadow_lru_isolate,
+	return list_lru_shrink_walk_irq(&shadow_yesdes, sc, shadow_lru_isolate,
 					NULL);
 }
 
 static struct shrinker workingset_shadow_shrinker = {
-	.count_objects = count_shadow_nodes,
-	.scan_objects = scan_shadow_nodes,
-	.seeks = 0, /* ->count reports only fully expendable nodes */
+	.count_objects = count_shadow_yesdes,
+	.scan_objects = scan_shadow_yesdes,
+	.seeks = 0, /* ->count reports only fully expendable yesdes */
 	.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE,
 };
 
@@ -568,7 +568,7 @@ static struct shrinker workingset_shadow_shrinker = {
  * Our list_lru->lock is IRQ-safe as it nests inside the IRQ-safe
  * i_pages lock.
  */
-static struct lock_class_key shadow_nodes_key;
+static struct lock_class_key shadow_yesdes_key;
 
 static int __init workingset_init(void)
 {
@@ -594,7 +594,7 @@ static int __init workingset_init(void)
 	ret = prealloc_shrinker(&workingset_shadow_shrinker);
 	if (ret)
 		goto err;
-	ret = __list_lru_init(&shadow_nodes, true, &shadow_nodes_key,
+	ret = __list_lru_init(&shadow_yesdes, true, &shadow_yesdes_key,
 			      &workingset_shadow_shrinker);
 	if (ret)
 		goto err_list_lru;

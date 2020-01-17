@@ -17,7 +17,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -2058,7 +2058,7 @@ void ast_post_chip_2500(struct drm_device *dev)
 		temp |= 0x73;
 		ast_write32(ast, 0x12008, temp);
 
-		/* Reset USB port to patch USB unknown device issue */
+		/* Reset USB port to patch USB unkyeswn device issue */
 		ast_moutdwm(ast, 0x1e6e2090, 0x20000000);
 		temp  = ast_mindwm(ast, 0x1e6e2094);
 		temp |= 0x00004000;

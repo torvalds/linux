@@ -38,7 +38,7 @@ static unsigned long virt_to_hvpfn(void *addr)
 }
 
 /*
- * vmbus_setevent- Trigger an event notification on the specified
+ * vmbus_setevent- Trigger an event yestification on the specified
  * channel.
  */
 void vmbus_setevent(struct vmbus_channel *channel)
@@ -94,7 +94,7 @@ int vmbus_alloc_ring(struct vmbus_channel *newchannel,
 
 	/* Allocate the ring buffer */
 	order = get_order(send_size + recv_size);
-	page = alloc_pages_node(cpu_to_node(newchannel->target_cpu),
+	page = alloc_pages_yesde(cpu_to_yesde(newchannel->target_cpu),
 				GFP_KERNEL|__GFP_ZERO, order);
 
 	if (!page)
@@ -321,7 +321,7 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 			  sizeof(struct gpa_range) + pfncount * sizeof(u64);
 		msgheader =  kzalloc(msgsize, GFP_KERNEL);
 		if (!msgheader)
-			goto nomem;
+			goto yesmem;
 
 		INIT_LIST_HEAD(&msgheader->submsglist);
 		msgheader->msgsize = msgsize;
@@ -372,7 +372,7 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 					kfree(pos);
 				}
 
-				goto nomem;
+				goto yesmem;
 			}
 
 			msgbody->msgsize = msgsize;
@@ -402,7 +402,7 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 			  sizeof(struct gpa_range) + pagecount * sizeof(u64);
 		msgheader = kzalloc(msgsize, GFP_KERNEL);
 		if (msgheader == NULL)
-			goto nomem;
+			goto yesmem;
 
 		INIT_LIST_HEAD(&msgheader->submsglist);
 		msgheader->msgsize = msgsize;
@@ -422,7 +422,7 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 	}
 
 	return 0;
-nomem:
+yesmem:
 	kfree(msgheader);
 	kfree(msgbody);
 	return -ENOMEM;
@@ -778,7 +778,7 @@ EXPORT_SYMBOL(vmbus_sendpacket);
 /*
  * vmbus_sendpacket_pagebuffer - Send a range of single-page buffer
  * packets using a GPADL Direct packet type. This interface allows you
- * to control notifying the host. This will be useful for sending
+ * to control yestifying the host. This will be useful for sending
  * batched data. Also the sender can control the send flags
  * explicitly.
  */

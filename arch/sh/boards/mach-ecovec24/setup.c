@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2009 Renesas Solutions Corp.
  *
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  */
 #include <asm/clock.h>
 #include <asm/heartbeat.h>
@@ -110,7 +110,7 @@ static struct platform_device heartbeat_device = {
 };
 
 /* MTD */
-static struct mtd_partition nor_flash_partitions[] = {
+static struct mtd_partition yesr_flash_partitions[] = {
 	{
 		.name = "boot loader",
 		.offset = 0,
@@ -123,13 +123,13 @@ static struct mtd_partition nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data nor_flash_data = {
+static struct physmap_flash_data yesr_flash_data = {
 	.width		= 2,
-	.parts		= nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(nor_flash_partitions),
+	.parts		= yesr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(yesr_flash_partitions),
 };
 
-static struct resource nor_flash_resources[] = {
+static struct resource yesr_flash_resources[] = {
 	[0] = {
 		.name	= "NOR Flash",
 		.start	= 0x00000000,
@@ -138,12 +138,12 @@ static struct resource nor_flash_resources[] = {
 	}
 };
 
-static struct platform_device nor_flash_device = {
+static struct platform_device yesr_flash_device = {
 	.name		= "physmap-flash",
-	.resource	= nor_flash_resources,
-	.num_resources	= ARRAY_SIZE(nor_flash_resources),
+	.resource	= yesr_flash_resources,
+	.num_resources	= ARRAY_SIZE(yesr_flash_resources),
 	.dev		= {
-		.platform_data = &nor_flash_data,
+		.platform_data = &yesr_flash_data,
 	},
 };
 
@@ -205,7 +205,7 @@ static struct platform_device usb0_host_device = {
 	.name		= "r8a66597_hcd",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= NULL,         /*  not use dma */
+		.dma_mask		= NULL,         /*  yest use dma */
 		.coherent_dma_mask	= 0xffffffff,
 		.platform_data		= &usb0_host_data,
 	},
@@ -241,7 +241,7 @@ static struct platform_device usb1_common_device = {
 	/* .name will be added in arch_setup */
 	.id		= 1,
 	.dev = {
-		.dma_mask		= NULL,         /*  not use dma */
+		.dma_mask		= NULL,         /*  yest use dma */
 		.coherent_dma_mask	= 0xffffffff,
 		.platform_data		= &usb1_common_data,
 	},
@@ -298,7 +298,7 @@ static struct platform_device usbhs_device = {
 	.name	= "renesas_usbhs",
 	.id	= 1,
 	.dev = {
-		.dma_mask		= NULL,         /*  not use dma */
+		.dma_mask		= NULL,         /*  yest use dma */
 		.coherent_dma_mask	= 0xffffffff,
 		.platform_data		= &usbhs_info,
 	},
@@ -1012,7 +1012,7 @@ static struct platform_device *ecovec_ceu_devices[] __initdata = {
 
 static struct platform_device *ecovec_devices[] __initdata = {
 	&heartbeat_device,
-	&nor_flash_device,
+	&yesr_flash_device,
 	&sh_eth_device,
 	&usb0_host_device,
 	&usb1_common_device,
@@ -1071,7 +1071,7 @@ static void __init sh_eth_init(struct sh_eth_plat_data *pd)
 	int i;
 
 	if (!a) {
-		pr_err("can not get I2C 1\n");
+		pr_err("can yest get I2C 1\n");
 		return;
 	}
 

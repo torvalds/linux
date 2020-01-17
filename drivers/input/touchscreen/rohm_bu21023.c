@@ -273,7 +273,7 @@ struct rohm_ts_data {
  * @buf: Where to store read data from ROHM BU21023/24
  * @len: How many bytes to read
  *
- * Returns negative errno, else zero on success.
+ * Returns negative erryes, else zero on success.
  *
  * Note
  * In BU21023/24 burst read, stop condition is needed after "address write".
@@ -594,7 +594,7 @@ static irqreturn_t rohm_ts_soft_irq(int irq, void *dev_id)
 
 	default:
 		dev_dbg(dev,
-			"Three or more touches are not supported\n");
+			"Three or more touches are yest supported\n");
 		return IRQ_HANDLED;
 	}
 
@@ -988,9 +988,9 @@ static int rohm_ts_device_init(struct i2c_client *client, u8 setup2)
 	}
 
 	/*
-	 * Manual calibration results are not changed in same environment.
+	 * Manual calibration results are yest changed in same environment.
 	 * If the force calibration is performed,
-	 * the controller will not require calibration request interrupt
+	 * the controller will yest require calibration request interrupt
 	 * when the typical values are set to the calibration registers.
 	 */
 	error = i2c_smbus_write_byte_data(client, CALIBRATION_REG1,
@@ -1104,12 +1104,12 @@ static int rohm_bu21023_i2c_probe(struct i2c_client *client,
 	int error;
 
 	if (!client->irq) {
-		dev_err(dev, "IRQ is not assigned\n");
+		dev_err(dev, "IRQ is yest assigned\n");
 		return -EINVAL;
 	}
 
 	if (!client->adapter->algo->master_xfer) {
-		dev_err(dev, "I2C level transfers not supported\n");
+		dev_err(dev, "I2C level transfers yest supported\n");
 		return -EOPNOTSUPP;
 	}
 

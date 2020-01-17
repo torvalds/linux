@@ -13,10 +13,10 @@ static bool dma_fence_chain_enable_signaling(struct dma_fence *fence);
 
 /**
  * dma_fence_chain_get_prev - use RCU to get a reference to the previous fence
- * @chain: chain node to get the previous node from
+ * @chain: chain yesde to get the previous yesde from
  *
  * Use dma_fence_get_rcu_safe to get a reference to the previous fence of the
- * chain node.
+ * chain yesde.
  */
 static struct dma_fence *dma_fence_chain_get_prev(struct dma_fence_chain *chain)
 {
@@ -30,10 +30,10 @@ static struct dma_fence *dma_fence_chain_get_prev(struct dma_fence_chain *chain)
 
 /**
  * dma_fence_chain_walk - chain walking function
- * @fence: current chain node
+ * @fence: current chain yesde
  *
- * Walk the chain to the next node. Returns the next fence or NULL if we are at
- * the end of the chain. Garbage collects chain nodes which are already
+ * Walk the chain to the next yesde. Returns the next fence or NULL if we are at
+ * the end of the chain. Garbage collects chain yesdes which are already
  * signaled.
  */
 struct dma_fence *dma_fence_chain_walk(struct dma_fence *fence)
@@ -76,37 +76,37 @@ struct dma_fence *dma_fence_chain_walk(struct dma_fence *fence)
 EXPORT_SYMBOL(dma_fence_chain_walk);
 
 /**
- * dma_fence_chain_find_seqno - find fence chain node by seqno
- * @pfence: pointer to the chain node where to start
- * @seqno: the sequence number to search for
+ * dma_fence_chain_find_seqyes - find fence chain yesde by seqyes
+ * @pfence: pointer to the chain yesde where to start
+ * @seqyes: the sequence number to search for
  *
- * Advance the fence pointer to the chain node which will signal this sequence
- * number. If no sequence number is provided then this is a no-op.
+ * Advance the fence pointer to the chain yesde which will signal this sequence
+ * number. If yes sequence number is provided then this is a yes-op.
  *
- * Returns EINVAL if the fence is not a chain node or the sequence number has
- * not yet advanced far enough.
+ * Returns EINVAL if the fence is yest a chain yesde or the sequence number has
+ * yest yet advanced far eyesugh.
  */
-int dma_fence_chain_find_seqno(struct dma_fence **pfence, uint64_t seqno)
+int dma_fence_chain_find_seqyes(struct dma_fence **pfence, uint64_t seqyes)
 {
 	struct dma_fence_chain *chain;
 
-	if (!seqno)
+	if (!seqyes)
 		return 0;
 
 	chain = to_dma_fence_chain(*pfence);
-	if (!chain || chain->base.seqno < seqno)
+	if (!chain || chain->base.seqyes < seqyes)
 		return -EINVAL;
 
 	dma_fence_chain_for_each(*pfence, &chain->base) {
 		if ((*pfence)->context != chain->base.context ||
-		    to_dma_fence_chain(*pfence)->prev_seqno < seqno)
+		    to_dma_fence_chain(*pfence)->prev_seqyes < seqyes)
 			break;
 	}
 	dma_fence_put(&chain->base);
 
 	return 0;
 }
-EXPORT_SYMBOL(dma_fence_chain_find_seqno);
+EXPORT_SYMBOL(dma_fence_chain_find_seqyes);
 
 static const char *dma_fence_chain_get_driver_name(struct dma_fence *fence)
 {
@@ -207,7 +207,7 @@ static void dma_fence_chain_release(struct dma_fence *fence)
 }
 
 const struct dma_fence_ops dma_fence_chain_ops = {
-	.use_64bit_seqno = true,
+	.use_64bit_seqyes = true,
 	.get_driver_name = dma_fence_chain_get_driver_name,
 	.get_timeline_name = dma_fence_chain_get_timeline_name,
 	.enable_signaling = dma_fence_chain_enable_signaling,
@@ -218,17 +218,17 @@ EXPORT_SYMBOL(dma_fence_chain_ops);
 
 /**
  * dma_fence_chain_init - initialize a fence chain
- * @chain: the chain node to initialize
+ * @chain: the chain yesde to initialize
  * @prev: the previous fence
  * @fence: the current fence
  *
- * Initialize a new chain node and either start a new chain or add the node to
+ * Initialize a new chain yesde and either start a new chain or add the yesde to
  * the existing chain of the previous fence.
  */
 void dma_fence_chain_init(struct dma_fence_chain *chain,
 			  struct dma_fence *prev,
 			  struct dma_fence *fence,
-			  uint64_t seqno)
+			  uint64_t seqyes)
 {
 	struct dma_fence_chain *prev_chain = to_dma_fence_chain(prev);
 	uint64_t context;
@@ -236,21 +236,21 @@ void dma_fence_chain_init(struct dma_fence_chain *chain,
 	spin_lock_init(&chain->lock);
 	rcu_assign_pointer(chain->prev, prev);
 	chain->fence = fence;
-	chain->prev_seqno = 0;
+	chain->prev_seqyes = 0;
 	init_irq_work(&chain->work, dma_fence_chain_irq_work);
 
-	/* Try to reuse the context of the previous chain node. */
-	if (prev_chain && __dma_fence_is_later(seqno, prev->seqno, prev->ops)) {
+	/* Try to reuse the context of the previous chain yesde. */
+	if (prev_chain && __dma_fence_is_later(seqyes, prev->seqyes, prev->ops)) {
 		context = prev->context;
-		chain->prev_seqno = prev->seqno;
+		chain->prev_seqyes = prev->seqyes;
 	} else {
 		context = dma_fence_context_alloc(1);
 		/* Make sure that we always have a valid sequence number. */
 		if (prev_chain)
-			seqno = max(prev->seqno, seqno);
+			seqyes = max(prev->seqyes, seqyes);
 	}
 
 	dma_fence_init(&chain->base, &dma_fence_chain_ops,
-		       &chain->lock, context, seqno);
+		       &chain->lock, context, seqyes);
 }
 EXPORT_SYMBOL(dma_fence_chain_init);

@@ -44,7 +44,7 @@ def tcm_mod_build_FC_include(fabric_mod_dir_var, fabric_mod_name):
 	print "Writing file: " + f
 
 	p = open(f, 'w');
-	if not p:
+	if yest p:
 		tcm_mod_err("Unable to open file: " + f)
 
 	buf = "#define " + fabric_mod_name.upper() + "_VERSION	\"v0.1\"\n"
@@ -88,7 +88,7 @@ def tcm_mod_build_SAS_include(fabric_mod_dir_var, fabric_mod_name):
 	print "Writing file: " + f
 
 	p = open(f, 'w');
-	if not p:
+	if yest p:
 		tcm_mod_err("Unable to open file: " + f)
 
 	buf = "#define " + fabric_mod_name.upper() + "_VERSION  \"v0.1\"\n"
@@ -131,7 +131,7 @@ def tcm_mod_build_iSCSI_include(fabric_mod_dir_var, fabric_mod_name):
 	print "Writing file: " + f
 
 	p = open(f, 'w');
-	if not p:
+	if yest p:
 		tcm_mod_err("Unable to open file: " + f)
 
 	buf = "#define " + fabric_mod_name.upper() + "_VERSION  \"v0.1\"\n"
@@ -184,7 +184,7 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	print "Writing file: " + f
 
         p = open(f, 'w');
-        if not p:
+        if yest p:
                 tcm_mod_err("Unable to open file: " + f)
 
 	buf = "#include <linux/module.h>\n"
@@ -297,7 +297,7 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "	.sess_get_index			= " + fabric_mod_name + "_sess_get_index,\n"
 	buf += "	.sess_get_initiator_sid		= NULL,\n"
 	buf += "	.write_pending			= " + fabric_mod_name + "_write_pending,\n"
-	buf += "	.set_default_node_attributes	= " + fabric_mod_name + "_set_default_node_attrs,\n"
+	buf += "	.set_default_yesde_attributes	= " + fabric_mod_name + "_set_default_yesde_attrs,\n"
 	buf += "	.get_cmd_state			= " + fabric_mod_name + "_get_cmd_state,\n"
 	buf += "	.queue_data_in			= " + fabric_mod_name + "_queue_data_in,\n"
 	buf += "	.queue_status			= " + fabric_mod_name + "_queue_status,\n"
@@ -354,7 +354,7 @@ def tcm_mod_scan_fabric_ops(tcm_dir):
 			process_fo = 1;
 			line = p.readline()
 			# Search for function pointer
-			if not re.search('\(\*', line):
+			if yest re.search('\(\*', line):
 				continue
 
 			fabric_ops.append(line.rstrip())
@@ -362,7 +362,7 @@ def tcm_mod_scan_fabric_ops(tcm_dir):
 
 		line = p.readline()
 		# Search for function pointer
-		if not re.search('\(\*', line):
+		if yest re.search('\(\*', line):
 			continue
 
 		fabric_ops.append(line.rstrip())
@@ -378,14 +378,14 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	print "Writing file: " + f
 
 	p = open(f, 'w')
-	if not p:
+	if yest p:
 		tcm_mod_err("Unable to open file: " + f)
 
 	fi = fabric_mod_dir_var + "/" + fabric_mod_name + "_fabric.h"
 	print "Writing file: " + fi
 
 	pi = open(fi, 'w')
-	if not pi:
+	if yest pi:
 		tcm_mod_err("Unable to open file: " + fi)
 
 	buf = "#include <linux/slab.h>\n"
@@ -478,12 +478,12 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 			buf += "}\n\n"
 			bufi += "int " + fabric_mod_name + "_write_pending(struct se_cmd *);\n"
 
-		if re.search('set_default_node_attributes\)\(', fo):
-			buf += "void " + fabric_mod_name + "_set_default_node_attrs(struct se_node_acl *nacl)\n"
+		if re.search('set_default_yesde_attributes\)\(', fo):
+			buf += "void " + fabric_mod_name + "_set_default_yesde_attrs(struct se_yesde_acl *nacl)\n"
 			buf += "{\n"
 			buf += "	return;\n"
 			buf += "}\n\n"
-			bufi += "void " + fabric_mod_name + "_set_default_node_attrs(struct se_node_acl *);\n"
+			bufi += "void " + fabric_mod_name + "_set_default_yesde_attrs(struct se_yesde_acl *);\n"
 
 		if re.search('get_cmd_state\)\(', fo):
 			buf += "int " + fabric_mod_name + "_get_cmd_state(struct se_cmd *se_cmd)\n"
@@ -540,7 +540,7 @@ def tcm_mod_build_kbuild(fabric_mod_dir_var, fabric_mod_name):
 	print "Writing file: " + f
 
 	p = open(f, 'w')
-	if not p:
+	if yest p:
 		tcm_mod_err("Unable to open file: " + f)
 
 	buf += fabric_mod_name + "-objs			:= " + fabric_mod_name + "_fabric.o \\\n"
@@ -561,7 +561,7 @@ def tcm_mod_build_kconfig(fabric_mod_dir_var, fabric_mod_name):
 	print "Writing file: " + f
 
 	p = open(f, 'w')
-	if not p:
+	if yest p:
 		tcm_mod_err("Unable to open file: " + f)
 
 	buf = "config " + fabric_mod_name.upper() + "\n"
@@ -626,12 +626,12 @@ def main(modname, proto_ident):
 	tcm_mod_build_kbuild(fabric_mod_dir, fabric_mod_name)
 	tcm_mod_build_kconfig(fabric_mod_dir, fabric_mod_name)
 
-	input = raw_input("Would you like to add " + fabric_mod_name + " to drivers/target/Makefile..? [yes,no]: ")
-	if input == "yes" or input == "y":
+	input = raw_input("Would you like to add " + fabric_mod_name + " to drivers/target/Makefile..? [no,yes]: ")
+	if input == "no" or input == "y":
 		tcm_mod_add_kbuild(tcm_dir, fabric_mod_name)
 
-	input = raw_input("Would you like to add " + fabric_mod_name + " to drivers/target/Kconfig..? [yes,no]: ")
-	if input == "yes" or input == "y":
+	input = raw_input("Would you like to add " + fabric_mod_name + " to drivers/target/Kconfig..? [no,yes]: ")
+	if input == "no" or input == "y":
 		tcm_mod_add_kconfig(tcm_dir, fabric_mod_name)
 
 	return
@@ -646,7 +646,7 @@ parser.add_option('-p', '--protoident', help='Protocol Ident', dest='protoident'
 
 mandatories = ['modname', 'protoident']
 for m in mandatories:
-	if not opts.__dict__[m]:
+	if yest opts.__dict__[m]:
 		print "mandatory option is missing\n"
 		parser.print_help()
 		exit(-1)

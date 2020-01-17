@@ -11,4 +11,4 @@ Required properties:
        registers indicating the strapping options.
 
 Optional properties:
-- nvidia,long-ram-code: If present, the RAM code is long (4 bit). If not, short (2 bit).
+- nvidia,long-ram-code: If present, the RAM code is long (4 bit). If yest, short (2 bit).

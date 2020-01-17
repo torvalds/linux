@@ -4,10 +4,10 @@
  *
  * Copyright (C) 1999
  * Brad Boyer (flar@pants.nu)
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  *
  * Format of structures on disk
- * Information taken from Apple Technote #1150 (HFS Plus Volume Format)
+ * Information taken from Apple Techyeste #1150 (HFS Plus Volume Format)
  *
  */
 
@@ -147,8 +147,8 @@ struct hfsplus_vh {
 #define HFSPLUS_VOL_SOFTLOCK		(1 << 15)
 #define HFSPLUS_VOL_UNUSED_NODE_FIX	(1 << 31)
 
-/* HFS+ BTree node descriptor */
-struct hfs_bnode_desc {
+/* HFS+ BTree yesde descriptor */
+struct hfs_byesde_desc {
 	__be32 next;
 	__be32 prev;
 	s8 type;
@@ -157,11 +157,11 @@ struct hfs_bnode_desc {
 	u16 reserved;
 } __packed;
 
-/* HFS+ BTree node types */
-#define HFS_NODE_INDEX	0x00	/* An internal (index) node */
-#define HFS_NODE_HEADER	0x01	/* The tree header node (node 0) */
-#define HFS_NODE_MAP	0x02	/* Holds part of the bitmap of used nodes */
-#define HFS_NODE_LEAF	0xFF	/* A leaf (ndNHeight==1) node */
+/* HFS+ BTree yesde types */
+#define HFS_NODE_INDEX	0x00	/* An internal (index) yesde */
+#define HFS_NODE_HEADER	0x01	/* The tree header yesde (yesde 0) */
+#define HFS_NODE_MAP	0x02	/* Holds part of the bitmap of used yesdes */
+#define HFS_NODE_LEAF	0xFF	/* A leaf (ndNHeight==1) yesde */
 
 /* HFS+ BTree header */
 struct hfs_btree_header_rec {
@@ -170,10 +170,10 @@ struct hfs_btree_header_rec {
 	__be32 leaf_count;
 	__be32 leaf_head;
 	__be32 leaf_tail;
-	__be16 node_size;
+	__be16 yesde_size;
 	__be16 max_key_len;
-	__be32 node_count;
-	__be32 free_nodes;
+	__be32 yesde_count;
+	__be32 free_yesdes;
 	u16 reserved1;
 	__be32 clump_size;
 	u8 btree_type;
@@ -316,7 +316,7 @@ struct hfsplus_cat_thread {
 	__be16 type;
 	s16 reserved;
 	hfsplus_cnid parentID;
-	struct hfsplus_unistr nodeName;
+	struct hfsplus_unistr yesdeName;
 } __packed;
 
 #define HFSPLUS_MIN_THREAD_SZ 10

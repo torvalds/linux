@@ -64,37 +64,37 @@ void ksys_sync_helper(void)
 }
 EXPORT_SYMBOL_GPL(ksys_sync_helper);
 
-/* Routines for PM-transition notifications */
+/* Routines for PM-transition yestifications */
 
 static BLOCKING_NOTIFIER_HEAD(pm_chain_head);
 
-int register_pm_notifier(struct notifier_block *nb)
+int register_pm_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&pm_chain_head, nb);
+	return blocking_yestifier_chain_register(&pm_chain_head, nb);
 }
-EXPORT_SYMBOL_GPL(register_pm_notifier);
+EXPORT_SYMBOL_GPL(register_pm_yestifier);
 
-int unregister_pm_notifier(struct notifier_block *nb)
+int unregister_pm_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&pm_chain_head, nb);
+	return blocking_yestifier_chain_unregister(&pm_chain_head, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_pm_notifier);
+EXPORT_SYMBOL_GPL(unregister_pm_yestifier);
 
-int __pm_notifier_call_chain(unsigned long val, int nr_to_call, int *nr_calls)
+int __pm_yestifier_call_chain(unsigned long val, int nr_to_call, int *nr_calls)
 {
 	int ret;
 
-	ret = __blocking_notifier_call_chain(&pm_chain_head, val, NULL,
+	ret = __blocking_yestifier_call_chain(&pm_chain_head, val, NULL,
 						nr_to_call, nr_calls);
 
-	return notifier_to_errno(ret);
+	return yestifier_to_erryes(ret);
 }
-int pm_notifier_call_chain(unsigned long val)
+int pm_yestifier_call_chain(unsigned long val)
 {
-	return __pm_notifier_call_chain(val, -1, NULL);
+	return __pm_yestifier_call_chain(val, -1, NULL);
 }
 
-/* If set, devices may be suspended and resumed asynchronously. */
+/* If set, devices may be suspended and resumed asynchroyesusly. */
 int pm_async_enabled = 1;
 
 static ssize_t pm_async_show(struct kobject *kobj, struct kobj_attribute *attr,
@@ -196,7 +196,7 @@ power_attr(mem_sleep);
 int pm_test_level = TEST_NONE;
 
 static const char * const pm_tests[__TEST_AFTER_LAST] = {
-	[TEST_NONE] = "none",
+	[TEST_NONE] = "yesne",
 	[TEST_CORE] = "core",
 	[TEST_CPUS] = "processors",
 	[TEST_PLATFORM] = "platform",
@@ -265,9 +265,9 @@ static char *suspend_step_name(enum suspend_stat_step step)
 	case SUSPEND_SUSPEND:
 		return "suspend";
 	case SUSPEND_SUSPEND_NOIRQ:
-		return "suspend_noirq";
+		return "suspend_yesirq";
 	case SUSPEND_RESUME_NOIRQ:
-		return "resume_noirq";
+		return "resume_yesirq";
 	case SUSPEND_RESUME:
 		return "resume";
 	default:
@@ -289,10 +289,10 @@ suspend_attr(failed_freeze);
 suspend_attr(failed_prepare);
 suspend_attr(failed_suspend);
 suspend_attr(failed_suspend_late);
-suspend_attr(failed_suspend_noirq);
+suspend_attr(failed_suspend_yesirq);
 suspend_attr(failed_resume);
 suspend_attr(failed_resume_early);
-suspend_attr(failed_resume_noirq);
+suspend_attr(failed_resume_yesirq);
 
 static ssize_t last_failed_dev_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
@@ -308,19 +308,19 @@ static ssize_t last_failed_dev_show(struct kobject *kobj,
 }
 static struct kobj_attribute last_failed_dev = __ATTR_RO(last_failed_dev);
 
-static ssize_t last_failed_errno_show(struct kobject *kobj,
+static ssize_t last_failed_erryes_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
 	int index;
-	int last_failed_errno;
+	int last_failed_erryes;
 
-	index = suspend_stats.last_failed_errno + REC_FAILED_NUM - 1;
+	index = suspend_stats.last_failed_erryes + REC_FAILED_NUM - 1;
 	index %= REC_FAILED_NUM;
-	last_failed_errno = suspend_stats.errno[index];
+	last_failed_erryes = suspend_stats.erryes[index];
 
-	return sprintf(buf, "%d\n", last_failed_errno);
+	return sprintf(buf, "%d\n", last_failed_erryes);
 }
-static struct kobj_attribute last_failed_errno = __ATTR_RO(last_failed_errno);
+static struct kobj_attribute last_failed_erryes = __ATTR_RO(last_failed_erryes);
 
 static ssize_t last_failed_step_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
@@ -345,12 +345,12 @@ static struct attribute *suspend_attrs[] = {
 	&failed_prepare.attr,
 	&failed_suspend.attr,
 	&failed_suspend_late.attr,
-	&failed_suspend_noirq.attr,
+	&failed_suspend_yesirq.attr,
 	&failed_resume.attr,
 	&failed_resume_early.attr,
-	&failed_resume_noirq.attr,
+	&failed_resume_yesirq.attr,
 	&last_failed_dev.attr,
-	&last_failed_errno.attr,
+	&last_failed_erryes.attr,
 	&last_failed_step.attr,
 	NULL,
 };
@@ -363,12 +363,12 @@ static struct attribute_group suspend_attr_group = {
 #ifdef CONFIG_DEBUG_FS
 static int suspend_stats_show(struct seq_file *s, void *unused)
 {
-	int i, index, last_dev, last_errno, last_step;
+	int i, index, last_dev, last_erryes, last_step;
 
 	last_dev = suspend_stats.last_failed_dev + REC_FAILED_NUM - 1;
 	last_dev %= REC_FAILED_NUM;
-	last_errno = suspend_stats.last_failed_errno + REC_FAILED_NUM - 1;
-	last_errno %= REC_FAILED_NUM;
+	last_erryes = suspend_stats.last_failed_erryes + REC_FAILED_NUM - 1;
+	last_erryes %= REC_FAILED_NUM;
 	last_step = suspend_stats.last_failed_step + REC_FAILED_NUM - 1;
 	last_step %= REC_FAILED_NUM;
 	seq_printf(s, "%s: %d\n%s: %d\n%s: %d\n%s: %d\n%s: %d\n"
@@ -380,13 +380,13 @@ static int suspend_stats_show(struct seq_file *s, void *unused)
 			"failed_suspend", suspend_stats.failed_suspend,
 			"failed_suspend_late",
 				suspend_stats.failed_suspend_late,
-			"failed_suspend_noirq",
-				suspend_stats.failed_suspend_noirq,
+			"failed_suspend_yesirq",
+				suspend_stats.failed_suspend_yesirq,
 			"failed_resume", suspend_stats.failed_resume,
 			"failed_resume_early",
 				suspend_stats.failed_resume_early,
-			"failed_resume_noirq",
-				suspend_stats.failed_resume_noirq);
+			"failed_resume_yesirq",
+				suspend_stats.failed_resume_yesirq);
 	seq_printf(s,	"failures:\n  last_failed_dev:\t%-s\n",
 			suspend_stats.failed_devs[last_dev]);
 	for (i = 1; i < REC_FAILED_NUM; i++) {
@@ -395,13 +395,13 @@ static int suspend_stats_show(struct seq_file *s, void *unused)
 		seq_printf(s, "\t\t\t%-s\n",
 			suspend_stats.failed_devs[index]);
 	}
-	seq_printf(s,	"  last_failed_errno:\t%-d\n",
-			suspend_stats.errno[last_errno]);
+	seq_printf(s,	"  last_failed_erryes:\t%-d\n",
+			suspend_stats.erryes[last_erryes]);
 	for (i = 1; i < REC_FAILED_NUM; i++) {
-		index = last_errno + REC_FAILED_NUM - i;
+		index = last_erryes + REC_FAILED_NUM - i;
 		index %= REC_FAILED_NUM;
 		seq_printf(s, "\t\t\t%-d\n",
-			suspend_stats.errno[index]);
+			suspend_stats.erryes[index]);
 	}
 	seq_printf(s,	"  last_failed_step:\t%-s\n",
 			suspend_step_name(
@@ -505,7 +505,7 @@ power_attr(pm_debug_messages);
 
 /**
  * __pm_pr_dbg - Print a suspend debug message to the kernel log.
- * @defer: Whether or not to use printk_deferred() to print the message.
+ * @defer: Whether or yest to use printk_deferred() to print the message.
  * @fmt: Message format.
  *
  * The message will be emitted if enabled through the pm_debug_messages
@@ -634,7 +634,7 @@ power_attr(state);
 /*
  * The 'wakeup_count' attribute, along with the functions defined in
  * drivers/base/power/wakeup.c, provides a means by which wakeup events can be
- * handled in a non-racy way.
+ * handled in a yesn-racy way.
  *
  * If a wakeup event occurs when the system is in a sleep state, it simply is
  * woken up.  In turn, if an event that would wake the system up from a sleep
@@ -642,11 +642,11 @@ power_attr(state);
  * transition should be aborted.  Moreover, if such an event occurs when the
  * system is in the working state, an attempt to start a transition to the
  * given sleep state should fail during certain period after the detection of
- * the event.  Using the 'state' attribute alone is not sufficient to satisfy
+ * the event.  Using the 'state' attribute alone is yest sufficient to satisfy
  * these requirements, because a wakeup event may occur exactly when 'state'
  * is being written to and may be delivered to user space right before it is
  * frozen, so the event will remain only partially processed until the system is
- * woken up by another event.  In particular, it won't cause the transition to
+ * woken up by ayesther event.  In particular, it won't cause the transition to
  * a sleep state to be aborted.
  *
  * This difficulty may be overcome if user space uses 'wakeup_count' before
@@ -654,7 +654,7 @@ power_attr(state);
  * the read value.  Then, after carrying out its own preparations for the system
  * transition to a sleep state, it should write the stored value to
  * 'wakeup_count'.  If that fails, at least one wakeup event has occurred since
- * 'wakeup_count' was read and 'state' should not be written to.  Otherwise, it
+ * 'wakeup_count' was read and 'state' should yest be written to.  Otherwise, it
  * is allowed to write to 'state', but the transition will be aborted if there
  * are any wakeup events detected after 'wakeup_count' was written to.
  */

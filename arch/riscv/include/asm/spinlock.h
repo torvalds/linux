@@ -12,7 +12,7 @@
 #include <asm/fence.h>
 
 /*
- * Simple spin lock operations.  These provide no fairness guarantees.
+ * Simple spin lock operations.  These provide yes fairness guarantees.
  */
 
 /* FIXME: Replace this with a ticket lock, like MIPS. */

@@ -6,12 +6,12 @@
 #include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi_common.h>
 
 /* NB: These are exposed through /proc/scsi/scsi and form part of the ABI.
- * You may not alter any existing entry (although adding new ones is
+ * You may yest alter any existing entry (although adding new ones is
  * encouraged once assigned by ANSI/INCITS T10).
  */
 static const char *const scsi_device_types[] = {
@@ -45,11 +45,11 @@ static const char *const scsi_device_types[] = {
 const char *scsi_device_type(unsigned type)
 {
 	if (type == 0x1e)
-		return "Well-known LUN   ";
+		return "Well-kyeswn LUN   ";
 	if (type == 0x1f)
 		return "No Device        ";
 	if (type >= ARRAY_SIZE(scsi_device_types))
-		return "Unknown          ";
+		return "Unkyeswn          ";
 	return scsi_device_types[type];
 }
 EXPORT_SYMBOL(scsi_device_type);
@@ -117,7 +117,7 @@ void int_to_scsilun(u64 lun, struct scsi_lun *scsilun)
 EXPORT_SYMBOL(int_to_scsilun);
 
 /**
- * scsi_normalize_sense - normalize main elements from either fixed or
+ * scsi_yesrmalize_sense - yesrmalize main elements from either fixed or
  *			descriptor sense data format into a common format.
  *
  * @sense_buffer:	byte array containing sense data returned by device
@@ -135,7 +135,7 @@ EXPORT_SYMBOL(int_to_scsilun);
  * Return value:
  *	true if valid sense data information found, else false;
  */
-bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
+bool scsi_yesrmalize_sense(const u8 *sense_buffer, int sb_len,
 			  struct scsi_sense_hdr *sshdr)
 {
 	memset(sshdr, 0, sizeof(struct scsi_sense_hdr));
@@ -178,7 +178,7 @@ bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
 
 	return true;
 }
-EXPORT_SYMBOL(scsi_normalize_sense);
+EXPORT_SYMBOL(scsi_yesrmalize_sense);
 
 /**
  * scsi_sense_desc_find - search for a given descriptor type in	descriptor sense data format.
@@ -221,7 +221,7 @@ EXPORT_SYMBOL(scsi_sense_desc_find);
 
 /**
  * scsi_build_sense_buffer - build sense data in a buffer
- * @desc:	Sense format (non-zero == descriptor format,
+ * @desc:	Sense format (yesn-zero == descriptor format,
  *              0 == fixed format)
  * @buf:	Where to build sense data
  * @key:	Sense key
@@ -270,7 +270,7 @@ int scsi_set_sense_information(u8 *buf, int buf_len, u64 info)
 		}
 
 		if (buf_len < len + 0xc)
-			/* Not enough room for info */
+			/* Not eyesugh room for info */
 			return -EINVAL;
 
 		ucp[0] = 0;
@@ -320,7 +320,7 @@ int scsi_set_sense_field_pointer(u8 *buf, int buf_len, u16 fp, u8 bp, bool cd)
 		}
 
 		if (buf_len < len + 8)
-			/* Not enough room for info */
+			/* Not eyesugh room for info */
 			return -EINVAL;
 
 		ucp[0] = 2;

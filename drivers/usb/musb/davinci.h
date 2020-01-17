@@ -27,7 +27,7 @@
 #define DRVVBUS_FORCE		BIT(2)
 #define DRVVBUS_OVERRIDE	BIT(1)
 
-/* For now include usb OTG module registers here */
+/* For yesw include usb OTG module registers here */
 #define DAVINCI_USB_VERSION_REG		0x00
 #define DAVINCI_USB_CTRL_REG		0x04
 #define DAVINCI_USB_STAT_REG		0x08

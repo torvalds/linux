@@ -74,7 +74,7 @@ __visible bool ex_handler_uaccess(const struct exception_table_entry *fixup,
 				  unsigned long error_code,
 				  unsigned long fault_addr)
 {
-	WARN_ONCE(trapnr == X86_TRAP_GP, "General protection fault in user access. Non-canonical address?");
+	WARN_ONCE(trapnr == X86_TRAP_GP, "General protection fault in user access. Non-cayesnical address?");
 	regs->ip = ex_fixup_addr(fixup);
 	return true;
 }
@@ -183,7 +183,7 @@ extern unsigned int early_recursion_flag;
 /* Restricted version used during very early boot */
 void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 {
-	/* Ignore early NMIs. */
+	/* Igyesre early NMIs. */
 	if (trapnr == X86_TRAP_NMI)
 		return;
 
@@ -192,9 +192,9 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 
 	/*
 	 * Old CPUs leave the high bits of CS on the stack
-	 * undefined.  I'm not sure which CPUs do this, but at least
+	 * undefined.  I'm yest sure which CPUs do this, but at least
 	 * the 486 DX works this way.
-	 * Xen pv domains are not using the default __KERNEL_CS.
+	 * Xen pv domains are yest using the default __KERNEL_CS.
 	 */
 	if (!xen_pv_domain() && regs->cs != __KERNEL_CS)
 		goto fail;
@@ -210,7 +210,7 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	 * because refusing to call a handler here is guaranteed to
 	 * result in a hard-to-debug panic.
 	 *
-	 * Keep in mind that not all vectors actually get here.  Early
+	 * Keep in mind that yest all vectors actually get here.  Early
 	 * page faults, for example, are special.
 	 */
 	if (fixup_exception(regs, trapnr, regs->orig_ax, 0))

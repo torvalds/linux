@@ -3,13 +3,13 @@
 #include <linux/module.h>
 #include <linux/of.h>
 
-#include "notifier-error-inject.h"
+#include "yestifier-error-inject.h"
 
 static int priority;
 module_param(priority, int, 0);
-MODULE_PARM_DESC(priority, "specify OF reconfig notifier priority");
+MODULE_PARM_DESC(priority, "specify OF reconfig yestifier priority");
 
-static struct notifier_err_inject reconfig_err_inject = {
+static struct yestifier_err_inject reconfig_err_inject = {
 	.actions = {
 		{ NOTIFIER_ERR_INJECT_ACTION(OF_RECONFIG_ATTACH_NODE) },
 		{ NOTIFIER_ERR_INJECT_ACTION(OF_RECONFIG_DETACH_NODE) },
@@ -26,12 +26,12 @@ static int err_inject_init(void)
 {
 	int err;
 
-	dir = notifier_err_inject_init("OF-reconfig",
-		notifier_err_inject_dir, &reconfig_err_inject, priority);
+	dir = yestifier_err_inject_init("OF-reconfig",
+		yestifier_err_inject_dir, &reconfig_err_inject, priority);
 	if (IS_ERR(dir))
 		return PTR_ERR(dir);
 
-	err = of_reconfig_notifier_register(&reconfig_err_inject.nb);
+	err = of_reconfig_yestifier_register(&reconfig_err_inject.nb);
 	if (err)
 		debugfs_remove_recursive(dir);
 
@@ -40,13 +40,13 @@ static int err_inject_init(void)
 
 static void err_inject_exit(void)
 {
-	of_reconfig_notifier_unregister(&reconfig_err_inject.nb);
+	of_reconfig_yestifier_unregister(&reconfig_err_inject.nb);
 	debugfs_remove_recursive(dir);
 }
 
 module_init(err_inject_init);
 module_exit(err_inject_exit);
 
-MODULE_DESCRIPTION("OF reconfig notifier error injection module");
+MODULE_DESCRIPTION("OF reconfig yestifier error injection module");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akiyesbu Mita <akiyesbu.mita@gmail.com>");

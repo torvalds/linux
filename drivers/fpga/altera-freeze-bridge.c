@@ -55,7 +55,7 @@ static int altera_freeze_br_req_ack(struct altera_freeze_br_data *priv,
 
 			illegal = readl(csr_illegal_req_addr);
 			if (illegal)
-				dev_err(dev, "illegal request not cleared 0x%x",
+				dev_err(dev, "illegal request yest cleared 0x%x",
 					illegal);
 
 			ret = -EINVAL;
@@ -67,7 +67,7 @@ static int altera_freeze_br_req_ack(struct altera_freeze_br_data *priv,
 		status &= req_ack;
 		if (status) {
 			ctrl = readl(priv->base_addr + FREEZE_CSR_CTRL_OFFSET);
-			dev_dbg(dev, "%s request %x acknowledged %x %x\n",
+			dev_dbg(dev, "%s request %x ackyeswledged %x %x\n",
 				__func__, req_ack, status, ctrl);
 			ret = 0;
 			break;
@@ -101,7 +101,7 @@ static int altera_freeze_br_do_freeze(struct altera_freeze_br_data *priv,
 			__func__, status);
 		return 0;
 	} else if (!(status & FREEZE_CSR_STATUS_UNFREEZE_REQ_DONE)) {
-		dev_err(dev, "%s bridge not enabled %d\n", __func__, status);
+		dev_err(dev, "%s bridge yest enabled %d\n", __func__, status);
 		return -EINVAL;
 	}
 
@@ -138,7 +138,7 @@ static int altera_freeze_br_do_unfreeze(struct altera_freeze_br_data *priv,
 			__func__, status);
 		return 0;
 	} else if (!(status & FREEZE_CSR_STATUS_FREEZE_REQ_DONE)) {
-		dev_err(dev, "%s bridge not frozen %d\n", __func__, status);
+		dev_err(dev, "%s bridge yest frozen %d\n", __func__, status);
 		return -EINVAL;
 	}
 
@@ -207,7 +207,7 @@ MODULE_DEVICE_TABLE(of, altera_freeze_br_of_match);
 static int altera_freeze_br_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	void __iomem *base_addr;
 	struct altera_freeze_br_data *priv;
 	struct fpga_bridge *br;

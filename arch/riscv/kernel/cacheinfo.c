@@ -9,7 +9,7 @@
 #include <linux/of_device.h>
 
 static void ci_leaf_init(struct cacheinfo *this_leaf,
-			 struct device_node *node,
+			 struct device_yesde *yesde,
 			 enum cache_type type, unsigned int level)
 {
 	this_leaf->level = level;
@@ -19,8 +19,8 @@ static void ci_leaf_init(struct cacheinfo *this_leaf,
 static int __init_cache_level(unsigned int cpu)
 {
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
-	struct device_node *np = of_cpu_device_node_get(cpu);
-	struct device_node *prev = NULL;
+	struct device_yesde *np = of_cpu_device_yesde_get(cpu);
+	struct device_yesde *prev = NULL;
 	int levels = 0, leaves = 0, level;
 
 	if (of_property_read_bool(np, "cache-size"))
@@ -33,8 +33,8 @@ static int __init_cache_level(unsigned int cpu)
 		levels = 1;
 
 	prev = np;
-	while ((np = of_find_next_cache_node(np))) {
-		of_node_put(prev);
+	while ((np = of_find_next_cache_yesde(np))) {
+		of_yesde_put(prev);
 		prev = np;
 		if (!of_device_is_compatible(np, "cache"))
 			break;
@@ -51,7 +51,7 @@ static int __init_cache_level(unsigned int cpu)
 		levels = level;
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 	this_cpu_ci->num_levels = levels;
 	this_cpu_ci->num_leaves = leaves;
 
@@ -62,8 +62,8 @@ static int __populate_cache_leaves(unsigned int cpu)
 {
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
 	struct cacheinfo *this_leaf = this_cpu_ci->info_list;
-	struct device_node *np = of_cpu_device_node_get(cpu);
-	struct device_node *prev = NULL;
+	struct device_yesde *np = of_cpu_device_yesde_get(cpu);
+	struct device_yesde *prev = NULL;
 	int levels = 1, level = 1;
 
 	if (of_property_read_bool(np, "cache-size"))
@@ -74,8 +74,8 @@ static int __populate_cache_leaves(unsigned int cpu)
 		ci_leaf_init(this_leaf++, np, CACHE_TYPE_DATA, level);
 
 	prev = np;
-	while ((np = of_find_next_cache_node(np))) {
-		of_node_put(prev);
+	while ((np = of_find_next_cache_yesde(np))) {
+		of_yesde_put(prev);
 		prev = np;
 		if (!of_device_is_compatible(np, "cache"))
 			break;
@@ -91,7 +91,7 @@ static int __populate_cache_leaves(unsigned int cpu)
 			ci_leaf_init(this_leaf++, np, CACHE_TYPE_DATA, level);
 		levels = level;
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return 0;
 }

@@ -12,7 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -25,7 +25,7 @@
 
 #include "fimc-is.h"
 #include "fimc-is-command.h"
-#include "fimc-is-errno.h"
+#include "fimc-is-erryes.h"
 #include "fimc-is-param.h"
 #include "fimc-is-regs.h"
 #include "fimc-is-sensor.h"
@@ -787,7 +787,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 		isp->dma1_output.order = 0;
 		isp->dma1_output.buffer_number = 0;
 		isp->dma1_output.buffer_address = 0;
-		isp->dma1_output.notify_dma_done = 0;
+		isp->dma1_output.yestify_dma_done = 0;
 		isp->dma1_output.dma_out_mask = 0;
 		isp->dma1_output.err = DMA_OUTPUT_ERROR_NONE;
 		fimc_is_set_param_bit(is, PARAM_ISP_DMA1_OUTPUT);
@@ -803,7 +803,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 		isp->dma2_output.order = 0;
 		isp->dma2_output.buffer_number = 0;
 		isp->dma2_output.buffer_address = 0;
-		isp->dma2_output.notify_dma_done = 0;
+		isp->dma2_output.yestify_dma_done = 0;
 		isp->dma2_output.dma_out_mask = 0;
 		isp->dma2_output.err = DMA_OUTPUT_ERROR_NONE;
 		fimc_is_set_param_bit(is, PARAM_ISP_DMA2_OUTPUT);

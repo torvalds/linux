@@ -233,7 +233,7 @@ static int __init __mx25_clocks_init(void __iomem *ccm_base)
 	return 0;
 }
 
-static void __init mx25_clocks_init_dt(struct device_node *np)
+static void __init mx25_clocks_init_dt(struct device_yesde *np)
 {
 	void __iomem *ccm;
 

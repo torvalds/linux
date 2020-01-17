@@ -7,7 +7,7 @@
 
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -36,7 +36,7 @@ static const struct drm_framebuffer_funcs psb_fb_funcs = {
 
 #define CMAP_TOHW(_val, _width) ((((_val) << (_width)) + 0x7FFF - (_val)) >> 16)
 
-static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int psbfb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
@@ -47,7 +47,7 @@ static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	if (!fb)
 		return -ENOMEM;
 
-	if (regno > 255)
+	if (regyes > 255)
 		return 1;
 
 	red = CMAP_TOHW(red, info->var.red.length);
@@ -60,14 +60,14 @@ static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	    (blue << info->var.blue.offset) |
 	    (transp << info->var.transp.offset);
 
-	if (regno < 16) {
+	if (regyes < 16) {
 		switch (fb->format->cpp[0] * 8) {
 		case 16:
-			((uint32_t *) info->pseudo_palette)[regno] = v;
+			((uint32_t *) info->pseudo_palette)[regyes] = v;
 			break;
 		case 24:
 		case 32:
-			((uint32_t *) info->pseudo_palette)[regno] = v;
+			((uint32_t *) info->pseudo_palette)[regyes] = v;
 			break;
 		}
 	}
@@ -83,7 +83,7 @@ static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct gtt_range *gtt = to_gtt_range(psbfb->base.obj[0]);
 
 	/*
-	 *	We have to poke our nose in here. The core fb code assumes
+	 *	We have to poke our yesse in here. The core fb code assumes
 	 *	panning is part of the hardware that can be invoked before
 	 *	the actual fb is mapped. In our case that isn't quite true.
 	 */
@@ -114,7 +114,7 @@ static vm_fault_t psbfb_vm_fault(struct vm_fault *vmf)
 	page_num = vma_pages(vma);
 	address = vmf->address - (vmf->pgoff << PAGE_SHIFT);
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	for (i = 0; i < page_num; i++) {
 		pfn = (phys_addr >> PAGE_SHIFT);
@@ -217,7 +217,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 	int ret;
 
 	/*
-	 * Reject unknown formats, YUV formats, and formats with more than
+	 * Reject unkyeswn formats, YUV formats, and formats with more than
 	 * 4 bytes per pixel.
 	 */
 	info = drm_get_format_info(dev, mode_cmd);
@@ -277,7 +277,7 @@ static struct drm_framebuffer *psb_framebuffer_create
  *	Allocate the frame buffer. In the usual case we get a GTT range that
  *	is stolen memory backed and life is simple. If there isn't sufficient
  *	we fail as we don't have the virtual mapping space to really vmap it
- *	and the kernel console code can't handle non linear framebuffers.
+ *	and the kernel console code can't handle yesn linear framebuffers.
  *
  *	Re-address this as and if the framebuffer layer grows this ability.
  */
@@ -465,10 +465,10 @@ static int psbfb_probe(struct drm_fb_helper *helper,
 	int bytespp;
 
 	bytespp = sizes->surface_bpp / 8;
-	if (bytespp == 3)	/* no 24bit packed */
+	if (bytespp == 3)	/* yes 24bit packed */
 		bytespp = 4;
 
-	/* If the mode will not fit in 32bit then switch to 16bit to get
+	/* If the mode will yest fit in 32bit then switch to 16bit to get
 	   a console on full resolution. The X mode setting server will
 	   allocate its own 32bit GEM framebuffer */
 	if (ALIGN(sizes->fb_width * bytespp, 64) * sizes->fb_height >
@@ -507,7 +507,7 @@ int psb_fbdev_init(struct drm_device *dev)
 
 	fbdev = kzalloc(sizeof(struct psb_fbdev), GFP_KERNEL);
 	if (!fbdev) {
-		dev_err(dev->dev, "no memory\n");
+		dev_err(dev->dev, "yes memory\n");
 		return -ENOMEM;
 	}
 

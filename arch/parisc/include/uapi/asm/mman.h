@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __PARISC_MMAN_H__
 #define __PARISC_MMAN_H__
 
@@ -6,7 +6,7 @@
 #define PROT_WRITE	0x2		/* page can be written */
 #define PROT_EXEC	0x4		/* page can be executed */
 #define PROT_SEM	0x8		/* page may be used for atomic ops */
-#define PROT_NONE	0x0		/* page can not be accessed */
+#define PROT_NONE	0x0		/* page can yest be accessed */
 #define PROT_GROWSDOWN	0x01000000	/* mprotect flag: extend change to start of growsdown vma */
 #define PROT_GROWSUP	0x02000000	/* mprotect flag: extend change to end of growsup vma */
 
@@ -21,22 +21,22 @@
 #define MAP_NORESERVE	0x4000		/* don't check for reservations */
 #define MAP_GROWSDOWN	0x8000		/* stack-like segment */
 #define MAP_POPULATE	0x10000		/* populate (prefault) pagetables */
-#define MAP_NONBLOCK	0x20000		/* do not block on IO */
+#define MAP_NONBLOCK	0x20000		/* do yest block on IO */
 #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
 #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
 #define MAP_FIXED_NOREPLACE 0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
 
-#define MS_SYNC		1		/* synchronous memory sync */
-#define MS_ASYNC	2		/* sync memory asynchronously */
+#define MS_SYNC		1		/* synchroyesus memory sync */
+#define MS_ASYNC	2		/* sync memory asynchroyesusly */
 #define MS_INVALIDATE	4		/* invalidate the caches */
 
 #define MCL_CURRENT	1		/* lock all current mappings */
 #define MCL_FUTURE	2		/* lock all future mappings */
 #define MCL_ONFAULT	4		/* lock all pages that are faulted in */
 
-#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do not prefault */
+#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do yest prefault */
 
-#define MADV_NORMAL     0               /* no further special treatment */
+#define MADV_NORMAL     0               /* yes further special treatment */
 #define MADV_RANDOM     1               /* expect random page references */
 #define MADV_SEQUENTIAL 2               /* expect sequential page references */
 #define MADV_WILLNEED   3               /* will need these pages */
@@ -52,7 +52,7 @@
 #define MADV_PAGEOUT	21		/* reclaim these pages */
 
 #define MADV_MERGEABLE   65		/* KSM may merge identical pages */
-#define MADV_UNMERGEABLE 66		/* KSM may not merge identical pages */
+#define MADV_UNMERGEABLE 66		/* KSM may yest merge identical pages */
 
 #define MADV_HUGEPAGE	67		/* Worth backing with hugepages */
 #define MADV_NOHUGEPAGE	68		/* Not worth backing with hugepages */

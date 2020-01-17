@@ -15,7 +15,7 @@
 
 #define FLOATFUNC(x)	extern int x(void *, void *, void *, void *)
 
-/* The instructions list which may be not implemented by a hardware FPU */
+/* The instructions list which may be yest implemented by a hardware FPU */
 FLOATFUNC(fre);
 FLOATFUNC(frsqrtes);
 FLOATFUNC(fsqrt);

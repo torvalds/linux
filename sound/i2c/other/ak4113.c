@@ -119,7 +119,7 @@ static void ak4113_init_regs(struct ak4113 *chip)
 	udelay(200);
 	for (reg = 1; reg < AK4113_WRITABLE_REGS; reg++)
 		reg_write(chip, reg, chip->regmap[reg]);
-	/* release powerdown, everything is initialized now */
+	/* release powerdown, everything is initialized yesw */
 	reg_write(chip, AK4113_REG_PWRDN, old | AK4113_RST | AK4113_PWN);
 }
 
@@ -193,7 +193,7 @@ static int snd_ak4113_in_error_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#define snd_ak4113_in_bit_info		snd_ctl_boolean_mono_info
+#define snd_ak4113_in_bit_info		snd_ctl_boolean_moyes_info
 
 static int snd_ak4113_in_bit_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
@@ -555,38 +555,38 @@ int snd_ak4113_check_rate_and_errors(struct ak4113 *ak4113, unsigned int flags)
 	spin_unlock_irqrestore(&ak4113->lock, _flags);
 
 	if (rcs0 & AK4113_PAR)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[0]->id);
 	if (rcs0 & AK4113_V)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[1]->id);
 	if (rcs2 & AK4113_CCRC)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[2]->id);
 	if (rcs2 & AK4113_QCRC)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[3]->id);
 
 	/* rate change */
 	if (c1 & 0xf0)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[4]->id);
 
 	if ((c1 & AK4113_PEM) | (c0 & AK4113_CINT))
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[6]->id);
 	if (c0 & AK4113_QINT)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[8]->id);
 
 	if (c0 & AK4113_AUDION)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[9]->id);
 	if (c1 & AK4113_NPCM)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[10]->id);
 	if (c1 & AK4113_DTSCD)
-		snd_ctl_notify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4113->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				&ak4113->kctls[11]->id);
 
 	if (ak4113->change_callback && (c0 | c1) != 0)

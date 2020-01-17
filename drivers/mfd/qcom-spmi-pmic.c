@@ -62,8 +62,8 @@ static const struct of_device_id pmic_spmi_id_table[] = {
 
 static void pmic_spmi_show_revid(struct regmap *map, struct device *dev)
 {
-	unsigned int rev2, minor, major, type, subtype;
-	const char *name = "unknown";
+	unsigned int rev2, miyesr, major, type, subtype;
+	const char *name = "unkyeswn";
 	int ret, i;
 
 	ret = regmap_read(map, PMIC_TYPE, &type);
@@ -89,7 +89,7 @@ static void pmic_spmi_show_revid(struct regmap *map, struct device *dev)
 	if (ret < 0)
 		return;
 
-	ret = regmap_read(map, PMIC_REV3, &minor);
+	ret = regmap_read(map, PMIC_REV3, &miyesr);
 	if (ret < 0)
 		return;
 
@@ -108,9 +108,9 @@ static void pmic_spmi_show_revid(struct regmap *map, struct device *dev)
 		major++;
 
 	if (subtype == PM8110_SUBTYPE)
-		minor = rev2;
+		miyesr = rev2;
 
-	dev_dbg(dev, "%x: %s v%d.%d\n", subtype, name, major, minor);
+	dev_dbg(dev, "%x: %s v%d.%d\n", subtype, name, major, miyesr);
 }
 
 static const struct regmap_config spmi_regmap_config = {
@@ -150,4 +150,4 @@ MODULE_DESCRIPTION("Qualcomm SPMI PMIC driver");
 MODULE_ALIAS("spmi:spmi-pmic");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Josh Cartwright <joshc@codeaurora.org>");
-MODULE_AUTHOR("Stanimir Varbanov <svarbanov@mm-sol.com>");
+MODULE_AUTHOR("Stanimir Varbayesv <svarbayesv@mm-sol.com>");

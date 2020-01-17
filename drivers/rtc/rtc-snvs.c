@@ -278,7 +278,7 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 	if (IS_ERR(data->rtc))
 		return PTR_ERR(data->rtc);
 
-	data->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node, "regmap");
+	data->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde, "regmap");
 
 	if (IS_ERR(data->regmap)) {
 		dev_warn(&pdev->dev, "snvs rtc: you use old dts file, please update it\n");
@@ -290,7 +290,7 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 		data->regmap = devm_regmap_init_mmio(&pdev->dev, mmio, &snvs_rtc_config);
 	} else {
 		data->offset = SNVS_LPREGISTER_OFFSET;
-		of_property_read_u32(pdev->dev.of_node, "offset", &data->offset);
+		of_property_read_u32(pdev->dev.of_yesde, "offset", &data->offset);
 	}
 
 	if (IS_ERR(data->regmap)) {
@@ -309,7 +309,7 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 		ret = clk_prepare_enable(data->clk);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"Could not prepare or enable the snvs clock\n");
+				"Could yest prepare or enable the snvs clock\n");
 			return ret;
 		}
 	}
@@ -359,7 +359,7 @@ error_rtc_device_register:
 	return ret;
 }
 
-static int __maybe_unused snvs_rtc_suspend_noirq(struct device *dev)
+static int __maybe_unused snvs_rtc_suspend_yesirq(struct device *dev)
 {
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
 
@@ -369,7 +369,7 @@ static int __maybe_unused snvs_rtc_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused snvs_rtc_resume_noirq(struct device *dev)
+static int __maybe_unused snvs_rtc_resume_yesirq(struct device *dev)
 {
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
 
@@ -380,7 +380,7 @@ static int __maybe_unused snvs_rtc_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops snvs_rtc_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(snvs_rtc_suspend_noirq, snvs_rtc_resume_noirq)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(snvs_rtc_suspend_yesirq, snvs_rtc_resume_yesirq)
 };
 
 static const struct of_device_id snvs_dt_ids[] = {

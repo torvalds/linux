@@ -34,7 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -48,14 +48,14 @@
 
 /* Module parameters */
 
-static int node;
+static int yesde;
 static char device[9];		/* use eg. device="arc1" to change name */
 static int timeout = 3;
 static int backplane;
 static int clockp;
 static int clockm;
 
-module_param(node, int, 0);
+module_param(yesde, int, 0);
 module_param_string(device, device, sizeof(device), 0);
 module_param(timeout, int, 0);
 module_param(backplane, int, 0);
@@ -190,7 +190,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 
 		SET_NETDEV_DEV(dev, &pdev->dev);
 		dev->base_addr = ioaddr;
-		dev->dev_addr[0] = node;
+		dev->dev_addr[0] = yesde;
 		dev->sysfs_groups[0] = &com20020_state_group;
 		dev->irq = pdev->irq;
 		lp->card_name = "PCI COM20020";

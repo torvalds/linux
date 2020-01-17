@@ -20,7 +20,7 @@
 #include <linux/highmem.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/uaccess.h>
 #include <linux/mm-arch-hooks.h>
 #include <linux/userfaultfd_k.h>
@@ -38,19 +38,19 @@ static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
 	pmd_t *pmd;
 
 	pgd = pgd_offset(mm, addr);
-	if (pgd_none_or_clear_bad(pgd))
+	if (pgd_yesne_or_clear_bad(pgd))
 		return NULL;
 
 	p4d = p4d_offset(pgd, addr);
-	if (p4d_none_or_clear_bad(p4d))
+	if (p4d_yesne_or_clear_bad(p4d))
 		return NULL;
 
 	pud = pud_offset(p4d, addr);
-	if (pud_none_or_clear_bad(pud))
+	if (pud_yesne_or_clear_bad(pud))
 		return NULL;
 
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd))
+	if (pmd_yesne(*pmd))
 		return NULL;
 
 	return pmd;
@@ -85,14 +85,14 @@ static void take_rmap_locks(struct vm_area_struct *vma)
 {
 	if (vma->vm_file)
 		i_mmap_lock_write(vma->vm_file->f_mapping);
-	if (vma->anon_vma)
-		anon_vma_lock_write(vma->anon_vma);
+	if (vma->ayesn_vma)
+		ayesn_vma_lock_write(vma->ayesn_vma);
 }
 
 static void drop_rmap_locks(struct vm_area_struct *vma)
 {
-	if (vma->anon_vma)
-		anon_vma_unlock_write(vma->anon_vma);
+	if (vma->ayesn_vma)
+		ayesn_vma_unlock_write(vma->ayesn_vma);
 	if (vma->vm_file)
 		i_mmap_unlock_write(vma->vm_file->f_mapping);
 }
@@ -100,7 +100,7 @@ static void drop_rmap_locks(struct vm_area_struct *vma)
 static pte_t move_soft_dirty_pte(pte_t pte)
 {
 	/*
-	 * Set soft dirty bit so we can notice
+	 * Set soft dirty bit so we can yestice
 	 * in userspace the ptes were moved.
 	 */
 #ifdef CONFIG_MEM_SOFT_DIRTY
@@ -124,7 +124,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 	unsigned long len = old_end - old_addr;
 
 	/*
-	 * When need_rmap_locks is true, we take the i_mmap_rwsem and anon_vma
+	 * When need_rmap_locks is true, we take the i_mmap_rwsem and ayesn_vma
 	 * locks to ensure that rmap will always observe either the old or the
 	 * new ptes. This is the easiest way to avoid races with
 	 * truncate_pagecache(), page migration, etc...
@@ -135,7 +135,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 	 * - During exec() shift_arg_pages(), we use a specially tagged vma
 	 *   which rmap call sites look for using is_vma_temporary_stack().
 	 *
-	 * - During mremap(), new_vma is often known to be placed after vma
+	 * - During mremap(), new_vma is often kyeswn to be placed after vma
 	 *   in rmap traversal order. This ensures rmap will always observe
 	 *   either the old pte, or the new pte, or both (the page table locks
 	 *   serialize access to individual ptes, but only rmap traversal
@@ -158,7 +158,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 
 	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
 				   new_pte++, new_addr += PAGE_SIZE) {
-		if (pte_none(*old_pte))
+		if (pte_yesne(*old_pte))
 			continue;
 
 		pte = ptep_get_and_clear(mm, old_addr, old_pte);
@@ -192,7 +192,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 }
 
 #ifdef CONFIG_HAVE_MOVE_PMD
-static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
+static bool move_yesrmal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 		  unsigned long new_addr, unsigned long old_end,
 		  pmd_t *old_pmd, pmd_t *new_pmd)
 {
@@ -208,7 +208,7 @@ static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 	 * The destination pmd shouldn't be established, free_pgtables()
 	 * should have release it.
 	 */
-	if (WARN_ON(!pmd_none(*new_pmd)))
+	if (WARN_ON(!pmd_yesne(*new_pmd)))
 		return false;
 
 	/*
@@ -224,7 +224,7 @@ static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 	pmd = *old_pmd;
 	pmd_clear(old_pmd);
 
-	VM_BUG_ON(!pmd_none(*new_pmd));
+	VM_BUG_ON(!pmd_yesne(*new_pmd));
 
 	/* Set the new pmd */
 	set_pmd_at(mm, new_addr, new_pmd, pmd);
@@ -243,15 +243,15 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 		bool need_rmap_locks)
 {
 	unsigned long extent, next, old_end;
-	struct mmu_notifier_range range;
+	struct mmu_yestifier_range range;
 	pmd_t *old_pmd, *new_pmd;
 
 	old_end = old_addr + len;
 	flush_cache_range(vma, old_addr, old_end);
 
-	mmu_notifier_range_init(&range, MMU_NOTIFY_UNMAP, 0, vma, vma->vm_mm,
+	mmu_yestifier_range_init(&range, MMU_NOTIFY_UNMAP, 0, vma, vma->vm_mm,
 				old_addr, old_end);
-	mmu_notifier_invalidate_range_start(&range);
+	mmu_yestifier_invalidate_range_start(&range);
 
 	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
 		cond_resched();
@@ -292,7 +292,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 
 			if (need_rmap_locks)
 				take_rmap_locks(vma);
-			moved = move_normal_pmd(vma, old_addr, new_addr,
+			moved = move_yesrmal_pmd(vma, old_addr, new_addr,
 					old_end, old_pmd, new_pmd);
 			if (need_rmap_locks)
 				drop_rmap_locks(vma);
@@ -310,7 +310,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 			  new_pmd, new_addr, need_rmap_locks);
 	}
 
-	mmu_notifier_invalidate_range_end(&range);
+	mmu_yestifier_invalidate_range_end(&range);
 
 	return len + old_addr - old_end;	/* how much done */
 }
@@ -383,7 +383,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 			   new_addr, new_addr + new_len);
 	}
 
-	/* Conceal VM_ACCOUNT so old reservation is not undone */
+	/* Conceal VM_ACCOUNT so old reservation is yest undone */
 	if (vm_flags & VM_ACCOUNT) {
 		vma->vm_flags &= ~VM_ACCOUNT;
 		excess = vma->vm_end - vma->vm_start - old_len;
@@ -442,14 +442,14 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
 
 	/*
 	 * !old_len is a special case where an attempt is made to 'duplicate'
-	 * a mapping.  This makes no sense for private mappings as it will
+	 * a mapping.  This makes yes sense for private mappings as it will
 	 * instead create a fresh/new mapping unrelated to the original.  This
 	 * is contrary to the basic idea of mremap which creates new mappings
-	 * based on the original.  There are no known use cases for this
+	 * based on the original.  There are yes kyeswn use cases for this
 	 * behavior.  As a result, fail such attempts.
 	 */
 	if (!old_len && !(vma->vm_flags & (VM_SHARED | VM_MAYSHARE))) {
-		pr_warn_once("%s (%d): attempted to duplicate a private mapping with mremap.  This is not supported.\n", current->comm, current->pid);
+		pr_warn_once("%s (%d): attempted to duplicate a private mapping with mremap.  This is yest supported.\n", current->comm, current->pid);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -487,7 +487,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
 
 	if (vma->vm_flags & VM_ACCOUNT) {
 		unsigned long charged = (new_len - old_len) >> PAGE_SHIFT;
-		if (security_vm_enough_memory_mm(mm, charged))
+		if (security_vm_eyesugh_memory_mm(mm, charged))
 			return ERR_PTR(-ENOMEM);
 		*p = charged;
 	}
@@ -513,7 +513,7 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
 	if (new_len > TASK_SIZE || new_addr > TASK_SIZE - new_len)
 		goto out;
 
-	/* Ensure the old/new locations do not overlap */
+	/* Ensure the old/new locations do yest overlap */
 	if (addr + old_len > new_addr && new_addr + new_len > addr)
 		goto out;
 
@@ -521,7 +521,7 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
 	 * move_vma() need us to stay 4 maps below the threshold, otherwise
 	 * it will bail out at the very beginning.
 	 * That is a problem if we have already unmaped the regions here
-	 * (new_addr, and old_addr), because userspace will not know the
+	 * (new_addr, and old_addr), because userspace will yest kyesw the
 	 * state of the vma's after it gets -ENOMEM.
 	 * So, to avoid such scenario we can pre-compute if the whole
 	 * operation has high chances to success map-wise.
@@ -624,7 +624,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	/*
 	 * We allow a zero old-len as a special case
 	 * for DOS-emu "duplicate shm area" thing. But
-	 * a zero new-len is nonsensical.
+	 * a zero new-len is yesnsensical.
 	 */
 	if (!new_len)
 		return ret;

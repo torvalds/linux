@@ -109,7 +109,7 @@ void free_event_buffer(void)
 }
 
 
-static int event_buffer_open(struct inode *inode, struct file *file)
+static int event_buffer_open(struct iyesde *iyesde, struct file *file)
 {
 	int err = -EPERM;
 
@@ -135,7 +135,7 @@ static int event_buffer_open(struct inode *inode, struct file *file)
 	 * echo 1 >/dev/oprofile/enable
 	 */
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 
 fail:
 	dcookie_unregister(file->private_data);
@@ -145,7 +145,7 @@ out:
 }
 
 
-static int event_buffer_release(struct inode *inode, struct file *file)
+static int event_buffer_release(struct iyesde *iyesde, struct file *file)
 {
 	oprofile_stop();
 	oprofile_shutdown();
@@ -205,5 +205,5 @@ const struct file_operations event_buffer_fops = {
 	.open		= event_buffer_open,
 	.release	= event_buffer_release,
 	.read		= event_buffer_read,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };

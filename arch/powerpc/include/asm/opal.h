@@ -12,7 +12,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 /* We calculate number of sg entries based on PAGE_SIZE */
 #define SG_ENTRIES_PER_NODE ((PAGE_SIZE - 16) / sizeof(struct opal_sg_entry))
@@ -24,7 +24,7 @@
 extern struct kobject *opal_kobj;
 
 /* /ibm,opal */
-extern struct device_node *opal_node;
+extern struct device_yesde *opal_yesde;
 
 /* API functions */
 int64_t opal_invalid_call(void);
@@ -90,7 +90,7 @@ int64_t opal_pci_eeh_freeze_clear(uint64_t phb_id, uint64_t pe_number,
 				  uint64_t eeh_action_token);
 int64_t opal_pci_eeh_freeze_set(uint64_t phb_id, uint64_t pe_number,
 				uint64_t eeh_action_token);
-int64_t opal_pci_err_inject(uint64_t phb_id, uint32_t pe_no, uint32_t type,
+int64_t opal_pci_err_inject(uint64_t phb_id, uint32_t pe_yes, uint32_t type,
 			    uint32_t func, uint64_t addr, uint64_t mask);
 int64_t opal_pci_shpc(uint64_t phb_id, uint64_t shpc_action, uint8_t *state);
 
@@ -186,7 +186,7 @@ int64_t opal_dump_info(__be32 *dump_id, __be32 *dump_size);
 int64_t opal_dump_info2(__be32 *dump_id, __be32 *dump_size, __be32 *dump_type);
 int64_t opal_dump_read(uint32_t dump_id, uint64_t buffer);
 int64_t opal_dump_ack(uint32_t dump_id);
-int64_t opal_dump_resend_notification(void);
+int64_t opal_dump_resend_yestification(void);
 
 int64_t opal_get_msg(uint64_t buffer, uint64_t size);
 int64_t opal_write_oppanel_async(uint64_t token, oppanel_line_t *lines,
@@ -313,30 +313,30 @@ s64 opal_signal_system_reset(s32 cpu);
 s64 opal_quiesce(u64 shutdown_type, s32 cpu);
 
 /* Internal functions */
-extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
+extern int early_init_dt_scan_opal(unsigned long yesde, const char *uname,
 				   int depth, void *data);
-extern int early_init_dt_scan_recoverable_ranges(unsigned long node,
+extern int early_init_dt_scan_recoverable_ranges(unsigned long yesde,
 				 const char *uname, int depth, void *data);
 extern void opal_configure_cores(void);
 
-extern int opal_get_chars(uint32_t vtermno, char *buf, int count);
-extern int opal_put_chars(uint32_t vtermno, const char *buf, int total_len);
-extern int opal_put_chars_atomic(uint32_t vtermno, const char *buf, int total_len);
-extern int opal_flush_chars(uint32_t vtermno, bool wait);
-extern int opal_flush_console(uint32_t vtermno);
+extern int opal_get_chars(uint32_t vtermyes, char *buf, int count);
+extern int opal_put_chars(uint32_t vtermyes, const char *buf, int total_len);
+extern int opal_put_chars_atomic(uint32_t vtermyes, const char *buf, int total_len);
+extern int opal_flush_chars(uint32_t vtermyes, bool wait);
+extern int opal_flush_console(uint32_t vtermyes);
 
 extern void hvc_opal_init_early(void);
 
-extern int opal_notifier_register(struct notifier_block *nb);
-extern int opal_notifier_unregister(struct notifier_block *nb);
+extern int opal_yestifier_register(struct yestifier_block *nb);
+extern int opal_yestifier_unregister(struct yestifier_block *nb);
 
-extern int opal_message_notifier_register(enum opal_msg_type msg_type,
-						struct notifier_block *nb);
-extern int opal_message_notifier_unregister(enum opal_msg_type msg_type,
-					    struct notifier_block *nb);
-extern void opal_notifier_enable(void);
-extern void opal_notifier_disable(void);
-extern void opal_notifier_update_evt(uint64_t evt_mask, uint64_t evt_val);
+extern int opal_message_yestifier_register(enum opal_msg_type msg_type,
+						struct yestifier_block *nb);
+extern int opal_message_yestifier_unregister(enum opal_msg_type msg_type,
+					    struct yestifier_block *nb);
+extern void opal_yestifier_enable(void);
+extern void opal_yestifier_disable(void);
+extern void opal_yestifier_update_evt(uint64_t evt_mask, uint64_t evt_val);
 
 extern int opal_async_get_token_interruptible(void);
 extern int opal_async_release_token(int token);

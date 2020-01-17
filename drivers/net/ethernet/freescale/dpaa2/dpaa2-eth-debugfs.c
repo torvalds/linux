@@ -42,10 +42,10 @@ static int dpaa2_dbg_cpu_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int dpaa2_dbg_cpu_open(struct inode *inode, struct file *file)
+static int dpaa2_dbg_cpu_open(struct iyesde *iyesde, struct file *file)
 {
 	int err;
-	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)inode->i_private;
+	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)iyesde->i_private;
 
 	err = single_open(file, dpaa2_dbg_cpu_show, priv);
 	if (err < 0)
@@ -101,10 +101,10 @@ static int dpaa2_dbg_fqs_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int dpaa2_dbg_fqs_open(struct inode *inode, struct file *file)
+static int dpaa2_dbg_fqs_open(struct iyesde *iyesde, struct file *file)
 {
 	int err;
-	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)inode->i_private;
+	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)iyesde->i_private;
 
 	err = single_open(file, dpaa2_dbg_fqs_show, priv);
 	if (err < 0)
@@ -143,10 +143,10 @@ static int dpaa2_dbg_ch_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int dpaa2_dbg_ch_open(struct inode *inode, struct file *file)
+static int dpaa2_dbg_ch_open(struct iyesde *iyesde, struct file *file)
 {
 	int err;
-	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)inode->i_private;
+	struct dpaa2_eth_priv *priv = (struct dpaa2_eth_priv *)iyesde->i_private;
 
 	err = single_open(file, dpaa2_dbg_ch_show, priv);
 	if (err < 0)

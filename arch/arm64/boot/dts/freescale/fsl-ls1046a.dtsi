@@ -81,7 +81,7 @@
 
 	idle-states {
 		/*
-		 * PSCI node is not added default, U-boot will add missing
+		 * PSCI yesde is yest added default, U-boot will add missing
 		 * parts if it determines to use PSCI.
 		 */
 		entry-method = "psci";
@@ -652,7 +652,7 @@
 			num-viewport = <8>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000   /* downstream I/O */
-				  0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+				  0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* yesn-prefetchable memory */
 			msi-parent = <&msi1>, <&msi2>, <&msi3>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -688,7 +688,7 @@
 			num-viewport = <8>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x48 0x00010000 0x0 0x00010000   /* downstream I/O */
-				  0x82000000 0x0 0x40000000 0x48 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+				  0x82000000 0x0 0x40000000 0x48 0x40000000 0x0 0x40000000>; /* yesn-prefetchable memory */
 			msi-parent = <&msi2>, <&msi3>, <&msi1>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -724,7 +724,7 @@
 			num-viewport = <8>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x81000000 0x0 0x00000000 0x50 0x00010000 0x0 0x00010000   /* downstream I/O */
-				  0x82000000 0x0 0x40000000 0x50 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+				  0x82000000 0x0 0x40000000 0x50 0x40000000 0x0 0x40000000>; /* yesn-prefetchable memory */
 			msi-parent = <&msi3>, <&msi1>, <&msi2>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
@@ -776,21 +776,21 @@
 			compatible = "shared-dma-pool";
 			size = <0 0x1000000>;
 			alignment = <0 0x1000000>;
-			no-map;
+			yes-map;
 		};
 
 		qman_fqd: qman-fqd {
 			compatible = "shared-dma-pool";
 			size = <0 0x800000>;
 			alignment = <0 0x800000>;
-			no-map;
+			yes-map;
 		};
 
 		qman_pfdr: qman-pfdr {
 			compatible = "shared-dma-pool";
 			size = <0 0x2000000>;
 			alignment = <0 0x2000000>;
-			no-map;
+			yes-map;
 		};
 	};
 

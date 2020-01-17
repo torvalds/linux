@@ -7,8 +7,8 @@ Description:	(R) Read input from the shift registers, in hexadecimal.
 		modules. The first byte is from the CPU board itself.
 		Example: 101214
 			 10: CPU board with SD card
-			 12: 2 = PCIe module, 1 = IRQ not active
-			 14: 4 = Peridot module, 1 = IRQ not active
+			 12: 2 = PCIe module, 1 = IRQ yest active
+			 14: 4 = Peridot module, 1 = IRQ yest active
 
 What:		/sys/kernel/debug/moxtet/output
 Date:		March 2019

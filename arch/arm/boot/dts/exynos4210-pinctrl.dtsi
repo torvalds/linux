@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos4210 SoC pin-mux and pin-config device tree source
+ * Samsung's Exyyess4210 SoC pin-mux and pin-config device tree source
  *
  * Copyright (c) 2011-2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  * Copyright (c) 2011-2012 Linaro Ltd.
  *		www.linaro.org
  *
- * Samsung's Exynos4210 SoC pin-mux and pin-config optiosn are listed as device
- * tree nodes are listed in this file.
+ * Samsung's Exyyess4210 SoC pin-mux and pin-config optiosn are listed as device
+ * tree yesdes are listed in this file.
  */
 
 #include <dt-bindings/pinctrl/samsung.h>

@@ -16,7 +16,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Copyright 2004 IDT Inc. (rischelp@idt.com)
@@ -81,7 +81,7 @@ struct pci_msu {
 #define PCI_CTL_PCIM		0x000001c0
 
 #define PCI_CTL_PCIM_DIS	0
-#define PCI_CTL_PCIM_TNR	1 /* Satellite - target not ready */
+#define PCI_CTL_PCIM_TNR	1 /* Satellite - target yest ready */
 #define PCI_CTL_PCIM_SUS	2 /* Satellite - suspended CPU. */
 #define PCI_CTL_PCIM_EXT	3 /* Host - external arbiter. */
 #define PCI_CTL PCIM_PRIO	4 /* Host - fixed priority arb. */

@@ -192,12 +192,12 @@ static struct platform_device colibri_pxa270_flash_device = {
 	.num_resources = 1,
 };
 
-static void __init colibri_pxa270_nor_init(void)
+static void __init colibri_pxa270_yesr_init(void)
 {
 	platform_device_register(&colibri_pxa270_flash_device);
 }
 #else
-static inline void colibri_pxa270_nor_init(void) {}
+static inline void colibri_pxa270_yesr_init(void) {}
 #endif
 
 /******************************************************************************
@@ -274,7 +274,7 @@ static void __init colibri_pxa270_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa270_pin_config));
 
-	colibri_pxa270_nor_init();
+	colibri_pxa270_yesr_init();
 	colibri_pxa270_eth_init();
 	colibri_pxa270_tsc_init();
 

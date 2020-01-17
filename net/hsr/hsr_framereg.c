@@ -40,18 +40,18 @@ static bool seq_nr_after(u16 a, u16 b)
 
 bool hsr_addr_is_self(struct hsr_priv *hsr, unsigned char *addr)
 {
-	struct hsr_node *node;
+	struct hsr_yesde *yesde;
 
-	node = list_first_or_null_rcu(&hsr->self_node_db, struct hsr_node,
+	yesde = list_first_or_null_rcu(&hsr->self_yesde_db, struct hsr_yesde,
 				      mac_list);
-	if (!node) {
-		WARN_ONCE(1, "HSR: No self node\n");
+	if (!yesde) {
+		WARN_ONCE(1, "HSR: No self yesde\n");
 		return false;
 	}
 
-	if (ether_addr_equal(addr, node->macaddress_A))
+	if (ether_addr_equal(addr, yesde->macaddress_A))
 		return true;
-	if (ether_addr_equal(addr, node->macaddress_B))
+	if (ether_addr_equal(addr, yesde->macaddress_B))
 		return true;
 
 	return false;
@@ -59,126 +59,126 @@ bool hsr_addr_is_self(struct hsr_priv *hsr, unsigned char *addr)
 
 /* Search for mac entry. Caller must hold rcu read lock.
  */
-static struct hsr_node *find_node_by_addr_A(struct list_head *node_db,
+static struct hsr_yesde *find_yesde_by_addr_A(struct list_head *yesde_db,
 					    const unsigned char addr[ETH_ALEN])
 {
-	struct hsr_node *node;
+	struct hsr_yesde *yesde;
 
-	list_for_each_entry_rcu(node, node_db, mac_list) {
-		if (ether_addr_equal(node->macaddress_A, addr))
-			return node;
+	list_for_each_entry_rcu(yesde, yesde_db, mac_list) {
+		if (ether_addr_equal(yesde->macaddress_A, addr))
+			return yesde;
 	}
 
 	return NULL;
 }
 
-/* Helper for device init; the self_node_db is used in hsr_rcv() to recognize
+/* Helper for device init; the self_yesde_db is used in hsr_rcv() to recognize
  * frames from self that's been looped over the HSR ring.
  */
-int hsr_create_self_node(struct hsr_priv *hsr,
+int hsr_create_self_yesde(struct hsr_priv *hsr,
 			 unsigned char addr_a[ETH_ALEN],
 			 unsigned char addr_b[ETH_ALEN])
 {
-	struct list_head *self_node_db = &hsr->self_node_db;
-	struct hsr_node *node, *oldnode;
+	struct list_head *self_yesde_db = &hsr->self_yesde_db;
+	struct hsr_yesde *yesde, *oldyesde;
 
-	node = kmalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
+	yesde = kmalloc(sizeof(*yesde), GFP_KERNEL);
+	if (!yesde)
 		return -ENOMEM;
 
-	ether_addr_copy(node->macaddress_A, addr_a);
-	ether_addr_copy(node->macaddress_B, addr_b);
+	ether_addr_copy(yesde->macaddress_A, addr_a);
+	ether_addr_copy(yesde->macaddress_B, addr_b);
 
 	spin_lock_bh(&hsr->list_lock);
-	oldnode = list_first_or_null_rcu(self_node_db,
-					 struct hsr_node, mac_list);
-	if (oldnode) {
-		list_replace_rcu(&oldnode->mac_list, &node->mac_list);
+	oldyesde = list_first_or_null_rcu(self_yesde_db,
+					 struct hsr_yesde, mac_list);
+	if (oldyesde) {
+		list_replace_rcu(&oldyesde->mac_list, &yesde->mac_list);
 		spin_unlock_bh(&hsr->list_lock);
-		kfree_rcu(oldnode, rcu_head);
+		kfree_rcu(oldyesde, rcu_head);
 	} else {
-		list_add_tail_rcu(&node->mac_list, self_node_db);
+		list_add_tail_rcu(&yesde->mac_list, self_yesde_db);
 		spin_unlock_bh(&hsr->list_lock);
 	}
 
 	return 0;
 }
 
-void hsr_del_self_node(struct hsr_priv *hsr)
+void hsr_del_self_yesde(struct hsr_priv *hsr)
 {
-	struct list_head *self_node_db = &hsr->self_node_db;
-	struct hsr_node *node;
+	struct list_head *self_yesde_db = &hsr->self_yesde_db;
+	struct hsr_yesde *yesde;
 
 	spin_lock_bh(&hsr->list_lock);
-	node = list_first_or_null_rcu(self_node_db, struct hsr_node, mac_list);
-	if (node) {
-		list_del_rcu(&node->mac_list);
-		kfree_rcu(node, rcu_head);
+	yesde = list_first_or_null_rcu(self_yesde_db, struct hsr_yesde, mac_list);
+	if (yesde) {
+		list_del_rcu(&yesde->mac_list);
+		kfree_rcu(yesde, rcu_head);
 	}
 	spin_unlock_bh(&hsr->list_lock);
 }
 
-void hsr_del_nodes(struct list_head *node_db)
+void hsr_del_yesdes(struct list_head *yesde_db)
 {
-	struct hsr_node *node;
-	struct hsr_node *tmp;
+	struct hsr_yesde *yesde;
+	struct hsr_yesde *tmp;
 
-	list_for_each_entry_safe(node, tmp, node_db, mac_list)
-		kfree(node);
+	list_for_each_entry_safe(yesde, tmp, yesde_db, mac_list)
+		kfree(yesde);
 }
 
-/* Allocate an hsr_node and add it to node_db. 'addr' is the node's address_A;
+/* Allocate an hsr_yesde and add it to yesde_db. 'addr' is the yesde's address_A;
  * seq_out is used to initialize filtering of outgoing duplicate frames
- * originating from the newly added node.
+ * originating from the newly added yesde.
  */
-static struct hsr_node *hsr_add_node(struct hsr_priv *hsr,
-				     struct list_head *node_db,
+static struct hsr_yesde *hsr_add_yesde(struct hsr_priv *hsr,
+				     struct list_head *yesde_db,
 				     unsigned char addr[],
 				     u16 seq_out)
 {
-	struct hsr_node *new_node, *node;
-	unsigned long now;
+	struct hsr_yesde *new_yesde, *yesde;
+	unsigned long yesw;
 	int i;
 
-	new_node = kzalloc(sizeof(*new_node), GFP_ATOMIC);
-	if (!new_node)
+	new_yesde = kzalloc(sizeof(*new_yesde), GFP_ATOMIC);
+	if (!new_yesde)
 		return NULL;
 
-	ether_addr_copy(new_node->macaddress_A, addr);
+	ether_addr_copy(new_yesde->macaddress_A, addr);
 
 	/* We are only interested in time diffs here, so use current jiffies
 	 * as initialization. (0 could trigger an spurious ring error warning).
 	 */
-	now = jiffies;
+	yesw = jiffies;
 	for (i = 0; i < HSR_PT_PORTS; i++)
-		new_node->time_in[i] = now;
+		new_yesde->time_in[i] = yesw;
 	for (i = 0; i < HSR_PT_PORTS; i++)
-		new_node->seq_out[i] = seq_out;
+		new_yesde->seq_out[i] = seq_out;
 
 	spin_lock_bh(&hsr->list_lock);
-	list_for_each_entry_rcu(node, node_db, mac_list) {
-		if (ether_addr_equal(node->macaddress_A, addr))
+	list_for_each_entry_rcu(yesde, yesde_db, mac_list) {
+		if (ether_addr_equal(yesde->macaddress_A, addr))
 			goto out;
-		if (ether_addr_equal(node->macaddress_B, addr))
+		if (ether_addr_equal(yesde->macaddress_B, addr))
 			goto out;
 	}
-	list_add_tail_rcu(&new_node->mac_list, node_db);
+	list_add_tail_rcu(&new_yesde->mac_list, yesde_db);
 	spin_unlock_bh(&hsr->list_lock);
-	return new_node;
+	return new_yesde;
 out:
 	spin_unlock_bh(&hsr->list_lock);
-	kfree(new_node);
-	return node;
+	kfree(new_yesde);
+	return yesde;
 }
 
-/* Get the hsr_node from which 'skb' was sent.
+/* Get the hsr_yesde from which 'skb' was sent.
  */
-struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
+struct hsr_yesde *hsr_get_yesde(struct hsr_port *port, struct sk_buff *skb,
 			      bool is_sup)
 {
-	struct list_head *node_db = &port->hsr->node_db;
+	struct list_head *yesde_db = &port->hsr->yesde_db;
 	struct hsr_priv *hsr = port->hsr;
-	struct hsr_node *node;
+	struct hsr_yesde *yesde;
 	struct ethhdr *ethhdr;
 	u16 seq_out;
 
@@ -187,14 +187,14 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
-	list_for_each_entry_rcu(node, node_db, mac_list) {
-		if (ether_addr_equal(node->macaddress_A, ethhdr->h_source))
-			return node;
-		if (ether_addr_equal(node->macaddress_B, ethhdr->h_source))
-			return node;
+	list_for_each_entry_rcu(yesde, yesde_db, mac_list) {
+		if (ether_addr_equal(yesde->macaddress_A, ethhdr->h_source))
+			return yesde;
+		if (ether_addr_equal(yesde->macaddress_B, ethhdr->h_source))
+			return yesde;
 	}
 
-	/* Everyone may create a node entry, connected node to a HSR device. */
+	/* Everyone may create a yesde entry, connected yesde to a HSR device. */
 
 	if (ethhdr->h_proto == htons(ETH_P_PRP) ||
 	    ethhdr->h_proto == htons(ETH_P_HSR)) {
@@ -204,27 +204,27 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 		seq_out = hsr_get_skb_sequence_nr(skb) - 1;
 	} else {
 		/* this is called also for frames from master port and
-		 * so warn only for non master ports
+		 * so warn only for yesn master ports
 		 */
 		if (port->type != HSR_PT_MASTER)
 			WARN_ONCE(1, "%s: Non-HSR frame\n", __func__);
 		seq_out = HSR_SEQNR_START;
 	}
 
-	return hsr_add_node(hsr, node_db, ethhdr->h_source, seq_out);
+	return hsr_add_yesde(hsr, yesde_db, ethhdr->h_source, seq_out);
 }
 
 /* Use the Supervision frame's info about an eventual macaddress_B for merging
- * nodes that has previously had their macaddress_B registered as a separate
- * node.
+ * yesdes that has previously had their macaddress_B registered as a separate
+ * yesde.
  */
-void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
+void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_yesde *yesde_curr,
 			  struct hsr_port *port_rcv)
 {
 	struct hsr_priv *hsr = port_rcv->hsr;
 	struct hsr_sup_payload *hsr_sp;
-	struct hsr_node *node_real;
-	struct list_head *node_db;
+	struct hsr_yesde *yesde_real;
+	struct list_head *yesde_db;
 	struct ethhdr *ethhdr;
 	int i;
 
@@ -242,36 +242,36 @@ void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 
 	hsr_sp = (struct hsr_sup_payload *)skb->data;
 
-	/* Merge node_curr (registered on macaddress_B) into node_real */
-	node_db = &port_rcv->hsr->node_db;
-	node_real = find_node_by_addr_A(node_db, hsr_sp->macaddress_A);
-	if (!node_real)
-		/* No frame received from AddrA of this node yet */
-		node_real = hsr_add_node(hsr, node_db, hsr_sp->macaddress_A,
+	/* Merge yesde_curr (registered on macaddress_B) into yesde_real */
+	yesde_db = &port_rcv->hsr->yesde_db;
+	yesde_real = find_yesde_by_addr_A(yesde_db, hsr_sp->macaddress_A);
+	if (!yesde_real)
+		/* No frame received from AddrA of this yesde yet */
+		yesde_real = hsr_add_yesde(hsr, yesde_db, hsr_sp->macaddress_A,
 					 HSR_SEQNR_START - 1);
-	if (!node_real)
+	if (!yesde_real)
 		goto done; /* No mem */
-	if (node_real == node_curr)
+	if (yesde_real == yesde_curr)
 		/* Node has already been merged */
 		goto done;
 
-	ether_addr_copy(node_real->macaddress_B, ethhdr->h_source);
+	ether_addr_copy(yesde_real->macaddress_B, ethhdr->h_source);
 	for (i = 0; i < HSR_PT_PORTS; i++) {
-		if (!node_curr->time_in_stale[i] &&
-		    time_after(node_curr->time_in[i], node_real->time_in[i])) {
-			node_real->time_in[i] = node_curr->time_in[i];
-			node_real->time_in_stale[i] =
-						node_curr->time_in_stale[i];
+		if (!yesde_curr->time_in_stale[i] &&
+		    time_after(yesde_curr->time_in[i], yesde_real->time_in[i])) {
+			yesde_real->time_in[i] = yesde_curr->time_in[i];
+			yesde_real->time_in_stale[i] =
+						yesde_curr->time_in_stale[i];
 		}
-		if (seq_nr_after(node_curr->seq_out[i], node_real->seq_out[i]))
-			node_real->seq_out[i] = node_curr->seq_out[i];
+		if (seq_nr_after(yesde_curr->seq_out[i], yesde_real->seq_out[i]))
+			yesde_real->seq_out[i] = yesde_curr->seq_out[i];
 	}
-	node_real->addr_B_port = port_rcv->type;
+	yesde_real->addr_B_port = port_rcv->type;
 
 	spin_lock_bh(&hsr->list_lock);
-	list_del_rcu(&node_curr->mac_list);
+	list_del_rcu(&yesde_curr->mac_list);
 	spin_unlock_bh(&hsr->list_lock);
-	kfree_rcu(node_curr, rcu_head);
+	kfree_rcu(yesde_curr, rcu_head);
 
 done:
 	skb_push(skb, sizeof(struct hsrv1_ethhdr_sp));
@@ -279,21 +279,21 @@ done:
 
 /* 'skb' is a frame meant for this host, that is to be passed to upper layers.
  *
- * If the frame was sent by a node's B interface, replace the source
- * address with that node's "official" address (macaddress_A) so that upper
+ * If the frame was sent by a yesde's B interface, replace the source
+ * address with that yesde's "official" address (macaddress_A) so that upper
  * layers recognize where it came from.
  */
-void hsr_addr_subst_source(struct hsr_node *node, struct sk_buff *skb)
+void hsr_addr_subst_source(struct hsr_yesde *yesde, struct sk_buff *skb)
 {
 	if (!skb_mac_header_was_set(skb)) {
-		WARN_ONCE(1, "%s: Mac header not set\n", __func__);
+		WARN_ONCE(1, "%s: Mac header yest set\n", __func__);
 		return;
 	}
 
-	memcpy(&eth_hdr(skb)->h_source, node->macaddress_A, ETH_ALEN);
+	memcpy(&eth_hdr(skb)->h_source, yesde->macaddress_A, ETH_ALEN);
 }
 
-/* 'skb' is a frame meant for another host.
+/* 'skb' is a frame meant for ayesther host.
  * 'port' is the outgoing interface
  *
  * Substitute the target (dest) MAC address if necessary, so the it matches the
@@ -302,43 +302,43 @@ void hsr_addr_subst_source(struct hsr_node *node, struct sk_buff *skb)
  * This is needed to keep the packets flowing through switches that learn on
  * which "side" the different interfaces are.
  */
-void hsr_addr_subst_dest(struct hsr_node *node_src, struct sk_buff *skb,
+void hsr_addr_subst_dest(struct hsr_yesde *yesde_src, struct sk_buff *skb,
 			 struct hsr_port *port)
 {
-	struct hsr_node *node_dst;
+	struct hsr_yesde *yesde_dst;
 
 	if (!skb_mac_header_was_set(skb)) {
-		WARN_ONCE(1, "%s: Mac header not set\n", __func__);
+		WARN_ONCE(1, "%s: Mac header yest set\n", __func__);
 		return;
 	}
 
 	if (!is_unicast_ether_addr(eth_hdr(skb)->h_dest))
 		return;
 
-	node_dst = find_node_by_addr_A(&port->hsr->node_db,
+	yesde_dst = find_yesde_by_addr_A(&port->hsr->yesde_db,
 				       eth_hdr(skb)->h_dest);
-	if (!node_dst) {
-		WARN_ONCE(1, "%s: Unknown node\n", __func__);
+	if (!yesde_dst) {
+		WARN_ONCE(1, "%s: Unkyeswn yesde\n", __func__);
 		return;
 	}
-	if (port->type != node_dst->addr_B_port)
+	if (port->type != yesde_dst->addr_B_port)
 		return;
 
-	ether_addr_copy(eth_hdr(skb)->h_dest, node_dst->macaddress_B);
+	ether_addr_copy(eth_hdr(skb)->h_dest, yesde_dst->macaddress_B);
 }
 
-void hsr_register_frame_in(struct hsr_node *node, struct hsr_port *port,
+void hsr_register_frame_in(struct hsr_yesde *yesde, struct hsr_port *port,
 			   u16 sequence_nr)
 {
 	/* Don't register incoming frames without a valid sequence number. This
-	 * ensures entries of restarted nodes gets pruned so that they can
+	 * ensures entries of restarted yesdes gets pruned so that they can
 	 * re-register and resume communications.
 	 */
-	if (seq_nr_before(sequence_nr, node->seq_out[port->type]))
+	if (seq_nr_before(sequence_nr, yesde->seq_out[port->type]))
 		return;
 
-	node->time_in[port->type] = jiffies;
-	node->time_in_stale[port->type] = false;
+	yesde->time_in[port->type] = jiffies;
+	yesde->time_in_stale[port->type] = false;
 }
 
 /* 'skb' is a HSR Ethernet frame (with a HSR tag inserted), with a valid
@@ -349,30 +349,30 @@ void hsr_register_frame_in(struct hsr_node *node, struct hsr_port *port,
  *	 0 otherwise, or
  *	 negative error code on error
  */
-int hsr_register_frame_out(struct hsr_port *port, struct hsr_node *node,
+int hsr_register_frame_out(struct hsr_port *port, struct hsr_yesde *yesde,
 			   u16 sequence_nr)
 {
-	if (seq_nr_before_or_eq(sequence_nr, node->seq_out[port->type]))
+	if (seq_nr_before_or_eq(sequence_nr, yesde->seq_out[port->type]))
 		return 1;
 
-	node->seq_out[port->type] = sequence_nr;
+	yesde->seq_out[port->type] = sequence_nr;
 	return 0;
 }
 
 static struct hsr_port *get_late_port(struct hsr_priv *hsr,
-				      struct hsr_node *node)
+				      struct hsr_yesde *yesde)
 {
-	if (node->time_in_stale[HSR_PT_SLAVE_A])
+	if (yesde->time_in_stale[HSR_PT_SLAVE_A])
 		return hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
-	if (node->time_in_stale[HSR_PT_SLAVE_B])
+	if (yesde->time_in_stale[HSR_PT_SLAVE_B])
 		return hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
 
-	if (time_after(node->time_in[HSR_PT_SLAVE_B],
-		       node->time_in[HSR_PT_SLAVE_A] +
+	if (time_after(yesde->time_in[HSR_PT_SLAVE_B],
+		       yesde->time_in[HSR_PT_SLAVE_A] +
 					msecs_to_jiffies(MAX_SLAVE_DIFF)))
 		return hsr_port_get_hsr(hsr, HSR_PT_SLAVE_A);
-	if (time_after(node->time_in[HSR_PT_SLAVE_A],
-		       node->time_in[HSR_PT_SLAVE_B] +
+	if (time_after(yesde->time_in[HSR_PT_SLAVE_A],
+		       yesde->time_in[HSR_PT_SLAVE_B] +
 					msecs_to_jiffies(MAX_SLAVE_DIFF)))
 		return hsr_port_get_hsr(hsr, HSR_PT_SLAVE_B);
 
@@ -382,42 +382,42 @@ static struct hsr_port *get_late_port(struct hsr_priv *hsr,
 /* Remove stale sequence_nr records. Called by timer every
  * HSR_LIFE_CHECK_INTERVAL (two seconds or so).
  */
-void hsr_prune_nodes(struct timer_list *t)
+void hsr_prune_yesdes(struct timer_list *t)
 {
 	struct hsr_priv *hsr = from_timer(hsr, t, prune_timer);
-	struct hsr_node *node;
-	struct hsr_node *tmp;
+	struct hsr_yesde *yesde;
+	struct hsr_yesde *tmp;
 	struct hsr_port *port;
 	unsigned long timestamp;
 	unsigned long time_a, time_b;
 
 	spin_lock_bh(&hsr->list_lock);
-	list_for_each_entry_safe(node, tmp, &hsr->node_db, mac_list) {
-		/* Don't prune own node. Neither time_in[HSR_PT_SLAVE_A]
-		 * nor time_in[HSR_PT_SLAVE_B], will ever be updated for
-		 * the master port. Thus the master node will be repeatedly
+	list_for_each_entry_safe(yesde, tmp, &hsr->yesde_db, mac_list) {
+		/* Don't prune own yesde. Neither time_in[HSR_PT_SLAVE_A]
+		 * yesr time_in[HSR_PT_SLAVE_B], will ever be updated for
+		 * the master port. Thus the master yesde will be repeatedly
 		 * pruned leading to packet loss.
 		 */
-		if (hsr_addr_is_self(hsr, node->macaddress_A))
+		if (hsr_addr_is_self(hsr, yesde->macaddress_A))
 			continue;
 
 		/* Shorthand */
-		time_a = node->time_in[HSR_PT_SLAVE_A];
-		time_b = node->time_in[HSR_PT_SLAVE_B];
+		time_a = yesde->time_in[HSR_PT_SLAVE_A];
+		time_b = yesde->time_in[HSR_PT_SLAVE_B];
 
-		/* Check for timestamps old enough to risk wrap-around */
+		/* Check for timestamps old eyesugh to risk wrap-around */
 		if (time_after(jiffies, time_a + MAX_JIFFY_OFFSET / 2))
-			node->time_in_stale[HSR_PT_SLAVE_A] = true;
+			yesde->time_in_stale[HSR_PT_SLAVE_A] = true;
 		if (time_after(jiffies, time_b + MAX_JIFFY_OFFSET / 2))
-			node->time_in_stale[HSR_PT_SLAVE_B] = true;
+			yesde->time_in_stale[HSR_PT_SLAVE_B] = true;
 
-		/* Get age of newest frame from node.
-		 * At least one time_in is OK here; nodes get pruned long
+		/* Get age of newest frame from yesde.
+		 * At least one time_in is OK here; yesdes get pruned long
 		 * before both time_ins can get stale
 		 */
 		timestamp = time_a;
-		if (node->time_in_stale[HSR_PT_SLAVE_A] ||
-		    (!node->time_in_stale[HSR_PT_SLAVE_B] &&
+		if (yesde->time_in_stale[HSR_PT_SLAVE_A] ||
+		    (!yesde->time_in_stale[HSR_PT_SLAVE_B] &&
 		    time_after(time_b, time_a)))
 			timestamp = time_b;
 
@@ -425,19 +425,19 @@ void hsr_prune_nodes(struct timer_list *t)
 		if (time_is_after_jiffies(timestamp +
 				msecs_to_jiffies(1.5 * MAX_SLAVE_DIFF))) {
 			rcu_read_lock();
-			port = get_late_port(hsr, node);
+			port = get_late_port(hsr, yesde);
 			if (port)
-				hsr_nl_ringerror(hsr, node->macaddress_A, port);
+				hsr_nl_ringerror(hsr, yesde->macaddress_A, port);
 			rcu_read_unlock();
 		}
 
 		/* Prune old entries */
 		if (time_is_before_jiffies(timestamp +
 				msecs_to_jiffies(HSR_NODE_FORGET_TIME))) {
-			hsr_nl_nodedown(hsr, node->macaddress_A);
-			list_del_rcu(&node->mac_list);
+			hsr_nl_yesdedown(hsr, yesde->macaddress_A);
+			list_del_rcu(&yesde->mac_list);
 			/* Note that we need to free this entry later: */
-			kfree_rcu(node, rcu_head);
+			kfree_rcu(yesde, rcu_head);
 		}
 	}
 	spin_unlock_bh(&hsr->list_lock);
@@ -447,29 +447,29 @@ void hsr_prune_nodes(struct timer_list *t)
 		  jiffies + msecs_to_jiffies(PRUNE_PERIOD));
 }
 
-void *hsr_get_next_node(struct hsr_priv *hsr, void *_pos,
+void *hsr_get_next_yesde(struct hsr_priv *hsr, void *_pos,
 			unsigned char addr[ETH_ALEN])
 {
-	struct hsr_node *node;
+	struct hsr_yesde *yesde;
 
 	if (!_pos) {
-		node = list_first_or_null_rcu(&hsr->node_db,
-					      struct hsr_node, mac_list);
-		if (node)
-			ether_addr_copy(addr, node->macaddress_A);
-		return node;
+		yesde = list_first_or_null_rcu(&hsr->yesde_db,
+					      struct hsr_yesde, mac_list);
+		if (yesde)
+			ether_addr_copy(addr, yesde->macaddress_A);
+		return yesde;
 	}
 
-	node = _pos;
-	list_for_each_entry_continue_rcu(node, &hsr->node_db, mac_list) {
-		ether_addr_copy(addr, node->macaddress_A);
-		return node;
+	yesde = _pos;
+	list_for_each_entry_continue_rcu(yesde, &hsr->yesde_db, mac_list) {
+		ether_addr_copy(addr, yesde->macaddress_A);
+		return yesde;
 	}
 
 	return NULL;
 }
 
-int hsr_get_node_data(struct hsr_priv *hsr,
+int hsr_get_yesde_data(struct hsr_priv *hsr,
 		      const unsigned char *addr,
 		      unsigned char addr_b[ETH_ALEN],
 		      unsigned int *addr_b_ifindex,
@@ -478,21 +478,21 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 		      int *if2_age,
 		      u16 *if2_seq)
 {
-	struct hsr_node *node;
+	struct hsr_yesde *yesde;
 	struct hsr_port *port;
 	unsigned long tdiff;
 
 	rcu_read_lock();
-	node = find_node_by_addr_A(&hsr->node_db, addr);
-	if (!node) {
+	yesde = find_yesde_by_addr_A(&hsr->yesde_db, addr);
+	if (!yesde) {
 		rcu_read_unlock();
 		return -ENOENT;	/* No such entry */
 	}
 
-	ether_addr_copy(addr_b, node->macaddress_B);
+	ether_addr_copy(addr_b, yesde->macaddress_B);
 
-	tdiff = jiffies - node->time_in[HSR_PT_SLAVE_A];
-	if (node->time_in_stale[HSR_PT_SLAVE_A])
+	tdiff = jiffies - yesde->time_in[HSR_PT_SLAVE_A];
+	if (yesde->time_in_stale[HSR_PT_SLAVE_A])
 		*if1_age = INT_MAX;
 #if HZ <= MSEC_PER_SEC
 	else if (tdiff > msecs_to_jiffies(INT_MAX))
@@ -501,8 +501,8 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 	else
 		*if1_age = jiffies_to_msecs(tdiff);
 
-	tdiff = jiffies - node->time_in[HSR_PT_SLAVE_B];
-	if (node->time_in_stale[HSR_PT_SLAVE_B])
+	tdiff = jiffies - yesde->time_in[HSR_PT_SLAVE_B];
+	if (yesde->time_in_stale[HSR_PT_SLAVE_B])
 		*if2_age = INT_MAX;
 #if HZ <= MSEC_PER_SEC
 	else if (tdiff > msecs_to_jiffies(INT_MAX))
@@ -512,11 +512,11 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 		*if2_age = jiffies_to_msecs(tdiff);
 
 	/* Present sequence numbers as if they were incoming on interface */
-	*if1_seq = node->seq_out[HSR_PT_SLAVE_B];
-	*if2_seq = node->seq_out[HSR_PT_SLAVE_A];
+	*if1_seq = yesde->seq_out[HSR_PT_SLAVE_B];
+	*if2_seq = yesde->seq_out[HSR_PT_SLAVE_A];
 
-	if (node->addr_B_port != HSR_PT_NONE) {
-		port = hsr_port_get_hsr(hsr, node->addr_B_port);
+	if (yesde->addr_B_port != HSR_PT_NONE) {
+		port = hsr_port_get_hsr(hsr, yesde->addr_B_port);
 		*addr_b_ifindex = port->dev->ifindex;
 	} else {
 		*addr_b_ifindex = -1;

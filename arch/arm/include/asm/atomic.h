@@ -101,7 +101,7 @@ static inline int atomic_fetch_##op##_relaxed(int i, atomic_t *v)	\
 #define atomic_fetch_sub_relaxed	atomic_fetch_sub_relaxed
 
 #define atomic_fetch_and_relaxed	atomic_fetch_and_relaxed
-#define atomic_fetch_andnot_relaxed	atomic_fetch_andnot_relaxed
+#define atomic_fetch_andyest_relaxed	atomic_fetch_andyest_relaxed
 #define atomic_fetch_or_relaxed		atomic_fetch_or_relaxed
 #define atomic_fetch_xor_relaxed	atomic_fetch_xor_relaxed
 
@@ -158,7 +158,7 @@ static inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 #else /* ARM_ARCH_6 */
 
 #ifdef CONFIG_SMP
-#error SMP not supported on pre-ARMv6 CPUs
+#error SMP yest supported on pre-ARMv6 CPUs
 #endif
 
 #define ATOMIC_OP(op, c_op, asm_op)					\
@@ -213,7 +213,7 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 	return ret;
 }
 
-#define atomic_fetch_andnot		atomic_fetch_andnot
+#define atomic_fetch_andyest		atomic_fetch_andyest
 
 #endif /* __LINUX_ARM_ARCH__ */
 
@@ -225,7 +225,7 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 ATOMIC_OPS(add, +=, add)
 ATOMIC_OPS(sub, -=, sub)
 
-#define atomic_andnot atomic_andnot
+#define atomic_andyest atomic_andyest
 
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op, c_op, asm_op)					\
@@ -233,7 +233,7 @@ ATOMIC_OPS(sub, -=, sub)
 	ATOMIC_FETCH_OP(op, c_op, asm_op)
 
 ATOMIC_OPS(and, &=, and)
-ATOMIC_OPS(andnot, &= ~, bic)
+ATOMIC_OPS(andyest, &= ~, bic)
 ATOMIC_OPS(or,  |=, orr)
 ATOMIC_OPS(xor, ^=, eor)
 
@@ -386,15 +386,15 @@ ATOMIC64_OPS(sub, subs, sbc)
 	ATOMIC64_OP(op, op1, op2)					\
 	ATOMIC64_FETCH_OP(op, op1, op2)
 
-#define atomic64_andnot atomic64_andnot
+#define atomic64_andyest atomic64_andyest
 
 ATOMIC64_OPS(and, and, and)
-ATOMIC64_OPS(andnot, bic, bic)
+ATOMIC64_OPS(andyest, bic, bic)
 ATOMIC64_OPS(or,  orr, orr)
 ATOMIC64_OPS(xor, eor, eor)
 
 #define atomic64_fetch_and_relaxed	atomic64_fetch_and_relaxed
-#define atomic64_fetch_andnot_relaxed	atomic64_fetch_andnot_relaxed
+#define atomic64_fetch_andyest_relaxed	atomic64_fetch_andyest_relaxed
 #define atomic64_fetch_or_relaxed	atomic64_fetch_or_relaxed
 #define atomic64_fetch_xor_relaxed	atomic64_fetch_xor_relaxed
 

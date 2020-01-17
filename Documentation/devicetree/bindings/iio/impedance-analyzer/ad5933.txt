@@ -15,7 +15,7 @@ Optional properties:
 - clocks : external clock reference.
 - clock-names : must be "mclk" if clocks is set.
 
-Example for a I2C device node:
+Example for a I2C device yesde:
 
 	impedance-analyzer@0d {
 		compatible = "adi,adxl345";

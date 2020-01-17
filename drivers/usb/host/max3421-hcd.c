@@ -16,22 +16,22 @@
  *		http://www.hdl.co.jp/ftpdata/utl-001/AN3785.pdf
  *	o gadget/dummy_hcd.c
  *		For USB HCD implementation.
- *	o Arduino MAX3421 driver
+ *	o Arduiyes MAX3421 driver
  *	     https://github.com/felis/USB_Host_Shield_2.0/blob/master/Usb.cpp
  *
  * This file is licenced under the GPL v2.
  *
- * Important note on worst-case (full-speed) packet size constraints
+ * Important yeste on worst-case (full-speed) packet size constraints
  * (See USB 2.0 Section 5.6.3 and following):
  *
  *	- control:	  64 bytes
- *	- isochronous:	1023 bytes
+ *	- isochroyesus:	1023 bytes
  *	- interrupt:	  64 bytes
  *	- bulk:		  64 bytes
  *
- * Since the MAX3421 FIFO size is 64 bytes, we do not have to work about
- * multi-FIFO writes/reads for a single USB packet *except* for isochronous
- * transfers.  We don't support isochronous transfers at this time, so we
+ * Since the MAX3421 FIFO size is 64 bytes, we do yest have to work about
+ * multi-FIFO writes/reads for a single USB packet *except* for isochroyesus
+ * transfers.  We don't support isochroyesus transfers at this time, so we
  * just assume that a USB packet always fits into a single FIFO buffer.
  *
  * NOTE: The June 2006 version of "MAX3421E Programming Guide"
@@ -50,7 +50,7 @@
  * The December 2006 version has been corrected and it consistently
  * states the second behavior is the correct one.
  *
- * Synchronous SPI transactions sleep so we can't perform any such
+ * Synchroyesus SPI transactions sleep so we can't perform any such
  * transactions while holding a spin-lock (and/or while interrupts are
  * masked).  To achieve this, all SPI transactions are issued from a
  * single thread (max3421_spi_thread).
@@ -148,14 +148,14 @@ struct max3421_hcd {
 	struct max3421_dma_buf *tx;
 	struct max3421_dma_buf *rx;
 	/*
-	 * URB we're currently processing.  Must not be reset to NULL
+	 * URB we're currently processing.  Must yest be reset to NULL
 	 * unless MAX3421E chip is idle:
 	 */
 	struct urb *curr_urb;
 	enum scheduling_pass sched_pass;
 	struct usb_device *loaded_dev;	/* dev that's loaded into the chip */
 	int loaded_epnum;		/* epnum whose toggles are loaded */
-	int urb_done;			/* > 0 -> no errors, < 0: errno */
+	int urb_done;			/* > 0 -> yes errors, < 0: erryes */
 	size_t curr_len;
 	u8 hien;
 	u8 mode;
@@ -514,7 +514,7 @@ max3421_set_address(struct usb_hcd *hcd, struct usb_device *dev, int epnum,
 		rcvtog = (hrsl >> MAX3421_HRSL_RCVTOGRD_BIT) & 1;
 		sndtog = (hrsl >> MAX3421_HRSL_SNDTOGRD_BIT) & 1;
 
-		/* no locking: HCD (i.e., we) own toggles, don't we? */
+		/* yes locking: HCD (i.e., we) own toggles, don't we? */
 		usb_settoggle(old_dev, old_epnum, 0, rcvtog);
 		usb_settoggle(old_dev, old_epnum, 1, sndtog);
 	}
@@ -579,7 +579,7 @@ max3421_transfer_out(struct usb_hcd *hcd, struct urb *urb, int fast_retransmit)
 
 	if (max_packet > MAX3421_FIFO_SIZE) {
 		/*
-		 * We do not support isochronous transfers at this
+		 * We do yest support isochroyesus transfers at this
 		 * time.
 		 */
 		dev_err(&spi->dev,
@@ -609,7 +609,7 @@ max3421_next_transfer(struct usb_hcd *hcd, int fast_retransmit)
 	int cmd = -EINVAL;
 
 	if (!urb)
-		return;	/* nothing to do */
+		return;	/* yesthing to do */
 
 	max3421_ep = urb->ep->hcpriv;
 
@@ -649,11 +649,11 @@ max3421_next_transfer(struct usb_hcd *hcd, int fast_retransmit)
 /*
  * Find the next URB to process and start its execution.
  *
- * At this time, we do not anticipate ever connecting a USB hub to the
+ * At this time, we do yest anticipate ever connecting a USB hub to the
  * MAX3421 chip, so at most USB device can be connected and we can use
  * a simplistic scheduler: at the start of a frame, schedule all
  * periodic transfers.  Once that is done, use the remainder of the
- * frame to process non-periodic (bulk & control) transfers.
+ * frame to process yesn-periodic (bulk & control) transfers.
  *
  * Preconditions:
  * o Caller must NOT hold HCD spinlock.
@@ -700,7 +700,7 @@ max3421_select_and_start_urb(struct usb_hcd *hcd)
 			}
 
 			if (list_empty(&ep->urb_list))
-				continue;	/* nothing to do */
+				continue;	/* yesthing to do */
 			urb = list_first_entry(&ep->urb_list, struct urb,
 					       urb_list);
 			if (urb->unlinked) {
@@ -872,7 +872,7 @@ max3421_recv_data_available(struct usb_hcd *hcd)
 		max3421_hcd->curr_len = transfer_size;
 	}
 
-	/* ack the RCVDAV irq now that the FIFO has been read: */
+	/* ack the RCVDAV irq yesw that the FIFO has been read: */
 	spi_wr8(hcd, MAX3421_REG_HIRQ, BIT(MAX3421_HI_RCVDAV_BIT));
 }
 
@@ -906,7 +906,7 @@ max3421_handle_error(struct usb_hcd *hcd, u8 hrsl)
 	case MAX3421_HRSL_KERR:		/* K-state instead of response */
 	case MAX3421_HRSL_JERR:		/* J-state instead of response */
 		/*
-		 * packet experienced an error that we cannot recover
+		 * packet experienced an error that we canyest recover
 		 * from; report error
 		 */
 		max3421_hcd->urb_done = hrsl_to_error[result_code];
@@ -951,7 +951,7 @@ max3421_handle_error(struct usb_hcd *hcd, u8 hrsl)
 
 	case MAX3421_HRSL_NAK:
 		/*
-		 * Device wasn't ready for data or has no data
+		 * Device wasn't ready for data or has yes data
 		 * available: retry the packet again.
 		 */
 		if (max3421_ep->naks++ < NAK_MAX_FAST_RETRANSMITS) {
@@ -985,7 +985,7 @@ max3421_transfer_in_done(struct usb_hcd *hcd, struct urb *urb)
 	max_packet = usb_maxpacket(urb->dev, urb->pipe, 0);
 	if (max_packet > MAX3421_FIFO_SIZE) {
 		/*
-		 * We do not support isochronous transfers at this
+		 * We do yest support isochroyesus transfers at this
 		 * time...
 		 */
 		dev_err(&spi->dev,
@@ -1006,7 +1006,7 @@ max3421_transfer_in_done(struct usb_hcd *hcd, struct urb *urb)
 			/* short read, but it's OK */
 			return 1;
 	}
-	return 0;	/* not done */
+	return 0;	/* yest done */
 }
 
 /*
@@ -1173,7 +1173,7 @@ max3421_irq_handler(int irq, void *dev_id)
 	    max3421_hcd->spi_thread->state != TASK_RUNNING)
 		wake_up_process(max3421_hcd->spi_thread);
 	if (!test_and_set_bit(ENABLE_IRQ, &max3421_hcd->todo))
-		disable_irq_nosync(spi->irq);
+		disable_irq_yessync(spi->irq);
 	return IRQ_HANDLED;
 }
 
@@ -1219,7 +1219,7 @@ dump_eps(struct usb_hcd *hcd)
 
 #endif /* DEBUG */
 
-/* Return zero if no work was performed, 1 otherwise.  */
+/* Return zero if yes work was performed, 1 otherwise.  */
 static int
 max3421_handle_irqs(struct usb_hcd *hcd)
 {
@@ -1419,7 +1419,7 @@ max3421_spi_thread(void *dev_id)
 		if (!i_worked) {
 			/*
 			 * We'll be waiting for wakeups from the hard
-			 * interrupt handler, so now is a good time to
+			 * interrupt handler, so yesw is a good time to
 			 * sync our hien with the chip:
 			 */
 			spi_wr8(hcd, MAX3421_REG_HIEN, max3421_hcd->hien);
@@ -1453,7 +1453,7 @@ max3421_spi_thread(void *dev_id)
 			i_worked |= max3421_check_unlink(hcd);
 		if (test_and_clear_bit(IOPIN_UPDATE, &max3421_hcd->todo)) {
 			/*
-			 * IOPINS1/IOPINS2 do not auto-increment, so we can't
+			 * IOPINS1/IOPINS2 do yest auto-increment, so we can't
 			 * use spi_wr_buf().
 			 */
 			for (i = 0; i < ARRAY_SIZE(max3421_hcd->iopins); ++i) {
@@ -1621,7 +1621,7 @@ max3421_get_frame_number(struct usb_hcd *hcd)
 }
 
 /*
- * Should return a non-zero value when any port is undergoing a resume
+ * Should return a yesn-zero value when any port is undergoing a resume
  * transition while the root hub is suspended.
  */
 static int
@@ -1667,7 +1667,7 @@ hub_descriptor(struct usb_hub_descriptor *desc)
 /*
  * Set the MAX3421E general-purpose output with number PIN_NUMBER to
  * VALUE (0 or 1).  PIN_NUMBER may be in the range from 1-8.  For
- * any other value, this function acts as a no-op.
+ * any other value, this function acts as a yes-op.
  */
 static void
 max3421_gpout_set_value(struct usb_hcd *hcd, u8 pin_number, u8 value)
@@ -1827,9 +1827,9 @@ max3421_of_vbus_en_pin(struct device *dev, struct max3421_hcd_platform_data *pda
 	if (!pdata)
 		return -EINVAL;
 
-	retval = of_property_read_u32_array(dev->of_node, "maxim,vbus-en-pin", value, 2);
+	retval = of_property_read_u32_array(dev->of_yesde, "maxim,vbus-en-pin", value, 2);
 	if (retval) {
-		dev_err(dev, "device tree node property 'maxim,vbus-en-pin' is missing\n");
+		dev_err(dev, "device tree yesde property 'maxim,vbus-en-pin' is missing\n");
 		return retval;
 	}
 	dev_info(dev, "property 'maxim,vbus-en-pin' value is <%d %d>\n", value[0], value[1]);
@@ -1859,7 +1859,7 @@ max3421_probe(struct spi_device *spi)
 		return -EFAULT;
 	}
 
-	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && dev->of_yesde) {
 		pdata = devm_kzalloc(&spi->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
 			retval = -ENOMEM;
@@ -1874,7 +1874,7 @@ max3421_probe(struct spi_device *spi)
 
 	pdata = spi->dev.platform_data;
 	if (!pdata) {
-		dev_err(&spi->dev, "driver configuration data is not provided\n");
+		dev_err(&spi->dev, "driver configuration data is yest provided\n");
 		retval = -EFAULT;
 		goto error;
 	}
@@ -1931,7 +1931,7 @@ max3421_probe(struct spi_device *spi)
 	return 0;
 
 error:
-	if (IS_ENABLED(CONFIG_OF) && dev->of_node && pdata) {
+	if (IS_ENABLED(CONFIG_OF) && dev->of_yesde && pdata) {
 		devm_kfree(&spi->dev, pdata);
 		spi->dev.platform_data = NULL;
 	}
@@ -1960,7 +1960,7 @@ max3421_remove(struct spi_device *spi)
 			break;
 	}
 	if (!max3421_hcd) {
-		dev_err(&spi->dev, "no MAX3421 HCD found for SPI device %p\n",
+		dev_err(&spi->dev, "yes MAX3421 HCD found for SPI device %p\n",
 			spi);
 		return -ENODEV;
 	}

@@ -23,7 +23,7 @@ ACPI_MODULE_NAME("utuuid")
  * hex value can be found.
  *
  * 36-byte UUID strings are of the form:
- *     aabbccdd-eeff-gghh-iijj-kkllmmnnoopp
+ *     aabbccdd-eeff-gghh-iijj-kkllmmnyesopp
  * Where aa-pp are one byte hex numbers, made up of two hex digits
  *
  * Note: This table is basically the inverse of the string-to-offset table

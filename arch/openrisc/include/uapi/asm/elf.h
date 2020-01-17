@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * OpenRISC Linux
  *
@@ -33,7 +33,7 @@
 /* for struct user_regs_struct definition */
 #include <asm/ptrace.h>
 
-/* The OR1K relocation types... not all relevant for module loader */
+/* The OR1K relocation types... yest all relevant for module loader */
 #define R_OR32_NONE	0
 #define R_OR32_32	1
 #define R_OR32_16	2
@@ -53,7 +53,7 @@ typedef unsigned long elf_greg_t;
 #define ELF_NGREG (sizeof(struct user_regs_struct) / sizeof(elf_greg_t))
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
-/* A placeholder; OR32 does not have fp support yes, so no fp regs for now.  */
+/* A placeholder; OR32 does yest have fp support no, so yes fp regs for yesw.  */
 typedef unsigned long elf_fpregset_t;
 
 /* EM_OPENRISC is defined in linux/elf-em.h */

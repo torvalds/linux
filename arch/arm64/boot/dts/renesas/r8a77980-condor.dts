@@ -128,7 +128,7 @@
 
 	phy-mode = "rgmii-id";
 	phy-handle = <&phy0>;
-	renesas,no-ether-link;
+	renesas,yes-ether-link;
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
@@ -219,7 +219,7 @@
 	vqmmc-supply = <&vddq_vin01>;
 	mmc-hs200-1_8v;
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 

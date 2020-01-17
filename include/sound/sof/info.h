@@ -36,7 +36,7 @@ enum sof_ipc_ext_data {
 struct sof_ipc_fw_version {
 	struct sof_ipc_hdr hdr;
 	uint16_t major;
-	uint16_t minor;
+	uint16_t miyesr;
 	uint16_t micro;
 	uint16_t build;
 	uint8_t date[12];

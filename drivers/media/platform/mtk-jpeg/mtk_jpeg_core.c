@@ -726,7 +726,7 @@ static void mtk_jpeg_stop_streaming(struct vb2_queue *q)
 	struct vb2_v4l2_buffer *vb;
 
 	/*
-	 * STREAMOFF is an acknowledgment for source change event.
+	 * STREAMOFF is an ackyeswledgment for source change event.
 	 * Before STREAMOFF, we still have to return the old resolution and
 	 * subsampling. Update capture queue when the stream is off.
 	 */
@@ -1051,18 +1051,18 @@ static const struct v4l2_file_operations mtk_jpeg_fops = {
 
 static int mtk_jpeg_clk_init(struct mtk_jpeg_dev *jpeg)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct platform_device *pdev;
 
-	node = of_parse_phandle(jpeg->dev->of_node, "mediatek,larb", 0);
-	if (!node)
+	yesde = of_parse_phandle(jpeg->dev->of_yesde, "mediatek,larb", 0);
+	if (!yesde)
 		return -EINVAL;
-	pdev = of_find_device_by_node(node);
+	pdev = of_find_device_by_yesde(yesde);
 	if (WARN_ON(!pdev)) {
-		of_node_put(node);
+		of_yesde_put(yesde);
 		return -EINVAL;
 	}
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	jpeg->larb = &pdev->dev;
 
@@ -1142,7 +1142,7 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 		 "%s-dec", MTK_JPEG_NAME);
 	jpeg->dec_vdev->fops = &mtk_jpeg_fops;
 	jpeg->dec_vdev->ioctl_ops = &mtk_jpeg_ioctl_ops;
-	jpeg->dec_vdev->minor = -1;
+	jpeg->dec_vdev->miyesr = -1;
 	jpeg->dec_vdev->release = video_device_release;
 	jpeg->dec_vdev->lock = &jpeg->lock;
 	jpeg->dec_vdev->v4l2_dev = &jpeg->v4l2_dev;
@@ -1159,7 +1159,7 @@ static int mtk_jpeg_probe(struct platform_device *pdev)
 	video_set_drvdata(jpeg->dec_vdev, jpeg);
 	v4l2_info(&jpeg->v4l2_dev,
 		  "decoder device registered as /dev/video%d (%d,%d)\n",
-		  jpeg->dec_vdev->num, VIDEO_MAJOR, jpeg->dec_vdev->minor);
+		  jpeg->dec_vdev->num, VIDEO_MAJOR, jpeg->dec_vdev->miyesr);
 
 	platform_set_drvdata(pdev, jpeg);
 

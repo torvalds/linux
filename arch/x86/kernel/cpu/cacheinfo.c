@@ -37,7 +37,7 @@ struct _cache_table {
 
 #define MB(x)	((x) * 1024)
 
-/* All the cache descriptor types we care about (no TLB or
+/* All the cache descriptor types we care about (yes TLB or
    trace cache entries) */
 
 static const struct _cache_table cache_table[] =
@@ -160,14 +160,14 @@ struct _cpuid4_info_regs {
 	union _cpuid4_leaf_ecx ecx;
 	unsigned int id;
 	unsigned long size;
-	struct amd_northbridge *nb;
+	struct amd_yesrthbridge *nb;
 };
 
 static unsigned short num_cache_leaves;
 
 /* AMD doesn't have CPUID4. Emulate it here to report the same
    information to the user.  This makes some assumptions about the machine:
-   L2 not shared, no SMT etc. that is currently true on AMD CPUs.
+   L2 yest shared, yes SMT etc. that is currently true on AMD CPUs.
 
    In theory the TLBs could be reported as fake type (they are in "dummy").
    Maybe later */
@@ -213,7 +213,7 @@ static const unsigned short assocs[] = {
 	[0xc] = 64,
 	[0xd] = 96,
 	[0xe] = 128,
-	[0xf] = 0xffff /* fully associative - no way to show this currently */
+	[0xf] = 0xffff /* fully associative - yes way to show this currently */
 };
 
 static const unsigned char levels[] = { 1, 1, 2, 3 };
@@ -303,7 +303,7 @@ amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
 /*
  * L3 cache descriptors
  */
-static void amd_calc_l3_indices(struct amd_northbridge *nb)
+static void amd_calc_l3_indices(struct amd_yesrthbridge *nb)
 {
 	struct amd_l3_cache *l3 = &nb->l3_cache;
 	unsigned int sc0, sc1, sc2, sc3;
@@ -333,7 +333,7 @@ static void amd_calc_l3_indices(struct amd_northbridge *nb)
  *
  * @returns: the disabled index if used or negative value if slot free.
  */
-static int amd_get_l3_disable_slot(struct amd_northbridge *nb, unsigned slot)
+static int amd_get_l3_disable_slot(struct amd_yesrthbridge *nb, unsigned slot)
 {
 	unsigned int reg = 0;
 
@@ -350,7 +350,7 @@ static ssize_t show_cache_disable(struct cacheinfo *this_leaf, char *buf,
 				  unsigned int slot)
 {
 	int index;
-	struct amd_northbridge *nb = this_leaf->priv;
+	struct amd_yesrthbridge *nb = this_leaf->priv;
 
 	index = amd_get_l3_disable_slot(nb, slot);
 	if (index >= 0)
@@ -370,7 +370,7 @@ cache_disable_##slot##_show(struct device *dev,				\
 SHOW_CACHE_DISABLE(0)
 SHOW_CACHE_DISABLE(1)
 
-static void amd_l3_disable_index(struct amd_northbridge *nb, int cpu,
+static void amd_l3_disable_index(struct amd_yesrthbridge *nb, int cpu,
 				 unsigned slot, unsigned long idx)
 {
 	int i;
@@ -389,9 +389,9 @@ static void amd_l3_disable_index(struct amd_northbridge *nb, int cpu,
 		pci_write_config_dword(nb->misc, 0x1BC + slot * 4, reg);
 
 		/*
-		 * We need to WBINVD on a core on the node containing the L3
+		 * We need to WBINVD on a core on the yesde containing the L3
 		 * cache which indices we disable therefore a simple wbinvd()
-		 * is not sufficient.
+		 * is yest sufficient.
 		 */
 		wbinvd_on_cpu(cpu);
 
@@ -404,13 +404,13 @@ static void amd_l3_disable_index(struct amd_northbridge *nb, int cpu,
  * disable a L3 cache index by using a disable-slot
  *
  * @l3:    L3 cache descriptor
- * @cpu:   A CPU on the node containing the L3 cache
+ * @cpu:   A CPU on the yesde containing the L3 cache
  * @slot:  slot number (0..1)
  * @index: index to disable
  *
  * @return: 0 on success, error status on failure
  */
-static int amd_set_l3_disable_slot(struct amd_northbridge *nb, int cpu,
+static int amd_set_l3_disable_slot(struct amd_yesrthbridge *nb, int cpu,
 			    unsigned slot, unsigned long index)
 {
 	int ret = 0;
@@ -438,7 +438,7 @@ static ssize_t store_cache_disable(struct cacheinfo *this_leaf,
 {
 	unsigned long val = 0;
 	int cpu, err = 0;
-	struct amd_northbridge *nb = this_leaf->priv;
+	struct amd_yesrthbridge *nb = this_leaf->priv;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -561,7 +561,7 @@ static void init_amd_l3_attrs(void)
 const struct attribute_group *
 cache_get_priv_group(struct cacheinfo *this_leaf)
 {
-	struct amd_northbridge *nb = this_leaf->priv;
+	struct amd_yesrthbridge *nb = this_leaf->priv;
 
 	if (this_leaf->level < 3 || !nb)
 		return NULL;
@@ -574,14 +574,14 @@ cache_get_priv_group(struct cacheinfo *this_leaf)
 
 static void amd_init_l3_cache(struct _cpuid4_info_regs *this_leaf, int index)
 {
-	int node;
+	int yesde;
 
-	/* only for L3, and not in virtualized environments */
+	/* only for L3, and yest in virtualized environments */
 	if (index < 3)
 		return;
 
-	node = amd_get_nb_id(smp_processor_id());
-	this_leaf->nb = node_to_amd_nb(node);
+	yesde = amd_get_nb_id(smp_processor_id());
+	this_leaf->nb = yesde_to_amd_nb(yesde);
 	if (this_leaf->nb && !this_leaf->nb->l3_cache.indices)
 		amd_calc_l3_indices(this_leaf->nb);
 }
@@ -646,7 +646,7 @@ static int find_num_cache_leaves(struct cpuinfo_x86 *c)
 	return i;
 }
 
-void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu, u8 node_id)
+void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu, u8 yesde_id)
 {
 	/*
 	 * We may have multiple LLCs if L3 caches exist, so check if we
@@ -656,8 +656,8 @@ void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu, u8 node_id)
 		return;
 
 	if (c->x86 < 0x17) {
-		/* LLC is at the node level. */
-		per_cpu(cpu_llc_id, cpu) = node_id;
+		/* LLC is at the yesde level. */
+		per_cpu(cpu_llc_id, cpu) = yesde_id;
 	} else if (c->x86 == 0x17 && c->x86_model <= 0x1F) {
 		/*
 		 * LLC is at the core complex level.
@@ -684,7 +684,7 @@ void cacheinfo_amd_init_llc_id(struct cpuinfo_x86 *c, int cpu, u8 node_id)
 	}
 }
 
-void cacheinfo_hygon_init_llc_id(struct cpuinfo_x86 *c, int cpu, u8 node_id)
+void cacheinfo_hygon_init_llc_id(struct cpuinfo_x86 *c, int cpu, u8 yesde_id)
 {
 	/*
 	 * We may have multiple LLCs if L3 caches exist, so check if we
@@ -794,12 +794,12 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 		for (i = 0 ; i < n ; i++) {
 			cpuid(2, &regs[0], &regs[1], &regs[2], &regs[3]);
 
-			/* If bit 31 is set, this is an unknown format */
+			/* If bit 31 is set, this is an unkyeswn format */
 			for (j = 0 ; j < 3 ; j++)
 				if (regs[j] & (1 << 31))
 					regs[j] = 0;
 
-			/* Byte 0 is level count, not a descriptor */
+			/* Byte 0 is level count, yest a descriptor */
 			for (j = 1 ; j < 16 ; j++) {
 				unsigned char des = dp[j];
 				unsigned char k = 0;
@@ -858,9 +858,9 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 
 #ifdef CONFIG_SMP
 	/*
-	 * If cpu_llc_id is not yet set, this means cpuid_level < 4 which in
+	 * If cpu_llc_id is yest yet set, this means cpuid_level < 4 which in
 	 * turns means that the only possibility is SMT (as indicated in
-	 * cpuid1). Since cpuid2 doesn't specify shared caches, and we know
+	 * cpuid1). Since cpuid2 doesn't specify shared caches, and we kyesw
 	 * that SMT shares all caches, we can unconditionally set cpu_llc_id to
 	 * c->phys_proc_id.
 	 */
@@ -960,7 +960,7 @@ static void __cache_cpumap_setup(unsigned int cpu, int index,
 			struct cpu_cacheinfo *sib_cpu_ci = get_cpu_cacheinfo(i);
 
 			if (i == cpu || !sib_cpu_ci->info_list)
-				continue;/* skip if itself or no cacheinfo */
+				continue;/* skip if itself or yes cacheinfo */
 			sibling_leaf = sib_cpu_ci->info_list + index;
 			cpumask_set_cpu(i, &this_leaf->shared_cpu_map);
 			cpumask_set_cpu(cpu, &sibling_leaf->shared_cpu_map);
@@ -1001,7 +1001,7 @@ static int __init_cache_level(unsigned int cpu)
 /*
  * The max shared threads number comes from CPUID.4:EAX[25-14] with input
  * ECX as cache index. Then right shift apicid by the number's order to get
- * cache id for this cache node.
+ * cache id for this cache yesde.
  */
 static void get_cache_id(int cpu, struct _cpuid4_info_regs *id4_regs)
 {

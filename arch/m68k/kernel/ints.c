@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 
@@ -85,7 +85,7 @@ void __init m68k_setup_auto_interrupt(void (*handler)(unsigned int, struct pt_re
  * @cnt: number of active user vector interrupts
  *
  * setup user vector interrupts, this includes activating the specified range
- * of interrupts, only then these interrupts can be requested (note: this is
+ * of interrupts, only then these interrupts can be requested (yeste: this is
  * different from auto vector interrupts).
  */
 void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt)
@@ -150,7 +150,7 @@ void m68k_irq_shutdown(struct irq_data *data)
 }
 
 
-unsigned int irq_canonicalize(unsigned int irq)
+unsigned int irq_cayesnicalize(unsigned int irq)
 {
 #ifdef CONFIG_Q40
 	if (MACH_IS_Q40 && irq == 11)
@@ -159,7 +159,7 @@ unsigned int irq_canonicalize(unsigned int irq)
 	return irq;
 }
 
-EXPORT_SYMBOL(irq_canonicalize);
+EXPORT_SYMBOL(irq_cayesnicalize);
 
 
 asmlinkage void handle_badint(struct pt_regs *regs)

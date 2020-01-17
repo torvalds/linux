@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2001 Deep Blue Solutions Ltd.
  * Copyright (C) 2012 ARM Ltd.
- * Copyright (C) 2015 Huawei Futurewei Technologies.
+ * Copyright (C) 2015 Huawei Futurewei Techyeslogies.
  */
 
 #include <linux/linkage.h>
@@ -40,7 +40,7 @@ ENTRY(__cpu_soft_restart)
 
 	cbz	x0, 1f				// el2_switch?
 	mov	x0, #HVC_SOFT_RESTART
-	hvc	#0				// no return
+	hvc	#0				// yes return
 
 1:	mov	x18, x1				// entry
 	mov	x0, x2				// arg0

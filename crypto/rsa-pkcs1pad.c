@@ -293,7 +293,7 @@ static int pkcs1pad_decrypt_complete(struct akcipher_request *req, int err)
 	out_buf = req_ctx->out_buf;
 	if (dst_len == ctx->key_size) {
 		if (out_buf[0] != 0x00)
-			/* Decrypted value had no leading 0 byte */
+			/* Decrypted value had yes leading 0 byte */
 			goto done;
 
 		dst_len--;
@@ -455,7 +455,7 @@ static int pkcs1pad_verify_complete(struct akcipher_request *req, int err)
 	out_buf = req_ctx->out_buf;
 	if (dst_len == ctx->key_size) {
 		if (out_buf[0] != 0x00)
-			/* Decrypted value had no leading 0 byte */
+			/* Decrypted value had yes leading 0 byte */
 			goto done;
 
 		dst_len--;
@@ -522,7 +522,7 @@ static void pkcs1pad_verify_complete_cb(
 
 /*
  * The verify operation is here for completeness similar to the verification
- * defined in RFC2313 section 10.2 except that block type 0 is not accepted,
+ * defined in RFC2313 section 10.2 except that block type 0 is yest accepted,
  * as in RFC2437.  RFC2437 section 9.2 doesn't define any operation to
  * retrieve the DigestInfo from a signature, instead the user is expected
  * to call the sign operation to generate the expected signature and compare

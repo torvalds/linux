@@ -25,17 +25,17 @@ static DEFINE_MUTEX(icc_lock);
 static struct dentry *icc_debugfs_dir;
 
 /**
- * struct icc_req - constraints that are attached to each node
- * @req_node: entry in list of requests for the particular @node
- * @node: the interconnect node to which this constraint applies
+ * struct icc_req - constraints that are attached to each yesde
+ * @req_yesde: entry in list of requests for the particular @yesde
+ * @yesde: the interconnect yesde to which this constraint applies
  * @dev: reference to the device that sets the constraints
  * @tag: path tag (optional)
  * @avg_bw: an integer describing the average bandwidth in kBps
  * @peak_bw: an integer describing the peak bandwidth in kBps
  */
 struct icc_req {
-	struct hlist_node req_node;
-	struct icc_node *node;
+	struct hlist_yesde req_yesde;
+	struct icc_yesde *yesde;
 	struct device *dev;
 	u32 tag;
 	u32 avg_bw;
@@ -44,15 +44,15 @@ struct icc_req {
 
 /**
  * struct icc_path - interconnect path structure
- * @num_nodes: number of hops (nodes)
- * @reqs: array of the requests applicable to this path of nodes
+ * @num_yesdes: number of hops (yesdes)
+ * @reqs: array of the requests applicable to this path of yesdes
  */
 struct icc_path {
-	size_t num_nodes;
+	size_t num_yesdes;
 	struct icc_req reqs[];
 };
 
-static void icc_summary_show_one(struct seq_file *s, struct icc_node *n)
+static void icc_summary_show_one(struct seq_file *s, struct icc_yesde *n)
 {
 	if (!n)
 		return;
@@ -65,19 +65,19 @@ static int icc_summary_show(struct seq_file *s, void *data)
 {
 	struct icc_provider *provider;
 
-	seq_puts(s, " node                                   avg         peak\n");
+	seq_puts(s, " yesde                                   avg         peak\n");
 	seq_puts(s, "--------------------------------------------------------\n");
 
 	mutex_lock(&icc_lock);
 
 	list_for_each_entry(provider, &icc_providers, provider_list) {
-		struct icc_node *n;
+		struct icc_yesde *n;
 
-		list_for_each_entry(n, &provider->nodes, node_list) {
+		list_for_each_entry(n, &provider->yesdes, yesde_list) {
 			struct icc_req *r;
 
 			icc_summary_show_one(s, n);
-			hlist_for_each_entry(r, &n->req_list, req_node) {
+			hlist_for_each_entry(r, &n->req_list, req_yesde) {
 				if (!r->dev)
 					continue;
 
@@ -94,41 +94,41 @@ static int icc_summary_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(icc_summary);
 
-static struct icc_node *node_find(const int id)
+static struct icc_yesde *yesde_find(const int id)
 {
 	return idr_find(&icc_idr, id);
 }
 
-static struct icc_path *path_init(struct device *dev, struct icc_node *dst,
-				  ssize_t num_nodes)
+static struct icc_path *path_init(struct device *dev, struct icc_yesde *dst,
+				  ssize_t num_yesdes)
 {
-	struct icc_node *node = dst;
+	struct icc_yesde *yesde = dst;
 	struct icc_path *path;
 	int i;
 
-	path = kzalloc(struct_size(path, reqs, num_nodes), GFP_KERNEL);
+	path = kzalloc(struct_size(path, reqs, num_yesdes), GFP_KERNEL);
 	if (!path)
 		return ERR_PTR(-ENOMEM);
 
-	path->num_nodes = num_nodes;
+	path->num_yesdes = num_yesdes;
 
-	for (i = num_nodes - 1; i >= 0; i--) {
-		node->provider->users++;
-		hlist_add_head(&path->reqs[i].req_node, &node->req_list);
-		path->reqs[i].node = node;
+	for (i = num_yesdes - 1; i >= 0; i--) {
+		yesde->provider->users++;
+		hlist_add_head(&path->reqs[i].req_yesde, &yesde->req_list);
+		path->reqs[i].yesde = yesde;
 		path->reqs[i].dev = dev;
-		/* reference to previous node was saved during path traversal */
-		node = node->reverse;
+		/* reference to previous yesde was saved during path traversal */
+		yesde = yesde->reverse;
 	}
 
 	return path;
 }
 
-static struct icc_path *path_find(struct device *dev, struct icc_node *src,
-				  struct icc_node *dst)
+static struct icc_path *path_find(struct device *dev, struct icc_yesde *src,
+				  struct icc_yesde *dst)
 {
 	struct icc_path *path = ERR_PTR(-EPROBE_DEFER);
-	struct icc_node *n, *node = NULL;
+	struct icc_yesde *n, *yesde = NULL;
 	struct list_head traverse_list;
 	struct list_head edge_list;
 	struct list_head visited_list;
@@ -143,15 +143,15 @@ static struct icc_path *path_find(struct device *dev, struct icc_node *src,
 	src->reverse = NULL;
 
 	do {
-		list_for_each_entry_safe(node, n, &traverse_list, search_list) {
-			if (node == dst) {
+		list_for_each_entry_safe(yesde, n, &traverse_list, search_list) {
+			if (yesde == dst) {
 				found = true;
 				list_splice_init(&edge_list, &visited_list);
 				list_splice_init(&traverse_list, &visited_list);
 				break;
 			}
-			for (i = 0; i < node->num_links; i++) {
-				struct icc_node *tmp = node->links[i];
+			for (i = 0; i < yesde->num_links; i++) {
+				struct icc_yesde *tmp = yesde->links[i];
 
 				if (!tmp) {
 					path = ERR_PTR(-ENOENT);
@@ -162,7 +162,7 @@ static struct icc_path *path_find(struct device *dev, struct icc_node *src,
 					continue;
 
 				tmp->is_traversed = true;
-				tmp->reverse = node;
+				tmp->reverse = yesde;
 				list_add_tail(&tmp->search_list, &edge_list);
 			}
 		}
@@ -191,38 +191,38 @@ out:
 }
 
 /*
- * We want the path to honor all bandwidth requests, so the average and peak
- * bandwidth requirements from each consumer are aggregated at each node.
+ * We want the path to hoyesr all bandwidth requests, so the average and peak
+ * bandwidth requirements from each consumer are aggregated at each yesde.
  * The aggregation is platform specific, so each platform can customize it by
  * implementing its own aggregate() function.
  */
 
-static int aggregate_requests(struct icc_node *node)
+static int aggregate_requests(struct icc_yesde *yesde)
 {
-	struct icc_provider *p = node->provider;
+	struct icc_provider *p = yesde->provider;
 	struct icc_req *r;
 
-	node->avg_bw = 0;
-	node->peak_bw = 0;
+	yesde->avg_bw = 0;
+	yesde->peak_bw = 0;
 
 	if (p->pre_aggregate)
-		p->pre_aggregate(node);
+		p->pre_aggregate(yesde);
 
-	hlist_for_each_entry(r, &node->req_list, req_node)
-		p->aggregate(node, r->tag, r->avg_bw, r->peak_bw,
-			     &node->avg_bw, &node->peak_bw);
+	hlist_for_each_entry(r, &yesde->req_list, req_yesde)
+		p->aggregate(yesde, r->tag, r->avg_bw, r->peak_bw,
+			     &yesde->avg_bw, &yesde->peak_bw);
 
 	return 0;
 }
 
 static int apply_constraints(struct icc_path *path)
 {
-	struct icc_node *next, *prev = NULL;
+	struct icc_yesde *next, *prev = NULL;
 	int ret = -EINVAL;
 	int i;
 
-	for (i = 0; i < path->num_nodes; i++) {
-		next = path->reqs[i].node;
+	for (i = 0; i < path->num_yesdes; i++) {
+		next = path->reqs[i].yesde;
 
 		/*
 		 * Both endpoints should be valid master-slave pairs of the
@@ -245,43 +245,43 @@ out:
 }
 
 /* of_icc_xlate_onecell() - Translate function using a single index.
- * @spec: OF phandle args to map into an interconnect node.
+ * @spec: OF phandle args to map into an interconnect yesde.
  * @data: private data (pointer to struct icc_onecell_data)
  *
  * This is a generic translate function that can be used to model simple
- * interconnect providers that have one device tree node and provide
- * multiple interconnect nodes. A single cell is used as an index into
- * an array of icc nodes specified in the icc_onecell_data struct when
+ * interconnect providers that have one device tree yesde and provide
+ * multiple interconnect yesdes. A single cell is used as an index into
+ * an array of icc yesdes specified in the icc_onecell_data struct when
  * registering the provider.
  */
-struct icc_node *of_icc_xlate_onecell(struct of_phandle_args *spec,
+struct icc_yesde *of_icc_xlate_onecell(struct of_phandle_args *spec,
 				      void *data)
 {
 	struct icc_onecell_data *icc_data = data;
 	unsigned int idx = spec->args[0];
 
-	if (idx >= icc_data->num_nodes) {
+	if (idx >= icc_data->num_yesdes) {
 		pr_err("%s: invalid index %u\n", __func__, idx);
 		return ERR_PTR(-EINVAL);
 	}
 
-	return icc_data->nodes[idx];
+	return icc_data->yesdes[idx];
 }
 EXPORT_SYMBOL_GPL(of_icc_xlate_onecell);
 
 /**
- * of_icc_get_from_provider() - Look-up interconnect node
+ * of_icc_get_from_provider() - Look-up interconnect yesde
  * @spec: OF phandle args to use for look-up
  *
- * Looks for interconnect provider under the node specified by @spec and if
- * found, uses xlate function of the provider to map phandle args to node.
+ * Looks for interconnect provider under the yesde specified by @spec and if
+ * found, uses xlate function of the provider to map phandle args to yesde.
  *
- * Returns a valid pointer to struct icc_node on success or ERR_PTR()
+ * Returns a valid pointer to struct icc_yesde on success or ERR_PTR()
  * on failure.
  */
-static struct icc_node *of_icc_get_from_provider(struct of_phandle_args *spec)
+static struct icc_yesde *of_icc_get_from_provider(struct of_phandle_args *spec)
 {
-	struct icc_node *node = ERR_PTR(-EPROBE_DEFER);
+	struct icc_yesde *yesde = ERR_PTR(-EPROBE_DEFER);
 	struct icc_provider *provider;
 
 	if (!spec || spec->args_count != 1)
@@ -289,24 +289,24 @@ static struct icc_node *of_icc_get_from_provider(struct of_phandle_args *spec)
 
 	mutex_lock(&icc_lock);
 	list_for_each_entry(provider, &icc_providers, provider_list) {
-		if (provider->dev->of_node == spec->np)
-			node = provider->xlate(spec, provider->data);
-		if (!IS_ERR(node))
+		if (provider->dev->of_yesde == spec->np)
+			yesde = provider->xlate(spec, provider->data);
+		if (!IS_ERR(yesde))
 			break;
 	}
 	mutex_unlock(&icc_lock);
 
-	return node;
+	return yesde;
 }
 
 /**
- * of_icc_get() - get a path handle from a DT node based on name
+ * of_icc_get() - get a path handle from a DT yesde based on name
  * @dev: device pointer for the consumer device
  * @name: interconnect path name
  *
  * This function will search for a path between two endpoints and return an
  * icc_path handle on success. Use icc_put() to release constraints when they
- * are not needed anymore.
+ * are yest needed anymore.
  * If the interconnect API is disabled, NULL is returned and the consumer
  * drivers will still build. Drivers are free to handle this specifically,
  * but they don't have to.
@@ -317,26 +317,26 @@ static struct icc_node *of_icc_get_from_provider(struct of_phandle_args *spec)
 struct icc_path *of_icc_get(struct device *dev, const char *name)
 {
 	struct icc_path *path = ERR_PTR(-EPROBE_DEFER);
-	struct icc_node *src_node, *dst_node;
-	struct device_node *np = NULL;
+	struct icc_yesde *src_yesde, *dst_yesde;
+	struct device_yesde *np = NULL;
 	struct of_phandle_args src_args, dst_args;
 	int idx = 0;
 	int ret;
 
-	if (!dev || !dev->of_node)
+	if (!dev || !dev->of_yesde)
 		return ERR_PTR(-ENODEV);
 
-	np = dev->of_node;
+	np = dev->of_yesde;
 
 	/*
-	 * When the consumer DT node do not have "interconnects" property
+	 * When the consumer DT yesde do yest have "interconnects" property
 	 * return a NULL path to skip setting constraints.
 	 */
 	if (!of_find_property(np, "interconnects", NULL))
 		return NULL;
 
 	/*
-	 * We use a combination of phandle and specifier for endpoint. For now
+	 * We use a combination of phandle and specifier for endpoint. For yesw
 	 * lets support only global ids and extend this in the future if needed
 	 * without breaking DT compatibility.
 	 */
@@ -352,7 +352,7 @@ struct icc_path *of_icc_get(struct device *dev, const char *name)
 	if (ret)
 		return ERR_PTR(ret);
 
-	of_node_put(src_args.np);
+	of_yesde_put(src_args.np);
 
 	ret = of_parse_phandle_with_args(np, "interconnects",
 					 "#interconnect-cells", idx * 2 + 1,
@@ -360,28 +360,28 @@ struct icc_path *of_icc_get(struct device *dev, const char *name)
 	if (ret)
 		return ERR_PTR(ret);
 
-	of_node_put(dst_args.np);
+	of_yesde_put(dst_args.np);
 
-	src_node = of_icc_get_from_provider(&src_args);
+	src_yesde = of_icc_get_from_provider(&src_args);
 
-	if (IS_ERR(src_node)) {
-		if (PTR_ERR(src_node) != -EPROBE_DEFER)
-			dev_err(dev, "error finding src node: %ld\n",
-				PTR_ERR(src_node));
-		return ERR_CAST(src_node);
+	if (IS_ERR(src_yesde)) {
+		if (PTR_ERR(src_yesde) != -EPROBE_DEFER)
+			dev_err(dev, "error finding src yesde: %ld\n",
+				PTR_ERR(src_yesde));
+		return ERR_CAST(src_yesde);
 	}
 
-	dst_node = of_icc_get_from_provider(&dst_args);
+	dst_yesde = of_icc_get_from_provider(&dst_args);
 
-	if (IS_ERR(dst_node)) {
-		if (PTR_ERR(dst_node) != -EPROBE_DEFER)
-			dev_err(dev, "error finding dst node: %ld\n",
-				PTR_ERR(dst_node));
-		return ERR_CAST(dst_node);
+	if (IS_ERR(dst_yesde)) {
+		if (PTR_ERR(dst_yesde) != -EPROBE_DEFER)
+			dev_err(dev, "error finding dst yesde: %ld\n",
+				PTR_ERR(dst_yesde));
+		return ERR_CAST(dst_yesde);
 	}
 
 	mutex_lock(&icc_lock);
-	path = path_find(dev, src_node, dst_node);
+	path = path_find(dev, src_yesde, dst_yesde);
 	if (IS_ERR(path))
 		dev_err(dev, "%s: invalid path=%ld\n", __func__, PTR_ERR(path));
 	mutex_unlock(&icc_lock);
@@ -407,7 +407,7 @@ void icc_set_tag(struct icc_path *path, u32 tag)
 
 	mutex_lock(&icc_lock);
 
-	for (i = 0; i < path->num_nodes; i++)
+	for (i = 0; i < path->num_yesdes; i++)
 		path->reqs[i].tag = tag;
 
 	mutex_unlock(&icc_lock);
@@ -422,21 +422,21 @@ EXPORT_SYMBOL_GPL(icc_set_tag);
  *
  * This function is used by an interconnect consumer to express its own needs
  * in terms of bandwidth for a previously requested path between two endpoints.
- * The requests are aggregated and each node is updated accordingly. The entire
+ * The requests are aggregated and each yesde is updated accordingly. The entire
  * path is locked by a mutex to ensure that the set() is completed.
  * The @path can be NULL when the "interconnects" DT properties is missing,
- * which will mean that no constraints will be set.
+ * which will mean that yes constraints will be set.
  *
  * Returns 0 on success, or an appropriate error code otherwise.
  */
 int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 {
-	struct icc_node *node;
+	struct icc_yesde *yesde;
 	u32 old_avg, old_peak;
 	size_t i;
 	int ret;
 
-	if (!path || !path->num_nodes)
+	if (!path || !path->num_yesdes)
 		return 0;
 
 	mutex_lock(&icc_lock);
@@ -444,15 +444,15 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 	old_avg = path->reqs[0].avg_bw;
 	old_peak = path->reqs[0].peak_bw;
 
-	for (i = 0; i < path->num_nodes; i++) {
-		node = path->reqs[i].node;
+	for (i = 0; i < path->num_yesdes; i++) {
+		yesde = path->reqs[i].yesde;
 
 		/* update the consumer request for this path */
 		path->reqs[i].avg_bw = avg_bw;
 		path->reqs[i].peak_bw = peak_bw;
 
-		/* aggregate requests for this node */
-		aggregate_requests(node);
+		/* aggregate requests for this yesde */
+		aggregate_requests(yesde);
 	}
 
 	ret = apply_constraints(path);
@@ -460,11 +460,11 @@ int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 		pr_debug("interconnect: error applying constraints (%d)\n",
 			 ret);
 
-		for (i = 0; i < path->num_nodes; i++) {
-			node = path->reqs[i].node;
+		for (i = 0; i < path->num_yesdes; i++) {
+			yesde = path->reqs[i].yesde;
 			path->reqs[i].avg_bw = old_avg;
 			path->reqs[i].peak_bw = old_peak;
-			aggregate_requests(node);
+			aggregate_requests(yesde);
 		}
 		apply_constraints(path);
 	}
@@ -483,7 +483,7 @@ EXPORT_SYMBOL_GPL(icc_set_bw);
  *
  * This function will search for a path between two endpoints and return an
  * icc_path handle on success. Use icc_put() to release
- * constraints when they are not needed anymore.
+ * constraints when they are yest needed anymore.
  * If the interconnect API is disabled, NULL is returned and the consumer
  * drivers will still build. Drivers are free to handle this specifically,
  * but they don't have to.
@@ -493,16 +493,16 @@ EXPORT_SYMBOL_GPL(icc_set_bw);
  */
 struct icc_path *icc_get(struct device *dev, const int src_id, const int dst_id)
 {
-	struct icc_node *src, *dst;
+	struct icc_yesde *src, *dst;
 	struct icc_path *path = ERR_PTR(-EPROBE_DEFER);
 
 	mutex_lock(&icc_lock);
 
-	src = node_find(src_id);
+	src = yesde_find(src_id);
 	if (!src)
 		goto out;
 
-	dst = node_find(dst_id);
+	dst = yesde_find(dst_id);
 	if (!dst)
 		goto out;
 
@@ -521,11 +521,11 @@ EXPORT_SYMBOL_GPL(icc_get);
  * @path: interconnect path
  *
  * Use this function to release the constraints on a path when the path is
- * no longer needed. The constraints will be re-aggregated.
+ * yes longer needed. The constraints will be re-aggregated.
  */
 void icc_put(struct icc_path *path)
 {
-	struct icc_node *node;
+	struct icc_yesde *yesde;
 	size_t i;
 	int ret;
 
@@ -537,11 +537,11 @@ void icc_put(struct icc_path *path)
 		pr_err("%s: error (%d)\n", __func__, ret);
 
 	mutex_lock(&icc_lock);
-	for (i = 0; i < path->num_nodes; i++) {
-		node = path->reqs[i].node;
-		hlist_del(&path->reqs[i].req_node);
-		if (!WARN_ON(!node->provider->users))
-			node->provider->users--;
+	for (i = 0; i < path->num_yesdes; i++) {
+		yesde = path->reqs[i].yesde;
+		hlist_del(&path->reqs[i].req_yesde);
+		if (!WARN_ON(!yesde->provider->users))
+			yesde->provider->users--;
 	}
 	mutex_unlock(&icc_lock);
 
@@ -549,100 +549,100 @@ void icc_put(struct icc_path *path)
 }
 EXPORT_SYMBOL_GPL(icc_put);
 
-static struct icc_node *icc_node_create_nolock(int id)
+static struct icc_yesde *icc_yesde_create_yeslock(int id)
 {
-	struct icc_node *node;
+	struct icc_yesde *yesde;
 
-	/* check if node already exists */
-	node = node_find(id);
-	if (node)
-		return node;
+	/* check if yesde already exists */
+	yesde = yesde_find(id);
+	if (yesde)
+		return yesde;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+	if (!yesde)
 		return ERR_PTR(-ENOMEM);
 
-	id = idr_alloc(&icc_idr, node, id, id + 1, GFP_KERNEL);
+	id = idr_alloc(&icc_idr, yesde, id, id + 1, GFP_KERNEL);
 	if (id < 0) {
 		WARN(1, "%s: couldn't get idr\n", __func__);
-		kfree(node);
+		kfree(yesde);
 		return ERR_PTR(id);
 	}
 
-	node->id = id;
+	yesde->id = id;
 
-	return node;
+	return yesde;
 }
 
 /**
- * icc_node_create() - create a node
- * @id: node id
+ * icc_yesde_create() - create a yesde
+ * @id: yesde id
  *
- * Return: icc_node pointer on success, or ERR_PTR() on error
+ * Return: icc_yesde pointer on success, or ERR_PTR() on error
  */
-struct icc_node *icc_node_create(int id)
+struct icc_yesde *icc_yesde_create(int id)
 {
-	struct icc_node *node;
+	struct icc_yesde *yesde;
 
 	mutex_lock(&icc_lock);
 
-	node = icc_node_create_nolock(id);
+	yesde = icc_yesde_create_yeslock(id);
 
 	mutex_unlock(&icc_lock);
 
-	return node;
+	return yesde;
 }
-EXPORT_SYMBOL_GPL(icc_node_create);
+EXPORT_SYMBOL_GPL(icc_yesde_create);
 
 /**
- * icc_node_destroy() - destroy a node
- * @id: node id
+ * icc_yesde_destroy() - destroy a yesde
+ * @id: yesde id
  */
-void icc_node_destroy(int id)
+void icc_yesde_destroy(int id)
 {
-	struct icc_node *node;
+	struct icc_yesde *yesde;
 
 	mutex_lock(&icc_lock);
 
-	node = node_find(id);
-	if (node) {
-		idr_remove(&icc_idr, node->id);
-		WARN_ON(!hlist_empty(&node->req_list));
+	yesde = yesde_find(id);
+	if (yesde) {
+		idr_remove(&icc_idr, yesde->id);
+		WARN_ON(!hlist_empty(&yesde->req_list));
 	}
 
 	mutex_unlock(&icc_lock);
 
-	kfree(node);
+	kfree(yesde);
 }
-EXPORT_SYMBOL_GPL(icc_node_destroy);
+EXPORT_SYMBOL_GPL(icc_yesde_destroy);
 
 /**
- * icc_link_create() - create a link between two nodes
- * @node: source node id
- * @dst_id: destination node id
+ * icc_link_create() - create a link between two yesdes
+ * @yesde: source yesde id
+ * @dst_id: destination yesde id
  *
- * Create a link between two nodes. The nodes might belong to different
- * interconnect providers and the @dst_id node might not exist (if the
- * provider driver has not probed yet). So just create the @dst_id node
- * and when the actual provider driver is probed, the rest of the node
+ * Create a link between two yesdes. The yesdes might belong to different
+ * interconnect providers and the @dst_id yesde might yest exist (if the
+ * provider driver has yest probed yet). So just create the @dst_id yesde
+ * and when the actual provider driver is probed, the rest of the yesde
  * data is filled.
  *
  * Return: 0 on success, or an error code otherwise
  */
-int icc_link_create(struct icc_node *node, const int dst_id)
+int icc_link_create(struct icc_yesde *yesde, const int dst_id)
 {
-	struct icc_node *dst;
-	struct icc_node **new;
+	struct icc_yesde *dst;
+	struct icc_yesde **new;
 	int ret = 0;
 
-	if (!node->provider)
+	if (!yesde->provider)
 		return -EINVAL;
 
 	mutex_lock(&icc_lock);
 
-	dst = node_find(dst_id);
+	dst = yesde_find(dst_id);
 	if (!dst) {
-		dst = icc_node_create_nolock(dst_id);
+		dst = icc_yesde_create_yeslock(dst_id);
 
 		if (IS_ERR(dst)) {
 			ret = PTR_ERR(dst);
@@ -650,16 +650,16 @@ int icc_link_create(struct icc_node *node, const int dst_id)
 		}
 	}
 
-	new = krealloc(node->links,
-		       (node->num_links + 1) * sizeof(*node->links),
+	new = krealloc(yesde->links,
+		       (yesde->num_links + 1) * sizeof(*yesde->links),
 		       GFP_KERNEL);
 	if (!new) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	node->links = new;
-	node->links[node->num_links++] = dst;
+	yesde->links = new;
+	yesde->links[yesde->num_links++] = dst;
 
 out:
 	mutex_unlock(&icc_lock);
@@ -669,15 +669,15 @@ out:
 EXPORT_SYMBOL_GPL(icc_link_create);
 
 /**
- * icc_link_destroy() - destroy a link between two nodes
- * @src: pointer to source node
- * @dst: pointer to destination node
+ * icc_link_destroy() - destroy a link between two yesdes
+ * @src: pointer to source yesde
+ * @dst: pointer to destination yesde
  *
  * Return: 0 on success, or an error code otherwise
  */
-int icc_link_destroy(struct icc_node *src, struct icc_node *dst)
+int icc_link_destroy(struct icc_yesde *src, struct icc_yesde *dst)
 {
-	struct icc_node **new;
+	struct icc_yesde **new;
 	size_t slot;
 	int ret = 0;
 
@@ -713,34 +713,34 @@ out:
 EXPORT_SYMBOL_GPL(icc_link_destroy);
 
 /**
- * icc_node_add() - add interconnect node to interconnect provider
- * @node: pointer to the interconnect node
+ * icc_yesde_add() - add interconnect yesde to interconnect provider
+ * @yesde: pointer to the interconnect yesde
  * @provider: pointer to the interconnect provider
  */
-void icc_node_add(struct icc_node *node, struct icc_provider *provider)
+void icc_yesde_add(struct icc_yesde *yesde, struct icc_provider *provider)
 {
 	mutex_lock(&icc_lock);
 
-	node->provider = provider;
-	list_add_tail(&node->node_list, &provider->nodes);
+	yesde->provider = provider;
+	list_add_tail(&yesde->yesde_list, &provider->yesdes);
 
 	mutex_unlock(&icc_lock);
 }
-EXPORT_SYMBOL_GPL(icc_node_add);
+EXPORT_SYMBOL_GPL(icc_yesde_add);
 
 /**
- * icc_node_del() - delete interconnect node from interconnect provider
- * @node: pointer to the interconnect node
+ * icc_yesde_del() - delete interconnect yesde from interconnect provider
+ * @yesde: pointer to the interconnect yesde
  */
-void icc_node_del(struct icc_node *node)
+void icc_yesde_del(struct icc_yesde *yesde)
 {
 	mutex_lock(&icc_lock);
 
-	list_del(&node->node_list);
+	list_del(&yesde->yesde_list);
 
 	mutex_unlock(&icc_lock);
 }
-EXPORT_SYMBOL_GPL(icc_node_del);
+EXPORT_SYMBOL_GPL(icc_yesde_del);
 
 /**
  * icc_provider_add() - add a new interconnect provider
@@ -757,7 +757,7 @@ int icc_provider_add(struct icc_provider *provider)
 
 	mutex_lock(&icc_lock);
 
-	INIT_LIST_HEAD(&provider->nodes);
+	INIT_LIST_HEAD(&provider->yesdes);
 	list_add_tail(&provider->provider_list, &icc_providers);
 
 	mutex_unlock(&icc_lock);
@@ -784,8 +784,8 @@ int icc_provider_del(struct icc_provider *provider)
 		return -EBUSY;
 	}
 
-	if (!list_empty(&provider->nodes)) {
-		pr_warn("interconnect provider still has nodes\n");
+	if (!list_empty(&provider->yesdes)) {
+		pr_warn("interconnect provider still has yesdes\n");
 		mutex_unlock(&icc_lock);
 		return -EBUSY;
 	}

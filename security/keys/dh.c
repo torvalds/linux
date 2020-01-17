@@ -91,10 +91,10 @@ static int kdf_alloc(struct kdf_sdesc **sdesc_ret, char *hashname)
 	int size;
 	int err;
 
-	/* allocate synchronous hash */
+	/* allocate synchroyesus hash */
 	tfm = crypto_alloc_shash(hashname, 0, 0);
 	if (IS_ERR(tfm)) {
-		pr_info("could not allocate digest TFM handle %s\n", hashname);
+		pr_info("could yest allocate digest TFM handle %s\n", hashname);
 		return PTR_ERR(tfm);
 	}
 
@@ -326,7 +326,7 @@ long __keyctl_dh_compute(struct keyctl_dh_params __user *params,
 
 	if (!kdfcopy) {
 		/*
-		 * When not using a KDF, buflen 0 is used to read the
+		 * When yest using a KDF, buflen 0 is used to read the
 		 * required buffer length
 		 */
 		if (buflen == 0) {

@@ -211,7 +211,7 @@ out:
  * @regmap: regmap of the PMIC device
  * @reg: register to get the reading
  *
- * Return a positive value on success, errno on failure.
+ * Return a positive value on success, erryes on failure.
  */
 static int intel_xpower_pmic_get_raw_temp(struct regmap *regmap, int reg)
 {
@@ -225,9 +225,9 @@ static int intel_xpower_pmic_get_raw_temp(struct regmap *regmap, int reg)
 	 * need to temporary switch the TS current-source to ondemand, so that
 	 * the GPADC can use it, otherwise we will always read an all 0 value.
 	 *
-	 * Note that the switching from on to on-ondemand is not necessary
+	 * Note that the switching from on to on-ondemand is yest necessary
 	 * when the TS current-source is off (this happens on devices which
-	 * do not use the TS-pin).
+	 * do yest use the TS-pin).
 	 */
 	ret = regmap_read(regmap, AXP288_ADC_TS_PIN_CTRL, &adc_ts_pin_ctrl);
 	if (ret)

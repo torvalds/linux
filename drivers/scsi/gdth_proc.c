@@ -144,7 +144,7 @@ static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
         return(orig_length);
     }
 
-    printk("GDT: Unknown command: %s  Length: %d\n",buffer,length);
+    printk("GDT: Unkyeswn command: %s  Length: %d\n",buffer,length);
     return(-EINVAL);
 }
 
@@ -153,7 +153,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
     gdth_ha_str *ha = shost_priv(host);
     int hlen;
     int id, i, j, k, sec, flag;
-    int no_mdrv = 0, drv_no, is_mirr;
+    int yes_mdrv = 0, drv_yes, is_mirr;
     u32 cnt;
     dma_addr_t paddr;
     int rc = -ENOMEM;
@@ -227,7 +227,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         /* more information: 1. about controller */
         seq_printf(m,
                        " Serial No.:   \t0x%8X\tCache RAM size:\t%d KB\n",
-                       ha->binfo.ser_no, ha->binfo.memsize / 1024);
+                       ha->binfo.ser_yes, ha->binfo.memsize / 1024);
 
     if (ha->more_proc) {
         size_t size = max_t(size_t, GDTH_SCRATCH, sizeof(gdth_hget_str));
@@ -249,7 +249,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
             gdtcmd->u.ioctl.param_size = 3*GDTH_SCRATCH/4;
             gdtcmd->u.ioctl.subfunc = DSK_STATISTICS | L_CTRL_PATTERN;
             gdtcmd->u.ioctl.channel = ha->raw[i].address | INVALID_CHANNEL;
-            pds->bid = ha->raw[i].local_no;
+            pds->bid = ha->raw[i].local_yes;
             pds->first = 0;
             pds->entries = ha->raw[i].pdev_cnt;
             cnt = (3*GDTH_SCRATCH/4 - 5 * sizeof(u32)) /
@@ -283,11 +283,11 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                                    "\n Chn/ID/LUN:   \t%c/%02d/%d    \tName:          \t%s\n",
                                    'A'+i,pdi->target_id,pdi->lun,hrec);
                     flag = TRUE;
-                    pdi->no_ldrive &= 0xffff;
-                    if (pdi->no_ldrive == 0xffff)
+                    pdi->yes_ldrive &= 0xffff;
+                    if (pdi->yes_ldrive == 0xffff)
                         strcpy(hrec,"--");
                     else
-                        sprintf(hrec,"%d",pdi->no_ldrive);
+                        sprintf(hrec,"%d",pdi->yes_ldrive);
                     seq_printf(m,
                                    " Capacity [MB]:\t%-6d    \tTo Log. Drive: \t%s\n",
                                    pdi->blkcnt/(1024*1024/pdi->blksize),
@@ -340,19 +340,19 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         for (i = 0; i < MAX_LDRIVES; ++i) {
             if (!ha->hdr[i].is_logdrv)
                 continue;
-            drv_no = i;
+            drv_yes = i;
             j = k = 0;
             is_mirr = FALSE;
             do {
                 /* 3.a log. drive info */
-                TRACE2(("cache_drv_info() drive no %d\n",drv_no));
+                TRACE2(("cache_drv_info() drive yes %d\n",drv_yes));
                 pcdi = (gdth_cdrinfo_str *)buf;
                 gdtcmd->Service = CACHESERVICE;
                 gdtcmd->OpCode = GDT_IOCTL;
                 gdtcmd->u.ioctl.p_param = paddr;
                 gdtcmd->u.ioctl.param_size = sizeof(gdth_cdrinfo_str);
                 gdtcmd->u.ioctl.subfunc = CACHE_DRV_INFO;
-                gdtcmd->u.ioctl.channel = drv_no;
+                gdtcmd->u.ioctl.channel = drv_yes;
                 if (gdth_execute(host, gdtcmd, cmnd, 30, NULL) != S_OK)
                     break;
                 pcdi->ld_dtype >>= 16;
@@ -368,13 +368,13 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                     strcpy(hrec, "ok");
                 }
                     
-                if (drv_no == i) {
+                if (drv_yes == i) {
                     seq_printf(m,
                                    "\n Number:       \t%-2d        \tStatus:        \t%s\n",
-                                   drv_no, hrec);
+                                   drv_yes, hrec);
                     flag = TRUE;
-                    no_mdrv = pcdi->cd_ldcnt;
-                    if (no_mdrv > 1 || pcdi->ld_slave != -1) {
+                    yes_mdrv = pcdi->cd_ldcnt;
+                    if (yes_mdrv > 1 || pcdi->ld_slave != -1) {
                         is_mirr = TRUE;
                         strcpy(hrec, "RAID-1");
                     } else if (pcdi->ld_dtype == 0) {
@@ -393,20 +393,20 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                 } else {
                     seq_printf(m,
                                    " Slave Number: \t%-2d        \tStatus:        \t%s\n",
-                                   drv_no & 0x7fff, hrec);
+                                   drv_yes & 0x7fff, hrec);
                 }
-                drv_no = pcdi->ld_slave;
-            } while (drv_no != -1);
+                drv_yes = pcdi->ld_slave;
+            } while (drv_yes != -1);
              
             if (is_mirr)
                 seq_printf(m,
                                " Missing Drv.: \t%-2d        \tInvalid Drv.:  \t%d\n",
-                               no_mdrv - j - k, k);
+                               yes_mdrv - j - k, k);
 
             if (!ha->hdr[i].is_arraydrv)
                 strcpy(hrec, "--");
             else
-                sprintf(hrec, "%d", ha->hdr[i].master_no);
+                sprintf(hrec, "%d", ha->hdr[i].master_yes);
             seq_printf(m,
                            " To Array Drv.:\t%s\n", hrec);
         }       
@@ -422,7 +422,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
             if (!(ha->hdr[i].is_arraydrv && ha->hdr[i].is_master))
                 continue;
             /* 4.a array drive info */
-            TRACE2(("array_info() drive no %d\n",i));
+            TRACE2(("array_info() drive yes %d\n",i));
             pai = (gdth_arrayinf_str *)buf;
             gdtcmd->Service = CACHESERVICE;
             gdtcmd->OpCode = GDT_IOCTL;
@@ -479,7 +479,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                 (ha->hdr[i].is_arraydrv && !ha->hdr[i].is_master))
                 continue;
             /* 5.a get host drive list */
-            TRACE2(("host_get() drv_no %d\n",i));           
+            TRACE2(("host_get() drv_yes %d\n",i));           
             phg = (gdth_hget_str *)buf;
             gdtcmd->Service = CACHESERVICE;
             gdtcmd->OpCode = GDT_IOCTL;
@@ -490,7 +490,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
             phg->entries = MAX_HDRIVES;
             phg->offset = GDTOFFSOF(gdth_hget_str, entry[0]); 
             if (gdth_execute(host, gdtcmd, cmnd, 30, NULL) == S_OK) {
-                ha->hdr[i].ldr_no = i;
+                ha->hdr[i].ldr_yes = i;
                 ha->hdr[i].rw_attribs = 0;
                 ha->hdr[i].start_sec = 0;
             } else {
@@ -498,7 +498,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                     k = phg->entry[j].host_drive;
                     if (k >= MAX_LDRIVES)
                         continue;
-                    ha->hdr[k].ldr_no = phg->entry[j].log_drive;
+                    ha->hdr[k].ldr_yes = phg->entry[j].log_drive;
                     ha->hdr[k].rw_attribs = phg->entry[j].rw_attribs;
                     ha->hdr[k].start_sec = phg->entry[j].start_sec;
                 }
@@ -512,7 +512,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
               
             seq_printf(m,
                            "\n Number:       \t%-2d        \tArr/Log. Drive:\t%d\n",
-                           i, ha->hdr[i].ldr_no);
+                           i, ha->hdr[i].ldr_yes);
             flag = TRUE;
 
             seq_printf(m,
@@ -531,7 +531,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         id = gdth_read_event(ha, id, estr);
         if (estr->event_source == 0)
             break;
-        if (estr->event_data.eu.driver.ionode == ha->hanum &&
+        if (estr->event_data.eu.driver.ioyesde == ha->hanum &&
             estr->event_source == ES_ASYNC) { 
             gdth_log_event(&estr->event_data, hrec);
 

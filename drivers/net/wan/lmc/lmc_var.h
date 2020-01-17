@@ -166,9 +166,9 @@ struct lmc___ctl {
 	u32	clock_rate;		/* T1 */
 	u32	crc_length;
 	u32	cable_length;		/* DS3 */
-	u32	scrambler_onoff;	/* DS3 */
+	u32	scrambler_oyesff;	/* DS3 */
 	u32	cable_type;		/* T1 */
-	u32	keepalive_onoff;	/* protocol */
+	u32	keepalive_oyesff;	/* protocol */
 	u32	ticks;			/* ticks/sec */
 	union {
 		lmc_av9110_t	ssi;
@@ -270,7 +270,7 @@ typedef struct lmc_xinfo {
 	u32       PciSlotNumber;          /* PCI slot number       */
 
 	u16	       DriverMajorVersion;
-	u16	       DriverMinorVersion;
+	u16	       DriverMiyesrVersion;
 	u16	       DriverSubVersion;
 
 	u16	       XilinxRevisionNumber;
@@ -411,7 +411,7 @@ struct lmc___softc {
 #define TULIP_WATCHDOG_RXDISABLE 0x00000010L
 
 #define TULIP_STS_NORMALINTR    0x00010000L /* (RW)  Normal Interrupt */
-#define TULIP_STS_ABNRMLINTR    0x00008000L /* (RW)  Abnormal Interrupt */
+#define TULIP_STS_ABNRMLINTR    0x00008000L /* (RW)  Abyesrmal Interrupt */
 #define TULIP_STS_ERI           0x00004000L /* (RW)  Early Receive Interrupt */
 #define TULIP_STS_SYSERROR      0x00002000L /* (RW)  System Error */
 #define TULIP_STS_GTE           0x00000800L /* (RW)  General Pupose Timer Exp */

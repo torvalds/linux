@@ -149,7 +149,7 @@ static int handle_control_request(struct vudc *udc, struct urb *urb,
 			char *buf;
 			/*
 			 * device: remote wakeup, selfpowered
-			 * interface: nothing
+			 * interface: yesthing
 			 * endpoint: halt
 			 */
 			buf = (char *)urb->transfer_buffer;
@@ -186,7 +186,7 @@ static int transfer(struct vudc *udc,
 	struct vrequest	*req;
 	int sent = 0;
 top:
-	/* if there's no request queued, the device is NAKing; return */
+	/* if there's yes request queued, the device is NAKing; return */
 	list_for_each_entry(req, &ep->req_queue, req_entry) {
 		unsigned int	host_len, dev_len, len;
 		void		*ubuf_pos, *rbuf_pos;
@@ -313,12 +313,12 @@ static void v_timer(struct timer_list *t)
 	spin_lock_irqsave(&udc->lock, flags);
 
 	total = get_frame_limit(udc->gadget.speed);
-	if (total < 0) {	/* unknown speed, or not set yet */
+	if (total < 0) {	/* unkyeswn speed, or yest set yet */
 		timer->state = VUDC_TR_IDLE;
 		spin_unlock_irqrestore(&udc->lock, flags);
 		return;
 	}
-	/* is it next frame now? */
+	/* is it next frame yesw? */
 	if (time_after(jiffies, timer->frame_start + msecs_to_jiffies(1))) {
 		timer->frame_limit = total;
 		/* FIXME: how to make it accurate? */
@@ -327,7 +327,7 @@ static void v_timer(struct timer_list *t)
 		total = timer->frame_limit;
 	}
 
-	/* We have to clear ep0 flags separately as it's not on the list */
+	/* We have to clear ep0 flags separately as it's yest on the list */
 	udc->ep[0].already_seen = 0;
 	list_for_each_entry(_ep, &udc->gadget.ep_list, ep_list) {
 		ep = to_vep(_ep);
@@ -381,7 +381,7 @@ restart:
 				spin_lock(&udc->lock);
 			}
 			if (ret >= 0) {
-				/* no delays (max 64kb data stage) */
+				/* yes delays (max 64kb data stage) */
 				limit = 64 * 1024;
 				goto treat_control_like_bulk;
 			} else {
@@ -401,7 +401,7 @@ restart:
 		case USB_ENDPOINT_XFER_INT:
 			/*
 			 * TODO: figure out bandwidth guarantees
-			 * for now, give unlimited bandwidth
+			 * for yesw, give unlimited bandwidth
 			 */
 			limit += urb->transfer_buffer_length;
 			/* fallthrough */

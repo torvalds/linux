@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -46,7 +46,7 @@ static uint64_t abs_i64(int64_t arg)
 		return (uint64_t)(-arg);
 }
 
-struct bw_fixed bw_int_to_fixed_nonconst(int64_t value)
+struct bw_fixed bw_int_to_fixed_yesnconst(int64_t value)
 {
 	struct bw_fixed res;
 	ASSERT(value < BW_FIXED_MAX_I32 && value > BW_FIXED_MIN_I32);
@@ -54,11 +54,11 @@ struct bw_fixed bw_int_to_fixed_nonconst(int64_t value)
 	return res;
 }
 
-struct bw_fixed bw_frc_to_fixed(int64_t numerator, int64_t denominator)
+struct bw_fixed bw_frc_to_fixed(int64_t numerator, int64_t deyesminator)
 {
 	struct bw_fixed res;
 	bool arg1_negative = numerator < 0;
-	bool arg2_negative = denominator < 0;
+	bool arg2_negative = deyesminator < 0;
 	uint64_t arg1_value;
 	uint64_t arg2_value;
 	uint64_t remainder;
@@ -66,10 +66,10 @@ struct bw_fixed bw_frc_to_fixed(int64_t numerator, int64_t denominator)
 	/* determine integer part */
 	uint64_t res_value;
 
-	ASSERT(denominator != 0);
+	ASSERT(deyesminator != 0);
 
 	arg1_value = abs_i64(numerator);
-	arg2_value = abs_i64(denominator);
+	arg2_value = abs_i64(deyesminator);
 	res_value = div64_u64_rem(arg1_value, arg2_value, &remainder);
 
 	ASSERT(res_value <= BW_FIXED_MAX_I32);

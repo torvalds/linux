@@ -49,7 +49,7 @@ static pte_t *__get_pte_phys(unsigned long addr)
 	pmd_t *pmd;
 
 	pgd = pgd_offset_k(addr);
-	if (pgd_none(*pgd)) {
+	if (pgd_yesne(*pgd)) {
 		pgd_ERROR(*pgd);
 		return NULL;
 	}
@@ -74,7 +74,7 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 	pte_t *pte;
 
 	pte = __get_pte_phys(addr);
-	if (!pte_none(*pte)) {
+	if (!pte_yesne(*pte)) {
 		pte_ERROR(*pte);
 		return;
 	}
@@ -125,7 +125,7 @@ void __clear_fixmap(enum fixed_addresses idx, pgprot_t prot)
 
 static pmd_t * __init one_md_table_init(pud_t *pud)
 {
-	if (pud_none(*pud)) {
+	if (pud_yesne(*pud)) {
 		pmd_t *pmd;
 
 		pmd = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
@@ -141,7 +141,7 @@ static pmd_t * __init one_md_table_init(pud_t *pud)
 
 static pte_t * __init one_page_table_init(pmd_t *pmd)
 {
-	if (pmd_none(*pmd)) {
+	if (pmd_yesne(*pmd)) {
 		pte_t *pte;
 
 		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
@@ -208,11 +208,11 @@ void __init allocate_pgdat(unsigned int nid)
 				SMP_CACHE_BYTES, MEMBLOCK_LOW_LIMIT,
 				MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 	if (!NODE_DATA(nid))
-		panic("Can't allocate pgdat for node %d\n", nid);
+		panic("Can't allocate pgdat for yesde %d\n", nid);
 #endif
 
-	NODE_DATA(nid)->node_start_pfn = start_pfn;
-	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
+	NODE_DATA(nid)->yesde_start_pfn = start_pfn;
+	NODE_DATA(nid)->yesde_spanned_pages = end_pfn - start_pfn;
 }
 
 static void __init do_init_bootmem(void)
@@ -227,14 +227,14 @@ static void __init do_init_bootmem(void)
 		__add_active_range(0, start_pfn, end_pfn);
 	}
 
-	/* All of system RAM sits in node 0 for the non-NUMA case */
+	/* All of system RAM sits in yesde 0 for the yesn-NUMA case */
 	allocate_pgdat(0);
-	node_set_online(0);
+	yesde_set_online(0);
 
 	plat_mem_setup();
 
 	for_each_memblock(memory, reg) {
-		int nid = memblock_get_region_node(reg);
+		int nid = memblock_get_region_yesde(reg);
 
 		memory_present(nid, memblock_region_memory_base_pfn(reg),
 			memblock_region_memory_end_pfn(reg));
@@ -249,7 +249,7 @@ static void __init early_reserve_mem(void)
 	u32 start = zero_base + (u32)CONFIG_ZERO_PAGE_OFFSET;
 
 	/*
-	 * Partially used pages are not usable - thus
+	 * Partially used pages are yest usable - thus
 	 * we are rounding upwards:
 	 */
 	start_pfn = PFN_UP(__pa(_end));
@@ -302,7 +302,7 @@ void __init paging_init(void)
 	max_low_pfn = max_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
 	min_low_pfn = __MEMORY_START >> PAGE_SHIFT;
 
-	nodes_clear(node_online_map);
+	yesdes_clear(yesde_online_map);
 
 	memory_start = (unsigned long)__va(__MEMORY_START);
 	memory_end = memory_start + (memory_limit ?: memblock_phys_mem_size());
@@ -334,7 +334,7 @@ void __init paging_init(void)
 
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
-	free_area_init_nodes(max_zone_pfns);
+	free_area_init_yesdes(max_zone_pfns);
 }
 
 unsigned int mem_init_done = 0;
@@ -423,7 +423,7 @@ int arch_add_memory(int nid, u64 start, u64 size,
 #ifdef CONFIG_NUMA
 int memory_add_physaddr_to_nid(u64 addr)
 {
-	/* Node 0 for now.. */
+	/* Node 0 for yesw.. */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -19,12 +19,12 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nouveau_dmem.h"
-#include "nouveau_drv.h"
-#include "nouveau_chan.h"
-#include "nouveau_dma.h"
-#include "nouveau_mem.h"
-#include "nouveau_bo.h"
+#include "yesuveau_dmem.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_chan.h"
+#include "yesuveau_dma.h"
+#include "yesuveau_mem.h"
+#include "yesuveau_bo.h"
 
 #include <nvif/class.h>
 #include <nvif/object.h>
@@ -35,72 +35,72 @@
 #include <linux/hmm.h>
 
 /*
- * FIXME: this is ugly right now we are using TTM to allocate vram and we pin
+ * FIXME: this is ugly right yesw we are using TTM to allocate vram and we pin
  * it in vram while in use. We likely want to overhaul memory management for
- * nouveau to be more page like (not necessarily with system page size but a
+ * yesuveau to be more page like (yest necessarily with system page size but a
  * bigger page size) at lowest level and have some shim layer on top that would
  * provide the same functionality as TTM.
  */
 #define DMEM_CHUNK_SIZE (2UL << 20)
 #define DMEM_CHUNK_NPAGES (DMEM_CHUNK_SIZE >> PAGE_SHIFT)
 
-enum nouveau_aper {
+enum yesuveau_aper {
 	NOUVEAU_APER_VIRT,
 	NOUVEAU_APER_VRAM,
 	NOUVEAU_APER_HOST,
 };
 
-typedef int (*nouveau_migrate_copy_t)(struct nouveau_drm *drm, u64 npages,
-				      enum nouveau_aper, u64 dst_addr,
-				      enum nouveau_aper, u64 src_addr);
+typedef int (*yesuveau_migrate_copy_t)(struct yesuveau_drm *drm, u64 npages,
+				      enum yesuveau_aper, u64 dst_addr,
+				      enum yesuveau_aper, u64 src_addr);
 
-struct nouveau_dmem_chunk {
+struct yesuveau_dmem_chunk {
 	struct list_head list;
-	struct nouveau_bo *bo;
-	struct nouveau_drm *drm;
+	struct yesuveau_bo *bo;
+	struct yesuveau_drm *drm;
 	unsigned long pfn_first;
 	unsigned long callocated;
 	unsigned long bitmap[BITS_TO_LONGS(DMEM_CHUNK_NPAGES)];
 	spinlock_t lock;
 };
 
-struct nouveau_dmem_migrate {
-	nouveau_migrate_copy_t copy_func;
-	struct nouveau_channel *chan;
+struct yesuveau_dmem_migrate {
+	yesuveau_migrate_copy_t copy_func;
+	struct yesuveau_channel *chan;
 };
 
-struct nouveau_dmem {
-	struct nouveau_drm *drm;
+struct yesuveau_dmem {
+	struct yesuveau_drm *drm;
 	struct dev_pagemap pagemap;
-	struct nouveau_dmem_migrate migrate;
+	struct yesuveau_dmem_migrate migrate;
 	struct list_head chunk_free;
 	struct list_head chunk_full;
 	struct list_head chunk_empty;
 	struct mutex mutex;
 };
 
-static inline struct nouveau_dmem *page_to_dmem(struct page *page)
+static inline struct yesuveau_dmem *page_to_dmem(struct page *page)
 {
-	return container_of(page->pgmap, struct nouveau_dmem, pagemap);
+	return container_of(page->pgmap, struct yesuveau_dmem, pagemap);
 }
 
-static unsigned long nouveau_dmem_page_addr(struct page *page)
+static unsigned long yesuveau_dmem_page_addr(struct page *page)
 {
-	struct nouveau_dmem_chunk *chunk = page->zone_device_data;
+	struct yesuveau_dmem_chunk *chunk = page->zone_device_data;
 	unsigned long idx = page_to_pfn(page) - chunk->pfn_first;
 
 	return (idx << PAGE_SHIFT) + chunk->bo->bo.offset;
 }
 
-static void nouveau_dmem_page_free(struct page *page)
+static void yesuveau_dmem_page_free(struct page *page)
 {
-	struct nouveau_dmem_chunk *chunk = page->zone_device_data;
+	struct yesuveau_dmem_chunk *chunk = page->zone_device_data;
 	unsigned long idx = page_to_pfn(page) - chunk->pfn_first;
 
 	/*
 	 * FIXME:
 	 *
-	 * This is really a bad example, we need to overhaul nouveau memory
+	 * This is really a bad example, we need to overhaul yesuveau memory
 	 * management to be more page focus and allow lighter locking scheme
 	 * to be use in the process.
 	 */
@@ -115,11 +115,11 @@ static void nouveau_dmem_page_free(struct page *page)
 	spin_unlock(&chunk->lock);
 }
 
-static void nouveau_dmem_fence_done(struct nouveau_fence **fence)
+static void yesuveau_dmem_fence_done(struct yesuveau_fence **fence)
 {
 	if (fence) {
-		nouveau_fence_wait(*fence, true, false);
-		nouveau_fence_unref(fence);
+		yesuveau_fence_wait(*fence, true, false);
+		yesuveau_fence_unref(fence);
 	} else {
 		/*
 		 * FIXME wait for channel to be IDLE before calling finalizing
@@ -128,7 +128,7 @@ static void nouveau_dmem_fence_done(struct nouveau_fence **fence)
 	}
 }
 
-static vm_fault_t nouveau_dmem_fault_copy_one(struct nouveau_drm *drm,
+static vm_fault_t yesuveau_dmem_fault_copy_one(struct yesuveau_drm *drm,
 		struct vm_fault *vmf, struct migrate_vma *args,
 		dma_addr_t *dma_addr)
 {
@@ -149,7 +149,7 @@ static vm_fault_t nouveau_dmem_fault_copy_one(struct nouveau_drm *drm,
 		goto error_free_page;
 
 	if (drm->dmem->migrate.copy_func(drm, 1, NOUVEAU_APER_HOST, *dma_addr,
-			NOUVEAU_APER_VRAM, nouveau_dmem_page_addr(spage)))
+			NOUVEAU_APER_VRAM, yesuveau_dmem_page_addr(spage)))
 		goto error_dma_unmap;
 
 	args->dst[0] = migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
@@ -162,11 +162,11 @@ error_free_page:
 	return VM_FAULT_SIGBUS;
 }
 
-static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
+static vm_fault_t yesuveau_dmem_migrate_to_ram(struct vm_fault *vmf)
 {
-	struct nouveau_dmem *dmem = page_to_dmem(vmf->page);
-	struct nouveau_drm *drm = dmem->drm;
-	struct nouveau_fence *fence;
+	struct yesuveau_dmem *dmem = page_to_dmem(vmf->page);
+	struct yesuveau_drm *drm = dmem->drm;
+	struct yesuveau_fence *fence;
 	unsigned long src = 0, dst = 0;
 	dma_addr_t dma_addr = 0;
 	vm_fault_t ret;
@@ -188,28 +188,28 @@ static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
 	if (!args.cpages)
 		return 0;
 
-	ret = nouveau_dmem_fault_copy_one(drm, vmf, &args, &dma_addr);
+	ret = yesuveau_dmem_fault_copy_one(drm, vmf, &args, &dma_addr);
 	if (ret || dst == 0)
 		goto done;
 
-	nouveau_fence_new(dmem->migrate.chan, false, &fence);
+	yesuveau_fence_new(dmem->migrate.chan, false, &fence);
 	migrate_vma_pages(&args);
-	nouveau_dmem_fence_done(&fence);
+	yesuveau_dmem_fence_done(&fence);
 	dma_unmap_page(drm->dev->dev, dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 done:
 	migrate_vma_finalize(&args);
 	return ret;
 }
 
-static const struct dev_pagemap_ops nouveau_dmem_pagemap_ops = {
-	.page_free		= nouveau_dmem_page_free,
-	.migrate_to_ram		= nouveau_dmem_migrate_to_ram,
+static const struct dev_pagemap_ops yesuveau_dmem_pagemap_ops = {
+	.page_free		= yesuveau_dmem_page_free,
+	.migrate_to_ram		= yesuveau_dmem_migrate_to_ram,
 };
 
 static int
-nouveau_dmem_chunk_alloc(struct nouveau_drm *drm)
+yesuveau_dmem_chunk_alloc(struct yesuveau_drm *drm)
 {
-	struct nouveau_dmem_chunk *chunk;
+	struct yesuveau_dmem_chunk *chunk;
 	int ret;
 
 	if (drm->dmem == NULL)
@@ -217,7 +217,7 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm)
 
 	mutex_lock(&drm->dmem->mutex);
 	chunk = list_first_entry_or_null(&drm->dmem->chunk_empty,
-					 struct nouveau_dmem_chunk,
+					 struct yesuveau_dmem_chunk,
 					 list);
 	if (chunk == NULL) {
 		mutex_unlock(&drm->dmem->mutex);
@@ -227,15 +227,15 @@ nouveau_dmem_chunk_alloc(struct nouveau_drm *drm)
 	list_del(&chunk->list);
 	mutex_unlock(&drm->dmem->mutex);
 
-	ret = nouveau_bo_new(&drm->client, DMEM_CHUNK_SIZE, 0,
+	ret = yesuveau_bo_new(&drm->client, DMEM_CHUNK_SIZE, 0,
 			     TTM_PL_FLAG_VRAM, 0, 0, NULL, NULL,
 			     &chunk->bo);
 	if (ret)
 		goto out;
 
-	ret = nouveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
+	ret = yesuveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
 	if (ret) {
-		nouveau_bo_ref(NULL, &chunk->bo);
+		yesuveau_bo_ref(NULL, &chunk->bo);
 		goto out;
 	}
 
@@ -253,19 +253,19 @@ out:
 	return ret;
 }
 
-static struct nouveau_dmem_chunk *
-nouveau_dmem_chunk_first_free_locked(struct nouveau_drm *drm)
+static struct yesuveau_dmem_chunk *
+yesuveau_dmem_chunk_first_free_locked(struct yesuveau_drm *drm)
 {
-	struct nouveau_dmem_chunk *chunk;
+	struct yesuveau_dmem_chunk *chunk;
 
 	chunk = list_first_entry_or_null(&drm->dmem->chunk_free,
-					 struct nouveau_dmem_chunk,
+					 struct yesuveau_dmem_chunk,
 					 list);
 	if (chunk)
 		return chunk;
 
 	chunk = list_first_entry_or_null(&drm->dmem->chunk_empty,
-					 struct nouveau_dmem_chunk,
+					 struct yesuveau_dmem_chunk,
 					 list);
 	if (chunk->bo)
 		return chunk;
@@ -274,11 +274,11 @@ nouveau_dmem_chunk_first_free_locked(struct nouveau_drm *drm)
 }
 
 static int
-nouveau_dmem_pages_alloc(struct nouveau_drm *drm,
+yesuveau_dmem_pages_alloc(struct yesuveau_drm *drm,
 			 unsigned long npages,
 			 unsigned long *pages)
 {
-	struct nouveau_dmem_chunk *chunk;
+	struct yesuveau_dmem_chunk *chunk;
 	unsigned long c;
 	int ret;
 
@@ -288,10 +288,10 @@ nouveau_dmem_pages_alloc(struct nouveau_drm *drm,
 	for (c = 0; c < npages;) {
 		unsigned long i;
 
-		chunk = nouveau_dmem_chunk_first_free_locked(drm);
+		chunk = yesuveau_dmem_chunk_first_free_locked(drm);
 		if (chunk == NULL) {
 			mutex_unlock(&drm->dmem->mutex);
-			ret = nouveau_dmem_chunk_alloc(drm);
+			ret = yesuveau_dmem_chunk_alloc(drm);
 			if (ret) {
 				if (c)
 					return 0;
@@ -320,14 +320,14 @@ nouveau_dmem_pages_alloc(struct nouveau_drm *drm,
 }
 
 static struct page *
-nouveau_dmem_page_alloc_locked(struct nouveau_drm *drm)
+yesuveau_dmem_page_alloc_locked(struct yesuveau_drm *drm)
 {
 	unsigned long pfns[1];
 	struct page *page;
 	int ret;
 
 	/* FIXME stop all the miss-match API ... */
-	ret = nouveau_dmem_pages_alloc(drm, 1, pfns);
+	ret = yesuveau_dmem_pages_alloc(drm, 1, pfns);
 	if (ret)
 		return NULL;
 
@@ -338,16 +338,16 @@ nouveau_dmem_page_alloc_locked(struct nouveau_drm *drm)
 }
 
 static void
-nouveau_dmem_page_free_locked(struct nouveau_drm *drm, struct page *page)
+yesuveau_dmem_page_free_locked(struct yesuveau_drm *drm, struct page *page)
 {
 	unlock_page(page);
 	put_page(page);
 }
 
 void
-nouveau_dmem_resume(struct nouveau_drm *drm)
+yesuveau_dmem_resume(struct yesuveau_drm *drm)
 {
-	struct nouveau_dmem_chunk *chunk;
+	struct yesuveau_dmem_chunk *chunk;
 	int ret;
 
 	if (drm->dmem == NULL)
@@ -355,12 +355,12 @@ nouveau_dmem_resume(struct nouveau_drm *drm)
 
 	mutex_lock(&drm->dmem->mutex);
 	list_for_each_entry (chunk, &drm->dmem->chunk_free, list) {
-		ret = nouveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
+		ret = yesuveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
 		/* FIXME handle pin failure */
 		WARN_ON(ret);
 	}
 	list_for_each_entry (chunk, &drm->dmem->chunk_full, list) {
-		ret = nouveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
+		ret = yesuveau_bo_pin(chunk->bo, TTM_PL_FLAG_VRAM, false);
 		/* FIXME handle pin failure */
 		WARN_ON(ret);
 	}
@@ -368,27 +368,27 @@ nouveau_dmem_resume(struct nouveau_drm *drm)
 }
 
 void
-nouveau_dmem_suspend(struct nouveau_drm *drm)
+yesuveau_dmem_suspend(struct yesuveau_drm *drm)
 {
-	struct nouveau_dmem_chunk *chunk;
+	struct yesuveau_dmem_chunk *chunk;
 
 	if (drm->dmem == NULL)
 		return;
 
 	mutex_lock(&drm->dmem->mutex);
 	list_for_each_entry (chunk, &drm->dmem->chunk_free, list) {
-		nouveau_bo_unpin(chunk->bo);
+		yesuveau_bo_unpin(chunk->bo);
 	}
 	list_for_each_entry (chunk, &drm->dmem->chunk_full, list) {
-		nouveau_bo_unpin(chunk->bo);
+		yesuveau_bo_unpin(chunk->bo);
 	}
 	mutex_unlock(&drm->dmem->mutex);
 }
 
 void
-nouveau_dmem_fini(struct nouveau_drm *drm)
+yesuveau_dmem_fini(struct yesuveau_drm *drm)
 {
-	struct nouveau_dmem_chunk *chunk, *tmp;
+	struct yesuveau_dmem_chunk *chunk, *tmp;
 
 	if (drm->dmem == NULL)
 		return;
@@ -400,8 +400,8 @@ nouveau_dmem_fini(struct nouveau_drm *drm)
 
 	list_for_each_entry_safe (chunk, tmp, &drm->dmem->chunk_empty, list) {
 		if (chunk->bo) {
-			nouveau_bo_unpin(chunk->bo);
-			nouveau_bo_ref(NULL, &chunk->bo);
+			yesuveau_bo_unpin(chunk->bo);
+			yesuveau_bo_ref(NULL, &chunk->bo);
 		}
 		list_del(&chunk->list);
 		kfree(chunk);
@@ -411,11 +411,11 @@ nouveau_dmem_fini(struct nouveau_drm *drm)
 }
 
 static int
-nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
-		    enum nouveau_aper dst_aper, u64 dst_addr,
-		    enum nouveau_aper src_aper, u64 src_addr)
+nvc0b5_migrate_copy(struct yesuveau_drm *drm, u64 npages,
+		    enum yesuveau_aper dst_aper, u64 dst_addr,
+		    enum yesuveau_aper src_aper, u64 src_addr)
 {
-	struct nouveau_channel *chan = drm->dmem->migrate.chan;
+	struct yesuveau_channel *chan = drm->dmem->migrate.chan;
 	u32 launch_dma = (1 << 9) /* MULTI_LINE_ENABLE. */ |
 			 (1 << 8) /* DST_MEMORY_LAYOUT_PITCH. */ |
 			 (1 << 7) /* SRC_MEMORY_LAYOUT_PITCH. */ |
@@ -470,7 +470,7 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 }
 
 static int
-nouveau_dmem_migrate_init(struct nouveau_drm *drm)
+yesuveau_dmem_migrate_init(struct yesuveau_drm *drm)
 {
 	switch (drm->ttm.copy.oclass) {
 	case PASCAL_DMA_COPY_A:
@@ -487,7 +487,7 @@ nouveau_dmem_migrate_init(struct nouveau_drm *drm)
 }
 
 void
-nouveau_dmem_init(struct nouveau_drm *drm)
+yesuveau_dmem_init(struct yesuveau_drm *drm)
 {
 	struct device *device = drm->dev->dev;
 	struct resource *res;
@@ -510,13 +510,13 @@ nouveau_dmem_init(struct nouveau_drm *drm)
 	size = ALIGN(drm->client.device.info.ram_user, DMEM_CHUNK_SIZE);
 
 	/* Initialize migration dma helpers before registering memory */
-	ret = nouveau_dmem_migrate_init(drm);
+	ret = yesuveau_dmem_migrate_init(drm);
 	if (ret)
 		goto out_free;
 
 	/*
 	 * FIXME we need some kind of policy to decide how much VRAM we
-	 * want to register with HMM. For now just register everything
+	 * want to register with HMM. For yesw just register everything
 	 * and latter if we want to do thing like over commit then we
 	 * could revisit this.
 	 */
@@ -525,19 +525,19 @@ nouveau_dmem_init(struct nouveau_drm *drm)
 		goto out_free;
 	drm->dmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
 	drm->dmem->pagemap.res = *res;
-	drm->dmem->pagemap.ops = &nouveau_dmem_pagemap_ops;
+	drm->dmem->pagemap.ops = &yesuveau_dmem_pagemap_ops;
 	if (IS_ERR(devm_memremap_pages(device, &drm->dmem->pagemap)))
 		goto out_free;
 
 	pfn_first = res->start >> PAGE_SHIFT;
 	for (i = 0; i < (size / DMEM_CHUNK_SIZE); ++i) {
-		struct nouveau_dmem_chunk *chunk;
+		struct yesuveau_dmem_chunk *chunk;
 		struct page *page;
 		unsigned long j;
 
 		chunk = kzalloc(sizeof(*chunk), GFP_KERNEL);
 		if (chunk == NULL) {
-			nouveau_dmem_fini(drm);
+			yesuveau_dmem_fini(drm);
 			return;
 		}
 
@@ -557,7 +557,7 @@ out_free:
 	drm->dmem = NULL;
 }
 
-static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
+static unsigned long yesuveau_dmem_migrate_copy_one(struct yesuveau_drm *drm,
 		unsigned long src, dma_addr_t *dma_addr)
 {
 	struct device *dev = drm->dev->dev;
@@ -567,7 +567,7 @@ static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
 	if (!spage || !(src & MIGRATE_PFN_MIGRATE))
 		goto out;
 
-	dpage = nouveau_dmem_page_alloc_locked(drm);
+	dpage = yesuveau_dmem_page_alloc_locked(drm);
 	if (!dpage)
 		return 0;
 
@@ -576,7 +576,7 @@ static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
 		goto out_free_page;
 
 	if (drm->dmem->migrate.copy_func(drm, 1, NOUVEAU_APER_VRAM,
-			nouveau_dmem_page_addr(dpage), NOUVEAU_APER_HOST,
+			yesuveau_dmem_page_addr(dpage), NOUVEAU_APER_HOST,
 			*dma_addr))
 		goto out_dma_unmap;
 
@@ -585,28 +585,28 @@ static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
 out_dma_unmap:
 	dma_unmap_page(dev, *dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
 out_free_page:
-	nouveau_dmem_page_free_locked(drm, dpage);
+	yesuveau_dmem_page_free_locked(drm, dpage);
 out:
 	return 0;
 }
 
-static void nouveau_dmem_migrate_chunk(struct nouveau_drm *drm,
+static void yesuveau_dmem_migrate_chunk(struct yesuveau_drm *drm,
 		struct migrate_vma *args, dma_addr_t *dma_addrs)
 {
-	struct nouveau_fence *fence;
+	struct yesuveau_fence *fence;
 	unsigned long addr = args->start, nr_dma = 0, i;
 
 	for (i = 0; addr < args->end; i++) {
-		args->dst[i] = nouveau_dmem_migrate_copy_one(drm, args->src[i],
+		args->dst[i] = yesuveau_dmem_migrate_copy_one(drm, args->src[i],
 				dma_addrs + nr_dma);
 		if (args->dst[i])
 			nr_dma++;
 		addr += PAGE_SIZE;
 	}
 
-	nouveau_fence_new(drm->dmem->migrate.chan, false, &fence);
+	yesuveau_fence_new(drm->dmem->migrate.chan, false, &fence);
 	migrate_vma_pages(args);
-	nouveau_dmem_fence_done(&fence);
+	yesuveau_dmem_fence_done(&fence);
 
 	while (nr_dma--) {
 		dma_unmap_page(drm->dev->dev, dma_addrs[nr_dma], PAGE_SIZE,
@@ -620,7 +620,7 @@ static void nouveau_dmem_migrate_chunk(struct nouveau_drm *drm,
 }
 
 int
-nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
+yesuveau_dmem_migrate_vma(struct yesuveau_drm *drm,
 			 struct vm_area_struct *vma,
 			 unsigned long start,
 			 unsigned long end)
@@ -654,7 +654,7 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
 			goto out_free_dma;
 
 		if (args.cpages)
-			nouveau_dmem_migrate_chunk(drm, &args, dma_addrs);
+			yesuveau_dmem_migrate_chunk(drm, &args, dma_addrs);
 		args.start = args.end;
 	}
 
@@ -670,13 +670,13 @@ out:
 }
 
 static inline bool
-nouveau_dmem_page(struct nouveau_drm *drm, struct page *page)
+yesuveau_dmem_page(struct yesuveau_drm *drm, struct page *page)
 {
 	return is_device_private_page(page) && drm->dmem == page_to_dmem(page);
 }
 
 void
-nouveau_dmem_convert_pfn(struct nouveau_drm *drm,
+yesuveau_dmem_convert_pfn(struct yesuveau_drm *drm,
 			 struct hmm_range *range)
 {
 	unsigned long i, npages;
@@ -694,13 +694,13 @@ nouveau_dmem_convert_pfn(struct nouveau_drm *drm,
 			continue;
 		}
 
-		if (!nouveau_dmem_page(drm, page)) {
-			WARN(1, "Some unknown device memory !\n");
+		if (!yesuveau_dmem_page(drm, page)) {
+			WARN(1, "Some unkyeswn device memory !\n");
 			range->pfns[i] = 0;
 			continue;
 		}
 
-		addr = nouveau_dmem_page_addr(page);
+		addr = yesuveau_dmem_page_addr(page);
 		range->pfns[i] &= ((1UL << range->pfn_shift) - 1);
 		range->pfns[i] |= (addr >> PAGE_SHIFT) << range->pfn_shift;
 	}

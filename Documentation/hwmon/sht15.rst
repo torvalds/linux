@@ -63,8 +63,8 @@ Platform data
 
 * checksum:
   set it to true to enable CRC validation of the readings (default to false).
-* no_otp_reload:
-  flag to indicate not to reload from OTP (default to false).
+* yes_otp_reload:
+  flag to indicate yest to reload from OTP (default to false).
 * low_resolution:
   flag to indicate the temp/humidity resolution to use (default to false).
 
@@ -75,7 +75,7 @@ Sysfs interface
 temp1_input        temperature input
 humidity1_input    humidity input
 heater_enable      write 1 in this attribute to enable the on-chip heater,
-		   0 to disable it. Be careful not to enable the heater
+		   0 to disable it. Be careful yest to enable the heater
 		   for too long.
 temp1_fault        if 1, this means that the voltage is low (below 2.47V) and
 		   measurement may be invalid.

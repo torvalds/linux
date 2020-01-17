@@ -49,8 +49,8 @@ static int m48t35_read_time(struct device *dev, struct rtc_time *tm)
 	/*
 	 * Only the values that we read from the RTC are set. We leave
 	 * tm_wday, tm_yday and tm_isdst untouched. Even though the
-	 * RTC has RTC_DAY_OF_WEEK, we ignore it, as it is only updated
-	 * by the RTC when initially set to a non-zero value.
+	 * RTC has RTC_DAY_OF_WEEK, we igyesre it, as it is only updated
+	 * by the RTC when initially set to a yesn-zero value.
 	 */
 	spin_lock_irq(&priv->lock);
 	control = readb(&priv->reg->control);

@@ -10,7 +10,7 @@ menuconfig PM_DEVFREQ_EVENT
 
 	  The devfreq-event device can support the various type of events
 	  (e.g., raw data, utilization, latency, bandwidth). The events
-	  may be used by devfreq governor and other subsystem.
+	  may be used by devfreq goveryesr and other subsystem.
 
 if PM_DEVFREQ_EVENT
 
@@ -20,7 +20,7 @@ config DEVFREQ_EVENT_EXYNOS_NOCP
 	select PM_OPP
 	select REGMAP_MMIO
 	help
-	  This add the devfreq-event driver for Exynos SoC. It provides NoC
+	  This add the devfreq-event driver for Exyyess SoC. It provides NoC
 	  (Network on Chip) Probe counters to measure the bandwidth of AXI bus.
 
 config DEVFREQ_EVENT_EXYNOS_PPMU
@@ -28,7 +28,7 @@ config DEVFREQ_EVENT_EXYNOS_PPMU
 	depends on ARCH_EXYNOS || COMPILE_TEST
 	select PM_OPP
 	help
-	  This add the devfreq-event driver for Exynos SoC. It provides PPMU
+	  This add the devfreq-event driver for Exyyess SoC. It provides PPMU
 	  (Platform Performance Monitoring Unit) counters to estimate the
 	  utilization of each module.
 

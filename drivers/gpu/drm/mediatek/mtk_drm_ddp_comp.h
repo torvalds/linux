@@ -9,7 +9,7 @@
 #include <linux/io.h>
 
 struct device;
-struct device_node;
+struct device_yesde;
 struct drm_crtc;
 struct drm_device;
 struct mtk_plane_state;
@@ -201,9 +201,9 @@ static inline void mtk_ddp_comp_bgclr_in_off(struct mtk_ddp_comp *comp)
 		comp->funcs->bgclr_in_off(comp);
 }
 
-int mtk_ddp_comp_get_id(struct device_node *node,
+int mtk_ddp_comp_get_id(struct device_yesde *yesde,
 			enum mtk_ddp_comp_type comp_type);
-int mtk_ddp_comp_init(struct device *dev, struct device_node *comp_node,
+int mtk_ddp_comp_init(struct device *dev, struct device_yesde *comp_yesde,
 		      struct mtk_ddp_comp *comp, enum mtk_ddp_comp_id comp_id,
 		      const struct mtk_ddp_comp_funcs *funcs);
 int mtk_ddp_comp_register(struct drm_device *drm, struct mtk_ddp_comp *comp);

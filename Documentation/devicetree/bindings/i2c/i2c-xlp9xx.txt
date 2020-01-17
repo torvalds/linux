@@ -7,7 +7,7 @@ Required properties:
 
 Optional properties:
 - clock-frequency : frequency of bus clock in Hz
-                    Defaults to 100 KHz when the property is not specified
+                    Defaults to 100 KHz when the property is yest specified
 
 Example:
 

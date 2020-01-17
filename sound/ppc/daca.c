@@ -39,7 +39,7 @@ struct pmac_daca {
 static int daca_init_client(struct pmac_keywest *i2c)
 {
 	unsigned short wdata = 0x00;
-	/* SR: no swap, 1bit delay, 32-48kHz */
+	/* SR: yes swap, 1bit delay, 32-48kHz */
 	/* GCFG: power amp inverted, DAC on */
 	if (i2c_smbus_write_byte_data(i2c->client, DACA_REG_SR, 0x08) < 0 ||
 	    i2c_smbus_write_byte_data(i2c->client, DACA_REG_GCFG, 0x05) < 0)
@@ -77,7 +77,7 @@ static int daca_set_volume(struct pmac_daca *mix)
 
 
 /* deemphasis switch */
-#define daca_info_deemphasis		snd_ctl_boolean_mono_info
+#define daca_info_deemphasis		snd_ctl_boolean_moyes_info
 
 static int daca_get_deemphasis(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)

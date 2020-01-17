@@ -22,18 +22,18 @@
 #include <drm/drm_ioctl.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
-#include <drm/exynos_drm.h>
+#include <drm/exyyess_drm.h>
 
-#include "exynos_drm_drv.h"
-#include "exynos_drm_fb.h"
-#include "exynos_drm_fbdev.h"
-#include "exynos_drm_g2d.h"
-#include "exynos_drm_gem.h"
-#include "exynos_drm_ipp.h"
-#include "exynos_drm_plane.h"
-#include "exynos_drm_vidi.h"
+#include "exyyess_drm_drv.h"
+#include "exyyess_drm_fb.h"
+#include "exyyess_drm_fbdev.h"
+#include "exyyess_drm_g2d.h"
+#include "exyyess_drm_gem.h"
+#include "exyyess_drm_ipp.h"
+#include "exyyess_drm_plane.h"
+#include "exyyess_drm_vidi.h"
 
-#define DRIVER_NAME	"exynos"
+#define DRIVER_NAME	"exyyess"
 #define DRIVER_DESC	"Samsung SoC DRM"
 #define DRIVER_DATE	"20180330"
 
@@ -46,9 +46,9 @@
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	1
 
-static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
+static int exyyess_drm_open(struct drm_device *dev, struct drm_file *file)
 {
-	struct drm_exynos_file_private *file_priv;
+	struct drm_exyyess_file_private *file_priv;
 	int ret;
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
@@ -68,50 +68,50 @@ err_file_priv_free:
 	return ret;
 }
 
-static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
+static void exyyess_drm_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	g2d_close(dev, file);
 	kfree(file->driver_priv);
 	file->driver_priv = NULL;
 }
 
-static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
-	.fault = exynos_drm_gem_fault,
+static const struct vm_operations_struct exyyess_drm_gem_vm_ops = {
+	.fault = exyyess_drm_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
 };
 
-static const struct drm_ioctl_desc exynos_ioctls[] = {
-	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_CREATE, exynos_drm_gem_create_ioctl,
+static const struct drm_ioctl_desc exyyess_ioctls[] = {
+	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_CREATE, exyyess_drm_gem_create_ioctl,
 			DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_MAP, exynos_drm_gem_map_ioctl,
+	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_MAP, exyyess_drm_gem_map_ioctl,
 			DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_GET, exynos_drm_gem_get_ioctl,
+	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_GET, exyyess_drm_gem_get_ioctl,
 			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_VIDI_CONNECTION, vidi_connection_ioctl,
 			DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_GET_VER, exynos_g2d_get_ver_ioctl,
+	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_GET_VER, exyyess_g2d_get_ver_ioctl,
 			DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_SET_CMDLIST, exynos_g2d_set_cmdlist_ioctl,
+	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_SET_CMDLIST, exyyess_g2d_set_cmdlist_ioctl,
 			DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_EXEC, exynos_g2d_exec_ioctl,
+	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_EXEC, exyyess_g2d_exec_ioctl,
 			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_RESOURCES,
-			exynos_drm_ipp_get_res_ioctl,
+			exyyess_drm_ipp_get_res_ioctl,
 			DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_CAPS, exynos_drm_ipp_get_caps_ioctl,
+	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_CAPS, exyyess_drm_ipp_get_caps_ioctl,
 			DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_GET_LIMITS,
-			exynos_drm_ipp_get_limits_ioctl,
+			exyyess_drm_ipp_get_limits_ioctl,
 			DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_COMMIT, exynos_drm_ipp_commit_ioctl,
+	DRM_IOCTL_DEF_DRV(EXYNOS_IPP_COMMIT, exyyess_drm_ipp_commit_ioctl,
 			DRM_RENDER_ALLOW),
 };
 
-static const struct file_operations exynos_drm_driver_fops = {
+static const struct file_operations exyyess_drm_driver_fops = {
 	.owner		= THIS_MODULE,
 	.open		= drm_open,
-	.mmap		= exynos_drm_gem_mmap,
+	.mmap		= exyyess_drm_gem_mmap,
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.unlocked_ioctl	= drm_ioctl,
@@ -119,56 +119,56 @@ static const struct file_operations exynos_drm_driver_fops = {
 	.release	= drm_release,
 };
 
-static struct drm_driver exynos_drm_driver = {
+static struct drm_driver exyyess_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM
 				  | DRIVER_ATOMIC | DRIVER_RENDER,
-	.open			= exynos_drm_open,
+	.open			= exyyess_drm_open,
 	.lastclose		= drm_fb_helper_lastclose,
-	.postclose		= exynos_drm_postclose,
-	.gem_free_object_unlocked = exynos_drm_gem_free_object,
-	.gem_vm_ops		= &exynos_drm_gem_vm_ops,
-	.dumb_create		= exynos_drm_gem_dumb_create,
+	.postclose		= exyyess_drm_postclose,
+	.gem_free_object_unlocked = exyyess_drm_gem_free_object,
+	.gem_vm_ops		= &exyyess_drm_gem_vm_ops,
+	.dumb_create		= exyyess_drm_gem_dumb_create,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_import	= exynos_drm_gem_prime_import,
-	.gem_prime_get_sg_table	= exynos_drm_gem_prime_get_sg_table,
-	.gem_prime_import_sg_table	= exynos_drm_gem_prime_import_sg_table,
-	.gem_prime_vmap		= exynos_drm_gem_prime_vmap,
-	.gem_prime_vunmap	= exynos_drm_gem_prime_vunmap,
-	.gem_prime_mmap		= exynos_drm_gem_prime_mmap,
-	.ioctls			= exynos_ioctls,
-	.num_ioctls		= ARRAY_SIZE(exynos_ioctls),
-	.fops			= &exynos_drm_driver_fops,
+	.gem_prime_import	= exyyess_drm_gem_prime_import,
+	.gem_prime_get_sg_table	= exyyess_drm_gem_prime_get_sg_table,
+	.gem_prime_import_sg_table	= exyyess_drm_gem_prime_import_sg_table,
+	.gem_prime_vmap		= exyyess_drm_gem_prime_vmap,
+	.gem_prime_vunmap	= exyyess_drm_gem_prime_vunmap,
+	.gem_prime_mmap		= exyyess_drm_gem_prime_mmap,
+	.ioctls			= exyyess_ioctls,
+	.num_ioctls		= ARRAY_SIZE(exyyess_ioctls),
+	.fops			= &exyyess_drm_driver_fops,
 	.name	= DRIVER_NAME,
 	.desc	= DRIVER_DESC,
 	.date	= DRIVER_DATE,
 	.major	= DRIVER_MAJOR,
-	.minor	= DRIVER_MINOR,
+	.miyesr	= DRIVER_MINOR,
 };
 
-static int exynos_drm_suspend(struct device *dev)
+static int exyyess_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	return  drm_mode_config_helper_suspend(drm_dev);
 }
 
-static void exynos_drm_resume(struct device *dev)
+static void exyyess_drm_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
 	drm_mode_config_helper_resume(drm_dev);
 }
 
-static const struct dev_pm_ops exynos_drm_pm_ops = {
-	.prepare = exynos_drm_suspend,
-	.complete = exynos_drm_resume,
+static const struct dev_pm_ops exyyess_drm_pm_ops = {
+	.prepare = exyyess_drm_suspend,
+	.complete = exyyess_drm_resume,
 };
 
 /* forward declaration */
-static struct platform_driver exynos_drm_platform_driver;
+static struct platform_driver exyyess_drm_platform_driver;
 
-struct exynos_drm_driver_info {
+struct exyyess_drm_driver_info {
 	struct platform_driver *driver;
 	unsigned int flags;
 };
@@ -180,15 +180,15 @@ struct exynos_drm_driver_info {
 #define DRV_PTR(drv, cond) (IS_ENABLED(cond) ? &drv : NULL)
 
 /*
- * Connector drivers should not be placed before associated crtc drivers,
+ * Connector drivers should yest be placed before associated crtc drivers,
  * because connector requires pipe number of its crtc during initialization.
  */
-static struct exynos_drm_driver_info exynos_drm_drivers[] = {
+static struct exyyess_drm_driver_info exyyess_drm_drivers[] = {
 	{
 		DRV_PTR(fimd_driver, CONFIG_DRM_EXYNOS_FIMD),
 		DRM_COMPONENT_DRIVER
 	}, {
-		DRV_PTR(exynos5433_decon_driver, CONFIG_DRM_EXYNOS5433_DECON),
+		DRV_PTR(exyyess5433_decon_driver, CONFIG_DRM_EXYNOS5433_DECON),
 		DRM_COMPONENT_DRIVER
 	}, {
 		DRV_PTR(decon_driver, CONFIG_DRM_EXYNOS7_DECON),
@@ -227,7 +227,7 @@ static struct exynos_drm_driver_info exynos_drm_drivers[] = {
 		DRV_PTR(gsc_driver, CONFIG_DRM_EXYNOS_GSC),
 		DRM_COMPONENT_DRIVER
 	}, {
-		&exynos_drm_platform_driver,
+		&exyyess_drm_platform_driver,
 		DRM_VIRTUAL_DEVICE
 	}
 };
@@ -237,13 +237,13 @@ static int compare_dev(struct device *dev, void *data)
 	return dev == (struct device *)data;
 }
 
-static struct component_match *exynos_drm_match_add(struct device *dev)
+static struct component_match *exyyess_drm_match_add(struct device *dev)
 {
 	struct component_match *match = NULL;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(exynos_drm_drivers); ++i) {
-		struct exynos_drm_driver_info *info = &exynos_drm_drivers[i];
+	for (i = 0; i < ARRAY_SIZE(exyyess_drm_drivers); ++i) {
+		struct exyyess_drm_driver_info *info = &exyyess_drm_drivers[i];
 		struct device *p = NULL, *d;
 
 		if (!info->driver || !(info->flags & DRM_COMPONENT_DRIVER))
@@ -253,7 +253,7 @@ static struct component_match *exynos_drm_match_add(struct device *dev)
 			put_device(p);
 
 			if (!(info->flags & DRM_FIMC_DEVICE) ||
-			    exynos_drm_check_fimc_device(d) == 0)
+			    exyyess_drm_check_fimc_device(d) == 0)
 				component_match_add(dev, &match,
 						    compare_dev, d);
 			p = d;
@@ -264,19 +264,19 @@ static struct component_match *exynos_drm_match_add(struct device *dev)
 	return match ?: ERR_PTR(-ENODEV);
 }
 
-static int exynos_drm_bind(struct device *dev)
+static int exyyess_drm_bind(struct device *dev)
 {
-	struct exynos_drm_private *private;
+	struct exyyess_drm_private *private;
 	struct drm_encoder *encoder;
 	struct drm_device *drm;
 	unsigned int clone_mask;
 	int cnt, ret;
 
-	drm = drm_dev_alloc(&exynos_drm_driver, dev);
+	drm = drm_dev_alloc(&exyyess_drm_driver, dev);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
-	private = kzalloc(sizeof(struct exynos_drm_private), GFP_KERNEL);
+	private = kzalloc(sizeof(struct exyyess_drm_private), GFP_KERNEL);
 	if (!private) {
 		ret = -ENOMEM;
 		goto err_free_drm;
@@ -290,7 +290,7 @@ static int exynos_drm_bind(struct device *dev)
 
 	drm_mode_config_init(drm);
 
-	exynos_drm_mode_config_init(drm);
+	exyyess_drm_mode_config_init(drm);
 
 	/* setup possible_clones. */
 	cnt = 0;
@@ -316,7 +316,7 @@ static int exynos_drm_bind(struct device *dev)
 	 * enable drm irq mode.
 	 * - with irq_enabled = true, we can use the vblank feature.
 	 *
-	 * P.S. note that we wouldn't use drm irq handler but
+	 * P.S. yeste that we wouldn't use drm irq handler but
 	 *	just specific driver own one instead because
 	 *	drm framework supports only one irq handler.
 	 */
@@ -325,7 +325,7 @@ static int exynos_drm_bind(struct device *dev)
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(drm);
 
-	ret = exynos_drm_fbdev_init(drm);
+	ret = exyyess_drm_fbdev_init(drm);
 	if (ret)
 		goto err_cleanup_poll;
 
@@ -337,14 +337,14 @@ static int exynos_drm_bind(struct device *dev)
 	return 0;
 
 err_cleanup_fbdev:
-	exynos_drm_fbdev_fini(drm);
+	exyyess_drm_fbdev_fini(drm);
 err_cleanup_poll:
 	drm_kms_helper_poll_fini(drm);
 err_unbind_all:
 	component_unbind_all(drm->dev, drm);
 err_mode_config_cleanup:
 	drm_mode_config_cleanup(drm);
-	exynos_drm_cleanup_dma(drm);
+	exyyess_drm_cleanup_dma(drm);
 	kfree(private);
 err_free_drm:
 	drm_dev_put(drm);
@@ -352,18 +352,18 @@ err_free_drm:
 	return ret;
 }
 
-static void exynos_drm_unbind(struct device *dev)
+static void exyyess_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 
 	drm_dev_unregister(drm);
 
-	exynos_drm_fbdev_fini(drm);
+	exyyess_drm_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 
 	component_unbind_all(drm->dev, drm);
 	drm_mode_config_cleanup(drm);
-	exynos_drm_cleanup_dma(drm);
+	exyyess_drm_cleanup_dma(drm);
 
 	kfree(drm->dev_private);
 	drm->dev_private = NULL;
@@ -372,46 +372,46 @@ static void exynos_drm_unbind(struct device *dev)
 	drm_dev_put(drm);
 }
 
-static const struct component_master_ops exynos_drm_ops = {
-	.bind		= exynos_drm_bind,
-	.unbind		= exynos_drm_unbind,
+static const struct component_master_ops exyyess_drm_ops = {
+	.bind		= exyyess_drm_bind,
+	.unbind		= exyyess_drm_unbind,
 };
 
-static int exynos_drm_platform_probe(struct platform_device *pdev)
+static int exyyess_drm_platform_probe(struct platform_device *pdev)
 {
 	struct component_match *match;
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
-	match = exynos_drm_match_add(&pdev->dev);
+	match = exyyess_drm_match_add(&pdev->dev);
 	if (IS_ERR(match))
 		return PTR_ERR(match);
 
-	return component_master_add_with_match(&pdev->dev, &exynos_drm_ops,
+	return component_master_add_with_match(&pdev->dev, &exyyess_drm_ops,
 					       match);
 }
 
-static int exynos_drm_platform_remove(struct platform_device *pdev)
+static int exyyess_drm_platform_remove(struct platform_device *pdev)
 {
-	component_master_del(&pdev->dev, &exynos_drm_ops);
+	component_master_del(&pdev->dev, &exyyess_drm_ops);
 	return 0;
 }
 
-static struct platform_driver exynos_drm_platform_driver = {
-	.probe	= exynos_drm_platform_probe,
-	.remove	= exynos_drm_platform_remove,
+static struct platform_driver exyyess_drm_platform_driver = {
+	.probe	= exyyess_drm_platform_probe,
+	.remove	= exyyess_drm_platform_remove,
 	.driver	= {
-		.name	= "exynos-drm",
-		.pm	= &exynos_drm_pm_ops,
+		.name	= "exyyess-drm",
+		.pm	= &exyyess_drm_pm_ops,
 	},
 };
 
-static void exynos_drm_unregister_devices(void)
+static void exyyess_drm_unregister_devices(void)
 {
 	int i;
 
-	for (i = ARRAY_SIZE(exynos_drm_drivers) - 1; i >= 0; --i) {
-		struct exynos_drm_driver_info *info = &exynos_drm_drivers[i];
+	for (i = ARRAY_SIZE(exyyess_drm_drivers) - 1; i >= 0; --i) {
+		struct exyyess_drm_driver_info *info = &exyyess_drm_drivers[i];
 		struct device *dev;
 
 		if (!info->driver || !(info->flags & DRM_VIRTUAL_DEVICE))
@@ -425,13 +425,13 @@ static void exynos_drm_unregister_devices(void)
 	}
 }
 
-static int exynos_drm_register_devices(void)
+static int exyyess_drm_register_devices(void)
 {
 	struct platform_device *pdev;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(exynos_drm_drivers); ++i) {
-		struct exynos_drm_driver_info *info = &exynos_drm_drivers[i];
+	for (i = 0; i < ARRAY_SIZE(exyyess_drm_drivers); ++i) {
+		struct exyyess_drm_driver_info *info = &exyyess_drm_drivers[i];
 
 		if (!info->driver || !(info->flags & DRM_VIRTUAL_DEVICE))
 			continue;
@@ -444,16 +444,16 @@ static int exynos_drm_register_devices(void)
 
 	return 0;
 fail:
-	exynos_drm_unregister_devices();
+	exyyess_drm_unregister_devices();
 	return PTR_ERR(pdev);
 }
 
-static void exynos_drm_unregister_drivers(void)
+static void exyyess_drm_unregister_drivers(void)
 {
 	int i;
 
-	for (i = ARRAY_SIZE(exynos_drm_drivers) - 1; i >= 0; --i) {
-		struct exynos_drm_driver_info *info = &exynos_drm_drivers[i];
+	for (i = ARRAY_SIZE(exyyess_drm_drivers) - 1; i >= 0; --i) {
+		struct exyyess_drm_driver_info *info = &exyyess_drm_drivers[i];
 
 		if (!info->driver)
 			continue;
@@ -462,12 +462,12 @@ static void exynos_drm_unregister_drivers(void)
 	}
 }
 
-static int exynos_drm_register_drivers(void)
+static int exyyess_drm_register_drivers(void)
 {
 	int i, ret;
 
-	for (i = 0; i < ARRAY_SIZE(exynos_drm_drivers); ++i) {
-		struct exynos_drm_driver_info *info = &exynos_drm_drivers[i];
+	for (i = 0; i < ARRAY_SIZE(exyyess_drm_drivers); ++i) {
+		struct exyyess_drm_driver_info *info = &exyyess_drm_drivers[i];
 
 		if (!info->driver)
 			continue;
@@ -478,38 +478,38 @@ static int exynos_drm_register_drivers(void)
 	}
 	return 0;
 fail:
-	exynos_drm_unregister_drivers();
+	exyyess_drm_unregister_drivers();
 	return ret;
 }
 
-static int exynos_drm_init(void)
+static int exyyess_drm_init(void)
 {
 	int ret;
 
-	ret = exynos_drm_register_devices();
+	ret = exyyess_drm_register_devices();
 	if (ret)
 		return ret;
 
-	ret = exynos_drm_register_drivers();
+	ret = exyyess_drm_register_drivers();
 	if (ret)
 		goto err_unregister_pdevs;
 
 	return 0;
 
 err_unregister_pdevs:
-	exynos_drm_unregister_devices();
+	exyyess_drm_unregister_devices();
 
 	return ret;
 }
 
-static void exynos_drm_exit(void)
+static void exyyess_drm_exit(void)
 {
-	exynos_drm_unregister_drivers();
-	exynos_drm_unregister_devices();
+	exyyess_drm_unregister_drivers();
+	exyyess_drm_unregister_devices();
 }
 
-module_init(exynos_drm_init);
-module_exit(exynos_drm_exit);
+module_init(exyyess_drm_init);
+module_exit(exyyess_drm_exit);
 
 MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
 MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");

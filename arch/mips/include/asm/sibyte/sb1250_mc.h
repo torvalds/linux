@@ -385,7 +385,7 @@
 				M_MC_r2rIDLE_TWOCYCLES
 
 /*
- * Errata says these are not the default
+ * Errata says these are yest the default
  *				 M_MC_w2rIDLE_TWOCYCLES | \
  *				 M_MC_r2wIDLE_TWOCYCLES | \
  */

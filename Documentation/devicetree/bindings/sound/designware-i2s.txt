@@ -14,7 +14,7 @@ Required properties:
 
 Optional properties:
  - interrupts: The interrupt line number for the I2S controller. Add this
-   parameter if the I2S controller that you are using does not support DMA.
+   parameter if the I2S controller that you are using does yest support DMA.
 
 For more details on the 'dma', 'dma-names', 'clock' and 'clock-names'
 properties please check:

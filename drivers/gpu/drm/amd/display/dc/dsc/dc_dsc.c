@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -30,7 +30,7 @@
 struct dc_dsc_policy {
 	bool use_min_slices_h;
 	int max_slices_h; // Maximum available if 0
-	int min_sice_height; // Must not be less than 8
+	int min_sice_height; // Must yest be less than 8
 	int max_target_bpp;
 	int min_target_bpp; // Minimum target bits per pixel
 };
@@ -116,7 +116,7 @@ static bool dsc_buff_block_size_from_dpcd(int dpcd_buff_block_size, int *buff_bl
 		*buff_block_size = 64 * 1024;
 		break;
 	default: {
-			dm_error("%s: DPCD DSC buffer size not recognized.\n", __func__);
+			dm_error("%s: DPCD DSC buffer size yest recognized.\n", __func__);
 			return false;
 		}
 	}
@@ -132,7 +132,7 @@ static bool dsc_line_buff_depth_from_dpcd(int dpcd_line_buff_bit_depth, int *lin
 	else if (dpcd_line_buff_bit_depth == 8)
 		*line_buff_bit_depth = 8;
 	else {
-		dm_error("%s: DPCD DSC buffer depth not recognized.\n", __func__);
+		dm_error("%s: DPCD DSC buffer depth yest recognized.\n", __func__);
 		return false;
 	}
 
@@ -192,7 +192,7 @@ static bool dsc_throughput_from_dpcd(int dpcd_throughput, int *throughput)
 		*throughput = 1000;
 		break;
 	default: {
-			dm_error("%s: DPCD DSC throughput mode not recognized.\n", __func__);
+			dm_error("%s: DPCD DSC throughput mode yest recognized.\n", __func__);
 			return false;
 		}
 	}
@@ -221,7 +221,7 @@ static bool dsc_bpp_increment_div_from_dpcd(int bpp_increment_dpcd, uint32_t *bp
 		*bpp_increment_div = 1;
 		break;
 	default: {
-		dm_error("%s: DPCD DSC bits-per-pixel increment not recognized.\n", __func__);
+		dm_error("%s: DPCD DSC bits-per-pixel increment yest recognized.\n", __func__);
 		return false;
 	}
 	}
@@ -241,7 +241,7 @@ static void get_dsc_enc_caps(
 		dsc->funcs->dsc_get_enc_caps(dsc_enc_caps, pixel_clock_100Hz);
 }
 
-/* Returns 'false' if no intersection was found for at least one capablity.
+/* Returns 'false' if yes intersection was found for at least one capablity.
  * It also implicitly validates some sink caps against invalid value of zero.
  */
 static bool intersect_dsc_caps(
@@ -367,7 +367,7 @@ static void get_dsc_bandwidth_range(
  *
  * Returns:
  *     - 'true' if DSC was required by policy and was successfully applied
- *     - 'false' if DSC was not necessary (e.g. if uncompressed stream fits 'target_bandwidth_kbps'),
+ *     - 'false' if DSC was yest necessary (e.g. if uncompressed stream fits 'target_bandwidth_kbps'),
  *        or if it couldn't be applied based on DSC policy.
  */
 static bool decide_dsc_target_bpp_x16(
@@ -385,7 +385,7 @@ static bool decide_dsc_target_bpp_x16(
 	get_dsc_bandwidth_range(policy->min_target_bpp, policy->max_target_bpp,
 			dsc_common_caps, timing, &range);
 	if (target_bandwidth_kbps >= range.stream_kbps) {
-		/* enough bandwidth without dsc */
+		/* eyesugh bandwidth without dsc */
 		*target_bpp_x16 = 0;
 		should_use_dsc = false;
 	} else if (target_bandwidth_kbps >= range.max_kbps) {
@@ -397,7 +397,7 @@ static bool decide_dsc_target_bpp_x16(
 		*target_bpp_x16 = calc_dsc_bpp_x16(target_bandwidth_kbps, timing->pix_clk_100hz, dsc_common_caps->bpp_increment_div);
 		should_use_dsc = true;
 	} else {
-		/* not enough bandwidth to fulfill minimum requirement */
+		/* yest eyesugh bandwidth to fulfill minimum requirement */
 		*target_bpp_x16 = 0;
 		should_use_dsc = false;
 	}
@@ -442,7 +442,7 @@ static int get_max_dsc_slices(union dsc_enc_slice_caps slice_caps)
 }
 
 
-// Increment sice number in available sice numbers stops if possible, or just increment if not
+// Increment sice number in available sice numbers stops if possible, or just increment if yest
 static int inc_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 {
 	// Get next bigger num slices available in common caps
@@ -473,7 +473,7 @@ static int inc_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 }
 
 
-// Decrement sice number in available sice numbers stops if possible, or just decrement if not. Stop at zero.
+// Decrement sice number in available sice numbers stops if possible, or just decrement if yest. Stop at zero.
 static int dec_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 {
 	// Get next bigger num slices available in common caps
@@ -508,7 +508,7 @@ static int dec_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 }
 
 
-// Choose next bigger number of slices if the requested number of slices is not available
+// Choose next bigger number of slices if the requested number of slices is yest available
 static int fit_num_slices_up(union dsc_enc_slice_caps slice_caps, int num_slices)
 {
 	// Get next bigger num slices available in common caps
@@ -537,7 +537,7 @@ static int fit_num_slices_up(union dsc_enc_slice_caps slice_caps, int num_slices
 
 
 /* Attempts to set DSC configuration for the stream, applying DSC policy.
- * Returns 'true' if successful or 'false' if not.
+ * Returns 'true' if successful or 'false' if yest.
  *
  * Parameters:
  *
@@ -546,7 +546,7 @@ static int fit_num_slices_up(union dsc_enc_slice_caps slice_caps, int num_slices
  * dsc_enc_caps        - DSC encoder capabilities
  *
  * target_bandwidth_kbps  - Target bandwidth to fit the stream into.
- *                          If 0, do not calculate target bpp.
+ *                          If 0, do yest calculate target bpp.
  *
  * timing              - The stream timing to fit into 'target_bandwidth_kbps' or apply
  *                       maximum compression to, if 'target_badwidth == 0'
@@ -701,7 +701,7 @@ static bool setup_dsc_config(
 	if (dsc_policy.use_min_slices_h) {
 		if (min_slices_h > 0)
 			num_slices_h = min_slices_h;
-		else if (max_slices_h > 0) { // Fall back to max slices if min slices is not working out
+		else if (max_slices_h > 0) { // Fall back to max slices if min slices is yest working out
 			if (dsc_policy.max_slices_h)
 				num_slices_h = min(dsc_policy.max_slices_h, max_slices_h);
 			else
@@ -714,7 +714,7 @@ static bool setup_dsc_config(
 				num_slices_h = min(dsc_policy.max_slices_h, max_slices_h);
 			else
 				num_slices_h = max_slices_h;
-		} else if (min_slices_h > 0) // Fall back to min slices if max slices is not possible
+		} else if (min_slices_h > 0) // Fall back to min slices if max slices is yest possible
 			num_slices_h = min_slices_h;
 		else
 			is_dsc_possible = false;
@@ -749,12 +749,12 @@ static bool setup_dsc_config(
 
 	dsc_cfg->num_slices_v = pic_height/slice_height;
 
-	// Final decission: can we do DSC or not?
+	// Final decission: can we do DSC or yest?
 	if (is_dsc_possible) {
 		// Fill out the rest of DSC settings
 		dsc_cfg->block_pred_enable = dsc_common_caps.is_block_pred_supported;
 		dsc_cfg->linebuf_depth = dsc_common_caps.lb_bit_depth;
-		dsc_cfg->version_minor = (dsc_common_caps.dsc_version & 0xf0) >> 4;
+		dsc_cfg->version_miyesr = (dsc_common_caps.dsc_version & 0xf0) >> 4;
 	}
 
 done:
@@ -854,7 +854,7 @@ bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data, const uint8_t *dp
 
 /* If DSC is possbile, get DSC bandwidth range based on [min_bpp, max_bpp] target bitrate range and
  * timing's pixel clock and uncompressed bandwidth.
- * If DSC is not possible, leave '*range' untouched.
+ * If DSC is yest possible, leave '*range' untouched.
  */
 bool dc_dsc_compute_bandwidth_range(
 		const struct display_stream_compressor *dsc,

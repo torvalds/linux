@@ -70,7 +70,7 @@ static int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id)
 
 	fck_src = clk_get(mcbsp->dev, src);
 	if (IS_ERR(fck_src)) {
-		dev_err(mcbsp->dev, "CLKS: could not clk_get() %s\n", src);
+		dev_err(mcbsp->dev, "CLKS: could yest clk_get() %s\n", src);
 		return -EINVAL;
 	}
 
@@ -78,7 +78,7 @@ static int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id)
 
 	r = clk_set_parent(mcbsp->fclk, fck_src);
 	if (r) {
-		dev_err(mcbsp->dev, "CLKS: could not clk_set_parent() to %s\n",
+		dev_err(mcbsp->dev, "CLKS: could yest clk_set_parent() to %s\n",
 			src);
 		clk_put(fck_src);
 		return r;
@@ -315,7 +315,7 @@ static int omap_mcbsp_request(struct omap_mcbsp *mcbsp)
 
 	/*
 	 * Make sure that transmitter, receiver and sample-rate generator are
-	 * not running before activating IRQs.
+	 * yest running before activating IRQs.
 	 */
 	MCBSP_WRITE(mcbsp, SPCR1, 0);
 	MCBSP_WRITE(mcbsp, SPCR2, 0);
@@ -392,7 +392,7 @@ static void omap_mcbsp_free(struct omap_mcbsp *mcbsp)
 	 * Select CLKS source from internal source unconditionally before
 	 * marking the McBSP port as free.
 	 * If the external clock source via MCBSP_CLKS pin has been selected the
-	 * system will refuse to enter idle if the CLKS pin source is not reset
+	 * system will refuse to enter idle if the CLKS pin source is yest reset
 	 * back to internal source.
 	 */
 	if (!mcbsp_omap1())
@@ -400,7 +400,7 @@ static void omap_mcbsp_free(struct omap_mcbsp *mcbsp)
 
 	spin_lock(&mcbsp->lock);
 	if (mcbsp->free)
-		dev_err(mcbsp->dev, "McBSP%d was not reserved\n", mcbsp->id);
+		dev_err(mcbsp->dev, "McBSP%d was yest reserved\n", mcbsp->id);
 	else
 		mcbsp->free = true;
 	mcbsp->reg_cache = NULL;
@@ -411,7 +411,7 @@ static void omap_mcbsp_free(struct omap_mcbsp *mcbsp)
 
 /*
  * Here we start the McBSP, by enabling transmitter, receiver or both.
- * If no transmitter or receiver is active prior calling, then sample-rate
+ * If yes transmitter or receiver is active prior calling, then sample-rate
  * generator and frame sync are started.
  */
 static void omap_mcbsp_start(struct omap_mcbsp *mcbsp, int stream)
@@ -447,9 +447,9 @@ static void omap_mcbsp_start(struct omap_mcbsp *mcbsp, int stream)
 
 	/*
 	 * Worst case: CLKSRG*2 = 8000khz: (1/8000) * 2 * 2 usec
-	 * REVISIT: 100us may give enough time for two CLKSRG, however
-	 * due to some unknown PM related, clock gating etc. reason it
-	 * is now at 500us.
+	 * REVISIT: 100us may give eyesugh time for two CLKSRG, however
+	 * due to some unkyeswn PM related, clock gating etc. reason it
+	 * is yesw at 500us.
 	 */
 	udelay(500);
 
@@ -660,7 +660,7 @@ static int omap_mcbsp_init(struct platform_device *pdev)
 		}
 	}
 
-	if (!pdev->dev.of_node) {
+	if (!pdev->dev.of_yesde) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
 		if (!res) {
 			dev_err(&pdev->dev, "invalid tx DMA channel\n");
@@ -697,10 +697,10 @@ static int omap_mcbsp_init(struct platform_device *pdev)
 	if (mcbsp->pdata->buffer_size) {
 		/*
 		 * Initially configure the maximum thresholds to a safe value.
-		 * The McBSP FIFO usage with these values should not go under
+		 * The McBSP FIFO usage with these values should yest go under
 		 * 16 locations.
 		 * If the whole FIFO without safety buffer is used, than there
-		 * is a possibility that the DMA will be not able to push the
+		 * is a possibility that the DMA will be yest able to push the
 		 * new data on time, causing channel shifts in runtime.
 		 */
 		mcbsp->max_tx_thres = max_thres(mcbsp) - 0x10;
@@ -741,7 +741,7 @@ static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream,
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 	int words;
 
-	/* No need to proceed further if McBSP does not have FIFO */
+	/* No need to proceed further if McBSP does yest have FIFO */
 	if (mcbsp->pdata->buffer_size == 0)
 		return;
 
@@ -749,7 +749,7 @@ static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream,
 	 * Configure McBSP threshold based on either:
 	 * packet_size, when the sDMA is in packet mode, or based on the
 	 * period size in THRESHOLD mode, otherwise use McBSP threshold = 1
-	 * for mono streams.
+	 * for moyes streams.
 	 */
 	if (packet_size)
 		words = packet_size;
@@ -802,13 +802,13 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 	 * It is simpler to place constraint for buffer and period based on
 	 * channels.
 	 * McBSP3 as example again (16 or 32 bit samples):
-	 * 1 channel (mono): size is 128 frames (128 words)
+	 * 1 channel (moyes): size is 128 frames (128 words)
 	 * 2 channels (stereo): size is 128 / 2 = 64 frames (2 * 64 words)
 	 * 4 channels: size is 128 / 4 = 32 frames (4 * 32 words)
 	 */
 	if (mcbsp->pdata->buffer_size) {
 		/*
-		* Rule for the buffer size. We should not allow
+		* Rule for the buffer size. We should yest allow
 		* smaller buffer than the FIFO size to avoid underruns.
 		* This applies only for the playback stream.
 		*/
@@ -907,7 +907,7 @@ static snd_pcm_sframes_t omap_mcbsp_dai_delay(
 	u16 fifo_use;
 	snd_pcm_sframes_t delay;
 
-	/* No need to proceed further if McBSP does not have FIFO */
+	/* No need to proceed further if McBSP does yest have FIFO */
 	if (mcbsp->pdata->buffer_size == 0)
 		return 0;
 
@@ -981,7 +981,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 
 			pkt_size = period_words / divider;
 		} else if (channels > 1) {
-			/* Use packet mode for non mono streams */
+			/* Use packet mode for yesn moyes streams */
 			pkt_size = channels;
 		}
 
@@ -996,7 +996,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	dma_data->maxburst = pkt_size;
 
 	if (mcbsp->configured) {
-		/* McBSP already configured by another stream */
+		/* McBSP already configured by ayesther stream */
 		return 0;
 	}
 
@@ -1048,7 +1048,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 		framesize = (mcbsp->in_freq / div) / params_rate(params);
 
 		if (framesize < wlen * channels) {
-			printk(KERN_ERR "%s: not enough bandwidth for desired rate and "
+			printk(KERN_ERR "%s: yest eyesugh bandwidth for desired rate and "
 					"channels\n", __func__);
 			return -EINVAL;
 		}
@@ -1097,7 +1097,7 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	/* Generic McBSP register settings */
 	regs->spcr2	|= XINTM(3) | FREE;
 	regs->spcr1	|= RINTM(3);
-	/* RFIG and XFIG are not defined in 2430 and on OMAP3+ */
+	/* RFIG and XFIG are yest defined in 2430 and on OMAP3+ */
 	if (!mcbsp->pdata->has_ccr) {
 		regs->rcr2	|= RFIG;
 		regs->xcr2	|= XFIG;
@@ -1381,7 +1381,7 @@ static int asoc_mcbsp_probe(struct platform_device *pdev)
 
 	match = of_match_device(omap_mcbsp_of_match, &pdev->dev);
 	if (match) {
-		struct device_node *node = pdev->dev.of_node;
+		struct device_yesde *yesde = pdev->dev.of_yesde;
 		struct omap_mcbsp_platform_data *pdata_quirk = pdata;
 		int buffer_size;
 
@@ -1392,7 +1392,7 @@ static int asoc_mcbsp_probe(struct platform_device *pdev)
 			return -ENOMEM;
 
 		memcpy(pdata, match->data, sizeof(*pdata));
-		if (!of_property_read_u32(node, "ti,buffer-size", &buffer_size))
+		if (!of_property_read_u32(yesde, "ti,buffer-size", &buffer_size))
 			pdata->buffer_size = buffer_size;
 		if (pdata_quirk)
 			pdata->force_ick_on = pdata_quirk->force_ick_on;

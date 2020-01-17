@@ -236,7 +236,7 @@ static const struct snd_soc_dapm_route corgi_audio_map[] = {
 	/* mic is connected to MICIN (via right channel of headphone jack) */
 	{"MICIN", NULL, "Mic Jack"},
 
-	/* Same as the above but no mic bias for line signals */
+	/* Same as the above but yes mic bias for line signals */
 	{"MICIN", NULL, "Line Jack"},
 };
 

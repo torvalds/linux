@@ -50,7 +50,7 @@ static void slice_print_mask(const char *label, const struct slice_mask *mask) {
 
 #endif
 
-static inline notrace bool slice_addr_is_low(unsigned long addr)
+static inline yestrace bool slice_addr_is_low(unsigned long addr)
 {
 	u64 tmp = (u64)addr;
 
@@ -107,7 +107,7 @@ static int slice_high_has_vma(struct mm_struct *mm, unsigned long slice)
 
 	/* Hack, so that each addresses is controlled by exactly one
 	 * of the high or low area bitmaps, the first high area starts
-	 * at 4GB, not 0 */
+	 * at 4GB, yest 0 */
 	if (start == 0)
 		start = (unsigned long)SLICE_LOW_TOP;
 
@@ -410,14 +410,14 @@ static inline void slice_or_mask(struct slice_mask *dst,
 	bitmap_or(dst->high_slices, src1->high_slices, src2->high_slices, SLICE_NUM_HIGH);
 }
 
-static inline void slice_andnot_mask(struct slice_mask *dst,
+static inline void slice_andyest_mask(struct slice_mask *dst,
 					const struct slice_mask *src1,
 					const struct slice_mask *src2)
 {
 	dst->low_slices = src1->low_slices & ~src2->low_slices;
 	if (!SLICE_NUM_HIGH)
 		return;
-	bitmap_andnot(dst->high_slices, src1->high_slices, src2->high_slices, SLICE_NUM_HIGH);
+	bitmap_andyest(dst->high_slices, src1->high_slices, src2->high_slices, SLICE_NUM_HIGH);
 }
 
 #ifdef CONFIG_PPC_64K_PAGES
@@ -458,7 +458,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 
 	if (high_limit > mm_ctx_slb_addr_limit(&mm->context)) {
 		/*
-		 * Increasing the slb_addr_limit does not require
+		 * Increasing the slb_addr_limit does yest require
 		 * slice mask cache to be recalculated because it should
 		 * be already initialised beyond the old address limit.
 		 */
@@ -480,7 +480,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	if (!fixed && addr) {
 		addr = _ALIGN_UP(addr, page_size);
 		slice_dbg(" aligned addr=%lx\n", addr);
-		/* Ignore hint if it's too large or overlaps a VMA */
+		/* Igyesre hint if it's too large or overlaps a VMA */
 		if (addr > high_limit - len || addr < mmap_min_addr ||
 		    !slice_area_is_free(mm, addr, len))
 			addr = 0;
@@ -532,7 +532,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	/* First check hint if it's valid or if we have MAP_FIXED */
 	if (addr != 0 || fixed) {
 		/* Check if we fit in the good mask. If we do, we just return,
-		 * nothing else to do
+		 * yesthing else to do
 		 */
 		if (slice_check_range_fits(mm, &good_mask, addr, len)) {
 			slice_dbg(" fits good !\n");
@@ -618,9 +618,9 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 			return -ENOMEM;
 	}
 
-	slice_andnot_mask(&potential_mask, &potential_mask, &good_mask);
+	slice_andyest_mask(&potential_mask, &potential_mask, &good_mask);
 	if (compat_maskp && !fixed)
-		slice_andnot_mask(&potential_mask, &potential_mask, compat_maskp);
+		slice_andyest_mask(&potential_mask, &potential_mask, compat_maskp);
 	if (potential_mask.low_slices ||
 		(SLICE_NUM_HIGH &&
 		 !bitmap_empty(potential_mask.high_slices, SLICE_NUM_HIGH))) {
@@ -659,7 +659,7 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp,
 				       mm_ctx_user_psize(&current->mm->context), 1);
 }
 
-unsigned int notrace get_slice_psize(struct mm_struct *mm, unsigned long addr)
+unsigned int yestrace get_slice_psize(struct mm_struct *mm, unsigned long addr)
 {
 	unsigned char *psizes;
 	int index, mask_index;
@@ -740,21 +740,21 @@ void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 #ifdef CONFIG_HUGETLB_PAGE
 /*
  * is_hugepage_only_range() is used by generic code to verify whether
- * a normal mmap mapping (non hugetlbfs) is valid on a given area.
+ * a yesrmal mmap mapping (yesn hugetlbfs) is valid on a given area.
  *
  * until the generic code provides a more generic hook and/or starts
  * calling arch get_unmapped_area for MAP_FIXED (which our implementation
- * here knows how to deal with), we hijack it to keep standard mappings
+ * here kyesws how to deal with), we hijack it to keep standard mappings
  * away from us.
  *
- * because of that generic code limitation, MAP_FIXED mapping cannot
- * "convert" back a slice with no VMAs to the standard page size, only
+ * because of that generic code limitation, MAP_FIXED mapping canyest
+ * "convert" back a slice with yes VMAs to the standard page size, only
  * get_unmapped_area() can. It would be possible to fix it here but I
  * prefer working on fixing the generic code instead.
  *
- * WARNING: This will not work if hugetlbfs isn't enabled since the
+ * WARNING: This will yest work if hugetlbfs isn't enabled since the
  * generic code will redefine that function as 0 in that. This is ok
- * for now as we only use slices with hugetlbfs enabled. This should
+ * for yesw as we only use slices with hugetlbfs enabled. This should
  * be fixed as the generic code gets fixed.
  */
 int slice_is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,

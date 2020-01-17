@@ -27,7 +27,7 @@
 #include <api/fs/fs.h>
 #include <api/fs/tracing_path.h>
 #include <perf/core.h>
-#include <errno.h>
+#include <erryes.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -70,7 +70,7 @@ static struct cmd_struct commands[] = {
 	{ "stat",	cmd_stat,	0 },
 	{ "timechart",	cmd_timechart,	0 },
 	{ "top",	cmd_top,	0 },
-	{ "annotate",	cmd_annotate,	0 },
+	{ "anyestate",	cmd_anyestate,	0 },
 	{ "version",	cmd_version,	0 },
 	{ "script",	cmd_script,	0 },
 	{ "sched",	cmd_sched,	0 },
@@ -103,7 +103,7 @@ static int pager_command_config(const char *var, const char *value, void *data)
 	return 0;
 }
 
-/* returns 0 for "no pager", 1 for "use pager", and -1 for "not specified" */
+/* returns 0 for "yes pager", 1 for "use pager", and -1 for "yest specified" */
 static int check_pager_config(const char *cmd)
 {
 	int err;
@@ -125,8 +125,8 @@ static int browser_command_config(const char *var, const char *value, void *data
 }
 
 /*
- * returns 0 for "no tui", 1 for "use tui", 2 for "use gtk",
- * and -1 for "not specified"
+ * returns 0 for "yes tui", 1 for "use tui", 2 for "use gtk",
+ * and -1 for "yest specified"
  */
 static int check_browser_config(const char *cmd)
 {
@@ -158,7 +158,7 @@ struct option options[] = {
 	OPT_ARGUMENT("exec-path", "exec-path"),
 	OPT_ARGUMENT("html-path", "html-path"),
 	OPT_ARGUMENT("paginate", "paginate"),
-	OPT_ARGUMENT("no-pager", "no-pager"),
+	OPT_ARGUMENT("yes-pager", "yes-pager"),
 	OPT_ARGUMENT("debugfs-dir", "debugfs-dir"),
 	OPT_ARGUMENT("buildid-dir", "buildid-dir"),
 	OPT_ARGUMENT("list-cmds", "list-cmds"),
@@ -220,7 +220,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			exit(0);
 		} else if (!strcmp(cmd, "-p") || !strcmp(cmd, "--paginate")) {
 			use_pager = 1;
-		} else if (!strcmp(cmd, "--no-pager")) {
+		} else if (!strcmp(cmd, "--yes-pager")) {
 			use_pager = 0;
 			if (envchanged)
 				*envchanged = 1;
@@ -278,7 +278,7 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			(*argv)++;
 			(*argc)--;
 		} else {
-			fprintf(stderr, "Unknown option: %s\n", cmd);
+			fprintf(stderr, "Unkyeswn option: %s\n", cmd);
 			usage(perf_usage_string);
 		}
 
@@ -319,9 +319,9 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 		return status & 0xff;
 
 	/* Somebody closed stdout? */
-	if (fstat(fileno(stdout), &st))
+	if (fstat(fileyes(stdout), &st))
 		return 0;
-	/* Ignore write errors for pipes and sockets.. */
+	/* Igyesre write errors for pipes and sockets.. */
 	if (S_ISFIFO(st.st_mode) || S_ISSOCK(st.st_mode))
 		return 0;
 
@@ -329,16 +329,16 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	/* Check for ENOSPC and EIO errors.. */
 	if (fflush(stdout)) {
 		fprintf(stderr, "write failure on standard output: %s",
-			str_error_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(erryes, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 	if (ferror(stdout)) {
-		fprintf(stderr, "unknown write failure on standard output");
+		fprintf(stderr, "unkyeswn write failure on standard output");
 		goto out;
 	}
 	if (fclose(stdout)) {
 		fprintf(stderr, "close failed on standard output: %s",
-			str_error_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(erryes, sbuf, sizeof(sbuf)));
 		goto out;
 	}
 	status = 0;
@@ -384,7 +384,7 @@ static void execv_dashed_external(const char **argv)
 	argv[0] = cmd;
 
 	/*
-	 * if we fail because the command is not found, it is
+	 * if we fail because the command is yest found, it is
 	 * OK to return. Otherwise, we just pass along the status code.
 	 */
 	status = run_command_v_opt(argv, 0);
@@ -396,7 +396,7 @@ do_die:
 		}
 		exit(-status);
 	}
-	errno = ENOENT; /* as if we called execvp */
+	erryes = ENOENT; /* as if we called execvp */
 
 	argv[0] = tmp;
 	zfree(&cmd);
@@ -465,21 +465,21 @@ int main(int argc, const char **argv)
 	/*
 	 * "perf-xxxx" is the same as "perf xxxx", but we obviously:
 	 *
-	 *  - cannot take flags in between the "perf" and the "xxxx".
-	 *  - cannot execute it externally (since it would just do
+	 *  - canyest take flags in between the "perf" and the "xxxx".
+	 *  - canyest execute it externally (since it would just do
 	 *    the same thing over again)
 	 *
 	 * So we just directly call the internal command handler. If that one
 	 * fails to handle this, then maybe we just run a renamed perf binary
 	 * that contains a dash in its name. To handle this scenario, we just
-	 * fall through and ignore the "xxxx" part of the command string.
+	 * fall through and igyesre the "xxxx" part of the command string.
 	 */
 	if (strstarts(cmd, "perf-")) {
 		cmd += 5;
 		argv[0] = cmd;
 		handle_internal_command(argc, argv);
 		/*
-		 * If the command is handled, the above function does not
+		 * If the command is handled, the above function does yest
 		 * return undo changes and fall through in such a case.
 		 */
 		cmd -= 5;
@@ -492,7 +492,7 @@ int main(int argc, const char **argv)
 		return cmd_trace(argc, argv);
 #else
 		fprintf(stderr,
-			"trace command not available: missing audit-libs devel package at build time.\n");
+			"trace command yest available: missing audit-libs devel package at build time.\n");
 		goto out;
 #endif
 	}
@@ -524,9 +524,9 @@ int main(int argc, const char **argv)
 	 */
 	setup_path();
 	/*
-	 * Block SIGWINCH notifications so that the thread that wants it can
+	 * Block SIGWINCH yestifications so that the thread that wants it can
 	 * unblock and get syscalls like select interrupted instead of waiting
-	 * forever while the signal goes to some other non interested thread.
+	 * forever while the signal goes to some other yesn interested thread.
 	 */
 	pthread__block_sigwinch();
 
@@ -537,18 +537,18 @@ int main(int argc, const char **argv)
 
 		run_argv(&argc, &argv);
 
-		if (errno != ENOENT)
+		if (erryes != ENOENT)
 			break;
 
 		if (!done_help) {
-			cmd = argv[0] = help_unknown_cmd(cmd);
+			cmd = argv[0] = help_unkyeswn_cmd(cmd);
 			done_help = 1;
 		} else
 			break;
 	}
 
 	fprintf(stderr, "Failed to run command '%s': %s\n",
-		cmd, str_error_r(errno, sbuf, sizeof(sbuf)));
+		cmd, str_error_r(erryes, sbuf, sizeof(sbuf)));
 out:
 	return 1;
 }

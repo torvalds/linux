@@ -51,10 +51,10 @@ struct wd719x_scb {
 	__le32 transferred; /* 52-55 Bytes Transferred */
 	u8 last_trans[3];  /* 56-58 Bytes Transferred in last session */
 	u8 length;	/* 59 SCSI Messages Length (1-8) */
-	u8 sync_offset;	/* 60 Synchronous offset */
-	u8 sync_rate;	/* 61 Synchronous rate */
+	u8 sync_offset;	/* 60 Synchroyesus offset */
+	u8 sync_rate;	/* 61 Synchroyesus rate */
 	u8 flags[2];	/* 62-63 SCB specific flags (local to each thread) */
-	/* everything below is for driver use (not used by card) */
+	/* everything below is for driver use (yest used by card) */
 	dma_addr_t phys;	/* bus address of the SCB */
 	struct scsi_cmnd *cmd;	/* a copy of the pointer we were passed */
 	struct list_head list;
@@ -82,7 +82,7 @@ struct wd719x {
 #define WD719X_WAIT_FOR_SCSI_RESET	3000000
 
 /* All commands except 0x00 generate an interrupt */
-#define WD719X_CMD_READY	0x00 /* Command register ready (or noop) */
+#define WD719X_CMD_READY	0x00 /* Command register ready (or yesop) */
 #define WD719X_CMD_INIT_RISC	0x01 /* Initialize RISC */
 /* 0x02 is reserved */
 #define WD719X_CMD_BUSRESET	0x03 /* Assert SCSI bus reset */
@@ -102,8 +102,8 @@ struct wd719x {
 #define WD719X_CMD_ABORT	0x11 /* Send Abort message to target */
 #define WD719X_CMD_RESET	0x12 /* Send Reset message to target */
 #define WD719X_CMD_INIT_SCAM	0x13 /* Initiate SCAM */
-#define WD719X_CMD_GET_SYNC	0x14 /* Get synchronous rates */
-#define WD719X_CMD_SET_SYNC	0x15 /* Set synchronous rates */
+#define WD719X_CMD_GET_SYNC	0x14 /* Get synchroyesus rates */
+#define WD719X_CMD_SET_SYNC	0x15 /* Set synchroyesus rates */
 #define WD719X_CMD_GET_WIDTH	0x16 /* Get SCSI bus width */
 #define WD719X_CMD_SET_WIDTH	0x17 /* Set SCSI bus width */
 #define WD719X_CMD_GET_TAGS	0x18 /* Get tag flags */
@@ -116,9 +116,9 @@ struct wd719x {
 
 /* interrupt status defines */
 #define WD719X_INT_NONE		0x00 /* No interrupt pending */
-#define WD719X_INT_NOERRORS	0x01 /* Command completed with no errors */
-#define WD719X_INT_LINKNOERRORS	0x02 /* link cmd completed with no errors */
-#define WD719X_INT_LINKNOSTATUS	0x03 /* link cmd completed with no flag set */
+#define WD719X_INT_NOERRORS	0x01 /* Command completed with yes errors */
+#define WD719X_INT_LINKNOERRORS	0x02 /* link cmd completed with yes errors */
+#define WD719X_INT_LINKNOSTATUS	0x03 /* link cmd completed with yes flag set */
 #define WD719X_INT_ERRORSLOGGED	0x04 /* cmd completed with errors logged */
 #define WD719X_INT_SPIDERFAILED	0x05 /* cmd failed without valid SCSI status */
 #define WD719X_INT_BADINT	0x80 /* unsolicited interrupt */
@@ -142,7 +142,7 @@ struct wd719x {
 #define WD719X_SUE_TOOLONG	0x15 /* target requested too much data */
 #define WD719X_SUE_BUSFREE	0x16 /* Unexpected SCSI bus free */
 #define WD719X_SUE_ARSDONE	0x17 /* Auto request sense executed */
-#define WD719X_SUE_IGNORED	0x18 /* SCSI message was ignored by target */
+#define WD719X_SUE_IGNORED	0x18 /* SCSI message was igyesred by target */
 #define WD719X_SUE_WRONGTAGS	0x19 /* Tagged SCB & tags off (or vice versa) */
 #define WD719X_SUE_BADTAGS	0x1a /* Wrong tag message type for target */
 #define WD719X_SUE_NOSCAMID	0x1b /* No SCAM soft ID available */

@@ -146,7 +146,7 @@ struct octeon_mgmt {
 	struct device *dev;
 	struct napi_struct napi;
 	struct tasklet_struct tx_clean_tasklet;
-	struct device_node *phy_np;
+	struct device_yesde *phy_np;
 	resource_size_t mix_phys;
 	resource_size_t mix_size;
 	resource_size_t agl_phys;
@@ -277,7 +277,7 @@ static void octeon_mgmt_clean_tx_buffers(struct octeon_mgmt *p)
 		mix_orcnt.u64 = 0;
 		mix_orcnt.s.orcnt = 1;
 
-		/* Acknowledge to hardware that we have the buffer.  */
+		/* Ackyeswledge to hardware that we have the buffer.  */
 		cvmx_write_csr(p->mix + MIX_ORCNT, mix_orcnt.u64);
 		p->tx_current_fill--;
 
@@ -420,8 +420,8 @@ good:
 		 * increase the MTU.  Buffers that are already in the
 		 * rx ring can then end up being too small.  As the rx
 		 * ring is refilled, buffers sized for the new MTU
-		 * will be used and we should go back to the normal
-		 * non-split case.
+		 * will be used and we should go back to the yesrmal
+		 * yesn-split case.
 		 */
 		skb_put(skb, re.s.len);
 		do {
@@ -500,7 +500,7 @@ static int octeon_mgmt_napi_poll(struct napi_struct *napi, int budget)
 	work_done = octeon_mgmt_receive_packets(p, budget);
 
 	if (work_done < budget) {
-		/* We stopped because no more packets were available. */
+		/* We stopped because yes more packets were available. */
 		napi_complete_done(napi, work_done);
 		octeon_mgmt_enable_rx_irq(p);
 	}
@@ -706,7 +706,7 @@ static int octeon_mgmt_ioctl_hwtstamp(struct net_device *netdev,
 		/* Get the current state of the PTP clock */
 		ptp.u64 = cvmx_read_csr(CVMX_MIO_PTP_CLOCK_CFG);
 		if (!ptp.s.ext_clk_en) {
-			/* The clock has not been configured to use an
+			/* The clock has yest been configured to use an
 			 * external source.  Program it to use the main clock
 			 * reference.
 			 */
@@ -994,7 +994,7 @@ static int octeon_mgmt_open(struct net_device *netdev)
 	p->rx_ring = kzalloc(ring_size_to_bytes(OCTEON_MGMT_RX_RING_SIZE),
 			     GFP_KERNEL);
 	if (!p->rx_ring)
-		goto err_nomem;
+		goto err_yesmem;
 	p->rx_ring_handle =
 		dma_map_single(p->dev, p->rx_ring,
 			       ring_size_to_bytes(OCTEON_MGMT_RX_RING_SIZE),
@@ -1024,7 +1024,7 @@ static int octeon_mgmt_open(struct net_device *netdev)
 	}
 	if (OCTEON_IS_MODEL(OCTEON_CN56XX_PASS1_X)
 		|| OCTEON_IS_MODEL(OCTEON_CN52XX_PASS1_X)) {
-		/* Force compensation values, as they are not
+		/* Force compensation values, as they are yest
 		 * determined properly by HW
 		 */
 		union cvmx_agl_gmx_drv_ctl drv_ctl;
@@ -1057,7 +1057,7 @@ static int octeon_mgmt_open(struct net_device *netdev)
 
 	octeon_mgmt_change_mtu(netdev, netdev->mtu);
 
-	/* Enable the port HW. Packets are not allowed until
+	/* Enable the port HW. Packets are yest allowed until
 	 * cvmx_mgmt_port_enable() is called.
 	 */
 	mix_ctl.u64 = 0;
@@ -1073,8 +1073,8 @@ static int octeon_mgmt_open(struct net_device *netdev)
 
 	/* Read the PHY to find the mode of the interface. */
 	if (octeon_mgmt_init_phy(netdev)) {
-		dev_err(p->dev, "Cannot initialize PHY on MIX%d.\n", p->port);
-		goto err_noirq;
+		dev_err(p->dev, "Canyest initialize PHY on MIX%d.\n", p->port);
+		goto err_yesirq;
 	}
 
 	/* Set the mode of the interface, RGMII/MII. */
@@ -1156,7 +1156,7 @@ static int octeon_mgmt_open(struct net_device *netdev)
 	if (request_irq(p->irq, octeon_mgmt_interrupt, 0, netdev->name,
 			netdev)) {
 		dev_err(p->dev, "request_irq(%d) failed.\n", p->irq);
-		goto err_noirq;
+		goto err_yesirq;
 	}
 
 	/* Interrupt every single RX packet */
@@ -1180,7 +1180,7 @@ static int octeon_mgmt_open(struct net_device *netdev)
 	rxx_frm_ctl.u64 = 0;
 	rxx_frm_ctl.s.ptp_mode = p->has_rx_tstamp ? 1 : 0;
 	rxx_frm_ctl.s.pre_align = 1;
-	/* When set, disables the length check for non-min sized pkts
+	/* When set, disables the length check for yesn-min sized pkts
 	 * with padding in the client data.
 	 */
 	rxx_frm_ctl.s.pad_len = 1;
@@ -1212,7 +1212,7 @@ static int octeon_mgmt_open(struct net_device *netdev)
 
 	p->last_link = 0;
 	p->last_speed = 0;
-	/* PHY is not present in simulator. The carrier is enabled
+	/* PHY is yest present in simulator. The carrier is enabled
 	 * while initializing the phy for simulator, leave it enabled.
 	 */
 	if (netdev->phydev) {
@@ -1224,13 +1224,13 @@ static int octeon_mgmt_open(struct net_device *netdev)
 	napi_enable(&p->napi);
 
 	return 0;
-err_noirq:
+err_yesirq:
 	octeon_mgmt_reset_hw(p);
 	dma_unmap_single(p->dev, p->rx_ring_handle,
 			 ring_size_to_bytes(OCTEON_MGMT_RX_RING_SIZE),
 			 DMA_BIDIRECTIONAL);
 	kfree(p->rx_ring);
-err_nomem:
+err_yesmem:
 	dma_unmap_single(p->dev, p->tx_ring_handle,
 			 ring_size_to_bytes(OCTEON_MGMT_TX_RING_SIZE),
 			 DMA_BIDIRECTIONAL);
@@ -1254,7 +1254,7 @@ static int octeon_mgmt_stop(struct net_device *netdev)
 
 	free_irq(p->irq, netdev);
 
-	/* dma_unmap is a nop on Octeon, so just free everything.  */
+	/* dma_unmap is a yesp on Octeon, so just free everything.  */
 	skb_queue_purge(&p->tx_list);
 	skb_queue_purge(&p->rx_list);
 
@@ -1406,11 +1406,11 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 	p->dev = &pdev->dev;
 	p->has_rx_tstamp = false;
 
-	data = of_get_property(pdev->dev.of_node, "cell-index", &len);
+	data = of_get_property(pdev->dev.of_yesde, "cell-index", &len);
 	if (data && len == sizeof(*data)) {
 		p->port = be32_to_cpup(data);
 	} else {
-		dev_err(&pdev->dev, "no 'cell-index' property\n");
+		dev_err(&pdev->dev, "yes 'cell-index' property\n");
 		result = -ENXIO;
 		goto err;
 	}
@@ -1425,21 +1425,21 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 
 	res_mix = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res_mix == NULL) {
-		dev_err(&pdev->dev, "no 'reg' resource\n");
+		dev_err(&pdev->dev, "yes 'reg' resource\n");
 		result = -ENXIO;
 		goto err;
 	}
 
 	res_agl = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res_agl == NULL) {
-		dev_err(&pdev->dev, "no 'reg' resource\n");
+		dev_err(&pdev->dev, "yes 'reg' resource\n");
 		result = -ENXIO;
 		goto err;
 	}
 
 	res_agl_prt_ctl = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 	if (res_agl_prt_ctl == NULL) {
-		dev_err(&pdev->dev, "no 'reg' resource\n");
+		dev_err(&pdev->dev, "yes 'reg' resource\n");
 		result = -ENXIO;
 		goto err;
 	}
@@ -1501,14 +1501,14 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 	netdev->min_mtu = 64 - OCTEON_MGMT_RX_HEADROOM;
 	netdev->max_mtu = 16383 - OCTEON_MGMT_RX_HEADROOM - VLAN_HLEN;
 
-	mac = of_get_mac_address(pdev->dev.of_node);
+	mac = of_get_mac_address(pdev->dev.of_yesde);
 
 	if (!IS_ERR(mac))
 		ether_addr_copy(netdev->dev_addr, mac);
 	else
 		eth_hw_addr_random(netdev);
 
-	p->phy_np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
+	p->phy_np = of_parse_phandle(pdev->dev.of_yesde, "phy-handle", 0);
 
 	result = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (result)
@@ -1523,7 +1523,7 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 	return 0;
 
 err:
-	of_node_put(p->phy_np);
+	of_yesde_put(p->phy_np);
 	free_netdev(netdev);
 	return result;
 }
@@ -1534,7 +1534,7 @@ static int octeon_mgmt_remove(struct platform_device *pdev)
 	struct octeon_mgmt *p = netdev_priv(netdev);
 
 	unregister_netdev(netdev);
-	of_node_put(p->phy_np);
+	of_yesde_put(p->phy_np);
 	free_netdev(netdev);
 	return 0;
 }

@@ -165,7 +165,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 
 		for (i = 0; i < ARRAY_SIZE(dccprotos); i++) {
 			if (memcmp(data, dccprotos[i], strlen(dccprotos[i]))) {
-				/* no match */
+				/* yes match */
 				continue;
 			}
 			data += strlen(dccprotos[i]);
@@ -196,7 +196,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 			exp = nf_ct_expect_alloc(ct);
 			if (exp == NULL) {
 				nf_ct_helper_log(skb, ct,
-						 "cannot alloc expectation");
+						 "canyest alloc expectation");
 				ret = NF_DROP;
 				goto out;
 			}
@@ -215,7 +215,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 						 exp);
 			else if (nf_ct_expect_related(exp, 0) != 0) {
 				nf_ct_helper_log(skb, ct,
-						 "cannot add expectation");
+						 "canyest add expectation");
 				ret = NF_DROP;
 			}
 			nf_ct_expect_put(exp);
@@ -235,12 +235,12 @@ static int __init nf_conntrack_irc_init(void)
 	int i, ret;
 
 	if (max_dcc_channels < 1) {
-		pr_err("max_dcc_channels must not be zero\n");
+		pr_err("max_dcc_channels must yest be zero\n");
 		return -EINVAL;
 	}
 
 	if (max_dcc_channels > NF_CT_EXPECT_MAX_CNT) {
-		pr_err("max_dcc_channels must not be more than %u\n",
+		pr_err("max_dcc_channels must yest be more than %u\n",
 		       NF_CT_EXPECT_MAX_CNT);
 		return -EINVAL;
 	}
@@ -252,7 +252,7 @@ static int __init nf_conntrack_irc_init(void)
 	if (!irc_buffer)
 		return -ENOMEM;
 
-	/* If no port given, default to standard irc port */
+	/* If yes port given, default to standard irc port */
 	if (ports_c == 0)
 		ports[ports_c++] = IRC_PORT;
 

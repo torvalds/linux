@@ -105,7 +105,7 @@ static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
 {
 	/* Setup the vector used for configuration events */
 	iowrite16(vector, vp_dev->ioaddr + VIRTIO_MSI_CONFIG_VECTOR);
-	/* Verify we had enough resources to assign the vector */
+	/* Verify we had eyesugh resources to assign the vector */
 	/* Will also flush the write out to device */
 	return ioread16(vp_dev->ioaddr + VIRTIO_MSI_CONFIG_VECTOR);
 }
@@ -126,7 +126,7 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	/* Select the queue we're interested in */
 	iowrite16(index, vp_dev->ioaddr + VIRTIO_PCI_QUEUE_SEL);
 
-	/* Check if queue is either not available or already active. */
+	/* Check if queue is either yest available or already active. */
 	num = ioread16(vp_dev->ioaddr + VIRTIO_PCI_QUEUE_NUM);
 	if (!num || ioread32(vp_dev->ioaddr + VIRTIO_PCI_QUEUE_PFN))
 		return ERR_PTR(-ENOENT);
@@ -137,14 +137,14 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 	vq = vring_create_virtqueue(index, num,
 				    VIRTIO_PCI_VRING_ALIGN, &vp_dev->vdev,
 				    true, false, ctx,
-				    vp_notify, callback, name);
+				    vp_yestify, callback, name);
 	if (!vq)
 		return ERR_PTR(-ENOMEM);
 
 	q_pfn = virtqueue_get_desc_addr(vq) >> VIRTIO_PCI_QUEUE_ADDR_SHIFT;
 	if (q_pfn >> 32) {
 		dev_err(&vp_dev->pci_dev->dev,
-			"platform bug: legacy virtio-mmio must not be used with RAM above 0x%llxGB\n",
+			"platform bug: legacy virtio-mmio must yest be used with RAM above 0x%llxGB\n",
 			0x1ULL << (32 + PAGE_SHIFT - 30));
 		err = -E2BIG;
 		goto out_del_vq;
@@ -237,7 +237,7 @@ int virtio_pci_legacy_probe(struct virtio_pci_device *vp_dev)
 	}
 
 	if (rc)
-		dev_warn(&pci_dev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might not work.\n");
+		dev_warn(&pci_dev->dev, "Failed to enable 64-bit or 32-bit DMA.  Trying to continue, but this might yest work.\n");
 
 	rc = pci_request_region(pci_dev, 0, "virtio-pci-legacy");
 	if (rc)

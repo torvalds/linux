@@ -3,7 +3,7 @@
  * PIC32 Quad SPI controller driver.
  *
  * Purna Chandra Mandal <purna.mandal@microchip.com>
- * Copyright (c) 2016, Microchip Technology Inc.
+ * Copyright (c) 2016, Microchip Techyeslogy Inc.
  */
 
 #include <linux/clk.h>
@@ -510,7 +510,7 @@ static void pic32_sqi_hw_init(struct pic32_sqi *sqi)
 	u32 val;
 
 	/* Soft-reset of PESQI controller triggers interrupt.
-	 * We are not yet ready to handle them so disable CPU
+	 * We are yest yet ready to handle them so disable CPU
 	 * interrupt for the time being.
 	 */
 	local_irq_save(flags);
@@ -596,14 +596,14 @@ static int pic32_sqi_probe(struct platform_device *pdev)
 	sqi->sys_clk = devm_clk_get(&pdev->dev, "reg_ck");
 	if (IS_ERR(sqi->sys_clk)) {
 		ret = PTR_ERR(sqi->sys_clk);
-		dev_err(&pdev->dev, "no sys_clk ?\n");
+		dev_err(&pdev->dev, "yes sys_clk ?\n");
 		goto err_free_master;
 	}
 
 	sqi->base_clk = devm_clk_get(&pdev->dev, "spi_ck");
 	if (IS_ERR(sqi->base_clk)) {
 		ret = PTR_ERR(sqi->base_clk);
-		dev_err(&pdev->dev, "no base clk ?\n");
+		dev_err(&pdev->dev, "yes base clk ?\n");
 		goto err_free_master;
 	}
 
@@ -645,7 +645,7 @@ static int pic32_sqi_probe(struct platform_device *pdev)
 	master->max_speed_hz	= clk_get_rate(sqi->base_clk);
 	master->dma_alignment	= 32;
 	master->max_dma_len	= PESQI_BD_BUF_LEN_MAX;
-	master->dev.of_node	= pdev->dev.of_node;
+	master->dev.of_yesde	= pdev->dev.of_yesde;
 	master->mode_bits	= SPI_MODE_3 | SPI_MODE_0 | SPI_TX_DUAL |
 				  SPI_RX_DUAL | SPI_TX_QUAD | SPI_RX_QUAD;
 	master->flags		= SPI_MASTER_HALF_DUPLEX;

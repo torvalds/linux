@@ -56,7 +56,7 @@ static int xsk_diag_put_umem(const struct xdp_sock *xs, struct sk_buff *nlskb)
 	du.id = umem->id;
 	du.size = umem->size;
 	du.num_pages = umem->npgs;
-	du.chunk_size = umem->chunk_size_nohr + umem->headroom;
+	du.chunk_size = umem->chunk_size_yeshr + umem->headroom;
 	du.headroom = umem->headroom;
 	du.ifindex = umem->dev ? umem->dev->ifindex : 0;
 	du.queue_id = umem->queue_id;
@@ -79,7 +79,7 @@ static int xsk_diag_put_umem(const struct xdp_sock *xs, struct sk_buff *nlskb)
 static int xsk_diag_fill(struct sock *sk, struct sk_buff *nlskb,
 			 struct xdp_diag_req *req,
 			 struct user_namespace *user_ns,
-			 u32 portid, u32 seq, u32 flags, int sk_ino)
+			 u32 portid, u32 seq, u32 flags, int sk_iyes)
 {
 	struct xdp_sock *xs = xdp_sk(sk);
 	struct xdp_diag_msg *msg;
@@ -94,7 +94,7 @@ static int xsk_diag_fill(struct sock *sk, struct sk_buff *nlskb,
 	memset(msg, 0, sizeof(*msg));
 	msg->xdiag_family = AF_XDP;
 	msg->xdiag_type = sk->sk_type;
-	msg->xdiag_ino = sk_ino;
+	msg->xdiag_iyes = sk_iyes;
 	sock_diag_save_cookie(sk, msg->xdiag_cookie);
 
 	mutex_lock(&xs->mutex);
@@ -147,7 +147,7 @@ static int xsk_diag_dump(struct sk_buff *nlskb, struct netlink_callback *cb)
 				  sk_user_ns(NETLINK_CB(cb->skb).sk),
 				  NETLINK_CB(cb->skb).portid,
 				  cb->nlh->nlmsg_seq, NLM_F_MULTI,
-				  sock_i_ino(sk)) < 0) {
+				  sock_i_iyes(sk)) < 0) {
 			num--;
 			break;
 		}

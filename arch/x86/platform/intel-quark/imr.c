@@ -3,12 +3,12 @@
  * imr.c -- Intel Isolated Memory Region driver
  *
  * Copyright(c) 2013 Intel Corporation.
- * Copyright(c) 2015 Bryan O'Donoghue <pure.logic@nexus-software.ie>
+ * Copyright(c) 2015 Bryan O'Doyesghue <pure.logic@nexus-software.ie>
  *
  * IMR registers define an isolated region of memory that can
  * be masked to prohibit certain system agents from accessing memory.
- * When a device behind a masked port performs an access - snooped or
- * not, an IMR may optionally prevent that transaction from changing
+ * When a device behind a masked port performs an access - syesoped or
+ * yest, an IMR may optionally prevent that transaction from changing
  * the state of memory or from getting correct data in response to the
  * operation.
  *
@@ -164,7 +164,7 @@ static int imr_write(struct imr_device *idev, u32 imr_id, struct imr_regs *imr)
 	return 0;
 failed:
 	/*
-	 * If writing to the IOSF failed then we're in an unknown state,
+	 * If writing to the IOSF failed then we're in an unkyeswn state,
 	 * likely a very bad state. An IMR in an invalid state will almost
 	 * certainly lead to a memory access violation.
 	 */
@@ -238,7 +238,7 @@ static void imr_debugfs_register(struct imr_device *idev)
 }
 
 /**
- * imr_check_params - check passed address range IMR alignment and non-zero size
+ * imr_check_params - check passed address range IMR alignment and yesn-zero size
  *
  * @base:	base address of intended IMR.
  * @size:	size of intended IMR.
@@ -277,7 +277,7 @@ static inline size_t imr_raw_size(size_t size)
  *
  * @addr:	address to check against an existing IMR.
  * @imr:	imr being checked.
- * @return:	true for overlap false for no overlap.
+ * @return:	true for overlap false for yes overlap.
  */
 static inline int imr_address_overlap(phys_addr_t addr, struct imr_regs *imr)
 {
@@ -304,7 +304,7 @@ int imr_add_range(phys_addr_t base, size_t size,
 	int reg;
 	int ret;
 
-	if (WARN_ONCE(idev->init == false, "driver not initialized"))
+	if (WARN_ONCE(idev->init == false, "driver yest initialized"))
 		return -ENODEV;
 
 	ret = imr_check_params(base, size);
@@ -330,7 +330,7 @@ int imr_add_range(phys_addr_t base, size_t size,
 
 	/*
 	 * Find a free IMR while checking for an existing overlapping range.
-	 * Note there's no restriction in silicon to prevent IMR overlaps.
+	 * Note there's yes restriction in silicon to prevent IMR overlaps.
 	 * For the sake of simplicity and ease in defining/debugging an IMR
 	 * memory map we exclude IMR overlaps.
 	 */
@@ -352,7 +352,7 @@ int imr_add_range(phys_addr_t base, size_t size,
 		}
 	}
 
-	/* Error out if we have no free IMR entries. */
+	/* Error out if we have yes free IMR entries. */
 	if (reg == -1) {
 		ret = -ENOMEM;
 		goto failed;
@@ -391,15 +391,15 @@ EXPORT_SYMBOL_GPL(imr_add_range);
  *
  * This function allows you to delete an IMR by its index specified by reg or
  * by address range specified by base and size respectively. If you specify an
- * index on its own the base and size parameters are ignored.
- * imr_remove_range(0, base, size); delete IMR at index 0 base/size ignored.
+ * index on its own the base and size parameters are igyesred.
+ * imr_remove_range(0, base, size); delete IMR at index 0 base/size igyesred.
  * imr_remove_range(-1, base, size); delete IMR from base to base+size.
  *
  * @reg:	imr index to remove.
  * @base:	physical base address of region aligned to 1 KiB.
  * @size:	physical size of region in bytes aligned to 1 KiB.
  * @return:	-EINVAL on invalid range or out or range id
- *		-ENODEV if reg is valid but no IMR exists or is locked
+ *		-ENODEV if reg is valid but yes IMR exists or is locked
  *		0 on success.
  */
 static int __imr_remove_range(int reg, phys_addr_t base, size_t size)
@@ -412,12 +412,12 @@ static int __imr_remove_range(int reg, phys_addr_t base, size_t size)
 	size_t raw_size;
 	int ret = 0;
 
-	if (WARN_ONCE(idev->init == false, "driver not initialized"))
+	if (WARN_ONCE(idev->init == false, "driver yest initialized"))
 		return -ENODEV;
 
 	/*
 	 * Validate address range if deleting by address, else we are
-	 * deleting by index where base and size will be ignored.
+	 * deleting by index where base and size will be igyesred.
 	 */
 	if (reg == -1) {
 		ret = imr_check_params(base, size);
@@ -491,7 +491,7 @@ failed:
  * @base:	physical base address of region aligned to 1 KiB.
  * @size:	physical size of region in bytes aligned to 1 KiB.
  * @return:	-EINVAL on invalid range or out or range id
- *		-ENODEV if reg is valid but no IMR exists or is locked
+ *		-ENODEV if reg is valid but yes IMR exists or is locked
  *		0 on success.
  */
 int imr_remove_range(phys_addr_t base, size_t size)
@@ -510,7 +510,7 @@ EXPORT_SYMBOL_GPL(imr_remove_range);
  *
  * @reg:	imr index to remove.
  * @return:	-EINVAL on invalid range or out or range id
- *		-ENODEV if reg is valid but no IMR exists or is locked
+ *		-ENODEV if reg is valid but yes IMR exists or is locked
  *		0 on success.
  */
 static inline int imr_clear(int reg)
@@ -574,7 +574,7 @@ static const struct x86_cpu_id imr_ids[] __initconst = {
 /**
  * imr_init - entry point for IMR driver.
  *
- * return: -ENODEV for no IMR support 0 if good to go.
+ * return: -ENODEV for yes IMR support 0 if good to go.
  */
 static int __init imr_init(void)
 {

@@ -4,7 +4,7 @@
 
 /*
  * Data types for the Ceph distributed object storage layer RADOS
- * (Reliable Autonomic Distributed Object Store).
+ * (Reliable Autoyesmic Distributed Object Store).
  */
 
 #include <linux/ceph/msgr.h>
@@ -23,7 +23,7 @@ static inline int ceph_fsid_compare(const struct ceph_fsid *a,
 }
 
 /*
- * ino, object, etc.
+ * iyes, object, etc.
  */
 typedef __le64 ceph_snapid_t;
 #define CEPH_SNAPDIR ((__u64)(-1))  /* reserved for hidden .snap dir */
@@ -80,7 +80,7 @@ struct ceph_pg_v1 {
  *
  *  lpgp_num -- as above.
  */
-#define CEPH_NOPOOL  ((__u64) (-1))  /* pool id not defined */
+#define CEPH_NOPOOL  ((__u64) (-1))  /* pool id yest defined */
 
 #define CEPH_POOL_TYPE_REP     1
 #define CEPH_POOL_TYPE_RAID4   2 /* never implemented */
@@ -144,7 +144,7 @@ extern const char *ceph_osd_state_name(int s);
  * osd map flag bits
  */
 #define CEPH_OSDMAP_NEARFULL (1<<0)  /* sync writes (near ENOSPC) */
-#define CEPH_OSDMAP_FULL     (1<<1)  /* no data writes (ENOSPC) */
+#define CEPH_OSDMAP_FULL     (1<<1)  /* yes data writes (ENOSPC) */
 #define CEPH_OSDMAP_PAUSERD  (1<<2)  /* pause all reads */
 #define CEPH_OSDMAP_PAUSEWR  (1<<3)  /* pause all writes */
 #define CEPH_OSDMAP_PAUSEREC (1<<4)  /* pause recovery */
@@ -173,7 +173,7 @@ extern const char *ceph_osd_state_name(int s);
 /*
  * osd ops
  *
- * WARNING: do not use these op codes directly.  Use the helpers
+ * WARNING: do yest use these op codes directly.  Use the helpers
  * defined below instead.  In certain cases, op code behavior was
  * redefined, resulting in special-cases in the helpers.
  */
@@ -209,8 +209,8 @@ extern const char *ceph_osd_state_name(int s);
 	f(MASKTRUNC,	__CEPH_OSD_OP(RD, DATA, 4),	"masktrunc")	    \
 	f(SPARSE_READ,	__CEPH_OSD_OP(RD, DATA, 5),	"sparse-read")	    \
 									    \
-	f(NOTIFY,	__CEPH_OSD_OP(RD, DATA, 6),	"notify")	    \
-	f(NOTIFY_ACK,	__CEPH_OSD_OP(RD, DATA, 7),	"notify-ack")	    \
+	f(NOTIFY,	__CEPH_OSD_OP(RD, DATA, 6),	"yestify")	    \
+	f(NOTIFY_ACK,	__CEPH_OSD_OP(RD, DATA, 7),	"yestify-ack")	    \
 									    \
 	/* versioning */						    \
 	f(ASSERT_VER,	__CEPH_OSD_OP(RD, DATA, 8),	"assert-version")   \
@@ -307,7 +307,7 @@ extern const char *ceph_osd_state_name(int s);
 	f(DNLOCK,	__CEPH_OSD_OP(WR, LOCK, 6),	"dnlock")	    \
 									    \
 	/** exec **/							    \
-	/* note: the RD bit here is wrong; see special-case below in helper */ \
+	/* yeste: the RD bit here is wrong; see special-case below in helper */ \
 	f(CALL,		__CEPH_OSD_OP(RD, EXEC, 1),	"call")		    \
 									    \
 	/** pg **/							    \
@@ -362,7 +362,7 @@ static inline int ceph_osd_op_mode_modify(int op)
 }
 
 /*
- * note that the following tmap stuff is also defined in the ceph librados.h
+ * yeste that the following tmap stuff is also defined in the ceph librados.h
  * any modification here needs to be updated there
  */
 #define CEPH_OSD_TMAP_HDR 'h'
@@ -389,14 +389,14 @@ enum {
 	CEPH_OSD_FLAG_PEERSTAT_OLD =   0x0080,  /* DEPRECATED msg includes osd_peer_stat */
 	CEPH_OSD_FLAG_BALANCE_READS =  0x0100,
 	CEPH_OSD_FLAG_PARALLELEXEC =   0x0200,  /* execute op in parallel */
-	CEPH_OSD_FLAG_PGOP =           0x0400,  /* pg op, no object */
+	CEPH_OSD_FLAG_PGOP =           0x0400,  /* pg op, yes object */
 	CEPH_OSD_FLAG_EXEC =           0x0800,  /* op may exec */
 	CEPH_OSD_FLAG_EXEC_PUBLIC =    0x1000,  /* DEPRECATED op may exec (public) */
 	CEPH_OSD_FLAG_LOCALIZE_READS = 0x2000,  /* read from nearby replica, if any */
 	CEPH_OSD_FLAG_RWORDERED =      0x4000,  /* order wrt concurrent reads */
-	CEPH_OSD_FLAG_IGNORE_CACHE =   0x8000,  /* ignore cache logic */
+	CEPH_OSD_FLAG_IGNORE_CACHE =   0x8000,  /* igyesre cache logic */
 	CEPH_OSD_FLAG_SKIPRWLOCKS =   0x10000,  /* skip rw locks */
-	CEPH_OSD_FLAG_IGNORE_OVERLAY = 0x20000, /* ignore pool overlay */
+	CEPH_OSD_FLAG_IGNORE_OVERLAY = 0x20000, /* igyesre pool overlay */
 	CEPH_OSD_FLAG_FLUSH =         0x40000,  /* this is part of flush */
 	CEPH_OSD_FLAG_MAP_SNAP_CLONE = 0x80000,  /* map snap direct to clone id */
 	CEPH_OSD_FLAG_ENFORCE_SNAPC   = 0x100000,  /* use snapc provided even if
@@ -414,7 +414,7 @@ enum {
 	CEPH_OSD_OP_FLAG_FADVISE_SEQUENTIAL = 0x8, /* the op is sequential */
 	CEPH_OSD_OP_FLAG_FADVISE_WILLNEED   = 0x10,/* data will be accessed in
 						      the near future */
-	CEPH_OSD_OP_FLAG_FADVISE_DONTNEED   = 0x20,/* data will not be accessed
+	CEPH_OSD_OP_FLAG_FADVISE_DONTNEED   = 0x20,/* data will yest be accessed
 						      in the near future */
 	CEPH_OSD_OP_FLAG_FADVISE_NOCACHE    = 0x40,/* data will be accessed only
 						      once by this client */
@@ -441,8 +441,8 @@ enum {
 
 enum {
 	CEPH_OSD_COPY_FROM_FLAG_FLUSH = 1,       /* part of a flush operation */
-	CEPH_OSD_COPY_FROM_FLAG_IGNORE_OVERLAY = 2, /* ignore pool overlay */
-	CEPH_OSD_COPY_FROM_FLAG_IGNORE_CACHE = 4,   /* ignore osd cache logic */
+	CEPH_OSD_COPY_FROM_FLAG_IGNORE_OVERLAY = 2, /* igyesre pool overlay */
+	CEPH_OSD_COPY_FROM_FLAG_IGNORE_CACHE = 4,   /* igyesre osd cache logic */
 	CEPH_OSD_COPY_FROM_FLAG_MAP_SNAP_CLONE = 8, /* map snap direct to
 						     * cloneid */
 	CEPH_OSD_COPY_FROM_FLAG_RWORDERED = 16,     /* order with write */
@@ -451,7 +451,7 @@ enum {
 enum {
 	CEPH_OSD_WATCH_OP_UNWATCH = 0,
 	CEPH_OSD_WATCH_OP_LEGACY_WATCH = 1,
-	/* note: use only ODD ids to prevent pre-giant code from
+	/* yeste: use only ODD ids to prevent pre-giant code from
 	   interpreting the op as UNWATCH */
 	CEPH_OSD_WATCH_OP_WATCH = 3,
 	CEPH_OSD_WATCH_OP_RECONNECT = 5,
@@ -499,13 +499,13 @@ struct ceph_osd_op {
 	        } __attribute__ ((packed)) snap;
 		struct {
 			__le64 cookie;
-			__le64 ver;     /* no longer used */
+			__le64 ver;     /* yes longer used */
 			__u8 op;	/* CEPH_OSD_WATCH_OP_* */
 			__le32 gen;     /* registration generation */
 		} __attribute__ ((packed)) watch;
 		struct {
 			__le64 cookie;
-		} __attribute__ ((packed)) notify;
+		} __attribute__ ((packed)) yestify;
 		struct {
 			__le64 offset, length;
 			__le64 src_offset;

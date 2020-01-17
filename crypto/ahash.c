@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Asynchronous Cryptographic Hash operations.
+ * Asynchroyesus Cryptographic Hash operations.
  *
- * This is the asynchronous version of hash.c with notification of
+ * This is the asynchroyesus version of hash.c with yestification of
  * completion via a callback.
  *
  * Copyright (c) 2008 Loc Ho <lho@amcc.com>
@@ -185,7 +185,7 @@ static int ahash_setkey_unaligned(struct crypto_ahash *tfm, const u8 *key,
 	return ret;
 }
 
-static int ahash_nosetkey(struct crypto_ahash *tfm, const u8 *key,
+static int ahash_yessetkey(struct crypto_ahash *tfm, const u8 *key,
 			  unsigned int keylen)
 {
 	return -ENOSYS;
@@ -195,7 +195,7 @@ static void ahash_set_needkey(struct crypto_ahash *tfm)
 {
 	const struct hash_alg_common *alg = crypto_hash_alg_common(tfm);
 
-	if (tfm->setkey != ahash_nosetkey &&
+	if (tfm->setkey != ahash_yessetkey &&
 	    !(alg->base.cra_flags & CRYPTO_ALG_OPTIONAL_KEY))
 		crypto_ahash_set_flags(tfm, CRYPTO_TFM_NEED_KEY);
 }
@@ -271,7 +271,7 @@ static int ahash_save_req(struct ahash_request *req, crypto_completion_t cplt)
 	priv->flags = req->base.flags;
 
 	/*
-	 * WARNING: We do not backup req->priv here! The req->priv
+	 * WARNING: We do yest backup req->priv here! The req->priv
 	 *          is for internal use of the Crypto API and the
 	 *          user must _NOT_ _EVER_ depend on it's content!
 	 */
@@ -303,7 +303,7 @@ static void ahash_restore_req(struct ahash_request *req, int err)
 	kzfree(priv);
 }
 
-static void ahash_notify_einprogress(struct ahash_request *req)
+static void ahash_yestify_einprogress(struct ahash_request *req)
 {
 	struct ahash_request_priv *priv = req->priv;
 	struct crypto_async_request oreq;
@@ -318,7 +318,7 @@ static void ahash_op_unaligned_done(struct crypto_async_request *req, int err)
 	struct ahash_request *areq = req->data;
 
 	if (err == -EINPROGRESS) {
-		ahash_notify_einprogress(areq);
+		ahash_yestify_einprogress(areq);
 		return;
 	}
 
@@ -446,7 +446,7 @@ static void ahash_def_finup_done1(struct crypto_async_request *req, int err)
 	struct ahash_request *areq = req->data;
 
 	if (err == -EINPROGRESS) {
-		ahash_notify_einprogress(areq);
+		ahash_yestify_einprogress(areq);
 		return;
 	}
 
@@ -480,7 +480,7 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 	struct crypto_ahash *hash = __crypto_ahash_cast(tfm);
 	struct ahash_alg *alg = crypto_ahash_alg(hash);
 
-	hash->setkey = ahash_nosetkey;
+	hash->setkey = ahash_yessetkey;
 
 	if (tfm->__crt_alg->cra_type != &crypto_ahash_type)
 		return crypto_init_shash_ops_async(tfm);
@@ -536,7 +536,7 @@ static void crypto_ahash_show(struct seq_file *m, struct crypto_alg *alg)
 {
 	seq_printf(m, "type         : ahash\n");
 	seq_printf(m, "async        : %s\n", alg->cra_flags & CRYPTO_ALG_ASYNC ?
-					     "yes" : "no");
+					     "no" : "yes");
 	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
 	seq_printf(m, "digestsize   : %u\n",
 		   __crypto_hash_alg_common(alg)->digestsize);
@@ -683,4 +683,4 @@ bool crypto_hash_alg_has_setkey(struct hash_alg_common *halg)
 EXPORT_SYMBOL_GPL(crypto_hash_alg_has_setkey);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Asynchronous cryptographic hash type");
+MODULE_DESCRIPTION("Asynchroyesus cryptographic hash type");

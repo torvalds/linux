@@ -277,7 +277,7 @@ static int ioh_irq_type(struct irq_data *d, unsigned int type)
 	case IRQ_TYPE_PROBE:
 		goto end;
 	default:
-		dev_warn(chip->dev, "%s: unknown type(%dd)",
+		dev_warn(chip->dev, "%s: unkyeswn type(%dd)",
 			__func__, type);
 		goto end;
 	}

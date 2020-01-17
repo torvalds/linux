@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2012-2013 Texas Instruments, Inc.
  * Andrii Tseglytskyi <andrii.tseglytskyi@ti.com>
- * Nishanth Menon <nm@ti.com>
+ * Nishanth Meyesn <nm@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -163,7 +163,7 @@ static inline void ti_abb_clear_txdone(const struct ti_abb *abb)
  * @dev:	device
  * @abb:	pointer to the abb instance
  *
- * Return: 0 on success or -ETIMEDOUT if the event is not cleared on time.
+ * Return: 0 on success or -ETIMEDOUT if the event is yest cleared on time.
  */
 static int ti_abb_wait_txdone(struct device *dev, struct ti_abb *abb)
 {
@@ -188,7 +188,7 @@ static int ti_abb_wait_txdone(struct device *dev, struct ti_abb *abb)
  * @dev:	device
  * @abb:	pointer to the abb instance
  *
- * Return: 0 on success or -ETIMEDOUT if the event is not cleared on time.
+ * Return: 0 on success or -ETIMEDOUT if the event is yest cleared on time.
  */
 static int ti_abb_clear_all_txdone(struct device *dev, const struct ti_abb *abb)
 {
@@ -271,7 +271,7 @@ static int ti_abb_set_opp(struct regulator_dev *rdev, struct ti_abb *abb,
 
 	/*
 	 * program LDO VBB vset override if needed for !bypass mode
-	 * XXX: Do not switch sequence - for !bypass, LDO override reset *must*
+	 * XXX: Do yest switch sequence - for !bypass, LDO override reset *must*
 	 * be performed *before* switch to bias mode else VBB glitches.
 	 */
 	if (abb->ldo_base && info->opp_sel != TI_ABB_NOMINAL_OPP)
@@ -291,7 +291,7 @@ static int ti_abb_set_opp(struct regulator_dev *rdev, struct ti_abb *abb,
 
 	/*
 	 * Reset LDO VBB vset override bypass mode
-	 * XXX: Do not switch sequence - for bypass, LDO override reset *must*
+	 * XXX: Do yest switch sequence - for bypass, LDO override reset *must*
 	 * be performed *after* switch to bypass else VBB glitches.
 	 */
 	if (abb->ldo_base && info->opp_sel == TI_ABB_NOMINAL_OPP)
@@ -336,13 +336,13 @@ static int ti_abb_set_voltage_sel(struct regulator_dev *rdev, unsigned sel)
 		return -EINVAL;
 	}
 
-	/* If we are in the same index as we were, nothing to do here! */
+	/* If we are in the same index as we were, yesthing to do here! */
 	if (sel == abb->current_info_idx) {
 		dev_dbg(dev, "%s: Already at sel=%d\n", __func__, sel);
 		return ret;
 	}
 
-	/* If data is exactly the same, then just update index, no change */
+	/* If data is exactly the same, then just update index, yes change */
 	info = &abb->info[sel];
 	oinfo = &abb->info[abb->current_info_idx];
 	if (!memcmp(info, oinfo, sizeof(*info))) {
@@ -414,25 +414,25 @@ static int ti_abb_init_timings(struct device *dev, struct ti_abb *abb)
 	char *pname = "ti,settling-time";
 
 	/* read device tree properties */
-	ret = of_property_read_u32(dev->of_node, pname, &abb->settling_time);
+	ret = of_property_read_u32(dev->of_yesde, pname, &abb->settling_time);
 	if (ret) {
 		dev_err(dev, "Unable to get property '%s'(%d)\n", pname, ret);
 		return ret;
 	}
 
-	/* ABB LDO cannot be settle in 0 time */
+	/* ABB LDO canyest be settle in 0 time */
 	if (!abb->settling_time) {
 		dev_err(dev, "Invalid property:'%s' set as 0!\n", pname);
 		return -EINVAL;
 	}
 
 	pname = "ti,clock-cycles";
-	ret = of_property_read_u32(dev->of_node, pname, &clock_cycles);
+	ret = of_property_read_u32(dev->of_yesde, pname, &clock_cycles);
 	if (ret) {
 		dev_err(dev, "Unable to get property '%s'(%d)\n", pname, ret);
 		return ret;
 	}
-	/* ABB LDO cannot be settle in 0 clock cycles */
+	/* ABB LDO canyest be settle in 0 clock cycles */
 	if (!clock_cycles) {
 		dev_err(dev, "Invalid property:'%s' set as 0!\n", pname);
 		return -EINVAL;
@@ -460,7 +460,7 @@ static int ti_abb_init_timings(struct device *dev, struct ti_abb *abb)
 	 * SR2_WTCNT_VALUE = ------------------------------------------
 	 *                   (# system clock cycles) * (sys_clk period)
 	 *
-	 * Put another way:
+	 * Put ayesther way:
 	 *
 	 * SR2_WTCNT_VALUE = settling time / (# SYS_CLK cycles / SYS_CLK rate))
 	 *
@@ -509,7 +509,7 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 	 * of voltage and a set of detection logic for ABB information for that
 	 * voltage to apply.
 	 */
-	num_entries = of_property_count_u32_elems(dev->of_node, pname);
+	num_entries = of_property_count_u32_elems(dev->of_yesde, pname);
 	if (num_entries < 0) {
 		dev_err(dev, "No '%s' property?\n", pname);
 		return num_entries;
@@ -535,7 +535,7 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 
 	abb->rdesc.n_voltages = num_entries;
 	abb->rdesc.volt_table = volt_table;
-	/* We do not know where the OPP voltage is at the moment */
+	/* We do yest kyesw where the OPP voltage is at the moment */
 	abb->current_info_idx = -EINVAL;
 
 	for (i = 0; i < num_entries; i++, info++, volt_table++) {
@@ -543,17 +543,17 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 		u32 efuse_val;
 
 		/* NOTE: num_values should equal to entries picked up here */
-		of_property_read_u32_index(dev->of_node, pname, i * num_values,
+		of_property_read_u32_index(dev->of_yesde, pname, i * num_values,
 					   volt_table);
-		of_property_read_u32_index(dev->of_node, pname,
+		of_property_read_u32_index(dev->of_yesde, pname,
 					   i * num_values + 1, &info->opp_sel);
-		of_property_read_u32_index(dev->of_node, pname,
+		of_property_read_u32_index(dev->of_yesde, pname,
 					   i * num_values + 2, &efuse_offset);
-		of_property_read_u32_index(dev->of_node, pname,
+		of_property_read_u32_index(dev->of_yesde, pname,
 					   i * num_values + 3, &rbb_mask);
-		of_property_read_u32_index(dev->of_node, pname,
+		of_property_read_u32_index(dev->of_yesde, pname,
 					   i * num_values + 4, &fbb_mask);
-		of_property_read_u32_index(dev->of_node, pname,
+		of_property_read_u32_index(dev->of_yesde, pname,
 					   i * num_values + 5, &vset_mask);
 
 		dev_dbg(dev,
@@ -568,7 +568,7 @@ static int ti_abb_init_table(struct device *dev, struct ti_abb *abb,
 			max_uV = *volt_table;
 
 		if (!abb->efuse_base) {
-			/* Ignore invalid data, but warn to help cleanup */
+			/* Igyesre invalid data, but warn to help cleanup */
 			if (efuse_offset || rbb_mask || fbb_mask || vset_mask)
 				dev_err(dev, "prop '%s': v=%d,bad efuse/mask\n",
 					pname, *volt_table);
@@ -699,7 +699,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 
 	match = of_match_device(ti_abb_of_match, dev);
 	if (!match) {
-		/* We do not expect this to happen */
+		/* We do yest expect this to happen */
 		dev_err(dev, "%s: Unable to match device\n", __func__);
 		return -ENODEV;
 	}
@@ -748,7 +748,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 	 * We may have shared interrupt register offsets which are
 	 * write-1-to-clear between domains ensuring exclusivity.
 	 */
-	abb->int_base = devm_ioremap_nocache(dev, res->start,
+	abb->int_base = devm_ioremap_yescache(dev, res->start,
 					     resource_size(res));
 	if (!abb->int_base) {
 		dev_err(dev, "Unable to map '%s'\n", pname);
@@ -768,7 +768,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 	 * We may have shared efuse register offsets which are read-only
 	 * between domains
 	 */
-	abb->efuse_base = devm_ioremap_nocache(dev, res->start,
+	abb->efuse_base = devm_ioremap_yescache(dev, res->start,
 					       resource_size(res));
 	if (!abb->efuse_base) {
 		dev_err(dev, "Unable to map '%s'\n", pname);
@@ -789,7 +789,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 	/* IF ldo_base is set, the following are mandatory */
 	pname = "ti,ldovbb-override-mask";
 	ret =
-	    of_property_read_u32(pdev->dev.of_node, pname,
+	    of_property_read_u32(pdev->dev.of_yesde, pname,
 				 &abb->ldovbb_override_mask);
 	if (ret) {
 		dev_err(dev, "Missing '%s' (%d)\n", pname, ret);
@@ -802,7 +802,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 
 	pname = "ti,ldovbb-vset-mask";
 	ret =
-	    of_property_read_u32(pdev->dev.of_node, pname,
+	    of_property_read_u32(pdev->dev.of_yesde, pname,
 				 &abb->ldovbb_vset_mask);
 	if (ret) {
 		dev_err(dev, "Missing '%s' (%d)\n", pname, ret);
@@ -816,7 +816,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 skip_opt:
 	pname = "ti,tranxdone-status-mask";
 	ret =
-	    of_property_read_u32(pdev->dev.of_node, pname,
+	    of_property_read_u32(pdev->dev.of_yesde, pname,
 				 &abb->txdone_mask);
 	if (ret) {
 		dev_err(dev, "Missing '%s' (%d)\n", pname, ret);
@@ -827,7 +827,7 @@ skip_opt:
 		return -EINVAL;
 	}
 
-	initdata = of_get_regulator_init_data(dev, pdev->dev.of_node,
+	initdata = of_get_regulator_init_data(dev, pdev->dev.of_yesde,
 					      &abb->rdesc);
 	if (!initdata) {
 		dev_err(dev, "%s: Unable to alloc regulator init data\n",
@@ -859,7 +859,7 @@ skip_opt:
 	config.dev = dev;
 	config.init_data = initdata;
 	config.driver_data = abb;
-	config.of_node = pdev->dev.of_node;
+	config.of_yesde = pdev->dev.of_yesde;
 
 	rdev = devm_regulator_register(dev, desc, &config);
 	if (IS_ERR(rdev)) {
@@ -870,7 +870,7 @@ skip_opt:
 	}
 	platform_set_drvdata(pdev, rdev);
 
-	/* Enable the ldo if not already done by bootloader */
+	/* Enable the ldo if yest already done by bootloader */
 	ti_abb_rmw(abb->regs->sr2_en_mask, 1, abb->setup_reg);
 
 	return 0;

@@ -96,7 +96,7 @@ struct knav_dma_tx_cfg {
  * @einfo_present:		Extended packet info present
  * @psinfo_present:		PS words present
  * @knav_dma_rx_err_mode:	Error during buffer starvation
- * @knav_dma_desc_type:	Host or Monolithic desc
+ * @knav_dma_desc_type:	Host or Moyeslithic desc
  * @psinfo_at_sop:		PS word located at start of packet
  * @sop_offset:			Start of packet offset
  * @dst_q:			Destination queue for a given flow
@@ -147,7 +147,7 @@ struct knav_dma_cfg {
  * @orig_buff:			buff pointer since 'buff' can be overwritten
  * @epib:			Extended packet info block
  * @psdata:			Protocol specific
- * @sw_data:			Software private data not touched by h/w
+ * @sw_data:			Software private data yest touched by h/w
  */
 struct knav_dma_desc {
 	__le32	desc_info;

@@ -19,7 +19,7 @@ clock speed:)
 - nxp,rhold: Read hold time (R_HOLD)
 - nxp,rsetup: Read setup time (R_SETUP)
 
-Optional subnodes:
+Optional subyesdes:
 - Partitions, see Documentation/devicetree/bindings/mtd/partition.txt
 
 Example:

@@ -2,7 +2,7 @@
 /*
  * usb.c - Hardware dependent module for USB
  *
- * Copyright (C) 2013-2015 Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2013-2015 Microchip Techyeslogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -208,7 +208,7 @@ static unsigned int get_stream_frame_size(struct most_channel_config *cfg)
 		}
 		break;
 	default:
-		pr_warn("Query frame size of non-streaming channel\n");
+		pr_warn("Query frame size of yesn-streaming channel\n");
 		break;
 	}
 	return frame_size;
@@ -392,40 +392,40 @@ static void hdm_write_completion(struct urb *urb)
  *
  * USB device drivers may only test urb status values in completion handlers.
  * This is because otherwise there would be a race between HCDs updating
- * these values on one CPU, and device drivers testing them on another CPU.
+ * these values on one CPU, and device drivers testing them on ayesther CPU.
  *
  * A transfer's actual_length may be positive even when an error has been
  * reported.  That's because transfers often involve several packets, so that
  * one or more packets could finish before an error stops further endpoint I/O.
  *
- * For isochronous URBs, the urb status value is non-zero only if the URB is
+ * For isochroyesus URBs, the urb status value is yesn-zero only if the URB is
  * unlinked, the device is removed, the host controller is disabled or the total
  * transferred length is less than the requested length and the URB_SHORT_NOT_OK
- * flag is set.  Completion handlers for isochronous URBs should only see
+ * flag is set.  Completion handlers for isochroyesus URBs should only see
  * urb->status set to zero, -ENOENT, -ECONNRESET, -ESHUTDOWN, or -EREMOTEIO.
  * Individual frame descriptor status fields may report more status codes.
  *
  *
  * 0			Transfer completed successfully
  *
- * -ENOENT		URB was synchronously unlinked by usb_unlink_urb
+ * -ENOENT		URB was synchroyesusly unlinked by usb_unlink_urb
  *
- * -EINPROGRESS		URB still pending, no results yet
+ * -EINPROGRESS		URB still pending, yes results yet
  *			(That is, if drivers see this it's a bug.)
  *
  * -EPROTO (*, **)	a) bitstuff error
- *			b) no response packet received within the
+ *			b) yes response packet received within the
  *			   prescribed bus turn-around time
- *			c) unknown USB error
+ *			c) unkyeswn USB error
  *
  * -EILSEQ (*, **)	a) CRC mismatch
- *			b) no response packet received within the
+ *			b) yes response packet received within the
  *			   prescribed bus turn-around time
- *			c) unknown USB error
+ *			c) unkyeswn USB error
  *
- *			Note that often the controller hardware does not
+ *			Note that often the controller hardware does yest
  *			distinguish among cases a), b), and c), so a
- *			driver cannot tell whether there was a protocol
+ *			driver canyest tell whether there was a protocol
  *			error, a failure to respond (often caused by
  *			device disconnect), or some other fault.
  *
@@ -433,11 +433,11 @@ static void hdm_write_completion(struct urb *urb)
  *			bus turn-around time.  This error may instead be
  *			reported as -EPROTO or -EILSEQ.
  *
- * -ETIMEDOUT		Synchronous USB message functions use this code
+ * -ETIMEDOUT		Synchroyesus USB message functions use this code
  *			to indicate timeout expired before the transfer
- *			completed, and no other error was reported by HC.
+ *			completed, and yes other error was reported by HC.
  *
- * -EPIPE (**)		Endpoint stalled.  For non-control endpoints,
+ * -EPIPE (**)		Endpoint stalled.  For yesn-control endpoints,
  *			reset this status with usb_clear_halt().
  *
  * -ECOMM		During an IN transfer, the host controller
@@ -445,14 +445,14 @@ static void hdm_write_completion(struct urb *urb)
  *			could be written to system memory
  *
  * -ENOSR		During an OUT transfer, the host controller
- *			could not retrieve data from system memory fast
- *			enough to keep up with the USB data rate
+ *			could yest retrieve data from system memory fast
+ *			eyesugh to keep up with the USB data rate
  *
  * -EOVERFLOW (*)	The amount of data returned by the endpoint was
  *			greater than either the max packet size of the
  *			endpoint or the remaining buffer size.  "Babble".
  *
- * -EREMOTEIO		The data read from the endpoint did not fill the
+ * -EREMOTEIO		The data read from the endpoint did yest fill the
  *			specified buffer, and URB_SHORT_NOT_OK was set in
  *			urb->transfer_flags.
  *
@@ -461,18 +461,18 @@ static void hdm_write_completion(struct urb *urb)
  *			device removal events immediately.
  *
  * -EXDEV		ISO transfer only partially completed
- *			(only set in iso_frame_desc[n].status, not urb->status)
+ *			(only set in iso_frame_desc[n].status, yest urb->status)
  *
  * -EINVAL		ISO madness, if this happens: Log off and go home
  *
- * -ECONNRESET		URB was asynchronously unlinked by usb_unlink_urb
+ * -ECONNRESET		URB was asynchroyesusly unlinked by usb_unlink_urb
  *
  * -ESHUTDOWN		The device or host controller has been disabled due
- *			to some problem that could not be worked around,
+ *			to some problem that could yest be worked around,
  *			such as a physical disconnect.
  *
  *
- * (*) Error codes like -EPROTO, -EILSEQ and -EOVERFLOW normally indicate
+ * (*) Error codes like -EPROTO, -EILSEQ and -EOVERFLOW yesrmally indicate
  * hardware problems such as bad devices (including firmware) or cables.
  *
  * (**) This is also one of several codes that different kinds of host
@@ -652,9 +652,9 @@ static void hdm_dma_free(struct mbo *mbo, u32 size)
  *
  * The attached network interface controller (NIC) supports a padding mode
  * to avoid short packets on USB, hence increasing the performance due to a
- * lower interrupt load. This mode is default for synchronous data and can
- * be switched on for isochronous data. In case padding is active the
- * driver needs to know the frame size of the payload in order to calculate
+ * lower interrupt load. This mode is default for synchroyesus data and can
+ * be switched on for isochroyesus data. In case padding is active the
+ * driver needs to kyesw the frame size of the payload in order to calculate
  * the number of bytes it needs to pad when transmitting or to cut off when
  * receiving data.
  *
@@ -690,7 +690,7 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 	      conf->packets_per_xact != 0xFF)) {
 		mdev->padding_active[channel] = false;
 		/*
-		 * Since the NIC's padding mode is not going to be
+		 * Since the NIC's padding mode is yest going to be
 		 * used, we can skip the frame size calculations and
 		 * move directly on to exit.
 		 */
@@ -836,11 +836,11 @@ static void wq_clear_halt(struct work_struct *wq_obj)
 		dev_warn(&mdev->usb_device->dev, "Failed to reset endpoint.\n");
 
 	/* If the functional Stall condition has been set on an
-	 * asynchronous rx channel, we need to clear the tx channel
+	 * asynchroyesus rx channel, we need to clear the tx channel
 	 * too, since the hardware runs its clean-up sequence on both
 	 * channels, as they are physically one on the network.
 	 *
-	 * The USB interface that exposes the asynchronous channels
+	 * The USB interface that exposes the asynchroyesus channels
 	 * contains always two endpoints, and two only.
 	 */
 	if (mdev->conf[channel].data_type == MOST_CH_ASYNC &&
@@ -881,8 +881,8 @@ struct regs {
 static const struct regs ro_regs[] = {
 	{ "ni_state", DRCI_REG_NI_STATE },
 	{ "packet_bandwidth", DRCI_REG_PACKET_BW },
-	{ "node_address", DRCI_REG_NODE_ADDR },
-	{ "node_position", DRCI_REG_NODE_POS },
+	{ "yesde_address", DRCI_REG_NODE_ADDR },
+	{ "yesde_position", DRCI_REG_NODE_POS },
 };
 
 static const struct regs rw_regs[] = {
@@ -973,8 +973,8 @@ static ssize_t value_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(ni_state, 0444, value_show, NULL);
 static DEVICE_ATTR(packet_bandwidth, 0444, value_show, NULL);
-static DEVICE_ATTR(node_address, 0444, value_show, NULL);
-static DEVICE_ATTR(node_position, 0444, value_show, NULL);
+static DEVICE_ATTR(yesde_address, 0444, value_show, NULL);
+static DEVICE_ATTR(yesde_position, 0444, value_show, NULL);
 static DEVICE_ATTR(sync_ep, 0200, NULL, value_store);
 static DEVICE_ATTR(mep_filter, 0644, value_show, value_store);
 static DEVICE_ATTR(mep_hash0, 0644, value_show, value_store);
@@ -990,8 +990,8 @@ static DEVICE_ATTR(arb_value, 0644, value_show, value_store);
 static struct attribute *dci_attrs[] = {
 	&dev_attr_ni_state.attr,
 	&dev_attr_packet_bandwidth.attr,
-	&dev_attr_node_address.attr,
-	&dev_attr_node_position.attr,
+	&dev_attr_yesde_address.attr,
+	&dev_attr_yesde_position.attr,
 	&dev_attr_sync_ep.attr,
 	&dev_attr_mep_filter.attr,
 	&dev_attr_mep_hash0.attr,
@@ -1122,13 +1122,13 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 		init_usb_anchor(&mdev->busy_urbs[i]);
 		spin_lock_init(&mdev->channel_lock[i]);
 	}
-	dev_notice(dev, "claimed gadget: Vendor=%4.4x ProdID=%4.4x Bus=%02x Device=%02x\n",
+	dev_yestice(dev, "claimed gadget: Vendor=%4.4x ProdID=%4.4x Bus=%02x Device=%02x\n",
 		   le16_to_cpu(usb_dev->descriptor.idVendor),
 		   le16_to_cpu(usb_dev->descriptor.idProduct),
 		   usb_dev->bus->busnum,
 		   usb_dev->devnum);
 
-	dev_notice(dev, "device path: /sys/bus/usb/devices/%d-%s:%d.%d\n",
+	dev_yestice(dev, "device path: /sys/bus/usb/devices/%d-%s:%d.%d\n",
 		   usb_dev->bus->busnum,
 		   usb_dev->devpath,
 		   usb_dev->config->desc.bConfigurationValue,

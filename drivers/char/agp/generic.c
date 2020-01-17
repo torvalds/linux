@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -157,7 +157,7 @@ EXPORT_SYMBOL(agp_create_memory);
  *
  *	@curr:		agp_memory pointer to be freed.
  *
- *	It is the only function that can be called when the backend is not owned
+ *	It is the only function that can be called when the backend is yest owned
  *	by the caller.  (So it can free memory on client death.)
  */
 void agp_free_memory(struct agp_memory *curr)
@@ -371,7 +371,7 @@ int agp_copy_info(struct agp_bridge_data *bridge, struct agp_kern_info *info)
 	}
 
 	info->version.major = bridge->version->major;
-	info->version.minor = bridge->version->minor;
+	info->version.miyesr = bridge->version->miyesr;
 	info->chipset = SUPPORTED;
 	info->device = bridge->dev;
 	if (bridge->mode & AGPSTAT_MODE_3_0)
@@ -443,7 +443,7 @@ EXPORT_SYMBOL(agp_bind_memory);
  *
  * @curr:	agp_memory pointer to be removed from the GATT.
  *
- * It returns -EINVAL if this piece of agp_memory is not currently bound to
+ * It returns -EINVAL if this piece of agp_memory is yest currently bound to
  * the graphics aperture translation table or if the agp_memory pointer == NULL
  */
 int agp_unbind_memory(struct agp_memory *curr)
@@ -454,7 +454,7 @@ int agp_unbind_memory(struct agp_memory *curr)
 		return -EINVAL;
 
 	if (!curr->is_bound) {
-		printk(KERN_INFO PFX "memory %p was not bound!\n", curr);
+		printk(KERN_INFO PFX "memory %p was yest bound!\n", curr);
 		return -EINVAL;
 	}
 
@@ -534,7 +534,7 @@ static void agp_v2_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 			break;
 	}
 
-	/* disable SBA if it's not supported */
+	/* disable SBA if it's yest supported */
 	if (!((*bridge_agpstat & AGPSTAT_SBA) && (*vga_agpstat & AGPSTAT_SBA) && (*requested_mode & AGPSTAT_SBA)))
 		*bridge_agpstat &= ~AGPSTAT_SBA;
 
@@ -548,7 +548,7 @@ static void agp_v2_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 	if (!((*bridge_agpstat & AGPSTAT2_1X) && (*vga_agpstat & AGPSTAT2_1X) && (*requested_mode & AGPSTAT2_1X)))
 		*bridge_agpstat &= ~AGPSTAT2_1X;
 
-	/* Now we know what mode it should be, clear out the unwanted bits. */
+	/* Now we kyesw what mode it should be, clear out the unwanted bits. */
 	if (*bridge_agpstat & AGPSTAT2_4X)
 		*bridge_agpstat &= ~(AGPSTAT2_1X | AGPSTAT2_2X);	/* 4X */
 
@@ -634,7 +634,7 @@ static void agp_v3_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 		}
 	} else {
 		/*
-		 * The caller doesn't know what they are doing. We are in 3.0 mode,
+		 * The caller doesn't kyesw what they are doing. We are in 3.0 mode,
 		 * but have been passed an AGP 2.x mode.
 		 * Convert AGP 1x,2x,4x -> AGP 3.0 4x.
 		 */
@@ -648,13 +648,13 @@ static void agp_v3_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 		if (!(*bridge_agpstat & AGPSTAT3_8X)) {
 			*bridge_agpstat &= ~(AGPSTAT3_8X | AGPSTAT3_RSVD);
 			*bridge_agpstat |= AGPSTAT3_4X;
-			printk(KERN_INFO PFX "%s requested AGPx8 but bridge not capable.\n", current->comm);
+			printk(KERN_INFO PFX "%s requested AGPx8 but bridge yest capable.\n", current->comm);
 			return;
 		}
 		if (!(*vga_agpstat & AGPSTAT3_8X)) {
 			*bridge_agpstat &= ~(AGPSTAT3_8X | AGPSTAT3_RSVD);
 			*bridge_agpstat |= AGPSTAT3_4X;
-			printk(KERN_INFO PFX "%s requested AGPx8 but graphic card not capable.\n", current->comm);
+			printk(KERN_INFO PFX "%s requested AGPx8 but graphic card yest capable.\n", current->comm);
 			return;
 		}
 		/* All set, bridge & device can do AGP x8*/
@@ -671,7 +671,7 @@ static void agp_v3_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 		/*
 		 * If we didn't specify an AGP mode, we see if both
 		 * the graphics card, and the bridge can do x8, and use if so.
-		 * If not, we fall back to x4 mode.
+		 * If yest, we fall back to x4 mode.
 		 */
 		if ((*bridge_agpstat & AGPSTAT3_8X) && (*vga_agpstat & AGPSTAT3_8X)) {
 			printk(KERN_INFO PFX "No AGP mode specified. Setting to highest mode "
@@ -747,7 +747,7 @@ u32 agp_collect_device_status(struct agp_bridge_data *bridge, u32 requested_mode
 	     min_t(u32, (requested_mode & AGPSTAT_RQ_DEPTH),
 		 min_t(u32, (bridge_agpstat & AGPSTAT_RQ_DEPTH), (vga_agpstat & AGPSTAT_RQ_DEPTH))));
 
-	/* disable FW if it's not supported */
+	/* disable FW if it's yest supported */
 	if (!((bridge_agpstat & AGPSTAT_FW) &&
 		 (vga_agpstat & AGPSTAT_FW) &&
 		 (requested_mode & AGPSTAT_FW)))
@@ -797,7 +797,7 @@ void get_agp_version(struct agp_bridge_data *bridge)
 
 	pci_read_config_dword(bridge->dev, bridge->capndx, &ncapid);
 	bridge->major_version = (ncapid >> AGP_MAJOR_VERSION_SHIFT) & 0xf;
-	bridge->minor_version = (ncapid >> AGP_MINOR_VERSION_SHIFT) & 0xf;
+	bridge->miyesr_version = (ncapid >> AGP_MINOR_VERSION_SHIFT) & 0xf;
 }
 EXPORT_SYMBOL(get_agp_version);
 
@@ -809,7 +809,7 @@ void agp_generic_enable(struct agp_bridge_data *bridge, u32 requested_mode)
 	get_agp_version(agp_bridge);
 
 	dev_info(&agp_bridge->dev->dev, "AGP %d.%d bridge\n",
-		 agp_bridge->major_version, agp_bridge->minor_version);
+		 agp_bridge->major_version, agp_bridge->miyesr_version);
 
 	pci_read_config_dword(agp_bridge->dev,
 		      agp_bridge->capndx + PCI_AGP_STATUS, &bridge_agpstat);
@@ -825,12 +825,12 @@ void agp_generic_enable(struct agp_bridge_data *bridge, u32 requested_mode)
 	if (bridge->major_version >= 3) {
 		if (bridge->mode & AGPSTAT_MODE_3_0) {
 			/* If we have 3.5, we can do the isoch stuff. */
-			if (bridge->minor_version >= 5)
+			if (bridge->miyesr_version >= 5)
 				agp_3_5_enable(bridge);
 			agp_device_command(bridge_agpstat, true);
 			return;
 		} else {
-		    /* Disable calibration cycle in RX91<1> when not in AGP3.0 mode of operation.*/
+		    /* Disable calibration cycle in RX91<1> when yest in AGP3.0 mode of operation.*/
 		    bridge_agpstat &= ~(7<<10) ;
 		    pci_read_config_dword(bridge->dev,
 					bridge->capndx+AGPCTRL, &temp);
@@ -937,11 +937,11 @@ int agp_generic_create_gatt_table(struct agp_bridge_data *bridge)
 	bridge->driver->cache_flush();
 #ifdef CONFIG_X86
 	if (set_memory_uc((unsigned long)table, 1 << page_order))
-		printk(KERN_WARNING "Could not set GATT table memory to UC!\n");
+		printk(KERN_WARNING "Could yest set GATT table memory to UC!\n");
 
 	bridge->gatt_table = (u32 __iomem *)table;
 #else
-	bridge->gatt_table = ioremap_nocache(virt_to_phys(table),
+	bridge->gatt_table = ioremap_yescache(virt_to_phys(table),
 					(PAGE_SIZE * (1 << page_order)));
 	bridge->driver->cache_flush();
 #endif
@@ -996,7 +996,7 @@ int agp_generic_free_gatt_table(struct agp_bridge_data *bridge)
 		break;
 	}
 
-	/* Do not worry about freeing memory, because if this is
+	/* Do yest worry about freeing memory, because if this is
 	 * called, then all agp memory is deallocated and removed
 	 * from the table. */
 
@@ -1070,7 +1070,7 @@ int agp_generic_insert_memory(struct agp_memory * mem, off_t pg_start, int type)
 
 	mask_type = bridge->driver->agp_type_to_mask_type(bridge, type);
 	if (mask_type != 0) {
-		/* The generic routines know nothing of memory types */
+		/* The generic routines kyesw yesthing of memory types */
 		return -EINVAL;
 	}
 
@@ -1128,7 +1128,7 @@ int agp_generic_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 
 	mask_type = bridge->driver->agp_type_to_mask_type(bridge, type);
 	if (mask_type != 0) {
-		/* The generic routines know nothing of memory types */
+		/* The generic routines kyesw yesthing of memory types */
 		return -EINVAL;
 	}
 
@@ -1316,7 +1316,7 @@ EXPORT_SYMBOL(global_cache_flush);
 unsigned long agp_generic_mask_memory(struct agp_bridge_data *bridge,
 				      dma_addr_t addr, int type)
 {
-	/* memory type is ignored in the generic routine */
+	/* memory type is igyesred in the generic routine */
 	if (bridge->driver->masks)
 		return addr | bridge->driver->masks[0].mask;
 	else

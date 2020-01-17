@@ -168,39 +168,39 @@ static void ccdc_readregs(void)
 	unsigned int val = 0;
 
 	val = regr(CCDC_ALAW);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to ALAW...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to ALAW...\n", val);
 	val = regr(CCDC_CLAMP);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to CLAMP...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to CLAMP...\n", val);
 	val = regr(CCDC_DCSUB);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to DCSUB...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to DCSUB...\n", val);
 	val = regr(CCDC_BLKCMP);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to BLKCMP...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to BLKCMP...\n", val);
 	val = regr(CCDC_FPC_ADDR);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to FPC_ADDR...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to FPC_ADDR...\n", val);
 	val = regr(CCDC_FPC);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to FPC...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to FPC...\n", val);
 	val = regr(CCDC_FMTCFG);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to FMTCFG...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to FMTCFG...\n", val);
 	val = regr(CCDC_COLPTN);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to COLPTN...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to COLPTN...\n", val);
 	val = regr(CCDC_FMT_HORZ);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to FMT_HORZ...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to FMT_HORZ...\n", val);
 	val = regr(CCDC_FMT_VERT);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to FMT_VERT...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to FMT_VERT...\n", val);
 	val = regr(CCDC_HSIZE_OFF);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to HSIZE_OFF...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to HSIZE_OFF...\n", val);
 	val = regr(CCDC_SDOFST);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to SDOFST...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to SDOFST...\n", val);
 	val = regr(CCDC_VP_OUT);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to VP_OUT...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to VP_OUT...\n", val);
 	val = regr(CCDC_SYN_MODE);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to SYN_MODE...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to SYN_MODE...\n", val);
 	val = regr(CCDC_HORZ_INFO);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to HORZ_INFO...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to HORZ_INFO...\n", val);
 	val = regr(CCDC_VERT_START);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to VERT_START...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to VERT_START...\n", val);
 	val = regr(CCDC_VERT_LINES);
-	dev_notice(ccdc_cfg.dev, "\nReading 0x%x to VERT_LINES...\n", val);
+	dev_yestice(ccdc_cfg.dev, "\nReading 0x%x to VERT_LINES...\n", val);
 }
 
 static int ccdc_close(struct device *dev)
@@ -489,7 +489,7 @@ static void ccdc_config_raw(void)
 		}
 
 		else {
-			/* For intelace non inverse mode */
+			/* For intelace yesn inverse mode */
 			regw(CCDC_INTERLACED_NO_IMAGE_INVERT, CCDC_SDOFST);
 			dev_dbg(ccdc_cfg.dev, "\nWriting 0x0249 to SDOFST..\n");
 		}
@@ -798,7 +798,7 @@ static int dm644x_ccdc_probe(struct platform_device *pdev)
 	int status = 0;
 
 	/*
-	 * first try to register with vpfe. If not correct platform, then we
+	 * first try to register with vpfe. If yest correct platform, then we
 	 * don't have to iomap
 	 */
 	status = vpfe_register_ccdc_device(&ccdc_hw_dev);
@@ -808,27 +808,27 @@ static int dm644x_ccdc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		status = -ENODEV;
-		goto fail_nores;
+		goto fail_yesres;
 	}
 
 	res = request_mem_region(res->start, resource_size(res), res->name);
 	if (!res) {
 		status = -EBUSY;
-		goto fail_nores;
+		goto fail_yesres;
 	}
 
-	ccdc_cfg.base_addr = ioremap_nocache(res->start, resource_size(res));
+	ccdc_cfg.base_addr = ioremap_yescache(res->start, resource_size(res));
 	if (!ccdc_cfg.base_addr) {
 		status = -ENOMEM;
-		goto fail_nomem;
+		goto fail_yesmem;
 	}
 
 	ccdc_cfg.dev = &pdev->dev;
 	printk(KERN_NOTICE "%s is registered with vpfe.\n", ccdc_hw_dev.name);
 	return 0;
-fail_nomem:
+fail_yesmem:
 	release_mem_region(res->start, resource_size(res));
-fail_nores:
+fail_yesres:
 	vpfe_unregister_ccdc_device(&ccdc_hw_dev);
 	return status;
 }

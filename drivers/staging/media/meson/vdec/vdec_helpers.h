@@ -44,7 +44,7 @@ void amvdec_dst_buf_done_offset(struct amvdec_session *sess,
 				u32 offset, u32 field, bool allow_drop);
 
 /**
- * amvdec_add_ts_reorder() - Add a timestamp to the list in chronological order
+ * amvdec_add_ts_reorder() - Add a timestamp to the list in chroyeslogical order
  *
  * @sess: current session
  * @ts: timestamp to add
@@ -58,7 +58,7 @@ void amvdec_remove_ts(struct amvdec_session *sess, u64 ts);
  *
  * @sess: current session
  * @dar_num: numerator of the DAR
- * @dar_den: denominator of the DAR
+ * @dar_den: deyesminator of the DAR
  */
 void amvdec_set_par_from_dar(struct amvdec_session *sess,
 			     u32 dar_num, u32 dar_den);

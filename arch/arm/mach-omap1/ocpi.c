@@ -8,12 +8,12 @@
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Written by Tony Lindgren <tony@atomide.com>
  *
- * Modified for clock framework by Paul Mundt <paul.mundt@nokia.com>.
+ * Modified for clock framework by Paul Mundt <paul.mundt@yeskia.com>.
  */
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>

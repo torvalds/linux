@@ -75,7 +75,7 @@ static int legacy_dvb_usb_setkeycode(struct input_dev *dev,
 
 	index = legacy_dvb_usb_get_keymap_index(ke, keymap, keymap_size);
 	/*
-	 * FIXME: Currently, it is not possible to increase the size of
+	 * FIXME: Currently, it is yest possible to increase the size of
 	 * scancode table. For it to happen, one possibility
 	 * would be to allocate a table with key_map_size + 1,
 	 * copying data, appending the new key on it, and freeing
@@ -215,7 +215,7 @@ static int legacy_dvb_usb_remote_init(struct dvb_usb_device *d)
 		set_bit(d->props.rc.legacy.rc_map_table[i].keycode, input_dev->keybit);
 	}
 
-	/* setting these two values to non-zero, we have to manage key repeats */
+	/* setting these two values to yesn-zero, we have to manage key repeats */
 	input_dev->rep[REP_PERIOD] = d->props.rc.legacy.rc_interval;
 	input_dev->rep[REP_DELAY]  = d->props.rc.legacy.rc_interval + 150;
 
@@ -383,13 +383,13 @@ int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d,
 					*state = REMOTE_KEY_PRESSED;
 					return 0;
 				}
-			deb_err("key mapping failed - no appropriate key found in keymapping\n");
+			deb_err("key mapping failed - yes appropriate key found in keymapping\n");
 			break;
 		case DVB_USB_RC_NEC_KEY_REPEATED:
 			*state = REMOTE_KEY_REPEAT;
 			break;
 		default:
-			deb_err("unknown type of remote status: %d\n",keybuf[0]);
+			deb_err("unkyeswn type of remote status: %d\n",keybuf[0]);
 			break;
 	}
 	return 0;

@@ -110,7 +110,7 @@ static void mpc85xx_pcie_check(struct edac_pci_ctl_info *pci)
 	out_be32(pdata->pci_vbase + MPC85XX_PCI_GAS_TIMR, err_cap_stat | 0x1);
 }
 
-static int mpc85xx_pcie_find_capability(struct device_node *np)
+static int mpc85xx_pcie_find_capability(struct device_yesde *np)
 {
 	struct pci_controller *hose;
 
@@ -146,7 +146,7 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 	struct edac_pci_ctl_info *pci;
 	struct mpc85xx_pci_pdata *pdata;
 	struct mpc85xx_edac_pci_plat_data *plat_data;
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 	struct resource r;
 	int res = 0;
 
@@ -172,13 +172,13 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 
 	plat_data = op->dev.platform_data;
 	if (!plat_data) {
-		dev_err(&op->dev, "no platform data");
+		dev_err(&op->dev, "yes platform data");
 		res = -ENXIO;
 		goto err;
 	}
-	of_node = plat_data->of_node;
+	of_yesde = plat_data->of_yesde;
 
-	if (mpc85xx_pcie_find_capability(of_node) > 0)
+	if (mpc85xx_pcie_find_capability(of_yesde) > 0)
 		pdata->is_pcie = true;
 
 	dev_set_drvdata(&op->dev, pci);
@@ -196,7 +196,7 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 
 	pdata->edac_idx = edac_pci_idx++;
 
-	res = of_address_to_resource(of_node, 0, &r);
+	res = of_address_to_resource(of_yesde, 0, &r);
 	if (res) {
 		pr_err("%s: Unable to get resource for PCI err regs\n", __func__);
 		goto err;
@@ -252,7 +252,7 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 	}
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
-		pdata->irq = irq_of_parse_and_map(of_node, 0);
+		pdata->irq = irq_of_parse_and_map(of_yesde, 0);
 		res = devm_request_irq(&op->dev, pdata->irq,
 				       mpc85xx_pci_isr,
 				       IRQF_SHARED,
@@ -277,7 +277,7 @@ static int mpc85xx_pci_err_probe(struct platform_device *op)
 		 * detection enable bit. Because PCIe bus code to initialize and
 		 * configure these PCIe devices on booting will use some invalid
 		 * PEX_CONFIG_ADDR/PEX_CONFIG_DATA, edac driver prints the much
-		 * notice information. So disable this detect to fix ugly print.
+		 * yestice information. So disable this detect to fix ugly print.
 		 */
 		out_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_EN, ~0
 			 & ~PEX_ERR_ICCAIE_EN_BIT);
@@ -511,7 +511,7 @@ static int mpc85xx_l2_err_probe(struct platform_device *op)
 	edac_dev->ctl_name = pdata->name;
 	edac_dev->dev_name = pdata->name;
 
-	res = of_address_to_resource(op->dev.of_node, 0, &r);
+	res = of_address_to_resource(op->dev.of_yesde, 0, &r);
 	if (res) {
 		pr_err("%s: Unable to get resource for L2 err regs\n", __func__);
 		goto err;
@@ -556,7 +556,7 @@ static int mpc85xx_l2_err_probe(struct platform_device *op)
 	}
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
-		pdata->irq = irq_of_parse_and_map(op->dev.of_node, 0);
+		pdata->irq = irq_of_parse_and_map(op->dev.of_yesde, 0);
 		res = devm_request_irq(&op->dev, pdata->irq,
 				       mpc85xx_l2_isr, IRQF_SHARED,
 				       "[EDAC] L2 err", edac_dev);

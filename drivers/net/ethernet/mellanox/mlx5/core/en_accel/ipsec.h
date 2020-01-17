@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -52,8 +52,8 @@ struct mlx5e_ipsec_sw_stats {
 	atomic64_t ipsec_rx_drop_sadb_miss;
 	atomic64_t ipsec_rx_drop_syndrome;
 	atomic64_t ipsec_tx_drop_bundle;
-	atomic64_t ipsec_tx_drop_no_state;
-	atomic64_t ipsec_tx_drop_not_ip;
+	atomic64_t ipsec_tx_drop_yes_state;
+	atomic64_t ipsec_tx_drop_yest_ip;
 	atomic64_t ipsec_tx_drop_trailer;
 	atomic64_t ipsec_tx_drop_metadata;
 };
@@ -78,7 +78,7 @@ struct mlx5e_ipsec_stats {
 struct mlx5e_ipsec {
 	struct mlx5e_priv *en_priv;
 	DECLARE_HASHTABLE(sadb_rx, MLX5E_IPSEC_SADB_RX_BITS);
-	bool no_trailer;
+	bool yes_trailer;
 	spinlock_t sadb_rx_lock; /* Protects sadb_rx and halloc */
 	struct ida halloc;
 	struct mlx5e_ipsec_sw_stats sw_stats;
@@ -93,7 +93,7 @@ struct mlx5e_ipsec_esn_state {
 };
 
 struct mlx5e_ipsec_sa_entry {
-	struct hlist_node hlist; /* Item in SADB_RX hashtable */
+	struct hlist_yesde hlist; /* Item in SADB_RX hashtable */
 	struct mlx5e_ipsec_esn_state esn_state;
 	unsigned int handle; /* Handle in SADB_RX */
 	struct xfrm_state *x;

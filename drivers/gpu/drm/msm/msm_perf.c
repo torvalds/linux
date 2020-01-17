@@ -6,7 +6,7 @@
 
 /* For profiling, userspace can:
  *
- *   tail -f /sys/kernel/debug/dri/<minor>/gpu
+ *   tail -f /sys/kernel/debug/dri/<miyesr>/gpu
  *
  * This will enable performance counters/profiling to track the busy time
  * and any gpu specific performance counters that are supported.
@@ -147,9 +147,9 @@ out:
 	return n;
 }
 
-static int perf_open(struct inode *inode, struct file *file)
+static int perf_open(struct iyesde *iyesde, struct file *file)
 {
-	struct msm_perf_state *perf = inode->i_private;
+	struct msm_perf_state *perf = iyesde->i_private;
 	struct drm_device *dev = perf->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gpu *gpu = priv->gpu;
@@ -175,9 +175,9 @@ out:
 	return ret;
 }
 
-static int perf_release(struct inode *inode, struct file *file)
+static int perf_release(struct iyesde *iyesde, struct file *file)
 {
-	struct msm_perf_state *perf = inode->i_private;
+	struct msm_perf_state *perf = iyesde->i_private;
 	struct msm_drm_private *priv = perf->dev->dev_private;
 	msm_gpu_perfcntr_stop(priv->gpu);
 	perf->open = false;
@@ -189,16 +189,16 @@ static const struct file_operations perf_debugfs_fops = {
 	.owner = THIS_MODULE,
 	.open = perf_open,
 	.read = perf_read,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.release = perf_release,
 };
 
-int msm_perf_debugfs_init(struct drm_minor *minor)
+int msm_perf_debugfs_init(struct drm_miyesr *miyesr)
 {
-	struct msm_drm_private *priv = minor->dev->dev_private;
+	struct msm_drm_private *priv = miyesr->dev->dev_private;
 	struct msm_perf_state *perf;
 
-	/* only create on first minor: */
+	/* only create on first miyesr: */
 	if (priv->perf)
 		return 0;
 
@@ -206,12 +206,12 @@ int msm_perf_debugfs_init(struct drm_minor *minor)
 	if (!perf)
 		return -ENOMEM;
 
-	perf->dev = minor->dev;
+	perf->dev = miyesr->dev;
 
 	mutex_init(&perf->read_lock);
 	priv->perf = perf;
 
-	debugfs_create_file("perf", S_IFREG | S_IRUGO, minor->debugfs_root,
+	debugfs_create_file("perf", S_IFREG | S_IRUGO, miyesr->debugfs_root,
 			    perf, &perf_debugfs_fops);
 	return 0;
 }

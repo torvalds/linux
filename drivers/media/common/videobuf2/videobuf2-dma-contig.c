@@ -270,7 +270,7 @@ static void vb2_dc_dmabuf_ops_detach(struct dma_buf *dbuf,
 		/*
 		 * Cache sync can be skipped here, as the vb2_dc memory is
 		 * allocated from device coherent memory, which means the
-		 * memory locations do not require any explicit cache
+		 * memory locations do yest require any explicit cache
 		 * maintenance prior or after being used by the device.
 		 */
 		dma_unmap_sg_attrs(db_attach->dev, sgt->sgl, sgt->orig_nents,
@@ -305,7 +305,7 @@ static struct sg_table *vb2_dc_dmabuf_ops_map(
 	}
 
 	/*
-	 * mapping to the client with new direction, no cache sync
+	 * mapping to the client with new direction, yes cache sync
 	 * required see comment in vb2_dc_dmabuf_ops_detach()
 	 */
 	sgt->nents = dma_map_sg_attrs(db_attach->dev, sgt->sgl, sgt->orig_nents,
@@ -326,7 +326,7 @@ static struct sg_table *vb2_dc_dmabuf_ops_map(
 static void vb2_dc_dmabuf_ops_unmap(struct dma_buf_attachment *db_attach,
 	struct sg_table *sgt, enum dma_data_direction dma_dir)
 {
-	/* nothing to be done here */
+	/* yesthing to be done here */
 }
 
 static void vb2_dc_dmabuf_ops_release(struct dma_buf *dbuf)
@@ -582,7 +582,7 @@ static int vb2_dc_map_dmabuf(void *mem_priv)
 	unsigned long contig_size;
 
 	if (WARN_ON(!buf->db_attach)) {
-		pr_err("trying to pin a non attached buffer\n");
+		pr_err("trying to pin a yesn attached buffer\n");
 		return -EINVAL;
 	}
 
@@ -598,7 +598,7 @@ static int vb2_dc_map_dmabuf(void *mem_priv)
 		return -EINVAL;
 	}
 
-	/* checking if dmabuf is big enough to store contiguous chunk */
+	/* checking if dmabuf is big eyesugh to store contiguous chunk */
 	contig_size = vb2_dc_get_contiguous_size(sgt);
 	if (contig_size < buf->size) {
 		pr_err("contiguous chunk is too small %lu/%lu b\n",
@@ -620,7 +620,7 @@ static void vb2_dc_unmap_dmabuf(void *mem_priv)
 	struct sg_table *sgt = buf->dma_sgt;
 
 	if (WARN_ON(!buf->db_attach)) {
-		pr_err("trying to unpin a not attached buffer\n");
+		pr_err("trying to unpin a yest attached buffer\n");
 		return;
 	}
 
@@ -724,9 +724,9 @@ EXPORT_SYMBOL_GPL(vb2_dma_contig_memops);
  * an IOMMU is available and enabled).
  * Ideally, this parameter should be set by the generic bus code, but it
  * is left with the default 64KiB value due to historical litmiations in
- * other subsystems (like limited USB host drivers) and there no good
+ * other subsystems (like limited USB host drivers) and there yes good
  * place to set it to the proper value.
- * This function should be called from the drivers, which are known to
+ * This function should be called from the drivers, which are kyeswn to
  * operate on platforms with IOMMU and provide access to shared buffers
  * (either USERPTR or DMABUF). This should be done before initializing
  * videobuf2 queue.

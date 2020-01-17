@@ -1,3 +1,3 @@
 /*
- * PKUnity Universal Asynchronous Receiver/Transmitter (UART) Registers
+ * PKUnity Universal Asynchroyesus Receiver/Transmitter (UART) Registers
  */

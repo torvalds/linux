@@ -76,7 +76,7 @@ extern void build_clear_page(void);
 extern void build_copy_page(void);
 
 /*
- * It's normally defined only for FLATMEM config but it's
+ * It's yesrmally defined only for FLATMEM config but it's
  * used in our early mem init code for all memory models.
  * So always define it.
  */
@@ -137,8 +137,8 @@ typedef struct { unsigned long pte; } pte_t;
 typedef struct page *pgtable_t;
 
 /*
- * Right now we don't support 4-level pagetables, so all pud-related
- * definitions come from <asm-generic/pgtable-nopud.h>.
+ * Right yesw we don't support 4-level pagetables, so all pud-related
+ * definitions come from <asm-generic/pgtable-yespud.h>.
  */
 
 /*
@@ -160,7 +160,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  * On R4000-style MMUs where a TLB entry is mapping a adjacent even / odd
  * pair of pages we only have a single global bit per pair of pages.  When
  * writing to the TLB make sure we always have the bit set for both pages
- * or none.  This macro is used to access the `buddy' of the pte we're just
+ * or yesne.  This macro is used to access the `buddy' of the pte we're just
  * working on.
  */
 #define ptep_buddy(x)	((pte_t *)((unsigned long)(x) ^ sizeof(pte_t)))
@@ -190,7 +190,7 @@ static inline unsigned long ___pa(unsigned long x)
 	}
 
 	/*
-	 * EVA is in use so the memory map could be anything, making it not
+	 * EVA is in use so the memory map could be anything, making it yest
 	 * safe to just mask out bits.
 	 */
 	return x - PAGE_OFFSET + PHYS_OFFSET;
@@ -239,8 +239,8 @@ static inline int pfn_valid(unsigned long pfn)
 ({									\
 	unsigned long __pfn = (pfn);					\
 	int __n = pfn_to_nid(__pfn);					\
-	((__n >= 0) ? (__pfn < NODE_DATA(__n)->node_start_pfn +		\
-			       NODE_DATA(__n)->node_spanned_pages)	\
+	((__n >= 0) ? (__pfn < NODE_DATA(__n)->yesde_start_pfn +		\
+			       NODE_DATA(__n)->yesde_spanned_pages)	\
 		    : 0);						\
 })
 

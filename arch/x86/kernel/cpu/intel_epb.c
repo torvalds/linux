@@ -38,18 +38,18 @@
  * for the boot CPU in a syscore suspend operation, so that it can be restored
  * for the boot CPU in a syscore resume operation and for the other CPUs when
  * they are brought back online.  However, CPUs that are already offline when
- * a system-wide PM transition is started are not taken offline again, but their
+ * a system-wide PM transition is started are yest taken offline again, but their
  * EPB values may still be reset by the platform firmware during the transition,
  * so in fact it is necessary to save the EPB of any CPU taken offline and to
  * restore it when the given CPU goes back online at all times.
  *
  * Second, on many systems the initial EPB value coming from the platform
  * firmware is 0 ('performance') and at least on some of them that is because
- * the platform firmware does not initialize EPB at all with the assumption that
+ * the platform firmware does yest initialize EPB at all with the assumption that
  * the OS will do that anyway.  That sometimes is problematic, as it may cause
  * the system battery to drain too fast, for example, so it is better to adjust
  * it on CPU bring-up and if the initial EPB value for a given CPU is 0, the
- * kernel changes it to 6 ('normal').
+ * kernel changes it to 6 ('yesrmal').
  */
 
 static DEFINE_PER_CPU(u8, saved_epb);
@@ -64,7 +64,7 @@ static int intel_epb_save(void)
 
 	rdmsrl(MSR_IA32_ENERGY_PERF_BIAS, epb);
 	/*
-	 * Ensure that saved_epb will always be nonzero after this write even if
+	 * Ensure that saved_epb will always be yesnzero after this write even if
 	 * the EPB value read from the MSR is 0.
 	 */
 	this_cpu_write(saved_epb, (epb & EPB_MASK) | EPB_SAVED);
@@ -82,16 +82,16 @@ static void intel_epb_restore(void)
 		val &= EPB_MASK;
 	} else {
 		/*
-		 * Because intel_epb_save() has not run for the current CPU yet,
+		 * Because intel_epb_save() has yest run for the current CPU yet,
 		 * it is going online for the first time, so if its EPB value is
-		 * 0 ('performance') at this point, assume that it has not been
+		 * 0 ('performance') at this point, assume that it has yest been
 		 * initialized by the platform firmware and set it to 6
-		 * ('normal').
+		 * ('yesrmal').
 		 */
 		val = epb & EPB_MASK;
 		if (val == ENERGY_PERF_BIAS_PERFORMANCE) {
 			val = ENERGY_PERF_BIAS_NORMAL;
-			pr_warn_once("ENERGY_PERF_BIAS: Set to 'normal', was 'performance'\n");
+			pr_warn_once("ENERGY_PERF_BIAS: Set to 'yesrmal', was 'performance'\n");
 		}
 	}
 	wrmsrl(MSR_IA32_ENERGY_PERF_BIAS, (epb & ~EPB_MASK) | val);
@@ -105,7 +105,7 @@ static struct syscore_ops intel_epb_syscore_ops = {
 static const char * const energy_perf_strings[] = {
 	"performance",
 	"balance-performance",
-	"normal",
+	"yesrmal",
 	"balance-power",
 	"power"
 };

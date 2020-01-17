@@ -14,14 +14,14 @@
  * conditions are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *
  *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
+ *    copyright yestice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
  *
- *  * Neither the name of Cavium Inc. nor the names of its contributors may be
+ *  * Neither the name of Cavium Inc. yesr the names of its contributors may be
  *    used to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -131,7 +131,7 @@ static int zip_compress(const u8 *src, unsigned int slen,
 	if (!zip_ctx || !src || !dst || !dlen)
 		return -ENOMEM;
 
-	zip = zip_get_device(zip_get_node_id());
+	zip = zip_get_device(zip_get_yesde_id());
 	if (!zip)
 		return -ENODEV;
 
@@ -167,7 +167,7 @@ static int zip_decompress(const u8 *src, unsigned int slen,
 	if (!zip_ctx || !src || !dst || !dlen)
 		return -ENOMEM;
 
-	zip = zip_get_device(zip_get_node_id());
+	zip = zip_get_device(zip_get_yesde_id());
 	if (!zip)
 		return -ENODEV;
 

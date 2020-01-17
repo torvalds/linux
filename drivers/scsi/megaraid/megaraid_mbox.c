@@ -11,7 +11,7 @@
  * Authors:
  * 	Atul Mukker		<Atul.Mukker@lsi.com>
  * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsi.com>
- * 	Manoj Jose		<Manoj.Jose@lsi.com>
+ * 	Mayesj Jose		<Mayesj.Jose@lsi.com>
  * 	Seokmann Ju
  *
  * List of supported controllers
@@ -178,7 +178,7 @@ MODULE_PARM_DESC(cmd_per_lun,
 
 /*
  * Fast driver load option, skip scanning for physical devices during load.
- * This would result in non-disk devices being skipped during driver load
+ * This would result in yesn-disk devices being skipped during driver load
  * time. These can be later added though, using /proc/scsi/scsi
  */
 static unsigned int megaraid_fast_load = 0;
@@ -190,7 +190,7 @@ MODULE_PARM_DESC(fast_load,
 /*
  * mraid_debug level - threshold for amount of information to be displayed by
  * the driver. This level can be changed through modules parameters, ioctl or
- * sysfs/proc interface. By default, print the announcement messages only.
+ * sysfs/proc interface. By default, print the anyesuncement messages only.
  */
 int mraid_debug_level = CL_ANN;
 module_param_named(debug_level, mraid_debug_level, int, 0);
@@ -331,7 +331,7 @@ static struct scsi_host_template megaraid_template_g = {
 	.eh_abort_handler		= megaraid_abort_handler,
 	.eh_host_reset_handler		= megaraid_reset_handler,
 	.change_queue_depth		= scsi_change_queue_depth,
-	.no_write_same			= 1,
+	.yes_write_same			= 1,
 	.sdev_attrs			= megaraid_sdev_attrs,
 	.shost_attrs			= megaraid_shost_attrs,
 };
@@ -348,7 +348,7 @@ megaraid_init(void)
 {
 	int	rval;
 
-	// Announce the driver version
+	// Anyesunce the driver version
 	con_log(CL_ANN, (KERN_INFO "megaraid: %s %s\n", MEGARAID_VERSION,
 		MEGARAID_EXT_VERSION));
 
@@ -367,7 +367,7 @@ megaraid_init(void)
 	rval = pci_register_driver(&megaraid_pci_driver);
 	if (rval < 0) {
 		con_log(CL_ANN, (KERN_WARNING
-			"megaraid: could not register hotplug support.\n"));
+			"megaraid: could yest register hotplug support.\n"));
 	}
 
 	return rval;
@@ -435,7 +435,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 
-	// set up PCI related soft state and other pre-known parameters
+	// set up PCI related soft state and other pre-kyeswn parameters
 	adapter->unique_id	= pdev->bus->number << 8 | pdev->devfn;
 	adapter->irq		= pdev->irq;
 	adapter->pdev		= pdev;
@@ -470,7 +470,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	// Start the mailbox based controller
 	if (megaraid_init_mbox(adapter) != 0) {
 		con_log(CL_ANN, (KERN_WARNING
-			"megaraid: mailbox adapter did not initialize\n"));
+			"megaraid: mailbox adapter did yest initialize\n"));
 
 		goto out_free_adapter;
 	}
@@ -479,7 +479,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (megaraid_cmm_register(adapter) != 0) {
 
 		con_log(CL_ANN, (KERN_WARNING
-		"megaraid: could not register with management module\n"));
+		"megaraid: could yest register with management module\n"));
 
 		goto out_fini_mbox;
 	}
@@ -548,7 +548,7 @@ megaraid_detach_one(struct pci_dev *pdev)
 
 	host = adapter->host;
 
-	// do not allow any more requests from the management module for this
+	// do yest allow any more requests from the management module for this
 	// adapter.
 	// FIXME: How do we account for the request which might still be
 	// pending with us?
@@ -560,7 +560,7 @@ megaraid_detach_one(struct pci_dev *pdev)
 	// Unregister from common management module
 	//
 	// FIXME: this must return success or failure for conditions if there
-	// is a command pending with LLD or not.
+	// is a command pending with LLD or yest.
 	megaraid_cmm_unregister(adapter);
 
 	// finalize the mailbox based controller and release all resources
@@ -580,7 +580,7 @@ megaraid_detach_one(struct pci_dev *pdev)
  * megaraid_mbox_shutdown - PCI shutdown for megaraid HBA
  * @pdev		: generic driver model device
  *
- * Shutdown notification, perform flush cache.
+ * Shutdown yestification, perform flush cache.
  */
 static void
 megaraid_mbox_shutdown(struct pci_dev *pdev)
@@ -594,7 +594,7 @@ megaraid_mbox_shutdown(struct pci_dev *pdev)
 		return;
 	}
 
-	// flush caches now
+	// flush caches yesw
 	con_log(CL_ANN, (KERN_INFO "megaraid: flushing adapter %d...",
 		counter++));
 
@@ -639,7 +639,7 @@ megaraid_io_attach(adapter_t *adapter)
 	host->max_lun		= adapter->max_lun;
 
 
-	// notify mid-layer about the new controller
+	// yestify mid-layer about the new controller
 	if (scsi_add_host(host, &adapter->pdev->dev)) {
 
 		con_log(CL_ANN, (KERN_WARNING
@@ -731,12 +731,12 @@ megaraid_init_mbox(adapter_t *adapter)
 		goto out_free_raid_dev;
 	}
 
-	raid_dev->baseaddr = ioremap_nocache(raid_dev->baseport, 128);
+	raid_dev->baseaddr = ioremap_yescache(raid_dev->baseport, 128);
 
 	if (!raid_dev->baseaddr) {
 
 		con_log(CL_ANN, (KERN_WARNING
-			"megaraid: could not map hba memory\n") );
+			"megaraid: could yest map hba memory\n") );
 
 		goto out_release_regions;
 	}
@@ -784,7 +784,7 @@ megaraid_init_mbox(adapter_t *adapter)
 	/*
 	 * Do we support cluster environment, if we do, what is the initiator
 	 * id.
-	 * NOTE: In a non-cluster aware firmware environment, the LLD should
+	 * NOTE: In a yesn-cluster aware firmware environment, the LLD should
 	 * return 7 as initiator id.
 	 */
 	adapter->ha		= 0;
@@ -1010,7 +1010,7 @@ megaraid_alloc_cmd_packets(adapter_t *adapter)
 	 * CCBs and embedded components of each CCB and point the pointers in
 	 * scb to the allocated components
 	 * NOTE: The code to allocate SCB will be duplicated in all the LLD
-	 * since the calling routine does not yet know the number of available
+	 * since the calling routine does yest yet kyesw the number of available
 	 * commands.
 	 */
 	adapter->kscb_list = kcalloc(MBOX_MAX_SCSI_CMDS, sizeof(scb_t), GFP_KERNEL);
@@ -1047,7 +1047,7 @@ megaraid_alloc_cmd_packets(adapter_t *adapter)
 		// make sure the mailbox is aligned properly
 		if (ccb->mbox_dma_h & 0x0F) {
 			con_log(CL_ANN, (KERN_CRIT
-				"megaraid mbox: not aligned on 16-bytes\n"));
+				"megaraid mbox: yest aligned on 16-bytes\n"));
 
 			goto out_teardown_dma_pools;
 		}
@@ -1066,7 +1066,7 @@ megaraid_alloc_cmd_packets(adapter_t *adapter)
 		scb->ccb		= (caddr_t)ccb;
 		scb->gp			= 0;
 
-		scb->sno		= i;	// command index
+		scb->syes		= i;	// command index
 
 		scb->scp		= NULL;
 		scb->state		= SCB_FREE;
@@ -1265,7 +1265,7 @@ megaraid_mbox_teardown_dma_pools(adapter_t *adapter)
  * @adapter	: controller's soft state
  * @scp		: pointer to the scsi command to be executed
  *
- * Return the scb from the head of the free list. %NULL if there are none
+ * Return the scb from the head of the free list. %NULL if there are yesne
  * available.
  */
 static scb_t *
@@ -1303,7 +1303,7 @@ megaraid_alloc_scb(adapter_t *adapter, struct scsi_cmnd *scp)
  *
  * Return the scb back to the free list of scbs. The caller must 'flush' the
  * SCB before calling us. E.g., performing pci_unamp and/or pci_sync etc.
- * NOTE NOTE: Make sure the scb is not on any list before calling this
+ * NOTE NOTE: Make sure the scb is yest on any list before calling this
  * routine.
  */
 static inline void
@@ -1347,7 +1347,7 @@ megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
 	sgcnt = scsi_dma_map(scp);
 	BUG_ON(sgcnt < 0 || sgcnt > adapter->sglen);
 
-	// no mapping required if no data to be transferred
+	// yes mapping required if yes data to be transferred
 	if (!sgcnt)
 		return 0;
 
@@ -1358,7 +1358,7 @@ megaraid_mbox_mksgl(adapter_t *adapter, scb_t *scb)
 		ccb->sgl64[i].length	= sg_dma_len(sgl);
 	}
 
-	// Return count of SG nodes
+	// Return count of SG yesdes
 	return sgcnt;
 }
 
@@ -1409,7 +1409,7 @@ mbox_post_cmd(adapter_t *adapter, scb_t *scb)
 
 	// Copy this command's mailbox data into "adapter's" mailbox
 	memcpy((caddr_t)mbox64, (caddr_t)ccb->mbox64, 22);
-	mbox->cmdid = scb->sno;
+	mbox->cmdid = scb->syes;
 
 	adapter->outstanding_cmds++;
 
@@ -1447,7 +1447,7 @@ megaraid_queue_command_lck(struct scsi_cmnd *scp, void (*done)(struct scsi_cmnd 
 	/*
 	 * Allocate and build a SCB request
 	 * if_busy flag will be set if megaraid_mbox_build_cmd() command could
-	 * not allocate scb. We will return non-zero status in that case.
+	 * yest allocate scb. We will return yesn-zero status in that case.
 	 * NOTE: scb can be null even though certain commands completed
 	 * successfully, e.g., MODE_SENSE and TEST_UNIT_READY, it would
 	 * return 0 in that case, and we would do the callback right away.
@@ -1469,7 +1469,7 @@ static DEF_SCSI_QCMD(megaraid_queue_command)
  * megaraid_mbox_build_cmd - transform the mid-layer scsi commands
  * @adapter	: controller's soft state
  * @scp		: mid-layer scsi command pointer
- * @busy	: set if request could not be completed because of lack of
+ * @busy	: set if request could yest be completed because of lack of
  *		resources
  *
  * Transform the mid-layer scsi command to megaraid firmware lingua.
@@ -1507,7 +1507,7 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 		case TEST_UNIT_READY:
 			/*
 			 * Do we support clustering and is the support enabled
-			 * If no, return success always
+			 * If yes, return success always
 			 */
 			if (!adapter->ha) {
 				scp->result = (DID_OK << 16);
@@ -1558,13 +1558,13 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 		case INQUIRY:
 			/*
 			 * Display the channel scan for logical drives
-			 * Do not display scan for a channel if already done.
+			 * Do yest display scan for a channel if already done.
 			 */
 			if (!(rdev->last_disp & (1L << SCP2CHANNEL(scp)))) {
 
 				con_log(CL_ANN, (KERN_INFO
 					"scsi[%d]: scanning scsi channel %d",
-					adapter->host->host_no,
+					adapter->host->host_yes,
 					SCP2CHANNEL(scp)));
 
 				con_log(CL_ANN, (
@@ -1585,7 +1585,7 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 
 		case READ_CAPACITY:
 			/*
-			 * Do not allow LUN > 0 for logical drives and
+			 * Do yest allow LUN > 0 for logical drives and
 			 * requests for more than 40 logical drives
 			 */
 			if (SCP2LUN(scp)) {
@@ -1765,7 +1765,7 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 	}
 	else { // Passthru device commands
 
-		// Do not allow access to target id > 15 or LUN > 7
+		// Do yest allow access to target id > 15 or LUN > 7
 		if (target > 15 || SCP2LUN(scp) > 7) {
 			scp->result = (DID_BAD_TARGET << 16);
 			return NULL;
@@ -1779,7 +1779,7 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 
 			con_log(CL_ANN, (KERN_INFO
 			"megaraid[%d]: physical device scan re-enabled\n",
-				adapter->host->host_no));
+				adapter->host->host_yes));
 			rdev->fast_load = 0;
 		}
 
@@ -1792,11 +1792,11 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 
 			con_log(CL_ANN, (KERN_INFO
 				"scsi[%d]: %s scsi channel %d [Phy %d]",
-				adapter->host->host_no, ss, SCP2CHANNEL(scp),
+				adapter->host->host_yes, ss, SCP2CHANNEL(scp),
 				channel));
 
 			con_log(CL_ANN, (
-				" for non-raid devices\n"));
+				" for yesn-raid devices\n"));
 
 			rdev->last_disp |= (1L << SCP2CHANNEL(scp));
 		}
@@ -1852,13 +1852,13 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
  * @adapter	: controller's soft state
  * @scb_q	: SCB to be queued in the pending list
  *
- * Scan the pending list for commands which are not yet issued and try to
+ * Scan the pending list for commands which are yest yet issued and try to
  * post to the controller. The SCB can be a null pointer, which would indicate
- * no SCB to be queue, just try to execute the ones in the pending list.
+ * yes SCB to be queue, just try to execute the ones in the pending list.
  *
- * NOTE: We do not actually traverse the pending list. The SCBs are plucked
+ * NOTE: We do yest actually traverse the pending list. The SCBs are plucked
  * out from the head of the pending list. If it is successfully issued, the
- * next SCB is at the head now.
+ * next SCB is at the head yesw.
  */
 static void
 megaraid_mbox_runpendq(adapter_t *adapter, scb_t *scb_q)
@@ -1873,7 +1873,7 @@ megaraid_mbox_runpendq(adapter_t *adapter, scb_t *scb_q)
 		list_add_tail(&scb_q->list, &adapter->pend_list);
 	}
 
-	// if the adapter in not in quiescent mode, post the commands to FW
+	// if the adapter in yest in quiescent mode, post the commands to FW
 	if (adapter->quiescent) {
 		spin_unlock_irqrestore(PENDING_LIST_LOCK(adapter), flags);
 		return;
@@ -2024,7 +2024,7 @@ megaraid_mbox_prepare_epthru(adapter_t *adapter, scb_t *scb,
  * megaraid_ack_sequence - interrupt ack sequence for memory mapped HBAs
  * @adapter	: controller's soft state
  *
- * Interrupt acknowledgement sequence for memory mapped HBAs. Find out the
+ * Interrupt ackyeswledgement sequence for memory mapped HBAs. Find out the
  * completed command and put them on the completed list for later processing.
  *
  * Returns:	1 if the interrupt is valid, 0 otherwise
@@ -2110,7 +2110,7 @@ megaraid_ack_sequence(adapter_t *adapter)
 			list_add_tail(&scb->list, &clist);
 		}
 
-		// Acknowledge interrupt
+		// Ackyeswledge interrupt
 		WRINDOOR(raid_dev, 0x02);
 
 	} while(1);
@@ -2164,7 +2164,7 @@ megaraid_isr(int irq, void *devp)
  * @devp	: pointer to HBA soft state
  *
  * Pick up the commands from the completed list and send back to the owners.
- * This is a reentrant function and does not assume any locks are held while
+ * This is a reentrant function and does yest assume any locks are held while
  * it is being called.
  */
 static void
@@ -2217,13 +2217,13 @@ megaraid_mbox_dpc(unsigned long devp)
 		if (scb->state != SCB_ISSUED) {
 			con_log(CL_ANN, (KERN_CRIT
 			"megaraid critical err: invalid command %d:%d:%p\n",
-				scb->sno, scb->state, scp));
+				scb->syes, scb->state, scp));
 			BUG();
 			continue;	// Must never happen!
 		}
 
 		// check for the management command and complete it right away
-		if (scb->sno >= MBOX_MAX_SCSI_CMDS) {
+		if (scb->syes >= MBOX_MAX_SCSI_CMDS) {
 			scb->state	= SCB_FREE;
 			scb->status	= status;
 
@@ -2242,11 +2242,11 @@ megaraid_mbox_dpc(unsigned long devp)
 		if (scb->state & SCB_ABORT) {
 			con_log(CL_ANN, (KERN_NOTICE
 			"megaraid: aborted cmd [%x] completed\n",
-				scb->sno));
+				scb->syes));
 		}
 
 		/*
-		 * If the inquiry came of a disk drive which is not part of
+		 * If the inquiry came of a disk drive which is yest part of
 		 * any RAID array, expose it to the kernel. For this to be
 		 * enabled, user must set the "megaraid_expose_unconf_disks"
 		 * flag to 1 by specifying it on module parameter list.
@@ -2329,7 +2329,7 @@ megaraid_mbox_dpc(unsigned long devp)
 		default:
 
 			/*
-			 * If TEST_UNIT_READY fails, we know RESERVATION_STATUS
+			 * If TEST_UNIT_READY fails, we kyesw RESERVATION_STATUS
 			 * failed
 			 */
 			if (scp->cmnd[0] == TEST_UNIT_READY) {
@@ -2403,12 +2403,12 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
 	// If FW has stopped responding, simply return failure
 	if (raid_dev->hw_error) {
 		con_log(CL_ANN, (KERN_NOTICE
-			"megaraid: hw error, not aborting\n"));
+			"megaraid: hw error, yest aborting\n"));
 		return FAILED;
 	}
 
 	// There might a race here, where the command was completed by the
-	// firmware and now it is on the completed list. Before we could
+	// firmware and yesw it is on the completed list. Before we could
 	// complete the command to the kernel in dpc, the abort came.
 	// Find out if this is the case to avoid the race.
 	scb = NULL;
@@ -2421,7 +2421,7 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
 
 			con_log(CL_ANN, (KERN_WARNING
 			"megaraid: %d[%d:%d], abort from completed list\n",
-				scb->sno, scb->dev_channel, scb->dev_target));
+				scb->syes, scb->dev_channel, scb->dev_target));
 
 			scp->result = (DID_ABORT << 16);
 			scp->scsi_done(scp);
@@ -2469,7 +2469,7 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
 
 	// Check do we even own this command, in which case this would be
 	// owned by the firmware. The only way to locate the FW scb is to
-	// traverse through the list of all SCB, since driver does not
+	// traverse through the list of all SCB, since driver does yest
 	// maintain these SCBs on any list
 	found = 0;
 	spin_lock_irq(&adapter->lock);
@@ -2483,26 +2483,26 @@ megaraid_abort_handler(struct scsi_cmnd *scp)
 			if (!(scb->state & SCB_ISSUED)) {
 				con_log(CL_ANN, (KERN_WARNING
 				"megaraid abort: %d[%d:%d], invalid state\n",
-				scb->sno, scb->dev_channel, scb->dev_target));
+				scb->syes, scb->dev_channel, scb->dev_target));
 				BUG();
 			}
 			else {
 				con_log(CL_ANN, (KERN_WARNING
 				"megaraid abort: %d[%d:%d], fw owner\n",
-				scb->sno, scb->dev_channel, scb->dev_target));
+				scb->syes, scb->dev_channel, scb->dev_target));
 			}
 		}
 	}
 	spin_unlock_irq(&adapter->lock);
 
 	if (!found) {
-		con_log(CL_ANN, (KERN_WARNING "megaraid abort: do now own\n"));
+		con_log(CL_ANN, (KERN_WARNING "megaraid abort: do yesw own\n"));
 
 		// FIXME: Should there be a callback for this command?
 		return SUCCESS;
 	}
 
-	// We cannot actually abort a command owned by firmware, return
+	// We canyest actually abort a command owned by firmware, return
 	// failure and wait for reset. In host reset handler, we will find out
 	// if the HBA is still live
 	return FAILED;
@@ -2535,10 +2535,10 @@ megaraid_reset_handler(struct scsi_cmnd *scp)
 	adapter		= SCP2ADAPTER(scp);
 	raid_dev	= ADAP2RAIDDEV(adapter);
 
-	// return failure if adapter is not responding
+	// return failure if adapter is yest responding
 	if (raid_dev->hw_error) {
 		con_log(CL_ANN, (KERN_NOTICE
-			"megaraid: hw error, cannot reset\n"));
+			"megaraid: hw error, canyest reset\n"));
 		return FAILED;
 	}
 
@@ -2551,10 +2551,10 @@ megaraid_reset_handler(struct scsi_cmnd *scp)
 	list_for_each_entry_safe(scb, tmp, &adapter->pend_list, list) {
 		list_del_init(&scb->list);	// from pending list
 
-		if (scb->sno >= MBOX_MAX_SCSI_CMDS) {
+		if (scb->syes >= MBOX_MAX_SCSI_CMDS) {
 			con_log(CL_ANN, (KERN_WARNING
 			"megaraid: IOCTL packet with %d[%d:%d] being reset\n",
-			scb->sno, scb->dev_channel, scb->dev_target));
+			scb->syes, scb->dev_channel, scb->dev_target));
 
 			scb->status = -1;
 
@@ -2566,11 +2566,11 @@ megaraid_reset_handler(struct scsi_cmnd *scp)
 			if (scb->scp == scp) {	// Found command
 				con_log(CL_ANN, (KERN_WARNING
 					"megaraid: %d[%d:%d], reset from pending list\n",
-					scb->sno, scb->dev_channel, scb->dev_target));
+					scb->syes, scb->dev_channel, scb->dev_target));
 			} else {
 				con_log(CL_ANN, (KERN_WARNING
 				"megaraid: IO packet with %d[%d:%d] being reset\n",
-				scb->sno, scb->dev_channel, scb->dev_target));
+				scb->syes, scb->dev_channel, scb->dev_target));
 			}
 
 			scb->scp->result = (DID_RESET << 16);
@@ -2602,7 +2602,7 @@ megaraid_reset_handler(struct scsi_cmnd *scp)
 				(MBOX_RESET_WAIT + MBOX_RESET_EXT_WAIT) - i));
 		}
 
-		// bailout if no recovery happened in reset time
+		// bailout if yes recovery happened in reset time
 		if (adapter->outstanding_cmds == 0) {
 			break;
 		}
@@ -2666,7 +2666,7 @@ megaraid_reset_handler(struct scsi_cmnd *scp)
  * @adapter	: controller's soft state
  * @raw_mbox	: the mailbox
  *
- * Issue a scb in synchronous and non-interrupt mode for mailbox based
+ * Issue a scb in synchroyesus and yesn-interrupt mode for mailbox based
  * controllers.
  */
 static int
@@ -2699,10 +2699,10 @@ mbox_post_sync_cmd(adapter_t *adapter, uint8_t raw_mbox[])
 	wmb();
 	WRINDOOR(raid_dev, raid_dev->mbox_dma | 0x1);
 
-	// wait for maximum 1 second for status to post. If the status is not
+	// wait for maximum 1 second for status to post. If the status is yest
 	// available within 1 second, assume FW is initializing and wait
 	// for an extended amount of time
-	if (mbox->numstatus == 0xFF) {	// status not yet available
+	if (mbox->numstatus == 0xFF) {	// status yest yet available
 		udelay(25);
 
 		for (i = 0; mbox->numstatus == 0xFF && i < 1000; i++) {
@@ -2726,7 +2726,7 @@ mbox_post_sync_cmd(adapter_t *adapter, uint8_t raw_mbox[])
 			if (i == MBOX_RESET_WAIT) {
 
 				con_log(CL_ANN, (
-				"\nmegaraid mailbox: status not available\n"));
+				"\nmegaraid mailbox: status yest available\n"));
 
 				return -1;
 			}
@@ -2745,7 +2745,7 @@ mbox_post_sync_cmd(adapter_t *adapter, uint8_t raw_mbox[])
 
 		if (i == 1000) {
 			con_log(CL_ANN, (KERN_WARNING
-			"megaraid mailbox: could not get poll semaphore\n"));
+			"megaraid mailbox: could yest get poll semaphore\n"));
 			return -1;
 		}
 	}
@@ -2753,7 +2753,7 @@ mbox_post_sync_cmd(adapter_t *adapter, uint8_t raw_mbox[])
 	WRINDOOR(raid_dev, raid_dev->mbox_dma | 0x2);
 	wmb();
 
-	// wait for maximum 1 second for acknowledgement
+	// wait for maximum 1 second for ackyeswledgement
 	if (RDINDOOR(raid_dev) & 0x2) {
 		udelay(25);
 
@@ -2764,7 +2764,7 @@ mbox_post_sync_cmd(adapter_t *adapter, uint8_t raw_mbox[])
 
 		if (i == 1000) {
 			con_log(CL_ANN, (KERN_WARNING
-				"megaraid mailbox: could not acknowledge\n"));
+				"megaraid mailbox: could yest ackyeswledge\n"));
 			return -1;
 		}
 	}
@@ -2795,8 +2795,8 @@ blocked_mailbox:
  * @adapter	: controller's soft state
  * @raw_mbox	: the mailbox
  *
- * Issue a scb in synchronous and non-interrupt mode for mailbox based
- * controllers. This is a faster version of the synchronous command and
+ * Issue a scb in synchroyesus and yesn-interrupt mode for mailbox based
+ * controllers. This is a faster version of the synchroyesus command and
  * therefore can be called in interrupt-context as well.
  */
 static int
@@ -2924,7 +2924,7 @@ megaraid_mbox_product_info(adapter_t *adapter)
 	/*
 	 * Collect information about state of each physical drive
 	 * attached to the controller. We will expose all the disks
-	 * which are not part of RAID
+	 * which are yest part of RAID
 	 */
 	mraid_inq3 = (mraid_inquiry3_t *)adapter->ibuf;
 	for (i = 0; i < MBOX_MAX_PHYSICAL_DRIVES; i++) {
@@ -2959,10 +2959,10 @@ megaraid_mbox_product_info(adapter_t *adapter)
 
 	/*
 	 * we will export all the logical drives on a single channel.
-	 * Add 1 since inquires do not come for inititor ID
+	 * Add 1 since inquires do yest come for inititor ID
 	 */
 	adapter->max_target	= MAX_LOGICAL_DRIVES_40LD + 1;
-	adapter->max_lun	= 8;	// up to 8 LUNs for non-disk devices
+	adapter->max_lun	= 8;	// up to 8 LUNs for yesn-disk devices
 
 	/*
 	 * These are the maximum outstanding commands for the scsi-layer
@@ -3286,7 +3286,7 @@ megaraid_mbox_fire_sync_cmd(adapter_t *adapter)
 		}
 	}
 	if (mbox->numstatus == 1)
-		status = 1; /*cmd not supported*/
+		status = 1; /*cmd yest supported*/
 
 	/* Check for interrupt line */
 	dword = RDOUTDOOR(raid_dev);
@@ -3327,7 +3327,7 @@ megaraid_mbox_display_scb(adapter_t *adapter, scb_t *scb)
 
 	con_log(level, (KERN_NOTICE
 		"megaraid mailbox: status:%#x cmd:%#x id:%#x ", scb->status,
-		mbox->cmd, scb->sno));
+		mbox->cmd, scb->syes));
 
 	con_log(level, ("sec:%#x lba:%#x addr:%#x ld:%d sg:%d\n",
 		mbox->numsectors, mbox->lba, mbox->xferaddr, mbox->logdrv,
@@ -3446,7 +3446,7 @@ megaraid_cmm_register(adapter_t *adapter)
 
 		// COMMAND ID 0 - (MBOX_MAX_SCSI_CMDS-1) ARE RESERVED FOR
 		// COMMANDS COMING FROM IO SUBSYSTEM (MID-LAYER)
-		scb->sno		= i + MBOX_MAX_SCSI_CMDS;
+		scb->syes		= i + MBOX_MAX_SCSI_CMDS;
 
 		scb->scp		= NULL;
 		scb->state		= SCB_FREE;
@@ -3470,7 +3470,7 @@ megaraid_cmm_register(adapter_t *adapter)
 	if ((rval = mraid_mm_register_adp(&adp)) != 0) {
 
 		con_log(CL_ANN, (KERN_WARNING
-			"megaraid mbox: did not register with CMM\n"));
+			"megaraid mbox: did yest register with CMM\n"));
 
 		kfree(adapter->uscb_list);
 	}
@@ -3520,7 +3520,7 @@ megaraid_mbox_mm_handler(unsigned long drvr_data, uioc_t *kioc, uint32_t action)
 
 	adapter = (adapter_t *)drvr_data;
 
-	// make sure this adapter is not being detached right now.
+	// make sure this adapter is yest being detached right yesw.
 	if (atomic_read(&adapter->being_detached)) {
 		con_log(CL_ANN, (KERN_WARNING
 			"megaraid: reject management request, detaching\n"));
@@ -3548,7 +3548,7 @@ megaraid_mbox_mm_handler(unsigned long drvr_data, uioc_t *kioc, uint32_t action)
 		return (-EINVAL);
 	}
 
-	return 0;	// not reached
+	return 0;	// yest reached
 }
 
 /**
@@ -3600,7 +3600,7 @@ megaraid_mbox_mm_command(adapter_t *adapter, uioc_t *kioc)
 
 	/*
 	 * If it is a logdrv random delete operation, we have to wait till
-	 * there are no outstanding cmds at the fw and then issue it directly
+	 * there are yes outstanding cmds at the fw and then issue it directly
 	 */
 	if (raw_mbox[0] == FC_DEL_LOGDRV && raw_mbox[2] == OP_DEL_LOGDRV) {
 
@@ -3659,7 +3659,7 @@ wait_till_fw_empty(adapter_t *adapter)
 	spin_unlock_irqrestore(&adapter->lock, flags);
 
 	/*
-	 * Wait till there are no more cmds outstanding at FW. Try for at most
+	 * Wait till there are yes more cmds outstanding at FW. Try for at most
 	 * 60 seconds
 	 */
 	for (i = 0; i < 60 && adapter->outstanding_cmds; i++) {
@@ -3741,7 +3741,7 @@ gather_hbainfo(adapter_t *adapter, mraid_hba_info_t *hinfo)
 	hinfo->baseport		= ADAP2RAIDDEV(adapter)->baseport;
 
 	hinfo->unique_id	= (hinfo->pci_bus << 8) | adapter->pdev->devfn;
-	hinfo->host_no		= adapter->host->host_no;
+	hinfo->host_yes		= adapter->host->host_yes;
 
 	return 0;
 }
@@ -3865,10 +3865,10 @@ megaraid_sysfs_get_ldmap_timeout(struct timer_list *t)
  * attributes, go get the current logical drive mapping table from the
  * firmware. We use the management API's to issue commands to the controller.
  *
- * NOTE: The commands issuance functionality is not generalized and
+ * NOTE: The commands issuance functionality is yest generalized and
  * implemented in context of "get ld map" command only. If required, the
  * command issuance logical can be trivially pulled out and implemented as a
- * standalone library. For now, this should suffice since there is no other
+ * standalone library. For yesw, this should suffice since there is yes other
  * user of this interface.
  *
  * Return 0 on success.
@@ -3916,7 +3916,7 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 	raw_mbox[2] = OP_GET_LDID_MAP;
 
 	/*
-	 * Setup a timer to recover from a non-responding controller
+	 * Setup a timer to recover from a yesn-responding controller
 	 */
 	timeout.uioc = uioc;
 	timer_setup_on_stack(&timeout.timer,
@@ -3957,7 +3957,7 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
 	}
 	else {
 		con_log(CL_ANN, (KERN_NOTICE
-			"megaraid: could not issue ldmap command:%x\n", rval));
+			"megaraid: could yest issue ldmap command:%x\n", rval));
 	}
 
 
@@ -3977,7 +3977,7 @@ megaraid_sysfs_get_ldmap(adapter_t *adapter)
  *
  * Display the handle used by the applications while executing management
  * tasks on the adapter. We invoke a management module API to get the adapter
- * handle, since we do not interface with applications directly.
+ * handle, since we do yest interface with applications directly.
  */
 static ssize_t
 megaraid_sysfs_show_app_hndl(struct device *dev, struct device_attribute *attr,

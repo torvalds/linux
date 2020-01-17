@@ -5,9 +5,9 @@
  *
  * Copyright (C) 1995, 96, 97, 98, 99, 2000, 01 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techyeslogies, Inc.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/irqflags.h>
@@ -25,7 +25,7 @@
 	.align	5
 NESTED(handle_sysn32, PT_SIZE, sp)
 #ifndef CONFIG_MIPS32_O32
-	.set	noat
+	.set	yesat
 	SAVE_SOME
 	TRACE_IRQS_ON_RELOAD
 	STI
@@ -40,7 +40,7 @@ NESTED(handle_sysn32, PT_SIZE, sp)
 	daddiu	t1, 4			# skip to next instruction
 	sd	t1, PT_EPC(sp)
 #endif
-	beqz	t0, not_n32_scall
+	beqz	t0, yest_n32_scall
 
 	sd	a3, PT_R26(sp)		# save a3 for syscall restarting
 
@@ -88,14 +88,14 @@ n32_syscall_trace_entry:
 
 	dsubu	t2, v0, __NR_N32_Linux	# check (new) syscall number
 	sltiu   t0, t2, __NR_N32_Linux_syscalls
-	beqz	t0, not_n32_scall
+	beqz	t0, yest_n32_scall
 
 	j	syscall_common
 
 1:	j	syscall_exit
 
-not_n32_scall:
-	/* This is not an n32 compatibility syscall, pass it on to
+yest_n32_scall:
+	/* This is yest an n32 compatibility syscall, pass it on to
 	   the n64 syscall handlers.  */
 	j	handle_sys64
 

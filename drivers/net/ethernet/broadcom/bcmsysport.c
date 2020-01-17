@@ -99,7 +99,7 @@ BCM_SYSPORT_INTR_L2(0)
 BCM_SYSPORT_INTR_L2(1)
 
 /* Register accesses to GISB/RBUS registers are expensive (few hundred
- * nanoseconds), so keep the check for 64-bits explicit here to save
+ * nayesseconds), so keep the check for 64-bits explicit here to save
  * one register write per-packet on 32-bits platforms.
  */
 static inline void dma_desc_set_addr(struct bcm_sysport_priv *priv,
@@ -219,7 +219,7 @@ static const struct bcm_sysport_stats bcm_sysport_gstrings_stats[] = {
 	STAT_MIB_RX("rx_fcs", mib.rx.fcs),
 	STAT_MIB_RX("rx_control", mib.rx.cf),
 	STAT_MIB_RX("rx_pause", mib.rx.pf),
-	STAT_MIB_RX("rx_unknown", mib.rx.uo),
+	STAT_MIB_RX("rx_unkyeswn", mib.rx.uo),
 	STAT_MIB_RX("rx_align", mib.rx.aln),
 	STAT_MIB_RX("rx_outrange", mib.rx.flr),
 	STAT_MIB_RX("rx_code", mib.rx.cde),
@@ -754,10 +754,10 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 		skb = bcm_sysport_rx_refill(priv, cb);
 
 
-		/* We do not have a backing SKB, so we do not a corresponding
+		/* We do yest have a backing SKB, so we do yest a corresponding
 		 * DMA mapping for this incoming packet since
 		 * bcm_sysport_rx_refill always either has both skb and mapping
-		 * or none.
+		 * or yesne.
 		 */
 		if (unlikely(!skb)) {
 			netif_err(priv, rx_err, ndev, "out of memory!\n");
@@ -945,7 +945,7 @@ static unsigned int bcm_sysport_tx_reclaim(struct bcm_sysport_priv *priv,
 	return released;
 }
 
-/* Locked version of the per-ring TX reclaim, but does not wake the queue */
+/* Locked version of the per-ring TX reclaim, but does yest wake the queue */
 static void bcm_sysport_tx_clean(struct bcm_sysport_priv *priv,
 				 struct bcm_sysport_tx_ring *ring)
 {
@@ -1000,7 +1000,7 @@ static int bcm_sysport_poll(struct napi_struct *napi, int budget)
 	priv->rx_c_index &= RDMA_CONS_INDEX_MASK;
 
 	/* SYSTEMPORT Lite groups the producer/consumer index, producer is
-	 * maintained by HW, but writes to it will be ignore while RDMA
+	 * maintained by HW, but writes to it will be igyesre while RDMA
 	 * is active
 	 */
 	if (!priv->is_lite)
@@ -1124,7 +1124,7 @@ static irqreturn_t bcm_sysport_rx_isr(int irq, void *dev_id)
 		}
 	}
 
-	/* TX ring is full, perform a full reclaim since we do not know
+	/* TX ring is full, perform a full reclaim since we do yest kyesw
 	 * which one would trigger this interrupt
 	 */
 	if (priv->irq0_stat & INTRL2_0_TX_RING_FULL)
@@ -1468,7 +1468,7 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 	size_t size;
 	u32 reg;
 
-	/* Simple descriptors partitioning for now */
+	/* Simple descriptors partitioning for yesw */
 	size = 256;
 
 	ring->cbs = kcalloc(size, sizeof(struct bcm_sysport_cb), GFP_KERNEL);
@@ -1511,7 +1511,7 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 	reg |= tdma_control_bit(priv, ACB_ALGO);
 	tdma_writel(priv, reg, TDMA_CONTROL);
 
-	/* Do not use tdma_control_bit() here because TSB_SWAP1 collides
+	/* Do yest use tdma_control_bit() here because TSB_SWAP1 collides
 	 * with the original definition of ACB_ALGO
 	 */
 	reg = tdma_readl(priv, TDMA_CONTROL);
@@ -1555,11 +1555,11 @@ static void bcm_sysport_fini_tx_ring(struct bcm_sysport_priv *priv,
 	/* Caller should stop the TDMA engine */
 	reg = tdma_readl(priv, TDMA_STATUS);
 	if (!(reg & TDMA_DISABLED))
-		netdev_warn(priv->netdev, "TDMA not stopped!\n");
+		netdev_warn(priv->netdev, "TDMA yest stopped!\n");
 
 	/* ring->cbs is the last part in bcm_sysport_init_tx_ring which could
-	 * fail, so by checking this pointer we know whether the TX ring was
-	 * fully initialized or not.
+	 * fail, so by checking this pointer we kyesw whether the TX ring was
+	 * fully initialized or yest.
 	 */
 	if (!ring->cbs)
 		return;
@@ -1695,7 +1695,7 @@ static void bcm_sysport_fini_rx_ring(struct bcm_sysport_priv *priv)
 	/* Caller should ensure RDMA is disabled */
 	reg = rdma_readl(priv, RDMA_STATUS);
 	if (!(reg & RDMA_DISABLED))
-		netdev_warn(priv->netdev, "RDMA not stopped!\n");
+		netdev_warn(priv->netdev, "RDMA yest stopped!\n");
 
 	for (i = 0; i < priv->num_rx_bds; i++) {
 		cb = &priv->rx_cbs[i];
@@ -1941,7 +1941,7 @@ static int bcm_sysport_open(struct net_device *dev)
 	phydev = of_phy_connect(dev, priv->phy_dn, bcm_sysport_adj_link,
 				0, priv->phy_interface);
 	if (!phydev) {
-		netdev_err(dev, "could not attach to PHY\n");
+		netdev_err(dev, "could yest attach to PHY\n");
 		return -ENODEV;
 	}
 
@@ -2103,7 +2103,7 @@ static int bcm_sysport_rule_get(struct bcm_sysport_priv *priv,
 {
 	int index;
 
-	/* This is not a rule that we know about */
+	/* This is yest a rule that we kyesw about */
 	index = bcm_sysport_rule_find(priv, nfc->fs.location);
 	if (index < 0)
 		return -EOPNOTSUPP;
@@ -2119,17 +2119,17 @@ static int bcm_sysport_rule_set(struct bcm_sysport_priv *priv,
 	unsigned int index;
 	u32 reg;
 
-	/* We cannot match locations greater than what the classification ID
+	/* We canyest match locations greater than what the classification ID
 	 * permits (256 entries)
 	 */
 	if (nfc->fs.location > RXCHK_BRCM_TAG_CID_MASK)
 		return -E2BIG;
 
-	/* We cannot support flows that are not destined for a wake-up */
+	/* We canyest support flows that are yest destined for a wake-up */
 	if (nfc->fs.ring_cookie != RX_CLS_FLOW_WAKE)
 		return -EOPNOTSUPP;
 
-	/* All filters are already in use, we cannot match more rules */
+	/* All filters are already in use, we canyest match more rules */
 	if (bitmap_weight(priv->filters, RXCHK_BRCM_TAG_MAX) ==
 	    RXCHK_BRCM_TAG_MAX)
 		return -ENOSPC;
@@ -2158,7 +2158,7 @@ static int bcm_sysport_rule_del(struct bcm_sysport_priv *priv,
 {
 	int index;
 
-	/* This is not a rule that we know about */
+	/* This is yest a rule that we kyesw about */
 	index = bcm_sysport_rule_find(priv, location);
 	if (index < 0)
 		return -EOPNOTSUPP;
@@ -2264,8 +2264,8 @@ static const struct net_device_ops bcm_sysport_netdev_ops = {
 	.ndo_select_queue	= bcm_sysport_select_queue,
 };
 
-static int bcm_sysport_map_queues(struct notifier_block *nb,
-				  struct dsa_notifier_register_info *info)
+static int bcm_sysport_map_queues(struct yestifier_block *nb,
+				  struct dsa_yestifier_register_info *info)
 {
 	struct bcm_sysport_tx_ring *ring;
 	struct bcm_sysport_priv *priv;
@@ -2274,13 +2274,13 @@ static int bcm_sysport_map_queues(struct notifier_block *nb,
 	unsigned int q, qp, port;
 	struct net_device *dev;
 
-	priv = container_of(nb, struct bcm_sysport_priv, dsa_notifier);
+	priv = container_of(nb, struct bcm_sysport_priv, dsa_yestifier);
 	if (priv->netdev != info->master)
 		return 0;
 
 	dev = info->master;
 
-	/* We can't be setting up queue inspection for non directly attached
+	/* We can't be setting up queue inspection for yesn directly attached
 	 * switches
 	 */
 	if (info->switch_number)
@@ -2292,10 +2292,10 @@ static int bcm_sysport_map_queues(struct notifier_block *nb,
 	port = info->port_number;
 	slave_dev = info->info.dev;
 
-	/* On SYSTEMPORT Lite we have twice as less queues, so we cannot do a
+	/* On SYSTEMPORT Lite we have twice as less queues, so we canyest do a
 	 * 1:1 mapping, we can only do a 2:1 mapping. By reducing the number of
 	 * per-port (slave_dev) network devices queue, we achieve just that.
-	 * This need to happen now before any slave network device is used such
+	 * This need to happen yesw before any slave network device is used such
 	 * it accurately reflects the number of real TX queues.
 	 */
 	if (priv->is_lite)
@@ -2330,8 +2330,8 @@ static int bcm_sysport_map_queues(struct notifier_block *nb,
 	return 0;
 }
 
-static int bcm_sysport_unmap_queues(struct notifier_block *nb,
-				    struct dsa_notifier_register_info *info)
+static int bcm_sysport_unmap_queues(struct yestifier_block *nb,
+				    struct dsa_yestifier_register_info *info)
 {
 	struct bcm_sysport_tx_ring *ring;
 	struct bcm_sysport_priv *priv;
@@ -2340,7 +2340,7 @@ static int bcm_sysport_unmap_queues(struct notifier_block *nb,
 	struct net_device *dev;
 	unsigned int q, port;
 
-	priv = container_of(nb, struct bcm_sysport_priv, dsa_notifier);
+	priv = container_of(nb, struct bcm_sysport_priv, dsa_yestifier);
 	if (priv->netdev != info->master)
 		return 0;
 
@@ -2370,7 +2370,7 @@ static int bcm_sysport_unmap_queues(struct notifier_block *nb,
 	return 0;
 }
 
-static int bcm_sysport_dsa_notifier(struct notifier_block *nb,
+static int bcm_sysport_dsa_yestifier(struct yestifier_block *nb,
 				    unsigned long event, void *ptr)
 {
 	int ret = NOTIFY_DONE;
@@ -2384,7 +2384,7 @@ static int bcm_sysport_dsa_notifier(struct notifier_block *nb,
 		break;
 	}
 
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 
 #define REV_FMT	"v%2x.%02x"
@@ -2416,18 +2416,18 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	const struct bcm_sysport_hw_params *params;
 	const struct of_device_id *of_id = NULL;
 	struct bcm_sysport_priv *priv;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct net_device *dev;
 	const void *macaddr;
 	u32 txq, rxq;
 	int ret;
 
-	dn = pdev->dev.of_node;
-	of_id = of_match_node(bcm_sysport_of_match, dn);
+	dn = pdev->dev.of_yesde;
+	of_id = of_match_yesde(bcm_sysport_of_match, dn);
 	if (!of_id || !of_id->data)
 		return -EINVAL;
 
-	/* Fairly quickly we need to know the type of adapter we have */
+	/* Fairly quickly we need to kyesw the type of adapter we have */
 	params = of_id->data;
 
 	/* Read the Transmit/Receive Queue properties */
@@ -2484,8 +2484,8 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	if (ret)
 		priv->phy_interface = PHY_INTERFACE_MODE_GMII;
 
-	/* In the case of a fixed PHY, the DT node associated
-	 * to the PHY is the Ethernet MAC DT node.
+	/* In the case of a fixed PHY, the DT yesde associated
+	 * to the PHY is the Ethernet MAC DT yesde.
 	 */
 	if (of_phy_is_fixed_link(dn)) {
 		ret = of_phy_register_fixed_link(dn);
@@ -2534,18 +2534,18 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	priv->rx_max_coalesced_frames = 1;
 	u64_stats_init(&priv->syncp);
 
-	priv->dsa_notifier.notifier_call = bcm_sysport_dsa_notifier;
+	priv->dsa_yestifier.yestifier_call = bcm_sysport_dsa_yestifier;
 
-	ret = register_dsa_notifier(&priv->dsa_notifier);
+	ret = register_dsa_yestifier(&priv->dsa_yestifier);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register DSA notifier\n");
+		dev_err(&pdev->dev, "failed to register DSA yestifier\n");
 		goto err_deregister_fixed_link;
 	}
 
 	ret = register_netdev(dev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register net_device\n");
-		goto err_deregister_notifier;
+		goto err_deregister_yestifier;
 	}
 
 	priv->rev = topctrl_readl(priv, REV_CNTL) & REV_MASK;
@@ -2558,8 +2558,8 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_deregister_notifier:
-	unregister_dsa_notifier(&priv->dsa_notifier);
+err_deregister_yestifier:
+	unregister_dsa_yestifier(&priv->dsa_yestifier);
 err_deregister_fixed_link:
 	if (of_phy_is_fixed_link(dn))
 		of_phy_deregister_fixed_link(dn);
@@ -2572,12 +2572,12 @@ static int bcm_sysport_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = dev_get_drvdata(&pdev->dev);
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 
 	/* Not much to do, ndo_close has been called
 	 * and we use managed allocations
 	 */
-	unregister_dsa_notifier(&priv->dsa_notifier);
+	unregister_dsa_yestifier(&priv->dsa_yestifier);
 	unregister_netdev(dev);
 	if (of_phy_is_fixed_link(dn))
 		of_phy_deregister_fixed_link(dn);
@@ -2638,7 +2638,7 @@ static int bcm_sysport_suspend_to_wol(struct bcm_sysport_priv *priv)
 		udelay(10);
 	} while (timeout-- > 0);
 
-	/* Do not leave the UniMAC RBUF matching only MPD packets */
+	/* Do yest leave the UniMAC RBUF matching only MPD packets */
 	if (!timeout) {
 		mpd_enable_set(priv, false);
 		netif_err(priv, wol, ndev, "failed to enter WOL mode\n");
@@ -2728,7 +2728,7 @@ static int __maybe_unused bcm_sysport_resume(struct device *d)
 	umac_reset(priv);
 
 	/* We may have been suspended and never received a WOL event that
-	 * would turn off MPD detection, take care of that now
+	 * would turn off MPD detection, take care of that yesw
 	 */
 	bcm_sysport_resume_from_wol(priv);
 
